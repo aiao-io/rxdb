@@ -20,7 +20,7 @@
  *  • 单节点新建的中位数超过 {@link MAX_SINGLE_MS}（constitution 默认预算）。
  *
  * Run:
- *   node --experimental-strip-types benchmarks/sortable-batch-append.bench.ts
+ *   node --experimental-strip-types benchmarks/node/sortable-batch-append.bench.ts
  *   # 或：
  *   pnpm nx run benchmarks:bench-sortable-batch
  *

@@ -27,7 +27,7 @@
  * 而 §4 把这个决定明确留给了 review（「review 不接受该中位数时，改本节的例外或改设计」）。
  *
  * 运行：
- *   node --experimental-strip-types benchmarks/freeze-working-tree-reference.ts [--runs N]
+ *   node --experimental-strip-types benchmarks/node/working-tree/freeze-working-tree-reference.ts [--runs N]
  *     [--regenerate "理由" | --new-profile "理由"]
  *
  * `--new-profile` 在本画像已有 reference 时以 0 退出、什么都不跑：CI 的冻结 workflow
@@ -42,7 +42,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { median } from './bench-stats.ts';
+import { median } from '../bench-stats.ts';
 import { collectEnvironment, decideFreeze, ratioProfileFileName, readReferences } from './working-tree-gate.ts';
 import type { BenchReference, WorkingTreeBenchReport } from './working-tree-report.ts';
 import { LATEST_PATH, REFERENCE_DIR, SAMPLES, WARMUP } from './working-tree-report.ts';

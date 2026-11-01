@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@aiao/rxdb": "workspace:*",
-    "@aiao/rxdb-adapter-encrypted": "workspace:*",
     "@aiao/rxdb-adapter-pglite": "workspace:*",
     "@aiao/rxdb-adapter-sqlite": "workspace:*",
     "@aiao/rxdb-adapter-sqlite-wasm": "workspace:*",

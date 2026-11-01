@@ -7,9 +7,9 @@
  * `benchmarks/reports/encryption-<timestamp>.json` per spec SC-004.
  *
  * Run:
- *   node --experimental-strip-types benchmarks/encryption.bench.ts
+ *   node --experimental-strip-types benchmarks/node/encryption.bench.ts
  *   # or:
- *   pnpm tsx benchmarks/encryption.bench.ts
+ *   pnpm tsx benchmarks/node/encryption.bench.ts
  *
  * Note: wa-sqlite requires a browser environment with OPFS / IDB and cannot
  * run in Node.js. PGlite (memory store) covers the Node-side baseline.

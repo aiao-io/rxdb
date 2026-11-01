@@ -46,7 +46,7 @@ US-028 的契约套件（`packages/rxdb-test/src/sortable/manual-order*.suite.ts
 | 1,000 行、约 440 组，全部缺键              | 同上                                            |
 | 1 行追加到既有组                           | 与现状持平（仍是一次尾键查询）                  |
 
-基准：`benchmarks/sortable-batch-append.bench.ts`（PGlite，node），比值超出即非零退出；sqlite-wasm 的一次性实测见 research.md R3。
+基准：`benchmarks/node/sortable-batch-append.bench.ts`（PGlite，node），比值超出即非零退出；sqlite-wasm 的一次性实测见 research.md R3。
 
 ## 测试
 

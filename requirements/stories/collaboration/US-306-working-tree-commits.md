@@ -469,7 +469,7 @@ empty/loading/success/error 判定和恢复建议必须对称。不得让某一�
 | 各 v1 本地 adapter                                            | A    | 事务内 trigger/capability 接入                                                                            |
 | `packages/rxdb-plugin-working-tree-{angular,react,vue}/`      | C    | `useWorkingTree()` 与 `WorkingTreeResource`                                                               |
 | `apps/dev-rxdb-{angular,react,vue}/`                          | C    | 对称演示与 E2E                                                                                            |
-| `benchmarks/working-tree.bench.ts`                            | C    | FR-026 的判定依据                                                                                         |
+| `benchmarks/node/working-tree/working-tree.bench.ts`          | C    | FR-026 的判定依据                                                                                         |
 | `benchmarks/reports/`                                         | C    | 冻结 reference 报告                                                                                       |
 | `website/docs/plugins/rxdb-plugin-working-tree/README.md`     | C    | 发布门禁 9 的公开文档（US5-AC8）；`website/docs/collaboration/README.md` 只放链接                         |
 | `requirements/api-baseline/rxdb-plugin-working-tree.json`     | A/B  | 新增公开类型登记                                                                                          |

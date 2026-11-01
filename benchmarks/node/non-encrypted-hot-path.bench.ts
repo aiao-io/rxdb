@@ -12,9 +12,9 @@
  *    should remain unaffected.
  *
  * Run:
- *   node --experimental-strip-types benchmarks/non-encrypted-hot-path.bench.ts
+ *   node --experimental-strip-types benchmarks/node/non-encrypted-hot-path.bench.ts
  *   # or:
- *   pnpm tsx benchmarks/non-encrypted-hot-path.bench.ts
+ *   pnpm tsx benchmarks/node/non-encrypted-hot-path.bench.ts
  *
  * @see requirements/stories/future/US-803-local-encryption.md
  * @see .specify/memory/constitution.md「IV. Performance Requirements」

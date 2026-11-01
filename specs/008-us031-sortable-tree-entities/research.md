@@ -43,7 +43,7 @@ wa-sqlite `WaSqliteClientBase.ts`、electron `node:sqlite`（`node-sqlite-engine
 | 1,000  | 443   | 62 ms                | 47 ms           | 94 ms                      |
 | 10,000 | 4,206 | 450 ms               | 453 ms          | 1,631 ms（3.6×）           |
 
-node 基准（`benchmarks/sortable-batch-append.bench.ts`，PGlite 内存库，每种写法 5 个样本取中位数，同一棵固定种子树）在改动前：
+node 基准（`benchmarks/node/sortable-batch-append.bench.ts`，PGlite 内存库，每种写法 5 个样本取中位数，同一棵固定种子树）在改动前：
 
 | 条数   | 组数  | 显式键   | 缺键追加   | 比值 |
 | ------ | ----- | -------- | ---------- | ---- |
@@ -64,7 +64,7 @@ PGlite 上同样超出 1.2 的门槛，基准在实现前即为红。
 | PGlite（node 基准）     | 10,000 | —                    | 686.1 ms        | 665.0 ms           | 0.97                  |
 
 **结论**：现状 core 追加超出 SC-004（≤ 1.2×）三倍，必须在本阶段优化。两项优化后的推算值：显式键路径 453 ms + 组键拆分约 4 ms +
-根组一次尾键查询 ≈ 460 ms（约 1.02×）。推算不能代替验收：实现后用 `benchmarks/sortable-batch-append.bench.ts` 与同一浏览器用例复测。
+根组一次尾键查询 ≈ 460 ms（约 1.02×）。推算不能代替验收：实现后用 `benchmarks/node/sortable-batch-append.bench.ts` 与同一浏览器用例复测。
 
 **Alternatives considered**：放宽 SC-004（demo 最大档位多等 1 秒多）——批量添加 10,000 条本身就是 demo 的性能展示，退化三倍不可接受。
 
@@ -81,7 +81,7 @@ PGlite 上同样超出 1.2 的门槛，基准在实现前即为红。
 
 ## R5 基准放在哪
 
-**Decision**：新增 `benchmarks/sortable-batch-append.bench.ts`（node + PGlite，与 `push-receipts.bench.ts` 同一套写法与 `bench-stats.ts`），
+**Decision**：新增 `benchmarks/node/sortable-batch-append.bench.ts`（node + PGlite，与 `push-receipts.bench.ts` 同一套写法与 `bench-stats.ts`），
 nx 目标 `benchmarks:bench-sortable-batch`；同一次运行里先测「显式键」再测「缺键追加」，比值超过 1.2 即 `process.exit(1)`。
 
 **Rationale**：比值在同一次运行里自比，不需要冻结跨机器的参考档；node 基准是 `benchmarks/` 的既有形态。demo 的真实后端是 sqlite-wasm，

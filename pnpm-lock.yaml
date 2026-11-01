@@ -1281,9 +1281,6 @@ importers:
       '@aiao/rxdb':
         specifier: workspace:*
         version: link:../packages/rxdb
-      '@aiao/rxdb-adapter-encrypted':
-        specifier: workspace:*
-        version: link:../packages/rxdb-adapter-encrypted
       '@aiao/rxdb-adapter-pglite':
         specifier: workspace:*
         version: link:../packages/rxdb-adapter-pglite

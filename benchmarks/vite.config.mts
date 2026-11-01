@@ -37,7 +37,6 @@ function serveGitDemoAssets(): Plugin {
 
 const workspacePackages = [
   '@aiao/rxdb',
-  '@aiao/rxdb-adapter-encrypted',
   '@aiao/rxdb-adapter-pglite',
   '@aiao/rxdb-adapter-sqlite',
   '@aiao/rxdb-adapter-sqlite-core',
@@ -135,7 +134,7 @@ export default defineConfig(() => ({
     rollupOptions: {
       input: {
         main: benchmarkAssetPath('index.html'),
-        gitDemo: benchmarkAssetPath('git-demo.html')
+        browserGitOpfsDemo: benchmarkAssetPath('browser-git-opfs-demo.html')
       }
     },
     commonjsOptions: {
@@ -149,8 +148,8 @@ export default defineConfig(() => ({
     environment: 'node',
     testTimeout: 5000,
     hookTimeout: 5000,
-    // 根目录的 *.spec.ts 是 `--experimental-strip-types` 脚本共用的纯模块的测试（如 working-tree-gate.ts）
-    include: ['src/**/*.{test,spec}.{ts,tsx}', 'scripts/**/*.spec.mjs', '*.spec.ts'],
+    // Node benchmark 的纯模块测试和浏览器应用测试共用这一套 Vitest 配置。
+    include: ['src/**/*.{test,spec}.{ts,tsx}', 'scripts/**/*.spec.mjs', 'node/**/*.spec.ts'],
     coverage: {
       enabled: false,
       reportsDirectory: '../coverage/benchmarks',
