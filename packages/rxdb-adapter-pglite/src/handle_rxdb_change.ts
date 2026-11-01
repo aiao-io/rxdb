@@ -273,7 +273,8 @@ export const handle_rxdb_change = <T extends EntityType = EntityType>(
         console.warn(`Invalid RxDBChange rows received: expected=${entities.length}, valid=${changes.length}`);
       }
       if (changes.length === 0) return;
-      emitChangeEvent(adapter, changes);
+      // 日志UPDATE只改撤销或同步元状态，业务投影已经执行，不能重放原操作。
+      if (event.type === PGliteChangeType.INSERT) emitChangeEvent(adapter, changes);
       dispatchRxDBChangeTableEvent(adapter, event.type, changes, event.recordAt);
       return;
     }
