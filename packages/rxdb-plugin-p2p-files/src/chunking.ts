@@ -1,14 +1,20 @@
 /** P2P 文件清单与分块校验原语。 */
 
-import { createSha256, sha256Hex as syncSha256Hex } from '@aiao/rxdb';
+import { createSha256, sha256Hex } from '@aiao/rxdb';
 
 /** 文件清单；清单一旦发布，`chunkSize` 与 `chunkHashes` 不得再改写。 */
 export interface P2PFileManifest {
+  /** 整个文件的 SHA-256（小写 hex），内容寻址的主键。 */
   readonly contentHash: string;
+  /** 展示用文件名；不参与内容校验。 */
   readonly fileName: string;
+  /** 文件字节数。 */
   readonly size: number;
+  /** 定长块大小（末块可更短）；块划分以请求方清单为准。 */
   readonly chunkSize: number;
+  /** 每块的 SHA-256（小写 hex），按块序排列。 */
   readonly chunkHashes: readonly string[];
+  /** 服务器回退下载地址。 */
   readonly sourceUrl?: string;
   /** 持有者由认证身份派生；基础分块 API 可暂不设置，发布同步清单时必须存在。 */
   readonly holderId?: string;
@@ -18,15 +24,25 @@ export interface P2PFileManifest {
 
 /** 单个文件块的字节区间。 */
 export interface P2PChunkDescriptor {
+  /** 块序号，从 0 开始。 */
   readonly index: number;
+  /** 块在文件内的起始字节。 */
   readonly offset: number;
+  /** 块字节数。 */
   readonly size: number;
+  /** 块的 SHA-256（小写 hex）。 */
   readonly hash: string;
 }
 
-/** 默认 48 KiB，为 DataChannel 的 64 KiB 消息上限和可变帧元数据预留空间。 */
+/** 默认 48 KiB：一块加帧元数据放得进一条 64 KiB 的 DataChannel 消息，不必分片。 */
 export const DEFAULT_P2P_CHUNK_SIZE = 48 * 1024;
+
+/** 清单允许的最大块大小；超过 DataChannel 单条消息上限的块由传输层分片发送。 */
 export const MAX_P2P_CHUNK_SIZE = 1024 * 1024;
+
+const HEX_BYTE = Array.from({ length: 256 }, (_, byte) => byte.toString(16).padStart(2, '0'));
+
+const subtle: SubtleCrypto | undefined = globalThis.crypto?.subtle;
 
 function assertChunkSize(chunkSize: number): void {
   if (!Number.isSafeInteger(chunkSize) || chunkSize < 1 || chunkSize > MAX_P2P_CHUNK_SIZE) {
@@ -38,9 +54,19 @@ function assertFileSize(size: number): void {
   if (!Number.isSafeInteger(size) || size < 0) throw new RangeError('file size must be a non-negative safe integer');
 }
 
-/** 使用 SHA-256 计算内容寻址哈希。 */
-export async function sha256Hex(bytes: Uint8Array): Promise<string> {
-  return syncSha256Hex(bytes);
+/**
+ * 计算一段字节的 SHA-256，返回 64 位小写 hex。
+ *
+ * @remarks
+ * 有 WebCrypto 时走平台原生摘要；局域网里经 http 打开的页面不是安全上下文，没有 `crypto.subtle`，
+ * 此时改用 `@aiao/rxdb` 的同步实现，两者结果逐位相同。
+ */
+export async function digestSha256Hex(bytes: Uint8Array): Promise<string> {
+  if (!subtle) return sha256Hex(bytes);
+  const input = bytes.buffer instanceof ArrayBuffer ? (bytes as Uint8Array<ArrayBuffer>) : bytes.slice();
+  let hex = '';
+  for (const byte of new Uint8Array(await subtle.digest('SHA-256', input))) hex += HEX_BYTE[byte];
+  return hex;
 }
 
 /** 根据清单返回一个块的描述。 */
@@ -74,12 +100,12 @@ export function describeChunks(
   return manifest.chunkHashes.map((_, index) => describeChunk(manifest, index));
 }
 
-/** 校验一个从 peer 收到的块。 */
+/** 校验一个块的长度与哈希。 */
 export async function verifyChunk(
   bytes: Uint8Array,
   descriptor: Pick<P2PChunkDescriptor, 'size' | 'hash'>
 ): Promise<boolean> {
-  return bytes.byteLength === descriptor.size && (await sha256Hex(bytes)) === descriptor.hash;
+  return bytes.byteLength === descriptor.size && (await digestSha256Hex(bytes)) === descriptor.hash;
 }
 
 /** 校验完整文件的内容哈希。 */
@@ -110,7 +136,7 @@ export async function createP2PFileManifest(options: {
     if (bytes.byteLength !== expectedSize)
       throw new RangeError(`readChunk returned ${bytes.byteLength} bytes, expected ${expectedSize}`);
     contentHash.update(bytes);
-    chunkHashes.push(await sha256Hex(bytes));
+    chunkHashes.push(await digestSha256Hex(bytes));
   }
   return {
     contentHash: contentHash.digestHex(),

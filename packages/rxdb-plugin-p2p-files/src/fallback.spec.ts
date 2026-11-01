@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createP2PFileManifest } from './chunking';
-import { downloadFromServer, downloadP2PFile } from './fallback';
+import { createP2PFileManifest } from './chunking.js';
+import { downloadFromServer, downloadP2PFile } from './fallback.js';
+import { P2PTransferError, type P2PChunkRequest } from './transfer.js';
 
 async function fixture() {
   const bytes = new Uint8Array(2050);
@@ -15,6 +16,25 @@ async function fixture() {
   });
   return { bytes, manifest };
 }
+
+const sliceOf = (bytes: Uint8Array, request: P2PChunkRequest): Uint8Array =>
+  bytes.slice(request.offset, request.offset + request.size);
+
+/** 内存落盘：可选地在写入时损坏某一块，模拟静默写坏的存储。 */
+const memoryStorage = (corruptIndex?: number) => {
+  const stored = new Map<number, Uint8Array>();
+  return {
+    stored,
+    writeChunk: vi.fn(async (index: number, chunk: Uint8Array) => {
+      stored.set(index, index === corruptIndex ? chunk.slice(1) : chunk.slice());
+    }),
+    readChunk: async (index: number): Promise<Uint8Array> => {
+      const chunk = stored.get(index);
+      if (!chunk) throw new Error(`chunk ${index} is not stored`);
+      return chunk;
+    }
+  };
+};
 
 describe('P2P 服务器回退', () => {
   it('分块读取 Blob，完整校验后再写入，不将整文件载入内存', async () => {
@@ -69,13 +89,29 @@ describe('P2P 服务器回退', () => {
       manifest,
       fallback,
       token: 'auth-token',
-      writeChunk: async (_index, chunk) => writes.push(chunk),
+      writeChunk: async (_index, chunk) => {
+        writes.push(chunk);
+      },
       onProgress: value => progress.push(`${value.route}:${value.completedChunks}`)
     });
     expect(result.sourcesUsed).toEqual(['server']);
     expect(result.completedChunks).toBe(3);
     expect(Uint8Array.from(writes.flatMap(chunk => [...chunk]))).toEqual(bytes);
     expect(progress).toEqual(['server:1', 'server:2', 'server:3']);
+  });
+
+  it('提供 readChunk 时读回复核落盘结果，存储写坏就报不可重试的错误', async () => {
+    const { bytes, manifest } = await fixture();
+    const storage = memoryStorage(1);
+    const failure = await downloadFromServer({
+      manifest,
+      fallback: { download: async () => bytes },
+      writeChunk: storage.writeChunk,
+      readChunk: storage.readChunk
+    }).catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(P2PTransferError);
+    expect((failure as P2PTransferError).message).toMatch(/stored chunk 1 failed verification/);
+    expect((failure as P2PTransferError).retryable).toBe(false);
   });
 
   it('响应校验失败时不落盘，并在无 peer 时走显式回退', async () => {
@@ -113,13 +149,7 @@ describe('P2P 服务器回退', () => {
     await expect(
       downloadP2PFile({
         manifest,
-        sources: [
-          {
-            id: 'peer',
-            requestChunk: async (_hash, index) =>
-              bytes.slice(index * manifest.chunkSize, (index + 1) * manifest.chunkSize)
-          }
-        ],
+        sources: [{ id: 'peer', requestChunk: async request => sliceOf(bytes, request) }],
         fallback: { download: server },
         writeChunk: async () => undefined,
         onProgress: value => progress.push(value.route)
@@ -140,5 +170,61 @@ describe('P2P 服务器回退', () => {
     });
     expect(result.sourcesUsed).toEqual(['server']);
     expect(server).toHaveBeenCalledOnce();
+  });
+
+  it('P2P 中途失败回退服务器时，已校验落盘的块不再重写', async () => {
+    const { manifest, bytes } = await fixture();
+    const storage = memoryStorage();
+    const progress: string[] = [];
+    const result = await downloadP2PFile({
+      manifest,
+      sources: [
+        {
+          id: 'partial',
+          requestChunk: async request => (request.offset === 2048 ? new Uint8Array(2) : sliceOf(bytes, request))
+        }
+      ],
+      fallback: { download: async () => bytes },
+      writeChunk: storage.writeChunk,
+      readChunk: storage.readChunk,
+      concurrency: 1,
+      onProgress: value => progress.push(`${value.route}:${value.completedChunks}`)
+    });
+    expect(result.sourcesUsed).toEqual(['server']);
+    expect(progress).toContain('p2p:2');
+    expect(storage.writeChunk.mock.calls.map(([index]) => index)).toEqual([0, 1, 2]);
+    expect(Uint8Array.from([0, 1, 2].flatMap(index => [...(storage.stored.get(index) ?? [])]))).toEqual(bytes);
+  });
+
+  it('P2P 写盘失败是存储故障：不回退服务器', async () => {
+    const { manifest, bytes } = await fixture();
+    const server = vi.fn(async () => bytes);
+    await expect(
+      downloadP2PFile({
+        manifest,
+        sources: [{ id: 'peer', requestChunk: async request => sliceOf(bytes, request) }],
+        fallback: { download: server },
+        writeChunk: async () => {
+          throw new Error('disk full');
+        }
+      })
+    ).rejects.toThrow('failed to persist chunk');
+    expect(server).not.toHaveBeenCalled();
+  });
+
+  it('P2P 落盘复核失败是存储故障：不回退服务器，也不报成功', async () => {
+    const { manifest, bytes } = await fixture();
+    const storage = memoryStorage(1);
+    const server = vi.fn(async () => bytes);
+    await expect(
+      downloadP2PFile({
+        manifest,
+        sources: [{ id: 'peer', requestChunk: async request => sliceOf(bytes, request) }],
+        fallback: { download: server },
+        writeChunk: storage.writeChunk,
+        readChunk: storage.readChunk
+      })
+    ).rejects.toThrow(/stored chunk 1 failed verification/);
+    expect(server).not.toHaveBeenCalled();
   });
 });

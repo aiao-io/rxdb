@@ -6,7 +6,9 @@
   "tags": ["js-lib"],
   "targets": {
     "typecheck": { "dependsOn": ["build", "^typecheck"] },
-    "build": { "options": { "command": "vite build" } },
+    "build": {
+      "options": { "command": "vite build && node ../../scripts/audit/package-api-docs.mjs . --members" }
+    },
     "test": { "options": { "cwd": "packages/rxdb-plugin-p2p-files", "command": "vitest run" } },
     "coverage": {
       "executor": "nx:run-commands",

@@ -42,10 +42,6 @@
         "kind": "value"
       },
       {
-        "name": "DEFAULT_P2P_MANIFEST_TTL_MS",
-        "kind": "value"
-      },
-      {
         "name": "deriveHolderId",
         "kind": "value"
       },
@@ -55,6 +51,10 @@
       },
       {
         "name": "describeChunks",
+        "kind": "value"
+      },
+      {
+        "name": "digestSha256Hex",
         "kind": "value"
       },
       {
@@ -78,6 +78,10 @@
         "kind": "value"
       },
       {
+        "name": "isP2PManifestRecord",
+        "kind": "value"
+      },
+      {
         "name": "manifestId",
         "kind": "value"
       },
@@ -90,10 +94,6 @@
         "kind": "value"
       },
       {
-        "name": "P2P_FILE_MANIFEST_SCHEMA",
-        "kind": "value"
-      },
-      {
         "name": "P2PByteTransport",
         "kind": "type"
       },
@@ -102,7 +102,15 @@
         "kind": "type"
       },
       {
+        "name": "P2PChunkRequest",
+        "kind": "type"
+      },
+      {
         "name": "P2PChunkSource",
+        "kind": "type"
+      },
+      {
+        "name": "P2PDataChannelEvent",
         "kind": "type"
       },
       {
@@ -198,6 +206,10 @@
         "kind": "type"
       },
       {
+        "name": "P2PWebRTCTransportOptions",
+        "kind": "type"
+      },
+      {
         "name": "rxDBPluginP2PFiles",
         "kind": "value"
       },
@@ -208,10 +220,6 @@
       {
         "name": "RxDBPluginP2PFilesOptions",
         "kind": "type"
-      },
-      {
-        "name": "sha256Hex",
-        "kind": "value"
       },
       {
         "name": "toRxDBManifestDocument",

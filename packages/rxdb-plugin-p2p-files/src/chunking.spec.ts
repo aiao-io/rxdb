@@ -1,14 +1,20 @@
+import { sha256Hex } from '@aiao/rxdb';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createP2PFileManifest,
   describeChunk,
   describeChunks,
-  sha256Hex,
+  digestSha256Hex,
   verifyChunk,
   verifyContentHash
-} from './chunking';
+} from './chunking.js';
 
 const bytes = (length: number, start = 0): Uint8Array =>
   Uint8Array.from({ length }, (_, index) => (start + index) % 256);
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('P2P 分块原语', () => {
   it('按固定大小描述末块，并拒绝越界块', () => {
@@ -48,11 +54,11 @@ describe('P2P 分块原语', () => {
 
     expect(manifest.fileName).toBe('demo.bin');
     expect(manifest.chunkHashes).toEqual([
-      await sha256Hex(source.slice(0, 1024)),
-      await sha256Hex(source.slice(1024, 2048)),
-      await sha256Hex(source.slice(2048))
+      await digestSha256Hex(source.slice(0, 1024)),
+      await digestSha256Hex(source.slice(1024, 2048)),
+      await digestSha256Hex(source.slice(2048))
     ]);
-    expect(manifest.contentHash).toBe(await sha256Hex(source));
+    expect(manifest.contentHash).toBe(await digestSha256Hex(source));
   });
 
   it('读取器返回短块时立即失败', async () => {
@@ -68,7 +74,7 @@ describe('P2P 分块原语', () => {
 
   it('丢弃长度或哈希错误的块，并通过正确块', async () => {
     const expected = bytes(4);
-    const hash = await sha256Hex(expected);
+    const hash = await digestSha256Hex(expected);
 
     await expect(verifyChunk(bytes(3), { size: 4, hash })).resolves.toBe(false);
     await expect(verifyChunk(bytes(4, 1), { size: 4, hash })).resolves.toBe(false);
@@ -78,9 +84,31 @@ describe('P2P 分块原语', () => {
   it('按块顺序重组后校验完整内容哈希', async () => {
     const first = bytes(4, 1);
     const second = bytes(2, 8);
-    const expectedHash = await sha256Hex(Uint8Array.from([...first, ...second]));
+    const expectedHash = await digestSha256Hex(Uint8Array.from([...first, ...second]));
 
     await expect(verifyContentHash([first, second], expectedHash)).resolves.toBe(true);
     await expect(verifyContentHash([first, bytes(2, 9)], expectedHash)).resolves.toBe(false);
+  });
+});
+
+describe('块哈希', () => {
+  it('与核心同步 SHA-256 结果一致，覆盖空输入、单块和跨块长度', async () => {
+    for (const length of [0, 1, 55, 56, 64, 1000, 70_000]) {
+      const input = bytes(length, length);
+      await expect(digestSha256Hex(input)).resolves.toBe(sha256Hex(input));
+    }
+  });
+
+  it('平台提供 WebCrypto 时走原生摘要，不在主线程做纯 JS 哈希', async () => {
+    const digest = vi.spyOn(globalThis.crypto.subtle, 'digest');
+    const input = bytes(4096);
+    await expect(digestSha256Hex(input)).resolves.toBe(sha256Hex(input));
+    expect(digest).toHaveBeenCalledWith('SHA-256', input);
+  });
+
+  it('只哈希视图覆盖的字节，不读底层缓冲的其余部分', async () => {
+    const backing = bytes(32);
+    const view = backing.subarray(8, 24);
+    await expect(digestSha256Hex(view)).resolves.toBe(sha256Hex(backing.slice(8, 24)));
   });
 });

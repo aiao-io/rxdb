@@ -1,72 +1,71 @@
 import { describe, expect, it } from 'vitest';
-import {
-  createTcpTransport,
-  createWebRTCTransport,
-  type P2PDataChannelLike,
-  type P2PTcpSocketLike
-} from '../transport.js';
+import { createTcpTransport, type P2PTcpSocketLike } from '../tcp-transport.js';
+import { createWebRTCTransport, type P2PDataChannelEvent, type P2PDataChannelLike } from '../webrtc-transport.js';
+
+/** 监听器参数按逆变比较：`never` 让各个事件签名都能登记进同一张表，派发时再按 unknown 调用。 */
+type SocketListener = (value: never) => void;
 
 class FakeDataChannel implements P2PDataChannelLike {
   #listeners = new Map<string, Set<(event: Event) => void>>();
   readyState = 'open';
   binaryType = 'blob';
+  bufferedAmount = 0;
+  bufferedAmountLowThreshold = 0;
   sent: Uint8Array[] = [];
   send(data: ArrayBuffer | ArrayBufferView): void {
     this.sent.push(
-      new Uint8Array(
-        data instanceof ArrayBuffer ? data : data.buffer,
-        data instanceof ArrayBuffer ? 0 : data.byteOffset,
-        data instanceof ArrayBuffer ? data.byteLength : data.byteLength
-      )
+      data instanceof ArrayBuffer ? new Uint8Array(data) : new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
     );
   }
   close(): void {
     this.readyState = 'closed';
   }
-  addEventListener(type: 'message' | 'close' | 'error' | 'open', listener: (event: Event) => void): void {
+  addEventListener(type: P2PDataChannelEvent, listener: (event: Event) => void): void {
     const listeners = this.#listeners.get(type) ?? new Set();
     listeners.add(listener);
     this.#listeners.set(type, listeners);
   }
-  removeEventListener(type: 'message' | 'close' | 'error' | 'open', listener: (event: Event) => void): void {
+  removeEventListener(type: P2PDataChannelEvent, listener: (event: Event) => void): void {
     this.#listeners.get(type)?.delete(listener);
   }
-  emit(type: 'message' | 'close' | 'error' | 'open', data?: Uint8Array): void {
-    const event = (type === 'message' ? { data: data?.buffer } : data) as unknown as Event;
-    for (const listener of this.#listeners.get(type) ?? []) listener(event);
+  emitMessage(data: Uint8Array): void {
+    const event = new MessageEvent('message', { data: data.slice().buffer });
+    for (const listener of this.#listeners.get('message') ?? []) listener(event);
   }
 }
 
 class FakeSocket implements P2PTcpSocketLike {
-  #listeners = new Map<string, Set<(value: Uint8Array | Error) => void>>();
+  #listeners = new Map<string, Set<SocketListener>>();
   encrypted = true;
   writes: Uint8Array[] = [];
-  write(data: Uint8Array): void {
+  write(data: Uint8Array): boolean {
     this.writes.push(data);
+    return true;
   }
-  end(): void {
+  destroy(): void {
     /* test socket */
   }
-  on(event: 'data' | 'error' | 'close', listener: (value: Uint8Array | Error) => void): void {
+  on(event: string, listener: SocketListener): void {
     const listeners = this.#listeners.get(event) ?? new Set();
     listeners.add(listener);
     this.#listeners.set(event, listeners);
   }
-  off(event: 'data' | 'error' | 'close', listener: (value: Uint8Array | Error) => void): void {
+  off(event: string, listener: SocketListener): void {
     this.#listeners.get(event)?.delete(listener);
   }
-  emit(event: 'data' | 'error' | 'close', value: Uint8Array | Error): void {
-    for (const listener of this.#listeners.get(event) ?? []) listener(value);
+  emit(event: string, value?: unknown): void {
+    for (const listener of this.#listeners.get(event) ?? []) (listener as (value: unknown) => void)(value);
   }
 }
 
 describe('P2P transports', () => {
-  it('passes binary frames through WebRTC DataChannel', async () => {
+  it('passes binary frames through a WebRTC DataChannel with a fragment header', async () => {
     const channel = new FakeDataChannel();
     const transport = createWebRTCTransport(channel);
     await transport.send(new Uint8Array([1, 2]));
+    expect(channel.sent).toEqual([new Uint8Array([1, 1, 2])]);
     const received = transport.receive();
-    channel.emit('message', new Uint8Array([3, 4]));
+    channel.emitMessage(new Uint8Array([1, 3, 4]));
     await expect(received).resolves.toEqual(new Uint8Array([3, 4]));
     transport.close();
   });

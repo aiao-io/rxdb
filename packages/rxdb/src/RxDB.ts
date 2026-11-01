@@ -516,6 +516,17 @@ export class RxDB {
   }
 
   /**
+   * 本连接纪元是否已走过 {@link RxDB.init}（`connect()` 的第一步）
+   *
+   * @remarks
+   * 实体只在 `init()` 时绑定、建表；往 `config.entities` 补实体的插件靠它判断 `use()` 是否已经太晚。
+   * 停机窗口内仍为 `true`，拆完复位为 `false`；`init()` 抛错回滚后同样为 `false`。
+   */
+  get initialized(): boolean {
+    return this.#rxdb_initialized;
+  }
+
+  /**
    * 本实例挂的那一套业务表（US-314 可写检出位）：没换挂过就是主表集
    *
    * @remarks

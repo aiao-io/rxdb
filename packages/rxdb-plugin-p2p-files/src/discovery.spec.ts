@@ -1,15 +1,17 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   createLocalManifestDiscovery,
   toRxDBManifestDocument,
   toSyncManifestDocument,
   validateHandshake
-} from './discovery';
-import { createAuthenticatedP2PFileManifest, deriveHolderId, findP2PFileHolders, P2PManifestStore } from './manifest';
+} from './discovery.js';
+import { createAuthenticatedP2PFileManifest, deriveHolderId, P2PManifestStore, type P2PPrincipal } from './manifest.js';
 
-async function recordFixture(options: { readonly subject?: string; readonly now?: number } = {}) {
+const laptop: P2PPrincipal = { principal: 'device-owner', deviceId: 'laptop' };
+
+async function recordFixture(options: { readonly principal?: P2PPrincipal; readonly now?: number } = {}) {
   return createAuthenticatedP2PFileManifest({
-    principal: { principal: options.subject ?? 'device-a' },
+    principal: options.principal ?? laptop,
     fileName: 'demo.bin',
     size: 3,
     chunkSize: 1,
@@ -18,8 +20,14 @@ async function recordFixture(options: { readonly subject?: string; readonly now?
   });
 }
 
+/** 认证宿主签发的 token 绑定到连接：重放到别的连接即失效。 */
+const connectionBoundAuthenticate = async (
+  token: string,
+  context: { readonly connectionId: string; readonly contentHash: string }
+): Promise<P2PPrincipal | null> => (token === `token:${context.connectionId}` ? laptop : null);
+
 describe('P2P 发现与信令', () => {
-  it('校验认证身份和活跃持有声明，并拒绝未授权或无清单 peer', async () => {
+  it('校验认证身份与持有声明，并拒绝未授权、换设备或无清单的 peer', async () => {
     const record = await recordFixture();
     const store = new P2PManifestStore();
     store.upsert(record);
@@ -27,36 +35,47 @@ describe('P2P 发现与信令', () => {
       connectionId: 'c1',
       contentHash: record.contentHash,
       holderId: record.holderId,
-      token: 'token-a'
+      token: 'token:c1'
     };
+    const authenticate = vi.fn(connectionBoundAuthenticate);
+    await expect(validateHandshake(request, { authenticate, manifests: store })).resolves.toEqual({
+      connectionId: 'c1',
+      contentHash: record.contentHash,
+      holderId: record.holderId
+    });
+    expect(authenticate).toHaveBeenCalledWith('token:c1', { connectionId: 'c1', contentHash: record.contentHash });
+
     await expect(
-      validateHandshake(request, {
-        authenticate: async token => (token === 'token-a' ? { subject: 'device-a' } : null),
-        manifests: store,
-        now: record.updatedAt
-      })
-    ).resolves.toEqual({ connectionId: 'c1', contentHash: record.contentHash, holderId: record.holderId });
-    await expect(
-      validateHandshake(
-        { ...request, token: 'bad' },
-        {
-          authenticate: async () => null,
-          manifests: store
-        }
-      )
+      validateHandshake({ ...request, token: 'bad' }, { authenticate: async () => null, manifests: store })
     ).rejects.toThrow('peer is not authorized');
     await expect(
+      validateHandshake(request, {
+        authenticate: async () => ({ ...laptop, deviceId: 'desktop' }),
+        manifests: store
+      })
+    ).rejects.toThrow('peer is not authorized');
+    const stranger = { principal: 'device-b', deviceId: 'phone' };
+    await expect(
       validateHandshake(
-        { ...request, holderId: deriveHolderId('device-b') },
-        {
-          authenticate: async () => ({ subject: 'device-b' }),
-          manifests: store
-        }
+        { ...request, holderId: deriveHolderId(stranger) },
+        { authenticate: async () => stranger, manifests: store }
       )
     ).rejects.toThrow('peer does not hold requested content');
   });
 
-  it('从本地清单离线发现持有者，支持取消和过期连接拒绝', async () => {
+  it('token 绑定连接：把别的连接的 token 重放到这里会被拒绝', async () => {
+    const record = await recordFixture();
+    const store = new P2PManifestStore();
+    store.upsert(record);
+    await expect(
+      validateHandshake(
+        { connectionId: 'c2', contentHash: record.contentHash, holderId: record.holderId, token: 'token:c1' },
+        { authenticate: connectionBoundAuthenticate, manifests: store }
+      )
+    ).rejects.toThrow('peer is not authorized');
+  });
+
+  it('从本地清单离线发现持有者，支持取消，撤回的声明不能再连接', async () => {
     const record = await recordFixture();
     const store = new P2PManifestStore();
     store.upsert(record);
@@ -71,22 +90,26 @@ describe('P2P 发现与信令', () => {
     const iterator = discovery.discover(record.contentHash, controller.signal)[Symbol.asyncIterator]();
     await expect(iterator.next()).rejects.toThrow('cancelled');
     store.revoke(record.contentHash, record.holderId);
-    await expect(discovery.connect(record)).rejects.toThrow('peer manifest is expired');
+    await expect(discovery.connect(record)).rejects.toThrow('peer no longer holds requested content');
   });
 
-  it('把清单映射为同步文档并复制 chunkHashes', async () => {
+  it('把清单映射为同步文档并复制 chunkHashes，可选的 sourceUrl 缺省时不写出', async () => {
     const record = await recordFixture({ now: 10 });
     const document = toSyncManifestDocument(record);
-    expect(document).toMatchObject({
+    expect(document).toEqual({
       id: record.id,
       contentHash: record.contentHash,
+      fileName: record.fileName,
+      size: record.size,
+      chunkSize: record.chunkSize,
+      chunkHashes: record.chunkHashes,
       holderId: record.holderId,
       updatedAt: 10
     });
-    expect(document.chunkHashes).toEqual(record.chunkHashes);
     expect(document.chunkHashes).not.toBe(record.chunkHashes);
+    expect(toSyncManifestDocument({ ...record, sourceUrl: 'https://files.example/demo' })).toMatchObject({
+      sourceUrl: 'https://files.example/demo'
+    });
     expect(toRxDBManifestDocument(record).updatedAt).toEqual(new Date(10));
-    expect(findP2PFileHolders([record], record.contentHash, { now: 100, ttlMs: 100 })).toHaveLength(1);
-    expect(findP2PFileHolders([record], record.contentHash, { now: 111, ttlMs: 100 })).toHaveLength(0);
   });
 });

@@ -3,7 +3,7 @@ import path from 'node:path';
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 
-export default defineConfig({
+export default defineConfig(() => ({
   root: import.meta.dirname,
   cacheDir: '../../node_modules/.vite/packages/rxdb-plugin-p2p-files',
   plugins: [
@@ -12,7 +12,7 @@ export default defineConfig({
   build: {
     outDir: './dist',
     emptyOutDir: true,
-    lib: { entry: 'src/index.ts', name: '@aiao/rxdb-plugin-p2p-files', fileName: 'index', formats: ['es'] },
+    lib: { entry: 'src/index.ts', name: '@aiao/rxdb-plugin-p2p-files', fileName: 'index', formats: ['es' as const] },
     rolldownOptions: { external: ['@aiao/rxdb', '@aiao/utils', 'rxjs'] }
   },
   test: {
@@ -31,4 +31,4 @@ export default defineConfig({
       exclude: ['src/**/*.spec.*', 'src/**/*.test.*', 'src/**/*.d.ts', 'src/__tests__/**']
     }
   }
-});
+}));

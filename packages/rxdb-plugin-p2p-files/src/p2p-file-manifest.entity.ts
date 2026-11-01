@@ -1,6 +1,6 @@
 import { Entity, EntityBase, PropertyType } from '@aiao/rxdb';
 
-/** 经同步复制的 P2P 文件清单；文件字节仍由 P2P 通道传输。 */
+/** 经同步复制的 P2P 持有声明；文件字节仍由 P2P 通道传输。 */
 @Entity({
   namespace: 'p2p',
   name: 'P2PFileManifest',
@@ -12,9 +12,8 @@ import { Entity, EntityBase, PropertyType } from '@aiao/rxdb';
     { name: 'size', type: PropertyType.number, required: true },
     { name: 'chunkSize', type: PropertyType.integer, required: true },
     { name: 'chunkHashes', type: PropertyType.stringArray, required: true },
-    { name: 'sourceUrl', type: PropertyType.string },
-    { name: 'holderId', type: PropertyType.string, required: true },
-    { name: 'expiresAt', type: PropertyType.number }
+    { name: 'sourceUrl', type: PropertyType.string, nullable: true },
+    { name: 'holderId', type: PropertyType.string, required: true }
   ],
   indexes: [
     { name: 'content_hash', properties: ['contentHash'] },
@@ -23,14 +22,20 @@ import { Entity, EntityBase, PropertyType } from '@aiao/rxdb';
   ]
 })
 export class P2PFileManifestEntity extends EntityBase {
+  /** 整个文件的 SHA-256（小写 hex）。 */
   contentHash!: string;
+  /** 展示用文件名。 */
   fileName!: string;
+  /** 文件字节数。 */
   size!: number;
+  /** 定长块大小。 */
   chunkSize!: number;
+  /** 每块的 SHA-256，按块序排列。 */
   chunkHashes!: string[];
-  sourceUrl?: string;
+  /** 服务器回退下载地址；没有时为空。 */
+  sourceUrl!: string | null;
+  /** 由认证主体与设备派生的持有者 ID。 */
   holderId!: string;
   /** EntityBase 的 Date 时间戳是清单 wire `updatedAt` 的本地时间源。 */
   declare readonly updatedAt: Date;
-  expiresAt?: number;
 }
