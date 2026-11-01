@@ -10,7 +10,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "modules/e2e-parity",
-        "command": "node --test entity-model-parity.spec.mjs"
+        "command": "node --test entity-model-parity.spec.mjs board-parity.spec.mjs"
       }
     }
   }

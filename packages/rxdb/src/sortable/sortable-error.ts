@@ -7,9 +7,10 @@ import { RxDBError } from '../RxDBError.js';
  * - `'invalidKey'`：用户显式写入的排序键不合法
  * - `'corruptAnchor'`：库里作为锚点读到的键（尾键 / 邻居）不合法，或两邻居不满足 `prev < next`
  * - `'unsupportedPrimary'`：主端是 remote-only 或 QueryCache，读不到完整序列
- * - `'invalidTarget'`：重排目标本身不成立（两侧邻居都为空、邻居就是移动行、`group` 的键与分组字段不符）
+ * - `'invalidTarget'`：重排目标本身不成立（两侧邻居都为空、邻居就是移动行、`group` / `expectedGroup` 的键与
+ *   分组字段不符、`group` 与邻居目标字段混用）
  * - `'notFound'`：被移动的行已不存在
- * - `'staleTarget'`：邻居已不存在、不再相邻或不在同一组——调用方看到的顺序过期了，应重查
+ * - `'staleTarget'`：邻居已不存在、不再相邻、不在同一组或已不在 `expectedGroup`——调用方看到的顺序过期了，应重查
  */
 export type SortOrderErrorReason =
   | 'notManualOrder'

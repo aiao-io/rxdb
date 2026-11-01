@@ -1,0 +1,6 @@
+/*
+ * 看板视图样式：三端共用 @aiao/rxdb-plugin-board/board.css，经本包 ./board-view.css 子路径交付
+ * （与 React / Vue 绑定同名）。ng-packagr 只原样拷贝资产、不打包样式，@import 由宿主构建按包名解析内联；
+ * 核心包是本包的 peer 依赖，宿主装好 peer 即可解析。
+ */
+@import '@aiao/rxdb-plugin-board/board.css';

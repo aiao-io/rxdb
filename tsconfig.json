@@ -241,22 +241,19 @@
       "path": "./packages/rxdb-plugin-tree-vue"
     },
     {
-      "path": "./packages/rxdb-plugin-bom"
+      "path": "./packages/rxdb-plugin-board"
     },
     {
-      "path": "./apps/dev-rxdb-bom-e2e"
+      "path": "./packages/rxdb-plugin-board-angular"
     },
     {
-      "path": "./apps/dev-rxdb-bom"
+      "path": "./packages/rxdb-plugin-board-react"
     },
     {
-      "path": "./packages/rxdb-plugin-bom-angular"
+      "path": "./packages/rxdb-plugin-board-vue"
     },
     {
-      "path": "./packages/rxdb-plugin-bom-react"
-    },
-    {
-      "path": "./packages/rxdb-plugin-bom-vue"
+      "path": "./apps/dev-rxdb-board"
     },
     {
       "path": "./apps/dev-rxdb-admin-e2e"
@@ -281,6 +278,24 @@
     },
     {
       "path": "./packages/rxdb-i18n-vue"
+    },
+    {
+      "path": "./packages/rxdb-plugin-bom"
+    },
+    {
+      "path": "./apps/dev-rxdb-bom-e2e"
+    },
+    {
+      "path": "./apps/dev-rxdb-bom"
+    },
+    {
+      "path": "./packages/rxdb-plugin-bom-angular"
+    },
+    {
+      "path": "./packages/rxdb-plugin-bom-react"
+    },
+    {
+      "path": "./packages/rxdb-plugin-bom-vue"
     }
   ]
 }
