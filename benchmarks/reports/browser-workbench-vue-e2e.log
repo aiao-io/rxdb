@@ -1,38 +1,36 @@
+> nx run dev-rxdb-vue-e2e:e2e browser-workbench.spec.ts --workers=1
 
-> nx run dev-rxdb-vue-e2e:e2e --args=src/browser-workbench.spec.ts --workers=1 --retries=0 --reporter=line
+> playwright test browser-workbench.spec.ts --workers=1
 
-> playwright test src/browser-workbench.spec.ts --workers=1 --retries=0 --reporter=line
-
-(node:33041) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:41143) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
-[WebServer] (node:33049) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (node:41151) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 [WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
 
 
 Running 4 tests using 1 worker
 
-(node:33050) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:41152) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 
 
-[1/4] [chromium] › src/browser-workbench.spec.ts:7:9 › 浏览器开发工作台：vue 宿主 › vanilla：编辑、运行、保存重开与 Git 提交
-[2/4] [chromium] › src/browser-workbench.spec.ts:7:9 › 浏览器开发工作台：vue 宿主 › react：编辑、运行、保存重开与 Git 提交
-[3/4] [chromium] › src/browser-workbench.spec.ts:7:9 › 浏览器开发工作台：vue 宿主 › vue：编辑、运行、保存重开与 Git 提交
-[4/4] [chromium] › src/browser-workbench.spec.ts:7:9 › 浏览器开发工作台：vue 宿主 › angular：编辑、运行、保存重开与 Git 提交
-  4 passed (46.5s)
+[1/4] [chromium] › src/browser-workbench.spec.ts:10:9 › 浏览器开发工作台：vue 宿主 › vanilla：编辑、运行、保存重开与 Git 提交
+[2/4] [chromium] › src/browser-workbench.spec.ts:10:9 › 浏览器开发工作台：vue 宿主 › react：编辑、运行、保存重开与 Git 提交
+[3/4] [chromium] › src/browser-workbench.spec.ts:10:9 › 浏览器开发工作台：vue 宿主 › vue：编辑、运行、保存重开与 Git 提交
+[4/4] [chromium] › src/browser-workbench.spec.ts:10:9 › 浏览器开发工作台：vue 宿主 › angular：编辑、运行、保存重开与 Git 提交
+  4 passed (39.9s)
 
 
 
- NX   Successfully ran target e2e for project dev-rxdb-vue-e2e
+ NX   Successfully ran target e2e for project dev-rxdb-vue-e2e and 38 tasks it depends on
 
+Nx read the output from the cache instead of running the command for 36 out of 39 tasks.
 
-View logs and investigate cache misses at https://nx.app/runs/5dSW0NkVRG
-
-  Run duration:      47.1s
-  Cache:             0/1 hit (0%)
-  Critical path:     47.1s (1 task)
-  Recoverable time:  <1ms
+  Run duration:      44.0s
+  Cache:             36/39 hit (92%)
+  Critical path:     43.8s (12 tasks)
+  Recoverable time:  2ms (0% of the run)
 
   Recommendations:
     - Speed up or split the longest tasks on the critical path:
-        dev-rxdb-vue-e2e:e2e    47.1s
+        dev-rxdb-vue-e2e:e2e    40.4s

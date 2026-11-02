@@ -26,7 +26,9 @@ async function createProject(page, expect, host, template) {
 
 async function runPreview(page, expect, heading, fixture) {
   const root = page.getByRole('region', { name: '浏览器开发工作台', exact: true });
-  await root.locator('[data-action="run"]').click();
+  const run = root.locator('[data-action="run"]');
+  await run.click();
+  await expect(run).toBeEnabled({ timeout: 60000 });
   const preview = page.frameLocator('.wb-preview-content iframe');
   await expect(preview.getByRole('heading', { name: heading, exact: true })).toBeVisible({ timeout: 60000 });
   const counter = preview.getByRole('button', { name: `${fixture.counter} 0`, exact: true });
@@ -56,15 +58,17 @@ async function replaceHeading(page, expect, root, fixture, marker) {
 
 async function commitProject(expect, root, message) {
   await root.getByRole('button', { name: '切换 Git 视图', exact: true }).click();
-  await root.getByRole('button', { name: '暂存全部已保存修改', exact: true }).click();
-  await expect(root.locator('[data-slot="changes"]')).not.toHaveText('', { timeout: 30000 });
+  await root.getByRole('button', { name: '暂存所有更改', exact: true }).click();
+  await expect(root.locator('[data-scm-count="staged"]')).not.toHaveText('0', { timeout: 30000 });
   await root.getByRole('textbox', { name: '提交说明', exact: true }).fill(message);
   await root.getByRole('button', { name: '提交已暂存内容', exact: true }).click();
   await expect(root.locator('[data-slot="history"]')).toContainText(message, { timeout: 30000 });
-  await expect(root.locator('[data-slot="changes"]')).toBeEmpty();
+  await expect(root.locator('[data-scm-count="staged"]')).toHaveText('0');
+  await expect(root.locator('[data-scm-count="working"]')).toHaveText('0');
 }
 
 async function verifyArchive(page, expect, root, fixture, marker, projectId, testInfo) {
+  const projectCount = await root.getByRole('combobox', { name: '当前项目' }).locator('option').count();
   const downloadPromise = page.waitForEvent('download');
   await root.getByRole('button', { name: '导出', exact: true }).click();
   const download = await downloadPromise;
@@ -81,7 +85,8 @@ async function verifyArchive(page, expect, root, fixture, marker, projectId, tes
   await expect(root.locator('[data-slot="save-status"]')).toContainText('已保存');
   await runPreview(page, expect, marker, fixture);
   await expect(root.locator('[data-slot="history"]')).toContainText('browser-workbench-e2e');
-  await expect(root.getByRole('combobox', { name: '当前项目' }).locator('option')).toHaveCount(3);
+  await expect(root.getByRole('combobox', { name: '当前项目' }).locator('option')).toHaveCount(projectCount + 1);
+  await expect(root.getByRole('combobox', { name: '当前项目' }).locator(`option[value="${projectId}"]`)).toHaveCount(1);
   await testInfo.attach('project-archive', { path: archive, contentType: 'application/zip' });
 }
 
@@ -116,7 +121,7 @@ async function readGitDiagnostics(page, projectId) {
       return {
         status: await call('status'),
         history: await call('history'),
-        ui: document.querySelector('[data-slot="changes"]')?.textContent
+        ui: document.querySelector('.wb-scm')?.textContent
       };
     } finally {
       worker.terminate();

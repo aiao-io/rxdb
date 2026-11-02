@@ -5,6 +5,7 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { dirname, extname, join, resolve, sep } from 'node:path';
 import { chromium } from 'playwright';
+import { expect } from 'playwright/test';
 import { linkReleasePeers } from '../../../scripts/audit/link-release-peers.mjs';
 
 const packageRoot = resolve(import.meta.dirname, '..');
@@ -324,7 +325,9 @@ async function browserWorkflow(browser, directory, name) {
     );
     if (name === 'core') await page.locator('[data-editor-path] textarea').first().waitFor();
     else await page.locator('.cm-editor').first().waitFor();
-    await page.getByRole('button', { name: '运行', exact: true }).click();
+    const run = page.getByRole('button', { name: '运行', exact: true });
+    await run.click();
+    await expect(run).toBeEnabled({ timeout: 60000 });
     const preview = page.frameLocator('iframe[title="项目隔离预览"]');
     await preview.getByRole('heading', { name: '本地 TypeScript 模板' }).waitFor();
     await preview.getByRole('button', { name: '次数 0' }).click();
@@ -333,8 +336,15 @@ async function browserWorkflow(browser, directory, name) {
     await page.waitForFunction(() =>
       document.querySelector('[data-slot="save-status"]')?.textContent?.includes('已保存')
     );
-    await page.getByRole('button', { name: '运行', exact: true }).click();
+    await run.click();
+    await expect(run).toBeEnabled({ timeout: 60000 });
     await page.frameLocator('iframe[title="项目隔离预览"]').getByRole('button', { name: '次数 0' }).waitFor();
+    await page.getByRole('button', { name: '切换 Git 视图', exact: true }).click();
+    await page.locator('[data-scm-group="working"] [data-scm-path="src/label.ts"]').click();
+    const diff = page.getByRole('region', { name: 'src/label.ts 双栏差异', exact: true });
+    await expect(diff.locator('.cm-mergeView')).toBeVisible();
+    await expect(diff.locator('.cm-editor')).toHaveCount(2);
+    await expect(diff.locator('.cm-content[aria-readonly="true"][contenteditable="false"]')).toHaveCount(2);
     const wasmRequests = requests.filter(item => item.url.endsWith('.wasm') && item.status === 200);
     if (
       !workers.some(value => value.includes('git-worker')) ||
@@ -362,7 +372,8 @@ async function browserWorkflow(browser, directory, name) {
         'opaque-preview',
         'counter-interaction',
         'reload-opfs-project',
-        'run-after-reload'
+        'run-after-reload',
+        'readonly-git-diff-with-shared-codemirror'
       ]
     };
   } catch (error) {

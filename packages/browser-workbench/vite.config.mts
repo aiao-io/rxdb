@@ -13,7 +13,10 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     lib: { entry: { index: 'src/index.ts', 'rxdb-catalog': 'src/rxdb-catalog.ts' }, formats: ['es'] },
-    rolldownOptions: { external: [/^@aiao\/rxdb(?:\/|$)/, /^rxjs(?:\/|$)/], checks: { pluginTimings: false } }
+    rolldownOptions: {
+      external: [/^@aiao\/rxdb(?:\/|$)/, /^@aiao\/code-editor$/, /^@codemirror\//, /^rxjs(?:\/|$)/],
+      checks: { pluginTimings: false }
+    }
   },
   test: {
     name: 'browser-workbench',

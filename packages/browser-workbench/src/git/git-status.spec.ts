@@ -3,11 +3,16 @@ import { parseGitStatus } from './git-status.js';
 
 describe('Git status rename records', () => {
   it('reads ordinary status paths literally', () => {
-    expect(parseGitStatus(' M path with spaces.ts\n?? new.ts')).toEqual([{ index: ' ', worktree: 'M', path: 'path with spaces.ts' }, { index: '?', worktree: '?', path: 'new.ts' }]);
+    expect(parseGitStatus(' M path with spaces.ts\n?? new.ts')).toEqual([
+      { index: ' ', worktree: 'M', path: 'path with spaces.ts' },
+      { index: '?', worktree: '?', path: 'new.ts' }
+    ]);
   });
 
   it('gets the complete staged rename target from authoritative index filenames', () => {
-    expect(parseGitStatus('RM old.ts new name -> final.ts', ['new name -> final.ts'])).toEqual([{ index: 'R', worktree: 'M', path: 'new name -> final.ts' }]);
+    expect(parseGitStatus('RM old.ts new name -> final.ts', ['new name -> final.ts'])).toEqual([
+      { index: 'R', worktree: 'M', path: 'new name -> final.ts', originalPath: 'old.ts' }
+    ]);
   });
 
   it('rejects display-ambiguous suffixes instead of staging an arbitrary file', () => {

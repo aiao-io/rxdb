@@ -28,6 +28,7 @@ export function WorkbenchEditor({
         value={initial.value}
         language={initial.language}
         theme='dark'
+        indentWithTab
         label='项目源码'
         onChange={initial.onChange}
       />

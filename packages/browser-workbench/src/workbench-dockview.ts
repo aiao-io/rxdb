@@ -20,6 +20,7 @@ export interface WorkbenchDockviewCallbacks {
   onSelectTool(kind: WorkbenchToolKind): void;
   onToggleTool?(visible: boolean): void;
   onClosePreview?(): void;
+  onCloseAuxiliary?(id: string): void;
 }
 
 /** 三端共享的 Dockview 面板桥。编辑器与预览的业务生命周期由宿主负责。 */
@@ -29,6 +30,8 @@ export interface WorkbenchDockview {
   selectEditor(path: string): void;
   removeEditor(path: string): void;
   setEditorTitle(path: string, title: string): void;
+  ensureAuxiliary(id: string, title: string): HTMLElement;
+  removeAuxiliary(id: string): void;
   setSidebarVisible(visible: boolean): void;
   isSidebarVisible(): boolean;
   showTool(kind: WorkbenchToolKind): void;
@@ -59,17 +62,19 @@ function required(root: HTMLElement, selector: string): HTMLElement {
   return element;
 }
 
-function createTab(id: string) {
+function createTab(id: string, auxiliary: boolean) {
   const element = document.createElement('div');
   element.className = 'wb-dock-tab';
   const path = editorPath(id);
   if (isTool(id)) element.dataset['panel'] = id;
   if (path !== undefined) element.dataset['editorTabPath'] = path;
+  if (auxiliary) element.dataset['auxiliaryId'] = id;
   const icon =
     path ?
       createFileIcon(path)
     : createCodicon(
-        id === 'preview' ? 'open-preview'
+        auxiliary ? 'git-compare'
+        : id === 'preview' ? 'open-preview'
         : id === 'welcome' ? 'code'
         : id === 'console' ? 'debug-console'
         : id === 'problems' ? 'warning'
@@ -200,6 +205,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
   ]);
   const subscriptions: DockviewIDisposable[] = [];
   const closing = new Set<string>();
+  const auxiliaryIds = new Set<string>();
   let syncing = 1;
   let disposed = false;
   let lastEditor: string | undefined;
@@ -232,7 +238,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
         }
       };
     },
-    createTabComponent: options => createTab(options.id),
+    createTabComponent: options => createTab(options.id, auxiliaryIds.has(options.id)),
     createRightHeaderActionComponent: group => createGroupActions(group, splitPanel)
   });
 
@@ -331,6 +337,11 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
           callbacks.onCloseEditor(path);
           return;
         }
+        if (auxiliaryIds.delete(panel.id)) {
+          hosts.delete(panel.id);
+          callbacks.onCloseAuxiliary?.(panel.id);
+          return;
+        }
         if (panel.id === 'preview') callbacks.onClosePreview?.();
         stash(panel.id);
         if (isTool(panel.id)) reportTools(tools.some(kind => Boolean(api.getPanel(kind))));
@@ -382,10 +393,44 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
     callbacks.onSelectTool(kind);
   }
 
+  function ensureAuxiliary(id: string, title: string): HTMLElement {
+    if (!id || Object.hasOwn(titles, id) || editorPath(id) !== undefined)
+      throw new Error(`辅助面板 id 与工作台保留面板冲突：${id}`);
+    const existing = hosts.get(id);
+    const panel = api.getPanel(id);
+    if (existing && (panel || closing.has(id))) {
+      program(() => {
+        panel?.api.setTitle(title);
+        panel?.api.setActive();
+      });
+      return existing;
+    }
+    const host = document.createElement('div');
+    host.className = 'wb-auxiliary-host';
+    host.dataset['auxiliaryId'] = id;
+    host.style.cssText = 'height:100%;min-height:0;min-width:0';
+    hosts.set(id, host);
+    auxiliaryIds.add(id);
+    program(() => {
+      const reference = editorGroup();
+      api.addPanel({
+        id,
+        component: 'auxiliary',
+        title,
+        renderer: 'always',
+        ...(reference ? { position: { referenceGroup: reference, direction: 'within' } } : {})
+      });
+    });
+    return host;
+  }
+
   function resetLayout(): void {
     program(() => {
+      const activeAuxiliary = api.activePanel && auxiliaryIds.has(api.activePanel.id) ? api.activePanel.id : undefined;
       api.exitMaximizedGroup();
-      const editors = api.panels.filter(panel => editorPath(panel.id) !== undefined || panel.id === 'welcome');
+      const editors = api.panels.filter(
+        panel => editorPath(panel.id) !== undefined || panel.id === 'welcome' || auxiliaryIds.has(panel.id)
+      );
       const group = api.addGroup({ direction: 'left', skipSetActive: true });
       for (const panel of editors) panel.api.moveTo({ group, position: 'center', skipSetActive: true });
       const preview = addPreview();
@@ -402,7 +447,8 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
       side.expand();
       api.setEdgeGroupVisible('left', true);
       api.getPanel(lastTool)?.api.setActive();
-      if (lastEditor) api.getPanel(editorId(lastEditor))?.api.setActive();
+      if (activeAuxiliary) api.getPanel(activeAuxiliary)?.api.setActive();
+      else if (lastEditor) api.getPanel(editorId(lastEditor))?.api.setActive();
       else api.getPanel('welcome')?.api.setActive();
     });
     reportTools(true);
@@ -427,6 +473,17 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
     },
     setEditorTitle(path, title) {
       api.getPanel(editorId(path))?.api.setTitle(title);
+    },
+    ensureAuxiliary,
+    removeAuxiliary(id) {
+      if (!auxiliaryIds.has(id)) return;
+      const panel = api.getPanel(id);
+      program(() => {
+        if (panel) api.removePanel(panel);
+      });
+      closing.delete(id);
+      auxiliaryIds.delete(id);
+      hosts.delete(id);
     },
     setSidebarVisible(visible) {
       api.setEdgeGroupVisible('left', visible);
@@ -464,6 +521,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
       api.dispose();
       closing.clear();
       hosts.clear();
+      auxiliaryIds.clear();
     }
   };
 }

@@ -90,6 +90,7 @@ function createRuntimeFixture() {
   let faultPath = '';
   let commandFailure = '';
   let journalFailure = '';
+  const writes = new Map<string, number>();
   const failJournalAt = (phase: string, name: string): void => {
     if (name !== 'recovery.bin' || journalFailure !== phase) return;
     journalFailure = '';
@@ -121,6 +122,7 @@ function createRuntimeFixture() {
       throw new DOMException('quota fixture', 'QuotaExceededError');
     }
     const bytes = typeof value === 'string' ? new TextEncoder().encode(value) : value;
+    writes.set(path, (writes.get(path) ?? 0) + 1);
     const diskPath = path.slice('/opfs'.length);
     fs.ensure(parent(path));
     disk.ensure(parent(diskPath));
@@ -306,6 +308,7 @@ function createRuntimeFixture() {
     loader,
     fs,
     disk,
+    writes,
     failWrite: (path: string) => {
       faultPath = path;
     },
@@ -466,15 +469,20 @@ describe('Git workspace operation contract', () => {
     expect(unsafe.length).toBeGreaterThan(0);
   });
 
-  it.each(['create', 'write', 'close'])('keeps the original project openable and exportable when initial journal %s fails', async phase => {
-    await runtime.initialize('project', [file('main.ts', 'original')]);
-    const before = await runtime.snapshot('project');
-    fixture.failJournal(phase);
-    await expect(runtime.save('project', [file('main.ts', 'should not persist')])).rejects.toThrow(`journal ${phase} failed`);
-    expect(fixture.disk.analyzePath('/aiao-browser-workbench/projects/project/recovery.bin').exists).toBe(false);
-    expect(await runtime.open('project')).toEqual(before);
-    expect((await runtime.exportArchive('project')).byteLength).toBeGreaterThan(0);
-  });
+  it.each(['create', 'write', 'close'])(
+    'keeps the original project openable and exportable when initial journal %s fails',
+    async phase => {
+      await runtime.initialize('project', [file('main.ts', 'original')]);
+      const before = await runtime.snapshot('project');
+      fixture.failJournal(phase);
+      await expect(runtime.save('project', [file('main.ts', 'should not persist')])).rejects.toThrow(
+        `journal ${phase} failed`
+      );
+      expect(fixture.disk.analyzePath('/aiao-browser-workbench/projects/project/recovery.bin').exists).toBe(false);
+      expect(await runtime.open('project')).toEqual(before);
+      expect((await runtime.exportArchive('project')).byteLength).toBeGreaterThan(0);
+    }
+  );
 
   it('clears only an empty unpublished journal left by interruption and preserves nonempty corrupt evidence', async () => {
     await runtime.initialize('project', [file('main.ts', 'original')]);
@@ -486,5 +494,114 @@ describe('Git workspace operation contract', () => {
     fixture.disk.writeFile(journalPath, new Uint8Array([1, 2, 3]));
     await expect(runtime.open('project')).rejects.toThrow(/corrupt/i);
     expect(fixture.disk.readFile(journalPath)).toEqual(new Uint8Array([1, 2, 3]));
+  });
+
+  it('精确读取HEAD/index/working差异且不改真实历史与index', async () => {
+    await runtime.initialize('project', [file('main.ts', '\uFEFFone\r\n')]);
+    await runtime.stage('project', ['main.ts']);
+    await runtime.commit('project', 'initial');
+    await runtime.save('project', [file('main.ts', '\uFEFFtwo\r\n')]);
+    await runtime.stage('project', ['main.ts']);
+    await runtime.save('project', [file('main.ts', '\uFEFFthree\r\n')]);
+    const before = await runtime.snapshot('project');
+    const index = fixture.disk.readFile('/aiao-browser-workbench/projects/project/repository/.git/index');
+    expect((await runtime.readDiff('project', 'main.ts', 'working')).base.text).toBe('\uFEFFtwo\r\n');
+    expect((await runtime.readDiff('project', 'main.ts', 'working')).modified.text).toBe('\uFEFFthree\r\n');
+    expect((await runtime.readDiff('project', 'main.ts', 'staged')).base.text).toBe('\uFEFFone\r\n');
+    expect((await runtime.readDiff('project', 'main.ts', 'staged')).modified.text).toBe('\uFEFFtwo\r\n');
+    expect(await runtime.snapshot('project')).toEqual(before);
+    expect(await runtime.history('project')).toHaveLength(1);
+    expect(fixture.disk.readFile('/aiao-browser-workbench/projects/project/repository/.git/index')).toEqual(index);
+  });
+
+  it('取消单文件暂存保持其他暂存内容、全部工作区与revision', async () => {
+    await runtime.initialize('project', [file('a.ts', 'a1'), file('b.ts', 'b1')]);
+    await runtime.stage('project', ['a.ts', 'b.ts']);
+    await runtime.commit('project', 'initial');
+    await runtime.save('project', [file('a.ts', 'a2'), file('b.ts', 'b2')]);
+    await runtime.stage('project', ['a.ts', 'b.ts']);
+    await runtime.save('project', [file('a.ts', 'a3')]);
+    const before = await runtime.snapshot('project');
+    await runtime.unstage('project', ['a.ts']);
+    expect(await runtime.snapshot('project')).toEqual(before);
+    expect((await runtime.status('project')).raw).toContain(' M a.ts');
+    expect((await runtime.status('project')).raw).toContain('M  b.ts');
+    expect((await runtime.readDiff('project', 'b.ts', 'staged')).modified.text).toBe('b2');
+    await expect(runtime.unstage('project', ['a.ts'])).rejects.toMatchObject({ code: 'nothing_staged' });
+    await expect(runtime.unstage('project', [])).rejects.toThrow();
+  });
+
+  it('首次提交前可撤销新增文件暂存，差异正确区分缺失文件', async () => {
+    await runtime.initialize('project', [file('new.ts', 'new')]);
+    await runtime.stage('project', ['new.ts']);
+    const staged = await runtime.readDiff('project', 'new.ts', 'staged');
+    expect(staged.base.exists).toBe(false);
+    expect(staged.modified.text).toBe('new');
+    await runtime.unstage('project', ['new.ts']);
+    expect((await runtime.status('project')).head).toBeNull();
+    expect((await runtime.status('project')).raw).toBe('?? new.ts');
+    await expect(runtime.readDiff('project', '../outside', 'working')).rejects.toThrow();
+    await expect(runtime.readDiff('project', 'new.ts', 'unknown' as 'working')).rejects.toThrow();
+  });
+
+  it('单文件丢弃回到index，不动其他工作区与已暂存字节', async () => {
+    await runtime.initialize('project', [file('a.ts', 'head'), file('b.ts', 'keep')]);
+    await runtime.stage('project', ['a.ts', 'b.ts']);
+    await runtime.commit('project', 'initial');
+    await runtime.save('project', [file('a.ts', 'index')]);
+    await runtime.stage('project', ['a.ts']);
+    await runtime.save('project', [file('a.ts', 'working'), file('b.ts', 'other'), file('new.ts', 'new')]);
+    const index = fixture.disk.readFile('/aiao-browser-workbench/projects/project/repository/.git/index');
+    const result = await runtime.discardWorking('project', 'a.ts');
+    expect(result.files).toContainEqual(file('a.ts', 'index'));
+    expect(result.files).toContainEqual(file('b.ts', 'other'));
+    expect(fixture.disk.readFile('/aiao-browser-workbench/projects/project/repository/.git/index')).toEqual(index);
+    await runtime.remove('project', 'a.ts');
+    await runtime.discardWorking('project', 'a.ts');
+    expect((await runtime.snapshot('project')).files).toContainEqual(file('a.ts', 'index'));
+    await runtime.discardWorking('project', 'new.ts');
+    expect((await runtime.snapshot('project')).files.some(entry => entry.path === 'new.ts')).toBe(false);
+    await expect(runtime.discardWorking('project', 'a.ts')).rejects.toThrow(/working change/);
+  });
+
+  it('取消暂存或丢弃写入失败从journal恢复原index与工作区', async () => {
+    await runtime.initialize('project', [file('a.ts', 'head')]);
+    await runtime.stage('project', ['a.ts']);
+    await runtime.commit('project', 'initial');
+    await runtime.save('project', [file('a.ts', 'staged')]);
+    await runtime.stage('project', ['a.ts']);
+    await runtime.save('project', [file('a.ts', 'working')]);
+    const before = await runtime.snapshot('project');
+    const status = await runtime.status('project');
+    fixture.failWrite('.git/index');
+    await expect(runtime.unstage('project', ['a.ts'])).rejects.toThrow('quota fixture');
+    expect(await runtime.snapshot('project')).toEqual(before);
+    expect(await runtime.status('project')).toEqual(status);
+    fixture.failWrite('a.ts');
+    await expect(runtime.discardWorking('project', 'a.ts')).rejects.toThrow('quota fixture');
+    expect(await runtime.snapshot('project')).toEqual(before);
+    expect(await runtime.status('project')).toEqual(status);
+    fixture.failCommand('commit');
+    await expect(runtime.readDiff('project', 'a.ts', 'working')).rejects.toMatchObject({ code: 'git_failed' });
+    expect(await runtime.snapshot('project')).toEqual(before);
+  });
+
+  it('保存整份文件映射只写变化和新增字节，未变文件不重写且no-op仍按原规则递增revision', async () => {
+    const initial = Array.from({ length: 50 }, (_, index) => file(`f-${index}.ts`, `value ${index}`));
+    await runtime.initialize('project', initial);
+    const before = new Map(fixture.writes);
+    const next = initial.map(entry => (entry.path === 'f-25.ts' ? file(entry.path, 'value 99') : entry));
+    next.push(file('new.ts', 'new'));
+    const saved = await runtime.save('project', next, 1);
+    const prefix = '/opfs/aiao-browser-workbench/projects/project/repository/';
+    expect(saved.revision).toBe(2);
+    expect(fixture.writes.get(`${prefix}f-25.ts`)).toBe((before.get(`${prefix}f-25.ts`) ?? 0) + 1);
+    expect(fixture.writes.get(`${prefix}new.ts`)).toBe(1);
+    for (const entry of initial.filter(entry => entry.path !== 'f-25.ts'))
+      expect(fixture.writes.get(prefix + entry.path)).toBe(before.get(prefix + entry.path));
+    const written = new Map(fixture.writes);
+    const noop = await runtime.save('project', next, 2);
+    expect(noop.revision).toBe(3);
+    expect(fixture.writes).toEqual(written);
   });
 });

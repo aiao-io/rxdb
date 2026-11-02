@@ -4,4 +4,7 @@
 
 # 浏览器停靠验证的本地截图
 browser-workbench-docking-*.png
+browser-workbench-scm-*.png
+browser-workbench-commands-*.png
+browser-workbench-save-preview-*.png
 browser-workbench-ui.png

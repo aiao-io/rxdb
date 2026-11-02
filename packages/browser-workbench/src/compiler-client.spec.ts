@@ -21,12 +21,14 @@ class ProbeWorker {
     runtimeFiles?: RuntimeBundle['runtimeFiles'];
     runtimeImports?: RuntimeBundle['runtimeImports'];
   };
+  requests: NonNullable<ProbeWorker['request']>[] = [];
   terminate = vi.fn();
   constructor() {
     ProbeWorker.instances.push(this);
   }
   postMessage(request: { id: string; input: unknown; wasmURL: string }): void {
     this.request = request;
+    this.requests.push(request);
   }
   emit(data: unknown): void {
     this.onmessage?.(new MessageEvent('message', { data }));
@@ -49,13 +51,20 @@ describe('可取消的编译 Worker 客户端', () => {
     runtimeLoader.mockReset().mockResolvedValue(runtime);
   });
 
-  it('传递受控 HTML 样式、固定 WASM URL，并终止完成的 Worker', async () => {
+  it('传递受控 HTML 与固定 WASM URL，成功后复用同一个 Worker', async () => {
     const compiler = createCompiler('https://assets.test/runtime');
     const result = compiler.compile(input);
     const worker = ProbeWorker.instances[0];
     expect(worker.request?.wasmURL).toBe('https://assets.test/runtime/esbuild.wasm');
     worker.emit({ id: worker.request?.id, result: { js: 'console.log(1)', css: '' } });
     await expect(result).resolves.toEqual({ js: 'console.log(1)', css: '', html: '<div id="app"></div>' });
+    expect(worker.terminate).not.toHaveBeenCalled();
+    const second = compiler.compile(input);
+    expect(ProbeWorker.instances).toHaveLength(1);
+    expect(worker.requests).toHaveLength(2);
+    worker.emit({ id: worker.request?.id, result: { js: 'second', css: '' } });
+    await expect(second).resolves.toMatchObject({ js: 'second' });
+    compiler.dispose();
     expect(worker.terminate).toHaveBeenCalledOnce();
   });
 
@@ -85,11 +94,48 @@ describe('可取消的编译 Worker 客户端', () => {
     const compiler = createCompiler('/assets');
     const first = compiler.compile(input);
     const second = compiler.compile(input);
+    expect(ProbeWorker.instances).toHaveLength(1);
     compiler.dispose();
     await expect(first).rejects.toMatchObject({ name: 'AbortError' });
     await expect(second).rejects.toMatchObject({ name: 'AbortError' });
     expect(ProbeWorker.instances.every(worker => worker.terminate.mock.calls.length === 1)).toBe(true);
     await expect(compiler.compile(input)).rejects.toThrow('已经释放');
+  });
+
+  it('排队请求取消不会终止正在编译的请求，后续仍复用健康 Worker', async () => {
+    const compiler = createCompiler('/assets');
+    const first = compiler.compile(input);
+    const controller = new AbortController();
+    const queued = compiler.compile(input, controller.signal);
+    const worker = ProbeWorker.instances[0];
+    expect(worker.requests).toHaveLength(1);
+    controller.abort();
+    await expect(queued).rejects.toMatchObject({ name: 'AbortError' });
+    expect(worker.terminate).not.toHaveBeenCalled();
+    worker.emit({ id: worker.request?.id, result: { js: 'first', css: '' } });
+    await expect(first).resolves.toMatchObject({ js: 'first' });
+    const next = compiler.compile(input);
+    expect(ProbeWorker.instances).toHaveLength(1);
+    worker.emit({ id: worker.request?.id, result: { js: 'next', css: '' } });
+    await expect(next).resolves.toMatchObject({ js: 'next' });
+    compiler.dispose();
+  });
+
+  it('取消 active 编译只重建引擎，排队请求继续完成且忽略旧 Worker 迟到结果', async () => {
+    const compiler = createCompiler('/assets');
+    const controller = new AbortController();
+    const first = compiler.compile(input, controller.signal);
+    const queued = compiler.compile(input);
+    const previous = ProbeWorker.instances[0];
+    const previousId = previous.request?.id;
+    controller.abort();
+    await expect(first).rejects.toMatchObject({ name: 'AbortError' });
+    expect(previous.terminate).toHaveBeenCalledOnce();
+    const next = ProbeWorker.instances[1];
+    previous.emit({ id: previousId, result: { js: 'stale', css: '' } });
+    next.emit({ id: next.request?.id, result: { js: 'queued', css: '' } });
+    await expect(queued).resolves.toMatchObject({ js: 'queued' });
+    compiler.dispose();
   });
 
   it('Worker 启动错误和无效结果均结束任务并释放资源', async () => {
@@ -122,14 +168,18 @@ describe('可取消的编译 Worker 客户端', () => {
     const compiler = createCompiler('/assets');
     const first = compiler.compile({ ...input, template: 'react' });
     const second = compiler.compile({ ...input, template: 'react' });
-    await vi.waitFor(() => expect(ProbeWorker.instances).toHaveLength(2));
+    await vi.waitFor(() => expect(ProbeWorker.instances).toHaveLength(1));
     expect(runtimeLoader).toHaveBeenCalledOnce();
-    for (const worker of ProbeWorker.instances) {
-      expect(worker.request?.runtimeFiles).toEqual(runtime.runtimeFiles);
-      expect(worker.request?.runtimeImports).toEqual(runtime.runtimeImports);
-      worker.emit({ id: worker.request?.id, result: { js: 'bundled', css: '' } });
-    }
+    const worker = ProbeWorker.instances[0];
+    expect(worker.request?.runtimeFiles).toEqual(runtime.runtimeFiles);
+    expect(worker.request?.runtimeImports).toEqual(runtime.runtimeImports);
+    worker.emit({ id: worker.request?.id, result: { js: 'first', css: '' } });
+    await vi.waitFor(() => expect(worker.requests).toHaveLength(2));
+    expect(worker.request?.runtimeFiles).toEqual(runtime.runtimeFiles);
+    worker.emit({ id: worker.request?.id, result: { js: 'second', css: '' } });
     await Promise.all([first, second]);
+    expect(ProbeWorker.instances).toHaveLength(1);
+    compiler.dispose();
   });
 
   it('预取期间取消单次编译不创建 Worker，也不取消共享资源缓存', async () => {

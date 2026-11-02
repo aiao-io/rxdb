@@ -37,6 +37,7 @@ export class BrowserWorkbench implements AfterViewInit, OnDestroy {
       editor.setInput('language', initial.language);
       editor.setInput('label', '项目源码');
       editor.setInput('theme', 'dark');
+      editor.setInput('indentWithTab', true);
       const change = editor.instance.aoChange.subscribe(initial.onChange);
       const cursor = () => {
         const view = editor.instance.view!;

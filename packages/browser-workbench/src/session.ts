@@ -14,7 +14,29 @@ export interface WorkbenchSnapshot {
 export interface WorkbenchStatus {
   readonly branch: string;
   readonly head: string | null;
-  readonly entries: readonly { readonly path: string; readonly index: string; readonly worktree: string }[];
+  readonly entries: readonly {
+    readonly path: string;
+    readonly originalPath?: string;
+    readonly index: string;
+    readonly worktree: string;
+  }[];
+}
+
+/** 差异一侧的精确文本或二进制说明。 */
+export interface WorkbenchFileVersion {
+  readonly exists: boolean;
+  readonly binary: boolean;
+  readonly text: string | null;
+  readonly byteLength: number;
+}
+
+/** Git 暂存区或工作区的双侧差异。 */
+export interface WorkbenchDiff {
+  readonly projectId: string;
+  readonly path: string;
+  readonly kind: 'working' | 'staged';
+  readonly base: WorkbenchFileVersion;
+  readonly modified: WorkbenchFileVersion;
 }
 
 /** 一个可达 Git 提交。 */
@@ -32,6 +54,9 @@ export interface WorkbenchBackend {
   rename(projectId: string, from: string, to: string): Promise<void>;
   status(projectId: string): Promise<WorkbenchStatus>;
   stage(projectId: string, paths: readonly string[]): Promise<void>;
+  unstage(projectId: string, paths: readonly string[]): Promise<void>;
+  readDiff(projectId: string, path: string, kind: 'working' | 'staged'): Promise<WorkbenchDiff>;
+  discardWorking(projectId: string, path: string): Promise<WorkbenchSnapshot>;
   commit(projectId: string, message: string): Promise<string>;
   history(projectId: string): Promise<readonly WorkbenchCommit[]>;
   restore(projectId: string, oid: string): Promise<WorkbenchSnapshot>;
@@ -80,10 +105,14 @@ const initialState: WorkbenchState = {
 };
 
 const errorMessage = (cause: unknown): string => (cause instanceof Error ? cause.message : String(cause));
+const fileEncoder = new TextEncoder();
 const equalFile = (left: string | Uint8Array | undefined, right: string | Uint8Array | undefined): boolean => {
   if (left === right) return true;
-  if (typeof left === 'string' || typeof right === 'string' || !left || !right) return false;
-  return left.length === right.length && left.every((byte, index) => byte === right[index]);
+  if (left === undefined || right === undefined) return false;
+  if (typeof left === 'string' && typeof right === 'string') return false;
+  const leftBytes = typeof left === 'string' ? fileEncoder.encode(left) : left;
+  const rightBytes = typeof right === 'string' ? fileEncoder.encode(right) : right;
+  return leftBytes.length === rightBytes.length && leftBytes.every((byte, index) => byte === rightBytes[index]);
 };
 const equalFiles = (left: WorkbenchFiles, right: WorkbenchFiles): boolean =>
   Object.keys(left).length === Object.keys(right).length &&
@@ -98,6 +127,7 @@ export class WorkbenchSession {
   #runId = 0;
   #closed = false;
   #savePending: Promise<void> | null = null;
+  #saveTarget = '*';
   #pendingWork = new Map<symbol, number>();
 
   get state(): WorkbenchState {
@@ -155,10 +185,22 @@ export class WorkbenchSession {
     this.#update({ files: { ...this.#saved }, dirty: false, error: null });
   }
 
-  save(): Promise<void> {
+  save(paths?: readonly string[]): Promise<void> {
     this.#assertOpen();
-    if (this.#savePending) return this.#savePending;
-    const pending = this.#performSave();
+    const selected = paths ? [...new Set(paths)] : undefined;
+    const target = selected ? JSON.stringify([...selected].sort()) : '*';
+    if (this.#savePending) {
+      const generation = this.#generation;
+      const projectId = this.#state.projectId;
+      return target === this.#saveTarget ?
+          this.#savePending
+        : this.#savePending.then(() => {
+            if (!this.#current(generation) || this.#state.projectId !== projectId) return;
+            return this.save(selected);
+          });
+    }
+    const pending = this.#performSave(selected);
+    this.#saveTarget = target;
     this.#savePending = pending;
     void pending
       .finally(() => {
@@ -168,27 +210,55 @@ export class WorkbenchSession {
     return pending;
   }
 
+  /** 让在途编译失效，保留上次成功的预览。 */
+  cancelRun(): void {
+    this.#assertOpen();
+    this.#runId++;
+  }
+
+  /** 合并磁盘操作的回执，指定路径接受丢弃，其余未保存缓冲继续保留。 */
+  applySavedSnapshot(snapshot: WorkbenchSnapshot, overwrittenPaths: readonly string[]): void {
+    this.#assertOpen();
+    if (snapshot.projectId !== this.#state.projectId) throw new Error('不能应用其他项目的文件回执');
+    const overwritten = new Set(overwrittenPaths);
+    const files: Record<string, string | Uint8Array> = { ...snapshot.files };
+    for (const [path, value] of Object.entries(this.#state.files)) {
+      if (!overwritten.has(path) && !equalFile(value, this.#saved[path])) files[path] = value;
+    }
+    this.#generation++;
+    this.#runId++;
+    this.#savePending = null;
+    this.#saved = snapshot.files;
+    const tabs = this.#state.tabs.filter(path => Object.hasOwn(files, path));
+    const activePath =
+      this.#state.activePath && Object.hasOwn(files, this.#state.activePath) ?
+        this.#state.activePath
+      : (tabs.at(-1) ?? null);
+    this.#update({
+      revision: snapshot.revision,
+      files,
+      tabs,
+      activePath,
+      dirty: !equalFiles(files, snapshot.files),
+      busy: false,
+      error: null
+    });
+  }
+
   async run(compile: (snapshot: WorkbenchSnapshot) => Promise<WorkbenchCompilation>): Promise<void> {
-    const projectId = this.#project();
+    this.#project();
     const generation = this.#generation;
     const runId = ++this.#runId;
     await this.save();
     if (!this.#current(generation) || runId !== this.#runId) return;
     if (this.#state.dirty) throw new Error('保存期间内容发生变化，请重新运行');
-    const revision = this.#state.revision;
-    if (!revision) throw new Error('项目尚未保存');
-    const release = this.#beginWork(generation);
-    this.#update({ error: null });
-    try {
-      const result = await compile({ projectId, revision, files: { ...this.#saved } });
-      if (!this.#current(generation) || runId !== this.#runId) return;
-      this.#update({ preview: { ...result, projectId, revision, runId } });
-    } catch (cause) {
-      if (this.#current(generation) && runId === this.#runId) this.#update({ error: errorMessage(cause) });
-      throw cause;
-    } finally {
-      release();
-    }
+    return this.#publishSaved(compile, generation, runId);
+  }
+
+  /** 仅运行已保存的文件，不顺带持久化其它编辑缓冲。 */
+  runSaved(compile: (snapshot: WorkbenchSnapshot) => Promise<WorkbenchCompilation>): Promise<void> {
+    this.#project();
+    return this.#publishSaved(compile, this.#generation, ++this.#runId);
   }
 
   async restore(oid: string): Promise<void> {
@@ -222,11 +292,38 @@ export class WorkbenchSession {
     this.backend.dispose();
   }
 
-  async #performSave(): Promise<void> {
+  async #publishSaved(
+    compile: (snapshot: WorkbenchSnapshot) => Promise<WorkbenchCompilation>,
+    generation: number,
+    runId: number
+  ): Promise<void> {
+    const projectId = this.#project();
+    const revision = this.#state.revision;
+    if (!revision) throw new Error('项目尚未保存');
+    const release = this.#beginWork(generation);
+    this.#update({ error: null });
+    try {
+      const result = await compile({ projectId, revision, files: { ...this.#saved } });
+      if (!this.#current(generation) || runId !== this.#runId) return;
+      this.#update({ preview: { ...result, projectId, revision, runId } });
+    } catch (cause) {
+      if (this.#current(generation) && runId === this.#runId) this.#update({ error: errorMessage(cause) });
+      throw cause;
+    } finally {
+      release();
+    }
+  }
+
+  async #performSave(paths?: readonly string[]): Promise<void> {
     const projectId = this.#project();
     const revision = this.#state.revision;
     if (!this.#state.dirty || !revision) return;
-    const files = { ...this.#state.files };
+    if (paths && !paths.some(path => this.isModified(path))) return;
+    const files: Record<string, string | Uint8Array> = paths ? { ...this.#saved } : { ...this.#state.files };
+    for (const path of paths ?? []) {
+      if (!Object.hasOwn(this.#state.files, path)) throw new Error(`文件不存在：${path}`);
+      files[path] = this.#state.files[path];
+    }
     const generation = this.#generation;
     const release = this.#beginWork(generation);
     this.#update({ error: null });

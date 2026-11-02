@@ -54,7 +54,11 @@ export type CodiconName =
   | 'globe'
   | 'clear-all'
   | 'circle-filled'
-  | 'chevron-up';
+  | 'chevron-up'
+  | 'remove'
+  | 'discard'
+  | 'git-compare'
+  | 'diff';
 
 function iconClass(name: CodiconName): string {
   if (!/^[a-z][a-z0-9-]*$/.test(name)) throw new Error('无效的 VS Code 图标名称');

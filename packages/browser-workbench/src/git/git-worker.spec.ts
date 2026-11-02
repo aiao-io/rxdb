@@ -9,6 +9,9 @@ const fixture = vi.hoisted(() => ({
   rename: vi.fn(),
   status: vi.fn(),
   stage: vi.fn(),
+  unstage: vi.fn(),
+  readDiff: vi.fn(),
+  discardWorking: vi.fn(),
   commit: vi.fn(),
   history: vi.fn(),
   restore: vi.fn(),
@@ -45,7 +48,8 @@ describe('Git Worker protocol', () => {
     message: 'message',
     oid: 'a'.repeat(40),
     archive: [0, 255],
-    expectedRevision: 1
+    expectedRevision: 1,
+    kind: 'staged' as const
   };
 
   it.each([
@@ -57,6 +61,9 @@ describe('Git Worker protocol', () => {
     'rename',
     'status',
     'stage',
+    'unstage',
+    'readDiff',
+    'discardWorking',
     'commit',
     'history',
     'restore',
@@ -78,6 +85,7 @@ describe('Git Worker protocol', () => {
       ]);
     if (action === 'save') expect(fixture.save).toHaveBeenCalledWith('project', expect.any(Array), 1);
     if (action === 'rename') expect(fixture.rename).toHaveBeenCalledWith('project', 'old.ts', 'new.ts');
+    if (action === 'readDiff') expect(fixture.readDiff).toHaveBeenCalledWith('project', 'old.ts', 'staged');
   });
 
   it('serializes snapshots and binary exports without losing bytes', async () => {
@@ -107,5 +115,18 @@ describe('Git Worker protocol', () => {
         error: { code: 'storage_failed', message: 'Unknown Git action: unknown' }
       })
     );
+  });
+
+  it('差异读取必须显式声明暂存区或工作区，不隐式改读另一侧', async () => {
+    scope.onmessage({
+      data: { id: 4, action: 'readDiff', payload: { projectId: 'project', path: 'main.ts' } }
+    } as MessageEvent);
+    await vi.waitFor(() =>
+      expect(scope.postMessage).toHaveBeenCalledWith({
+        id: 4,
+        error: { code: 'invalid_path', message: 'readDiff requires working or staged kind' }
+      })
+    );
+    expect(fixture.readDiff).not.toHaveBeenCalled();
   });
 });

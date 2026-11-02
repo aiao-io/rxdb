@@ -52,9 +52,15 @@ const options = { assetBaseURL: '/browser-workbench-assets/' };
 
 ## 数据与恢复
 
-代码文件与 `.git` 在 `aiao-browser-workbench/projects/<projectId>/` 下，由 Git Worker 独占。编辑缓冲、已保存 revision 与 Git commit 是三个不同状态；运行前先保存，但不会自动提交。`Ctrl/⌘ + S` 保存，`Ctrl/⌘ + Enter` 运行。
+代码文件与 `.git` 在 `aiao-browser-workbench/projects/<projectId>/` 下，由 Git Worker 独占。编辑缓冲、已保存 revision 与 Git commit 是三个不同状态。保存按钮或 `Ctrl/⌘ + S` 只保存当前源码文件；当前打开差异时保存其对应文件，其他未保存缓冲继续保留。
 
-Git 视图可逐文件暂存、提交和查看历史。选择历史提交时，需要干净的缓冲与 Git 状态；恢复只把对应文件树写回工作区，形成待审查差异，HEAD 和 index 不变。
+打开或新建项目只预览已保存快照，不落盘随后输入的草稿。显式保存完成后，连续保存会合并为后台预览，编译仍只读取已保存快照。保存保持源码 / 差异标签激活，Git 操作不等待编译；编译失败保留上次成功预览并显示错误。本工作台将 `Ctrl/⌘ + Shift + S` 定义为保存全部；运行按钮和导出也会明确保存全部缓冲。保存与运行不会自动暂存或提交。
+
+`Ctrl/⌘ + P` 打开文件搜索，支持文件名、路径、方向键、Enter 和 Escape；`Ctrl/⌘ + Shift + P` 打开命令面板。编辑器启用 Tab 缩进，`Ctrl/⌘ + Enter` 在源码内沿用 CodeMirror 的插入行行为，在 Git 提交说明内提交暂存区。编辑区支持 `Ctrl/⌘ + W` 关闭标签、`Ctrl/⌘ + 反斜杠` 拆分、F2 重命名，以及 `Ctrl/⌘ + B/J` 切换侧栏和底部面板。
+
+Git 视图区分“暂存的更改”和“更改”，支持逐文件或批量暂存、取消暂存。文件有未保存编辑时不能暂存该文件；提交只包含暂存区，其他未保存编辑保持原状。点击文件打开只读双栏差异，分别比较 `HEAD → index` 和 `index → worktree`；BOM、行尾和末尾换行变化单独说明，二进制只显示字节信息。丢弃更改和删除未跟踪文件必须确认，只替换目标路径，保留其他缓冲及已暂存内容。
+
+选择历史提交时，需要干净的缓冲与 Git 状态；恢复只把对应文件树写回工作区，形成待审查差异，HEAD 和 index 不变。
 
 导出 ZIP 包含源码、资源、依赖锁、暂存区和 `.git`，不包含构建缓存。导入到全新项目空间，不覆盖已有仓库。导出后可在 Node.js 26 与 pnpm 12 下执行 `pnpm install --frozen-lockfile`、`pnpm build`，继续使用普通 Git。
 
@@ -97,8 +103,11 @@ pnpm nx test browser-workbench --coverage
 pnpm nx run browser-workbench:verify-export
 pnpm nx run browser-workbench:verify-consumers
 pnpm nx run browser-workbench:verify-offline
+pnpm nx run browser-workbench:verify-commands --url=http://127.0.0.1:4201/browser-workbench --host=react
+pnpm nx run browser-workbench:verify-save-preview --url=http://127.0.0.1:4201/browser-workbench
+pnpm nx run browser-workbench:verify-scm --url=http://127.0.0.1:4201/browser-workbench --host=react
 pnpm nx run browser-workbench:verify-docking --url=http://127.0.0.1:4201/browser-workbench --host=react
 pnpm nx e2e dev-rxdb-react-e2e browser-workbench.spec.ts --workers=1
 ```
 
-`verify-export` 对四类模板执行仓外冻结锁安装、生产构建与 Chromium 交互；`verify-consumers` 从真实 tarball 安装核心及三端绑定，检查 Worker / WASM、编辑器、预览与重开；`verify-offline` 检查缓存后的断网重开与四类项目运行。`verify-docking` 面向已启动的演示应用，以真实鼠标拖拽验证拆分、停靠、撤销记录 / 预览保活和官方字体摘要。原始报告保存在 `benchmarks/reports/browser-workbench-*.json`。
+`verify-export` 检查四类模板的仓外冻结锁安装、生产构建与 Chromium 交互；`verify-consumers` 从真实 tarball 检查核心及三端绑定、Worker / WASM、编辑器、真实只读 MergeView 与重开。`verify-offline` 检查缓存后的断网重开；`verify-commands` 检查键盘和标签生命周期；`verify-scm` 检查暂存、提交、差异和丢弃；`verify-save-preview` 检查保存预览的功能与耗时，可用 `--functional-only` 仅跑功能。`verify-docking` 检查真实拖拽、保活与字体摘要。原始报告保存在 `benchmarks/reports/browser-workbench-*.json`。

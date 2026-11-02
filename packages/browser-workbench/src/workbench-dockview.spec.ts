@@ -14,7 +14,8 @@ function fixture() {
     onCloseEditor: vi.fn(),
     onSelectTool: vi.fn(),
     onToggleTool: vi.fn(),
-    onClosePreview: vi.fn()
+    onClosePreview: vi.fn(),
+    onCloseAuxiliary: vi.fn()
   };
   const dock = createWorkbenchDockview(root, callbacks);
   dock.api.layout(1200, 800);
@@ -28,6 +29,52 @@ afterEach(() => {
 });
 
 describe('Dockview 工作台布局', () => {
+  it('辅助差异面板使用独立 id 与官方图标，选择不改变 Session 编辑器', () => {
+    const { root, dock, callbacks } = fixture();
+    const source = dock.ensureEditor('src/main.ts');
+    dock.selectEditor('src/main.ts');
+    const diff = dock.ensureAuxiliary('diff:working:src/main.ts', 'main.ts · 工作区差异');
+    diff.textContent = 'diff content';
+    expect(dock.ensureAuxiliary('diff:working:src/main.ts', 'main.ts · 工作区差异')).toBe(diff);
+    expect(diff.dataset['editorPath']).toBeUndefined();
+    expect(dock.api.getPanel('diff:working:src/main.ts')?.api.renderer).toBe('always');
+    expect(dock.api.getPanel('diff:working:src/main.ts')?.api.isActive).toBe(true);
+    expect(root.querySelector('[data-auxiliary-id="diff:working:src/main.ts"] .codicon-git-compare')).not.toBeNull();
+    expect(callbacks.onSelectEditor).not.toHaveBeenCalled();
+    expect(dock.ensureEditor('src/main.ts')).toBe(source);
+  });
+
+  it('用户关闭辅助面板只通知辅助生命周期，程序移除不会再次回调', async () => {
+    const { dock, callbacks } = fixture();
+    dock.ensureAuxiliary('diff:working:file.ts', 'file.ts');
+    dock.api.getPanel('diff:working:file.ts')?.api.close();
+    await Promise.resolve();
+    expect(callbacks.onCloseAuxiliary).toHaveBeenCalledExactlyOnceWith('diff:working:file.ts');
+    expect(callbacks.onCloseEditor).not.toHaveBeenCalled();
+    dock.ensureAuxiliary('diff:staged:file.ts', 'file.ts');
+    dock.removeAuxiliary('diff:staged:file.ts');
+    dock.removeAuxiliary('diff:staged:file.ts');
+    await Promise.resolve();
+    expect(callbacks.onCloseAuxiliary).toHaveBeenCalledTimes(1);
+  });
+
+  it('重置布局把辅助面板归入编辑组，保留同一差异 DOM', () => {
+    const { dock, callbacks } = fixture();
+    dock.ensureEditor('main.ts');
+    dock.selectEditor('main.ts');
+    const diff = dock.ensureAuxiliary('diff:working:main.ts', 'main.ts');
+    const content = document.createElement('textarea');
+    diff.append(content);
+    const panel = dock.api.getPanel('diff:working:main.ts')!;
+    panel.api.moveTo({ group: panel.group, position: 'right' });
+    dock.resetLayout();
+    expect(dock.ensureAuxiliary('diff:working:main.ts', 'main.ts')).toBe(diff);
+    expect(diff.firstChild).toBe(content);
+    expect(panel.group).toBe(dock.api.getPanel('editor:main.ts')?.group);
+    expect(callbacks.onCloseAuxiliary).not.toHaveBeenCalled();
+    expect(callbacks.onCloseEditor).not.toHaveBeenCalled();
+  });
+
   it('首次非零布局把底部设为180px，后续尺寸变化保留用户调整', async () => {
     const { dock } = fixture();
     const bottom = dock.api.getPanel('problems')?.group;

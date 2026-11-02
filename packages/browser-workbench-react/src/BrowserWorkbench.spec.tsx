@@ -27,6 +27,22 @@ beforeEach(() => {
 });
 
 describe('BrowserWorkbench React binding', () => {
+  it('Tab 缩进源码，Mod+Enter 保留 CodeMirror 的插入行行为', async () => {
+    const view = render(<BrowserWorkbench />);
+    await waitFor(() => expect(view.container.querySelector('.cm-content')).not.toBeNull());
+    const content = view.container.querySelector<HTMLElement>('.cm-content')!;
+    fireEvent.keyDown(content, { key: 'Tab', code: 'Tab', keyCode: 9 });
+    expect(mocks.change).toHaveBeenLastCalledWith(expect.stringMatching(/^\s+initial/));
+    fireEvent.keyDown(content, {
+      key: 'Enter',
+      code: 'Enter',
+      keyCode: 13,
+      ...(/Mac|iPhone|iPad/.test(navigator.platform) ? { metaKey: true } : { ctrlKey: true })
+    });
+    expect(mocks.change.mock.calls.at(-1)?.[0]).toContain('\n');
+    view.unmount();
+  });
+
   it('retains activation requested before the editor portal mounts', async () => {
     const mount = mocks.mount.getMockImplementation()!;
     mocks.mount.mockImplementation((host, options, mountEditor) => {

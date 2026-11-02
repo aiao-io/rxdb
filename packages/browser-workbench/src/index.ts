@@ -13,6 +13,8 @@ export type {
   WorkbenchBackend,
   WorkbenchCommit,
   WorkbenchCompilation,
+  WorkbenchDiff,
+  WorkbenchFileVersion,
   WorkbenchFiles,
   WorkbenchPreview,
   WorkbenchSnapshot,

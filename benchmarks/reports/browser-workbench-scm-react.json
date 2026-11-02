@@ -1,0 +1,60 @@
+{
+  "browser": "156.0.8078.4",
+  "checks": [
+    {
+      "name": "fresh-profile-project-and-initial-index-commit",
+      "milliseconds": 1368.181458
+    },
+    {
+      "name": "working-diff-index-to-saved-working-file",
+      "milliseconds": 671.0252080000005
+    },
+    {
+      "name": "per-file-stage-and-exact-staged-versus-working-diffs",
+      "milliseconds": 1074.9177920000002
+    },
+    {
+      "name": "per-file-unstage-and-index-only-mod-enter-commit-with-other-draft",
+      "milliseconds": 1791.1554999999998
+    },
+    {
+      "name": "save-current-preserves-other-draft-and-confirmed-discard-only-target",
+      "milliseconds": 1814.403542
+    },
+    {
+      "name": "untracked-file-delete-requires-explicit-confirmation",
+      "milliseconds": 1199.0998749999999
+    },
+    {
+      "name": "independent-native-git-proves-index-only-history-and-unsaved-draft-not-persisted",
+      "milliseconds": 367.5324579999997
+    }
+  ],
+  "errors": [],
+  "format": "aiao.browser-workbench.scm",
+  "generatedAt": "2026-11-02T19:09:38.796Z",
+  "git": {
+    "historyCount": 2,
+    "head": "20ee52029d9d522ca4ae22b1cad15f0f0693230b",
+    "nativeStatus": "clean",
+    "otherDraftInEditorOnly": true
+  },
+  "gitWorkerAssets": [
+    {
+      "url": "http://localhost:4201/browser-workbench-assets/git-worker.js",
+      "status": 200,
+      "sha256": "25671ec10ad95505fbf8e373b97cbfa8d7b16ef380a7393e876a7f8860de5c7a"
+    },
+    {
+      "url": "http://localhost:4201/browser-workbench-assets/git-worker.js",
+      "status": 200,
+      "sha256": "25671ec10ad95505fbf8e373b97cbfa8d7b16ef380a7393e876a7f8860de5c7a"
+    }
+  ],
+  "host": "react",
+  "screenshot": "/Users/jimmy/.codex/worktrees/3076/rxdb/benchmarks/reports/browser-workbench-scm-react.png",
+  "status": "passed",
+  "unexpectedDialogs": [],
+  "url": "http://localhost:4201/browser-workbench",
+  "version": 1
+}

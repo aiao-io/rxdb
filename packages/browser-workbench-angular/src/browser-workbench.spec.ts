@@ -28,6 +28,29 @@ beforeEach(() => {
 });
 
 describe('BrowserWorkbench Angular binding', () => {
+  it('Tab 缩进源码，Mod+Enter 保留 CodeMirror 的插入行行为', async () => {
+    const fixture = TestBed.createComponent(BrowserWorkbench);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const content = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.cm-content')!;
+    content.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Tab', code: 'Tab', keyCode: 9, bubbles: true, cancelable: true })
+    );
+    expect(mocks.change).toHaveBeenLastCalledWith(expect.stringMatching(/^\s+initial/));
+    content.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Enter',
+        code: 'Enter',
+        keyCode: 13,
+        bubbles: true,
+        cancelable: true,
+        ...(/Mac|iPhone|iPad/.test(navigator.platform) ? { metaKey: true } : { ctrlKey: true })
+      })
+    );
+    expect(mocks.change.mock.calls.at(-1)?.[0]).toContain('\n');
+    fixture.destroy();
+  });
+
   it('mounts the existing editor, updates values and disposes the workbench', async () => {
     const fixture = TestBed.createComponent(BrowserWorkbench);
     fixture.componentRef.setInput('options', { initialProjectId: 'fixture' });

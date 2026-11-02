@@ -4,13 +4,17 @@ import type { ProjectTemplate } from './compiler/compiler-types.js';
 import type { WorkbenchEditorHandle, WorkbenchEditorMount } from './editor.js';
 import { createGitBackend } from './git-backend.js';
 import { mountPreview, type PreviewEvent } from './preview/preview-sandbox.js';
+import { createSavePreviewController, type SavePreviewPhase } from './save-preview.js';
 import { WorkbenchSession, type WorkbenchBackend, type WorkbenchState } from './session.js';
 import { angularTemplate, defaultAngularDemo } from './templates-angular.js';
 import { defaultFrontendDemos, frontendTemplates, type WorkbenchTemplate } from './templates.js';
-import { requestWorkbenchText } from './workbench-dialog.js';
+import { createWorkbenchCommands, type WorkbenchCommand } from './workbench-commands.js';
+import { confirmWorkbenchAction, requestWorkbenchText } from './workbench-dialog.js';
+import { createWorkbenchDiff, type WorkbenchDiffHandle } from './workbench-diff.js';
 import { createWorkbenchDockview } from './workbench-dockview.js';
-import { createCodicon, createFileIcon, folderCodicon, gitStatusCodicon } from './workbench-icons.js';
+import { createCodicon, createFileIcon, folderCodicon } from './workbench-icons.js';
 import { createWorkbenchLayout, workbenchElement } from './workbench-layout.js';
+import { createWorkbenchScm, type WorkbenchDiffRequest } from './workbench-scm.js';
 
 /** 工作台的可注入服务与静态资源位置。 */
 export interface BrowserWorkbenchOptions {
@@ -74,7 +78,18 @@ export function mountWorkbench(
   const previewContent = element('.wb-preview-content');
   const previewVersion = element('.wb-preview-version');
   const editors = new Map<string, { host: HTMLElement; handle: WorkbenchEditorHandle }>();
-  const aborters = new Set<AbortController>();
+  const diffs = new Map<
+    string,
+    {
+      projectId: string;
+      path: string;
+      kind: 'working' | 'staged';
+      host: HTMLElement;
+      request: number;
+      view?: WorkbenchDiffHandle;
+    }
+  >();
+  let previewPhase: SavePreviewPhase = 'idle';
   const logs: { kind: 'problems' | 'output' | 'console'; text: string; level?: string }[] = [];
   let projects: readonly WorkbenchProjectInfo[] = [];
   let project: WorkbenchProjectInfo | undefined;
@@ -93,15 +108,18 @@ export function mountWorkbench(
     onSelectEditor(path) {
       if (disposed || !session.state.tabs.includes(path)) return;
       if (session.state.activePath !== path) session.select(path);
-      queueMicrotask(() => {
-        if (!disposed) editors.get(path)?.handle.focus?.();
-      });
+      focusEditor(path);
     },
     onCloseEditor(path) {
-      if (!disposed) session.closeTab(path);
+      if (disposed) return;
+      closeEditorTab(path);
     },
     onSelectTool() {
       renderLogs();
+    },
+    onCloseAuxiliary(id) {
+      diffs.get(id)?.view?.dispose();
+      diffs.delete(id);
     },
     onClosePreview() {
       preview?.dispose();
@@ -111,16 +129,178 @@ export function mountWorkbench(
   });
   const layoutChanges = docking.api.onDidLayoutChange(() => {
     queueMicrotask(() => {
-      if (!disposed) editors.forEach(editor => editor.handle.layout?.());
+      if (!disposed) {
+        editors.forEach(editor => editor.handle.layout?.());
+        diffs.forEach(diff => diff.view?.layout());
+      }
     });
   });
 
+  const scm = createWorkbenchScm(element('[data-slot="scm"]'), {
+    backend,
+    session,
+    onError: report,
+    onOpenDiff: openDiff,
+    async onDidChange(snapshot, paths) {
+      if (snapshot && snapshot.projectId === session.state.projectId) {
+        cancelCompilation();
+        session.applySavedSnapshot(snapshot, paths ?? []);
+      }
+      await refreshGit();
+    }
+  });
+  const savePreview = createSavePreviewController(
+    session,
+    async (snapshot, signal) => {
+      const info = projects.find(item => item.id === snapshot.projectId) ?? project;
+      if (!info || info.id !== snapshot.projectId) throw new Error('项目配置已切换');
+      return compiler.compile({ files: { ...snapshot.files }, template: info.template, entry: info.entry }, signal);
+    },
+    {
+      onPhase(phase) {
+        previewPhase = phase;
+        scm.setBusy(phase === 'saving');
+        renderStatus();
+        renderActionState();
+      },
+      onError: report
+    }
+  );
+
+  function focusEditor(path: string | null): void {
+    if (!path) return;
+    const id = session.state.projectId;
+    const previousFocus = root.ownerDocument.activeElement;
+    queueMicrotask(() => {
+      if (disposed) return;
+      requestAnimationFrame(() => {
+        if (disposed || session.state.projectId !== id || session.state.activePath !== path) return;
+        if (docking.api.activePanel?.id !== `editor:${path}`) return;
+        const focused = root.ownerDocument.activeElement;
+        if (focused !== previousFocus && focused !== root && focused !== root.ownerDocument.body) return;
+        editors.get(path)?.handle.focus?.();
+      });
+    });
+  }
+
+  function closeEditorTab(path: string): void {
+    session.closeTab(path);
+    root.focus();
+    focusEditor(session.state.activePath);
+  }
+
+  function activeResource(): string | null {
+    const active = docking.api.activePanel;
+    return active ?
+        (diffs.get(active.id)?.path ??
+          (active.id.startsWith('editor:') ? active.id.slice(7) : session.state.activePath))
+      : session.state.activePath;
+  }
+
+  function closeActiveEditor(): void {
+    const focused = root.ownerDocument.activeElement;
+    const path =
+      focused && root.contains(focused) ?
+        focused.closest('[data-editor-path]')?.getAttribute('data-editor-path')
+      : null;
+    if (path && session.state.tabs.includes(path)) {
+      closeEditorTab(path);
+      return;
+    }
+    const panel = docking.api.activePanel;
+    if (panel?.id.startsWith('editor:')) closeEditorTab(panel.id.slice(7));
+    else if (panel && (panel.id.startsWith('diff:') || panel.id === 'preview')) panel.api.close();
+  }
+
+  async function loadDiff(id: string): Promise<void> {
+    const entry = diffs.get(id);
+    if (!entry) return;
+    const request = ++entry.request;
+    try {
+      const model = await backend.readDiff(entry.projectId, entry.path, entry.kind);
+      if (
+        disposed ||
+        session.state.projectId !== entry.projectId ||
+        diffs.get(id) !== entry ||
+        request !== entry.request
+      )
+        return;
+      const staging = document.createElement('div');
+      staging.style.height = '100%';
+      const view = await createWorkbenchDiff(staging, model);
+      if (
+        disposed ||
+        session.state.projectId !== entry.projectId ||
+        diffs.get(id) !== entry ||
+        request !== entry.request
+      ) {
+        view.dispose();
+        return;
+      }
+      entry.view?.dispose();
+      entry.view = view;
+      entry.host.replaceChildren(staging);
+      queueMicrotask(() => {
+        if (diffs.get(id) === entry) view.layout();
+      });
+    } catch (cause) {
+      if (
+        disposed ||
+        session.state.projectId !== entry.projectId ||
+        diffs.get(id) !== entry ||
+        request !== entry.request
+      )
+        return;
+      const error = document.createElement('p');
+      error.className = 'wb-diff-error';
+      error.setAttribute('role', 'alert');
+      error.textContent = `${entry.view ? '差异刷新失败，仍显示上次结果：' : '无法读取差异：'}${messageFor(cause)}`;
+      entry.host.querySelector('.wb-diff-error')?.remove();
+      entry.host.prepend(error);
+      report(cause);
+    }
+  }
+
+  async function openDiff(request: WorkbenchDiffRequest): Promise<void> {
+    const id = `diff:${request.kind}:${request.path}`;
+    const host = docking.ensureAuxiliary(
+      id,
+      `${request.path.split('/').at(-1)} (${request.kind === 'staged' ? '暂存区' : '工作区'})`
+    );
+    if (!diffs.has(id)) {
+      host.textContent = '正在读取 Git 差异…';
+      diffs.set(id, { projectId: projectId(), ...request, host, request: 0 });
+    }
+    await loadDiff(id);
+  }
+
+  function renderStatus(): void {
+    const state = session.state;
+    const path = activeResource();
+    const modified = path ? session.isModified(path) : false;
+    const remaining = Object.keys(state.files).filter(file => session.isModified(file)).length;
+    const activity = previewPhase === 'compiling' || previewPhase === 'waiting' ? ' · 更新预览中…' : '';
+    element('[data-slot="save-status"]').textContent =
+      initializing ? '加载项目…'
+      : previewPhase === 'saving' ? '正在保存…'
+      : modified ? `未保存${activity}`
+      : state.projectId ? `已保存${remaining ? ` · 另有 ${remaining} 个文件未保存` : ''}${activity}`
+      : '尚未打开项目';
+    previewVersion.textContent =
+      state.preview ?
+        `r${state.preview.revision}${state.dirty || state.preview.revision !== state.revision ? ' · 有未保存或更新的代码' : ''}${activity}`
+      : activity ? '正在启动预览…'
+      : '尚未运行';
+  }
+
   function report(cause: unknown): void {
     if (cause instanceof DOMException && cause.name === 'AbortError') return;
-    log('problems', messageFor(cause), 'error');
+    const text = messageFor(cause);
+    if (logs.at(-1)?.kind === 'problems' && logs.at(-1)?.text === text) return;
+    log('problems', text, 'error');
   }
   function cancelCompilation(): void {
-    for (const controller of aborters) controller.abort();
+    savePreview.cancel();
   }
   function log(kind: 'problems' | 'output' | 'console', text: string, level?: string): void {
     if (disposed) return;
@@ -163,26 +343,12 @@ export function mountWorkbench(
     const [status, commits] = await Promise.all([backend.status(id), backend.history(id)]);
     if (disposed || project?.id !== id || request !== gitRefresh) return;
     element('[data-slot="branch-name"]').textContent = status.branch;
-    const changes = element('[data-slot="changes"]');
-    changes.replaceChildren();
-    for (const entry of status.entries) {
-      const row = document.createElement('div');
-      row.className = 'wb-change';
-      const name = document.createElement('code');
-      name.textContent = `${entry.index}${entry.worktree} ${entry.path}`;
-      name.title = entry.path;
-      const stage = document.createElement('button');
-      stage.append(createCodicon('add'));
-      stage.title = `暂存 ${entry.path}`;
-      stage.dataset['mutation'] = 'true';
-      stage.onclick = () =>
-        action(async () => {
-          await backend.stage(id, [entry.path]);
-          await refreshGit();
-        });
-      row.append(createCodicon(gitStatusCodicon(`${entry.index}${entry.worktree}`)), name, stage);
-      changes.append(row);
-    }
+    scm.update(status);
+    const badge = element('[data-slot="scm-count"]');
+    badge.textContent = String(status.entries.length);
+    badge.hidden = status.entries.length === 0;
+    await Promise.all([...diffs.keys()].map(loadDiff));
+    if (disposed || project?.id !== id || request !== gitRefresh) return;
     const history = element('[data-slot="history"]');
     history.replaceChildren();
     for (const commit of commits) {
@@ -192,8 +358,13 @@ export function mountWorkbench(
       button.dataset['mutation'] = 'true';
       button.onclick = () =>
         action(async () => {
-          const confirmation = await requestWorkbenchText(root, '输入 RESTORE 确认恢复为工作区差异');
-          if (confirmation !== 'RESTORE') return;
+          const confirmation = await confirmWorkbenchAction(
+            root,
+            '还原提交到工作区',
+            '将所选提交恢复为未提交差异，保留 HEAD 和暂存区。',
+            '还原文件'
+          );
+          if (!confirmation) return;
           cancelCompilation();
           await session.restore(commit.oid);
           await refreshGit();
@@ -227,8 +398,10 @@ export function mountWorkbench(
     project = opened;
     projects = projects.map(item => (item.id === id ? opened : item));
     renderProjects();
+    focusEditor(session.state.activePath);
+    void savePreview.runSaved().catch(report);
     await catalog.put(opened).catch(report);
-    await refreshGit();
+    void refreshGit().catch(report);
     log('output', `已打开 ${next.name}`);
   }
   function renderFiles(state: WorkbenchState): void {
@@ -282,13 +455,18 @@ export function mountWorkbench(
       button.onclick = () => {
         session.select(path);
         docking.selectEditor(path);
-        editors.get(path)?.handle.focus?.();
+        focusEditor(path);
       };
       tree.append(button);
     }
   }
   function renderEditors(state: WorkbenchState): void {
     if (state.projectId !== renderedProjectId) {
+      for (const [id, diff] of diffs) {
+        diff.view?.dispose();
+        docking.removeAuxiliary(id);
+      }
+      diffs.clear();
       editors.forEach(editor => editor.handle.dispose());
       editors.clear();
       for (const panel of [...docking.api.panels]) {
@@ -349,11 +527,7 @@ export function mountWorkbench(
   function render(state: WorkbenchState): void {
     renderFiles(state);
     renderEditors(state);
-    element('[data-slot="save-status"]').textContent =
-      state.busy ? '处理中…'
-      : state.dirty ? '未保存'
-      : state.projectId ? `已保存 · r${state.revision}`
-      : '尚未打开项目';
+    renderStatus();
     element('[data-slot="language"]').textContent = state.activePath ? languageFor(state.activePath) : '纯文本';
     renderActionState();
     if (!state.preview) {
@@ -370,17 +544,13 @@ export function mountWorkbench(
         previewEvent
       );
     }
-    previewVersion.textContent =
-      state.preview ?
-        `r${state.preview.revision}${state.dirty || state.preview.revision !== state.revision ? ' · 已过时' : ''}`
-      : '尚未运行';
     if (state.error && logs.at(-1)?.text !== state.error) report(state.error);
   }
   function renderActionState(): void {
     for (const button of root.querySelectorAll<HTMLElement>('[data-action="explorer"],[data-action="git"]')) {
       button.setAttribute('aria-pressed', String(docking.isSidebarVisible() && button.dataset['action'] === sideView));
     }
-    const busy = initializing || session.state.busy || pendingOperations > 0;
+    const busy = initializing || (session.state.busy && previewPhase !== 'compiling') || pendingOperations > 0;
     for (const button of root.querySelectorAll<HTMLButtonElement>(
       '[data-action="save"],[data-action="run"],[data-action="rerun-preview"],[data-action="export"]'
     ))
@@ -391,7 +561,7 @@ export function mountWorkbench(
       '[data-mutation],[data-action=commit],[data-action=stage-all],[data-action=rename],[data-action=delete],[data-action=new-file],[data-action=discard]'
     ))
       button.disabled = !session.state.projectId || busy;
-    element<HTMLSelectElement>('.wb-projects').disabled = busy && aborters.size === 0;
+    element<HTMLSelectElement>('.wb-projects').disabled = initializing || (busy && previewPhase !== 'compiling');
   }
   async function newProject(): Promise<void> {
     const name = await requestWorkbenchText(root, '项目名称', '我的项目');
@@ -417,28 +587,36 @@ export function mountWorkbench(
     projects = [...projects, info];
     project = info;
     renderProjects();
+    focusEditor(session.state.activePath);
+    void savePreview.runSaved().catch(report);
     await catalog.put(info).catch(report);
-    await refreshGit();
+    void refreshGit().catch(report);
     log('output', `已创建 ${name} · ${template.title}`);
   }
   async function run(): Promise<void> {
-    const info = project;
-    if (!info) throw new Error('请先打开项目');
+    projectId();
     docking.showPreview();
-    for (const controller of aborters) controller.abort();
-    const controller = new AbortController();
-    aborters.add(controller);
-    try {
-      await session.run(snapshot =>
-        compiler.compile(
-          { files: { ...snapshot.files }, template: info.template, entry: info.entry },
-          controller.signal
-        )
-      );
-      await refreshGit();
-    } finally {
-      aborters.delete(controller);
-    }
+    await savePreview.run();
+    await refreshGit();
+  }
+  function ensureSavePreview(): void {
+    if (docking.isPreviewOpen()) return;
+    const active = docking.api.activePanel;
+    docking.showPreview();
+    active?.api.setActive();
+  }
+  async function saveCurrent(): Promise<void> {
+    const path = activeResource();
+    if (!path) return;
+    ensureSavePreview();
+    await savePreview.save([path]);
+    await refreshGit();
+  }
+  async function saveAll(): Promise<void> {
+    projectId();
+    ensureSavePreview();
+    await savePreview.save();
+    await refreshGit();
   }
   async function exportProject(): Promise<void> {
     const info = project;
@@ -498,10 +676,8 @@ export function mountWorkbench(
     'rerun-preview': run,
     export: exportProject,
     import: importProject,
-    save: async () => {
-      await session.save();
-      await refreshGit();
-    },
+    save: saveCurrent,
+    'save-all': saveAll,
     'new-file': async () => {
       projectId();
       const path = await requestWorkbenchText(root, '文件路径', 'src/new.ts');
@@ -511,7 +687,7 @@ export function mountWorkbench(
       session.select(path);
     },
     rename: async () => {
-      const path = session.state.activePath;
+      const path = activeResource();
       if (!path) return;
       const to = await requestWorkbenchText(root, '重命名文件', path);
       if (to && to !== path) {
@@ -521,38 +697,16 @@ export function mountWorkbench(
       }
     },
     delete: async () => {
-      const path = session.state.activePath;
+      const path = activeResource();
       if (!path) return;
-      const confirmation = await requestWorkbenchText(root, `输入 DELETE 确认删除 ${path}`);
-      if (confirmation === 'DELETE') {
+      const confirmation = await confirmWorkbenchAction(root, '删除文件', `确定删除 ${path}？`, '删除文件');
+      if (confirmation) {
         cancelCompilation();
         await session.remove(path);
         await refreshGit();
       }
     },
-    'stage-all': async () => {
-      if (session.state.dirty) throw new Error('请先保存文件再暂存');
-      const id = projectId();
-      const status = await backend.status(id);
-      await backend.stage(
-        id,
-        status.entries.map(entry => entry.path)
-      );
-      await refreshGit();
-    },
-    commit: async () => {
-      if (session.state.dirty) throw new Error('存在未保存内容，请先保存');
-      const input = element<HTMLInputElement>('[name="message"]');
-      if (!input.value.trim()) throw new Error('请填写提交说明');
-      const message = input.value.trim();
-      const oid = await backend.commit(projectId(), message);
-      if (input.value.trim() === message) input.value = '';
-      await refreshGit();
-      log('output', `已提交 ${oid.slice(0, 7)}`);
-    },
-    discard: async () => {
-      if ((await requestWorkbenchText(root, '输入 DISCARD 确认丢弃未保存编辑')) === 'DISCARD') session.discard();
-    },
+    commit: () => scm.commit(),
     'clear-logs': () => {
       logs.splice(0);
       renderLogs();
@@ -562,17 +716,20 @@ export function mountWorkbench(
       docking.showPreview();
       render(session.state);
     },
+    'quick-open': () => commands.showQuickOpen(),
+    commands: () => commands.showCommandPalette(),
     'reset-layout': () => {
       docking.resetLayout();
       render(session.state);
     }
   };
-  function switchSide(view: string): void {
-    const visible = !(sideView === view && docking.isSidebarVisible());
+  function switchSide(view: string, force = false): void {
+    const visible = force || !(sideView === view && docking.isSidebarVisible());
     docking.setSidebarVisible(visible);
     sideView = view;
     element('[data-slot="files"]').hidden = view !== 'explorer';
     element('[data-slot="git-view"]').hidden = view !== 'git';
+    element('.wb-side-actions').hidden = view !== 'explorer';
     element('[data-slot="side-title"]').textContent = view === 'git' ? '源代码管理' : '资源管理器';
     for (const button of root.querySelectorAll<HTMLElement>('[data-action="explorer"],[data-action="git"]'))
       button.setAttribute('aria-pressed', String(visible && button.dataset['action'] === view));
@@ -598,11 +755,6 @@ export function mountWorkbench(
     }
   };
   root.addEventListener('click', click);
-  const submit = (event: Event) => {
-    event.preventDefault();
-    action(operations['commit']);
-  };
-  element('form').addEventListener('submit', submit);
   const select = element<HTMLSelectElement>('.wb-projects');
   select.onchange = () =>
     action(async () => {
@@ -612,18 +764,45 @@ export function mountWorkbench(
         renderProjects();
       }
     });
-  const keydown = (event: KeyboardEvent) => {
-    if (!(event.ctrlKey || event.metaKey)) return;
-    if (event.key.toLowerCase() === 's') {
-      event.preventDefault();
-      action(operations['save']);
+  const commands = createWorkbenchCommands(root, {
+    getFiles: () => Object.keys(session.state.files),
+    getActivePath: activeResource,
+    openFile(path) {
+      session.select(path);
+      docking.selectEditor(path);
+      focusEditor(path);
+    },
+    onError: report,
+    getCommands: () => {
+      const invoke = (id: string, operation: () => Promise<unknown> | void) => () => {
+        if (disposed || initializing) return;
+        if (pendingOperations > 0 && !['save', 'saveAll', 'run'].includes(id)) return;
+        action(operation);
+      };
+      const definitions: readonly [string, string, string | undefined, () => Promise<unknown> | void][] = [
+        ['save', '文件: 保存并预览当前文件', '⌘ / Ctrl + S', saveCurrent],
+        ['saveAll', '文件: 保存全部并预览', '⌘ / Ctrl + Shift + S', saveAll],
+        ['run', '运行: 保存全部并运行项目', undefined, run],
+        ['newFile', '文件: 新建文件', undefined, operations['new-file']],
+        ['newProject', '项目: 新建项目', undefined, newProject],
+        ['rename', '文件: 重命名', 'F2', operations['rename']],
+        ['deleteFile', '文件: 删除文件', undefined, operations['delete']],
+        ['toggleSidebar', '查看: 切换侧栏', '⌘ / Ctrl + B', () => switchSide(sideView)],
+        ['showScm', '查看: 源代码管理', undefined, () => switchSide('git', true)],
+        ['commit', 'Git: 提交已暂存更改', undefined, () => scm.commit()],
+        ['togglePanel', '查看: 切换底部面板', '⌘ / Ctrl + J', () => docking.toggleTools()],
+        ['split', '查看: 向右拆分编辑器', '⌘ / Ctrl + 反斜杠', () => docking.splitEditor()],
+        ['resetLayout', '查看: 重置布局', undefined, operations['reset-layout']],
+        ['closeEditor', '查看: 关闭当前编辑标签', '⌘ / Ctrl + W', closeActiveEditor]
+      ];
+      return definitions.map(([id, label, keybinding, operation]): WorkbenchCommand => ({
+        id,
+        label,
+        keybinding,
+        run: invoke(id, operation)
+      }));
     }
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      action(run);
-    }
-  };
-  root.addEventListener('keydown', keydown);
+  });
   const releaseState = session.subscribe(render);
   const beforeUnload = (event: BeforeUnloadEvent) => {
     if (session.state.dirty) {
@@ -661,7 +840,10 @@ export function mountWorkbench(
     .catch(report)
     .finally(() => {
       initializing = false;
-      if (!disposed) renderActionState();
+      if (!disposed) {
+        renderStatus();
+        renderActionState();
+      }
     });
   return {
     ready,
@@ -670,17 +852,20 @@ export function mountWorkbench(
       if (disposed) return;
       disposed = true;
       releaseState();
+      commands.dispose();
+      scm.dispose();
+      savePreview.dispose();
+      for (const diff of diffs.values()) diff.view?.dispose();
+      diffs.clear();
       session.dispose();
       compiler.dispose();
       preview?.dispose();
-      for (const controller of aborters) controller.abort();
       for (const editor of editors.values()) editor.handle.dispose();
       layoutChanges.dispose();
       docking.dispose();
       for (const dialog of root.querySelectorAll<HTMLDialogElement>('dialog')) dialog.close();
       window.removeEventListener('beforeunload', beforeUnload);
       root.removeEventListener('click', click);
-      root.removeEventListener('keydown', keydown);
       root.remove();
     }
   };

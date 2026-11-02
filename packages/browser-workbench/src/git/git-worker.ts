@@ -1,4 +1,4 @@
-import type { GitFile } from './git-protocol.js';
+import { GitWorkbenchError, type GitFile } from './git-protocol.js';
 import { GitWorkbenchRuntime } from './git-runtime.js';
 
 interface SerializedFile {
@@ -20,6 +20,7 @@ interface WorkerRequest {
     archive?: number[];
     expectedRevision?: number;
     vendorBaseUrl?: string;
+    kind?: 'working' | 'staged';
   };
 }
 
@@ -60,6 +61,14 @@ async function dispatch({ action, payload }: WorkerRequest): Promise<unknown> {
       return git.status(projectId);
     case 'stage':
       return git.stage(projectId, payload.paths ?? []);
+    case 'unstage':
+      return git.unstage(projectId, payload.paths ?? []);
+    case 'readDiff':
+      if (payload.kind !== 'working' && payload.kind !== 'staged')
+        throw new GitWorkbenchError('invalid_path', 'readDiff requires working or staged kind');
+      return git.readDiff(projectId, payload.path ?? '', payload.kind);
+    case 'discardWorking':
+      return git.discardWorking(projectId, payload.path ?? '');
     case 'commit':
       return git.commit(projectId, payload.message ?? '');
     case 'history':

@@ -25,7 +25,7 @@ function decodeFile(path: string, bytes: readonly number[]): string | Uint8Array
   const value = new Uint8Array(bytes);
   if (!textPath.test(path)) return value;
   try {
-    const text = new TextDecoder('utf-8', { fatal: true }).decode(value);
+    const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(value);
     return text.includes('\0') ? value : text;
   } catch {
     return value;
@@ -113,6 +113,11 @@ export function createGitBackend(assetBaseURL: string): WorkbenchBackend {
     stage: async (projectId, paths) => {
       await call('stage', { projectId, paths });
     },
+    unstage: async (projectId, paths) => {
+      await call('unstage', { projectId, paths });
+    },
+    readDiff: (projectId, path, kind) => call('readDiff', { projectId, path, kind }),
+    discardWorking: async (projectId, path) => snapshot(await call('discardWorking', { projectId, path })),
     commit: (projectId, message) => call('commit', { projectId, message }),
     history: projectId => call('history', { projectId }),
     restore: async (projectId, oid) => snapshot(await call('restore', { projectId, oid })),

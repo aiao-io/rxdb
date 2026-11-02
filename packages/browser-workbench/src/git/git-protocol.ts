@@ -11,6 +11,7 @@ export interface GitSnapshot {
 
 export interface GitStatusEntry {
   readonly path: string;
+  readonly originalPath?: string;
   readonly index: string;
   readonly worktree: string;
 }
@@ -25,6 +26,23 @@ export interface GitStatus {
 export interface GitCommit {
   readonly oid: string;
   readonly message: string;
+}
+
+/** Git 差异的一侧，缺失文件与二进制不会冒充空文本。 */
+export interface GitFileVersion {
+  readonly exists: boolean;
+  readonly binary: boolean;
+  readonly text: string | null;
+  readonly byteLength: number;
+}
+
+/** HEAD、index 和已保存工作区之间的精确文件差异。 */
+export interface GitFileDiff {
+  readonly projectId: string;
+  readonly path: string;
+  readonly kind: 'working' | 'staged';
+  readonly base: GitFileVersion;
+  readonly modified: GitFileVersion;
 }
 
 export type GitErrorCode =

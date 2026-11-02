@@ -91,6 +91,33 @@ describe('Git Worker backend', () => {
     backend.dispose();
   });
 
+  it('保留编辑文件BOM并映射取消暂存、差异和单文件丢弃', async () => {
+    const backend = createGitBackend('https://ide.example/assets/');
+    const worker = FakeWorker.instances[0];
+    const open = backend.open('p');
+    worker.reply({
+      projectId: 'p',
+      revision: 1,
+      files: [{ path: 'main.ts', bytes: [...new TextEncoder().encode('\uFEFFtext\r\n')] }]
+    });
+    expect((await open).files['main.ts']).toBe('\uFEFFtext\r\n');
+    const unstage = backend.unstage('p', ['main.ts']);
+    worker.reply({});
+    await unstage;
+    expect(worker.messages.at(-1)).toMatchObject({
+      action: 'unstage',
+      payload: { projectId: 'p', paths: ['main.ts'] }
+    });
+    const diff = backend.readDiff('p', 'main.ts', 'staged');
+    worker.reply({ path: 'main.ts', kind: 'staged' });
+    expect(await diff).toEqual({ path: 'main.ts', kind: 'staged' });
+    expect(worker.messages.at(-1)).toMatchObject({ action: 'readDiff', payload: { path: 'main.ts', kind: 'staged' } });
+    const discard = backend.discardWorking('p', 'main.ts');
+    worker.reply({ projectId: 'p', revision: 2, files: [{ path: 'main.ts', bytes: [97] }] });
+    expect((await discard).files['main.ts']).toBe('a');
+    backend.dispose();
+  });
+
   it('dispatches create, status, stage, commit, history, restore and archive operations', async () => {
     const backend = createGitBackend('https://ide.example/assets');
     const worker = FakeWorker.instances[0];

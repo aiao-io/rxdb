@@ -20,6 +20,7 @@ export const mountVueEditor: Parameters<typeof mountWorkbench>[2] = (element, in
           value: state.value,
           language: state.language,
           theme: 'dark',
+          indentWithTab: true,
           label: '项目源码',
           onChange: initial.onChange
         })

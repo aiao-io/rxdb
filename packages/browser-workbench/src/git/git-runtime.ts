@@ -1,7 +1,21 @@
 import { assertGitFileLimits, decodeGitArchive, encodeGitArchive, type GitArchive } from './git-archive.js';
-import { assertGitPath, assertNoPathCollisions, assertProjectId, GIT_WORKBENCH_ROOT, literalGitPathspec } from './git-paths.js';
+import { gitFileVersion } from './git-diff.js';
+import {
+  assertGitPath,
+  assertNoPathCollisions,
+  assertProjectId,
+  GIT_WORKBENCH_ROOT,
+  literalGitPathspec
+} from './git-paths.js';
+import {
+  type GitCommit,
+  type GitFile,
+  type GitFileDiff,
+  type GitSnapshot,
+  type GitStatus,
+  GitWorkbenchError
+} from './git-protocol.js';
 import { parseGitStatus } from './git-status.js';
-import { type GitCommit, type GitFile, type GitSnapshot, type GitStatus, GitWorkbenchError } from './git-protocol.js';
 
 interface WasmFilesystem {
   chdir(path: string): void;
@@ -43,6 +57,12 @@ interface ProjectContext {
   readonly root: string;
   readonly directory: FileSystemDirectoryHandle;
   revision: number;
+}
+
+function sameFileBytes(previous: Uint8Array<ArrayBuffer> | undefined, next: Uint8Array<ArrayBuffer>): boolean {
+  if (!previous || previous.length !== next.length) return false;
+  for (let index = 0; index < next.length; index++) if (previous[index] !== next[index]) return false;
+  return true;
 }
 
 export class GitWorkbenchRuntime {
@@ -144,11 +164,14 @@ export class GitWorkbenchRuntime {
           'revision_conflict',
           `Expected revision ${expectedRevision}, current revision is ${context.revision}`
         );
-      const next = new Map(this.snapshotContext(context).files.map(file => [file.path, file]));
+      const current = this.snapshotContext(context).files;
+      const previous = new Map(current.map(file => [file.path, file.bytes]));
+      const changed = files.filter(file => !sameFileBytes(previous.get(file.path), file.bytes));
+      const next = new Map(current.map(file => [file.path, file]));
       for (const file of files) next.set(file.path, file);
       this.validateFiles([...next.values()]);
       return this.mutate(context, async () => {
-        for (const file of files) await this.write(context.root, file);
+        for (const file of changed) await this.write(context.root, file);
         return () => this.snapshotContext(context);
       });
     });
@@ -194,13 +217,95 @@ export class GitWorkbenchRuntime {
       this.mutate(
         context,
         async () => {
-      await this.run(['add', ...paths.map(literalGitPathspec)]);
+          await this.run(['add', ...paths.map(literalGitPathspec)]);
           const result = await this.statusContext(context);
           return () => result;
         },
         false
       )
     );
+  }
+
+  async unstage(projectId: string, paths: readonly string[]): Promise<GitStatus> {
+    paths.forEach(path => assertGitPath(path));
+    if (!paths.length) throw new GitWorkbenchError('invalid_path', 'Unstage requires file paths');
+    return this.lock(projectId, true, async context => {
+      const status = await this.statusContext(context);
+      const selected = new Set<string>();
+      for (const path of paths) {
+        const entry = status.entries.find(entry => entry.path === path && /^[MADRCT]$/.test(entry.index));
+        if (!entry) throw new GitWorkbenchError('nothing_staged', `No staged change for ${path}`);
+        selected.add(path);
+        if (entry.index === 'R' && entry.originalPath) selected.add(entry.originalPath);
+      }
+      const headFiles = status.head ? await this.readCommitFiles(context, status.head) : [];
+      const head = new Map(headFiles.map(file => [file.path, file.bytes]));
+      const index = await this.inScratch(context, async scratch => {
+        for (const path of selected) {
+          const bytes = head.get(path);
+          if (bytes) {
+            this.ensureMemoryDirectory(`${scratch}/${path}`);
+            this.fs.writeFile(`${scratch}/${path}`, bytes);
+          }
+        }
+        await this.run(['add', ...[...selected].map(literalGitPathspec)]);
+        return new Uint8Array(this.fs.readFile(`${scratch}/.git/index`));
+      });
+      return this.mutate(
+        context,
+        async () => {
+          await this.git.module.opfsWriteFile(`${context.root}/.git/index`, index);
+          const result = await this.statusContext(context);
+          return () => result;
+        },
+        false
+      );
+    });
+  }
+
+  async readDiff(projectId: string, path: string, kind: 'working' | 'staged'): Promise<GitFileDiff> {
+    assertGitPath(path);
+    if (kind !== 'working' && kind !== 'staged') throw new GitWorkbenchError('invalid_path', 'Unknown diff kind');
+    return this.lock(projectId, true, async context => {
+      const status = await this.statusContext(context);
+      const index = new Map((await this.readIndexFiles(context)).map(file => [file.path, file.bytes]));
+      if (kind === 'working') {
+        const current = this.snapshotContext(context).files.find(file => file.path === path)?.bytes;
+        return { projectId, path, kind, base: gitFileVersion(index.get(path)), modified: gitFileVersion(current) };
+      }
+      const entry = status.entries.find(entry => entry.path === path);
+      const basePath = entry?.originalPath ?? path;
+      const head = status.head ? await this.readCommitFiles(context, status.head) : [];
+      return {
+        projectId,
+        path,
+        kind,
+        base: gitFileVersion(head.find(file => file.path === basePath)?.bytes),
+        modified: gitFileVersion(index.get(path))
+      };
+    });
+  }
+
+  async discardWorking(projectId: string, path: string): Promise<GitSnapshot> {
+    assertGitPath(path);
+    return this.lock(projectId, true, async context => {
+      const status = await this.statusContext(context);
+      const entry = status.entries.find(
+        entry => entry.path === path && entry.worktree !== ' ' && entry.worktree !== '!'
+      );
+      if (!entry) throw new GitWorkbenchError('invalid_path', `No working change for ${path}`);
+      const index = await this.readIndexFiles(context);
+      const bytes = index.find(file => file.path === path)?.bytes;
+      const current = this.snapshotContext(context).files;
+      const next = current.filter(file => file.path !== path);
+      if (bytes) next.push({ path, bytes });
+      this.validateFiles(next);
+      return this.mutate(context, async () => {
+        if (bytes) await this.write(context.root, { path, bytes });
+        else await this.removePersistent(context.root, path);
+        return () => this.snapshotContext(context);
+      });
+    });
   }
 
   async commit(projectId: string, message: string): Promise<string> {
@@ -252,7 +357,15 @@ export class GitWorkbenchRuntime {
       const tracked = new Set((await this.run(['ls-files'])).split('\n').filter(Boolean));
       const ignored = current.filter(file => !tracked.has(file.path));
       for (const file of ignored) {
-        if (target.some(entry => entry.path === file.path || entry.path.startsWith(`${file.path}/`) || file.path.startsWith(`${entry.path}/`))) throw new GitWorkbenchError('path_collision', `Restore conflicts with ignored file: ${file.path}`);
+        if (
+          target.some(
+            entry =>
+              entry.path === file.path ||
+              entry.path.startsWith(`${file.path}/`) ||
+              file.path.startsWith(`${entry.path}/`)
+          )
+        )
+          throw new GitWorkbenchError('path_collision', `Restore conflicts with ignored file: ${file.path}`);
       }
       assertNoPathCollisions([...target, ...ignored].map(file => file.path));
       return this.mutate(context, async () => {
@@ -532,7 +645,34 @@ export class GitWorkbenchRuntime {
     this.fs.chdir(context.root);
   }
 
+  private ensureMemoryDirectory(path: string): void {
+    const parts = path.slice(0, path.lastIndexOf('/')).split('/').filter(Boolean);
+    let parent = '';
+    for (const part of parts) {
+      parent += `/${part}`;
+      if (!this.fs.analyzePath(parent).exists) this.fs.mkdir(parent);
+    }
+  }
+
+  private async readIndexFiles(context: ProjectContext): Promise<readonly GitFile[]> {
+    return this.inScratch(context, async scratch => {
+      await this.run(['config', 'user.name', 'Workbench Snapshot']);
+      await this.run(['config', 'user.email', 'snapshot@example.invalid']);
+      await this.run(['commit', '-m', 'Temporary staged snapshot']);
+      const oid = (await this.run(['rev-parse', 'HEAD'])).trim();
+      await this.run(['checkout', '--force', '--no-progress', oid]);
+      return this.collect(scratch, false).files;
+    });
+  }
+
   private async readCommitFiles(context: ProjectContext, oid: string): Promise<readonly GitFile[]> {
+    return this.inScratch(context, async scratch => {
+      await this.run(['checkout', '--force', '--no-progress', oid]);
+      return this.collect(scratch, false).files;
+    });
+  }
+
+  private async inScratch<T>(context: ProjectContext, action: (scratch: string) => Promise<T>): Promise<T> {
     const scratch = `/tmp/aiao-workbench-restore-${this.#scratch++}`;
     const archive = this.collect(context.root, true);
     this.fs.mkdir(scratch);
@@ -541,10 +681,10 @@ export class GitWorkbenchRuntime {
         (left, right) => left.split('/').length - right.split('/').length
       ))
         this.fs.mkdir(`${scratch}/${path}`);
-      for (const file of archive.files) if (file.path.startsWith('.git/')) this.fs.writeFile(`${scratch}/${file.path}`, file.bytes);
+      for (const file of archive.files)
+        if (file.path.startsWith('.git/')) this.fs.writeFile(`${scratch}/${file.path}`, file.bytes);
       this.fs.chdir(scratch);
-      await this.run(['checkout', '--force', '--no-progress', oid]);
-      return this.collect(scratch, false).files;
+      return await action(scratch);
     } finally {
       this.clearMemory(scratch);
       this.fs.chdir(context.root);

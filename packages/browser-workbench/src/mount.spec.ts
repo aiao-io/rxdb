@@ -1,18 +1,25 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { WorkbenchProjectInfo } from './catalog.js';
 import type { WorkbenchCompiler } from './compiler-client.js';
 import type { WorkbenchEditorMount } from './editor.js';
 import { mountWorkbench, type WorkbenchHandle } from './mount.js';
-import type { WorkbenchBackend, WorkbenchFiles } from './session.js';
+import type { WorkbenchBackend, WorkbenchDiff, WorkbenchFiles } from './session.js';
 
 const instances: WorkbenchHandle[] = [];
 afterEach(() => {
   instances.splice(0).forEach(handle => handle.dispose());
+  vi.restoreAllMocks();
   document.body.replaceChildren();
 });
 
 const files = { 'src/main.ts': 'console.log(1)', 'src/label.ts': 'export const label = 1;' };
-function fixture(withProject = true, assetBaseURL = '/browser-workbench-assets/', bootstrapGate?: Promise<void>) {
+function fixture(
+  withProject = true,
+  assetBaseURL = '/browser-workbench-assets/',
+  bootstrapGate?: Promise<void>,
+  extraProjects: readonly WorkbenchProjectInfo[] = []
+) {
   let currentFiles: WorkbenchFiles = { ...files };
   let revision = 1;
   const backend: WorkbenchBackend = {
@@ -22,10 +29,11 @@ function fixture(withProject = true, assetBaseURL = '/browser-workbench-assets/'
       revision = 1;
       return { projectId, revision: '1', files: value };
     }),
-    save: vi.fn(async (projectId, value) => {
-      currentFiles = value;
+    save: vi.fn(async (projectId, value, expectedRevision) => {
+      if (expectedRevision !== String(revision)) throw new Error('文件 revision 冲突');
+      currentFiles = { ...currentFiles, ...value };
       revision++;
-      return { projectId, revision: String(revision), files: value };
+      return { projectId, revision: String(revision), files: { ...currentFiles } };
     }),
     remove: vi.fn<WorkbenchBackend['remove']>(async (_id, path) => {
       const next = { ...currentFiles };
@@ -41,6 +49,15 @@ function fixture(withProject = true, assetBaseURL = '/browser-workbench-assets/'
     }),
     status: vi.fn(async () => ({ branch: 'main', head: null, entries: [] })),
     stage: vi.fn(async () => undefined),
+    unstage: vi.fn(async () => undefined),
+    readDiff: vi.fn<WorkbenchBackend['readDiff']>(async (projectId, path, kind) => ({
+      projectId,
+      path,
+      kind,
+      base: { exists: true, binary: false, text: '', byteLength: 0 },
+      modified: { exists: true, binary: false, text: '', byteLength: 0 }
+    })),
+    discardWorking: vi.fn(async projectId => ({ projectId, revision: '2', files: {} })),
     commit: vi.fn(async () => 'oid'),
     history: vi.fn(async () => []),
     restore: vi.fn(async projectId => ({ projectId, revision: '3', files })),
@@ -58,7 +75,10 @@ function fixture(withProject = true, assetBaseURL = '/browser-workbench-assets/'
     list: vi.fn(async () => {
       if (bootstrapGate) await bootstrapGate;
       return withProject ?
-          [{ id: 'one', name: '本地项目', template: 'vanilla' as const, entry: 'src/main.ts', updatedAt: 1 }]
+          [
+            { id: 'one', name: '本地项目', template: 'vanilla' as const, entry: 'src/main.ts', updatedAt: 1 },
+            ...extraProjects
+          ]
         : [];
     }),
     put: vi.fn(async () => undefined)
@@ -89,6 +109,24 @@ async function answer(host: HTMLElement, value: string | null): Promise<void> {
   }
   dialog.close();
   await Promise.resolve();
+}
+
+async function confirmAction(host: HTMLElement, accepted: boolean): Promise<void> {
+  await vi.waitFor(() => expect(host.querySelector('.wb-confirm-dialog')).not.toBeNull());
+  const button = host.querySelector<HTMLButtonElement>(
+    accepted ? '.wb-confirm-dialog .wb-primary' : '.wb-confirm-dialog button'
+  );
+  if (!button) throw new Error('Confirm action control missing');
+  button.click();
+  await Promise.resolve();
+}
+
+function messageInput(host: HTMLElement, value: string): HTMLTextAreaElement {
+  const input = host.querySelector<HTMLTextAreaElement>('textarea[aria-label="提交说明"]');
+  if (!input) throw new Error('SCM message input missing');
+  input.value = value;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  return input;
 }
 
 describe('VS Code 风格工作台', () => {
@@ -145,6 +183,96 @@ describe('VS Code 风格工作台', () => {
     expect(catalog.put).toHaveBeenCalledTimes(4);
     expect(handle.session.state.projectId).toBe('default-react');
     handle.dispose();
+  });
+
+  it('打开项目的 Git 刷新延迟时，自动预览不保存用户已经输入的草稿', async () => {
+    let bootstrap!: () => void;
+    const gate = new Promise<void>(resolve => {
+      bootstrap = resolve;
+    });
+    const { handle, backend, compiler, mountEditor } = fixture(true, '/browser-workbench-assets/', gate);
+    let finishHistory!: () => void;
+    vi.mocked(backend.history).mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finishHistory = () => resolve([]);
+        })
+    );
+    bootstrap();
+    await vi.waitFor(() => expect(backend.history).toHaveBeenCalledOnce());
+    expect(compiler.compile).toHaveBeenCalledOnce();
+    mountEditor.mock.calls[0][1].onChange('unsaved while opening');
+    finishHistory();
+    await handle.ready;
+    await vi.waitFor(() => expect(compiler.compile).toHaveBeenCalledOnce());
+    expect(backend.save).not.toHaveBeenCalled();
+    expect(compiler.compile.mock.calls[0][0].files['src/main.ts']).toBe(files['src/main.ts']);
+    expect(handle.session.state.files['src/main.ts']).toBe('unsaved while opening');
+    expect(handle.session.state.dirty).toBe(true);
+  });
+
+  it('新建项目的 Git 刷新延迟时，自动预览不保存用户已经输入的草稿', async () => {
+    const { host, handle, backend, compiler, mountEditor } = fixture();
+    await handle.ready;
+    await vi.waitFor(() => expect(handle.session.state.preview).not.toBeNull());
+    compiler.compile.mockClear();
+    let finishHistory!: () => void;
+    vi.mocked(backend.history).mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finishHistory = () => resolve([]);
+        })
+    );
+    const calls = vi.mocked(backend.history).mock.calls.length;
+    await click(host, '[data-action="new-project"]');
+    await answer(host, 'slow initial preview');
+    await answer(host, 'vanilla');
+    await vi.waitFor(() => expect(backend.history).toHaveBeenCalledTimes(calls + 1));
+    expect(compiler.compile).toHaveBeenCalledOnce();
+    const editor = mountEditor.mock.calls.at(-1)![1];
+    const saved = editor.value;
+    editor.onChange('unsaved while creating');
+    finishHistory();
+    await vi.waitFor(() => expect(compiler.compile).toHaveBeenCalledOnce());
+    expect(backend.save).not.toHaveBeenCalled();
+    expect(compiler.compile.mock.calls[0][0].files[handle.session.state.activePath!]).toBe(saved);
+    expect(handle.session.state.files[handle.session.state.activePath!]).toBe('unsaved while creating');
+    expect(handle.session.state.dirty).toBe(true);
+  });
+
+  it('读取 Git 历史不会阻止已打开编辑器的显式保存或取消其新预览', async () => {
+    let bootstrap!: () => void;
+    const gate = new Promise<void>(resolve => {
+      bootstrap = resolve;
+    });
+    const { host, handle, backend, compiler, mountEditor } = fixture(true, '/browser-workbench-assets/', gate);
+    let finishHistory!: () => void;
+    vi.mocked(backend.history).mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finishHistory = () => resolve([]);
+        })
+    );
+    bootstrap();
+    await vi.waitFor(() => expect(backend.history).toHaveBeenCalledOnce());
+    mountEditor.mock.calls[0][1].onChange('explicit save while loading history');
+    try {
+      await vi.waitFor(() =>
+        expect(host.querySelector<HTMLButtonElement>('[data-action="save"]')?.disabled).toBe(false)
+      );
+      host
+        .querySelector<HTMLElement>('.ao-workbench')!
+        .dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true, bubbles: true, cancelable: true }));
+      await vi.waitFor(() => expect(backend.save).toHaveBeenCalledOnce());
+      await vi.waitFor(() =>
+        expect(compiler.compile.mock.calls.at(-1)?.[0].files['src/main.ts']).toBe('explicit save while loading history')
+      );
+    } finally {
+      finishHistory();
+    }
+    await handle.ready;
+    expect(handle.session.state.dirty).toBe(false);
+    expect(compiler.compile.mock.calls.at(-1)?.[0].files['src/main.ts']).toBe('explicit save while loading history');
   });
   it('自托管资源目录支持不带末尾斜杠，并加载官方Dockview和Codicons样式', async () => {
     const { host, handle } = fixture(true, '/custom-workbench-assets');
@@ -227,8 +355,7 @@ describe('VS Code 风格工作台', () => {
     await vi.waitFor(() => expect(backend.save).toHaveBeenCalled());
     expect(handle.session.state.dirty).toBe(false);
     await click(host, '[data-action="run"]');
-    await vi.waitFor(() => expect(compiler.compile).toHaveBeenCalled());
-    expect(compiler.compile.mock.calls[0][0].files['src/main.ts']).toBe('console.log(2)');
+    await vi.waitFor(() => expect(compiler.compile.mock.calls.at(-1)?.[0].files['src/main.ts']).toBe('console.log(2)'));
     await vi.waitFor(() => expect(host.querySelector('.wb-preview-content iframe')).not.toBeNull());
     vi.mocked(backend.status).mockResolvedValue({
       branch: 'main',
@@ -236,23 +363,25 @@ describe('VS Code 风格工作台', () => {
       entries: [{ path: 'src/main.ts', index: ' ', worktree: 'M' }]
     });
     await click(host, '[data-action="git"]');
-    await vi.waitFor(() => expect(host.querySelector('.wb-change')).not.toBeNull());
-    await click(host, '.wb-change button');
+    await vi.waitFor(() => expect(host.querySelector('.wb-scm-change')).not.toBeNull());
+    vi.mocked(backend.status).mockResolvedValue({
+      branch: 'main',
+      head: 'a'.repeat(40),
+      entries: [{ path: 'src/main.ts', index: 'M', worktree: ' ' }]
+    });
+    await click(host, '[data-scm-group="working"] [data-scm-action="stage"]');
     await vi.waitFor(() => expect(backend.stage).toHaveBeenCalledWith('one', ['src/main.ts']));
-    await click(host, '[data-action="stage-all"]');
-    await vi.waitFor(() => expect(backend.stage).toHaveBeenCalledTimes(2));
-    const input = host.querySelector<HTMLInputElement>('[name="message"]');
-    if (!input) throw new Error('Commit input missing');
-    input.value = 'tested change';
-    host.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true }));
+    await vi.waitFor(() =>
+      expect(host.querySelector<HTMLButtonElement>('[data-scm-action="stage-all"]')?.disabled).toBe(true)
+    );
+    const input = messageInput(host, 'tested change');
+    await click(host, '[data-scm-action="commit"]');
     await vi.waitFor(() => expect(backend.commit).toHaveBeenCalledWith('one', 'tested change'));
-    expect(input.value).toBe('');
-    await click(host, '[data-panel="output"]');
-    expect(host.querySelector('[data-log=output] .wb-panel-content')?.textContent).toContain('已提交');
+    await vi.waitFor(() => expect(input.value).toBe(''));
     handle.dispose();
   });
 
-  it('新建文件、重命名、删除和丢弃缓冲要求明确输入', async () => {
+  it('新建文件与重命名使用具名输入，删除先取消再明确确认', async () => {
     const { host, handle, backend } = fixture();
     await handle.ready;
     await click(host, '[data-action="new-file"]');
@@ -267,27 +396,238 @@ describe('VS Code 风格工作台', () => {
     await vi.waitFor(() => expect(handle.session.state.files['src/renamed.ts']).toBeDefined());
     handle.session.select('src/renamed.ts');
     await click(host, '[data-action="delete"]');
-    await answer(host, 'DELETE');
+    await confirmAction(host, false);
+    expect(backend.remove).not.toHaveBeenCalled();
+    await click(host, '[data-action="delete"]');
+    await confirmAction(host, true);
     await vi.waitFor(() => expect(backend.remove).toHaveBeenCalledWith('one', 'src/renamed.ts'));
-    handle.session.edit('src/main.ts', 'unsaved');
-    await click(host, '[data-action="discard"]');
-    await answer(host, 'DISCARD');
-    await vi.waitFor(() => expect(handle.session.state.dirty).toBe(false));
     await click(host, '[data-action="new-file"]');
     await answer(host, null);
     expect(handle.session.state.dirty).toBe(false);
     handle.dispose();
   });
 
-  it('拒绝脏状态暂存与提交，将失败写进问题面板并允许清空', async () => {
+  it('Mod+S 只保存当前文件并从已保存快照更新预览，Save All 才保存其余缓冲', async () => {
     const { host, handle, backend, compiler } = fixture();
     await handle.ready;
-    handle.session.edit('src/main.ts', 'unsaved');
-    await click(host, '[data-action="stage-all"]');
-    await vi.waitFor(() => expect(host.querySelector('.wb-panel-content')?.textContent).toContain('请先保存'));
+    await vi.waitFor(() => expect(handle.session.state.preview).not.toBeNull());
+    compiler.compile.mockClear();
+    handle.session.edit('src/main.ts', 'saved main');
+    handle.session.edit('src/label.ts', 'unsaved label');
+    const root = host.querySelector<HTMLElement>('.ao-workbench')!;
+    root.dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true, bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(backend.save).toHaveBeenCalledOnce());
+    expect(vi.mocked(backend.save).mock.calls[0][1]).toEqual({
+      'src/main.ts': 'saved main',
+      'src/label.ts': files['src/label.ts']
+    });
+    expect(handle.session.state.files['src/label.ts']).toBe('unsaved label');
+    expect(handle.session.isModified('src/label.ts')).toBe(true);
+    await vi.waitFor(() =>
+      expect(compiler.compile.mock.calls.at(-1)?.[0].files).toEqual({
+        'src/main.ts': 'saved main',
+        'src/label.ts': files['src/label.ts']
+      })
+    );
+    root.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'S', ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true })
+    );
+    await vi.waitFor(() => expect(handle.session.state.dirty).toBe(false));
+    expect(vi.mocked(backend.save).mock.calls.at(-1)?.[1]).toEqual({
+      'src/main.ts': 'saved main',
+      'src/label.ts': 'unsaved label'
+    });
+  });
+
+  it('保存不抢走编辑器激活状态，随后 Mod+W 关闭源码标签并保留预览', async () => {
+    const { host, handle } = fixture();
+    await handle.ready;
+    handle.session.edit('src/main.ts', 'saved code');
+    const root = host.querySelector<HTMLElement>('.ao-workbench')!;
+    root.dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true, bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(handle.session.isModified('src/main.ts')).toBe(false));
+    await vi.waitFor(() => expect(host.querySelector<HTMLButtonElement>('[data-action="save"]')?.disabled).toBe(false));
+    root.dispatchEvent(new KeyboardEvent('keydown', { key: 'w', ctrlKey: true, bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(handle.session.state.tabs).not.toContain('src/main.ts'));
+    expect(host.querySelector('.wb-preview')).not.toBeNull();
+    expect(host.querySelector('[data-dock-panel="preview"]')).not.toBeNull();
+  });
+
+  it('切换底部面板后，Mod+W 仍关闭实际拥有键盘焦点的源码文件', async () => {
+    const { host, handle } = fixture();
+    await handle.ready;
+    const content = document.createElement('div');
+    content.setAttribute('contenteditable', 'true');
+    content.tabIndex = 0;
+    host.querySelector('[data-editor-path="src/main.ts"]')!.append(content);
+    content.focus();
+    await click(host, '[data-action="panel"]');
+    await click(host, '[data-action="panel"]');
+    await vi.waitFor(() => expect(host.querySelector<HTMLButtonElement>('[data-action="save"]')?.disabled).toBe(false));
+    expect(document.activeElement).toBe(content);
+    content.dispatchEvent(new KeyboardEvent('keydown', { key: 'w', ctrlKey: true, bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(handle.session.state.tabs).not.toContain('src/main.ts'));
+    expect(host.querySelector('[data-dock-panel="preview"]')).not.toBeNull();
+  });
+
+  it('后台预览编译不会阻塞已保存文件的暂存动作', async () => {
+    const { host, handle, backend, compiler } = fixture();
+    await handle.ready;
+    await vi.waitFor(() => expect(handle.session.state.preview).not.toBeNull());
+    let finish!: (value: { js: string; css: string }) => void;
+    compiler.compile.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    const calls = compiler.compile.mock.calls.length;
+    handle.session.edit('src/main.ts', 'latest saved');
+    vi.mocked(backend.status).mockResolvedValue({
+      branch: 'main',
+      head: 'a'.repeat(40),
+      entries: [{ path: 'src/main.ts', index: ' ', worktree: 'M' }]
+    });
+    await click(host, '[data-action="save"]');
+    await vi.waitFor(() => expect(compiler.compile).toHaveBeenCalledTimes(calls + 1));
+    await click(host, '[data-action="git"]');
+    await click(host, '[data-scm-action="stage"]');
+    await vi.waitFor(() => expect(backend.stage).toHaveBeenCalledWith('one', ['src/main.ts']));
+    expect(host.querySelector('[data-slot="save-status"]')?.textContent).toContain('更新预览');
+    finish({ js: 'latest saved', css: '' });
+  });
+
+  it('SCM 只提交明确暂存内容，未保存的其他文件不会被自动保存或暂存', async () => {
+    const { host, handle, backend, compiler } = fixture();
+    await handle.ready;
+    await vi.waitFor(() => expect(handle.session.state.preview).not.toBeNull());
+    vi.mocked(backend.save).mockClear();
+    compiler.compile.mockClear();
+    vi.mocked(backend.status).mockResolvedValue({
+      branch: 'main',
+      head: 'a'.repeat(40),
+      entries: [{ path: 'src/main.ts', index: 'M', worktree: ' ' }]
+    });
+    await click(host, '[data-action="git"]');
+    await vi.waitFor(() => expect(host.querySelector('[data-scm-group="staged"] .wb-scm-change')).not.toBeNull());
+    handle.session.edit('src/label.ts', 'keep this buffer');
+    const input = messageInput(host, 'commit explicit index');
+    expect(host.querySelector<HTMLButtonElement>('[data-scm-action="commit"]')?.disabled).toBe(false);
+    const event = new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true, cancelable: true });
+    input.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    await vi.waitFor(() => expect(backend.commit).toHaveBeenCalledWith('one', 'commit explicit index'));
+    await vi.waitFor(() => expect(input.value).toBe(''));
+    expect(backend.save).not.toHaveBeenCalled();
     expect(backend.stage).not.toHaveBeenCalled();
-    await click(host, '[data-action="commit"]');
-    await vi.waitFor(() => expect(host.querySelector('.wb-panel-content')?.textContent).toContain('存在未保存'));
+    expect(compiler.compile).not.toHaveBeenCalled();
+    expect(handle.session.state.files['src/label.ts']).toBe('keep this buffer');
+    expect(handle.session.isModified('src/label.ts')).toBe(true);
+  });
+
+  it('丢弃工作区文件使用确认按钮，仅替换指定路径并保留其他缓冲', async () => {
+    const { host, handle, backend } = fixture();
+    await handle.ready;
+    vi.mocked(backend.status).mockResolvedValue({
+      branch: 'main',
+      head: 'a'.repeat(40),
+      entries: [{ path: 'src/main.ts', index: ' ', worktree: 'M' }]
+    });
+    await click(host, '[data-action="git"]');
+    await vi.waitFor(() => expect(host.querySelector('[data-scm-action="discard"]')).not.toBeNull());
+    handle.session.edit('src/main.ts', 'discard this buffer');
+    handle.session.edit('src/label.ts', 'preserve this buffer');
+    await click(host, '[data-scm-action="discard"]');
+    await confirmAction(host, false);
+    expect(backend.discardWorking).not.toHaveBeenCalled();
+    vi.mocked(backend.discardWorking).mockResolvedValueOnce({
+      projectId: 'one',
+      revision: '2',
+      files: { ...files, 'src/main.ts': 'index contents' }
+    });
+    await click(host, '[data-scm-action="discard"]');
+    await confirmAction(host, true);
+    await vi.waitFor(() => expect(backend.discardWorking).toHaveBeenCalledWith('one', 'src/main.ts'));
+    await vi.waitFor(() => expect(handle.session.state.files['src/main.ts']).toBe('index contents'));
+    expect(handle.session.state.files['src/label.ts']).toBe('preserve this buffer');
+    expect(handle.session.isModified('src/label.ts')).toBe(true);
+  });
+
+  it('差异刷新等待期间切项目，迟到的旧历史不能覆盖新项目历史', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const { host, handle, backend, compiler } = fixture(true, '/browser-workbench-assets/', gate, [
+      { id: 'two', name: '第二项目', template: 'vanilla', entry: 'src/main.ts', updatedAt: 0 }
+    ]);
+    compiler.compile.mockImplementationOnce(() => new Promise(() => undefined));
+    vi.mocked(backend.status).mockImplementation(async id => ({
+      branch: 'main',
+      head: 'a'.repeat(40),
+      entries: id === 'one' ? [{ path: 'src/main.ts', index: ' ', worktree: 'M' }] : []
+    }));
+    vi.mocked(backend.history).mockImplementation(async id => [
+      { oid: (id === 'one' ? 'a' : 'b').repeat(40), message: id === 'one' ? 'one old commit' : 'two current commit' }
+    ]);
+    release();
+    await handle.ready;
+    await click(host, '[data-action="git"]');
+    await vi.waitFor(() => expect(host.querySelector('[data-scm-path="src/main.ts"]')).not.toBeNull());
+    await click(host, '[data-scm-path="src/main.ts"]');
+    await vi.waitFor(() => expect(host.querySelector('.wb-diff .cm-content')).not.toBeNull());
+    let finish!: (diff: WorkbenchDiff) => void;
+    vi.mocked(backend.readDiff).mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    const reads = vi.mocked(backend.readDiff).mock.calls.length;
+    await click(host, '[data-action="git"]');
+    await vi.waitFor(() => expect(backend.readDiff).toHaveBeenCalledTimes(reads + 1));
+    const select = host.querySelector<HTMLSelectElement>('.wb-projects')!;
+    expect(select.disabled).toBe(false);
+    select.value = 'two';
+    select.dispatchEvent(new Event('change'));
+    await vi.waitFor(() =>
+      expect(host.querySelector('[data-slot="history"]')?.textContent).toContain('two current commit')
+    );
+    finish({
+      projectId: 'one',
+      path: 'src/main.ts',
+      kind: 'working',
+      base: { exists: true, binary: false, text: '', byteLength: 0 },
+      modified: { exists: true, binary: false, text: 'old', byteLength: 3 }
+    });
+    await vi.waitFor(() =>
+      expect(host.querySelector<HTMLButtonElement>('[data-action="new-project"]')?.disabled).toBe(false)
+    );
+    expect(host.querySelector('[data-slot="history"]')?.textContent).toContain('two current commit');
+    expect(host.querySelector('[data-slot="history"]')?.textContent).not.toContain('one old commit');
+    expect(handle.session.state.projectId).toBe('two');
+  });
+
+  it('未保存文件不能暂存，没有暂存内容不能提交；运行错误可见且允许清空', async () => {
+    const { host, handle, backend, compiler } = fixture();
+    await handle.ready;
+    vi.mocked(backend.status).mockResolvedValue({
+      branch: 'main',
+      head: 'a'.repeat(40),
+      entries: [{ path: 'src/main.ts', index: ' ', worktree: 'M' }]
+    });
+    await click(host, '[data-action="git"]');
+    await vi.waitFor(() =>
+      expect(host.querySelector('[data-scm-group="working"] [data-scm-action="stage"]')).not.toBeNull()
+    );
+    handle.session.edit('src/main.ts', 'unsaved');
+    expect(host.querySelector<HTMLButtonElement>('[data-scm-action="stage-all"]')?.disabled).toBe(true);
+    expect(host.querySelector<HTMLButtonElement>('[data-scm-action="stage"]')?.disabled).toBe(true);
+    expect(backend.stage).not.toHaveBeenCalled();
+    const input = messageInput(host, 'cannot commit unstaged data');
+    expect(host.querySelector<HTMLButtonElement>('[data-scm-action="commit"]')?.disabled).toBe(true);
+    input.closest('form')?.dispatchEvent(new Event('submit', { cancelable: true }));
+    expect(backend.commit).not.toHaveBeenCalled();
     handle.session.discard();
     vi.mocked(compiler.compile).mockRejectedValueOnce(new Error('bad module'));
     await click(host, '[data-action="run"]');
@@ -298,7 +638,7 @@ describe('VS Code 风格工作台', () => {
     handle.dispose();
   });
 
-  it('新建固定模板项目并在历史恢复时要求RESTORE确认', async () => {
+  it('新建固定模板项目，历史恢复通过明确按钮确认', async () => {
     const { host, handle, backend, catalog } = fixture();
     await handle.ready;
     catalog.put.mockClear();
@@ -314,7 +654,10 @@ describe('VS Code 风格工作台', () => {
     await click(host, '[data-action="git"]');
     await vi.waitFor(() => expect(host.querySelector('[data-slot="history"] button')).not.toBeNull());
     await click(host, '[data-slot="history"] button');
-    await answer(host, 'RESTORE');
+    await confirmAction(host, false);
+    expect(backend.restore).not.toHaveBeenCalled();
+    await click(host, '[data-slot="history"] button');
+    await confirmAction(host, true);
     await vi.waitFor(() =>
       expect(backend.restore).toHaveBeenCalledWith(handle.session.state.projectId, 'a'.repeat(40))
     );
@@ -428,8 +771,8 @@ describe('VS Code 风格工作台', () => {
   it('拒绝超大归档与脏状态导入，空提交说明不会调用Git', async () => {
     const { host, handle, backend } = fixture();
     await handle.ready;
-    await click(host, '[data-action="commit"]');
-    await vi.waitFor(() => expect(host.querySelector('.wb-panel-content')?.textContent).toContain('请填写提交说明'));
+    expect(host.querySelector<HTMLButtonElement>('[data-scm-action="commit"]')?.disabled).toBe(true);
+    host.querySelector('.wb-scm-commit-form')?.dispatchEvent(new Event('submit', { cancelable: true }));
     expect(backend.commit).not.toHaveBeenCalled();
     handle.session.edit('src/main.ts', 'unsaved');
     await click(host, '[data-action="import"]');

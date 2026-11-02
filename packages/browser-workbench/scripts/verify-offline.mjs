@@ -1,9 +1,23 @@
+import { build } from 'esbuild';
 import assert from 'node:assert/strict';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, join, resolve, sep } from 'node:path';
 import { chromium } from 'playwright';
 const root = resolve(import.meta.dirname, '..');
+const fixtureDirectory = join(root, '.offline-fixture');
+const fixture = await build({
+  entryPoints: { index: join(root, 'dist/index.js') },
+  absWorkingDir: root,
+  bundle: true,
+  write: false,
+  format: 'esm',
+  splitting: true,
+  platform: 'browser',
+  outdir: fixtureDirectory,
+  logLevel: 'silent'
+});
+const modules = new Map(fixture.outputFiles.map(file => [file.path, file.contents]));
 const mime = {
   '.js': 'text/javascript',
   '.html': 'text/html',
@@ -21,9 +35,7 @@ const walk = async directory =>
       )
     )
   ).flat();
-const urls = (await walk(join(root, 'dist')))
-  .filter(path => /\.(js|wasm|json|css|ttf|woff2)$/.test(path))
-  .map(path => `/module/${path.slice(join(root, 'dist').length + 1)}`);
+const urls = [...modules.keys()].map(path => `/module/${path.slice(fixtureDirectory.length + 1)}`);
 const assets = (await walk(join(root, 'dist/assets')))
   .filter(path => /\.(js|wasm|json|css|ttf|woff2)$/.test(path))
   .map(path => `/browser-workbench-assets/${path.slice(join(root, 'dist/assets').length + 1)}`);
@@ -60,7 +72,7 @@ const server = createServer(async (request, response) => {
       response.writeHead(404).end();
       return;
     }
-    const directory = resolve(root, 'dist', prefix === '/module/' ? '' : 'assets');
+    const directory = prefix === '/module/' ? fixtureDirectory : resolve(root, 'dist/assets');
     const target = resolve(directory, decodeURIComponent(path.slice(prefix.length)));
     if (!target.startsWith(directory + sep)) {
       response.writeHead(403).end();
@@ -69,7 +81,7 @@ const server = createServer(async (request, response) => {
     response.setHeader('Content-Type', mime[extname(target)] ?? 'text/plain');
     response.setHeader('Access-Control-Allow-Origin', '*');
     response.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-    response.end(await readFile(target));
+    response.end(prefix === '/module/' ? modules.get(target) : await readFile(target));
   } catch {
     response.writeHead(404).end();
   }

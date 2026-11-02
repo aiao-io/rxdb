@@ -45,13 +45,14 @@ async function call<T>(action: string, payload: unknown, workerName = 'gitProbe'
   return value;
 }
 
-async function installFaultWorker(mode: 'quota' | 'interrupt'): Promise<void> {
-  await page.evaluate(async mode => {
-    const wrapper = `
+async function installFaultWorker(mode: 'quota' | 'interrupt', filename = 'interrupted.txt'): Promise<void> {
+  await page.evaluate(
+    async ({ mode, filename }) => {
+      const wrapper = `
       let failure = ${JSON.stringify(mode)};
       const original = FileSystemFileHandle.prototype.createSyncAccessHandle;
       FileSystemFileHandle.prototype.createSyncAccessHandle = async function (...args) {
-        if (failure && this.name === 'interrupted.txt') {
+        if (failure && this.name === ${JSON.stringify(filename)}) {
           const mode = failure;
           failure = '';
           if (mode === 'quota') throw new DOMException('Injected quota failure', 'QuotaExceededError');
@@ -63,16 +64,18 @@ async function installFaultWorker(mode: 'quota' | 'interrupt'): Promise<void> {
       await import(${JSON.stringify(new URL('/worker.js', origin).href)});
       self.postMessage({ ready: true });
     `;
-    const worker = new Worker(URL.createObjectURL(new Blob([wrapper], { type: 'text/javascript' })), {
-      type: 'module'
-    });
-    const target = globalThis as unknown as Record<string, Worker>;
-    target.faultProbe = worker;
-    await new Promise<void>((resolveReady, reject) => {
-      worker.onmessage = () => resolveReady();
-      worker.onerror = event => reject(new Error(event.message));
-    });
-  }, mode);
+      const worker = new Worker(URL.createObjectURL(new Blob([wrapper], { type: 'text/javascript' })), {
+        type: 'module'
+      });
+      const target = globalThis as unknown as Record<string, Worker>;
+      target.faultProbe = worker;
+      await new Promise<void>((resolveReady, reject) => {
+        worker.onmessage = () => resolveReady();
+        worker.onerror = event => reject(new Error(event.message));
+      });
+    },
+    { mode, filename }
+  );
 }
 
 async function restart(): Promise<void> {
@@ -80,6 +83,32 @@ async function restart(): Promise<void> {
     const target = globalThis as unknown as { gitProbe?: Worker };
     target.gitProbe?.terminate();
     target.gitProbe = undefined;
+  });
+}
+
+async function installCountingWorker(): Promise<void> {
+  await page.evaluate(async () => {
+    const wrapper = `
+      const counts = {};
+      const original = FileSystemFileHandle.prototype.createSyncAccessHandle;
+      FileSystemFileHandle.prototype.createSyncAccessHandle = async function (...args) {
+        if (/^f-[0-9]+[.]ts$/.test(this.name)) counts[this.name] = (counts[this.name] || 0) + 1;
+        return original.apply(this, args);
+      };
+      self.addEventListener('message', event => {
+        if (event.data.action !== 'sourceWriteCounts') return;
+        event.stopImmediatePropagation(); self.postMessage({ id: event.data.id, result: counts });
+      });
+      await import(${JSON.stringify(new URL('/worker.js', location.origin).href)}); self.postMessage({ ready: true });
+    `;
+    const worker = new Worker(URL.createObjectURL(new Blob([wrapper], { type: 'text/javascript' })), {
+      type: 'module'
+    });
+    (globalThis as unknown as Record<string, Worker>).countingProbe = worker;
+    await new Promise<void>((resolveReady, reject) => {
+      worker.onmessage = () => resolveReady();
+      worker.onerror = event => reject(new Error(event.message));
+    });
   });
 }
 
@@ -114,9 +143,14 @@ async function installJournalFaultWorker(mode: 'create' | 'write' | 'close' | 'i
     `;
     const target = globalThis as unknown as Record<string, Worker>;
     target.journalProbe?.terminate();
-    const worker = new Worker(URL.createObjectURL(new Blob([wrapper], { type: 'text/javascript' })), { type: 'module' });
+    const worker = new Worker(URL.createObjectURL(new Blob([wrapper], { type: 'text/javascript' })), {
+      type: 'module'
+    });
     target.journalProbe = worker;
-    await new Promise<void>((resolveReady, reject) => { worker.onmessage = () => resolveReady(); worker.onerror = event => reject(new Error(event.message)); });
+    await new Promise<void>((resolveReady, reject) => {
+      worker.onmessage = () => resolveReady();
+      worker.onerror = event => reject(new Error(event.message));
+    });
   }, mode);
 }
 
@@ -150,6 +184,17 @@ describe('browser workbench Git persistence', () => {
       platform: 'browser',
       target: 'es2022'
     });
+    await build({
+      stdin: {
+        contents: `export { createGitBackend } from ${JSON.stringify(resolve('../packages/browser-workbench/src/git-backend.ts'))};`,
+        resolveDir: process.cwd()
+      },
+      outfile: join(assets, 'client.js'),
+      bundle: true,
+      format: 'esm',
+      platform: 'browser',
+      target: 'es2022'
+    });
     const server = createServer(async (request, response) => {
       const path = new URL(request.url ?? '/', 'http://localhost').pathname;
       if (path === '/') {
@@ -163,7 +208,11 @@ describe('browser workbench Git persistence', () => {
       }
       try {
         response.setHeader('Content-Type', path.endsWith('.wasm') ? 'application/wasm' : 'text/javascript');
-        response.end(await readFile(join(assets, path)));
+        const resource =
+          path.startsWith('/git/') ? `/vendor/${path.slice('/git/'.length)}`
+          : path === '/git-worker.js' ? '/worker.js'
+          : path;
+        response.end(await readFile(join(assets, resource)));
       } catch {
         response.writeHead(404).end();
       }
@@ -191,7 +240,7 @@ describe('browser workbench Git persistence', () => {
         nativeGit: (await execFile('git', ['--version'])).stdout.trim(),
         wasmGit: JSON.parse(await readFile(resolve('node_modules/wasm-git/package.json'), 'utf8')).version as string,
         variant: 'jspi',
-        status: checks.length === 10 ? 'passed' : 'failed',
+        status: checks.length === 17 ? 'passed' : 'failed',
         checks,
         measurements,
         wasmLinearMemoryBytes: metrics.memoryBytes,
@@ -382,22 +431,37 @@ describe('browser workbench Git persistence', () => {
     const before = await call('snapshot', { projectId: 'journal-stream' });
     for (const phase of ['create', 'write', 'close'] as const) {
       await installJournalFaultWorker(phase);
-      await expect(call('save', { projectId: 'journal-stream', files: [{ path: 'main.ts', content: 'failed' }] }, 'journalProbe')).rejects.toThrow(`journal ${phase} failed`);
+      await expect(
+        call('save', { projectId: 'journal-stream', files: [{ path: 'main.ts', content: 'failed' }] }, 'journalProbe')
+      ).rejects.toThrow(`journal ${phase} failed`);
       await restart();
       expect(await call('open', { projectId: 'journal-stream' })).toEqual(before);
       expect((await call<number[]>('export', { projectId: 'journal-stream' })).length).toBeGreaterThan(0);
     }
     await installJournalFaultWorker('interrupt');
-    const unpublishedBytes = await page.evaluate(() => new Promise<number>((resolveInterrupted, reject) => {
-      const target = globalThis as unknown as Record<string, Worker>;
-      const timer = setTimeout(() => reject(new Error('journal interruption not reached')), 15_000);
-      target.journalProbe.onmessage = ({ data }: MessageEvent<{ interrupted?: boolean; unpublishedBytes?: number; error?: unknown }>) => {
-        clearTimeout(timer);
-        if (!data.interrupted) { reject(new Error(JSON.stringify(data))); return; }
-        target.journalProbe.terminate(); resolveInterrupted(data.unpublishedBytes ?? -1);
-      };
-      target.journalProbe.postMessage({ id: 1, action: 'save', payload: { projectId: 'journal-stream', files: [{ path: 'main.ts', content: 'never published' }] } });
-    }));
+    const unpublishedBytes = await page.evaluate(
+      () =>
+        new Promise<number>((resolveInterrupted, reject) => {
+          const target = globalThis as unknown as Record<string, Worker>;
+          const timer = setTimeout(() => reject(new Error('journal interruption not reached')), 15_000);
+          target.journalProbe.onmessage = ({
+            data
+          }: MessageEvent<{ interrupted?: boolean; unpublishedBytes?: number; error?: unknown }>) => {
+            clearTimeout(timer);
+            if (!data.interrupted) {
+              reject(new Error(JSON.stringify(data)));
+              return;
+            }
+            target.journalProbe.terminate();
+            resolveInterrupted(data.unpublishedBytes ?? -1);
+          };
+          target.journalProbe.postMessage({
+            id: 1,
+            action: 'save',
+            payload: { projectId: 'journal-stream', files: [{ path: 'main.ts', content: 'never published' }] }
+          });
+        })
+    );
     expect(unpublishedBytes).toBe(0);
     await restart();
     expect(await call('open', { projectId: 'journal-stream' })).toEqual(before);
@@ -409,21 +473,42 @@ describe('browser workbench Git persistence', () => {
   }, 90_000);
 
   it('preserves ignored local bytes while restoring a tracked commit tree', async () => {
-    await call('init', { projectId: 'ignored-restore', files: [{ path: '.gitignore', content: 'notes.txt\n' }, { path: 'main.ts', content: 'old' }] });
+    await call('init', {
+      projectId: 'ignored-restore',
+      files: [
+        { path: '.gitignore', content: 'notes.txt\n' },
+        { path: 'main.ts', content: 'old' }
+      ]
+    });
     await call('stage', { projectId: 'ignored-restore', paths: ['.gitignore', 'main.ts'] });
     const first = await call<string>('commit', { projectId: 'ignored-restore', message: 'old tracked tree' });
-    await call('save', { projectId: 'ignored-restore', files: [{ path: 'main.ts', content: 'new' }, { path: 'notes.txt', bytes: [0, 255, 128] }] });
+    await call('save', {
+      projectId: 'ignored-restore',
+      files: [
+        { path: 'main.ts', content: 'new' },
+        { path: 'notes.txt', bytes: [0, 255, 128] }
+      ]
+    });
     await call('stage', { projectId: 'ignored-restore', paths: ['main.ts'] });
     await call('commit', { projectId: 'ignored-restore', message: 'new tracked tree' });
     expect((await call<{ raw: string }>('status', { projectId: 'ignored-restore' })).raw).toBe('');
-    const restored = await call<{ files: { path: string; bytes: number[] }[] }>('restore', { projectId: 'ignored-restore', oid: first });
+    const restored = await call<{ files: { path: string; bytes: number[] }[] }>('restore', {
+      projectId: 'ignored-restore',
+      oid: first
+    });
     expect(restored.files.find(file => file.path === 'notes.txt')?.bytes).toEqual([0, 255, 128]);
     expect(restored.files.find(file => file.path === 'main.ts')?.bytes).toEqual([...new TextEncoder().encode('old')]);
     checks.push('restore-preserves-ignored-binary-worktree-files');
   }, 60_000);
 
   it('rejects a restore target that would overwrite an ignored local file before changing bytes', async () => {
-    await call('init', { projectId: 'ignored-conflict', files: [{ path: '.gitignore', content: '' }, { path: 'notes.txt', content: 'historical tracked content' }] });
+    await call('init', {
+      projectId: 'ignored-conflict',
+      files: [
+        { path: '.gitignore', content: '' },
+        { path: 'notes.txt', content: 'historical tracked content' }
+      ]
+    });
     await call('stage', { projectId: 'ignored-conflict', paths: ['.gitignore', 'notes.txt'] });
     const first = await call<string>('commit', { projectId: 'ignored-conflict', message: 'tracked notes' });
     await call('remove', { projectId: 'ignored-conflict', path: 'notes.txt' });
@@ -438,14 +523,22 @@ describe('browser workbench Git persistence', () => {
   }, 60_000);
 
   it('returns the actual renamed path for staging subsequent edits instead of the human rename display', async () => {
-    await call('init', { projectId: 'renamed-path', files: [{ path: 'old.ts', content: 'export const value = 1;\n' }] });
+    await call('init', {
+      projectId: 'renamed-path',
+      files: [{ path: 'old.ts', content: 'export const value = 1;\n' }]
+    });
     await call('stage', { projectId: 'renamed-path', paths: ['old.ts'] });
     await call('commit', { projectId: 'renamed-path', message: 'initial path' });
     await call('rename', { projectId: 'renamed-path', path: 'old.ts', destination: 'new name -> final.ts' });
     await call('stage', { projectId: 'renamed-path', paths: ['old.ts', 'new name -> final.ts'] });
-    const renamed = await call<{ raw: string; entries: { path: string; index: string }[] }>('status', { projectId: 'renamed-path' });
+    const renamed = await call<{ raw: string; entries: { path: string; index: string }[] }>('status', {
+      projectId: 'renamed-path'
+    });
     expect(renamed.entries.find(entry => entry.index === 'R')?.path, renamed.raw).toBe('new name -> final.ts');
-    await call('save', { projectId: 'renamed-path', files: [{ path: 'new name -> final.ts', content: 'export const value = 2;\n' }] });
+    await call('save', {
+      projectId: 'renamed-path',
+      files: [{ path: 'new name -> final.ts', content: 'export const value = 2;\n' }]
+    });
     const modified = await call<{ entries: { path: string }[] }>('status', { projectId: 'renamed-path' });
     await call('stage', { projectId: 'renamed-path', paths: modified.entries.map(entry => entry.path) });
     await call('commit', { projectId: 'renamed-path', message: 'renamed and edited' });
@@ -456,11 +549,312 @@ describe('browser workbench Git persistence', () => {
   it('stages a literal filename without treating wildcard characters as other file selectors', async () => {
     const selected = ['pattern*.ts', 'question?.ts', 'array[1].ts'];
     const unselected = ['pattern-other.ts', 'question1.ts', 'array1.ts'];
-    await call('init', { projectId: 'literal-stage', files: [...selected, ...unselected].map(path => ({ path, content: path })) });
+    await call('init', {
+      projectId: 'literal-stage',
+      files: [...selected, ...unselected].map(path => ({ path, content: path }))
+    });
     await call('stage', { projectId: 'literal-stage', paths: selected });
     const status = await call<{ entries: { path: string; index: string }[] }>('status', { projectId: 'literal-stage' });
     for (const path of selected) expect(status.entries.find(entry => entry.path === path)?.index).toBe('A');
     for (const path of unselected) expect(status.entries.find(entry => entry.path === path)?.index).toBe('?');
     checks.push('literal-stage-paths-never-expand-to-unselected-files');
+  }, 60_000);
+
+  it('reads exact HEAD/index/worktree diff text with BOM and CRLF without changing the repository', async () => {
+    const first = '\uFEFFfirst\r\n';
+    const staged = '\uFEFFstaged\r\n';
+    const working = '\uFEFFworking\r\n';
+    await call('init', {
+      projectId: 'diff-exact',
+      files: [
+        { path: 'file.ts', content: first },
+        { path: 'asset.bin', bytes: [0, 255, 1] }
+      ]
+    });
+    await call('stage', { projectId: 'diff-exact', paths: ['file.ts', 'asset.bin'] });
+    await call('commit', { projectId: 'diff-exact', message: 'initial diff content' });
+    await call('save', { projectId: 'diff-exact', files: [{ path: 'file.ts', content: staged }] });
+    await call('stage', { projectId: 'diff-exact', paths: ['file.ts'] });
+    await call('save', {
+      projectId: 'diff-exact',
+      files: [
+        { path: 'file.ts', content: working },
+        { path: 'asset.bin', bytes: [0, 254, 2] }
+      ]
+    });
+    const before = await call('snapshot', { projectId: 'diff-exact' });
+    const archiveBefore = unzipSync(new Uint8Array(await call<number[]>('export', { projectId: 'diff-exact' })));
+    const changes = await call<{ base: { text: string }; modified: { text: string } }>('readDiff', {
+      projectId: 'diff-exact',
+      path: 'file.ts',
+      kind: 'working'
+    });
+    expect(changes.base.text).toBe(staged);
+    expect(changes.modified.text).toBe(working);
+    const cached = await call<{ base: { text: string }; modified: { text: string } }>('readDiff', {
+      projectId: 'diff-exact',
+      path: 'file.ts',
+      kind: 'staged'
+    });
+    expect(cached.base.text).toBe(first);
+    expect(cached.modified.text).toBe(staged);
+    const binary = await call<{
+      base: { exists: boolean; binary: boolean; text: null; byteLength: number };
+      modified: { binary: boolean };
+    }>('readDiff', { projectId: 'diff-exact', path: 'asset.bin', kind: 'working' });
+    expect(binary.base).toEqual({ exists: true, binary: true, text: null, byteLength: 3 });
+    expect(binary.modified.binary).toBe(true);
+    expect(await call('snapshot', { projectId: 'diff-exact' })).toEqual(before);
+    const archiveAfter = unzipSync(new Uint8Array(await call<number[]>('export', { projectId: 'diff-exact' })));
+    expect(archiveAfter['.git/index']).toEqual(archiveBefore['.git/index']);
+    expect(archiveAfter['.git/HEAD']).toEqual(archiveBefore['.git/HEAD']);
+    expect(Object.keys(archiveAfter).filter(path => path.startsWith('.git/'))).toEqual(
+      Object.keys(archiveBefore).filter(path => path.startsWith('.git/'))
+    );
+    for (const [path, bytes] of Object.entries(archiveBefore))
+      if (path.startsWith('.git/')) expect(archiveAfter[path]).toEqual(bytes);
+    checks.push('exact-bom-crlf-binary-diffs-preserve-head-index-and-working-bytes');
+  }, 60_000);
+
+  it('unstages one path while retaining other staged bytes and all working revisions', async () => {
+    await call('init', {
+      projectId: 'unstage-one',
+      files: [
+        { path: 'a.ts', content: 'a1' },
+        { path: 'b.ts', content: 'b1' }
+      ]
+    });
+    await call('stage', { projectId: 'unstage-one', paths: ['a.ts', 'b.ts'] });
+    const head = await call<string>('commit', { projectId: 'unstage-one', message: 'initial' });
+    await call('save', {
+      projectId: 'unstage-one',
+      files: [
+        { path: 'a.ts', content: 'a2' },
+        { path: 'b.ts', content: 'b2' }
+      ]
+    });
+    await call('stage', { projectId: 'unstage-one', paths: ['a.ts', 'b.ts'] });
+    await call('save', { projectId: 'unstage-one', files: [{ path: 'a.ts', content: 'a3' }] });
+    const before = await call('snapshot', { projectId: 'unstage-one' });
+    await call('unstage', { projectId: 'unstage-one', paths: ['a.ts'] });
+    expect(await call('snapshot', { projectId: 'unstage-one' })).toEqual(before);
+    const status = await call<{ head: string; raw: string }>('status', { projectId: 'unstage-one' });
+    expect(status.head).toBe(head);
+    expect(status.raw).toContain(' M a.ts');
+    expect(status.raw).toContain('M  b.ts');
+    const native = await materializeArchive(
+      await call<number[]>('export', { projectId: 'unstage-one' }),
+      'unstage-native'
+    );
+    expect((await execFile('git', ['-C', native, 'show', ':a.ts'])).stdout).toBe('a1');
+    expect((await execFile('git', ['-C', native, 'show', ':b.ts'])).stdout).toBe('b2');
+    await call('init', { projectId: 'unstage-unborn', files: [{ path: 'new*.ts', content: 'new' }] });
+    await call('stage', { projectId: 'unstage-unborn', paths: ['new*.ts'] });
+    await call('unstage', { projectId: 'unstage-unborn', paths: ['new*.ts'] });
+    expect((await call<{ raw: string; head: null }>('status', { projectId: 'unstage-unborn' })).raw).toBe('?? new*.ts');
+    checks.push('per-file-unstage-keeps-other-index-working-bytes-and-unborn-head');
+  }, 60_000);
+
+  it('discards only the selected saved working file back to index and deletes confirmed untracked additions', async () => {
+    await call('init', {
+      projectId: 'discard-one',
+      files: [
+        { path: 'a.ts', content: 'one' },
+        { path: 'b.ts', content: 'keep' },
+        { path: 'asset.bin', bytes: [0, 255, 1] }
+      ]
+    });
+    await call('stage', { projectId: 'discard-one', paths: ['a.ts', 'b.ts', 'asset.bin'] });
+    await call('commit', { projectId: 'discard-one', message: 'initial' });
+    await call('save', { projectId: 'discard-one', files: [{ path: 'a.ts', content: 'staged' }] });
+    await call('stage', { projectId: 'discard-one', paths: ['a.ts'] });
+    await call('save', {
+      projectId: 'discard-one',
+      files: [
+        { path: 'a.ts', content: 'working' },
+        { path: 'b.ts', content: 'untouched working' },
+        { path: 'asset.bin', bytes: [0, 254, 2] },
+        { path: 'new.ts', content: 'new' }
+      ]
+    });
+    const archiveBefore = unzipSync(new Uint8Array(await call<number[]>('export', { projectId: 'discard-one' })));
+    const discarded = await call<{ files: { path: string; bytes: number[] }[] }>('discardWorking', {
+      projectId: 'discard-one',
+      path: 'a.ts'
+    });
+    expect(discarded.files.find(file => file.path === 'a.ts')?.bytes).toEqual([...new TextEncoder().encode('staged')]);
+    expect(discarded.files.find(file => file.path === 'b.ts')?.bytes).toEqual([
+      ...new TextEncoder().encode('untouched working')
+    ]);
+    await call('discardWorking', { projectId: 'discard-one', path: 'asset.bin' });
+    await call('discardWorking', { projectId: 'discard-one', path: 'new.ts' });
+    const after = await call<{ files: { path: string; bytes: number[] }[] }>('snapshot', { projectId: 'discard-one' });
+    expect(after.files.find(file => file.path === 'asset.bin')?.bytes).toEqual([0, 255, 1]);
+    expect(after.files.some(file => file.path === 'new.ts')).toBe(false);
+    const archiveAfter = unzipSync(new Uint8Array(await call<number[]>('export', { projectId: 'discard-one' })));
+    expect(archiveAfter['.git/index']).toEqual(archiveBefore['.git/index']);
+    expect(archiveAfter['.git/HEAD']).toEqual(archiveBefore['.git/HEAD']);
+    checks.push('per-file-discard-restores-index-bytes-and-keeps-staged-and-other-files');
+  }, 60_000);
+
+  it('reads renamed staged content against the original path and unstages both rename sides', async () => {
+    await call('init', {
+      projectId: 'unstage-rename',
+      files: [{ path: 'old name.ts', content: 'initial renamed text' }]
+    });
+    await call('stage', { projectId: 'unstage-rename', paths: ['old name.ts'] });
+    await call('commit', { projectId: 'unstage-rename', message: 'initial' });
+    await call('rename', { projectId: 'unstage-rename', path: 'old name.ts', destination: 'new name.ts' });
+    await call('stage', { projectId: 'unstage-rename', paths: ['old name.ts', 'new name.ts'] });
+    const diff = await call<{ base: { text: string }; modified: { text: string } }>('readDiff', {
+      projectId: 'unstage-rename',
+      path: 'new name.ts',
+      kind: 'staged'
+    });
+    expect(diff.base.text).toBe('initial renamed text');
+    expect(diff.modified.text).toBe('initial renamed text');
+    await call('save', {
+      projectId: 'unstage-rename',
+      files: [{ path: 'new name.ts', content: 'working renamed text' }]
+    });
+    await call('unstage', { projectId: 'unstage-rename', paths: ['new name.ts'] });
+    const status = await call<{ raw: string }>('status', { projectId: 'unstage-rename' });
+    expect(status.raw).toContain(' D old name.ts');
+    expect(status.raw).toContain('?? new name.ts');
+    checks.push('rename-diff-and-unstage-respect-original-and-new-paths');
+  }, 60_000);
+
+  it('round-trips BOM and CRLF through the public Git backend without rewriting encoding on save', async () => {
+    await page.addScriptTag({
+      type: 'module',
+      content:
+        "import { createGitBackend } from '/client.js'; globalThis.publicGitBackend = createGitBackend(location.origin + '/');"
+    });
+    const result = await page.evaluate(async () => {
+      const backend = (
+        globalThis as unknown as {
+          publicGitBackend: {
+            create(id: string, files: Record<string, string>): Promise<{ files: Record<string, string> }>;
+            open(id: string): Promise<{ revision: string; files: Record<string, string> }>;
+            save(
+              id: string,
+              files: Record<string, string>,
+              revision: string
+            ): Promise<{ files: Record<string, string> }>;
+            exportArchive(id: string): Promise<Uint8Array>;
+            dispose(): void;
+          };
+        }
+      ).publicGitBackend;
+      try {
+        const text = '\uFEFFpublic text\r\n';
+        const created = await backend.create('bom-public', { 'main.ts': text });
+        const opened = await backend.open('bom-public');
+        const saved = await backend.save('bom-public', opened.files, opened.revision);
+        return {
+          created: created.files['main.ts'],
+          opened: opened.files['main.ts'],
+          saved: saved.files['main.ts'],
+          archive: [...(await backend.exportArchive('bom-public'))]
+        };
+      } finally {
+        backend.dispose();
+      }
+    });
+    expect(result.created).toBe('\uFEFFpublic text\r\n');
+    expect(result.opened).toBe(result.created);
+    expect(result.saved).toBe(result.created);
+    const archive = unzipSync(new Uint8Array(result.archive));
+    expect([...archive['main.ts']]).toEqual([...new TextEncoder().encode('\uFEFFpublic text\r\n')]);
+    checks.push('public-backend-create-open-save-preserves-bom-crlf-exactly');
+  }, 60_000);
+
+  it('rolls back real OPFS failures during unstage index persistence and single-file discard', async () => {
+    await call('init', { projectId: 'scm-failure', files: [{ path: 'a.ts', content: 'head' }] });
+    await call('stage', { projectId: 'scm-failure', paths: ['a.ts'] });
+    await call('commit', { projectId: 'scm-failure', message: 'initial' });
+    await call('save', { projectId: 'scm-failure', files: [{ path: 'a.ts', content: 'staged' }] });
+    await call('stage', { projectId: 'scm-failure', paths: ['a.ts'] });
+    await call('save', { projectId: 'scm-failure', files: [{ path: 'a.ts', content: 'working' }] });
+    const before = await call('snapshot', { projectId: 'scm-failure' });
+    const status = await call('status', { projectId: 'scm-failure' });
+    const index = unzipSync(new Uint8Array(await call<number[]>('export', { projectId: 'scm-failure' })))['.git/index'];
+    await installFaultWorker('quota', 'index');
+    await expect(call('unstage', { projectId: 'scm-failure', paths: ['a.ts'] }, 'faultProbe')).rejects.toThrow(
+      /quota/i
+    );
+    await restart();
+    expect(await call('snapshot', { projectId: 'scm-failure' })).toEqual(before);
+    expect(await call('status', { projectId: 'scm-failure' })).toEqual(status);
+    await installFaultWorker('quota', 'a.ts');
+    await expect(call('discardWorking', { projectId: 'scm-failure', path: 'a.ts' }, 'faultProbe')).rejects.toThrow(
+      /quota/i
+    );
+    await restart();
+    expect(await call('snapshot', { projectId: 'scm-failure' })).toEqual(before);
+    expect(await call('status', { projectId: 'scm-failure' })).toEqual(status);
+    expect(
+      unzipSync(new Uint8Array(await call<number[]>('export', { projectId: 'scm-failure' })))['.git/index']
+    ).toEqual(index);
+    checks.push('scm-unstage-and-discard-quota-rollback-preserve-index-and-working');
+  }, 60_000);
+
+  it('writes only changed and new source paths in a full 50-file save and leaves unchanged OPFS mtimes intact', async () => {
+    await installCountingWorker();
+    const files = Array.from({ length: 50 }, (_, index) => ({
+      path: `f-${index}.ts`,
+      content: `export const value = ${index};\n`
+    }));
+    await call('init', { projectId: 'save-counts', files }, 'countingProbe');
+    await call('stage', { projectId: 'save-counts', paths: files.map(file => file.path) }, 'countingProbe');
+    await call('commit', { projectId: 'save-counts', message: 'initial 50 files' }, 'countingProbe');
+    const before = await call<Record<string, number>>(
+      'sourceWriteCounts',
+      { projectId: 'save-counts' },
+      'countingProbe'
+    );
+    const mtime = await page.evaluate(async () => {
+      let directory = await navigator.storage.getDirectory();
+      for (const part of ['aiao-browser-workbench', 'projects', 'save-counts', 'repository'])
+        directory = await directory.getDirectoryHandle(part);
+      return (await (await directory.getFileHandle('f-40.ts')).getFile()).lastModified;
+    });
+    const next = files.map(file =>
+      file.path === 'f-25.ts' ? { ...file, content: 'export const value = 99;\n' } : file
+    );
+    next.push({ path: 'f-50.ts', content: 'new source\n' });
+    const saved = await call<{ revision: number }>(
+      'save',
+      { projectId: 'save-counts', files: next, expectedRevision: 1 },
+      'countingProbe'
+    );
+    expect(saved.revision).toBe(2);
+    const after = await call<Record<string, number>>(
+      'sourceWriteCounts',
+      { projectId: 'save-counts' },
+      'countingProbe'
+    );
+    expect(after['f-25.ts']).toBe(before['f-25.ts'] + 1);
+    expect(after['f-50.ts']).toBe(1);
+    for (const file of files.filter(file => file.path !== 'f-25.ts')) expect(after[file.path]).toBe(before[file.path]);
+    expect(
+      await page.evaluate(async () => {
+        let directory = await navigator.storage.getDirectory();
+        for (const part of ['aiao-browser-workbench', 'projects', 'save-counts', 'repository'])
+          directory = await directory.getDirectoryHandle(part);
+        return (await (await directory.getFileHandle('f-40.ts')).getFile()).lastModified;
+      })
+    ).toBe(mtime);
+    const status = await call<{ raw: string }>('status', { projectId: 'save-counts' }, 'countingProbe');
+    expect(status.raw).toContain(' M f-25.ts');
+    expect(status.raw).toContain('?? f-50.ts');
+    const noop = await call<{ revision: number }>(
+      'save',
+      { projectId: 'save-counts', files: next, expectedRevision: 2 },
+      'countingProbe'
+    );
+    expect(noop.revision).toBe(3);
+    expect(await call('sourceWriteCounts', { projectId: 'save-counts' }, 'countingProbe')).toEqual(after);
+    checks.push('full-save-50-files-writes-only-changed-new-paths-and-preserves-mtime');
   }, 60_000);
 });

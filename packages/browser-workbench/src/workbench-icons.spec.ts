@@ -35,13 +35,21 @@ describe('VS Code 官方图标', () => {
     expect(() => iconMarkup('close"><script>run()</script>' as 'close')).toThrow();
   });
 
-  it.each(['code', 'layout', 'remote', 'open-preview', 'globe', 'clear-all', 'circle-filled', 'chevron-up'] as const)(
-    '主布局使用官方 %s 字形',
-    name => {
-      expect(createCodicon(name).className).toBe(`codicon codicon-${name}`);
-      expect(iconMarkup(name)).toContain(`codicon-${name}`);
-    }
-  );
+  it.each([
+    'code',
+    'layout',
+    'remote',
+    'open-preview',
+    'globe',
+    'clear-all',
+    'circle-filled',
+    'chevron-up',
+    'remove',
+    'discard'
+  ] as const)('主布局使用官方 %s 字形', name => {
+    expect(createCodicon(name).className).toBe(`codicon codicon-${name}`);
+    expect(iconMarkup(name)).toContain(`codicon-${name}`);
+  });
 
   it.each([
     ['src/main.ts', 'file-code'],

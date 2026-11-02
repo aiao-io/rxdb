@@ -3,12 +3,16 @@
   "consumers": [
     {
       "name": "core",
-      "installMs": 853.0744160000002,
-      "buildMs": 2982.251167,
+      "installMs": 542.5730000000001,
+      "buildMs": 2121.053125,
       "assets": 43,
       "installed": [
         {
           "package": "@aiao/browser-workbench",
+          "version": "0.0.28"
+        },
+        {
+          "package": "@aiao/code-editor",
           "version": "0.0.28"
         },
         {
@@ -23,7 +27,10 @@
       "workers": [
         "/browser-workbench-assets/git-worker.js",
         "/browser-workbench-assets/compiler-worker.js",
+        "/browser-workbench-assets/compiler-worker.js",
+        "/browser-workbench-assets/compiler-worker.js",
         "/browser-workbench-assets/git-worker.js",
+        "/browser-workbench-assets/compiler-worker.js",
         "/browser-workbench-assets/compiler-worker.js"
       ],
       "wasmRequests": [
@@ -36,7 +43,19 @@
           "status": 200
         },
         {
+          "url": "/browser-workbench-assets/esbuild.wasm",
+          "status": 200
+        },
+        {
+          "url": "/browser-workbench-assets/esbuild.wasm",
+          "status": 200
+        },
+        {
           "url": "/browser-workbench-assets/git/lg2_opfs_jspi.wasm",
+          "status": 200
+        },
+        {
+          "url": "/browser-workbench-assets/esbuild.wasm",
           "status": 200
         },
         {
@@ -53,13 +72,14 @@
         "opaque-preview",
         "counter-interaction",
         "reload-opfs-project",
-        "run-after-reload"
+        "run-after-reload",
+        "readonly-git-diff-with-shared-codemirror"
       ]
     },
     {
       "name": "react",
-      "installMs": 629.41975,
-      "buildMs": 1856.7765419999996,
+      "installMs": 467.05616700000064,
+      "buildMs": 1707.9257909999997,
       "assets": 43,
       "installed": [
         {
@@ -68,6 +88,10 @@
         },
         {
           "package": "@aiao/browser-workbench",
+          "version": "0.0.28"
+        },
+        {
+          "package": "@aiao/code-editor",
           "version": "0.0.28"
         },
         {
@@ -81,16 +105,15 @@
         {
           "package": "@aiao/code-editor-react",
           "version": "0.0.28"
-        },
-        {
-          "package": "@aiao/code-editor",
-          "version": "0.0.28"
         }
       ],
       "workers": [
         "/browser-workbench-assets/git-worker.js",
         "/browser-workbench-assets/compiler-worker.js",
+        "/browser-workbench-assets/compiler-worker.js",
+        "/browser-workbench-assets/compiler-worker.js",
         "/browser-workbench-assets/git-worker.js",
+        "/browser-workbench-assets/compiler-worker.js",
         "/browser-workbench-assets/compiler-worker.js"
       ],
       "wasmRequests": [
@@ -103,7 +126,19 @@
           "status": 200
         },
         {
+          "url": "/browser-workbench-assets/esbuild.wasm",
+          "status": 200
+        },
+        {
+          "url": "/browser-workbench-assets/esbuild.wasm",
+          "status": 200
+        },
+        {
           "url": "/browser-workbench-assets/git/lg2_opfs_jspi.wasm",
+          "status": 200
+        },
+        {
+          "url": "/browser-workbench-assets/esbuild.wasm",
           "status": 200
         },
         {
@@ -120,13 +155,14 @@
         "opaque-preview",
         "counter-interaction",
         "reload-opfs-project",
-        "run-after-reload"
+        "run-after-reload",
+        "readonly-git-diff-with-shared-codemirror"
       ]
     },
     {
       "name": "vue",
-      "installMs": 574.0220420000005,
-      "buildMs": 1857.1535000000003,
+      "installMs": 563.349291999999,
+      "buildMs": 1901.5955830000003,
       "assets": 43,
       "installed": [
         {
@@ -135,6 +171,10 @@
         },
         {
           "package": "@aiao/browser-workbench",
+          "version": "0.0.28"
+        },
+        {
+          "package": "@aiao/code-editor",
           "version": "0.0.28"
         },
         {
@@ -148,16 +188,15 @@
         {
           "package": "@aiao/code-editor-vue",
           "version": "0.0.28"
-        },
-        {
-          "package": "@aiao/code-editor",
-          "version": "0.0.28"
         }
       ],
       "workers": [
         "/browser-workbench-assets/git-worker.js",
         "/browser-workbench-assets/compiler-worker.js",
+        "/browser-workbench-assets/compiler-worker.js",
+        "/browser-workbench-assets/compiler-worker.js",
         "/browser-workbench-assets/git-worker.js",
+        "/browser-workbench-assets/compiler-worker.js",
         "/browser-workbench-assets/compiler-worker.js"
       ],
       "wasmRequests": [
@@ -170,7 +209,15 @@
           "status": 200
         },
         {
+          "url": "/browser-workbench-assets/esbuild.wasm",
+          "status": 200
+        },
+        {
           "url": "/browser-workbench-assets/git/lg2_opfs_jspi.wasm",
+          "status": 200
+        },
+        {
+          "url": "/browser-workbench-assets/esbuild.wasm",
           "status": 200
         },
         {
@@ -187,13 +234,14 @@
         "opaque-preview",
         "counter-interaction",
         "reload-opfs-project",
-        "run-after-reload"
+        "run-after-reload",
+        "readonly-git-diff-with-shared-codemirror"
       ]
     },
     {
       "name": "angular",
-      "installMs": 1043.1898330000022,
-      "buildMs": 4010.715333,
+      "installMs": 1322.3774589999994,
+      "buildMs": 4455.068542000001,
       "assets": 43,
       "installed": [
         {
@@ -202,6 +250,10 @@
         },
         {
           "package": "@aiao/browser-workbench",
+          "version": "0.0.28"
+        },
+        {
+          "package": "@aiao/code-editor",
           "version": "0.0.28"
         },
         {
@@ -215,16 +267,15 @@
         {
           "package": "@aiao/code-editor-angular",
           "version": "0.0.28"
-        },
-        {
-          "package": "@aiao/code-editor",
-          "version": "0.0.28"
         }
       ],
       "workers": [
         "/browser-workbench-assets/git-worker.js",
         "/browser-workbench-assets/compiler-worker.js",
+        "/browser-workbench-assets/compiler-worker.js",
+        "/browser-workbench-assets/compiler-worker.js",
         "/browser-workbench-assets/git-worker.js",
+        "/browser-workbench-assets/compiler-worker.js",
         "/browser-workbench-assets/compiler-worker.js"
       ],
       "wasmRequests": [
@@ -237,7 +288,15 @@
           "status": 200
         },
         {
+          "url": "/browser-workbench-assets/esbuild.wasm",
+          "status": 200
+        },
+        {
           "url": "/browser-workbench-assets/git/lg2_opfs_jspi.wasm",
+          "status": 200
+        },
+        {
+          "url": "/browser-workbench-assets/esbuild.wasm",
           "status": 200
         },
         {
@@ -254,15 +313,21 @@
         "opaque-preview",
         "counter-interaction",
         "reload-opfs-project",
-        "run-after-reload"
+        "run-after-reload",
+        "readonly-git-diff-with-shared-codemirror"
       ]
     }
   ],
-  "generatedAt": "2026-11-02T17:35:39.146Z",
+  "generatedAt": "2026-11-02T19:07:34.042Z",
   "node": "v26.12.0",
   "pnpm": "12.16.1",
   "status": "passed",
   "tarballs": [
+    {
+      "name": "@aiao/code-editor",
+      "filename": "aiao-code-editor-0.0.28.tgz",
+      "sha256": "24099199c4d682e2d0ffd199e0fc2bbc2ed6b2bcc33b65fbd4cc0f05a4fecd44"
+    },
     {
       "name": "@aiao/utils",
       "filename": "aiao-utils-0.0.28.tgz",
@@ -271,17 +336,12 @@
     {
       "name": "@aiao/rxdb",
       "filename": "aiao-rxdb-0.0.28.tgz",
-      "sha256": "d7faa62e9052f06f5f8ad8360005cccc11ee254fcaa7be5bf22e0bb14cf695d2"
+      "sha256": "a421eb08b9393b78a2d02720be6df26db8e88c9945b9623b6c36f7010545d976"
     },
     {
       "name": "@aiao/browser-workbench",
       "filename": "aiao-browser-workbench-0.0.28.tgz",
-      "sha256": "28b02b8b36d12f96f58c611f7b6fa6e0ee2ed68b03b14f8fdc2d71408fabf398"
-    },
-    {
-      "name": "@aiao/code-editor",
-      "filename": "aiao-code-editor-0.0.28.tgz",
-      "sha256": "24099199c4d682e2d0ffd199e0fc2bbc2ed6b2bcc33b65fbd4cc0f05a4fecd44"
+      "sha256": "2943a4c61c069a3c51bb9c941d4c5fcb0b6bc6f446302bd7b6d637b55783f1a5"
     },
     {
       "name": "@aiao/code-editor-react",
@@ -291,7 +351,7 @@
     {
       "name": "@aiao/browser-workbench-react",
       "filename": "aiao-browser-workbench-react-0.0.28.tgz",
-      "sha256": "532071317611760cec21fbf4a419c9844f069b14e8a14ab92a51d32590a1debe"
+      "sha256": "2b6b2c12d8e8cd04f4fde7e1b77e392a3baa86f57966aa600cc14a0b1d1248d4"
     },
     {
       "name": "@aiao/code-editor-vue",
@@ -301,7 +361,7 @@
     {
       "name": "@aiao/browser-workbench-vue",
       "filename": "aiao-browser-workbench-vue-0.0.28.tgz",
-      "sha256": "d97b49eea05dd0c586585c111562f31e7c3d41265bd47b7a0a71f4bddae7400e"
+      "sha256": "7374b8789222ff02a3b1bb105ee365506dae5fc0ada4293d581ddb093e1fca27"
     },
     {
       "name": "@aiao/code-editor-angular",
@@ -311,7 +371,7 @@
     {
       "name": "@aiao/browser-workbench-angular",
       "filename": "aiao-browser-workbench-angular-0.0.28.tgz",
-      "sha256": "b7596c74a21d91f5424d2ef66d6660986d3c1cb932f146bb9239cbb52f815d91"
+      "sha256": "c368a3c2b17398dbd7422e68ad398a893b15072499d3c727b6ab207b9af97270"
     }
   ]
 }
