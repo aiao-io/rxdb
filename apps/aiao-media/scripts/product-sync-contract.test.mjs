@@ -61,6 +61,47 @@ test('首次同步接受多次离线编辑压缩后的 INSERT，后续更新仍�
   );
 });
 
+test('图片文件记录只用 INSERT 建初始修订，状态推进必须走带修订条件的 UPDATE', async () => {
+  const sourceId = crypto.randomUUID();
+  const digest = 'b'.repeat(64);
+  const columns = `"workspaceId","sourceId",version,path,"mimeType",width,height,bytes,sha256,status,"createdBy","updatedBy"`;
+  const file = [workspaceId, sourceId, digest, `${userId}/${workspaceId}/${sourceId}/${digest}.png`, userId];
+  const insert = () =>
+    db.query(
+      `INSERT INTO public.media_file_records(${columns}) VALUES ($1,$2,$3,$4,'image/png',1,1,10,$3,'pending',$5,$5) RETURNING id, revision`,
+      file
+    );
+  const {
+    rows: [created]
+  } = await insert();
+  assert.equal(Number(created.revision), 1);
+  // PostgREST 的 upsert 是 INSERT … ON CONFLICT DO UPDATE：BEFORE INSERT 触发器先于冲突判定，后续修订被当成非法初始修订。
+  await assert.rejects(
+    db.query(
+      `INSERT INTO public.media_file_records(id,revision,"baseRevision",${columns}) VALUES ($6,2,1,$1,$2,$3,$4,'image/png',1,1,10,$3,'uploaded',$5,$5)
+       ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status, revision = EXCLUDED.revision, "baseRevision" = EXCLUDED."baseRevision"`,
+      [...file, created.id]
+    ),
+    { code: '22023' }
+  );
+  // 客户端的 PATCH ?id=eq.&revision=eq. 即带修订条件的 UPDATE。
+  const {
+    rows: [uploaded]
+  } = await db.query(
+    `UPDATE public.media_file_records SET status='uploaded', revision=2, "baseRevision"=1 WHERE id=$1 AND revision=1 RETURNING status, revision`,
+    [created.id]
+  );
+  assert.deepEqual({ ...uploaded, revision: Number(uploaded.revision) }, { status: 'uploaded', revision: 2 });
+  await assert.rejects(
+    db.query(`UPDATE public.media_file_records SET status='needs_review', revision=2, "baseRevision"=1 WHERE id=$1`, [
+      created.id
+    ]),
+    { code: 'PT409' }
+  );
+  // 同一版本只能有一条记录：并发建记录的另一设备拿到唯一约束冲突（PostgREST 409）后改用已有记录。
+  await assert.rejects(insert(), { code: '23505' });
+});
+
 const studio = text => ({
   document: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] },
   fields: [],

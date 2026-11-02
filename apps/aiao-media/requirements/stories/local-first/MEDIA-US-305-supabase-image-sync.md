@@ -6,7 +6,7 @@ status: In Progress
 priority: High
 epic: MEDIA-EPIC-004
 created: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-02
 dependsOn: [MEDIA-US-301, MEDIA-US-303, MEDIA-US-304]
 tags: [supabase, storage, image, sync, local-first]
 ---
@@ -98,6 +98,7 @@ tags: [supabase, storage, image, sync, local-first]
 - 图片同步控制器、私有 Storage 迁移和 UI 入口已接线，但尚无真实云 Storage/双设备验收。现有 [product-sync-store.ts](../../../src/local-data/product-sync-store.ts) 仅复制元数据，[browser-media.ts](../../../src/local-data/browser-media.ts) 维护本机原图；[平台 R2 交付](../../../server/cloudflare/platform-coordinator.mjs) 不属于用户自有 Supabase 文件同步。
 - 根据 Supabase Storage 官方文档，私有 bucket 的上传和下载均须授权；实现需同时限定 bucket、项目用户与工作区，并拒绝路径替换、公开 URL 和越权签名。临时预览/签名 URL 不作为持久图片身份，不进入同步 DTO。
 - 对象路径包含项目内用户、工作区、作品 ID 与不可变文件版本/摘要；不同版本不 upsert 覆盖，文件与记录采用可恢复提交。重试只允许可核对、可幂等的传输，不复用生图重试规则重新调用模型。
+- 传输现状：文件记录先 INSERT 建 `pending`，对象写入后按修订 UPDATE 为 `uploaded`（`BEFORE INSERT` 触发器先于冲突判定执行，用 upsert 推进会被拒）；下载按作品记录的摘要精确取版本；切换目标、账号或工作区即中止在途传输，迟到结果不提交记录、不写入本机。持久传输队列尚未实现：刷新/重开不续传，TUS 会话地址与 offset 不落盘，失败没有退避与持久状态（AC#5/#6）。
 - 支持续传的 Storage 使用官方 TUS 能力，分片大小等接口参数按实施时官方文档配置；受限/不兼容项目须明确提示，不能悄悄退化并宣称已续传。大文件测试覆盖超过 6 MiB，单张上限沿用 16 MiB。
 - 现有协议的 `metadataOnly` 判定和所有“原图只在本机”说明需按新能力显式版本化，保持仅 metadata 连接可用。旧客户端遇到新协议/文件版本须保留数据并安全拒绝，不通过清除兼容守卫上线。
 - 验证分层：单元/契约覆盖授权范围、队列、提交和删除状态；真实本地或专用云 Storage 验 RLS/回执/续传；真实 Web/Tauri 验证原图字节、原生落盘、离线与切目标；自动授权全流程与 MEDIA-US-304 联验。文档门禁不证明任何运行行为。
@@ -109,6 +110,7 @@ tags: [supabase, storage, image, sync, local-first]
 - [local-image-mvp.html](../../../src/app/local-image-mvp.html) — 当前作品信息/原图状态和本机文件入口。
 - [product-workspace.ts](../../../src/app/product-workspace.ts)、[product-sync-store.ts](../../../src/local-data/product-sync-store.ts) — 元数据复制与项目/账号隔离。
 - [browser-media.ts](../../../src/local-data/browser-media.ts)、[image-format.ts](../../../src/contracts/image-format.ts) — 原图读取、格式与摘要校验、本机提交。
+- [image-sync.ts](../../../src/local-data/image-sync.ts) — 原图传输、文件记录提交与按摘要取回。
 - [platform](../../../src/platform/) — Web/Tauri 本机文件差异。
 - [infra/supabase/migrations](../../../infra/supabase/migrations/) — 待扩展的文件版本/关联/权限与兼容迁移归属。
 

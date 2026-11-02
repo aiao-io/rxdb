@@ -27,4 +27,11 @@ export class SyncTargetSettings {
   readonly login = output<Event>();
   readonly connectOAuth = output<void>();
   readonly initializeOAuth = output<string>();
+
+  /** 下拉框只作操作入口：选中即复位，取消确认或初始化失败后仍能再选同一项目。 */
+  selectOAuthProject(select: HTMLSelectElement) {
+    const ref = select.value;
+    select.value = '';
+    if (ref) this.initializeOAuth.emit(ref);
+  }
 }

@@ -6,7 +6,7 @@ status: In Progress
 priority: High
 epic: MEDIA-EPIC-004
 created: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-02
 dependsOn: [MEDIA-US-303]
 tags: [supabase, oauth, onboarding, authorization]
 ---
@@ -85,7 +85,8 @@ tags: [supabase, oauth, onboarding, authorization]
 - 自动接入服务端入口已接线，但尚无真实 OAuth/云项目验收。现有 [supabase-auth.ts](../../../src/app/supabase-auth.ts) 负责项目内登录，[sync-target.ts](../../../src/app/sync-target.ts) 只验证公开配置和已初始化项目；二者都不能证明管理 OAuth 与自动身份引导已完成。
 - 根据 Supabase 官方集成文档，OAuth scopes 在注册应用时配置，管理令牌可覆盖获授权组织的资源，不能把产品内“选中项目”描述成 Supabase 天然签发了单项目令牌。实际项目约束必须由后端执行，权限扩展要求重新授权。
 - 实施设计需先证明“管理授权主体 → 本产品连接归属 → 项目内同步用户/工作区 → 最小数据权限”的可信映射和跨设备恢复，再写自动身份引导代码。实现方式需符合 Supabase 支持的认证方式；不能将管理 token 伪装成项目 JWT、信任客户端 ownerId 或导出项目签名密钥。
-- `production-bundle` 的空库守卫和迁移 SQL 可作为检查基线；bucket、权限和身份步骤需可恢复回执。自动升级只处理已识别的专用项目，不把清库作为恢复方案。
+- 身份引导现状：管理 OAuth 令牌拿不到可验证的账号主体（`/profile` 对 OAuth 令牌恒为 401，令牌响应也不带邮箱）。服务端只在 Supabase 自己返回账号邮箱时经 `generate_link` + `verify` 签发项目会话，不接受浏览器提交的邮箱（那等于替任意邮箱完成验证）；拿不到时只完成初始化并保存项目配置，由用户登录或注册项目账号。这是降级，不算完成 AC#7/#11，可信映射仍待设计。
+- 自动初始化包（`supabase-autoinit`）开头带专用项目守卫，与迁移同一事务：没有 `media_private` 时 public 必须为空（同名的 `update_updated_at_column` 也算冲突）；已由本应用初始化时 public 只能有本应用的对象；`media_private` 上的 schema 版本标记高于本包时拒绝。拒绝即整体回滚、不写入。选中项目后还需确认才初始化，确认前的只读检查清单尚未做。bucket、权限和身份步骤需可恢复回执。自动升级只处理已识别的专用项目，不把清库作为恢复方案。
 - 验证分层：单元/契约覆盖 PKCE、回调重放、项目替换和初始化状态；真实本地 Supabase 覆盖数据会话/RLS 与 SQL 恢复；真实官方 OAuth 和云项目覆盖管理授权/身份引导；Web 与 Tauri 验收各自回调。`aiao-media:requirements-check` 只证明文档结构。
 - 外部前置为注册管理 OAuth 应用、配置最小 scopes 与正式回调、服务端 secret/令牌保护和独立测试项目；缺失时仍可做契约设计，不伪造真实验收通过。
 
@@ -96,6 +97,7 @@ tags: [supabase, oauth, onboarding, authorization]
 - [sync-target-settings.html](../../../src/app/account/sync-target-settings.html) — 当前手工连接界面。
 - [sync-target.ts](../../../src/app/sync-target.ts)、[supabase-auth.ts](../../../src/app/supabase-auth.ts) — 目标配置、能力检查与项目会话。
 - [build-production-supabase-bundle.mjs](../../../scripts/build-production-supabase-bundle.mjs) — 现有专用空项目初始化守卫。
+- [build-supabase-autoinit.mjs](../../../scripts/build-supabase-autoinit.mjs) — 自动接入初始化包与专用项目守卫。
 - [server/cloudflare](../../../server/cloudflare/) — 未来管理 OAuth、初始化与身份引导的受保护后端归属。
 
 ## References

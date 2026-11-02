@@ -183,7 +183,7 @@ test('OAuth initialization continues when profile is unauthorized but the valida
     globalThis.fetch = originalFetch;
   }
 });
-test('OAuth initialization accepts an explicitly confirmed Supabase account email when profile is unavailable', async () => {
+test('OAuth initialization never turns a browser-supplied email into a project session', async () => {
   const originalFetch = globalThis.fetch;
   const calls = [];
   globalThis.fetch = async (url, init) => {
@@ -215,21 +215,33 @@ test('OAuth initialization accepts an explicitly confirmed Supabase account emai
       });
     throw new Error(`unexpected fetch: ${value}`);
   };
-  try {
-    const result = await initializeSupabaseProject(
+  const initialize = payload =>
+    initializeSupabaseProject(
       new Request('https://media.example.com/api/supabase/oauth/initialize', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ projectRef: 'abcdefghijklmnopqrst', email: 'owner@example.com' })
+        body: JSON.stringify(payload)
       }),
       { ...env, MEDIA_SUPABASE_AUTOINIT_SQL: 'select 1' },
       { accessToken: 'opaque-access', expiresAt: Date.now() + 3600000 }
     );
+  try {
+    await assert.rejects(
+      initialize({ projectRef: 'abcdefghijklmnopqrst', email: 'victim@example.com' }),
+      error => error?.status === 400
+    );
+    assert.deepEqual(calls, [], 'a supplied email is refused before any management or project request');
+
+    const result = await initialize({ projectRef: 'abcdefghijklmnopqrst' });
     assert.equal(result.initialized, true);
-    const databaseRequest = calls.find(call => call.url.includes('/database/query'));
-    const linkRequest = calls.find(call => call.url.endsWith('/auth/v1/admin/generate_link'));
-    assert.match(databaseRequest.body, /select 1/);
-    assert.match(linkRequest.body, /owner@example.com/);
+    assert.equal(result.session, null);
+    assert.deepEqual(result.config, { url: 'https://abcdefghijklmnopqrst.supabase.co', anonKey: 'anon' });
+    assert.match(calls.find(call => call.url.includes('/database/query')).body, /select 1/);
+    assert.equal(
+      calls.some(call => call.url.includes('/auth/v1/')),
+      false,
+      'without a Supabase-verified account email no project user is created or verified'
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -250,11 +262,26 @@ const cookieOf = response =>
     .map(line => line.split(';')[0])
     .find(pair => pair.startsWith('aiao_supabase_management='));
 
-/** 模拟 Supabase 管理接口：刷新令牌一次性有效且刷新后旧访问令牌作废，/profile 对 OAuth 令牌恒为 401。 */
-function rotatingManagement(databaseStatus = 201, verificationType = 'signup') {
+/**
+ * 模拟 Supabase 管理接口：刷新令牌一次性有效且刷新后旧访问令牌作废，/profile 对 OAuth 令牌恒为 401。
+ * accountEmail 模拟令牌响应里带回了 Supabase 账号邮箱（唯一可信的项目身份来源）。
+ */
+function rotatingManagement({
+  databaseStatus = 201,
+  databaseError = null,
+  verificationType = 'signup',
+  accountEmail = null
+} = {}) {
   const originalFetch = globalThis.fetch;
-  const double = { access: new Set(['access-1']), refresh: new Set(['refresh-1']), generation: 1, refreshGrants: 0 };
-  const json = value => new Response(JSON.stringify(value), { headers: { 'content-type': 'application/json' } });
+  const double = {
+    access: new Set(['access-1']),
+    refresh: new Set(['refresh-1']),
+    generation: 1,
+    refreshGrants: 0,
+    urls: []
+  };
+  const json = (value, status = 200) =>
+    new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } });
   const rotate = () => {
     double.generation += 1;
     double.access = new Set([`access-${double.generation}`]);
@@ -267,11 +294,17 @@ function rotatingManagement(databaseStatus = 201, verificationType = 'signup') {
   };
   globalThis.fetch = async (url, init) => {
     const value = String(url);
+    double.urls.push(value);
     const bearer = new Headers(init?.headers).get('authorization')?.replace('Bearer ', '');
     if (value === 'https://api.supabase.com/v1/oauth/token') {
       const form = new URLSearchParams(init.body);
       if (form.get('grant_type') === 'authorization_code')
-        return json({ access_token: 'access-1', refresh_token: 'refresh-1', expires_in: 3600 });
+        return json({
+          access_token: 'access-1',
+          refresh_token: 'refresh-1',
+          expires_in: 3600,
+          ...(accountEmail ? { user: { email: accountEmail } } : {})
+        });
       double.refreshGrants += 1;
       return double.refresh.delete(form.get('refresh_token')) ? rotate() : new Response(null, { status: 400 });
     }
@@ -285,7 +318,8 @@ function rotatingManagement(databaseStatus = 201, verificationType = 'signup') {
         { type: 'publishable', api_key: 'anon' },
         { type: 'service_role', api_key: 'service' }
       ]);
-    if (value.includes('/database/query')) return new Response(null, { status: databaseStatus });
+    if (value.includes('/database/query'))
+      return databaseError ? json(databaseError, databaseStatus) : new Response(null, { status: databaseStatus });
     if (value.endsWith('/auth/v1/admin/generate_link'))
       return json({
         hashed_token: 'hash',
@@ -316,19 +350,19 @@ async function authorize() {
   return cookie;
 }
 
-test('OAuth initialization keeps rotated management tokens when it must ask for the account email', async () => {
+test('OAuth initialization without a Supabase-verified account email initializes the project but issues no session', async () => {
   const double = rotatingManagement();
   try {
-    let cookie = await authorize();
-    const first = await post('/initialize', cookie, { projectRef: 'abcdefghijklmnopqrst' });
-    assert.equal(first.status, 409);
-    cookie = cookieOf(first) ?? cookie;
-    const second = await post('/initialize', cookie, {
-      projectRef: 'abcdefghijklmnopqrst',
-      email: 'owner@example.com'
-    });
-    assert.equal(second.status, 200);
-    assert.equal((await second.json()).initialized, true);
+    const cookie = await authorize();
+    const response = await post('/initialize', cookie, { projectRef: 'abcdefghijklmnopqrst' });
+    assert.equal(response.status, 200);
+    const result = await response.json();
+    assert.equal(result.initialized, true);
+    assert.equal(result.session, null);
+    assert.equal(
+      double.urls.some(url => url.includes('/auth/v1/')),
+      false
+    );
     assert.equal(
       double.refreshGrants,
       0,
@@ -338,15 +372,35 @@ test('OAuth initialization keeps rotated management tokens when it must ask for 
     double.restore();
   }
 });
+for (const [marker, message] of [
+  ['project is not empty and was not initialized by this application', /不属于本应用/],
+  ['project schema is newer than this application', /更新版本/]
+]) {
+  test(`OAuth initialization reports a dedicated-project guard refusal (${marker}) without creating a project user`, async () => {
+    const double = rotatingManagement({
+      databaseStatus: 400,
+      databaseError: { message: `Failed to run sql query: ERROR:  55006: Refusing automatic onboarding: ${marker}` },
+      accountEmail: 'owner@example.com'
+    });
+    try {
+      const response = await post('/initialize', await authorize(), { projectRef: 'abcdefghijklmnopqrst' });
+      assert.equal(response.status, 409);
+      assert.match((await response.json()).error, message);
+      assert.equal(
+        double.urls.some(url => url.includes('/auth/v1/')),
+        false
+      );
+    } finally {
+      double.restore();
+    }
+  });
+}
 test('OAuth failures after a token refresh still return the rotated management cookie', async () => {
-  const double = rotatingManagement(403);
+  const double = rotatingManagement({ databaseStatus: 403 });
   try {
     let cookie = await authorize();
     double.access.clear();
-    const failed = await post('/initialize', cookie, {
-      projectRef: 'abcdefghijklmnopqrst',
-      email: 'owner@example.com'
-    });
+    const failed = await post('/initialize', cookie, { projectRef: 'abcdefghijklmnopqrst' });
     assert.equal(failed.status, 403);
     assert.equal(double.refreshGrants, 1);
     cookie = cookieOf(failed) ?? cookie;
@@ -362,13 +416,10 @@ test('OAuth failures after a token refresh still return the rotated management c
 });
 for (const verificationType of ['signup', 'magiclink']) {
   test(`OAuth initialization reads the one-time link and verifies it with the returned ${verificationType} type`, async () => {
-    const double = rotatingManagement(201, verificationType);
+    const double = rotatingManagement({ verificationType, accountEmail: 'owner@example.com' });
     try {
       const cookie = await authorize();
-      const response = await post('/initialize', cookie, {
-        projectRef: 'abcdefghijklmnopqrst',
-        email: 'owner@example.com'
-      });
+      const response = await post('/initialize', cookie, { projectRef: 'abcdefghijklmnopqrst' });
       assert.equal(response.status, 200);
       assert.deepEqual(Object.keys((await response.json()).session).sort(), ['access_token', 'refresh_token']);
     } finally {

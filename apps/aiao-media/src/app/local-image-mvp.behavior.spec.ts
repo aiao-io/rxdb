@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { webcrypto } from 'node:crypto';
 import type { EventEmitter } from 'node:events';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -242,6 +243,7 @@ describe('Supabase OAuth transport', () => {
 
   it('turns an HTML project initialization response into an actionable local Worker message', async () => {
     const r = rig();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
     vi.mocked(fetch).mockResolvedValue(new Response('<!doctype html>', { headers: { 'content-type': 'text/html' } }));
 
     await r.component.initializeOAuthProject('abcdefghijklmnopqrst');
@@ -249,41 +251,197 @@ describe('Supabase OAuth transport', () => {
     expect(r.component.targetMessage()).toContain('本地 Worker');
   });
 
-  it('asks for the Supabase account email once when Management OAuth cannot return it', async () => {
+  it('does not initialize a Supabase project until the user confirms that project', async () => {
     const r = rig();
-    vi.spyOn(SupabaseAuthClient.prototype, 'adoptSession').mockResolvedValue(undefined);
-    vi.stubGlobal(
-      'prompt',
-      vi.fn(() => 'owner@example.com')
-    );
-    vi.mocked(fetch)
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({ error: 'Supabase 管理 API 未返回账号邮箱。请输入刚才授权的 Supabase 账号邮箱后重试。' }),
-          {
-            status: 409,
-            headers: { 'content-type': 'application/json' }
-          }
-        )
-      )
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            config: { url: 'https://owner.supabase.co', anonKey: 'sb_publishable_fixture' },
-            session: { access_token: 'access', refresh_token: 'refresh' }
-          }),
-          { headers: { 'content-type': 'application/json' } }
-        )
-      );
+    r.component.oauthProjects.set([
+      { ref: 'abcdefghijklmnopqrst', name: '创作同步', organizationId: 'org', status: 'ACTIVE_HEALTHY' }
+    ]);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
 
     await r.component.initializeOAuthProject('abcdefghijklmnopqrst');
 
-    expect(fetch).toHaveBeenCalledTimes(2);
-    expect(JSON.parse(vi.mocked(fetch).mock.calls[1][1]?.body as string)).toEqual({
-      projectRef: 'abcdefghijklmnopqrst',
-      email: 'owner@example.com'
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('创作同步'));
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('connects an initialized project without asking for an email and leaves sign-in to the project account', async () => {
+    const r = rig();
+    const adopt = vi.spyOn(SupabaseAuthClient.prototype, 'adoptSession').mockResolvedValue(undefined);
+    const prompt = vi.fn(() => 'victim@example.com');
+    vi.stubGlobal('prompt', prompt);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.mocked(fetch).mockResolvedValue(
+      Response.json({
+        config: { url: 'https://owner.supabase.co', anonKey: 'sb_publishable_fixture' },
+        session: null,
+        initialized: true
+      })
+    );
+
+    await r.component.initializeOAuthProject('abcdefghijklmnopqrst');
+
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(JSON.parse(vi.mocked(fetch).mock.calls[0][1]?.body as string)).toEqual({
+      projectRef: 'abcdefghijklmnopqrst'
     });
+    expect(prompt).not.toHaveBeenCalled();
+    expect(adopt).not.toHaveBeenCalled();
+    expect(r.component.targetKind()).toBe('custom');
+    expect(r.component.targetMessage()).toContain('登录或注册此项目的账号');
+  });
+
+  it('adopts a project session only when the server verified the Supabase account itself', async () => {
+    const r = rig();
+    const adopt = vi.spyOn(SupabaseAuthClient.prototype, 'adoptSession').mockResolvedValue(undefined);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.mocked(fetch).mockResolvedValue(
+      Response.json({
+        config: { url: 'https://owner.supabase.co', anonKey: 'sb_publishable_fixture' },
+        session: { access_token: 'access', refresh_token: 'refresh' }
+      })
+    );
+
+    await r.component.initializeOAuthProject('abcdefghijklmnopqrst');
+
+    expect(adopt).toHaveBeenCalledWith({ access_token: 'access', refresh_token: 'refresh' });
     expect(r.component.targetMessage()).toContain('已授权并初始化');
+  });
+});
+
+describe('own Supabase image sync isolation', () => {
+  const userId = '20000000-0000-4000-8000-000000000001';
+  const projects = {
+    a: {
+      url: 'https://aaaaaaaaaaaaaaaaaaaa.supabase.co',
+      token: 'token-a',
+      workspace: '20000000-0000-4000-8000-00000000000a'
+    },
+    b: {
+      url: 'https://bbbbbbbbbbbbbbbbbbbb.supabase.co',
+      token: 'token-b',
+      workspace: '20000000-0000-4000-8000-00000000000b'
+    }
+  };
+  const png = Uint8Array.from(
+    atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jV1kAAAAASUVORK5CYII='),
+    char => char.charCodeAt(0)
+  );
+  // 直接给字节：jsdom 的 Blob 交给 Node 的 Response 会被当成字符串。
+  const original = () => new Response(png.slice(), { headers: { 'content-type': 'image/png' } });
+  // jsdom 的 crypto 没有 subtle，摘要校验用 Node 的 WebCrypto。
+  beforeEach(() => vi.stubGlobal('crypto', webcrypto));
+  async function remoteWork() {
+    const sha256 = [...new Uint8Array(await crypto.subtle.digest('SHA-256', png))]
+      .map(value => value.toString(16).padStart(2, '0'))
+      .join('');
+    return {
+      version: 1 as const,
+      jobId: '20000000-0000-4000-8000-000000000003',
+      prompt: '远端作品',
+      modelId: provider.model,
+      providerInstanceId: provider.id,
+      mimeType: 'image/png' as const,
+      width: 1,
+      height: 1,
+      bytes: png.byteLength,
+      sha256,
+      createdAt: '2026-10-30T00:00:00Z'
+    };
+  }
+  /** 接上一个已登录、已绑定工作区的自有项目，略过真实登录与工作区选择。 */
+  function connect(component: LocalImageMvp, project: (typeof projects)['a']) {
+    const config = { url: project.url, anonKey: 'sb_publishable_fixture' };
+    component.targetKind.set('custom');
+    Object.assign(component, {
+      auth: {
+        config,
+        authorizeProduct: vi.fn(async () => ({ config, session: { access_token: project.token }, userId })),
+        dispose: vi.fn()
+      },
+      registryState: {
+        version: 1,
+        generation: 0,
+        selectedId: profileId,
+        profiles: [
+          {
+            id: profileId,
+            account: { userId, projectOrigin: project.url },
+            binding: { initialized: true, remoteWorkspaceId: project.workspace }
+          }
+        ]
+      }
+    });
+  }
+  /** 文件记录按请求所属项目的工作区应答；原图字节可由用例推迟。 */
+  function serve(
+    work: Awaited<ReturnType<typeof remoteWork>>,
+    object: () => Promise<Response> = async () => original()
+  ) {
+    vi.mocked(fetch).mockImplementation(async input => {
+      const url = String(input);
+      const project = Object.values(projects).find(item => url.startsWith(item.url));
+      if (!project) return object();
+      return Response.json([
+        {
+          id: '20000000-0000-4000-8000-000000000004',
+          workspaceId: project.workspace,
+          sourceId: work.jobId,
+          version: work.sha256,
+          path: `${userId}/${project.workspace}/${work.jobId}/${work.sha256}.png`,
+          mimeType: 'image/png',
+          width: 1,
+          height: 1,
+          bytes: work.bytes,
+          sha256: work.sha256,
+          status: 'uploaded',
+          deleted: false,
+          revision: 2,
+          baseRevision: 1
+        }
+      ]);
+    });
+  }
+
+  it('drops a remote original that arrives after the user switched away from its project', async () => {
+    const r = rig();
+    const work = await remoteWork();
+    const object = deferred<Response>();
+    serve(work, () => object.promise);
+    connect(r.component, projects.a);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    const restoring = r.component.restoreRemoteWork(work);
+    await vi.waitFor(() =>
+      expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes('.storage.supabase.co'))).toBe(true)
+    );
+    await r.component.changeSyncTarget('disconnected');
+    object.resolve(original());
+    await restoring;
+
+    expect(r.store.saveResult).not.toHaveBeenCalled();
+    expect(r.component.imageSyncMessage()).toContain('已变化');
+  });
+
+  it('transfers with the newly selected project instead of reusing the previous project controller', async () => {
+    const r = rig();
+    const work = await remoteWork();
+    serve(work);
+    connect(r.component, projects.a);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await r.component.restoreRemoteWork(work);
+    await r.component.changeSyncTarget('disconnected');
+    connect(r.component, projects.b);
+    vi.mocked(fetch).mockClear();
+
+    await r.component.restoreRemoteWork(work);
+
+    const requests = vi.mocked(fetch).mock.calls;
+    expect(requests.length).toBeGreaterThan(1);
+    for (const [url, init] of requests) {
+      expect(String(url)).toContain('bbbbbbbbbbbbbbbbbbbb');
+      expect(new Headers(init?.headers).get('authorization')).toBe('Bearer token-b');
+    }
+    expect(r.store.saveResult).toHaveBeenCalledTimes(2);
   });
 });
 

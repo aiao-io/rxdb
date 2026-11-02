@@ -138,11 +138,24 @@ export async function management(request, token, path, init = {}) {
     if (result.status === 403) reject(403, managementPermissionMessage(path));
     if (result.status === 404) reject(404, 'Supabase 管理接口找不到目标项目或操作。');
     if (result.status === 429) reject(429, 'Supabase 管理接口请求过于频繁，请稍后重试。');
-    if (path.includes('/database/query'))
+    if (path.includes('/database/query')) {
+      // 自动初始化包开头的专用项目守卫拒绝时整个事务回滚（见 build-supabase-autoinit.mjs）。
+      const refusal = JSON.stringify(detail);
+      if (refusal.includes('Refusing automatic onboarding: project schema is newer'))
+        reject(
+          409,
+          '目标项目由更新版本的本应用初始化，当前版本不能覆盖；初始化已拒绝，项目没有任何写入。请先更新应用。'
+        );
+      if (refusal.includes('Refusing automatic onboarding'))
+        reject(
+          409,
+          '目标项目已有不属于本应用的表、函数或类型（共享项目或同名对象）；初始化已拒绝，项目没有任何写入。请选择独立空项目。'
+        );
       reject(
         502,
         'Supabase 项目数据库初始化失败，目标项目可能已有冲突对象或 SQL 与项目状态不兼容。请使用独立空项目并审阅初始化 SQL。'
       );
+    }
     if (path.includes('/api-keys')) reject(502, 'Supabase 项目 Key 读取失败，请确认项目状态正常后重试。');
     reject(502, 'Supabase 管理接口暂时不可用，请稍后重试。');
   }
@@ -291,11 +304,9 @@ export async function listSupabaseProjects(request, env, suppliedConnection) {
 }
 export async function initializeSupabaseProject(request, env, suppliedConnection) {
   const connection = suppliedConnection ?? (await managementConnection(request, env));
-  const value = fields(await body(request, 8192), ['projectRef', 'email']);
+  const value = fields(await body(request, 8192), ['projectRef']);
   if (typeof value.projectRef !== 'string' || !/^[a-z]{20}$/.test(value.projectRef))
     reject(400, 'Supabase 项目标识无效。');
-  const requestedEmail = value.email === undefined ? null : profileEmail({ email: value.email });
-  if (value.email !== undefined && !requestedEmail) reject(400, '项目身份邮箱格式无效。');
   const projects = await managementForConnection(request, env, connection, '/projects');
   const project = projects.find(item => (item.ref ?? item.id) === value.projectRef);
   if (!project) reject(404, '该项目不在当前授权范围内。');
@@ -327,13 +338,22 @@ export async function initializeSupabaseProject(request, env, suppliedConnection
     if (error?.status !== 401) throw error;
     profile = { primary_email: connection.email ?? accessTokenEmail(connection.accessToken) };
   }
-  const email = profileEmail(profile) ?? requestedEmail ?? connection.email ?? accessTokenEmail(connection.accessToken);
-  if (!email) reject(409, 'Supabase 管理 API 未返回账号邮箱。请输入刚才授权的 Supabase 账号邮箱后重试。');
+  // 项目会话只按 Supabase 自己返回的账号邮箱签发。浏览器提交的邮箱未经验证，拿它走 generate_link + verify
+  // 等于替任意邮箱完成验证，任一项目管理成员都能取得别人的同步身份（MEDIA-US-304 AC#7）。
+  const email = profileEmail(profile) ?? connection.email ?? accessTokenEmail(connection.accessToken);
   await managementForConnection(request, env, connection, `/projects/${value.projectRef}/database/query`, {
     method: 'POST',
     body: JSON.stringify({ query: initSql, read_only: false })
   });
   const config = { url: `https://${value.projectRef}.supabase.co`, anonKey: publicKey };
+  const initialized = {
+    project: { ref: value.projectRef, name: project.name ?? '', organizationId: project.organization_id ?? null },
+    config,
+    initialized: true,
+    imageSyncRequiresConfirmation: true
+  };
+  // 拿不到可验证的账号身份时只完成初始化，由用户登录或注册这个项目的账号，不代签会话。
+  if (!email) return { ...initialized, session: null };
   const link = await projectRequest(config, '/auth/v1/admin/generate_link', serviceKey, {
     method: 'POST',
     body: JSON.stringify({
@@ -353,13 +373,7 @@ export async function initializeSupabaseProject(request, env, suppliedConnection
   });
   if (typeof session?.access_token !== 'string' || typeof session?.refresh_token !== 'string')
     reject(502, '项目身份引导未返回会话。');
-  return {
-    project: { ref: value.projectRef, name: project.name ?? '', organizationId: project.organization_id ?? null },
-    config,
-    session,
-    initialized: true,
-    imageSyncRequiresConfirmation: true
-  };
+  return { ...initialized, session };
 }
 export async function revokeSupabaseOAuth(request, env) {
   const connection = await managementConnection(request, env);

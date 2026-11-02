@@ -28,6 +28,12 @@ export const productionSources = [
 
 const transactionBoundary = /^\s*(?:BEGIN|COMMIT)\s*;\s*$/gm;
 
+/** 应用 schema 版本取最后一个产品迁移的编号；两种初始化包都在提交前写入，自动接入据此判定兼容或更高版本。 */
+export const schemaVersion = Math.max(
+  ...productionSources.map(path => Number(/\/(\d{3})-[^/]+\.sql$/.exec(path)?.[1] ?? 0))
+);
+export const schemaMarker = `COMMENT ON SCHEMA media_private IS 'aiao-media schema ${schemaVersion}';`;
+
 /** 允许全新 Supabase 项目中由 PostGIS 等扩展预先创建的只读 public 关系。 */
 const publicExtensionRelations = [
   'geography_columns',
@@ -134,6 +140,7 @@ export async function buildProductionBundle(output = outputDefault) {
     ...sources.map(
       source => `\n-- BEGIN SOURCE ${source.relativePath}\n${source.sql}\n-- END SOURCE ${source.relativePath}`
     ),
+    schemaMarker,
     'COMMIT;',
     ''
   ].join('\n');

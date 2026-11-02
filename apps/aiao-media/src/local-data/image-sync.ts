@@ -21,6 +21,13 @@ export interface RemoteFileRecord {
 }
 
 type Request = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+interface UploadFile {
+  job: GenerationJobSummary;
+  metadata: ReturnType<typeof imageMetadata>;
+  bytes: number;
+  digest: string;
+  path: string;
+}
 const MAX_BYTES = 16 * 1024 * 1024;
 const CHUNK_BYTES = 6 * 1024 * 1024;
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -28,6 +35,14 @@ const sha256 = async (bytes: ArrayBuffer): Promise<string> =>
   [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))]
     .map(value => value.toString(16).padStart(2, '0'))
     .join('');
+// fetch 是 Window 的方法：存成属性再以 this.request() 调用，浏览器会抛 Illegal invocation。
+const windowFetch: Request = (input, init) => fetch(input, init);
+
+class RecordRequestError extends Error {
+  constructor(readonly status: number) {
+    super('远端图片记录操作失败，原图保留。');
+  }
+}
 
 /** 自有项目图片传输：原图直达私有 Storage，数据库只保存不可变文件身份和完整性摘要。 */
 export class ImageSyncController {
@@ -35,13 +50,17 @@ export class ImageSyncController {
     private readonly store: LocalMediaStore,
     private readonly access: ProductAuthorization,
     private readonly workspaceId: string,
-    private readonly request: Request = fetch
+    private readonly request: Request = windowFetch,
+    /** 目标、账号或工作区一变就中止：在途请求取消，迟到的结果不再提交远端记录、不写入本机。 */
+    private readonly signal?: AbortSignal
   ) {
     if (!uuid.test(workspaceId)) throw new Error('图片同步工作区标识无效。');
   }
 
-  async records(sourceId?: string): Promise<RemoteFileRecord[]> {
-    const query = sourceId ? `&sourceId=eq.${encodeURIComponent(sourceId)}` : '';
+  async records(sourceId?: string, version?: string): Promise<RemoteFileRecord[]> {
+    const query =
+      (sourceId ? `&sourceId=eq.${encodeURIComponent(sourceId)}` : '') +
+      (version ? `&version=eq.${encodeURIComponent(version)}` : '');
     const response = await this.rest(
       `/media_file_records?select=*&workspaceId=eq.${this.workspaceId}${query}&deleted=eq.false`
     );
@@ -56,47 +75,37 @@ export class ImageSyncController {
     if (!bytes.length || bytes.length > MAX_BYTES) throw new Error('图片超过同步大小限制。');
     const metadata = imageMetadata(bytes);
     const digest = await sha256(bytes.buffer);
-    const version = digest;
     const extension = imageExtension(metadata.mimeType);
     const path = `${this.access.userId}/${this.workspaceId}/${job.id}/${digest}.${extension}`;
-    const existing = (await this.records(job.id)).find(record => record.version === version && record.path === path);
-    if (existing?.status === 'uploaded') return existing;
-    const pending = await this.upsertRecord({
-      job,
-      metadata,
-      bytes: bytes.byteLength,
-      digest,
-      path,
-      status: 'pending',
-      existing
-    });
+    const file: UploadFile = { job, metadata, bytes: bytes.byteLength, digest, path };
+    // 同一工作区、来源和版本只有一条记录；上次停在 pending / needs_review 的记录接着用。
+    const [existing] = await this.records(job.id, digest);
+    const record = existing ? this.receipt(existing, file) : await this.create(file);
+    if (record.status === 'uploaded') return record;
+    if (record.status === 'deleted') throw new Error('远端已删除此图片版本；重新上传需要新的明确操作。');
     try {
       await this.uploadBytes(path, bytes, metadata.mimeType);
-      const response = await this.upsertRecord({
-        job,
-        metadata,
-        bytes: bytes.byteLength,
-        digest,
-        path,
-        status: 'uploaded',
-        existing: pending
-      });
-      return response;
+      return await this.commit(record, file);
     } catch (error) {
-      if (pending) await this.markNeedsReview(pending);
+      await this.markNeedsReview(record);
       throw error;
     }
   }
 
-  async download(sourceId: string, job: GenerationJobSummary): Promise<void> {
-    const [record] = (await this.records(sourceId)).filter(item => item.status === 'uploaded' && !item.deleted);
+  async download(sourceId: string, digest: string, job: GenerationJobSummary): Promise<void> {
+    if (!/^[0-9a-f]{64}$/.test(digest)) throw new Error('作品原图摘要无效。');
+    // 作品记录带着当前原图摘要；按它精确取版本，同一来源的其他版本不会被当成当前原图。
+    const record = (await this.records(sourceId, digest)).find(
+      item => item.status === 'uploaded' && item.sha256 === digest
+    );
     if (!record) throw new Error('远端图片尚未完成上传或已被移除。');
     const response = await this.storage(`/object/authenticated/aiao-media-images/${record.path}`);
     if (!response.ok) throw new Error('远端图片读取失败；本机数据保留。');
     const blob = await response.blob();
     const bytes = await blob.arrayBuffer();
-    if (bytes.byteLength !== record.bytes || (await sha256(bytes)) !== record.sha256)
+    if (bytes.byteLength !== record.bytes || (await sha256(bytes)) !== digest)
       throw new Error('远端图片完整性校验失败。');
+    this.signal?.throwIfAborted();
     await this.store.saveResult(job, new Blob([bytes], { type: record.mimeType }));
   }
 
@@ -107,6 +116,7 @@ export class ImageSyncController {
         headers: { 'content-type': mimeType, 'x-upsert': 'false' },
         body: bytes.slice().buffer as ArrayBuffer
       });
+      // 409：同一不可变路径的对象已在（上次回执丢失），接着提交记录即可。
       if (!result.ok && result.status !== 409) throw new Error('远端图片上传失败；本机原图保留。');
       return;
     }
@@ -119,8 +129,10 @@ export class ImageSyncController {
         'tus-resumable': '1.0.0',
         'upload-length': String(bytes.byteLength),
         'upload-metadata': `bucketName ${btoa('aiao-media-images')},objectName ${btoa(path)},contentType ${btoa(mimeType)}`
-      }
+      },
+      signal: this.signal
     });
+    if (created.status === 409) return;
     if (!created.ok) throw new Error('远端续传初始化失败；本机原图保留。');
     const location = created.headers.get('location');
     if (!location) throw new Error('远端续传回执缺少位置。');
@@ -135,55 +147,76 @@ export class ImageSyncController {
           'upload-offset': String(offset),
           'content-type': 'application/offset+octet-stream'
         },
-        body: chunk
+        body: chunk,
+        signal: this.signal
       });
       if (!result.ok) throw new Error('远端续传分片失败；本机原图保留。');
     }
   }
 
-  private async upsertRecord(input: {
-    job: GenerationJobSummary;
-    metadata: ReturnType<typeof imageMetadata>;
-    bytes: number;
-    digest: string;
-    path: string;
-    status: RemoteFileRecord['status'];
-    existing?: RemoteFileRecord;
-  }): Promise<RemoteFileRecord> {
-    const payload = {
-      ...(input.existing ?
-        { id: input.existing.id, revision: input.existing.revision + 1, baseRevision: input.existing.revision }
-      : {}),
-      workspaceId: this.workspaceId,
-      sourceId: input.job.id,
-      version: input.digest,
-      path: input.path,
-      mimeType: input.metadata.mimeType,
-      width: input.metadata.width,
-      height: input.metadata.height,
-      bytes: input.bytes,
-      sha256: input.digest,
-      status: input.status,
-      deleted: false,
-      createdBy: this.access.userId,
-      updatedBy: this.access.userId
-    };
-    const response = await this.rest('/media_file_records', {
-      method: 'POST',
-      headers: { prefer: 'resolution=merge-duplicates,return=representation' },
-      body: JSON.stringify(payload)
+  private async create(file: UploadFile): Promise<RemoteFileRecord> {
+    try {
+      const response = await this.rest('/media_file_records', {
+        method: 'POST',
+        headers: { prefer: 'return=representation' },
+        body: JSON.stringify({
+          workspaceId: this.workspaceId,
+          sourceId: file.job.id,
+          version: file.digest,
+          path: file.path,
+          mimeType: file.metadata.mimeType,
+          width: file.metadata.width,
+          height: file.metadata.height,
+          bytes: file.bytes,
+          sha256: file.digest,
+          status: 'pending',
+          deleted: false,
+          createdBy: this.access.userId,
+          updatedBy: this.access.userId
+        })
+      });
+      return this.receipt(this.record(Array.isArray(response) ? response[0] : response), file, 'pending');
+    } catch (error) {
+      // 唯一约束冲突：另一设备或标签页刚建了同一版本的记录，改用那一条。
+      if (!(error instanceof RecordRequestError) || error.status !== 409) throw error;
+      const [existing] = await this.records(file.job.id, file.digest);
+      if (!existing) throw error;
+      return this.receipt(existing, file);
+    }
+  }
+
+  /**
+   * 状态推进只走按修订过滤的 UPDATE。BEFORE INSERT 触发器先于冲突判定执行，
+   * 用 upsert 带上后续修订会被当成非法初始修订拒绝，记录就永远停在 pending。
+   */
+  private async commit(record: RemoteFileRecord, file: UploadFile): Promise<RemoteFileRecord> {
+    const response = await this.rest(`/media_file_records?id=eq.${record.id}&revision=eq.${record.revision}`, {
+      method: 'PATCH',
+      headers: { prefer: 'return=representation' },
+      body: JSON.stringify({
+        status: 'uploaded',
+        revision: record.revision + 1,
+        baseRevision: record.revision,
+        updatedBy: this.access.userId
+      })
     });
-    const row = Array.isArray(response) ? response[0] : response;
-    const result = this.record(row);
+    const [row] = Array.isArray(response) ? response : [];
+    // 没有更新到行：修订已被另一设备推进，按远端现状核对，不覆盖。
+    const current = row ? this.record(row) : (await this.records(file.job.id, file.digest))[0];
+    if (!current) throw new Error('远端图片记录已不存在；本机原图保留。');
+    return this.receipt(current, file, 'uploaded');
+  }
+
+  private receipt(record: RemoteFileRecord, file: UploadFile, status?: RemoteFileRecord['status']): RemoteFileRecord {
     if (
-      result.sourceId !== input.job.id ||
-      result.path !== input.path ||
-      result.sha256 !== input.digest ||
-      result.bytes !== input.bytes ||
-      result.status !== input.status
+      record.sourceId !== file.job.id ||
+      record.path !== file.path ||
+      record.sha256 !== file.digest ||
+      record.bytes !== file.bytes ||
+      (status !== undefined && record.status !== status)
     )
       throw new Error('远端图片回执与原图不一致。');
-    return result;
+    return record;
   }
 
   private async markNeedsReview(record: RemoteFileRecord): Promise<void> {
@@ -210,9 +243,9 @@ export class ImageSyncController {
       credentials: 'omit',
       cache: 'no-store',
       redirect: 'error',
-      signal: AbortSignal.timeout(30000)
+      signal: this.deadline(30000)
     });
-    if (!response.ok) throw new Error('远端图片记录操作失败，原图保留。');
+    if (!response.ok) throw new RecordRequestError(response.status);
     return response.status === 204 ? null : response.json();
   }
   private storageUrl(path: string): string {
@@ -234,8 +267,12 @@ export class ImageSyncController {
       credentials: 'omit',
       cache: 'no-store',
       redirect: 'error',
-      signal: AbortSignal.timeout(60000)
+      signal: this.deadline(60000)
     });
+  }
+  private deadline(milliseconds: number): AbortSignal {
+    const timeout = AbortSignal.timeout(milliseconds);
+    return this.signal ? AbortSignal.any([this.signal, timeout]) : timeout;
   }
   private record(value: unknown): RemoteFileRecord {
     if (!value || typeof value !== 'object') throw new Error('远端图片记录无效。');
@@ -247,7 +284,8 @@ export class ImageSyncController {
       !['image/png', 'image/jpeg'].includes(String(row['mimeType'])) ||
       typeof row['bytes'] !== 'number' ||
       typeof row['sha256'] !== 'string' ||
-      typeof row['path'] !== 'string'
+      typeof row['path'] !== 'string' ||
+      !Number.isSafeInteger(row['revision'])
     )
       throw new Error('远端图片记录字段无效。');
     return row as unknown as RemoteFileRecord;

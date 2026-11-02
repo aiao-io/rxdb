@@ -163,7 +163,8 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private registry?: WorkspaceRegistry;
   private workspaceSession?: WorkspaceSession<LocalMediaStore>;
   private product?: ProductWorkspaceController;
-  private imageSync?: ImageSyncController;
+  /** 图片传输的作用域：同步目标、项目账号或本机工作区一变就中止，旧传输的迟到结果不进入新目标。 */
+  private imageSyncScope = new AbortController();
   private registryState?: WorkspaceRegistryState;
   private rootId = '';
   private transitionCount = 0;
@@ -491,6 +492,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.disposed = true;
     ++this.epoch;
     this.lifetime.abort();
+    this.resetImageSync();
     this.stopElapsed();
     this.closeViewer();
     this.unsubscribeAuth?.();
@@ -599,7 +601,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   }
   stopSync() {
     this.product?.pause();
-    this.imageSync = undefined;
+    this.resetImageSync();
     this.imageSyncEnabled.set(false);
     this.imageSyncMessage.set('');
     this.syncPaused.set(true);
@@ -1392,38 +1394,40 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   }
   async initializeOAuthProject(projectRef: string) {
     if (!projectRef || this.oauthBusy()) return;
+    const name = this.oauthProjects().find(project => project.ref === projectRef)?.name || projectRef;
+    if (
+      !window.confirm(
+        `初始化 Supabase 项目「${name}」？将创建同步数据表、私有图片 bucket 和访问策略。只接受独立空项目或已由本应用初始化的项目；发现其他业务对象、同名对象或更高版本时整体拒绝，不做任何写入。`
+      )
+    )
+      return;
     this.oauthBusy.set(true);
     this.targetMessage.set('正在初始化选定 Supabase 项目…');
     try {
-      let email: string | undefined;
-      let value: { error?: string; config?: SupabaseAuthConfig; session?: Session };
-      while (true) {
-        const response = await fetch(apiEndpoint('/api/supabase/oauth/initialize'), {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          credentials: 'include',
-          cache: 'no-store',
-          redirect: 'error',
-          body: JSON.stringify({ projectRef, ...(email ? { email } : {}) })
-        });
-        value = await readJson<{ error?: string; config?: SupabaseAuthConfig; session?: Session }>(
-          response,
-          'Supabase 自动初始化未完成。'
-        );
-        if (response.status !== 409 || !value.error?.includes('账号邮箱')) {
-          if (!response.ok || !value.config || !value.session)
-            throw new Error(value.error ?? 'Supabase 自动初始化未完成。');
-          break;
-        }
-        email = window.prompt('Supabase 未返回账号邮箱，请输入刚才授权的 Supabase 账号邮箱：')?.trim();
-        if (!email) throw new Error('未提供 Supabase 账号邮箱，初始化已取消。');
-      }
+      const response = await fetch(apiEndpoint('/api/supabase/oauth/initialize'), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        credentials: 'include',
+        cache: 'no-store',
+        redirect: 'error',
+        body: JSON.stringify({ projectRef })
+      });
+      const value = await readJson<{ error?: string; config?: SupabaseAuthConfig; session?: Session | null }>(
+        response,
+        'Supabase 自动初始化未完成。'
+      );
+      if (!response.ok || !value.config) throw new Error(value.error ?? 'Supabase 自动初始化未完成。');
       const target = { kind: 'custom' as const, config: value.config };
       saveSyncTarget(localStorage, target);
       this.configureTarget(target);
-      await this.auth?.adoptSession(value.session);
+      // 服务端只为 Supabase 自己返回的账号邮箱签发项目会话；拿不到时由用户登录或注册这个项目的账号。
+      if (value.session) await this.auth?.adoptSession(value.session);
       this.oauthProjects.set([]);
-      this.targetMessage.set('Supabase 已授权并初始化。请单独确认图片同步范围；本机图片尚未上传。');
+      this.targetMessage.set(
+        value.session ?
+          'Supabase 已授权并初始化。请单独确认图片同步范围；本机图片尚未上传。'
+        : 'Supabase 项目已初始化并连接。Supabase 没有返回可验证的账号身份，请登录或注册此项目的账号后再启用同步；本机图片尚未上传。'
+      );
     } catch (error) {
       this.targetMessage.set(error instanceof Error ? error.message : 'Supabase 自动初始化未完成。');
     } finally {
@@ -1469,11 +1473,14 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     if (!window.confirm(text)) return;
     this.imageSyncBusy.set(true);
     this.imageSyncMessage.set('正在确认图片同步范围…');
+    const signal = this.imageSyncScope.signal;
     try {
       await verifyImageSyncTarget(await this.adminApi.authorization());
+      // 确认期间换了目标、账号或工作区：这次确认不能记到新身份名下。
+      signal.throwIfAborted();
       localStorage.setItem(this.imageSyncKey(), scope);
       this.imageSyncEnabled.set(true);
-      const controller = await this.imageSyncController();
+      const controller = await this.imageSyncController(signal);
       const tasks =
         scope === 'existing' ?
           this.history().filter(task => task.status === 'completed' && this.hasLocalCopy(task))
@@ -1496,6 +1503,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   }
   async stopImageSync() {
     if (!window.confirm('停止以后图片自动上传？已上传到 Supabase 的原图和本机原图都保留。')) return;
+    this.resetImageSync();
     localStorage.removeItem(this.imageSyncKey());
     this.imageSyncEnabled.set(false);
     this.imageSyncMessage.set('图片自动同步已停止；远端原图未删除。');
@@ -1527,7 +1535,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.imageSyncBusy.set(true);
     this.imageSyncMessage.set('正在从你的 Supabase 取回原图…');
     try {
-      await (await this.imageSyncController()).download(work.jobId, task);
+      await (await this.imageSyncController()).download(work.jobId, work.sha256, task);
       await this.readTasks();
       this.retryLibrary();
       this.imageSyncMessage.set('原图已校验并保存到本机。');
@@ -1643,10 +1651,13 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private imageSyncKey(): string {
     return `aiao-media-image-sync-v1:${encodeURIComponent(this.auth?.config.url ?? '')}:${this.authUser()?.id ?? ''}:${this.profileId}`;
   }
-  private async imageSyncController(): Promise<ImageSyncController> {
-    if (this.imageSync) return this.imageSync;
-    const profile = this.currentProfile(),
+  /** 每次传输按当前目标、项目账号和工作区新建控制器，不跨目标复用；作用域中止时在途请求一并取消。 */
+  private async imageSyncController(signal = this.imageSyncScope.signal): Promise<ImageSyncController> {
+    const store = this.requireStore(),
+      profile = this.currentProfile(),
       access = await this.auth?.authorizeProduct();
+    // 授权期间换了目标、账号或工作区：这次授权属于旧目标，不能和新的工作区拼在一起。
+    signal.throwIfAborted();
     if (
       !profile?.binding?.initialized ||
       !profile.binding.remoteWorkspaceId ||
@@ -1654,8 +1665,11 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.targetKind() !== 'custom'
     )
       throw new Error('请先连接自己的 Supabase 并确认元数据同步工作区。');
-    this.imageSync = new ImageSyncController(this.requireStore(), access, profile.binding.remoteWorkspaceId);
-    return this.imageSync;
+    return new ImageSyncController(store, access, profile.binding.remoteWorkspaceId, undefined, signal);
+  }
+  private resetImageSync() {
+    this.imageSyncScope.abort(new Error('同步目标、账号或工作区已变化，旧的图片传输已停止；本机原图保留。'));
+    this.imageSyncScope = new AbortController();
   }
   private async syncSavedImage(task: LocalTask) {
     if (!this.imageSyncEnabled() || this.targetKind() !== 'custom' || task.status !== 'completed') return;
@@ -1742,6 +1756,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.auth?.dispose();
     this.auth = null;
     this.product?.pause();
+    this.resetImageSync();
     ++this.identityVersion;
     this.identitySelection = null;
     this.authStatus.set('signed-out');
@@ -1754,6 +1769,8 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     if (!target.config) return;
     this.auth = new SupabaseAuthClient(target.config);
     this.unsubscribeAuth = this.auth.subscribe(state => {
+      // 令牌轮换会以同一账号重新发布 signed-in，不打断传输；退出或换账号才让旧传输失效。
+      if (state.status !== 'signed-in' || state.user?.id !== this.authUser()?.id) this.resetImageSync();
       this.syncReady.set(false);
       this.authUser.set(state.user);
       this.authStatus.set(state.status);
@@ -1971,6 +1988,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private attachWorkspace(store: LocalMediaStore, profile: WorkspaceProfile, initial = false): void {
     const old = this.store;
     ++this.epoch;
+    this.resetImageSync();
     this.workspaceSubscriptions.unsubscribe();
     this.workspaceSubscriptions = new Subscription();
     this.workMetadata = undefined;
