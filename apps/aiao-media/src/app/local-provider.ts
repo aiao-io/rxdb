@@ -104,6 +104,14 @@ function miniMaxImageResult(envelope: Record<string, unknown> | null): Record<st
   if (urlItems.length + base64Items.length !== 1) return null;
   return { url: urlItems[0], b64_json: base64Items[0] };
 }
+/** Only the relay Worker answers /api/relay with JSON, even when it passes on a provider's 404. */
+function relayMissing(provider: LocalProvider, response: Response): boolean {
+  return (
+    provider.mode === 'proxy' &&
+    response.status === 404 &&
+    !response.headers.get('content-type')?.includes('application/json')
+  );
+}
 export async function generateLocalImage(
   provider: LocalProvider,
   key: string,
@@ -144,6 +152,12 @@ export async function generateLocalImage(
   });
   if (!response.ok) {
     await response.body?.cancel();
+    // This origin has no relay (static-only publish, dev server without the proxy): nothing reached a provider.
+    if (relayMissing(provider, response))
+      throw new ProviderFailure(
+        '当前页面没有同源代理 /api/relay，请求未发送给供应商。请使用带代理的环境，或在设置中改用浏览器直连。',
+        true
+      );
     // Only a definite rejection unlocks a new attempt. 5xx and transport failures remain uncertain.
     throw new ProviderFailure(
       `供应商或代理返回 HTTP ${response.status}。请核对配置和供应商记录。`,

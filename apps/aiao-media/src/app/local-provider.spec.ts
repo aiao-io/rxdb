@@ -232,6 +232,28 @@ describe('single image dispatch', () => {
       expect(fetch).toHaveBeenCalledTimes(1);
     }
   );
+  it('names the missing relay when a proxy-mode 404 is not JSON, and unlocks a new attempt', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response('<!doctype html><pre>Cannot POST /api/relay</pre>', {
+        status: 404,
+        headers: { 'content-type': 'text/html; charset=utf-8' }
+      })
+    );
+    await expect(generate({ ...provider, mode: 'proxy' })).rejects.toMatchObject({
+      rejected: true,
+      message: expect.stringContaining('/api/relay')
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it('keeps the provider wording when the relay itself answers a JSON 404', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      Response.json({ error: 'Provider rejected or failed; review provider history' }, { status: 404 })
+    );
+    await expect(generate({ ...provider, mode: 'proxy' })).rejects.toMatchObject({
+      rejected: true,
+      message: '供应商或代理返回 HTTP 404。请核对配置和供应商记录。'
+    });
+  });
   it.each([500, 502, 503])('keeps HTTP %i uncertain and never retries', async status => {
     vi.mocked(fetch).mockResolvedValue(response({}, status));
     await expect(generate()).rejects.toMatchObject({ rejected: false });
