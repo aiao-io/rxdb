@@ -13,8 +13,8 @@ import {
 import { ArticleFormComponent } from './article-form.component';
 import { ArticleListComponent } from './article-list.component';
 import {
-  PAGE_SIZE,
   createArticleSource,
+  PAGE_SIZE,
   type ArticleRecord,
   type DetailData,
   type DetailResult,
@@ -45,8 +45,8 @@ import { QueryPanelComponent } from './query-panel.component';
       <app-hl-query-panel (apply)="query.set($event)" />
       <div class="hl-wide">
         <div class="hl-actions">
-          <button type="button" (click)="dialog.controller.open({ mode: 'create' })">新建文章</button>
-          <span role="status" data-testid="dialog-result">
+          <button (click)="dialog.controller.open({ mode: 'create' })" type="button">新建文章</button>
+          <span data-testid="dialog-result" role="status">
             {{ dialog.snapshot().result === undefined ? '' : '弹窗结果：' + dialog.snapshot().result }}
           </span>
         </div>
@@ -64,6 +64,11 @@ import { QueryPanelComponent } from './query-panel.component';
 })
 export default class HeadlessPage {
   readonly #source = createArticleSource(inject(RxDB));
+  /** 查询 / 排序 / 分页任一变化就重新取数。快照里的 sorts 每次发布都是新数组，所以用序列化后的请求键做依赖。 */
+  readonly #requestKey = computed(() => {
+    const { query, sorts, page, pageSize } = this.list.snapshot();
+    return JSON.stringify([query, sorts, page, pageSize]);
+  });
   protected readonly query = signal<RuleGroup | undefined>(undefined);
   protected readonly list = injectEntityList<ArticleRecord>(() => ({
     query: this.query(),
@@ -75,18 +80,6 @@ export default class HeadlessPage {
     onDelete: this.#source.remove
   }));
   protected readonly dialog = injectEntityDialog<DetailResult, DetailData>();
-  /** 查询 / 排序 / 分页任一变化就重新取数。快照里的 sorts 每次发布都是新数组，所以用序列化后的请求键做依赖。 */
-  readonly #requestKey = computed(() => {
-    const { query, sorts, page, pageSize } = this.list.snapshot();
-    return JSON.stringify([query, sorts, page, pageSize]);
-  });
-
-  protected readonly create = (data: Record<string, unknown>): Promise<unknown> => this.list.controller.create(data);
-  protected readonly save = async ({ data, changes }: DetailSaveResult): Promise<void> => {
-    const current = this.dialog.snapshot().data;
-    if (current?.mode === 'create') await this.list.controller.create(data);
-    else await this.list.controller.update(current?.record?.id ?? '', changes);
-  };
 
   constructor() {
     effect(() => {
@@ -95,6 +88,14 @@ export default class HeadlessPage {
       untracked(() => void this.list.controller.refresh().catch(() => undefined));
     });
   }
+
+  /** 以下两个回调作为输入传给子组件，用箭头函数保持 `this`。 */
+  protected readonly create = (data: Record<string, unknown>): Promise<unknown> => this.list.controller.create(data);
+  protected readonly save = async ({ data, changes }: DetailSaveResult): Promise<void> => {
+    const current = this.dialog.snapshot().data;
+    if (current?.mode === 'create') await this.list.controller.create(data);
+    else await this.list.controller.update(current?.record?.id ?? '', changes);
+  };
 
   protected close(result: DetailResult): void {
     if (result === 'saved') this.dialog.controller.resolve(result);

@@ -11,10 +11,10 @@ export const fieldId = (prefix: string, field: string): string => `${prefix}-fie
  * 并在宿主重置 / 取消（控制器发出 `reset` / `cancelled`）时清空。
  */
 export class FieldInputs {
+  readonly #controller: EntityFormController;
   readonly raw = signal<Readonly<Record<string, string>>>({});
   readonly touched = signal<ReadonlySet<string>>(new Set());
   readonly attempted = signal(false);
-  readonly #controller: EntityFormController;
 
   constructor(controller: EntityFormController) {
     this.#controller = controller;
@@ -22,7 +22,7 @@ export class FieldInputs {
 
   input(field: string, value: unknown): void {
     if (typeof value === 'string') this.raw.update(previous => ({ ...previous, [field]: value }));
-    this.touched.update(previous => new Set(previous).add(field));
+    this.touched.update(previous => (previous.has(field) ? previous : new Set(previous).add(field)));
     this.#controller.setField(field, value);
   }
 

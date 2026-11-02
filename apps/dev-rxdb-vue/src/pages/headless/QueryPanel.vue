@@ -19,7 +19,11 @@ const clear = (): void => {
 </script>
 
 <template>
-  <section class="hl-section" aria-labelledby="hl-query-title" data-testid="headless-query">
+  <section
+    class="hl-section"
+    aria-labelledby="hl-query-title"
+    data-testid="headless-query"
+  >
     <h2 id="hl-query-title">筛选</h2>
     <QueryGroup
       :group="snapshot.state.rootGroup"
@@ -27,15 +31,36 @@ const clear = (): void => {
       :fields="snapshot.fields"
       :is-root="true"
     />
-    <ul v-if="errors.length > 0" class="hl-error" role="alert" data-testid="qb-errors">
-      <li v-for="(error, index) in errors" :key="`${error.field}-${index}`">{{ error.message }}</li>
+    <ul
+      v-if="errors.length > 0"
+      class="hl-error"
+      role="alert"
+      data-testid="qb-errors"
+    >
+      <li
+        v-for="(error, index) in errors"
+        :key="`${error.field}-${index}`"
+        >{{ error.message }}</li
+      >
     </ul>
     <div class="hl-actions">
-      <button type="button" :disabled="!snapshot.valid" @click="emit('apply', controller.toRxDBQuery())">
+      <button
+        type="button"
+        :disabled="!snapshot.valid"
+        @click="emit('apply', controller.toRxDBQuery())"
+      >
         应用筛选
       </button>
-      <button type="button" @click="clear">清空筛选</button>
+      <button
+        type="button"
+        @click="clear"
+        >清空筛选</button
+      >
     </div>
-    <pre class="hl-output" aria-label="查询输出" data-testid="qb-query">{{ JSON.stringify(snapshot.query) }}</pre>
+    <pre
+      class="hl-output"
+      aria-label="查询输出"
+      data-testid="qb-query"
+      >{{ JSON.stringify(snapshot.query) }}</pre>
   </section>
 </template>

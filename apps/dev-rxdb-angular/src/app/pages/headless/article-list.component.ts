@@ -18,22 +18,22 @@ const COLUMNS = [
     <section class="hl-section" aria-labelledby="hl-list-title" data-testid="headless-list">
       <h2 id="hl-list-title">文章列表</h2>
       <div class="hl-actions">
-        <button type="button" (click)="refresh()">刷新</button>
+        <button (click)="refresh()" type="button">刷新</button>
         <button
-          type="button"
           [disabled]="snapshot().selectedIds.length === 0 || !canDelete()"
           (click)="remove(snapshot().selectedIds)"
+          type="button"
         >
           删除所选 ({{ snapshot().selectedIds.length }})
         </button>
       </div>
-      <table class="hl-table" aria-label="文章" [attr.aria-busy]="snapshot().loading">
+      <table class="hl-table" [attr.aria-busy]="snapshot().loading" aria-label="文章">
         <thead>
           <tr>
             <th scope="col"><span class="hl-sr">选择</span></th>
             @for (column of columns; track column.field) {
-              <th scope="col" [attr.aria-sort]="sortOf(column.field)">
-                <button type="button" (click)="toggleSort(column.field)">{{ column.label }}</button>
+              <th [attr.aria-sort]="sortOf(column.field)" scope="col">
+                <button (click)="toggleSort(column.field)" type="button">{{ column.label }}</button>
               </th>
             }
             <th scope="col">操作</th>
@@ -46,13 +46,13 @@ const COLUMNS = [
             </tr>
           }
           @for (record of snapshot().records; track record.id) {
-            <tr data-testid="list-row" [attr.data-id]="record.id">
+            <tr [attr.data-id]="record.id" data-testid="list-row">
               <td>
                 <input
-                  type="checkbox"
                   [attr.aria-label]="'选择 ' + record.title"
                   [checked]="snapshot().selectedIds.includes(record.id)"
                   (change)="controller().toggleSelection(record.id)"
+                  type="checkbox"
                 />
               </td>
               <td>{{ record.title }}</td>
@@ -60,18 +60,18 @@ const COLUMNS = [
               <td>{{ record.viewCount ?? '' }}</td>
               <td>
                 <button
-                  type="button"
-                  [disabled]="!canEdit()"
                   [attr.aria-label]="'编辑 ' + record.title"
+                  [disabled]="!canEdit()"
                   (click)="edit.emit(record)"
+                  type="button"
                 >
                   编辑
                 </button>
                 <button
-                  type="button"
-                  [disabled]="!canDelete()"
                   [attr.aria-label]="'删除 ' + record.title"
+                  [disabled]="!canDelete()"
                   (click)="remove([record.id])"
+                  type="button"
                 >
                   删除
                 </button>
@@ -81,21 +81,21 @@ const COLUMNS = [
         </tbody>
       </table>
       @if (snapshot().error !== null) {
-        <p class="hl-error" role="alert" data-testid="list-error">{{ message(snapshot().error) }}</p>
+        <p class="hl-error" data-testid="list-error" role="alert">{{ message(snapshot().error) }}</p>
       }
       <div class="hl-pager">
-        <button type="button" [disabled]="snapshot().page === 0" (click)="controller().setPage(snapshot().page - 1)">
+        <button [disabled]="snapshot().page === 0" (click)="controller().setPage(snapshot().page - 1)" type="button">
           上一页
         </button>
-        <span role="status" data-testid="list-page-info">
+        <span data-testid="list-page-info" role="status">
           第 {{ snapshot().page + 1 }} / {{ pages() ?? '?' }} 页，共 {{ snapshot().total ?? '?' }} 条{{
             snapshot().loading ? '（加载中）' : ''
           }}
         </span>
         <button
-          type="button"
           [disabled]="snapshot().hasNext !== true"
           (click)="controller().setPage(snapshot().page + 1)"
+          type="button"
         >
           下一页
         </button>

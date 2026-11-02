@@ -14,13 +14,13 @@ import { QueryGroupComponent } from './query-group.component';
     <section class="hl-section" aria-labelledby="hl-query-title" data-testid="headless-query">
       <h2 id="hl-query-title">筛选</h2>
       <app-hl-query-group
-        [group]="builder.snapshot().state.rootGroup"
         [controller]="builder.controller"
         [fields]="builder.snapshot().fields"
+        [group]="builder.snapshot().state.rootGroup"
         [isRoot]="true"
       />
       @if (errors().length > 0) {
-        <ul class="hl-error" role="alert" data-testid="qb-errors">
+        <ul class="hl-error" data-testid="qb-errors" role="alert">
           @for (error of errors(); track $index) {
             <li>{{ error.message }}</li>
           }
@@ -28,13 +28,13 @@ import { QueryGroupComponent } from './query-group.component';
       }
       <div class="hl-actions">
         <button
-          type="button"
           [disabled]="!builder.snapshot().valid"
           (click)="apply.emit(builder.controller.toRxDBQuery())"
+          type="button"
         >
           应用筛选
         </button>
-        <button type="button" (click)="clear()">清空筛选</button>
+        <button (click)="clear()" type="button">清空筛选</button>
       </div>
       <pre class="hl-output" aria-label="查询输出" data-testid="qb-query">{{ queryText() }}</pre>
     </section>

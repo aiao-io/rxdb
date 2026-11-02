@@ -6,6 +6,7 @@
  * @module entity-form/headless
  */
 import { formatEntityFieldValue, parseEntityFieldValueStrict } from '../entity-value.utils.js';
+import { onModelI18nChange } from '../i18n-watch.js';
 import type { ModelI18n } from '../i18n.js';
 import { cloneStructured, structuralEqual } from '../structural-equal.js';
 import { createDefaultFormData, entityToFormData, formDataToEntityChanges } from './form-data.js';
@@ -53,13 +54,17 @@ export interface EntityFormFieldSnapshot {
   readonly displayValue: string;
 }
 
-/** 表单状态变化原因。 */
+/**
+ * 表单状态变化原因。
+ * @remarks `messagesChanged` 在应用语言或目录变化后发出：校验错误按新语言重建，数据与输入不变。
+ */
 export type EntityFormEvent =
   | { readonly type: 'fieldChanged'; readonly event: FormFieldChangeEvent }
   | { readonly type: 'validationErrors'; readonly result: FormValidationResult }
   | { readonly type: 'reset'; readonly data: EntityFormData }
   | { readonly type: 'submitted'; readonly data: EntityFormData }
-  | { readonly type: 'cancelled'; readonly data: EntityFormData };
+  | { readonly type: 'cancelled'; readonly data: EntityFormData }
+  | { readonly type: 'messagesChanged'; readonly result: FormValidationResult };
 
 /** 校验完成（包括校验通过）的事件。 */
 export type EntityFormValidationEvent = { readonly type: 'validationChanged'; readonly result: FormValidationResult };
@@ -102,7 +107,9 @@ export class EntityFormController {
   #mode: FormMode;
   #data: EntityFormData;
   #initialData: EntityFormData;
-  #errors: FormFieldValidationError[] = [];
+  /** 尚未修正的解析失败：字段名 → 原始输入。文案在建快照时按当前语言生成，所以这里存输入而不是文案。 */
+  readonly #parseFailures = new Map<string, unknown>();
+  readonly #stopLanguage?: () => void;
   #snapshot: EntityFormSnapshot;
   #disposed = false;
 
@@ -122,6 +129,7 @@ export class EntityFormController {
     this.#data = cloneData(source);
     this.#initialData = cloneData(source);
     this.#snapshot = this.#buildSnapshot();
+    this.#stopLanguage = onModelI18nChange(options.i18n, () => this.#refreshMessages());
   }
 
   /** 读取单个字段的渲染状态。 */
@@ -142,7 +150,7 @@ export class EntityFormController {
     if (structuralEqual(this.#initialData, data)) return;
     this.#data = cloneData(data);
     this.#initialData = cloneData(data);
-    this.#errors = [];
+    this.#parseFailures.clear();
     this.#snapshot = this.#buildSnapshot();
     this.#emit({ type: 'reset', data: cloneData(data) });
   }
@@ -158,9 +166,10 @@ export class EntityFormController {
     if (structuralEqual(this.#fields, fields)) return;
     const previousTypes = new Map(this.#fields.map(field => [field.field, field.type]));
     this.#fields = cloneStructured([...fields]);
-    this.#errors = this.#errors.filter(error =>
-      this.#fields.some(field => field.field === error.field && field.type === previousTypes.get(error.field))
-    );
+    for (const fieldName of [...this.#parseFailures.keys()]) {
+      const kept = this.#fields.some(field => field.field === fieldName && field.type === previousTypes.get(fieldName));
+      if (!kept) this.#parseFailures.delete(fieldName);
+    }
     this.#snapshot = this.#buildSnapshot();
     this.#emit({ type: 'reset', data: cloneData(this.#data) });
   }
@@ -179,7 +188,7 @@ export class EntityFormController {
     this.#assertActive();
     if (this.#mode === mode) return;
     this.#mode = mode;
-    if (mode === 'view') this.#errors = [];
+    if (mode === 'view') this.#parseFailures.clear();
     this.#snapshot = this.#buildSnapshot();
     this.#emit({ type: 'reset', data: cloneData(this.#data) });
   }
@@ -213,7 +222,7 @@ export class EntityFormController {
         valid: false,
         errors: [{ field: field.field, message: `${field.displayName} ${parsed.message}` }]
       };
-      this.#errors = [...this.#errors.filter(error => error.field !== field.field), ...result.errors];
+      this.#parseFailures.set(field.field, cloneStructured(rawValue));
       this.#snapshot = this.#buildSnapshot();
       this.#emit({ type: 'validationErrors', result });
       return { ok: false, result };
@@ -221,7 +230,7 @@ export class EntityFormController {
     const previousValue = this.#data[field.field];
     const event: FormFieldChangeEvent = { field: field.field, type: field.type, value: parsed.value, previousValue };
     this.#data = { ...this.#data, [field.field]: cloneStructured(parsed.value) };
-    this.#errors = this.#errors.filter(error => error.field !== field.field);
+    this.#parseFailures.delete(field.field);
     this.#snapshot = this.#buildSnapshot();
     this.#emit({ type: 'fieldChanged', event });
     return { ok: true, event };
@@ -244,8 +253,7 @@ export class EntityFormController {
    */
   discardInput(fieldName: string): void {
     this.#assertActive();
-    if (!this.#errors.some(error => error.field === fieldName)) return;
-    this.#errors = this.#errors.filter(error => error.field !== fieldName);
+    if (!this.#parseFailures.delete(fieldName)) return;
     this.#publishValidation();
   }
 
@@ -268,7 +276,7 @@ export class EntityFormController {
   cancel(): EntityFormData {
     this.#assertActive();
     this.#data = cloneData(this.#initialData);
-    this.#errors = [];
+    this.#parseFailures.clear();
     this.#snapshot = this.#buildSnapshot();
     const data = cloneData(this.#data);
     this.#emit({ type: 'cancelled', data });
@@ -278,6 +286,7 @@ export class EntityFormController {
   /** 解除订阅并阻止后续动作通知。 */
   dispose(): void {
     this.#disposed = true;
+    this.#stopLanguage?.();
     this.#listeners.clear();
   }
 
@@ -285,7 +294,10 @@ export class EntityFormController {
     const data = cloneData(this.#data);
     const initialData = cloneData(this.#initialData);
     const errors = new Map(
-      [...validateForm(this.#fields, this.#data, this.#i18n).errors, ...this.#errors].map(error => [error.field, error])
+      [...validateForm(this.#fields, this.#data, this.#i18n).errors, ...this.#parseErrors()].map(error => [
+        error.field,
+        error
+      ])
     );
     return {
       mode: this.#mode,
@@ -304,6 +316,26 @@ export class EntityFormController {
       dirty: !equalData(data, initialData),
       readonly: this.#mode === 'view'
     };
+  }
+
+  /** 把尚未修正的解析失败按当前语言与字段配置还原成错误。 */
+  #parseErrors(): FormFieldValidationError[] {
+    const errors: FormFieldValidationError[] = [];
+    for (const [fieldName, rawValue] of this.#parseFailures) {
+      const field = this.#fields.find(item => item.field === fieldName);
+      if (!field) continue;
+      const parsed = parseEntityFieldValueStrict(field.type, rawValue, this.#i18n);
+      if (!parsed.ok) errors.push({ field: field.field, message: `${field.displayName} ${parsed.message}` });
+    }
+    return errors;
+  }
+
+  /** 用新语言重建快照，让已显示的校验文案跟随；数据、输入和脏状态不变。 */
+  #refreshMessages(): void {
+    if (this.#disposed) return;
+    this.#snapshot = this.#buildSnapshot();
+    const result = cloneStructured({ valid: this.#snapshot.valid, errors: [...this.#snapshot.errors] });
+    this.#emit({ type: 'messagesChanged', result });
   }
 
   /** 重算快照（校验文案与关系展示值随之刷新），再发布合并了解析错误的校验结果。 */

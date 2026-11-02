@@ -1,5 +1,4 @@
 import {
-  Blocks,
   Cloud,
   Code,
   Database,
@@ -109,7 +108,7 @@ const menus: MenuItem[] = [
     type: 'link',
     title: 'Headless',
     path: '/headless',
-    icon: Blocks
+    icon: LayersIcon
   },
   {
     type: 'link',

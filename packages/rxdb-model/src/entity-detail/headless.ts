@@ -55,8 +55,9 @@ export class EntityDetailController {
     this.#activeTab = options.activeTab ?? this.#tabs[0]?.key ?? 'basic';
     this.#open = options.open ?? true;
     this.#snapshot = this.#buildSnapshot();
-    this.#unsubscribeForm = this.form.subscribe(() => {
-      this.#session++;
+    this.#unsubscribeForm = this.form.subscribe((_snapshot, event) => {
+      // 语言变化只刷新文案，不是对草稿的编辑，不能让进行中的保存会话失效
+      if (event.type !== 'messagesChanged') this.#session++;
       this.#publish('formChanged');
     });
   }

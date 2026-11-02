@@ -28,6 +28,15 @@ const workspaceDependencies = [
   ['@aiao/utils', 'packages/utils']
 ];
 
+/** 框架无关核心的 headless 入口必须自带的消费方函数（字段推导、操作符、输入类型、能力、文案）。 */
+const coreConsumerExports = [
+  'createSchemaFromEntity',
+  'getDefaultOperatorRegistry',
+  'getInputType',
+  'deriveEntityCapabilities',
+  'modelText'
+];
+
 const readJson = async file => JSON.parse(await readFile(file, 'utf8'));
 
 const exportTargets = (manifest, name) => {
@@ -47,6 +56,13 @@ for (const pkg of ${JSON.stringify(packages.map(item => item.name))}) {
   const namespace = await import(pkg + '/headless');
   assert.ok(Object.keys(namespace).length > 0, pkg + ' headless 入口没有导出');
 }
+// 消费方自建查询构建器、能力约束与文案时要用到的入口：缺了就只能回到会拉进 VTable 的根入口
+const core = await import('@aiao/rxdb-model/headless');
+for (const name of ${JSON.stringify(coreConsumerExports)}) {
+  assert.equal(typeof core[name], 'function', '@aiao/rxdb-model/headless 缺少导出 ' + name);
+}
+// 随包文案目录：只用 headless 入口的应用靠它们注册应用的翻译运行时（含英文）
+assert.ok(Array.isArray(core.modelMessages) && typeof core.modelEnMessages === 'object', '缺少随包文案目录');
 console.log('✅ headless 构建产物外部消费者导入通过');
 `
   );

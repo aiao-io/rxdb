@@ -90,7 +90,12 @@ export function ArticleList({
               <td>{record.category}</td>
               <td>{record.viewCount ?? ''}</td>
               <td>
-                <button type='button' disabled={!canEdit} aria-label={`编辑 ${record.title}`} onClick={() => onEdit(record)}>
+                <button
+                  type='button'
+                  disabled={!canEdit}
+                  aria-label={`编辑 ${record.title}`}
+                  onClick={() => onEdit(record)}
+                >
                   编辑
                 </button>
                 <button

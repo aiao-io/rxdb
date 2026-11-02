@@ -5,7 +5,7 @@ status: In Progress
 priority: Medium
 epic: epic-003-ui-developer-tools
 created: 2026-10-26
-updated: 2026-11-01
+updated: 2026-11-02
 tags: [ui, headless, rxdb-model, cross-framework, customization]
 ---
 
@@ -47,6 +47,8 @@ tags: [ui, headless, rxdb-model, cross-framework, customization]
 | D    | 独立消费示例、依赖边界验证与文档                                                        | 三框架消费方按文档接入自己的样式，并能继续使用默认组件           | A、B、C      | ⚠️   |
 
 当前已具备公开控制器和三框架绑定，但阶段仍有未完成验收：默认 QueryBuilder、EntityList / QueryTable、EntityDetail / EntityDialog 尚未全部消费同一控制器；headless 列表历史与手动排序动作未接线；三框架无样式管线的完整 UI 消费示例、仓外发布安装和完整质量门禁仍待验证。现有运行时入口探针不替代这些验收。
+
+三个演示应用（`apps/dev-rxdb-{angular,react,vue}` 的 `/headless` 页）已用自有控件与普通 CSS 走通表单、筛选、列表和详情弹窗，三端共用 `headless-entity.spec.ts` 在开发服务器与生产构建上各跑通，并核对到该页面的静态依赖闭包不含 VTable。这些页面仍运行在带 Tailwind / daisyUI 管线的应用里，不替代 AC#18 要求的无管线独立示例，也不替代仓外安装验证。该验证补齐了查询构建器所需的字段、操作符、能力与文案入口，并把基线、国际化和各框架接入要点写入[接入文档](../../../website/docs/entity-model/headless.md)。
 
 每阶段都包含 Angular / React / Vue 等价能力及默认组件回归；单框架实现不能关闭该阶段。整个故事仅在 A～D 全部验收通过后进入 Done。
 

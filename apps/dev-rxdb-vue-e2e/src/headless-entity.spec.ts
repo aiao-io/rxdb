@@ -69,7 +69,10 @@ const seedArticles = async (page: Page): Promise<void> => {
 };
 
 /** 把一篇文章填进表单 / 弹窗里的控件。 */
-const fillArticle = async (scope: Locator, article: Partial<Record<keyof typeof VALID_ARTICLE, string>>): Promise<void> => {
+const fillArticle = async (
+  scope: Locator,
+  article: Partial<Record<keyof typeof VALID_ARTICLE, string>>
+): Promise<void> => {
   for (const [field, value] of Object.entries(article)) {
     const control = scope.getByLabel(field, { exact: true });
     if (field === 'category') await control.selectOption(value);
@@ -141,11 +144,17 @@ test.describe('Headless 实体：自有控件与样式的真实应用消费', ()
     const info = page.getByTestId('list-page-info');
 
     // 分页：默认按标题升序，第二页只剩两行
-    await expectTitles(page, SEEDS.slice(0, PAGE_SIZE).map(seed => seed.title));
+    await expectTitles(
+      page,
+      SEEDS.slice(0, PAGE_SIZE).map(seed => seed.title)
+    );
     await expect(info).toContainText('第 1 / 2 页，共 5 条');
     await expect(list.getByRole('button', { name: '上一页' })).toBeDisabled();
     await list.getByRole('button', { name: '下一页' }).click();
-    await expectTitles(page, SEEDS.slice(PAGE_SIZE).map(seed => seed.title));
+    await expectTitles(
+      page,
+      SEEDS.slice(PAGE_SIZE).map(seed => seed.title)
+    );
     await expect(info).toContainText('第 2 / 2 页');
     await expect(list.getByRole('button', { name: '下一页' })).toBeDisabled();
 
@@ -264,7 +273,7 @@ test.describe('Headless 实体：自有控件与样式的真实应用消费', ()
     expect(problems).toEqual([]);
   });
 
-  test('国际化：应用切到 English 后，校验文案与操作符文案跟随应用语言', async ({ page }) => {
+  test('国际化：校验文案与操作符文案跟随应用语言，切换语言时已显示的文案自动刷新', async ({ page }) => {
     const problems = watchPage(page);
     await openHeadless(page);
     await page.getByTestId('i18n-locale').selectOption('en');
@@ -282,6 +291,17 @@ test.describe('Headless 实体：自有控件与样式的真实应用消费', ()
     await builder.getByRole('button', { name: '添加规则' }).click();
     await expect(builder.getByTestId('qb-rule').first().getByLabel('操作符').locator('option').first()).toHaveText(
       'Equals'
+    );
+    await expect(builder.getByTestId('qb-errors')).toContainText('requires a value');
+
+    // 已显示的文案随语言切换自动刷新，不必再次操作；解析失败的文案同样刷新，输入保持不变
+    await page.getByTestId('i18n-locale').selectOption('zh-Hans');
+    await expect(form.getByTestId('error-title')).toHaveText('title 是必填项');
+    await expect(form.getByTestId('error-viewCount')).toHaveText('viewCount 必须是整数');
+    await expect(form.getByLabel('viewCount', { exact: true })).toHaveValue('abc');
+    await expect(builder.getByTestId('qb-errors')).toContainText('需要提供一个值');
+    await expect(builder.getByTestId('qb-rule').first().getByLabel('操作符').locator('option').first()).toHaveText(
+      '等于'
     );
 
     expect(problems).toEqual([]);

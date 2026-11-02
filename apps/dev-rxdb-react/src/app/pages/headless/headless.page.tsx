@@ -9,11 +9,12 @@ import {
   createArticleSource,
   type ArticleRecord,
   type DetailData,
-  type DetailResult
+  type DetailResult,
+  type DetailSaveResult
 } from './article-model';
 import { DetailDialog } from './detail-dialog';
-import { QueryPanel } from './query-panel';
 import './headless.css';
+import { QueryPanel } from './query-panel';
 
 /**
  * Headless 实体示例页（`/headless`）。
@@ -44,12 +45,20 @@ export default function HeadlessPage(): React.JSX.Element {
     void list.refresh().catch(() => undefined);
   }, [list, requestKey]);
 
+  const save = async ({ data, changes }: DetailSaveResult): Promise<void> => {
+    const current = dialogState.data;
+    if (current?.mode === 'create') await list.create(data);
+    else await list.update(current?.record?.id ?? '', changes);
+  };
+  const close = (result: DetailResult): void => {
+    if (result === 'saved') dialog.resolve(result);
+    else dialog.close(result);
+  };
+
   return (
     <main className='hl-page' data-testid='headless-page'>
       <h1>Headless 实体</h1>
-      <p className='hl-lead'>
-        本页只使用 headless 入口提供的状态与动作；DOM、控件、布局和样式都是自己的。
-      </p>
+      <p className='hl-lead'>本页只使用 headless 入口提供的状态与动作；DOM、控件、布局和样式都是自己的。</p>
       <div className='hl-grid'>
         <ArticleForm onCreate={data => list.create(data)} />
         <QueryPanel onApply={setQuery} />
@@ -62,25 +71,10 @@ export default function HeadlessPage(): React.JSX.Element {
               {dialogState.result === undefined ? '' : `弹窗结果：${dialogState.result}`}
             </span>
           </div>
-          <ArticleList
-            controller={list}
-            snapshot={snapshot}
-            onEdit={record => dialog.open({ mode: 'edit', record })}
-          />
+          <ArticleList controller={list} snapshot={snapshot} onEdit={record => dialog.open({ mode: 'edit', record })} />
         </div>
       </div>
-      {dialogState.open && dialogState.data && (
-        <DetailDialog
-          data={dialogState.data}
-          onSave={({ data, changes }) =>
-            (dialogState.data?.mode === 'create' ?
-              list.create(data)
-            : list.update(dialogState.data?.record?.id ?? '', changes)
-            ).then(() => undefined)
-          }
-          onClose={result => (result === 'saved' ? dialog.resolve(result) : dialog.close(result))}
-        />
-      )}
+      {dialogState.open && dialogState.data && <DetailDialog data={dialogState.data} onSave={save} onClose={close} />}
     </main>
   );
 }

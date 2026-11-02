@@ -2,7 +2,7 @@
 import { useI18nRuntime } from '@aiao/rxdb-i18n-vue';
 import { useEntityDetail } from '@aiao/rxdb-model-vue/headless';
 import { injectRxDB } from '@aiao/rxdb-vue';
-import { computed, markRaw, onBeforeUnmount, onMounted, reactive, useTemplateRef } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, useTemplateRef } from 'vue';
 import {
   buildEditFields,
   createBlankArticle,
@@ -26,14 +26,13 @@ const emit = defineEmits<{ close: [result: DetailResult] }>();
  * 焦点约束交给原生 `<dialog>.showModal()`，关闭后的焦点恢复由本组件自己接线。
  */
 const creating = props.data.mode === 'create';
-// 弹窗每次打开都是新实例：系统字段名按打开时的应用语言翻译，新建的基线来自实例化的草稿；
-// 运行时是带私有状态的类实例，放进 reactive 前要 markRaw
+// 弹窗每次打开都是新实例：系统字段名按打开时的应用语言翻译，新建的基线来自实例化的草稿
 const i18n = useI18nRuntime();
 const options = reactive({
   fields: creating ? createFields : buildEditFields(i18n),
   mode: props.data.mode,
   tabs: creating ? detailTabs.slice(0, 1) : detailTabs,
-  i18n: i18n && markRaw(i18n),
+  i18n,
   ...(creating ? { data: createBlankArticle(injectRxDB()!) } : { entity: props.data.record })
 });
 const { controller, snapshot } = useEntityDetail(options);
@@ -76,10 +75,23 @@ const cancel = (): void => {
 </script>
 
 <template>
-  <dialog ref="dialog" class="hl-dialog" aria-labelledby="hl-dialog-title" data-testid="detail-dialog" @cancel.prevent="cancel">
-    <form novalidate @submit.prevent="save">
+  <dialog
+    ref="dialog"
+    class="hl-dialog"
+    aria-labelledby="hl-dialog-title"
+    data-testid="detail-dialog"
+    @cancel.prevent="cancel"
+  >
+    <form
+      novalidate
+      @submit.prevent="save"
+    >
       <h2 id="hl-dialog-title">{{ creating ? '新建文章' : '编辑文章' }}</h2>
-      <div role="tablist" aria-label="详情分区" class="hl-tabs">
+      <div
+        role="tablist"
+        aria-label="详情分区"
+        class="hl-tabs"
+      >
         <button
           v-for="tab in snapshot.tabs"
           :id="`hl-tab-${tab.key}`"
@@ -93,7 +105,11 @@ const cancel = (): void => {
           {{ tab.label }}
         </button>
       </div>
-      <div role="tabpanel" :id="`hl-panel-${snapshot.activeTab}`" :aria-labelledby="`hl-tab-${snapshot.activeTab}`">
+      <div
+        role="tabpanel"
+        :id="`hl-panel-${snapshot.activeTab}`"
+        :aria-labelledby="`hl-tab-${snapshot.activeTab}`"
+      >
         <template v-if="snapshot.activeTab === 'basic'">
           <FieldRow
             v-for="state in basicStates"
@@ -103,17 +119,37 @@ const cancel = (): void => {
             :inputs="inputs"
           />
         </template>
-        <dl v-if="snapshot.activeTab === 'system'" class="hl-system">
-          <div v-for="state in systemStates" :key="state.config.field">
+        <dl
+          v-if="snapshot.activeTab === 'system'"
+          class="hl-system"
+        >
+          <div
+            v-for="state in systemStates"
+            :key="state.config.field"
+          >
             <dt>{{ state.config.displayName }}</dt>
             <dd :data-testid="`system-${state.config.field}`">{{ state.displayValue }}</dd>
           </div>
         </dl>
       </div>
-      <p v-if="errorText !== null" class="hl-error" role="alert" data-testid="detail-error">{{ errorText }}</p>
+      <p
+        v-if="errorText !== null"
+        class="hl-error"
+        role="alert"
+        data-testid="detail-error"
+        >{{ errorText }}</p
+      >
       <div class="hl-actions">
-        <button type="submit" :disabled="snapshot.saving">保存</button>
-        <button type="button" @click="cancel">取消</button>
+        <button
+          type="submit"
+          :disabled="snapshot.saving"
+          >保存</button
+        >
+        <button
+          type="button"
+          @click="cancel"
+          >取消</button
+        >
       </div>
     </form>
   </dialog>

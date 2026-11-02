@@ -1,10 +1,56 @@
+import { PropertyType, type EntityMetadata, type EntityPropertyMetadata } from '@aiao/rxdb';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import * as headless from '../headless.js';
 
+/** 只含字段推导与能力派生读取的元数据，足以在 Node 里走完消费方的接入路径。 */
+const articleMetadata = (properties: EntityPropertyMetadata[]): EntityMetadata =>
+  ({
+    name: 'Article',
+    namespace: 'public',
+    displayName: 'Article',
+    propertyMap: new Map(properties.map(property => [property.name, property])),
+    computedPropertyMap: new Map(),
+    foreignKeyRelationMap: new Map(),
+    relationMap: new Map(),
+    relations: [],
+    properties,
+    isForeignKey: () => false
+  }) as unknown as EntityMetadata;
+
 describe('@aiao/rxdb-model/headless entry', () => {
+  it('查询构建器的字段推导、操作符、输入类型、能力与文案无需根入口即可取得', () => {
+    const metadata = articleMetadata([
+      { name: 'title', type: PropertyType.string, columnName: 'title', nullable: false, displayName: '标题' },
+      { name: 'views', type: PropertyType.integer, columnName: 'views', nullable: true }
+    ]);
+
+    const fields = headless.createSchemaFromEntity(metadata);
+    expect(fields.map(field => field.name)).toEqual(expect.arrayContaining(['title', 'views']));
+
+    const title = fields.find(field => field.name === 'title');
+    expect(title).toBeDefined();
+    const operators = headless.getDefaultOperatorRegistry().getForField(title!);
+    expect(operators.map(operator => operator.key)).toContain('contains');
+    const builtIn = operators.find(operator => operator.labelKey !== undefined);
+    expect(headless.modelText(builtIn!.labelKey!, undefined, headless.defaultModelI18n)).toBe(builtIn!.label);
+    expect(headless.getInputType('number', '>=')).toBe('number');
+    expect(headless.getDefaultValueForType('number')).toBeNull();
+    expect(headless.modelMessages.map(catalog => catalog.namespace)).toContain('rxdb-model');
+    expect(headless.modelEnMessages['text.127ad2bc86']).toBe('{p0} is required');
+    expect(headless.deriveEntityCapabilities(metadata)).toEqual({ canCreate: true, canEdit: true, canDelete: true });
+
+    const builder = headless.createQueryBuilderController({ fields });
+    builder.addRule(null, { field: 'title', operator: 'contains', value: 'headless' });
+    expect(builder.snapshot.valid).toBe(true);
+    expect(builder.toRxDBQuery()).toEqual({
+      combinator: 'and',
+      rules: [{ field: 'title', operator: 'contains', value: 'headless' }]
+    });
+  });
+
   it('在 Node 环境导入时不初始化 DOM 或 VTable', () => {
     expect(typeof document).toBe('undefined');
     expect(headless.createEntityFormController).toBeTypeOf('function');

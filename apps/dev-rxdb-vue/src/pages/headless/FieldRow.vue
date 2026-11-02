@@ -49,7 +49,11 @@ const onInput = (value: unknown): void => props.inputs.input(config.value.field,
       @change="onInput(($event.target as HTMLSelectElement).value)"
     >
       <option value="">请选择</option>
-      <option v-for="value in config.enumValues ?? []" :key="value" :value="value">
+      <option
+        v-for="value in config.enumValues ?? []"
+        :key="value"
+        :value="value"
+      >
         {{ config.options?.[value]?.label ?? value }}
       </option>
     </select>
@@ -66,7 +70,13 @@ const onInput = (value: unknown): void => props.inputs.input(config.value.field,
       :aria-required="config.required || undefined"
       @input="onInput(($event.target as HTMLInputElement).value)"
     />
-    <p v-if="showError" :id="errorId" class="hl-error" role="alert" :data-testid="`error-${config.field}`">
+    <p
+      v-if="showError"
+      :id="errorId"
+      class="hl-error"
+      role="alert"
+      :data-testid="`error-${config.field}`"
+    >
       {{ state.error?.message }}
     </p>
   </div>

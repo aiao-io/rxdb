@@ -14,17 +14,17 @@ import { FieldRowComponent } from './field-row.component';
   template: `
     <section class="hl-section" aria-labelledby="hl-form-title" data-testid="headless-form">
       <h2 id="hl-form-title">新建文章</h2>
-      <form novalidate aria-labelledby="hl-form-title" (submit)="submit($event)">
+      <form (submit)="submit($event)" aria-labelledby="hl-form-title" novalidate>
         @for (state of form.snapshot().fieldStates; track state.config.field) {
-          <app-hl-field-row idPrefix="hl-form" [state]="state" [inputs]="inputs" />
+          <app-hl-field-row [inputs]="inputs" [state]="state" idPrefix="hl-form" />
         }
         <div class="hl-actions">
           <button type="submit">提交</button>
-          <button type="button" (click)="form.controller.cancel()">取消</button>
+          <button (click)="form.controller.cancel()" type="button">取消</button>
         </div>
-        <p role="status" data-testid="form-state">{{ form.snapshot().dirty ? '有未提交的修改' : '没有修改' }}</p>
+        <p data-testid="form-state" role="status">{{ form.snapshot().dirty ? '有未提交的修改' : '没有修改' }}</p>
         @if (failure(); as message) {
-          <p class="hl-error" role="alert" data-testid="form-failure">{{ message }}</p>
+          <p class="hl-error" data-testid="form-failure" role="alert">{{ message }}</p>
         }
       </form>
     </section>

@@ -15,30 +15,30 @@ const NUMERIC_TYPES = new Set(['integer', 'number']);
       @switch (config().type) {
         @case ('boolean') {
           <input
-            [id]="id()"
+            [attr.aria-describedby]="showError() ? errorId() : null"
+            [attr.aria-invalid]="showError() ? 'true' : null"
+            [attr.aria-required]="config().required ? 'true' : null"
             [attr.name]="config().field"
-            type="checkbox"
             [checked]="state().value === true"
             [disabled]="state().readonly"
-            [attr.aria-invalid]="showError() ? 'true' : null"
-            [attr.aria-describedby]="showError() ? errorId() : null"
-            [attr.aria-required]="config().required ? 'true' : null"
+            [id]="id()"
             (change)="onCheck($event)"
+            type="checkbox"
           />
         }
         @case ('enum') {
           <select
-            [id]="id()"
+            [attr.aria-describedby]="showError() ? errorId() : null"
+            [attr.aria-invalid]="showError() ? 'true' : null"
+            [attr.aria-required]="config().required ? 'true' : null"
             [attr.name]="config().field"
             [disabled]="state().readonly"
-            [attr.aria-invalid]="showError() ? 'true' : null"
-            [attr.aria-describedby]="showError() ? errorId() : null"
-            [attr.aria-required]="config().required ? 'true' : null"
+            [id]="id()"
             (change)="onSelect($event)"
           >
-            <option value="" [selected]="selected() === ''">请选择</option>
+            <option [selected]="selected() === ''" value="">请选择</option>
             @for (value of config().enumValues ?? []; track value) {
-              <option [value]="value" [selected]="selected() === value">
+              <option [selected]="selected() === value" [value]="value">
                 {{ config().options?.[value]?.label ?? value }}
               </option>
             }
@@ -46,21 +46,21 @@ const NUMERIC_TYPES = new Set(['integer', 'number']);
         }
         @default {
           <input
-            [id]="id()"
-            [attr.name]="config().field"
-            type="text"
-            [attr.inputmode]="numeric() ? 'numeric' : null"
-            [value]="textValue()"
-            [disabled]="state().readonly"
-            [attr.aria-invalid]="showError() ? 'true' : null"
             [attr.aria-describedby]="showError() ? errorId() : null"
+            [attr.aria-invalid]="showError() ? 'true' : null"
             [attr.aria-required]="config().required ? 'true' : null"
+            [attr.inputmode]="numeric() ? 'numeric' : null"
+            [attr.name]="config().field"
+            [disabled]="state().readonly"
+            [id]="id()"
+            [value]="textValue()"
             (input)="onText($event)"
+            type="text"
           />
         }
       }
       @if (showError()) {
-        <p class="hl-error" [id]="errorId()" role="alert" [attr.data-testid]="'error-' + config().field">
+        <p class="hl-error" [attr.data-testid]="'error-' + config().field" [id]="errorId()" role="alert">
           {{ state().error?.message }}
         </p>
       }

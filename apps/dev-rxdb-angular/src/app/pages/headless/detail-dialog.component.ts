@@ -1,7 +1,7 @@
 import { RxDB } from '@aiao/rxdb';
 import { useI18nRuntime } from '@aiao/rxdb-i18n-angular';
-import { type EntityDetailControllerOptions } from '@aiao/rxdb-model/headless';
 import { injectEntityDetail } from '@aiao/rxdb-model-angular/headless';
+import { type EntityDetailControllerOptions } from '@aiao/rxdb-model/headless';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
@@ -38,36 +38,36 @@ import { FieldRowComponent } from './field-row.component';
   imports: [FieldRowComponent],
   template: `
     <dialog
-      #dialog
       class="hl-dialog"
+      #dialog
+      (cancel)="onEscape($event)"
       aria-labelledby="hl-dialog-title"
       data-testid="detail-dialog"
-      (cancel)="onEscape($event)"
     >
-      <form novalidate (submit)="save($event)">
+      <form (submit)="save($event)" novalidate>
         <h2 id="hl-dialog-title">{{ creating() ? '新建文章' : '编辑文章' }}</h2>
-        <div role="tablist" aria-label="详情分区" class="hl-tabs">
+        <div class="hl-tabs" aria-label="详情分区" role="tablist">
           @for (tab of tabs(); track tab.key) {
             <button
-              type="button"
-              role="tab"
-              [id]="'hl-tab-' + tab.key"
-              [attr.aria-selected]="tab.key === detail.snapshot().activeTab"
               [attr.aria-controls]="'hl-panel-' + tab.key"
+              [attr.aria-selected]="tab.key === detail.snapshot().activeTab"
+              [id]="'hl-tab-' + tab.key"
               (click)="detail.controller.selectTab(tab.key)"
+              role="tab"
+              type="button"
             >
               {{ tab.label }}
             </button>
           }
         </div>
         <div
-          role="tabpanel"
-          [id]="'hl-panel-' + detail.snapshot().activeTab"
           [attr.aria-labelledby]="'hl-tab-' + detail.snapshot().activeTab"
+          [id]="'hl-panel-' + detail.snapshot().activeTab"
+          role="tabpanel"
         >
           @if (detail.snapshot().activeTab === 'basic') {
             @for (state of basicStates(); track state.config.field) {
-              <app-hl-field-row idPrefix="hl-detail" [state]="state" [inputs]="inputs" />
+              <app-hl-field-row [inputs]="inputs" [state]="state" idPrefix="hl-detail" />
             }
           } @else {
             <dl class="hl-system">
@@ -81,11 +81,11 @@ import { FieldRowComponent } from './field-row.component';
           }
         </div>
         @if (errorText(); as message) {
-          <p class="hl-error" role="alert" data-testid="detail-error">{{ message }}</p>
+          <p class="hl-error" data-testid="detail-error" role="alert">{{ message }}</p>
         }
         <div class="hl-actions">
-          <button type="submit" [disabled]="detail.snapshot().saving">保存</button>
-          <button type="button" (click)="cancel()">取消</button>
+          <button [disabled]="detail.snapshot().saving" type="submit">保存</button>
+          <button (click)="cancel()" type="button">取消</button>
         </div>
       </form>
     </dialog>

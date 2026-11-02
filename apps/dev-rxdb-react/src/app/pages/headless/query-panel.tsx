@@ -1,5 +1,6 @@
 import type { RuleGroup } from '@aiao/rxdb';
 import { useI18n, useI18nRuntime } from '@aiao/rxdb-i18n-react';
+import { useQueryBuilder } from '@aiao/rxdb-model-react/headless';
 import {
   getDefaultOperatorRegistry,
   getInputType,
@@ -9,14 +10,15 @@ import {
   type QueryBuilderRule,
   type QueryBuilderRuleGroup
 } from '@aiao/rxdb-model/headless';
-import { useQueryBuilder } from '@aiao/rxdb-model-react/headless';
 import { operatorLabel, queryFields } from './article-model';
 
 const registry = getDefaultOperatorRegistry();
 
 /** 本页只渲染单值 / 无值操作符；区间、数组、子查询操作符交给有需要的消费方自己的控件。 */
 const operatorsFor = (field: FieldMetadata | undefined) =>
-  field ? registry.getForField(field).filter(operator => operator.valueType === 'single' || operator.valueType === 'none') : [];
+  field ?
+    registry.getForField(field).filter(operator => operator.valueType === 'single' || operator.valueType === 'none')
+  : [];
 
 /** 把输入框文本还原成规则值：数值字段转 number，空文本为 null。 */
 const coerceValue = (field: FieldMetadata | undefined, operator: string, raw: string): unknown => {
@@ -66,7 +68,9 @@ function RuleRow({
         aria-label='值'
         inputMode={inputType === 'number' ? 'numeric' : undefined}
         value={rule.value === null || rule.value === undefined ? '' : String(rule.value)}
-        onChange={event => controller.updateRule(rule.id, { value: coerceValue(field, rule.operator, event.target.value) })}
+        onChange={event =>
+          controller.updateRule(rule.id, { value: coerceValue(field, rule.operator, event.target.value) })
+        }
       />
     );
   }
@@ -122,7 +126,12 @@ function GroupView({
           <option value='and'>全部满足 (AND)</option>
           <option value='or'>任一满足 (OR)</option>
         </select>
-        <button type='button' onClick={() => controller.addRule(group.id, { field: fields[0]?.name, operator: operatorsFor(fields[0])[0]?.key })}>
+        <button
+          type='button'
+          onClick={() =>
+            controller.addRule(group.id, { field: fields[0]?.name, operator: operatorsFor(fields[0])[0]?.key })
+          }
+        >
           添加规则
         </button>
         <button type='button' onClick={() => controller.addGroup(group.id)}>

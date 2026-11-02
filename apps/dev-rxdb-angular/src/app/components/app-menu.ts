@@ -2,7 +2,6 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import {
   LucideArchiveRestore as ArchiveRestore,
-  LucideBlocks as Blocks,
   LucideCloud as Cloud,
   LucideCode as Code,
   LucideDatabase as Database,
@@ -177,7 +176,7 @@ export class AppMenu {
       type: 'link',
       title: 'nav.headless',
       path: '/headless',
-      icon: Blocks
+      icon: Layers
     },
     {
       type: 'link',

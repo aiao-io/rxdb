@@ -1,5 +1,6 @@
 /** 无展示依赖的查询构建器状态绑定。 */
 import type { RuleGroup } from '@aiao/rxdb';
+import { onModelI18nChange } from '../../i18n-watch.js';
 import { cloneStructured, structuralEqual } from '../../structural-equal.js';
 import type {
   FieldMetadata,
@@ -71,6 +72,11 @@ export class QueryBuilderController<T = Record<string, unknown>> {
       this.#service.state$.subscribe(state => this.#publish({ type: 'stateChanged', state })),
       this.#service.validation$.subscribe(validation => this.#publish({ type: 'validationChanged', validation }))
     );
+    // 语言或目录变化时用新语言重算校验文案并发布；规则与字段不变，查询输出不受影响
+    const stopLanguage = onModelI18nChange(i18n, () =>
+      this.#publish({ type: 'validationChanged', validation: this.#service.validate() })
+    );
+    if (stopLanguage) this.#subscriptions.push({ unsubscribe: stopLanguage });
   }
 
   /** 订阅查询状态事件，返回取消订阅函数。 */

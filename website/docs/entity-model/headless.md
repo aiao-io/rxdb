@@ -84,6 +84,67 @@ Vue 的同名 `use*` composable 返回 `{ controller, snapshot }`，`snapshot` �
 
 详情 `save(onSave)` 只把合法草稿交给持久化回调；创建实例和关系装配由消费方完成。重复保存会拒绝；保存期间切换输入、继续编辑、取消或关闭后，迟到的成功不会覆盖新草稿或重新关闭新会话，迟到的失败只拒绝原 Promise，不写入新会话的 `snapshot.error`。当前会话的保存失败通过 rejected Promise 和 `snapshot.error` 暴露。`cancel()` 重置草稿，`close()` 关闭状态；自己的弹窗应连接这两个动作及结果处理。
 
+## 接入真实应用
+
+三个演示应用各有一个只经 headless 入口驱动的示例页 `/headless`（`apps/dev-rxdb-{angular,react,vue}/` 的 `pages/headless/`）：表单、筛选、列表、详情与弹窗的 DOM、控件和样式都是页面自己的，不渲染默认组件。`apps/dev-rxdb-*-e2e/src/headless-entity.spec.ts` 是三端同一份用例，在生产构建上跑。下面是接入时需要留意的点。
+
+### 查询构建器的字段、操作符与输入类型
+
+字段、操作符和输入类型都从 `/headless` 取，不必为此引入根入口：
+
+```ts
+import { createSchemaFromEntity, getDefaultOperatorRegistry, getInputType, modelText } from '@aiao/rxdb-model/headless';
+
+const fields = createSchemaFromEntity(getEntityMetadata(Article), {
+  fieldFilter: field => ['title', 'viewCount'].includes(field.name)
+});
+const operators = getDefaultOperatorRegistry().getForField(fields[0]);
+const kind = getInputType(field.type, rule.operator, field.enum); // 'string' | 'number' | 'enum' | 'none' …
+```
+
+规则的 `value` 按控件传入的值原样记录，数值字段请把输入框文本转成 number 再写入。能力约束同样来自这里的 `deriveEntityCapabilities(metadata, { readOnly })`，传给列表的 `capabilities`。
+
+### 新建表单的基线
+
+默认组件创建实体时先用 `entityManager.instantiate(Entity)` 建草稿，保留实体构造函数里的默认值。控制器缺省的基线 `createDefaultFormData` 把未填字段置 `null`，整份 `data` 拿去建实体会覆盖这些默认值；遇到带默认值且 NOT NULL 的列（示例里 `Article.viewCount`）写入直接失败。新建时用实例化的草稿作基线：
+
+```ts
+const blank = entityToFormData(rxdb.entityManager.instantiate(Article), fields);
+const form = createEntityFormController({ fields, data: blank, mode: 'create' });
+```
+
+也可以只持久化 `submit()` 返回的 `changes`：没改过的字段不在其中。
+
+### 国际化
+
+控制器不会自动读取应用的翻译运行时：表单、详情和查询构建器的 `i18n` 选项缺省时用内置中文。把应用的运行时传进去（各框架 `@aiao/rxdb-i18n-{react,vue,angular}` 的 `useI18nRuntime()`），校验文案才跟随应用语言；内置操作符的展示文案用 `modelText(operator.labelKey, undefined, i18n)` 翻译。随包目录只带中文，要显示英文需在应用的运行时里注册英文目录，两个目录都从 `/headless` 取：
+
+```ts
+import { modelEnMessages, modelMessages } from '@aiao/rxdb-model/headless';
+
+const catalogs = [...modelMessages, { locale: 'en', namespace: 'rxdb-model', messages: modelEnMessages }];
+```
+
+运行时带 `changes$`（应用的 `I18n` 就有）时，控制器会在语言或目录变化后用新语言重建已显示的校验文案，不必自己触发：表单与详情发出 `messagesChanged` 事件，查询构建器发出 `validationChanged`，数据、输入和查询输出都不变，详情进行中的保存也不受影响。字段配置里的显示名由你构建（例如 `buildFormFields(metadata, mode, i18n)` 的系统字段名），语言变化后用 `setFields` 重建。
+
+### 列表何时取数
+
+列表控制器不会自己取数：查询、排序、分页变化只会清掉旧页，之后要调用 `refresh()`。快照里的 `sorts` 每次发布都是新数组，不能直接当依赖，用序列化后的请求键触发：
+
+```ts
+const key = JSON.stringify([snapshot.query, snapshot.sorts, snapshot.page, snapshot.pageSize]);
+useEffect(() => {
+  void controller.refresh().catch(() => undefined); // 失败已写入 snapshot.error
+}, [controller, key]);
+```
+
+### 各框架的注意事项
+
+- **Angular**：signal 输入在组件实例化后才可读取，而 `injectEntity*` 在注入上下文里立即读取选项。选项依赖输入时，先用占位选项创建，再由 effect 写入真实选项（默认表单组件也是这样做的）。
+- **三个框架通用**：详情的 `tabs` 与 `activeTab` 只在创建时读取，绑定不会同步后续变化；Tab 随模式变化时，保持 `tabs` 不变，在自己的模板里隐藏不需要的 Tab。
+- **Vue**：`useEntity*` 返回的 `controller` 不能放进 `reactive` / `ref`，ES 私有字段会报 `Cannot read private member`，直接使用返回值即可。
+- **自有弹窗的焦点**：`<dialog>.showModal()` 提供焦点约束，但弹窗随组件卸载后浏览器不会把焦点还给打开它的元素；打开前记下 `document.activeElement`，关闭时自己 `focus()`。
+
 ## 依赖和交互责任
 
 四个公开包的 `/headless` 是独立构建入口，VTable 为可选 peer。默认 `EntityTable` / `QueryTable` 渲染或 VTable 列工具仍需安装表格 peer。`pnpm verify:headless-consumer` 检查构建产物入口及拒绝 VTable 的运行时导入；它复用工作区第三方依赖，不能替代尚待完成的仓外 tarball 安装与三框架完整 UI 示例。

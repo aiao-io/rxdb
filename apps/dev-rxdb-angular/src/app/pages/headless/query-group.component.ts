@@ -15,16 +15,16 @@ import { QueryRuleComponent } from './query-rule.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [QueryRuleComponent],
   template: `
-    <div class="hl-group" role="group" [attr.aria-label]="isRoot() ? '筛选条件' : '子分组'" data-testid="qb-group">
+    <div class="hl-group" [attr.aria-label]="isRoot() ? '筛选条件' : '子分组'" data-testid="qb-group" role="group">
       <div class="hl-group-head">
-        <select aria-label="组合方式" (change)="changeCombinator($event)">
-          <option value="and" [selected]="group().combinator === 'and'">全部满足 (AND)</option>
-          <option value="or" [selected]="group().combinator === 'or'">任一满足 (OR)</option>
+        <select (change)="changeCombinator($event)" aria-label="组合方式">
+          <option [selected]="group().combinator === 'and'" value="and">全部满足 (AND)</option>
+          <option [selected]="group().combinator === 'or'" value="or">任一满足 (OR)</option>
         </select>
-        <button type="button" (click)="addRule()">添加规则</button>
-        <button type="button" (click)="controller().addGroup(group().id)">添加分组</button>
+        <button (click)="addRule()" type="button">添加规则</button>
+        <button (click)="controller().addGroup(group().id)" type="button">添加分组</button>
         @if (!isRoot()) {
-          <button type="button" aria-label="删除分组" (click)="controller().remove(group().id)">删除分组</button>
+          <button (click)="controller().remove(group().id)" aria-label="删除分组" type="button">删除分组</button>
         }
       </div>
       <ul class="hl-group-body">
@@ -32,13 +32,13 @@ import { QueryRuleComponent } from './query-rule.component';
           <li>
             @if (isGroup(item)) {
               <app-hl-query-group
-                [group]="asGroup(item)"
                 [controller]="controller()"
                 [fields]="fields()"
+                [group]="asGroup(item)"
                 [isRoot]="false"
               />
             } @else {
-              <app-hl-query-rule [rule]="asRule(item)" [controller]="controller()" [fields]="fields()" />
+              <app-hl-query-rule [controller]="controller()" [fields]="fields()" [rule]="asRule(item)" />
             }
           </li>
         }

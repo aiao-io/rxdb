@@ -68,7 +68,10 @@ const close = (result: DetailResult): void => {
 </script>
 
 <template>
-  <main class="hl-page" data-testid="headless-page">
+  <main
+    class="hl-page"
+    data-testid="headless-page"
+  >
     <h1>Headless 实体</h1>
     <p class="hl-lead">本页只使用 headless 入口提供的状态与动作；DOM、控件、布局和样式都是自己的。</p>
     <div class="hl-grid">
@@ -76,14 +79,30 @@ const close = (result: DetailResult): void => {
       <QueryPanel @apply="apply" />
       <div class="hl-wide">
         <div class="hl-actions">
-          <button type="button" @click="dialog.open({ mode: 'create' })">新建文章</button>
-          <span role="status" data-testid="dialog-result">
+          <button
+            type="button"
+            @click="dialog.open({ mode: 'create' })"
+            >新建文章</button
+          >
+          <span
+            role="status"
+            data-testid="dialog-result"
+          >
             {{ dialogState.result === undefined ? '' : `弹窗结果：${dialogState.result}` }}
           </span>
         </div>
-        <ArticleList :controller="list" :snapshot="snapshot" @edit="record => dialog.open({ mode: 'edit', record })" />
+        <ArticleList
+          :controller="list"
+          :snapshot="snapshot"
+          @edit="record => dialog.open({ mode: 'edit', record })"
+        />
       </div>
     </div>
-    <DetailDialog v-if="dialogState.open && dialogState.data" :data="dialogState.data" :on-save="save" @close="close" />
+    <DetailDialog
+      v-if="dialogState.open && dialogState.data"
+      :data="dialogState.data"
+      :on-save="save"
+      @close="close"
+    />
   </main>
 </template>

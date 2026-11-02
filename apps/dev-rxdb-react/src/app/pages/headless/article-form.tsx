@@ -6,7 +6,11 @@ import { createBlankArticle, createFields } from './article-model';
 import { FieldRow, fieldId, useFieldInputs } from './field-controls';
 
 /** 新建文章表单：字段、校验与提交都来自 `useEntityForm`，控件与布局是本页自己的；校验文案用应用的 i18n 运行时。 */
-export function ArticleForm({ onCreate }: { onCreate(data: Record<string, unknown>): Promise<unknown> }): React.JSX.Element {
+export function ArticleForm({
+  onCreate
+}: {
+  onCreate(data: Record<string, unknown>): Promise<unknown>;
+}): React.JSX.Element {
   const i18n = useI18nRuntime();
   const rxdb = useRxDB();
   const blank = useMemo(() => createBlankArticle(rxdb), [rxdb]);

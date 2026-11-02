@@ -1,6 +1,5 @@
 <script lang="ts" setup>
 import {
-  Blocks,
   Cloud,
   Code,
   Database,
@@ -99,7 +98,7 @@ const menus: MenuItem[] = [
     type: 'link',
     title: 'Headless',
     path: '/headless',
-    icon: Blocks
+    icon: Layers
   },
   {
     type: 'link',

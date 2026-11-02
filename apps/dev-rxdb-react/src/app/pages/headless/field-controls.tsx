@@ -41,7 +41,7 @@ export function useFieldInputs(controller: EntityFormController): FieldInputs {
   const input = useCallback(
     (field: string, value: unknown) => {
       if (typeof value === 'string') setRaw(previous => ({ ...previous, [field]: value }));
-      setTouched(previous => new Set(previous).add(field));
+      setTouched(previous => (previous.has(field) ? previous : new Set(previous).add(field)));
       controller.setField(field, value);
     },
     [controller]
@@ -85,7 +85,11 @@ export function FieldRow({
     );
   } else if (config.type === 'enum') {
     control = (
-      <select {...common} value={String(state.value ?? '')} onChange={event => inputs.input(config.field, event.target.value)}>
+      <select
+        {...common}
+        value={String(state.value ?? '')}
+        onChange={event => inputs.input(config.field, event.target.value)}
+      >
         <option value=''>请选择</option>
         {(config.enumValues ?? []).map(value => (
           <option key={value} value={value}>

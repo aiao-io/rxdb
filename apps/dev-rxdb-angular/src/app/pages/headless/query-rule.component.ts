@@ -16,35 +16,35 @@ import { operatorsFor } from './query-operators';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="hl-rule" data-testid="qb-rule">
-      <select aria-label="字段" (change)="changeField($event)">
-        <option value="" [selected]="rule().field === ''">选择字段</option>
+      <select (change)="changeField($event)" aria-label="字段">
+        <option [selected]="rule().field === ''" value="">选择字段</option>
         @for (item of fields(); track item.name) {
-          <option [value]="item.name" [selected]="rule().field === item.name">{{ item.displayName }}</option>
+          <option [selected]="rule().field === item.name" [value]="item.name">{{ item.displayName }}</option>
         }
       </select>
-      <select aria-label="操作符" (change)="changeOperator($event)">
+      <select (change)="changeOperator($event)" aria-label="操作符">
         @for (operator of operators(); track operator.key) {
-          <option [value]="operator.key" [selected]="rule().operator === operator.key">
+          <option [selected]="rule().operator === operator.key" [value]="operator.key">
             {{ operatorText(operator) }}
           </option>
         }
       </select>
       @if (inputType() === 'enum') {
-        <select aria-label="值" (change)="changeEnumValue($event)">
-          <option value="" [selected]="valueText() === ''">请选择</option>
+        <select (change)="changeEnumValue($event)" aria-label="值">
+          <option [selected]="valueText() === ''" value="">请选择</option>
           @for (option of field()?.enum ?? []; track option) {
-            <option [value]="'' + option" [selected]="valueText() === '' + option">{{ '' + option }}</option>
+            <option [selected]="valueText() === '' + option" [value]="'' + option">{{ '' + option }}</option>
           }
         </select>
       } @else if (inputType() !== 'none') {
         <input
-          aria-label="值"
           [attr.inputmode]="inputType() === 'number' ? 'numeric' : null"
           [value]="valueText()"
           (input)="changeValue($event)"
+          aria-label="值"
         />
       }
-      <button type="button" aria-label="删除规则" (click)="controller().remove(rule().id)">删除</button>
+      <button (click)="controller().remove(rule().id)" aria-label="删除规则" type="button">删除</button>
     </div>
   `
 })
@@ -88,7 +88,10 @@ export class QueryRuleComponent {
   /** 把输入框文本还原成规则值：数值字段转 number，空文本为 null。 */
   protected changeValue(event: Event): void {
     const raw = (event.target as HTMLInputElement).value;
-    const value = this.inputType() !== 'number' ? raw : raw.trim() === '' ? null : Number(raw);
+    const value =
+      this.inputType() !== 'number' ? raw
+      : raw.trim() === '' ? null
+      : Number(raw);
     this.controller().updateRule(this.rule().id, { value });
   }
 }

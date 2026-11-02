@@ -28,7 +28,9 @@ const props = defineProps<{
 const field = computed(() => props.fields.find(item => item.name === props.rule.field));
 const operators = computed(() => operatorsFor(field.value));
 const inputType = computed(() => getInputType(field.value?.type ?? 'string', props.rule.operator, field.value?.enum));
-const valueText = computed(() => (props.rule.value === null || props.rule.value === undefined ? '' : String(props.rule.value)));
+const valueText = computed(() =>
+  props.rule.value === null || props.rule.value === undefined ? '' : String(props.rule.value)
+);
 
 /** 把输入框文本还原成规则值：数值字段转 number，空文本为 null。 */
 const coerceValue = (raw: string): unknown => {
@@ -44,21 +46,34 @@ const changeField = (name: string): void => {
 </script>
 
 <template>
-  <div class="hl-rule" data-testid="qb-rule">
+  <div
+    class="hl-rule"
+    data-testid="qb-rule"
+  >
     <select
       aria-label="字段"
       :value="rule.field"
       @change="changeField(($event.target as HTMLSelectElement).value)"
     >
       <option value="">选择字段</option>
-      <option v-for="item in fields" :key="item.name" :value="item.name">{{ item.displayName }}</option>
+      <option
+        v-for="item in fields"
+        :key="item.name"
+        :value="item.name"
+        >{{ item.displayName }}</option
+      >
     </select>
     <select
       aria-label="操作符"
       :value="rule.operator"
       @change="controller.updateRule(rule.id, { operator: ($event.target as HTMLSelectElement).value, value: '' })"
     >
-      <option v-for="operator in operators" :key="operator.key" :value="operator.key">{{ operatorText(operator) }}</option>
+      <option
+        v-for="operator in operators"
+        :key="operator.key"
+        :value="operator.key"
+        >{{ operatorText(operator) }}</option
+      >
     </select>
     <select
       v-if="inputType === 'enum'"
@@ -67,7 +82,11 @@ const changeField = (name: string): void => {
       @change="controller.updateRule(rule.id, { value: ($event.target as HTMLSelectElement).value })"
     >
       <option value="">请选择</option>
-      <option v-for="option in field?.enum ?? []" :key="String(option)" :value="String(option)">
+      <option
+        v-for="option in field?.enum ?? []"
+        :key="String(option)"
+        :value="String(option)"
+      >
         {{ String(option) }}
       </option>
     </select>
@@ -78,6 +97,11 @@ const changeField = (name: string): void => {
       :value="valueText"
       @input="controller.updateRule(rule.id, { value: coerceValue(($event.target as HTMLInputElement).value) })"
     />
-    <button type="button" aria-label="删除规则" @click="controller.remove(rule.id)">删除</button>
+    <button
+      type="button"
+      aria-label="删除规则"
+      @click="controller.remove(rule.id)"
+      >删除</button
+    >
   </div>
 </template>

@@ -88,9 +88,14 @@ export function createArticleSource(rxdb: RxDB): ArticleSource {
       const where = (query ?? EMPTY_QUERY) as RuleGroup<Article>;
       const aborted = fromEvent(signal, 'abort');
       // id 兜底保证翻页时同序号的行稳定
-      const orderBy = [...(sorts.length > 0 ? sorts : [{ field: 'title', sort: 'asc' as const }]), { field: 'id', sort: 'asc' as const }];
+      const orderBy = [
+        ...(sorts.length > 0 ? sorts : [{ field: 'title', sort: 'asc' as const }]),
+        { field: 'id', sort: 'asc' as const }
+      ];
       const [records, total] = await Promise.all([
-        firstValueFrom(repository.find({ where, orderBy, limit: pageSize, offset: page * pageSize }).pipe(takeUntil(aborted))),
+        firstValueFrom(
+          repository.find({ where, orderBy, limit: pageSize, offset: page * pageSize }).pipe(takeUntil(aborted))
+        ),
         firstValueFrom(repository.count({ where }).pipe(takeUntil(aborted)))
       ]);
       return { records: records as unknown as ArticleRecord[], total };

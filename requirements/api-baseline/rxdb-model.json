@@ -1132,6 +1132,10 @@
         "kind": "value"
       },
       {
+        "name": "createOperatorRegistry",
+        "kind": "value"
+      },
+      {
         "name": "createQueryBuilderController",
         "kind": "value"
       },
@@ -1145,6 +1149,18 @@
       },
       {
         "name": "createQueryTableHeadless",
+        "kind": "value"
+      },
+      {
+        "name": "createSchemaFromEntity",
+        "kind": "value"
+      },
+      {
+        "name": "defaultModelI18n",
+        "kind": "value"
+      },
+      {
+        "name": "deriveEntityCapabilities",
         "kind": "value"
       },
       {
@@ -1165,6 +1181,14 @@
       },
       {
         "name": "DetailTabType",
+        "kind": "type"
+      },
+      {
+        "name": "EntityCapabilities",
+        "kind": "type"
+      },
+      {
+        "name": "EntityCapabilityContext",
         "kind": "type"
       },
       {
@@ -1296,6 +1320,18 @@
         "kind": "type"
       },
       {
+        "name": "getDefaultOperatorRegistry",
+        "kind": "value"
+      },
+      {
+        "name": "getDefaultValueForType",
+        "kind": "value"
+      },
+      {
+        "name": "getInputType",
+        "kind": "value"
+      },
+      {
         "name": "isRule",
         "kind": "value"
       },
@@ -1304,8 +1340,40 @@
         "kind": "value"
       },
       {
+        "name": "modelEnMessages",
+        "kind": "value"
+      },
+      {
+        "name": "ModelI18n",
+        "kind": "type"
+      },
+      {
+        "name": "modelMessages",
+        "kind": "value"
+      },
+      {
+        "name": "modelText",
+        "kind": "value"
+      },
+      {
+        "name": "OperatorDefinition",
+        "kind": "type"
+      },
+      {
         "name": "OperatorName",
         "kind": "type"
+      },
+      {
+        "name": "OperatorRegistry",
+        "kind": "both"
+      },
+      {
+        "name": "OperatorRegistryOptions",
+        "kind": "type"
+      },
+      {
+        "name": "parseCommaSeparatedInput",
+        "kind": "value"
       },
       {
         "name": "PropertyType",
@@ -1373,6 +1441,10 @@
       },
       {
         "name": "SchemaInfo",
+        "kind": "type"
+      },
+      {
+        "name": "SchemaParserOptions",
         "kind": "type"
       },
       {
