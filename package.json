@@ -103,7 +103,7 @@
     "daisyui": "^5.7.50",
     "fastest-levenshtein": "^1.0.16",
     "fflate": "^0.8.3",
-    "glob": "^13.0.6",
+    "glob": "^14.0.3",
     "idb-keyval": "^6.3.0",
     "lucide-react": "^1.63.0",
     "ms": "^2.1.3",
