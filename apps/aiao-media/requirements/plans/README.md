@@ -20,13 +20,14 @@ MVP 首发收口与同步扩展的实施计划、真实环境验收记录和历�
 
 产品规则整理在对应 story；计划记录研究结论、依赖与实施切片，不能替代实现证据。
 
-| 实施计划                                                     | 回答的问题                                                      |
-| ------------------------------------------------------------ | --------------------------------------------------------------- |
-| [account-workspace-binding.md](account-workspace-binding.md) | 已确定的账号绑定、退出/切账号、本机副本和同步接线方案           |
-| [business-admin.md](business-admin.md)                       | 跨用户后台的权限、对象、数据来源与 A/B/C 交付切片               |
-| [library-search-tasks.md](library-search-tasks.md)           | MEDIA-US-204 检索/稳定分页/视口预览的完成记录、样本与覆盖率边界 |
-| [local-delivery-tasks.md](local-delivery-tasks.md)           | 本地产品交付的实施清单                                          |
-| [release-completion-tasks.md](release-completion-tasks.md)   | 剩余真实验收顺序、供应商验收入口与生产账号服务启用步骤          |
-| [rxdb-product-incubation.md](rxdb-product-incubation.md)     | 迁入 RxDB 的目录、应用需求隔离、MVP 保全与发布交接方案          |
+| 实施计划                                                     | 回答的问题                                                                  |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| [account-workspace-binding.md](account-workspace-binding.md) | 已确定的账号绑定、退出/切账号、本机副本和同步接线方案                       |
+| [business-admin.md](business-admin.md)                       | 跨用户后台的权限、对象、数据来源与 A/B/C 交付切片                           |
+| [library-search-tasks.md](library-search-tasks.md)           | MEDIA-US-204 检索/稳定分页/视口预览的完成记录、样本与覆盖率边界             |
+| [local-delivery-tasks.md](local-delivery-tasks.md)           | 本地产品交付的实施清单                                                      |
+| [relay-durable-tasks.md](relay-durable-tasks.md)             | MEDIA-US-109 代理生图服务端任务的选型依据、接口与状态、安全边界和分阶段验收 |
+| [release-completion-tasks.md](release-completion-tasks.md)   | 剩余真实验收顺序、供应商验收入口与生产账号服务启用步骤                      |
+| [rxdb-product-incubation.md](rxdb-product-incubation.md)     | 迁入 RxDB 的目录、应用需求隔离、MVP 保全与发布交接方案                      |
 
 原仓基线和依赖版本见[导入清单](source-import.json)。

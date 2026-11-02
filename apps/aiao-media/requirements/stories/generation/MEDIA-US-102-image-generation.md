@@ -7,7 +7,7 @@ status: Blocked
 priority: High
 epic: MEDIA-EPIC-002
 created: 2026-09-26
-updated: 2026-10-29
+updated: 2026-11-03
 dependsOn: [MEDIA-US-105, MEDIA-US-202, MEDIA-US-301]
 tags: [image, provider, text-to-image, local-first]
 ---
@@ -38,7 +38,7 @@ tags: [image, provider, text-to-image, local-first]
 ### Out of Scope
 
 - 参考图上传、图生图、局部编辑、批量/多图生成、自动故障转移与异步供应商任务适配器。
-- 服务端持久任务、试用日额度、平台代付、人工对账后台、关闭页面后继续生成或跨浏览器恰好一次计费保证。
+- 服务端持久任务与关闭页面后继续生成（代理通道见 [MEDIA-US-109](MEDIA-US-109-relay-durable-task.md)，平台生图见 [MEDIA-US-108](MEDIA-US-108-platform-generation.md)）、试用日额度、平台代付、人工对账后台或跨浏览器恰好一次计费保证。
 - 离线调用远程模型；将模板示例图当作真实生成结果。
 - 移动设备/移动系统输入法验收；当前优先桌面能力。
 
