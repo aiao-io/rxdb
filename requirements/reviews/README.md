@@ -26,6 +26,11 @@
 见 [../CONVENTIONS.md](../CONVENTIONS.md#命名规范)。`RV-XXX-描述.md`，编号 `RV-001` 起递增。
 例外：整分支 / 整包评审报告结论一次性给出、没有 Open/Resolved 生命周期，不占用 RV 编号；它们的「状态」体现为文件里还剩几条。
 
+
+## 当前分支评审入口
+
+- [PR #172 P2P 文件共享深度评审（2026-11-02）](./pr172-deep-review-2026-11-02.md)
+
 ## 清理记录
 
 - **2026-10-29（RV-083 看板 v1 收尾清单删除）**：剩余 7 项（第 1 / 3 / 4 / 5 / 9 / 10 条与 P0）逐条对 HEAD 复核。修：第 4 / 5 条三端宿主无恢复入口——独立 demo 壳里的启动选择与恢复编排收进核心包 `BoardShellController`（驱动 `restoreStateMachine`，此前没有任何调用方），三个绑定包各出外壳组件（Angular `<board-shell>`、React / Vue `BoardShell`），demo 与三端宿主都改用它，demo 原有 19 条 e2e 照绿；三端共用新增的 `board-restore.spec.ts`（工具菜单与启动页两条入口、损坏归档、一页恢复中另一页写入口禁用与草稿保留及再次恢复被拒、切库后另一页重载）。第 1 条 AC#9 补鼠标真实拖列（与列菜单左移互逆、另一板列序不变、重开保留）。第 3 条 AC#12 用 `page.clock` 固定本地 2026-10-19 验三态文字、Done 列照算逾期与跨午夜重算；AC#13 补空板 / 空列 e2e、Angular 视图首次读失败渲染用例（React / Vue 已有）与三端 `useBoard` 刷新失败保留数据、重试恢复用例。第 9 条 demo 补 `board-search.spec.ts`（US-540 AC#9～11、#13）。P0 sqlite-wasm idb「干净关闭后重连丢行」在当前适配器上不复现：两条 `it.skip` 去掉后连跑 5 轮全绿，转为常规用例（同时去掉测试里重复登记的历史插件）。复核中顺带修三处：状态机在「切换中」就清掉恢复中标记，与 US-537 协议表和 demo 实际行为不一致（其他页会在重载读回窗口写旧库）；装载演示数据失败的清理会删掉原本就有看板的库（库名列表过时才会选中它），改为只删本次新建的库；三端 AC#23 / #24 的「等动画播完」排除滚动驱动动画——87e1581d 加的列区溢出渐隐（ScrollTimeline）永远不会 finished，该用例在 HEAD 上必然超时。不修：第 10 条跨列落位过渡动画（只影响观感；视图编排三端各一份，FLIP 要在三处分别接渲染时序，还会干扰拖拽 e2e 的位置断言，待视图编排收进核心包再议）。转出：US-540 AC#7 的 demo Playwright 半边与 AC#12、US-537 AC#9 的注入分支留在各自故事。全文可用 `git show e94a2cc8:requirements/reviews/RV-083-board-v1-closeout-checklist.md` 取回。
