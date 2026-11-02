@@ -223,6 +223,39 @@ describe('列表异步生命周期回归', () => {
     expect(list.snapshot.records).toEqual([]);
   });
 
+  describe.each(['create', 'update', 'remove'] as const)('刷新期间 %s 写入失败', action => {
+    it.each(['成功', '失败'] as const)('旧刷新随后%s，公开 loading 收敛为 false', async settle => {
+      const oldRefresh = deferred<{ records: Item[] }>();
+      const reason = new Error('写入失败');
+      // 写入回调同步抛错同样在 async 写入入口里变成 rejection，与这里走同一条路径
+      const write = () => Promise.reject(reason);
+      const item = new Item('1');
+      const list = createEntityListController({
+        records: [item],
+        load: () => oldRefresh.promise,
+        onCreate: write,
+        onUpdate: write,
+        onDelete: write
+      });
+      const refresh = list.refresh();
+      expect(list.snapshot.loading).toBe(true);
+      const mutation =
+        action === 'create' ? list.create({})
+        : action === 'update' ? list.update('1', { title: 'x' })
+        : list.remove(['1']);
+      const error = await mutation.then(
+        () => undefined,
+        (rejection: unknown) => rejection
+      );
+      expect(error instanceof AggregateError ? error.errors : [error]).toEqual([reason]);
+      expect(list.snapshot.loading).toBe(false);
+      if (settle === '成功') oldRefresh.resolve({ records: [new Item('stale')] });
+      else oldRefresh.reject(new Error('旧刷新失败'));
+      await refresh;
+      expect(list.snapshot).toMatchObject({ loading: false, records: [item], error: null });
+    });
+  });
+
   it('清空受约束视图后等待宿主补数据，能力拒绝不执行 mutation', async () => {
     const create = vi.fn(() => new Item('created'));
     const list = createEntityListController({ query: 'filtered', records: [new Item('old')], onCreate: create });
@@ -270,6 +303,44 @@ describe('详情和弹窗异步生命周期回归', () => {
     pending.resolve();
     await save;
     expect(controller.snapshot).toMatchObject({ open: true, saving: false, form: { data: { title: '原值' } } });
+  });
+
+  it.each<[string, (controller: ReturnType<typeof detail>) => void]>([
+    ['宿主换输入', controller => controller.form.setData({ title: '另一条' })],
+    ['取消', controller => controller.cancel()],
+    [
+      '关闭、换输入再重开',
+      controller => {
+        controller.close();
+        controller.form.setData({ title: '另一条' });
+        controller.open();
+      }
+    ]
+  ])('%s后迟到的保存失败只拒绝原调用，不写入当前会话', async (_name, supersede) => {
+    const controller = detail();
+    const pending = deferred<void>();
+    const failure = new Error('旧保存失败');
+    controller.setField('title', '提交值');
+    const save = controller.save(() => pending.promise);
+    supersede(controller);
+    const events: string[] = [];
+    controller.subscribe((_snapshot, event) => events.push(event.type));
+    pending.reject(failure);
+    await expect(save).rejects.toBe(failure);
+    expect(controller.snapshot).toMatchObject({ saving: false, error: null });
+    expect(events).not.toContain('saveFailed');
+  });
+
+  it('销毁后迟到的保存失败仍拒绝原调用，且不再发布', async () => {
+    const controller = detail();
+    const pending = deferred<void>();
+    const failure = new Error('旧保存失败');
+    const save = controller.save(() => pending.promise);
+    controller.dispose();
+    const snapshot = controller.snapshot;
+    pending.reject(failure);
+    await expect(save).rejects.toBe(failure);
+    expect(controller.snapshot).toBe(snapshot);
   });
 
   it('持久化成功后销毁不应变成失败，销毁后的展示动作抛错', async () => {

@@ -70,40 +70,36 @@ export interface UseEntityListResult<T extends EntityInstance = EntityInstance> 
   readonly controller: EntityListController<T>;
   readonly snapshot: ShallowRef<EntityListSnapshot<T>>;
 }
-/** Vue 实体列表绑定，深度同步查询、记录、分页和能力。 */
+/**
+ * 列表与查询表格共用的输入同步：一次深度监听六项输入，变化判定与应用次序交给核心 `syncInput`。
+ * 构造时已应用初始输入，因此不做 immediate 回放。
+ */
+function watchListInput<T extends EntityInstance>(
+  controller: EntityListController<T>,
+  options: EntityListControllerOptions<T>
+): void {
+  watch(
+    () => ({
+      query: options.query,
+      sorts: options.sorts,
+      page: options.page,
+      pageSize: options.pageSize,
+      records: options.records,
+      capabilities: options.capabilities
+    }),
+    input => controller.syncInput(input),
+    { deep: true }
+  );
+}
+
+/** Vue 实体列表绑定；查询、排序、分页、记录与能力输入只同步真正变化的项。 */
 export function useEntityList<T extends EntityInstance = EntityInstance>(
   options: EntityListControllerOptions<T> = {}
 ): UseEntityListResult<T> {
   const result = useController<EntityListController<T>, EntityListSnapshot<T>>(() =>
     createEntityListController(options)
   );
-  watch(
-    () => options.query,
-    query => {
-      if (query !== undefined) result.controller.setQuery(query);
-    },
-    { deep: true, immediate: true }
-  );
-  watch(
-    () => options.records,
-    records => {
-      if (records) result.controller.setRecords(records);
-    },
-    { deep: true, immediate: true }
-  );
-  watch(
-    [() => options.page, () => options.pageSize],
-    ([page, pageSize]) => {
-      if (page !== undefined || pageSize !== undefined)
-        result.controller.setPage(page ?? 0, pageSize ?? result.controller.snapshot.pageSize);
-    },
-    { immediate: true }
-  );
-  watch(
-    () => options.capabilities,
-    capabilities => result.controller.setCapabilities(capabilities),
-    { deep: true, immediate: true }
-  );
+  watchListInput(result.controller, options);
   return result;
 }
 /** useEntityListHeadless 的等价命名别名。 */
@@ -186,32 +182,14 @@ export interface UseQueryTableResult<T extends EntityInstance = EntityInstance> 
   readonly controller: QueryTableController<T>;
   readonly snapshot: ShallowRef<QueryTableSnapshot<T>>;
 }
-/** Vue 查询表格状态绑定。 */
+/** Vue 查询表格状态绑定；输入同步规则与 `useEntityList` 相同。 */
 export function useQueryTable<T extends EntityInstance = EntityInstance>(
   options: QueryTableControllerOptions<T> = {}
 ): UseQueryTableResult<T> {
   const result = useController<QueryTableController<T>, QueryTableSnapshot<T>>(() =>
     createQueryTableController(options)
   );
-  watch(
-    () => options.query,
-    query => {
-      if (query !== undefined) result.controller.setQuery(query);
-    },
-    { deep: true, immediate: true }
-  );
-  watch(
-    () => options.records,
-    records => {
-      if (records) result.controller.setRecords(records);
-    },
-    { deep: true, immediate: true }
-  );
-  watch(
-    () => options.capabilities,
-    capabilities => result.controller.setCapabilities(capabilities),
-    { deep: true, immediate: true }
-  );
+  watchListInput(result.controller, options);
   return result;
 }
 /** useQueryTableHeadless 的等价命名别名。 */

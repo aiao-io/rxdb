@@ -123,17 +123,11 @@ export interface InjectEntityListReturn<T extends EntityInstance = EntityInstanc
   readonly snapshot: Signal<EntityListSnapshot<T>>;
 }
 
-/** 注入响应式实体列表控制器。 */
+/** 注入响应式实体列表控制器；查询、排序、分页、记录与能力输入只同步真正变化的项。 */
 export function injectEntityList<T extends EntityInstance = EntityInstance>(
   options: AngularHeadlessOptions<EntityListControllerOptions<T>> = {}
 ): InjectEntityListReturn<T> {
-  return bindController(options, createEntityListController, (controller, current) => {
-    if (current.query !== undefined) controller.setQuery(current.query);
-    if (current.records !== undefined) controller.setRecords(current.records);
-    if (current.page !== undefined || current.pageSize !== undefined)
-      controller.setPage(current.page ?? 0, current.pageSize);
-    controller.setCapabilities(current.capabilities);
-  });
+  return bindController(options, createEntityListController, (controller, current) => controller.syncInput(current));
 }
 /** injectEntityListHeadless 的等价命名别名。 */
 export const injectEntityListHeadless = injectEntityList;
@@ -195,15 +189,11 @@ export interface InjectQueryTableReturn<T extends EntityInstance = EntityInstanc
   readonly snapshot: Signal<QueryTableSnapshot<T>>;
 }
 
-/** 注入响应式查询表格控制器。 */
+/** 注入响应式查询表格控制器；输入同步规则与 `injectEntityList` 相同。 */
 export function injectQueryTable<T extends EntityInstance = EntityInstance>(
   options: AngularHeadlessOptions<QueryTableControllerOptions<T>> = {}
 ): InjectQueryTableReturn<T> {
-  return bindController(options, createQueryTableController, (controller, current) => {
-    if (current.query !== undefined) controller.setQuery(current.query);
-    if (current.records !== undefined) controller.setRecords(current.records);
-    controller.setCapabilities(current.capabilities);
-  });
+  return bindController(options, createQueryTableController, (controller, current) => controller.syncInput(current));
 }
 /** injectQueryTableHeadless 的等价命名别名。 */
 export const injectQueryTableHeadless = injectQueryTable;

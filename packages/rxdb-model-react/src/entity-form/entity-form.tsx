@@ -220,11 +220,15 @@ export function EntityForm({
     return map;
   }, [editableFields, formData, isReadonly, relatedItemsMap]);
 
-  /** 字段变更：严格解析失败输出 validationErrors 且不更新本地数据（Angular 侧同语义）。 */
+  /**
+   * 字段变更：严格解析失败输出 validationErrors 且不更新本地数据（Angular 侧同语义）。
+   * 受控输入随即回显最近合法值，未通过解析的输入跟着作废，提交仍按最近合法值校验（已发布语义）。
+   */
   const onFieldChange = (field: FormFieldConfig, rawValue: unknown): void => {
     const previousValue = formData[field.field];
     const result = formController.setField(field.field, rawValue);
     if (!result.ok) {
+      formController.discardInput(field.field);
       onValidationErrors?.(result.result);
       return;
     }

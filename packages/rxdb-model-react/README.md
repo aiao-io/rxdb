@@ -2,7 +2,7 @@
 
 ## Headless 绑定
 
-从 `@aiao/rxdb-model-react/headless` 使用 `useEntityForm`、`useQueryBuilder`、`useEntityList`、`useEntityDetail`、`useEntityDialog` 和 `useQueryTable`。这些 hooks 返回 `{ controller, snapshot }`，使用稳定外部快照缓存，支持 StrictMode 的 effect 清理/重连；真正卸载后在微任务中释放控制器。字段、模式与关系候选更新保留未提交草稿，内容变化的 `data` / `entity` 才重置输入。只使用该入口不需要 VTable 或 Tailwind。
+从 `@aiao/rxdb-model-react/headless` 使用 `useEntityForm`、`useQueryBuilder`、`useEntityList`、`useEntityDetail`、`useEntityDialog` 和 `useQueryTable`。这些 hooks 返回 `{ controller, snapshot }`，使用稳定外部快照缓存；控制器保存在组件 state 中，StrictMode 回放、`<Activity>` 隐藏与 Fast Refresh 清理并重建 effects 后仍沿用同一实例，卸载后随组件回收。字段、模式与关系候选更新保留未提交草稿，内容变化的 `data` / `entity` 才重置输入。只使用该入口不需要 VTable 或 Tailwind。
 
 列表切换查询、排序或页码后调用 `refresh()` 执行数据源，过期请求不会回写。批量删除可能部分成功并以 `AggregateError.errors` 报告失败项；详情保存拒绝重复调用，取消/关闭或输入切换后的迟到结果不会覆盖新会话。默认 QueryBuilder、列表和详情尚未全部复用新控制器，headless 历史/手动排序与完整独立 UI 示例仍待完成。
 

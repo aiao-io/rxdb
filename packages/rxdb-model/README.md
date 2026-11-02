@@ -30,7 +30,7 @@ const columns = buildEditableColumns(metadata);
 const tabs = buildDetailTabs(metadata);
 ```
 
-只需要状态与动作时可从 `@aiao/rxdb-model/headless` 导入 `createEntityFormController`。该入口不触碰 DOM，也不加载 VTable，消费方自行渲染字段控件；控制器的 `snapshot`、`setField`、`validate`、`submit`、`cancel` 和 `dispose` 组成稳定的表单交互契约。完整的三框架接入示例见[Headless 实体能力](../../website/docs/entity-model/headless.md)。
+只需要状态与动作时可从 `@aiao/rxdb-model/headless` 导入 `createEntityFormController`。该入口不触碰 DOM，也不加载 VTable，消费方自行渲染字段控件；控制器的 `snapshot`、`setField`、`discardInput`、`validate`、`submit`、`cancel` 和 `dispose` 组成稳定的表单交互契约。完整的三框架接入示例见[Headless 实体能力](../../website/docs/entity-model/headless.md)。
 
 查询构建器（框架无关服务层）：
 

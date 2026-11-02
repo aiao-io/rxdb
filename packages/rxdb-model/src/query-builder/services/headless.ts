@@ -55,11 +55,15 @@ export class QueryBuilderController<T = Record<string, unknown>> {
   }
 
   constructor(options: QueryBuilderControllerOptions<T> = {}) {
+    // 只有注入的文案运行时与 registry / service / converter 实例沿用引用；其余选项都是结构化数据，默认一律隔离，
+    // 以后新增的数据选项不会因为漏列而与宿主共享
+    const { i18n, operatorRegistry, validationService, queryConverter, ...data } = options;
     this.#service = createQueryBuilderService({
-      ...options,
-      ...(options.fields ? { fields: cloneStructured(options.fields) } : {}),
-      ...(options.initialState ? { initialState: cloneStructured(options.initialState) } : {}),
-      ...(options.initialQuery ? { initialQuery: cloneStructured(options.initialQuery) } : {})
+      i18n,
+      operatorRegistry,
+      validationService,
+      queryConverter,
+      ...cloneStructured(data)
     });
     this.#readonly = options.readonly === true || options.config?.readonly === true;
     this.#snapshot = this.#buildSnapshot();

@@ -319,10 +319,16 @@ export class EntityFormComponent {
   get t() {
     return this.#modelBinding.t;
   }
+  /** 解析失败的输入随即作废：错误只经 validationErrors 报告，提交仍按最近合法值校验（已发布语义）。 */
   onFieldChange(field: FormFieldConfig, rawValue: unknown): void {
-    const result = this.formBinding.controller.setField(field.field, rawValue);
-    if (!result.ok) this.validationErrors.emit(result.result);
-    else this.fieldChanged.emit(result.event);
+    const controller = this.formBinding.controller;
+    const result = controller.setField(field.field, rawValue);
+    if (result.ok) {
+      this.fieldChanged.emit(result.event);
+      return;
+    }
+    controller.discardInput(field.field);
+    this.validationErrors.emit(result.result);
   }
 
   onSubmit(): void {

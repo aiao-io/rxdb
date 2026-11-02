@@ -25,10 +25,8 @@ import {
   type QueryTableSnapshot
 } from '@aiao/rxdb-model/headless';
 import { useCallback, useEffect, useRef } from 'react';
-import { useControllerStore } from './controller-store.js';
+import { useControllerStore, type Subscribable } from './controller-store.js';
 export { useEntityForm, useEntityFormHeadless, type UseEntityFormResult } from './entity-form/headless.js';
-
-type Subscribable<TSnapshot> = { snapshot: TSnapshot; subscribe(listener: () => void): () => void; dispose(): void };
 
 function useController<TController extends Subscribable<TSnapshot>, TSnapshot>(
   factory: () => TController,
@@ -46,7 +44,7 @@ export interface UseQueryBuilderResult<T = Record<string, unknown>> {
   readonly controller: QueryBuilderController<T>;
   readonly snapshot: QueryBuilderSnapshot<T>;
 }
-/** React 查询构建器绑定；控制器在卸载时自动销毁。 */
+/** React 查询构建器绑定；控制器随组件 state 保留，卸载后随组件回收。 */
 export function useQueryBuilder<T = Record<string, unknown>>(
   options: QueryBuilderControllerOptions<T> = {}
 ): UseQueryBuilderResult<T> {
@@ -66,42 +64,24 @@ export interface UseEntityListResult<T extends EntityInstance = EntityInstance> 
   readonly controller: EntityListController<T>;
   readonly snapshot: EntityListSnapshot<T>;
 }
-/** React 实体列表绑定；宿主输入变化会同步查询、记录、能力和分页状态。 */
+/** 列表与查询表格共用的输入同步：变化判定与应用次序都由核心 `syncInput` 负责。 */
+function useListInput<T extends EntityInstance>(
+  options: EntityListControllerOptions<T>
+): (controller: EntityListController<T>) => void {
+  // 先解构：闭包只留六项输入，不连带捕获 load / on* 回调背后的宿主作用域
+  const { query, sorts, page, pageSize, records, capabilities } = options;
+  return useCallback(
+    (controller: EntityListController<T>) =>
+      controller.syncInput({ query, sorts, page, pageSize, records, capabilities }),
+    [query, sorts, page, pageSize, records, capabilities]
+  );
+}
+
+/** React 实体列表绑定；查询、排序、分页、记录与能力输入只同步真正变化的项。 */
 export function useEntityList<T extends EntityInstance = EntityInstance>(
   options: EntityListControllerOptions<T> = {}
 ): UseEntityListResult<T> {
-  const previousInput = useRef({
-    query: cloneStructured(options.query),
-    records: cloneStructured(options.records),
-    page: options.page,
-    pageSize: options.pageSize,
-    capabilities: cloneStructured(options.capabilities)
-  });
-  const update = useCallback(
-    (controller: EntityListController<T>) => {
-      const previous = previousInput.current;
-      if (options.query !== undefined && !structuralEqual(options.query, previous.query))
-        controller.setQuery(options.query);
-      if (options.records !== undefined && !structuralEqual(options.records, previous.records))
-        controller.setRecords(options.records);
-      if (
-        (options.page !== previous.page || options.pageSize !== previous.pageSize) &&
-        (options.page !== undefined || options.pageSize !== undefined)
-      )
-        controller.setPage(options.page ?? 0, options.pageSize);
-      if (!structuralEqual(options.capabilities, previous.capabilities))
-        controller.setCapabilities(options.capabilities);
-      previousInput.current = {
-        query: cloneStructured(options.query),
-        records: cloneStructured(options.records),
-        page: options.page,
-        pageSize: options.pageSize,
-        capabilities: cloneStructured(options.capabilities)
-      };
-    },
-    [options.query, options.records, options.page, options.pageSize, options.capabilities]
-  );
-  return useController(() => createEntityListController(options), update);
+  return useController(() => createEntityListController(options), useListInput(options));
 }
 /** useEntityListHeadless 的等价命名别名。 */
 export const useEntityListHeadless = useEntityList;
@@ -176,33 +156,11 @@ export interface UseQueryTableResult<T extends EntityInstance = EntityInstance> 
   readonly controller: QueryTableController<T>;
   readonly snapshot: QueryTableSnapshot<T>;
 }
-/** React 查询表格状态绑定。 */
+/** React 查询表格状态绑定；输入同步规则与 `useEntityList` 相同。 */
 export function useQueryTable<T extends EntityInstance = EntityInstance>(
   options: QueryTableControllerOptions<T> = {}
 ): UseQueryTableResult<T> {
-  const previousInput = useRef({
-    query: cloneStructured(options.query),
-    records: cloneStructured(options.records),
-    capabilities: cloneStructured(options.capabilities)
-  });
-  const update = useCallback(
-    (controller: QueryTableController<T>) => {
-      const previous = previousInput.current;
-      if (options.query !== undefined && !structuralEqual(options.query, previous.query))
-        controller.setQuery(options.query);
-      if (options.records !== undefined && !structuralEqual(options.records, previous.records))
-        controller.setRecords(options.records);
-      if (!structuralEqual(options.capabilities, previous.capabilities))
-        controller.setCapabilities(options.capabilities);
-      previousInput.current = {
-        query: cloneStructured(options.query),
-        records: cloneStructured(options.records),
-        capabilities: cloneStructured(options.capabilities)
-      };
-    },
-    [options.query, options.records, options.capabilities]
-  );
-  return useController(() => createQueryTableController(options), update);
+  return useController(() => createQueryTableController(options), useListInput(options));
 }
 /** useQueryTableHeadless 的等价命名别名。 */
 export const useQueryTableHeadless = useQueryTable;

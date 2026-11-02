@@ -18,7 +18,8 @@ export interface UseEntityFormResult {
 
 /**
  * 将共享表单状态绑定到 React 生命周期。
- * @remarks 字段和模式变化保留草稿；宿主数据语义变化才重置。严格模式回放不会提前销毁控制器。
+ * @remarks 字段和模式变化保留草稿；宿主数据语义变化才重置。控制器随组件 state 保留，
+ * StrictMode 回放与 `<Activity>` 隐藏后重显都沿用同一实例。
  */
 export function useEntityForm(options: EntityFormControllerOptions): UseEntityFormResult {
   const { controller, snapshot } = useControllerStore<EntityFormController, EntityFormSnapshot>(() =>

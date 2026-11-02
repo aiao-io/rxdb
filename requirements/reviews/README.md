@@ -10,7 +10,6 @@
 | -------------------- | -------------------------- | ------ |
 | `README.md`          | 本说明、状态约定与清理记录 | —      |
 | `review.template.md` | 新建 review 记录的模板     | —      |
-| [pr183-deep-review-2026-11-02.md](pr183-deep-review-2026-11-02.md) | PR #183 Headless 全分支深度评审 | 1 P1 + 6 P2 |
 
 ## 状态约定
 
@@ -36,6 +35,8 @@
 - **2026-10-28（PR #139 评审报告删除）**：`pr139-full-diff-review-2026-10-28.md` 的剩余治理待办已失效，现行统一评审规则见 [AGENTS.md](../../AGENTS.md)。
 
 每条只记删了什么、结论是什么；修法细节在代码注释与回归测试里。删除前的完整记录（含逐条修法、执行台账、进度页与 `evidence/` 取证目录）可用 `git show aaf155a1:requirements/reviews/<路径>` 取回。
+
+- **2026-11-02（PR #183 Headless 深度评审删除）**：`pr183-deep-review-2026-11-02.md`（评审对象 `codex/us-403-headless` @ `4f672cfe`，1 P1 + 6 P2）逐条复核全部属实，全部修复后删除。要点：React hook 不再在 effect 清理时 `dispose()` 控制器（`<Activity>` 隐藏、StrictMode 回放与 Fast Refresh 都和卸载无从区分；代价是卸载不再中止进行中的列表查询，已写进文档）；表单解析错误保留到修正，新增 `discardInput()` 让三端默认表单保持已发布的提交语义；列表与查询表格的宿主输入同步收进核心 `syncInput()`，三端绑定共用一份差分与应用次序。修法与判据见各控制器 TSDoc 与回归用例；全文可用 `git show e9694e5d:requirements/reviews/pr183-deep-review-2026-11-02.md` 取回。
 
 - **2026-10-30（未完成需求整体评审与 RV-084 删除）**：`requirements-incomplete-stories-review.md`（剩余 7 条工程项，源码基线 `7bb16a90`）与 `RV-084-packages-review-fix-followups.md`（1 P2 + 3 P3）对当前源码逐条复核，修 9 条、判重复跟踪 2 条后两份一起删除。需求评审：小程序拒绝表为空、在它上面循环的用例不执行断言属实——拒绝表拆成 `unsupported-platforms.ts`，`unsupported-platform-rejection.spec.ts` 把整表换成演示条目，逐条走直接判定、宿主路径、预检、随机源准备、VFS 与建客户端（去掉拒绝分支时新用例红、旧循环照绿），US-211 AC#17 的证据描述改正；US-312 对比范围属实——`compareBranches()` 挂在可写检出位上按 `table_set_scope` 只列这套表的成员，与 `previewMerge()` / `mergeBranch()` 同口径，sqlite-core 共享套件与 PGlite 各补「挂在检出位上对比」（换回旧实现时两个后端都多列出非成员实体）；US-315 说明缺口属实——history 包 README 补 `undoBarrier$` / `redoBarrier$` 与分叉点一段、网站补可写检出位一段，CHANGELOG 把 `HistoryScopeAPI` 新增必填成员挪进 Breaking；套件调用点门禁现已 6 × 3 全绿，按 callsite-drift / core-boundary 的接法给 spec 加真实仓库用例，经 `test-scripts` 进 CI；BOM 一条在 PR #129 修（高级索引名本已带表集后缀；类级生成列、实例级 `entityStorage` 的生成列与索引进可写检出位的表集指纹，SQLite 影子表改按存储元数据建，PGlite 播种复制主表行跳过生成列——此前成员带生成列时检出位开不了；本地提交 `f8d59617`、`66e562ec`，待推送；备份清单指纹不加生成列：逻辑转储不带生成列的值，结构只差生成列时恢复后的漂移检查明确报错，加进指纹反而误拒能靠迁移补齐的恢复）。判重复：无日志实体的新增 / 修改通知已由 US-222「其余 log: false 的表只补上删除」与 US-311 定范围；被拒变更的 redo 与待推计数由 roadmap 零散项第 4 条跟踪；「已有独立故事的未交付范围」一段只是指向各 story，随文件删除。RV-084：P2-1 rxdb-react 新增 `useHasRxDBProvider()`，React `EntityDetail` 的 create / edit 未就绪判据与 Vue 同口径（有 Provider 而库未到时禁用保存、没有 Provider 时照常透传）；P3-1 Supabase 全树 `findAncestors` 返回全部根、`countAncestors` 为根数，真实栈用例同步改；P3-2 图插件的锚点、JOIN、排序与路径回填按主键物理列，节点记录以属性名为键；P3-3 修 ③ Angular / React create 草稿保存的迟到结果、④ React 换库清旧草稿与错误面板、⑤ Vue `QueryBuilder` / `SubqueryBuilder` 挂载各发一次与 React `SubqueryBuilder` 不再先发临时值，①（Vue 编辑目标加载期间可输入）②（Vue edit 模式叠加 `fixedFormData`）⑥（React 单独用 `SubqueryBuilder` 在 `<Activity>` 下重显从 `initialQuery` 起步）定为框架差异，写进网站三页与 Angular README。回归：history 441、graph 203、Supabase 654（含本机真实栈）、rxdb-react 232、rxdb-model-react 355 / -angular 371 / -vue 381、PGlite 1565、sqlite-core 1581、sqlite 836（全量串行时两条备份恢复用例卡在 5 秒超时，单跑该 spec 58 条通过）、miniprogram 359、test-scripts 通过；改动包的 lint / typecheck 全过，`rxdb-react` 的 API 基线随提交。 全文可用 `git show c3b45808:requirements/reviews/<文件>` 取回。
 

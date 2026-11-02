@@ -1,6 +1,7 @@
 /** 无表格渲染依赖的实体列表状态。 */
 import type { OrderBy } from '@aiao/rxdb';
 import type { EntityCapabilities } from '../entity-capabilities.js';
+import { cloneStructured, structuralEqual } from '../structural-equal.js';
 import type { EntityInstance } from './types.js';
 
 /** 当前查询、分页、选择、记录及能力约束的列表快照。 */
@@ -63,7 +64,35 @@ export interface EntityListControllerOptions<T extends EntityInstance = EntityIn
   readonly onDelete?: (record: T) => Promise<void> | void;
 }
 
+/** 列表可随宿主更新的输入，经 `syncInput` 同步；`load` 与写入回调只在构造时读取。 */
+export type EntityListInput<T extends EntityInstance = EntityInstance> = Pick<
+  EntityListControllerOptions<T>,
+  'query' | 'sorts' | 'page' | 'pageSize' | 'records' | 'capabilities'
+>;
+
 type ListListener<T extends EntityInstance> = (snapshot: EntityListSnapshot<T>, event: EntityListEvent<T>) => void;
+
+/** 留存宿主输入的副本：宿主原地修改数组或对象时，下一次比较仍能看出变化。 */
+const captureInput = (input: EntityListInput): EntityListInput => ({
+  query: cloneStructured(input.query),
+  sorts: cloneStructured(input.sorts),
+  page: input.page,
+  pageSize: input.pageSize,
+  records: cloneStructured(input.records),
+  capabilities: cloneStructured(input.capabilities)
+});
+
+/** 比较一项输入：没变就沿用旧副本（它仍忠实于宿主），变了才克隆新值留作下次比较。 */
+const diffInput = <V>(next: V, previous: V): { readonly changed: boolean; readonly copy: V } => {
+  const changed = !structuralEqual(next, previous);
+  return { changed, copy: changed ? cloneStructured(next) : previous };
+};
+
+const copySorts = (sorts: readonly OrderBy[]): OrderBy[] => sorts.map(sort => ({ ...sort }));
+
+const pageInputChanged = (next: EntityListInput, previous: EntityListInput): boolean =>
+  (next.page !== undefined || next.pageSize !== undefined) &&
+  (next.page !== previous.page || next.pageSize !== previous.pageSize);
 
 /** 列表筛选、分页、选择与数据状态的共享控制器。 */
 export class EntityListController<T extends EntityInstance = EntityInstance> {
@@ -86,6 +115,7 @@ export class EntityListController<T extends EntityInstance = EntityInstance> {
   #abortController: AbortController | undefined;
   #viewEpoch = 0;
   readonly #updateQueues = new Map<string, Promise<unknown>>();
+  #input: EntityListInput;
   #snapshot: EntityListSnapshot<T>;
   #disposed = false;
 
@@ -95,17 +125,19 @@ export class EntityListController<T extends EntityInstance = EntityInstance> {
   }
 
   constructor(options: EntityListControllerOptions<T> = {}) {
-    this.#query = options.query;
-    this.#sorts = [...(options.sorts ?? [])];
+    // 查询、排序与能力存自己的副本：宿主原地修改输入对象既不会绕过 setter 改写状态，也不会让等值守卫看不出变化
+    this.#query = cloneStructured(options.query);
+    this.#sorts = copySorts(options.sorts ?? []);
     this.#page = Math.max(0, options.page ?? 0);
     this.#pageSize = Math.max(1, options.pageSize ?? 25);
     this.#records = [...(options.records ?? [])];
     this.#total = undefined;
-    this.#capabilities = options.capabilities;
+    this.#capabilities = cloneStructured(options.capabilities);
     this.#load = options.load;
     this.#onCreate = options.onCreate;
     this.#onUpdate = options.onUpdate;
     this.#onDelete = options.onDelete;
+    this.#input = captureInput(options);
     this.#snapshot = this.#buildSnapshot();
   }
 
@@ -115,15 +147,41 @@ export class EntityListController<T extends EntityInstance = EntityInstance> {
     this.#listeners.add(listener);
     return () => this.#listeners.delete(listener);
   }
-  /** 切换查询并清除旧页与待完成请求，随后可调用 refresh 取数。 */
+  /**
+   * 同步宿主输入，只转发相对上一次输入（首次为构造选项）真正变化的项。
+   * @remarks 按查询、排序、分页、记录、能力的次序应用，同一批输入里的新记录不会被随后的翻页清掉。
+   * 查询、排序、分页与记录缺省时保持当前状态；能力按输入原样同步，缺省即不再约束。
+   */
+  syncInput(input: EntityListInput<T>): void {
+    this.#assertActive();
+    const previous = this.#input;
+    const query = diffInput(input.query, previous.query);
+    const sorts = diffInput(input.sorts, previous.sorts);
+    const records = diffInput(input.records, previous.records);
+    const capabilities = diffInput(input.capabilities, previous.capabilities);
+    this.#input = {
+      query: query.copy,
+      sorts: sorts.copy,
+      page: input.page,
+      pageSize: input.pageSize,
+      records: records.copy,
+      capabilities: capabilities.copy
+    };
+    if (query.changed && input.query !== undefined) this.setQuery(input.query);
+    if (sorts.changed && input.sorts !== undefined) this.setSorts(input.sorts);
+    if (pageInputChanged(input, previous)) this.setPage(input.page ?? 0, input.pageSize);
+    if (records.changed && input.records !== undefined) this.setRecords(input.records);
+    if (capabilities.changed) this.setCapabilities(input.capabilities);
+  }
+  /** 切换查询并清除旧页与待完成请求，随后可调用 refresh 取数；与当前查询结构相同时不做任何事。 */
   setQuery(query: unknown): void {
     this.#assertActive();
-    if (Object.is(this.#query, query)) return;
+    if (structuralEqual(this.#query, query)) return;
     this.#invalidatePending(true);
-    this.#query = query;
+    this.#query = cloneStructured(query);
     this.#page = 0;
     this.#error = null;
-    this.#publish({ type: 'queryChanged', query });
+    this.#publish({ type: 'queryChanged', query: this.#query });
   }
   /** 替换排序规则并回到第一页，丢弃旧查询结果。 */
   setSorts(sorts: readonly OrderBy[]): void {
@@ -134,17 +192,20 @@ export class EntityListController<T extends EntityInstance = EntityInstance> {
     )
       return;
     this.#invalidatePending(true);
-    this.#sorts = [...sorts];
+    this.#sorts = copySorts(sorts);
     this.#page = 0;
     this.#error = null;
     this.#publish({ type: 'statusChanged' });
   }
-  /** 设置从零开始的页码和每页条数，丢弃旧页。 */
+  /** 设置从零开始的页码和每页条数，丢弃旧页；与当前页相同时不做任何事。 */
   setPage(page: number, pageSize = this.#pageSize): void {
     this.#assertActive();
+    const nextPage = Math.max(0, page);
+    const nextPageSize = Math.max(1, pageSize);
+    if (nextPage === this.#page && nextPageSize === this.#pageSize) return;
     this.#invalidatePending(true);
-    this.#page = Math.max(0, page);
-    this.#pageSize = Math.max(1, pageSize);
+    this.#page = nextPage;
+    this.#pageSize = nextPageSize;
     this.#error = null;
     this.#publish({ type: 'pageChanged', page: this.#page, pageSize: this.#pageSize });
   }
@@ -174,7 +235,7 @@ export class EntityListController<T extends EntityInstance = EntityInstance> {
   /** 替换现有能力约束，后续写入动作按新约束判定。 */
   setCapabilities(capabilities: EntityCapabilities | undefined): void {
     this.#assertActive();
-    this.#capabilities = capabilities;
+    this.#capabilities = cloneStructured(capabilities);
     this.#publish({ type: 'statusChanged' });
   }
 
@@ -376,13 +437,15 @@ export class EntityListController<T extends EntityInstance = EntityInstance> {
     if (this.#disposed) throw new Error('EntityListController has been disposed');
   }
 
-  #beginMutation(): number {
+  /** 写入开始与回写前使进行中的查询失效；中止了加载就立即发布，写入失败时公开 loading 也不会停在 true。 */
+  #beginMutation(): void {
     this.#assertActive();
+    const wasLoading = this.#loading;
     this.#abortController?.abort();
     this.#abortController = undefined;
     this.#requestId++;
     this.#loading = false;
-    return this.#viewEpoch;
+    if (wasLoading) this.#publish({ type: 'statusChanged' });
   }
 
   #isConstrainedView(): boolean {

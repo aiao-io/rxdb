@@ -42,6 +42,34 @@ describe('headless 表单状态回归', () => {
     expect(form.snapshot.errors.map(error => error.field).sort()).toEqual(['first', 'second']);
   });
 
+  it('未修正的解析错误让校验与提交都拒绝，改其他字段不解锁，修正原字段后才提交', () => {
+    const form = createEntityFormController({ fields: numericFields, data: { first: 1, second: 2 } });
+    form.setField('first', 'invalid');
+    expect(form.validate()).toMatchObject({ valid: false, errors: [{ field: 'first' }] });
+    expect(form.submit()).toMatchObject({ valid: false, result: { errors: [{ field: 'first' }] } });
+    form.setField('second', '3');
+    expect(form.submit()).toMatchObject({ valid: false, result: { errors: [{ field: 'first' }] } });
+    expect(form.snapshot.valid).toBe(false);
+    form.setField('first', '4');
+    expect(form.submit()).toEqual({ valid: true, data: { first: 4, second: 3 }, changes: { first: 4, second: 3 } });
+  });
+
+  it('取消清除解析错误；丢弃未解析的输入后按最近合法值提交', () => {
+    const form = createEntityFormController({ fields: numericFields, data: { first: 1, second: 2 } });
+    form.setField('first', 'invalid');
+    form.cancel();
+    expect(form.submit()).toMatchObject({ valid: true });
+    form.setField('second', '5');
+    form.setField('first', 'invalid');
+    const events: string[] = [];
+    form.subscribe((_snapshot, event) => events.push(event.type));
+    form.discardInput('first');
+    form.discardInput('first');
+    expect(events).toEqual(['validationChanged']);
+    expect(form.snapshot).toMatchObject({ valid: true, errors: [], data: { first: 1, second: 5 } });
+    expect(form.submit()).toEqual({ valid: true, data: { first: 1, second: 5 }, changes: { second: 5 } });
+  });
+
   it('关系 provider、枚举和多选标签可刷新，快照不会污染字段配置', () => {
     const fields: FormFieldConfig[] = [
       {
@@ -153,6 +181,47 @@ describe('headless 查询构建器封装回归', () => {
     fields[0]!.displayName = 'source changed';
     expect((query.snapshot.state.rootGroup.rules[0] as QueryBuilderRule).value).toBe('original');
     expect(query.snapshot.fields[0]!.displayName).toBe('标题');
+  });
+
+  /** 只有一条规则的 UI 规则组；规则数组一并返回，供宿主原地清空。 */
+  const ruleGroup = () => {
+    const rules: QueryBuilderRule[] = [{ id: 'rule', field: 'title', operator: '=', value: 'original' }];
+    return { rules, root: { id: 'root', combinator: 'and' as const, rules } };
+  };
+
+  it.each([
+    [
+      'initialQuery',
+      () => {
+        const rules = [{ field: 'title', operator: '=' as const, value: 'original' }];
+        return { rules, options: { initialQuery: { combinator: 'and' as const, rules } } };
+      }
+    ],
+    [
+      'initialState',
+      () => {
+        const { rules, root } = ruleGroup();
+        return { rules, options: { initialState: { rootGroup: root } } };
+      }
+    ],
+    [
+      'config.initialQuery',
+      () => {
+        const { rules, root } = ruleGroup();
+        return { rules, options: { config: { initialQuery: root } } };
+      }
+    ]
+  ])('%s 被宿主原地修改后，快照、校验与查询输出仍是原规则', (_entry, setup) => {
+    const { rules, options } = setup();
+    const query = createQueryBuilderController({
+      readonly: true,
+      fields: [{ name: 'title', displayName: '标题', type: 'string' }],
+      ...options
+    });
+    rules.length = 0;
+    expect(query.toRxDBQuery().rules).toHaveLength(1);
+    expect(query.snapshot.query.rules).toHaveLength(1);
+    expect(query.validate()).toEqual(query.snapshot.validation);
   });
 
   it('查询的初始数据和 add/update 值不与宿主对象共享引用', () => {

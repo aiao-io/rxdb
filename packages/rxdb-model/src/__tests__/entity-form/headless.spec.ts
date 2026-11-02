@@ -28,7 +28,9 @@ describe('EntityFormController', () => {
     expect(controller.snapshot.data.count).toBe(2);
     expect(controller.snapshot.errors[0]?.field).toBe('count');
     expect(controller.getFieldState('count')?.error?.field).toBe('count');
+    expect(controller.submit()).toMatchObject({ valid: false, result: { errors: [{ field: 'count' }] } });
 
+    controller.setField('count', '2');
     const submitted = controller.submit();
     expect(submitted).toEqual({
       valid: true,
@@ -82,7 +84,7 @@ describe('EntityFormController', () => {
     controller.setField('count', 'still bad');
     controller.setField('json', '{bad');
     expect(controller.snapshot.errors.map(error => error.field)).toEqual(['count', 'json']);
-    controller.validate();
-    expect(controller.snapshot.errors.map(error => error.field)).toEqual(['count']);
+    expect(controller.validate().errors.map(error => error.field)).toEqual(['count', 'json']);
+    expect(controller.snapshot.errors.map(error => error.field)).toEqual(['count', 'json']);
   });
 });

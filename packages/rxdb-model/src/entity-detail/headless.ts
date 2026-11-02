@@ -121,8 +121,10 @@ export class EntityDetailController {
       } catch (error) {
         if (this.#disposed) throw error;
         this.#saving = false;
-        this.#error = error;
-        this.#publish('saveFailed');
+        // 与迟到成功同一判据：会话已切换时错误只交给原调用方，不写进当前会话的错误面板
+        const current = session === this.#session;
+        if (current) this.#error = error;
+        this.#publish(current ? 'saveFailed' : 'saveSuperseded');
         throw error;
       }
     })();

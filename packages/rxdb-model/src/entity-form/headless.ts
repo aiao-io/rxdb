@@ -227,17 +227,29 @@ export class EntityFormController {
     return { ok: true, event };
   }
 
-  /** 只校验当前数据，不产生提交副作用。 */
+  /**
+   * 校验当前数据，不产生提交副作用。
+   * @remarks 尚未修正的解析错误一并计入：它们只在同字段输入合法值、`discardInput`、取消或宿主重置时清除，
+   * 重新校验最近合法值不能证明输入已修正。
+   */
   validate(): FormValidationResult {
     this.#assertActive();
-    const result = validateForm(this.#fields, this.#data, this.#i18n);
-    this.#errors = [];
-    this.#snapshot = this.#buildSnapshot();
-    this.#emit({ type: 'validationChanged', result });
-    return result;
+    return this.#publishValidation();
   }
 
-  /** 校验并返回数据及相对初始实体的变更集。 */
+  /**
+   * 丢弃字段尚未通过解析的输入，保留最近一次合法值。
+   * @remarks 控件在解析失败后回显最近合法值时调用（如受控输入绑定 `snapshot.data`）；
+   * 保留原始输入的控件不要调用，解析错误会一直阻止提交，直到输入被修正。
+   */
+  discardInput(fieldName: string): void {
+    this.#assertActive();
+    if (!this.#errors.some(error => error.field === fieldName)) return;
+    this.#errors = this.#errors.filter(error => error.field !== fieldName);
+    this.#publishValidation();
+  }
+
+  /** 校验并返回数据及相对初始实体的变更集；尚未修正的解析错误同样使提交失败。 */
   submit(): EntityFormSubmitResult {
     this.#assertActive();
     if (this.#mode === 'view') {
@@ -292,6 +304,14 @@ export class EntityFormController {
       dirty: !equalData(data, initialData),
       readonly: this.#mode === 'view'
     };
+  }
+
+  /** 重算快照（校验文案与关系展示值随之刷新），再发布合并了解析错误的校验结果。 */
+  #publishValidation(): FormValidationResult {
+    this.#snapshot = this.#buildSnapshot();
+    const result = cloneStructured({ valid: this.#snapshot.valid, errors: [...this.#snapshot.errors] });
+    this.#emit({ type: 'validationChanged', result });
+    return result;
   }
 
   #displayValue(field: FormFieldConfig, value: unknown): string {

@@ -98,11 +98,18 @@ const displayValueMap = computed(() => {
   );
 });
 
-/** 字段变更：统一解析链路（解析失败 emit validationErrors 且不更新数据） */
+/**
+ * 字段变更：统一解析链路（解析失败 emit validationErrors 且不更新数据）。
+ * 解析失败的输入随即作废，提交仍按最近合法值校验（已发布语义）。
+ */
 const onFieldChange = (field: FormFieldConfig, rawValue: unknown): void => {
   const result = controller.setField(field.field, rawValue);
-  if (!result.ok) emit('validationErrors', result.result);
-  else emit('fieldChanged', result.event);
+  if (result.ok) {
+    emit('fieldChanged', result.event);
+    return;
+  }
+  controller.discardInput(field.field);
+  emit('validationErrors', result.result);
 };
 
 /** 表单提交：校验通过才 emit formSubmitted */

@@ -1,11 +1,38 @@
-import type { QueryBuilderControllerOptions } from '@aiao/rxdb-model/headless';
+import type { EntityListLoadResult, QueryBuilderControllerOptions } from '@aiao/rxdb-model/headless';
 import { mount } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick, reactive } from 'vue';
 import { useEntityForm } from '../entity-form/headless';
-import { useQueryBuilder, useQueryTable } from '../headless';
+import { useEntityList, useQueryBuilder, useQueryTable } from '../headless';
 
 const fields = [{ field: 'title', displayName: '标题', type: 'string' as const }];
+const record = (id: string) => ({ id, title: id, save: async () => undefined, remove: async () => undefined });
+
+/** 同一组 props 同时驱动列表与查询表格，便于两种绑定对拍。 */
+function mountLists(props: Record<string, unknown>) {
+  const host = defineComponent({
+    props: {
+      records: { type: Array, default: undefined },
+      page: { type: Number, default: undefined },
+      pageSize: { type: Number, default: undefined },
+      sorts: { type: Array, default: undefined },
+      capabilities: { type: Object, default: undefined },
+      load: { type: Function, default: undefined }
+    },
+    setup(hostProps) {
+      return { list: useEntityList(hostProps as never), table: useQueryTable(hostProps as never) };
+    },
+    render() {
+      return h('div');
+    }
+  });
+  const wrapper = mount(host, { props });
+  const vm = wrapper.vm as unknown as {
+    list: ReturnType<typeof useEntityList>;
+    table: ReturnType<typeof useQueryTable>;
+  };
+  return { wrapper, bindings: [vm.list, vm.table] };
+}
 
 describe('Vue headless bindings', () => {
   it('data/entity 变化会同步到表单，字段深层变化也会同步', async () => {
@@ -66,6 +93,39 @@ describe('Vue headless bindings', () => {
     expect(vm.binding.snapshot.value.capabilities?.canCreate).toBe(false);
     await wrapper.setProps({ capabilities: { canCreate: true, canEdit: true, canDelete: false } });
     expect(vm.binding.snapshot.value.capabilities?.canEdit).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('列表与查询表格挂载后保留宿主记录；重传等值记录不中止进行中的查询，同批换页与记录保留新记录', async () => {
+    const item = record('one');
+    const { wrapper, bindings } = mountLists({ records: [item], page: 0, pageSize: 10 });
+    for (const binding of bindings) expect(binding.snapshot.value.records).toEqual([item]);
+    const signals: AbortSignal[] = [];
+    for (const binding of bindings)
+      void binding.controller.refresh(
+        context =>
+          new Promise<EntityListLoadResult>(() => {
+            signals.push(context.signal);
+          })
+      );
+    await wrapper.setProps({ records: [item] });
+    expect(signals.map(signal => signal.aborted)).toEqual([false, false]);
+    const next = record('next');
+    await wrapper.setProps({ page: 1, records: [next] });
+    for (const binding of bindings) expect(binding.snapshot.value).toMatchObject({ page: 1, records: [next] });
+    wrapper.unmount();
+  });
+
+  it('列表与查询表格跟随分页、页大小与排序输入，刷新使用新请求上下文', async () => {
+    const load = vi.fn(() => ({ records: [] }));
+    const { wrapper, bindings } = mountLists({ page: 0, pageSize: 10, load });
+    const request = { page: 2, pageSize: 20, sorts: [{ field: 'title', sort: 'desc' }] };
+    await wrapper.setProps(request);
+    for (const binding of bindings) {
+      expect(binding.snapshot.value).toMatchObject(request);
+      await binding.controller.refresh();
+      expect(load).toHaveBeenLastCalledWith(expect.objectContaining(request));
+    }
     wrapper.unmount();
   });
 });

@@ -430,6 +430,10 @@
         "kind": "type"
       },
       {
+        "name": "EntityListInput",
+        "kind": "type"
+      },
+      {
         "name": "EntityListLoadContext",
         "kind": "type"
       },

@@ -25,7 +25,7 @@ form.dispose();
 
 `snapshot` 提供 `fieldStates`、`fields`、`data`、`initialData`、`errors`、`valid`、`dirty`、`mode` 和 `readonly`。`fieldStates` 包含每个字段的配置、值、展示文本、错误和只读状态。快照中的结构化表单值与内部状态隔离。
 
-`setField` 先严格解析，失败时保留最近合法值并暴露字段错误；错误修复前不能提交。`setData` / `setEntity` 将宿主输入设为新基线并清除旧错误；`cancel` 恢复最近基线。`view` 模式阻止编辑和提交。核心实例由消费方调用 `dispose()` 释放。
+`setField` 先严格解析，失败时保留最近合法值并暴露字段错误；该错误保留到同字段输入合法值、`cancel()` 或宿主重置，期间 `validate()` 与 `submit()` 都拒绝。控件若在解析失败后回显最近合法值（如受控输入绑定 `snapshot.data`），调用 `discardInput(field)` 丢弃这次输入，提交改按最近合法值校验；默认表单即按此保持原有提交语义。`setData` / `setEntity` 将宿主输入设为新基线并清除旧错误；`cancel` 恢复最近基线。`view` 模式阻止编辑和提交。核心实例由消费方调用 `dispose()` 释放。
 
 ## React
 
@@ -43,7 +43,7 @@ function Form({ fields, data }: Props): React.JSX.Element {
 }
 ```
 
-各 `use*` hook 返回 `{ controller, snapshot }`，并自动管理订阅与销毁。外部快照缓存保持 React 所需的稳定引用；StrictMode 的 effect 清理与重连不会提前销毁当前控制器。真正卸载后会在微任务中释放。表单与详情的字段、模式、关系候选更新保留本地草稿；内容实际变化的 `data` / `entity` 才重置输入。
+各 `use*` hook 返回 `{ controller, snapshot }`，订阅随 effect 建立与清理，外部快照缓存保持 React 所需的稳定引用。控制器保存在组件 state 中，hook 不调用 `dispose()`：StrictMode 回放、`<Activity>` 隐藏与 Fast Refresh 都会清理并重建 effects、保留 state，与真正卸载无从区分。重显后同一控制器的草稿与动作照常可用；卸载后控制器随组件回收，进行中的列表查询不会被中止，迟到结果只写入已脱离的控制器。表单与详情的字段、模式、关系候选更新保留本地草稿；内容实际变化的 `data` / `entity` 才重置输入。
 
 ## Angular
 
@@ -76,11 +76,13 @@ Vue 的同名 `use*` composable 返回 `{ controller, snapshot }`，`snapshot` �
 
 `createQueryBuilderController` 复用已有 `QueryBuilderService` 的分组、规则、校验和查询转换。`setFields` 更新字段元数据；规则操作通过 `addRule`、`addGroup`、`updateRule`、`updateGroupCombinator`、`moveItem`、`remove` 和 `clear` 完成。
 
-列表和 QueryTable 的 `load` 接收 `{ query, sorts, page, pageSize, signal }`，返回 `{ records, total? }`。`setQuery`、`setSorts`、`setPage` 会使旧查询失效并清掉旧页；调用 `refresh()` 执行当前请求。刷新同一页时保留已有记录，失败通过 `snapshot.error` 暴露。过期结果不会回写，数据源应将 `signal` 传入自己的可取消请求。
+列表和 QueryTable 的 `load` 接收 `{ query, sorts, page, pageSize, signal }`，返回 `{ records, total? }`。`setQuery`、`setSorts`、`setPage` 会使旧查询失效并清掉旧页，与当前值相同时不做任何事；调用 `refresh()` 执行当前请求。刷新同一页时保留已有记录，失败通过 `snapshot.error` 暴露。过期结果不会回写，数据源应将 `signal` 传入自己的可取消请求。
 
-`create`、`update`、`remove` 使用消费方提供的写入回调，沿用传入的 `capabilities`。同一实体的更新按调用顺序执行；有数据源时写入成功后重新查询。批量 `remove` 可能部分成功：成功项先从当前记录和选择中移除，失败原因以 `AggregateError.errors` 抛出，消费方应按实际结果提示并决定是否刷新。当前 headless 控制器尚未接入默认列表的撤销/重做和手动排序动作。
+三框架绑定把 `query`、`sorts`、`page`、`pageSize`、`records` 和 `capabilities` 视为可随宿主更新的输入，经 `syncInput()` 只转发相对上一次输入真正变化的项，并按查询、排序、分页、记录、能力的次序应用：同批传入的新页记录不会被随后的翻页清掉，重传等值输入也不会中止进行中的查询。控制器保存查询、排序与能力的副本，宿主原地修改这些对象后再同步同样能识别变化。`load` 与写入回调只在创建时读取。
 
-详情 `save(onSave)` 只把合法草稿交给持久化回调；创建实例和关系装配由消费方完成。重复保存会拒绝；保存期间切换输入、取消或关闭后，迟到成功结果不会覆盖新草稿或重新关闭新会话。保存失败通过 rejected Promise 和 `snapshot.error` 暴露。`cancel()` 重置草稿，`close()` 关闭状态；自己的弹窗应连接这两个动作及结果处理。
+`create`、`update`、`remove` 使用消费方提供的写入回调，沿用传入的 `capabilities`。同一实体的更新按调用顺序执行；有数据源时写入成功后重新查询。写入开始会中止进行中的查询，公开 `loading` 随即回到 false；写入失败只以 rejected Promise 报告，不写入 `snapshot.error`，也不自动重新查询，需要时由消费方调用 `setError()` 或 `refresh()`。批量 `remove` 可能部分成功：成功项先从当前记录和选择中移除，失败原因以 `AggregateError.errors` 抛出，消费方应按实际结果提示并决定是否刷新。当前 headless 控制器尚未接入默认列表的撤销/重做和手动排序动作。
+
+详情 `save(onSave)` 只把合法草稿交给持久化回调；创建实例和关系装配由消费方完成。重复保存会拒绝；保存期间切换输入、继续编辑、取消或关闭后，迟到的成功不会覆盖新草稿或重新关闭新会话，迟到的失败只拒绝原 Promise，不写入新会话的 `snapshot.error`。当前会话的保存失败通过 rejected Promise 和 `snapshot.error` 暴露。`cancel()` 重置草稿，`close()` 关闭状态；自己的弹窗应连接这两个动作及结果处理。
 
 ## 依赖和交互责任
 

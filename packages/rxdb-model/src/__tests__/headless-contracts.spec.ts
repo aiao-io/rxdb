@@ -50,6 +50,81 @@ describe('headless contracts', () => {
     table.dispose();
   });
 
+  it.each([
+    ['列表', createEntityListController],
+    ['查询表格', createQueryTableController]
+  ])('%s的宿主输入只转发变化：先失效查询、排序与分页，再接收同批记录', async (_name, create) => {
+    const first = record('1');
+    const second = record('2');
+    const list = create({ records: [first], page: 0, pageSize: 10 });
+    const events: string[] = [];
+    list.subscribe((_snapshot, event) => events.push(event.type));
+    list.syncInput({ records: [first], page: 0, pageSize: 10 });
+    expect(events).toEqual([]);
+    expect(list.snapshot.records).toEqual([first]);
+
+    const input = {
+      query: { title: 'b' },
+      sorts: [{ field: 'title', sort: 'desc' as const }],
+      page: 2,
+      pageSize: 20,
+      records: [second]
+    };
+    list.syncInput(input);
+    expect(list.snapshot).toMatchObject(input);
+
+    let resolveLoad: ((result: { records: EntityInstance[] }) => void) | undefined;
+    let signal: AbortSignal | undefined;
+    const refresh = list.refresh(context => {
+      signal = context.signal;
+      return new Promise(resolve => {
+        resolveLoad = resolve;
+      });
+    });
+    list.syncInput({ ...input, sorts: [{ field: 'title', sort: 'desc' }], records: [second] });
+    list.syncInput({ ...input, capabilities: { canCreate: false, canEdit: true, canDelete: true } });
+    expect(signal?.aborted).toBe(false);
+    expect(list.snapshot).toMatchObject({ loading: true, records: [second], capabilities: { canCreate: false } });
+    resolveLoad?.({ records: [first] });
+    await refresh;
+    expect(list.snapshot.records).toEqual([first]);
+  });
+
+  it('宿主原地修改查询、排序或能力后同步，控制器照样失效旧页、回到首页并发出事件', () => {
+    const query = { title: 'a' };
+    const sorts = [{ field: 'title', sort: 'asc' as 'asc' | 'desc' }];
+    const capabilities = { canCreate: true, canEdit: true, canDelete: true };
+    const list = createEntityListController({ query, sorts, capabilities, page: 2, records: [record('1')] });
+    const events: string[] = [];
+    list.subscribe((_snapshot, event) => events.push(event.type));
+    query.title = 'b';
+    capabilities.canCreate = false;
+    expect(list.snapshot.capabilities?.canCreate).toBe(true);
+    list.syncInput({ query, sorts, capabilities, page: 2 });
+    expect(list.snapshot).toMatchObject({
+      query: { title: 'b' },
+      page: 0,
+      records: [],
+      capabilities: { canCreate: false }
+    });
+    list.setRecords([record('2')]);
+    sorts[0]!.sort = 'desc';
+    list.syncInput({ query, sorts, capabilities, page: 2 });
+    expect(list.snapshot).toMatchObject({ sorts: [{ field: 'title', sort: 'desc' }], page: 0, records: [] });
+    expect(events).toEqual(['queryChanged', 'statusChanged', 'recordsChanged', 'statusChanged']);
+  });
+
+  it('翻到当前页或设置等值查询不清空记录、不发事件', () => {
+    const list = createEntityListController({ records: [record('1')], query: { title: 'a' }, page: 1, pageSize: 10 });
+    const listener = vi.fn();
+    list.subscribe(listener);
+    list.setPage(1, 10);
+    list.setPage(1);
+    list.setQuery({ title: 'a' });
+    expect(list.snapshot.records).toHaveLength(1);
+    expect(listener).not.toHaveBeenCalled();
+  });
+
   it('详情控制器转发表单、Tab、保存和关闭生命周期', async () => {
     const detail = createEntityDetailController({
       fields,
