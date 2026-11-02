@@ -1,4 +1,4 @@
-<header class="header">
+<aside class="app-sidebar" aria-label="工作台导航">
   <a class="brand" (click)="navigate('discover', $event)" aria-label="Aiao Images 首页" href="/">
     <span class="brand-mark">
       a
@@ -6,36 +6,47 @@
     </span>
     <span>
       aiao
-      <span class="brand-sub">/ images</span>
+      <span class="brand-sub">AI 创作工作台</span>
     </span>
   </a>
   <nav class="main-nav" aria-label="主导航">
-    <a
-      [attr.aria-current]="view() === 'discover' ? 'page' : null"
-      [class.active]="view() === 'discover'"
-      (click)="navigate('discover', $event)"
-      href="/"
-    >
-      发现灵感
-    </a>
+    <span class="nav-section">创作空间</span>
     <a
       [attr.aria-current]="view() === 'studio' ? 'page' : null"
       [class.active]="view() === 'studio'"
       (click)="navigate('studio', $event)"
       href="/create"
     >
+      <svg class="icon" aria-hidden="true" viewBox="0 0 20 20">
+        <path d="m12 3 5 5-9 9H3v-5ZM10 5l5 5M3 3v4M1 5h4M15 13v4M13 15h4" />
+      </svg>
       生成图片
     </a>
+    <a
+      [attr.aria-current]="view() === 'discover' ? 'page' : null"
+      [class.active]="view() === 'discover'"
+      (click)="navigate('discover', $event)"
+      href="/"
+    >
+      <svg class="icon" aria-hidden="true" viewBox="0 0 20 20">
+        <path d="M7 13h6M8 16h4M7 10a5 5 0 1 1 6 0l-1 3H8Z" />
+      </svg>
+      发现灵感
+    </a>
+    <span class="nav-section">我的空间</span>
     <a
       [attr.aria-current]="view() === 'library' ? 'page' : null"
       [class.active]="view() === 'library'"
       (click)="navigate('library', $event)"
       href="/images"
     >
+      <svg class="icon" aria-hidden="true" viewBox="0 0 20 20">
+        <rect height="14" rx="3" width="14" x="3" y="3" />
+        <circle cx="7" cy="7" r="1" />
+        <path d="m3 14 4-4 3 3 3-5 4 6" />
+      </svg>
       我的图片
     </a>
-  </nav>
-  <div class="header-right">
     <a
       class="settings-link"
       [attr.aria-current]="view() === 'providers' ? 'page' : null"
@@ -50,6 +61,21 @@
       </svg>
       设置
     </a>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="workspace-status">
+      <span class="status-dot" aria-hidden="true"></span>
+      <div>
+        本机工作区
+        <small>
+          {{
+            localStatus() === 'ready' ? '创作自动保存在此设备'
+            : localStatus() === 'unavailable' ? '本机存储暂不可用'
+            : '正在准备本机存储…'
+          }}
+        </small>
+      </div>
+    </div>
     @if (authConfigured()) {
       <button class="account-link" (click)="openAuth($event)">
         {{
@@ -61,12 +87,36 @@
       </button>
     }
   </div>
+</aside>
+<header class="header">
+  <div class="breadcrumb" aria-label="当前位置">
+    <span>Aiao</span>
+    <span aria-hidden="true">/</span>
+    <strong>
+      {{
+        view() === 'discover' ? '发现灵感'
+        : view() === 'studio' ? '图片创作'
+        : view() === 'library' ? '我的图片'
+        : view() === 'admin' ? '管理后台'
+        : '设置'
+      }}
+    </strong>
+  </div>
+  <p class="header-tip">好画面，从一个具体的想法开始。</p>
+  <div class="header-right">
+    <span class="local-badge">本机优先</span>
+    <a class="primary header-create" (click)="navigate('studio', $event)" href="/create">
+      进入创作
+      <span aria-hidden="true">↗</span>
+    </a>
+  </div>
 </header>
 @if (workspaceSwitching()) {
   <p class="notice" role="status">正在切换本机工作区…</p>
 }
 <main
   id="main"
+  [class.discovery-main]="view() === 'discover'"
   [hidden]="workspaceSwitching() || identityBlocked()"
   [inert]="workspaceSwitching() || sync().busy || identityBlocked()"
 >
@@ -74,114 +124,108 @@
     @if (catalogMessage()) {
       <p class="notice" role="status">{{ catalogMessage() }}</p>
     }
-    <section class="hero">
-      <div>
-        <span class="eyebrow">A LITTLE INSPIRATION. A NEW CREATION.</span>
-        <h1>
-          让好灵感，
-          <br />
-          变成
-          <em>好图片。</em>
-        </h1>
-        <p>从一张喜欢的图片出发，用你的想法，创作下一张。</p>
-        <div class="hero-actions">
-          <a class="primary" (click)="navigate('studio', $event)" href="/create">
-            开始创作
-            <span aria-hidden="true">→</span>
-          </a>
-          <span class="plain">或从下面挑一个灵感</span>
-        </div>
+    <section class="discovery-intro" aria-labelledby="discovery-title">
+      <div class="discovery-heading">
+        <span class="eyebrow">AIAO CREATIVE STUDIO</span>
+        <h1 id="discovery-title">把脑海里的画面，变成你的作品。</h1>
+        <p>从一个灵感、一段描述，或一个突如其来的想法开始。</p>
       </div>
-      <div class="hero-note">
-        <span class="number">01</span>
-        <p>
-          找到灵感，写下想法。
-          <br />
-          剩下的，交给想象力。
-        </p>
-      </div>
-    </section>
-    <div class="gallery-tools">
-      <div class="categories" aria-label="灵感分类" role="group">
-        @for (c of categories; track c) {
-          <button [attr.aria-pressed]="category() === c" [class.active]="category() === c" (click)="category.set(c)">
-            {{ c }}
+      <div class="inspiration-showcase" aria-label="精选灵感预览">
+        @for (t of templates().slice(0, 5); track t.id; let i = $index) {
+          <button
+            class="showcase-card"
+            [attr.aria-label]="'查看精选灵感：' + t.title"
+            [class.showcase-featured]="i === 2"
+            (click)="openTemplate(t, $event)"
+          >
+            @if (!failedTemplateImages().has(t.id)) {
+              <img [alt]="t.alt" [src]="t.image" (error)="templateImageFailed(t.id)" />
+            }
+            <span class="showcase-caption">
+              <span>{{ t.purpose }}</span>
+              <strong>{{ t.title }}</strong>
+              <span class="showcase-action">
+                查看提示词
+                <span aria-hidden="true">↗</span>
+              </span>
+            </span>
           </button>
         }
       </div>
-      <label class="search">
-        <svg class="icon" aria-hidden="true" viewBox="0 0 20 20">
-          <circle cx="9" cy="9" r="5.5" />
-          <path d="m13.2 13.2 3.3 3.3" />
-        </svg>
-        <input
-          [ngModel]="search()"
-          (ngModelChange)="search.set($event)"
-          aria-label="搜索灵感"
-          placeholder="搜索风格、场景、关键词"
-          type="search"
-        />
-      </label>
-    </div>
-    <div class="gallery-label">
-      <strong>为你的下一次创作，找一点灵感</strong>
-      <span>{{ filtered().length }} 个灵感模板 · 参考示例</span>
-    </div>
-    <div class="cards">
-      @for (t of filtered(); track t.id) {
-        <article class="card">
-          <button class="card-link" [attr.aria-label]="'查看' + t.title" (click)="openTemplate(t, $event)">
-            <div class="card-photo">
-              @if (failedTemplateImages().has(t.id)) {
-                <div class="empty-state">
-                  <p>示例图暂时无法加载，可继续查看提示词</p>
-                </div>
-              } @else {
-                <img
-                  class="card-image"
-                  [alt]="t.alt"
-                  [src]="t.image"
-                  (error)="templateImageFailed(t.id)"
-                  loading="lazy"
-                />
-              }
-              <span class="tag">{{ t.purpose }}</span>
-            </div>
-            <div class="card-caption">
-              <div class="card-title">
-                {{ t.title }}
-                <span aria-hidden="true">→</span>
-              </div>
-              <p>{{ t.style }}</p>
-            </div>
-          </button>
-        </article>
-      } @empty {
-        <div class="no-results">
-          <p>没有找到相关灵感，试试其他关键词。</p>
-          <button class="secondary sm" (click)="resetGallery()">查看全部灵感</button>
-        </div>
-      }
-    </div>
-    <p class="source-note">图片为社区参考示例或原创构图示意，均非本产品生成结果。作者与来源见详情。</p>
-  }
-  @if (view() === 'studio') {
-    <section class="page-heading">
-      <div>
-        <h1>把想法，变成画面。</h1>
-        <p>改一改提示词，让它更像你心里的样子。</p>
-      </div>
-      <ol class="step-note" aria-label="创作步骤">
-        <li>01 找到灵感</li>
-        <li aria-current="step">02 生成图片</li>
-        <li>03 保存喜欢</li>
-      </ol>
+      <p class="showcase-note">精选参考示例 · 点击查看提示词，找到你的创作起点</p>
     </section>
-    <div class="studio-grid">
+    <aside class="creative-assistant" aria-label="创作助手">
+      <div class="assistant-heading">
+        <span aria-hidden="true">✧</span>
+        <h2>创作助手</h2>
+      </div>
+      <a class="assistant-link" (click)="navigate('studio', $event)" href="/create">
+        <span class="assistant-icon peach" aria-hidden="true">✧</span>
+        <span>
+          <strong>文字变画面</strong>
+          <small>描述想法，生成你的第一张图片</small>
+        </span>
+        <span aria-hidden="true">›</span>
+      </a>
+      <a class="assistant-link" (click)="navigate('library', $event)" href="/images">
+        <span class="assistant-icon lavender" aria-hidden="true">▧</span>
+        <span>
+          <strong>回到作品</strong>
+          <small>查看、下载和管理本机图片</small>
+        </span>
+        <span aria-hidden="true">›</span>
+      </a>
+      <a class="assistant-link" (click)="openSettings('providers', $event)" href="/providers">
+        <span class="assistant-icon blue" aria-hidden="true">⚙</span>
+        <span>
+          <strong>连接你的模型</strong>
+          <small>管理供应商与 API Key</small>
+        </span>
+        <span aria-hidden="true">›</span>
+      </a>
+      <div class="assistant-tip">
+        <span class="tip-label">PROMPT TIPS</span>
+        <h3>好提示词，可以很简单。</h3>
+        <p>先写清楚主体，再补充场景、光线和风格。每次只调整一个细节，让画面更接近你的想法。</p>
+        <div class="prompt-formula">
+          <span>主体</span>
+          <b>＋</b>
+          <span>场景</span>
+          <b>＋</b>
+          <span>风格</span>
+        </div>
+      </div>
+      <div class="assistant-local">
+        <span class="status-dot" aria-hidden="true"></span>
+        <p>
+          你的创作，留在你身边。
+          <small>草稿和生成作品自动保存在本机，请及时下载重要图片。</small>
+        </p>
+      </div>
+    </aside>
+  }
+  @if (view() === 'studio' || view() === 'discover') {
+    @if (view() === 'studio') {
+      <section class="page-heading">
+        <div>
+          <h1>把想法，变成画面。</h1>
+          <p>改一改提示词，让它更像你心里的样子。</p>
+        </div>
+        <ol class="step-note" aria-label="创作步骤">
+          <li>01 找到灵感</li>
+          <li aria-current="step">02 生成图片</li>
+          <li>03 保存喜欢</li>
+        </ol>
+      </section>
+    }
+    <div class="studio-grid" [class.home-studio]="view() === 'discover'">
       <section class="composer" aria-label="图片生成表单">
         <div class="panel-title">
-          创作设置
-          <span class="small">每次生成 1 张</span>
+          <span class="composer-title">
+            <span class="composer-spark" aria-hidden="true">✧</span>
+            {{ view() === 'discover' ? '今天，你想创作什么？' : '创作设置' }}
+          </span>
+          <span class="small">图片生成 · 每次 1 张</span>
         </div>
         @if (selected(); as t) {
           <div class="template-chip">
@@ -218,48 +262,54 @@
             <button class="secondary sm" (click)="overwriteDraft()">保留本页输入</button>
           </div>
         }
-        <div class="field-label">图片画幅</div>
-        <div class="ratio-group" aria-label="图片画幅" role="group">
-          @for (r of ratios; track r.id) {
-            <button
-              class="ratio"
-              [attr.aria-pressed]="ratio() === r.id"
-              [class.active]="ratio() === r.id"
-              [disabled]="inFlight()"
-              (click)="setRatio(r.id)"
+        <div class="composer-settings">
+          <div class="ratio-setting">
+            <div class="field-label">图片画幅</div>
+            <div class="ratio-group" aria-label="图片画幅" role="group">
+              @for (r of ratios; track r.id) {
+                <button
+                  class="ratio"
+                  [attr.aria-pressed]="ratio() === r.id"
+                  [class.active]="ratio() === r.id"
+                  [disabled]="inFlight()"
+                  (click)="setRatio(r.id)"
+                >
+                  <span [class]="r.shape"></span>
+                  {{ r.label }}
+                  <small aria-hidden="true">{{ r.hint }}</small>
+                </button>
+              }
+            </div>
+          </div>
+          <div class="provider-setting">
+            <label class="field-label" for="selected-provider">图片供应商</label>
+            <select
+              class="field"
+              id="selected-provider"
+              [disabled]="settingsBusy()"
+              [ngModel]="providerId()"
+              (ngModelChange)="chooseProvider($event)"
             >
-              <span [class]="r.shape"></span>
-              {{ r.label }}
-              <small aria-hidden="true">{{ r.hint }}</small>
-            </button>
-          }
+              <option disabled value="">请先配置供应商</option>
+              @for (p of providers(); track p.id) {
+                <option [value]="p.id">
+                  {{ p.name }} · {{ p.model }} · {{ p.mode === 'direct' ? '浏览器直连' : '代理' }}
+                </option>
+              }
+            </select>
+            <div class="provider-status">
+              @if (provider(); as p) {
+                <span class="key-state" [class.missing]="!providerHasKey()">
+                  {{ providerHasKey() ? 'API Key 已就绪' : '生成时需要填写 API Key' }}
+                </span>
+                <span>{{ p.mode === 'proxy' ? '经本站代理发送' : '浏览器直接请求供应商' }}</span>
+              } @else {
+                <span class="key-state missing">请先添加供应商</span>
+              }
+            </div>
+            <button class="text-link provider-manage" (click)="openProviderSettings()">管理供应商与 API Key →</button>
+          </div>
         </div>
-        <label class="field-label" for="selected-provider">图片供应商</label>
-        <select
-          class="field"
-          id="selected-provider"
-          [disabled]="settingsBusy()"
-          [ngModel]="providerId()"
-          (ngModelChange)="chooseProvider($event)"
-        >
-          <option disabled value="">请先配置供应商</option>
-          @for (p of providers(); track p.id) {
-            <option [value]="p.id">
-              {{ p.name }} · {{ p.model }} · {{ p.mode === 'direct' ? '浏览器直连' : '代理' }}
-            </option>
-          }
-        </select>
-        <div class="provider-status">
-          @if (provider(); as p) {
-            <span class="key-state" [class.missing]="!providerHasKey()">
-              {{ providerHasKey() ? 'API Key 已就绪' : '生成时需要填写 API Key' }}
-            </span>
-            <span>{{ p.mode === 'proxy' ? '经本站代理发送' : '浏览器直接请求供应商' }}</span>
-          } @else {
-            <span class="key-state missing">请先添加供应商</span>
-          }
-        </div>
-        <button class="text-link provider-manage" (click)="openProviderSettings()">管理供应商与 API Key →</button>
         @if (error() && !panelError()) {
           <p class="inline-alert" role="alert">{{ error() }}</p>
         }
@@ -277,89 +327,95 @@
         </button>
         <div class="under-button">需要联网 · 成功后保存到{{ nativeMode ? '此应用的本机目录' : '当前浏览器' }}</div>
       </section>
-      <section class="result-panel" aria-label="生成结果" aria-live="polite">
-        <div class="result-toolbar">
-          <span>画布预览</span>
-          <span class="saved-badge" [attr.data-state]="resultState()">{{ resultLabel() }}</span>
-        </div>
-        @if (storageMessage()) {
-          <div class="danger-note" role="status">{{ storageMessage() }}</div>
-        }
-        @if (resultUrl(); as url) {
-          <div class="result-art"><img [src]="url" alt="本次生成的图片" /></div>
-          <div class="result-bottom">
-            <div>
-              <strong>你的新作品</strong>
-              <small>{{ resultSize() }} · {{ saved() ? '本机副本可再次下载' : '请及时下载' }}</small>
+      @if (view() === 'studio' || job() || resultUrl() || storageMessage()) {
+        <section class="result-panel" aria-label="生成结果" aria-live="polite">
+          <div class="result-toolbar">
+            <span>画布预览</span>
+            <span class="saved-badge" [attr.data-state]="resultState()">{{ resultLabel() }}</span>
+          </div>
+          @if (storageMessage()) {
+            <div class="danger-note" role="status">{{ storageMessage() }}</div>
+          }
+          @if (resultUrl(); as url) {
+            <div class="result-art"><img [src]="url" alt="本次生成的图片" /></div>
+            <div class="result-bottom">
+              <div>
+                <strong>你的新作品</strong>
+                <small>{{ resultSize() }} · {{ saved() ? '本机副本可再次下载' : '请及时下载' }}</small>
+              </div>
+              <div class="result-actions">
+                @if (!saved()) {
+                  <button class="secondary" [disabled]="localStatus() !== 'ready'" (click)="saveResult()">
+                    重试保存
+                  </button>
+                }
+                <button class="secondary" (click)="openFeedback()">反馈效果</button>
+                <a
+                  class="primary"
+                  [download]="'aiao-' + (job()?.id ?? 'image') + '.' + imageExtension(resultMimeType()!)"
+                  [href]="url"
+                  (click)="
+                    downloadImage(
+                      $event,
+                      url,
+                      'aiao-' + (job()?.id ?? 'image') + '.' + imageExtension(resultMimeType()!)
+                    )
+                  "
+                >
+                  ↓ 下载图片
+                </a>
+              </div>
             </div>
-            <div class="result-actions">
-              @if (!saved()) {
-                <button class="secondary" [disabled]="localStatus() !== 'ready'" (click)="saveResult()">
-                  重试保存
-                </button>
+          } @else if (working()) {
+            <div class="state-content">
+              <div class="spinner" aria-hidden="true"></div>
+              <h2 class="state-title">让灵感慢慢显影</h2>
+              <p class="state-copy">
+                正在生成图片，请保留当前页面。
+                <br />
+                刷新会中断本页读取，不会自动重复生成。
+              </p>
+              <div class="progress-track" aria-hidden="true"><span></span></div>
+              @if (sending()) {
+                <p class="elapsed" aria-live="off">已等待 {{ elapsedLabel() }} · 最长等待 3 分钟</p>
               }
-              <button class="secondary" (click)="openFeedback()">反馈效果</button>
-              <a
-                class="primary"
-                [download]="'aiao-' + (job()?.id ?? 'image') + '.' + imageExtension(resultMimeType()!)"
-                [href]="url"
-                (click)="
-                  downloadImage($event, url, 'aiao-' + (job()?.id ?? 'image') + '.' + imageExtension(resultMimeType()!))
-                "
-              >
-                ↓ 下载图片
-              </a>
+              <small class="state-copy">实际等待时间取决于生成服务</small>
             </div>
-          </div>
-        } @else if (working()) {
-          <div class="state-content">
-            <div class="spinner" aria-hidden="true"></div>
-            <h2 class="state-title">让灵感慢慢显影</h2>
-            <p class="state-copy">
-              正在生成图片，请保留当前页面。
-              <br />
-              刷新会中断本页读取，不会自动重复生成。
-            </p>
-            <div class="progress-track" aria-hidden="true"><span></span></div>
-            @if (sending()) {
-              <p class="elapsed" aria-live="off">已等待 {{ elapsedLabel() }} · 最长等待 3 分钟</p>
-            }
-            <small class="state-copy">实际等待时间取决于生成服务</small>
-          </div>
-        } @else if (uncertain()) {
-          <div class="state-content">
-            <div class="failure-icon" aria-hidden="true">…</div>
-            <h2 class="state-title">请核对供应商记录</h2>
-            @if (error()) {
-              <p class="state-error">{{ error() }}</p>
-            }
-            <p class="state-copy">请求可能已被接收。请到供应商后台核对用量与结果；这里不会自动重发或切换代理。</p>
-            <button class="secondary" [disabled]="sending()" (click)="acknowledgeUnknown()">
-              已核对，解除本机锁定
-            </button>
-          </div>
-        } @else if (job()?.status === 'failed') {
-          <div class="state-content">
-            <div class="failure-icon" aria-hidden="true">!</div>
-            <h2 class="state-title">这次图片没有生成成功</h2>
-            @if (error()) {
-              <p class="state-error">{{ error() }}</p>
-            }
-            <p class="state-copy">你的提示词还在，可以修改后再次生成。</p>
-          </div>
-        } @else {
-          <div class="empty-state">
-            <div class="empty-icon" aria-hidden="true">✧</div>
-            <h2>下一张好图片，从这里开始</h2>
-            <p>
-              写下你想看到的画面，
-              <br />
-              也可以先从灵感库选一个模板。
-            </p>
-            <button class="secondary" (click)="navigate('discover')">去找一点灵感 →</button>
-          </div>
-        }
-      </section>
+          } @else if (uncertain()) {
+            <div class="state-content">
+              <div class="failure-icon" aria-hidden="true">…</div>
+              <h2 class="state-title">请核对供应商记录</h2>
+              @if (error()) {
+                <p class="state-error">{{ error() }}</p>
+              }
+              <p class="state-copy">请求可能已被接收。请到供应商后台核对用量与结果；这里不会自动重发或切换代理。</p>
+              <button class="secondary" [disabled]="sending()" (click)="acknowledgeUnknown()">
+                已核对，解除本机锁定
+              </button>
+            </div>
+          } @else if (job()?.status === 'failed') {
+            <div class="state-content">
+              <div class="failure-icon" aria-hidden="true">!</div>
+              <h2 class="state-title">这次图片没有生成成功</h2>
+              @if (error()) {
+                <p class="state-error">{{ error() }}</p>
+              }
+              <p class="state-copy">你的提示词还在，可以修改后再次生成。</p>
+            </div>
+          } @else {
+            <div class="empty-state">
+              <div class="empty-icon" aria-hidden="true">✧</div>
+              <h2>下一张好图片，从这里开始</h2>
+              <p>
+                写下你想看到的画面，
+                <br />
+                也可以先从灵感库选一个模板。
+              </p>
+              <button class="secondary" (click)="navigate('discover')">去找一点灵感 →</button>
+            </div>
+          }
+        </section>
+      }
     </div>
     @defer (when authConfigured()) {
       @if (targetKind() === 'platform') {
@@ -382,6 +438,80 @@
       <span>图片保存在{{ nativeMode ? '此应用的本机目录' : '当前浏览器' }}，请及时下载重要作品。</span>
       <button class="text-link" (click)="navigate('library')">查看我的图片 →</button>
     </div>
+  }
+  @if (view() === 'discover') {
+    <section class="inspiration-section" aria-labelledby="inspiration-title">
+      <div class="inspiration-heading">
+        <div>
+          <span class="eyebrow">EXPLORE & CREATE</span>
+          <h2 id="inspiration-title">为好想法，找一点灵感</h2>
+        </div>
+        <span>挑选喜欢的风格，改写成你的故事。</span>
+      </div>
+      <div class="gallery-tools">
+        <div class="categories" aria-label="灵感分类" role="group">
+          @for (c of categories; track c) {
+            <button [attr.aria-pressed]="category() === c" [class.active]="category() === c" (click)="category.set(c)">
+              {{ c }}
+            </button>
+          }
+        </div>
+        <label class="search">
+          <svg class="icon" aria-hidden="true" viewBox="0 0 20 20">
+            <circle cx="9" cy="9" r="5.5" />
+            <path d="m13.2 13.2 3.3 3.3" />
+          </svg>
+          <input
+            [ngModel]="search()"
+            (ngModelChange)="search.set($event)"
+            aria-label="搜索灵感"
+            placeholder="搜索风格、场景、关键词"
+            type="search"
+          />
+        </label>
+      </div>
+      <div class="gallery-label">
+        <strong>为你的下一次创作，找一点灵感</strong>
+        <span>{{ filtered().length }} 个灵感模板 · 参考示例</span>
+      </div>
+      <div class="cards">
+        @for (t of filtered(); track t.id) {
+          <article class="card">
+            <button class="card-link" [attr.aria-label]="'查看' + t.title" (click)="openTemplate(t, $event)">
+              <div class="card-photo">
+                @if (failedTemplateImages().has(t.id)) {
+                  <div class="empty-state">
+                    <p>示例图暂时无法加载，可继续查看提示词</p>
+                  </div>
+                } @else {
+                  <img
+                    class="card-image"
+                    [alt]="t.alt"
+                    [src]="t.image"
+                    (error)="templateImageFailed(t.id)"
+                    loading="lazy"
+                  />
+                }
+                <span class="tag">{{ t.purpose }}</span>
+              </div>
+              <div class="card-caption">
+                <div class="card-title">
+                  {{ t.title }}
+                  <span aria-hidden="true">→</span>
+                </div>
+                <p>{{ t.style }}</p>
+              </div>
+            </button>
+          </article>
+        } @empty {
+          <div class="no-results">
+            <p>没有找到相关灵感，试试其他关键词。</p>
+            <button class="secondary sm" (click)="resetGallery()">查看全部灵感</button>
+          </div>
+        }
+      </div>
+      <p class="source-note">图片为社区参考示例或原创构图示意，均非本产品生成结果。作者与来源见详情。</p>
+    </section>
   }
   @if (view() === 'library') {
     <section class="page-heading">
