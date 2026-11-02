@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import {
+  Blocks,
   Cloud,
   Code,
   Database,
@@ -93,6 +94,12 @@ const menus: MenuItem[] = [
     title: 'Entities',
     path: '/entities',
     icon: ListTodo
+  },
+  {
+    type: 'link',
+    title: 'Headless',
+    path: '/headless',
+    icon: Blocks
   },
   {
     type: 'link',
