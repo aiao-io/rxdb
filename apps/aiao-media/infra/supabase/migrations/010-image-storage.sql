@@ -63,27 +63,10 @@ DROP TRIGGER IF EXISTS media_file_contract ON public.media_file_records;
 CREATE TRIGGER media_file_contract BEFORE INSERT OR UPDATE ON public.media_file_records
   FOR EACH ROW EXECUTE FUNCTION media_private.validate_file_record();
 
--- The local stack runs the Supabase Postgres image without the separate Storage API.
--- Keep the Storage catalog present so the same policies and bucket contract apply in
--- local CI as they do in a hosted Supabase project.
-CREATE SCHEMA IF NOT EXISTS storage;
-CREATE TABLE IF NOT EXISTS storage.buckets (
-  id text PRIMARY KEY,
-  name text NOT NULL UNIQUE,
-  public boolean NOT NULL DEFAULT false,
-  file_size_limit bigint,
-  allowed_mime_types text[]
-);
-CREATE TABLE IF NOT EXISTS storage.objects (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  bucket_id text NOT NULL REFERENCES storage.buckets(id) ON DELETE CASCADE,
-  name text NOT NULL,
-  owner uuid,
-  metadata jsonb,
-  UNIQUE (bucket_id, name)
-);
-ALTER TABLE storage.buckets ENABLE ROW LEVEL SECURITY;
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+-- Hosted Supabase projects ship the Storage service with storage.buckets and storage.objects (RLS already
+-- enabled) and do not let project owners create or alter tables in the storage schema. This file only writes
+-- the private bucket row and the policies on storage.objects, which hosted projects allow.
+-- The local Compose stack has no Storage API; 001-local-storage-standin.sql provides the catalog there.
 
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES ('aiao-media-images', 'aiao-media-images', false, 16777216, ARRAY['image/png', 'image/jpeg']::text[])

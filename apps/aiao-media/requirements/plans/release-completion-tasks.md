@@ -52,7 +52,7 @@ NX_NO_CLOUD=true pnpm nx run aiao-media-e2e:provider-acceptance-fixture --skipRe
 以下保留未来启用生产 Supabase 的条件；本轮仅本地，当前未执行这些生产步骤，也不据此要求提供生产项目或管理员凭据。
 
 1. 核验已有 Cloudflare 账户、`aiao-media` Worker、`aiao.io` active zone、正式域名现存记录与选定的独立 Supabase 项目。保留当前 Worker version/deployment、静态摘要、Auth 配置与数据库备份，不覆盖未知 CNAME。
-2. 使用 `aiao-media:production-bundle` 生成的 10 源 SQL 包，仅对经核验的独立空产品项目审查初始化事务。包内保留每个源文件 SHA-256，排除 `001-local-account-checks.sql`；首个事务 guard 会拒绝 public 非扩展关系、既有 `media_`/`rxdb_` 对象和相关函数。本地 `supabase-migrate` 不能换 URL 后用于生产。
+2. 使用 `aiao-media:production-bundle` 生成的 13 源 SQL 包，仅对经核验的独立空产品项目审查初始化事务。包内保留每个源文件 SHA-256，排除 `001-local-account-checks.sql` 与 `001-local-storage-standin.sql`；首个事务 guard 会拒绝 public 非扩展关系、既有 `media_`/`rxdb_` 对象和相关函数。本地 `supabase-migrate` 不能换 URL 后用于生产。
 3. core `01-rxdb-system-tables.sql` 含全 public 授权、关闭 RLS、历史日志改写/去重；应用 003 改变全局 RxDB 分支函数与权限。这些操作不能直接投向已有数据或共享项目；必须先提取按对象收口的 SQL 并评审。不同文件自带事务边界，不能不经整理直接拼接成所谓单事务。
 4. 复验所有产品表 RLS、匿名/A/B 的私有数据隔离、变更日志隔离、普通用户管理 RPC 拒绝，以及 `rxdb_change` 的 Realtime publication。SQL 执行成功不代表权限矩阵通过。
 5. Auth Site URL 设为 `https://media.aiao.io`，仅允许精确正式返回地址。当前是邮箱密码流程，邮箱确认后回站点再登录；没有 `/auth/callback`，不声明 OAuth/PKCE 已实现。真实邮件投递必须验收。

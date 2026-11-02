@@ -4,7 +4,7 @@
 
 ## 必需配置
 
-1. 独立 Supabase 产品项目：由所有者审阅 `pnpm nx run aiao-media:production-bundle` 的 SQL，再在空项目初始化。已有产品项目逐个审阅前向迁移，禁止重复运行空库初始化包。
+1. 独立 Supabase 产品项目：由所有者审阅 `pnpm nx run aiao-media:production-bundle` 的 SQL，再在空项目初始化。已有产品项目逐个审阅前向迁移，禁止重复运行空库初始化包。初始化包只写私有 bucket 行和 `storage.objects` 策略，不在 `storage` schema 建表或改表（托管项目自带 Storage 表，自 2025-04-21 起不允许用户建表）；本地 Compose 没有 Storage 服务，其替身只在 `001-local-storage-standin.sql`，不进初始化包。
 2. Worker secrets：`MEDIA_SUPABASE_URL`、`MEDIA_SUPABASE_ANON_KEY`、`MEDIA_SUPABASE_SERVICE_ROLE_KEY`。公开配置只包含 URL 和 publishable/anon Key；生产启用必须显式构建和审查。
 3. Wrangler 的 `MEDIA_PLATFORM` Durable Object 绑定与 `media-platform-v1` SQLite migration 已配置。平台原图需要额外配置私有 R2 bucket 的 `MEDIA_RESULTS` 绑定，禁止公开 bucket 读权限。
 4. `MEDIA_PLATFORM_MODELS` 为 JSON 数组，每项含 `id`、`name`、HTTPS `baseUrl`、上游 `model`、凭据环境变量名 `secret`、单张 `credits` 和单张预算 `costMicros`。上游路径固定，拒绝 IP、非 HTTPS、端口、凭据和重定向。模型原图使用 base64，不能以临时 URL 作为持久结果。

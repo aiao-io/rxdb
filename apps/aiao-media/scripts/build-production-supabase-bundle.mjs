@@ -8,7 +8,7 @@ const outputDefault = resolve(applicationRoot, 'tmp/production-supabase-bundle.s
 
 /**
  * 生产包只消费已经评审过的 RxDB core 和产品迁移。
- * 001-local-account-checks.sql 是本地开发探针，故意不在清单中。
+ * 001-local-account-checks.sql 是本地开发探针，001-local-storage-standin.sql 是本地 Storage 替身，故意不在清单中。
  */
 export const productionSources = [
   'docker/sql/01-rxdb-system-tables.sql',
@@ -123,7 +123,7 @@ export async function buildProductionBundle(output = outputDefault) {
   const header = [
     '-- Aiao Media production Supabase bootstrap bundle.',
     '-- Generated locally; review the source digests and target project guard before execution.',
-    '-- This file intentionally excludes apps/aiao-media/infra/supabase/migrations/001-local-account-checks.sql.',
+    '-- This file intentionally excludes the local-only migrations 001-local-account-checks.sql and 001-local-storage-standin.sql.',
     ...sources.map(source => `-- SOURCE ${source.relativePath} sha256=${source.digest}`),
     ''
   ].join('\n');
