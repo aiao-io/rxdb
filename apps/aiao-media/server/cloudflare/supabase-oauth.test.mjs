@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   accessTokenEmail,
+  handleSupabaseOAuth,
   initializeSupabaseProject,
   management,
   managementForConnection,
@@ -150,7 +151,7 @@ test('OAuth initialization continues when profile is unauthorized but the valida
     if (value === 'https://api.supabase.com/v1/profile') return new Response(null, { status: 401 });
     if (value.includes('/database/query')) return new Response(null, { status: 201 });
     if (value.endsWith('/auth/v1/admin/generate_link'))
-      return new Response(JSON.stringify({ properties: { hashed_token: 'hash' } }), {
+      return new Response(JSON.stringify({ hashed_token: 'hash', verification_type: 'magiclink' }), {
         headers: { 'content-type': 'application/json' }
       });
     if (value.endsWith('/auth/v1/verify'))
@@ -205,7 +206,7 @@ test('OAuth initialization accepts an explicitly confirmed Supabase account emai
     if (value === 'https://api.supabase.com/v1/profile') return new Response(null, { status: 401 });
     if (value.includes('/database/query')) return new Response(null, { status: 201 });
     if (value.endsWith('/auth/v1/admin/generate_link'))
-      return new Response(JSON.stringify({ properties: { hashed_token: 'hash' } }), {
+      return new Response(JSON.stringify({ hashed_token: 'hash', verification_type: 'magiclink' }), {
         headers: { 'content-type': 'application/json' }
       });
     if (value.endsWith('/auth/v1/verify'))
@@ -233,3 +234,145 @@ test('OAuth initialization accepts an explicitly confirmed Supabase account emai
     globalThis.fetch = originalFetch;
   }
 });
+
+const oauthEnv = { ...env, MEDIA_SUPABASE_AUTOINIT_SQL: 'select 1' };
+const send = (path, init) =>
+  handleSupabaseOAuth(new Request(`https://media.example.com/api/supabase/oauth${path}`, init), oauthEnv);
+const post = (path, cookie, payload) =>
+  send(path, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', cookie },
+    body: JSON.stringify(payload)
+  });
+const cookieOf = response =>
+  response.headers
+    .getSetCookie()
+    .map(line => line.split(';')[0])
+    .find(pair => pair.startsWith('aiao_supabase_management='));
+
+/** 模拟 Supabase 管理接口：刷新令牌一次性有效且刷新后旧访问令牌作废，/profile 对 OAuth 令牌恒为 401。 */
+function rotatingManagement(databaseStatus = 201, verificationType = 'signup') {
+  const originalFetch = globalThis.fetch;
+  const double = { access: new Set(['access-1']), refresh: new Set(['refresh-1']), generation: 1, refreshGrants: 0 };
+  const json = value => new Response(JSON.stringify(value), { headers: { 'content-type': 'application/json' } });
+  const rotate = () => {
+    double.generation += 1;
+    double.access = new Set([`access-${double.generation}`]);
+    double.refresh.add(`refresh-${double.generation}`);
+    return json({
+      access_token: `access-${double.generation}`,
+      refresh_token: `refresh-${double.generation}`,
+      expires_in: 3600
+    });
+  };
+  globalThis.fetch = async (url, init) => {
+    const value = String(url);
+    const bearer = new Headers(init?.headers).get('authorization')?.replace('Bearer ', '');
+    if (value === 'https://api.supabase.com/v1/oauth/token') {
+      const form = new URLSearchParams(init.body);
+      if (form.get('grant_type') === 'authorization_code')
+        return json({ access_token: 'access-1', refresh_token: 'refresh-1', expires_in: 3600 });
+      double.refreshGrants += 1;
+      return double.refresh.delete(form.get('refresh_token')) ? rotate() : new Response(null, { status: 400 });
+    }
+    if (value === 'https://api.supabase.com/v1/profile') return new Response(null, { status: 401 });
+    if (value.startsWith('https://api.supabase.com/v1/') && !double.access.has(bearer))
+      return new Response(null, { status: 401 });
+    if (value === 'https://api.supabase.com/v1/projects')
+      return json([{ ref: 'abcdefghijklmnopqrst', name: 'Media', organization_id: 'org' }]);
+    if (value.includes('/api-keys?reveal=true'))
+      return json([
+        { type: 'publishable', api_key: 'anon' },
+        { type: 'service_role', api_key: 'service' }
+      ]);
+    if (value.includes('/database/query')) return new Response(null, { status: databaseStatus });
+    if (value.endsWith('/auth/v1/admin/generate_link'))
+      return json({
+        hashed_token: 'hash',
+        verification_type: verificationType,
+        action_link: 'https://project.example/verify'
+      });
+    if (value.endsWith('/auth/v1/verify')) {
+      const { token_hash: hash, type } = JSON.parse(init.body);
+      return hash === 'hash' && type === verificationType ?
+          json({ access_token: 'project-access', refresh_token: 'project-refresh' })
+        : new Response(JSON.stringify({ error_code: 'otp_expired' }), { status: 403 });
+    }
+    throw new Error(`unexpected fetch: ${value}`);
+  };
+  return Object.assign(double, {
+    restore: () => {
+      globalThis.fetch = originalFetch;
+    }
+  });
+}
+
+async function authorize() {
+  const started = await send('/start');
+  const state = new URL((await started.json()).url).searchParams.get('state');
+  const stateCookie = started.headers.getSetCookie()[0].split(';')[0];
+  const cookie = cookieOf(await send(`/callback?code=code&state=${state}`, { headers: { cookie: stateCookie } }));
+  assert.ok(cookie, 'the callback stores the management connection');
+  return cookie;
+}
+
+test('OAuth initialization keeps rotated management tokens when it must ask for the account email', async () => {
+  const double = rotatingManagement();
+  try {
+    let cookie = await authorize();
+    const first = await post('/initialize', cookie, { projectRef: 'abcdefghijklmnopqrst' });
+    assert.equal(first.status, 409);
+    cookie = cookieOf(first) ?? cookie;
+    const second = await post('/initialize', cookie, {
+      projectRef: 'abcdefghijklmnopqrst',
+      email: 'owner@example.com'
+    });
+    assert.equal(second.status, 200);
+    assert.equal((await second.json()).initialized, true);
+    assert.equal(
+      double.refreshGrants,
+      0,
+      'a profile 401 is not an expired token and must not rotate the refresh token'
+    );
+  } finally {
+    double.restore();
+  }
+});
+test('OAuth failures after a token refresh still return the rotated management cookie', async () => {
+  const double = rotatingManagement(403);
+  try {
+    let cookie = await authorize();
+    double.access.clear();
+    const failed = await post('/initialize', cookie, {
+      projectRef: 'abcdefghijklmnopqrst',
+      email: 'owner@example.com'
+    });
+    assert.equal(failed.status, 403);
+    assert.equal(double.refreshGrants, 1);
+    cookie = cookieOf(failed) ?? cookie;
+    assert.equal((await send('/projects', { headers: { cookie } })).status, 200);
+    assert.equal(
+      double.refreshGrants,
+      1,
+      'the retry must reuse the rotated tokens instead of refreshing a consumed one'
+    );
+  } finally {
+    double.restore();
+  }
+});
+for (const verificationType of ['signup', 'magiclink']) {
+  test(`OAuth initialization reads the one-time link and verifies it with the returned ${verificationType} type`, async () => {
+    const double = rotatingManagement(201, verificationType);
+    try {
+      const cookie = await authorize();
+      const response = await post('/initialize', cookie, {
+        projectRef: 'abcdefghijklmnopqrst',
+        email: 'owner@example.com'
+      });
+      assert.equal(response.status, 200);
+      assert.deepEqual(Object.keys((await response.json()).session).sort(), ['access_token', 'refresh_token']);
+    } finally {
+      double.restore();
+    }
+  });
+}

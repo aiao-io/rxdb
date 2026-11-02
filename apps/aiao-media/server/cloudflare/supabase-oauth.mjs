@@ -321,7 +321,8 @@ export async function initializeSupabaseProject(request, env, suppliedConnection
     reject(502, '项目初始化完成，但未能读取公开项目 Key；没有返回管理密钥。');
   let profile;
   try {
-    profile = await managementForConnection(request, env, connection, '/profile');
+    // /profile 对 OAuth 令牌恒为 401，并不表示令牌过期；走刷新只会让一次性的刷新令牌作废。
+    profile = await management(request, connection.accessToken, '/profile');
   } catch (error) {
     if (error?.status !== 401) throw error;
     profile = { primary_email: connection.email ?? accessTokenEmail(connection.accessToken) };
@@ -341,11 +342,14 @@ export async function initializeSupabaseProject(request, env, suppliedConnection
       options: { redirectTo: new URL(request.url).origin }
     })
   });
-  const tokenHash = link?.properties?.hashed_token;
-  if (typeof tokenHash !== 'string') reject(502, '项目身份引导未返回一次性链接。');
+  // GoTrue 的响应是平铺字段；项目里还没有该账号时 magiclink 按注册处理，验证类型必须取响应里的 verification_type。
+  const tokenHash = link?.hashed_token;
+  const verificationType = link?.verification_type;
+  if (typeof tokenHash !== 'string' || typeof verificationType !== 'string')
+    reject(502, '项目身份引导未返回一次性链接。');
   const session = await projectRequest(config, '/auth/v1/verify', publicKey, {
     method: 'POST',
-    body: JSON.stringify({ token_hash: tokenHash, type: 'magiclink' })
+    body: JSON.stringify({ token_hash: tokenHash, type: verificationType })
   });
   if (typeof session?.access_token !== 'string' || typeof session?.refresh_token !== 'string')
     reject(502, '项目身份引导未返回会话。');
@@ -370,6 +374,13 @@ export async function revokeSupabaseOAuth(request, env) {
     headers: { 'set-cookie': clearCookie(connectionCookie), 'cache-control': 'no-store' }
   });
 }
+/** 刷新令牌一次性有效：本次请求刷新过，无论成功还是失败都要写回 cookie，否则重试会拿着已作废的旧令牌。 */
+async function withConnection(env, connection, operation) {
+  const result = await endpoint(operation);
+  if (connection.refreshed)
+    result.headers.set('set-cookie', cookie(connectionCookie, await sealedConnection(env, connection), 3600));
+  return result;
+}
 export function handleSupabaseOAuth(request, env) {
   return (async () => {
     try {
@@ -378,19 +389,11 @@ export function handleSupabaseOAuth(request, env) {
       if (path === '/callback' && request.method === 'GET') return await finishSupabaseOAuth(request, env);
       if (path === '/projects' && request.method === 'GET') {
         const connection = await managementConnection(request, env);
-        const result = await listSupabaseProjects(request, env, connection);
-        const headers = new Headers({ 'cache-control': 'no-store' });
-        if (connection.refreshed)
-          headers.set('set-cookie', cookie(connectionCookie, await sealedConnection(env, connection), 3600));
-        return Response.json(result, { headers });
+        return await withConnection(env, connection, () => listSupabaseProjects(request, env, connection));
       }
       if (path === '/initialize' && request.method === 'POST') {
         const connection = await managementConnection(request, env);
-        const result = await initializeSupabaseProject(request, env, connection);
-        const headers = new Headers({ 'cache-control': 'no-store' });
-        if (connection.refreshed)
-          headers.set('set-cookie', cookie(connectionCookie, await sealedConnection(env, connection), 3600));
-        return Response.json(result, { headers });
+        return await withConnection(env, connection, () => initializeSupabaseProject(request, env, connection));
       }
       if (path === '/revoke' && request.method === 'POST') return await revokeSupabaseOAuth(request, env);
       reject(404, 'Supabase 授权接口不存在。');
