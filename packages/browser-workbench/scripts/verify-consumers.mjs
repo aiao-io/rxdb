@@ -250,6 +250,8 @@ async function serve(directory) {
     '.html': 'text/html',
     '.js': 'text/javascript',
     '.css': 'text/css',
+    '.ttf': 'font/ttf',
+    '.woff2': 'font/woff2',
     '.svg': 'image/svg+xml',
     '.json': 'application/json',
     '.wasm': 'application/wasm'
@@ -320,9 +322,9 @@ async function browserWorkflow(browser, directory, name) {
     await page.waitForFunction(() =>
       document.querySelector('[data-slot="save-status"]')?.textContent?.includes('已保存')
     );
-    if (name === 'core') await page.locator('.wb-editor-area textarea').waitFor();
+    if (name === 'core') await page.locator('[data-editor-path] textarea').first().waitFor();
     else await page.locator('.cm-editor').first().waitFor();
-    await page.getByRole('button', { name: '运行', exact: false }).click();
+    await page.getByRole('button', { name: '运行', exact: true }).click();
     const preview = page.frameLocator('iframe[title="项目隔离预览"]');
     await preview.getByRole('heading', { name: '本地 TypeScript 模板' }).waitFor();
     await preview.getByRole('button', { name: '次数 0' }).click();
@@ -331,7 +333,7 @@ async function browserWorkflow(browser, directory, name) {
     await page.waitForFunction(() =>
       document.querySelector('[data-slot="save-status"]')?.textContent?.includes('已保存')
     );
-    await page.getByRole('button', { name: '运行', exact: false }).click();
+    await page.getByRole('button', { name: '运行', exact: true }).click();
     await page.frameLocator('iframe[title="项目隔离预览"]').getByRole('button', { name: '次数 0' }).waitFor();
     const wasmRequests = requests.filter(item => item.url.endsWith('.wasm') && item.status === 200);
     if (

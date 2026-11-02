@@ -9,6 +9,10 @@ export interface WorkbenchEditorOptions {
 /** 三端编辑器的共享命令式桥。 */
 export interface WorkbenchEditorHandle {
   update(value: string, language: string): void;
+  /** 面板尺寸或可见性改变后重新测量编辑器。 */
+  layout?(): void;
+  /** 聚焦编辑器并保留光标与选区。 */
+  focus?(): void;
   dispose(): void;
 }
 

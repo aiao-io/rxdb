@@ -1,3 +1,7 @@
 !browser-workbench-angular-e2e.log
 !browser-workbench-react-e2e.log
 !browser-workbench-vue-e2e.log
+
+# 浏览器停靠验证的本地截图
+browser-workbench-docking-*.png
+browser-workbench-ui.png

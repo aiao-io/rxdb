@@ -1,6 +1,6 @@
 import type { GitSnapshot } from './git/git-protocol.js';
 import { GitWorkbenchError } from './git/git-protocol.js';
-import type { WorkspaceBackend, WorkspaceFiles, WorkspaceSnapshot } from './session.js';
+import type { WorkbenchBackend, WorkbenchFiles, WorkbenchSnapshot } from './session.js';
 
 interface WorkerResponse {
   readonly id: number;
@@ -32,7 +32,7 @@ function decodeFile(path: string, bytes: readonly number[]): string | Uint8Array
   }
 }
 
-function snapshot(value: SerializedSnapshot): WorkspaceSnapshot {
+function snapshot(value: SerializedSnapshot): WorkbenchSnapshot {
   return {
     projectId: value.projectId,
     revision: String(value.revision),
@@ -40,7 +40,7 @@ function snapshot(value: SerializedSnapshot): WorkspaceSnapshot {
   };
 }
 
-function serializeFiles(files: WorkspaceFiles): { path: string; content?: string; bytes?: number[] }[] {
+function serializeFiles(files: WorkbenchFiles): { path: string; content?: string; bytes?: number[] }[] {
   return Object.entries(files).map(([path, value]) =>
     typeof value === 'string' ? { path, content: value } : { path, bytes: [...value] }
   );
@@ -53,7 +53,7 @@ function revisionNumber(revision: string): number {
 }
 
 /** 创建独占 Git Worker 的工作区后端；资源 URL 指向已发布的 assets 目录。 */
-export function createGitBackend(assetBaseURL: string): WorkspaceBackend {
+export function createGitBackend(assetBaseURL: string): WorkbenchBackend {
   const base = new URL(assetBaseURL.endsWith('/') ? assetBaseURL : `${assetBaseURL}/`, location.href).href;
   const vendorBaseUrl = new URL('git/', base).href;
   const worker = new Worker(new URL('git-worker.js', base), { type: 'module' });

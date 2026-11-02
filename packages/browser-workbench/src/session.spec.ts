@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { WorkbenchSession, type WorkspaceBackend, type WorkspaceFiles } from './session.js';
+import { WorkbenchSession, type WorkbenchBackend, type WorkbenchFiles } from './session.js';
 
 function fixture() {
   let revision = '1';
-  let files: WorkspaceFiles = { 'main.ts': 'console.log(1)' };
-  const backend: WorkspaceBackend = {
+  let files: WorkbenchFiles = { 'main.ts': 'console.log(1)' };
+  const backend: WorkbenchBackend = {
     open: vi.fn(async projectId => ({ projectId, revision, files: { ...files } })),
     save: vi.fn(async (projectId, changes, expected) => {
       if (expected !== revision) throw new Error('文件已被其他标签修改');
@@ -45,7 +45,7 @@ describe('WorkbenchSession', () => {
     const session = new WorkbenchSession(backend);
     await session.open('first');
     session.edit('main.ts', 'second');
-    let finish!: (value: Awaited<ReturnType<WorkspaceBackend['save']>>) => void;
+    let finish!: (value: Awaited<ReturnType<WorkbenchBackend['save']>>) => void;
     vi.mocked(backend.save).mockImplementationOnce(
       () =>
         new Promise(resolve => {
@@ -64,7 +64,7 @@ describe('WorkbenchSession', () => {
   it('项目切换丢弃迟到的读取结果', async () => {
     const { backend } = fixture();
     const session = new WorkbenchSession(backend);
-    let finish!: (value: Awaited<ReturnType<WorkspaceBackend['open']>>) => void;
+    let finish!: (value: Awaited<ReturnType<WorkbenchBackend['open']>>) => void;
     vi.mocked(backend.open).mockImplementationOnce(
       () =>
         new Promise(resolve => {
@@ -185,7 +185,7 @@ describe('WorkbenchSession', () => {
     const session = new WorkbenchSession(backend);
     await session.open('first');
     session.edit('main.ts', 'second');
-    let finish!: (value: Awaited<ReturnType<WorkspaceBackend['save']>>) => void;
+    let finish!: (value: Awaited<ReturnType<WorkbenchBackend['save']>>) => void;
     vi.mocked(backend.save).mockImplementationOnce(
       () =>
         new Promise(resolve => {
@@ -236,7 +236,7 @@ describe('WorkbenchSession', () => {
     const session = new WorkbenchSession(backend);
     await session.open('first');
     session.edit('main.ts', 'pending');
-    let finish!: (value: Awaited<ReturnType<WorkspaceBackend['save']>>) => void;
+    let finish!: (value: Awaited<ReturnType<WorkbenchBackend['save']>>) => void;
     vi.mocked(backend.save).mockImplementationOnce(
       () =>
         new Promise(resolve => {
@@ -339,7 +339,7 @@ describe('WorkbenchSession', () => {
     const { backend } = fixture();
     const session = new WorkbenchSession(backend);
     await session.open('first');
-    let finish!: (snapshot: Awaited<ReturnType<WorkspaceBackend['create']>>) => void;
+    let finish!: (snapshot: Awaited<ReturnType<WorkbenchBackend['create']>>) => void;
     vi.mocked(backend.create).mockImplementationOnce(
       () =>
         new Promise(resolve => {
@@ -379,7 +379,7 @@ describe('WorkbenchSession', () => {
     const session = new WorkbenchSession(backend);
     await session.open('first');
     session.edit('main.ts', 'old pending');
-    let finish!: (snapshot: Awaited<ReturnType<WorkspaceBackend['save']>>) => void;
+    let finish!: (snapshot: Awaited<ReturnType<WorkbenchBackend['save']>>) => void;
     vi.mocked(backend.save).mockImplementationOnce(
       () =>
         new Promise(resolve => {

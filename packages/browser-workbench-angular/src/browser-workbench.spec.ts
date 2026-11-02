@@ -5,7 +5,7 @@ import { BrowserWorkbench } from './browser-workbench';
 
 const mocks = vi.hoisted(() => ({ mount: vi.fn(), dispose: vi.fn(), change: vi.fn(), cursor: vi.fn() }));
 vi.mock('@aiao/browser-workbench', () => ({ mountWorkbench: mocks.mount }));
-let editor: { update(value: string, language: string): void; dispose(): void };
+let editor: { update(value: string, language: string): void; layout(): void; focus(): void; dispose(): void };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -37,14 +37,21 @@ describe('BrowserWorkbench Angular binding', () => {
     expect(host.querySelector('.cm-content')?.textContent).toBe('initial');
     editor.update('changed', 'plaintext');
     expect(host.querySelector('.cm-content')?.textContent).toBe('changed');
+    editor.layout();
     host.querySelector('.cm-content')?.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
     expect(mocks.cursor).toHaveBeenCalledWith(1, 1);
     const paste = new Event('paste', { bubbles: true, cancelable: true });
     Object.defineProperty(paste, 'clipboardData', { value: { getData: () => 'pasted', files: [] } });
     host.querySelector('.cm-content')?.dispatchEvent(paste);
     expect(mocks.change).toHaveBeenCalledWith(expect.stringContaining('pasted'));
+    editor.focus();
+    expect(document.activeElement).toBe(host.querySelector('.cm-content'));
     expect(mocks.mount.mock.calls[0][1]).toEqual({ initialProjectId: 'fixture' });
     fixture.destroy();
+    expect(() => {
+      editor.layout();
+      editor.focus();
+    }).not.toThrow();
     expect(mocks.dispose).toHaveBeenCalledOnce();
   });
 

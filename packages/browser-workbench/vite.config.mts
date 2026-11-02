@@ -20,6 +20,15 @@ export default defineConfig({
     watch: false,
     globals: true,
     environment: 'node',
+    environmentOptions: {
+      happyDOM: {
+        settings: {
+          disableCSSFileLoading: true,
+          disableJavaScriptFileLoading: true,
+          handleDisabledFileLoadingAsSuccess: true
+        }
+      }
+    },
     include: ['src/**/*.spec.ts'],
     coverage: {
       reportsDirectory: '../../coverage/packages/browser-workbench',

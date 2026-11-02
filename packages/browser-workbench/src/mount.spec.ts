@@ -1,15 +1,21 @@
 // @vitest-environment happy-dom
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WorkbenchCompiler } from './compiler-client.js';
 import type { WorkbenchEditorMount } from './editor.js';
-import { mountWorkbench } from './mount.js';
-import type { WorkspaceBackend, WorkspaceFiles } from './session.js';
+import { mountWorkbench, type WorkbenchHandle } from './mount.js';
+import type { WorkbenchBackend, WorkbenchFiles } from './session.js';
+
+const instances: WorkbenchHandle[] = [];
+afterEach(() => {
+  instances.splice(0).forEach(handle => handle.dispose());
+  document.body.replaceChildren();
+});
 
 const files = { 'src/main.ts': 'console.log(1)', 'src/label.ts': 'export const label = 1;' };
-function fixture(withProject = true) {
-  let currentFiles: WorkspaceFiles = { ...files };
+function fixture(withProject = true, assetBaseURL = '/browser-workbench-assets/', bootstrapGate?: Promise<void>) {
+  let currentFiles: WorkbenchFiles = { ...files };
   let revision = 1;
-  const backend: WorkspaceBackend = {
+  const backend: WorkbenchBackend = {
     open: vi.fn(async projectId => ({ projectId, revision: String(revision), files: { ...currentFiles } })),
     create: vi.fn(async (projectId, value) => {
       currentFiles = value;
@@ -21,13 +27,13 @@ function fixture(withProject = true) {
       revision++;
       return { projectId, revision: String(revision), files: value };
     }),
-    remove: vi.fn<WorkspaceBackend['remove']>(async (_id, path) => {
+    remove: vi.fn<WorkbenchBackend['remove']>(async (_id, path) => {
       const next = { ...currentFiles };
       delete next[path];
       currentFiles = next;
       revision++;
     }),
-    rename: vi.fn<WorkspaceBackend['rename']>(async (_id, from, to) => {
+    rename: vi.fn<WorkbenchBackend['rename']>(async (_id, from, to) => {
       const next: Record<string, string | Uint8Array> = { ...currentFiles, [to]: currentFiles[from] };
       delete next[from];
       currentFiles = next;
@@ -49,21 +55,25 @@ function fixture(withProject = true) {
     dispose: vi.fn()
   };
   const catalog = {
-    list: vi.fn(async () =>
-      withProject ? [{ id: 'one', name: '本地项目', template: 'vanilla' as const, entry: 'src/main.ts', updatedAt: 1 }] : []
-    ),
+    list: vi.fn(async () => {
+      if (bootstrapGate) await bootstrapGate;
+      return withProject ?
+          [{ id: 'one', name: '本地项目', template: 'vanilla' as const, entry: 'src/main.ts', updatedAt: 1 }]
+        : [];
+    }),
     put: vi.fn(async () => undefined)
   };
   const host = document.createElement('div');
   document.body.append(host);
-  const handle = mountWorkbench(host, { backend, compiler, catalog }, mountEditor);
+  const handle = mountWorkbench(host, { backend, compiler, catalog, assetBaseURL }, mountEditor);
+  instances.push(handle);
   return { host, handle, backend, compiler, catalog, mountEditor, disposeEditor };
 }
 
 const click = async (host: HTMLElement, selector: string): Promise<void> => {
   const element = host.querySelector<HTMLButtonElement>(selector);
   if (!element) throw new Error(`Missing test control: ${selector}`);
-  await vi.waitFor(() => expect(element.disabled).toBe(false));
+  await vi.waitFor(() => expect(element instanceof HTMLButtonElement ? element.disabled : false).toBe(false));
   element.click();
 };
 
@@ -90,27 +100,69 @@ describe('VS Code 风格工作台', () => {
     });
   });
 
+  it('初始化项目目录完成前禁用新建、导入和项目切换，避免迟到默认项目覆盖用户选择', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const { host, handle } = fixture(true, '/browser-workbench-assets/', gate);
+    const create = host.querySelector<HTMLButtonElement>('[data-action="new-project"]');
+    const upload = host.querySelector<HTMLButtonElement>('[data-action="import"]');
+    const project = host.querySelector<HTMLSelectElement>('.wb-projects');
+    expect(create?.disabled).toBe(true);
+    expect(upload?.disabled).toBe(true);
+    expect(project?.disabled).toBe(true);
+    release();
+    await handle.ready;
+    expect(create?.disabled).toBe(false);
+    expect(upload?.disabled).toBe(false);
+    expect(project?.disabled).toBe(false);
+    expect(handle.session.state.projectId).toBe('one');
+  });
+
   it('首次打开空目录自动创建最小 React、Vue、Angular Demo', async () => {
     const { handle, backend, catalog } = fixture(false);
     await handle.ready;
     expect(backend.create).toHaveBeenCalledTimes(3);
-    expect(backend.create).toHaveBeenCalledWith('default-react', expect.objectContaining({
-      'src/main.tsx': expect.stringContaining('Hello React')
-    }));
-    expect(backend.create).toHaveBeenCalledWith('default-vue', expect.objectContaining({
-      'src/App.vue': expect.stringContaining('Hello Vue')
-    }));
-    expect(backend.create).toHaveBeenCalledWith('default-angular', expect.objectContaining({
-      'src/app.ts': expect.stringContaining('Hello Angular')
-    }));
+    expect(backend.create).toHaveBeenCalledWith(
+      'default-react',
+      expect.objectContaining({
+        'src/main.tsx': expect.stringContaining('Hello React')
+      })
+    );
+    expect(backend.create).toHaveBeenCalledWith(
+      'default-vue',
+      expect.objectContaining({
+        'src/App.vue': expect.stringContaining('Hello Vue')
+      })
+    );
+    expect(backend.create).toHaveBeenCalledWith(
+      'default-angular',
+      expect.objectContaining({
+        'src/app.ts': expect.stringContaining('Hello Angular')
+      })
+    );
     expect(catalog.put).toHaveBeenCalledTimes(4);
     expect(handle.session.state.projectId).toBe('default-react');
     handle.dispose();
   });
+  it('自托管资源目录支持不带末尾斜杠，并加载官方Dockview和Codicons样式', async () => {
+    const { host, handle } = fixture(true, '/custom-workbench-assets');
+    await handle.ready;
+    expect(host.querySelector<HTMLLinkElement>('[data-workbench-styles=dockview]')?.href).toBe(
+      'http://localhost:3000/custom-workbench-assets/styles/dockview.css'
+    );
+    expect(host.querySelector<HTMLLinkElement>('[data-workbench-styles=codicon]')?.href).toBe(
+      'http://localhost:3000/custom-workbench-assets/styles/codicon.css'
+    );
+    expect(host.querySelector('.codicon.codicon-files')).not.toBeNull();
+    expect(host.querySelector('.dv-dockview')).not.toBeNull();
+  });
+
   it('提供三端共用的编辑区、预览、面板和状态栏，释放时销毁资源', async () => {
     const { host, handle, backend, compiler, mountEditor, disposeEditor } = fixture();
     await handle.ready;
-    for (const label of ['活动栏', '资源管理器', '编辑标签', '项目预览', '底部面板', '状态栏'])
+    for (const label of ['活动栏', '资源管理器', '工作区布局', '项目预览', '底部面板', '状态栏'])
       expect(host.querySelector(`[aria-label="${label}"]`)).not.toBeNull();
     expect(mountEditor).toHaveBeenCalled();
     handle.dispose();
@@ -125,13 +177,41 @@ describe('VS Code 风格工作台', () => {
     await handle.ready;
     handle.session.edit('src/main.ts', 'unsaved');
     (host.querySelector('[aria-label="切换资源管理器"]') as HTMLButtonElement).click();
-    expect((host.querySelector('.wb-side') as HTMLElement).hidden).toBe(true);
+    expect(host.querySelector('[data-action=explorer]')?.getAttribute('aria-pressed')).toBe('false');
     (host.querySelector('[aria-label="切换底部面板"]') as HTMLButtonElement).click();
     expect(handle.session.state.files['src/main.ts']).toBe('unsaved');
     handle.session.select('src/label.ts');
     handle.session.select('src/main.ts');
     expect(handle.session.state.files['src/main.ts']).toBe('unsaved');
     handle.dispose();
+  });
+
+  it('重置布局会重新显示侧栏并同步活动栏选择状态', async () => {
+    const { host, handle } = fixture();
+    await handle.ready;
+    await click(host, '[data-action="explorer"]');
+    expect(host.querySelector('[data-action="explorer"]')?.getAttribute('aria-pressed')).toBe('false');
+    await click(host, '[data-action="reset-layout"]');
+    await vi.waitFor(() =>
+      expect(host.querySelector('[data-action="explorer"]')?.getAttribute('aria-pressed')).toBe('true')
+    );
+  });
+
+  it('切换项目时重建同名文件编辑器，撤销历史不会串到另一个项目', async () => {
+    const { handle, backend, mountEditor, disposeEditor } = fixture();
+    await handle.ready;
+    handle.session.edit('src/main.ts', 'old project');
+    await handle.session.save();
+    vi.mocked(backend.open).mockResolvedValueOnce({
+      projectId: 'second',
+      revision: '1',
+      files: { 'src/main.ts': 'new project' }
+    });
+    await handle.session.open('second');
+    expect(disposeEditor).toHaveBeenCalledOnce();
+    expect(mountEditor).toHaveBeenCalledTimes(2);
+    expect(mountEditor.mock.calls[1][1].value).toBe('new project');
+    expect(handle.session.state.projectId).toBe('second');
   });
 
   it('编辑回调、快捷保存和运行使用当前文件，Git视图支持暂存与提交', async () => {
@@ -168,7 +248,7 @@ describe('VS Code 风格工作台', () => {
     await vi.waitFor(() => expect(backend.commit).toHaveBeenCalledWith('one', 'tested change'));
     expect(input.value).toBe('');
     await click(host, '[data-panel="output"]');
-    expect(host.querySelector('.wb-panel-content')?.textContent).toContain('已提交');
+    expect(host.querySelector('[data-log=output] .wb-panel-content')?.textContent).toContain('已提交');
     handle.dispose();
   });
 
@@ -241,22 +321,17 @@ describe('VS Code 风格工作台', () => {
     handle.dispose();
   });
 
-  it('拖动与键盘调整区域，关闭编辑标签会释放该编辑器', async () => {
+  it('原生编辑器分组支持拆分，关闭标签保留未保存缓冲并释放编辑器', async () => {
     const { host, handle, disposeEditor } = fixture();
     await handle.ready;
-    const sidebar = host.querySelector<HTMLElement>('[data-resize="sidebar"]');
-    const panel = host.querySelector<HTMLElement>('[data-resize="panel"]');
-    sidebar?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', cancelable: true }));
-    expect((host.querySelector('.wb-side') as HTMLElement).style.width).toBe('150px');
-    panel?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', cancelable: true }));
-    expect((host.querySelector('.wb-panel') as HTMLElement).style.height).toBe('80px');
-    sidebar?.dispatchEvent(new PointerEvent('pointerdown', { clientX: 50 }));
-    window.dispatchEvent(new PointerEvent('pointermove', { clientX: 350 }));
-    window.dispatchEvent(new PointerEvent('pointerup'));
-    expect((host.querySelector('.wb-side') as HTMLElement).style.width).toBe('300px');
-    await click(host, '[aria-label="关闭 src/main.ts"]');
+    handle.session.select('src/label.ts');
+    handle.session.edit('src/label.ts', 'unsaved label');
+    await click(host, '[aria-label="向右拆分编辑器组"]');
+    await click(host, '[aria-label="关闭 src/label.ts"]');
+    await vi.waitFor(() => expect(handle.session.state.tabs).not.toContain('src/label.ts'));
     expect(disposeEditor).toHaveBeenCalledOnce();
-    expect(handle.session.state.activePath).toBeNull();
+    expect(handle.session.state.files['src/label.ts']).toBe('unsaved label');
+    expect(handle.session.state.activePath).toBe('src/main.ts');
     handle.dispose();
   });
 
@@ -339,7 +414,7 @@ describe('VS Code 风格工作台', () => {
       Object.defineProperty(this, 'files', { value: [file] });
       this.dispatchEvent(new Event('change'));
     });
-    const imported: WorkspaceFiles =
+    const imported: WorkbenchFiles =
       source === undefined ? { ...files } : { ...files, 'workbench.project.json': source };
     vi.mocked(backend.open).mockImplementation(async projectId => ({ projectId, revision: '1', files: imported }));
     await click(host, '[data-action="import"]');

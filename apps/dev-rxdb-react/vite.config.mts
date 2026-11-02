@@ -36,7 +36,7 @@ const pwaOptions: Partial<VitePWAOptions> = {
   devOptions: { enabled: false },
   registerType: 'autoUpdate',
   workbox: {
-    globPatterns: ['**/*.{js,css,html}', '**/*.{svg,png,jpg,gif}', '**/*.{wasm,data}'],
+    globPatterns: ['**/*.{js,css,html}', '**/*.{svg,png,jpg,gif}', '**/*.{wasm,data}', '**/*.{ttf,woff,woff2}'],
     // EntityDetail 等懒加载 chunk 已超过 Workbox 默认的 2 MiB 预缓存上限，放宽到 4 MiB。
     maximumFileSizeToCacheInBytes: 16 * 1024 * 1024
   }

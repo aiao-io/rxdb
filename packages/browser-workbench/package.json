@@ -27,10 +27,12 @@
     "!**/*.tsbuildinfo"
   ],
   "dependencies": {
+    "dockview-core": "8.8.3",
     "rxjs": "7.8.2"
   },
   "devDependencies": {
     "@aiao/rxdb": "workspace:*",
+    "@vscode/codicons": "0.0.46-24",
     "esbuild": "0.28.2",
     "esbuild-wasm": "0.28.2",
     "fflate": "0.8.3",

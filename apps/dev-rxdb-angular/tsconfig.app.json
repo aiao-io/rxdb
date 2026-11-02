@@ -83,6 +83,9 @@
       "path": "../../packages/browser-workbench/tsconfig.lib.json"
     },
     {
+      "path": "../../packages/browser-workbench-angular/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-plugin-search/tsconfig.lib.json"
     },
     {

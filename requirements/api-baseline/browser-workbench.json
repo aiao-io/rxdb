@@ -42,7 +42,15 @@
         "kind": "value"
       },
       {
+        "name": "WorkbenchBackend",
+        "kind": "type"
+      },
+      {
         "name": "WorkbenchCatalog",
+        "kind": "type"
+      },
+      {
+        "name": "WorkbenchCommit",
         "kind": "type"
       },
       {
@@ -66,6 +74,10 @@
         "kind": "type"
       },
       {
+        "name": "WorkbenchFiles",
+        "kind": "type"
+      },
+      {
         "name": "WorkbenchHandle",
         "kind": "type"
       },
@@ -82,27 +94,15 @@
         "kind": "both"
       },
       {
+        "name": "WorkbenchSnapshot",
+        "kind": "type"
+      },
+      {
         "name": "WorkbenchState",
         "kind": "type"
       },
       {
-        "name": "WorkspaceBackend",
-        "kind": "type"
-      },
-      {
-        "name": "WorkspaceCommit",
-        "kind": "type"
-      },
-      {
-        "name": "WorkspaceFiles",
-        "kind": "type"
-      },
-      {
-        "name": "WorkspaceSnapshot",
-        "kind": "type"
-      },
-      {
-        "name": "WorkspaceStatus",
+        "name": "WorkbenchStatus",
         "kind": "type"
       }
     ],

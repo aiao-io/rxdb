@@ -8,6 +8,9 @@ const mime = {
   '.js': 'text/javascript',
   '.html': 'text/html',
   '.json': 'application/json',
+  '.css': 'text/css',
+  '.ttf': 'font/ttf',
+  '.woff2': 'font/woff2',
   '.wasm': 'application/wasm'
 };
 const walk = async directory =>
@@ -19,10 +22,10 @@ const walk = async directory =>
     )
   ).flat();
 const urls = (await walk(join(root, 'dist')))
-  .filter(path => /\.(js|wasm|json)$/.test(path))
+  .filter(path => /\.(js|wasm|json|css|ttf|woff2)$/.test(path))
   .map(path => `/module/${path.slice(join(root, 'dist').length + 1)}`);
 const assets = (await walk(join(root, 'dist/assets')))
-  .filter(path => /\.(js|wasm|json)$/.test(path))
+  .filter(path => /\.(js|wasm|json|css|ttf|woff2)$/.test(path))
   .map(path => `/browser-workbench-assets/${path.slice(join(root, 'dist/assets').length + 1)}`);
 const html = `<!doctype html><html><head><meta charset="utf-8"><title>Aiao Code</title></head><body style="margin:0;height:100vh"><div id="root" style="height:100%"></div><script type="module">
 import { mountWorkbench } from '/module/index.js';
@@ -105,7 +108,7 @@ try {
       template
     );
     await page.waitForFunction(() => !document.querySelector('[data-action=run]').disabled);
-    await page.getByRole('button', { name: '▷ 运行', exact: true }).click();
+    await page.getByRole('button', { name: '运行', exact: true }).click();
     const frame = page.frameLocator('iframe[title="项目隔离预览"]');
     await frame.getByRole('button').click({ timeout: 60000 });
     await frame.getByRole('button').filter({ hasText: /1/ }).waitFor();
@@ -118,7 +121,7 @@ try {
   for (const template of ['vanilla', 'react', 'vue', 'angular']) {
     await page.getByLabel('当前项目').selectOption(ids[template]);
     await page.waitForFunction(id => window.workbench.session.state.projectId === id, ids[template]);
-    await page.getByRole('button', { name: '▷ 运行', exact: true }).click();
+    await page.getByRole('button', { name: '运行', exact: true }).click();
     const frame = page.frameLocator('iframe[title="项目隔离预览"]');
     await frame.getByRole('button').click({ timeout: 60000 });
     await frame.getByRole('button').filter({ hasText: /1/ }).waitFor();

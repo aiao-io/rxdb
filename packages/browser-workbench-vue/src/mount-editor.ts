@@ -31,6 +31,8 @@ export const mountVueEditor: Parameters<typeof mountWorkbench>[2] = (element, in
       state.value = value;
       state.language = language;
     },
+    layout: () => editor.value?.view?.requestMeasure(),
+    focus: () => editor.value?.focus(),
     dispose: () => app.unmount()
   };
 };

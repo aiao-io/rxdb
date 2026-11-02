@@ -7,7 +7,7 @@ import { Component, inject } from '@angular/core';
   selector: 'app-browser-workbench',
   imports: [BrowserWorkbench],
   template: '<ao-browser-workbench [options]="options" />',
-  host: { class: 'page-host bg-base-100', style: 'display:block;height:100%;min-height:0' }
+  host: { class: 'page-host bg-base-100', style: 'display:block;position:fixed;inset:0;z-index:50;min-height:0' }
 })
 export default class BrowserWorkbenchPage {
   readonly options = { catalog: createRxDBWorkbenchCatalog(inject(RxDB)) };

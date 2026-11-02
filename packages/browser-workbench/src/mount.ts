@@ -4,17 +4,19 @@ import type { ProjectTemplate } from './compiler/compiler-types.js';
 import type { WorkbenchEditorHandle, WorkbenchEditorMount } from './editor.js';
 import { createGitBackend } from './git-backend.js';
 import { mountPreview, type PreviewEvent } from './preview/preview-sandbox.js';
-import { WorkbenchSession, type WorkbenchState, type WorkspaceBackend } from './session.js';
+import { WorkbenchSession, type WorkbenchBackend, type WorkbenchState } from './session.js';
 import { angularTemplate, defaultAngularDemo } from './templates-angular.js';
 import { defaultFrontendDemos, frontendTemplates, type WorkbenchTemplate } from './templates.js';
 import { requestWorkbenchText } from './workbench-dialog.js';
+import { createWorkbenchDockview } from './workbench-dockview.js';
+import { createCodicon, createFileIcon, folderCodicon, gitStatusCodicon } from './workbench-icons.js';
 import { createWorkbenchLayout, workbenchElement } from './workbench-layout.js';
 
 /** 工作台的可注入服务与静态资源位置。 */
 export interface BrowserWorkbenchOptions {
   readonly assetBaseURL?: string;
   readonly initialProjectId?: string;
-  readonly backend?: WorkspaceBackend;
+  readonly backend?: WorkbenchBackend;
   readonly compiler?: WorkbenchCompiler;
   readonly catalog?: WorkbenchCatalog;
 }
@@ -58,28 +60,60 @@ export function mountWorkbench(
   options: BrowserWorkbenchOptions,
   mountEditor: WorkbenchEditorMount
 ): WorkbenchHandle {
-  const root = createWorkbenchLayout(host);
+  const assetBase = options.assetBaseURL ?? '/browser-workbench-assets/';
+  const base = new URL(assetBase.endsWith('/') ? assetBase : `${assetBase}/`, location.href).href;
+  const root = createWorkbenchLayout(host, base);
   const element = <T extends HTMLElement = HTMLElement>(selector: string) => workbenchElement<T>(root, selector);
-  const base = new URL(options.assetBaseURL ?? '/browser-workbench-assets/', location.href).href;
   const backend = options.backend ?? createGitBackend(base);
   const compiler = options.compiler ?? createCompiler(base);
   const catalog = options.catalog ?? createProjectCatalog();
   const session = new WorkbenchSession(backend);
+  const logContents = new Map(
+    ['problems', 'output', 'console'].map(kind => [kind, element(`[data-log="${kind}"] .wb-panel-content`)])
+  );
+  const previewContent = element('.wb-preview-content');
+  const previewVersion = element('.wb-preview-version');
   const editors = new Map<string, { host: HTMLElement; handle: WorkbenchEditorHandle }>();
   const aborters = new Set<AbortController>();
-  const releases: (() => void)[] = [];
   const logs: { kind: 'problems' | 'output' | 'console'; text: string; level?: string }[] = [];
   let projects: readonly WorkbenchProjectInfo[] = [];
   let project: WorkbenchProjectInfo | undefined;
-  let currentPanel = 'problems';
   let sideView = 'explorer';
   let preview: ReturnType<typeof mountPreview> | undefined;
   let previewId = 0;
   let disposed = false;
+  let initializing = true;
   let pendingOperations = 0;
   let gitRefresh = 0;
   let activeTreePath: string | null = null;
+  let selectedEditorPath: string | null = null;
+  let renderedProjectId: string | null = null;
   const collapsedFolders = new Set<string>();
+  const docking = createWorkbenchDockview(root, {
+    onSelectEditor(path) {
+      if (disposed || !session.state.tabs.includes(path)) return;
+      if (session.state.activePath !== path) session.select(path);
+      queueMicrotask(() => {
+        if (!disposed) editors.get(path)?.handle.focus?.();
+      });
+    },
+    onCloseEditor(path) {
+      if (!disposed) session.closeTab(path);
+    },
+    onSelectTool() {
+      renderLogs();
+    },
+    onClosePreview() {
+      preview?.dispose();
+      preview = undefined;
+      previewId = 0;
+    }
+  });
+  const layoutChanges = docking.api.onDidLayoutChange(() => {
+    queueMicrotask(() => {
+      if (!disposed) editors.forEach(editor => editor.handle.layout?.());
+    });
+  });
 
   function report(cause: unknown): void {
     if (cause instanceof DOMException && cause.name === 'AbortError') return;
@@ -95,17 +129,17 @@ export function mountWorkbench(
     renderLogs();
   }
   function renderLogs(): void {
-    const content = element('.wb-panel-content');
-    content.replaceChildren();
-    for (const item of logs.filter(item => item.kind === currentPanel)) {
-      const line = document.createElement('pre');
-      line.textContent = item.text;
-      if (item.level) line.className = `wb-log-${item.level}`;
-      content.append(line);
+    for (const kind of ['problems', 'output', 'console']) {
+      const content = logContents.get(kind)!;
+      content.replaceChildren();
+      for (const item of logs.filter(item => item.kind === kind)) {
+        const line = document.createElement('pre');
+        line.textContent = item.text;
+        if (item.level) line.className = `wb-log-${item.level}`;
+        content.append(line);
+      }
     }
     element('[data-slot="problem-count"]').textContent = String(logs.filter(item => item.kind === 'problems').length);
-    for (const button of root.querySelectorAll<HTMLElement>('[data-panel]'))
-      button.setAttribute('aria-selected', String(button.dataset['panel'] === currentPanel));
   }
   function action(operation: () => Promise<unknown> | void): void {
     pendingOperations++;
@@ -128,7 +162,7 @@ export function mountWorkbench(
     const request = ++gitRefresh;
     const [status, commits] = await Promise.all([backend.status(id), backend.history(id)]);
     if (disposed || project?.id !== id || request !== gitRefresh) return;
-    element('[data-slot="branch"]').textContent = `⑂ ${status.branch}`;
+    element('[data-slot="branch-name"]').textContent = status.branch;
     const changes = element('[data-slot="changes"]');
     changes.replaceChildren();
     for (const entry of status.entries) {
@@ -138,7 +172,7 @@ export function mountWorkbench(
       name.textContent = `${entry.index}${entry.worktree} ${entry.path}`;
       name.title = entry.path;
       const stage = document.createElement('button');
-      stage.textContent = '+';
+      stage.append(createCodicon('add'));
       stage.title = `暂存 ${entry.path}`;
       stage.dataset['mutation'] = 'true';
       stage.onclick = () =>
@@ -146,7 +180,7 @@ export function mountWorkbench(
           await backend.stage(id, [entry.path]);
           await refreshGit();
         });
-      row.append(name, stage);
+      row.append(createCodicon(gitStatusCodicon(`${entry.index}${entry.worktree}`)), name, stage);
       changes.append(row);
     }
     const history = element('[data-slot="history"]');
@@ -218,7 +252,13 @@ export function mountWorkbench(
         button.setAttribute('role', 'treeitem');
         button.setAttribute('aria-expanded', String(!collapsedFolders.has(folder)));
         button.setAttribute('aria-level', String(index + 1));
-        button.textContent = `${collapsedFolders.has(folder) ? '›' : '⌄'}  ${parts[index]}`;
+        const label = document.createElement('span');
+        label.textContent = parts[index];
+        button.append(
+          createCodicon(collapsedFolders.has(folder) ? 'chevron-right' : 'chevron-down'),
+          createCodicon(folderCodicon(!collapsedFolders.has(folder))),
+          label
+        );
         button.title = folder;
         button.onclick = () => {
           if (collapsedFolders.has(folder)) collapsedFolders.delete(folder);
@@ -235,33 +275,51 @@ export function mountWorkbench(
       button.setAttribute('aria-level', String(parts.length));
       button.style.paddingLeft = `${14 + (parts.length - 1) * 12}px`;
       button.title = path;
-      const icon = document.createElement('span');
-      icon.className = 'wb-file-icon';
-      icon.textContent = /\.(ts|tsx)$/.test(path) ? 'TS' : '◇';
+      const icon = createFileIcon(path);
       const name = document.createElement('span');
       name.textContent = parts.at(-1) ?? path;
       button.append(icon, name);
-      button.onclick = () => session.select(path);
+      button.onclick = () => {
+        session.select(path);
+        docking.selectEditor(path);
+        editors.get(path)?.handle.focus?.();
+      };
       tree.append(button);
     }
   }
   function renderEditors(state: WorkbenchState): void {
-    const area = element('.wb-editor-area');
+    if (state.projectId !== renderedProjectId) {
+      editors.forEach(editor => editor.handle.dispose());
+      editors.clear();
+      for (const panel of [...docking.api.panels]) {
+        if (panel.id.startsWith('editor:')) docking.removeEditor(panel.id.slice('editor:'.length));
+      }
+      renderedProjectId = state.projectId;
+      selectedEditorPath = null;
+    }
     for (const [path, editor] of editors) {
-      if (state.tabs.includes(path)) continue;
+      if (state.tabs.includes(path) && typeof state.files[path] === 'string') continue;
       editor.handle.dispose();
-      editor.host.remove();
       editors.delete(path);
     }
-    area.querySelector('.wb-editor-placeholder')?.toggleAttribute('hidden', state.activePath !== null);
+    for (const panel of [...docking.api.panels]) {
+      if (!panel.id.startsWith('editor:')) continue;
+      const path = panel.id.slice('editor:'.length);
+      if (!state.tabs.includes(path)) docking.removeEditor(path);
+    }
     for (const path of state.tabs) {
+      const parent = docking.ensureEditor(path);
       const value = state.files[path];
-      if (typeof value !== 'string') continue;
+      docking.setEditorTitle(path, `${path.split('/').at(-1)}${session.isModified(path) ? ' •' : ''}`);
+      if (typeof value !== 'string') {
+        parent.textContent = `二进制文件 · ${value?.byteLength ?? 0} bytes`;
+        parent.classList.add('wb-binary');
+        continue;
+      }
+      parent.classList.remove('wb-binary');
       let editor = editors.get(path);
       if (!editor) {
-        const parent = document.createElement('div');
-        parent.style.height = '100%';
-        area.append(parent);
+        parent.replaceChildren();
         const handle = mountEditor(parent, {
           value,
           language: languageFor(path),
@@ -272,37 +330,15 @@ export function mountWorkbench(
         });
         editor = { host: parent, handle };
         editors.set(path, editor);
+        queueMicrotask(() => {
+          if (!disposed) handle.layout?.();
+        });
       }
-      editor.host.hidden = path !== state.activePath;
       editor.handle.update(value, languageFor(path));
     }
-    let binary = area.querySelector<HTMLElement>('.wb-binary');
-    if (!binary) {
-      binary = document.createElement('p');
-      binary.className = 'wb-binary';
-      area.append(binary);
-    }
-    binary.hidden = !state.activePath || typeof state.files[state.activePath] === 'string';
-    binary.textContent =
-      binary.hidden ? '' : `二进制文件 · ${(state.files[state.activePath ?? ''] as Uint8Array).byteLength} bytes`;
-    const tabs = element('.wb-tabs');
-    tabs.replaceChildren();
-    for (const path of state.tabs) {
-      const tab = document.createElement('div');
-      tab.className = 'wb-tab';
-      tab.setAttribute('role', 'tab');
-      tab.setAttribute('aria-selected', String(path === state.activePath));
-      const button = document.createElement('button');
-      button.textContent = `${path.split('/').at(-1)}${state.dirty ? ' •' : ''}`;
-      button.title = path;
-      button.onclick = () => session.select(path);
-      const close = document.createElement('button');
-      close.textContent = '×';
-      close.className = 'wb-tab-close';
-      close.setAttribute('aria-label', `关闭 ${path}`);
-      close.onclick = () => session.closeTab(path);
-      tab.append(button, close);
-      tabs.append(tab);
+    if (state.activePath !== selectedEditorPath) {
+      selectedEditorPath = state.activePath;
+      if (state.activePath) docking.selectEditor(state.activePath);
     }
   }
   function previewEvent(event: PreviewEvent): void {
@@ -315,7 +351,7 @@ export function mountWorkbench(
     renderEditors(state);
     element('[data-slot="save-status"]').textContent =
       state.busy ? '处理中…'
-      : state.dirty ? '● 未保存'
+      : state.dirty ? '未保存'
       : state.projectId ? `已保存 · r${state.revision}`
       : '尚未打开项目';
     element('[data-slot="language"]').textContent = state.activePath ? languageFor(state.activePath) : '纯文本';
@@ -325,25 +361,28 @@ export function mountWorkbench(
       preview = undefined;
       previewId = 0;
     }
-    if (state.preview && state.preview.runId !== previewId) {
+    if (state.preview && docking.isPreviewOpen() && state.preview.runId !== previewId) {
       preview?.dispose();
       previewId = state.preview.runId;
       preview = mountPreview(
-        element('.wb-preview-content'),
+        previewContent,
         { ...state.preview, sessionId: crypto.randomUUID(), imports: {}, allowEval: project?.template === 'angular' },
         previewEvent
       );
     }
-    element('.wb-preview-version').textContent =
+    previewVersion.textContent =
       state.preview ?
         `r${state.preview.revision}${state.dirty || state.preview.revision !== state.revision ? ' · 已过时' : ''}`
       : '尚未运行';
     if (state.error && logs.at(-1)?.text !== state.error) report(state.error);
   }
   function renderActionState(): void {
-    const busy = session.state.busy || pendingOperations > 0;
+    for (const button of root.querySelectorAll<HTMLElement>('[data-action="explorer"],[data-action="git"]')) {
+      button.setAttribute('aria-pressed', String(docking.isSidebarVisible() && button.dataset['action'] === sideView));
+    }
+    const busy = initializing || session.state.busy || pendingOperations > 0;
     for (const button of root.querySelectorAll<HTMLButtonElement>(
-      '[data-action="save"],[data-action="run"],[data-action="export"]'
+      '[data-action="save"],[data-action="run"],[data-action="rerun-preview"],[data-action="export"]'
     ))
       button.disabled = !session.state.projectId || busy;
     for (const button of root.querySelectorAll<HTMLButtonElement>('[data-action="new-project"],[data-action="import"]'))
@@ -385,6 +424,7 @@ export function mountWorkbench(
   async function run(): Promise<void> {
     const info = project;
     if (!info) throw new Error('请先打开项目');
+    docking.showPreview();
     for (const controller of aborters) controller.abort();
     const controller = new AbortController();
     aborters.add(controller);
@@ -455,6 +495,7 @@ export function mountWorkbench(
   const operations: Record<string, () => Promise<unknown> | void> = {
     'new-project': newProject,
     run,
+    'rerun-preview': run,
     export: exportProject,
     import: importProject,
     save: async () => {
@@ -516,22 +557,25 @@ export function mountWorkbench(
       logs.splice(0);
       renderLogs();
     },
-    panel: () => {
-      const panel = element('.wb-panel');
-      panel.hidden = !panel.hidden;
-      element('.wb-panel-divider').hidden = panel.hidden;
+    panel: () => docking.toggleTools(),
+    preview: () => {
+      docking.showPreview();
+      render(session.state);
+    },
+    'reset-layout': () => {
+      docking.resetLayout();
+      render(session.state);
     }
   };
   function switchSide(view: string): void {
-    const side = element('.wb-side');
-    side.hidden = sideView === view && !side.hidden;
+    const visible = !(sideView === view && docking.isSidebarVisible());
+    docking.setSidebarVisible(visible);
     sideView = view;
     element('[data-slot="files"]').hidden = view !== 'explorer';
     element('[data-slot="git-view"]').hidden = view !== 'git';
     element('[data-slot="side-title"]').textContent = view === 'git' ? '源代码管理' : '资源管理器';
     for (const button of root.querySelectorAll<HTMLElement>('[data-action="explorer"],[data-action="git"]'))
-      button.setAttribute('aria-pressed', String(!side.hidden && button.dataset['action'] === view));
-    element('[data-resize="sidebar"]').hidden = side.hidden;
+      button.setAttribute('aria-pressed', String(visible && button.dataset['action'] === view));
     if (view === 'git') action(refreshGit);
   }
   const click = (event: Event) => {
@@ -543,9 +587,9 @@ export function mountWorkbench(
       switchSide(name);
       return;
     }
-    if (target.dataset['panel']) {
-      currentPanel = target.dataset['panel'];
-      renderLogs();
+    const tool = target.dataset['panel'];
+    if (tool === 'problems' || tool === 'output' || tool === 'console') {
+      docking.showTool(tool);
       return;
     }
     if (name && operations[name]) {
@@ -580,37 +624,6 @@ export function mountWorkbench(
     }
   };
   root.addEventListener('keydown', keydown);
-  for (const separator of root.querySelectorAll<HTMLElement>('[data-resize]')) {
-    const sidebar = separator.dataset['resize'] === 'sidebar';
-    const apply = (value: number) => {
-      if (sidebar) element('.wb-side').style.width = `${Math.max(150, Math.min(420, value))}px`;
-      else element('.wb-panel').style.height = `${Math.max(80, Math.min(400, value))}px`;
-    };
-    separator.onpointerdown = event => {
-      const origin = sidebar ? event.clientX : event.clientY;
-      const size =
-        sidebar ?
-          element('.wb-side').getBoundingClientRect().width
-        : element('.wb-panel').getBoundingClientRect().height;
-      const move = (next: PointerEvent) => apply(size + (sidebar ? next.clientX - origin : origin - next.clientY));
-      const stop = () => {
-        window.removeEventListener('pointermove', move);
-        window.removeEventListener('pointerup', stop);
-      };
-      window.addEventListener('pointermove', move);
-      window.addEventListener('pointerup', stop, { once: true });
-      releases.push(stop);
-    };
-    separator.onkeydown = event => {
-      if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
-      event.preventDefault();
-      const target = sidebar ? element('.wb-side') : element('.wb-panel');
-      apply(
-        (sidebar ? target.getBoundingClientRect().width : target.getBoundingClientRect().height) +
-          (['ArrowLeft', 'ArrowDown'].includes(event.key) ? -16 : 16)
-      );
-    };
-  }
   const releaseState = session.subscribe(render);
   const beforeUnload = (event: BeforeUnloadEvent) => {
     if (session.state.dirty) {
@@ -642,9 +655,14 @@ export function mountWorkbench(
       }
     }
     renderProjects();
-    const initial = options.initialProjectId ?? projects.find(item => item.id === 'default-react')?.id ?? projects[0]?.id;
+    const initial = options.initialProjectId ?? projects[0]?.id;
     if (initial) await openProject(initial);
-  })().catch(report);
+  })()
+    .catch(report)
+    .finally(() => {
+      initializing = false;
+      if (!disposed) renderActionState();
+    });
   return {
     ready,
     session,
@@ -657,7 +675,8 @@ export function mountWorkbench(
       preview?.dispose();
       for (const controller of aborters) controller.abort();
       for (const editor of editors.values()) editor.handle.dispose();
-      for (const release of releases) release();
+      layoutChanges.dispose();
+      docking.dispose();
       for (const dialog of root.querySelectorAll<HTMLDialogElement>('dialog')) dialog.close();
       window.removeEventListener('beforeunload', beforeUnload);
       root.removeEventListener('click', click);

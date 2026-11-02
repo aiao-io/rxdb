@@ -2,7 +2,9 @@
 
 浏览器内的本地开发工作台。使用现有 CodeMirror 编辑器、独立 OPFS Git 仓库、受控编译 Worker 与隔离预览；支持 JavaScript / TypeScript、React TSX、Vue SFC 和 Angular standalone 模板。
 
-界面沿用 VS Code 的区域布局：活动栏、文件 / Git 侧栏、多标签编辑区、右侧预览、问题 / 输出 / Console 面板与状态栏。侧栏和面板支持折叠、拖动和键盘调整。
+布局使用 `dockview-core`，图标使用微软官方 `@vscode/codicons`。界面沿用 VS Code Dark Modern 的活动栏、资源管理器、编辑标签、预览、问题 / 输出 / Console 面板和状态栏。编辑标签可拖动拆分、合并与停靠；预览与编辑器在布局移动时保留实例、撤销记录和运行状态，支持一键重置布局。
+
+首次打开空目录会生成最小 React、Vue、Angular Demo；后续重开恢复最近使用的项目。
 
 ## 开始使用
 
@@ -42,9 +44,9 @@ const options = { assetBaseURL: '/browser-workbench-assets/' };
 
 ## 部署静态资源
 
-将已安装包的 `dist/assets/` 整目录复制到站点的 `public/browser-workbench-assets/`。目录包含固定版本的编译器 WASM、Git WASM、Worker、Angular 转译器、前端运行时和 SHA-256 资源清单，不能只复制两个 WASM 文件。
+将已安装包的 `dist/assets/` 整目录复制到站点的 `public/browser-workbench-assets/`。目录包含固定版本的编译器 WASM、Git WASM、Worker、Angular 转译器、前端运行时、Dockview 样式、Codicons 样式 / 字体 / 许可证和 SHA-256 资源清单，不能只复制两个 WASM 文件。
 
-资源目录只托管包内的公开固定文件，不放业务 API 或重定向。WASM 响应使用 `application/wasm`，JS 使用 `text/javascript`；需要跨源加载时设置 `Access-Control-Allow-Origin: *` 与 `Cross-Origin-Resource-Policy: cross-origin`。资源路径由 `assetBaseURL` 指定，末尾可带 `/`。
+资源目录只托管包内的公开固定文件，不放业务 API 或重定向。WASM 响应使用 `application/wasm`，JS 使用 `text/javascript`，CSS 使用 `text/css`，TTF 字体使用 `font/ttf`；需要跨源加载时设置 `Access-Control-Allow-Origin: *` 与 `Cross-Origin-Resource-Policy: cross-origin`。资源路径由 `assetBaseURL` 指定，末尾可带 `/`。
 
 离线重开需要宿主 Service Worker 缓存应用外壳、该页面的懒加载模块与完整资源目录。首次访问缺少资源时不承诺离线启动；缺资源或摘要不符会明确报错。仓库的三端 Demo 已配置这些静态资源；真实冻结安装、独立消费和离线验证的入口见下方。
 
@@ -84,7 +86,7 @@ const options = {
 
 单项目限制：2,000 文件、单文件 2 MiB、文件总量 20 MiB、ZIP 24 MiB；不支持符号链接、可执行位和子模块。写入用仓库级 Web Lock 串行化，崩溃后先检查恢复日志，不误报写入成功。
 
-Git WASM 的 GPL v2 + linking exception 声明随 `assets/git/COPYING` 分发。前端编译器与运行时的许可文本也包含在发布资源中。
+Dockview 的 MIT 声明与 Codicons 的图标 / 字体 CC BY 4.0、代码 MIT 声明随 `assets/licenses/` 分发；Codicons 来自 Microsoft。Git WASM 的 GPL v2 + linking exception 声明随 `assets/git/COPYING` 分发。前端编译器与运行时的许可文本也包含在发布资源中。
 
 ## 验证
 
@@ -95,7 +97,8 @@ pnpm nx test browser-workbench --coverage
 pnpm nx run browser-workbench:verify-export
 pnpm nx run browser-workbench:verify-consumers
 pnpm nx run browser-workbench:verify-offline
+pnpm nx run browser-workbench:verify-docking --url=http://127.0.0.1:4201/browser-workbench --host=react
 pnpm nx e2e dev-rxdb-react-e2e browser-workbench.spec.ts --workers=1
 ```
 
-`verify-export` 对四类模板执行仓外冻结锁安装、生产构建与 Chromium 交互；`verify-consumers` 从真实 tarball 安装核心及三端绑定，检查 Worker / WASM、编辑器、预览与重开；`verify-offline` 检查缓存后的断网重开与四类项目运行。原始报告保存在 `benchmarks/reports/browser-workbench-*.json`。
+`verify-export` 对四类模板执行仓外冻结锁安装、生产构建与 Chromium 交互；`verify-consumers` 从真实 tarball 安装核心及三端绑定，检查 Worker / WASM、编辑器、预览与重开；`verify-offline` 检查缓存后的断网重开与四类项目运行。`verify-docking` 面向已启动的演示应用，以真实鼠标拖拽验证拆分、停靠、撤销记录 / 预览保活和官方字体摘要。原始报告保存在 `benchmarks/reports/browser-workbench-*.json`。

@@ -7,7 +7,7 @@ export default function BrowserWorkbenchPage() {
   const db = useRxDB();
   const options = useMemo(() => ({ catalog: createRxDBWorkbenchCatalog(db) }), [db]);
   return (
-    <div className='h-full min-h-0 w-full' data-testid='browser-workbench'>
+    <div className='fixed inset-0 z-50' data-testid='browser-workbench'>
       <BrowserWorkbench options={options} />
     </div>
   );

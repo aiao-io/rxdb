@@ -54,6 +54,14 @@
         "cwd": "packages/browser-workbench",
         "command": "node scripts/verify-consumers.mjs"
       }
+    },
+    "verify-docking": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "packages/browser-workbench",
+        "command": "node scripts/verify-docking.mjs"
+      }
     }
   }
 }

@@ -8,7 +8,7 @@ const options = { catalog: createRxDBWorkbenchCatalog(useRxDB()) };
 
 <template>
   <div
-    class="h-full min-h-0 w-full"
+    class="fixed inset-0 z-50"
     data-testid="browser-workbench"
   >
     <BrowserWorkbench :options="options" />

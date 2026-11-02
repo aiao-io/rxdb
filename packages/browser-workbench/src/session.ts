@@ -1,40 +1,40 @@
 import { assertGitPath, assertNoPathCollisions } from './git/git-paths.js';
 
 /** 工作区的普通文件；二进制内容不会被编辑器隐式转码。 */
-export type WorkspaceFiles = Readonly<Record<string, string | Uint8Array>>;
+export type WorkbenchFiles = Readonly<Record<string, string | Uint8Array>>;
 
 /** 一次已持久化的项目快照。 */
-export interface WorkspaceSnapshot {
+export interface WorkbenchSnapshot {
   readonly projectId: string;
   readonly revision: string;
-  readonly files: WorkspaceFiles;
+  readonly files: WorkbenchFiles;
 }
 
 /** Git 的 index 与工作区状态。 */
-export interface WorkspaceStatus {
+export interface WorkbenchStatus {
   readonly branch: string;
   readonly head: string | null;
   readonly entries: readonly { readonly path: string; readonly index: string; readonly worktree: string }[];
 }
 
 /** 一个可达 Git 提交。 */
-export interface WorkspaceCommit {
+export interface WorkbenchCommit {
   readonly oid: string;
   readonly message: string;
 }
 
 /** Git Worker 对工作台暴露的文件与版本管理入口。 */
-export interface WorkspaceBackend {
-  open(projectId: string): Promise<WorkspaceSnapshot>;
-  create(projectId: string, files: WorkspaceFiles): Promise<WorkspaceSnapshot>;
-  save(projectId: string, files: WorkspaceFiles, expectedRevision: string): Promise<WorkspaceSnapshot>;
+export interface WorkbenchBackend {
+  open(projectId: string): Promise<WorkbenchSnapshot>;
+  create(projectId: string, files: WorkbenchFiles): Promise<WorkbenchSnapshot>;
+  save(projectId: string, files: WorkbenchFiles, expectedRevision: string): Promise<WorkbenchSnapshot>;
   remove(projectId: string, path: string): Promise<void>;
   rename(projectId: string, from: string, to: string): Promise<void>;
-  status(projectId: string): Promise<WorkspaceStatus>;
+  status(projectId: string): Promise<WorkbenchStatus>;
   stage(projectId: string, paths: readonly string[]): Promise<void>;
   commit(projectId: string, message: string): Promise<string>;
-  history(projectId: string): Promise<readonly WorkspaceCommit[]>;
-  restore(projectId: string, oid: string): Promise<WorkspaceSnapshot>;
+  history(projectId: string): Promise<readonly WorkbenchCommit[]>;
+  restore(projectId: string, oid: string): Promise<WorkbenchSnapshot>;
   exportArchive(projectId: string): Promise<Uint8Array>;
   importArchive(projectId: string, bytes: Uint8Array): Promise<void>;
   dispose(): void;
@@ -58,7 +58,7 @@ export interface WorkbenchPreview extends WorkbenchCompilation {
 export interface WorkbenchState {
   readonly projectId: string | null;
   readonly revision: string | null;
-  readonly files: WorkspaceFiles;
+  readonly files: WorkbenchFiles;
   readonly activePath: string | null;
   readonly tabs: readonly string[];
   readonly dirty: boolean;
@@ -85,14 +85,14 @@ const equalFile = (left: string | Uint8Array | undefined, right: string | Uint8A
   if (typeof left === 'string' || typeof right === 'string' || !left || !right) return false;
   return left.length === right.length && left.every((byte, index) => byte === right[index]);
 };
-const equalFiles = (left: WorkspaceFiles, right: WorkspaceFiles): boolean =>
+const equalFiles = (left: WorkbenchFiles, right: WorkbenchFiles): boolean =>
   Object.keys(left).length === Object.keys(right).length &&
   Object.keys(left).every(path => equalFile(left[path], right[path]));
 
 /** 管理编辑缓冲、真实保存回执和编译代次，三端共用。 */
 export class WorkbenchSession {
   #state: WorkbenchState = initialState;
-  #saved: WorkspaceFiles = {};
+  #saved: WorkbenchFiles = {};
   #listeners = new Set<(state: WorkbenchState) => void>();
   #generation = 0;
   #runId = 0;
@@ -104,7 +104,7 @@ export class WorkbenchSession {
     return this.#state;
   }
 
-  constructor(readonly backend: WorkspaceBackend) {}
+  constructor(readonly backend: WorkbenchBackend) {}
 
   subscribe(listener: (state: WorkbenchState) => void): () => void {
     this.#assertOpen();
@@ -113,11 +113,16 @@ export class WorkbenchSession {
     return () => this.#listeners.delete(listener);
   }
 
+  /** 某个文件的编辑缓冲是否包含未保存修改。 */
+  isModified(path: string): boolean {
+    return !equalFile(this.#state.files[path], this.#saved[path]);
+  }
+
   async open(projectId: string): Promise<void> {
     return this.#transition(() => this.backend.open(projectId));
   }
 
-  async create(projectId: string, files: WorkspaceFiles): Promise<void> {
+  async create(projectId: string, files: WorkbenchFiles): Promise<void> {
     return this.#transition(() => this.backend.create(projectId, files));
   }
 
@@ -163,7 +168,7 @@ export class WorkbenchSession {
     return pending;
   }
 
-  async run(compile: (snapshot: WorkspaceSnapshot) => Promise<WorkbenchCompilation>): Promise<void> {
+  async run(compile: (snapshot: WorkbenchSnapshot) => Promise<WorkbenchCompilation>): Promise<void> {
     const projectId = this.#project();
     const generation = this.#generation;
     const runId = ++this.#runId;
@@ -238,7 +243,7 @@ export class WorkbenchSession {
     }
   }
 
-  async #transition(operation: () => Promise<WorkspaceSnapshot>): Promise<void> {
+  async #transition(operation: () => Promise<WorkbenchSnapshot>): Promise<void> {
     this.#assertClean();
     const generation = ++this.#generation;
     this.#runId++;
@@ -287,7 +292,7 @@ export class WorkbenchSession {
     return !this.#closed && generation === this.#generation;
   }
 
-  #replace(snapshot: WorkspaceSnapshot): void {
+  #replace(snapshot: WorkbenchSnapshot): void {
     this.#saved = snapshot.files;
     const activePath =
       Object.keys(snapshot.files).find(path => /^(src\/)?(main|App)\./.test(path)) ??

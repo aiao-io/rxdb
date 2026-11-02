@@ -53,6 +53,8 @@ export class BrowserWorkbench implements AfterViewInit, OnDestroy {
           editor.setInput('language', language);
           editor.changeDetectorRef.detectChanges();
         },
+        layout: () => editor.instance.view?.requestMeasure(),
+        focus: () => editor.instance.focus(),
         dispose: () => {
           for (const event of ['keyup', 'mouseup', 'input']) element.removeEventListener(event, cursor);
           change.unsubscribe();

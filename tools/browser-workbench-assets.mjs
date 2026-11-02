@@ -6,6 +6,9 @@ const mime = path =>
   path.endsWith('.wasm') ? 'application/wasm'
   : path.endsWith('.json') ? 'application/json'
   : path.endsWith('.js') ? 'text/javascript'
+  : path.endsWith('.css') ? 'text/css'
+  : path.endsWith('.ttf') ? 'font/ttf'
+  : path.endsWith('.woff2') ? 'font/woff2'
   : 'text/plain';
 
 async function files(directory) {

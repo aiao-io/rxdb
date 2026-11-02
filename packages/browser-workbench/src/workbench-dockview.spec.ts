@@ -1,0 +1,242 @@
+// @vitest-environment happy-dom
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createWorkbenchDockview, type WorkbenchDockview } from './workbench-dockview.js';
+
+const instances: WorkbenchDockview[] = [];
+
+function fixture() {
+  const root = document.createElement('section');
+  root.innerHTML =
+    '<main data-slot="dockview"></main><div data-slot="panel-staging" hidden><aside class="wb-side">资源</aside><div class="wb-welcome">欢迎</div><section class="wb-preview"><div class="wb-preview-content"></div></section><section class="wb-panel" data-log="problems">问题日志</section><section class="wb-panel" data-log="output">输出日志</section><section class="wb-panel" data-log="console">控制台日志</section></div>';
+  document.body.append(root);
+  const callbacks = {
+    onSelectEditor: vi.fn(),
+    onCloseEditor: vi.fn(),
+    onSelectTool: vi.fn(),
+    onToggleTool: vi.fn(),
+    onClosePreview: vi.fn()
+  };
+  const dock = createWorkbenchDockview(root, callbacks);
+  dock.api.layout(1200, 800);
+  instances.push(dock);
+  return { root, dock, callbacks };
+}
+
+afterEach(() => {
+  for (const dock of instances.splice(0)) dock.dispose();
+  document.body.replaceChildren();
+});
+
+describe('Dockview 工作台布局', () => {
+  it('首次非零布局把底部设为180px，后续尺寸变化保留用户调整', async () => {
+    const { dock } = fixture();
+    const bottom = dock.api.getPanel('problems')?.group;
+    if (!bottom) throw new Error('工具group缺失');
+    await vi.waitFor(() => expect(bottom.api.height).toBeCloseTo(180, 0));
+    bottom.api.setSize({ height: 260 });
+    await vi.waitFor(() => expect(bottom.api.height).toBeCloseTo(260, 0));
+    dock.api.layout(1400, 800);
+    await Promise.resolve();
+    expect(bottom.api.height).toBeCloseTo(260, 0);
+    dock.api.layout(1400, 900);
+    await Promise.resolve();
+    expect(bottom.api.height).not.toBeCloseTo(180, 0);
+  });
+
+  it('使用原生edge侧栏、右侧预览与底部共享工具group', () => {
+    const { root, dock, callbacks } = fixture();
+    expect(dock.api.getEdgeGroup('left')).toBeDefined();
+    expect(dock.api.getGroup('sidebar')?.model.header.hidden).toBe(true);
+    expect(dock.api.getGroup('sidebar')?.api.locked).toBe('no-drop-target');
+    const problems = dock.api.getPanel('problems');
+    expect(problems?.group).toBe(dock.api.getPanel('output')?.group);
+    expect(problems?.group).toBe(dock.api.getPanel('console')?.group);
+    expect(dock.api.getPanel('preview')?.api.renderer).toBe('always');
+    expect(root.querySelector('[data-slot="dockview"]')?.contains(root.querySelector('.wb-side'))).toBe(true);
+    expect(callbacks.onSelectEditor).not.toHaveBeenCalled();
+  });
+
+  it('增加与程序选择编辑器不回调Session，也不替换已有编辑宿主', () => {
+    const { root, dock, callbacks } = fixture();
+    const first = dock.ensureEditor('src/main.ts');
+    const child = document.createElement('textarea');
+    first.append(child);
+    const second = dock.ensureEditor('src/other.ts');
+    expect(first.dataset.editorPath).toBe('src/main.ts');
+    expect(dock.ensureEditor('src/main.ts')).toBe(first);
+    expect(first.firstChild).toBe(child);
+    expect(dock.api.getPanel('editor:src/main.ts')?.api.renderer).toBe('always');
+    expect(dock.api.getPanel('editor:src/main.ts')?.api.isActive).toBe(false);
+    dock.selectEditor('src/main.ts');
+    expect(callbacks.onSelectEditor).not.toHaveBeenCalled();
+    dock.api.getPanel('editor:src/other.ts')?.api.setActive();
+    expect(callbacks.onSelectEditor).toHaveBeenCalledWith('src/other.ts');
+    expect(dock.ensureEditor('src/other.ts')).toBe(second);
+    dock.setEditorTitle('src/main.ts', 'main.ts •');
+    expect(dock.api.getPanel('editor:src/main.ts')?.title).toBe('main.ts •');
+    const tab = root.querySelector<HTMLElement>('[data-editor-tab-path="src/main.ts"]');
+    expect(tab?.querySelector('.wb-dock-tab-title')?.textContent).toBe('main.ts');
+    expect(tab?.querySelector<HTMLElement>('.codicon-circle-filled')?.hidden).toBe(false);
+    expect(tab?.textContent).not.toContain('•');
+    dock.setEditorTitle('src/main.ts', 'main.ts');
+    expect(tab?.querySelector<HTMLElement>('.codicon-circle-filled')?.hidden).toBe(true);
+  });
+
+  it('程序移除不重复close，用户关闭只在Dock移除完成后通知一次', async () => {
+    const { dock, callbacks } = fixture();
+    dock.ensureEditor('program.ts');
+    dock.removeEditor('program.ts');
+    dock.removeEditor('program.ts');
+    await Promise.resolve();
+    expect(callbacks.onCloseEditor).not.toHaveBeenCalled();
+    dock.ensureEditor('user.ts');
+    callbacks.onCloseEditor.mockImplementation(path => dock.removeEditor(path));
+    dock.api.getPanel('editor:user.ts')?.api.close();
+    await Promise.resolve();
+    expect(callbacks.onCloseEditor).toHaveBeenCalledExactlyOnceWith('user.ts');
+    expect(dock.api.getPanel('editor:user.ts')).toBeUndefined();
+  });
+
+  it('官方Codicon关闭按钮走Dock原生close', async () => {
+    const { root, dock, callbacks } = fixture();
+    dock.ensureEditor('closable.ts');
+    dock.selectEditor('closable.ts');
+    const close = root.querySelector<HTMLButtonElement>('[aria-label="关闭 closable.ts"]');
+    expect(close?.querySelector('.codicon.codicon-close')).not.toBeNull();
+    close?.click();
+    await Promise.resolve();
+    expect(callbacks.onCloseEditor).toHaveBeenCalledWith('closable.ts');
+  });
+
+  it('关闭期间的活动标签回调触发会话重绘时，不重新创建正在关闭的面板', async () => {
+    const { dock, callbacks } = fixture();
+    dock.ensureEditor('first.ts');
+    dock.ensureEditor('second.ts');
+    dock.selectEditor('first.ts');
+    callbacks.onSelectEditor.mockImplementation(() => {
+      dock.ensureEditor('first.ts');
+      dock.ensureEditor('second.ts');
+    });
+    dock.api.getPanel('editor:first.ts')?.api.close();
+    await Promise.resolve();
+    expect(callbacks.onCloseEditor).toHaveBeenCalledExactlyOnceWith('first.ts');
+    expect(dock.api.getPanel('editor:first.ts')).toBeUndefined();
+  });
+
+  it('原生隐藏侧栏保留group，工具关闭后可以复用原日志host重开', async () => {
+    const { root, dock, callbacks } = fixture();
+    const side = dock.api.getEdgeGroup('left');
+    dock.setSidebarVisible(false);
+    expect(dock.isSidebarVisible()).toBe(false);
+    dock.setSidebarVisible(true);
+    expect(dock.isSidebarVisible()).toBe(true);
+    expect(dock.api.getEdgeGroup('left')).toBe(side);
+    const consoleHost = root.querySelector('[data-log="console"]');
+    dock.api.getPanel('console')?.api.close();
+    await Promise.resolve();
+    dock.showTool('console');
+    expect(root.querySelector('[data-log="console"]')).toBe(consoleHost);
+    expect(consoleHost?.textContent).toBe('控制台日志');
+    expect(callbacks.onSelectTool).toHaveBeenCalledWith('console');
+    dock.toggleTools();
+    await Promise.resolve();
+    expect(dock.api.getPanel('console')).toBeUndefined();
+    expect(callbacks.onToggleTool).toHaveBeenLastCalledWith(false);
+    dock.toggleTools();
+    expect(dock.api.getPanel('console')).toBeDefined();
+    expect(callbacks.onToggleTool).toHaveBeenLastCalledWith(true);
+  });
+
+  it('分组与重置复用编辑器和预览节点，不关闭Session标签', () => {
+    const { root, dock, callbacks } = fixture();
+    const first = dock.ensureEditor('first.ts');
+    const second = dock.ensureEditor('second.ts');
+    dock.selectEditor('second.ts');
+    dock.splitEditor();
+    expect(dock.api.getPanel('editor:first.ts')?.group).not.toBe(dock.api.getPanel('editor:second.ts')?.group);
+    const preview = root.querySelector('.wb-preview');
+    const previewParent = preview?.parentElement;
+    dock.api.getEdgeGroup('left')?.collapse();
+    dock.showPreview();
+    dock.resetLayout();
+    expect(dock.ensureEditor('first.ts')).toBe(first);
+    expect(dock.ensureEditor('second.ts')).toBe(second);
+    expect(dock.api.getPanel('editor:first.ts')?.group).toBe(dock.api.getPanel('editor:second.ts')?.group);
+    expect(root.querySelector('.wb-preview')).toBe(preview);
+    expect(preview?.parentElement).toBe(previewParent);
+    expect(dock.api.getEdgeGroup('left')?.isCollapsed()).toBe(false);
+    expect(callbacks.onCloseEditor).not.toHaveBeenCalled();
+  });
+
+  it('编辑组右侧原生header action用官方图标拆分当前编辑器', () => {
+    const { root, dock, callbacks } = fixture();
+    dock.ensureEditor('first.ts');
+    dock.ensureEditor('second.ts');
+    dock.selectEditor('second.ts');
+    const group = dock.api.getPanel('editor:second.ts')?.group;
+    const actions = root.querySelector<HTMLElement>(`.wb-dock-group-actions[data-group-id="${group?.id}"]`);
+    const split = actions?.querySelector<HTMLButtonElement>('[aria-label="向右拆分编辑器组"]');
+    expect(split).toBeDefined();
+    expect(split).not.toBeNull();
+    expect(split?.querySelector('.codicon-split-horizontal')).not.toBeNull();
+    split?.click();
+    expect(dock.api.getPanel('editor:first.ts')?.group).not.toBe(dock.api.getPanel('editor:second.ts')?.group);
+    expect(callbacks.onCloseEditor).not.toHaveBeenCalled();
+  });
+
+  it('工具组右侧header action可原生最大化、还原并关闭该工具面板', async () => {
+    const { root, dock, callbacks } = fixture();
+    const group = dock.api.getPanel('problems')?.group;
+    const actions = root.querySelector<HTMLElement>(`.wb-dock-group-actions[data-group-id="${group?.id}"]`);
+    const maximize = actions?.querySelector<HTMLButtonElement>('[aria-label="展开面板"]');
+    expect(maximize).toBeDefined();
+    expect(maximize).not.toBeNull();
+    maximize?.click();
+    expect(group?.api.isMaximized()).toBe(true);
+    actions?.querySelector<HTMLButtonElement>('[aria-label="还原面板大小"]')?.click();
+    expect(group?.api.isMaximized()).toBe(false);
+    actions?.querySelector<HTMLButtonElement>('[aria-label="关闭面板"]')?.click();
+    await Promise.resolve();
+    expect(dock.api.getPanel('problems')).toBeUndefined();
+    expect(dock.api.getPanel('output')).toBeUndefined();
+    expect(dock.api.getPanel('console')).toBeUndefined();
+    expect(dock.api.getPanel('preview')).toBeDefined();
+    expect(callbacks.onToggleTool).toHaveBeenLastCalledWith(false);
+    expect(callbacks.onCloseEditor).not.toHaveBeenCalled();
+  });
+
+  it('用户关闭预览通知宿主并回存staging，重开复用section', async () => {
+    const { root, dock, callbacks } = fixture();
+    const preview = root.querySelector('.wb-preview');
+    expect(dock.isPreviewOpen()).toBe(true);
+    dock.api.getPanel('preview')?.api.close();
+    await Promise.resolve();
+    expect(callbacks.onClosePreview).toHaveBeenCalledOnce();
+    expect(dock.isPreviewOpen()).toBe(false);
+    expect(preview?.parentElement).toBe(root.querySelector('[data-slot="panel-staging"]'));
+    dock.showPreview();
+    expect(dock.isPreviewOpen()).toBe(true);
+    expect(root.querySelector('.wb-preview')).toBe(preview);
+  });
+
+  it('重置布局退出工具组最大化并保留面板实例', () => {
+    const { dock } = fixture();
+    const source = dock.ensureEditor('main.ts');
+    const group = dock.api.getPanel('problems')!.group;
+    group.api.maximize();
+    expect(dock.api.hasMaximizedGroup()).toBe(true);
+    dock.resetLayout();
+    expect(dock.api.hasMaximizedGroup()).toBe(false);
+    expect(dock.ensureEditor('main.ts')).toBe(source);
+    expect(dock.api.getPanel('preview')).toBeDefined();
+  });
+
+  it('释放幂等，销毁Dock不等于用户关闭所有编辑标签', async () => {
+    const { dock, callbacks } = fixture();
+    dock.ensureEditor('first.ts');
+    dock.dispose();
+    dock.dispose();
+    await Promise.resolve();
+    expect(callbacks.onCloseEditor).not.toHaveBeenCalled();
+  });
+});
