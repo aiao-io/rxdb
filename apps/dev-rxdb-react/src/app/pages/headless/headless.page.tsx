@@ -27,15 +27,7 @@ export default function HeadlessPage(): React.JSX.Element {
   const source = useMemo(() => createArticleSource(rxdb), [rxdb]);
   const [query, setQuery] = useState<RuleGroup>();
 
-  const { controller: list, snapshot } = useEntityList<ArticleRecord>({
-    query,
-    pageSize: PAGE_SIZE,
-    capabilities: source.capabilities,
-    load: source.load,
-    onCreate: source.create,
-    onUpdate: source.update,
-    onDelete: source.remove
-  });
+  const { controller: list, snapshot } = useEntityList<ArticleRecord>({ ...source, query, pageSize: PAGE_SIZE });
   const { controller: dialog, snapshot: dialogState } = useEntityDialog<DetailResult, DetailData>();
 
   // 查询 / 排序 / 分页任一变化就重新取数。快照里的 sorts 每次发布都是新数组，所以用序列化后的请求键做依赖
@@ -47,8 +39,8 @@ export default function HeadlessPage(): React.JSX.Element {
 
   const save = async ({ data, changes }: DetailSaveResult): Promise<void> => {
     const current = dialogState.data;
-    if (current?.mode === 'create') await list.create(data);
-    else await list.update(current?.record?.id ?? '', changes);
+    if (current?.mode === 'edit') await list.update(current.record.id, changes);
+    else await list.create(data);
   };
   const close = (result: DetailResult): void => {
     if (result === 'saved') dialog.resolve(result);

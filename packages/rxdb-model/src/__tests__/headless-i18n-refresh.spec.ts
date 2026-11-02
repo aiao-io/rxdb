@@ -1,5 +1,5 @@
 import { I18n } from '@aiao/rxdb-i18n';
-import { Subject } from 'rxjs';
+import { BehaviorSubject } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createEntityDetailController,
@@ -29,17 +29,17 @@ const bilingual = (): I18n => {
 };
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   for (const runtime of runtimes.splice(0)) runtime.destroy();
 });
 
 describe('语言切换时控制器刷新已生成的文案', () => {
-  it('表单：已显示的必填校验文案跟随语言刷新，并以 messagesChanged 通知订阅方', async () => {
+  it('表单：已显示的必填校验文案跟随语言刷新，并以 validationChanged 通知订阅方', async () => {
     const i18n = bilingual();
     const form = createEntityFormController({ fields, mode: 'create', i18n });
     const listener = vi.fn();
     form.subscribe(listener);
     expect(form.getFieldState('title')?.error?.message).toBe('标题 是必填项');
-    // 订阅时回放的当前值不算变化
     expect(listener).not.toHaveBeenCalled();
 
     await i18n.setLocale('en');
@@ -47,10 +47,22 @@ describe('语言切换时控制器刷新已生成的文案', () => {
     expect(form.getFieldState('title')?.error?.message).toBe('标题 is required');
     expect(listener).toHaveBeenCalledTimes(1);
     expect(listener.mock.calls[0]?.[1]).toMatchObject({
-      type: 'messagesChanged',
+      type: 'validationChanged',
       result: { valid: false, errors: [{ field: 'title', message: '标题 is required' }] }
     });
     expect(form.snapshot.valid).toBe(false);
+  });
+
+  it('表单：没有已显示的文案可刷新时，不重建快照也不通知', async () => {
+    const i18n = bilingual();
+    const form = createEntityFormController({ fields, data: { title: '有标题', count: 1 }, mode: 'edit', i18n });
+    const listener = vi.fn();
+    form.subscribe(listener);
+
+    await i18n.setLocale('en');
+
+    expect(listener).not.toHaveBeenCalled();
+    expect(form.snapshot.valid).toBe(true);
   });
 
   it('表单：解析失败的文案同样刷新，输入状态与提交约束不变', async () => {
@@ -84,8 +96,7 @@ describe('语言切换时控制器刷新已生成的文案', () => {
   });
 
   it('表单：换字段后，解析失败的文案按新字段配置重建；字段类型变了则丢弃', () => {
-    const i18n = bilingual();
-    const form = createEntityFormController({ fields, data: { title: '有标题', count: 1 }, mode: 'edit', i18n });
+    const form = createEntityFormController({ fields, data: { title: '有标题', count: 1 }, mode: 'edit' });
     form.setField('count', 'abc');
 
     form.setFields([fields[0]!, { ...fields[1]!, displayName: 'Count' }]);
@@ -105,40 +116,88 @@ describe('语言切换时控制器刷新已生成的文案', () => {
     await expect(i18n.setLocale('en')).resolves.toBeUndefined();
   });
 
+  it('表单：没有被任何地方引用后（不调用 dispose），下一次通知时自行退订且不再重建', async () => {
+    const i18n = bilingual();
+    // 模拟控制器构造之后被回收：弱引用此后解不出对象
+    let collected = false;
+    vi.stubGlobal(
+      'WeakRef',
+      class {
+        constructor(readonly target: object) {}
+        deref(): object | undefined {
+          return collected ? undefined : this.target;
+        }
+      }
+    );
+    const form = createEntityFormController({ fields, mode: 'create', i18n });
+    collected = true;
+    vi.unstubAllGlobals();
+    const listener = vi.fn();
+    form.subscribe(listener);
+    expect(i18n.changes$.observed).toBe(true);
+
+    await i18n.setLocale('en');
+
+    expect(listener).not.toHaveBeenCalled();
+    expect(i18n.changes$.observed).toBe(false);
+  });
+
   it('表单：运行时没有 changes$ 时照常工作', () => {
     const form = createEntityFormController({ fields, mode: 'create', i18n: { t: key => key } });
     expect(form.snapshot.valid).toBe(false);
     form.dispose();
   });
 
-  it('详情：语言切换只刷新文案，不使进行中的保存会话失效', async () => {
+  it('表单：changes$ 订阅即回放当前值时照常工作，之后的通知才通知订阅方', () => {
+    const changes$ = new BehaviorSubject(0);
+    const form = createEntityFormController({ fields, mode: 'create', i18n: { t: (key: string) => key, changes$ } });
+    const listener = vi.fn();
+    form.subscribe(listener);
+    expect(listener).not.toHaveBeenCalled();
+
+    changes$.next(1);
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    form.dispose();
+    changes$.next(2);
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('详情：语言切换不使进行中的保存会话失效', async () => {
     const i18n = bilingual();
-    const detail = createEntityDetailController({
-      fields,
-      data: { title: '有标题', count: 1 },
-      mode: 'create',
-      i18n
-    });
-    let entered!: () => void;
-    const started = new Promise<void>(resolve => {
-      entered = resolve;
-    });
-    let release!: () => void;
-    const gate = new Promise<void>(resolve => {
-      release = resolve;
-    });
+    const detail = createEntityDetailController({ fields, data: { title: '有标题', count: 1 }, mode: 'create', i18n });
+    const entered = Promise.withResolvers<void>();
+    const gate = Promise.withResolvers<void>();
     const saving = detail.save(async () => {
-      entered();
-      await gate;
+      entered.resolve();
+      await gate.promise;
     });
-    await started;
+    await entered.promise;
 
     await i18n.setLocale('en');
-    release();
+    gate.resolve();
     const result = await saving;
 
     expect(result.valid).toBe(true);
     expect(detail.snapshot.saving).toBe(false);
+    expect(detail.snapshot.open).toBe(false);
+    detail.dispose();
+  });
+
+  it('详情：重新校验不改草稿，不使进行中的保存会话失效', async () => {
+    const detail = createEntityDetailController({ fields, data: { title: '有标题', count: 1 }, mode: 'create' });
+    const entered = Promise.withResolvers<void>();
+    const gate = Promise.withResolvers<void>();
+    const saving = detail.save(async () => {
+      entered.resolve();
+      await gate.promise;
+    });
+    await entered.promise;
+
+    detail.validate();
+    gate.resolve();
+    await saving;
+
     expect(detail.snapshot.open).toBe(false);
     detail.dispose();
   });
@@ -173,6 +232,22 @@ describe('语言切换时控制器刷新已生成的文案', () => {
     expect(builder.snapshot.valid).toBe(false);
   });
 
+  it('查询构建器：没有校验错误可刷新时不通知', async () => {
+    const i18n = bilingual();
+    const builder = createQueryBuilderController({
+      fields: [{ name: 'title', displayName: '标题', type: 'string' }],
+      i18n
+    });
+    builder.addRule(null, { field: 'title', operator: 'contains', value: '有值' });
+    const listener = vi.fn();
+    builder.subscribe(listener);
+
+    await i18n.setLocale('en');
+
+    expect(listener).not.toHaveBeenCalled();
+    expect(builder.snapshot.valid).toBe(true);
+  });
+
   it('查询构建器：销毁后取消订阅；运行时没有 changes$ 时照常工作', () => {
     const i18n = bilingual();
     const builder = createQueryBuilderController({ fields: [], i18n });
@@ -183,23 +258,5 @@ describe('语言切换时控制器刷新已生成的文案', () => {
     const quiet = createQueryBuilderController({ fields: [], i18n: { t: key => key } });
     expect(quiet.snapshot.valid).toBe(true);
     quiet.dispose();
-  });
-
-  it('运行时在订阅后同步回放当前值时不触发刷新，之后的通知才刷新', () => {
-    const changes$ = new Subject<number>();
-    const form = createEntityFormController({
-      fields,
-      mode: 'create',
-      i18n: { t: (key: string) => key, changes$ }
-    });
-    const listener = vi.fn();
-    form.subscribe(listener);
-
-    changes$.next(1);
-
-    expect(listener).toHaveBeenCalledTimes(1);
-    form.dispose();
-    changes$.next(2);
-    expect(listener).toHaveBeenCalledTimes(1);
   });
 });

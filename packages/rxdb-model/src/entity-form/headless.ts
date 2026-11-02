@@ -5,6 +5,7 @@
  * 这里不触碰 document、window 或任何 CSS 框架。
  * @module entity-form/headless
  */
+import type { Unsubscribable } from 'rxjs';
 import { formatEntityFieldValue, parseEntityFieldValueStrict } from '../entity-value.utils.js';
 import { onModelI18nChange } from '../i18n-watch.js';
 import type { ModelI18n } from '../i18n.js';
@@ -54,19 +55,18 @@ export interface EntityFormFieldSnapshot {
   readonly displayValue: string;
 }
 
-/**
- * 表单状态变化原因。
- * @remarks `messagesChanged` 在应用语言或目录变化后发出：校验错误按新语言重建，数据与输入不变。
- */
+/** 表单状态变化原因。 */
 export type EntityFormEvent =
   | { readonly type: 'fieldChanged'; readonly event: FormFieldChangeEvent }
   | { readonly type: 'validationErrors'; readonly result: FormValidationResult }
   | { readonly type: 'reset'; readonly data: EntityFormData }
   | { readonly type: 'submitted'; readonly data: EntityFormData }
-  | { readonly type: 'cancelled'; readonly data: EntityFormData }
-  | { readonly type: 'messagesChanged'; readonly result: FormValidationResult };
+  | { readonly type: 'cancelled'; readonly data: EntityFormData };
 
-/** 校验完成（包括校验通过）的事件。 */
+/**
+ * 校验完成（包括校验通过）的事件。
+ * @remarks 应用语言或目录变化后，已有校验错误会按新语言重建并以本事件发布，数据与输入不变。
+ */
 export type EntityFormValidationEvent = { readonly type: 'validationChanged'; readonly result: FormValidationResult };
 
 /** 表单提交结果。 */
@@ -87,6 +87,12 @@ export interface EntityFormControllerOptions {
 type Listener = (snapshot: EntityFormSnapshot, event: EntityFormEvent | EntityFormValidationEvent) => void;
 
 const cloneData = (data: EntityFormData): EntityFormData => cloneStructured(data);
+
+/** 解析失败的字段错误：字段显示名 + 解析器给出的原因。 */
+const parseFailureError = (field: FormFieldConfig, message: string): FormFieldValidationError => ({
+  field: field.field,
+  message: `${field.displayName} ${message}`
+});
 
 const equalData = (left: EntityFormData, right: EntityFormData): boolean => {
   const leftKeys = Object.keys(left);
@@ -109,7 +115,7 @@ export class EntityFormController {
   #initialData: EntityFormData;
   /** 尚未修正的解析失败：字段名 → 原始输入。文案在建快照时按当前语言生成，所以这里存输入而不是文案。 */
   readonly #parseFailures = new Map<string, unknown>();
-  readonly #stopLanguage?: () => void;
+  readonly #language: Unsubscribable;
   #snapshot: EntityFormSnapshot;
   #disposed = false;
 
@@ -129,7 +135,10 @@ export class EntityFormController {
     this.#data = cloneData(source);
     this.#initialData = cloneData(source);
     this.#snapshot = this.#buildSnapshot();
-    this.#stopLanguage = onModelI18nChange(options.i18n, () => this.#refreshMessages());
+    // 回调只用参数、不捕获 this（见 onModelI18nChange）；没有已显示的错误时无文案可刷新
+    this.#language = onModelI18nChange(options.i18n, this, form => {
+      if (form.#snapshot.errors.length > 0) form.#publishValidation();
+    });
   }
 
   /** 读取单个字段的渲染状态。 */
@@ -166,7 +175,7 @@ export class EntityFormController {
     if (structuralEqual(this.#fields, fields)) return;
     const previousTypes = new Map(this.#fields.map(field => [field.field, field.type]));
     this.#fields = cloneStructured([...fields]);
-    for (const fieldName of [...this.#parseFailures.keys()]) {
+    for (const fieldName of this.#parseFailures.keys()) {
       const kept = this.#fields.some(field => field.field === fieldName && field.type === previousTypes.get(fieldName));
       if (!kept) this.#parseFailures.delete(fieldName);
     }
@@ -218,10 +227,7 @@ export class EntityFormController {
       };
     const parsed = parseEntityFieldValueStrict(field.type, rawValue, this.#i18n);
     if (!parsed.ok) {
-      const result = {
-        valid: false,
-        errors: [{ field: field.field, message: `${field.displayName} ${parsed.message}` }]
-      };
+      const result = { valid: false, errors: [parseFailureError(field, parsed.message)] };
       this.#parseFailures.set(field.field, cloneStructured(rawValue));
       this.#snapshot = this.#buildSnapshot();
       this.#emit({ type: 'validationErrors', result });
@@ -286,7 +292,7 @@ export class EntityFormController {
   /** 解除订阅并阻止后续动作通知。 */
   dispose(): void {
     this.#disposed = true;
-    this.#stopLanguage?.();
+    this.#language.unsubscribe();
     this.#listeners.clear();
   }
 
@@ -321,21 +327,12 @@ export class EntityFormController {
   /** 把尚未修正的解析失败按当前语言与字段配置还原成错误。 */
   #parseErrors(): FormFieldValidationError[] {
     const errors: FormFieldValidationError[] = [];
-    for (const [fieldName, rawValue] of this.#parseFailures) {
-      const field = this.#fields.find(item => item.field === fieldName);
-      if (!field) continue;
-      const parsed = parseEntityFieldValueStrict(field.type, rawValue, this.#i18n);
-      if (!parsed.ok) errors.push({ field: field.field, message: `${field.displayName} ${parsed.message}` });
+    for (const field of this.#fields) {
+      if (!this.#parseFailures.has(field.field)) continue;
+      const parsed = parseEntityFieldValueStrict(field.type, this.#parseFailures.get(field.field), this.#i18n);
+      if (!parsed.ok) errors.push(parseFailureError(field, parsed.message));
     }
     return errors;
-  }
-
-  /** 用新语言重建快照，让已显示的校验文案跟随；数据、输入和脏状态不变。 */
-  #refreshMessages(): void {
-    if (this.#disposed) return;
-    this.#snapshot = this.#buildSnapshot();
-    const result = cloneStructured({ valid: this.#snapshot.valid, errors: [...this.#snapshot.errors] });
-    this.#emit({ type: 'messagesChanged', result });
   }
 
   /** 重算快照（校验文案与关系展示值随之刷新），再发布合并了解析错误的校验结果。 */

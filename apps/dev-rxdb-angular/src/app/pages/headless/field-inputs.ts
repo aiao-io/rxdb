@@ -5,24 +5,22 @@ import { DestroyRef, inject, signal } from '@angular/core';
 export const fieldId = (prefix: string, field: string): string => `${prefix}-field-${field}`;
 
 /**
- * 表单输入的本地状态：原始文本、已触碰字段、是否尝试过提交。
+ * 表单输入的本地状态：用户键入的原始文本（有键即“已触碰”）与是否尝试过提交。
  *
- * 控制器只保存解析后的合法值；解析失败时用户键入的文本仍要留在控件里，所以由消费方保存原始文本，
- * 并在宿主重置 / 取消（控制器发出 `reset` / `cancelled`）时清空。
+ * 控制器保存解析后的合法值，并私下记着尚未修正的解析失败（用来按当前语言重生成错误文案）；
+ * 控件要回显用户键入的文本，仍由消费方保存，并在宿主重置 / 取消（控制器发出 `reset` / `cancelled`）时清空。
  */
 export class FieldInputs {
   readonly #controller: EntityFormController;
   readonly raw = signal<Readonly<Record<string, string>>>({});
-  readonly touched = signal<ReadonlySet<string>>(new Set());
   readonly attempted = signal(false);
 
   constructor(controller: EntityFormController) {
     this.#controller = controller;
   }
 
-  input(field: string, value: unknown): void {
-    if (typeof value === 'string') this.raw.update(previous => ({ ...previous, [field]: value }));
-    this.touched.update(previous => (previous.has(field) ? previous : new Set(previous).add(field)));
+  input(field: string, value: string): void {
+    this.raw.update(previous => ({ ...previous, [field]: value }));
     this.#controller.setField(field, value);
   }
 
@@ -32,7 +30,6 @@ export class FieldInputs {
 
   reset(): void {
     this.raw.set({});
-    this.touched.set(new Set());
     this.attempted.set(false);
   }
 }

@@ -21,6 +21,7 @@ import {
   createBlankArticle,
   createFields,
   detailTabs,
+  errorMessage,
   type DetailData,
   type DetailResult,
   type DetailSaveResult
@@ -116,8 +117,7 @@ export class DetailDialogComponent {
   );
   protected readonly errorText = computed(() => {
     const error = this.detail.snapshot().error;
-    if (error === null) return null;
-    return error instanceof Error ? error.message : String(error);
+    return error === null ? null : errorMessage(error);
   });
 
   readonly data = input.required<DetailData>();

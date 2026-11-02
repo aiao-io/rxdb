@@ -1,6 +1,6 @@
 import type { OrderBy } from '@aiao/rxdb';
 import type { EntityListController, EntityListSnapshot } from '@aiao/rxdb-model/headless';
-import type { ArticleRecord } from './article-model';
+import { errorMessage, type ArticleRecord } from './article-model';
 
 /** 可排序列：表头按钮循环 无序 → 升序 → 降序。 */
 const COLUMNS = [
@@ -113,7 +113,7 @@ export function ArticleList({
       </table>
       {error !== null && (
         <p className='hl-error' role='alert' data-testid='list-error'>
-          {error instanceof Error ? error.message : String(error)}
+          {errorMessage(error)}
         </p>
       )}
       <div className='hl-pager'>

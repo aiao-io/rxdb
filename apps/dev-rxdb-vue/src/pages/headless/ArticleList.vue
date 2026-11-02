@@ -2,7 +2,7 @@
 import type { OrderBy } from '@aiao/rxdb';
 import type { EntityListController, EntityListSnapshot } from '@aiao/rxdb-model/headless';
 import { computed } from 'vue';
-import type { ArticleRecord } from './article-model';
+import { errorMessage, type ArticleRecord } from './article-model';
 
 /** 可排序列：表头按钮循环 无序 → 升序 → 降序。 */
 const COLUMNS = [
@@ -37,7 +37,6 @@ const pages = computed(() =>
 );
 const canEdit = computed(() => props.snapshot.capabilities?.canEdit !== false);
 const canDelete = computed(() => props.snapshot.capabilities?.canDelete !== false);
-const message = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 const swallow = (): undefined => undefined;
 </script>
 
@@ -137,7 +136,7 @@ const swallow = (): undefined => undefined;
       role="alert"
       data-testid="list-error"
     >
-      {{ message(snapshot.error) }}
+      {{ errorMessage(snapshot.error) }}
     </p>
     <div class="hl-pager">
       <button

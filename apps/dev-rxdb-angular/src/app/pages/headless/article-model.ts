@@ -4,13 +4,14 @@ import {
   createSchemaFromEntity,
   deriveEntityCapabilities,
   entityToFormData,
+  getDefaultOperatorRegistry,
+  getDefaultValueForType,
+  getInputType,
   modelText,
   type DetailTab,
-  type EntityCapabilities,
   type EntityFormData,
   type EntityInstance,
-  type EntityListLoadContext,
-  type EntityListLoadResult,
+  type EntityListControllerOptions,
   type FieldMetadata,
   type FormFieldConfig,
   type ModelI18n,
@@ -31,9 +32,6 @@ const metadata = getEntityMetadata(Article);
 export const createFields: FormFieldConfig[] = buildFormFields(metadata, 'create');
 /** 编辑表单的字段（追加只读系统字段）；系统字段名随传入的运行时翻译。 */
 export const buildEditFields = (i18n?: ModelI18n): FormFieldConfig[] => buildFormFields(metadata, 'edit', i18n);
-/** 操作符的展示文案：内置操作符带目录键，随应用语言翻译；自定义操作符用自带的 label。 */
-export const operatorLabel = (operator: OperatorDefinition, i18n?: ModelI18n): string =>
-  operator.labelKey ? modelText(operator.labelKey, undefined, i18n) : operator.label;
 /** 查询构建器可选字段。 */
 export const queryFields: FieldMetadata[] = createSchemaFromEntity(metadata, {
   fieldFilter: field => QUERY_FIELD_NAMES.includes(field.name)
@@ -50,6 +48,28 @@ export const detailTabs: DetailTab[] = [
   { key: 'system', label: '系统字段', type: 'form' }
 ];
 
+/** 本页只渲染单值 / 无值操作符；区间、数组、子查询操作符交给有需要的消费方自己的控件。 */
+export const operatorsFor = (field: FieldMetadata | undefined): OperatorDefinition[] =>
+  field ?
+    getDefaultOperatorRegistry()
+      .getForField(field)
+      .filter(operator => operator.valueType === 'single' || operator.valueType === 'none')
+  : [];
+/** 操作符的展示文案：内置操作符带目录键，随应用语言翻译；自定义操作符用自带的 label。 */
+export const operatorLabel = (operator: OperatorDefinition, i18n?: ModelI18n): string =>
+  operator.labelKey ? modelText(operator.labelKey, undefined, i18n) : operator.label;
+/** 换字段或换操作符后，规则值回到该输入类型的缺省值（文本为 ''，数值为 null）。 */
+export const defaultRuleValue = (field: FieldMetadata | undefined, operator: string): unknown =>
+  getDefaultValueForType(getInputType(field?.type ?? 'string', operator, field?.enum));
+/** 把输入框文本还原成规则值：数值输入转 number（空文本为 null），其余保持文本。 */
+export const ruleValueFromText = (inputType: string, raw: string): unknown => {
+  if (inputType !== 'number') return raw;
+  return raw.trim() === '' ? null : Number(raw);
+};
+
+/** 把任意拒绝原因转成可展示的文本。 */
+export const errorMessage = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+
 /** 列表行：仓储返回的实体实例，按 headless 列表的实体契约使用。 */
 export type ArticleRecord = EntityInstance & { title: string; category: string; viewCount: number | null };
 
@@ -57,10 +77,7 @@ export type ArticleRecord = EntityInstance & { title: string; category: string; 
 export type DetailResult = 'saved' | 'cancelled';
 
 /** 详情弹窗打开时的数据：新建没有记录，编辑带着被点击的那一行。 */
-export interface DetailData {
-  readonly mode: 'create' | 'edit';
-  readonly record?: ArticleRecord;
-}
+export type DetailData = { readonly mode: 'create' } | { readonly mode: 'edit'; readonly record: ArticleRecord };
 
 /** 详情保存时交给持久化回调的合法草稿：完整数据与相对基线的变更集。 */
 export interface DetailSaveResult {
@@ -70,17 +87,8 @@ export interface DetailSaveResult {
 
 const EMPTY_QUERY: RuleGroup = { combinator: 'and', rules: [] };
 
-/** 示例数据源：把 headless 列表的 load / 写入回调接到 Article 仓储。 */
-export interface ArticleSource {
-  readonly capabilities: EntityCapabilities;
-  load(context: EntityListLoadContext): Promise<EntityListLoadResult<ArticleRecord>>;
-  create(data: Record<string, unknown>): Promise<ArticleRecord>;
-  update(record: ArticleRecord, changes: Record<string, unknown>): Promise<ArticleRecord>;
-  remove(record: ArticleRecord): Promise<void>;
-}
-
-/** 创建绑定到 RxDB 实例的 Article 数据源。 */
-export function createArticleSource(rxdb: RxDB): ArticleSource {
+/** 创建绑定到 RxDB 实例的 Article 数据源；键名与列表控制器的选项一致，页面直接展开传入。 */
+export function createArticleSource(rxdb: RxDB): EntityListControllerOptions<ArticleRecord> {
   const repository = rxdb.entityManager.getRepository(Article);
   return {
     capabilities: deriveEntityCapabilities(metadata, { readOnly: rxdb.readOnly }),
@@ -100,14 +108,14 @@ export function createArticleSource(rxdb: RxDB): ArticleSource {
       ]);
       return { records: records as unknown as ArticleRecord[], total };
     },
-    async create(data) {
+    async onCreate(data) {
       const article = rxdb.entityManager.instantiate(Article, data as Partial<Article>);
       return (await repository.create(article)) as unknown as ArticleRecord;
     },
-    async update(record, changes) {
+    async onUpdate(record, changes) {
       return (await repository.update(record as unknown as Article, changes)) as unknown as ArticleRecord;
     },
-    async remove(record) {
+    async onDelete(record) {
       await repository.remove(record as unknown as Article);
     }
   };

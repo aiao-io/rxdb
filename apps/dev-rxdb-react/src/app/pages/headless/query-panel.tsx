@@ -2,7 +2,6 @@ import type { RuleGroup } from '@aiao/rxdb';
 import { useI18n, useI18nRuntime } from '@aiao/rxdb-i18n-react';
 import { useQueryBuilder } from '@aiao/rxdb-model-react/headless';
 import {
-  getDefaultOperatorRegistry,
   getInputType,
   isRuleGroup,
   type FieldMetadata,
@@ -10,21 +9,7 @@ import {
   type QueryBuilderRule,
   type QueryBuilderRuleGroup
 } from '@aiao/rxdb-model/headless';
-import { operatorLabel, queryFields } from './article-model';
-
-const registry = getDefaultOperatorRegistry();
-
-/** 本页只渲染单值 / 无值操作符；区间、数组、子查询操作符交给有需要的消费方自己的控件。 */
-const operatorsFor = (field: FieldMetadata | undefined) =>
-  field ?
-    registry.getForField(field).filter(operator => operator.valueType === 'single' || operator.valueType === 'none')
-  : [];
-
-/** 把输入框文本还原成规则值：数值字段转 number，空文本为 null。 */
-const coerceValue = (field: FieldMetadata | undefined, operator: string, raw: string): unknown => {
-  if (getInputType(field?.type ?? 'string', operator, field?.enum) !== 'number') return raw;
-  return raw.trim() === '' ? null : Number(raw);
-};
+import { defaultRuleValue, operatorLabel, operatorsFor, queryFields, ruleValueFromText } from './article-model';
 
 function RuleRow({
   rule,
@@ -39,11 +24,12 @@ function RuleRow({
   const field = fields.find(item => item.name === rule.field);
   const operators = operatorsFor(field);
   const inputType = getInputType(field?.type ?? 'string', rule.operator, field?.enum);
+  const valueText = String(rule.value ?? '');
 
   const changeField = (name: string): void => {
     const next = fields.find(item => item.name === name);
-    const [first] = operatorsFor(next);
-    controller.updateRule(rule.id, { field: name, operator: first?.key ?? '=', value: '' });
+    const operator = operatorsFor(next)[0]?.key ?? '=';
+    controller.updateRule(rule.id, { field: name, operator, value: defaultRuleValue(next, operator) });
   };
 
   let valueControl: React.JSX.Element | null = null;
@@ -51,7 +37,7 @@ function RuleRow({
     valueControl = (
       <select
         aria-label='值'
-        value={String(rule.value ?? '')}
+        value={valueText}
         onChange={event => controller.updateRule(rule.id, { value: event.target.value })}
       >
         <option value=''>请选择</option>
@@ -67,10 +53,8 @@ function RuleRow({
       <input
         aria-label='值'
         inputMode={inputType === 'number' ? 'numeric' : undefined}
-        value={rule.value === null || rule.value === undefined ? '' : String(rule.value)}
-        onChange={event =>
-          controller.updateRule(rule.id, { value: coerceValue(field, rule.operator, event.target.value) })
-        }
+        value={valueText}
+        onChange={event => controller.updateRule(rule.id, { value: ruleValueFromText(inputType, event.target.value) })}
       />
     );
   }
@@ -88,7 +72,12 @@ function RuleRow({
       <select
         aria-label='操作符'
         value={rule.operator}
-        onChange={event => controller.updateRule(rule.id, { operator: event.target.value, value: '' })}
+        onChange={event =>
+          controller.updateRule(rule.id, {
+            operator: event.target.value,
+            value: defaultRuleValue(field, event.target.value)
+          })
+        }
       >
         {operators.map(operator => (
           <option key={operator.key} value={operator.key}>

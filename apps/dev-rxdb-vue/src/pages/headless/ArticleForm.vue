@@ -2,20 +2,20 @@
 import { useI18nRuntime } from '@aiao/rxdb-i18n-vue';
 import { useEntityForm } from '@aiao/rxdb-model-vue/headless';
 import { injectRxDB } from '@aiao/rxdb-vue';
-import { reactive, ref } from 'vue';
-import { createBlankArticle, createFields } from './article-model';
+import { ref } from 'vue';
+import { createBlankArticle, createFields, errorMessage } from './article-model';
 import FieldRow from './FieldRow.vue';
 import { fieldId, useFieldInputs } from './field-inputs';
 
 const props = defineProps<{ onCreate: (data: Record<string, unknown>) => Promise<unknown> }>();
 
 /** 新建文章表单：字段、校验与提交都来自 `useEntityForm`，控件与布局是本页自己的；校验文案用应用的 i18n 运行时。 */
-const options = reactive({
+const options = {
   fields: createFields,
   data: createBlankArticle(injectRxDB()!),
   mode: 'create' as const,
   i18n: useI18nRuntime()
-});
+};
 const { controller, snapshot } = useEntityForm(options);
 const inputs = useFieldInputs(controller);
 const failure = ref<string | null>(null);
@@ -33,7 +33,7 @@ const submit = async (): Promise<void> => {
     failure.value = null;
     controller.cancel();
   } catch (error) {
-    failure.value = error instanceof Error ? error.message : String(error);
+    failure.value = errorMessage(error);
   }
 };
 </script>

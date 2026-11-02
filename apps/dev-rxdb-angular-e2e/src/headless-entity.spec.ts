@@ -87,13 +87,20 @@ const expectTitles = async (page: Page, titles: readonly string[]): Promise<void
 };
 
 test.describe('Headless 实体：自有控件与样式的真实应用消费', () => {
+  /** 当前用例收集到的页面级错误，用例收尾断言为空。 */
+  let problems: string[];
+
   test.beforeEach(async ({ page }) => {
     await resetE2eState(page);
+    problems = watchPage(page);
+    await openHeadless(page);
+  });
+
+  test.afterEach(() => {
+    expect(problems).toEqual([]);
   });
 
   test('表单：必填校验、解析失败保留输入并拒绝提交、取消恢复、提交后落库', async ({ page }) => {
-    const problems = watchPage(page);
-    await openHeadless(page);
     const form = page.getByTestId('headless-form');
     const title = form.getByLabel('title', { exact: true });
     const viewCount = form.getByLabel('viewCount', { exact: true });
@@ -133,13 +140,9 @@ test.describe('Headless 实体：自有控件与样式的真实应用消费', ()
     await expect(form.getByTestId('form-state')).toHaveText('没有修改');
     await page.reload();
     await expectTitles(page, [VALID_ARTICLE.title]);
-
-    expect(problems).toEqual([]);
   });
 
   test('列表与筛选：排序、分页、选择删除，以及查询构建器输出驱动列表', async ({ page }) => {
-    const problems = watchPage(page);
-    await openHeadless(page);
     await seedArticles(page);
     const list = page.getByTestId('headless-list');
     const info = page.getByTestId('list-page-info');
@@ -212,13 +215,9 @@ test.describe('Headless 实体：自有控件与样式的真实应用消费', ()
     await builder.getByRole('button', { name: '清空筛选' }).click();
     await expect(info).toContainText('共 4 条');
     await expect(builder.getByTestId('qb-rule')).toHaveCount(0);
-
-    expect(problems).toEqual([]);
   });
 
   test('详情弹窗：新建取消不落库、新建保存、编辑保存、Esc 关闭并恢复焦点', async ({ page }) => {
-    const problems = watchPage(page);
-    await openHeadless(page);
     const opener = page.getByRole('button', { name: '新建文章' });
     const result = page.getByTestId('dialog-result');
 
@@ -270,13 +269,9 @@ test.describe('Headless 实体：自有控件与样式的真实应用消费', ()
     await expect(dialog).toHaveCount(0);
     await expect(result).toHaveText('弹窗结果：cancelled');
     await expect(opener).toBeFocused();
-
-    expect(problems).toEqual([]);
   });
 
   test('国际化：校验文案与操作符文案跟随应用语言，切换语言时已显示的文案自动刷新', async ({ page }) => {
-    const problems = watchPage(page);
-    await openHeadless(page);
     await page.getByTestId('i18n-locale').selectOption('en');
     await expect(page.locator('html')).toHaveAttribute('lang', /^en/);
 
@@ -290,9 +285,8 @@ test.describe('Headless 实体：自有控件与样式的真实应用消费', ()
     // 操作符文案：内置操作符带目录键，页面用同一个运行时翻译
     const builder = page.getByTestId('headless-query');
     await builder.getByRole('button', { name: '添加规则' }).click();
-    await expect(builder.getByTestId('qb-rule').first().getByLabel('操作符').locator('option').first()).toHaveText(
-      'Equals'
-    );
+    const firstOperator = builder.getByTestId('qb-rule').first().getByLabel('操作符').locator('option').first();
+    await expect(firstOperator).toHaveText('Equals');
     await expect(builder.getByTestId('qb-errors')).toContainText('requires a value');
 
     // 已显示的文案随语言切换自动刷新，不必再次操作；解析失败的文案同样刷新，输入保持不变
@@ -301,16 +295,10 @@ test.describe('Headless 实体：自有控件与样式的真实应用消费', ()
     await expect(form.getByTestId('error-viewCount')).toHaveText('viewCount 必须是整数');
     await expect(form.getByLabel('viewCount', { exact: true })).toHaveValue('abc');
     await expect(builder.getByTestId('qb-errors')).toContainText('需要提供一个值');
-    await expect(builder.getByTestId('qb-rule').first().getByLabel('操作符').locator('option').first()).toHaveText(
-      '等于'
-    );
-
-    expect(problems).toEqual([]);
+    await expect(firstOperator).toHaveText('等于');
   });
 
   test('生命周期：离开再回来重复挂载，不重复监听也不重复写入', async ({ page }) => {
-    const problems = watchPage(page);
-    await openHeadless(page);
     const form = page.getByTestId('headless-form');
 
     await fillArticle(form, VALID_ARTICLE);
@@ -332,7 +320,5 @@ test.describe('Headless 实体：自有控件与样式的真实应用消费', ()
     await form.getByRole('button', { name: '提交' }).click();
     await expect(page.getByTestId('list-page-info')).toContainText('共 2 条');
     await expectTitles(page, ['hl-after-remount', VALID_ARTICLE.title]);
-
-    expect(problems).toEqual([]);
   });
 });

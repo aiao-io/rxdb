@@ -26,15 +26,7 @@ import './headless.css';
 const rxdb = injectRxDB()!;
 const source = createArticleSource(rxdb);
 
-const options = reactive({
-  query: undefined as RuleGroup | undefined,
-  pageSize: PAGE_SIZE,
-  capabilities: source.capabilities,
-  load: source.load,
-  onCreate: source.create,
-  onUpdate: source.update,
-  onDelete: source.remove
-});
+const options = reactive({ ...source, query: undefined as RuleGroup | undefined, pageSize: PAGE_SIZE });
 const { controller: list, snapshot } = useEntityList<ArticleRecord>(options);
 const { controller: dialog, snapshot: dialogState } = useEntityDialog<DetailResult, DetailData>();
 
@@ -57,8 +49,8 @@ const apply = (query: RuleGroup): void => {
 
 const save = async ({ data, changes }: DetailSaveResult): Promise<void> => {
   const current = dialogState.value.data;
-  if (current?.mode === 'create') await list.create(data);
-  else await list.update(current?.record?.id ?? '', changes);
+  if (current?.mode === 'edit') await list.update(current.record.id, changes);
+  else await list.create(data);
 };
 
 const close = (result: DetailResult): void => {

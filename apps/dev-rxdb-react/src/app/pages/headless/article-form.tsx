@@ -2,7 +2,7 @@ import { useI18nRuntime } from '@aiao/rxdb-i18n-react';
 import { useEntityForm } from '@aiao/rxdb-model-react/headless';
 import { useRxDB } from '@aiao/rxdb-react';
 import { useMemo, useState } from 'react';
-import { createBlankArticle, createFields } from './article-model';
+import { createBlankArticle, createFields, errorMessage } from './article-model';
 import { FieldRow, fieldId, useFieldInputs } from './field-controls';
 
 /** 新建文章表单：字段、校验与提交都来自 `useEntityForm`，控件与布局是本页自己的；校验文案用应用的 i18n 运行时。 */
@@ -32,7 +32,7 @@ export function ArticleForm({
       setFailure(null);
       controller.cancel();
     } catch (error) {
-      setFailure(error instanceof Error ? error.message : String(error));
+      setFailure(errorMessage(error));
     }
   };
 

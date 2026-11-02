@@ -20,7 +20,7 @@ export * from './entity-form/interfaces.js';
 export * from './entity-list/headless.js';
 export * from './entity-list/types.js';
 export * from './entity-table/headless.js';
-export { defaultModelI18n, modelText, type ModelI18n } from './i18n.js';
+export { modelText, type ModelI18n } from './i18n.js';
 export { modelEnMessages, modelMessages } from './messages.js';
 export * from './query-builder/models/config.interface.js';
 export type { OperatorDefinition } from './query-builder/models/operator.interface.js';
@@ -28,11 +28,10 @@ export * from './query-builder/models/query-builder-state.js';
 export * from './query-builder/services/headless.js';
 export {
   OperatorRegistry,
-  createOperatorRegistry,
   getDefaultOperatorRegistry,
   type OperatorRegistryOptions
 } from './query-builder/services/operator-registry.service.js';
 export type { SchemaParserOptions } from './query-builder/services/schema-parser.service.js';
 export { createSchemaFromEntity } from './query-builder/utils/schema-factory.js';
-export { getDefaultValueForType, getInputType, parseCommaSeparatedInput } from './query-builder/utils/value-input.js';
+export { getDefaultValueForType, getInputType } from './query-builder/utils/value-input.js';
 export * from './structural-equal.js';

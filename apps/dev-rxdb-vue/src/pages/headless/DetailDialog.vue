@@ -2,12 +2,13 @@
 import { useI18nRuntime } from '@aiao/rxdb-i18n-vue';
 import { useEntityDetail } from '@aiao/rxdb-model-vue/headless';
 import { injectRxDB } from '@aiao/rxdb-vue';
-import { computed, onBeforeUnmount, onMounted, reactive, useTemplateRef } from 'vue';
+import { computed, onBeforeUnmount, onMounted, useTemplateRef } from 'vue';
 import {
   buildEditFields,
   createBlankArticle,
   createFields,
   detailTabs,
+  errorMessage,
   type DetailData,
   type DetailResult,
   type DetailSaveResult
@@ -28,14 +29,17 @@ const emit = defineEmits<{ close: [result: DetailResult] }>();
 const creating = props.data.mode === 'create';
 // 弹窗每次打开都是新实例：系统字段名按打开时的应用语言翻译，新建的基线来自实例化的草稿
 const i18n = useI18nRuntime();
-const options = reactive({
-  fields: creating ? createFields : buildEditFields(i18n),
-  mode: props.data.mode,
-  tabs: creating ? detailTabs.slice(0, 1) : detailTabs,
-  i18n,
-  ...(creating ? { data: createBlankArticle(injectRxDB()!) } : { entity: props.data.record })
-});
-const { controller, snapshot } = useEntityDetail(options);
+const { controller, snapshot } = useEntityDetail(
+  props.data.mode === 'create' ?
+    {
+      fields: createFields,
+      mode: 'create',
+      tabs: detailTabs.slice(0, 1),
+      i18n,
+      data: createBlankArticle(injectRxDB()!)
+    }
+  : { fields: buildEditFields(i18n), mode: 'edit', tabs: detailTabs, i18n, entity: props.data.record }
+);
 const inputs = useFieldInputs(controller.form);
 const dialogRef = useTemplateRef<HTMLDialogElement>('dialog');
 
@@ -52,11 +56,7 @@ onBeforeUnmount(() => {
 
 const basicStates = computed(() => snapshot.value.form.fieldStates.filter(state => !state.readonly));
 const systemStates = computed(() => snapshot.value.form.fieldStates.filter(state => state.readonly));
-const errorText = computed(() => {
-  const error = snapshot.value.error;
-  if (error === null) return null;
-  return error instanceof Error ? error.message : String(error);
-});
+const errorText = computed(() => (snapshot.value.error === null ? null : errorMessage(snapshot.value.error)));
 
 const save = async (): Promise<void> => {
   inputs.markAttempted();

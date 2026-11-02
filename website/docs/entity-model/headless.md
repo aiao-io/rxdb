@@ -125,7 +125,9 @@ import { modelEnMessages, modelMessages } from '@aiao/rxdb-model/headless';
 const catalogs = [...modelMessages, { locale: 'en', namespace: 'rxdb-model', messages: modelEnMessages }];
 ```
 
-运行时带 `changes$`（应用的 `I18n` 就有）时，控制器会在语言或目录变化后用新语言重建已显示的校验文案，不必自己触发：表单与详情发出 `messagesChanged` 事件，查询构建器发出 `validationChanged`，数据、输入和查询输出都不变，详情进行中的保存也不受影响。字段配置里的显示名由你构建（例如 `buildFormFields(metadata, mode, i18n)` 的系统字段名），语言变化后用 `setFields` 重建。
+运行时带 `changes$`（应用的 `I18n` 就有）时，控制器会在语言或目录变化后用新语言重建已显示的校验文案，不必自己触发：表单与查询构建器重新发出 `validationChanged`（详情经 `formChanged` 转发），数据、输入和查询输出都不变；没有错误可刷新时不重建也不通知。重新校验不改草稿，所以详情进行中的保存不受影响。订阅只弱引用控制器：宿主不调用 `dispose()`（如 React 绑定，卸载后随组件回收）时，控制器被回收后订阅随之清理。
+
+字段配置里的显示名由你构建（例如 `buildFormFields(metadata, mode, i18n)` 的系统字段名），语言变化后用 `setFields` 重建。`setFields` 会发出 `reset`，但保留同类型字段尚未修正的解析失败；自己保存输入文本的控件，不要在 `reset` 时无条件清空仍有解析错误的字段。
 
 ### 列表何时取数
 

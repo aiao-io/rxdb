@@ -13,39 +13,30 @@ const id = computed(() => fieldId(props.idPrefix, config.value.field));
 const errorId = computed(() => `${id.value}-error`);
 const showError = computed(
   () =>
-    props.state.error !== undefined &&
-    (props.inputs.state.attempted || props.inputs.state.touched.has(config.value.field))
+    props.state.error !== undefined && (props.inputs.state.attempted || config.value.field in props.inputs.state.raw)
 );
 const textValue = computed(() => props.inputs.state.raw[config.value.field] ?? props.state.displayValue);
 const inputMode = computed(() => (NUMERIC_TYPES.has(config.value.type) ? 'numeric' : undefined));
+/** 两种控件共用的标签关联、错误关联与只读状态绑定。 */
+const common = computed(() => ({
+  id: id.value,
+  name: config.value.field,
+  disabled: props.state.readonly,
+  'aria-invalid': showError.value || undefined,
+  'aria-describedby': showError.value ? errorId.value : undefined,
+  'aria-required': config.value.required || undefined
+}));
 
-const onInput = (value: unknown): void => props.inputs.input(config.value.field, value);
+const onInput = (value: string): void => props.inputs.input(config.value.field, value);
 </script>
 
 <template>
   <div class="hl-field">
     <label :for="id">{{ config.displayName }}</label>
-    <input
-      v-if="config.type === 'boolean'"
-      :id="id"
-      :name="config.field"
-      type="checkbox"
-      :checked="state.value === true"
-      :disabled="state.readonly"
-      :aria-invalid="showError || undefined"
-      :aria-describedby="showError ? errorId : undefined"
-      :aria-required="config.required || undefined"
-      @change="onInput(($event.target as HTMLInputElement).checked)"
-    />
     <select
-      v-else-if="config.type === 'enum'"
-      :id="id"
-      :name="config.field"
+      v-if="config.type === 'enum'"
+      v-bind="common"
       :value="String(state.value ?? '')"
-      :disabled="state.readonly"
-      :aria-invalid="showError || undefined"
-      :aria-describedby="showError ? errorId : undefined"
-      :aria-required="config.required || undefined"
       @change="onInput(($event.target as HTMLSelectElement).value)"
     >
       <option value="">请选择</option>
@@ -59,15 +50,10 @@ const onInput = (value: unknown): void => props.inputs.input(config.value.field,
     </select>
     <input
       v-else
-      :id="id"
-      :name="config.field"
+      v-bind="common"
       type="text"
       :inputmode="inputMode"
       :value="textValue"
-      :disabled="state.readonly"
-      :aria-invalid="showError || undefined"
-      :aria-describedby="showError ? errorId : undefined"
-      :aria-required="config.required || undefined"
       @input="onInput(($event.target as HTMLInputElement).value)"
     />
     <p

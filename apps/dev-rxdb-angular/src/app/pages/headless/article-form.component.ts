@@ -2,7 +2,7 @@ import { RxDB } from '@aiao/rxdb';
 import { useI18nRuntime } from '@aiao/rxdb-i18n-angular';
 import { injectEntityForm } from '@aiao/rxdb-model-angular/headless';
 import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
-import { createBlankArticle, createFields } from './article-model';
+import { createBlankArticle, createFields, errorMessage } from './article-model';
 import { fieldId, injectFieldInputs } from './field-inputs';
 import { FieldRowComponent } from './field-row.component';
 
@@ -57,7 +57,7 @@ export class ArticleFormComponent {
       this.failure.set(null);
       this.form.controller.cancel();
     } catch (error) {
-      this.failure.set(error instanceof Error ? error.message : String(error));
+      this.failure.set(errorMessage(error));
     }
   }
 }

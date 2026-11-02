@@ -71,13 +71,9 @@ export default class HeadlessPage {
   });
   protected readonly query = signal<RuleGroup | undefined>(undefined);
   protected readonly list = injectEntityList<ArticleRecord>(() => ({
+    ...this.#source,
     query: this.query(),
-    pageSize: PAGE_SIZE,
-    capabilities: this.#source.capabilities,
-    load: this.#source.load,
-    onCreate: this.#source.create,
-    onUpdate: this.#source.update,
-    onDelete: this.#source.remove
+    pageSize: PAGE_SIZE
   }));
   protected readonly dialog = injectEntityDialog<DetailResult, DetailData>();
 
@@ -93,8 +89,8 @@ export default class HeadlessPage {
   protected readonly create = (data: Record<string, unknown>): Promise<unknown> => this.list.controller.create(data);
   protected readonly save = async ({ data, changes }: DetailSaveResult): Promise<void> => {
     const current = this.dialog.snapshot().data;
-    if (current?.mode === 'create') await this.list.controller.create(data);
-    else await this.list.controller.update(current?.record?.id ?? '', changes);
+    if (current?.mode === 'edit') await this.list.controller.update(current.record.id, changes);
+    else await this.list.controller.create(data);
   };
 
   protected close(result: DetailResult): void {

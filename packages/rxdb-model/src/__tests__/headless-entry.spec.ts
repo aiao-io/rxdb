@@ -35,7 +35,7 @@ describe('@aiao/rxdb-model/headless entry', () => {
     const operators = headless.getDefaultOperatorRegistry().getForField(title!);
     expect(operators.map(operator => operator.key)).toContain('contains');
     const builtIn = operators.find(operator => operator.labelKey !== undefined);
-    expect(headless.modelText(builtIn!.labelKey!, undefined, headless.defaultModelI18n)).toBe(builtIn!.label);
+    expect(headless.modelText(builtIn!.labelKey!)).toBe(builtIn!.label);
     expect(headless.getInputType('number', '>=')).toBe('number');
     expect(headless.getDefaultValueForType('number')).toBeNull();
     expect(headless.modelMessages.map(catalog => catalog.namespace)).toContain('rxdb-model');

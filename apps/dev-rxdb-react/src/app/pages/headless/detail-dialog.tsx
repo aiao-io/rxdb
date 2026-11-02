@@ -1,5 +1,6 @@
 import { useI18nRuntime } from '@aiao/rxdb-i18n-react';
 import { useEntityDetail } from '@aiao/rxdb-model-react/headless';
+import type { EntityDetailControllerOptions } from '@aiao/rxdb-model/headless';
 import { useRxDB } from '@aiao/rxdb-react';
 import { useEffect, useMemo, useRef } from 'react';
 import {
@@ -7,6 +8,7 @@ import {
   createBlankArticle,
   createFields,
   detailTabs,
+  errorMessage,
   type DetailData,
   type DetailResult,
   type DetailSaveResult
@@ -31,15 +33,14 @@ export function DetailDialog({
   const i18n = useI18nRuntime();
   const rxdb = useRxDB();
   // 弹窗每次打开都是新实例：系统字段名按打开时的应用语言翻译，新建的基线来自实例化的草稿
-  const fields = useMemo(() => (creating ? createFields : buildEditFields(i18n)), [creating, i18n]);
-  const blank = useMemo(() => createBlankArticle(rxdb), [rxdb]);
-  const { controller, snapshot } = useEntityDetail({
-    fields,
-    mode: data.mode,
-    tabs: creating ? detailTabs.slice(0, 1) : detailTabs,
-    i18n,
-    ...(creating ? { data: blank } : { entity: data.record })
-  });
+  const options = useMemo<EntityDetailControllerOptions>(
+    () =>
+      data.mode === 'create' ?
+        { fields: createFields, mode: 'create', tabs: detailTabs.slice(0, 1), i18n, data: createBlankArticle(rxdb) }
+      : { fields: buildEditFields(i18n), mode: 'edit', tabs: detailTabs, i18n, entity: data.record },
+    [data, i18n, rxdb]
+  );
+  const { controller, snapshot } = useEntityDetail(options);
   const inputs = useFieldInputs(controller.form);
 
   useEffect(() => {
@@ -119,7 +120,7 @@ export function DetailDialog({
         </div>
         {snapshot.error !== null && (
           <p className='hl-error' role='alert' data-testid='detail-error'>
-            {snapshot.error instanceof Error ? snapshot.error.message : String(snapshot.error)}
+            {errorMessage(snapshot.error)}
           </p>
         )}
         <div className='hl-actions'>

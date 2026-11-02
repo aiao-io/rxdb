@@ -1,23 +1,16 @@
 <script lang="ts" setup>
-import { useI18n, useI18nRuntime } from '@aiao/rxdb-i18n-vue';
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import {
   getInputType,
   type FieldMetadata,
-  type OperatorDefinition,
   type QueryBuilderController,
   type QueryBuilderRule
 } from '@aiao/rxdb-model/headless';
 import { computed } from 'vue';
-import { operatorLabel } from './article-model';
-import { operatorsFor } from './query-operators';
+import { defaultRuleValue, operatorLabel, operatorsFor, ruleValueFromText } from './article-model';
 
-const i18n = useI18nRuntime();
-const { locale } = useI18n();
-/** 读取 `locale` 让切换语言时模板重新渲染，再按运行时翻译操作符。 */
-const operatorText = (operator: OperatorDefinition): string => {
-  void locale.value;
-  return operatorLabel(operator, i18n);
-};
+/** 绑定的 `t` 会读取语言与目录修订，切换语言时模板里的操作符文案随之重新渲染。 */
+const i18n = useI18n();
 
 const props = defineProps<{
   rule: QueryBuilderRule;
@@ -28,21 +21,16 @@ const props = defineProps<{
 const field = computed(() => props.fields.find(item => item.name === props.rule.field));
 const operators = computed(() => operatorsFor(field.value));
 const inputType = computed(() => getInputType(field.value?.type ?? 'string', props.rule.operator, field.value?.enum));
-const valueText = computed(() =>
-  props.rule.value === null || props.rule.value === undefined ? '' : String(props.rule.value)
-);
-
-/** 把输入框文本还原成规则值：数值字段转 number，空文本为 null。 */
-const coerceValue = (raw: string): unknown => {
-  if (inputType.value !== 'number') return raw;
-  return raw.trim() === '' ? null : Number(raw);
-};
+const valueText = computed(() => String(props.rule.value ?? ''));
 
 const changeField = (name: string): void => {
   const next = props.fields.find(item => item.name === name);
-  const [first] = operatorsFor(next);
-  props.controller.updateRule(props.rule.id, { field: name, operator: first?.key ?? '=', value: '' });
+  const operator = operatorsFor(next)[0]?.key ?? '=';
+  props.controller.updateRule(props.rule.id, { field: name, operator, value: defaultRuleValue(next, operator) });
 };
+
+const changeOperator = (operator: string): void =>
+  props.controller.updateRule(props.rule.id, { operator, value: defaultRuleValue(field.value, operator) });
 </script>
 
 <template>
@@ -66,19 +54,19 @@ const changeField = (name: string): void => {
     <select
       aria-label="操作符"
       :value="rule.operator"
-      @change="controller.updateRule(rule.id, { operator: ($event.target as HTMLSelectElement).value, value: '' })"
+      @change="changeOperator(($event.target as HTMLSelectElement).value)"
     >
       <option
         v-for="operator in operators"
         :key="operator.key"
         :value="operator.key"
-        >{{ operatorText(operator) }}</option
+        >{{ operatorLabel(operator, i18n) }}</option
       >
     </select>
     <select
       v-if="inputType === 'enum'"
       aria-label="值"
-      :value="String(rule.value ?? '')"
+      :value="valueText"
       @change="controller.updateRule(rule.id, { value: ($event.target as HTMLSelectElement).value })"
     >
       <option value="">请选择</option>
@@ -95,7 +83,11 @@ const changeField = (name: string): void => {
       aria-label="值"
       :inputmode="inputType === 'number' ? 'numeric' : undefined"
       :value="valueText"
-      @input="controller.updateRule(rule.id, { value: coerceValue(($event.target as HTMLInputElement).value) })"
+      @input="
+        controller.updateRule(rule.id, {
+          value: ruleValueFromText(inputType, ($event.target as HTMLInputElement).value)
+        })
+      "
     />
     <button
       type="button"

@@ -2,11 +2,10 @@ import {
   isRuleGroup,
   type FieldMetadata,
   type QueryBuilderController,
-  type QueryBuilderRule,
   type QueryBuilderRuleGroup
 } from '@aiao/rxdb-model/headless';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
-import { operatorsFor } from './query-operators';
+import { operatorsFor } from './article-model';
 import { QueryRuleComponent } from './query-rule.component';
 
 /** 一个 AND / OR 分组：可递归嵌套，增删规则与分组、切换组合方式都是控制器动作。 */
@@ -31,14 +30,9 @@ import { QueryRuleComponent } from './query-rule.component';
         @for (item of group().rules; track item.id) {
           <li>
             @if (isGroup(item)) {
-              <app-hl-query-group
-                [controller]="controller()"
-                [fields]="fields()"
-                [group]="asGroup(item)"
-                [isRoot]="false"
-              />
+              <app-hl-query-group [controller]="controller()" [fields]="fields()" [group]="item" [isRoot]="false" />
             } @else {
-              <app-hl-query-rule [controller]="controller()" [fields]="fields()" [rule]="asRule(item)" />
+              <app-hl-query-rule [controller]="controller()" [fields]="fields()" [rule]="item" />
             }
           </li>
         }
@@ -47,22 +41,13 @@ import { QueryRuleComponent } from './query-rule.component';
   `
 })
 export class QueryGroupComponent {
+  /** 类型谓词：模板里 `@if` 据此收窄 `item`，不必再做类型转换。 */
+  protected readonly isGroup = isRuleGroup;
+
   readonly group = input.required<QueryBuilderRuleGroup>();
   readonly controller = input.required<QueryBuilderController>();
   readonly fields = input.required<readonly FieldMetadata[]>();
   readonly isRoot = input.required<boolean>();
-
-  protected isGroup(item: QueryBuilderRule | QueryBuilderRuleGroup): boolean {
-    return isRuleGroup(item);
-  }
-
-  protected asGroup(item: QueryBuilderRule | QueryBuilderRuleGroup): QueryBuilderRuleGroup {
-    return item as QueryBuilderRuleGroup;
-  }
-
-  protected asRule(item: QueryBuilderRule | QueryBuilderRuleGroup): QueryBuilderRule {
-    return item as QueryBuilderRule;
-  }
 
   protected addRule(): void {
     const [first] = this.fields();

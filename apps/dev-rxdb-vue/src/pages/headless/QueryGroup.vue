@@ -5,7 +5,7 @@ import {
   type QueryBuilderController,
   type QueryBuilderRuleGroup
 } from '@aiao/rxdb-model/headless';
-import { operatorsFor } from './query-operators';
+import { operatorsFor } from './article-model';
 import QueryRule from './QueryRule.vue';
 
 const props = defineProps<{

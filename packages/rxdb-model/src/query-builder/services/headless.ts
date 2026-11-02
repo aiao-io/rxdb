@@ -70,13 +70,14 @@ export class QueryBuilderController<T = Record<string, unknown>> {
     this.#snapshot = this.#buildSnapshot();
     this.#subscriptions.push(
       this.#service.state$.subscribe(state => this.#publish({ type: 'stateChanged', state })),
-      this.#service.validation$.subscribe(validation => this.#publish({ type: 'validationChanged', validation }))
+      this.#service.validation$.subscribe(validation => this.#publish({ type: 'validationChanged', validation })),
+      // 语言或目录变化后，已显示的校验文案按新语言重发；规则与字段不变，查询输出不受影响。回调只用参数、不捕获 this
+      onModelI18nChange(i18n, this, builder => {
+        if (builder.#snapshot.validation.errors?.length) {
+          builder.#publish({ type: 'validationChanged', validation: builder.#service.validate() });
+        }
+      })
     );
-    // 语言或目录变化时用新语言重算校验文案并发布；规则与字段不变，查询输出不受影响
-    const stopLanguage = onModelI18nChange(i18n, () =>
-      this.#publish({ type: 'validationChanged', validation: this.#service.validate() })
-    );
-    if (stopLanguage) this.#subscriptions.push({ unsubscribe: stopLanguage });
   }
 
   /** 订阅查询状态事件，返回取消订阅函数。 */

@@ -1132,10 +1132,6 @@
         "kind": "value"
       },
       {
-        "name": "createOperatorRegistry",
-        "kind": "value"
-      },
-      {
         "name": "createQueryBuilderController",
         "kind": "value"
       },
@@ -1153,10 +1149,6 @@
       },
       {
         "name": "createSchemaFromEntity",
-        "kind": "value"
-      },
-      {
-        "name": "defaultModelI18n",
         "kind": "value"
       },
       {
@@ -1370,10 +1362,6 @@
       {
         "name": "OperatorRegistryOptions",
         "kind": "type"
-      },
-      {
-        "name": "parseCommaSeparatedInput",
-        "kind": "value"
       },
       {
         "name": "PropertyType",

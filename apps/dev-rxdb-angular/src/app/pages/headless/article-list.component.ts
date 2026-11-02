@@ -1,7 +1,7 @@
 import type { OrderBy } from '@aiao/rxdb';
 import type { EntityListController, EntityListSnapshot } from '@aiao/rxdb-model/headless';
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
-import type { ArticleRecord } from './article-model';
+import { errorMessage, type ArticleRecord } from './article-model';
 
 /** 可排序列：表头按钮循环 无序 → 升序 → 降序。 */
 const COLUMNS = [
@@ -81,7 +81,7 @@ const COLUMNS = [
         </tbody>
       </table>
       @if (snapshot().error !== null) {
-        <p class="hl-error" data-testid="list-error" role="alert">{{ message(snapshot().error) }}</p>
+        <p class="hl-error" data-testid="list-error" role="alert">{{ errorMessage(snapshot().error) }}</p>
       }
       <div class="hl-pager">
         <button [disabled]="snapshot().page === 0" (click)="controller().setPage(snapshot().page - 1)" type="button">
@@ -105,6 +105,7 @@ const COLUMNS = [
 })
 export class ArticleListComponent {
   protected readonly columns = COLUMNS;
+  protected readonly errorMessage = errorMessage;
   protected readonly pages = computed(() => {
     const { total, pageSize } = this.snapshot();
     return total === undefined ? undefined : Math.max(1, Math.ceil(total / pageSize));
@@ -127,10 +128,6 @@ export class ArticleListComponent {
     if (current === 'none') this.controller().setSorts([{ field, sort: 'asc' }]);
     else if (current === 'ascending') this.controller().setSorts([{ field, sort: 'desc' }]);
     else this.controller().setSorts([]);
-  }
-
-  protected message(error: unknown): string {
-    return error instanceof Error ? error.message : String(error);
   }
 
   /** 失败已经写入 snapshot.error 并由列表展示，这里只防未处理的拒绝。 */
