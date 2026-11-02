@@ -21,15 +21,15 @@
   },
   "type": "module",
   "peerDependencies": {
-    "@angular/core": "22.2.3",
+    "@angular/core": "22.2.4",
     "rxjs": "^7.8.2",
     "@aiao/rxdb-i18n": "workspace:^"
   },
   "devDependencies": {
-    "@angular/common": "22.2.3",
-    "@angular/compiler": "22.2.3",
-    "@angular/core": "22.2.3",
-    "@angular/platform-browser": "22.2.3",
+    "@angular/common": "22.2.4",
+    "@angular/compiler": "22.2.4",
+    "@angular/core": "22.2.4",
+    "@angular/platform-browser": "22.2.4",
     "vitest": "4.1.11",
     "@aiao/rxdb-i18n": "workspace:*"
   },
