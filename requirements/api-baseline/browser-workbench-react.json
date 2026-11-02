@@ -1,0 +1,18 @@
+{
+  "entries": {
+    ".": [
+      {
+        "name": "BrowserWorkbench",
+        "kind": "value"
+      },
+      {
+        "name": "BrowserWorkbenchOptions",
+        "kind": "type"
+      },
+      {
+        "name": "BrowserWorkbenchProps",
+        "kind": "type"
+      }
+    ]
+  }
+}

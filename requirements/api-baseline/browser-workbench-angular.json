@@ -1,0 +1,14 @@
+{
+  "entries": {
+    ".": [
+      {
+        "name": "BrowserWorkbench",
+        "kind": "both"
+      },
+      {
+        "name": "BrowserWorkbenchOptions",
+        "kind": "type"
+      }
+    ]
+  }
+}

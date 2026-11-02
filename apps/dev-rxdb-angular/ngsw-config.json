@@ -23,6 +23,13 @@
       "resources": {
         "files": ["/**/*.wasm", "/**/*.data"]
       }
+    },
+    {
+      "name": "browser-workbench",
+      "installMode": "prefetch",
+      "resources": {
+        "files": ["/browser-workbench-assets/**"]
+      }
     }
   ],
   "index": "/index.html"

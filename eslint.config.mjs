@@ -44,7 +44,8 @@ export default [
             // tsconfig paths 别名：映射到带扩展名的已有文件时 tsc 直接取该文件，在 allowJs 下把 .mjs
             // 当源码拉进 e2e 程序（TS6059 / TS6307）。依赖边 Nx 照样从这条 import 推得出来
             '^\\.\\./\\.\\./\\.\\./modules/e2e-parity/entity-model-parity\\.mjs$',
-            '^\\.\\./\\.\\./\\.\\./modules/e2e-parity/board-parity\\.mjs$'
+            '^\\.\\./\\.\\./\\.\\./modules/e2e-parity/board-parity\\.mjs$',
+            '^\\.\\./\\.\\./\\.\\./modules/e2e-parity/browser-workbench-suite\\.mjs$'
           ],
           depConstraints: [
             {

@@ -1,0 +1,59 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "// targets": "to see all targets run: nx show project browser-workbench --web",
+  "name": "browser-workbench",
+  "projectType": "library",
+  "sourceRoot": "packages/browser-workbench/src",
+  "tags": ["js-lib"],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build"],
+      "outputs": ["{projectRoot}/dist"],
+      "options": {
+        "cwd": "packages/browser-workbench",
+        "commands": ["vite build", "node scripts/build-assets.mjs"],
+        "parallel": false
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/browser-workbench",
+        "command": "eslint . --max-warnings=0"
+      }
+    },
+    "verify-export": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "packages/browser-workbench",
+        "command": "node scripts/verify-export.mjs"
+      }
+    },
+    "verify-offline": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "packages/browser-workbench",
+        "command": "node scripts/verify-offline.mjs"
+      }
+    },
+    "verify-consumers": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [
+        "build",
+        {
+          "target": "build",
+          "projects": ["browser-workbench-angular", "browser-workbench-react", "browser-workbench-vue"]
+        }
+      ],
+      "options": {
+        "cwd": "packages/browser-workbench",
+        "command": "node scripts/verify-consumers.mjs"
+      }
+    }
+  }
+}

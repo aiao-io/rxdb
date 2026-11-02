@@ -1,0 +1,38 @@
+
+> nx run dev-rxdb-vue-e2e:e2e --args=src/browser-workbench.spec.ts --workers=1 --retries=0 --reporter=line
+
+> playwright test src/browser-workbench.spec.ts --workers=1 --retries=0 --reporter=line
+
+(node:33041) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:33049) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+
+Running 4 tests using 1 worker
+
+(node:33050) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/4] [chromium] › src/browser-workbench.spec.ts:7:9 › 浏览器开发工作台：vue 宿主 › vanilla：编辑、运行、保存重开与 Git 提交
+[2/4] [chromium] › src/browser-workbench.spec.ts:7:9 › 浏览器开发工作台：vue 宿主 › react：编辑、运行、保存重开与 Git 提交
+[3/4] [chromium] › src/browser-workbench.spec.ts:7:9 › 浏览器开发工作台：vue 宿主 › vue：编辑、运行、保存重开与 Git 提交
+[4/4] [chromium] › src/browser-workbench.spec.ts:7:9 › 浏览器开发工作台：vue 宿主 › angular：编辑、运行、保存重开与 Git 提交
+  4 passed (46.5s)
+
+
+
+ NX   Successfully ran target e2e for project dev-rxdb-vue-e2e
+
+
+View logs and investigate cache misses at https://nx.app/runs/5dSW0NkVRG
+
+  Run duration:      47.1s
+  Cache:             0/1 hit (0%)
+  Critical path:     47.1s (1 task)
+  Recoverable time:  <1ms
+
+  Recommendations:
+    - Speed up or split the longest tasks on the critical path:
+        dev-rxdb-vue-e2e:e2e    47.1s

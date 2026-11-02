@@ -1,0 +1,317 @@
+{
+  "generatedAt": "2026-11-02T13:28:19.296Z",
+  "node": "v26.12.0",
+  "pnpm": "12.16.1",
+  "browser": "156.0.8078.4",
+  "status": "passed",
+  "tarballs": [
+    {
+      "name": "@aiao/utils",
+      "filename": "aiao-utils-0.0.28.tgz",
+      "sha256": "615347095071c696c70b330e0b246fed7ddfb757a5232482aeea0e0cbe037bf5"
+    },
+    {
+      "name": "@aiao/rxdb",
+      "filename": "aiao-rxdb-0.0.28.tgz",
+      "sha256": "e28462ce918369bea173187917a643ab9275b17cff5a87eee3de23d19a5cb945"
+    },
+    {
+      "name": "@aiao/browser-workbench",
+      "filename": "aiao-browser-workbench-0.0.28.tgz",
+      "sha256": "ef73f0604f5148ea50b1670516c8fabd58a49d1a731bcb719aa2552b8dae6ba0"
+    },
+    {
+      "name": "@aiao/code-editor",
+      "filename": "aiao-code-editor-0.0.28.tgz",
+      "sha256": "24099199c4d682e2d0ffd199e0fc2bbc2ed6b2bcc33b65fbd4cc0f05a4fecd44"
+    },
+    {
+      "name": "@aiao/code-editor-react",
+      "filename": "aiao-code-editor-react-0.0.28.tgz",
+      "sha256": "aa9f37c7c5acea94852abec498b08815bd6a4ef07b119f003fb254627d270e75"
+    },
+    {
+      "name": "@aiao/browser-workbench-react",
+      "filename": "aiao-browser-workbench-react-0.0.28.tgz",
+      "sha256": "57c13eded582abda8e805898a61510227e22585a39ebb06203b3a05894ae3615"
+    },
+    {
+      "name": "@aiao/code-editor-vue",
+      "filename": "aiao-code-editor-vue-0.0.28.tgz",
+      "sha256": "2c5389e1f7fbadadbc7844277b437c9333369433c0f4591b3fffbcf08908225f"
+    },
+    {
+      "name": "@aiao/browser-workbench-vue",
+      "filename": "aiao-browser-workbench-vue-0.0.28.tgz",
+      "sha256": "cff1ac3830b863cd50a7a54d36fed8128838e9670dae0eb00eb8c91d5909afbb"
+    },
+    {
+      "name": "@aiao/code-editor-angular",
+      "filename": "aiao-code-editor-angular-0.0.28.tgz",
+      "sha256": "98f68fe0762656fb99e4a10adf8de4dff65b66d4fa38004a8c22ed7163ed9923"
+    },
+    {
+      "name": "@aiao/browser-workbench-angular",
+      "filename": "aiao-browser-workbench-angular-0.0.1.tgz",
+      "sha256": "9f6f2f0440622383f6f2f9bafadf45a0892eedf514d74a8a12436ab7b19a9c0e"
+    }
+  ],
+  "consumers": [
+    {
+      "name": "core",
+      "installMs": 521.3406249999998,
+      "buildMs": 1775.545333,
+      "assets": 37,
+      "installed": [
+        {
+          "package": "@aiao/browser-workbench",
+          "version": "0.0.28"
+        },
+        {
+          "package": "@aiao/rxdb",
+          "version": "0.0.28"
+        },
+        {
+          "package": "@aiao/utils",
+          "version": "0.0.28"
+        }
+      ],
+      "workers": [
+        "/browser-workbench-assets/git-worker.js",
+        "/browser-workbench-assets/compiler-worker.js",
+        "/browser-workbench-assets/git-worker.js",
+        "/browser-workbench-assets/compiler-worker.js"
+      ],
+      "wasmRequests": [
+        {
+          "url": "/browser-workbench-assets/git/lg2_opfs_jspi.wasm",
+          "status": 200
+        },
+        {
+          "url": "/browser-workbench-assets/esbuild.wasm",
+          "status": 200
+        },
+        {
+          "url": "/browser-workbench-assets/git/lg2_opfs_jspi.wasm",
+          "status": 200
+        },
+        {
+          "url": "/browser-workbench-assets/esbuild.wasm",
+          "status": 200
+        }
+      ],
+      "errors": [],
+      "failedRequests": [],
+      "interactions": [
+        "create-vanilla",
+        "framework-editor",
+        "compile-worker",
+        "opaque-preview",
+        "counter-interaction",
+        "reload-opfs-project",
+        "run-after-reload"
+      ]
+    },
+    {
+      "name": "react",
+      "installMs": 620.4108750000005,
+      "buildMs": 1610.0258750000003,
+      "assets": 37,
+      "installed": [
+        {
+          "package": "@aiao/browser-workbench-react",
+          "version": "0.0.28"
+        },
+        {
+          "package": "@aiao/browser-workbench",
+          "version": "0.0.28"
+        },
+        {
+          "package": "@aiao/rxdb",
+          "version": "0.0.28"
+        },
+        {
+          "package": "@aiao/utils",
+          "version": "0.0.28"
+        },
+        {
+          "package": "@aiao/code-editor-react",
+          "version": "0.0.28"
+        },
+        {
+          "package": "@aiao/code-editor",
+          "version": "0.0.28"
+        }
+      ],
+      "workers": [
+        "/browser-workbench-assets/git-worker.js",
+        "/browser-workbench-assets/compiler-worker.js",
+        "/browser-workbench-assets/git-worker.js",
+        "/browser-workbench-assets/compiler-worker.js"
+      ],
+      "wasmRequests": [
+        {
+          "url": "/browser-workbench-assets/git/lg2_opfs_jspi.wasm",
+          "status": 200
+        },
+        {
+          "url": "/browser-workbench-assets/esbuild.wasm",
+          "status": 200
+        },
+        {
+          "url": "/browser-workbench-assets/git/lg2_opfs_jspi.wasm",
+          "status": 200
+        },
+        {
+          "url": "/browser-workbench-assets/esbuild.wasm",
+          "status": 200
+        }
+      ],
+      "errors": [],
+      "failedRequests": [],
+      "interactions": [
+        "create-vanilla",
+        "framework-editor",
+        "compile-worker",
+        "opaque-preview",
+        "counter-interaction",
+        "reload-opfs-project",
+        "run-after-reload"
+      ]
+    },
+    {
+      "name": "vue",
+      "installMs": 589.9655829999992,
+      "buildMs": 1549.21825,
+      "assets": 37,
+      "installed": [
+        {
+          "package": "@aiao/browser-workbench-vue",
+          "version": "0.0.28"
+        },
+        {
+          "package": "@aiao/browser-workbench",
+          "version": "0.0.28"
+        },
+        {
+          "package": "@aiao/rxdb",
+          "version": "0.0.28"
+        },
+        {
+          "package": "@aiao/utils",
+          "version": "0.0.28"
+        },
+        {
+          "package": "@aiao/code-editor-vue",
+          "version": "0.0.28"
+        },
+        {
+          "package": "@aiao/code-editor",
+          "version": "0.0.28"
+        }
+      ],
+      "workers": [
+        "/browser-workbench-assets/git-worker.js",
+        "/browser-workbench-assets/compiler-worker.js",
+        "/browser-workbench-assets/git-worker.js",
+        "/browser-workbench-assets/compiler-worker.js"
+      ],
+      "wasmRequests": [
+        {
+          "url": "/browser-workbench-assets/git/lg2_opfs_jspi.wasm",
+          "status": 200
+        },
+        {
+          "url": "/browser-workbench-assets/esbuild.wasm",
+          "status": 200
+        },
+        {
+          "url": "/browser-workbench-assets/git/lg2_opfs_jspi.wasm",
+          "status": 200
+        },
+        {
+          "url": "/browser-workbench-assets/esbuild.wasm",
+          "status": 200
+        }
+      ],
+      "errors": [],
+      "failedRequests": [],
+      "interactions": [
+        "create-vanilla",
+        "framework-editor",
+        "compile-worker",
+        "opaque-preview",
+        "counter-interaction",
+        "reload-opfs-project",
+        "run-after-reload"
+      ]
+    },
+    {
+      "name": "angular",
+      "installMs": 2013.7204169999986,
+      "buildMs": 4114.373833,
+      "assets": 37,
+      "installed": [
+        {
+          "package": "@aiao/browser-workbench-angular",
+          "version": "0.0.1"
+        },
+        {
+          "package": "@aiao/browser-workbench",
+          "version": "0.0.28"
+        },
+        {
+          "package": "@aiao/rxdb",
+          "version": "0.0.28"
+        },
+        {
+          "package": "@aiao/utils",
+          "version": "0.0.28"
+        },
+        {
+          "package": "@aiao/code-editor-angular",
+          "version": "0.0.28"
+        },
+        {
+          "package": "@aiao/code-editor",
+          "version": "0.0.28"
+        }
+      ],
+      "workers": [
+        "/browser-workbench-assets/git-worker.js",
+        "/browser-workbench-assets/compiler-worker.js",
+        "/browser-workbench-assets/git-worker.js",
+        "/browser-workbench-assets/compiler-worker.js"
+      ],
+      "wasmRequests": [
+        {
+          "url": "/browser-workbench-assets/git/lg2_opfs_jspi.wasm",
+          "status": 200
+        },
+        {
+          "url": "/browser-workbench-assets/esbuild.wasm",
+          "status": 200
+        },
+        {
+          "url": "/browser-workbench-assets/git/lg2_opfs_jspi.wasm",
+          "status": 200
+        },
+        {
+          "url": "/browser-workbench-assets/esbuild.wasm",
+          "status": 200
+        }
+      ],
+      "errors": [],
+      "failedRequests": [],
+      "interactions": [
+        "create-vanilla",
+        "framework-editor",
+        "compile-worker",
+        "opaque-preview",
+        "counter-interaction",
+        "reload-opfs-project",
+        "run-after-reload"
+      ]
+    }
+  ]
+}

@@ -1766,6 +1766,104 @@
   "development": {
     "packages": [
       {
+        "description": "浏览器本地开发工作台共享内核：OPFS Git、受控编译、隔离预览与项目导出。",
+        "framework": null,
+        "homepage": null,
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/browser-workbench",
+        "role": "standalone",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "浏览器本地开发工作台的 Angular 绑定。",
+        "framework": "angular",
+        "homepage": null,
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "dependencies",
+            "name": "@aiao/browser-workbench",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "dependencies",
+            "name": "@aiao/code-editor-angular",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/browser-workbench-angular",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "浏览器本地开发工作台的 React 绑定。",
+        "framework": "react",
+        "homepage": null,
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "dependencies",
+            "name": "@aiao/browser-workbench",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "dependencies",
+            "name": "@aiao/code-editor-react",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/browser-workbench-react",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "浏览器本地开发工作台的 Vue 绑定。",
+        "framework": "vue",
+        "homepage": null,
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "dependencies",
+            "name": "@aiao/browser-workbench",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "dependencies",
+            "name": "@aiao/code-editor-vue",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/browser-workbench-vue",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
         "description": "CodeMirror 6 编辑器绑定共享的语言描述与主题类型。",
         "framework": null,
         "homepage": "https://rxdb.aiao.io/docs/code-editor",
@@ -3755,7 +3853,7 @@
       }
     ]
   },
-  "digest": "62c8b20a980a5d5c32ed71c25d4440708f34a5c5b331a46731a42e43390ad237",
+  "digest": "295c08b9190f7c4a83b4c5e17f8a08ce22d11fd655e142d3b0f9ef66d7a917d0",
   "sample": {
     "compilerOptions": {
       "experimentalDecorators": true,

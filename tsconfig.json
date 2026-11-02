@@ -278,6 +278,18 @@
     },
     {
       "path": "./packages/rxdb-i18n-vue"
+    },
+    {
+      "path": "./packages/browser-workbench"
+    },
+    {
+      "path": "./packages/browser-workbench-angular"
+    },
+    {
+      "path": "./packages/browser-workbench-react"
+    },
+    {
+      "path": "./packages/browser-workbench-vue"
     }
   ]
 }

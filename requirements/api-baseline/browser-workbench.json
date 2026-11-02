@@ -1,0 +1,120 @@
+{
+  "entries": {
+    ".": [
+      {
+        "name": "angularTemplate",
+        "kind": "value"
+      },
+      {
+        "name": "BrowserWorkbenchOptions",
+        "kind": "type"
+      },
+      {
+        "name": "createCompiler",
+        "kind": "value"
+      },
+      {
+        "name": "createGitBackend",
+        "kind": "value"
+      },
+      {
+        "name": "createProjectCatalog",
+        "kind": "value"
+      },
+      {
+        "name": "frontendTemplates",
+        "kind": "value"
+      },
+      {
+        "name": "GIT_WORKBENCH_LIMITS",
+        "kind": "value"
+      },
+      {
+        "name": "GitWorkbenchError",
+        "kind": "both"
+      },
+      {
+        "name": "mountPreview",
+        "kind": "value"
+      },
+      {
+        "name": "mountWorkbench",
+        "kind": "value"
+      },
+      {
+        "name": "WorkbenchCatalog",
+        "kind": "type"
+      },
+      {
+        "name": "WorkbenchCompilation",
+        "kind": "type"
+      },
+      {
+        "name": "WorkbenchCompiler",
+        "kind": "type"
+      },
+      {
+        "name": "WorkbenchEditorHandle",
+        "kind": "type"
+      },
+      {
+        "name": "WorkbenchEditorMount",
+        "kind": "type"
+      },
+      {
+        "name": "WorkbenchEditorOptions",
+        "kind": "type"
+      },
+      {
+        "name": "WorkbenchHandle",
+        "kind": "type"
+      },
+      {
+        "name": "WorkbenchPreview",
+        "kind": "type"
+      },
+      {
+        "name": "WorkbenchProjectInfo",
+        "kind": "type"
+      },
+      {
+        "name": "WorkbenchSession",
+        "kind": "both"
+      },
+      {
+        "name": "WorkbenchState",
+        "kind": "type"
+      },
+      {
+        "name": "WorkspaceBackend",
+        "kind": "type"
+      },
+      {
+        "name": "WorkspaceCommit",
+        "kind": "type"
+      },
+      {
+        "name": "WorkspaceFiles",
+        "kind": "type"
+      },
+      {
+        "name": "WorkspaceSnapshot",
+        "kind": "type"
+      },
+      {
+        "name": "WorkspaceStatus",
+        "kind": "type"
+      }
+    ],
+    "./rxdb-catalog": [
+      {
+        "name": "createRxDBWorkbenchCatalog",
+        "kind": "value"
+      },
+      {
+        "name": "WorkbenchProject",
+        "kind": "both"
+      }
+    ]
+  }
+}

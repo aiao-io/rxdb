@@ -1,0 +1,51 @@
+{
+  "name": "@aiao/browser-workbench",
+  "version": "0.0.28",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@aiao/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./rxdb-catalog": {
+      "@aiao/source": "./src/rxdb-catalog.ts",
+      "types": "./dist/rxdb-catalog.d.ts",
+      "import": "./dist/rxdb-catalog.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.spec.*",
+    "!src/**/*.test.*",
+    "!**/*.tsbuildinfo"
+  ],
+  "dependencies": {
+    "rxjs": "7.8.2"
+  },
+  "devDependencies": {
+    "@aiao/rxdb": "workspace:*",
+    "esbuild": "0.28.2",
+    "esbuild-wasm": "0.28.2",
+    "fflate": "0.8.3",
+    "playwright": "1.64.1",
+    "typescript": "6.0.3",
+    "vue": "3.5.44",
+    "wasm-git": "0.0.17"
+  },
+  "license": "MIT",
+  "description": "Local-first browser development workbench with OPFS Git, controlled compilation and isolated previews.",
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@aiao/rxdb": "workspace:^"
+  }
+}

@@ -98,6 +98,11 @@ const router = createRouter({
       component: () => import('../pages/CodeEditorPage.vue')
     },
     {
+      path: '/browser-workbench',
+      name: 'browser-workbench',
+      component: () => import('../pages/BrowserWorkbenchPage.vue')
+    },
+    {
       path: '/entities',
       name: 'entities',
       component: () => import('../pages/entities/EntityShellPage.vue'),

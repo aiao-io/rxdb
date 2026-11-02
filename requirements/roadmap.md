@@ -9,12 +9,12 @@
 | :------------- | :----- |
 | ✅ Done        | 89     |
 | 🚧 In Progress | 4      |
-| 👀 In Review   | 9      |
+| 👀 In Review   | 10     |
 | 📝 Backlog     | 27     |
 | 🚫 Blocked     | 0      |
-| **未完成合计** | **40** |
+| **未完成合计** | **41** |
 
-仓库还剩 **40 条**未关闭故事（4 In Progress + 9 In Review + 27 Backlog + 0 Blocked）。
+仓库还剩 **41 条**未关闭故事（4 In Progress + 10 In Review + 27 Backlog + 0 Blocked）。
 数字由 story YAML 推导；Backlog 包括已授权任务与价值待证候选，不能把全部未关闭故事当成可开工项。
 
 ## 未完成需求全景
@@ -34,6 +34,7 @@
 | [US-540](stories/domain/US-540-board-end-to-end-demo.md)                                                                                                                                                                           | 🚧 In Progress | demo 既有库初态（AC#7）与无搜索插件构建（AC#12）                                                      | 批次 6      |
 | [US-541](stories/domain/US-541-board-team-sync.md)                                                                                                                                                                                 | 📝 Backlog     | 具名团队触发后冻结身份、成员权限、RLS 与冲突规则                                                      | 立项池      |
 | [US-403](stories/ui/US-403-entity-components-headless.md)                                                                                                                                                                          | 📝 Backlog     | 按现有公开逻辑与 #152 列表能力界定入口/依赖隔离，保留默认 UI                                          | 立项池      |
+| [US-404](stories/ui/US-404-browser-development-workbench.md)                                                                                                                                                                       | 👀 In Review   | 三端工作台与四模板已实现；完整贯穿门禁和代码评审收尾                                                  | 验收收尾    |
 | [US-029](stories/core/US-029-rbac-owner-role-permission.md)                                                                                                                                                                        | 📝 Backlog     | 价值待证，等待具名多用户写授权症状；解锁时重验当前 API 前提                                           | 立项池      |
 | [US-910](stories/future/US-910-data-i18n.md)                                                                                                                                                                                       | 📝 Backlog     | 先证明语言启停入口、删除判据与迟到子行合入；不能只归因于缺夹具                                        | 立项池      |
 | [US-911](stories/future/US-911-client-i18n.md)                                                                                                                                                                                     | 👀 In Review   | A～D 已实现；A4/A5 载体对照与历史隔离验证通过，三端/四运行时与实现基线全量门禁通过，待代码评审        | 本轮交付    |
@@ -43,6 +44,12 @@
 ## 即办清单
 
 US-603 的共享 preflight 仍待受控 registry 替身验收；US-223/224 是已有用户症状的修复建议，不与仍价值待证的新增抽象混排。
+
+### 浏览器开发工作台（验收与评审）
+
+[US-404](stories/ui/US-404-browser-development-workbench.md)承接已有编辑器与 Git 研究的手工开发切片。
+核心与三端工作台已实现，四模板普通构建、真实 Git、隔离与离线证据在故事维护；
+当前完成贯穿门禁与统一评审，不扩展到整个 AI 构建器、完整 Node IDE 或远端 Git 服务。
 
 ## 排期批次
 

@@ -1,0 +1,16 @@
+/** 原生编辑器绑定的初始属性。 */
+export interface WorkbenchEditorOptions {
+  readonly value: string;
+  readonly language: string;
+  readonly onChange: (value: string) => void;
+  readonly onCursor: (line: number, column: number) => void;
+}
+
+/** 三端编辑器的共享命令式桥。 */
+export interface WorkbenchEditorHandle {
+  update(value: string, language: string): void;
+  dispose(): void;
+}
+
+/** 由框架绑定挂载已有 CodeMirror 编辑器。 */
+export type WorkbenchEditorMount = (host: HTMLElement, options: WorkbenchEditorOptions) => WorkbenchEditorHandle;

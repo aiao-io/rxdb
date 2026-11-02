@@ -1,3 +1,4 @@
+import { WorkbenchProject } from '@aiao/browser-workbench/rxdb-catalog';
 import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterSqlite, SqliteOptions } from '@aiao/rxdb-adapter-sqlite-wasm';
 import { getDevToolsConnector } from '@aiao/rxdb-devtools';
@@ -45,7 +46,7 @@ export default () => {
   rxdb = new RxDB({
     dbName,
     context: { userId: 'userId' },
-    entities: [...ENTITIES, ...shop_entities, EncryptedUser, ...i18nEntities()],
+    entities: [...ENTITIES, ...shop_entities, EncryptedUser, ...i18nEntities(), WorkbenchProject],
     sync: {
       local: {
         adapter: 'sqlite-wasm'

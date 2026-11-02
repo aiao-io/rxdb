@@ -180,6 +180,12 @@ export class AppMenu {
     },
     {
       type: 'link',
+      title: 'nav.browserWorkbench',
+      path: '/browser-workbench',
+      icon: Code
+    },
+    {
+      type: 'link',
       title: 'nav.generator',
       path: '/generator',
       icon: Factory

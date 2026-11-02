@@ -116,6 +116,10 @@ export const appRoutes: Route[] = [
     loadComponent: () => import('./pages/code-editor/code-editor.page')
   },
   {
+    path: 'browser-workbench',
+    loadComponent: () => import('./pages/browser-workbench/browser-workbench.page')
+  },
+  {
     path: 'generator',
     loadComponent: () => import('./pages/generator/generator.page')
   },

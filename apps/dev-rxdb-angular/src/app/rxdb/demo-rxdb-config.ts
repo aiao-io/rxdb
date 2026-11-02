@@ -1,3 +1,4 @@
+import { WorkbenchProject } from '@aiao/browser-workbench/rxdb-catalog';
 import { EntityType, RxDB, RxDBOptions, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterSqlite, SqliteOptions } from '@aiao/rxdb-adapter-sqlite-wasm';
 import { i18nEntities } from '@aiao/rxdb-i18n';
@@ -19,7 +20,13 @@ import { GRAPH_REPOSITORY_NAME, withSqliteWasmRepository } from './sqlite-wasm-r
 // `connect()` 在既有库上还会校验库里记过迁移的系统能力，两边配置一漂，归档就导不回来。
 
 /** demo 的全部实体：通用测试实体 + 商城实体 + 加密实体。 */
-export const DEMO_ENTITIES: readonly EntityType[] = [...ENTITIES, ...shop_entities, EncryptedUser, ...i18nEntities()];
+export const DEMO_ENTITIES: readonly EntityType[] = [
+  ...ENTITIES,
+  ...shop_entities,
+  EncryptedUser,
+  ...i18nEntities(),
+  WorkbenchProject
+];
 
 /** demo 搜索插件配置。 */
 export const SEARCH_PLUGIN_CONFIG = { debounce: 300, pageSize: 20, snippetLength: 64 } as const;

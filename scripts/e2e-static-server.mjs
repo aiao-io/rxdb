@@ -224,6 +224,8 @@ export function createStaticServer(rootPath) {
     }
 
     const type = MIME[extname(filePath).toLowerCase()] ?? 'application/octet-stream';
+    const assetPath = relative(realRoot, filePath);
+    if (assetPath.startsWith(`browser-workbench-assets${sep}`)) res.setHeader('Access-Control-Allow-Origin', '*');
     send(res, 200, body, type);
   });
 }

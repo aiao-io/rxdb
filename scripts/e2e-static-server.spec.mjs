@@ -64,6 +64,25 @@ test('parseArgs 读取 --root / --port / --host', () => {
   });
 });
 
+test('只有工作台运行资源允许 opaque 预览跨域读取', async () => {
+  const root = await createFixture();
+  await mkdir(join(root, 'browser-workbench-assets'));
+  await writeFile(join(root, 'browser-workbench-assets', 'runtime.js'), 'export const runtime = true;');
+  const server = await startStaticServer({ root, port: 0, host: '127.0.0.1' });
+  const port = server.address().port;
+  try {
+    const asset = await rawGet(port, '/browser-workbench-assets/runtime.js');
+    assert.equal(asset.status, 200);
+    assert.equal(asset.headers['access-control-allow-origin'], '*');
+    for (const path of ['/app.js', '/browser-workbench', '/assets/ok.txt']) {
+      const response = await rawGet(port, path);
+      assert.equal(response.headers['access-control-allow-origin'], undefined);
+    }
+  } finally {
+    await closeStaticServer(server);
+  }
+});
+
 test('parseArgs 拒绝缺失参数与非法端口', () => {
   assert.throws(() => parseArgs(['--port', '8200']), /Missing --root/);
   assert.throws(() => parseArgs(['--root', 'dist/app']), /Missing --port/);

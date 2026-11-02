@@ -1,0 +1,10 @@
+import { mountWorkbench } from '@aiao/browser-workbench';
+
+mountWorkbench(document.getElementById('app')!, { assetBaseURL: '/browser-workbench-assets/' }, (host, initial) => {
+  const editor = document.createElement('textarea');
+  editor.value = initial.value;
+  editor.style.cssText = 'width:100%;height:100%;background:#181818;color:#ddd';
+  editor.oninput = () => initial.onChange(editor.value);
+  host.append(editor);
+  return { update: value => { editor.value = value; }, dispose: () => editor.remove() };
+});

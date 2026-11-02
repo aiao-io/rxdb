@@ -231,6 +231,12 @@ importers:
 
   .:
     dependencies:
+      '@aiao/browser-workbench':
+        specifier: workspace:*
+        version: link:packages/browser-workbench
+      '@aiao/browser-workbench-angular':
+        specifier: workspace:*
+        version: link:packages/browser-workbench-angular
       '@angular/cdk':
         specifier: 22.2.4
         version: 22.2.4(@angular/common@22.2.3(@angular/core@22.2.3(@angular/compiler@22.2.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.3(@angular/compiler@22.2.3)(rxjs@7.8.2))(@angular/forms@22.2.3(@angular/common@22.2.3(@angular/core@22.2.3(@angular/compiler@22.2.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.3(@angular/compiler@22.2.3)(rxjs@7.8.2))(@angular/platform-browser@22.2.3(@angular/common@22.2.3(@angular/core@22.2.3(@angular/compiler@22.2.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.3(@angular/compiler@22.2.3)(rxjs@7.8.2)))(rxjs@7.8.2))(@angular/platform-browser@22.2.3(@angular/common@22.2.3(@angular/core@22.2.3(@angular/compiler@22.2.3)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.3(@angular/compiler@22.2.3)(rxjs@7.8.2)))(rxjs@7.8.2)
@@ -1016,6 +1022,12 @@ importers:
 
   apps/dev-rxdb-react:
     dependencies:
+      '@aiao/browser-workbench':
+        specifier: workspace:*
+        version: link:../../packages/browser-workbench
+      '@aiao/browser-workbench-react':
+        specifier: workspace:*
+        version: link:../../packages/browser-workbench-react
       '@aiao/code-editor-react':
         specifier: workspace:*
         version: link:../../packages/code-editor-react
@@ -1116,6 +1128,12 @@ importers:
 
   apps/dev-rxdb-vue:
     dependencies:
+      '@aiao/browser-workbench':
+        specifier: workspace:*
+        version: link:../../packages/browser-workbench
+      '@aiao/browser-workbench-vue':
+        specifier: workspace:*
+        version: link:../../packages/browser-workbench-vue
       '@aiao/code-editor-vue':
         specifier: workspace:*
         version: link:../../packages/code-editor-vue
@@ -1329,6 +1347,12 @@ importers:
       comlink:
         specifier: ^4.4.2
         version: 4.4.2
+      esbuild-wasm:
+        specifier: 0.28.2
+        version: 0.28.2
+      fflate:
+        specifier: 0.8.3
+        version: 0.8.3
       lucide-react:
         specifier: ^1.63.0
         version: 1.63.0(@types/react@19.3.0)(react@19.3.1)
@@ -1383,6 +1407,82 @@ importers:
         version: link:../../packages/rxdb
 
   modules/wujie: {}
+
+  packages/browser-workbench:
+    dependencies:
+      rxjs:
+        specifier: 7.8.2
+        version: 7.8.2
+    devDependencies:
+      '@aiao/rxdb':
+        specifier: workspace:*
+        version: link:../rxdb
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
+      esbuild-wasm:
+        specifier: 0.28.2
+        version: 0.28.2
+      fflate:
+        specifier: 0.8.3
+        version: 0.8.3
+      playwright:
+        specifier: 1.64.1
+        version: 1.64.1
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb)
+      vue:
+        specifier: ^3.5.43
+        version: 3.5.44(typescript@6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb))
+      wasm-git:
+        specifier: 0.0.17
+        version: 0.0.17
+
+  packages/browser-workbench-angular:
+    dependencies:
+      '@aiao/browser-workbench':
+        specifier: workspace:^
+        version: link:../browser-workbench
+      '@aiao/code-editor-angular':
+        specifier: workspace:^
+        version: link:../code-editor-angular
+    devDependencies:
+      '@angular/common':
+        specifier: 22.2.3
+        version: 22.2.3(@angular/core@22.2.3(@angular/compiler@22.2.3)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core':
+        specifier: 22.2.3
+        version: 22.2.3(@angular/compiler@22.2.3)(rxjs@7.8.2)
+
+  packages/browser-workbench-react:
+    dependencies:
+      '@aiao/browser-workbench':
+        specifier: workspace:^
+        version: link:../browser-workbench
+      '@aiao/code-editor-react':
+        specifier: workspace:^
+        version: link:../code-editor-react
+    devDependencies:
+      react:
+        specifier: ^19.3.0
+        version: 19.3.1
+      react-dom:
+        specifier: ^19.3.0
+        version: 19.3.1(react@19.3.1)
+
+  packages/browser-workbench-vue:
+    dependencies:
+      '@aiao/browser-workbench':
+        specifier: workspace:^
+        version: link:../browser-workbench
+      '@aiao/code-editor-vue':
+        specifier: workspace:^
+        version: link:../code-editor-vue
+    devDependencies:
+      vue:
+        specifier: ^3.5.43
+        version: 3.5.44(typescript@6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb))
 
   packages/code-editor:
     dependencies:
@@ -12804,6 +12904,11 @@ packages:
 
   esast-util-from-js@2.0.1:
     resolution: {integrity: sha512-8Ja+rNJ0Lt56Pcf3TAmpBZjmx8ZcK5Ts4cAzIOjsjevg9oSXJnl6SUQ2EevU8tv3h6ZLWmoKL5H4fgWvdvfETw==}
+
+  esbuild-wasm@0.28.2:
+    resolution: {integrity: sha512-GccVwhv3mmOUVQHCQm2Ox/rby8n/EqUwvZxE6Pjfikrq/lWw9g9WX/u9EykWnpot3Ko6j426DgQdea2xWKIAQA==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   esbuild@0.25.12:
     resolution: {integrity: sha512-bbPBYYrtZbkt6Os6FiTLCTFxvq4tt3JKall1vRwshA3fdVztsLAatFaZobhkBC8/BrPetoa0oksYoKXoG4ryJg==}
@@ -32193,6 +32298,8 @@ snapshots:
       acorn: 8.19.0
       esast-util-from-estree: 2.0.0
       vfile-message: 4.0.3
+
+  esbuild-wasm@0.28.2: {}
 
   esbuild@0.25.12:
     optionalDependencies:

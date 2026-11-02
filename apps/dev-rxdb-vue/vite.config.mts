@@ -1,3 +1,4 @@
+import { browserWorkbenchAssets } from '../../tools/browser-workbench-assets.mjs';
 /// <reference types='vitest' />
 import { nxReadySignal } from '@nx/vite/plugins/nx-ready-signal.plugin';
 import tailwindcss from '@tailwindcss/vite';
@@ -38,7 +39,7 @@ const pwaOptions: Partial<VitePWAOptions> = {
   workbox: {
     globPatterns: ['**/*.{js,css,html}', '**/*.{svg,png,jpg,gif}', '**/*.{wasm,data}'],
     // EntityDetail 等懒加载 chunk 已超过 Workbox 默认的 2 MiB 预缓存上限，放宽到 4 MiB。
-    maximumFileSizeToCacheInBytes: 4 * 1024 * 1024
+    maximumFileSizeToCacheInBytes: 16 * 1024 * 1024
   }
 };
 
@@ -53,7 +54,7 @@ export default defineConfig(() => ({
     port: 4203,
     host: 'localhost'
   },
-  plugins: [vue(), tailwindcss(), VitePWA(pwaOptions), nxReadySignal()],
+  plugins: [browserWorkbenchAssets(), vue(), tailwindcss(), VitePWA(pwaOptions), nxReadySignal()],
   // Uncomment this if you are using workers.
   worker: {
     format: 'es' as const,
