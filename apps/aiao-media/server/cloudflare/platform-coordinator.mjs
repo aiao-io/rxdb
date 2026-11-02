@@ -1,6 +1,6 @@
 import { imageMetadata } from '../../src/contracts/image-format.ts';
 import { imageGenerationRequest, isMiniMaxImageProvider } from '../../src/contracts/image-provider-protocol.ts';
-import { body, endpoint, fields, reject, uuid } from './product-http.mjs';
+import { body, bounded, endpoint, fields, reject, uuid } from './product-http.mjs';
 
 const sizes = ['1024x1024', '1536x1024', '1024x1536'];
 const integer = (value, min, max) => Number.isSafeInteger(value) && value >= min && value <= max;
@@ -38,32 +38,6 @@ function models(env) {
       reject(503, '平台模型配置无效。');
     return { ...value, baseUrl: url.href.replace(/\/+$/, '') };
   });
-}
-
-async function bounded(result, max) {
-  const reader = result.body?.getReader();
-  if (!reader) throw new Error('empty');
-  const chunks = [];
-  let size = 0;
-  try {
-    for (;;) {
-      const item = await reader.read();
-      if (item.done) break;
-      size += item.value.byteLength;
-      if (size > max) throw new Error('oversize');
-      chunks.push(item.value);
-    }
-  } catch (error) {
-    await reader.cancel().catch(() => undefined);
-    throw error;
-  }
-  const bytes = new Uint8Array(size);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return bytes;
 }
 
 /** 一个持久协调器串行完成额度、队列与流水变更，外部副作用前先写执行状态。 */

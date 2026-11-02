@@ -8,6 +8,7 @@
 | 图片供应商管理         | ✅ 本机 CRUD、默认选择、URL/模型校验、Key 记住/替换/单独移除；Key 不进入备份/任务/日志                                                       | [MEDIA-US-105](stories/generation/MEDIA-US-105-provider-management.md)      |
 | 浏览器直连生成         | ⚠️ 本地 fixture 全覆盖；正式 origin 直连三画幅尚无成功证据，剩余条件见[状态概览](status-overview.md#未完成验收与关闭条件)                    | [MEDIA-US-102](stories/generation/MEDIA-US-102-image-generation.md)         |
 | 可选代理 `/api/relay`  | ✅ 同源、允许列表、按请求 Key、无缓存/日志、超时/流式限制；正式 origin 原供应商代理三画幅已验                                                | [MEDIA-US-004](stories/platform/MEDIA-US-004-cloudflare-edge-deployment.md) |
+| 代理生图服务端任务     | ⚠️ 接单去重、令牌加密暂存 R2、刷新续接与放弃已实现并通过本地测试；真实账号与正式发布待验                                                     | [MEDIA-US-109](stories/generation/MEDIA-US-109-relay-durable-task.md)       |
 | 原图格式               | ✅ PNG/JPEG 按原始字节识别、原样保存与下载；首次写入 JPEG 前将工作区兼容标记升为 2，旧版本拒绝访问                                           | [MEDIA-US-102](stories/generation/MEDIA-US-102-image-generation.md)         |
 | 图片提示词灵感库       | ⚠️ 12 条模板、Tiptap 输入/字段/撤销隔离、资源失败恢复；真实系统中文 IME 未验，移动验收暂缓                                                   | [MEDIA-US-106](stories/generation/MEDIA-US-106-prompt-gallery.md)           |
 | 离线与备份             | ✅ 四路由离线冷启动、无 Key JSON 备份/隔离恢复；超限、坏摘要/重复 ID 拒绝及中断续导已验                                                      | [MEDIA-US-301](stories/local-first/MEDIA-US-301-browser-persistence.md)     |

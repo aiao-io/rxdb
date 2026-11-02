@@ -3,10 +3,14 @@ import { createServer } from 'node:http';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import worker from '../server/cloudflare/local-first-worker.mjs';
+import { RelayTask } from '../server/cloudflare/relay-task.mjs';
+import { durableObjectNamespace, r2Bucket } from './cloudflare-stand-ins.mjs';
 
-// Development stand-in for the production /api/relay. It runs the same Worker code in this Node process, so
-// request validation, the provider allow-list and the delayed-result stream behave as they do after deployment.
+// Development stand-in for the production /api/relay and its durable tasks. It runs the same Worker code in this
+// Node process, with in-process Durable Object and R2 stand-ins, so request validation, the provider allow-list,
+// the delayed-result stream and task recovery after a reload behave as they do after deployment.
 const relayPath = '/api/relay';
+const relayed = pathname => pathname === relayPath || pathname.startsWith(`${relayPath}/tasks/`);
 
 // The allow-list committed for deployment, which `wrangler dev` starts from as well.
 const deployedAllowList = () =>
@@ -39,8 +43,10 @@ async function send(response, outgoing) {
  */
 export async function startDevRelay({ allowedProviders } = {}) {
   const env = {
-    ALLOWED_PROVIDER_BASE_URLS: allowedProviders ? JSON.stringify(allowedProviders) : deployedAllowList()
+    ALLOWED_PROVIDER_BASE_URLS: allowedProviders ? JSON.stringify(allowedProviders) : deployedAllowList(),
+    RELAY_RESULTS: r2Bucket()
   };
+  env.RELAY_TASKS = durableObjectNamespace(ctx => new RelayTask(ctx, env));
   const server = createServer(async (incoming, outgoing) => {
     const abort = new AbortController();
     // A browser that gives up cancels the provider call as well.
@@ -48,9 +54,9 @@ export async function startDevRelay({ allowedProviders } = {}) {
       if (!outgoing.writableFinished) abort.abort();
     });
     try {
-      // Everything except the relay needs services (Supabase, Durable Objects) the dev server does not run.
+      // Everything except the relay needs services (Supabase, the platform coordinator) the dev server does not run.
       const response =
-        new URL(incoming.url, 'http://localhost').pathname === relayPath ?
+        relayed(new URL(incoming.url, 'http://localhost').pathname) ?
           await worker.fetch(toRequest(incoming, abort.signal), env)
         : Response.json({ error: 'Unknown API' }, { status: 404 });
       await send(response, outgoing);

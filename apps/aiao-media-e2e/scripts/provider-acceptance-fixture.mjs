@@ -4,7 +4,9 @@ import { mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, relative, resolve } from 'node:path';
 import sharp from 'sharp';
+import { durableObjectNamespace, r2Bucket } from '../../aiao-media/scripts/cloudflare-stand-ins.mjs';
 import worker from '../../aiao-media/server/cloudflare/local-first-worker.mjs';
+import { RelayTask } from '../../aiao-media/server/cloudflare/relay-task.mjs';
 import { acceptanceSelection, attemptPath, runProviderAcceptance } from './provider-acceptance.mjs';
 
 const root = resolve(import.meta.dirname, '../../aiao-media/dist/browser');
@@ -59,10 +61,13 @@ function upstream(body, headers, mode) {
   assert.ok(images.has(size));
   calls[mode]++;
   if (!native) return { data: [{ url: `https://results.example.test/${size}.png` }] };
-  assert.equal(body.response_format, 'url');
+  // A relay task asks for the bytes, because a stored task cannot rely on a short-lived result URL.
+  assert.equal(body.response_format, mode === 'proxy' ? 'base64' : 'url');
   assert.equal(body.prompt_optimizer, false);
   for (const name of ['size', 'aspect_ratio', 'quality', 'output_format']) assert.equal(body[name], undefined);
   if (nativeSystemError) return { base_resp: { status_code: 1033, status_msg: 'private fixture system error' } };
+  if (mode === 'proxy')
+    return { base_resp: { status_code: 0 }, data: { image_base64: [jpegs.get(size).toString('base64')] } };
   return { base_resp: { status_code: 0 }, data: { image_urls: [`https://results.example.test/${size}.jpg`] } };
 }
 const fetchBefore = globalThis.fetch;
@@ -107,6 +112,8 @@ const env = {
     }
   }
 };
+env.RELAY_RESULTS = r2Bucket();
+env.RELAY_TASKS = durableObjectNamespace(ctx => new RelayTask(ctx, env), { autoAlarms: false });
 const server = createServer(async (request, response) => {
   try {
     const chunks = [];
@@ -115,7 +122,7 @@ const server = createServer(async (request, response) => {
     const incoming = new Request(new URL(request.url, settings.origin), {
       method,
       headers: request.headers,
-      ...(method === 'POST' ? { body: Buffer.concat(chunks) } : {})
+      ...(method === 'POST' || method === 'PUT' ? { body: Buffer.concat(chunks) } : {})
     });
     const result = await worker.fetch(incoming, env);
     response.writeHead(result.status, Object.fromEntries(result.headers));
@@ -240,17 +247,17 @@ try {
   const nativeDirectory = await mkdtemp(resolve(import.meta.dirname, '../tmp/provider-acceptance-minimax-fixture-'));
   const nativeRecords = await runProviderAcceptance(settings, nativeDirectory, setupContext);
   assert.equal(nativeRecords.length, 6);
-  assert.deepEqual(calls, { direct: 3, proxy: 3, result: 6 });
+  assert.deepEqual(calls, { direct: 3, proxy: 3, result: 3 });
   for (const record of nativeRecords) {
     assert.equal(record.protocol, 'minimax-native');
     assert.equal(record.image.mimeType, 'image/jpeg');
-    assert.equal(record.image.delivery, 'cross-origin-url');
-    assert.equal(record.image.credentialFreeResultRequest, true);
+    assert.equal(record.image.delivery, record.mode === 'proxy' ? 'base64' : 'cross-origin-url');
+    assert.equal(record.image.credentialFreeResultRequest, record.mode === 'proxy' ? null : true);
     assert.equal(record.image.exactDownloadAfterReload, true);
     assert.ok(!JSON.stringify(record).includes(settings.key));
   }
   await runProviderAcceptance(settings, nativeDirectory, setupContext);
-  assert.deepEqual(calls, { direct: 3, proxy: 3, result: 6 });
+  assert.deepEqual(calls, { direct: 3, proxy: 3, result: 3 });
   nativeSystemError = true;
   const nativeFailedDirectory = await mkdtemp(
     resolve(import.meta.dirname, '../tmp/provider-acceptance-minimax-error-')
@@ -266,12 +273,12 @@ try {
   assert.equal(nativeFailed.failureCode, 'GENERATION_REJECTED_OR_UNCERTAIN');
   assert.equal(nativeFailed.generationRequests, 1);
   assert.ok(!JSON.stringify(nativeFailed).includes('private fixture'));
-  assert.deepEqual(calls, { direct: 4, proxy: 3, result: 6 });
+  assert.deepEqual(calls, { direct: 4, proxy: 3, result: 3 });
   await assert.rejects(
     runProviderAcceptance(settings, nativeFailedDirectory, setupContext),
     /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/
   );
-  assert.deepEqual(calls, { direct: 4, proxy: 3, result: 6 });
+  assert.deepEqual(calls, { direct: 4, proxy: 3, result: 3 });
   assert.equal(forbiddenBodyReads, 0);
   console.log(
     '12 个 Images API PNG/MiniMax JPEG 生产 Worker/fixture 验收组合通过；产物变化、错误尺寸和 MiniMax 系统错误被拒绝，成功复用和中断/失败阻断均未重发。'

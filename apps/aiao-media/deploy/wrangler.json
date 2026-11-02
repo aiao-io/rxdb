@@ -13,6 +13,10 @@
       {
         "name": "MEDIA_PLATFORM",
         "class_name": "PlatformCoordinator"
+      },
+      {
+        "name": "RELAY_TASKS",
+        "class_name": "RelayTask"
       }
     ]
   },
@@ -21,12 +25,22 @@
     {
       "tag": "media-platform-v1",
       "new_sqlite_classes": ["PlatformCoordinator"]
+    },
+    {
+      "tag": "media-relay-v1",
+      "new_sqlite_classes": ["RelayTask"]
     }
   ],
   "name": "aiao-media",
   "observability": {
     "enabled": false
   },
+  "r2_buckets": [
+    {
+      "binding": "RELAY_RESULTS",
+      "bucket_name": "aiao-media-relay-results"
+    }
+  ],
   "routes": [
     {
       "pattern": "media.aiao.io",

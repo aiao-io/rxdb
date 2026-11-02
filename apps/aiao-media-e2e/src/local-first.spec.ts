@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Route } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import sharp from 'sharp';
 import {
@@ -6,9 +6,11 @@ import {
   endpoint,
   importBackup,
   key,
+  pngFixture,
   profile,
   prompt,
   provider,
+  sealRelayAnswer,
   verifyImageDownload
 } from './local-first.helpers';
 test('初始工作区目录就绪前禁用保存，完成后首次点击即可保存供应商', async ({ page }) => {
@@ -33,7 +35,10 @@ test('初始工作区目录就绪前禁用保存，完成后首次点击即可�
   let requests = 0;
   await page.route('**/*', route => {
     const request = route.request();
-    if (request.method() === 'POST' && /\/(images\/generations|image_generation|api\/relay)$/.test(request.url())) {
+    if (
+      ['POST', 'PUT'].includes(request.method()) &&
+      /\/(images\/generations|image_generation|api\/relay(\/tasks\/[^/]+)?)$/.test(request.url())
+    ) {
       requests++;
       return route.abort('blockedbyclient');
     }
@@ -167,7 +172,7 @@ test('未知结果刷新后仍锁定，不会自动重复提交或切换代理',
     calls++;
     return route.abort('failed');
   });
-  await page.route('**/api/relay', route => {
+  await page.route('**/api/relay**', route => {
     relayCalls++;
     return route.fulfill({ status: 500 });
   });
@@ -195,7 +200,9 @@ test('默认 Key 只在内存；代理由用户主动选择', async ({ page }) =
   await prompt(page);
   await page.reload();
   let calls = 0;
-  await page.route('**/api/relay', route => {
+  await page.route('**/api/relay/tasks/**', route => {
+    // The failed task is released afterwards; only its creation carries the Key.
+    if (route.request().method() !== 'PUT') return route.fulfill({ status: 404, json: { error: 'Task not found' } });
     calls++;
     expect(route.request().headers()['x-provider-base']).toBe('https://images.example.test/v1');
     expect(route.request().headers()['authorization']).toBe(`Bearer ${key}`);
@@ -214,6 +221,89 @@ test('默认 Key 只在内存；代理由用户主动选择', async ({ page }) =
   await expect(page.getByRole('heading', { name: '这次图片没有生成成功' })).toBeVisible();
   await expect(prompted).toHaveCount(0);
   expect(calls).toBe(1);
+});
+test('代理生成中刷新页面，回来后接着取回并保存结果，任务只创建一次', async ({ page }) => {
+  const png = await pngFixture();
+  const seen = { created: 0, abandoned: 0, deleted: 0, polls: 0 };
+  let task = { id: '', token: '' },
+    ready = false;
+  const view = () => ({
+    status: ready ? 'received' : 'dispatched',
+    upstreamStatus: ready ? 200 : null,
+    updatedAt: new Date().toISOString()
+  });
+  await page.route('**/api/relay/tasks/**', async (route: Route) => {
+    const request = route.request();
+    const [, id, action = ''] = /\/api\/relay\/tasks\/([^/?]+)(\/\w+)?/.exec(new URL(request.url()).pathname) ?? [];
+    const headers = request.headers();
+    if (request.method() === 'PUT') {
+      seen.created++;
+      task = { id, token: headers['x-relay-task-token'] };
+      expect(headers['authorization']).toBe(`Bearer ${key}`);
+      expect(headers['x-provider-base']).toBe('https://images.example.test/v1');
+      expect(task.token).toMatch(/^[A-Za-z0-9_-]{43}$/);
+      return route.fulfill({ status: 202, json: view() });
+    }
+    // After a reload the page holds no Key; the stored token alone reaches the task.
+    expect([id, headers['x-relay-task-token'], headers['authorization']]).toEqual([task.id, task.token, undefined]);
+    if (request.method() === 'DELETE') {
+      seen.deleted++;
+      return route.fulfill({ status: 204 });
+    }
+    if (action === '/abandon') {
+      seen.abandoned++;
+      return route.fulfill({ status: 404, json: { error: 'Task not found' } });
+    }
+    if (action === '/result')
+      return route.fulfill({
+        contentType: 'application/octet-stream',
+        body: await sealRelayAnswer(task, { data: [{ b64_json: png.toString('base64') }] })
+      });
+    seen.polls++;
+    await new Promise(resolve => setTimeout(resolve, 200));
+    return route.fulfill({ json: view() });
+  });
+  await provider(page, false, 'proxy');
+  await prompt(page);
+  await page.getByRole('button', { name: '✧ 生成图片' }).click();
+  await expect(page.getByText('正在由本站代理生成，可以刷新或关闭页面。')).toBeVisible();
+  await expect.poll(() => seen.polls).toBeGreaterThan(0);
+  await page.reload();
+  await expect(page.getByText('正在由本站代理生成，可以刷新或关闭页面。')).toBeVisible();
+  await expect(page.getByRole('heading', { name: '请核对供应商记录' })).toHaveCount(0);
+  ready = true;
+  await expect(page.getByText('已保存到本机', { exact: true })).toBeVisible();
+  await expect(page.getByAltText('本次生成的图片')).toBeVisible();
+  await expect.poll(() => seen.deleted).toBe(1);
+  expect([seen.created, seen.abandoned]).toEqual([1, 0]);
+  await page.goto('/images');
+  await expect(page.getByAltText('本机生成作品')).toBeVisible();
+});
+test('接单回执不明时刷新：本站没有收到就解除锁定，原请求以后也不会发出', async ({ page }) => {
+  const ids = new Set<string>();
+  let abandoned = 0;
+  await page.route('**/api/relay/tasks/**', (route: Route) => {
+    const request = route.request();
+    if (request.method() === 'PUT') {
+      ids.add(new URL(request.url()).pathname);
+      return route.abort('failed');
+    }
+    if (request.url().endsWith('/abandon')) abandoned++;
+    return route.fulfill({ status: 404, json: { error: 'Task not found' } });
+  });
+  await provider(page, false, 'proxy');
+  await prompt(page);
+  await page.getByRole('button', { name: '✧ 生成图片' }).click();
+  // The page retries the same task while it still holds the Key; the relay would accept it only once.
+  await expect.poll(() => ids.size, { timeout: 10000 }).toBe(1);
+  await page.waitForTimeout(1500);
+  expect(ids.size).toBe(1);
+  await page.reload();
+  await expect(page.getByRole('heading', { name: '这次图片没有生成成功' })).toBeVisible();
+  await expect(page.getByText('请求没有送达本站，也没有发给供应商。可以重新生成。')).toBeVisible();
+  expect(abandoned).toBe(1);
+  await prompt(page, '解除锁定后的新提示词');
+  await expect(page.getByRole('button', { name: '✧ 生成图片' })).toBeEnabled();
 });
 test('首次缓存后四条页面离线可打开，设置和草稿仍可读', async ({ page, context }) => {
   await provider(page);

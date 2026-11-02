@@ -25,6 +25,7 @@ import {
   type ProviderPolicy,
   type PublicWorkPayload
 } from '../contracts/product-data.mjs';
+import { createRelayTaskToken } from '../contracts/relay-task';
 import { ImageSyncController } from '../local-data/image-sync';
 import type { LocalMediaStore, LocalWorkSummary, StudioPromptState } from '../local-data/index';
 import { libraryWhere, type LocalWorkFilters } from '../local-data/library-query';
@@ -63,6 +64,7 @@ import { applyIssue, templateState, type PromptTemplate } from './prompts/prompt
 import { PromptInput } from './prompts/prompt-input';
 import { plainPrompt, serializePrompt, type PromptState } from './prompts/prompt-state';
 import { StudioDraftSession, type StudioDraftStatus } from './prompts/studio-draft-session';
+import { deleteRelayTask, relayTickets, runRelayTask, type RelayTicket } from './relay-task-client';
 import {
   readSupabaseAuthConfig,
   SupabaseAuthClient,
@@ -193,6 +195,11 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private toastTimer?: ReturnType<typeof setTimeout>;
   private dialogTrigger: HTMLElement | null = null;
   private resultBlob: Blob | null = null;
+  /** Device-only relay tickets from the last journal read, keyed by task id. */
+  private tickets: Record<string, RelayTicket> = {};
+  private relayResuming: string | null = null;
+  private releasing = false;
+  private releaseAgain = false;
   private readonly injector = inject(Injector);
   private elapsedTimer?: ReturnType<typeof setInterval>;
   private releaseViewerImage?: () => void;
@@ -367,6 +374,8 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     () =>
       this.sending() ||
       this.uncertain() ||
+      // A relay task keeps running on the server while this page waits for the tab that resumes it.
+      this.job()?.status === 'processing' ||
       this.dataBusy() ||
       this.sync().busy ||
       this.workspaceSwitching() ||
@@ -856,10 +865,10 @@ export class LocalImageMvp implements OnInit, OnDestroy {
           return;
         }
         await this.readTasks();
-        if (this.uncertain()) return;
+        if (this.uncertain() || this.job()?.status === 'processing') return;
         await this.studio?.flush();
         const now = new Date().toISOString();
-        let task: LocalTask = {
+        const task: LocalTask = {
           id: crypto.randomUUID(),
           channel: provider.mode,
           request: {
@@ -881,64 +890,29 @@ export class LocalImageMvp implements OnInit, OnDestroy {
           },
           failure: null
         };
-        await this.writeTask(task);
-        this.job.set(task);
-        this.revokeResult();
-        this.saved.set(false);
-        this.startElapsed();
-        this.revealResult();
-        const controller = new AbortController();
-        const abort = () => controller.abort();
-        this.lifetime.signal.addEventListener('abort', abort, { once: true });
-        const timer = setTimeout(abort, 180000);
-        try {
-          const blob = await generateLocalImage(provider, key, task.request.prompt, this.ratio(), controller.signal);
-          if (this.disposed) return;
-          task = {
-            ...task,
-            status: 'completed',
-            updatedAt: new Date().toISOString(),
-            delivery: {
-              status: 'available',
-              expiresAt: null,
-              acknowledgedAt: null
-            }
-          };
-          this.job.set(task);
-          this.resultBlob = blob;
-          this.resultMimeType.set(blob.type as ImageMimeType);
-          this.resultUrl.set(URL.createObjectURL(blob));
-          await this.writeTask(task);
-          await this.saveResult();
-        } catch (e) {
-          if (this.disposed) return;
-          // A local save/journal failure after receiving a result never causes redispatch.
-          if (this.resultBlob) {
-            this.storageMessage.set('图片已收到，但本机保存未完成。请先下载，再重试保存。');
-            return;
-          }
-          const rejected = e instanceof ProviderFailure && e.rejected;
-          task = {
-            ...task,
-            status: rejected ? 'failed' : 'needs_review',
-            updatedAt: new Date().toISOString()
-          };
-          this.job.set(task);
-          this.uncertain.set(!rejected);
-          try {
-            await this.writeTask(task);
-          } catch {
-            this.storageMessage.set('任务记录更新失败；请保留当前页面并核对供应商记录。');
-          }
-          this.error.set(
-            e instanceof ProviderFailure ?
-              e.message
-            : '连接中断、CORS 限制或响应无效。请到供应商后台核对，系统不会自动重发。'
-          );
-        } finally {
-          clearTimeout(timer);
-          this.lifetime.signal.removeEventListener('abort', abort);
-        }
+        // Relay mode keeps a device-only ticket so a reload can find the server task again.
+        const ticket: RelayTicket | null =
+          provider.mode === 'proxy' ?
+            { token: createRelayTaskToken(), accepted: false, baseUrl: providerBase(provider.baseUrl) }
+          : null;
+        await this.writeTask(task, ticket);
+        const ratio = this.ratio();
+        await this.runTask(
+          task,
+          signal =>
+            ticket ?
+              runRelayTask({
+                id: task.id,
+                ticket,
+                ratio,
+                signal,
+                dispatch: { provider, key, prompt: task.request.prompt },
+                accepted: () => this.acceptRelay(task.id, ticket)
+              })
+            : generateLocalImage(provider, key, task.request.prompt, ratio, signal),
+          // A relay task has its own server deadline; only a direct request is bounded by this page.
+          ticket ? null : 180000
+        );
       });
     } catch (e) {
       this.error.set(e instanceof Error ? e.message : '本机提交记录写入失败，没有重复发送。');
@@ -947,6 +921,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.stopElapsed();
       if (this.resultUrl() || this.panelError()) this.revealResult();
       void this.reconcileIdentity();
+      this.releaseRelay();
     }
   }
   async acknowledgeUnknown() {
@@ -1687,10 +1662,9 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private syncKeyIds() {
     this.keyIds.set(new Set([...this.keys.keys(), ...this.rememberedKeys.keys()]));
   }
-  private startElapsed() {
+  private startElapsed(started = Date.now()) {
     this.stopElapsed();
-    const started = Date.now();
-    this.elapsedSeconds.set(0);
+    this.elapsedSeconds.set(Math.max(0, Math.floor((Date.now() - started) / 1000)));
     this.elapsedTimer = setInterval(() => this.elapsedSeconds.set(Math.floor((Date.now() - started) / 1000)), 1000);
   }
   private stopElapsed() {
@@ -2260,10 +2234,74 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       if (p.rememberKey && typeof remembered[p.id] === 'string') this.rememberedKeys.set(p.id, remembered[p.id]);
     this.syncKeyIds();
   }
+  /** Follows one task to a settled state: a saved image, a definite failure, or a locked uncertain outcome. */
+  private async runTask(
+    task: LocalTask,
+    produce: (signal: AbortSignal) => Promise<Blob>,
+    timeoutMs: number | null
+  ): Promise<void> {
+    this.job.set(task);
+    this.revokeResult();
+    this.saved.set(false);
+    this.startElapsed(Date.parse(task.createdAt));
+    this.revealResult();
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    this.lifetime.signal.addEventListener('abort', abort, { once: true });
+    const timer = timeoutMs === null ? undefined : setTimeout(abort, timeoutMs);
+    try {
+      const blob = await produce(controller.signal);
+      if (this.disposed) return;
+      task = {
+        ...task,
+        status: 'completed',
+        updatedAt: new Date().toISOString(),
+        delivery: {
+          status: 'available',
+          expiresAt: null,
+          acknowledgedAt: null
+        }
+      };
+      this.job.set(task);
+      this.resultBlob = blob;
+      this.resultMimeType.set(blob.type as ImageMimeType);
+      this.resultUrl.set(URL.createObjectURL(blob));
+      await this.writeTask(task);
+      await this.saveResult();
+    } catch (e) {
+      if (this.disposed) return;
+      // A local save/journal failure after receiving a result never causes redispatch.
+      if (this.resultBlob) {
+        this.storageMessage.set('图片已收到，但本机保存未完成。请先下载，再重试保存。');
+        return;
+      }
+      const rejected = e instanceof ProviderFailure && e.rejected;
+      task = {
+        ...task,
+        status: rejected ? 'failed' : 'needs_review',
+        updatedAt: new Date().toISOString()
+      };
+      this.job.set(task);
+      this.uncertain.set(!rejected);
+      try {
+        await this.writeTask(task);
+      } catch {
+        this.storageMessage.set('任务记录更新失败；请保留当前页面并核对供应商记录。');
+      }
+      this.error.set(
+        e instanceof ProviderFailure ?
+          e.message
+        : '连接中断、CORS 限制或响应无效。请到供应商后台核对，系统不会自动重发。'
+      );
+    } finally {
+      clearTimeout(timer);
+      this.lifetime.signal.removeEventListener('abort', abort);
+    }
+  }
   private async readTasks() {
     const store = this.store,
       epoch = this.epoch;
-    const row = await store?.preference('tasks-v1');
+    const [row, relay] = await Promise.all([store?.preference('tasks-v1'), store?.preference('relay-tasks-v1')]);
     if (epoch !== this.epoch || store !== this.store) return;
     const tasks =
       store && row ?
@@ -2274,9 +2312,15 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       : [];
     if (epoch !== this.epoch || store !== this.store) return;
     if (!Array.isArray(tasks)) throw new Error('Invalid task journal');
+    this.tickets = relayTickets(relay?.payload ?? null);
     this.history.set(tasks);
     const unresolved = tasks.find(t => !t.acknowledged && ['processing', 'needs_review'].includes(t.status));
-    if (unresolved) {
+    if (unresolved?.status === 'processing' && this.tickets[unresolved.id] && unresolved.request.aspectRatio) {
+      // The relay keeps working without this page; continue the task instead of asking for a review.
+      this.job.set(unresolved);
+      this.uncertain.set(false);
+      this.resumeRelay(unresolved);
+    } else if (unresolved) {
       this.job.set({ ...unresolved, status: 'needs_review' });
       this.uncertain.set(true);
     } else {
@@ -2284,21 +2328,145 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       const current = this.job();
       if (current && ['processing', 'needs_review'].includes(current.status)) this.job.set(null);
     }
+    if (Object.keys(this.tickets).some(id => this.settledTask(id))) this.releaseRelay();
     // The task's old saved flag can outlive a deletion or lag journal recovery.
     // The library compares tasks with readable works instead of trusting it.
   }
-  private async writeTask(task: LocalTask) {
+  private async writeTask(task: LocalTask, ticket: RelayTicket | null = null) {
     const store = this.store,
       epoch = this.epoch;
     if (!store) throw new Error('本机记录不可用，未发送请求。');
-    const row = await store.preference('tasks-v1');
+    const [row, relay] = await Promise.all([
+      store.preference('tasks-v1'),
+      ticket ? store.preference('relay-tasks-v1') : null
+    ]);
     const tasks: LocalTask[] = row ? JSON.parse(row.payload) : [];
     const next = [task, ...tasks.filter(t => t.id !== task.id)].slice(0, 100);
     await store.savePreferences(
-      [{ key: 'tasks-v1', payload: JSON.stringify(next), revision: row?.revision ?? null }],
+      [
+        { key: 'tasks-v1', payload: JSON.stringify(next), revision: row?.revision ?? null },
+        // Written with the task, so a reload never finds a relay task without its ticket.
+        ...(ticket ?
+          [
+            {
+              key: 'relay-tasks-v1',
+              payload: JSON.stringify({ ...relayTickets(relay?.payload ?? null), [task.id]: ticket }),
+              revision: relay?.revision ?? null
+            }
+          ]
+        : [])
+      ],
       true
     );
     if (!this.disposed && epoch === this.epoch && store === this.store) this.history.set(next);
+  }
+  /** A ticket is released only once its task is in the journal and no longer processing. */
+  private settledTask(id: string): boolean {
+    const status = this.history().find(task => task.id === id)?.status;
+    return status !== undefined && status !== 'processing';
+  }
+  /** Continues an unsettled relay task once no other tab of this workspace is generating or resuming. */
+  private resumeRelay(task: LocalTask): void {
+    if (this.relayResuming === task.id) return;
+    this.relayResuming = task.id;
+    const epoch = this.epoch;
+    navigator.locks
+      .request(`aiao-local-generation-${this.profileId}`, { signal: this.lifetime.signal }, async () => {
+        if (epoch !== this.epoch || this.disposed) return;
+        this.sending.set(true);
+        try {
+          await this.readTasks();
+          await this.continueRelay(task.id);
+        } finally {
+          this.sending.set(false);
+          this.stopElapsed();
+          if (this.resultUrl() || this.panelError()) this.revealResult();
+          this.releaseRelay();
+        }
+      })
+      .catch(() => {
+        if (!this.disposed) this.storageMessage.set('代理任务续接失败，请刷新页面重试；任务不会重复生成。');
+      })
+      .finally(() => {
+        if (this.relayResuming === task.id) this.relayResuming = null;
+      });
+  }
+  private async continueRelay(id: string): Promise<void> {
+    // Another tab may have settled the task while this one waited for the lock.
+    const task = this.history().find(item => item.id === id),
+      ticket = this.tickets[id],
+      ratio = task?.request.aspectRatio;
+    if (task?.status !== 'processing' || !ticket || !ratio) return;
+    await this.runTask(
+      task,
+      signal =>
+        runRelayTask({ id, ticket, ratio, signal, dispatch: null, accepted: () => this.acceptRelay(id, ticket) }),
+      null
+    );
+  }
+  private async acceptRelay(id: string, ticket: RelayTicket): Promise<void> {
+    try {
+      await this.writeTickets(tickets => ({ ...tickets, [id]: { ...ticket, accepted: true } }));
+    } catch {
+      this.storageMessage.set('本站已接单，但回执未能写入本机；图片保存前请保留当前页面。');
+    }
+  }
+  private async writeTickets(update: (tickets: Record<string, RelayTicket>) => Record<string, RelayTicket>) {
+    const store = this.store;
+    if (!store) throw new Error('本机记录不可用。');
+    const row = await store.preference('relay-tasks-v1');
+    await store.savePreference(
+      'relay-tasks-v1',
+      JSON.stringify(update(relayTickets(row?.payload ?? null))),
+      row?.revision ?? null
+    );
+  }
+  /** Removes settled tasks from the relay, then forgets their tickets. A failed removal retries on a later read. */
+  private releaseRelay(): void {
+    if (this.disposed) return;
+    if (this.releasing) {
+      this.releaseAgain = true;
+      return;
+    }
+    this.releasing = true;
+    this.releaseSettled()
+      .catch(() => {
+        if (!this.disposed) this.storageMessage.set('本机代理任务记录更新失败，请刷新后重试。');
+      })
+      .finally(() => {
+        this.releasing = false;
+        if (!this.releaseAgain) return;
+        this.releaseAgain = false;
+        this.releaseRelay();
+      });
+  }
+  private async releaseSettled(): Promise<void> {
+    const store = this.store;
+    if (!store) return;
+    const settled = Object.entries(relayTickets((await store.preference('relay-tasks-v1'))?.payload ?? null)).filter(
+      ([id]) => this.settledTask(id)
+    );
+    const released: string[] = [];
+    // Bounded by this page's lifetime and 30 seconds; AbortSignal.any is missing from older desktop WebKit.
+    const controller = new AbortController();
+    const stop = () => controller.abort();
+    this.lifetime.signal.addEventListener('abort', stop, { once: true });
+    const timer = setTimeout(stop, 30000);
+    try {
+      for (const [id, ticket] of settled)
+        await deleteRelayTask(id, ticket, controller.signal).then(
+          () => released.push(id),
+          // The relay keeps the task until it expires; the ticket stays so a later read can retry.
+          () => undefined
+        );
+    } finally {
+      clearTimeout(timer);
+      this.lifetime.signal.removeEventListener('abort', stop);
+    }
+    if (!released.length || store !== this.store) return;
+    await this.writeTickets(tickets =>
+      Object.fromEntries(Object.entries(tickets).filter(([id]) => !released.includes(id)))
+    );
   }
   private async persistProviders(
     providers: LocalProvider[],

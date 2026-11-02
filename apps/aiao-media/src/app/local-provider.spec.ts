@@ -169,21 +169,6 @@ describe('single image dispatch', () => {
     expect(close).toHaveBeenCalledTimes(1);
   });
 
-  it('uses the relay only when proxy mode is selected explicitly', async () => {
-    vi.mocked(fetch).mockResolvedValue(response({ data: [{ b64_json: encoded(png()) }] }));
-    await generate({ ...provider, mode: 'proxy' });
-    expect(fetch).toHaveBeenCalledWith(
-      '/api/relay',
-      expect.objectContaining({
-        headers: {
-          'content-type': 'application/json',
-          authorization: 'Bearer fixture-key',
-          'x-provider-base': provider.baseUrl
-        }
-      })
-    );
-  });
-
   it('downloads a cross-origin URL with no authorization, cookies or referrer', async () => {
     vi.mocked(fetch)
       .mockResolvedValueOnce(response({ data: [{ url: 'https://images.example/result.png' }] }))
@@ -232,28 +217,6 @@ describe('single image dispatch', () => {
       expect(fetch).toHaveBeenCalledTimes(1);
     }
   );
-  it('names the missing relay when a proxy-mode 404 is not JSON, and unlocks a new attempt', async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      new Response('<!doctype html><pre>Cannot POST /api/relay</pre>', {
-        status: 404,
-        headers: { 'content-type': 'text/html; charset=utf-8' }
-      })
-    );
-    await expect(generate({ ...provider, mode: 'proxy' })).rejects.toMatchObject({
-      rejected: true,
-      message: expect.stringContaining('/api/relay')
-    });
-    expect(fetch).toHaveBeenCalledTimes(1);
-  });
-  it('keeps the provider wording when the relay itself answers a JSON 404', async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      Response.json({ error: 'Provider rejected or failed; review provider history' }, { status: 404 })
-    );
-    await expect(generate({ ...provider, mode: 'proxy' })).rejects.toMatchObject({
-      rejected: true,
-      message: '供应商或代理返回 HTTP 404。请核对配置和供应商记录。'
-    });
-  });
   it.each([500, 502, 503])('keeps HTTP %i uncertain and never retries', async status => {
     vi.mocked(fetch).mockResolvedValue(response({}, status));
     await expect(generate()).rejects.toMatchObject({ rejected: false });
@@ -269,32 +232,14 @@ describe('single image dispatch', () => {
       message: expect.not.stringContaining('private')
     });
   });
-  it.each([400, 401, 403, 404, 413, 422, 429])('保留同源慢代理 HTTP %i 的明确拒绝语义', async status => {
-    vi.mocked(fetch).mockResolvedValue(
-      new Response(JSON.stringify({ error: 'private', status }), {
-        headers: { 'x-aiao-relay-stream': 'late-upstream' }
-      })
-    );
-    await expect(generate({ ...provider, mode: 'proxy' })).rejects.toMatchObject({ rejected: true });
-    expect(fetch).toHaveBeenCalledTimes(1);
-  });
-  it.each([500, 502, 503])('慢代理 HTTP %i 仍然保留结果待核查', async status => {
-    vi.mocked(fetch).mockResolvedValue(
-      new Response(JSON.stringify({ error: 'private', status }), {
-        headers: { 'x-aiao-relay-stream': 'late-upstream' }
-      })
-    );
-    await expect(generate({ ...provider, mode: 'proxy' })).rejects.toMatchObject({ rejected: false });
-  });
-  it('不信任直连供应商伪造的代理标记或无标记的代理 envelope', async () => {
+  it('不信任供应商响应里伪造的代理标记，错误 envelope 一律保持待核查', async () => {
     vi.mocked(fetch).mockResolvedValue(
       new Response(JSON.stringify({ error: 'private', status: 429 }), {
         headers: { 'x-aiao-relay-stream': 'late-upstream' }
       })
     );
     await expect(generate()).rejects.toMatchObject({ rejected: false });
-    vi.mocked(fetch).mockResolvedValue(response({ error: 'private', status: 429 }));
-    await expect(generate({ ...provider, mode: 'proxy' })).rejects.toMatchObject({ rejected: false });
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
   it.each(['', 'with space', '中文'])('rejects invalid keys before dispatch', async key => {
     await expect(generate(provider, 'square', key)).rejects.toBeInstanceOf(ProviderFailure);
@@ -384,34 +329,6 @@ describe('MiniMax native image dispatch', () => {
     expect(vi.mocked(fetch).mock.calls[0][0]).toBe('https://api.minimax.cn.evil.example/v1/images/generations');
   });
 
-  it('keeps the existing relay request contract and reads its native response', async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      response({
-        base_resp: { status_code: 0 },
-        data: { image_base64: [encoded(png())] }
-      })
-    );
-    await generate({ ...minimaxProvider, mode: 'proxy' });
-    expect(fetch).toHaveBeenCalledExactlyOnceWith(
-      '/api/relay',
-      expect.objectContaining({
-        headers: {
-          'content-type': 'application/json',
-          authorization: 'Bearer fixture-key',
-          'x-provider-base': minimaxProvider.baseUrl
-        },
-        body: JSON.stringify({
-          model: 'image-01',
-          prompt: '测试图片',
-          n: 1,
-          size: '1024x1024',
-          quality: 'low',
-          output_format: 'png'
-        })
-      })
-    );
-  });
-
   it('reads a native URL without forwarding Key, cookies or referrer', async () => {
     vi.mocked(fetch)
       .mockResolvedValueOnce(
@@ -481,18 +398,12 @@ describe('MiniMax native image dispatch', () => {
     expect(createImageBitmap).not.toHaveBeenCalled();
   });
 
-  it.each(['direct', 'proxy'] as const)('validates native model and prompt before %s dispatch', async mode => {
-    await expect(generate({ ...minimaxProvider, mode, model: 'unsupported-image' })).rejects.toMatchObject({
+  it('validates native model and prompt before dispatch', async () => {
+    await expect(generate({ ...minimaxProvider, model: 'unsupported-image' })).rejects.toMatchObject({
       rejected: true
     });
     await expect(
-      generateLocalImage(
-        { ...minimaxProvider, mode },
-        'fixture-key',
-        'x'.repeat(1501),
-        'square',
-        new AbortController().signal
-      )
+      generateLocalImage(minimaxProvider, 'fixture-key', 'x'.repeat(1501), 'square', new AbortController().signal)
     ).rejects.toMatchObject({ rejected: true });
     expect(fetch).not.toHaveBeenCalled();
   });

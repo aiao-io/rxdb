@@ -1,20 +1,23 @@
 # Local-first Cloudflare 部署
 
-更新：2026-10-25。真实 Angular 应用已经迁移到 CSR，默认运行不需要登录、业务 API 或云数据库。正式发布与验收身份见[公网交付记录](../requirements/plans/public-delivery-verification.md)。
+更新：2026-11-03。真实 Angular 应用已经迁移到 CSR，默认运行不需要登录、业务 API 或云数据库；本站代理改为 Durable Object 任务，结果加密暂存 R2。正式发布与验收身份见[公网交付记录](../requirements/plans/public-delivery-verification.md)。
 
 ## 部署结构
 
-本次使用 **Workers Static Assets + 无状态代理及可选产品 API**，通过同一域名部署：
+本次使用 **Workers Static Assets + 代理任务（SQLite Durable Object + 私有 R2）及可选产品 API**，通过同一域名部署：
 
 ```text
 浏览器 ── GET 页面/JS/WASM ── Cloudflare Static Assets
   │
-  ├── RxDB + OPFS：配置、凭据、草稿、最近 100 条任务、原图
+  ├── RxDB + OPFS：配置、凭据、代理任务令牌、草稿、最近 100 条任务、原图
   │
-  ├── 默认供应商（代理）── /api/relay Worker ── 允许列表内的供应商
+  ├── 默认供应商（代理）── /api/relay/tasks Worker ── RelayTask DO ── 允许列表内的供应商
+  │                                                      └── 加密结果暂存 R2，结清即删
   │
   └── 主动选择直连 ── 支持浏览器 CORS 的供应商
 ```
+
+已安装的旧版页面仍调用无状态的 `/api/relay`，该接口保持不变。
 
 本机模式没有 SSR 或业务后端前置。可选账号、DTO 复制和业务后台依赖 Supabase；同源 Worker 的 `/api/admin/*`、`/api/templates` 与 `/api/provider-policies` 已接线并通过真实本地服务验收，生产项目另行配置。选择 Static Assets 是为了让静态资源与可选代理一次发布、保持同源，不需要额外域名或容器。默认免费供应商（`https://api.pengdevs.com`）对本站的 OPTIONS 预检返回 403，浏览器无法直连，因此默认走同源代理；用户只选择直连供应商时才绕过 Worker。账号/同步服务未配置时保持本机功能可用，不连接 Supabase。
 
@@ -22,7 +25,9 @@
 
 按 2026-10-23 官方文档，Workers Free 动态请求限 100,000 次/日，每次 10 ms CPU；静态资源请求不计入动态 Worker 请求费用。配置仅让 `/api/*` 先进入 Worker，普通静态请求走资产服务。Worker 不设置付费专属的 CPU 配置；代理代码自身限制请求体、响应体、固定上游路径和 180 秒超时。代理等待上游不等于 CPU 计算，但较大响应和平台限制仍可能导致请求失败，失败不自动重试。
 
-静态/代理发布不申请 Containers、D1、R2、KV、Durable Objects、自建 PostgreSQL 或付费计划；启用可选产品服务时只接已明确授权的 Supabase 项目，不自动创建或升级计划。脚本不会升级订阅；当前控制台已确认 Workers Free 为活动计划，账户其它产品与第三方模型费用不属于该免费计划证明。
+发布不申请 Containers、D1、KV、自建 PostgreSQL 或付费计划；启用可选产品服务时只接已明确授权的 Supabase 项目，不自动创建或升级计划。脚本不会升级订阅；当前控制台已确认 Workers Free 为活动计划，账户其它产品与第三方模型费用不属于该免费计划证明。
+
+代理任务使用 Workers Free 可用的 SQLite Durable Object 和 R2。按 2026-10 官方计价推算：DO 时长按墙钟时间乘以 128 MB 计费，免费额度每天 13,000 GB-s，一次 60 秒的生成约 7.5 GB-s，约 1,700 次/天；R2 需先在账号完成订阅流程，免费额度每月 10 GB-month、100 万次 A 类、1000 万次 B 类操作，删除免费，每次生成一次写入、一次读取。免费计划下 DO 单次调用的 CPU 上限文档未写明，服务端因此只做有界读取和加密，不解码图片；真实账号实测前不作为已验证结论。
 
 产物检查限制静态文件不超过 20,000 个、单文件不超过 25 MiB。离线资源单文件另有限制 16 MiB，模型结果 PNG 限 16 MiB，代理 JSON 流限 24 MiB。
 
@@ -34,7 +39,7 @@ pnpm nx run aiao-media:serve
 pnpm nx run aiao-media:offline-assets
 ```
 
-- `aiao-media:serve`：4300，启动 Angular 开发服务器，并由 `proxy.conf.mjs` 在同一进程内以随机本机端口（仅 127.0.0.1）运行同一份 Worker 的 `/api/relay`，允许列表取自 `deploy/wrangler.json`；不启动 Supabase 和其它业务 API。关闭了依赖预构建（`prebundle: false`）：预构建从仓库根 `node_modules` 解析，找不到只链接在 `apps/aiao-media/node_modules` 的 `@aiao/*` 包；关闭后与生产构建一样按源文件位置解析。
+- `aiao-media:serve`：4300，启动 Angular 开发服务器，并由 `proxy.conf.mjs` 在同一进程内以随机本机端口（仅 127.0.0.1）运行同一份 Worker 的 `/api/relay` 与代理任务接口，允许列表取自 `deploy/wrangler.json`，DO 与 R2 为 `scripts/cloudflare-stand-ins.mjs` 的进程内替身；不启动 Supabase 和其它业务 API。关闭了依赖预构建（`prebundle: false`）：预构建从仓库根 `node_modules` 解析，找不到只链接在 `apps/aiao-media/node_modules` 的 `@aiao/*` 包；关闭后与生产构建一样按源文件位置解析。
 - `aiao-media:build`：生产 CSR 编译到 `apps/aiao-media/dist/browser`。
 - `aiao-media:offline-assets`：先 build，再写带摘要的离线壳和 Service Worker。
 - `aiao-media:preview`：4398，使用 Wrangler 本地运行生产形态。
@@ -54,9 +59,11 @@ AIAO_RELAY_PROVIDER_BASE_URLS=https://api.example.com/v1,https://images.example.
 
 部署脚本优先读取进程环境，然后本机 `.env` 的该变量。变量不存在时，可使用已有 `AIAO_IMAGE_BASE_URL` 作为一个前缀；显式设为空字符串则禁用全部代理目标。`AIAO_IMAGE_API_KEY`、旧数据库凭据及登录信息不进入 Worker 或静态资源。
 
-允许列表是精确的规范化 API 前缀；用户任意填写的 Base URL 不会自动获准。Worker 只允许同源浏览器 POST、固定图片生成路径、单张图片及受限参数；Images API 使用 `/images/generations`，已适配的 MiniMax 官方前缀使用 `/image_generation`，不转发 Cookie 或其他请求头，拒绝重定向，响应 no-store。Key 仅放在本次上游 Authorization，不持久化、不打印敏感正文；生产 observability 日志已关闭。
+允许列表是精确的规范化 API 前缀；用户任意填写的 Base URL 不会自动获准。Worker 只允许同源浏览器（或已启用的桌面来源）提交、固定图片生成路径、单张图片及受限参数；无状态 `/api/relay` 与代理任务的接单共用同一套校验。Images API 使用 `/images/generations`，已适配的 MiniMax 官方前缀使用 `/image_generation`，不转发 Cookie 或其他请求头，拒绝重定向，响应 no-store。Key 仅放在本次上游 Authorization，不持久化、不打印敏感正文；生产 observability 日志已关闭。
 
-MiniMax 当前只适配 `image-01`，官方 API 前缀为 `https://api.minimax.cn/v1`、`https://api.minimax.io/v1` 或 `https://api.minimaxi.com/v1`。模型和提示词在转发前检查，最多 1500 字符；三画幅使用明确的宽高，供应商结果仍须为原始 PNG，非 PNG 拒绝保存。启用 MiniMax 代理仍须显式加入允许列表，不因应用支持适配器而自动获准。
+代理任务（`PUT /api/relay/tasks/:id`）由页面生成任务标识与 32 字节任务令牌，令牌只存本机。RelayTask DO 只保存令牌摘要、请求指纹与状态，在接单调用内发出上游请求，同一标识重发不会再次调用上游；上游完整 JSON 用令牌派生的 AES-256-GCM 密钥加密后写入 `RELAY_RESULTS`，本站读不出内容。查询、取回、删除与放弃都必须带令牌，令牌错误与任务不存在返回相同的 404。任务结清后页面删除结果；无人取回的 24 小时后由 alarm 删除，bucket 的 1 天生命周期规则兜底。任务绑定缺失时接单在调用上游前返回 503，页面明确报错，不改走其他通道。接口、状态与安全边界见[实施计划](../requirements/plans/relay-durable-tasks.md)。
+
+MiniMax 当前只适配 `image-01`，官方 API 前缀为 `https://api.minimax.cn/v1`、`https://api.minimax.io/v1` 或 `https://api.minimaxi.com/v1`。模型和提示词在转发前检查，最多 1500 字符；三画幅使用明确的宽高，供应商结果仍须为原始 PNG，非 PNG 拒绝保存。代理任务向 MiniMax 请求 base64，避免暂存会过期的临时 URL。启用 MiniMax 代理仍须显式加入允许列表，不因应用支持适配器而自动获准。
 
 返回 base64 时浏览器可直接校验并保存。返回 HTTPS 图片 URL 时，浏览器单独下载，绝不带上供应商 Key；该图片地址仍需允许 CORS。本代理首版只转发生成 API，不是任意图片 URL 下载代理。
 
@@ -79,6 +86,15 @@ pnpm nx run aiao-media:deploy --skipRemoteCache
 ```
 
 配置源为 `deploy/wrangler.json`，名称 `aiao-media`。部署脚本在 Git 忽略的 `.wrangler/local-first` 中生成实际配置并调用固定版本 Wrangler。发布成功后，以 CLI 返回的真实 URL、version ID、deployment ID 为准，不能预先假定 workers.dev 子域名。
+
+首次发布代理任务前，账号所有者先在 Cloudflare 控制台完成 R2 订阅流程，再创建私有 bucket 与生命周期规则（不开放公开访问）：
+
+```sh
+pnpm --dir apps/aiao-media exec wrangler r2 bucket create aiao-media-relay-results
+pnpm --dir apps/aiao-media exec wrangler r2 bucket lifecycle add aiao-media-relay-results relay-results-1d --expire-days 1
+```
+
+`media-relay-v1` 迁移新增 `RelayTask` 类后，`wrangler rollback` 不能再回到加类之前的版本。因此分两次发布：第一次只带服务端（DO 类、R2 绑定与任务接口），前端仍是旧版本；用 `wrangler deployments status` 和任务接口确认可用后，第二次发布前端切换。前端出问题时回滚到第一次发布，两次发布之间没有类生命周期变化。发布不传 `--durable-objects-code-update-mode immediate`，默认 300 秒的代码更新延迟覆盖 180 秒上游超时。
 
 如果已有同名 Worker，应先核对它确实属于本项目，再更新。首次账号/子域名设置由 Cloudflare 官方流程完成，不通过创建匿名临时账号代替正式上线。2026-10-25 20:25 正式发布 C，地址 `https://media.aiao.io`，版本 `caaf54dd-054b-4be8-a523-518c3875c7a9`；官方 100% 流量、四路由/CSP、46/46 离线资源和断网新文档启动已复核，生成 0 次。具体身份与烟测边界见[补验记录](../requirements/plans/provider-acceptance-follow-up.md#正式发布-c-与公网烟测)。历史 B 的旧 API 404、真实供应商代理三画幅与官方更新/回退保留原证据。直连正方形结果未知，未重发，另两幅直连与跨 origin 原图 URL 尚未完成。具体发布摘要与各项证据边界见[公网交付记录](../requirements/plans/public-delivery-verification.md)。
 
@@ -118,7 +134,7 @@ pnpm nx run aiao-media:deploy-check
 
 ## 回退与数据
 
-保留已验证的静态产物和 Worker version ID，通过 Cloudflare 版本回退应用。客户端 Service Worker 和 RxDB 不随服务器回退自动降级；禁止为回退清空本机库。正式域名应长期稳定，换 origin 时用户需先导出备份，再手动导入。JSON 备份不含 Key，恢复后重新配置凭据。
+保留已验证的静态产物和 Worker version ID，通过 Cloudflare 版本回退应用；新增 Durable Object 类之后，只能回退到同一类配置的版本（见上文分两次发布）。客户端 Service Worker 和 RxDB 不随服务器回退自动降级；禁止为回退清空本机库。正式域名应长期稳定，换 origin 时用户需先导出备份，再手动导入。JSON 备份不含 Key，恢复后重新配置凭据。
 
 含 schema 守卫的应用在打开数据库前和每次操作前检查 `aiao-local-schema-<UUID>`；未知或更高版本阻止访问并保留文件。未来不兼容迁移必须在同一工作区锁内先提高 marker，再修改数据；不得删除或降低 marker 绕过检查。**不认识 marker 的旧产物不能作为安全回退目标**；本地守卫测试不代替正式版本/Service Worker 更新验收。详见[可靠性验收](../requirements/plans/local-reliability-verification.md)。
 

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { test } from 'node:test';
+import { createRelayTaskToken, openRelayResult, relayResultKey } from '../src/contracts/relay-task.ts';
 import { startDevRelay } from './dev-relay.mjs';
 
 const provider = 'https://provider.example.test/v1';
@@ -25,12 +26,12 @@ async function withRelay(options, handler, run) {
     await relay.close();
   }
 }
-function post(relay, { path = '/api/relay', headers = {} } = {}) {
+function post(relay, { path = '/api/relay', method = 'POST', headers = {} } = {}) {
   return new Promise((resolve, reject) => {
     const outgoing = request(
       new URL(path, relay.url),
       {
-        method: 'POST',
+        method,
         headers: {
           origin: relay.url,
           'content-type': 'application/json',
@@ -42,13 +43,14 @@ function post(relay, { path = '/api/relay', headers = {} } = {}) {
       incoming => {
         const chunks = [];
         incoming.on('data', chunk => chunks.push(chunk));
-        incoming.on('end', () =>
-          resolve({ status: incoming.statusCode, headers: incoming.headers, text: Buffer.concat(chunks).toString() })
-        );
+        incoming.on('end', () => {
+          const bytes = Buffer.concat(chunks);
+          resolve({ status: incoming.statusCode, headers: incoming.headers, text: bytes.toString(), bytes });
+        });
       }
     );
     outgoing.on('error', reject);
-    outgoing.end(JSON.stringify(imageRequest));
+    outgoing.end(method === 'GET' ? undefined : JSON.stringify(imageRequest));
   });
 }
 
@@ -106,6 +108,26 @@ test('starts from the allow-list committed for deployment and listens on loopbac
     assert.match(relay.url, /^http:\/\/127\.0\.0\.1:\d+$/);
     assert.equal((await post(relay, { headers: { 'x-provider-base': committed } })).status, 200);
     assert.equal(calls[0].url, `${committed}/images/generations`);
+  });
+});
+test('runs relay tasks on in-process stand-ins, so a reloaded page can still read the sealed result', async () => {
+  const slow = async () => {
+    await new Promise(resolve => setTimeout(resolve, 200));
+    return image();
+  };
+  await withRelay(allowOnly, slow, async (relay, calls) => {
+    const id = crypto.randomUUID(),
+      token = createRelayTaskToken(),
+      path = `/api/relay/tasks/${id}`,
+      headers = { 'x-relay-task-token': token };
+    assert.equal((await post(relay, { method: 'PUT', path, headers })).status, 202);
+    // The sending page is gone; a later request with the stored token waits for the outcome.
+    const view = await post(relay, { method: 'GET', path: `${path}?wait=5`, headers });
+    assert.equal(JSON.parse(view.text).status, 'received');
+    const sealed = await post(relay, { method: 'GET', path: `${path}/result`, headers });
+    const opened = await openRelayResult(await relayResultKey(token, id, 'decrypt'), new Uint8Array(sealed.bytes));
+    assert.deepEqual(JSON.parse(new TextDecoder().decode(opened)), { data: [{ b64_json: 'fixture' }] });
+    assert.equal(calls.length, 1);
   });
 });
 test('the Angular proxy config sends only /api/relay to a live relay', async () => {

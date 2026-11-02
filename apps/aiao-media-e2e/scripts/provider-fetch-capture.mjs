@@ -1,4 +1,13 @@
-export function installFetchCapture({ generationUrl, pageOrigin, generationLimit, resultLimit, timeoutMs }) {
+// A relay task answers the generation request with a receipt; its provider answer is the sealed result that the page
+// reads later with GET <prefix><task id><suffix>, so `generationResult` captures that response instead.
+export function installFetchCapture({
+  generationUrl,
+  generationResult = null,
+  pageOrigin,
+  generationLimit,
+  resultLimit,
+  timeoutMs
+}) {
   const state = {
     generation: null,
     results: new Map(),
@@ -88,7 +97,10 @@ export function installFetchCapture({ generationUrl, pageOrigin, generationLimit
     } catch {
       return nativeFetch(...args);
     }
-    const generation = method === 'POST' && url === generationUrl;
+    const generation =
+      generationResult ?
+        method === 'GET' && url.startsWith(generationResult.prefix) && url.endsWith(generationResult.suffix)
+      : method === 'POST' && url === generationUrl;
     if (generation) state.armed = true;
     let response;
     try {

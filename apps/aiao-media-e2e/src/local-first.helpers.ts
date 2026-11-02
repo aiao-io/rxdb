@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page } from '@playwright/test';
-import { createHash } from 'node:crypto';
+import { createHash, webcrypto } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import sharp from 'sharp';
 
@@ -27,6 +27,29 @@ export async function prompt(page: Page, text = '一片绿色的森林') {
   await expect(editor).toBeVisible();
   await editor.fill(text);
   await expect(page.getByText('输入已保存到本机', { exact: true })).toBeVisible();
+}
+/**
+ * Seals a provider answer the way the relay stores it: AES-256-GCM with a key derived by HKDF-SHA-256 from the task
+ * token (salt: task id, info: aiao-relay-result-v1), stored as a 12-byte IV followed by the ciphertext. Written
+ * independently of the app so the browser is checked against the documented format.
+ */
+export async function sealRelayAnswer(task: { id: string; token: string }, answer: unknown) {
+  const encoder = new TextEncoder();
+  const material = await webcrypto.subtle.importKey('raw', encoder.encode(task.token), 'HKDF', false, ['deriveKey']);
+  const sealing = await webcrypto.subtle.deriveKey(
+    { name: 'HKDF', hash: 'SHA-256', salt: encoder.encode(task.id), info: encoder.encode('aiao-relay-result-v1') },
+    material,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt']
+  );
+  const iv = webcrypto.getRandomValues(new Uint8Array(12));
+  const sealed = await webcrypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    sealing,
+    encoder.encode(JSON.stringify(answer))
+  );
+  return Buffer.concat([iv, new Uint8Array(sealed)]);
 }
 export const pngFixture = () =>
   sharp({

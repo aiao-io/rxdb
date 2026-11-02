@@ -9,6 +9,7 @@ import {
   imageGenerationRequest,
   isMiniMaxImageProvider
 } from '../../aiao-media/src/contracts/image-provider-protocol.ts';
+import { openRelayResult, relayResultKey } from '../../aiao-media/src/contracts/relay-task.ts';
 import { prompt, provider, verifyImageDownload } from '../src/local-first.helpers.ts';
 import { installFetchCapture } from './provider-fetch-capture.mjs';
 import { observeResultNetwork, resultNetworkFailure } from './provider-result-network.mjs';
@@ -52,6 +53,7 @@ export function failureCode(error) {
     ['PREVIOUS_ATTEMPT_REQUIRES_REVIEW', 'PREVIOUS_ATTEMPT_REQUIRES_REVIEW'],
     ['GENERATION_REJECTED_OR_UNCERTAIN', 'GENERATION_REJECTED_OR_UNCERTAIN'],
     ['ORIGINAL_RESULT_UNAVAILABLE', 'ORIGINAL_RESULT_UNAVAILABLE'],
+    ['RELAY_RESULT_UNREADABLE', 'RELAY_RESULT_UNREADABLE'],
     ['INVALID_RESULT_ORIGIN', 'INVALID_RESULT_ORIGIN'],
     ['RESULT_CREDENTIAL_LEAK', 'RESULT_CREDENTIAL_LEAK'],
     ['RESULT_READ_FAILED', 'RESULT_READ_FAILED'],
@@ -351,8 +353,10 @@ export function generationDispatch(settings, mode, ratio, prompt) {
   const request = imageGenerationRequest(settings.baseUrl, input);
   requireCheck(request, 'INVALID_MODEL');
   if (mode === 'direct') return request;
+  // The page creates the relay task at this prefix plus its own task id; the relay maps the neutral body.
   return {
-    url: `${settings.origin}/api/relay`,
+    url: `${settings.origin}/api/relay/tasks/`,
+    method: 'PUT',
     body: { model: input.model, prompt, n: 1, size: input.size, quality: 'low', output_format: 'png' }
   };
 }
@@ -384,10 +388,21 @@ export async function resultResponse(url, responses, network, record, timeout = 
   return responses.get(url);
 }
 
-async function originalBytes(page, response, responses, network, origin, record, baseUrl) {
+async function relayAnswer(sealed, task) {
+  try {
+    return Buffer.from(
+      await openRelayResult(await relayResultKey(task.token, task.id, 'decrypt'), new Uint8Array(sealed))
+    );
+  } catch {
+    throw new Error('RELAY_RESULT_UNREADABLE');
+  }
+}
+
+async function originalBytes(page, response, responses, network, origin, record, baseUrl, relayTask) {
   requireCheck(response.ok(), 'GENERATION_REJECTED_OR_UNCERTAIN');
   record.stage = 'generation-capture';
-  const body = await receivedBytes(page, 'generation');
+  const captured = await receivedBytes(page, 'generation');
+  const body = relayTask ? await relayAnswer(captured, relayTask) : captured;
   record.stage = 'generation-json';
   let result;
   try {
@@ -437,8 +452,11 @@ async function verifyCase(browser, settings, mode, ratio, file, record) {
     const text = `桌面正式验收：${mode} ${ratio.aspect} 蓝色森林`;
     const dispatch = generationDispatch(settings, mode, ratio, text);
     const endpoint = dispatch.url;
+    const method = dispatch.method ?? 'POST';
+    let relayTask = null;
     await context.addInitScript(installFetchCapture, {
       generationUrl: endpoint,
+      generationResult: method === 'PUT' ? { prefix: endpoint, suffix: '/result' } : null,
       pageOrigin: settings.origin,
       generationLimit: 24 * 1024 * 1024,
       resultLimit: 16 * 1024 * 1024,
@@ -457,15 +475,25 @@ async function verifyCase(browser, settings, mode, ratio, file, record) {
     const network = observeResultNetwork(session);
     await session.send('Network.enable');
     await session.send('Audits.enable');
+    const relayTasks = `${settings.origin}/api/relay/tasks/`;
     await context.route('**/*', async route => {
       const request = route.request();
-      if (request.method() !== 'POST' || !generationEndpoints.includes(request.url())) return route.fallback();
+      const generationRequest =
+        (request.method() === 'POST' && generationEndpoints.includes(request.url())) ||
+        (request.method() === 'PUT' && request.url().startsWith(relayTasks));
+      if (!generationRequest) return route.fallback();
       record.generationRequests++;
       const headers = await request.allHeaders();
       const body = request.postDataJSON();
+      const task = { id: request.url().slice(relayTasks.length), token: headers['x-relay-task-token'] ?? '' };
+      const target =
+        method === 'PUT' ?
+          /^[0-9a-f-]{36}$/.test(task.id) && /^[A-Za-z0-9_-]{43}$/.test(task.token)
+        : request.url() === endpoint;
       const valid =
         record.generationRequests === 1 &&
-        request.url() === endpoint &&
+        request.method() === method &&
+        target &&
         headers.authorization === `Bearer ${settings.key}` &&
         !headers.cookie &&
         body &&
@@ -475,6 +503,8 @@ async function verifyCase(browser, settings, mode, ratio, file, record) {
         record.requestBoundaryFailed = true;
         return route.abort('blockedbyclient');
       }
+      // Kept in memory only: the token opens the stored result and never enters the attempt record.
+      if (method === 'PUT') relayTask = task;
       return route.fallback();
     });
     record.stage = 'provider-setup';
@@ -491,7 +521,9 @@ async function verifyCase(browser, settings, mode, ratio, file, record) {
     record.stage = 'aspect-selection';
     await page.getByRole('button', { name: ratio.label, exact: true }).click();
     const generated = page.waitForResponse(
-      response => response.url() === endpoint && response.request().method() === 'POST',
+      response =>
+        response.request().method() === method &&
+        (method === 'PUT' ? response.url().startsWith(endpoint) : response.url() === endpoint),
       { timeout: 210000 }
     );
     generated.catch(() => undefined);
@@ -503,7 +535,16 @@ async function verifyCase(browser, settings, mode, ratio, file, record) {
     const response = await generated;
     record.generationStatus = response.status();
     record.stage = 'original-result';
-    const original = await originalBytes(page, response, responses, network, settings.origin, record, settings.baseUrl);
+    const original = await originalBytes(
+      page,
+      response,
+      responses,
+      network,
+      settings.origin,
+      record,
+      settings.baseUrl,
+      relayTask
+    );
     record.stage = 'local-save';
     await expect(page.getByText('已保存到本机', { exact: true })).toBeVisible({ timeout: 210000 });
     requireCheck(!record.requestBoundaryFailed && record.generationRequests === 1, 'GENERATION_REQUEST_BOUNDARY');

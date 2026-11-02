@@ -2,21 +2,14 @@ import { imageGenerationRequest, isMiniMaxImageProvider } from '../../src/contra
 import { handleAdmin } from './admin-api.mjs';
 import { handlePlatform } from './platform-api.mjs';
 import { publishedTemplates, runtimePolicy } from './product-content.mjs';
-import { endpoint, originAllowed } from './product-http.mjs';
+import { endpoint } from './product-http.mjs';
+import { base, json, relayInput } from './relay-input.mjs';
+import { handleRelayTask } from './relay-task-api.mjs';
 import { handleSupabaseOAuth } from './supabase-oauth.mjs';
 export { PlatformCoordinator } from './platform-coordinator.mjs';
-// Optional, stateless relay. Static assets are served by the ASSETS binding.
-const json = (status, error) =>
-  Response.json(
-    { error },
-    {
-      status,
-      headers: {
-        'cache-control': 'no-store',
-        'referrer-policy': 'no-referrer'
-      }
-    }
-  );
+export { RelayTask } from './relay-task.mjs';
+// Optional relay: stateless /api/relay for installed older pages, durable /api/relay/tasks for the current app.
+// Static assets are served by the ASSETS binding.
 async function probeProvider(url, init = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 10_000);
@@ -142,13 +135,6 @@ const jsonPayload = (payload, status = 200) =>
       'referrer-policy': 'no-referrer'
     }
   });
-function base(value) {
-  const url = new URL(value);
-  if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash)
-    throw new Error('Invalid base');
-  return url.href.replace(/\/+$/, '');
-}
-
 const encoder = new TextEncoder();
 const navigationPaths = new Set(['/', '/create', '/images', '/providers', '/admin']);
 async function fetchAsset(request, env) {
@@ -277,24 +263,17 @@ const worker = {
       if (request.method !== 'GET') return json(405, 'GET required');
       return jsonPayload(await providerProbe(env, url.origin));
     }
+    if (url.pathname.startsWith('/api/relay/tasks/')) return handleRelayTask(request, env);
     if (url.pathname !== '/api/relay') return json(404, 'Unknown API');
     if (request.method !== 'POST') return json(405, 'POST required');
-    if (!originAllowed(request, env)) return json(403, 'Same-origin browser request required');
-    let upstream, policy;
+    let input;
     try {
-      upstream = base(request.headers.get('x-provider-base') ?? '');
-      policy = await runtimePolicy(env);
-      const allowed =
-        policy ?
-          policy.providers.filter(provider => provider.enabled && provider.proxy).map(provider => provider.baseUrl)
-        : JSON.parse(env.ALLOWED_PROVIDER_BASE_URLS || '[]').map(base);
-      if (!allowed.includes(upstream)) return json(403, 'Provider is not enabled for this relay');
+      input = await relayInput(request, env);
     } catch {
-      return json(400, 'Invalid provider configuration');
+      return json(502, 'Provider connection interrupted; review provider history before retrying');
     }
-    const authorization = request.headers.get('authorization') ?? '';
-    if (!/^Bearer [\x21-\x7e]{1,4096}$/.test(authorization)) return json(400, 'API Key required');
-    if (!request.headers.get('content-type')?.startsWith('application/json')) return json(400, 'JSON required');
+    if (input instanceof Response) return input;
+    const { authorization, imageRequest, policy } = input;
     const controller = new AbortController();
     const stop = () => controller.abort();
     request.signal.addEventListener('abort', stop, { once: true });
@@ -304,66 +283,7 @@ const worker = {
       request.signal.removeEventListener('abort', stop);
     };
     try {
-      // Bound reads before JSON parsing. Only single-image generation parameters are forwarded.
-      const reader = request.body?.getReader();
-      if (!reader) {
-        cleanup();
-        return json(400, 'Body required');
-      }
-      const chunks = [];
-      let length = 0;
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        length += value.length;
-        if (length > 16 * 1024) {
-          await reader.cancel();
-          cleanup();
-          return json(413, 'Body too large');
-        }
-        chunks.push(value);
-      }
-      const bytes = new Uint8Array(length);
-      let offset = 0;
-      for (const c of chunks) {
-        bytes.set(c, offset);
-        offset += c.length;
-      }
-      let data;
-      try {
-        data = JSON.parse(new TextDecoder().decode(bytes));
-      } catch {
-        cleanup();
-        return json(400, 'Invalid JSON');
-      }
-      if (
-        !data ||
-        typeof data.model !== 'string' ||
-        !data.model.trim() ||
-        data.model.length > 200 ||
-        typeof data.prompt !== 'string' ||
-        !data.prompt.trim() ||
-        data.prompt.length > 2000 ||
-        data.n !== 1 ||
-        !['1024x1024', '1536x1024', '1024x1536'].includes(data.size)
-      ) {
-        cleanup();
-        return json(400, 'Invalid image request');
-      }
-      const activeProvider = policy?.providers.find(provider => provider.baseUrl === upstream);
-      if (
-        activeProvider &&
-        (!activeProvider.models.includes(data.model) || !activeProvider.sizes.includes(data.size))
-      ) {
-        cleanup();
-        return json(403, 'Model or size is disabled by the active provider policy');
-      }
-      const imageRequest = imageGenerationRequest(upstream, data);
-      if (!imageRequest) {
-        cleanup();
-        return json(400, 'Unsupported image model or prompt length');
-      }
-      if (controller.signal.aborted) throw new Error('Aborted');
+      if (request.signal.aborted) throw new Error('Aborted');
       const responsePromise = fetch(imageRequest.url, {
         method: 'POST',
         // Do not follow redirects with the Key. Non-2xx responses are rejected
@@ -451,8 +371,8 @@ export default {
         status: 204,
         headers: {
           'access-control-allow-origin': origin,
-          'access-control-allow-methods': 'GET,POST,DELETE',
-          'access-control-allow-headers': 'authorization,content-type,x-provider-base',
+          'access-control-allow-methods': 'GET,POST,PUT,DELETE',
+          'access-control-allow-headers': 'authorization,content-type,x-provider-base,x-relay-task-token',
           'access-control-max-age': '600',
           vary: 'Origin'
         }

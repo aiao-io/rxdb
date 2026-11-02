@@ -48,6 +48,32 @@ export function fields(value, allowed) {
     reject(400, '请求包含无效字段。');
   return value;
 }
+/** 有界读取响应正文；超过上限时取消读取并抛错。 */
+export async function bounded(result, max) {
+  const reader = result.body?.getReader();
+  if (!reader) throw new Error('empty');
+  const chunks = [];
+  let size = 0;
+  try {
+    for (;;) {
+      const item = await reader.read();
+      if (item.done) break;
+      size += item.value.byteLength;
+      if (size > max) throw new Error('oversize');
+      chunks.push(item.value);
+    }
+  } catch (error) {
+    await reader.cancel().catch(() => undefined);
+    throw error;
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
+}
 export async function body(request, limit = 262144) {
   if (!request.headers.get('content-type')?.startsWith('application/json')) reject(400, '需要 JSON 请求。');
   const reader = request.body?.getReader();

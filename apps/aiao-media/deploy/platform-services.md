@@ -1,6 +1,6 @@
 # 平台服务配置与运维
 
-应用 API 位于 `server/cloudflare`。现有无状态 BYOK relay 与平台生图分别运行；前者只使用本次用户 Key，后者只使用服务端模型 Key。平台任务中只保存模型配置标识，不保存 Key、会话或客户端凭据。
+应用 API 位于 `server/cloudflare`。BYOK 代理（旧版页面使用的无状态 `/api/relay`，以及当前页面使用的 `/api/relay/tasks` 任务）与平台生图分别运行；前者只在本次接单时使用用户 Key，后者只使用服务端模型 Key。代理任务的 `RELAY_TASKS` 与 `RELAY_RESULTS` 配置见[部署说明](local-first-pages.md#正式发布)。平台任务中只保存模型配置标识，不保存 Key、会话或客户端凭据。
 
 ## 必需配置
 

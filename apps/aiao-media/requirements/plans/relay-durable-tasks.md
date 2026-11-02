@@ -23,24 +23,24 @@
 ## 流程
 
 1. 浏览器先写本机任务记录（`processing`），在本机专用记录里生成并保存 32 字节随机任务令牌。
-2. `POST /api/relay/tasks`：Worker 做现有 `/api/relay` 的全部校验，再调用 `idFromName(taskId)` 对应的 `RelayTask`。
+2. `PUT /api/relay/tasks/:id`（任务标识由页面生成）：Worker 做现有 `/api/relay` 的全部校验，再交给 `idFromName('relay-task:' + id)` 对应的 `RelayTask`。接单回执不明而页面仍持有 Key 时，用同一标识重发；DO 按请求指纹返回原任务，不会再调用上游。
 3. DO 在事务里写任务行（令牌哈希、请求指纹、`dispatched`），设置看门狗 alarm，用 Key 发出上游普通请求，把等待结果的 Promise 交给 `ctx.waitUntil()`，返回 202。Key 随这次调用结束，等待结果的闭包不引用它。
 4. 等待中：有界读取完整 JSON（不超过 24 MiB），用令牌派生的 AES-256-GCM 密钥加密后写入 R2，再把状态改为 `received`。
 5. 浏览器长轮询 `GET /api/relay/tasks/:id?wait=25`。刷新后从本机记录恢复轮询，不再直接标记待核对。
-6. `received` 后，浏览器用普通 GET 一次取回密文，本机解密，交给现有解析与校验，保存到 OPFS；保存成功后发 `DELETE`。
+6. `received` 后，浏览器用普通 GET 一次取回密文，本机解密，交给现有解析与校验，保存到 OPFS。任务结清（已保存、明确失败或待核对）后发 `DELETE`：删除 R2 对象，任务行改为不含内容的 `deleted`，保留到 24 小时期满，所以重放的接单请求仍被拒绝。
 7. 接单回执未知、Key 已不在内存时，浏览器调用放弃接口：DO 已有任务则返回当前状态并继续轮询；没有任务则写入封存记录，之后到达的同一标识接单请求被拒绝，不调用上游。查询与接单在同一个 DO 内串行执行，没有竞态。
 
 ## 接口
 
-| 方法与路径                          | 请求                                                                                                   | 响应                                                                                 |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
-| `POST /api/relay/tasks`             | `authorization: Bearer <Key>`、`x-provider-base`、`x-relay-task-token`；正文为 `taskId` 加现有单张参数 | 202 返回状态；同标识同参数返回原任务；同标识不同参数 409；开关关闭时 503，未调用上游 |
-| `GET /api/relay/tasks/:id?wait=25`  | `x-relay-task-token`                                                                                   | 状态与更新时间，最多等待 25 秒                                                       |
-| `GET /api/relay/tasks/:id/result`   | `x-relay-task-token`                                                                                   | `received` 时一次返回密文（`application/octet-stream`）                              |
-| `POST /api/relay/tasks/:id/abandon` | `x-relay-task-token`                                                                                   | 已接单：返回当前状态；未接单：写入封存记录，返回与“不存在”相同的 404                 |
-| `DELETE /api/relay/tasks/:id`       | `x-relay-task-token`                                                                                   | 删除任务行、alarm 与 R2 对象                                                         |
+| 方法与路径                          | 请求                                                                                       | 响应                                                                                           |
+| ----------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| `PUT /api/relay/tasks/:id`          | `authorization: Bearer <Key>`、`x-provider-base`、`x-relay-task-token`；正文为现有单张参数 | 202 返回状态；同标识同参数返回原任务；同标识不同参数或已封存 409；任务绑定缺失 503，未调用上游 |
+| `GET /api/relay/tasks/:id?wait=25`  | `x-relay-task-token`                                                                       | 状态与更新时间，最多等待 25 秒                                                                 |
+| `GET /api/relay/tasks/:id/result`   | `x-relay-task-token`                                                                       | `received` 时一次返回密文（`application/octet-stream`）                                        |
+| `POST /api/relay/tasks/:id/abandon` | `x-relay-task-token`                                                                       | 已接单：返回当前状态；未接单：写入封存记录，返回与“不存在”相同的 404                           |
+| `DELETE /api/relay/tasks/:id`       | `x-relay-task-token`                                                                       | 删除 R2 对象，任务行改为 `deleted` 保留到期满；上游仍在等待时 409                              |
 
-令牌错误与任务不存在返回相同的 404。令牌只放在请求头，不进 URL。桌面来源的 CORS 预检需要放行 `x-relay-task-token`。
+令牌错误与任务不存在返回相同的 404。令牌只放在请求头，不进 URL。写操作（接单、放弃、删除）还要求同源或已启用的桌面来源；查询只认令牌。桌面来源的 CORS 预检放行 `PUT` 与 `x-relay-task-token`。页面把 503 当作明确拒绝，不改走其他通道。
 
 ## 状态
 
@@ -50,15 +50,16 @@
 | `received`     | 上游 2xx JSON 已加密写入 R2                     | 取回解析后为 `completed`，或按现有适配器规则记 `failed`、`needs_review` |
 | `rejected`     | 上游明确拒绝（400/401/403/404/413/422/429）     | `failed`，解除锁定                                                      |
 | `needs_review` | 5xx、超时、断连、超限，或实例重置且 R2 没有结果 | `needs_review`                                                          |
-| 封存           | 接单前被放弃                                    | `failed`，提示请求未发送                                                |
-| 已删除         | 保存后删除，或 24 小时到期删除                  | 本机已收到回执却查不到时记 `needs_review`，提示结果已过期               |
+| `abandoned`    | 接单前被放弃的封存行                            | `failed`，提示请求未发送                                                |
+| `deleted`      | 任务结清后结果已删除，只留不含内容的行          | 本机已结清                                                              |
+| 已过期         | 24 小时到期，任务行与结果都被 alarm 删除        | 本机已收到回执却查不到时记 `needs_review`，提示结果已过期               |
 
 ## 安全边界
 
 - 授权：任务令牌由浏览器生成，只存在本机专用记录（与“记住 Key”的凭据记录同级），不进任务记录、备份或同步；DO 只保存 SHA-256 哈希。
 - 加密：DO 用 HKDF 从令牌派生 AES-256-GCM 密钥，密钥只在等待期间留在内存；R2 对象由随机 IV 和密文组成，服务端事后读不出结果，浏览器用本机令牌解密。R2 另有平台默认的 AES-256 静态加密。
 - 有效期：任务行与结果最长 24 小时。接单时 alarm 设为上游超时 180 秒加 30 秒余量作看门狗，之后改为 24 小时过期。
-- 删除：保存成功后由浏览器删除；到期由 alarm 删除任务、alarm 与 R2 对象；R2 生命周期规则 1 天兜底孤儿对象（例如 R2 已写入而状态写入失败）。官方说明对象通常在到期后 24 小时内移除，所以最长存留约 48 小时。
+- 删除：任务结清后由浏览器删除结果（失败时保留本机令牌，下次读取任务记录时重试）；到期由 alarm 删除任务行、alarm 与 R2 对象；R2 生命周期规则 1 天兜底孤儿对象（例如 R2 已写入而状态写入失败）。官方说明对象通常在到期后 24 小时内移除，所以最长存留约 48 小时。
 - 看门狗：`dispatched` 超时时先查 R2，有对象则改为 `received`，否则改为 `needs_review`。
 
 ## 免费计划容量（按官方计价推算）
@@ -69,20 +70,21 @@
 
 ## 发布与回退
 
-- [wrangler.json](../../deploy/wrangler.json) 增加 `RELAY_TASKS`（类 `RelayTask`，迁移标签 `media-relay-v1`，`new_sqlite_classes`）和 `RELAY_RESULTS`（独立私有 bucket，生命周期 1 天），沿用与 `media-platform-v1` 相同的 `migrations` 数组。
-- 新增 DO 类后，`wrangler rollback` 不能回到加类之前的版本。需要停用时改为前向发布：任务开关关闭后接单接口在调用上游前返回 503，新版页面改走无状态 `/api/relay`。
+- [wrangler.json](../../deploy/wrangler.json) 已增加 `RELAY_TASKS`（类 `RelayTask`，迁移标签 `media-relay-v1`，`new_sqlite_classes`）和 `RELAY_RESULTS`（bucket `aiao-media-relay-results`），沿用与 `media-platform-v1` 相同的 `migrations` 数组。
+- 首次发布前由账号所有者开通 R2 订阅，并创建私有 bucket 与 1 天生命周期规则：`pnpm --dir apps/aiao-media exec wrangler r2 bucket create aiao-media-relay-results`，再执行 `pnpm --dir apps/aiao-media exec wrangler r2 bucket lifecycle add aiao-media-relay-results relay-results-1d --expire-days 1`。bucket 不开放公开访问。
+- 新增 DO 类后，`wrangler rollback` 不能回到加类之前的版本。仓库规则不允许加 fallback，所以不设“关闭任务接口后改走无状态代理”的开关，改为分两次发布：第一次发布只带服务端（DO 类、R2 绑定与任务接口），前端仍是旧版；确认 `wrangler deployments status` 与任务接口可用后，第二次发布前端切换。前端出问题时回滚到第一次发布，两个版本之间没有类生命周期变化。
 - 发布不使用 `--durable-objects-code-update-mode immediate`：默认 300 秒的代码更新延迟覆盖 180 秒上游超时。
 - 已安装的旧版页面继续使用 `/api/relay`，接口保持不变，是否下线另行决定。
-- [开发代理](../../scripts/dev-relay.mjs)目前只转发精确路径 `/api/relay`，要扩展到任务路径，并提供基于 `node:sqlite` 的 DO 替身和本地 R2 替身；`aiao-media:preview` 使用 Wrangler 本地模式，可直接运行 DO 与 R2。
+- [开发代理](../../scripts/dev-relay.mjs)转发 `/api/relay` 与任务路径，使用 [进程内替身](../../scripts/cloudflare-stand-ins.mjs)（`node:sqlite` 的 DO 存储与内存 R2）；`aiao-media:preview` 与浏览器套件使用 Wrangler 本地模式，直接运行 DO 与 R2。
 
 ## 分阶段验收
 
-| 阶段       | 内容                                                                                                                                                                       | 证据层级                                                                                                                  |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| A 技术验证 | 用临时 Worker 在真实账号验证：断开客户端后 DO 仍收到上游结果；4 MiB、24 MiB 加密的 CPU 时间（`wrangler tail` 的 `cpuTime`）；R2 bucket 与生命周期规则                      | 真实平台实测，结论回写本页                                                                                                |
-| B 服务端   | `RelayTask` 状态机、去重、放弃、看门狗、过期删除、令牌校验与加密；Worker 路由与开关；开发替身                                                                              | `node --test`，用 `node:sqlite` 替身（参照 [platform.test.mjs](../../server/cloudflare/platform.test.mjs)）；`relay-test` |
-| C 前端续接 | 拆出 `local-provider.ts` 的结果解析；提交、续接、放弃、解密保存、多标签页和提示文案                                                                                        | 单测与 `aiao-media-e2e` 浏览器套件：fixture 统计上游调用次数，生成中 reload                                               |
-| D 正式验收 | 开通 R2、发布、真实供应商三画幅生成中刷新；更新 README、[部署说明](../../deploy/local-first-pages.md)、[平台服务](../../deploy/platform-services.md)和能力矩阵中的代理承诺 | 正式来源实测，按 D-02 每个组合只发一次                                                                                    |
+| 阶段       | 内容                                                                                                                                                  | 证据层级                                                                                                         |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| A 技术验证 | 用临时 Worker 在真实账号验证：断开客户端后 DO 仍收到上游结果；4 MiB、24 MiB 加密的 CPU 时间（`wrangler tail` 的 `cpuTime`）；R2 bucket 与生命周期规则 | 真实平台实测，结论回写本页                                                                                       |
+| B 服务端   | 已完成：`RelayTask` 状态机、去重、放弃、看门狗、过期删除、令牌与来源校验、加密；Worker 路由与开发替身                                                 | [relay-task.test.mjs](../../scripts/relay-task.test.mjs) 与 dev relay 测试在 Node 替身上运行，`relay-test` 29/29 |
+| C 前端续接 | 已完成：共用 `local-provider.ts` 的请求校验与结果解析；提交、重发、续接、放弃、解密保存、生成锁后续接和提示文案；验收工具改按任务接口抓取并解密结果   | 单测 786 项；浏览器套件 39/39，拦截任务接口并在生成中 reload；验收 fixture 12 个组合                             |
+| D 正式验收 | 开通 R2、分两次发布、真实供应商三画幅生成中刷新；补正式环境证据                                                                                       | 正式来源实测，按 D-02 每个组合只发一次                                                                           |
 
 ## 风险
 

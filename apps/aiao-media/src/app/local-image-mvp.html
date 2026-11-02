@@ -371,9 +371,15 @@
               <div class="spinner" aria-hidden="true"></div>
               <h2 class="state-title">让灵感慢慢显影</h2>
               <p class="state-copy">
-                正在生成图片，请保留当前页面。
-                <br />
-                刷新会中断本页读取，不会自动重复生成。
+                @if (job()?.channel === 'proxy') {
+                  正在由本站代理生成，可以刷新或关闭页面。
+                  <br />
+                  回来后会接着取回结果，不会重复生成。
+                } @else {
+                  正在生成图片，请保留当前页面。
+                  <br />
+                  刷新会中断本页读取，不会自动重复生成。
+                }
               </p>
               <div class="progress-track" aria-hidden="true"><span></span></div>
               @if (sending()) {

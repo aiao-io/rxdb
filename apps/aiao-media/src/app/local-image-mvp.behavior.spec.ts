@@ -13,6 +13,7 @@ import type { LocalProvider } from './local-provider';
 import * as providerApi from './local-provider';
 import { ProductClient } from './product-client';
 import { plainPrompt } from './prompts/prompt-state';
+import * as relayApi from './relay-task-client';
 import { SupabaseAuthClient } from './supabase-auth';
 import type { LibraryWork } from './work-library-session';
 
@@ -830,6 +831,160 @@ describe('generation and uncertain requests', () => {
     expect(r.component.uncertain()).toBe(false);
     expect(r.component.job()).toBeNull();
     expect(JSON.parse(r.preferences.get('tasks-v1')!.payload)[0].acknowledged).toBe(true);
+  });
+});
+
+const proxyProvider: LocalProvider = { ...provider, mode: 'proxy' };
+const relayToken = 'A'.repeat(43);
+const relayJob = { ...job, id: '10000000-0000-4000-8000-000000000031', channel: 'proxy', status: 'processing' };
+function proxyRig() {
+  const r = rig();
+  r.preferences.set('providers-v1', {
+    payload: JSON.stringify({ providers: [proxyProvider], defaultId: proxyProvider.id }),
+    revision: 1
+  });
+  r.component.providers.set([proxyProvider]);
+  return r;
+}
+async function authorizeProxy(r: ReturnType<typeof rig>) {
+  r.component.editProvider(proxyProvider);
+  r.component.apiKey.set('fixture-key');
+  await r.component.saveProvider();
+}
+function pendingRelay(r: ReturnType<typeof rig>, accepted = true) {
+  r.preferences.set('tasks-v1', { payload: JSON.stringify([relayJob]), revision: 1 });
+  r.preferences.set('relay-tasks-v1', {
+    payload: JSON.stringify({ [relayJob.id]: { token: relayToken, accepted, baseUrl: proxyProvider.baseUrl } }),
+    revision: 1
+  });
+}
+type LocalTaskRow = GenerationJobSummary & { channel?: string };
+const tickets = (r: ReturnType<typeof rig>) => JSON.parse(r.preferences.get('relay-tasks-v1')?.payload ?? '{}');
+const journal = (r: ReturnType<typeof rig>) => JSON.parse(r.preferences.get('tasks-v1')!.payload) as LocalTaskRow[];
+/** Reading the journal is what a reload, another tab's write or a new generation does first. */
+const readTasks = (r: ReturnType<typeof rig>) => (r.component as unknown as { readTasks(): Promise<void> }).readTasks();
+
+describe('relay tasks', () => {
+  it('journals the task with a device-only ticket before dispatch and releases the relay copy after saving', async () => {
+    const r = proxyRig();
+    await authorizeProxy(r);
+    const release = vi.spyOn(relayApi, 'deleteRelayTask').mockResolvedValue();
+    const generate = vi.spyOn(providerApi, 'generateLocalImage');
+    const run = vi.spyOn(relayApi, 'runRelayTask').mockImplementation(async options => {
+      expect(journal(r)[0]).toMatchObject({ id: options.id, status: 'processing', channel: 'proxy' });
+      expect(tickets(r)[options.id]).toEqual({ ...options.ticket, accepted: false });
+      expect(options.dispatch).toMatchObject({ key: 'fixture-key', prompt: '测试图片' });
+      await options.accepted();
+      expect(tickets(r)[options.id].accepted).toBe(true);
+      return new Blob(['png'], { type: 'image/png' });
+    });
+    await r.component.generate();
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(generate).not.toHaveBeenCalled();
+    expect(r.component.saved()).toBe(true);
+    await vi.waitFor(() => expect(tickets(r)).toEqual({}));
+    expect(release).toHaveBeenCalledTimes(1);
+    const { token } = run.mock.calls[0][0].ticket;
+    expect(r.preferences.get('tasks-v1')!.payload).not.toContain(token);
+    expect(r.preferences.get('tasks-v1')!.payload).not.toContain('fixture-key');
+  });
+
+  it('resumes an unsettled relay task after reopening instead of locking it for review', async () => {
+    const r = proxyRig();
+    pendingRelay(r);
+    vi.spyOn(relayApi, 'deleteRelayTask').mockResolvedValue();
+    const run = vi.spyOn(relayApi, 'runRelayTask').mockResolvedValue(new Blob(['png'], { type: 'image/png' }));
+    await readTasks(r);
+    await vi.waitFor(() => expect(r.component.saved()).toBe(true));
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(run.mock.calls[0][0]).toMatchObject({
+      id: relayJob.id,
+      dispatch: null,
+      ticket: { token: relayToken, accepted: true }
+    });
+    expect(r.component.uncertain()).toBe(false);
+    expect(journal(r)[0]).toMatchObject({ id: relayJob.id, status: 'completed' });
+    await vi.waitFor(() => expect(tickets(r)).toEqual({}));
+  });
+
+  it('blocks a new generation while a relay task is unsettled and waits for the tab that holds it', async () => {
+    const r = proxyRig();
+    await authorizeProxy(r);
+    pendingRelay(r);
+    const held = deferred<void>();
+    vi.mocked(navigator.locks.request).mockImplementation(async (name, options, callback) => {
+      await held.promise;
+      return (typeof options === 'function' ? options : callback!)({ name, mode: 'exclusive' });
+    });
+    const run = vi.spyOn(relayApi, 'runRelayTask').mockResolvedValue(new Blob(['png'], { type: 'image/png' }));
+    vi.spyOn(relayApi, 'deleteRelayTask').mockResolvedValue();
+    await readTasks(r);
+    expect(r.component.job()).toMatchObject({ id: relayJob.id, status: 'processing' });
+    expect(r.component.canGenerate()).toBe(false);
+    expect(run).not.toHaveBeenCalled();
+    held.resolve();
+    await vi.waitFor(() => expect(r.component.saved()).toBe(true));
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    [new providerApi.ProviderFailure('请求没有送达本站', true), 'failed', false],
+    [new providerApi.ProviderFailure('代理没有拿到确定结果', false), 'needs_review', true]
+  ] as const)('settles a resumed task as %s', async (failure, status, uncertain) => {
+    const r = proxyRig();
+    pendingRelay(r, false);
+    vi.spyOn(relayApi, 'deleteRelayTask').mockResolvedValue();
+    vi.spyOn(relayApi, 'runRelayTask').mockRejectedValue(failure);
+    await readTasks(r);
+    await vi.waitFor(() => expect(r.component.job()?.status).toBe(status));
+    expect(r.component.uncertain()).toBe(uncertain);
+    expect(r.component.error()).toBe(failure.message);
+    await vi.waitFor(() => expect(tickets(r)).toEqual({}));
+  });
+
+  it('keeps the ticket when the relay copy cannot be removed yet and retries on the next journal read', async () => {
+    const r = proxyRig();
+    r.preferences.set('tasks-v1', { payload: JSON.stringify([{ ...relayJob, status: 'completed' }]), revision: 1 });
+    r.preferences.set('relay-tasks-v1', {
+      payload: JSON.stringify({ [relayJob.id]: { token: relayToken, accepted: true, baseUrl: proxyProvider.baseUrl } }),
+      revision: 1
+    });
+    const release = vi.spyOn(relayApi, 'deleteRelayTask').mockRejectedValueOnce(new Error('offline'));
+    await readTasks(r);
+    await vi.waitFor(() => expect(release).toHaveBeenCalledTimes(1));
+    expect(Object.keys(tickets(r))).toEqual([relayJob.id]);
+    release.mockResolvedValue();
+    await readTasks(r);
+    await vi.waitFor(() => expect(tickets(r)).toEqual({}));
+  });
+
+  it('stops waiting when the page closes but keeps the task and its ticket for the next visit', async () => {
+    const r = proxyRig();
+    await authorizeProxy(r);
+    const pending = deferred<Blob>();
+    const release = vi.spyOn(relayApi, 'deleteRelayTask');
+    const run = vi.spyOn(relayApi, 'runRelayTask').mockReturnValue(pending.promise);
+    const operation = r.component.generate();
+    await vi.waitFor(() => expect(run).toHaveBeenCalled());
+    r.component.ngOnDestroy();
+    expect(run.mock.calls[0][0].signal.aborted).toBe(true);
+    pending.reject(new DOMException('aborted', 'AbortError'));
+    await operation;
+    expect(journal(r)[0]).toMatchObject({ status: 'processing', channel: 'proxy' });
+    expect(Object.keys(tickets(r))).toHaveLength(1);
+    expect(release).not.toHaveBeenCalled();
+  });
+
+  it('rejects a malformed ticket record instead of guessing which task it belongs to', async () => {
+    const r = proxyRig();
+    pendingRelay(r);
+    r.preferences.set('relay-tasks-v1', {
+      payload: JSON.stringify({ [relayJob.id]: { token: 'short' } }),
+      revision: 2
+    });
+    const run = vi.spyOn(relayApi, 'runRelayTask');
+    await expect(readTasks(r)).rejects.toThrow('本机代理任务记录无效');
+    expect(run).not.toHaveBeenCalled();
   });
 });
 

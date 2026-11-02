@@ -290,6 +290,25 @@ test('捕获保留原Response与参数，只调用一次native fetch，不等待
   );
 });
 
+test('代理任务只把结果 GET 当作生成响应，接单回执和状态查询都不算', async () => {
+  const prefix = 'https://app.example.test/api/relay/tasks/';
+  const id = '10000000-0000-4000-8000-000000000041';
+  const sealed = new Response(Uint8Array.from([1, 2, 3]));
+  await captureFixture(
+    url => Promise.resolve(String(url).endsWith('/result') ? sealed : Response.json({ status: 'dispatched' })),
+    async state => {
+      await fetch(`${prefix}${id}`, { method: 'PUT', body: '{}' });
+      await fetch(`${prefix}${id}?wait=25`);
+      assert.equal(state.generation, null);
+      assert.equal(state.armed, false);
+      assert.equal(await fetch(`${prefix}${id}/result`), sealed);
+      assert.deepEqual([...Buffer.from((await state.generation.promise).base64, 'base64')], [1, 2, 3]);
+      assert.equal(state.armed, true);
+    },
+    { generationResult: { prefix, suffix: '/result' } }
+  );
+});
+
 test('clone超限与失败不改变原响应、不等待另一分支取消，也不增加网络调用', async () => {
   const original = new Response('larger-than-limit');
   let calls = 0;
@@ -439,7 +458,8 @@ test('正式验收按通道验证 MiniMax 原生请求与既有代理入口契�
     }
   });
   assert.deepEqual(generationDispatch(settings, 'proxy', ratio, '测试'), {
-    url: `${settings.origin}/api/relay`,
+    url: `${settings.origin}/api/relay/tasks/`,
+    method: 'PUT',
     body: { model: 'image-01', prompt: '测试', n: 1, size: '1536x1024', quality: 'low', output_format: 'png' }
   });
 });
