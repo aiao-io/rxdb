@@ -25,9 +25,9 @@
     "@aiao/rxdb-test": "workspace:*",
     "@aiao/utils": "workspace:*",
     "@modules/wujie": "workspace:*",
-    "@tanstack/react-virtual": "^3.14.23",
+    "@tanstack/react-virtual": "^3.14.24",
     "clsx": "^2.1.1",
-    "lucide-react": "^1.63.0",
+    "lucide-react": "^1.64.0",
     "react-use": "^17.6.1"
   },
   "devDependencies": {
