@@ -52,8 +52,9 @@ test('记住、替换和移除 Key 后只保留非敏感配置，刷新不复用
   await expect(page.getByText('已移除 Key，供应商配置已保留。')).toBeVisible();
   await prompt(page);
   await page.getByRole('button', { name: '✧ 生成图片' }).click();
-  await expect(page.getByLabel('API Key', { exact: true })).toHaveValue('');
-  await page.reload();
+  const prompted = page.getByRole('dialog', { name: '填写 API Key' });
+  await expect(prompted.getByLabel('API Key', { exact: true })).toHaveValue('');
+  await page.goto('/providers');
   await page.getByRole('button', { name: '编辑 / 填写 Key' }).click();
   await expect(page.getByLabel('API Key', { exact: true })).toHaveValue('');
   await expect(page.getByLabel('在此设备记住 Key')).not.toBeChecked();
@@ -298,6 +299,7 @@ test('导入中断保留原库，同一备份重试复用隔离暂存区并恢�
   const staging = await page.evaluate(() => JSON.parse(localStorage.getItem('aiao-local-import-staging-v1') || 'null'));
   expect(staging.id).not.toBe(original);
   await page.reload();
+  await page.getByRole('tab', { name: '供应商', exact: true }).click();
   await expect(page.getByRole('heading', { name: '本机供应商 · 默认' })).toBeVisible();
   const reloaded = page.waitForEvent('load');
   await importBackup(page, contents);

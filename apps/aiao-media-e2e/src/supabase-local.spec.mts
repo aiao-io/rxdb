@@ -152,7 +152,7 @@ test('真实账号跨标签退出生效且会话凭据不进入本机备份', as
   page.on('request', request => {
     if (request.url().startsWith(`${local.url}/rest/`)) remoteWrites.push(request.url());
   });
-  await page.goto('/providers');
+  await page.goto('/providers#data');
   await signIn(page, account);
   await page.getByRole('button', { name: '关闭账号窗口' }).click();
   const session = await page.evaluate(() => {

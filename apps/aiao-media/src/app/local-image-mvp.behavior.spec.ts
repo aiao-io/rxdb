@@ -398,6 +398,7 @@ describe('workspace initialization and isolation', () => {
     expect(r.component.serialized().text).toBe('');
     r.component.editProvider(provider);
     expect(r.component.apiKey()).toBe('');
+    expect(r.component.keyIds().size).toBe(0);
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:previous');
   });
 
@@ -544,12 +545,13 @@ describe('provider credentials', () => {
 });
 
 describe('generation and uncertain requests', () => {
-  it('asks for a session key without sending a generation request', async () => {
+  it('asks for a session key in place without sending a generation request', async () => {
     const r = rig();
     const generate = vi.spyOn(providerApi, 'generateLocalImage');
     await r.component.generate();
-    expect(r.component.view()).toBe('providers');
-    expect(r.component.providerMessage()).toContain('API Key');
+    expect(r.component.view()).toBe('discover');
+    expect(r.component.keyPrompt()).toEqual(provider);
+    expect(r.component.providerHasKey()).toBe(false);
     expect(generate).not.toHaveBeenCalled();
   });
 
@@ -680,8 +682,11 @@ describe('drafts and browsing', () => {
     component.search.set(template.title);
     expect(component.filtered()).toContain(template);
     component.search.set('nonexistent fixture');
+    component.category.set('人像头像');
     expect(component.filtered()).toEqual([]);
     expect(component.serialized().text).toBe('测试图片');
+    component.resetGallery();
+    expect(component.filtered()).toEqual(component.templates());
   });
 
   it('requires confirmation before a template replaces edited text and blocks it during generation', () => {
@@ -1534,5 +1539,250 @@ describe('explicit remote mutations', () => {
       expect(preview).toContain(mode === 'direct' ? '直连' : '代理');
       expect(preview).toContain(provider.model);
     }
+  });
+});
+
+describe('interface interactions', () => {
+  const png = () => new Blob(['png'], { type: 'image/png' });
+  const info = {
+    mimeType: 'image/png' as const,
+    width: 64,
+    height: 64,
+    bytes: 10,
+    sha256: 'fixture',
+    providerInstanceId: provider.id
+  };
+
+  it('keeps a prompted key in this session only and continues the requested generation', async () => {
+    const r = rig();
+    const generate = vi.spyOn(providerApi, 'generateLocalImage').mockResolvedValue(png());
+    await r.component.generate();
+    r.component.keyDraft.set(' fixture-key ');
+    await r.component.submitKey();
+    expect(r.component.keyPrompt()).toBeNull();
+    expect(r.component.keyDraft()).toBe('');
+    expect(generate).toHaveBeenCalledWith(provider, 'fixture-key', '测试图片', 'square', expect.any(AbortSignal));
+    expect(r.component.saved()).toBe(true);
+    expect(r.component.keyLabel(r.component.providers()[0])).toBe('Key 仅本次会话');
+    expect(r.preferences.get('provider-keys-v1')?.payload ?? '').not.toContain('fixture-key');
+  });
+
+  it('rejects an invalid prompted key and remembers a valid one only after opt-in', async () => {
+    const r = rig();
+    await r.component.generate();
+    r.component.keyDraft.set('含 空格');
+    await r.component.submitKey();
+    expect(r.component.keyPromptMessage()).toContain('API Key');
+    expect(r.store.savePreferences).not.toHaveBeenCalled();
+    vi.spyOn(providerApi, 'generateLocalImage').mockResolvedValue(png());
+    r.component.keyDraft.set('fixture-key');
+    r.component.keyRemember.set(true);
+    await r.component.submitKey();
+    expect(JSON.parse(r.preferences.get('provider-keys-v1')!.payload)).toEqual({ [provider.id]: 'fixture-key' });
+    expect(r.component.providers()[0].rememberKey).toBe(true);
+    expect(r.component.keyLabel(r.component.providers()[0])).toBe('Key 已保存在本机');
+  });
+
+  it('keeps the key prompt open with the storage error and sends nothing when saving fails', async () => {
+    const r = rig();
+    await r.component.generate();
+    r.store.savePreferences.mockRejectedValueOnce(new Error('写入失败'));
+    const generate = vi.spyOn(providerApi, 'generateLocalImage');
+    r.component.keyDraft.set('fixture-key');
+    await r.component.submitKey();
+    expect(r.component.keyPrompt()).toEqual(provider);
+    expect(r.component.keyPromptMessage()).toBe('写入失败');
+    expect(r.component.providerBusy()).toBe(false);
+    expect(r.component.providerHasKey()).toBe(false);
+    expect(generate).not.toHaveBeenCalled();
+    r.component.onEscape();
+    expect(r.component.keyPrompt()).toBeNull();
+    expect(r.component.keyDraft()).toBe('');
+  });
+
+  it('hands the prompted provider to the settings form', async () => {
+    const r = rig();
+    await r.component.generate();
+    r.component.manageKeyInSettings();
+    expect(r.component.keyPrompt()).toBeNull();
+    expect(r.component.view()).toBe('providers');
+    expect(r.component.settingsTab()).toBe('providers');
+    expect(r.component.editingId()).toBe(provider.id);
+    expect(location.pathname).toBe('/providers');
+  });
+
+  it('tracks which providers have a usable key without exposing key values', async () => {
+    const r = rig();
+    expect(r.component.keyLabel(provider)).toBe('未填写 Key');
+    await authorizeGeneration(r);
+    expect(r.component.providerHasKey()).toBe(true);
+    expect([...r.component.keyIds()]).toEqual([provider.id]);
+    await r.component.removeKey(provider);
+    expect(r.component.providerHasKey()).toBe(false);
+  });
+
+  it('deep-links settings tabs through the hash and moves between them from the keyboard', () => {
+    const r = rig();
+    const press = (key: string) => {
+      const event = new KeyboardEvent('keydown', { key, cancelable: true });
+      r.component.moveSettingsTab(event);
+      return event.defaultPrevented;
+    };
+    r.component.openSettings('data');
+    expect(r.component.view()).toBe('providers');
+    expect(r.component.settingsTab()).toBe('data');
+    expect(location.pathname + location.hash).toBe('/providers#data');
+    expect(press('ArrowRight')).toBe(true);
+    expect(r.component.settingsTab()).toBe('providers');
+    expect(location.hash).toBe('');
+    press('ArrowLeft');
+    expect(r.component.settingsTab()).toBe('data');
+    press('Home');
+    expect(r.component.settingsTab()).toBe('providers');
+    press('End');
+    expect(r.component.settingsTab()).toBe('data');
+    expect(press('a')).toBe(false);
+    history.pushState(null, '', '/providers#sync');
+    r.component.onPopState();
+    expect(r.component.settingsTab()).toBe('sync');
+    r.component.navigate('library');
+    r.component.navigate('providers');
+    expect(r.component.settingsTab()).toBe('providers');
+  });
+
+  it('opens the tab named by the hash and the sync tab after Supabase OAuth returns', async () => {
+    history.replaceState(null, '', '/providers#data');
+    expect((await boot()).component.settingsTab()).toBe('data');
+    TestBed.resetTestingModule();
+    TestBed.overrideComponent(LocalImageMvp, { set: { template: '', imports: [] } });
+    history.replaceState(null, '', '/providers?supabase_oauth=complete');
+    const r = await boot();
+    expect(r.component.settingsTab()).toBe('sync');
+    expect(location.search).toBe('');
+    expect(location.hash).toBe('#sync');
+  });
+
+  it('opens originals in the viewer, steps within the page and releases each loaded image', async () => {
+    const r = rig();
+    const second = { ...work, jobId: 'fixture-job-2', viewKey: 'fixture-file-2', prompt: '第二张' };
+    r.component.libraryPage.update(page => ({ ...page, works: [work, second] }));
+    r.store.previewImage
+      .mockResolvedValueOnce({ url: 'blob:first', mimeType: 'image/png' })
+      .mockResolvedValueOnce({ url: 'blob:second', mimeType: 'image/png' });
+    r.store.imageInfo.mockResolvedValue(info);
+    r.component.openViewer(work, { currentTarget: document.createElement('button') } as unknown as Event);
+    await vi.waitFor(() => expect(r.component.viewer()?.image?.url).toBe('blob:first'));
+    await vi.waitFor(() => expect(r.component.viewerWork()?.info).toEqual(info));
+    expect(r.component.viewerIndex()).toBe(0);
+    r.component.stepViewer(-1);
+    expect(r.component.viewer()?.work).toBe(work);
+    r.component.stepViewer(1);
+    expect(r.store.release).toHaveBeenCalledWith('blob:first');
+    await vi.waitFor(() => expect(r.component.viewer()?.image?.url).toBe('blob:second'));
+    expect(r.component.viewerWork()?.prompt).toBe('第二张');
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    r.component.reuseWork(second);
+    expect(r.component.view()).toBe('studio');
+    expect(r.component.viewer()).toBeNull();
+    expect(r.store.release).toHaveBeenCalledWith('blob:second');
+  });
+
+  it('releases a viewer image that loads after the viewer closed', async () => {
+    const r = rig();
+    const pending = deferred<{ url: string; mimeType: 'image/png' }>();
+    r.store.previewImage.mockReturnValueOnce(pending.promise);
+    r.component.libraryPage.update(page => ({ ...page, works: [work] }));
+    r.component.openViewer(work, new Event('click'));
+    r.component.closeViewer();
+    pending.resolve({ url: 'blob:late', mimeType: 'image/png' });
+    await vi.waitFor(() => expect(r.store.release).toHaveBeenCalledWith('blob:late'));
+    expect(r.component.viewer()).toBeNull();
+  });
+
+  it('retries an unreadable original and closes the viewer only after a confirmed deletion', async () => {
+    const r = rig();
+    r.component.libraryPage.update(page => ({ ...page, works: [work] }));
+    r.store.previewImage.mockRejectedValueOnce(new Error('unreadable'));
+    r.component.openViewer(work, new Event('click'));
+    await vi.waitFor(() => expect(r.component.viewer()?.failed).toBe(true));
+    r.component.retryViewer();
+    await vi.waitFor(() => expect(r.component.viewer()?.image?.url).toBe('blob:preview'));
+    vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    await r.component.deleteViewed();
+    expect(r.component.viewer()).not.toBeNull();
+    await r.component.deleteViewed();
+    expect(r.store.delete).toHaveBeenCalledWith(work.jobId);
+    expect(r.component.viewer()).toBeNull();
+    expect(r.store.release).toHaveBeenCalledWith('blob:preview');
+  });
+
+  it('shows filter state while a filter is typed or applied', async () => {
+    const r = await boot();
+    expect(r.component.filtersActive()).toBe(false);
+    r.component.libraryModel.set('fixture');
+    r.component.libraryFrom.set('2026-01-01');
+    expect(r.component.advancedFilterCount()).toBe(2);
+    r.component.filterLibrary(new Event('submit', { cancelable: true }));
+    r.component.libraryModel.set('');
+    r.component.libraryFrom.set('');
+    expect(r.component.advancedFilterCount()).toBe(0);
+    expect(r.component.filtersActive()).toBe(true);
+    r.component.clearLibraryFilters();
+    expect(r.component.filtersActive()).toBe(false);
+  });
+
+  it('labels each result state, times the provider wait and stops the timer afterwards', async () => {
+    const r = rig();
+    expect(r.component.resultLabel()).toBe('等待你的想法');
+    await authorizeGeneration(r);
+    const pending = deferred<Blob>();
+    const generate = vi.spyOn(providerApi, 'generateLocalImage').mockReturnValue(pending.promise);
+    const generating = r.component.generate();
+    await vi.waitFor(() => expect(generate).toHaveBeenCalled());
+    expect(r.component.resultState()).toBe('working');
+    expect(r.component['elapsedTimer']).toBeDefined();
+    r.component.elapsedSeconds.set(5);
+    expect(r.component.elapsedLabel()).toBe('5 秒');
+    r.component.elapsedSeconds.set(65);
+    expect(r.component.elapsedLabel()).toBe('1 分 05 秒');
+    pending.resolve(png());
+    await generating;
+    expect(r.component.resultLabel()).toBe('已保存到本机');
+    expect(r.component.resultSize()).toBe('1024 × 1024 · PNG');
+    expect(r.component['elapsedTimer']).toBeUndefined();
+  });
+
+  it('explains rejected and uncertain requests in the result panel instead of the form', async () => {
+    const rejected = rig();
+    await authorizeGeneration(rejected);
+    vi.spyOn(providerApi, 'generateLocalImage').mockRejectedValueOnce(
+      new providerApi.ProviderFailure('HTTP 401', true)
+    );
+    await rejected.component.generate();
+    expect(rejected.component.resultState()).toBe('failed');
+    expect(rejected.component.panelError()).toBe(true);
+    const uncertain = rig();
+    await authorizeGeneration(uncertain);
+    vi.spyOn(providerApi, 'generateLocalImage').mockRejectedValueOnce(new Error('network failed'));
+    await uncertain.component.generate();
+    expect(uncertain.component.resultLabel()).toBe('待核对供应商记录');
+    expect(uncertain.component.panelError()).toBe(true);
+    const locked = rig();
+    await authorizeGeneration(locked);
+    vi.mocked(navigator.locks.request).mockImplementation(async (_name, options, callback) =>
+      (typeof options === 'function' ? options : callback!)(null)
+    );
+    await locked.component.generate();
+    expect(locked.component.error()).toContain('另一标签页');
+    expect(locked.component.panelError()).toBe(false);
+  });
+
+  it('formats file sizes and stored times for display without throwing on unexpected values', () => {
+    const { component } = rig();
+    expect(component.formatBytes(10)).toBe('1 KB');
+    expect(component.formatBytes(1536 * 1024)).toBe('1.5 MB');
+    expect(component.formatDate('2026-10-25T00:00:00Z')).toMatch(/^2026\/10\/2[45]$/);
+    expect(component.formatDateTime('not-a-date')).toBe('not-a-date');
+    expect(component.formatDateTime(undefined)).toBe('');
   });
 });

@@ -36,13 +36,25 @@ export const pngFixture = () =>
     .toBuffer();
 
 export async function downloadBackup(page: Page) {
-  await page.goto('/providers');
+  // Builds without settings tabs ignore the hash and show the backup controls directly.
+  await page.goto('/providers#data');
   await expect(page.getByRole('button', { name: '导出本机备份' })).toBeEnabled();
   const event = page.waitForEvent('download');
   await page.getByRole('button', { name: '导出本机备份' }).click();
-  return readFile((await (await event).path()) as string);
+  const contents = await readFile((await (await event).path()) as string);
+  // Callers continue on the provider list, as they did before settings had tabs.
+  const providers = page.getByRole('tab', { name: '供应商', exact: true });
+  if (await providers.isVisible()) await providers.click();
+  return contents;
+}
+/** Opens the local data tab when the build has one; upgrade suites also drive builds without tabs. */
+export async function openDataTab(page: Page) {
+  const tab = page.getByRole('tab', { name: '本机数据', exact: true });
+  await tab.or(page.locator('input[type=file]')).first().waitFor();
+  if (await tab.isVisible()) await tab.click();
 }
 export async function importBackup(page: Page, buffer: Buffer) {
+  await openDataTab(page);
   // setInputFiles skips actionability checks, so it can upload into an input that workspace
   // initialization has just disabled again. Clicking waits until the input is enabled.
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('input[type=file]').click()]);

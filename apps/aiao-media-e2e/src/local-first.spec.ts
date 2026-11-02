@@ -64,8 +64,10 @@ test('首次没有供应商时自动启用默认免费供应商', async ({ page 
   await expect(page.locator('#selected-provider')).toHaveValue('00000000-0000-4000-8000-000000000001');
   await prompt(page, '一片蓝色的天空');
   await page.getByRole('button', { name: '✧ 生成图片' }).click();
-  await expect(page).toHaveURL(/\/providers$/);
-  await expect(page.getByText('请输入当前会话的 API Key。')).toBeVisible();
+  const prompted = page.getByRole('dialog', { name: '填写 API Key' });
+  await expect(prompted).toContainText('默认免费供应商 · gpt-image-2.5 · 本站代理');
+  await expect(prompted.getByLabel('API Key', { exact: true })).toHaveValue('');
+  await expect(page).toHaveURL(/\/create$/);
 });
 
 test('实际静态应用无需登录，RxDB 设置、草稿和图片经刷新仍在', async ({ page }) => {
@@ -192,11 +194,6 @@ test('默认 Key 只在内存；代理由用户主动选择', async ({ page }) =
   await provider(page, false, 'proxy');
   await prompt(page);
   await page.reload();
-  await page.getByRole('button', { name: '✧ 生成图片' }).click();
-  await expect(page.getByLabel('API Key', { exact: true })).toHaveValue('');
-  await expect(page.getByText('请输入当前会话的 API Key。')).toBeVisible();
-  await page.getByLabel('API Key', { exact: true }).fill(key);
-  await page.getByRole('button', { name: '保存到本机', exact: true }).click();
   let calls = 0;
   await page.route('**/api/relay', route => {
     calls++;
@@ -207,9 +204,15 @@ test('默认 Key 只在内存；代理由用户主动选择', async ({ page }) =
       json: { error: 'Provider not allowed' }
     });
   });
-  await prompt(page);
   await page.getByRole('button', { name: '✧ 生成图片' }).click();
+  const prompted = page.getByRole('dialog', { name: '填写 API Key' });
+  await expect(prompted.getByLabel('API Key', { exact: true })).toHaveValue('');
+  await expect(prompted.getByLabel('在此设备记住 Key')).not.toBeChecked();
+  expect(calls).toBe(0);
+  await prompted.getByLabel('API Key', { exact: true }).fill(key);
+  await prompted.getByRole('button', { name: '保存并生成' }).click();
   await expect(page.getByRole('heading', { name: '这次图片没有生成成功' })).toBeVisible();
+  await expect(prompted).toHaveCount(0);
   expect(calls).toBe(1);
 });
 test('首次缓存后四条页面离线可打开，设置和草稿仍可读', async ({ page, context }) => {
@@ -270,7 +273,8 @@ test('备份含原图与草稿但不含 Key，导入到独立工作区后离线�
   await prompt(page, '备份中的原始提示词');
   await page.getByRole('button', { name: '✧ 生成图片' }).click();
   await expect(page.getByText('已保存到本机', { exact: true })).toBeVisible();
-  await page.getByRole('link', { name: '供应商设置' }).click();
+  await page.getByRole('link', { name: '设置', exact: true }).click();
+  await page.getByRole('tab', { name: '本机数据', exact: true }).click();
   const downloadEvent = page.waitForEvent('download');
   await page.getByRole('button', { name: '导出本机备份' }).click();
   const downloaded = await downloadEvent;
@@ -303,6 +307,7 @@ test('备份含原图与草稿但不含 Key，导入到独立工作区后离线�
 test('损坏的备份不会改变当前工作区或清除现有设置', async ({ page }) => {
   await provider(page);
   const original = await page.evaluate(() => localStorage.getItem('aiao-local-profile-v1'));
+  await page.getByRole('tab', { name: '本机数据', exact: true }).click();
   await page.locator('input[type=file]').setInputFiles({
     name: 'broken.json',
     mimeType: 'application/json',
@@ -310,6 +315,7 @@ test('损坏的备份不会改变当前工作区或清除现有设置', async ({
   });
   await expect(page.getByText('不支持的备份格式或版本。')).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('aiao-local-profile-v1'))).toBe(original);
+  await page.getByRole('tab', { name: '供应商', exact: true }).click();
   await expect(page.getByRole('heading', { name: '本机供应商 · 默认' })).toBeVisible();
 });
 

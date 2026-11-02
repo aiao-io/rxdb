@@ -378,7 +378,7 @@ test('供应商和作品信息跨副本同步但凭据原图留在本机，任�
     await second.getByRole('link', { name: '我的图片', exact: true }).click();
     await expect(second.getByText('本机无原图', { exact: true })).toBeVisible();
     await expect(second.getByRole('link', { name: '下载图片', exact: false })).toHaveCount(0);
-    await second.getByRole('link', { name: '供应商设置', exact: true }).click();
+    await second.getByRole('link', { name: '设置', exact: true }).click();
     await second.getByRole('button', { name: '编辑 / 填写 Key', exact: true }).click();
     await expect(second.getByLabel('API Key', { exact: true })).toHaveValue('');
     await expect(second.getByLabel('在此设备记住 Key')).not.toBeChecked();

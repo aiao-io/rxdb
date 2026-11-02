@@ -202,6 +202,7 @@ test('本地作品筛选分页和可见预览不加载全库原图，页外任�
   await expect(page.locator('.task-history p')).toHaveCount(50);
   await expect(page.locator('.task-history')).not.toContainText('本机无副本');
   await page.getByLabel('搜索提示词', { exact: true }).fill('森林');
+  await page.getByRole('button', { name: '更多筛选' }).click();
   await page.getByLabel('筛选模型', { exact: true }).fill('alpha');
   await page.getByRole('button', { name: '筛选作品', exact: true }).click();
   await expect(cards).toHaveCount(9);
@@ -224,7 +225,7 @@ test('本地作品筛选分页和可见预览不加载全库原图，页外任�
   await page.getByRole('button', { name: '清空筛选', exact: true }).first().click();
   await expect(cards).toHaveCount(24);
   await expect(paging).toContainText('共 50 张');
-  await page.getByRole('link', { name: '供应商设置', exact: true }).click();
+  await page.getByRole('link', { name: '设置', exact: true }).click();
   await expect.poll(async () => (await previews(page)).active).toBe(0);
   expect(generations).toBe(0);
 });
@@ -249,7 +250,9 @@ test('末页删除自动回到有效页，离线筛选保留精确下载', async
   await context.setOffline(true);
   await page.getByLabel('搜索提示词', { exact: true }).fill('海洋');
   await page.getByRole('button', { name: '筛选作品', exact: true }).click();
-  await expect(page.getByLabel('作品分页')).toContainText('第 1 / 1 页');
+  // A single page shows only the total, without page buttons.
+  await expect(page.getByLabel('作品分页')).toContainText('共 24 张');
+  await expect(page.getByRole('button', { name: '下一页', exact: true })).toHaveCount(0);
   await expect(cards).toHaveCount(24);
   await verifyImageDownload(page, cards.first(), png);
   await context.setOffline(false);
@@ -281,6 +284,7 @@ test('进程内切换本机副本重置筛选分页并释放上一工作区预�
   const paging = page.getByLabel('作品分页');
   await expect(paging).toContainText('共 50 张');
   await page.getByLabel('搜索提示词', { exact: true }).fill('森林');
+  await page.getByRole('button', { name: '更多筛选' }).click();
   await page.getByLabel('筛选模型', { exact: true }).fill('image');
   await page.getByLabel('起始日期', { exact: true }).fill('2025-01-01');
   await page.getByLabel('结束日期', { exact: true }).fill('2027-01-01');
@@ -297,7 +301,9 @@ test('进程内切换本机副本重置筛选分页并释放上一工作区预�
   await logout(page);
   state.identity = users.bob;
   await login(page, users.bob.email);
-  await expect(paging).toContainText('第 1 / 1 页 · 共 0 张');
+  // An empty workspace shows its empty state and no pagination.
+  await expect(page.getByText('这里，还差你的第一张作品', { exact: true })).toBeVisible();
+  await expect(paging).toHaveCount(0);
   await expect(cards).toHaveCount(0);
   const secondProfile = await profile(page);
   expect(secondProfile).not.toBeNull();
@@ -312,7 +318,8 @@ test('进程内切换本机副本重置筛选分页并释放上一工作区预�
   await page.getByLabel('起始日期', { exact: true }).fill('2020-01-01');
   await page.getByLabel('结束日期', { exact: true }).fill('2021-01-01');
   await page.getByRole('button', { name: '筛选作品', exact: true }).click();
-  await expect(paging).toContainText('第 1 / 1 页 · 共 0 张');
+  await expect(page.getByText('这里，还差你的第一张作品', { exact: true })).toBeVisible();
+  await expect(paging).toHaveCount(0);
   await logout(page);
   state.identity = users.alice;
   await login(page, users.alice.email);

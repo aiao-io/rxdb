@@ -1,6 +1,6 @@
 # 图片 MVP 界面设计 · 2026-10-23
 
-这是图片应用的视觉参考与交互原型；当前 Angular Web 已接入本地创作、作品库和供应商页。产品规则以[图片生成 story](../../stories/generation/MEDIA-US-102-image-generation.md)、[灵感库 story](../../stories/generation/MEDIA-US-106-prompt-gallery.md)和[路线图](../../roadmap.md)为准。
+这是图片应用的视觉参考与交互原型；当前 Angular Web 已接入本地创作、作品库和设置页。产品规则以[图片生成 story](../../stories/generation/MEDIA-US-102-image-generation.md)、[灵感库 story](../../stories/generation/MEDIA-US-106-prompt-gallery.md)和[路线图](../../roadmap.md)为准。
 
 ## 直接看图
 

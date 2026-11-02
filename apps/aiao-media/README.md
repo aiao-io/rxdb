@@ -17,7 +17,7 @@ pnpm install --frozen-lockfile
 pnpm nx run aiao-media:serve
 ```
 
-打开 `http://localhost:4300`，四个页面分别为 `/`、`/create`、`/images`、`/providers`。首次打开时会自动创建并选中当前免费的默认供应商；如果本机还没有 API Key，生成时会引导你填写。也可以在供应商设置页覆盖默认项，填写自己的名称、HTTPS Base URL、图片模型 ID 和 API Key。Base URL 填 API 前缀：Images API 追加 `/images/generations`，MiniMax 官方前缀追加 `/image_generation`。
+打开 `http://localhost:4300`，四个页面分别为 `/`、`/create`、`/images`、`/providers`。首次打开时会自动创建并选中当前免费的默认供应商；如果本机还没有 API Key，生成时会在创作页直接请你填写。也可以在设置页的「供应商」分区覆盖默认项，填写自己的名称、HTTPS Base URL、图片模型 ID 和 API Key。Base URL 填 API 前缀：Images API 追加 `/images/generations`，MiniMax 官方前缀追加 `/image_generation`。
 
 当前适配器支持单张 PNG/JPEG 原图，按实际字节识别格式并原样保存、下载。Images API 使用 `n=1`、`quality=low`、`output_format=png`；MiniMax 官方前缀使用 `image-01`、`response_format=url`，关闭提示词优化。三个请求尺寸为 1024×1024、1536×1024、1024×1536；供应商必须支持对应参数。真实供应商验收可使用忽略的本地 `.env`，字段见 [`.env.example`](.env.example)；本次验收额度不限，Key 不进入发布产物。
 
@@ -32,7 +32,7 @@ pnpm nx run aiao-media:serve
 
 ## 本机数据和备份
 
-供应商页提供存储配额提示、持久存储申请、完整 JSON 备份导出/导入。备份包含原图、SHA-256 摘要、提示词草稿、供应商配置和最近 100 条任务记录，固定排除 API Key，单个文件最多 64 MiB。
+设置页的「本机数据」分区提供存储配额提示、持久存储申请、完整 JSON 备份导出/导入。备份包含原图、SHA-256 摘要、提示词草稿、供应商配置和最近 100 条任务记录，固定排除 API Key，单个文件最多 64 MiB。
 
 导入先验证格式、版本、图片摘要、尺寸和可解码性，再写入独立工作区；全部成功后才切换。原工作区保留，失败不会覆盖它，相同备份中断后重新导入可继续写入暂存工作区。原工作区 ID 保存在 `aiao-local-previous-profile-v1`，不自动合并。请定期下载重要图片和备份；清除浏览器站点数据会清除全部本机工作区。
 

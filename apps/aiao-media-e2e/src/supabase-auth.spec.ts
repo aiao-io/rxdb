@@ -184,7 +184,7 @@ test('未配置账号时四页面不连接 Supabase 或创建会话', async ({ p
     await page.goto(path);
     await expect(page.getByRole('button', { name: '登录账号', exact: true })).toHaveCount(0);
   }
-  await expect(page.getByRole('heading', { name: '供应商设置', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '设置', exact: true })).toBeVisible();
   expect(foreign).toEqual([]);
   expect(
     await page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('aiao-media-supabase-session')))
@@ -204,7 +204,8 @@ test('登录刷新恢复且退出保留本机草稿，账号凭据不进入备�
   await page.reload();
   await expect(page.getByRole('button', { name: '我的账号', exact: true })).toBeVisible();
   expect(calls).toContain('GET /auth/v1/user');
-  await page.getByRole('link', { name: '供应商设置', exact: true }).click();
+  await page.getByRole('link', { name: '设置', exact: true }).click();
+  await page.getByRole('tab', { name: '本机数据', exact: true }).click();
   const downloading = page.waitForEvent('download');
   await page.getByRole('button', { name: '导出本机备份', exact: true }).click();
   const download = await downloading;

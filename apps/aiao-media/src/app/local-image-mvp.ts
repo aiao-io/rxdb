@@ -1,9 +1,12 @@
 import {
+  afterNextRender,
   afterRenderEffect,
   ChangeDetectionStrategy,
   Component,
   computed,
   HostListener,
+  inject,
+  Injector,
   OnDestroy,
   OnInit,
   signal,
@@ -81,7 +84,9 @@ import { WorkVisibleDirective } from './work-visible.directive';
 import { WorkspaceSession } from './workspace-session';
 
 type View = 'discover' | 'studio' | 'library' | 'providers' | 'admin';
+type SettingsTab = 'providers' | 'sync' | 'data';
 type Work = LibraryWork;
+type WorkViewer = { work: Work; image: { url: string; mimeType: ImageMimeType } | null; failed: boolean };
 type OAuthProject = { ref: string; name: string; organizationId: string | null; status: string | null };
 type LocalTask = GenerationJobSummary & {
   channel?: 'direct' | 'proxy' | 'platform';
@@ -101,6 +106,31 @@ const routeView = (path: string): View =>
   : path === '/providers' ? 'providers'
   : path === '/admin' ? 'admin'
   : 'discover';
+// Settings sections are in-page tabs; the hash only deep-links a tab and never adds a route.
+const settingsTabs: { id: SettingsTab; label: string }[] = [
+  { id: 'providers', label: '供应商' },
+  { id: 'sync', label: '同步' },
+  { id: 'data', label: '本机数据' }
+];
+const hashTab = (hash: string): SettingsTab =>
+  hash === '#sync' ? 'sync'
+  : hash === '#data' ? 'data'
+  : 'providers';
+const ratioSizes: Record<ImageAspectRatio, string> = {
+  square: '1024 × 1024',
+  landscape: '1536 × 1024',
+  portrait: '1024 × 1536'
+};
+const dateFormat = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'numeric', day: 'numeric' });
+const dateTimeFormat = new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' });
+/** Local display time; an unparsable stored value is shown verbatim instead of throwing. */
+function formatTime(value: string | undefined, format: Intl.DateTimeFormat): string {
+  const time = Date.parse(value ?? '');
+  return Number.isNaN(time) ? (value ?? '') : format.format(time);
+}
+function formatBytes(bytes: number): string {
+  return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
 const oauthWorkerUnavailable =
   '当前页面没有连接 Supabase OAuth 后端，请打开 http://localhost:4398/providers 的本地 Worker 预览，或部署最新 Worker。';
 async function readJson<T>(response: Response, fallback: string): Promise<T> {
@@ -162,8 +192,13 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private toastTimer?: ReturnType<typeof setTimeout>;
   private dialogTrigger: HTMLElement | null = null;
   private resultBlob: Blob | null = null;
+  private readonly injector = inject(Injector);
+  private elapsedTimer?: ReturnType<typeof setInterval>;
+  private releaseViewerImage?: () => void;
+  private readonly filtersApplied = signal(false);
   readonly resultMimeType = signal<ImageMimeType | null>(null);
   readonly imageExtension = imageExtension;
+  readonly formatBytes = formatBytes;
   readonly workspaceSwitching = signal(false);
   readonly identityBlocked = signal(false);
   readonly sync = signal<ProductWorkspaceState>({
@@ -223,12 +258,39 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   readonly promptState = signal<PromptState>(plainPrompt(''));
   readonly serialized = computed(() => serializePrompt(this.promptState()));
   readonly ratio = signal<ImageAspectRatio>('square');
-  readonly ratios: { id: ImageAspectRatio; label: string; shape: string }[] = [
-    { id: 'square', label: '正方形', shape: 'shape' },
-    { id: 'landscape', label: '横向', shape: 'shape wide' },
-    { id: 'portrait', label: '纵向', shape: 'shape tall' }
+  readonly ratios: { id: ImageAspectRatio; label: string; hint: string; shape: string }[] = [
+    { id: 'square', label: '正方形', hint: '1:1', shape: 'shape' },
+    { id: 'landscape', label: '横向', hint: '3:2', shape: 'shape wide' },
+    { id: 'portrait', label: '纵向', hint: '2:3', shape: 'shape tall' }
   ];
   readonly editorReady = signal(false);
+  readonly settingsTabs = settingsTabs;
+  readonly settingsTab = signal<SettingsTab>('providers');
+  /** Providers with a usable key this session, remembered or not; the key values stay in private maps. */
+  readonly keyIds = signal<ReadonlySet<string>>(new Set());
+  readonly providerHasKey = computed(() => this.keyIds().has(this.providerId()));
+  readonly keyPrompt = signal<LocalProvider | null>(null);
+  readonly keyDraft = signal('');
+  readonly keyRemember = signal(false);
+  readonly keyPromptMessage = signal('');
+  readonly viewer = signal<WorkViewer | null>(null);
+  readonly viewerIndex = computed(() => {
+    const current = this.viewer();
+    return current ? this.libraryPage().works.findIndex(work => work.jobId === current.work.jobId) : -1;
+  });
+  /** The page copy carries file details loaded after the viewer opened. */
+  readonly viewerWork = computed(() => {
+    const current = this.viewer();
+    return current && (this.libraryPage().works.find(work => work.jobId === current.work.jobId) ?? current.work);
+  });
+  readonly elapsedSeconds = signal(0);
+  readonly elapsedLabel = computed(() => {
+    const seconds = this.elapsedSeconds();
+    return seconds < 60 ?
+        `${seconds} 秒`
+      : `${Math.floor(seconds / 60)} 分 ${String(seconds % 60).padStart(2, '0')} 秒`;
+  });
+  readonly filtersOpen = signal(false);
 
   readonly providers = signal<LocalProvider[]>([]);
   readonly providerId = signal('');
@@ -259,6 +321,12 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   readonly libraryTo = signal('');
   readonly libraryFilterError = signal('');
   readonly libraryPages = computed(() => Math.max(1, Math.ceil((this.libraryPage().total ?? 0) / 24)));
+  readonly advancedFilterCount = computed(
+    () => [this.libraryModel(), this.libraryFrom(), this.libraryTo()].filter(value => value.trim()).length
+  );
+  readonly filtersActive = computed(
+    () => this.filtersApplied() || Boolean(this.librarySearch().trim()) || this.advancedFilterCount() > 0
+  );
   readonly history = signal<LocalTask[]>([]);
   readonly job = signal<LocalTask | null>(null);
   readonly resultUrl = signal<string | null>(null);
@@ -306,6 +374,42 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   readonly settingsBusy = computed(
     () => this.sending() || this.dataBusy() || this.sync().busy || this.workspaceSwitching() || this.identityBlocked()
   );
+  readonly working = computed(
+    () => this.sending() || this.job()?.status === 'queued' || this.job()?.status === 'processing'
+  );
+  /** Failed and uncertain requests explain their error inside the result panel. */
+  readonly panelError = computed(() => this.uncertain() || this.job()?.status === 'failed');
+  readonly resultState = computed(() =>
+    this.saved() ? 'saved'
+    : this.resultUrl() ? 'unsaved'
+    : this.working() ? 'working'
+    : this.uncertain() ? 'review'
+    : this.job()?.status === 'failed' ? 'failed'
+    : 'idle'
+  );
+  readonly resultLabel = computed(
+    () =>
+      ({
+        saved: '已保存到本机',
+        unsaved: '已生成，等待本机保存',
+        working: '正在创作',
+        review: '待核对供应商记录',
+        failed: '未生成',
+        idle: '等待你的想法'
+      })[this.resultState()]
+  );
+  readonly resultSize = computed(() => {
+    const request = this.job()?.request,
+      mimeType = this.resultMimeType();
+    return [
+      request?.kind === 'image' && request.aspectRatio ? ratioSizes[request.aspectRatio] : '',
+      mimeType === 'image/png' ? 'PNG'
+      : mimeType ? 'JPEG'
+      : ''
+    ]
+      .filter(Boolean)
+      .join(' · ');
+  });
   readonly canGenerate = computed(
     () =>
       this.localStatus() === 'ready' &&
@@ -332,7 +436,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
 
   constructor() {
     afterRenderEffect(() => {
-      if (!this.detail() && !this.feedbackOpen() && !this.authOpen()) {
+      if (!this.detail() && !this.feedbackOpen() && !this.authOpen() && !this.keyPrompt() && !this.viewer()) {
         const trigger = this.dialogTrigger;
         this.dialogTrigger = null;
         if (trigger?.isConnected) trigger.focus();
@@ -347,8 +451,11 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   }
   ngOnInit() {
     this.view.set(routeView(location.pathname));
+    this.settingsTab.set(hashTab(location.hash));
     if (new URL(location.href).searchParams.get('supabase_oauth') === 'complete') {
-      history.replaceState(null, '', location.pathname);
+      // The authorized project list lives in the sync tab.
+      this.settingsTab.set('sync');
+      history.replaceState(null, '', `${location.pathname}#sync`);
       queueMicrotask(() => void this.loadOAuthProjects());
     }
     try {
@@ -384,6 +491,8 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.disposed = true;
     ++this.epoch;
     this.lifetime.abort();
+    this.stopElapsed();
+    this.closeViewer();
     this.unsubscribeAuth?.();
     this.auth?.dispose();
     if (this.toastTimer) clearTimeout(this.toastTimer);
@@ -403,11 +512,15 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     const next = routeView(location.pathname);
     if (next !== this.view()) this.releaseLibraryPreviews();
     this.view.set(next);
+    this.closeViewer();
+    if (next === 'providers') this.settingsTab.set(hashTab(location.hash));
   }
   @HostListener('document:keydown.escape') onEscape() {
     this.detail.set(null);
     this.feedbackOpen.set(false);
     this.closeAuth();
+    this.closeKeyPrompt();
+    this.closeViewer();
   }
   @HostListener('document:visibilitychange') onVisibility() {
     if (document.visibilityState === 'hidden') void this.studio?.flush();
@@ -415,14 +528,45 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   navigate(view: View, event?: Event) {
     event?.preventDefault();
     if (view !== this.view()) this.releaseLibraryPreviews();
-    if (this.view() !== view) history.pushState(null, '', paths[view]);
+    if (this.view() !== view) {
+      history.pushState(null, '', paths[view]);
+      this.settingsTab.set('providers');
+    }
     this.view.set(view);
     this.detail.set(null);
+    this.closeViewer();
     window.scrollTo({ top: 0 });
+  }
+  openSettings(tab: SettingsTab, event?: Event) {
+    this.navigate('providers', event);
+    this.selectSettingsTab(tab);
+  }
+  selectSettingsTab(tab: SettingsTab) {
+    this.settingsTab.set(tab);
+    history.replaceState(null, '', tab === 'providers' ? paths.providers : `${paths.providers}#${tab}`);
+  }
+  /** Arrow keys, Home and End move between tabs with automatic activation. */
+  moveSettingsTab(event: KeyboardEvent) {
+    const ids = settingsTabs.map(tab => tab.id);
+    const index = ids.indexOf(this.settingsTab());
+    const next =
+      event.key === 'ArrowRight' ? ids[(index + 1) % ids.length]
+      : event.key === 'ArrowLeft' ? ids[(index + ids.length - 1) % ids.length]
+      : event.key === 'Home' ? ids[0]
+      : event.key === 'End' ? ids[ids.length - 1]
+      : null;
+    if (!next) return;
+    event.preventDefault();
+    this.selectSettingsTab(next);
+    document.getElementById(`settings-tab-${next}`)?.focus();
   }
   openTemplate(template: PromptTemplate, event: Event) {
     this.dialogTrigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
     this.detail.set(template);
+  }
+  resetGallery() {
+    this.search.set('');
+    this.category.set('全部灵感');
   }
   async changeSyncTarget(kind: SyncTarget['kind']) {
     if (this.settingsBusy() || this.targetBusy()) return;
@@ -534,6 +678,57 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.apiKey.set(p ? (this.keys.get(p.id) ?? this.rememberedKeys.get(p.id) ?? '') : '');
     this.providerMessage.set('');
   }
+  /** Fills the form and focuses the field the user came for; focusing also scrolls a stacked form into view. */
+  startEditProvider(p?: LocalProvider) {
+    this.editProvider(p);
+    afterNextRender(() => document.getElementById(p ? 'provider-key' : 'provider-name')?.focus(), {
+      injector: this.injector
+    });
+  }
+  openProviderSettings(provider = this.provider()) {
+    this.openSettings('providers');
+    this.startEditProvider(provider ?? undefined);
+  }
+  closeKeyPrompt() {
+    this.keyPrompt.set(null);
+    this.keyDraft.set('');
+    this.keyPromptMessage.set('');
+  }
+  manageKeyInSettings() {
+    const provider = this.keyPrompt();
+    this.closeKeyPrompt();
+    this.openProviderSettings(provider);
+  }
+  /** Stores the key exactly like the settings form, then continues the generation the user asked for. */
+  async submitKey() {
+    const provider = this.keyPrompt(),
+      key = this.keyDraft().trim();
+    if (!provider || this.providerBusy() || this.settingsBusy()) return;
+    if (!/^[\x21-\x7e]{1,4096}$/.test(key)) {
+      this.keyPromptMessage.set('请填写有效的 API Key。');
+      return;
+    }
+    const remember = !nativeBackend && this.keyRemember();
+    this.providerBusy.set(true);
+    this.keyPromptMessage.set('');
+    try {
+      await this.persistProviders(
+        this.providers().map(item => (item.id === provider.id ? { ...item, rememberKey: remember } : item)),
+        this.providerId(),
+        { id: provider.id, key: remember ? key : null }
+      );
+      if (remember) this.keys.delete(provider.id);
+      else this.keys.set(provider.id, key);
+      this.syncKeyIds();
+    } catch (e) {
+      this.keyPromptMessage.set(e instanceof Error ? e.message : '保存 Key 未完成，请重试。');
+      return;
+    } finally {
+      this.providerBusy.set(false);
+    }
+    this.closeKeyPrompt();
+    await this.generate();
+  }
   async saveProvider() {
     if (this.providerBusy() || this.settingsBusy()) return;
     this.providerBusy.set(true);
@@ -570,6 +765,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       await this.persistProviders(providers, defaultId, { id: p.id, key: p.rememberKey ? key : null });
       if (key && !p.rememberKey) this.keys.set(p.id, key);
       else this.keys.delete(p.id);
+      this.syncKeyIds();
       this.apiKey.set('');
       this.editingId.set(null);
       this.providerMessage.set('供应商已保存到本机。');
@@ -604,6 +800,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         key: null
       });
       this.keys.delete(p.id);
+      this.syncKeyIds();
       if (this.editingId() === p.id) this.editProvider();
     } catch (e) {
       this.providerMessage.set(e instanceof Error ? e.message : '删除失败。');
@@ -622,6 +819,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         { id: p.id, key: null }
       );
       this.keys.delete(p.id);
+      this.syncKeyIds();
       if (this.editingId() === p.id) {
         this.apiKey.set('');
         this.rememberKey.set(false);
@@ -640,9 +838,10 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     if (!provider) return;
     const key = this.keys.get(provider.id) ?? this.rememberedKeys.get(provider.id) ?? '';
     if (!key) {
-      this.editProvider(provider);
-      this.navigate('providers');
-      this.providerMessage.set('请输入当前会话的 API Key。');
+      // Ask in place so the prompt, ratio and scroll position stay where the user left them.
+      this.keyRemember.set(false);
+      this.keyPromptMessage.set('');
+      this.keyPrompt.set(provider);
       return;
     }
     this.sending.set(true);
@@ -684,6 +883,8 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         this.job.set(task);
         this.revokeResult();
         this.saved.set(false);
+        this.startElapsed();
+        this.revealResult();
         const controller = new AbortController();
         const abort = () => controller.abort();
         this.lifetime.signal.addEventListener('abort', abort, { once: true });
@@ -741,6 +942,8 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.error.set(e instanceof Error ? e.message : '本机提交记录写入失败，没有重复发送。');
     } finally {
       this.sending.set(false);
+      this.stopElapsed();
+      if (this.resultUrl() || this.panelError()) this.revealResult();
       void this.reconcileIdentity();
     }
   }
@@ -894,13 +1097,13 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.onPromptChanged(plainPrompt(''));
     this.navigate('studio');
   }
-  async deleteWork(work: Work) {
-    if (!this.store || !window.confirm('删除这张本机图片及其记录？下载过的文件不受影响。')) return;
+  async deleteWork(work: Work): Promise<boolean> {
+    if (!this.store || !window.confirm('删除这张本机图片及其记录？下载过的文件不受影响。')) return false;
     const epoch = this.epoch,
       store = this.store;
     try {
       await store.delete(work.jobId);
-      if (epoch !== this.epoch) return;
+      if (epoch !== this.epoch) return false;
       if (this.resultUrl() && !this.resultBlob) this.revokeResult();
       if (this.job()?.id === work.jobId) {
         this.revokeResult();
@@ -908,27 +1111,39 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         this.saved.set(false);
       }
       this.notify('已删除本机图片。');
+      return true;
     } catch {
       if (epoch === this.epoch) this.storageMessage.set('删除未完成，请刷新后重试。');
+      return false;
     }
+  }
+  /** The viewer reads its own original, so the grid can release off-screen previews while it is open. */
+  openViewer(work: Work, event: Event) {
+    this.dialogTrigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+    void this.showWork(work);
+  }
+  stepViewer(offset: number) {
+    const next = this.libraryPage().works[this.viewerIndex() + offset];
+    if (this.viewer() && next) void this.showWork(next);
+  }
+  retryViewer() {
+    const current = this.viewer();
+    if (current) void this.showWork(current.work);
+  }
+  closeViewer() {
+    this.releaseViewerImage?.();
+    this.releaseViewerImage = undefined;
+    this.viewer.set(null);
+  }
+  async deleteViewed() {
+    const current = this.viewer();
+    if (current && (await this.deleteWork(current.work))) this.closeViewer();
   }
   hasLocalCopy(task: LocalTask) {
     return this.works().some(work => work.jobId === task.id && work.status === 'saved');
   }
   async loadWorkInfo(work: Work, event: Event) {
-    if (!(event.target as HTMLDetailsElement).open || work.info || !this.store) return;
-    const epoch = this.epoch;
-    try {
-      const info = await this.store.imageInfo(work.jobId);
-      if (epoch === this.epoch)
-        this.libraryPage.update(page => ({
-          ...page,
-          works: page.works.map(current => (this.sameWorkFile(current, work) ? { ...current, info } : current))
-        }));
-    } catch {
-      if (epoch === this.epoch && this.libraryPage().works.some(current => this.sameWorkFile(current, work)))
-        this.notify('本机无可读取的原图，无法核验文件信息。');
-    }
+    if ((event.target as HTMLDetailsElement).open) await this.fetchWorkInfo(work, true);
   }
   reuseWork(work: Work) {
     if (this.inFlight()) {
@@ -952,6 +1167,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       libraryWhere(filters);
       this.libraryFilterError.set('');
       this.libraryFilters = filters;
+      this.filtersApplied.set(Object.values(filters).some(value => value.trim()));
       this.library?.query(filters);
     } catch (error) {
       this.libraryFilterError.set(error instanceof Error ? error.message : '作品筛选条件无效。');
@@ -964,6 +1180,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.libraryTo.set('');
     this.libraryFilterError.set('');
     this.libraryFilters = {};
+    this.filtersApplied.set(false);
     this.library?.query({});
   }
   libraryGo(page: number) {
@@ -1078,6 +1295,8 @@ export class LocalImageMvp implements OnInit, OnDestroy {
           await persistNativeProfile(nextId);
           localStorage.setItem('aiao-local-profile-v1', nextId);
           localStorage.removeItem(stagingKey);
+          // The restored workspace opens on its provider list; data-tab messages would not survive the reload.
+          history.replaceState(null, '', paths.providers);
           location.reload();
         });
       });
@@ -1408,6 +1627,19 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.notify('复制失败，请手动复制反馈内容。');
     }
   }
+  keyLabel(p: LocalProvider) {
+    return (
+      !this.keyIds().has(p.id) ? '未填写 Key'
+      : p.rememberKey ? 'Key 已保存在本机'
+      : 'Key 仅本次会话'
+    );
+  }
+  formatDate(value: string | undefined) {
+    return formatTime(value, dateFormat);
+  }
+  formatDateTime(value: string | undefined) {
+    return formatTime(value, dateTimeFormat);
+  }
   private imageSyncKey(): string {
     return `aiao-media-image-sync-v1:${encodeURIComponent(this.auth?.config.url ?? '')}:${this.authUser()?.id ?? ''}:${this.profileId}`;
   }
@@ -1437,6 +1669,70 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   }
   private releaseLibraryPreviews() {
     for (const work of this.libraryPage().works) this.library?.setVisible(work.jobId, false);
+  }
+  private syncKeyIds() {
+    this.keyIds.set(new Set([...this.keys.keys(), ...this.rememberedKeys.keys()]));
+  }
+  private startElapsed() {
+    this.stopElapsed();
+    const started = Date.now();
+    this.elapsedSeconds.set(0);
+    this.elapsedTimer = setInterval(() => this.elapsedSeconds.set(Math.floor((Date.now() - started) / 1000)), 1000);
+  }
+  private stopElapsed() {
+    clearInterval(this.elapsedTimer);
+    this.elapsedTimer = undefined;
+  }
+  /** The stacked narrow layout puts the result below the form, so progress and outcomes are scrolled into view. */
+  private revealResult() {
+    afterNextRender(
+      () => {
+        const panel = document.querySelector<HTMLElement>('.result-panel'),
+          composer = document.querySelector<HTMLElement>('.composer');
+        if (!panel || !composer || panel.offsetTop <= composer.offsetTop) return;
+        const top = panel.getBoundingClientRect().top;
+        if (top >= 0 && top < innerHeight * 0.4) return;
+        panel.scrollIntoView({
+          behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+          block: 'start'
+        });
+      },
+      { injector: this.injector }
+    );
+  }
+  private async showWork(work: Work) {
+    const store = this.store,
+      epoch = this.epoch;
+    this.closeViewer();
+    this.viewer.set({ work, image: null, failed: false });
+    if (!store) return;
+    void this.fetchWorkInfo(work, false);
+    try {
+      const image = await store.previewImage(work.jobId);
+      if (epoch !== this.epoch || this.viewer()?.work !== work) {
+        store.release(image.url);
+        return;
+      }
+      this.releaseViewerImage = () => store.release(image.url);
+      this.viewer.set({ work, image, failed: false });
+    } catch {
+      if (epoch === this.epoch && this.viewer()?.work === work) this.viewer.set({ work, image: null, failed: true });
+    }
+  }
+  private async fetchWorkInfo(work: Work, report: boolean) {
+    if (work.info || !this.store) return;
+    const epoch = this.epoch;
+    try {
+      const info = await this.store.imageInfo(work.jobId);
+      if (epoch === this.epoch)
+        this.libraryPage.update(page => ({
+          ...page,
+          works: page.works.map(current => (this.sameWorkFile(current, work) ? { ...current, info } : current))
+        }));
+    } catch {
+      if (report && epoch === this.epoch && this.libraryPage().works.some(current => this.sameWorkFile(current, work)))
+        this.notify('本机无可读取的原图，无法核验文件信息。');
+    }
   }
   private syncPauseKey() {
     return `aiao-media-sync-paused-v1:${encodeURIComponent(this.auth?.config.url ?? '')}:${this.authUser()?.id ?? ''}:${this.profileId}`;
@@ -1692,8 +1988,10 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.currentProfileId.set(profile.id);
     this.refreshProfiles();
     this.settingsRevision = null;
+    this.closeViewer();
     this.keys.clear();
     this.rememberedKeys.clear();
+    this.syncKeyIds();
     this.providers.set([]);
     this.providerId.set('');
     this.history.set([]);
@@ -1707,6 +2005,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.libraryFrom.set('');
     this.libraryTo.set('');
     this.libraryFilterError.set('');
+    this.filtersApplied.set(false);
     this.syncedWorks.set([]);
     this.job.set(null);
     this.saved.set(false);
@@ -1921,6 +2220,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       const nextDefaultId = defaultId || nextProviders[0]?.id || '';
       for (const old of this.providers())
         if (nextProviders.find(provider => provider.id === old.id)?.baseUrl !== old.baseUrl) this.keys.delete(old.id);
+      this.syncKeyIds();
       this.providers.set(nextProviders);
       this.providerId.set(nextDefaultId);
       this.settingsRevision = row?.revision ?? null;
@@ -1940,6 +2240,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.rememberedKeys.clear();
     for (const p of this.providers())
       if (p.rememberKey && typeof remembered[p.id] === 'string') this.rememberedKeys.set(p.id, remembered[p.id]);
+    this.syncKeyIds();
   }
   private async readTasks() {
     const store = this.store,
@@ -2011,6 +2312,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.product?.captureSoon();
     if (credential?.key === null) this.rememberedKeys.delete(credential.id);
     else if (credential) this.rememberedKeys.set(credential.id, credential.key);
+    this.syncKeyIds();
     this.providers.set(nextProviders);
     this.providerId.set(nextDefaultId);
   }
