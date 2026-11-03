@@ -68,7 +68,7 @@ epic-011 已由 owner 解锁（见[解锁记录](../../epics/epic-011-p2p-file-s
 
 ## 实现文件
 
-- `packages/rxdb-plugin-p2p-files/src/manifest.ts` — 持有声明、由认证主体与设备派生 `holderId`、撤回与单调墓碑
-- `packages/rxdb-plugin-p2p-files/src/p2p-file-manifest.entity.ts` / `src/plugin.ts` — 经同步复制的清单实体与插件登记
-- `packages/rxdb-plugin-p2p-files/src/discovery.ts` — 本地清单发现与信令接口（宿主接入待做）
-- `packages/rxdb-plugin-p2p-files/src/files-protocol.ts` — 请求时的持有断言（`not_holder`），会话层见 [US-708](US-708-p2p-peer-session.md)
+- `packages/rxdb-plugin-p2p/src/manifest.ts` — 持有声明、由认证主体与设备派生 `holderId`、撤回与单调墓碑
+- `packages/rxdb-plugin-p2p/src/p2p-file-manifest.entity.ts` / `src/plugin.ts` — 经同步复制的清单实体与插件登记
+- `packages/rxdb-plugin-p2p/src/discovery.ts` — 本地清单发现与信令接口（宿主接入待做）
+- `packages/rxdb-plugin-p2p/src/files-protocol.ts` — 请求时的持有断言（`not_holder`），会话层见 [US-708](US-708-p2p-peer-session.md)

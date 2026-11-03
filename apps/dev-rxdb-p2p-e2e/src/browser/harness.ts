@@ -25,7 +25,7 @@ import {
   type P2PPeerSession,
   type P2PProtocol,
   type P2PSessionRole
-} from '@aiao/rxdb-plugin-p2p-files';
+} from '@aiao/rxdb-plugin-p2p';
 import { credentialFor, patterned, PEERS, verifyCredential, type FileSpec } from '../shared/fixtures.ts';
 import {
   PROBE_PROTOCOL,
@@ -62,12 +62,35 @@ let sendGate: Promise<void> | undefined;
 let openSendGate: (() => void) | undefined;
 let gate: Promise<void> | undefined;
 let openGate: (() => void) | undefined;
-/** 停在闸门上的授权调用数；等待者晚于调用注册时也能立即得知。 */
-let gateHits = 0;
-let gateWaiters: Array<() => void> = [];
 let pendingRequest: { readonly controller: AbortController; readonly outcome: Promise<string> } | undefined;
 let pendingPull: Promise<readonly PulledFile[]> | undefined;
 let chunkWaiters: Array<{ readonly chunks: number; readonly resolve: () => void }> = [];
+
+/** 发生过一次就一直算发生过：等待者早于或晚于事件注册都能兑现。 */
+class Latch {
+  #hits = 0;
+  #waiters: Array<() => void> = [];
+
+  hit(): void {
+    this.#hits += 1;
+    for (const notify of this.#waiters.splice(0)) notify();
+  }
+
+  wait(): Promise<void> {
+    if (this.#hits > 0) return Promise.resolve();
+    return new Promise<void>(resolve => this.#waiters.push(resolve));
+  }
+
+  reset(): void {
+    this.#hits = 0;
+    this.#waiters = [];
+  }
+}
+
+/** 有授权调用停在闸门上。 */
+const gateReached = new Latch();
+/** 停在闸门上的请求收到了对端的取消。 */
+const gateCancelled = new Latch();
 
 const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
@@ -86,12 +109,12 @@ const lookup = (contentHash: string): P2PLocalContent | undefined => {
   };
 };
 
-const authorize = async ({ contentHash }: P2PFilesAuthorizeContext): Promise<void> => {
+const authorize = async ({ contentHash, signal }: P2PFilesAuthorizeContext): Promise<void> => {
   counters.authorizeCalls += 1;
   if (options.denied?.includes(contentHash)) throw new Error('content is not shared with this peer');
   if (!gate) return;
-  gateHits += 1;
-  for (const notify of gateWaiters.splice(0)) notify();
+  signal.addEventListener('abort', () => gateCancelled.hit(), { once: true });
+  gateReached.hit();
   await gate;
 };
 
@@ -320,16 +343,18 @@ const harness: Harness = {
   },
   gateAuthorize() {
     gate = new Promise<void>(resolve => (openGate = resolve));
-    gateHits = 0;
+    gateReached.reset();
+    gateCancelled.reset();
   },
   authorizeWaiting() {
-    if (gateHits > 0) return Promise.resolve();
-    return new Promise<void>(resolve => gateWaiters.push(resolve));
+    return gateReached.wait();
+  },
+  authorizeCancelled() {
+    return gateCancelled.wait();
   },
   releaseAuthorize() {
     openGate?.();
     gate = undefined;
-    gateWaiters = [];
   },
   gateSends() {
     sendGate = new Promise<void>(resolve => (openSendGate = resolve));

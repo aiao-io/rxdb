@@ -102,6 +102,8 @@ test.describe('US-708：两个浏览器上下文经真实 WebRTC DataChannel 建
     await call(alice, 'startRequest', 'c1', file);
     await call(bob, 'authorizeWaiting');
     expect(await call(alice, 'cancelRequest')).toBe('cancelled by the acceptance test');
+    // 取消帧经 DataChannel 到达供块端之后才开闸：验收的是「收到取消后」不再读盘。
+    await call(bob, 'authorizeCancelled');
     await call(bob, 'releaseAuthorize');
     // 放行之后留出足够的时间：取消若没有生效，供块端会在这段时间里读盘并回包。
     await new Promise(resolve => setTimeout(resolve, 500));

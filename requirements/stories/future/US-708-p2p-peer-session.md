@@ -68,29 +68,30 @@ tags: [p2p, session, multiplexing, protocol, webrtc, tcp]
 验收证据：e2e 项目 `apps/dev-rxdb-p2p-e2e`，`pnpm nx e2e dev-rxdb-p2p-e2e` 运行，两端都运行 P2P 包的构建产物；`nx e2e` 有用例失败时也可能返回 0，以 `test-output/playwright/output/.last-run.json` 为准。
 
 - **AC#1～#9**：`src/browser-webrtc.spec.ts`。同一个 Chromium 里的两个浏览器上下文，各加载一份夹具页，用真实的 `RTCPeerConnection` 与 DataChannel；SDP 由用例在两个上下文之间搬运，不走 trickle ICE。
+  - AC#4 让供块端的授权停在闸门上，请求方取消后，等供块端确认收到取消（处理函数的中止信号已触发）才开闸，再核对读盘次数。
   - AC#5 覆盖两种情形：卡住对端页面的主线程（DataChannel 仍在、心跳无人应答），本端以 `peer_lost` 结束；关闭对端上下文，本端以 `peer_lost` 或 `transport_failed` 结束。两种情形下会话列表都移除该设备。
   - AC#6 用重放到另一条连接的凭据作为伪造凭据。
   - AC#9 在供块端发送口加闸，让 1 个批量帧停在闸口、7 个留在会话的发送队列里，再发小请求，按交给 DataChannel 的先后核对帧序。
 - **AC#10**：`src/desktop-tls.spec.ts`。用例派生两个 Node 进程，经 TLS 1.2 PSK 套件（不需要证书文件）建立 socket，执行 AC#1～#4。
 - **反证**：在构建产物里去掉取消检查，两端的 AC#4 都变红；把发送队列改成批量帧优先，AC#9 变红。
-- **协议层单测**：`pnpm nx test rxdb-plugin-p2p-files`（`src/session/*.spec.ts`、`src/files-protocol.spec.ts`）只证明实现，不计入上述证据。
+- **协议层单测**：`pnpm nx test rxdb-plugin-p2p`（`src/session/*.spec.ts`、`src/files-protocol.spec.ts`）只证明实现，不计入上述证据。
 
 ## 技术笔记
 
-- **在 PR #172 内完成**：owner 决定（2026-11-03）。`@aiao/rxdb-plugin-p2p-files` 没有进入 main，也没有发布（npm 上不存在），调整公开 API 没有迁移负担。
-- **包内隔离**：owner 决定（2026-11-03）会话层先放在包内的 `src/session/`，不认识文件与清单；files 协议只经它的公开接口使用会话。epic-012 第一个使用方解锁时再拆出 `@aiao/rxdb-plugin-p2p`。新导出不进核心包（核心包公开导出的命名门禁只放行 `Commit*` / `WorkingTree*` / `Worktree*` 前缀，见 `scripts/audit/api-surface.mjs`）。
+- **在 PR #172 内完成**：owner 决定（2026-11-03）。`@aiao/rxdb-plugin-p2p` 没有进入 main，也没有发布（npm 上不存在），调整公开 API 没有迁移负担。
+- **包划分**：owner 决定（2026-11-04）单包 `@aiao/rxdb-plugin-p2p`。会话层在 `src/session/`，不认识文件与清单；files 协议只经它的公开接口使用会话。epic-012 里带重依赖的能力（三框架绑定、DevTools、枢纽）另立包并依赖它。新导出不进核心包（核心包公开导出的命名门禁只放行 `Commit*` / `WorkingTree*` / `Worktree*` 前缀，见 `scripts/audit/api-surface.mjs`）。
 - **与 US-704 的分工**：持有断言发生在请求时而不是握手时，[US-704](US-704-p2p-manifest-discovery.md) AC#5 按此验收。未认证方仍在 hello 阶段只得到通用拒绝，US-706 AC#2 不变。
-- **帧格式 v2**：[`P2PFrame`](../../../packages/rxdb-plugin-p2p-files/src/session/frame.ts) 的帧类型为 `hello` / `request` / `response` / `error` / `cancel` / `ping` / `pong` / `bye`，只有请求与应答带负载。`decodeP2PFrame` 遇到未知帧类型返回 `null`，会话忽略它；已知类型字段不合法即判对端违反协议。
+- **帧格式 v2**：[`P2PFrame`](../../../packages/rxdb-plugin-p2p/src/session/frame.ts) 的帧类型为 `hello` / `request` / `response` / `error` / `cancel` / `ping` / `pong` / `bye`，只有请求与应答带负载。`decodeP2PFrame` 遇到未知帧类型返回 `null`，会话忽略它；已知类型字段不合法即判对端违反协议。
 - **多路复用放在会话内**：一条 `P2PByteTransport` 对应一条会话，WebRTC 与 TCP 走同一套逻辑。**推断**：WebRTC 开多条 DataChannel 能消除 SCTP 有序流上的队头阻塞，但只有一种传输能用；先以帧级优先级出队解决，实测不够再评估。
-- **鉴权接缝**：会话级是 [`P2PSessionOptions.authenticate`](../../../packages/rxdb-plugin-p2p-files/src/session/session.ts)，拿到对端凭据与本连接的 `connectionId`，返回认证宿主验证过的 `P2PPrincipal`；来源可以是信令绑定的身份，也可以是 US-704 AC#8 的可离线验证凭据。请求级由各协议在处理函数里做，处理函数拿到已认证的对端身份；files 协议是 [`P2PFilesProtocolOptions.authorize`](../../../packages/rxdb-plugin-p2p-files/src/files-protocol.ts)，先授权再查内容表。
-- **去重规则**：[`P2PSessionRegistry`](../../../packages/rxdb-plugin-p2p-files/src/session/registry.ts) 按「用户 + 设备 + 实例」登记。同一方向的重复连接保留先登记的；双方同时拨号时，身份键较小的一方发起的那条胜出，落选的以 `duplicate` 关闭并告知对端。
+- **鉴权接缝**：会话级是 [`P2PSessionOptions.authenticate`](../../../packages/rxdb-plugin-p2p/src/session/session.ts)，拿到对端凭据与本连接的 `connectionId`，返回认证宿主验证过的 `P2PPrincipal`；来源可以是信令绑定的身份，也可以是 US-704 AC#8 的可离线验证凭据。请求级由各协议在处理函数里做，处理函数拿到已认证的对端身份；files 协议是 [`P2PFilesProtocolOptions.authorize`](../../../packages/rxdb-plugin-p2p/src/files-protocol.ts)，先授权再查内容表。
+- **去重规则**：[`P2PSessionRegistry`](../../../packages/rxdb-plugin-p2p/src/session/registry.ts) 按「用户 + 设备 + 实例」登记。同一方向的重复连接保留先登记的；双方同时拨号时，身份键较小的一方发起的那条胜出，落选的以 `duplicate` 关闭并告知对端。
 - **下游复用**：epic-012 的克隆、信号、DevTools、枢纽都以本故事的会话与协议注册为前置。
 
 ## 实现文件
 
-- `packages/rxdb-plugin-p2p-files/src/session/frame.ts` — 帧格式 v2 与编解码
-- `packages/rxdb-plugin-p2p-files/src/session/session.ts` — 会话：hello 与认证、请求复用、取消、心跳、按优先级发送
-- `packages/rxdb-plugin-p2p-files/src/session/registry.ts` — 按对端身份登记与去重、会话列表的可观察流
-- `packages/rxdb-plugin-p2p-files/src/session/webrtc-transport.ts` / `tcp-transport.ts` — 两种字节传输
-- `packages/rxdb-plugin-p2p-files/src/files-protocol.ts` — files 协议：逐请求授权、按内容表供块、会话到块来源的适配
+- `packages/rxdb-plugin-p2p/src/session/frame.ts` — 帧格式 v2 与编解码
+- `packages/rxdb-plugin-p2p/src/session/session.ts` — 会话：hello 与认证、请求复用、取消、心跳、按优先级发送
+- `packages/rxdb-plugin-p2p/src/session/registry.ts` — 按对端身份登记与去重、会话列表的可观察流
+- `packages/rxdb-plugin-p2p/src/session/webrtc-transport.ts` / `tcp-transport.ts` — 两种字节传输
+- `packages/rxdb-plugin-p2p/src/files-protocol.ts` — files 协议：逐请求授权、按内容表供块、会话到块来源的适配
 - `apps/dev-rxdb-p2p-e2e/` — 验收夹具：`src/browser/`（夹具页与它的服务）、`src/desktop/`（对端进程与用例侧句柄）、`src/shared/`（两端共用的身份、凭据与确定性文件内容）

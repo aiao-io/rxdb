@@ -1,5 +1,5 @@
 /** 浏览器夹具页暴露给用例的 API；用例经 `page.evaluate` 调用 `window.p2pHarness`。 */
-import type { P2PFileManifest } from '@aiao/rxdb-plugin-p2p-files';
+import type { P2PFileManifest } from '@aiao/rxdb-plugin-p2p';
 import type { FileSpec, PeerName } from '../shared/fixtures.ts';
 
 /** 夹具页的端口。 */
@@ -97,6 +97,8 @@ export interface Harness {
   gateAuthorize(): void;
   /** 等到有一个授权调用停在闸门上。 */
   authorizeWaiting(): Promise<void>;
+  /** 等到停在闸门上的请求收到对端的取消。 */
+  authorizeCancelled(): Promise<void>;
   releaseAuthorize(): void;
   /** 关上发送闸：会话交给 DataChannel 的下一帧停在闸口，其后的帧留在会话自己的发送队列里。 */
   gateSends(): void;

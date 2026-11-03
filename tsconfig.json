@@ -214,7 +214,7 @@
       "path": "./packages/rxdb-plugin-history"
     },
     {
-      "path": "./packages/rxdb-plugin-p2p-files"
+      "path": "./packages/rxdb-plugin-p2p"
     },
     {
       "path": "./packages/rxdb-plugin-sync"

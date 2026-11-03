@@ -1,8 +1,8 @@
-# `@aiao/rxdb-plugin-p2p-files`
+# `@aiao/rxdb-plugin-p2p`
 
-局域网大文件共享的框架无关服务层。持有声明可由 RxDB 同步，文件字节经已认证的 P2P 会话直传：
-一对设备只建一条会话（WebRTC DataChannel 或 TLS TCP），多个文件与之后的协议都在这条会话上复用；
-传输按 SHA-256 分块校验，支持断点续传、多源调度、坏 peer 隔离和服务器回退。
+局域网 P2P 的框架无关服务层：一对设备只建一条已认证的会话（WebRTC DataChannel 或 TLS TCP），
+多个协议在这条会话上复用。内置 files 协议做大文件共享：持有声明可由 RxDB 同步，文件字节经会话直传，
+按 SHA-256 分块校验，支持断点续传、多源调度、坏 peer 隔离和服务器回退。
 
 ```ts
 import {
@@ -13,7 +13,7 @@ import {
   downloadP2PFile,
   openP2PSession,
   rxDBPluginP2PFiles
-} from '@aiao/rxdb-plugin-p2p-files';
+} from '@aiao/rxdb-plugin-p2p';
 ```
 
 插件只登记 `P2PFileManifestEntity`，不会在 `use()` 或 `connect()` 时自行建立网络连接。

@@ -1,5 +1,5 @@
 /** 用例进程与对端进程之间的 IPC 消息。 */
-import type { P2PFileManifest } from '@aiao/rxdb-plugin-p2p-files';
+import type { P2PFileManifest } from '@aiao/rxdb-plugin-p2p';
 import type { FileSpec } from '../shared/fixtures.ts';
 
 /** 用例发给对端进程的指令。 */
@@ -66,4 +66,5 @@ export type PeerReply =
 /** 对端进程 → 用例：主动通知。 */
 export type PeerEvent =
   | { readonly kind: 'event'; readonly event: 'authorize-waiting' }
+  | { readonly kind: 'event'; readonly event: 'authorize-cancelled' }
   | { readonly kind: 'event'; readonly event: 'session-closed'; readonly code: string };

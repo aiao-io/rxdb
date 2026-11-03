@@ -2778,7 +2778,7 @@
         "version": "0.0.28"
       },
       {
-        "description": "局域网 P2P 大文件共享：清单发现、分块校验、多源续传与服务器回退。",
+        "description": "局域网 P2P：一对设备一条会话、多协议复用；内置大文件共享（清单发现、分块校验、多源续传与服务器回退）。",
         "framework": null,
         "homepage": null,
         "hosts": [
@@ -2801,7 +2801,7 @@
             "range": "workspace:^"
           }
         ],
-        "name": "@aiao/rxdb-plugin-p2p-files",
+        "name": "@aiao/rxdb-plugin-p2p",
         "plugin": {
           "class": "RxDBPluginP2PFiles",
           "factory": "rxDBPluginP2PFiles",
@@ -3789,7 +3789,7 @@
       }
     ]
   },
-  "digest": "4a1846bba7dd5535a1404e709474b47c7a9f889bf6bf2bc623a79fd1751b48dd",
+  "digest": "3a3c54db781f09199a5934edec6f8c9db27339384b93859e22d55e4539c956d1",
   "sample": {
     "compilerOptions": {
       "experimentalDecorators": true,

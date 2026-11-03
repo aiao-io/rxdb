@@ -24,7 +24,7 @@
   "include": ["**/*.ts", "playwright.config.ts"],
   "references": [
     {
-      "path": "../../packages/rxdb-plugin-p2p-files"
+      "path": "../../packages/rxdb-plugin-p2p"
     },
     {
       "path": "../../packages/rxdb"

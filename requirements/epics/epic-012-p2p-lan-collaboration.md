@@ -62,7 +62,7 @@ owner: jimmy
 
 ## 包划分
 
-- **会话层与传输**：建议放进新包 `@aiao/rxdb-plugin-p2p`，由 US-708 决定是否在 PR #172 内拆出。
+- **会话层与传输**：在 `@aiao/rxdb-plugin-p2p` 的 `src/session/`，文件共享是同一个包里的一个协议（owner 决定，2026-11-04：单包）。带重依赖的能力（三框架绑定、DevTools、枢纽）另立包，依赖它。
 - **各项能力**：放在插件包里，不新增核心包导出。核心包公开导出的命名门禁只放行 `Commit*` / `WorkingTree*` / `Worktree*` 前缀，见 `scripts/audit/api-surface.mjs`。
 - **三框架绑定**：只有 US-710 需要 Angular / React / Vue 绑定，三端 API 对称。克隆、DevTools、枢纽是服务层，三端 demo 直接调用，同 [US-502](../stories/plugin/US-502-storage-plugin.md) 的做法。
 

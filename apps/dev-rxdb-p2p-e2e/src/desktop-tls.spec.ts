@@ -82,6 +82,8 @@ test.describe('US-708 AC#10：两个桌面进程经 TLS socket 建立会话', ()
     await expect(alice.call({ method: 'cancel-request' })).resolves.toEqual({
       outcome: 'cancelled by the acceptance test'
     });
+    // 取消帧经 TLS 到达供块端之后才开闸：验收的是「收到取消后」不再读盘。
+    await bob.nextEvent('authorize-cancelled');
     await bob.call({ method: 'release-authorize' });
     // 放行之后留出足够的时间：取消若没有生效，供块端会在这段时间里读盘并回包。
     await new Promise(resolve => setTimeout(resolve, 500));

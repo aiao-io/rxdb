@@ -18,11 +18,12 @@ import {
   transferP2PFile,
   type P2PChunkSource,
   type P2PFileManifest,
+  type P2PFilesAuthorizeContext,
   type P2PLocalContent,
   type P2PPeerSession,
   type P2PProtocol,
   type P2PSessionRole
-} from '@aiao/rxdb-plugin-p2p-files';
+} from '@aiao/rxdb-plugin-p2p';
 import { createHash } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import { connect, createServer, type Server, type TLSSocket } from 'node:tls';
@@ -86,9 +87,11 @@ const lookup = (contentHash: string): P2PLocalContent | undefined => {
   };
 };
 
-const authorize = async (): Promise<void> => {
+const authorize = async ({ signal }: P2PFilesAuthorizeContext): Promise<void> => {
   counters.authorizeCalls += 1;
   if (!authorizeGate) return;
+  // 停在闸门上的请求收到对端的取消时通知用例：用例据此确认取消已到达，再开闸。
+  signal.addEventListener('abort', () => emit({ kind: 'event', event: 'authorize-cancelled' }), { once: true });
   emit({ kind: 'event', event: 'authorize-waiting' });
   await authorizeGate;
 };

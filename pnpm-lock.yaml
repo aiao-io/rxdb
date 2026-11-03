@@ -1019,9 +1019,9 @@ importers:
       '@aiao/rxdb':
         specifier: workspace:*
         version: link:../../packages/rxdb
-      '@aiao/rxdb-plugin-p2p-files':
+      '@aiao/rxdb-plugin-p2p':
         specifier: workspace:*
-        version: link:../../packages/rxdb-plugin-p2p-files
+        version: link:../../packages/rxdb-plugin-p2p
 
   apps/dev-rxdb-react:
     dependencies:
@@ -2365,7 +2365,7 @@ importers:
         specifier: ^7.8.2
         version: 7.8.2
 
-  packages/rxdb-plugin-p2p-files:
+  packages/rxdb-plugin-p2p:
     dependencies:
       '@aiao/rxdb':
         specifier: workspace:^

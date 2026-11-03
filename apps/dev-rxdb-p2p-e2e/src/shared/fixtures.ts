@@ -1,5 +1,5 @@
 /** 验收夹具两端共用的身份、凭据与确定性文件内容；不依赖 Node 或浏览器 API。 */
-import type { P2PPeerIdentity, P2PPrincipal } from '@aiao/rxdb-plugin-p2p-files';
+import type { P2PPeerIdentity, P2PPrincipal } from '@aiao/rxdb-plugin-p2p';
 
 /** 夹具里两端约定的连接标识；凭据绑定到它。 */
 export const CONNECTION_ID = 'acceptance-connection';

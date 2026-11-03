@@ -1,7 +1,7 @@
 {
-  "name": "@aiao/rxdb-plugin-p2p-files",
+  "name": "@aiao/rxdb-plugin-p2p",
   "version": "0.0.28",
-  "description": "LAN peer-to-peer large file transfer primitives for Aiao RxDB.",
+  "description": "LAN peer-to-peer sessions and large file sharing for Aiao RxDB.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -37,7 +37,7 @@
     "vitest": "4.1.11"
   },
   "nx": {
-    "name": "rxdb-plugin-p2p-files",
+    "name": "rxdb-plugin-p2p",
     "tags": [
       "js-lib"
     ]
