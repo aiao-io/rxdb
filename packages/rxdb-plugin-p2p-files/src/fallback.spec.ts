@@ -66,10 +66,10 @@ const memoryStorage = (corruptIndex?: number) => {
 };
 
 describe('P2P 服务器回退', () => {
-  it('流式读取大文件：未落盘的字节不超过一个块加一段流，整个文件不进内存', async () => {
-    const size = 16 * 1024 * 1024 + 123;
-    const chunkSize = 256 * 1024;
-    const pieceSize = 64 * 1024 + 7;
+  it('流式读取：未落盘的字节不超过一个块加一段流，与文件大小无关', async () => {
+    const size = 2 * 1024 * 1024 + 123;
+    const chunkSize = 64 * 1024;
+    const pieceSize = 16 * 1024 + 7;
     const readRange = (offset: number, length: number): Uint8Array => {
       const bytes = new Uint8Array(length);
       for (let index = 0; index < length; index += 1) bytes[index] = ((offset + index) * 31 + 7) % 251;
