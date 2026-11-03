@@ -59,7 +59,7 @@ export default defineConfig(() => ({
     reportCompressedSize: true,
     sourcemap: false,
     lib: {
-      entry: 'src/index.ts',
+      entry: { index: 'src/index.ts', headless: 'src/headless.ts' },
       name: '@aiao/rxdb-model',
       fileName: 'index',
       formats: ['es' as const]
@@ -69,7 +69,8 @@ export default defineConfig(() => ({
       checks: { pluginTimings: false },
       external: [/^@aiao\/rxdb-i18n/, '@aiao/rxdb', 'rxjs', 'rxjs/operators', /^@visactor\//],
       input: {
-        index: 'src/index.ts'
+        index: 'src/index.ts',
+        headless: 'src/headless.ts'
       },
       output: {
         entryFileNames: chunkInfo => `${chunkInfo.name}.js`

@@ -31,6 +31,12 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./headless": {
+      "@aiao/source": "./src/headless.ts",
+      "types": "./dist/headless.d.ts",
+      "import": "./dist/headless.js",
+      "default": "./dist/headless.js"
     }
   },
   "files": [
@@ -55,5 +61,13 @@
     "@aiao/rxdb": "workspace:^",
     "@visactor/vtable": "~1.26.5",
     "@visactor/vtable-editors": "~1.26.5"
+  },
+  "peerDependenciesMeta": {
+    "@visactor/vtable": {
+      "optional": true
+    },
+    "@visactor/vtable-editors": {
+      "optional": true
+    }
   }
 }

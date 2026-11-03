@@ -33,7 +33,8 @@ export const COPY_GROUPS = [
   'board.spec.ts',
   'board-parity.spec.ts',
   'board-restore.spec.ts',
-  'entity-model-parity.spec.ts'
+  'entity-model-parity.spec.ts',
+  'headless-entity.spec.ts'
 ];
 
 /** 只有基准端（Angular）允许把这个来源当作 `@playwright/test`。 */

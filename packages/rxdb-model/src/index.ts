@@ -15,9 +15,13 @@ export * from './cn.js';
 
 // Entity Detail
 export * from './entity-detail/detail-tabs.js';
+export * from './entity-detail/headless.js';
 export * from './entity-detail/interfaces.js';
+export * from './entity-dialog/headless.js';
+export * from './entity-table/headless.js';
 
 // Entity List（US-028 手动排序；US-315 撤销 / 重做停用说明）
+export * from './entity-list/headless.js';
 export * from './entity-list/history-barrier.js';
 export * from './entity-list/list-view-settings.js';
 export * from './entity-list/list-view.js';
@@ -28,6 +32,7 @@ export * from './entity-list/types.js';
 export * from './entity-form/form-data.js';
 export * from './entity-form/form-fields.js';
 export * from './entity-form/form-validation.js';
+export * from './entity-form/headless.js';
 export * from './entity-form/interfaces.js';
 
 // Entity Table

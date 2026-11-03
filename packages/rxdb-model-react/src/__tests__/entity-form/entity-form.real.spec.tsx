@@ -8,8 +8,10 @@
  */
 import type { EntityFormData, FormFieldChangeEvent, FormFieldConfig, FormValidationResult } from '@aiao/rxdb-model';
 import { fireEvent, render } from '@testing-library/react';
+import { Activity } from 'react';
 import { describe, expect, it } from 'vitest';
 import { EntityForm } from '../../entity-form/entity-form';
+import { hideAndReveal } from '../testing/activity';
 
 const FIELDS: FormFieldConfig[] = [
   { field: 'name', displayName: '名称', type: 'string', required: true },
@@ -274,6 +276,32 @@ describe('EntityForm（真实组件）', () => {
     // parseEntityFieldValueStrict 契约：displayName 前缀 + 结构化失败原因
     expect(validationErrors[0].errors[0]).toMatchObject({ field: 'meta', message: '元数据 JSON 格式不正确' });
     expect(fieldset(container, '元数据').querySelector('textarea')!.value).toBe('{"theme":"dark"}');
+  });
+
+  it('解析失败的输入随回显作废，提交仍按最近合法值进行', () => {
+    const { container, formSubmitted, validationErrors } = renderForm();
+
+    fireEvent.change(fieldset(container, '元数据').querySelector('textarea')!, { target: { value: '{"bad' } });
+    fireEvent.submit(container.querySelector('form')!);
+
+    expect(validationErrors).toHaveLength(1);
+    expect(formSubmitted).toEqual([DATA]);
+  });
+
+  it('Activity 隐藏跨过微任务再显示后保留草稿并可继续编辑', async () => {
+    const nameInput = (container: HTMLElement): HTMLInputElement => fieldset(container, '名称').querySelector('input')!;
+    const view = await hideAndReveal(
+      mode => (
+        <Activity mode={mode}>
+          <EntityForm fields={FIELDS} data={DATA} mode='edit' />
+        </Activity>
+      ),
+      ({ container }) => fireEvent.change(nameInput(container), { target: { value: 'Bob' } })
+    );
+
+    expect(nameInput(view.container).value).toBe('Bob');
+    fireEvent.change(nameInput(view.container), { target: { value: 'Carol' } });
+    expect(nameInput(view.container).value).toBe('Carol');
   });
 });
 
