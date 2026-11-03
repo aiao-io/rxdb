@@ -111,9 +111,7 @@ try {
   await page.keyboard.insertText(unformatted);
   await expect(root.locator('[data-slot="save-status"]')).toContainText('未保存');
   await page.keyboard.press('Shift+Alt+F');
-  await expect
-    .poll(async () => (await content(editor(path))))
-    .toContain(`className='x'`);
+  await expect.poll(async () => await content(editor(path))).toContain(`className='x'`);
   await expect.poll(async () => (await content(editor(path))).split('\n').length).toBeGreaterThan(1);
   await expect(root.locator('[data-log="output"]')).toContainText(`已格式化 ${path}`);
   await expect(root.locator('[data-slot="save-status"]')).toContainText('未保存');
@@ -122,7 +120,7 @@ try {
   report.checks.push('shift-alt-f-formats-active-file-undoable-unsaved');
 
   await palette('format');
-  await expect.poll(async () => (await content(editor(path)))).toContain(`className='x'`);
+  await expect.poll(async () => await content(editor(path))).toContain(`className='x'`);
   await expect(root.locator('[data-slot="save-status"]')).toContainText('未保存');
   report.checks.push('command-palette-format-formats-file');
 

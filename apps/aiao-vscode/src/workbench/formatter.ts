@@ -97,7 +97,9 @@ export async function formatWorkbenchSource(path: string, source: string): Promi
   const extension = path.split('.').at(-1) ?? '';
   const parser = parsers[extension];
   if (!parser) return { kind: 'unsupported' };
-  const formatted = await (await loadEngine())(source, {
+  const formatted = await (
+    await loadEngine()
+  )(source, {
     ...baseOptions,
     ...languageOptions[extension],
     parser,

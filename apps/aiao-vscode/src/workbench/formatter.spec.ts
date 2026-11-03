@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { formatWorkbenchSource } from './formatter.js';
 
-const formattedTs = "const x = { a: 1 };\n";
+const formattedTs = 'const x = { a: 1 };\n';
 
 describe('工作台源码格式化', () => {
   it('TypeScript 按仓库基线格式化：单引号、分号、无尾逗号', async () => {
@@ -21,7 +21,7 @@ describe('工作台源码格式化', () => {
   it('JS / JSX / JSON / CSS / HTML / Vue / Markdown / YAML 均有格式化器', async () => {
     const cases: readonly [string, string, string][] = [
       ['src/main.js', 'const  x={a:1,}', formattedTs],
-      ['src/main.jsx', 'export const A=()=><div/>', "export const A = () => <div />;\n"],
+      ['src/main.jsx', 'export const A=()=><div/>', 'export const A = () => <div />;\n'],
       ['src/data.json', '{"a":1}', '{ "a": 1 }\n'],
       ['src/style.css', '.a{color:red}', '.a {\n  color: red;\n}\n'],
       ['src/index.html', '<div><span>x</span></div>', '<div><span>x</span></div>\n'],

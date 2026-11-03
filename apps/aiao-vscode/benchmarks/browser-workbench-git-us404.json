@@ -1,13 +1,10 @@
 {
-  "recordedAt": "2026-11-03T02:29:50.753Z",
-  "browser": "156.0.8078.4",
-  "node": "v26.12.0",
-  "platform": "darwin",
   "architecture": "arm64",
-  "nativeGit": "git version 2.54.0 (Apple Git-157)",
-  "wasmGit": "0.0.17",
-  "variant": "jspi",
-  "status": "passed",
+  "browser": "156.0.8078.4",
+  "caveats": [
+    "Single fixture run; timings are observations rather than performance thresholds.",
+    "Wasm linear memory excludes JS caches and browser process memory."
+  ],
   "checks": [
     "restart-staged-unstaged-deletion-binary-native-git-import-continuation",
     "restore-reachable-tree-preserves-head-index-dirty-rejected",
@@ -677,7 +674,11 @@
       "milliseconds": 7.414832999998907
     }
   ],
-  "wasmLinearMemoryBytes": 17039360,
+  "nativeGit": "git version 2.54.0 (Apple Git-157)",
+  "node": "v26.12.0",
+  "platform": "darwin",
+  "recordedAt": "2026-11-03T02:29:50.753Z",
+  "status": "passed",
   "storage": {
     "quota": 10737578907,
     "usage": 160667,
@@ -685,8 +686,7 @@
       "fileSystem": 160667
     }
   },
-  "caveats": [
-    "Single fixture run; timings are observations rather than performance thresholds.",
-    "Wasm linear memory excludes JS caches and browser process memory."
-  ]
+  "variant": "jspi",
+  "wasmGit": "0.0.17",
+  "wasmLinearMemoryBytes": 17039360
 }

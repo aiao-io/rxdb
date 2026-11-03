@@ -1,9 +1,5 @@
 {
-  "format": "aiao.workbench.commands",
-  "version": 1,
-  "host": "vscode",
-  "url": "http://localhost:4320/",
-  "status": "passed",
+  "browser": "156.0.8078.4",
   "checks": [
     "quick-open-path-filter-arrow-enter",
     "quick-open-escape-restores-focus-and-buffer",
@@ -15,6 +11,10 @@
     "close-reopen-retains-buffer-and-new-editor-undo",
     "save-preserves-editor-active-and-close-keeps-preview"
   ],
-  "browser": "156.0.8078.4",
-  "pageErrors": []
+  "format": "aiao.workbench.commands",
+  "host": "vscode",
+  "pageErrors": [],
+  "status": "passed",
+  "url": "http://localhost:4320/",
+  "version": 1
 }
