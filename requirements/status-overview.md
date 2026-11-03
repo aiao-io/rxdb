@@ -9,10 +9,10 @@
 | :------------- | :--- |
 | ✅ Done        | 89   |
 | 🚧 In Progress | 4    |
-| 👀 In Review   | 10   |
+| 👀 In Review   | 9    |
 | 📝 Backlog     | 27   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 130  |
+| **合计**       | 129  |
 
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
@@ -26,7 +26,7 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 | [US-540 看板端到端 demo](stories/domain/US-540-board-end-to-end-demo.md)                                    | demo 既有库初态（AC#7）与无搜索插件构建（AC#12）仍待验。           |
 | [US-603 手工发布入口的提交与校验结果一致性](stories/tooling/US-603-manual-release-preflight.md)             | 两个手工发布入口已接入共享 preflight；待受控 registry 替身验收。   |
 
-## 待评审（10 条）
+## 待评审（9 条）
 
 | Story                                                                                         | 剩余范围                                                                                                       |
 | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
@@ -36,7 +36,6 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 | [US-528 独立消费接入示例与接入成本记录](stories/domain/US-528-admin-consumer-example.md)      | workspace接线已验证、AC#2成本记录已通过；AC#1发布tarball仓外消费与AC#3试用者按文档独立重搭仍待验证，不能标绿。 |
 | [US-534 看板领域模型骨架](stories/domain/US-534-board-column-task-skeleton.md)                | 全部 AC 已验（既有库重开在 PGlite 与 sqlite-wasm 各验一遍），等待合并收尾。                                    |
 | [US-539 三框架看板视图与交互](stories/domain/US-539-board-tri-framework-ui.md)                | 阶段 A～C 三端全绿（含外壳恢复入口与跨页门禁），等待合并收尾。                                                 |
-| [US-404 浏览器本地开发工作台](stories/ui/US-404-browser-development-workbench.md)             | 核心与三端工作台、四模板、离线与仓外消费已实现；三端 12 组合贯穿已通过；affected 门禁与代码评审收尾。          |
 
 ## 阻塞（0 条）
 
@@ -78,7 +77,6 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 
 - ✅ [US-402 代码编辑器组件](stories/ui/US-402-code-editor.md)
 - ⬜ [US-403 实体组件 Headless API 与可定制展示层](stories/ui/US-403-entity-components-headless.md)
-- 👀 [US-404 浏览器本地开发工作台](stories/ui/US-404-browser-development-workbench.md)
 - ✅ [US-902 DevTools 面板](stories/future/US-902-devtools-panel.md)
 - ✅ [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md)
 - ✅ [US-905 Tauri DevTools 调试窗口、transport 与原生存储集成](stories/future/US-905-tauri-native-devtools.md)

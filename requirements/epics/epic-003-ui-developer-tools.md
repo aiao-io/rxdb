@@ -16,7 +16,6 @@ owner: jimmy
 
 - [ ] 实体组件 Headless API：三框架共享逻辑、消费方自定义展示，保留默认 UI
 - [x] 代码编辑器组件（跨 3 端）
-- [ ] 浏览器本地开发工作台：受控模板、OPFS Git、隔离预览与完整导出
 - [x] 浏览器 DevTools 面板（连接器 + Chrome 扩展）
 - [x] Electron 原生本地存储 DevTools 调试
 - [x] Tauri 原生本地存储 DevTools 调试
@@ -27,7 +26,6 @@ owner: jimmy
 
 - [US-402 代码编辑器组件](../stories/ui/US-402-code-editor.md) (Medium)
 - [US-403 实体组件 Headless API 与可定制展示层](../stories/ui/US-403-entity-components-headless.md) (Medium) — A 表单与共享契约 → B 已公开查询 service 的消费与绑定 → C 现有列表视图/详情与可选渲染 → D 独立消费验证与文档；以当前 main 的列表设置 API 为兼容基线
-- [US-404 浏览器本地开发工作台](../stories/ui/US-404-browser-development-workbench.md) (Medium) — A 四类受控模板与 Git 探针 → B 三端编辑 / 保存 / 运行 / 提交 → C 恢复、隔离、离线与可构建导出；不含完整 Node IDE
 - [US-902 DevTools 面板](../stories/future/US-902-devtools-panel.md) (Low)
 - [US-904 DevTools 原生本地存储调试](../stories/future/US-904-devtools-native-storage-contract.md) (Medium) — 单文件四阶段：
   - 阶段 A Electron 43 MV3 DevTools 可行性门禁

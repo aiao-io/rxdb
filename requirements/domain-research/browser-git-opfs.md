@@ -1,9 +1,5 @@
 # 浏览器代码工作区：Git + OPFS
 
-手工编辑、保存、运行预览与项目导出的产品合同见
-[US-404 浏览器本地开发工作台](../stories/ui/US-404-browser-development-workbench.md)；
-本文件保留 Git 引擎选型依据，不把研究 Demo 当成已交付工作区。
-
 > [AI 原生本地优先开发环境](ai-native-builder.md)的技术补充，不单独作为候选或用户故事。
 > 调研日期：2026-10-18。已完成 Chromium 合成仓库性能基准，见[实测报告](browser-git-benchmark.md)；
 > 浏览器工作区产品集成尚未完成。

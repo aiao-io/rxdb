@@ -98,12 +98,6 @@
             "glob": "**/*",
             "input": "./packages/rxdb-adapter-sqlite/node_modules/@sqlite.org/sqlite-wasm/dist",
             "output": "./official-sqlite-wasm/"
-          },
-          {
-            "glob": "**/*",
-            "input": "packages/browser-workbench/dist/assets",
-            "output": "browser-workbench-assets",
-            "followSymlinks": true
           }
         ],
         "browser": "apps/dev-rxdb-angular/src/main.ts",
@@ -118,8 +112,7 @@
         "styles": ["apps/dev-rxdb-angular/src/styles.scss"],
         "tsConfig": "apps/dev-rxdb-angular/tsconfig.app.json",
         "webWorkerTsConfig": "apps/dev-rxdb-angular/tsconfig.worker.json",
-        "externalDependencies": ["pyodide", "node:crypto"],
-        "conditions": ["@aiao/source", "module"]
+        "externalDependencies": ["pyodide", "node:crypto"]
       },
       "configurations": {
         "development": {
@@ -164,15 +157,11 @@
           "host": "0.0.0.0",
           "headers": {
             "Cross-Origin-Opener-Policy": "same-origin",
-            "Cross-Origin-Embedder-Policy": "require-corp",
-            "Access-Control-Allow-Origin": "*"
+            "Cross-Origin-Embedder-Policy": "require-corp"
           }
         },
         "production": {
-          "buildTarget": "dev-rxdb-angular:build:production",
-          "headers": {
-            "Access-Control-Allow-Origin": "*"
-          }
+          "buildTarget": "dev-rxdb-angular:build:production"
         }
       },
       "readyWhen": {

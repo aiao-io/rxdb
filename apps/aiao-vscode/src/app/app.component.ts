@@ -1,0 +1,124 @@
+import { CodeEditor } from '@aiao/code-editor-angular';
+import { RxDB } from '@aiao/rxdb';
+import { isPlatformBrowser } from '@angular/common';
+import {
+  ApplicationRef,
+  Component,
+  ElementRef,
+  EnvironmentInjector,
+  PLATFORM_ID,
+  createComponent,
+  inject,
+  signal,
+  type AfterViewInit,
+  type OnDestroy
+} from '@angular/core';
+import { filter, firstValueFrom, of, take, timeout } from 'rxjs';
+import { mountWorkbench, type WorkbenchHandle } from '../workbench/mount.js';
+import { createRxDBWorkbenchCatalog } from '../workbench/rxdb-catalog.js';
+
+const CATALOG_TIMEOUT_MS = 10000;
+
+/** 应用根组件：把浏览器开发工作台挂到整页，并用 RxDB 保存项目目录元数据。 */
+@Component({
+  selector: 'app-root',
+  template: `
+    @if (error()) {
+      <div class="app-notice app-error">{{ error() }}</div>
+    } @else if (!ready()) {
+      <div class="app-notice">正在连接本地数据库…</div>
+    }
+  `,
+  styles: `
+    .app-notice {
+      display: grid;
+      place-items: center;
+      height: 100%;
+      color: #cccccc;
+      font-family: system-ui, sans-serif;
+    }
+    .app-error {
+      color: #f48771;
+      padding: 0 2rem;
+      text-align: center;
+    }
+  `,
+  host: { style: 'display:block;height:100%;min-height:0' }
+})
+export class AppComponent implements AfterViewInit, OnDestroy {
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly environment = inject(EnvironmentInjector);
+  private readonly application = inject(ApplicationRef);
+  private readonly platform = inject(PLATFORM_ID);
+  private readonly rxdb = inject(RxDB);
+  private workbench?: WorkbenchHandle;
+  readonly ready = signal(false);
+  readonly error = signal<string | null>(null);
+
+  ngAfterViewInit(): void {
+    if (!isPlatformBrowser(this.platform)) return;
+    void this.mountWhenReady();
+  }
+
+  ngOnDestroy(): void {
+    this.workbench?.dispose();
+  }
+
+  /** 数据库连不上时退回内存目录：项目仍可编辑 / 预览 / 导出，只是重开不恢复目录列表。 */
+  private async mountWhenReady(): Promise<void> {
+    let connected = false;
+    try {
+      connected = await firstValueFrom(
+        this.rxdb
+          .adapterConnected$('sqlite-wasm')
+          .pipe(filter(Boolean), take(1), timeout({ first: CATALOG_TIMEOUT_MS, with: () => of(false) }))
+      );
+      if (!connected) console.warn('RxDB adapter did not connect; project catalog will not persist');
+    } catch (error) {
+      console.warn('RxDB adapter failed to connect; project catalog will not persist', error);
+    }
+    this.workbench = mountWorkbench(
+      this.host.nativeElement,
+      connected ? { catalog: createRxDBWorkbenchCatalog(this.rxdb) } : {},
+      (element, initial) => {
+        const editor = createComponent(CodeEditor, { hostElement: element, environmentInjector: this.environment });
+        editor.setInput('value', initial.value);
+        editor.setInput('language', initial.language);
+        editor.setInput('label', '项目源码');
+        editor.setInput('theme', 'dark');
+        editor.setInput('indentWithTab', true);
+        const change = editor.instance.aoChange.subscribe(initial.onChange);
+        const cursor = () => {
+          const view = editor.instance.view!;
+          const position = view.state.selection.main.head;
+          const line = view.state.doc.lineAt(position);
+          initial.onCursor(line.number, position - line.from + 1);
+        };
+        for (const event of ['keyup', 'mouseup', 'input']) element.addEventListener(event, cursor);
+        this.application.attachView(editor.hostView);
+        editor.changeDetectorRef.detectChanges();
+        return {
+          update: (value, language) => {
+            editor.setInput('value', value);
+            editor.setInput('language', language);
+            editor.changeDetectorRef.detectChanges();
+          },
+          layout: () => editor.instance.view?.requestMeasure(),
+          focus: () => editor.instance.focus(),
+          dispose: () => {
+            for (const event of ['keyup', 'mouseup', 'input']) element.removeEventListener(event, cursor);
+            change.unsubscribe();
+            this.application.detachView(editor.hostView);
+            editor.destroy();
+          }
+        };
+      }
+    );
+    this.ready.set(true);
+    if (new URLSearchParams(location.search).has('workbench-verify')) {
+      const target = window as unknown as { workbench?: WorkbenchHandle; ready?: boolean };
+      target.workbench = this.workbench;
+      target.ready = true;
+    }
+  }
+}

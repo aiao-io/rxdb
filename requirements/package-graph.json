@@ -1,38 +1,6 @@
 {
   "packages": [
     {
-      "name": "@aiao/browser-workbench",
-      "description": "浏览器本地开发工作台共享内核：OPFS Git、受控编译、隔离预览与项目导出。",
-      "role": "standalone",
-      "hosts": ["browser"],
-      "slots": [],
-      "framework": null
-    },
-    {
-      "name": "@aiao/browser-workbench-angular",
-      "description": "浏览器本地开发工作台的 Angular 绑定。",
-      "role": "binding",
-      "hosts": ["browser"],
-      "slots": [],
-      "framework": "angular"
-    },
-    {
-      "name": "@aiao/browser-workbench-react",
-      "description": "浏览器本地开发工作台的 React 绑定。",
-      "role": "binding",
-      "hosts": ["browser"],
-      "slots": [],
-      "framework": "react"
-    },
-    {
-      "name": "@aiao/browser-workbench-vue",
-      "description": "浏览器本地开发工作台的 Vue 绑定。",
-      "role": "binding",
-      "hosts": ["browser"],
-      "slots": [],
-      "framework": "vue"
-    },
-    {
       "name": "@aiao/code-editor",
       "description": "CodeMirror 6 编辑器绑定共享的语言描述与主题类型。",
       "role": "standalone",

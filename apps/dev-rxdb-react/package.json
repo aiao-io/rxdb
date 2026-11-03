@@ -2,8 +2,6 @@
   "name": "@aiao/dev-rxdb-react",
   "version": "0.0.1",
   "dependencies": {
-    "@aiao/browser-workbench": "workspace:*",
-    "@aiao/browser-workbench-react": "workspace:*",
     "@aiao/code-editor-react": "workspace:*",
     "@aiao/rxdb": "workspace:*",
     "@aiao/rxdb-adapter-sqlite-wasm": "workspace:*",

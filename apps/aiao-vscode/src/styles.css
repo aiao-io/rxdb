@@ -1,0 +1,13 @@
+/* 工作台自带 VS Code Dark Modern 风格样式；这里只铺满视口 */
+html,
+body {
+  height: 100%;
+  margin: 0;
+  background: #181818;
+  color: #cccccc;
+}
+
+app-root {
+  display: block;
+  height: 100%;
+}

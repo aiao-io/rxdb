@@ -1,4 +1,0 @@
-import { BrowserWorkbench } from '@aiao/browser-workbench-vue';
-import { createApp, h } from 'vue';
-
-createApp({ render: () => h(BrowserWorkbench, { options: { assetBaseURL: '/browser-workbench-assets/' } }) }).mount('#app');

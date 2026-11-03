@@ -110,10 +110,6 @@ export const routes: RouteObject[] = [
         lazy: lazyRoute(() => import('./pages/code-editor'))
       },
       {
-        path: 'browser-workbench',
-        lazy: lazyRoute(() => import('./pages/browser-workbench'))
-      },
-      {
         path: 'entities',
         lazy: lazyRoute(() => import('./pages/entities/entity-shell')),
         children: [

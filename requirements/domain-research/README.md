@@ -45,7 +45,7 @@ BOM、Admin 与任务看板的 owner 解锁继续生效，不能因缺少新客�
 | 外勤 / 现场采集           | [field-data-collection.md](field-data-collection.md)     | 研究中 | 客户触发           | 具名团队的固定表单、离线续填、提交回执与照片需求                        |
 | 零售 POS / 进销存         | [retail-pos.md](retail-pos.md)                           | 研究中 | 客户触发且后置     | 单店单设备记账、库存流水、退货与日结；支付、硬件和多设备一致性另验      |
 | 智能体记忆 / 本地 AI 助手 | [local-ai-agent.md](local-ai-agent.md)                   | 研究中 | 技术储备           | 明确资料来源、检索质量与带引用回答；纯存储研究可与知识库共用            |
-| AI 原生开发环境           | [ai-native-builder.md](ai-native-builder.md)             | 研究中 | 技术储备，主线后置 | 手工工作台切片见下文 US-404；AI 生成与 agent 另定准入                   |
+| AI 原生开发环境           | [ai-native-builder.md](ai-native-builder.md)             | 研究中 | 技术储备，主线后置 | 单一受控模板的编辑、保存、运行预览与可构建导出                          |
 | 人生快进中                | [life-fast-forward.md](life-fast-forward.md)             | 研究中 | 独立玩法实验       | 一局选择后果与总结、退出续玩、Cocos 真机存档探针                        |
 | 密码管理器                | [password-manager.md](password-manager.md)               | 研究中 | 暂缓               | 本地解锁、自动锁定与备份；E2EE 与跨设备密钥协议独立验证                 |
 | 微信客户端部分功能        | [wechat-client.md](wechat-client.md)                     | 研究中 | 暂缓               | 本地会话演示或接已有 IM 后端；消息身份、幂等、顺序与回执另验            |
@@ -53,7 +53,6 @@ BOM、Admin 与任务看板的 owner 解锁继续生效，不能因缺少新客�
 
 [Git + OPFS](browser-git-opfs.md) 与[浏览器 Git 基准](browser-git-benchmark.md)是 AI 开发环境的技术附件，
 不作为额外产品候选。现有基准只覆盖固定浏览器与 fixture，不能替代工作区、依赖解析和隔离预览的产品验收。
-手工开发工作台的范围与验收见 [US-404](../stories/ui/US-404-browser-development-workbench.md)，不代表整个 AI 构建器已立项。
 
 知识库、稍后读与本地 AI 可共用内容导入、文本、搜索和备份研究；产品范围仍各自立项，
 不把 RAG 或 agent 事件模型自动加入知识库首版。

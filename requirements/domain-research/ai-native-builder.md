@@ -79,10 +79,6 @@ Git + OPFS 提供文件与版本基础，依赖解析、资源加载和运行权
 [Git + OPFS 技术研究](browser-git-opfs.md)。是否需要 Node 运行时由支持的项目范围决定。
 Angular / React / Vue 共享数据层，各框架的编译预览链路分别验收。
 
-手工开发工具切片已登记为 [US-404 浏览器本地开发工作台](../stories/ui/US-404-browser-development-workbench.md)，
-技术依据见 [在线开发可行性研究](../stories/ui/US-404-online-development-feasibility.md)。
-该切片的范围、探针和验收只在故事维护；本候选的 AI 生成、agent 与部署没有随之解锁。
-
 ## 引擎缺口
 
 - **多人同时编辑同一项目**：同步是异步合并 + 冲突处理模型，实时协作是 [vision](../vision.md)
@@ -102,7 +98,7 @@ Angular / React / Vue 共享数据层，各框架的编译预览链路分别验�
 
 ## 与兄弟候选的关系
 
-- **playground 形态**（交互式构建界面）作为本候选的基础；手工编辑 / 运行切片由 US-404 承接，不另建重复 AI 产品候选
+- **playground 形态**（交互式构建界面）并入本候选，不单独立项
 - **低代码数据应用**（`rxdb-model` 生成 CRUD）并入本候选，作为生成物数据层的生成路径
 - **[local-ai-agent](local-ai-agent.md)**：运行时合体伙伴——agent 记忆、运行日志、会话回放
   复用同一内核，本候选是它的开发者向形态

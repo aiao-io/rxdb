@@ -6,7 +6,7 @@
 
 | 维度         | 数值                                                                                                                                                                                                                                                                                                                                                                     |
 | :----------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 总包目录     | **63 个** `packages/*`（有 `package.json` 的包），均未标 `private: true`；哪些已发到 npm、哪些尚未首发见 [release-plan.md](release-plan.md)。其中 **62 个**受 API baseline 保护——[api-baseline/](api-baseline/) 的 json 文件数即此数，缺的是 `rxdb-test`（非产品 API，见下方脚注）；新包先有公开入口后补基线，`api-surface.mjs --check` 会拦。两个数不同义，引用时别互换 |
+| 总包目录     | **59 个** `packages/*`（有 `package.json` 的包），均未标 `private: true`；哪些已发到 npm、哪些尚未首发见 [release-plan.md](release-plan.md)。其中 **58 个**受 API baseline 保护——[api-baseline/](api-baseline/) 的 json 文件数即此数，缺的是 `rxdb-test`（非产品 API，见下方脚注）；新包先有公开入口后补基线，`api-surface.mjs --check` 会拦。两个数不同义，引用时别互换 |
 | 支持框架     | Angular 22 / React 19 / Vue 3.5                                                                                                                                                                                                                                                                                                                                          |
 | 支持平台     | Web / Electron / Tauri / PWA / 小程序                                                                                                                                                                                                                                                                                                                                    |
 | 存储适配器   | 11 个具名适配器：wa-sqlite / sqlite-wasm / sqlite (@sqlite.org) / sqliteai / wa-sqlite-miniprogram / sqlite-electron / sqlite-tauri / pglite / pglite-electron / supabase / http（以代码里的 `ADAPTER_NAME` 为准）；另有 sqlite-core 共享基类与 encrypted 加密工具包（两者均非适配器）                                                                                   |
@@ -53,14 +53,12 @@
 
 三端绑定不止上表的 hook：插件各有 `-angular` / `-react` / `-vue` 绑定包，包含 `rxdb-plugin-tree-*`（树 hook）、`rxdb-plugin-search-*`（`useSearch`）、`rxdb-plugin-working-tree-*`（`useWorkingTree` 等）、`rxdb-plugin-replay-*`（`Replayer` 组件与恢复提示）、`rxdb-plugin-board-*`（看板视图）、`rxdb-i18n-*`（客户端国际化）与 `rxdb-model-*`（实体模型 UI）；包清单与导出以 [api-baseline/](api-baseline/) 为准，对称性用 `tri-framework-check` 复核。
 
-## 浏览器开发工作台
+## 浏览器开发工作台应用
 
-`@aiao/browser-workbench` 与三端 `BrowserWorkbench` 提供 VS Code 风格布局、OPFS Git、
-受控编译、隔离预览和带历史导出。宿主与模板独立：Angular / React / Vue 宿主都可运行
-vanilla TS、React TSX、Vue SFC、Angular standalone 四类模板。
-当前支持桌面 Chromium 的 JSPI / credentialless 能力组合，项目文件不随数据库备份或复制。
-公共资源部署、离线前置与限制见 [核心包文档](../packages/browser-workbench/README.md)，验收以
-[US-404](stories/ui/US-404-browser-development-workbench.md) 为准。
+`apps/aiao-vscode` 是 Angular 单应用形态的 VS Code 风格本地开发工作台：OPFS Git、受控编译、
+隔离预览和带历史导出，宿主与模板独立（同一应用运行 vanilla TS、React TSX、Vue SFC、Angular
+standalone 四类模板）。当前支持桌面 Chromium 的 JSPI / credentialless 能力组合，项目文件不随
+数据库备份或复制。范围与验收以应用内 [US-404](../../apps/aiao-vscode/requirements/stories/US-404-browser-development-workbench.md) 为准。
 
 ## 适配器能力对比
 

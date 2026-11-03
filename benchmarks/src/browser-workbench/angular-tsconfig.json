@@ -1,7 +1,0 @@
-{
-  "compilerOptions": {
-    "noEmit": true
-  },
-  "extends": "../../tsconfig.typecheck.json",
-  "include": ["angular-*.ts"]
-}

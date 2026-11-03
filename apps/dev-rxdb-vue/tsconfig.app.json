@@ -32,10 +32,13 @@
       "path": "../../packages/rxdb-adapter-sqlite-core/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/rxdb-plugin-board-vue/tsconfig.lib.json"
+      "path": "../../packages/rxdb-model/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/rxdb-plugin-board/tsconfig.lib.json"
+      "path": "../../packages/rxdb-i18n/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-i18n-vue/tsconfig.lib.json"
     },
     {
       "path": "../../modules/wujie/tsconfig.lib.json"
@@ -80,15 +83,6 @@
       "path": "../../packages/rxdb-model-vue/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/rxdb-model/tsconfig.lib.json"
-    },
-    {
-      "path": "../../packages/rxdb-i18n-vue/tsconfig.lib.json"
-    },
-    {
-      "path": "../../packages/rxdb-i18n/tsconfig.lib.json"
-    },
-    {
       "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
     },
     {
@@ -104,10 +98,10 @@
       "path": "../../packages/code-editor-vue/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/browser-workbench-vue/tsconfig.lib.json"
+      "path": "../../packages/rxdb-plugin-board-vue/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/browser-workbench/tsconfig.lib.json"
+      "path": "../../packages/rxdb-plugin-board/tsconfig.lib.json"
     }
   ]
 }

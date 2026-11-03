@@ -102,12 +102,6 @@ const menus: MenuItem[] = [
   },
   {
     type: 'link',
-    title: 'Browser Workbench',
-    path: '/browser-workbench',
-    icon: Code
-  },
-  {
-    type: 'link',
     title: 'Generator',
     path: '/generator',
     icon: Factory

@@ -280,16 +280,16 @@
       "path": "./packages/rxdb-i18n-vue"
     },
     {
-      "path": "./packages/browser-workbench"
+      "path": "./apps/aiao-vscode"
     },
     {
-      "path": "./packages/browser-workbench-angular"
+      "path": "./apps/aiao-vscode-e2e"
     },
     {
-      "path": "./packages/browser-workbench-react"
+      "path": "./apps/dev-rxdb-miniprogram"
     },
     {
-      "path": "./packages/browser-workbench-vue"
+      "path": "./website"
     }
   ]
 }
