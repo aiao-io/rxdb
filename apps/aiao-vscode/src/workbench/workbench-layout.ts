@@ -34,10 +34,10 @@ export function createWorkbenchLayout(host: HTMLElement, assetBaseURL: string): 
     </div>
     <footer class="wb-status" aria-label="状态栏">
       <span class="wb-remote-indicator">${iconMarkup('remote')}</span>
-      <span data-slot="branch">${iconMarkup('git-branch')}<span data-slot="branch-name">main</span></span>
+      <button data-action="show-scm" data-slot="branch" title="源代码管理 · ⌘ / Ctrl + Shift + G">${iconMarkup('git-branch')}<span data-slot="branch-name">main</span></button>
       <button data-action="panel" aria-label="打开问题面板">${iconMarkup('error')}<span data-slot="problem-count">0</span>${iconMarkup('warning')}<span>0</span></button>
       <span data-slot="save-status">尚未打开项目</span><span class="wb-spacer"></span>
-      <span data-slot="cursor">行 1，列 1</span><span>空格: 2</span><span>UTF-8</span><span data-slot="language">纯文本</span>
+      <button data-action="goto-line" data-slot="cursor" title="转到行 · ⌘ / Ctrl + G">行 1，列 1</button><button data-action="indent-picker" data-slot="indent" title="选择缩进大小">空格: 2</button><span>UTF-8</span><span data-slot="language">纯文本</span>
       <button data-action="preview" aria-label="打开预览" title="打开预览">${iconMarkup('open-preview')}</button>
     </footer>
     <div data-slot="panel-staging" hidden>

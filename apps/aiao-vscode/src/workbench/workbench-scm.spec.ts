@@ -33,7 +33,9 @@ async function fixture() {
   const callbacks = {
     onOpenDiff: vi.fn(async () => undefined),
     onError: vi.fn(),
-    onDidChange: vi.fn<WorkbenchScmOptions['onDidChange']>(async () => undefined)
+    onDidChange: vi.fn<WorkbenchScmOptions['onDidChange']>(async () => undefined),
+    onCommitMessage: vi.fn(),
+    getSavedMessage: vi.fn((_projectId: string) => undefined)
   };
   const scm = createWorkbenchScm(host, { backend, session, ...callbacks });
   handles.push(scm);
@@ -56,6 +58,26 @@ afterEach(() => {
 });
 
 describe('VSCode式源代码管理', () => {
+  it('提交消息按项目记忆，上下方向键回放历史，切换项目恢复最后一条', async () => {
+    const { host, backend, session, callbacks } = await fixture();
+    const message = host.querySelector<HTMLTextAreaElement>('.wb-scm-commit-form textarea');
+    if (!message) throw new Error('提交说明缺失');
+    message.value = '第一次提交';
+    message.dispatchEvent(new Event('input'));
+    host.querySelector<HTMLButtonElement>('[data-scm-action="commit"]')?.click();
+    await vi.waitFor(() => expect(backend.commit).toHaveBeenCalledWith('project', '第一次提交'));
+    await vi.waitFor(() => expect(message.value).toBe(''));
+    expect(callbacks.onCommitMessage).toHaveBeenCalledWith('project', '第一次提交');
+    message.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(message.value).toBe('第一次提交'));
+    message.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(message.value).toBe(''));
+    await session.open('another');
+    expect(message.value).toBe('');
+    await session.open('project');
+    expect(message.value).toBe('第一次提交');
+  });
+
   it('组头一次性暂存或取消暂存全部路径，按钮不嵌套', async () => {
     const { host, backend, callbacks } = await fixture();
     const stageAll = host.querySelector<HTMLButtonElement>('[aria-label="暂存所有更改"]');

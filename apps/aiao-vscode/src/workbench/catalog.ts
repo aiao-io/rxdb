@@ -13,6 +13,8 @@ export interface WorkbenchProjectInfo {
 export interface WorkbenchProjectState {
   readonly tabs: readonly string[];
   readonly activePath: string | null;
+  /** 最后一次成功提交的说明，重开时回填提交框。 */
+  readonly commitMessage?: string;
 }
 
 /** 宿主可用 RxDB 等元数据存储实现本接口。 */
@@ -97,7 +99,8 @@ export function createProjectCatalog(): WorkbenchCatalog {
         const item = value as Record<string, unknown>;
         return {
           tabs: item['tabs'] as string[],
-          activePath: typeof item['activePath'] === 'string' ? item['activePath'] : null
+          activePath: typeof item['activePath'] === 'string' ? item['activePath'] : null,
+          commitMessage: typeof item['commitMessage'] === 'string' ? item['commitMessage'] : undefined
         };
       }),
     putState: (projectId, state) =>
@@ -105,7 +108,13 @@ export function createProjectCatalog(): WorkbenchCatalog {
         const root = await directory();
         const file = await root.getFileHandle(stateFilename(projectId), { create: true });
         const writer = await file.createWritable();
-        await writer.write(JSON.stringify({ tabs: [...state.tabs], activePath: state.activePath }));
+        await writer.write(
+          JSON.stringify({
+            tabs: [...state.tabs],
+            activePath: state.activePath,
+            ...(state.commitMessage === undefined ? {} : { commitMessage: state.commitMessage })
+          })
+        );
         await writer.close();
       })
   };

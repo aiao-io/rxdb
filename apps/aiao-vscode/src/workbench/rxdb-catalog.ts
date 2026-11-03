@@ -33,12 +33,14 @@ export class WorkbenchProject extends EntityBase<string> {
   properties: [
     { name: 'tabs', type: PropertyType.stringArray, required: true },
     { name: 'activePath', type: PropertyType.string, required: false },
+    { name: 'commitMessage', type: PropertyType.string, required: false },
     { name: 'lastTouchedAt', type: PropertyType.number, required: true }
   ]
 })
 export class WorkbenchSessionState extends EntityBase<string> {
   tabs!: string[];
   activePath?: string;
+  commitMessage?: string;
   lastTouchedAt!: number;
 }
 
@@ -82,13 +84,18 @@ export function createRxDBWorkbenchCatalog(db: RxDB): WorkbenchCatalog {
     async getState(projectId) {
       const existing = await findState(projectId);
       if (!existing) return null;
-      return { tabs: [...existing.tabs], activePath: existing.activePath ?? null };
+      return {
+        tabs: [...existing.tabs],
+        activePath: existing.activePath ?? null,
+        commitMessage: existing.commitMessage
+      };
     },
     async putState(projectId, state) {
       const existing = await findState(projectId);
       const record = existing ?? db.entityManager.instantiate(WorkbenchSessionState, { id: projectId });
       record.tabs = [...state.tabs];
       record.activePath = state.activePath ?? undefined;
+      record.commitMessage = state.commitMessage;
       record.lastTouchedAt = Date.now();
       await record.save();
     }

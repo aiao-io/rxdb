@@ -84,3 +84,55 @@ export function confirmWorkbenchAction(
     cancel.focus();
   });
 }
+
+/** 三选一确认（如「保存并切换 / 放弃更改 / 取消」），返回 null 表示取消。 */
+export function requestWorkbenchChoice(
+  host: HTMLElement,
+  title: string,
+  description: string,
+  primaryLabel: string,
+  secondaryLabel: string
+): Promise<'primary' | 'secondary' | null> {
+  const previous = document.activeElement;
+  return new Promise(resolve => {
+    const dialog = document.createElement('dialog');
+    dialog.className = 'wb-dialog wb-confirm-dialog';
+    dialog.setAttribute('aria-label', title);
+    const heading = document.createElement('h3');
+    heading.textContent = title;
+    const detail = document.createElement('p');
+    detail.textContent = description;
+    const actions = document.createElement('div');
+    actions.className = 'wb-dialog-actions';
+    const secondary = document.createElement('button');
+    secondary.type = 'button';
+    secondary.textContent = secondaryLabel;
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.textContent = '取消';
+    const primary = document.createElement('button');
+    primary.type = 'button';
+    primary.textContent = primaryLabel;
+    primary.className = 'wb-primary';
+    let choice: 'primary' | 'secondary' | null = null;
+    secondary.onclick = () => {
+      choice = 'secondary';
+      dialog.close();
+    };
+    primary.onclick = () => {
+      choice = 'primary';
+      dialog.close();
+    };
+    cancel.onclick = () => dialog.close();
+    dialog.onclose = () => {
+      dialog.remove();
+      if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
+      resolve(choice);
+    };
+    actions.append(secondary, cancel, primary);
+    dialog.append(heading, detail, actions);
+    host.append(dialog);
+    dialog.showModal();
+    cancel.focus();
+  });
+}

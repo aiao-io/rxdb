@@ -17,12 +17,18 @@ export interface WorkbenchScmOptions {
   onDidChange(snapshot?: WorkbenchSnapshot, paths?: readonly string[]): void | Promise<void>;
   /** 用户点击刷新按钮时重新读取 Git 状态。 */
   onRefresh?(): void | Promise<void>;
+  /** 重开项目时回填上一次的提交说明。 */
+  getSavedMessage?(projectId: string): string | undefined;
+  /** 提交成功后上报说明，宿主据此持久化。 */
+  onCommitMessage?(projectId: string, message: string): void;
 }
 
 /** 宿主统一刷新状态，视图只负责明确的文件和提交动作。 */
 export interface WorkbenchScm {
   update(status: WorkbenchStatus): void;
   setBusy(busy: boolean): void;
+  /** 重开项目后回填持久化的提交说明。 */
+  restoreMessage(message: string): void;
   commit(): Promise<void>;
   dispose(): void;
 }
@@ -126,6 +132,24 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
   let repoBusy = false;
   let externalBusy = false;
   let disposed = false;
+  const commitHistory = new Map<string, string[]>();
+  let historyIndex = -1;
+
+  function historyFor(id: string): string[] {
+    const history = commitHistory.get(id);
+    if (history) return history;
+    const created: string[] = [];
+    commitHistory.set(id, created);
+    return created;
+  }
+
+  function replayHistory(direction: -1 | 1): void {
+    const history = historyFor(projectId ?? '');
+    if (!history.length) return;
+    historyIndex = Math.min(history.length - 1, Math.max(-1, historyIndex + direction));
+    message.value = historyIndex === -1 ? '' : history[history.length - 1 - historyIndex];
+    syncControls();
+  }
 
   function syncControls(): void {
     if (disposed) return;
@@ -180,10 +204,18 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
     if (!message.value.trim()) throw new Error('请填写提交说明');
     const original = message.value;
     const id = projectId;
+    if (!id) throw new Error('请先打开项目');
+    const trimmed = original.trim();
     await mutate(async current => {
-      await options.backend.commit(current, original.trim());
+      await options.backend.commit(current, trimmed);
     });
-    if (!disposed && projectId === id && message.value === original) message.value = '';
+    if (!disposed && projectId === id) {
+      const history = historyFor(id);
+      if (history.at(-1) !== trimmed) history.push(trimmed);
+      historyIndex = -1;
+      options.onCommitMessage?.(id, trimmed);
+      if (message.value === original) message.value = '';
+    }
     syncControls();
   }
 
@@ -307,6 +339,12 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
     launch(() => groupAction('staged'));
   };
   message.onkeydown = event => {
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      event.preventDefault();
+      event.stopPropagation();
+      replayHistory(event.key === 'ArrowUp' ? 1 : -1);
+      return;
+    }
     if (event.key !== 'Enter' || !(event.metaKey || event.ctrlKey)) return;
     event.preventDefault();
     event.stopPropagation();
@@ -322,7 +360,9 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
       projectId = state.projectId;
       generation++;
       status = null;
-      message.value = '';
+      historyIndex = -1;
+      message.value =
+        (projectId ? options.getSavedMessage?.(projectId) : undefined) ?? historyFor(projectId ?? '').at(-1) ?? '';
       render();
     } else syncControls();
   });
@@ -336,6 +376,12 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
     },
     setBusy(busy) {
       externalBusy = busy;
+      syncControls();
+    },
+    restoreMessage(value) {
+      if (disposed) return;
+      message.value = value;
+      historyIndex = -1;
       syncControls();
     },
     commit,

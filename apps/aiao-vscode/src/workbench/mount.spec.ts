@@ -72,7 +72,9 @@ function fixture(
     update: vi.fn(),
     replace: vi.fn(),
     dispose: disposeEditor,
-    runCommand: vi.fn(() => true)
+    runCommand: vi.fn(() => true),
+    setIndentUnit: vi.fn(),
+    setDiagnostics: vi.fn()
   };
   const mountEditor = vi.fn<WorkbenchEditorMount>(() => editorHandle);
   const compiler = {
@@ -561,6 +563,12 @@ describe('VS Code 风格工作台', () => {
     expect(problem?.textContent).toContain('src/main.ts:3:7');
     problem?.click();
     await vi.waitFor(() => expect(editorHandle.runCommand).toHaveBeenCalledWith('gotoLineAt', 3));
+    await vi.waitFor(() =>
+      expect(editorHandle.setDiagnostics).toHaveBeenCalledWith([{ line: 3, column: 7, message: 'Unexpected "const"' }])
+    );
+    handle.session.edit('src/main.ts', 'fixed');
+    await click(host, '[data-action="save"]');
+    await vi.waitFor(() => expect(editorHandle.setDiagnostics).toHaveBeenCalledWith([]));
     handle.dispose();
   });
 
@@ -605,6 +613,81 @@ describe('VS Code 风格工作台', () => {
     await vi.waitFor(() =>
       expect(host.querySelector('[data-log="problems"] .wb-panel-content')?.textContent).toContain('尚无问题')
     );
+    handle.dispose();
+  });
+
+  it('状态栏点击：转到行、切 Git 视图、缩进选择器应用到编辑器', async () => {
+    const { host, handle, editorHandle } = fixture();
+    await handle.ready;
+    await click(host, '[data-action="goto-line"]');
+    await vi.waitFor(() => expect(editorHandle.runCommand).toHaveBeenCalledWith('gotoLine'));
+    await click(host, '[data-action="show-scm"]');
+    await vi.waitFor(() => expect((host.querySelector('[data-slot="git-view"]') as HTMLElement)?.hidden).toBe(false));
+    await click(host, '[data-action="indent-picker"]');
+    await vi.waitFor(() => expect(host.querySelector('.wb-context-menu')).not.toBeNull());
+    const item = [...host.querySelectorAll<HTMLElement>('.wb-context-menu button')].find(button =>
+      button.textContent?.includes('4 个空格')
+    );
+    item?.click();
+    await vi.waitFor(() => expect(editorHandle.setIndentUnit).toHaveBeenCalledWith('    '));
+    expect(host.querySelector('[data-slot="indent"]')?.textContent).toBe('空格: 4');
+    handle.dispose();
+  });
+
+  it('提交消息随会话状态持久化并在重开时恢复', async () => {
+    const { host, handle, catalog } = fixture();
+    vi.mocked(catalog.getState).mockResolvedValue({
+      tabs: ['src/main.ts'],
+      activePath: 'src/main.ts',
+      commitMessage: '上次的提交说明'
+    });
+    await handle.ready;
+    await click(host, '[data-action="git"]');
+    const message = host.querySelector<HTMLTextAreaElement>('.wb-scm-commit-form textarea');
+    await vi.waitFor(() => expect(message?.value).toBe('上次的提交说明'));
+    handle.dispose();
+  });
+
+  it('切换项目遇到未保存缓冲时询问保存或放弃，取消保持不变', async () => {
+    const { host, handle, backend } = fixture(true, '/browser-workbench-assets/', undefined, [
+      { id: 'two', name: '第二个项目', template: 'vanilla' as const, entry: 'src/main.ts', updatedAt: 1 }
+    ]);
+    await handle.ready;
+    handle.session.edit('src/main.ts', 'draft');
+    const select = host.querySelector<HTMLSelectElement>('.wb-projects');
+    if (!select) throw new Error('项目选择器缺失');
+    const switchTo = (value: string): void => {
+      select.value = value;
+      select.dispatchEvent(new Event('change'));
+    };
+    const choose = async (label: string): Promise<void> => {
+      await vi.waitFor(() => expect(host.querySelector('dialog')).not.toBeNull());
+      const dialog = host.querySelector<HTMLDialogElement>('dialog');
+      const button = [...(dialog?.querySelectorAll('button') ?? [])].find(item => item.textContent === label);
+      if (!button) throw new Error(`缺少对话框按钮 ${label}`);
+      button.click();
+      await vi.waitFor(() => expect(host.querySelector('dialog')).toBeNull());
+    };
+    switchTo('two');
+    await choose('取消');
+    expect(handle.session.state.projectId).toBe('one');
+    expect(handle.session.state.dirty).toBe(true);
+    switchTo('two');
+    await choose('放弃更改');
+    await vi.waitFor(() => expect(handle.session.state.projectId).toBe('two'));
+    expect(handle.session.state.dirty).toBe(false);
+    handle.session.edit('src/main.ts', 'keep me');
+    switchTo('one');
+    await choose('保存并切换');
+    await vi.waitFor(() => expect(handle.session.state.projectId).toBe('one'));
+    expect(backend.save).toHaveBeenCalled();
+    handle.dispose();
+  });
+
+  it('控制台面板在无内容时显示空状态提示', async () => {
+    const { host, handle } = fixture();
+    await handle.ready;
+    expect(host.querySelector('[data-log="console"] .wb-panel-content')?.textContent).toContain('尚无控制台输出');
     handle.dispose();
   });
 
@@ -1005,7 +1088,11 @@ describe('VS Code 风格工作台', () => {
     if (!select) throw new Error('Project select missing');
     select.value = 'one';
     select.dispatchEvent(new Event('change'));
-    await vi.waitFor(() => expect(host.querySelector('.wb-panel-content')?.textContent).toContain('存在未保存'));
+    await vi.waitFor(() => expect(host.querySelector('dialog')).not.toBeNull());
+    const dialog = host.querySelector<HTMLDialogElement>('dialog');
+    [...(dialog?.querySelectorAll('button') ?? [])].find(item => item.textContent === '取消')?.click();
+    await vi.waitFor(() => expect(host.querySelector('dialog')).toBeNull());
+    expect(handle.session.state.projectId).toBe('one');
     expect(handle.session.state.files['src/main.ts']).toBe('unsaved');
     handle.dispose();
     const released = new Event('beforeunload', { cancelable: true });

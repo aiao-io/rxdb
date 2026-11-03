@@ -42,6 +42,35 @@ describe('Dockview 工作台布局', () => {
     expect(dock.api.getPanel('editor:main.ts')).toBeUndefined();
   });
 
+  it('编辑器标签右键菜单提供关闭、关闭其他与关闭右侧', async () => {
+    const { dock, callbacks } = fixture();
+    callbacks.onCloseOthers = vi.fn();
+    callbacks.onCloseRight = vi.fn();
+    dock.ensureEditor('first.ts');
+    dock.ensureEditor('second.ts');
+    dock.ensureEditor('third.ts');
+    const tab = document.querySelector<HTMLElement>('[data-editor-tab-path="second.ts"]');
+    if (!tab) throw new Error('编辑器标签缺失');
+    tab.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 120, clientY: 60 }));
+    const menu = document.querySelector<HTMLElement>('.wb-context-menu');
+    expect(menu).not.toBeNull();
+    const labels = [...(menu?.querySelectorAll('button') ?? [])].map(item => item.textContent);
+    expect(labels).toEqual(['关闭', '关闭其他', '关闭右侧']);
+    [...(menu?.querySelectorAll('button') ?? [])].find(item => item.textContent === '关闭其他')?.click();
+    await Promise.resolve();
+    expect(callbacks.onCloseOthers).toHaveBeenCalledWith('second.ts');
+    tab.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 120, clientY: 60 }));
+    const secondMenu = document.querySelector<HTMLElement>('.wb-context-menu');
+    [...(secondMenu?.querySelectorAll('button') ?? [])].find(item => item.textContent === '关闭右侧')?.click();
+    await Promise.resolve();
+    expect(callbacks.onCloseRight).toHaveBeenCalledWith('second.ts');
+    tab.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 120, clientY: 60 }));
+    document
+      .querySelector<HTMLElement>('.wb-context-menu')
+      ?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    expect(document.querySelector('.wb-context-menu')).toBeNull();
+  });
+
   it('辅助差异面板使用独立 id 与官方图标，选择不改变 Session 编辑器', () => {
     const { root, dock, callbacks } = fixture();
     const source = dock.ensureEditor('src/main.ts');

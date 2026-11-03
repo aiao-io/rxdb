@@ -15,6 +15,7 @@ import {
   type OnDestroy
 } from '@angular/core';
 import { selectLine } from '@codemirror/commands';
+import { setDiagnostics } from '@codemirror/lint';
 import { gotoLine } from '@codemirror/search';
 import { EditorSelection, Transaction } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
@@ -107,6 +108,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
         editor.setInput('label', '项目源码');
         editor.setInput('theme', 'dark');
         editor.setInput('indentWithTab', true);
+        editor.setInput('indentUnit', initial.indentUnit ?? '  ');
         const change = editor.instance.aoChange.subscribe(initial.onChange);
         const cursor = () => {
           const view = editor.instance.view!;
@@ -132,6 +134,29 @@ export class AppComponent implements AfterViewInit, OnDestroy {
           },
           layout: () => editor.instance.view?.requestMeasure(),
           focus: () => editor.instance.focus(),
+          setIndentUnit: unit => {
+            editor.setInput('indentUnit', unit);
+            editor.changeDetectorRef.detectChanges();
+          },
+          setDiagnostics: diagnostics => {
+            const view = editor.instance.view;
+            if (!view) return;
+            view.dispatch(
+              setDiagnostics(
+                view.state,
+                diagnostics.map(diagnostic => {
+                  const line = view.state.doc.line(Math.min(Math.max(1, diagnostic.line), view.state.doc.lines));
+                  const from = Math.min(line.to, line.from + Math.max(0, (diagnostic.column ?? 1) - 1));
+                  return {
+                    from,
+                    to: from === line.to ? from : Math.min(line.to, from + 1),
+                    severity: 'error',
+                    message: diagnostic.message
+                  } satisfies Parameters<typeof setDiagnostics>[1][number];
+                })
+              )
+            );
+          },
           runCommand: (command, argument) => {
             const view = editor.instance.view;
             if (!view) return false;

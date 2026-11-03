@@ -21,6 +21,10 @@ export interface WorkbenchDockviewCallbacks {
   onToggleTool?(visible: boolean): void;
   onClosePreview?(): void;
   onCloseAuxiliary?(id: string): void;
+  /** 标签右键菜单：关闭除该标签外的其他编辑器。 */
+  onCloseOthers?(path: string): void;
+  /** 标签右键菜单：关闭该标签右侧的编辑器。 */
+  onCloseRight?(path: string): void;
 }
 
 /** 三端共享的 Dockview 面板桥。编辑器与预览的业务生命周期由宿主负责。 */
@@ -62,7 +66,66 @@ function required(root: HTMLElement, selector: string): HTMLElement {
   return element;
 }
 
-function createTab(id: string, auxiliary: boolean) {
+let activeTabMenu: HTMLElement | null = null;
+
+const outsideTabMenu = (event: Event) => {
+  if (activeTabMenu && !(event.target instanceof Node && activeTabMenu.contains(event.target))) closeTabMenu();
+};
+
+function closeTabMenu(): void {
+  activeTabMenu?.remove();
+  activeTabMenu = null;
+  document.removeEventListener('mousedown', outsideTabMenu, true);
+}
+
+/** 编辑器标签的右键菜单：关闭 / 关闭其他 / 关闭右侧，与 VS Code 一致。 */
+function showTabMenu(
+  event: MouseEvent,
+  path: string,
+  close: () => void,
+  onCloseOthers?: (path: string) => void,
+  onCloseRight?: (path: string) => void
+): void {
+  event.preventDefault();
+  event.stopPropagation();
+  closeTabMenu();
+  const menu = document.createElement('div');
+  menu.className = 'wb-context-menu';
+  menu.setAttribute('role', 'menu');
+  const items: { label: string; action: () => void }[] = [
+    { label: '关闭', action: close },
+    ...(onCloseOthers ? [{ label: '关闭其他', action: () => onCloseOthers(path) }] : []),
+    ...(onCloseRight ? [{ label: '关闭右侧', action: () => onCloseRight(path) }] : [])
+  ];
+  for (const item of items) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.setAttribute('role', 'menuitem');
+    button.textContent = item.label;
+    button.onclick = () => {
+      closeTabMenu();
+      item.action();
+    };
+    menu.append(button);
+  }
+  menu.onkeydown = event => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      closeTabMenu();
+    }
+  };
+  document.body.append(menu);
+  menu.style.left = `${event.clientX}px`;
+  menu.style.top = `${event.clientY}px`;
+  const bounds = menu.getBoundingClientRect();
+  if (bounds.right > window.innerWidth) menu.style.left = `${Math.max(0, window.innerWidth - bounds.width - 4)}px`;
+  if (bounds.bottom > window.innerHeight) menu.style.top = `${Math.max(0, window.innerHeight - bounds.height - 4)}px`;
+  activeTabMenu = menu;
+  document.addEventListener('mousedown', outsideTabMenu, true);
+}
+
+function createTab(id: string, auxiliary: boolean, callbacks: WorkbenchDockviewCallbacks) {
   const element = document.createElement('div');
   element.className = 'wb-dock-tab';
   const path = editorPath(id);
@@ -103,6 +166,11 @@ function createTab(id: string, auxiliary: boolean) {
         event.preventDefault();
         parameters.api.close();
       });
+      if (path !== undefined) {
+        element.addEventListener('contextmenu', event =>
+          showTabMenu(event, path, () => parameters.api.close(), callbacks.onCloseOthers, callbacks.onCloseRight)
+        );
+      }
       const close = document.createElement('button');
       close.type = 'button';
       close.className = 'wb-dock-tab-close';
@@ -243,7 +311,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
         }
       };
     },
-    createTabComponent: options => createTab(options.id, auxiliaryIds.has(options.id)),
+    createTabComponent: options => createTab(options.id, auxiliaryIds.has(options.id), callbacks),
     createRightHeaderActionComponent: group => createGroupActions(group, splitPanel)
   });
 
@@ -544,6 +612,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
     dispose() {
       if (disposed) return;
       disposed = true;
+      closeTabMenu();
       subscriptions.splice(0).forEach(subscription => subscription.dispose());
       api.dispose();
       closing.clear();

@@ -11,7 +11,7 @@ import { WorkbenchSession, type WorkbenchBackend, type WorkbenchState, type Work
 import { angularTemplate, defaultAngularDemo } from './templates-angular.js';
 import { defaultFrontendDemos, frontendTemplates, type WorkbenchTemplate } from './templates.js';
 import { createWorkbenchCommands, type WorkbenchCommand } from './workbench-commands.js';
-import { confirmWorkbenchAction, requestWorkbenchText } from './workbench-dialog.js';
+import { confirmWorkbenchAction, requestWorkbenchChoice, requestWorkbenchText } from './workbench-dialog.js';
 import { createWorkbenchDiff, type WorkbenchDiffHandle } from './workbench-diff.js';
 import { createWorkbenchDockview } from './workbench-dockview.js';
 import { createCodicon, createFileIcon, folderCodicon } from './workbench-icons.js';
@@ -173,6 +173,9 @@ export function mountWorkbench(
   let persistedState = '';
   let persistChain: Promise<void> = Promise.resolve();
   let restoring = false;
+  let indentUnit = '  ';
+  const savedCommitMessages = new Map<string, string>();
+  const editorDiagnostics = new Map<string, { line: number; column?: number; message: string }[]>();
   const collapsedFolders = new Set<string>();
   const docking = createWorkbenchDockview(root, {
     onSelectEditor(path) {
@@ -190,6 +193,13 @@ export function mountWorkbench(
     onCloseAuxiliary(id) {
       diffs.get(id)?.view?.dispose();
       diffs.delete(id);
+    },
+    onCloseOthers(path) {
+      for (const tab of [...session.state.tabs]) if (tab !== path) closeEditorTab(tab);
+    },
+    onCloseRight(path) {
+      const tabs = session.state.tabs;
+      for (const tab of tabs.slice(tabs.indexOf(path) + 1)) closeEditorTab(tab);
     },
     onClosePreview() {
       preview?.dispose();
@@ -212,6 +222,11 @@ export function mountWorkbench(
     onError: report,
     onOpenDiff: openDiff,
     onRefresh: () => action(refreshGit),
+    getSavedMessage: id => savedCommitMessages.get(id),
+    onCommitMessage: (id, message) => {
+      savedCommitMessages.set(id, message);
+      persistState();
+    },
     async onDidChange(snapshot, paths) {
       if (snapshot && snapshot.projectId === session.state.projectId) {
         cancelCompilation();
@@ -233,6 +248,7 @@ export function mountWorkbench(
         scm.setBusy(phase === 'saving');
         renderStatus();
         renderActionState();
+        if (phase === 'idle') clearEditorDiagnostics();
       },
       onError: report
     }
@@ -423,10 +439,12 @@ export function mountWorkbench(
       if (targets?.length && !last.targets?.length) {
         logs[logs.length - 1] = { ...last, targets };
         renderLogs();
+        applyEditorDiagnostics(targets);
       }
       return;
     }
     log('problems', text, 'error', targets);
+    if (targets?.length) applyEditorDiagnostics(targets);
   }
   function cancelCompilation(): void {
     savePreview.cancel();
@@ -443,14 +461,19 @@ export function mountWorkbench(
     renderLogs();
   }
   function renderLogs(): void {
-    for (const kind of ['problems', 'output', 'console']) {
+    const emptyHints: Readonly<Record<'problems' | 'output' | 'console', string>> = {
+      problems: '尚无问题',
+      output: '尚无输出',
+      console: '尚无控制台输出'
+    };
+    for (const kind of ['problems', 'output', 'console'] as const) {
       const content = logContents.get(kind)!;
       content.replaceChildren();
       const entries = logs.filter(item => item.kind === kind);
-      if (!entries.length && kind === 'problems') {
+      if (!entries.length) {
         const empty = document.createElement('p');
         empty.className = 'wb-log-empty';
-        empty.textContent = '尚无问题';
+        empty.textContent = emptyHints[kind];
         content.append(empty);
       }
       for (const item of entries) {
@@ -478,6 +501,21 @@ export function mountWorkbench(
     }
     element('[data-slot="problem-count"]').textContent = String(logs.filter(item => item.kind === 'problems').length);
   }
+  /** 编译失败后把诊断落到对应编辑器（未打开的文件在打开时补挂），成功预览后整体清除。 */
+  function applyEditorDiagnostics(targets: readonly WorkbenchDiagnostic[]): void {
+    editorDiagnostics.clear();
+    for (const target of targets) {
+      if (!target.file || target.line === undefined) continue;
+      const list = editorDiagnostics.get(target.file) ?? [];
+      list.push({ line: target.line, column: target.column, message: target.message });
+      editorDiagnostics.set(target.file, list);
+    }
+    for (const [path, editor] of editors) editor.handle.setDiagnostics?.(editorDiagnostics.get(path) ?? []);
+  }
+  function clearEditorDiagnostics(): void {
+    editorDiagnostics.clear();
+    for (const editor of editors.values()) editor.handle.setDiagnostics?.([]);
+  }
   function openDiagnostic(target: WorkbenchDiagnostic): void {
     if (!target.file || !Object.hasOwn(session.state.files, target.file)) {
       log('output', target.file ? `问题指向的文件不在项目中：${target.file}` : '该问题没有可定位的文件');
@@ -503,15 +541,26 @@ export function mountWorkbench(
     if (!project) throw new Error('请先新建或打开项目');
     return project.id;
   }
-  /** 标签或活动文件变化时串行落库，重开项目时恢复；初始恢复期间不写库。 */
+  /** 标签、活动文件或提交说明变化时串行落库，重开项目时恢复；初始恢复期间不写库。 */
   function persistState(): void {
     const id = session.state.projectId;
     if (!id || restoring) return;
-    const snapshot = JSON.stringify([id, session.state.tabs, session.state.activePath]);
+    const snapshot = JSON.stringify([
+      id,
+      session.state.tabs,
+      session.state.activePath,
+      savedCommitMessages.get(id) ?? ''
+    ]);
     if (snapshot === persistedState) return;
     persistedState = snapshot;
     persistChain = persistChain
-      .then(() => catalog.putState(id, { tabs: [...session.state.tabs], activePath: session.state.activePath }))
+      .then(() =>
+        catalog.putState(id, {
+          tabs: [...session.state.tabs],
+          activePath: session.state.activePath,
+          commitMessage: savedCommitMessages.get(id) || undefined
+        })
+      )
       .catch(report);
   }
   async function refreshGit(): Promise<void> {
@@ -571,6 +620,20 @@ export function mountWorkbench(
   async function openProject(id: string): Promise<void> {
     const next = projects.find(item => item.id === id);
     if (!next) throw new Error('项目不在目录中');
+    if (session.state.dirty) {
+      const choice = await requestWorkbenchChoice(
+        root,
+        '切换项目',
+        '当前项目存在未保存的更改。',
+        '保存并切换',
+        '放弃更改'
+      );
+      if (disposed) return;
+      if (choice === null) return;
+      if (choice === 'primary') await savePreview.save();
+      else session.discard();
+      if (session.state.dirty) throw new Error('保存期间内容发生变化，请重新切换项目');
+    }
     cancelCompilation();
     restoring = true;
     try {
@@ -578,11 +641,20 @@ export function mountWorkbench(
       if (disposed || session.state.projectId !== id) return;
       const saved = await catalog.getState(id).catch(() => null);
       if (disposed || session.state.projectId !== id) return;
-      if (saved) session.restoreTabs(saved.tabs, saved.activePath);
+      savedCommitMessages.set(id, saved?.commitMessage ?? '');
+      if (saved) {
+        session.restoreTabs(saved.tabs, saved.activePath);
+        if (saved.commitMessage) scm.restoreMessage(saved.commitMessage);
+      }
     } finally {
       restoring = false;
     }
-    persistedState = JSON.stringify([id, session.state.tabs, session.state.activePath]);
+    persistedState = JSON.stringify([
+      id,
+      session.state.tabs,
+      session.state.activePath,
+      savedCommitMessages.get(id) ?? ''
+    ]);
     const opened = { ...next, updatedAt: Date.now() };
     project = opened;
     projects = projects.map(item => (item.id === id ? opened : item));
@@ -780,8 +852,11 @@ export function mountWorkbench(
     contextMenu = null;
   }
 
-  function showContextMenu(event: MouseEvent, entries: readonly { label: string; action: () => void }[]): void {
-    event.preventDefault();
+  function showContextMenu(
+    position: { x: number; y: number },
+    entries: readonly { label: string; action: () => void }[],
+    anchor?: HTMLElement
+  ): void {
     closeContextMenu();
     const menu = document.createElement('div');
     menu.className = 'wb-context-menu';
@@ -805,15 +880,26 @@ export function mountWorkbench(
       }
     };
     root.append(menu);
-    menu.style.left = `${event.clientX}px`;
-    menu.style.top = `${event.clientY}px`;
+    menu.style.left = `${position.x}px`;
+    menu.style.top = `${position.y}px`;
     const bounds = menu.getBoundingClientRect();
     const viewport = root.ownerDocument.defaultView;
+    if (anchor) {
+      const rectangle = anchor.getBoundingClientRect();
+      menu.style.top = `${Math.max(0, rectangle.top - bounds.height - 2)}px`;
+    }
     if (viewport && bounds.right > viewport.innerWidth)
       menu.style.left = `${Math.max(0, viewport.innerWidth - bounds.width - 4)}px`;
     if (viewport && bounds.bottom > viewport.innerHeight)
       menu.style.top = `${Math.max(0, viewport.innerHeight - bounds.height - 4)}px`;
     contextMenu = menu;
+  }
+
+  /** 状态栏缩进选择器：应用到全部打开的编辑器（VS Code 的设置级行为）。 */
+  function applyIndentUnit(unit: string): void {
+    indentUnit = unit;
+    element('[data-slot="indent"]').textContent = `空格: ${unit.length}`;
+    for (const editor of editors.values()) editor.handle.setIndentUnit?.(unit);
   }
 
   tree.addEventListener('keydown', event => {
@@ -883,6 +969,7 @@ export function mountWorkbench(
   });
   tree.addEventListener('contextmenu', event => {
     if (creatingFile || renamingPath) return;
+    event.preventDefault();
     const row = event.target instanceof Element ? event.target.closest<HTMLElement>('button[data-tree-path]') : null;
     const targetPath = row?.dataset['treePath'] ?? null;
     if (targetPath) {
@@ -897,7 +984,7 @@ export function mountWorkbench(
           { label: '删除', action: () => deletePath(targetPath) }
         ]
       : [{ label: '新建文件', action: () => operations['new-file']() }];
-    showContextMenu(event, entries);
+    showContextMenu({ x: event.clientX, y: event.clientY }, entries);
   });
   root.addEventListener('mousedown', event => {
     if (contextMenu && !(event.target instanceof Node && contextMenu.contains(event.target))) closeContextMenu();
@@ -947,6 +1034,7 @@ export function mountWorkbench(
         const handle = mountEditor(parent, {
           value,
           language: languageFor(path),
+          indentUnit,
           onChange: content => session.edit(path, content),
           onCursor: (line, column) => {
             element('[data-slot="cursor"]').textContent = `行 ${line}，列 ${column}`;
@@ -954,6 +1042,7 @@ export function mountWorkbench(
         });
         editor = { host: parent, handle };
         editors.set(path, editor);
+        handle.setDiagnostics?.(editorDiagnostics.get(path) ?? []);
         queueMicrotask(() => {
           if (!disposed) handle.layout?.();
         });
@@ -1157,6 +1246,19 @@ export function mountWorkbench(
     commit: () => scm.commit(),
     format: formatSource,
     'goto-line': () => editorCommand('gotoLine'),
+    'show-scm': () => switchSide('git', true),
+    'indent-picker': () => {
+      const target = element('[data-slot="indent"]');
+      showContextMenu(
+        { x: target.getBoundingClientRect().left, y: target.getBoundingClientRect().top },
+        [
+          { label: '2 个空格', action: () => applyIndentUnit('  ') },
+          { label: '4 个空格', action: () => applyIndentUnit('    ') },
+          { label: '8 个空格', action: () => applyIndentUnit('        ') }
+        ],
+        target
+      );
+    },
     'select-line': () => editorCommand('selectLine'),
     'insert-line-above': () => editorCommand('insertLineAbove'),
     'clear-logs': () => {
