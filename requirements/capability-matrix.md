@@ -58,7 +58,7 @@
 `apps/aiao-vscode` 是 Angular 单应用形态的 VS Code 风格本地开发工作台：OPFS Git、受控编译、
 隔离预览和带历史导出，宿主与模板独立（同一应用运行 vanilla TS、React TSX、Vue SFC、Angular
 standalone 四类模板）。当前支持桌面 Chromium 的 JSPI / credentialless 能力组合，项目文件不随
-数据库备份或复制。范围与验收以应用内 [US-404](../../apps/aiao-vscode/requirements/stories/US-404-browser-development-workbench.md) 为准。
+数据库备份或复制。范围与验收以应用内 [US-404](../apps/aiao-vscode/requirements/stories/US-404-browser-development-workbench.md) 为准。
 
 ## 适配器能力对比
 
