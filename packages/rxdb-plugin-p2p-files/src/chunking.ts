@@ -1,6 +1,7 @@
 /** P2P 文件清单与分块校验原语。 */
 
 import { createSha256, sha256Hex } from '@aiao/rxdb';
+import { MAX_P2P_FRAME_PAYLOAD } from './session/limits.js';
 
 /** 文件清单；清单一旦发布，`chunkSize` 与 `chunkHashes` 不得再改写。 */
 export interface P2PFileManifest {
@@ -37,8 +38,8 @@ export interface P2PChunkDescriptor {
 /** 默认 48 KiB：一块加帧元数据放得进一条 64 KiB 的 DataChannel 消息，不必分片。 */
 export const DEFAULT_P2P_CHUNK_SIZE = 48 * 1024;
 
-/** 清单允许的最大块大小；超过 DataChannel 单条消息上限的块由传输层分片发送。 */
-export const MAX_P2P_CHUNK_SIZE = 1024 * 1024;
+/** 清单允许的最大块大小，等于会话帧的负载上限；超过 DataChannel 单条消息上限的块由传输层分片发送。 */
+export const MAX_P2P_CHUNK_SIZE = MAX_P2P_FRAME_PAYLOAD;
 
 const HEX_BYTE = Array.from({ length: 256 }, (_, byte) => byte.toString(16).padStart(2, '0'));
 

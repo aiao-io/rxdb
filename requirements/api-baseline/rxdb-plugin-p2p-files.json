@@ -22,7 +22,11 @@
         "kind": "value"
       },
       {
-        "name": "createP2PTransportPeer",
+        "name": "createP2PFilesProtocol",
+        "kind": "value"
+      },
+      {
+        "name": "createP2PFilesSource",
         "kind": "value"
       },
       {
@@ -90,11 +94,31 @@
         "kind": "value"
       },
       {
+        "name": "openP2PSession",
+        "kind": "value"
+      },
+      {
         "name": "P2P_FILE_MANIFEST_ENTITY",
         "kind": "value"
       },
       {
+        "name": "P2P_FILES_PROTOCOL",
+        "kind": "value"
+      },
+      {
+        "name": "P2P_FILES_PROTOCOL_VERSION",
+        "kind": "value"
+      },
+      {
+        "name": "P2P_SESSION_VERSION",
+        "kind": "value"
+      },
+      {
         "name": "P2PByteTransport",
+        "kind": "type"
+      },
+      {
+        "name": "P2PCall",
         "kind": "type"
       },
       {
@@ -107,6 +131,10 @@
       },
       {
         "name": "P2PChunkSource",
+        "kind": "type"
+      },
+      {
+        "name": "P2PContentLookup",
         "kind": "type"
       },
       {
@@ -130,15 +158,35 @@
         "kind": "both"
       },
       {
+        "name": "P2PFilesAuthorizeContext",
+        "kind": "type"
+      },
+      {
+        "name": "P2PFilesProtocolOptions",
+        "kind": "type"
+      },
+      {
         "name": "P2PFrame",
         "kind": "type"
       },
       {
-        "name": "P2PHandshakeRequest",
+        "name": "P2PHandlerResult",
         "kind": "type"
       },
       {
-        "name": "P2PHandshakeResult",
+        "name": "P2PInboundRequest",
+        "kind": "type"
+      },
+      {
+        "name": "P2PJsonObject",
+        "kind": "type"
+      },
+      {
+        "name": "P2PJsonValue",
+        "kind": "type"
+      },
+      {
+        "name": "P2PLocalContent",
         "kind": "type"
       },
       {
@@ -158,15 +206,55 @@
         "kind": "type"
       },
       {
+        "name": "P2PPeerIdentity",
+        "kind": "type"
+      },
+      {
+        "name": "P2PPeerSession",
+        "kind": "type"
+      },
+      {
         "name": "P2PPrincipal",
         "kind": "type"
       },
       {
-        "name": "P2PRequestContext",
+        "name": "P2PProtocol",
         "kind": "type"
       },
       {
+        "name": "P2PReply",
+        "kind": "type"
+      },
+      {
+        "name": "P2PRequestError",
+        "kind": "both"
+      },
+      {
         "name": "P2PServerFallback",
+        "kind": "type"
+      },
+      {
+        "name": "P2PSessionCloseCode",
+        "kind": "type"
+      },
+      {
+        "name": "P2PSessionClosedError",
+        "kind": "both"
+      },
+      {
+        "name": "P2PSessionOptions",
+        "kind": "type"
+      },
+      {
+        "name": "P2PSessionRegistry",
+        "kind": "both"
+      },
+      {
+        "name": "P2PSessionRole",
+        "kind": "type"
+      },
+      {
+        "name": "P2PSessionState",
         "kind": "type"
       },
       {
@@ -198,16 +286,12 @@
         "kind": "type"
       },
       {
-        "name": "P2PTransportPeer",
-        "kind": "type"
-      },
-      {
-        "name": "P2PTransportPeerOptions",
-        "kind": "type"
-      },
-      {
         "name": "P2PWebRTCTransportOptions",
         "kind": "type"
+      },
+      {
+        "name": "peerIdentityKey",
+        "kind": "value"
       },
       {
         "name": "rxDBPluginP2PFiles",
@@ -231,10 +315,6 @@
       },
       {
         "name": "transferP2PFile",
-        "kind": "value"
-      },
-      {
-        "name": "validateHandshake",
         "kind": "value"
       },
       {

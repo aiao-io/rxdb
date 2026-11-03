@@ -9,9 +9,9 @@ import {
   isP2PManifestRecord,
   manifestId,
   P2PManifestStore,
-  type P2PManifestRecord,
-  type P2PPrincipal
+  type P2PManifestRecord
 } from '../manifest.js';
+import type { P2PPrincipal } from '../session/identity.js';
 
 const laptop: P2PPrincipal = { principal: 'user-a', deviceId: 'laptop' };
 const desktop: P2PPrincipal = { principal: 'user-a', deviceId: 'desktop' };

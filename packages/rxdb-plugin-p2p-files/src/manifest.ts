@@ -1,5 +1,6 @@
 import { sha256Hex } from '@aiao/rxdb';
 import { createP2PFileManifest, MAX_P2P_CHUNK_SIZE, type P2PFileManifest } from './chunking.js';
+import type { P2PPrincipal } from './session/identity.js';
 
 /** 同步层使用的文件清单实体名。 */
 export const P2P_FILE_MANIFEST_ENTITY = 'P2PFileManifest' as const;
@@ -18,14 +19,6 @@ export interface P2PManifestRecord extends P2PFileManifest {
   readonly holderId: string;
   /** 持有方写入时刻（epoch 毫秒，持有方时钟）；只用于同一持有者的新旧比较，不与本机时钟比较。 */
   readonly updatedAt: number;
-}
-
-/** 认证宿主验证过的用户与设备。 */
-export interface P2PPrincipal {
-  /** 认证主体（用户）标识。 */
-  readonly principal: string;
-  /** 认证宿主为该用户登记的设备标识；同一用户的不同设备各自持有、各自撤回。 */
-  readonly deviceId: string;
 }
 
 type RecordFields = Partial<Record<keyof P2PManifestRecord, unknown>>;

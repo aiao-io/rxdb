@@ -1,8 +1,8 @@
 /** 适配器与会话共用的等待队列原语；不从包入口导出。 */
-import { MAX_FRAME_SIZE, MAX_P2P_BUFFERED_CHUNKS } from './limits.js';
+import { MAX_FRAME_SIZE, MAX_QUEUED_FRAMES } from './limits.js';
 
 /** 接收队列里尚未取走的字节上限，挡住只发不读的对端。 */
-const MAX_QUEUED_BYTES = MAX_P2P_BUFFERED_CHUNKS * MAX_FRAME_SIZE;
+const MAX_QUEUED_BYTES = MAX_QUEUED_FRAMES * MAX_FRAME_SIZE;
 
 /** 一个待兑现的等待者。 */
 export interface Deferred<T> {

@@ -3789,7 +3789,7 @@
       }
     ]
   },
-  "digest": "86077a55c77d5917bf9092f3b9b81312c64bf3a4c001bfa0399fabb3a577c6b4",
+  "digest": "4a1846bba7dd5535a1404e709474b47c7a9f889bf6bf2bc623a79fd1751b48dd",
   "sample": {
     "compilerOptions": {
       "experimentalDecorators": true,

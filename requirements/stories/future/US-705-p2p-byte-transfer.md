@@ -67,7 +67,7 @@ tags: [p2p, webrtc, tcp, chunking, integrity]
 ## 实现文件
 
 - `packages/rxdb-plugin-p2p-files/src/` — 传输层所在包（协议层已实现，宿主接入与验收待做）
-  - `chunking.ts` / `frame.ts` — 分块、逐块校验与块协议帧格式（阶段 A 冻结，阶段 B 复用）
-  - `transfer.ts` / `transport.ts` — 续传、多源调度与同一通道上的双向块请求会话
-  - `webrtc-transport.ts` — 浏览器 DataChannel 通道与分片重组（阶段 A）
-  - `tcp-transport.ts` — 桌面 TLS TCP 通道（阶段 B）
+  - `chunking.ts` / `session/frame.ts` — 分块、逐块校验与会话帧格式（阶段 A 冻结，阶段 B 复用）
+  - `transfer.ts` / `files-protocol.ts` — 续传、多源调度，以及会话上的双向块请求（files 协议，会话层见 [US-708](US-708-p2p-peer-session.md)）
+  - `session/webrtc-transport.ts` — 浏览器 DataChannel 通道与分片重组（阶段 A）
+  - `session/tcp-transport.ts` — 桌面 TLS TCP 通道（阶段 B）

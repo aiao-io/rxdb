@@ -8,16 +8,16 @@
 | 状态           | 数量 |
 | :------------- | :--- |
 | ✅ Done        | 89   |
-| 🚧 In Progress | 8    |
+| 🚧 In Progress | 9    |
 | 👀 In Review   | 9    |
-| 📝 Backlog     | 28   |
+| 📝 Backlog     | 27   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 134  |
 
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
 
-## 进行中（8 条）
+## 进行中（9 条）
 
 | Story                                                                                                       | 剩余范围                                                           |
 | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
@@ -214,7 +214,7 @@ US-704～US-707 已获 owner 授权，US-708 会话层由 owner 决定在 PR #17
 - 🚧 [US-705 P2P 字节传输](stories/future/US-705-p2p-byte-transfer.md)
 - 🚧 [US-706 服务器兜底与认证](stories/future/US-706-p2p-fallback-auth.md)
 - ⬜ [US-707 跨运行时 demo 与多实例 e2e](stories/future/US-707-p2p-cross-runtime-e2e.md)
-- ⬜ [US-708 P2P 会话层：一对设备一条会话、多协议复用](stories/future/US-708-p2p-peer-session.md)
+- 🚧 [US-708 P2P 会话层：一对设备一条会话、多协议复用](stories/future/US-708-p2p-peer-session.md)
 
 ### [P2P 会话与局域网协作](epics/epic-012-p2p-lan-collaboration.md)
 

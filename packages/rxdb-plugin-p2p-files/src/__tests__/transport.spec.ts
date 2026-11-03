@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { createTcpTransport, type P2PTcpSocketLike } from '../tcp-transport.js';
-import { createWebRTCTransport, type P2PDataChannelEvent, type P2PDataChannelLike } from '../webrtc-transport.js';
+import { createTcpTransport, type P2PTcpSocketLike } from '../session/tcp-transport.js';
+import {
+  createWebRTCTransport,
+  type P2PDataChannelEvent,
+  type P2PDataChannelLike
+} from '../session/webrtc-transport.js';
 
 /** 监听器参数按逆变比较：`never` 让各个事件签名都能登记进同一张表，派发时再按 unknown 调用。 */
 type SocketListener = (value: never) => void;

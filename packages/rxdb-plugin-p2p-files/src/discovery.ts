@@ -1,5 +1,5 @@
 import type { P2PFileManifest } from './chunking.js';
-import { deriveHolderId, type P2PManifestRecord, type P2PManifestStore, type P2PPrincipal } from './manifest.js';
+import type { P2PManifestRecord, P2PManifestStore } from './manifest.js';
 
 /** 服务器信令只转发已认证的 SDP/ICE，不参与字节传输。 */
 export interface P2PSignalingChannel {
@@ -26,58 +26,13 @@ export type P2PSignalingMessage =
       readonly type: 'reject';
       /** 被拒绝的连接标识。 */
       readonly connectionId: string;
-      /** 通用拒绝原因，不泄露清单细节。 */
-      readonly reason: 'unauthorized' | 'not_holder' | 'expired';
+      /**
+       * 通用拒绝原因，不泄露清单细节。
+       *
+       * 连接只认身份；对端是否持有某内容在会话建立后逐请求回答（files 协议的 `not_holder`）。
+       */
+      readonly reason: 'unauthorized' | 'expired';
     };
-
-/** 请求方发起握手时提交的身份与目标内容。 */
-export interface P2PHandshakeRequest {
-  /** 本次连接的标识；token 必须绑定到它。 */
-  readonly connectionId: string;
-  /** 请求的内容哈希。 */
-  readonly contentHash: string;
-  /** 宣称持有该内容的持有者 ID。 */
-  readonly holderId: string;
-  /** 认证宿主签发、绑定到本连接的凭据。 */
-  readonly token: string;
-}
-
-/** 握手通过后的连接身份。 */
-export interface P2PHandshakeResult {
-  /** 本次连接的标识。 */
-  readonly connectionId: string;
-  /** 本次连接传输的内容哈希。 */
-  readonly contentHash: string;
-  /** 已验证的持有者 ID。 */
-  readonly holderId: string;
-}
-
-/**
- * 校验握手身份和持有声明；对未认证方只返回通用拒绝，避免泄露清单细节。
- *
- * @remarks
- * `authenticate` 拿到本次连接的 `connectionId` 与 `contentHash`：认证宿主必须校验 token 是为这条连接签发的，
- * 否则截获的 token 可以被重放到别的连接上。它返回已验证的用户与设备，holderId 由二者派生后与请求比对。
- */
-export const validateHandshake = async (
-  request: P2PHandshakeRequest,
-  options: {
-    readonly authenticate: (
-      token: string,
-      context: Pick<P2PHandshakeRequest, 'connectionId' | 'contentHash'>
-    ) => Promise<P2PPrincipal | null>;
-    readonly manifests: P2PManifestStore;
-  }
-): Promise<P2PHandshakeResult> => {
-  const principal = await options.authenticate(request.token, {
-    connectionId: request.connectionId,
-    contentHash: request.contentHash
-  });
-  if (!principal || deriveHolderId(principal) !== request.holderId) throw new Error('peer is not authorized');
-  const record = options.manifests.findHolders(request.contentHash).find(item => item.holderId === request.holderId);
-  if (!record) throw new Error('peer does not hold requested content');
-  return { connectionId: request.connectionId, contentHash: request.contentHash, holderId: request.holderId };
-};
 
 /** mDNS/TCP 运行时可调用的发现接缝；浏览器实现改用 signaling。 */
 export interface P2PPeerDiscovery {

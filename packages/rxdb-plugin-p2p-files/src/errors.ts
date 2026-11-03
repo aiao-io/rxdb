@@ -20,6 +20,3 @@ export class P2PTransferError extends Error {
     this.retryable = options?.retryable ?? true;
   }
 }
-
-/** 把任意拒绝原因规整成 Error，供首个失败原因的保留与转发使用。 */
-export const asError = (error: unknown): Error => (error instanceof Error ? error : new Error(String(error)));

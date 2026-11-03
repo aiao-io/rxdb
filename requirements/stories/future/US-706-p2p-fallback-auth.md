@@ -58,5 +58,6 @@ epic-011 已由 owner 解锁；认证部分依赖 US-704 选定的真实认证�
 
 - `packages/rxdb-plugin-p2p-files/src/fallback.ts` — 显式选路与服务器回退：响应字节流按清单逐块校验后落盘，不整体载入文件
 - `packages/rxdb-plugin-p2p-files/src/transfer.ts` — 坏块换源与坏 peer 退避
-- `packages/rxdb-plugin-p2p-files/src/transport.ts` / `src/tcp-transport.ts` — 入站请求认证钩子；桌面通道默认拒绝非 TLS socket
+- `packages/rxdb-plugin-p2p-files/src/session/session.ts` / `src/files-protocol.ts` — 会话级认证（hello 阶段对未认证方只回通用拒绝）与 files 协议的逐请求授权
+- `packages/rxdb-plugin-p2p-files/src/session/tcp-transport.ts` — 桌面通道默认拒绝非 TLS socket
 - 认证宿主、服务端授权与信令中转路由待 US-704 选定宿主后接入

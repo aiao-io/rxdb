@@ -27,7 +27,8 @@
     "access": "public"
   },
   "dependencies": {
-    "@aiao/utils": "workspace:^"
+    "@aiao/utils": "workspace:^",
+    "rxjs": "^7.8.2"
   },
   "peerDependencies": {
     "@aiao/rxdb": "workspace:^"
