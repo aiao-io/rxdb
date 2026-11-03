@@ -1981,7 +1981,11 @@ export function mountWorkbench(
     projects = (await catalog.list()).toSorted((left, right) => right.updatedAt - left.updatedAt);
     if (disposed) return;
     renderProjects();
-    const initial = options.initialProjectId;
+    // 没有显式指定时恢复上次的会话：最近项目带会话状态（曾被打开过）就直接打开，
+    // 全新目录或只有未打开过的新条目时停留在欢迎视图。
+    const recent = projects[0];
+    const restorable = recent ? (await catalog.getState(recent.id).catch(() => null)) !== null : false;
+    const initial = options.initialProjectId ?? (restorable ? recent.id : null);
     if (initial) await openProject(initial);
   })()
     .catch(report)
