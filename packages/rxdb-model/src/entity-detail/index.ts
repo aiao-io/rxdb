@@ -4,4 +4,5 @@
  * @module entity-detail
  */
 export * from './detail-tabs.js';
+export * from './headless.js';
 export * from './interfaces.js';

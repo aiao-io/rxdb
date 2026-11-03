@@ -123,6 +123,11 @@ const router = createRouter({
       component: () => import('../pages/entities/EntityDetailPage.vue')
     },
     {
+      path: '/headless',
+      name: 'headless',
+      component: () => import('../pages/headless/HeadlessPage.vue')
+    },
+    {
       path: '/generator',
       name: 'generator',
       component: () => import('../pages/GeneratorPage.vue')

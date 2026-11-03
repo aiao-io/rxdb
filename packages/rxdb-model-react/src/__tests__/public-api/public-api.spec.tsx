@@ -46,6 +46,21 @@ describe('rxdb-model-react 公开 API 面对称', () => {
     expect(api.EntityTableConfigProvider).toBeTypeOf('function');
   });
 
+  it('Headless 状态绑定按实体能力完整导出', () => {
+    expect(api.useEntityForm).toBeTypeOf('function');
+    expect(api.useEntityFormHeadless).toBe(api.useEntityForm);
+    expect(api.useQueryBuilder).toBeTypeOf('function');
+    expect(api.useQueryBuilderHeadless).toBe(api.useQueryBuilder);
+    expect(api.useEntityList).toBeTypeOf('function');
+    expect(api.useEntityListHeadless).toBe(api.useEntityList);
+    expect(api.useEntityDetail).toBeTypeOf('function');
+    expect(api.useEntityDetailHeadless).toBe(api.useEntityDetail);
+    expect(api.useEntityDialog).toBeTypeOf('function');
+    expect(api.useEntityDialogHeadless).toBe(api.useEntityDialog);
+    expect(api.useQueryTable).toBeTypeOf('function');
+    expect(api.useQueryTableHeadless).toBe(api.useQueryTable);
+  });
+
   it('类名工具 cn 透传核心包', () => {
     expect(api.cn('a', 'b')).toBe('a b');
     expect(api.cn('a', undefined, 'b')).toBe('a b');

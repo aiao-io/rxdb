@@ -124,6 +124,10 @@ export const routes: RouteObject[] = [
         lazy: lazyRoute(() => import('./pages/entities/entity-detail-page'))
       },
       {
+        path: 'headless',
+        lazy: lazyRoute(() => import('./pages/headless/headless.page'))
+      },
+      {
         path: 'generator',
         lazy: lazyRoute(() => import('./pages/generator'))
       },
