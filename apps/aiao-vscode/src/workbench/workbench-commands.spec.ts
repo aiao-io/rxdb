@@ -8,7 +8,7 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-function fixture() {
+function fixture(recent: readonly string[] = []) {
   const root = document.createElement('section');
   root.className = 'ao-workbench';
   root.innerHTML =
@@ -58,6 +58,7 @@ function fixture() {
   const error = vi.fn();
   const service = createWorkbenchCommands(root, {
     getFiles: () => ['src/main.ts', 'src/components/Counter.tsx', 'README.md', '<img src=x>.txt'],
+    getRecentPaths: () => recent,
     openFile: open,
     getCommands: () => commands,
     getActivePath: () => 'src/main.ts',
@@ -112,6 +113,29 @@ describe('VS Code 文件与命令快捷入口', () => {
     key(input(), 'Enter');
     await vi.waitFor(() => expect(runs['resetLayout']).toHaveBeenCalledOnce());
     expect(runs['save']).not.toHaveBeenCalled();
+  });
+
+  it('模糊子序列匹配并高亮命中片段', () => {
+    const { root, editor, input, key } = fixture();
+    key(editor, 'p', { ctrlKey: true });
+    input().value = 'mts';
+    input().dispatchEvent(new Event('input', { bubbles: true }));
+    const options = [...root.querySelectorAll('[role="option"]')];
+    expect(options).toHaveLength(2);
+    expect(options[0]?.querySelector('.wb-quick-input-label')?.textContent).toBe('main.ts');
+    expect(options[0]?.querySelector('.wb-quick-input-match')).not.toBeNull();
+    input().value = 'zzz';
+    input().dispatchEvent(new Event('input', { bubbles: true }));
+    expect(root.querySelectorAll('[role="option"]')).toHaveLength(0);
+  });
+
+  it('空查询按最近打开的标签排序', () => {
+    const { root, editor, input, key } = fixture(['README.md', 'src/main.ts']);
+    key(editor, 'p', { ctrlKey: true });
+    const options = [...root.querySelectorAll('[role="option"]')];
+    const index = (name: string) => options.findIndex(option => option.textContent?.includes(name));
+    expect(index('main.ts')).toBe(0);
+    expect(index('README.md')).toBe(1);
   });
 
   it('文件名只作为文本显示，没有结果时 Enter 不执行动作', () => {

@@ -684,6 +684,45 @@ describe('VS Code 风格工作台', () => {
     handle.dispose();
   });
 
+  it('侧栏重命名与删除作用于树选中项而非活动编辑器', async () => {
+    const { host, handle, backend } = fixture();
+    await handle.ready;
+    const tree = host.querySelector<HTMLElement>('[data-slot="files"]');
+    if (!tree) throw new Error('文件树缺失');
+    // 树导航选中 src/label.ts（同时打开它），再把活动文件切回 main.ts
+    tree
+      .querySelector<HTMLElement>('[data-tree-path]')
+      ?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true, cancelable: true }));
+    tree
+      .querySelector<HTMLElement>('[data-tree-path]')
+      ?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(handle.session.state.activePath).toBe('src/label.ts'));
+    handle.session.select('src/main.ts');
+    await vi.waitFor(() => expect(handle.session.state.activePath).toBe('src/main.ts'));
+    await click(host, '[data-action="rename"]');
+    await inlineInput(host, 'moved.ts');
+    await vi.waitFor(() => expect(backend.rename).toHaveBeenCalledWith('one', 'src/label.ts', 'src/moved.ts'));
+    handle.dispose();
+  });
+
+  it('编辑器右键菜单提供格式化、转到行与命令面板', async () => {
+    const { host, handle, editorHandle } = fixture();
+    await handle.ready;
+    await vi.waitFor(() => expect(host.querySelector('.wb-editor-host[data-editor-path]')).not.toBeNull());
+    const editorHost = host.querySelector<HTMLElement>('.wb-editor-host');
+    editorHost?.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 300, clientY: 200 })
+    );
+    await vi.waitFor(() => expect(host.querySelector('.wb-context-menu')).not.toBeNull());
+    const labels = [...host.querySelectorAll<HTMLElement>('.wb-context-menu button')].map(item => item.textContent);
+    expect(labels).toEqual(['格式化文档', '转到行', '命令面板']);
+    [...host.querySelectorAll<HTMLElement>('.wb-context-menu button')]
+      .find(item => item.textContent === '转到行')
+      ?.click();
+    await vi.waitFor(() => expect(editorHandle.runCommand).toHaveBeenCalledWith('gotoLine'));
+    handle.dispose();
+  });
+
   it('控制台面板在无内容时显示空状态提示', async () => {
     const { host, handle } = fixture();
     await handle.ready;

@@ -123,7 +123,11 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
     launch(() => Promise.resolve(options.onRefresh?.()));
   };
   header.append(heading, refresh);
-  element.append(header, form, staged.section, working.section);
+  const intro = document.createElement('p');
+  intro.className = 'wb-scm-intro';
+  intro.hidden = true;
+  intro.textContent = '这是新仓库：暂存全部更改并填写说明，创建首次提交。';
+  element.append(header, intro, form, staged.section, working.section);
   host.replaceChildren(element);
   const controls: { button: HTMLButtonElement; path: string; action: FileAction }[] = [];
   let status: WorkbenchStatus | null = null;
@@ -322,6 +326,7 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
     working.list.replaceChildren();
     const stagedEntries = status?.entries.filter(stagedEntry) ?? [];
     const workingEntries = status?.entries.filter(workingEntry) ?? [];
+    intro.hidden = status === null || status.head !== null || workingEntries.length === 0;
     staged.count.textContent = String(stagedEntries.length);
     working.count.textContent = String(workingEntries.length);
     stagedEntries.forEach(entry => staged.list.append(row(entry, 'staged')));

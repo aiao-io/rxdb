@@ -78,6 +78,17 @@ describe('VSCode式源代码管理', () => {
     expect(message.value).toBe('第一次提交');
   });
 
+  it('没有提交记录的新仓库显示首次提交引导', async () => {
+    const { host, scm, status } = await fixture();
+    const intro = host.querySelector<HTMLElement>('.wb-scm-intro');
+    expect(intro?.hidden).toBe(true);
+    scm.update({ ...status, head: null });
+    expect(intro?.hidden).toBe(false);
+    expect(intro?.textContent).toContain('首次提交');
+    scm.update(status);
+    expect(intro?.hidden).toBe(true);
+  });
+
   it('组头一次性暂存或取消暂存全部路径，按钮不嵌套', async () => {
     const { host, backend, callbacks } = await fixture();
     const stageAll = host.querySelector<HTMLButtonElement>('[aria-label="暂存所有更改"]');

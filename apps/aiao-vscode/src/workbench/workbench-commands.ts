@@ -15,6 +15,8 @@ export interface WorkbenchCommandsOptions {
   openFile(path: string): void | Promise<void>;
   getCommands(): readonly WorkbenchCommand[];
   getActivePath?(): string | null;
+  /** 最近打开的路径（如标签顺序，旧→新），空查询时用于 MRU 排序。 */
+  getRecentPaths?(): readonly string[];
   onError?(cause: unknown): void;
 }
 
@@ -42,6 +44,8 @@ interface QuickItem {
   description?: string;
   keybinding?: string;
   path?: string;
+  labelMatches?: readonly number[];
+  descriptionMatches?: readonly number[];
   run(): void | Promise<void>;
 }
 
@@ -70,13 +74,61 @@ function editorContext(target: Element | null): boolean {
   return !!target?.closest('.cm-editor,[data-editor-path],.wb-editor-area,[role="tree"],.wb-tree');
 }
 
-function matchesQuery(value: string, query: string): boolean {
+interface FuzzyHit {
+  score: number;
+  matches: readonly number[];
+}
+
+/** 模糊子序列打分：词首/分隔符后与连续命中加权，返回命中位置供高亮。 */
+function fuzzyMatch(value: string, query: string): FuzzyHit | null {
   const lower = value.toLocaleLowerCase('en-US');
-  return query
-    .toLocaleLowerCase('en-US')
-    .split(/\s+/)
-    .filter(Boolean)
-    .every(token => lower.includes(token));
+  const target = query.toLocaleLowerCase('en-US').trim();
+  if (!target) return { score: 0, matches: [] };
+  let score = 0;
+  let cursor = 0;
+  let streak = 0;
+  let last = -2;
+  const matches: number[] = [];
+  for (let index = 0; index < lower.length && cursor < target.length; index++) {
+    if (lower.charCodeAt(index) !== target.charCodeAt(cursor)) continue;
+    const boundary = index === 0 || '/.-_ '.includes(lower[index - 1]);
+    score += boundary ? 10 : 2;
+    if (index === last + 1) {
+      streak++;
+      score += streak * 4;
+    } else streak = 0;
+    matches.push(index);
+    last = index;
+    cursor++;
+  }
+  return cursor === target.length ? { score, matches } : null;
+}
+
+function fuzzyTokens(value: string, query: string): FuzzyHit | null {
+  let score = 0;
+  const matches: number[] = [];
+  for (const token of query.trim().split(/\s+/).filter(Boolean)) {
+    const hit = fuzzyMatch(value, token);
+    if (!hit) return null;
+    score += hit.score;
+    matches.push(...hit.matches);
+  }
+  return { score, matches };
+}
+
+/** 用命中位置渲染高亮片段。 */
+function appendHighlighted(parent: HTMLElement, text: string, matches: readonly number[]): void {
+  const sorted = [...new Set(matches)].filter(index => index >= 0 && index < text.length).sort((a, b) => a - b);
+  let cursor = 0;
+  for (const index of sorted) {
+    if (index > cursor) parent.append(text.slice(cursor, index));
+    const mark = document.createElement('mark');
+    mark.className = 'wb-quick-input-match';
+    mark.textContent = text[index];
+    parent.append(mark);
+    cursor = index + 1;
+  }
+  parent.append(text.slice(cursor));
 }
 
 /** 提供 VS Code 风格的文件/命令浮层，并在编辑器处理按键后才路由全局快捷键。 */
@@ -139,21 +191,40 @@ export function createWorkbenchCommands(root: HTMLElement, options: WorkbenchCom
   }
 
   function items(query: string, commands: boolean): QuickItem[] {
-    if (commands)
-      return options
-        .getCommands()
-        .filter(command => matchesQuery(`${command.label} ${command.id}`, query))
-        .map(command => ({ ...command }));
-    return options
-      .getFiles()
-      .filter(path => matchesQuery(path, query))
-      .map(path => {
+    const recent = options.getRecentPaths?.() ?? [];
+    const recency = (path: string): number => {
+      const index = recent.indexOf(path);
+      return index === -1 ? Number.MAX_SAFE_INTEGER : recent.length - 1 - index;
+    };
+    const scored = <T>(entries: readonly T[], score: (entry: T) => FuzzyHit | null): { item: T; hit: FuzzyHit }[] => {
+      const result: { item: T; hit: FuzzyHit }[] = [];
+      for (const entry of entries) {
+        const hit = score(entry);
+        if (hit) result.push({ item: entry, hit });
+      }
+      return result;
+    };
+    if (commands) {
+      return scored(options.getCommands(), command => fuzzyTokens(`${command.label} ${command.id}`, query))
+        .sort((left, right) => right.hit.score - left.hit.score)
+        .map(({ item, hit }) => ({
+          ...item,
+          labelMatches: hit.matches.filter(index => index < item.label.length)
+        }));
+    }
+    return scored(options.getFiles(), path => fuzzyTokens(path, query))
+      .sort((left, right) => right.hit.score - left.hit.score || recency(left.item) - recency(right.item))
+      .map(({ item: path, hit }) => {
         const segments = path.split('/');
+        const description = segments.slice(0, -1).join('/');
+        const baseStart = description ? description.length + 1 : 0;
         return {
           id: path,
           label: segments.at(-1) ?? path,
-          description: segments.slice(0, -1).join('/'),
+          description,
           path,
+          labelMatches: hit.matches.filter(index => index >= baseStart).map(index => index - baseStart),
+          descriptionMatches: hit.matches.filter(index => index < description.length),
           run: () => options.openFile(path)
         };
       });
@@ -179,11 +250,11 @@ export function createWorkbenchCommands(root: HTMLElement, options: WorkbenchCom
       row.append(item.path ? createFileIcon(item.path) : createCodicon('chevron-right'));
       const label = owner.createElement('span');
       label.className = 'wb-quick-input-label';
-      label.textContent = item.label;
+      appendHighlighted(label, item.label, item.labelMatches ?? []);
       row.append(label);
       const description = owner.createElement('span');
       description.className = 'wb-quick-input-description';
-      description.textContent = item.description ?? '';
+      appendHighlighted(description, item.description ?? '', item.descriptionMatches ?? []);
       row.append(description);
       if (item.keybinding) {
         const hint = owner.createElement('kbd');

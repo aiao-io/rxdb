@@ -676,7 +676,6 @@ export function mountWorkbench(
     tree.replaceChildren();
     if (state.activePath !== activeTreePath) {
       activeTreePath = state.activePath;
-      treeFocusPath = state.activePath;
       const parts = state.activePath?.split('/') ?? [];
       parts.slice(0, -1).forEach((_, index) => collapsedFolders.delete(parts.slice(0, index + 1).join('/')));
     }
@@ -828,6 +827,12 @@ export function mountWorkbench(
     }
     renderFiles(session.state);
     treeRow(path)?.focus();
+  }
+
+  /** 侧栏按钮与 F2 作用的对象：树中的文件选中项，没有则回落活动文件。 */
+  function treeTargetPath(): string | null {
+    if (treeFocusPath && Object.hasOwn(session.state.files, treeFocusPath)) return treeFocusPath;
+    return null;
   }
 
   function startRename(path: string): void {
@@ -988,6 +993,16 @@ export function mountWorkbench(
   });
   root.addEventListener('mousedown', event => {
     if (contextMenu && !(event.target instanceof Node && contextMenu.contains(event.target))) closeContextMenu();
+  });
+  root.addEventListener('contextmenu', event => {
+    const editorHost = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-editor-path]') : null;
+    if (!editorHost) return;
+    event.preventDefault();
+    showContextMenu({ x: event.clientX, y: event.clientY }, [
+      { label: '格式化文档', action: () => void formatSource().catch(report) },
+      { label: '转到行', action: () => editorCommand('gotoLine') },
+      { label: '命令面板', action: () => commands.showCommandPalette() }
+    ]);
   });
   function renderEditors(state: WorkbenchState): void {
     if (state.projectId !== renderedProjectId) {
@@ -1236,11 +1251,11 @@ export function mountWorkbench(
       renderFiles(session.state);
     },
     rename: () => {
-      const path = activeResource();
+      const path = treeTargetPath() ?? activeResource();
       if (path) startRename(path);
     },
     delete: (): Promise<void> | void => {
-      const path = activeResource();
+      const path = treeTargetPath() ?? activeResource();
       if (path) return deletePath(path);
     },
     commit: () => scm.commit(),
@@ -1320,8 +1335,10 @@ export function mountWorkbench(
     });
   const commands = createWorkbenchCommands(root, {
     getFiles: () => Object.keys(session.state.files),
+    getRecentPaths: () => session.state.tabs,
     getActivePath: activeResource,
     openFile(path) {
+      treeFocusPath = path;
       session.select(path);
       docking.selectEditor(path);
       focusEditor(path);
