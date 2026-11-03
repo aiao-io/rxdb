@@ -67,7 +67,11 @@ function fixture(
     dispose: vi.fn()
   };
   const disposeEditor = vi.fn();
-  const mountEditor = vi.fn<WorkbenchEditorMount>(() => ({ update: vi.fn(), replace: vi.fn(), dispose: disposeEditor }));
+  const mountEditor = vi.fn<WorkbenchEditorMount>(() => ({
+    update: vi.fn(),
+    replace: vi.fn(),
+    dispose: disposeEditor
+  }));
   const compiler = {
     compile: vi.fn<WorkbenchCompiler['compile']>(async () => ({ js: '', css: '' })),
     dispose: vi.fn()
@@ -110,6 +114,17 @@ async function answer(host: HTMLElement, value: string | null): Promise<void> {
   }
   dialog.close();
   await Promise.resolve();
+}
+
+async function inlineInput(host: HTMLElement, value: string | null): Promise<void> {
+  await vi.waitFor(() => expect(host.querySelector('.wb-inline-input')).not.toBeNull());
+  const input = host.querySelector<HTMLInputElement>('.wb-inline-input');
+  if (!input) throw new Error('树内输入行缺失');
+  if (value !== null) input.value = value;
+  input.dispatchEvent(
+    new KeyboardEvent('keydown', { key: value === null ? 'Escape' : 'Enter', bubbles: true, cancelable: true })
+  );
+  await vi.waitFor(() => expect(host.querySelector('.wb-inline-input')).toBeNull());
 }
 
 async function confirmAction(host: HTMLElement, accepted: boolean): Promise<void> {
@@ -382,17 +397,17 @@ describe('VS Code 风格工作台', () => {
     handle.dispose();
   });
 
-  it('新建文件与重命名使用具名输入，删除先取消再明确确认', async () => {
+  it('新建文件与重命名使用树内输入行，删除先取消再明确确认', async () => {
     const { host, handle, backend } = fixture();
     await handle.ready;
     await click(host, '[data-action="new-file"]');
-    await answer(host, 'src/created.ts');
+    await inlineInput(host, 'src/created.ts');
     await vi.waitFor(() => expect(handle.session.state.activePath).toBe('src/created.ts'));
     expect(handle.session.state.dirty).toBe(true);
     await click(host, '[data-action="save"]');
     await vi.waitFor(() => expect(handle.session.state.dirty).toBe(false));
     await click(host, '[data-action="rename"]');
-    await answer(host, 'src/renamed.ts');
+    await inlineInput(host, 'renamed.ts');
     await vi.waitFor(() => expect(backend.rename).toHaveBeenCalledWith('one', 'src/created.ts', 'src/renamed.ts'));
     await vi.waitFor(() => expect(handle.session.state.files['src/renamed.ts']).toBeDefined());
     handle.session.select('src/renamed.ts');
@@ -403,9 +418,85 @@ describe('VS Code 风格工作台', () => {
     await confirmAction(host, true);
     await vi.waitFor(() => expect(backend.remove).toHaveBeenCalledWith('one', 'src/renamed.ts'));
     await click(host, '[data-action="new-file"]');
-    await answer(host, null);
+    await inlineInput(host, null);
     expect(handle.session.state.dirty).toBe(false);
     handle.dispose();
+  });
+
+  it('F2 打开树内重命名输入，Esc 取消不写入，Enter 提交新路径', async () => {
+    const { host, handle, backend } = fixture();
+    await handle.ready;
+    const tree = host.querySelector<HTMLElement>('[data-slot="files"]');
+    if (!tree) throw new Error('文件树缺失');
+    tree.dispatchEvent(new KeyboardEvent('keydown', { key: 'F2', bubbles: true, cancelable: true }));
+    await inlineInput(host, null);
+    expect(backend.rename).not.toHaveBeenCalled();
+    tree.dispatchEvent(new KeyboardEvent('keydown', { key: 'F2', bubbles: true, cancelable: true }));
+    await inlineInput(host, 'moved.ts');
+    await vi.waitFor(() => expect(backend.rename).toHaveBeenCalledWith('one', 'src/main.ts', 'src/moved.ts'));
+    handle.dispose();
+  });
+
+  it('资源管理器支持方向键导航：上下移动并打开文件，到达边界时停留', async () => {
+    const { host, handle } = fixture();
+    await handle.ready;
+    await vi.waitFor(() => expect(handle.session.state.activePath).toBe('src/main.ts'));
+    const tree = host.querySelector<HTMLElement>('[data-slot="files"]');
+    if (!tree) throw new Error('文件树缺失');
+    const press = (key: string): void => {
+      tree
+        .querySelector<HTMLElement>('[data-tree-path]')
+        ?.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+    };
+    press('Home');
+    press('ArrowDown');
+    await vi.waitFor(() => expect(handle.session.state.activePath).toBe('src/label.ts'));
+    press('ArrowDown');
+    await vi.waitFor(() => expect(handle.session.state.activePath).toBe('src/main.ts'));
+    press('ArrowDown');
+    await vi.waitFor(() => expect(handle.session.state.activePath).toBe('src/main.ts'));
+    press('ArrowUp');
+    await vi.waitFor(() => expect(handle.session.state.activePath).toBe('src/label.ts'));
+    handle.dispose();
+  });
+
+  it('方向键左右与 Enter 折叠展开目录', async () => {
+    const { host, handle } = fixture();
+    await handle.ready;
+    const tree = host.querySelector<HTMLElement>('[data-slot="files"]');
+    if (!tree) throw new Error('文件树缺失');
+    const folder = () => tree.querySelector<HTMLElement>('button[data-tree-path="src"]');
+    folder()?.click();
+    await vi.waitFor(() => expect(folder()?.getAttribute('aria-expanded')).toBe('false'));
+    folder()?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(folder()?.getAttribute('aria-expanded')).toBe('true'));
+    folder()?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(folder()?.getAttribute('aria-expanded')).toBe('false'));
+    folder()?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(folder()?.getAttribute('aria-expanded')).toBe('true'));
+  });
+
+  it('文件行 Delete 弹出删除确认，右键菜单支持重命名与删除入口', async () => {
+    const { host, handle, backend } = fixture();
+    await handle.ready;
+    const tree = host.querySelector<HTMLElement>('[data-slot="files"]');
+    if (!tree) throw new Error('文件树缺失');
+    const row = () => tree.querySelector<HTMLElement>('button[data-tree-path="src/main.ts"]');
+    row()?.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 200, clientY: 200 })
+    );
+    await vi.waitFor(() => expect(host.querySelector('.wb-context-menu')).not.toBeNull());
+    const items = () =>
+      [...host.querySelectorAll<HTMLElement>('.wb-context-menu button')].map(item => item.textContent);
+    expect(items()).toEqual(['重命名', '删除']);
+    host
+      .querySelector<HTMLElement>('.wb-context-menu')
+      ?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(host.querySelector('.wb-context-menu')).toBeNull());
+    row()?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(host.querySelector('dialog')).not.toBeNull());
+    await confirmAction(host, true);
+    await vi.waitFor(() => expect(backend.remove).toHaveBeenCalledWith('one', 'src/main.ts'));
   });
 
   it('Mod+S 只保存当前文件并从已保存快照更新预览，Save All 才保存其余缓冲', async () => {
@@ -449,11 +540,17 @@ describe('VS Code 风格工作台', () => {
     const bridge = vi.mocked(mountEditor.mock.results[0].value);
     vi.mocked(bridge.replace).mockImplementation((value: string) => mountEditor.mock.calls[0][1].onChange(value));
     const editorHost = host.querySelector<HTMLElement>('[data-editor-path="src/main.ts"]')!;
-    const event = new KeyboardEvent('keydown', { key: 'F', shiftKey: true, altKey: true, bubbles: true, cancelable: true });
+    const event = new KeyboardEvent('keydown', {
+      key: 'F',
+      shiftKey: true,
+      altKey: true,
+      bubbles: true,
+      cancelable: true
+    });
     editorHost.dispatchEvent(event);
     expect(event.defaultPrevented).toBe(true);
     await vi.waitFor(() => expect(bridge.replace).toHaveBeenCalledOnce());
-    expect(handle.session.state.files['src/main.ts']).toBe("const x = { a: 1 };\n");
+    expect(handle.session.state.files['src/main.ts']).toBe('const x = { a: 1 };\n');
     expect(handle.session.isModified('src/main.ts')).toBe(true);
     expect(backend.save).not.toHaveBeenCalled();
   });

@@ -75,7 +75,8 @@ function fixture() {
     importArchive: vi.fn(async () => undefined),
     dispose: vi.fn()
   };
-  const mountEditor = vi.fn<WorkbenchEditorMount>(() => ({ update: vi.fn(), replace: vi.fn(), dispose: vi.fn() }));
+  const editorHandle = { update: vi.fn(), replace: vi.fn(), dispose: vi.fn(), runCommand: vi.fn(() => true) };
+  const mountEditor = vi.fn<WorkbenchEditorMount>(() => editorHandle);
   const compiler: WorkbenchCompiler = {
     compile: vi.fn(async () => ({ js: '', css: '' })),
     dispose: vi.fn()
@@ -90,7 +91,7 @@ function fixture() {
   document.body.append(host);
   const handle = mountWorkbench(host, { backend, compiler, catalog }, mountEditor);
   instances.push(handle);
-  return { host, handle, backend };
+  return { host, handle, backend, editorHandle };
 }
 
 const forward = (event: PreviewEvent): void => {
@@ -168,5 +169,40 @@ describe('预览转发与工作台全局快捷键', () => {
     await vi.waitFor(() => expect(handle.session.state.activePath).toBe('src/label.ts'));
     expect(press({ ctrlKey: true, shiftKey: true })).toBe(true);
     await vi.waitFor(() => expect(handle.session.state.activePath).toBe('src/main.ts'));
+  }, 10000);
+
+  it('编辑器内 Ctrl+G / Ctrl+L / Ctrl+Shift+Enter 拦截并转发对应编辑器命令', async () => {
+    const { host, handle, editorHandle } = fixture();
+    await handle.ready;
+    await vi.waitFor(() => expect(handle.session.state.tabs).toContain('src/main.ts'));
+    const root = host.querySelector<HTMLElement>('.ao-workbench');
+    if (!root) throw new Error('工作台根元素缺失');
+    const editorHost = root.querySelector<HTMLElement>('[data-editor-path="src/main.ts"]');
+    if (!editorHost) throw new Error('编辑器宿主缺失');
+    const press = (init: KeyboardEventInit): KeyboardEvent => {
+      const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
+      editorHost.dispatchEvent(event);
+      return event;
+    };
+    expect(press({ key: 'g', ctrlKey: true }).defaultPrevented).toBe(true);
+    await vi.waitFor(() => expect(editorHandle.runCommand).toHaveBeenCalledWith('gotoLine'));
+    expect(press({ key: 'l', ctrlKey: true }).defaultPrevented).toBe(true);
+    await vi.waitFor(() => expect(editorHandle.runCommand).toHaveBeenCalledWith('selectLine'));
+    expect(press({ key: 'Enter', ctrlKey: true, shiftKey: true }).defaultPrevented).toBe(true);
+    await vi.waitFor(() => expect(editorHandle.runCommand).toHaveBeenCalledWith('insertLineAbove'));
+  }, 10000);
+
+  it('输入框内 Ctrl+G 不拦截，保留编辑器的搜索语义', async () => {
+    const { host, handle, editorHandle } = fixture();
+    await handle.ready;
+    await vi.waitFor(() => expect(handle.session.state.tabs).toContain('src/main.ts'));
+    const root = host.querySelector<HTMLElement>('.ao-workbench');
+    if (!root) throw new Error('工作台根元素缺失');
+    const input = document.createElement('input');
+    root.append(input);
+    const event = new KeyboardEvent('keydown', { key: 'g', ctrlKey: true, bubbles: true, cancelable: true });
+    input.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+    expect(editorHandle.runCommand).not.toHaveBeenCalled();
   }, 10000);
 });

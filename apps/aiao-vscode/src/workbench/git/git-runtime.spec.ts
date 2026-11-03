@@ -426,6 +426,20 @@ describe('Git workspace operation contract', () => {
     await expect(runtime.restore('project', first)).rejects.toMatchObject({ code: 'dirty_workspace' });
   });
 
+  it('restores with untracked files present and preserves them', async () => {
+    await runtime.initialize('project', [file('file.txt', 'one')]);
+    await runtime.stage('project', ['file.txt']);
+    const first = await runtime.commit('project', 'first');
+    await runtime.save('project', [file('file.txt', 'two')]);
+    await runtime.stage('project', ['file.txt']);
+    const second = await runtime.commit('project', 'second');
+    await runtime.save('project', [file('draft.txt', 'draft')]);
+    await runtime.restore('project', first);
+    expect((await runtime.status('project')).head).toBe(second);
+    expect((await runtime.snapshot('project')).files).toEqual([file('draft.txt', 'draft'), file('file.txt', 'one')]);
+    await expect(runtime.restore('project', first)).rejects.toMatchObject({ code: 'dirty_workspace' });
+  });
+
   it('imports archives into new roots and rolls back invalid repositories', async () => {
     await runtime.initialize('source', [file('main.ts', 'hello')]);
     const archive = await runtime.exportArchive('source');

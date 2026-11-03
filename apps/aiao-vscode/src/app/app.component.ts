@@ -1,4 +1,3 @@
-import { Transaction } from '@codemirror/state';
 import { computeMinimalDocumentChange } from '@aiao/code-editor';
 import { CodeEditor } from '@aiao/code-editor-angular';
 import { RxDB } from '@aiao/rxdb';
@@ -15,11 +14,30 @@ import {
   type AfterViewInit,
   type OnDestroy
 } from '@angular/core';
+import { selectLine } from '@codemirror/commands';
+import { gotoLine } from '@codemirror/search';
+import { EditorSelection, Transaction } from '@codemirror/state';
+import type { EditorView } from '@codemirror/view';
 import { filter, firstValueFrom, of, take, timeout } from 'rxjs';
 import { mountWorkbench, type WorkbenchHandle } from '../workbench/mount.js';
 import { createRxDBWorkbenchCatalog } from '../workbench/rxdb-catalog.js';
 
 const CATALOG_TIMEOUT_MS = 10000;
+
+/** 在当前行上方插入空行并把光标移入新行，对齐 VS Code 的 Ctrl+Shift+Enter。 */
+function insertBlankLineAbove(view: EditorView): boolean {
+  const { state, dispatch } = view;
+  const position = state.doc.lineAt(state.selection.main.from).from;
+  dispatch(
+    state.update({
+      changes: { from: position, insert: state.lineBreak },
+      selection: EditorSelection.cursor(position),
+      scrollIntoView: true,
+      userEvent: 'input'
+    })
+  );
+  return true;
+}
 
 /** 应用根组件：把浏览器开发工作台挂到整页，并用 RxDB 保存项目目录元数据。 */
 @Component({
@@ -114,6 +132,13 @@ export class AppComponent implements AfterViewInit, OnDestroy {
           },
           layout: () => editor.instance.view?.requestMeasure(),
           focus: () => editor.instance.focus(),
+          runCommand: command => {
+            const view = editor.instance.view;
+            if (!view) return false;
+            if (command === 'gotoLine') return gotoLine(view);
+            if (command === 'selectLine') return selectLine(view);
+            return insertBlankLineAbove(view);
+          },
           dispose: () => {
             for (const event of ['keyup', 'mouseup', 'input']) element.removeEventListener(event, cursor);
             change.unsubscribe();

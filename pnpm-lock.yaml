@@ -796,12 +796,18 @@ importers:
       '@angular/service-worker':
         specifier: 22.2.3
         version: 22.2.3(@angular/core@22.2.3(@angular/compiler@22.2.3)(rxjs@7.8.2)(zone.js@0.16.2))(rxjs@7.8.2)
+      '@codemirror/commands':
+        specifier: 6.11.1
+        version: 6.11.1
       '@codemirror/language':
         specifier: ^6.13.1
         version: 6.13.1
       '@codemirror/merge':
         specifier: 6.12.3
         version: 6.12.3
+      '@codemirror/search':
+        specifier: 6.7.2
+        version: 6.7.2
       '@codemirror/state':
         specifier: ^6.7.6
         version: 6.7.6

@@ -98,6 +98,29 @@ describe('保存后的最新预览调度', () => {
     controller.dispose();
   });
 
+  it('无修改的 CtrlS 不再重编译：成功后跳过，编译失败后同一 revision 重试', async () => {
+    const { session, compile, phase, error, controller } = await fixture();
+    await controller.run();
+    const previous = session.state.preview;
+    expect(compile).toHaveBeenCalledOnce();
+    await controller.save();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(compile).toHaveBeenCalledOnce();
+    expect(session.state.preview).toBe(previous);
+    expect(phase).toHaveBeenLastCalledWith('idle');
+    compile.mockRejectedValueOnce(new Error('syntax error'));
+    session.edit('main.ts', 'broken');
+    await controller.save();
+    await vi.advanceTimersByTimeAsync(100);
+    expect(error).toHaveBeenCalledOnce();
+    expect(session.state.preview).toBe(previous);
+    await controller.save();
+    await vi.advanceTimersByTimeAsync(100);
+    expect(compile).toHaveBeenCalledTimes(3);
+    expect(session.state.preview).toMatchObject({ revision: '2', js: 'broken' });
+    controller.dispose();
+  });
+
   it('CtrlS 只保存指定文件，其他 dirty buffer 不进入磁盘快照或预览', async () => {
     const { session, backend, compile, controller } = await fixture();
     session.edit('main.ts', 'active saved');

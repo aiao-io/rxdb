@@ -292,13 +292,34 @@ export function createWorkbenchCommands(root: HTMLElement, options: WorkbenchCom
     return id ? invokeCommand(id) : false;
   }
 
-  /** ⌘/Ctrl+W 专属捕获层：无论焦点在哪都阻止浏览器关闭整个页面，有标签时执行关闭。 */
+  /** 专属捕获层：⌘/Ctrl+W 与编辑器级快捷键无论焦点在哪都先于 CodeMirror 路由。 */
   function pageKeydown(event: KeyboardEvent): void {
-    if (event.defaultPrevented || event.isComposing || event.altKey || event.shiftKey) return;
-    if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'w') return;
-    event.preventDefault();
+    if (event.defaultPrevented || event.isComposing || event.altKey) return;
+    const modifier = event.ctrlKey || event.metaKey;
     const target = targetElement(event.target);
-    if (!target?.closest('dialog[open],[aria-modal="true"]')) invokeCommand('closeEditor');
+    if (!target) return;
+    const key = event.key.toLowerCase();
+    if (event.shiftKey && key === 'enter' && modifier) {
+      if (!ordinaryInput(target) && editorContext(target)) {
+        event.preventDefault();
+        event.stopPropagation();
+        invokeCommand('insertLineAbove');
+      }
+      return;
+    }
+    if (!modifier || event.shiftKey) return;
+    if (key === 'w') {
+      event.preventDefault();
+      if (!target.closest('dialog[open],[aria-modal="true"]')) invokeCommand('closeEditor');
+      return;
+    }
+    const editorShortcuts: Readonly<Record<string, string>> = { g: 'gotoLine', l: 'selectLine' };
+    const id = editorShortcuts[key];
+    if (id && editorContext(target) && !ordinaryInput(target) && !target.closest('dialog[open],[aria-modal="true"]')) {
+      event.preventDefault();
+      event.stopPropagation();
+      invokeCommand(id);
+    }
   }
 
   function keydown(event: KeyboardEvent): void {

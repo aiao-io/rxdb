@@ -68,6 +68,7 @@ export function createSavePreviewController(
   let timer: ReturnType<typeof setTimeout> | undefined;
   let active: AbortController | undefined;
   let target: { projectId: string; revision: string | null } | undefined;
+  let lastPreview: { projectId: string; revision: string } | undefined;
   const current = (intent: PreviewIntent) =>
     !disposed && intent.epoch === epoch && session.state.projectId === intent.projectId;
   const phase = (value: SavePreviewPhase) => options.onPhase?.(value);
@@ -112,7 +113,9 @@ export function createSavePreviewController(
         return result;
       });
       if (current(intent)) {
+        const revision = session.state.preview?.revision ?? target?.revision ?? session.state.revision;
         target = undefined;
+        if (revision) lastPreview = { projectId: intent.projectId, revision };
         phase('idle');
       }
     } finally {
@@ -124,13 +127,13 @@ export function createSavePreviewController(
     async save(paths) {
       const scope = paths ? [...paths] : undefined;
       const modified = scope ? scope.some(path => session.isModified(path)) : session.state.dirty;
-      if (
-        !disposed &&
-        !modified &&
-        target?.projectId === session.state.projectId &&
-        target?.revision === session.state.revision
-      )
-        return;
+      if (!disposed && !modified) {
+        const revision = session.state.revision;
+        const covered =
+          (target?.projectId === session.state.projectId && target?.revision === revision) ||
+          (lastPreview?.projectId === session.state.projectId && lastPreview.revision === revision);
+        if (covered) return;
+      }
       const intent = begin();
       phase('saving');
       try {

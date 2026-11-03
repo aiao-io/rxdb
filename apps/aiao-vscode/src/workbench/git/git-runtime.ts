@@ -348,7 +348,8 @@ export class GitWorkbenchRuntime {
       throw new GitWorkbenchError('unreachable_commit', 'Restore requires a full commit OID');
     return this.lock(projectId, true, async context => {
       const status = await this.statusContext(context);
-      if (status.raw) throw new GitWorkbenchError('dirty_workspace', 'Cannot restore a dirty workspace');
+      if (status.entries.some(entry => entry.index !== '?' || entry.worktree !== '?'))
+        throw new GitWorkbenchError('dirty_workspace', 'Cannot restore a dirty workspace');
       if (!status.head || !(await this.run(['rev-list', 'HEAD'])).split(/\s+/).includes(oid))
         throw new GitWorkbenchError('unreachable_commit', 'Commit is not reachable from HEAD');
       const target = await this.readCommitFiles(context, oid);

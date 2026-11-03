@@ -1,7 +1,7 @@
 import { createProjectCatalog, type WorkbenchCatalog, type WorkbenchProjectInfo } from './catalog.js';
 import { createCompiler, type WorkbenchCompiler } from './compiler-client.js';
 import type { ProjectTemplate } from './compiler/compiler-types.js';
-import type { WorkbenchEditorHandle, WorkbenchEditorMount } from './editor.js';
+import type { WorkbenchEditorCommand, WorkbenchEditorHandle, WorkbenchEditorMount } from './editor.js';
 import { formatWorkbenchSource } from './formatter.js';
 import { createGitBackend } from './git-backend.js';
 import { mountPreview, type PreviewEvent } from './preview/preview-sandbox.js';
@@ -59,6 +59,44 @@ const languages: Record<string, string> = {
 const languageFor = (path: string): string => languages[path.split('.').at(-1) ?? ''] ?? 'plaintext';
 const messageFor = (cause: unknown): string => (cause instanceof Error ? cause.message : String(cause));
 
+/** 文件树内的 VS Code 风格输入行；Enter 提交、Esc 取消、失焦提交当前值。 */
+function inlineTreeInput(
+  initial: string,
+  label: string,
+  onCommit: (value: string) => void,
+  onCancel: () => void
+): HTMLInputElement {
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'wb-inline-input';
+  input.value = initial;
+  input.spellcheck = false;
+  input.setAttribute('aria-label', label);
+  let settled = false;
+  const settle = (commit: boolean): void => {
+    if (settled) return;
+    settled = true;
+    if (commit) onCommit(input.value.trim());
+    else onCancel();
+  };
+  input.onkeydown = event => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      settle(true);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      settle(false);
+    }
+  };
+  input.onblur = () => settle(true);
+  queueMicrotask(() => {
+    input.focus();
+    const dot = initial.lastIndexOf('.');
+    input.setSelectionRange(0, dot > 0 ? dot : initial.length);
+  });
+  return input;
+}
+
 /** 挂载三端共享的 VS Code 风格界面。用户代码只进入隔离预览。 */
 export function mountWorkbench(
   host: HTMLElement,
@@ -78,6 +116,7 @@ export function mountWorkbench(
   );
   const previewContent = element('.wb-preview-content');
   const previewVersion = element('.wb-preview-version');
+  const tree = element('[data-slot="files"]');
   const editors = new Map<string, { host: HTMLElement; handle: WorkbenchEditorHandle }>();
   const diffs = new Map<
     string,
@@ -104,12 +143,18 @@ export function mountWorkbench(
   let activeTreePath: string | null = null;
   let selectedEditorPath: string | null = null;
   let renderedProjectId: string | null = null;
+  let treeProjectId: string | null = null;
+  let creatingFile = false;
+  let renamingPath: string | null = null;
+  let treeFocusPath: string | null = null;
+  let treeNavigation = false;
+  let contextMenu: HTMLElement | null = null;
   const collapsedFolders = new Set<string>();
   const docking = createWorkbenchDockview(root, {
     onSelectEditor(path) {
       if (disposed || !session.state.tabs.includes(path)) return;
       if (session.state.activePath !== path) session.select(path);
-      focusEditor(path);
+      if (!treeNavigation) focusEditor(path);
     },
     onCloseEditor(path) {
       if (disposed) return;
@@ -198,12 +243,17 @@ export function mountWorkbench(
       : session.state.activePath;
   }
 
-  function closeActiveEditor(): void {
+  function focusedEditorPath(): string | null {
     const focused = root.ownerDocument.activeElement;
-    const path =
-      focused && root.contains(focused) ?
+    return (
+      (focused && root.contains(focused) ?
         focused.closest('[data-editor-path]')?.getAttribute('data-editor-path')
-      : null;
+      : null) ?? null
+    );
+  }
+
+  function closeActiveEditor(): void {
+    const path = focusedEditorPath();
     if (path && session.state.tabs.includes(path)) {
       closeEditorTab(path);
       return;
@@ -231,11 +281,7 @@ export function mountWorkbench(
   }
 
   async function formatSource(): Promise<void> {
-    const focused = root.ownerDocument.activeElement;
-    const path =
-      (focused && root.contains(focused) ?
-        focused.closest('[data-editor-path]')?.getAttribute('data-editor-path')
-      : null) ?? session.state.activePath;
+    const path = focusedEditorPath() ?? session.state.activePath;
     if (!path) return;
     const value = session.state.files[path];
     if (typeof value !== 'string') {
@@ -251,6 +297,12 @@ export function mountWorkbench(
     } else if (outcome.kind === 'unsupported') {
       log('output', `没有可用于 ${path} 的格式化器`);
     }
+  }
+
+  function editorCommand(command: WorkbenchEditorCommand): void {
+    const path = focusedEditorPath() ?? session.state.activePath;
+    if (!path) return;
+    editors.get(path)?.handle.runCommand?.(command);
   }
 
   async function loadDiff(id: string): Promise<void> {
@@ -446,12 +498,42 @@ export function mountWorkbench(
     log('output', `已打开 ${next.name}`);
   }
   function renderFiles(state: WorkbenchState): void {
-    const tree = element('[data-slot="files"]');
+    if (treeProjectId !== state.projectId) {
+      treeProjectId = state.projectId;
+      creatingFile = false;
+      renamingPath = null;
+    }
+    if ((creatingFile || renamingPath) && tree.querySelector('.wb-inline-input')) return;
     tree.replaceChildren();
     if (state.activePath !== activeTreePath) {
       activeTreePath = state.activePath;
+      treeFocusPath = state.activePath;
       const parts = state.activePath?.split('/') ?? [];
       parts.slice(0, -1).forEach((_, index) => collapsedFolders.delete(parts.slice(0, index + 1).join('/')));
+    }
+    if (creatingFile) {
+      const input = inlineTreeInput(
+        '',
+        '新建文件',
+        value => {
+          creatingFile = false;
+          if (value) {
+            action(async () => {
+              projectId();
+              if (value in session.state.files) throw new Error('文件已存在');
+              session.edit(value, '');
+              session.select(value);
+            });
+          }
+          renderFiles(session.state);
+        },
+        () => {
+          creatingFile = false;
+          renderFiles(session.state);
+        }
+      );
+      input.style.paddingLeft = '14px';
+      tree.append(input);
     }
     const folders = new Set<string>();
     for (const path of Object.keys(state.files).sort()) {
@@ -462,6 +544,7 @@ export function mountWorkbench(
         folders.add(folder);
         const button = document.createElement('button');
         button.className = 'wb-file wb-folder';
+        button.dataset['treePath'] = folder;
         button.style.paddingLeft = `${14 + index * 12}px`;
         button.setAttribute('role', 'treeitem');
         button.setAttribute('aria-expanded', String(!collapsedFolders.has(folder)));
@@ -475,15 +558,45 @@ export function mountWorkbench(
         );
         button.title = folder;
         button.onclick = () => {
+          treeFocusPath = folder;
           if (collapsedFolders.has(folder)) collapsedFolders.delete(folder);
           else collapsedFolders.add(folder);
           renderFiles(session.state);
+          treeRow(folder)?.focus();
         };
         tree.append(button);
       }
       if (parents.some(parent => collapsedFolders.has(parent))) continue;
+      if (path === renamingPath) {
+        const input = inlineTreeInput(
+          path.split('/').at(-1) ?? path,
+          '重命名文件',
+          value => {
+            const from = path;
+            renamingPath = null;
+            const directory = from.includes('/') ? from.slice(0, from.lastIndexOf('/')) : '';
+            const to = value ? `${directory ? `${directory}/` : ''}${value}` : '';
+            if (to && to !== from) {
+              action(async () => {
+                cancelCompilation();
+                await session.rename(from, to);
+                await refreshGit();
+              });
+            }
+            renderFiles(session.state);
+          },
+          () => {
+            renamingPath = null;
+            renderFiles(session.state);
+          }
+        );
+        input.style.paddingLeft = `${14 + (parts.length - 1) * 12}px`;
+        tree.append(input);
+        continue;
+      }
       const button = document.createElement('button');
       button.className = 'wb-file';
+      button.dataset['treePath'] = path;
       button.setAttribute('aria-current', String(path === state.activePath));
       button.setAttribute('role', 'treeitem');
       button.setAttribute('aria-level', String(parts.length));
@@ -494,13 +607,192 @@ export function mountWorkbench(
       name.textContent = parts.at(-1) ?? path;
       button.append(icon, name);
       button.onclick = () => {
-        session.select(path);
-        docking.selectEditor(path);
-        focusEditor(path);
+        treeFocusPath = path;
+        treeNavigation = true;
+        try {
+          session.select(path);
+          docking.selectEditor(path);
+        } finally {
+          queueMicrotask(() => {
+            treeNavigation = false;
+          });
+        }
       };
       tree.append(button);
     }
+    const rows = [...tree.querySelectorAll<HTMLButtonElement>('button[data-tree-path]')];
+    const focused = rows.find(row => row.dataset['treePath'] === treeFocusPath);
+    rows.forEach(row => (row.tabIndex = row === focused ? 0 : -1));
+    if (!focused) rows[0]?.setAttribute('tabindex', '0');
   }
+
+  const treeRow = (path: string | null): HTMLElement | undefined =>
+    path === null ? undefined : (
+      [...tree.querySelectorAll<HTMLElement>('button[data-tree-path]')].find(row => row.dataset['treePath'] === path)
+    );
+
+  /** 移动树焦点并按 VS Code 语义打开文件；选择只预览，不抢走树内焦点。 */
+  function setTreeFocus(path: string | null, openFile: boolean): void {
+    treeFocusPath = path;
+    if (openFile && path) {
+      treeNavigation = true;
+      try {
+        session.select(path);
+        docking.selectEditor(path);
+      } finally {
+        queueMicrotask(() => {
+          treeNavigation = false;
+        });
+      }
+    }
+    renderFiles(session.state);
+    treeRow(path)?.focus();
+  }
+
+  function startRename(path: string): void {
+    if (creatingFile || renamingPath) return;
+    renamingPath = path;
+    const parts = path.split('/');
+    parts.slice(0, -1).forEach((_, index) => collapsedFolders.delete(parts.slice(0, index + 1).join('/')));
+    renderFiles(session.state);
+  }
+
+  async function deletePath(path: string): Promise<void> {
+    const confirmation = await confirmWorkbenchAction(root, '删除文件', `确定删除 ${path}？`, '删除文件');
+    if (confirmation) {
+      cancelCompilation();
+      await session.remove(path);
+      await refreshGit();
+    }
+  }
+
+  function closeContextMenu(): void {
+    contextMenu?.remove();
+    contextMenu = null;
+  }
+
+  function showContextMenu(event: MouseEvent, entries: readonly { label: string; action: () => void }[]): void {
+    event.preventDefault();
+    closeContextMenu();
+    const menu = document.createElement('div');
+    menu.className = 'wb-context-menu';
+    menu.setAttribute('role', 'menu');
+    for (const entry of entries) {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.setAttribute('role', 'menuitem');
+      item.textContent = entry.label;
+      item.onclick = () => {
+        closeContextMenu();
+        action(entry.action);
+      };
+      menu.append(item);
+    }
+    menu.onkeydown = event => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        closeContextMenu();
+      }
+    };
+    root.append(menu);
+    menu.style.left = `${event.clientX}px`;
+    menu.style.top = `${event.clientY}px`;
+    const bounds = menu.getBoundingClientRect();
+    const viewport = root.ownerDocument.defaultView;
+    if (viewport && bounds.right > viewport.innerWidth)
+      menu.style.left = `${Math.max(0, viewport.innerWidth - bounds.width - 4)}px`;
+    if (viewport && bounds.bottom > viewport.innerHeight)
+      menu.style.top = `${Math.max(0, viewport.innerHeight - bounds.height - 4)}px`;
+    contextMenu = menu;
+  }
+
+  tree.addEventListener('keydown', event => {
+    if (event.defaultPrevented || event.isComposing) return;
+    if (event.target instanceof Element && event.target.closest('input,textarea,select')) return;
+    if (creatingFile || renamingPath) return;
+    const rows = [...tree.querySelectorAll<HTMLElement>('button[data-tree-path]')];
+    if (!rows.length) return;
+    const current = rows.findIndex(row => row.dataset['treePath'] === treeFocusPath);
+    const row = current === -1 ? undefined : rows[current];
+    const path = row?.dataset['treePath'];
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      const step = event.key === 'ArrowDown' ? 1 : -1;
+      const next = rows[Math.min(rows.length - 1, Math.max(0, current === -1 ? 0 : current + step))];
+      setTreeFocus(next.dataset['treePath'] ?? null, !next.classList.contains('wb-folder'));
+      return;
+    }
+    if (event.key === 'Home' || event.key === 'End') {
+      event.preventDefault();
+      const next = rows[event.key === 'Home' ? 0 : rows.length - 1];
+      setTreeFocus(next.dataset['treePath'] ?? null, !next.classList.contains('wb-folder'));
+      return;
+    }
+    if (event.key === 'Enter' && row) {
+      event.preventDefault();
+      if (row.classList.contains('wb-folder') && path) {
+        if (collapsedFolders.has(path)) collapsedFolders.delete(path);
+        else collapsedFolders.add(path);
+        treeFocusPath = path;
+        renderFiles(session.state);
+        treeRow(path)?.focus();
+      } else if (path) {
+        setTreeFocus(path, true);
+        focusEditor(path);
+      }
+      return;
+    }
+    if (event.key === 'ArrowRight' && row?.classList.contains('wb-folder') && path) {
+      event.preventDefault();
+      if (collapsedFolders.has(path)) {
+        collapsedFolders.delete(path);
+        treeFocusPath = path;
+        renderFiles(session.state);
+        treeRow(path)?.focus();
+      } else {
+        setTreeFocus(rows[Math.min(rows.length - 1, current + 1)].dataset['treePath'] ?? null, true);
+      }
+      return;
+    }
+    if (event.key === 'ArrowLeft' && row && path) {
+      event.preventDefault();
+      if (row.classList.contains('wb-folder') && !collapsedFolders.has(path)) {
+        collapsedFolders.add(path);
+        treeFocusPath = path;
+        renderFiles(session.state);
+        treeRow(path)?.focus();
+      } else if (path.includes('/')) {
+        setTreeFocus(path.slice(0, path.lastIndexOf('/')), false);
+      }
+      return;
+    }
+    if (event.key === 'Delete' && row && !row.classList.contains('wb-folder') && path) {
+      event.preventDefault();
+      action(() => deletePath(path));
+    }
+  });
+  tree.addEventListener('contextmenu', event => {
+    if (creatingFile || renamingPath) return;
+    const row = event.target instanceof Element ? event.target.closest<HTMLElement>('button[data-tree-path]') : null;
+    const targetPath = row?.dataset['treePath'] ?? null;
+    if (targetPath) {
+      treeFocusPath = targetPath;
+      renderFiles(session.state);
+      treeRow(targetPath)?.focus();
+    }
+    const entries =
+      targetPath && !row?.classList.contains('wb-folder') ?
+        [
+          { label: '重命名', action: () => startRename(targetPath) },
+          { label: '删除', action: () => deletePath(targetPath) }
+        ]
+      : [{ label: '新建文件', action: () => operations['new-file']() }];
+    showContextMenu(event, entries);
+  });
+  root.addEventListener('mousedown', event => {
+    if (contextMenu && !(event.target instanceof Node && contextMenu.contains(event.target))) closeContextMenu();
+  });
   function renderEditors(state: WorkbenchState): void {
     if (state.projectId !== renderedProjectId) {
       for (const [id, diff] of diffs) {
@@ -727,36 +1019,25 @@ export function mountWorkbench(
     import: importProject,
     save: saveCurrent,
     'save-all': saveAll,
-    'new-file': async () => {
+    'new-file': () => {
       projectId();
-      const path = await requestWorkbenchText(root, '文件路径', 'src/new.ts');
-      if (!path) return;
-      if (path in session.state.files) throw new Error('文件已存在');
-      session.edit(path, '');
-      session.select(path);
+      if (creatingFile || renamingPath) return;
+      creatingFile = true;
+      renderFiles(session.state);
     },
-    rename: async () => {
+    rename: () => {
       const path = activeResource();
-      if (!path) return;
-      const to = await requestWorkbenchText(root, '重命名文件', path);
-      if (to && to !== path) {
-        cancelCompilation();
-        await session.rename(path, to);
-        await refreshGit();
-      }
+      if (path) startRename(path);
     },
-    delete: async () => {
+    delete: (): Promise<void> | void => {
       const path = activeResource();
-      if (!path) return;
-      const confirmation = await confirmWorkbenchAction(root, '删除文件', `确定删除 ${path}？`, '删除文件');
-      if (confirmation) {
-        cancelCompilation();
-        await session.remove(path);
-        await refreshGit();
-      }
+      if (path) return deletePath(path);
     },
     commit: () => scm.commit(),
     format: formatSource,
+    'goto-line': () => editorCommand('gotoLine'),
+    'select-line': () => editorCommand('selectLine'),
+    'insert-line-above': () => editorCommand('insertLineAbove'),
     'clear-logs': () => {
       logs.splice(0);
       renderLogs();
@@ -826,13 +1107,20 @@ export function mountWorkbench(
     getCommands: () => {
       const invoke = (id: string, operation: () => Promise<unknown> | void) => () => {
         if (disposed || initializing) return;
-        if (pendingOperations > 0 && !['save', 'saveAll', 'run'].includes(id)) return;
+        if (
+          pendingOperations > 0 &&
+          !['save', 'saveAll', 'run', 'gotoLine', 'selectLine', 'insertLineAbove'].includes(id)
+        )
+          return;
         action(operation);
       };
       const definitions: readonly [string, string, string | undefined, () => Promise<unknown> | void][] = [
         ['save', '文件: 保存并预览当前文件', '⌘ / Ctrl + S', saveCurrent],
         ['saveAll', '文件: 保存全部并预览', '⌘ / Ctrl + Shift + S', saveAll],
         ['format', '文件: 格式化代码', '⇧ / Shift + ⌥ / Alt + F', formatSource],
+        ['gotoLine', '转到: 转到行', '⌘ / Ctrl + G', operations['goto-line']],
+        ['selectLine', '编辑器: 展开行选择', '⌘ / Ctrl + L', operations['select-line']],
+        ['insertLineAbove', '编辑器: 在上方插入行', '⌘ / Ctrl + Shift + Enter', operations['insert-line-above']],
         ['run', '运行: 保存全部并运行项目', undefined, run],
         ['newFile', '文件: 新建文件', undefined, operations['new-file']],
         ['newProject', '项目: 新建项目', undefined, newProject],
@@ -904,6 +1192,7 @@ export function mountWorkbench(
     dispose() {
       if (disposed) return;
       disposed = true;
+      closeContextMenu();
       releaseState();
       commands.dispose();
       scm.dispose();
