@@ -83,6 +83,7 @@ function showTabMenu(
   event: MouseEvent,
   path: string,
   close: () => void,
+  root: HTMLElement,
   onCloseOthers?: (path: string) => void,
   onCloseRight?: (path: string) => void
 ): void {
@@ -115,7 +116,7 @@ function showTabMenu(
       closeTabMenu();
     }
   };
-  document.body.append(menu);
+  root.append(menu);
   menu.style.left = `${event.clientX}px`;
   menu.style.top = `${event.clientY}px`;
   const bounds = menu.getBoundingClientRect();
@@ -125,7 +126,7 @@ function showTabMenu(
   document.addEventListener('mousedown', outsideTabMenu, true);
 }
 
-function createTab(id: string, auxiliary: boolean, callbacks: WorkbenchDockviewCallbacks) {
+function createTab(id: string, auxiliary: boolean, callbacks: WorkbenchDockviewCallbacks, root: HTMLElement) {
   const element = document.createElement('div');
   element.className = 'wb-dock-tab';
   const path = editorPath(id);
@@ -168,7 +169,7 @@ function createTab(id: string, auxiliary: boolean, callbacks: WorkbenchDockviewC
       });
       if (path !== undefined) {
         element.addEventListener('contextmenu', event =>
-          showTabMenu(event, path, () => parameters.api.close(), callbacks.onCloseOthers, callbacks.onCloseRight)
+          showTabMenu(event, path, () => parameters.api.close(), root, callbacks.onCloseOthers, callbacks.onCloseRight)
         );
       }
       const close = document.createElement('button');
@@ -311,7 +312,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
         }
       };
     },
-    createTabComponent: options => createTab(options.id, auxiliaryIds.has(options.id), callbacks),
+    createTabComponent: options => createTab(options.id, auxiliaryIds.has(options.id), callbacks, root),
     createRightHeaderActionComponent: group => createGroupActions(group, splitPanel)
   });
 
