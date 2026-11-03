@@ -42,13 +42,15 @@ import { Counter, CounterState } from './counter';
 
 @Component({
   selector: 'app-root',
-  imports: [Counter],
-  template: '<h1>Angular workspace</h1><p data-testid="parent-count">Parent: {{ state.count() }}</p><app-counter />'
+  templateUrl: './app.html',
+  imports: [Counter]
 })
 export class App {
   readonly state = inject(CounterState);
 }
 `,
+    'src/app.html':
+      '<h1>Angular workspace</h1><p data-testid="parent-count">Parent: {{ state.count() }}</p><app-counter />\n',
     'src/counter.ts': `import { Component, Service, inject, signal } from '@angular/core';
 
 @Service()

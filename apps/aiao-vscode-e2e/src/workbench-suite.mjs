@@ -5,7 +5,7 @@ const fixtures = {
   vanilla: { path: 'src/label.ts', heading: '本地 TypeScript 模板', counter: '次数' },
   react: { path: 'src/main.tsx', heading: '本地 React 模板', counter: '次数' },
   vue: { path: 'src/App.vue', heading: '本地 Vue 模板', counter: '次数' },
-  angular: { path: 'src/app.ts', heading: 'Angular workspace', counter: 'Count:' }
+  angular: { path: 'src/app.html', heading: 'Angular workspace', counter: 'Count:' }
 };
 
 async function createProject(page, expect, template) {

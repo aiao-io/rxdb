@@ -1,5 +1,6 @@
 import { build } from 'esbuild';
 import { describe, expect, it } from 'vitest';
+import { compileAngular } from './angular-compiler.js';
 import { compileProject } from './compiler-project.js';
 
 describe('受控项目编译', () => {
@@ -172,6 +173,30 @@ describe('受控项目编译', () => {
     await expect(
       compileProject({ template: 'angular', entry: 'main.ts', files: { 'main.ts': '' } }, { build })
     ).rejects.toThrow('Angular');
+  });
+
+  it('Angular templateUrl 从项目快照内联，缺失时给出文件诊断', async () => {
+    const input = {
+      template: 'angular' as const,
+      entry: 'src/main.ts',
+      files: {
+        'src/main.ts': "import './app';",
+        'src/app.ts': "@Component({ selector: 'app-root', templateUrl: './app.html' }) export class App {}",
+        'src/app.html': '<h1>分离模板</h1>'
+      }
+    };
+    const result = await compileProject(input, { build, angularTransform: compileAngular });
+    expect(result.js).toContain('分离模板');
+    expect(result.js).not.toContain('templateUrl');
+    await expect(
+      compileProject(
+        {
+          ...input,
+          files: { ...input.files, 'src/app.ts': "@Component({templateUrl: './missing.html'}) export class App {}" }
+        },
+        { build, angularTransform: compileAngular }
+      )
+    ).rejects.toThrow('src/app.ts');
   });
 
   it('固定 React 运行时与共享 chunk 全部内联，不残留裸模块或 HTTP 导入', async () => {

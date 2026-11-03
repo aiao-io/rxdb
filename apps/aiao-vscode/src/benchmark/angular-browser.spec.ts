@@ -107,6 +107,7 @@ async function buildExportAot(): Promise<string> {
     const errors = result.diagnostics.filter(diagnostic => diagnostic.category === ts.DiagnosticCategory.Error);
     expect(errors.map(diagnostic => ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'))).toEqual([]);
     expect(await readFile(resolve(root, 'out/src/app.js'), 'utf8')).toContain('ɵɵdefineComponent');
+    expect(await readFile(resolve(root, 'out/src/app.js'), 'utf8')).toContain('Angular workspace');
     const bundled = await build({
       entryPoints: [resolve(root, 'out/src/main.js')],
       bundle: true,
@@ -141,8 +142,23 @@ describe('Angular browser JIT probe', () => {
 self.onmessage = async event => {
   const files = {};
   try {
-    for (const [filename, source] of Object.entries(event.data)) {
-      if (filename.endsWith('.ts')) files[filename] = await self.angularCompile(source, filename);
+    const sources = event.data;
+    const resolvePath = (from, url) => {
+      const parts = from.split('/'); parts.pop();
+      const resolved = [];
+      for (const part of parts.concat(url.split('/'))) {
+        if (!part || part === '.') continue;
+        if (part === '..') { if (!resolved.length) throw new Error('路径越界：' + url); resolved.pop(); }
+        else resolved.push(part);
+      }
+      return resolved.join('/');
+    };
+    for (const [filename, source] of Object.entries(sources)) {
+      if (filename.endsWith('.ts')) files[filename] = await self.angularCompile(source, filename, url => {
+        const path = resolvePath(filename, url);
+        if (!(path in sources)) throw new Error('找不到项目模块或资源：' + path);
+        return sources[path];
+      });
     }
     self.postMessage({ files });
   } catch (error) {
@@ -206,7 +222,7 @@ self.onmessage = async event => {
     try {
       const files = {
         ...angularTemplate.files,
-        'src/app.ts': angularTemplate.files['src/app.ts'].replace('state.count()', 'state.count(')
+        'src/app.html': angularTemplate.files['src/app.html'].replace('state.count()', 'state.count(')
       };
       await loadPreview(page, 'angular-error', files);
       await expect.poll(() => messages.join('\n')).toMatch(/Parser Error|Errors during JIT compilation/);

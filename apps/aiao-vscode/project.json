@@ -12,8 +12,7 @@
       "cache": true,
       "inputs": [
         "{projectRoot}/scripts/build-assets.mjs",
-        "{projectRoot}/src/workbench/git/git-worker.ts",
-        "{projectRoot}/src/workbench/compiler/compiler-worker.ts",
+        "{projectRoot}/src/workbench/**/*.ts",
         "{workspaceRoot}/pnpm-lock.yaml"
       ],
       "outputs": ["{projectRoot}/public/browser-workbench-assets"],

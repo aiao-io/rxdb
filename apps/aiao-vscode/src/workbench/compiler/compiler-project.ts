@@ -7,7 +7,7 @@ export type { CompiledProject, CompileProjectInput, ProjectTemplate } from './co
 
 export interface CompileProjectOptions {
   build: (options: BuildOptions) => Promise<BuildResult>;
-  angularTransform?: (source: string, filename: string) => Promise<string>;
+  angularTransform?: (source: string, filename: string, resolveTemplate: (url: string) => string) => Promise<string>;
   runtimeFiles?: Readonly<Record<string, string>>;
   runtimeImports?: Readonly<Record<string, string>>;
 }
@@ -230,7 +230,12 @@ function projectPlugin(
           return { contents: content, loader, resolveDir: parentPath(args.path) };
         if (!options.angularTransform) throw new Error('Angular 模板需要独立编译适配器');
         return {
-          contents: await options.angularTransform(textContent(content), args.path),
+          contents: await options.angularTransform(textContent(content), args.path, url => {
+            const path = projectPath(url, parentPath(args.path));
+            const template = files.get(path);
+            if (template === undefined) throw new Error(`${args.path}: templateUrl 找不到项目模块或资源：${path}`);
+            return textContent(template);
+          }),
           loader: 'js',
           resolveDir: parentPath(args.path)
         };
