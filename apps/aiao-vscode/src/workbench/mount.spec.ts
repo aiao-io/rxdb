@@ -584,6 +584,30 @@ describe('VS Code 风格工作台', () => {
     handle.dispose();
   });
 
+  it('同 basename 的多个标签用父目录消歧，与 VS Code 一致', async () => {
+    const { host, handle } = fixture(true, '/browser-workbench-assets/', undefined, [], {
+      'src/main.ts': 'console.log(1)',
+      'lib/main.ts': 'export const x = 1;'
+    });
+    await handle.ready;
+    handle.session.select('lib/main.ts');
+    await vi.waitFor(() =>
+      expect([...host.querySelectorAll('.wb-dock-tab-title')].map(item => item.textContent)).toEqual(
+        expect.arrayContaining(['src/main.ts', 'lib/main.ts'])
+      )
+    );
+    handle.dispose();
+  });
+
+  it('问题面板无问题时显示空状态提示', async () => {
+    const { host, handle } = fixture();
+    await handle.ready;
+    await vi.waitFor(() =>
+      expect(host.querySelector('[data-log="problems"] .wb-panel-content')?.textContent).toContain('尚无问题')
+    );
+    handle.dispose();
+  });
+
   it('Mod+S 只保存当前文件并从已保存快照更新预览，Save All 才保存其余缓冲', async () => {
     const { host, handle, backend, compiler } = fixture();
     await handle.ready;
@@ -880,7 +904,7 @@ describe('VS Code 风格工作台', () => {
     await click(host, '[data-action="run"]');
     await vi.waitFor(() => expect(host.querySelector('.wb-panel-content')?.textContent).toContain('bad module'));
     await click(host, '[data-action="clear-logs"]');
-    await vi.waitFor(() => expect(host.querySelector('.wb-panel-content')?.textContent).toBe(''));
+    await vi.waitFor(() => expect(host.querySelector('.wb-panel-content')?.textContent).toBe('尚无问题'));
     expect(host.querySelector('[data-slot="problem-count"]')?.textContent).toBe('0');
     handle.dispose();
   });

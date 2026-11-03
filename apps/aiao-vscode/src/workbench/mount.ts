@@ -446,7 +446,14 @@ export function mountWorkbench(
     for (const kind of ['problems', 'output', 'console']) {
       const content = logContents.get(kind)!;
       content.replaceChildren();
-      for (const item of logs.filter(item => item.kind === kind)) {
+      const entries = logs.filter(item => item.kind === kind);
+      if (!entries.length && kind === 'problems') {
+        const empty = document.createElement('p');
+        empty.className = 'wb-log-empty';
+        empty.textContent = '尚无问题';
+        content.append(empty);
+      }
+      for (const item of entries) {
         if (item.targets?.length) {
           for (const target of item.targets) {
             const row = document.createElement('button');
@@ -923,7 +930,11 @@ export function mountWorkbench(
     for (const path of state.tabs) {
       const parent = docking.ensureEditor(path);
       const value = state.files[path];
-      docking.setEditorTitle(path, `${path.split('/').at(-1)}${session.isModified(path) ? ' •' : ''}`);
+      const base = path.split('/').at(-1) ?? path;
+      const duplicate = state.tabs.some(other => other !== path && (other.split('/').at(-1) ?? other) === base);
+      const directory = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
+      const label = duplicate && directory ? `${directory}/${base}` : base;
+      docking.setEditorTitle(path, `${label}${session.isModified(path) ? ' •' : ''}`);
       if (typeof value !== 'string') {
         parent.textContent = `二进制文件 · ${value?.byteLength ?? 0} bytes`;
         parent.classList.add('wb-binary');

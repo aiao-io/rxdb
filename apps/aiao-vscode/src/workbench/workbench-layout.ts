@@ -1,12 +1,14 @@
 import { iconMarkup } from './workbench-icons.js';
 import { workbenchStyle } from './workbench-style.js';
 
-/** 创建工作台外壳，内容面板随后交给 Dockview 管理。 */
+/** 创建 VS Code 风格工作台外壳，内容面板随后交给 Dockview 管理。 */
 export function createWorkbenchLayout(host: HTMLElement, assetBaseURL: string): HTMLElement {
   const root = document.createElement('section');
   root.className = 'ao-workbench';
   root.tabIndex = -1;
   root.setAttribute('aria-label', '浏览器开发工作台');
+  const shortcutKey = /mac/i.test(host.ownerDocument.defaultView?.navigator.platform ?? '') ? '⌘' : 'Ctrl';
+  const shortcutShift = shortcutKey === '⌘' ? '⌘ ⇧' : 'Ctrl + Shift';
   root.innerHTML = `<style>${workbenchStyle}</style>
     <header class="wb-title">
       <div class="wb-brand">${iconMarkup('code')}<span>Aiao Code</span></div>
@@ -51,7 +53,7 @@ export function createWorkbenchLayout(host: HTMLElement, assetBaseURL: string): 
           <details class="wb-history"><summary>提交历史</summary><div data-slot="history"></div></details>
         </div>
       </aside>
-      <div class="wb-welcome"><span class="wb-welcome-mark">${iconMarkup('code')}</span><h2>Aiao Code</h2><p>打开一个文件开始编辑</p><div><span>保存文件</span><kbd>⌘ S</kbd></div><div><span>快速打开文件</span><kbd>⌘ P</kbd></div><div><span>命令面板</span><kbd>⌘ ⇧ P</kbd></div><div><span>拖动标签即可拆分编辑器</span></div></div>
+      <div class="wb-welcome"><span class="wb-welcome-mark">${iconMarkup('code')}</span><h2>Aiao Code</h2><p>打开一个文件开始编辑</p><div><span>保存文件</span><kbd>${shortcutKey} S</kbd></div><div><span>快速打开文件</span><kbd>${shortcutKey} P</kbd></div><div><span>命令面板</span><kbd>${shortcutShift} P</kbd></div><div><span>拖动标签即可拆分编辑器</span></div></div>
       <section class="wb-preview" aria-label="项目预览"><div class="wb-preview-toolbar">${iconMarkup('globe')}<span>本地项目预览</span><span class="wb-preview-version">尚未运行</span><button data-action="rerun-preview" aria-label="重新运行预览" title="重新运行">${iconMarkup('refresh')}</button></div><div class="wb-preview-content"></div></section>
       <section class="wb-panel" data-log="problems" aria-label="底部面板"><div class="wb-panel-toolbar"><span>问题</span><span class="wb-spacer"></span><button data-action="clear-logs" aria-label="清空问题" title="清空">${iconMarkup('clear-all')}</button></div><div class="wb-panel-content" role="log" aria-live="polite"></div></section>
       <section class="wb-panel" data-log="output" aria-label="输出"><div class="wb-panel-toolbar"><span>工作台</span><span class="wb-spacer"></span><button data-action="clear-logs" aria-label="清空输出" title="清空">${iconMarkup('clear-all')}</button></div><div class="wb-panel-content" role="log"></div></section>
