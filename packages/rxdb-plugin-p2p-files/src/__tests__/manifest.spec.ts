@@ -145,6 +145,7 @@ describe('P2PManifestStore', () => {
     expect(() => store.upsert({ ...record, id: 'bad' })).toThrow(/manifest id/);
     expect(() => store.upsertForSubject(record, desktop)).toThrow(/holderId/);
     expect(() => store.upsert({ ...record, chunkHashes: ['zz', 'zz'] })).toThrow(/chunkHashes/);
+    expect(() => store.revoke(record.contentHash, record.holderId, -1)).toThrow(RangeError);
     store.upsert(record);
     store.upsert({ ...record, updatedAt: 1 });
     expect(store.findHolders(record.contentHash)[0]?.updatedAt).toBe(10);
@@ -174,6 +175,55 @@ describe('P2PManifestStore', () => {
     expect(store.findHolders(record.contentHash)).toEqual([]);
     store.upsert({ ...record, updatedAt: 60 });
     expect(store.findHolders(record.contentHash)).toHaveLength(1);
+  });
+
+  it('晚到的旧撤回删不掉持有方此后重新登记的声明', async () => {
+    const record = await recordFixture({ updatedAt: 300 });
+    const store = new P2PManifestStore();
+    store.upsert(record);
+
+    expect(store.revoke(record.contentHash, record.holderId, 100)).toBe(false);
+
+    expect(store.findHolders(record.contentHash)).toEqual([record]);
+  });
+
+  it('撤回时刻与声明同刻也撤回：同刻重放随后被挡住', async () => {
+    const record = await recordFixture({ updatedAt: 300 });
+    const store = new P2PManifestStore();
+    store.upsert(record);
+
+    expect(store.revoke(record.contentHash, record.holderId, 300)).toBe(true);
+    store.upsert(record);
+
+    expect(store.findHolders(record.contentHash)).toEqual([]);
+  });
+
+  it('墓碑只升不降：乱序撤回与重复的无时刻撤回都不会让旧声明复活', async () => {
+    const record = await recordFixture({ updatedAt: 50 });
+    const store = new P2PManifestStore();
+
+    expect(store.revoke(record.contentHash, record.holderId, 200)).toBe(false);
+    expect(store.revoke(record.contentHash, record.holderId, 100)).toBe(false);
+    expect(store.revoke(record.contentHash, record.holderId)).toBe(false);
+    for (const updatedAt of [50, 100, 200]) store.upsert({ ...record, updatedAt });
+    expect(store.findHolders(record.contentHash)).toEqual([]);
+
+    store.upsert({ ...record, updatedAt: 201 });
+    expect(store.findHolders(record.contentHash).map(found => found.updatedAt)).toEqual([201]);
+  });
+
+  it('声明与撤回乱序到达时，按持有方时钟以最新的一次为准', async () => {
+    const record = await recordFixture({ updatedAt: 100 });
+    const store = new P2PManifestStore();
+    // 持有方时间线：100 登记 → 200 撤回 → 300 重新登记 → 400 撤回；同步按下面的顺序到达。
+    store.upsert({ ...record, updatedAt: 300 });
+    expect(store.revoke(record.contentHash, record.holderId, 200)).toBe(false);
+    store.upsert(record);
+    expect(store.findHolders(record.contentHash).map(found => found.updatedAt)).toEqual([300]);
+
+    expect(store.revoke(record.contentHash, record.holderId, 400)).toBe(true);
+    store.upsert({ ...record, updatedAt: 300 });
+    expect(store.findHolders(record.contentHash)).toEqual([]);
   });
 
   it('查询返回副本，调用方改动不会写回仓库', async () => {

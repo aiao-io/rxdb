@@ -8,16 +8,16 @@
 | 状态           | 数量 |
 | :------------- | :--- |
 | ✅ Done        | 89   |
-| 🚧 In Progress | 5    |
+| 🚧 In Progress | 8    |
 | 👀 In Review   | 9    |
-| 📝 Backlog     | 26   |
+| 📝 Backlog     | 23   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 129  |
 
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
 
-## 进行中（5 条）
+## 进行中（8 条）
 
 | Story                                                                                                       | 剩余范围                                                           |
 | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
@@ -207,14 +207,18 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 
 ### [局域网 P2P 大文件共享](epics/epic-011-p2p-file-share.md)
 
-- ⬜ [US-704 文件清单与 P2P 发现](stories/future/US-704-p2p-manifest-discovery.md)
-- ⬜ [US-705 P2P 字节传输](stories/future/US-705-p2p-byte-transfer.md)
-- ⬜ [US-706 服务器兜底与认证](stories/future/US-706-p2p-fallback-auth.md)
+US-704～US-707 已获 owner 授权；协议层先行，依赖身份的验收等 US-704 选定认证宿主。
+当前排期与准入见 [roadmap 批次 7](roadmap.md#批次-7局域网-p2p-大文件共享p2p-epic-已解锁)。
+
+- 🚧 [US-704 文件清单与 P2P 发现](stories/future/US-704-p2p-manifest-discovery.md)
+- 🚧 [US-705 P2P 字节传输](stories/future/US-705-p2p-byte-transfer.md)
+- 🚧 [US-706 服务器兜底与认证](stories/future/US-706-p2p-fallback-auth.md)
 - ⬜ [US-707 跨运行时 demo 与多实例 e2e](stories/future/US-707-p2p-cross-runtime-e2e.md)
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 
 - BOM按已授权切片推进，后续故事仍受各自前置约束；联产品、热路径与可选索引保留独立准入。
-- US-029与P2P仍价值待证；US-910留在立项池，不因Backlog状态自动获得开工授权。US-603 已获授权并进入本轮执行。
+- US-029仍价值待证；US-910留在立项池，不因Backlog状态自动获得开工授权。US-603 已获授权并进入本轮执行。
+- P2P（US-704～707）已解锁，协议层的内存测试不替代真实宿主验收；依赖身份的验收等 US-704 选定认证宿主。
 - US-910/911的最小能力验证、US-211/219的真实宿主证据、US-528的仓外消费均不能由源码单测替代。
 - Epic关闭还须满足其当前承诺目标和实际发布验收，不能只看所属故事的Done数量。

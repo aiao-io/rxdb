@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createP2PFileManifest, DEFAULT_P2P_CHUNK_SIZE, type P2PFileManifest } from './chunking.js';
 import { decodeP2PFrame, encodeP2PFrame, type P2PByteTransport, type P2PFrame } from './frame.js';
+import { MAX_FRAME_SIZE, MIN_WEBRTC_MESSAGE_SIZE } from './limits.js';
 import { createTcpTransport, type P2PTcpSocketLike } from './tcp-transport.js';
 import { transferP2PFile } from './transfer.js';
 import { createP2PTransportPeer } from './transport.js';
@@ -317,6 +318,44 @@ describe('WebRTC DataChannel 适配器', () => {
       expect(channel.readyState).toBe('closed');
       expect(channel.listenerCount('message')).toBe(0);
     }
+  });
+
+  it('空的或短于协议下限的非末片即判失败，不会持续累积分片', async () => {
+    for (const message of [Uint8Array.of(0), new Uint8Array(MIN_WEBRTC_MESSAGE_SIZE - 1)]) {
+      const channel = new FakeChannel();
+      const transport = createWebRTCTransport(channel);
+      for (let index = 0; index < 100_000; index += 1) channel.emit('message', message.buffer);
+      expect(channel.readyState).toBe('closed');
+      expect(channel.listenerCount('message')).toBe(0);
+      await expect(transport.receive()).rejects.toThrow('P2P fragment is too small');
+    }
+  });
+
+  it('连续的非末片超过单帧上限即判失败', async () => {
+    const channel = new FakeChannel();
+    const transport = createWebRTCTransport(channel);
+    const more = new Uint8Array(MIN_WEBRTC_MESSAGE_SIZE);
+    const fragmentsPerMaxFrame = Math.ceil(MAX_FRAME_SIZE / (MIN_WEBRTC_MESSAGE_SIZE - 1));
+    for (let index = 0; index <= fragmentsPerMaxFrame; index += 1) channel.emit('message', more.buffer);
+    expect(channel.readyState).toBe('closed');
+    await expect(transport.receive()).rejects.toThrow('too large');
+  });
+
+  it('按最小消息切片的最大帧可以连收：末片之后分片状态清零', async () => {
+    const isFrame = (bytes: Uint8Array, fill: number): boolean =>
+      bytes.byteLength === MAX_FRAME_SIZE && bytes.every(byte => byte === fill);
+    const channel = new FakeChannel();
+    const transport = createWebRTCTransport(channel, { maxMessageSize: MIN_WEBRTC_MESSAGE_SIZE });
+    await transport.send(new Uint8Array(MAX_FRAME_SIZE).fill(1));
+    await transport.send(new Uint8Array(MAX_FRAME_SIZE).fill(2));
+    expect(channel.sent.every(message => message.byteLength <= MIN_WEBRTC_MESSAGE_SIZE)).toBe(true);
+    for (const message of channel.sent.splice(0)) channel.emit('message', message.buffer);
+    expect(isFrame(await transport.receive(), 1)).toBe(true);
+    expect(isFrame(await transport.receive(), 2)).toBe(true);
+
+    await transport.send(new Uint8Array(MAX_FRAME_SIZE + 1));
+    for (const message of channel.sent.splice(0)) channel.emit('message', message.buffer);
+    await expect(transport.receive()).rejects.toThrow('too large');
   });
 
   it('接收 ArrayBuffer 与视图，支持取消和关闭清理', async () => {
@@ -676,7 +715,9 @@ describe('P2P 传输会话', () => {
         })
       ).toThrow(RangeError);
     }
-    expect(() => createWebRTCTransport(new FakeChannel(), { maxMessageSize: 1 })).toThrow(RangeError);
+    for (const maxMessageSize of [1, MIN_WEBRTC_MESSAGE_SIZE - 1, 4096.5]) {
+      expect(() => createWebRTCTransport(new FakeChannel(), { maxMessageSize })).toThrow(RangeError);
+    }
     const transport = createTcpTransport(new FakeSocket());
     await expect(transport.send(new Uint8Array(2 * 1024 * 1024))).rejects.toThrow('too large');
     transport.close();

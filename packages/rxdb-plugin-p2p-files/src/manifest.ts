@@ -207,15 +207,23 @@ export class P2PManifestStore {
   /**
    * 撤回持有声明，并记下墓碑挡住同步晚到的旧版本。
    *
-   * @param revokedAt - 持有方时钟上的撤回时刻；本地还没见过这条声明时用它挡旧重放
+   * @param revokedAt - 持有方时钟上的撤回时刻；省略时撤回本地当前这条声明
    * @returns 本地确有这条声明并已删除时为 true
-   * @remarks 墓碑取被撤回声明自己的 `updatedAt` 与 `revokedAt` 中较大者，不用本机时钟。
+   * @remarks
+   * 只删除不新于撤回时刻的声明（同刻算撤回，与 {@link P2PManifestStore.upsert} 挡同刻重放一致）：
+   * 晚到的旧撤回删不掉持有方此后重新登记的声明。墓碑按 ID 只升不降，取已有墓碑与本次撤回版本中
+   * 较大者，不用本机时钟；乱序或重复的撤回都不会让更旧的声明复活。
    */
   revoke(contentHash: string, holderId: string, revokedAt?: number): boolean {
     if (revokedAt !== undefined && !isCount(revokedAt))
       throw new RangeError('revokedAt must be a non-negative safe integer');
     const id = manifestId(contentHash, holderId);
-    this.#revokedAt.set(id, Math.max(this.#records.get(id)?.updatedAt ?? -1, revokedAt ?? -1));
+    const current = this.#records.get(id);
+    const version = revokedAt ?? current?.updatedAt;
+    // 没有撤回版本（不带时刻、本地也没有声明）就无从撤回；本地声明比撤回新时，
+    // 它自己的 updatedAt 已经挡住所有更旧的重放，不必另记墓碑。
+    if (version === undefined || (current && current.updatedAt > version)) return false;
+    this.#revokedAt.set(id, Math.max(this.#revokedAt.get(id) ?? -1, version));
     return this.#records.delete(id);
   }
 

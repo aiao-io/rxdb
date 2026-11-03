@@ -11,6 +11,15 @@ export const MAX_FRAME_METADATA = 8 * 1024;
 /** 一帧的字节上限：元数据长度头 + 元数据 + 一个最大块。 */
 export const MAX_FRAME_SIZE = 4 + MAX_FRAME_METADATA + MAX_P2P_CHUNK_SIZE;
 
+/**
+ * WebRTC 单条消息的字节下限（含 1 字节分片头）。
+ *
+ * @remarks
+ * 发送方的非末片总是装满一条消息，所以非末片短于它即违反协议；单帧的分片数因此不超过约一千片，
+ * 对端不能用空片或碎片把重组状态撑大。
+ */
+export const MIN_WEBRTC_MESSAGE_SIZE = 1024;
+
 /** 一条连接上一方至多挂着的未完成请求数；超出视为对端违反协议。 */
 export const MAX_OUTSTANDING_REQUESTS = 32;
 

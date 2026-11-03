@@ -5,12 +5,18 @@ import { P2PTransferError, transferP2PFile, type P2PChunkSource, type P2PTransfe
 
 /** 服务器回退下载器；实现方负责复用现有 HTTP 适配器的认证配置。 */
 export interface P2PServerFallback {
-  /** 下载整个文件；返回的字节会先对照清单完整校验再落盘。 */
+  /**
+   * 打开整个文件的字节流，例如 `fetch()` 响应的 `body`。
+   *
+   * @remarks
+   * 字节按清单切块、逐块校验通过才落盘，读流时只缓冲凑满当前块所需的字节，整个文件不进内存；
+   * 下载失败或取消时流会被取消，以释放底层连接。
+   */
   readonly download: (options: {
     readonly manifest: P2PFileManifest;
     readonly signal?: AbortSignal;
     readonly token?: string;
-  }) => Promise<Uint8Array | Blob>;
+  }) => Promise<ReadableStream<Uint8Array>>;
 }
 
 /** P2P 选路的输入。服务器只在没有可用 peer 或 P2P 可重试地失败时被调用。 */
@@ -45,49 +51,108 @@ export interface P2PDownloadOptions {
   }) => void;
 }
 
-type ReadRange = (offset: number, size: number) => Promise<Uint8Array>;
+/** 逐块落盘用到的选项，取自 {@link downloadFromServer} 的参数。 */
+interface ServerChunkOptions {
+  readonly manifest: P2PFileManifest;
+  readonly signal?: AbortSignal;
+  readonly writeChunk: (index: number, bytes: Uint8Array) => Promise<void>;
+  readonly readChunk?: ReadStoredChunk;
+  readonly onProgress?: P2PDownloadOptions['onProgress'];
+}
 
-const rangeReaderOf = (value: Uint8Array | Blob): ReadRange =>
-  value instanceof Blob ?
-    async (offset, size) => new Uint8Array(await value.slice(offset, offset + size).arrayBuffer())
-  : async (offset, size) => value.slice(offset, offset + size);
+/** 把任意分段到达的响应流重新切成清单块：只缓冲凑满当前块所需的字节和流里的一段余量。 */
+class StreamChunker {
+  readonly #reader: ReadableStreamDefaultReader<Uint8Array>;
+  #pending: Uint8Array = new Uint8Array(0);
 
-/** 落盘前先对照清单逐块校验并核对整文件哈希，任何不符都不写入一个字节。 */
-const verifyServerResponse = async (
-  readRange: ReadRange,
-  descriptors: readonly P2PChunkDescriptor[],
-  contentHash: string,
-  signal?: AbortSignal
-): Promise<void> => {
-  const hash = createSha256();
-  for (const descriptor of descriptors) {
-    signal?.throwIfAborted();
-    const chunk = await readRange(descriptor.offset, descriptor.size);
-    if (!(await verifyChunk(chunk, descriptor)))
-      throw new Error(`server response chunk ${descriptor.index} does not match manifest`);
-    hash.update(chunk);
+  constructor(stream: ReadableStream<Uint8Array>) {
+    this.#reader = stream.getReader();
   }
-  if (hash.digestHex() !== contentHash) throw new Error('server response contentHash does not match manifest');
-};
 
-/** 写入一个服务器块：已校验落盘的块跳过，新写入的块读回复核。 */
+  /** 读出恰好 `size` 字节；流提前结束即报响应短于清单。 */
+  async read(size: number): Promise<Uint8Array> {
+    const chunk = new Uint8Array(size);
+    let filled = 0;
+    while (filled < size) {
+      if (this.#pending.byteLength === 0) this.#pending = await this.#pull();
+      const part = this.#pending.subarray(0, size - filled);
+      chunk.set(part, filled);
+      filled += part.byteLength;
+      this.#pending = this.#pending.subarray(part.byteLength);
+    }
+    return chunk;
+  }
+
+  /** 清单之外不得再有字节。 */
+  async assertEnded(): Promise<void> {
+    while (this.#pending.byteLength === 0) {
+      const { done, value } = await this.#reader.read();
+      if (done) return;
+      this.#pending = value;
+    }
+    throw new Error('server response is longer than manifest');
+  }
+
+  /** 取消响应流以释放底层连接；流已出错时取消会拒绝，那时没有连接可释放。 */
+  async cancel(reason: unknown): Promise<void> {
+    await this.#reader.cancel(reason).catch(() => undefined);
+  }
+
+  async #pull(): Promise<Uint8Array> {
+    const { done, value } = await this.#reader.read();
+    if (done) throw new Error('server response is shorter than manifest');
+    return value;
+  }
+}
+
+/** 写入一个已校验的服务器块：已校验落盘的块跳过，新写入的块读回复核。 */
 const storeServerChunk = async (
   descriptor: P2PChunkDescriptor,
-  readRange: ReadRange,
-  writeChunk: (index: number, bytes: Uint8Array) => Promise<void>,
-  readChunk?: ReadStoredChunk
+  chunk: Uint8Array,
+  options: ServerChunkOptions
 ): Promise<void> => {
+  const { readChunk } = options;
   if (readChunk && (await isStoredChunkValid(readChunk, descriptor))) return;
-  await persistChunk(writeChunk, descriptor.index, await readRange(descriptor.offset, descriptor.size));
+  await persistChunk(options.writeChunk, descriptor.index, chunk);
   if (readChunk) await readVerifiedChunk(readChunk, descriptor);
 };
 
+/** 按块序读流、校验、落盘并累计整文件哈希；任何一块不符都在它落盘前报错。 */
+const storeServerStream = async (
+  chunker: StreamChunker,
+  descriptors: readonly P2PChunkDescriptor[],
+  options: ServerChunkOptions
+): Promise<void> => {
+  const hash = createSha256();
+  for (const descriptor of descriptors) {
+    options.signal?.throwIfAborted();
+    const chunk = await chunker.read(descriptor.size);
+    if (!(await verifyChunk(chunk, descriptor)))
+      throw new Error(`server response chunk ${descriptor.index} does not match manifest`);
+    hash.update(chunk);
+    await storeServerChunk(descriptor, chunk, options);
+    options.onProgress?.({
+      completedChunks: descriptor.index + 1,
+      totalChunks: descriptors.length,
+      bytesTransferred: descriptor.offset + descriptor.size,
+      totalBytes: options.manifest.size,
+      route: 'server'
+    });
+  }
+  await chunker.assertEnded();
+  if (hash.digestHex() !== options.manifest.contentHash) {
+    throw new P2PTransferError('server response contentHash does not match manifest', { retryable: false });
+  }
+};
+
 /**
- * 校验服务器返回的完整字节并按清单块写入，校验失败时绝不落盘。
+ * 按清单逐块校验服务器响应流并落盘：坏块不落盘，响应长度不符即报错，整个文件不进内存。
  *
  * @remarks
- * 提供 `readChunk` 时，已校验落盘的块（例如 P2P 中途失败前写好的块）不再重写，新写入的块逐块读回复核；
- * 落盘结果与清单不符按存储故障抛出不可重试的 {@link P2PTransferError}。
+ * 校验通过的块随读随写，后面的块出错时已写的块留给续传。提供 `readChunk` 时，已校验落盘的块
+ * （例如 P2P 中途失败前写好的块）不再重写，新写入的块逐块读回复核。落盘结果与清单不符、
+ * 逐块都对而整文件哈希不符（清单自相矛盾）抛不可重试的 {@link P2PTransferError}。
+ * 失败或取消时取消响应流；取消原因原样抛给调用方。
  */
 export async function downloadFromServer(options: {
   readonly manifest: P2PFileManifest;
@@ -100,32 +165,30 @@ export async function downloadFromServer(options: {
 }): Promise<P2PTransferResult> {
   options.signal?.throwIfAborted();
   const descriptors = describeChunks(options.manifest);
-  const value = await options.fallback.download({
+  const stream = await options.fallback.download({
     manifest: options.manifest,
     signal: options.signal,
     token: options.token
   });
-  options.signal?.throwIfAborted();
-  const size = value instanceof Blob ? value.size : value.byteLength;
-  if (size !== options.manifest.size) throw new Error('server response size does not match manifest');
-  const readRange = rangeReaderOf(value);
-  await verifyServerResponse(readRange, descriptors, options.manifest.contentHash, options.signal);
-  for (const descriptor of descriptors) {
+  const chunker = new StreamChunker(stream);
+  // 下载器不一定把 signal 接到流上：取消时主动取消流，挂起的读随之结束。
+  const cancelOnAbort = (): void => void chunker.cancel(options.signal?.reason);
+  options.signal?.addEventListener('abort', cancelOnAbort, { once: true });
+  if (options.signal?.aborted) cancelOnAbort();
+  try {
+    await storeServerStream(chunker, descriptors, options);
+  } catch (error) {
+    await chunker.cancel(error);
     options.signal?.throwIfAborted();
-    await storeServerChunk(descriptor, readRange, options.writeChunk, options.readChunk);
-    options.onProgress?.({
-      completedChunks: descriptor.index + 1,
-      totalChunks: descriptors.length,
-      bytesTransferred: descriptor.offset + descriptor.size,
-      totalBytes: options.manifest.size,
-      route: 'server'
-    });
+    throw error;
+  } finally {
+    options.signal?.removeEventListener('abort', cancelOnAbort);
   }
   options.signal?.throwIfAborted();
   return {
     contentHash: options.manifest.contentHash,
     completedChunks: descriptors.length,
-    bytesTransferred: size,
+    bytesTransferred: options.manifest.size,
     sourcesUsed: ['server']
   };
 }

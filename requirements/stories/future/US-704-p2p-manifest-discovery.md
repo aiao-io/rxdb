@@ -1,11 +1,11 @@
 ---
 id: US-704
 title: 文件清单与 P2P 发现
-status: Backlog
+status: In Progress
 priority: High
 epic: epic-011-p2p-file-share
 created: 2026-10-26
-updated: 2026-10-28
+updated: 2026-11-03
 tags: [p2p, sync, discovery, manifest]
 ---
 
@@ -19,7 +19,7 @@ tags: [p2p, sync, discovery, manifest]
 
 ## 开工前置
 
-本故事受 epic-011 的具名使用方门禁约束，当前未解锁。发现与信令的参考认证宿主也尚未选定：
+epic-011 已由 owner 解锁（见[解锁记录](../../epics/epic-011-p2p-file-share.md#价值待证)）。发现与信令的参考认证宿主尚未选定：
 须明确可验证 token 的签发者、服务端校验位置、用户与设备标识的关系，以及清单读写/信令授权。
 现有 HTTP 示例只检查可选 Bearer header 的格式，不提供身份校验；不能把客户端 auth hook 当成服务端认证。
 可复用 Supabase 身份作为候选，选择与必要服务端改动须先登记、评审，再启动依赖身份的验收。
@@ -45,7 +45,7 @@ tags: [p2p, sync, discovery, manifest]
 
 ## 验收标准
 
-认证宿主未选定或具名使用方门禁未关闭时，下表只是待验收范围，不构成开工授权。
+认证宿主选定前，下表依赖身份的条目只是待验收范围；协议层单元测试不能替代其中任何一条。
 
 | #   | 前置条件                                                                    | 操作                          | 预期结果                                                                                     | 状态 |
 | --- | --------------------------------------------------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------- | ---- |
@@ -68,4 +68,6 @@ tags: [p2p, sync, discovery, manifest]
 
 ## 实现文件
 
-- `packages/rxdb-plugin-p2p-files/`（拟新建）— 清单实体与发现模块所在包
+- `packages/rxdb-plugin-p2p-files/src/manifest.ts` — 持有声明、由认证主体与设备派生 `holderId`、撤回与单调墓碑
+- `packages/rxdb-plugin-p2p-files/src/p2p-file-manifest.entity.ts` / `src/plugin.ts` — 经同步复制的清单实体与插件登记
+- `packages/rxdb-plugin-p2p-files/src/discovery.ts` — 本地清单发现、握手清单断言与信令接口（宿主接入待做）

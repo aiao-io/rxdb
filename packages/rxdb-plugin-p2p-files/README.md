@@ -18,6 +18,9 @@ import { createAuthenticatedP2PFileManifest, downloadP2PFile, rxDBPluginP2PFiles
 - **按字节区间取块**：请求带请求方清单的 `offset` / `size`，持有方用 `readRange` 读本地文件，
   块大小不同的持有者也能互相供块。
 - **有界缓冲**：传输并发、流式接收窗口与单连接入站并发都不超过 8 个块；TCP 等 `drain`，
-  WebRTC 等 `bufferedamountlow`，超过 DataChannel 消息上限的帧自动分片。
+  WebRTC 等 `bufferedamountlow`，超过 DataChannel 消息上限（不小于 1 KiB）的帧自动分片，
+  短于该下限的非末片按对端违反协议处理。
+- **服务器回退流式落盘**：`P2PServerFallback.download` 返回响应字节流（如 `fetch()` 的 `body`），
+  按清单逐块校验通过才落盘，不整体载入文件；坏块不落盘，响应长度或整文件哈希不符都报错。
 - **存储故障不回退**：写盘、读回复核失败或清单自相矛盾抛不可重试的 `P2PTransferError`；
   只有可重试的 P2P 失败才回退服务器，回退时跳过已校验落盘的块。

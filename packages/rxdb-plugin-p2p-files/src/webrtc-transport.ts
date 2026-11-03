@@ -2,7 +2,7 @@
 import { asError } from './errors.js';
 import { EventGate, FrameInbox } from './frame-queue.js';
 import type { P2PByteTransport } from './frame.js';
-import { MAX_FRAME_SIZE } from './limits.js';
+import { MAX_FRAME_SIZE, MIN_WEBRTC_MESSAGE_SIZE } from './limits.js';
 
 /** DataChannel 事件名。 */
 export type P2PDataChannelEvent = 'message' | 'close' | 'error' | 'open' | 'bufferedamountlow';
@@ -30,7 +30,7 @@ export interface P2PDataChannelLike {
 /** WebRTC 适配器选项。 */
 export interface P2PWebRTCTransportOptions {
   /**
-   * 单条消息的字节上限（含 1 字节分片头），默认 65536，即 SCTP 未协商时的下限。
+   * 单条消息的字节上限（含 1 字节分片头），默认 65536，即 SCTP 未协商时的下限；不得小于 1024。
    * 可传 `RTCPeerConnection.sctp.maxMessageSize`。
    */
   readonly maxMessageSize?: number;
@@ -63,7 +63,13 @@ const concatBytes = (parts: readonly Uint8Array[], length: number): Uint8Array =
   return result;
 };
 
-/** 按序重组分片；单帧超过协议上限或分片头非法即报错。 */
+/**
+ * 按序重组分片；分片头非法、非末片短于协议下限或单帧超过协议上限即报错。
+ *
+ * @remarks
+ * 发送方的非末片总是装满一条消息，短于下限的非末片（包括空片）只会来自违反协议的对端；
+ * 拒绝它们之后，单帧的分片数受字节上限约束，重组状态不会被碎片撑大。
+ */
 class FragmentAssembler {
   #parts: Uint8Array[] = [];
   #length = 0;
@@ -71,6 +77,8 @@ class FragmentAssembler {
   add(message: Uint8Array): Uint8Array | undefined {
     const flag = message[0];
     if (flag !== FRAGMENT_MORE && flag !== FRAGMENT_LAST) throw new RangeError('invalid P2P fragment header');
+    if (flag === FRAGMENT_MORE && message.byteLength < MIN_WEBRTC_MESSAGE_SIZE)
+      throw new RangeError('P2P fragment is too small');
     this.#length += message.byteLength - 1;
     if (this.#length > MAX_FRAME_SIZE) throw new RangeError('P2P frame is too large');
     this.#parts.push(message.subarray(1));
@@ -101,15 +109,15 @@ const channelErrorOf = (event: Event): Error => {
  * 发送串行进行；通道还在建立时等 `open`，发送缓冲超过 1 MiB 时等 `bufferedamountlow`。
  * 任何失败（错误事件、关闭、非二进制消息、非法分片）都会关闭通道并摘掉监听，首个失败原因保留到底。
  *
- * @throws RangeError `maxMessageSize` 小于 2 字节或不是整数
+ * @throws RangeError `maxMessageSize` 小于 1024 字节或不是整数
  */
 export const createWebRTCTransport = (
   channel: P2PDataChannelLike,
   options: P2PWebRTCTransportOptions = {}
 ): P2PByteTransport => {
   const maxMessageSize = options.maxMessageSize ?? DEFAULT_MAX_MESSAGE_SIZE;
-  if (!Number.isSafeInteger(maxMessageSize) || maxMessageSize < 2)
-    throw new RangeError('maxMessageSize must be an integer of at least 2 bytes');
+  if (!Number.isSafeInteger(maxMessageSize) || maxMessageSize < MIN_WEBRTC_MESSAGE_SIZE)
+    throw new RangeError(`maxMessageSize must be an integer of at least ${MIN_WEBRTC_MESSAGE_SIZE} bytes`);
   const assembler = new FragmentAssembler();
   const opened = new EventGate();
   const drained = new EventGate();
