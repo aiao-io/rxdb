@@ -9,6 +9,7 @@
     "@aiao/rxdb": "workspace:*",
     "@aiao/rxdb-adapter-sqlite-wasm": "workspace:*",
     "@aiao/rxdb-angular": "workspace:*",
+    "@aiao/rxdb-devtools": "workspace:*",
     "@angular/common": "22.2.3",
     "@angular/compiler": "22.2.3",
     "@angular/core": "22.2.3",

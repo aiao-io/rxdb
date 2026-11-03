@@ -1,6 +1,6 @@
 {
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "implicitDependencies": ["rxdb", "rxdb-adapter-sqlite-wasm", "rxdb-angular", "code-editor", "code-editor-angular"],
+  "implicitDependencies": ["rxdb", "rxdb-adapter-sqlite-wasm", "rxdb-angular", "rxdb-devtools", "code-editor", "code-editor-angular"],
   "name": "aiao-vscode",
   "prefix": "app",
   "projectType": "application",
@@ -65,6 +65,10 @@
               "maximumError": "8kb"
             }
           ],
+          "define": {
+            "import.meta.env": "{\"MODE\":\"production\",\"BASE_URL\":\"/\",\"DEV\":false,\"PROD\":true,\"SSR\":false}",
+            "import.meta.env.DEV": "false"
+          },
           "outputHashing": "all",
           "optimization": {
             "scripts": true,

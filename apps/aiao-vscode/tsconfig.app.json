@@ -37,6 +37,9 @@
     },
     {
       "path": "../../packages/rxdb-angular/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
     }
   ]
 }

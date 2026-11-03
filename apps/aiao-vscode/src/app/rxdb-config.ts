@@ -1,4 +1,4 @@
-import { RxDB, SyncType } from '@aiao/rxdb';
+import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterSqlite, SqliteOptions } from '@aiao/rxdb-adapter-sqlite-wasm';
 import { isPlatformBrowser } from '@angular/common';
 import { inject, PLATFORM_ID } from '@angular/core';
@@ -32,6 +32,15 @@ export function setupRxDB(): RxDB {
   });
   rxdb.adapter(ADAPTER_NAME, async db => new RxDBAdapterSqlite(db, sqliteWasmOptions()));
   rxdb.init();
+
+  if (import.meta.env.DEV) {
+    // 先在同步作用域里定住实例：模块级 `rxdb` 是 `RxDB | undefined`，到了异步回调里收窄会失效。
+    const instance = rxdb;
+    void import('@aiao/rxdb-devtools').then(({ getDevToolsConnector }) => {
+      getDevToolsConnector().init(instance, getEntityMetadata);
+    });
+  }
+
   void rxdb.connect(ADAPTER_NAME).catch(error => console.error('RxDB connect failed', error));
   return rxdb;
 }

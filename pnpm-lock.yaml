@@ -778,6 +778,9 @@ importers:
       '@aiao/rxdb-angular':
         specifier: workspace:*
         version: link:../../packages/rxdb-angular
+      '@aiao/rxdb-devtools':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-devtools
       '@angular/common':
         specifier: 22.2.3
         version: 22.2.3(@angular/core@22.2.3(@angular/compiler@22.2.3)(rxjs@7.8.2)(zone.js@0.16.2))(rxjs@7.8.2)
