@@ -113,7 +113,9 @@ describe('Dockview 工作台布局', () => {
     expect(dock.ensureEditor('src/main.ts')).toBe(first);
     expect(first.firstChild).toBe(child);
     expect(dock.api.getPanel('editor:src/main.ts')?.api.renderer).toBe('always');
-    expect(dock.api.getPanel('editor:src/main.ts')?.api.isActive).toBe(false);
+    expect(dock.api.getPanel('welcome')).toBeUndefined();
+    expect(dock.api.getPanel('editor:src/main.ts')?.api.isActive).toBe(true);
+    expect(dock.api.getPanel('editor:src/other.ts')?.api.isActive).toBe(false);
     dock.selectEditor('src/main.ts');
     expect(callbacks.onSelectEditor).not.toHaveBeenCalled();
     dock.api.getPanel('editor:src/other.ts')?.api.setActive();
@@ -127,6 +129,68 @@ describe('Dockview 工作台布局', () => {
     expect(tab?.textContent).not.toContain('•');
     dock.setEditorTitle('src/main.ts', 'main.ts');
     expect(tab?.querySelector<HTMLElement>('.codicon-circle-filled')?.hidden).toBe(true);
+  });
+
+  it('欢迎页是无编辑器时的默认页，打开第一个编辑器即被替换', () => {
+    const { root, dock } = fixture();
+    const welcome = root.querySelector('.wb-welcome');
+    expect(dock.api.getPanel('welcome')?.api.isActive).toBe(true);
+    expect(root.querySelector<HTMLElement>('[aria-label="关闭 欢迎"]')).toBeNull();
+    dock.ensureEditor('first.ts');
+    expect(dock.api.getPanel('welcome')).toBeUndefined();
+    expect(welcome?.parentElement).toBe(root.querySelector('[data-slot="panel-staging"]'));
+    dock.ensureEditor('second.ts');
+    expect(dock.api.getPanel('welcome')).toBeUndefined();
+  });
+
+  it('关闭最后一个编辑器时欢迎页回归并激活，重开编辑器再次替换', async () => {
+    const { root, dock, callbacks } = fixture();
+    const welcome = root.querySelector('.wb-welcome');
+    dock.ensureEditor('first.ts');
+    dock.ensureEditor('second.ts');
+    dock.api.getPanel('editor:first.ts')?.api.close();
+    await Promise.resolve();
+    expect(dock.api.getPanel('welcome')).toBeUndefined();
+    dock.api.getPanel('editor:second.ts')?.api.close();
+    await Promise.resolve();
+    expect(callbacks.onCloseEditor).toHaveBeenCalledTimes(2);
+    const panel = dock.api.getPanel('welcome');
+    expect(panel).toBeDefined();
+    expect(panel?.api.isActive).toBe(true);
+    expect(panel?.group).not.toBe(dock.api.getPanel('preview')?.group);
+    expect(panel?.group).not.toBe(dock.api.getPanel('problems')?.group);
+    expect(root.querySelector('.wb-welcome')).toBe(welcome);
+    dock.ensureEditor('again.ts');
+    expect(dock.api.getPanel('welcome')).toBeUndefined();
+    expect(welcome?.parentElement).toBe(root.querySelector('[data-slot="panel-staging"]'));
+  });
+
+  it('程序移除最后一个编辑器同样恢复欢迎页，不触发关闭回调', () => {
+    const { dock, callbacks } = fixture();
+    dock.ensureEditor('a.ts');
+    dock.removeEditor('a.ts');
+    expect(dock.api.getPanel('welcome')?.api.isActive).toBe(true);
+    expect(callbacks.onCloseEditor).not.toHaveBeenCalled();
+  });
+
+  it('重置布局时无编辑器展示欢迎页，有编辑器保持替换状态', () => {
+    const { dock } = fixture();
+    dock.resetLayout();
+    expect(dock.api.getPanel('welcome')?.api.isActive).toBe(true);
+    dock.ensureEditor('main.ts');
+    dock.selectEditor('main.ts');
+    dock.resetLayout();
+    expect(dock.api.getPanel('welcome')).toBeUndefined();
+  });
+
+  it('重置布局时 lastEditor 已不在则回落到欢迎页', async () => {
+    const { dock } = fixture();
+    dock.ensureEditor('gone.ts');
+    dock.selectEditor('gone.ts');
+    dock.api.getPanel('editor:gone.ts')?.api.close();
+    await Promise.resolve();
+    dock.resetLayout();
+    expect(dock.api.getPanel('welcome')?.api.isActive).toBe(true);
   });
 
   it('程序移除不重复close，用户关闭只在Dock移除完成后通知一次', async () => {

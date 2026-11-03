@@ -138,4 +138,52 @@ describe('隔离预览文档', () => {
     const identity = { sessionId: 's', projectId: 'p', revision: 'revision-1' };
     expect(isPreviewEvent({ ...identity, type: 'error', message: 'failed', stack: 'main.ts:1' }, identity)).toBe(true);
   });
+
+  it('预览内的工作台快捷键经身份消息转发，键集受限且修饰键类型可校验', () => {
+    const identity = { sessionId: 's', projectId: 'p', revision: 1 };
+    expect(
+      isPreviewEvent(
+        { ...identity, type: 'keydown', key: 'w', ctrlKey: false, metaKey: true, shiftKey: false },
+        identity
+      )
+    ).toBe(true);
+    expect(
+      isPreviewEvent(
+        { ...identity, type: 'keydown', key: '\\', ctrlKey: true, metaKey: false, shiftKey: true },
+        identity
+      )
+    ).toBe(true);
+    expect(
+      isPreviewEvent(
+        { ...identity, type: 'keydown', key: 'tab', ctrlKey: true, metaKey: false, shiftKey: false },
+        identity
+      )
+    ).toBe(true);
+    expect(
+      isPreviewEvent(
+        { ...identity, type: 'keydown', key: 'q', ctrlKey: true, metaKey: false, shiftKey: false },
+        identity
+      )
+    ).toBe(false);
+    expect(
+      isPreviewEvent(
+        { ...identity, type: 'keydown', key: 'w', ctrlKey: 'yes', metaKey: false, shiftKey: false },
+        identity
+      )
+    ).toBe(false);
+    expect(isPreviewEvent({ ...identity, type: 'keydown', key: 'w' }, identity)).toBe(false);
+  });
+
+  it('预览文档注入工作台快捷键转发器，用户代码不能抢先拿到这些按键', () => {
+    const document = buildPreviewDocument({
+      sessionId: 'session',
+      projectId: 'project',
+      revision: 1,
+      js: '',
+      css: ''
+    });
+    expect(document).toContain('["w","s","p","b","j","\\\\","tab"]');
+    expect(document).toContain("type:'keydown'");
+    expect(document).toContain('event.preventDefault();');
+  });
 });

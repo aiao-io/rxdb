@@ -817,6 +817,9 @@ importers:
       dockview-core:
         specifier: 8.8.3
         version: 8.8.3
+      prettier:
+        specifier: 3.9.10
+        version: 3.9.10
       rxjs:
         specifier: 7.8.2
         version: 7.8.2

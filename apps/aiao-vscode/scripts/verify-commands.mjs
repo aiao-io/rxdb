@@ -106,6 +106,31 @@ try {
   await expect.poll(() => content(editor(path))).toBe(before);
   report.checks.push('source-mod-enter-inserts-line-without-running-project');
 
+  const unformatted = `export const  counter=()=>{return(  <div className="x">次数 0</div>)};`;
+  await page.keyboard.press('ControlOrMeta+a');
+  await page.keyboard.insertText(unformatted);
+  await expect(root.locator('[data-slot="save-status"]')).toContainText('未保存');
+  await page.keyboard.press('Shift+Alt+F');
+  await expect
+    .poll(async () => (await content(editor(path))))
+    .toContain(`className='x'`);
+  await expect.poll(async () => (await content(editor(path))).split('\n').length).toBeGreaterThan(1);
+  await expect(root.locator('[data-log="output"]')).toContainText(`已格式化 ${path}`);
+  await expect(root.locator('[data-slot="save-status"]')).toContainText('未保存');
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect.poll(() => content(editor(path))).toBe(unformatted);
+  report.checks.push('shift-alt-f-formats-active-file-undoable-unsaved');
+
+  await palette('format');
+  await expect.poll(async () => (await content(editor(path)))).toContain(`className='x'`);
+  await expect(root.locator('[data-slot="save-status"]')).toContainText('未保存');
+  report.checks.push('command-palette-format-formats-file');
+
+  await page.keyboard.press('ControlOrMeta+a');
+  await page.keyboard.insertText(before);
+  await expect.poll(() => content(editor(path))).toBe(before);
+  await expect(root.locator('[data-slot="save-status"]')).toContainText('已保存');
+
   const marker = `// commands retained buffer ${host}`;
   await page.keyboard.press('ControlOrMeta+a');
   await page.keyboard.insertText(`${before}\n${marker}`);

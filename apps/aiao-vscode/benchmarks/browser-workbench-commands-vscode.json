@@ -1,0 +1,20 @@
+{
+  "format": "aiao.workbench.commands",
+  "version": 1,
+  "host": "vscode",
+  "url": "http://localhost:4320/",
+  "status": "passed",
+  "checks": [
+    "quick-open-path-filter-arrow-enter",
+    "quick-open-escape-restores-focus-and-buffer",
+    "command-palette-executes-real-layout-command",
+    "tab-indents-and-undo-restores-source",
+    "source-mod-enter-inserts-line-without-running-project",
+    "shift-alt-f-formats-active-file-undoable-unsaved",
+    "command-palette-format-formats-file",
+    "close-reopen-retains-buffer-and-new-editor-undo",
+    "save-preserves-editor-active-and-close-keeps-preview"
+  ],
+  "browser": "156.0.8078.4",
+  "pageErrors": []
+}

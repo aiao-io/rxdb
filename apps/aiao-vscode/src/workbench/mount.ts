@@ -2,6 +2,7 @@ import { createProjectCatalog, type WorkbenchCatalog, type WorkbenchProjectInfo 
 import { createCompiler, type WorkbenchCompiler } from './compiler-client.js';
 import type { ProjectTemplate } from './compiler/compiler-types.js';
 import type { WorkbenchEditorHandle, WorkbenchEditorMount } from './editor.js';
+import { formatWorkbenchSource } from './formatter.js';
 import { createGitBackend } from './git-backend.js';
 import { mountPreview, type PreviewEvent } from './preview/preview-sandbox.js';
 import { createSavePreviewController, type SavePreviewPhase } from './save-preview.js';
@@ -210,6 +211,46 @@ export function mountWorkbench(
     const panel = docking.api.activePanel;
     if (panel?.id.startsWith('editor:')) closeEditorTab(panel.id.slice(7));
     else if (panel && (panel.id.startsWith('diff:') || panel.id === 'preview')) panel.api.close();
+  }
+
+  function cycleEditor(direction: 1 | -1): void {
+    const tabs = session.state.tabs;
+    if (!tabs.length) return;
+    const current = activeResource();
+    const index = current ? tabs.indexOf(current) : -1;
+    const base =
+      index === -1 ?
+        direction === 1 ?
+          -1
+        : 0
+      : index;
+    const next = tabs[(base + direction + tabs.length) % tabs.length];
+    session.select(next);
+    docking.selectEditor(next);
+    focusEditor(next);
+  }
+
+  async function formatSource(): Promise<void> {
+    const focused = root.ownerDocument.activeElement;
+    const path =
+      (focused && root.contains(focused) ?
+        focused.closest('[data-editor-path]')?.getAttribute('data-editor-path')
+      : null) ?? session.state.activePath;
+    if (!path) return;
+    const value = session.state.files[path];
+    if (typeof value !== 'string') {
+      log('output', `二进制文件无法格式化：${path}`);
+      return;
+    }
+    const outcome = await formatWorkbenchSource(path, value);
+    if (outcome.kind === 'formatted') {
+      const editor = editors.get(path);
+      if (!editor) throw new Error('文件编辑器尚未挂载');
+      editor.handle.replace(outcome.text);
+      log('output', `已格式化 ${path}`);
+    } else if (outcome.kind === 'unsupported') {
+      log('output', `没有可用于 ${path} 的格式化器`);
+    }
   }
 
   async function loadDiff(id: string): Promise<void> {
@@ -523,6 +564,14 @@ export function mountWorkbench(
     if (event.type === 'console') log('console', event.values.join(' '), event.level);
     if (event.type === 'error') log('problems', `${event.message}\n${event.stack}`, 'error');
     if (event.type === 'ready') log('output', `运行 revision ${event.revision} 已就绪`);
+    if (event.type === 'keydown') {
+      commands.dispatchShortcut({
+        key: event.key,
+        ctrlKey: event.ctrlKey,
+        metaKey: event.metaKey,
+        shiftKey: event.shiftKey
+      });
+    }
   }
   function render(state: WorkbenchState): void {
     renderFiles(state);
@@ -707,6 +756,7 @@ export function mountWorkbench(
       }
     },
     commit: () => scm.commit(),
+    format: formatSource,
     'clear-logs': () => {
       logs.splice(0);
       renderLogs();
@@ -782,6 +832,7 @@ export function mountWorkbench(
       const definitions: readonly [string, string, string | undefined, () => Promise<unknown> | void][] = [
         ['save', '文件: 保存并预览当前文件', '⌘ / Ctrl + S', saveCurrent],
         ['saveAll', '文件: 保存全部并预览', '⌘ / Ctrl + Shift + S', saveAll],
+        ['format', '文件: 格式化代码', '⇧ / Shift + ⌥ / Alt + F', formatSource],
         ['run', '运行: 保存全部并运行项目', undefined, run],
         ['newFile', '文件: 新建文件', undefined, operations['new-file']],
         ['newProject', '项目: 新建项目', undefined, newProject],
@@ -793,7 +844,9 @@ export function mountWorkbench(
         ['togglePanel', '查看: 切换底部面板', '⌘ / Ctrl + J', () => docking.toggleTools()],
         ['split', '查看: 向右拆分编辑器', '⌘ / Ctrl + 反斜杠', () => docking.splitEditor()],
         ['resetLayout', '查看: 重置布局', undefined, operations['reset-layout']],
-        ['closeEditor', '查看: 关闭当前编辑标签', '⌘ / Ctrl + W', closeActiveEditor]
+        ['closeEditor', '查看: 关闭当前编辑标签', '⌘ / Ctrl + W', closeActiveEditor],
+        ['nextEditor', '查看: 打开下一个编辑器', 'Ctrl + Tab', () => cycleEditor(1)],
+        ['prevEditor', '查看: 打开上一个编辑器', 'Ctrl + Shift + Tab', () => cycleEditor(-1)]
       ];
       return definitions.map(([id, label, keybinding, operation]): WorkbenchCommand => ({
         id,

@@ -18,10 +18,21 @@ export interface WorkbenchCommandsOptions {
   onError?(cause: unknown): void;
 }
 
+/** 不带事件目标的全局快捷键；宿主与预览 iframe 均可转发给工作台路由。 */
+export interface WorkbenchShortcut {
+  readonly key: string;
+  readonly ctrlKey: boolean;
+  readonly metaKey: boolean;
+  readonly shiftKey: boolean;
+  readonly altKey?: boolean;
+}
+
 /** 工作台拥有的 Quick Open 与命令面板生命周期。 */
 export interface WorkbenchCommandsHandle {
   showQuickOpen(): void;
   showCommandPalette(): void;
+  /** 按工作台外壳上下文路由一条转发来的快捷键（如预览 iframe 内的按键）。 */
+  dispatchShortcut(shortcut: WorkbenchShortcut): void;
   dispose(): void;
 }
 
@@ -250,62 +261,79 @@ export function createWorkbenchCommands(root: HTMLElement, options: WorkbenchCom
     quick.input.setSelectionRange(quick.input.value.length, quick.input.value.length);
   }
 
-  function runCommand(id: string, event: KeyboardEvent): void {
+  function invokeCommand(id: string): boolean {
     const command = options.getCommands().find(item => item.id === id);
-    if (!command) return;
-    event.preventDefault();
+    if (!command) return false;
     invoke(command.run);
+    return true;
+  }
+
+  function route(shortcut: WorkbenchShortcut, target: Element | null): boolean {
+    const modifier = shortcut.ctrlKey || shortcut.metaKey;
+    const key = shortcut.key.toLowerCase();
+    if (target?.closest('dialog[open],[aria-modal="true"]')) return false;
+    if (modifier && key === 'p') {
+      show(shortcut.shiftKey);
+      return true;
+    }
+    if (quick?.overlay.contains(target)) return false;
+    if (modifier && key === 'tab' && !shortcut.metaKey)
+      return invokeCommand(shortcut.shiftKey ? 'prevEditor' : 'nextEditor');
+    if (!modifier && !shortcut.shiftKey && key === 'f2' && !ordinaryInput(target) && editorContext(target))
+      return invokeCommand('rename');
+    if (shortcut.shiftKey && shortcut.altKey && key === 'f' && !ordinaryInput(target) && editorContext(target))
+      return invokeCommand('format');
+    if (modifier && shortcut.shiftKey && key === 's') return invokeCommand('saveAll');
+    if (!modifier || shortcut.shiftKey) return false;
+    if (key === 'w') return invokeCommand('closeEditor');
+    if (key === '\\' && !ordinaryInput(target) && editorContext(target)) return invokeCommand('split');
+    const shortcuts: Record<string, string> = { s: 'save', b: 'toggleSidebar', j: 'togglePanel' };
+    const id = shortcuts[key];
+    return id ? invokeCommand(id) : false;
+  }
+
+  /** ⌘/Ctrl+W 专属捕获层：无论焦点在哪都阻止浏览器关闭整个页面，有标签时执行关闭。 */
+  function pageKeydown(event: KeyboardEvent): void {
+    if (event.defaultPrevented || event.isComposing || event.altKey || event.shiftKey) return;
+    if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'w') return;
+    event.preventDefault();
+    const target = targetElement(event.target);
+    if (!target?.closest('dialog[open],[aria-modal="true"]')) invokeCommand('closeEditor');
   }
 
   function keydown(event: KeyboardEvent): void {
-    if (event.defaultPrevented || event.isComposing || event.altKey) return;
-    const target = targetElement(event.target);
-    if (target?.closest('dialog[open],[aria-modal="true"]')) return;
-    const modifier = event.ctrlKey || event.metaKey;
-    const key = event.key.toLowerCase();
-    if (modifier && key === 'p') {
-      event.preventDefault();
-      show(event.shiftKey);
-      return;
-    }
-    if (quick?.overlay.contains(target)) return;
-    if (!modifier && !event.shiftKey && event.key === 'F2' && !ordinaryInput(target) && editorContext(target)) {
-      runCommand('rename', event);
-      return;
-    }
-    if (modifier && event.shiftKey && key === 's') {
-      runCommand('saveAll', event);
-      return;
-    }
-    if (!modifier || event.shiftKey) return;
-    if (key === 'w' && !ordinaryInput(target) && (options.getActivePath?.() || editorContext(target))) {
-      runCommand('closeEditor', event);
-      return;
-    }
-    if (key === '\\' && !ordinaryInput(target) && editorContext(target)) {
-      runCommand('split', event);
-      return;
-    }
-    const shortcuts: Record<string, string> = { s: 'save', b: 'toggleSidebar', j: 'togglePanel' };
-    const id = shortcuts[key];
-    if (id) runCommand(id, event);
+    if (event.defaultPrevented || event.isComposing || (event.altKey && !event.shiftKey)) return;
+    const shortcut: WorkbenchShortcut = {
+      key: event.key,
+      ctrlKey: event.ctrlKey,
+      metaKey: event.metaKey,
+      shiftKey: event.shiftKey,
+      altKey: event.altKey
+    };
+    if (route(shortcut, targetElement(event.target))) event.preventDefault();
   }
 
   const outside = (event: Event) => {
     if (quick && !quick.overlay.contains(event.target as Node)) close(false);
   };
-  root.addEventListener('keydown', keydown);
+  owner.addEventListener('keydown', pageKeydown, true);
+  owner.addEventListener('keydown', keydown);
   owner.addEventListener('pointerdown', outside);
   owner.defaultView?.addEventListener('resize', position);
   return {
     showQuickOpen: () => show(false),
     showCommandPalette: () => show(true),
+    dispatchShortcut(shortcut) {
+      if (disposed) return;
+      route(shortcut, root);
+    },
     dispose() {
       if (disposed) return;
       disposed = true;
       close(true);
       style.remove();
-      root.removeEventListener('keydown', keydown);
+      owner.removeEventListener('keydown', pageKeydown, true);
+      owner.removeEventListener('keydown', keydown);
       owner.removeEventListener('pointerdown', outside);
       owner.defaultView?.removeEventListener('resize', position);
     }

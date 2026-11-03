@@ -18,9 +18,10 @@ function fixture(
   withProject = true,
   assetBaseURL = '/browser-workbench-assets/',
   bootstrapGate?: Promise<void>,
-  extraProjects: readonly WorkbenchProjectInfo[] = []
+  extraProjects: readonly WorkbenchProjectInfo[] = [],
+  initialFiles: WorkbenchFiles = files
 ) {
-  let currentFiles: WorkbenchFiles = { ...files };
+  let currentFiles: WorkbenchFiles = { ...initialFiles };
   let revision = 1;
   const backend: WorkbenchBackend = {
     open: vi.fn(async projectId => ({ projectId, revision: String(revision), files: { ...currentFiles } })),
@@ -66,7 +67,7 @@ function fixture(
     dispose: vi.fn()
   };
   const disposeEditor = vi.fn();
-  const mountEditor = vi.fn<WorkbenchEditorMount>(() => ({ update: vi.fn(), dispose: disposeEditor }));
+  const mountEditor = vi.fn<WorkbenchEditorMount>(() => ({ update: vi.fn(), replace: vi.fn(), dispose: disposeEditor }));
   const compiler = {
     compile: vi.fn<WorkbenchCompiler['compile']>(async () => ({ js: '', css: '' })),
     dispose: vi.fn()
@@ -437,6 +438,70 @@ describe('VS Code 风格工作台', () => {
       'src/main.ts': 'saved main',
       'src/label.ts': 'unsaved label'
     });
+  });
+
+  it('Shift+Alt+F 格式化当前文件：可撤销写入缓冲、标记未保存且不自动保存', async () => {
+    const { host, handle, backend, mountEditor } = fixture();
+    await handle.ready;
+    await vi.waitFor(() => expect(handle.session.state.preview).not.toBeNull());
+    vi.mocked(backend.save).mockClear();
+    handle.session.edit('src/main.ts', 'const  x={a:1,}');
+    const bridge = vi.mocked(mountEditor.mock.results[0].value);
+    vi.mocked(bridge.replace).mockImplementation((value: string) => mountEditor.mock.calls[0][1].onChange(value));
+    const editorHost = host.querySelector<HTMLElement>('[data-editor-path="src/main.ts"]')!;
+    const event = new KeyboardEvent('keydown', { key: 'F', shiftKey: true, altKey: true, bubbles: true, cancelable: true });
+    editorHost.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    await vi.waitFor(() => expect(bridge.replace).toHaveBeenCalledOnce());
+    expect(handle.session.state.files['src/main.ts']).toBe("const x = { a: 1 };\n");
+    expect(handle.session.isModified('src/main.ts')).toBe(true);
+    expect(backend.save).not.toHaveBeenCalled();
+  });
+
+  it('格式已正确的文件重复执行不产生第二次写入', async () => {
+    const { host, handle, mountEditor } = fixture();
+    await handle.ready;
+    await vi.waitFor(() => expect(handle.session.state.preview).not.toBeNull());
+    handle.session.edit('src/main.ts', 'const  x={a:1,}');
+    const bridge = vi.mocked(mountEditor.mock.results[0].value);
+    vi.mocked(bridge.replace).mockImplementation((value: string) => mountEditor.mock.calls[0][1].onChange(value));
+    const editorHost = host.querySelector<HTMLElement>('[data-editor-path="src/main.ts"]')!;
+    const save = host.querySelector<HTMLButtonElement>('[data-action="save"]')!;
+    const format = () =>
+      editorHost.dispatchEvent(new KeyboardEvent('keydown', { key: 'F', shiftKey: true, altKey: true, bubbles: true }));
+    format();
+    await vi.waitFor(() => expect(bridge.replace).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(save.disabled).toBe(false));
+    format();
+    await vi.waitFor(() => expect(save.disabled).toBe(false));
+    expect(bridge.replace).toHaveBeenCalledOnce();
+    expect(handle.session.isModified('src/main.ts')).toBe(true);
+  });
+
+  it('没有格式化器的文件只给出输出提示，不修改缓冲', async () => {
+    const { host, handle, mountEditor } = fixture();
+    await handle.ready;
+    handle.session.edit('logo.svg', '<svg></svg>');
+    handle.session.select('logo.svg');
+    await vi.waitFor(() => expect(host.querySelector('[data-editor-path="logo.svg"]')).not.toBeNull());
+    const editorHost = host.querySelector<HTMLElement>('[data-editor-path="logo.svg"]')!;
+    editorHost.dispatchEvent(new KeyboardEvent('keydown', { key: 'F', shiftKey: true, altKey: true, bubbles: true }));
+    const output = host.querySelector('[data-log="output"] .wb-panel-content')!;
+    await vi.waitFor(() => expect(output.textContent).toContain('没有可用于 logo.svg 的格式化器'));
+    expect(handle.session.state.files['logo.svg']).toBe('<svg></svg>');
+    expect(vi.mocked(mountEditor.mock.results[1].value).replace).not.toHaveBeenCalled();
+  });
+
+  it('二进制文件拒绝格式化并给出输出提示', async () => {
+    const binary: WorkbenchFiles = { 'src/main.bin': new Uint8Array([1, 2, 3]) };
+    const { host, handle } = fixture(true, '/browser-workbench-assets/', undefined, [], binary);
+    await handle.ready;
+    await vi.waitFor(() => expect(host.querySelector('[data-editor-path="src/main.bin"]')).not.toBeNull());
+    const editorHost = host.querySelector<HTMLElement>('[data-editor-path="src/main.bin"]')!;
+    editorHost.dispatchEvent(new KeyboardEvent('keydown', { key: 'F', shiftKey: true, altKey: true, bubbles: true }));
+    const output = host.querySelector('[data-log="output"] .wb-panel-content')!;
+    await vi.waitFor(() => expect(output.textContent).toContain('二进制文件无法格式化'));
+    expect(handle.session.state.files['src/main.bin']).toEqual(new Uint8Array([1, 2, 3]));
   });
 
   it('保存不抢走编辑器激活状态，随后 Mod+W 关闭源码标签并保留预览', async () => {

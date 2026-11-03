@@ -279,4 +279,60 @@ describe('真实浏览器编译与 opaque 预览', () => {
     expect(navigationCookies).toEqual(['']);
     expect(await page.locator('iframe').getAttribute('credentialless')).toBe('');
   }, 30000);
+
+  it('预览内按工作台快捷键被拦截转发给宿主，页面不会被浏览器关闭', async () => {
+    const fixture = {
+      template: 'vanilla',
+      entry: 'main.ts',
+      files: { 'main.ts': 'document.body.innerHTML="<button>在预览内按键</button>";' }
+    };
+    await page.evaluate(
+      fixture =>
+        (window as unknown as { probe: { run: (fixture: unknown, imports: unknown) => Promise<unknown> } }).probe.run(
+          fixture,
+          {}
+        ),
+      fixture
+    );
+    await page.waitForFunction('window.probe.events.some(event => event.type === "ready" || event.type === "error")');
+    const frame = page.frames().find(candidate => candidate !== page.mainFrame());
+    if (!frame) throw new Error('预览 iframe 缺失');
+    await frame.getByRole('button', { name: '在预览内按键' }).click();
+    await frame.evaluate(() => {
+      const records: { key: string; ctrlKey: boolean; shiftKey: boolean; defaultPrevented: boolean }[] = [];
+      addEventListener(
+        'keydown',
+        event =>
+          records.push({
+            key: event.key,
+            ctrlKey: event.ctrlKey,
+            shiftKey: event.shiftKey,
+            defaultPrevented: event.defaultPrevented
+          }),
+        true
+      );
+      (window as unknown as { previewKeys: typeof records }).previewKeys = records;
+    });
+    await page.keyboard.press('Control+Shift+w');
+    await page.keyboard.press('Control+w');
+    await page.keyboard.press('Control+s');
+    await page.keyboard.press('a');
+    await page.waitForFunction('window.probe.events.filter(event => event.type === "keydown").length === 2');
+    const forwarded = await page.evaluate<Extract<PreviewEvent, { type: 'keydown' }>[]>(
+      'window.probe.events.filter(event => event.type === "keydown")'
+    );
+    expect(forwarded.map(event => event.key)).toEqual(['w', 's']);
+    for (const event of forwarded) expect([event.ctrlKey, event.metaKey, event.shiftKey]).toEqual([true, false, false]);
+    expect(
+      await frame.evaluate(
+        'window.previewKeys.filter(record => !["Control","Meta","Shift","Alt"].includes(record.key))'
+      )
+    ).toEqual([
+      { key: 'w', ctrlKey: true, shiftKey: true, defaultPrevented: false },
+      { key: 'w', ctrlKey: true, shiftKey: false, defaultPrevented: true },
+      { key: 's', ctrlKey: true, shiftKey: false, defaultPrevented: true },
+      { key: 'a', ctrlKey: false, shiftKey: false, defaultPrevented: false }
+    ]);
+    expect(await page.locator('iframe').count()).toBe(1);
+  }, 30000);
 });

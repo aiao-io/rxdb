@@ -1,3 +1,5 @@
+import { Transaction } from '@codemirror/state';
+import { computeMinimalDocumentChange } from '@aiao/code-editor';
 import { CodeEditor } from '@aiao/code-editor-angular';
 import { RxDB } from '@aiao/rxdb';
 import { isPlatformBrowser } from '@angular/common';
@@ -102,6 +104,13 @@ export class AppComponent implements AfterViewInit, OnDestroy {
             editor.setInput('value', value);
             editor.setInput('language', language);
             editor.changeDetectorRef.detectChanges();
+          },
+          replace: value => {
+            const view = editor.instance.view;
+            if (!view) return;
+            const change = computeMinimalDocumentChange(view.state.doc.toString(), value);
+            // 空 userEvent 会被 history 并入上一次输入组，一次撤销连格式化前的编辑一起回退；独立标签保证单步撤销。
+            if (change) view.dispatch({ changes: change, annotations: Transaction.userEvent.of('format') });
           },
           layout: () => editor.instance.view?.requestMeasure(),
           focus: () => editor.instance.focus(),

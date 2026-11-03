@@ -257,13 +257,31 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
   function addStatic(id: keyof typeof titles, referenceGroup?: string): IDockviewPanel {
     const existing = api.getPanel(id);
     if (existing) return existing;
+    // 无参照组时先占一个主区组，避免面板掉进当前活动组（预览/工具组）里
+    const group = referenceGroup ?? api.addGroup().id;
     return api.addPanel({
       id,
       component: id,
       title: titles[id],
       renderer: 'always',
       inactive: true,
-      ...(referenceGroup ? { position: { referenceGroup, direction: 'within' as const } } : {})
+      position: { referenceGroup: group, direction: 'within' as const }
+    });
+  }
+
+  /** 对齐 VS Code：欢迎页只在没有任何编辑器打开时存在，并随最后一个编辑器关闭回归。 */
+  function syncWelcome(activate: boolean): void {
+    program(() => {
+      const welcome = api.getPanel('welcome');
+      if (api.panels.some(panel => editorPath(panel.id) !== undefined)) {
+        if (welcome) {
+          api.removePanel(welcome);
+          stash('welcome');
+        }
+        return;
+      }
+      if (!welcome) addStatic('welcome');
+      if (activate) api.getPanel('welcome')?.api.setActive();
     });
   }
 
@@ -335,6 +353,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
         if (path !== undefined) {
           hosts.delete(panel.id);
           callbacks.onCloseEditor(path);
+          syncWelcome(true);
           return;
         }
         if (auxiliaryIds.delete(panel.id)) {
@@ -383,6 +402,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
         ...(reference ? { position: { referenceGroup: reference, direction: 'within' } } : {})
       });
     });
+    syncWelcome(false);
     return host;
   }
 
@@ -442,14 +462,15 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
       });
       preview.api.moveTo({ group: previewGroup, position: 'center', skipSetActive: true });
       const bottom = api.addGroup({ direction: 'below', initialHeight: 180, skipSetActive: true });
-      for (const kind of tools) addStatic(kind).api.moveTo({ group: bottom, position: 'center', skipSetActive: true });
+      for (const kind of tools)
+        addStatic(kind, bottom.id).api.moveTo({ group: bottom, position: 'center', skipSetActive: true });
       side.setSize({ width: 240 });
       side.expand();
       api.setEdgeGroupVisible('left', true);
       api.getPanel(lastTool)?.api.setActive();
       if (activeAuxiliary) api.getPanel(activeAuxiliary)?.api.setActive();
-      else if (lastEditor) api.getPanel(editorId(lastEditor))?.api.setActive();
-      else api.getPanel('welcome')?.api.setActive();
+      else if (lastEditor && api.getPanel(editorId(lastEditor))) api.getPanel(editorId(lastEditor))?.api.setActive();
+      else syncWelcome(true);
     });
     reportTools(true);
   }
@@ -470,6 +491,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
       });
       closing.delete(id);
       hosts.delete(id);
+      syncWelcome(true);
     },
     setEditorTitle(path, title) {
       api.getPanel(editorId(path))?.api.setTitle(title);

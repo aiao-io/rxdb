@@ -6,12 +6,28 @@ export interface PreviewIdentity {
   revision: string | number;
 }
 
+/** 预览 iframe 内转发给工作台的快捷键事件；键集由 {@link WORKBENCH_PREVIEW_SHORTCUT_KEYS} 限定。 */
+export interface PreviewKeydownEvent {
+  type: 'keydown';
+  key: string;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  shiftKey: boolean;
+}
+
 export type PreviewEvent = PreviewIdentity &
   (
     | { type: 'ready' }
     | { type: 'console'; level: 'log' | 'info' | 'warn' | 'error' | 'debug'; values: string[] }
     | { type: 'error'; message: string; stack: string }
+    | PreviewKeydownEvent
   );
+
+/**
+ * 工作台拥有的 VS Code 快捷键（event.key 小写）。焦点在预览里时同样拦截并转发给宿主，
+ * 避免浏览器默认动作（如 ⌘/Ctrl+W 关闭整个页面）吞掉工作台行为。
+ */
+export const WORKBENCH_PREVIEW_SHORTCUT_KEYS: readonly string[] = ['w', 's', 'p', 'b', 'j', '\\', 'tab'];
 
 export interface PreviewDocumentOptions extends PreviewIdentity, CompiledProject {
   html?: string;
@@ -166,6 +182,15 @@ export function buildPreviewDocument(options: PreviewDocumentOptions): string {
     const identity = ${scriptJSON(identity)};
     let port;
     const send = event => port && port.postMessage({...identity, ...event});
+    const shortcuts = new Set(${scriptJSON(WORKBENCH_PREVIEW_SHORTCUT_KEYS)});
+    addEventListener('keydown', event => {
+      if (event.defaultPrevented || event.isComposing || event.altKey) return;
+      if (!(event.ctrlKey || event.metaKey)) return;
+      const key = event.key.toLowerCase();
+      if (!shortcuts.has(key) || (event.shiftKey && key === 'w')) return;
+      event.preventDefault();
+      send({type:'keydown', key, ctrlKey:event.ctrlKey, metaKey:event.metaKey, shiftKey:event.shiftKey});
+    }, true);
     const stringify = value => { try { return typeof value === 'string' ? value : JSON.stringify(value) ?? String(value); } catch { return String(value); } };
     for (const level of ['log','info','warn','error','debug']) {
       const original = console[level].bind(console);
@@ -202,6 +227,13 @@ export function isPreviewEvent(value: unknown, identity: PreviewIdentity): value
   if (message['type'] === 'ready') return true;
   if (message['type'] === 'error')
     return typeof message['message'] === 'string' && typeof message['stack'] === 'string';
+  if (message['type'] === 'keydown')
+    return (
+      WORKBENCH_PREVIEW_SHORTCUT_KEYS.includes(String(message['key'])) &&
+      typeof message['ctrlKey'] === 'boolean' &&
+      typeof message['metaKey'] === 'boolean' &&
+      typeof message['shiftKey'] === 'boolean'
+    );
   return (
     message['type'] === 'console' &&
     ['log', 'info', 'warn', 'error', 'debug'].includes(String(message['level'])) &&

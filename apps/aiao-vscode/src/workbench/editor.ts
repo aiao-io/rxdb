@@ -9,6 +9,8 @@ export interface WorkbenchEditorOptions {
 /** 三端编辑器的共享命令式桥。 */
 export interface WorkbenchEditorHandle {
   update(value: string, language: string): void;
+  /** 以可撤销事务写入文档并触发 onChange，供格式化等宿主改写使用。 */
+  replace(value: string): void;
   /** 面板尺寸或可见性改变后重新测量编辑器。 */
   layout?(): void;
   /** 聚焦编辑器并保留光标与选区。 */

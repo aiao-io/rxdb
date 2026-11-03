@@ -7,9 +7,10 @@
 | 工作线             | 下一步                                                                                                             | 前置与边界                                                                                             |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
 | US-404 合入与评审  | aiao-vscode 应用（工作台内核 + Angular 外壳 + e2e）过 CI 与评审后合并                                              | 故事保持 In Review；affected 门禁、三端对称为仓库级要求，本应用不再有三端绑定                          |
+| US-405 格式化收尾  | 键盘验收复跑与代码评审，随应用一起合并                                                                             | 先起 `pnpm nx serve aiao-vscode`（4320）；报告写入 `apps/aiao-vscode/benchmarks/`                      |
 | 验收证据复跑       | `aiao-vscode:verify-export / verify-offline / verify-scm / verify-save-preview / verify-docking / verify-commands` | 先起 `pnpm nx serve aiao-vscode`（4320）或生产构建 + 静态服务；报告写入 `apps/aiao-vscode/benchmarks/` |
 | 真实部署与公开访问 | 为生产构建选托管（COOP / COEP 响应头 + Service Worker）并公开验收                                                  | 依赖仓库级发布治理；离线与隔离边界必须在真实 origin 复验，本地 localhost 不算                          |
-| 应用产品化         | 模板扩充、项目模板市场、设置持久化等按新故事立项                                                                   | 不扩展为完整 Node IDE（任意 npm / 终端 / SSR 是另一档运行时，见可行性研究）                            |
+| 应用产品化         | 模板扩充、项目模板市场、设置持久化、保存时自动格式化等按新故事立项                                                 | 不扩展为完整 Node IDE（任意 npm / 终端 / SSR 是另一档运行时，见可行性研究）                            |
 
 ## 边界备忘
 
