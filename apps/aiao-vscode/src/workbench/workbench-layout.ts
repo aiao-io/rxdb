@@ -42,15 +42,24 @@ export function createWorkbenchLayout(host: HTMLElement, assetBaseURL: string): 
     </footer>
     <div data-slot="panel-staging" hidden>
       <aside class="wb-side" aria-label="资源管理器">
-        <div class="wb-side-header"><h2 data-slot="side-title">资源管理器</h2><div class="wb-side-actions">
+        <div class="wb-side-header"><h2 data-slot="side-title">资源管理器</h2>
+        <div class="wb-side-actions" data-view="explorer">
           <button data-action="new-file" aria-label="新建文件" title="新建文件">${iconMarkup('new-file')}</button>
-          <button data-action="rename" aria-label="重命名当前文件" title="重命名">${iconMarkup('edit')}</button>
-          <button data-action="delete" aria-label="删除当前文件" title="删除">${iconMarkup('trash')}</button>
+          <button data-action="refresh-tree" aria-label="刷新资源管理器" title="刷新资源管理器">${iconMarkup('refresh')}</button>
+          <button data-action="collapse-tree" aria-label="折叠资源管理器中的文件夹" title="折叠资源管理器中的文件夹">${iconMarkup('collapse-all')}</button>
+          <button data-action="more-actions" aria-label="视图和更多操作…" title="视图和更多操作…">${iconMarkup('ellipsis')}</button>
+        </div>
+        <div class="wb-side-actions" data-view="git" hidden>
+          <button data-action="refresh-tree" aria-label="刷新" title="刷新">${iconMarkup('refresh')}</button>
+          <button data-action="more-actions" aria-label="视图和更多操作…" title="视图和更多操作…">${iconMarkup('ellipsis')}</button>
         </div></div>
         <div class="wb-tree" data-slot="files" role="tree" aria-label="项目文件树"></div>
         <div data-slot="git-view" hidden>
           <div data-slot="scm"></div>
-          <details class="wb-history"><summary>提交历史</summary><div data-slot="history"></div></details>
+          <details class="wb-history" data-scm-group="history">
+            <summary class="wb-history-header"><span class="wb-history-chevron">${iconMarkup('chevron-right')}</span>提交历史</summary>
+            <div data-slot="history"></div>
+          </details>
         </div>
       </aside>
       <div class="wb-welcome"><span class="wb-welcome-mark">${iconMarkup('code')}</span><h2>Aiao Code</h2><p>打开一个文件开始编辑</p><div><span>保存文件</span><kbd>${shortcutKey} S</kbd></div><div><span>快速打开文件</span><kbd>${shortcutKey} P</kbd></div><div><span>命令面板</span><kbd>${shortcutShift} P</kbd></div><div><span>拖动标签即可拆分编辑器</span></div></div>

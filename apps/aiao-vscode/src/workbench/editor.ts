@@ -9,7 +9,7 @@ export interface WorkbenchEditorOptions {
 }
 
 /** 宿主编辑器可代工作台执行的 VS Code 风格命令。 */
-export type WorkbenchEditorCommand = 'gotoLine' | 'gotoLineAt' | 'selectLine' | 'insertLineAbove';
+export type WorkbenchEditorCommand = 'gotoLine' | 'gotoLineAt' | 'selectLine' | 'insertLineAbove' | 'find';
 
 /** 单个编辑器文件内的诊断位置。 */
 export interface WorkbenchEditorDiagnostic {

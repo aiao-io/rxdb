@@ -14,7 +14,7 @@ import { createWorkbenchCommands, type WorkbenchCommand } from './workbench-comm
 import { confirmWorkbenchAction, requestWorkbenchChoice, requestWorkbenchText } from './workbench-dialog.js';
 import { createWorkbenchDiff, type WorkbenchDiffHandle } from './workbench-diff.js';
 import { createWorkbenchDockview } from './workbench-dockview.js';
-import { createCodicon, createFileIcon, folderCodicon } from './workbench-icons.js';
+import { createCodicon, createFileIcon, folderCodicon, type CodiconName } from './workbench-icons.js';
 import { createWorkbenchLayout, workbenchElement } from './workbench-layout.js';
 import { createWorkbenchScm, type WorkbenchDiffRequest } from './workbench-scm.js';
 
@@ -177,6 +177,8 @@ export function mountWorkbench(
   const savedCommitMessages = new Map<string, string>();
   const editorDiagnostics = new Map<string, { line: number; column?: number; message: string }[]>();
   const collapsedFolders = new Set<string>();
+  const collapsedSections = new Set<string>();
+  let alwaysShowScmActions = false;
   const docking = createWorkbenchDockview(root, {
     onSelectEditor(path) {
       if (disposed || !session.state.tabs.includes(path)) return;
@@ -665,6 +667,64 @@ export function mountWorkbench(
     void refreshGit().catch(report);
     log('output', `已打开 ${next.name}`);
   }
+  const treeRow = (path: string | null): HTMLElement | undefined =>
+    path === null ? undefined : (
+      [...tree.querySelectorAll<HTMLElement>('button[data-tree-path],button[data-tree-section]')].find(
+        row => (row.dataset['treePath'] ?? row.dataset['treeSection']) === path
+      )
+    );
+
+  function syncTreeTabIndexes(): void {
+    const rows = [...tree.querySelectorAll<HTMLButtonElement>('button[data-tree-path],button[data-tree-section]')];
+    const focused = rows.find(row => (row.dataset['treePath'] ?? row.dataset['treeSection']) === treeFocusPath);
+    rows.forEach(row => (row.tabIndex = row === focused ? 0 : -1));
+    if (!focused) rows[0]?.setAttribute('tabindex', '0');
+  }
+
+  function toggleSection(key: string): void {
+    treeFocusPath = key;
+    if (collapsedSections.has(key)) collapsedSections.delete(key);
+    else collapsedSections.add(key);
+    renderFiles(session.state);
+    treeRow(key)?.focus();
+  }
+
+  function treeActionButton(action: string, label: string, icon: CodiconName): HTMLButtonElement {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset['action'] = action;
+    button.setAttribute('aria-label', label);
+    button.title = label;
+    button.append(createCodicon(icon));
+    return button;
+  }
+
+  /** 对齐 VS Code 的树节头：加粗小字、可折叠、悬停显示节级动作。 */
+  function sectionRow(key: string, label: string, actions: HTMLButtonElement[] = []): HTMLElement {
+    const wrap = document.createElement('div');
+    wrap.className = 'wb-tree-section-row';
+    const header = document.createElement('button');
+    header.type = 'button';
+    header.className = 'wb-tree-section';
+    header.dataset['treeSection'] = key;
+    header.setAttribute('role', 'treeitem');
+    header.setAttribute('aria-level', '1');
+    header.setAttribute('aria-expanded', String(!collapsedSections.has(key)));
+    header.append(createCodicon(collapsedSections.has(key) ? 'chevron-right' : 'chevron-down'));
+    const text = document.createElement('span');
+    text.textContent = label;
+    header.append(text);
+    header.onclick = () => toggleSection(key);
+    wrap.append(header);
+    if (actions.length) {
+      const holder = document.createElement('div');
+      holder.className = 'wb-tree-section-actions';
+      holder.append(...actions);
+      wrap.append(holder);
+    }
+    return wrap;
+  }
+
   function renderFiles(state: WorkbenchState): void {
     if (treeProjectId !== state.projectId) {
       treeProjectId = state.projectId;
@@ -678,6 +738,72 @@ export function mountWorkbench(
       activeTreePath = state.activePath;
       const parts = state.activePath?.split('/') ?? [];
       parts.slice(0, -1).forEach((_, index) => collapsedFolders.delete(parts.slice(0, index + 1).join('/')));
+    }
+    const projectName = projects.find(item => item.id === state.projectId)?.name ?? '项目';
+    if (state.tabs.length) {
+      tree.append(
+        sectionRow('open-editors', '打开的编辑器', [
+          treeActionButton('close-all-editors', '关闭全部编辑器', 'close-all')
+        ])
+      );
+      if (!collapsedSections.has('open-editors')) {
+        for (const path of state.tabs) {
+          const wrap = document.createElement('div');
+          wrap.className = 'wb-editor-row';
+          const open = document.createElement('button');
+          open.type = 'button';
+          open.className = 'wb-editor-open';
+          open.dataset['treePath'] = `editor:${path}`;
+          open.setAttribute('role', 'treeitem');
+          open.setAttribute('aria-level', '2');
+          open.title = path;
+          const name = document.createElement('span');
+          name.className = 'wb-editor-name';
+          name.textContent = path.split('/').at(-1) ?? path;
+          open.append(createFileIcon(path), name);
+          open.onclick = () => {
+            treeFocusPath = `editor:${path}`;
+            treeNavigation = true;
+            try {
+              session.select(path);
+              docking.selectEditor(path);
+            } finally {
+              queueMicrotask(() => {
+                treeNavigation = false;
+              });
+            }
+          };
+          open.addEventListener('auxclick', event => {
+            if (event.button !== 1) return;
+            event.preventDefault();
+            closeEditorTab(path);
+          });
+          const close = document.createElement('button');
+          close.type = 'button';
+          close.className = 'wb-editor-row-close';
+          close.setAttribute('aria-label', `关闭编辑器 ${path}`);
+          close.title = `关闭编辑器 ${path}`;
+          close.append(createCodicon('close'));
+          close.onclick = event => {
+            event.stopPropagation();
+            closeEditorTab(path);
+          };
+          wrap.append(open, close);
+          tree.append(wrap);
+        }
+      }
+    }
+    tree.append(
+      sectionRow('workspace', projectName, [
+        treeActionButton('new-file', '新建文件', 'new-file'),
+        treeActionButton('refresh-tree', '刷新资源管理器', 'refresh'),
+        treeActionButton('collapse-tree', '折叠资源管理器中的文件夹', 'collapse-all')
+      ])
+    );
+    if (creatingFile) collapsedSections.delete('workspace');
+    if (collapsedSections.has('workspace')) {
+      syncTreeTabIndexes();
+      return;
     }
     if (creatingFile) {
       const input = inlineTreeInput(
@@ -700,7 +826,7 @@ export function mountWorkbench(
           renderFiles(session.state);
         }
       );
-      input.style.paddingLeft = '14px';
+      input.style.paddingLeft = '16px';
       tree.append(input);
     }
     const folders = new Set<string>();
@@ -713,10 +839,10 @@ export function mountWorkbench(
         const button = document.createElement('button');
         button.className = 'wb-file wb-folder';
         button.dataset['treePath'] = folder;
-        button.style.paddingLeft = `${14 + index * 12}px`;
+        button.style.paddingLeft = `${index * 8}px`;
         button.setAttribute('role', 'treeitem');
         button.setAttribute('aria-expanded', String(!collapsedFolders.has(folder)));
-        button.setAttribute('aria-level', String(index + 1));
+        button.setAttribute('aria-level', String(index + 2));
         const label = document.createElement('span');
         label.textContent = parts[index];
         button.append(
@@ -758,7 +884,7 @@ export function mountWorkbench(
             renderFiles(session.state);
           }
         );
-        input.style.paddingLeft = `${14 + (parts.length - 1) * 12}px`;
+        input.style.paddingLeft = `${16 + (parts.length - 1) * 8}px`;
         tree.append(input);
         continue;
       }
@@ -767,8 +893,8 @@ export function mountWorkbench(
       button.dataset['treePath'] = path;
       button.setAttribute('aria-current', String(path === state.activePath));
       button.setAttribute('role', 'treeitem');
-      button.setAttribute('aria-level', String(parts.length));
-      button.style.paddingLeft = `${14 + (parts.length - 1) * 12}px`;
+      button.setAttribute('aria-level', String(parts.length + 1));
+      button.style.paddingLeft = `${16 + (parts.length - 1) * 8}px`;
       button.title = path;
       const icon = createFileIcon(path);
       const name = document.createElement('span');
@@ -800,16 +926,8 @@ export function mountWorkbench(
       };
       tree.append(button);
     }
-    const rows = [...tree.querySelectorAll<HTMLButtonElement>('button[data-tree-path]')];
-    const focused = rows.find(row => row.dataset['treePath'] === treeFocusPath);
-    rows.forEach(row => (row.tabIndex = row === focused ? 0 : -1));
-    if (!focused) rows[0]?.setAttribute('tabindex', '0');
+    syncTreeTabIndexes();
   }
-
-  const treeRow = (path: string | null): HTMLElement | undefined =>
-    path === null ? undefined : (
-      [...tree.querySelectorAll<HTMLElement>('button[data-tree-path]')].find(row => row.dataset['treePath'] === path)
-    );
 
   /** 移动树焦点并按 VS Code 语义打开文件；选择只预览，不抢走树内焦点。 */
   function setTreeFocus(path: string | null, openFile: boolean): void {
@@ -859,7 +977,7 @@ export function mountWorkbench(
 
   function showContextMenu(
     position: { x: number; y: number },
-    entries: readonly { label: string; action: () => void }[],
+    entries: readonly { label: string; id?: string; action: () => void }[],
     anchor?: HTMLElement
   ): void {
     closeContextMenu();
@@ -871,6 +989,7 @@ export function mountWorkbench(
       item.type = 'button';
       item.setAttribute('role', 'menuitem');
       item.textContent = entry.label;
+      if (entry.id) item.dataset['menuId'] = entry.id;
       item.onclick = () => {
         closeContextMenu();
         action(entry.action);
@@ -911,52 +1030,73 @@ export function mountWorkbench(
     if (event.defaultPrevented || event.isComposing) return;
     if (event.target instanceof Element && event.target.closest('input,textarea,select')) return;
     if (creatingFile || renamingPath) return;
-    const rows = [...tree.querySelectorAll<HTMLElement>('button[data-tree-path]')];
+    const rows = [...tree.querySelectorAll<HTMLElement>('button[data-tree-path],button[data-tree-section]')];
     if (!rows.length) return;
-    const current = rows.findIndex(row => row.dataset['treePath'] === treeFocusPath);
+    const rowKey = (element: HTMLElement): string | undefined =>
+      element.dataset['treePath'] ?? element.dataset['treeSection'];
+    const isFileRow = (element: HTMLElement): boolean =>
+      element.classList.contains('wb-file') && !element.classList.contains('wb-folder');
+    const current = rows.findIndex(item => rowKey(item) === treeFocusPath);
     const row = current === -1 ? undefined : rows[current];
-    const path = row?.dataset['treePath'];
+    const path = row ? rowKey(row) : undefined;
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
       const step = event.key === 'ArrowDown' ? 1 : -1;
       const next = rows[Math.min(rows.length - 1, Math.max(0, current === -1 ? 0 : current + step))];
-      setTreeFocus(next.dataset['treePath'] ?? null, !next.classList.contains('wb-folder'));
+      setTreeFocus(rowKey(next) ?? null, isFileRow(next));
       return;
     }
     if (event.key === 'Home' || event.key === 'End') {
       event.preventDefault();
       const next = rows[event.key === 'Home' ? 0 : rows.length - 1];
-      setTreeFocus(next.dataset['treePath'] ?? null, !next.classList.contains('wb-folder'));
+      setTreeFocus(rowKey(next) ?? null, isFileRow(next));
       return;
     }
     if (event.key === 'Enter' && row) {
       event.preventDefault();
+      if (row.classList.contains('wb-tree-section')) {
+        if (path) toggleSection(path);
+        return;
+      }
       if (row.classList.contains('wb-folder') && path) {
         if (collapsedFolders.has(path)) collapsedFolders.delete(path);
         else collapsedFolders.add(path);
         treeFocusPath = path;
         renderFiles(session.state);
         treeRow(path)?.focus();
-      } else if (path) {
+        return;
+      }
+      if (row.classList.contains('wb-file') && path) {
         setTreeFocus(path, true);
         focusEditor(path);
       }
       return;
     }
-    if (event.key === 'ArrowRight' && row?.classList.contains('wb-folder') && path) {
+    if (event.key === 'ArrowRight' && row && path) {
       event.preventDefault();
-      if (collapsedFolders.has(path)) {
-        collapsedFolders.delete(path);
-        treeFocusPath = path;
-        renderFiles(session.state);
-        treeRow(path)?.focus();
-      } else {
-        setTreeFocus(rows[Math.min(rows.length - 1, current + 1)].dataset['treePath'] ?? null, true);
+      if (row.classList.contains('wb-tree-section')) {
+        if (collapsedSections.has(path)) toggleSection(path);
+        else setTreeFocus(rowKey(rows[Math.min(rows.length - 1, current + 1)]) ?? null, false);
+        return;
+      }
+      if (row.classList.contains('wb-folder')) {
+        if (collapsedFolders.has(path)) {
+          collapsedFolders.delete(path);
+          treeFocusPath = path;
+          renderFiles(session.state);
+          treeRow(path)?.focus();
+        } else {
+          setTreeFocus(rowKey(rows[Math.min(rows.length - 1, current + 1)]) ?? null, true);
+        }
       }
       return;
     }
     if (event.key === 'ArrowLeft' && row && path) {
       event.preventDefault();
+      if (row.classList.contains('wb-tree-section')) {
+        if (!collapsedSections.has(path)) toggleSection(path);
+        return;
+      }
       if (row.classList.contains('wb-folder') && !collapsedFolders.has(path)) {
         collapsedFolders.add(path);
         treeFocusPath = path;
@@ -967,7 +1107,7 @@ export function mountWorkbench(
       }
       return;
     }
-    if (event.key === 'Delete' && row && !row.classList.contains('wb-folder') && path) {
+    if (event.key === 'Delete' && row && isFileRow(row) && path) {
       event.preventDefault();
       action(() => deletePath(path));
     }
@@ -975,7 +1115,10 @@ export function mountWorkbench(
   tree.addEventListener('contextmenu', event => {
     if (creatingFile || renamingPath) return;
     event.preventDefault();
-    const row = event.target instanceof Element ? event.target.closest<HTMLElement>('button[data-tree-path]') : null;
+    const row =
+      event.target instanceof Element ?
+        event.target.closest<HTMLElement>('button[data-tree-path]:not(.wb-editor-open)')
+      : null;
     const targetPath = row?.dataset['treePath'] ?? null;
     if (targetPath) {
       treeFocusPath = targetPath;
@@ -1124,7 +1267,7 @@ export function mountWorkbench(
     for (const button of root.querySelectorAll<HTMLButtonElement>('[data-action="new-project"],[data-action="import"]'))
       button.disabled = busy;
     for (const button of root.querySelectorAll<HTMLButtonElement>(
-      '[data-mutation],[data-action=commit],[data-action=stage-all],[data-action=rename],[data-action=delete],[data-action=new-file],[data-action=discard]'
+      '[data-mutation],[data-action=commit],[data-action=stage-all],[data-action=refresh-tree],[data-action=collapse-tree],[data-action=new-file],[data-action=discard]'
     ))
       button.disabled = !session.state.projectId || busy;
     element<HTMLSelectElement>('.wb-projects').disabled = initializing || (busy && previewPhase !== 'compiling');
@@ -1280,6 +1423,17 @@ export function mountWorkbench(
       logs.splice(0);
       renderLogs();
     },
+    'refresh-tree': () => action(refreshGit),
+    'collapse-tree': () => {
+      for (const path of Object.keys(session.state.files)) {
+        const parts = path.split('/');
+        for (let index = 1; index < parts.length; index++) collapsedFolders.add(parts.slice(0, index).join('/'));
+      }
+      renderFiles(session.state);
+    },
+    'close-all-editors': () => {
+      for (const tab of [...session.state.tabs]) closeEditorTab(tab);
+    },
     panel: () => docking.toggleTools(),
     preview: () => {
       docking.showPreview();
@@ -1292,17 +1446,56 @@ export function mountWorkbench(
       render(session.state);
     }
   };
+  /** 侧栏标题「视图和更多操作」菜单：条目随当前视图切换，对齐 VS Code 的标题栏 … 按钮。 */
+  function showMoreMenu(anchor: HTMLElement): void {
+    const rectangle = anchor.getBoundingClientRect();
+    const entries: readonly { label: string; id?: string; action: () => void }[] =
+      sideView === 'git' ?
+        [
+          { label: '刷新', id: 'refresh-tree', action: () => refreshGit() },
+          {
+            label: `${alwaysShowScmActions ? '✓ ' : ''}始终显示操作`,
+            id: 'always-show-actions',
+            action: () => {
+              alwaysShowScmActions = !alwaysShowScmActions;
+              scm.setAlwaysShowActions(alwaysShowScmActions);
+            }
+          }
+        ]
+      : [
+          { label: '重命名', id: 'rename', action: operations['rename'] },
+          { label: '删除', id: 'delete', action: operations['delete'] },
+          { label: '刷新资源管理器', id: 'refresh-tree', action: () => refreshGit() },
+          { label: '折叠资源管理器中的文件夹', id: 'collapse-tree', action: operations['collapse-tree'] }
+        ];
+    showContextMenu({ x: rectangle.left, y: rectangle.bottom }, entries);
+  }
+
   function switchSide(view: string, force = false): void {
     const visible = force || !(sideView === view && docking.isSidebarVisible());
     docking.setSidebarVisible(visible);
     sideView = view;
-    element('[data-slot="files"]').hidden = view !== 'explorer';
-    element('[data-slot="git-view"]').hidden = view !== 'git';
-    element('.wb-side-actions').hidden = view !== 'explorer';
-    element('[data-slot="side-title"]').textContent = view === 'git' ? '源代码管理' : '资源管理器';
+    const isExplorer = view === 'explorer';
+    element('[data-slot="files"]').hidden = !isExplorer;
+    element('[data-slot="git-view"]').hidden = isExplorer;
+    for (const actions of root.querySelectorAll<HTMLElement>('.wb-side-actions[data-view]'))
+      actions.hidden = actions.dataset['view'] !== view;
+    element('[data-slot="side-title"]').textContent = isExplorer ? '资源管理器' : '源代码管理';
+    element('.wb-side').setAttribute('aria-label', isExplorer ? '资源管理器' : '源代码管理');
     for (const button of root.querySelectorAll<HTMLElement>('[data-action="explorer"],[data-action="git"]'))
       button.setAttribute('aria-pressed', String(visible && button.dataset['action'] === view));
     if (view === 'git') action(refreshGit);
+    // 快捷键强制显示时把焦点送进对应视图（对齐 VS Code 的 Ctrl/⌘+Shift+E / G）
+    if (force && visible) {
+      queueMicrotask(() => {
+        if (disposed) return;
+        if (isExplorer) {
+          (treeRow(treeFocusPath) ?? tree.querySelector<HTMLElement>('[data-tree-section],[data-tree-path]'))?.focus();
+        } else {
+          element<HTMLTextAreaElement>('.wb-scm-commit-form textarea')?.focus();
+        }
+      });
+    }
   }
   const click = (event: Event) => {
     const target =
@@ -1311,6 +1504,11 @@ export function mountWorkbench(
     const name = target.dataset['action'];
     if (name === 'explorer' || name === 'git') {
       switchSide(name);
+      return;
+    }
+    if (name === 'more-actions') {
+      event.preventDefault();
+      showMoreMenu(target);
       return;
     }
     const tool = target.dataset['panel'];
@@ -1349,7 +1547,7 @@ export function mountWorkbench(
         if (disposed || initializing) return;
         if (
           pendingOperations > 0 &&
-          !['save', 'saveAll', 'run', 'gotoLine', 'selectLine', 'insertLineAbove'].includes(id)
+          !['save', 'saveAll', 'run', 'gotoLine', 'selectLine', 'insertLineAbove', 'find'].includes(id)
         )
           return;
         action(operation);
@@ -1361,6 +1559,7 @@ export function mountWorkbench(
         ['gotoLine', '转到: 转到行', '⌘ / Ctrl + G', operations['goto-line']],
         ['selectLine', '编辑器: 展开行选择', '⌘ / Ctrl + L', operations['select-line']],
         ['insertLineAbove', '编辑器: 在上方插入行', '⌘ / Ctrl + Shift + Enter', operations['insert-line-above']],
+        ['find', '编辑器: 查找', '⌘ / Ctrl + F', () => editorCommand('find')],
         ['run', '运行: 保存全部并运行项目', undefined, run],
         ['newFile', '文件: 新建文件', undefined, operations['new-file']],
         ['newProject', '项目: 新建项目', undefined, newProject],

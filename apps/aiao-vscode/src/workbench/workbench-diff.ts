@@ -1,9 +1,10 @@
 import { SUPPORT_LANGUAGES } from '@aiao/code-editor';
 import { LanguageDescription, type LanguageSupport } from '@codemirror/language';
 import { MergeView } from '@codemirror/merge';
+import { getSearchQuery, search, searchKeymap, setSearchQuery, type SearchQuery } from '@codemirror/search';
 import { EditorState } from '@codemirror/state';
 import { oneDark } from '@codemirror/theme-one-dark';
-import { EditorView, highlightSpecialChars, lineNumbers } from '@codemirror/view';
+import { EditorView, highlightSpecialChars, keymap, lineNumbers } from '@codemirror/view';
 import type { WorkbenchDiff, WorkbenchFileVersion } from './session.js';
 import { workbenchDiffStyle } from './workbench-diff-style.js';
 import { createCodicon } from './workbench-icons.js';
@@ -55,6 +56,11 @@ function formatChanges(diff: WorkbenchDiff): string[] {
   if (endsWithNewline(base) !== endsWithNewline(modified))
     changes.push(`末尾换行${endsWithNewline(modified) ? '已添加' : '已移除'}`);
   return changes;
+}
+
+/** 查询规范的关键字段；光标位置等导航态不参与镜像判定。 */
+function searchQueryKey(query: SearchQuery): string {
+  return JSON.stringify([query.search, query.caseSensitive, query.regexp, query.wholeWord, query.replace]);
 }
 
 function addOrigin(parent: HTMLElement, label: string, version: WorkbenchFileVersion): void {
@@ -141,12 +147,31 @@ export async function createWorkbenchDiff(parent: HTMLElement, diff: WorkbenchDi
         wrapper.remove();
         throw new DOMException('差异窗口已关闭', 'AbortError');
       }
+      // 一侧 pane 的查询变化镜像到对侧，两侧同时高亮；查询键相同（回声/导航）或非法查询不镜像。
+      const mirrorSearchQuery = EditorView.updateListener.of(update => {
+        const other =
+          update.view === merge?.a ? merge?.b
+          : update.view === merge?.b ? merge?.a
+          : undefined;
+        if (!other) return;
+        const changed = update.transactions.some(transaction =>
+          transaction.effects.some(effect => effect.is(setSearchQuery))
+        );
+        if (!changed) return;
+        const query = getSearchQuery(update.view.state);
+        if (!query.valid) return;
+        if (searchQueryKey(query) === searchQueryKey(getSearchQuery(other.state))) return;
+        other.dispatch({ effects: setSearchQuery.of(query) });
+      });
       const extensions = [
         oneDark,
         lineNumbers(),
         highlightSpecialChars(),
         EditorState.readOnly.of(true),
         EditorView.editable.of(false),
+        search({ top: true }),
+        keymap.of(searchKeymap),
+        mirrorSearchQuery,
         ...(support ? [support.extension] : [])
       ];
       merge = new MergeView({

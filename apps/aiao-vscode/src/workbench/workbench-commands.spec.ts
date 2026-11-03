@@ -130,7 +130,7 @@ describe('VS Code 文件与命令快捷入口', () => {
   });
 
   it('空查询按最近打开的标签排序', () => {
-    const { root, editor, input, key } = fixture(['README.md', 'src/main.ts']);
+    const { root, editor, key } = fixture(['README.md', 'src/main.ts']);
     key(editor, 'p', { ctrlKey: true });
     const options = [...root.querySelectorAll('[role="option"]')];
     const index = (name: string) => options.findIndex(option => option.textContent?.includes(name));

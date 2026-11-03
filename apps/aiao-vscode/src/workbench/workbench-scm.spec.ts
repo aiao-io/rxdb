@@ -35,7 +35,7 @@ async function fixture() {
     onError: vi.fn(),
     onDidChange: vi.fn<WorkbenchScmOptions['onDidChange']>(async () => undefined),
     onCommitMessage: vi.fn(),
-    getSavedMessage: vi.fn((_projectId: string) => undefined)
+    getSavedMessage: vi.fn(() => undefined)
   };
   const scm = createWorkbenchScm(host, { backend, session, ...callbacks });
   handles.push(scm);
@@ -301,5 +301,24 @@ describe('VSCode式源代码管理', () => {
     expect(backend.dispose).not.toHaveBeenCalled();
     scm.update({ branch: 'ignored', head: null, entries: [] });
     expect(host.children).toHaveLength(0);
+  });
+
+  it('对齐 VS Code：更改组在前，计数为 0 隐藏徽标，始终显示操作开关改变动作可见性', async () => {
+    const { host, scm, status } = await fixture();
+    const groups = [...host.querySelectorAll<HTMLElement>('[data-scm-group]')].map(group => group.dataset['scmGroup']);
+    expect(groups.indexOf('working')).toBeGreaterThan(-1);
+    expect(groups.indexOf('working')).toBeLessThan(groups.indexOf('staged'));
+    const workingCount = host.querySelector<HTMLElement>('[data-scm-count="working"]');
+    const stagedCount = host.querySelector<HTMLElement>('[data-scm-count="staged"]');
+    expect(workingCount?.hidden).toBe(false);
+    expect(stagedCount?.hidden).toBe(false);
+    scm.update({ ...status, entries: [{ path: 'a.ts', index: ' ', worktree: 'M' }] });
+    expect(workingCount?.hidden).toBe(false);
+    expect(stagedCount?.hidden).toBe(true);
+    expect(host.querySelector('.wb-scm-show-actions')).toBeNull();
+    scm.setAlwaysShowActions(true);
+    expect(host.querySelector('.wb-scm-show-actions')).not.toBeNull();
+    scm.setAlwaysShowActions(false);
+    expect(host.querySelector('.wb-scm-show-actions')).toBeNull();
   });
 });

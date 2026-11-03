@@ -32,8 +32,8 @@ export class WorkbenchProject extends EntityBase<string> {
   sync: { type: SyncType.None },
   properties: [
     { name: 'tabs', type: PropertyType.stringArray, required: true },
-    { name: 'activePath', type: PropertyType.string, required: false },
-    { name: 'commitMessage', type: PropertyType.string, required: false },
+    { name: 'activePath', type: PropertyType.string, required: false, nullable: true },
+    { name: 'commitMessage', type: PropertyType.string, required: false, nullable: true },
     { name: 'lastTouchedAt', type: PropertyType.number, required: true }
   ]
 })

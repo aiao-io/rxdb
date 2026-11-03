@@ -16,7 +16,7 @@ import {
 } from '@angular/core';
 import { selectLine } from '@codemirror/commands';
 import { setDiagnostics } from '@codemirror/lint';
-import { gotoLine } from '@codemirror/search';
+import { gotoLine, openSearchPanel, search } from '@codemirror/search';
 import { EditorSelection, Transaction } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 import { filter, firstValueFrom, of, take, timeout } from 'rxjs';
@@ -119,6 +119,8 @@ export class AppComponent implements AfterViewInit, OnDestroy {
         for (const event of ['keyup', 'mouseup', 'input']) element.addEventListener(event, cursor);
         this.application.attachView(editor.hostView);
         editor.changeDetectorRef.detectChanges();
+        // basicSetup 只带 searchKeymap，面板靠按 Mod+F 时自装且默认停在底部；这里显式预装并把查找组件对齐到编辑器顶部。
+        editor.instance.setExtensions([search({ top: true })]);
         return {
           update: (value, language) => {
             editor.setInput('value', value);
@@ -168,6 +170,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
               return true;
             }
             if (command === 'selectLine') return selectLine(view);
+            if (command === 'find') return openSearchPanel(view);
             return insertBlankLineAbove(view);
           },
           dispose: () => {

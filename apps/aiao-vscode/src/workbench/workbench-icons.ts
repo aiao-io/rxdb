@@ -58,6 +58,8 @@ export type CodiconName =
   | 'remove'
   | 'discard'
   | 'git-compare'
+  | 'ellipsis'
+  | 'close-all'
   | 'diff';
 
 function iconClass(name: CodiconName): string {

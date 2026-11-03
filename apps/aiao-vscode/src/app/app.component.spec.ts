@@ -80,6 +80,29 @@ describe('AppComponent workbench mount', () => {
     fixture.destroy();
   });
 
+  it('Mod+F 打开编辑器内查找面板', async () => {
+    const fixture = createComponentFixture();
+    fixture.detectChanges();
+    connected.next(true);
+    await vi.waitFor(() => expect(mocks.mount).toHaveBeenCalledOnce());
+    await fixture.whenStable();
+    const host = fixture.nativeElement as HTMLElement;
+    const content = host.querySelector<HTMLElement>('.cm-content')!;
+    const modifier = /Mac|iPhone|iPad/.test(navigator.platform) ? { metaKey: true } : { ctrlKey: true };
+    content.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'f',
+        code: 'KeyF',
+        keyCode: 70,
+        bubbles: true,
+        cancelable: true,
+        ...modifier
+      })
+    );
+    expect(host.querySelector('.cm-panels-top .cm-search [main-field]')).not.toBeNull();
+    fixture.destroy();
+  });
+
   it('mounts the existing editor, updates values and disposes the workbench', async () => {
     const fixture = createComponentFixture();
     fixture.detectChanges();

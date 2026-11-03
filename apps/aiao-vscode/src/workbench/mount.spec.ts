@@ -413,15 +413,18 @@ describe('VS Code 风格工作台', () => {
     expect(handle.session.state.dirty).toBe(true);
     await click(host, '[data-action="save"]');
     await vi.waitFor(() => expect(handle.session.state.dirty).toBe(false));
-    await click(host, '[data-action="rename"]');
+    await click(host, '[data-action="more-actions"]');
+    await click(host, '.wb-context-menu [data-menu-id="rename"]');
     await inlineInput(host, 'renamed.ts');
     await vi.waitFor(() => expect(backend.rename).toHaveBeenCalledWith('one', 'src/created.ts', 'src/renamed.ts'));
     await vi.waitFor(() => expect(handle.session.state.files['src/renamed.ts']).toBeDefined());
     handle.session.select('src/renamed.ts');
-    await click(host, '[data-action="delete"]');
+    await click(host, '[data-action="more-actions"]');
+    await click(host, '.wb-context-menu [data-menu-id="delete"]');
     await confirmAction(host, false);
     expect(backend.remove).not.toHaveBeenCalled();
-    await click(host, '[data-action="delete"]');
+    await click(host, '[data-action="more-actions"]');
+    await click(host, '.wb-context-menu [data-menu-id="delete"]');
     await confirmAction(host, true);
     await vi.waitFor(() => expect(backend.remove).toHaveBeenCalledWith('one', 'src/renamed.ts'));
     await click(host, '[data-action="new-file"]');
@@ -452,10 +455,20 @@ describe('VS Code 风格工作台', () => {
     if (!tree) throw new Error('文件树缺失');
     const press = (key: string): void => {
       tree
-        .querySelector<HTMLElement>('[data-tree-path]')
+        .querySelector<HTMLElement>('[data-tree-section],[data-tree-path]')
         ?.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
     };
+    const rows = (): HTMLElement[] => [
+      ...tree.querySelectorAll<HTMLElement>('button[data-tree-path],button[data-tree-section]')
+    ];
     press('Home');
+    expect(rows()[0].dataset['treeSection']).toBe('open-editors');
+    press('ArrowDown');
+    expect(rows()[1].dataset['treePath']).toBe('editor:src/main.ts');
+    press('ArrowDown');
+    expect(rows()[2].dataset['treeSection']).toBe('workspace');
+    press('ArrowDown');
+    expect(rows()[3].dataset['treePath']).toBe('src');
     press('ArrowDown');
     await vi.waitFor(() => expect(handle.session.state.activePath).toBe('src/label.ts'));
     press('ArrowDown');
@@ -464,6 +477,82 @@ describe('VS Code 风格工作台', () => {
     await vi.waitFor(() => expect(handle.session.state.activePath).toBe('src/main.ts'));
     press('ArrowUp');
     await vi.waitFor(() => expect(handle.session.state.activePath).toBe('src/label.ts'));
+    handle.dispose();
+  });
+
+  it('节头支持点击与方向键折叠展开，打开的编辑器行可切换与关闭', async () => {
+    const { host, handle } = fixture();
+    await handle.ready;
+    await vi.waitFor(() => expect(handle.session.state.tabs).toContain('src/main.ts'));
+    const tree = host.querySelector<HTMLElement>('[data-slot="files"]');
+    if (!tree) throw new Error('文件树缺失');
+    const section = (key: string): HTMLElement | null =>
+      tree.querySelector<HTMLElement>(`button[data-tree-section="${key}"]`);
+    expect(section('open-editors')?.textContent).toContain('打开的编辑器');
+    expect(section('workspace')?.textContent).toContain('本地项目');
+    section('workspace')?.click();
+    await vi.waitFor(() => expect(tree.querySelector('button[data-tree-path="src"]')).toBeNull());
+    expect(section('workspace')?.getAttribute('aria-expanded')).toBe('false');
+    section('workspace')?.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true })
+    );
+    await vi.waitFor(() => expect(tree.querySelector('button[data-tree-path="src"]')).not.toBeNull());
+    // 打开第二个文件后出现对应编辑器行，点击切换活动文件，关闭按钮收起标签
+    tree.querySelector<HTMLElement>('button[data-tree-path="src/label.ts"]')?.click();
+    await vi.waitFor(() => expect(handle.session.state.tabs).toContain('src/label.ts'));
+    const open = tree.querySelector<HTMLElement>('button[data-tree-path="editor:src/label.ts"]');
+    expect(open).not.toBeNull();
+    handle.session.select('src/main.ts');
+    await vi.waitFor(() => expect(handle.session.state.activePath).toBe('src/main.ts'));
+    open?.click();
+    await vi.waitFor(() => expect(handle.session.state.activePath).toBe('src/label.ts'));
+    open?.parentElement?.querySelector<HTMLElement>('.wb-editor-row-close')?.click();
+    await vi.waitFor(() => expect(handle.session.state.tabs).not.toContain('src/label.ts'));
+    // 悬停动作关闭全部编辑器，节随之消失
+    tree.querySelector<HTMLElement>('[data-action="close-all-editors"]')?.click();
+    await vi.waitFor(() => expect(handle.session.state.tabs).toHaveLength(0));
+    expect(tree.querySelector('button[data-tree-section="open-editors"]')).toBeNull();
+    handle.dispose();
+  });
+
+  it('活动栏切换视图更换标题与标题动作组，更多菜单按视图提供条目', async () => {
+    const { host, handle } = fixture();
+    await handle.ready;
+    await click(host, '[data-action="git"]');
+    expect(host.querySelector('[data-slot="side-title"]')?.textContent).toBe('源代码管理');
+    expect((host.querySelector('.wb-side-actions[data-view="git"]') as HTMLElement).hidden).toBe(false);
+    expect((host.querySelector('.wb-side-actions[data-view="explorer"]') as HTMLElement).hidden).toBe(true);
+    await click(host, '[data-action="more-actions"]');
+    expect([...host.querySelectorAll<HTMLElement>('.wb-context-menu button')].map(item => item.textContent)).toEqual([
+      '刷新',
+      '始终显示操作'
+    ]);
+    host
+      .querySelector<HTMLElement>('.wb-context-menu [data-menu-id="always-show-actions"]')
+      ?.dispatchEvent(new Event('click', { bubbles: true }));
+    await vi.waitFor(() => expect(host.querySelector('.wb-scm-show-actions')).not.toBeNull());
+    await click(host, '[data-action="explorer"]');
+    expect(host.querySelector('[data-slot="side-title"]')?.textContent).toBe('资源管理器');
+    await click(host, '[data-action="more-actions"]');
+    expect([...host.querySelectorAll<HTMLElement>('.wb-context-menu button')].map(item => item.textContent)).toEqual([
+      '重命名',
+      '删除',
+      '刷新资源管理器',
+      '折叠资源管理器中的文件夹'
+    ]);
+    handle.dispose();
+  });
+
+  it('折叠资源管理器中的文件夹收起全部目录', async () => {
+    const { host, handle } = fixture();
+    await handle.ready;
+    const tree = host.querySelector<HTMLElement>('[data-slot="files"]');
+    if (!tree) throw new Error('文件树缺失');
+    expect(tree.querySelector('button[data-tree-path="src"]')?.getAttribute('aria-expanded')).toBe('true');
+    await click(host, '[data-action="collapse-tree"]');
+    await vi.waitFor(() =>
+      expect(tree.querySelector('button[data-tree-path="src"]')?.getAttribute('aria-expanded')).toBe('false')
+    );
     handle.dispose();
   });
 
@@ -530,7 +619,7 @@ describe('VS Code 风格工作台', () => {
   });
 
   it('打开项目恢复上次的标签与活动文件，切换后持久化会话状态', async () => {
-    const { host, handle, catalog } = fixture();
+    const { handle, catalog } = fixture();
     vi.mocked(catalog.getState).mockResolvedValue({
       tabs: ['src/label.ts', 'src/main.ts'],
       activePath: 'src/label.ts'
@@ -587,7 +676,7 @@ describe('VS Code 风格工作台', () => {
     await click(host, '[data-action="git"]');
     await vi.waitFor(() => expect(backend.status).toHaveBeenCalled());
     const before = vi.mocked(backend.status).mock.calls.length;
-    await click(host, '[data-scm-action="refresh"]');
+    await click(host, '[data-action="refresh-tree"]');
     await vi.waitFor(() => expect(vi.mocked(backend.status).mock.calls.length).toBeGreaterThan(before));
     handle.dispose();
   });
@@ -689,17 +778,13 @@ describe('VS Code 风格工作台', () => {
     await handle.ready;
     const tree = host.querySelector<HTMLElement>('[data-slot="files"]');
     if (!tree) throw new Error('文件树缺失');
-    // 树导航选中 src/label.ts（同时打开它），再把活动文件切回 main.ts
-    tree
-      .querySelector<HTMLElement>('[data-tree-path]')
-      ?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true, cancelable: true }));
-    tree
-      .querySelector<HTMLElement>('[data-tree-path]')
-      ?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+    // 树内点击选中 src/label.ts（同时打开它），再把活动文件切回 main.ts
+    tree.querySelector<HTMLElement>('button[data-tree-path="src/label.ts"]')?.click();
     await vi.waitFor(() => expect(handle.session.state.activePath).toBe('src/label.ts'));
     handle.session.select('src/main.ts');
     await vi.waitFor(() => expect(handle.session.state.activePath).toBe('src/main.ts'));
-    await click(host, '[data-action="rename"]');
+    await click(host, '[data-action="more-actions"]');
+    await click(host, '.wb-context-menu [data-menu-id="rename"]');
     await inlineInput(host, 'moved.ts');
     await vi.waitFor(() => expect(backend.rename).toHaveBeenCalledWith('one', 'src/label.ts', 'src/moved.ts'));
     handle.dispose();
@@ -720,6 +805,23 @@ describe('VS Code 风格工作台', () => {
       .find(item => item.textContent === '转到行')
       ?.click();
     await vi.waitFor(() => expect(editorHandle.runCommand).toHaveBeenCalledWith('gotoLine'));
+    handle.dispose();
+  });
+
+  it('命令面板提供编辑器查找命令并路由到活动编辑器', async () => {
+    const { host, handle, editorHandle } = fixture();
+    await handle.ready;
+    await click(host, '[data-action="commands"]');
+    await vi.waitFor(() => expect(host.querySelector('.wb-quick-input input')).not.toBeNull());
+    const input = host.querySelector<HTMLInputElement>('.wb-quick-input input')!;
+    input.value = '>查找';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    const item = [...host.querySelectorAll<HTMLElement>('.wb-quick-input-list button')].find(button =>
+      button.textContent?.includes('编辑器: 查找')
+    );
+    expect(item).toBeDefined();
+    item?.click();
+    await vi.waitFor(() => expect(editorHandle.runCommand).toHaveBeenCalledWith('find'));
     handle.dispose();
   });
 

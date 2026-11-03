@@ -27,6 +27,8 @@ export interface WorkbenchScmOptions {
 export interface WorkbenchScm {
   update(status: WorkbenchStatus): void;
   setBusy(busy: boolean): void;
+  /** 对齐 VS Code「视图和更多操作」：悬停显示的内联操作改为始终显示。 */
+  setAlwaysShowActions(enabled: boolean): void;
   /** 重开项目后回填持久化的提交说明。 */
   restoreMessage(message: string): void;
   commit(): Promise<void>;
@@ -103,31 +105,24 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
   const caption = document.createElement('span');
   caption.textContent = '提交';
   commitButton.append(caption);
+  const commitRow = document.createElement('div');
+  commitRow.className = 'wb-scm-commit-row';
+  commitRow.append(commitButton);
   const hint = document.createElement('p');
   hint.className = 'wb-scm-hint';
   hint.setAttribute('role', 'status');
-  form.append(message, commitButton, hint);
+  form.append(message, commitRow, hint);
   const staged = changeGroup('staged', '暂存的更改');
   const working = changeGroup('working', '更改');
   const stageAll = actionButton('stage-all', '暂存所有更改', 'add');
   const unstageAll = actionButton('unstage-all', '取消暂存所有更改', 'remove');
   working.heading.append(stageAll);
   staged.heading.append(unstageAll);
-  const header = document.createElement('div');
-  header.className = 'wb-scm-header';
-  const heading = document.createElement('h2');
-  heading.textContent = '源代码管理';
-  const refresh = actionButton('refresh', '刷新 Git 状态', 'refresh');
-  refresh.onclick = event => {
-    event.stopPropagation();
-    launch(() => Promise.resolve(options.onRefresh?.()));
-  };
-  header.append(heading, refresh);
   const intro = document.createElement('p');
   intro.className = 'wb-scm-intro';
   intro.hidden = true;
   intro.textContent = '这是新仓库：暂存全部更改并填写说明，创建首次提交。';
-  element.append(header, intro, form, staged.section, working.section);
+  element.append(intro, form, working.section, staged.section);
   host.replaceChildren(element);
   const controls: { button: HTMLButtonElement; path: string; action: FileAction }[] = [];
   let status: WorkbenchStatus | null = null;
@@ -329,6 +324,8 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
     intro.hidden = status === null || status.head !== null || workingEntries.length === 0;
     staged.count.textContent = String(stagedEntries.length);
     working.count.textContent = String(workingEntries.length);
+    staged.count.hidden = stagedEntries.length === 0;
+    working.count.hidden = workingEntries.length === 0;
     stagedEntries.forEach(entry => staged.list.append(row(entry, 'staged')));
     workingEntries.forEach(entry => working.list.append(row(entry, 'working')));
     syncControls();
@@ -382,6 +379,10 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
     setBusy(busy) {
       externalBusy = busy;
       syncControls();
+    },
+    setAlwaysShowActions(enabled) {
+      if (disposed) return;
+      element.classList.toggle('wb-scm-show-actions', enabled);
     },
     restoreMessage(value) {
       if (disposed) return;

@@ -3,6 +3,7 @@ import { SUPPORT_LANGUAGES } from '@aiao/code-editor';
 import type { LanguageSupport } from '@codemirror/language';
 import { LanguageDescription, language } from '@codemirror/language';
 import { getChunks } from '@codemirror/merge';
+import { getSearchQuery } from '@codemirror/search';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -49,6 +50,49 @@ describe('只读 Git 双栏差异', () => {
     expect(editors[0].state.facet(language)).not.toBeNull();
     expect(parent.textContent).toContain('index → worktree');
     expect(parent.querySelector('.cm-merge-revert')).toBeNull();
+  });
+
+  it('Mod+F 在只读双栏中打开查找面板', async () => {
+    const parent = host();
+    const view = await createWorkbenchDiff(parent, model());
+    disposals.push(view.dispose);
+    const content = parent.querySelector<HTMLElement>('.cm-content')!;
+    const modifier = /Mac|iPhone|iPad/.test(navigator.platform) ? { metaKey: true } : { ctrlKey: true };
+    content.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'f',
+        code: 'KeyF',
+        keyCode: 70,
+        bubbles: true,
+        cancelable: true,
+        ...modifier
+      })
+    );
+    expect(parent.querySelector('.cm-search [main-field]')).not.toBeNull();
+  });
+
+  it('在一侧面板提交查询，两侧 pane 的搜索状态同步', async () => {
+    const parent = host();
+    const view = await createWorkbenchDiff(parent, model());
+    disposals.push(view.dispose);
+    const editors = [...parent.querySelectorAll<HTMLElement>('.cm-content')].map(content =>
+      EditorView.findFromDOM(content)!
+    );
+    const modifier = /Mac|iPhone|iPad/.test(navigator.platform) ? { metaKey: true } : { ctrlKey: true };
+    editors[0].contentDOM.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'f',
+        code: 'KeyF',
+        keyCode: 70,
+        bubbles: true,
+        cancelable: true,
+        ...modifier
+      })
+    );
+    const field = parent.querySelector<HTMLInputElement>('.cm-search [main-field]')!;
+    field.value = 'value';
+    field.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(editors.map(editor => getSearchQuery(editor.state).search)).toEqual(['value', 'value']);
   });
 
   it('BOM、CRLF 和末尾换行变化显式标明，不改写输入模型', async () => {

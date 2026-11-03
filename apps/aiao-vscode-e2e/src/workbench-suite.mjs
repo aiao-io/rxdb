@@ -139,8 +139,17 @@ export async function runWorkbenchCase(page, expect, template, testInfo) {
   const projectId = await root.getByRole('combobox', { name: '当前项目' }).inputValue();
   const marker = `workbench-${template}-edited`;
   try {
+    // 侧栏对齐 VS Code：工作区节头、活动栏切换标题与视图
+    await expect(root.locator('[data-tree-section="workspace"]')).toContainText(`vscode-${template}-fixture`);
+    await root.getByRole('button', { name: '切换 Git 视图', exact: true }).click();
+    await expect(root.locator('[data-slot="side-title"]')).toHaveText('源代码管理');
+    await expect(root.locator('[data-scm-group="working"]')).toBeVisible();
+    await root.getByRole('button', { name: '切换资源管理器', exact: true }).click();
+    await expect(root.locator('[data-slot="side-title"]')).toHaveText('资源管理器');
     await runPreview(page, expect, fixture.heading, fixture);
     await replaceHeading(page, expect, root, fixture, marker);
+    await expect(root.locator('[data-tree-section="open-editors"]')).toBeVisible();
+    await expect(root.locator('.wb-editor-row').first()).toBeVisible();
     await runPreview(page, expect, marker, fixture);
     await page.reload();
     await expect(root.getByRole('combobox', { name: '当前项目' })).toHaveValue(projectId, { timeout: 30000 });
