@@ -58,4 +58,4 @@ US-505 已交付，不再用“文件存储成熟”代指未知前置。若真�
 
 - 新用例形态：现有 e2e 是单应用内交互；本故事新增「两台机器之间字节流 + 流量隔离」形态（复验口径见 epic-011「为什么单列一个 Epic」）。流量隔离断言中断的是**已建立连接之后**的服务器路由；浏览器断外网**新建**连接的信令边界见 [US-704](US-704-p2p-manifest-discovery.md)
 - 三框架对称只约束 UI 部分（如传输进度组件）；service 层无框架绑定，三端 demo 同 US-502 直接调用
-- 浏览器双 context 的 WebRTC 握手若受同一 browser 实例限制（实现时实测），退路为双 browser 实例或手动 SDP 注入
+- 浏览器双 context 的 WebRTC 握手在同一个 Chromium 实例里可行：[US-708](US-708-p2p-peer-session.md) 的验收夹具 `apps/dev-rxdb-p2p-e2e` 由用例搬运整份 SDP，启动参数关掉 mDNS 主机候选、允许回环地址。本故事的多实例用例可在该项目上扩展：接入 demo、认证宿主、服务器回退与 Electron / Tauri 进程

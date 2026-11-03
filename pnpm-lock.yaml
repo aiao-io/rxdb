@@ -1014,6 +1014,15 @@ importers:
 
   apps/dev-rxdb-miniprogram-e2e: {}
 
+  apps/dev-rxdb-p2p-e2e:
+    dependencies:
+      '@aiao/rxdb':
+        specifier: workspace:*
+        version: link:../../packages/rxdb
+      '@aiao/rxdb-plugin-p2p-files':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-p2p-files
+
   apps/dev-rxdb-react:
     dependencies:
       '@aiao/code-editor-react':

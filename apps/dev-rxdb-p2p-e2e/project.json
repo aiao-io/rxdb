@@ -1,0 +1,12 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "dev-rxdb-p2p-e2e",
+  "projectType": "application",
+  "sourceRoot": "apps/dev-rxdb-p2p-e2e/src",
+  "targets": {
+    "e2e": {
+      "// dependsOn": "两端都运行 @aiao/rxdb-plugin-p2p-files 的构建产物：桌面端由 Playwright 派生的 Node 进程直接 import，浏览器端由 esbuild 打进夹具页。产物缺失时必须红在构建上。",
+      "dependsOn": ["rxdb-plugin-p2p-files:build"]
+    }
+  }
+}

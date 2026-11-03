@@ -8,8 +8,8 @@
 | 状态           | 数量 |
 | :------------- | :--- |
 | ✅ Done        | 89   |
-| 🚧 In Progress | 9    |
-| 👀 In Review   | 9    |
+| 🚧 In Progress | 8    |
+| 👀 In Review   | 10   |
 | 📝 Backlog     | 27   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 134  |
@@ -17,7 +17,7 @@
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
 
-## 进行中（9 条）
+## 进行中（8 条）
 
 | Story                                                                                                       | 剩余范围                                                           |
 | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
@@ -27,10 +27,11 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 | [US-540 看板端到端 demo](stories/domain/US-540-board-end-to-end-demo.md)                                    | demo 既有库初态（AC#7）与无搜索插件构建（AC#12）仍待验。           |
 | [US-603 手工发布入口的提交与校验结果一致性](stories/tooling/US-603-manual-release-preflight.md)             | 两个手工发布入口已接入共享 preflight；待受控 registry 替身验收。   |
 
-## 待评审（9 条）
+## 待评审（10 条）
 
 | Story                                                                                         | 剩余范围                                                                                                       |
 | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| [US-708 P2P 会话层](stories/future/US-708-p2p-peer-session.md)                                | 会话层与 10 条 AC 已在真实 DataChannel 双上下文与 TLS 双进程夹具上验收，随 PR #172 评审合并。                  |
 | [US-911 客户端国际化 / 本地化](stories/future/US-911-client-i18n.md)                          | A～D 已实现；偏好载体对照、历史隔离、三端/四运行时、目录分发与 DevTools 已验收，待代码评审。                   |
 | [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)    | 当前Taro版本的外部安装/开发者工具证据仍需补齐。                                                                |
 | [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) | 当前承诺A～C已实现，等待评审收尾；D为候选，不参与当前关闭，仍保留未验状态。                                    |
@@ -214,7 +215,7 @@ US-704～US-707 已获 owner 授权，US-708 会话层由 owner 决定在 PR #17
 - 🚧 [US-705 P2P 字节传输](stories/future/US-705-p2p-byte-transfer.md)
 - 🚧 [US-706 服务器兜底与认证](stories/future/US-706-p2p-fallback-auth.md)
 - ⬜ [US-707 跨运行时 demo 与多实例 e2e](stories/future/US-707-p2p-cross-runtime-e2e.md)
-- 🚧 [US-708 P2P 会话层：一对设备一条会话、多协议复用](stories/future/US-708-p2p-peer-session.md)
+- 👀 [US-708 P2P 会话层：一对设备一条会话、多协议复用](stories/future/US-708-p2p-peer-session.md)
 
 ### [P2P 会话与局域网协作](epics/epic-012-p2p-lan-collaboration.md)
 

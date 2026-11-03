@@ -281,6 +281,9 @@
     },
     {
       "path": "./packages/rxdb-i18n-vue"
+    },
+    {
+      "path": "./apps/dev-rxdb-p2p-e2e"
     }
   ]
 }
