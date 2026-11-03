@@ -20,6 +20,11 @@ import { gotoLine, openSearchPanel, search } from '@codemirror/search';
 import { EditorSelection, Transaction } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 import { filter, firstValueFrom, of, take, timeout } from 'rxjs';
+import { createGitBackend } from '../workbench/git-backend.js';
+import { createRouterBackend } from '../workbench/git/git-router-backend.js';
+import { completeOAuthCallback } from '../workbench/git/github/github-oauth-bridge.js';
+import type { GitHubService } from '../workbench/git/github/github-service.js';
+import { createGitHubService } from '../workbench/git/github/github-service.js';
 import { mountWorkbench, type WorkbenchHandle } from '../workbench/mount.js';
 import { createRxDBWorkbenchCatalog } from '../workbench/rxdb-catalog.js';
 
@@ -98,9 +103,34 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     } catch (error) {
       console.warn('RxDB adapter failed to connect; project catalog will not persist', error);
     }
+    const github = createGitHubService();
+    if (location.pathname === '/github-callback') {
+      const params = new URLSearchParams(location.search);
+      const code = params.get('code');
+      const state = params.get('state');
+      void (async () => {
+        try {
+          if (!code || !state) throw new Error('OAuth 回调缺少 code 或 state');
+          await completeOAuthCallback(github.auth, code, state);
+          history.replaceState({}, '', '/');
+          if (window.opener) window.close();
+        } catch (error) {
+          this.error.set(error instanceof Error ? error.message : String(error));
+          history.replaceState({}, '', '/');
+        }
+      })();
+    }
     this.workbench = mountWorkbench(
       this.host.nativeElement,
-      connected ? { catalog: createRxDBWorkbenchCatalog(this.rxdb) } : {},
+      {
+        ...(connected ? { catalog: createRxDBWorkbenchCatalog(this.rxdb) } : {}),
+        backend: createRouterBackend({
+          local: createGitBackend('/browser-workbench-assets/'),
+          github: github.createBackend()
+        }),
+        githubApi: github.api,
+        githubAuth: github.auth
+      },
       (element, initial) => {
         const editor = createComponent(CodeEditor, { hostElement: element, environmentInjector: this.environment });
         editor.setInput('value', initial.value);
@@ -184,9 +214,10 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     );
     this.ready.set(true);
     if (new URLSearchParams(location.search).has('workbench-verify')) {
-      const target = window as unknown as { workbench?: WorkbenchHandle; ready?: boolean };
+      const target = window as unknown as { workbench?: WorkbenchHandle; ready?: boolean; github?: GitHubService };
       target.workbench = this.workbench;
       target.ready = true;
+      target.github = github;
     }
   }
 }

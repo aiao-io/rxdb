@@ -26,6 +26,8 @@ owner: jimmy
 
 - [US-402 代码编辑器组件](../stories/ui/US-402-code-editor.md) (Medium)
 - [US-403 实体组件 Headless API 与可定制展示层](../stories/ui/US-403-entity-components-headless.md) (Medium) — A 表单与共享契约 → B 已公开查询 service 的消费与绑定 → C 现有列表视图/详情与可选渲染 → D 独立消费验证与文档；以当前 main 的列表设置 API 为兼容基线
+- [US-406 GitHub 连接与远程仓库提交推送](../../apps/aiao-vscode/requirements/stories/US-406-github-remote-repositories.md) (Medium) — 阶段 A 登录与仓库浏览 → B 编辑与提交推送 → C 安全与发布；虚拟仓库后端按 vscode.dev GitHub 集成研究结论以 API 当文件系统与提交引擎，已解锁、阶段 A 进行中
+- [US-407 首次进入欢迎视图：打开文件夹、最近项目与 Demo 初始化](../../apps/aiao-vscode/requirements/stories/US-407-first-run-welcome-open-folder.md) (Medium) — 空目录首启不初始化项目；资源管理器欢迎视图提供打开文件夹（File System Access 单向导入）、最近项目与 Demo 初始化三个入口
 - [US-902 DevTools 面板](../stories/future/US-902-devtools-panel.md) (Low)
 - [US-904 DevTools 原生本地存储调试](../stories/future/US-904-devtools-native-storage-contract.md) (Medium) — 单文件四阶段：
   - 阶段 A Electron 43 MV3 DevTools 可行性门禁

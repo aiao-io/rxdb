@@ -358,6 +358,7 @@ export function createWorkbenchCommands(root: HTMLElement, options: WorkbenchCom
     if (modifier && shortcut.shiftKey) {
       const viewShortcuts: Readonly<Record<string, string>> = {
         e: 'showExplorer',
+        f: 'showSearch',
         g: 'showScm',
         m: 'showProblems',
         u: 'showOutput'

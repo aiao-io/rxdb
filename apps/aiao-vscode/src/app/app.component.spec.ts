@@ -3,10 +3,27 @@ import { PLATFORM_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { of, Subject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { savePendingOAuth } from '../workbench/git/github/github-oauth-bridge.js';
 import { AppComponent } from './app.component';
 
-const mocks = vi.hoisted(() => ({ mount: vi.fn(), dispose: vi.fn(), change: vi.fn(), cursor: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  mount: vi.fn(),
+  dispose: vi.fn(),
+  change: vi.fn(),
+  cursor: vi.fn(),
+  gitBackend: vi.fn(() => ({ dispose: vi.fn() })),
+  githubService: vi.fn(() => ({
+    createBackend: vi.fn(() => ({ dispose: vi.fn() })),
+    auth: { completeOAuth: mocks.completeOAuth },
+    api: {}
+  })),
+  routerBackend: vi.fn((options: { local: unknown; github: unknown }) => options.local),
+  completeOAuth: vi.fn(async () => ({ token: 'gho_abc', login: 'octo', avatarUrl: null, provider: 'oauth' }))
+}));
 vi.mock('../workbench/mount.js', () => ({ mountWorkbench: mocks.mount }));
+vi.mock('../workbench/git-backend.js', () => ({ createGitBackend: mocks.gitBackend }));
+vi.mock('../workbench/git/github/github-service.js', () => ({ createGitHubService: mocks.githubService }));
+vi.mock('../workbench/git/git-router-backend.js', () => ({ createRouterBackend: mocks.routerBackend }));
 let editor: { update(value: string, language: string): void; layout(): void; focus(): void; dispose(): void };
 
 const connected = new Subject<boolean>();
@@ -41,6 +58,11 @@ beforeEach(() => {
       }
     };
   });
+});
+
+afterEach(() => {
+  localStorage.clear();
+  history.replaceState({}, '', '/');
 });
 
 describe('AppComponent workbench mount', () => {
@@ -137,7 +159,9 @@ describe('AppComponent workbench mount', () => {
       fixture.detectChanges();
       await vi.advanceTimersByTimeAsync(10000);
       await vi.waitFor(() => expect(mocks.mount).toHaveBeenCalledOnce());
-      expect(mocks.mount.mock.calls[0][1]).toEqual({});
+      const options = mocks.mount.mock.calls[0][1] as { catalog: unknown; backend: unknown };
+      expect(options.catalog).toBeUndefined();
+      expect(options.backend).toBeDefined();
       fixture.destroy();
     } finally {
       vi.useRealTimers();
@@ -154,6 +178,19 @@ describe('AppComponent workbench mount', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
     expect(mocks.mount).not.toHaveBeenCalled();
+    fixture.destroy();
+  });
+
+  it('completes the OAuth callback when booted on the /github-callback route', async () => {
+    const state = 'https://ide.example/github-callback?nonce=abcd1234abcd1234';
+    savePendingOAuth({ verifier: 'verifier-1', nonce: 'abcd1234abcd1234', state, at: Date.now() });
+    history.pushState({}, '', `/github-callback?code=code-1&state=${encodeURIComponent(state)}`);
+    const fixture = createComponentFixture();
+    fixture.detectChanges();
+    connected.next(true);
+    await vi.waitFor(() => expect(mocks.completeOAuth).toHaveBeenCalledWith('code-1', 'verifier-1'));
+    await vi.waitFor(() => expect(location.pathname).toBe('/'));
+    expect(mocks.mount).toHaveBeenCalled();
     fixture.destroy();
   });
 });

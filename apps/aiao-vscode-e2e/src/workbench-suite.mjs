@@ -150,6 +150,30 @@ export async function runWorkbenchCase(page, expect, template, testInfo) {
     await replaceHeading(page, expect, root, fixture, marker);
     await expect(root.locator('[data-tree-section="open-editors"]')).toBeVisible();
     await expect(root.locator('.wb-editor-row').first()).toBeVisible();
+    // 资源管理器文件拖放：新建文件与文件夹，保存全部后把文件拖进文件夹
+    await root.locator('.wb-tree [data-action="new-file"]').click();
+    await root.locator('.wb-inline-input').fill('drag-me.txt');
+    await root.locator('.wb-inline-input').press('Enter');
+    await root.locator('.wb-tree [data-action="new-folder"]').click();
+    await root.locator('.wb-inline-input').fill('assets');
+    await root.locator('.wb-inline-input').press('Enter');
+    await expect(root.locator('[data-slot="save-status"]')).toContainText('未保存');
+    await page.keyboard.press('ControlOrMeta+Shift+S');
+    await expect(root.locator('[data-slot="save-status"]')).toContainText('已保存', { timeout: 30000 });
+    // Playwright 的 dragTo 只发鼠标事件，不发 HTML5 拖放事件；用真实 DataTransfer 走一遍完整管线
+    await page.evaluate(() => {
+      const tree = document.querySelector('.wb-tree');
+      const source = tree?.querySelector('button[data-tree-path="drag-me.txt"]');
+      const target = tree?.querySelector('button[data-tree-path="assets"]');
+      if (!source || !target) throw new Error('拖放源或目标行缺失');
+      const data = new DataTransfer();
+      source.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: data }));
+      target.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: data }));
+      target.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: data }));
+      source.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer: data }));
+    });
+    await expect(root.locator('button[data-tree-path="assets/drag-me.txt"]')).toBeVisible({ timeout: 30000 });
+    await expect(root.locator('button[data-tree-path="drag-me.txt"]')).toHaveCount(0);
     await runPreview(page, expect, marker, fixture);
     await page.reload();
     await expect(root.getByRole('combobox', { name: '当前项目' })).toHaveValue(projectId, { timeout: 30000 });

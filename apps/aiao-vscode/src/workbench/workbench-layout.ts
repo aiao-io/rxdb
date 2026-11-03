@@ -25,6 +25,7 @@ export function createWorkbenchLayout(host: HTMLElement, assetBaseURL: string): 
     <div class="wb-body">
       <nav class="wb-activity" aria-label="活动栏">
         <button aria-label="切换资源管理器" aria-pressed="true" data-action="explorer" title="资源管理器">${iconMarkup('files')}</button>
+        <button aria-label="切换搜索" aria-pressed="false" data-action="search" title="搜索">${iconMarkup('search')}</button>
         <button aria-label="切换 Git 视图" aria-pressed="false" data-action="git" title="源代码管理">${iconMarkup('source-control')}<span class="wb-activity-badge" data-slot="scm-count" hidden>0</span></button>
         <span class="wb-spacer"></span>
         <button aria-label="切换底部面板" data-action="panel" title="切换面板">${iconMarkup('layout-panel')}</button>
@@ -52,8 +53,14 @@ export function createWorkbenchLayout(host: HTMLElement, assetBaseURL: string): 
         <div class="wb-side-actions" data-view="git" hidden>
           <button data-action="refresh-tree" aria-label="刷新" title="刷新">${iconMarkup('refresh')}</button>
           <button data-action="more-actions" aria-label="视图和更多操作…" title="视图和更多操作…">${iconMarkup('ellipsis')}</button>
+        </div>
+        <div class="wb-side-actions" data-view="search" hidden>
+          <button data-action="clear-search" aria-label="清除搜索结果" title="清除搜索结果">${iconMarkup('clear-all')}</button>
+          <button data-action="collapse-search" aria-label="折叠全部" title="折叠全部">${iconMarkup('collapse-all')}</button>
+          <button data-action="more-actions" aria-label="视图和更多操作…" title="视图和更多操作…">${iconMarkup('ellipsis')}</button>
         </div></div>
         <div class="wb-tree" data-slot="files" role="tree" aria-label="项目文件树"></div>
+        <div data-slot="search-view" hidden></div>
         <div data-slot="git-view" hidden>
           <div data-slot="scm"></div>
           <details class="wb-history" data-scm-group="history">
@@ -62,7 +69,7 @@ export function createWorkbenchLayout(host: HTMLElement, assetBaseURL: string): 
           </details>
         </div>
       </aside>
-      <div class="wb-welcome"><span class="wb-welcome-mark">${iconMarkup('code')}</span><h2>Aiao Code</h2><p>打开一个文件开始编辑</p><div><span>保存文件</span><kbd>${shortcutKey} S</kbd></div><div><span>快速打开文件</span><kbd>${shortcutKey} P</kbd></div><div><span>命令面板</span><kbd>${shortcutShift} P</kbd></div><div><span>拖动标签即可拆分编辑器</span></div></div>
+      <div class="wb-welcome"><span class="wb-welcome-mark">${iconMarkup('code')}</span><h2>Aiao Code</h2><p>打开一个文件开始编辑</p><div><span>保存文件</span><kbd>${shortcutKey} S</kbd></div><div><span>快速打开文件</span><kbd>${shortcutKey} P</kbd></div><div><span>在文件中搜索</span><kbd>${shortcutShift} F</kbd></div><div><span>命令面板</span><kbd>${shortcutShift} P</kbd></div><div><span>拖动标签即可拆分编辑器</span></div></div>
       <section class="wb-preview" aria-label="项目预览"><div class="wb-preview-toolbar">${iconMarkup('globe')}<span>本地项目预览</span><span class="wb-preview-version">尚未运行</span><button data-action="rerun-preview" aria-label="重新运行预览" title="重新运行">${iconMarkup('refresh')}</button></div><div class="wb-preview-content"></div></section>
       <section class="wb-panel" data-log="problems" aria-label="底部面板"><div class="wb-panel-toolbar"><span>问题</span><span class="wb-spacer"></span><button data-action="clear-logs" aria-label="清空问题" title="清空">${iconMarkup('clear-all')}</button></div><div class="wb-panel-content" role="log" aria-live="polite"></div></section>
       <section class="wb-panel" data-log="output" aria-label="输出"><div class="wb-panel-toolbar"><span>工作台</span><span class="wb-spacer"></span><button data-action="clear-logs" aria-label="清空输出" title="清空">${iconMarkup('clear-all')}</button></div><div class="wb-panel-content" role="log"></div></section>

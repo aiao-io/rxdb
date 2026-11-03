@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createProjectCatalog, isWorkbenchProject, type WorkbenchProjectInfo } from './catalog.js';
+import {
+  createProjectCatalog,
+  githubProjectId,
+  githubProjectInfo,
+  isWorkbenchProject,
+  type WorkbenchProjectInfo
+} from './catalog.js';
 
 const project: WorkbenchProjectInfo = {
   id: 'one',
@@ -99,4 +105,31 @@ describe('OPFS workbench project catalog', () => {
     { ...project, entry: 1 },
     { ...project, template: 'node' }
   ])('rejects invalid metadata %j', value => expect(isWorkbenchProject(value)).toBe(false));
+
+  it.each([
+    { ...project, remote: { kind: 'github', owner: 'octo', repo: 'r', branch: 'main' } },
+    { ...project, remote: { kind: 'github', owner: 'octo', repo: 'r', branch: 'feature/x' } }
+  ])('accepts GitHub remote metadata %j', value => expect(isWorkbenchProject(value)).toBe(true));
+
+  it('rejects malformed remote metadata', () => {
+    expect(isWorkbenchProject({ ...project, remote: {} })).toBe(false);
+    expect(isWorkbenchProject({ ...project, remote: { kind: 'gitlab', owner: 'o', repo: 'r', branch: 'b' } })).toBe(
+      false
+    );
+    expect(isWorkbenchProject({ ...project, remote: { kind: 'github', owner: 1, repo: 'r', branch: 'b' } })).toBe(
+      false
+    );
+  });
+
+  it('builds GitHub project ids and catalog entries with encoded branches', () => {
+    expect(githubProjectId('octo', 'repo', 'feature/x')).toBe('github:octo/repo@feature%2Fx');
+    expect(githubProjectInfo('octo', 'repo', 'main', 5)).toEqual({
+      id: 'github:octo/repo@main',
+      name: 'octo/repo',
+      template: 'vanilla',
+      entry: '',
+      updatedAt: 5,
+      remote: { kind: 'github', owner: 'octo', repo: 'repo', branch: 'main' }
+    });
+  });
 });

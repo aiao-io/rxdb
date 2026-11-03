@@ -14,6 +14,7 @@ async function fixture() {
     save: vi.fn(async (projectId, files) => ({ projectId, revision: '2', files })),
     remove: vi.fn(async () => undefined),
     rename: vi.fn(async () => undefined),
+    move: vi.fn(async () => undefined),
     status: vi.fn(),
     stage: vi.fn(async () => undefined),
     unstage: vi.fn(async () => undefined),
@@ -32,6 +33,7 @@ async function fixture() {
   document.body.append(host);
   const callbacks = {
     onOpenDiff: vi.fn(async () => undefined),
+    onOpenFile: vi.fn(async () => undefined),
     onError: vi.fn(),
     onDidChange: vi.fn<WorkbenchScmOptions['onDidChange']>(async () => undefined),
     onCommitMessage: vi.fn(),
@@ -320,5 +322,41 @@ describe('VSCode式源代码管理', () => {
     expect(host.querySelector('.wb-scm-show-actions')).not.toBeNull();
     scm.setAlwaysShowActions(false);
     expect(host.querySelector('.wb-scm-show-actions')).toBeNull();
+  });
+
+  it('更改列表按目录树分组渲染，嵌套路径逐级缩进且操作仍作用完整路径', async () => {
+    const { host, backend, scm, status } = await fixture();
+    scm.update({
+      ...status,
+      entries: [
+        { path: 'a.ts', index: ' ', worktree: 'M' },
+        { path: 'src/main.tsx', index: ' ', worktree: 'M' },
+        { path: 'src/util/helper.ts', index: ' ', worktree: 'M' }
+      ]
+    });
+    const working = host.querySelector<HTMLElement>('[data-scm-group="working"] .wb-scm-list')!;
+    const folders = [...working.querySelectorAll<HTMLElement>('.wb-scm-folder')];
+    expect(folders.map(folder => folder.textContent)).toEqual(['src', 'util']);
+    const nested = working.querySelector<HTMLButtonElement>('[data-scm-path="src/util/helper.ts"]')!;
+    expect((nested.parentElement as HTMLElement).style.paddingLeft).toBe('24px');
+    nested
+      .closest<HTMLElement>('.wb-scm-change')
+      ?.querySelector<HTMLButtonElement>('[data-scm-action="stage"]')
+      ?.click();
+    await vi.waitFor(() => expect(backend.stage).toHaveBeenCalledWith('project', ['src/util/helper.ts']));
+  });
+
+  it('提交按钮位于消息框上方，每行提供打开文件操作', async () => {
+    const { host, callbacks } = await fixture();
+    const scm = host.querySelector<HTMLElement>('.wb-scm')!;
+    const toolbar = scm.querySelector<HTMLElement>('.wb-scm-toolbar')!;
+    const form = scm.querySelector<HTMLElement>('.wb-scm-commit-form')!;
+    expect(toolbar.querySelector('[data-scm-action="commit"]')).not.toBeNull();
+    expect(form.querySelector('[data-scm-action="commit"]')).toBeNull();
+    expect(toolbar.compareDocumentPosition(form) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // a.ts 同时出现在暂存与更改两组，加上 new.ts 共三行
+    expect(host.querySelectorAll('[data-scm-action="open"]')).toHaveLength(3);
+    host.querySelector<HTMLButtonElement>('[data-scm-action="open"]')?.click();
+    await vi.waitFor(() => expect(callbacks.onOpenFile).toHaveBeenCalledWith('a.ts'));
   });
 });

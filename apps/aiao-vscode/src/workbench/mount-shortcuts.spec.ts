@@ -57,6 +57,7 @@ function fixture() {
       currentFiles = next;
       revision++;
     }),
+    move: vi.fn<WorkbenchBackend['move']>(async () => undefined),
     status: vi.fn(async () => ({ branch: 'main', head: null, entries: [] })),
     stage: vi.fn(async () => undefined),
     unstage: vi.fn(async () => undefined),
@@ -91,7 +92,7 @@ function fixture() {
   };
   const host = document.createElement('div');
   document.body.append(host);
-  const handle = mountWorkbench(host, { backend, compiler, catalog }, mountEditor);
+  const handle = mountWorkbench(host, { backend, compiler, catalog, initialProjectId: 'one' }, mountEditor);
   instances.push(handle);
   return { host, handle, backend, editorHandle };
 }

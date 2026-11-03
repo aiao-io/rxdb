@@ -11,6 +11,7 @@ const instances: WorkbenchHandle[] = [];
 afterEach(() => {
   instances.splice(0).forEach(handle => handle.dispose());
   vi.restoreAllMocks();
+  Reflect.deleteProperty(window, 'showDirectoryPicker');
   document.body.replaceChildren();
 });
 
@@ -46,6 +47,17 @@ function fixture(
     rename: vi.fn<WorkbenchBackend['rename']>(async (_id, from, to) => {
       const next: Record<string, string | Uint8Array> = { ...currentFiles, [to]: currentFiles[from] };
       delete next[from];
+      currentFiles = next;
+      revision++;
+    }),
+    move: vi.fn<WorkbenchBackend['move']>(async (_id, from, to) => {
+      const next: Record<string, string | Uint8Array> = { ...currentFiles };
+      for (const path of Object.keys(currentFiles)) {
+        if (path === from || path.startsWith(`${from}/`)) {
+          next[`${to}${path.slice(from.length)}`] = currentFiles[path];
+          delete next[path];
+        }
+      }
       currentFiles = next;
       revision++;
     }),
@@ -89,7 +101,7 @@ function fixture(
             { id: 'one', name: '本地项目', template: 'vanilla' as const, entry: 'src/main.ts', updatedAt: 1 },
             ...extraProjects
           ]
-        : [];
+        : extraProjects;
     }),
     put: vi.fn(async () => undefined),
     getState: vi.fn(async () => null),
@@ -97,7 +109,11 @@ function fixture(
   };
   const host = document.createElement('div');
   document.body.append(host);
-  const handle = mountWorkbench(host, { backend, compiler, catalog, assetBaseURL }, mountEditor);
+  const handle = mountWorkbench(
+    host,
+    { backend, compiler, catalog, assetBaseURL, ...(withProject ? { initialProjectId: 'one' } : {}) },
+    mountEditor
+  );
   instances.push(handle);
   return { host, handle, backend, compiler, catalog, mountEditor, disposeEditor, editorHandle };
 }
@@ -107,6 +123,22 @@ const click = async (host: HTMLElement, selector: string): Promise<void> => {
   if (!element) throw new Error(`Missing test control: ${selector}`);
   await vi.waitFor(() => expect(element instanceof HTMLButtonElement ? element.disabled : false).toBe(false));
   element.click();
+};
+
+/** 派发一次带 dataTransfer 桩的拖放事件；happy-dom 没有 DragEvent 构造器。 */
+const drag = (
+  type: string
+): { event: Event; transfer: { effectAllowed: string; dropEffect: string; setData: ReturnType<typeof vi.fn> } } => {
+  const transfer = { effectAllowed: '', dropEffect: '', setData: vi.fn() };
+  const event = new Event(type, { bubbles: true, cancelable: true });
+  Object.defineProperty(event, 'dataTransfer', { value: transfer });
+  return { event, transfer };
+};
+
+const treeRow = (host: HTMLElement, path: string): HTMLButtonElement => {
+  const row = host.querySelector<HTMLButtonElement>(`button[data-tree-path="${path}"]`);
+  if (!row) throw new Error(`树行缺失：${path}`);
+  return row;
 };
 
 async function answer(host: HTMLElement, value: string | null): Promise<void> {
@@ -152,6 +184,29 @@ function messageInput(host: HTMLElement, value: string): HTMLTextAreaElement {
   return input;
 }
 
+function fakeFile(name: string, content: string | Uint8Array): FileSystemFileHandle {
+  const bytes = typeof content === 'string' ? new TextEncoder().encode(content) : content;
+  return {
+    kind: 'file',
+    name,
+    getFile: async () => new File([bytes], name)
+  } as unknown as FileSystemFileHandle;
+}
+
+function fakeDirectory(
+  name: string,
+  entries: Record<string, FileSystemDirectoryHandle | FileSystemFileHandle>
+): FileSystemDirectoryHandle {
+  return {
+    kind: 'directory',
+    name,
+    entries: async function* () {
+      for (const [childName, handle] of Object.entries(entries))
+        yield [childName, handle] as [string, FileSystemHandle];
+    }
+  } as unknown as FileSystemDirectoryHandle;
+}
+
 describe('VS Code 风格工作台', () => {
   beforeEach(() => {
     Object.defineProperty(HTMLIFrameElement.prototype, 'credentialless', {
@@ -181,31 +236,111 @@ describe('VS Code 风格工作台', () => {
     expect(handle.session.state.projectId).toBe('one');
   });
 
-  it('首次打开空目录自动创建最小 React、Vue、Angular Demo', async () => {
-    const { handle, backend, catalog } = fixture(false);
+  it('首次打开空目录不初始化项目，资源管理器显示欢迎视图', async () => {
+    const { host, handle, backend } = fixture(false);
     await handle.ready;
-    expect(backend.create).toHaveBeenCalledTimes(3);
+    expect(backend.create).not.toHaveBeenCalled();
+    expect(handle.session.state.projectId).toBeNull();
+    expect(host.querySelector('.wb-empty-view-hint')?.textContent).toBe('尚未打开项目');
+    expect(host.querySelector('[data-welcome-action="open-folder"]')?.textContent).toBe('打开文件夹');
+    expect(host.querySelector('[data-welcome-action="init-demo"]')?.textContent).toBe('初始化 Demo 项目');
+    expect(host.querySelector('.wb-empty-view-recent')).toBeNull();
+    expect(host.querySelector<HTMLButtonElement>('[data-action="save"]')?.disabled).toBe(true);
+    expect(host.querySelector<HTMLButtonElement>('[data-action="run"]')?.disabled).toBe(true);
+    expect(host.querySelector<HTMLButtonElement>('[data-action="new-project"]')?.disabled).toBe(false);
+  });
+
+  it('欢迎视图初始化 Demo 项目：选择模板创建并打开', async () => {
+    const { host, handle, backend } = fixture(false);
+    await handle.ready;
+    await click(host, '[data-welcome-action="init-demo"]');
+    await vi.waitFor(() => expect(host.querySelector('.wb-context-menu')).not.toBeNull());
+    [...host.querySelectorAll<HTMLButtonElement>('.wb-context-menu button')]
+      .find(button => button.textContent === 'React 最小 Demo')
+      ?.click();
+    await vi.waitFor(() => expect(handle.session.state.projectId).toBe('default-react'));
     expect(backend.create).toHaveBeenCalledWith(
       'default-react',
-      expect.objectContaining({
-        'src/main.tsx': expect.stringContaining('Hello React')
+      expect.objectContaining({ 'src/main.tsx': expect.stringContaining('Hello React') })
+    );
+    expect(String(handle.session.state.files['workbench.project.json'])).toContain('"template": "react"');
+    expect(host.querySelector('.wb-empty-view')).toBeNull();
+  });
+
+  it('欢迎视图初始化 Demo 项目：目录已登记同 id 项目时直接打开', async () => {
+    const { host, handle, backend } = fixture(false, '/browser-workbench-assets/', undefined, [
+      { id: 'default-react', name: 'React 最小 Demo', template: 'react' as const, entry: 'src/main.tsx', updatedAt: 5 }
+    ]);
+    await handle.ready;
+    await click(host, '[data-welcome-action="init-demo"]');
+    await vi.waitFor(() => expect(host.querySelector('.wb-context-menu')).not.toBeNull());
+    [...host.querySelectorAll<HTMLButtonElement>('.wb-context-menu button')]
+      .find(button => button.textContent === 'React 最小 Demo')
+      ?.click();
+    await vi.waitFor(() => expect(handle.session.state.projectId).toBe('default-react'));
+    expect(backend.create).not.toHaveBeenCalled();
+  });
+
+  it('欢迎视图列出最近项目，点击打开对应项目', async () => {
+    const { host, handle } = fixture(false, '/browser-workbench-assets/', undefined, [
+      { id: 'older', name: '旧项目', template: 'vue' as const, entry: 'src/main.ts', updatedAt: 2 },
+      { id: 'newer', name: '新项目', template: 'react' as const, entry: 'src/main.tsx', updatedAt: 3 }
+    ]);
+    await handle.ready;
+    const rows = [...host.querySelectorAll<HTMLButtonElement>('[data-welcome-recent]')];
+    expect(rows.map(row => row.textContent)).toEqual(['新项目', '旧项目']);
+    rows[0].click();
+    await vi.waitFor(() => expect(handle.session.state.projectId).toBe('newer'));
+    expect(host.querySelector('.wb-empty-view')).toBeNull();
+  });
+
+  it('欢迎视图打开文件夹：读取目录登记项目并打开', async () => {
+    const { host, handle, backend, catalog } = fixture(false);
+    await handle.ready;
+    const picker = vi.fn(async () =>
+      fakeDirectory('my-app', {
+        'workbench.project.json': fakeFile(
+          'workbench.project.json',
+          JSON.stringify({ template: 'react', entry: 'src/main.tsx' })
+        ),
+        'src/main.tsx': fakeFile('main.tsx', 'export default () => <h1>hi</h1>'),
+        'assets/logo.png': fakeFile('logo.png', new Uint8Array([0x89, 0x50]))
       })
     );
+    Object.defineProperty(window, 'showDirectoryPicker', { configurable: true, value: picker });
+    await click(host, '[data-welcome-action="open-folder"]');
+    await vi.waitFor(() => expect(handle.session.state.projectId).not.toBeNull());
     expect(backend.create).toHaveBeenCalledWith(
-      'default-vue',
+      expect.any(String),
       expect.objectContaining({
-        'src/App.vue': expect.stringContaining('Hello Vue')
+        'src/main.tsx': expect.stringContaining('<h1>hi</h1>'),
+        'assets/logo.png': expect.any(Uint8Array),
+        'workbench.project.json': JSON.stringify({ template: 'react', entry: 'src/main.tsx' })
       })
     );
-    expect(backend.create).toHaveBeenCalledWith(
-      'default-angular',
-      expect.objectContaining({
-        'src/app.ts': expect.stringContaining('Hello Angular')
-      })
+    expect(catalog.put).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'my-app', template: 'react', entry: 'src/main.tsx' })
     );
-    expect(catalog.put).toHaveBeenCalledTimes(4);
-    expect(handle.session.state.projectId).toBe('default-react');
-    handle.dispose();
+    expect(host.querySelector('.wb-empty-view')).toBeNull();
+  });
+
+  it('欢迎视图打开文件夹：取消选择不写入不报错，能力缺失给出提示', async () => {
+    const { host, handle, backend } = fixture(false);
+    await handle.ready;
+    const cancel = vi.fn(async () => {
+      throw new DOMException('user cancelled', 'AbortError');
+    });
+    Object.defineProperty(window, 'showDirectoryPicker', { configurable: true, value: cancel });
+    await click(host, '[data-welcome-action="open-folder"]');
+    await vi.waitFor(() => expect(cancel).toHaveBeenCalled());
+    expect(backend.create).not.toHaveBeenCalled();
+    expect(host.querySelector('.wb-log-error')).toBeNull();
+    expect(handle.session.state.projectId).toBeNull();
+    Reflect.deleteProperty(window, 'showDirectoryPicker');
+    await click(host, '[data-welcome-action="open-folder"]');
+    await vi.waitFor(() => expect(host.querySelector('.wb-log-error')).not.toBeNull());
+    expect(host.querySelector('.wb-log-error')?.textContent).toContain('不支持打开文件夹');
+    expect(backend.create).not.toHaveBeenCalled();
   });
 
   it('打开项目的 Git 刷新延迟时，自动预览不保存用户已经输入的草稿', async () => {
@@ -310,6 +445,14 @@ describe('VS Code 风格工作台', () => {
     expect(host.querySelector('.dv-dockview')).not.toBeNull();
   });
 
+  it('编辑器聚焦不渲染描边，与 vscode.dev 一致', async () => {
+    const { host, handle } = fixture();
+    await handle.ready;
+    expect(host.querySelector('.ao-workbench > style')?.textContent).toContain(
+      '.ao-workbench .wb-editor-host .cm-editor.cm-focused{outline:none}'
+    );
+  });
+
   it('提供三端共用的编辑区、预览、面板和状态栏，释放时销毁资源', async () => {
     const { host, handle, backend, compiler, mountEditor, disposeEditor } = fixture();
     await handle.ready;
@@ -404,6 +547,19 @@ describe('VS Code 风格工作台', () => {
     handle.dispose();
   });
 
+  it('新建文件夹在树内输入行创建目录占位文件并展开文件夹', async () => {
+    const { host, handle } = fixture();
+    await handle.ready;
+    await click(host, '[data-action="new-folder"]');
+    await inlineInput(host, 'assets');
+    await vi.waitFor(() => expect(handle.session.state.files['assets/.gitkeep']).toBe(''));
+    expect(handle.session.state.dirty).toBe(true);
+    const folderRow = host.querySelector<HTMLElement>('button[data-tree-path="assets"].wb-folder');
+    expect(folderRow).not.toBeNull();
+    expect(folderRow?.getAttribute('aria-expanded')).toBe('true');
+    handle.dispose();
+  });
+
   it('新建文件与重命名使用树内输入行，删除先取消再明确确认', async () => {
     const { host, handle, backend } = fixture();
     await handle.ready;
@@ -444,6 +600,119 @@ describe('VS Code 风格工作台', () => {
     tree.dispatchEvent(new KeyboardEvent('keydown', { key: 'F2', bubbles: true, cancelable: true }));
     await inlineInput(host, 'moved.ts');
     await vi.waitFor(() => expect(backend.rename).toHaveBeenCalledWith('one', 'src/main.ts', 'src/moved.ts'));
+    handle.dispose();
+  });
+
+  const dragFiles = {
+    'src/main.ts': 'console.log(1)',
+    'src/lib/util.ts': 'export const x = 1;',
+    'docs/readme.md': 'readme'
+  };
+
+  it('文件行拖到文件夹行上：整行高亮，放下后移动并展开目标文件夹', async () => {
+    const { host, handle, backend } = fixture(true, '/browser-workbench-assets/', undefined, [], dragFiles);
+    await handle.ready;
+    await vi.waitFor(() => expect(handle.session.state.activePath).toBe('src/main.ts'));
+    const fileRow = treeRow(host, 'src/main.ts');
+    expect(fileRow.draggable).toBe(true);
+    const folderRow = treeRow(host, 'docs');
+    fileRow.dispatchEvent(drag('dragstart').event);
+    expect(host.querySelector('.ao-workbench')?.classList.contains('wb-dragging')).toBe(true);
+    const over = drag('dragover');
+    folderRow.dispatchEvent(over.event);
+    expect(over.transfer.dropEffect).toBe('move');
+    expect(folderRow.classList.contains('wb-drop-into')).toBe(true);
+    folderRow.dispatchEvent(drag('drop').event);
+    expect(host.querySelector('.wb-drop-into')).toBeNull();
+    await vi.waitFor(() => expect(backend.move).toHaveBeenCalledWith('one', 'src/main.ts', 'docs/main.ts'));
+    await vi.waitFor(() => expect(handle.session.state.files['docs/main.ts']).toBe('console.log(1)'));
+    expect(handle.session.state.files['src/main.ts']).toBeUndefined();
+    expect(treeRow(host, 'docs').getAttribute('aria-expanded')).toBe('true');
+    expect(host.querySelector('.ao-workbench')?.classList.contains('wb-dragging')).toBe(false);
+    handle.dispose();
+  });
+
+  it('文件行拖到文件行上：移入目标文件的父目录', async () => {
+    const { host, handle, backend } = fixture(true, '/browser-workbench-assets/', undefined, [], dragFiles);
+    await handle.ready;
+    await vi.waitFor(() => expect(treeRow(host, 'docs/readme.md')).not.toBeNull());
+    treeRow(host, 'src/main.ts').dispatchEvent(drag('dragstart').event);
+    const target = treeRow(host, 'docs/readme.md');
+    target.dispatchEvent(drag('dragover').event);
+    expect(target.classList.contains('wb-drop-into')).toBe(true);
+    target.dispatchEvent(drag('drop').event);
+    await vi.waitFor(() => expect(backend.move).toHaveBeenCalledWith('one', 'src/main.ts', 'docs/main.ts'));
+    handle.dispose();
+  });
+
+  it('拖到树空白区放下：移入根目录，反馈落在最后一行', async () => {
+    const { host, handle, backend } = fixture(true, '/browser-workbench-assets/', undefined, [], dragFiles);
+    await handle.ready;
+    await vi.waitFor(() => expect(treeRow(host, 'docs/readme.md')).not.toBeNull());
+    treeRow(host, 'docs/readme.md').dispatchEvent(drag('dragstart').event);
+    const tree = host.querySelector<HTMLElement>('[data-slot="files"]');
+    if (!tree) throw new Error('文件树缺失');
+    tree.dispatchEvent(drag('dragover').event);
+    expect(treeRow(host, 'src/main.ts').classList.contains('wb-drop-into')).toBe(true);
+    tree.dispatchEvent(drag('drop').event);
+    await vi.waitFor(() => expect(backend.move).toHaveBeenCalledWith('one', 'docs/readme.md', 'readme.md'));
+    await vi.waitFor(() => expect(handle.session.state.files['readme.md']).toBe('readme'));
+    handle.dispose();
+  });
+
+  it('无效落点不给高亮也不移动：自身、后代行与同目录文件', async () => {
+    const { host, handle, backend } = fixture(true, '/browser-workbench-assets/', undefined, [], dragFiles);
+    await handle.ready;
+    await vi.waitFor(() => expect(treeRow(host, 'docs/readme.md')).not.toBeNull());
+    const invalidTargets: [string, string][] = [
+      ['src/main.ts', 'src/main.ts'],
+      ['src', 'src/main.ts'],
+      ['src', 'src/lib'],
+      ['src/lib/util.ts', 'src/lib']
+    ];
+    for (const [from, onto] of invalidTargets) {
+      treeRow(host, from).dispatchEvent(drag('dragstart').event);
+      const over = drag('dragover');
+      treeRow(host, onto).dispatchEvent(over.event);
+      expect(over.transfer.dropEffect).toBe('none');
+      expect(host.querySelector('.wb-drop-into')).toBeNull();
+      treeRow(host, onto).dispatchEvent(drag('drop').event);
+    }
+    expect(backend.move).not.toHaveBeenCalled();
+    handle.dispose();
+  });
+
+  it('从打开的编辑器行拖出文件同样生效', async () => {
+    const { host, handle, backend } = fixture(true, '/browser-workbench-assets/', undefined, [], dragFiles);
+    await handle.ready;
+    await vi.waitFor(() => expect(host.querySelector('.wb-editor-open')).not.toBeNull());
+    const editorRow = host.querySelector<HTMLButtonElement>('button[data-tree-path="editor:src/main.ts"]');
+    if (!editorRow) throw new Error('打开的编辑器行缺失');
+    editorRow.dispatchEvent(drag('dragstart').event);
+    treeRow(host, 'docs').dispatchEvent(drag('dragover').event);
+    treeRow(host, 'docs').dispatchEvent(drag('drop').event);
+    await vi.waitFor(() => expect(backend.move).toHaveBeenCalledWith('one', 'src/main.ts', 'docs/main.ts'));
+    handle.dispose();
+  });
+
+  it('拖放悬停在折叠文件夹上一秒后自动展开', async () => {
+    const { host, handle } = fixture(true, '/browser-workbench-assets/', undefined, [], dragFiles);
+    await handle.ready;
+    await vi.waitFor(() => expect(treeRow(host, 'docs/readme.md')).not.toBeNull());
+    treeRow(host, 'src').click();
+    expect(treeRow(host, 'src').getAttribute('aria-expanded')).toBe('false');
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      treeRow(host, 'docs/readme.md').dispatchEvent(drag('dragstart').event);
+      treeRow(host, 'src').dispatchEvent(drag('dragover').event);
+      vi.advanceTimersByTime(999);
+      expect(treeRow(host, 'src').getAttribute('aria-expanded')).toBe('false');
+      vi.advanceTimersByTime(1);
+      expect(treeRow(host, 'src').getAttribute('aria-expanded')).toBe('true');
+      treeRow(host, 'docs/readme.md').dispatchEvent(drag('dragend').event);
+    } finally {
+      vi.useRealTimers();
+    }
     handle.dispose();
   });
 
@@ -805,6 +1074,61 @@ describe('VS Code 风格工作台', () => {
       .find(item => item.textContent === '转到行')
       ?.click();
     await vi.waitFor(() => expect(editorHandle.runCommand).toHaveBeenCalledWith('gotoLine'));
+    handle.dispose();
+  });
+
+  it('⌘/Ctrl+Shift+F 打开搜索视图并聚焦输入，命中点击跳转到活动编辑器', async () => {
+    const { host, handle, editorHandle } = fixture();
+    await handle.ready;
+    const modifier = /Mac|iPhone|iPad/.test(navigator.platform) ? { metaKey: true } : { ctrlKey: true };
+    document.body.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'F',
+        code: 'KeyF',
+        keyCode: 70,
+        bubbles: true,
+        cancelable: true,
+        shiftKey: true,
+        ...modifier
+      })
+    );
+    await vi.waitFor(() =>
+      expect((host.querySelector('[data-slot="search-view"]') as HTMLElement)?.hidden).toBe(false)
+    );
+    expect(host.querySelector('[data-slot="side-title"]')?.textContent).toBe('搜索');
+    const input = host.querySelector<HTMLInputElement>('.wb-search-input input')!;
+    expect(host.ownerDocument.activeElement).toBe(input);
+    input.value = 'log';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    const rows = [...host.querySelectorAll<HTMLElement>('.wb-search-match')];
+    expect(rows).toHaveLength(1);
+    rows[0].click();
+    await vi.waitFor(() => expect(handle.session.state.activePath).toBe('src/main.ts'));
+    expect(editorHandle.runCommand).toHaveBeenCalledWith('gotoLineAt', 1);
+    handle.dispose();
+  });
+
+  it('搜索视图点击组头替换文件，全部替换弹出确认后写入编辑缓冲', async () => {
+    const { host, handle } = fixture();
+    await handle.ready;
+    await click(host, '[data-action="search"]');
+    await vi.waitFor(() =>
+      expect((host.querySelector('[data-slot="search-view"]') as HTMLElement)?.hidden).toBe(false)
+    );
+    const input = host.querySelector<HTMLInputElement>('.wb-search-input input')!;
+    input.value = '1';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    const replaceInput = host.querySelector<HTMLInputElement>('.wb-search-replace input')!;
+    replaceInput.value = '9';
+    replaceInput.dispatchEvent(new Event('input', { bubbles: true }));
+    host.querySelector<HTMLButtonElement>('[data-search-replace-file]')!.click();
+    await vi.waitFor(() => expect(handle.session.state.files['src/main.ts']).toBe('console.log(9)'));
+    host.querySelector<HTMLButtonElement>('[data-search-replace-all]')!.click();
+    await vi.waitFor(() => expect(host.querySelector('dialog')).not.toBeNull());
+    const dialog = host.querySelector<HTMLDialogElement>('dialog')!;
+    const confirm = [...dialog.querySelectorAll('button')].find(button => button.textContent === '替换全部');
+    expect(confirm).toBeDefined();
+    dialog.close();
     handle.dispose();
   });
 

@@ -206,6 +206,25 @@ export class GitWorkbenchRuntime {
     });
   }
 
+  async move(projectId: string, path: string, destination: string): Promise<GitSnapshot> {
+    assertGitPath(path);
+    assertGitPath(destination);
+    return this.lock(projectId, true, async context => {
+      if (destination === path)
+        throw new GitWorkbenchError('path_collision', `Destination is the source: ${destination}`);
+      const existing = this.snapshotContext(context).files;
+      const moved = existing.filter(file => file.path === path || file.path.startsWith(`${path}/`));
+      if (!moved.length) throw new GitWorkbenchError('invalid_path', `File does not exist: ${path}`);
+      const relocated = moved.map(file => ({ ...file, path: `${destination}${file.path.slice(path.length)}` }));
+      this.validateFiles([...existing.filter(file => !moved.includes(file)), ...relocated]);
+      return this.mutate(context, async () => {
+        for (const file of moved) await this.removePersistent(context.root, file.path);
+        for (const file of relocated) await this.write(context.root, file);
+        return () => this.snapshotContext(context);
+      });
+    });
+  }
+
   async status(projectId: string): Promise<GitStatus> {
     return this.lock(projectId, true, context => this.statusContext(context));
   }

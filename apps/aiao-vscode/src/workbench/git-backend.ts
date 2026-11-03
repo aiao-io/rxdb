@@ -1,3 +1,4 @@
+import { decodeFileBytes } from './git/file-encoding.js';
 import type { GitSnapshot } from './git/git-protocol.js';
 import { GitWorkbenchError } from './git/git-protocol.js';
 import type { WorkbenchBackend, WorkbenchFiles, WorkbenchSnapshot } from './session.js';
@@ -18,18 +19,8 @@ interface SerializedSnapshot extends Omit<GitSnapshot, 'files'> {
   readonly files: readonly { readonly path: string; readonly bytes: readonly number[] }[];
 }
 
-const textPath =
-  /(?:\.(?:[cm]?[jt]sx?|vue|html?|css|json|svg|md|txt|ya?ml|toml|lock)|(?:^|\/)(?:LICENSE|README|\.gitignore))$/i;
-
 function decodeFile(path: string, bytes: readonly number[]): string | Uint8Array<ArrayBuffer> {
-  const value = new Uint8Array(bytes);
-  if (!textPath.test(path)) return value;
-  try {
-    const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(value);
-    return text.includes('\0') ? value : text;
-  } catch {
-    return value;
-  }
+  return decodeFileBytes(path, new Uint8Array(bytes));
 }
 
 function snapshot(value: SerializedSnapshot): WorkbenchSnapshot {
@@ -108,6 +99,9 @@ export function createGitBackend(assetBaseURL: string): WorkbenchBackend {
     },
     rename: async (projectId, from, to) => {
       await call('rename', { projectId, path: from, destination: to });
+    },
+    move: async (projectId, from, to) => {
+      await call('move', { projectId, path: from, destination: to });
     },
     status: projectId => call('status', { projectId }),
     stage: async (projectId, paths) => {

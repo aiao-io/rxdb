@@ -74,6 +74,19 @@
         "export PATH=$HOME/.nvm/versions/node/v26.12.0/bin:$PATH && /tmp/pnpm-shim/pnpm nx serve aiao-vscode"
       ],
       "port": 4320
+    },
+    {
+      "name": "aiao-vscode-static",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/e2e-static-server.mjs",
+        "--root",
+        "/Users/jimmy/Documents/aiao/rxdb/apps/aiao-vscode/dist/browser",
+        "--port",
+        "4325",
+        "--coop-coep"
+      ],
+      "port": 4325
     }
   ],
   "version": "0.0.1"

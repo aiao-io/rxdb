@@ -1,6 +1,6 @@
 import type { WorkbenchBackend, WorkbenchSession, WorkbenchSnapshot, WorkbenchStatus } from './session.js';
 import { confirmWorkbenchAction } from './workbench-dialog.js';
-import { createCodicon, createFileIcon, type CodiconName } from './workbench-icons.js';
+import { createCodicon, createFileIcon, folderCodicon, type CodiconName } from './workbench-icons.js';
 
 /** SCM 文件点击请求，由宿主打开对应差异编辑器。 */
 export interface WorkbenchDiffRequest {
@@ -13,6 +13,8 @@ export interface WorkbenchScmOptions {
   readonly backend: WorkbenchBackend;
   readonly session: WorkbenchSession;
   onOpenDiff(request: WorkbenchDiffRequest): void | Promise<void>;
+  /** 用户点击文件行上的「打开文件」操作时请求宿主打开编辑器。 */
+  onOpenFile(path: string): void | Promise<void>;
   onError(cause: unknown): void;
   onDidChange(snapshot?: WorkbenchSnapshot, paths?: readonly string[]): void | Promise<void>;
   /** 用户点击刷新按钮时重新读取 Git 状态。 */
@@ -100,18 +102,21 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
   message.setAttribute('aria-label', '提交说明');
   message.placeholder = '消息 (⌘ / Ctrl + Enter 提交)';
   const commitButton = actionButton('commit', '提交已暂存内容', 'check');
-  commitButton.type = 'submit';
   commitButton.className = 'wb-primary wb-scm-commit';
   const caption = document.createElement('span');
   caption.textContent = '提交';
   commitButton.append(caption);
-  const commitRow = document.createElement('div');
-  commitRow.className = 'wb-scm-commit-row';
-  commitRow.append(commitButton);
+  commitButton.onclick = event => {
+    event.stopPropagation();
+    if (!commitButton.disabled) launch(commit);
+  };
+  const toolbar = document.createElement('div');
+  toolbar.className = 'wb-scm-toolbar';
+  toolbar.append(commitButton);
   const hint = document.createElement('p');
   hint.className = 'wb-scm-hint';
   hint.setAttribute('role', 'status');
-  form.append(message, commitRow, hint);
+  form.append(message, hint);
   const staged = changeGroup('staged', '暂存的更改');
   const working = changeGroup('working', '更改');
   const stageAll = actionButton('stage-all', '暂存所有更改', 'add');
@@ -122,7 +127,7 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
   intro.className = 'wb-scm-intro';
   intro.hidden = true;
   intro.textContent = '这是新仓库：暂存全部更改并填写说明，创建首次提交。';
-  element.append(intro, form, working.section, staged.section);
+  element.append(intro, toolbar, form, working.section, staged.section);
   host.replaceChildren(element);
   const controls: { button: HTMLButtonElement; path: string; action: FileAction }[] = [];
   let status: WorkbenchStatus | null = null;
@@ -262,7 +267,7 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
     });
   }
 
-  function row(entry: Entry, kind: 'working' | 'staged'): HTMLElement {
+  function row(entry: Entry, kind: 'working' | 'staged', display: string): HTMLElement {
     const container = document.createElement('div');
     container.className = 'wb-scm-change';
     const file = document.createElement('button');
@@ -272,10 +277,10 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
     file.title = entry.originalPath ? `${entry.originalPath} → ${entry.path}` : entry.path;
     const name = document.createElement('span');
     name.className = 'wb-scm-name';
-    name.textContent = entry.path.split('/').at(-1) ?? entry.path;
+    name.textContent = display.split('/').at(-1) ?? display;
     const directory = document.createElement('span');
     directory.className = 'wb-scm-directory';
-    directory.textContent = entry.path.includes('/') ? entry.path.slice(0, entry.path.lastIndexOf('/')) : '';
+    directory.textContent = display.includes('/') ? display.slice(0, display.lastIndexOf('/')) : '';
     const decoration = document.createElement('span');
     decoration.className = 'wb-scm-status';
     const state = kind === 'staged' ? entry.index : entry.worktree;
@@ -290,6 +295,12 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
         await options.onOpenDiff({ path: entry.path, kind });
       });
     };
+    const open = actionButton('open', `打开文件 ${entry.path}`, 'go-to-file');
+    open.onclick = event => {
+      event.stopPropagation();
+      launch(() => Promise.resolve(options.onOpenFile(entry.path)));
+    };
+    container.append(open);
     const actions = kind === 'staged' ? (['unstage'] as const) : (['stage', 'discard'] as const);
     for (const action of actions) {
       const untracked = entry.index === '?' && entry.worktree === '?';
@@ -315,6 +326,43 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
     return container;
   }
 
+  /** 按目录树分组渲染条目；克隆只改展示路径，操作始终携带完整路径。 */
+  function appendRows(
+    list: HTMLElement,
+    items: readonly { entry: Entry; display: string }[],
+    kind: 'working' | 'staged',
+    depth: number
+  ): void {
+    const folders = new Map<string, { entry: Entry; display: string }[]>();
+    const direct: { entry: Entry; display: string }[] = [];
+    for (const item of items) {
+      const slash = item.display.indexOf('/');
+      if (slash === -1) direct.push(item);
+      else {
+        const folder = item.display.slice(0, slash);
+        const group = folders.get(folder) ?? [];
+        group.push({ entry: item.entry, display: item.display.slice(slash + 1) });
+        folders.set(folder, group);
+      }
+    }
+    for (const [folder, children] of [...folders.entries()].sort(([left], [right]) => left.localeCompare(right))) {
+      const folderRow = document.createElement('div');
+      folderRow.className = 'wb-scm-folder';
+      folderRow.style.paddingLeft = `${depth * 12}px`;
+      folderRow.append(createCodicon(folderCodicon(true)));
+      const label = document.createElement('span');
+      label.textContent = folder;
+      folderRow.append(label);
+      list.append(folderRow);
+      appendRows(list, children, kind, depth + 1);
+    }
+    for (const item of direct) {
+      const entryRow = row(item.entry, kind, item.display);
+      entryRow.style.paddingLeft = `${depth * 12}px`;
+      list.append(entryRow);
+    }
+  }
+
   function render(): void {
     controls.splice(0);
     staged.list.replaceChildren();
@@ -326,8 +374,18 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
     working.count.textContent = String(workingEntries.length);
     staged.count.hidden = stagedEntries.length === 0;
     working.count.hidden = workingEntries.length === 0;
-    stagedEntries.forEach(entry => staged.list.append(row(entry, 'staged')));
-    workingEntries.forEach(entry => working.list.append(row(entry, 'working')));
+    appendRows(
+      staged.list,
+      stagedEntries.map(entry => ({ entry, display: entry.path })),
+      'staged',
+      0
+    );
+    appendRows(
+      working.list,
+      workingEntries.map(entry => ({ entry, display: entry.path })),
+      'working',
+      0
+    );
     syncControls();
   }
 

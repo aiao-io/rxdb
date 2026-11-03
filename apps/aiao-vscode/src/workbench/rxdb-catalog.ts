@@ -1,6 +1,6 @@
 import { Entity, EntityBase, PropertyType, RxDB, SyncType, type Repository } from '@aiao/rxdb';
 import { firstValueFrom } from 'rxjs';
-import type { WorkbenchCatalog, WorkbenchProjectInfo } from './catalog.js';
+import { githubProjectInfo, type WorkbenchCatalog, type WorkbenchProjectInfo } from './catalog.js';
 
 /** 项目目录元数据；源码与真实 Git 历史留在独立 OPFS 仓库。 */
 @Entity({
@@ -44,11 +44,38 @@ export class WorkbenchSessionState extends EntityBase<string> {
   lastTouchedAt!: number;
 }
 
-/** 用已注册 WorkbenchProject 的宿主数据库保存项目目录。 */
+/** GitHub 远程仓库的目录条目；独立表，不迁移既有 workbench_project 的 schema。 */
+@Entity({
+  namespace: 'workbench',
+  name: 'WorkbenchRemoteProject',
+  tableName: 'workbench_remote_project',
+  log: false,
+  sync: { type: SyncType.None },
+  properties: [
+    { name: 'name', type: PropertyType.string, required: true },
+    { name: 'remoteOwner', type: PropertyType.string, required: true },
+    { name: 'remoteRepo', type: PropertyType.string, required: true },
+    { name: 'remoteBranch', type: PropertyType.string, required: true },
+    { name: 'lastOpenedAt', type: PropertyType.number, required: true }
+  ]
+})
+export class WorkbenchRemoteProject extends EntityBase<string> {
+  name!: string;
+  remoteOwner!: string;
+  remoteRepo!: string;
+  remoteBranch!: string;
+  lastOpenedAt!: number;
+}
+
+/** 用已注册 WorkbenchProject / WorkbenchRemoteProject 的宿主数据库保存项目目录。 */
 export function createRxDBWorkbenchCatalog(db: RxDB): WorkbenchCatalog {
   const repository = db.entityManager.getRepository<typeof WorkbenchProject, Repository<typeof WorkbenchProject>>(
     WorkbenchProject
   );
+  const remoteRepository = db.entityManager.getRepository<
+    typeof WorkbenchRemoteProject,
+    Repository<typeof WorkbenchRemoteProject>
+  >(WorkbenchRemoteProject);
   const stateRepository = db.entityManager.getRepository<
     typeof WorkbenchSessionState,
     Repository<typeof WorkbenchSessionState>
@@ -59,18 +86,43 @@ export function createRxDBWorkbenchCatalog(db: RxDB): WorkbenchCatalog {
         where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: projectId }] }
       })
     );
+  const findRemote = (projectId: string) =>
+    firstValueFrom(
+      remoteRepository.findOne({
+        where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: projectId }] }
+      })
+    );
   return {
     async list() {
-      const records = await firstValueFrom(repository.findAll({ where: { combinator: 'and', rules: [] } }));
-      return records.map(record => ({
-        id: record.id,
-        name: record.name,
-        template: record.template,
-        entry: record.entry,
-        updatedAt: record.lastOpenedAt
-      }));
+      const [records, remoteRecords] = await Promise.all([
+        firstValueFrom(repository.findAll({ where: { combinator: 'and', rules: [] } })),
+        firstValueFrom(remoteRepository.findAll({ where: { combinator: 'and', rules: [] } }))
+      ]);
+      return [
+        ...records.map(record => ({
+          id: record.id,
+          name: record.name,
+          template: record.template,
+          entry: record.entry,
+          updatedAt: record.lastOpenedAt
+        })),
+        ...remoteRecords.map(record =>
+          githubProjectInfo(record.remoteOwner, record.remoteRepo, record.remoteBranch, record.lastOpenedAt)
+        )
+      ];
     },
     async put(project) {
+      if (project.remote) {
+        const existing = await findRemote(project.id);
+        const record = existing ?? db.entityManager.instantiate(WorkbenchRemoteProject, { id: project.id });
+        record.name = project.name;
+        record.remoteOwner = project.remote.owner;
+        record.remoteRepo = project.remote.repo;
+        record.remoteBranch = project.remote.branch;
+        record.lastOpenedAt = project.updatedAt;
+        await record.save();
+        return;
+      }
       const existing = await firstValueFrom(
         repository.findOne({ where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: project.id }] } })
       );

@@ -1,10 +1,20 @@
-import { createProjectCatalog, type WorkbenchCatalog, type WorkbenchProjectInfo } from './catalog.js';
+import {
+  createProjectCatalog,
+  githubProjectInfo,
+  type WorkbenchCatalog,
+  type WorkbenchProjectInfo
+} from './catalog.js';
 import { createCompiler, type WorkbenchCompiler } from './compiler-client.js';
 import type { ProjectTemplate } from './compiler/compiler-types.js';
 import { CompilationError, type WorkbenchDiagnostic } from './compiler/compiler-types.js';
 import type { WorkbenchEditorCommand, WorkbenchEditorHandle, WorkbenchEditorMount } from './editor.js';
+import { readFolderProject } from './folder-import.js';
 import { formatWorkbenchSource } from './formatter.js';
 import { createGitBackend } from './git-backend.js';
+import type { GitHubApi } from './git/github/github-api.js';
+import type { GitHubAuth } from './git/github/github-auth.js';
+import { requestGitHubLogin } from './git/github/github-login.js';
+import { requestGitHubRepository } from './git/github/github-picker.js';
 import { mountPreview, type PreviewEvent } from './preview/preview-sandbox.js';
 import { createSavePreviewController, type SavePreviewPhase } from './save-preview.js';
 import { WorkbenchSession, type WorkbenchBackend, type WorkbenchState, type WorkbenchStatus } from './session.js';
@@ -17,6 +27,8 @@ import { createWorkbenchDockview } from './workbench-dockview.js';
 import { createCodicon, createFileIcon, folderCodicon, type CodiconName } from './workbench-icons.js';
 import { createWorkbenchLayout, workbenchElement } from './workbench-layout.js';
 import { createWorkbenchScm, type WorkbenchDiffRequest } from './workbench-scm.js';
+import { createWorkbenchSearch } from './workbench-search.js';
+import { resolveTreeMove, treePathParent, type TreeMoveDecision } from './workbench-tree-drag.js';
 
 /** 工作台的可注入服务与静态资源位置。 */
 export interface BrowserWorkbenchOptions {
@@ -25,6 +37,10 @@ export interface BrowserWorkbenchOptions {
   readonly backend?: WorkbenchBackend;
   readonly compiler?: WorkbenchCompiler;
   readonly catalog?: WorkbenchCatalog;
+  /** 提供后在欢迎视图显示「从 GitHub 打开仓库」入口。 */
+  readonly githubApi?: GitHubApi;
+  /** 提供后在欢迎视图显示「登录 GitHub」入口，并给仓库选择器接上登录按钮。 */
+  readonly githubAuth?: GitHubAuth;
 }
 
 /** 工作台实例；释放会终止所有 Worker 与编辑器。 */
@@ -165,9 +181,15 @@ export function mountWorkbench(
   let renderedProjectId: string | null = null;
   let treeProjectId: string | null = null;
   let creatingFile = false;
+  let creatingFolder = false;
   let renamingPath: string | null = null;
   let treeFocusPath: string | null = null;
   let treeNavigation = false;
+  let dragPath: string | null = null;
+  let pendingDrop: TreeMoveDecision | null = null;
+  let dropFeedbackKey: string | null = null;
+  let autoExpandTimer: ReturnType<typeof setTimeout> | null = null;
+  let autoExpandTarget: string | null = null;
   let contextMenu: HTMLElement | null = null;
   let gitStatus: WorkbenchStatus | null = null;
   let persistedState = '';
@@ -223,6 +245,11 @@ export function mountWorkbench(
     session,
     onError: report,
     onOpenDiff: openDiff,
+    onOpenFile(path) {
+      session.select(path);
+      docking.selectEditor(path);
+      focusEditor(path);
+    },
     onRefresh: () => action(refreshGit),
     getSavedMessage: id => savedCommitMessages.get(id),
     onCommitMessage: (id, message) => {
@@ -235,6 +262,29 @@ export function mountWorkbench(
         session.applySavedSnapshot(snapshot, paths ?? []);
       }
       await refreshGit();
+    }
+  });
+  const search = createWorkbenchSearch(element('[data-slot="search-view"]'), {
+    onOpenMatch(path, line) {
+      session.select(path);
+      docking.selectEditor(path);
+      editorCommand('gotoLineAt', line);
+      focusEditor(path);
+    },
+    onReplaceFiles(next, scope) {
+      void (async () => {
+        if (scope === 'all') {
+          const confirmed = await confirmWorkbenchAction(
+            root,
+            '全部替换',
+            `将在 ${Object.keys(next).length} 个文件中替换全部匹配项。`,
+            '替换全部'
+          );
+          if (!confirmed) return;
+        }
+        for (const [path, content] of Object.entries(next)) session.edit(path, content);
+        log('output', `已替换 ${Object.keys(next).length} 个文件中的匹配项`);
+      })().catch(report);
     }
   });
   const savePreview = createSavePreviewController(
@@ -674,6 +724,252 @@ export function mountWorkbench(
       )
     );
 
+  /** 无项目打开时资源管理器显示 vscode.dev 风格的欢迎视图：打开文件夹 / 最近项目 / 初始化 Demo。 */
+  function renderWelcomeView(): void {
+    const welcome = document.createElement('div');
+    welcome.className = 'wb-empty-view';
+    welcome.setAttribute('role', 'region');
+    welcome.setAttribute('aria-label', '欢迎使用');
+    const hint = document.createElement('p');
+    hint.className = 'wb-empty-view-hint';
+    hint.textContent = '尚未打开项目';
+    welcome.append(hint);
+    const openFolderButton = document.createElement('button');
+    openFolderButton.type = 'button';
+    openFolderButton.className = 'wb-empty-view-action';
+    openFolderButton.dataset['welcomeAction'] = 'open-folder';
+    openFolderButton.append(createCodicon('folder-opened'), document.createTextNode('打开文件夹'));
+    openFolderButton.onclick = () => action(openFolder);
+    welcome.append(openFolderButton);
+    const recent = projects.slice(0, 10);
+    if (recent.length) {
+      const section = document.createElement('section');
+      section.className = 'wb-empty-view-recent';
+      section.setAttribute('aria-label', '最近打开的项目');
+      const header = document.createElement('div');
+      header.className = 'wb-empty-view-recent-header';
+      header.textContent = '最近';
+      section.append(header);
+      for (const item of recent) {
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'wb-empty-view-recent-item';
+        row.dataset['welcomeRecent'] = item.id;
+        row.title = `打开 ${item.name}`;
+        row.append(createCodicon('folder'), document.createTextNode(item.name));
+        row.onclick = () => action(() => openProject(item.id));
+        section.append(row);
+      }
+      welcome.append(section);
+    }
+    const demoButton = document.createElement('button');
+    demoButton.type = 'button';
+    demoButton.className = 'wb-empty-view-action';
+    demoButton.dataset['welcomeAction'] = 'init-demo';
+    demoButton.append(createCodicon('play'), document.createTextNode('初始化 Demo 项目'));
+    demoButton.onclick = () => showDemoMenu(demoButton);
+    welcome.append(demoButton);
+    if (options.githubApi) {
+      const githubButton = document.createElement('button');
+      githubButton.type = 'button';
+      githubButton.className = 'wb-empty-view-action';
+      githubButton.dataset['welcomeAction'] = 'open-github';
+      githubButton.append(createCodicon('cloud-download'), document.createTextNode('从 GitHub 打开仓库'));
+      githubButton.onclick = () => action(openGitHubRepository);
+      welcome.append(githubButton);
+    }
+    if (options.githubAuth) {
+      const loginButton = document.createElement('button');
+      loginButton.type = 'button';
+      loginButton.className = 'wb-empty-view-action';
+      loginButton.dataset['welcomeAction'] = 'github-login';
+      loginButton.append(createCodicon('remote'), document.createTextNode('登录 GitHub'));
+      loginButton.onclick = () => void requestGitHubLogin(root, { auth: options.githubAuth! });
+      welcome.append(loginButton);
+    }
+    tree.append(welcome);
+  }
+
+  /** 初始化 Demo 的模板选择菜单，条目与首次引导提供的三个最小 Demo 一致。 */
+  function showDemoMenu(anchor: HTMLElement): void {
+    const rectangle = anchor.getBoundingClientRect();
+    showContextMenu(
+      { x: rectangle.left, y: rectangle.bottom },
+      defaultDemos.map(demo => ({ label: demo.name, action: () => createDefaultDemo(demo) }))
+    );
+  }
+
+  /** 创建或直接打开一个内置最小 Demo；目录已登记同 id 项目时不重复创建。 */
+  async function createDefaultDemo(demo: (typeof defaultDemos)[number]): Promise<void> {
+    if (projects.some(item => item.id === demo.id)) {
+      await openProject(demo.id);
+      return;
+    }
+    const info: WorkbenchProjectInfo = {
+      id: demo.id,
+      name: demo.name,
+      template: demo.template.template,
+      entry: demo.template.entry,
+      updatedAt: Date.now()
+    };
+    await backend.create(demo.id, {
+      ...demo.template.files,
+      'workbench.project.json': JSON.stringify({ template: info.template, entry: info.entry }, null, 2)
+    });
+    if (disposed) return;
+    await catalog.put(info);
+    projects = [...projects, info];
+    await openProject(demo.id);
+    log('output', `已初始化 ${demo.name}`);
+  }
+
+  /** 打开本地文件夹：目录选择器读取后登记为受控模板项目并打开，取消选择静默。 */
+  async function openFolder(): Promise<void> {
+    const picker = window as unknown as {
+      showDirectoryPicker?: (options?: { mode?: 'read' }) => Promise<FileSystemDirectoryHandle>;
+    };
+    if (typeof picker.showDirectoryPicker !== 'function')
+      throw new Error('当前浏览器不支持打开文件夹（需要 File System Access API）');
+    let handle: FileSystemDirectoryHandle;
+    try {
+      handle = await picker.showDirectoryPicker({ mode: 'read' });
+    } catch (cause) {
+      if (cause instanceof DOMException && cause.name === 'AbortError') return;
+      throw cause;
+    }
+    const imported = await readFolderProject(handle);
+    const info: WorkbenchProjectInfo = {
+      id: crypto.randomUUID(),
+      name: handle.name,
+      template: imported.template,
+      entry: imported.entry,
+      updatedAt: Date.now()
+    };
+    await backend.create(info.id, imported.files);
+    if (disposed) return;
+    await catalog.put(info);
+    projects = [...projects, info];
+    await openProject(info.id);
+  }
+
+  /** 从 GitHub 搜索 / 粘贴 URL 打开仓库：登记远程目录条目后走与本地项目相同的打开流程。 */
+  async function openGitHubRepository(): Promise<void> {
+    if (!options.githubApi) throw new Error('GitHub 能力未启用');
+    const target = await requestGitHubRepository(root, options.githubApi, {
+      onLogin: options.githubAuth ? () => void requestGitHubLogin(root, { auth: options.githubAuth! }) : undefined
+    });
+    if (disposed || !target) return;
+    const info = githubProjectInfo(target.owner, target.repo, target.branch);
+    await catalog.put(info);
+    projects = [...projects.filter(item => item.id !== info.id), info];
+    await openProject(info.id);
+    log('output', `已打开 ${info.name}`);
+  }
+
+  /** 应用拖放反馈：目标行整行高亮（VS Code 的 drop-target），根区落点冒泡到最后一行。 */
+  function applyTreeDropFeedback(decision: TreeMoveDecision | null, feedbackKey: string | null = null): void {
+    for (const row of tree.querySelectorAll('.wb-drop-into')) row.classList.remove('wb-drop-into');
+    tree.classList.remove('wb-root-drop');
+    pendingDrop = decision;
+    dropFeedbackKey = feedbackKey;
+    if (!decision || decision.kind !== 'move') return;
+    if (feedbackKey) {
+      treeRow(feedbackKey)?.classList.add('wb-drop-into');
+      return;
+    }
+    const last = [...tree.querySelectorAll<HTMLButtonElement>('button[data-tree-path]')].at(-1);
+    if (last) last.classList.add('wb-drop-into');
+    else tree.classList.add('wb-root-drop');
+  }
+
+  /** 折叠文件夹悬停约 1 秒自动展开（VS Code 的 list.autoExpand）。 */
+  function scheduleAutoExpand(decision: TreeMoveDecision, button: HTMLButtonElement, path: string): void {
+    if (decision.kind !== 'move') return;
+    const expandable = button.classList.contains('wb-folder') && collapsedFolders.has(path);
+    if (!expandable || autoExpandTarget === path) return;
+    autoExpandTarget = path;
+    if (autoExpandTimer !== null) clearTimeout(autoExpandTimer);
+    autoExpandTimer = setTimeout(() => {
+      autoExpandTimer = null;
+      autoExpandTarget = null;
+      if (!dragPath || !collapsedFolders.has(path)) return;
+      collapsedFolders.delete(path);
+      renderFiles(session.state);
+    }, 1000);
+  }
+
+  /** 清除拖放的全部状态与反馈；放下后必须立即复位，迟到的清理会抹掉下一次拖放。 */
+  function resetTreeDrag(): void {
+    if (autoExpandTimer !== null) {
+      clearTimeout(autoExpandTimer);
+      autoExpandTimer = null;
+    }
+    autoExpandTarget = null;
+    dragPath = null;
+    applyTreeDropFeedback(null);
+    root.classList.remove('wb-dragging');
+  }
+
+  /** 执行一次放下的移动；状态复位发生在异步写入之前。 */
+  function finishTreeDrop(): void {
+    const from = dragPath;
+    const decision = pendingDrop;
+    resetTreeDrag();
+    if (!from || !decision || decision.kind !== 'move') return;
+    const destination = decision.destination;
+    action(async () => {
+      cancelCompilation();
+      await session.move(from, destination);
+      await refreshGit();
+      if (disposed || !project || project.id !== session.state.projectId) return;
+      treeFocusPath = destination;
+      collapsedFolders.delete(treePathParent(destination));
+      renderFiles(session.state);
+      treeRow(destination)?.focus();
+    });
+  }
+
+  /** 给树行挂上 HTML5 拖放：文件、文件夹与打开的编辑器行共用同一套判定。 */
+  function attachDragRow(button: HTMLButtonElement, path: string): void {
+    button.draggable = true;
+    button.addEventListener('dragstart', event => {
+      if (creatingFile || creatingFolder || renamingPath) {
+        event.preventDefault();
+        return;
+      }
+      const transfer = event.dataTransfer;
+      if (!transfer) return;
+      dragPath = path;
+      transfer.effectAllowed = 'move';
+      transfer.setData('text/plain', path);
+      root.classList.add('wb-dragging');
+      treeFocusPath = path;
+      syncTreeTabIndexes();
+      event.stopPropagation();
+    });
+    button.addEventListener('dragover', event => {
+      if (!dragPath) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const transfer = event.dataTransfer;
+      const decision = resolveTreeMove(Object.keys(session.state.files), dragPath, path);
+      if (transfer) transfer.dropEffect = decision.kind === 'move' ? 'move' : 'none';
+      applyTreeDropFeedback(decision, button.dataset['treePath'] ?? path);
+      scheduleAutoExpand(decision, button, path);
+    });
+    button.addEventListener('dragleave', event => {
+      const related = event.relatedTarget;
+      if (related instanceof Node && button.contains(related)) return;
+      applyTreeDropFeedback(null);
+    });
+    button.addEventListener('drop', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      finishTreeDrop();
+    });
+    button.addEventListener('dragend', resetTreeDrag);
+  }
+
   function syncTreeTabIndexes(): void {
     const rows = [...tree.querySelectorAll<HTMLButtonElement>('button[data-tree-path],button[data-tree-section]')];
     const focused = rows.find(row => (row.dataset['treePath'] ?? row.dataset['treeSection']) === treeFocusPath);
@@ -729,10 +1025,16 @@ export function mountWorkbench(
     if (treeProjectId !== state.projectId) {
       treeProjectId = state.projectId;
       creatingFile = false;
+      creatingFolder = false;
       renamingPath = null;
       gitStatus = null;
     }
-    if ((creatingFile || renamingPath) && tree.querySelector('.wb-inline-input')) return;
+    if ((creatingFile || creatingFolder || renamingPath) && tree.querySelector('.wb-inline-input')) return;
+    if (!state.projectId) {
+      tree.replaceChildren();
+      if (!initializing) renderWelcomeView();
+      return;
+    }
     tree.replaceChildren();
     if (state.activePath !== activeTreePath) {
       activeTreePath = state.activePath;
@@ -778,6 +1080,7 @@ export function mountWorkbench(
             event.preventDefault();
             closeEditorTab(path);
           });
+          attachDragRow(open, path);
           const close = document.createElement('button');
           close.type = 'button';
           close.className = 'wb-editor-row-close';
@@ -796,12 +1099,15 @@ export function mountWorkbench(
     tree.append(
       sectionRow('workspace', projectName, [
         treeActionButton('new-file', '新建文件', 'new-file'),
+        treeActionButton('new-folder', '新建文件夹', 'new-folder'),
         treeActionButton('refresh-tree', '刷新资源管理器', 'refresh'),
         treeActionButton('collapse-tree', '折叠资源管理器中的文件夹', 'collapse-all')
       ])
     );
     if (creatingFile) collapsedSections.delete('workspace');
+    if (creatingFolder) collapsedSections.delete('workspace');
     if (collapsedSections.has('workspace')) {
+      if (dragPath) applyTreeDropFeedback(pendingDrop, dropFeedbackKey);
       syncTreeTabIndexes();
       return;
     }
@@ -823,6 +1129,34 @@ export function mountWorkbench(
         },
         () => {
           creatingFile = false;
+          renderFiles(session.state);
+        }
+      );
+      input.style.paddingLeft = '16px';
+      tree.append(input);
+    }
+    if (creatingFolder) {
+      const input = inlineTreeInput(
+        '',
+        '新建文件夹',
+        value => {
+          creatingFolder = false;
+          if (value) {
+            action(async () => {
+              projectId();
+              const folder = value.replace(/\/+$/, '');
+              if (!folder) return;
+              const marker = `${folder}/.gitkeep`;
+              if (marker in session.state.files) throw new Error('文件已存在');
+              session.edit(marker, '');
+              treeFocusPath = folder;
+              collapsedFolders.delete(folder);
+            });
+          }
+          renderFiles(session.state);
+        },
+        () => {
+          creatingFolder = false;
           renderFiles(session.state);
         }
       );
@@ -851,6 +1185,7 @@ export function mountWorkbench(
           label
         );
         button.title = folder;
+        attachDragRow(button, folder);
         button.onclick = () => {
           treeFocusPath = folder;
           if (collapsedFolders.has(folder)) collapsedFolders.delete(folder);
@@ -912,6 +1247,7 @@ export function mountWorkbench(
         status.textContent = badge;
         button.append(status);
       }
+      attachDragRow(button, path);
       button.onclick = () => {
         treeFocusPath = path;
         treeNavigation = true;
@@ -926,6 +1262,7 @@ export function mountWorkbench(
       };
       tree.append(button);
     }
+    if (dragPath) applyTreeDropFeedback(pendingDrop, dropFeedbackKey);
     syncTreeTabIndexes();
   }
 
@@ -954,7 +1291,7 @@ export function mountWorkbench(
   }
 
   function startRename(path: string): void {
-    if (creatingFile || renamingPath) return;
+    if (creatingFile || creatingFolder || renamingPath) return;
     renamingPath = path;
     const parts = path.split('/');
     parts.slice(0, -1).forEach((_, index) => collapsedFolders.delete(parts.slice(0, index + 1).join('/')));
@@ -1029,7 +1366,7 @@ export function mountWorkbench(
   tree.addEventListener('keydown', event => {
     if (event.defaultPrevented || event.isComposing) return;
     if (event.target instanceof Element && event.target.closest('input,textarea,select')) return;
-    if (creatingFile || renamingPath) return;
+    if (creatingFile || creatingFolder || renamingPath) return;
     const rows = [...tree.querySelectorAll<HTMLElement>('button[data-tree-path],button[data-tree-section]')];
     if (!rows.length) return;
     const rowKey = (element: HTMLElement): string | undefined =>
@@ -1112,8 +1449,27 @@ export function mountWorkbench(
       action(() => deletePath(path));
     }
   });
+  // 树空白区（行外的空隙）是根目录落点：反馈冒泡到最后一行，树为空时整树高亮。
+  tree.addEventListener('dragover', event => {
+    if (!dragPath) return;
+    event.preventDefault();
+    const transfer = event.dataTransfer;
+    const decision = resolveTreeMove(Object.keys(session.state.files), dragPath, null);
+    if (transfer) transfer.dropEffect = decision.kind === 'move' ? 'move' : 'none';
+    applyTreeDropFeedback(decision);
+  });
+  tree.addEventListener('dragleave', event => {
+    const related = event.relatedTarget;
+    if (related instanceof Node && tree.contains(related)) return;
+    applyTreeDropFeedback(null);
+  });
+  tree.addEventListener('drop', event => {
+    event.preventDefault();
+    finishTreeDrop();
+  });
   tree.addEventListener('contextmenu', event => {
-    if (creatingFile || renamingPath) return;
+    if (creatingFile || creatingFolder || renamingPath) return;
+    if (!session.state.projectId) return;
     event.preventDefault();
     const row =
       event.target instanceof Element ?
@@ -1229,6 +1585,7 @@ export function mountWorkbench(
     renderFiles(state);
     renderEditors(state);
     renderStatus();
+    search.refresh(state.files);
     element('[data-slot="language"]').textContent = state.activePath ? languageLabel(state.activePath) : '纯文本';
     renderActionState();
     persistState();
@@ -1260,6 +1617,8 @@ export function mountWorkbench(
       button.setAttribute('aria-pressed', String(docking.isSidebarVisible() && button.dataset['action'] === sideView));
     }
     const busy = initializing || (session.state.busy && previewPhase !== 'compiling') || pendingOperations > 0;
+    for (const button of root.querySelectorAll<HTMLButtonElement>('[data-welcome-action],[data-welcome-recent]'))
+      button.disabled = initializing || pendingOperations > 0;
     for (const button of root.querySelectorAll<HTMLButtonElement>(
       '[data-action="save"],[data-action="run"],[data-action="rerun-preview"],[data-action="export"]'
     ))
@@ -1267,7 +1626,7 @@ export function mountWorkbench(
     for (const button of root.querySelectorAll<HTMLButtonElement>('[data-action="new-project"],[data-action="import"]'))
       button.disabled = busy;
     for (const button of root.querySelectorAll<HTMLButtonElement>(
-      '[data-mutation],[data-action=commit],[data-action=stage-all],[data-action=refresh-tree],[data-action=collapse-tree],[data-action=new-file],[data-action=discard]'
+      '[data-mutation],[data-action=commit],[data-action=stage-all],[data-action=refresh-tree],[data-action=collapse-tree],[data-action=new-file],[data-action=new-folder],[data-action=discard]'
     ))
       button.disabled = !session.state.projectId || busy;
     element<HTMLSelectElement>('.wb-projects').disabled = initializing || (busy && previewPhase !== 'compiling');
@@ -1389,8 +1748,14 @@ export function mountWorkbench(
     'save-all': saveAll,
     'new-file': () => {
       projectId();
-      if (creatingFile || renamingPath) return;
+      if (creatingFile || creatingFolder || renamingPath) return;
       creatingFile = true;
+      renderFiles(session.state);
+    },
+    'new-folder': () => {
+      projectId();
+      if (creatingFile || creatingFolder || renamingPath) return;
+      creatingFolder = true;
       renderFiles(session.state);
     },
     rename: () => {
@@ -1405,6 +1770,8 @@ export function mountWorkbench(
     format: formatSource,
     'goto-line': () => editorCommand('gotoLine'),
     'show-scm': () => switchSide('git', true),
+    'clear-search': () => search.clear(),
+    'collapse-search': () => search.collapseAll(),
     'indent-picker': () => {
       const target = element('[data-slot="indent"]');
       showContextMenu(
@@ -1462,6 +1829,11 @@ export function mountWorkbench(
             }
           }
         ]
+      : sideView === 'search' ?
+        [
+          { label: '清除搜索结果', id: 'clear-search', action: operations['clear-search'] },
+          { label: '折叠全部', id: 'collapse-search', action: operations['collapse-search'] }
+        ]
       : [
           { label: '重命名', id: 'rename', action: operations['rename'] },
           { label: '删除', id: 'delete', action: operations['delete'] },
@@ -1476,21 +1848,31 @@ export function mountWorkbench(
     docking.setSidebarVisible(visible);
     sideView = view;
     const isExplorer = view === 'explorer';
+    const isSearch = view === 'search';
     element('[data-slot="files"]').hidden = !isExplorer;
-    element('[data-slot="git-view"]').hidden = isExplorer;
+    element('[data-slot="git-view"]').hidden = isExplorer || isSearch;
+    element('[data-slot="search-view"]').hidden = !isSearch;
     for (const actions of root.querySelectorAll<HTMLElement>('.wb-side-actions[data-view]'))
       actions.hidden = actions.dataset['view'] !== view;
-    element('[data-slot="side-title"]').textContent = isExplorer ? '资源管理器' : '源代码管理';
-    element('.wb-side').setAttribute('aria-label', isExplorer ? '资源管理器' : '源代码管理');
-    for (const button of root.querySelectorAll<HTMLElement>('[data-action="explorer"],[data-action="git"]'))
+    const title =
+      isExplorer ? '资源管理器'
+      : isSearch ? '搜索'
+      : '源代码管理';
+    element('[data-slot="side-title"]').textContent = title;
+    element('.wb-side').setAttribute('aria-label', title);
+    for (const button of root.querySelectorAll<HTMLElement>(
+      '[data-action="explorer"],[data-action="search"],[data-action="git"]'
+    ))
       button.setAttribute('aria-pressed', String(visible && button.dataset['action'] === view));
     if (view === 'git') action(refreshGit);
-    // 快捷键强制显示时把焦点送进对应视图（对齐 VS Code 的 Ctrl/⌘+Shift+E / G）
+    // 快捷键强制显示时把焦点送进对应视图（对齐 VS Code 的 Ctrl/⌘+Shift+E / F / G）
     if (force && visible) {
       queueMicrotask(() => {
         if (disposed) return;
         if (isExplorer) {
           (treeRow(treeFocusPath) ?? tree.querySelector<HTMLElement>('[data-tree-section],[data-tree-path]'))?.focus();
+        } else if (isSearch) {
+          search.focus();
         } else {
           element<HTMLTextAreaElement>('.wb-scm-commit-form textarea')?.focus();
         }
@@ -1502,7 +1884,7 @@ export function mountWorkbench(
       event.target instanceof Element ? event.target.closest<HTMLElement>('[data-action],[data-panel]') : null;
     if (!target) return;
     const name = target.dataset['action'];
-    if (name === 'explorer' || name === 'git') {
+    if (name === 'explorer' || name === 'search' || name === 'git') {
       switchSide(name);
       return;
     }
@@ -1567,6 +1949,7 @@ export function mountWorkbench(
         ['deleteFile', '文件: 删除文件', undefined, operations['delete']],
         ['toggleSidebar', '查看: 切换侧栏', '⌘ / Ctrl + B', () => switchSide(sideView)],
         ['showExplorer', '查看: 显示资源管理器', '⌘ / Ctrl + Shift + E', () => switchSide('explorer', true)],
+        ['showSearch', '搜索: 在文件中搜索', '⌘ / Ctrl + Shift + F', () => switchSide('search', true)],
         ['showScm', '查看: 源代码管理', '⌘ / Ctrl + Shift + G', () => switchSide('git', true)],
         ['showProblems', '查看: 显示问题面板', '⌘ / Ctrl + Shift + M', () => docking.showTool('problems')],
         ['showOutput', '查看: 显示输出面板', '⌘ / Ctrl + Shift + U', () => docking.showTool('output')],
@@ -1597,33 +1980,15 @@ export function mountWorkbench(
   const ready = (async () => {
     projects = (await catalog.list()).toSorted((left, right) => right.updatedAt - left.updatedAt);
     if (disposed) return;
-    if (projects.length === 0) {
-      const createdAt = Date.now();
-      projects = [];
-      for (const demo of defaultDemos) {
-        const info: WorkbenchProjectInfo = {
-          id: demo.id,
-          name: demo.name,
-          template: demo.template.template,
-          entry: demo.template.entry,
-          updatedAt: createdAt
-        };
-        await backend.create(demo.id, {
-          ...demo.template.files,
-          'workbench.project.json': JSON.stringify({ template: info.template, entry: info.entry }, null, 2)
-        });
-        await catalog.put(info);
-        projects = [...projects, info];
-      }
-    }
     renderProjects();
-    const initial = options.initialProjectId ?? projects[0]?.id;
+    const initial = options.initialProjectId;
     if (initial) await openProject(initial);
   })()
     .catch(report)
     .finally(() => {
       initializing = false;
       if (!disposed) {
+        renderFiles(session.state);
         renderStatus();
         renderActionState();
       }
@@ -1638,6 +2003,7 @@ export function mountWorkbench(
       releaseState();
       commands.dispose();
       scm.dispose();
+      search.dispose();
       savePreview.dispose();
       for (const diff of diffs.values()) diff.view?.dispose();
       diffs.clear();

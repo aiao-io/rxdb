@@ -47,6 +47,7 @@ export interface GitFileDiff {
 
 export type GitErrorCode =
   | 'unsupported_environment'
+  | 'unsupported_operation'
   | 'invalid_path'
   | 'path_collision'
   | 'project_exists'
@@ -57,6 +58,12 @@ export type GitErrorCode =
   | 'unreachable_commit'
   | 'invalid_archive'
   | 'resource_limit'
+  | 'auth_required'
+  | 'auth_invalid'
+  | 'remote_not_found'
+  | 'remote_conflict'
+  | 'rate_limited'
+  | 'network_failed'
   | 'git_failed'
   | 'storage_failed';
 

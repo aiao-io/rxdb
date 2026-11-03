@@ -16,6 +16,7 @@ async function fixture() {
     create: vi.fn<WorkbenchBackend['create']>(),
     remove: vi.fn<WorkbenchBackend['remove']>(),
     rename: vi.fn<WorkbenchBackend['rename']>(),
+    move: vi.fn<WorkbenchBackend['move']>(),
     status: vi.fn<WorkbenchBackend['status']>(),
     stage: vi.fn<WorkbenchBackend['stage']>(),
     unstage: vi.fn<WorkbenchBackend['unstage']>(),

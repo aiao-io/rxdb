@@ -7,6 +7,7 @@ const fixture = vi.hoisted(() => ({
   snapshot: vi.fn(),
   remove: vi.fn(),
   rename: vi.fn(),
+  move: vi.fn(),
   status: vi.fn(),
   stage: vi.fn(),
   unstage: vi.fn(),
@@ -59,6 +60,7 @@ describe('Git Worker protocol', () => {
     'snapshot',
     'remove',
     'rename',
+    'move',
     'status',
     'stage',
     'unstage',
@@ -85,6 +87,7 @@ describe('Git Worker protocol', () => {
       ]);
     if (action === 'save') expect(fixture.save).toHaveBeenCalledWith('project', expect.any(Array), 1);
     if (action === 'rename') expect(fixture.rename).toHaveBeenCalledWith('project', 'old.ts', 'new.ts');
+    if (action === 'move') expect(fixture.move).toHaveBeenCalledWith('project', 'old.ts', 'new.ts');
     if (action === 'readDiff') expect(fixture.readDiff).toHaveBeenCalledWith('project', 'old.ts', 'staged');
   });
 

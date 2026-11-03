@@ -116,7 +116,7 @@ export const vueTemplate: WorkbenchTemplate = {
 
 export const frontendTemplates = { vanilla: vanillaTemplate, react: reactTemplate, vue: vueTemplate };
 
-/** 首次打开工作台时提供的最小 React / Vue 示例。 */
+/** 欢迎视图「初始化 Demo 项目」提供的最小 React / Vue 示例。 */
 export const defaultFrontendDemos = {
   react: {
     ...reactTemplate,

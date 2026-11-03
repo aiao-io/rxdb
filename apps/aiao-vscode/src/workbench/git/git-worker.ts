@@ -57,6 +57,8 @@ async function dispatch({ action, payload }: WorkerRequest): Promise<unknown> {
       return git.remove(projectId, payload.path ?? '');
     case 'rename':
       return git.rename(projectId, payload.path ?? '', payload.destination ?? '');
+    case 'move':
+      return git.move(projectId, payload.path ?? '', payload.destination ?? '');
     case 'status':
       return git.status(projectId);
     case 'stage':

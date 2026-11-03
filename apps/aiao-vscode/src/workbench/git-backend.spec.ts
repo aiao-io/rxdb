@@ -151,7 +151,10 @@ describe('Git Worker backend', () => {
     const renamed = backend.rename('p', 'before', 'after');
     worker.reply({});
     await renamed;
-    expect(worker.messages).toHaveLength(10);
+    const moved = backend.move('p', 'before', 'after');
+    worker.reply({});
+    await moved;
+    expect(worker.messages).toHaveLength(11);
     backend.dispose();
   });
 

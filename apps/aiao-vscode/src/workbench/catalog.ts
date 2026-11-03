@@ -1,5 +1,13 @@
 import type { ProjectTemplate } from './compiler/compiler-types.js';
 
+/** GitHub 远程仓库的目录条目补充信息。 */
+export interface WorkbenchRemoteInfo {
+  readonly kind: 'github';
+  readonly owner: string;
+  readonly repo: string;
+  readonly branch: string;
+}
+
 /** 源码之外的项目目录信息。 */
 export interface WorkbenchProjectInfo {
   readonly id: string;
@@ -7,6 +15,30 @@ export interface WorkbenchProjectInfo {
   readonly template: ProjectTemplate;
   readonly entry: string;
   readonly updatedAt: number;
+  /** 远程仓库条目；本地模板项目没有该字段。远程条目不参与模板编译预览。 */
+  readonly remote?: WorkbenchRemoteInfo;
+}
+
+/** 远程项目的 GitHub 后端项目标识：分支经 encodeURIComponent 编码。 */
+export function githubProjectId(owner: string, repo: string, branch: string): string {
+  return `github:${owner}/${repo}@${encodeURIComponent(branch)}`;
+}
+
+/** 构造 GitHub 远程仓库的目录条目；template / entry 为目录 schema 的占位值，预览对远程仓库不承诺。 */
+export function githubProjectInfo(
+  owner: string,
+  repo: string,
+  branch: string,
+  updatedAt = Date.now()
+): WorkbenchProjectInfo {
+  return {
+    id: githubProjectId(owner, repo, branch),
+    name: `${owner}/${repo}`,
+    template: 'vanilla',
+    entry: '',
+    updatedAt,
+    remote: { kind: 'github', owner, repo, branch }
+  };
 }
 
 /** 打开项目时恢复的编辑会话状态。 */
@@ -124,12 +156,21 @@ export function createProjectCatalog(): WorkbenchCatalog {
 export function isWorkbenchProject(value: unknown): value is WorkbenchProjectInfo {
   if (!value || typeof value !== 'object') return false;
   const item = value as Record<string, unknown>;
-  return (
+  const base =
     typeof item['id'] === 'string' &&
     typeof item['name'] === 'string' &&
     typeof item['entry'] === 'string' &&
     typeof item['updatedAt'] === 'number' &&
     Number.isFinite(item['updatedAt']) &&
-    ['vanilla', 'react', 'vue', 'angular'].includes(String(item['template']))
+    ['vanilla', 'react', 'vue', 'angular'].includes(String(item['template']));
+  if (!base) return false;
+  if (item['remote'] === undefined) return true;
+  if (!item['remote'] || typeof item['remote'] !== 'object') return false;
+  const remote = item['remote'] as Record<string, unknown>;
+  return (
+    remote['kind'] === 'github' &&
+    typeof remote['owner'] === 'string' &&
+    typeof remote['repo'] === 'string' &&
+    typeof remote['branch'] === 'string'
   );
 }

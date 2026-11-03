@@ -378,6 +378,36 @@ describe('Git workspace operation contract', () => {
     expect((await runtime.snapshot('project')).files.map(entry => entry.path)).toEqual(['first.txt', 'second.txt']);
   });
 
+  it('moves files and whole folder prefixes in one transaction with collision guards', async () => {
+    await runtime.initialize('project', [
+      file('a.txt', 'a'),
+      file('folder/one.ts', 'one'),
+      file('folder/nested/two.ts', 'two')
+    ]);
+    await runtime.move('project', 'a.txt', 'folder/a.txt');
+    await runtime.move('project', 'folder', 'moved');
+    expect((await runtime.snapshot('project')).files.map(entry => entry.path)).toEqual([
+      'moved/a.txt',
+      'moved/nested/two.ts',
+      'moved/one.ts'
+    ]);
+    await expect(runtime.move('project', 'missing', 'elsewhere')).rejects.toMatchObject({ code: 'invalid_path' });
+    await expect(runtime.move('project', 'moved/a.txt', 'moved/nested/two.ts')).rejects.toMatchObject({
+      code: 'path_collision'
+    });
+    await expect(runtime.move('project', 'moved/a.txt', 'moved/a.txt')).rejects.toMatchObject({
+      code: 'path_collision'
+    });
+  });
+
+  it('rolls a failed folder move back to the previous snapshot', async () => {
+    await runtime.initialize('project', [file('folder/one.ts', 'one'), file('keep.txt', 'keep')]);
+    const before = await runtime.snapshot('project');
+    fixture.failWrite('moved/one.ts');
+    await expect(runtime.move('project', 'folder', 'moved')).rejects.toThrow('quota fixture');
+    expect(await runtime.snapshot('project')).toEqual(before);
+  });
+
   it('preserves unstaged edits and rolls back failed save or Git command', async () => {
     await runtime.initialize('project', [file('file.txt', 'one')]);
     await runtime.stage('project', ['file.txt']);

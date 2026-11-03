@@ -1,13 +1,21 @@
 import type { RxDB } from '@aiao/rxdb';
 import { of, throwError } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
-import { createRxDBWorkbenchCatalog, WorkbenchProject, WorkbenchSessionState } from './rxdb-catalog.js';
+import { githubProjectInfo } from './catalog.js';
+import {
+  createRxDBWorkbenchCatalog,
+  WorkbenchProject,
+  WorkbenchRemoteProject,
+  WorkbenchSessionState
+} from './rxdb-catalog.js';
 
 describe('RxDB workbench project catalog', () => {
   it('maps repository entities to catalog entries in the supplied database', async () => {
     const record = { id: 'project', name: 'name', template: 'vue', entry: 'src/main.ts', lastOpenedAt: 3 };
     const repository = { findAll: vi.fn(() => of([record])) };
-    const getRepository = vi.fn(() => repository);
+    const getRepository = vi.fn((entity: unknown) =>
+      entity === WorkbenchRemoteProject ? { findAll: vi.fn(() => of([])) } : repository
+    );
     const db = { entityManager: { getRepository } } as unknown as RxDB;
     expect(await createRxDBWorkbenchCatalog(db).list()).toEqual([
       { id: 'project', name: 'name', template: 'vue', entry: 'src/main.ts', updatedAt: 3 }
@@ -85,6 +93,63 @@ describe('RxDB workbench project catalog', () => {
     expect(instantiate).toHaveBeenCalledWith(WorkbenchSessionState, { id: 'project' });
     expect(record.tabs).toEqual(['src/label.ts']);
     expect(record.activePath).toBe('src/label.ts');
+    expect(record.save).toHaveBeenCalledOnce();
+  });
+
+  it('lists remote GitHub entries alongside local projects', async () => {
+    const remoteRecord = {
+      id: 'github:octo/repo@main',
+      name: 'octo/repo',
+      remoteOwner: 'octo',
+      remoteRepo: 'repo',
+      remoteBranch: 'main',
+      lastOpenedAt: 7
+    };
+    const localRepository = {
+      findAll: vi.fn(() => of([{ id: 'local', name: 'n', template: 'react', entry: 'e', lastOpenedAt: 1 }]))
+    };
+    const remoteRepository = { findAll: vi.fn(() => of([remoteRecord])) };
+    const getRepository = vi.fn((entity: unknown) =>
+      entity === WorkbenchRemoteProject ? remoteRepository : localRepository
+    );
+    const db = { entityManager: { getRepository } } as unknown as RxDB;
+    await expect(createRxDBWorkbenchCatalog(db).list()).resolves.toEqual([
+      { id: 'local', name: 'n', template: 'react', entry: 'e', updatedAt: 1 },
+      {
+        id: 'github:octo/repo@main',
+        name: 'octo/repo',
+        template: 'vanilla',
+        entry: '',
+        updatedAt: 7,
+        remote: { kind: 'github', owner: 'octo', repo: 'repo', branch: 'main' }
+      }
+    ]);
+  });
+
+  it('persists remote entries through the remote repository', async () => {
+    const record = {
+      id: 'github:octo/repo@main',
+      name: '',
+      remoteOwner: '',
+      remoteRepo: '',
+      remoteBranch: '',
+      lastOpenedAt: 0,
+      save: vi.fn(async () => undefined)
+    };
+    const remoteRepository = { findOne: vi.fn(() => of(undefined)) };
+    const getRepository = vi.fn((entity: unknown) =>
+      entity === WorkbenchRemoteProject ? remoteRepository : { findOne: vi.fn(() => of(undefined)) }
+    );
+    const instantiate = vi.fn(() => record);
+    const db = { entityManager: { instantiate, getRepository } } as unknown as RxDB;
+    const catalog = createRxDBWorkbenchCatalog(db);
+    await catalog.put(githubProjectInfo('octo', 'repo', 'main', 9));
+    expect(instantiate).toHaveBeenCalledWith(WorkbenchRemoteProject, { id: 'github:octo/repo@main' });
+    expect(record.name).toBe('octo/repo');
+    expect(record.remoteOwner).toBe('octo');
+    expect(record.remoteRepo).toBe('repo');
+    expect(record.remoteBranch).toBe('main');
+    expect(record.lastOpenedAt).toBe(9);
     expect(record.save).toHaveBeenCalledOnce();
   });
 });

@@ -30,6 +30,7 @@ function fixture() {
     create: vi.fn(async (projectId, initial) => ({ projectId, revision, files: initial })),
     remove: vi.fn(async () => undefined),
     rename: vi.fn(async () => undefined),
+    move: vi.fn(async () => undefined),
     exportArchive: vi.fn(async () => new Uint8Array()),
     importArchive: vi.fn(async () => undefined),
     dispose: vi.fn()
@@ -288,43 +289,47 @@ describe('WorkbenchSession', () => {
     }
   );
 
-  it.each(['create', 'restore', 'remove', 'rename'] as const)('%s 的迟到结果不能覆盖新项目', async operation => {
-    const { backend } = fixture();
-    const session = new WorkbenchSession(backend);
-    await session.open('first');
-    let finish!: () => void;
-    const snapshot = {
-      projectId: operation === 'create' ? 'created' : 'first',
-      revision: '2',
-      files: { 'main.ts': 'late result' }
-    };
-    if (operation === 'create' || operation === 'restore')
-      vi.mocked(backend[operation]).mockImplementationOnce(
-        () =>
-          new Promise(resolve => {
-            finish = () => resolve(snapshot);
-          })
-      );
-    else
-      vi.mocked(backend[operation]).mockImplementationOnce(
-        () =>
-          new Promise<void>(resolve => {
-            finish = resolve;
-          })
-      );
-    const pending =
-      operation === 'create' ? session.create('created', {})
-      : operation === 'restore' ? session.restore('abc')
-      : operation === 'remove' ? session.remove('main.ts')
-      : session.rename('main.ts', 'renamed.ts');
-    await session.open('second');
-    finish();
-    await pending;
-    expect(session.state.projectId).toBe('second');
-    expect(session.state.files['main.ts']).toBe('console.log(1)');
-  });
+  it.each(['create', 'restore', 'remove', 'rename', 'move'] as const)(
+    '%s 的迟到结果不能覆盖新项目',
+    async operation => {
+      const { backend } = fixture();
+      const session = new WorkbenchSession(backend);
+      await session.open('first');
+      let finish!: () => void;
+      const snapshot = {
+        projectId: operation === 'create' ? 'created' : 'first',
+        revision: '2',
+        files: { 'main.ts': 'late result' }
+      };
+      if (operation === 'create' || operation === 'restore')
+        vi.mocked(backend[operation]).mockImplementationOnce(
+          () =>
+            new Promise(resolve => {
+              finish = () => resolve(snapshot);
+            })
+        );
+      else
+        vi.mocked(backend[operation]).mockImplementationOnce(
+          () =>
+            new Promise<void>(resolve => {
+              finish = resolve;
+            })
+        );
+      const pending =
+        operation === 'create' ? session.create('created', {})
+        : operation === 'restore' ? session.restore('abc')
+        : operation === 'remove' ? session.remove('main.ts')
+        : operation === 'move' ? session.move('main.ts', 'moved.ts')
+        : session.rename('main.ts', 'renamed.ts');
+      await session.open('second');
+      finish();
+      await pending;
+      expect(session.state.projectId).toBe('second');
+      expect(session.state.files['main.ts']).toBe('console.log(1)');
+    }
+  );
 
-  it.each(['open', 'create', 'restore', 'remove', 'rename'] as const)(
+  it.each(['open', 'create', 'restore', 'remove', 'rename', 'move'] as const)(
     '%s 等待期间的新输入不能被快照替换清除',
     async operation => {
       const { backend } = fixture();
@@ -351,6 +356,7 @@ describe('WorkbenchSession', () => {
         : operation === 'create' ? session.create('created', {})
         : operation === 'restore' ? session.restore('abc')
         : operation === 'remove' ? session.remove('main.ts')
+        : operation === 'move' ? session.move('main.ts', 'moved.ts')
         : session.rename('main.ts', 'renamed.ts');
       session.edit('main.ts', 'typed while waiting');
       finish();

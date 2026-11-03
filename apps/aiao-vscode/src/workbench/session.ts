@@ -52,6 +52,8 @@ export interface WorkbenchBackend {
   save(projectId: string, files: WorkbenchFiles, expectedRevision: string): Promise<WorkbenchSnapshot>;
   remove(projectId: string, path: string): Promise<void>;
   rename(projectId: string, from: string, to: string): Promise<void>;
+  /** 移动文件或整个文件夹前缀（单次事务）。 */
+  move(projectId: string, from: string, to: string): Promise<void>;
   status(projectId: string): Promise<WorkbenchStatus>;
   stage(projectId: string, paths: readonly string[]): Promise<void>;
   unstage(projectId: string, paths: readonly string[]): Promise<void>;
@@ -286,6 +288,14 @@ export class WorkbenchSession {
     const projectId = this.#project();
     return this.#transition(async () => {
       await this.backend.rename(projectId, from, to);
+      return this.backend.open(projectId);
+    });
+  }
+
+  async move(from: string, to: string): Promise<void> {
+    const projectId = this.#project();
+    return this.#transition(async () => {
+      await this.backend.move(projectId, from, to);
       return this.backend.open(projectId);
     });
   }
