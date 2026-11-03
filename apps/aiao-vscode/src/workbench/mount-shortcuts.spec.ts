@@ -85,7 +85,9 @@ function fixture() {
     list: vi.fn(async () => [
       { id: 'one', name: '本地项目', template: 'vanilla' as const, entry: 'src/main.ts', updatedAt: 1 }
     ]),
-    put: vi.fn(async () => undefined)
+    put: vi.fn(async () => undefined),
+    getState: vi.fn(async () => null),
+    putState: vi.fn(async () => undefined)
   };
   const host = document.createElement('div');
   document.body.append(host);
@@ -204,5 +206,28 @@ describe('预览转发与工作台全局快捷键', () => {
     input.dispatchEvent(event);
     expect(event.defaultPrevented).toBe(false);
     expect(editorHandle.runCommand).not.toHaveBeenCalled();
+  }, 10000);
+
+  it('Ctrl+Shift+E / G 切换资源管理器与 Git 视图，Ctrl+Shift+M / U 打开对应底部面板', async () => {
+    const { host, handle } = fixture();
+    await handle.ready;
+    await vi.waitFor(() => expect(handle.session.state.tabs).toContain('src/main.ts'));
+    const root = host.querySelector<HTMLElement>('.ao-workbench');
+    if (!root) throw new Error('工作台根元素缺失');
+    const press = (init: KeyboardEventInit): KeyboardEvent => {
+      const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
+      root.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    expect(press({ key: 'g', ctrlKey: true, shiftKey: true })).toBe(true);
+    await vi.waitFor(() => expect((root.querySelector('[data-slot="git-view"]') as HTMLElement)?.hidden).toBe(false));
+    expect(root.querySelector('[data-slot="side-title"]')?.textContent).toBe('源代码管理');
+    expect(press({ key: 'e', ctrlKey: true, shiftKey: true })).toBe(true);
+    await vi.waitFor(() => expect((root.querySelector('[data-slot="git-view"]') as HTMLElement)?.hidden).toBe(true));
+    expect(root.querySelector('[data-slot="side-title"]')?.textContent).toBe('资源管理器');
+    // 面板激活的真实切换由浏览器端验证（happy-dom 不渲染 dockview 激活标签类），此处只断言快捷键路由
+    expect(press({ key: 'm', ctrlKey: true, shiftKey: true })).toBe(true);
+    expect(press({ key: 'u', ctrlKey: true, shiftKey: true })).toBe(true);
+    expect(root.querySelector('[data-slot="side-title"]')?.textContent).toBe('资源管理器');
   }, 10000);
 });

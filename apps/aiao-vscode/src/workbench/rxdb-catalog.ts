@@ -23,11 +23,40 @@ export class WorkbenchProject extends EntityBase<string> {
   lastOpenedAt!: number;
 }
 
+/** 每个项目的编辑会话状态（标签与活动文件），用于重开时恢复工作台。 */
+@Entity({
+  namespace: 'workbench',
+  name: 'WorkbenchSessionState',
+  tableName: 'workbench_session_state',
+  log: false,
+  sync: { type: SyncType.None },
+  properties: [
+    { name: 'tabs', type: PropertyType.stringArray, required: true },
+    { name: 'activePath', type: PropertyType.string, required: false },
+    { name: 'lastTouchedAt', type: PropertyType.number, required: true }
+  ]
+})
+export class WorkbenchSessionState extends EntityBase<string> {
+  tabs!: string[];
+  activePath?: string;
+  lastTouchedAt!: number;
+}
+
 /** 用已注册 WorkbenchProject 的宿主数据库保存项目目录。 */
 export function createRxDBWorkbenchCatalog(db: RxDB): WorkbenchCatalog {
   const repository = db.entityManager.getRepository<typeof WorkbenchProject, Repository<typeof WorkbenchProject>>(
     WorkbenchProject
   );
+  const stateRepository = db.entityManager.getRepository<
+    typeof WorkbenchSessionState,
+    Repository<typeof WorkbenchSessionState>
+  >(WorkbenchSessionState);
+  const findState = (projectId: string) =>
+    firstValueFrom(
+      stateRepository.findOne({
+        where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: projectId }] }
+      })
+    );
   return {
     async list() {
       const records = await firstValueFrom(repository.findAll({ where: { combinator: 'and', rules: [] } }));
@@ -48,6 +77,19 @@ export function createRxDBWorkbenchCatalog(db: RxDB): WorkbenchCatalog {
       record.template = project.template;
       record.entry = project.entry;
       record.lastOpenedAt = project.updatedAt;
+      await record.save();
+    },
+    async getState(projectId) {
+      const existing = await findState(projectId);
+      if (!existing) return null;
+      return { tabs: [...existing.tabs], activePath: existing.activePath ?? null };
+    },
+    async putState(projectId, state) {
+      const existing = await findState(projectId);
+      const record = existing ?? db.entityManager.instantiate(WorkbenchSessionState, { id: projectId });
+      record.tabs = [...state.tabs];
+      record.activePath = state.activePath ?? undefined;
+      record.lastTouchedAt = Date.now();
       await record.save();
     }
   };

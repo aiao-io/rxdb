@@ -36,12 +36,33 @@ describe('编译 Worker 请求协议', () => {
     expect(services.compile.mock.calls[0][1].angularTransform).toBe(services.angular);
   });
 
-  it.each([new Error('syntax error'), 'compiler unavailable'])('失败以原请求标识返回诊断：%s', async cause => {
-    services.compile.mockRejectedValue(cause);
+  it('esbuild 形态的失败附带结构化诊断，前缀消息解析为定位，普通错误无诊断', async () => {
+    services.compile.mockRejectedValueOnce(
+      Object.assign(new Error('Build failed'), {
+        errors: [
+          { text: 'Unexpected "const"', location: { file: 'workbench:/src/main.ts', line: 3, column: 7 } },
+          { text: 'Unresolved import', location: { file: 'src/a.ts' } }
+        ]
+      })
+    );
     await request();
     expect(services.post).toHaveBeenCalledWith({
       id: 'request-1',
-      error: cause instanceof Error ? cause.message : cause
+      error: 'Build failed',
+      diagnostics: [
+        { file: 'src/main.ts', line: 3, column: 7, message: 'Unexpected "const"' },
+        { file: 'src/a.ts', line: undefined, column: undefined, message: 'Unresolved import' }
+      ]
     });
+    services.compile.mockRejectedValueOnce(new Error('src/app.ts:12:5 Property foo does not exist'));
+    await request();
+    expect(services.post).toHaveBeenCalledWith({
+      id: 'request-1',
+      error: 'src/app.ts:12:5 Property foo does not exist',
+      diagnostics: [{ file: 'src/app.ts', line: 12, column: 5, message: 'Property foo does not exist' }]
+    });
+    services.compile.mockRejectedValueOnce(new Error('plain failure'));
+    await request();
+    expect(services.post).toHaveBeenCalledWith({ id: 'request-1', error: 'plain failure', diagnostics: undefined });
   });
 });

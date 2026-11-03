@@ -9,10 +9,18 @@ export interface WorkbenchProjectInfo {
   readonly updatedAt: number;
 }
 
+/** 打开项目时恢复的编辑会话状态。 */
+export interface WorkbenchProjectState {
+  readonly tabs: readonly string[];
+  readonly activePath: string | null;
+}
+
 /** 宿主可用 RxDB 等元数据存储实现本接口。 */
 export interface WorkbenchCatalog {
   list(): Promise<readonly WorkbenchProjectInfo[]>;
   put(project: WorkbenchProjectInfo): Promise<void>;
+  getState(projectId: string): Promise<WorkbenchProjectState | null>;
+  putState(projectId: string, state: WorkbenchProjectState): Promise<void>;
 }
 
 /** 独立演示的项目目录；不与 Git 工作区共用文件根。 */
@@ -42,6 +50,7 @@ export function createProjectCatalog(): WorkbenchCatalog {
       return Promise.reject(new Error('当前浏览器不支持 OPFS 或 Web Locks'));
     return navigator.locks.request('aiao-workbench-catalog', operation);
   };
+  const stateFilename = (projectId: string): string => `state-${projectId}.json`;
   return {
     list: () => lock(read),
     put: project =>
@@ -66,6 +75,38 @@ export function createProjectCatalog(): WorkbenchCatalog {
           if (!existed) await root.removeEntry(filename).catch(() => undefined);
           throw cause;
         }
+      }),
+    getState: projectId =>
+      lock(async () => {
+        const root = await directory();
+        let handle: FileSystemFileHandle;
+        try {
+          handle = await root.getFileHandle(stateFilename(projectId));
+        } catch (cause) {
+          if (cause instanceof DOMException && cause.name === 'NotFoundError') return null;
+          throw cause;
+        }
+        const value: unknown = JSON.parse(await (await handle.getFile()).text());
+        if (
+          !value ||
+          typeof value !== 'object' ||
+          !Array.isArray((value as Record<string, unknown>)['tabs']) ||
+          ((value as Record<string, unknown>)['tabs'] as unknown[]).some(item => typeof item !== 'string')
+        )
+          throw new Error('项目会话状态损坏');
+        const item = value as Record<string, unknown>;
+        return {
+          tabs: item['tabs'] as string[],
+          activePath: typeof item['activePath'] === 'string' ? item['activePath'] : null
+        };
+      }),
+    putState: (projectId, state) =>
+      lock(async () => {
+        const root = await directory();
+        const file = await root.getFileHandle(stateFilename(projectId), { create: true });
+        const writer = await file.createWritable();
+        await writer.write(JSON.stringify({ tabs: [...state.tabs], activePath: state.activePath }));
+        await writer.close();
       })
   };
 }

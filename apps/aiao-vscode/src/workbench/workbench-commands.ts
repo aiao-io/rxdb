@@ -284,6 +284,16 @@ export function createWorkbenchCommands(root: HTMLElement, options: WorkbenchCom
     if (shortcut.shiftKey && shortcut.altKey && key === 'f' && !ordinaryInput(target) && editorContext(target))
       return invokeCommand('format');
     if (modifier && shortcut.shiftKey && key === 's') return invokeCommand('saveAll');
+    if (modifier && shortcut.shiftKey) {
+      const viewShortcuts: Readonly<Record<string, string>> = {
+        e: 'showExplorer',
+        g: 'showScm',
+        m: 'showProblems',
+        u: 'showOutput'
+      };
+      const id = viewShortcuts[key];
+      return id ? invokeCommand(id) : false;
+    }
     if (!modifier || shortcut.shiftKey) return false;
     if (key === 'w') return invokeCommand('closeEditor');
     if (key === '\\' && !ordinaryInput(target) && editorContext(target)) return invokeCommand('split');

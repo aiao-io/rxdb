@@ -1,6 +1,11 @@
 import { declaredDependencies } from './compiler/compiler-dependencies.js';
 import { loadRuntimeBundle, type RuntimeBundle } from './compiler/compiler-runtime.js';
-import type { CompiledProject, CompileProjectInput } from './compiler/compiler-types.js';
+import {
+  CompilationError,
+  type CompiledProject,
+  type CompileProjectInput,
+  type WorkbenchDiagnostic
+} from './compiler/compiler-types.js';
 import { prepareProjectHTML } from './preview/preview-sandbox.js';
 
 /** 复用健康 Worker，单个请求可取消的项目编译入口。 */
@@ -94,12 +99,14 @@ export function createCompiler(assetBaseURL: string): WorkbenchCompiler {
       if (task) fail(task, new Error(event.message));
       else stopWorker();
     };
-    instance.onmessage = (event: MessageEvent<{ id: string; result?: CompiledProject; error?: string }>) => {
+    instance.onmessage = (
+      event: MessageEvent<{ id: string; result?: CompiledProject; error?: string; diagnostics?: WorkbenchDiagnostic[] }>
+    ) => {
       if (worker !== instance || event.data.id !== activeId) return;
       const task = pending.get(event.data.id);
       if (!task) return;
       if (event.data.error) {
-        fail(task, new Error(event.data.error));
+        fail(task, new CompilationError(event.data.error, event.data.diagnostics ?? []));
         return;
       }
       if (!event.data.result) {

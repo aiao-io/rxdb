@@ -29,6 +29,19 @@ afterEach(() => {
 });
 
 describe('Dockview 工作台布局', () => {
+  it('中键点击标签关闭面板，与关闭按钮走同一生命周期', async () => {
+    const { dock, callbacks } = fixture();
+    dock.ensureEditor('main.ts');
+    dock.selectEditor('main.ts');
+    const tab = document.querySelector<HTMLElement>('[data-editor-tab-path="main.ts"]');
+    if (!tab) throw new Error('编辑器标签缺失');
+    tab.dispatchEvent(new MouseEvent('auxclick', { bubbles: true, cancelable: true, button: 1 }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(callbacks.onCloseEditor).toHaveBeenCalledWith('main.ts');
+    expect(dock.api.getPanel('editor:main.ts')).toBeUndefined();
+  });
+
   it('辅助差异面板使用独立 id 与官方图标，选择不改变 Session 编辑器', () => {
     const { root, dock, callbacks } = fixture();
     const source = dock.ensureEditor('src/main.ts');

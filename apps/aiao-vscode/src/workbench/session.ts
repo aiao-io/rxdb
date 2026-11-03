@@ -172,6 +172,14 @@ export class WorkbenchSession {
     });
   }
 
+  /** 重开项目时恢复上次的标签与活动文件，不存在的路径被过滤。 */
+  restoreTabs(paths: readonly string[], activePath: string | null): void {
+    this.#assertOpen();
+    const tabs = [...new Set(paths)].filter(path => Object.hasOwn(this.#state.files, path));
+    const active = tabs.length && activePath && tabs.includes(activePath) ? activePath : (tabs.at(-1) ?? null);
+    this.#update({ tabs, activePath: active });
+  }
+
   edit(path: string, content: string): void {
     this.#assertOpen();
     assertGitPath(path);

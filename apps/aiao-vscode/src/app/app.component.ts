@@ -132,10 +132,16 @@ export class AppComponent implements AfterViewInit, OnDestroy {
           },
           layout: () => editor.instance.view?.requestMeasure(),
           focus: () => editor.instance.focus(),
-          runCommand: command => {
+          runCommand: (command, argument) => {
             const view = editor.instance.view;
             if (!view) return false;
             if (command === 'gotoLine') return gotoLine(view);
+            if (command === 'gotoLineAt') {
+              const line = view.state.doc.line(Math.min(Math.max(1, argument ?? 1), view.state.doc.lines));
+              view.dispatch({ selection: EditorSelection.cursor(line.from), scrollIntoView: true });
+              view.focus();
+              return true;
+            }
             if (command === 'selectLine') return selectLine(view);
             return insertBlankLineAbove(view);
           },

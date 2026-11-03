@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WorkbenchProjectInfo } from './catalog.js';
 import type { WorkbenchCompiler } from './compiler-client.js';
+import { CompilationError } from './compiler/compiler-types.js';
 import type { WorkbenchEditorMount } from './editor.js';
 import { mountWorkbench, type WorkbenchHandle } from './mount.js';
 import type { WorkbenchBackend, WorkbenchDiff, WorkbenchFiles } from './session.js';
@@ -67,11 +68,13 @@ function fixture(
     dispose: vi.fn()
   };
   const disposeEditor = vi.fn();
-  const mountEditor = vi.fn<WorkbenchEditorMount>(() => ({
+  const editorHandle = {
     update: vi.fn(),
     replace: vi.fn(),
-    dispose: disposeEditor
-  }));
+    dispose: disposeEditor,
+    runCommand: vi.fn(() => true)
+  };
+  const mountEditor = vi.fn<WorkbenchEditorMount>(() => editorHandle);
   const compiler = {
     compile: vi.fn<WorkbenchCompiler['compile']>(async () => ({ js: '', css: '' })),
     dispose: vi.fn()
@@ -86,13 +89,15 @@ function fixture(
           ]
         : [];
     }),
-    put: vi.fn(async () => undefined)
+    put: vi.fn(async () => undefined),
+    getState: vi.fn(async () => null),
+    putState: vi.fn(async () => undefined)
   };
   const host = document.createElement('div');
   document.body.append(host);
   const handle = mountWorkbench(host, { backend, compiler, catalog, assetBaseURL }, mountEditor);
   instances.push(handle);
-  return { host, handle, backend, compiler, catalog, mountEditor, disposeEditor };
+  return { host, handle, backend, compiler, catalog, mountEditor, disposeEditor, editorHandle };
 }
 
 const click = async (host: HTMLElement, selector: string): Promise<void> => {
@@ -497,6 +502,86 @@ describe('VS Code 风格工作台', () => {
     await vi.waitFor(() => expect(host.querySelector('dialog')).not.toBeNull());
     await confirmAction(host, true);
     await vi.waitFor(() => expect(backend.remove).toHaveBeenCalledWith('one', 'src/main.ts'));
+  });
+
+  it('文件树显示 Git 状态字母：暂存优先，未跟踪显示 U', async () => {
+    const { host, handle, backend } = fixture();
+    await handle.ready;
+    vi.mocked(backend.status).mockResolvedValue({
+      branch: 'main',
+      head: 'a'.repeat(40),
+      entries: [
+        { path: 'src/main.ts', index: 'M', worktree: ' ' },
+        { path: 'src/label.ts', index: '?', worktree: '?' }
+      ]
+    });
+    await click(host, '[data-action="git"]');
+    await click(host, '[data-action="explorer"]');
+    const rows = [...host.querySelectorAll<HTMLElement>('[data-slot="files"] [data-tree-path]')];
+    const status = (path: string) =>
+      rows.find(row => row.dataset['treePath'] === path)?.querySelector<HTMLElement>('.wb-file-status');
+    await vi.waitFor(() => expect(status('src/main.ts')?.textContent).toBe('M'));
+    expect(status('src/main.ts')?.dataset['status']).toBe('M');
+    expect(status('src/label.ts')?.textContent).toBe('U');
+    expect(status('src/label.ts')?.dataset['status']).toBe('U');
+    handle.dispose();
+  });
+
+  it('打开项目恢复上次的标签与活动文件，切换后持久化会话状态', async () => {
+    const { host, handle, catalog } = fixture();
+    vi.mocked(catalog.getState).mockResolvedValue({
+      tabs: ['src/label.ts', 'src/main.ts'],
+      activePath: 'src/label.ts'
+    });
+    await handle.ready;
+    await vi.waitFor(() => expect(handle.session.state.activePath).toBe('src/label.ts'));
+    expect(handle.session.state.tabs).toEqual(['src/label.ts', 'src/main.ts']);
+    expect(catalog.putState).not.toHaveBeenCalled();
+    handle.session.select('src/main.ts');
+    await vi.waitFor(() =>
+      expect(catalog.putState).toHaveBeenCalledWith('one', {
+        tabs: ['src/label.ts', 'src/main.ts'],
+        activePath: 'src/main.ts'
+      })
+    );
+    expect(catalog.putState).toHaveBeenCalledTimes(1);
+    handle.dispose();
+  });
+
+  it('编译失败的问题条目可点击并跳转到文件行', async () => {
+    const { host, handle, compiler, editorHandle } = fixture();
+    await handle.ready;
+    vi.mocked(compiler.compile).mockRejectedValueOnce(
+      new CompilationError('Build failed', [{ file: 'src/main.ts', line: 3, column: 7, message: 'Unexpected "const"' }])
+    );
+    handle.session.edit('src/main.ts', 'broken');
+    await click(host, '[data-action="save"]');
+    await vi.waitFor(() => expect(host.querySelector('.wb-log-problem')).not.toBeNull());
+    const problem = host.querySelector<HTMLButtonElement>('.wb-log-problem');
+    expect(problem?.textContent).toContain('src/main.ts:3:7');
+    problem?.click();
+    await vi.waitFor(() => expect(editorHandle.runCommand).toHaveBeenCalledWith('gotoLineAt', 3));
+    handle.dispose();
+  });
+
+  it('状态栏显示人类可读语言名，文档标题跟随文件与项目', async () => {
+    const { host, handle } = fixture();
+    await handle.ready;
+    await vi.waitFor(() => expect(host.querySelector('[data-slot="language"]')?.textContent).toBe('TypeScript'));
+    expect(host.ownerDocument.title).toContain('main.ts');
+    expect(host.ownerDocument.title).toContain('本地项目');
+    handle.dispose();
+  });
+
+  it('SCM 视图的刷新按钮重新读取 Git 状态', async () => {
+    const { host, handle, backend } = fixture();
+    await handle.ready;
+    await click(host, '[data-action="git"]');
+    await vi.waitFor(() => expect(backend.status).toHaveBeenCalled());
+    const before = vi.mocked(backend.status).mock.calls.length;
+    await click(host, '[data-scm-action="refresh"]');
+    await vi.waitFor(() => expect(vi.mocked(backend.status).mock.calls.length).toBeGreaterThan(before));
+    handle.dispose();
   });
 
   it('Mod+S 只保存当前文件并从已保存快照更新预览，Save All 才保存其余缓冲', async () => {

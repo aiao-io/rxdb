@@ -98,6 +98,11 @@ function createTab(id: string, auxiliary: boolean) {
       renderTitle(parameters.title);
       titleSubscription = parameters.api.onDidTitleChange(event => renderTitle(event.title));
       if (id === 'sidebar' || id === 'welcome') return;
+      element.addEventListener('auxclick', event => {
+        if (event.button !== 1) return;
+        event.preventDefault();
+        parameters.api.close();
+      });
       const close = document.createElement('button');
       close.type = 'button';
       close.className = 'wb-dock-tab-close';

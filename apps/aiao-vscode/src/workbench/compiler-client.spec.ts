@@ -79,6 +79,23 @@ describe('可取消的编译 Worker 客户端', () => {
     expect(worker.terminate).toHaveBeenCalledOnce();
   });
 
+  it('把 Worker 回传的结构化诊断附着到编译错误', async () => {
+    const compiler = createCompiler('/assets');
+    const result = compiler.compile(input);
+    const worker = ProbeWorker.instances[0];
+    worker.emit({
+      id: worker.request?.id,
+      error: 'Build failed',
+      diagnostics: [{ file: 'src/main.ts', line: 3, column: 7, message: 'Unexpected "const"' }]
+    });
+    await expect(result).rejects.toMatchObject({
+      name: 'CompilationError',
+      message: 'Build failed',
+      diagnostics: [{ file: 'src/main.ts', line: 3, column: 7 }]
+    });
+    compiler.dispose();
+  });
+
   it('取消任务立即释放 Worker，预先取消不创建 Worker', async () => {
     const compiler = createCompiler('/assets');
     const controller = new AbortController();

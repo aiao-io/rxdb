@@ -15,6 +15,8 @@ export interface WorkbenchScmOptions {
   onOpenDiff(request: WorkbenchDiffRequest): void | Promise<void>;
   onError(cause: unknown): void;
   onDidChange(snapshot?: WorkbenchSnapshot, paths?: readonly string[]): void | Promise<void>;
+  /** 用户点击刷新按钮时重新读取 Git 状态。 */
+  onRefresh?(): void | Promise<void>;
 }
 
 /** 宿主统一刷新状态，视图只负责明确的文件和提交动作。 */
@@ -105,7 +107,17 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
   const unstageAll = actionButton('unstage-all', '取消暂存所有更改', 'remove');
   working.heading.append(stageAll);
   staged.heading.append(unstageAll);
-  element.append(form, staged.section, working.section);
+  const header = document.createElement('div');
+  header.className = 'wb-scm-header';
+  const heading = document.createElement('h2');
+  heading.textContent = '源代码管理';
+  const refresh = actionButton('refresh', '刷新 Git 状态', 'refresh');
+  refresh.onclick = event => {
+    event.stopPropagation();
+    launch(() => Promise.resolve(options.onRefresh?.()));
+  };
+  header.append(heading, refresh);
+  element.append(header, form, staged.section, working.section);
   host.replaceChildren(element);
   const controls: { button: HTMLButtonElement; path: string; action: FileAction }[] = [];
   let status: WorkbenchStatus | null = null;

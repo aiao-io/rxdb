@@ -1,12 +1,13 @@
 import { createProjectCatalog, type WorkbenchCatalog, type WorkbenchProjectInfo } from './catalog.js';
 import { createCompiler, type WorkbenchCompiler } from './compiler-client.js';
 import type { ProjectTemplate } from './compiler/compiler-types.js';
+import { CompilationError, type WorkbenchDiagnostic } from './compiler/compiler-types.js';
 import type { WorkbenchEditorCommand, WorkbenchEditorHandle, WorkbenchEditorMount } from './editor.js';
 import { formatWorkbenchSource } from './formatter.js';
 import { createGitBackend } from './git-backend.js';
 import { mountPreview, type PreviewEvent } from './preview/preview-sandbox.js';
 import { createSavePreviewController, type SavePreviewPhase } from './save-preview.js';
-import { WorkbenchSession, type WorkbenchBackend, type WorkbenchState } from './session.js';
+import { WorkbenchSession, type WorkbenchBackend, type WorkbenchState, type WorkbenchStatus } from './session.js';
 import { angularTemplate, defaultAngularDemo } from './templates-angular.js';
 import { defaultFrontendDemos, frontendTemplates, type WorkbenchTemplate } from './templates.js';
 import { createWorkbenchCommands, type WorkbenchCommand } from './workbench-commands.js';
@@ -57,6 +58,20 @@ const languages: Record<string, string> = {
   yml: 'yaml'
 };
 const languageFor = (path: string): string => languages[path.split('.').at(-1) ?? ''] ?? 'plaintext';
+const languageLabels: Readonly<Record<string, string>> = {
+  typescript: 'TypeScript',
+  tsx: 'TypeScript React',
+  javascript: 'JavaScript',
+  jsx: 'JavaScript React',
+  vue: 'Vue',
+  css: 'CSS',
+  html: 'HTML',
+  json: 'JSON',
+  markdown: 'Markdown',
+  xml: 'XML',
+  yaml: 'YAML'
+};
+const languageLabel = (path: string): string => languageLabels[languageFor(path)] ?? languageFor(path);
 const messageFor = (cause: unknown): string => (cause instanceof Error ? cause.message : String(cause));
 
 /** 文件树内的 VS Code 风格输入行；Enter 提交、Esc 取消、失焦提交当前值。 */
@@ -130,7 +145,12 @@ export function mountWorkbench(
     }
   >();
   let previewPhase: SavePreviewPhase = 'idle';
-  const logs: { kind: 'problems' | 'output' | 'console'; text: string; level?: string }[] = [];
+  const logs: {
+    kind: 'problems' | 'output' | 'console';
+    text: string;
+    level?: string;
+    targets?: readonly WorkbenchDiagnostic[];
+  }[] = [];
   let projects: readonly WorkbenchProjectInfo[] = [];
   let project: WorkbenchProjectInfo | undefined;
   let sideView = 'explorer';
@@ -149,6 +169,10 @@ export function mountWorkbench(
   let treeFocusPath: string | null = null;
   let treeNavigation = false;
   let contextMenu: HTMLElement | null = null;
+  let gitStatus: WorkbenchStatus | null = null;
+  let persistedState = '';
+  let persistChain: Promise<void> = Promise.resolve();
+  let restoring = false;
   const collapsedFolders = new Set<string>();
   const docking = createWorkbenchDockview(root, {
     onSelectEditor(path) {
@@ -187,6 +211,7 @@ export function mountWorkbench(
     session,
     onError: report,
     onOpenDiff: openDiff,
+    onRefresh: () => action(refreshGit),
     async onDidChange(snapshot, paths) {
       if (snapshot && snapshot.projectId === session.state.projectId) {
         cancelCompilation();
@@ -299,10 +324,13 @@ export function mountWorkbench(
     }
   }
 
-  function editorCommand(command: WorkbenchEditorCommand): void {
+  function editorCommand(command: WorkbenchEditorCommand, argument?: number): void {
     const path = focusedEditorPath() ?? session.state.activePath;
     if (!path) return;
-    editors.get(path)?.handle.runCommand?.(command);
+    const handle = editors.get(path)?.handle;
+    if (!handle?.runCommand) return;
+    if (argument === undefined) handle.runCommand(command);
+    else handle.runCommand(command, argument);
   }
 
   async function loadDiff(id: string): Promise<void> {
@@ -389,15 +417,28 @@ export function mountWorkbench(
   function report(cause: unknown): void {
     if (cause instanceof DOMException && cause.name === 'AbortError') return;
     const text = messageFor(cause);
-    if (logs.at(-1)?.kind === 'problems' && logs.at(-1)?.text === text) return;
-    log('problems', text, 'error');
+    const targets = cause instanceof CompilationError ? cause.diagnostics : undefined;
+    const last = logs.at(-1);
+    if (last?.kind === 'problems' && last.text === text) {
+      if (targets?.length && !last.targets?.length) {
+        logs[logs.length - 1] = { ...last, targets };
+        renderLogs();
+      }
+      return;
+    }
+    log('problems', text, 'error', targets);
   }
   function cancelCompilation(): void {
     savePreview.cancel();
   }
-  function log(kind: 'problems' | 'output' | 'console', text: string, level?: string): void {
+  function log(
+    kind: 'problems' | 'output' | 'console',
+    text: string,
+    level?: string,
+    targets?: readonly WorkbenchDiagnostic[]
+  ): void {
     if (disposed) return;
-    logs.push({ kind, text: text.slice(0, 20_000), level });
+    logs.push({ kind, text: text.slice(0, 20_000), level, targets });
     if (logs.length > 400) logs.shift();
     renderLogs();
   }
@@ -406,6 +447,22 @@ export function mountWorkbench(
       const content = logContents.get(kind)!;
       content.replaceChildren();
       for (const item of logs.filter(item => item.kind === kind)) {
+        if (item.targets?.length) {
+          for (const target of item.targets) {
+            const row = document.createElement('button');
+            row.type = 'button';
+            row.className = 'wb-log-problem';
+            const location =
+              target.file ?
+                `${target.file}${target.line === undefined ? '' : `:${target.line}${target.column === undefined ? '' : `:${target.column}`}`}`
+              : '';
+            row.textContent = location ? `${location} — ${target.message}` : target.message;
+            row.title = '点击打开文件并跳转到该行';
+            row.onclick = () => openDiagnostic(target);
+            content.append(row);
+          }
+          continue;
+        }
         const line = document.createElement('pre');
         line.textContent = item.text;
         if (item.level) line.className = `wb-log-${item.level}`;
@@ -413,6 +470,16 @@ export function mountWorkbench(
       }
     }
     element('[data-slot="problem-count"]').textContent = String(logs.filter(item => item.kind === 'problems').length);
+  }
+  function openDiagnostic(target: WorkbenchDiagnostic): void {
+    if (!target.file || !Object.hasOwn(session.state.files, target.file)) {
+      log('output', target.file ? `问题指向的文件不在项目中：${target.file}` : '该问题没有可定位的文件');
+      return;
+    }
+    session.select(target.file);
+    docking.selectEditor(target.file);
+    if (target.line !== undefined) editorCommand('gotoLineAt', target.line);
+    focusEditor(target.file);
   }
   function action(operation: () => Promise<unknown> | void): void {
     pendingOperations++;
@@ -429,6 +496,17 @@ export function mountWorkbench(
     if (!project) throw new Error('请先新建或打开项目');
     return project.id;
   }
+  /** 标签或活动文件变化时串行落库，重开项目时恢复；初始恢复期间不写库。 */
+  function persistState(): void {
+    const id = session.state.projectId;
+    if (!id || restoring) return;
+    const snapshot = JSON.stringify([id, session.state.tabs, session.state.activePath]);
+    if (snapshot === persistedState) return;
+    persistedState = snapshot;
+    persistChain = persistChain
+      .then(() => catalog.putState(id, { tabs: [...session.state.tabs], activePath: session.state.activePath }))
+      .catch(report);
+  }
   async function refreshGit(): Promise<void> {
     if (!project || disposed) return;
     const id = project.id;
@@ -436,7 +514,9 @@ export function mountWorkbench(
     const [status, commits] = await Promise.all([backend.status(id), backend.history(id)]);
     if (disposed || project?.id !== id || request !== gitRefresh) return;
     element('[data-slot="branch-name"]').textContent = status.branch;
+    gitStatus = status;
     scm.update(status);
+    renderFiles(session.state);
     const badge = element('[data-slot="scm-count"]');
     badge.textContent = String(status.entries.length);
     badge.hidden = status.entries.length === 0;
@@ -485,8 +565,17 @@ export function mountWorkbench(
     const next = projects.find(item => item.id === id);
     if (!next) throw new Error('项目不在目录中');
     cancelCompilation();
-    await session.open(id);
-    if (disposed || session.state.projectId !== id) return;
+    restoring = true;
+    try {
+      await session.open(id);
+      if (disposed || session.state.projectId !== id) return;
+      const saved = await catalog.getState(id).catch(() => null);
+      if (disposed || session.state.projectId !== id) return;
+      if (saved) session.restoreTabs(saved.tabs, saved.activePath);
+    } finally {
+      restoring = false;
+    }
+    persistedState = JSON.stringify([id, session.state.tabs, session.state.activePath]);
     const opened = { ...next, updatedAt: Date.now() };
     project = opened;
     projects = projects.map(item => (item.id === id ? opened : item));
@@ -502,6 +591,7 @@ export function mountWorkbench(
       treeProjectId = state.projectId;
       creatingFile = false;
       renamingPath = null;
+      gitStatus = null;
     }
     if ((creatingFile || renamingPath) && tree.querySelector('.wb-inline-input')) return;
     tree.replaceChildren();
@@ -604,8 +694,20 @@ export function mountWorkbench(
       button.title = path;
       const icon = createFileIcon(path);
       const name = document.createElement('span');
+      name.className = 'wb-file-name';
       name.textContent = parts.at(-1) ?? path;
       button.append(icon, name);
+      const gitEntry = gitStatus?.entries.find(entry => entry.path === path);
+      const indexLetter = gitEntry && gitEntry.index !== ' ' ? gitEntry.index : '';
+      const worktreeLetter = gitEntry && gitEntry.worktree !== ' ' ? gitEntry.worktree : '';
+      const badge = (indexLetter && indexLetter !== '?' ? indexLetter : worktreeLetter).replace('?', 'U');
+      if (badge) {
+        const status = document.createElement('span');
+        status.className = 'wb-file-status';
+        status.dataset['status'] = badge;
+        status.textContent = badge;
+        button.append(status);
+      }
       button.onclick = () => {
         treeFocusPath = path;
         treeNavigation = true;
@@ -869,8 +971,16 @@ export function mountWorkbench(
     renderFiles(state);
     renderEditors(state);
     renderStatus();
-    element('[data-slot="language"]').textContent = state.activePath ? languageFor(state.activePath) : '纯文本';
+    element('[data-slot="language"]').textContent = state.activePath ? languageLabel(state.activePath) : '纯文本';
     renderActionState();
+    persistState();
+    const document = root.ownerDocument;
+    const projectName = projects.find(item => item.id === state.projectId)?.name;
+    const file = state.activePath?.split('/').at(-1);
+    document.title =
+      state.projectId && file && projectName ?
+        `${file} — ${projectName} — Aiao Code`
+      : 'Aiao VSCode · 浏览器开发工作台';
     if (!state.preview) {
       preview?.dispose();
       preview = undefined;
@@ -1127,7 +1237,10 @@ export function mountWorkbench(
         ['rename', '文件: 重命名', 'F2', operations['rename']],
         ['deleteFile', '文件: 删除文件', undefined, operations['delete']],
         ['toggleSidebar', '查看: 切换侧栏', '⌘ / Ctrl + B', () => switchSide(sideView)],
-        ['showScm', '查看: 源代码管理', undefined, () => switchSide('git', true)],
+        ['showExplorer', '查看: 显示资源管理器', '⌘ / Ctrl + Shift + E', () => switchSide('explorer', true)],
+        ['showScm', '查看: 源代码管理', '⌘ / Ctrl + Shift + G', () => switchSide('git', true)],
+        ['showProblems', '查看: 显示问题面板', '⌘ / Ctrl + Shift + M', () => docking.showTool('problems')],
+        ['showOutput', '查看: 显示输出面板', '⌘ / Ctrl + Shift + U', () => docking.showTool('output')],
         ['commit', 'Git: 提交已暂存更改', undefined, () => scm.commit()],
         ['togglePanel', '查看: 切换底部面板', '⌘ / Ctrl + J', () => docking.toggleTools()],
         ['split', '查看: 向右拆分编辑器', '⌘ / Ctrl + 反斜杠', () => docking.splitEditor()],

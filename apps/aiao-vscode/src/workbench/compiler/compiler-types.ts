@@ -16,3 +16,22 @@ export interface CompiledProject {
   css: string;
   html?: string;
 }
+
+/** 一次编译失败中可定位到文件与行的诊断。 */
+export interface WorkbenchDiagnostic {
+  readonly file: string;
+  readonly line?: number;
+  readonly column?: number;
+  readonly message: string;
+}
+
+/** 携带结构化诊断的编译失败，宿主可据此渲染可点击的问题条目。 */
+export class CompilationError extends Error {
+  constructor(
+    message: string,
+    readonly diagnostics: readonly WorkbenchDiagnostic[]
+  ) {
+    super(message);
+    this.name = 'CompilationError';
+  }
+}

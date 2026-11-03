@@ -1,7 +1,7 @@
 import type { RxDB } from '@aiao/rxdb';
 import { of, throwError } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
-import { createRxDBWorkbenchCatalog, WorkbenchProject } from './rxdb-catalog.js';
+import { createRxDBWorkbenchCatalog, WorkbenchProject, WorkbenchSessionState } from './rxdb-catalog.js';
 
 describe('RxDB workbench project catalog', () => {
   it('maps repository entities to catalog entries in the supplied database', async () => {
@@ -55,5 +55,36 @@ describe('RxDB workbench project catalog', () => {
       catalog.put({ id: 'p', name: 'p', template: 'vanilla', entry: 'main.ts', updatedAt: 1 })
     ).rejects.toThrow('lookup failed');
     expect(instantiate).not.toHaveBeenCalled();
+  });
+
+  it('reads missing session state as null and persists state through the state repository', async () => {
+    const record = {
+      id: 'project',
+      tabs: ['src/main.ts'],
+      activePath: 'src/main.ts',
+      updatedAt: 1,
+      save: vi.fn(async () => undefined)
+    };
+    const stateRepository = {
+      findOne: vi
+        .fn()
+        .mockReturnValueOnce(of(undefined))
+        .mockReturnValueOnce(of(record))
+        .mockReturnValueOnce(of(undefined))
+    };
+    const getRepository = vi.fn((entity: unknown) => {
+      if (entity === WorkbenchSessionState) return stateRepository;
+      return { findAll: () => of([]), findOne: () => of(undefined) };
+    });
+    const instantiate = vi.fn(() => record);
+    const db = { entityManager: { instantiate, getRepository } } as unknown as RxDB;
+    const catalog = createRxDBWorkbenchCatalog(db);
+    await expect(catalog.getState('project')).resolves.toBeNull();
+    await expect(catalog.getState('project')).resolves.toEqual({ tabs: ['src/main.ts'], activePath: 'src/main.ts' });
+    await catalog.putState('project', { tabs: ['src/label.ts'], activePath: 'src/label.ts' });
+    expect(instantiate).toHaveBeenCalledWith(WorkbenchSessionState, { id: 'project' });
+    expect(record.tabs).toEqual(['src/label.ts']);
+    expect(record.activePath).toBe('src/label.ts');
+    expect(record.save).toHaveBeenCalledOnce();
   });
 });

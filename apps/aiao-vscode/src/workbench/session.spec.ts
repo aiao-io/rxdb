@@ -50,6 +50,22 @@ describe('WorkbenchSession', () => {
     expect(session.state.revision).toBe('1');
   });
 
+  it('restoreTabs 过滤不存在路径并恢复活动文件', async () => {
+    const { backend } = fixture();
+    const session = new WorkbenchSession(backend);
+    await session.open('first');
+    expect(() => session.restoreTabs(['main.ts'], null)).not.toThrow();
+    expect(session.state.tabs).toEqual(['main.ts']);
+    expect(session.state.activePath).toBe('main.ts');
+    session.restoreTabs(['missing.ts', 'main.ts'], 'missing.ts');
+    expect(session.state.tabs).toEqual(['main.ts']);
+    expect(session.state.activePath).toBe('main.ts');
+    expect(() => session.restoreTabs([], null)).not.toThrow();
+    expect(session.state.tabs).toEqual([]);
+    expect(session.state.activePath).toBeNull();
+    session.dispose();
+  });
+
   it('保存回执不覆盖保存期间的新输入', async () => {
     const { backend } = fixture();
     const session = new WorkbenchSession(backend);
