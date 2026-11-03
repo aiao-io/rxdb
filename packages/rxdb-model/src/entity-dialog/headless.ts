@@ -1,3 +1,5 @@
+import { cloneStructured, structuralEqual } from '../structural-equal.js';
+
 /** 无弹窗实现依赖的对话框生命周期状态。 */
 export interface EntityDialogSnapshot<TResult = unknown, TData = unknown> {
   readonly open: boolean;
@@ -19,6 +21,8 @@ export class EntityDialogController<TResult = unknown, TData = unknown> {
   readonly #listeners = new Set<DialogListener<TResult, TData>>();
   #open: boolean;
   #data: TData | undefined;
+  /** 最近一次数据的副本：宿主原地修改后再传同一引用，比较仍能看出变化。 */
+  #dataCopy: TData | undefined;
   #result: TResult | undefined;
   #snapshot: EntityDialogSnapshot<TResult, TData>;
   #disposed = false;
@@ -29,7 +33,7 @@ export class EntityDialogController<TResult = unknown, TData = unknown> {
 
   constructor(options: EntityDialogControllerOptions<TData> = {}) {
     this.#open = options.open ?? false;
-    this.#data = options.data;
+    this.#storeData(options.data);
     this.#snapshot = this.#buildSnapshot();
   }
   /** 订阅打开、关闭、数据和结果事件。 */
@@ -41,7 +45,7 @@ export class EntityDialogController<TResult = unknown, TData = unknown> {
   /** 打开弹窗并清除上一次结果。 */
   open(data?: TData): void {
     this.#assertActive();
-    this.#data = data === undefined ? this.#data : data;
+    if (data !== undefined) this.#storeData(data);
     this.#result = undefined;
     this.#open = true;
     this.#publish('opened');
@@ -60,16 +64,25 @@ export class EntityDialogController<TResult = unknown, TData = unknown> {
     this.#open = false;
     this.#publish('result');
   }
-  /** 替换消费方弹窗使用的数据。 */
+  /**
+   * 替换消费方弹窗使用的数据；与最近一次数据结构相同时不做任何事。
+   * @remarks 按 `structuralEqual` 比较（函数按引用），绑定每次渲染重建同样内容的对象不会反复发布、引发重渲染循环。
+   */
   setData(data: TData | undefined): void {
     this.#assertActive();
-    this.#data = data;
+    if (structuralEqual(data, this.#dataCopy)) return;
+    this.#storeData(data);
     this.#publish('dataChanged');
   }
   /** 清理全部监听并拒绝后续生命周期动作。 */
   dispose(): void {
     this.#disposed = true;
     this.#listeners.clear();
+  }
+  /** 快照沿用宿主传入的引用（实体实例保留方法），比较用另存的副本。 */
+  #storeData(data: TData | undefined): void {
+    this.#data = data;
+    this.#dataCopy = cloneStructured(data);
   }
   #buildSnapshot(): EntityDialogSnapshot<TResult, TData> {
     return { open: this.#open, result: this.#result, data: this.#data };

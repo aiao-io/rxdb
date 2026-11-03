@@ -10,7 +10,6 @@
 | -------------------- | -------------------------- | ------ |
 | `README.md`          | 本说明、状态约定与清理记录 | —      |
 | `review.template.md` | 新建 review 记录的模板     | —      |
-| `pr183-headless-review-2026-11-03.md` | PR #183 整分支评审结论（3 P2 + 1 P3） | 4 |
 
 ## 状态约定
 
@@ -36,6 +35,8 @@
 - **2026-10-28（PR #139 评审报告删除）**：`pr139-full-diff-review-2026-10-28.md` 的剩余治理待办已失效，现行统一评审规则见 [AGENTS.md](../../AGENTS.md)。
 
 每条只记删了什么、结论是什么；修法细节在代码注释与回归测试里。删除前的完整记录（含逐条修法、执行台账、进度页与 `evidence/` 取证目录）可用 `git show aaf155a1:requirements/reviews/<路径>` 取回。
+
+- **2026-11-03（PR #183 Headless 整分支评审删除）**：`pr183-headless-review-2026-11-03.md`（评审对象 `codex/us-403-headless` @ `fbc1ba9f`，3 P2 + 1 P3，并逐条核实了 sourcery-ai 的 27 条意见）逐条复核属实，全部处理后删除。P2-1：无数据源时首页满页 `create` 截掉的是刚建的记录——按默认列表的 `id desc`（UUID v7，最新在前）改为新记录排在最前、保持每页条数，被挤出的最旧一条连同选择一起移出。P2-2：`EntityDialogController.setData` 加结构比较守卫，比的是另存的副本（宿主原地修改后传同一引用仍会同步），React 内联 `data` 不再循环重渲染，三端同时受益。P2-3：`headless-consumer` 并入 CI extras（采集、并集、run-many，summary 改为复用同一并集）；评审建议补的 target inputs 只管缓存哈希、不参与 affected 判定（实测），改为根 project.json 对四个模型包声明 `implicitDependencies`，否则只改模型包的 PR 永远跑不到这道门禁。P3-1：事件语义不改（默认表单已发布的 `validationErrors` 输出本来就只含本次字段），TSDoc 与文档写明全量错误读 `snapshot.errors`，并补契约用例锁住。sourcery 其余意见维持评审结论。全文可用 `git show aaba1b3c:requirements/reviews/pr183-headless-review-2026-11-03.md` 取回。
 
 - **2026-11-02（PR #183 Headless 深度评审删除）**：`pr183-deep-review-2026-11-02.md`（评审对象 `codex/us-403-headless` @ `4f672cfe`，1 P1 + 6 P2）逐条复核全部属实，全部修复后删除。要点：React hook 不再在 effect 清理时 `dispose()` 控制器（`<Activity>` 隐藏、StrictMode 回放与 Fast Refresh 都和卸载无从区分；代价是卸载不再中止进行中的列表查询，已写进文档）；表单解析错误保留到修正，新增 `discardInput()` 让三端默认表单保持已发布的提交语义；列表与查询表格的宿主输入同步收进核心 `syncInput()`，三端绑定共用一份差分与应用次序。修法与判据见各控制器 TSDoc 与回归用例；全文可用 `git show e9694e5d:requirements/reviews/pr183-deep-review-2026-11-02.md` 取回。
 

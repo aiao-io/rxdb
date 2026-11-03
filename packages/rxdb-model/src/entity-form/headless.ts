@@ -55,7 +55,11 @@ export interface EntityFormFieldSnapshot {
   readonly displayValue: string;
 }
 
-/** 表单状态变化原因。 */
+/**
+ * 表单状态变化原因。
+ * @remarks `validationErrors` 只描述本次 `setField` 输入的解析失败，与默认表单的 `validationErrors` 输出一致，
+ * 不含其他字段的既有错误；全量错误读快照 `errors`，`validate()` 发布的 `validationChanged` 也是全量结果。
+ */
 export type EntityFormEvent =
   | { readonly type: 'fieldChanged'; readonly event: FormFieldChangeEvent }
   | { readonly type: 'validationErrors'; readonly result: FormValidationResult }
@@ -204,7 +208,8 @@ export class EntityFormController {
 
   /**
    * 解析并写入字段。
-   * @returns 成功时返回规范化值，失败时保留最近一次合法值。
+   * @returns 成功时返回规范化值，失败时保留最近一次合法值；失败的 `result` 与随之发布的 `validationErrors` 一样只含本次输入的解析错误，
+   * 全量错误读 `snapshot.errors`。
    */
   setField(
     fieldName: string,

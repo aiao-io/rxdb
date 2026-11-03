@@ -161,4 +161,15 @@ describe('React headless bindings', () => {
     expect(result.current.snapshot.records).toEqual([]);
     expect(renders).toBeLessThan(5);
   });
+
+  it('inline 弹窗数据不会触发重渲染循环', () => {
+    let renders = 0;
+    const { result, rerender } = renderHook(() => {
+      renders++;
+      return useEntityDialog<string, { id: string }>({ data: { id: 'a' } });
+    });
+    rerender();
+    expect(result.current.snapshot.data).toEqual({ id: 'a' });
+    expect(renders).toBeLessThan(5);
+  });
 });

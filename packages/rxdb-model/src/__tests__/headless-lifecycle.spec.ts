@@ -265,6 +265,19 @@ describe('列表异步生命周期回归', () => {
     await expect(list.create({})).rejects.toThrow(/not allowed/);
     expect(create).toHaveBeenCalledTimes(1);
   });
+
+  it('无数据源时首页满页新建：新记录排在最前，最旧一条连同选择让出本页', async () => {
+    const created = new Item('new');
+    const list = createEntityListController({ pageSize: 2, onCreate: () => created });
+    list.setRecords([new Item('b'), new Item('a')], 2);
+    list.select(['b', 'a']);
+    const events: string[] = [];
+    list.subscribe((_snapshot, event) => events.push(event.type));
+    await list.create({});
+    expect(list.snapshot.records.map(record => record.id)).toEqual(['new', 'b']);
+    expect(list.snapshot).toMatchObject({ total: 3, hasNext: true, selectedIds: ['b'] });
+    expect(events).toEqual(['created']);
+  });
 });
 
 describe('详情和弹窗异步生命周期回归', () => {
@@ -381,5 +394,22 @@ describe('详情和弹窗异步生命周期回归', () => {
     expect(() => dialog.open()).toThrow(/disposed/);
     expect(() => dialog.setData('late')).toThrow(/disposed/);
     expect(() => dialog.resolve('late')).toThrow(/disposed/);
+  });
+
+  it('弹窗数据按内容比较：内容相同的新对象不再发布，原地修改后传同一引用仍会同步', () => {
+    const data = { id: 'a', tags: ['x'] };
+    const dialog = createEntityDialogController<string, typeof data>({ data });
+    const events: string[] = [];
+    dialog.subscribe((_snapshot, event) => events.push(event.type));
+    const snapshot = dialog.snapshot;
+    dialog.setData({ id: 'a', tags: ['x'] });
+    expect(dialog.snapshot).toBe(snapshot);
+    expect(events).toEqual([]);
+    data.tags.push('y');
+    dialog.setData(data);
+    expect(dialog.snapshot.data).toBe(data);
+    dialog.open({ id: 'b', tags: [] });
+    dialog.setData({ id: 'b', tags: [] });
+    expect(events).toEqual(['dataChanged', 'opened']);
   });
 });

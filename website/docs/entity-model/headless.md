@@ -25,7 +25,7 @@ form.dispose();
 
 `snapshot` 提供 `fieldStates`、`fields`、`data`、`initialData`、`errors`、`valid`、`dirty`、`mode` 和 `readonly`。`fieldStates` 包含每个字段的配置、值、展示文本、错误和只读状态。快照中的结构化表单值与内部状态隔离。
 
-`setField` 先严格解析，失败时保留最近合法值并暴露字段错误；该错误保留到同字段输入合法值、`cancel()` 或宿主重置，期间 `validate()` 与 `submit()` 都拒绝。控件若在解析失败后回显最近合法值（如受控输入绑定 `snapshot.data`），调用 `discardInput(field)` 丢弃这次输入，提交改按最近合法值校验；默认表单即按此保持原有提交语义。`setData` / `setEntity` 将宿主输入设为新基线并清除旧错误；`cancel` 恢复最近基线。`view` 模式阻止编辑和提交。核心实例由消费方调用 `dispose()` 释放。
+`setField` 先严格解析，失败时保留最近合法值并暴露字段错误；该错误保留到同字段输入合法值、`cancel()` 或宿主重置，期间 `validate()` 与 `submit()` 都拒绝。失败时返回的 `result` 和同时发布的 `validationErrors` 事件只含本次输入的解析错误（与默认表单的 `validationErrors` 输出一致），表单的全量错误读 `snapshot.errors`；`validate()` 发布的 `validationChanged` 是全量结果。控件若在解析失败后回显最近合法值（如受控输入绑定 `snapshot.data`），调用 `discardInput(field)` 丢弃这次输入，提交改按最近合法值校验；默认表单即按此保持原有提交语义。`setData` / `setEntity` 将宿主输入设为新基线并清除旧错误；`cancel` 恢复最近基线。`view` 模式阻止编辑和提交。核心实例由消费方调用 `dispose()` 释放。
 
 ## React
 
@@ -80,9 +80,9 @@ Vue 的同名 `use*` composable 返回 `{ controller, snapshot }`，`snapshot` �
 
 三框架绑定把 `query`、`sorts`、`page`、`pageSize`、`records` 和 `capabilities` 视为可随宿主更新的输入，经 `syncInput()` 只转发相对上一次输入真正变化的项，并按查询、排序、分页、记录、能力的次序应用：同批传入的新页记录不会被随后的翻页清掉，重传等值输入也不会中止进行中的查询。控制器保存查询、排序与能力的副本，宿主原地修改这些对象后再同步同样能识别变化。`load` 与写入回调只在创建时读取。
 
-`create`、`update`、`remove` 使用消费方提供的写入回调，沿用传入的 `capabilities`。同一实体的更新按调用顺序执行；有数据源时写入成功后重新查询。写入开始会中止进行中的查询，公开 `loading` 随即回到 false；写入失败只以 rejected Promise 报告，不写入 `snapshot.error`，也不自动重新查询，需要时由消费方调用 `setError()` 或 `refresh()`。批量 `remove` 可能部分成功：成功项先从当前记录和选择中移除，失败原因以 `AggregateError.errors` 抛出，消费方应按实际结果提示并决定是否刷新。当前 headless 控制器尚未接入默认列表的撤销/重做和手动排序动作。
+`create`、`update`、`remove` 使用消费方提供的写入回调，沿用传入的 `capabilities`。同一实体的更新按调用顺序执行；有数据源时写入成功后重新查询。没有数据源时，`create` 在无查询、无排序的首页与默认列表的最新在前一致：新记录排在最前并保持每页条数，被挤出本页的最旧一条连同选择一起移出；有查询、排序或不在首页时清空当前页，等宿主补数据。写入开始会中止进行中的查询，公开 `loading` 随即回到 false；写入失败只以 rejected Promise 报告，不写入 `snapshot.error`，也不自动重新查询，需要时由消费方调用 `setError()` 或 `refresh()`。批量 `remove` 可能部分成功：成功项先从当前记录和选择中移除，失败原因以 `AggregateError.errors` 抛出，消费方应按实际结果提示并决定是否刷新。当前 headless 控制器尚未接入默认列表的撤销/重做和手动排序动作。
 
-详情 `save(onSave)` 只把合法草稿交给持久化回调；创建实例和关系装配由消费方完成。重复保存会拒绝；保存期间切换输入、继续编辑、取消或关闭后，迟到的成功不会覆盖新草稿或重新关闭新会话，迟到的失败只拒绝原 Promise，不写入新会话的 `snapshot.error`。当前会话的保存失败通过 rejected Promise 和 `snapshot.error` 暴露。`cancel()` 重置草稿，`close()` 关闭状态；自己的弹窗应连接这两个动作及结果处理。
+详情 `save(onSave)` 只把合法草稿交给持久化回调；创建实例和关系装配由消费方完成。重复保存会拒绝；保存期间切换输入、继续编辑、取消或关闭后，迟到的成功不会覆盖新草稿或重新关闭新会话，迟到的失败只拒绝原 Promise，不写入新会话的 `snapshot.error`。当前会话的保存失败通过 rejected Promise 和 `snapshot.error` 暴露。`cancel()` 重置草稿，`close()` 关闭状态；自己的弹窗应连接这两个动作及结果处理。对话框的 `setData` 按内容比较，与最近一次数据结构相同时不发布 `dataChanged`：宿主每次渲染重建同样内容的 `data`（如 React 里的内联对象）不会引发重渲染循环，数据里的函数按引用比较，需保持引用稳定。
 
 ## 接入真实应用
 
@@ -149,7 +149,7 @@ useEffect(() => {
 
 ## 依赖和交互责任
 
-四个公开包的 `/headless` 是独立构建入口，VTable 为可选 peer。默认 `EntityTable` / `QueryTable` 渲染或 VTable 列工具仍需安装表格 peer。`pnpm verify:headless-consumer` 检查构建产物入口及拒绝 VTable 的运行时导入；它复用工作区第三方依赖，不能替代尚待完成的仓外 tarball 安装与三框架完整 UI 示例。
+四个公开包的 `/headless` 是独立构建入口，VTable 为可选 peer。默认 `EntityTable` / `QueryTable` 渲染或 VTable 列工具仍需安装表格 peer。`pnpm verify:headless-consumer` 检查构建产物入口及拒绝 VTable 的运行时导入，四个模型包或该脚本有改动时 CI 的 extras job 同样执行；它复用工作区第三方依赖，不能替代尚待完成的仓外 tarball 安装与三框架完整 UI 示例。
 
 消费方须连接原生标签或 `aria-label`、输入与错误的 `aria-describedby`、只读/禁用状态、提交/取消键盘行为，以及自定义弹窗的初始焦点、焦点约束和关闭后焦点恢复。默认组件的样式接线见[样式接入](styling.md)。
 

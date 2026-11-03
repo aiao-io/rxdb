@@ -216,8 +216,7 @@ export class EntityListController<T extends EntityInstance = EntityInstance> {
     this.#records = [...records];
     this.#total = total;
     this.#error = null;
-    const known = new Set(this.#records.map(record => record.id));
-    this.#selectedIds = this.#selectedIds.filter(id => known.has(id));
+    this.#pruneSelection();
     this.#publish({ type: 'recordsChanged', records: this.#records });
   }
   /** 更新由宿主管理的数据源加载状态。 */
@@ -263,7 +262,7 @@ export class EntityListController<T extends EntityInstance = EntityInstance> {
       this.#loading = false;
       this.#records = [...result.records];
       this.#total = result.total;
-      this.#selectedIds = this.#selectedIds.filter(id => this.#records.some(record => record.id === id));
+      this.#pruneSelection();
       this.#publish({ type: 'recordsChanged', records: this.#records });
       this.#publish({ type: 'loadFinished', records: this.#records });
       return this.#records;
@@ -277,7 +276,11 @@ export class EntityListController<T extends EntityInstance = EntityInstance> {
     }
   }
 
-  /** 创建实体；有查询数据源时保存成功后重新加载当前页。 */
+  /**
+   * 创建实体；有查询数据源时保存成功后重新加载当前页。
+   * @remarks 没有数据源时，未受约束的视图（无查询、无排序的首页）与默认列表的 `id desc`（UUID v7，最新在前）一致：
+   * 新记录排在最前并保持每页条数，被挤出本页的最旧一条连同选择一起移出；受约束的视图判断不了新记录的位置，清空当前页等宿主补数据。
+   */
   async create(data: Record<string, unknown>): Promise<T> {
     this.#assertActive();
     if (this.#capabilities && !this.#capabilities.canCreate) throw new Error('Entity creation is not allowed');
@@ -294,7 +297,8 @@ export class EntityListController<T extends EntityInstance = EntityInstance> {
       this.#publish({ type: 'created', record: created });
       return created;
     }
-    this.#records = [...this.#records, created].slice(0, this.#pageSize);
+    this.#records = [created, ...this.#records].slice(0, this.#pageSize);
+    this.#pruneSelection();
     if (this.#total !== undefined) this.#total++;
     this.#publish({ type: 'created', record: created });
     if (this.#load) await this.refresh();
@@ -450,6 +454,12 @@ export class EntityListController<T extends EntityInstance = EntityInstance> {
 
   #isConstrainedView(): boolean {
     return this.#query !== undefined || this.#sorts.length > 0 || this.#page > 0;
+  }
+
+  /** 选择只保留当前页仍在的记录。 */
+  #pruneSelection(): void {
+    const known = new Set(this.#records.map(record => record.id));
+    this.#selectedIds = this.#selectedIds.filter(id => known.has(id));
   }
 
   #invalidatePending(clearRecords: boolean): void {

@@ -8,6 +8,20 @@ const fields: FormFieldConfig[] = [
 ];
 
 describe('EntityFormController', () => {
+  it('解析失败的返回值与 validationErrors 只含本次输入的错误，全量错误在快照里', () => {
+    const controller = createEntityFormController({
+      fields,
+      data: { title: '', count: 1, locked: '系统值' },
+      mode: 'edit'
+    });
+    const events: unknown[] = [];
+    controller.subscribe((_snapshot, event) => events.push(event));
+    const fieldOnly = { valid: false, errors: [expect.objectContaining({ field: 'count' })] };
+    expect(controller.setField('count', '不是数字')).toEqual({ ok: false, result: fieldOnly });
+    expect(events).toEqual([{ type: 'validationErrors', result: fieldOnly }]);
+    expect(controller.snapshot.errors.map(error => error.field)).toEqual(['title', 'count']);
+  });
+
   it('在 Node 环境提供字段解析、错误定位和提交变更集', () => {
     const controller = createEntityFormController({
       fields,
