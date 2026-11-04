@@ -23,13 +23,19 @@ const CLOSE_LABELS: Readonly<Record<string, string>> = {
       <div class="card-body gap-3 p-4">
         <h2 class="card-title text-base">在线设备</h2>
         @if (workspace.signalingState() !== 'online') {
-          <div role="status" class="alert alert-warning text-sm">
-            信令{{ workspace.signalingState() === 'rejected' ? '拒绝了本机凭据' : '不可达' }}：已建立的会话照常工作，新连接要等信令恢复。
+          <div class="alert alert-warning text-sm" role="status">
+            信令{{
+              workspace.signalingState() === 'rejected' ? '拒绝了本机凭据' : '不可达'
+            }}：已建立的会话照常工作，新连接要等信令恢复。
           </div>
         }
         <ul class="flex flex-col gap-2">
           @for (peer of workspace.peers(); track peer.key) {
-            <li class="bg-base-200 flex items-center gap-3 rounded-box p-3" data-testid="peer-row" [attr.data-peer]="peer.deviceName">
+            <li
+              class="bg-base-200 rounded-box flex items-center gap-3 p-3"
+              [attr.data-peer]="peer.deviceName"
+              data-testid="peer-row"
+            >
               <span class="status status-success"></span>
               <div class="min-w-0 flex-1">
                 <div class="truncate font-medium">{{ peer.deviceName }}</div>
@@ -40,10 +46,14 @@ const CLOSE_LABELS: Readonly<Record<string, string>> = {
                   {{ stateLabel(link) }}
                 </span>
                 @if (link.state === 'ready') {
-                  <button class="btn btn-ghost btn-xs" type="button" (click)="workspace.disconnect(link.connectionId)">断开</button>
+                  <button class="btn btn-ghost btn-xs" (click)="workspace.disconnect(link.connectionId)" type="button">
+                    断开
+                  </button>
                 }
               } @else {
-                <button class="btn btn-xs" type="button" data-testid="peer-connect" (click)="connect(peer)">连接</button>
+                <button class="btn btn-xs" (click)="connect(peer)" data-testid="peer-connect" type="button">
+                  连接
+                </button>
               }
             </li>
           } @empty {
@@ -51,15 +61,17 @@ const CLOSE_LABELS: Readonly<Record<string, string>> = {
           }
         </ul>
         @if (error(); as message) {
-          <div role="alert" class="alert alert-error text-sm">{{ message }}</div>
+          <div class="alert alert-error text-sm" role="alert">{{ message }}</div>
         }
         <h3 class="mt-2 text-sm font-semibold">会话</h3>
         <ul class="flex flex-col gap-1 text-xs" data-testid="session-list">
           @for (link of workspace.links(); track link.connectionId) {
-            <li class="flex flex-wrap items-center gap-2" data-testid="session-row" [attr.data-state]="link.state">
+            <li class="flex flex-wrap items-center gap-2" [attr.data-state]="link.state" data-testid="session-row">
               <span class="font-medium">{{ link.peer.deviceName }}</span>
               <span class="opacity-60">{{ link.role === 'initiator' ? '发起' : '响应' }}</span>
-              <span class="badge badge-xs" [class]="link.state === 'ready' ? 'badge-success' : 'badge-ghost'">{{ stateLabel(link) }}</span>
+              <span class="badge badge-xs" [class]="link.state === 'ready' ? 'badge-success' : 'badge-ghost'">{{
+                stateLabel(link)
+              }}</span>
               @for (protocol of link.protocols; track protocol) {
                 <span class="badge badge-xs badge-outline">{{ protocol }}</span>
               }
@@ -77,7 +89,8 @@ export class DevicesPanel {
   /** 每台设备最相关的一条连接：有就绪的取就绪的，否则取最新的。 */
   readonly #latestLinks = computed(() => {
     const byPeer = new Map<string, LinkView>();
-    for (const link of this.workspace.links()) if (!byPeer.has(link.peer.key) || link.state === 'ready') byPeer.set(link.peer.key, link);
+    for (const link of this.workspace.links())
+      if (!byPeer.has(link.peer.key) || link.state === 'ready') byPeer.set(link.peer.key, link);
     return byPeer;
   });
   readonly workspace = inject(P2PWorkspace);

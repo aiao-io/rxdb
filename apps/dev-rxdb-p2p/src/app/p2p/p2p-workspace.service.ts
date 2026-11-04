@@ -73,7 +73,11 @@ const HEARTBEAT_TIMEOUT_MS = 6000;
 const TRANSFER_EMIT_MS = 200;
 const RANDOM_FILL_LIMIT = 65_536;
 
-const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+/** 错误信息连同 `cause` 链：传输失败时包里只说「哪一块拿不到」，原因在 cause 上（例如对端拒绝授权）。 */
+const messageOf = (error: unknown): string => {
+  if (!(error instanceof Error)) return String(error);
+  return error.cause === undefined ? error.message : `${error.message}：${messageOf(error.cause)}`;
+};
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 const fileUrl = (contentHash: string): string => `/api/files/${contentHash}`;
 
@@ -96,10 +100,16 @@ export class P2PWorkspace {
   readonly #entities = new Map<string, P2PFileManifestEntity>();
   readonly #knownLabels = new Map<string, string>();
   readonly #holderIds = new Map<string, string>();
-  readonly #transfers = new Map<string, { readonly progress: TransferProgress; readonly controller: AbortController }>();
+  readonly #transfers = new Map<
+    string,
+    { readonly progress: TransferProgress; readonly controller: AbortController }
+  >();
   readonly #serverFallback: P2PServerFallback = {
     download: async ({ manifest, signal, token }) => {
-      const response = await fetch(fileUrl(manifest.contentHash), { headers: { authorization: `Bearer ${token}` }, signal });
+      const response = await fetch(fileUrl(manifest.contentHash), {
+        headers: { authorization: `Bearer ${token}` },
+        signal
+      });
       if (!response.ok || !response.body) throw new Error(`server fallback responded ${response.status}`);
       return response.body;
     }
@@ -190,7 +200,9 @@ export class P2PWorkspace {
     this.#transfers.set(id, { progress, controller });
     this.#emitTransfersSoon();
     const sources = connected.flatMap((result, index) =>
-      result.status === 'fulfilled' ? [progress.attribute(createP2PFilesSource(result.value, labels[index] as string))] : []
+      result.status === 'fulfilled' ?
+        [progress.attribute(createP2PFilesSource(result.value, labels[index] as string))]
+      : []
     );
     if (sources.length === 0 && !file.serverCopy) {
       const reasons = connected.flatMap(result => (result.status === 'rejected' ? [messageOf(result.reason)] : []));
@@ -206,7 +218,9 @@ export class P2PWorkspace {
 
   /** 撤回本设备对某内容的持有声明，并删掉本机副本。 */
   async revoke(contentHash: string): Promise<void> {
-    const mine = this.#records().find(record => record.contentHash === contentHash && record.holderId === this.myHolderId());
+    const mine = this.#records().find(
+      record => record.contentHash === contentHash && record.holderId === this.myHolderId()
+    );
     const entity = mine ? this.#entities.get(mine.id) : undefined;
     if (!entity) throw new Error('this device does not hold the file');
     await entity.remove();
@@ -278,7 +292,9 @@ export class P2PWorkspace {
     }).subscribe(rows => {
       this.#entities.clear();
       for (const row of rows) this.#entities.set(row.id, row);
-      this.#records.set(rows.map(row => recordOf(row)).filter((record): record is P2PManifestRecord => record !== null));
+      this.#records.set(
+        rows.map(row => recordOf(row)).filter((record): record is P2PManifestRecord => record !== null)
+      );
     });
   }
 
@@ -335,14 +351,19 @@ export class P2PWorkspace {
     const holderViews = file.holders.map(record => {
       const online = peers.filter(peer => this.#holderIdOf(peer) === record.holderId);
       const isMine = record.holderId === mine;
-      const label = isMine ? (this.device()?.name ?? '本设备') : (this.#knownLabels.get(record.holderId) ?? `${record.holderId.slice(7, 15)}…`);
+      const label =
+        isMine ?
+          (this.device()?.name ?? '本设备')
+        : (this.#knownLabels.get(record.holderId) ?? `${record.holderId.slice(7, 15)}…`);
       return { holderId: record.holderId, mine: isMine, label, online };
     });
     return {
       ...file,
       holderViews,
       heldHere: holderViews.some(holder => holder.mine),
-      onlineSources: holderViews.filter(holder => !holder.mine).reduce((count, holder) => count + holder.online.length, 0)
+      onlineSources: holderViews
+        .filter(holder => !holder.mine)
+        .reduce((count, holder) => count + holder.online.length, 0)
     };
   }
 
@@ -356,7 +377,9 @@ export class P2PWorkspace {
   }
 
   async #localContent(contentHash: string): Promise<P2PLocalContent | undefined> {
-    const mine = this.#records().find(record => record.contentHash === contentHash && record.holderId === this.myHolderId());
+    const mine = this.#records().find(
+      record => record.contentHash === contentHash && record.holderId === this.myHolderId()
+    );
     if (!mine) return undefined;
     const file = await this.#held.open(contentHash);
     if (file?.size !== mine.size) return undefined;

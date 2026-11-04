@@ -80,11 +80,45 @@ test.describe('dev-rxdb-p2p 认证合同', () => {
     expect((await insert(await holderIdOf(bob.id, bob.deviceId))).status()).toBe(403);
   });
 
+  test('US-704 AC#9 每个用户只能撤回自己设备的持有声明', async ({ request }) => {
+    const { supabaseUrl, supabaseAnonKey } = await configOf(request);
+    const alice = await signUpWithDevice(request, 'alice');
+    const bob = await signUpWithDevice(request, 'bob');
+    const rows = `${supabaseUrl}/rest/v1/p2p_file_manifest`;
+    const as = (account: Account) => ({
+      apikey: supabaseAnonKey,
+      authorization: `Bearer ${account.token}`,
+      'accept-profile': 'p2p',
+      'content-profile': 'p2p',
+      prefer: 'return=representation'
+    });
+    const id = crypto.randomUUID();
+    await request.post(rows, {
+      headers: as(alice),
+      data: {
+        id,
+        contentHash: 'd'.repeat(64),
+        fileName: 'revoke.bin',
+        size: 1,
+        chunkSize: 1,
+        chunkHashes: ['c'.repeat(64)],
+        holderId: await holderIdOf(alice.id, alice.deviceId)
+      }
+    });
+
+    const byBob = await request.delete(`${rows}?id=eq.${id}`, { headers: as(bob) });
+    expect(await byBob.json()).toEqual([]);
+    const byAlice = await request.delete(`${rows}?id=eq.${id}`, { headers: as(alice) });
+    expect(await byAlice.json()).toMatchObject([{ id }]);
+  });
+
   test('US-704 AC#9 信令拒绝伪造的 token 与冒用他人的设备，通用拒绝不带细节', async ({ request }) => {
     const alice = await signUpWithDevice(request, 'alice');
     const bob = await signUpWithDevice(request, 'bob');
 
-    await expect(helloReply({ accessToken: alice.token, deviceId: alice.deviceId, instanceId: 'a-1' })).resolves.toMatchObject({
+    await expect(
+      helloReply({ accessToken: alice.token, deviceId: alice.deviceId, instanceId: 'a-1' })
+    ).resolves.toMatchObject({
       type: 'welcome'
     });
     await expect(helloReply({ accessToken: 'forged', deviceId: alice.deviceId, instanceId: 'm-1' })).resolves.toEqual({

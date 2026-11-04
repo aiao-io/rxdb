@@ -25,6 +25,7 @@ export const authenticatePeerTicket = async (
 ): Promise<P2PPrincipal | null> => {
   const claims = await verifyConnectionTicket(credential, key, { connectionId: context.connectionId, now });
   if (!claims) return null;
-  const isExpected = claims.sub === expected.principal && claims.dev === expected.deviceId && claims.ins === expected.key;
+  const isExpected =
+    claims.sub === expected.principal && claims.dev === expected.deviceId && claims.ins === expected.key;
   return isExpected ? ticketPrincipal(claims) : null;
 };

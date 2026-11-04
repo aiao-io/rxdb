@@ -7,7 +7,10 @@ const envWith = (overrides: Partial<Env> = {}): Env => ({
   SUPABASE_URL: 'http://supabase.test/',
   SUPABASE_ANON_KEY: 'anon-key',
   TICKET_PRIVATE_JWK: '',
-  SIGNALING: { idFromName: vi.fn(name => `id:${name}`), get: vi.fn(() => ({ fetch: async () => new Response('room') })) },
+  SIGNALING: {
+    idFromName: vi.fn(name => `id:${name}`),
+    get: vi.fn(() => ({ fetch: async () => new Response('room') }))
+  },
   FILES: { head: async () => null, get: async () => null, put: async () => ({}) },
   ...overrides
 });

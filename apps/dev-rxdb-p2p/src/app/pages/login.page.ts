@@ -17,41 +17,41 @@ import { AuthService } from '../auth/auth.service';
           <label class="input w-full">
             <span class="label">邮箱</span>
             <input
-              type="email"
-              name="email"
-              autocomplete="username"
-              required
-              data-testid="login-email"
               [value]="email()"
               (input)="email.set($any($event.target).value)"
+              autocomplete="username"
+              data-testid="login-email"
+              name="email"
+              required
+              type="email"
             />
           </label>
           <label class="input w-full">
             <span class="label">密码</span>
             <input
-              type="password"
-              name="password"
-              autocomplete="current-password"
-              minlength="6"
-              required
-              data-testid="login-password"
               [value]="password()"
               (input)="password.set($any($event.target).value)"
+              autocomplete="current-password"
+              data-testid="login-password"
+              minlength="6"
+              name="password"
+              required
+              type="password"
             />
           </label>
           @if (error(); as message) {
-            <div role="alert" class="alert alert-error text-sm" data-testid="login-error">{{ message }}</div>
+            <div class="alert alert-error text-sm" data-testid="login-error" role="alert">{{ message }}</div>
           }
           <div class="card-actions">
-            <button class="btn btn-primary flex-1" type="submit" data-testid="login-sign-in" [disabled]="busy()">
+            <button class="btn btn-primary flex-1" [disabled]="busy()" data-testid="login-sign-in" type="submit">
               登录
             </button>
             <button
               class="btn flex-1"
-              type="button"
-              data-testid="login-sign-up"
               [disabled]="busy()"
               (click)="submit($event, 'signUp')"
+              data-testid="login-sign-up"
+              type="button"
             >
               注册
             </button>

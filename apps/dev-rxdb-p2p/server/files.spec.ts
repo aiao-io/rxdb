@@ -22,7 +22,12 @@ class FakeBucket implements R2BucketLike {
 
   async get(key: string) {
     const bytes = this.objects.get(key);
-    return bytes ? { body: new Response(bytes as Uint8Array<ArrayBuffer>).body as ReadableStream<Uint8Array>, size: bytes.byteLength } : null;
+    return bytes ?
+        {
+          body: new Response(bytes as Uint8Array<ArrayBuffer>).body as ReadableStream<Uint8Array>,
+          size: bytes.byteLength
+        }
+      : null;
   }
 }
 
@@ -31,11 +36,19 @@ const depsWith = (bucket = new FakeBucket()): FileRouteDeps & { readonly bucket:
   verifyUser: async token => (token === 'good' ? { id: 'user-1', email: 'a@example.com' } : null)
 });
 
-const request = (method: string, init: { readonly token?: string; readonly body?: BodyInit; readonly length?: number } = {}) => {
+const request = (
+  method: string,
+  init: { readonly token?: string; readonly body?: BodyInit; readonly length?: number } = {}
+) => {
   const headers = new Headers();
   if (init.token) headers.set('authorization', `Bearer ${init.token}`);
   if (init.length !== undefined) headers.set('content-length', String(init.length));
-  return new Request(`http://worker.test/api/files/${HASH}`, { method, headers, body: init.body, duplex: 'half' } as RequestInit);
+  return new Request(`http://worker.test/api/files/${HASH}`, {
+    method,
+    headers,
+    body: init.body,
+    duplex: 'half'
+  } as RequestInit);
 };
 
 describe('handleFileRequest', () => {

@@ -104,7 +104,11 @@ export class ManifestSync {
       await operation();
       this.status$.next({ phase: 'idle', error: null, lastSyncedAt: this.#options.now() });
     } catch (error) {
-      this.status$.next({ phase: 'error', error: error instanceof Error ? error.message : String(error), lastSyncedAt });
+      this.status$.next({
+        phase: 'error',
+        error: error instanceof Error ? error.message : String(error),
+        lastSyncedAt
+      });
     }
   }
 }

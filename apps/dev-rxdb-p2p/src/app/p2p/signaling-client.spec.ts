@@ -100,7 +100,9 @@ describe('SignalingClient', () => {
     socket.receive({ type: 'signal', from: PEER.key, connectionId: 'c-1', kind: 'offer', payload: 'sdp' });
 
     expect(client.peers$.value).toEqual([]);
-    expect(connections).toEqual([{ type: 'connection', connectionId: 'c-1', role: 'responder', peer: PEER, ticket: 't' }]);
+    expect(connections).toEqual([
+      { type: 'connection', connectionId: 'c-1', role: 'responder', peer: PEER, ticket: 't' }
+    ]);
     expect(signals).toEqual([{ type: 'signal', from: PEER.key, connectionId: 'c-1', kind: 'offer', payload: 'sdp' }]);
   });
 

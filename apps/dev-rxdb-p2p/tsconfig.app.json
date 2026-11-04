@@ -3,9 +3,9 @@
     "outDir": "../../dist/out-tsc/apps/dev-rxdb-p2p/app",
     "types": []
   },
+  "exclude": ["src/**/*.spec.ts", "shared/**/*.spec.ts", "src/test-setup.ts", "src/**/*.worker.ts"],
   "extends": "./tsconfig.json",
   "include": ["src/**/*.ts", "shared/**/*.ts"],
-  "exclude": ["src/**/*.spec.ts", "shared/**/*.spec.ts", "src/test-setup.ts", "src/**/*.worker.ts"],
   "references": [
     {
       "path": "../../packages/rxdb-plugin-p2p/tsconfig.lib.json"

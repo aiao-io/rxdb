@@ -55,7 +55,12 @@ class FakeSocket implements HubSocket {
 }
 
 const hello = (name: string, accessToken = `token-${name}`): string =>
-  JSON.stringify({ type: 'hello', accessToken, deviceId: `device-${name}`, instanceId: `instance-${name}` } satisfies HelloMessage);
+  JSON.stringify({
+    type: 'hello',
+    accessToken,
+    deviceId: `device-${name}`,
+    instanceId: `instance-${name}`
+  } satisfies HelloMessage);
 
 describe('SignalingHub', () => {
   let sockets: FakeSocket[];
@@ -94,7 +99,12 @@ describe('SignalingHub', () => {
     const alice = await join('alice');
     const bob = await join('bob');
 
-    expect(bob.last()).toEqual({ type: 'welcome', self: peerOf('bob'), peers: [peerOf('alice')], ticketKey: TICKET_KEY });
+    expect(bob.last()).toEqual({
+      type: 'welcome',
+      self: peerOf('bob'),
+      peers: [peerOf('alice')],
+      ticketKey: TICKET_KEY
+    });
     expect(alice.last()).toEqual({ type: 'presence', peers: [peerOf('bob')] });
   });
 
@@ -182,7 +192,13 @@ describe('SignalingHub', () => {
 
     await hub.receive(
       alice,
-      JSON.stringify({ type: 'signal', to: 'instance-bob', connectionId: 'connection-1', kind: 'offer', payload: 'sdp' })
+      JSON.stringify({
+        type: 'signal',
+        to: 'instance-bob',
+        connectionId: 'connection-1',
+        kind: 'offer',
+        payload: 'sdp'
+      })
     );
 
     expect(bob.last()).toEqual({

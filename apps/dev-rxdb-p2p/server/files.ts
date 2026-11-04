@@ -56,7 +56,9 @@ const upload = async (request: Request, contentHash: string, bucket: R2BucketLik
   try {
     await bucket.put(key, request.body, { sha256: contentHash });
   } catch (error) {
-    return json(502, { error: `storage rejected the upload: ${error instanceof Error ? error.message : String(error)}` });
+    return json(502, {
+      error: `storage rejected the upload: ${error instanceof Error ? error.message : String(error)}`
+    });
   }
   return json(201, { stored: true });
 };

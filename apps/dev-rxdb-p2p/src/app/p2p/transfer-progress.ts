@@ -56,7 +56,13 @@ export class TransferProgress {
    * @param sources - 参与下载的来源名
    * @param changed - 进度有变化时回调（页面据此节流刷新）
    */
-  constructor(id: string, manifest: P2PFileManifest, sources: readonly string[], now: () => number, changed: () => void) {
+  constructor(
+    id: string,
+    manifest: P2PFileManifest,
+    sources: readonly string[],
+    now: () => number,
+    changed: () => void
+  ) {
     this.#id = id;
     this.#manifest = manifest;
     this.#sources = sources;

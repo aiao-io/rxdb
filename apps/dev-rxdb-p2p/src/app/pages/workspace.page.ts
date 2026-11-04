@@ -17,22 +17,30 @@ import { TransfersPanel } from './transfers-panel';
         <span class="font-semibold">局域网 P2P 文件共享</span>
         <span class="ml-2 text-xs opacity-60">@aiao/rxdb-plugin-p2p</span>
       </div>
-      <span class="badge badge-sm" data-testid="signaling-state" [class]="workspace.signalingState() === 'online' ? 'badge-success' : 'badge-warning'">
+      <span
+        class="badge badge-sm"
+        [class]="workspace.signalingState() === 'online' ? 'badge-success' : 'badge-warning'"
+        data-testid="signaling-state"
+      >
         信令 {{ workspace.signalingState() }}
       </span>
-      <span class="badge badge-sm" [class]="workspace.sync().phase === 'error' ? 'badge-error' : 'badge-ghost'" [title]="workspace.sync().error ?? ''">
+      <span
+        class="badge badge-sm"
+        [class]="workspace.sync().phase === 'error' ? 'badge-error' : 'badge-ghost'"
+        [title]="workspace.sync().error ?? ''"
+      >
         同步 {{ workspace.sync().phase }}
       </span>
       <div class="text-right text-xs leading-tight">
         <div data-testid="current-user">{{ auth.session()?.user?.email }}</div>
         <div class="opacity-60" data-testid="current-device">{{ workspace.device()?.name ?? '登记设备中…' }}</div>
       </div>
-      <button class="btn btn-ghost btn-sm" type="button" (click)="auth.signOut()">退出</button>
+      <button class="btn btn-ghost btn-sm" (click)="auth.signOut()" type="button">退出</button>
     </header>
 
     @switch (workspace.phase()) {
       @case ('failed') {
-        <div role="alert" class="alert alert-error m-4">启动失败：{{ workspace.startError() }}</div>
+        <div class="alert alert-error m-4" role="alert">启动失败：{{ workspace.startError() }}</div>
       }
       @case ('ready') {
         <main class="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
@@ -47,7 +55,9 @@ import { TransfersPanel } from './transfers-panel';
         </main>
       }
       @default {
-        <div class="flex items-center gap-2 p-6"><span class="loading loading-spinner"></span>登记设备、打开本地库并连接信令…</div>
+        <div class="flex items-center gap-2 p-6">
+          <span class="loading loading-spinner"></span>登记设备、打开本地库并连接信令…
+        </div>
       }
     }
   `

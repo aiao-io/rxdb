@@ -38,4 +38,3 @@ export const handleRequest = async (request: Request, env: Env): Promise<Respons
     headers: { 'content-type': 'application/json' }
   });
 };
-

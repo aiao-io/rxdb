@@ -22,31 +22,58 @@ const STATE_LABELS: Readonly<Record<TransferView['state'], string>> = {
       <div class="card-body gap-3 p-4">
         <h2 class="card-title text-base">传输</h2>
         @for (transfer of workspace.transfers(); track transfer.id) {
-          <article class="bg-base-200 rounded-box flex flex-col gap-2 p-3" data-testid="transfer" [attr.data-state]="transfer.state">
+          <article
+            class="bg-base-200 rounded-box flex flex-col gap-2 p-3"
+            [attr.data-state]="transfer.state"
+            data-testid="transfer"
+          >
             <div class="flex flex-wrap items-center gap-2">
               <span class="flex-1 truncate font-medium">{{ transfer.fileName }}</span>
-              <span class="badge badge-sm" [class]="stateClass(transfer)" data-testid="transfer-state">{{ stateLabel(transfer) }}</span>
-              <span class="badge badge-sm badge-outline">{{ transfer.route === 'p2p' ? 'P2P 直传' : '服务器回退' }}</span>
+              <span class="badge badge-sm" [class]="stateClass(transfer)" data-testid="transfer-state">{{
+                stateLabel(transfer)
+              }}</span>
+              <span class="badge badge-sm badge-outline">{{
+                transfer.route === 'p2p' ? 'P2P 直传' : '服务器回退'
+              }}</span>
               @if (transfer.state === 'running') {
-                <button class="btn btn-ghost btn-xs" type="button" data-testid="transfer-cancel" (click)="workspace.cancel(transfer.id)">取消</button>
+                <button
+                  class="btn btn-ghost btn-xs"
+                  (click)="workspace.cancel(transfer.id)"
+                  data-testid="transfer-cancel"
+                  type="button"
+                >
+                  取消
+                </button>
               }
             </div>
-            <progress class="progress progress-primary w-full" [value]="transfer.bytes" [max]="transfer.size"></progress>
+            <progress
+              class="progress progress-primary w-full"
+              [max]="transfer.size"
+              [value]="transfer.bytes"
+            ></progress>
             <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs opacity-70">
               <span>{{ size(transfer.bytes) }} / {{ size(transfer.size) }}</span>
               <span>{{ throughput(transfer) }}</span>
               @if (transfer.rejected) {
-                <span class="text-error" data-testid="transfer-rejected">{{ transfer.rejected }} 个坏块被丢弃并换源重拉</span>
+                <span class="text-error" data-testid="transfer-rejected"
+                  >{{ transfer.rejected }} 个坏块被丢弃并换源重拉</span
+                >
               }
             </div>
             <div class="flex flex-wrap gap-[2px]" aria-label="块图">
               @for (source of transfer.chunks; track $index) {
-                <span class="h-2 w-2 rounded-[1px]" [class]="colorOf(transfer, source)" [title]="source ?? '等待中'"></span>
+                <span
+                  class="h-2 w-2 rounded-[1px]"
+                  [class]="colorOf(transfer, source)"
+                  [title]="source ?? '等待中'"
+                ></span>
               }
             </div>
             <div class="flex flex-wrap gap-2 text-xs">
               @for (source of transfer.sources; track source) {
-                <span class="flex items-center gap-1"><span class="h-2 w-2 rounded-[1px]" [class]="colorOf(transfer, source)"></span>{{ source }}</span>
+                <span class="flex items-center gap-1"
+                  ><span class="h-2 w-2 rounded-[1px]" [class]="colorOf(transfer, source)"></span>{{ source }}</span
+                >
               }
               <span class="flex items-center gap-1"><span class="bg-neutral h-2 w-2 rounded-[1px]"></span>服务器</span>
             </div>

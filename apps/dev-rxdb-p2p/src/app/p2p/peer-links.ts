@@ -143,7 +143,9 @@ export class PeerLinks {
     const link = this.#createLink(offer);
     this.#links.set(offer.connectionId, link);
     if (offer.role === 'responder') {
-      link.pc.addEventListener('datachannel', event => this.#settle(link, this.#open(link, event.channel)), { once: true });
+      link.pc.addEventListener('datachannel', event => this.#settle(link, this.#open(link, event.channel)), {
+        once: true
+      });
     } else {
       this.#startInitiator(link).catch((error: unknown) => this.#fail(link, error));
       this.#waiting.get(offer.peer.key)?.(offer);
@@ -214,7 +216,9 @@ export class PeerLinks {
   #queueSignal(signal: IncomingSignal): void {
     const link = this.#links.get(signal.connectionId);
     if (!link || signal.from !== link.offer.peer.key) return;
-    link.signals = link.signals.then(() => this.#applySignal(link, signal)).catch((error: unknown) => this.#fail(link, error));
+    link.signals = link.signals
+      .then(() => this.#applySignal(link, signal))
+      .catch((error: unknown) => this.#fail(link, error));
   }
 
   async #applySignal(link: Link, signal: IncomingSignal): Promise<void> {

@@ -47,9 +47,9 @@ describe('connection ticket', () => {
     const keys = await keysFor(await generateJwk());
     const ticket = await signConnectionTicket(claims(), keys.signing);
 
-    await expect(verifyConnectionTicket(ticket, keys.verify, { connectionId: 'connection-1', now: NOW })).resolves.toEqual(
-      claims()
-    );
+    await expect(
+      verifyConnectionTicket(ticket, keys.verify, { connectionId: 'connection-1', now: NOW })
+    ).resolves.toEqual(claims());
   });
 
   it('rejects a ticket replayed on another connection', async () => {

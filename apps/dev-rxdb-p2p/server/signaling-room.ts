@@ -8,7 +8,12 @@
 import type { SignalingPeer } from '../shared/signaling-protocol';
 import { supabaseConfigOf, type Env } from './env';
 import { findOwnDevice, verifyAccessToken } from './identity';
-import { createWebSocketPair, upgradeResponse, type DurableObjectStateLike, type HibernatableWebSocket } from './runtime';
+import {
+  createWebSocketPair,
+  upgradeResponse,
+  type DurableObjectStateLike,
+  type HibernatableWebSocket
+} from './runtime';
 import { SignalingHub, type HelloMessage, type HubSocket } from './signaling-hub';
 import { createTicketIssuer } from './tickets';
 

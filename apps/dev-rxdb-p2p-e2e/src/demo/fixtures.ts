@@ -5,7 +5,14 @@
  * 信令 WebSocket 一开始就经 `routeWebSocket` 代理一层：`cutServer()` 才能断开已经建立的信令连接
  * （`route` 只拦新请求），并拒绝之后的重连；同时拦掉 Worker 的 `/api/**` 与 Supabase 的全部请求。
  */
-import { expect, type Browser, type BrowserContext, type Locator, type Page, type WebSocketRoute } from '@playwright/test';
+import {
+  expect,
+  type Browser,
+  type BrowserContext,
+  type Locator,
+  type Page,
+  type WebSocketRoute
+} from '@playwright/test';
 
 /** demo 服务的端口（wrangler dev，构建产物）。 */
 export const DEMO_PORT = 4382;
@@ -91,7 +98,9 @@ export const transferOf = (device: Device, fileName: string): Locator =>
 /** 与某台在线设备建立会话，等它就绪。 */
 export const connectTo = async (device: Device, peer: Device): Promise<void> => {
   await device.page.locator(`[data-testid="peer-row"][data-peer="${peer.name}"]`).getByTestId('peer-connect').click();
-  await expect(device.page.locator('[data-testid="session-row"][data-state="ready"]').filter({ hasText: peer.name })).toBeVisible();
+  await expect(
+    device.page.locator('[data-testid="session-row"][data-state="ready"]').filter({ hasText: peer.name })
+  ).toBeVisible();
 };
 
 /** 本设备 OPFS 里某个文件的 SHA-256：直接读落盘的字节，不经应用代码。 */

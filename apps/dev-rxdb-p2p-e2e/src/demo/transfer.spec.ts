@@ -18,6 +18,8 @@ test.describe('dev-rxdb-p2p 浏览器双设备', () => {
     await expect(transfer).toHaveAttribute('data-state', 'done');
     await expect(transfer).toContainText('P2P 直传');
     await expect(fileRow(fetcher, fileName).getByTestId('file-revoke')).toBeVisible();
+    // 下载方登记为持有者后，清单经同步回到原持有方：两端互见（US-704 AC#1）
+    await expect(fileRow(holder, fileName)).toContainText(fetcher.name);
     expect(await storedDigest(fetcher, contentHash)).toBe(contentHash);
     expect(await storedDigest(holder, contentHash)).toBe(contentHash);
   });

@@ -10,7 +10,10 @@ const transportOf = (incoming: Uint8Array[]): P2PByteTransport => ({
 
 describe('summarizeFrame', () => {
   it.each([
-    [{ kind: 'request', id: 3, protocol: 'p2p.files', method: 'read', params: {}, payload: new Uint8Array(0) }, 'p2p.files.read'],
+    [
+      { kind: 'request', id: 3, protocol: 'p2p.files', method: 'read', params: {}, payload: new Uint8Array(0) },
+      'p2p.files.read'
+    ],
     [{ kind: 'error', id: 3, code: 'not_holder', message: 'no' }, 'not_holder'],
     [{ kind: 'bye', reason: 'duplicate' }, 'duplicate'],
     [{ kind: 'ping' }, null]

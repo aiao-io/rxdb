@@ -1,6 +1,11 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { importTicketSigningKey, importTicketVerifyKey, publicTicketKeyOf, signConnectionTicket } from '../../../shared/connection-ticket';
+import {
+  importTicketSigningKey,
+  importTicketVerifyKey,
+  publicTicketKeyOf,
+  signConnectionTicket
+} from '../../../shared/connection-ticket';
 import type { SignalingPeer } from '../../../shared/signaling-protocol';
 import { authenticatePeerTicket } from './peer-auth';
 
@@ -20,7 +25,10 @@ const setup = async () => {
   const signing = await importTicketSigningKey(jwk);
   const verify = await importTicketVerifyKey(publicTicketKeyOf(jwk));
   const ticketFor = (peer: SignalingPeer, cid = 'connection-1') =>
-    signConnectionTicket({ v: 1, cid, sub: peer.principal, dev: peer.deviceId, ins: peer.key, exp: NOW / 1000 + 60 }, signing);
+    signConnectionTicket(
+      { v: 1, cid, sub: peer.principal, dev: peer.deviceId, ins: peer.key, exp: NOW / 1000 + 60 },
+      signing
+    );
   return { verify, ticketFor };
 };
 
@@ -38,7 +46,13 @@ describe('authenticatePeerTicket', () => {
     const { verify, ticketFor } = await setup();
 
     await expect(
-      authenticatePeerTicket(await ticketFor(peerOf('alice')), { connectionId: 'connection-1' }, peerOf('bob'), verify, NOW)
+      authenticatePeerTicket(
+        await ticketFor(peerOf('alice')),
+        { connectionId: 'connection-1' },
+        peerOf('bob'),
+        verify,
+        NOW
+      )
     ).resolves.toBeNull();
   });
 

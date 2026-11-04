@@ -5,12 +5,12 @@
  * 实体类是模块单例，只能绑定一个 RxDB 实例；换用户时整页重载，不在同一页里建第二个库。
  */
 import { RxDB, SyncType } from '@aiao/rxdb';
+import type { SupabaseAdapterOptions } from '@aiao/rxdb-adapter-supabase';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginP2PFiles } from '@aiao/rxdb-plugin-p2p';
 import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { checkOPFSAvailable } from '@aiao/utils';
-import type { SupabaseAdapterOptions } from '@aiao/rxdb-adapter-supabase';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { buildWaSqliteOptions, isSharedWorkerSupported } from './wa-sqlite-options';
 

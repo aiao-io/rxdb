@@ -5,7 +5,11 @@ const USER = 'user-1';
 
 const storeWith = (entries: Record<string, string> = {}) => {
   const map = new Map(Object.entries(entries));
-  return { getItem: (key: string) => map.get(key) ?? null, setItem: (key: string, value: string) => map.set(key, value), map };
+  return {
+    getItem: (key: string) => map.get(key) ?? null,
+    setItem: (key: string, value: string) => map.set(key, value),
+    map
+  };
 };
 
 const apiWith = (devices: Record<string, string>): DeviceApi & { readonly registered: string[] } => {
@@ -53,10 +57,19 @@ describe('ensureDevice', () => {
 
 describe('defaultDeviceName', () => {
   it.each([
-    ['Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Safari/537.36', 'Chrome · macOS'],
+    [
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Safari/537.36',
+      'Chrome · macOS'
+    ],
     ['Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0', 'Firefox · Windows'],
-    ['Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15', 'Safari · macOS'],
-    ['Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Safari/537.36 Edg/141.0', 'Edge · Linux'],
+    [
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15',
+      'Safari · macOS'
+    ],
+    [
+      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Safari/537.36 Edg/141.0',
+      'Edge · Linux'
+    ],
     ['curl/8.0', 'Browser · Device']
   ])('names %s', (userAgent, expected) => {
     expect(defaultDeviceName(userAgent)).toBe(expected);

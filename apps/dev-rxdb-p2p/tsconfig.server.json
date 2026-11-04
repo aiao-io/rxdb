@@ -4,9 +4,9 @@
     "tsBuildInfoFile": "../../dist/out-tsc/apps/dev-rxdb-p2p/server/tsconfig.server.tsbuildinfo",
     "types": []
   },
+  "exclude": ["server/**/*.spec.ts", "shared/**/*.spec.ts"],
   "extends": "./tsconfig.json",
   "include": ["server/**/*.ts", "shared/**/*.ts"],
-  "exclude": ["server/**/*.spec.ts", "shared/**/*.spec.ts"],
   "references": [
     {
       "path": "../../packages/rxdb-plugin-p2p/tsconfig.lib.json"

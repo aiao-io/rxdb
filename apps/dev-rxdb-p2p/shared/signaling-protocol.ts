@@ -93,8 +93,7 @@ const ERROR_CODES: ReadonlySet<unknown> = new Set<SignalingErrorCode>([
 const isText = (value: unknown): value is string => typeof value === 'string' && value.length > 0;
 const isFields = (value: unknown): value is Fields =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
-const isPayload = (value: unknown): boolean =>
-  typeof value === 'string' && value.length <= MAX_SIGNAL_PAYLOAD_LENGTH;
+const isPayload = (value: unknown): boolean => typeof value === 'string' && value.length <= MAX_SIGNAL_PAYLOAD_LENGTH;
 
 const PEER_FIELDS = ['key', 'principal', 'userName', 'deviceId', 'deviceName'] as const;
 
@@ -116,7 +115,10 @@ const SERVER_RULES: Readonly<Record<string, Validator>> = {
   welcome: message => isPeer(message['self']) && isPeerList(message['peers']) && isFields(message['ticketKey']),
   presence: message => isPeerList(message['peers']),
   connection: message =>
-    isText(message['connectionId']) && ROLES.has(message['role']) && isPeer(message['peer']) && isText(message['ticket']),
+    isText(message['connectionId']) &&
+    ROLES.has(message['role']) &&
+    isPeer(message['peer']) &&
+    isText(message['ticket']),
   signal: message =>
     isText(message['from']) &&
     isText(message['connectionId']) &&

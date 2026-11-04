@@ -26,5 +26,9 @@ export const supabaseConfigOf = (env: Env): SupabaseAuthConfig => {
     throw new Error('SUPABASE_URL and SUPABASE_ANON_KEY must be configured');
   }
   // workerd 的 fetch 不能脱离全局对象调用（Illegal invocation），这里包一层。
-  return { url: env.SUPABASE_URL.replace(/\/+$/, ''), anonKey: env.SUPABASE_ANON_KEY, fetch: (input, init) => fetch(input, init) };
+  return {
+    url: env.SUPABASE_URL.replace(/\/+$/, ''),
+    anonKey: env.SUPABASE_ANON_KEY,
+    fetch: (input, init) => fetch(input, init)
+  };
 };

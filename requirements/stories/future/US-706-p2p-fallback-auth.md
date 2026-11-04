@@ -5,7 +5,7 @@ status: In Progress
 priority: Medium
 epic: epic-011-p2p-file-share
 created: 2026-10-26
-updated: 2026-11-03
+updated: 2026-11-04
 tags: [p2p, fallback, auth, security]
 ---
 
@@ -40,12 +40,21 @@ epic-011 已由 owner 解锁；认证部分依赖 US-704 选定的真实认证�
 
 | #   | 前置条件                                 | 操作          | 预期结果                                                                         | 状态 |
 | --- | ---------------------------------------- | ------------- | -------------------------------------------------------------------------------- | ---- |
-| 1   | 无持有 peer 在线                         | 拉取文件      | 回退服务器下载成功，字节对照清单 `contentHash` 复核后落盘，与 P2P 结果逐字节一致 | ⬜   |
-| 2   | 未认证对等方                             | 发起信令/连接 | 被拒，不泄露清单细节                                                             | ⬜   |
+| 1   | 无持有 peer 在线                         | 拉取文件      | 回退服务器下载成功，字节对照清单 `contentHash` 复核后落盘，与 P2P 结果逐字节一致 | ✅   |
+| 2   | 未认证对等方                             | 发起信令/连接 | 被拒，不泄露清单细节                                                             | ✅   |
 | 3   | 一个 peer 持续发坏块                     | 多源拉取      | 该 peer 被退避，其余源正常完成                                                   | ⬜   |
 | 4   | 桌面两 peer 之间                         | 抓包          | 数据面密文，无明文块                                                             | ⬜   |
 | 5   | 服务器返回字节与清单不符，或缓存命中过期 | 拉取          | 报错不落盘，不返回错误文件                                                       | ⬜   |
-| 6   | 客户端自报他人 `holderId` 的清单行       | 同步          | 写入口按认证身份派生/校验 `holderId`，伪造行被拒                                 | ⬜   |
+| 6   | 客户端自报他人 `holderId` 的清单行       | 同步          | 写入口按认证身份派生/校验 `holderId`，伪造行被拒                                 | ✅   |
+
+## 验收证据
+
+浏览器半边在参考宿主 `apps/dev-rxdb-p2p` 上验收，运行方式与环境见 [US-707 验收证据](US-707-p2p-cross-runtime-e2e.md#验收证据)。
+
+- **AC#1**：[transfer.spec.ts](../../../apps/dev-rxdb-p2p-e2e/src/demo/transfer.spec.ts)「AC#3」。持有方离线后下载走 R2 回退，落盘文件的 SHA-256 等于清单 `contentHash`；R2 写入时也按 `contentHash` 校验。
+- **AC#2**：[server-contract.spec.ts](../../../apps/dev-rxdb-p2p-e2e/src/demo/server-contract.spec.ts)。未认证的信令 hello 得到不带细节的 `unauthorized`；回退文件接口无 token 返回 401。
+- **AC#6**：同文件。清单表 RLS 只放行由 `auth.uid()` 与本人登记设备派生的 `holderId`，伪造行返回 403。
+- AC#3（坏 peer 退避）在 demo 的故障注入里可手工演示，尚无自动化用例；AC#4、#5 未覆盖。
 
 ## 技术笔记
 
