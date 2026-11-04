@@ -1,11 +1,11 @@
 ---
 id: US-707
 title: 跨运行时 demo 与多实例 e2e
-status: Backlog
+status: In Progress
 priority: Medium
 epic: epic-011-p2p-file-share
 created: 2026-10-26
-updated: 2026-11-03
+updated: 2026-11-04
 tags: [p2p, demo, e2e, playwright, electron]
 ---
 
@@ -30,6 +30,15 @@ tags: [p2p, demo, e2e, playwright, electron]
 ### Out of Scope
 
 - 性能基线（基准测试另开故事，不进本故事）
+
+## 交付形态
+
+owner 决定（2026-11-04）：
+
+- **独立 demo 项目** `apps/dev-rxdb-p2p`，用 Angular 实现。三框架对称约束的是库 API；这个项目不进三个 dev 应用，也不另做 React / Vue 版。
+- **服务端**：Cloudflare Worker 承载前端静态资源、信令 Durable Object（在线状态、转发 SDP、签发连接票据）与 R2 服务器回退；Supabase 承载认证与清单同步（`rxdb-plugin-sync` + Supabase 适配器）。认证合同见 [US-704 开工前置](US-704-p2p-manifest-discovery.md#开工前置)。
+- **本轮只做阶段 A 的浏览器半边**：AC#1～#3，以及 AC#5、#6 的浏览器部分。Electron 双进程（AC#4）仍属阶段 A，留到下一轮；阶段 B 不变。
+- **验收环境**：`apps/dev-rxdb-p2p-e2e` 新增 demo 用例。Playwright 起 `wrangler dev`（本地 workerd 模拟 Durable Object 与 R2）和本 checkout 专属的隔离 Supabase 栈（`docker/supabase-ci-up.sh`），不依赖 Cloudflare 账号，也不依赖外网。
 
 ## 交付阶段
 

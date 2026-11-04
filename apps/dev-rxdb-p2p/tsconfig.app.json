@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "outDir": "../../dist/out-tsc/apps/dev-rxdb-p2p/app",
+    "types": []
+  },
+  "extends": "./tsconfig.json",
+  "include": ["src/**/*.ts", "shared/**/*.ts"],
+  "exclude": ["src/**/*.spec.ts", "shared/**/*.spec.ts", "src/test-setup.ts", "src/**/*.worker.ts"],
+  "references": [
+    {
+      "path": "../../packages/rxdb-plugin-p2p/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-sync/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-history/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-adapter-supabase/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-adapter-wa-sqlite/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/utils/tsconfig.lib.json"
+    }
+  ]
+}

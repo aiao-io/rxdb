@@ -5,7 +5,7 @@ status: In Progress
 priority: High
 epic: epic-011-p2p-file-share
 created: 2026-10-26
-updated: 2026-11-03
+updated: 2026-11-04
 tags: [p2p, sync, discovery, manifest]
 ---
 
@@ -19,11 +19,21 @@ tags: [p2p, sync, discovery, manifest]
 
 ## 开工前置
 
-epic-011 已由 owner 解锁（见[解锁记录](../../epics/epic-011-p2p-file-share.md#价值待证)）。发现与信令的参考认证宿主尚未选定：
-须明确可验证 token 的签发者、服务端校验位置、用户与设备标识的关系，以及清单读写/信令授权。
+epic-011 已由 owner 解锁（见[解锁记录](../../epics/epic-011-p2p-file-share.md#价值待证)）。
 现有 HTTP 示例只检查可选 Bearer header 的格式，不提供身份校验；不能把客户端 auth hook 当成服务端认证。
-可复用 Supabase 身份作为候选，选择与必要服务端改动须先登记、评审，再启动依赖身份的验收。
-认证合同还须明确凭据有效期与离线校验：断服务器的局域网验收以双方持有有效、可离线验证的凭据为前置；无效凭据必须拒绝，不能因服务器失联跳过认证。
+
+**认证宿主选型（owner 决定，2026-11-04）**：Supabase Auth 负责身份，Cloudflare Worker 负责信令与连接凭据。
+参考宿主是独立 demo 项目 `apps/dev-rxdb-p2p`（见 [US-707](US-707-p2p-cross-runtime-e2e.md#交付形态)）。
+合同如下，随 PR #172 评审：
+
+| 项                   | 合同                                                                                                                                                                                                   |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| token 签发者         | Supabase Auth（GoTrue）签发的 access token；认证主体 `principal` 取 `auth.uid()`                                                                                                                       |
+| 服务端校验位置       | 信令 Durable Object 收到 WebSocket 第一条消息时，带该 token 调 Supabase `/auth/v1/user` 取用户；不采信客户端自报的用户                                                                                 |
+| 用户与设备           | 设备登记在 Supabase 表 `p2p.devices`，RLS 只许本人登记、读取、删除，`deviceId` 即其主键；信令 DO 以该用户身份经 PostgREST 查设备归属，查不到即拒绝（冒用他人设备）                                     |
+| 清单读写授权         | `p2p.p2p_file_manifest` 开 RLS：已认证用户可读（读范围同部署，见 In Scope）；写、删只许 `holderId` 等于由 `auth.uid()` 与本人登记的某台设备派生的值，派生算法与 `deriveHolderId` 相同，由 SQL 函数实现 |
+| 信令授权             | 信令 DO 只在已认证的连接之间转发 offer / answer / ice；建连时为双方各签一张绑定 `connectionId` 的连接票据（Ed25519，私钥只在 Worker），会话的 `authenticate` 用公钥验签                                |
+| 凭据有效期与离线校验 | 连接票据只用于 hello，短期有效；公钥可缓存，验签不依赖服务器在线。桌面离线凭据（AC#8）沿用同一公钥体系，有效期随 US-707 阶段 B 确定。无效凭据一律拒绝，服务器失联不跳过认证                            |
 
 ## 范围边界
 

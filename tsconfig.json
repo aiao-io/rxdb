@@ -284,6 +284,9 @@
     },
     {
       "path": "./apps/dev-rxdb-p2p-e2e"
+    },
+    {
+      "path": "./apps/dev-rxdb-p2p"
     }
   ]
 }
