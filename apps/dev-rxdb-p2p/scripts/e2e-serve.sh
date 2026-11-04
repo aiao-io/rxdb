@@ -10,7 +10,7 @@ APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 PORT="${P2P_E2E_PORT:-4382}"
 
 if [ -n "${CI:-}" ]; then
-  bash "$APP_DIR/scripts/supabase-schema.sh"
+  # 表结构由 supabase action 的初始化链建好（与 docker/init-db.sh 同一条链）
   export P2P_SUPABASE_URL="$VITE_SUPABASE_URL" P2P_SUPABASE_ANON_KEY="$VITE_SUPABASE_KEY"
 else
   bash "$APP_DIR/scripts/supabase-up.sh"
