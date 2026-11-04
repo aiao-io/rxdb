@@ -16,11 +16,7 @@
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["SignalingRoom"] }],
   "r2_buckets": [{ "binding": "FILES", "bucket_name": "aiao-rxdb-p2p-files" }],
-  // 公开配置；本地开发由 scripts/dev-vars.mjs 生成的 .dev.vars 覆盖。签票私钥 TICKET_PRIVATE_JWK 是 secret，
-  // 线上用 `wrangler secret put TICKET_PRIVATE_JWK` 写入，不进这个文件。
-  "vars": {
-    "SUPABASE_URL": "",
-    "SUPABASE_ANON_KEY": ""
-  },
+  // SUPABASE_URL / SUPABASE_ANON_KEY / TICKET_PRIVATE_JWK 都是 Worker secret，不进这个文件，重新部署也不会清掉：
+  // 线上用 scripts/deploy-secrets.mjs | wrangler secret bulk 写入，本地开发由 scripts/dev-vars.mjs 生成 .dev.vars。
   "observability": { "enabled": false }
 }

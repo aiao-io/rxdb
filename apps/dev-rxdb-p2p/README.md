@@ -48,18 +48,20 @@ pnpm nx run dev-rxdb-p2p-e2e:e2e-remote
 
 ## 部署到 Cloudflare
 
-1. **Supabase 项目**：依次执行 `docker/sql/01-rxdb-system-tables.sql`、`02-rxdb-sync-functions.sql`、`04-rxdb-utils-functions.sql`、
-   `production/rxdb-change-grants.sql`，再执行本应用的 `supabase/p2p-schema.sql`；在 API 设置的 Exposed schemas 里加上 `p2p`。
+以下命令在 `apps/dev-rxdb-p2p` 目录执行，`wrangler` 即 `./node_modules/.bin/wrangler`，先 `wrangler login`。
+
+1. **Supabase 项目**：
+   - SQL Editor 里整段执行 `node scripts/supabase-setup-sql.mjs` 打印的 SQL（rxdb 系统表、同步函数、p2p 表结构、生产权限，包在一个事务里）；
+   - Project Settings → Data API → Exposed schemas 加上 `p2p`；
+   - 测试期可在 Authentication → Sign In / Providers → Email 关掉 Confirm email，否则注册后要先点邮件里的验证链接。
 2. **R2 bucket**：`wrangler r2 bucket create aiao-rxdb-p2p-files`。
-3. **签票私钥**（只放在 Worker secret 里）：
+3. **发布**：`pnpm nx run dev-rxdb-p2p:deploy`（先构建再 `wrangler deploy`）。
+4. **Worker secrets**（不进仓库，重新部署不会清掉；签票私钥每次新生成，只经管道传给 wrangler）：
 
    ```bash
-   node -e "crypto.subtle.generateKey({name:'Ed25519'},true,['sign','verify']).then(p=>crypto.subtle.exportKey('jwk',p.privateKey)).then(k=>console.log(JSON.stringify(k)))" \
-     | pnpm --filter @aiao/dev-rxdb-p2p exec wrangler secret put TICKET_PRIVATE_JWK
+   SUPABASE_URL=https://<ref>.supabase.co SUPABASE_ANON_KEY=<anon / publishable key> \
+     node scripts/deploy-secrets.mjs | wrangler secret bulk
    ```
-
-4. **公开配置**：在 `wrangler.jsonc` 的 `vars` 填 `SUPABASE_URL`、`SUPABASE_ANON_KEY`（公开的 anon / publishable key）。
-5. **发布**：`pnpm nx run dev-rxdb-p2p:deploy`（先构建再 `wrangler deploy`）。
 
 ## 限制
 
