@@ -42,7 +42,7 @@ export interface HolderView {
   readonly mine: boolean;
   /** 设备名；没在线见过的设备只显示 holderId 前缀。 */
   readonly label: string;
-  /** 这台设备当前在线的实例。 */
+  /** 这台设备当前可直连的实例：信令在线，或已有就绪会话。 */
   readonly online: readonly SignalingPeer[];
 }
 
@@ -127,11 +127,21 @@ export class P2PWorkspace {
     return principal ? deriveHolderId(principal) : null;
   });
 
+  /**
+   * 可以直连取块的实例：信令里在线的，加上已有就绪会话的。
+   * 信令断了 presence 清空，但已建立的会话不依赖服务器，照样能传（US-707 AC#2 / AC#6）。
+   */
+  readonly reachable = computed<readonly SignalingPeer[]>(() => {
+    const byKey = new Map(this.peers().map(peer => [peer.key, peer]));
+    for (const link of this.links()) if (link.state === 'ready') byKey.set(link.peer.key, link.peer);
+    return [...byKey.values()];
+  });
+
   /** 共享文件，最新的在前。 */
   readonly files = computed<readonly SharedFileView[]>(() => {
-    const peers = this.peers();
+    const reachable = this.reachable();
     const mine = this.myHolderId();
-    return groupSharedFiles(this.#records()).map(file => this.#fileView(file, peers, mine));
+    return groupSharedFiles(this.#records()).map(file => this.#fileView(file, reachable, mine));
   });
 
   /** 启动工作区（可重复调用）。 */

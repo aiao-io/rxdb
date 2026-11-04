@@ -41,7 +41,7 @@ const TEST_SIZES_MIB = [1, 16, 64] as const;
             </thead>
             <tbody>
               @for (file of workspace.files(); track file.contentHash) {
-                <tr data-testid="file-row" [attr.data-file]="file.manifest.fileName">
+                <tr data-testid="file-row" [attr.data-file]="file.manifest.fileName" [attr.data-hash]="file.contentHash">
                   <td>
                     <div class="font-medium">{{ file.manifest.fileName }}</div>
                     <div class="font-mono text-xs opacity-50" [title]="file.contentHash">
