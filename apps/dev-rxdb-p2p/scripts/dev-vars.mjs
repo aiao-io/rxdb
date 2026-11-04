@@ -6,7 +6,7 @@
  * - 签票私钥 `TICKET_PRIVATE_JWK`：首次生成 Ed25519 私钥，之后沿用文件里已有的那把。
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const appDir = fileURLToPath(new URL('..', import.meta.url));
@@ -32,7 +32,17 @@ const generateTicketKey = async () => {
   return JSON.stringify(await crypto.subtle.exportKey('jwk', pair.privateKey));
 };
 
-const previous = existsSync(devVarsPath) ? readFileSync(devVarsPath, 'utf8') : '';
+/** 直接读、不做 existsSync 预检：预检结果到读写时可能已过期；文件不存在即首次生成。 */
+const readPrevious = () => {
+  try {
+    return readFileSync(devVarsPath, 'utf8');
+  } catch (error) {
+    if (error?.code === 'ENOENT') return '';
+    throw error;
+  }
+};
+
+const previous = readPrevious();
 const ticketKey = /^TICKET_PRIVATE_JWK=(.+)$/m.exec(previous)?.[1] ?? (await generateTicketKey());
 
 writeFileSync(
