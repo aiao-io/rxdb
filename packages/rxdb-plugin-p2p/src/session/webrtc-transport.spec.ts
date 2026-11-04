@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FakeChannel, isSettled, lastFragment } from '../__tests__/fixtures.js';
+import { FakeChannel, isSettled, lastFragment, sameBytes } from '../__tests__/fixtures.js';
 import { DEFAULT_P2P_CHUNK_SIZE } from '../chunking.js';
 import { decodeP2PFrame, encodeP2PFrame } from './frame.js';
 import { MAX_FRAME_SIZE, MIN_WEBRTC_MESSAGE_SIZE } from './limits.js';
@@ -33,7 +33,7 @@ describe('WebRTC DataChannel 适配器', () => {
     expect(channel.sent.length).toBeGreaterThan(4);
     expect(channel.sent.every(message => message.byteLength <= 65536)).toBe(true);
     for (const message of channel.sent) channel.emit('message', message.buffer);
-    await expect(transport.receive()).resolves.toEqual(frame);
+    expect(sameBytes(await transport.receive(), frame)).toBe(true);
     transport.close();
   });
 
@@ -53,8 +53,8 @@ describe('WebRTC DataChannel 适配器', () => {
     const second = new Uint8Array(150 * 1024).fill(2);
     await Promise.all([transport.send(first), transport.send(second)]);
     for (const message of channel.sent) channel.emit('message', message.buffer);
-    await expect(transport.receive()).resolves.toEqual(first);
-    await expect(transport.receive()).resolves.toEqual(second);
+    expect(sameBytes(await transport.receive(), first)).toBe(true);
+    expect(sameBytes(await transport.receive(), second)).toBe(true);
     transport.close();
   });
 

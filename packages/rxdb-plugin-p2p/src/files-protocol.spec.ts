@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { alice, delay, linkedChannels, linkedTransports, openSessionPair } from './__tests__/fixtures.js';
+import { alice, delay, linkedChannels, linkedTransports, openSessionPair, sameBytes } from './__tests__/fixtures.js';
 import { createP2PFileManifest, type P2PFileManifest } from './chunking.js';
 import {
   createP2PFilesProtocol,
@@ -240,7 +240,8 @@ describe('files 协议', () => {
       left: { protocols: [createP2PFilesProtocol()] },
       right: { protocols: [createP2PFilesProtocol({ contents: contentsOf([held]), authorize: allow })] }
     });
-    await expect(download(held.manifest, createP2PFilesSource(requester, 'holder'))).resolves.toEqual(held.bytes);
+    const downloaded = await download(held.manifest, createP2PFilesSource(requester, 'holder'));
+    expect(sameBytes(downloaded, held.bytes)).toBe(true);
     expect([...leftChannel.sent, ...rightChannel.sent].every(message => message.byteLength <= 65536)).toBe(true);
     await requester.close();
     await holder.close();

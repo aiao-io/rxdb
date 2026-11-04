@@ -23,6 +23,13 @@ export const isSettled = async (promise: Promise<unknown>): Promise<boolean> => 
   return settled;
 };
 
+/**
+ * 两段字节逐字节相同。上百 KiB 的断言用它代替 `toEqual`：后者逐元素递归比较，
+ * 1 MiB 带覆盖率要两秒左右，CI 上会把用例拖过 5 秒超时。
+ */
+export const sameBytes = (left: Uint8Array, right: Uint8Array): boolean =>
+  left.byteLength === right.byteLength && left.every((byte, index) => byte === right[index]);
+
 /** 一条完整帧放在单个末片里：1 字节分片头（1 = 末片）+ 负载。 */
 export const lastFragment = (...bytes: number[]): Uint8Array => Uint8Array.from([1, ...bytes]);
 

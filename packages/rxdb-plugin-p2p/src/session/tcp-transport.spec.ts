@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FakeSocket, frameHeader, isSettled } from '../__tests__/fixtures.js';
+import { FakeSocket, frameHeader, isSettled, sameBytes } from '../__tests__/fixtures.js';
 import { createTcpTransport } from './tcp-transport.js';
 
 describe('TCP/TLS 适配器', () => {
@@ -26,7 +26,7 @@ describe('TCP/TLS 适配器', () => {
     const packet = Uint8Array.from([...frameHeader(payload.byteLength), ...payload]);
     for (let offset = 0; offset < packet.byteLength; offset += 1000)
       socket.emit('data', packet.slice(offset, offset + 1000));
-    await expect(transport.receive()).resolves.toEqual(payload);
+    expect(sameBytes(await transport.receive(), payload)).toBe(true);
     transport.close();
   });
 
