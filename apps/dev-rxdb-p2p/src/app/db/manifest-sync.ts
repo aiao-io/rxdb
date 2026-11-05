@@ -7,6 +7,7 @@
  */
 import { P2P_FILE_MANIFEST_ENTITY } from '@aiao/rxdb-plugin-p2p';
 import { BehaviorSubject } from 'rxjs';
+import { P2P_FALLBACK_ENVELOPE_ENTITY } from './fallback-envelope.entity';
 
 /** 触发拉取的远端事件（`@aiao/rxdb` 的 `ENTITY_REMOTE_*`）。 */
 export const REMOTE_EVENT_TYPES = ['ENTITY_REMOTE_CREATE', 'ENTITY_REMOTE_UPDATE', 'ENTITY_REMOTE_REMOVE'] as const;
@@ -40,9 +41,11 @@ export interface ManifestSyncOptions {
 }
 
 const MANIFEST_NAMESPACE = 'p2p';
+/** 同步集合里本模块关心的实体：清单（持有声明）与回退加密信封（POOL-US-101）。 */
+const SYNCED_ENTITIES = new Set([P2P_FILE_MANIFEST_ENTITY, P2P_FALLBACK_ENVELOPE_ENTITY]);
 
-const touchesManifest = (event: RemoteEntityEvent): boolean =>
-  event.entities.some(entity => entity.namespace === MANIFEST_NAMESPACE && entity.entity === P2P_FILE_MANIFEST_ENTITY);
+const touchesSyncedEntities = (event: RemoteEntityEvent): boolean =>
+  event.entities.some(entity => entity.namespace === MANIFEST_NAMESPACE && SYNCED_ENTITIES.has(entity.entity));
 
 /** 清单同步。 */
 export class ManifestSync {
@@ -84,7 +87,7 @@ export class ManifestSync {
 
   /** 远端事件的订阅者；固定引用，`stop()` 才退订得掉。 */
   readonly #onRemote = (event: RemoteEntityEvent): void => {
-    if (touchesManifest(event)) this.#pullSoon();
+    if (touchesSyncedEntities(event)) this.#pullSoon();
   };
 
   #pullSoon(): void {

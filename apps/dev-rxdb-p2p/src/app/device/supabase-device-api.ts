@@ -11,10 +11,17 @@ export const supabaseDeviceApi = (client: SupabaseClient): DeviceApi => {
       if (error) throw error;
       return data;
     },
-    registerDevice: async name => {
-      const { data, error } = await devices().insert({ name }).select('id,name').single<RegisteredDevice>();
+    registerDevice: async (name, publicKeyBase64) => {
+      const { data, error } = await devices()
+        .insert({ name, public_key: publicKeyBase64 })
+        .select('id,name')
+        .single<RegisteredDevice>();
       if (error) throw error;
       return data;
+    },
+    setPublicKey: async (id, publicKeyBase64) => {
+      const { error } = await devices().update({ public_key: publicKeyBase64 }).eq('id', id);
+      if (error) throw error;
     }
   };
 };

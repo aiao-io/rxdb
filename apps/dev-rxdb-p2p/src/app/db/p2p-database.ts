@@ -13,6 +13,7 @@ import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { checkOPFSAvailable } from '@aiao/utils';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { buildWaSqliteOptions, isSharedWorkerSupported } from './wa-sqlite-options';
+import { P2PFallbackEnvelopeEntity } from './fallback-envelope.entity';
 
 /** 本地适配器名。 */
 export const LOCAL_ADAPTER = 'wa-sqlite';
@@ -31,7 +32,7 @@ export const createP2PDatabase = (userId: string, client: SupabaseClient): RxDB 
   const rxdb = new RxDB({
     dbName,
     context: { userId },
-    entities: [],
+    entities: [P2PFallbackEnvelopeEntity],
     sync: { local: { adapter: LOCAL_ADAPTER }, remote: { adapter: REMOTE_ADAPTER }, type: SyncType.Full }
   });
   rxdb

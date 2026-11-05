@@ -13,8 +13,10 @@ export interface RegisteredDevice {
 export interface DeviceApi {
   /** 查本人的一台设备；不存在或不属于本人时为 null。 */
   findDevice(id: string): Promise<RegisteredDevice | null>;
-  /** 为本人登记一台新设备。 */
-  registerDevice(name: string): Promise<RegisteredDevice>;
+  /** 为本人登记一台新设备，同时登记它的回退加密公钥（POOL-US-101）。 */
+  registerDevice(name: string, publicKeyBase64: string): Promise<RegisteredDevice>;
+  /** 更新本人一台设备的回退加密公钥；设备不存在或不属于本人时不报错。 */
+  setPublicKey(id: string, publicKeyBase64: string): Promise<void>;
 }
 
 /** 记住设备 ID 的存储（生产传 `localStorage`）。 */
@@ -30,17 +32,23 @@ export const deviceStorageKey = (userId: string): string => `dev-rxdb-p2p:device
  * 取得本浏览器为当前用户登记的设备，没有就登记一台。
  *
  * @param name - 首次登记时的设备名
+ * @param publicKeyBase64 - 本设备的回退加密公钥（POOL-US-101），登记时写入
  */
 export const ensureDevice = async (
   userId: string,
   store: DeviceIdStore,
   api: DeviceApi,
-  name: string
+  name: string,
+  publicKeyBase64: string
 ): Promise<RegisteredDevice> => {
   const remembered = store.getItem(deviceStorageKey(userId));
   const existing = remembered ? await api.findDevice(remembered) : null;
-  if (existing) return existing;
-  const device = await api.registerDevice(name);
+  if (existing) {
+    // 已登记的设备补登记公钥：本特性上线前的设备行没有公钥，收不到信封
+    await api.setPublicKey(existing.id, publicKeyBase64);
+    return existing;
+  }
+  const device = await api.registerDevice(name, publicKeyBase64);
   store.setItem(deviceStorageKey(userId), device.id);
   return device;
 };

@@ -178,3 +178,120 @@ REVOKE ALL ON FUNCTION p2p.admin_account_stats(), p2p.admin_file_catalog(), p2p.
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION p2p.admin_account_stats(), p2p.admin_file_catalog(), p2p.admin_purge_account(uuid)
   TO service_role;
+
+-- ============================================
+-- 5. 回退内容加密（POOL-US-101）：设备公钥与信封表
+--    客户端生成 ECDH P-256 密钥对，私钥只存本机（localStorage，不进同步/备份/日志），公钥登记在设备表；
+--    上传方给每台已登记公钥的设备封装一个信封（内容密钥对收件公钥的 ephemeral-static ECDH + GCM 包封），
+--    信封经同步盲传：服务器只见密文与信封，没有收件私钥解不开。
+-- ============================================
+ALTER TABLE p2p.devices ADD COLUMN IF NOT EXISTS public_key varchar;
+
+DROP POLICY IF EXISTS devices_update ON p2p.devices;
+CREATE POLICY devices_update ON p2p.devices
+  FOR UPDATE TO authenticated USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+
+GRANT UPDATE ON p2p.devices TO authenticated;
+
+-- 全团队设备公钥：devices 的 RLS 只放行本人设备，公钥交换走 SECURITY DEFINER（属主绕过 RLS），
+-- 只暴露设备 id 与公钥，不暴露账号与设备名。
+CREATE OR REPLACE FUNCTION p2p.team_device_keys()
+RETURNS TABLE (device_id uuid, public_key varchar)
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = pg_catalog, pg_temp
+AS $$
+  SELECT id, public_key FROM p2p.devices WHERE public_key IS NOT NULL
+$$;
+
+REVOKE ALL ON FUNCTION p2p.team_device_keys() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION p2p.team_device_keys() TO authenticated;
+
+-- 收件人是否拥有这台设备：INVOKER 语义，子查询仍受 devices 的 RLS 约束，只看得到本人的设备。
+CREATE OR REPLACE FUNCTION p2p.owns_device(device uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SET search_path = pg_catalog, pg_temp
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM p2p.devices AS device_row
+    WHERE device_row.user_id = auth.uid() AND device_row.id = device
+  )
+$$;
+
+CREATE TABLE IF NOT EXISTS p2p.p2p_fallback_envelope (
+  id uuid PRIMARY KEY,
+  "contentHash" varchar NOT NULL,
+  "recipientDeviceId" uuid NOT NULL,
+  kid varchar NOT NULL,
+  epk varchar NOT NULL,
+  iv varchar NOT NULL,
+  ct varchar NOT NULL,
+  tag varchar NOT NULL,
+  "createdAt" timestamptz(3) DEFAULT now(),
+  "updatedAt" timestamptz(3) DEFAULT now(),
+  "createdBy" varchar,
+  "updatedBy" varchar
+);
+
+CREATE INDEX IF NOT EXISTS idx_p2p_envelope_content ON p2p.p2p_fallback_envelope ("contentHash");
+CREATE UNIQUE INDEX IF NOT EXISTS idx_p2p_envelope_content_recipient ON p2p.p2p_fallback_envelope ("contentHash", "recipientDeviceId");
+CREATE INDEX IF NOT EXISTS idx_p2p_envelope_recipient ON p2p.p2p_fallback_envelope ("recipientDeviceId");
+
+ALTER TABLE p2p.p2p_fallback_envelope ENABLE ROW LEVEL SECURITY;
+
+-- 收件人读：只能读寄给本人设备的信封。
+DROP POLICY IF EXISTS envelope_select ON p2p.p2p_fallback_envelope;
+CREATE POLICY envelope_select ON p2p.p2p_fallback_envelope
+  FOR SELECT TO authenticated USING (p2p.owns_device("recipientDeviceId"));
+
+-- 写/改/删：任何已认证用户都能寄信封、更新或删掉自己的重复封装；篡改会被收件人的 AEAD 校验检出，
+-- 删除只降级可用性，真正的清理走管理端的 admin_purge_account（service_role 绕过 RLS）。
+DROP POLICY IF EXISTS envelope_insert ON p2p.p2p_fallback_envelope;
+CREATE POLICY envelope_insert ON p2p.p2p_fallback_envelope
+  FOR INSERT TO authenticated WITH CHECK (true);
+
+DROP POLICY IF EXISTS envelope_update ON p2p.p2p_fallback_envelope;
+CREATE POLICY envelope_update ON p2p.p2p_fallback_envelope
+  FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS envelope_delete ON p2p.p2p_fallback_envelope;
+CREATE POLICY envelope_delete ON p2p.p2p_fallback_envelope
+  FOR DELETE TO authenticated USING (true);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON p2p.p2p_fallback_envelope TO authenticated;
+
+DO $$
+BEGIN
+  PERFORM public.rxdb_enable_sync_for_table('p2p_fallback_envelope', 'p2p', 'P2PFallbackEnvelope');
+END $$;
+
+GRANT SELECT, DELETE ON p2p.p2p_fallback_envelope TO service_role;
+
+-- 清账号时连同该账号设备的信封一起清（AC#9：不留孤儿信封）。
+CREATE OR REPLACE FUNCTION p2p.admin_purge_account(target uuid)
+RETURNS bigint
+LANGUAGE sql
+SET search_path = pg_catalog, pg_temp
+AS $$
+  WITH claims AS (
+    DELETE FROM p2p.p2p_file_manifest AS manifest
+    USING p2p.devices AS device
+    WHERE device.user_id = target
+      AND manifest."holderId" = p2p.holder_id(device.user_id, device.id)
+    RETURNING manifest.id
+  ),
+  envelopes AS (
+    DELETE FROM p2p.p2p_fallback_envelope AS envelope
+    USING p2p.devices AS device
+    WHERE device.user_id = target
+      AND envelope."recipientDeviceId" = device.id
+    RETURNING envelope.id
+  ),
+  registrations AS (
+    DELETE FROM p2p.devices WHERE user_id = target RETURNING id
+  )
+  SELECT count(*) FROM claims
+$$;

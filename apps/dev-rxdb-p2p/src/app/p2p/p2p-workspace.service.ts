@@ -23,13 +23,31 @@ import {
   type P2PServerFallback
 } from '@aiao/rxdb-plugin-p2p';
 import { computed, inject, Injectable, signal } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 import type { SignalingPeer } from '../../../shared/signaling-protocol';
 import { AuthService } from '../auth/auth.service';
+import { P2PFallbackEnvelopeEntity } from '../db/fallback-envelope.entity';
 import { groupSharedFiles, recordOf, type SharedFile } from '../db/manifest-records';
 import { ManifestSync, type ManifestSyncTarget, type SyncStatus } from '../db/manifest-sync';
 import { createP2PDatabase, LOCAL_ADAPTER, REMOTE_ADAPTER } from '../db/p2p-database';
+import { ensureDeviceKeyPair } from '../device/device-keys';
 import { defaultDeviceName, ensureDevice, type RegisteredDevice } from '../device/device-registration';
 import { supabaseDeviceApi } from '../device/supabase-device-api';
+import { teamDeviceKeys } from '../device/team-device-keys';
+import {
+  decodeEncryptedStream,
+  encodeEncryptedBlob,
+  fallbackEncUrl,
+  FALLBACK_ENCODING_HEADER,
+  FALLBACK_ENCODING_VERSION,
+  generateContentKey,
+  importDevicePrivateKey,
+  isEncryptedFallbackUrl,
+  openContentKey,
+  sealContentKey,
+  sha256Hex,
+  type DeviceKeyPair
+} from './fallback-crypto';
 import { HeldFiles, readRange } from './held-files';
 import { PeerLinks, type LinkView } from './peer-links';
 import { SignalingClient, type SignalingProblem, type SignalingState } from './signaling-client';
@@ -106,18 +124,20 @@ export class P2PWorkspace {
   >();
   readonly #serverFallback: P2PServerFallback = {
     download: async ({ manifest, signal, token }) => {
-      const response = await fetch(fileUrl(manifest.contentHash), {
-        headers: { authorization: `Bearer ${token}` },
-        signal
-      });
+      const url = manifest.sourceUrl ?? fileUrl(manifest.contentHash);
+      const headers: HeadersInit = { authorization: `Bearer ${token}` };
+      const encrypted = isEncryptedFallbackUrl(url);
+      if (encrypted) headers[FALLBACK_ENCODING_HEADER] = FALLBACK_ENCODING_VERSION;
+      const response = await fetch(url, { headers, signal });
       if (!response.ok || !response.body) throw new Error(`server fallback responded ${response.status}`);
-      return response.body;
+      return encrypted ? await this.#decryptFallbackStream(manifest, response.body) : response.body;
     }
   };
   #starting: Promise<void> | null = null;
   #sync: ManifestSync | null = null;
   #links: PeerLinks | null = null;
   #transferTimer: ReturnType<typeof setTimeout> | undefined;
+  #deviceKeys: DeviceKeyPair | null = null;
 
   /** 本页面这个运行实例的标识。 */
   readonly instanceId = crypto.randomUUID();
@@ -167,7 +187,7 @@ export class P2PWorkspace {
     return this.#starting;
   }
 
-  /** 共享一个本地文件；`upload` 时同时传到服务器作为回退。 */
+  /** 共享一个本地文件；`upload` 时加密传到服务器作为回退（POOL-US-101），并给每台设备寄信封。 */
   async share(file: File, upload: boolean): Promise<void> {
     const manifest = await createAuthenticatedP2PFileManifest({
       principal: this.#requirePrincipal(),
@@ -176,7 +196,7 @@ export class P2PWorkspace {
       readChunk: (offset, size) => readRange(file, offset, size)
     });
     await this.#held.store(manifest.contentHash, file);
-    const sourceUrl = upload ? await this.#upload(manifest.contentHash, file) : undefined;
+    const sourceUrl = upload ? await this.#uploadEncrypted(file, manifest) : undefined;
     await this.#claim(manifest, sourceUrl);
   }
 
@@ -295,11 +315,13 @@ export class P2PWorkspace {
     const userId = session.user.id;
     const deviceApi = supabaseDeviceApi(this.#auth.client);
     const name = `${defaultDeviceName(navigator.userAgent)} #${crypto.randomUUID().slice(0, 4)}`;
+    const deviceKeys = await ensureDeviceKeyPair(userId, localStorage);
+    this.#deviceKeys = deviceKeys;
     // 设备登记与本地库连接并行：本地库引导（wa-sqlite 迁移/索引收敛）是启动的大头，
     // 登记的 Supabase 验证往返藏在它里面，不额外占用启动时间。
     const rxdb = createP2PDatabase(userId, this.#auth.client);
     const [device] = await Promise.all([
-      ensureDevice(userId, localStorage, deviceApi, name).then(registered => {
+      ensureDevice(userId, localStorage, deviceApi, name, deviceKeys.publicKeyBase64).then(registered => {
         this.device.set(registered);
         this.#principal.set({ principal: userId, deviceId: registered.id });
         return registered;
@@ -459,7 +481,10 @@ export class P2PWorkspace {
       return;
     }
     // 字节已完整落盘并通过校验：登记失败不能再当成下载失败去丢弃已提交的文件；没登记上的副本不算持有，下次下载覆盖它
-    await this.#claim(file.manifest, file.serverCopy ? fileUrl(file.contentHash) : undefined).then(
+    await this.#claim(
+      file.manifest,
+      file.serverCopy ? (file.manifest.sourceUrl ?? fileUrl(file.contentHash)) : undefined
+    ).then(
       () => progress.finish('done'),
       (error: unknown) => progress.finish('failed', `文件已下载并通过校验，但登记本机持有失败：${messageOf(error)}`)
     );
@@ -475,14 +500,82 @@ export class P2PWorkspace {
     };
   }
 
-  async #upload(contentHash: string, file: File): Promise<string> {
-    const response = await fetch(fileUrl(contentHash), {
+  /** 加密上传服务器回退副本（POOL-US-101）：R2 只见密文，信封经同步盲传。 */
+  async #uploadEncrypted(file: File, manifest: P2PFileManifest): Promise<string> {
+    const contentKey = await generateContentKey();
+    const blob = await encodeEncryptedBlob(contentKey, manifest, (offset, size) => readRange(file, offset, size));
+    const encHash = await sha256Hex(await blob.arrayBuffer());
+    const response = await fetch(fallbackEncUrl(encHash), {
       method: 'PUT',
-      body: file,
-      headers: { authorization: `Bearer ${await this.#auth.accessToken()}`, 'content-type': 'application/octet-stream' }
+      body: blob,
+      headers: {
+        authorization: `Bearer ${await this.#auth.accessToken()}`,
+        'content-type': 'application/octet-stream'
+      }
     });
-    if (!response.ok) throw new Error(`upload failed (${response.status}): ${await response.text()}`);
-    return fileUrl(contentHash);
+    if (!response.ok) throw new Error(`encrypted upload failed (${response.status}): ${await response.text()}`);
+    await this.#sealEnvelopes(manifest.contentHash, contentKey);
+    return fallbackEncUrl(encHash);
+  }
+
+  /** 给每台已登记公钥的设备封装一个信封；已有信封就原地更新，新设备补新信封。 */
+  async #sealEnvelopes(contentHash: string, contentKey: CryptoKey): Promise<void> {
+    const teamKeys = await teamDeviceKeys(this.#auth.client);
+    const recipients = teamKeys.filter(
+      (entry): entry is { readonly deviceId: string; readonly publicKeyBase64: string } =>
+        entry.publicKeyBase64 !== null
+    );
+    const existingRows = await firstValueFrom(
+      P2PFallbackEnvelopeEntity.findAll({
+        where: { combinator: 'and', rules: [{ field: 'contentHash', operator: '=', value: contentHash }] },
+        orderBy: []
+      })
+    );
+    const existing = new Map(existingRows.map(row => [row.recipientDeviceId, row]));
+    for (const recipient of recipients) {
+      const envelope = await sealContentKey(contentKey, recipient.publicKeyBase64);
+      const entity =
+        existing.get(recipient.deviceId) ??
+        Object.assign(new P2PFallbackEnvelopeEntity(), {
+          id: crypto.randomUUID(),
+          contentHash,
+          recipientDeviceId: recipient.deviceId
+        });
+      Object.assign(entity, envelope);
+      await entity.save();
+    }
+    await this.#requireSync().push();
+  }
+
+  /** 把密文回退流解成明文流：本设备信封 → 内容密钥 → 按块解密，交给 `downloadP2PFile` 逐块复核。 */
+  async #decryptFallbackStream(
+    manifest: P2PFileManifest,
+    body: ReadableStream<Uint8Array>
+  ): Promise<ReadableStream<Uint8Array>> {
+    const device = this.device();
+    const keys = this.#deviceKeys;
+    if (!device || !keys) throw new Error('workspace has not started');
+    const rows = await firstValueFrom(
+      P2PFallbackEnvelopeEntity.findAll({
+        where: {
+          combinator: 'and',
+          rules: [
+            { field: 'contentHash', operator: '=', value: manifest.contentHash },
+            { field: 'recipientDeviceId', operator: '=', value: device.id }
+          ]
+        },
+        orderBy: []
+      })
+    );
+    const envelope = rows[0];
+    if (!envelope) {
+      throw new Error('此服务器副本已加密，但本设备没有解密信封：请让上传者重新共享这个文件');
+    }
+    const contentKey = await openContentKey(
+      { kid: envelope.kid, epk: envelope.epk, iv: envelope.iv, ct: envelope.ct, tag: envelope.tag },
+      await importDevicePrivateKey(keys.privateKeyJwk)
+    );
+    return decodeEncryptedStream(contentKey, manifest, body);
   }
 
   /** 登记本设备持有某内容；已登记过就只推送。 */

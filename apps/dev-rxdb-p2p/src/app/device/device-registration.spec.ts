@@ -17,37 +17,45 @@ const apiWith = (devices: Record<string, string>): DeviceApi & { readonly regist
   return {
     registered,
     findDevice: vi.fn(async (id: string) => (devices[id] ? { id, name: devices[id] } : null)),
-    registerDevice: vi.fn(async (name: string) => {
+    registerDevice: vi.fn(async (name: string, publicKeyBase64: string) => {
       registered.push(name);
       return { id: `device-${registered.length}`, name };
-    })
+    }),
+    setPublicKey: vi.fn(async () => undefined)
   };
 };
+
+const PUBLIC_KEY = 'a-public-key';
 
 describe('ensureDevice', () => {
   it('registers this browser on first sign-in and remembers the device per user', async () => {
     const store = storeWith();
     const api = apiWith({});
 
-    const device = await ensureDevice(USER, store, api, 'Chrome · macOS');
+    const device = await ensureDevice(USER, store, api, 'Chrome · macOS', PUBLIC_KEY);
 
     expect(device).toEqual({ id: 'device-1', name: 'Chrome · macOS' });
     expect(store.map.get(deviceStorageKey(USER))).toBe('device-1');
+    expect(api.registerDevice).toHaveBeenCalledWith('Chrome · macOS', PUBLIC_KEY);
   });
 
-  it('reuses the remembered device while it is still registered', async () => {
+  it('reuses the remembered device while it is still registered, and keeps its public key current', async () => {
     const store = storeWith({ [deviceStorageKey(USER)]: 'device-7' });
     const api = apiWith({ 'device-7': 'Laptop' });
 
-    await expect(ensureDevice(USER, store, api, 'ignored')).resolves.toEqual({ id: 'device-7', name: 'Laptop' });
+    await expect(ensureDevice(USER, store, api, 'ignored', PUBLIC_KEY)).resolves.toEqual({
+      id: 'device-7',
+      name: 'Laptop'
+    });
     expect(api.registered).toEqual([]);
+    expect(api.setPublicKey).toHaveBeenCalledWith('device-7', PUBLIC_KEY);
   });
 
   it('registers again when the remembered device was deleted', async () => {
     const store = storeWith({ [deviceStorageKey(USER)]: 'device-7' });
     const api = apiWith({});
 
-    await expect(ensureDevice(USER, store, api, 'Firefox · Linux')).resolves.toEqual({
+    await expect(ensureDevice(USER, store, api, 'Firefox · Linux', PUBLIC_KEY)).resolves.toEqual({
       id: 'device-1',
       name: 'Firefox · Linux'
     });

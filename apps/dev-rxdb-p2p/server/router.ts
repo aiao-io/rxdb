@@ -11,7 +11,7 @@ import { ADMIN_ROUTE_PREFIX, handleAdminRequest, type AdminRouteDeps } from './a
 import { adminConfigOf } from './admin-config';
 import { createAdminRoom } from './admin-room';
 import { supabaseConfigOf, type Env } from './env';
-import { handleFileRequest } from './files';
+import { handleEncryptedFileRequest, handleFileRequest } from './files';
 import { json } from './http';
 import { verifyAccessToken } from './identity';
 
@@ -19,6 +19,7 @@ import { verifyAccessToken } from './identity';
 export const SIGNALING_ROOM = 'lobby';
 
 const FILE_ROUTE = /^\/api\/files\/([^/]+)$/;
+const ENC_FILE_ROUTE = /^\/api\/files\/enc\/([^/]+)$/;
 
 const appConfig = (env: Env): Response => {
   const { url, anonKey } = supabaseConfigOf(env);
@@ -47,9 +48,13 @@ export const handleRequest = async (request: Request, env: Env): Promise<Respons
   if (pathname === '/app-config.js') return appConfig(env);
   if (pathname === '/api/signal') return env.SIGNALING.get(env.SIGNALING.idFromName(SIGNALING_ROOM)).fetch(request);
   if (pathname.startsWith(ADMIN_ROUTE_PREFIX)) return handleAdminRequest(request, adminDepsOf(env));
+  const verifyUser = (token: string) => verifyAccessToken(supabaseConfigOf(env), token);
+  const encrypted = ENC_FILE_ROUTE.exec(pathname);
+  if (encrypted?.[1]) {
+    return handleEncryptedFileRequest(request, encrypted[1], { bucket: env.FILES, verifyUser }).catch(fileRouteFailed);
+  }
   const file = FILE_ROUTE.exec(pathname);
   if (file?.[1]) {
-    const verifyUser = (token: string) => verifyAccessToken(supabaseConfigOf(env), token);
     return handleFileRequest(request, file[1], { bucket: env.FILES, verifyUser }).catch(fileRouteFailed);
   }
   return new Response(JSON.stringify({ error: 'not found' }), {

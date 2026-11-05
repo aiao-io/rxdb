@@ -1,6 +1,14 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
-import { fileKey, handleFileRequest, MAX_UPLOAD_BYTES, type FileRouteDeps } from './files';
+import { FALLBACK_ENCODING_HEADER, FALLBACK_ENCODING_VERSION } from '../shared/fallback-encoding';
+import {
+  encFileKey,
+  fileKey,
+  handleEncryptedFileRequest,
+  handleFileRequest,
+  MAX_UPLOAD_BYTES,
+  type FileRouteDeps
+} from './files';
 import type { R2BucketLike } from './runtime';
 
 const HASH = 'a'.repeat(64);
@@ -153,5 +161,63 @@ describe('handleFileRequest', () => {
     const response = await handleFileRequest(request('DELETE', { token: 'good' }), HASH, depsWith());
 
     expect(response.status).toBe(405);
+  });
+});
+
+describe('handleEncryptedFileRequest', () => {
+  const encRequest = (
+    method: string,
+    init: { readonly token?: string; readonly body?: BodyInit; readonly length?: number; readonly encoding?: string } = {}
+  ) => {
+    const headers = new Headers();
+    if (init.token) headers.set('authorization', `Bearer ${init.token}`);
+    if (init.length !== undefined) headers.set('content-length', String(init.length));
+    if (init.encoding !== undefined) headers.set(FALLBACK_ENCODING_HEADER, init.encoding);
+    return new Request(`http://worker.test/api/files/enc/${HASH}`, {
+      method,
+      headers,
+      body: init.body,
+      duplex: 'half'
+    } as RequestInit);
+  };
+
+  it('rejects a key that is not a ciphertext hash', async () => {
+    const response = await handleEncryptedFileRequest(encRequest('GET', { token: 'good', encoding: FALLBACK_ENCODING_VERSION }), 'abc', depsWith());
+
+    expect(response.status).toBe(400);
+  });
+
+  it('stores an encrypted upload under the ciphertext key and lets R2 verify the checksum', async () => {
+    const deps = depsWith();
+
+    const response = await handleEncryptedFileRequest(encRequest('PUT', { token: 'good', body: BYTES, length: 4 }), HASH, deps);
+
+    expect(response.status).toBe(201);
+    expect(deps.bucket.put).toHaveBeenCalledWith(encFileKey(HASH), expect.anything(), { sha256: HASH });
+    expect(deps.bucket.objects.get(encFileKey(HASH))).toEqual(BYTES);
+  });
+
+  it.each([undefined, '0', '2'])('refuses to serve a ciphertext copy without the current encoding header (%s)', async encoding => {
+    const deps = depsWith();
+    deps.bucket.objects.set(encFileKey(HASH), BYTES);
+
+    const response = await handleEncryptedFileRequest(encRequest('GET', { token: 'good', encoding }), HASH, deps);
+
+    expect(response.status).toBe(426);
+    expect(await response.text()).toContain('encrypted');
+  });
+
+  it('streams a ciphertext copy back to a client that carries the encoding header', async () => {
+    const deps = depsWith();
+    deps.bucket.objects.set(encFileKey(HASH), BYTES);
+
+    const response = await handleEncryptedFileRequest(
+      encRequest('GET', { token: 'good', encoding: FALLBACK_ENCODING_VERSION }),
+      HASH,
+      deps
+    );
+
+    expect(response.status).toBe(200);
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(BYTES);
   });
 });
