@@ -496,7 +496,7 @@ describe('移动端尺寸与拆分', () => {
     await vi.waitFor(() => expect(layout).toHaveBeenCalledWith(390, 800, true));
   });
 
-  it('refreshLayout 按容器真实尺寸强制重布局，容器无尺寸时静默跳过', () => {
+  it('refreshLayout 抖动容器尺寸驱动重布局，容器无尺寸时静默跳过', () => {
     const { root, dock } = fixture(1200, 800);
     const container = root.querySelector<HTMLElement>('[data-slot="dockview"]');
     if (!container) throw new Error('dockview 容器缺失');
@@ -506,6 +506,7 @@ describe('移动端尺寸与拆分', () => {
     Object.defineProperty(container, 'clientWidth', { value: 1180 });
     Object.defineProperty(container, 'clientHeight', { value: 760 });
     dock.refreshLayout();
+    expect(layout).toHaveBeenCalledWith(1181, 761, true);
     expect(layout).toHaveBeenCalledWith(1180, 760, true);
   });
 

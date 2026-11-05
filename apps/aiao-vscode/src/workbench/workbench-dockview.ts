@@ -713,7 +713,11 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
     resetLayout,
     refreshLayout() {
       if (disposed || container.clientWidth <= 0 || container.clientHeight <= 0) return;
-      api.layout(container.clientWidth, container.clientHeight, true);
+      const { clientWidth, clientHeight } = container;
+      // gridview 对同尺寸布局去重，边缘组 overlay 不会重新定位；
+      // 抖动 1px 再复原以驱动 panel 尺寸事件链（与视口变化同一修复路径）。
+      api.layout(clientWidth + 1, clientHeight + 1, true);
+      api.layout(clientWidth, clientHeight, true);
     },
     dispose() {
       if (disposed) return;
