@@ -50,6 +50,10 @@
               "type": "anyComponentStyle"
             }
           ],
+          "define": {
+            "import.meta.env": "{\"MODE\":\"production\",\"BASE_URL\":\"/\",\"DEV\":false,\"PROD\":true,\"SSR\":false}",
+            "import.meta.env.DEV": "false"
+          },
           "outputHashing": "all"
         }
       }
