@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import type { SerializedDockview } from 'dockview-core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createWorkbenchDockview, type WorkbenchDockview } from './workbench-dockview.js';
 
@@ -554,5 +555,136 @@ describe('移动端尺寸与拆分', () => {
     expect(menu).not.toBeNull();
     const labels = [...(menu?.querySelectorAll('button') ?? [])].map(item => item.textContent);
     expect(labels).toEqual(['关闭', '关闭其他', '关闭右侧']);
+  });
+});
+
+describe('布局持久化', () => {
+  /** 在一个工作台里摆好布局再导出，经 JSON 往返模拟刷新前写进地址的布局。 */
+  function exported(arrange: (dock: WorkbenchDockview) => void): SerializedDockview {
+    const { dock } = fixture();
+    arrange(dock);
+    return JSON.parse(JSON.stringify(dock.serializeLayout())) as SerializedDockview;
+  }
+  const splitEditors = (dock: WorkbenchDockview): void => {
+    dock.ensureEditor('first.ts');
+    dock.ensureEditor('second.ts');
+    dock.selectEditor('second.ts');
+    dock.splitEditor();
+  };
+  const emptyGroups = (dock: WorkbenchDockview) => dock.api.groups.filter(group => group.panels.length === 0);
+
+  it('导出布局不含辅助差异面板，面板只记 id 与组件名', () => {
+    const { dock } = fixture();
+    dock.ensureEditor('src/a.ts');
+    dock.ensureAuxiliary('diff:working:src/a.ts', 'a.ts · 工作区差异');
+    const layout = dock.serializeLayout();
+    expect(Object.keys(layout.panels).sort()).toEqual([
+      'console',
+      'editor:src/a.ts',
+      'output',
+      'preview',
+      'problems',
+      'sidebar'
+    ]);
+    expect(layout.panels['editor:src/a.ts']).toEqual({ id: 'editor:src/a.ts', contentComponent: 'editor' });
+    expect(JSON.stringify(layout)).not.toContain('diff:working');
+    expect(layout.edgeGroups?.left).toMatchObject({ size: 240, visible: true });
+  });
+
+  it('按布局还原拆分的编辑器组与侧栏、底部面板、预览的显隐，复用原宿主且不回调会话', async () => {
+    const layout = exported(dock => {
+      splitEditors(dock);
+      dock.setSidebarVisible(false);
+      dock.toggleTools();
+      dock.api.getPanel('preview')?.api.close();
+    });
+    const { root, dock, callbacks } = fixture();
+    const first = dock.ensureEditor('first.ts');
+    const second = dock.ensureEditor('second.ts');
+    expect(dock.applyLayout(layout)).toBe(true);
+    expect(dock.api.getPanel('editor:first.ts')?.group).not.toBe(dock.api.getPanel('editor:second.ts')?.group);
+    expect(dock.ensureEditor('first.ts')).toBe(first);
+    expect(dock.ensureEditor('second.ts')).toBe(second);
+    expect(root.querySelector('[data-slot="dockview"]')?.contains(first)).toBe(true);
+    expect(dock.isSidebarVisible()).toBe(false);
+    expect(dock.api.getPanel('sidebar')?.group.id).toBe('sidebar');
+    expect(dock.isToolsVisible()).toBe(false);
+    expect(callbacks.onToggleTool).toHaveBeenLastCalledWith(false);
+    expect(dock.isPreviewOpen()).toBe(false);
+    expect(callbacks.onClosePreview).toHaveBeenCalledOnce();
+    const staging = root.querySelector('[data-slot="panel-staging"]');
+    expect(staging?.querySelector('[data-log="problems"]')).not.toBeNull();
+    expect(staging?.querySelector('.wb-preview')).not.toBeNull();
+    expect(emptyGroups(dock)).toEqual([]);
+    await Promise.resolve();
+    expect(callbacks.onCloseEditor).not.toHaveBeenCalled();
+    expect(callbacks.onSelectEditor).not.toHaveBeenCalled();
+  });
+
+  it('只排布已打开的编辑器：布局中未打开的被忽略并回收空组，已打开而布局里没有的回到编辑区', async () => {
+    const layout = exported(splitEditors);
+    const { dock, callbacks } = fixture();
+    dock.ensureEditor('second.ts');
+    const third = dock.ensureEditor('third.ts');
+    expect(dock.applyLayout(layout)).toBe(true);
+    expect(dock.api.getPanel('editor:first.ts')).toBeUndefined();
+    expect(dock.api.getPanel('editor:third.ts')?.group).toBe(dock.api.getPanel('editor:second.ts')?.group);
+    expect(dock.ensureEditor('third.ts')).toBe(third);
+    expect(dock.api.getPanel('welcome')).toBeUndefined();
+    expect(emptyGroups(dock)).toEqual([]);
+    await Promise.resolve();
+    expect(callbacks.onCloseEditor).not.toHaveBeenCalled();
+  });
+
+  it('布局里的编辑器都没打开时，欢迎页占据原编辑区', () => {
+    const layout = exported(splitEditors);
+    const { dock } = fixture();
+    expect(dock.applyLayout(layout)).toBe(true);
+    const welcome = dock.api.getPanel('welcome');
+    expect(welcome).toBeDefined();
+    expect(welcome?.group).not.toBe(dock.api.getPanel('preview')?.group);
+    expect(welcome?.group).not.toBe(dock.api.getPanel('problems')?.group);
+    expect(emptyGroups(dock)).toEqual([]);
+  });
+
+  it('结构非法的布局不改动现有布局', () => {
+    const { dock } = fixture();
+    dock.ensureEditor('main.ts');
+    const before = JSON.stringify(dock.api.toJSON());
+    for (const value of [null, 'layout', { grid: { root: { type: 'leaf' } } }])
+      expect(dock.applyLayout(value)).toBe(false);
+    expect(JSON.stringify(dock.api.toJSON())).toBe(before);
+  });
+
+  it('抽屉模式下侧栏不进布局：窄屏应用桌面布局仍留在抽屉，桌面应用抽屉布局保留原侧栏', () => {
+    const desktop = exported(() => undefined);
+    const overlay = exported(dock => dock.setSidebarOverlay(true));
+    expect(overlay).not.toHaveProperty('edgeGroups');
+    expect(overlay.panels).not.toHaveProperty('sidebar');
+
+    const narrow = fixture();
+    narrow.dock.setSidebarOverlay(true);
+    expect(narrow.dock.applyLayout(desktop)).toBe(true);
+    expect(narrow.dock.api.getEdgeGroup('left')).toBeUndefined();
+    expect(narrow.root.querySelector('.wb-side')?.parentElement).toBe(narrow.root);
+
+    const wide = fixture();
+    expect(wide.dock.applyLayout(overlay)).toBe(true);
+    expect(wide.dock.api.getPanel('sidebar')?.group.id).toBe('sidebar');
+    expect(wide.dock.isSidebarVisible()).toBe(true);
+    expect(wide.dock.api.getGroup('sidebar')?.api.locked).toBe('no-drop-target');
+  });
+
+  it('还原后的首次非零布局不再套用默认尺寸', async () => {
+    const layout = exported(dock => {
+      dock.api.getEdgeGroup('left')?.setSize({ width: 320 });
+      dock.api.getPanel('problems')?.group.api.setSize({ height: 260 });
+    });
+    expect(layout.edgeGroups?.left?.size).toBe(320);
+    const { dock } = fixture();
+    expect(dock.applyLayout(layout)).toBe(true);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(dock.serializeLayout().edgeGroups?.left?.size).toBe(320);
+    expect(dock.api.getPanel('problems')?.group.api.height).toBeCloseTo(260, 0);
   });
 });

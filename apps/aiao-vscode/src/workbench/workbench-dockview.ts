@@ -4,11 +4,14 @@ import {
   type DockviewApi,
   type DockviewGroupPanel,
   type DockviewIDisposable,
+  type GroupviewPanelState,
   type IDockviewPanel,
   type IHeaderActionsRenderer,
+  type SerializedDockview,
   type TabPartInitParameters
 } from 'dockview-core';
 import { createCodicon, createFileIcon } from './workbench-icons.js';
+import { normalizeWorkbenchLayout, SIDEBAR_EDGE } from './workbench-layout-state.js';
 import { attachWorkbenchLongPress } from './workbench-longpress.js';
 
 /** 底部工具区域的固定面板。 */
@@ -52,6 +55,10 @@ export interface WorkbenchDockview {
   resetLayout(): void;
   /** 按容器当前尺寸强制重布局；容器无尺寸时静默跳过。 */
   refreshLayout(): void;
+  /** 导出可持久化的布局：辅助差异面板依赖运行时状态，不进入布局。 */
+  serializeLayout(): SerializedDockview;
+  /** 按持久化布局重排面板，只排布已打开的编辑器；结构非法时不动现有布局并返回 false。 */
+  applyLayout(layout: unknown): boolean;
   dispose(): void;
 }
 
@@ -67,6 +74,7 @@ const titles = {
 const editorId = (path: string) => `editor:${path}`;
 const editorPath = (id: string): string | undefined => (id.startsWith('editor:') ? id.slice(7) : undefined);
 const isTool = (id: string): id is WorkbenchToolKind => tools.some(kind => kind === id);
+const isStatic = (id: string): id is keyof typeof titles => Object.hasOwn(titles, id);
 
 function required(root: HTMLElement, selector: string): HTMLElement {
   const element = root.querySelector<HTMLElement>(selector);
@@ -323,7 +331,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
   function ensureSideGroup(): NonNullable<ReturnType<DockviewApi['getEdgeGroup']>> {
     const existing = api.getEdgeGroup('left');
     if (existing) return existing;
-    const created = api.addEdgeGroup('left', { id: 'sidebar', initialSize: 240, minimumSize: 180, maximumSize: 420 });
+    const created = api.addEdgeGroup('left', { ...SIDEBAR_EDGE, initialSize: 240 });
     created.locked = 'no-drop-target';
     const group = api.getGroup(created.id);
     if (!group) throw new Error('Dockview 侧栏初始化失败');
@@ -442,7 +450,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
   }
 
   /** 对齐 VS Code：欢迎页只在没有任何编辑器打开时存在，并随最后一个编辑器关闭回归。 */
-  function syncWelcome(activate: boolean): void {
+  function syncWelcome(activate: boolean, referenceGroup?: string): void {
     program(() => {
       const welcome = api.getPanel('welcome');
       if (api.panels.some(panel => editorPath(panel.id) !== undefined)) {
@@ -452,7 +460,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
         }
         return;
       }
-      if (!welcome) addStatic('welcome');
+      if (!welcome) addStatic('welcome', referenceGroup);
       if (activate) api.getPanel('welcome')?.api.setActive();
     });
   }
@@ -545,7 +553,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
     })
   );
 
-  const side = api.addEdgeGroup('left', { id: 'sidebar', initialSize: 240, minimumSize: 180, maximumSize: 420 });
+  const side = api.addEdgeGroup('left', { ...SIDEBAR_EDGE, initialSize: 240 });
   side.locked = 'no-drop-target';
   const sideGroup = api.getGroup(side.id);
   if (!sideGroup) throw new Error('Dockview 侧栏初始化失败');
@@ -654,6 +662,61 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
     reportTools(true);
   }
 
+  /** 网格中没有面板的组；左侧边缘组不算。 */
+  function emptyGroups(): DockviewGroupPanel[] {
+    const edge = api.getEdgeGroup('left')?.id;
+    return api.groups.filter(group => group.panels.length === 0 && group.id !== edge);
+  }
+
+  /** 恢复时的面板状态：已在 Dockview 中的沿用自身状态（标题、参数不被布局改写），未打开的编辑器与辅助面板不保留。 */
+  function restorableState(id: string): GroupviewPanelState | undefined {
+    if (auxiliaryIds.has(id)) return undefined;
+    const panel = api.getPanel(id);
+    if (panel) return panel.toJSON();
+    return isStatic(id) ? { id, contentComponent: id, title: titles[id], renderer: 'always' } : undefined;
+  }
+
+  /** fromJSON 会清掉布局之外的面板：编辑器与辅助面板连同原宿主放回编辑区，静态面板回存 staging。 */
+  function restorePanel(id: string, state: GroupviewPanelState): void {
+    if (editorPath(id) === undefined && !auxiliaryIds.has(id)) {
+      stash(id);
+      return;
+    }
+    const group = editorGroup() ?? emptyGroups()[0] ?? api.addGroup();
+    api.addPanelFromJSON(state, { position: { referenceGroup: group, direction: 'within' }, inactive: true });
+  }
+
+  function serializeLayout(): SerializedDockview {
+    const layout = normalizeWorkbenchLayout(api.toJSON(), {
+      sidebar: !overlayMode,
+      panel: id =>
+        auxiliaryIds.has(id) ? undefined : { id, contentComponent: editorPath(id) === undefined ? id : 'editor' }
+    });
+    if (!layout) throw new Error('Dockview 导出的布局未通过校验');
+    return layout;
+  }
+
+  function applyLayout(value: unknown): boolean {
+    const layout = normalizeWorkbenchLayout(value, { sidebar: !overlayMode, panel: restorableState });
+    if (!layout) return false;
+    const before = new Map(api.panels.map(panel => [panel.id, panel.toJSON()] as const));
+    program(() => {
+      api.fromJSON(layout, { reuseExistingPanels: true });
+      for (const [id, state] of before) if (!api.getPanel(id)) restorePanel(id, state);
+      if (!overlayMode && !api.getPanel('sidebar')) addStatic('sidebar', ensureSideGroup().id);
+      // 布局里的编辑器都没打开时，欢迎页落进原编辑区留下的空组
+      syncWelcome(false, emptyGroups()[0]?.id);
+      for (const group of emptyGroups()) api.removeGroup(group);
+    });
+    const tool = tools.map(kind => api.getPanel(kind)).find(Boolean)?.group.activePanel?.id;
+    if (tool && isTool(tool)) lastTool = tool;
+    reportTools(tools.some(kind => Boolean(api.getPanel(kind))));
+    if (before.has('preview') && !api.getPanel('preview')) callbacks.onClosePreview?.();
+    // 已按布局定好尺寸，首次非零布局不再套用默认宽高
+    if (api.width > 0 && api.height > 0) sized = true;
+    return true;
+  }
+
   return {
     api,
     ensureEditor,
@@ -723,6 +786,8 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
     },
     resetLayout,
     refreshLayout,
+    serializeLayout,
+    applyLayout,
     dispose() {
       if (disposed) return;
       disposed = true;

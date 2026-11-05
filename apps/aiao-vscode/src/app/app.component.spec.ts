@@ -18,12 +18,14 @@ const mocks = vi.hoisted(() => ({
     api: {}
   })),
   routerBackend: vi.fn((options: { local: unknown; github: unknown }) => options.local),
+  layoutStore: vi.fn(() => ({ load: vi.fn(async () => null), save: vi.fn(async () => undefined) })),
   completeOAuth: vi.fn(async () => ({ token: 'gho_abc', login: 'octo', avatarUrl: null, provider: 'oauth' }))
 }));
 vi.mock('../workbench/mount.js', () => ({ mountWorkbench: mocks.mount }));
 vi.mock('../workbench/git-backend.js', () => ({ createGitBackend: mocks.gitBackend }));
 vi.mock('../workbench/git/github/github-service.js', () => ({ createGitHubService: mocks.githubService }));
 vi.mock('../workbench/git/git-router-backend.js', () => ({ createRouterBackend: mocks.routerBackend }));
+vi.mock('../workbench/workbench-layout-url.js', () => ({ createUrlLayoutStore: mocks.layoutStore }));
 vi.mock('../workbench/git/github/github-session-store.js', () => {
   let value: unknown = null;
   return {
@@ -88,6 +90,17 @@ describe('AppComponent workbench mount', () => {
     connected.next(true);
     await vi.waitFor(() => expect(mocks.mount).toHaveBeenCalledOnce());
     expect(mocks.mount.mock.calls[0][0]).toBe(fixture.nativeElement);
+    fixture.destroy();
+  });
+
+  it('把地址栏 hash 布局存储交给工作台', async () => {
+    const fixture = createComponentFixture();
+    fixture.detectChanges();
+    connected.next(true);
+    await vi.waitFor(() => expect(mocks.mount).toHaveBeenCalledOnce());
+    const options = mocks.mount.mock.calls[0][1] as { layoutStore: unknown };
+    expect(mocks.layoutStore).toHaveBeenCalledOnce();
+    expect(options.layoutStore).toBe(mocks.layoutStore.mock.results[0]?.value);
     fixture.destroy();
   });
 

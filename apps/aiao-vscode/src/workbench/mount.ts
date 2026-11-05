@@ -26,6 +26,7 @@ import { confirmWorkbenchAction, requestWorkbenchChoice, requestWorkbenchText } 
 import { createWorkbenchDiff, type WorkbenchDiffHandle } from './workbench-diff.js';
 import { createWorkbenchDockview } from './workbench-dockview.js';
 import { createCodicon, createFileIcon, folderCodicon, type CodiconName } from './workbench-icons.js';
+import type { WorkbenchLayoutStore } from './workbench-layout-url.js';
 import { createWorkbenchLayout, workbenchElement } from './workbench-layout.js';
 import { attachWorkbenchLongPress } from './workbench-longpress.js';
 import { createWorkbenchScm, type WorkbenchDiffRequest } from './workbench-scm.js';
@@ -44,6 +45,8 @@ export interface BrowserWorkbenchOptions {
   readonly githubApi?: GitHubApi;
   /** 提供后在欢迎视图显示「登录 GitHub」入口，并给仓库选择器接上登录按钮。 */
   readonly githubAuth?: GitHubAuth;
+  /** 提供后在就绪时按其中的布局重排面板，之后的布局变化防抖写回（如地址栏 hash）。 */
+  readonly layoutStore?: WorkbenchLayoutStore;
 }
 
 /** 工作台实例；释放会终止所有 Worker 与编辑器。 */
@@ -94,6 +97,8 @@ const languageLabels: Readonly<Record<string, string>> = {
 };
 const languageLabel = (path: string): string => languageLabels[languageFor(path)] ?? languageFor(path);
 const messageFor = (cause: unknown): string => (cause instanceof Error ? cause.message : String(cause));
+/** 布局写回的防抖间隔：拖动分隔条时不逐帧改写地址（Safari 限制 replaceState 的调用频率）。 */
+const LAYOUT_SAVE_DELAY_MS = 300;
 
 /** 文件树内的 VS Code 风格输入行；Enter 提交、Esc 取消、失焦提交当前值。 */
 function inlineTreeInput(
@@ -198,6 +203,9 @@ export function mountWorkbench(
   let contextMenu: HTMLElement | null = null;
   let gitStatus: WorkbenchStatus | null = null;
   let persistedState = '';
+  /** 最近一次写回存储的布局 JSON；null 表示布局尚未恢复完成，此时不写回。 */
+  let savedLayout: string | null = null;
+  let layoutSaveTimer: ReturnType<typeof setTimeout> | undefined;
   let persistChain: Promise<void> = Promise.resolve();
   let restoring = false;
   let indentUnit = '  ';
@@ -262,6 +270,12 @@ export function mountWorkbench(
   // 首访时 dockview 的边缘组可能在挂载窗口内按 0 尺寸布局（上游竞态），布局事件与
   // ready 流程都可能延迟；refreshLayout 幂等且健康时开销极小，分档重试直到修复。
   const layoutRetries = [500, 1500, 4000].map(delay => setTimeout(() => docking.refreshLayout(), delay));
+  // 与目录读取并行解码；读取失败只记问题，工作台照常就绪
+  const storedLayout: Promise<unknown> =
+    options.layoutStore?.load().catch((cause: unknown) => {
+      report(cause);
+      return null;
+    }) ?? Promise.resolve(null);
 
   /** 活动栏底部 GitHub 帐户入口：无认证能力时隐藏，登录后显示徽标与用户名。 */
   function renderAccountState(): void {
@@ -299,7 +313,32 @@ export function mountWorkbench(
         diffs.forEach(diff => diff.view?.layout());
       }
     });
+    scheduleLayoutSave();
   });
+  /** 布局恢复完成后，布局变化防抖写回存储；与上次写回相同的布局不重复保存。 */
+  function scheduleLayoutSave(): void {
+    const store = options.layoutStore;
+    if (!store || savedLayout === null || disposed) return;
+    clearTimeout(layoutSaveTimer);
+    layoutSaveTimer = setTimeout(() => {
+      const layout = docking.serializeLayout();
+      const json = JSON.stringify(layout);
+      if (json === savedLayout) return;
+      savedLayout = json;
+      void store.save(layout).catch(report);
+    }, LAYOUT_SAVE_DELAY_MS);
+  }
+  /** 按存储的布局重排面板：只排布已打开的标签，活动文件仍以会话为准。 */
+  async function restoreLayout(): Promise<void> {
+    const layout = await storedLayout;
+    if (disposed || layout === null) return;
+    if (!docking.applyLayout(layout)) {
+      log('output', '布局记录无效，已保留默认布局');
+      return;
+    }
+    if (session.state.activePath) docking.selectEditor(session.state.activePath);
+    render(session.state);
+  }
 
   const scm = createWorkbenchScm(element('[data-slot="scm"]'), {
     backend,
@@ -2111,12 +2150,17 @@ export function mountWorkbench(
     if (initial) await openProject(initial);
   })()
     .catch(report)
+    // 项目打开失败也照样恢复布局，静态面板的排布不依赖项目
+    .then(restoreLayout)
+    .catch(report)
     .finally(() => {
       initializing = false;
       if (!disposed) {
         renderFiles(session.state);
         renderStatus();
         renderActionState();
+        // 以恢复后的布局为基线开始跟踪，之后的变化才写回存储
+        if (options.layoutStore) savedLayout = JSON.stringify(docking.serializeLayout());
         // 挂载链全部落地后强制重布局，兜住 dockview 边缘组 overlay 首帧测量竞态
         requestAnimationFrame(() => {
           requestAnimationFrame(() => docking.refreshLayout());
@@ -2148,6 +2192,7 @@ export function mountWorkbench(
       window.removeEventListener('beforeunload', beforeUnload);
       narrowMedia.removeEventListener('change', onNarrowChange);
       for (const timer of layoutRetries) clearTimeout(timer);
+      clearTimeout(layoutSaveTimer);
       root.removeEventListener('click', click);
       root.remove();
     }

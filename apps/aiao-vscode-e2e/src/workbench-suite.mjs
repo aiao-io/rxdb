@@ -197,3 +197,56 @@ export async function runWorkbenchCase(page, expect, template, testInfo) {
     throw error;
   }
 }
+
+/** 解出地址栏 hash 里的布局（与工作台同一套 deflate + base64url）；没有布局码时为 null。 */
+function readUrlLayout(page) {
+  return page.evaluate(async () => {
+    const code = new URLSearchParams(location.hash.slice(1)).get('layout');
+    if (!code) return null;
+    const bytes = Uint8Array.from(atob(code.replaceAll('-', '+').replaceAll('_', '/')), char => char.charCodeAt(0));
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'));
+    return JSON.parse(await new Response(stream).text());
+  });
+}
+
+/** 布局写进地址栏 hash：拆分编辑器、收起侧栏与底部面板后刷新，按原样还原。 */
+export async function runLayoutCase(page, expect) {
+  const browserErrors = [];
+  page.on('pageerror', error => browserErrors.push(error.stack ?? error.message));
+  await page.goto('/');
+  const root = await createProject(page, expect, 'vanilla');
+  const projectId = await root.getByRole('combobox', { name: '当前项目' }).inputValue();
+  for (const path of ['src/main.ts', 'src/label.ts']) {
+    await root
+      .locator('.wb-file')
+      .and(page.getByTitle(path, { exact: true }))
+      .click();
+    await expect(root.locator(`[data-editor-tab-path="${path}"]`)).toBeVisible();
+  }
+  await root.getByRole('button', { name: '向右拆分编辑器组', exact: true }).click();
+  const editorGroups = root.locator('.dv-groupview').filter({ has: page.locator('[data-editor-tab-path]') });
+  await expect(editorGroups).toHaveCount(2);
+  const panel = root.locator('.wb-title-actions [data-action="panel"]');
+  const sidebar = root.locator('[data-action="toggle-sidebar"]');
+  await panel.click();
+  await sidebar.click();
+  // 写回有防抖，等 hash 里的布局反映最后一次调整再刷新
+  await expect
+    .poll(
+      async () => {
+        const layout = await readUrlLayout(page);
+        return layout && { tools: 'problems' in layout.panels, sidebar: layout.edgeGroups?.left?.visible };
+      },
+      { timeout: 10000 }
+    )
+    .toEqual({ tools: false, sidebar: false });
+  await page.reload();
+  await expect(root.getByRole('combobox', { name: '当前项目' })).toHaveValue(projectId, { timeout: 30000 });
+  await expect(editorGroups).toHaveCount(2, { timeout: 30000 });
+  for (const group of await editorGroups.all()) await expect(group.locator('[data-editor-tab-path]')).toHaveCount(1);
+  await expect(panel).toHaveAttribute('aria-pressed', 'false');
+  await expect(sidebar).toHaveAttribute('aria-pressed', 'false');
+  await expect(root.locator('[data-log="problems"]')).toBeHidden();
+  await expect(page).toHaveURL(/#layout=[\w-]+$/);
+  expect(browserErrors).toEqual([]);
+}
