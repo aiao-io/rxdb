@@ -34,7 +34,7 @@ test.describe('dev-rxdb-p2p 浏览器双设备', () => {
 
     await holder.cutServer();
     await fetcher.cutServer();
-    await expect(fetcher.page.getByTestId('signaling-state')).not.toHaveText(/online/);
+    await expect(fetcher.page.getByTestId('signaling-state')).not.toHaveAttribute('data-state', 'online');
     await fileRow(fetcher, fileName).getByTestId('file-download').click();
 
     const transfer = transferOf(fetcher, fileName);

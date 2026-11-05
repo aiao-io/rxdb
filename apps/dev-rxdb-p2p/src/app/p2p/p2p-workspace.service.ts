@@ -40,7 +40,7 @@ export interface HolderView {
   readonly holderId: string;
   /** 本设备。 */
   readonly mine: boolean;
-  /** 设备名；没在线见过的设备只显示 holderId 前缀。 */
+  /** 设备名；没在线见过的设备显示“其他设备”。 */
   readonly label: string;
   /** 这台设备当前可直连的实例：信令在线，或已有就绪会话。 */
   readonly online: readonly SignalingPeer[];
@@ -129,6 +129,7 @@ export class P2PWorkspace {
   readonly links = signal<readonly LinkView[]>([]);
   readonly sync = signal<SyncStatus>({ phase: 'idle', error: null, lastSyncedAt: null });
   readonly transfers = signal<readonly TransferView[]>([]);
+  readonly downloadingHashes = signal<ReadonlySet<string>>(new Set());
   readonly faults = signal<DemoFaults>({ deny: false, corrupt: false, delayMs: 0 });
 
   /** 本设备的 holderId。 */
@@ -189,26 +190,50 @@ export class P2PWorkspace {
 
   /** 下载一个共享文件：从全部在线持有者多源拉取，没有可用来源时回退服务器。 */
   async download(contentHash: string): Promise<void> {
+    if (this.downloadingHashes().has(contentHash)) return;
     const file = this.files().find(item => item.contentHash === contentHash);
     if (!file) throw new Error(`unknown file ${contentHash}`);
+    this.downloadingHashes.update(hashes => new Set([...hashes, contentHash]));
     const peers = file.holderViews.filter(holder => !holder.mine).flatMap(holder => holder.online);
-    const connected = await Promise.allSettled(peers.map(peer => this.#requireLinks().connect(peer.key)));
     const id = crypto.randomUUID();
     const labels = peers.map(peer => peer.deviceName);
     const progress = new TransferProgress(id, file.manifest, labels, Date.now, () => this.#emitTransfersSoon());
     const controller = new AbortController();
     this.#transfers.set(id, { progress, controller });
     this.#emitTransfersSoon();
-    const sources = connected.flatMap((result, index) =>
-      result.status === 'fulfilled' ?
-        [progress.attribute(createP2PFilesSource(result.value, labels[index] as string))]
-      : []
-    );
-    if (sources.length === 0 && !file.serverCopy) {
-      const reasons = connected.flatMap(result => (result.status === 'rejected' ? [messageOf(result.reason)] : []));
-      return progress.finish('failed', reasons.join('; ') || '没有在线的持有者，也没有服务器副本');
+    let abortConnectionWait: (() => void) | undefined;
+    try {
+      const connected = await Promise.race([
+        Promise.allSettled(peers.map(peer => this.#requireLinks().connect(peer.key))),
+        new Promise<never>((_resolve, reject) => {
+          abortConnectionWait = () => reject(controller.signal.reason);
+          controller.signal.addEventListener('abort', abortConnectionWait, { once: true });
+        })
+      ]);
+      controller.signal.throwIfAborted();
+      const sources = connected.flatMap((result, index) =>
+        result.status === 'fulfilled' ?
+          [progress.attribute(createP2PFilesSource(result.value, labels[index] as string))]
+        : []
+      );
+      if (sources.length === 0 && !file.serverCopy) {
+        const reasons = connected.flatMap(result => (result.status === 'rejected' ? [messageOf(result.reason)] : []));
+        throw new Error(reasons.join('; ') || '没有在线的持有者，也没有服务器副本');
+      }
+      await this.#runDownload(file, progress, controller, sources);
+    } catch (error) {
+      progress.finish(controller.signal.aborted ? 'cancelled' : 'failed', messageOf(error));
+    } finally {
+      if (abortConnectionWait) controller.signal.removeEventListener('abort', abortConnectionWait);
+      this.downloadingHashes.update(hashes => new Set([...hashes].filter(hash => hash !== contentHash)));
     }
-    await this.#runDownload(file, progress, controller, sources);
+  }
+
+  /** 清除已结束的传输记录，保留文件与正在进行的下载。 */
+  clearFinishedTransfers(): void {
+    for (const [id, { progress }] of this.#transfers)
+      if (progress.view().state !== 'running') this.#transfers.delete(id);
+    this.transfers.set([...this.#transfers.values()].map(({ progress }) => progress.view()).reverse());
   }
 
   /** 取消一次下载。 */
@@ -351,10 +376,7 @@ export class P2PWorkspace {
     const holderViews = file.holders.map(record => {
       const online = peers.filter(peer => this.#holderIdOf(peer) === record.holderId);
       const isMine = record.holderId === mine;
-      const label =
-        isMine ?
-          (this.device()?.name ?? '本设备')
-        : (this.#knownLabels.get(record.holderId) ?? `${record.holderId.slice(7, 15)}…`);
+      const label = isMine ? (this.device()?.name ?? '本设备') : (this.#knownLabels.get(record.holderId) ?? '其他设备');
       return { holderId: record.holderId, mine: isMine, label, online };
     });
     return {

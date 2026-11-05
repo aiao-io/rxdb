@@ -51,7 +51,7 @@ export const openDevice = async (browser: Browser, email: string, action: 'sign-
   await page.getByTestId('login-email').fill(email);
   await page.getByTestId('login-password').fill(PASSWORD);
   await page.getByTestId(`login-${action}`).click();
-  await expect(page.getByTestId('signaling-state')).toHaveText(/online/);
+  await expect(page.getByTestId('signaling-state')).toHaveAttribute('data-state', 'online');
   await expect(page.getByTestId('current-device')).not.toHaveText(/登记设备中/);
   const name = ((await page.getByTestId('current-device').textContent()) ?? '').trim();
   const supabaseUrl = await page.evaluate(
@@ -66,7 +66,7 @@ export const openDevice = async (browser: Browser, email: string, action: 'sign-
   return { context, page, name, cutServer };
 };
 
-/** 本设备持有的文件行（有「撤回」按钮）。 */
+/** 本设备持有的文件行（有「移除本机副本」按钮）。 */
 const ownRows = (device: Device): Locator =>
   device.page.getByTestId('file-row').filter({ has: device.page.getByTestId('file-revoke') });
 
@@ -76,6 +76,8 @@ export const generateFile = async (
   sizeMiB: 1 | 16,
   options: { readonly upload?: boolean } = {}
 ): Promise<{ readonly fileName: string; readonly contentHash: string }> => {
+  const shareOptions = device.page.getByTestId('share-options');
+  if ((await shareOptions.getAttribute('open')) === null) await shareOptions.locator('summary').click();
   if (options.upload) await device.page.getByTestId('upload-toggle').check();
   const before = await ownRows(device).count();
   await device.page.getByTestId(`generate-${sizeMiB}`).click();
@@ -98,6 +100,8 @@ export const transferOf = (device: Device, fileName: string): Locator =>
 /** 与某台在线设备建立会话，等它就绪。 */
 export const connectTo = async (device: Device, peer: Device): Promise<void> => {
   await device.page.locator(`[data-testid="peer-row"][data-peer="${peer.name}"]`).getByTestId('peer-connect').click();
+  const connectionDetails = device.page.getByTestId('connection-details');
+  if ((await connectionDetails.getAttribute('open')) === null) await connectionDetails.locator('summary').click();
   await expect(
     device.page.locator('[data-testid="session-row"][data-state="ready"]').filter({ hasText: peer.name })
   ).toBeVisible();

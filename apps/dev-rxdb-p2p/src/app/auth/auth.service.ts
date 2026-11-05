@@ -52,7 +52,8 @@ export class AuthService {
 
   /** 退出并整页重载：本地库的实体类只能绑定一个实例，换用户时重新开始。 */
   async signOut(): Promise<void> {
-    await this.client.auth.signOut();
+    const { error } = await this.client.auth.signOut();
+    if (error) throw error;
     location.assign('/login');
   }
 }

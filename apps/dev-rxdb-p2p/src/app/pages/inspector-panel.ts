@@ -38,7 +38,8 @@ const DELAYS_MS = [0, 50, 200] as const;
             每块延迟
             <select
               class="select select-sm w-24"
-              (change)="workspace.setFaults({ delayMs: +$any($event.target).value })"
+              #delayInput
+              (change)="workspace.setFaults({ delayMs: +delayInput.value })"
             >
               @for (delay of delays; track delay) {
                 <option [selected]="workspace.faults().delayMs === delay" [value]="delay">{{ delay }} ms</option>
@@ -57,7 +58,12 @@ const DELAYS_MS = [0, 50, 200] as const;
 
         <div class="flex flex-wrap items-center gap-2">
           <h2 class="card-title flex-1 text-base">会话帧</h2>
-          <select class="select select-sm max-w-64" (change)="selected.set($any($event.target).value)">
+          <select
+            class="select select-sm max-w-64"
+            #connectionInput
+            (change)="selected.set(connectionInput.value)"
+            aria-label="选择诊断连接"
+          >
             @for (link of workspace.links(); track link.connectionId) {
               <option [selected]="link.connectionId === current()?.connectionId" [value]="link.connectionId">
                 {{ link.peer.deviceName }} · {{ link.connectionId.slice(0, 8) }}
