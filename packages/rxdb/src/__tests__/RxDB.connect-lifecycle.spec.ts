@@ -241,14 +241,16 @@ describe('RxDB 连接、迁移与插件生命周期', () => {
     // 每次尝试都先认领执行权再执行（RXD-036），失败的那次连同认领执行权一起回滚 —— 但这里的
     // `created` 是内存数组，回滚不到它，所以两次尝试各留下一条。真库上只会剩最后一条。
     // 关键契约是：只有 z-retry 认领了执行权，已执行的 a-applied 一次都没碰。
-    // 系统链两条（能力认领行按 localeCompare 排在迁移前面），接入方链一条。
+    // 系统链两条（能力认领行按 localeCompare 排在迁移前面），接入方链一条，末尾是引导指纹行
+    // （第二次尝试成功走完完整引导才写，第一次在迁移里失败、写不到它）。
     expect(created.map(record => record.name)).toEqual([
       RETRY_PROBE_CLAIM_ROW,
       RETRY_PROBE_MIGRATION_NAME,
       'z-retry',
       RETRY_PROBE_CLAIM_ROW,
       RETRY_PROBE_MIGRATION_NAME,
-      'z-retry'
+      'z-retry',
+      expect.stringMatching(/^__rxdb_bootstrap__/)
     ]);
     expect(vi.mocked(adapter.createTables)).not.toHaveBeenCalled();
     expect(consoleError).toHaveBeenCalledWith('Migration failed: z-retry', migrationFailure);

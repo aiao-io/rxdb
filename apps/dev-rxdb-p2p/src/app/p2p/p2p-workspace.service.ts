@@ -295,11 +295,17 @@ export class P2PWorkspace {
     const userId = session.user.id;
     const deviceApi = supabaseDeviceApi(this.#auth.client);
     const name = `${defaultDeviceName(navigator.userAgent)} #${crypto.randomUUID().slice(0, 4)}`;
-    const device = await ensureDevice(userId, localStorage, deviceApi, name);
-    this.device.set(device);
-    this.#principal.set({ principal: userId, deviceId: device.id });
+    // 设备登记与本地库连接并行：本地库引导（wa-sqlite 迁移/索引收敛）是启动的大头，
+    // 登记的 Supabase 验证往返藏在它里面，不额外占用启动时间。
     const rxdb = createP2PDatabase(userId, this.#auth.client);
-    await rxdb.connect(LOCAL_ADAPTER);
+    const [device] = await Promise.all([
+      ensureDevice(userId, localStorage, deviceApi, name).then(registered => {
+        this.device.set(registered);
+        this.#principal.set({ principal: userId, deviceId: registered.id });
+        return registered;
+      }),
+      rxdb.connect(LOCAL_ADAPTER)
+    ]);
     await rxdb.connect(REMOTE_ADAPTER);
     this.#watchRecords();
     this.#startSync({

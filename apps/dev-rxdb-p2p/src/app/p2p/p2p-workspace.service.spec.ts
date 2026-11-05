@@ -42,6 +42,9 @@ const network = vi.hoisted(() => ({
   offers: vi.fn<() => Subject<ConnectionOffer>>(),
   links: vi.fn<() => BehaviorSubject<readonly LinkView[]>>()
 }));
+const device = vi.hoisted(() => ({
+  ensureDevice: vi.fn<() => Promise<{ id: string; name: string }>>()
+}));
 vi.mock('@aiao/rxdb-plugin-p2p', async importOriginal => ({
   ...(await importOriginal<typeof import('@aiao/rxdb-plugin-p2p')>()),
   P2PFileManifestEntity: class {
@@ -75,7 +78,7 @@ vi.mock('../db/p2p-database', () => ({
 }));
 vi.mock('../device/device-registration', () => ({
   defaultDeviceName: () => '本机',
-  ensureDevice: async () => ({ id: 'local-device', name: '本机' })
+  ensureDevice: device.ensureDevice
 }));
 vi.mock('./peer-links', () => ({
   PeerLinks: class {
@@ -172,6 +175,7 @@ const prepareWorkspace = (): P2PWorkspace => {
   network.problems.mockReturnValue(problems);
   network.offers.mockReturnValue(offers);
   network.links.mockReturnValue(links);
+  device.ensureDevice.mockResolvedValue({ id: 'local-device', name: '本机' });
   auth.session.mockReturnValue({ user: { id: 'user' } });
   auth.accessToken.mockResolvedValue('access-token');
   storage.store.mockImplementation(async (hash, file) => {
@@ -361,6 +365,33 @@ describe('P2PWorkspace file lifecycle', () => {
     persistence.connect.mockRejectedValue(new Error('本地库无法打开', { cause: new Error('磁盘已满') }));
     await expect(workspace.start()).rejects.toThrow('本地库无法打开');
     expect(workspace.startError()).toBe('本地库无法打开：磁盘已满');
+  });
+
+  it('registers the device while the local database is still connecting', async () => {
+    let resolveDevice!: (device: { id: string; name: string }) => void;
+    device.ensureDevice.mockReturnValue(
+      new Promise(resolve => {
+        resolveDevice = resolve;
+      })
+    );
+    let resolveConnect!: () => void;
+    persistence.connect.mockImplementationOnce(
+      () =>
+        new Promise<void>(resolve => {
+          resolveConnect = resolve;
+        })
+    );
+    const starting = workspace.start();
+    await vi.advanceTimersByTimeAsync(0);
+    // 本地库连接已开始、设备登记尚未完成——两者并行，登记往返不占启动时间。
+    expect(persistence.connect).toHaveBeenCalledWith('local');
+    expect(workspace.device()).toBeNull();
+    resolveDevice({ id: 'local-device', name: '本机' });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(workspace.device()).toEqual({ id: 'local-device', name: '本机' });
+    resolveConnect();
+    await starting;
+    expect(workspace.phase()).toBe('ready');
   });
 
   it('publishes a real local file only after storing it and keeps repeat sharing idempotent', async () => {
