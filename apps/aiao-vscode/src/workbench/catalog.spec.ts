@@ -1,3 +1,4 @@
+import { Orientation, type SerializedDockview } from 'dockview-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createProjectCatalog,
@@ -131,5 +132,53 @@ describe('OPFS workbench project catalog', () => {
       updatedAt: 5,
       remote: { kind: 'github', owner: 'octo', repo: 'repo', branch: 'main' }
     });
+  });
+});
+
+describe('OPFS 项目布局', () => {
+  const layout: SerializedDockview = {
+    grid: {
+      root: { type: 'branch', size: 800, data: [] },
+      width: 960,
+      height: 800,
+      orientation: Orientation.HORIZONTAL
+    },
+    panels: {}
+  };
+
+  beforeEach(() => {
+    const files = new Map<string, string>();
+    const root = {
+      getFileHandle: async (name: string, options?: FileSystemGetFileOptions) => {
+        if (!files.has(name) && !options?.create) throw new DOMException('missing', 'NotFoundError');
+        return {
+          getFile: async () => new File([files.get(name) ?? ''], name),
+          createWritable: async () => {
+            let next = '';
+            return {
+              write: async (value: string) => {
+                next = value;
+              },
+              close: async () => {
+                files.set(name, next);
+              },
+              abort: async () => undefined
+            };
+          }
+        };
+      }
+    };
+    vi.stubGlobal('navigator', {
+      storage: { getDirectory: async () => ({ getDirectoryHandle: async () => root }) },
+      locks: { request: <T>(_name: string, action: () => Promise<T>): Promise<T> => action() }
+    });
+  });
+
+  it('按项目读写布局，没有记录时为 null', async () => {
+    const catalog = createProjectCatalog();
+    expect(await catalog.getLayout('one')).toBeNull();
+    await catalog.putLayout('one', layout);
+    expect(await catalog.getLayout('one')).toEqual(layout);
+    expect(await catalog.getLayout('two')).toBeNull();
   });
 });

@@ -8,7 +8,7 @@ test.describe('浏览器开发工作台：aiao-vscode 应用', () => {
       await runWorkbenchCase(page, expect, template, testInfo);
     });
   }
-  test('布局写进地址栏 hash，刷新后按原样还原', async ({ page }) => {
+  test('布局按项目保存：切换项目与直接打开都按原样还原', async ({ page }) => {
     await runLayoutCase(page, expect);
   });
 });

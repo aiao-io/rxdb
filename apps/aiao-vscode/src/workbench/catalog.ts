@@ -1,3 +1,4 @@
+import type { SerializedDockview } from 'dockview-core';
 import type { ProjectTemplate } from './compiler/compiler-types.js';
 
 /** GitHub 远程仓库的目录条目补充信息。 */
@@ -55,6 +56,10 @@ export interface WorkbenchCatalog {
   put(project: WorkbenchProjectInfo): Promise<void>;
   getState(projectId: string): Promise<WorkbenchProjectState | null>;
   putState(projectId: string, state: WorkbenchProjectState): Promise<void>;
+  /** 读取项目上次的工作台布局；没有时为 null。读出的值不可信，由 Dockview 桥校验后才会应用。 */
+  getLayout(projectId: string): Promise<unknown>;
+  /** 保存项目的工作台布局（Dockview 序列化结果）。 */
+  putLayout(projectId: string, layout: SerializedDockview): Promise<void>;
 }
 
 /** 独立演示的项目目录；不与 Git 工作区共用文件根。 */
@@ -85,6 +90,7 @@ export function createProjectCatalog(): WorkbenchCatalog {
     return navigator.locks.request('aiao-workbench-catalog', operation);
   };
   const stateFilename = (projectId: string): string => `state-${projectId}.json`;
+  const layoutFilename = (projectId: string): string => `layout-${projectId}.json`;
   return {
     list: () => lock(read),
     put: project =>
@@ -147,6 +153,26 @@ export function createProjectCatalog(): WorkbenchCatalog {
             ...(state.commitMessage === undefined ? {} : { commitMessage: state.commitMessage })
           })
         );
+        await writer.close();
+      }),
+    getLayout: projectId =>
+      lock(async () => {
+        const root = await directory();
+        let handle: FileSystemFileHandle;
+        try {
+          handle = await root.getFileHandle(layoutFilename(projectId));
+        } catch (cause) {
+          if (cause instanceof DOMException && cause.name === 'NotFoundError') return null;
+          throw cause;
+        }
+        return JSON.parse(await (await handle.getFile()).text()) as unknown;
+      }),
+    putLayout: (projectId, layout) =>
+      lock(async () => {
+        const root = await directory();
+        const file = await root.getFileHandle(layoutFilename(projectId), { create: true });
+        const writer = await file.createWritable();
+        await writer.write(JSON.stringify(layout));
         await writer.close();
       })
   };

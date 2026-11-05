@@ -2,7 +2,12 @@ import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterSqlite, SqliteOptions } from '@aiao/rxdb-adapter-sqlite-wasm';
 import { isPlatformBrowser } from '@angular/common';
 import { inject, PLATFORM_ID } from '@angular/core';
-import { WorkbenchProject, WorkbenchRemoteProject, WorkbenchSessionState } from '../workbench/rxdb-catalog.js';
+import {
+  WorkbenchLayoutState,
+  WorkbenchProject,
+  WorkbenchRemoteProject,
+  WorkbenchSessionState
+} from '../workbench/rxdb-catalog.js';
 
 const ADAPTER_NAME = 'sqlite-wasm' as const;
 
@@ -27,7 +32,7 @@ export function setupRxDB(): RxDB {
   rxdb = new RxDB({
     dbName: 'aiao-vscode',
     context: { userId: 'local' },
-    entities: [WorkbenchProject, WorkbenchRemoteProject, WorkbenchSessionState],
+    entities: [WorkbenchProject, WorkbenchRemoteProject, WorkbenchSessionState, WorkbenchLayoutState],
     sync: { local: { adapter: ADAPTER_NAME }, type: SyncType.None }
   });
   rxdb.adapter(ADAPTER_NAME, async db => new RxDBAdapterSqlite(db, sqliteWasmOptions()));

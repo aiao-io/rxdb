@@ -1,9 +1,11 @@
 import type { RxDB } from '@aiao/rxdb';
+import { Orientation, type SerializedDockview } from 'dockview-core';
 import { of, throwError } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { githubProjectInfo } from './catalog.js';
 import {
   createRxDBWorkbenchCatalog,
+  WorkbenchLayoutState,
   WorkbenchProject,
   WorkbenchRemoteProject,
   WorkbenchSessionState
@@ -94,6 +96,48 @@ describe('RxDB workbench project catalog', () => {
     expect(record.tabs).toEqual(['src/label.ts']);
     expect(record.activePath).toBe('src/label.ts');
     expect(record.save).toHaveBeenCalledOnce();
+  });
+
+  it('reads a missing layout as null and persists per-project layouts through the layout repository', async () => {
+    const layout: SerializedDockview = {
+      grid: {
+        root: { type: 'branch', size: 800, data: [] },
+        width: 960,
+        height: 800,
+        orientation: Orientation.HORIZONTAL
+      },
+      panels: {}
+    };
+    const record = {
+      id: 'project',
+      layout: undefined as unknown,
+      lastTouchedAt: 0,
+      save: vi.fn(async () => undefined)
+    };
+    const layoutRepository = {
+      findOne: vi
+        .fn()
+        .mockReturnValueOnce(of(undefined))
+        .mockReturnValueOnce(of(undefined))
+        .mockReturnValueOnce(of(record))
+    };
+    const getRepository = vi.fn((entity: unknown) => {
+      if (entity === WorkbenchLayoutState) return layoutRepository;
+      return { findAll: () => of([]), findOne: () => of(undefined) };
+    });
+    const instantiate = vi.fn(() => record);
+    const db = { entityManager: { instantiate, getRepository } } as unknown as RxDB;
+    const catalog = createRxDBWorkbenchCatalog(db);
+    await expect(catalog.getLayout('project')).resolves.toBeNull();
+    await catalog.putLayout('project', layout);
+    expect(instantiate).toHaveBeenCalledWith(WorkbenchLayoutState, { id: 'project' });
+    expect(record.layout).toEqual(layout);
+    expect(record.lastTouchedAt).toBeGreaterThan(0);
+    expect(record.save).toHaveBeenCalledOnce();
+    await expect(catalog.getLayout('project')).resolves.toEqual(layout);
+    expect(layoutRepository.findOne).toHaveBeenCalledWith({
+      where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: 'project' }] }
+    });
   });
 
   it('lists remote GitHub entries alongside local projects', async () => {

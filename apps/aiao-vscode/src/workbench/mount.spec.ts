@@ -108,7 +108,9 @@ function fixture(
     }),
     put: vi.fn(async () => undefined),
     getState: vi.fn<WorkbenchCatalog['getState']>(async () => null),
-    putState: vi.fn(async () => undefined)
+    putState: vi.fn(async () => undefined),
+    getLayout: vi.fn(async () => null),
+    putLayout: vi.fn(async () => undefined)
   };
   const host = document.createElement('div');
   document.body.append(host);

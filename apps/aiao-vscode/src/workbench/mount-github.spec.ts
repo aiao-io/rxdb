@@ -56,7 +56,9 @@ function fixture(withGithub = true): {
     list: vi.fn(async () => []),
     put: vi.fn(async () => undefined),
     getState: vi.fn(async () => null),
-    putState: vi.fn(async () => undefined)
+    putState: vi.fn(async () => undefined),
+    getLayout: vi.fn(async () => null),
+    putLayout: vi.fn(async () => undefined)
   } as unknown as WorkbenchCatalog & Record<string, ReturnType<typeof vi.fn>>;
   const editorHandle = {
     update: vi.fn(),

@@ -44,6 +44,23 @@ export class WorkbenchSessionState extends EntityBase<string> {
   lastTouchedAt!: number;
 }
 
+/** 每个项目的工作台布局（Dockview 序列化结果）；独立表，不迁移既有 workbench_session_state 的 schema。 */
+@Entity({
+  namespace: 'workbench',
+  name: 'WorkbenchLayoutState',
+  tableName: 'workbench_layout_state',
+  log: false,
+  sync: { type: SyncType.None },
+  properties: [
+    { name: 'layout', type: PropertyType.json, required: true },
+    { name: 'lastTouchedAt', type: PropertyType.number, required: true }
+  ]
+})
+export class WorkbenchLayoutState extends EntityBase<string> {
+  layout!: unknown;
+  lastTouchedAt!: number;
+}
+
 /** GitHub 远程仓库的目录条目；独立表，不迁移既有 workbench_project 的 schema。 */
 @Entity({
   namespace: 'workbench',
@@ -80,9 +97,19 @@ export function createRxDBWorkbenchCatalog(db: RxDB): WorkbenchCatalog {
     typeof WorkbenchSessionState,
     Repository<typeof WorkbenchSessionState>
   >(WorkbenchSessionState);
+  const layoutRepository = db.entityManager.getRepository<
+    typeof WorkbenchLayoutState,
+    Repository<typeof WorkbenchLayoutState>
+  >(WorkbenchLayoutState);
   const findState = (projectId: string) =>
     firstValueFrom(
       stateRepository.findOne({
+        where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: projectId }] }
+      })
+    );
+  const findLayout = (projectId: string) =>
+    firstValueFrom(
+      layoutRepository.findOne({
         where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: projectId }] }
       })
     );
@@ -148,6 +175,16 @@ export function createRxDBWorkbenchCatalog(db: RxDB): WorkbenchCatalog {
       record.tabs = [...state.tabs];
       record.activePath = state.activePath ?? undefined;
       record.commitMessage = state.commitMessage;
+      record.lastTouchedAt = Date.now();
+      await record.save();
+    },
+    async getLayout(projectId) {
+      return (await findLayout(projectId))?.layout ?? null;
+    },
+    async putLayout(projectId, layout) {
+      const existing = await findLayout(projectId);
+      const record = existing ?? db.entityManager.instantiate(WorkbenchLayoutState, { id: projectId });
+      record.layout = layout;
       record.lastTouchedAt = Date.now();
       await record.save();
     }

@@ -2,7 +2,7 @@
 
 浏览器内的本地开发工作台应用（Angular 22）。使用 CodeMirror 编辑器、独立 OPFS Git 仓库、受控编译 Worker 与隔离预览；支持 JavaScript / TypeScript、React TSX、Vue SFC 和 Angular standalone 四类受控模板。
 
-布局使用 `dockview-core`，图标使用微软官方 `@vscode/codicons`。界面沿用 VS Code Dark Modern 的活动栏、资源管理器、编辑标签、预览、问题 / 输出 / Console 面板和状态栏。编辑标签可拖动拆分、合并与停靠；预览与编辑器在布局移动时保留实例、撤销记录和运行状态，支持一键重置布局。调整后的布局写进地址栏 hash（`#layout=<码>`：布局 JSON 经 deflate 压缩后转成 base64url），刷新或打开分享链接时按原样还原；链接只排布本地会话已打开的文件，不会替你打开文件。
+布局使用 `dockview-core`，图标使用微软官方 `@vscode/codicons`。界面沿用 VS Code Dark Modern 的活动栏、资源管理器、编辑标签、预览、问题 / 输出 / Console 面板和状态栏。编辑标签可拖动拆分、合并与停靠；预览与编辑器在布局移动时保留实例、撤销记录和运行状态，支持一键重置布局。布局随项目保存在本地目录里（与打开的标签同处），直接打开、刷新、重启浏览器或切换项目时都按该项目上次的样子还原；只排布已打开的文件，地址栏不带布局。
 
 首次打开空目录会生成最小 React、Vue、Angular Demo；后续重开恢复最近使用的项目。范围与验收见 [requirements/stories/US-404](requirements/stories/US-404-browser-development-workbench.md)。
 
@@ -13,7 +13,7 @@ pnpm nx serve aiao-vscode          # 开发服务器 http://127.0.0.1:4320
 pnpm nx build aiao-vscode          # 生产构建（默认配置，含 Service Worker）
 pnpm nx test aiao-vscode           # 内核 + Angular 外壳单测（vitest）
 pnpm nx run aiao-vscode:test-browser  # 真实 Chromium 探针（Git / 预览 / Angular）
-pnpm nx e2e aiao-vscode-e2e        # Playwright e2e：四模板编辑 / 运行 / 提交 / 归档，地址栏布局还原
+pnpm nx e2e aiao-vscode-e2e        # Playwright e2e：四模板编辑 / 运行 / 提交 / 归档，按项目还原布局
 ```
 
 开发服务器与生产构建都需要 `assets` 目标先生成自托管资源（`public/browser-workbench-assets/`），Nx 已配置依赖。

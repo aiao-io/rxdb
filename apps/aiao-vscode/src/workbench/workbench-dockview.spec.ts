@@ -559,7 +559,7 @@ describe('移动端尺寸与拆分', () => {
 });
 
 describe('布局持久化', () => {
-  /** 在一个工作台里摆好布局再导出，经 JSON 往返模拟刷新前写进地址的布局。 */
+  /** 在一个工作台里摆好布局再导出，经 JSON 往返模拟落库后再读回的布局。 */
   function exported(arrange: (dock: WorkbenchDockview) => void): SerializedDockview {
     const { dock } = fixture();
     arrange(dock);

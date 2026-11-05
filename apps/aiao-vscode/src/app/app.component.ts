@@ -27,7 +27,6 @@ import type { GitHubService } from '../workbench/git/github/github-service.js';
 import { createGitHubService } from '../workbench/git/github/github-service.js';
 import { mountWorkbench, type WorkbenchHandle } from '../workbench/mount.js';
 import { createRxDBWorkbenchCatalog } from '../workbench/rxdb-catalog.js';
-import { createUrlLayoutStore } from '../workbench/workbench-layout-url.js';
 
 const CATALOG_TIMEOUT_MS = 10000;
 
@@ -130,8 +129,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
           github: github.createBackend()
         }),
         githubApi: github.api,
-        githubAuth: github.auth,
-        layoutStore: createUrlLayoutStore()
+        githubAuth: github.auth
       },
       (element, initial) => {
         const editor = createComponent(CodeEditor, { hostElement: element, environmentInjector: this.environment });

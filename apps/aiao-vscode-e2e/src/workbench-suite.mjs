@@ -198,24 +198,14 @@ export async function runWorkbenchCase(page, expect, template, testInfo) {
   }
 }
 
-/** 解出地址栏 hash 里的布局（与工作台同一套 deflate + base64url）；没有布局码时为 null。 */
-function readUrlLayout(page) {
-  return page.evaluate(async () => {
-    const code = new URLSearchParams(location.hash.slice(1)).get('layout');
-    if (!code) return null;
-    const bytes = Uint8Array.from(atob(code.replaceAll('-', '+').replaceAll('_', '/')), char => char.charCodeAt(0));
-    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'));
-    return JSON.parse(await new Response(stream).text());
-  });
-}
-
-/** 布局写进地址栏 hash：拆分编辑器、收起侧栏与底部面板后刷新，按原样还原。 */
+/** 布局按项目保存：拆分编辑器、收起侧栏与底部面板后，切换项目再切回、直接打开根地址都按原样还原。 */
 export async function runLayoutCase(page, expect) {
   const browserErrors = [];
   page.on('pageerror', error => browserErrors.push(error.stack ?? error.message));
   await page.goto('/');
   const root = await createProject(page, expect, 'vanilla');
-  const projectId = await root.getByRole('combobox', { name: '当前项目' }).inputValue();
+  const projects = root.getByRole('combobox', { name: '当前项目' });
+  const projectId = await projects.inputValue();
   for (const path of ['src/main.ts', 'src/label.ts']) {
     await root
       .locator('.wb-file')
@@ -230,23 +220,25 @@ export async function runLayoutCase(page, expect) {
   const sidebar = root.locator('[data-action="toggle-sidebar"]');
   await panel.click();
   await sidebar.click();
-  // 写回有防抖，等 hash 里的布局反映最后一次调整再刷新
-  await expect
-    .poll(
-      async () => {
-        const layout = await readUrlLayout(page);
-        return layout && { tools: 'problems' in layout.panels, sidebar: layout.edgeGroups?.left?.visible };
-      },
-      { timeout: 10000 }
-    )
-    .toEqual({ tools: false, sidebar: false });
-  await page.reload();
-  await expect(root.getByRole('combobox', { name: '当前项目' })).toHaveValue(projectId, { timeout: 30000 });
+  await expect(panel).toHaveAttribute('aria-pressed', 'false');
+  await expect(sidebar).toHaveAttribute('aria-pressed', 'false');
+  // 新建第二个项目：切换时第一个项目待写的布局随即落库；第二个项目打开底部面板，布局与第一个不同
+  await createProject(page, expect, 'react');
+  await panel.click();
+  await expect(panel).toHaveAttribute('aria-pressed', 'true');
+  await projects.selectOption(projectId);
+  await expect(editorGroups).toHaveCount(2, { timeout: 30000 });
+  await expect(panel).toHaveAttribute('aria-pressed', 'false');
+  await expect(sidebar).toHaveAttribute('aria-pressed', 'false');
+  // 「已打开」在目录写入最近打开时间之后才记，等它再导航，根地址才会恢复这个项目
+  await expect(root.locator('[data-log="output"]')).toContainText('已打开 vscode-vanilla-fixture');
+  await page.goto('/');
+  await expect(projects).toHaveValue(projectId, { timeout: 30000 });
   await expect(editorGroups).toHaveCount(2, { timeout: 30000 });
   for (const group of await editorGroups.all()) await expect(group.locator('[data-editor-tab-path]')).toHaveCount(1);
   await expect(panel).toHaveAttribute('aria-pressed', 'false');
   await expect(sidebar).toHaveAttribute('aria-pressed', 'false');
   await expect(root.locator('[data-log="problems"]')).toBeHidden();
-  await expect(page).toHaveURL(/#layout=[\w-]+$/);
+  expect(new URL(page.url()).hash).toBe('');
   expect(browserErrors).toEqual([]);
 }
