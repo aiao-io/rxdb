@@ -215,7 +215,7 @@ describe('预览转发与工作台全局快捷键', () => {
     await vi.waitFor(() => expect(handle.session.state.tabs).toContain('src/main.ts'));
     const root = host.querySelector<HTMLElement>('.ao-workbench');
     if (!root) throw new Error('工作台根元素缺失');
-    const press = (init: KeyboardEventInit): KeyboardEvent => {
+    const press = (init: KeyboardEventInit): boolean => {
       const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
       root.dispatchEvent(event);
       return event.defaultPrevented;

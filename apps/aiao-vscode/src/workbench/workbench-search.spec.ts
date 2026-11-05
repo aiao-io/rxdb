@@ -61,7 +61,7 @@ describe('createWorkbenchSearch', () => {
   function mount(onOpenMatch: (path: string, line: number) => void) {
     const host = document.createElement('div');
     document.body.append(host);
-    const search = createWorkbenchSearch(host, { onOpenMatch });
+    const search = createWorkbenchSearch(host, { onOpenMatch, onReplaceFiles: vi.fn() });
     search.refresh(files);
     return { host, search };
   }

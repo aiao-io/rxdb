@@ -37,6 +37,8 @@ function prefixedDiagnostic(message: string): WorkbenchDiagnostic[] | undefined 
 }
 
 globalThis.onmessage = async (event: MessageEvent<CompileRequest>) => {
+  // 专用 Worker 的宿主通道不携带 Window 来源，只接受浏览器分发的消息。
+  if (!event.isTrusted || event.origin !== '' || event.source !== null) return;
   const { id, input, wasmURL, runtimeFiles, runtimeImports } = event.data;
   try {
     const angularTransform =

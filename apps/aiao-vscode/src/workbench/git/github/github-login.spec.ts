@@ -6,16 +6,19 @@ import { oauthDoneKey } from './github-oauth-bridge.js';
 
 const SESSION: GitHubSession = { token: 'ghp_abc', login: 'octo', avatarUrl: null, provider: 'pat' };
 
-function fakeAuth(): GitHubAuth & Record<string, ReturnType<typeof vi.fn>> {
+const pendingStorage = vi.hoisted(() => ({ save: vi.fn(async () => undefined) }));
+vi.mock('./github-session-store.js', () => ({ createIndexedDbSecretStore: () => pendingStorage }));
+
+function fakeAuth() {
   return {
-    getSession: vi.fn(async () => null),
-    loginWithPat: vi.fn(async () => SESSION),
-    beginOAuth: vi.fn(),
-    completeOAuth: vi.fn(),
-    refresh: vi.fn(async () => null),
-    logout: vi.fn(async () => undefined),
-    subscribe: vi.fn(() => () => undefined)
-  } as unknown as GitHubAuth & Record<string, ReturnType<typeof vi.fn>>;
+    getSession: vi.fn<GitHubAuth['getSession']>(async () => null),
+    loginWithPat: vi.fn<GitHubAuth['loginWithPat']>(async () => SESSION),
+    beginOAuth: vi.fn<GitHubAuth['beginOAuth']>(),
+    completeOAuth: vi.fn<GitHubAuth['completeOAuth']>(),
+    refresh: vi.fn<GitHubAuth['refresh']>(async () => null),
+    logout: vi.fn<GitHubAuth['logout']>(async () => undefined),
+    subscribe: vi.fn<GitHubAuth['subscribe']>(() => () => undefined)
+  };
 }
 
 describe('requestGitHubLogin', () => {
@@ -23,6 +26,7 @@ describe('requestGitHubLogin', () => {
   let host: HTMLElement;
 
   beforeEach(() => {
+    pendingStorage.save.mockClear();
     auth = fakeAuth();
     host = document.createElement('div');
     document.body.append(host);
@@ -87,7 +91,7 @@ describe('requestGitHubLogin', () => {
     expect(dialog().querySelector('.wb-github-error')?.textContent).toBe('尚未配置 clientId');
   });
 
-  it('bridges OAuth through localStorage and updates the account on storage events', async () => {
+  it('persists OAuth before opening the popup and updates the account on storage events', async () => {
     const openAuthorize = vi.fn();
     auth.beginOAuth.mockResolvedValue({
       authorizeUrl: 'https://github.com/login/oauth/authorize?client_id=x',
@@ -97,8 +101,10 @@ describe('requestGitHubLogin', () => {
     void requestGitHubLogin(host, { auth, openAuthorize });
     await flush();
     [...dialog().querySelectorAll('button')].find(button => button.textContent === '使用 GitHub 账号登录')!.click();
-    await flush();
-    expect(openAuthorize).toHaveBeenCalledWith('https://github.com/login/oauth/authorize?client_id=x');
+    await vi.waitFor(() =>
+      expect(openAuthorize).toHaveBeenCalledWith('https://github.com/login/oauth/authorize?client_id=x')
+    );
+    expect(pendingStorage.save).toHaveBeenCalledWith(expect.objectContaining({ verifier: 'verifier-1' }));
     expect(dialog().querySelector('.wb-github-waiting')).not.toBeNull();
 
     auth.refresh.mockResolvedValue({ token: 'gho_oauth', login: 'octo', avatarUrl: null, provider: 'oauth' });
@@ -106,6 +112,21 @@ describe('requestGitHubLogin', () => {
     await flush();
     expect(auth.refresh).toHaveBeenCalledOnce();
     expect(dialog().querySelector('.wb-github-account-name')?.textContent).toBe('octo');
+  });
+
+  it('does not open an OAuth popup when sealed storage fails', async () => {
+    const openAuthorize = vi.fn();
+    auth.beginOAuth.mockResolvedValue({
+      authorizeUrl: 'https://github.com/login/oauth/authorize',
+      state: 'https://ide.example/github-callback?nonce=x',
+      verifier: 'private-verifier'
+    });
+    pendingStorage.save.mockRejectedValueOnce(new Error('storage unavailable'));
+    void requestGitHubLogin(host, { auth, openAuthorize });
+    await flush();
+    [...dialog().querySelectorAll('button')].find(button => button.textContent === '使用 GitHub 账号登录')!.click();
+    await vi.waitFor(() => expect(dialog().querySelector('.wb-github-error')?.textContent).toBe('storage unavailable'));
+    expect(openAuthorize).not.toHaveBeenCalled();
   });
 
   it('polls for the OAuth result as a fallback channel', async () => {

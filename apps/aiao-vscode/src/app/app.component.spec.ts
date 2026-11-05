@@ -24,6 +24,20 @@ vi.mock('../workbench/mount.js', () => ({ mountWorkbench: mocks.mount }));
 vi.mock('../workbench/git-backend.js', () => ({ createGitBackend: mocks.gitBackend }));
 vi.mock('../workbench/git/github/github-service.js', () => ({ createGitHubService: mocks.githubService }));
 vi.mock('../workbench/git/git-router-backend.js', () => ({ createRouterBackend: mocks.routerBackend }));
+vi.mock('../workbench/git/github/github-session-store.js', () => {
+  let value: unknown = null;
+  return {
+    createIndexedDbSecretStore: () => ({
+      load: async () => value,
+      save: async (next: unknown) => {
+        value = next;
+      },
+      clear: async () => {
+        value = null;
+      }
+    })
+  };
+});
 let editor: { update(value: string, language: string): void; layout(): void; focus(): void; dispose(): void };
 
 const connected = new Subject<boolean>();
@@ -183,7 +197,7 @@ describe('AppComponent workbench mount', () => {
 
   it('completes the OAuth callback when booted on the /github-callback route', async () => {
     const state = 'https://ide.example/github-callback?nonce=abcd1234abcd1234';
-    savePendingOAuth({ verifier: 'verifier-1', nonce: 'abcd1234abcd1234', state, at: Date.now() });
+    await savePendingOAuth({ verifier: 'verifier-1', nonce: 'abcd1234abcd1234', state, at: Date.now() });
     history.pushState({}, '', `/github-callback?code=code-1&state=${encodeURIComponent(state)}`);
     const fixture = createComponentFixture();
     fixture.detectChanges();

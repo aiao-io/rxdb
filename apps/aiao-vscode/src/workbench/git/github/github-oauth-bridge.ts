@@ -1,5 +1,6 @@
 import { GitWorkbenchError } from '../git-protocol.js';
 import type { GitHubAuth, GitHubSession } from './github-auth.js';
+import { createIndexedDbSecretStore, type GitHubSecretStore } from './github-session-store.js';
 
 const PENDING_KEY = 'aiao-vscode.github-oauth-pending';
 const DONE_KEY = 'aiao-vscode.github-oauth-done';
@@ -12,42 +13,47 @@ export interface PendingOAuth {
   readonly at: number;
 }
 
+let pendingStore: GitHubSecretStore<PendingOAuth> | undefined;
+
+function store(): GitHubSecretStore<PendingOAuth> {
+  return (pendingStore ??= createIndexedDbSecretStore<PendingOAuth>('aiao-vscode-github-oauth'));
+}
+
 /** 登录完成通知的 localStorage 键；其他标签页监听 storage 事件据此刷新会话。 */
 export function oauthDoneKey(): string {
   return DONE_KEY;
 }
 
-/** 把未完成的 PKCE 请求放进 localStorage，供 OAuth 弹窗（独立标签页）回调时取回。 */
-export function savePendingOAuth(pending: PendingOAuth): void {
-  localStorage.setItem(PENDING_KEY, JSON.stringify(pending));
+/** 密封未完成的 PKCE 请求，供 OAuth 弹窗回调时取回；旧明文请求直接作废。 */
+export async function savePendingOAuth(pending: PendingOAuth): Promise<void> {
+  localStorage.removeItem(PENDING_KEY);
+  await store().save(pending);
 }
 
-export function loadPendingOAuth(): PendingOAuth | null {
-  const raw = localStorage.getItem(PENDING_KEY);
-  if (!raw) return null;
-  try {
-    const value = JSON.parse(raw) as Partial<PendingOAuth>;
-    if (
-      typeof value.verifier !== 'string' ||
-      typeof value.nonce !== 'string' ||
-      typeof value.state !== 'string' ||
-      typeof value.at !== 'number'
-    ) {
-      return null;
-    }
-    if (Date.now() - value.at > PENDING_TTL_MS) return null;
-    return value as PendingOAuth;
-  } catch {
+export async function loadPendingOAuth(): Promise<PendingOAuth | null> {
+  localStorage.removeItem(PENDING_KEY);
+  const value = await store().load();
+  if (!value) return null;
+  if (
+    typeof value.verifier !== 'string' ||
+    typeof value.nonce !== 'string' ||
+    typeof value.state !== 'string' ||
+    typeof value.at !== 'number' ||
+    Date.now() - value.at > PENDING_TTL_MS
+  ) {
+    await clearPendingOAuth();
     return null;
   }
+  return value;
 }
 
-export function clearPendingOAuth(): void {
+export async function clearPendingOAuth(): Promise<void> {
   localStorage.removeItem(PENDING_KEY);
+  await store().clear();
 }
 
-function notifyOAuthDone(login: string): void {
-  localStorage.setItem(DONE_KEY, JSON.stringify({ login, at: Date.now() }));
+function notifyOAuthDone(): void {
+  localStorage.setItem(DONE_KEY, String(Date.now()));
 }
 
 /**
@@ -55,7 +61,7 @@ function notifyOAuthDone(login: string): void {
  * 在回调路由（/github-callback）的应用启动路径上调用。
  */
 export async function completeOAuthCallback(auth: GitHubAuth, code: string, state: string): Promise<GitHubSession> {
-  const pending = loadPendingOAuth();
+  const pending = await loadPendingOAuth();
   if (!pending) {
     throw new GitWorkbenchError('auth_invalid', 'OAuth 会话不存在或已过期，请重新发起登录');
   }
@@ -64,10 +70,10 @@ export async function completeOAuthCallback(auth: GitHubAuth, code: string, stat
       throw new GitWorkbenchError('auth_invalid', 'OAuth state 不匹配，请重新发起登录');
     }
     const session = await auth.completeOAuth(code, pending.verifier);
-    notifyOAuthDone(session.login);
+    notifyOAuthDone();
     return session;
   } finally {
     // 任何完成尝试都作废 pending 请求，防重放
-    clearPendingOAuth();
+    await clearPendingOAuth();
   }
 }

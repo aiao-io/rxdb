@@ -53,6 +53,20 @@ describe('Git Worker protocol', () => {
     kind: 'staged' as const
   };
 
+  function request(data: unknown, event: Partial<MessageEvent> = {}): void {
+    scope.onmessage({ data, origin: '', source: null, isTrusted: true, ...event } as MessageEvent);
+  }
+
+  it.each([{ origin: 'https://untrusted.example' }, { isTrusted: false }, { source: {} as Window }])(
+    '拒绝非专用 Worker 通道消息 %o',
+    async event => {
+      request({ id: 1, action: 'open', payload }, event);
+      await Promise.resolve();
+      expect(fixture.open).not.toHaveBeenCalled();
+      expect(scope.postMessage).not.toHaveBeenCalled();
+    }
+  );
+
   it.each([
     'init',
     'open',
@@ -73,7 +87,7 @@ describe('Git Worker protocol', () => {
     'import',
     'metrics'
   ])('dispatches %s with a matching request identifier', async action => {
-    scope.onmessage({ data: { id: 7, action, payload } } as MessageEvent);
+    request({ id: 7, action, payload });
     await vi.waitFor(() =>
       expect(scope.postMessage).toHaveBeenCalledWith({
         id: 7,
@@ -96,7 +110,7 @@ describe('Git Worker protocol', () => {
       files: [{ path: 'asset.bin', bytes: new Uint8Array([0, 255]) }],
       revision: 1
     });
-    scope.onmessage({ data: { id: 3, action: 'snapshot', payload } } as MessageEvent);
+    request({ id: 3, action: 'snapshot', payload });
     await vi.waitFor(() =>
       expect(scope.postMessage).toHaveBeenCalledWith({
         id: 3,
@@ -107,11 +121,11 @@ describe('Git Worker protocol', () => {
 
   it('reports coded runtime failures and rejects unknown commands', async () => {
     fixture.open.mockRejectedValueOnce(Object.assign(new Error('quota'), { code: 'storage_failed' }));
-    scope.onmessage({ data: { id: 1, action: 'open', payload } } as MessageEvent);
+    request({ id: 1, action: 'open', payload });
     await vi.waitFor(() =>
       expect(scope.postMessage).toHaveBeenCalledWith({ id: 1, error: { code: 'storage_failed', message: 'quota' } })
     );
-    scope.onmessage({ data: { id: 2, action: 'unknown', payload } } as MessageEvent);
+    request({ id: 2, action: 'unknown', payload });
     await vi.waitFor(() =>
       expect(scope.postMessage).toHaveBeenCalledWith({
         id: 2,
@@ -121,9 +135,7 @@ describe('Git Worker protocol', () => {
   });
 
   it('差异读取必须显式声明暂存区或工作区，不隐式改读另一侧', async () => {
-    scope.onmessage({
-      data: { id: 4, action: 'readDiff', payload: { projectId: 'project', path: 'main.ts' } }
-    } as MessageEvent);
+    request({ id: 4, action: 'readDiff', payload: { projectId: 'project', path: 'main.ts' } });
     await vi.waitFor(() =>
       expect(scope.postMessage).toHaveBeenCalledWith({
         id: 4,

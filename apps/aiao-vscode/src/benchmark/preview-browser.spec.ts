@@ -265,7 +265,10 @@ describe('真实浏览器编译与 opaque 预览', () => {
     const fixture = {
       template: 'vanilla',
       entry: 'main.ts',
-      files: { 'main.ts': `setTimeout(()=>location.replace(${JSON.stringify(`${origin}/navigation-probe`)}),0);` }
+      files: {
+        'main.ts': 'import target from "./navigation-target.json";setTimeout(()=>location.replace(target),0);',
+        'navigation-target.json': JSON.stringify(`${origin}/navigation-probe`)
+      }
     };
     await page.evaluate(
       fixture =>

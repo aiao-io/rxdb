@@ -13,7 +13,7 @@ const POLL_INTERVAL_MS = 2000;
 
 /**
  * GitHub 登录对话框：已登录显示账户与登出；未登录提供 PAT 输入与 OAuth 弹窗授权。
- * OAuth 在独立弹窗完成（pending 经 localStorage 桥接），storage 事件 + 轮询双通道同步回本标签页。
+ * OAuth 在独立弹窗完成，PKCE 请求经密封存储桥接，storage 事件与轮询同步回本标签页。
  */
 export function requestGitHubLogin(host: HTMLElement, request: GitHubLoginRequest): Promise<void> {
   return new Promise(resolve => {
@@ -107,7 +107,7 @@ export function requestGitHubLogin(host: HTMLElement, request: GitHubLoginReques
         void (async () => {
           try {
             const pending = await auth.beginOAuth();
-            savePendingOAuth({
+            await savePendingOAuth({
               verifier: pending.verifier,
               nonce: new URL(pending.state).searchParams.get('nonce') ?? '',
               state: pending.state,

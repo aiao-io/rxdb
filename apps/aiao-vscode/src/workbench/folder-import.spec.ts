@@ -8,7 +8,7 @@ function fakeFile(name: string, content: string | Uint8Array, sizeOverride?: num
     kind: 'file',
     name,
     getFile: async () => {
-      const file = new File([bytes], name);
+      const file = new File([new Uint8Array(bytes)], name);
       if (sizeOverride !== undefined) Object.defineProperty(file, 'size', { value: sizeOverride });
       return file;
     }

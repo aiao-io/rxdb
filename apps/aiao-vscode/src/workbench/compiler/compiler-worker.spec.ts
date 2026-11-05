@@ -12,15 +12,26 @@ describe('编译 Worker 请求协议', () => {
     services.compile.mockResolvedValue({ js: 'compiled', css: '' });
   });
 
-  async function request(template = 'vanilla'): Promise<void> {
+  async function request(template = 'vanilla', event: Partial<MessageEvent> = {}): Promise<void> {
     await import('./compiler-worker.js');
     const handler = globalThis.onmessage as unknown as (event: MessageEvent) => Promise<void>;
-    await handler(
-      new MessageEvent('message', {
-        data: { id: 'request-1', input: { template, entry: 'main.ts', files: {} }, wasmURL: '/assets/esbuild.wasm' }
-      })
-    );
+    await handler({
+      data: { id: 'request-1', input: { template, entry: 'main.ts', files: {} }, wasmURL: '/assets/esbuild.wasm' },
+      origin: '',
+      source: null,
+      isTrusted: true,
+      ...event
+    } as MessageEvent);
   }
+
+  it.each([{ origin: 'https://untrusted.example' }, { isTrusted: false }, { source: {} as Window }])(
+    '拒绝非专用 Worker 通道消息 %o',
+    async event => {
+      await request('vanilla', event);
+      expect(services.compile).not.toHaveBeenCalled();
+      expect(services.post).not.toHaveBeenCalled();
+    }
+  );
 
   it('编译结果保留请求标识，普通模板不加载 Angular 适配器', async () => {
     await request();

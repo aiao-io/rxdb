@@ -12,6 +12,8 @@ function fixture() {
   const callbacks = {
     onSelectEditor: vi.fn(),
     onCloseEditor: vi.fn(),
+    onCloseOthers: vi.fn(),
+    onCloseRight: vi.fn(),
     onSelectTool: vi.fn(),
     onToggleTool: vi.fn(),
     onClosePreview: vi.fn(),
@@ -44,8 +46,6 @@ describe('Dockview 工作台布局', () => {
 
   it('编辑器标签右键菜单提供关闭、关闭其他与关闭右侧', async () => {
     const { dock, callbacks } = fixture();
-    callbacks.onCloseOthers = vi.fn();
-    callbacks.onCloseRight = vi.fn();
     dock.ensureEditor('first.ts');
     dock.ensureEditor('second.ts');
     dock.ensureEditor('third.ts');

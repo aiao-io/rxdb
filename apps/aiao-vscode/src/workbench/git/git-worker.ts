@@ -88,7 +88,10 @@ async function dispatch({ action, payload }: WorkerRequest): Promise<unknown> {
   }
 }
 
-self.onmessage = ({ data }: MessageEvent<WorkerRequest>) => {
+self.onmessage = (event: MessageEvent<WorkerRequest>) => {
+  // 专用 Worker 的宿主通道不携带 Window 来源，只接受浏览器分发的消息。
+  if (!event.isTrusted || event.origin !== '' || event.source !== null) return;
+  const { data } = event;
   void dispatch(data)
     .then(result => self.postMessage({ id: data.id, result: serialized(result) }))
     .catch((error: unknown) => {

@@ -7,11 +7,13 @@ export interface GitHubStoredSession {
   readonly createdAt: number;
 }
 
-export interface GitHubSessionStore {
-  load(): Promise<GitHubStoredSession | null>;
-  save(session: GitHubStoredSession): Promise<void>;
+export interface GitHubSecretStore<T> {
+  load(): Promise<T | null>;
+  save(value: T): Promise<void>;
   clear(): Promise<void>;
 }
+
+export type GitHubSessionStore = GitHubSecretStore<GitHubStoredSession>;
 
 /** 进程内会话存储；单测与无持久化环境使用。 */
 export function createMemorySessionStore(): GitHubSessionStore {
@@ -75,19 +77,19 @@ function randomBytes(length: number): Uint8Array<ArrayBuffer> {
 }
 
 /** 用 AES-GCM 密封会话；密钥只存在内存，落盘的是随机密钥字节 + 密文。 */
-async function seal(keyBytes: Uint8Array<ArrayBuffer>, session: GitHubStoredSession): Promise<string> {
+async function seal<T>(keyBytes: Uint8Array<ArrayBuffer>, value: T): Promise<string> {
   const key = await crypto.subtle.importKey('raw', keyBytes, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
   const iv = randomBytes(12);
   const ciphertext = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv },
     key,
-    new Uint8Array(new TextEncoder().encode(JSON.stringify(session)))
+    new Uint8Array(new TextEncoder().encode(JSON.stringify(value)))
   );
   const packed = new Uint8Array([...iv, ...new Uint8Array(ciphertext)]);
   return btoa(String.fromCharCode(...packed));
 }
 
-async function unseal(keyBytes: Uint8Array<ArrayBuffer>, sealed: string): Promise<GitHubStoredSession> {
+async function unseal<T>(keyBytes: Uint8Array<ArrayBuffer>, sealed: string): Promise<T> {
   const key = await crypto.subtle.importKey('raw', keyBytes, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
   const binary = atob(sealed);
   const packed = new Uint8Array(binary.length);
@@ -95,14 +97,14 @@ async function unseal(keyBytes: Uint8Array<ArrayBuffer>, sealed: string): Promis
   const iv: Uint8Array<ArrayBuffer> = packed.slice(0, 12);
   const data: Uint8Array<ArrayBuffer> = packed.slice(12);
   const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
-  return JSON.parse(new TextDecoder().decode(plain)) as GitHubStoredSession;
+  return JSON.parse(new TextDecoder().decode(plain)) as T;
 }
 
 /**
  * IndexedDB 会话存储。AES-GCM 密封防静态翻查，安全边界仍靠同源隔离：
  * 预览 iframe 是独立 origin，无法访问这里的存储。
  */
-export function createIndexedDbSessionStore(databaseName = 'aiao-vscode-github-auth'): GitHubSessionStore {
+export function createIndexedDbSecretStore<T>(databaseName: string): GitHubSecretStore<T> {
   const database = openDatabase(databaseName);
 
   async function keyBytes(): Promise<Uint8Array<ArrayBuffer>> {
@@ -115,24 +117,35 @@ export function createIndexedDbSessionStore(databaseName = 'aiao-vscode-github-a
   }
 
   return {
-    async load(): Promise<GitHubStoredSession | null> {
+    async load(): Promise<T | null> {
       const db = await database;
       const sealed = await getRecord<string>(db, 'sessions', SESSION_KEY);
       if (!sealed) return null;
-      const session = await unseal(await keyBytes(), sealed);
-      if (typeof session.token !== 'string' || typeof session.login !== 'string') {
-        await deleteRecord(db, 'sessions', SESSION_KEY);
-        return null;
-      }
-      return session;
+      return unseal<T>(await keyBytes(), sealed);
     },
-    async save(session: GitHubStoredSession): Promise<void> {
+    async save(value: T): Promise<void> {
       const db = await database;
-      await putRecord(db, 'sessions', SESSION_KEY, await seal(await keyBytes(), session));
+      await putRecord(db, 'sessions', SESSION_KEY, await seal(await keyBytes(), value));
     },
     async clear(): Promise<void> {
       const db = await database;
       await deleteRecord(db, 'sessions', SESSION_KEY);
+    }
+  };
+}
+
+export function createIndexedDbSessionStore(databaseName = 'aiao-vscode-github-auth'): GitHubSessionStore {
+  const store = createIndexedDbSecretStore<GitHubStoredSession>(databaseName);
+  return {
+    ...store,
+    async load(): Promise<GitHubStoredSession | null> {
+      const session = await store.load();
+      if (!session) return null;
+      if (typeof session.token !== 'string' || typeof session.login !== 'string') {
+        await store.clear();
+        return null;
+      }
+      return session;
     }
   };
 }

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { WorkbenchProjectInfo } from './catalog.js';
+import type { WorkbenchCatalog, WorkbenchProjectInfo } from './catalog.js';
 import type { WorkbenchCompiler } from './compiler-client.js';
 import { CompilationError } from './compiler/compiler-types.js';
 import type { WorkbenchEditorMount } from './editor.js';
@@ -104,7 +104,7 @@ function fixture(
         : extraProjects;
     }),
     put: vi.fn(async () => undefined),
-    getState: vi.fn(async () => null),
+    getState: vi.fn<WorkbenchCatalog['getState']>(async () => null),
     putState: vi.fn(async () => undefined)
   };
   const host = document.createElement('div');
@@ -189,7 +189,7 @@ function fakeFile(name: string, content: string | Uint8Array): FileSystemFileHan
   return {
     kind: 'file',
     name,
-    getFile: async () => new File([bytes], name)
+    getFile: async () => new File([new Uint8Array(bytes)], name)
   } as unknown as FileSystemFileHandle;
 }
 
