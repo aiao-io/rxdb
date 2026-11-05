@@ -4,11 +4,14 @@ import { peerIdentityKey, type P2PPeerIdentity } from './identity.js';
 import type { P2PPeerSession } from './session.js';
 
 /**
- * 两条会话连着同一对端时保留哪条：两端各自计算，结果一致。
+ * 两条会话连着同一对端时保留哪条。
  *
  * @remarks
- * 方向相同的重复连接（同一端拨了两次）保留先登记的。方向相反（双方同时拨号）时，
- * 身份键较小的一方发起的那条胜出：两端看到的是同一对身份键，所以选中的是同一条连接。
+ * 方向相反（双方同时拨号）时，身份键较小的一方发起的那条胜出：两端看到的是同一对身份键，各自算出的是同一条连接。
+ *
+ * 方向相同的重复连接（同一端拨了两次）保留先登记的，正在用的会话不会被后到的连接顶掉；按连接标识之类的固定规则
+ * 挑选虽能让两端一致，却会关掉已在传输的那条。代价是两端登记的先后可能相反：两端各留一条、又各自以 `duplicate`
+ * 关掉对方留下的那条，最后都不剩会话、要重新拨号。所以拨号方不应同时向同一对端拨两次。
  */
 const preferredSession = (current: P2PPeerSession, incoming: P2PPeerSession, peer: P2PPeerIdentity): P2PPeerSession => {
   if (current.role === incoming.role) return current;

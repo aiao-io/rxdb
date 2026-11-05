@@ -101,12 +101,14 @@ Worker 启动前，`scripts/e2e-admin-user.mjs` 先在栈里建好管理员账�
    - 测试期可在 Authentication → Sign In / Providers → Email 关掉 Confirm email，否则注册后要先点邮件里的验证链接。
 2. **R2 bucket**：`wrangler r2 bucket create aiao-rxdb-p2p-files`。
 3. **发布**：`pnpm nx run dev-rxdb-p2p:deploy`（先构建再 `wrangler deploy`）。
-4. **Worker secrets**（不进仓库，重新部署不会清掉；签票私钥每次新生成，只经管道传给 wrangler）：
+4. **Worker secrets**（不进仓库，重新部署不会清掉；签票私钥只在带 `--new-ticket-key` 时新生成，只经管道传给 wrangler）：
 
    ```bash
    SUPABASE_URL=https://<ref>.supabase.co SUPABASE_ANON_KEY=<anon / publishable key> \
-     node scripts/deploy-secrets.mjs | wrangler secret bulk
+     node scripts/deploy-secrets.mjs --new-ticket-key | wrangler secret bulk
    ```
+
+   首次部署必须带 `--new-ticket-key`；之后只改 Supabase 配置时去掉它，线上那把签票私钥照旧。换钥会让正在握手的连接票据失效，已建立的会话不受影响。
 
 5. **管理后台（可选）**：
    - 把第 1 步的整段 SQL 在 SQL Editor 里再执行一遍（可重复执行）：新增 `p2p.admin_*` 函数，只有 `service_role` 能执行，并给 `service_role` 授最小的表权限；
@@ -126,4 +128,5 @@ Worker 启动前，`scripts/e2e-admin-user.mjs` 先在栈里建好管理员账�
   企业环境可用 Chrome 策略 `WebRtcLocalIpsAllowedUrls` 放开本地 IP。
 - **必须是安全上下文**（https 或 localhost）：连接票据用 WebCrypto 的 Ed25519 验签，OPFS 也只在安全上下文可用。
 - **服务器回退单次上传 ≤ 100 MB**：Cloudflare 免费 / Pro 域名的请求体上限；更大的文件需要分片上传。
+- **信令有上限**：同时在线至多 256 台设备、每个账号 32 个实例，满员时连接被关闭、客户端稍后自动重连；同一来源地址每分钟至多发起 600 次信令连接。
 - 断点续传、Electron / Tauri 双进程不在这一轮（US-707 下一轮与阶段 B）。

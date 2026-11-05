@@ -16,12 +16,7 @@ import { AuthService } from '../auth/auth.service';
 import type { HeldFileWriter } from './held-files';
 import { P2PWorkspace, type SharedFileView } from './p2p-workspace.service';
 import type { LinkView, PeerLinksOptions } from './peer-links';
-import type {
-  ConnectionOffer,
-  SignalingClientOptions,
-  SignalingProblem,
-  SignalingState
-} from './signaling-client';
+import type { ConnectionOffer, SignalingClientOptions, SignalingProblem, SignalingState } from './signaling-client';
 
 const storage = vi.hoisted(() => ({
   createWriter: vi.fn<() => Promise<HeldFileWriter>>(),

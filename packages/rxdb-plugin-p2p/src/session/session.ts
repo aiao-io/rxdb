@@ -85,18 +85,25 @@ export interface P2PSessionOptions {
   readonly local: P2PPeerIdentity;
   /** 发给对端的身份凭据，由认证宿主签发并绑定到 `connectionId`。 */
   readonly credential: string;
-  /** 校验对端凭据，返回认证宿主验证过的用户与设备；返回 null 或抛错即拒绝会话。 */
+  /** 校验对端凭据，返回认证宿主验证过的用户与设备；返回 null 或抛错即拒绝会话，须在 `helloTimeoutMs` 内兑现。 */
   readonly authenticate: (
     credential: string,
     context: { readonly connectionId: string }
   ) => Promise<P2PPrincipal | null> | P2PPrincipal | null;
   /** 本端支持的协议；协议名不得重复。 */
   readonly protocols: readonly P2PProtocol[];
-  /** 等对端 hello 的上限（毫秒），缺省 10000。 */
+  /**
+   * 握手时限（毫秒），缺省 10000：从打开会话到收到对端 hello、并验完它的凭据。
+   * 没收到 hello 以 `peer_lost` 结束；收到了而 `authenticate` 没在时限内兑现，以 `unauthorized` 结束。
+   */
   readonly helloTimeoutMs?: number;
-  /** 心跳间隔（毫秒），缺省 5000。 */
+  /** 心跳间隔（毫秒），缺省 5000；握手期间同样发 ping，本端验凭据慢时对端不会判本端失联。 */
   readonly heartbeatIntervalMs?: number;
-  /** 多久收不到对端任何帧即判失联（毫秒），缺省 15000，须大于心跳间隔。 */
+  /**
+   * 就绪后多久收不到对端任何帧即判失联（毫秒），缺省 15000，须大于心跳间隔。
+   * 按心跳间隔向上取整成 N 个周期，就绪起连续 N 个完整周期收不到任何帧即判定：
+   * 对端停发后在 N 到 N + 1 个间隔之间结束会话。
+   */
   readonly heartbeatTimeoutMs?: number;
 }
 
@@ -344,10 +351,23 @@ class InboundRequests {
 
   /** 收下一个请求；请求号仍在处理中、或未完成请求已达上限时返回 false。 */
   admit(lane: InboundLane, frame: RequestFrame): boolean {
-    if (this.#controllers.has(frame.id) || this.#controllers.size >= MAX_OUTSTANDING_REQUESTS) return false;
-    this.#controllers.set(frame.id, new AbortController());
+    if (!this.#reserve(frame.id)) return false;
     lane.queue.push(frame);
     this.#drain(lane);
+    return true;
+  }
+
+  /**
+   * 收下一个协议未协商、只需应答错误的请求；返回值同 {@link InboundRequests.admit}。
+   *
+   * @remarks
+   * 错误应答交给底层传输之前同样占未完成请求名额：不计名额的话，只发不读的对端能让错误应答在发送队列里无限堆积。
+   *
+   * @param reply - 发出错误应答，从不拒绝
+   */
+  refuse(frame: RequestFrame, reply: () => Promise<void>): boolean {
+    if (!this.#reserve(frame.id)) return false;
+    void reply().finally(() => this.#controllers.delete(frame.id));
     return true;
   }
 
@@ -362,6 +382,12 @@ class InboundRequests {
     for (const controller of this.#controllers.values()) controller.abort(reason);
     this.#controllers.clear();
     for (const lane of this.#lanes.values()) lane.queue.length = 0;
+  }
+
+  #reserve(id: number): boolean {
+    if (this.#controllers.has(id) || this.#controllers.size >= MAX_OUTSTANDING_REQUESTS) return false;
+    this.#controllers.set(id, new AbortController());
+    return true;
   }
 
   #drain(lane: InboundLane): void {
@@ -389,6 +415,8 @@ class PeerSession implements P2PPeerSession {
   readonly #sender: FrameSender;
   readonly #slots = new RequestSlots();
   readonly #outgoing = new Map<number, Deferred<P2PReply>>();
+  /** 已排队、还没交给底层传输的心跳帧：ping / pong 各至多一帧，排着的那一帧已能证明本端还活着。 */
+  readonly #pendingBeats = new Set<'ping' | 'pong'>();
   readonly #settleReady: Deferred<P2PPeerIdentity>;
   readonly #resolveClosed: (reason: P2PSessionClosedError) => void;
   readonly #lanes: ReadonlyMap<string, InboundLane>;
@@ -397,7 +425,8 @@ class PeerSession implements P2PPeerSession {
   #closeReason: P2PSessionClosedError | undefined;
   #closing: Promise<void> = Promise.resolve();
   #sequence = 0;
-  #receivedSinceBeat = true;
+  #helloReceived = false;
+  #receivedSinceBeat = false;
   #missedBeats = 0;
   #helloTimer: ReturnType<typeof setTimeout> | undefined;
   #heartbeat: ReturnType<typeof setInterval> | undefined;
@@ -445,10 +474,8 @@ class PeerSession implements P2PPeerSession {
     );
     this.#inbound = new InboundRequests(this.#lanes, (lane, frame, signal) => this.#serve(lane, frame, signal));
     this.#post(hello, false);
-    this.#helloTimer = setTimeout(
-      () => this.#shutdown(new P2PSessionClosedError('peer_lost', 'peer did not send hello in time')),
-      this.#timing.helloTimeoutMs
-    );
+    this.#helloTimer = setTimeout(() => this.#shutdown(this.#handshakeTimeout()), this.#timing.helloTimeoutMs);
+    this.#startHeartbeat();
     void this.#pump();
   }
 
@@ -505,16 +532,24 @@ class PeerSession implements P2PPeerSession {
   }
 
   async #handshake(frame: P2PFrame | null): Promise<void> {
-    clearTimeout(this.#helloTimer);
     if (frame?.kind !== 'hello') throw new P2PSessionClosedError('protocol_violation', 'peer did not start with hello');
     if (frame.session !== P2P_SESSION_VERSION)
       throw new P2PSessionClosedError('incompatible', `peer speaks session protocol version ${frame.session}`);
+    this.#helloReceived = true;
     const principal = await this.#verify(frame.credential);
     if (this.#closeReason) return;
+    clearTimeout(this.#helloTimer);
     this.#peer = { principal, instanceId: frame.instanceId };
     this.#remoteProtocols = new Map(Object.entries(frame.protocols));
     this.#settleReady.resolve(this.#peer);
-    this.#heartbeat = setInterval(() => this.#beat(), this.#timing.heartbeatIntervalMs);
+    this.#startHeartbeat();
+  }
+
+  /** 握手超时的原因：没收到 hello 是对端失联；收到了而凭据没能在时限内验完，按凭据未通过处理并告知对端。 */
+  #handshakeTimeout(): P2PSessionClosedError {
+    return this.#helloReceived ?
+        new P2PSessionClosedError('unauthorized', 'peer credential was not verified in time')
+      : new P2PSessionClosedError('peer_lost', 'peer did not send hello in time');
   }
 
   async #verify(credential: string): Promise<P2PPrincipal> {
@@ -541,7 +576,7 @@ class PeerSession implements P2PPeerSession {
         this.#inbound.cancel(frame.id);
         return;
       case 'ping':
-        this.#post(encodeP2PFrame({ kind: 'pong' }), false);
+        this.#postBeat('pong');
         return;
       case 'bye':
         throw new P2PSessionClosedError('peer_closed', `peer closed the session: ${frame.reason}`, {
@@ -557,13 +592,18 @@ class PeerSession implements P2PPeerSession {
 
   #admit(frame: RequestFrame): void {
     const lane = this.#inbound.lane(frame.protocol);
-    if (!lane || !this.supports(frame.protocol)) {
-      const message = `protocol ${frame.protocol} is not supported`;
-      this.#post(encodeP2PFrame({ kind: 'error', id: frame.id, code: 'unsupported', message }), false);
-      return;
-    }
-    if (!this.#inbound.admit(lane, frame))
-      throw new P2PSessionClosedError('protocol_violation', 'peer exceeded the outstanding request limit');
+    const admitted =
+      lane && this.supports(frame.protocol) ?
+        this.#inbound.admit(lane, frame)
+      : this.#inbound.refuse(frame, () => this.#refuse(frame));
+    if (!admitted) throw new P2PSessionClosedError('protocol_violation', 'peer exceeded the outstanding request limit');
+  }
+
+  /** 应答协议未协商；从不拒绝，发送失败经 {@link FrameSender} 的失败回调结束会话。 */
+  #refuse(frame: RequestFrame): Promise<void> {
+    const message = `protocol ${frame.protocol} is not supported`;
+    const reply = encodeP2PFrame({ kind: 'error', id: frame.id, code: 'unsupported', message });
+    return this.#sender.send(reply, false).catch(() => undefined);
   }
 
   #settle(frame: ReplyFrame): void {
@@ -624,14 +664,40 @@ class PeerSession implements P2PPeerSession {
     void this.#sender.send(bytes, bulk).catch(() => undefined);
   }
 
-  #beat(): void {
-    this.#missedBeats = this.#receivedSinceBeat ? 0 : this.#missedBeats + 1;
+  /**
+   * 起心跳：打开会话时起一次，就绪时重起一次。
+   *
+   * @remarks
+   * 握手期间也发 ping：本端还在验对端凭据时，对端可能早已就绪并开始计时，收不到帧会误判本端失联。
+   * 就绪时重新起表：失联按就绪之后的完整周期计数，就绪前收到的 hello 不算进第一个周期。
+   */
+  #startHeartbeat(): void {
+    clearInterval(this.#heartbeat);
     this.#receivedSinceBeat = false;
-    if (this.#missedBeats >= this.#timing.missedBeatLimit) {
-      this.#shutdown(new P2PSessionClosedError('peer_lost', 'peer stopped answering heartbeats'));
-      return;
+    this.#heartbeat = setInterval(() => this.#beat(), this.#timing.heartbeatIntervalMs);
+  }
+
+  /** 一拍心跳：就绪之前只发 ping，不判失联。 */
+  #beat(): void {
+    if (this.#peer) {
+      this.#missedBeats = this.#receivedSinceBeat ? 0 : this.#missedBeats + 1;
+      if (this.#missedBeats >= this.#timing.missedBeatLimit) {
+        this.#shutdown(new P2PSessionClosedError('peer_lost', 'peer stopped answering heartbeats'));
+        return;
+      }
     }
-    this.#post(encodeP2PFrame({ kind: 'ping' }), false);
+    this.#receivedSinceBeat = false;
+    this.#postBeat('ping');
+  }
+
+  /** 发一帧心跳；同类心跳还没交给底层传输时不再排队，对端的 ping 洪泛撑不大发送队列。 */
+  #postBeat(kind: 'ping' | 'pong'): void {
+    if (this.#pendingBeats.has(kind)) return;
+    this.#pendingBeats.add(kind);
+    void this.#sender
+      .send(encodeP2PFrame({ kind }), false)
+      .catch(() => undefined)
+      .finally(() => this.#pendingBeats.delete(kind));
   }
 
   #shutdown(reason: P2PSessionClosedError): void {
@@ -670,10 +736,11 @@ class PeerSession implements P2PPeerSession {
  *
  * @remarks
  * 一对设备只需一条会话：任意协议的请求都按协议名分派，同一协议的入站请求按 `maxConcurrentRequests`
- * 限并发，全会话未完成请求超过 32 个即视为对端违反协议。控制帧（hello、心跳、取消、不带负载的应答）
- * 先于带负载的批量帧发送，大文件传输不会把小消息压在后面。
+ * 限并发，全会话未完成请求（含协议未协商、只需应答错误的）超过 32 个即视为对端违反协议。
+ * 控制帧（hello、心跳、取消、不带负载的应答）先于带负载的批量帧发送，大文件传输不会把小消息压在后面；
+ * ping / pong 各至多排一帧，对端的 ping 洪泛撑不大发送队列。
  *
- * 对端凭据未通过认证时只回通用的 `unauthorized`，不泄露本端持有的任何内容；
+ * 对端凭据未通过认证、或没能在握手时限内验完时只回通用的 `unauthorized`，不泄露本端持有的任何内容；
  * 未知的帧类型被忽略，较新版本的对端不会因此断连；畸形帧、超限、乱序 hello 即结束会话。
  * 心跳超时以 `peer_lost` 结束会话，不依赖下一次请求失败才发现对端失联。
  *

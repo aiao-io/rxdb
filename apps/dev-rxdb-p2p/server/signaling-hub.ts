@@ -8,6 +8,9 @@
  *
  * 实例键是客户端自报的，presence 又把它公布给全房间，所以一个键只认登记它的那台设备（同一用户、同一设备）：
  * 它重连时替换自己的旧连接；别的身份拿同一个键来 hello 一律拒绝，在线的那条不动。
+ *
+ * 每条连接只认证一次：认证宿主应答之前运行时照样投递后续消息，不挡的话一条连接堆叠的 hello 每条都会再打一次
+ * 认证宿主。这份「认证中」的记录只在等待应答期间存在，那段时间对象必然驻留，不受休眠影响。
  */
 import {
   parseClientMessage,
@@ -23,6 +26,8 @@ export const CLOSE_UNAUTHORIZED = 4401;
 export const CLOSE_REPLACED = 4409;
 /** 管理员把设备踢下线：客户端按凭据被拒处理，不自动重连。 */
 export const CLOSE_EVICTED = 4403;
+/** 在线设备已满（整个房间或这个用户）：客户端照常稍后重连，有空位就能进来。 */
+export const CLOSE_BUSY = 4429;
 /** 认证宿主不可达。 */
 export const CLOSE_SERVER_ERROR = 1011;
 
@@ -58,6 +63,10 @@ export interface SignalingHubOptions {
   readonly ticketKey: JsonWebKey;
   /** 生成连接标识。 */
   readonly newConnectionId: () => string;
+  /** 房间里至多同时在线的设备数。 */
+  readonly maxMembers: number;
+  /** 一个用户至多同时在线的实例数。 */
+  readonly maxMembersPerUser: number;
 }
 
 const send = (socket: HubSocket, message: ServerMessage): void => socket.send(JSON.stringify(message));
@@ -68,6 +77,7 @@ const fail = (socket: HubSocket, code: SignalingErrorCode, message: string): voi
 /** 信令中枢。 */
 export class SignalingHub {
   readonly #options: SignalingHubOptions;
+  readonly #authenticating = new Set<HubSocket>();
 
   constructor(options: SignalingHubOptions) {
     this.#options = options;
@@ -114,16 +124,21 @@ export class SignalingHub {
   }
 
   async #greet(socket: HubSocket, message: ClientMessage | null): Promise<void> {
+    if (this.#authenticating.has(socket)) return;
     if (message?.type !== 'hello') return this.#reject(socket, 'hello is required first');
+    this.#authenticating.add(socket);
     let peer: SignalingPeer | null;
     try {
       peer = await this.#options.authenticate(message);
     } catch (error) {
       fail(socket, 'server_error', error instanceof Error ? error.message : String(error));
       return socket.close(CLOSE_SERVER_ERROR, 'authentication host unavailable');
+    } finally {
+      this.#authenticating.delete(socket);
     }
     if (!peer) return this.#reject(socket, 'invalid access token or device');
-    this.#join(socket, peer);
+    // 等认证宿主期间对端可能已经走了：不能再登记、替换它的旧连接或通知别人
+    if (socket.open()) this.#join(socket, peer);
   }
 
   /**
@@ -132,25 +147,43 @@ export class SignalingHub {
    * @remarks
    * 同一个实例键被别的身份占着时拒绝新来的，而不是替换在线的那条：否则任何已认证用户从 presence
    * 读到别人的键，就能用自己的凭据把对方踢下线，并接管此后发给这个键的建连与信令。
+   * 名额按替换之后算：设备重连顶掉自己的旧连接不占新名额，满员时也能回来。
    */
   #join(socket: HubSocket, peer: SignalingPeer): void {
-    const holders = this.#members().filter(member => member !== socket && peerOf(member).key === peer.key);
+    const others = this.#members().filter(member => member !== socket);
+    const holders = others.filter(member => peerOf(member).key === peer.key);
     if (holders.some(holder => !sameDevice(peerOf(holder), peer))) {
       return this.#reject(socket, 'this instance id belongs to another device');
     }
+    const staying = others.filter(member => !holders.includes(member));
+    const full = this.#capacityProblem(staying, peer);
+    if (full) return this.#turnAway(socket, full);
     for (const stale of holders) {
       stale.detach();
       stale.close(CLOSE_REPLACED, 'replaced by a newer connection');
     }
     socket.attach(peer);
-    const others = this.#members().filter(member => member !== socket);
-    send(socket, { type: 'welcome', self: peer, peers: others.map(peerOf), ticketKey: this.#options.ticketKey });
-    this.#publishPresence(this.#members(), others);
+    send(socket, { type: 'welcome', self: peer, peers: staying.map(peerOf), ticketKey: this.#options.ticketKey });
+    this.#publishPresence(this.#members(), staying);
   }
 
   #reject(socket: HubSocket, reason: string): void {
     fail(socket, 'unauthorized', reason);
     socket.close(CLOSE_UNAUTHORIZED, 'unauthorized');
+  }
+
+  /** 名额不够时的原因；够就返回 null。 */
+  #capacityProblem(staying: readonly HubSocket[], peer: SignalingPeer): string | null {
+    const { maxMembers, maxMembersPerUser } = this.#options;
+    if (staying.length >= maxMembers) return `the signaling room is full (${maxMembers} devices online)`;
+    const own = staying.filter(member => peerOf(member).principal === peer.principal).length;
+    return own >= maxMembersPerUser ? `this account already has ${maxMembersPerUser} instances online` : null;
+  }
+
+  /** 名额已满：告诉客户端原因，以可重试的关闭码断开。 */
+  #turnAway(socket: HubSocket, reason: string): void {
+    fail(socket, 'server_error', reason);
+    socket.close(CLOSE_BUSY, 'busy');
   }
 
   async #connect(socket: HubSocket, self: SignalingPeer, to: string): Promise<void> {

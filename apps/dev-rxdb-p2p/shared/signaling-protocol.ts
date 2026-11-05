@@ -46,7 +46,7 @@ export type SignalKind = 'offer' | 'answer' | 'ice';
 /** 建连时本端的角色：发起方创建 DataChannel 与 offer。 */
 export type SignalingRole = 'initiator' | 'responder';
 
-/** 服务端报告的错误；`unauthorized` 与 `server_error`（认证宿主不可达）之后服务端关闭连接。 */
+/** 服务端报告的错误；`unauthorized` 与 `server_error`（认证宿主不可达、在线设备已满）之后服务端关闭连接。 */
 export type SignalingErrorCode = 'unauthorized' | 'bad_request' | 'peer_unavailable' | 'server_error';
 
 /** 浏览器发给信令服务的消息。 */

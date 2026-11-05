@@ -24,8 +24,32 @@ import {
 } from './runtime';
 import { SignalingHub, type HelloMessage, type HubSocket } from './signaling-hub';
 import { createTicketIssuer } from './tickets';
+import { UpgradeLimiter } from './upgrade-limiter';
 
 const EVICT_REASON = 'removed by an administrator';
+
+/**
+ * 房间里至多同时在线的设备数。
+ *
+ * @remarks
+ * 每有一台设备上下线，presence 都把整张在线表推给每一台，代价随人数平方增长；这个 demo 的部署远到不了这个数。
+ * 只数认证过的设备：还没 hello 的连接不进 presence，把它们算进来的话，谁挂着一堆空连接就能把别人挡在门外。
+ */
+export const MAX_ROOM_MEMBERS = 256;
+
+/** 一个用户至多同时在线的实例数（一个标签页一个）：远多于正常使用，只挡一个账号占满房间。 */
+export const MAX_MEMBERS_PER_USER = 32;
+
+/**
+ * 每个来源地址每分钟至多发起的信令升级数。
+ *
+ * @remarks
+ * 一台设备断线后每 2 秒重连一次，一分钟 30 次；同一出口地址后面可能有好几台设备，这里只挡洪泛。
+ */
+export const MAX_UPGRADES_PER_MINUTE = 600;
+
+/** 限速至多同时记着的来源地址数。 */
+const MAX_TRACKED_SOURCES = 10_000;
 
 const hubSocketOf = (socket: HibernatableWebSocket): HubSocket => ({
   send: message => socket.send(message),
@@ -41,6 +65,12 @@ export class SignalingRoom {
   readonly #ctx: DurableObjectStateLike;
   readonly #env: Env;
   readonly #sockets = new WeakMap<WebSocket, HubSocket>();
+  readonly #upgrades = new UpgradeLimiter({
+    limit: MAX_UPGRADES_PER_MINUTE,
+    windowMs: 60_000,
+    maxSources: MAX_TRACKED_SOURCES,
+    now: () => Date.now()
+  });
   #hub: Promise<SignalingHub> | undefined;
 
   constructor(ctx: DurableObjectStateLike, env: Env) {
@@ -50,6 +80,8 @@ export class SignalingRoom {
 
   /**
    * 接受 WebSocket 升级；`/admin/*` 是 Worker 在验过管理员后发来的内部请求（在线列表、踢下线）。
+   * 同一来源升级太频繁回 429；房间已满回 503，不升级：省下 hello 那两次认证宿主调用，客户端照常稍后重连
+   * （名额的硬上限在 hello 时判）。来源取 Cloudflare 填的 `cf-connecting-ip`，没有这个头的请求都算同一个来源。
    *
    * @throws Error 签票私钥配置有误：在升级之前抛出，客户端拿到 500，而不是连上之后没有任何应答
    */
@@ -59,7 +91,11 @@ export class SignalingRoom {
     if (request.headers.get('upgrade')?.toLowerCase() !== 'websocket') {
       return new Response('expected a websocket upgrade', { status: 426 });
     }
-    await this.#hubReady();
+    if (!this.#upgrades.allow(request.headers.get('cf-connecting-ip') ?? '')) {
+      return new Response('too many signaling connections from this address', { status: 429 });
+    }
+    const hub = await this.#hubReady();
+    if (hub.roster().length >= MAX_ROOM_MEMBERS) return new Response('the signaling room is full', { status: 503 });
     const [client, server] = createWebSocketPair();
     this.#ctx.acceptWebSocket(server);
     return upgradeResponse(client);
@@ -118,7 +154,9 @@ export class SignalingRoom {
       authenticate: hello => this.#authenticate(hello),
       issueTickets: (connectionId, initiator, responder) => issuer.issue(connectionId, initiator, responder),
       ticketKey: issuer.publicKey,
-      newConnectionId: () => crypto.randomUUID()
+      newConnectionId: () => crypto.randomUUID(),
+      maxMembers: MAX_ROOM_MEMBERS,
+      maxMembersPerUser: MAX_MEMBERS_PER_USER
     });
   }
 

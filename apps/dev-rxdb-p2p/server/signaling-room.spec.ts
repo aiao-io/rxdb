@@ -11,8 +11,8 @@ import {
   type DurableObjectStateLike,
   type HibernatableWebSocket
 } from './runtime';
-import { CLOSE_EVICTED, CLOSE_UNAUTHORIZED } from './signaling-hub';
-import { SignalingRoom } from './signaling-room';
+import { CLOSE_BUSY, CLOSE_EVICTED, CLOSE_UNAUTHORIZED } from './signaling-hub';
+import { MAX_MEMBERS_PER_USER, MAX_ROOM_MEMBERS, MAX_UPGRADES_PER_MINUTE, SignalingRoom } from './signaling-room';
 
 vi.mock('./identity', () => ({ verifyAccessToken: vi.fn(), findOwnDevice: vi.fn() }));
 vi.mock('./runtime', async importOriginal => ({
@@ -206,13 +206,76 @@ describe('SignalingRoom', () => {
 
     await room.webSocketMessage(
       mallory.socket,
-      JSON.stringify({ type: 'hello', accessToken: 'mallory', deviceId: 'device-mallory', instanceId: 'instance-alice' })
+      JSON.stringify({
+        type: 'hello',
+        accessToken: 'mallory',
+        deviceId: 'device-mallory',
+        instanceId: 'instance-alice'
+      })
     );
 
     expect(mallory.closed).toEqual([{ code: CLOSE_UNAUTHORIZED, reason: 'unauthorized' }]);
     expect(mallory.deserializeAttachment()).toBeNull();
     expect(alice.closed).toEqual([]);
     expect(alice.deserializeAttachment()).toEqual(peer('alice'));
+  });
+
+  describe('capacity', () => {
+    /** 直接写附件放进在线设备，不走 hello：免得每进一台都向全房间推一次 presence。 */
+    const fill = (sockets: HibernatableWebSocket[], count: number, principal = (index: number) => `user-${index}`) =>
+      Array.from({ length: count }, (_, index) => {
+        const member = new RoomSocket();
+        member.serializeAttachment({ ...peer(`member-${index}`), principal: principal(index) });
+        sockets.push(member.socket);
+        return member;
+      });
+
+    it('turns an upgrade away with 503 while the room is full and lets it in once a seat frees up', async () => {
+      const { context, sockets } = state();
+      const [first] = fill(sockets, MAX_ROOM_MEMBERS);
+      vi.mocked(createWebSocketPair).mockReturnValue([new RoomSocket().socket, new RoomSocket().socket]);
+      vi.mocked(upgradeResponse).mockReturnValue(new Response('upgraded'));
+      const room = new SignalingRoom(context, environment(privateKey));
+
+      expect((await room.fetch(upgrade())).status).toBe(503);
+      expect(context.acceptWebSocket).not.toHaveBeenCalled();
+
+      first?.close(1000, 'bye');
+      await expect(room.fetch(upgrade()).then(response => response.text())).resolves.toBe('upgraded');
+      expect(context.acceptWebSocket).toHaveBeenCalledOnce();
+    });
+
+    it('rate-limits upgrades per client address with 429 and counts other addresses separately', async () => {
+      const { context } = state();
+      vi.mocked(createWebSocketPair).mockReturnValue([new RoomSocket().socket, new RoomSocket().socket]);
+      vi.mocked(upgradeResponse).mockImplementation(() => new Response('upgraded'));
+      const room = new SignalingRoom(context, environment(privateKey));
+      const from = (address: string): Request =>
+        new Request('https://worker.test/api/signal', {
+          headers: { upgrade: 'websocket', 'cf-connecting-ip': address }
+        });
+
+      for (let index = 0; index < MAX_UPGRADES_PER_MINUTE; index += 1) await room.fetch(from('203.0.113.7'));
+      const limited = await room.fetch(from('203.0.113.7'));
+
+      expect(limited.status).toBe(429);
+      expect(context.acceptWebSocket).toHaveBeenCalledTimes(MAX_UPGRADES_PER_MINUTE);
+      await expect(room.fetch(from('198.51.100.9')).then(response => response.text())).resolves.toBe('upgraded');
+    });
+
+    it('asks the next instance of an account that is at its limit to retry later', async () => {
+      const { context, sockets } = state();
+      fill(sockets, MAX_MEMBERS_PER_USER, () => 'user-alice');
+      const alice = new RoomSocket();
+      sockets.push(alice.socket);
+      const room = new SignalingRoom(context, environment(privateKey));
+
+      await room.webSocketMessage(alice.socket, hello('alice'));
+
+      expect(alice.sent.at(-1)).toMatchObject({ type: 'error', code: 'server_error' });
+      expect(alice.closed).toEqual([{ code: CLOSE_BUSY, reason: 'busy' }]);
+      expect(alice.deserializeAttachment()).toBeNull();
+    });
   });
 
   it('restores presence after hibernation and issues verifiable tickets for restored sockets', async () => {

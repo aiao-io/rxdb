@@ -5,8 +5,10 @@
  * - 签票私钥 `TICKET_PRIVATE_JWK`：首次生成 Ed25519 私钥，之后沿用文件里已有的那把。
  * - 管理员名单 `ADMIN_USER_IDS`：取环境变量 `P2P_ADMIN_USER_IDS`（逗号分隔的 Supabase 用户 id），没设就沿用文件里已有的；
  *   都没有就不写，管理后台保持「未配置」。
+ *
+ * 文件里有签票私钥与 service role key，只给本人读写（0600）。
  */
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { resolveStack } from './supabase-stack.mjs';
 
@@ -44,5 +46,10 @@ const lines = [
   ...(supabase.serviceRoleKey ? [`SUPABASE_SERVICE_ROLE_KEY=${supabase.serviceRoleKey}`] : []),
   ...(adminIds ? [`ADMIN_USER_IDS=${adminIds}`] : [])
 ];
-writeFileSync(devVarsPath, [...lines, ''].join('\n'));
+// 先写同目录的新文件再改名替换：几个服务同时起时，读的一方只会看到完整的旧文件或新文件。
+// `wx` 保证这个文件是新建的，`mode` 才生效；替换之后旧文件原来宽松的权限也就不在了。
+// 临时文件名落在仓库根 .gitignore 的 `*.tmp` 里，不会被当成改动提交。
+const temporary = `${devVarsPath}.${process.pid}.tmp`;
+writeFileSync(temporary, [...lines, ''].join('\n'), { mode: 0o600, flag: 'wx' });
+renameSync(temporary, devVarsPath);
 console.log(`✅ .dev.vars → Supabase ${supabase.url}${adminIds ? '，管理后台已配置' : '，管理后台未配置'}`);

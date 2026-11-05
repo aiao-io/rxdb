@@ -246,7 +246,9 @@ describe('PeerLinks connection lifecycle', () => {
   it('abandons a responder connection whose channel never opens and keeps one that opened in time', async () => {
     offer('responder', 'stalled');
     offer('responder', 'opened');
-    connections[1]!.dispatchEvent(Object.assign(new Event('datachannel'), { channel: { label: 'p2p' } as RTCDataChannel }));
+    connections[1]!.dispatchEvent(
+      Object.assign(new Event('datachannel'), { channel: { label: 'p2p' } as RTCDataChannel })
+    );
     await vi.advanceTimersByTimeAsync(200);
     expect(links.links$.value.map(link => link.connectionId)).toEqual(['opened', 'stalled']);
     await vi.advanceTimersByTimeAsync(1000);

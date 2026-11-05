@@ -5,7 +5,7 @@ status: In Review
 priority: High
 epic: epic-011-p2p-file-share
 created: 2026-11-03
-updated: 2026-11-04
+updated: 2026-11-05
 tags: [p2p, session, multiplexing, protocol, webrtc, tcp]
 ---
 
@@ -71,7 +71,7 @@ tags: [p2p, session, multiplexing, protocol, webrtc, tcp]
   - AC#4 让供块端的授权停在闸门上，请求方取消后，等供块端确认收到取消（处理函数的中止信号已触发）才开闸，再核对读盘次数。
   - AC#5 覆盖两种情形：卡住对端页面的主线程（DataChannel 仍在、心跳无人应答），本端以 `peer_lost` 结束；关闭对端上下文，本端以 `peer_lost` 或 `transport_failed` 结束。两种情形下会话列表都移除该设备。
   - AC#6 用重放到另一条连接的凭据作为伪造凭据。
-  - AC#9 在供块端发送口加闸，让 1 个批量帧停在闸口、7 个留在会话的发送队列里，再发小请求，按交给 DataChannel 的先后核对帧序。
+  - AC#9 在供块端发送口加闸，让 1 个批量帧停在闸口、7 个留在会话的发送队列里，再发小请求，按交给 DataChannel 的先后核对帧序。两端心跳间隔设为 10 分钟：心跳的 ping / pong 也是控制帧，恰在关闸后、首个批量应答之前发出时，停在闸口的就是它，帧序断言会与被测的优先级无关地变红。
 - **AC#10**：`src/desktop-tls.spec.ts`。用例派生两个 Node 进程，经 TLS 1.2 PSK 套件（不需要证书文件）建立 socket，执行 AC#1～#4。
 - **反证**：在构建产物里去掉取消检查，两端的 AC#4 都变红；把发送队列改成批量帧优先，AC#9 变红。
 - **协议层单测**：`pnpm nx test rxdb-plugin-p2p`（`src/session/*.spec.ts`、`src/files-protocol.spec.ts`）只证明实现，不计入上述证据。
@@ -84,7 +84,8 @@ tags: [p2p, session, multiplexing, protocol, webrtc, tcp]
 - **帧格式 v2**：[`P2PFrame`](../../../packages/rxdb-plugin-p2p/src/session/frame.ts) 的帧类型为 `hello` / `request` / `response` / `error` / `cancel` / `ping` / `pong` / `bye`，只有请求与应答带负载。`decodeP2PFrame` 遇到未知帧类型返回 `null`，会话忽略它；已知类型字段不合法即判对端违反协议。
 - **多路复用放在会话内**：一条 `P2PByteTransport` 对应一条会话，WebRTC 与 TCP 走同一套逻辑。**推断**：WebRTC 开多条 DataChannel 能消除 SCTP 有序流上的队头阻塞，但只有一种传输能用；先以帧级优先级出队解决，实测不够再评估。
 - **鉴权接缝**：会话级是 [`P2PSessionOptions.authenticate`](../../../packages/rxdb-plugin-p2p/src/session/session.ts)，拿到对端凭据与本连接的 `connectionId`，返回认证宿主验证过的 `P2PPrincipal`；来源可以是信令绑定的身份，也可以是 US-704 AC#8 的可离线验证凭据。请求级由各协议在处理函数里做，处理函数拿到已认证的对端身份；files 协议是 [`P2PFilesProtocolOptions.authorize`](../../../packages/rxdb-plugin-p2p/src/files-protocol.ts)，先授权再查内容表。
-- **去重规则**：[`P2PSessionRegistry`](../../../packages/rxdb-plugin-p2p/src/session/registry.ts) 按「用户 + 设备 + 实例」登记。同一方向的重复连接保留先登记的；双方同时拨号时，身份键较小的一方发起的那条胜出，落选的以 `duplicate` 关闭并告知对端。
+- **握手时限与心跳**：握手（收到对端 hello 并验完凭据）限时 `helloTimeoutMs`，没收到 hello 以 `peer_lost` 结束，`authenticate` 没在时限内兑现以 `unauthorized` 结束并告知对端；握手期间同样按心跳间隔发 ping，一端验凭据慢时已就绪的另一端不会误判它失联。失联按就绪之后的完整周期计数：`heartbeatTimeoutMs` 按心跳间隔向上取整成 N 个周期，连续 N 个周期收不到对端任何帧即判定，对端停发后在 N 到 N + 1 个间隔之间结束会话。ping / pong 各至多排一帧；协议未协商的请求与已收下的请求共用 32 个未完成请求名额，错误应答交给传输前一直占着；控制车道不另设总数上限——本端自己的请求、取消与 ping 在慢链路上也会排队，算进上限会把健康会话判成违反协议。
+- **去重规则**：[`P2PSessionRegistry`](../../../packages/rxdb-plugin-p2p/src/session/registry.ts) 按「用户 + 设备 + 实例」登记。同一方向的重复连接保留先登记的（不让后到的连接顶掉正在传输的会话），两端登记先后相反时会各自关掉对方留下的那条、都不剩会话，所以拨号方不同时向同一对端拨两次（demo 的 `PeerLinks.connect` 复用进行中的拨号）；双方同时拨号时，身份键较小的一方发起的那条胜出，落选的以 `duplicate` 关闭并告知对端。
 - **下游复用**：epic-012 的克隆、信号、DevTools、枢纽都以本故事的会话与协议注册为前置。
 
 ## 实现文件

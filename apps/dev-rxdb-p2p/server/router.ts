@@ -12,6 +12,7 @@ import { adminConfigOf } from './admin-config';
 import { createAdminRoom } from './admin-room';
 import { supabaseConfigOf, type Env } from './env';
 import { handleFileRequest } from './files';
+import { json } from './http';
 import { verifyAccessToken } from './identity';
 
 /** 全部设备共用的信令房间：读范围同部署（US-704 In Scope）。 */
@@ -25,6 +26,12 @@ const appConfig = (env: Env): Response => {
   return new Response(body, {
     headers: { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'no-store' }
   });
+};
+
+/** 文件路由里认证宿主或 R2 出错：照 files.ts 的约定回 502；原文只进日志，宿主的报错不回给调用方。 */
+const fileRouteFailed = (error: unknown): Response => {
+  console.error('[p2p] file route failed', error);
+  return json(502, { error: 'the authentication host or file storage is unavailable' });
 };
 
 const adminDepsOf = (env: Env): AdminRouteDeps => ({
@@ -43,7 +50,7 @@ export const handleRequest = async (request: Request, env: Env): Promise<Respons
   const file = FILE_ROUTE.exec(pathname);
   if (file?.[1]) {
     const verifyUser = (token: string) => verifyAccessToken(supabaseConfigOf(env), token);
-    return handleFileRequest(request, file[1], { bucket: env.FILES, verifyUser });
+    return handleFileRequest(request, file[1], { bucket: env.FILES, verifyUser }).catch(fileRouteFailed);
   }
   return new Response(JSON.stringify({ error: 'not found' }), {
     status: 404,

@@ -2793,12 +2793,6 @@
             "name": "@aiao/rxdb",
             "optional": false,
             "range": "workspace:^"
-          },
-          {
-            "kind": "dependencies",
-            "name": "@aiao/utils",
-            "optional": false,
-            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-p2p",
@@ -3789,7 +3783,7 @@
       }
     ]
   },
-  "digest": "3a3c54db781f09199a5934edec6f8c9db27339384b93859e22d55e4539c956d1",
+  "digest": "1b08852445fce9ce27bb40ed7247817081c6e1ee262746d93686b390b4347baa",
   "sample": {
     "compilerOptions": {
       "experimentalDecorators": true,

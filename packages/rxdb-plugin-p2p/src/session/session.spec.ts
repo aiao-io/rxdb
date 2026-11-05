@@ -155,6 +155,53 @@ describe('P2P 会话：hello 与认证', () => {
     await expect(session.ready).rejects.toMatchObject({ code: 'peer_lost' });
   });
 
+  it('对端验证凭据期间照常发心跳：本端不会把还在握手的对端判成失联', async () => {
+    vi.useFakeTimers();
+    const heartbeat = { heartbeatIntervalMs: 100, heartbeatTimeoutMs: 300 };
+    let approve!: () => void;
+    const approved = new Promise<void>(resolve => (approve = resolve));
+    const [left, right] = openSessionPair({
+      left: { ...heartbeat, protocols: [echo()] },
+      right: {
+        ...heartbeat,
+        protocols: [echo()],
+        authenticate: async (credential, context) => {
+          await approved;
+          return verifyCredential(credential, context);
+        }
+      }
+    });
+    await left.ready;
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect([left.state, right.state]).toEqual(['ready', 'connecting']);
+    approve();
+    await expect(right.ready).resolves.toEqual(alice);
+    await expect(left.request('echo', { method: 'echo', params: 1 })).resolves.toMatchObject({ result: 1 });
+    const closing = Promise.all([left.close(), right.close()]);
+    await vi.advanceTimersByTimeAsync(1_000);
+    await closing;
+  });
+
+  it('认证钩子迟迟不兑现：握手时限一到即以 unauthorized 结束并告知对端，不留悬挂的会话', async () => {
+    vi.useFakeTimers();
+    const heartbeat = { heartbeatIntervalMs: 100, heartbeatTimeoutMs: 300 };
+    const [left, right] = openSessionPair({
+      left: heartbeat,
+      right: { ...heartbeat, helloTimeoutMs: 1_000, authenticate: () => new Promise<never>(() => undefined) }
+    });
+    await left.ready;
+    await vi.advanceTimersByTimeAsync(999);
+    expect([left.state, right.state]).toEqual(['ready', 'connecting']);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(right.state).toBe('closed');
+    await expect(right.closed).resolves.toMatchObject({
+      code: 'unauthorized',
+      message: 'peer credential was not verified in time'
+    });
+    await expect(right.ready).rejects.toMatchObject({ code: 'unauthorized' });
+    await expect(left.closed).resolves.toMatchObject({ code: 'peer_closed', peerReason: 'unauthorized' });
+  });
+
   it('就绪前关闭：ready 以关闭原因拒绝', async () => {
     const [transport] = linkedTransports();
     const session = openP2PSession(sessionOptions(transport, alice));
@@ -327,6 +374,33 @@ describe('P2P 会话：请求复用', () => {
     expect(transport.closed).toBe(true);
   });
 
+  it('对端洪泛未协商协议的请求、又不读应答：错误应答占满未完成请求名额即判违反协议', async () => {
+    const { session, transport, raw } = sessionWithRawPeer();
+    await raw.send(helloFrom(bob));
+    await session.ready;
+    let open!: () => void;
+    transport.sendGate = new Promise<void>(resolve => (open = resolve));
+    for (let id = 0; id < 40; id += 1) await raw.send(request(id, 'nope'));
+    await delay(5);
+    expect(session.state).toBe('closed');
+    await expect(session.closed).resolves.toMatchObject({ code: 'protocol_violation' });
+    transport.sendGate = undefined;
+    open();
+    await session.close();
+  });
+
+  it('未协商协议的请求同样计入未完成请求上限：逐批等到应答的对端不受影响', async () => {
+    const { session, raw } = sessionWithRawPeer();
+    await raw.send(helloFrom(bob));
+    await session.ready;
+    for (let batch = 0; batch < 3; batch += 1) {
+      for (let index = 0; index < 32; index += 1) await raw.send(request(batch * 32 + index, 'nope'));
+      for (let index = 0; index < 32; index += 1) await nextFrameOfKind(raw, 'error');
+    }
+    expect(session.state).toBe('ready');
+    await session.close();
+  });
+
   it('同一请求号还在处理时再次出现即判违反协议', async () => {
     const { session, raw } = sessionWithRawPeer([hang()]);
     await raw.send(helloFrom(bob));
@@ -414,7 +488,7 @@ describe('P2P 会话：请求复用', () => {
 });
 
 describe('P2P 会话：心跳与关闭', () => {
-  it('对端失联：连续错过心跳后以 peer_lost 结束，挂起的请求被拒', async () => {
+  it('对端失联：就绪起连续错过心跳超时折合的周期数即以 peer_lost 结束，挂起的请求被拒', async () => {
     vi.useFakeTimers();
     const [lt, rt] = linkedTransports();
     const heartbeat = { heartbeatIntervalMs: 100, heartbeatTimeoutMs: 300 };
@@ -426,11 +500,103 @@ describe('P2P 会话：心跳与关闭', () => {
     await left.ready;
     rt.sendGate = new Promise<void>(() => undefined);
     const pending = left.request('echo', { method: 'echo' }).catch((error: unknown) => error);
-    await vi.advanceTimersByTimeAsync(399);
+    // 300 ms 折合 3 个周期；就绪前收到的 hello 不算进第一个周期，第 3 拍即判定
+    await vi.advanceTimersByTimeAsync(299);
     expect(left.state).toBe('ready');
-    await vi.advanceTimersByTimeAsync(100);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(left.state).toBe('closed');
     await expect(left.closed).resolves.toMatchObject({ code: 'peer_lost' });
     await expect(pending).resolves.toMatchObject({ code: 'peer_lost' });
+  });
+
+  it('失联判定不早于心跳超时：最后一帧落在周期中间时，在超时之后的下一拍判定', async () => {
+    vi.useFakeTimers();
+    const [transport, raw] = linkedTransports();
+    const session = openP2PSession(
+      sessionOptions(transport, alice, { protocols: [echo()], heartbeatIntervalMs: 100, heartbeatTimeoutMs: 300 })
+    );
+    await raw.send(helloFrom(bob));
+    await session.ready;
+    await vi.advanceTimersByTimeAsync(150);
+    await raw.send(encodeP2PFrame({ kind: 'pong' }));
+    // 最后一帧在 150 ms：400 ms 那拍只沉默了 250 ms，500 ms 那拍沉默 350 ms 才判定
+    await vi.advanceTimersByTimeAsync(349);
+    expect(session.state).toBe('ready');
+    await vi.advanceTimersByTimeAsync(1);
+    expect(session.state).toBe('closed');
+    await expect(session.closed).resolves.toMatchObject({ code: 'peer_lost' });
+  });
+
+  it('两端就绪有先后：先就绪的一端第一拍可能落空，下一拍收到帧即清零，不误判失联', async () => {
+    vi.useFakeTimers();
+    const heartbeat = { heartbeatIntervalMs: 100, heartbeatTimeoutMs: 101 };
+    const [left, right] = openSessionPair({
+      left: heartbeat,
+      right: {
+        ...heartbeat,
+        authenticate: async (credential, context) => {
+          await delay(50);
+          return verifyCredential(credential, context);
+        }
+      }
+    });
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect([left.state, right.state]).toEqual(['ready', 'ready']);
+    const closing = Promise.all([left.close(), right.close()]);
+    await vi.advanceTimersByTimeAsync(1_000);
+    await closing;
+  });
+
+  it('对端 ping 洪泛：发送受阻时 pong 至多排一帧，排在后面的批量应答不被饿死', async () => {
+    const bulk = echo({ handle: () => ({ payload: Uint8Array.of(1, 2, 3) }) });
+    const { session, transport, raw } = sessionWithRawPeer([bulk]);
+    await raw.send(helloFrom(bob));
+    await session.ready;
+    let open!: () => void;
+    transport.sendGate = new Promise<void>(resolve => (open = resolve));
+    const ping = encodeP2PFrame({ kind: 'ping' });
+    // 第一个 pong 卡在发送口，批量应答排进队列，之后的 ping 全在它后面到达
+    await raw.send(ping);
+    await delay(1);
+    await raw.send(request(0));
+    for (let index = 0; index < 1_000; index += 1) await raw.send(ping);
+    await delay(5);
+    transport.sendGate = undefined;
+    open();
+    await expect(nextFrameOfKind(raw, 'response')).resolves.toMatchObject({ id: 0 });
+    const pongCount = () => transport.sentFrames.filter(frame => decodeP2PFrame(frame)?.kind === 'pong').length;
+    expect(pongCount()).toBe(1);
+    await delay(5);
+    expect(pongCount()).toBe(1);
+    expect(session.state).toBe('ready');
+    await session.close();
+  });
+
+  it('发送长时间受阻：本端心跳照常走，ping 与 pong 各至多排一帧，会话不因此结束', async () => {
+    vi.useFakeTimers();
+    const [transport, raw] = linkedTransports();
+    const session = openP2PSession(
+      sessionOptions(transport, alice, { protocols: [echo()], heartbeatIntervalMs: 100, heartbeatTimeoutMs: 300 })
+    );
+    await raw.send(helloFrom(bob));
+    await session.ready;
+    let open!: () => void;
+    transport.sendGate = new Promise<void>(resolve => (open = resolve));
+    const sentBefore = transport.sentFrames.length;
+    for (let beat = 0; beat < 50; beat += 1) {
+      await raw.send(encodeP2PFrame({ kind: 'ping' }));
+      await vi.advanceTimersByTimeAsync(100);
+    }
+    expect(session.state).toBe('ready');
+    transport.sendGate = undefined;
+    open();
+    await vi.advanceTimersByTimeAsync(0);
+    const kinds = transport.sentFrames.slice(sentBefore).map(frame => decodeP2PFrame(frame)?.kind);
+    expect(kinds.toSorted()).toEqual(['ping', 'pong']);
+    expect(session.state).toBe('ready');
+    const closing = session.close();
+    await vi.advanceTimersByTimeAsync(1_000);
+    await closing;
   });
 
   it('心跳正常时空闲的会话一直保持就绪', async () => {

@@ -55,6 +55,58 @@ describe('handleRequest', () => {
     expect(response.status).toBe(401);
   });
 
+  describe('a file request whose auth host or bucket fails', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      vi.restoreAllMocks();
+    });
+
+    const fileRequest = (): Request =>
+      new Request(`http://worker.test/api/files/${'b'.repeat(64)}`, {
+        headers: { authorization: 'Bearer user-token' }
+      });
+    const UNAVAILABLE = { error: 'the authentication host or file storage is unavailable' };
+
+    it('answers 502 when the auth host fails and keeps its error out of the response', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => new Response('database is on fire', { status: 500 }))
+      );
+      const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+      const response = await handleRequest(fileRequest(), envWith());
+
+      expect(response.status).toBe(502);
+      await expect(response.json()).resolves.toEqual(UNAVAILABLE);
+      expect(logged).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ message: 'Supabase Auth responded 500' })
+      );
+    });
+
+    it('answers 502 when reading the bucket fails', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => Response.json({ id: 'user-1', email: 'a@example.com' }))
+      );
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const bucket = envWith().FILES;
+      const env = envWith({
+        FILES: {
+          ...bucket,
+          get: async () => {
+            throw new Error('R2 is unavailable');
+          }
+        }
+      });
+
+      const response = await handleRequest(fileRequest(), env);
+
+      expect(response.status).toBe(502);
+      await expect(response.json()).resolves.toEqual(UNAVAILABLE);
+    });
+  });
+
   it('answers unknown API paths with 404', async () => {
     const response = await handleRequest(get('/api/unknown'), envWith());
 

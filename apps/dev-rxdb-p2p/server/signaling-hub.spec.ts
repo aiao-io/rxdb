@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ServerMessage, SignalingPeer } from '../shared/signaling-protocol';
 import {
+  CLOSE_BUSY,
   CLOSE_EVICTED,
   CLOSE_REPLACED,
   CLOSE_SERVER_ERROR,
@@ -12,6 +13,8 @@ import {
 } from './signaling-hub';
 
 const TICKET_KEY: JsonWebKey = { kty: 'OKP', crv: 'Ed25519', x: 'public' };
+const ROOM_LIMIT = 4;
+const USER_LIMIT = 2;
 
 const peerOf = (name: string): SignalingPeer => ({
   key: `instance-${name}`,
@@ -75,6 +78,8 @@ const helloClaiming = (name: string, claim: { readonly instanceId: string; reado
 describe('SignalingHub', () => {
   let sockets: FakeSocket[];
   let authHostDown: boolean;
+  let authGate: Promise<void>;
+  let authCalls: number;
   let connectionCount: number;
   let hub: SignalingHub;
 
@@ -85,13 +90,24 @@ describe('SignalingHub', () => {
     return socket;
   };
 
+  /** 让认证宿主先不应答，返回放行函数。 */
+  const holdAuthentication = (): (() => void) => {
+    let release!: () => void;
+    authGate = new Promise(resolve => (release = resolve));
+    return release;
+  };
+
   beforeEach(() => {
     sockets = [];
     authHostDown = false;
+    authGate = Promise.resolve();
+    authCalls = 0;
     connectionCount = 0;
     hub = new SignalingHub({
       sockets: () => sockets,
       authenticate: async message => {
+        authCalls += 1;
+        await authGate;
         if (authHostDown) throw new Error('Supabase Auth responded 503');
         const name = message.accessToken.replace('token-', '');
         const peer = { ...peerOf(name), key: message.instanceId, deviceId: message.deviceId };
@@ -102,7 +118,9 @@ describe('SignalingHub', () => {
         `${connectionId}:${responder.key}`
       ],
       ticketKey: TICKET_KEY,
-      newConnectionId: () => `connection-${++connectionCount}`
+      newConnectionId: () => `connection-${++connectionCount}`,
+      maxMembers: ROOM_LIMIT,
+      maxMembersPerUser: USER_LIMIT
     });
   });
 
@@ -306,6 +324,88 @@ describe('SignalingHub', () => {
       expect(bob.last()).toMatchObject({ type: 'connection', role: 'initiator', peer: peerOf('alice') });
       expect(alice.last()).toMatchObject({ type: 'connection', role: 'responder', peer: peerOf('bob') });
       expect(mallory.sent.filter(message => message.type === 'connection')).toEqual([]);
+    });
+  });
+
+  describe('authentication of one connection', () => {
+    it('asks the auth host once however many hellos pile up while it answers', async () => {
+      const release = holdAuthentication();
+      const socket = new FakeSocket();
+      sockets.push(socket);
+
+      const pending = [hub.receive(socket, hello('alice')), hub.receive(socket, hello('alice'))];
+      release();
+      await Promise.all(pending);
+
+      expect(authCalls).toBe(1);
+      expect(socket.sent.filter(message => message.type === 'welcome')).toHaveLength(1);
+    });
+
+    it('does not register a connection that closed while it was being authenticated', async () => {
+      const watcher = await join('bob');
+      const before = watcher.sent.length;
+      const release = holdAuthentication();
+      const socket = new FakeSocket();
+      sockets.push(socket);
+
+      const pending = hub.receive(socket, hello('alice'));
+      socket.close(1006, 'gone');
+      release();
+      await pending;
+
+      expect(socket.peer()).toBeNull();
+      expect(socket.sent).toEqual([]);
+      expect(watcher.sent).toHaveLength(before);
+    });
+  });
+
+  describe('capacity', () => {
+    const joinAs = async (name: string, instanceId: string): Promise<FakeSocket> => {
+      const socket = new FakeSocket();
+      sockets.push(socket);
+      await hub.receive(socket, helloClaiming(name, { instanceId }));
+      return socket;
+    };
+
+    const expectBusy = (socket: FakeSocket): void => {
+      expect(socket.last()).toMatchObject({ type: 'error', code: 'server_error' });
+      expect(socket.closed?.code).toBe(CLOSE_BUSY);
+      expect(socket.peer()).toBeNull();
+    };
+
+    it('lets one user bring instances online up to the limit and asks the next to retry later', async () => {
+      const instances = [];
+      for (let index = 1; index <= USER_LIMIT; index += 1) instances.push(await joinAs('alice', `alice-${index}`));
+      const watcher = await join('bob');
+      const before = watcher.sent.length;
+
+      const extra = await joinAs('alice', 'alice-extra');
+
+      expect(instances.map(socket => socket.closed)).toEqual(instances.map(() => null));
+      expectBusy(extra);
+      expect(watcher.sent).toHaveLength(before);
+    });
+
+    it('fills the room up to the limit and asks the next device to retry later', async () => {
+      const members = [];
+      for (let index = 1; index <= ROOM_LIMIT; index += 1) members.push(await join(`member-${index}`));
+
+      const extra = await join('latecomer');
+
+      expect(members.every(member => member.last()?.type !== 'error' && member.closed === null)).toBe(true);
+      expectBusy(extra);
+      expect(hub.roster()).toHaveLength(ROOM_LIMIT);
+    });
+
+    it('still lets a device at either limit reconnect in place of its old connection', async () => {
+      for (let index = 1; index < ROOM_LIMIT; index += 1) await join(`member-${index}`);
+      const stale = await joinAs('alice', 'alice-1');
+
+      const fresh = await joinAs('alice', 'alice-1');
+
+      expect(stale.closed?.code).toBe(CLOSE_REPLACED);
+      expect(fresh.last()).toMatchObject({ type: 'welcome' });
+      expect(hub.roster()).toHaveLength(ROOM_LIMIT);
     });
   });
 
