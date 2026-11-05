@@ -4,6 +4,8 @@
 同一个账号在两台设备（或两个浏览器）上登录，文件在设备之间经 WebRTC DataChannel 直传；
 「哪台设备有哪个文件」的持有声明经 `rxdb-plugin-sync` 与 Supabase 同步；没有在线持有者时回退服务器下载。
 
+本 demo 已上升为产品 **aiao-pool（文件池）**（v1 交付时更名）；产品需求、决策与里程碑见 [requirements/](./requirements/README.md)（`POOL-US-*` 编号）。
+
 ## 组成
 
 | 部分                           | 承担                                                                                                                                                                      |

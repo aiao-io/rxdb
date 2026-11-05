@@ -12,6 +12,8 @@ owner: jimmy
 
 公司内网里，大文件在已持有副本的机器之间点对点直传——元数据（谁有什么）走现有同步、字节流不经服务器；断外网时局域网照传，没有 peer 在线时回退服务器直下。
 
+本 Epic 六条故事已上升为产品 aiao-pool（文件池）的技术底座；产品化增量的故事、决策与里程碑在 [apps/dev-rxdb-p2p/requirements](../../apps/dev-rxdb-p2p/requirements/README.md)（`POOL-US-*` 编号，独立统计），本 Epic 的编号、状态与验收口径不变。
+
 ## 为什么单列一个 Epic
 
 - **字节面与同步协议正交**：传输走 WebRTC DataChannel / 桌面 TCP，不经过 `rxdb-plugin-sync` 的文档复制路径。P2P 有自己的用户目标；epic-004 现有驱动场景（全文搜索、桌面本地文件、小程序宿主、HTTP 适配器）都不需要 P2P 传输，埋进去只会让它等别的场景。
