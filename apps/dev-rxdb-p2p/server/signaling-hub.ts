@@ -5,6 +5,9 @@
  * 状态全部挂在连接上（休眠附件），中枢本身不持有会在休眠时丢失的内存表：在线设备由
  * `sockets()` 现取，`signal` 按实例键直接寻址。任何已认证的设备都能向别的设备发起连接；
  * 连接票据只发给对应的那一端，冒名者拿不到对方的票，过不了会话的 hello 认证。
+ *
+ * 实例键是客户端自报的，presence 又把它公布给全房间，所以一个键只认登记它的那台设备（同一用户、同一设备）：
+ * 它重连时替换自己的旧连接；别的身份拿同一个键来 hello 一律拒绝，在线的那条不动。
  */
 import {
   parseClientMessage,
@@ -120,7 +123,25 @@ export class SignalingHub {
       return socket.close(CLOSE_SERVER_ERROR, 'authentication host unavailable');
     }
     if (!peer) return this.#reject(socket, 'invalid access token or device');
-    this.#replaceStale(socket, peer.key);
+    this.#join(socket, peer);
+  }
+
+  /**
+   * 登记认证通过的设备。
+   *
+   * @remarks
+   * 同一个实例键被别的身份占着时拒绝新来的，而不是替换在线的那条：否则任何已认证用户从 presence
+   * 读到别人的键，就能用自己的凭据把对方踢下线，并接管此后发给这个键的建连与信令。
+   */
+  #join(socket: HubSocket, peer: SignalingPeer): void {
+    const holders = this.#members().filter(member => member !== socket && peerOf(member).key === peer.key);
+    if (holders.some(holder => !sameDevice(peerOf(holder), peer))) {
+      return this.#reject(socket, 'this instance id belongs to another device');
+    }
+    for (const stale of holders) {
+      stale.detach();
+      stale.close(CLOSE_REPLACED, 'replaced by a newer connection');
+    }
     socket.attach(peer);
     const others = this.#members().filter(member => member !== socket);
     send(socket, { type: 'welcome', self: peer, peers: others.map(peerOf), ticketKey: this.#options.ticketKey });
@@ -130,13 +151,6 @@ export class SignalingHub {
   #reject(socket: HubSocket, reason: string): void {
     fail(socket, 'unauthorized', reason);
     socket.close(CLOSE_UNAUTHORIZED, 'unauthorized');
-  }
-
-  #replaceStale(socket: HubSocket, key: string): void {
-    for (const stale of this.#members().filter(member => member !== socket && peerOf(member).key === key)) {
-      stale.detach();
-      stale.close(CLOSE_REPLACED, 'replaced by a newer connection');
-    }
   }
 
   async #connect(socket: HubSocket, self: SignalingPeer, to: string): Promise<void> {
@@ -173,3 +187,6 @@ export class SignalingHub {
 }
 
 const peerOf = (socket: HubSocket): SignalingPeer => socket.peer() as SignalingPeer;
+
+const sameDevice = (a: SignalingPeer, b: SignalingPeer): boolean =>
+  a.principal === b.principal && a.deviceId === b.deviceId;

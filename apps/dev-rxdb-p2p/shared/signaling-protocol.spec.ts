@@ -1,7 +1,10 @@
 // @vitest-environment node
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  MAX_ACCESS_TOKEN_LENGTH,
+  MAX_CLIENT_MESSAGE_LENGTH,
   MAX_SIGNAL_PAYLOAD_LENGTH,
+  MAX_SIGNALING_ID_LENGTH,
   parseClientMessage,
   parseServerMessage,
   type ClientMessage,
@@ -44,6 +47,48 @@ describe('parseClientMessage', () => {
     const payload = 'x'.repeat(MAX_SIGNAL_PAYLOAD_LENGTH + 1);
 
     expect(parseClientMessage(text({ type: 'signal', to: 'b', connectionId: 'c', kind: 'offer', payload }))).toBeNull();
+  });
+
+  describe('length limits', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    const hello = (field: string, value: string): string =>
+      text({ type: 'hello', accessToken: 'token', deviceId: 'device-a', instanceId: 'instance-a', [field]: value });
+
+    it.each([
+      ['accessToken', MAX_ACCESS_TOKEN_LENGTH],
+      ['deviceId', MAX_SIGNALING_ID_LENGTH],
+      ['instanceId', MAX_SIGNALING_ID_LENGTH]
+    ])('accepts a hello whose %s has %i characters and rejects one more', (field, limit) => {
+      expect(parseClientMessage(hello(field, 'x'.repeat(limit)))).not.toBeNull();
+      expect(parseClientMessage(hello(field, 'x'.repeat(limit + 1)))).toBeNull();
+    });
+
+    it.each<[string, (id: string) => unknown]>([
+      ['connect target', id => ({ type: 'connect', to: id })],
+      ['signal target', id => ({ type: 'signal', to: id, connectionId: 'c', kind: 'ice', payload: '' })],
+      ['signal connection id', id => ({ type: 'signal', to: 'b', connectionId: id, kind: 'ice', payload: '' })]
+    ])('caps the %s at the id length', (_label, message) => {
+      expect(parseClientMessage(text(message('x'.repeat(MAX_SIGNALING_ID_LENGTH))))).not.toBeNull();
+      expect(parseClientMessage(text(message('x'.repeat(MAX_SIGNALING_ID_LENGTH + 1))))).toBeNull();
+    });
+
+    it('drops an oversized raw message without parsing it', () => {
+      const parse = vi.spyOn(JSON, 'parse');
+      const raw = text({ type: 'connect', to: 'b' }) + ' '.repeat(MAX_CLIENT_MESSAGE_LENGTH);
+
+      expect(parseClientMessage(raw)).toBeNull();
+      expect(parse).not.toHaveBeenCalled();
+    });
+
+    it('still accepts the largest signal payload after JSON escaping doubles it', () => {
+      const id = 'x'.repeat(MAX_SIGNALING_ID_LENGTH);
+      const payload = '"'.repeat(MAX_SIGNAL_PAYLOAD_LENGTH);
+      const raw = text({ type: 'signal', to: id, connectionId: id, kind: 'answer', payload });
+
+      expect(raw.length).toBeGreaterThan(2 * MAX_SIGNAL_PAYLOAD_LENGTH);
+      expect(parseClientMessage(raw)).toMatchObject({ type: 'signal', payload });
+    });
   });
 });
 

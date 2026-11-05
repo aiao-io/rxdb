@@ -48,7 +48,7 @@ export interface PeerLinksOptions {
   readonly protocols: () => readonly P2PProtocol[];
   readonly heartbeatIntervalMs: number;
   readonly heartbeatTimeoutMs: number;
-  /** 请求建连后等信令服务分配连接的上限。 */
+  /** 请求建连后等信令服务分配连接、以及响应方等对端打开通道的上限。 */
   readonly connectTimeoutMs: number;
   readonly createPeerConnection: () => RTCPeerConnection;
 }
@@ -75,6 +75,7 @@ export class PeerLinks {
   readonly #links = new Map<string, Link>();
   readonly #settlers = new Map<string, (session: P2PPeerSession) => void>();
   readonly #waiting = new Map<string, (offer: ConnectionOffer) => void>();
+  readonly #dialing = new Map<string, Promise<P2PPeerSession>>();
   #subscriptions: Subscription[] = [];
   #verifyKey: { readonly x: string | undefined; readonly key: Promise<CryptoKey> } | null = null;
   #emitTimer: ReturnType<typeof setTimeout> | undefined;
@@ -108,22 +109,34 @@ export class PeerLinks {
   /**
    * 取得与某台在线设备的会话，没有就经信令新建一条并等它就绪。
    *
+   * @remarks
+   * 同一台设备同时只拨一次：并发的调用（并行下载两个文件、手动连接撞上下载）共用这次拨号。
+   * 各拨各的会多要一条注定被去重关掉的连接，等待者还会互相覆盖，先到的调用在会话建好后照样报超时。
+   *
    * @throws SignalingOfflineError 信令不可达
    * @throws P2PSessionClosedError 会话在就绪前结束（例如凭据被拒）
    */
-  async connect(peerKey: string): Promise<P2PPeerSession> {
+  connect(peerKey: string): Promise<P2PPeerSession> {
     const existing = this.sessionWith(peerKey);
-    if (existing) return existing;
-    this.#options.signaling.requestConnection(peerKey);
-    const offer = await this.#awaitOffer(peerKey);
-    const link = this.#links.get(offer.connectionId) as Link;
-    await link.session;
-    return link.registered as Promise<P2PPeerSession>;
+    if (existing) return Promise.resolve(existing);
+    const pending = this.#dialing.get(peerKey);
+    if (pending) return pending;
+    const dial = this.#dial(peerKey).finally(() => this.#dialing.delete(peerKey));
+    this.#dialing.set(peerKey, dial);
+    return dial;
   }
 
   /** 结束一条连接的会话。 */
   disconnect(connectionId: string): void {
     void this.#links.get(connectionId)?.current?.close();
+  }
+
+  async #dial(peerKey: string): Promise<P2PPeerSession> {
+    this.#options.signaling.requestConnection(peerKey);
+    const offer = await this.#awaitOffer(peerKey);
+    const link = this.#links.get(offer.connectionId) as Link;
+    await link.session;
+    return link.registered as Promise<P2PPeerSession>;
   }
 
   #awaitOffer(peerKey: string): Promise<ConnectionOffer> {
@@ -143,14 +156,40 @@ export class PeerLinks {
     const link = this.#createLink(offer);
     this.#links.set(offer.connectionId, link);
     if (offer.role === 'responder') {
-      link.pc.addEventListener('datachannel', event => this.#settle(link, this.#open(link, event.channel)), {
-        once: true
-      });
+      this.#awaitChannel(link);
     } else {
       this.#startInitiator(link).catch((error: unknown) => this.#fail(link, error));
       this.#waiting.get(offer.peer.key)?.(offer);
       this.#waiting.delete(offer.peer.key);
     }
+    this.#emitSoon();
+  }
+
+  /**
+   * 响应方等发起方打开通道。
+   *
+   * @remarks
+   * 响应方的会话在通道到来时才建，会话的 hello 超时管不到这之前：发起方要完连接就关了页面、或 ICE 一直打不通时，
+   * 到 `connectTimeoutMs` 还没有通道就放弃这条连接，不留一行永远「连接中」的记录和一个没人再用的 RTCPeerConnection。
+   */
+  #awaitChannel(link: Link): void {
+    const timer = setTimeout(() => this.#abandon(link), this.#options.connectTimeoutMs);
+    link.pc.addEventListener(
+      'datachannel',
+      event => {
+        clearTimeout(timer);
+        this.#settle(link, this.#open(link, event.channel));
+      },
+      { once: true }
+    );
+  }
+
+  #abandon(link: Link): void {
+    const { connectionId } = link.offer;
+    console.error(`[p2p] connection ${connectionId} abandoned: the peer did not open a channel in time`);
+    link.pc.close();
+    this.#links.delete(connectionId);
+    this.#settlers.delete(connectionId);
     this.#emitSoon();
   }
 
@@ -246,8 +285,19 @@ export class PeerLinks {
     }
   }
 
-  /** 握手失败：关掉连接，会话随之以 transport_failed 或 hello 超时结束，原因显示在连接上。 */
+  /**
+   * 一条连接的信令出错。
+   *
+   * @remarks
+   * 握手阶段出错就关掉连接，会话随之以 transport_failed 或 hello 超时结束，原因显示在连接上。
+   * 已就绪的会话不再依赖信令（US-707 AC#6）：信令重连窗口里转发晚到的 ICE 候选失败、
+   * 或对端晚到的候选应用失败，都不该拆掉一条能继续传文件的会话，只记日志。
+   */
   #fail(link: Link, error: unknown): void {
+    if (link.current?.state === 'ready') {
+      console.warn(`[p2p] connection ${link.offer.connectionId}: signaling failed after the session was ready`, error);
+      return;
+    }
     console.error(`[p2p] connection ${link.offer.connectionId} failed`, error);
     link.pc.close();
     void link.current?.close();

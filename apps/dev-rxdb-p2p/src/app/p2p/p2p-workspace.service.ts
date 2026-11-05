@@ -32,7 +32,7 @@ import { defaultDeviceName, ensureDevice, type RegisteredDevice } from '../devic
 import { supabaseDeviceApi } from '../device/supabase-device-api';
 import { HeldFiles, readRange } from './held-files';
 import { PeerLinks, type LinkView } from './peer-links';
-import { SignalingClient, type SignalingState } from './signaling-client';
+import { SignalingClient, type SignalingProblem, type SignalingState } from './signaling-client';
 import { TransferProgress, type TransferView } from './transfer-progress';
 
 /** 共享文件的一个持有者。 */
@@ -125,6 +125,8 @@ export class P2PWorkspace {
   readonly startError = signal<string | null>(null);
   readonly device = signal<RegisteredDevice | null>(null);
   readonly signalingState = signal<SignalingState>('offline');
+  /** 信令最近报告的问题；重新上线、或信令又给本机分配了连接时清掉。 */
+  readonly signalingError = signal<SignalingProblem | null>(null);
   readonly peers = signal<readonly SignalingPeer[]>([]);
   readonly links = signal<readonly LinkView[]>([]);
   readonly sync = signal<SyncStatus>({ phase: 'idle', error: null, lastSyncedAt: null });
@@ -341,8 +343,11 @@ export class P2PWorkspace {
       createSocket: url => new WebSocket(url),
       reconnectDelayMs: 2000
     });
-    signaling.state$.subscribe(state => this.signalingState.set(state));
+    signaling.state$.subscribe(state => this.#onSignalingState(state));
     signaling.peers$.subscribe(peers => this.#onPresence(peers));
+    // 服务端的错误（认证宿主不可达、要连的设备已离线）没有别的出口：不显示就只剩「连接中」转圈到超时
+    signaling.errors$.subscribe(problem => this.signalingError.set(problem));
+    signaling.connections$.subscribe(() => this.signalingError.set(null));
     const links = new PeerLinks({
       signaling,
       local: { principal: this.#requirePrincipal(), instanceId: this.instanceId },
@@ -356,6 +361,11 @@ export class P2PWorkspace {
     links.start();
     signaling.start();
     this.#links = links;
+  }
+
+  #onSignalingState(state: SignalingState): void {
+    this.signalingState.set(state);
+    if (state === 'online') this.signalingError.set(null);
   }
 
   #onPresence(peers: readonly SignalingPeer[]): void {
@@ -427,7 +437,7 @@ export class P2PWorkspace {
       await downloadP2PFile({
         manifest: file.manifest,
         sources,
-        fallback: file.serverCopy ? this.#serverFallback : undefined,
+        fallback: file.serverCopy ? this.#fallbackTracking(progress) : undefined,
         token: await this.#auth.accessToken(),
         signal: controller.signal,
         writeChunk: async (index, bytes) => {
@@ -437,12 +447,26 @@ export class P2PWorkspace {
         onProgress: ({ route }) => progress.switchRoute(route)
       });
       await writer.commit();
-      await this.#claim(file.manifest, file.serverCopy ? fileUrl(file.contentHash) : undefined);
-      progress.finish('done');
     } catch (error) {
       await writer.discard();
       progress.finish(controller.signal.aborted ? 'cancelled' : 'failed', messageOf(error));
+      return;
     }
+    // 字节已完整落盘并通过校验：登记失败不能再当成下载失败去丢弃已提交的文件；没登记上的副本不算持有，下次下载覆盖它
+    await this.#claim(file.manifest, file.serverCopy ? fileUrl(file.contentHash) : undefined).then(
+      () => progress.finish('done'),
+      (error: unknown) => progress.finish('failed', `文件已下载并通过校验，但登记本机持有失败：${messageOf(error)}`)
+    );
+  }
+
+  /** 回退开始拉流时就切到服务器路线：回退从 0 号块起重写，第一块落盘早于第一条 server 进度事件。 */
+  #fallbackTracking(progress: TransferProgress): P2PServerFallback {
+    return {
+      download: options => {
+        progress.switchRoute('server');
+        return this.#serverFallback.download(options);
+      }
+    };
   }
 
   async #upload(contentHash: string, file: File): Promise<string> {

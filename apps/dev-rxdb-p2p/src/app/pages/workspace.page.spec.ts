@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminAccess } from '../admin/admin-access';
 import { AuthService } from '../auth/auth.service';
 import { P2PWorkspace, type DemoFaults, type WorkspacePhase } from '../p2p/p2p-workspace.service';
+import type { SignalingProblem } from '../p2p/signaling-client';
 import WorkspacePage from './workspace.page';
 
 const findButton = (root: HTMLElement, text: string): HTMLButtonElement => {
@@ -19,14 +20,16 @@ describe('WorkspacePage', () => {
     phase: signal<WorkspacePhase>('ready'),
     device: signal({ id: 'device', name: '我的电脑' }),
     signalingState: signal('online'),
+    signalingError: signal<SignalingProblem | null>(null),
     sync: signal({ phase: 'idle', error: null as string | null }),
     startError: signal<string | null>(null),
     faults,
     start: vi.fn(async () => undefined),
     setFaults: vi.fn((patch: Partial<DemoFaults>) => faults.update(current => ({ ...current, ...patch })))
   };
+  const signedIn = { user: { email: 'person@example.com' } };
   const auth = {
-    session: signal({ user: { email: 'person@example.com' } }),
+    session: signal<typeof signedIn | null>(signedIn),
     signOut: vi.fn(async () => undefined)
   };
   const admin = { isAdmin: signal(false), check: vi.fn<() => Promise<boolean>>() };
@@ -42,6 +45,8 @@ describe('WorkspacePage', () => {
     workspace.phase.set('ready');
     workspace.startError.set(null);
     workspace.signalingState.set('online');
+    workspace.signalingError.set(null);
+    auth.session.set(signedIn);
     workspace.sync.set({ phase: 'idle', error: null });
     faults.set({ deny: false, corrupt: false, delayMs: 0 });
     TestBed.configureTestingModule({
@@ -137,6 +142,30 @@ describe('WorkspacePage', () => {
 
     expect(root.querySelector('[data-testid="admin-entry"]')).toBeNull();
     expect(workspace.start).toHaveBeenCalledOnce();
+    expect(root.querySelector('router-outlet')).not.toBeNull();
+  });
+
+  it('returns to the login page when the session ends outside this page', async () => {
+    const assign = vi.spyOn(location, 'assign').mockImplementation(() => undefined);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(assign).not.toHaveBeenCalled();
+
+    auth.session.set(null);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(assign).toHaveBeenCalledExactlyOnceWith('/login');
+  });
+
+  it('explains a problem reported by signaling with its reason', () => {
+    workspace.signalingError.set({ code: 'server_error', message: 'authentication host unavailable' });
+    fixture.detectChanges();
+
+    const notice = root.querySelector('[data-testid="signaling-error"]');
+    expect(notice?.getAttribute('role')).toBe('alert');
+    expect(notice?.textContent).toContain('设备发现遇到问题');
+    expect(notice?.textContent).toContain('authentication host unavailable');
     expect(root.querySelector('router-outlet')).not.toBeNull();
   });
 

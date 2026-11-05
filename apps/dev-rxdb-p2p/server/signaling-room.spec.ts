@@ -196,6 +196,25 @@ describe('SignalingRoom', () => {
     }
   );
 
+  it('refuses a hello that claims the instance id of another account that is online', async () => {
+    const { context, sockets } = state();
+    const alice = new RoomSocket();
+    const mallory = new RoomSocket();
+    sockets.push(alice.socket, mallory.socket);
+    const room = new SignalingRoom(context, environment(privateKey));
+    await room.webSocketMessage(alice.socket, hello('alice'));
+
+    await room.webSocketMessage(
+      mallory.socket,
+      JSON.stringify({ type: 'hello', accessToken: 'mallory', deviceId: 'device-mallory', instanceId: 'instance-alice' })
+    );
+
+    expect(mallory.closed).toEqual([{ code: CLOSE_UNAUTHORIZED, reason: 'unauthorized' }]);
+    expect(mallory.deserializeAttachment()).toBeNull();
+    expect(alice.closed).toEqual([]);
+    expect(alice.deserializeAttachment()).toEqual(peer('alice'));
+  });
+
   it('restores presence after hibernation and issues verifiable tickets for restored sockets', async () => {
     const { context, sockets } = state();
     const alice = new RoomSocket();

@@ -81,6 +81,29 @@ describe('TransferProgress', () => {
     expect(progress.view()).toMatchObject({ route: 'server', chunks: [null, null, SERVER_SOURCE], bytes: 2 });
   });
 
+  it('counts a chunk rewritten by the server fallback once and credits the rewrite to the server', async () => {
+    const progress = new TransferProgress('t-1', manifest, ['alice'], () => 100, vi.fn());
+    const alice = progress.attribute(sourceOf('alice'));
+    const signal = new AbortController().signal;
+
+    await alice.requestChunk(request(0), signal);
+    // 2 号块送达并通过校验，但 P2P 在 1 号块失败、它没来得及落盘
+    await alice.requestChunk(request(2), signal);
+    progress.written(0, 4);
+    progress.switchRoute('server');
+    // P2P 失败时还在路上的请求，在服务器回退开始之后才送达
+    await alice.requestChunk(request(1), signal);
+    progress.written(0, 4);
+    progress.written(1, 4);
+    progress.written(2, 2);
+
+    expect(progress.view()).toMatchObject({
+      route: 'server',
+      bytes: 10,
+      chunks: [SERVER_SOURCE, SERVER_SOURCE, SERVER_SOURCE]
+    });
+  });
+
   it('records how the transfer ended', () => {
     let now = 100;
     const progress = new TransferProgress('t-1', manifest, [], () => now, vi.fn());

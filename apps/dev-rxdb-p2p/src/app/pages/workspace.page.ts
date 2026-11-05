@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal, type OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, signal, type OnInit } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AdminAccess } from '../admin/admin-access';
 import { AuthService } from '../auth/auth.service';
@@ -110,6 +110,15 @@ import { P2PWorkspace } from '../p2p/p2p-workspace.service';
               </details>
             </div>
           }
+          @if (workspace.signalingError(); as problem) {
+            <div class="alert alert-warning mb-5 text-sm" data-testid="signaling-error" role="alert">
+              设备发现遇到问题，发现新设备和新建连接可能受影响；已连接的设备照常传输。
+              <details>
+                <summary>查看原因</summary>
+                {{ problem.message }}
+              </details>
+            </div>
+          }
           <router-outlet />
         }
         @default {
@@ -130,6 +139,14 @@ export default class WorkspacePage implements OnInit {
   readonly admin = inject(AdminAccess);
   readonly signingOut = signal(false);
   readonly error = signal<string | null>(null);
+
+  constructor() {
+    // 会话在这一页之外结束（另一个标签页退出、续期失败、账号被封禁）时与「退出」一样整页回登录页：
+    // 路由守卫只在导航时判定，本地库的实体类又只能绑一个实例，留在这里只剩一个再也连不上的工作区
+    effect(() => {
+      if (this.auth.session() === null) location.assign('/login');
+    });
+  }
 
   ngOnInit(): void {
     void this.workspace.start().catch(() => undefined);

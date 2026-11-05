@@ -89,6 +89,7 @@ pnpm nx run dev-rxdb-p2p-e2e:e2e-remote
 覆盖 US-707 AC#1～#3、AC#6 的浏览器部分，以及 US-704 AC#9、US-706 AC#2 / AC#6 的服务端合同；
 `admin.spec.ts` 覆盖 US-713 的管理后台，处置的结果以 service role 直接读库、读 R2 为准。CI 由 supabase action 起栈。
 Worker 启动前，`scripts/e2e-admin-user.mjs` 先在栈里建好管理员账号，并把它的用户 id 交给 `ADMIN_USER_IDS`。
+本地首次运行前先执行一次 `pnpm nx run dev-rxdb-p2p:supabase-up`：webServer 本地只等 3 分钟，首次起栈要拉取 Supabase 镜像，可能超过这个时限；栈已在运行时 e2e 直接复用。
 
 ## 部署到 Cloudflare
 

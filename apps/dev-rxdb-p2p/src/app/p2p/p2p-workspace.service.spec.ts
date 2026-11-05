@@ -9,14 +9,19 @@ import {
   type P2PPrincipal
 } from '@aiao/rxdb-plugin-p2p';
 import { TestBed } from '@angular/core/testing';
-import { BehaviorSubject, of } from 'rxjs';
+import { BehaviorSubject, Subject } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SignalingPeer } from '../../../shared/signaling-protocol';
 import { AuthService } from '../auth/auth.service';
 import type { HeldFileWriter } from './held-files';
 import { P2PWorkspace, type SharedFileView } from './p2p-workspace.service';
 import type { LinkView, PeerLinksOptions } from './peer-links';
-import type { SignalingClientOptions } from './signaling-client';
+import type {
+  ConnectionOffer,
+  SignalingClientOptions,
+  SignalingProblem,
+  SignalingState
+} from './signaling-client';
 
 const storage = vi.hoisted(() => ({
   createWriter: vi.fn<() => Promise<HeldFileWriter>>(),
@@ -37,6 +42,9 @@ const network = vi.hoisted(() => ({
   peerOptions: vi.fn<(options: PeerLinksOptions) => void>(),
   signalOptions: vi.fn<(options: SignalingClientOptions) => void>(),
   presence: vi.fn<() => BehaviorSubject<readonly SignalingPeer[]>>(),
+  state: vi.fn<() => BehaviorSubject<SignalingState>>(),
+  problems: vi.fn<() => Subject<SignalingProblem>>(),
+  offers: vi.fn<() => Subject<ConnectionOffer>>(),
   links: vi.fn<() => BehaviorSubject<readonly LinkView[]>>()
 }));
 vi.mock('@aiao/rxdb-plugin-p2p', async importOriginal => ({
@@ -87,8 +95,10 @@ vi.mock('./peer-links', () => ({
 }));
 vi.mock('./signaling-client', () => ({
   SignalingClient: class {
-    state$ = of('online');
+    state$ = network.state();
     peers$ = network.presence();
+    errors$ = network.problems();
+    connections$ = network.offers();
     start = vi.fn();
     constructor(options: SignalingClientOptions) {
       network.signalOptions(options);
@@ -137,6 +147,9 @@ const auth = {
 const fetcher = vi.fn<typeof fetch>();
 let rows: BehaviorSubject<P2PFileManifestEntity[]>;
 let presence: BehaviorSubject<readonly SignalingPeer[]>;
+let signalingState: BehaviorSubject<SignalingState>;
+let problems: Subject<SignalingProblem>;
+let offers: Subject<ConnectionOffer>;
 let links: BehaviorSubject<readonly LinkView[]>;
 const held = new Map<string, File>();
 
@@ -146,6 +159,9 @@ const prepareWorkspace = (): P2PWorkspace => {
   held.clear();
   rows = new BehaviorSubject<P2PFileManifestEntity[]>([]);
   presence = new BehaviorSubject<readonly SignalingPeer[]>([]);
+  signalingState = new BehaviorSubject<SignalingState>('online');
+  problems = new Subject<SignalingProblem>();
+  offers = new Subject<ConnectionOffer>();
   links = new BehaviorSubject<readonly LinkView[]>([]);
   persistence.findAll.mockReturnValue(rows);
   persistence.connect.mockResolvedValue();
@@ -157,6 +173,9 @@ const prepareWorkspace = (): P2PWorkspace => {
     rows.next(rows.value.filter(item => item.id !== row.id));
   });
   network.presence.mockReturnValue(presence);
+  network.state.mockReturnValue(signalingState);
+  network.problems.mockReturnValue(problems);
+  network.offers.mockReturnValue(offers);
   network.links.mockReturnValue(links);
   auth.session.mockReturnValue({ user: { id: 'user' } });
   auth.accessToken.mockResolvedValue('access-token');
@@ -515,6 +534,57 @@ describe('P2PWorkspace file lifecycle', () => {
       `/api/files/${record.contentHash}`,
       expect.objectContaining({ headers: { authorization: 'Bearer access-token' } })
     );
+  });
+
+  it('keeps a verified download it could not register and says that registration failed', async () => {
+    await workspace.start();
+    const record = await recordFor(content(), remotePrincipal, true);
+    addRecord(record);
+    fetcher.mockResolvedValueOnce(new Response(bytes));
+    persistence.save.mockRejectedValueOnce(new Error('本地库写入失败'));
+    await workspace.download(record.contentHash);
+    await vi.advanceTimersByTimeAsync(250);
+    expect(writer.commit).toHaveBeenCalledOnce();
+    expect(writer.discard).not.toHaveBeenCalled();
+    expect(workspace.files()[0]?.heldHere).toBe(false);
+    expect(workspace.transfers()).toMatchObject([
+      { state: 'failed', bytes: 4, error: '文件已下载并通过校验，但登记本机持有失败：本地库写入失败' }
+    ]);
+  });
+
+  it('counts each chunk once and credits the server for the chunks it rewrote after the peer failed', async () => {
+    await workspace.start();
+    const record = await recordFor(content(), remotePrincipal, true);
+    addRecord(record);
+    presence.next([peer]);
+    const request = vi.fn<P2PPeerSession['request']>(async (_protocol, call) => {
+      const range = call.params as { offset: number; size: number };
+      if (range.offset > 0) throw new Error('对端断开');
+      return { result: null, payload: bytes.slice(range.offset, range.offset + range.size) };
+    });
+    network.connect.mockResolvedValue({ request } as unknown as P2PPeerSession);
+    fetcher.mockResolvedValueOnce(new Response(bytes));
+    await workspace.download(record.contentHash);
+    await vi.advanceTimersByTimeAsync(250);
+    expect(request).toHaveBeenCalled();
+    expect(workspace.transfers()).toMatchObject([
+      { state: 'done', route: 'server', bytes: 4, chunks: ['server', 'server'], sources: ['书房电脑'] }
+    ]);
+  });
+
+  it('keeps the latest signaling problem until signaling is online again or assigns a connection', async () => {
+    await workspace.start();
+    expect(workspace.signalingError()).toBeNull();
+    const unavailable: SignalingProblem = { code: 'peer_unavailable', message: 'remote-instance is not online' };
+    problems.next(unavailable);
+    expect(workspace.signalingError()).toEqual(unavailable);
+    offers.next({ type: 'connection', connectionId: 'connection', role: 'responder', peer, ticket: 'ticket' });
+    expect(workspace.signalingError()).toBeNull();
+    problems.next({ code: 'server_error', message: 'authentication host unavailable' });
+    signalingState.next('offline');
+    expect(workspace.signalingError()).toMatchObject({ code: 'server_error' });
+    signalingState.next('online');
+    expect(workspace.signalingError()).toBeNull();
   });
 
   it('discards a failed server download and does not announce a new local holder', async () => {

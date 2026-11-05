@@ -9,5 +9,5 @@
   "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts", "src/**/__tests__/**", "vite.config.mts"],
   "extends": "../../tsconfig.base.json",
   "include": ["src/**/*.ts"],
-  "references": [{ "path": "../utils/tsconfig.lib.json" }, { "path": "../rxdb/tsconfig.lib.json" }]
+  "references": [{ "path": "../rxdb/tsconfig.lib.json" }]
 }

@@ -63,6 +63,15 @@ const hello = (name: string, accessToken = `token-${name}`): string =>
     instanceId: `instance-${name}`
   } satisfies HelloMessage);
 
+/** 用 `name` 自己的凭据，自报别的实例键（或别的设备）。 */
+const helloClaiming = (name: string, claim: { readonly instanceId: string; readonly deviceId?: string }): string =>
+  JSON.stringify({
+    type: 'hello',
+    accessToken: `token-${name}`,
+    deviceId: claim.deviceId ?? `device-${name}`,
+    instanceId: claim.instanceId
+  } satisfies HelloMessage);
+
 describe('SignalingHub', () => {
   let sockets: FakeSocket[];
   let authHostDown: boolean;
@@ -85,7 +94,8 @@ describe('SignalingHub', () => {
       authenticate: async message => {
         if (authHostDown) throw new Error('Supabase Auth responded 503');
         const name = message.accessToken.replace('token-', '');
-        return message.accessToken.startsWith('token-') ? { ...peerOf(name), key: message.instanceId } : null;
+        const peer = { ...peerOf(name), key: message.instanceId, deviceId: message.deviceId };
+        return message.accessToken.startsWith('token-') ? peer : null;
       },
       issueTickets: async (connectionId, initiator, responder) => [
         `${connectionId}:${initiator.key}`,
@@ -254,6 +264,49 @@ describe('SignalingHub', () => {
     expect(stale.peer()).toBeNull();
     expect(watcher.last()).toEqual({ type: 'presence', peers: [peerOf('bob')] });
     expect(fresh.last()).toMatchObject({ type: 'welcome', peers: [peerOf('alice')] });
+  });
+
+  describe('an instance id claimed by another device', () => {
+    const claim = async (name: string, instanceId: string, deviceId?: string): Promise<FakeSocket> => {
+      const socket = new FakeSocket();
+      sockets.push(socket);
+      await hub.receive(socket, helloClaiming(name, { instanceId, deviceId }));
+      return socket;
+    };
+
+    it.each([
+      ['another user', 'mallory', undefined],
+      ['another device of the same user', 'alice', 'device-alice-phone']
+    ])('is refused for %s while the holder stays online and nobody is told', async (_label, name, deviceId) => {
+      const alice = await join('alice');
+      const bob = await join('bob');
+      const before = bob.sent.length;
+
+      const impostor = await claim(name, 'instance-alice', deviceId);
+
+      expect(impostor.last()).toMatchObject({ type: 'error', code: 'unauthorized' });
+      expect(impostor.closed?.code).toBe(CLOSE_UNAUTHORIZED);
+      expect(impostor.peer()).toBeNull();
+      expect(alice.closed).toBeNull();
+      expect(hub.roster()).toEqual([peerOf('alice'), peerOf('bob')]);
+      expect(bob.sent).toHaveLength(before);
+    });
+
+    it('keeps routing connections to the holder after a takeover read from presence', async () => {
+      const alice = await join('alice');
+      const mallory = await join('mallory');
+      const welcome = mallory.sent.find(message => message.type === 'welcome');
+      const victim = welcome?.type === 'welcome' ? welcome.peers[0]?.key : undefined;
+      if (!victim) throw new Error('mallory 没在 welcome 里看到 alice');
+
+      await claim('mallory', victim);
+      const bob = await join('bob');
+      await hub.receive(bob, JSON.stringify({ type: 'connect', to: victim }));
+
+      expect(bob.last()).toMatchObject({ type: 'connection', role: 'initiator', peer: peerOf('alice') });
+      expect(alice.last()).toMatchObject({ type: 'connection', role: 'responder', peer: peerOf('bob') });
+      expect(mallory.sent.filter(message => message.type === 'connection')).toEqual([]);
+    });
   });
 
   describe('administration', () => {

@@ -55,6 +55,14 @@ function assertFileSize(size: number): void {
   if (!Number.isSafeInteger(size) || size < 0) throw new RangeError('file size must be a non-negative safe integer');
 }
 
+// 单块描述与整表枚举共用同一条清单一致性规则：块数多于文件所需时，越过文件末尾的块会得到负长度
+function assertManifestShape(manifest: Pick<P2PFileManifest, 'size' | 'chunkSize' | 'chunkHashes'>): void {
+  assertFileSize(manifest.size);
+  assertChunkSize(manifest.chunkSize);
+  if (manifest.chunkHashes.length !== Math.ceil(manifest.size / manifest.chunkSize))
+    throw new RangeError('chunkHashes length does not match file size');
+}
+
 /**
  * 计算一段字节的 SHA-256，返回 64 位小写 hex。
  *
@@ -70,13 +78,16 @@ export async function digestSha256Hex(bytes: Uint8Array): Promise<string> {
   return hex;
 }
 
-/** 根据清单返回一个块的描述。 */
+/**
+ * 根据清单返回一个块的描述。
+ *
+ * @throws RangeError 清单的块数与文件大小不符（与 {@link describeChunks} 同一规则），或块序号越界
+ */
 export function describeChunk(
   manifest: Pick<P2PFileManifest, 'size' | 'chunkSize' | 'chunkHashes'>,
   index: number
 ): P2PChunkDescriptor {
-  assertFileSize(manifest.size);
-  assertChunkSize(manifest.chunkSize);
+  assertManifestShape(manifest);
   if (!Number.isSafeInteger(index) || index < 0 || index >= manifest.chunkHashes.length) {
     throw new RangeError(`chunk index out of range: ${index}`);
   }
@@ -89,15 +100,15 @@ export function describeChunk(
   };
 }
 
-/** 枚举清单中的所有块。 */
+/**
+ * 枚举清单中的所有块。
+ *
+ * @throws RangeError 清单的块数与文件大小不符
+ */
 export function describeChunks(
   manifest: Pick<P2PFileManifest, 'size' | 'chunkSize' | 'chunkHashes'>
 ): P2PChunkDescriptor[] {
-  assertFileSize(manifest.size);
-  assertChunkSize(manifest.chunkSize);
-  const expectedCount = Math.ceil(manifest.size / manifest.chunkSize);
-  if (manifest.chunkHashes.length !== expectedCount)
-    throw new RangeError('chunkHashes length does not match file size');
+  assertManifestShape(manifest);
   return manifest.chunkHashes.map((_, index) => describeChunk(manifest, index));
 }
 

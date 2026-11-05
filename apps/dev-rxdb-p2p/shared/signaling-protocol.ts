@@ -5,11 +5,26 @@
  * 第一条消息必须是 `hello`，带 Supabase access token 与本机登记的设备；认证通过后服务端回 `welcome`，
  * 此后在线设备变化以整表 `presence` 推送。`connect` 请求服务端为一条新连接分配 `connectionId`，
  * 并给两端各发一张绑定它的票据；SDP / ICE 经 `signal` 按实例键转发，服务端不解析内容。
- * 两端解析对方的消息都按白名单校验，形状不对的整条丢弃。
+ * 两端解析对方的消息都按白名单校验，形状不对的整条丢弃。浏览器发来的字段另有长度上限：
+ * 实例键原样进每一条 presence，不设上限时一个用户就能让全房间每次收到他塞进来的整段字符串。
  */
 
 /** 单条 SDP / ICE 负载的字符数上限。 */
 export const MAX_SIGNAL_PAYLOAD_LENGTH = 64 * 1024;
+
+/** access token 的字符数上限：Supabase 的 JWT 一般一两千字符，留出自定义声明的余量。 */
+export const MAX_ACCESS_TOKEN_LENGTH = 16 * 1024;
+
+/** 设备、实例与连接标识的字符数上限：本项目里都是 36 字符的 UUID；与会话层实例标识的上限一致。 */
+export const MAX_SIGNALING_ID_LENGTH = 128;
+
+/**
+ * 浏览器发来的一条原始消息的字符数上限，解析 JSON 之前先挡。
+ *
+ * @remarks
+ * 负载本身是一段 JSON 文本，整条消息再编码一次时其中的引号与反斜杠都要转义，最坏翻倍；另留 1 KiB 给其余字段。
+ */
+export const MAX_CLIENT_MESSAGE_LENGTH = 2 * MAX_SIGNAL_PAYLOAD_LENGTH + 1024;
 
 /** 信令里的一台在线设备（一个运行实例）。 */
 export interface SignalingPeer {
@@ -91,6 +106,8 @@ const ERROR_CODES: ReadonlySet<unknown> = new Set<SignalingErrorCode>([
 ]);
 
 const isText = (value: unknown): value is string => typeof value === 'string' && value.length > 0;
+const isToken = (value: unknown): boolean => isText(value) && value.length <= MAX_ACCESS_TOKEN_LENGTH;
+const isId = (value: unknown): boolean => isText(value) && value.length <= MAX_SIGNALING_ID_LENGTH;
 const isFields = (value: unknown): value is Fields =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 const isPayload = (value: unknown): boolean => typeof value === 'string' && value.length <= MAX_SIGNAL_PAYLOAD_LENGTH;
@@ -102,11 +119,11 @@ const isPeer = (value: unknown): value is SignalingPeer =>
 const isPeerList = (value: unknown): boolean => Array.isArray(value) && value.every(isPeer);
 
 const CLIENT_RULES: Readonly<Record<string, Validator>> = {
-  hello: message => isText(message['accessToken']) && isText(message['deviceId']) && isText(message['instanceId']),
-  connect: message => isText(message['to']),
+  hello: message => isToken(message['accessToken']) && isId(message['deviceId']) && isId(message['instanceId']),
+  connect: message => isId(message['to']),
   signal: message =>
-    isText(message['to']) &&
-    isText(message['connectionId']) &&
+    isId(message['to']) &&
+    isId(message['connectionId']) &&
     SIGNAL_KINDS.has(message['kind']) &&
     isPayload(message['payload'])
 };
@@ -139,9 +156,9 @@ const parseWith = (raw: string, rules: Readonly<Record<string, Validator>>): Fie
   return rule?.(value) ? value : null;
 };
 
-/** 解析浏览器发来的消息；不在白名单内或字段不合法返回 null。 */
+/** 解析浏览器发来的消息；超长、不在白名单内或字段不合法返回 null。 */
 export const parseClientMessage = (raw: string): ClientMessage | null =>
-  parseWith(raw, CLIENT_RULES) as ClientMessage | null;
+  raw.length > MAX_CLIENT_MESSAGE_LENGTH ? null : (parseWith(raw, CLIENT_RULES) as ClientMessage | null);
 
 /** 解析信令服务发来的消息；不在白名单内或字段不合法返回 null。 */
 export const parseServerMessage = (raw: string): ServerMessage | null =>

@@ -13,7 +13,7 @@ export default defineConfig(() => ({
     outDir: './dist',
     emptyOutDir: true,
     lib: { entry: 'src/index.ts', name: '@aiao/rxdb-plugin-p2p', fileName: 'index', formats: ['es' as const] },
-    rolldownOptions: { external: ['@aiao/rxdb', '@aiao/utils', 'rxjs'] }
+    rolldownOptions: { external: ['@aiao/rxdb', 'rxjs'] }
   },
   test: {
     name: 'rxdb-plugin-p2p',

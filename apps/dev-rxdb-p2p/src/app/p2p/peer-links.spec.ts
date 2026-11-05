@@ -10,7 +10,12 @@ import { Subject } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SignalingPeer, SignalKind } from '../../../shared/signaling-protocol';
 import { PeerLinks } from './peer-links';
-import type { ConnectionOffer, IncomingSignal, SignalingClient } from './signaling-client';
+import {
+  SignalingOfflineError,
+  type ConnectionOffer,
+  type IncomingSignal,
+  type SignalingClient
+} from './signaling-client';
 
 const mocked = vi.hoisted(() => ({ open: vi.fn(), transport: vi.fn(), verifyKey: vi.fn(), authenticate: vi.fn() }));
 vi.mock('@aiao/rxdb-plugin-p2p', async importOriginal => ({
@@ -107,6 +112,7 @@ describe('PeerLinks connection lifecycle', () => {
   let requestConnection: ReturnType<typeof vi.fn>;
   let sendSignal: ReturnType<typeof vi.fn>;
   let report: ReturnType<typeof vi.spyOn>;
+  let warn: ReturnType<typeof vi.spyOn>;
 
   const offer = (role: 'initiator' | 'responder' = 'initiator', connectionId = 'connection-1', remote = peer): void => {
     offers.next({ type: 'connection', role, connectionId, peer: remote, ticket: `ticket-${connectionId}` });
@@ -119,6 +125,7 @@ describe('PeerLinks connection lifecycle', () => {
     vi.useFakeTimers();
     vi.resetAllMocks();
     report = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     ticketKey = { kty: 'OKP', crv: 'Ed25519', x: 'key-1' };
     offers = new Subject();
     signals = new Subject();
@@ -170,6 +177,7 @@ describe('PeerLinks connection lifecycle', () => {
     await links.stop();
     vi.useRealTimers();
     report.mockRestore();
+    warn.mockRestore();
   });
 
   it('opens an ordered initiator channel, forwards SDP and ICE, and publishes a reusable ready session', async () => {
@@ -235,6 +243,22 @@ describe('PeerLinks connection lifecycle', () => {
     expect(connection.addIceCandidate).toHaveBeenLastCalledWith({ candidate: 'late-ice' });
   });
 
+  it('abandons a responder connection whose channel never opens and keeps one that opened in time', async () => {
+    offer('responder', 'stalled');
+    offer('responder', 'opened');
+    connections[1]!.dispatchEvent(Object.assign(new Event('datachannel'), { channel: { label: 'p2p' } as RTCDataChannel }));
+    await vi.advanceTimersByTimeAsync(200);
+    expect(links.links$.value.map(link => link.connectionId)).toEqual(['opened', 'stalled']);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(connections[0]!.close).toHaveBeenCalled();
+    expect(connections[1]!.close).not.toHaveBeenCalled();
+    expect(links.links$.value.map(link => link.connectionId)).toEqual(['opened']);
+    expect(report).toHaveBeenCalled();
+    receive('offer', { type: 'offer', sdp: 'too-late' }, 'stalled');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(connections[0]!.setRemoteDescription).not.toHaveBeenCalled();
+  });
+
   it('rejects forged or unknown signaling messages and accepts an answer without creating another answer', async () => {
     offer();
     sessions[0]!.resolveReady();
@@ -255,6 +279,34 @@ describe('PeerLinks connection lifecycle', () => {
     await vi.advanceTimersByTimeAsync(1000);
     await rejected;
     expect(connections).toHaveLength(0);
+  });
+
+  it('shares one dial between concurrent connects to the same device', async () => {
+    const first = links.connect(peer.key);
+    const second = links.connect(peer.key);
+    expect(requestConnection).toHaveBeenCalledExactlyOnceWith(peer.key);
+    offer();
+    sessions[0]!.resolveReady();
+    await expect(first).resolves.toBe(sessions[0]!.session);
+    await expect(second).resolves.toBe(sessions[0]!.session);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(connections).toHaveLength(1);
+  });
+
+  it('fails every caller of a dial that signaling never answers, then dials afresh', async () => {
+    const first = links.connect(peer.key);
+    const second = links.connect(peer.key);
+    const rejected = Promise.all([
+      expect(first).rejects.toThrow('signaling did not set up a connection'),
+      expect(second).rejects.toThrow('signaling did not set up a connection')
+    ]);
+    await vi.advanceTimersByTimeAsync(1000);
+    await rejected;
+    const retried = links.connect(peer.key);
+    expect(requestConnection).toHaveBeenCalledTimes(2);
+    offer();
+    sessions[0]!.resolveReady();
+    await expect(retried).resolves.toBe(sessions[0]!.session);
   });
 
   it('surfaces handshake failure through connect without an unhandled registry rejection', async () => {
@@ -302,37 +354,54 @@ describe('PeerLinks connection lifecycle', () => {
     expect(links.links$.value[0]).toMatchObject({ state: 'closed', closeCode: 'duplicate' });
   });
 
-  it.each(['answer creation', 'signal send', 'remote description'])(
-    'closes the peer connection after %s fails',
+  it.each(['answer creation', 'offer send', 'remote description'])(
+    'closes a connection that is still handshaking after %s fails',
     async failure => {
       if (failure === 'answer creation') {
         offer('responder');
-        const connection = connections[0]!;
-        connection.createAnswer.mockRejectedValueOnce(new Error('RTC failed'));
+        connections[0]!.createAnswer.mockRejectedValueOnce(new Error('RTC failed'));
         receive('offer', { type: 'offer', sdp: 'remote' });
-        await vi.advanceTimersByTimeAsync(200);
-        expect(connection.close).toHaveBeenCalled();
+      } else if (failure === 'offer send') {
+        sendSignal.mockImplementationOnce(() => {
+          throw new SignalingOfflineError();
+        });
+        offer();
       } else {
         offer();
-        sessions[0]!.resolveReady();
-        await vi.advanceTimersByTimeAsync(0);
-        const connection = connections[0]!;
-        if (failure === 'signal send') {
-          sendSignal.mockImplementationOnce(() => {
-            throw new Error('信令离线');
-          });
-          connection.dispatchEvent(
-            Object.assign(new Event('icecandidate'), { candidate: { toJSON: () => ({ candidate: 'ice' }) } })
-          );
-        } else {
-          connection.setRemoteDescription.mockRejectedValueOnce(new Error('无效 SDP'));
-          receive('answer', { type: 'answer', sdp: 'invalid' });
-        }
-        await vi.advanceTimersByTimeAsync(200);
-        expect(connection.close).toHaveBeenCalled();
-        expect(sessions[0]!.session.close).toHaveBeenCalled();
+        connections[0]!.setRemoteDescription.mockRejectedValueOnce(new Error('无效 SDP'));
+        receive('answer', { type: 'answer', sdp: 'invalid' });
       }
+      await vi.advanceTimersByTimeAsync(200);
+      expect(connections[0]!.close).toHaveBeenCalled();
+      expect(sessions.every(control => vi.mocked(control.session.close).mock.calls.length > 0)).toBe(true);
       expect(report).toHaveBeenCalled();
+    }
+  );
+
+  it.each(['candidate send', 'remote candidate'])(
+    'keeps a ready session when a late %s fails while signaling reconnects',
+    async failure => {
+      offer();
+      sessions[0]!.resolveReady();
+      await vi.advanceTimersByTimeAsync(0);
+      const connection = connections[0]!;
+      if (failure === 'candidate send') {
+        sendSignal.mockImplementationOnce(() => {
+          throw new SignalingOfflineError();
+        });
+        connection.dispatchEvent(
+          Object.assign(new Event('icecandidate'), { candidate: { toJSON: () => ({ candidate: 'late-ice' }) } })
+        );
+      } else {
+        receive('answer', { type: 'answer', sdp: 'remote-answer' });
+        connection.addIceCandidate.mockRejectedValueOnce(new Error('无法解析候选'));
+        receive('ice', { candidate: 'late-ice' });
+      }
+      await vi.advanceTimersByTimeAsync(200);
+      expect(connection.close).not.toHaveBeenCalled();
+      expect(sessions[0]!.session.close).not.toHaveBeenCalled();
+      expect(links.links$.value).toMatchObject([{ state: 'ready', closeCode: null }]);
+      expect(warn).toHaveBeenCalled();
     }
   );
 

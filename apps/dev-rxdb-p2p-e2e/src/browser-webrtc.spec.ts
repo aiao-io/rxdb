@@ -1,5 +1,6 @@
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { HARNESS_PORT, PROBE_PROTOCOL, type Harness, type HarnessOptions } from './browser/harness-api.ts';
+import { withinDeadline } from './shared/deadline.ts';
 import { credentialFor, PEERS, type FileSpec } from './shared/fixtures.ts';
 
 const HARNESS_URL = `http://127.0.0.1:${HARNESS_PORT}/`;
@@ -14,12 +15,15 @@ const FILES: readonly FileSpec[] = [
 type Method = keyof Harness;
 type Result<M extends Method> = Awaited<ReturnType<Harness[M]>>;
 
-/** 在某个上下文的夹具页里调用 `window.p2pHarness[method]`。 */
+/** 在某个上下文的夹具页里调用 `window.p2pHarness[method]`；卡住时按 `withinDeadline` 的时限点名失败。 */
 const call = <M extends Method>(page: Page, method: M, ...args: Parameters<Harness[M]>): Promise<Result<M>> =>
-  page.evaluate(
-    ([name, params]) => (window.p2pHarness[name] as (...values: readonly unknown[]) => unknown)(...params),
-    [method, args] as const
-  ) as Promise<Result<M>>;
+  withinDeadline(
+    page.evaluate(
+      ([name, params]) => (window.p2pHarness[name] as (...values: readonly unknown[]) => unknown)(...params),
+      [method, args] as const
+    ) as Promise<Result<M>>,
+    `p2pHarness.${method}`
+  );
 
 const contexts: BrowserContext[] = [];
 
@@ -127,6 +131,7 @@ test.describe('US-708：两个浏览器上下文经真实 WebRTC DataChannel 建
       })
       .catch(() => undefined);
     expect(await call(alice, 'closed', 'c1')).toMatchObject({ code: 'peer_lost' });
+    // 上限取心跳超时（800 ms）的数倍：验的是不靠请求、在心跳周期的量级内发现失联，倍数留给调度抖动。
     expect(Date.now() - started).toBeLessThan(5_000);
     expect((await call(alice, 'stats')).sessions).toEqual([]);
   });
@@ -181,7 +186,10 @@ test.describe('US-708：两个浏览器上下文经真实 WebRTC DataChannel 建
   });
 
   test('AC#9：大文件传输进行中，同一会话上后发的小请求先于已入队的批量块发出', async ({ browser }) => {
-    const { alice, bob } = await connectedPair(browser, { probe: true }, { probe: true });
+    // 心跳间隔远超用例时长：ping / pong 也是控制帧，心跳若恰在关闸后、首个批量应答之前发出，
+    // 停在闸口的就是它，小应答随之排到第一位，帧序断言与被测的优先级无关地变红。
+    const quiet = { probe: true, heartbeatIntervalMs: 600_000, heartbeatTimeoutMs: 1_200_000 };
+    const { alice, bob } = await connectedPair(browser, quiet, quiet);
     const [big] = await call(bob, 'hold', [{ seed: 9, size: 16 * 1024 * 1024, chunkSize: 1024 * 1024 }]);
     // 关上 bob 的发送闸：第一个批量应答停在闸口，其余 7 个排进会话的发送队列（alice 并发 8 个块请求）。
     await call(bob, 'gateSends');

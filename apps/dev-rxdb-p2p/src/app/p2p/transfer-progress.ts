@@ -4,7 +4,9 @@
  * @remarks
  * 包里的 `onProgress` 只给计数，这里在来源外面再包一层：送达的字节先按清单校验，
  * 通过就记下来源，不通过计一次「坏块」——传输本身仍由 `downloadP2PFile` 校验、换源、隔离坏 peer。
- * 不经来源直接落盘的块来自服务器回退。
+ * 不经来源直接落盘的块来自服务器回退。P2P 中途失败后，服务器回退从 0 号块起重写整个文件：
+ * 同一块落盘两次只计一次字节；切到服务器之后落盘的块都记在服务器名下——P2P 失败时还在路上的请求
+ * 会在这之后才送达，送达记录不再说明落盘的是谁的字节。
  */
 import { describeChunk, verifyChunk, type P2PChunkSource, type P2PFileManifest } from '@aiao/rxdb-plugin-p2p';
 
@@ -22,7 +24,7 @@ export interface TransferView {
   readonly size: number;
   readonly state: TransferState;
   readonly route: 'p2p' | 'server';
-  /** 已落盘的字节数。 */
+  /** 已落盘的字节数；同一块重写只计一次。 */
   readonly bytes: number;
   /** 每块的来源；还没落盘的为 null。 */
   readonly chunks: readonly (string | null)[];
@@ -89,12 +91,12 @@ export class TransferProgress {
 
   /** 一块已落盘。 */
   written(index: number, byteLength: number): void {
-    this.#chunks[index] = this.#deliveredBy.get(index) ?? SERVER_SOURCE;
-    this.#bytes += byteLength;
+    if (this.#chunks[index] === null) this.#bytes += byteLength;
+    this.#chunks[index] = this.#route === 'server' ? SERVER_SOURCE : (this.#deliveredBy.get(index) ?? SERVER_SOURCE);
     this.#changed();
   }
 
-  /** 下载改走另一条路。 */
+  /** 下载改走另一条路；要在服务器回退写第一块之前调用。 */
   switchRoute(route: 'p2p' | 'server'): void {
     if (route === this.#route) return;
     this.#route = route;

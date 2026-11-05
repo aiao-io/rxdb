@@ -38,14 +38,15 @@ class FakeSocket {
 describe('SignalingClient', () => {
   let sockets: FakeSocket[];
   let tokens: number;
+  let credentialFailures: Error[];
   let client: SignalingClient;
 
   const latest = (): FakeSocket => sockets.at(-1) as FakeSocket;
-  const credentials = async (): Promise<SignalingCredentials> => ({
-    accessToken: `token-${++tokens}`,
-    deviceId: 'device-a',
-    instanceId: 'instance-a'
-  });
+  const credentials = async (): Promise<SignalingCredentials> => {
+    const failure = credentialFailures.shift();
+    if (failure) throw failure;
+    return { accessToken: `token-${++tokens}`, deviceId: 'device-a', instanceId: 'instance-a' };
+  };
 
   const online = async (): Promise<FakeSocket> => {
     client.start();
@@ -59,6 +60,7 @@ describe('SignalingClient', () => {
     vi.useFakeTimers();
     sockets = [];
     tokens = 0;
+    credentialFailures = [];
     client = new SignalingClient({
       url: 'ws://worker.test/api/signal',
       credentials,
@@ -157,6 +159,53 @@ describe('SignalingClient', () => {
     expect(latest().sent).toEqual([
       { type: 'hello', accessToken: 'token-2', deviceId: 'device-a', instanceId: 'instance-a' }
     ]);
+  });
+
+  it('reports a credentials failure, shows offline and retries until it gets credentials', async () => {
+    const problems: unknown[] = [];
+    client.errors$.subscribe(problem => problems.push(problem));
+    credentialFailures.push(new Error('刷新登录失败'));
+
+    client.start();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(client.state$.value).toBe('offline');
+    expect(sockets).toHaveLength(0);
+    expect(problems).toEqual([{ code: 'credentials_unavailable', message: '刷新登录失败' }]);
+
+    await vi.advanceTimersByTimeAsync(1000);
+    latest().onopen?.();
+    latest().receive({ type: 'welcome', self: SELF, peers: [PEER], ticketKey: KEY });
+
+    expect(sockets).toHaveLength(1);
+    expect(latest().sent).toEqual([
+      { type: 'hello', accessToken: 'token-1', deviceId: 'device-a', instanceId: 'instance-a' }
+    ]);
+    expect(client.state$.value).toBe('online');
+  });
+
+  it('stays quiet when stopped while fetching credentials', async () => {
+    const problems: unknown[] = [];
+    client.errors$.subscribe(problem => problems.push(problem));
+    credentialFailures.push(new Error('刷新登录失败'));
+
+    client.start();
+    client.stop();
+    await vi.advanceTimersByTimeAsync(5000);
+
+    expect(problems).toEqual([]);
+    expect(sockets).toHaveLength(0);
+    expect(client.state$.value).toBe('offline');
+  });
+
+  it('passes errors reported by the server on', async () => {
+    const socket = await online();
+    const problems: unknown[] = [];
+    client.errors$.subscribe(problem => problems.push(problem));
+
+    socket.receive({ type: 'error', code: 'peer_unavailable', message: 'instance-b is not online' });
+
+    expect(problems).toEqual([{ code: 'peer_unavailable', message: 'instance-b is not online' }]);
   });
 
   it('does not reconnect after stop', async () => {

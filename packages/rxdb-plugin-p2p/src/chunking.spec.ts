@@ -36,6 +36,21 @@ describe('P2P 分块原语', () => {
     expect(describeChunks({ size: 0, chunkSize: 1024, chunkHashes: [] })).toEqual([]);
   });
 
+  it('单块描述与整表枚举对清单的要求一致：块数必须等于文件大小所需的块数，不返回负长度', () => {
+    const tooMany = { size: 10, chunkSize: 8, chunkHashes: ['a', 'b', 'c'] };
+    expect(() => describeChunk(tooMany, 2)).toThrow('chunkHashes length does not match file size');
+    expect(() => describeChunk(tooMany, 0)).toThrow(RangeError);
+    expect(() => describeChunk({ size: 100, chunkSize: 8, chunkHashes: ['a'] }, 0)).toThrow(RangeError);
+    expect(() => describeChunk({ size: 0, chunkSize: 8, chunkHashes: ['a'] }, 0)).toThrow(RangeError);
+    expect(() => describeChunk({ size: 0, chunkSize: 8, chunkHashes: [] }, 0)).toThrow('chunk index out of range');
+  });
+
+  it('末块恰好装满时按整块描述', () => {
+    const manifest = { size: 16, chunkSize: 8, chunkHashes: ['a', 'b'] };
+    expect(describeChunk(manifest, 1)).toEqual({ index: 1, offset: 8, size: 8, hash: 'b' });
+    expect(() => describeChunk(manifest, 2)).toThrow('chunk index out of range');
+  });
+
   it('拒绝与文件大小不匹配的块清单和非法块大小', () => {
     expect(() => describeChunks({ size: 2050, chunkSize: 1024, chunkHashes: ['a'] })).toThrow(
       'chunkHashes length does not match file size'
