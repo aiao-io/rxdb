@@ -11,6 +11,12 @@ const envWith = (overrides: Partial<Env> = {}): Env => ({
     idFromName: vi.fn(name => `id:${name}`),
     get: vi.fn(() => ({ fetch: async () => new Response('room') }))
   },
+  LIMITER: {
+    idFromName: vi.fn(name => `id:${name}`),
+    get: vi.fn(() => ({
+      fetch: async () => new Response(JSON.stringify({ allowed: true, retryAfterMs: 0 }))
+    }))
+  },
   FILES: {
     head: async () => null,
     get: async () => null,

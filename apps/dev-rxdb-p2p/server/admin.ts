@@ -23,9 +23,11 @@ import type {
 import { AdminConfigError, type AdminConfig } from './admin-config';
 import type { AdminRoom } from './admin-room';
 import { AccountNotFoundError } from './admin-supabase';
-import { fileKey, HASH_PATTERN } from './files';
+import { encFileKey, fileKey, HASH_PATTERN } from './files';
 import { bearerOf, json, methodNotAllowed, noContent } from './http';
 import { isBanned, UUID_PATTERN, type VerifiedUser } from './identity';
+import type { InviteDirectory } from './invites';
+import { REPORT_RESOLUTIONS, type ReportDirectory, type ReportResolution } from './reports';
 import type { R2BucketLike } from './runtime';
 
 /** 管理接口的路径前缀。 */
@@ -43,6 +45,10 @@ export interface AdminRouteDeps {
   readonly config: () => AdminConfig;
   readonly room: AdminRoom;
   readonly bucket: R2BucketLike;
+  /** 举报目录（POOL-US-102）。 */
+  readonly reports: ReportDirectory;
+  /** 邀请目录（POOL-US-102）。 */
+  readonly invites: InviteDirectory;
 }
 
 interface AdminContext {
@@ -154,19 +160,34 @@ const listFiles: Handler = async ({ config, deps }) => {
     config.directory.fileCatalog()
   ]);
   const catalogByHash = new Map(catalog.map(entry => [entry.contentHash, entry]));
+  // 密文副本（POOL-US-101）的键是 `files/enc/<密文哈希>`：没有清单元数据，文件名留空
   const files = listing.objects
-    .map((object): AdminServerFile => {
-      const contentHash = object.key.slice(prefix.length);
-      const entry = catalogByHash.get(contentHash);
-      return {
-        contentHash,
-        fileName: entry?.fileName ?? null,
-        size: object.size,
-        uploadedAt: object.uploaded.toISOString(),
-        holderCount: entry?.holderCount ?? 0
-      };
+    .flatMap((object): AdminServerFile[] => {
+      const rest = object.key.slice(prefix.length);
+      const encrypted = /^enc\/([0-9a-f]{64})$/.exec(rest);
+      if (encrypted) {
+        return [
+          {
+            contentHash: encrypted[1]!,
+            fileName: null,
+            size: object.size,
+            uploadedAt: object.uploaded.toISOString(),
+            holderCount: 0
+          }
+        ];
+      }
+      if (!HASH_PATTERN.test(rest)) return [];
+      const entry = catalogByHash.get(rest);
+      return [
+        {
+          contentHash: rest,
+          fileName: entry?.fileName ?? null,
+          size: object.size,
+          uploadedAt: object.uploaded.toISOString(),
+          holderCount: entry?.holderCount ?? 0
+        }
+      ];
     })
-    .filter(file => HASH_PATTERN.test(file.contentHash))
     .sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt));
   const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
   return json(200, { files, totalBytes, truncated: listing.truncated } satisfies AdminServerFiles);
@@ -174,9 +195,61 @@ const listFiles: Handler = async ({ config, deps }) => {
 
 const deleteFile: Handler = async ({ deps }, [contentHash = '']) => {
   if (!HASH_PATTERN.test(contentHash)) return json(400, { error: 'expected a lowercase SHA-256 hex hash' });
+  // 列表里两种副本（明文与密文）都按各自键删除；删除不存在的键是无害的空操作
   const key = fileKey(contentHash);
-  if (!(await deps.bucket.head(key))) return json(404, { error: 'file not found' });
+  const encKey = encFileKey(contentHash);
+  if (!(await deps.bucket.head(key)) && !(await deps.bucket.head(encKey)))
+    return json(404, { error: 'file not found' });
   await deps.bucket.delete(key);
+  await deps.bucket.delete(encKey);
+  return noContent();
+};
+
+const listReports: Handler = async ({ deps, user }) => {
+  const reports = await deps.reports.listOpen();
+  return json(200, { reports });
+};
+
+const resolveReport: Handler = async (context, [id = '']) => {
+  if (!UUID_PATTERN.test(id)) return invalidId('report id (uuid)');
+  const resolution = context.url.searchParams.get('resolution') ?? '';
+  if (!(REPORT_RESOLUTIONS as readonly string[]).includes(resolution)) {
+    return json(400, { error: 'expected ?resolution= one of delete_copy, ban, ignore' });
+  }
+  const report = (await context.deps.reports.listOpen()).find(entry => entry.id === id);
+  if (!report) return json(404, { error: 'report not found or already resolved' });
+  const kind = resolution as ReportResolution;
+  if (kind === 'delete_copy' && report.targetHash) {
+    // 密文副本的键是密文哈希：按举报附的 sourceUrl 派生，退化成明文键
+    const key =
+      report.sourceUrl?.includes('/api/files/enc/') ?
+        encFileKey(report.sourceUrl.slice('/api/files/enc/'.length))
+      : fileKey(report.targetHash);
+    await context.deps.bucket.delete(key);
+  }
+  if (kind === 'ban' && report.targetUser) {
+    const refusal = refuseTarget(context, report.targetUser);
+    if (refusal) return refusal;
+    await context.config.directory.setBanned(report.targetUser, true);
+    await context.deps.room.evict({ userId: report.targetUser });
+  }
+  await context.deps.reports.resolve(id, kind, context.user.id);
+  return noContent();
+};
+
+const listInvites: Handler = async ({ deps }) => json(200, { codes: await deps.invites.listCodes() });
+
+const issueInvites: Handler = async ({ deps, user, url }) => {
+  const count = Number(url.searchParams.get('count') ?? '');
+  if (!Number.isSafeInteger(count) || count < 1 || count > 100) {
+    return json(400, { error: 'count must be an integer between 1 and 100' });
+  }
+  return json(201, { codes: await deps.invites.issueCodes(count, user.id) });
+};
+
+const revokeInvite: Handler = async ({ deps }, [code = '']) => {
+  if (code.length < 12 || code.length > 64) return json(400, { error: 'expected an invite code' });
+  if (!(await deps.invites.revoke(code))) return json(404, { error: 'invite code not found' });
   return noContent();
 };
 
@@ -188,7 +261,12 @@ const ROUTES: readonly Route[] = [
   { method: 'GET', pattern: /^\/api\/admin\/online$/, handler: listOnline },
   { method: 'POST', pattern: /^\/api\/admin\/devices\/([^/]+)\/kick$/, handler: kickDevice },
   { method: 'GET', pattern: /^\/api\/admin\/files$/, handler: listFiles },
-  { method: 'DELETE', pattern: /^\/api\/admin\/files\/([^/]+)$/, handler: deleteFile }
+  { method: 'DELETE', pattern: /^\/api\/admin\/files\/([^/]+)$/, handler: deleteFile },
+  { method: 'GET', pattern: /^\/api\/admin\/reports$/, handler: listReports },
+  { method: 'POST', pattern: /^\/api\/admin\/reports\/([^/]+)\/resolve$/, handler: resolveReport },
+  { method: 'GET', pattern: /^\/api\/admin\/invites$/, handler: listInvites },
+  { method: 'POST', pattern: /^\/api\/admin\/invites$/, handler: issueInvites },
+  { method: 'DELETE', pattern: /^\/api\/admin\/invites\/([^/]+)$/, handler: revokeInvite }
 ];
 
 const route = (context: AdminContext, method: string): Promise<Response> | Response => {

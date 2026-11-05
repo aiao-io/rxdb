@@ -17,8 +17,8 @@
 
 ### [Aiao Pool 产品化与 MVP](epics/POOL-EPIC-001-aiao-pool-productization.md)
 
-- ⬜ [POOL-US-101 服务器回退内容加密](stories/ops/POOL-US-101-fallback-content-encryption.md)
-- ⬜ [POOL-US-102 速率限制、举报与邀请制 beta](stories/ops/POOL-US-102-rate-limit-report-invite.md)
+- 🚧 [POOL-US-101 服务器回退内容加密](stories/ops/POOL-US-101-fallback-content-encryption.md)
+- 🚧 [POOL-US-102 速率限制、举报与邀请制 beta](stories/ops/POOL-US-102-rate-limit-report-invite.md)
 
 ## 技术底座（指针，非本目录状态）
 
@@ -30,8 +30,8 @@
 
 ## 未完成验收与关闭条件
 
-- [POOL-US-101](stories/ops/POOL-US-101-fallback-content-encryption.md)：10 条 AC 全 ⬜。关闭条件含「服务器全程不可读」的正反向断言（R2 对象字节、Worker/DO 日志、Supabase 行）与多设备回退取回、断点续传交互、旧明文副本处置。
-- [POOL-US-102](stories/ops/POOL-US-102-rate-limit-report-invite.md)：9 条 AC 全 ⬜。关闭条件含服务端限流断言（非前端隐藏）、举报→后台处置闭环、邀请码发放/作废与滥用演练 e2e。
+- [POOL-US-101](stories/ops/POOL-US-101-fallback-content-encryption.md)：AC1/4/8 已在真实浏览器双上下文关闭（密文断言、有信封解密、无信封明确失败、旧客户端 426），AC5 有单元证据；剩 AC2/3/7/9/10（日志与 Supabase 行断言、处置联动、私钥不泄漏）在本地真栈 + 管理后台验收。
+- [POOL-US-102](stories/ops/POOL-US-102-rate-limit-report-invite.md)：限流 DO、举报、邀请制与激活门禁已实现，AC2～AC8 已在本地真栈 e2e 关闭（governance / governance-gated），AC9 有单元证据；AC1 的信令 hello 限流已实现，端到端超限用例待补。
 - 底座收尾（状态在根）：US-713 的 AC#11 待首次 CI 运行；US-707 阶段 B（Tauri 双进程、离线局域网、大文件）与桌面端归 M2。
 
 ## 合并状态

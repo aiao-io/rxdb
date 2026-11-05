@@ -40,6 +40,17 @@ export const parseAdminIds = (raw: string): ReadonlySet<string> => {
   return new Set(ids);
 };
 
+/** 用户 id 是否在管理员名单里；没配名单或名单写错时按不是管理员处理（激活门禁宁可拦下）。 */
+export const isAdminUserId = (env: Env, userId: string): boolean => {
+  const raw = env.ADMIN_USER_IDS?.trim() ?? '';
+  if (!raw) return false;
+  try {
+    return parseAdminIds(raw).has(userId.toLowerCase());
+  } catch {
+    return false;
+  }
+};
+
 /**
  * 读管理后台的配置。
  *

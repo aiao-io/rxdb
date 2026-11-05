@@ -6,6 +6,7 @@
  * compatibility date 不早于 2026-04-07，运行时自动应答关闭帧，`webSocketClose` 里不必再调 `close()`。
  */
 import type { SignalingPeer } from '../shared/signaling-protocol';
+import { isAdminUserId } from './admin-config';
 import {
   matchesEvictTarget,
   parseEvictTarget,
@@ -13,9 +14,16 @@ import {
   ROOM_ADMIN_ONLINE,
   ROOM_ADMIN_PREFIX
 } from './admin-room';
-import { supabaseConfigOf, type Env } from './env';
+import { requireActivation, supabaseConfigOf, type Env } from './env';
 import { json, methodNotAllowed } from './http';
-import { findOwnDevice, verifyAccessToken } from './identity';
+import { findOwnDevice, isActivatedUser, verifyAccessToken } from './identity';
+import {
+  consumeWithStore,
+  createMemoryLimiterStore,
+  parsePolicyOverrides,
+  type LimiterPolicy,
+  type LimiterStore
+} from './limiter';
 import {
   createWebSocketPair,
   upgradeResponse,
@@ -72,10 +80,14 @@ export class SignalingRoom {
     now: () => Date.now()
   });
   #hub: Promise<SignalingHub> | undefined;
+  /** 每账号每分钟的 hello 限流（POOL-US-102）：房间是单例，内存计数与 UpgradeLimiter 同一取舍。 */
+  readonly #hellos: LimiterStore = createMemoryLimiterStore();
+  readonly #policyOverrides: ReadonlyMap<string, LimiterPolicy> | undefined;
 
   constructor(ctx: DurableObjectStateLike, env: Env) {
     this.#ctx = ctx;
     this.#env = env;
+    this.#policyOverrides = env.POOL_POLICY_OVERRIDES ? parsePolicyOverrides(env.POOL_POLICY_OVERRIDES) : undefined;
   }
 
   /**
@@ -164,6 +176,14 @@ export class SignalingRoom {
     const config = supabaseConfigOf(this.#env);
     const user = await verifyAccessToken(config, hello.accessToken);
     if (!user) return null;
+    if (
+      requireActivation(this.#env) &&
+      !isAdminUserId(this.#env, user.id) &&
+      !(await isActivatedUser(config, hello.accessToken))
+    )
+      return null;
+    const quota = consumeWithStore(this.#hellos, 'signal-hello', user.id, Date.now(), 1, this.#policyOverrides);
+    if (!quota.allowed) return null;
     const device = await findOwnDevice(config, hello.accessToken, hello.deviceId);
     if (!device) return null;
     return {

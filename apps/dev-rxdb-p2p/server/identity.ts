@@ -73,6 +73,21 @@ export const verifyAccessToken = async (
 };
 
 /**
+ * 用户是否已激活（邀请制 beta，POOL-US-102）：经 `p2p.is_activated()`（SECURITY DEFINER，只对 authenticated 开放）。
+ *
+ * @throws Error PostgREST 返回错误
+ */
+export const isActivatedUser = async (config: SupabaseAuthConfig, accessToken: string): Promise<boolean> => {
+  const response = await config.fetch(`${config.url}/rest/v1/rpc/is_activated`, {
+    method: 'POST',
+    headers: { ...asUser(accessToken, config), 'content-type': 'application/json', 'content-profile': 'p2p' },
+    body: '{}'
+  });
+  if (!response.ok) throw new Error(`PostgREST responded ${response.status}`);
+  return (await response.json()) === true;
+};
+
+/**
  * 以用户身份查询一台设备：RLS 只放行本人登记的设备，查不到即不属于该用户。
  *
  * @returns 设备；不存在或不属于该用户时为 null

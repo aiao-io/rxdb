@@ -16,6 +16,8 @@ const isCI = Boolean(process.env['CI']);
  */
 export default defineConfig({
   ...nxE2EPreset('.', { testDir: './src/demo', openHtmlReport: 'never' }),
+  // 邀请制门禁只在 POOL_REQUIRE_ACTIVATION=true 的独立运行里执行（tmp/e2e 的 gated 配置）
+  testIgnore: /governance-gated\.spec\.ts/,
   fullyParallel: false,
   workers: 1,
   retries: isCI ? 2 : 0,

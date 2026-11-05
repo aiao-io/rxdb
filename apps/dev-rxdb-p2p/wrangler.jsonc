@@ -12,9 +12,12 @@
     "run_worker_first": ["/api/*", "/app-config.js"]
   },
   "durable_objects": {
-    "bindings": [{ "name": "SIGNALING", "class_name": "SignalingRoom" }]
+    "bindings": [
+      { "name": "SIGNALING", "class_name": "SignalingRoom" },
+      { "name": "LIMITER", "class_name": "PoolLimiter" }
+    ]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["SignalingRoom"] }],
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["SignalingRoom", "PoolLimiter"] }],
   "r2_buckets": [{ "binding": "FILES", "bucket_name": "aiao-rxdb-p2p-files" }],
   // SUPABASE_URL / SUPABASE_ANON_KEY / TICKET_PRIVATE_JWK 都是 Worker secret，不进这个文件，重新部署也不会清掉：
   // 线上用 scripts/deploy-secrets.mjs | wrangler secret bulk 写入，本地开发由 scripts/dev-vars.mjs 生成 .dev.vars。

@@ -14,12 +14,28 @@ export interface HibernatableWebSocket extends WebSocket {
   deserializeAttachment(): unknown;
 }
 
+/** workerd 的 SQLite 游标。 */
+export interface SqlCursorLike {
+  /** 第一行（对象）；没有行时为 null。 */
+  one(): Record<string, unknown> | null;
+  /** 全部行。 */
+  toArray(): Record<string, unknown>[];
+}
+
+/** workerd 的 SQLite 存储（Durable Object）。 */
+export interface SqlStorageLike {
+  /** 执行一条语句；`?n` 位置参数从后面的绑定值取值。 */
+  exec(query: string, ...bindings: (string | number)[]): SqlCursorLike;
+}
+
 /** Durable Object 的状态句柄。 */
 export interface DurableObjectStateLike {
   /** 以休眠 API 接管服务端这一半 WebSocket。 */
   acceptWebSocket(socket: WebSocket): void;
   /** 当前接管的全部 WebSocket。 */
   getWebSockets(): HibernatableWebSocket[];
+  /** SQLite 存储（配了 `new_sqlite_classes` 的类才有）。 */
+  readonly storage: { readonly sql: SqlStorageLike };
 }
 
 /** Durable Object 绑定。 */

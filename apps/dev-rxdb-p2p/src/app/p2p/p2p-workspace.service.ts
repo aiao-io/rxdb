@@ -23,15 +23,15 @@ import {
   type P2PServerFallback
 } from '@aiao/rxdb-plugin-p2p';
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
+import type { ReportCategory } from '../../../shared/reporting-protocol';
 import type { SignalingPeer } from '../../../shared/signaling-protocol';
 import { AuthService } from '../auth/auth.service';
-import { P2PFallbackEnvelopeEntity } from '../db/fallback-envelope.entity';
 import { groupSharedFiles, recordOf, type SharedFile } from '../db/manifest-records';
 import { ManifestSync, type ManifestSyncTarget, type SyncStatus } from '../db/manifest-sync';
 import { createP2PDatabase, LOCAL_ADAPTER, REMOTE_ADAPTER } from '../db/p2p-database';
 import { ensureDeviceKeyPair } from '../device/device-keys';
 import { defaultDeviceName, ensureDevice, type RegisteredDevice } from '../device/device-registration';
+import { envelopeFor, writeEnvelopes } from '../device/fallback-envelopes';
 import { supabaseDeviceApi } from '../device/supabase-device-api';
 import { teamDeviceKeys } from '../device/team-device-keys';
 import {
@@ -136,6 +136,7 @@ export class P2PWorkspace {
   #starting: Promise<void> | null = null;
   #sync: ManifestSync | null = null;
   #links: PeerLinks | null = null;
+  #signalingClient: SignalingClient | null = null;
   #transferTimer: ReturnType<typeof setTimeout> | undefined;
   #deviceKeys: DeviceKeyPair | null = null;
 
@@ -153,6 +154,8 @@ export class P2PWorkspace {
   readonly transfers = signal<readonly TransferView[]>([]);
   readonly downloadingHashes = signal<ReadonlySet<string>>(new Set());
   readonly faults = signal<DemoFaults>({ deny: false, corrupt: false, delayMs: 0 });
+  /** 邀请制激活状态（POOL-US-102）：checking / activated / needs-invite。 */
+  readonly activation = signal<'checking' | 'activated' | 'needs-invite'>('checking');
 
   /** 本设备的 holderId。 */
   readonly myHolderId = computed(() => {
@@ -295,6 +298,55 @@ export class P2PWorkspace {
     this.#requireLinks().disconnect(connectionId);
   }
 
+  /** 查询激活状态（启动后调用一次）；未激活时页面只给邀请码入口。 */
+  async checkActivation(): Promise<void> {
+    const response = await fetch('/api/me', {
+      headers: { authorization: `Bearer ${await this.#auth.accessToken()}` }
+    });
+    if (!response.ok) throw new Error(`activation check responded ${response.status}`);
+    const state = (await response.json()) as { activated: boolean; activationRequired: boolean };
+    this.activation.set(state.activationRequired && !state.activated ? 'needs-invite' : 'activated');
+  }
+
+  /** 用邀请码激活本账号；码无效、已用或已作废时为 false。 */
+  async activateInvite(code: string): Promise<boolean> {
+    const response = await fetch('/api/invite', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${await this.#auth.accessToken()}`,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({ code })
+    });
+    if (!response.ok && response.status !== 409) {
+      throw new Error(`invite activation responded ${response.status}`);
+    }
+    const result = (await response.json()) as { activated: boolean };
+    if (result.activated) {
+      this.activation.set('activated');
+      // 未激活时信令 hello 被拒且不自动重连：激活后主动重连（start() 对已拒绝的连接安全）
+      if (this.signalingState() === 'rejected') this.#signalingClient?.start();
+    }
+    return result.activated;
+  }
+
+  /** 举报一个文件（按内容哈希，附服务器副本地址）或账号；同一举报人重复举报同一目标时 created 为 false。 */
+  async report(
+    target: { contentHash: string; sourceUrl?: string } | { accountId: string },
+    category: ReportCategory
+  ): Promise<{ created: boolean }> {
+    const response = await fetch('/api/reports', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${await this.#auth.accessToken()}`,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({ target, category })
+    });
+    if (!response.ok) throw new Error(`report responded ${response.status}: ${await response.text()}`);
+    return (await response.json()) as { created: boolean };
+  }
+
   /** 修改故障注入。 */
   setFaults(patch: Partial<DemoFaults>): void {
     this.faults.update(current => ({ ...current, ...patch }));
@@ -338,6 +390,8 @@ export class P2PWorkspace {
     });
     this.#startSignaling(device);
     this.phase.set('ready');
+    // 激活状态查不到时保持 checking：不把「查不到」当「已激活」；服务端门禁会在传输时给出明确拒绝
+    void this.checkActivation().catch(() => undefined);
   }
 
   #watchRecords(): void {
@@ -389,6 +443,7 @@ export class P2PWorkspace {
     links.start();
     signaling.start();
     this.#links = links;
+    this.#signalingClient = signaling;
   }
 
   #onSignalingState(state: SignalingState): void {
@@ -518,33 +573,19 @@ export class P2PWorkspace {
     return fallbackEncUrl(encHash);
   }
 
-  /** 给每台已登记公钥的设备封装一个信封；已有信封就原地更新，新设备补新信封。 */
+  /** 给每台已登记公钥的设备封装信封并直写 Supabase；同一（内容哈希, 设备）重复写时覆盖。 */
   async #sealEnvelopes(contentHash: string, contentKey: CryptoKey): Promise<void> {
     const teamKeys = await teamDeviceKeys(this.#auth.client);
-    const recipients = teamKeys.filter(
-      (entry): entry is { readonly deviceId: string; readonly publicKeyBase64: string } =>
-        entry.publicKeyBase64 !== null
-    );
-    const existingRows = await firstValueFrom(
-      P2PFallbackEnvelopeEntity.findAll({
-        where: { combinator: 'and', rules: [{ field: 'contentHash', operator: '=', value: contentHash }] },
-        orderBy: []
-      })
-    );
-    const existing = new Map(existingRows.map(row => [row.recipientDeviceId, row]));
-    for (const recipient of recipients) {
-      const envelope = await sealContentKey(contentKey, recipient.publicKeyBase64);
-      const entity =
-        existing.get(recipient.deviceId) ??
-        Object.assign(new P2PFallbackEnvelopeEntity(), {
-          id: crypto.randomUUID(),
-          contentHash,
-          recipientDeviceId: recipient.deviceId
-        });
-      Object.assign(entity, envelope);
-      await entity.save();
+    const rows = [];
+    for (const entry of teamKeys) {
+      if (entry.publicKeyBase64 === null) continue;
+      rows.push({
+        contentHash,
+        recipientDeviceId: entry.deviceId,
+        ...(await sealContentKey(contentKey, entry.publicKeyBase64))
+      });
     }
-    await this.#requireSync().push();
+    await writeEnvelopes(this.#auth.client, rows);
   }
 
   /** 把密文回退流解成明文流：本设备信封 → 内容密钥 → 按块解密，交给 `downloadP2PFile` 逐块复核。 */
@@ -555,26 +596,11 @@ export class P2PWorkspace {
     const device = this.device();
     const keys = this.#deviceKeys;
     if (!device || !keys) throw new Error('workspace has not started');
-    const rows = await firstValueFrom(
-      P2PFallbackEnvelopeEntity.findAll({
-        where: {
-          combinator: 'and',
-          rules: [
-            { field: 'contentHash', operator: '=', value: manifest.contentHash },
-            { field: 'recipientDeviceId', operator: '=', value: device.id }
-          ]
-        },
-        orderBy: []
-      })
-    );
-    const envelope = rows[0];
+    const envelope = await envelopeFor(this.#auth.client, manifest.contentHash, device.id);
     if (!envelope) {
       throw new Error('此服务器副本已加密，但本设备没有解密信封：请让上传者重新共享这个文件');
     }
-    const contentKey = await openContentKey(
-      { kid: envelope.kid, epk: envelope.epk, iv: envelope.iv, ct: envelope.ct, tag: envelope.tag },
-      await importDevicePrivateKey(keys.privateKeyJwk)
-    );
+    const contentKey = await openContentKey(envelope, await importDevicePrivateKey(keys.privateKeyJwk));
     return decodeEncryptedStream(contentKey, manifest, body);
   }
 

@@ -18,7 +18,7 @@ import {
   signIn,
   signUpWithClaim
 } from './admin-fixtures.ts';
-import { ADMIN_ACCOUNT, generateFile, newAccount, openDevice } from './fixtures.ts';
+import { ADMIN_ACCOUNT, fileRow, generateFile, newAccount, openDevice } from './fixtures.ts';
 
 const accountRow = (page: Page, email: string) =>
   page.locator(`[data-testid="admin-account-row"][data-email="${email}"]`);
@@ -83,10 +83,14 @@ test.describe('dev-rxdb-p2p 管理后台', () => {
     const { fileName, contentHash } = await generateFile(user, 1, { upload: true });
     const { token, userId } = await signIn(request, email);
     await claimedInDatabase(request, userId, 1);
+    // 上传的是密文副本（POOL-US-101）：按行上的 sourceUrl 轮询，密文路由要求编码头
+    const sourceUrl = (await fileRow(user, fileName).getAttribute('data-source')) as string;
     await expect
       .poll(async () =>
         (
-          await request.head(`${ORIGIN}/api/files/${contentHash}`, { headers: { authorization: `Bearer ${token}` } })
+          await request.head(`${ORIGIN}${sourceUrl}`, {
+            headers: { authorization: `Bearer ${token}`, 'x-pool-fallback-encoding': '1' }
+          })
         ).status()
       )
       .toBe(200);
@@ -106,8 +110,9 @@ test.describe('dev-rxdb-p2p 管理后台', () => {
       ).toHaveCount(1);
 
       await admin.page.getByTestId('admin-tab-files').click();
-      const copy = admin.page.locator(`[data-testid="admin-file-row"][data-hash="${contentHash}"]`);
-      await expect(copy).toContainText(fileName);
+      // 密文副本（POOL-US-101）的键是密文哈希，清单里没有它的文件名，只按大小断言
+      const encHash = sourceUrl.slice('/api/files/enc/'.length);
+      const copy = admin.page.locator(`[data-testid="admin-file-row"][data-hash="${encHash}"]`);
       await expect(copy).toContainText('1 MB');
     } finally {
       await admin.context.close();
@@ -192,20 +197,34 @@ test.describe('dev-rxdb-p2p 管理后台', () => {
     const { token, userId } = await signIn(request, email);
     const holderId = await claimedInDatabase(request, userId, 1);
     const asOwner = { headers: { authorization: `Bearer ${token}` } };
+    const sourceUrl = (await fileRow(owner, fileName).getAttribute('data-source')) as string;
     await expect
-      .poll(async () => (await request.head(`${ORIGIN}/api/files/${contentHash}`, asOwner)).status())
+      .poll(async () =>
+        (
+          await request.head(`${ORIGIN}${sourceUrl}`, {
+            headers: { authorization: `Bearer ${token}`, 'x-pool-fallback-encoding': '1' }
+          })
+        ).status()
+      )
       .toBe(200);
     const admin = await openAdmin(browser);
     try {
       await admin.page.getByTestId('admin-tab-files').click();
-      const copy = admin.page.locator(`[data-testid="admin-file-row"][data-hash="${contentHash}"]`);
-      await expect(copy).toContainText(fileName);
+      const encHash = sourceUrl.slice('/api/files/enc/'.length);
+      const copy = admin.page.locator(`[data-testid="admin-file-row"][data-hash="${encHash}"]`);
+      await expect(copy).toContainText('1 MB');
       await copy.getByTestId('admin-delete-file').click();
-      await expect(admin.page.getByTestId('admin-confirm')).toContainText(fileName);
-      await confirmAction(admin.page, fileName);
+      await expect(admin.page.getByTestId('admin-confirm')).toContainText(encHash.slice(0, 12));
+      await confirmAction(admin.page, encHash.slice(0, 12));
       await expect(copy).toHaveCount(0);
 
-      expect((await request.head(`${ORIGIN}/api/files/${contentHash}`, asOwner)).status()).toBe(404);
+      expect(
+        (
+          await request.head(`${ORIGIN}${sourceUrl}`, {
+            headers: { authorization: `Bearer ${token}`, 'x-pool-fallback-encoding': '1' }
+          })
+        ).status()
+      ).toBe(404);
       expect(await claimCount(request, holderId)).toBe(1);
     } finally {
       await admin.context.close();

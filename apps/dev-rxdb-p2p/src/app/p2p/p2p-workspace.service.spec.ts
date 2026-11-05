@@ -45,9 +45,17 @@ const network = vi.hoisted(() => ({
 const device = vi.hoisted(() => ({
   ensureDevice: vi.fn<() => Promise<{ id: string; name: string }>>()
 }));
-const envelope = vi.hoisted(() => ({
-  findAll: vi.fn<() => BehaviorSubject<unknown[]>>(),
-  save: vi.fn<(row: unknown) => Promise<void>>()
+const envelopeApi = vi.hoisted(() => ({
+  writeEnvelopes: vi.fn<() => Promise<void>>(),
+  envelopeFor: vi.fn<
+    () => Promise<{
+      readonly kid: string;
+      readonly epk: string;
+      readonly iv: string;
+      readonly ct: string;
+      readonly tag: string;
+    } | null>
+  >()
 }));
 const deviceKeys = vi.hoisted(() => ({
   ensureDeviceKeyPair: vi.fn<() => Promise<{ publicKeyBase64: string; privateKeyJwk: JsonWebKey }>>()
@@ -96,14 +104,9 @@ vi.mock('../device/device-keys', () => ({
 vi.mock('../device/team-device-keys', () => ({
   teamDeviceKeys: teamKeys.teamDeviceKeys
 }));
-vi.mock('../db/fallback-envelope.entity', () => ({
-  P2P_FALLBACK_ENVELOPE_ENTITY: 'P2PFallbackEnvelope',
-  P2PFallbackEnvelopeEntity: class {
-    static findAll = envelope.findAll;
-    save(): Promise<void> {
-      return envelope.save(this as never);
-    }
-  }
+vi.mock('../device/fallback-envelopes', () => ({
+  writeEnvelopes: envelopeApi.writeEnvelopes,
+  envelopeFor: envelopeApi.envelopeFor
 }));
 // 密码学行为有它自己的 spec（fallback-crypto.spec.ts）；工作区 spec 只验证接线，不重复跑 WebCrypto。
 vi.mock('./fallback-crypto', () => ({
@@ -199,7 +202,6 @@ const auth = {
 };
 const fetcher = vi.fn<typeof fetch>();
 let rows: BehaviorSubject<P2PFileManifestEntity[]>;
-let envelopeRows: BehaviorSubject<unknown[]>;
 let presence: BehaviorSubject<readonly SignalingPeer[]>;
 let signalingState: BehaviorSubject<SignalingState>;
 let problems: Subject<SignalingProblem>;
@@ -212,7 +214,6 @@ const prepareWorkspace = (): P2PWorkspace => {
   vi.resetAllMocks();
   held.clear();
   rows = new BehaviorSubject<P2PFileManifestEntity[]>([]);
-  envelopeRows = new BehaviorSubject<unknown[]>([]);
   presence = new BehaviorSubject<readonly SignalingPeer[]>([]);
   signalingState = new BehaviorSubject<SignalingState>('online');
   problems = new Subject<SignalingProblem>();
@@ -235,13 +236,8 @@ const prepareWorkspace = (): P2PWorkspace => {
   device.ensureDevice.mockResolvedValue({ id: 'local-device', name: '本机' });
   deviceKeys.ensureDeviceKeyPair.mockResolvedValue({ publicKeyBase64: 'pub-key', privateKeyJwk: { kty: 'EC' } });
   teamKeys.teamDeviceKeys.mockResolvedValue([{ deviceId: 'other-device', publicKeyBase64: 'other-pub' }]);
-  envelope.findAll.mockReturnValue(envelopeRows);
-  envelope.save.mockImplementation(async row => {
-    envelopeRows.next([
-      ...envelopeRows.value.filter(item => (item as { id: string }).id !== (row as { id: string }).id),
-      row
-    ]);
-  });
+  envelopeApi.writeEnvelopes.mockResolvedValue();
+  envelopeApi.envelopeFor.mockResolvedValue(null);
   auth.session.mockReturnValue({ user: { id: 'user' } });
   auth.accessToken.mockResolvedValue('access-token');
   storage.store.mockImplementation(async (hash, file) => {
@@ -255,7 +251,13 @@ const prepareWorkspace = (): P2PWorkspace => {
   writer.commit.mockResolvedValue();
   writer.discard.mockResolvedValue();
   storage.createWriter.mockResolvedValue(writer);
-  fetcher.mockResolvedValue(new Response('unavailable', { status: 503 }));
+  fetcher.mockImplementation(async url => {
+    // 工作区启动会查询激活状态（/api/me）；其余请求保持「服务不可用」的默认
+    if (String(url).includes('/api/me')) {
+      return new Response(JSON.stringify({ activated: true }), { status: 200 });
+    }
+    return new Response('unavailable', { status: 503 });
+  });
   vi.stubGlobal('fetch', fetcher);
   TestBed.configureTestingModule({ providers: [P2PWorkspace, { provide: AuthService, useValue: auth }] });
   return TestBed.inject(P2PWorkspace);
@@ -471,7 +473,7 @@ describe('P2PWorkspace file lifecycle', () => {
     expect(held.get(shared.contentHash)).toBe(selected);
     expect(shared.serverCopy).toBe(false);
     expect(shared.manifest.holderId).toBe(deriveHolderId(localPrincipal));
-    expect(fetcher).not.toHaveBeenCalled();
+    expect(fetcher.mock.calls.filter(([url]) => !String(url).includes('/api/me'))).toEqual([]);
     await workspace.share(selected, false);
     expect(workspace.files()).toHaveLength(1);
     expect(persistence.save).toHaveBeenCalledTimes(1);
@@ -487,7 +489,10 @@ describe('P2PWorkspace file lifecycle', () => {
     const encUrl = `/api/files/enc/${'e'.repeat(64)}`;
     expect(shared.serverCopy).toBe(true);
     expect(shared.manifest.sourceUrl).toBe(encUrl);
-    const [url, init] = fetcher.mock.calls[0]!;
+    const uploadCall = fetcher.mock.calls.find(
+      ([url, init]) => String(url) === encUrl && (init as RequestInit).method === 'PUT'
+    )!;
+    const [url, init] = uploadCall;
     expect(url).toBe(encUrl);
     expect(init).toMatchObject({
       method: 'PUT',
@@ -497,13 +502,11 @@ describe('P2PWorkspace file lifecycle', () => {
     const uploaded = new Uint8Array(await new Response(init!.body as BodyInit).arrayBuffer());
     expect(uploaded.byteLength).toBe(selected.size + 1);
     expect(uploaded[0]).toBe(0xec);
-    // 给团队里每台登记了公钥的设备都封装了信封
-    expect(envelope.save).toHaveBeenCalledTimes(1);
-    expect(envelopeRows.value[0]).toMatchObject({
-      contentHash: shared.contentHash,
-      recipientDeviceId: 'other-device',
-      kid: 'p256-1'
-    });
+    // 给团队里每台登记了公钥的设备都封装了信封，直写 Supabase
+    expect(envelopeApi.writeEnvelopes).toHaveBeenCalledTimes(1);
+    expect(envelopeApi.writeEnvelopes.mock.calls[0]![1]).toMatchObject([
+      { contentHash: shared.contentHash, recipientDeviceId: 'other-device', kid: 'p256-1' }
+    ]);
   });
 
   it('does not advertise a file when its requested server copy fails', async () => {
@@ -512,7 +515,7 @@ describe('P2PWorkspace file lifecycle', () => {
     await expect(workspace.share(content(), true)).rejects.toThrow('encrypted upload failed (507): 服务器空间不足');
     expect(workspace.files()).toEqual([]);
     expect(persistence.save).not.toHaveBeenCalled();
-    expect(envelope.save).not.toHaveBeenCalled();
+    expect(envelopeApi.writeEnvelopes).not.toHaveBeenCalled();
   });
 
   it('creates a usable example file that follows the same sharing path', async () => {
@@ -643,18 +646,7 @@ describe('P2PWorkspace file lifecycle', () => {
     await workspace.start();
     const record = await recordFor(content(), remotePrincipal, true);
     addRecord({ ...record, sourceUrl: `/api/files/enc/${'e'.repeat(64)}` });
-    envelopeRows.next([
-      {
-        id: 'env-1',
-        contentHash: record.contentHash,
-        recipientDeviceId: 'local-device',
-        kid: 'p256-1',
-        epk: 'epk',
-        iv: 'iv',
-        ct: 'ct',
-        tag: 'tag'
-      }
-    ]);
+    envelopeApi.envelopeFor.mockResolvedValue({ kid: 'p256-1', epk: 'epk', iv: 'iv', ct: 'ct', tag: 'tag' });
     fetcher.mockResolvedValueOnce(new Response(bytes));
     await workspace.download(record.contentHash);
     await vi.advanceTimersByTimeAsync(250);
@@ -673,6 +665,7 @@ describe('P2PWorkspace file lifecycle', () => {
     await workspace.start();
     const record = await recordFor(content(), remotePrincipal, true);
     addRecord({ ...record, sourceUrl: `/api/files/enc/${'e'.repeat(64)}` });
+    envelopeApi.envelopeFor.mockResolvedValue(null);
     fetcher.mockResolvedValueOnce(new Response(bytes));
     await workspace.download(record.contentHash);
     await vi.advanceTimersByTimeAsync(250);
@@ -759,7 +752,7 @@ describe('P2PWorkspace file lifecycle', () => {
     await workspace.download(record.contentHash);
     await vi.advanceTimersByTimeAsync(250);
     expect(request).toHaveBeenCalledTimes(2);
-    expect(fetcher).not.toHaveBeenCalled();
+    expect(fetcher.mock.calls.filter(([url]) => !String(url).includes('/api/me'))).toEqual([]);
     expect(writer.commit).toHaveBeenCalledOnce();
     expect(workspace.transfers()).toMatchObject([{ state: 'done', route: 'p2p', sources: ['书房电脑'] }]);
   });

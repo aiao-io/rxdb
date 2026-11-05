@@ -8,15 +8,40 @@ import { fileRow, generateFile, newAccount, openDevice, storedDigest, transferOf
 /** 在页面里以登录身份直接取密文副本的 SHA-256：走真实服务器，不经应用代码。 */
 const fetchCiphertextDigest = (page: Page, sourceUrl: string): Promise<string> =>
   page.evaluate(async url => {
-    const storageKey = Object.keys(localStorage).find(key => key.startsWith('sb-') && key.endsWith('-auth-token'));
-    if (!storageKey) throw new Error('no supabase session in localStorage');
-    const { access_token } = JSON.parse(localStorage.getItem(storageKey) ?? '{}') as { access_token: string };
+    let token: string | null = null;
+    for (const key of Object.keys(localStorage)) {
+      let candidate: { access_token?: unknown } | null = null;
+      try {
+        candidate = JSON.parse(localStorage.getItem(key) ?? 'null') as { access_token?: unknown } | null;
+      } catch {
+        // localStorage 里还有别的东西，跳过
+      }
+      if (candidate && typeof candidate.access_token === 'string') token = candidate.access_token;
+    }
+    if (!token) throw new Error('no supabase session in localStorage');
     const response = await fetch(url, {
-      headers: { authorization: `Bearer ${access_token}`, 'x-pool-fallback-encoding': '1' }
+      headers: { authorization: `Bearer ${token}`, 'x-pool-fallback-encoding': '1' }
     });
     if (!response.ok) throw new Error(`server responded ${response.status}`);
     const digest = await crypto.subtle.digest('SHA-256', await response.arrayBuffer());
     return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+  }, sourceUrl);
+
+/** 以登录身份、不带编码头（模拟旧客户端）取密文副本的响应状态。 */
+const legacyFetchStatus = (page: Page, sourceUrl: string): Promise<number> =>
+  page.evaluate(async url => {
+    let token: string | null = null;
+    for (const key of Object.keys(localStorage)) {
+      let candidate: { access_token?: unknown } | null = null;
+      try {
+        candidate = JSON.parse(localStorage.getItem(key) ?? 'null') as { access_token?: unknown } | null;
+      } catch {
+        // 跳过非 JSON 的值
+      }
+      if (candidate && typeof candidate.access_token === 'string') token = candidate.access_token;
+    }
+    if (!token) throw new Error('no supabase session in localStorage');
+    return (await fetch(url, { headers: { authorization: `Bearer ${token}` } })).status;
   }, sourceUrl);
 
 test.describe('回退内容加密', () => {
@@ -41,7 +66,8 @@ test.describe('回退内容加密', () => {
     await expect(transfer).toContainText('服务器回退');
     expect(await storedDigest(fetcher, contentHash)).toBe(contentHash);
 
-    // 上传之后才注册的账号没有信封：回退下载明确失败，不落盘
+    // 上传之后才注册的账号没有信封：关掉全部在线持有者逼它走回退，明确失败，不落盘
+    await fetcher.context.close();
     const late = await openDevice(browser, newAccount('enc-late'), 'sign-up');
     await expect(fileRow(late, fileName)).toBeVisible();
     await fileRow(late, fileName).getByTestId('file-download').click();
@@ -50,14 +76,13 @@ test.describe('回退内容加密', () => {
     await expect(failed).toContainText('没有解密信封');
   });
 
-  test('AC#8 旧客户端（不带编码头）取密文副本得到 426 升级提示', async ({ browser, request }) => {
+  test('AC#8 旧客户端（不带编码头）取密文副本得到 426 升级提示', async ({ browser }) => {
     const holder = await openDevice(browser, newAccount('enc-426'), 'sign-up');
     const { fileName } = await generateFile(holder, 1, { upload: true });
     const sourceUrl = (await fileRow(holder, fileName).getAttribute('data-source')) as string;
     expect(sourceUrl).toMatch(/^\/api\/files\/enc\//);
 
-    const response = await request.get(sourceUrl);
-    expect(response.status()).toBe(426);
-    expect(await response.text()).toContain('encrypted');
+    // 旧客户端是已认证用户，只是不带编码头：服务端 426 提示升级，不把密文当明文交给它
+    expect(await legacyFetchStatus(holder.page, sourceUrl)).toBe(426);
   });
 });
