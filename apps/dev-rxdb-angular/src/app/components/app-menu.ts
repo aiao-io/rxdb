@@ -174,6 +174,12 @@ export class AppMenu {
     },
     {
       type: 'link',
+      title: 'nav.headless',
+      path: '/headless',
+      icon: Layers
+    },
+    {
+      type: 'link',
       title: 'nav.codeEditor',
       path: '/code-editor',
       icon: Code

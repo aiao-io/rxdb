@@ -112,6 +112,10 @@ export const appRoutes: Route[] = [
     loadComponent: () => import('./pages/entity/entity-detail.page')
   },
   {
+    path: 'headless',
+    loadComponent: () => import('./pages/headless/headless.page')
+  },
+  {
     path: 'code-editor',
     loadComponent: () => import('./pages/code-editor/code-editor.page')
   },
