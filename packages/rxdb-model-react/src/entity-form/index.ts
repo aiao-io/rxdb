@@ -4,3 +4,4 @@
  * @module entity-form
  */
 export { EntityForm, type EntityFormProps } from './entity-form.js';
+export { useEntityForm, useEntityFormHeadless, type UseEntityFormResult } from './headless.js';

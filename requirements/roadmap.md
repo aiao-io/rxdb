@@ -8,13 +8,13 @@
 | 状态           | 数量   |
 | :------------- | :----- |
 | ✅ Done        | 89     |
-| 🚧 In Progress | 4      |
+| 🚧 In Progress | 5      |
 | 👀 In Review   | 9      |
-| 📝 Backlog     | 27     |
+| 📝 Backlog     | 26     |
 | 🚫 Blocked     | 0      |
 | **未完成合计** | **40** |
 
-仓库还剩 **40 条**未关闭故事（4 In Progress + 9 In Review + 27 Backlog + 0 Blocked）。
+仓库还剩 **40 条**未关闭故事（5 In Progress + 9 In Review + 26 Backlog + 0 Blocked）。
 数字由 story YAML 推导；Backlog 包括已授权任务与价值待证候选，不能把全部未关闭故事当成可开工项。
 
 ## 未完成需求全景
@@ -25,6 +25,7 @@
 | [US-032](stories/core/US-032-cross-tab-update-live-query.md)                                                                                                                                                                       | 👀 In Review   | 改了读取列而缓存补不齐时回 SQL，核心与真实双连接回归通过；待代码评审                                  | 独立核心 PR |
 | [US-030](stories/core/US-030-declarative-storage-constraints.md)                                                                                                                                                                   | 👀 In Review   | 当前承诺 A～C 的评审收尾；候选 D 不参与本轮关闭                                                       | 批次 3      |
 | [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md)                                                                                                                                                                    | 🚧 In Progress | 按平台矩阵核对剩余设备验证、demo 走查与公开支持边界                                                   | 批次 3      |
+| [US-403](stories/ui/US-403-entity-components-headless.md)                                                                                                                                                                          | 🚧 In Progress | 独立构建产物消费、Angular secondary entry 与三框架质量门禁待收口                                      | 批次 3      |
 | [US-219](stories/adapter/US-219-taro-plugin.md)                                                                                                                                                                                    | 👀 In Review   | 当前 Taro 版本的外部安装与开发者工具验收证据                                                          | 批次 3      |
 | [epic-009 BOM](epics/epic-009-bom-domain-model.md)（19 条）                                                                                                                                                                        | 📝 Backlog     | 先首轮切片与贯穿应用，再按前置推进；候选优化不自动解锁                                                | 批次 4      |
 | [US-528](stories/domain/US-528-admin-consumer-example.md)                                                                                                                                                                          | 👀 In Review   | AC#1 仓外发布 tarball 消费与 AC#3 按文档独立重搭仍待验证，AC#2 成本记录已通过；workspace 证据不能替代 | 批次 5      |
@@ -33,7 +34,6 @@
 | [US-539](stories/domain/US-539-board-tri-framework-ui.md)                                                                                                                                                                          | 👀 In Review   | 阶段 A～C 三端全绿，等待合并收尾                                                                      | 批次 6      |
 | [US-540](stories/domain/US-540-board-end-to-end-demo.md)                                                                                                                                                                           | 🚧 In Progress | demo 既有库初态（AC#7）与无搜索插件构建（AC#12）                                                      | 批次 6      |
 | [US-541](stories/domain/US-541-board-team-sync.md)                                                                                                                                                                                 | 📝 Backlog     | 具名团队触发后冻结身份、成员权限、RLS 与冲突规则                                                      | 立项池      |
-| [US-403](stories/ui/US-403-entity-components-headless.md)                                                                                                                                                                          | 📝 Backlog     | 按现有公开逻辑与 #152 列表能力界定入口/依赖隔离，保留默认 UI                                          | 立项池      |
 | [US-029](stories/core/US-029-rbac-owner-role-permission.md)                                                                                                                                                                        | 📝 Backlog     | 价值待证，等待具名多用户写授权症状；解锁时重验当前 API 前提                                           | 立项池      |
 | [US-910](stories/future/US-910-data-i18n.md)                                                                                                                                                                                       | 📝 Backlog     | 先证明语言启停入口、删除判据与迟到子行合入；不能只归因于缺夹具                                        | 立项池      |
 | [US-911](stories/future/US-911-client-i18n.md)                                                                                                                                                                                     | 👀 In Review   | A～D 已实现；A4/A5 载体对照与历史隔离验证通过，三端/四运行时与实现基线全量门禁通过，待代码评审        | 本轮交付    |
@@ -94,7 +94,6 @@ US-541 团队版没有随首轮解锁，仍按具名团队症状和身份/冲突
 
 | 故事            | 准入条件                                                                                                    |
 | --------------- | ----------------------------------------------------------------------------------------------------------- |
-| US-403          | 明确使用方要替换的展示层；以现有逻辑 API 和独立消费闭环界定首个阶段                                         |
 | US-029          | 具名多用户使用方与当前可复现写授权症状；解锁时重定库级身份、owner 外键和按行能力                            |
 | US-910 / US-911 | 先完成故事中的能力/持久化合同验证；共享 locale/fallback 仅有一份定义，不预先承诺无需同步改动                |
 | US-704～707     | 按 [epic-011](epics/epic-011-p2p-file-share.md#价值待证)解锁，先验证断服务器超过 TTL 的局域网路径与认证前置 |
