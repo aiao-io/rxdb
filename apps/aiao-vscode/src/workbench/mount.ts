@@ -50,6 +50,8 @@ export interface BrowserWorkbenchOptions {
 export interface WorkbenchHandle {
   readonly ready: Promise<void>;
   readonly session: WorkbenchSession;
+  /** 强制按容器当前尺寸重布局；容器无尺寸时静默跳过。 */
+  refreshLayout(): void;
   dispose(): void;
 }
 
@@ -2120,6 +2122,7 @@ export function mountWorkbench(
   return {
     ready,
     session,
+    refreshLayout: () => docking.refreshLayout(),
     dispose() {
       if (disposed) return;
       disposed = true;
