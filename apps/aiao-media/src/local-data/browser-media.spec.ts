@@ -2,7 +2,10 @@ import { type EntityType, type RxDB } from '@aiao/rxdb';
 import { BehaviorSubject, firstValueFrom, of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LocalMediaStore, LocalPreference } from './browser-media';
+import { connectMediaDevTools } from './media-devtools';
 import { studioPayload } from './studio-draft';
+
+vi.mock('./media-devtools', () => ({ connectMediaDevTools: vi.fn() }));
 
 function rig() {
   vi.stubGlobal(
@@ -46,6 +49,7 @@ function rig() {
     findAll: vi.fn(() => liveRows)
   };
   const database = {
+    disconnectAll: vi.fn(async () => undefined),
     dispatchEvent: publish,
     localAdapter$: of(adapter),
     getAdapter: async () => adapter,
@@ -64,6 +68,40 @@ function rig() {
   return { store, rows, find, update, create, adapter, liveRows, query, publish, database };
 }
 afterEach(() => vi.unstubAllGlobals());
+describe('媒体数据库调试生命周期', () => {
+  it('仅在激活当前工作区时连接一次', () => {
+    const release = vi.fn();
+    vi.mocked(connectMediaDevTools).mockReset().mockReturnValue(release);
+    const r = rig();
+    expect(connectMediaDevTools).not.toHaveBeenCalled();
+
+    r.store.activateDevTools();
+    r.store.activateDevTools();
+
+    expect(connectMediaDevTools).toHaveBeenCalledExactlyOnceWith(r.database);
+    expect(release).not.toHaveBeenCalled();
+  });
+
+  it('关闭时先释放调试监听，且已关闭的工作区不能重新激活', async () => {
+    vi.stubGlobal('navigator', {
+      locks: { request: async (_name: string, operation: () => Promise<unknown>) => operation() }
+    });
+    const release = vi.fn();
+    vi.mocked(connectMediaDevTools).mockReset().mockReturnValue(release);
+    const r = rig();
+    r.store.activateDevTools();
+
+    await r.store.close();
+    await r.store.close();
+    r.store.activateDevTools();
+
+    const disconnect = vi.mocked(r.database.disconnectAll);
+    expect(release).toHaveBeenCalledOnce();
+    expect(disconnect).toHaveBeenCalledOnce();
+    expect(release.mock.invocationCallOrder[0]).toBeLessThan(disconnect.mock.invocationCallOrder[0]);
+    expect(connectMediaDevTools).toHaveBeenCalledOnce();
+  });
+});
 describe('local media queries and preference transactions', () => {
   it('initializes a setting once without replacing another window’s value', async () => {
     vi.stubGlobal('navigator', {

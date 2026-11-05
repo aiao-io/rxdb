@@ -72,6 +72,7 @@ import {
   type LocalCollection
 } from './local-collections';
 import { localRepository } from './local-repository';
+import { connectMediaDevTools } from './media-devtools';
 import {
   MediaResultError,
   mediaResultMetadata,
@@ -493,6 +494,7 @@ function imageName(jobId: string, mimeType: string): string {
 export class LocalMediaStore {
   private locked = false;
   private closing: Promise<void> | null = null;
+  private disconnectDevTools?: () => void;
   private readonly urls = new Map<string, string>();
   private readonly channel: BroadcastChannel;
   private readonly lifetime = new AbortController();
@@ -1393,10 +1395,17 @@ export class LocalMediaStore {
       if (asset) await this.deleteAssetUnlocked(asset);
     });
   }
+  /** 只为已进入页面的当前工作区启用开发工具。 */
+  activateDevTools(): void {
+    if (this.locked || this.disconnectDevTools) return;
+    this.disconnectDevTools = connectMediaDevTools(this.db);
+  }
   /** Lock synchronously and revoke previews, then wait for in-flight writes to leave the user lock. */
   close(): Promise<void> {
     if (this.closing) return this.closing;
     this.locked = true;
+    this.disconnectDevTools?.();
+    this.disconnectDevTools = undefined;
     this.lifetime.abort();
     this.studioClosed.next();
     this.studioClosed.complete();

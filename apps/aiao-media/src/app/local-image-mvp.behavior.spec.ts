@@ -131,6 +131,7 @@ function memoryStore() {
     delete: vi.fn<() => Promise<void>>(async () => undefined),
     imageInfo: vi.fn<LocalMediaStore['imageInfo']>(),
     close: vi.fn(async () => undefined),
+    activateDevTools: vi.fn(),
     release: vi.fn(),
     previewImage: vi.fn(async () => ({ url: 'blob:preview', mimeType: 'image/png' as const }))
   };
@@ -617,6 +618,7 @@ describe('workspace initialization and isolation', () => {
 
   it('switches between registered workspaces and clears the previous session key and result', async () => {
     const r = await boot();
+    expect(r.store.activateDevTools).toHaveBeenCalledOnce();
     await authorizeGeneration(r);
     r.component.job.set(job);
     r.component.resultUrl.set('blob:previous');
@@ -629,6 +631,7 @@ describe('workspace initialization and isolation', () => {
     expect(r.component.apiKey()).toBe('');
     expect(r.component.keyIds().size).toBe(0);
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:previous');
+    expect(r.store.activateDevTools).toHaveBeenCalledTimes(2);
   });
 
   it('preserves data and reports incompatible schema failures when opening a workspace', async () => {
@@ -1977,6 +1980,7 @@ describe('backup workspace handoff', () => {
     await r.component.importBackup(backupFile().event);
     expect(verified.next.store.saveResult).toHaveBeenCalledWith(job, verified.files[0]);
     expect(verified.next.store.saveStudioDraft).toHaveBeenCalledWith(verified.backup.draft, null);
+    expect(verified.next.store.activateDevTools).not.toHaveBeenCalled();
     expect(JSON.parse(verified.next.preferences.get('tasks-v1')!.payload)[0].saved).toBe(true);
     expect(localStorage.getItem('aiao-local-previous-profile-v1')).toBe(profileId);
     expect(localStorage.getItem('aiao-local-profile-v1')).toBe(verified.open.mock.calls[0][0]);

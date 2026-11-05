@@ -49,6 +49,12 @@
           }
         },
         "development": {
+          "fileReplacements": [
+            {
+              "replace": "apps/aiao-media/src/local-data/media-devtools.ts",
+              "with": "apps/aiao-media/src/local-data/media-devtools.development.ts"
+            }
+          ],
           "optimization": false,
           "extractLicenses": false,
           "sourceMap": true

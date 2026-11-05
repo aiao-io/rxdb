@@ -2152,6 +2152,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         profiles: [...this.registryState.profiles.filter(item => item.id !== profile.id), profile]
       };
     this.store = store;
+    store.activateDevTools();
     this.profileId = profile.id;
     this.currentProfileId.set(profile.id);
     this.refreshProfiles();

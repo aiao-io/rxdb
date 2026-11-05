@@ -38,6 +38,7 @@ pnpm nx run aiao-media:serve
 - 前端是 Angular 开发服务器，改源码自动刷新。首次运行会先构建依赖包和 wasm 资源，之后命中缓存。
 - 后端是 [proxy.conf.mjs](proxy.conf.mjs) 在同一进程内启动的 Worker 代理，只提供 `/api/relay` 和 `/api/relay/tasks`（详见下文「本站代理」）；不启动 Supabase，也没有 `/api/platform`、`/api/admin`、`/api/templates`。
 - 数据保存在浏览器的 OPFS / IndexedDB，不需要数据库或 `.env`。
+- 开发构建自动接入 RxDB DevTools 浏览器扩展，检查当前工作区的媒体数据库；切换工作区时连接随之切换。生产和桌面构建使用空实现，产物不包含 `@aiao/rxdb-devtools`。
 - 未配置 `AIAO_SUPABASE_URL` 和 `AIAO_SUPABASE_ANON_KEY` 时不显示注册/登录入口。如果 `apps/aiao-media/.env` 里填过这两项，入口会出现；要纯本机模式就清空它们。
 
 ### 无 Supabase：生产形态预览
