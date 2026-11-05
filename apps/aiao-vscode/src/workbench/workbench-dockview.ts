@@ -484,6 +484,14 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
         api.getPanel('preview')?.group.api.setSize({ width: previewWidth(api.width) });
         api.getPanel('problems')?.group.api.setSize({ height: 180 });
       });
+      // 边缘组面板经 overlay 渲染容器定位，其首帧测量为 0 时不再重试；
+      // 布局落地后强制重布局一次，让 overlay 按真实容器尺寸重新定位。
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (disposed || container.clientWidth <= 0 || container.clientHeight <= 0) return;
+          api.layout(container.clientWidth, container.clientHeight, true);
+        });
+      });
     })
   );
   subscriptions.push(
