@@ -21,11 +21,10 @@ import {
 import { bomSqlDialectFor } from '../resolve/bom-sql.js';
 import { loadHistory } from '../resolve/history-loader.js';
 import type { ResolutionContext } from '../resolve/resolution.js';
+import { fixtureDay as day } from './fixture-date.js';
 import { createBomTestAdapter, disposeBomTestAdapter, type BomTestAdapter, type BomTestBackend } from './test-utils.js';
 
 const BACKENDS: BomTestBackend[] = ['wa-sqlite', 'pglite'];
-
-const day = (iso: string): Date => new Date(`${iso}T00:00:00.000Z`);
 
 /** rawQuery 双形状归一。 */
 const shapeRows = (result: unknown): unknown[][] => {
@@ -696,7 +695,7 @@ describe('跟进基线与缺口（AC#4/#7/#8/#20）', () => {
         );
         const oldOccurrenceId = String(oldOccurrenceRows[0][0]);
         await adapter.rawQuery(
-          `UPDATE ${backend === 'wa-sqlite' ? '"bom$bom_line_occurrence"' : '"bom"."bom_line_occurrence"'} SET "ecnOutId" = '${ecn.id}', "effectiveTo" = '2026-11-01T00:00:00.000Z' WHERE "id" = '${oldOccurrenceId}'`
+          `UPDATE ${backend === 'wa-sqlite' ? '"bom$bom_line_occurrence"' : '"bom"."bom_line_occurrence"'} SET "ecnOutId" = '${ecn.id}', "effectiveTo" = '${day('2026-11-01').toISOString()}' WHERE "id" = '${oldOccurrenceId}'`
         );
         const newOccurrence = new BomLineOccurrence();
         newOccurrence.lineId = ebomB.lines[0].id;
@@ -723,7 +722,7 @@ describe('跟进基线与缺口（AC#4/#7/#8/#20）', () => {
         ecn2.effectiveDate = day('2027-01-01');
         await ecn2.save();
         await adapter.rawQuery(
-          `UPDATE ${backend === 'wa-sqlite' ? '"bom$bom_line_occurrence"' : '"bom"."bom_line_occurrence"'} SET "ecnOutId" = '${ecn2.id}', "effectiveTo" = '2027-01-01T00:00:00.000Z' WHERE "id" = '${newOccurrence.id}'`
+          `UPDATE ${backend === 'wa-sqlite' ? '"bom$bom_line_occurrence"' : '"bom"."bom_line_occurrence"'} SET "ecnOutId" = '${ecn2.id}', "effectiveTo" = '${day('2027-01-01').toISOString()}' WHERE "id" = '${newOccurrence.id}'`
         );
         const third = new BomLineOccurrence();
         third.lineId = ebomB.lines[0].id;

@@ -11,11 +11,10 @@ import { BomEcn, BomHeader, BomItem, BomLine, BomLineOccurrence } from '../entit
 import { ecnDiff, ecnImpact } from '../resolve/ecn.js';
 import { loadHistory } from '../resolve/history-loader.js';
 import { BomResolutionError } from '../resolve/resolution.js';
+import { fixtureDay as day } from './fixture-date.js';
 import { createBomTestAdapter, disposeBomTestAdapter, type BomTestAdapter, type BomTestBackend } from './test-utils.js';
 
 const BACKENDS: BomTestBackend[] = ['wa-sqlite', 'pglite'];
-
-const day = (iso: string): Date => new Date(`${iso}T00:00:00.000Z`);
 
 for (const backend of BACKENDS) {
   describe(`ECN 影响面与差异 [${backend}]`, () => {
