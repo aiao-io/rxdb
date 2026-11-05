@@ -69,7 +69,11 @@ function fixture(withGithub = true): {
   const mountEditor = vi.fn<WorkbenchEditorMount>(() => editorHandle);
   const compiler = { compile: vi.fn(async () => ({ js: '', css: '' })), dispose: vi.fn() };
   const githubApi = {} as GitHubApi;
-  const githubAuth = {} as GitHubAuth;
+  const githubAuth = {
+    getSession: vi.fn(async () => null),
+    subscribe: vi.fn(() => () => undefined),
+    logout: vi.fn(async () => undefined)
+  } as unknown as GitHubAuth;
   const host = document.createElement('div');
   document.body.append(host);
   const handle = mountWorkbench(

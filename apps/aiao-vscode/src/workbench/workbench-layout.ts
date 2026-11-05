@@ -20,6 +20,11 @@ export function createWorkbenchLayout(host: HTMLElement, assetBaseURL: string): 
         <button data-action="save" title="保存当前文件并预览 · Ctrl / ⌘ + S">${iconMarkup('save')}<span>保存</span></button>
         <button class="wb-run-button" data-action="run" title="保存全部文件并运行项目">${iconMarkup('play')}<span>运行</span></button>
         <button data-action="commands" aria-label="命令面板" title="命令面板 · Ctrl / ⌘ + Shift + P">${iconMarkup('more')}</button>
+        <span class="wb-title-divider" aria-hidden="true"></span>
+        <button data-action="toggle-sidebar" aria-label="切换侧栏" aria-pressed="true" title="切换侧栏 · ${shortcutKey} B">${iconMarkup('layout-sidebar-left')}</button>
+        <button data-action="reset-layout" aria-label="重置布局" title="重置工作台布局">${iconMarkup('layout')}</button>
+        <button data-action="panel" aria-label="切换面板" aria-pressed="true" title="切换面板 · ${shortcutKey} J">${iconMarkup('layout-panel')}</button>
+        <button data-action="preview" aria-label="打开预览" aria-pressed="true" title="打开预览">${iconMarkup('open-preview')}</button>
       </div>
     </header>
     <div class="wb-body">
@@ -28,8 +33,8 @@ export function createWorkbenchLayout(host: HTMLElement, assetBaseURL: string): 
         <button aria-label="切换搜索" aria-pressed="false" data-action="search" title="搜索">${iconMarkup('search')}</button>
         <button aria-label="切换 Git 视图" aria-pressed="false" data-action="git" title="源代码管理">${iconMarkup('source-control')}<span class="wb-activity-badge" data-slot="scm-count" hidden>0</span></button>
         <span class="wb-spacer"></span>
-        <button aria-label="切换底部面板" data-action="panel" title="切换面板">${iconMarkup('layout-panel')}</button>
-        <button aria-label="重置布局" data-action="reset-layout" title="重置工作台布局">${iconMarkup('layout')}</button>
+        <button aria-label="GitHub 帐户" data-action="github-account" title="GitHub 帐户" hidden>${iconMarkup('account')}<span class="wb-account-badge" data-slot="account-badge" hidden></span></button>
+        <button aria-label="设置" data-action="settings" title="设置">${iconMarkup('settings-gear')}</button>
       </nav>
       <main class="wb-main" data-slot="dockview" aria-label="工作区布局"></main>
     </div>

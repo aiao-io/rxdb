@@ -399,6 +399,17 @@ describe('Dockview 工作台布局', () => {
     expect(dock.api.getPanel('preview')).toBeDefined();
   });
 
+  it('工具面板可见性与关闭重开状态一致', async () => {
+    const { dock, callbacks } = fixture();
+    expect(dock.isToolsVisible()).toBe(true);
+    dock.toggleTools();
+    await Promise.resolve();
+    expect(dock.isToolsVisible()).toBe(false);
+    expect(callbacks.onToggleTool).toHaveBeenLastCalledWith(false);
+    dock.toggleTools();
+    expect(dock.isToolsVisible()).toBe(true);
+  });
+
   it('释放幂等，销毁Dock不等于用户关闭所有编辑标签', async () => {
     const { dock, callbacks } = fixture();
     dock.ensureEditor('first.ts');

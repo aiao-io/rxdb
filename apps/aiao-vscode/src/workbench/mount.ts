@@ -15,6 +15,7 @@ import type { GitHubApi } from './git/github/github-api.js';
 import type { GitHubAuth } from './git/github/github-auth.js';
 import { requestGitHubLogin } from './git/github/github-login.js';
 import { requestGitHubRepository } from './git/github/github-picker.js';
+import type { GitHubSession } from './git/github/github-types.js';
 import { mountPreview, type PreviewEvent } from './preview/preview-sandbox.js';
 import { createSavePreviewController, type SavePreviewPhase } from './save-preview.js';
 import { WorkbenchSession, type WorkbenchBackend, type WorkbenchState, type WorkbenchStatus } from './session.js';
@@ -29,6 +30,7 @@ import { createWorkbenchLayout, workbenchElement } from './workbench-layout.js';
 import { attachWorkbenchLongPress } from './workbench-longpress.js';
 import { createWorkbenchScm, type WorkbenchDiffRequest } from './workbench-scm.js';
 import { createWorkbenchSearch } from './workbench-search.js';
+import { openWorkbenchSettings } from './workbench-settings.js';
 import { resolveTreeMove, treePathParent, type TreeMoveDecision } from './workbench-tree-drag.js';
 
 /** 工作台的可注入服务与静态资源位置。 */
@@ -202,6 +204,7 @@ export function mountWorkbench(
   const collapsedFolders = new Set<string>();
   const collapsedSections = new Set<string>();
   let alwaysShowScmActions = false;
+  let githubSession: GitHubSession | null = null;
   const docking = createWorkbenchDockview(root, {
     onSelectEditor(path) {
       if (disposed || !session.state.tabs.includes(path)) return;
@@ -253,6 +256,36 @@ export function mountWorkbench(
   applyNarrow(narrowMedia.matches);
   const onNarrowChange = (event: MediaQueryListEvent): void => applyNarrow(event.matches);
   narrowMedia.addEventListener('change', onNarrowChange);
+
+  /** 活动栏底部 GitHub 帐户入口：无认证能力时隐藏，登录后显示徽标与用户名。 */
+  function renderAccountState(): void {
+    const button = element<HTMLButtonElement>('[data-action="github-account"]');
+    button.hidden = !options.githubAuth;
+    const badge = element<HTMLElement>('[data-slot="account-badge"]');
+    if (githubSession) {
+      button.setAttribute('aria-pressed', 'true');
+      button.title = `已登录 ${githubSession.login}`;
+      badge.textContent = githubSession.login.slice(0, 1).toUpperCase();
+      badge.hidden = false;
+    } else {
+      button.removeAttribute('aria-pressed');
+      button.title = '登录 GitHub';
+      badge.hidden = true;
+    }
+  }
+  renderAccountState();
+  if (options.githubAuth) {
+    options.githubAuth.subscribe(session => {
+      if (disposed) return;
+      githubSession = session;
+      renderAccountState();
+    });
+    void options.githubAuth.getSession().then(session => {
+      if (disposed) return;
+      githubSession = session;
+      renderAccountState();
+    });
+  }
   const layoutChanges = docking.api.onDidLayoutChange(() => {
     queueMicrotask(() => {
       if (!disposed) {
@@ -1656,6 +1689,15 @@ export function mountWorkbench(
     for (const button of root.querySelectorAll<HTMLElement>('[data-action="explorer"],[data-action="git"]')) {
       button.setAttribute('aria-pressed', String(docking.isSidebarVisible() && button.dataset['action'] === sideView));
     }
+    const toolsVisible = docking.isToolsVisible();
+    for (const button of root.querySelectorAll<HTMLElement>('.wb-title-actions [data-action="panel"]'))
+      button.setAttribute('aria-pressed', String(toolsVisible));
+    root
+      .querySelector<HTMLElement>('[data-action="toggle-sidebar"]')
+      ?.setAttribute('aria-pressed', String(docking.isSidebarVisible()));
+    const previewVisible = docking.isPreviewOpen();
+    for (const button of root.querySelectorAll<HTMLElement>('.wb-title-actions [data-action="preview"]'))
+      button.setAttribute('aria-pressed', String(previewVisible));
     const busy = initializing || (session.state.busy && previewPhase !== 'compiling') || pendingOperations > 0;
     for (const button of root.querySelectorAll<HTMLButtonElement>('[data-welcome-action],[data-welcome-recent]'))
       button.disabled = initializing || pendingOperations > 0;
@@ -1841,13 +1883,45 @@ export function mountWorkbench(
     'close-all-editors': () => {
       for (const tab of [...session.state.tabs]) closeEditorTab(tab);
     },
-    panel: () => docking.toggleTools(),
+    panel: () => {
+      docking.toggleTools();
+      renderActionState();
+    },
     preview: () => {
       docking.showPreview();
       render(session.state);
     },
     'quick-open': () => commands.showQuickOpen(),
     commands: () => commands.showCommandPalette(),
+    'toggle-sidebar': () => switchSide(sideView),
+    settings: () =>
+      openWorkbenchSettings(root, {
+        indentUnit,
+        alwaysShowScmActions,
+        onApply(settings) {
+          applyIndentUnit(settings.indentUnit);
+          alwaysShowScmActions = settings.alwaysShowScmActions;
+          scm.setAlwaysShowActions(alwaysShowScmActions);
+          log('output', '设置已更新');
+        }
+      }),
+    'github-account': () => {
+      if (!options.githubAuth) return;
+      if (githubSession) {
+        const rectangle = element('[data-action="github-account"]').getBoundingClientRect();
+        showContextMenu({ x: rectangle.left, y: rectangle.bottom }, [
+          {
+            label: `登出 GitHub（${githubSession.login}）`,
+            action: async () => {
+              await options.githubAuth!.logout();
+              log('output', '已登出 GitHub');
+            }
+          }
+        ]);
+        return;
+      }
+      void requestGitHubLogin(root, { auth: options.githubAuth }).catch(report);
+    },
     'reset-layout': () => {
       docking.resetLayout();
       render(session.state);
@@ -1904,6 +1978,7 @@ export function mountWorkbench(
       '[data-action="explorer"],[data-action="search"],[data-action="git"]'
     ))
       button.setAttribute('aria-pressed', String(visible && button.dataset['action'] === view));
+    root.querySelector<HTMLElement>('[data-action="toggle-sidebar"]')?.setAttribute('aria-pressed', String(visible));
     if (view === 'git') action(refreshGit);
     // 快捷键强制显示时把焦点送进对应视图（对齐 VS Code 的 Ctrl/⌘+Shift+E / F / G）
     if (force && visible) {

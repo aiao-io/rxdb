@@ -45,6 +45,7 @@ export interface WorkbenchDockview {
   setSidebarOverlay(overlay: boolean): void;
   showTool(kind: WorkbenchToolKind): void;
   toggleTools(): void;
+  isToolsVisible(): boolean;
   showPreview(): void;
   isPreviewOpen(): boolean;
   splitEditor(): void;
@@ -690,6 +691,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
         showTool(lastTool);
       }
     },
+    isToolsVisible: () => tools.some(kind => Boolean(api.getPanel(kind))),
     showPreview() {
       program(() => addPreview().api.setActive());
     },

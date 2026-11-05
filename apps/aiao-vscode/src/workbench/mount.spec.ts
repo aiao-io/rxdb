@@ -4,6 +4,8 @@ import type { WorkbenchCatalog, WorkbenchProjectInfo } from './catalog.js';
 import type { WorkbenchCompiler } from './compiler-client.js';
 import { CompilationError } from './compiler/compiler-types.js';
 import type { WorkbenchEditorMount } from './editor.js';
+import type { GitHubApi } from './git/github/github-api.js';
+import type { GitHubAuth } from './git/github/github-auth.js';
 import { mountWorkbench, type WorkbenchHandle } from './mount.js';
 import type { WorkbenchBackend, WorkbenchDiff, WorkbenchFiles } from './session.js';
 
@@ -21,7 +23,8 @@ function fixture(
   assetBaseURL = '/browser-workbench-assets/',
   bootstrapGate?: Promise<void>,
   extraProjects: readonly WorkbenchProjectInfo[] = [],
-  initialFiles: WorkbenchFiles = files
+  initialFiles: WorkbenchFiles = files,
+  github?: { auth: GitHubAuth; api?: GitHubApi }
 ) {
   let currentFiles: WorkbenchFiles = { ...initialFiles };
   let revision = 1;
@@ -111,7 +114,15 @@ function fixture(
   document.body.append(host);
   const handle = mountWorkbench(
     host,
-    { backend, compiler, catalog, assetBaseURL, ...(withProject ? { initialProjectId: 'one' } : {}) },
+    {
+      backend,
+      compiler,
+      catalog,
+      assetBaseURL,
+      ...(withProject ? { initialProjectId: 'one' } : {}),
+      ...(github?.auth ? { githubAuth: github.auth } : {}),
+      ...(github?.api ? { githubApi: github.api } : {})
+    },
     mountEditor
   );
   instances.push(handle);
@@ -472,7 +483,7 @@ describe('VS Code 风格工作台', () => {
     handle.session.edit('src/main.ts', 'unsaved');
     (host.querySelector('[aria-label="切换资源管理器"]') as HTMLButtonElement).click();
     expect(host.querySelector('[data-action=explorer]')?.getAttribute('aria-pressed')).toBe('false');
-    (host.querySelector('[aria-label="切换底部面板"]') as HTMLButtonElement).click();
+    (host.querySelector('[aria-label="切换面板"]') as HTMLButtonElement).click();
     expect(handle.session.state.files['src/main.ts']).toBe('unsaved');
     handle.session.select('src/label.ts');
     handle.session.select('src/main.ts');
@@ -1729,5 +1740,114 @@ describe('移动端界面', () => {
     expect(labels).toEqual(['重命名', '删除']);
     row.click();
     expect(handle.session.state.activePath).toBe('src/label.ts');
+  });
+});
+
+describe('vscode.dev 起始页对齐', () => {
+  function githubStub(session: { login: string } | null = null) {
+    const auth = {
+      getSession: vi.fn(async () =>
+        session ? { token: 'token', login: session.login, avatarUrl: null, provider: 'pat' as const } : null
+      ),
+      logout: vi.fn(async () => undefined),
+      subscribe: vi.fn(() => () => undefined),
+      loginWithPat: vi.fn(async () => ({
+        token: 'token',
+        login: 'octocat',
+        avatarUrl: null,
+        provider: 'pat' as const
+      })),
+      beginOAuth: vi.fn(async () => ({ authorizeUrl: '', state: '', verifier: '' })),
+      completeOAuth: vi.fn(async () => ({
+        token: 'token',
+        login: 'octocat',
+        avatarUrl: null,
+        provider: 'oauth' as const
+      })),
+      refresh: vi.fn(async () => null)
+    };
+    return { auth };
+  }
+
+  it('标题栏提供四个视图切换，点击同步侧栏与面板状态', async () => {
+    const { host } = fixture();
+    const titleActions = host.querySelector<HTMLElement>('.wb-title-actions');
+    const sidebar = titleActions?.querySelector<HTMLButtonElement>('[data-action="toggle-sidebar"]');
+    const panel = titleActions?.querySelector<HTMLButtonElement>('[data-action="panel"]');
+    const preview = titleActions?.querySelector<HTMLButtonElement>('[data-action="preview"]');
+    expect(sidebar).not.toBeNull();
+    expect(panel).not.toBeNull();
+    expect(preview).not.toBeNull();
+    expect(titleActions?.querySelector('[data-action="reset-layout"]')).not.toBeNull();
+    expect(sidebar?.getAttribute('aria-pressed')).toBe('true');
+    expect(panel?.getAttribute('aria-pressed')).toBe('true');
+    expect(preview?.getAttribute('aria-pressed')).toBe('true');
+    sidebar?.click();
+    await Promise.resolve();
+    expect(sidebar?.getAttribute('aria-pressed')).toBe('false');
+    panel?.click();
+    await Promise.resolve();
+    expect(panel?.getAttribute('aria-pressed')).toBe('false');
+    expect(preview?.getAttribute('aria-pressed')).toBe('true');
+    panel?.click();
+    await Promise.resolve();
+    expect(panel?.getAttribute('aria-pressed')).toBe('true');
+    preview?.click();
+    await Promise.resolve();
+    expect(preview?.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('活动栏底部提供设置入口，未配置认证时隐藏帐户按钮', () => {
+    const { host } = fixture();
+    expect(host.querySelector('.wb-activity [data-action="settings"]')).not.toBeNull();
+    expect(host.querySelector('.wb-activity [data-action="github-account"]')?.hasAttribute('hidden')).toBe(true);
+  });
+
+  it('未登录点帐户打开 GitHub 登录对话框', async () => {
+    const { auth } = githubStub();
+    const { host } = fixture(true, '/browser-workbench-assets/', undefined, [], files, { auth });
+    const account = host.querySelector<HTMLButtonElement>('[data-action="github-account"]');
+    expect(account?.hasAttribute('hidden')).toBe(false);
+    account?.click();
+    await vi.waitFor(() => expect(host.querySelector('dialog')).not.toBeNull());
+    const dialog = host.querySelector<HTMLDialogElement>('dialog');
+    expect(dialog?.textContent).toContain('GitHub 登录');
+    dialog?.querySelector<HTMLButtonElement>('.wb-dialog-actions button')?.click();
+    await vi.waitFor(() => expect(host.querySelector('dialog')).toBeNull());
+  });
+
+  it('已登录点帐户弹出登出菜单并调用登出', async () => {
+    const { auth } = githubStub({ login: 'octocat' });
+    const { host } = fixture(true, '/browser-workbench-assets/', undefined, [], files, { auth });
+    const account = host.querySelector<HTMLButtonElement>('[data-action="github-account"]');
+    await vi.waitFor(() => expect(account?.title).toContain('octocat'));
+    account?.click();
+    await vi.waitFor(() => expect(host.querySelector('.wb-context-menu')).not.toBeNull());
+    const menu = host.querySelector<HTMLElement>('.wb-context-menu')!;
+    const labels = [...menu.querySelectorAll('button')].map(item => item.textContent);
+    expect(labels.some(label => label?.includes('登出'))).toBe(true);
+    [...menu.querySelectorAll('button')].find(item => item.textContent?.includes('登出'))?.click();
+    await vi.waitFor(() => expect(auth.logout).toHaveBeenCalledOnce());
+  });
+
+  it('设置对话框修改缩进与 SCM 操作常显', async () => {
+    const { host } = fixture();
+    host.querySelector<HTMLButtonElement>('[data-action="settings"]')?.click();
+    const dialog = await vi.waitFor(() => {
+      const candidate = host.querySelector<HTMLDialogElement>('dialog');
+      if (!candidate) throw new Error('设置对话框缺失');
+      return candidate;
+    });
+    const radios = [...dialog.querySelectorAll<HTMLInputElement>('input[name="indent-unit"]')];
+    expect(radios.map(radio => radio.value)).toEqual(['  ', '    ', '        ']);
+    radios.find(radio => radio.value === '    ')?.click();
+    const always = dialog.querySelector<HTMLInputElement>('input[type="checkbox"]');
+    expect(always).not.toBeNull();
+    always?.click();
+    dialog.querySelector<HTMLButtonElement>('button[type="submit"]')?.click();
+    await Promise.resolve();
+    expect(host.querySelector('[data-slot="indent"]')?.textContent).toBe('空格: 4');
+    await click(host, '[data-action="git"]');
+    expect(host.querySelector('.wb-scm')?.classList.contains('wb-scm-show-actions')).toBe(true);
   });
 });

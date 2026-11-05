@@ -46,6 +46,7 @@ export type CodiconName =
   | 'replace-all'
   | 'go-to-file'
   | 'extensions'
+  | 'account'
   | 'more'
   | 'refresh'
   | 'collapse-all'
