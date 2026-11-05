@@ -5,7 +5,11 @@
  * - `/app-config.js`：把公开的 Supabase 地址与 anon key 交给前端，换环境不必重新构建
  * - `/api/signal`：信令 WebSocket，交给唯一的信令房间
  * - `/api/files/:contentHash`：服务器回退的上传与下载（R2）
+ * - `/api/admin/*`：管理后台（US-713），先验管理员再动账号、信令与 R2
  */
+import { ADMIN_ROUTE_PREFIX, handleAdminRequest, type AdminRouteDeps } from './admin';
+import { adminConfigOf } from './admin-config';
+import { createAdminRoom } from './admin-room';
 import { supabaseConfigOf, type Env } from './env';
 import { handleFileRequest } from './files';
 import { verifyAccessToken } from './identity';
@@ -23,11 +27,19 @@ const appConfig = (env: Env): Response => {
   });
 };
 
+const adminDepsOf = (env: Env): AdminRouteDeps => ({
+  verifyUser: token => verifyAccessToken(supabaseConfigOf(env), token),
+  config: () => adminConfigOf(env),
+  room: createAdminRoom(env.SIGNALING, SIGNALING_ROOM),
+  bucket: env.FILES
+});
+
 /** 路由一个请求。 */
 export const handleRequest = async (request: Request, env: Env): Promise<Response> => {
   const { pathname } = new URL(request.url);
   if (pathname === '/app-config.js') return appConfig(env);
   if (pathname === '/api/signal') return env.SIGNALING.get(env.SIGNALING.idFromName(SIGNALING_ROOM)).fetch(request);
+  if (pathname.startsWith(ADMIN_ROUTE_PREFIX)) return handleAdminRequest(request, adminDepsOf(env));
   const file = FILE_ROUTE.exec(pathname);
   if (file?.[1]) {
     const verifyUser = (token: string) => verifyAccessToken(supabaseConfigOf(env), token);

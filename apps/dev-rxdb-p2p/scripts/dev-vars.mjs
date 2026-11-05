@@ -1,31 +1,18 @@
 /**
  * 生成 wrangler 本地开发用的 `.dev.vars`（已被 .gitignore 忽略）。
  *
- * - Supabase 地址与 anon key：设置了 `P2P_SUPABASE_URL` / `P2P_SUPABASE_ANON_KEY` 就用它们（CI 指向 action 起的栈）；
- *   否则取本 checkout 的隔离栈：地址读 docker/supabase-ci-url.sh，anon key 读 docker/docker-compose.ci.yml。
+ * - Supabase 地址、anon key 与 service role key：见 supabase-stack.mjs（CI 指向 action 起的栈，否则取本 checkout 的隔离栈）。
  * - 签票私钥 `TICKET_PRIVATE_JWK`：首次生成 Ed25519 私钥，之后沿用文件里已有的那把。
+ * - 管理员名单 `ADMIN_USER_IDS`：取环境变量 `P2P_ADMIN_USER_IDS`（逗号分隔的 Supabase 用户 id），没设就沿用文件里已有的；
+ *   都没有就不写，管理后台保持「未配置」。
  */
-import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { resolveStack } from './supabase-stack.mjs';
 
-const appDir = fileURLToPath(new URL('..', import.meta.url));
-const repoRoot = fileURLToPath(new URL('../../..', import.meta.url));
-const devVarsPath = `${appDir}.dev.vars`;
+const devVarsPath = `${fileURLToPath(new URL('..', import.meta.url))}.dev.vars`;
 
-const isolatedStack = () => {
-  const url = execFileSync('bash', [`${repoRoot}docker/supabase-ci-url.sh`], { encoding: 'utf8' }).trim();
-  const compose = readFileSync(`${repoRoot}docker/docker-compose.ci.yml`, 'utf8');
-  const anonKey = /SUPABASE_ANON_KEY: (\S+)/.exec(compose)?.[1];
-  if (!anonKey) throw new Error('SUPABASE_ANON_KEY not found in docker/docker-compose.ci.yml');
-  return { url, anonKey };
-};
-
-const supabase =
-  process.env.P2P_SUPABASE_URL ?
-    { url: process.env.P2P_SUPABASE_URL, anonKey: process.env.P2P_SUPABASE_ANON_KEY ?? '' }
-  : isolatedStack();
-if (!supabase.anonKey) throw new Error('P2P_SUPABASE_ANON_KEY must be set together with P2P_SUPABASE_URL');
+const supabase = resolveStack();
 
 const generateTicketKey = async () => {
   const pair = await crypto.subtle.generateKey({ name: 'Ed25519' }, true, ['sign', 'verify']);
@@ -43,12 +30,19 @@ const readPrevious = () => {
 };
 
 const previous = readPrevious();
-const ticketKey = /^TICKET_PRIVATE_JWK=(.+)$/m.exec(previous)?.[1] ?? (await generateTicketKey());
+const previousValue = name => new RegExp(`^${name}=(.+)$`, 'm').exec(previous)?.[1];
+const ticketKey = previousValue('TICKET_PRIVATE_JWK') ?? (await generateTicketKey());
+const adminIds = (process.env.P2P_ADMIN_USER_IDS || previousValue('ADMIN_USER_IDS') || '')
+  .split(/[\s,]+/)
+  .filter(Boolean)
+  .join(',');
 
-writeFileSync(
-  devVarsPath,
-  [`SUPABASE_URL=${supabase.url}`, `SUPABASE_ANON_KEY=${supabase.anonKey}`, `TICKET_PRIVATE_JWK=${ticketKey}`, ''].join(
-    '\n'
-  )
-);
-console.log(`✅ .dev.vars → Supabase ${supabase.url}`);
+const lines = [
+  `SUPABASE_URL=${supabase.url}`,
+  `SUPABASE_ANON_KEY=${supabase.anonKey}`,
+  `TICKET_PRIVATE_JWK=${ticketKey}`,
+  ...(supabase.serviceRoleKey ? [`SUPABASE_SERVICE_ROLE_KEY=${supabase.serviceRoleKey}`] : []),
+  ...(adminIds ? [`ADMIN_USER_IDS=${adminIds}`] : [])
+];
+writeFileSync(devVarsPath, [...lines, ''].join('\n'));
+console.log(`✅ .dev.vars → Supabase ${supabase.url}${adminIds ? '，管理后台已配置' : '，管理后台未配置'}`);

@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { AdminAccess } from '../admin/admin-access';
 import { AuthService } from '../auth/auth.service';
 import { P2PWorkspace, type DemoFaults, type WorkspacePhase } from '../p2p/p2p-workspace.service';
 import WorkspacePage from './workspace.page';
@@ -28,6 +29,7 @@ describe('WorkspacePage', () => {
     session: signal({ user: { email: 'person@example.com' } }),
     signOut: vi.fn(async () => undefined)
   };
+  const admin = { isAdmin: signal(false), check: vi.fn<() => Promise<boolean>>() };
   let fixture: ComponentFixture<WorkspacePage>;
   let root: HTMLElement;
 
@@ -35,6 +37,8 @@ describe('WorkspacePage', () => {
     vi.clearAllMocks();
     workspace.start.mockReset().mockResolvedValue(undefined);
     auth.signOut.mockReset().mockResolvedValue(undefined);
+    admin.isAdmin.set(false);
+    admin.check.mockReset().mockResolvedValue(false);
     workspace.phase.set('ready');
     workspace.startError.set(null);
     workspace.signalingState.set('online');
@@ -45,7 +49,8 @@ describe('WorkspacePage', () => {
       providers: [
         provideRouter([]),
         { provide: P2PWorkspace, useValue: workspace },
-        { provide: AuthService, useValue: auth }
+        { provide: AuthService, useValue: auth },
+        { provide: AdminAccess, useValue: admin }
       ]
     });
     fixture = TestBed.createComponent(WorkspacePage);
@@ -107,6 +112,32 @@ describe('WorkspacePage', () => {
     expect(workspace.start).toHaveBeenCalledOnce();
     expect(root.textContent).toContain('正在准备你的设备和共享文件');
     expect(root.querySelector('router-outlet')).toBeNull();
+  });
+
+  it('shows the administration entry only to a confirmed administrator', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(admin.check).toHaveBeenCalledOnce();
+    expect(root.querySelector('[data-testid="admin-entry"]')).toBeNull();
+
+    admin.isAdmin.set(true);
+    fixture.detectChanges();
+
+    const entry = root.querySelector('[data-testid="admin-entry"]');
+    expect(entry?.getAttribute('href')).toBe('/admin');
+    expect(entry?.textContent).toContain('管理后台');
+  });
+
+  it('keeps the entry hidden and the workspace working when the administrator check fails', async () => {
+    admin.check.mockRejectedValueOnce(new Error('管理接口返回 HTTP 502'));
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(root.querySelector('[data-testid="admin-entry"]')).toBeNull();
+    expect(workspace.start).toHaveBeenCalledOnce();
+    expect(root.querySelector('router-outlet')).not.toBeNull();
   });
 
   it('explains synchronization failures without hiding file navigation', () => {

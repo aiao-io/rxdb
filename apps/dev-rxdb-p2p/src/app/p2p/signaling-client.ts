@@ -2,7 +2,8 @@
  * 信令客户端：连上 Worker 的信令 Durable Object，维护在线设备，收发建连与 SDP / ICE。
  *
  * @remarks
- * 每次（重）连都取一份新的 access token。断线后按固定间隔重连；服务端以 4401 拒绝时不再重连。
+ * 每次（重）连都取一份新的 access token。断线后按固定间隔重连；服务端以 4401（凭据被拒）或 4403（被管理员踢下线）
+ * 关闭时不再重连：这两种情况自己重连只会再被拒绝或再被踢。
  * 信令不可达时发起新连接直接抛 {@link SignalingOfflineError}：浏览器新建 P2P 连接以信令可达为前置，
  * 已经建好的会话不受影响（US-704 / US-707 AC#6）。
  */
@@ -16,7 +17,7 @@ import {
   type SignalKind
 } from '../../../shared/signaling-protocol';
 
-/** 信令连接状态；`rejected` 表示凭据被拒，不会自动重连。 */
+/** 信令连接状态；`rejected` 表示凭据被拒或被管理员踢下线，不会自动重连。 */
 export type SignalingState = 'connecting' | 'online' | 'offline' | 'rejected';
 /** 服务端分配的一条新连接。 */
 export type ConnectionOffer = Extract<ServerMessage, { type: 'connection' }>;
@@ -48,7 +49,8 @@ export class SignalingOfflineError extends Error {
   }
 }
 
-const CLOSE_UNAUTHORIZED = 4401;
+/** 服务端的关闭码：凭据被拒（4401）、被管理员踢下线（4403）；见 server/signaling-hub.ts。 */
+const REJECTED_CLOSE_CODES: ReadonlySet<number> = new Set([4401, 4403]);
 
 /** 信令客户端。 */
 export class SignalingClient {
@@ -144,8 +146,9 @@ export class SignalingClient {
     if (socket !== this.#socket) return;
     this.#socket = null;
     this.peers$.next([]);
-    this.state$.next(code === CLOSE_UNAUTHORIZED ? 'rejected' : 'offline');
-    if (this.#stopped || code === CLOSE_UNAUTHORIZED) return;
+    const rejected = REJECTED_CLOSE_CODES.has(code);
+    this.state$.next(rejected ? 'rejected' : 'offline');
+    if (this.#stopped || rejected) return;
     this.#retry = setTimeout(() => void this.#open(), this.#options.reconnectDelayMs);
   }
 

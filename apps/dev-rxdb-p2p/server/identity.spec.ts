@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
-import { findOwnDevice, verifyAccessToken, type SupabaseAuthConfig } from './identity';
+import { findOwnDevice, isBanned, verifyAccessToken, type SupabaseAuthConfig } from './identity';
 
 const USER_ID = '6f1c5d1e-4c7b-4f7e-9a51-2d0c3b8f9a10';
 const DEVICE_ID = '0b9d8c7a-6e5f-4a3b-8c2d-1e0f9a8b7c6d';
@@ -44,6 +44,35 @@ describe('verifyAccessToken', () => {
     const config = configWith(() => json(200, { email: 'a@example.com' }));
 
     await expect(verifyAccessToken(config, 'token-1')).rejects.toThrow('Supabase Auth returned no user id');
+  });
+
+  it('treats a banned account as an invalid token even though its token is still signed', async () => {
+    const config = configWith(() => json(200, { id: USER_ID, email: 'a@example.com', banned_until: '2999-01-01T00:00:00Z' }));
+
+    await expect(verifyAccessToken(config, 'token-1')).resolves.toBeNull();
+  });
+
+  it('accepts an account whose ban has expired or was lifted', async () => {
+    const expired = configWith(() => json(200, { id: USER_ID, email: 'a@example.com', banned_until: '2001-01-01T00:00:00Z' }));
+    const lifted = configWith(() => json(200, { id: USER_ID, email: 'a@example.com', banned_until: null }));
+
+    await expect(verifyAccessToken(expired, 'token-1')).resolves.toEqual({ id: USER_ID, email: 'a@example.com' });
+    await expect(verifyAccessToken(lifted, 'token-1')).resolves.toEqual({ id: USER_ID, email: 'a@example.com' });
+  });
+});
+
+describe('isBanned', () => {
+  it('is banned only until a future time', () => {
+    expect(isBanned('2999-01-01T00:00:00Z')).toBe(true);
+    expect(isBanned('2001-01-01T00:00:00Z')).toBe(false);
+  });
+
+  it.each([null, undefined])('is not banned without a ban time (%s)', value => {
+    expect(isBanned(value)).toBe(false);
+  });
+
+  it.each(['soon', '', 42])('fails closed on a ban time it cannot read (%j)', value => {
+    expect(isBanned(value)).toBe(true);
   });
 });
 

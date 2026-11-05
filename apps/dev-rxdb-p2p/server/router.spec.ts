@@ -11,7 +11,13 @@ const envWith = (overrides: Partial<Env> = {}): Env => ({
     idFromName: vi.fn(name => `id:${name}`),
     get: vi.fn(() => ({ fetch: async () => new Response('room') }))
   },
-  FILES: { head: async () => null, get: async () => null, put: async () => ({}) },
+  FILES: {
+    head: async () => null,
+    get: async () => null,
+    put: async () => ({}),
+    list: async () => ({ objects: [], truncated: false }),
+    delete: async () => undefined
+  },
   ...overrides
 });
 
@@ -53,5 +59,23 @@ describe('handleRequest', () => {
     const response = await handleRequest(get('/api/unknown'), envWith());
 
     expect(response.status).toBe(404);
+  });
+
+  it('hands /api/admin/* to the administration routes, which refuse an anonymous caller', async () => {
+    const env = envWith();
+
+    const response = await handleRequest(get('/api/admin/accounts'), env);
+
+    expect(response.status).toBe(401);
+    expect(env.SIGNALING.get).not.toHaveBeenCalled();
+  });
+
+  it('never lets an outside request reach the signaling room administration paths', async () => {
+    const env = envWith();
+
+    const response = await handleRequest(get('/api/signal/admin/online'), env);
+
+    expect(response.status).toBe(404);
+    expect(env.SIGNALING.get).not.toHaveBeenCalled();
   });
 });

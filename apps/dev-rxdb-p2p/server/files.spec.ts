@@ -29,6 +29,18 @@ class FakeBucket implements R2BucketLike {
         }
       : null;
   }
+
+  async list(options: { readonly prefix: string; readonly limit: number }) {
+    const matching = [...this.objects].filter(([key]) => key.startsWith(options.prefix));
+    const objects = matching
+      .slice(0, options.limit)
+      .map(([key, bytes]) => ({ key, size: bytes.byteLength, uploaded: new Date(0) }));
+    return { objects, truncated: matching.length > options.limit };
+  }
+
+  async delete(key: string): Promise<void> {
+    this.objects.delete(key);
+  }
 }
 
 const depsWith = (bucket = new FakeBucket()): FileRouteDeps & { readonly bucket: FakeBucket } => ({

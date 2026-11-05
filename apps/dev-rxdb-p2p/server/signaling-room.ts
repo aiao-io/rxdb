@@ -6,7 +6,15 @@
  * compatibility date 不早于 2026-04-07，运行时自动应答关闭帧，`webSocketClose` 里不必再调 `close()`。
  */
 import type { SignalingPeer } from '../shared/signaling-protocol';
+import {
+  matchesEvictTarget,
+  parseEvictTarget,
+  ROOM_ADMIN_EVICT,
+  ROOM_ADMIN_ONLINE,
+  ROOM_ADMIN_PREFIX
+} from './admin-room';
 import { supabaseConfigOf, type Env } from './env';
+import { json, methodNotAllowed } from './http';
 import { findOwnDevice, verifyAccessToken } from './identity';
 import {
   createWebSocketPair,
@@ -16,6 +24,8 @@ import {
 } from './runtime';
 import { SignalingHub, type HelloMessage, type HubSocket } from './signaling-hub';
 import { createTicketIssuer } from './tickets';
+
+const EVICT_REASON = 'removed by an administrator';
 
 const hubSocketOf = (socket: HibernatableWebSocket): HubSocket => ({
   send: message => socket.send(message),
@@ -39,11 +49,13 @@ export class SignalingRoom {
   }
 
   /**
-   * 接受 WebSocket 升级。
+   * 接受 WebSocket 升级；`/admin/*` 是 Worker 在验过管理员后发来的内部请求（在线列表、踢下线）。
    *
    * @throws Error 签票私钥配置有误：在升级之前抛出，客户端拿到 500，而不是连上之后没有任何应答
    */
   async fetch(request: Request): Promise<Response> {
+    const { pathname } = new URL(request.url);
+    if (pathname.startsWith(ROOM_ADMIN_PREFIX)) return this.#administer(request, pathname);
     if (request.headers.get('upgrade')?.toLowerCase() !== 'websocket') {
       return new Response('expected a websocket upgrade', { status: 426 });
     }
@@ -67,6 +79,23 @@ export class SignalingRoom {
   /** 休眠 API：连接出错。 */
   async webSocketError(socket: HibernatableWebSocket): Promise<void> {
     (await this.#hubReady()).left(this.#wrap(socket));
+  }
+
+  async #administer(request: Request, pathname: string): Promise<Response> {
+    const hub = await this.#hubReady();
+    if (pathname === ROOM_ADMIN_ONLINE) {
+      return request.method === 'GET' ? json(200, { peers: hub.roster() }) : methodNotAllowed('GET');
+    }
+    if (pathname === ROOM_ADMIN_EVICT) {
+      return request.method === 'POST' ? this.#evict(hub, request) : methodNotAllowed('POST');
+    }
+    return json(404, { error: 'not found' });
+  }
+
+  async #evict(hub: SignalingHub, request: Request): Promise<Response> {
+    const target = parseEvictTarget(await request.json().catch(() => null));
+    if (!target) return json(400, { error: 'expected exactly one of userId or deviceId' });
+    return json(200, { evicted: hub.evict(peer => matchesEvictTarget(peer, target), EVICT_REASON) });
   }
 
   #wrap(socket: HibernatableWebSocket): HubSocket {

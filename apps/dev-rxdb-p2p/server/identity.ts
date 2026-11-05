@@ -2,7 +2,7 @@
  * 认证宿主（Supabase）的服务端校验：token 由 Supabase Auth 解析成用户，设备归属按用户身份经 PostgREST 查询。
  *
  * @remarks
- * 401 / 403 是「凭据无效」，返回 null；其它非 2xx 是认证宿主自己出了问题，抛错交给调用方报
+ * 401 / 403 与账号被封禁都是「凭据无效」，返回 null；其它非 2xx 是认证宿主自己出了问题，抛错交给调用方报
  * `server_error`，不把服务端故障说成用户没通过认证。
  */
 
@@ -25,7 +25,8 @@ export interface OwnDevice {
   readonly name: string;
 }
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** uuid 的规范文本（Supabase 的用户 id、设备 id），大小写不论。 */
+export const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const REJECTED_TOKEN_STATUSES = new Set([401, 403]);
 
 const asUser = (accessToken: string, config: SupabaseAuthConfig): HeadersInit => ({
@@ -34,9 +35,24 @@ const asUser = (accessToken: string, config: SupabaseAuthConfig): HeadersInit =>
 });
 
 /**
+ * 账号此刻是否处于封禁中。
+ *
+ * @remarks
+ * Supabase Auth 的 `banned_until` 为 `null` 或缺省表示没有封禁；是时间就看它是否还在未来。
+ * 读不懂的值按封禁处理：宁可误拒，也不放行一个状态不明的账号。
+ */
+export const isBanned = (bannedUntil: unknown): boolean => {
+  if (bannedUntil === null || bannedUntil === undefined) return false;
+  return !(typeof bannedUntil === 'string' && Date.parse(bannedUntil) <= Date.now());
+};
+
+/**
  * 用 Supabase Auth 解析 access token。
  *
- * @returns 用户；token 无效或过期时为 null
+ * @remarks
+ * 被封禁的账号，手里已签发的 token 在 Supabase 侧要到过期才失效；这里按 `banned_until` 实时判定，视同 token 无效。
+ *
+ * @returns 用户；token 无效、过期或账号被封禁时为 null
  * @throws Error 认证宿主返回其它错误
  */
 export const verifyAccessToken = async (
@@ -46,8 +62,13 @@ export const verifyAccessToken = async (
   const response = await config.fetch(`${config.url}/auth/v1/user`, { headers: asUser(accessToken, config) });
   if (REJECTED_TOKEN_STATUSES.has(response.status)) return null;
   if (!response.ok) throw new Error(`Supabase Auth responded ${response.status}`);
-  const user = (await response.json()) as { readonly id?: unknown; readonly email?: unknown };
+  const user = (await response.json()) as {
+    readonly id?: unknown;
+    readonly email?: unknown;
+    readonly banned_until?: unknown;
+  };
   if (typeof user.id !== 'string' || !user.id) throw new Error('Supabase Auth returned no user id');
+  if (isBanned(user.banned_until)) return null;
   return { id: user.id, email: typeof user.email === 'string' ? user.email : user.id };
 };
 

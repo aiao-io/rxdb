@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal, type OnInit } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { AdminAccess } from '../admin/admin-access';
 import { AuthService } from '../auth/auth.service';
 import { P2PWorkspace } from '../p2p/p2p-workspace.service';
 
@@ -37,6 +38,16 @@ import { P2PWorkspace } from '../p2p/p2p-workspace.service';
             routerLinkActive="nav-active"
             >本机管理</a
           >
+          @if (admin.isAdmin()) {
+            <a
+              class="btn btn-ghost btn-sm"
+              ariaCurrentWhenActive="page"
+              data-testid="admin-entry"
+              routerLink="/admin"
+              routerLinkActive="nav-active"
+              >管理后台</a
+            >
+          }
         </nav>
         <div class="ml-auto flex items-center gap-3">
           <span
@@ -116,11 +127,14 @@ import { P2PWorkspace } from '../p2p/p2p-workspace.service';
 export default class WorkspacePage implements OnInit {
   readonly auth = inject(AuthService);
   readonly workspace = inject(P2PWorkspace);
+  readonly admin = inject(AdminAccess);
   readonly signingOut = signal(false);
   readonly error = signal<string | null>(null);
 
   ngOnInit(): void {
     void this.workspace.start().catch(() => undefined);
+    // 确认不了身份就不显示入口，不影响文件共享本身
+    void this.admin.check().catch(() => undefined);
   }
   reload(): void {
     location.reload();

@@ -2,6 +2,7 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { importTicketVerifyKey, verifyConnectionTicket } from '../shared/connection-ticket';
 import type { ServerMessage, SignalingPeer } from '../shared/signaling-protocol';
+import { ROOM_ADMIN_EVICT, ROOM_ADMIN_ONLINE } from './admin-room';
 import type { Env } from './env';
 import { findOwnDevice, verifyAccessToken } from './identity';
 import {
@@ -10,7 +11,7 @@ import {
   type DurableObjectStateLike,
   type HibernatableWebSocket
 } from './runtime';
-import { CLOSE_UNAUTHORIZED } from './signaling-hub';
+import { CLOSE_EVICTED, CLOSE_UNAUTHORIZED } from './signaling-hub';
 import { SignalingRoom } from './signaling-room';
 
 vi.mock('./identity', () => ({ verifyAccessToken: vi.fn(), findOwnDevice: vi.fn() }));
@@ -54,7 +55,13 @@ const environment = (privateKey: string): Env => ({
     idFromName: name => name,
     get: () => ({ fetch: async () => new Response(null, { status: 404 }) })
   },
-  FILES: { head: async () => null, get: async () => null, put: async () => undefined }
+  FILES: {
+    head: async () => null,
+    get: async () => null,
+    put: async () => undefined,
+    list: async () => ({ objects: [], truncated: false }),
+    delete: async () => undefined
+  }
 });
 
 const state = (): { readonly context: DurableObjectStateLike; readonly sockets: HibernatableWebSocket[] } => {
@@ -262,4 +269,81 @@ describe('SignalingRoom', () => {
       expect(bob.closed).toEqual([]);
     }
   );
+
+  describe('administration endpoints', () => {
+    const internal = (path: string, init?: RequestInit): Request => new Request(`https://room.internal${path}`, init);
+    const evict = (body: unknown): Request =>
+      internal(ROOM_ADMIN_EVICT, { method: 'POST', body: typeof body === 'string' ? body : JSON.stringify(body) });
+
+    const online = async (...names: string[]) => {
+      const { context, sockets } = state();
+      const room = new SignalingRoom(context, environment(privateKey));
+      const joined = new Map<string, RoomSocket>();
+      for (const name of names) {
+        const socket = new RoomSocket();
+        sockets.push(socket.socket);
+        await room.webSocketMessage(socket.socket, hello(name));
+        joined.set(name, socket);
+      }
+      return { room, joined };
+    };
+
+    it('lists the authenticated devices without opening a websocket', async () => {
+      const { room } = await online('alice', 'bob');
+
+      const response = await room.fetch(internal(ROOM_ADMIN_ONLINE));
+
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual({ peers: [peer('alice'), peer('bob')] });
+      expect(createWebSocketPair).not.toHaveBeenCalled();
+    });
+
+    it('evicts every device of a user and tells the others who is left', async () => {
+      const { room, joined } = await online('alice', 'bob');
+
+      const response = await room.fetch(evict({ userId: 'user-bob' }));
+
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual({ evicted: 1 });
+      expect(joined.get('bob')?.closed).toEqual([{ code: CLOSE_EVICTED, reason: 'removed by an administrator' }]);
+      expect(joined.get('bob')?.deserializeAttachment()).toBeNull();
+      expect(joined.get('alice')?.sent.at(-1)).toEqual({ type: 'presence', peers: [] });
+    });
+
+    it('evicts one device by id and reports zero when it is not online', async () => {
+      const { room, joined } = await online('alice', 'bob');
+
+      await expect(room.fetch(evict({ deviceId: 'device-alice' })).then(response => response.json())).resolves.toEqual({
+        evicted: 1
+      });
+      await expect(room.fetch(evict({ deviceId: 'device-alice' })).then(response => response.json())).resolves.toEqual({
+        evicted: 0
+      });
+      expect(joined.get('bob')?.closed).toEqual([]);
+    });
+
+    it.each([
+      ['an empty object', {}],
+      ['both a user and a device', { userId: 'user-bob', deviceId: 'device-bob' }],
+      ['an empty id', { userId: '' }],
+      ['a non-string id', { deviceId: 7 }],
+      ['malformed json', '{'],
+      ['a json scalar', '7']
+    ])('rejects %s as a bad evict request', async (_label, body) => {
+      const { room, joined } = await online('alice');
+
+      const response = await room.fetch(evict(body));
+
+      expect(response.status).toBe(400);
+      expect(joined.get('alice')?.closed).toEqual([]);
+    });
+
+    it('answers a wrong method with 405 and an unknown administration path with 404', async () => {
+      const { room } = await online('alice');
+
+      expect((await room.fetch(internal(ROOM_ADMIN_EVICT))).status).toBe(405);
+      expect((await room.fetch(internal(ROOM_ADMIN_ONLINE, { method: 'POST' }))).status).toBe(405);
+      expect((await room.fetch(internal('/admin/unknown'))).status).toBe(404);
+    });
+  });
 });

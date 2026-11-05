@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ServerMessage, SignalingPeer } from '../shared/signaling-protocol';
 import {
+  CLOSE_EVICTED,
   CLOSE_REPLACED,
   CLOSE_SERVER_ERROR,
   CLOSE_UNAUTHORIZED,
@@ -253,5 +254,52 @@ describe('SignalingHub', () => {
     expect(stale.peer()).toBeNull();
     expect(watcher.last()).toEqual({ type: 'presence', peers: [peerOf('bob')] });
     expect(fresh.last()).toMatchObject({ type: 'welcome', peers: [peerOf('alice')] });
+  });
+
+  describe('administration', () => {
+    it('lists the authenticated devices that are still open', async () => {
+      await join('alice');
+      const closing = await join('bob');
+      await join('carol');
+      const stranger = new FakeSocket();
+      sockets.push(stranger);
+      closing.close(1000, 'bye');
+
+      expect(hub.roster()).toEqual([peerOf('alice'), peerOf('carol')]);
+    });
+
+    it('evicts the matching devices and tells the rest who is left', async () => {
+      const watcher = await join('alice');
+      const target = await join('bob');
+
+      const evicted = hub.evict(peer => peer.principal === 'user-bob', 'removed by an administrator');
+
+      expect(evicted).toBe(1);
+      expect(target.closed).toEqual({ code: CLOSE_EVICTED, reason: 'removed by an administrator' });
+      expect(target.peer()).toBeNull();
+      expect(watcher.last()).toEqual({ type: 'presence', peers: [] });
+      expect(hub.roster()).toEqual([peerOf('alice')]);
+    });
+
+    it('evicts by device without touching the others', async () => {
+      const alice = await join('alice');
+      const bob = await join('bob');
+
+      expect(hub.evict(peer => peer.deviceId === 'device-alice', 'removed by an administrator')).toBe(1);
+
+      expect(alice.closed?.code).toBe(CLOSE_EVICTED);
+      expect(bob.closed).toBeNull();
+      expect(bob.last()).toEqual({ type: 'presence', peers: [] });
+    });
+
+    it('stays quiet when nothing matches', async () => {
+      const alice = await join('alice');
+      const before = alice.sent.length;
+
+      expect(hub.evict(peer => peer.deviceId === 'device-nobody', 'removed by an administrator')).toBe(0);
+
+      expect(alice.sent).toHaveLength(before);
+      expect(alice.closed).toBeNull();
+    });
   });
 });

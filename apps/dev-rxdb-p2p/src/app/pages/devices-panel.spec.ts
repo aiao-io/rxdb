@@ -82,6 +82,18 @@ describe('设备连接交互', () => {
     expect(workspace.disconnect).toHaveBeenCalledWith('connection-ready');
   });
 
+  it('凭据被拒或被管理员移出时说明原因与下一步，不再说等服务恢复', () => {
+    workspace.peers.set([]);
+    workspace.signalingState.set('rejected');
+    const fixture = TestBed.createComponent(DevicesPanel);
+    fixture.detectChanges();
+    const notice = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="signaling-rejected"]');
+    expect(notice?.textContent).toContain('信令拒绝了本机凭据');
+    expect(notice?.textContent).toContain('被管理员移出');
+    expect(notice?.textContent).toContain('联系管理员');
+    expect(notice?.textContent).not.toContain('等服务恢复');
+  });
+
   it('空状态说明第二台设备的操作，技术会话默认折叠', () => {
     workspace.peers.set([]);
     workspace.reachable.set([]);

@@ -7,6 +7,7 @@
  * 100 MB 上限约束，更大的文件留给分片上传。
  */
 import { MAX_UPLOAD_BYTES } from '../shared/limits';
+import { bearerOf, json } from './http';
 import type { VerifiedUser } from './identity';
 import type { R2BucketLike } from './runtime';
 
@@ -19,16 +20,11 @@ export interface FileRouteDeps {
   readonly verifyUser: (accessToken: string) => Promise<VerifiedUser | null>;
 }
 
-const HASH_PATTERN = /^[0-9a-f]{64}$/;
+/** 小写 SHA-256 十六进制：文件的内容哈希，也是它在桶里的键。 */
+export const HASH_PATTERN = /^[0-9a-f]{64}$/;
 
 /** 文件在桶里的键。 */
 export const fileKey = (contentHash: string): string => `files/${contentHash}`;
-
-const json = (status: number, body: unknown): Response =>
-  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
-
-const bearerOf = (request: Request): string | null =>
-  /^Bearer (.+)$/.exec(request.headers.get('authorization') ?? '')?.[1] ?? null;
 
 const fileHeaders = (size: number): HeadersInit => ({
   'content-length': String(size),

@@ -132,6 +132,17 @@ describe('SignalingClient', () => {
     expect(sockets).toHaveLength(1);
   });
 
+  it('stops for good when an administrator removes the device', async () => {
+    const socket = await online();
+
+    socket.close(4403);
+    await vi.advanceTimersByTimeAsync(5000);
+
+    expect(client.state$.value).toBe('rejected');
+    expect(client.peers$.value).toEqual([]);
+    expect(sockets).toHaveLength(1);
+  });
+
   it('forgets presence and reconnects with a new token after losing the connection', async () => {
     const socket = await online();
 

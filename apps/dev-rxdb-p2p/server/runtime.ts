@@ -34,12 +34,30 @@ export interface R2ObjectBodyLike {
   readonly size: number;
 }
 
+/** R2 列表里的一个对象。 */
+export interface R2ListedObjectLike {
+  readonly key: string;
+  readonly size: number;
+  readonly uploaded: Date;
+}
+
+/** R2 列表的一页。 */
+export interface R2ListingLike {
+  readonly objects: readonly R2ListedObjectLike[];
+  /** 还有更多对象没列出来。 */
+  readonly truncated: boolean;
+}
+
 /** R2 bucket 绑定。 */
 export interface R2BucketLike {
   head(key: string): Promise<{ readonly size: number } | null>;
   get(key: string): Promise<R2ObjectBodyLike | null>;
   /** `sha256` 为 hex 时由 R2 校验上传内容，不符即拒绝写入。 */
   put(key: string, value: ReadableStream<Uint8Array>, options: { readonly sha256: string }): Promise<unknown>;
+  /** 按前缀列出对象（管理后台）：一次最多 `limit` 个，最大 1000。 */
+  list(options: { readonly prefix: string; readonly limit: number }): Promise<R2ListingLike>;
+  /** 删除对象；对象不存在时不报错。 */
+  delete(key: string): Promise<void>;
 }
 
 /** workerd 全局的 WebSocketPair：`[0]` 交给客户端，`[1]` 留在服务端。 */

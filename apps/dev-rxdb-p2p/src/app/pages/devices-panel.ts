@@ -25,11 +25,13 @@ const CLOSE_LABELS: Readonly<Record<string, string>> = {
           <span class="badge badge-ghost badge-sm">{{ workspace.reachable().length }} 台</span>
         </div>
         <p class="text-base-content/60 text-sm">下载时会自动连接，也可以先连接设备。</p>
-        @if (workspace.signalingState() !== 'online') {
+        @if (workspace.signalingState() === 'rejected') {
+          <div class="alert alert-warning text-sm" data-testid="signaling-rejected" role="status">
+            信令拒绝了本机凭据（登录已失效、账号被封禁，或本设备被管理员移出）：已连接的设备仍可传文件；刷新页面或重新登录后再试，仍被拒绝请联系管理员。
+          </div>
+        } @else if (workspace.signalingState() !== 'online') {
           <div class="alert alert-warning text-sm" role="status">
-            信令{{
-              workspace.signalingState() === 'rejected' ? '拒绝了本机凭据' : '不可达'
-            }}：已连接的设备仍可传文件，发现新设备和重新连接需要等服务恢复。
+            信令不可达：已连接的设备仍可传文件，发现新设备和重新连接需要等服务恢复。
           </div>
         }
         <ul class="flex flex-col gap-2">

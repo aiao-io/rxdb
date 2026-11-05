@@ -10,6 +10,10 @@ export interface Env {
   readonly SUPABASE_ANON_KEY: string;
   /** secret：签发连接票据的 Ed25519 私钥 JWK。 */
   readonly TICKET_PRIVATE_JWK: string;
+  /** secret：Supabase 的 service role key，只给管理后台用；缺失时管理接口报未配置。 */
+  readonly SUPABASE_SERVICE_ROLE_KEY?: string;
+  /** secret：管理员的 Supabase 用户 id，逗号或空白分隔；缺失时管理接口报未配置。 */
+  readonly ADMIN_USER_IDS?: string;
   /** 信令 Durable Object。 */
   readonly SIGNALING: DurableObjectNamespaceLike;
   /** 服务器回退的文件桶。 */

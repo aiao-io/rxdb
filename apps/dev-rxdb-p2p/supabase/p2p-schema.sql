@@ -118,3 +118,63 @@ DO $$
 BEGIN
   PERFORM public.rxdb_enable_sync_for_table('p2p_file_manifest', 'p2p', 'P2PFileManifest');
 END $$;
+
+-- ============================================
+-- 4. 管理后台（US-713）：只有 service_role 能用
+--    管理员在 Worker 里认定，Worker 以 service role 身份调下面的函数；普通登录用户与匿名角色没有 EXECUTE。
+--    service_role 默认没有 p2p 表的权限，这里只授予这几个函数用到的最小集合。
+--    直接 DELETE 清单行会触发同步触发器，其他设备下一次拉取就能看到这些声明被撤回。
+-- ============================================
+GRANT SELECT, DELETE ON p2p.devices TO service_role;
+GRANT SELECT, DELETE ON p2p.p2p_file_manifest TO service_role;
+
+-- 每个有设备的账号：设备数与这些设备持有的声明数。
+CREATE OR REPLACE FUNCTION p2p.admin_account_stats()
+RETURNS TABLE (user_id uuid, device_count bigint, claim_count bigint)
+LANGUAGE sql
+STABLE
+SET search_path = pg_catalog, pg_temp
+AS $$
+  SELECT device.user_id, count(DISTINCT device.id), count(manifest.id)
+  FROM p2p.devices AS device
+  LEFT JOIN p2p.p2p_file_manifest AS manifest
+    ON manifest."holderId" = p2p.holder_id(device.user_id, device.id)
+  GROUP BY device.user_id
+$$;
+
+-- 清单里每个内容哈希的文件名与持有者数。
+CREATE OR REPLACE FUNCTION p2p.admin_file_catalog()
+RETURNS TABLE (content_hash text, file_name text, holder_count bigint)
+LANGUAGE sql
+STABLE
+SET search_path = pg_catalog, pg_temp
+AS $$
+  SELECT "contentHash"::text, min("fileName")::text, count(*)
+  FROM p2p.p2p_file_manifest
+  GROUP BY "contentHash"
+$$;
+
+-- 在一条语句里清掉账号的全部持有声明与设备登记，返回清掉的声明数；可重复执行。
+-- 设备一并清掉：账号在被删除之前就既握不了手（设备不存在），也写不了新的声明（owns_holder 要求设备存在）。
+CREATE OR REPLACE FUNCTION p2p.admin_purge_account(target uuid)
+RETURNS bigint
+LANGUAGE sql
+SET search_path = pg_catalog, pg_temp
+AS $$
+  WITH claims AS (
+    DELETE FROM p2p.p2p_file_manifest AS manifest
+    USING p2p.devices AS device
+    WHERE device.user_id = target
+      AND manifest."holderId" = p2p.holder_id(device.user_id, device.id)
+    RETURNING manifest.id
+  ),
+  registrations AS (
+    DELETE FROM p2p.devices WHERE user_id = target RETURNING id
+  )
+  SELECT count(*) FROM claims
+$$;
+
+REVOKE ALL ON FUNCTION p2p.admin_account_stats(), p2p.admin_file_catalog(), p2p.admin_purge_account(uuid)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION p2p.admin_account_stats(), p2p.admin_file_catalog(), p2p.admin_purge_account(uuid)
+  TO service_role;

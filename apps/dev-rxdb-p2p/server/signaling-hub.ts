@@ -18,6 +18,8 @@ import {
 export const CLOSE_UNAUTHORIZED = 4401;
 /** 同一实例重连，旧连接被替换。 */
 export const CLOSE_REPLACED = 4409;
+/** 管理员把设备踢下线：客户端按凭据被拒处理，不自动重连。 */
+export const CLOSE_EVICTED = 4403;
 /** 认证宿主不可达。 */
 export const CLOSE_SERVER_ERROR = 1011;
 
@@ -83,6 +85,29 @@ export class SignalingHub {
     if (!socket.peer()) return;
     socket.detach();
     this.#publishPresence(this.#members());
+  }
+
+  /** 当前在线的设备：已认证且连接仍开着。 */
+  roster(): readonly SignalingPeer[] {
+    return this.#members().map(peerOf);
+  }
+
+  /**
+   * 断开满足条件的在线设备，并把剩下的在线设备告知其余各端。
+   *
+   * @remarks
+   * 与 {@link SignalingHub.left} 一样先解除附件：运行时随后回调的关闭事件认不出这条连接，不会重复通知。
+   *
+   * @returns 被断开的连接数
+   */
+  evict(match: (peer: SignalingPeer) => boolean, reason: string): number {
+    const evicted = this.#members().filter(socket => match(peerOf(socket)));
+    for (const socket of evicted) {
+      socket.detach();
+      socket.close(CLOSE_EVICTED, reason);
+    }
+    if (evicted.length > 0) this.#publishPresence(this.#members());
+    return evicted.length;
   }
 
   async #greet(socket: HubSocket, message: ClientMessage | null): Promise<void> {
