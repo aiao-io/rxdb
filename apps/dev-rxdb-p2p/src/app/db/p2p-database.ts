@@ -4,7 +4,7 @@
  * @remarks
  * 实体类是模块单例，只能绑定一个 RxDB 实例；换用户时整页重载，不在同一页里建第二个库。
  */
-import { RxDB, SyncType } from '@aiao/rxdb';
+import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
 import type { SupabaseAdapterOptions } from '@aiao/rxdb-adapter-supabase';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
@@ -34,7 +34,7 @@ export const createP2PDatabase = (userId: string, client: SupabaseClient): RxDB 
     entities: [],
     sync: { local: { adapter: LOCAL_ADAPTER }, remote: { adapter: REMOTE_ADAPTER }, type: SyncType.Full }
   });
-  return rxdb
+  rxdb
     .use(rxDBPluginHistory)
     .use(rxDBPluginSync)
     .use(rxDBPluginP2PFiles)
@@ -57,4 +57,14 @@ export const createP2PDatabase = (userId: string, client: SupabaseClient): RxDB 
       });
       return new RxDBAdapterWaSqlite(db, options);
     });
+
+  if (import.meta.env.DEV) {
+    // 连接器只读构造期状态（entityManager / config.entities 活数组），不依赖 connect() 完成；
+    // 生产构建的 define 把守卫折叠成 false，整个动态导入随之被摇树（见 vite-env.d.ts）。
+    void import('@aiao/rxdb-devtools').then(({ getDevToolsConnector }) => {
+      getDevToolsConnector().init(rxdb, getEntityMetadata);
+    });
+  }
+
+  return rxdb;
 };
