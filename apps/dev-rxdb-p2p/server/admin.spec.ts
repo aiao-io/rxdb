@@ -92,11 +92,25 @@ const harness = (overrides: { config?: () => ReturnType<AdminRouteDeps['config']
     'alice-token': { id: ALICE, email: 'alice@example.com' },
     'loud-root-token': { id: ROOT.toUpperCase(), email: 'root@example.com' }
   };
+  const reports = {
+    listOpen: vi.fn(async () => []),
+    submit: vi.fn(async () => ({ created: true })),
+    resolve: vi.fn(async () => true)
+  } satisfies AdminRouteDeps['reports'];
+  const invites = {
+    activate: vi.fn(async () => true),
+    isActivated: vi.fn(async () => false),
+    issueCodes: vi.fn(async () => ['CODE123']),
+    revoke: vi.fn(async () => true),
+    listCodes: vi.fn(async () => [])
+  } satisfies AdminRouteDeps['invites'];
   const deps: AdminRouteDeps = {
     verifyUser: vi.fn(async token => identities[token] ?? null),
     config: overrides.config ?? (() => ({ adminIds: new Set([ROOT, SECOND_ADMIN]), directory })),
     room,
-    bucket
+    bucket,
+    reports,
+    invites
   };
   const call = (method: string, path: string, token: string | null = 'root-token'): Promise<Response> =>
     handleAdminRequest(
@@ -106,7 +120,7 @@ const harness = (overrides: { config?: () => ReturnType<AdminRouteDeps['config']
       }),
       deps
     );
-  return { call, deps, directory, room, bucket };
+  return { call, deps, directory, room, bucket, reports, invites };
 };
 
 const bodyOf = async <T>(response: Response): Promise<T> => (await response.json()) as T;
@@ -502,5 +516,68 @@ describe('DELETE /api/admin/files/:hash', () => {
     expect((await call('DELETE', `/files/${HASH_B}`)).status).toBe(404);
     expect((await call('DELETE', '/files/NOT-A-HASH')).status).toBe(400);
     expect(bucket.delete).not.toHaveBeenCalled();
+  });
+});
+
+describe('治理路由（POOL-US-102）', () => {
+  const REPORT = '11111111-1111-4111-8111-111111111111';
+
+  it('按封禁处置举报：封禁账号、踢在线设备、关闭举报', async () => {
+    const h = harness();
+    vi.mocked(h.reports.listOpen).mockResolvedValue([
+      {
+        id: REPORT,
+        targetHash: null,
+        targetUser: ALICE,
+        sourceUrl: null,
+        category: 'harassment',
+        reporterUser: BOB,
+        createdAt: '2026-11-05T00:00:00Z',
+        resolvedAt: null,
+        resolution: null
+      }
+    ]);
+
+    const response = await h.call('POST', `/reports/${REPORT}/resolve?resolution=ban`);
+
+    expect(response.status).toBe(204);
+    expect(h.directory.setBanned).toHaveBeenCalledWith(ALICE, true);
+    expect(h.room.evict).toHaveBeenCalledWith({ userId: ALICE });
+    expect(h.reports.resolve).toHaveBeenCalledWith(REPORT, 'ban', ROOT);
+  });
+
+  it('按删除副本处置举报：按 sourceUrl 删除密文副本并关闭举报', async () => {
+    const h = harness();
+    vi.mocked(h.reports.listOpen).mockResolvedValue([
+      {
+        id: REPORT,
+        targetHash: HASH_A,
+        targetUser: null,
+        sourceUrl: `/api/files/enc/${HASH_B}`,
+        category: 'malware',
+        reporterUser: BOB,
+        createdAt: '2026-11-05T00:00:00Z',
+        resolvedAt: null,
+        resolution: null
+      }
+    ]);
+
+    const response = await h.call('POST', `/reports/${REPORT}/resolve?resolution=delete_copy`);
+
+    expect(response.status).toBe(204);
+    expect(h.bucket.delete).toHaveBeenCalledWith(`files/enc/${HASH_B}`);
+    expect(h.reports.resolve).toHaveBeenCalledWith(REPORT, 'delete_copy', ROOT);
+  });
+
+  it('发码与作废', async () => {
+    const h = harness();
+
+    const issued = await h.call('POST', '/invites?count=3');
+    expect(issued.status).toBe(201);
+    expect(h.invites.issueCodes).toHaveBeenCalledWith(3, ROOT);
+
+    const revoked = await h.call('DELETE', '/invites/CODE1234567890ABCDE');
+    expect(revoked.status).toBe(204);
+    expect(h.invites.revoke).toHaveBeenCalledWith('CODE1234567890ABCDE');
   });
 });

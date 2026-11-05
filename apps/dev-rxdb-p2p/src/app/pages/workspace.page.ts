@@ -119,7 +119,42 @@ import { P2PWorkspace } from '../p2p/p2p-workspace.service';
               </details>
             </div>
           }
-          <router-outlet />
+          @if (workspace.activation() === 'needs-invite') {
+            <section
+              class="card bg-base-100 mx-auto max-w-md p-8"
+              aria-labelledby="invite-title"
+              data-testid="invite-gate"
+            >
+              <h1 class="text-xl font-semibold" id="invite-title">beta 邀请制</h1>
+              <p class="text-base-content/70 my-3 text-sm">
+                共享与下载需要邀请码。请向管理员要一个邀请码，输入后即可激活本账号。
+              </p>
+              <div class="mt-2 flex gap-2">
+                <input
+                  class="input input-bordered w-full"
+                  [attr.aria-label]="'邀请码'"
+                  (input)="inviteCode.set($any($event.target).value)"
+                  data-testid="invite-code"
+                  placeholder="邀请码"
+                  type="text"
+                />
+                <button
+                  class="btn btn-primary"
+                  [disabled]="inviting() || !inviteCode()"
+                  (click)="submitInvite()"
+                  data-testid="invite-submit"
+                  type="button"
+                >
+                  {{ inviting() ? '激活中…' : '激活' }}
+                </button>
+              </div>
+              @if (inviteError(); as message) {
+                <p class="text-error mt-3 text-sm" role="alert">{{ message }}</p>
+              }
+            </section>
+          } @else {
+            <router-outlet />
+          }
         }
         @default {
           <div class="flex items-center justify-center gap-3 py-24" role="status">
@@ -138,6 +173,23 @@ export default class WorkspacePage implements OnInit {
   readonly workspace = inject(P2PWorkspace);
   readonly admin = inject(AdminAccess);
   readonly signingOut = signal(false);
+  readonly inviteCode = signal('');
+  readonly inviting = signal(false);
+  readonly inviteError = signal<string | null>(null);
+
+  async submitInvite(): Promise<void> {
+    if (this.inviting()) return;
+    this.inviting.set(true);
+    this.inviteError.set(null);
+    try {
+      const activated = await this.workspace.activateInvite(this.inviteCode().trim());
+      if (!activated) this.inviteError.set('邀请码无效、已被使用或已作废。');
+    } catch (error) {
+      this.inviteError.set(error instanceof Error ? error.message : String(error));
+    } finally {
+      this.inviting.set(false);
+    }
+  }
   readonly error = signal<string | null>(null);
 
   constructor() {

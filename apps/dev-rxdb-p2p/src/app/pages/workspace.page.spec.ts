@@ -17,6 +17,8 @@ const findButton = (root: HTMLElement, text: string): HTMLButtonElement => {
 describe('WorkspacePage', () => {
   const faults = signal<DemoFaults>({ deny: false, corrupt: false, delayMs: 0 });
   const workspace = {
+    activation: signal<'checking' | 'activated' | 'needs-invite'>('activated'),
+    activateInvite: vi.fn<() => Promise<boolean>>(),
     phase: signal<WorkspacePhase>('ready'),
     device: signal({ id: 'device', name: '我的电脑' }),
     signalingState: signal('online'),
@@ -39,6 +41,8 @@ describe('WorkspacePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     workspace.start.mockReset().mockResolvedValue(undefined);
+    workspace.activation.set('activated');
+    workspace.activateInvite.mockReset().mockResolvedValue(true);
     auth.signOut.mockReset().mockResolvedValue(undefined);
     admin.isAdmin.set(false);
     admin.check.mockReset().mockResolvedValue(false);

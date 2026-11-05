@@ -168,3 +168,162 @@ export const createAdminDirectory = (config: AdminSupabaseConfig): AdminDirector
     deleteAccount: userId => changeAccount(userId, 'DELETE')
   };
 };
+
+// ============================================
+// 举报目录（POOL-US-102）：service_role 读写 p2p.reports
+// ============================================
+
+/** 举报目录的实现（`p2p.reports`，service_role）。 */
+export const createReportDirectory = (config: AdminSupabaseConfig): import('./reports').ReportDirectory => {
+  const credentials = { apikey: config.serviceRoleKey, authorization: `Bearer ${config.serviceRoleKey}` };
+  const reports = async (init?: RequestInit & { readonly url?: string }): Promise<Response> => {
+    const { url, ...requestInit } = init ?? {};
+    return config.fetch(url ?? `${config.url}/rest/v1/reports`, {
+      ...requestInit,
+      headers: { ...credentials, 'content-type': 'application/json', 'content-profile': 'p2p' }
+    });
+  };
+  return {
+    async submit(input) {
+      const response = await reports({
+        method: 'POST',
+        body: JSON.stringify({
+          target_hash: input.targetHash,
+          target_user: input.targetUser,
+          target_source: input.sourceUrl,
+          category: input.category,
+          reporter_user: input.reporterUser
+        })
+      });
+      if (response.ok) return { created: true };
+      // 23505：同一目标同一举报人的未处置举报已存在（部分唯一索引）
+      const body = (await response.json().catch(() => null)) as { code?: string } | null;
+      if (response.status === 409 && body?.code === '23505') return { created: false };
+      throw new Error(`PostgREST responded ${response.status}`);
+    },
+    async listOpen() {
+      const query = new URLSearchParams({
+        select: 'id,target_hash,target_source,target_user,category,reporter_user,created_at,resolved_at,resolution',
+        resolved_at: 'is.null',
+        order: 'created_at.desc'
+      });
+      const response = await config.fetch(`${config.url}/rest/v1/reports?${query}`, {
+        headers: { ...credentials, 'accept-profile': 'p2p' }
+      });
+      if (!response.ok) throw new Error(`PostgREST responded ${response.status}`);
+      const rows = (await response.json()) as readonly {
+        id: string;
+        target_hash: string | null;
+        target_source: string | null;
+        target_user: string | null;
+        category: string;
+        reporter_user: string;
+        created_at: string;
+        resolved_at: string | null;
+        resolution: string | null;
+      }[];
+      return rows.map(row => ({
+        id: row.id,
+        targetHash: row.target_hash,
+        targetUser: row.target_user,
+        sourceUrl: row.target_source,
+        category: row.category as never,
+        reporterUser: row.reporter_user,
+        createdAt: row.created_at,
+        resolvedAt: row.resolved_at,
+        resolution: row.resolution as never
+      }));
+    },
+    async resolve(id, resolution, resolvedBy) {
+      const query = new URLSearchParams({ id: `eq.${id}` });
+      const response = await reports({
+        method: 'PATCH',
+        body: JSON.stringify({ resolved_at: new Date().toISOString(), resolved_by: resolvedBy, resolution }),
+        // reports() 拼的是固定路径；带过滤条件的 PATCH 走完整 URL（无 WHERE 的 PATCH 会被 PostgREST 拒绝）
+        url: `${config.url}/rest/v1/reports?${query}`
+      });
+      return response.ok;
+    }
+  };
+};
+
+// ============================================
+// 邀请目录（POOL-US-102）：service_role 读写 invite_codes / activated_users
+// ============================================
+
+/** 邀请目录的实现（service_role）。 */
+export const createInviteDirectory = (config: AdminSupabaseConfig): import('./invites').InviteDirectory => {
+  const credentials = { apikey: config.serviceRoleKey, authorization: `Bearer ${config.serviceRoleKey}` };
+  const rpc = async (name: string, args: unknown): Promise<unknown> => {
+    const response = await config.fetch(`${config.url}/rest/v1/rpc/${name}`, {
+      method: 'POST',
+      headers: { ...credentials, 'content-type': 'application/json', 'content-profile': 'p2p' },
+      body: JSON.stringify(args)
+    });
+    if (!response.ok) throw new Error(`PostgREST responded ${response.status}`);
+    return response.json();
+  };
+  const codes = async (init?: RequestInit & { readonly url?: string }): Promise<Response> => {
+    const { url, ...requestInit } = init ?? {};
+    return config.fetch(url ?? `${config.url}/rest/v1/invite_codes`, {
+      ...requestInit,
+      headers: { ...credentials, 'content-type': 'application/json', 'content-profile': 'p2p' }
+    });
+  };
+  return {
+    activate: (code, userId) => rpc('activate_invite', { code_text: code, user_id: userId }) as Promise<boolean>,
+    isActivated: async userId => {
+      const query = new URLSearchParams({ select: 'user_id', user_id: `eq.${userId}` });
+      const response = await config.fetch(`${config.url}/rest/v1/activated_users?${query}`, {
+        headers: { ...credentials, 'accept-profile': 'p2p' }
+      });
+      if (!response.ok) throw new Error(`PostgREST responded ${response.status}`);
+      const rows = (await response.json()) as unknown[];
+      return rows.length > 0;
+    },
+    async issueCodes(count, createdBy) {
+      const { generateInviteCodes } = await import('./invites');
+      const issued = generateInviteCodes(count, Math.random);
+      const response = await codes({
+        method: 'POST',
+        body: JSON.stringify(issued.map(code => ({ code, created_by: createdBy })))
+      });
+      if (!response.ok) throw new Error(`PostgREST responded ${response.status}`);
+      return issued;
+    },
+    async revoke(code) {
+      const query = new URLSearchParams({ code: `eq.${code}` });
+      const response = await codes({
+        method: 'PATCH',
+        body: JSON.stringify({ revoked_at: new Date().toISOString() }),
+        // 无 WHERE 的 PATCH 会被 PostgREST 拒绝
+        url: `${config.url}/rest/v1/invite_codes?${query}`
+      });
+      return response.ok;
+    },
+    async listCodes() {
+      const query = new URLSearchParams({
+        select: 'code,created_at,used_by,used_at,revoked_at',
+        order: 'created_at.desc'
+      });
+      const response = await config.fetch(`${config.url}/rest/v1/invite_codes?${query}`, {
+        headers: { ...credentials, 'accept-profile': 'p2p' }
+      });
+      if (!response.ok) throw new Error(`PostgREST responded ${response.status}`);
+      const rows = (await response.json()) as readonly {
+        code: string;
+        created_at: string;
+        used_by: string | null;
+        used_at: string | null;
+        revoked_at: string | null;
+      }[];
+      return rows.map(row => ({
+        code: row.code,
+        createdAt: row.created_at,
+        usedBy: row.used_by,
+        usedAt: row.used_at,
+        revokedAt: row.revoked_at
+      }));
+    }
+  };
+};

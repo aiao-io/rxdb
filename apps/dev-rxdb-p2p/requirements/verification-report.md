@@ -24,7 +24,14 @@
 | 测试账号                     | 待清理                                                                     | 管理后台上线后用 /admin 处置，不再手写 SQL        |
 | 桌面端（US-707 阶段 B / M2） | 未开工                                                                     | Electron 先行、Tauri 补位（D-05）                 |
 
-## 产品化增量的验收入口（尚未开工）
+## 产品化增量的验收（2026-11-05，本地真栈）
 
-- [POOL-US-101](stories/ops/POOL-US-101-fallback-content-encryption.md)：加密回退的 AC 在「真实浏览器上传 → R2 对象字节断言 → 第二设备回退取回解密」上关闭；服务器不可读的正反向断言覆盖 R2 对象、Worker/DO 日志与 Supabase 行三层。
-- [POOL-US-102](stories/ops/POOL-US-102-rate-limit-report-invite.md)：限流 AC 以服务端响应（429/Retry-After）断言，举报闭环在本地真栈 + 管理后台验收，滥用演练按 M1 验收标准编排。
+| 入口                                                                                                 | 结果    | 证据边界                                                |
+| ---------------------------------------------------------------------------------------------------- | ------- | ------------------------------------------------------- |
+| 单元与内存协议（`dev-rxdb-p2p:test`）                                                                | 466/466 | 信封/分块 AEAD、限流窗口、举报与邀请路由                |
+| 全量 demo e2e（admin / fallback-encryption / governance / interaction / server-contract / transfer） | 27/27   | 真实 Chrome + 本地 Worker（wrangler）+ 隔离 Supabase 栈 |
+| 门禁 e2e（governance-gated，`POOL_REQUIRE_ACTIVATION=true`）                                         | 1/1     | 未激活被挡、邀请码激活放行、管理员豁免                  |
+| 限流 e2e（governance-limits，短窗口覆盖）                                                            | 1/1     | 信令 hello 超限被拒、他账号不受影响                     |
+| 真栈日志复核（三轮运行输出）                                                                         | 零命中  | 无密钥特征（kty/JWK/私钥材料）、无明文块                |
+
+正式环境（线上 Worker/R2）的复验与发布配方更新是 POOL-US-101 阶段 D，随 M1 上线执行。

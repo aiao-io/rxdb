@@ -8,8 +8,9 @@
 import type { Env } from './env';
 import { handleRequest } from './router';
 
+export { PoolLimiter } from './pool-limiter';
 export { SignalingRoom } from './signaling-room';
 
 export default {
-  fetch: (request: Request, env: Env): Promise<Response> => handleRequest(request, env)
+  fetch: (request: Request, env: Env, ctx: ExecutionContext): Promise<Response> => handleRequest(request, env, ctx)
 };

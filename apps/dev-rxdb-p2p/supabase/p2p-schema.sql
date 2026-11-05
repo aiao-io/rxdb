@@ -208,19 +208,6 @@ $$;
 REVOKE ALL ON FUNCTION p2p.team_device_keys() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION p2p.team_device_keys() TO authenticated;
 
--- 收件人是否拥有这台设备：INVOKER 语义，子查询仍受 devices 的 RLS 约束，只看得到本人的设备。
-CREATE OR REPLACE FUNCTION p2p.owns_device(device uuid)
-RETURNS boolean
-LANGUAGE sql
-STABLE
-SET search_path = pg_catalog, pg_temp
-AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM p2p.devices AS device_row
-    WHERE device_row.user_id = auth.uid() AND device_row.id = device
-  )
-$$;
-
 CREATE TABLE IF NOT EXISTS p2p.p2p_fallback_envelope (
   id uuid PRIMARY KEY,
   "contentHash" varchar NOT NULL,
@@ -242,10 +229,11 @@ CREATE INDEX IF NOT EXISTS idx_p2p_envelope_recipient ON p2p.p2p_fallback_envelo
 
 ALTER TABLE p2p.p2p_fallback_envelope ENABLE ROW LEVEL SECURITY;
 
--- 收件人读：只能读寄给本人设备的信封。
+-- 读：所有已认证用户可读（信封是不可解密的密文，与清单同口径）。不能限「只读寄给本人设备的信封」：
+-- PostgreSQL 对 ON CONFLICT 的仲裁探测应用 SELECT 策略，上传方看不到别家设备的行时，upsert 直接报 42501。
 DROP POLICY IF EXISTS envelope_select ON p2p.p2p_fallback_envelope;
 CREATE POLICY envelope_select ON p2p.p2p_fallback_envelope
-  FOR SELECT TO authenticated USING (p2p.owns_device("recipientDeviceId"));
+  FOR SELECT TO authenticated USING (true);
 
 -- 写/改/删：任何已认证用户都能寄信封、更新或删掉自己的重复封装；篡改会被收件人的 AEAD 校验检出，
 -- 删除只降级可用性，真正的清理走管理端的 admin_purge_account（service_role 绕过 RLS）。
@@ -263,10 +251,8 @@ CREATE POLICY envelope_delete ON p2p.p2p_fallback_envelope
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON p2p.p2p_fallback_envelope TO authenticated;
 
-DO $$
-BEGIN
-  PERFORM public.rxdb_enable_sync_for_table('p2p_fallback_envelope', 'p2p', 'P2PFallbackEnvelope');
-END $$;
+-- 信封不经过同步实体：上传方直写、下载方直读（RLS），保留时间戳触发器、撤掉变更日志触发器。
+DROP TRIGGER IF EXISTS rxdb_sync_trigger ON p2p.p2p_fallback_envelope;
 
 GRANT SELECT, DELETE ON p2p.p2p_fallback_envelope TO service_role;
 
@@ -295,3 +281,96 @@ AS $$
   )
   SELECT count(*) FROM claims
 $$;
+
+-- ============================================
+-- 6. 举报（POOL-US-102）：只存目标标识、分类、举报人与时间，不存文件内容与举报正文。
+--    客户端经 Worker 的 /api/reports 提交，Worker 以 service_role 写这里；客户端没有表权限。
+--    同一目标同一举报人的未处置举报只有一条（部分唯一索引）。
+-- ============================================
+CREATE TABLE IF NOT EXISTS p2p.reports (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  target_hash varchar,
+  target_source varchar,
+  target_user uuid,
+  category varchar NOT NULL CHECK (category IN ('malware', 'phishing', 'infringement', 'harassment', 'other')),
+  reporter_user uuid NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  resolved_at timestamptz,
+  resolved_by uuid,
+  resolution varchar CHECK (resolution IN ('delete_copy', 'ban', 'ignore')),
+  CHECK (target_hash IS NOT NULL OR target_user IS NOT NULL)
+);
+
+ALTER TABLE p2p.reports ADD COLUMN IF NOT EXISTS target_source varchar;
+
+CREATE INDEX IF NOT EXISTS idx_p2p_reports_created ON p2p.reports (created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_p2p_reports_open_dedupe
+  ON p2p.reports (coalesce(target_hash, ''), coalesce(target_user::text, ''), reporter_user)
+  WHERE resolved_at IS NULL;
+
+GRANT SELECT, INSERT, UPDATE ON p2p.reports TO service_role;
+
+-- ============================================
+-- 7. 邀请制 beta（POOL-US-102）：激活码一次性、可作废；激活状态登记在 activated_users。
+--    码与激活表只对 service_role 开放；客户端的激活经 Worker 调用 p2p.activate_invite。
+-- ============================================
+CREATE TABLE IF NOT EXISTS p2p.invite_codes (
+  code varchar PRIMARY KEY CHECK (char_length(code) BETWEEN 12 AND 64),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  created_by uuid,
+  used_by uuid REFERENCES auth.users (id) ON DELETE SET NULL,
+  used_at timestamptz,
+  revoked_at timestamptz
+);
+
+CREATE TABLE IF NOT EXISTS p2p.activated_users (
+  user_id uuid PRIMARY KEY REFERENCES auth.users (id) ON DELETE CASCADE,
+  code varchar,
+  activated_at timestamptz NOT NULL DEFAULT now()
+);
+
+GRANT SELECT, INSERT, UPDATE ON p2p.invite_codes TO service_role;
+GRANT SELECT, INSERT ON p2p.activated_users TO service_role;
+
+-- 一条语句完成「校验码未用未作废 → 标记使用 → 登记激活」，返回是否激活成功；重复调用幂等。
+CREATE OR REPLACE FUNCTION p2p.activate_invite(code_text varchar, user_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SET search_path = pg_catalog, pg_temp
+AS $$
+  WITH claimed AS (
+    UPDATE p2p.invite_codes
+    SET used_by = user_id, used_at = now()
+    WHERE code = code_text
+      AND used_by IS NULL AND used_at IS NULL AND revoked_at IS NULL
+    RETURNING code
+  ),
+  activated AS (
+    INSERT INTO p2p.activated_users (user_id, code)
+    SELECT user_id, code FROM claimed
+    ON CONFLICT (user_id) DO NOTHING
+    RETURNING user_id
+  )
+  SELECT COALESCE(
+    EXISTS (SELECT 1 FROM claimed),
+    EXISTS (SELECT 1 FROM p2p.activated_users AS au WHERE au.user_id = activate_invite.user_id)
+  )
+$$;
+
+REVOKE ALL ON FUNCTION p2p.activate_invite(varchar, uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION p2p.activate_invite(varchar, uuid) TO service_role;
+
+-- 是否已激活（邀请制 beta）：客户端与 Worker 都以调用者身份经 RPC 查询；
+-- SECURITY DEFINER 只为了读 activated_users（该表不对客户端开放），判定仍按 auth.uid()。
+CREATE OR REPLACE FUNCTION p2p.is_activated()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+  SELECT EXISTS (SELECT 1 FROM p2p.activated_users WHERE user_id = auth.uid())
+$$;
+
+REVOKE ALL ON FUNCTION p2p.is_activated() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION p2p.is_activated() TO authenticated;

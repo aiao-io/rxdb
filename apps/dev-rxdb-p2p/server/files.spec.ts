@@ -167,7 +167,12 @@ describe('handleFileRequest', () => {
 describe('handleEncryptedFileRequest', () => {
   const encRequest = (
     method: string,
-    init: { readonly token?: string; readonly body?: BodyInit; readonly length?: number; readonly encoding?: string } = {}
+    init: {
+      readonly token?: string;
+      readonly body?: BodyInit;
+      readonly length?: number;
+      readonly encoding?: string;
+    } = {}
   ) => {
     const headers = new Headers();
     if (init.token) headers.set('authorization', `Bearer ${init.token}`);
@@ -182,7 +187,11 @@ describe('handleEncryptedFileRequest', () => {
   };
 
   it('rejects a key that is not a ciphertext hash', async () => {
-    const response = await handleEncryptedFileRequest(encRequest('GET', { token: 'good', encoding: FALLBACK_ENCODING_VERSION }), 'abc', depsWith());
+    const response = await handleEncryptedFileRequest(
+      encRequest('GET', { token: 'good', encoding: FALLBACK_ENCODING_VERSION }),
+      'abc',
+      depsWith()
+    );
 
     expect(response.status).toBe(400);
   });
@@ -190,22 +199,29 @@ describe('handleEncryptedFileRequest', () => {
   it('stores an encrypted upload under the ciphertext key and lets R2 verify the checksum', async () => {
     const deps = depsWith();
 
-    const response = await handleEncryptedFileRequest(encRequest('PUT', { token: 'good', body: BYTES, length: 4 }), HASH, deps);
+    const response = await handleEncryptedFileRequest(
+      encRequest('PUT', { token: 'good', body: BYTES, length: 4 }),
+      HASH,
+      deps
+    );
 
     expect(response.status).toBe(201);
     expect(deps.bucket.put).toHaveBeenCalledWith(encFileKey(HASH), expect.anything(), { sha256: HASH });
     expect(deps.bucket.objects.get(encFileKey(HASH))).toEqual(BYTES);
   });
 
-  it.each([undefined, '0', '2'])('refuses to serve a ciphertext copy without the current encoding header (%s)', async encoding => {
-    const deps = depsWith();
-    deps.bucket.objects.set(encFileKey(HASH), BYTES);
+  it.each([undefined, '0', '2'])(
+    'refuses to serve a ciphertext copy without the current encoding header (%s)',
+    async encoding => {
+      const deps = depsWith();
+      deps.bucket.objects.set(encFileKey(HASH), BYTES);
 
-    const response = await handleEncryptedFileRequest(encRequest('GET', { token: 'good', encoding }), HASH, deps);
+      const response = await handleEncryptedFileRequest(encRequest('GET', { token: 'good', encoding }), HASH, deps);
 
-    expect(response.status).toBe(426);
-    expect(await response.text()).toContain('encrypted');
-  });
+      expect(response.status).toBe(426);
+      expect(await response.text()).toContain('encrypted');
+    }
+  );
 
   it('streams a ciphertext copy back to a client that carries the encoding header', async () => {
     const deps = depsWith();

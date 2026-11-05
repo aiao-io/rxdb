@@ -55,15 +55,32 @@ const b64 = (buffer: ArrayBuffer): string => {
   return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
 };
 
-const unb64 = (value: string): Uint8Array => {
-  const padded = value.replaceAll('-', '+').replaceAll('_', '/');
-  return Uint8Array.from(atob(padded), char => char.charCodeAt(0));
-};
+const unb64 = (value: string): Uint8Array<ArrayBuffer> =>
+  bytesOf(Uint8Array.from(atob(value.replaceAll('-', '+').replaceAll('_', '/')), char => char.charCodeAt(0)));
 
 const subtle = (): SubtleCrypto => globalThis.crypto.subtle;
 
+/** 构造自有 `ArrayBuffer` 的字节数组：TS 6 的 `Uint8Array<ArrayBufferLike>` 进不了 WebCrypto 的 `BufferSource`。 */
+const bytesOf = (values: ArrayLike<number>): Uint8Array<ArrayBuffer> => {
+  const out = new Uint8Array(new ArrayBuffer(values.length));
+  out.set(values);
+  return out;
+};
+
+/** 拼接成自有 `ArrayBuffer` 的字节数组。 */
+const concatBytes = (...chunks: readonly ArrayLike<number>[]): Uint8Array<ArrayBuffer> => {
+  const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const out = new Uint8Array(new ArrayBuffer(total));
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return out;
+};
+
 /** 每块的 AAD：内容哈希 + 块号（4 字节大端），块号错位或跨文件重放都在解密期被拒。 */
-const chunkAad = (contentHash: string, chunkIndex: number): Uint8Array => {
+const chunkAad = (contentHash: string, chunkIndex: number): Uint8Array<ArrayBuffer> => {
   const aad = new Uint8Array(contentHash.length + 4);
   aad.set(new TextEncoder().encode(contentHash), 0);
   new DataView(aad.buffer).setUint32(contentHash.length, chunkIndex);
@@ -132,8 +149,12 @@ export const openContentKey = async (envelope: FallbackEnvelope, privateKey: Cry
   const ephemeralKey = await importDevicePublicKey(envelope.epk);
   const rawKey = await subtle().deriveBits({ name: 'ECDH', public: ephemeralKey }, privateKey, 256);
   const wrappingKey = await subtle().importKey('raw', rawKey, CONTENT_ALGORITHM, false, ['decrypt']);
-  const sealed = new Uint8Array([...unb64(envelope.ct), ...unb64(envelope.tag)]);
-  const rawContentKey = await subtle().decrypt({ name: CONTENT_ALGORITHM, iv: unb64(envelope.iv) }, wrappingKey, sealed);
+  const sealed = concatBytes(unb64(envelope.ct), unb64(envelope.tag));
+  const rawContentKey = await subtle().decrypt(
+    { name: CONTENT_ALGORITHM, iv: unb64(envelope.iv) },
+    wrappingKey,
+    sealed
+  );
   return subtle().importKey('raw', rawContentKey, CONTENT_ALGORITHM, false, ['encrypt', 'decrypt']);
 };
 
@@ -142,15 +163,15 @@ export const encryptChunk = async (
   key: CryptoKey,
   shape: EncodedFileShape,
   chunkIndex: number,
-  plaintext: Uint8Array
-): Promise<Uint8Array> => {
+  plaintext: Uint8Array<ArrayBuffer>
+): Promise<Uint8Array<ArrayBuffer>> => {
   const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES));
   const sealed = await subtle().encrypt(
     { name: CONTENT_ALGORITHM, iv, additionalData: chunkAad(shape.contentHash, chunkIndex) },
     key,
     plaintext
   );
-  return new Uint8Array([...iv, ...new Uint8Array(sealed)]);
+  return concatBytes(iv, new Uint8Array(sealed));
 };
 
 /** 解密一个密文块；块号错位、跨文件重放或密文被篡改都会抛错。 */
@@ -158,8 +179,8 @@ export const decryptChunk = async (
   key: CryptoKey,
   shape: EncodedFileShape,
   chunkIndex: number,
-  encoded: Uint8Array
-): Promise<Uint8Array> => {
+  encoded: Uint8Array<ArrayBuffer>
+): Promise<Uint8Array<ArrayBuffer>> => {
   if (encoded.byteLength < IV_BYTES + TAG_BYTES) throw new Error('fallback encryption: chunk is too short');
   return new Uint8Array(
     await subtle().decrypt(
@@ -192,24 +213,29 @@ export const encodeEncryptedBlob = async (
 ): Promise<Blob> => {
   const parts: BlobPart[] = [new TextEncoder().encode(ENC_MAGIC), new Uint8Array([ENC_VERSION])];
   for (let index = 0; index < chunkCount(shape); index += 1) {
-    const plaintext = await readChunk(index * shape.chunkSize, chunkLength(shape, index));
+    const plaintext = bytesOf(await readChunk(index * shape.chunkSize, chunkLength(shape, index)));
     parts.push(await encryptChunk(key, shape, index, plaintext));
   }
   return new Blob(parts, { type: 'application/octet-stream' });
 };
 
-/** 从流里读满 `length` 字节；流提前结束时报错。 */
-const readExact = async (reader: ReadableStreamDefaultReader<Uint8Array>, length: number): Promise<Uint8Array> => {
-  const out = new Uint8Array(length);
-  let filled = 0;
-  while (filled < length) {
-    const { done, value } = await reader.read();
-    if (done) throw new Error('fallback encryption: blob ended before all chunks were read');
-    const take = Math.min(value.byteLength, length - filled);
-    out.set(value.subarray(0, take), filled);
-    filled += take;
-  }
-  return out;
+/** 从流里读满 `length` 字节；多余字节留在缓冲里给下一次读，流提前结束时报错。 */
+const readExact = (source: ReadableStream<Uint8Array>): ((length: number) => Promise<Uint8Array<ArrayBuffer>>) => {
+  const reader = source.getReader();
+  let buffer = new Uint8Array(0);
+  return async (length: number): Promise<Uint8Array<ArrayBuffer>> => {
+    while (buffer.byteLength < length) {
+      const { done, value } = await reader.read();
+      if (done) throw new Error('fallback encryption: blob ended before all chunks were read');
+      const merged = new Uint8Array(new ArrayBuffer(buffer.byteLength + value.byteLength));
+      merged.set(buffer);
+      merged.set(value, buffer.byteLength);
+      buffer = merged;
+    }
+    const out = buffer.slice(0, length);
+    buffer = buffer.slice(length);
+    return out;
+  };
 };
 
 /**
@@ -221,14 +247,13 @@ export const decodeEncryptedStream = (
   shape: EncodedFileShape,
   source: ReadableStream<Uint8Array>
 ): ReadableStream<Uint8Array> => {
-  let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
   let chunksRead = 0;
   const decoder = new TextDecoder();
+  const readExactFrom = readExact(source);
   return new ReadableStream<Uint8Array>({
     async pull(controller) {
-      reader ??= source.getReader();
       if (chunksRead === 0) {
-        const header = await readExact(reader, ENC_MAGIC.length + 1);
+        const header = await readExactFrom(ENC_MAGIC.length + 1);
         if (decoder.decode(header.subarray(0, ENC_MAGIC.length)) !== ENC_MAGIC) {
           throw new Error('fallback encryption: not an encrypted fallback blob');
         }
@@ -240,7 +265,7 @@ export const decodeEncryptedStream = (
         controller.close();
         return;
       }
-      const encoded = await readExact(reader, IV_BYTES + chunkLength(shape, chunksRead) + TAG_BYTES);
+      const encoded = await readExactFrom(IV_BYTES + chunkLength(shape, chunksRead) + TAG_BYTES);
       controller.enqueue(await decryptChunk(key, shape, chunksRead, encoded));
       chunksRead += 1;
     },

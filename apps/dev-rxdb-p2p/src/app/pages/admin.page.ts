@@ -10,11 +10,12 @@ import {
   type AdminServerFile,
   type AdminServerFiles
 } from '../../../shared/admin-protocol';
-import { AdminApi } from '../admin/admin-api';
+import type { ReportResolution } from '../../../shared/reporting-protocol';
+import { AdminApi, type AdminInviteCode, type AdminReport } from '../admin/admin-api';
 import { AuthService } from '../auth/auth.service';
 
-/** 管理后台的三个分区。 */
-export type AdminTab = 'accounts' | 'online' | 'files';
+/** 管理后台的分区。 */
+export type AdminTab = 'accounts' | 'online' | 'files' | 'reports' | 'invites';
 
 /** 等待管理员确认的处置：有后果的操作先摆出后果再动手。 */
 export type PendingAction =
@@ -193,6 +194,32 @@ const confirmationOf = (action: PendingAction): Confirmation => {
           type="button"
         >
           服务器副本
+        </button>
+        <button
+          class="tab"
+          id="admin-tab-reports"
+          [attr.aria-selected]="tab() === 'reports'"
+          [class.tab-active]="tab() === 'reports'"
+          (click)="selectTab('reports')"
+          aria-controls="admin-panel"
+          data-testid="admin-tab-reports"
+          role="tab"
+          type="button"
+        >
+          举报
+        </button>
+        <button
+          class="tab"
+          id="admin-tab-invites"
+          [attr.aria-selected]="tab() === 'invites'"
+          [class.tab-active]="tab() === 'invites'"
+          (click)="selectTab('invites')"
+          aria-controls="admin-panel"
+          data-testid="admin-tab-invites"
+          role="tab"
+          type="button"
+        >
+          邀请码
         </button>
       </div>
       <section class="card bg-base-100" id="admin-panel" [attr.aria-labelledby]="'admin-tab-' + tab()" role="tabpanel">
@@ -410,6 +437,136 @@ const confirmationOf = (action: PendingAction): Confirmation => {
                 </p>
               }
             }
+            @case ('reports') {
+              <table class="table-xs md:table-sm table">
+                <caption class="sr-only">
+                  举报
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">目标</th>
+                    <th scope="col">分类</th>
+                    <th class="hidden md:table-cell" scope="col">举报人</th>
+                    <th class="hidden md:table-cell" scope="col">时间</th>
+                    <th scope="col"><span class="sr-only">操作</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (report of reports(); track report.id) {
+                    <tr data-testid="admin-report-row">
+                      <td class="break-all">{{ reportTarget(report) }}</td>
+                      <td>{{ reportLabel(report.category) }}</td>
+                      <td class="hidden md:table-cell">{{ short(report.reporterUser) }}</td>
+                      <td class="hidden whitespace-nowrap md:table-cell">
+                        {{ report.createdAt | date: 'MM-dd HH:mm' }}
+                      </td>
+                      <td class="text-right">
+                        @if (report.targetHash) {
+                          <button
+                            class="btn btn-ghost btn-xs"
+                            [disabled]="busy()"
+                            (click)="resolveReport(report, 'delete_copy')"
+                            type="button"
+                          >
+                            删除副本
+                          </button>
+                        }
+                        @if (report.targetUser) {
+                          <button
+                            class="btn btn-ghost btn-xs"
+                            [disabled]="busy()"
+                            (click)="resolveReport(report, 'ban')"
+                            type="button"
+                          >
+                            封禁账号
+                          </button>
+                        }
+                        <button
+                          class="btn btn-ghost btn-xs"
+                          [disabled]="busy()"
+                          (click)="resolveReport(report, 'ignore')"
+                          type="button"
+                        >
+                          忽略
+                        </button>
+                      </td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td class="text-base-content/55 py-8 text-center" colspan="5">没有未处置的举报</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
+            @case ('invites') {
+              <div class="flex flex-col gap-3 p-3">
+                <div class="flex items-center gap-2">
+                  <button
+                    class="btn btn-primary btn-sm"
+                    [disabled]="busy()"
+                    (click)="issueInvites()"
+                    data-testid="invite-issue"
+                    type="button"
+                  >
+                    发一个邀请码
+                  </button>
+                  @if (issuedCodes().length) {
+                    <span class="text-sm" data-testid="invite-issued"> 新码：{{ issuedCodes().join('、') }} </span>
+                  }
+                </div>
+                <table class="table-xs md:table-sm table">
+                  <caption class="sr-only">
+                    邀请码
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">邀请码</th>
+                      <th class="hidden md:table-cell" scope="col">创建时间</th>
+                      <th scope="col">状态</th>
+                      <th scope="col"><span class="sr-only">操作</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (code of inviteCodes(); track code.code) {
+                      <tr data-testid="admin-invite-row">
+                        <td class="font-mono break-all">{{ code.code }}</td>
+                        <td class="hidden whitespace-nowrap md:table-cell">
+                          {{ code.createdAt | date: 'MM-dd HH:mm' }}
+                        </td>
+                        <td>
+                          @if (code.revokedAt) {
+                            <span class="badge badge-ghost badge-sm">已作废</span>
+                          } @else if (code.usedAt) {
+                            <span class="badge badge-success badge-sm">已使用</span>
+                          } @else {
+                            <span class="badge badge-info badge-sm">可用</span>
+                          }
+                        </td>
+                        <td class="text-right">
+                          @if (!code.revokedAt && !code.usedAt) {
+                            <button
+                              class="btn btn-ghost btn-xs"
+                              [disabled]="busy()"
+                              (click)="revokeInvite(code)"
+                              type="button"
+                            >
+                              作废
+                            </button>
+                          }
+                        </td>
+                      </tr>
+                    } @empty {
+                      <tr>
+                        <td class="text-base-content/55 py-8 text-center" colspan="4">
+                          还没有邀请码，点「发一个邀请码」生成
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
           }
         </div>
       </section>
@@ -425,6 +582,9 @@ export default class AdminPage implements OnInit {
   readonly accountPage = signal<AdminAccountPage | null>(null);
   readonly devices = signal<readonly AdminOnlineDevice[]>([]);
   readonly serverFiles = signal<AdminServerFiles | null>(null);
+  readonly reports = signal<readonly AdminReport[]>([]);
+  readonly inviteCodes = signal<readonly AdminInviteCode[]>([]);
+  readonly issuedCodes = signal<readonly string[]>([]);
   readonly loading = signal(false);
   readonly busy = signal(false);
   readonly signingOut = signal(false);
@@ -458,6 +618,49 @@ export default class AdminPage implements OnInit {
     return account.id === this.auth.session()?.user?.id;
   }
 
+  short(value: string): string {
+    return value.slice(0, SHORT_HASH_LENGTH);
+  }
+
+  reportTarget(report: AdminReport): string {
+    return report.targetHash ? `文件 ${shortHash(report.targetHash)}` : `账号 ${this.short(report.targetUser ?? '')}`;
+  }
+
+  reportLabel(category: AdminReport['category']): string {
+    return {
+      malware: '恶意软件',
+      phishing: '钓鱼',
+      infringement: '侵权',
+      harassment: '骚扰',
+      other: '其他'
+    }[category];
+  }
+
+  resolveReport(report: AdminReport, resolution: ReportResolution): Promise<void> {
+    return this.#run(async () => {
+      await this.#api.resolveReport(report.id, resolution);
+      this.reports.set(this.reports().filter(entry => entry.id !== report.id));
+      return `举报已处置（${this.reportLabel(report.category)}）。`;
+    });
+  }
+
+  issueInvites(): Promise<void> {
+    return this.#run(async () => {
+      const codes = await this.#api.issueInvites(1);
+      this.issuedCodes.set(codes);
+      this.inviteCodes.set(await this.#api.inviteCodes());
+      return '邀请码已生成。';
+    });
+  }
+
+  revokeInvite(code: AdminInviteCode): Promise<void> {
+    return this.#run(async () => {
+      await this.#api.revokeInvite(code.code);
+      this.inviteCodes.set(this.inviteCodes().filter(entry => entry.code !== code.code));
+      return '邀请码已作废。';
+    });
+  }
+
   selectTab(tab: AdminTab): void {
     this.tab.set(tab);
   }
@@ -465,9 +668,17 @@ export default class AdminPage implements OnInit {
   /** 重新加载三个分区；某个分区失败不影响其余分区，失败原因在 {@link AdminPage.loadError}。 */
   async refresh(): Promise<void> {
     this.loading.set(true);
-    const sections = await Promise.allSettled([this.#api.accounts(this.#page), this.#api.online(), this.#api.files()]);
-    const [accounts, online, files] = sections;
+    const sections = await Promise.allSettled([
+      this.#api.accounts(this.#page),
+      this.#api.online(),
+      this.#api.files(),
+      this.#api.reports(),
+      this.#api.inviteCodes()
+    ]);
+    const [accounts, online, files, reports, invites] = sections;
     if (accounts.status === 'fulfilled') this.accountPage.set(accounts.value);
+    if (reports.status === 'fulfilled') this.reports.set(reports.value);
+    if (invites.status === 'fulfilled') this.inviteCodes.set(invites.value);
     if (online.status === 'fulfilled') this.devices.set(online.value);
     if (files.status === 'fulfilled') this.serverFiles.set(files.value);
     const labels = ['账号列表', '在线设备', '服务器副本'];

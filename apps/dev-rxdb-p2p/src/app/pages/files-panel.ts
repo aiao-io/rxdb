@@ -1,6 +1,7 @@
 import { formatFileSize } from '@aiao/utils';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MAX_UPLOAD_BYTES } from '../../../shared/limits';
+import { REPORT_CATEGORIES, type ReportCategory } from '../../../shared/reporting-protocol';
 import { P2PWorkspace, type SharedFileView } from '../p2p/p2p-workspace.service';
 
 const TEST_SIZES_MIB = [1, 16, 64] as const;
@@ -186,6 +187,7 @@ type FileScope = 'all' | 'available' | 'local';
                   <tr
                     [attr.data-file]="file.manifest.fileName"
                     [attr.data-hash]="file.contentHash"
+                    [attr.data-source]="file.manifest.sourceUrl"
                     data-testid="file-row"
                   >
                     <td class="max-w-72 min-w-40">
@@ -244,6 +246,29 @@ type FileScope = 'all' | 'available' | 'local';
                           >
                             {{ downloadLabel(file) }}
                           </button>
+                          @if (reporting() !== file.contentHash) {
+                            <button
+                              class="btn btn-ghost btn-sm"
+                              [disabled]="busy()"
+                              (click)="startReport(file)"
+                              data-testid="file-report"
+                              type="button"
+                            >
+                              {{ reported() === file.contentHash ? '已举报' : '举报' }}
+                            </button>
+                          } @else {
+                            @for (category of reportCategories; track category) {
+                              <button
+                                class="btn btn-ghost btn-xs"
+                                [disabled]="busy()"
+                                (click)="submitReport(file, category)"
+                                type="button"
+                              >
+                                {{ reportLabel(category) }}
+                              </button>
+                            }
+                            <button class="btn btn-ghost btn-xs" (click)="cancelReport()" type="button">取消</button>
+                          }
                         }
                       </div>
                     </td>
@@ -284,6 +309,11 @@ export class FilesPanel {
   readonly error = signal<string | null>(null);
   readonly notice = signal<string | null>(null);
   readonly pendingRemoval = signal<SharedFileView | null>(null);
+  /** 正在选举报分类的文件（内容哈希）；null 表示没在举报。 */
+  readonly reporting = signal<string | null>(null);
+  /** 刚提交过举报的内容哈希，行上显示「已举报」。 */
+  readonly reported = signal<string | null>(null);
+  readonly reportCategories = REPORT_CATEGORIES;
   readonly query = signal('');
   readonly scope = signal<FileScope>('all');
   readonly visibleFiles = computed(() => {
@@ -350,6 +380,37 @@ export class FilesPanel {
 
   revoke(file: SharedFileView): void {
     this.pendingRemoval.set(file);
+  }
+
+  reportLabel(category: ReportCategory): string {
+    return {
+      malware: '恶意软件',
+      phishing: '钓鱼',
+      infringement: '侵权',
+      harassment: '骚扰',
+      other: '其他'
+    }[category];
+  }
+
+  startReport(file: SharedFileView): void {
+    this.reporting.set(file.contentHash);
+  }
+
+  cancelReport(): void {
+    this.reporting.set(null);
+  }
+
+  submitReport(file: SharedFileView, category: ReportCategory): Promise<void> {
+    return this.#run(
+      async () => {
+        await this.workspace.report({ contentHash: file.contentHash }, category);
+      },
+      '举报已提交，管理员会在后台处置。',
+      false
+    ).then(() => {
+      this.reporting.set(null);
+      this.reported.set(file.contentHash);
+    });
   }
 
   async confirmRemoval(): Promise<void> {

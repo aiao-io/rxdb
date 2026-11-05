@@ -12,8 +12,7 @@ import {
   openContentKey,
   sealContentKey,
   sha256Hex,
-  type EncodedFileShape,
-  type FallbackEnvelope
+  type EncodedFileShape
 } from './fallback-crypto';
 
 const bytes = (text: string): Uint8Array => new TextEncoder().encode(text);
@@ -34,7 +33,7 @@ describe('fallback-crypto', () => {
   });
 
   it('信封：接收方用自己的私钥能解出内容密钥，无关设备解不开', async () => {
-    const [sender, recipient, stranger] = await Promise.all([
+    const [, recipient, stranger] = await Promise.all([
       generateDeviceKeyPair(),
       generateDeviceKeyPair(),
       generateDeviceKeyPair()
@@ -96,6 +95,30 @@ describe('fallback-crypto', () => {
     const truncated = new Response(full.slice(0, full.byteLength - 10)).body as ReadableStream<Uint8Array>;
     const decoded = decodeEncryptedStream(key, shape, truncated);
     await expect(new Response(decoded).arrayBuffer()).rejects.toThrow();
+  });
+
+  it('上游整包单块输出（浏览器 fetch 的常见行为）：多余字节进缓冲，逐块解密不受影响', async () => {
+    const key = await generateContentKey();
+    const realShape: EncodedFileShape = { contentHash: 'c'.repeat(64), size: 1024 * 1024, chunkSize: 48 * 1024 };
+    const plaintext = new Uint8Array(realShape.size);
+    for (let offset = 0; offset < plaintext.length; offset += 65_536) {
+      crypto.getRandomValues(plaintext.subarray(offset, offset + 65_536));
+    }
+    const blob = await encodeEncryptedBlob(key, realShape, async (offset, size) =>
+      plaintext.slice(offset, offset + size)
+    );
+    const blobBytes = new Uint8Array(await blob.arrayBuffer());
+    const singleChunk = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(blobBytes);
+        controller.close();
+      }
+    });
+    const restored = new Uint8Array(
+      await new Response(decodeEncryptedStream(key, realShape, singleChunk)).arrayBuffer()
+    );
+    expect(restored.byteLength).toBe(plaintext.byteLength);
+    expect(await sha256Hex(restored.buffer as ArrayBuffer)).toBe(await sha256Hex(plaintext.buffer as ArrayBuffer));
   });
 
   it('回退地址判定：/api/files/enc/ 是密文回退，/api/files/ 明文不是', () => {

@@ -53,7 +53,8 @@ export const openDevice = async (
   browser: Browser,
   email: string,
   action: 'sign-up' | 'sign-in',
-  password: string = PASSWORD
+  password: string = PASSWORD,
+  options: { readonly waitOnline?: boolean } = {}
 ): Promise<Device> => {
   const context = await browser.newContext();
   const signaling: WebSocketRoute[] = [];
@@ -73,8 +74,10 @@ export const openDevice = async (
   await page.getByTestId('login-email').fill(email);
   await page.getByTestId('login-password').fill(password);
   await page.getByTestId(`login-${action}`).click();
-  await expect(page.getByTestId('signaling-state')).toHaveAttribute('data-state', 'online');
-  await expect(page.getByTestId('current-device')).not.toHaveText(/登记设备中/);
+  if (options.waitOnline !== false) {
+    await expect(page.getByTestId('signaling-state')).toHaveAttribute('data-state', 'online');
+    await expect(page.getByTestId('current-device')).not.toHaveText(/登记设备中/);
+  }
   const name = ((await page.getByTestId('current-device').textContent()) ?? '').trim();
   const supabaseUrl = await page.evaluate(
     () => (globalThis as { __P2P_CONFIG__?: { supabaseUrl: string } }).__P2P_CONFIG__?.supabaseUrl ?? ''

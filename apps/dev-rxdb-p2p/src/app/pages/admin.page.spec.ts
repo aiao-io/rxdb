@@ -70,7 +70,12 @@ describe('AdminPage', () => {
     unban: vi.fn<(id: string) => Promise<void>>(),
     deleteAccount: vi.fn<(id: string) => Promise<{ purgedClaims: number; evictedDevices: number }>>(),
     kick: vi.fn<(id: string) => Promise<{ evictedDevices: number }>>(),
-    deleteFile: vi.fn<(hash: string) => Promise<void>>()
+    deleteFile: vi.fn<(hash: string) => Promise<void>>(),
+    reports: vi.fn<() => Promise<readonly never[]>>(),
+    resolveReport: vi.fn<(id: string, resolution: string) => Promise<void>>(),
+    inviteCodes: vi.fn<() => Promise<readonly never[]>>(),
+    issueInvites: vi.fn<(count: number) => Promise<readonly string[]>>(),
+    revokeInvite: vi.fn<(code: string) => Promise<void>>()
   };
   const auth = {
     session: signal({ user: { id: ROOT, email: 'root@example.com' } }),
@@ -105,6 +110,11 @@ describe('AdminPage', () => {
     api.deleteAccount.mockResolvedValue({ purgedClaims: 4, evictedDevices: 1 });
     api.kick.mockResolvedValue({ evictedDevices: 1 });
     api.deleteFile.mockResolvedValue(undefined);
+    api.reports.mockResolvedValue([]);
+    api.inviteCodes.mockResolvedValue([]);
+    api.resolveReport.mockResolvedValue(undefined);
+    api.issueInvites.mockResolvedValue(['CODE123']);
+    api.revokeInvite.mockResolvedValue(undefined);
     auth.signOut.mockResolvedValue(undefined);
     TestBed.configureTestingModule({
       providers: [provideRouter([]), { provide: AdminApi, useValue: api }, { provide: AuthService, useValue: auth }]

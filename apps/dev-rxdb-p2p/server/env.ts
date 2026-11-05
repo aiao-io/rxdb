@@ -16,9 +16,18 @@ export interface Env {
   readonly ADMIN_USER_IDS?: string;
   /** 信令 Durable Object。 */
   readonly SIGNALING: DurableObjectNamespaceLike;
+  /** 限流 Durable Object（POOL-US-102）。 */
+  readonly LIMITER: DurableObjectNamespaceLike;
   /** 服务器回退的文件桶。 */
   readonly FILES: R2BucketLike;
+  /** 邀请制开关：设为 `true` 时，未激活账号被挡在信令与服务器回退之外（POOL-US-102）。 */
+  readonly POOL_REQUIRE_ACTIVATION?: string;
+  /** 限流策略覆盖（JSON，测试用短窗口）：`{"signal-hello": {"windowMs": 1000, "maxCount": 3}}`。 */
+  readonly POOL_POLICY_OVERRIDES?: string;
 }
+
+/** 部署是否要求账号先激活（邀请制 beta）。 */
+export const requireActivation = (env: Env): boolean => env.POOL_REQUIRE_ACTIVATION === 'true';
 
 /**
  * 访问 Supabase 的参数。

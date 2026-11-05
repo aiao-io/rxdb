@@ -17,8 +17,8 @@
 
 ### [Aiao Pool 产品化与 MVP](epics/POOL-EPIC-001-aiao-pool-productization.md)
 
-- ⬜ [POOL-US-101 服务器回退内容加密](stories/ops/POOL-US-101-fallback-content-encryption.md)
-- ⬜ [POOL-US-102 速率限制、举报与邀请制 beta](stories/ops/POOL-US-102-rate-limit-report-invite.md)
+- 🚧 [POOL-US-101 服务器回退内容加密](stories/ops/POOL-US-101-fallback-content-encryption.md)
+- 🚧 [POOL-US-102 速率限制、举报与邀请制 beta](stories/ops/POOL-US-102-rate-limit-report-invite.md)
 
 ## 技术底座（指针，非本目录状态）
 
@@ -30,8 +30,8 @@
 
 ## 未完成验收与关闭条件
 
-- [POOL-US-101](stories/ops/POOL-US-101-fallback-content-encryption.md)：10 条 AC 全 ⬜。关闭条件含「服务器全程不可读」的正反向断言（R2 对象字节、Worker/DO 日志、Supabase 行）与多设备回退取回、断点续传交互、旧明文副本处置。
-- [POOL-US-102](stories/ops/POOL-US-102-rate-limit-report-invite.md)：9 条 AC 全 ⬜。关闭条件含服务端限流断言（非前端隐藏）、举报→后台处置闭环、邀请码发放/作废与滥用演练 e2e。
+- [POOL-US-101](stories/ops/POOL-US-101-fallback-content-encryption.md)：AC1～AC10 除 AC6 外已全部关闭——AC1/3/4/7/8/9/10 在本地真栈 e2e 验收，AC2 代码级证据 + 三轮真栈日志复核，AC5 单元证据；AC6 的分块 AAD 有单元证据，浏览器断点续传端到端交互待 rxdb:US-705 续传补齐；阶段 D（正式环境复验）未开始。
+- [POOL-US-102](stories/ops/POOL-US-102-rate-limit-report-invite.md)：9 条 AC 全部关闭（governance / governance-gated / governance-limits 三组 e2e + 单元证据）。
 - 底座收尾（状态在根）：US-713 的 AC#11 待首次 CI 运行；US-707 阶段 B（Tauri 双进程、离线局域网、大文件）与桌面端归 M2。
 
 ## 合并状态
