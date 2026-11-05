@@ -17,7 +17,7 @@ import {
 import type { Editor, JSONContent } from '@tiptap/core';
 import { loadPromptEditor } from './prompt-assets';
 import { schedulePromptFocus } from './prompt-focus';
-import { serializePrompt, type PromptNode, type PromptState } from './prompt-state';
+import { plainPrompt, serializePrompt, type PromptNode, type PromptState } from './prompt-state';
 
 @Component({
   selector: 'app-prompt-input',
@@ -36,6 +36,9 @@ import { serializePrompt, type PromptNode, type PromptState } from './prompt-sta
       <button [disabled]="!ready() || disabled()" (click)="redo()" type="button">重做</button>
       <button (click)="preview.set(!preview())" type="button">预览最终提示词</button>
       <button [disabled]="!ready() || !serialized().valid" (click)="copyFinal()" type="button">复制最终提示词</button>
+      @if (state().fields.length) {
+        <button [disabled]="disabled()" (click)="convertToPlain()" type="button">转为普通提示词</button>
+      }
       <span data-testid="prompt-count">{{ serialized().text.length }} / 2000</span>
     </div>
     @if (serialized().issues.length && serialized().text.length) {
@@ -60,6 +63,7 @@ export class PromptInput implements AfterViewInit, OnDestroy {
   private lastState?: PromptState;
   private destroyed = false;
   private initializing = false;
+  private focusPending = false;
   private historyBoundary?: () => void;
   readonly state = input.required<PromptState>();
   readonly disabled = input(false);
@@ -96,6 +100,7 @@ export class PromptInput implements AfterViewInit, OnDestroy {
   }
   ngOnDestroy() {
     this.destroyed = true;
+    this.focusPending = false;
     this.editor?.destroy();
   }
   async initialize() {
@@ -233,6 +238,7 @@ export class PromptInput implements AfterViewInit, OnDestroy {
       this.error.set('');
       this.ready.set(true);
       this.readiness.emit(true);
+      if (this.focusPending) this.focus();
     } catch {
       this.error.set('编辑器初始化失败，当前正文与参数已保留；重试成功前不能生成。');
       this.ready.set(false);
@@ -242,8 +248,13 @@ export class PromptInput implements AfterViewInit, OnDestroy {
     }
   }
   focus() {
+    this.focusPending = false;
+    if (this.destroyed || this.disabled()) return;
     const editor = this.editor;
-    if (!editor) return;
+    if (!editor) {
+      this.focusPending = true;
+      return;
+    }
     schedulePromptFocus(
       this.host().nativeElement,
       () => !this.destroyed && this.editor === editor && !this.disabled(),
@@ -257,6 +268,12 @@ export class PromptInput implements AfterViewInit, OnDestroy {
   }
   redo() {
     if (!this.disabled()) this.editor?.commands.redo();
+  }
+  convertToPlain() {
+    if (this.disabled() || !this.state().fields.length) return;
+    this.changed.emit(plainPrompt(this.serialized().text));
+    this.message.set('已转为普通提示词，当前正文已保留');
+    this.focus();
   }
   async copyFinal() {
     const result = this.serialized();

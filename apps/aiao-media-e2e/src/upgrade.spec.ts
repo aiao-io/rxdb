@@ -63,6 +63,7 @@ test('0.0.26 旧构建写入的工作区、原图与备份可由迁入后的工�
   const restored = page.waitForEvent('load');
   await importBackup(page, backup);
   await restored;
+  await page.getByRole('tab', { name: '供应商', exact: true }).click();
   await expect(page.getByRole('heading', { name: '本机供应商 · 默认' })).toBeVisible();
   expect(await profile(page)).not.toBe(previousProfile);
   await page.goto('/images');

@@ -7,6 +7,7 @@ import type { GenerationJobSummary } from '../contracts/index';
 import { LocalMediaStore, type LocalWorkSummary } from '../local-data/index';
 import type { WorkspaceRegistryState } from '../local-data/workspace-registry';
 import { WorkspaceRegistryStore } from '../local-data/workspace-registry-store';
+import { readBackupSelection, readBackupWorkspaces, rememberBackupSelection } from './backup-workspaces';
 import { defaultFreeProvider } from './default-provider';
 import { LocalImageMvp } from './local-image-mvp';
 import type { LocalProvider } from './local-provider';
@@ -150,6 +151,74 @@ function rig() {
   return { fixture, component, ...memory };
 }
 
+describe('sync interaction boundaries', () => {
+  it('defers manual image writes while metadata is syncing', async () => {
+    const r = rig();
+    Object.assign(r.component, { resultBlob: new Blob(['image'], { type: 'image/png' }) });
+    r.component.job.set(job);
+    r.component.sync.update(state => ({ ...state, busy: true }));
+
+    await r.component.saveResult();
+
+    expect(r.store.saveResult).not.toHaveBeenCalled();
+    r.component.sync.update(state => ({ ...state, busy: false }));
+    await r.component.saveResult();
+    expect(r.store.saveResult).toHaveBeenCalledOnce();
+  });
+
+  it('preserves draft conflict choices until syncing stops', async () => {
+    const r = rig();
+    const studio = { reload: vi.fn(), keepCurrent: vi.fn(), close: vi.fn() };
+    Object.assign(r.component, { studio });
+    r.component.sync.update(state => ({ ...state, busy: true }));
+
+    await r.component.reloadDraft();
+    await r.component.overwriteDraft();
+
+    expect(studio.reload).not.toHaveBeenCalled();
+    expect(studio.keepCurrent).not.toHaveBeenCalled();
+  });
+
+  it('keeps an uncertain task locked while syncing its metadata', async () => {
+    const r = rig();
+    r.component.job.set({ ...job, status: 'needs_review' });
+    r.component.uncertain.set(true);
+    r.component.sync.update(state => ({ ...state, busy: true }));
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    await r.component.acknowledgeUnknown();
+
+    expect(confirm).not.toHaveBeenCalled();
+    expect(r.component.uncertain()).toBe(true);
+    expect(r.store.savePreferences).not.toHaveBeenCalled();
+  });
+
+  it('defers remote original retrieval until syncing stops', async () => {
+    const r = rig();
+    r.component.targetKind.set('custom');
+    r.component.sync.update(state => ({ ...state, busy: true }));
+    const controller = vi.fn();
+    Object.assign(r.component, { imageSyncController: controller });
+
+    await r.component.restoreRemoteWork({
+      version: 1,
+      jobId: job.id,
+      providerInstanceId: provider.id,
+      modelId: provider.model,
+      prompt: job.request.prompt,
+      width: 1,
+      height: 1,
+      bytes: 10,
+      sha256: 'fixture-sha',
+      mimeType: 'image/png',
+      createdAt: job.createdAt
+    });
+
+    expect(controller).not.toHaveBeenCalled();
+    expect(r.component.imageSyncBusy()).toBe(false);
+  });
+});
+
 async function boot(
   prepare: (r: ReturnType<typeof rig>) => void = () => undefined,
   options: { rootOf?: WorkspaceRegistryStore['rootOf']; waitReady?: boolean } = {}
@@ -190,6 +259,7 @@ beforeEach(() => {
   TestBed.overrideComponent(LocalImageMvp, { set: { template: '', imports: [] } });
   vi.spyOn(LocalImageMvp.prototype, 'ngOnInit').mockImplementation(() => undefined);
   localStorage.clear();
+  sessionStorage.clear();
   backupApi.createLocalBackup.mockReset();
   backupApi.readLocalBackup.mockReset();
   history.replaceState(null, '', '/');
@@ -590,6 +660,39 @@ describe('workspace initialization and isolation', () => {
 });
 
 describe('provider credentials', () => {
+  it('blocks generation until a provider selection has been persisted', async () => {
+    const r = rig();
+    const other = { ...provider, id: nextProfileId, name: '另一个供应商' };
+    r.component.providers.set([provider, other]);
+    const pending = deferred<number[]>();
+    r.store.savePreferences.mockReturnValueOnce(pending.promise);
+    const change = r.component.chooseProvider(other.id);
+    try {
+      expect(r.component.providerBusy()).toBe(true);
+      expect(r.component.canGenerate()).toBe(false);
+      await r.component.generate();
+      expect(r.component.keyPrompt()).toBeNull();
+    } finally {
+      pending.resolve([2]);
+      await change;
+    }
+    expect(r.component.providerId()).toBe(other.id);
+    expect(r.component.canGenerate()).toBe(true);
+  });
+
+  it('clears the add form after saving instead of retaining a duplicate candidate', async () => {
+    const r = rig();
+    r.component.editProvider(provider);
+    await r.component.saveProvider();
+    expect(r.component.editingId()).toBeNull();
+    expect(r.component.providerName()).toBe('');
+    expect(r.component.baseUrl()).toBe('');
+    expect(r.component.model()).toBe('');
+    await r.component.saveProvider();
+    expect(r.component.providers()).toHaveLength(1);
+    expect(r.store.savePreferences).toHaveBeenCalledTimes(1);
+  });
+
   it('stores public settings separately and keeps an unremembered key only in the current session', async () => {
     const r = rig();
     await authorizeGeneration(r);
@@ -1660,6 +1763,7 @@ function backupFile() {
   return { event, input };
 }
 function verifiedBackup() {
+  vi.spyOn(window, 'confirm').mockReturnValue(true);
   const backup = {
     format: 'aiao-local-backup' as const,
     version: 1 as const,
@@ -1691,6 +1795,138 @@ function verifiedBackup() {
 }
 
 describe('backup workspace handoff', () => {
+  it('shows retained workspaces and the successful handoff after reload', async () => {
+    localStorage.setItem('aiao-local-previous-profile-v1', nextProfileId);
+    rememberBackupSelection(sessionStorage, profileId, 'signed-out::', '备份已导入当前工作区。');
+    const r = await boot();
+    expect(r.component.backupWorkspaces().map(workspace => workspace.id)).toEqual([nextProfileId]);
+    expect(r.component.dataMessage()).toContain('已导入');
+    expect(readBackupSelection(sessionStorage)).toBeNull();
+  });
+
+  it('allows cancelling a verified import before opening or switching workspaces', async () => {
+    const r = rig();
+    const verified = verifiedBackup();
+    vi.mocked(window.confirm).mockReturnValue(false);
+    await r.component.importBackup(backupFile().event);
+    expect(verified.open).not.toHaveBeenCalled();
+    expect(localStorage.getItem('aiao-local-profile-v1')).toBe(profileId);
+    expect(r.component.dataMessage()).toContain('已取消导入');
+    expect(verified.reload).not.toHaveBeenCalled();
+  });
+
+  it('returns to a known local workspace without requiring an account', async () => {
+    const r = rig();
+    const verified = verifiedBackup();
+    localStorage.setItem('aiao-local-previous-profile-v1', nextProfileId);
+    const state: WorkspaceRegistryState = {
+      version: 1,
+      generation: 0,
+      selectedId: nextProfileId,
+      profiles: [{ id: nextProfileId, account: null, binding: null }]
+    };
+    Object.assign(r.component, {
+      registryStore: {
+        rootOf: vi.fn(async () => nextProfileId),
+        read: vi.fn(async () => ({ payload: JSON.stringify(state), revision: 1 })),
+        close: vi.fn(async () => undefined)
+      }
+    });
+    await r.component.restoreBackupWorkspace(nextProfileId);
+    expect(localStorage.getItem('aiao-local-profile-v1')).toBe(nextProfileId);
+    expect(readBackupWorkspaces(localStorage).map(workspace => workspace.id)).toEqual([nextProfileId, profileId]);
+    expect(readBackupSelection(sessionStorage)?.profileId).toBe(nextProfileId);
+    expect(location.hash).toBe('#data');
+    expect(verified.reload).toHaveBeenCalledOnce();
+  });
+
+  it('refuses a recorded workspace bound to a different signed-in account', async () => {
+    const r = rig();
+    const verified = verifiedBackup();
+    localStorage.setItem('aiao-local-previous-profile-v1', nextProfileId);
+    r.component.authStatus.set('signed-in');
+    r.component.authUser.set({ id: profileId, email: 'current@example.test' });
+    Object.assign(r.component, {
+      auth: { config: { url: 'https://account.example' }, dispose: vi.fn() },
+      registryStore: {
+        rootOf: vi.fn(async () => nextProfileId),
+        close: vi.fn(async () => undefined),
+        read: vi.fn(async () => ({
+          payload: JSON.stringify({
+            version: 1,
+            generation: 0,
+            selectedId: nextProfileId,
+            profiles: [
+              {
+                id: nextProfileId,
+                account: { userId: nextProfileId, projectOrigin: 'https://account.example' },
+                binding: null
+              }
+            ]
+          }),
+          revision: 1
+        }))
+      }
+    });
+    await r.component.restoreBackupWorkspace(nextProfileId);
+    expect(localStorage.getItem('aiao-local-profile-v1')).toBe(profileId);
+    expect(r.component.dataMessage()).toContain('账号');
+    expect(verified.open).not.toHaveBeenCalled();
+    expect(verified.reload).not.toHaveBeenCalled();
+  });
+
+  it('does not return to another workspace while generation is active', async () => {
+    const r = rig();
+    const verified = verifiedBackup();
+    localStorage.setItem('aiao-local-previous-profile-v1', nextProfileId);
+    r.component.sending.set(true);
+    await r.component.restoreBackupWorkspace(nextProfileId);
+    expect(localStorage.getItem('aiao-local-profile-v1')).toBe(profileId);
+    expect(verified.open).not.toHaveBeenCalled();
+    expect(window.confirm).not.toHaveBeenCalled();
+  });
+
+  it('allows cancelling a return without changing either workspace', async () => {
+    const r = rig();
+    const verified = verifiedBackup();
+    localStorage.setItem('aiao-local-previous-profile-v1', nextProfileId);
+    vi.mocked(window.confirm).mockReturnValue(false);
+    await r.component.restoreBackupWorkspace(nextProfileId);
+    expect(localStorage.getItem('aiao-local-profile-v1')).toBe(profileId);
+    expect(verified.open).not.toHaveBeenCalled();
+    expect(verified.reload).not.toHaveBeenCalled();
+  });
+
+  it('preserves an explicitly restored unbound copy once instead of selecting the signed-in account copy', async () => {
+    const r = rig();
+    const identity = `signed-in:https://account.example:${profileId}`;
+    rememberBackupSelection(sessionStorage, profileId, identity, '已切回所选本机工作区。');
+    const select = vi.fn(async () => undefined),
+      follow = vi.fn(async () => undefined);
+    Object.assign(r.component, {
+      workspaceSession: { select, follow, close: vi.fn() },
+      auth: { config: { url: 'https://account.example' }, dispose: vi.fn() },
+      registryState: {
+        version: 1,
+        generation: 0,
+        selectedId: profileId,
+        profiles: [
+          { id: profileId, account: null, binding: null },
+          { id: nextProfileId, account: { userId: profileId, projectOrigin: 'https://account.example' }, binding: null }
+        ]
+      }
+    });
+    r.component.authStatus.set('signed-in');
+    r.component.authUser.set({ id: profileId, email: 'current@example.test' });
+    const reconcile = Reflect.get(r.component, 'reconcileIdentity') as () => Promise<void>;
+    await reconcile.call(r.component);
+    expect(follow).toHaveBeenCalledOnce();
+    expect(select).not.toHaveBeenCalled();
+    expect(readBackupSelection(sessionStorage)).toBeNull();
+    r.component.authUser.set({ id: nextProfileId, email: 'other@example.test' });
+    await reconcile.call(r.component);
+    expect(select).toHaveBeenCalledWith({ userId: nextProfileId, projectOrigin: 'https://account.example' });
+  });
   it('exports a verified backup under the generation lock and eventually releases the download URL', async () => {
     vi.useFakeTimers();
     const r = rig();
@@ -1747,6 +1983,9 @@ describe('backup workspace handoff', () => {
     expect(localStorage.getItem('aiao-local-import-staging-v1')).toBeNull();
     expect(verified.reload).toHaveBeenCalledTimes(1);
     expect(r.store.saveResult).not.toHaveBeenCalled();
+    expect(readBackupWorkspaces(localStorage).map(workspace => workspace.id)).toContain(profileId);
+    expect(readBackupSelection(sessionStorage)?.message).toContain('已导入');
+    expect(location.hash).toBe('#data');
   });
 
   it('keeps the original selected workspace and resumes the same staging copy after a file write failure', async () => {

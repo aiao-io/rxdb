@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as assets from './prompt-assets';
 import * as runtime from './prompt-editor-runtime';
 import { PromptInput } from './prompt-input';
-import { plainPrompt, type PromptState } from './prompt-state';
+import { plainPrompt, serializePrompt, type PromptState } from './prompt-state';
 
 const fields: PromptState = {
   document: {
@@ -42,6 +42,26 @@ function paste(element: HTMLElement, text: string) {
   Object.defineProperty(event, 'clipboardData', { value: { getData: () => text } });
   element.querySelector('.ProseMirror')!.dispatchEvent(event);
   return event;
+}
+function loadingRig(state = plainPrompt('加载后聚焦')) {
+  let resolve!: (value: typeof runtime) => void;
+  vi.mocked(assets.loadPromptEditor).mockReturnValueOnce(
+    new Promise(yes => {
+      resolve = yes;
+    })
+  );
+  const fixture = TestBed.createComponent(PromptInput);
+  fixture.componentRef.setInput('state', state);
+  fixture.detectChanges();
+  return { fixture, component: fixture.componentInstance, resolve: () => resolve(runtime) };
+}
+function captureFrames() {
+  const callbacks: FrameRequestCallback[] = [];
+  vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation(callback => {
+    callbacks.push(callback);
+    return callbacks.length;
+  });
+  return () => callbacks.splice(0).forEach(callback => callback(0));
 }
 beforeEach(() => {
   vi.spyOn(assets, 'loadPromptEditor').mockResolvedValue(runtime);
@@ -125,6 +145,65 @@ describe('prompt editor behavior', () => {
     expect(r.component.serialized().text).toBe('新的模板');
   });
 
+  it('turns the current expanded template into editable plain text without losing line breaks', async () => {
+    const state = structuredClone(fields);
+    state.values['subject'] = '猫\n窗边的自然光';
+    const r = await rig(state);
+    r.component.changed.subscribe(next => r.fixture.componentRef.setInput('state', next));
+    r.fixture.detectChanges();
+    const button = Array.from(r.element.querySelectorAll('button')).find(
+      item => item.textContent?.trim() === '转为普通提示词'
+    );
+    expect(button).toBeDefined();
+    button!.click();
+    r.fixture.detectChanges();
+    expect(r.component.serialized()).toEqual({ text: '画一张猫\n窗边的自然光', valid: true, issues: [] });
+    expect(r.component.state().fields).toEqual([]);
+    expect(r.component.state().values).toEqual({});
+    expect(r.element.querySelector('.prompt-field')).toBeNull();
+    expect(Array.from(r.element.querySelectorAll('.prompt-editor p')).map(item => item.textContent)).toEqual([
+      '画一张猫',
+      '窗边的自然光'
+    ]);
+    r.component.undo();
+    expect(r.element.querySelector('.prompt-field')).toBeNull();
+    expect(button!.isConnected).toBe(false);
+  });
+
+  it('allows a rewritten template with removed required fields to recover as a plain prompt', async () => {
+    const r = await rig({ ...fields, document: plainPrompt('重新写过的普通描述').document });
+    r.component.changed.subscribe(next => r.fixture.componentRef.setInput('state', next));
+    r.fixture.detectChanges();
+    expect(r.component.serialized().valid).toBe(false);
+    const button = Array.from(r.element.querySelectorAll('button')).find(
+      item => item.textContent?.trim() === '转为普通提示词'
+    );
+    expect(button).toBeDefined();
+    button!.click();
+    r.fixture.detectChanges();
+    expect(serializePrompt(r.changed.mock.lastCall![0])).toEqual({
+      text: '重新写过的普通描述',
+      valid: true,
+      issues: []
+    });
+    expect(r.component.serialized().valid).toBe(true);
+  });
+
+  it('disables template conversion with the editor and hides it for an ordinary prompt', async () => {
+    const r = await rig(fields, true);
+    r.fixture.detectChanges();
+    const button = Array.from(r.element.querySelectorAll('button')).find(
+      item => item.textContent?.trim() === '转为普通提示词'
+    );
+    expect(button).toBeDefined();
+    expect(button!.disabled).toBe(true);
+    button!.click();
+    expect(r.changed).not.toHaveBeenCalled();
+    r.fixture.componentRef.setInput('state', plainPrompt('普通正文'));
+    r.fixture.detectChanges();
+    expect(button!.isConnected).toBe(false);
+  });
+
   it('copies only the final valid text and offers a visible preview if clipboard access fails', async () => {
     const r = await rig(fields);
     await r.component.copyFinal();
@@ -156,6 +235,48 @@ describe('prompt editor behavior', () => {
     expect(fixture.componentInstance.error()).toBe('');
   });
 
+  it('honors focus requested before the editor runtime finishes loading', async () => {
+    const runFrames = captureFrames();
+    const r = loadingRig();
+    r.component.focus();
+    r.resolve();
+    await vi.waitFor(() => expect(r.component.ready()).toBe(true));
+    const editor = Reflect.get(r.component, 'editor') as Editor;
+    const focus = vi.spyOn(editor.view, 'focus');
+    runFrames();
+    expect(focus).toHaveBeenCalledOnce();
+    expect(document.activeElement).toBe(editor.view.dom);
+  });
+
+  it('keeps a native parameter focused while an early focus request waits for its animation frame', async () => {
+    const runFrames = captureFrames();
+    const r = loadingRig(fields);
+    r.component.focus();
+    r.resolve();
+    await vi.waitFor(() => expect(r.component.ready()).toBe(true));
+    const editor = Reflect.get(r.component, 'editor') as Editor;
+    const focus = vi.spyOn(editor.view, 'focus');
+    const input = r.fixture.nativeElement.querySelector('.prompt-field input') as HTMLInputElement;
+    input.focus();
+    runFrames();
+    expect(focus).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(input);
+  });
+
+  it('drops early focus when the editor becomes disabled before initialization completes', async () => {
+    const runFrames = captureFrames();
+    const r = loadingRig();
+    r.component.focus();
+    r.fixture.componentRef.setInput('disabled', true);
+    r.fixture.detectChanges();
+    r.resolve();
+    await vi.waitFor(() => expect(r.component.ready()).toBe(true));
+    const editor = Reflect.get(r.component, 'editor') as Editor;
+    const focus = vi.spyOn(editor.view, 'focus');
+    runFrames();
+    expect(focus).not.toHaveBeenCalled();
+  });
+
   it('does not create an editor after the component is destroyed while loading', async () => {
     let resolve!: (value: typeof runtime) => void;
     vi.mocked(assets.loadPromptEditor).mockReturnValue(
@@ -167,6 +288,7 @@ describe('prompt editor behavior', () => {
     fixture.componentRef.setInput('state', plainPrompt('保留正文'));
     fixture.detectChanges();
     const component = fixture.componentInstance;
+    component.focus();
     await component.initialize();
     expect(assets.loadPromptEditor).toHaveBeenCalledTimes(1);
     fixture.destroy();

@@ -282,7 +282,7 @@ test('删除文件被中断后重开会继续清理，不影响其他作品', as
     .filter({ hasText: '应当删除' })
     .getByRole('button', { name: '删除本机图片' })
     .click();
-  await expect(page.getByText('删除未完成，请刷新后重试。')).toBeVisible();
+  await expect(page.getByText('删除未完成，原图保留，请重试。')).toBeVisible();
   await page.reload();
   await expect(page.locator('.library-card')).toHaveCount(1);
   await expect(page.locator('.library-card')).toContainText('应当保留');
@@ -361,8 +361,14 @@ test('导入中断保留原库，同一备份重试复用隔离暂存区并恢�
     png.toString('base64'),
     png.toString('base64')
   ]);
-  await page.evaluate(id => localStorage.setItem('aiao-local-profile-v1', id as string), original);
-  await page.reload();
+  await page.getByRole('tab', { name: '本机数据', exact: true }).click();
+  page.once('dialog', dialog => dialog.accept());
+  await Promise.all([
+    page.waitForEvent('load'),
+    page.getByRole('button', { name: '返回工作区：导入前工作区', exact: true }).click()
+  ]);
+  await expect.poll(() => profile(page)).toBe(original);
+  await page.getByRole('tab', { name: '供应商', exact: true }).click();
   await page.getByRole('button', { name: '编辑 / 填写 Key' }).click();
   await expect(page.getByLabel('API Key', { exact: true })).toHaveValue(key);
   await page.goto('/images');

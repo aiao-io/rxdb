@@ -13,6 +13,63 @@ import {
   sealRelayAnswer,
   verifyImageDownload
 } from './local-first.helpers';
+
+test('模板改写可转为普通提示词并保留正文和焦点', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: '查看精选灵感：把一杯咖啡，拍成一张好海报' }).click();
+  await page.getByRole('button', { name: '用这个灵感创作', exact: true }).click();
+  const editor = page.getByRole('textbox', { name: '创意描述', exact: true });
+  await expect(editor).toBeFocused();
+  const description = '一只橘猫坐在窗边，温暖的午后阳光\n胶片摄影';
+  await editor.fill(description);
+  await expect(page.getByText('模板缺少「产品」节点', { exact: false })).toBeVisible();
+  await page.getByRole('button', { name: '转为普通提示词', exact: true }).click();
+  await expect(editor).toBeFocused();
+  await expect(editor).toHaveText(description, { useInnerText: true });
+  await expect(page.getByRole('button', { name: '✧ 生成图片', exact: true })).toBeEnabled();
+  await expect(page.locator('.template-chip')).toHaveCount(0);
+  await expect(page.getByText('输入已保存到本机', { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(editor).toHaveText(description, { useInnerText: true });
+  await expect(page.getByRole('button', { name: '✧ 生成图片', exact: true })).toBeEnabled();
+});
+
+test('供应商保存后清空表单，切换落盘前禁止生成', async ({ page }) => {
+  await provider(page, false);
+  await expect(page.getByLabel('名称', { exact: true })).toHaveValue('');
+  await expect(page.getByLabel('HTTPS Base URL')).toHaveValue('');
+  await expect(page.getByLabel('图片模型 ID')).toHaveValue('');
+  await page.getByLabel('名称', { exact: true }).fill('第二供应商');
+  await page.getByLabel('HTTPS Base URL').fill('https://second.example.test/v1');
+  await page.getByLabel('图片模型 ID').fill('second-image');
+  await page.getByRole('button', { name: '保存到本机', exact: true }).click();
+  await expect(page.locator('.provider-card')).toHaveCount(2);
+  await prompt(page, '供应商切换回归');
+  await page.evaluate(async () => {
+    let acquired!: () => void;
+    const ready = new Promise<void>(resolve => (acquired = resolve));
+    void navigator.locks.request(`aiao-media-account-${localStorage.getItem('aiao-local-profile-v1')}`, async () => {
+      acquired();
+      await new Promise<void>(resolve =>
+        document.addEventListener('release-provider-review-lock', () => resolve(), { once: true })
+      );
+    });
+    await ready;
+  });
+  try {
+    await page
+      .getByLabel('图片供应商', { exact: true })
+      .selectOption({ label: '第二供应商 · second-image · 浏览器直连' });
+    await expect(page.getByLabel('图片供应商', { exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: '正在保存设置…', exact: true })).toBeDisabled();
+  } finally {
+    await page.evaluate(() => document.dispatchEvent(new Event('release-provider-review-lock')));
+  }
+  await expect(page.getByLabel('图片供应商', { exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: '✧ 生成图片', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: '填写 API Key' })).toContainText('第二供应商 · second-image');
+});
+
 test('初始工作区目录就绪前禁用保存，完成后首次点击即可保存供应商', async ({ page }) => {
   await page.addInitScript(() => {
     let reads = 0;
@@ -352,7 +409,7 @@ test('移动端供应商页和创作页不产生横向溢出', async ({ page }) 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test('备份含原图与草稿但不含 Key，导入到独立工作区后离线可读取', async ({ page, context }) => {
+test('连续导入保留各工作区，原图与草稿可离线读取并从界面切回', async ({ page, context }) => {
   const png = await sharp({
     create: { width: 64, height: 64, channels: 3, background: '#8a9c62' }
   })
@@ -375,7 +432,11 @@ test('备份含原图与草稿但不含 Key，导入到独立工作区后离线�
   expect(backup.images).toHaveLength(1);
   expect(Buffer.from(backup.images[0].base64, 'base64')).toEqual(png);
   const originalId = await page.evaluate(() => localStorage.getItem('aiao-local-profile-v1'));
+  await prompt(page, '原工作区未导出的草稿');
+  await page.goto('/providers#data');
+  await expect(page.locator('input[type=file]')).toBeEnabled();
   const reloaded = page.waitForEvent('load');
+  page.once('dialog', dialog => dialog.accept());
   await page.locator('input[type=file]').setInputFiles({
     name: 'backup.json',
     mimeType: 'application/json',
@@ -383,6 +444,9 @@ test('备份含原图与草稿但不含 Key，导入到独立工作区后离线�
   });
   await reloaded;
   await expect.poll(() => page.evaluate(() => localStorage.getItem('aiao-local-profile-v1'))).not.toBe(originalId);
+  const firstImportedId = await profile(page);
+  await expect(page.getByText('备份已导入当前工作区。原工作区已保留，可在下方切回。')).toBeVisible();
+  await page.getByRole('tab', { name: '供应商', exact: true }).click();
   await expect(page.getByRole('heading', { name: '本机供应商 · 默认' })).toBeVisible();
   await page.getByRole('button', { name: '编辑 / 填写 Key' }).click();
   await expect(page.getByLabel('API Key', { exact: true })).toHaveValue('');
@@ -390,6 +454,35 @@ test('备份含原图与草稿但不含 Key，导入到独立工作区后离线�
   await context.setOffline(true);
   await page.goto('/images');
   await expect(page.getByAltText('本机生成作品')).toBeVisible();
+  await page.goto('/create');
+  await expect(page.locator('[contenteditable="true"]')).toContainText('备份中的原始提示词');
+  await page.goto('/providers#data');
+  const importedAgain = page.waitForEvent('load');
+  await importBackup(page, contents);
+  await importedAgain;
+  await expect.poll(() => profile(page)).not.toBe(firstImportedId);
+  expect(await profile(page)).not.toBe(originalId);
+  await expect(page.getByRole('button', { name: '返回工作区：导入前工作区', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '返回工作区：backup.json', exact: true })).toBeVisible();
+  page.once('dialog', dialog => dialog.accept());
+  await Promise.all([
+    page.waitForEvent('load'),
+    page.getByRole('button', { name: '返回工作区：导入前工作区', exact: true }).click()
+  ]);
+  await expect.poll(() => profile(page)).toBe(originalId);
+  await page.goto('/create');
+  await expect(page.locator('[contenteditable="true"]')).toContainText('原工作区未导出的草稿');
+  await page.goto('/providers');
+  await page.getByRole('button', { name: '编辑 / 填写 Key' }).click();
+  await expect(page.getByLabel('API Key', { exact: true })).toHaveValue(key);
+  await page.goto('/providers#data');
+  const firstCopy = page.locator('.provider-actions').filter({ hasText: firstImportedId!.slice(-8) });
+  page.once('dialog', dialog => dialog.accept());
+  await Promise.all([
+    page.waitForEvent('load'),
+    firstCopy.getByRole('button', { name: '返回工作区：backup.json', exact: true }).click()
+  ]);
+  await expect.poll(() => profile(page)).toBe(firstImportedId);
   await page.goto('/create');
   await expect(page.locator('[contenteditable="true"]')).toContainText('备份中的原始提示词');
 });

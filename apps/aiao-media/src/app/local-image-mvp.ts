@@ -10,6 +10,7 @@ import {
   OnDestroy,
   OnInit,
   signal,
+  viewChild,
   ViewEncapsulation
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -47,6 +48,14 @@ import {
 } from '../platform/local-backend';
 import { SyncTargetSettings } from './account/sync-target-settings';
 import { AdminConsole } from './admin-console';
+import {
+  consumeBackupSelection,
+  readBackupSelection,
+  readBackupWorkspaces,
+  rememberBackupSelection,
+  rememberBackupWorkspace,
+  type BackupWorkspace
+} from './backup-workspaces';
 import { DEFAULT_FREE_PROVIDER, DEFAULT_FREE_PROVIDER_ID, defaultFreeProvider } from './default-provider';
 import { imageMvpCatalog } from './image-mvp-catalog';
 import {
@@ -182,6 +191,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private unsubscribeAuth?: () => void;
   private readonly keys = new Map<string, string>();
   private readonly rememberedKeys = new Map<string, string>();
+  private readonly backupWorkspaceHistory = signal<BackupWorkspace[]>([]);
   private settingsRevision: number | null = null;
   private profileId = '';
   private epoch = 0;
@@ -201,8 +211,11 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private releasing = false;
   private releaseAgain = false;
   private readonly injector = inject(Injector);
+  private readonly promptInput = viewChild(PromptInput);
   private elapsedTimer?: ReturnType<typeof setInterval>;
   private releaseViewerImage?: () => void;
+  private viewerPageTarget: { page: number; index: number } | null = null;
+  private viewerGeneration = 0;
   private readonly filtersApplied = signal(false);
   readonly resultMimeType = signal<ImageMimeType | null>(null);
   readonly imageExtension = imageExtension;
@@ -282,6 +295,14 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   readonly keyRemember = signal(false);
   readonly keyPromptMessage = signal('');
   readonly viewer = signal<WorkViewer | null>(null);
+  readonly viewerPosition = signal(0);
+  readonly viewerTotal = signal(0);
+  readonly viewerPaging = signal(false);
+  readonly viewerMessage = signal('');
+  readonly viewerOriginal = signal(false);
+  readonly deletingWork = signal<string | null>(null);
+  readonly deleteError = signal('');
+  readonly deleteErrorWork = signal<string | null>(null);
   readonly viewerIndex = computed(() => {
     const current = this.viewer();
     return current ? this.libraryPage().works.findIndex(work => work.jobId === current.work.jobId) : -1;
@@ -313,6 +334,9 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   readonly providerBusy = signal(false);
   readonly dataBusy = signal(false);
   readonly dataMessage = signal('');
+  readonly backupWorkspaces = computed(() =>
+    this.backupWorkspaceHistory().filter(workspace => workspace.id !== this.currentProfileId())
+  );
   readonly storageInfo = signal('');
   readonly offlineReady = signal(false);
   readonly providerMessage = signal('');
@@ -376,13 +400,20 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.uncertain() ||
       // A relay task keeps running on the server while this page waits for the tab that resumes it.
       this.job()?.status === 'processing' ||
+      this.providerBusy() ||
       this.dataBusy() ||
       this.sync().busy ||
       this.workspaceSwitching() ||
       this.identityBlocked()
   );
   readonly settingsBusy = computed(
-    () => this.sending() || this.dataBusy() || this.sync().busy || this.workspaceSwitching() || this.identityBlocked()
+    () =>
+      this.sending() ||
+      this.providerBusy() ||
+      this.dataBusy() ||
+      this.sync().busy ||
+      this.workspaceSwitching() ||
+      this.identityBlocked()
   );
   readonly working = computed(
     () => this.sending() || this.job()?.status === 'queued' || this.job()?.status === 'processing'
@@ -537,6 +568,11 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     if (document.visibilityState === 'hidden') void this.studio?.flush();
   }
   navigate(view: View, event?: Event) {
+    if (
+      event instanceof MouseEvent &&
+      (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)
+    )
+      return;
     event?.preventDefault();
     if (view !== this.view()) this.releaseLibraryPreviews();
     if (this.view() !== view) {
@@ -547,9 +583,19 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.detail.set(null);
     this.closeViewer();
     window.scrollTo({ top: 0 });
+    if (view === 'studio') {
+      afterNextRender(
+        () => {
+          if (this.view() === 'studio' && !this.workspaceSwitching() && !this.identityBlocked())
+            this.promptInput()?.focus();
+        },
+        { injector: this.injector }
+      );
+    }
+    return true;
   }
   openSettings(tab: SettingsTab, event?: Event) {
-    this.navigate('providers', event);
+    if (this.navigate('providers', event) !== true) return;
     this.selectSettingsTab(tab);
   }
   selectSettingsTab(tab: SettingsTab) {
@@ -616,6 +662,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.syncPaused.set(true);
     localStorage.setItem(this.syncPauseKey(), '1');
     this.authMessage.set('同步已停止。本机内容保留，远端数据未删除。');
+    this.notify('同步已停止，本机内容保留。');
   }
   async restoreAuth() {
     await this.auth?.restore();
@@ -777,8 +824,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       if (key && !p.rememberKey) this.keys.set(p.id, key);
       else this.keys.delete(p.id);
       this.syncKeyIds();
-      this.apiKey.set('');
-      this.editingId.set(null);
+      this.editProvider();
       this.providerMessage.set('供应商已保存到本机。');
       this.notify('供应商已保存');
     } catch (e) {
@@ -790,10 +836,14 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   }
   async chooseProvider(id: string) {
     if (this.settingsBusy() || this.providerBusy()) return;
+    const previousId = this.providerId();
     this.providerBusy.set(true);
+    this.providerId.set(id);
+    this.error.set('');
     try {
       await this.persistProviders(this.providers(), id);
     } catch (e) {
+      this.providerId.set(previousId);
       this.error.set(e instanceof Error ? e.message : '设置失败。');
     } finally {
       this.providerBusy.set(false);
@@ -927,7 +977,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   async acknowledgeUnknown() {
     const current = this.job();
     if (
-      this.sending() ||
+      this.settingsBusy() ||
       !current ||
       !window.confirm('请先核对供应商用量与结果。继续会解除本机锁定，下一次生成是新的请求，可能再次计费。')
     )
@@ -994,7 +1044,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     const job = this.job(),
       blob = this.resultBlob,
       store = this.store;
-    if (!job || !blob || !store) return;
+    if (!job || !blob || !store || this.sync().busy) return;
     const epoch = this.epoch;
     const current = () =>
       !this.disposed &&
@@ -1018,6 +1068,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   }
   onPromptChanged(state: PromptState) {
     this.dirtyInput = true;
+    if (this.selected()?.fields?.length && !state.fields.length) this.selected.set(null);
     this.promptState.set(state);
     this.studio?.edit(this.draftState());
     this.product?.captureSoon();
@@ -1030,10 +1081,12 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.product?.captureSoon();
   }
   async reloadDraft() {
+    if (this.settingsBusy()) return;
     await this.studio?.reload();
     await this.reconcileIdentity();
   }
   async overwriteDraft() {
+    if (this.settingsBusy()) return;
     await this.studio?.keepCurrent();
     await this.reconcileIdentity();
   }
@@ -1075,7 +1128,16 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.navigate('studio');
   }
   async deleteWork(work: Work): Promise<boolean> {
-    if (!this.store || !window.confirm('删除这张本机图片及其记录？下载过的文件不受影响。')) return false;
+    if (!this.store || this.deletingWork()) return false;
+    if (this.inFlight()) {
+      this.deleteErrorWork.set(work.jobId);
+      this.deleteError.set('当前任务处理期间，删除暂不可用，请稍后重试。');
+      return false;
+    }
+    if (!window.confirm(`删除本机图片「${work.prompt.slice(0, 80)}」及其记录？下载过的文件不受影响。`)) return false;
+    this.deletingWork.set(work.jobId);
+    this.deleteError.set('');
+    this.deleteErrorWork.set(null);
     const epoch = this.epoch,
       store = this.store;
     try {
@@ -1088,33 +1150,59 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         this.saved.set(false);
       }
       this.notify('已删除本机图片。');
+      if (this.storageMessage().startsWith('删除未完成')) this.storageMessage.set('');
       return true;
     } catch {
-      if (epoch === this.epoch) this.storageMessage.set('删除未完成，请刷新后重试。');
+      if (epoch === this.epoch) {
+        this.deleteErrorWork.set(work.jobId);
+        this.deleteError.set('删除未完成，原图保留，请重试。');
+        this.storageMessage.set('删除未完成，原图保留，请重试。');
+      }
       return false;
+    } finally {
+      this.deletingWork.set(null);
     }
   }
   /** The viewer reads its own original, so the grid can release off-screen previews while it is open. */
   openViewer(work: Work, event: Event) {
     this.dialogTrigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+    this.viewerTotal.set(this.libraryPage().total ?? this.libraryPage().works.length);
     void this.showWork(work);
   }
   stepViewer(offset: number) {
-    const next = this.libraryPage().works[this.viewerIndex() + offset];
-    if (this.viewer() && next) void this.showWork(next);
+    if (!this.viewer() || this.viewerPosition() < 1 || this.viewerPaging() || this.deletingWork()) return;
+    const position = this.viewerPosition() + offset;
+    if (position < 1 || position > this.viewerTotal()) return;
+    const page = Math.floor((position - 1) / 24) + 1,
+      index = (position - 1) % 24,
+      current = this.libraryPage();
+    this.viewerMessage.set('');
+    if (current.page === page && !current.loading && !current.error && current.works[index]) {
+      void this.showWork(current.works[index]);
+      return;
+    }
+    this.viewerPageTarget = { page, index };
+    this.viewerPaging.set(true);
+    this.library?.query({ ...this.libraryFilters, offset: (page - 1) * 24 });
   }
   retryViewer() {
     const current = this.viewer();
     if (current) void this.showWork(current.work);
   }
   closeViewer() {
+    ++this.viewerGeneration;
     this.releaseViewerImage?.();
     this.releaseViewerImage = undefined;
     this.viewer.set(null);
+    this.viewerPageTarget = null;
+    this.viewerPaging.set(false);
+    this.viewerOriginal.set(false);
   }
   async deleteViewed() {
-    const current = this.viewer();
-    if (current && (await this.deleteWork(current.work))) this.closeViewer();
+    const current = this.viewer(),
+      generation = this.viewerGeneration;
+    if (!current || !(await this.deleteWork(current.work))) return;
+    if (generation === this.viewerGeneration && this.viewer()?.work === current.work) this.closeViewer();
   }
   hasLocalCopy(task: LocalTask) {
     return this.works().some(work => work.jobId === task.id && work.status === 'saved');
@@ -1223,6 +1311,10 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     try {
       const { readLocalBackup } = await import('./local-backup');
       const { backup, files, digest } = await readLocalBackup(file);
+      if (!window.confirm(`导入备份「${file.name}」并切换到独立工作区？原工作区会保留，可在本机数据中切回。`)) {
+        this.dataMessage.set('已取消导入，当前工作区未更改。');
+        return;
+      }
       await navigator.locks.request(`aiao-local-generation-${this.profileId}`, { ifAvailable: true }, async lock => {
         if (!lock) throw new Error('另一标签页正在生成，请稍后导入。');
         await navigator.locks.request('aiao-local-profile-v1', async () => {
@@ -1268,12 +1360,23 @@ export class LocalImageMvp implements OnInit, OnDestroy {
           } finally {
             await next.close();
           }
-          localStorage.setItem('aiao-local-previous-profile-v1', this.profileId);
+          rememberBackupWorkspace(
+            localStorage,
+            this.profileId,
+            nextId,
+            file.name.slice(0, 200),
+            new Date().toISOString()
+          );
+          rememberBackupSelection(
+            sessionStorage,
+            nextId,
+            this.backupIdentity(),
+            '备份已导入当前工作区。原工作区已保留，可在下方切回。'
+          );
           await persistNativeProfile(nextId);
           localStorage.setItem('aiao-local-profile-v1', nextId);
           localStorage.removeItem(stagingKey);
-          // The restored workspace opens on its provider list; data-tab messages would not survive the reload.
-          history.replaceState(null, '', paths.providers);
+          history.replaceState(null, '', `${paths.providers}#data`);
           location.reload();
         });
       });
@@ -1281,6 +1384,30 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.dataMessage.set(
         e instanceof Error ? e.message : '备份无效或恢复失败。原工作区保留，可重新选择备份继续恢复。'
       );
+    } finally {
+      this.dataBusy.set(false);
+      void this.reconcileIdentity();
+    }
+  }
+  async restoreBackupWorkspace(id: string) {
+    if (!this.store || this.localStatus() !== 'ready' || this.inFlight() || this.providerBusy()) return;
+    try {
+      const workspace = readBackupWorkspaces(localStorage).find(item => item.id === id && item.id !== this.profileId);
+      if (!workspace) throw new Error('未找到可返回的本机工作区。');
+      const identity = this.backupIdentity();
+      if (!identity) throw new Error('账号正在验证，请稍后切换本机工作区。');
+      if (!window.confirm(`切换到「${workspace.label}」？当前草稿和作品会保留，两边内容不会合并。`)) return;
+      this.dataBusy.set(true);
+      this.dataMessage.set('正在打开所选本机工作区…');
+      await navigator.locks.request(`aiao-local-generation-${this.profileId}`, { ifAvailable: true }, lock => {
+        if (!lock) throw new Error('另一标签页正在生成，请稍后切换。');
+        return navigator.locks.request(`aiao-local-generation-${id}`, { ifAvailable: true }, targetLock => {
+          if (!targetLock) throw new Error('目标工作区正在生成，请稍后切换。');
+          return this.switchBackupWorkspace(workspace, identity);
+        });
+      });
+    } catch (error) {
+      this.dataMessage.set(error instanceof Error ? error.message : '工作区切换失败，当前数据保留。');
     } finally {
       this.dataBusy.set(false);
       void this.reconcileIdentity();
@@ -1484,7 +1611,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.imageSyncMessage.set('图片自动同步已停止；远端原图未删除。');
   }
   async restoreRemoteWork(work: PublicWorkPayload) {
-    if (this.imageSyncBusy() || this.targetKind() !== 'custom') return;
+    if (this.imageSyncBusy() || this.settingsBusy() || this.targetKind() !== 'custom') return;
     const task =
       this.history().find(item => item.id === work.jobId) ??
       ({
@@ -1623,6 +1750,41 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   formatDateTime(value: string | undefined) {
     return formatTime(value, dateTimeFormat);
   }
+  private backupIdentity(): string | null {
+    if (!['signed-in', 'signed-out'].includes(this.authStatus())) return null;
+    return `${this.authStatus()}:${this.auth?.config.url ?? ''}:${this.authUser()?.id ?? ''}`;
+  }
+  private async switchBackupWorkspace(workspace: BackupWorkspace, identity: string) {
+    await navigator.locks.request('aiao-local-profile-v1', async () => {
+      if (localStorage.getItem('aiao-local-profile-v1') !== this.profileId)
+        throw new Error('工作区已变化，请刷新后重试。');
+      const metadata = this.registryStore;
+      if (!metadata) throw new Error('本机工作区目录尚未就绪。');
+      const root = await metadata.rootOf(workspace.id);
+      const registry = new WorkspaceRegistry(root, {
+        read: () => metadata.read(root),
+        write: (payload, revision) => metadata.write(root, payload, revision),
+        exclusive: operation => operation()
+      });
+      const state = await registry.read();
+      const profile = state.profiles.find(item => item.id === workspace.id);
+      if (!profile || !this.canActivate(profile))
+        throw new Error('请先退出当前账号，或登录此工作区绑定的账号后再切换。');
+      await this.studio?.flush();
+      const { LocalMediaStore } = await import('../local-data/index');
+      const target = await LocalMediaStore.open(workspace.id);
+      await target.close();
+      if (identity !== this.backupIdentity() || !this.canActivate(profile))
+        throw new Error('账号已变化，未切换本机工作区，请重试。');
+      if (state.selectedId !== workspace.id) await registry.selectProfile(workspace.id, state.generation);
+      rememberBackupWorkspace(localStorage, this.profileId, workspace.id, workspace.label, new Date().toISOString());
+      rememberBackupSelection(sessionStorage, workspace.id, identity, '已切回所选本机工作区。草稿和作品仍分别保留。');
+      await persistNativeProfile(workspace.id);
+      localStorage.setItem('aiao-local-profile-v1', workspace.id);
+      history.replaceState(null, '', `${paths.providers}#data`);
+      location.reload();
+    });
+  }
   private imageSyncKey(): string {
     return `aiao-media-image-sync-v1:${encodeURIComponent(this.auth?.config.url ?? '')}:${this.authUser()?.id ?? ''}:${this.profileId}`;
   }
@@ -1691,7 +1853,14 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private async showWork(work: Work) {
     const store = this.store,
       epoch = this.epoch;
-    this.closeViewer();
+    this.releaseViewerImage?.();
+    this.releaseViewerImage = undefined;
+    this.viewerMessage.set('');
+    this.deleteError.set('');
+    this.viewerOriginal.set(false);
+    const page = this.libraryPage(),
+      index = page.works.findIndex(entry => entry.jobId === work.jobId);
+    if (index >= 0) this.viewerPosition.set((page.page - 1) * 24 + index + 1);
     this.viewer.set({ work, image: null, failed: false });
     if (!store) return;
     void this.fetchWorkInfo(work, false);
@@ -1939,6 +2108,13 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         this.product.selection();
       }
       await this.acceptRegistry(this.registryState);
+      try {
+        this.backupWorkspaceHistory.set(readBackupWorkspaces(localStorage));
+        const selection = readBackupSelection(sessionStorage);
+        if (selection?.profileId === this.profileId) this.dataMessage.set(selection.message);
+      } catch (error) {
+        this.dataMessage.set(error instanceof Error ? error.message : '本机恢复记录不可读，现有工作区仍可使用。');
+      }
       this.subscriptions.add(
         metadata.watch(rootId).subscribe({
           next: payload => {
@@ -2146,9 +2322,12 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     if (identityKey === this.identitySelection) return;
     const version = ++this.identityVersion;
     try {
-      await this.workspaceSession.select(
-        this.authStatus() === 'signed-in' && user && config ? { userId: user.id, projectOrigin: config.url } : null
-      );
+      const explicitSelection = consumeBackupSelection(sessionStorage, this.profileId, identityKey);
+      if (explicitSelection && !this.identityBlocked()) await this.workspaceSession.follow();
+      else
+        await this.workspaceSession.select(
+          this.authStatus() === 'signed-in' && user && config ? { userId: user.id, projectOrigin: config.url } : null
+        );
       await this.attachment;
       if (version !== this.identityVersion || this.disposed) return;
       this.identitySelection = identityKey;
@@ -2511,6 +2690,33 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         return before?.info && this.sameWorkFile(before, work) ? { ...work, info: before.info } : work;
       })
     });
+    if (this.viewer() && page.total !== null) this.viewerTotal.set(page.total);
+    this.acceptViewerPage(page);
+  }
+  private acceptViewerPage(page: LibraryState): void {
+    const target = this.viewerPageTarget;
+    if (page.loading || !this.viewer()) return;
+    if (!target) {
+      if (!page.error) this.refreshViewerPosition(page);
+      return;
+    }
+    this.viewerPageTarget = null;
+    this.viewerPaging.set(false);
+    if (page.error) {
+      this.viewerMessage.set('作品读取失败，当前原图保留，请再次切换重试。');
+      return;
+    }
+    const next = page.works[target.index];
+    if (page.page !== target.page || !next) {
+      this.viewerMessage.set('作品列表已变化，请关闭大图后重新选择。');
+      return;
+    }
+    void this.showWork(next);
+  }
+  private refreshViewerPosition(page: LibraryState): void {
+    const index = page.works.findIndex(work => work.jobId === this.viewer()?.work.jobId);
+    this.viewerPosition.set(index < 0 ? 0 : (page.page - 1) * 24 + index + 1);
+    this.viewerMessage.set(index < 0 ? '作品列表已变化，当前作品已不在此页；已加载的预览保留，请关闭后重新选择。' : '');
   }
   private watchWorks(store: LocalMediaStore): void {
     const epoch = this.epoch;
