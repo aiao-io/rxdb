@@ -8,16 +8,16 @@
 | 状态           | 数量 |
 | :------------- | :--- |
 | ✅ Done        | 89   |
-| 🚧 In Progress | 9    |
+| 🚧 In Progress | 10   |
 | 👀 In Review   | 10   |
 | 📝 Backlog     | 26   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 134  |
+| **合计**       | 135  |
 
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
 
-## 进行中（9 条）
+## 进行中（10 条）
 
 | Story                                                                                                       | 剩余范围                                                           |
 | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
@@ -208,7 +208,7 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 
 ### [局域网 P2P 大文件共享](epics/epic-011-p2p-file-share.md)
 
-US-704～US-707 已获 owner 授权，US-708 会话层由 owner 决定在 PR #172 内完成；认证宿主已选定（Supabase + Cloudflare，见 US-704「开工前置」），US-707 本轮交付独立 demo 与浏览器半边。
+US-704～US-707 已获 owner 授权，US-708 会话层由 owner 决定在 PR #172 内完成，US-713 管理后台由 owner 决定随独立 demo 交付；认证宿主已选定（Supabase + Cloudflare，见 US-704「开工前置」），US-707 本轮交付独立 demo 与浏览器半边。
 当前排期与准入见 [roadmap 批次 7](roadmap.md#批次-7局域网-p2p-大文件共享p2p-epic-已解锁)。
 
 - 🚧 [US-704 文件清单与 P2P 发现](stories/future/US-704-p2p-manifest-discovery.md)
@@ -216,6 +216,7 @@ US-704～US-707 已获 owner 授权，US-708 会话层由 owner 决定在 PR #17
 - 🚧 [US-706 服务器兜底与认证](stories/future/US-706-p2p-fallback-auth.md)
 - 🚧 [US-707 跨运行时 demo 与多实例 e2e](stories/future/US-707-p2p-cross-runtime-e2e.md)
 - 👀 [US-708 P2P 会话层：一对设备一条会话、多协议复用](stories/future/US-708-p2p-peer-session.md)
+- 🚧 [US-713 P2P demo 管理后台：管理员总览并处置账号与服务](stories/future/US-713-p2p-admin-console.md)
 
 ### [P2P 会话与局域网协作](epics/epic-012-p2p-lan-collaboration.md)
 

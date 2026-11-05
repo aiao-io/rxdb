@@ -25,14 +25,15 @@ owner: jimmy
 - [ ] 无 peer 回退服务器、认证复用与坏 peer 隔离（[US-706](../stories/future/US-706-p2p-fallback-auth.md)）
 - [ ] 跨运行时 demo 与多实例 e2e（[US-707](../stories/future/US-707-p2p-cross-runtime-e2e.md)）；Tauri 双进程、大文件与离线超 TTL 验收由 US-707 阶段 B 认领
 - [ ] 与同一台设备只建一条已认证会话，多个文件与后续协议在会话上复用（[US-708](../stories/future/US-708-p2p-peer-session.md)）
+- [ ] 管理员在 demo 里总览并处置账号、在线设备与服务器副本（[US-713](../stories/future/US-713-p2p-admin-console.md)）
 
 ## 交付前置与关闭边界
 
-- US-704～US-707 已由 owner 解锁，US-708 由 owner 决定在 PR #172 内完成（见[解锁记录](#价值待证)）；框架无关协议层的内存测试不充当任何 AC 的验收证据。
+- US-704～US-707 已由 owner 解锁，US-708 由 owner 决定在 PR #172 内完成，US-713 由 owner 决定随独立 demo 交付（见[解锁记录](#价值待证)）；框架无关协议层的内存测试不充当任何 AC 的验收证据。
 - US-704 先选定真实认证宿主、用户/设备标识和服务端授权合同，依赖身份的验收在此之前不启动；现有 HTTP 示例的 Bearer 格式检查不能作为身份验证。
 - 持久持有声明与临时在线状态分离：服务器断开超过 presence TTL 后，局域网发现/探测仍可恢复可用 peer，心跳不写同步实体。
 - 大文件目标与缓冲上限见 US-705；US-707 的 1 MiB 用例只作握手/协议冒烟，不能代替大文件验收。
-- 五条故事的全部承诺通过后方可关闭 Epic；Tauri 验收有明确故事与阶段，不留范围外的永久关闭条件。
+- 六条故事的全部承诺通过后方可关闭 Epic；Tauri 验收有明确故事与阶段，不留范围外的永久关闭条件。
 
 ## 故事
 
@@ -43,6 +44,7 @@ owner: jimmy
 - [US-706 服务器兜底与认证](../stories/future/US-706-p2p-fallback-auth.md) (Medium)
 - [US-707 跨运行时 demo 与多实例 e2e](../stories/future/US-707-p2p-cross-runtime-e2e.md) (Medium)
 - [US-708 P2P 会话层：一对设备一条会话、多协议复用](../stories/future/US-708-p2p-peer-session.md) (High)
+- [US-713 P2P demo 管理后台：管理员总览并处置账号与服务](../stories/future/US-713-p2p-admin-console.md) (Medium)
 
 ## 非目标
 
@@ -68,3 +70,7 @@ WebRTC / TLS TCP 帧传输与服务器回退。它的内存协议测试只证明
 **US-708（2026-11-03，owner 决定）**：会话层在 PR #172 内完成。它修的是协议层自身的四处缺陷——一条连接只服务一个文件、
 握手按内容授权、帧格式没有版本协商、没有取消与心跳（见故事的「解决的问题」），病灶数不少于新增的一个抽象（会话）；
 它同时是 [epic-012](epic-012-p2p-lan-collaboration.md) 各能力的共同前置。
+
+**US-713（2026-11-05，owner 决定）**：给独立 demo 补管理后台。病灶：账号与服务只能走 Supabase / Cloudflare 控制台——
+删账号会在清单里留下孤儿持有声明、服务器副本没有删除入口、信令上谁在线与踢下线没有入口，病灶数不少于新增的一个抽象（管理员身份）。
+范围经 owner 选定为「总览 + 常用处置」，管理员身份用 Worker secret 白名单认定。
