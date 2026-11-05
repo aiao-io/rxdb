@@ -7,8 +7,8 @@ test.setTimeout(90000);
 const authUrl = 'https://library-auth.example.test';
 const sessionKey = `aiao-media-supabase-session-v1:${encodeURIComponent(authUrl)}`;
 
-async function seed(page: Page, count = 50, label = '') {
-  const png = await pngFixture();
+async function seed(page: Page, count = 50, label = '', image?: Buffer) {
+  const png = image ?? (await pngFixture());
   const providerId = randomUUID();
   const jobs = Array.from({ length: count }, (_, index) => {
     const time = new Date(Date.UTC(2026, 0, 1, 0, index)).toISOString();
@@ -52,8 +52,10 @@ async function seed(page: Page, count = 50, label = '') {
     })
   );
   await page.goto('/providers');
+  const reloaded = page.waitForEvent('load');
   await importBackup(page, backup);
-  await page.waitForLoadState('load');
+  await reloaded;
+  await page.getByRole('tab', { name: '供应商', exact: true }).click();
   await expect(page.getByRole('heading', { name: '检索验收供应商 · 默认' })).toBeVisible({ timeout: 30000 });
   return { png, jobs };
 }
@@ -353,4 +355,65 @@ test('进程内切换本机副本重置筛选分页并释放上一工作区预�
   expect(await page.evaluate(() => performance.timeOrigin)).toBe(documentTime);
   expect(generations).toBe(0);
   expect(business).toEqual({ directoryReads: 1, failedBindings: 1, unexpected: [] });
+});
+
+test('大图跨页连续查看并按原尺寸滚动检查细节', async ({ page }) => {
+  const image = Buffer.from(
+    await page.evaluate(() => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 2048;
+      canvas.height = 2048;
+      const context = canvas.getContext('2d')!;
+      context.fillStyle = '#8a9c62';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL('image/png').split(',')[1];
+    }),
+    'base64'
+  );
+  const { jobs } = await seed(page, 26, '', image);
+  await page.goto('/images');
+  const cards = page.locator('.cards > .library-card').filter({ has: page.getByText('生成信息', { exact: true }) });
+  await expect(cards).toHaveCount(24);
+  await cards.last().scrollIntoViewIfNeeded();
+  await cards
+    .last()
+    .getByRole('button', { name: `查看大图：${jobs[2].request.prompt}`, exact: true })
+    .click();
+  const viewer = page.getByRole('dialog', { name: '作品大图', exact: true });
+  await expect(viewer.locator('.eyebrow')).toContainText('24 / 26');
+  await viewer.getByRole('button', { name: '下一张', exact: true }).click();
+  await expect(viewer.locator('.eyebrow')).toContainText('25 / 26');
+  await expect(viewer.locator('.viewer-prompt')).toHaveText(jobs[1].request.prompt);
+  await expect(viewer.locator('.viewer-stage img')).toBeVisible();
+  await viewer.getByRole('button', { name: '查看原尺寸', exact: true }).click();
+  const stage = viewer.locator('.viewer-stage');
+  await expect(stage).toHaveClass(/original-size/);
+  await expect.poll(() => stage.evaluate(element => element.scrollWidth > element.clientWidth)).toBe(true);
+  await stage.evaluate(element => {
+    element.scrollLeft = 200;
+    element.scrollTop = 200;
+  });
+  await expect.poll(() => stage.evaluate(element => element.scrollLeft)).toBeGreaterThan(0);
+  await viewer.getByRole('button', { name: '适应窗口', exact: true }).click();
+  await expect(stage).not.toHaveClass(/original-size/);
+  await viewer.getByRole('button', { name: '上一张', exact: true }).click();
+  await expect(viewer.locator('.eyebrow')).toContainText('24 / 26');
+  await expect(viewer.locator('.viewer-prompt')).toHaveText(jobs[2].request.prompt);
+  await viewer.getByRole('button', { name: '关闭大图', exact: true }).click();
+  await expect(viewer).toHaveCount(0);
+});
+
+test('手机图库操作具有可辨认名称和至少 44px 的触点', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const { jobs } = await seed(page, 1);
+  await page.goto('/images');
+  const card = page.locator('.library-card').first();
+  await card.scrollIntoViewIfNeeded();
+  await expect(card.getByRole('button', { name: `查看大图：${jobs[0].request.prompt}`, exact: true })).toBeVisible();
+  for (const action of await card.locator('.work-actions button, .work-actions a').all()) {
+    const bounds = await action.boundingBox();
+    expect(bounds?.height).toBeGreaterThanOrEqual(44);
+    expect(bounds?.width).toBeGreaterThanOrEqual(44);
+    await expect(action).toHaveAccessibleName(new RegExp(jobs[0].request.prompt));
+  }
 });

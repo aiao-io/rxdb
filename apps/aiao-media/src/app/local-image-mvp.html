@@ -114,11 +114,17 @@
 @if (workspaceSwitching()) {
   <p class="notice" role="status">正在切换本机工作区…</p>
 }
+@if (sync().busy) {
+  <aside class="notice sync-progress" aria-label="同步状态" role="status">
+    <span>{{ sync().message || '正在同步，本机图片仍可浏览和下载。' }}</span>
+    <button class="secondary sm" (click)="stopSync()">停止同步</button>
+  </aside>
+}
 <main
   id="main"
   [class.discovery-main]="view() === 'discover'"
   [hidden]="workspaceSwitching() || identityBlocked()"
-  [inert]="workspaceSwitching() || sync().busy || identityBlocked()"
+  [inert]="workspaceSwitching() || identityBlocked()"
 >
   @if (view() === 'discover') {
     @if (catalogMessage()) {
@@ -258,8 +264,10 @@
         </div>
         @if (draftStatus() === 'conflict') {
           <div class="conflict-actions">
-            <button class="secondary sm" (click)="reloadDraft()">载入另一标签页的草稿</button>
-            <button class="secondary sm" (click)="overwriteDraft()">保留本页输入</button>
+            <button class="secondary sm" [disabled]="settingsBusy()" (click)="reloadDraft()">
+              载入另一标签页的草稿
+            </button>
+            <button class="secondary sm" [disabled]="settingsBusy()" (click)="overwriteDraft()">保留本页输入</button>
           </div>
         }
         <div class="composer-settings">
@@ -298,7 +306,9 @@
               }
             </select>
             <div class="provider-status">
-              @if (provider(); as p) {
+              @if (providerBusy()) {
+                <span role="status">正在保存供应商设置…</span>
+              } @else if (provider(); as p) {
                 <span class="key-state" [class.missing]="!providerHasKey()">
                   {{ providerHasKey() ? 'API Key 已就绪' : '生成时需要填写 API Key' }}
                 </span>
@@ -321,6 +331,8 @@
         >
           {{
             sending() ? '正在生成…'
+            : providerBusy() ? '正在保存设置…'
+            : sync().busy ? '正在同步…'
             : inFlight() ? '请先核对原请求'
             : '✧ 生成图片'
           }}
@@ -345,7 +357,11 @@
               </div>
               <div class="result-actions">
                 @if (!saved()) {
-                  <button class="secondary" [disabled]="localStatus() !== 'ready'" (click)="saveResult()">
+                  <button
+                    class="secondary"
+                    [disabled]="localStatus() !== 'ready' || settingsBusy()"
+                    (click)="saveResult()"
+                  >
                     重试保存
                   </button>
                 }
@@ -395,7 +411,7 @@
                 <p class="state-error">{{ error() }}</p>
               }
               <p class="state-copy">请求可能已被接收。请到供应商后台核对用量与结果；这里不会自动重发或切换代理。</p>
-              <button class="secondary" [disabled]="sending()" (click)="acknowledgeUnknown()">
+              <button class="secondary" [disabled]="settingsBusy()" (click)="acknowledgeUnknown()">
                 已核对，解除本机锁定
               </button>
             </div>
@@ -621,6 +637,9 @@
     @if (libraryFilterError()) {
       <p class="notice" role="alert">{{ libraryFilterError() }}</p>
     }
+    @if (inFlight()) {
+      <p class="notice" role="status">当前任务处理期间，删除暂不可用；仍可查看和下载图片。</p>
+    }
     @if (localWorksError()) {
       <div class="notice" role="alert">
         {{ localWorksError() }}
@@ -641,7 +660,12 @@
           <article class="card library-card" (visibleChange)="libraryVisibility(w, $event)" appWorkVisible>
             <div class="card-photo">
               @if (w.url) {
-                <button class="photo-button" (click)="openViewer(w, $event)" aria-label="查看大图" type="button">
+                <button
+                  class="photo-button"
+                  [attr.aria-label]="'查看大图：' + w.prompt"
+                  (click)="openViewer(w, $event)"
+                  type="button"
+                >
                   <img class="card-image" [src]="w.url" alt="本机生成作品" loading="lazy" />
                   <span class="zoom-hint" aria-hidden="true">
                     <svg class="icon" viewBox="0 0 20 20">
@@ -687,6 +711,7 @@
             <div class="work-actions">
               @if (w.url) {
                 <a
+                  [attr.aria-label]="'下载图片：' + w.prompt"
                   [download]="'aiao-' + w.jobId + '.' + imageExtension(w.mimeType!)"
                   [href]="w.url"
                   (click)="downloadImage($event, w.url, 'aiao-' + w.jobId + '.' + imageExtension(w.mimeType!), w.jobId)"
@@ -694,8 +719,15 @@
                   ↓ 下载图片
                 </a>
               }
-              <button (click)="reuseWork(w)">复用提示词</button>
-              <button class="danger" (click)="deleteWork(w)" aria-label="删除本机图片">删除</button>
+              <button [attr.aria-label]="'复用提示词：' + w.prompt" (click)="reuseWork(w)">复用提示词</button>
+              <button
+                class="danger"
+                [attr.aria-label]="'删除本机图片：' + w.prompt"
+                [disabled]="inFlight() || deletingWork() !== null"
+                (click)="deleteWork(w)"
+              >
+                {{ deletingWork() === w.jobId ? '删除中…' : '删除' }}
+              </button>
             </div>
           </article>
         }
@@ -761,7 +793,11 @@
               <p>{{ work.modelId }} · {{ work.width }} × {{ work.height }}</p>
               <small>仅同步作品信息，原图仍在生成设备。</small>
               @if (targetKind() === 'custom' && imageSyncEnabled()) {
-                <button class="secondary sm" [disabled]="imageSyncBusy()" (click)="restoreRemoteWork(work)">
+                <button
+                  class="secondary sm"
+                  [disabled]="imageSyncBusy() || settingsBusy()"
+                  (click)="restoreRemoteWork(work)"
+                >
                   取回并保存原图
                 </button>
               }
@@ -810,7 +846,9 @@
     @if (uncertain()) {
       <div class="notice" role="status">
         <p>上一次请求仍待核对，当前只锁定新的生成请求。你可以先修改供应商配置。</p>
-        <button class="secondary sm" [disabled]="sending()" (click)="acknowledgeUnknown()">已核对，解除本机锁定</button>
+        <button class="secondary sm" [disabled]="settingsBusy()" (click)="acknowledgeUnknown()">
+          已核对，解除本机锁定
+        </button>
       </div>
     }
     @if (authConfigError()) {
@@ -894,13 +932,16 @@
             <div class="panel-title">
               {{ editingId() ? '编辑供应商' : '添加供应商' }}
               @if (editingId()) {
-                <button class="text-link" (click)="editProvider()" type="button">取消编辑</button>
+                <button class="text-link" [disabled]="settingsBusy()" (click)="editProvider()" type="button">
+                  取消编辑
+                </button>
               }
             </div>
             <label for="provider-name">名称</label>
             <input
               class="field"
               id="provider-name"
+              [disabled]="settingsBusy()"
               [ngModel]="providerName()"
               (ngModelChange)="providerName.set($event)"
               maxlength="80"
@@ -912,6 +953,7 @@
             <input
               class="field"
               id="provider-base"
+              [disabled]="settingsBusy()"
               [ngModel]="baseUrl()"
               (ngModelChange)="baseUrl.set($event)"
               name="baseUrl"
@@ -924,6 +966,7 @@
             <input
               class="field"
               id="provider-model"
+              [disabled]="settingsBusy()"
               [ngModel]="model()"
               (ngModelChange)="model.set($event)"
               maxlength="128"
@@ -935,6 +978,7 @@
             <input
               class="field"
               id="provider-key"
+              [disabled]="settingsBusy()"
               [ngModel]="apiKey()"
               (ngModelChange)="apiKey.set($event)"
               autocomplete="off"
@@ -945,7 +989,7 @@
             />
             <label class="checkbox-label">
               <input
-                [disabled]="nativeMode"
+                [disabled]="nativeMode || settingsBusy()"
                 [ngModel]="rememberKey()"
                 (ngModelChange)="rememberKey.set($event)"
                 name="rememberKey"
@@ -955,7 +999,14 @@
             </label>
             <small>默认只在当前页面内存使用。勾选后保存在本机 RxDB；同源脚本或能访问浏览器数据的人可读取它。</small>
             <label for="provider-mode">请求通道</label>
-            <select class="field" id="provider-mode" [ngModel]="mode()" (ngModelChange)="mode.set($event)" name="mode">
+            <select
+              class="field"
+              id="provider-mode"
+              [disabled]="settingsBusy()"
+              [ngModel]="mode()"
+              (ngModelChange)="mode.set($event)"
+              name="mode"
+            >
               <option value="direct">浏览器直连（默认）</option>
               <option value="proxy">本站代理（主动授权本次转发 Key）</option>
             </select>
@@ -1051,6 +1102,29 @@
         </div>
         @if (dataMessage()) {
           <p class="notice" role="status">{{ dataMessage() }}</p>
+        }
+        @if (backupWorkspaces().length) {
+          <h3>保留的本机工作区</h3>
+          <p>导入和切换不会合并或删除已有内容。可在这里返回之前的工作区，无需登录。</p>
+          @for (workspace of backupWorkspaces(); track workspace.id) {
+            <div class="provider-actions">
+              <span class="provider-url">
+                {{ workspace.label }}
+                @if (workspace.createdAt) {
+                  · {{ formatDateTime(workspace.createdAt) }}
+                }
+                · {{ workspace.id.slice(-8) }}
+              </span>
+              <button
+                class="secondary"
+                [attr.aria-label]="'返回工作区：' + workspace.label"
+                [disabled]="localStatus() !== 'ready' || inFlight() || providerBusy()"
+                (click)="restoreBackupWorkspace(workspace.id)"
+              >
+                返回此工作区
+              </button>
+            </div>
+          }
         }
       </section>
     </section>
@@ -1175,7 +1249,7 @@
       <svg class="icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M5 5l10 10M15 5 5 15" /></svg>
     </button>
     <div class="viewer">
-      <div class="viewer-stage">
+      <div class="viewer-stage" [attr.aria-busy]="viewerPaging()" [class.original-size]="viewerOriginal()">
         @if (v.image; as image) {
           <img [src]="image.url" alt="作品大图" />
         } @else if (v.failed) {
@@ -1186,13 +1260,23 @@
         } @else {
           <div class="spinner" aria-label="正在读取原图" role="status"></div>
         }
-        @if (viewerIndex() > 0) {
-          <button class="viewer-nav prev" (click)="stepViewer(-1)" aria-label="上一张">
+        @if (viewerPosition() > 1) {
+          <button
+            class="viewer-nav prev"
+            [disabled]="viewerPaging() || deletingWork() !== null"
+            (click)="stepViewer(-1)"
+            aria-label="上一张"
+          >
             <svg class="icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M12.5 4.5 7 10l5.5 5.5" /></svg>
           </button>
         }
-        @if (viewerIndex() >= 0 && viewerIndex() < libraryPage().works.length - 1) {
-          <button class="viewer-nav next" (click)="stepViewer(1)" aria-label="下一张">
+        @if (viewerPosition() > 0 && viewerPosition() < viewerTotal()) {
+          <button
+            class="viewer-nav next"
+            [disabled]="viewerPaging() || deletingWork() !== null"
+            (click)="stepViewer(1)"
+            aria-label="下一张"
+          >
             <svg class="icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M7.5 4.5 13 10l-5.5 5.5" /></svg>
           </button>
         }
@@ -1201,11 +1285,28 @@
         <div class="viewer-side">
           <span class="eyebrow">
             本机作品
-            @if (viewerIndex() >= 0) {
-              · {{ viewerIndex() + 1 }} / {{ libraryPage().works.length }}
+            @if (viewerPosition() > 0) {
+              · {{ viewerPosition() }} / {{ viewerTotal() }}
             }
           </span>
           <p class="viewer-prompt">{{ w.prompt }}</p>
+          @if (v.image) {
+            <button
+              class="secondary sm viewer-size-toggle"
+              [attr.aria-pressed]="viewerOriginal()"
+              (click)="viewerOriginal.set(!viewerOriginal())"
+            >
+              {{ viewerOriginal() ? '适应窗口' : '查看原尺寸' }}
+            </button>
+          }
+          @if (viewerPaging()) {
+            <p class="notice" role="status">正在读取作品…</p>
+          }
+          @if (viewerMessage() || (deleteErrorWork() === w.jobId && deleteError())) {
+            <p class="inline-alert" role="alert">
+              {{ viewerMessage() || (deleteErrorWork() === w.jobId ? deleteError() : '') }}
+            </p>
+          }
           <dl class="viewer-meta">
             <div>
               <dt>模型</dt>
@@ -1239,7 +1340,13 @@
               </a>
             }
             <button class="secondary" (click)="reuseWork(w)">复用提示词</button>
-            <button class="secondary danger" (click)="deleteViewed()">删除</button>
+            <button
+              class="secondary danger"
+              [disabled]="inFlight() || viewerPaging() || deletingWork() !== null"
+              (click)="deleteViewed()"
+            >
+              {{ deletingWork() === w.jobId ? '删除中…' : '删除' }}
+            </button>
           </div>
         </div>
       }
@@ -1348,7 +1455,7 @@
               <button class="primary" [disabled]="settingsBusy()" (click)="synchronize()">
                 {{ sync().busy ? '正在同步…' : '立即同步' }}
               </button>
-              <button class="secondary" [disabled]="settingsBusy()" (click)="stopSync()">停止同步</button>
+              <button class="secondary" (click)="stopSync()">停止同步</button>
             </div>
             <div class="account-tools">
               <button class="secondary sm" [disabled]="settingsBusy()" (click)="rescanSync()">重新扫描远程记录</button>

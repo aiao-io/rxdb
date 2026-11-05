@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page } from '@playwright/test';
+import { expect, type Dialog, type Locator, type Page } from '@playwright/test';
 import { createHash, webcrypto } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import sharp from 'sharp';
@@ -76,11 +76,15 @@ export async function openDataTab(page: Page) {
   await tab.or(page.locator('input[type=file]')).first().waitFor();
   if (await tab.isVisible()) await tab.click();
 }
+const acceptBackupImport = (dialog: Dialog) => dialog.accept();
 export async function importBackup(page: Page, buffer: Buffer) {
   await openDataTab(page);
   // setInputFiles skips actionability checks, so it can upload into an input that workspace
   // initialization has just disabled again. Clicking waits until the input is enabled.
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('input[type=file]').click()]);
+  page.off('dialog', acceptBackupImport);
+  page.once('dialog', acceptBackupImport);
+  page.once('load', () => page.off('dialog', acceptBackupImport));
   await chooser.setFiles({
     name: 'backup.json',
     mimeType: 'application/json',

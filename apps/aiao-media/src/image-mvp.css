@@ -537,6 +537,14 @@ footer {
 .notice .secondary {
   margin: 4px 8px 0 0;
 }
+.sync-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 16px 32px 0 calc(var(--sidebar-width) + 32px);
+}
 .inline-alert {
   margin: 16px 0 0;
   padding: 10px 12px;
@@ -1890,7 +1898,11 @@ footer {
 }
 .work-actions button,
 .work-actions a {
-  padding: 0;
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  padding: 0 4px;
   color: var(--green);
   font-size: 12px;
   font-weight: 500;
@@ -2392,6 +2404,19 @@ footer {
   border-radius: 4px;
   box-shadow: 0 14px 38px rgb(61 79 53 / 18%);
 }
+.viewer-stage.original-size {
+  display: block;
+  max-height: 90dvh;
+  overflow: auto;
+}
+.viewer-stage.original-size img {
+  max-width: none;
+  max-height: none;
+  margin: auto;
+}
+.viewer-size-toggle {
+  align-self: flex-start;
+}
 .viewer-stage .empty-state {
   min-height: 0;
 }
@@ -2611,6 +2636,9 @@ footer {
   .viewer-stage img {
     max-height: 56dvh;
   }
+  .viewer-stage.original-size {
+    max-height: 56dvh;
+  }
   .viewer-side {
     padding: 20px;
     border-left: 0;
@@ -2632,6 +2660,9 @@ footer {
     padding: 18px 20px 10px;
     border-right: 0;
     border-bottom: 1px solid var(--line);
+  }
+  .sync-progress {
+    margin: 12px 20px;
   }
   .header {
     position: static;
