@@ -8,7 +8,9 @@ const json = (status: number, body: unknown, headers: Record<string, string> = {
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...headers } });
 
 const directoryWith = (handler: (url: URL, init: RequestInit) => Response) => {
-  const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => handler(new URL(String(input)), init ?? {}));
+  const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) =>
+    handler(new URL(String(input)), init ?? {})
+  );
   const config: AdminSupabaseConfig = { url: 'http://supabase.test', serviceRoleKey: 'service-key', fetch };
   return { directory: createAdminDirectory(config), fetch };
 };
@@ -53,7 +55,13 @@ describe('createAdminDirectory', () => {
             lastSignInAt: '2026-11-04T00:00:00Z',
             bannedUntil: '2999-01-01T00:00:00Z'
           },
-          { id: 'phone-user', email: 'phone-user', createdAt: '2026-11-02T00:00:00Z', lastSignInAt: null, bannedUntil: null }
+          {
+            id: 'phone-user',
+            email: 'phone-user',
+            createdAt: '2026-11-02T00:00:00Z',
+            lastSignInAt: null,
+            bannedUntil: null
+          }
         ]
       });
       expect(fetch).toHaveBeenCalledOnce();
@@ -154,7 +162,9 @@ describe('createAdminDirectory', () => {
     });
 
     it.each(['setBanned', 'deleteAccount'] as const)('%s names an account that does not exist', async method => {
-      const { directory } = directoryWith(() => json(404, { code: 404, error_code: 'user_not_found', msg: 'User not found' }));
+      const { directory } = directoryWith(() =>
+        json(404, { code: 404, error_code: 'user_not_found', msg: 'User not found' })
+      );
 
       const call = method === 'setBanned' ? directory.setBanned(USER_ID, true) : directory.deleteAccount(USER_ID);
 
@@ -164,7 +174,9 @@ describe('createAdminDirectory', () => {
     it('reports any other failure with the upstream message', async () => {
       const { directory } = directoryWith(() => json(500, { msg: 'database is down' }));
 
-      await expect(directory.deleteAccount(USER_ID)).rejects.toThrow('Supabase Auth admin responded 500: database is down');
+      await expect(directory.deleteAccount(USER_ID)).rejects.toThrow(
+        'Supabase Auth admin responded 500: database is down'
+      );
     });
 
     it('survives an upstream error body that is not json', async () => {

@@ -75,7 +75,7 @@
         "command": "node apps/dev-rxdb-p2p/scripts/dev-vars.mjs"
       },
       "metadata": {
-        "description": "Write apps/dev-rxdb-p2p/.dev.vars for wrangler: Supabase URL and anon key, plus a ticket signing key generated once."
+        "description": "Write apps/dev-rxdb-p2p/.dev.vars for wrangler: Supabase URL, anon key and service role key, plus a ticket signing key generated once. Set P2P_ADMIN_USER_IDS to enable the admin console."
       }
     },
     "serve-worker": {
@@ -122,7 +122,7 @@
         "command": "wrangler deploy"
       },
       "metadata": {
-        "description": "Deploy to Cloudflare. Needs `wrangler login`, the R2 bucket, SUPABASE_URL / SUPABASE_ANON_KEY vars and the TICKET_PRIVATE_JWK secret; see README."
+        "description": "Deploy to Cloudflare. Needs `wrangler login`, the R2 bucket, SUPABASE_URL / SUPABASE_ANON_KEY vars and the TICKET_PRIVATE_JWK secret; the admin console also needs SUPABASE_SERVICE_ROLE_KEY and ADMIN_USER_IDS. See README."
       }
     }
   }

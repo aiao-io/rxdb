@@ -23,7 +23,11 @@ const isLocal = url => ['localhost', '127.0.0.1'].includes(new URL(url).hostname
 
 /** @returns {{ url: string, anonKey: string, serviceRoleKey: string | undefined }} */
 export const resolveStack = () => {
-  const { P2P_SUPABASE_URL: url, P2P_SUPABASE_ANON_KEY: anonKey, P2P_SUPABASE_SERVICE_ROLE_KEY: explicit } = process.env;
+  const {
+    P2P_SUPABASE_URL: url,
+    P2P_SUPABASE_ANON_KEY: anonKey,
+    P2P_SUPABASE_SERVICE_ROLE_KEY: explicit
+  } = process.env;
   const stack =
     url ?
       { url, anonKey: anonKey ?? '' }

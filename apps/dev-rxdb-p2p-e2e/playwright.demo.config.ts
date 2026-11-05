@@ -1,7 +1,7 @@
 import { workspaceRoot } from '@nx/devkit';
 import { nxE2EPreset } from '@nx/playwright/preset';
 import { defineConfig, devices } from '@playwright/test';
-import { DEMO_PORT } from './src/demo/fixtures.ts';
+import { ADMIN_ACCOUNT, DEMO_PORT } from './src/demo/fixtures.ts';
 
 const isCI = Boolean(process.env['CI']);
 
@@ -32,7 +32,12 @@ export default defineConfig({
   webServer: {
     command: 'bash apps/dev-rxdb-p2p/scripts/e2e-serve.sh',
     url: `http://127.0.0.1:${DEMO_PORT}/app-config.js`,
-    env: { P2P_E2E_PORT: String(DEMO_PORT) },
+    env: {
+      P2P_E2E_PORT: String(DEMO_PORT),
+      // 管理后台的验收：管理员账号在 Worker 启动前建好，名单里只有它（见 scripts/e2e-admin-user.mjs、e2e-serve.sh）
+      P2P_E2E_ADMIN_EMAIL: ADMIN_ACCOUNT.email,
+      P2P_E2E_ADMIN_PASSWORD: ADMIN_ACCOUNT.password
+    },
     reuseExistingServer: false,
     cwd: workspaceRoot,
     timeout: isCI ? 240_000 : 180_000

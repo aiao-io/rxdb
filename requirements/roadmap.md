@@ -8,13 +8,13 @@
 | 状态           | 数量   |
 | :------------- | :----- |
 | ✅ Done        | 89     |
-| 🚧 In Progress | 10     |
-| 👀 In Review   | 10     |
+| 🚧 In Progress | 9      |
+| 👀 In Review   | 11     |
 | 📝 Backlog     | 26     |
 | 🚫 Blocked     | 0      |
 | **未完成合计** | **46** |
 
-仓库还剩 **46 条**未关闭故事（10 In Progress + 10 In Review + 26 Backlog + 0 Blocked）。
+仓库还剩 **46 条**未关闭故事（9 In Progress + 11 In Review + 26 Backlog + 0 Blocked）。
 数字由 story YAML 推导；Backlog 包括已授权任务与价值待证候选，不能把全部未关闭故事当成可开工项。
 
 ## 未完成需求全景
@@ -40,7 +40,7 @@
 | [US-704](stories/future/US-704-p2p-manifest-discovery.md) / [US-705](stories/future/US-705-p2p-byte-transfer.md) / [US-706](stories/future/US-706-p2p-fallback-auth.md) | 🚧 In Progress | 协议层已实现；先选定认证宿主，再接信令、mDNS 与桌面握手，按 AC 在真实宿主上验收                        | 批次 7      |
 | [US-707](stories/future/US-707-p2p-cross-runtime-e2e.md)                                                                                                                | 🚧 In Progress | 认证宿主已选定（Supabase + Cloudflare）；本轮做独立 demo 与浏览器半边，Electron 下一轮，Tauri 归阶段 B | 批次 7      |
 | [US-708](stories/future/US-708-p2p-peer-session.md)                                                                                                                     | 👀 In Review   | 会话层与验收夹具已在 PR #172，10 条 AC 经真实 DataChannel 双上下文与 TLS 双进程验收；待评审合并        | 批次 7      |
-| [US-713](stories/future/US-713-p2p-admin-console.md)                                                                                                                    | 🚧 In Progress | owner 已定「总览 + 常用处置」；Worker 管理接口、信令踢下线与管理页，按 AC 在真栈上验收                 | 批次 7      |
+| [US-713](stories/future/US-713-p2p-admin-console.md)                                                                                                                    | 👀 In Review   | 管理接口、信令踢下线与管理页已在真栈上验收 AC#1～#10；AC#11 待首次 CI 运行确认                         | 批次 7      |
 | [epic-012 P2P 会话与局域网协作](epics/epic-012-p2p-lan-collaboration.md)（US-709 / US-710 / US-711 / US-712）                                                           | 📝 Backlog     | 价值待证；以 US-708 为前置，owner 已定先做 US-709 整库克隆                                             | 立项池      |
 | [US-603](stories/tooling/US-603-manual-release-preflight.md)                                                                                                            | 🚧 In Progress | 两个手工发布入口已接入共享 preflight；待受控 registry 替身验收                                         | 本轮执行    |
 
@@ -95,13 +95,13 @@ US-541 团队版没有随首轮解锁，仍按具名团队症状和身份/冲突
 owner 已决定推进 US-704～US-707，并在 PR #172 内完成 US-708 会话层，US-713 管理后台随独立 demo 交付，记录见 [epic-011 P2P](epics/epic-011-p2p-file-share.md#价值待证)。
 框架无关的协议层 `@aiao/rxdb-plugin-p2p` 先行；它的内存协议测试不充当任何 AC 的验收证据。
 
-| 范围            | 关闭条件                                                                                                                                      |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| US-704          | 先选定认证宿主、用户/设备标识与服务端授权合同（含离线凭据）；再接服务器信令、桌面 mDNS 与会话握手，持有断言按 US-708 在请求时做，并按 AC 验收 |
-| US-705 / US-706 | 浏览器两上下文与桌面双进程的直传、续传、多源、坏 peer 退避与服务器回退按各自 AC 验收；桌面 TCP 以链路加密为前置                               |
-| US-707          | 阶段 A 浏览器双 context、Electron 双进程与服务器回退进 CI；阶段 B Tauri 双进程、离线局域网与大文件自动化                                      |
-| US-708          | 在 PR #172 内完成会话层；浏览器双上下文（真实 DataChannel）与桌面双进程（真实 TLS socket）按 AC 验收                                          |
-| US-713          | Worker 管理接口、信令踢下线与管理后台页面；11 条 AC 在真实 Supabase 栈与本地 Worker 上验收，处置结果以数据库与 R2 的实际状态为准              |
+| 范围            | 关闭条件                                                                                                                                         |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| US-704          | 先选定认证宿主、用户/设备标识与服务端授权合同（含离线凭据）；再接服务器信令、桌面 mDNS 与会话握手，持有断言按 US-708 在请求时做，并按 AC 验收    |
+| US-705 / US-706 | 浏览器两上下文与桌面双进程的直传、续传、多源、坏 peer 退避与服务器回退按各自 AC 验收；桌面 TCP 以链路加密为前置                                  |
+| US-707          | 阶段 A 浏览器双 context、Electron 双进程与服务器回退进 CI；阶段 B Tauri 双进程、离线局域网与大文件自动化                                         |
+| US-708          | 在 PR #172 内完成会话层；浏览器双上下文（真实 DataChannel）与桌面双进程（真实 TLS socket）按 AC 验收                                             |
+| US-713          | Worker 管理接口、信令踢下线与管理后台页面；AC 在真实 Supabase 栈与本地 Worker 上验收，处置结果以数据库与 R2 的实际状态为准；AC#11 待首次 CI 运行 |
 
 ### 线 A：桥接版本发布（owner 门控）
 

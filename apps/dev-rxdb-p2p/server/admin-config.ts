@@ -49,10 +49,7 @@ export const parseAdminIds = (raw: string): ReadonlySet<string> => {
 export const adminConfigOf = (env: Env): AdminConfig => {
   const serviceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY?.trim() ?? '';
   const rawIds = env.ADMIN_USER_IDS?.trim() ?? '';
-  const missing = [
-    ...(serviceRoleKey ? [] : ['SUPABASE_SERVICE_ROLE_KEY']),
-    ...(rawIds ? [] : ['ADMIN_USER_IDS'])
-  ];
+  const missing = [...(serviceRoleKey ? [] : ['SUPABASE_SERVICE_ROLE_KEY']), ...(rawIds ? [] : ['ADMIN_USER_IDS'])];
   if (missing.length > 0) {
     throw new AdminConfigError(
       `admin console is not configured: ${missing.join(' and ')} ${missing.length === 1 ? 'is' : 'are'} missing`

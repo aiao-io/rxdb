@@ -44,8 +44,7 @@ describe('administration access', () => {
   const admin = appRoutes.find(route => route.path === 'admin')!;
   const enter = (): Promise<boolean | UrlTree> =>
     TestBed.runInInjectionContext(() => (admin.canActivate?.[0] as () => Promise<boolean | UrlTree>)());
-  const target = async (): Promise<string> =>
-    TestBed.inject(Router).serializeUrl((await enter()) as UrlTree);
+  const target = async (): Promise<string> => TestBed.inject(Router).serializeUrl((await enter()) as UrlTree);
 
   beforeEach(() => {
     session.set(null);

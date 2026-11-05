@@ -16,8 +16,10 @@ else
   bash "$APP_DIR/scripts/supabase-up.sh"
 fi
 
-# 管理后台的 e2e 要用固定 id 的管理员：ADMIN_USER_IDS 在 Worker 启动时读入，所以账号得先于 Worker 建好
-node "$APP_DIR/scripts/e2e-admin-user.mjs"
+# 管理后台的 e2e 需要一个管理员：ADMIN_USER_IDS 在 Worker 启动时读入，所以账号得先于 Worker 建好，
+# 再把 Supabase 分配的真实 id 交给 dev-vars.mjs（脚本把 id 打印在 stdout，日志在 stderr）
+P2P_ADMIN_USER_IDS="$(node "$APP_DIR/scripts/e2e-admin-user.mjs")"
+export P2P_ADMIN_USER_IDS
 node "$APP_DIR/scripts/dev-vars.mjs"
 
 STATE_DIR="$(mktemp -d)"

@@ -19,6 +19,19 @@ export const DEMO_PORT = 4382;
 
 const PASSWORD = 'p2p-e2e-password';
 
+/** 普通测试账号统一的密码。 */
+export const ACCOUNT_PASSWORD = PASSWORD;
+
+/**
+ * 管理员账号。Worker 的 `ADMIN_USER_IDS` 在启动时读入，所以账号由
+ * `apps/dev-rxdb-p2p/scripts/e2e-admin-user.mjs` 在 Worker 启动前建好，并把 Supabase 分配的 id 交给 Worker
+ * （邮箱与密码经 playwright.demo.config.ts 的 webServer.env 交给脚本）。用例需要管理员的 id 时，登录取得。
+ */
+export const ADMIN_ACCOUNT = {
+  email: 'admin@example.com',
+  password: 'p2p-e2e-admin-password'
+} as const;
+
 /** 一台设备。 */
 export interface Device {
   readonly context: BrowserContext;
@@ -27,6 +40,8 @@ export interface Device {
   readonly name: string;
   /** 中断这台设备到服务器（Worker 与 Supabase）的全部路由，包括已建立的信令连接。 */
   cutServer(): Promise<void>;
+  /** 这台设备打开过几次信令连接：自动重连会让它增加。 */
+  signalingConnections(): number;
 }
 
 /** 每个用例一个新账号。 */
@@ -34,22 +49,29 @@ export const newAccount = (label: string): string =>
   `${label}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
 
 /** 开一台设备并登录（首台注册），等到信令在线。 */
-export const openDevice = async (browser: Browser, email: string, action: 'sign-up' | 'sign-in'): Promise<Device> => {
+export const openDevice = async (
+  browser: Browser,
+  email: string,
+  action: 'sign-up' | 'sign-in',
+  password: string = PASSWORD
+): Promise<Device> => {
   const context = await browser.newContext();
   const signaling: WebSocketRoute[] = [];
   let cut = false;
+  let connections = 0;
   await context.routeWebSocket(/\/api\/signal$/, async socket => {
     if (cut) {
       await socket.close({ code: 4000, reason: 'server cut by the test' });
       return;
     }
+    connections += 1;
     socket.connectToServer();
     signaling.push(socket);
   });
   const page = await context.newPage();
   await page.goto('/');
   await page.getByTestId('login-email').fill(email);
-  await page.getByTestId('login-password').fill(PASSWORD);
+  await page.getByTestId('login-password').fill(password);
   await page.getByTestId(`login-${action}`).click();
   await expect(page.getByTestId('signaling-state')).toHaveAttribute('data-state', 'online');
   await expect(page.getByTestId('current-device')).not.toHaveText(/登记设备中/);
@@ -63,7 +85,7 @@ export const openDevice = async (browser: Browser, email: string, action: 'sign-
     await context.route(`${supabaseUrl}/**`, route => route.abort());
     for (const socket of signaling) await socket.close({ code: 4000, reason: 'server cut by the test' });
   };
-  return { context, page, name, cutServer };
+  return { context, page, name, cutServer, signalingConnections: () => connections };
 };
 
 /** 本设备持有的文件行（有「移除本机副本」按钮）。 */

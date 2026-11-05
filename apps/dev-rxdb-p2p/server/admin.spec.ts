@@ -34,7 +34,7 @@ const peer = (name: string, userId: string, deviceId: string): SignalingPeer => 
 
 const harness = (overrides: { config?: () => ReturnType<AdminRouteDeps['config']> } = {}) => {
   const directory = {
-    listAccounts: vi.fn(async (_page: number) => ({
+    listAccounts: vi.fn(async () => ({
       total: 120,
       users: [
         {
@@ -62,9 +62,9 @@ const harness = (overrides: { config?: () => ReturnType<AdminRouteDeps['config']
     })),
     accountStats: vi.fn(async () => [{ userId: ALICE, deviceCount: 2, claimCount: 5 }]),
     fileCatalog: vi.fn(async () => [{ contentHash: HASH_A, fileName: '报告.pdf', holderCount: 3 }]),
-    setBanned: vi.fn(async (_userId: string, _banned: boolean) => undefined),
-    purgeAccount: vi.fn(async (_userId: string) => 3),
-    deleteAccount: vi.fn(async (_userId: string) => undefined)
+    setBanned: vi.fn(async () => undefined),
+    purgeAccount: vi.fn(async () => 3),
+    deleteAccount: vi.fn(async () => undefined)
   } satisfies AdminDirectory;
   const room = {
     roster: vi.fn(async () => [
@@ -77,7 +77,7 @@ const harness = (overrides: { config?: () => ReturnType<AdminRouteDeps['config']
     head: vi.fn(async (key: string) => (key === `files/${HASH_A}` ? { size: 10 } : null)),
     get: vi.fn(async () => null),
     put: vi.fn(async () => undefined),
-    list: vi.fn(async (_options: { prefix: string; limit: number }) => ({
+    list: vi.fn(async () => ({
       truncated: true,
       objects: [
         { key: `files/${HASH_B}`, size: 200, uploaded: new Date('2026-11-03T00:00:00Z') },
@@ -85,7 +85,7 @@ const harness = (overrides: { config?: () => ReturnType<AdminRouteDeps['config']
         { key: 'files/not-a-hash', size: 1, uploaded: new Date('2026-11-05T00:00:00Z') }
       ]
     })),
-    delete: vi.fn(async (_key: string) => undefined)
+    delete: vi.fn(async () => undefined)
   } satisfies R2BucketLike;
   const identities: Record<string, { id: string; email: string }> = {
     'root-token': { id: ROOT, email: 'root@example.com' },
@@ -320,7 +320,13 @@ describe('GET /api/admin/files', () => {
       truncated: true,
       totalBytes: 300,
       files: [
-        { contentHash: HASH_A, fileName: '报告.pdf', size: 100, uploadedAt: '2026-11-04T00:00:00.000Z', holderCount: 3 },
+        {
+          contentHash: HASH_A,
+          fileName: '报告.pdf',
+          size: 100,
+          uploadedAt: '2026-11-04T00:00:00.000Z',
+          holderCount: 3
+        },
         { contentHash: HASH_B, fileName: null, size: 200, uploadedAt: '2026-11-03T00:00:00.000Z', holderCount: 0 }
       ]
     });

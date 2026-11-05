@@ -88,18 +88,16 @@ const listAccounts: Handler = async ({ config, url }) => {
     config.directory.accountStats()
   ]);
   const statsById = new Map(stats.map(entry => [entry.userId, entry]));
-  const accounts = users.map(
-    (user): AdminAccount => ({
-      id: user.id,
-      email: user.email,
-      createdAt: user.createdAt,
-      lastSignInAt: user.lastSignInAt,
-      banned: isBanned(user.bannedUntil),
-      admin: isAdminId(config, user.id),
-      deviceCount: statsById.get(user.id)?.deviceCount ?? 0,
-      claimCount: statsById.get(user.id)?.claimCount ?? 0
-    })
-  );
+  const accounts = users.map((user): AdminAccount => ({
+    id: user.id,
+    email: user.email,
+    createdAt: user.createdAt,
+    lastSignInAt: user.lastSignInAt,
+    banned: isBanned(user.bannedUntil),
+    admin: isAdminId(config, user.id),
+    deviceCount: statsById.get(user.id)?.deviceCount ?? 0,
+    claimCount: statsById.get(user.id)?.claimCount ?? 0
+  }));
   return json(200, { accounts, total, page } satisfies AdminAccountPage);
 };
 
@@ -131,15 +129,13 @@ const deleteAccount: Handler = async (context, [userId = '']) => {
 const listOnline: Handler = async ({ deps }) => {
   const peers = await deps.room.roster();
   const devices = peers
-    .map(
-      (peer): AdminOnlineDevice => ({
-        deviceId: peer.deviceId,
-        deviceName: peer.deviceName,
-        userId: peer.principal,
-        userName: peer.userName,
-        instanceKey: peer.key
-      })
-    )
+    .map((peer): AdminOnlineDevice => ({
+      deviceId: peer.deviceId,
+      deviceName: peer.deviceName,
+      userId: peer.principal,
+      userName: peer.userName,
+      instanceKey: peer.key
+    }))
     .sort((a, b) => a.userName.localeCompare(b.userName) || a.deviceName.localeCompare(b.deviceName));
   return json(200, { devices });
 };

@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { adminConfigOf, AdminConfigError, parseAdminIds } from './admin-config';
+import { AdminConfigError, adminConfigOf, parseAdminIds } from './admin-config';
 import type { Env } from './env';
 
 const ALICE = '6f1c5d1e-4c7b-4f7e-9a51-2d0c3b8f9a10';

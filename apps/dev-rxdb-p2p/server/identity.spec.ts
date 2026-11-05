@@ -47,13 +47,17 @@ describe('verifyAccessToken', () => {
   });
 
   it('treats a banned account as an invalid token even though its token is still signed', async () => {
-    const config = configWith(() => json(200, { id: USER_ID, email: 'a@example.com', banned_until: '2999-01-01T00:00:00Z' }));
+    const config = configWith(() =>
+      json(200, { id: USER_ID, email: 'a@example.com', banned_until: '2999-01-01T00:00:00Z' })
+    );
 
     await expect(verifyAccessToken(config, 'token-1')).resolves.toBeNull();
   });
 
   it('accepts an account whose ban has expired or was lifted', async () => {
-    const expired = configWith(() => json(200, { id: USER_ID, email: 'a@example.com', banned_until: '2001-01-01T00:00:00Z' }));
+    const expired = configWith(() =>
+      json(200, { id: USER_ID, email: 'a@example.com', banned_until: '2001-01-01T00:00:00Z' })
+    );
     const lifted = configWith(() => json(200, { id: USER_ID, email: 'a@example.com', banned_until: null }));
 
     await expect(verifyAccessToken(expired, 'token-1')).resolves.toEqual({ id: USER_ID, email: 'a@example.com' });

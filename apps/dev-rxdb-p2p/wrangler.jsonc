@@ -18,5 +18,7 @@
   "r2_buckets": [{ "binding": "FILES", "bucket_name": "aiao-rxdb-p2p-files" }],
   // SUPABASE_URL / SUPABASE_ANON_KEY / TICKET_PRIVATE_JWK 都是 Worker secret，不进这个文件，重新部署也不会清掉：
   // 线上用 scripts/deploy-secrets.mjs | wrangler secret bulk 写入，本地开发由 scripts/dev-vars.mjs 生成 .dev.vars。
+  // 管理后台再多两个：SUPABASE_SERVICE_ROLE_KEY / ADMIN_USER_IDS，线上用 scripts/admin-secrets.mjs | wrangler secret bulk 写入；
+  // 缺任何一个，/api/admin/* 回 503，其余路由不受影响。
   "observability": { "enabled": false }
 }

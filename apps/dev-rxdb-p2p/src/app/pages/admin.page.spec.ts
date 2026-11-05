@@ -107,11 +107,7 @@ describe('AdminPage', () => {
     api.deleteFile.mockResolvedValue(undefined);
     auth.signOut.mockResolvedValue(undefined);
     TestBed.configureTestingModule({
-      providers: [
-        provideRouter([]),
-        { provide: AdminApi, useValue: api },
-        { provide: AuthService, useValue: auth }
-      ]
+      providers: [provideRouter([]), { provide: AdminApi, useValue: api }, { provide: AuthService, useValue: auth }]
     });
   });
 
@@ -190,7 +186,11 @@ describe('AdminPage', () => {
     });
 
     it('says when a copy is no longer in the manifest and when the listing was cut off', async () => {
-      api.files.mockResolvedValue({ files: [{ ...COPY, fileName: null, holderCount: 0 }], totalBytes: 2048, truncated: true });
+      api.files.mockResolvedValue({
+        files: [{ ...COPY, fileName: null, holderCount: 0 }],
+        totalBytes: 2048,
+        truncated: true
+      });
       await open();
 
       admin.selectTab('files');
@@ -368,6 +368,29 @@ describe('AdminPage', () => {
       expect(root.querySelector('[data-testid="admin-notice"]')).toBeNull();
       expect(confirmBar()).toBeNull();
       expect(api.accounts).toHaveBeenCalledTimes(2);
+    });
+
+    it('shows the result only once the lists have been reloaded, and stays busy meanwhile', async () => {
+      await open();
+      let release: () => void = () => undefined;
+      api.accounts.mockReturnValueOnce(
+        new Promise<AdminAccountPage>(resolve => {
+          release = () => resolve(page([ROOT_ACCOUNT, { ...ALICE_ACCOUNT, banned: true }, BOB_ACCOUNT]));
+        })
+      );
+      admin.ask({ kind: 'ban', account: ALICE_ACCOUNT });
+
+      const running = admin.confirm();
+      await vi.waitFor(() => expect(api.accounts).toHaveBeenCalledTimes(2));
+      expect(admin.notice()).toBeNull();
+      expect(admin.busy()).toBe(true);
+      expect(admin.pending()).toBeNull();
+
+      release();
+      await running;
+
+      expect(admin.notice()).toContain('已封禁 alice@example.com');
+      expect(admin.busy()).toBe(false);
     });
 
     it('does nothing without a pending action and ignores a second confirm while one is running', async () => {

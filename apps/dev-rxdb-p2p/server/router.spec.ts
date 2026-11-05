@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Env } from './env';
 import { handleRequest, SIGNALING_ROOM } from './router';
 
@@ -77,5 +77,55 @@ describe('handleRequest', () => {
 
     expect(response.status).toBe(404);
     expect(env.SIGNALING.get).not.toHaveBeenCalled();
+  });
+
+  describe('a Worker without administrator secrets', () => {
+    afterEach(() => vi.unstubAllGlobals());
+
+    const signedIn = (path: string): Request =>
+      new Request(`http://worker.test${path}`, { headers: { authorization: 'Bearer user-token' } });
+
+    const signInAs = (): void => {
+      const user = { id: '6f1c5d1e-4c7b-4f7e-9a51-2d0c3b8f9a10', email: 'a@example.com' };
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => Response.json(user))
+      );
+    };
+
+    it('answers the administration routes with 503 and names what is missing, while the rest keeps serving', async () => {
+      signInAs();
+      const env = envWith();
+
+      const response = await handleRequest(signedIn('/api/admin/accounts'), env);
+
+      expect(response.status).toBe(503);
+      await expect(response.json()).resolves.toEqual({
+        error: 'admin console is not configured: SUPABASE_SERVICE_ROLE_KEY and ADMIN_USER_IDS are missing'
+      });
+      expect((await handleRequest(get('/app-config.js'), env)).status).toBe(200);
+      expect((await handleRequest(get(`/api/files/${'b'.repeat(64)}`), env)).status).toBe(401);
+    });
+
+    it('tells every signed-in user that they are not an administrator', async () => {
+      signInAs();
+
+      const response = await handleRequest(signedIn('/api/admin/me'), envWith());
+
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual({ admin: false });
+    });
+
+    it('treats an administrator list that names this user as enough only together with the service key', async () => {
+      signInAs();
+      const env = envWith({ ADMIN_USER_IDS: '6f1c5d1e-4c7b-4f7e-9a51-2d0c3b8f9a10' });
+
+      const response = await handleRequest(signedIn('/api/admin/accounts'), env);
+
+      expect(response.status).toBe(503);
+      await expect(response.json()).resolves.toEqual({
+        error: 'admin console is not configured: SUPABASE_SERVICE_ROLE_KEY is missing'
+      });
+    });
   });
 });

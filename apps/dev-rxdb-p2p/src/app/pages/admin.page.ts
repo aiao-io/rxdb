@@ -84,7 +84,15 @@ const confirmationOf = (action: PendingAction): Confirmation => {
           <span class="text-base-content/60 hidden max-w-60 truncate text-xs sm:block" data-testid="admin-user">{{
             auth.session()?.user?.email
           }}</span>
-          <button class="btn btn-ghost btn-sm" [disabled]="loading()" (click)="refresh()" type="button">刷新</button>
+          <button
+            class="btn btn-ghost btn-sm"
+            [disabled]="loading()"
+            (click)="refresh()"
+            data-testid="admin-refresh"
+            type="button"
+          >
+            刷新
+          </button>
           <button class="btn btn-ghost btn-sm" [disabled]="signingOut()" (click)="signOut()" type="button">退出</button>
         </div>
       </div>
@@ -149,12 +157,12 @@ const confirmationOf = (action: PendingAction): Confirmation => {
       <div class="tabs tabs-border mb-4" aria-label="管理内容" role="tablist">
         <button
           class="tab"
+          id="admin-tab-accounts"
           [attr.aria-selected]="tab() === 'accounts'"
           [class.tab-active]="tab() === 'accounts'"
           (click)="selectTab('accounts')"
           aria-controls="admin-panel"
           data-testid="admin-tab-accounts"
-          id="admin-tab-accounts"
           role="tab"
           type="button"
         >
@@ -162,12 +170,12 @@ const confirmationOf = (action: PendingAction): Confirmation => {
         </button>
         <button
           class="tab"
+          id="admin-tab-online"
           [attr.aria-selected]="tab() === 'online'"
           [class.tab-active]="tab() === 'online'"
           (click)="selectTab('online')"
           aria-controls="admin-panel"
           data-testid="admin-tab-online"
-          id="admin-tab-online"
           role="tab"
           type="button"
         >
@@ -175,31 +183,31 @@ const confirmationOf = (action: PendingAction): Confirmation => {
         </button>
         <button
           class="tab"
+          id="admin-tab-files"
           [attr.aria-selected]="tab() === 'files'"
           [class.tab-active]="tab() === 'files'"
           (click)="selectTab('files')"
           aria-controls="admin-panel"
           data-testid="admin-tab-files"
-          id="admin-tab-files"
           role="tab"
           type="button"
         >
           服务器副本
         </button>
       </div>
-      <section class="card bg-base-100" [attr.aria-labelledby]="'admin-tab-' + tab()" id="admin-panel" role="tabpanel">
+      <section class="card bg-base-100" id="admin-panel" [attr.aria-labelledby]="'admin-tab-' + tab()" role="tabpanel">
         <div class="overflow-x-auto p-2">
           @switch (tab()) {
             @case ('accounts') {
-              <table class="table table-sm">
+              <table class="table-xs md:table-sm table">
                 <caption class="sr-only">
                   账号
                 </caption>
                 <thead>
                   <tr>
                     <th scope="col">账号</th>
-                    <th scope="col">注册时间</th>
-                    <th scope="col">最近登录</th>
+                    <th class="hidden md:table-cell" scope="col">注册时间</th>
+                    <th class="hidden md:table-cell" scope="col">最近登录</th>
                     <th class="text-right" scope="col">设备</th>
                     <th class="text-right" scope="col">声明</th>
                     <th scope="col"><span class="sr-only">操作</span></th>
@@ -208,7 +216,7 @@ const confirmationOf = (action: PendingAction): Confirmation => {
                 <tbody>
                   @for (account of accountPage()?.accounts ?? []; track account.id) {
                     <tr [attr.data-email]="account.email" data-testid="admin-account-row">
-                      <td class="break-all">
+                      <td class="break-words">
                         {{ account.email }}
                         @if (isSelf(account)) {
                           <span class="badge badge-ghost badge-sm ml-1">你</span>
@@ -219,15 +227,17 @@ const confirmationOf = (action: PendingAction): Confirmation => {
                           <span class="badge badge-error badge-sm ml-1" data-testid="admin-banned">已封禁</span>
                         }
                       </td>
-                      <td class="whitespace-nowrap">{{ account.createdAt | date: 'yyyy-MM-dd HH:mm' }}</td>
-                      <td class="whitespace-nowrap">
+                      <td class="hidden whitespace-nowrap md:table-cell">
+                        {{ account.createdAt | date: 'yyyy-MM-dd HH:mm' }}
+                      </td>
+                      <td class="hidden whitespace-nowrap md:table-cell">
                         {{ account.lastSignInAt ? (account.lastSignInAt | date: 'yyyy-MM-dd HH:mm') : '从未登录' }}
                       </td>
-                      <td class="text-right">{{ account.deviceCount }}</td>
-                      <td class="text-right">{{ account.claimCount }}</td>
+                      <td class="text-right" data-testid="admin-device-count">{{ account.deviceCount }}</td>
+                      <td class="text-right" data-testid="admin-claim-count">{{ account.claimCount }}</td>
                       <td class="text-right whitespace-nowrap">
                         @if (account.admin) {
-                          <span class="text-base-content/50 text-xs">管理员账号不在此处处置</span>
+                          <span class="text-base-content/50 hidden text-xs sm:inline">管理员账号不在此处处置</span>
                         } @else {
                           @if (account.banned) {
                             <button
@@ -295,7 +305,7 @@ const confirmationOf = (action: PendingAction): Confirmation => {
               }
             }
             @case ('online') {
-              <table class="table table-sm">
+              <table class="table-xs md:table-sm table">
                 <caption class="sr-only">
                   在线设备
                 </caption>
@@ -303,16 +313,22 @@ const confirmationOf = (action: PendingAction): Confirmation => {
                   <tr>
                     <th scope="col">设备</th>
                     <th scope="col">账号</th>
-                    <th scope="col">实例</th>
+                    <th class="hidden sm:table-cell" scope="col">实例</th>
                     <th scope="col"><span class="sr-only">操作</span></th>
                   </tr>
                 </thead>
                 <tbody>
                   @for (device of devices(); track device.instanceKey) {
-                    <tr [attr.data-device]="device.deviceName" data-testid="admin-device-row">
-                      <td class="break-all">{{ device.deviceName }}</td>
-                      <td class="break-all">{{ device.userName }}</td>
-                      <td class="text-base-content/55 font-mono text-xs">{{ device.instanceKey.slice(0, 8) }}</td>
+                    <tr
+                      [attr.data-device]="device.deviceName"
+                      [attr.data-email]="device.userName"
+                      data-testid="admin-device-row"
+                    >
+                      <td class="break-words">{{ device.deviceName }}</td>
+                      <td class="break-words">{{ device.userName }}</td>
+                      <td class="text-base-content/55 hidden font-mono text-xs sm:table-cell">
+                        {{ device.instanceKey.slice(0, 8) }}
+                      </td>
                       <td class="text-right whitespace-nowrap">
                         <button
                           class="btn btn-ghost btn-xs text-error"
@@ -338,33 +354,35 @@ const confirmationOf = (action: PendingAction): Confirmation => {
               </p>
             }
             @case ('files') {
-              <table class="table table-sm">
+              <table class="table-xs md:table-sm table">
                 <caption class="sr-only">
                   服务器副本
                 </caption>
                 <thead>
                   <tr>
                     <th scope="col">文件</th>
-                    <th scope="col">内容哈希</th>
+                    <th class="hidden md:table-cell" scope="col">内容哈希</th>
                     <th class="text-right" scope="col">大小</th>
-                    <th scope="col">上传时间</th>
+                    <th class="hidden md:table-cell" scope="col">上传时间</th>
                     <th class="text-right" scope="col">持有者</th>
                     <th scope="col"><span class="sr-only">操作</span></th>
                   </tr>
                 </thead>
                 <tbody>
                   @for (file of serverFiles()?.files ?? []; track file.contentHash) {
-                    <tr data-testid="admin-file-row">
-                      <td class="break-all">
+                    <tr [attr.data-hash]="file.contentHash" data-testid="admin-file-row">
+                      <td class="break-words">
                         @if (file.fileName) {
                           {{ file.fileName }}
                         } @else {
                           <span class="text-base-content/55">清单里已没有这个文件</span>
                         }
                       </td>
-                      <td class="text-base-content/55 font-mono text-xs">{{ hash(file) }}</td>
+                      <td class="text-base-content/55 hidden font-mono text-xs md:table-cell">{{ hash(file) }}</td>
                       <td class="text-right whitespace-nowrap">{{ size(file.size) }}</td>
-                      <td class="whitespace-nowrap">{{ file.uploadedAt | date: 'yyyy-MM-dd HH:mm' }}</td>
+                      <td class="hidden whitespace-nowrap md:table-cell">
+                        {{ file.uploadedAt | date: 'yyyy-MM-dd HH:mm' }}
+                      </td>
                       <td class="text-right">{{ file.holderCount }}</td>
                       <td class="text-right whitespace-nowrap">
                         <button
@@ -400,9 +418,9 @@ const confirmationOf = (action: PendingAction): Confirmation => {
 })
 export default class AdminPage implements OnInit {
   readonly #api = inject(AdminApi);
-  readonly auth = inject(AuthService);
   /** 账号表正在看的页码；刷新沿用它。 */
   #page = 1;
+  readonly auth = inject(AuthService);
   readonly tab = signal<AdminTab>('accounts');
   readonly accountPage = signal<AdminAccountPage | null>(null);
   readonly devices = signal<readonly AdminOnlineDevice[]>([]);
@@ -485,7 +503,7 @@ export default class AdminPage implements OnInit {
   async confirm(): Promise<void> {
     const action = this.pending();
     if (!action || this.busy()) return;
-    await this.#run(async () => this.notice.set(await this.#perform(action)));
+    await this.#run(() => this.#perform(action));
   }
 
   /** 解封不丢任何东西，不需要确认。 */
@@ -493,7 +511,7 @@ export default class AdminPage implements OnInit {
     if (this.busy()) return;
     await this.#run(async () => {
       await this.#api.unban(account.id);
-      this.notice.set(`已解封 ${account.email}`);
+      return `已解封 ${account.email}`;
     });
   }
 
@@ -527,19 +545,24 @@ export default class AdminPage implements OnInit {
     }
   }
 
-  /** 无论成败都收起确认并重新加载：封禁成功但断开设备失败时，列表要如实反映当前状态。 */
-  async #run(task: () => Promise<void>): Promise<void> {
+  /**
+   * 执行一项处置：无论成败都收起确认并重新加载，加载完才一并显示结果——封禁成功但断开设备失败时，
+   * 列表要如实反映当前状态，也不会出现「已封禁」写在一行没变的记录上方；刷新期间保持忙碌，挡住重复点击。
+   */
+  async #run(task: () => Promise<string>): Promise<void> {
     this.busy.set(true);
     this.error.set(null);
     this.notice.set(null);
+    let outcome: { readonly notice: string | null; readonly error: string | null };
     try {
-      await task();
+      outcome = { notice: await task(), error: null };
     } catch (error) {
-      this.error.set(messageOf(error));
-    } finally {
-      this.pending.set(null);
-      this.busy.set(false);
+      outcome = { notice: null, error: messageOf(error) };
     }
+    this.pending.set(null);
     await this.refresh();
+    this.notice.set(outcome.notice);
+    this.error.set(outcome.error);
+    this.busy.set(false);
   }
 }
