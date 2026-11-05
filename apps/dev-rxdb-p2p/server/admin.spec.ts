@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
   AdminAccountPage,
   AdminBanResult,
@@ -93,7 +93,11 @@ const harness = (overrides: { config?: () => ReturnType<AdminRouteDeps['config']
     'loud-root-token': { id: ROOT.toUpperCase(), email: 'root@example.com' }
   };
   const reports = {
+<<<<<<< HEAD
     listOpen: vi.fn(async () => []),
+=======
+    listOpen: vi.fn<AdminRouteDeps['reports']['listOpen']>(async () => []),
+>>>>>>> 3e4c88e65fa427160c6e364877d15e3a23260046
     submit: vi.fn(async () => ({ created: true })),
     resolve: vi.fn(async () => true)
   } satisfies AdminRouteDeps['reports'];
@@ -102,7 +106,11 @@ const harness = (overrides: { config?: () => ReturnType<AdminRouteDeps['config']
     isActivated: vi.fn(async () => false),
     issueCodes: vi.fn(async () => ['CODE123']),
     revoke: vi.fn(async () => true),
+<<<<<<< HEAD
     listCodes: vi.fn(async () => [])
+=======
+    listCodes: vi.fn<AdminRouteDeps['invites']['listCodes']>(async () => [])
+>>>>>>> 3e4c88e65fa427160c6e364877d15e3a23260046
   } satisfies AdminRouteDeps['invites'];
   const deps: AdminRouteDeps = {
     verifyUser: vi.fn(async token => identities[token] ?? null),
@@ -124,6 +132,8 @@ const harness = (overrides: { config?: () => ReturnType<AdminRouteDeps['config']
 };
 
 const bodyOf = async <T>(response: Response): Promise<T> => (await response.json()) as T;
+
+afterEach(() => vi.restoreAllMocks());
 
 describe('access control', () => {
   it.each([
@@ -169,10 +179,12 @@ describe('access control', () => {
     expect((await call('GET', '/online', 'loud-root-token')).status).toBe(200);
   });
 
-  it('reports a missing configuration as 503 with the reason, not as a refusal or a pass', async () => {
+  it('reports a missing configuration as 503 and keeps the reason in the server log', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const error = new AdminConfigError('admin console is not configured: ADMIN_USER_IDS is missing');
     const { call, directory } = harness({
       config: () => {
-        throw new AdminConfigError('admin console is not configured: ADMIN_USER_IDS is missing');
+        throw error;
       }
     });
 
@@ -180,8 +192,9 @@ describe('access control', () => {
 
     expect(response.status).toBe(503);
     await expect(bodyOf<{ error: string }>(response)).resolves.toEqual({
-      error: 'admin console is not configured: ADMIN_USER_IDS is missing'
+      error: 'admin console configuration is unavailable'
     });
+    expect(logged).toHaveBeenCalledWith('admin request failed', error);
     expect(directory.listAccounts).not.toHaveBeenCalled();
   });
 
@@ -192,7 +205,22 @@ describe('access control', () => {
     const response = await call('GET', '/accounts');
 
     expect(response.status).toBe(502);
-    await expect(bodyOf<{ error: string }>(response)).resolves.toEqual({ error: 'Supabase Auth responded 503' });
+    await expect(bodyOf<{ error: string }>(response)).resolves.toEqual({ error: 'admin service is unavailable' });
+  });
+
+  it.each([
+    new Error('service_role=secret at /srv/private/admin.ts:17'),
+    'service_role=secret at /srv/private/admin.ts:17'
+  ])('keeps an authentication failure out of the unauthenticated response: %s', async error => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { call, deps } = harness();
+    vi.mocked(deps.verifyUser).mockRejectedValueOnce(error);
+
+    const response = await call('GET', '/accounts');
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({ error: 'admin service is unavailable' });
+    expect(logged).toHaveBeenCalledWith('admin request failed', error);
   });
 
   it('answers an unknown path with 404 and a wrong method with 405 for administrators', async () => {
@@ -345,6 +373,41 @@ describe('GET /api/admin/files', () => {
       ]
     });
   });
+
+  it('lists encrypted copies without manifest metadata and ignores unrelated object keys', async () => {
+    const { call, bucket } = harness();
+    vi.mocked(bucket.list).mockResolvedValueOnce({
+      truncated: false,
+      objects: [
+        { key: `files/enc/${HASH_B}`, size: 40, uploaded: new Date('2026-11-05T00:00:00Z') },
+        { key: `files/${HASH_A}`, size: 10, uploaded: new Date('2026-11-04T00:00:00Z') },
+        { key: 'files/enc/not-a-hash', size: 1, uploaded: new Date('2026-11-06T00:00:00Z') }
+      ]
+    });
+
+    const response = await call('GET', '/files');
+
+    await expect(bodyOf<AdminServerFiles>(response)).resolves.toEqual({
+      truncated: false,
+      totalBytes: 50,
+      files: [
+        {
+          contentHash: HASH_B,
+          fileName: null,
+          size: 40,
+          uploadedAt: '2026-11-05T00:00:00.000Z',
+          holderCount: 0
+        },
+        {
+          contentHash: HASH_A,
+          fileName: '报告.pdf',
+          size: 10,
+          uploadedAt: '2026-11-04T00:00:00.000Z',
+          holderCount: 3
+        }
+      ]
+    });
+  });
 });
 
 describe('POST /api/admin/accounts/:id/ban', () => {
@@ -450,7 +513,7 @@ describe('DELETE /api/admin/accounts/:id', () => {
     vi.mocked(failing.directory.purgeAccount).mockRejectedValueOnce(new Error('PostgREST responded 404: no function'));
     const purge = await failing.call('DELETE', `/accounts/${BOB}`);
     expect(purge.status).toBe(502);
-    await expect(bodyOf<{ error: string }>(purge)).resolves.toEqual({ error: 'PostgREST responded 404: no function' });
+    await expect(bodyOf<{ error: string }>(purge)).resolves.toEqual({ error: 'admin service is unavailable' });
     expect(failing.room.evict).not.toHaveBeenCalled();
     expect(failing.directory.deleteAccount).not.toHaveBeenCalled();
 
@@ -516,6 +579,166 @@ describe('DELETE /api/admin/files/:hash', () => {
     expect((await call('DELETE', `/files/${HASH_B}`)).status).toBe(404);
     expect((await call('DELETE', '/files/NOT-A-HASH')).status).toBe(400);
     expect(bucket.delete).not.toHaveBeenCalled();
+  });
+
+  it('deletes the encrypted server copy when the plaintext copy is absent', async () => {
+    const { call, bucket } = harness();
+    vi.mocked(bucket.head).mockResolvedValueOnce(null).mockResolvedValueOnce({ size: 20 });
+
+    const response = await call('DELETE', `/files/${HASH_B}`);
+
+    expect(response.status).toBe(204);
+    expect(bucket.head).toHaveBeenNthCalledWith(1, `files/${HASH_B}`);
+    expect(bucket.head).toHaveBeenNthCalledWith(2, `files/enc/${HASH_B}`);
+    expect(bucket.delete).toHaveBeenNthCalledWith(1, `files/${HASH_B}`);
+    expect(bucket.delete).toHaveBeenNthCalledWith(2, `files/enc/${HASH_B}`);
+  });
+});
+
+describe('治理路由（POOL-US-102）', () => {
+  const REPORT = '11111111-1111-4111-8111-111111111111';
+
+  it('按封禁处置举报：封禁账号、踢在线设备、关闭举报', async () => {
+    const h = harness();
+    vi.mocked(h.reports.listOpen).mockResolvedValue([
+      {
+        id: REPORT,
+        targetHash: null,
+        targetUser: ALICE,
+        sourceUrl: null,
+        category: 'harassment',
+        reporterUser: BOB,
+        createdAt: '2026-11-05T00:00:00Z',
+        resolvedAt: null,
+        resolution: null
+      }
+    ]);
+
+    const response = await h.call('POST', `/reports/${REPORT}/resolve?resolution=ban`);
+
+    expect(response.status).toBe(204);
+    expect(h.directory.setBanned).toHaveBeenCalledWith(ALICE, true);
+    expect(h.room.evict).toHaveBeenCalledWith({ userId: ALICE });
+    expect(h.reports.resolve).toHaveBeenCalledWith(REPORT, 'ban', ROOT);
+  });
+
+  it('按删除副本处置举报：按 sourceUrl 删除密文副本并关闭举报', async () => {
+    const h = harness();
+    vi.mocked(h.reports.listOpen).mockResolvedValue([
+      {
+        id: REPORT,
+        targetHash: HASH_A,
+        targetUser: null,
+        sourceUrl: `/api/files/enc/${HASH_B}`,
+        category: 'malware',
+        reporterUser: BOB,
+        createdAt: '2026-11-05T00:00:00Z',
+        resolvedAt: null,
+        resolution: null
+      }
+    ]);
+
+    const response = await h.call('POST', `/reports/${REPORT}/resolve?resolution=delete_copy`);
+
+    expect(response.status).toBe(204);
+    expect(h.bucket.delete).toHaveBeenCalledWith(`files/enc/${HASH_B}`);
+    expect(h.reports.resolve).toHaveBeenCalledWith(REPORT, 'delete_copy', ROOT);
+  });
+
+  it('validates a report resolution and returns 404 when the report is no longer open', async () => {
+    const h = harness();
+
+    expect((await h.call('POST', `/reports/not-a-uuid/resolve?resolution=ignore`)).status).toBe(400);
+    expect((await h.call('POST', `/reports/${REPORT}/resolve`)).status).toBe(400);
+    expect((await h.call('POST', `/reports/${REPORT}/resolve?resolution=ban`)).status).toBe(404);
+    expect(h.reports.resolve).not.toHaveBeenCalled();
+  });
+
+  it('closes an ignore report without changing files, accounts, or connections', async () => {
+    const h = harness();
+    vi.mocked(h.reports.listOpen).mockResolvedValueOnce([
+      {
+        id: REPORT,
+        targetHash: HASH_A,
+        targetUser: ALICE,
+        sourceUrl: `/api/files/${HASH_A}`,
+        category: 'other',
+        reporterUser: BOB,
+        createdAt: '2026-11-05T00:00:00Z',
+        resolvedAt: null,
+        resolution: null
+      }
+    ]);
+
+    const response = await h.call('POST', `/reports/${REPORT}/resolve?resolution=ignore`);
+
+    expect(response.status).toBe(204);
+    expect(h.bucket.delete).not.toHaveBeenCalled();
+    expect(h.directory.setBanned).not.toHaveBeenCalled();
+    expect(h.room.evict).not.toHaveBeenCalled();
+    expect(h.reports.resolve).toHaveBeenCalledWith(REPORT, 'ignore', ROOT);
+  });
+
+  it('refuses a report that would ban the acting administrator and leaves it open', async () => {
+    const h = harness();
+    vi.mocked(h.reports.listOpen).mockResolvedValueOnce([
+      {
+        id: REPORT,
+        targetHash: null,
+        targetUser: ROOT,
+        sourceUrl: null,
+        category: 'other',
+        reporterUser: BOB,
+        createdAt: '2026-11-05T00:00:00Z',
+        resolvedAt: null,
+        resolution: null
+      }
+    ]);
+
+    const response = await h.call('POST', `/reports/${REPORT}/resolve?resolution=ban`);
+
+    expect(response.status).toBe(409);
+    expect(h.directory.setBanned).not.toHaveBeenCalled();
+    expect(h.room.evict).not.toHaveBeenCalled();
+    expect(h.reports.resolve).not.toHaveBeenCalled();
+  });
+
+  it('发码与作废', async () => {
+    const h = harness();
+
+    const issued = await h.call('POST', '/invites?count=3');
+    expect(issued.status).toBe(201);
+    expect(h.invites.issueCodes).toHaveBeenCalledWith(3, ROOT);
+
+    const revoked = await h.call('DELETE', '/invites/CODE1234567890ABCDE');
+    expect(revoked.status).toBe(204);
+    expect(h.invites.revoke).toHaveBeenCalledWith('CODE1234567890ABCDE');
+  });
+
+  it('lists invite status, validates issuance counts, and reports an unknown code on revoke', async () => {
+    const h = harness();
+    vi.mocked(h.invites.listCodes).mockResolvedValueOnce([
+      { code: 'CODE1234567890ABCDE', createdAt: '2026-11-05T00:00:00Z', usedBy: null, usedAt: null, revokedAt: null }
+    ]);
+
+    await expect((await h.call('GET', '/invites')).json()).resolves.toEqual({
+      codes: [
+        {
+          code: 'CODE1234567890ABCDE',
+          createdAt: '2026-11-05T00:00:00Z',
+          usedBy: null,
+          usedAt: null,
+          revokedAt: null
+        }
+      ]
+    });
+    for (const count of ['0', '-1', '1.5', '101', '']) {
+      expect((await h.call('POST', `/invites?count=${count}`)).status).toBe(400);
+    }
+    expect((await h.call('DELETE', '/invites/short')).status).toBe(400);
+    vi.mocked(h.invites.revoke).mockResolvedValueOnce(false);
+    expect((await h.call('DELETE', '/invites/UNKNOWNCODE12345')).status).toBe(404);
+    expect(h.invites.issueCodes).not.toHaveBeenCalled();
   });
 });
 

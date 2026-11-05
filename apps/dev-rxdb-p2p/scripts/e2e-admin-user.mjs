@@ -13,6 +13,10 @@ const { P2P_E2E_ADMIN_EMAIL: email, P2P_E2E_ADMIN_PASSWORD: password } = process
 if (!email || !password) throw new Error('set P2P_E2E_ADMIN_EMAIL and P2P_E2E_ADMIN_PASSWORD');
 
 const { url, anonKey, serviceRoleKey } = resolveStack();
+const destination = new URL(url);
+if (!['http:', 'https:'].includes(destination.protocol) || !['localhost', '127.0.0.1'].includes(destination.hostname)) {
+  throw new Error('e2e administrator requires a loopback Supabase URL');
+}
 if (!serviceRoleKey) throw new Error('a service role key is required to create the e2e administrator');
 const asService = {
   apikey: serviceRoleKey,
@@ -22,6 +26,7 @@ const asService = {
 
 const created = await fetch(`${url}/auth/v1/admin/users`, {
   method: 'POST',
+  redirect: 'error',
   headers: asService,
   body: JSON.stringify({ email, password, email_confirm: true })
 });
@@ -33,6 +38,7 @@ const idOf = async () => {
     throw new Error(`creating the e2e administrator failed: ${created.status} ${await created.text()}`);
   const login = await fetch(`${url}/auth/v1/token?grant_type=password`, {
     method: 'POST',
+    redirect: 'error',
     headers: { apikey: anonKey, 'content-type': 'application/json' },
     body: JSON.stringify({ email, password })
   });

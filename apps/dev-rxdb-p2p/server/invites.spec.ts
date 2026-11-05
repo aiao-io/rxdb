@@ -9,6 +9,10 @@ const directoryWith = (overrides: Partial<InviteDirectory> = {}): InviteDirector
   isActivated: vi.fn(async () => false),
   issueCodes: vi.fn(async () => []),
   revoke: vi.fn(async () => true),
+<<<<<<< HEAD
+=======
+  listCodes: vi.fn(async () => []),
+>>>>>>> 3e4c88e65fa427160c6e364877d15e3a23260046
   ...overrides
 });
 

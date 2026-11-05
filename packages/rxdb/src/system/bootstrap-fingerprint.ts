@@ -11,7 +11,11 @@
  * 按集合比对（{@link readBootstrapFingerprints}）。
  */
 
-import { FINGERPRINT_KEYS, fingerprintSchemaInput, pickSchemaFingerprintInput } from '../backup/schema-fingerprint-encoding.js';
+import {
+  FINGERPRINT_KEYS,
+  fingerprintSchemaInput,
+  pickSchemaFingerprintInput
+} from '../backup/schema-fingerprint-encoding.js';
 import type { EntityType } from '../entity/entity.interface.js';
 
 /**

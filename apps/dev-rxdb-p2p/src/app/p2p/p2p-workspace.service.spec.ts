@@ -13,6 +13,7 @@ import { BehaviorSubject, Subject } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SignalingPeer } from '../../../shared/signaling-protocol';
 import { AuthService } from '../auth/auth.service';
+import type { writeEnvelopes } from '../device/fallback-envelopes';
 import type { HeldFileWriter } from './held-files';
 import { P2PWorkspace, type SharedFileView } from './p2p-workspace.service';
 import type { LinkView, PeerLinksOptions } from './peer-links';
@@ -46,7 +47,11 @@ const device = vi.hoisted(() => ({
   ensureDevice: vi.fn<() => Promise<{ id: string; name: string }>>()
 }));
 const envelopeApi = vi.hoisted(() => ({
+<<<<<<< HEAD
   writeEnvelopes: vi.fn<() => Promise<void>>(),
+=======
+  writeEnvelopes: vi.fn<typeof writeEnvelopes>(),
+>>>>>>> 3e4c88e65fa427160c6e364877d15e3a23260046
   envelopeFor: vi.fn<
     () => Promise<{
       readonly kid: string;

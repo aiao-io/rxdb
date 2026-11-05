@@ -1,8 +1,16 @@
 // @vitest-environment node
-import { describe, expect, it, vi } from 'vitest';
-import { AccountNotFoundError, createAdminDirectory, type AdminSupabaseConfig } from './admin-supabase';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  AccountNotFoundError,
+  createAdminDirectory,
+  createInviteDirectory,
+  createReportDirectory,
+  type AdminSupabaseConfig
+} from './admin-supabase';
 
 const USER_ID = '6f1c5d1e-4c7b-4f7e-9a51-2d0c3b8f9a10';
+
+afterEach(() => vi.restoreAllMocks());
 
 const json = (status: number, body: unknown, headers: Record<string, string> = {}): Response =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...headers } });
@@ -184,5 +192,201 @@ describe('createAdminDirectory', () => {
 
       await expect(directory.deleteAccount(USER_ID)).rejects.toThrow('Supabase Auth admin responded 502');
     });
+  });
+});
+
+describe('createReportDirectory', () => {
+  it('submits a report through the p2p profile and maps duplicate reports to created false', async () => {
+    const { fetch } = directoryWith((_url, init) => {
+      expect(headersOf(init).get('content-profile')).toBe('p2p');
+      expect(headersOf(init).get('authorization')).toBe('Bearer service-key');
+      expect(init.method).toBe('POST');
+      expect(JSON.parse(String(init.body))).toEqual({
+        target_hash: 'a'.repeat(64),
+        target_user: null,
+        target_source: `/api/files/${'a'.repeat(64)}`,
+        category: 'malware',
+        reporter_user: USER_ID
+      });
+      return json(201, {});
+    });
+    const directory = createReportDirectory({
+      url: 'http://supabase.test',
+      serviceRoleKey: 'service-key',
+      fetch
+    });
+    const input = {
+      targetHash: 'a'.repeat(64),
+      targetUser: null,
+      sourceUrl: `/api/files/${'a'.repeat(64)}`,
+      category: 'malware' as const,
+      reporterUser: USER_ID
+    };
+
+    await expect(directory.submit(input)).resolves.toEqual({ created: true });
+    fetch.mockImplementationOnce(async () => json(409, { code: '23505' }));
+    await expect(directory.submit(input)).resolves.toEqual({ created: false });
+  });
+
+  it('rejects a conflict that does not identify the duplicate-report constraint', async () => {
+    const { fetch } = directoryWith(() => json(409, { code: 'other' }));
+    const directory = createReportDirectory({ url: 'http://supabase.test', serviceRoleKey: 'service-key', fetch });
+
+    await expect(
+      directory.submit({
+        targetHash: null,
+        targetUser: USER_ID,
+        sourceUrl: null,
+        category: 'other',
+        reporterUser: USER_ID
+      })
+    ).rejects.toThrow('PostgREST responded 409');
+    const invalidJson = directoryWith(() => new Response('<html>bad gateway</html>', { status: 502 }));
+    const invalidDirectory = createReportDirectory({
+      url: 'http://supabase.test',
+      serviceRoleKey: 'service-key',
+      fetch: invalidJson.fetch
+    });
+    await expect(
+      invalidDirectory.submit({
+        targetHash: null,
+        targetUser: USER_ID,
+        sourceUrl: null,
+        category: 'other',
+        reporterUser: USER_ID
+      })
+    ).rejects.toThrow('PostgREST responded 502');
+  });
+
+  it('lists open reports and maps nullable target and resolution fields', async () => {
+    const { fetch } = directoryWith((url, init) => {
+      expect(url.pathname).toBe('/rest/v1/reports');
+      expect(url.searchParams.get('resolved_at')).toBe('is.null');
+      expect(url.searchParams.get('order')).toBe('created_at.desc');
+      expect(headersOf(init).get('accept-profile')).toBe('p2p');
+      return json(200, [
+        {
+          id: 'report-1',
+          target_hash: null,
+          target_source: null,
+          target_user: USER_ID,
+          category: 'other',
+          reporter_user: 'reporter-1',
+          created_at: '2026-11-05T00:00:00Z',
+          resolved_at: null,
+          resolution: null
+        }
+      ]);
+    });
+    const directory = createReportDirectory({ url: 'http://supabase.test', serviceRoleKey: 'service-key', fetch });
+
+    await expect(directory.listOpen()).resolves.toEqual([
+      {
+        id: 'report-1',
+        targetHash: null,
+        targetUser: USER_ID,
+        sourceUrl: null,
+        category: 'other',
+        reporterUser: 'reporter-1',
+        createdAt: '2026-11-05T00:00:00Z',
+        resolvedAt: null,
+        resolution: null
+      }
+    ]);
+  });
+
+  it('rejects a failed list request and resolves a report through a filtered patch', async () => {
+    const { fetch } = directoryWith((url, init) => {
+      if (url.pathname === '/rest/v1/reports' && !init.method) return json(503, {});
+      expect(url.pathname).toBe('/rest/v1/reports');
+      expect(url.searchParams.get('id')).toBe('eq.report-1');
+      expect(init.method).toBe('PATCH');
+      expect(headersOf(init).get('content-profile')).toBe('p2p');
+      expect(JSON.parse(String(init.body))).toMatchObject({ resolved_by: USER_ID, resolution: 'ignore' });
+      return json(200, {});
+    });
+    const directory = createReportDirectory({ url: 'http://supabase.test', serviceRoleKey: 'service-key', fetch });
+
+    await expect(directory.listOpen()).rejects.toThrow('PostgREST responded 503');
+    await expect(directory.resolve('report-1', 'ignore', USER_ID)).resolves.toBe(true);
+  });
+});
+
+describe('createInviteDirectory', () => {
+  it('activates a code and looks up both present and absent activation rows', async () => {
+    const { fetch } = directoryWith(url => {
+      if (url.pathname.endsWith('/rpc/activate_invite')) return json(200, true);
+      if (url.searchParams.get('user_id') === `eq.${USER_ID}`) return json(200, [{ user_id: USER_ID }]);
+      return json(200, []);
+    });
+    const directory = createInviteDirectory({ url: 'http://supabase.test', serviceRoleKey: 'service-key', fetch });
+
+    await expect(directory.activate('invite-code', USER_ID)).resolves.toBe(true);
+    await expect(directory.isActivated(USER_ID)).resolves.toBe(true);
+    await expect(directory.isActivated('not-activated')).resolves.toBe(false);
+    expect(fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it('issues codes through the service-role table and returns generated codes', async () => {
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0);
+    const { fetch } = directoryWith((url, init) => {
+      expect(url.pathname).toBe('/rest/v1/invite_codes');
+      expect(init.method).toBe('POST');
+      expect(headersOf(init).get('content-profile')).toBe('p2p');
+      expect(JSON.parse(String(init.body))).toEqual([
+        { code: 'A'.repeat(20), created_by: USER_ID },
+        { code: 'A'.repeat(20), created_by: USER_ID }
+      ]);
+      return json(201, {});
+    });
+    const directory = createInviteDirectory({ url: 'http://supabase.test', serviceRoleKey: 'service-key', fetch });
+
+    await expect(directory.issueCodes(2, USER_ID)).resolves.toEqual(['A'.repeat(20), 'A'.repeat(20)]);
+    random.mockRestore();
+  });
+
+  it('rejects failed RPC, activation lookup and invite insert requests', async () => {
+    const { fetch } = directoryWith(() => json(503, {}));
+    const directory = createInviteDirectory({ url: 'http://supabase.test', serviceRoleKey: 'service-key', fetch });
+
+    await expect(directory.activate('invite-code', USER_ID)).rejects.toThrow('PostgREST responded 503');
+    await expect(directory.isActivated(USER_ID)).rejects.toThrow('PostgREST responded 503');
+    await expect(directory.issueCodes(1, USER_ID)).rejects.toThrow('PostgREST responded 503');
+  });
+
+  it('lists invite state and returns false when a revoke request fails', async () => {
+    const { fetch } = directoryWith(url => {
+      if (url.searchParams.has('code')) return json(404, {});
+      return json(200, [
+        {
+          code: 'CODE',
+          created_at: '2026-11-05T00:00:00Z',
+          used_by: USER_ID,
+          used_at: '2026-11-06T00:00:00Z',
+          revoked_at: null
+        }
+      ]);
+    });
+    const directory = createInviteDirectory({ url: 'http://supabase.test', serviceRoleKey: 'service-key', fetch });
+
+    await expect(directory.listCodes()).resolves.toEqual([
+      {
+        code: 'CODE',
+        createdAt: '2026-11-05T00:00:00Z',
+        usedBy: USER_ID,
+        usedAt: '2026-11-06T00:00:00Z',
+        revokedAt: null
+      }
+    ]);
+    await expect(directory.revoke('CODE')).resolves.toBe(false);
+    fetch.mockImplementationOnce(async () => json(200, {}));
+    await expect(directory.revoke('CODE')).resolves.toBe(true);
+  });
+
+  it('rejects a failed invite listing', async () => {
+    const { fetch } = directoryWith(() => json(503, {}));
+    const directory = createInviteDirectory({ url: 'http://supabase.test', serviceRoleKey: 'service-key', fetch });
+
+    await expect(directory.listCodes()).rejects.toThrow('PostgREST responded 503');
   });
 });

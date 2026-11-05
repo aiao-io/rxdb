@@ -15,7 +15,7 @@ import {
   type EncodedFileShape
 } from './fallback-crypto';
 
-const bytes = (text: string): Uint8Array => new TextEncoder().encode(text);
+const bytes = (text: string): Uint8Array<ArrayBuffer> => new TextEncoder().encode(text);
 const text = (data: Uint8Array): string => new TextDecoder().decode(data);
 
 const shape: EncodedFileShape = {

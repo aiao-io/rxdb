@@ -17,7 +17,7 @@ const apiWith = (devices: Record<string, string>): DeviceApi & { readonly regist
   return {
     registered,
     findDevice: vi.fn(async (id: string) => (devices[id] ? { id, name: devices[id] } : null)),
-    registerDevice: vi.fn(async (name: string, publicKeyBase64: string) => {
+    registerDevice: vi.fn(async (name: string) => {
       registered.push(name);
       return { id: `device-${registered.length}`, name };
     }),
