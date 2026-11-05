@@ -137,6 +137,70 @@ describe('WorkspacePage', () => {
     expect(entry?.textContent).toContain('管理后台');
   });
 
+  it('activates an invite after trimming the code and reports invalid codes', async () => {
+    workspace.activation.set('needs-invite');
+    workspace.activateInvite.mockResolvedValueOnce(false);
+    fixture.detectChanges();
+
+    const input = root.querySelector<HTMLInputElement>('[data-testid="invite-code"]')!;
+    const submit = findButton(root, '激活');
+    expect(submit.disabled).toBe(true);
+    input.value = '  INVITE-CODE  ';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(submit.disabled).toBe(false);
+    submit.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(workspace.activateInvite).toHaveBeenCalledExactlyOnceWith('INVITE-CODE');
+    expect(root.querySelector('[role="alert"]')?.textContent).toContain('邀请码无效');
+  });
+
+  it('disables invite submission during activation and clears an earlier error on success', async () => {
+    workspace.activation.set('needs-invite');
+    let finish: ((activated: boolean) => void) | undefined;
+    workspace.activateInvite.mockImplementationOnce(() => new Promise(resolve => (finish = resolve)));
+    fixture.detectChanges();
+    const input = root.querySelector<HTMLInputElement>('[data-testid="invite-code"]')!;
+    input.value = 'code';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    findButton(root, '激活').click();
+    fixture.detectChanges();
+    expect(findButton(root, '激活中…').disabled).toBe(true);
+    findButton(root, '激活中…').click();
+    expect(workspace.activateInvite).toHaveBeenCalledOnce();
+
+    finish?.(true);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(root.querySelector('[role="alert"]')).toBeNull();
+    expect(findButton(root, '激活').disabled).toBe(false);
+  });
+
+  it.each([new Error('邀请码服务不可用'), '邀请码服务不可用'])(
+    'shows invite failures without leaving the beta gate: %s',
+    async error => {
+      workspace.activation.set('needs-invite');
+      workspace.activateInvite.mockRejectedValueOnce(error);
+      fixture.detectChanges();
+      const input = root.querySelector<HTMLInputElement>('[data-testid="invite-code"]')!;
+      input.value = 'code';
+      input.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+
+      findButton(root, '激活').click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(root.querySelector('[role="alert"]')?.textContent).toContain('邀请码服务不可用');
+      expect(root.querySelector('[data-testid="invite-gate"]')).not.toBeNull();
+      expect(findButton(root, '激活').disabled).toBe(false);
+    }
+  );
+
   it('keeps the entry hidden and the workspace working when the administrator check fails', async () => {
     admin.check.mockRejectedValueOnce(new Error('管理接口返回 HTTP 502'));
 

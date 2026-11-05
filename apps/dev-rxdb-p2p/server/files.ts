@@ -106,9 +106,8 @@ const upload = async (request: Request, key: string, expectedHash: string, bucke
   try {
     await bucket.put(key, request.body, { sha256: expectedHash });
   } catch (error) {
-    return json(502, {
-      error: `storage rejected the upload: ${error instanceof Error ? error.message : String(error)}`
-    });
+    console.error('[p2p] file upload failed', error);
+    return json(502, { error: 'storage rejected the upload' });
   }
   return json(201, { stored: true });
 };
@@ -126,7 +125,7 @@ export const handleFileRequest = async (
   if (!HASH_PATTERN.test(contentHash)) return json(400, { error: 'expected a lowercase SHA-256 hex hash' });
   const token = bearerOf(request);
   const user = token ? await deps.verifyUser(token) : null;
-  if (!user) return json(401, { error: 'a valid access token is required' });
+  if (!token || !user) return json(401, { error: 'a valid access token is required' });
   if (deps.requireActivation) {
     const gate = await activationGate(deps, user, token);
     if (gate) return gate;
@@ -172,7 +171,7 @@ export const handleEncryptedFileRequest = async (
   if (!HASH_PATTERN.test(encHash)) return json(400, { error: 'expected a lowercase SHA-256 hex hash' });
   const token = bearerOf(request);
   const user = token ? await deps.verifyUser(token) : null;
-  if (!user) return json(401, { error: 'a valid access token is required' });
+  if (!token || !user) return json(401, { error: 'a valid access token is required' });
   if (deps.requireActivation) {
     const gate = await activationGate(deps, user, token);
     if (gate) return gate;

@@ -205,7 +205,7 @@ const deleteFile: Handler = async ({ deps }, [contentHash = '']) => {
   return noContent();
 };
 
-const listReports: Handler = async ({ deps, user }) => {
+const listReports: Handler = async ({ deps }) => {
   const reports = await deps.reports.listOpen();
   return json(200, { reports });
 };
@@ -304,17 +304,17 @@ const dispatch = async (request: Request, deps: AdminRouteDeps): Promise<Respons
 };
 
 const failure = (error: unknown): Response => {
-  if (error instanceof AdminConfigError) return json(503, { error: error.message });
   if (error instanceof AccountNotFoundError) return json(404, { error: 'account not found' });
-  return json(502, { error: error instanceof Error ? error.message : String(error) });
+  console.error('admin request failed', error);
+  if (error instanceof AdminConfigError) return json(503, { error: 'admin console configuration is unavailable' });
+  return json(502, { error: 'admin service is unavailable' });
 };
 
 /**
  * 处理 `/api/admin/*`。
  *
  * @remarks
- * 上游（Supabase、信令房间、R2）的故障转成 502 并带上它们的说明：看到这个页面的只有管理员，需要知道缺了什么
- * （例如数据库函数还没装）。
+ * 上游（Supabase、信令房间、R2）的故障转成固定的 502，详细错误仅写入服务端日志。
  */
 export const handleAdminRequest = async (request: Request, deps: AdminRouteDeps): Promise<Response> => {
   try {

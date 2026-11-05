@@ -55,6 +55,10 @@ const environment = (privateKey: string): Env => ({
     idFromName: name => name,
     get: () => ({ fetch: async () => new Response(null, { status: 404 }) })
   },
+  LIMITER: {
+    idFromName: name => name,
+    get: () => ({ fetch: async () => new Response(JSON.stringify({ allowed: true, retryAfterMs: 0 })) })
+  },
   FILES: {
     head: async () => null,
     get: async () => null,
@@ -70,7 +74,14 @@ const state = (): { readonly context: DurableObjectStateLike; readonly sockets: 
     sockets,
     context: {
       acceptWebSocket: vi.fn(socket => sockets.push(socket as HibernatableWebSocket)),
-      getWebSockets: vi.fn(() => [...sockets])
+      getWebSockets: vi.fn(() => [...sockets]),
+      storage: {
+        sql: {
+          exec: () => {
+            throw new Error('signaling room does not use persistent SQL storage');
+          }
+        }
+      }
     }
   };
 };

@@ -13,6 +13,7 @@ const envWith = (overrides: Partial<Env> = {}): Env => ({
   SUPABASE_SERVICE_ROLE_KEY: 'service-key',
   ADMIN_USER_IDS: ALICE,
   SIGNALING: { idFromName: () => '', get: () => ({ fetch: async () => new Response() }) },
+  LIMITER: { idFromName: () => '', get: () => ({ fetch: async () => new Response() }) },
   FILES: {
     head: async () => null,
     get: async () => null,

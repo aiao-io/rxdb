@@ -151,7 +151,7 @@ describe('handleRequest', () => {
       );
     };
 
-    it('answers the administration routes with 503 and names what is missing, while the rest keeps serving', async () => {
+    it('answers the administration routes with 503 while the rest keeps serving', async () => {
       signInAs();
       const env = envWith();
 
@@ -159,7 +159,7 @@ describe('handleRequest', () => {
 
       expect(response.status).toBe(503);
       await expect(response.json()).resolves.toEqual({
-        error: 'admin console is not configured: SUPABASE_SERVICE_ROLE_KEY and ADMIN_USER_IDS are missing'
+        error: 'admin console configuration is unavailable'
       });
       expect((await handleRequest(get('/app-config.js'), env)).status).toBe(200);
       expect((await handleRequest(get(`/api/files/${'b'.repeat(64)}`), env)).status).toBe(401);
@@ -182,7 +182,7 @@ describe('handleRequest', () => {
 
       expect(response.status).toBe(503);
       await expect(response.json()).resolves.toEqual({
-        error: 'admin console is not configured: SUPABASE_SERVICE_ROLE_KEY is missing'
+        error: 'admin console configuration is unavailable'
       });
     });
   });

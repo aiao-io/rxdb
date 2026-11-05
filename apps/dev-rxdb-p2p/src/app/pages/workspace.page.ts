@@ -176,20 +176,6 @@ export default class WorkspacePage implements OnInit {
   readonly inviteCode = signal('');
   readonly inviting = signal(false);
   readonly inviteError = signal<string | null>(null);
-
-  async submitInvite(): Promise<void> {
-    if (this.inviting()) return;
-    this.inviting.set(true);
-    this.inviteError.set(null);
-    try {
-      const activated = await this.workspace.activateInvite(this.inviteCode().trim());
-      if (!activated) this.inviteError.set('邀请码无效、已被使用或已作废。');
-    } catch (error) {
-      this.inviteError.set(error instanceof Error ? error.message : String(error));
-    } finally {
-      this.inviting.set(false);
-    }
-  }
   readonly error = signal<string | null>(null);
 
   constructor() {
@@ -204,6 +190,19 @@ export default class WorkspacePage implements OnInit {
     void this.workspace.start().catch(() => undefined);
     // 确认不了身份就不显示入口，不影响文件共享本身
     void this.admin.check().catch(() => undefined);
+  }
+  async submitInvite(): Promise<void> {
+    if (this.inviting()) return;
+    this.inviting.set(true);
+    this.inviteError.set(null);
+    try {
+      const activated = await this.workspace.activateInvite(this.inviteCode().trim());
+      if (!activated) this.inviteError.set('邀请码无效、已被使用或已作废。');
+    } catch (error) {
+      this.inviteError.set(error instanceof Error ? error.message : String(error));
+    } finally {
+      this.inviting.set(false);
+    }
   }
   reload(): void {
     location.reload();

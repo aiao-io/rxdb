@@ -14,6 +14,7 @@ export default defineConfig({
     globals: true,
     // 前端用例跑在 happy-dom；Worker 与共用协议的用例在文件头声明 `@vitest-environment node`。
     environment: 'happy-dom',
+    pool: 'forks',
     include: ['src/**/*.spec.ts', 'server/**/*.spec.ts', 'shared/**/*.spec.ts'],
     setupFiles: ['src/test-setup.ts'],
     reporters: ['default'],

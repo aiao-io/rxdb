@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FALLBACK_ENCODING_HEADER, FALLBACK_ENCODING_VERSION } from '../shared/fallback-encoding';
 import {
   encFileKey,
@@ -13,6 +13,8 @@ import type { R2BucketLike } from './runtime';
 
 const HASH = 'a'.repeat(64);
 const BYTES = new Uint8Array([1, 2, 3, 4]);
+
+afterEach(() => vi.restoreAllMocks());
 
 class FakeBucket implements R2BucketLike {
   readonly objects = new Map<string, Uint8Array>();
@@ -70,6 +72,70 @@ const request = (
     duplex: 'half'
   } as RequestInit);
 };
+
+describe.each([
+  ['plaintext', handleFileRequest, fileKey],
+  ['encrypted', handleEncryptedFileRequest, encFileKey]
+] as const)('%s server copy access', (_kind, handle, keyOf) => {
+  const authorized = (method: string): Request => {
+    const input = request(method, { token: 'good' });
+    input.headers.set(FALLBACK_ENCODING_HEADER, FALLBACK_ENCODING_VERSION);
+    return input;
+  };
+
+  it('requires activation before allowing file access', async () => {
+    const isActivated = vi.fn(async () => false);
+    const deps = { ...depsWith(), requireActivation: true, isActivated };
+
+    const refused = await handle(authorized('GET'), HASH, deps);
+
+    expect(refused.status).toBe(403);
+    expect(isActivated).toHaveBeenCalledExactlyOnceWith('good', 'user-1');
+    isActivated.mockResolvedValueOnce(true);
+    deps.bucket.objects.set(keyOf(HASH), BYTES);
+    const allowed = await handle(authorized('GET'), HASH, deps);
+    expect(allowed.status).toBe(200);
+    expect(new Uint8Array(await allowed.arrayBuffer())).toEqual(BYTES);
+  });
+
+  it('rejects an upload before touching storage when its quota is exhausted', async () => {
+    const consume = vi.fn(async () => ({ allowed: false, retryAfterMs: 1500 }));
+    const deps = { ...depsWith(), consume };
+
+    const response = await handle(authorized('PUT'), HASH, deps);
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get('retry-after')).toBe('2');
+    expect(consume).toHaveBeenCalledExactlyOnceWith('fallback-upload', 'user-1');
+    expect(deps.bucket.put).not.toHaveBeenCalled();
+  });
+
+  it.each(['count', 'bytes'])('rejects a download whose %s quota is exhausted', async exhausted => {
+    const consume = vi.fn(async () => ({ allowed: exhausted !== 'count', retryAfterMs: 1000 }));
+    const check = vi.fn(async () => ({ allowed: exhausted !== 'bytes', retryAfterMs: 2500 }));
+    const deps = { ...depsWith(), consume, check };
+
+    const response = await handle(authorized('GET'), HASH, deps);
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get('retry-after')).toBe(exhausted === 'count' ? '1' : '3');
+    expect(consume).toHaveBeenCalledExactlyOnceWith('fallback-download-count', 'user-1');
+    expect(check).toHaveBeenCalledExactlyOnceWith('fallback-download-bytes', 'user-1');
+  });
+
+  it('accounts for the bytes actually streamed after permitting a download', async () => {
+    const consume = vi.fn(async () => ({ allowed: true, retryAfterMs: 0 }));
+    const check = vi.fn(async () => ({ allowed: true, retryAfterMs: 0 }));
+    const reportBytes = vi.fn();
+    const deps = { ...depsWith(), consume, check, reportBytes };
+    deps.bucket.objects.set(keyOf(HASH), BYTES);
+
+    const response = await handle(authorized('GET'), HASH, deps);
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(BYTES);
+
+    expect(reportBytes).toHaveBeenCalledExactlyOnceWith('fallback-download-bytes', 'user-1', BYTES.length);
+  });
+});
 
 describe('handleFileRequest', () => {
   it('rejects a key that is not a content hash', async () => {
@@ -147,14 +213,19 @@ describe('handleFileRequest', () => {
     expect(response.status).toBe(413);
   });
 
-  it('reports a storage rejection', async () => {
+  it.each([
+    new Error('storage secret=private at /srv/storage/upload.ts:17'),
+    'storage secret=private at /srv/storage/upload.ts:17'
+  ])('keeps a storage rejection in the server log: %s', async error => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const deps = depsWith();
-    deps.bucket.put.mockRejectedValueOnce(new Error('checksum mismatch'));
+    deps.bucket.put.mockRejectedValueOnce(error);
 
     const response = await handleFileRequest(request('PUT', { token: 'good', body: BYTES, length: 4 }), HASH, deps);
 
     expect(response.status).toBe(502);
-    await expect(response.json()).resolves.toEqual({ error: 'storage rejected the upload: checksum mismatch' });
+    await expect(response.json()).resolves.toEqual({ error: 'storage rejected the upload' });
+    expect(logged).toHaveBeenCalledWith('[p2p] file upload failed', error);
   });
 
   it('allows only GET, HEAD and PUT', async () => {
