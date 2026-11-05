@@ -15,7 +15,7 @@
       "dependsOn": ["dev-rxdb-p2p:build"],
       "options": {
         "cwd": "apps/dev-rxdb-p2p-e2e",
-        "command": "NX_DAEMON=false pnpm exec playwright test -c playwright.demo.config.ts"
+        "command": "NX_DAEMON=false pnpm exec playwright test -c playwright.demo.config.ts && NX_DAEMON=false pnpm exec playwright test -c playwright.demo.limits.chrome.mts"
       }
     }
   }

@@ -213,7 +213,7 @@ test.describe('滥用治理（POOL-US-102）', () => {
   });
 });
 
-test('AC#3 管理接口失败认证被限流', async ({ browser, request }) => {
+test('AC#3 管理接口失败认证被限流', async ({ request }) => {
   const denied = await request.post('/api/admin/accounts?page=1', {
     headers: { authorization: 'Bearer forged-token' }
   });

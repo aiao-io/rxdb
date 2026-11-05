@@ -138,7 +138,6 @@ test.describe('回退内容加密', () => {
 const envelopeRows = (page: Page, contentHash: string): Promise<readonly Record<string, unknown>[]> =>
   page.evaluate(async hash => {
     let token: string | null = null;
-    let apikey = '';
     for (const key of Object.keys(localStorage)) {
       let candidate: { access_token?: unknown } | null = null;
       try {
@@ -148,10 +147,12 @@ const envelopeRows = (page: Page, contentHash: string): Promise<readonly Record<
       }
       if (candidate && typeof candidate.access_token === 'string') token = candidate.access_token;
     }
-    const config = (globalThis as { __P2P_CONFIG__?: { supabaseAnonKey: string } }).__P2P_CONFIG__;
-    apikey = config?.supabaseAnonKey ?? '';
-    if (!token || !apikey) throw new Error('no supabase session in localStorage');
-    const url = `http://localhost:55001/rest/v1/p2p_fallback_envelope?select=*&contentHash=eq.${hash}`;
+    const config = (globalThis as { __P2P_CONFIG__?: { supabaseAnonKey: string; supabaseUrl: string } }).__P2P_CONFIG__;
+    const apikey = config?.supabaseAnonKey ?? '';
+    if (!token || !apikey || !config?.supabaseUrl) throw new Error('no supabase session in localStorage');
+    const url = new URL('/rest/v1/p2p_fallback_envelope', config.supabaseUrl);
+    url.searchParams.set('select', '*');
+    url.searchParams.set('contentHash', `eq.${hash}`);
     const response = await fetch(url, {
       headers: { apikey, authorization: `Bearer ${token}`, 'accept-profile': 'p2p' }
     });
@@ -221,7 +222,7 @@ test.describe('回退内容加密的处置与泄漏面', () => {
   test('AC#7 升级后新上传全加密；管理员删除旧明文副本后无明文残留', async ({ browser }) => {
     const holder = await openDevice(browser, newAccount('legacy-copy'), 'sign-up');
     // 新上传是密文副本
-    const { contentHash, fileName } = await generateFile(holder, 1, { upload: true });
+    const { fileName } = await generateFile(holder, 1, { upload: true });
     expect(await fileRow(holder, fileName).getAttribute('data-source')).toMatch(/^\/api\/files\/enc\//);
 
     // 旧世界明文副本：直接 PUT 明文到明文路由（旧客户端行为），管理员能在列表看到并删除。
@@ -281,6 +282,6 @@ test.describe('回退内容加密的处置与泄漏面', () => {
 
     const after = await envelopeRows(fetcher.page, contentHash);
     expect(after.some(row => row['recipientDeviceId'] === uploaderDeviceId)).toBe(false);
-    expect(after.length).toBe(before.length - 1);
+    expect(after).toHaveLength(before.length - 1);
   });
 });

@@ -10,7 +10,6 @@ const helloOnce = (page: Page): Promise<'welcome' | 'rejected'> =>
   page.evaluate(async () => {
     let token: string | null = null;
     let deviceId: string | null = null;
-    let userId = '';
     for (const key of Object.keys(localStorage)) {
       let candidate: { access_token?: unknown } | null = null;
       try {
@@ -23,7 +22,7 @@ const helloOnce = (page: Page): Promise<'welcome' | 'rejected'> =>
     if (!token) throw new Error('no supabase session in localStorage');
     const payload = token.split('.')[1]!;
     const padded = payload + '='.repeat((4 - (payload.length % 4)) % 4);
-    userId = JSON.parse(atob(padded.replaceAll('-', '+').replaceAll('_', '/')))['sub'] as string;
+    const userId = JSON.parse(atob(padded.replaceAll('-', '+').replaceAll('_', '/')))['sub'] as string;
     deviceId = localStorage.getItem(`dev-rxdb-p2p:device:${userId}`);
     if (!deviceId) throw new Error('no device registered in localStorage');
 

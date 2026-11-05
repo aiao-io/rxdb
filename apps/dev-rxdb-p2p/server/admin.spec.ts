@@ -93,11 +93,7 @@ const harness = (overrides: { config?: () => ReturnType<AdminRouteDeps['config']
     'loud-root-token': { id: ROOT.toUpperCase(), email: 'root@example.com' }
   };
   const reports = {
-<<<<<<< HEAD
-    listOpen: vi.fn(async () => []),
-=======
     listOpen: vi.fn<AdminRouteDeps['reports']['listOpen']>(async () => []),
->>>>>>> 3e4c88e65fa427160c6e364877d15e3a23260046
     submit: vi.fn(async () => ({ created: true })),
     resolve: vi.fn(async () => true)
   } satisfies AdminRouteDeps['reports'];
@@ -106,11 +102,7 @@ const harness = (overrides: { config?: () => ReturnType<AdminRouteDeps['config']
     isActivated: vi.fn(async () => false),
     issueCodes: vi.fn(async () => ['CODE123']),
     revoke: vi.fn(async () => true),
-<<<<<<< HEAD
-    listCodes: vi.fn(async () => [])
-=======
     listCodes: vi.fn<AdminRouteDeps['invites']['listCodes']>(async () => [])
->>>>>>> 3e4c88e65fa427160c6e364877d15e3a23260046
   } satisfies AdminRouteDeps['invites'];
   const deps: AdminRouteDeps = {
     verifyUser: vi.fn(async token => identities[token] ?? null),

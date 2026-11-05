@@ -205,11 +205,7 @@ const deleteFile: Handler = async ({ deps }, [contentHash = '']) => {
   return noContent();
 };
 
-<<<<<<< HEAD
-const listReports: Handler = async ({ deps, user }) => {
-=======
 const listReports: Handler = async ({ deps }) => {
->>>>>>> 3e4c88e65fa427160c6e364877d15e3a23260046
   const reports = await deps.reports.listOpen();
   return json(200, { reports });
 };

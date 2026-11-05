@@ -125,11 +125,7 @@ export const handleFileRequest = async (
   if (!HASH_PATTERN.test(contentHash)) return json(400, { error: 'expected a lowercase SHA-256 hex hash' });
   const token = bearerOf(request);
   const user = token ? await deps.verifyUser(token) : null;
-<<<<<<< HEAD
-  if (!user) return json(401, { error: 'a valid access token is required' });
-=======
   if (!token || !user) return json(401, { error: 'a valid access token is required' });
->>>>>>> 3e4c88e65fa427160c6e364877d15e3a23260046
   if (deps.requireActivation) {
     const gate = await activationGate(deps, user, token);
     if (gate) return gate;
@@ -175,11 +171,7 @@ export const handleEncryptedFileRequest = async (
   if (!HASH_PATTERN.test(encHash)) return json(400, { error: 'expected a lowercase SHA-256 hex hash' });
   const token = bearerOf(request);
   const user = token ? await deps.verifyUser(token) : null;
-<<<<<<< HEAD
-  if (!user) return json(401, { error: 'a valid access token is required' });
-=======
   if (!token || !user) return json(401, { error: 'a valid access token is required' });
->>>>>>> 3e4c88e65fa427160c6e364877d15e3a23260046
   if (deps.requireActivation) {
     const gate = await activationGate(deps, user, token);
     if (gate) return gate;

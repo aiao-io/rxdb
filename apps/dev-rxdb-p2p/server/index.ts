@@ -11,9 +11,5 @@ export { PoolLimiter } from './pool-limiter';
 export { SignalingRoom } from './signaling-room';
 
 export default {
-<<<<<<< HEAD
-  fetch: (request: Request, env: Env, ctx: ExecutionContext): Promise<Response> => handleRequest(request, env, ctx)
-=======
   fetch: handleRequest
->>>>>>> 3e4c88e65fa427160c6e364877d15e3a23260046
 };

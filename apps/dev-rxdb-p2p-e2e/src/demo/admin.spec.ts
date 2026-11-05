@@ -80,7 +80,7 @@ test.describe('dev-rxdb-p2p 管理后台', () => {
   test('AC#4 管理员看到账号、在线设备与服务器副本，数字与库里的真实状态一致', async ({ browser, request }) => {
     const email = newAccount('overview');
     const user = await openDevice(browser, email, 'sign-up');
-    const { fileName, contentHash } = await generateFile(user, 1, { upload: true });
+    const { fileName } = await generateFile(user, 1, { upload: true });
     const { token, userId } = await signIn(request, email);
     await claimedInDatabase(request, userId, 1);
     // 上传的是密文副本（POOL-US-101）：按行上的 sourceUrl 轮询，密文路由要求编码头
@@ -193,10 +193,9 @@ test.describe('dev-rxdb-p2p 管理后台', () => {
   test('AC#7 删除服务器副本：R2 对象被删，清单里的持有声明保留', async ({ browser, request }) => {
     const email = newAccount('copy');
     const owner = await openDevice(browser, email, 'sign-up');
-    const { fileName, contentHash } = await generateFile(owner, 1, { upload: true });
+    const { fileName } = await generateFile(owner, 1, { upload: true });
     const { token, userId } = await signIn(request, email);
     const holderId = await claimedInDatabase(request, userId, 1);
-    const asOwner = { headers: { authorization: `Bearer ${token}` } };
     const sourceUrl = (await fileRow(owner, fileName).getAttribute('data-source')) as string;
     await expect
       .poll(async () =>

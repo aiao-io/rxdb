@@ -47,11 +47,7 @@ const device = vi.hoisted(() => ({
   ensureDevice: vi.fn<() => Promise<{ id: string; name: string }>>()
 }));
 const envelopeApi = vi.hoisted(() => ({
-<<<<<<< HEAD
-  writeEnvelopes: vi.fn<() => Promise<void>>(),
-=======
   writeEnvelopes: vi.fn<typeof writeEnvelopes>(),
->>>>>>> 3e4c88e65fa427160c6e364877d15e3a23260046
   envelopeFor: vi.fn<
     () => Promise<{
       readonly kid: string;

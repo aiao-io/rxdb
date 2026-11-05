@@ -176,23 +176,6 @@ export default class WorkspacePage implements OnInit {
   readonly inviteCode = signal('');
   readonly inviting = signal(false);
   readonly inviteError = signal<string | null>(null);
-<<<<<<< HEAD
-
-  async submitInvite(): Promise<void> {
-    if (this.inviting()) return;
-    this.inviting.set(true);
-    this.inviteError.set(null);
-    try {
-      const activated = await this.workspace.activateInvite(this.inviteCode().trim());
-      if (!activated) this.inviteError.set('邀请码无效、已被使用或已作废。');
-    } catch (error) {
-      this.inviteError.set(error instanceof Error ? error.message : String(error));
-    } finally {
-      this.inviting.set(false);
-    }
-  }
-=======
->>>>>>> 3e4c88e65fa427160c6e364877d15e3a23260046
   readonly error = signal<string | null>(null);
 
   constructor() {
