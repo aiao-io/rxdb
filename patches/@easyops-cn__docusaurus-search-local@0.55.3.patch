@@ -1,0 +1,30 @@
+diff --git a/dist/server/server/utils/scanDocuments.js b/dist/server/server/utils/scanDocuments.js
+index ac892fd42d230d5acd1a1114edf3acb51dfceb6f..9a1c70c0a41babe9c5e8937ce950d56606ff50c3 100644
+--- a/dist/server/server/utils/scanDocuments.js
++++ b/dist/server/server/utils/scanDocuments.js
+@@ -26,23 +26,13 @@ function scanDocuments(DocInfoWithFilePathList, config) {
+             keywordsDocuments,
+             contentDocuments,
+         ];
+-        // Process documents in parallel but assign IDs deterministically based on input order
+-        const processedDocs = yield Promise.all(DocInfoWithFilePathList.map(({ filePath, url, type }, index) => tslib_1.__awaiter(this, void 0, void 0, function* () {
++        for (const { filePath, url, type } of DocInfoWithFilePathList) {
+             (0, debug_1.debugVerbose)(`parsing %s file %o of %o`, type, path_1.default.relative(process.cwd(), filePath), url);
+             const html = yield readFileAsync(filePath, { encoding: "utf8" });
+             const parsed = (0, parse_1.parse)(html, type, url, config);
+             if (!parsed) {
+-                // Unlisted content
+-                return null;
+-            }
+-            return { parsed, url, index };
+-        })));
+-        // Process results in input order to ensure deterministic ID assignment
+-        for (let i = 0; i < processedDocs.length; i++) {
+-            const result = processedDocs[i];
+-            if (!result)
+                 continue;
+-            const { parsed, url } = result;
++            }
+             const { pageTitle, description, keywords, sections, breadcrumb } = parsed;
+             const titleId = getNextDocId();
+             titleDocuments.push({

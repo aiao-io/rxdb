@@ -32,6 +32,7 @@ NX_NO_CLOUD = "true"
 # 静态页面渲染限制并发，避免数千份 API 文档在 Netlify 构建机上耗尽内存。
 DOCUSAURUS_SSR_CONCURRENCY = "1"
 DOCUSAURUS_SSG_WORKER_THREAD_COUNT = "1"
+DEBUG = "search-local:info"
 
 # 生产环境配置
 [context.production]
