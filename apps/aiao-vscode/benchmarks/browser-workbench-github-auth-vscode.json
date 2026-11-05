@@ -1,9 +1,5 @@
 {
-  "format": "aiao.browser-workbench.github-auth",
-  "version": 1,
-  "host": "vscode",
-  "url": "http://localhost:4320",
-  "status": "skipped",
+  "browser": "156.0.8078.4",
   "checks": [
     {
       "name": "打开应用并等待 GitHub 服务就绪",
@@ -14,8 +10,12 @@
       "milliseconds": 33
     }
   ],
+  "format": "aiao.browser-workbench.github-auth",
+  "generatedAt": "2026-11-03T11:04:16.095Z",
+  "host": "vscode",
   "login": null,
   "repository": "octocat/Hello-World",
-  "browser": "156.0.8078.4",
-  "generatedAt": "2026-11-03T11:04:16.095Z"
+  "status": "skipped",
+  "url": "http://localhost:4320",
+  "version": 1
 }
