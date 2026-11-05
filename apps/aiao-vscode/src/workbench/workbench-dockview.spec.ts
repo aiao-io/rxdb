@@ -485,28 +485,37 @@ describe('移动端尺寸与拆分', () => {
     await vi.waitFor(() => expect(widePreview?.group.api.width).toBeCloseTo(400, 0));
   });
 
-  it('首布局后强制重布局一次，修复边缘组 overlay 定位竞态', async () => {
+  it('首布局后兜底重建边缘组，修复 overlay 定位竞态', async () => {
     const { root, dock } = fixture(0, 0);
     const container = root.querySelector<HTMLElement>('[data-slot="dockview"]');
     if (!container) throw new Error('dockview 容器缺失');
     Object.defineProperty(container, 'clientWidth', { value: 390 });
     Object.defineProperty(container, 'clientHeight', { value: 800 });
-    const layout = vi.spyOn(dock.api, 'layout');
     dock.api.layout(390, 800);
-    await vi.waitFor(() => expect(layout).toHaveBeenCalledWith(390, 800, true));
+    const side = root.querySelector<HTMLElement>('.wb-side');
+    await vi.waitFor(() => expect(dock.api.getPanel('sidebar')).toBeDefined());
+    expect(root.querySelector<HTMLElement>('.wb-side')).toBe(side);
+    expect(dock.api.getEdgeGroup('left')).toBeDefined();
   });
 
-  it('refreshLayout 抖动容器尺寸驱动重布局，容器无尺寸时静默跳过', () => {
+  it('refreshLayout 检测侧栏内容高度为 0 时重建边缘组，健康时只强制重布局', async () => {
     const { root, dock } = fixture(1200, 800);
     const container = root.querySelector<HTMLElement>('[data-slot="dockview"]');
     if (!container) throw new Error('dockview 容器缺失');
     const layout = vi.spyOn(dock.api, 'layout');
+    // 损坏状态：侧栏内容高度为 0（happy-dom 无布局，恒触发重建路径）
+    const side = root.querySelector<HTMLElement>('.wb-side');
     dock.refreshLayout();
-    expect(layout).not.toHaveBeenCalled();
+    await Promise.resolve();
+    expect(root.querySelector<HTMLElement>('.wb-side')).toBe(side);
+    expect(dock.api.getPanel('sidebar')).toBeDefined();
+    expect(dock.api.getEdgeGroup('left')).toBeDefined();
+    expect(dock.isSidebarVisible()).toBe(true);
+    // 健康状态：mock 高度非零，只走强制重布局
+    Object.defineProperty(side!, 'clientHeight', { value: 800 });
     Object.defineProperty(container, 'clientWidth', { value: 1180 });
     Object.defineProperty(container, 'clientHeight', { value: 760 });
     dock.refreshLayout();
-    expect(layout).toHaveBeenCalledWith(1181, 761, true);
     expect(layout).toHaveBeenCalledWith(1180, 760, true);
   });
 

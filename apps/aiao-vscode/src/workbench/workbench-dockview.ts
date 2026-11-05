@@ -369,6 +369,20 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
     });
   }
 
+  /** 强制按当前容器尺寸重布局；侧栏内容高度为 0 时重建边缘组（见调用处注释）。 */
+  function refreshLayout(): void {
+    if (disposed || container.clientWidth <= 0 || container.clientHeight <= 0) return;
+    const host = hosts.get('sidebar');
+    // dockview 在挂载窗口内按 0 尺寸建立的边缘组布局会永久塌陷（上游已知竞态），
+    // 检测到侧栏内容高度为 0 时移出再放回，按当前容器尺寸重建边缘组。
+    if (!overlayMode && host && host.clientHeight <= 0) {
+      setSidebarOverlay(true);
+      setSidebarOverlay(false);
+      return;
+    }
+    api.layout(container.clientWidth, container.clientHeight, true);
+  }
+
   const program = <T>(action: () => T): T => {
     syncing++;
     try {
@@ -487,12 +501,9 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
         api.getPanel('problems')?.group.api.setSize({ height: 180 });
       });
       // 边缘组面板经 overlay 渲染容器定位，其首帧测量为 0 时不再重试；
-      // 布局落地后强制重布局一次，让 overlay 按真实容器尺寸重新定位。
+      // 布局落地后兜底重布局，让 overlay 按真实容器尺寸重新定位。
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (disposed || container.clientWidth <= 0 || container.clientHeight <= 0) return;
-          api.layout(container.clientWidth, container.clientHeight, true);
-        });
+        requestAnimationFrame(() => refreshLayout());
       });
     })
   );
@@ -711,14 +722,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
       if (panel) splitPanel(panel);
     },
     resetLayout,
-    refreshLayout() {
-      if (disposed || container.clientWidth <= 0 || container.clientHeight <= 0) return;
-      const { clientWidth, clientHeight } = container;
-      // gridview 对同尺寸布局去重，边缘组 overlay 不会重新定位；
-      // 抖动 1px 再复原以驱动 panel 尺寸事件链（与视口变化同一修复路径）。
-      api.layout(clientWidth + 1, clientHeight + 1, true);
-      api.layout(clientWidth, clientHeight, true);
-    },
+    refreshLayout,
     dispose() {
       if (disposed) return;
       disposed = true;
