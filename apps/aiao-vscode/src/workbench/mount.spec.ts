@@ -1628,3 +1628,106 @@ it('文件夹折叠保留编辑缓冲与编辑器实例', async () => {
   expect(mountEditor).toHaveBeenCalledOnce();
   handle.dispose();
 });
+
+describe('移动端界面', () => {
+  const originalMatchMedia = window.matchMedia;
+
+  function matchMediaStub(matches: boolean) {
+    const listeners = new Set<(event: { matches: boolean }) => void>();
+    return {
+      matches,
+      media: '(max-width: 768px)',
+      onchange: null,
+      addEventListener: vi.fn((type: string, listener: (event: { matches: boolean }) => void) => {
+        if (type === 'change') listeners.add(listener);
+      }),
+      removeEventListener: vi.fn((type: string, listener: (event: { matches: boolean }) => void) => {
+        if (type === 'change') listeners.delete(listener);
+      }),
+      dispatchEvent: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      setMatches(value: boolean) {
+        this.matches = value;
+        for (const listener of [...listeners]) listener({ matches: value });
+      }
+    };
+  }
+
+  let mql: ReturnType<typeof matchMediaStub>;
+  beforeEach(() => {
+    mql = matchMediaStub(false);
+    window.matchMedia = vi.fn(() => mql as unknown as MediaQueryList);
+  });
+  afterEach(() => {
+    window.matchMedia = originalMatchMedia;
+    vi.useRealTimers();
+  });
+
+  it('窄屏以抽屉模式挂载，活动栏切换抽屉，打开文件自动收起', async () => {
+    mql.matches = true;
+    const { host } = fixture();
+    const root = host.querySelector<HTMLElement>('.ao-workbench');
+    if (!root) throw new Error('工作台外壳缺失');
+    expect(root.classList.contains('wb-side-overlay')).toBe(true);
+    const side = host.querySelector<HTMLElement>('.wb-side');
+    expect(side?.parentElement).toBe(root);
+    expect(side?.classList.contains('wb-side-open')).toBe(true);
+    await click(host, '[data-action="explorer"]');
+    expect(side?.classList.contains('wb-side-open')).toBe(false);
+    await click(host, '[data-action="explorer"]');
+    expect(side?.classList.contains('wb-side-open')).toBe(true);
+    await click(host, 'button[data-tree-path="src/label.ts"]');
+    expect(side?.classList.contains('wb-side-open')).toBe(false);
+    expect(host.querySelector('[data-action="explorer"]')?.getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('遮罩点击收起抽屉并同步活动栏状态', async () => {
+    mql.matches = true;
+    const { host } = fixture();
+    host.querySelector<HTMLElement>('.wb-side-scrim')?.click();
+    const side = host.querySelector<HTMLElement>('.wb-side');
+    expect(side?.classList.contains('wb-side-open')).toBe(false);
+    expect(host.querySelector('[data-action="explorer"]')?.getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('视口恢复宽屏时侧栏归还 Dockview 并保持收起状态', async () => {
+    mql.matches = true;
+    const { host } = fixture();
+    await click(host, '[data-action="explorer"]');
+    mql.setMatches(false);
+    const root = host.querySelector<HTMLElement>('.ao-workbench');
+    expect(root?.classList.contains('wb-side-overlay')).toBe(false);
+    const side = host.querySelector<HTMLElement>('.wb-side');
+    expect(host.querySelector('[data-slot="dockview"]')?.contains(side)).toBe(true);
+    expect(host.querySelector('.wb-side-scrim')).toBeNull();
+    expect(host.querySelector('[data-action="explorer"]')?.getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('触屏长按树行弹出菜单且不误开文件', async () => {
+    const { host, handle } = fixture();
+    await handle.ready;
+    await click(host, 'button[data-tree-path="src/label.ts"]');
+    vi.useFakeTimers();
+    const row = treeRow(host, 'src/main.ts');
+    row.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        cancelable: true,
+        isPrimary: true,
+        pointerType: 'touch',
+        button: 0,
+        clientX: 10,
+        clientY: 10,
+        pointerId: 1
+      })
+    );
+    vi.advanceTimersByTime(500);
+    const menu = host.querySelector<HTMLElement>('.wb-context-menu');
+    expect(menu).not.toBeNull();
+    const labels = [...(menu?.querySelectorAll('button') ?? [])].map(item => item.textContent);
+    expect(labels).toEqual(['重命名', '删除']);
+    row.click();
+    expect(handle.session.state.activePath).toBe('src/label.ts');
+  });
+});

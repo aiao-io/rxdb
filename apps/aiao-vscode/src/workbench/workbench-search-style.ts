@@ -33,4 +33,5 @@ export const workbenchSearchStyle = `
 .wb-search-line{flex:none;min-width:28px;text-align:right;color:#858585}
 .wb-search-content{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wb-search-match-highlight{background:#613214;color:#fff;padding:0;margin:0}
+@media(pointer:coarse){.wb-search-input,.wb-search-replace{min-height:36px}.wb-search-flags button,.wb-search-clear,.wb-search-replace-all,.wb-search-file-replace{width:30px;height:30px}.wb-search-group-header{height:34px}.wb-search-match{height:34px}}
 `;

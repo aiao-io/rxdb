@@ -19,4 +19,5 @@ export const workbenchCommandsStyle = `
 .wb-quick-input-description{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#a0a0a0;font-size:12px;flex:1}
 .wb-quick-input kbd{margin-left:auto;flex:none;white-space:nowrap;padding:1px 5px;background:#ffffff0a;border:1px solid #6666;border-radius:3px;color:#bdbdbd;font:11px system-ui,sans-serif}
 .wb-quick-input-status{padding:5px 8px 1px;color:#9d9d9d;font-size:11px}
+@media(pointer:coarse){.wb-quick-input [role=option]{min-height:42px}.wb-quick-input input{height:36px}}
 `;

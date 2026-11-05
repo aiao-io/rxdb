@@ -9,6 +9,7 @@ import {
   type TabPartInitParameters
 } from 'dockview-core';
 import { createCodicon, createFileIcon } from './workbench-icons.js';
+import { attachWorkbenchLongPress } from './workbench-longpress.js';
 
 /** 底部工具区域的固定面板。 */
 export type WorkbenchToolKind = 'problems' | 'output' | 'console';
@@ -21,6 +22,8 @@ export interface WorkbenchDockviewCallbacks {
   onToggleTool?(visible: boolean): void;
   onClosePreview?(): void;
   onCloseAuxiliary?(id: string): void;
+  /** 移动端抽屉遮罩被点击，宿主应收起侧栏。 */
+  onCloseSidebar?(): void;
   /** 标签右键菜单：关闭除该标签外的其他编辑器。 */
   onCloseOthers?(path: string): void;
   /** 标签右键菜单：关闭该标签右侧的编辑器。 */
@@ -38,6 +41,8 @@ export interface WorkbenchDockview {
   removeAuxiliary(id: string): void;
   setSidebarVisible(visible: boolean): void;
   isSidebarVisible(): boolean;
+  /** 窄屏时把侧栏切换为覆盖式抽屉（挂到工作台根），退出时归还 Dockview 边缘组。 */
+  setSidebarOverlay(overlay: boolean): void;
   showTool(kind: WorkbenchToolKind): void;
   toggleTools(): void;
   showPreview(): void;
@@ -90,6 +95,8 @@ function showTabMenu(
   event.preventDefault();
   event.stopPropagation();
   closeTabMenu();
+  // 树行与编辑器的菜单由宿主管理，弹出标签菜单前清掉避免叠层
+  for (const menu of root.querySelectorAll('.wb-context-menu')) menu.remove();
   const menu = document.createElement('div');
   menu.className = 'wb-context-menu';
   menu.setAttribute('role', 'menu');
@@ -156,11 +163,23 @@ function createTab(id: string, auxiliary: boolean, callbacks: WorkbenchDockviewC
     dirty.hidden = !modified;
   };
   let titleSubscription: DockviewIDisposable | undefined;
+  let detachLongPress: (() => void) | undefined;
   return {
     element,
     init(parameters: TabPartInitParameters) {
       renderTitle(parameters.title);
       titleSubscription = parameters.api.onDidTitleChange(event => renderTitle(event.title));
+      detachLongPress = attachWorkbenchLongPress(element, {
+        onLongPress: event =>
+          element.dispatchEvent(
+            new MouseEvent('contextmenu', {
+              bubbles: true,
+              cancelable: true,
+              clientX: event.clientX,
+              clientY: event.clientY
+            })
+          )
+      });
       if (id === 'sidebar' || id === 'welcome') return;
       element.addEventListener('auxclick', event => {
         if (event.button !== 1) return;
@@ -188,6 +207,7 @@ function createTab(id: string, auxiliary: boolean, callbacks: WorkbenchDockviewC
     },
     dispose() {
       titleSubscription?.dispose();
+      detachLongPress?.();
     }
   };
 }
@@ -286,6 +306,65 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
   let lastTool: WorkbenchToolKind = 'problems';
   let toolsShown = true;
   let sized = false;
+  let overlayMode = false;
+  let overlayVisible = false;
+
+  /** 窄屏下侧栏作为抽屉浮出时盖住编辑区的遮罩，点击请求宿主收起。 */
+  const scrim = document.createElement('div');
+  scrim.className = 'wb-side-scrim';
+  scrim.addEventListener('click', () => callbacks.onCloseSidebar?.());
+
+  /** 预览的初始宽度：桌面固定 400，窄屏按工作台宽度 45% 缩放并保底 160。 */
+  const previewWidth = (width: number): number => Math.max(160, Math.min(400, Math.round(width * 0.45)));
+
+  function ensureSideGroup(): NonNullable<ReturnType<DockviewApi['getEdgeGroup']>> {
+    const existing = api.getEdgeGroup('left');
+    if (existing) return existing;
+    const created = api.addEdgeGroup('left', { id: 'sidebar', initialSize: 240, minimumSize: 180, maximumSize: 420 });
+    created.locked = 'no-drop-target';
+    const group = api.getGroup(created.id);
+    if (!group) throw new Error('Dockview 侧栏初始化失败');
+    group.model.header.hidden = true;
+    return created;
+  }
+
+  function renderSidebarState(): void {
+    hosts.get('sidebar')?.classList.toggle('wb-side-open', overlayVisible);
+    scrim.classList.toggle('wb-side-scrim-open', overlayVisible);
+  }
+
+  function setSidebarOverlay(overlay: boolean): void {
+    if (overlayMode === overlay) return;
+    overlayMode = overlay;
+    const panel = api.getPanel('sidebar');
+    const host = hosts.get('sidebar');
+    if (overlay) {
+      overlayVisible = panel ? api.isEdgeGroupVisible('left') : false;
+      program(() => {
+        if (panel) api.removePanel(panel);
+        // 空边缘组会塌成收起条仍占宽度，抽屉模式下把槽位一并回收
+        if (api.getEdgeGroup('left')) api.removeEdgeGroup('left');
+      });
+      if (host) root.append(host);
+      root.append(scrim);
+      root.classList.add('wb-side-overlay');
+      renderSidebarState();
+      return;
+    }
+    const visible = overlayVisible;
+    overlayVisible = false;
+    if (host) {
+      host.classList.remove('wb-side-open');
+      staging.append(host);
+    }
+    scrim.remove();
+    root.classList.remove('wb-side-overlay');
+    program(() => {
+      const group = ensureSideGroup();
+      if (!api.getPanel('sidebar')) addStatic('sidebar', group.id);
+      api.setEdgeGroupVisible('left', visible);
+    });
+  }
 
   const program = <T>(action: () => T): T => {
     syncing++;
@@ -317,7 +396,9 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
   });
 
   function splitPanel(panel: IDockviewPanel): void {
-    program(() => panel.api.moveTo({ group: panel.group, position: 'right' }));
+    // 窄屏横向空间不足，拆分方向改为上下，对齐 VS Code 的小窗口行为
+    const position = api.width < 720 ? 'bottom' : 'right';
+    program(() => panel.api.moveTo({ group: panel.group, position }));
   }
 
   function editorGroup() {
@@ -377,7 +458,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
       title: titles.preview,
       renderer: 'always',
       inactive: true,
-      initialWidth: 400,
+      initialWidth: api.width > 0 ? previewWidth(api.width) : 400,
       ...(reference ? { position: { referenceGroup: reference, direction: 'right' as const } } : {})
     });
   }
@@ -399,7 +480,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
       sized = true;
       program(() => {
         api.getEdgeGroup('left')?.setSize({ width: 240 });
-        api.getPanel('preview')?.group.api.setSize({ width: 400 });
+        api.getPanel('preview')?.group.api.setSize({ width: previewWidth(api.width) });
         api.getPanel('problems')?.group.api.setSize({ height: 180 });
       });
     })
@@ -531,16 +612,18 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
       const previewGroup = api.addGroup({
         referenceGroup: group,
         direction: 'right',
-        initialWidth: 400,
+        initialWidth: previewWidth(api.width),
         skipSetActive: true
       });
       preview.api.moveTo({ group: previewGroup, position: 'center', skipSetActive: true });
       const bottom = api.addGroup({ direction: 'below', initialHeight: 180, skipSetActive: true });
       for (const kind of tools)
         addStatic(kind, bottom.id).api.moveTo({ group: bottom, position: 'center', skipSetActive: true });
-      side.setSize({ width: 240 });
-      side.expand();
-      api.setEdgeGroupVisible('left', true);
+      if (!overlayMode) {
+        api.getEdgeGroup('left')?.setSize({ width: 240 });
+        api.getEdgeGroup('left')?.expand();
+        api.setEdgeGroupVisible('left', true);
+      }
       api.getPanel(lastTool)?.api.setActive();
       if (activeAuxiliary) api.getPanel(activeAuxiliary)?.api.setActive();
       else if (lastEditor && api.getPanel(editorId(lastEditor))) api.getPanel(editorId(lastEditor))?.api.setActive();
@@ -582,9 +665,15 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
       hosts.delete(id);
     },
     setSidebarVisible(visible) {
-      api.setEdgeGroupVisible('left', visible);
+      if (overlayMode) {
+        overlayVisible = visible;
+        renderSidebarState();
+      } else {
+        api.setEdgeGroupVisible('left', visible);
+      }
     },
-    isSidebarVisible: () => api.isEdgeGroupVisible('left'),
+    isSidebarVisible: () => (overlayMode ? overlayVisible : api.isEdgeGroupVisible('left')),
+    setSidebarOverlay,
     showTool,
     toggleTools() {
       if (tools.some(kind => Boolean(api.getPanel(kind)))) {
@@ -614,6 +703,8 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
       if (disposed) return;
       disposed = true;
       closeTabMenu();
+      scrim.remove();
+      root.classList.remove('wb-side-overlay');
       subscriptions.splice(0).forEach(subscription => subscription.dispose());
       api.dispose();
       closing.clear();

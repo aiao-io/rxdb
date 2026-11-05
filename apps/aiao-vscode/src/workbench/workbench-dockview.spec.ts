@@ -4,7 +4,7 @@ import { createWorkbenchDockview, type WorkbenchDockview } from './workbench-doc
 
 const instances: WorkbenchDockview[] = [];
 
-function fixture() {
+function fixture(width = 1200, height = 800) {
   const root = document.createElement('section');
   root.innerHTML =
     '<main data-slot="dockview"></main><div data-slot="panel-staging" hidden><aside class="wb-side">资源</aside><div class="wb-welcome">欢迎</div><section class="wb-preview"><div class="wb-preview-content"></div></section><section class="wb-panel" data-log="problems">问题日志</section><section class="wb-panel" data-log="output">输出日志</section><section class="wb-panel" data-log="console">控制台日志</section></div>';
@@ -17,10 +17,11 @@ function fixture() {
     onSelectTool: vi.fn(),
     onToggleTool: vi.fn(),
     onClosePreview: vi.fn(),
-    onCloseAuxiliary: vi.fn()
+    onCloseAuxiliary: vi.fn(),
+    onCloseSidebar: vi.fn()
   };
   const dock = createWorkbenchDockview(root, callbacks);
-  dock.api.layout(1200, 800);
+  if (width > 0 && height > 0) dock.api.layout(width, height);
   instances.push(dock);
   return { root, dock, callbacks };
 }
@@ -28,7 +29,21 @@ function fixture() {
 afterEach(() => {
   for (const dock of instances.splice(0)) dock.dispose();
   document.body.replaceChildren();
+  vi.useRealTimers();
 });
+
+const pointer = (type: string, init: Record<string, unknown> = {}): PointerEvent =>
+  new PointerEvent(type, {
+    bubbles: true,
+    cancelable: true,
+    isPrimary: true,
+    pointerType: 'touch',
+    button: 0,
+    clientX: 20,
+    clientY: 30,
+    pointerId: 7,
+    ...init
+  });
 
 describe('Dockview 工作台布局', () => {
   it('中键点击标签关闭面板，与关闭按钮走同一生命周期', async () => {
@@ -391,5 +406,108 @@ describe('Dockview 工作台布局', () => {
     dock.dispose();
     await Promise.resolve();
     expect(callbacks.onCloseEditor).not.toHaveBeenCalled();
+  });
+});
+
+describe('移动端侧栏抽屉', () => {
+  it('抽屉模式把侧栏挂到工作台根，可见状态随抽屉切换', () => {
+    const { root, dock } = fixture();
+    expect(dock.isSidebarVisible()).toBe(true);
+    dock.setSidebarOverlay(true);
+    expect(root.classList.contains('wb-side-overlay')).toBe(true);
+    const side = root.querySelector<HTMLElement>('.wb-side');
+    expect(side?.parentElement).toBe(root);
+    expect(side?.classList.contains('wb-side-open')).toBe(true);
+    expect(dock.isSidebarVisible()).toBe(true);
+    dock.setSidebarVisible(false);
+    expect(side?.classList.contains('wb-side-open')).toBe(false);
+    expect(dock.isSidebarVisible()).toBe(false);
+    dock.setSidebarVisible(true);
+    expect(side?.classList.contains('wb-side-open')).toBe(true);
+    expect(dock.isSidebarVisible()).toBe(true);
+  });
+
+  it('遮罩点击通知宿主收起侧栏', () => {
+    const { root, dock, callbacks } = fixture();
+    dock.setSidebarOverlay(true);
+    root.querySelector<HTMLElement>('.wb-side-scrim')?.click();
+    expect(callbacks.onCloseSidebar).toHaveBeenCalledOnce();
+  });
+
+  it('退出抽屉模式把侧栏还回 Dockview 并恢复可见状态', () => {
+    const { root, dock } = fixture();
+    dock.setSidebarVisible(false);
+    dock.setSidebarOverlay(true);
+    expect(root.classList.contains('wb-side-overlay')).toBe(true);
+    dock.setSidebarOverlay(false);
+    expect(root.classList.contains('wb-side-overlay')).toBe(false);
+    const side = root.querySelector<HTMLElement>('.wb-side');
+    expect(root.querySelector('[data-slot="dockview"]')?.contains(side)).toBe(true);
+    expect(dock.api.getPanel('sidebar')).toBeDefined();
+    expect(dock.isSidebarVisible()).toBe(false);
+    expect(side?.classList.contains('wb-side-open')).toBe(false);
+    expect(root.querySelector('.wb-side-scrim')).toBeNull();
+    expect(dock.api.getEdgeGroup('left')).toBeDefined();
+    expect(dock.api.isEdgeGroupVisible('left')).toBe(false);
+  });
+
+  it('抽屉模式下重置布局保持抽屉形态', () => {
+    const { root, dock } = fixture();
+    dock.setSidebarOverlay(true);
+    dock.setSidebarVisible(false);
+    dock.resetLayout();
+    expect(root.classList.contains('wb-side-overlay')).toBe(true);
+    expect(dock.isSidebarVisible()).toBe(false);
+    expect(root.querySelector<HTMLElement>('.wb-side')?.parentElement).toBe(root);
+  });
+});
+
+describe('移动端尺寸与拆分', () => {
+  it('窄屏首布局把预览宽度缩到 45%，宽屏保持 400', async () => {
+    const narrow = fixture(0, 0);
+    narrow.dock.setSidebarOverlay(true);
+    narrow.dock.api.layout(390, 800);
+    const narrowPreview = narrow.dock.api.getPanel('preview');
+    await vi.waitFor(() => expect(narrowPreview?.group.api.width).toBeCloseTo(176, 0));
+    const wide = fixture(1200, 800);
+    const widePreview = wide.dock.api.getPanel('preview');
+    await vi.waitFor(() => expect(widePreview?.group.api.width).toBeCloseTo(400, 0));
+  });
+
+  it('窄屏拆分编辑器到下方，宽屏到右侧', () => {
+    const narrow = fixture(390, 800);
+    narrow.dock.ensureEditor('a.ts');
+    narrow.dock.ensureEditor('b.ts');
+    narrow.dock.selectEditor('b.ts');
+    const narrowPanel = narrow.dock.api.getPanel('editor:b.ts');
+    const narrowGroup = narrowPanel!.group;
+    const narrowMove = vi.spyOn(narrowPanel!.api, 'moveTo');
+    narrow.dock.splitEditor();
+    expect(narrowMove).toHaveBeenCalledWith({ group: narrowGroup, position: 'bottom' });
+
+    const wide = fixture(1200, 800);
+    wide.dock.ensureEditor('a.ts');
+    wide.dock.ensureEditor('b.ts');
+    wide.dock.selectEditor('b.ts');
+    const widePanel = wide.dock.api.getPanel('editor:b.ts');
+    const wideGroup = widePanel!.group;
+    const wideMove = vi.spyOn(widePanel!.api, 'moveTo');
+    wide.dock.splitEditor();
+    expect(wideMove).toHaveBeenCalledWith({ group: wideGroup, position: 'right' });
+  });
+
+  it('编辑器标签触屏长按弹出右键菜单', () => {
+    vi.useFakeTimers();
+    const { root, dock } = fixture();
+    dock.ensureEditor('long.ts');
+    dock.selectEditor('long.ts');
+    const tab = root.querySelector<HTMLElement>('[data-editor-tab-path="long.ts"]');
+    if (!tab) throw new Error('编辑器标签缺失');
+    tab.dispatchEvent(pointer('pointerdown'));
+    vi.advanceTimersByTime(500);
+    const menu = root.querySelector<HTMLElement>('.wb-context-menu');
+    expect(menu).not.toBeNull();
+    const labels = [...(menu?.querySelectorAll('button') ?? [])].map(item => item.textContent);
+    expect(labels).toEqual(['关闭', '关闭其他', '关闭右侧']);
   });
 });

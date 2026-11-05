@@ -26,6 +26,7 @@ import { createWorkbenchDiff, type WorkbenchDiffHandle } from './workbench-diff.
 import { createWorkbenchDockview } from './workbench-dockview.js';
 import { createCodicon, createFileIcon, folderCodicon, type CodiconName } from './workbench-icons.js';
 import { createWorkbenchLayout, workbenchElement } from './workbench-layout.js';
+import { attachWorkbenchLongPress } from './workbench-longpress.js';
 import { createWorkbenchScm, type WorkbenchDiffRequest } from './workbench-scm.js';
 import { createWorkbenchSearch } from './workbench-search.js';
 import { resolveTreeMove, treePathParent, type TreeMoveDecision } from './workbench-tree-drag.js';
@@ -205,6 +206,7 @@ export function mountWorkbench(
     onSelectEditor(path) {
       if (disposed || !session.state.tabs.includes(path)) return;
       if (session.state.activePath !== path) session.select(path);
+      closeNarrowSidebar();
       if (!treeNavigation) focusEditor(path);
     },
     onCloseEditor(path) {
@@ -217,6 +219,11 @@ export function mountWorkbench(
     onCloseAuxiliary(id) {
       diffs.get(id)?.view?.dispose();
       diffs.delete(id);
+    },
+    onCloseSidebar() {
+      if (disposed) return;
+      docking.setSidebarVisible(false);
+      renderActionState();
     },
     onCloseOthers(path) {
       for (const tab of [...session.state.tabs]) if (tab !== path) closeEditorTab(tab);
@@ -231,6 +238,21 @@ export function mountWorkbench(
       previewId = 0;
     }
   });
+  const narrowQuery = '(max-width: 768px)';
+  const narrowMedia = window.matchMedia(narrowQuery);
+  /** 窄屏抽屉模式下，选择文件后收起侧栏回到编辑器。 */
+  const closeNarrowSidebar = (): void => {
+    if (!narrowMedia.matches || !docking.isSidebarVisible()) return;
+    docking.setSidebarVisible(false);
+    renderActionState();
+  };
+  const applyNarrow = (matches: boolean): void => {
+    docking.setSidebarOverlay(matches);
+    renderActionState();
+  };
+  applyNarrow(narrowMedia.matches);
+  const onNarrowChange = (event: MediaQueryListEvent): void => applyNarrow(event.matches);
+  narrowMedia.addEventListener('change', onNarrowChange);
   const layoutChanges = docking.api.onDidLayoutChange(() => {
     queueMicrotask(() => {
       if (!disposed) {
@@ -248,6 +270,7 @@ export function mountWorkbench(
     onOpenFile(path) {
       session.select(path);
       docking.selectEditor(path);
+      closeNarrowSidebar();
       focusEditor(path);
     },
     onRefresh: () => action(refreshGit),
@@ -269,6 +292,7 @@ export function mountWorkbench(
       session.select(path);
       docking.selectEditor(path);
       editorCommand('gotoLineAt', line);
+      closeNarrowSidebar();
       focusEditor(path);
     },
     onReplaceFiles(next, scope) {
@@ -576,6 +600,7 @@ export function mountWorkbench(
     session.select(target.file);
     docking.selectEditor(target.file);
     if (target.line !== undefined) editorCommand('gotoLineAt', target.line);
+    closeNarrowSidebar();
     focusEditor(target.file);
   }
   function action(operation: () => Promise<unknown> | void): void {
@@ -932,6 +957,17 @@ export function mountWorkbench(
   /** 给树行挂上 HTML5 拖放：文件、文件夹与打开的编辑器行共用同一套判定。 */
   function attachDragRow(button: HTMLButtonElement, path: string): void {
     button.draggable = true;
+    attachWorkbenchLongPress(button, {
+      onLongPress: event =>
+        button.dispatchEvent(
+          new MouseEvent('contextmenu', {
+            bubbles: true,
+            cancelable: true,
+            clientX: event.clientX,
+            clientY: event.clientY
+          })
+        )
+    });
     button.addEventListener('dragstart', event => {
       if (creatingFile || creatingFolder || renamingPath) {
         event.preventDefault();
@@ -1069,6 +1105,7 @@ export function mountWorkbench(
             try {
               session.select(path);
               docking.selectEditor(path);
+              closeNarrowSidebar();
             } finally {
               queueMicrotask(() => {
                 treeNavigation = false;
@@ -1254,6 +1291,7 @@ export function mountWorkbench(
         try {
           session.select(path);
           docking.selectEditor(path);
+          closeNarrowSidebar();
         } finally {
           queueMicrotask(() => {
             treeNavigation = false;
@@ -1318,6 +1356,8 @@ export function mountWorkbench(
     anchor?: HTMLElement
   ): void {
     closeContextMenu();
+    // 编辑器标签菜单由 Dockview 管理，弹出前清掉避免叠层
+    for (const menu of root.querySelectorAll('.wb-context-menu')) menu.remove();
     const menu = document.createElement('div');
     menu.className = 'wb-context-menu';
     menu.setAttribute('role', 'menu');
@@ -1921,6 +1961,7 @@ export function mountWorkbench(
       treeFocusPath = path;
       session.select(path);
       docking.selectEditor(path);
+      closeNarrowSidebar();
       focusEditor(path);
     },
     onError: report,
@@ -2019,6 +2060,7 @@ export function mountWorkbench(
       docking.dispose();
       for (const dialog of root.querySelectorAll<HTMLDialogElement>('dialog')) dialog.close();
       window.removeEventListener('beforeunload', beforeUnload);
+      narrowMedia.removeEventListener('change', onNarrowChange);
       root.removeEventListener('click', click);
       root.remove();
     }
