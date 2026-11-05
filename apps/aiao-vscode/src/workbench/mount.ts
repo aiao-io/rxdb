@@ -2111,6 +2111,10 @@ export function mountWorkbench(
         renderFiles(session.state);
         renderStatus();
         renderActionState();
+        // 挂载链全部落地后强制重布局，兜住 dockview 边缘组 overlay 首帧测量竞态
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => docking.refreshLayout());
+        });
       }
     });
   return {

@@ -50,6 +50,8 @@ export interface WorkbenchDockview {
   isPreviewOpen(): boolean;
   splitEditor(): void;
   resetLayout(): void;
+  /** 按容器当前尺寸强制重布局；容器无尺寸时静默跳过。 */
+  refreshLayout(): void;
   dispose(): void;
 }
 
@@ -709,6 +711,10 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
       if (panel) splitPanel(panel);
     },
     resetLayout,
+    refreshLayout() {
+      if (disposed || container.clientWidth <= 0 || container.clientHeight <= 0) return;
+      api.layout(container.clientWidth, container.clientHeight, true);
+    },
     dispose() {
       if (disposed) return;
       disposed = true;

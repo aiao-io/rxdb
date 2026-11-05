@@ -496,6 +496,19 @@ describe('移动端尺寸与拆分', () => {
     await vi.waitFor(() => expect(layout).toHaveBeenCalledWith(390, 800, true));
   });
 
+  it('refreshLayout 按容器真实尺寸强制重布局，容器无尺寸时静默跳过', () => {
+    const { root, dock } = fixture(1200, 800);
+    const container = root.querySelector<HTMLElement>('[data-slot="dockview"]');
+    if (!container) throw new Error('dockview 容器缺失');
+    const layout = vi.spyOn(dock.api, 'layout');
+    dock.refreshLayout();
+    expect(layout).not.toHaveBeenCalled();
+    Object.defineProperty(container, 'clientWidth', { value: 1180 });
+    Object.defineProperty(container, 'clientHeight', { value: 760 });
+    dock.refreshLayout();
+    expect(layout).toHaveBeenCalledWith(1180, 760, true);
+  });
+
   it('窄屏拆分编辑器到下方，宽屏到右侧', () => {
     const narrow = fixture(390, 800);
     narrow.dock.ensureEditor('a.ts');
