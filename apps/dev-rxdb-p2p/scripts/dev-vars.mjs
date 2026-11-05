@@ -41,6 +41,7 @@ const adminIds = (process.env.P2P_ADMIN_USER_IDS || previousValue('ADMIN_USER_ID
 
 // 只认本次环境变量：不沿用上一次运行留下的值（否则 gated 运行会污染下一次标准运行）
 const requireActivation = process.env.POOL_REQUIRE_ACTIVATION ?? '';
+const policyOverrides = process.env.POOL_POLICY_OVERRIDES ?? '';
 
 const lines = [
   `SUPABASE_URL=${supabase.url}`,
@@ -48,7 +49,8 @@ const lines = [
   `TICKET_PRIVATE_JWK=${ticketKey}`,
   ...(supabase.serviceRoleKey ? [`SUPABASE_SERVICE_ROLE_KEY=${supabase.serviceRoleKey}`] : []),
   ...(adminIds ? [`ADMIN_USER_IDS=${adminIds}`] : []),
-  ...(requireActivation ? [`POOL_REQUIRE_ACTIVATION=${requireActivation}`] : [])
+  ...(requireActivation ? [`POOL_REQUIRE_ACTIVATION=${requireActivation}`] : []),
+  ...(policyOverrides ? [`POOL_POLICY_OVERRIDES=${policyOverrides}`] : [])
 ];
 // 先写同目录的新文件再改名替换：几个服务同时起时，读的一方只会看到完整的旧文件或新文件。
 // `wx` 保证这个文件是新建的，`mode` 才生效；替换之后旧文件原来宽松的权限也就不在了。

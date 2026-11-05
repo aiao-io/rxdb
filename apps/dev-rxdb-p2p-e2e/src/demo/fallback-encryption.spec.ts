@@ -3,7 +3,54 @@
  * 上传之后才注册的设备没有信封，回退下载明确失败；旧客户端（不带编码头）取密文得到 426。
  */
 import { expect, test, type Page } from '@playwright/test';
-import { fileRow, generateFile, newAccount, openDevice, storedDigest, transferOf } from './fixtures.ts';
+import { createHash } from 'node:crypto';
+import { ADMIN_ACCOUNT, fileRow, generateFile, newAccount, openDevice, storedDigest, transferOf } from './fixtures.ts';
+
+/** 页面里已登录会话的用户 id（token sub）。 */
+const userIdOf = (page: Page): Promise<string> =>
+  page.evaluate(() => {
+    for (const key of Object.keys(localStorage)) {
+      let candidate: { access_token?: unknown } | null = null;
+      try {
+        candidate = JSON.parse(localStorage.getItem(key) ?? 'null') as { access_token?: unknown } | null;
+      } catch {
+        // 跳过非 JSON 的值
+      }
+      if (candidate && typeof candidate.access_token === 'string') {
+        const payload = candidate.access_token.split('.')[1]!;
+        const padded = payload + '='.repeat((4 - (payload.length % 4)) % 4);
+        return JSON.parse(atob(padded.replaceAll('-', '+').replaceAll('_', '/')))['sub'] as string;
+      }
+    }
+    throw new Error('no supabase session in localStorage');
+  });
+
+/** 页面里登记的当前设备 id。 */
+const deviceIdOf = (page: Page, userId: string): Promise<string> =>
+  page.evaluate(user => {
+    const deviceId = localStorage.getItem(`dev-rxdb-p2p:device:${user}`);
+    if (!deviceId) throw new Error('no device registered in localStorage');
+    return deviceId;
+  }, userId);
+
+/** 页面里显示的登录邮箱。 */
+const emailOf = async (page: Page): Promise<string> =>
+  ((await page.getByTestId('current-user').textContent()) ?? '').trim();
+
+/** 管理员登录并经站内导航进入 /admin。 */
+const openAdmin = async (browser: Parameters<typeof openDevice>[0]) => {
+  const admin = await openDevice(browser, ADMIN_ACCOUNT.email, 'sign-in', ADMIN_ACCOUNT.password);
+  await admin.page.getByTestId('admin-entry').click();
+  await expect(admin.page).toHaveURL(/\/admin$/);
+  await expect(admin.page.getByTestId('admin-summary')).toBeVisible();
+  return admin;
+};
+
+/** 确认条上点确认，等处置完成的提示出现。 */
+const confirmAction = async (page: Page, notice: string | RegExp): Promise<void> => {
+  await page.getByTestId('admin-confirm-submit').click();
+  await expect(page.getByTestId('admin-notice')).toContainText(notice);
+};
 
 /** 在页面里以登录身份直接取密文副本的 SHA-256：走真实服务器，不经应用代码。 */
 const fetchCiphertextDigest = (page: Page, sourceUrl: string): Promise<string> =>
@@ -84,5 +131,156 @@ test.describe('回退内容加密', () => {
 
     // 旧客户端是已认证用户，只是不带编码头：服务端 426 提示升级，不把密文当明文交给它
     expect(await legacyFetchStatus(holder.page, sourceUrl)).toBe(426);
+  });
+});
+
+/** 在页面里以登录身份查信封行：断言只有密文字段，不含密钥明文与私钥 JWK。 */
+const envelopeRows = (page: Page, contentHash: string): Promise<readonly Record<string, unknown>[]> =>
+  page.evaluate(async hash => {
+    let token: string | null = null;
+    let apikey = '';
+    for (const key of Object.keys(localStorage)) {
+      let candidate: { access_token?: unknown } | null = null;
+      try {
+        candidate = JSON.parse(localStorage.getItem(key) ?? 'null') as { access_token?: unknown } | null;
+      } catch {
+        // 跳过非 JSON 的值
+      }
+      if (candidate && typeof candidate.access_token === 'string') token = candidate.access_token;
+    }
+    const config = (globalThis as { __P2P_CONFIG__?: { supabaseAnonKey: string } }).__P2P_CONFIG__;
+    apikey = config?.supabaseAnonKey ?? '';
+    if (!token || !apikey) throw new Error('no supabase session in localStorage');
+    const url = `http://localhost:55001/rest/v1/p2p_fallback_envelope?select=*&contentHash=eq.${hash}`;
+    const response = await fetch(url, {
+      headers: { apikey, authorization: `Bearer ${token}`, 'accept-profile': 'p2p' }
+    });
+    if (!response.ok) throw new Error(`PostgREST responded ${response.status}`);
+    return (await response.json()) as Record<string, unknown>[];
+  }, contentHash);
+
+/** 页面里以登录身份直接 PUT 明文字节到明文回退路由（旧世界副本）。 */
+const putPlaintextCopy = (page: Page, contentHash: string, payload: number[]): Promise<number> =>
+  page.evaluate(
+    async ([hash, bytes]) => {
+      let token: string | null = null;
+      for (const key of Object.keys(localStorage)) {
+        let candidate: { access_token?: unknown } | null = null;
+        try {
+          candidate = JSON.parse(localStorage.getItem(key) ?? 'null') as { access_token?: unknown } | null;
+        } catch {
+          // 跳过非 JSON 的值
+        }
+        if (candidate && typeof candidate.access_token === 'string') token = candidate.access_token;
+      }
+      if (!token) throw new Error('no supabase session in localStorage');
+      const response = await fetch(`/api/files/${hash}`, {
+        method: 'PUT',
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/octet-stream' },
+        body: new Uint8Array(bytes)
+      });
+      return response.status;
+    },
+    [contentHash, payload] as const
+  );
+
+test.describe('回退内容加密的处置与泄漏面', () => {
+  test('AC#3/AC#10 信封行只有密文字段，不含内容密钥明文与设备私钥 JWK', async ({ browser }) => {
+    const holder = await openDevice(browser, newAccount('env-row'), 'sign-up');
+    const { contentHash } = await generateFile(holder, 1, { upload: true });
+
+    const rows = await envelopeRows(holder.page, contentHash);
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      const allowed = new Set([
+        'id',
+        'contentHash',
+        'recipientDeviceId',
+        'kid',
+        'epk',
+        'iv',
+        'ct',
+        'tag',
+        'createdAt',
+        'updatedAt',
+        'createdBy',
+        'updatedBy'
+      ]);
+      expect(Object.keys(row).every(key => allowed.has(key))).toBe(true);
+      expect(row['kid']).toBe('p256-1');
+      for (const field of ['epk', 'iv', 'ct', 'tag']) {
+        expect(typeof row[field]).toBe('string');
+        expect((row[field] as string).length).toBeGreaterThan(0);
+      }
+    }
+    // 信封密文里不可能有明文密钥或私钥 JWK 的特征字段（contentHash 是清单元数据，本身就在行里）
+    expect(JSON.stringify(rows)).not.toContain('kty');
+    expect(JSON.stringify(rows)).not.toContain('privateKeyJwk');
+  });
+
+  test('AC#7 升级后新上传全加密；管理员删除旧明文副本后无明文残留', async ({ browser }) => {
+    const holder = await openDevice(browser, newAccount('legacy-copy'), 'sign-up');
+    // 新上传是密文副本
+    const { contentHash, fileName } = await generateFile(holder, 1, { upload: true });
+    expect(await fileRow(holder, fileName).getAttribute('data-source')).toMatch(/^\/api\/files\/enc\//);
+
+    // 旧世界明文副本：直接 PUT 明文到明文路由（旧客户端行为），管理员能在列表看到并删除。
+    // 键是载荷自己的哈希——旧明文副本是独立对象，与清单的 contentHash 无关
+    const payload = [1, 2, 3, 4];
+    const legacyHash = createHash('sha256').update(Buffer.from(payload)).digest('hex');
+    expect(await putPlaintextCopy(holder.page, legacyHash, payload)).toBe(201);
+    const admin = await openAdmin(browser);
+    try {
+      await admin.page.getByTestId('admin-tab-files').click();
+      const legacy = admin.page.locator(`[data-testid="admin-file-row"][data-hash="${legacyHash}"]`);
+      await expect(legacy).toBeVisible();
+      await legacy.getByTestId('admin-delete-file').click();
+      await confirmAction(admin.page, legacyHash.slice(0, 12));
+      await expect(legacy).toHaveCount(0);
+    } finally {
+      await admin.context.close();
+    }
+    // 明文副本已删：明文路由 404，密文副本不受影响
+    const after = await holder.page.evaluate(async hash => {
+      let token: string | null = null;
+      for (const key of Object.keys(localStorage)) {
+        let candidate: { access_token?: unknown } | null = null;
+        try {
+          candidate = JSON.parse(localStorage.getItem(key) ?? 'null') as { access_token?: unknown } | null;
+        } catch {
+          // 跳过非 JSON 的值
+        }
+        if (candidate && typeof candidate.access_token === 'string') token = candidate.access_token;
+      }
+      if (!token) throw new Error('no supabase session in localStorage');
+      return (await fetch(`/api/files/${hash}`, { headers: { authorization: `Bearer ${token}` } })).status;
+    }, legacyHash);
+    expect(after).toBe(404);
+  });
+
+  test('AC#9 管理员删除账号：该账号设备的信封一并清理，其他设备的信封保留', async ({ browser }) => {
+    const uploader = await openDevice(browser, newAccount('purge-env'), 'sign-up');
+    const fetcher = await openDevice(browser, newAccount('purge-peer'), 'sign-up');
+    const { contentHash } = await generateFile(uploader, 1, { upload: true });
+    const uploaderUserId = await userIdOf(uploader.page);
+    const uploaderDeviceId = await deviceIdOf(uploader.page, uploaderUserId);
+
+    const before = await envelopeRows(fetcher.page, contentHash);
+    expect(before.some(row => row['recipientDeviceId'] === uploaderDeviceId)).toBe(true);
+
+    const admin = await openAdmin(browser);
+    const uploaderEmail = await emailOf(uploader.page);
+    try {
+      const row = admin.page.locator(`[data-testid="admin-account-row"][data-email="${uploaderEmail}"]`);
+      await row.getByTestId('admin-delete-account').click();
+      await confirmAction(admin.page, `已删除 ${uploaderEmail}`);
+      await expect(row).toHaveCount(0);
+    } finally {
+      await admin.context.close();
+    }
+
+    const after = await envelopeRows(fetcher.page, contentHash);
+    expect(after.some(row => row['recipientDeviceId'] === uploaderDeviceId)).toBe(false);
+    expect(after.length).toBe(before.length - 1);
   });
 });

@@ -57,7 +57,7 @@ tags: [abuse, rate-limit, reporting, invite, ops, beta]
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过。
 
-验收证据：AC2～AC8 已在本地真栈 e2e 上关闭（governance / governance-gated：回退配额 429、管理接口防爆破 429、举报→处置闭环、邀请码一次性与作废、滥用演练封禁路径、未激活被挡与激活放行）；AC9 以单元证据关闭（计数器键只含 scope + 账号/设备或 IP，不含内容）；AC1 的信令 hello 限流已实现并单元验证，端到端的超限拒绝待补一个 e2e 用例（激活门禁的 hello 拒绝已覆盖同一条路径）。前端 UI 截图不充当限流证据。
+验收证据：全部 9 条 AC 已关闭——AC1～AC8 在本地真栈 e2e 上验收（governance-limits：信令 hello 短窗口超限被拒且他账号不受影响；governance：回退配额 429、管理接口防爆破 429、举报→处置闭环、邀请码一次性与作废、滥用演练封禁路径；governance-gated：未激活被挡与激活放行）；AC9 以单元证据关闭（计数器键只含 scope + 账号/设备或 IP，不含内容）。前端 UI 截图不充当限流证据。
 
 ## 交付阶段
 
