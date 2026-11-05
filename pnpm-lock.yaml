@@ -224,7 +224,6 @@ overrides:
   yaml@1: ^1.10.3
 
 patchedDependencies:
-  '@easyops-cn/docusaurus-search-local@0.55.3': 03ccafa340c82d2f356b25b98f9cba570ddd16c445be2ec05afaf494da791d74
   '@tarojs/vite-runner@4.3.1': 1d5e2cce4dac325b58c75b865953f92daf0e2aeeecb557c22f2c36bc6badf71d
   typescript@6.0.3: ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb
 
@@ -3005,7 +3004,7 @@ importers:
         version: 3.10.2(3032a3181da4e0009b200e6a5392e08a)
       '@easyops-cn/docusaurus-search-local':
         specifier: ^0.55.3
-        version: 0.55.3(patch_hash=03ccafa340c82d2f356b25b98f9cba570ddd16c445be2ec05afaf494da791d74)(3b4c33db8259586438f6234607158ece)
+        version: 0.55.3(3b4c33db8259586438f6234607158ece)
       '@mdx-js/react':
         specifier: ^3.1.1
         version: 3.1.1(@types/react@19.3.0)(react@19.3.1)
@@ -23808,7 +23807,7 @@ snapshots:
       cssesc: 3.0.0
       immediate: 3.3.0
 
-  '@easyops-cn/docusaurus-search-local@0.55.3(patch_hash=03ccafa340c82d2f356b25b98f9cba570ddd16c445be2ec05afaf494da791d74)(3b4c33db8259586438f6234607158ece)':
+  '@easyops-cn/docusaurus-search-local@0.55.3(3b4c33db8259586438f6234607158ece)':
     dependencies:
       '@docusaurus/plugin-content-docs': 3.10.2(8bcf51c0ea4df74e29012e244ae8a637)
       '@docusaurus/theme-common': 3.10.2(@docusaurus/plugin-content-docs@3.10.2(8bcf51c0ea4df74e29012e244ae8a637))(@swc/core@1.16.20(@swc/helpers@0.5.23))(@swc/html@1.16.20)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.32))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.32)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(sharp@0.35.5(@types/node@26.6.5))(supports-color@8.1.1)(svgo@3.3.5)(uglify-js@3.19.3)
