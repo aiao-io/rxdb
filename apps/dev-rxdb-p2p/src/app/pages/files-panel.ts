@@ -186,6 +186,7 @@ type FileScope = 'all' | 'available' | 'local';
                   <tr
                     [attr.data-file]="file.manifest.fileName"
                     [attr.data-hash]="file.contentHash"
+                    [attr.data-source]="file.manifest.sourceUrl"
                     data-testid="file-row"
                   >
                     <td class="max-w-72 min-w-40">

@@ -12,10 +12,10 @@ export interface TeamDeviceKey {
  * SECURITY DEFINER 的 `p2p.team_device_keys()`（只暴露设备 id 与公钥，不暴露账号）。
  */
 export const teamDeviceKeys = async (client: SupabaseClient): Promise<readonly TeamDeviceKey[]> => {
-  const { data, error } = await client
-    .schema('p2p')
-    .rpc('team_device_keys')
-    .returns<{ readonly device_id: string; readonly public_key: string | null }[]>();
-  if (error) throw error;
-  return (data ?? []).map(row => ({ deviceId: row.device_id, publicKeyBase64: row.public_key }));
+  const response = (await client.schema('p2p').rpc('team_device_keys')) as unknown as {
+    readonly data: readonly { readonly device_id: string; readonly public_key: string | null }[] | null;
+    readonly error: unknown;
+  };
+  if (response.error) throw response.error;
+  return (response.data ?? []).map(row => ({ deviceId: row.device_id, publicKeyBase64: row.public_key }));
 };

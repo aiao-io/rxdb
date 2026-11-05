@@ -12,8 +12,7 @@ import {
   openContentKey,
   sealContentKey,
   sha256Hex,
-  type EncodedFileShape,
-  type FallbackEnvelope
+  type EncodedFileShape
 } from './fallback-crypto';
 
 const bytes = (text: string): Uint8Array => new TextEncoder().encode(text);
@@ -34,7 +33,7 @@ describe('fallback-crypto', () => {
   });
 
   it('信封：接收方用自己的私钥能解出内容密钥，无关设备解不开', async () => {
-    const [sender, recipient, stranger] = await Promise.all([
+    const [, recipient, stranger] = await Promise.all([
       generateDeviceKeyPair(),
       generateDeviceKeyPair(),
       generateDeviceKeyPair()

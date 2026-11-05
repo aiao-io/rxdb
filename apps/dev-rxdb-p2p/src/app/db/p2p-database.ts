@@ -12,8 +12,8 @@ import { rxDBPluginP2PFiles } from '@aiao/rxdb-plugin-p2p';
 import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { checkOPFSAvailable } from '@aiao/utils';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { buildWaSqliteOptions, isSharedWorkerSupported } from './wa-sqlite-options';
 import { P2PFallbackEnvelopeEntity } from './fallback-envelope.entity';
+import { buildWaSqliteOptions, isSharedWorkerSupported } from './wa-sqlite-options';
 
 /** 本地适配器名。 */
 export const LOCAL_ADAPTER = 'wa-sqlite';

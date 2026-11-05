@@ -37,9 +37,9 @@ import { teamDeviceKeys } from '../device/team-device-keys';
 import {
   decodeEncryptedStream,
   encodeEncryptedBlob,
-  fallbackEncUrl,
   FALLBACK_ENCODING_HEADER,
   FALLBACK_ENCODING_VERSION,
+  fallbackEncUrl,
   generateContentKey,
   importDevicePrivateKey,
   isEncryptedFallbackUrl,

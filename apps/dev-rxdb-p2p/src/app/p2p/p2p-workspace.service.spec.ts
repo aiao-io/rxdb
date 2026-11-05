@@ -108,11 +108,18 @@ vi.mock('../db/fallback-envelope.entity', () => ({
 // 密码学行为有它自己的 spec（fallback-crypto.spec.ts）；工作区 spec 只验证接线，不重复跑 WebCrypto。
 vi.mock('./fallback-crypto', () => ({
   encodeEncryptedBlob: vi.fn(
-    async (_key: unknown, shape: { readonly size: number; readonly chunkSize: number }, readChunk: (offset: number, size: number) => Promise<Uint8Array>) => {
-      const parts: Uint8Array[] = [];
+    async (
+      _key: unknown,
+      shape: { readonly size: number; readonly chunkSize: number },
+      readChunk: (offset: number, size: number) => Promise<Uint8Array>
+    ) => {
+      const parts: BlobPart[] = [];
       for (let offset = 0; offset < shape.size; offset += shape.chunkSize) {
         const chunk = await readChunk(offset, Math.min(shape.chunkSize, shape.size - offset));
-        parts.push(new Uint8Array([0xec, ...chunk]));
+        const encrypted = new Uint8Array(new ArrayBuffer(chunk.byteLength + 1));
+        encrypted[0] = 0xec;
+        encrypted.set(chunk, 1);
+        parts.push(encrypted);
       }
       return new Blob(parts, { type: 'application/octet-stream' });
     }
@@ -228,9 +235,12 @@ const prepareWorkspace = (): P2PWorkspace => {
   device.ensureDevice.mockResolvedValue({ id: 'local-device', name: '本机' });
   deviceKeys.ensureDeviceKeyPair.mockResolvedValue({ publicKeyBase64: 'pub-key', privateKeyJwk: { kty: 'EC' } });
   teamKeys.teamDeviceKeys.mockResolvedValue([{ deviceId: 'other-device', publicKeyBase64: 'other-pub' }]);
-  envelope.findAll.mockReturnValue(new BehaviorSubject([]));
+  envelope.findAll.mockReturnValue(envelopeRows);
   envelope.save.mockImplementation(async row => {
-    envelopeRows.next([...envelopeRows.value.filter(item => (item as { id: string }).id !== (row as { id: string }).id), row]);
+    envelopeRows.next([
+      ...envelopeRows.value.filter(item => (item as { id: string }).id !== (row as { id: string }).id),
+      row
+    ]);
   });
   auth.session.mockReturnValue({ user: { id: 'user' } });
   auth.accessToken.mockResolvedValue('access-token');
@@ -629,7 +639,54 @@ describe('P2PWorkspace file lifecycle', () => {
     );
   });
 
+  it('decrypts an encrypted server copy with this device envelope before chunk verification', async () => {
+    await workspace.start();
+    const record = await recordFor(content(), remotePrincipal, true);
+    addRecord({ ...record, sourceUrl: `/api/files/enc/${'e'.repeat(64)}` });
+    envelopeRows.next([
+      {
+        id: 'env-1',
+        contentHash: record.contentHash,
+        recipientDeviceId: 'local-device',
+        kid: 'p256-1',
+        epk: 'epk',
+        iv: 'iv',
+        ct: 'ct',
+        tag: 'tag'
+      }
+    ]);
+    fetcher.mockResolvedValueOnce(new Response(bytes));
+    await workspace.download(record.contentHash);
+    await vi.advanceTimersByTimeAsync(250);
+    expect(fetcher).toHaveBeenCalledWith(
+      `/api/files/enc/${'e'.repeat(64)}`,
+      expect.objectContaining({
+        headers: { authorization: 'Bearer access-token', 'x-pool-fallback-encoding': '1' }
+      })
+    );
+    expect(writer.commit).toHaveBeenCalledOnce();
+    expect(writer.discard).not.toHaveBeenCalled();
+    expect(workspace.transfers()).toMatchObject([{ state: 'done', route: 'server', bytes: 4 }]);
+  });
+
+  it('fails an encrypted server download with a clear error when this device has no envelope', async () => {
+    await workspace.start();
+    const record = await recordFor(content(), remotePrincipal, true);
+    addRecord({ ...record, sourceUrl: `/api/files/enc/${'e'.repeat(64)}` });
+    fetcher.mockResolvedValueOnce(new Response(bytes));
+    await workspace.download(record.contentHash);
+    await vi.advanceTimersByTimeAsync(250);
+    expect(writer.discard).toHaveBeenCalledOnce();
+    expect(writer.commit).not.toHaveBeenCalled();
+    expect(workspace.transfers()).toMatchObject([{ state: 'failed', error: expect.stringContaining('没有解密信封') }]);
+  });
+
   it('keeps a verified download it could not register and says that registration failed', async () => {
+    await workspace.start();
+    const record = await recordFor(content(), remotePrincipal, true);
+    addRecord(record);
+    fetcher.mockResolvedValueOnce(new Response(bytes));
+    persistence.save.mockRejectedValueOnce(new Error('本地库写入失败'));
     await workspace.download(record.contentHash);
     await vi.advanceTimersByTimeAsync(250);
     expect(writer.commit).toHaveBeenCalledOnce();
