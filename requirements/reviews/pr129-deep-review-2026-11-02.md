@@ -30,10 +30,10 @@ pr: https://github.com/aiao-io/rxdb/pull/129
 
 **证据锚点**
 
-- [packages/rxdb-plugin-bom/src/coproduct.ts:73](/Users/jimmy/.codex/worktrees/review-pr129/rxdb/packages/rxdb-plugin-bom/src/coproduct.ts:73) `visibleOutputs()` 的过滤条件。
-- [packages/rxdb-plugin-bom/src/coproduct.ts:85](/Users/jimmy/.codex/worktrees/review-pr129/rxdb/packages/rxdb-plugin-bom/src/coproduct.ts:85)～[94](/Users/jimmy/.codex/worktrees/review-pr129/rxdb/packages/rxdb-plugin-bom/src/coproduct.ts:94)：父修订/头与发生项日期有过滤，输出修订日期和 ECN 生效日缺失。
-- [packages/rxdb-plugin-bom/src/coproduct.ts:100](/Users/jimmy/.codex/worktrees/review-pr129/rxdb/packages/rxdb-plugin-bom/src/coproduct.ts:100)：查询直接把 `o.childRevisionId` 当作输出修订返回，未 join `item_revision` 做时点校验。
-- [packages/rxdb-plugin-bom/src/coproduct.ts:145](/Users/jimmy/.codex/worktrees/review-pr129/rxdb/packages/rxdb-plugin-bom/src/coproduct.ts:145)～[171](/Users/jimmy/.codex/worktrees/review-pr129/rxdb/packages/rxdb-plugin-bom/src/coproduct.ts:171)：`readJointProduction()` 将 `visibleOutputs()` 结果组装成联产输出并参与固定份额成本分配。
+- [packages/rxdb-plugin-bom/src/coproduct.ts:73](../../packages/rxdb-plugin-bom/src/coproduct.ts#L73) `visibleOutputs()` 的过滤条件。
+- [packages/rxdb-plugin-bom/src/coproduct.ts:85](../../packages/rxdb-plugin-bom/src/coproduct.ts#L85)～[94](../../packages/rxdb-plugin-bom/src/coproduct.ts#L94)：父修订/头与发生项日期有过滤，输出修订日期和 ECN 生效日缺失。
+- [packages/rxdb-plugin-bom/src/coproduct.ts:100](../../packages/rxdb-plugin-bom/src/coproduct.ts#L100)：查询直接把 `o.childRevisionId` 当作输出修订返回，未 join `item_revision` 做时点校验。
+- [packages/rxdb-plugin-bom/src/coproduct.ts:145](../../packages/rxdb-plugin-bom/src/coproduct.ts#L145)～[171](../../packages/rxdb-plugin-bom/src/coproduct.ts#L171)：`readJointProduction()` 将 `visibleOutputs()` 结果组装成联产输出并参与固定份额成本分配。
 
 **后果**
 

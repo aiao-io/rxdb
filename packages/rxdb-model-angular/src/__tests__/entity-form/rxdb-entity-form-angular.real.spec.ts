@@ -303,6 +303,19 @@ describe('EntityFormComponent（真实组件）', () => {
     expect(validationErrors[0].errors[0]).toMatchObject({ field: 'tags', message: '标签 无法转换的值' });
     expect(component.formData()['tags']).toEqual(['a', 'b']);
   });
+
+  it('解析失败的输入作废，提交仍按最近合法值进行', () => {
+    const { component, formSubmitted, validationErrors } = render();
+
+    component.onFieldChange(
+      FIELDS.find(f => f.field === 'count')!,
+      '不是整数'
+    );
+    component.onSubmit();
+
+    expect(validationErrors).toHaveLength(1);
+    expect(formSubmitted).toEqual([DATA]);
+  });
 });
 
 // ── bigint / binary / format 语义控件 ──────────────────────────────────────

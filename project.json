@@ -1,5 +1,7 @@
 {
   "$schema": "node_modules/nx/schemas/project-schema.json",
+  "// implicitDependencies": "headless-consumer 读这四个包的构建产物，根 package.json 却不依赖它们：缺了这条边，只改模型包的 PR 不会让根项目进 affected，CI extras 也就不跑这道门禁。target 的 inputs 只管缓存哈希，不参与 affected 判定。",
+  "implicitDependencies": ["rxdb-model", "rxdb-model-angular", "rxdb-model-react", "rxdb-model-vue"],
   "name": "@aiao/source",
   "targets": {
     "local-registry": {
@@ -99,6 +101,20 @@
       ],
       "options": {
         "command": "node scripts/audit/release-consumers.mjs"
+      }
+    },
+    "headless-consumer": {
+      "// cache": "在工作区外复制四个 headless 构建产物，验证 exports、类型文件和无 VTable 导入。",
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [
+        {
+          "target": "build",
+          "projects": ["rxdb-model", "rxdb-model-angular", "rxdb-model-react", "rxdb-model-vue"]
+        }
+      ],
+      "options": {
+        "command": "node scripts/audit/headless-consumer.mjs"
       }
     },
     "lint": {

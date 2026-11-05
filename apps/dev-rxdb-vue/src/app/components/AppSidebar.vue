@@ -102,6 +102,12 @@ const menus: MenuItem[] = [
   },
   {
     type: 'link',
+    title: 'Headless',
+    path: '/headless',
+    icon: Layers
+  },
+  {
+    type: 'link',
     title: 'Code Editor',
     path: '/code-editor',
     icon: Code
