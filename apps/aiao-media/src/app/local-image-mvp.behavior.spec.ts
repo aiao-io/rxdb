@@ -1755,11 +1755,11 @@ describe('settings recovery and metadata details', () => {
   });
 });
 
-function backupFile() {
+function backupFile(name = 'backup.zip') {
   const input = document.createElement('input');
   input.type = 'file';
   Object.defineProperty(input, 'files', {
-    value: [new File(['fixture'], 'backup.json', { type: 'application/json' })]
+    value: [new File(['fixture'], name, { type: name.endsWith('.zip') ? 'application/zip' : 'application/json' })]
   });
   const event = new Event('change');
   Object.defineProperty(event, 'target', { value: input });
@@ -1934,10 +1934,16 @@ describe('backup workspace handoff', () => {
     vi.useFakeTimers();
     const r = rig();
     backupApi.createLocalBackup.mockResolvedValue(new Blob(['backup']));
-    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    let download = '';
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      download = this.download;
+    });
     await r.component.exportBackup();
     expect(backupApi.createLocalBackup).toHaveBeenCalledWith(r.store, [provider], provider.id, []);
     expect(click).toHaveBeenCalledTimes(1);
+    expect(download).toMatch(/^aiao-backup-\d{4}-\d{2}-\d{2}\.zip$/);
+    expect(r.component.dataMessage()).toContain('ZIP');
+    expect(r.component.dataMessage()).toContain('backup.json');
     expect(r.component.dataMessage()).toContain('不含 API Key');
     expect(r.component.dataBusy()).toBe(false);
     vi.advanceTimersByTime(60000);
@@ -1974,23 +1980,26 @@ describe('backup workspace handoff', () => {
     expect(backupApi.readLocalBackup).not.toHaveBeenCalled();
   });
 
-  it('restores verified files and draft into an isolated workspace before changing the selected profile', async () => {
-    const r = rig();
-    const verified = verifiedBackup();
-    await r.component.importBackup(backupFile().event);
-    expect(verified.next.store.saveResult).toHaveBeenCalledWith(job, verified.files[0]);
-    expect(verified.next.store.saveStudioDraft).toHaveBeenCalledWith(verified.backup.draft, null);
-    expect(verified.next.store.activateDevTools).not.toHaveBeenCalled();
-    expect(JSON.parse(verified.next.preferences.get('tasks-v1')!.payload)[0].saved).toBe(true);
-    expect(localStorage.getItem('aiao-local-previous-profile-v1')).toBe(profileId);
-    expect(localStorage.getItem('aiao-local-profile-v1')).toBe(verified.open.mock.calls[0][0]);
-    expect(localStorage.getItem('aiao-local-import-staging-v1')).toBeNull();
-    expect(verified.reload).toHaveBeenCalledTimes(1);
-    expect(r.store.saveResult).not.toHaveBeenCalled();
-    expect(readBackupWorkspaces(localStorage).map(workspace => workspace.id)).toContain(profileId);
-    expect(readBackupSelection(sessionStorage)?.message).toContain('已导入');
-    expect(location.hash).toBe('#data');
-  });
+  it.each(['backup.zip', 'backup.json'])(
+    'restores verified files and draft from %s into an isolated workspace before changing the selected profile',
+    async name => {
+      const r = rig();
+      const verified = verifiedBackup();
+      await r.component.importBackup(backupFile(name).event);
+      expect(verified.next.store.saveResult).toHaveBeenCalledWith(job, verified.files[0]);
+      expect(verified.next.store.saveStudioDraft).toHaveBeenCalledWith(verified.backup.draft, null);
+      expect(verified.next.store.activateDevTools).not.toHaveBeenCalled();
+      expect(JSON.parse(verified.next.preferences.get('tasks-v1')!.payload)[0].saved).toBe(true);
+      expect(localStorage.getItem('aiao-local-previous-profile-v1')).toBe(profileId);
+      expect(localStorage.getItem('aiao-local-profile-v1')).toBe(verified.open.mock.calls[0][0]);
+      expect(localStorage.getItem('aiao-local-import-staging-v1')).toBeNull();
+      expect(verified.reload).toHaveBeenCalledTimes(1);
+      expect(r.store.saveResult).not.toHaveBeenCalled();
+      expect(readBackupWorkspaces(localStorage).map(workspace => workspace.id)).toContain(profileId);
+      expect(readBackupSelection(sessionStorage)?.message).toContain('已导入');
+      expect(location.hash).toBe('#data');
+    }
+  );
 
   it('keeps the original selected workspace and resumes the same staging copy after a file write failure', async () => {
     const r = rig();

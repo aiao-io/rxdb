@@ -1,7 +1,9 @@
 import { expect, test, type Route } from '@playwright/test';
+import { unzipSync } from 'fflate';
 import { readFile } from 'node:fs/promises';
 import sharp from 'sharp';
 import {
+  backupText,
   downloadBackup,
   endpoint,
   importBackup,
@@ -211,7 +213,7 @@ test('MiniMax JPEG 原图可保存、按真实后缀下载、刷新回读和备�
   ).toBe('2');
   const originalProfile = await profile(page);
   const backup = await downloadBackup(page);
-  expect(backup.toString()).not.toContain(key);
+  expect(backupText(backup)).not.toContain(key);
   const reloaded = page.waitForEvent('load');
   await importBackup(page, backup);
   await reloaded;
@@ -427,10 +429,16 @@ test('连续导入保留各工作区，原图与草稿可离线读取并从界�
   const downloaded = await downloadEvent;
   const { readFile } = await import('node:fs/promises');
   const contents = await readFile((await downloaded.path()) as string);
-  expect(contents.toString()).not.toContain(key);
-  const backup = JSON.parse(contents.toString());
+  expect(downloaded.suggestedFilename()).toMatch(/\.zip$/);
+  expect(backupText(contents)).not.toContain(key);
+  const backup = JSON.parse(backupText(contents));
+  const entries = unzipSync(contents);
+  expect(backup.version).toBe(2);
   expect(backup.images).toHaveLength(1);
-  expect(Buffer.from(backup.images[0].base64, 'base64')).toEqual(png);
+  expect(Object.keys(entries).sort()).toEqual(['backup.json', backup.images[0].path].sort());
+  expect(backup.images[0].path).toMatch(/^images\/[\da-f-]+\.png$/);
+  expect(backup.images[0]).not.toHaveProperty('base64');
+  expect(Buffer.from(entries[backup.images[0].path])).toEqual(png);
   const originalId = await page.evaluate(() => localStorage.getItem('aiao-local-profile-v1'));
   await prompt(page, '原工作区未导出的草稿');
   await page.goto('/providers#data');
@@ -438,8 +446,8 @@ test('连续导入保留各工作区，原图与草稿可离线读取并从界�
   const reloaded = page.waitForEvent('load');
   page.once('dialog', dialog => dialog.accept());
   await page.locator('input[type=file]').setInputFiles({
-    name: 'backup.json',
-    mimeType: 'application/json',
+    name: 'backup.zip',
+    mimeType: 'application/zip',
     buffer: contents
   });
   await reloaded;
@@ -463,7 +471,7 @@ test('连续导入保留各工作区，原图与草稿可离线读取并从界�
   await expect.poll(() => profile(page)).not.toBe(firstImportedId);
   expect(await profile(page)).not.toBe(originalId);
   await expect(page.getByRole('button', { name: '返回工作区：导入前工作区', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: '返回工作区：backup.json', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '返回工作区：backup.zip', exact: true })).toBeVisible();
   page.once('dialog', dialog => dialog.accept());
   await Promise.all([
     page.waitForEvent('load'),
@@ -480,7 +488,7 @@ test('连续导入保留各工作区，原图与草稿可离线读取并从界�
   page.once('dialog', dialog => dialog.accept());
   await Promise.all([
     page.waitForEvent('load'),
-    firstCopy.getByRole('button', { name: '返回工作区：backup.json', exact: true }).click()
+    firstCopy.getByRole('button', { name: '返回工作区：backup.zip', exact: true }).click()
   ]);
   await expect.poll(() => profile(page)).toBe(firstImportedId);
   await page.goto('/create');

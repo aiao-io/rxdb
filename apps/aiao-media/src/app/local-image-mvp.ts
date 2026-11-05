@@ -1279,7 +1279,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   async exportBackup() {
     if (!this.store || this.inFlight() || this.dataBusy()) return;
     this.dataBusy.set(true);
-    this.dataMessage.set('正在校验图片并导出…');
+    this.dataMessage.set('正在校验全部已保存图片并打包 ZIP…');
     try {
       await navigator.locks.request(`aiao-local-generation-${this.profileId}`, { ifAvailable: true }, async lock => {
         if (!lock) throw new Error('另一标签页正在生成，请稍后备份。');
@@ -1288,11 +1288,13 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         const { createLocalBackup } = await import('./local-backup');
         if (!this.store) throw new Error('本机工作区不可用。');
         const blob = await createLocalBackup(this.store, this.providers(), this.providerId(), this.history());
-        if (!(await saveDownload(blob, `aiao-backup-${new Date().toISOString().slice(0, 10)}.json`))) {
+        if (!(await saveDownload(blob, `aiao-backup-${new Date().toISOString().slice(0, 10)}.zip`))) {
           this.dataMessage.set('已取消导出，原数据保留。');
           return;
         }
-        this.dataMessage.set('备份已导出，包含原图、草稿、配置和任务记录，不含 API Key。');
+        this.dataMessage.set(
+          'ZIP 备份已导出，包含全部已保存原图和 backup.json（草稿、配置及任务记录），不含 API Key。'
+        );
       });
     } catch (e) {
       this.dataMessage.set(e instanceof Error ? e.message : '导出失败，原数据未更改。');

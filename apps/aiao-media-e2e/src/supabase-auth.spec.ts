@@ -1,7 +1,7 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { pngFixture, verifyImageDownload } from './local-first.helpers';
+import { backupText, pngFixture, verifyImageDownload } from './local-first.helpers';
 
 const url = 'https://auth.example.test';
 const publicKey = 'sb_publishable_browser_fixture';
@@ -209,7 +209,7 @@ test('登录刷新恢复且退出保留本机草稿，账号凭据不进入备�
   const downloading = page.waitForEvent('download');
   await page.getByRole('button', { name: '导出本机备份', exact: true }).click();
   const download = await downloading;
-  const backup = await readFile((await download.path())!, 'utf8');
+  const backup = backupText(await readFile((await download.path())!));
   expect(backup).toContain('登录前的本机草稿');
   expect(backup).not.toContain('fixture-refresh-token');
   expect(backup).not.toContain('access_token');

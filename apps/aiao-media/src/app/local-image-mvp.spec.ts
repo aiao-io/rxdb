@@ -83,6 +83,17 @@ function rig() {
 }
 
 describe('library ownership presentation', () => {
+  it('本机备份说明 ZIP 内容，并接受 ZIP 和旧版 JSON 导入', () => {
+    const r = rig();
+    r.component.view.set('providers');
+    r.component.settingsTab.set('data');
+    expect(r.text()).toContain('backup.json');
+    const input = r.element.querySelector<HTMLInputElement>('.backup-import input');
+    expect(input?.accept.split(',')).toEqual(
+      expect.arrayContaining(['application/zip', '.zip', 'application/json', '.json'])
+    );
+    r.session.close();
+  });
   it('本机数据打开后仍等待身份就绪才允许首次启用同步', () => {
     const descriptor = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, 'showModal');
     Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {

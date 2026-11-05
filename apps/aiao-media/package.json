@@ -26,6 +26,7 @@
     "@tiptap/extension-text": "3.31.3",
     "@tiptap/extensions": "3.31.3",
     "@tiptap/pm": "3.31.3",
+    "fflate": "^0.8.3",
     "rxjs": "^7.8.2",
     "zone.js": "0.16.2"
   },

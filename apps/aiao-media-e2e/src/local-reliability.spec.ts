@@ -1,6 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
+import { strToU8, unzipSync, zipSync } from 'fflate';
 import { readFile } from 'node:fs/promises';
 import {
+  backupText,
   downloadBackup,
   endpoint,
   importBackup,
@@ -94,8 +96,8 @@ test('记住、替换和移除 Key 后只保留非敏感配置，刷新不复用
   await prompt(page);
   await generate(page);
   const backup = await downloadBackup(page);
-  expect(backup.toString()).not.toContain(key);
-  expect(backup.toString()).not.toContain(replacement);
+  expect(backupText(backup)).not.toContain(key);
+  expect(backupText(backup)).not.toContain(replacement);
   await page.getByRole('button', { name: '移除 Key', exact: true }).click();
   await expect(page.getByText('已移除 Key，供应商配置已保留。')).toBeVisible();
   await prompt(page);
@@ -182,7 +184,7 @@ test('跨 origin 图片读取不带凭据，原图信息、下载、复用和删
   await expect(cards).toContainText('另一张图片');
   await page.getByText('本机任务记录', { exact: false }).click();
   await expect(page.locator('.task-history')).toContainText('本机无副本');
-  const backup = JSON.parse((await downloadBackup(page)).toString());
+  const backup = JSON.parse(backupText(await downloadBackup(page)));
   expect(backup.images).toHaveLength(1);
   expect(backup.images[0].job.request.prompt).toBe('另一张图片');
   expect(calls).toBe(2);
@@ -298,17 +300,18 @@ test('备份的超限、摘要损坏和重复图片 ID 不会切换或覆盖现�
   await generate(page);
   const contents = await downloadBackup(page);
   const original = await profile(page);
-  const broken = JSON.parse(contents.toString());
+  const entries = unzipSync(contents);
+  const broken = JSON.parse(backupText(contents));
   broken.images[0].sha256 = '0'.repeat(64);
-  await importBackup(page, Buffer.from(JSON.stringify(broken)));
+  await importBackup(page, Buffer.from(zipSync({ ...entries, 'backup.json': strToU8(JSON.stringify(broken)) })));
   await expect(page.getByText('备份图片校验失败，原数据未更改。')).toBeVisible();
-  const duplicate = JSON.parse(contents.toString());
+  const duplicate = JSON.parse(backupText(contents));
   duplicate.images.push(duplicate.images[0]);
-  await importBackup(page, Buffer.from(JSON.stringify(duplicate)));
+  await importBackup(page, Buffer.from(zipSync({ ...entries, 'backup.json': strToU8(JSON.stringify(duplicate)) })));
   await expect(page.getByText('备份图片格式无效或 ID 重复。')).toBeVisible();
   await page.evaluate(() => {
     const transfer = new DataTransfer();
-    transfer.items.add(new File([new Uint8Array(64 * 1024 * 1024 + 1)], 'oversized.json'));
+    transfer.items.add(new File([new Uint8Array(64 * 1024 * 1024 + 1)], 'oversized.zip'));
     const input = document.querySelector<HTMLInputElement>('input[type=file]');
     if (!input) throw new Error('Missing import input');
     input.files = transfer.files;
@@ -316,8 +319,8 @@ test('备份的超限、摘要损坏和重复图片 ID 不会切换或覆盖现�
   });
   await expect(page.getByText('备份文件不能超过 64 MiB。')).toBeVisible();
   expect(await profile(page)).toBe(original);
-  const after = JSON.parse((await downloadBackup(page)).toString());
-  expect(after.images).toEqual(JSON.parse(contents.toString()).images);
+  const after = JSON.parse(backupText(await downloadBackup(page)));
+  expect(after.images).toEqual(JSON.parse(backupText(contents)).images);
 });
 
 test('导入中断保留原库，同一备份重试复用隔离暂存区并恢复全部原图', async ({ page }) => {
@@ -356,10 +359,12 @@ test('导入中断保留原库，同一备份重试复用隔离暂存区并恢�
   expect(await page.evaluate(() => localStorage.getItem('aiao-local-previous-profile-v1'))).toBe(original);
   await page.goto('/images');
   await expect(page.getByAltText('本机生成作品')).toHaveCount(2);
-  const restored = JSON.parse((await downloadBackup(page)).toString());
-  expect(restored.images.map((image: { base64: string }) => image.base64)).toEqual([
-    png.toString('base64'),
-    png.toString('base64')
+  const restoredContents = await downloadBackup(page);
+  const restored = JSON.parse(backupText(restoredContents));
+  const restoredEntries = unzipSync(restoredContents);
+  expect(restored.images.map((image: { path: string }) => Buffer.from(restoredEntries[image.path]))).toEqual([
+    png,
+    png
   ]);
   await page.getByRole('tab', { name: '本机数据', exact: true }).click();
   page.once('dialog', dialog => dialog.accept());

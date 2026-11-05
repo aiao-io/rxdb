@@ -1,4 +1,5 @@
 import { expect, type Dialog, type Locator, type Page } from '@playwright/test';
+import { strFromU8, unzipSync } from 'fflate';
 import { createHash, webcrypto } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import sharp from 'sharp';
@@ -70,6 +71,10 @@ export async function downloadBackup(page: Page) {
   if (await providers.isVisible()) await providers.click();
   return contents;
 }
+const isZipBackup = (buffer: Buffer) => buffer[0] === 0x50 && buffer[1] === 0x4b;
+export function backupText(buffer: Buffer): string {
+  return isZipBackup(buffer) ? strFromU8(unzipSync(buffer)['backup.json']) : buffer.toString();
+}
 /** Opens the local data tab when the build has one; upgrade suites also drive builds without tabs. */
 export async function openDataTab(page: Page) {
   const tab = page.getByRole('tab', { name: '本机数据', exact: true });
@@ -86,8 +91,8 @@ export async function importBackup(page: Page, buffer: Buffer) {
   page.once('dialog', acceptBackupImport);
   page.once('load', () => page.off('dialog', acceptBackupImport));
   await chooser.setFiles({
-    name: 'backup.json',
-    mimeType: 'application/json',
+    name: isZipBackup(buffer) ? 'backup.zip' : 'backup.json',
+    mimeType: isZipBackup(buffer) ? 'application/zip' : 'application/json',
     buffer
   });
 }

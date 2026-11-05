@@ -1080,8 +1080,9 @@
           </div>
         </dl>
         <p>
-          备份包含原图、提示词、草稿和供应商配置，固定排除 API Key。单个备份最多 64
-          MiB。恢复会切换到独立工作区，原工作区保留；校验失败不切换。
+          导出 ZIP 备份，包含当前工作区全部已保存的 PNG/JPEG 原图文件，以及记录提示词、草稿、供应商配置和任务的
+          backup.json，不含 API Key。单个备份最多 64 MiB。支持导入 ZIP 和旧版 JSON
+          备份；恢复会切换到独立工作区，原工作区保留；校验失败不切换。
         </p>
         <div class="provider-actions">
           <button class="primary" [disabled]="localStatus() !== 'ready' || inFlight()" (click)="exportBackup()">
@@ -1092,7 +1093,7 @@
             <input
               [disabled]="localStatus() !== 'ready' || inFlight()"
               (change)="importBackup($event)"
-              accept="application/json,.json"
+              accept="application/zip,.zip,application/json,.json"
               type="file"
             />
           </label>

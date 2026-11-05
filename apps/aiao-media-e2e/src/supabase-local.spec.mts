@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import { backupText } from './local-first.helpers';
 // Node-only Compose helpers are shared with the SDK/RLS probes.
 import { localEnvironment, type LocalSupabaseEnvironment } from '../../aiao-media/scripts/supabase-local.mjs';
 import { confirmLocalEmail } from '../../aiao-media/scripts/test-supabase-local.mjs';
@@ -165,7 +166,7 @@ test('真实账号跨标签退出生效且会话凭据不进入本机备份', as
   await page.getByRole('button', { name: '导出本机备份', exact: true }).click();
   const path = await (await download).path();
   if (!path) throw new Error('Local backup download is missing.');
-  const backup = await readFile(path, 'utf8');
+  const backup = backupText(await readFile(path));
   for (const secret of [
     session.access_token,
     session.refresh_token,
