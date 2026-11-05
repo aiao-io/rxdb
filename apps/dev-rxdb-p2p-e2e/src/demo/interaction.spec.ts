@@ -12,34 +12,21 @@ test.describe('文件共享与本机管理交互', () => {
     await expect(page.getByTestId('managed-files')).toHaveCount(0);
   });
 
-  test('管理入口可导航和刷新，高级诊断默认收起，手机上页面不横向溢出', async ({ browser }) => {
+  test('管理入口可导航和刷新，生产构建不含高级诊断，手机上页面不横向溢出', async ({ browser }) => {
     const device = await openDevice(browser, newAccount('management-navigation'), 'sign-up');
     const page = device.page;
     try {
-      await expect(page.getByTestId('inspector-panel')).toHaveCount(0);
       await expect(page.getByTestId('manage-entry')).toBeVisible();
       await page.getByTestId('manage-entry').click();
       await expect(page).toHaveURL(/\/manage$/);
       await expect(page.getByTestId('managed-files')).toBeVisible();
       await expect(page.getByTestId('current-device')).toHaveText(device.name);
+      await expect(page.getByTestId('advanced-diagnostics')).toHaveCount(0);
 
       await page.reload();
       await expect(page.getByTestId('signaling-state')).toHaveAttribute('data-state', 'online');
       await expect(page.getByTestId('managed-files')).toBeVisible();
       await expect(page.getByTestId('current-device')).toHaveText(device.name);
-      const diagnostics = page.getByTestId('advanced-diagnostics');
-      await expect(diagnostics).toHaveJSProperty('open', false);
-      await expect(page.getByTestId('fault-deny')).toBeHidden();
-      await diagnostics.locator('summary').first().click();
-      await expect(page.getByTestId('fault-deny')).toBeVisible();
-      await page.getByTestId('fault-deny').check();
-      await diagnostics.locator('summary').first().click();
-
-      await page.getByRole('link', { name: '文件共享', exact: true }).click();
-      await expect(page.getByTestId('fault-warning')).toBeVisible();
-      await page.getByRole('button', { name: '恢复正常共享', exact: true }).click();
-      await expect(page.getByTestId('fault-warning')).toHaveCount(0);
-      await page.getByTestId('manage-entry').click();
 
       await page.setViewportSize({ width: 390, height: 844 });
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);

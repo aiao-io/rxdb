@@ -1,5 +1,5 @@
 import { formatFileSize } from '@aiao/utils';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, isDevMode, signal } from '@angular/core';
 import { AuthService } from '../auth/auth.service';
 import { P2PWorkspace, type SharedFileView } from '../p2p/p2p-workspace.service';
 import { DevicesPanel } from './devices-panel';
@@ -123,20 +123,24 @@ import { TransfersPanel } from './transfers-panel';
       </div>
       <app-transfers-panel />
     </div>
-    <details class="card bg-base-100" data-testid="advanced-diagnostics">
-      <summary class="cursor-pointer p-6 text-sm font-semibold">高级诊断与演示</summary>
-      <div class="px-2 pb-2 sm:px-4 sm:pb-4">
-        <p class="text-base-content/60 px-4 pb-4 text-sm">
-          用于排查连接或演示异常。开启故障模拟会影响其他设备从本机下载。
-        </p>
-        <app-inspector-panel />
-      </div>
-    </details>
+    @if (showDiagnostics) {
+      <details class="card bg-base-100" data-testid="advanced-diagnostics">
+        <summary class="cursor-pointer p-6 text-sm font-semibold">高级诊断与演示</summary>
+        <div class="px-2 pb-2 sm:px-4 sm:pb-4">
+          <p class="text-base-content/60 px-4 pb-4 text-sm">
+            用于排查连接或演示异常。开启故障模拟会影响其他设备从本机下载。
+          </p>
+          <app-inspector-panel />
+        </div>
+      </details>
+    }
   `
 })
 export default class ManagePage {
   readonly workspace = inject(P2PWorkspace);
   readonly auth = inject(AuthService);
+  /** 高级诊断与演示只在开发构建显示：生产部署是正式产品，不带故障注入与会话帧面板。 */
+  readonly showDiagnostics = isDevMode();
   readonly localFiles = computed(() => this.workspace.files().filter(file => file.heldHere));
   readonly localBytes = computed(() => this.localFiles().reduce((total, file) => total + file.manifest.size, 0));
   readonly readyLinks = computed(() => this.workspace.links().filter(link => link.state === 'ready'));
