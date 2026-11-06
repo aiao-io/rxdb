@@ -56,7 +56,7 @@ try {
   await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
   await page.getByRole('textbox', { name: '模板：vanilla / react / vue / angular', exact: true }).fill('react');
   await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
-  await expect(root.getByRole('combobox', { name: '当前项目' }).locator('option:checked')).toHaveText(
+  await expect(root.locator('[data-slot="workspace-label"]')).toHaveText(
     `Commands ${host}`,
     { timeout: 30000 }
   );

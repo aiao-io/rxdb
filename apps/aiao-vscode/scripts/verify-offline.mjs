@@ -80,14 +80,15 @@ try {
     const frame = page.frameLocator('iframe[title="项目隔离预览"]');
     await frame.getByRole('button').click({ timeout: 60000 });
     await frame.getByRole('button').filter({ hasText: /1/ }).waitFor();
-    ids[template] = await page.getByLabel('当前项目').inputValue();
+    ids[template] = await page.locator('[data-action="workspace"]').getAttribute('data-project-id');
   }
   await page.screenshot({ path: join(root, 'benchmarks/browser-workbench-ui.png'), fullPage: true });
   await context.setOffline(true);
   await page.reload();
   await page.waitForFunction(() => window.ready === true, { timeout: 60000 });
   for (const template of ['vanilla', 'react', 'vue', 'angular']) {
-    await page.getByLabel('当前项目').selectOption(ids[template]);
+    await page.getByRole('button', { name: '工作区', exact: true }).click();
+    await page.locator(`[data-menu-id="project:${ids[template]}"]`).click();
     await page.waitForFunction(id => window.workbench.session.state.projectId === id, ids[template]);
     await page.getByRole('button', { name: '运行', exact: true }).click();
     const frame = page.frameLocator('iframe[title="项目隔离预览"]');

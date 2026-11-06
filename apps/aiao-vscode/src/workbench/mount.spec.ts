@@ -160,6 +160,23 @@ const clickTitleMenu = async (host: HTMLElement, id: string): Promise<void> => {
   item.click();
 };
 
+/** 打开顶栏「工作区」菜单；项目切换与工作区动作都在这里。 */
+const openWorkspaceMenu = async (host: HTMLElement): Promise<HTMLElement> => {
+  await click(host, '[data-action="workspace"]');
+  await vi.waitFor(() => expect(host.querySelector('.wb-context-menu')).not.toBeNull());
+  const menu = host.querySelector<HTMLElement>('.wb-context-menu');
+  if (!menu) throw new Error('工作区菜单未打开');
+  return menu;
+};
+
+/** 经工作区菜单切换项目。 */
+const switchProject = async (host: HTMLElement, id: string): Promise<void> => {
+  const menu = await openWorkspaceMenu(host);
+  const item = menuItem(menu, `project:${id}`);
+  await vi.waitFor(() => expect(item.disabled).toBe(false));
+  item.click();
+};
+
 /** 派发一次带 dataTransfer 桩的拖放事件；happy-dom 没有 DragEvent 构造器。 */
 const drag = (
   type: string
@@ -260,7 +277,7 @@ describe('VS Code 风格工作台', () => {
     const menu = await openTitleMenu(host);
     const create = menuItem(menu, 'new-project');
     const upload = menuItem(menu, 'import');
-    const project = host.querySelector<HTMLSelectElement>('.wb-projects');
+    const project = host.querySelector<HTMLButtonElement>('[data-action="workspace"]');
     expect(create?.disabled).toBe(true);
     expect(upload?.disabled).toBe(true);
     expect(project?.disabled).toBe(true);
@@ -1048,12 +1065,6 @@ describe('VS Code 风格工作台', () => {
     ]);
     await handle.ready;
     handle.session.edit('src/main.ts', 'draft');
-    const select = host.querySelector<HTMLSelectElement>('.wb-projects');
-    if (!select) throw new Error('项目选择器缺失');
-    const switchTo = (value: string): void => {
-      select.value = value;
-      select.dispatchEvent(new Event('change'));
-    };
     const choose = async (label: string): Promise<void> => {
       await vi.waitFor(() => expect(host.querySelector('dialog')).not.toBeNull());
       const dialog = host.querySelector<HTMLDialogElement>('dialog');
@@ -1062,16 +1073,16 @@ describe('VS Code 风格工作台', () => {
       button.click();
       await vi.waitFor(() => expect(host.querySelector('dialog')).toBeNull());
     };
-    switchTo('two');
+    await switchProject(host, 'two');
     await choose('取消');
     expect(handle.session.state.projectId).toBe('one');
     expect(handle.session.state.dirty).toBe(true);
-    switchTo('two');
+    await switchProject(host, 'two');
     await choose('放弃更改');
     await vi.waitFor(() => expect(handle.session.state.projectId).toBe('two'));
     expect(handle.session.state.dirty).toBe(false);
     handle.session.edit('src/main.ts', 'keep me');
-    switchTo('one');
+    await switchProject(host, 'one');
     await choose('保存并切换');
     await vi.waitFor(() => expect(handle.session.state.projectId).toBe('one'));
     expect(backend.save).toHaveBeenCalled();
@@ -1441,10 +1452,9 @@ describe('VS Code 风格工作台', () => {
     const reads = vi.mocked(backend.readDiff).mock.calls.length;
     await click(host, '[data-action="git"]');
     await vi.waitFor(() => expect(backend.readDiff).toHaveBeenCalledTimes(reads + 1));
-    const select = host.querySelector<HTMLSelectElement>('.wb-projects')!;
-    expect(select.disabled).toBe(false);
-    select.value = 'two';
-    select.dispatchEvent(new Event('change'));
+    const workspace = host.querySelector<HTMLButtonElement>('[data-action="workspace"]')!;
+    expect(workspace.disabled).toBe(false);
+    await switchProject(host, 'two');
     await vi.waitFor(() =>
       expect(host.querySelector('[data-slot="history"]')?.textContent).toContain('two current commit')
     );
@@ -1583,10 +1593,7 @@ describe('VS Code 风格工作台', () => {
     const event = new Event('beforeunload', { cancelable: true });
     window.dispatchEvent(event);
     expect(event.defaultPrevented).toBe(true);
-    const select = host.querySelector<HTMLSelectElement>('.wb-projects');
-    if (!select) throw new Error('Project select missing');
-    select.value = 'one';
-    select.dispatchEvent(new Event('change'));
+    await switchProject(host, 'one');
     await vi.waitFor(() => expect(host.querySelector('dialog')).not.toBeNull());
     const dialog = host.querySelector<HTMLDialogElement>('dialog');
     [...(dialog?.querySelectorAll('button') ?? [])].find(item => item.textContent === '取消')?.click();
@@ -1837,6 +1844,36 @@ describe('vscode.dev 起始页对齐', () => {
     expect(menuItem(menu, 'export').disabled).toBe(true);
     expect(menuItem(menu, 'save').disabled).toBe(true);
     expect(menuItem(menu, 'save-all').disabled).toBe(true);
+  });
+
+  it('顶栏工作区按钮展示当前项目名，菜单列出最近项目与新建导入入口', async () => {
+    const { host, handle } = fixture(true, '/browser-workbench-assets/', undefined, [
+      { id: 'two', name: '第二个项目', template: 'vanilla' as const, entry: 'src/main.ts', updatedAt: 1 }
+    ]);
+    await handle.ready;
+    expect(host.querySelector('[data-slot="workspace-label"]')?.textContent).toBe('本地项目');
+    const workspace = host.querySelector<HTMLButtonElement>('[data-action="workspace"]');
+    expect(workspace?.dataset['projectId']).toBe('one');
+    const menu = await openWorkspaceMenu(host);
+    expect(menuItem(menu, 'project:one').textContent).toBe('✓ 本地项目');
+    expect(menuItem(menu, 'project:two').textContent).toBe('第二个项目');
+    expect(menuItem(menu, 'new-project')).not.toBeNull();
+    expect(menuItem(menu, 'import')).not.toBeNull();
+    expect(menu.querySelectorAll('[role="separator"]')).toHaveLength(1);
+    menuItem(menu, 'project:two').click();
+    await vi.waitFor(() => expect(handle.session.state.projectId).toBe('two'));
+    expect(host.querySelector('[data-slot="workspace-label"]')?.textContent).toBe('第二个项目');
+  });
+
+  it('工作区菜单在无项目时只列新建与导入，不出现孤立分隔线', async () => {
+    const { host, handle } = fixture(false);
+    await handle.ready;
+    expect(host.querySelector('[data-slot="workspace-label"]')?.textContent).toBe('工作区');
+    const menu = await openWorkspaceMenu(host);
+    expect(menu.querySelectorAll('[role="separator"]')).toHaveLength(0);
+    expect(menuItem(menu, 'new-project')).not.toBeNull();
+    expect(menuItem(menu, 'import')).not.toBeNull();
+    expect(menu.querySelectorAll('[data-menu-id^="project:"]')).toHaveLength(0);
   });
 
   it('活动栏底部提供设置入口，未配置认证时隐藏帐户按钮', () => {

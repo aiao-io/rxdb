@@ -760,19 +760,9 @@ export function mountWorkbench(
     }
   }
   function renderProjects(): void {
-    const select = element<HTMLSelectElement>('.wb-projects');
-    select.replaceChildren();
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = '选择项目';
-    select.append(placeholder);
-    for (const item of projects) {
-      const option = document.createElement('option');
-      option.value = item.id;
-      option.textContent = item.name;
-      select.append(option);
-    }
-    select.value = project?.id ?? '';
+    const workspace = element<HTMLButtonElement>('[data-action="workspace"]');
+    element('[data-slot="workspace-label"]').textContent = project?.name ?? '工作区';
+    workspace.dataset['projectId'] = project?.id ?? '';
   }
   async function openProject(id: string): Promise<void> {
     const next = projects.find(item => item.id === id);
@@ -1789,7 +1779,7 @@ export function mountWorkbench(
       '[data-mutation],[data-action=commit],[data-action=stage-all],[data-action=refresh-tree],[data-action=collapse-tree],[data-action=new-file],[data-action=new-folder],[data-action=discard]'
     ))
       button.disabled = !session.state.projectId || busy;
-    element<HTMLSelectElement>('.wb-projects').disabled = initializing || (busy && previewPhase !== 'compiling');
+    element<HTMLButtonElement>('[data-action="workspace"]').disabled = initializing || (busy && previewPhase !== 'compiling');
   }
   async function newProject(): Promise<void> {
     const name = await requestWorkbenchText(root, '项目名称', '我的项目');
@@ -1911,6 +1901,25 @@ export function mountWorkbench(
         { separator: true },
         { label: '保存当前文件', id: 'save', action: saveCurrent, disabled: !editable },
         { label: '保存全部并预览', id: 'save-all', action: saveAll, disabled: !editable }
+      ]);
+    },
+    workspace: () => {
+      const rectangle = element('[data-action="workspace"]').getBoundingClientRect();
+      // 与旧项目选择器一致的禁用语义：初始化或非编译期的忙时禁用；编译期不禁，切换会先取消编译。
+      // pendingOperations > 1 排除本次菜单打开自身（action() 先计数）。
+      const busy =
+        initializing || (session.state.busy && previewPhase !== 'compiling') ||
+        (pendingOperations > 1 && previewPhase !== 'compiling');
+      showContextMenu({ x: rectangle.left, y: rectangle.bottom }, [
+        ...projects.map(item => ({
+          label: `${item.id === session.state.projectId ? '✓ ' : ''}${item.name}`,
+          id: `project:${item.id}`,
+          action: () => openProject(item.id),
+          disabled: busy
+        })),
+        ...(projects.length > 0 ? ([{ separator: true }] as const) : []),
+        { label: '新建项目', id: 'new-project', action: newProject, disabled: busy },
+        { label: '导入项目', id: 'import', action: importProject, disabled: busy }
       ]);
     },
     'new-project': newProject,
@@ -2112,15 +2121,6 @@ export function mountWorkbench(
     }
   };
   root.addEventListener('click', click);
-  const select = element<HTMLSelectElement>('.wb-projects');
-  select.onchange = () =>
-    action(async () => {
-      try {
-        await openProject(select.value);
-      } finally {
-        renderProjects();
-      }
-    });
   const commands = createWorkbenchCommands(root, {
     getFiles: () => Object.keys(session.state.files),
     getRecentPaths: () => session.state.tabs,

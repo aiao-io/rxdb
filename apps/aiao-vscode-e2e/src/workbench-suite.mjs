@@ -12,6 +12,15 @@ async function openTitleMenu(root) {
   await root.getByRole('button', { name: '应用程序菜单', exact: true }).click();
 }
 
+async function openWorkspaceMenu(root) {
+  await root.getByRole('button', { name: '工作区', exact: true }).click();
+}
+
+async function switchProject(root, projectId) {
+  await openWorkspaceMenu(root);
+  await root.locator(`[data-menu-id="project:${projectId}"]`).click();
+}
+
 async function createProject(page, expect, template) {
   const root = page.getByRole('region', { name: '浏览器开发工作台', exact: true });
   await expect(root).toBeVisible({ timeout: 30000 });
@@ -21,10 +30,9 @@ async function createProject(page, expect, template) {
   await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
   await page.getByRole('textbox', { name: '模板：vanilla / react / vue / angular', exact: true }).fill(template);
   await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
-  await expect(root.getByRole('combobox', { name: '当前项目' }).locator('option:checked')).toHaveText(
-    `vscode-${template}-fixture`,
-    { timeout: 30000 }
-  );
+  await expect(root.locator('[data-slot="workspace-label"]')).toHaveText(`vscode-${template}-fixture`, {
+    timeout: 30000
+  });
   await expect(root.locator('[data-slot="save-status"]')).toContainText('已保存');
   return root;
 }
@@ -74,7 +82,8 @@ async function commitProject(expect, root, message) {
 }
 
 async function verifyArchive(page, expect, root, fixture, marker, projectId, testInfo) {
-  const projectCount = await root.getByRole('combobox', { name: '当前项目' }).locator('option').count();
+  await openWorkspaceMenu(root);
+  const projectCount = await root.locator('[data-menu-id^="project:"]').count();
   const downloadPromise = page.waitForEvent('download');
   await openTitleMenu(root);
   await root.getByRole('menuitem', { name: '导出项目', exact: true }).click();
@@ -88,13 +97,14 @@ async function verifyArchive(page, expect, root, fixture, marker, projectId, tes
   const chooser = await chooserPromise;
   await chooser.setFiles(archive);
   await expect
-    .poll(() => root.getByRole('combobox', { name: '当前项目' }).inputValue(), { timeout: 30000 })
+    .poll(() => root.locator('[data-action="workspace"]').getAttribute('data-project-id'), { timeout: 30000 })
     .not.toBe(projectId);
   await expect(root.locator('[data-slot="save-status"]')).toContainText('已保存');
   await runPreview(page, expect, marker, fixture);
   await expect(root.locator('[data-slot="history"]')).toContainText('browser-workbench-e2e');
-  await expect(root.getByRole('combobox', { name: '当前项目' }).locator('option')).toHaveCount(projectCount + 1);
-  await expect(root.getByRole('combobox', { name: '当前项目' }).locator(`option[value="${projectId}"]`)).toHaveCount(1);
+  await openWorkspaceMenu(root);
+  await expect(root.locator('[data-menu-id^="project:"]')).toHaveCount(projectCount + 1);
+  await expect(root.locator(`[data-menu-id="project:${projectId}"]`)).toHaveCount(1);
   await testInfo.attach('project-archive', { path: archive, contentType: 'application/zip' });
 }
 
@@ -144,7 +154,7 @@ export async function runWorkbenchCase(page, expect, template, testInfo) {
   page.on('pageerror', error => browserErrors.push(error.stack ?? error.message));
   await page.goto('/');
   const root = await createProject(page, expect, template);
-  const projectId = await root.getByRole('combobox', { name: '当前项目' }).inputValue();
+  const projectId = await root.locator('[data-action="workspace"]').getAttribute('data-project-id');
   const marker = `workbench-${template}-edited`;
   try {
     // 侧栏对齐 VS Code：工作区节头、活动栏切换标题与视图
@@ -184,12 +194,16 @@ export async function runWorkbenchCase(page, expect, template, testInfo) {
     await expect(root.locator('button[data-tree-path="drag-me.txt"]')).toHaveCount(0);
     await runPreview(page, expect, marker, fixture);
     await page.reload();
-    await expect(root.getByRole('combobox', { name: '当前项目' })).toHaveValue(projectId, { timeout: 30000 });
+    await expect(root.locator('[data-action="workspace"]')).toHaveAttribute('data-project-id', projectId, {
+      timeout: 30000
+    });
     await runPreview(page, expect, marker, fixture);
     const commit = `browser-workbench-e2e ${template}`;
     await commitProject(expect, root, commit);
     await page.reload();
-    await expect(root.getByRole('combobox', { name: '当前项目' })).toHaveValue(projectId, { timeout: 30000 });
+    await expect(root.locator('[data-action="workspace"]')).toHaveAttribute('data-project-id', projectId, {
+      timeout: 30000
+    });
     await root.getByRole('button', { name: '切换 Git 视图', exact: true }).click();
     await expect(root.locator('[data-slot="history"]')).toContainText(commit);
     await runPreview(page, expect, marker, fixture);
@@ -212,8 +226,7 @@ export async function runLayoutCase(page, expect) {
   page.on('pageerror', error => browserErrors.push(error.stack ?? error.message));
   await page.goto('/');
   const root = await createProject(page, expect, 'vanilla');
-  const projects = root.getByRole('combobox', { name: '当前项目' });
-  const projectId = await projects.inputValue();
+  const projectId = await root.locator('[data-action="workspace"]').getAttribute('data-project-id');
   for (const path of ['src/main.ts', 'src/label.ts']) {
     await root
       .locator('.wb-file')
@@ -234,14 +247,16 @@ export async function runLayoutCase(page, expect) {
   await createProject(page, expect, 'react');
   await panel.click();
   await expect(panel).toHaveAttribute('aria-pressed', 'true');
-  await projects.selectOption(projectId);
+  await switchProject(root, projectId);
   await expect(editorGroups).toHaveCount(2, { timeout: 30000 });
   await expect(panel).toHaveAttribute('aria-pressed', 'false');
   await expect(sidebar).toHaveAttribute('aria-pressed', 'false');
   // 「已打开」在目录写入最近打开时间之后才记，等它再导航，根地址才会恢复这个项目
   await expect(root.locator('[data-log="output"]')).toContainText('已打开 vscode-vanilla-fixture');
   await page.goto('/');
-  await expect(projects).toHaveValue(projectId, { timeout: 30000 });
+  await expect(root.locator('[data-action="workspace"]')).toHaveAttribute('data-project-id', projectId, {
+    timeout: 30000
+  });
   await expect(editorGroups).toHaveCount(2, { timeout: 30000 });
   for (const group of await editorGroups.all()) await expect(group.locator('[data-editor-tab-path]')).toHaveCount(1);
   await expect(panel).toHaveAttribute('aria-pressed', 'false');

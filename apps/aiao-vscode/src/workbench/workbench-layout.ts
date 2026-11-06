@@ -13,7 +13,7 @@ export function createWorkbenchLayout(host: HTMLElement, assetBaseURL: string): 
     <header class="wb-title">
       <button class="wb-menu-button" data-action="title-menu" aria-label="应用程序菜单" title="应用程序菜单">${iconMarkup('menu')}</button>
       <div class="wb-brand">${iconMarkup('code')}<span>Aiao Code</span></div>
-      <div class="wb-command-center"><button data-action="quick-open" aria-label="快速打开文件" title="快速打开文件 · Ctrl / ⌘ + P">${iconMarkup('search')}</button><select class="wb-projects" aria-label="当前项目"><option value="">选择项目</option></select>${iconMarkup('chevron-down')}</div>
+      <div class="wb-command-center"><button data-action="quick-open" aria-label="快速打开文件" title="快速打开文件 · Ctrl / ⌘ + P">${iconMarkup('search')}</button><button class="wb-workspace" data-action="workspace" aria-label="工作区" title="工作区"><span data-slot="workspace-label">工作区</span>${iconMarkup('chevron-down')}</button></div>
       <div class="wb-title-actions">
         <button class="wb-run-button" data-action="run" title="保存全部文件并运行项目">${iconMarkup('play')}<span>运行</span></button>
         <button data-action="commands" aria-label="命令面板" title="命令面板 · Ctrl / ⌘ + Shift + P">${iconMarkup('more')}</button>

@@ -188,7 +188,7 @@ try {
     await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
     await page.getByRole('textbox', { name: '模板：vanilla / react / vue / angular', exact: true }).fill('vanilla');
     await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
-    await expect(root.getByRole('combobox', { name: '当前项目' }).locator('option:checked')).toHaveText(
+    await expect(root.locator('[data-slot="workspace-label"]')).toHaveText(
       `SCM UX ${host}`,
       { timeout: 30000 }
     );
@@ -310,7 +310,7 @@ try {
   });
 
   await step('independent-native-git-proves-index-only-history-and-unsaved-draft-not-persisted', async () => {
-    const id = await root.getByRole('combobox', { name: '当前项目' }).inputValue();
+    const id = await root.locator('[data-action="workspace"]').getAttribute('data-project-id');
     const bytes = await exportedArchive(id);
     const files = unzipSync(new Uint8Array(bytes));
     const native = join(temporary, 'repository');

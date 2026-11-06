@@ -138,10 +138,13 @@ describe('按项目保存与恢复工作台布局', () => {
     const { host, handle, catalog } = fixture({ two: splitLayout });
     await handle.ready;
     button(host, '[data-action="toggle-sidebar"]').click();
-    const select = host.querySelector<HTMLSelectElement>('.wb-projects');
-    if (!select) throw new Error('缺少项目选择框');
-    select.value = 'two';
-    select.dispatchEvent(new Event('change'));
+    const workspace = button(host, '[data-action="workspace"]');
+    await vi.waitFor(() => expect(workspace.disabled).toBe(false));
+    workspace.click();
+    await vi.waitFor(() => expect(host.querySelector('.wb-context-menu')).not.toBeNull());
+    const switchItem = host.querySelector<HTMLButtonElement>('.wb-context-menu [data-menu-id="project:two"]');
+    if (!switchItem) throw new Error('工作区菜单缺少项目 two');
+    switchItem.click();
     await vi.waitFor(() => expect(handle.session.state.projectId).toBe('two'));
     await vi.waitFor(() => expect(pressed(host, '.wb-title-actions [data-action="panel"]')).toBe('false'));
     expect(groupOf(host, 'src/main.ts')).not.toBe(groupOf(host, 'src/label.ts'));
