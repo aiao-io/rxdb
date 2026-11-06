@@ -29,11 +29,14 @@ function receipt() {
     user: account
   };
 }
-async function configure(context: BrowserContext) {
-  await context.route('**/app-config.js', route =>
+async function configure(
+  context: BrowserContext,
+  config: { url: string; anonKey: string } | null = { url, anonKey: publicKey }
+) {
+  await context.route(/\/app-config(?:-[a-f0-9]{16})?\.js$/, route =>
     route.fulfill({
       contentType: 'application/javascript',
-      body: `globalThis.__AIAO_SUPABASE_CONFIG__ = ${JSON.stringify({ url, anonKey: publicKey })};`
+      body: `globalThis.__AIAO_SUPABASE_CONFIG__ = ${JSON.stringify(config)};`
     })
   );
 }
@@ -153,7 +156,8 @@ test('免费平台登录和刷新后保留本机创作，不展示平台生图�
   expect(platformRequests).toEqual([]);
 });
 
-test('未配置账号时四页面不连接 Supabase 或创建会话', async ({ page, baseURL }) => {
+test('未配置账号时四页面不连接 Supabase 或创建会话', async ({ page, context, baseURL }) => {
+  await configure(context, null);
   const foreign: string[] = [];
   const origin = new URL(baseURL!).origin;
   page.on('request', request => {

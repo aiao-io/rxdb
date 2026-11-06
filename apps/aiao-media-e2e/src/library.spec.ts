@@ -108,7 +108,7 @@ async function configureAccount(context: BrowserContext) {
   const state = { identity: users.alice };
   const business = { directoryReads: 0, failedBindings: 0, unexpected: [] as string[] };
   const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url');
-  await context.route('**/app-config.js', route =>
+  await context.route(/\/app-config(?:-[a-f0-9]{16})?\.js$/, route =>
     route.fulfill({
       contentType: 'application/javascript',
       body: `globalThis.__AIAO_SUPABASE_CONFIG__ = ${JSON.stringify({ url: authUrl, anonKey: 'sb_publishable_library_fixture' })};`
@@ -149,6 +149,8 @@ async function configureAccount(context: BrowserContext) {
       business.directoryReads++;
       return route.fulfill({ json: [] });
     }
+    if (request.method() === 'POST' && path === '/rest/v1/rpc/media_sync_capabilities')
+      return route.fulfill({ json: { protocol: 1, rls: true, metadataOnly: true } });
     if (request.method() === 'POST' && path === '/rest/v1/rpc/media_ensure_workspace') {
       business.failedBindings++;
       return route.fulfill({ status: 503, json: { message: 'fixture binding unavailable' } });
