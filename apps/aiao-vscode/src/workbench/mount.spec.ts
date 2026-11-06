@@ -132,9 +132,12 @@ function fixture(
 }
 
 const click = async (host: HTMLElement, selector: string): Promise<void> => {
-  const element = host.querySelector<HTMLButtonElement>(selector);
-  if (!element) throw new Error(`Missing test control: ${selector}`);
-  await vi.waitFor(() => expect(element instanceof HTMLButtonElement ? element.disabled : false).toBe(false));
+  const element = await vi.waitFor(() => {
+    const control = host.querySelector<HTMLButtonElement>(selector);
+    if (!control) throw new Error(`Missing test control: ${selector}`);
+    expect(control instanceof HTMLButtonElement ? control.disabled : false).toBe(false);
+    return control;
+  });
   element.click();
 };
 
@@ -177,6 +180,12 @@ const switchProject = async (host: HTMLElement, id: string): Promise<void> => {
   item.click();
 };
 
+const showOpenEditors = async (host: HTMLElement): Promise<void> => {
+  await click(host, '.wb-side-actions[data-view="explorer"] [data-action="more-actions"]');
+  await vi.waitFor(() => expect(host.querySelector('.wb-context-menu')).not.toBeNull());
+  await click(host, '.wb-context-menu [data-menu-id="toggle-open-editors"]');
+};
+
 /** 派发一次带 dataTransfer 桩的拖放事件；happy-dom 没有 DragEvent 构造器。 */
 const drag = (
   type: string
@@ -191,6 +200,13 @@ const treeRow = (host: HTMLElement, path: string): HTMLButtonElement => {
   const row = host.querySelector<HTMLButtonElement>(`button[data-tree-path="${path}"]`);
   if (!row) throw new Error(`树行缺失：${path}`);
   return row;
+};
+
+const openTreeMenu = async (host: HTMLElement, path: string): Promise<void> => {
+  treeRow(host, path).dispatchEvent(
+    new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 100, clientY: 100 })
+  );
+  await vi.waitFor(() => expect(host.querySelector('.wb-context-menu')).not.toBeNull());
 };
 
 async function answer(host: HTMLElement, value: string | null): Promise<void> {
@@ -295,7 +311,7 @@ describe('VS Code 风格工作台', () => {
     await handle.ready;
     expect(backend.create).not.toHaveBeenCalled();
     expect(handle.session.state.projectId).toBeNull();
-    expect(host.querySelector('.wb-empty-view-hint')?.textContent).toBe('尚未打开项目');
+    expect(host.querySelector('.wb-empty-view-hint')?.textContent).toBe('尚未打开文件夹。');
     expect(host.querySelector('[data-welcome-action="open-folder"]')?.textContent).toBe('打开文件夹');
     expect(host.querySelector('[data-welcome-action="init-demo"]')?.textContent).toBe('初始化 Demo 项目');
     expect(host.querySelector('.wb-empty-view-recent')).toBeNull();
@@ -470,7 +486,9 @@ describe('VS Code 风格工作台', () => {
     await vi.waitFor(() => expect(backend.history).toHaveBeenCalledOnce());
     mountEditor.mock.calls[0][1].onChange('explicit save while loading history');
     try {
-      await vi.waitFor(() => expect(host.querySelector<HTMLButtonElement>('[data-action="run"]')?.disabled).toBe(false));
+      await vi.waitFor(() =>
+        expect(host.querySelector<HTMLButtonElement>('[data-action="run"]')?.disabled).toBe(false)
+      );
       host
         .querySelector<HTMLElement>('.ao-workbench')!
         .dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true, bubbles: true, cancelable: true }));
@@ -622,17 +640,17 @@ describe('VS Code 风格工作台', () => {
     expect(handle.session.state.dirty).toBe(true);
     await clickTitleMenu(host, 'save');
     await vi.waitFor(() => expect(handle.session.state.dirty).toBe(false));
-    await click(host, '[data-action="more-actions"]');
+    await openTreeMenu(host, 'src/created.ts');
     await click(host, '.wb-context-menu [data-menu-id="rename"]');
     await inlineInput(host, 'renamed.ts');
     await vi.waitFor(() => expect(backend.rename).toHaveBeenCalledWith('one', 'src/created.ts', 'src/renamed.ts'));
     await vi.waitFor(() => expect(handle.session.state.files['src/renamed.ts']).toBeDefined());
     handle.session.select('src/renamed.ts');
-    await click(host, '[data-action="more-actions"]');
+    await openTreeMenu(host, 'src/renamed.ts');
     await click(host, '.wb-context-menu [data-menu-id="delete"]');
     await confirmAction(host, false);
     expect(backend.remove).not.toHaveBeenCalled();
-    await click(host, '[data-action="more-actions"]');
+    await openTreeMenu(host, 'src/renamed.ts');
     await click(host, '.wb-context-menu [data-menu-id="delete"]');
     await confirmAction(host, true);
     await vi.waitFor(() => expect(backend.remove).toHaveBeenCalledWith('one', 'src/renamed.ts'));
@@ -647,6 +665,7 @@ describe('VS Code 风格工作台', () => {
     await handle.ready;
     const tree = host.querySelector<HTMLElement>('[data-slot="files"]');
     if (!tree) throw new Error('文件树缺失');
+    treeRow(host, 'src/main.ts').click();
     tree.dispatchEvent(new KeyboardEvent('keydown', { key: 'F2', bubbles: true, cancelable: true }));
     await inlineInput(host, null);
     expect(backend.rename).not.toHaveBeenCalled();
@@ -738,6 +757,7 @@ describe('VS Code 风格工作台', () => {
   it('从打开的编辑器行拖出文件同样生效', async () => {
     const { host, handle, backend } = fixture(true, '/browser-workbench-assets/', undefined, [], dragFiles);
     await handle.ready;
+    await showOpenEditors(host);
     await vi.waitFor(() => expect(host.querySelector('.wb-editor-open')).not.toBeNull());
     const editorRow = host.querySelector<HTMLButtonElement>('button[data-tree-path="editor:src/main.ts"]');
     if (!editorRow) throw new Error('打开的编辑器行缺失');
@@ -772,6 +792,7 @@ describe('VS Code 风格工作台', () => {
   it('资源管理器支持方向键导航：上下移动并打开文件，到达边界时停留', async () => {
     const { host, handle } = fixture();
     await handle.ready;
+    await showOpenEditors(host);
     await vi.waitFor(() => expect(handle.session.state.activePath).toBe('src/main.ts'));
     const tree = host.querySelector<HTMLElement>('[data-slot="files"]');
     if (!tree) throw new Error('文件树缺失');
@@ -805,6 +826,7 @@ describe('VS Code 风格工作台', () => {
   it('节头支持点击与方向键折叠展开，打开的编辑器行可切换与关闭', async () => {
     const { host, handle } = fixture();
     await handle.ready;
+    await showOpenEditors(host);
     await vi.waitFor(() => expect(handle.session.state.tabs).toContain('src/main.ts'));
     const tree = host.querySelector<HTMLElement>('[data-slot="files"]');
     if (!tree) throw new Error('文件树缺失');
@@ -857,10 +879,8 @@ describe('VS Code 风格工作台', () => {
     expect(host.querySelector('[data-slot="side-title"]')?.textContent).toBe('资源管理器');
     await click(host, '[data-action="more-actions"]');
     expect([...host.querySelectorAll<HTMLElement>('.wb-context-menu button')].map(item => item.textContent)).toEqual([
-      '重命名',
-      '删除',
-      '刷新资源管理器',
-      '折叠资源管理器中的文件夹'
+      '打开的编辑器',
+      '文件夹'
     ]);
     handle.dispose();
   });
@@ -905,8 +925,8 @@ describe('VS Code 风格工作台', () => {
     );
     await vi.waitFor(() => expect(host.querySelector('.wb-context-menu')).not.toBeNull());
     const items = () =>
-      [...host.querySelectorAll<HTMLElement>('.wb-context-menu button')].map(item => item.textContent);
-    expect(items()).toEqual(['重命名', '删除']);
+      [...host.querySelectorAll<HTMLElement>('.wb-context-menu .wb-menu-label')].map(item => item.textContent);
+    expect(items()).toEqual(['复制路径', '复制相对路径', '重命名...', '删除']);
     host
       .querySelector<HTMLElement>('.wb-context-menu')
       ?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
@@ -1089,7 +1109,7 @@ describe('VS Code 风格工作台', () => {
     handle.dispose();
   });
 
-  it('侧栏重命名与删除作用于树选中项而非活动编辑器', async () => {
+  it('树右键重命名作用于选中项而非活动编辑器', async () => {
     const { host, handle, backend } = fixture();
     await handle.ready;
     const tree = host.querySelector<HTMLElement>('[data-slot="files"]');
@@ -1099,7 +1119,7 @@ describe('VS Code 风格工作台', () => {
     await vi.waitFor(() => expect(handle.session.state.activePath).toBe('src/label.ts'));
     handle.session.select('src/main.ts');
     await vi.waitFor(() => expect(handle.session.state.activePath).toBe('src/main.ts'));
-    await click(host, '[data-action="more-actions"]');
+    await openTreeMenu(host, 'src/label.ts');
     await click(host, '.wb-context-menu [data-menu-id="rename"]');
     await inlineInput(host, 'moved.ts');
     await vi.waitFor(() => expect(backend.rename).toHaveBeenCalledWith('one', 'src/label.ts', 'src/moved.ts'));
@@ -1579,7 +1599,9 @@ describe('VS Code 风格工作台', () => {
   });
 
   it('取消与非法模板不会创建项目，脏缓冲阻止切项目并触发离开确认', async () => {
-    const { host, handle, backend } = fixture();
+    const { host, handle, backend } = fixture(true, '/browser-workbench-assets/', undefined, [
+      { id: 'two', name: '第二个项目', template: 'vanilla', entry: 'src/main.ts', updatedAt: 0 }
+    ]);
     await handle.ready;
     await clickTitleMenu(host, 'new-project');
     await answer(host, null);
@@ -1593,7 +1615,7 @@ describe('VS Code 风格工作台', () => {
     const event = new Event('beforeunload', { cancelable: true });
     window.dispatchEvent(event);
     expect(event.defaultPrevented).toBe(true);
-    await switchProject(host, 'one');
+    await switchProject(host, 'two');
     await vi.waitFor(() => expect(host.querySelector('dialog')).not.toBeNull());
     const dialog = host.querySelector<HTMLDialogElement>('dialog');
     [...(dialog?.querySelectorAll('button') ?? [])].find(item => item.textContent === '取消')?.click();
@@ -1766,8 +1788,8 @@ describe('移动端界面', () => {
     vi.advanceTimersByTime(500);
     const menu = host.querySelector<HTMLElement>('.wb-context-menu');
     expect(menu).not.toBeNull();
-    const labels = [...(menu?.querySelectorAll('button') ?? [])].map(item => item.textContent);
-    expect(labels).toEqual(['重命名', '删除']);
+    const labels = [...(menu?.querySelectorAll('.wb-menu-label') ?? [])].map(item => item.textContent);
+    expect(labels).toEqual(['复制路径', '复制相对路径', '重命名...', '删除']);
     row.click();
     expect(handle.session.state.activePath).toBe('src/label.ts');
   });
@@ -1836,14 +1858,82 @@ describe('vscode.dev 起始页对齐', () => {
     const { host, handle } = fixture(false);
     await handle.ready;
     const menu = await openTitleMenu(host);
-    for (const id of ['new-project', 'import', 'export', 'save', 'save-all'])
-      expect(menuItem(menu, id)).not.toBeNull();
+    for (const id of ['new-project', 'import', 'export', 'save', 'save-all']) expect(menuItem(menu, id)).not.toBeNull();
     expect(menu.querySelectorAll('[role="separator"]')).toHaveLength(1);
     expect(menuItem(menu, 'new-project').disabled).toBe(false);
     expect(menuItem(menu, 'import').disabled).toBe(false);
     expect(menuItem(menu, 'export').disabled).toBe(true);
     expect(menuItem(menu, 'save').disabled).toBe(true);
     expect(menuItem(menu, 'save-all').disabled).toBe(true);
+  });
+
+  it('顶部项目名打开命令中心，项目切换使用独立下拉按钮', async () => {
+    const { host, handle } = fixture();
+    await handle.ready;
+    const center = host.querySelector<HTMLButtonElement>('[data-action="command-center"]');
+    expect(center?.textContent).toContain('本地项目');
+    center?.click();
+    await vi.waitFor(() => expect(host.querySelector('.wb-quick-input')).not.toBeNull());
+    expect(host.querySelector('.wb-quick-input')?.textContent).toContain('打开最近项目');
+    expect(host.querySelector('.wb-context-menu')).toBeNull();
+    expect(host.querySelector('[data-action="workspace"] [data-slot="workspace-label"]')).toBeNull();
+  });
+
+  it('最近项目可搜索后回车切换，当前项目重复选择不重开也不提示丢弃缓冲', async () => {
+    const { host, handle, backend } = fixture(true, '/browser-workbench-assets/', undefined, [
+      { id: 'two', name: '第二个项目', template: 'vanilla', entry: 'src/main.ts', updatedAt: 0 }
+    ]);
+    await handle.ready;
+    const menu = await openWorkspaceMenu(host);
+    menuItem(menu, 'open-recent').click();
+    await vi.waitFor(() => expect(host.querySelector('.wb-quick-input input')).not.toBeNull());
+    const input = host.querySelector<HTMLInputElement>('.wb-quick-input input');
+    expect(input?.getAttribute('aria-label')).toBe('打开最近项目');
+    if (!input) throw new Error('最近项目输入框缺失');
+    input.value = '第二';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(host.querySelectorAll('.wb-quick-input [role="option"]')).toHaveLength(1);
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(handle.session.state.projectId).toBe('two'));
+    await vi.waitFor(() =>
+      expect(host.querySelector<HTMLButtonElement>('[data-action="workspace"]')?.disabled).toBe(false)
+    );
+    const next = await openWorkspaceMenu(host);
+    expect(next.querySelector('[data-menu-id^="project:"]')?.getAttribute('data-menu-id')).toBe('project:two');
+    handle.session.edit('src/main.ts', '未保存内容');
+    const calls = vi.mocked(backend.open).mock.calls.length;
+    menuItem(next, 'project:two').click();
+    await Promise.resolve();
+    expect(backend.open).toHaveBeenCalledTimes(calls);
+    expect(host.querySelector('dialog')).toBeNull();
+    expect(handle.session.state.dirty).toBe(true);
+  });
+
+  it('前进后退恢复文件导航，新文件导航截断前进历史且切换项目重置历史', async () => {
+    const { host, handle } = fixture(true, '/browser-workbench-assets/', undefined, [
+      { id: 'two', name: '第二个项目', template: 'vanilla', entry: 'src/main.ts', updatedAt: 0 }
+    ]);
+    await handle.ready;
+    handle.session.select('src/main.ts');
+    const back = host.querySelector<HTMLButtonElement>('[data-action="navigate-back"]');
+    const forward = host.querySelector<HTMLButtonElement>('[data-action="navigate-forward"]');
+    expect(back?.disabled).toBe(true);
+    handle.session.select('src/label.ts');
+    expect(back?.disabled).toBe(false);
+    back?.click();
+    await vi.waitFor(() => expect(handle.session.state.activePath).toBe('src/main.ts'));
+    await vi.waitFor(() => expect(forward?.disabled).toBe(false));
+    forward?.click();
+    await vi.waitFor(() => expect(handle.session.state.activePath).toBe('src/label.ts'));
+    await vi.waitFor(() => expect(back?.disabled).toBe(false));
+    back?.click();
+    await vi.waitFor(() => expect(handle.session.state.activePath).toBe('src/main.ts'));
+    handle.session.select('src/label.ts');
+    expect(forward?.disabled).toBe(true);
+    await switchProject(host, 'two');
+    await vi.waitFor(() => expect(handle.session.state.projectId).toBe('two'));
+    await vi.waitFor(() => expect(back?.disabled).toBe(true));
+    expect(forward?.disabled).toBe(true);
   });
 
   it('顶栏工作区按钮展示当前项目名，菜单列出最近项目与新建导入入口', async () => {
@@ -1855,7 +1945,8 @@ describe('vscode.dev 起始页对齐', () => {
     const workspace = host.querySelector<HTMLButtonElement>('[data-action="workspace"]');
     expect(workspace?.dataset['projectId']).toBe('one');
     const menu = await openWorkspaceMenu(host);
-    expect(menuItem(menu, 'project:one').textContent).toBe('✓ 本地项目');
+    expect(menuItem(menu, 'project:one').textContent).toBe('本地项目');
+    expect(menuItem(menu, 'project:one').getAttribute('aria-checked')).toBe('true');
     expect(menuItem(menu, 'project:two').textContent).toBe('第二个项目');
     expect(menuItem(menu, 'new-project')).not.toBeNull();
     expect(menuItem(menu, 'import')).not.toBeNull();

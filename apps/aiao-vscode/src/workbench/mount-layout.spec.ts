@@ -101,6 +101,8 @@ describe('按项目保存与恢复工作台布局', () => {
     const { host, handle, catalog } = fixture({ one: splitLayout });
     await handle.ready;
     expect(catalog.getLayout).toHaveBeenCalledWith('one');
+    expect(button(host, '[data-action="navigate-back"]').disabled).toBe(true);
+    expect(button(host, '[data-action="navigate-forward"]').disabled).toBe(true);
     expect(groupOf(host, 'src/main.ts')).toBeTruthy();
     expect(groupOf(host, 'src/main.ts')).not.toBe(groupOf(host, 'src/label.ts'));
     expect(host.querySelector('[data-editor-tab-path="src/gone.ts"]')).toBeNull();

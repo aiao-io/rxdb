@@ -14,7 +14,16 @@ export function createWorkbenchLayout(host: HTMLElement, assetBaseURL: string): 
     <header class="wb-title">
       <button class="wb-menu-button" data-action="title-menu" aria-label="应用程序菜单" title="应用程序菜单">${iconMarkup('menu')}</button>
       <div class="wb-brand">${iconMarkup('code')}<span>Aiao Code</span></div>
-      <div class="wb-command-center"><button data-action="quick-open" aria-label="快速打开文件" title="快速打开文件 · Ctrl / ⌘ + P">${iconMarkup('search')}</button><button class="wb-workspace" data-action="workspace" aria-label="工作区" title="工作区"><span data-slot="workspace-label">工作区</span>${iconMarkup('chevron-down')}</button></div>
+      <div class="wb-command-center">
+        <div class="wb-navigation" role="group" aria-label="编辑历史">
+          <button data-action="navigate-back" aria-label="后退" title="后退" disabled>${iconMarkup('arrow-left')}</button>
+          <button data-action="navigate-forward" aria-label="前进" title="前进" disabled>${iconMarkup('arrow-right')}</button>
+        </div>
+        <div class="wb-command-search">
+          <button class="wb-command-search-main" data-action="command-center" aria-label="搜索文件和命令" aria-haspopup="dialog" title="搜索文件和命令 · ${shortcutKey} P">${iconMarkup('search')}<span data-slot="workspace-label">工作区</span></button>
+          <button class="wb-workspace" data-action="workspace" aria-label="工作区" aria-haspopup="menu" title="切换工作区">${iconMarkup('chevron-down')}</button>
+        </div>
+      </div>
       <div class="wb-title-actions">
         <button class="wb-run-button" data-action="run" title="保存全部文件并运行项目">${iconMarkup('play')}<span>运行</span></button>
         <button data-action="commands" aria-label="命令面板" title="命令面板 · Ctrl / ⌘ + Shift + P">${iconMarkup('more')}</button>

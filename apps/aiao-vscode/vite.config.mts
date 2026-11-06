@@ -1,6 +1,6 @@
 /// <reference types='vitest' />
 import angular from '@analogjs/vite-plugin-angular';
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 
 export default defineConfig({
   root: import.meta.dirname,
@@ -19,12 +19,13 @@ export default defineConfig({
   },
   test: {
     watch: false,
+    exclude: [...configDefaults.exclude, 'src/workbench/tmp/**'],
     coverage: {
       provider: 'v8',
       reportsDirectory: '../../coverage/apps/aiao-vscode',
       reporter: ['text', 'json', 'json-summary', 'lcov'],
       include: ['src/app/**/*.ts', 'src/workbench/**/*.ts'],
-      exclude: ['src/**/*.spec.ts']
+      exclude: ['src/**/*.spec.ts', 'src/workbench/tmp/**']
     },
     projects: [
       {

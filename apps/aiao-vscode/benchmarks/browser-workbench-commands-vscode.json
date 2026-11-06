@@ -1,7 +1,16 @@
 {
-  "browser": "156.0.8078.4",
+  "format": "aiao.workbench.commands",
+  "version": 1,
+  "host": "vscode",
+  "url": "http://localhost:4320/",
+  "status": "passed",
   "checks": [
     "quick-open-path-filter-arrow-enter",
+    "command-center-modes-switch-and-escape-focus",
+    "recent-project-mode-search-and-keyboard-shortcut",
+    "command-center-file-search-and-editor-navigation",
+    "command-center-mobile-layout-and-quick-input",
+    "command-center-320-and-390-touch-layout",
     "quick-open-escape-restores-focus-and-buffer",
     "command-palette-executes-real-layout-command",
     "tab-indents-and-undo-restores-source",
@@ -11,10 +20,6 @@
     "close-reopen-retains-buffer-and-new-editor-undo",
     "save-preserves-editor-active-and-close-keeps-preview"
   ],
-  "format": "aiao.workbench.commands",
-  "host": "vscode",
-  "pageErrors": [],
-  "status": "passed",
-  "url": "http://localhost:4320/",
-  "version": 1
+  "browser": "156.0.8078.4",
+  "pageErrors": []
 }

@@ -27,7 +27,9 @@ function fixture(recent: readonly string[] = []) {
     'nextEditor',
     'prevEditor',
     'split',
-    'resetLayout'
+    'resetLayout',
+    'openRecent',
+    'showSearch'
   ];
   const runs = Object.fromEntries(ids.map(id => [id, vi.fn()]));
   const labels: Record<string, string> = {
@@ -43,7 +45,9 @@ function fixture(recent: readonly string[] = []) {
     nextEditor: '打开下一个编辑器',
     prevEditor: '打开上一个编辑器',
     split: '拆分编辑器',
-    resetLayout: '重置工作台布局'
+    resetLayout: '重置工作台布局',
+    openRecent: '文件：打开最近项目',
+    showSearch: '搜索：在文件中搜索'
   };
   const commands: WorkbenchCommand[] = ids.map(id => ({
     id,
@@ -51,6 +55,7 @@ function fixture(recent: readonly string[] = []) {
     keybinding:
       id === 'save' ? 'Ctrl+S / ⌘S'
       : id === 'format' ? '⇧ / Shift + ⌥ / Alt + F'
+      : id === 'openRecent' ? 'Ctrl + R'
       : undefined,
     run: runs[id]
   }));
@@ -76,6 +81,125 @@ function fixture(recent: readonly string[] = []) {
 }
 
 describe('VS Code 文件与命令快捷入口', () => {
+  it('命令中心空查询展示可执行模式，输入文件查询隐藏模式，清空后恢复', () => {
+    const { root, input, service } = fixture();
+    service.showCommandCenter();
+    expect(input().value).toBe('');
+    expect(root.querySelectorAll('[data-quick-mode]')).toHaveLength(5);
+    expect(root.querySelector('[data-quick-mode="files"]')?.textContent).toContain('转到文件');
+    expect(root.querySelector('[data-quick-mode="commands"]')?.textContent).toContain('运行命令');
+    input().value = 'main';
+    input().dispatchEvent(new Event('input', { bubbles: true }));
+    expect(root.querySelectorAll('[data-quick-mode]')).toHaveLength(0);
+    expect(root.querySelectorAll('[role="option"]')).toHaveLength(1);
+    input().value = '';
+    input().dispatchEvent(new Event('input', { bubbles: true }));
+    expect(root.querySelectorAll('[data-quick-mode]')).toHaveLength(5);
+  });
+
+  it('模式入口与 ? 帮助复用浮层并保留 Escape 原始回焦', () => {
+    const { root, editor, input, key, service } = fixture();
+    editor.focus();
+    service.showCommandCenter();
+    const original = input();
+    key(input(), 'ArrowDown');
+    key(input(), 'Enter');
+    expect(input()).toBe(original);
+    expect(input().value).toBe('>');
+    input().value = '?文件';
+    input().dispatchEvent(new Event('input', { bubbles: true }));
+    expect(input().getAttribute('aria-label')).toBe('快速访问帮助');
+    expect(root.querySelectorAll('[role="option"]')).toHaveLength(2);
+    expect(root.querySelector('[data-quick-mode="files"]')).not.toBeNull();
+    key(input(), 'Enter');
+    expect(input()).toBe(original);
+    expect(input().value).toBe('');
+    expect(root.querySelectorAll('[data-quick-mode]')).toHaveLength(0);
+    key(input(), 'Escape');
+    expect(document.activeElement).toBe(editor);
+  });
+
+  it('模式只展示已注册动作，最近项目快捷键仅注册时拦截', () => {
+    const { root, editor, input, key, service, commands, runs } = fixture();
+    expect(key(editor, 'r', { ctrlKey: true }).defaultPrevented).toBe(true);
+    expect(runs['openRecent']).toHaveBeenCalledOnce();
+    for (const init of [
+      { metaKey: true },
+      { ctrlKey: true, metaKey: true },
+      { ctrlKey: true, shiftKey: true },
+      { ctrlKey: true, altKey: true }
+    ])
+      expect(key(editor, 'r', init).defaultPrevented).toBe(false);
+    expect(runs['openRecent']).toHaveBeenCalledOnce();
+    service.showCommandCenter();
+    expect(root.querySelector('[data-quick-mode="recent"] kbd')?.textContent).toBe('Ctrl + R');
+    expect(key(input(), 'r', { ctrlKey: true }).defaultPrevented).toBe(true);
+    expect(runs['openRecent']).toHaveBeenCalledTimes(2);
+    expect(key(input(), 'r', { metaKey: true }).defaultPrevented).toBe(false);
+    root.querySelector<HTMLButtonElement>('[data-quick-mode="search"]')?.click();
+    expect(runs['showSearch']).toHaveBeenCalledOnce();
+    commands.splice(
+      commands.findIndex(command => command.id === 'openRecent'),
+      1
+    );
+    commands.splice(
+      commands.findIndex(command => command.id === 'showSearch'),
+      1
+    );
+    service.showCommandCenter();
+    expect(root.querySelectorAll('[data-quick-mode]')).toHaveLength(3);
+    expect(key(editor, 'r', { ctrlKey: true }).defaultPrevented).toBe(false);
+  });
+
+  it('通用选择器按名称与描述搜索，前缀按文字匹配，选择与取消正确处理焦点', () => {
+    const { root, editor, input, key, service, open } = fixture();
+    const chosen = vi.fn();
+    editor.focus();
+    service.showPicker({
+      label: '打开最近项目',
+      placeholder: '搜索项目',
+      items: [
+        { id: 'one', label: 'React 站点', description: 'github/example', run: chosen },
+        { id: 'two', label: '> 本地项目', run: vi.fn() }
+      ]
+    });
+    expect(input().placeholder).toBe('搜索项目');
+    expect(input().getAttribute('aria-label')).toBe('打开最近项目');
+    input().value = 'React example';
+    input().dispatchEvent(new Event('input', { bubbles: true }));
+    expect(root.querySelectorAll('[role="option"]')).toHaveLength(1);
+    key(input(), 'Enter');
+    expect(chosen).toHaveBeenCalledOnce();
+    expect(document.activeElement).toBe(editor);
+    service.showPicker({ label: '打开最近项目', items: [{ id: 'two', label: '> 本地项目', run: vi.fn() }] });
+    input().value = '>';
+    input().dispatchEvent(new Event('input', { bubbles: true }));
+    expect(input().getAttribute('aria-label')).toBe('打开最近项目');
+    expect(root.querySelectorAll('[role="option"]')).toHaveLength(1);
+    input().value = '?';
+    input().dispatchEvent(new Event('input', { bubbles: true }));
+    expect(root.querySelectorAll('[role="option"]')).toHaveLength(0);
+    key(input(), 'Enter');
+    expect(open).not.toHaveBeenCalled();
+    key(input(), 'Escape');
+    expect(document.activeElement).toBe(editor);
+  });
+
+  it('从子菜单启动的选择器按显式目标恢复焦点，模式切换保留该目标', () => {
+    const { root, editor, input, key, service } = fixture();
+    const anchor = document.createElement('button');
+    root.append(anchor);
+    editor.focus();
+    service.showPicker({ label: '打开最近项目', returnFocus: anchor, items: [] });
+    key(input(), 'Escape');
+    expect(document.activeElement).toBe(anchor);
+    editor.focus();
+    service.showPicker({ label: '打开最近项目', returnFocus: anchor, items: [] });
+    service.showCommandPalette();
+    key(input(), 'Escape');
+    expect(document.activeElement).toBe(anchor);
+  });
+
   it('Mod+P 打开文件列表，按文件名/路径过滤后 Enter 激活文件', () => {
     const { root, editor, input, key, open } = fixture();
     editor.focus();

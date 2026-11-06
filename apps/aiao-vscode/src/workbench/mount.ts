@@ -44,6 +44,7 @@ import {
 import { createCodicon, createFileIcon, type CodiconName } from './workbench-icons.js';
 import { createWorkbenchLayout, workbenchElement } from './workbench-layout.js';
 import { attachWorkbenchLongPress } from './workbench-longpress.js';
+import { createWorkbenchNavigation } from './workbench-navigation.js';
 import { createWorkbenchScm, type WorkbenchDiffRequest } from './workbench-scm.js';
 import { createWorkbenchSearch } from './workbench-search.js';
 import { openWorkbenchSettings } from './workbench-settings.js';
@@ -148,6 +149,7 @@ export function mountWorkbench(
   const compiler = options.compiler ?? createCompiler(base);
   const catalog = options.catalog ?? createProjectCatalog();
   const session = new WorkbenchSession(backend);
+  const navigation = createWorkbenchNavigation();
   const logContents = new Map(
     ['problems', 'output', 'console'].map(kind => [kind, element(`[data-log="${kind}"] .wb-panel-content`)])
   );
@@ -757,11 +759,13 @@ export function mountWorkbench(
     }
   }
   function renderProjects(): void {
+    projects = projects.toSorted((left, right) => right.updatedAt - left.updatedAt);
     const workspace = element<HTMLButtonElement>('[data-action="workspace"]');
     element('[data-slot="workspace-label"]').textContent = project?.name ?? '工作区';
     workspace.dataset['projectId'] = project?.id ?? '';
   }
   async function openProject(id: string): Promise<void> {
+    if (id === session.state.projectId) return;
     const next = projects.find(item => item.id === id);
     if (!next) throw new Error('项目不在目录中');
     if (session.state.dirty) {
@@ -801,6 +805,8 @@ export function mountWorkbench(
     } finally {
       restoring = false;
     }
+    if (session.state.activePath) navigation.record(id, session.state.activePath);
+    renderActionState();
     persistedState = JSON.stringify([
       id,
       session.state.tabs,
@@ -810,7 +816,7 @@ export function mountWorkbench(
     savedLayout = JSON.stringify(docking.serializeLayout());
     const opened = { ...next, updatedAt: Date.now() };
     project = opened;
-    projects = projects.map(item => (item.id === id ? opened : item));
+    projects = [opened, ...projects.filter(item => item.id !== id)];
     renderProjects();
     focusEditor(session.state.activePath);
     void savePreview.runSaved().catch(report);
@@ -1704,6 +1710,10 @@ export function mountWorkbench(
     }
   }
   function render(state: WorkbenchState): void {
+    if (state.projectId) {
+      navigation.reconcile(state.projectId, Object.keys(state.files));
+      if (!restoring && state.activePath) navigation.record(state.projectId, state.activePath);
+    } else navigation.reset();
     // 切换项目时编辑器即将换掉，先把原项目待写的布局落库
     if (state.projectId !== renderedProjectId) {
       flushLayout();
@@ -1743,6 +1753,9 @@ export function mountWorkbench(
   function workbenchBusy(): boolean {
     return initializing || (session.state.busy && previewPhase !== 'compiling') || pendingOperations > 0;
   }
+  function projectSwitchBusy(ownOperations = 0): boolean {
+    return initializing || ((session.state.busy || pendingOperations > ownOperations) && previewPhase !== 'compiling');
+  }
   function setPressed(button: HTMLElement, pressed: boolean): void {
     button.setAttribute('aria-pressed', String(pressed));
     const pair = TOGGLE_ICONS[button.dataset['action'] ?? ''];
@@ -1752,6 +1765,8 @@ export function mountWorkbench(
     icon?.classList.toggle(`codicon-${pair[1]}`, !pressed);
   }
   function renderActionState(): void {
+    element<HTMLButtonElement>('[data-action="navigate-back"]').disabled = !navigation.canGoBack;
+    element<HTMLButtonElement>('[data-action="navigate-forward"]').disabled = !navigation.canGoForward;
     for (const button of root.querySelectorAll<HTMLElement>('[data-action="explorer"],[data-action="git"]')) {
       button.setAttribute('aria-pressed', String(docking.isSidebarVisible() && button.dataset['action'] === sideView));
     }
@@ -1882,6 +1897,31 @@ export function mountWorkbench(
       });
     input.click();
   }
+  function showRecentProjects(returnFocus?: HTMLElement): void {
+    if (projectSwitchBusy(1)) return;
+    commands.showPicker({
+      label: '打开最近项目',
+      placeholder: '按名称搜索最近打开的项目',
+      returnFocus,
+      items: projects.map(item => ({
+        id: `project:${item.id}`,
+        label: item.name,
+        description: item.id === session.state.projectId ? '当前项目' : item.template,
+        run: () => {
+          if (projectSwitchBusy()) return;
+          action(() => openProject(item.id));
+        }
+      }))
+    });
+  }
+  function navigateEditor(direction: 'back' | 'forward'): void {
+    const target = navigation[direction]();
+    if (!target) return;
+    session.select(target.path);
+    docking.selectEditor(target.path);
+    focusEditor(target.path);
+    renderActionState();
+  }
   const operations: Record<string, () => Promise<unknown> | void> = {
     'title-menu': () => {
       const rectangle = element('[data-action="title-menu"]').getBoundingClientRect();
@@ -1890,6 +1930,22 @@ export function mountWorkbench(
       const editable = !!session.state.projectId && !busy;
       showContextMenu({ x: rectangle.left, y: rectangle.bottom }, [
         { label: '新建项目', id: 'new-project', action: newProject, disabled: busy },
+        {
+          label: '打开最近项目…',
+          id: 'open-recent',
+          action: () => showRecentProjects(element('[data-action="title-menu"]')),
+          disabled: busy,
+          keybinding: 'Ctrl + R'
+        },
+        {
+          label: '打开文件夹…',
+          id: 'open-folder',
+          action: openFolder,
+          disabled: busy || !('showDirectoryPicker' in window)
+        },
+        ...(options.githubApi ?
+          [{ label: '从 GitHub 打开仓库…', id: 'open-github', action: openGitHubRepository, disabled: busy }]
+        : []),
         { label: '导入项目', id: 'import', action: importProject, disabled: busy },
         { label: '导出项目', id: 'export', action: exportProject, disabled: !editable },
         { separator: true },
@@ -1899,12 +1955,7 @@ export function mountWorkbench(
     },
     workspace: () => {
       const rectangle = element('[data-action="workspace"]').getBoundingClientRect();
-      // 与旧项目选择器一致的禁用语义：初始化或非编译期的忙时禁用；编译期不禁，切换会先取消编译。
-      // pendingOperations > 1 排除本次菜单打开自身（action() 先计数）。
-      const busy =
-        initializing ||
-        (session.state.busy && previewPhase !== 'compiling') ||
-        (pendingOperations > 1 && previewPhase !== 'compiling');
+      const busy = projectSwitchBusy(1);
       showContextMenu({ x: rectangle.left, y: rectangle.bottom }, [
         ...projects.map(item => ({
           label: item.name,
@@ -1914,6 +1965,22 @@ export function mountWorkbench(
           disabled: busy
         })),
         ...(projects.length > 0 ? ([{ separator: true }] as const) : []),
+        {
+          label: '打开最近项目…',
+          id: 'open-recent',
+          action: () => showRecentProjects(element('[data-action="workspace"]')),
+          disabled: busy,
+          keybinding: 'Ctrl + R'
+        },
+        {
+          label: '打开文件夹…',
+          id: 'open-folder',
+          action: openFolder,
+          disabled: busy || !('showDirectoryPicker' in window)
+        },
+        ...(options.githubApi ?
+          [{ label: '从 GitHub 打开仓库…', id: 'open-github', action: openGitHubRepository, disabled: busy }]
+        : []),
         { label: '新建项目', id: 'new-project', action: newProject, disabled: busy },
         { label: '导入项目', id: 'import', action: importProject, disabled: busy }
       ]);
@@ -1978,6 +2045,9 @@ export function mountWorkbench(
       docking.showPreview();
       render(session.state);
     },
+    'command-center': () => commands.showCommandCenter(),
+    'navigate-back': () => navigateEditor('back'),
+    'navigate-forward': () => navigateEditor('forward'),
     'quick-open': () => commands.showQuickOpen(),
     commands: () => commands.showCommandPalette(),
     'toggle-sidebar': () => switchSide(sideView),
@@ -2153,6 +2223,9 @@ export function mountWorkbench(
         ['run', '运行: 保存全部并运行项目', undefined, run],
         ['newFile', '文件: 新建文件', undefined, operations['new-file']],
         ['newProject', '项目: 新建项目', undefined, newProject],
+        ['openRecent', '文件: 打开最近项目', 'Ctrl + R', showRecentProjects],
+        ['navigateBack', '转到: 后退', undefined, () => navigateEditor('back')],
+        ['navigateForward', '转到: 前进', undefined, () => navigateEditor('forward')],
         ['rename', '文件: 重命名', 'F2', operations['rename']],
         ['deleteFile', '文件: 删除文件', undefined, operations['delete']],
         ['toggleSidebar', '查看: 切换侧栏', '⌘ / Ctrl + B', () => switchSide(sideView)],

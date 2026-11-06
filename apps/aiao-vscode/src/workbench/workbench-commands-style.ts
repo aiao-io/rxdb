@@ -9,6 +9,8 @@ export const workbenchCommandsStyle = `
 .wb-quick-input-list{max-height:340px;overflow:auto;scrollbar-width:thin}
 .wb-quick-input [role=option]{display:flex;align-items:center;gap:8px;width:100%;min-height:28px;padding:4px 8px;border:0;border-radius:3px;background:none;color:inherit;text-align:left;font:inherit;cursor:pointer}
 .wb-quick-input [role=option]:hover{background:#2a2d2e}
+.wb-quick-input [data-quick-mode]{min-height:30px}
+.wb-quick-input .wb-quick-input-section-start{margin-top:6px;border-top:1px solid #454545;border-radius:0;padding-top:8px}
 .wb-quick-input [role=option][aria-selected=true]{background:#04395e;color:#fff;outline:1px solid #007fd4;outline-offset:-1px}
 .wb-quick-input [role=option]>.codicon{flex:none;color:#b2bdc9;font-size:16px}
 .wb-quick-input [role=option]>.codicon[data-language=typescript]{color:#519aba}

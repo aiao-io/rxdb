@@ -22,6 +22,8 @@ export type CodiconName =
   | 'output'
   | 'debug-console'
   | 'chevron-right'
+  | 'arrow-left'
+  | 'arrow-right'
   | 'chevron-down'
   | 'folder'
   | 'folder-opened'
