@@ -2008,6 +2008,21 @@ describe('settings recovery and metadata details', () => {
     expect(r.store.release).toHaveBeenCalledWith('blob:preview');
   });
 
+  it.each(['studio', 'library'] as const)('在 %s 页按需加载图库预览，离开后释放并忽略迟到回调', async view => {
+    const r = await boot();
+    r.works.next([work]);
+    r.component.view.set(view);
+    const current = r.component.libraryPage().works[0];
+    r.component.libraryVisibility(current, true);
+    await vi.waitFor(() => expect(r.component.libraryPage().works[0].url).toBe('blob:preview'));
+    expect(r.store.previewImage).toHaveBeenCalledExactlyOnceWith(work.jobId);
+
+    r.component.navigate('providers');
+    expect(r.store.release).toHaveBeenCalledWith('blob:preview');
+    r.component.libraryVisibility(current, true);
+    expect(r.store.previewImage).toHaveBeenCalledOnce();
+  });
+
   it('ignores file details that arrive after a workspace change', async () => {
     const r = rig();
     const pending = deferred<Awaited<ReturnType<LocalMediaStore['imageInfo']>>>();

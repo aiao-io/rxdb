@@ -188,13 +188,17 @@ describe('发现灵感首页', () => {
     expect(card.querySelector<HTMLElement>('.feed-cover')?.style.getPropertyValue('--cover-ratio')).not.toBe('');
   });
 
-  it('创作页保留生成表单和结果面板，不再出现灵感瀑布流', () => {
+  it('创作页左侧生成、右侧图库，有任务时显示生成进度', () => {
     const r = home();
     r.component.view.set('studio');
     r.settle();
     expect(r.element.querySelector('.feed')).toBeNull();
     expect(r.element.querySelector('.studio-grid .composer')).not.toBeNull();
-    expect(r.element.querySelector('.studio-grid .result-panel')).not.toBeNull();
+    expect(r.element.querySelector('.studio-grid .studio-library')).not.toBeNull();
+    expect(r.element.querySelector('.studio-grid .result-panel')).toBeNull();
+    r.component.sending.set(true);
+    r.settle();
+    expect(r.element.querySelector('.studio-library .result-panel')?.textContent).toContain('让灵感慢慢显影');
     expect(r.element.querySelector('.home-studio')).toBeNull();
     expect(r.element.querySelector('.composer .panel-title')?.textContent).toContain('创作设置');
   });

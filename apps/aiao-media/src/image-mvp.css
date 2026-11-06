@@ -1039,6 +1039,61 @@ footer {
   gap: 24px;
   align-items: start;
 }
+.studio-library {
+  min-width: 0;
+}
+.studio-library-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0 0 20px;
+}
+.studio-library-heading h2 {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+.studio-library-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.studio-library .library-notice {
+  width: 100%;
+}
+.studio-library .filter-row .filter-search {
+  flex-basis: 200px;
+  max-width: none;
+}
+.studio-library .filter-more {
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+}
+.studio-library .result-panel {
+  position: static;
+  min-height: 0;
+  margin-bottom: 24px;
+}
+.studio-library .result-art {
+  padding: 16px;
+}
+.studio-library .result-art img {
+  max-height: 180px;
+}
+.studio-library .result-bottom {
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 16px;
+}
+.studio-library .state-content {
+  min-height: 220px;
+  padding: 24px;
+}
+.studio-library .empty-state {
+  min-height: 320px;
+}
 .composer {
   display: flex;
   flex-direction: column;

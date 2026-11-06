@@ -462,3 +462,54 @@ test('超宽屏下我的图片按卡片大小排满整行，常见窗口的列�
     expect((await layout()).rows).toBe(rows);
   }
 });
+
+test('生成页右侧共用我的图片，筛选复用后生成的新图自动出现，手机布局不溢出', async ({ page }) => {
+  const { png } = await seed(page, 6);
+  await page.route('https://library.example.test/v1/images/generations', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: [{ b64_json: png.toString('base64') }] })
+    })
+  );
+  await page.getByRole('link', { name: '生成图片', exact: true }).click();
+  const library = page.getByRole('region', { name: '我的图片', exact: true });
+  const cards = library.locator('.cards > .library-card');
+  const editor = page.getByRole('textbox', { name: '创意描述', exact: true });
+  await expect(cards).toHaveCount(6);
+  await expect(cards.first().getByAltText('本机生成作品')).toBeVisible();
+  const composerBox = await page.getByRole('region', { name: '图片生成表单' }).boundingBox();
+  const libraryBox = await library.boundingBox();
+  expect(libraryBox!.x).toBeGreaterThan(composerBox!.x + composerBox!.width);
+  await page.screenshot({ path: test.info().outputPath('studio-library-desktop.png'), fullPage: true });
+  await library.getByLabel('搜索提示词', { exact: true }).fill('森林');
+  await library.getByRole('button', { name: '筛选作品', exact: true }).click();
+  await expect(cards).toHaveCount(3);
+  await cards.first().getByRole('button', { name: '复用提示词' }).click();
+  await expect(editor).toContainText('森林');
+  await expect(page).toHaveURL(/\/create$/);
+  await library.getByRole('button', { name: '清空筛选', exact: true }).click();
+  await editor.fill('创作页新增的图片');
+  await page.getByRole('button', { name: '✧ 生成图片', exact: true }).click();
+  const keyDialog = page.getByRole('dialog', { name: '填写 API Key' });
+  await expect(keyDialog).toBeVisible();
+  await keyDialog.getByLabel('API Key', { exact: true }).fill('fixture-studio-library-key');
+  await keyDialog.getByRole('button', { name: '保存并生成', exact: true }).click();
+  await expect(cards).toHaveCount(7);
+  await expect(cards.first()).toContainText('创作页新增的图片');
+  await expect(cards.first().getByAltText('本机生成作品')).toBeVisible();
+  await verifyImageDownload(page, cards.first(), png);
+  await page.getByRole('link', { name: '我的图片', exact: true }).click();
+  await expect(page.locator('.cards > .library-card')).toHaveCount(7);
+  await page.getByRole('link', { name: '生成图片', exact: true }).click();
+  await expect(cards.first().getByAltText('本机生成作品')).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await editor.scrollIntoViewIfNeeded();
+  const mobileComposer = await page.getByRole('region', { name: '图片生成表单' }).boundingBox();
+  const mobileLibrary = await library.boundingBox();
+  expect(mobileLibrary!.y).toBeGreaterThan(mobileComposer!.y + mobileComposer!.height);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await library.scrollIntoViewIfNeeded();
+  await expect(cards.first().getByAltText('本机生成作品')).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath('studio-library-mobile.png'), fullPage: true });
+});

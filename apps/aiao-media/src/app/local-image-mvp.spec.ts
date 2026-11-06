@@ -5,7 +5,9 @@ import type { GenerationJobSummary } from '../contracts/index';
 import type { PublicWorkPayload } from '../contracts/product-data.mjs';
 import type { LocalWorkSummary } from '../local-data/index';
 import { LocalImageMvp } from './local-image-mvp';
+import { PromptInput } from './prompts/prompt-input';
 import { WorkMetadataSession } from './work-metadata-session';
+import { WorkVisibleDirective } from './work-visible.directive';
 
 const remote: PublicWorkPayload = {
   version: 1,
@@ -371,6 +373,88 @@ describe('library ownership presentation', () => {
     r.component.syncedWorks.set([]);
     expect(r.text()).toContain('正在读取作品');
     expect(r.text()).not.toContain('这里，还差你的第一张作品');
+    r.session.close();
+  });
+});
+
+describe('创作页我的图片', () => {
+  function studioRig() {
+    vi.spyOn(PromptInput.prototype, 'ngAfterViewInit').mockImplementation(() => undefined);
+    vi.spyOn(WorkVisibleDirective.prototype, 'ngAfterViewInit').mockImplementation(() => undefined);
+    const r = rig();
+    r.component.view.set('studio');
+    r.streams[0].next([]);
+    r.component.syncedWorks.set([]);
+    r.component.history.set([]);
+    return r;
+  }
+
+  it('右侧展示本机图库，并可直接筛选、下载和复用已有图片', async () => {
+    const r = studioRig();
+    const work = {
+      jobId: 'saved-work',
+      prompt: '清晨的森林',
+      modelId: 'fixture',
+      bytes: 10,
+      status: 'saved' as const,
+      viewKey: 'saved-work',
+      url: 'blob:saved-work',
+      mimeType: 'image/png' as const,
+      previewStatus: 'ready' as const
+    };
+    r.streams[0].next([work]);
+    r.component.libraryPage.update(page => ({ ...page, works: [work], total: 1, loading: false }));
+    const filter = vi.spyOn(r.component, 'filterLibrary');
+    const reuse = vi.spyOn(r.component, 'reuseWork');
+    vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+
+    r.text();
+    const library = r.element.querySelector<HTMLElement>('.studio-grid [aria-label="我的图片"]');
+    expect(library).not.toBeNull();
+    expect(library?.querySelector('.library-card')?.textContent).toContain(work.prompt);
+    expect(library?.querySelector('a[download]')?.getAttribute('href')).toBe(work.url);
+    const search = library!.querySelector<HTMLInputElement>('input[name="library-search"]')!;
+    await r.fixture.whenStable();
+    search.value = '森林';
+    search.dispatchEvent(new Event('input'));
+    library!.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
+    expect(r.component.librarySearch()).toBe('森林');
+    expect(filter).toHaveBeenCalledOnce();
+    const button = library!.querySelector<HTMLButtonElement>('button[aria-label^="复用提示词"]')!;
+    button.click();
+    expect(reuse).toHaveBeenCalledWith(work);
+    expect(r.component.serialized().text).toBe(work.prompt);
+    expect(r.element.querySelector('[aria-label="生成结果"]')).toBeNull();
+    r.session.close();
+  });
+
+  it('生成失败时右侧仍保留图库筛选和图片取回操作', () => {
+    const r = studioRig();
+    r.component.job.set({ ...task, status: 'failed' });
+    r.component.error.set('供应商拒绝了请求');
+    r.component.syncedWorks.set([remote]);
+    r.component.targetKind.set('platform');
+    r.component.authUser.set({ id: 'fixture-account', email: null });
+    r.component.syncInitialized.set(true);
+
+    r.text();
+    const library = r.element.querySelector<HTMLElement>('.studio-grid [aria-label="我的图片"]');
+    expect(library?.textContent).toContain('这次图片没有生成成功');
+    expect(library?.querySelector('form[aria-label="筛选本机作品"]')).not.toBeNull();
+    expect(library?.querySelector('.remote-card')?.textContent).toContain('取回并保存原图');
+    r.session.close();
+  });
+
+  it('图库为空时引导使用左侧表单，不显示重复的画布占位', () => {
+    const r = studioRig();
+    r.component.libraryPage.update(page => ({ ...page, total: 0, loading: false }));
+
+    r.text();
+    const library = r.element.querySelector<HTMLElement>('.studio-grid [aria-label="我的图片"]');
+    expect(library?.textContent).toContain('这里，还差你的第一张作品');
+    expect(library?.textContent).toContain('在左侧描述你的想法');
+    expect(library?.querySelector('.empty-state button')).toBeNull();
+    expect(r.element.querySelector('[aria-label="生成结果"]')).toBeNull();
     r.session.close();
   });
 });

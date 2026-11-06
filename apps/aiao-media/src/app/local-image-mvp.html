@@ -230,7 +230,7 @@
     <section class="page-heading">
       <div>
         <h1>把想法，变成画面。</h1>
-        <p>改一改提示词，让它更像你心里的样子。</p>
+        <p>左侧开始创作，右侧就是你的图片。</p>
       </div>
       <ol class="step-note" aria-label="创作步骤">
         <li>01 找到灵感</li>
@@ -353,103 +353,107 @@
         </button>
         <div class="under-button">需要联网 · 成功后保存到{{ nativeMode ? '此应用的本机目录' : '当前浏览器' }}</div>
       </section>
-      <section class="result-panel" aria-label="生成结果" aria-live="polite">
-        <div class="result-toolbar">
-          <span>画布预览</span>
-          <span class="saved-badge" [attr.data-state]="resultState()">{{ resultLabel() }}</span>
+      <section class="studio-library" aria-label="我的图片">
+        <div class="studio-library-heading">
+          <div>
+            <h2>我的图片</h2>
+            <p>边创作，边回看你的每一个想法。</p>
+          </div>
+          <a class="text-link" (click)="navigate('library', $event)" href="/images">展开图库 ↗</a>
         </div>
-        @if (storageMessage()) {
-          <div class="danger-note" role="status">{{ storageMessage() }}</div>
-        }
-        @if (resultUrl(); as url) {
-          <div class="result-art"><img [src]="url" alt="本次生成的图片" /></div>
-          <div class="result-bottom">
-            <div>
-              <strong>你的新作品</strong>
-              <small>{{ resultSize() }} · {{ saved() ? '本机副本可再次下载' : '请及时下载' }}</small>
+        @if (working() || panelError() || resultUrl()) {
+          <section class="result-panel" aria-label="生成结果" aria-live="polite">
+            <div class="result-toolbar">
+              <span>本次生成</span>
+              <span class="saved-badge" [attr.data-state]="resultState()">{{ resultLabel() }}</span>
             </div>
-            <div class="result-actions">
-              @if (!saved()) {
-                <button
-                  class="secondary"
-                  [disabled]="localStatus() !== 'ready' || settingsBusy()"
-                  (click)="saveResult()"
-                >
-                  重试保存
+            @if (storageMessage()) {
+              <div class="danger-note" role="status">{{ storageMessage() }}</div>
+            }
+            @if (resultUrl(); as url) {
+              <div class="result-art"><img [src]="url" alt="本次生成的图片" /></div>
+              <div class="result-bottom">
+                <div>
+                  <strong>你的新作品</strong>
+                  <small>{{ resultSize() }} · {{ saved() ? '本机副本可再次下载' : '请及时下载' }}</small>
+                </div>
+                <div class="result-actions">
+                  @if (!saved()) {
+                    <button
+                      class="secondary"
+                      [disabled]="localStatus() !== 'ready' || settingsBusy()"
+                      (click)="saveResult()"
+                    >
+                      重试保存
+                    </button>
+                  }
+                  <button class="secondary" (click)="openFeedback()">反馈效果</button>
+                  <a
+                    class="primary"
+                    [download]="'aiao-' + (job()?.id ?? 'image') + '.' + imageExtension(resultMimeType()!)"
+                    [href]="url"
+                    (click)="
+                      downloadImage(
+                        $event,
+                        url,
+                        'aiao-' + (job()?.id ?? 'image') + '.' + imageExtension(resultMimeType()!)
+                      )
+                    "
+                  >
+                    ↓ 下载图片
+                  </a>
+                </div>
+              </div>
+            } @else if (working()) {
+              <div class="state-content">
+                <div class="spinner" aria-hidden="true"></div>
+                <h2 class="state-title">让灵感慢慢显影</h2>
+                <p class="state-copy">
+                  @if (job()?.channel === 'proxy') {
+                    正在由本站代理生成，可以刷新或关闭页面。
+                    <br />
+                    回来后会接着取回结果，不会重复生成。
+                  } @else {
+                    正在生成图片，请保留当前页面。
+                    <br />
+                    刷新会中断本页读取，不会自动重复生成。
+                  }
+                </p>
+                <div class="progress-track" aria-hidden="true"><span></span></div>
+                @if (sending()) {
+                  <p class="elapsed" aria-live="off">已等待 {{ elapsedLabel() }} · 最长等待 3 分钟</p>
+                }
+                <small class="state-copy">实际等待时间取决于生成服务</small>
+              </div>
+            } @else if (uncertain()) {
+              <div class="state-content">
+                <div class="failure-icon" aria-hidden="true">…</div>
+                <h2 class="state-title">请核对供应商记录</h2>
+                @if (error()) {
+                  <p class="state-error">{{ error() }}</p>
+                }
+                <p class="state-copy">请求可能已被接收。请到供应商后台核对用量与结果；这里不会自动重发或切换代理。</p>
+                <button class="secondary" [disabled]="settingsBusy()" (click)="acknowledgeUnknown()">
+                  已核对，解除本机锁定
                 </button>
-              }
-              <button class="secondary" (click)="openFeedback()">反馈效果</button>
-              <a
-                class="primary"
-                [download]="'aiao-' + (job()?.id ?? 'image') + '.' + imageExtension(resultMimeType()!)"
-                [href]="url"
-                (click)="
-                  downloadImage($event, url, 'aiao-' + (job()?.id ?? 'image') + '.' + imageExtension(resultMimeType()!))
-                "
-              >
-                ↓ 下载图片
-              </a>
-            </div>
-          </div>
-        } @else if (working()) {
-          <div class="state-content">
-            <div class="spinner" aria-hidden="true"></div>
-            <h2 class="state-title">让灵感慢慢显影</h2>
-            <p class="state-copy">
-              @if (job()?.channel === 'proxy') {
-                正在由本站代理生成，可以刷新或关闭页面。
-                <br />
-                回来后会接着取回结果，不会重复生成。
-              } @else {
-                正在生成图片，请保留当前页面。
-                <br />
-                刷新会中断本页读取，不会自动重复生成。
-              }
-            </p>
-            <div class="progress-track" aria-hidden="true"><span></span></div>
-            @if (sending()) {
-              <p class="elapsed" aria-live="off">已等待 {{ elapsedLabel() }} · 最长等待 3 分钟</p>
+              </div>
+            } @else if (job()?.status === 'failed') {
+              <div class="state-content">
+                <div class="failure-icon" aria-hidden="true">!</div>
+                <h2 class="state-title">这次图片没有生成成功</h2>
+                @if (error()) {
+                  <p class="state-error">{{ error() }}</p>
+                }
+                <p class="state-copy">你的提示词还在，可以修改后再次生成。</p>
+              </div>
             }
-            <small class="state-copy">实际等待时间取决于生成服务</small>
-          </div>
-        } @else if (uncertain()) {
-          <div class="state-content">
-            <div class="failure-icon" aria-hidden="true">…</div>
-            <h2 class="state-title">请核对供应商记录</h2>
-            @if (error()) {
-              <p class="state-error">{{ error() }}</p>
-            }
-            <p class="state-copy">请求可能已被接收。请到供应商后台核对用量与结果；这里不会自动重发或切换代理。</p>
-            <button class="secondary" [disabled]="settingsBusy()" (click)="acknowledgeUnknown()">
-              已核对，解除本机锁定
-            </button>
-          </div>
-        } @else if (job()?.status === 'failed') {
-          <div class="state-content">
-            <div class="failure-icon" aria-hidden="true">!</div>
-            <h2 class="state-title">这次图片没有生成成功</h2>
-            @if (error()) {
-              <p class="state-error">{{ error() }}</p>
-            }
-            <p class="state-copy">你的提示词还在，可以修改后再次生成。</p>
-          </div>
-        } @else {
-          <div class="empty-state">
-            <div class="empty-icon" aria-hidden="true">✧</div>
-            <h2>下一张好图片，从这里开始</h2>
-            <p>
-              写下你想看到的画面，
-              <br />
-              也可以先从灵感库选一个模板。
-            </p>
-            <button class="secondary" (click)="navigate('discover')">去找一点灵感 →</button>
-          </div>
+          </section>
         }
+        <ng-container [ngTemplateOutlet]="imageLibrary" />
       </section>
     </div>
     <div class="privacy-line">
       <span>图片保存在{{ nativeMode ? '此应用的本机目录' : '当前浏览器' }}，请及时下载重要作品。</span>
-      <button class="text-link" (click)="navigate('library')">查看我的图片 →</button>
     </div>
   }
   @if (view() === 'library') {
@@ -460,6 +464,9 @@
       </div>
       <button class="primary" (click)="newImage()">＋ 生成新图片</button>
     </section>
+    <ng-container [ngTemplateOutlet]="imageLibrary" />
+  }
+  <ng-template #imageLibrary>
     <div class="library-toolbar">
       <div class="library-tabs">
         <span>
@@ -666,12 +673,14 @@
         </h2>
         <p>
           {{
-            localStatus() === 'unavailable' ? '请允许站点存储并刷新，或使用支持本机存储的浏览器。' : (
-              '生成并成功保存的图片会出现在这里。'
-            )
+            localStatus() === 'unavailable' ? '请允许站点存储并刷新，或使用支持本机存储的浏览器。'
+            : view() === 'studio' ? '在左侧描述你的想法，生成并保存后，图片就会出现在这里。'
+            : '生成并成功保存的图片会出现在这里。'
           }}
         </p>
-        <button class="primary" (click)="navigate('studio')">开始第一张创作 →</button>
+        @if (view() === 'library') {
+          <button class="primary" (click)="navigate('studio')">开始第一张创作 →</button>
+        }
       </div>
     }
     @if ((libraryPage().total ?? 0) > 0) {
@@ -757,12 +766,12 @@
     @if (storageMessage()) {
       <div class="notice" role="status">{{ storageMessage() }}</div>
     }
-    @if (inFlight()) {
+    @if (inFlight() && view() === 'library') {
       <div class="notice">
         <button (click)="navigate('studio')">还有一个图片任务等待处理，查看进度 →</button>
       </div>
     }
-  }
+  </ng-template>
   @if (view() === 'providers') {
     <section class="page-heading">
       <div>

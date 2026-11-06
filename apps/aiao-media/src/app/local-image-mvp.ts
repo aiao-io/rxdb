@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import {
   afterNextRender,
   afterRenderEffect,
@@ -174,6 +175,7 @@ const emptyLibrary = (): LibraryState => ({
   selector: 'app-root',
   imports: [
     FormsModule,
+    NgTemplateOutlet,
     PromptInput,
     AdminConsole,
     WorkVisibleDirective,
@@ -1276,7 +1278,8 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.workMetadata?.start();
   }
   libraryVisibility(work: Work, visible: boolean) {
-    if (this.view() !== 'library' || !this.libraryPage().works.some(item => item.viewKey === work.viewKey)) return;
+    if (this.view() !== 'library' && this.view() !== 'studio') return;
+    if (!this.libraryPage().works.some(item => item.viewKey === work.viewKey)) return;
     this.library?.setVisible(work.jobId, visible);
   }
   retryWork(work: Work) {
