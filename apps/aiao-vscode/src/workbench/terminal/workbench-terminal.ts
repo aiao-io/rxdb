@@ -1,6 +1,10 @@
 import type { WorkbenchSession } from '../session.js';
 import { createTerminalView, type TerminalView } from './terminal-view.js';
-import { createWebContainerRuntime, type TerminalRuntime, type TerminalRuntimeOptions } from './webcontainer-runtime.js';
+import {
+  createWebContainerRuntime,
+  type TerminalRuntime,
+  type TerminalRuntimeOptions
+} from './webcontainer-runtime.js';
 
 /** 项目终端与工作台之间的事件和可替换实现。 */
 export interface WorkbenchTerminalOptions {
@@ -29,7 +33,8 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
   const { session } = options;
   const document = host.ownerDocument;
   host.classList.add('wb-terminal');
-  host.innerHTML = '<div class="wb-panel-toolbar"><span>Node.js</span><span data-terminal-status role="status">尚未启动</span><span class="wb-spacer"></span><span data-terminal-servers></span><button data-terminal-action="start" title="启动或重新连接终端" aria-label="启动终端">启动</button><button data-terminal-action="clear" title="清空终端显示" aria-label="清空终端">清空</button><button data-terminal-action="stop" title="停止终端与项目进程" aria-label="停止终端">停止</button></div><div class="wb-terminal-message">打开终端，运行 node、npm 或 pnpm 命令。编辑器保存后同步到终端。</div><div class="wb-terminal-content" data-workbench-terminal></div>';
+  host.innerHTML =
+    '<div class="wb-panel-toolbar"><span>Node.js</span><span data-terminal-status role="status">尚未启动</span><span class="wb-spacer"></span><span data-terminal-servers></span><button data-terminal-action="start" title="启动或重新连接终端" aria-label="启动终端">启动</button><button data-terminal-action="clear" title="清空终端显示" aria-label="清空终端">清空</button><button data-terminal-action="stop" title="停止终端与项目进程" aria-label="停止终端">停止</button></div><div class="wb-terminal-message">打开终端，运行 node、npm 或 pnpm 命令。编辑器保存后同步到终端。</div><div class="wb-terminal-content" data-workbench-terminal></div>';
   const required = <T extends HTMLElement>(selector: string): T => {
     const element = host.querySelector<T>(selector);
     if (!element) throw new Error(`终端布局缺少 ${selector}`);
@@ -52,7 +57,9 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
   const conflicts = new Set<string>();
 
   const active = (current: number): boolean => !disposed && current === epoch;
-  const report = (current: number, cause: unknown): void => { if (active(current)) failure(cause); };
+  const report = (current: number, cause: unknown): void => {
+    if (active(current)) failure(cause);
+  };
 
   function reset(): void {
     epoch++;
@@ -109,17 +116,23 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
     if (pendingRevision === snapshot.revision || savedRevision === snapshot.revision) return Promise.resolve();
     const current = epoch;
     pendingRevision = snapshot.revision;
-    return run.sync(snapshot).then(() => {
-      if (!active(current)) return;
-      savedRevision = snapshot.revision;
-      if (!exited && !starting) {
-        status.textContent = '运行中';
-        if (conflicts.size) showConflicts();
-        else message.hidden = true;
-      }
-    }).catch(cause => { report(current, cause); }).finally(() => {
-      if (active(current) && pendingRevision === snapshot.revision) pendingRevision = '';
-    });
+    return run
+      .sync(snapshot)
+      .then(() => {
+        if (!active(current)) return;
+        savedRevision = snapshot.revision;
+        if (!exited && !starting) {
+          status.textContent = '运行中';
+          if (conflicts.size) showConflicts();
+          else message.hidden = true;
+        }
+      })
+      .catch(cause => {
+        report(current, cause);
+      })
+      .finally(() => {
+        if (active(current) && pendingRevision === snapshot.revision) pendingRevision = '';
+      });
   }
 
   function shellExit(current: number, code: number): void {
@@ -130,15 +143,21 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
     message.hidden = false;
     const run = runtime;
     if (!run) return;
-    closing = run.flush().then(() => {
-      if (!active(current) || runtime !== run) return;
-      run.dispose();
-      runtime = undefined;
-      servers.replaceChildren();
-      options.onStop();
-    }).catch(cause => { report(current, cause); }).finally(() => {
-      if (active(current)) closing = undefined;
-    });
+    closing = run
+      .flush()
+      .then(() => {
+        if (!active(current) || runtime !== run) return;
+        run.dispose();
+        runtime = undefined;
+        servers.replaceChildren();
+        options.onStop();
+      })
+      .catch(cause => {
+        report(current, cause);
+      })
+      .finally(() => {
+        if (active(current)) closing = undefined;
+      });
   }
 
   async function start(current: number, id: string): Promise<void> {
@@ -164,7 +183,9 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
       view = mounted;
       const run = (options.createRuntime ?? createWebContainerRuntime)({
         apiKey: options.apiKey,
-        onOutput(data) { if (isCurrent()) mounted.write(data); },
+        onOutput(data) {
+          if (isCurrent()) mounted.write(data);
+        },
         async onFiles(files, removedPaths) {
           if (!isCurrent()) return;
           await session.applyExternalFiles(files, removedPaths);
@@ -176,10 +197,18 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
         },
         onServerReady(port, url) {
           if (!isCurrent()) return;
-          try { serverReady(port, url); } catch (cause) { report(current, cause); }
+          try {
+            serverReady(port, url);
+          } catch (cause) {
+            report(current, cause);
+          }
         },
-        onError(cause) { report(current, cause); },
-        onExit(code) { shellExit(current, code); }
+        onError(cause) {
+          report(current, cause);
+        },
+        onExit(code) {
+          shellExit(current, code);
+        }
       });
       runtime = run;
       const snapshot = session.getSavedSnapshot();
@@ -233,7 +262,9 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
     const current = epoch;
     const run = runtime;
     if (!starting && run) {
-      try { await run.stop(); } catch (cause) {
+      try {
+        await run.stop();
+      } catch (cause) {
         if (!active(current)) return;
         exited = true;
         throw cause;
@@ -255,7 +286,10 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
     void syncSaved();
   });
   const click = (event: Event) => {
-    const action = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-terminal-action]')?.dataset['terminalAction'] : undefined;
+    const action =
+      event.target instanceof Element ?
+        event.target.closest<HTMLElement>('[data-terminal-action]')?.dataset['terminalAction']
+      : undefined;
     const current = epoch;
     if (action === 'start') void show().catch(cause => report(current, cause));
     if (action === 'clear') view?.clear();
@@ -264,7 +298,11 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
   host.addEventListener('click', click);
   return {
     show,
-    flush: async () => { await starting; await closing; await runtime?.flush(); },
+    flush: async () => {
+      await starting;
+      await closing;
+      await runtime?.flush();
+    },
     stop,
     clear: () => view?.clear(),
     fit: () => view?.fit(),

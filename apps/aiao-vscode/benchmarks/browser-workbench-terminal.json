@@ -1,8 +1,9 @@
 {
-  "format": "aiao.workbench.terminal",
-  "version": 1,
-  "url": "http://127.0.0.1:54683/?workbench-verify=1",
-  "status": "passed",
+  "browser": "156.0.8078.4",
+  "cancelledRequests": [
+    "https://t.staticblitz.com/w/v17/r/l/p/2102ed0e24a249a45accddedbfc4ec47220b3123.json: net::ERR_ABORTED",
+    "https://hdzqzz1cuxtm9rb9ngbphkla6tismr-d1km--5173--f669633e.local-corp.webcontainer-api.io/: net::ERR_ABORTED"
+  ],
   "checks": [
     "node-shell-and-package-managers",
     "bidirectional-files-and-terminal-deletion",
@@ -11,11 +12,10 @@
     "project-switch-process-and-filesystem-isolation",
     "process-and-preview-cleanup"
   ],
-  "errors": [],
   "consoleErrors": [],
-  "browser": "156.0.8078.4",
-  "cancelledRequests": [
-    "https://t.staticblitz.com/w/v17/r/l/p/2102ed0e24a249a45accddedbfc4ec47220b3123.json: net::ERR_ABORTED",
-    "https://hdzqzz1cuxtm9rb9ngbphkla6tismr-d1km--5173--f669633e.local-corp.webcontainer-api.io/: net::ERR_ABORTED"
-  ]
+  "errors": [],
+  "format": "aiao.workbench.terminal",
+  "status": "passed",
+  "url": "http://127.0.0.1:54683/?workbench-verify=1",
+  "version": 1
 }

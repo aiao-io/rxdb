@@ -1,5 +1,5 @@
-import { assertGitFileLimits } from '../git/git-archive.js';
 import { decodeFileBytes, encodeFileBytes } from '../git/file-encoding.js';
+import { assertGitFileLimits } from '../git/git-archive.js';
 import { assertGitPath, assertNoPathCollisions } from '../git/git-paths.js';
 import { GIT_WORKBENCH_LIMITS } from '../git/git-protocol.js';
 import type { WorkbenchFiles, WorkbenchSnapshot } from '../session.js';
@@ -39,7 +39,11 @@ export interface TerminalContainer {
     writeFile(path: string, value: string | Uint8Array): Promise<void>;
     mkdir(path: string, options: { recursive: true }): Promise<unknown>;
     rm(path: string, options: { force: true; recursive?: boolean }): Promise<void>;
-    watch(path: string, options: { recursive: true }, listener: (event: 'change' | 'rename', filename: string | Uint8Array) => void): {
+    watch(
+      path: string,
+      options: { recursive: true },
+      listener: (event: 'change' | 'rename', filename: string | Uint8Array) => void
+    ): {
       close(): void;
     };
   };
@@ -71,7 +75,16 @@ export interface TerminalRuntime {
   dispose(): void;
 }
 
-const ignoredDirectories = new Set(['.git', 'node_modules', 'dist', 'build', '.angular', '.vite', '.cache', 'coverage']);
+const ignoredDirectories = new Set([
+  '.git',
+  'node_modules',
+  'dist',
+  'build',
+  '.angular',
+  '.vite',
+  '.cache',
+  'coverage'
+]);
 const sameFile = (left: string | Uint8Array | undefined, right: string | Uint8Array | undefined): boolean => {
   if (left === undefined || right === undefined) return left === right;
   const a = encodeFileBytes(left);
@@ -91,7 +104,9 @@ function filteredFiles(files: WorkbenchFiles): WorkbenchFiles {
   paths.forEach(path => assertGitPath(path));
   assertNoPathCollisions(paths);
   assertGitFileLimits(entries.map(([path, value]) => ({ path, bytes: new Uint8Array(encodeFileBytes(value)) })));
-  return Object.fromEntries(entries.map(([path, value]) => [path, typeof value === 'string' ? value : new Uint8Array(value)]));
+  return Object.fromEntries(
+    entries.map(([path, value]) => [path, typeof value === 'string' ? value : new Uint8Array(value)])
+  );
 }
 
 function fileTree(files: WorkbenchFiles): TerminalFileTree {
@@ -100,7 +115,7 @@ function fileTree(files: WorkbenchFiles): TerminalFileTree {
     const names = path.split('/');
     let directory = tree;
     for (const name of names.slice(0, -1)) {
-      const entry = directory[name] ??= { directory: Object.create(null) as TerminalFileTree };
+      const entry = (directory[name] ??= { directory: Object.create(null) as TerminalFileTree });
       if (!('directory' in entry)) throw new Error(`文件与目录冲突：${path}`);
       directory = entry.directory;
     }
@@ -135,7 +150,10 @@ export function createWebContainerRuntime(options: TerminalRuntimeOptions): Term
   };
   const enqueue = <T>(operation: () => Promise<T>): Promise<T> => {
     const result = tasks.then(operation);
-    tasks = result.then(() => undefined, () => undefined);
+    tasks = result.then(
+      () => undefined,
+      () => undefined
+    );
     return result;
   };
 
@@ -227,7 +245,9 @@ export function createWebContainerRuntime(options: TerminalRuntimeOptions): Term
       throw cause;
     }
     if (disposed) return changed;
-    const writes = Object.fromEntries(Object.entries(next).filter(([path, value]) => !sameFile(observedFiles[path], value)));
+    const writes = Object.fromEntries(
+      Object.entries(next).filter(([path, value]) => !sameFile(observedFiles[path], value))
+    );
     const removed = Object.keys(observedFiles).filter(path => !Object.hasOwn(next, path));
     const paths = [...Object.keys(writes), ...removed];
     if (!paths.length) return changed;
@@ -246,7 +266,9 @@ export function createWebContainerRuntime(options: TerminalRuntimeOptions): Term
   function scheduleScan(path: string): void {
     if (disposed || ignoredPath(path)) return;
     clearTimeout(timer);
-    timer = setTimeout(() => { void flush().catch(report); }, 150);
+    timer = setTimeout(() => {
+      void flush().catch(report);
+    }, 150);
   }
 
   async function boot(): Promise<TerminalContainer> {
@@ -264,7 +286,9 @@ export function createWebContainerRuntime(options: TerminalRuntimeOptions): Term
 
   async function initialize(snapshot: WorkbenchSnapshot, size: TerminalSize): Promise<void> {
     const previous = availableContainer;
-    availableContainer = new Promise<void>(resolve => { releaseContainer = resolve; });
+    availableContainer = new Promise<void>(resolve => {
+      releaseContainer = resolve;
+    });
     await previous;
     if (disposed) return release();
     try {
@@ -286,10 +310,21 @@ export function createWebContainerRuntime(options: TerminalRuntimeOptions): Term
         return release();
       }
       input = process.input.getWriter();
-      void process.output.pipeTo(new WritableStream<string>({
-        write(data) { if (!disposed) options.onOutput(data); }
-      }), { signal: outputAbort.signal }).catch(report);
-      void process.exit.then(code => { if (!disposed && !stopping) options.onExit(code); }).catch(report);
+      void process.output
+        .pipeTo(
+          new WritableStream<string>({
+            write(data) {
+              if (!disposed) options.onOutput(data);
+            }
+          }),
+          { signal: outputAbort.signal }
+        )
+        .catch(report);
+      void process.exit
+        .then(code => {
+          if (!disposed && !stopping) options.onExit(code);
+        })
+        .catch(report);
     } catch (cause) {
       closeWatchers();
       release();
@@ -310,7 +345,7 @@ export function createWebContainerRuntime(options: TerminalRuntimeOptions): Term
       if (disposed) return Promise.reject(new Error('终端已释放'));
       if (projectId && projectId !== snapshot.projectId) return Promise.reject(new Error('终端已绑定其他项目'));
       projectId = snapshot.projectId;
-      return started ??= initialize(snapshot, size);
+      return (started ??= initialize(snapshot, size));
     },
     async write(data) {
       if (disposed) throw new Error('终端已释放');
@@ -336,13 +371,16 @@ export function createWebContainerRuntime(options: TerminalRuntimeOptions): Term
         const protectedPaths = desiredWrites.map(([path]) => path).filter(conflicted);
         const protectedPath = (path: string): boolean =>
           conflicted(path) || protectedPaths.some(protectedRoot => overlappingPath(path, protectedRoot));
-        const writes = desiredWrites.filter(([path, value]) =>
-          !sameFile(observedFiles[path], value) && !protectedPath(path));
-        const removed = Object.keys(savedFiles).filter(path =>
-          !Object.hasOwn(next, path) && Object.hasOwn(observedFiles, path) && !protectedPath(path));
+        const writes = desiredWrites.filter(
+          ([path, value]) => !sameFile(observedFiles[path], value) && !protectedPath(path)
+        );
+        const removed = Object.keys(savedFiles).filter(
+          path => !Object.hasOwn(next, path) && Object.hasOwn(observedFiles, path) && !protectedPath(path)
+        );
         const directories = writes.map(([path]) => path).filter(path => observedDirectories.has(path));
-        const protectedDirectory = directories.find(directory => Object.keys(observedFiles)
-          .some(path => path.startsWith(`${directory}/`) && !removed.includes(path)));
+        const protectedDirectory = directories.find(directory =>
+          Object.keys(observedFiles).some(path => path.startsWith(`${directory}/`) && !removed.includes(path))
+        );
         if (protectedDirectory) throw new Error(`终端目录仍包含未同步文件：${protectedDirectory}`);
         const fs = container.fs;
         try {
@@ -365,8 +403,12 @@ export function createWebContainerRuntime(options: TerminalRuntimeOptions): Term
           throw cause;
         }
         const observed = { ...observedFiles };
-        removed.forEach(path => { delete observed[path]; });
-        writes.forEach(([path, value]) => { observed[path] = value; });
+        removed.forEach(path => {
+          delete observed[path];
+        });
+        writes.forEach(([path, value]) => {
+          observed[path] = value;
+        });
         observedFiles = observed;
         savedFiles = next;
       });

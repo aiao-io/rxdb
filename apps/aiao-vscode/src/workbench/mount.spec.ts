@@ -286,7 +286,9 @@ describe('VS Code 风格工作台', () => {
         })
     );
     vi.mocked(backend.status).mockResolvedValue({
-      branch: 'main', head: 'head-1', entries: [],
+      branch: 'main',
+      head: 'head-1',
+      entries: [],
       remote: { name: 'origin', url: 'https://github.com/octo/repo' }
     });
     await handle.ready;
@@ -312,7 +314,9 @@ describe('VS Code 风格工作台', () => {
     const { host, handle, backend } = fixture();
     backend.pull = vi.fn(async projectId => ({ projectId, revision: 'remote-2', files }));
     vi.mocked(backend.status).mockResolvedValue({
-      branch: 'main', head: 'head-1', entries: [],
+      branch: 'main',
+      head: 'head-1',
+      entries: [],
       remote: { name: 'origin', url: 'https://github.com/octo/repo' }
     });
     await handle.ready;
@@ -338,7 +342,9 @@ describe('VS Code 风格工作台', () => {
       remote: { name: 'origin', url: 'https://github.com/octo/repo' }
     });
     await click(host, '[data-action="refresh-tree"]');
-    await vi.waitFor(() => expect(host.querySelector<HTMLButtonElement>('[data-action="git-pull"]')?.hidden).toBe(false));
+    await vi.waitFor(() =>
+      expect(host.querySelector<HTMLButtonElement>('[data-action="git-pull"]')?.hidden).toBe(false)
+    );
     expect(host.querySelector<HTMLButtonElement>('[data-slot="remote-sync"]')?.hidden).toBe(false);
     expect(host.querySelector('[data-action="commit"]')?.getAttribute('aria-label')).toBe('提交并推送');
     expect(host.querySelector('[data-slot="branch-name"]')?.textContent).toBe('feature/work');
@@ -352,7 +358,9 @@ describe('VS Code 风格工作台', () => {
       files: { ...files, 'src/main.ts': 'remote update', 'remote.ts': 'new remote file' }
     }));
     vi.mocked(backend.status).mockResolvedValue({
-      branch: 'main', head: 'head-2', entries: [],
+      branch: 'main',
+      head: 'head-2',
+      entries: [],
       remote: { name: 'origin', url: 'https://github.com/octo/repo' }
     });
     await handle.ready;
@@ -369,7 +377,9 @@ describe('VS Code 风格工作台', () => {
     const { host, handle, backend } = fixture();
     backend.pull = vi.fn(async projectId => ({ projectId, revision: 'remote-2', files }));
     vi.mocked(backend.status).mockResolvedValue({
-      branch: 'main', head: 'head-1', entries: [],
+      branch: 'main',
+      head: 'head-1',
+      entries: [],
       remote: { name: 'origin', url: 'https://github.com/octo/repo' }
     });
     await handle.ready;
@@ -383,7 +393,9 @@ describe('VS Code 风格工作台', () => {
     expect(items.some(item => item.textContent?.includes('Git: 同步更改'))).toBe(true);
     const pull = items.find(item => item.textContent?.includes('Git: 拉取'));
     expect(pull).toBeDefined();
-    await vi.waitFor(() => expect(host.querySelector<HTMLButtonElement>('[data-action="git-pull"]')?.disabled).toBe(false));
+    await vi.waitFor(() =>
+      expect(host.querySelector<HTMLButtonElement>('[data-action="git-pull"]')?.disabled).toBe(false)
+    );
     pull?.click();
     await vi.waitFor(() => expect(backend.pull).toHaveBeenCalledExactlyOnceWith('one'));
   });

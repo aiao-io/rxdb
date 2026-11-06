@@ -19,9 +19,9 @@ import type { GitHubSession } from './git/github/github-types.js';
 import { mountPreview, type PreviewEvent } from './preview/preview-sandbox.js';
 import { createSavePreviewController, type SavePreviewPhase } from './save-preview.js';
 import { WorkbenchSession, type WorkbenchBackend, type WorkbenchState, type WorkbenchStatus } from './session.js';
-import { createWorkbenchTerminal } from './terminal/workbench-terminal.js';
 import { angularTemplate, defaultAngularDemo } from './templates-angular.js';
 import { defaultFrontendDemos, frontendTemplates, type WorkbenchTemplate } from './templates.js';
+import { createWorkbenchTerminal } from './terminal/workbench-terminal.js';
 import { createWorkbenchCommands, type WorkbenchCommand } from './workbench-commands.js';
 import { confirmWorkbenchAction, requestWorkbenchChoice, requestWorkbenchText } from './workbench-dialog.js';
 import { createWorkbenchDiff, type WorkbenchDiffHandle } from './workbench-diff.js';
@@ -425,7 +425,9 @@ export function mountWorkbench(
     session,
     apiKey: options.webContainerApiKey,
     onError: report,
-    onFilesChanged: () => { void refreshGit().catch(report); },
+    onFilesChanged: () => {
+      void refreshGit().catch(report);
+    },
     onPreview(port, url) {
       const id = `server-preview:${port}`;
       const host = docking.ensureAuxiliary(id, `项目服务 :${port}`);
@@ -2002,7 +2004,13 @@ export function mountWorkbench(
         { separator: true },
         { label: '保存当前文件', id: 'save', action: saveCurrent, disabled: !editable },
         { label: '保存全部并预览', id: 'save-all', action: saveAll, disabled: !editable },
-        { label: '打开终端', id: 'terminal', action: () => docking.showTool('terminal'), disabled: !editable, keybinding: 'Ctrl + `'}
+        {
+          label: '打开终端',
+          id: 'terminal',
+          action: () => docking.showTool('terminal'),
+          disabled: !editable,
+          keybinding: 'Ctrl + `'
+        }
       ]);
     },
     workspace: () => {

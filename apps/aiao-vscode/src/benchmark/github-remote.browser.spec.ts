@@ -169,7 +169,8 @@ async function probe<T>(action: ProbeAction, payload?: Readonly<Record<string, s
 }
 
 const snapshot = (): Promise<ProbeSnapshot> => probe('snapshot');
-const updates = (state: ProbeSnapshot): readonly ApiEvent[] => state.events.filter(event => event.kind === 'update-ref');
+const updates = (state: ProbeSnapshot): readonly ApiEvent[] =>
+  state.events.filter(event => event.kind === 'update-ref');
 
 describe('GitHub remote source control in Chromium', () => {
   beforeAll(async () => {
@@ -185,7 +186,9 @@ describe('GitHub remote source control in Chromium', () => {
     const server = createServer(async (request, response) => {
       if (request.url === '/') {
         response.setHeader('Content-Type', 'text/html');
-        response.end('<!doctype html><title>GitHub remote probe</title><div id="scm"></div><script type="module" src="/probe.js"></script>');
+        response.end(
+          '<!doctype html><title>GitHub remote probe</title><div id="scm"></div><script type="module" src="/probe.js"></script>'
+        );
         return;
       }
       if (request.url !== '/probe.js') {
