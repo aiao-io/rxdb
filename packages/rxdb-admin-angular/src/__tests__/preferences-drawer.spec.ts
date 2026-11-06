@@ -317,6 +317,26 @@ describe('PreferencesDrawer', () => {
       expect(JSON.parse((writeText.mock.calls[0] as unknown as [string])[0])).toEqual({ app: { compact: true } });
     });
 
+    it('复制配置：剪贴板被拒绝时按钮提示失败，不产生未处理的拒绝', async () => {
+      const denied = vi.fn(async () => {
+        throw new DOMException('denied', 'NotAllowedError');
+      });
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText: denied }, configurable: true });
+      const { shell } = await mount();
+      await openDrawer(shell);
+      await fire.click(screen.getByTestId('pref-copy'));
+      await waitFor(() => expect(screen.getByTestId('pref-copy').textContent).toBe('复制失败'));
+      expect(denied).toHaveBeenCalledOnce();
+    });
+
+    it('复制配置：没有剪贴板接口（非安全上下文）时同样提示失败', async () => {
+      Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
+      const { shell } = await mount();
+      await openDrawer(shell);
+      await fire.click(screen.getByTestId('pref-copy'));
+      await waitFor(() => expect(screen.getByTestId('pref-copy').textContent).toBe('复制失败'));
+    });
+
     it('导入配置：合法 JSON 应用并收起面板，非法 JSON 提示且保持当前设置', async () => {
       const { shell } = await mount();
       await openDrawer(shell);

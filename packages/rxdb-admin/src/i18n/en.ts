@@ -7,6 +7,7 @@ export const adminEnMessages: Record<AdminMessageKey, string> = {
   'prefs.reset': 'Reset',
   'prefs.copy': 'Copy config',
   'prefs.copied': 'Config copied',
+  'prefs.copyFailed': 'Copy failed',
   'prefs.export': 'Export config',
   'prefs.import': 'Import config',
   'prefs.import.placeholder': 'Paste the exported config JSON',

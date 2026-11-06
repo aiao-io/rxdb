@@ -6,6 +6,7 @@ export const adminZhHansMessages = {
   'prefs.reset': '重置',
   'prefs.copy': '复制配置',
   'prefs.copied': '配置已复制',
+  'prefs.copyFailed': '复制失败',
   'prefs.export': '导出配置',
   'prefs.import': '导入配置',
   'prefs.import.placeholder': '粘贴导出的配置 JSON',
