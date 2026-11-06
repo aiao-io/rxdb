@@ -4,6 +4,9 @@ import { AdminLayoutComponent } from '../layout/admin-layout.component';
 import { AdminPageDirective } from '../layout/admin-page.directive';
 import { act, fire, menu, mount, mountComponent, screen, within } from './test-utils';
 
+const slotOf = (): HTMLElement => screen.getByTestId('admin-sidebar').closest('.admin-sidebar-slot') as HTMLElement;
+const widthVariable = (slot: HTMLElement): string => slot.style.getPropertyValue('--admin-sidebar-width');
+
 describe('AdminLayout', () => {
   describe('侧栏导航（默认布局）', () => {
     it('渲染品牌、分组菜单与页面内容，当前页高亮', async () => {
@@ -57,6 +60,24 @@ describe('AdminLayout', () => {
       expect((group.closest('details') as HTMLDetailsElement).open).toBe(false);
     });
 
+    it('菜单更新后新出现的 expanded 分组自动展开；用户收起过的分组保持收起', async () => {
+      const { rerender } = await mount();
+      const menuRoot = within(screen.getByTestId('admin-menu'));
+      const detailsOf = (label: string): HTMLDetailsElement =>
+        menuRoot.getByText(label).closest('details') as HTMLDetailsElement;
+      await fire.click(menuRoot.getByText('实体').closest('summary') as HTMLElement);
+      expect(detailsOf('实体').open).toBe(false);
+
+      await rerender({
+        menu: [
+          ...menu,
+          { id: 'late', label: '后到', expanded: true, children: [{ id: 'late-1', label: '后到子项', route: '/late' }] }
+        ]
+      });
+      expect(detailsOf('后到').open).toBe(true);
+      expect(detailsOf('实体').open).toBe(false);
+    });
+
     it('折叠按钮切换侧栏图标轨；悬停临时展开', async () => {
       const { shell } = await mount();
       const sidebar = screen.getByTestId('admin-sidebar');
@@ -107,22 +128,74 @@ describe('AdminLayout', () => {
       expect(classes()).toEqual(['menu', 'admin-menu']);
     });
 
-    it('拖拽与键盘调整侧栏宽度，宽度被限制在 160–320', async () => {
+    it('拖拽只预览：占位元素的宽度变量与 aria-valuenow 跟手，偏好原地不动；松手一次性提交，宽度限制在 160–320', async () => {
       const { shell } = await mount();
+      const committed: number[] = [];
+      shell.preferences.subscribe(prefs => committed.push(prefs.sidebar.width));
+      const slot = slotOf();
+      const resizer = screen.getByTestId('admin-sidebar-resizer');
+      await fire.pointerDown(resizer, { clientX: 240, pointerId: 1 });
+      expect(resizer.getAttribute('data-dragging')).toBe('true');
+      expect(slot.getAttribute('data-resizing')).toBe('true');
+      await fire.pointerMove(resizer, { clientX: 300, pointerId: 1 });
+      expect(widthVariable(slot)).toBe('300px');
+      expect(resizer.getAttribute('aria-valuenow')).toBe('300');
+      await fire.pointerMove(resizer, { clientX: 900, pointerId: 1 });
+      expect(widthVariable(slot)).toBe('320px');
+      expect(shell.preferences.value.sidebar.width).toBe(240);
+      expect(committed).toEqual([]);
+
+      await fire.pointerUp(resizer, { pointerId: 1 });
+      expect(shell.preferences.value.sidebar.width).toBe(320);
+      expect(committed).toEqual([320]);
+      expect(widthVariable(slot)).toBe('');
+      expect(slot.hasAttribute('data-resizing')).toBe(false);
+      expect(resizer.getAttribute('data-dragging')).toBe('false');
+      expect(resizer.getAttribute('aria-valuenow')).toBe('320');
+      await fire.pointerMove(resizer, { clientX: 100, pointerId: 1 });
+      expect(shell.preferences.value.sidebar.width).toBe(320);
+      expect(widthVariable(slot)).toBe('');
+    });
+
+    it('指针被系统取消与松手一样结束拖动，保留最后一次预览的宽度', async () => {
+      const { shell } = await mount();
+      const slot = slotOf();
+      const resizer = screen.getByTestId('admin-sidebar-resizer');
+      await fire.pointerDown(resizer, { clientX: 240, pointerId: 1 });
+      await fire.pointerMove(resizer, { clientX: 200, pointerId: 1 });
+      await fire.pointerCancel(resizer, { pointerId: 1 });
+      expect(shell.preferences.value.sidebar.width).toBe(200);
+      expect(widthVariable(slot)).toBe('');
+      expect(slot.hasAttribute('data-resizing')).toBe(false);
+      expect(resizer.getAttribute('data-dragging')).toBe('false');
+    });
+
+    it('拖动中手柄被卸载（如关掉拖拽偏好）：撤掉预览，偏好保持拖动前的宽度', async () => {
+      const { shell } = await mount();
+      const slot = slotOf();
       const resizer = screen.getByTestId('admin-sidebar-resizer');
       await fire.pointerDown(resizer, { clientX: 240, pointerId: 1 });
       await fire.pointerMove(resizer, { clientX: 300, pointerId: 1 });
-      expect(shell.preferences.value.sidebar.width).toBe(300);
-      await fire.pointerMove(resizer, { clientX: 900, pointerId: 1 });
-      expect(shell.preferences.value.sidebar.width).toBe(320);
-      await fire.pointerUp(resizer, { pointerId: 1 });
-      await fire.pointerMove(resizer, { clientX: 100, pointerId: 1 });
-      expect(shell.preferences.value.sidebar.width).toBe(320);
-      await fire.keyDown(resizer, { key: 'ArrowLeft' });
-      expect(shell.preferences.value.sidebar.width).toBe(304);
+      expect(widthVariable(slot)).toBe('300px');
+      await act(() => shell.preferences.setPath('sidebar.draggable', false));
+      expect(screen.queryByTestId('admin-sidebar-resizer')).toBeNull();
+      expect(widthVariable(slot)).toBe('');
+      expect(slot.hasAttribute('data-resizing')).toBe(false);
+      expect(shell.preferences.value.sidebar.width).toBe(240);
+    });
+
+    it('键盘：左右方向键每次调整 16px 并立即提交，其他按键忽略', async () => {
+      const { shell } = await mount();
+      const resizer = screen.getByTestId('admin-sidebar-resizer');
       await fire.keyDown(resizer, { key: 'ArrowRight' });
+      await fire.keyDown(resizer, { key: 'ArrowRight' });
+      await fire.keyDown(resizer, { key: 'ArrowRight' });
+      expect(shell.preferences.value.sidebar.width).toBe(288);
+      await fire.keyDown(resizer, { key: 'ArrowLeft' });
+      expect(shell.preferences.value.sidebar.width).toBe(272);
       await fire.keyDown(resizer, { key: 'Home' });
-      expect(shell.preferences.value.sidebar.width).toBe(320);
+      expect(shell.preferences.value.sidebar.width).toBe(272);
+      expect(resizer.getAttribute('aria-valuenow')).toBe('272');
     });
 
     it('draggable 关闭或折叠时没有拖拽手柄', async () => {
@@ -346,6 +419,24 @@ class ProjectedPageHost {
 class SlotsHost {
   readonly menu = menu;
 }
+
+describe('AdminLayout：面包屑', () => {
+  it('上级项是链接，点击由外壳接管为 SPA 导航；当前项不是链接', async () => {
+    const { navigated } = await mount({ defaults: { breadcrumb: { showHome: true } } });
+    const links = within(screen.getByTestId('admin-breadcrumb')).getAllByRole('link');
+    expect(links.map(link => link.getAttribute('href'))).toEqual(['/']);
+    expect(await fire.click(links[0])).toBe(false);
+    expect(navigated).toEqual(['/']);
+    expect(within(screen.getByTestId('admin-breadcrumb')).getByText('资产').getAttribute('aria-current')).toBe('page');
+  });
+
+  it('只有一级且偏好要求隐藏时不渲染', async () => {
+    const { rerender } = await mount({ defaults: { breadcrumb: { hideOnlyOne: true } } });
+    expect(screen.getByTestId('admin-breadcrumb')).toBeTruthy();
+    await rerender({ menu: [{ id: 'search', label: '搜索', route: '/search' }], url: '/search' });
+    expect(screen.queryByTestId('admin-breadcrumb')).toBeNull();
+  });
+});
 
 describe('AdminLayout：Angular 内容投影', () => {
   it('跳到主要内容：聚焦内容区且不触发锚点导航（<base href> 下纯锚点会整页跳转）', async () => {

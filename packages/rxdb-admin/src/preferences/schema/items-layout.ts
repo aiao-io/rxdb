@@ -1,3 +1,4 @@
+import { SIDEBAR_WIDTH_RANGE } from '../../layout/sidebar-drag.js';
 import {
   cardsItem,
   customItem,
@@ -21,7 +22,7 @@ import {
 
 const place = (section: string): ItemPlace => ({ tab: 'layout', section });
 
-const SIDEBAR_RANGE = { min: 160, max: 320, unit: 'px' };
+const SIDEBAR_RANGE = { ...SIDEBAR_WIDTH_RANGE, unit: 'px' };
 const PADDING_RANGE = { min: 0, max: 48, unit: 'px' };
 
 /** 「布局」页签：布局模式、侧栏、顶栏、部件、面包屑、页签栏、内容区、页脚。 */

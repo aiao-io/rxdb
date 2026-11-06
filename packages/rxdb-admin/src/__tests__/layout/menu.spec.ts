@@ -5,6 +5,8 @@ import {
   findActiveRoot,
   findMenuPath,
   flattenMenu,
+  groupIds,
+  groupsToOpen,
   landingRoute,
   menuTitleOf,
   toggleGroup,
@@ -133,5 +135,64 @@ describe('activeGroupIds / toggleGroup', () => {
 
   it('非手风琴：同级可同时展开', () => {
     expect([...toggleGroup(new Set(['a']), 'b', ['a', 'b'], false)].sort()).toEqual(['a', 'b']);
+  });
+});
+
+describe('groupIds / groupsToOpen', () => {
+  const tree: MenuNode<string>[] = [
+    {
+      id: 'entities',
+      label: '实体',
+      expanded: true,
+      children: [
+        { id: 'asset', label: '资产', route: '/entities/assets/Asset' },
+        {
+          id: 'nested',
+          label: '嵌套',
+          children: [{ id: 'deep', label: '深层', route: '/deep' }]
+        }
+      ]
+    },
+    { id: 'data', label: '数据', children: [{ id: 'search', label: '搜索', route: '/search' }] },
+    { id: 'home', label: '首页', route: '/' }
+  ];
+
+  it('groupIds 返回全部分组（有子项的节点），含嵌套，不含叶子', () => {
+    expect(groupIds(tree)).toEqual(['entities', 'nested', 'data']);
+    expect(groupIds([])).toEqual([]);
+  });
+
+  it('首次（没见过任何分组）：声明了 expanded 的分组加上当前地址所在的分组', () => {
+    expect(groupsToOpen(tree, '/search').sort()).toEqual(['data', 'entities']);
+    expect(groupsToOpen(tree, '/deep').sort()).toEqual(['entities', 'nested']);
+    expect(groupsToOpen(tree, '/')).toEqual(['entities']);
+  });
+
+  it('菜单变化后：只带上此前没见过的 expanded 分组，用户收起过的老分组不会被重新展开', () => {
+    const known = new Set(groupIds(tree));
+    expect(groupsToOpen(tree, '/', known)).toEqual([]);
+    const later: MenuNode<string>[] = [
+      ...tree,
+      { id: 'late', label: '后到', expanded: true, children: [{ id: 'l1', label: '后到子项', route: '/late' }] },
+      { id: 'quiet', label: '安静', children: [{ id: 'q1', label: '安静子项', route: '/quiet' }] }
+    ];
+    expect(groupsToOpen(later, '/', known)).toEqual(['late']);
+  });
+
+  it('菜单变化后：此前没见过的分组若在当前地址路径上也展开（菜单晚于地址到达）；见过的不重复展开', () => {
+    const known = new Set(groupIds(tree));
+    expect(groupsToOpen(tree, '/search', known)).toEqual([]);
+    const later: MenuNode<string>[] = [
+      ...tree,
+      { id: 'late', label: '后到', children: [{ id: 'l1', label: '后到子项', route: '/late' }] }
+    ];
+    expect(groupsToOpen(later, '/late', known)).toEqual(['late']);
+  });
+
+  it('既 expanded 又在当前地址路径上的分组只出现一次', () => {
+    const merged: MenuNode<string>[] = [
+      { id: 'g', label: 'G', expanded: true, children: [{ id: 'c', label: 'C', route: '/c' }] }
+    ];
+    expect(groupsToOpen(merged, '/c')).toEqual(['g']);
   });
 });

@@ -1,8 +1,11 @@
 import { act, cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { mount } from './test-utils.js';
+import { menu, mount } from './test-utils.js';
 
 afterEach(cleanup);
+
+const slotOf = (): HTMLElement => screen.getByTestId('admin-sidebar').closest('.admin-sidebar-slot') as HTMLElement;
+const widthVariable = (slot: HTMLElement): string => slot.style.getPropertyValue('--admin-sidebar-width');
 
 describe('AdminLayout', () => {
   describe('侧栏导航（默认布局）', () => {
@@ -57,6 +60,24 @@ describe('AdminLayout', () => {
       expect((group.closest('details') as HTMLDetailsElement).open).toBe(false);
     });
 
+    it('菜单更新后新出现的 expanded 分组自动展开；用户收起过的分组保持收起', () => {
+      const { rerender } = mount();
+      const menuRoot = within(screen.getByTestId('admin-menu'));
+      const detailsOf = (label: string): HTMLDetailsElement =>
+        menuRoot.getByText(label).closest('details') as HTMLDetailsElement;
+      fireEvent.click(menuRoot.getByText('实体').closest('summary') as HTMLElement);
+      expect(detailsOf('实体').open).toBe(false);
+
+      rerender({
+        menu: [
+          ...menu,
+          { id: 'late', label: '后到', expanded: true, children: [{ id: 'late-1', label: '后到子项', route: '/late' }] }
+        ]
+      });
+      expect(detailsOf('后到').open).toBe(true);
+      expect(detailsOf('实体').open).toBe(false);
+    });
+
     it('折叠按钮切换侧栏图标轨；悬停临时展开', () => {
       const { shell } = mount();
       const sidebar = screen.getByTestId('admin-sidebar');
@@ -107,22 +128,74 @@ describe('AdminLayout', () => {
       expect(classes()).toEqual(['menu', 'admin-menu']);
     });
 
-    it('拖拽与键盘调整侧栏宽度，宽度被限制在 160–320', () => {
+    it('拖拽只预览：占位元素的宽度变量与 aria-valuenow 跟手，偏好原地不动；松手一次性提交，宽度限制在 160–320', () => {
       const { shell } = mount();
+      const committed: number[] = [];
+      shell.preferences.subscribe(prefs => committed.push(prefs.sidebar.width));
+      const slot = slotOf();
+      const resizer = screen.getByTestId('admin-sidebar-resizer');
+      fireEvent.pointerDown(resizer, { clientX: 240, pointerId: 1 });
+      expect(resizer.getAttribute('data-dragging')).toBe('true');
+      expect(slot.getAttribute('data-resizing')).toBe('true');
+      fireEvent.pointerMove(resizer, { clientX: 300, pointerId: 1 });
+      expect(widthVariable(slot)).toBe('300px');
+      expect(resizer.getAttribute('aria-valuenow')).toBe('300');
+      fireEvent.pointerMove(resizer, { clientX: 900, pointerId: 1 });
+      expect(widthVariable(slot)).toBe('320px');
+      expect(shell.preferences.value.sidebar.width).toBe(240);
+      expect(committed).toEqual([]);
+
+      fireEvent.pointerUp(resizer, { pointerId: 1 });
+      expect(shell.preferences.value.sidebar.width).toBe(320);
+      expect(committed).toEqual([320]);
+      expect(widthVariable(slot)).toBe('');
+      expect(slot.hasAttribute('data-resizing')).toBe(false);
+      expect(resizer.getAttribute('data-dragging')).toBe('false');
+      expect(resizer.getAttribute('aria-valuenow')).toBe('320');
+      fireEvent.pointerMove(resizer, { clientX: 100, pointerId: 1 });
+      expect(shell.preferences.value.sidebar.width).toBe(320);
+      expect(widthVariable(slot)).toBe('');
+    });
+
+    it('指针被系统取消与松手一样结束拖动，保留最后一次预览的宽度', () => {
+      const { shell } = mount();
+      const slot = slotOf();
+      const resizer = screen.getByTestId('admin-sidebar-resizer');
+      fireEvent.pointerDown(resizer, { clientX: 240, pointerId: 1 });
+      fireEvent.pointerMove(resizer, { clientX: 200, pointerId: 1 });
+      fireEvent.pointerCancel(resizer, { pointerId: 1 });
+      expect(shell.preferences.value.sidebar.width).toBe(200);
+      expect(widthVariable(slot)).toBe('');
+      expect(slot.hasAttribute('data-resizing')).toBe(false);
+      expect(resizer.getAttribute('data-dragging')).toBe('false');
+    });
+
+    it('拖动中手柄被卸载（如关掉拖拽偏好）：撤掉预览，偏好保持拖动前的宽度', () => {
+      const { shell } = mount();
+      const slot = slotOf();
       const resizer = screen.getByTestId('admin-sidebar-resizer');
       fireEvent.pointerDown(resizer, { clientX: 240, pointerId: 1 });
       fireEvent.pointerMove(resizer, { clientX: 300, pointerId: 1 });
-      expect(shell.preferences.value.sidebar.width).toBe(300);
-      fireEvent.pointerMove(resizer, { clientX: 900, pointerId: 1 });
-      expect(shell.preferences.value.sidebar.width).toBe(320);
-      fireEvent.pointerUp(resizer, { pointerId: 1 });
-      fireEvent.pointerMove(resizer, { clientX: 100, pointerId: 1 });
-      expect(shell.preferences.value.sidebar.width).toBe(320);
-      fireEvent.keyDown(resizer, { key: 'ArrowLeft' });
-      expect(shell.preferences.value.sidebar.width).toBe(304);
+      expect(widthVariable(slot)).toBe('300px');
+      act(() => shell.preferences.setPath('sidebar.draggable', false));
+      expect(screen.queryByTestId('admin-sidebar-resizer')).toBeNull();
+      expect(widthVariable(slot)).toBe('');
+      expect(slot.hasAttribute('data-resizing')).toBe(false);
+      expect(shell.preferences.value.sidebar.width).toBe(240);
+    });
+
+    it('键盘：左右方向键每次调整 16px 并立即提交，其他按键忽略', () => {
+      const { shell } = mount();
+      const resizer = screen.getByTestId('admin-sidebar-resizer');
       fireEvent.keyDown(resizer, { key: 'ArrowRight' });
+      fireEvent.keyDown(resizer, { key: 'ArrowRight' });
+      fireEvent.keyDown(resizer, { key: 'ArrowRight' });
+      expect(shell.preferences.value.sidebar.width).toBe(288);
+      fireEvent.keyDown(resizer, { key: 'ArrowLeft' });
+      expect(shell.preferences.value.sidebar.width).toBe(272);
       fireEvent.keyDown(resizer, { key: 'Home' });
-      expect(shell.preferences.value.sidebar.width).toBe(320);
+      expect(shell.preferences.value.sidebar.width).toBe(272);
+      expect(resizer.getAttribute('aria-valuenow')).toBe('272');
     });
 
     it('draggable 关闭或折叠时没有拖拽手柄', () => {

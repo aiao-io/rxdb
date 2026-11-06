@@ -49,15 +49,14 @@ function restartEnterAnimation(element: HTMLElement): void {
   element.setAttribute('data-entering', 'true');
 }
 
-// 菜单与地址在渲染之前同步进外壳，首屏就带着完整布局，不会闪一帧没有侧栏的样子
+// 菜单与地址在渲染之前同步进外壳，首屏就带着完整布局，不会闪一帧没有侧栏的样子。
+// 合成一个监听：先菜单后地址的顺序固定，不受模板里属性书写顺序影响（同步地址要用最新菜单解析页签标题）
 watch(
-  () => props.menu,
-  menu => shell.setMenu(menu),
-  { immediate: true }
-);
-watch(
-  () => props.url,
-  url => shell.syncRoute(url),
+  [() => props.menu, () => props.url],
+  ([menu, url], [previousMenu, previousUrl]) => {
+    if (menu !== previousMenu) shell.setMenu(menu);
+    if (url !== previousUrl) shell.syncRoute(url);
+  },
   { immediate: true }
 );
 watch(

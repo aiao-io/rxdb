@@ -147,6 +147,16 @@ describe('Tabbar', () => {
       expect(screen.queryByTestId('admin-tab-menu')).toBeNull();
     });
 
+    it('滚动与窗口失焦也会关闭菜单', async () => {
+      await mount();
+      await openMenu(0);
+      await fire.event(window, new Event('scroll'));
+      expect(screen.queryByTestId('admin-tab-menu')).toBeNull();
+      await openMenu(0);
+      await fire.event(window, new Event('blur'));
+      expect(screen.queryByTestId('admin-tab-menu')).toBeNull();
+    });
+
     it('键盘：ContextMenu 键与 Shift+F10 打开菜单', async () => {
       await mount();
       await fire.keyDown(within(tabs()[0]).getByRole('link'), { key: 'ContextMenu' });

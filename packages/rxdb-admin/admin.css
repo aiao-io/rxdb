@@ -5,7 +5,8 @@
  * 布局尺寸来自外壳写在 <html> 上的 --admin-* 变量（见 computeLayoutVars）。
  * 在 Tailwind 入口之后引入：@import '@aiao/rxdb-admin/admin.css';
  *
- * 全部规则位于 components 层：工具类（utilities 层）与应用自己的无层样式都能覆盖它。
+ * 规则位于 components 层：工具类（utilities 层）与应用自己的无层样式都能覆盖它。
+ * 例外是需要压过 daisyUI 的覆盖，它们在文件末尾的 utilities 层（原因见该处注释）。
  */
 
 @layer components {
@@ -86,6 +87,11 @@
       width var(--admin-motion) ease;
   }
 
+  /* 拖拽调宽期间（SidebarDrag 写的标记）关掉宽度过渡：侧栏紧跟指针，而不是被动画拖在后面 */
+  .admin-sidebar-slot[data-resizing='true'] {
+    transition: none;
+  }
+
   .admin-sidebar {
     position: absolute;
     inset-block: 0;
@@ -155,14 +161,6 @@
     padding: 0.25rem;
   }
 
-  .admin-menu {
-    width: 100%;
-  }
-
-  .admin-menu[data-style='plain'] :where(li > a, li > details > summary) {
-    border-radius: 0;
-  }
-
   .admin-menu-label {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -189,11 +187,6 @@
       display: none;
     }
 
-    .admin-menu :where(li > a) {
-      justify-content: center;
-      padding-inline: 0;
-    }
-
     .admin-menu-rail-separator {
       display: block;
       margin-block: 0.25rem;
@@ -204,12 +197,8 @@
   .admin-sidebar[data-collapsed='true'][data-show-title='true']:not([data-hover-expanded='true']) {
     .admin-menu-label {
       display: block;
+      max-width: 100%;
       font-size: 0.625rem;
-    }
-
-    .admin-menu :where(li > a) {
-      flex-direction: column;
-      gap: 0.125rem;
     }
   }
 
@@ -1206,5 +1195,40 @@
 @layer utilities {
   .admin-drawer-tabs > .tab:not(.tab-active, :hover) {
     color: var(--admin-muted);
+  }
+}
+
+/*
+ * 侧栏菜单对 daisyUI `.menu` 的覆盖。原因同上：`.menu { width: fit-content; padding: .5rem }`、
+ * 菜单项的 12px 横向内边距与圆角都在 `utilities` 的子层里，写在 `components` 层的覆盖永远输，
+ * 结果是菜单停在文字宽度、右侧留白（拖宽侧栏也不变），图标轨里的图标偏右并被裁掉，plain 样式仍是圆角。
+ */
+@layer utilities {
+  .admin-menu {
+    width: 100%;
+  }
+
+  .admin-menu[data-style='plain'] :where(li > a, li > details > summary) {
+    border-radius: 0;
+  }
+
+  /* 图标轨：菜单自身的内边距归零，菜单项占满轨道宽度、图标居中 */
+  .admin-sidebar[data-collapsed='true']:not([data-hover-expanded='true']) .admin-menu {
+    padding-inline: 0;
+  }
+
+  .admin-sidebar[data-collapsed='true']:not([data-hover-expanded='true']) .admin-menu :where(li > a) {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  /* 图标轨显示标题：图标在上、小标题在下。菜单项是 grid（daisyUI），不是 flex；单列且不超过轨道宽度，过长的标题才会省略 */
+  .admin-sidebar[data-collapsed='true'][data-show-title='true']:not([data-hover-expanded='true'])
+    .admin-menu
+    :where(li > a) {
+    grid-auto-flow: row;
+    grid-auto-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 0.125rem;
   }
 }

@@ -3,7 +3,11 @@ import type { Component } from 'vue';
 
 /** {@link AdminShellProvider} 的属性。 */
 export interface AdminShellProviderProps {
-  /** 由 `createAdminShell` 创建的外壳，图标类型为 Vue 组件；挂载期间不可替换（需要替换时给 Provider 加 `key` 重建）。 */
+  /**
+   * 由 `createAdminShell` 创建的外壳，图标类型为 Vue 组件。
+   * 挂载期间不可替换（需要替换时给 Provider 加 `key` 重建）；外壳内部是带 `#private` 字段的类实例，
+   * 不要放进 `ref()` / `reactive()`（深层代理读不到私有字段），需要响应式持有时用 `shallowRef` 或 `markRaw`。
+   */
   readonly shell: AdminShell<Component>;
 }
 

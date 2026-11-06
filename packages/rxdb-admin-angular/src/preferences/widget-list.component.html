@@ -10,7 +10,7 @@
         [id]="'prefs-widget-' + key"
         (dragend)="onDragEnd()"
         (dragover)="onDragOver($event, index)"
-        (dragstart)="onDragStart(index)"
+        (dragstart)="onDragStart($event, key, index)"
         (drop)="onDrop($event, index)"
         (keydown)="onKeyDown($event, index)"
         draggable="true"

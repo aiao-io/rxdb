@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import type { DrawerRow, ResolvedControl } from '@aiao/rxdb-admin';
+import { getPath, type DrawerRow, type ResolvedControl } from '@aiao/rxdb-admin';
 import { ref, watch } from 'vue';
+import { useAdminShell } from '../context.js';
 
 /**
  * 数字输入：输入时只改草稿，失焦或回车才提交（夹取由偏好存储负责）；
@@ -13,6 +14,7 @@ const props = defineProps<{
   control: Extract<ResolvedControl, { kind: 'number' }>;
 }>();
 
+const shell = useAdminShell();
 const draftOf = (value: unknown): string => (value === null ? '' : String(value));
 
 const draft = ref(draftOf(props.row.value));
@@ -37,8 +39,13 @@ const commit = (): void => {
     return;
   }
   const parsed = Number(draft.value);
-  if (Number.isFinite(parsed)) props.row.set(parsed);
-  else draft.value = draftOf(value);
+  if (!Number.isFinite(parsed)) {
+    draft.value = draftOf(value);
+    return;
+  }
+  props.row.set(parsed);
+  // 值被清洗（越界夹取）后可能与当前值相同，行的值不变就不会触发草稿同步：回读存储里的最终值
+  draft.value = draftOf(getPath(shell.preferences.value, props.row.path));
 };
 </script>
 

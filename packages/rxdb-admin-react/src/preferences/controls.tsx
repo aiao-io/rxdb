@@ -1,6 +1,6 @@
-import type { DrawerRow, ResolvedControl } from '@aiao/rxdb-admin';
+import { getPath, type DrawerRow, type ResolvedControl } from '@aiao/rxdb-admin';
 import { useState, type ReactElement, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { useAdminText } from '../context.js';
+import { useAdminShell, useAdminText } from '../context.js';
 import { ShortcutList } from './shortcut-list.js';
 import { ThemeGrid } from './theme-grid.js';
 import { WidgetList } from './widget-list.js';
@@ -14,6 +14,7 @@ function NumberControl({
   row: DrawerRow;
   control: Extract<ResolvedControl, { kind: 'number' }>;
 }): ReactElement {
+  const shell = useAdminShell();
   const value = row.value as number | null;
   const [draft, setDraft] = useState(value === null ? '' : String(value));
   const [seen, setSeen] = useState(value);
@@ -29,8 +30,14 @@ function NumberControl({
       return;
     }
     const parsed = Number(draft);
-    if (Number.isFinite(parsed)) row.set(parsed);
-    else setDraft(value === null ? '' : String(value));
+    if (!Number.isFinite(parsed)) {
+      setDraft(value === null ? '' : String(value));
+      return;
+    }
+    row.set(parsed);
+    // 值被清洗（越界夹取）后可能与当前值相同，行的值不变就不会触发草稿同步：回读存储里的最终值
+    const stored = getPath(shell.preferences.value, row.path) as number | null;
+    setDraft(stored === null ? '' : String(stored));
   };
 
   return (

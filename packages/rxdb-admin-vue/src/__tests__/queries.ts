@@ -274,6 +274,7 @@ export const fireEvent = Object.assign(dispatch, {
   pointerDown: pointer('pointerdown'),
   pointerMove: pointer('pointermove'),
   pointerUp: pointer('pointerup'),
+  pointerCancel: pointer('pointercancel'),
   dragStart: drag('dragstart'),
   dragOver: drag('dragover'),
   dragEnd: drag('dragend'),

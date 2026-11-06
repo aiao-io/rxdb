@@ -12,9 +12,6 @@
   "include": ["src/**/*.ts"],
   "references": [
     {
-      "path": "../rxdb-admin-react/tsconfig.lib.json"
-    },
-    {
       "path": "../rxdb-admin/tsconfig.lib.json"
     }
   ]

@@ -53,7 +53,10 @@ export class AdminWidgetListComponent {
     requestAnimationFrame(() => document.getElementById(`prefs-widget-${moved}`)?.focus());
   }
 
-  protected onDragStart(index: number): void {
+  protected onDragStart(event: DragEvent, key: WidgetKey, index: number): void {
+    // Firefox 没有拖拽数据就不会启动拖放
+    event.dataTransfer?.setData('text/plain', key);
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
     this.dragFrom.set(index);
   }
 

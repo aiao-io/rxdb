@@ -1,6 +1,6 @@
-import type { DrawerRow, ResolvedControl } from '@aiao/rxdb-admin';
+import { getPath, type DrawerRow, type ResolvedControl } from '@aiao/rxdb-admin';
 import { ChangeDetectionStrategy, Component, computed, input, linkedSignal } from '@angular/core';
-import { injectAdminText } from '../context';
+import { injectAdminShell, injectAdminText } from '../context';
 import { AdminShortcutListComponent } from './shortcut-list.component';
 import { AdminThemeGridComponent } from './theme-grid.component';
 import { AdminWidgetListComponent } from './widget-list.component';
@@ -46,6 +46,8 @@ export const STACKED_KINDS: ReadonlySet<ResolvedControl['kind']> = new Set([
   `
 })
 export class AdminNumberControlComponent {
+  readonly #shell = injectAdminShell();
+
   /** 当前值；只有它变化时才重置草稿（行对象因文案 / 其他偏好变化而重建时，进行中的输入不丢）。 */
   protected readonly value = computed(() => this.row().value as number | null);
   protected readonly draft = linkedSignal(() => this.#format(this.value()));
@@ -71,8 +73,13 @@ export class AdminNumberControlComponent {
       return;
     }
     const parsed = Number(this.draft());
-    if (Number.isFinite(parsed)) this.row().set(parsed);
-    else this.draft.set(this.#format(this.value()));
+    if (!Number.isFinite(parsed)) {
+      this.draft.set(this.#format(this.value()));
+      return;
+    }
+    this.row().set(parsed);
+    // 值被清洗（越界夹取）后可能与当前值相同，行的值不变就不会触发草稿同步：回读存储里的最终值
+    this.draft.set(this.#format(getPath(this.#shell.preferences.value, this.row().path) as number | null));
   }
 
   #format(value: number | null): string {

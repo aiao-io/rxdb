@@ -41,6 +41,7 @@ const go = (event: MouseEvent, route: string): void => interceptNavigation(event
           ><component
             :is="item.icon"
             v-if="prefs.breadcrumb.showIcon && item.icon"
+            :size="16"
           />{{ item.label }}</a
         >
         <span
@@ -50,6 +51,7 @@ const go = (event: MouseEvent, route: string): void => interceptNavigation(event
           ><component
             :is="item.icon"
             v-if="prefs.breadcrumb.showIcon && item.icon"
+            :size="16"
           />{{ item.label }}</span
         >
         <span

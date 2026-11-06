@@ -147,6 +147,7 @@ const onWheel = (event: WheelEvent): void => {
           <component
             :is="icon"
             v-if="prefs.tabbar.showIcon && icon"
+            :size="16"
           />
           <span>{{ tab.title }}</span>
         </a>

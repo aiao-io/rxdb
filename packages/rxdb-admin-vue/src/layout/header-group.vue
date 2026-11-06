@@ -18,7 +18,8 @@ defineProps<{
       class="btn btn-ghost btn-sm"
       ><component
         :is="node.icon"
-        v-if="node.icon" />{{ node.label }}<ChevronDownIcon :size="14"
+        v-if="node.icon"
+        :size="16" />{{ node.label }}<ChevronDownIcon :size="14"
     /></div>
     <ul
       tabindex="0"

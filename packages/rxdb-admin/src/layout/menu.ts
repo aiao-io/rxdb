@@ -137,6 +137,39 @@ export function activeGroupIds<T>(nodes: readonly MenuNode<T>[], url: string): s
     .map(node => node.id);
 }
 
+const groupsOf = <T>(nodes: readonly MenuNode<T>[]): MenuNode<T>[] =>
+  nodes.flatMap(node => (node.children?.length ? [node, ...groupsOf(node.children)] : []));
+
+/**
+ * 菜单里的全部分组（有子项的节点）id，含嵌套分组，先序。
+ * @param nodes - 菜单树。
+ * @returns 分组 id。
+ */
+export function groupIds<T>(nodes: readonly MenuNode<T>[]): string[] {
+  return groupsOf(nodes).map(node => node.id);
+}
+
+/**
+ * 菜单（首次出现或变化后）需要新增展开的分组：此前没见过的分组里，声明了 `expanded` 的，或者位于当前地址路径上的。
+ * 已见过的分组不重复展开，因此用户收起过的分组不会被菜单更新重新打开；地址变化时展开当前页所在分组仍用 {@link activeGroupIds}。
+ *
+ * 用法：绑定在首次渲染时传入空的 `known`；之后每次菜单引用变化，把返回值并入展开集合，并把 `known` 更新为 `groupIds(nodes)`。
+ * @param nodes - 当前菜单树。
+ * @param url - 当前地址。
+ * @param known - 此前已见过的分组 id。
+ * @returns 需要并入展开集合的分组 id。
+ */
+export function groupsToOpen<T>(
+  nodes: readonly MenuNode<T>[],
+  url: string,
+  known: ReadonlySet<string> = new Set()
+): string[] {
+  const active = new Set(activeGroupIds(nodes, url));
+  return groupsOf(nodes)
+    .filter(node => !known.has(node.id) && (node.expanded || active.has(node.id)))
+    .map(node => node.id);
+}
+
 /**
  * 切换分组展开状态；手风琴模式下同级只保留一个展开。
  * @param open - 当前展开的分组 id。

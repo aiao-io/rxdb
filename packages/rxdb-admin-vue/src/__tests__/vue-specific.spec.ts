@@ -1,9 +1,10 @@
-import { adminMessages, createMemoryStorage, Store } from '@aiao/rxdb-admin';
+import { adminMessages, createMemoryStorage, Store, type MenuNode } from '@aiao/rxdb-admin';
 import { createTestShell } from '@aiao/rxdb-admin/testing';
 import { I18n } from '@aiao/rxdb-i18n';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { effectScope, h, nextTick, type Component } from 'vue';
+import { effectScope, h, nextTick, shallowReactive, type Component } from 'vue';
 import { useAdminStore } from '../context.js';
+import AdminLayout from '../layout/admin-layout.vue';
 import { interceptNavigation } from '../layout/intercept-navigation.js';
 import { closeOnBackdrop } from '../use-dialog.js';
 import { act, screen, within } from './queries.js';
@@ -67,6 +68,21 @@ describe('布局输入变化', () => {
     expect(screen.queryByTestId('nav-category')).toBeNull();
     expect(shell.tabs.value.tabs.map(tab => tab.title)).toEqual(['唯一']);
     expect(screen.getByTestId('admin-page-title').textContent).toBe('唯一');
+  });
+
+  it('菜单与地址同时变化时先同步菜单，不受属性书写顺序影响', async () => {
+    const { shell } = createTestShell<Component>({ brand: { title: '工作台' } });
+    const state = shallowReactive({
+      menu: [{ id: 'a', label: 'A', route: '/a' }] as MenuNode<Component>[],
+      url: '/a'
+    });
+    // url 写在 menu 前面：属性更新的触发顺序就是 url 先于 menu
+    const layout: Component = { render: () => h(AdminLayout, { url: state.url, menu: state.menu }) };
+    renderWithShell(shell, layout);
+    state.url = '/b';
+    state.menu = [{ id: 'b', label: 'B', route: '/b' }];
+    await nextTick();
+    expect(shell.tabs.value.tabs.map(tab => tab.title)).toEqual(['A', 'B']);
   });
 
   it('navigating 切回 false 后进度条消失', async () => {

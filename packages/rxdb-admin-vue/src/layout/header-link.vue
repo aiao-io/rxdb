@@ -30,6 +30,7 @@ const go = (event: MouseEvent): void => interceptNavigation(event, () => shell.n
     ><component
       :is="node.icon"
       v-if="node.icon"
+      :size="16"
     />{{ node.label }}</a
   >
 </template>

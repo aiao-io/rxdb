@@ -43,6 +43,7 @@ const forward = (id: string, groups: readonly string[]): void => emit('toggle', 
             ><component
               :is="node.icon"
               v-if="node.icon"
+              :size="16"
           /></span>
           <span class="admin-menu-label">{{ node.label }}</span>
         </summary>

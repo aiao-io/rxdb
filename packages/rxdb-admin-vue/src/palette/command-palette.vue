@@ -103,6 +103,7 @@ const onKeyDown = (event: KeyboardEvent): void => {
             <component
               :is="iconOf(entry.item.icon)"
               v-if="iconOf(entry.item.icon)"
+              :size="16"
             />
             <span>
               <template

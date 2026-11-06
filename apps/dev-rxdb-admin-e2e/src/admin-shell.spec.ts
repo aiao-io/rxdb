@@ -1,5 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { createCategory, expectStoredPreferences, openPreferences, resetE2eState } from './e2e-utils.js';
+import {
+  createCategory,
+  expectStoredPreferences,
+  openPreferences,
+  PREFERENCES_STORAGE_KEY,
+  resetE2eState,
+  storedPreferenceValues
+} from './e2e-utils.js';
 
 /**
  * 后台外壳（@aiao/rxdb-admin）在 dev-rxdb-admin 里的验收：
@@ -198,6 +205,124 @@ test.describe('后台外壳：侧栏宽度', () => {
 
     await page.reload();
     await expect(page.getByTestId('admin-sidebar-resizer')).toHaveAttribute('aria-valuenow', '288');
+  });
+
+  test('拖动中侧栏紧跟指针：宽度过渡关闭、偏好不写入，松手后才提交并恢复过渡', async ({ page }) => {
+    await page.goto('/search');
+    const resizer = page.getByTestId('admin-sidebar-resizer');
+    const slot = page.locator('.admin-sidebar-slot');
+    await expect(resizer).toHaveAttribute('aria-valuenow', '240');
+    await expect(slot).not.toHaveCSS('transition-property', 'none');
+
+    const box = await resizer.boundingBox();
+    expect(box).not.toBeNull();
+    const x = (box?.x ?? 0) + (box?.width ?? 0) / 2;
+    const y = (box?.y ?? 0) + 200;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + 40, y, { steps: 4 });
+
+    // 过渡不关，宽度会被 240ms 的动画拖在指针后面；偏好每次移动都写，整个外壳会随之重渲染
+    await expect(slot).toHaveCSS('transition-property', 'none');
+    await expect(resizer).toHaveAttribute('aria-valuenow', '280');
+    await expect.poll(async () => (await slot.boundingBox())?.width).toBe(280);
+    // 超过偏好落盘的防抖（150ms）之后，拖动中仍然什么都没写
+    // eslint-disable-next-line playwright/no-wait-for-timeout -- 断言的是「一段时间内无事发生」
+    await page.waitForTimeout(400);
+    expect(await storedPreferenceValues(page)).toBeNull();
+
+    await page.mouse.up();
+    await expectStoredPreferences(page, { sidebar: { width: 280 } });
+    await expect(slot).not.toHaveCSS('transition-property', 'none');
+    await expect.poll(async () => (await slot.boundingBox())?.width).toBe(280);
+    await expect(page.locator('html')).toHaveCSS('--admin-sidebar-width', '280px');
+  });
+
+  test('菜单撑满侧栏：默认宽度与拖宽之后，菜单宽度都等于侧栏主体扣掉内边距后的可用宽度', async ({ page }) => {
+    await page.goto('/search');
+    const menu = page.getByTestId('admin-menu');
+    // daisyUI 的 .menu 默认 fit-content；admin.css 的 width: 100% 层序更靠前，会输给它，菜单就停在文字宽度、右侧留白
+    const shortfall = (): Promise<number> =>
+      menu.evaluate(element => {
+        const body = element.closest('.admin-sidebar-body') as HTMLElement;
+        const style = getComputedStyle(body);
+        const available = body.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+        return available - element.getBoundingClientRect().width;
+      });
+    await expect.poll(shortfall).toBeCloseTo(0, 0);
+
+    const resizer = page.getByTestId('admin-sidebar-resizer');
+    await resizer.focus();
+    for (let step = 0; step < 5; step += 1) await page.keyboard.press('ArrowRight');
+    await expect(resizer).toHaveAttribute('aria-valuenow', '320');
+    await expect.poll(shortfall).toBeCloseTo(0, 0);
+    await expect.poll(async () => (await menu.boundingBox())?.width).toBeGreaterThan(280);
+  });
+
+  test('plain 菜单样式：菜单项没有圆角', async ({ page }) => {
+    await page.addInitScript(key => {
+      window.localStorage.setItem(key, JSON.stringify({ version: 1, values: { navigation: { styleType: 'plain' } } }));
+    }, PREFERENCES_STORAGE_KEY);
+    await page.goto('/search');
+    const menu = page.getByTestId('admin-menu');
+    await expect(menu).toHaveAttribute('data-style', 'plain');
+    await expect(menu.getByRole('link', { name: '搜索' })).toHaveCSS('border-radius', '0px');
+  });
+
+  test('折叠为图标轨：每个图标在轨道里水平居中，菜单项不被侧栏裁掉', async ({ page }) => {
+    await page.goto('/search');
+    const sidebar = page.getByTestId('admin-sidebar');
+    await page.getByTestId('admin-sidebar-toggle').click();
+    await expect(sidebar).toHaveAttribute('data-collapsed', 'true');
+    await page.mouse.move(800, 400);
+    await expect.poll(async () => (await sidebar.boundingBox())?.width ?? 999).toBeLessThan(80);
+
+    const geometry = () =>
+      page.getByTestId('admin-menu').evaluate(menu => {
+        const body = menu.closest('.admin-sidebar-body') as HTMLElement;
+        const bodyBox = body.getBoundingClientRect();
+        const center = bodyBox.left + body.clientWidth / 2;
+        return {
+          iconOffsets: [...menu.querySelectorAll('.admin-menu-icon')].map(icon => {
+            const box = icon.getBoundingClientRect();
+            return Math.abs(box.left + box.width / 2 - center);
+          }),
+          // 菜单项左右两侧离侧栏主体边缘的距离，负数表示伸出去被裁掉了
+          margins: [...menu.querySelectorAll('li > a')].map(link => {
+            const box = link.getBoundingClientRect();
+            return Math.min(box.left - bodyBox.left, bodyBox.left + body.clientWidth - box.right);
+          })
+        };
+      });
+    // daisyUI 给菜单项 12px 的横向内边距、.menu 又是 fit-content，覆盖失效时图标整体偏右、选中项的高亮被裁掉
+    await expect.poll(async () => Math.max(...(await geometry()).iconOffsets)).toBeLessThan(1);
+    await expect.poll(async () => Math.min(...(await geometry()).margins)).toBeGreaterThanOrEqual(0);
+  });
+
+  test('折叠为图标轨并显示标题：图标在上、标题在下，都不伸出菜单项', async ({ page }) => {
+    await page.addInitScript(key => {
+      const values = { sidebar: { collapsed: true, collapsedShowTitle: true } };
+      window.localStorage.setItem(key, JSON.stringify({ version: 1, values }));
+    }, PREFERENCES_STORAGE_KEY);
+    await page.goto('/search');
+    await page.mouse.move(800, 400);
+    await expect(page.getByTestId('admin-sidebar')).toHaveAttribute('data-show-title', 'true');
+
+    // 菜单项是 grid（daisyUI），按 flex 写的 flex-direction: column 不生效，图标和标题会并排挤在一行里
+    const rows = () =>
+      page.getByTestId('admin-menu').evaluate(menu =>
+        [...menu.querySelectorAll('li > a')].map(link => {
+          const box = link.getBoundingClientRect();
+          const icon = (link.querySelector('.admin-menu-icon') as Element).getBoundingClientRect();
+          const label = (link.querySelector('.admin-menu-label') as Element).getBoundingClientRect();
+          return {
+            stacked: label.top >= icon.bottom - 0.5,
+            contained: label.left >= box.left - 0.5 && label.right <= box.right + 0.5
+          };
+        })
+      );
+    await expect.poll(async () => (await rows()).length).toBeGreaterThan(0);
+    await expect.poll(async () => (await rows()).every(row => row.stacked && row.contained)).toBe(true);
   });
 });
 

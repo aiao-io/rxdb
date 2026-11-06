@@ -332,6 +332,8 @@ export const fire = {
     dispatch(target, new PointerEvent('pointermove', { bubbles: true, cancelable: true, ...init })),
   pointerUp: (target: Element, init: PointerEventInit = {}) =>
     dispatch(target, new PointerEvent('pointerup', { bubbles: true, cancelable: true, ...init })),
+  pointerCancel: (target: Element, init: PointerEventInit = {}) =>
+    dispatch(target, new PointerEvent('pointercancel', { bubbles: true, cancelable: true, ...init })),
   keyDown: (target: Element, init: KeyboardEventInit) => dispatch(target, keyboard('keydown', init)),
   wheel: (target: Element, init: WheelEventInit = {}) =>
     dispatch(target, new WheelEvent('wheel', { bubbles: true, cancelable: true, ...init })),

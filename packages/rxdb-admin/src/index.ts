@@ -2,6 +2,7 @@ export * from './bootstrap.js';
 export * from './i18n/index.js';
 export * from './layout/layout-state.js';
 export * from './layout/menu.js';
+export * from './layout/sidebar-drag.js';
 export * from './layout/ui-state.js';
 export * from './media.js';
 export * from './palette/controller.js';

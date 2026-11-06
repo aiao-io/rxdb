@@ -45,6 +45,13 @@ const onKeyDown = (event: KeyboardEvent, index: number): void => {
   requestAnimationFrame(() => document.getElementById(`prefs-widget-${key}`)?.focus());
 };
 
+const onDragStart = (event: DragEvent, key: WidgetKey, index: number): void => {
+  // Firefox 没有拖拽数据就不会启动拖放
+  event.dataTransfer?.setData('text/plain', key);
+  if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+  dragFrom.value = index;
+};
+
 const onDragOver = (event: DragEvent, index: number): void => {
   if (dragFrom.value === null) return;
   event.preventDefault();
@@ -73,7 +80,7 @@ const onDrop = (event: DragEvent, index: number): void => {
         :data-dragging="dragFrom === index"
         :data-drop-target="dropTo === index && dragFrom !== index"
         @keydown="onKeyDown($event, index)"
-        @dragstart="dragFrom = index"
+        @dragstart="onDragStart($event, key, index)"
         @dragover="onDragOver($event, index)"
         @drop="onDrop($event, index)"
         @dragend="clearDrag"

@@ -53,7 +53,12 @@ export function WidgetList(): ReactElement {
             data-dragging={dragFrom === index}
             data-drop-target={dropTo === index && dragFrom !== index}
             onKeyDown={event => onKeyDown(event, index)}
-            onDragStart={() => setDragFrom(index)}
+            onDragStart={event => {
+              // Firefox 没有拖拽数据就不会启动拖放
+              event.dataTransfer?.setData('text/plain', key);
+              if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+              setDragFrom(index);
+            }}
             onDragOver={event => {
               if (dragFrom === null) return;
               event.preventDefault();

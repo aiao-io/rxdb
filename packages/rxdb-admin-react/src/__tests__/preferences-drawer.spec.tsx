@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, createEvent, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mount } from './test-utils.js';
 
@@ -144,6 +144,17 @@ describe('PreferencesDrawer', () => {
       expect([...screen.getByTestId('pref-tab-appearance').classList]).toEqual(['tab']);
     });
 
+    it('数字：当前值已在上限时输入越界值，提交后输入框回到被约束的值', () => {
+      const { shell } = mount({ defaults: { theme: { fontSize: 22 } } });
+      openDrawer(shell);
+      const size = screen.getByTestId('pref-theme.fontSize') as HTMLInputElement;
+      expect(size.value).toBe('22');
+      fireEvent.change(size, { target: { value: '99' } });
+      fireEvent.keyDown(size, { key: 'Enter' });
+      expect(shell.preferences.value.theme.fontSize).toBe(22);
+      expect(size.value).toBe('22');
+    });
+
     it('下拉与卡片', () => {
       const { shell } = mount();
       openDrawer(shell);
@@ -221,6 +232,19 @@ describe('PreferencesDrawer', () => {
       fireEvent.dragEnd(screen.getByTestId('pref-widget-lock'));
       fireEvent.drop(screen.getByTestId('pref-widget-lock'));
       expect(shell.preferences.value.widget.order[0]).toBe('lock');
+    });
+
+    it('开始拖拽时写入拖拽数据（Firefox 没有数据就不会启动拖放）', () => {
+      const { shell } = mount();
+      openDrawer(shell);
+      fireEvent.click(screen.getByTestId('pref-tab-layout'));
+      // 直接把对象挂到事件上：fireEvent 的 init 会把属性拷到新的 DataTransfer 上，读不回组件写入的 effectAllowed
+      const dataTransfer = { setData: vi.fn(), effectAllowed: 'none' };
+      const event = createEvent.dragStart(screen.getByTestId('pref-widget-lock'));
+      Object.defineProperty(event, 'dataTransfer', { value: dataTransfer });
+      fireEvent(screen.getByTestId('pref-widget-lock'), event);
+      expect(dataTransfer.setData).toHaveBeenCalledWith('text/plain', 'lock');
+      expect(dataTransfer.effectAllowed).toBe('move');
     });
 
     it('隐藏与恢复部件；设置入口不可隐藏', () => {

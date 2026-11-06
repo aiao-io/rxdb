@@ -141,6 +141,17 @@ describe('PreferencesDrawer', () => {
       expect([...screen.getByTestId('pref-tab-appearance').classList]).toEqual(['tab']);
     });
 
+    it('数字：当前值已在上限时输入越界值，提交后输入框回到被约束的值', async () => {
+      const { shell } = await mount({ defaults: { theme: { fontSize: 22 } } });
+      await openDrawer(shell);
+      const size = screen.getByTestId('pref-theme.fontSize') as HTMLInputElement;
+      expect(size.value).toBe('22');
+      await fire.change(size, '99');
+      await fire.keyDown(size, { key: 'Enter' });
+      expect(shell.preferences.value.theme.fontSize).toBe(22);
+      expect(size.value).toBe('22');
+    });
+
     it('下拉与卡片', async () => {
       const { shell } = await mount();
       await openDrawer(shell);
@@ -218,6 +229,16 @@ describe('PreferencesDrawer', () => {
       await fire.dragEnd(screen.getByTestId('pref-widget-lock'));
       await fire.drop(screen.getByTestId('pref-widget-lock'));
       expect(shell.preferences.value.widget.order[0]).toBe('lock');
+    });
+
+    it('开始拖拽时写入拖拽数据（Firefox 没有数据就不会启动拖放）', async () => {
+      const { shell } = await mount();
+      await openDrawer(shell);
+      await fire.click(screen.getByTestId('pref-tab-layout'));
+      const dataTransfer = { setData: vi.fn(), effectAllowed: 'none' };
+      await fire.dragStart(screen.getByTestId('pref-widget-lock'), { dataTransfer });
+      expect(dataTransfer.setData).toHaveBeenCalledWith('text/plain', 'lock');
+      expect(dataTransfer.effectAllowed).toBe('move');
     });
 
     it('隐藏与恢复部件；设置入口不可隐藏', async () => {

@@ -1,4 +1,4 @@
-import { activeGroupIds, findMenuPath, toggleGroup, type MenuNode } from '@aiao/rxdb-admin';
+import { activeGroupIds, findMenuPath, groupIds, groupsToOpen, toggleGroup, type MenuNode } from '@aiao/rxdb-admin';
 import { useMemo, useState, type MouseEvent, type ReactElement, type ReactNode } from 'react';
 import { useAdminShell, useAdminStore } from '../context.js';
 
@@ -25,18 +25,6 @@ export function interceptNavigation(event: MouseEvent, go: () => void): void {
   }
   event.preventDefault();
   go();
-}
-
-function initialOpen(nodes: readonly Node[], url: string): Set<string> {
-  const open = new Set(activeGroupIds(nodes, url));
-  const visit = (items: readonly Node[]): void => {
-    for (const node of items) {
-      if (node.expanded) open.add(node.id);
-      visit(node.children ?? []);
-    }
-  };
-  visit(nodes);
-  return open;
 }
 
 interface TreeProps {
@@ -149,13 +137,21 @@ export function MenuTree({ nodes, rail, extra }: MenuTreeProps): ReactElement {
   const shell = useAdminShell();
   const url = useAdminStore(shell.currentUrl);
   const prefs = useAdminStore(shell.preferences);
-  const [open, setOpen] = useState(() => initialOpen(nodes, url));
-  const [seenUrl, setSeenUrl] = useState(url);
+  const [open, setOpen] = useState(() => new Set(groupsToOpen(nodes, url)));
+  const [known, setKnown] = useState<ReadonlySet<string>>(() => new Set(groupIds(nodes)));
+  const [seen, setSeen] = useState({ nodes, url });
   const activeId = useMemo(() => findMenuPath(nodes, url).at(-1)?.id, [nodes, url]);
 
-  if (seenUrl !== url) {
-    setSeenUrl(url);
-    setOpen(current => new Set([...current, ...activeGroupIds(nodes, url)]));
+  // 地址变化展开当前页所在分组；菜单变化展开新出现的分组（声明了 expanded 或位于当前页路径上）。用户收起过的老分组不动
+  if (seen.nodes !== nodes || seen.url !== url) {
+    const menuChanged = seen.nodes !== nodes;
+    const fresh = [
+      ...(menuChanged ? groupsToOpen(nodes, url, known) : []),
+      ...(seen.url !== url ? activeGroupIds(nodes, url) : [])
+    ];
+    setSeen({ nodes, url });
+    if (menuChanged) setKnown(new Set(groupIds(nodes)));
+    if (fresh.length > 0) setOpen(current => new Set([...current, ...fresh]));
   }
 
   return (

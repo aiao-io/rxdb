@@ -1,6 +1,7 @@
-import type { MenuNode } from '@aiao/rxdb-admin';
+import { SIDEBAR_WIDTH_RANGE, SidebarDrag, type MenuNode } from '@aiao/rxdb-admin';
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import {
+  useEffect,
   useRef,
   useState,
   type ReactElement,
@@ -47,19 +48,28 @@ function SidebarResizer(): ReactElement {
   const shell = useAdminShell();
   const t = useAdminText();
   const { sidebar } = useAdminStore(shell.preferences);
-  const [dragging, setDragging] = useState(false);
-  const origin = useRef({ x: 0, width: 0 });
+  // 拖动中的预览宽度，`null` 表示没有在拖动；拖动期间只有手柄自己重渲染，偏好在松手时才提交
+  const [live, setLive] = useState<number | null>(null);
+  const drag = useRef<SidebarDrag | null>(null);
+
+  // 拖动中手柄被卸载（侧栏折叠、关掉拖拽偏好）：撤掉预览，不提交
+  useEffect(() => () => drag.current?.cancel(), []);
 
   const resizeTo = (width: number): void => shell.preferences.setPath('sidebar.width', width);
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
     event.preventDefault();
     event.currentTarget.setPointerCapture?.(event.pointerId);
-    origin.current = { x: event.clientX, width: sidebar.width };
-    setDragging(true);
+    drag.current = new SidebarDrag(shell.preferences, event.currentTarget, event.clientX);
+    setLive(drag.current.width);
   };
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>): void => {
-    if (dragging) resizeTo(origin.current.width + event.clientX - origin.current.x);
+    if (drag.current) setLive(drag.current.move(event.clientX));
+  };
+  const onPointerEnd = (): void => {
+    drag.current?.end();
+    drag.current = null;
+    setLive(null);
   };
   const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>): void => {
     const delta =
@@ -77,16 +87,16 @@ function SidebarResizer(): ReactElement {
       role='separator'
       aria-orientation='vertical'
       aria-label={t('layout.resize')}
-      aria-valuenow={sidebar.width}
-      aria-valuemin={160}
-      aria-valuemax={320}
+      aria-valuenow={live ?? sidebar.width}
+      aria-valuemin={SIDEBAR_WIDTH_RANGE.min}
+      aria-valuemax={SIDEBAR_WIDTH_RANGE.max}
       tabIndex={0}
-      data-dragging={dragging}
+      data-dragging={live !== null}
       data-testid='admin-sidebar-resizer'
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={() => setDragging(false)}
-      onPointerCancel={() => setDragging(false)}
+      onPointerUp={onPointerEnd}
+      onPointerCancel={onPointerEnd}
       onKeyDown={onKeyDown}
     />
   );
