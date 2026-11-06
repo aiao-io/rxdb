@@ -125,6 +125,7 @@ function memoryStore() {
       revision: 1
     })),
     works$: vi.fn(() => works),
+    list: vi.fn(async () => works.value),
     workCount$: vi.fn(() => count),
     syncedWorks$: vi.fn(() => syncedWorks),
     saveResult: vi.fn<() => Promise<void>>(async () => undefined),
@@ -276,11 +277,15 @@ describe('sync interaction boundaries', () => {
 
 async function boot(
   prepare: (r: ReturnType<typeof rig>) => void = () => undefined,
-  options: { rootOf?: WorkspaceRegistryStore['rootOf']; waitReady?: boolean } = {}
+  options: {
+    rootOf?: WorkspaceRegistryStore['rootOf'];
+    waitReady?: boolean;
+    registryState?: WorkspaceRegistryState;
+  } = {}
 ) {
   const r = rig();
   prepare(r);
-  const state: WorkspaceRegistryState = {
+  const state: WorkspaceRegistryState = options.registryState ?? {
     version: 1,
     generation: 0,
     selectedId: profileId,
@@ -413,16 +418,17 @@ describe('平台账号同步入口', () => {
     expect(r.store.saveResult).not.toHaveBeenCalled();
   });
 
-  it('平台用户确认范围后可以上传已有原图并开启新图自动同步', async () => {
+  it.each([false, true])('没有任务历史时仍上传已保存原图，跳过损坏作品；已启用状态=%s', async enabled => {
     const r = rig();
     const upload = vi.fn();
     r.component.targetKind.set('platform');
     r.component.syncInitialized.set(true);
-    r.component.history.set([job]);
+    r.component.imageSyncEnabled.set(enabled);
+    r.component.history.set([]);
+    r.works.next([work, { ...work, jobId: 'broken-file', status: 'broken' }]);
     Object.assign(r.component, {
       adminApi: { authorization: vi.fn(async () => access) },
-      imageSyncController: vi.fn(async () => ({ upload })),
-      hasLocalCopy: () => true
+      imageSyncController: vi.fn(async () => ({ upload }))
     });
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
     vi.mocked(fetch).mockResolvedValue(
@@ -438,7 +444,39 @@ describe('平台账号同步入口', () => {
     await r.component.enableImageSync('existing');
 
     expect(confirm).toHaveBeenCalledWith(expect.stringContaining('平台'));
-    expect(upload).toHaveBeenCalledWith(job);
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(r.store.list).toHaveBeenCalledOnce();
+    expect(upload).toHaveBeenCalledExactlyOnceWith(job.id);
+    expect(r.component.imageSyncEnabled()).toBe(true);
+    expect(r.component.imageSyncMessage()).toBe('已同步 1 张原图。');
+  });
+
+  it('已有原图范围没有候选时明确说明零张，不报告同步成功', async () => {
+    const r = rig();
+    const upload = vi.fn();
+    r.component.targetKind.set('platform');
+    r.component.syncInitialized.set(true);
+    r.component.history.set([job]);
+    r.works.next([{ ...work, status: 'broken' }]);
+    Object.assign(r.component, {
+      adminApi: { authorization: vi.fn(async () => access) },
+      imageSyncController: vi.fn(async () => ({ upload }))
+    });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.mocked(fetch).mockResolvedValue(
+      Response.json({
+        protocol: 1,
+        privateBucket: 'aiao-media-images',
+        maxBytes: 16777216,
+        resumable: true,
+        metadataOnly: false
+      })
+    );
+
+    await r.component.enableImageSync('existing');
+
+    expect(upload).not.toHaveBeenCalled();
+    expect(r.component.imageSyncMessage()).toBe('当前没有可上传的本机原图，已开启以后保存图片的自动同步。');
     expect(r.component.imageSyncEnabled()).toBe(true);
   });
 
@@ -557,6 +595,131 @@ describe('平台原图同步隔离', () => {
     });
   }
 
+  it('并发自动上传全部结束后才清除右上角同步状态，失败也释放计数', async () => {
+    const r = rig();
+    const first = deferred<void>();
+    const second = deferred<void>();
+    const upload = vi.fn().mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    Object.assign(r.component, { imageSyncController: vi.fn(async () => ({ upload })) });
+    r.component.targetKind.set('platform');
+    r.component.imageSyncEnabled.set(true);
+    const syncSavedImage = Reflect.get(r.component, 'syncSavedImage') as (task: GenerationJobSummary) => Promise<void>;
+
+    const firstUpload = syncSavedImage.call(r.component, job);
+    const secondUpload = syncSavedImage.call(r.component, { ...job, id: 'another-job' });
+    await vi.waitFor(() => expect(upload).toHaveBeenCalledTimes(2));
+    expect(r.component.syncActive()).toBe(true);
+    first.resolve();
+    await firstUpload;
+    expect(r.component.syncActive()).toBe(true);
+    second.reject(new Error('原图上传未完成'));
+    await secondUpload;
+
+    expect(r.component.syncActive()).toBe(false);
+    expect(r.component.imageSyncMessage()).toBe('原图上传未完成');
+  });
+
+  it('旧作用域自动上传结束时不清除新作用域的同步状态', async () => {
+    const r = rig();
+    const previous = deferred<void>();
+    const current = deferred<void>();
+    const upload = vi.fn().mockReturnValueOnce(previous.promise).mockReturnValueOnce(current.promise);
+    Object.assign(r.component, { imageSyncController: vi.fn(async () => ({ upload })) });
+    r.component.targetKind.set('platform');
+    r.component.imageSyncEnabled.set(true);
+    const syncSavedImage = Reflect.get(r.component, 'syncSavedImage') as (task: GenerationJobSummary) => Promise<void>;
+    const previousUpload = syncSavedImage.call(r.component, job);
+    await vi.waitFor(() => expect(upload).toHaveBeenCalledOnce());
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    await r.component.stopImageSync();
+    expect(r.component.syncActive()).toBe(false);
+    r.component.imageSyncEnabled.set(true);
+    const currentUpload = syncSavedImage.call(r.component, { ...job, id: 'current-job' });
+    await vi.waitFor(() => expect(upload).toHaveBeenCalledTimes(2));
+    previous.resolve();
+    await previousUpload;
+
+    expect(r.component.syncActive()).toBe(true);
+    expect(r.component.imageSyncMessage()).not.toBe('新作品原图已同步到平台账号。');
+    current.resolve();
+    await currentUpload;
+    expect(r.component.syncActive()).toBe(false);
+  });
+
+  it('取回进度按作品摘要隔离，不覆盖图片上传提示，成功后明确确认保存', async () => {
+    const r = rig();
+    const work = await remoteWork();
+    const object = deferred<Response>();
+    serve(work, () => object.promise);
+    connect(r.component, projects.a);
+    r.component.imageSyncMessage.set('已有图片上传提示');
+
+    const restoring = r.component.restoreRemoteWork(work);
+    await vi.waitFor(() =>
+      expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes('.storage.supabase.co'))).toBe(true)
+    );
+
+    expect(r.component.imageDownloadState(work)).toEqual({ status: 'loading', message: '正在从平台账号取回原图…' });
+    expect(r.component.imageDownloadState({ ...work, sha256: 'b'.repeat(64) })).toBeNull();
+    expect(r.component.imageSyncMessage()).toBe('已有图片上传提示');
+    object.resolve(original());
+    await restoring;
+
+    expect(r.component.imageDownloadState(work)).toEqual({ status: 'saved', message: '原图已校验并保存到本机。' });
+    expect(r.component.toast()).toBe('原图已校验并保存到本机。');
+    expect(r.component.imageSyncMessage()).toBe('已有图片上传提示');
+    expect(r.component.imageSyncBusy()).toBe(false);
+  });
+
+  it.each(['未上传', '记录读取失败', 'Storage读取失败'])(
+    '取回%s时记录该作品失败状态，不产生本机原图',
+    async failure => {
+      const r = rig();
+      const work = await remoteWork();
+      connect(r.component, projects.a);
+      if (failure === 'Storage读取失败') serve(work, async () => new Response('', { status: 403 }));
+      else
+        vi.mocked(fetch).mockResolvedValue(
+          failure === '未上传' ? Response.json([]) : new Response('', { status: 403 })
+        );
+
+      await r.component.restoreRemoteWork(work);
+
+      expect(r.component.imageDownloadState(work)).toEqual({ status: 'failed', message: expect.any(String) });
+      expect(r.component.imageSyncBusy()).toBe(false);
+      expect(r.store.saveResult).not.toHaveBeenCalled();
+      expect(r.component.imageSyncMessage()).toBe('');
+    }
+  );
+
+  it('切换身份清空下载反馈，旧请求迟到失败不覆盖新身份的卡片错误', async () => {
+    const r = rig();
+    const work = await remoteWork();
+    const oldObject = deferred<Response>();
+    serve(work, () => oldObject.promise);
+    connect(r.component, projects.a);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const restoring = r.component.restoreRemoteWork(work);
+    await vi.waitFor(() =>
+      expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes('.storage.supabase.co'))).toBe(true)
+    );
+
+    await r.component.changeSyncTarget('disconnected');
+    expect(r.component.imageDownloadState(work)).toBeNull();
+    connect(r.component, projects.b);
+    serve(work, async () => new Response('', { status: 403 }));
+    await r.component.restoreRemoteWork(work);
+    const current = r.component.imageDownloadState(work);
+    expect(current?.status).toBe('failed');
+    oldObject.reject(new Error('旧身份下载失败'));
+    await restoring;
+
+    expect(r.component.imageDownloadState(work)).toEqual(current);
+    expect(r.component.toast()).toBe('');
+    expect(r.store.saveResult).not.toHaveBeenCalled();
+  });
+
   it('drops a remote original that arrives after the user switched away from its project', async () => {
     const r = rig();
     const work = await remoteWork();
@@ -576,6 +739,7 @@ describe('平台原图同步隔离', () => {
 
     expect(r.store.saveResult).not.toHaveBeenCalled();
     expect(r.component.imageSyncMessage()).toBe('当前账号提示');
+    expect(r.component.imageDownloadState(work)).toBeNull();
   });
 
   it('旧账号的原图落盘完成后不会刷新新账号列表或改写提示', async () => {
@@ -600,6 +764,8 @@ describe('平台原图同步隔离', () => {
     expect(readTasks).not.toHaveBeenCalled();
     expect(retryLibrary).not.toHaveBeenCalled();
     expect(r.component.imageSyncMessage()).toBe('当前账号提示');
+    expect(r.component.imageDownloadState(work)).toBeNull();
+    expect(r.component.toast()).toBe('');
   });
 
   it('transfers with the newly selected project instead of reusing the previous project controller', async () => {
@@ -626,6 +792,52 @@ describe('平台原图同步隔离', () => {
 });
 
 describe('local result lifecycle', () => {
+  it('首屏本机工作区就绪不等待远端同步请求结束', async () => {
+    const config = { url: 'https://account.example', anonKey: 'sb_publishable_fixture' };
+    vi.stubGlobal('__AIAO_SUPABASE_CONFIG__', config);
+    vi.spyOn(SupabaseAuthClient.prototype, 'restore').mockResolvedValue(undefined);
+    vi.spyOn(SupabaseAuthClient.prototype, 'subscribe').mockImplementation(listener => {
+      listener({ status: 'signed-in', user: { id: profileId, email: 'fixture@example.test' }, message: '' });
+      return () => undefined;
+    });
+    const pending = deferred<Awaited<ReturnType<ProductClient['authorization']>>>();
+    const authorization = vi.spyOn(ProductClient.prototype, 'authorization').mockReturnValue(pending.promise);
+    const r = await boot(undefined, {
+      waitReady: false,
+      registryState: {
+        version: 1,
+        generation: 0,
+        selectedId: profileId,
+        profiles: [
+          {
+            id: profileId,
+            account: { userId: profileId, projectOrigin: config.url },
+            binding: {
+              version: 1,
+              state: 'active',
+              requestId: nextProfileId,
+              remoteWorkspaceId: nextProfileId,
+              mode: 'create',
+              initialized: true
+            }
+          }
+        ]
+      }
+    });
+    await vi.waitFor(() => expect(authorization).toHaveBeenCalledOnce());
+    try {
+      await vi.waitFor(() => expect(r.component.localStatus()).toBe('ready'));
+      expect(r.component.sync().busy).toBe(true);
+      expect(r.component.localWorksKnown()).toBe(true);
+      expect(r.component.workspaceSwitching()).toBe(false);
+      expect(r.component.identityBlocked()).toBe(false);
+    } finally {
+      pending.reject(new Error('远端离线'));
+    }
+    await vi.waitFor(() => expect(r.component.sync().busy).toBe(false));
+    expect(r.component.localStatus()).toBe('ready');
+  });
+
   it('本机数据已打开但身份初始化未结束时不启动同步预览', async () => {
     vi.stubGlobal('__AIAO_SUPABASE_CONFIG__', { url: 'https://account.example', anonKey: 'sb_publishable_fixture' });
     vi.spyOn(SupabaseAuthClient.prototype, 'restore').mockResolvedValue(undefined);

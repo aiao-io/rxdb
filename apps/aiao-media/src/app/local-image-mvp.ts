@@ -15,7 +15,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { concatMap, EMPTY, merge, Subscription } from 'rxjs';
-import { imageExtension, validateImageBlob, type ImageMimeType } from '../contracts/image-format';
+import { imageExtension, type ImageMimeType } from '../contracts/image-format';
 import type { GenerationJobSummary, ImageAspectRatio } from '../contracts/index';
 import {
   productRecordId,
@@ -82,8 +82,6 @@ import {
   publicProvider,
   type LocalProvider
 } from './local-provider';
-import type { PlatformJob } from './platform-client';
-import { PlatformStudio } from './platform-studio';
 import { ProductClient } from './product-client';
 import { ProductWorkspaceController, type ProductWorkspaceState } from './product-workspace';
 import { applyIssue, templateState, type PromptTemplate } from './prompts/prompt-catalog';
@@ -114,6 +112,10 @@ type View = 'discover' | 'studio' | 'library' | 'providers' | 'admin';
 type SettingsTab = 'providers' | 'sync' | 'data' | 'display';
 type Work = LibraryWork;
 type WorkViewer = { work: Work; image: { url: string; mimeType: ImageMimeType } | null; failed: boolean };
+interface ImageDownloadState {
+  status: 'loading' | 'saved' | 'failed';
+  message: string;
+}
 type LocalTask = GenerationJobSummary & {
   channel?: 'direct' | 'proxy' | 'platform';
   saved?: boolean;
@@ -176,7 +178,6 @@ const emptyLibrary = (): LibraryState => ({
     AdminConsole,
     WorkVisibleDirective,
     ElementWidthDirective,
-    PlatformStudio,
     SyncTargetSettings
   ],
   templateUrl: './local-image-mvp.html',
@@ -200,6 +201,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private product?: ProductWorkspaceController;
   /** 图片传输的作用域：同步目标、项目账号或本机工作区一变就中止，旧传输的迟到结果不进入新目标。 */
   private imageSyncScope = new AbortController();
+  private readonly imageDownloads = signal<ReadonlyMap<string, ImageDownloadState>>(new Map());
   private registryState?: WorkspaceRegistryState;
   private rootId = '';
   private transitionCount = 0;
@@ -427,6 +429,8 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   readonly remoteQuota = signal('');
   readonly imageSyncEnabled = signal(false);
   readonly imageSyncBusy = signal(false);
+  readonly imageUploads = signal(0);
+  readonly syncActive = computed(() => this.sync().busy || this.imageSyncBusy() || this.imageUploads() > 0);
   readonly imageSyncMessage = signal('');
   readonly imageSyncProgress = signal('');
   readonly platformAvailable = signal(false);
@@ -1057,54 +1061,6 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.error.set('无法保存核对记录，请重试。');
     }
   }
-  async receivePlatformResult(event: { job: PlatformJob; blob: Blob; ownerId: string; scope: string }) {
-    if (
-      this.settingsBusy() ||
-      !this.store ||
-      event.scope !== this.profileId ||
-      event.ownerId !== this.authUser()?.id ||
-      this.targetKind() !== 'platform'
-    )
-      return;
-    this.sending.set(true);
-    try {
-      await validateImageBlob(event.blob);
-      const now = new Date().toISOString();
-      const task: LocalTask = {
-        id: event.job.id,
-        channel: 'platform',
-        request: {
-          kind: 'image',
-          operation: 'text-to-image',
-          providerInstanceId: '00000000-0000-4000-8000-000000000001',
-          providerRevision: 1,
-          modelId: event.job.model,
-          prompt: event.job.prompt,
-          aspectRatio:
-            event.job.size === '1536x1024' ? 'landscape'
-            : event.job.size === '1024x1536' ? 'portrait'
-            : 'square'
-        },
-        status: 'completed',
-        createdAt: event.job.createdAt,
-        updatedAt: now,
-        delivery: { status: 'available', expiresAt: null, acknowledgedAt: null },
-        failure: null
-      };
-      this.revokeResult();
-      this.resultBlob = event.blob;
-      this.resultMimeType.set(event.blob.type as ImageMimeType);
-      this.resultUrl.set(URL.createObjectURL(event.blob));
-      this.job.set(task);
-      this.saved.set(false);
-      await this.writeTask(task);
-      await this.saveResult();
-    } catch (error) {
-      this.storageMessage.set(error instanceof Error ? error.message : '平台图片本机保存未完成，请重试读取原图。');
-    } finally {
-      this.sending.set(false);
-    }
-  }
   async saveResult() {
     const job = this.job(),
       blob = this.resultBlob,
@@ -1208,6 +1164,9 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     try {
       await store.delete(work.jobId);
       if (epoch !== this.epoch) return false;
+      this.imageDownloads.update(
+        current => new Map([...current].filter(([key]) => !key.startsWith(`${work.jobId}:`)))
+      );
       if (this.resultUrl() && !this.resultBlob) this.revokeResult();
       if (this.job()?.id === work.jobId) {
         this.revokeResult();
@@ -1560,20 +1519,20 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       localStorage.setItem(this.imageSyncKey(), scope);
       this.imageSyncEnabled.set(true);
       const controller = await this.imageSyncController(signal);
-      const tasks =
-        scope === 'existing' ?
-          this.history().filter(task => task.status === 'completed' && this.hasLocalCopy(task))
-        : [];
-      for (let index = 0; index < tasks.length; index++) {
+      const images =
+        scope === 'existing' ? (await this.requireStore().list()).filter(image => image.status === 'saved') : [];
+      for (let index = 0; index < images.length; index++) {
         signal.throwIfAborted();
-        this.imageSyncProgress.set(`${index}/${tasks.length}`);
-        await controller.upload(tasks[index]);
+        this.imageSyncProgress.set(`${index}/${images.length}`);
+        await controller.upload(images[index].jobId);
       }
       signal.throwIfAborted();
-      this.imageSyncProgress.set(tasks.length ? `${tasks.length}/${tasks.length}` : '');
+      this.imageSyncProgress.set(images.length ? `${images.length}/${images.length}` : '');
       this.imageSyncMessage.set(
         scope === 'existing' ?
-          `已确认并处理 ${tasks.length} 张本机图片；失败项可重试。`
+          images.length ?
+            `已同步 ${images.length} 张原图。`
+          : '当前没有可上传的本机原图，已开启以后保存图片的自动同步。'
         : '已确认以后保存的图片自动同步；已有图片未上传。'
       );
     } catch (error) {
@@ -1616,20 +1575,27 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         failure: null
       } as LocalTask);
     this.imageSyncBusy.set(true);
-    this.imageSyncMessage.set('正在从平台账号取回原图…');
+    this.setImageDownloadState(work, { status: 'loading', message: '正在从平台账号取回原图…' });
     try {
       await (await this.imageSyncController(signal)).download(work.jobId, work.sha256, task);
       if (!this.currentImageSync(signal)) return;
       await this.readTasks();
       if (!this.currentImageSync(signal)) return;
       this.retryLibrary();
-      this.imageSyncMessage.set('原图已校验并保存到本机。');
+      this.setImageDownloadState(work, { status: 'saved', message: '原图已校验并保存到本机。' });
+      this.notify('原图已校验并保存到本机。');
     } catch (error) {
       if (this.currentImageSync(signal))
-        this.imageSyncMessage.set(error instanceof Error ? error.message : '原图取回失败，本机数据保留。');
+        this.setImageDownloadState(work, {
+          status: 'failed',
+          message: error instanceof Error ? error.message : '原图取回失败，本机数据保留。'
+        });
     } finally {
       if (this.currentImageSync(signal)) this.imageSyncBusy.set(false);
     }
+  }
+  imageDownloadState(work: Pick<PublicWorkPayload, 'jobId' | 'sha256'>): ImageDownloadState | null {
+    return this.imageDownloads().get(`${work.jobId}:${work.sha256}`) ?? null;
   }
   async rescanSync() {
     if (
@@ -1803,6 +1769,11 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.imageSyncScope.abort(new Error('同步目标、账号或工作区已变化，旧的图片传输已停止；本机原图保留。'));
     this.imageSyncScope = new AbortController();
     this.imageSyncBusy.set(false);
+    this.imageUploads.set(0);
+    this.imageDownloads.set(new Map());
+  }
+  private setImageDownloadState(work: PublicWorkPayload, state: ImageDownloadState) {
+    this.imageDownloads.update(current => new Map(current).set(`${work.jobId}:${work.sha256}`, state));
   }
   private currentImageSync(signal: AbortSignal): boolean {
     return !this.disposed && signal === this.imageSyncScope.signal && !signal.aborted;
@@ -1810,12 +1781,15 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private async syncSavedImage(task: LocalTask) {
     if (!this.imageSyncEnabled() || this.targetKind() !== 'platform' || task.status !== 'completed') return;
     const signal = this.imageSyncScope.signal;
+    this.imageUploads.update(count => count + 1);
     try {
-      await (await this.imageSyncController(signal)).upload(task);
+      await (await this.imageSyncController(signal)).upload(task.id);
       if (this.currentImageSync(signal)) this.imageSyncMessage.set('新作品原图已同步到平台账号。');
     } catch (error) {
       if (this.currentImageSync(signal))
         this.imageSyncMessage.set(error instanceof Error ? error.message : '新作品图片同步失败，本机原图保留。');
+    } finally {
+      if (this.currentImageSync(signal)) this.imageUploads.update(count => count - 1);
     }
   }
   private releaseLibraryPreviews() {
@@ -2341,7 +2315,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.syncPaused.set(localStorage.getItem(this.syncPauseKey()) === '1');
       this.restoreImageSyncPreference();
       if (!this.syncPaused() && this.authStatus() === 'signed-in' && this.currentProfile()?.binding?.initialized)
-        await this.product?.resume();
+        void this.product?.resume();
     } catch (error) {
       if (version === this.identityVersion)
         this.storageMessage.set(error instanceof Error ? error.message : '账号工作区切换未完成，本机输入保留。');

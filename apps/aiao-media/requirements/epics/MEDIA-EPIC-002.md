@@ -19,7 +19,7 @@ owner: TBD
 - [ ] 图片提示词灵感库与一键套用（[MEDIA-US-106](../stories/generation/MEDIA-US-106-prompt-gallery.md)）
 - [ ] 移动设备验收（暂缓，不阻断当前桌面工作，[MEDIA-US-107](../stories/generation/MEDIA-US-107-mobile-verification.md)）
 
-- [ ] 平台生图、额度与持久任务（[MEDIA-US-108](../stories/generation/MEDIA-US-108-platform-generation.md)）
+- [ ] 平台生图、额度与持久任务（D-17 暂缓，[MEDIA-US-108](../stories/generation/MEDIA-US-108-platform-generation.md)）
 - [ ] 本站代理生图的服务端任务与刷新续接（[MEDIA-US-109](../stories/generation/MEDIA-US-109-relay-durable-task.md)）
 
 ## 故事
@@ -31,7 +31,7 @@ owner: TBD
 - [MEDIA-US-106 图片提示词灵感库与一键套用](../stories/generation/MEDIA-US-106-prompt-gallery.md) (Medium)
 - [MEDIA-US-107 移动设备能力验收](../stories/generation/MEDIA-US-107-mobile-verification.md) (Low，暂缓)
 
-- [MEDIA-US-108 平台生图、额度与持久任务](../stories/generation/MEDIA-US-108-platform-generation.md) (High)
+- [MEDIA-US-108 平台生图、额度与持久任务](../stories/generation/MEDIA-US-108-platform-generation.md) (High，D-17 暂缓)
 - [MEDIA-US-109 本站代理生图的服务端任务与刷新续接](../stories/generation/MEDIA-US-109-relay-durable-task.md) (High)
 
 ## 非目标
@@ -42,4 +42,4 @@ owner: TBD
 
 ## 进展
 
-既有四条故事和新增平台故事均有未过的真实环境 AC，代理任务故事 MEDIA-US-109 已完成本地实现，待真实账号验证与正式发布；逐条进展与关闭条件见[状态概览](../status-overview.md#未完成验收与关闭条件)，正式环境证据见[验收记录](../verification-report.md#正式环境证据)。
+既有四条故事仍有未过的真实环境 AC，平台故事 MEDIA-US-108 按 D-17 暂缓；代理任务故事 MEDIA-US-109 已完成本地实现，待真实账号验证与正式发布；逐条进展与关闭条件见[状态概览](../status-overview.md#未完成验收与关闭条件)，正式环境证据见[验收记录](../verification-report.md#正式环境证据)。

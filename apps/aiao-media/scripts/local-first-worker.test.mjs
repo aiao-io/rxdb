@@ -127,6 +127,41 @@ test('未知 API 返回 404，普通页面走静态资源', async () => {
   assert.equal(workerScript.headers.get('cache-control'), 'no-store');
 });
 
+test('免费平台停用平台生图与计费接口，不访问账号服务或任务协调器', async t => {
+  const previous = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = previous;
+  });
+  let requested = false;
+  const unexpected = () => {
+    requested = true;
+    throw new Error('停用接口不应访问外部服务或任务协调器');
+  };
+  globalThis.fetch = unexpected;
+  const disabledEnv = {
+    ...env,
+    MEDIA_SUPABASE_URL: 'https://platform.example.test',
+    MEDIA_SUPABASE_ANON_KEY: 'fixture-anon',
+    MEDIA_SUPABASE_SERVICE_ROLE_KEY: 'fixture-service-role',
+    MEDIA_PLATFORM: { idFromName: unexpected, get: unexpected }
+  };
+  for (const path of ['catalog', 'account', 'jobs', 'checkout', 'webhook', 'admin']) {
+    for (const method of ['GET', 'POST']) {
+      const response = await worker.fetch(
+        new Request(`${origin}/api/platform/${path}`, {
+          method,
+          headers: { origin, authorization: 'Bearer fixture-only' }
+        }),
+        disabledEnv
+      );
+      assert.equal(response.status, 404);
+      assert.equal(response.headers.get('cache-control'), 'no-store');
+      assert.equal((await response.json()).error, 'Unknown API');
+    }
+  }
+  assert.equal(requested, false);
+});
+
 test('平台统一同步不提供用户项目授权与初始化接口', async t => {
   const previous = globalThis.fetch;
   t.after(() => {

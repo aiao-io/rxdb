@@ -19,7 +19,7 @@ owner: jimmy
 - [x] 跨用户管理用户、模板、供应商策略、任务与用量（[MEDIA-US-203](../stories/account/MEDIA-US-203-business-admin.md)）
 - [x] 本地作品检索、稳定分页与真实视口按需预览（[MEDIA-US-204](../stories/account/MEDIA-US-204-library-search.md)）
 
-- [ ] 平台支付、退款与生产运维（[MEDIA-US-205](../stories/account/MEDIA-US-205-platform-billing.md)）
+- [ ] 平台支付、退款与生产运维（D-17 暂缓，[MEDIA-US-205](../stories/account/MEDIA-US-205-platform-billing.md)）
 
 ## 故事
 
@@ -30,7 +30,7 @@ owner: jimmy
 - [MEDIA-US-203 跨用户业务后台管理](../stories/account/MEDIA-US-203-business-admin.md) (High)
 - [MEDIA-US-204 本地作品检索与按需预览](../stories/account/MEDIA-US-204-library-search.md) (High)
 
-- [MEDIA-US-205 平台支付、退款与生产运维](../stories/account/MEDIA-US-205-platform-billing.md) (High)
+- [MEDIA-US-205 平台支付、退款与生产运维](../stories/account/MEDIA-US-205-platform-billing.md) (High，D-17 暂缓)
 
 ## 非目标
 

@@ -6,7 +6,7 @@ Local-first 图片创作应用：发现灵感 → Tiptap 编辑提示词 → 使
 
 迁入来源与兼容验证见[迁移验收](requirements/plans/rxdb-import-verification.md)。应用需求在本目录内独立维护，平台需求仍位于仓库根。
 
-桌面安装版、平台生图与计费、自有 Supabase 接入和同步管理的当前实现与未验边界见[产品交付计划](requirements/plans/product-completion-20261030.md)。本地安装说明见 [Tauri](src-tauri/README.md)，平台配置见[服务部署](deploy/platform-services.md)。
+当前平台免费，平台图片服务、积分购买和计费后台已移除，`/api/platform/*` 返回 404；未来提供收费功能时再评审。桌面安装版与统一平台账号同步的实现及未验边界见[产品交付计划](requirements/plans/product-completion-20261030.md)。本地安装说明见 [Tauri](src-tauri/README.md)，平台配置见[服务部署](deploy/platform-services.md)。
 
 ## 运行
 
@@ -16,7 +16,7 @@ Local-first 图片创作应用：发现灵感 → Tiptap 编辑提示词 → 使
 pnpm install --frozen-lockfile
 ```
 
-本机创作不需要安装数据库：前端是 Angular CSR，后端是同一份 [Cloudflare Worker](server/cloudflare/local-first-worker.mjs)。生图代理 `/api/relay`、`/api/relay/tasks` 不依赖账号；`/api/platform`、`/api/admin`、`/api/templates` 及账号同步使用部署方统一的 Supabase 项目。本地有两种形态：开发服务器带热更新，并把代理部分内嵌在同一进程里，不必另起后端；Wrangler 预览在本机运行完整 Worker 和构建后的静态产物，没有热更新。
+本机创作不需要安装数据库：前端是 Angular CSR，后端是同一份 [Cloudflare Worker](server/cloudflare/local-first-worker.mjs)。生图代理 `/api/relay`、`/api/relay/tasks` 不依赖账号；`/api/admin`、`/api/templates` 及账号同步使用部署方统一的 Supabase 项目。本地有两种形态：开发服务器带热更新，并把代理部分内嵌在同一进程里，不必另起后端；Wrangler 预览在本机运行完整 Worker 和构建后的静态产物，没有热更新。
 
 下表命令省略 `pnpm nx run aiao-media:` 前缀，`supabase-local.mjs preview` 是直接用 node 运行的脚本。两行 Supabase 的完整步骤见[可选账号与本地 Supabase](#可选账号与本地-supabase)。
 
@@ -36,7 +36,7 @@ pnpm nx run aiao-media:serve
 打开 `http://localhost:4300`，四个页面分别为 `/`、`/create`、`/images`、`/providers`。首次打开时会自动创建并选中当前免费的默认供应商；如果本机还没有 API Key，生成时会在创作页直接请你填写。也可以在设置页的「供应商」分区覆盖默认项，填写自己的名称、HTTPS Base URL、图片模型 ID 和 API Key。Base URL 填 API 前缀：Images API 追加 `/images/generations`，MiniMax 官方前缀追加 `/image_generation`。
 
 - 前端是 Angular 开发服务器，改源码自动刷新。首次运行会先构建依赖包和 wasm 资源，之后命中缓存。
-- 后端是 [proxy.conf.mjs](proxy.conf.mjs) 在同一进程内启动的 Worker 代理，只提供 `/api/relay` 和 `/api/relay/tasks`（详见下文「本站代理」）；不启动 Supabase，也没有 `/api/platform`、`/api/admin`、`/api/templates`。
+- 后端是 [proxy.conf.mjs](proxy.conf.mjs) 在同一进程内启动的 Worker 代理，只提供 `/api/relay` 和 `/api/relay/tasks`（详见下文「本站代理」）；不启动 Supabase，也没有 `/api/admin`、`/api/templates`。
 - 数据保存在浏览器的 OPFS / IndexedDB，不需要数据库或 `.env`。
 - 开发构建自动接入 RxDB DevTools 浏览器扩展，检查当前工作区的媒体数据库；切换工作区时连接随之切换。生产和桌面构建使用空实现，产物不包含 `@aiao/rxdb-devtools`。
 - 未配置 `AIAO_SUPABASE_URL` 和 `AIAO_SUPABASE_ANON_KEY` 时不显示注册/登录入口。如果 `apps/aiao-media/.env` 里填过这两项，入口会出现；要纯本机模式就清空它们。
@@ -50,7 +50,7 @@ pnpm nx run aiao-media:preview          # Wrangler 本地运行，不需要登�
 
 打开 `http://localhost:4398`。`preview` 不会自己构建，改了前端要重新执行 `offline-assets` 再重启。用来验证完整 Worker（Durable Object 与 R2 由 Wrangler 本地模拟）、Service Worker 离线、CSP 和 `/api/provider-probe`。
 
-Wrangler 会自动读取被 Git 忽略的 `deploy/.dev.vars`（Worker 私有配置，模板见 [.dev.vars.example](deploy/.dev.vars.example)）。文件不存在时，依赖 Supabase 的接口不可用（返回 503 或空列表），本机创作不受影响；文件存在时，Worker 会带着其中的 Supabase、Stripe 配置运行，要纯本机预览先把它移走。
+Wrangler 会自动读取被 Git 忽略的 `deploy/.dev.vars`（Worker 私有配置，模板见 [.dev.vars.example](deploy/.dev.vars.example)）。文件不存在时，依赖 Supabase 的接口不可用（返回 503 或空列表），本机创作不受影响；文件存在时，Worker 会带着其中的 Supabase 配置运行，要纯本机预览先把它移走。已有平台模型或支付配置不会重新开放已停用的接口。
 
 ### 供应商与生成
 
@@ -63,7 +63,7 @@ Wrangler 会自动读取被 Git 忽略的 `deploy/.dev.vars`（Worker 私有配�
 - 默认 Key 只保留在当前页面内存。勾选“在此设备记住 Key”后，写入本机专门的凭据记录；配置、任务记录和备份不包含凭据，代理任务令牌也单独存放，不进任务记录、备份或同步。
 - 请求发送前先写本机任务记录。直连请求在超时、CORS、断网或刷新后结果不确定时不自动重发、不自动切换代理；代理任务在刷新后继续，只有本站确认上游结果不确定时才进入核对。用户核对供应商记录后才能解除锁定。
 
-首次联网完成离线资源安装后，四个页面及本机草稿、配置、作品可离线打开。模型生成始终需要联网，供应商调用费用由用户承担。
+首次联网完成离线资源安装后，四个页面及本机草稿、配置、作品可离线打开。模型生成始终需要联网，自有供应商调用费用按该供应商的规则承担。
 
 ## 本机数据和备份
 
@@ -111,7 +111,7 @@ pnpm nx run aiao-media:supabase-migrate
 pnpm nx run aiao-media:supabase-serve
 ```
 
-先执行 `supabase-up`，再把 `AIAO_SUPABASE_URL=http://127.0.0.1:54321` 和本地公开 anon Key 注入后启动 `serve`。打开 `http://localhost:4300`，注册/登录入口出现。后端仍是内嵌的生图代理，不提供 `/api/platform`、`/api/admin`、`/api/templates`；需要它们时用下面的生产形态预览。
+先执行 `supabase-up`，再把 `AIAO_SUPABASE_URL=http://127.0.0.1:54321` 和本地公开 anon Key 注入后启动 `serve`。打开 `http://localhost:4300`，注册/登录入口出现。后端仍是内嵌的生图代理，不提供 `/api/admin`、`/api/templates`；需要业务后台与模板接口时用下面的生产形态预览。
 
 ### 有 Supabase：生产形态预览
 

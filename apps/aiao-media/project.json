@@ -508,7 +508,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/aiao-media",
-        "command": "vitest run --config vite.config.mts --project=aiao-media-ui src/app/platform-submission.spec.ts src/app/sync-target.spec.ts src/app/platform-client.spec.ts src/app/desktop-files.spec.ts"
+        "command": "vitest run --config vite.config.mts --project=aiao-media-ui src/app/sync-target.spec.ts src/app/desktop-files.spec.ts"
       }
     },
     "desktop-icons": {

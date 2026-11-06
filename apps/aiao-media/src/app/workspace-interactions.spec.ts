@@ -37,22 +37,66 @@ function workspace() {
 }
 
 describe('workspace interaction boundaries', () => {
-  it('keeps local browsing available and exposes a working stop action while syncing', () => {
+  it('同步进度收在右上角，默认折叠且本机浏览可用，展开后可以停止同步', () => {
     const r = workspace();
     const pause = vi.fn(() => r.component.sync.update(state => ({ ...state, busy: false, status: 'paused' })));
     Object.assign(r.component, { product: { pause, close: vi.fn() } });
     r.component.sync.update(state => ({ ...state, busy: true, status: 'syncing', message: '正在同步作品…' }));
     r.fixture.detectChanges();
-    const banner = r.element.querySelector<HTMLElement>('[aria-label="同步状态"]');
-    const stop = banner?.querySelector<HTMLButtonElement>('button');
+    const indicator = r.element.querySelector<HTMLDetailsElement>('.header-right [aria-label="同步状态"]');
+    const stop = indicator?.querySelector<HTMLButtonElement>('button');
     expect(r.element.querySelector('main')?.inert).toBeFalsy();
-    expect(banner?.textContent).toContain('正在同步作品');
+    expect(r.element.querySelector('main')?.hidden).toBe(false);
+    expect(r.element.querySelector('.image-mvp > .sync-progress')).toBeNull();
+    expect(indicator).not.toBeNull();
+    expect(indicator?.open).toBe(false);
+    expect(indicator?.querySelector('summary')?.textContent).toContain('同步中');
+    expect(indicator?.querySelector('.sync-icon')?.classList.contains('sync-spinning')).toBe(true);
+    indicator!.querySelector('summary')!.click();
+    expect(indicator?.open).toBe(true);
+    expect(indicator?.textContent).toContain('正在同步作品');
     expect(stop?.disabled).toBe(false);
     stop!.click();
     r.fixture.detectChanges();
     expect(pause).toHaveBeenCalledOnce();
     expect(r.component.syncPaused()).toBe(true);
     expect(r.component.sync().busy).toBe(false);
+    expect(indicator?.querySelector('.sync-spinning')).toBeNull();
+    expect(indicator?.open).toBe(false);
+  });
+
+  it('原图传输也显示同步图标，进度和反馈只在详情中展示', () => {
+    const r = workspace();
+    r.component.imageSyncBusy.set(true);
+    r.component.imageSyncProgress.set('1/3');
+    r.component.imageSyncMessage.set('正在上传本机原图');
+    r.fixture.detectChanges();
+    const indicator = r.element.querySelector<HTMLDetailsElement>('[aria-label="同步状态"]');
+    expect(indicator?.open).toBe(false);
+    expect(indicator?.querySelector('summary')?.textContent).toContain('同步中');
+    expect(indicator?.querySelector('summary')?.textContent).not.toContain('1/3');
+    expect(indicator?.textContent).toContain('1/3');
+    expect(indicator?.textContent).toContain('正在上传本机原图');
+    expect(indicator?.querySelector('.sync-spinning')).not.toBeNull();
+    expect(r.element.querySelector('main')?.inert).toBeFalsy();
+  });
+
+  it.each([
+    ['local', '仅在本机'],
+    ['pending', '有待同步改动'],
+    ['synced', '同步已确认'],
+    ['paused', '同步已暂停'],
+    ['failed', '同步未完成'],
+    ['conflict', '存在待处理冲突']
+  ] as const)('同步状态 %s 静止显示且保留详细反馈', (status, label) => {
+    const r = workspace();
+    r.component.sync.update(state => ({ ...state, status, message: '详细同步反馈' }));
+    r.fixture.detectChanges();
+    const indicator = r.element.querySelector<HTMLDetailsElement>('[aria-label="同步状态"]');
+    expect(indicator?.querySelector('summary')?.textContent).toContain(label);
+    expect(indicator?.querySelector('.sync-spinning')).toBeNull();
+    expect(indicator?.textContent).toContain('详细同步反馈');
+    expect(indicator?.querySelector('button')).toBeNull();
   });
 
   it('hands keyboard focus to the prompt after applying an inspiration', () => {

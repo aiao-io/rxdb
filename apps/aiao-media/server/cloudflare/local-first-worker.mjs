@@ -1,6 +1,5 @@
 import { imageGenerationRequest, isMiniMaxImageProvider } from '../../src/contracts/image-provider-protocol.ts';
 import { handleAdmin } from './admin-api.mjs';
-import { handlePlatform } from './platform-api.mjs';
 import { publishedTemplates, runtimePolicy } from './product-content.mjs';
 import { endpoint } from './product-http.mjs';
 import { base, json, relayInput } from './relay-input.mjs';
@@ -252,7 +251,6 @@ const worker = {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (!url.pathname.startsWith('/api/')) return fetchAsset(request, env);
-    if (url.pathname.startsWith('/api/platform/')) return handlePlatform(request, env);
     if (url.pathname.startsWith('/api/admin/')) return handleAdmin(request, env);
     if (url.pathname === '/api/templates' && request.method === 'GET') return endpoint(() => publishedTemplates(env));
     if (url.pathname === '/api/provider-policies' && request.method === 'GET')

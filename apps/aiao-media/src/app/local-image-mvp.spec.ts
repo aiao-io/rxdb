@@ -82,6 +82,152 @@ function rig() {
   return { fixture, component, session, streams, element, text };
 }
 
+function downloadRig(
+  download = vi.fn<() => Promise<void>>(async () => undefined),
+  works: PublicWorkPayload[] = [remote]
+) {
+  const r = rig();
+  r.streams[0].next([]);
+  r.component.targetKind.set('platform');
+  r.component.authUser.set({ id: 'fixture-account', email: null });
+  r.component.syncInitialized.set(true);
+  r.component.syncedWorks.set(works);
+  r.component.imageSyncMessage.set('仅上传以后的图片');
+  Object.assign(r.component, {
+    imageSyncController: vi.fn(async () => ({ download })),
+    readTasks: vi.fn(async () => undefined),
+    retryLibrary: vi.fn()
+  });
+  const card = (jobId: string) => {
+    r.text();
+    const prompt = r.component.syncedWorks().find(work => work.jobId === jobId)?.prompt;
+    const element = [...r.element.querySelectorAll<HTMLElement>('.remote-card')].find(
+      candidate => candidate.querySelector('h3')?.textContent === prompt
+    );
+    expect(element).toBeDefined();
+    return element!;
+  };
+  const retrieve = (jobId = remote.jobId) => {
+    const button = card(jobId).querySelector<HTMLButtonElement>('button');
+    expect(button).not.toBeNull();
+    return button!;
+  };
+  return { ...r, card, retrieve, download };
+}
+
+describe('图库原图取回反馈', () => {
+  it('账号窗口关闭时仅目标作品显示取回进度和忙碌状态', async () => {
+    let complete!: () => void;
+    const pending = new Promise<void>(resolve => {
+      complete = resolve;
+    });
+    const second = { ...remote, jobId: 'another-work', prompt: '另一张同步作品', sha256: 'another-hash' };
+    const r = downloadRig(
+      vi.fn(async () => pending),
+      [remote, second]
+    );
+
+    r.retrieve().click();
+    await vi.waitFor(() => expect(r.download).toHaveBeenCalledOnce());
+
+    expect(r.element.querySelector('dialog')).toBeNull();
+    expect(r.card(remote.jobId).getAttribute('aria-busy')).toBe('true');
+    expect(r.card(remote.jobId).querySelector('[role=status]')?.textContent).toContain('正在从平台账号取回原图');
+    expect(r.retrieve().disabled).toBe(true);
+    expect(r.card(second.jobId).getAttribute('aria-busy')).not.toBe('true');
+    expect(r.card(second.jobId).querySelector('[role=status], [role=alert]')).toBeNull();
+    expect(r.component.imageSyncMessage()).toBe('仅上传以后的图片');
+
+    complete();
+    await vi.waitFor(() => expect(r.retrieve().disabled).toBe(false));
+    r.session.close();
+  });
+
+  it.each(['远端图片尚未完成上传或已被移除。', '远端图片记录操作失败，原图保留。', '远端图片读取失败；本机数据保留。'])(
+    '取回失败在当前卡片显示原因且可重试：%s',
+    async message => {
+      const download = vi.fn(async () => undefined).mockRejectedValueOnce(new Error(message));
+      const r = downloadRig(download);
+
+      r.retrieve().click();
+      await vi.waitFor(() =>
+        expect(r.card(remote.jobId).querySelector('[role=alert]')?.textContent).toContain(message)
+      );
+
+      expect(r.element.querySelector('dialog')).toBeNull();
+      expect(r.card(remote.jobId).getAttribute('aria-busy')).not.toBe('true');
+      expect(r.retrieve().disabled).toBe(false);
+      expect(r.component.imageSyncMessage()).toBe('仅上传以后的图片');
+
+      r.retrieve().click();
+      await vi.waitFor(() => expect(download).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() =>
+        expect(r.card(remote.jobId).querySelector('[role=status]')?.textContent).toContain('原图已校验并保存到本机')
+      );
+
+      expect(r.card(remote.jobId).querySelector('[role=alert]')).toBeNull();
+      expect(r.element.querySelector('#toast[role=status]')?.textContent).toContain('原图已校验并保存到本机');
+      expect(r.component.imageSyncMessage()).toBe('仅上传以后的图片');
+      r.session.close();
+    }
+  );
+
+  it('同一作品换了原图版本时不复用旧版本的失败提示', async () => {
+    const message = '旧版本原图尚未上传';
+    const download = vi.fn(async () => undefined).mockRejectedValueOnce(new Error(message));
+    const r = downloadRig(download);
+
+    r.retrieve().click();
+    await vi.waitFor(() => expect(r.card(remote.jobId).querySelector('[role=alert]')?.textContent).toContain(message));
+    const updated = { ...remote, sha256: 'new-original-hash' };
+    r.component.syncedWorks.set([updated]);
+
+    expect(r.card(remote.jobId).querySelector('[role=status], [role=alert]')).toBeNull();
+    expect(r.card(remote.jobId).textContent).not.toContain(message);
+    expect(r.retrieve().disabled).toBe(false);
+
+    r.retrieve().click();
+    await vi.waitFor(() =>
+      expect(download).toHaveBeenLastCalledWith(
+        updated.jobId,
+        updated.sha256,
+        expect.objectContaining({ id: updated.jobId })
+      )
+    );
+    await vi.waitFor(() => expect(r.retrieve().disabled).toBe(false));
+    r.session.close();
+  });
+
+  it('取回成功后删除本机副本，远端卡片不再显示已保存提示', async () => {
+    const r = downloadRig();
+    const local: LocalWorkSummary = {
+      jobId: remote.jobId,
+      prompt: remote.prompt,
+      modelId: remote.modelId,
+      bytes: remote.bytes,
+      status: 'saved'
+    };
+    Object.assign(r.component, {
+      store: { delete: vi.fn(async () => r.streams[0].next([])), close: vi.fn(async () => undefined) }
+    });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    r.retrieve().click();
+    await vi.waitFor(() =>
+      expect(r.card(remote.jobId).querySelector('[role=status]')?.textContent).toContain('原图已校验并保存到本机')
+    );
+    r.streams[0].next([local]);
+    expect(r.text()).not.toContain('本机无原图');
+
+    await r.component.deleteWork({ ...local, url: null, viewKey: remote.jobId, previewStatus: 'idle' });
+
+    expect(r.card(remote.jobId).textContent).toContain('本机无原图');
+    expect(r.card(remote.jobId).querySelector('[role=status], [role=alert]')).toBeNull();
+    expect(r.component.imageDownloadState(remote)).toBeNull();
+    r.session.close();
+  });
+});
+
 describe('library ownership presentation', () => {
   it('平台账号可取回已同步原图，无需先同意上传本机图片', () => {
     const r = rig();
@@ -133,6 +279,50 @@ describe('library ownership presentation', () => {
       r.component.syncReady.set(true);
       r.text();
       expect(button!.disabled).toBe(false);
+    } finally {
+      r.session.close();
+      if (descriptor) Object.defineProperty(HTMLDialogElement.prototype, 'showModal', descriptor);
+      else Reflect.deleteProperty(HTMLDialogElement.prototype, 'showModal');
+    }
+  });
+  it.each([true, false])('自动同步为 %s 时仍可手动同步已有图片，忙碌时禁用操作', enabled => {
+    const descriptor = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, 'showModal');
+    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
+      configurable: true,
+      value(this: HTMLDialogElement) {
+        this.open = true;
+      }
+    });
+    const r = rig();
+    const enable = vi.spyOn(r.component, 'enableImageSync').mockResolvedValue(undefined);
+    const button = (label: string) => {
+      r.text();
+      return [...r.element.querySelectorAll<HTMLButtonElement>('dialog button')].find(
+        element => element.textContent?.trim() === label
+      );
+    };
+    try {
+      r.component.view.set('providers');
+      r.component.targetKind.set('platform');
+      r.component.authStatus.set('signed-in');
+      r.component.authUser.set({ id: 'fixture-account', email: null });
+      r.component.syncInitialized.set(true);
+      r.component.imageSyncEnabled.set(enabled);
+      r.component.authOpen.set(true);
+
+      expect(button(enabled ? '停止图片自动同步' : '只同步以后保存的图片')).toBeDefined();
+      const existing = button('同步已有及以后图片');
+      expect(existing).toBeDefined();
+      expect(existing!.disabled).toBe(false);
+      existing!.click();
+      expect(enable).toHaveBeenCalledExactlyOnceWith('existing');
+
+      r.component.imageSyncBusy.set(true);
+      expect(button('同步已有及以后图片')?.disabled).toBe(true);
+      expect(button(enabled ? '停止图片自动同步' : '只同步以后保存的图片')?.disabled).toBe(true);
+      r.component.imageSyncBusy.set(false);
+      r.component.dataBusy.set(true);
+      expect(button('同步已有及以后图片')?.disabled).toBe(true);
     } finally {
       r.session.close();
       if (descriptor) Object.defineProperty(HTMLDialogElement.prototype, 'showModal', descriptor);

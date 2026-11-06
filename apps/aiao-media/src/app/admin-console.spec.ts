@@ -26,8 +26,8 @@ const content = {
 };
 const usage = { sources: {}, partial: true };
 
-async function rig(status = 'signed-in') {
-  TestBed.overrideComponent(AdminConsole, { set: { template: '', imports: [] } });
+async function rig(status = 'signed-in', render = false) {
+  if (!render) TestBed.overrideComponent(AdminConsole, { set: { template: '', imports: [] } });
   const fixture = TestBed.createComponent(AdminConsole);
   const client = new ProductClient(async () => {
     throw new Error('测试禁止真实授权');
@@ -55,6 +55,22 @@ afterEach(() => {
 });
 
 describe('administrative access and identity', () => {
+  it('免费平台保留业务管理入口，移除平台生图与计费入口', async () => {
+    const { fixture } = await rig('signed-in', true);
+    fixture.detectChanges();
+    const element: HTMLElement = fixture.nativeElement;
+    const navigation = element.querySelector('nav[aria-label="后台导航"]');
+    expect([...navigation!.querySelectorAll('button')].map(button => button.textContent?.trim())).toEqual([
+      '用户',
+      '模板',
+      '供应商策略',
+      '任务与用量',
+      '操作审计',
+      '重新载入后台'
+    ]);
+    expect(element.querySelector('h2')?.textContent).toBe('用户列表');
+  });
+
   it.each(['signed-out', 'unverified', 'checking'])('does not request data for %s sessions', async status => {
     const { component, admin } = await rig(status);
     await component.load();

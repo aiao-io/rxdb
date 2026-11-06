@@ -95,7 +95,7 @@ describe('平台 Supabase 图片同步', () => {
     });
     const store = pngStore();
 
-    const result = await new ImageSyncController(store as never, access, workspaceId, request).upload(job);
+    const result = await new ImageSyncController(store as never, access, workspaceId, request).upload(jobId);
 
     expect(result).toMatchObject({ status: 'uploaded', revision: 2 });
     expect(store.backupImage).toHaveBeenCalledWith(jobId);
@@ -126,7 +126,7 @@ describe('平台 Supabase 图片同步', () => {
       return Response.json([{ ...stalled, status: 'uploaded', revision: 4, baseRevision: 3 }]);
     });
 
-    const result = await new ImageSyncController(pngStore() as never, access, workspaceId, request).upload(job);
+    const result = await new ImageSyncController(pngStore() as never, access, workspaceId, request).upload(jobId);
 
     expect(result.status).toBe('uploaded');
     expect(calls.some(call => isRecords(call) && call.method === 'POST')).toBe(false);
@@ -146,7 +146,7 @@ describe('平台 Supabase 图片同步', () => {
       return Response.json([]);
     });
 
-    const result = await new ImageSyncController(pngStore() as never, access, workspaceId, request).upload(job);
+    const result = await new ImageSyncController(pngStore() as never, access, workspaceId, request).upload(jobId);
 
     expect(result).toMatchObject({ id: theirs.id, status: 'uploaded', revision: 2 });
     expect(reads).toEqual([]);
@@ -171,7 +171,7 @@ describe('平台 Supabase 图片同步', () => {
       return Response.json([{ ...pending, status: 'uploaded', revision: 2, baseRevision: 1 }]);
     });
 
-    const result = await new ImageSyncController(pngStore(large) as never, access, workspaceId, request).upload(job);
+    const result = await new ImageSyncController(pngStore(large) as never, access, workspaceId, request).upload(jobId);
 
     expect(result.status).toBe('uploaded');
     expect(calls.filter(call => call.method === 'PATCH' && !isRecords(call))).toHaveLength(0);
@@ -235,6 +235,24 @@ describe('平台 Supabase 图片同步', () => {
     expect(store.saveResult).not.toHaveBeenCalled();
   });
 
+  it.each(['missing', 'pending', 'needs_review'] as const)(
+    '原图 %s 时提示回有原图设备补传，不请求 Storage 或落盘',
+    async status => {
+      const record = await fileRecord({ status: status === 'missing' ? 'pending' : status });
+      const { calls, request } = remote(call =>
+        isRecords(call) ? Response.json(status === 'missing' ? [] : [record]) : undefined
+      );
+      const store = pngStore();
+
+      await expect(
+        new ImageSyncController(store as never, access, workspaceId, request).download(jobId, record.sha256, job)
+      ).rejects.toThrow('请在有原图的设备点击“同步已有及以后图片”');
+
+      expect(calls).toHaveLength(1);
+      expect(store.saveResult).not.toHaveBeenCalled();
+    }
+  );
+
   it('同步目标变化后中止：取回的原图不再写入本机', async () => {
     const scope = new AbortController();
     const current = await fileRecord({ status: 'uploaded' });
@@ -265,7 +283,7 @@ describe('平台 Supabase 图片同步', () => {
     });
 
     await expect(
-      new ImageSyncController(pngStore() as never, access, workspaceId, request, scope.signal).upload(job)
+      new ImageSyncController(pngStore() as never, access, workspaceId, request, scope.signal).upload(jobId)
     ).rejects.toThrow('同步目标已变化');
     expect(calls.some(call => call.method === 'PATCH')).toBe(false);
   });

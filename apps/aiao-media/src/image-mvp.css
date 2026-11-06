@@ -372,15 +372,66 @@ select.field {
   gap: 16px;
   margin-left: auto;
 }
-.local-badge {
+.sync-indicator {
+  position: relative;
+  flex: none;
+  color: var(--muted);
+  font-size: 12px;
+}
+.sync-indicator summary {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--muted);
-  font-size: 12px;
+  min-height: 34px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  list-style: none;
   white-space: nowrap;
 }
-.local-badge::before,
+.sync-indicator summary::-webkit-details-marker {
+  display: none;
+}
+.sync-indicator summary:hover,
+.sync-indicator[open] summary {
+  background: var(--canvas);
+  color: var(--ink-2);
+}
+.sync-indicator.sync-attention summary {
+  color: var(--warn);
+}
+.sync-label {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sync-spinning {
+  animation: spin 1.4s linear infinite;
+}
+.sync-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 300px;
+  max-width: calc(100vw - 40px);
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+  color: var(--ink-2);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.sync-panel p {
+  margin: 0 0 8px;
+}
+.sync-panel p:last-child {
+  margin-bottom: 0;
+}
+.sync-panel .secondary {
+  margin-top: 4px;
+}
 .status-dot {
   content: '';
   width: 6px;
@@ -567,18 +618,9 @@ footer {
 .notice .secondary {
   margin: 4px 8px 0 0;
 }
-/* 页面顶层的提示条（切换工作区、同步进度）与 main 的内容区对齐。 */
+/* 切换工作区的提示条与 main 的内容区对齐。 */
 .image-mvp > .notice {
   margin-inline: calc(var(--sidebar-width) + var(--inset-start)) var(--inset-end);
-}
-.sync-progress {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 16px;
-  margin-bottom: 0;
 }
 .inline-alert {
   margin: 16px 0 0;
@@ -2539,11 +2581,8 @@ footer {
     border-right: 0;
     border-bottom: 1px solid var(--line);
   }
-  .sync-progress {
-    margin: 12px 20px;
-  }
   .header {
-    position: static;
+    position: relative;
     height: 54px;
     gap: 12px;
     padding: 0 20px;
@@ -2568,7 +2607,7 @@ footer {
     gap: 9px;
     font-size: 12px;
   }
-  .local-badge,
+  .sync-label,
   .nav-section,
   .workspace-status {
     display: none;
@@ -2582,6 +2621,7 @@ footer {
     padding: 0;
   }
   .header-right {
+    gap: 8px;
     margin-left: auto;
   }
   .main-nav {

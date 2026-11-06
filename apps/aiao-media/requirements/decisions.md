@@ -21,7 +21,7 @@
 
 ### D-13：未来功能与目录演进
 
-已确定的产品方向：继续优化 Web；提供 Tauri 本地安装程序；在 Cloudflare 运行安全代理、免费/收费图片生成、带用户提示的任务队列及管理后台；同步方向最初包含自有 Supabase 与平台；现统一按 D-16 使用平台 Supabase。
+已确定的产品方向：继续优化 Web；提供 Tauri 本地安装程序；在 Cloudflare 运行安全代理及管理后台；同步方向统一按 D-16 使用平台 Supabase。原平台生图、额度和收费方向按 D-17 暂缓。
 
 首阶段已进入实施，技术选择和证据见[产品交付计划](plans/product-completion-20261030.md)。完整范围与共同数据边界见[未来功能需求与目录规划](future-requirements.md)。方向确定不等于验收完成；平台账号与同步的实际启用见 D-16 和正式发布记录，D-06 的同步保留规则与既有故事验收状态保持不变。
 
@@ -44,6 +44,14 @@
 表、RLS、bucket 和平台账号配置由部署方统一维护。应用尚未正式使用，移除未使用的自有项目代码与兼容入口，不承诺旧自有项目配置迁移。用户确认平台账号、工作区与上传范围后才开始复制。停止、切账号、离线恢复、冲突、tombstone 和日志保留规则继续遵守 D-05/D-06。
 
 [MEDIA-US-303](stories/local-first/MEDIA-US-303-sync-targets.md) 与 [MEDIA-US-305](stories/local-first/MEDIA-US-305-supabase-image-sync.md) 按本决策继续实施；原 MEDIA-US-304 需求与未使用的自有项目接入代码一并移除。平台承担存储与服务成本。2026-11-06 正式启用的版本、空库初始化、真实云 API/RLS/Storage 及完整浏览器同步样本证据见[平台发布记录](plans/platform-supabase-release-20261106.md)；自定义 SMTP 与公众注册邮件、当前版本四路由/离线浏览器 smoke、续传及生产 Web/Tauri 仍需验收，决策或部署不等于故事全部完成。
+
+### D-17：当前平台免费，暂缓独立平台图片服务与计费
+
+2026-11-06 用户确定：当前平台免费，移除创作页“平台图片服务”和后台“平台生图与计费”，关闭 `/api/platform/` 对外 API。模型价格、每日额度、积分余额、积分购买、消费流水及对应平台任务入口退出当前产品范围。
+
+[MEDIA-US-108](stories/generation/MEDIA-US-108-platform-generation.md) 与 [MEDIA-US-205](stories/account/MEDIA-US-205-platform-billing.md) 退回 Backlog，待未来收费需求明确后重新评审范围、实现和验收。保留后端历史实现与验收证据，存量任务、订单、流水和原图不删除；保留代码不表示服务仍对外开放。
+
+默认免费供应商、本站代理 `/api/relay` 与 `/api/relay/tasks`、平台账号、元数据和私有原图同步继续按各自故事推进，不依赖平台计费。平台免费不代表基础设施或用户自有供应商没有成本。
 
 ## 当前执行条件
 
