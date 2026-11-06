@@ -75,5 +75,5 @@ pr: https://github.com/aiao-io/rxdb/pull/129
 
 - 双后端各增加两种发生项顺序的回归，同时断言批成本 `6.5`、制费 `2.5` 与理由「按工时计」。旧实现 2 项失败、2 项通过，失败均为说明不符，金额断言已通过。
 - 修复只调整虚拟件聚合理由：已存在「按工时计」时保留该理由，后继未声明制费或无路线不会覆盖它；成本金额、工序明细及公开 API 保持原合同。
-- 定向验证完整执行 `bom-cost.spec.ts` 与 `bom-phantom-cost.spec.ts`，74/74 通过；lint、typecheck 通过。隔离工作区完整 BOM 套件 89 文件、1554 项通过、1 项后端条件跳过，语句/分支/函数/行覆盖率为 96.31% / 89.72% / 97.29% / 97.77%，四项均达到本包 80% 门槛。最终源码 affected、远端 CI 及部署产物须在集成后重新核对。
+- 定向验证完整执行 `bom-cost.spec.ts` 与 `bom-phantom-cost.spec.ts`，74/74 通过；lint、typecheck 通过。隔离工作区完整 BOM 套件 89 文件、1554 项通过、1 项后端条件跳过，语句/分支/函数/行覆盖率为 96.31% / 89.72% / 97.29% / 97.77%，四项均达到本包 80% 门槛。修复已集成至 322bb6f0，生产浏览器 40/40、本地部署 5/5、公网 5/5 和 64 个发布资产哈希核验通过；最终源码 affected 与最终提交远端 CI 仍待核对。
 - 原始红绿证据为 `/tmp/bom-phantom-overhead-red-evidence.json`、`/tmp/bom-phantom-overhead-green-costs-evidence.json`；完整套件证据为 `/tmp/bom-phantom-overhead-full-plugin-evidence.json`。隔离验证不替代最终集成源码的完整 affected 与远端检查。
