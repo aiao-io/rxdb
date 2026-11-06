@@ -4,12 +4,12 @@
 GitHub 认证链路与 [vscode.dev](../../../requirements/domain-research/vscode-dev-github-integration.md)
 同构：`/redirect` 中转 + 同源 token 交换端点持 client secret，浏览器永不接触 secret。
 
-| 路由                            | 作用                                                            |
-| ------------------------------- | --------------------------------------------------------------- |
-| `GET /redirect`                  | GitHub OAuth 回跳落点：校验 state 后 302 回 `/github-callback`      |
-| `GET /api/github-token`          | 返回公开的 OAuth Client ID，供前端发起授权                        |
-| `POST /api/github-token`         | 授权码 → access_token（PKCE code_verifier + client secret 交换）   |
-| `POST /api/github-token/delete`  | 服务端撤销 OAuth token（登出时调用）                              |
+| 路由                            | 作用                                                             |
+| ------------------------------- | ---------------------------------------------------------------- |
+| `GET /redirect`                 | GitHub OAuth 回跳落点：校验 state 后 302 回 `/github-callback`   |
+| `GET /api/github-token`         | 返回公开的 OAuth Client ID，供前端发起授权                       |
+| `POST /api/github-token`        | 授权码 → access_token（PKCE code_verifier + client secret 交换） |
+| `POST /api/github-token/delete` | 服务端撤销 OAuth token（登出时调用）                             |
 
 ## 首次部署步骤
 

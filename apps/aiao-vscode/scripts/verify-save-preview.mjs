@@ -194,10 +194,9 @@ async function createProject() {
   await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
   await page.getByRole('textbox', { name: '模板：vanilla / react / vue / angular', exact: true }).fill('react');
   await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
-  await expect(root.locator('[data-slot="workspace-label"]')).toHaveText(
-    'Save preview verification',
-    { timeout: 30000 }
-  );
+  await expect(root.locator('[data-slot="workspace-label"]')).toHaveText('Save preview verification', {
+    timeout: 30000
+  });
   await expectHeading('本地 React 模板');
 }
 

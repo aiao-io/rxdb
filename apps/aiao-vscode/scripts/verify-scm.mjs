@@ -136,10 +136,12 @@ async function verifyScmLayout() {
     await expect(await scmMenu('scm-sort-name')).toHaveAttribute('aria-checked', 'true');
     await page.keyboard.press('Escape');
     await (await scmMenu('scm-sort-path')).click();
-    const layout = await row(a, 'working').locator('..').evaluate(element => ({
-      actions: [...element.querySelectorAll('[data-scm-action]')].map(button => button.dataset.scmAction),
-      lastIsStatus: element.lastElementChild?.classList.contains('wb-scm-status')
-    }));
+    const layout = await row(a, 'working')
+      .locator('..')
+      .evaluate(element => ({
+        actions: [...element.querySelectorAll('[data-scm-action]')].map(button => button.dataset.scmAction),
+        lastIsStatus: element.lastElementChild?.classList.contains('wb-scm-status')
+      }));
     assert.deepEqual(layout.actions, ['open', 'discard', 'stage']);
     assert.equal(layout.lastIsStatus, true);
     report.layout = { input: inputBounds, commit: commitBounds, ...layout };
@@ -240,10 +242,7 @@ try {
     await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
     await page.getByRole('textbox', { name: '模板：vanilla / react / vue / angular', exact: true }).fill('vanilla');
     await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
-    await expect(root.locator('[data-slot="workspace-label"]')).toHaveText(
-      `SCM UX ${host}`,
-      { timeout: 30000 }
-    );
+    await expect(root.locator('[data-slot="workspace-label"]')).toHaveText(`SCM UX ${host}`, { timeout: 30000 });
     await sidebar('git');
     await verifyScmLayout();
     const button = scm.getByRole('button', { name: '暂存所有更改', exact: true });

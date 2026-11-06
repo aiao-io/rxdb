@@ -80,10 +80,7 @@ async function createProject(root) {
   await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
   await page.getByRole('textbox', { name: '模板：vanilla / react / vue / angular', exact: true }).fill('react');
   await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
-  await expect(root.locator('[data-slot="workspace-label"]')).toHaveText(
-    `Dockview ${host}`,
-    { timeout: 30000 }
-  );
+  await expect(root.locator('[data-slot="workspace-label"]')).toHaveText(`Dockview ${host}`, { timeout: 30000 });
   await expect(root.locator('[data-slot="save-status"]')).toContainText('已保存');
 }
 

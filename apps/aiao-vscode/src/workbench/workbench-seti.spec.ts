@@ -2,7 +2,6 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { createSetiIcon, setiIconForFile } from './workbench-seti.js';
 import {
   SETI_DEFAULT_ICON,
   SETI_EXTENSIONS,
@@ -10,6 +9,7 @@ import {
   SETI_ICONS,
   SETI_LANGUAGES
 } from './workbench-seti-theme.js';
+import { createSetiIcon, setiIconForFile } from './workbench-seti.js';
 
 /** 取字体码点对应的字符，便于直接比较。 */
 const glyph = (code: string): string => String.fromCodePoint(Number.parseInt(code, 16));

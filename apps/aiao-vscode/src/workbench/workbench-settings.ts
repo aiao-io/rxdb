@@ -90,9 +90,7 @@ export function openWorkbenchSettings(host: HTMLElement, options: WorkbenchSetti
   scmCheckbox.type = 'checkbox';
   scmCheckbox.checked = options.alwaysShowScmActions;
   const scmSection = buildSettingSection('源代码管理');
-  scmSection.append(
-    buildSettingRow('始终显示行内操作', '在文件行上始终显示源代码管理的行内操作按钮。', scmCheckbox)
-  );
+  scmSection.append(buildSettingRow('始终显示行内操作', '在文件行上始终显示源代码管理的行内操作按钮。', scmCheckbox));
   body.append(scmSection);
 
   const actions = document.createElement('div');

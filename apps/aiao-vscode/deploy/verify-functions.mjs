@@ -9,8 +9,7 @@ const ORIGIN = 'https://ide.example';
 const ENV = { GITHUB_CLIENT_ID: 'client-1', GITHUB_CLIENT_SECRET: 'secret-1' };
 
 const get = (path, origin = ORIGIN) => onRequestGet({ request: new Request(`${origin}${path}`), env: {} });
-const getConfig = (env = ENV) =>
-  githubToken.onRequestGet({ request: new Request(`${ORIGIN}/api/github-token`), env });
+const getConfig = (env = ENV) => githubToken.onRequestGet({ request: new Request(`${ORIGIN}/api/github-token`), env });
 const post = (path, body, env = ENV, origin = ORIGIN) =>
   githubToken.onRequestPost({
     request: new Request(`${origin}${path}`, {
