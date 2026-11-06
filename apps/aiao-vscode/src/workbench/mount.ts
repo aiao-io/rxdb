@@ -19,9 +19,10 @@ import type { GitHubSession } from './git/github/github-types.js';
 import { mountPreview, type PreviewEvent } from './preview/preview-sandbox.js';
 import { createSavePreviewController, type SavePreviewPhase } from './save-preview.js';
 import { WorkbenchSession, type WorkbenchBackend, type WorkbenchState, type WorkbenchStatus } from './session.js';
-import { createWorkbenchTerminal } from './terminal/workbench-terminal.js';
 import { angularTemplate, defaultAngularDemo } from './templates-angular.js';
 import { defaultFrontendDemos, frontendTemplates, type WorkbenchTemplate } from './templates.js';
+import { createWorkbenchTerminal } from './terminal/workbench-terminal.js';
+import { installWorkbenchCloseGuard } from './workbench-close-guard.js';
 import { createWorkbenchCommands, type WorkbenchCommand } from './workbench-commands.js';
 import { confirmWorkbenchAction, requestWorkbenchChoice, requestWorkbenchText } from './workbench-dialog.js';
 import { createWorkbenchDiff, type WorkbenchDiffHandle } from './workbench-diff.js';
@@ -425,7 +426,9 @@ export function mountWorkbench(
     session,
     apiKey: options.webContainerApiKey,
     onError: report,
-    onFilesChanged: () => { void refreshGit().catch(report); },
+    onFilesChanged: () => {
+      void refreshGit().catch(report);
+    },
     onPreview(port, url) {
       const id = `server-preview:${port}`;
       const host = docking.ensureAuxiliary(id, `项目服务 :${port}`);
@@ -1737,6 +1740,7 @@ export function mountWorkbench(
     if (event.type === 'console') log('console', event.values.join(' '), event.level);
     if (event.type === 'error') log('problems', `${event.message}\n${event.stack}`, 'error');
     if (event.type === 'ready') log('output', `运行 revision ${event.revision} 已就绪`);
+    if (event.type === 'modifiers') closeGuard.setPreviewModifier(event.pressed);
     if (event.type === 'keydown') {
       commands.dispatchShortcut({
         key: event.key,
@@ -1871,6 +1875,16 @@ export function mountWorkbench(
     log('output', `已创建 ${name} · ${template.title}`);
   }
   async function run(): Promise<void> {
+    const id = projectId();
+    cancelCompilation();
+    await session.save();
+    if (disposed || session.state.projectId !== id) return;
+    if (session.state.dirty) throw new Error('保存期间内容发生变化，请重试运行');
+    docking.showTool('terminal');
+    await terminal.runProject();
+    await refreshGit();
+  }
+  async function runControlledPreview(): Promise<void> {
     projectId();
     docking.showPreview();
     await savePreview.run();
@@ -2002,7 +2016,13 @@ export function mountWorkbench(
         { separator: true },
         { label: '保存当前文件', id: 'save', action: saveCurrent, disabled: !editable },
         { label: '保存全部并预览', id: 'save-all', action: saveAll, disabled: !editable },
-        { label: '打开终端', id: 'terminal', action: () => docking.showTool('terminal'), disabled: !editable, keybinding: 'Ctrl + `'}
+        {
+          label: '打开终端',
+          id: 'terminal',
+          action: () => docking.showTool('terminal'),
+          disabled: !editable,
+          keybinding: 'Ctrl + `'
+        }
       ]);
     },
     workspace: () => {
@@ -2040,7 +2060,7 @@ export function mountWorkbench(
     'new-project': newProject,
     terminal: () => docking.showTool('terminal'),
     run,
-    'rerun-preview': run,
+    'rerun-preview': runControlledPreview,
     export: exportProject,
     import: importProject,
     save: saveCurrent,
@@ -2327,6 +2347,8 @@ export function mountWorkbench(
     }
   };
   window.addEventListener('beforeunload', beforeUnload);
+  /** 键盘触发的关闭（⌘W / Ctrl+W）弹出浏览器的离开确认，对齐 vscode.dev。 */
+  const closeGuard = installWorkbenchCloseGuard(window);
   const ready = (async () => {
     projects = (await catalog.list()).toSorted((left, right) => right.updatedAt - left.updatedAt);
     if (disposed) return;
@@ -2375,6 +2397,7 @@ export function mountWorkbench(
       docking.dispose();
       for (const dialog of root.querySelectorAll<HTMLDialogElement>('dialog')) dialog.close();
       window.removeEventListener('beforeunload', beforeUnload);
+      closeGuard.dispose();
       narrowMedia.removeEventListener('change', onNarrowChange);
       for (const timer of layoutRetries) clearTimeout(timer);
       clearTimeout(layoutSaveTimer);

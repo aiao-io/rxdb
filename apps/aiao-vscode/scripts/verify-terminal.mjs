@@ -3,7 +3,9 @@ import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, join, resolve } from 'node:path';
 import { chromium } from 'playwright';
-import { expect } from 'playwright/test';
+import { expect as playwrightExpect } from 'playwright/test';
+
+const expect = playwrightExpect.configure({ timeout: 30000 });
 
 async function serveProduction() {
   const directory = resolve(import.meta.dirname, '../dist/browser');
@@ -57,8 +59,8 @@ page.on('requestfailed', request => {
 });
 const root = page.getByRole('region', { name: '浏览器开发工作台', exact: true });
 const terminal = root.locator('[data-log="terminal"]');
-const screen = terminal.locator('.xterm-rows');
-const input = terminal.getByRole('textbox', { name: '终端输入', exact: true });
+const screen = terminal.locator('.xterm-rows:visible');
+const input = terminal.getByRole('textbox', { name: '终端输入', exact: true }).filter({ visible: true });
 const command = async text => {
   await input.focus();
   await page.keyboard.type(text);
@@ -66,12 +68,12 @@ const command = async text => {
 };
 const checked = name => { report.checks.push(name); console.log(`Passed: ${name}`); };
 
-async function createProject(name) {
+async function createProject(name, template = 'vanilla') {
   await root.getByRole('button', { name: '应用程序菜单', exact: true }).click();
   await root.getByRole('menuitem', { name: '新建项目', exact: true }).click();
   await page.getByRole('textbox', { name: '项目名称', exact: true }).fill(name);
   await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
-  await page.getByRole('textbox', { name: '模板：vanilla / react / vue / angular', exact: true }).fill('vanilla');
+  await page.getByRole('textbox', { name: '模板：vanilla / react / vue / angular', exact: true }).fill(template);
   await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
   await expect(root.locator('[data-slot="workspace-label"]')).toHaveText(name);
 }
@@ -79,7 +81,7 @@ async function createProject(name) {
 try {
   report.browser = browser.version();
   await page.goto(url);
-  await expect(root).toBeVisible();
+  await expect(root).toBeVisible({ timeout: 60000 });
   const overlay = page.locator('vite-error-overlay');
   if (await overlay.count()) throw new Error(await overlay.evaluate(element => element.shadowRoot?.querySelector('.message')?.textContent ?? element.textContent));
   assert.equal(await page.evaluate(() => crossOriginIsolated), true);
@@ -126,6 +128,44 @@ try {
   await command('node -e "console.log(\'AIAO_AFTER_\'+\'INTERRUPT\')"');
   await expect(screen).toContainText('AIAO_AFTER_INTERRUPT');
   checked('server-preview-and-control-c');
+  for (const [template, heading, port] of [
+    ['vanilla', '本地 TypeScript 模板', 5173],
+    ['react', '本地 React 模板', 5173],
+    ['vue', '本地 Vue 模板', 5173],
+    ['angular', 'Angular workspace', 4200]
+  ]) {
+    await createProject(`Project run ${template}`, template);
+    const run = root.locator('.wb-title-actions [data-action="run"]');
+    await run.click();
+    await expect(screen).toContainText('pnpm install', { timeout: 120000 });
+    const app = page.frameLocator(`iframe[title="项目服务 :${port}"]`);
+    await expect(app.getByRole('heading', { name: heading, exact: true })).toBeVisible({ timeout: 180000 });
+    const counter = template === 'angular' ? 'Count:' : '次数';
+    await app.getByRole('button', { name: `${counter} 0`, exact: true }).click();
+    await expect(app.getByRole('button', { name: `${counter} 1`, exact: true })).toBeVisible();
+    const runningOutput = await screen.innerText();
+    await run.click();
+    await expect(run).toBeEnabled();
+    await expect(root.locator('.wb-server-preview')).toHaveCount(1);
+    await expect(screen).toHaveText(runningOutput);
+    await input.press('Control+c');
+    await expect(terminal.locator('[data-terminal-status]')).toContainText('项目已停止', { timeout: 30000 });
+    await terminal.locator('[data-terminal-session="shell"]').click();
+    await command(`node -e "fetch('http://localhost:${port}').then(()=>console.log('AIAO_SERVICE_STILL_RUNNING')).catch(()=>console.log('AIAO_SERVICE_'+'STOPPED'))"`);
+    await expect(screen).toContainText('AIAO_SERVICE_STOPPED');
+    checked(`top-run-${template}-install-start-preview-control-c`);
+    if (template === 'vanilla') {
+      const previousPreview = await root.locator(`iframe[title="项目服务 :${port}"]`).elementHandle();
+      await run.click();
+      await expect.poll(async () => previousPreview?.evaluate(frame => frame.isConnected).catch(() => false), {
+        timeout: 120000
+      }).toBe(false);
+      await expect(app.getByRole('heading', { name: heading, exact: true })).toBeVisible({ timeout: 120000 });
+      await input.press('Control+c');
+      await expect(terminal.locator('[data-terminal-status]')).toContainText('项目已停止', { timeout: 30000 });
+      checked('top-run-restart-after-control-c');
+    }
+  }
   await createProject('Terminal isolated verification');
   await expect(root.locator('.wb-server-preview')).toHaveCount(0);
   await root.locator('.wb-title-actions [data-action="terminal"]').click();

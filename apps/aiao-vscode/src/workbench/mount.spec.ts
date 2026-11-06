@@ -702,7 +702,7 @@ describe('VS Code 风格工作台', () => {
       ?.dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true, bubbles: true }));
     await vi.waitFor(() => expect(backend.save).toHaveBeenCalled());
     expect(handle.session.state.dirty).toBe(false);
-    await click(host, '[data-action="run"]');
+    await click(host, '[data-action="rerun-preview"]');
     await vi.waitFor(() => expect(compiler.compile.mock.calls.at(-1)?.[0].files['src/main.ts']).toBe('console.log(2)'));
     await vi.waitFor(() => expect(host.querySelector('.wb-preview-content iframe')).not.toBeNull());
     vi.mocked(backend.status).mockResolvedValue({
@@ -1679,7 +1679,7 @@ describe('VS Code 风格工作台', () => {
     expect(backend.commit).not.toHaveBeenCalled();
     handle.session.discard();
     vi.mocked(compiler.compile).mockRejectedValueOnce(new Error('bad module'));
-    await click(host, '[data-action="run"]');
+    await click(host, '[data-action="rerun-preview"]');
     await vi.waitFor(() => expect(host.querySelector('.wb-panel-content')?.textContent).toContain('bad module'));
     await click(host, '[data-action="clear-logs"]');
     await vi.waitFor(() => expect(host.querySelector('.wb-panel-content')?.textContent).toBe('尚无问题'));

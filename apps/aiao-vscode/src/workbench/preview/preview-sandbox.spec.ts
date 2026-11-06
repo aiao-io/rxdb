@@ -186,4 +186,17 @@ describe('隔离预览文档', () => {
     expect(document).toContain("type:'keydown'");
     expect(document).toContain('event.preventDefault();');
   });
+
+  it('预览上报修饰键状态：宿主据此识别 ⌘W 的键盘关闭，消息只接受布尔值', () => {
+    const identity = { sessionId: 's', projectId: 'p', revision: 1 };
+    expect(isPreviewEvent({ ...identity, type: 'modifiers', pressed: true }, identity)).toBe(true);
+    expect(isPreviewEvent({ ...identity, type: 'modifiers', pressed: false }, identity)).toBe(true);
+    expect(isPreviewEvent({ ...identity, type: 'modifiers', pressed: 'yes' }, identity)).toBe(false);
+    expect(isPreviewEvent({ ...identity, type: 'modifiers' }, identity)).toBe(false);
+    expect(isPreviewEvent({ ...identity, sessionId: 'other', type: 'modifiers', pressed: true }, identity)).toBe(false);
+    const document = buildPreviewDocument({ ...identity, js: '', css: '' });
+    expect(document).toContain("type:'modifiers'");
+    expect(document).toContain("addEventListener('keyup', track, true)");
+    expect(document).toContain("addEventListener('blur', () => report(false))");
+  });
 });

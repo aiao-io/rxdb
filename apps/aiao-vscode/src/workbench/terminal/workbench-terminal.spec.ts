@@ -34,7 +34,7 @@ async function fixture() {
   const createView = vi.fn(async (_host: HTMLElement, options: typeof viewOptions) => {
     viewOptions = options;
     viewCallbacks.push(options);
-    const next = views.length ? { write: vi.fn(), focus: vi.fn(), fit: vi.fn(), clear: vi.fn(), dispose: vi.fn(), cols: 80, rows: 24 } : view;
+    const next = _host.dataset['terminalSessionView'] === 'project' ? { write: vi.fn(), focus: vi.fn(), fit: vi.fn(), clear: vi.fn(), dispose: vi.fn(), cols: 80, rows: 24 } : view;
     views.push(next);
     return next;
   });
@@ -356,7 +356,86 @@ describe('工作台交互终端', () => {
     f.runtime.runProject.mockRejectedValueOnce(new Error('spawn failed'));
     await expect(f.terminal.runProject()).rejects.toThrow('spawn failed');
     expect(f.views[1]!.write).toHaveBeenCalledWith(expect.stringContaining('spawn failed'));
+    f.host.querySelector<HTMLButtonElement>('[data-terminal-session="shell"]')?.click();
+    expect(f.host.querySelector('[data-terminal-status]')?.textContent).toBe('运行中');
     await f.terminal.runProject();
     expect(f.runtime.runProject).toHaveBeenCalledTimes(2);
+  });
+
+  it('停止立即取消等待同步的项目启动，不等容器停止完毕', async () => {
+    const f = await projectFixture();
+    await f.terminal.show();
+    let finishSync: () => void = () => undefined;
+    let finishStop: () => void = () => undefined;
+    f.runtime.sync.mockImplementationOnce(() => new Promise<void>(resolve => { finishSync = resolve; }));
+    f.runtime.stop.mockImplementationOnce(() => new Promise<void>(resolve => { finishStop = resolve; }));
+    f.session.edit('main.js', 'pending sync');
+    await f.session.save();
+    const running = f.terminal.runProject();
+    const stopped = f.terminal.stop();
+    finishSync();
+    await running;
+    expect(f.runtime.runProject).not.toHaveBeenCalled();
+    finishStop();
+    await stopped;
+  });
+
+  it('项目运行中的通用写回错误保留任务状态和 Ctrl+C 输入', async () => {
+    const f = await projectFixture();
+    await f.terminal.runProject();
+    f.runtimeOptions.onProjectState?.('running');
+    f.runtimeOptions.onError(new Error('writeback failed'));
+    expect(f.host.querySelector('[data-terminal-status]')?.textContent).toBe('项目运行中');
+    expect(f.views[1]!.write).toHaveBeenCalledWith(expect.stringContaining('writeback failed'));
+    await f.terminal.runProject();
+    expect(f.runtime.runProject).toHaveBeenCalledOnce();
+    f.viewCallbacks[1]!.onData('\u0003');
+    expect(f.runtime.writeProject).toHaveBeenCalledWith('\u0003');
+  });
+
+  it('旧 show 等待退出写回时切换项目，不会启动新项目的终端', async () => {
+    const f = await fixture();
+    await f.terminal.show();
+    let finish: () => void = () => undefined;
+    f.runtime.flush.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
+    f.runtimeOptions.onExit(0);
+    const showing = f.terminal.show();
+    await f.session.open('two');
+    finish();
+    await showing;
+    expect(f.createRuntime).toHaveBeenCalledOnce();
+    expect(f.host.querySelector('[data-terminal-status]')?.textContent).toBe('尚未启动');
+  });
+
+  it('同项目重启后旧 Shell 与项目输入失败不能污染新运行状态', async () => {
+    const f = await projectFixture();
+    await f.terminal.runProject();
+    let rejectShell: (cause: Error) => void = () => undefined;
+    let rejectProject: (cause: Error) => void = () => undefined;
+    f.runtime.write.mockImplementationOnce(() => new Promise<void>((_resolve, reject) => { rejectShell = reject; }));
+    f.runtime.writeProject.mockImplementationOnce(() => new Promise<void>((_resolve, reject) => { rejectProject = reject; }));
+    f.viewCallbacks[0]!.onData('pending');
+    f.viewCallbacks[1]!.onData('pending');
+    f.runtimeOptions.onExit(0);
+    await f.terminal.show();
+    rejectShell(new Error('old shell input'));
+    rejectProject(new Error('old project input'));
+    await Promise.resolve();
+    expect(f.onError).not.toHaveBeenCalled();
+    f.host.querySelector<HTMLButtonElement>('[data-terminal-session="shell"]')?.click();
+    expect(f.host.querySelector('[data-terminal-status]')?.textContent).toBe('运行中');
+  });
+
+  it('Shell 退出写回失败后重试写回并新建 Shell，不复用已退出进程', async () => {
+    const f = await fixture();
+    await f.terminal.show();
+    f.runtime.flush.mockRejectedValueOnce(new Error('disk full'));
+    f.runtimeOptions.onExit(0);
+    await vi.waitFor(() => expect(f.onError).toHaveBeenCalled());
+    await f.terminal.show();
+    expect(f.runtime.flush).toHaveBeenCalledTimes(2);
+    expect(f.createRuntime).toHaveBeenCalledTimes(2);
+    expect(f.runtime.dispose).toHaveBeenCalledOnce();
+    expect(f.host.querySelector('[data-terminal-status]')?.textContent).toBe('运行中');
   });
 });

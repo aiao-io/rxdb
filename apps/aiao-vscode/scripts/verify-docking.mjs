@@ -128,7 +128,7 @@ try {
   await verifyCodicons(root);
   await expect(root.locator('[data-slot="save-status"]')).toContainText('已保存', { timeout: 30000 });
   await createProject(root);
-  await root.locator('.wb-title [data-action="run"]').click();
+  await root.locator('[data-action="rerun-preview"]').click();
   const preview = page.frameLocator('iframe[title="项目隔离预览"]');
   await preview.getByRole('button', { name: '次数 0', exact: true }).click({ timeout: 30000 });
   await expect(preview.getByRole('button', { name: '次数 1', exact: true })).toBeVisible();

@@ -15,12 +15,19 @@ export interface PreviewKeydownEvent {
   shiftKey: boolean;
 }
 
+/** 预览 iframe 里修饰键（⌘ / Ctrl / Alt / Shift）是否按着；宿主据此识别 ⌘W 之类由键盘触发的关闭。 */
+export interface PreviewModifiersEvent {
+  type: 'modifiers';
+  pressed: boolean;
+}
+
 export type PreviewEvent = PreviewIdentity &
   (
     | { type: 'ready' }
     | { type: 'console'; level: 'log' | 'info' | 'warn' | 'error' | 'debug'; values: string[] }
     | { type: 'error'; message: string; stack: string }
     | PreviewKeydownEvent
+    | PreviewModifiersEvent
   );
 
 /**
@@ -191,6 +198,12 @@ export function buildPreviewDocument(options: PreviewDocumentOptions): string {
       event.preventDefault();
       send({type:'keydown', key, ctrlKey:event.ctrlKey, metaKey:event.metaKey, shiftKey:event.shiftKey});
     }, true);
+    let modifier = false;
+    const report = pressed => { if (pressed !== modifier) { modifier = pressed; send({type:'modifiers', pressed}); } };
+    const track = event => report(event.altKey || event.ctrlKey || event.metaKey || event.shiftKey);
+    addEventListener('keydown', track, true);
+    addEventListener('keyup', track, true);
+    addEventListener('blur', () => report(false));
     const stringify = value => { try { return typeof value === 'string' ? value : JSON.stringify(value) ?? String(value); } catch { return String(value); } };
     for (const level of ['log','info','warn','error','debug']) {
       const original = console[level].bind(console);
@@ -227,6 +240,7 @@ export function isPreviewEvent(value: unknown, identity: PreviewIdentity): value
   if (message['type'] === 'ready') return true;
   if (message['type'] === 'error')
     return typeof message['message'] === 'string' && typeof message['stack'] === 'string';
+  if (message['type'] === 'modifiers') return typeof message['pressed'] === 'boolean';
   if (message['type'] === 'keydown')
     return (
       WORKBENCH_PREVIEW_SHORTCUT_KEYS.includes(String(message['key'])) &&

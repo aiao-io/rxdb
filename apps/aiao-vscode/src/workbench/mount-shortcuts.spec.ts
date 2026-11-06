@@ -233,4 +233,37 @@ describe('预览转发与工作台全局快捷键', () => {
     expect(press({ key: 'u', ctrlKey: true, shiftKey: true })).toBe(true);
     expect(root.querySelector('[data-slot="side-title"]')?.textContent).toBe('资源管理器');
   }, 10000);
+
+  it('键盘关闭网页（⌘ 按着时卸载）弹出浏览器确认，点标签页 × 不弹，释放后不再拦截', async () => {
+    const { handle } = fixture();
+    await handle.ready;
+    const unload = (): boolean => {
+      const event = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    expect(unload()).toBe(false);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Meta', metaKey: true, bubbles: true, cancelable: true }));
+    expect(unload()).toBe(true);
+    window.dispatchEvent(new KeyboardEvent('keyup', { key: 'Meta', bubbles: true, cancelable: true }));
+    expect(unload()).toBe(false);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Meta', metaKey: true, bubbles: true, cancelable: true }));
+    handle.dispose();
+    expect(unload()).toBe(false);
+  }, 10000);
+
+  it('焦点在预览 iframe 里按着 ⌘ 关闭网页同样确认：预览经消息上报修饰键状态', async () => {
+    const { handle } = fixture();
+    await handle.ready;
+    await vi.waitFor(() => expect(previewSpies.onEvent).toBeDefined());
+    const unload = (): boolean => {
+      const event = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    forward({ sessionId: 'x', projectId: 'one', revision: 1, type: 'modifiers', pressed: true });
+    expect(unload()).toBe(true);
+    forward({ sessionId: 'x', projectId: 'one', revision: 1, type: 'modifiers', pressed: false });
+    expect(unload()).toBe(false);
+  }, 10000);
 });

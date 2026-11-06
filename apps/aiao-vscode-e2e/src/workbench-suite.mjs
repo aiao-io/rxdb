@@ -39,7 +39,7 @@ async function createProject(page, expect, template) {
 
 async function runPreview(page, expect, heading, fixture) {
   const root = page.getByRole('region', { name: '浏览器开发工作台', exact: true });
-  const run = root.locator('[data-action="run"]');
+  const run = root.locator('[data-action="rerun-preview"]');
   await run.click();
   await expect(run).toBeEnabled({ timeout: 60000 });
   const preview = page.frameLocator('.wb-preview-content iframe');
