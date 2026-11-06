@@ -1,11 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest';
-import {
-  createCodicon,
-  createFileIcon,
-  gitStatusCodicon,
-  iconMarkup
-} from './workbench-icons.js';
+import { createCodicon, createFileIcon, gitStatusCodicon, iconMarkup } from './workbench-icons.js';
 
 describe('VS Code 官方图标', () => {
   it('装饰图标使用官方 class，不把图标字体读成文本', () => {

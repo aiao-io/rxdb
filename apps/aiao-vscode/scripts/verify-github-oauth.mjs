@@ -34,7 +34,7 @@ function redact(message) {
 
 function environmentProxy() {
   const address =
-    (new URL(url).protocol === 'https:' ? process.env.HTTPS_PROXY ?? process.env.https_proxy : undefined) ??
+    (new URL(url).protocol === 'https:' ? (process.env.HTTPS_PROXY ?? process.env.https_proxy) : undefined) ??
     process.env.HTTP_PROXY ??
     process.env.http_proxy ??
     process.env.ALL_PROXY ??
@@ -46,7 +46,9 @@ function environmentProxy() {
       server: `${parsed.protocol}//${parsed.host}`,
       username: decodeURIComponent(parsed.username) || undefined,
       password: decodeURIComponent(parsed.password) || undefined,
-      bypass: ['localhost', '127.0.0.1', '[::1]', process.env.NO_PROXY ?? process.env.no_proxy].filter(Boolean).join(',')
+      bypass: ['localhost', '127.0.0.1', '[::1]', process.env.NO_PROXY ?? process.env.no_proxy]
+        .filter(Boolean)
+        .join(',')
     };
   } catch {
     throw new Error('代理环境变量必须包含合法代理 URL');
@@ -127,7 +129,7 @@ try {
 
   await step('仓库列表正确聚合两页，绝对 Link 地址保持 GitHub API origin', async () => {
     const requests = [];
-    const apiRoute = /^https:\/\/api\.github\.com/;
+    const apiRoute = /^https:\/\/api\.github\.com(?:\/|$)/;
     await context.route(apiRoute, async route => {
       const current = route.request();
       const headers = {
@@ -149,11 +151,19 @@ try {
       });
     });
     try {
-      const names = await page.evaluate(async () => (await window.github.api.listMyRepositories()).map(repo => repo.fullName));
+      const names = await page.evaluate(async () =>
+        (await window.github.api.listMyRepositories()).map(repo => repo.fullName)
+      );
       assert.deepEqual(names, ['probe/page-1', 'probe/page-2'], '仓库列表应聚合两页');
       assert.equal(requests.length, 2, '仓库列表应恰好请求两页');
-      assert.ok(requests.every(item => new URL(item.url).origin === 'https://api.github.com'), '两页请求都应使用正确 API origin');
-      assert.ok(requests.every(item => !item.hasAuthorization), '分页探针不能使用真实 token');
+      assert.ok(
+        requests.every(item => new URL(item.url).origin === 'https://api.github.com'),
+        '两页请求都应使用正确 API origin'
+      );
+      assert.ok(
+        requests.every(item => !item.hasAuthorization),
+        '分页探针不能使用真实 token'
+      );
     } finally {
       await context.unroute(apiRoute);
     }

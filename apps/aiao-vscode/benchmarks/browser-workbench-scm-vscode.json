@@ -1,9 +1,6 @@
 {
-  "format": "aiao.browser-workbench.scm",
-  "version": 1,
-  "host": "vscode",
-  "url": "http://localhost:4320/",
-  "status": "passed",
+  "browser": "156.0.8078.4",
+  "changesScreenshot": "/Users/jimmy/Documents/GitHub/aiao-worktree-vscode/apps/aiao-vscode/benchmarks/browser-workbench-scm-changes-vscode.png",
   "checks": [
     {
       "name": "vscode-scm-list-tree-sort-and-commit-layout",
@@ -42,8 +39,28 @@
       "milliseconds": 434.67641699999876
     }
   ],
-  "browser": "156.0.8078.4",
+  "errors": [],
+  "format": "aiao.browser-workbench.scm",
   "generatedAt": "2026-11-06T07:42:51.532Z",
+  "git": {
+    "historyCount": 2,
+    "head": "2af2c7a38eb5b2928721c85fc9f44985f3fcaa26",
+    "nativeStatus": "clean",
+    "otherDraftInEditorOnly": true
+  },
+  "gitWorkerAssets": [
+    {
+      "url": "http://localhost:4320/browser-workbench-assets/git-worker.js",
+      "status": 200,
+      "sha256": "93b1d1ad80686b9460eafb5f7e43cfaf401358fd5f32abba27f795f1cd04c84d"
+    },
+    {
+      "url": "http://localhost:4320/browser-workbench-assets/git-worker.js",
+      "status": 200,
+      "sha256": "93b1d1ad80686b9460eafb5f7e43cfaf401358fd5f32abba27f795f1cd04c84d"
+    }
+  ],
+  "host": "vscode",
   "layout": {
     "input": {
       "x": 60,
@@ -57,33 +74,12 @@
       "width": 276,
       "height": 28
     },
-    "actions": [
-      "open",
-      "discard",
-      "stage"
-    ],
+    "actions": ["open", "discard", "stage"],
     "lastIsStatus": true
   },
-  "changesScreenshot": "/Users/jimmy/Documents/GitHub/aiao-worktree-vscode/apps/aiao-vscode/benchmarks/browser-workbench-scm-changes-vscode.png",
-  "git": {
-    "historyCount": 2,
-    "head": "2af2c7a38eb5b2928721c85fc9f44985f3fcaa26",
-    "nativeStatus": "clean",
-    "otherDraftInEditorOnly": true
-  },
-  "errors": [],
+  "screenshot": "/Users/jimmy/Documents/GitHub/aiao-worktree-vscode/apps/aiao-vscode/benchmarks/browser-workbench-scm-vscode.png",
+  "status": "passed",
   "unexpectedDialogs": [],
-  "gitWorkerAssets": [
-    {
-      "url": "http://localhost:4320/browser-workbench-assets/git-worker.js",
-      "status": 200,
-      "sha256": "93b1d1ad80686b9460eafb5f7e43cfaf401358fd5f32abba27f795f1cd04c84d"
-    },
-    {
-      "url": "http://localhost:4320/browser-workbench-assets/git-worker.js",
-      "status": 200,
-      "sha256": "93b1d1ad80686b9460eafb5f7e43cfaf401358fd5f32abba27f795f1cd04c84d"
-    }
-  ],
-  "screenshot": "/Users/jimmy/Documents/GitHub/aiao-worktree-vscode/apps/aiao-vscode/benchmarks/browser-workbench-scm-vscode.png"
+  "url": "http://localhost:4320/",
+  "version": 1
 }
