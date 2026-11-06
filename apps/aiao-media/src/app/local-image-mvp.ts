@@ -75,6 +75,7 @@ import {
 } from './display-preferences';
 import { ElementWidthDirective } from './element-width.directive';
 import { imageMvpCatalog } from './image-mvp-catalog';
+import { transitionImage } from './image-view-transition';
 import { authorInitial, columnCount, coverRatio, distribute } from './inspiration-feed';
 import {
   generateLocalImage,
@@ -604,7 +605,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     if (next === 'providers') this.settingsTab.set(hashTab(location.hash));
   }
   @HostListener('document:keydown.escape') onEscape() {
-    this.detail.set(null);
+    this.closeTemplate();
     this.feedbackOpen.set(false);
     this.closeAuth();
     this.closeKeyPrompt();
@@ -670,7 +671,10 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   }
   openTemplate(template: PromptTemplate, event: Event) {
     this.dialogTrigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
-    this.detail.set(template);
+    this.transitionTemplate(template);
+  }
+  closeTemplate() {
+    if (this.detail()) this.transitionTemplate(null);
   }
   /** 容器被隐藏时宽度为 0，保持原有分列，恢复显示后再按真实宽度重排。 */
   feedWidthChange(width: number) {
@@ -1161,9 +1165,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     try {
       await store.delete(work.jobId);
       if (epoch !== this.epoch) return false;
-      this.imageDownloads.update(
-        current => new Map([...current].filter(([key]) => !key.startsWith(`${work.jobId}:`)))
-      );
+      this.imageDownloads.update(current => new Map([...current].filter(([key]) => !key.startsWith(`${work.jobId}:`))));
       if (this.resultUrl() && !this.resultBlob) this.revokeResult();
       if (this.job()?.id === work.jobId) {
         this.revokeResult();
@@ -1697,6 +1699,18 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   }
   formatDateTime(value: string | undefined) {
     return formatTime(value, dateTimeFormat);
+  }
+  private transitionTemplate(template: PromptTemplate | null) {
+    const trigger = this.dialogTrigger;
+    const detailImage = () => document.querySelector<HTMLImageElement>('.template-panel .media-stage img');
+    const coverImage = () => trigger?.querySelector<HTMLImageElement>('.feed-cover img') ?? null;
+    const source = template ? coverImage() : detailImage();
+    void transitionImage(source, () => {
+      this.detail.set(template);
+      return new Promise(resolve => {
+        afterNextRender({ read: () => resolve(template ? detailImage() : coverImage()) }, { injector: this.injector });
+      });
+    });
   }
   private backupIdentity(): string | null {
     if (!['signed-in', 'signed-out'].includes(this.authStatus())) return null;

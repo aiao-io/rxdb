@@ -65,6 +65,80 @@ test('首页只有图片瀑布流：多列错落排开，点开详情完整显�
   await expect(first).toBeFocused();
 });
 
+test('首页图片从点击位置过渡到弹窗，关闭时平滑回到卡片', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto('/');
+  await page.addStyleTag({
+    content:
+      ':root::view-transition-group(template-image) { animation-duration: 2s !important; } .feed-cover img { transition: none !important; }'
+  });
+  const card = page.getByRole('button', { name: '查看把一杯咖啡，拍成一张好海报', exact: true });
+  const cover = card.locator('img');
+  await cover.evaluate((image: HTMLImageElement) => image.decode());
+  await card.hover();
+  const origin = (await cover.boundingBox())!;
+  await card.click();
+  const dialog = page.getByRole('dialog', { name: '把一杯咖啡，拍成一张好海报' });
+  await expect(dialog).toBeVisible();
+  const detail = dialog.locator('.media-stage img');
+  const destination = (await detail.boundingBox())!;
+  const groupFrames = () =>
+    page.evaluate(() => {
+      const animation = document
+        .getAnimations()
+        .find(
+          animation =>
+            animation.effect instanceof KeyframeEffect &&
+            animation.effect.pseudoElement === '::view-transition-group(template-image)'
+        );
+      return animation?.effect instanceof KeyframeEffect ? animation.effect.getKeyframes() : null;
+    });
+  await expect.poll(groupFrames).toBeTruthy();
+  const frames = (await groupFrames())!;
+  const firstTransform = await page.evaluate(transform => {
+    const matrix = new DOMMatrix(transform);
+    return { x: matrix.m41, y: matrix.m42, scaleX: matrix.m11 };
+  }, String(frames[0].transform));
+  expect(Number.parseFloat(String(frames[0].width)) * firstTransform.scaleX).toBeCloseTo(origin.width, 0);
+  expect(firstTransform.x).toBeCloseTo(origin.x, 0);
+  expect(firstTransform.y).toBeCloseTo(origin.y, 0);
+  expect(destination.width).toBeGreaterThan(origin.width);
+  await page.evaluate(() => {
+    for (const animation of document.getAnimations())
+      if (animation.effect instanceof KeyframeEffect && animation.effect.pseudoElement?.includes('view-transition'))
+        animation.finish();
+  });
+  await expect(page.locator('html')).not.toHaveClass(/template-image-transition/);
+  await expect(detail).toBeVisible();
+  await dialog.getByRole('button', { name: '关闭模板详情' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect.poll(groupFrames).toBeTruthy();
+  const reverse = (await groupFrames())!;
+  expect(Number.parseFloat(String(reverse[0].width))).toBeCloseTo(destination.width, 0);
+  await page.evaluate(() => {
+    for (const animation of document.getAnimations())
+      if (animation.effect instanceof KeyframeEffect && animation.effect.pseudoElement?.includes('view-transition'))
+        animation.finish();
+  });
+  await expect(page.locator('html')).not.toHaveClass(/template-image-transition/);
+  await expect(card).toBeFocused();
+  await expect(page.locator('[style*="view-transition-name"]')).toHaveCount(0);
+});
+
+test('减少动态效果时首页图片直接打开和关闭详情', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  const card = page.getByRole('button', { name: '查看把一杯咖啡，拍成一张好海报', exact: true });
+  await card.click();
+  const dialog = page.getByRole('dialog', { name: '把一杯咖啡，拍成一张好海报' });
+  await expect(dialog).toBeVisible();
+  await expect(page.locator('html')).not.toHaveClass(/template-image-transition/);
+  await expect(page.locator('[style*="view-transition-name"]')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(card).toBeFocused();
+});
+
 test('供应商保存后清空表单，切换落盘前禁止生成', async ({ page }) => {
   await provider(page, false);
   await expect(page.getByLabel('名称', { exact: true })).toHaveValue('');
@@ -524,7 +598,9 @@ test('设置里的「显示」：页面宽度、卡片大小、对齐立即生�
   // 手机宽度：分区不横向溢出，每个选项都有足够大的触点。
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  const heights = await panel.locator('.choice').evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect().height));
+  const heights = await panel
+    .locator('.choice')
+    .evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect().height));
   expect(heights).toHaveLength(11);
   expect(Math.min(...heights)).toBeGreaterThanOrEqual(44);
 });
