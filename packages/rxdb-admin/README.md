@@ -15,9 +15,11 @@ export const shell = createAdminShell({
   brand: { title: '工作台' },
   navigate: url => router.navigate(url), // 外壳不依赖路由库，跳转由应用提供
   storagePrefix: 'aiao.workbench', // 同源多应用时隔离存储键
-  themes: pickThemes(['light', 'dark', 'cupcake', 'dracula']) // 必须与样式里启用的 daisyUI 主题一致
+  themes: pickThemes(['light', 'dark', 'material', 'material-dark', 'cupcake', 'dracula'])
 });
 ```
+
+`material` / `material-dark` 由共享的 `@aiao/rxdb-admin/admin.css` 提供，沿用参考项目的配色、20px 圆角与浮动面板留白，三框架通用；其他 daisyUI 主题需在应用样式中启用。`ADMIN_THEMES` 是完整目录，`DAISYUI_THEMES` 只含 daisyUI 内置主题。
 
 路由变化后调用 `shell.syncRoute(url)`（绑定组件会代劳），外壳据此同步页签、标题、面包屑并收起移动端抽屉。菜单用 `MenuNode` 树描述，图标类型由绑定决定（React 的 `ReactNode`、Vue 的 `Component`、Angular 的 lucide 图标数据）。
 

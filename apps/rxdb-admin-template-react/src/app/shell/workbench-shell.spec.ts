@@ -13,6 +13,26 @@ import {
 } from './workbench-shell';
 
 describe('workbench-shell', () => {
+  it.each(['material', 'material-dark'])('%s 可通过主题卡片选择、持久化并在刷新后恢复', name => {
+    const local = createMemoryStorage();
+    const shell = createWorkbenchShell(undefined, { storage: { local }, host: {} });
+    try {
+      expect(shell.theme.options).toContainEqual({ name, dark: name === 'material-dark' });
+      shell.preferences.setPath('theme.name', name);
+      expect(shell.theme.resolved.value).toBe(name);
+      shell.preferences.flush();
+    } finally {
+      shell.destroy();
+    }
+    const restored = createWorkbenchShell(undefined, { storage: { local }, host: {} });
+    try {
+      expect(restored.preferences.value.theme.name).toBe(name);
+      expect(restored.theme.resolved.value).toBe(name);
+    } finally {
+      restored.destroy();
+    }
+  });
+
   it('导入非法语言标签时清洗偏好后同步运行时，不产生拒绝', () => {
     const shell = createWorkbenchShell(undefined, { host: {} });
     try {

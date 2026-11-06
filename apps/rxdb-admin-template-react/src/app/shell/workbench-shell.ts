@@ -72,6 +72,8 @@ export function createWorkbenchShell(
     themes: pickThemes([
       'light',
       'dark',
+      'material',
+      'material-dark',
       'cupcake',
       'emerald',
       'corporate',

@@ -1,4 +1,4 @@
-/** 可选主题：名称与明暗。名称必须与应用样式里启用的 daisyUI 主题一致。 */
+/** 可选主题：名称与明暗。名称必须与应用样式里启用的主题一致。 */
 export interface ThemeOption {
   /** 主题名，即 `data-theme` 的值。 */
   readonly name: string;
@@ -48,18 +48,21 @@ export const DAISYUI_THEMES: readonly ThemeOption[] = [
   light('silk')
 ];
 
+/** 外壳主题目录：daisyUI 内置主题，以及 `admin.css` 提供的 Material 明暗主题。 */
+export const ADMIN_THEMES: readonly ThemeOption[] = [...DAISYUI_THEMES, light('material'), dark('material-dark')];
+
 /** 跟随系统明暗的伪主题名。 */
 export const SYSTEM_THEME = 'system';
 
 /**
- * 从 daisyUI 目录里按名字挑选主题。
+ * 从外壳目录里按名字挑选主题；daisyUI 主题需由应用样式启用。
  * @param names - 主题名，顺序即展示顺序。
  * @returns 主题选项。
  * @throws 名字不在目录中时抛错。
  */
 export function pickThemes(names: readonly string[]): ThemeOption[] {
   return names.map(name => {
-    const found = DAISYUI_THEMES.find(theme => theme.name === name);
+    const found = ADMIN_THEMES.find(theme => theme.name === name);
     if (!found) throw new Error(`Unknown theme "${name}"`);
     return found;
   });
@@ -98,12 +101,15 @@ export function nextThemeName(current: string, themes: readonly ThemeOption[]): 
 }
 
 /**
- * 主题的显示名：浅色 / 深色 / 跟随系统走翻译，其余 daisyUI 主题名是专有名词，仅首字母大写。
+ * 主题的显示名：浅色 / 深色 / 跟随系统走翻译，其余主题名是专有名词，按连字符分词并将首字母大写。
  * @param name - 主题名或 `system`。
  * @param translate - 翻译函数。
  * @returns 显示名。
  */
 export function themeDisplayName(name: string, translate: (key: string) => string): string {
   if (name === 'light' || name === 'dark' || name === SYSTEM_THEME) return translate(`theme.${name}`);
-  return name.charAt(0).toUpperCase() + name.slice(1);
+  return name
+    .split('-')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }

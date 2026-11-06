@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { createCategory, expectActionIcon, fillField, resetE2eState } from './e2e-utils.js';
+import { createCategory, expectActionIcon, fillField, openCreateDialog, resetE2eState } from './e2e-utils.js';
 
 async function snapshot(page: Page) {
   return page
@@ -33,6 +33,38 @@ async function snapshot(page: Page) {
       };
     });
 }
+
+test('新增对话框拖到视口边缘后仍可取消', async ({ page }) => {
+  await resetE2eState(page);
+  await page.goto('/entities/assets/AssetCategory');
+  await openCreateDialog(page);
+
+  const dialog = page.getByRole('dialog');
+  const titleBox = await dialog.locator('span.cursor-grab').boundingBox();
+  const viewport = page.viewportSize();
+  if (!titleBox || !viewport) throw new Error('新增对话框标题或视口不可用');
+
+  await page.mouse.move(titleBox.x + titleBox.width / 2, titleBox.y + titleBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(viewport.width - 1, viewport.height - 1, { steps: 10 });
+  await page.mouse.up();
+
+  await expect(dialog).toBeVisible();
+  const movedBox = await dialog.boundingBox();
+  if (!movedBox) throw new Error('拖拽后对话框不存在');
+  expect(movedBox.y).toBeGreaterThan(titleBox.y);
+  expect(movedBox.x + movedBox.width).toBeLessThanOrEqual(viewport.width + 1);
+  expect(movedBox.y + movedBox.height).toBeLessThanOrEqual(viewport.height + 1);
+
+  const cancel = dialog.getByRole('button', { name: '取消', exact: true });
+  await expect(cancel).toBeInViewport({ ratio: 1 });
+  await cancel.click();
+  await expect(dialog).toHaveCount(0);
+
+  await openCreateDialog(page);
+  await dialog.getByRole('button', { name: '关闭', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+});
 
 test('字段配置、排序和空值分组在真实表格中可操作，分组后仍可编辑', async ({ page }) => {
   await resetE2eState(page);

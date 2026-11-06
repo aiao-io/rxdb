@@ -50,6 +50,55 @@ test.describe('后台外壳：偏好抽屉', () => {
     await expectStoredPreferences(page, null);
   });
 
+  for (const { name, label, scheme, background } of [
+    { name: 'material', label: 'Material', scheme: 'light', background: 'rgb(253, 254, 255)' },
+    { name: 'material-dark', label: 'Material Dark', scheme: 'dark', background: 'rgb(20, 22, 24)' }
+  ]) {
+    test(`${label}：参考配色、大圆角、宽留白，刷新保留，切回浅色恢复布局`, async ({ page }) => {
+      await page.goto('/search');
+      const root = page.locator('html');
+      const shell = page.getByTestId('admin-shell');
+      const content = page.locator('.admin-content');
+      const drawer = await openPreferences(page);
+      const material = drawer.getByTestId(`pref-theme-${name}`);
+      await expect(material).toHaveText(label);
+      await expect(material).toHaveCSS('border-radius', '20px');
+      await material.click();
+      await expect(root).toHaveAttribute('data-theme', name);
+      await expect(root).toHaveCSS('color-scheme', scheme);
+      await expect(shell).toHaveCSS('background-color', background);
+      await expect(shell).toHaveCSS('padding-top', '16px');
+      await expect(shell).toHaveCSS('column-gap', '20px');
+      await expect(content).toHaveCSS('border-radius', '20px');
+      await expect(content).toHaveCSS('padding-top', '24px');
+      await expectStoredPreferences(page, { theme: { name } });
+      await page.reload();
+      await expect(root).toHaveAttribute('data-theme', name);
+      await expect(content).toHaveCSS('border-radius', '20px');
+      await expect(shell).toHaveCSS('padding-top', '16px');
+      const reopened = await openPreferences(page);
+      await reopened.getByTestId('pref-theme-light').click();
+      await expect(shell).toHaveCSS('padding-top', '0px');
+      await expect(content).toHaveCSS('border-radius', '0px');
+    });
+  }
+
+  test('Material：窄屏保留留白，侧栏可打开且内容不横向溢出', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/search');
+    const drawer = await openPreferences(page);
+    await drawer.getByTestId('pref-theme-material').click();
+    await page.keyboard.press('Escape');
+    const shell = page.getByTestId('admin-shell');
+    await expect(shell).toHaveAttribute('data-mobile', 'true');
+    await expect(shell).toHaveCSS('padding-top', '8px');
+    await expect(page.locator('.admin-content')).toHaveCSS('padding-top', '16px');
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.getByTestId('admin-menu-toggle').click();
+    await expect(page.locator('.admin-sidebar')).toHaveAttribute('data-open', 'true');
+    await expect(page.getByTestId('search-nav-link')).toBeVisible();
+  });
+
   test('顶栏主题按钮在 系统 / 亮 / 暗 / 各主题 间循环', async ({ page }) => {
     await page.goto('/search');
     const root = page.locator('html');

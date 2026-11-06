@@ -4,7 +4,14 @@ import { applyPatch } from '../../preferences/merge.js';
 import type { AdminPreferences } from '../../preferences/types.js';
 import { computeRootAttributes, computeThemeStyle, readableContentFor } from '../../theme/style.js';
 import { createSystemDarkStore, type MediaQueryLike } from '../../theme/system-theme.js';
-import { DAISYUI_THEMES, nextThemeName, pickThemes, resolveThemeName } from '../../theme/themes.js';
+import {
+  ADMIN_THEMES,
+  DAISYUI_THEMES,
+  nextThemeName,
+  pickThemes,
+  resolveThemeName,
+  themeDisplayName
+} from '../../theme/themes.js';
 
 const prefs = (patch: object): AdminPreferences => applyPatch(defaultPreferences, patch);
 
@@ -17,12 +24,27 @@ describe('主题目录', () => {
     ]);
   });
 
+  it('Material 明暗主题可选，独立于 daisyUI 内置目录', () => {
+    expect(pickThemes(['light', 'material', 'material-dark', 'dark'])).toEqual([
+      { name: 'light', dark: false },
+      { name: 'material', dark: false },
+      { name: 'material-dark', dark: true },
+      { name: 'dark', dark: true }
+    ]);
+    expect(DAISYUI_THEMES.some(theme => theme.name === 'material')).toBe(false);
+  });
+
+  it('Material 明暗主题的展示名与参考项目一致', () => {
+    expect(themeDisplayName('material', key => key)).toBe('Material');
+    expect(themeDisplayName('material-dark', key => key)).toBe('Material Dark');
+  });
+
   it('pickThemes 遇到目录之外的主题立即报错', () => {
     expect(() => pickThemes(['light', 'nope'])).toThrow(/Unknown theme "nope"/);
   });
 
   it('目录里的主题名唯一', () => {
-    const names = DAISYUI_THEMES.map(theme => theme.name);
+    const names = ADMIN_THEMES.map(theme => theme.name);
     expect(new Set(names).size).toBe(names.length);
   });
 
