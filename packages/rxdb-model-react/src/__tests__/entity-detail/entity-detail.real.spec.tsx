@@ -129,7 +129,7 @@ describe('EntityDetail（真实组件）', () => {
       </I18nProvider>
     );
     const input = within(view.getByRole('group', { name: /^标题/ })).getByRole('textbox');
-    fireEvent.click(view.getByRole('button', { name: '保存', exact: true }));
+    fireEvent.click(view.getByRole('button', { name: '保存' }));
     expect(view.getAllByText('标题 是必填项').length).toBeGreaterThan(0);
     await act(() => runtime.setLocale('en'));
     expect(view.queryAllByText('标题 是必填项')).toHaveLength(0);
@@ -285,7 +285,7 @@ describe('EntityDetail（真实组件）', () => {
       </I18nProvider>
     );
     vi.spyOn(repoOf(), 'create').mockRejectedValueOnce(new Error('写入被拒'));
-    fireEvent.click(view.getByRole('button', { name: '保存', exact: true }));
+    fireEvent.click(view.getByRole('button', { name: '保存' }));
     await waitFor(() => expect(view.getByRole('alert').textContent).toContain('保存失败：写入被拒'));
     await act(() => runtime.setLocale('en'));
     expect(view.getByRole('alert').textContent).toContain('Save failed: 写入被拒');

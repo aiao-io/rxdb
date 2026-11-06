@@ -62,7 +62,7 @@ export const COLOR_PRESETS = [
 export const HEX_COLOR_PATTERN = /^(#[0-9a-fA-F]{6})?$/;
 
 /** BCP 47 语言标签（可为空）的宽松匹配。 */
-export const LOCALE_PATTERN = /^([A-Za-z]{2,3}([-_][A-Za-z0-9]{2,8})*)?$/;
+export const LOCALE_PATTERN = /^([A-Za-z]{2,3}([-][A-Za-z0-9]{1,8})*)?$/;
 
 /** IANA 时区名（可为空）的宽松匹配。 */
 export const TIMEZONE_PATTERN = /^([A-Za-z_]+(\/[A-Za-z0-9_+-]+)*)?$/;

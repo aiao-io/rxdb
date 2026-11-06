@@ -33,8 +33,17 @@ export const BUILTIN_PREFERENCE_ITEMS: readonly PreferenceItem[] = [
   ...GENERAL_ITEMS
 ];
 
+const normalizeLocale = (value: string): string | undefined => {
+  if (value === '') return '';
+  try {
+    return new Intl.Locale(value).toString();
+  } catch {
+    return undefined;
+  }
+};
+
 const dynamicSelectConstraint = (source: 'themes' | 'locales' | 'timezones'): PreferenceConstraint | undefined => {
-  if (source === 'locales') return { kind: 'pattern', pattern: LOCALE_PATTERN };
+  if (source === 'locales') return { kind: 'pattern', pattern: LOCALE_PATTERN, normalize: normalizeLocale };
   if (source === 'timezones') return { kind: 'pattern', pattern: TIMEZONE_PATTERN };
   return undefined;
 };

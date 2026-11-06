@@ -12,7 +12,11 @@ export type PreferenceConstraint =
       readonly max?: number;
       readonly nullable?: boolean;
     }
-  | { readonly kind: 'pattern'; readonly pattern: RegExp };
+  | {
+      readonly kind: 'pattern';
+      readonly pattern: RegExp;
+      readonly normalize?: (value: string) => string | undefined;
+    };
 
 /** 路径（点分隔）到约束的映射。 */
 export type PreferenceConstraints = Readonly<Record<string, PreferenceConstraint>>;
@@ -81,7 +85,9 @@ const clamp = (value: number, min: number | undefined, max: number | undefined):
 
 const applyConstraint = (raw: unknown, base: unknown, constraint: PreferenceConstraint): unknown => {
   if (constraint.kind === 'pattern') {
-    return typeof raw === 'string' && constraint.pattern.test(raw) ? raw : base;
+    if (typeof raw !== 'string') return base;
+    const normalized = constraint.normalize ? constraint.normalize(raw) : raw;
+    return normalized !== undefined && constraint.pattern.test(normalized) ? normalized : base;
   }
   if (raw === null) return constraint.nullable ? null : base;
   if (constraint.kind === 'enum') {

@@ -26,6 +26,10 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 | [US-537 重开恢复与备份导出](stories/domain/US-537-board-backup-restore.md)                                  | 恢复中配额不足、关闭页面后重开的注入分支（AC#9）仍待补齐。         |
 | [US-540 看板端到端 demo](stories/domain/US-540-board-end-to-end-demo.md)                                    | demo 既有库初态（AC#7）与无搜索插件构建（AC#12）仍待验。           |
 | [US-603 手工发布入口的提交与校验结果一致性](stories/tooling/US-603-manual-release-preflight.md)             | 两个手工发布入口已接入共享 preflight；待受控 registry 替身验收。   |
+| [US-530](stories/domain/US-530-admin-shell-preferences-appearance.md)                                       | 外壳实现与三端测试已接入，验收和代码评审待收口。                   |
+| [US-531](stories/domain/US-531-admin-shell-layout-tabbar.md)                                                | 外壳实现与三端测试已接入，验收和代码评审待收口。                   |
+| [US-532](stories/domain/US-532-admin-shell-shortcuts-palette-extensions.md)                                 | 外壳实现与三端测试已接入，验收和代码评审待收口。                   |
+| [US-533](stories/domain/US-533-admin-shell-widgets-lock-general.md)                                         | 外壳实现与三端测试已接入，验收和代码评审待收口。                   |
 
 ## 待评审（8 条）
 
@@ -189,6 +193,10 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - ✅ [US-527 工作台备份恢复闭环：失败语义与数据保留](stories/domain/US-527-admin-backup-restore.md)
 - ⬜ [US-528 独立消费接入示例与接入成本记录](stories/domain/US-528-admin-consumer-example.md)
 - ✅ [US-529 实体列表视图配置：字段显隐、多字段排序与分组](stories/domain/US-529-entity-list-view-settings.md)
+- 🚧 [US-530 后台外壳偏好中心：声明式 schema 驱动的偏好抽屉与外观设置](stories/domain/US-530-admin-shell-preferences-appearance.md)
+- 🚧 [US-531 后台外壳布局：四种布局模式、侧栏图标轨、移动端抽屉与页签栏](stories/domain/US-531-admin-shell-layout-tabbar.md)
+- 🚧 [US-532 后台外壳快捷键、命令面板与扩展偏好项](stories/domain/US-532-admin-shell-shortcuts-palette-extensions.md)
+- 🚧 [US-533 后台外壳顶栏部件、锁屏与通用设置：语言、时区、水印、版权页脚](stories/domain/US-533-admin-shell-widgets-lock-general.md)
 
 ### [任务看板领域模型](epics/epic-011-task-board-domain-model.md)
 
