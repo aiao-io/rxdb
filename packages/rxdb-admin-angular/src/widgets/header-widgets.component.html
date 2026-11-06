@@ -43,9 +43,18 @@
         @case ('fullscreen') {
           <button
             class="btn btn-ghost btn-sm btn-square"
-            [attr.aria-label]="fullscreen() ? t('widget.exitFullscreen') : t('widget.fullscreen')"
+            [attr.aria-label]="
+              fullscreenUnsupported() ? t('widget.fullscreenUnsupported')
+              : fullscreen() ? t('widget.exitFullscreen')
+              : t('widget.fullscreen')
+            "
             [attr.aria-pressed]="fullscreen()"
-            [attr.title]="fullscreen() ? t('widget.exitFullscreen') : t('widget.fullscreen')"
+            [attr.title]="
+              fullscreenUnsupported() ? t('widget.fullscreenUnsupported')
+              : fullscreen() ? t('widget.exitFullscreen')
+              : t('widget.fullscreen')
+            "
+            [disabled]="fullscreenUnsupported()"
             (click)="shell.fullscreen.toggle()"
             data-testid="admin-widget-fullscreen"
             type="button"

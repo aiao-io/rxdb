@@ -138,4 +138,4 @@ shell.shortcuts.register({ id: 'sync', combo: 'Mod+Shift+S', label: '立即同�
 
 ## 样式契约
 
-`@aiao/rxdb-admin/admin.css` 是三端共享的样式契约：全部位于 `@layer components`，只使用 daisyUI 的主题变量，应用可以在更高的层里覆盖。覆盖 daisyUI 自身的子组件样式（例如未选中页签的前景色）需要写在 `@layer utilities` 本层，才压得过 daisyUI 位于子层的规则。
+`@aiao/rxdb-admin/admin.css` 是三端共享的样式契约：绝大部分位于 `@layer components`，只使用 daisyUI 的主题变量，应用可以在更高的层里覆盖。需要压过 daisyUI 的少数覆盖（偏好抽屉未选中页签的前景色、侧栏菜单的宽度 / 圆角 / 图标轨）位于文件末尾的 `@layer utilities`：daisyUI 的规则在 `utilities` 的子层里，`components` 层写多高的特异性都会输；应用自己覆盖 daisyUI 的子组件样式时同理，要写在 `utilities` 本层。

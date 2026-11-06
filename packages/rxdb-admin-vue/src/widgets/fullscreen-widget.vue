@@ -9,15 +9,21 @@ import IconButton from './icon-button.vue';
 const shell = useAdminShell();
 const t = useAdminText();
 const fullscreen = useAdminStore(shell.fullscreen.isFullscreen);
+const unsupported = useAdminStore(shell.fullscreen.unsupported);
 
 const toggle = (): void => void shell.fullscreen.toggle();
 </script>
 
 <template>
   <IconButton
-    :label="fullscreen ? t('widget.exitFullscreen') : t('widget.fullscreen')"
+    :label="
+      unsupported ? t('widget.fullscreenUnsupported')
+      : fullscreen ? t('widget.exitFullscreen')
+      : t('widget.fullscreen')
+    "
     test-id="admin-widget-fullscreen"
     :aria-pressed="fullscreen"
+    :disabled="unsupported"
     @click="toggle"
   >
     <Minimize2Icon

@@ -71,8 +71,9 @@ owner 于 2026-11-06 批准把 aiao-enterprise 偏好中心的外观、布局、
   在 `data-theme` / `style` / 系统明暗变化时通知三端表格重绘。
 - 原生 `<dialog>` 的关闭：Esc 同步触发 `cancel`，`close` 事件晚十余毫秒才到。三端都在 `cancel` 上立即回写、`close` 只在对话框确实关闭时回写，
   否则这段时间里的再次打开请求（如快捷键）会被迟到的 `close` 吞掉。
-- 样式契约 [`admin.css`](../../../packages/rxdb-admin/admin.css) 三端共享，全部位于 `@layer components`，只用 daisyUI 主题变量。
-  偏好抽屉未选中页签的前景需要写在 `@layer utilities` 本层才压得过 daisyUI 子层的 50% 前景色（对比度不足 4.5:1）。
+- 样式契约 [`admin.css`](../../../packages/rxdb-admin/admin.css) 三端共享，绝大部分位于 `@layer components`，只用 daisyUI 主题变量。
+  需要压过 daisyUI 的少数覆盖写在文件末尾的 `@layer utilities` 本层：daisyUI 的规则在 `utilities` 的子层里，`components` 层写多高的特异性都会输。
+  例如偏好抽屉未选中页签的前景（daisyUI 只有 50% 前景色，对比度不足 4.5:1）和侧栏菜单的宽度 / 圆角 / 图标轨内边距。
 
 ## 实现文件
 

@@ -96,7 +96,7 @@ shell.shortcuts.register({ id: 'sync', combo: 'Mod+Shift+S', label: '立即同�
 
 四种布局模式（`sidebar-nav`、`header-sidebar-nav`、`header-nav`、`full-content`）由 `shell.layout` 推导：侧栏折叠为图标轨、悬停展开、拖拽调宽、移动端抽屉、内容最大化等状态都已算好，绑定只按它渲染。
 
-三端壳共享同一份样式契约 `@aiao/rxdb-admin/admin.css`：全部位于 `@layer components`，只使用 daisyUI 的主题变量，应用可以在更高层覆盖。应用需自行启用 Tailwind 与 daisyUI，并在入口引入绑定包的 `tailwind.css`（让 Tailwind 扫描组件里用到的类）和本文件。
+三端壳共享同一份样式契约 `@aiao/rxdb-admin/admin.css`：绝大部分位于 `@layer components`，只使用 daisyUI 的主题变量，应用可以在更高层覆盖。需要压过 daisyUI 的少数覆盖（偏好抽屉页签、侧栏菜单的宽度 / 圆角 / 图标轨）位于文件末尾的 `@layer utilities`：daisyUI 的规则在 `utilities` 的子层里，`components` 层写多高的特异性都会输。应用需自行启用 Tailwind 与 daisyUI，并在入口引入绑定包的 `tailwind.css`（让 Tailwind 扫描组件里用到的类）和本文件。
 
 ## 国际化
 

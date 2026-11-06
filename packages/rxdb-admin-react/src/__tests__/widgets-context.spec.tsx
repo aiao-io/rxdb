@@ -69,6 +69,23 @@ describe('顶栏部件', () => {
     expect(root.requestFullscreen).toHaveBeenCalledOnce();
   });
 
+  it('环境拒绝全屏后按钮禁用并提示不支持', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      const { shell, fakeDocument } = mount();
+      const doc = fakeDocument.document as unknown as { documentElement: { requestFullscreen: () => Promise<void> } };
+      doc.documentElement.requestFullscreen = vi.fn(async () => {
+        throw new TypeError('Permissions check failed');
+      });
+      await act(async () => shell.fullscreen.toggle());
+      const button = screen.getByTestId('admin-widget-fullscreen');
+      expect(button.hasAttribute('disabled')).toBe(true);
+      expect(button.getAttribute('aria-label')).toBe('当前环境不支持全屏');
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it('刷新、锁屏、偏好按钮', () => {
     const { shell } = mount();
     fireEvent.click(screen.getByTestId('admin-widget-refresh'));

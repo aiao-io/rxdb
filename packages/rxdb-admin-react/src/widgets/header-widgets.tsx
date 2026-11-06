@@ -19,12 +19,14 @@ function IconButton({
   label,
   testId,
   pressed,
+  disabled,
   onClick,
   children
 }: {
   label: string;
   testId: string;
   pressed?: boolean;
+  disabled?: boolean;
   onClick: () => void;
   children: ReactElement;
 }): ReactElement {
@@ -36,6 +38,7 @@ function IconButton({
       title={label}
       aria-pressed={pressed}
       data-testid={testId}
+      disabled={disabled}
       onClick={onClick}
     >
       {children}
@@ -99,11 +102,18 @@ function FullscreenWidget(): ReactElement {
   const shell = useAdminShell();
   const t = useAdminText();
   const fullscreen = useAdminStore(shell.fullscreen.isFullscreen);
+  const unsupported = useAdminStore(shell.fullscreen.unsupported);
   return (
     <IconButton
-      label={fullscreen ? t('widget.exitFullscreen') : t('widget.fullscreen')}
+      label={
+        unsupported ? t('widget.fullscreenUnsupported')
+        : fullscreen ?
+          t('widget.exitFullscreen')
+        : t('widget.fullscreen')
+      }
       testId='admin-widget-fullscreen'
       pressed={fullscreen}
+      disabled={unsupported}
       onClick={() => void shell.fullscreen.toggle()}
     >
       {fullscreen ?

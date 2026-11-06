@@ -61,6 +61,21 @@ test.describe('后台外壳：偏好抽屉', () => {
     await expectStoredPreferences(page, { theme: { name: expect.any(String) } });
   });
 
+  test('顶栏全屏按钮进入全屏，外部退出后状态同步回来', async ({ page }) => {
+    await page.goto('/search');
+    const toggle = page.getByTestId('admin-widget-fullscreen');
+    await expect(toggle).toHaveAttribute('aria-label', '全屏');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await expect(toggle).toHaveAttribute('aria-label', '退出全屏');
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement !== null)).toBe(true);
+    // 模拟 Esc 之类的浏览器外部退出：按钮状态须经 fullscreenchange 同步回来
+    await page.evaluate(() => document.exitFullscreen());
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await expect(toggle).toHaveAttribute('aria-label', '全屏');
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+  });
+
   test('布局：切到顶栏导航后侧栏消失、顶栏出现水平菜单，刷新保留', async ({ page }) => {
     await page.goto('/search');
     const drawer = await openPreferences(page);

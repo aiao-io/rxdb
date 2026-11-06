@@ -154,6 +154,7 @@ describe('FullscreenController', () => {
     const listeners = new Set<() => void>();
     const doc = {
       fullscreenElement: null as unknown,
+      fullscreenEnabled: true,
       documentElement: {
         requestFullscreen: vi.fn(async () => {
           doc.fullscreenElement = {};
@@ -203,7 +204,65 @@ describe('FullscreenController', () => {
     const controller = new FullscreenController(undefined);
     await expect(controller.toggle()).resolves.toBeUndefined();
     expect(controller.isFullscreen.value).toBe(false);
+    expect(controller.unsupported.value).toBe(true);
     expect(() => controller.destroy()).not.toThrow();
+  });
+
+  it('fullscreenEnabled 为 false（iframe 无权限等）时 unsupported 初值为 true', () => {
+    const doc = fakeDocument();
+    doc.fullscreenEnabled = false;
+    const controller = new FullscreenController(doc);
+    expect(controller.unsupported.value).toBe(true);
+  });
+
+  it('requestFullscreen 被拒绝时 toggle 不抛出，unsupported 置 true', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      const doc = fakeDocument();
+      doc.documentElement.requestFullscreen = vi.fn(async () => {
+        throw new TypeError('Permissions check failed');
+      });
+      const controller = new FullscreenController(doc);
+      await expect(controller.toggle()).resolves.toBeUndefined();
+      expect(controller.isFullscreen.value).toBe(false);
+      expect(controller.unsupported.value).toBe(true);
+      expect(warn).toHaveBeenCalledOnce();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('requestFullscreen 挂起时超时返回，unsupported 置 true', async () => {
+    vi.useFakeTimers();
+    try {
+      const doc = fakeDocument();
+      doc.documentElement.requestFullscreen = vi.fn(() => new Promise<void>(() => undefined));
+      const controller = new FullscreenController(doc);
+      const pending = controller.toggle();
+      await vi.advanceTimersByTimeAsync(10_000);
+      await expect(pending).resolves.toBeUndefined();
+      expect(controller.unsupported.value).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('后续真正进入全屏（含外部触发）时 unsupported 复位', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      const doc = fakeDocument();
+      doc.documentElement.requestFullscreen = vi.fn(async () => {
+        throw new TypeError('NotAllowedError');
+      });
+      const controller = new FullscreenController(doc);
+      await controller.toggle();
+      expect(controller.unsupported.value).toBe(true);
+      doc.fullscreenElement = {};
+      for (const listener of doc.listeners) listener();
+      expect(controller.unsupported.value).toBe(false);
+    } finally {
+      warn.mockRestore();
+    }
   });
 });
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { findMenuPath } from '@aiao/rxdb-admin';
 import { Pin as PinIcon, X as XIcon } from '@lucide/vue';
-import { computed, ref, shallowRef, useTemplateRef } from 'vue';
+import { computed, nextTick, ref, shallowRef, useTemplateRef } from 'vue';
 import { useAdminShell, useAdminStore, useAdminText } from '../context.js';
 import { interceptNavigation } from '../layout/intercept-navigation.js';
 import HistoryMenu from './history-menu.vue';
@@ -55,7 +55,10 @@ const onKeyDown = (event: KeyboardEvent, key: string, index: number): void => {
     openMenu(key, box.left, box.bottom);
   } else if (draggable && event.shiftKey && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
     event.preventDefault();
+    const link = event.currentTarget as HTMLElement;
     move(key, index + (event.key === 'ArrowLeft' ? -1 : 1));
+    // keyed diff 重排时移动的可能正是被聚焦的节点（向左移动时），浏览器里被移动的节点会失焦：渲染完成后补回焦点
+    void nextTick(() => link.focus());
   }
 };
 

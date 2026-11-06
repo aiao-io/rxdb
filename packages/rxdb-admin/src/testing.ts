@@ -151,6 +151,7 @@ export function createFakeDocument(title = 'App'): FakeDocument {
   const document = {
     title,
     fullscreenElement: null,
+    fullscreenEnabled: true,
     documentElement: {
       getAttribute: (name: string) => attributes.get(name) ?? null,
       setAttribute: (name: string, value: string) => void attributes.set(name, value),

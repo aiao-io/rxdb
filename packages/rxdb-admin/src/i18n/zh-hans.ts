@@ -169,6 +169,7 @@ export const adminZhHansMessages = {
   'widget.timezone': '时区',
   'widget.fullscreen': '全屏',
   'widget.exitFullscreen': '退出全屏',
+  'widget.fullscreenUnsupported': '当前环境不支持全屏',
   'widget.refresh': '刷新页面',
   'widget.lock': '锁屏',
   'widget.preferences': '偏好设置',

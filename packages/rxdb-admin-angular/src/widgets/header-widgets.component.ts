@@ -33,6 +33,7 @@ export class AdminHeaderWidgetsComponent {
   protected readonly prefs = injectAdminStore(this.shell.preferences);
   protected readonly isDark = injectAdminStore(this.shell.theme.isDark);
   protected readonly fullscreen = injectAdminStore(this.shell.fullscreen.isFullscreen);
+  protected readonly fullscreenUnsupported = injectAdminStore(this.shell.fullscreen.unsupported);
   protected readonly hasDiff = injectAdminStore(this.shell.preferences.hasDiff);
   /** 搜索按钮上显示的键帽；快捷键被关闭时为空。 */
   protected readonly searchKeys = computed(() => {

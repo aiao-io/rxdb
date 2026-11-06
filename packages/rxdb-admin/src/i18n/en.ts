@@ -165,6 +165,7 @@ export const adminEnMessages: Record<AdminMessageKey, string> = {
   'widget.timezone': 'Time zone',
   'widget.fullscreen': 'Fullscreen',
   'widget.exitFullscreen': 'Exit fullscreen',
+  'widget.fullscreenUnsupported': 'Fullscreen is not supported here',
   'widget.refresh': 'Refresh page',
   'widget.lock': 'Lock screen',
   'widget.preferences': 'Preferences',
