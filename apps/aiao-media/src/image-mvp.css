@@ -2179,7 +2179,7 @@ footer {
   box-shadow: 0 30px 100px rgb(26 44 34 / 25%);
   transform: translate(-50%, -50%);
 }
-.modal-panel[open] {
+.modal-panel[open]:not(.template-panel) {
   animation: dialog-in 0.2s ease-out;
 }
 .modal-panel::backdrop {
@@ -2509,8 +2509,34 @@ footer {
     transform: translate(-50%, calc(-50% + 8px));
   }
 }
-:root.template-image-transition .template-panel[open] {
-  animation: none;
+@keyframes template-copy-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes template-copy-out {
+  to {
+    opacity: 0;
+  }
+}
+:root.template-image-transition .template-copy {
+  view-transition-name: template-copy;
+}
+:root.template-image-transition::view-transition-group(template-copy) {
+  animation-duration: 400ms;
+}
+:root.template-image-transition::view-transition-new(template-copy) {
+  animation: template-copy-in 160ms ease-out 240ms both;
+  mix-blend-mode: normal;
+}
+:root.template-image-transition::view-transition-old(template-copy) {
+  animation: template-copy-out 100ms ease-in both;
+  mix-blend-mode: normal;
 }
 :root.template-image-transition::view-transition-old(root),
 :root.template-image-transition::view-transition-new(root) {

@@ -1,4 +1,4 @@
-import { expect, test, type Route } from '@playwright/test';
+import { expect, test, type Page, type Route } from '@playwright/test';
 import { unzipSync } from 'fflate';
 import { readFile } from 'node:fs/promises';
 import sharp from 'sharp';
@@ -16,6 +16,35 @@ import {
   sealRelayAnswer,
   verifyImageDownload
 } from './local-first.helpers';
+
+async function pauseViewTransitions(page: Page) {
+  await page.evaluate(() => {
+    const start = document.startViewTransition;
+    document.startViewTransition = (...args) => {
+      const transition = start.apply(document, args);
+      void transition.ready.then(
+        () => {
+          for (const animation of document.getAnimations())
+            if (
+              animation.effect instanceof KeyframeEffect &&
+              animation.effect.pseudoElement?.includes('view-transition')
+            )
+              animation.pause();
+        },
+        () => undefined
+      );
+      return transition;
+    };
+  });
+}
+
+async function finishViewTransitions(page: Page) {
+  await page.evaluate(() => {
+    for (const animation of document.getAnimations())
+      if (animation.effect instanceof KeyframeEffect && animation.effect.pseudoElement?.includes('view-transition'))
+        animation.finish();
+  });
+}
 
 test('模板改写可转为普通提示词并保留正文和焦点', async ({ page }) => {
   await page.goto('/');
@@ -103,11 +132,7 @@ test('首页图片从点击位置过渡到弹窗，关闭时平滑回到卡片',
   expect(firstTransform.x).toBeCloseTo(origin.x, 0);
   expect(firstTransform.y).toBeCloseTo(origin.y, 0);
   expect(destination.width).toBeGreaterThan(origin.width);
-  await page.evaluate(() => {
-    for (const animation of document.getAnimations())
-      if (animation.effect instanceof KeyframeEffect && animation.effect.pseudoElement?.includes('view-transition'))
-        animation.finish();
-  });
+  await finishViewTransitions(page);
   await expect(page.locator('html')).not.toHaveClass(/template-image-transition/);
   await expect(detail).toBeVisible();
   await dialog.getByRole('button', { name: '关闭模板详情' }).click();
@@ -115,14 +140,96 @@ test('首页图片从点击位置过渡到弹窗，关闭时平滑回到卡片',
   await expect.poll(groupFrames).toBeTruthy();
   const reverse = (await groupFrames())!;
   expect(Number.parseFloat(String(reverse[0].width))).toBeCloseTo(destination.width, 0);
-  await page.evaluate(() => {
-    for (const animation of document.getAnimations())
-      if (animation.effect instanceof KeyframeEffect && animation.effect.pseudoElement?.includes('view-transition'))
-        animation.finish();
-  });
+  await finishViewTransitions(page);
   await expect(page.locator('html')).not.toHaveClass(/template-image-transition/);
   await expect(card).toBeFocused();
   await expect(page.locator('[style*="view-transition-name"]')).toHaveCount(0);
+});
+
+test('首页图片过渡结束后弹窗不重播入场动画，图片位置保持不变', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto('/');
+  await pauseViewTransitions(page);
+  await page.evaluate(() => {
+    document.documentElement.dataset.templateDialogAnimations = '';
+    document.addEventListener('animationstart', event => {
+      if (event.target instanceof HTMLDialogElement && event.target.classList.contains('template-panel'))
+        document.documentElement.dataset.templateDialogAnimations += event.animationName;
+    });
+  });
+  await page.getByRole('button', { name: '查看把一杯咖啡，拍成一张好海报', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: '把一杯咖啡，拍成一张好海报' });
+  const image = dialog.locator('.media-stage img');
+  await expect(dialog).toBeVisible();
+  const before = (await image.boundingBox())!;
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        document
+          .getAnimations()
+          .some(
+            animation =>
+              animation.effect instanceof KeyframeEffect &&
+              animation.effect.pseudoElement === '::view-transition-group(template-image)'
+          )
+      )
+    )
+    .toBe(true);
+  await finishViewTransitions(page);
+  await expect(page.locator('html')).not.toHaveClass(/template-image-transition/);
+  await page.evaluate(
+    () => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+  );
+  await expect(page.locator('html')).not.toHaveAttribute('data-template-dialog-animations', /dialog-in/);
+  const after = (await image.boundingBox())!;
+  expect(after.x).toBeCloseTo(before.x, 1);
+  expect(after.y).toBeCloseTo(before.y, 1);
+  expect(after.width).toBeCloseTo(before.width, 1);
+  expect(after.height).toBeCloseTo(before.height, 1);
+});
+
+test('首页详情文字在图片接近落位后才淡入', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto('/');
+  await pauseViewTransitions(page);
+  await page.getByRole('button', { name: '查看把一杯咖啡，拍成一张好海报', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: '把一杯咖啡，拍成一张好海报' })).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        document
+          .getAnimations()
+          .some(animation => animation instanceof CSSAnimation && animation.animationName === 'template-copy-in')
+      )
+    )
+    .toBe(true);
+  const timing = await page.evaluate(() => {
+    const animation = document
+      .getAnimations()
+      .find(animation => animation instanceof CSSAnimation && animation.animationName === 'template-copy-in')!;
+    const settings = animation.effect!.getTiming();
+    const delay = Number(settings.delay);
+    const duration = Number(settings.duration);
+    const sample = (time: number) => {
+      animation.currentTime = time;
+      return Number(getComputedStyle(document.documentElement, '::view-transition-new(template-copy)').opacity);
+    };
+    return {
+      delay,
+      duration,
+      before: sample(delay - 1),
+      middle: sample(delay + duration / 2),
+      after: sample(delay + duration)
+    };
+  });
+  expect(timing.delay).toBeGreaterThanOrEqual(200);
+  expect(timing.duration).toBeLessThanOrEqual(200);
+  expect(timing.before).toBe(0);
+  expect(timing.middle).toBeGreaterThan(0);
+  expect(timing.middle).toBeLessThan(1);
+  expect(timing.after).toBe(1);
+  await finishViewTransitions(page);
+  await expect(page.locator('html')).not.toHaveClass(/template-image-transition/);
 });
 
 test('首页图片还在放大时按 Esc 能关闭并再次打开', async ({ page }) => {
