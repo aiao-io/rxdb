@@ -13,6 +13,51 @@ import {
 } from './workbench-shell';
 
 describe('workbench-shell', () => {
+  it('导入非法语言标签时清洗偏好后同步运行时，不产生拒绝', () => {
+    const shell = createWorkbenchShell(undefined, { host: {} });
+    try {
+      shell.preferences.setPath('app.locale', 'en');
+      expect(shell.preferences.importJson('{"app":{"locale":"en_US"}}')).toEqual({ ok: true });
+      expect(shell.preferences.value.app.locale).toBe('');
+      expect(shell.i18n.locale).toBe('zh-Hans');
+      expect(shell.i18n.t('start.title')).toBe('开始使用工作台');
+    } finally {
+      shell.destroy();
+    }
+  });
+
+  it('普通偏好更新规范化合法语言，并清洗非法语言', () => {
+    const shell = createWorkbenchShell(undefined, { host: {} });
+    try {
+      shell.preferences.update({ app: { locale: 'EN-us' } });
+      expect(shell.preferences.value.app.locale).toBe('en-US');
+      expect(shell.i18n.locale).toBe('en-US');
+      expect(shell.i18n.t('start.title')).toBe('Get started with your workbench');
+      shell.preferences.setPath('app.locale', 'en-US-US');
+      expect(shell.preferences.value.app.locale).toBe('');
+      expect(shell.i18n.locale).toBe('zh-Hans');
+    } finally {
+      shell.destroy();
+    }
+  });
+
+  it.each([
+    ['EN-us', 'en-US', 'en-US'],
+    ['en_US', '', 'zh-Hans'],
+    ['en-US-US', '', 'zh-Hans']
+  ])('已持久化语言 %s 在恢复运行时前统一清洗', (locale, preference, runtimeLocale) => {
+    const local = createMemoryStorage({
+      [`${WORKBENCH_STORAGE_PREFIX}.preferences`]: JSON.stringify({ version: 1, values: { app: { locale } } })
+    });
+    const shell = createWorkbenchShell(undefined, { storage: { local }, host: {} });
+    try {
+      expect(shell.preferences.value.app.locale).toBe(preference);
+      expect(shell.i18n.locale).toBe(runtimeLocale);
+    } finally {
+      shell.destroy();
+    }
+  });
+
   it('清除语言选择或重置偏好后恢复应用默认语言', () => {
     const shell = createWorkbenchShell(undefined, { host: {} });
     try {

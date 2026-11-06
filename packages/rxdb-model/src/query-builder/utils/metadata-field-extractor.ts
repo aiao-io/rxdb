@@ -228,7 +228,7 @@ function extractFieldsRecursive(
     const fieldName = prefix ? `${prefix}.${fkName}` : fkName;
     if (existingNames.has(fieldName)) continue;
     const relationName = fkName.slice(0, -2);
-    const relation = metadata.foreignKeyRelationMap.get(relationName);
+    const relation = metadata.foreignKeyRelationMap.get(fkName);
     const relationDisplayName = relation?.displayName ?? relationName;
     const nullable = relation && 'nullable' in relation ? (relation.nullable ?? false) : false;
     fields.push({
@@ -366,7 +366,7 @@ export function extractRelationTargetFields(
   for (const fkName of metadata.foreignKeyNames) {
     if (existingFkNames.has(fkName)) continue;
     const relationName = fkName.slice(0, -2);
-    const relation = metadata.foreignKeyRelationMap.get(relationName);
+    const relation = metadata.foreignKeyRelationMap.get(fkName);
     const relationDisplayName = relation?.displayName ?? relationName;
     const nullable = relation && 'nullable' in relation ? (relation.nullable ?? false) : false;
     fields.push({

@@ -60,10 +60,8 @@ test.describe('工作台完整国际化', () => {
       'content',
       'A local-first, model-driven RxDB workbench for creating, editing, filtering, backing up and restoring data.'
     );
-    await expect(page.getByTestId('admin-header')).toContainText('Workbench');
-    await expect(
-      page.getByTestId('admin-menu').getByRole('link', { name: 'Asset categories' })
-    ).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Workbench', exact: true })).toBeVisible();
+    await expect(page.getByTestId('admin-menu').getByRole('link', { name: 'Asset categories' })).toBeVisible();
     await expect(page.getByTestId('backup-nav-link')).toContainText('Backup / Restore');
     expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
 
@@ -112,9 +110,7 @@ test.describe('工作台完整国际化', () => {
     await page.getByTestId('admin-menu').getByRole('link', { name: 'Assets' }).click();
     await page.getByRole('button', { name: '+ New', exact: true }).click();
     await expect(page.getByRole('group', { name: 'Name' })).toBeVisible();
-    await expect(page.getByRole('group', { name: 'Category' }).getByRole('combobox')).toContainText(
-      '办公设备'
-    );
+    await expect(page.getByRole('group', { name: 'Category' }).getByRole('combobox')).toContainText('办公设备');
     await expect(page.getByRole('group', { name: 'Status', exact: true }).getByRole('textbox')).toHaveValue('在用');
   });
 
@@ -161,10 +157,7 @@ test.describe('工作台完整国际化', () => {
     await second.goto('/entities/assets/AssetCategory');
     await expect(second.locator('html')).toHaveAttribute('lang', 'en');
     await second.getByRole('button', { name: '+ New', exact: true }).click();
-    await second
-      .getByRole('group', { name: 'Category name' })
-      .getByRole('textbox')
-      .fill('Untranslated user content');
+    await second.getByRole('group', { name: 'Category name' }).getByRole('textbox').fill('Untranslated user content');
 
     await setLocale(page, 'zh-Hans');
     await expect(second.locator('html')).toHaveAttribute('lang', 'zh-Hans');

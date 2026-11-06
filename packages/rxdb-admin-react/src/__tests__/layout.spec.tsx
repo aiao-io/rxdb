@@ -1,6 +1,10 @@
-import { act, cleanup, fireEvent, screen, within } from '@testing-library/react';
+import { createTestShell } from '@aiao/rxdb-admin/testing';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { useLayoutEffect, type ReactNode } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { menu, mount } from './test-utils.js';
+import { AdminShellProvider } from '../context.js';
+import { AdminLayout } from '../layout/admin-layout.js';
+import { fakeHasher, menu, mount } from './test-utils.js';
 
 afterEach(cleanup);
 
@@ -349,6 +353,29 @@ describe('AdminLayout', () => {
       expect(page.hasAttribute('data-entering')).toBe(false);
       rerender({ url: '/search' });
       expect(page.getAttribute('data-entering')).toBe('true');
+    });
+
+    it('新路径的内容在绘制前就进入动画起始状态', () => {
+      const { shell } = createTestShell<ReactNode>({ brand: { title: '工作台' }, lockHasher: fakeHasher });
+      const beforePaint: Array<string | null> = [];
+
+      function PaintProbe({ url }: { url: string }) {
+        useLayoutEffect(() => {
+          beforePaint.push(screen.getByTestId('admin-page').getAttribute('data-entering'));
+        }, [url]);
+
+        return (
+          <AdminShellProvider shell={shell}>
+            <AdminLayout menu={menu} url={url}>
+              <p>{url}</p>
+            </AdminLayout>
+          </AdminShellProvider>
+        );
+      }
+
+      const view = render(<PaintProbe url='/entities/assets/Asset' />);
+      view.rerender(<PaintProbe url='/search' />);
+      expect(beforePaint).toEqual([null, 'true']);
     });
 
     it('导航中显示进度条；开启加载遮罩偏好时显示遮罩', () => {

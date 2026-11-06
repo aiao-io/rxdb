@@ -32,6 +32,7 @@ import {
   formDataToEntityChanges,
   localizeEntityFormFields,
   localizeEntityMetadata,
+  refreshFormValidationResult,
   validateForm
 } from '@aiao/rxdb-model';
 import { injectRxDBRef } from '@aiao/rxdb-vue';
@@ -294,6 +295,9 @@ const formDataValue = computed<EntityFormData>(() => {
   const fixed = props.fixedFormData;
   return { ...base, ...changes, ...fixed };
 });
+const displayedFormErrors = computed(() =>
+  formErrors.value ? refreshFormValidationResult(formErrors.value, formFieldsValue.value, modelI18n) : null
+);
 const relatedEntityProviderValue = computed<RelatedEntityProvider | undefined>(() => props.relatedEntityProvider);
 
 // 公开访问器 - 优先级：直接 props > 路由推导
@@ -615,7 +619,7 @@ defineExpose({
         role="alert"
       >
         <span
-          v-for="error in formErrors?.errors ?? []"
+          v-for="error in displayedFormErrors?.errors ?? []"
           :key="`${error.field}:${error.message}`"
           class="text-error"
         >

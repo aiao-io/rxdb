@@ -17,6 +17,7 @@ import {
   formDataToEntityChanges,
   localizeEntityFormFields,
   localizeEntityMetadata,
+  refreshFormValidationResult,
   validateForm
 } from '@aiao/rxdb-model';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
@@ -329,6 +330,11 @@ export class EntityDetailComponent {
     const fixed = this.fixedFormDataValue;
     if (!fixed) return fields;
     return fields.map(f => (f.field in fixed ? { ...f, readonly: true } : f));
+  }
+
+  get displayedFormErrors(): FormValidationResult | null {
+    const errors = this.formErrors();
+    return errors ? refreshFormValidationResult(errors, this.formFieldsValue, this.modelI18n) : null;
   }
 
   get formDataValue(): EntityFormData {

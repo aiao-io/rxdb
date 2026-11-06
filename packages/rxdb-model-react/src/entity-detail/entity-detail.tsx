@@ -32,6 +32,7 @@ import {
   formDataToEntityChanges,
   localizeEntityFormFields,
   localizeEntityMetadata,
+  refreshFormValidationResult,
   validateForm
 } from '@aiao/rxdb-model';
 import { useHasRxDBProvider, useRxDBOptional } from '@aiao/rxdb-react';
@@ -335,6 +336,8 @@ export function EntityDetail({
     const fixed = fixedFormData;
     return fixed ? { ...base, ...fixed } : base;
   }, [isCreateMode, isCreatePending, draftFormData, fixedFormData, entityInstance, formFieldsValue, formData]);
+
+  const displayedFormErrors = formErrors ? refreshFormValidationResult(formErrors, formFieldsValue, modelI18n) : null;
 
   /** 弹框标题。 */
   const dialogTitle = (() => {
@@ -652,7 +655,7 @@ export function EntityDetail({
             data-testid='entity-detail-errors'
             role='alert'
           >
-            {formErrors?.errors.map(error => (
+            {displayedFormErrors?.errors.map(error => (
               <span className='text-error' key={`${error.field}:${error.message}`}>
                 {error.message}
               </span>

@@ -90,6 +90,26 @@ describe('deriveConstraints', () => {
     expect(result.app.layout).toBe('sidebar-nav');
     expect(result.sidebar.width).toBe(320);
   });
+
+  it.each([
+    ['', ''],
+    ['en', 'en'],
+    ['zh-Hans', 'zh-Hans'],
+    ['EN-us', 'en-US'],
+    ['zh-hant-tw', 'zh-Hant-TW'],
+    ['iw', 'he'],
+    ['en-US-u-ca-gregory', 'en-US-u-ca-gregory'],
+    ['en-x-workshop', 'en-x-workshop']
+  ])('语言标签 %j 按运行时相同的 BCP 47 规则规范化', (locale, expected) => {
+    expect(sanitizePreferences({ app: { locale } }, defaultPreferences, constraints).app.locale).toBe(expected);
+  });
+
+  it.each(['en_US', 'en-US-US', 'en-u-ca-gregory-u-nu-latn', ' en ', ' ', null, 1])(
+    '非法语言标签 %j 在写入运行时前清洗为默认值',
+    locale => {
+      expect(sanitizePreferences({ app: { locale } }, defaultPreferences, constraints).app.locale).toBe('');
+    }
+  );
 });
 
 const tablePageSize: PreferenceExtension = {

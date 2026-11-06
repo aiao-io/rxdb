@@ -10,8 +10,8 @@
 import { Entity, EntityBase, getEntityMetadata, PropertyType, RelationKind, RxDB, type EntityType } from '@aiao/rxdb';
 import { I18n } from '@aiao/rxdb-i18n';
 import { I18nProvider } from '@aiao/rxdb-i18n-react';
-import { modelEnMessages, modelMessages } from '@aiao/rxdb-model';
 import type { EntityFormData, FormFieldConfig, FormValidationResult } from '@aiao/rxdb-model';
+import { modelEnMessages, modelMessages } from '@aiao/rxdb-model';
 import { RxDBProvider, useRxDBOptional } from '@aiao/rxdb-react';
 import { Account, Contract, Invoice, Todo } from '@aiao/rxdb-test/entities';
 import { act, fireEvent, render, waitFor, within } from '@testing-library/react';
@@ -99,14 +99,22 @@ describe('EntityDetail（真实组件）', () => {
       catalogs: [
         ...modelMessages,
         { locale: 'en', namespace: 'rxdb-model', messages: modelEnMessages },
-        { locale: 'zh-Hans', namespace: 'rxdb-model', messages: {
-          'entity.test.DetailGroup.displayName': '分组',
-          'entity.test.DetailGroup.property.title': '标题'
-        } },
-        { locale: 'en', namespace: 'rxdb-model', messages: {
-          'entity.test.DetailGroup.displayName': 'Groups',
-          'entity.test.DetailGroup.property.title': 'Title'
-        } }
+        {
+          locale: 'zh-Hans',
+          namespace: 'rxdb-model',
+          messages: {
+            'entity.test.DetailGroup.displayName': '分组',
+            'entity.test.DetailGroup.property.title': '标题'
+          }
+        },
+        {
+          locale: 'en',
+          namespace: 'rxdb-model',
+          messages: {
+            'entity.test.DetailGroup.displayName': 'Groups',
+            'entity.test.DetailGroup.property.title': 'Title'
+          }
+        }
       ]
     });
     const view = render(
@@ -120,14 +128,18 @@ describe('EntityDetail（真实组件）', () => {
         />
       </I18nProvider>
     );
-    const input = within(view.getByRole('group', { name: '标题' })).getByRole('textbox');
-    fireEvent.change(input, { target: { value: '尚未保存的业务内容' } });
+    const input = within(view.getByRole('group', { name: /^标题/ })).getByRole('textbox');
+    fireEvent.click(view.getByRole('button', { name: '保存', exact: true }));
+    expect(view.getAllByText('标题 是必填项').length).toBeGreaterThan(0);
     await act(() => runtime.setLocale('en'));
-    const translatedInput = within(view.getByRole('group', { name: 'Title' })).getByRole('textbox');
+    expect(view.queryAllByText('标题 是必填项')).toHaveLength(0);
+    expect(view.getAllByText('Title is required').length).toBeGreaterThan(0);
+    fireEvent.change(input, { target: { value: '尚未保存的业务内容' } });
+    const translatedInput = within(view.getByRole('group', { name: /^Title/ })).getByRole('textbox');
     expect(translatedInput).toBe(input);
     expect((translatedInput as HTMLInputElement).value).toBe('尚未保存的业务内容');
     await act(() => runtime.setLocale('zh-Hans'));
-    expect(within(view.getByRole('group', { name: '标题' })).getByRole('textbox')).toBe(input);
+    expect(within(view.getByRole('group', { name: /^标题/ })).getByRole('textbox')).toBe(input);
     expect((input as HTMLInputElement).value).toBe('尚未保存的业务内容');
     view.unmount();
     runtime.destroy();
@@ -258,6 +270,28 @@ describe('EntityDetail（真实组件）', () => {
     });
     // 对话框未关闭
     expect(container.querySelector('[data-detail-save="true"]')).toBeTruthy();
+  });
+
+  it('保存失败后切语言更新界面前缀，保留引擎错误原文', async () => {
+    const runtime = new I18n({
+      locale: 'zh-Hans',
+      catalogs: [...modelMessages, { locale: 'en', namespace: 'rxdb-model', messages: modelEnMessages }]
+    });
+    const view = render(
+      <I18nProvider value={runtime}>
+        <RxDBProvider db={rxdb}>
+          <EntityDetail {...dialogData({ formData: { title: '落不进去', count: 0 } })} />
+        </RxDBProvider>
+      </I18nProvider>
+    );
+    vi.spyOn(repoOf(), 'create').mockRejectedValueOnce(new Error('写入被拒'));
+    fireEvent.click(view.getByRole('button', { name: '保存', exact: true }));
+    await waitFor(() => expect(view.getByRole('alert').textContent).toContain('保存失败：写入被拒'));
+    await act(() => runtime.setLocale('en'));
+    expect(view.getByRole('alert').textContent).toContain('Save failed: 写入被拒');
+    expect(view.getByRole('alert').textContent).not.toContain('保存失败');
+    view.unmount();
+    runtime.destroy();
   });
 
   it('补齐必填后保存才落库：草稿清空', async () => {

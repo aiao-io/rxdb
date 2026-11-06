@@ -67,7 +67,7 @@ export function AdminLayout({
   useLayoutEffect(() => shell.syncRoute(url), [shell, url]);
   useEffect(() => shell.ui.setNavigating(navigating), [shell, navigating]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const path = url.split(/[?#]/, 1)[0];
     if (path !== lastPath.current && page.current) restartEnterAnimation(page.current);
     lastPath.current = path;

@@ -1,16 +1,25 @@
 import { Entity, EntityBase, getEntityMetadata, PropertyType, RelationKind } from '@aiao/rxdb';
 import { I18n } from '@aiao/rxdb-i18n';
 import { describe, expect, it, vi } from 'vitest';
-import { buildFormFields } from '../entity-form/form-fields';
-import { buildEditableColumns } from '../entity-table/columns/build-editable-columns';
-import { localizeEntityFormFields, localizeEntityMetadata } from '../localized-metadata';
+import { buildFormFields } from '../entity-form/form-fields.js';
+import { buildEditableColumns } from '../entity-table/columns/build-editable-columns.js';
+import { localizeEntityFormFields, localizeEntityMetadata } from '../localized-metadata.js';
 
 @Entity({
   name: 'LocalizedAsset',
   namespace: 'localization-test',
   displayName: '资产',
   properties: [{ name: 'name', type: PropertyType.string, displayName: '名称', default: '在用' }],
-  relations: [{ name: 'parent', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'LocalizedAsset', displayName: '上级' }]
+  relations: [
+    {
+      name: 'parent',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'LocalizedAsset',
+      mappedProperty: 'children',
+      displayName: '上级'
+    },
+    { name: 'children', kind: RelationKind.ONE_TO_MANY, mappedEntity: 'LocalizedAsset', mappedProperty: 'parent' }
+  ]
 })
 class LocalizedAsset extends EntityBase {
   name!: string;

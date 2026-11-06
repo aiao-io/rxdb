@@ -59,8 +59,7 @@ export function localizeEntityMetadata(metadata: EntityMetadata, i18n?: ModelI18
     [...relations].every(([a, b]) => a === b)
   )
     return metadata;
-  return {
-    ...metadata,
+  const localized = {
     displayName,
     properties: localizedProperties,
     computedProperties,
@@ -79,6 +78,10 @@ export function localizeEntityMetadata(metadata: EntityMetadata, i18n?: ModelI18
     ),
     foreignKeyRelations: metadata.foreignKeyRelations.map(mapRelation)
   };
+  return Object.create(Object.getPrototypeOf(metadata), {
+    ...Object.getOwnPropertyDescriptors(metadata),
+    ...Object.getOwnPropertyDescriptors(localized)
+  }) as EntityMetadata;
 }
 
 /**

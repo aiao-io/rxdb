@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import type { EntityMetadata } from '@aiao/rxdb';
+import { Entity, EntityBase, getEntityMetadata } from '@aiao/rxdb';
 import { I18n } from '@aiao/rxdb-i18n';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildDetailTabs } from '../entity-detail/detail-tabs.js';
@@ -14,17 +14,14 @@ import { modelEnMessages, modelMessages } from '../messages.js';
 
 const catalogs = [...modelMessages, { locale: 'en', namespace: 'rxdb-model', messages: modelEnMessages }];
 
-const metadata = {
-  name: 'Book',
+@Entity({
+  name: 'I18nCatalogBook',
   namespace: 'public',
-  repository: 'Repository',
-  properties: [],
-  relations: [],
-  propertyMap: new Map(),
-  computedPropertyMap: new Map(),
-  foreignKeyRelationMap: new Map(),
-  relationMap: new Map()
-} as unknown as EntityMetadata;
+  properties: []
+})
+class I18nCatalogBook extends EntityBase {}
+
+const metadata = getEntityMetadata(I18nCatalogBook);
 
 const context = (table: object) => ({
   table,
