@@ -1,0 +1,101 @@
+<dialog
+  class="admin-drawer"
+  [rxdbAdminModal]="ui().preferencesOpen"
+  (click)="onBackdropClick($event)"
+  (closed)="close()"
+  aria-labelledby="admin-prefs-title"
+  data-testid="admin-preferences"
+>
+  @if (ui().preferencesOpen) {
+    <header class="flex items-center justify-between px-5 pt-4">
+      <h2 class="text-lg font-semibold" id="admin-prefs-title" [textContent]="t('prefs.title')"></h2>
+      <button
+        class="btn btn-ghost btn-sm btn-square"
+        [attr.aria-label]="t('prefs.close')"
+        (click)="close()"
+        data-testid="pref-close"
+        type="button"
+      >
+        <svg [lucideIcon]="X" [size]="16"></svg>
+      </button>
+    </header>
+    @let selected = current();
+    <div class="tabs tabs-border admin-drawer-tabs px-5" role="tablist">
+      @for (tab of tabs(); track tab.id) {
+        <button
+          class="tab"
+          [attr.aria-selected]="tab.id === selected.id"
+          [attr.data-testid]="'pref-tab-' + tab.id"
+          [attr.id]="'prefs-tab-' + tab.id"
+          [class.tab-active]="tab.id === selected.id"
+          [textContent]="tab.label"
+          (click)="active.set(tab.id)"
+          aria-controls="prefs-panel"
+          role="tab"
+          type="button"
+        ></button>
+      }
+    </div>
+    <div class="admin-drawer-body" id="prefs-panel" [attr.aria-labelledby]="'prefs-tab-' + selected.id" role="tabpanel">
+      @if (selected.sections.length === 0) {
+        <p class="text-sm opacity-60" [textContent]="t('prefs.empty.extension')"></p>
+      }
+      @for (section of selected.sections; track section.id) {
+        <section class="admin-section" [attr.aria-labelledby]="'prefs-section-' + section.id">
+          <h3 class="admin-section-title" [attr.id]="'prefs-section-' + section.id" [textContent]="section.title"></h3>
+          @for (row of section.rows; track row.id) {
+            <div
+              class="admin-row"
+              [attr.data-disabled]="!row.enabled"
+              [attr.data-stacked]="isStacked(row)"
+              [attr.data-testid]="'pref-row-' + row.path"
+            >
+              <div>
+                @if (isLabelled(row)) {
+                  <label
+                    [attr.for]="'prefs-' + row.id"
+                    [class.admin-row-label]="!row.labelHidden"
+                    [class.admin-sr-only]="row.labelHidden"
+                    [textContent]="row.label"
+                  ></label>
+                }
+                @if (row.hint) {
+                  <p class="admin-row-hint" [textContent]="row.hint"></p>
+                }
+              </div>
+              <rxdb-admin-row-control [row]="row" />
+            </div>
+          }
+        </section>
+      }
+    </div>
+    <footer class="admin-drawer-footer">
+      @if (importing()) {
+        <rxdb-admin-import-panel (done)="importing.set(false)" />
+      } @else {
+        <button class="btn btn-ghost btn-sm" (click)="shell.preferences.reset()" data-testid="pref-reset" type="button">
+          {{ t('prefs.reset') }}
+          @if (hasDiff()) {
+            <span class="admin-reset-dot" aria-hidden="true" data-testid="pref-reset-dot"></span>
+          }
+        </button>
+        <span class="flex gap-1">
+          <button
+            class="btn btn-ghost btn-sm"
+            [textContent]="t('prefs.import')"
+            (click)="importing.set(true)"
+            data-testid="pref-import"
+            type="button"
+          ></button>
+          <button
+            class="btn btn-ghost btn-sm"
+            [textContent]="copied() ? t('prefs.copied') : t('prefs.copy')"
+            (click)="copy()"
+            data-testid="pref-copy"
+            type="button"
+          ></button>
+        </span>
+      }
+    </footer>
+  }
+</dialog>

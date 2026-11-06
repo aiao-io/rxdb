@@ -26,12 +26,12 @@ test.describe('模型驱动数据工作台', () => {
     await page.goto('/');
     await page.getByRole('link', { name: '打开工作台', exact: true }).click();
     await page.waitForURL('**/entities/assets/Asset');
-    await page.getByTestId('entity-catalog').getByRole('link', { name: '资产分类' }).click();
+    await page.getByTestId('admin-menu').getByRole('link', { name: '资产分类' }).click();
     await createCategory(page, '首页持久化分类');
     await page.goto('/');
     await page.reload();
     await page.getByRole('link', { name: '打开工作台', exact: true }).click();
-    await page.getByTestId('entity-catalog').getByRole('link', { name: '资产分类' }).click();
+    await page.getByTestId('admin-menu').getByRole('link', { name: '资产分类' }).click();
     const edit = await expectActionIcon(page, 'view-action');
     await page.mouse.click(edit.x, edit.y);
     await expect(page.getByRole('group', { name: '分类名' }).getByRole('textbox')).toHaveValue('首页持久化分类');
@@ -40,29 +40,40 @@ test.describe('模型驱动数据工作台', () => {
   test('AC#1 导航只显示声明可见的实体，点击切换列表', async ({ page }) => {
     await page.goto('/entities');
     await page.waitForURL('**/entities/assets/Asset');
-    const catalog = page.getByTestId('entity-catalog');
+    const catalog = page.getByTestId('admin-menu');
     // 计数徽标会在适配器连接后并入链接文本（如「资产0」），用子串匹配而非全文精确匹配
     await expect(catalog.getByTestId('entity-nav-link')).toContainText(['资产', '资产分类', '维护记录']);
     await catalog.getByRole('link', { name: '资产分类' }).click();
     await page.waitForURL('**/entities/assets/AssetCategory');
   });
 
-  test('移动端收起导航后可重新展开，刷新后入口仍可用', async ({ page }) => {
+  test('移动端导航是抽屉：打开后选择菜单项跳转并自动收起，刷新后入口仍可用', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto('/backup');
-    const sidebarToggle = page.getByTestId('app-nav').getByRole('button', { name: 'sidebar toggle' }).last();
-    await sidebarToggle.click();
-    const openNavigation = page.getByRole('button', { name: '展开导航', exact: true });
-    await expect(openNavigation).toHaveAttribute('aria-expanded', 'false');
-    await openNavigation.click();
-    await page.getByTestId('app-nav').getByRole('link', { name: '资产分类' }).click();
+    const menuToggle = page.getByTestId('admin-menu-toggle');
+    const sidebar = page.getByTestId('admin-sidebar');
+    await expect(menuToggle).toHaveAttribute('aria-expanded', 'false');
+    await menuToggle.click();
+    await expect(menuToggle).toHaveAttribute('aria-expanded', 'true');
+    await sidebar.getByRole('link', { name: '资产分类' }).click();
     await page.waitForURL('**/entities/assets/AssetCategory');
-    await sidebarToggle.click();
+    await expect(menuToggle).toHaveAttribute('aria-expanded', 'false');
 
     await page.reload();
-    await openNavigation.click();
+    await menuToggle.click();
     await page.getByTestId('search-nav-link').click();
     await expect(page.getByTestId('search-input')).toBeVisible();
+  });
+
+  test('移动端点击遮罩收起导航抽屉', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto('/backup');
+    const menuToggle = page.getByTestId('admin-menu-toggle');
+    await menuToggle.click();
+    await expect(menuToggle).toHaveAttribute('aria-expanded', 'true');
+    // 抽屉占左侧 240px，点击右侧遮罩区域
+    await page.mouse.click(340, 400);
+    await expect(menuToggle).toHaveAttribute('aria-expanded', 'false');
   });
 
   test('搜索超过一页时可加载全部结果，更换查询重置分页', async ({ page }) => {
@@ -123,6 +134,8 @@ test.describe('模型驱动数据工作台', () => {
     const edit = await expectActionIcon(page, 'view-action', 1);
     await page.mouse.click(edit.x, edit.y);
     await expect(page.getByRole('tab', { name: '基本信息' })).toBeVisible();
+    // 记录异步灌入表单：等已有值出现再改，否则 fill 会撞在灌值中间，把新值接在旧值后面
+    await expect(page.getByRole('group', { name: '名称' }).getByRole('textbox')).toHaveValue('笔记本');
     await fillField(page, '名称', '工作站');
     await page.getByRole('button', { name: '保存', exact: true }).click();
     await expect(page.getByRole('tab', { name: '基本信息' })).toHaveCount(0);
@@ -148,7 +161,7 @@ test.describe('模型驱动数据工作台', () => {
     await createAsset(page, '笔记本', '办公设备');
 
     // 资产的「分类」是非空多对一，外键默认 RESTRICT：分类仍被引用时存储层拒绝删除
-    await page.getByTestId('entity-catalog').getByRole('link', { name: '资产分类' }).click();
+    await page.getByTestId('admin-menu').getByRole('link', { name: '资产分类' }).click();
     const del = await expectActionIcon(page, 'delete-action', 1);
     await page.mouse.click(del.x, del.y);
     await page.getByTestId('delete-confirm-submit').click();

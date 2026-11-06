@@ -769,6 +769,12 @@ importers:
       '@aiao/rxdb-adapter-sqlite-wasm':
         specifier: workspace:*
         version: link:../../packages/rxdb-adapter-sqlite-wasm
+      '@aiao/rxdb-admin':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-admin
+      '@aiao/rxdb-admin-react':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-admin-react
       '@aiao/rxdb-devtools':
         specifier: workspace:*
         version: link:../../packages/rxdb-devtools
@@ -1901,6 +1907,34 @@ importers:
       ms:
         specifier: ^2.1.3
         version: 2.1.3
+
+  packages/rxdb-admin:
+    dependencies:
+      '@aiao/rxdb-i18n':
+        specifier: workspace:^
+        version: link:../rxdb-i18n
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+
+  packages/rxdb-admin-react:
+    dependencies:
+      lucide-react:
+        specifier: ^1.47.0
+        version: 1.63.0(@types/react@19.3.0)(react@19.3.1)
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+    devDependencies:
+      '@aiao/rxdb-admin':
+        specifier: workspace:*
+        version: link:../rxdb-admin
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.3.0
+      react:
+        specifier: ^19.3.0
+        version: 19.3.1
 
   packages/rxdb-angular:
     dependencies:

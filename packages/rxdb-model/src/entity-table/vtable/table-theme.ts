@@ -74,12 +74,21 @@ export function getCSSVariableValue(
 /**
  * 判断当前文档是否处于暗色模式
  *
- * @returns data-theme=dark 或系统 prefers-color-scheme: dark 时为 true；非浏览器环境返回 false
+ * @remarks
+ * 优先读根节点计算样式的 `color-scheme`：daisyUI 的每个主题（dracula、night、business……）
+ * 都会声明它，因此不局限于名为 `dark` 的主题。读不到（`normal` / `light dark` / 无样式引擎）
+ * 时再看 `data-theme` 是否恰为 `dark` / `light`，最后跟随系统 `prefers-color-scheme`。
+ *
+ * @returns 暗色主题或系统暗色时为 true；非浏览器环境返回 false
  */
 export function isDocumentDarkMode(): boolean {
   if (typeof document === 'undefined') {
     return false;
   }
+
+  const scheme = typeof getComputedStyle === 'function' ? getComputedStyle(document.documentElement).colorScheme : '';
+  if (scheme === 'dark' || scheme === 'only dark') return true;
+  if (scheme === 'light' || scheme === 'only light') return false;
 
   const theme = document.documentElement.getAttribute('data-theme');
   if (theme === 'dark') return true;
@@ -90,6 +99,38 @@ export function isDocumentDarkMode(): boolean {
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(prefers-color-scheme: dark)').matches
   );
+}
+
+/**
+ * 观察文档主题变化：根节点的 `data-theme`、内联 `style`（运行时覆盖的主色 / 圆角写在这里），
+ * 以及在没有显式 `data-theme` 时系统明暗的变化。
+ *
+ * @remarks
+ * 三端表格都用它触发 VTable 主题重绘。只观察「是否暗色」这个布尔值不够：
+ * 浅色 → cupcake、改主色这类变化不翻转布尔值，画布却需要按新的 CSS 变量重绘。
+ *
+ * @param onChange 主题可能已变化时调用
+ * @returns 停止观察的函数；非浏览器环境返回空操作
+ */
+export function observeDocumentTheme(onChange: () => void): () => void {
+  if (typeof document === 'undefined') return () => undefined;
+  const root = document.documentElement;
+  const observer = typeof MutationObserver === 'undefined' ? undefined : new MutationObserver(() => onChange());
+  observer?.observe(root, { attributes: true, attributeFilter: ['data-theme', 'style'] });
+
+  const query =
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function' ?
+      window.matchMedia('(prefers-color-scheme: dark)')
+    : undefined;
+  const onSystemChange = (): void => {
+    if (!root.hasAttribute('data-theme')) onChange();
+  };
+  query?.addEventListener('change', onSystemChange);
+
+  return () => {
+    observer?.disconnect();
+    query?.removeEventListener('change', onSystemChange);
+  };
 }
 
 /**

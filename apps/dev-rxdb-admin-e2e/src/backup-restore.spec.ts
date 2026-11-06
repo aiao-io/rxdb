@@ -77,7 +77,7 @@ test.describe('工作台备份与恢复', () => {
     const download = await downloadPromise;
     await download.saveAs(join(dir, download.suggestedFilename()));
     await expect(page.getByTestId('backup-result')).toContainText('备份成功');
-    await page.getByTestId('entity-catalog').getByRole('link', { name: '资产分类' }).click();
+    await page.getByTestId('admin-menu').getByRole('link', { name: '资产分类' }).click();
     const edit = await expectActionIcon(page, 'view-action');
     await page.mouse.click(edit.x, edit.y);
     const name = page.getByRole('group', { name: '分类名' }).getByRole('textbox');
@@ -166,7 +166,7 @@ test.describe('工作台备份与恢复', () => {
       await expect(fresh.getByTestId('restore-result')).toContainText('恢复成功');
       await expect(input).toBeEnabled();
       await expect(fresh.getByTestId('backup-start')).toBeEnabled();
-      await fresh.getByTestId('entity-catalog').getByRole('link', { name: '资产分类' }).click();
+      await fresh.getByTestId('admin-menu').getByRole('link', { name: '资产分类' }).click();
       const edit = await expectActionIcon(fresh, 'view-action');
       await fresh.mouse.click(edit.x, edit.y);
       await expect(fresh.getByRole('group', { name: '分类名' }).getByRole('textbox')).toHaveValue('互斥恢复分类');

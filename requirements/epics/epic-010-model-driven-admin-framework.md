@@ -42,12 +42,24 @@ epic-001~006 按产品能力分组，[epic-009](epic-009-bom-domain-model.md) �
 - [US-527 工作台备份恢复闭环：失败语义与数据保留](../stories/domain/US-527-admin-backup-restore.md) (Low)
 - [US-528 独立消费接入示例与接入成本记录](../stories/domain/US-528-admin-consumer-example.md) (Low)
 - [US-529 实体列表视图配置：字段显隐、多字段排序与分组](../stories/domain/US-529-entity-list-view-settings.md) (Medium)
+- [US-530 后台外壳偏好中心：声明式 schema 驱动的偏好抽屉与外观设置](../stories/domain/US-530-admin-shell-preferences-appearance.md) (Medium)
+- [US-531 后台外壳布局：四种布局模式、侧栏图标轨、移动端抽屉与页签栏](../stories/domain/US-531-admin-shell-layout-tabbar.md) (Medium)
+- [US-532 后台外壳快捷键、命令面板与扩展偏好项](../stories/domain/US-532-admin-shell-shortcuts-palette-extensions.md) (Medium)
+- [US-533 后台外壳顶栏部件、锁屏与通用设置：语言、时区、水印、版权页脚](../stories/domain/US-533-admin-shell-widgets-lock-general.md) (Medium)
 
 ## 列表视图扩展
 
 owner 批准的列表字段配置、排序和分组切片见
 [US-529 实体列表视图配置](../stories/domain/US-529-entity-list-view-settings.md)。该故事扩展通用模型 UI，
 新增公共逻辑与三端接线独立评审，首版 US-526～528 的范围保持各自 story 定义。
+
+## 后台外壳扩展
+
+owner 批准的后台外壳（偏好中心、布局与页签栏、快捷键 / 命令面板 / 扩展、顶栏部件 / 锁屏 / 通用设置）见
+[US-530](../stories/domain/US-530-admin-shell-preferences-appearance.md)～
+[US-533](../stories/domain/US-533-admin-shell-widgets-lock-general.md)。它落在新包族 `@aiao/rxdb-admin`（无头核心）与
+`-react` / `-vue` / `-angular` 三端壳，`apps/dev-rxdb-admin` 是它的领域测试应用。外壳与路由库无关，
+首版 US-526～529 的范围保持各自 story 定义。
 
 ## 价值待证（整个 Epic）
 
@@ -59,7 +71,7 @@ owner 批准的列表字段配置、排序和分组切片见
 不新增引擎抽象，复用 rxdb-model 四包与 US-217，驱动者是产品交付与接入成本验证。
 这份授权继续生效；真实数据任务与独立接入收益由 US-526 / US-528 验收，不重新以缺少具名团队阻止已批准范围。
 
-首版故事 `priority` 保持 `Low`，US-529 为 `Medium`。当前剩余验收是 US-528 的发布产物独立消费，
+首版故事 `priority` 保持 `Low`，US-529 与 US-530～533 为 `Medium`。当前剩余验收是 US-528 的发布产物独立消费，
 排期以 [roadmap 批次 5](../roadmap.md#批次-5模型驱动后台首版epic-010-已解锁)为准，`targetDate` 为 `TBD`。
 
 ## 非目标

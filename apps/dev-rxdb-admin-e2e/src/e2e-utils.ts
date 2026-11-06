@@ -85,6 +85,8 @@ async function findActionIcon(page: Page, iconName: string, row = 1): Promise<Ac
 /** 等第 `row` 行的操作列图标出现并返回其坐标；图标不存在时抛错。 */
 export async function expectActionIcon(page: Page, iconName: string, row = 1): Promise<ActionIconHit> {
   await expect.poll(async () => findActionIcon(page, iconName, row), { timeout: 15000 }).not.toBeNull();
+  // 页面切换有进入动画（位移），画布坐标要等动画结束后再换算，否则点击会落空
+  await settleAnimations(page);
   const hit = await findActionIcon(page, iconName, row);
   if (hit === null) throw new Error(`操作列没有 ${iconName} 图标`);
   return hit;
@@ -145,4 +147,44 @@ export async function selectRelationOption(page: Page, groupName: string, label:
 /** 应用筛选后的计数徽标文案（如「1 条记录」）。 */
 export async function expectFilteredCount(page: Page, count: number): Promise<void> {
   await expect(page.getByText(`${count} 条记录`)).toBeVisible();
+}
+
+/** 外壳偏好的存储键（`workbench-shell.ts` 的 `WORKBENCH_STORAGE_PREFIX` + `.preferences`）。 */
+export const PREFERENCES_STORAGE_KEY = 'aiao.workbench.preferences';
+
+/** 读取已持久化的偏好差异（只含与默认值不同的部分）；没有写过时为 `null`。 */
+export async function storedPreferenceValues(page: Page): Promise<unknown> {
+  const raw = await page.evaluate(key => window.localStorage.getItem(key), PREFERENCES_STORAGE_KEY);
+  return raw === null ? null : (JSON.parse(raw) as { values: unknown }).values;
+}
+
+/** 等偏好差异落盘（写入是防抖的）并断言内容；传 `null` 表示等存储键被清除。 */
+export async function expectStoredPreferences(page: Page, expected: Record<string, unknown> | null): Promise<void> {
+  if (expected === null) await expect.poll(() => storedPreferenceValues(page)).toBeNull();
+  else await expect.poll(() => storedPreferenceValues(page)).toMatchObject(expected);
+}
+
+/** 经顶栏齿轮打开偏好抽屉（不依赖平台修饰键）并等它出现。 */
+export async function openPreferences(page: Page): Promise<Locator> {
+  await page.getByTestId('admin-widget-preferences').click();
+  const drawer = page.getByTestId('admin-preferences');
+  await expect(drawer).toBeVisible();
+  return drawer;
+}
+
+/**
+ * 等页面上所有有限动画结束再继续（axe 扫描弹层前必须：入场动画途中前景色会混成灰，报假的对比度违规）。
+ * 滚动驱动动画永不 finished，只等 DocumentTimeline 上的有限动画。
+ */
+export async function settleAnimations(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const finite = document
+      .getAnimations()
+      .filter(
+        animation =>
+          animation.timeline instanceof DocumentTimeline &&
+          animation.effect?.getComputedTiming().iterations !== Infinity
+      );
+    await Promise.all(finite.map(animation => animation.finished.catch(() => undefined)));
+  });
 }

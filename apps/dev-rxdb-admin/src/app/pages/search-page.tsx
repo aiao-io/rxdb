@@ -1,7 +1,8 @@
+import { useAdminStore } from '@aiao/rxdb-admin-react';
 import { useSearch } from '@aiao/rxdb-plugin-search-react';
 import { useRxDB } from '@aiao/rxdb-react';
-
-const SEARCH_OPTIONS = { debounce: 300, pageSize: 20, snippetLength: 64 };
+import { useMemo } from 'react';
+import { SEARCH_PAGE_SIZE_KEY, workbenchShell } from '../shell/workbench-shell';
 
 /** 命中记录的实体显示名（按实体名映射，未知实体回退实体名）。 */
 const ENTITY_DISPLAY_NAMES: Record<string, string> = {
@@ -16,7 +17,9 @@ const ENTITY_DISPLAY_NAMES: Record<string, string> = {
  */
 export default function SearchPage() {
   const rxdb = useRxDB();
-  const search = useSearch(rxdb, SEARCH_OPTIONS);
+  const pageSize = useAdminStore(workbenchShell.preferences).extension[SEARCH_PAGE_SIZE_KEY] as number;
+  const options = useMemo(() => ({ debounce: 300, pageSize, snippetLength: 64 }), [pageSize]);
+  const search = useSearch(rxdb, options);
 
   return (
     <div className='page-host gap-3 overflow-auto p-6' data-testid='search-page'>

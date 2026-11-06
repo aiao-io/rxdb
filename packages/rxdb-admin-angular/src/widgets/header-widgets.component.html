@@ -1,0 +1,104 @@
+<div class="admin-widgets" data-testid="admin-widgets">
+  @for (key of keys(); track key) {
+    <span class="admin-widget" [attr.data-widget]="key">
+      @switch (key) {
+        @case ('search') {
+          <button
+            class="btn btn-ghost btn-sm admin-search-trigger"
+            [attr.aria-label]="searchLabel()"
+            (click)="shell.palette.open()"
+            aria-haspopup="dialog"
+            data-testid="admin-widget-search"
+            type="button"
+          >
+            <svg [lucideIcon]="Search" [size]="16"></svg>
+            <span class="admin-search-label" [textContent]="t('widget.search')"></span>
+            @if (searchKeys().length > 0) {
+              <span class="ms-auto flex gap-0.5">
+                @for (cap of searchKeys(); track cap) {
+                  <kbd class="kbd kbd-sm">{{ cap }}</kbd>
+                }
+              </span>
+            }
+          </button>
+        }
+        @case ('theme') {
+          <button
+            class="btn btn-ghost btn-sm btn-square"
+            [attr.aria-label]="themeLabel()"
+            [attr.title]="themeLabel()"
+            (click)="shell.theme.cycle()"
+            data-testid="admin-widget-theme"
+            type="button"
+          >
+            <svg [lucideIcon]="themeIcon()" [size]="18"></svg>
+          </button>
+        }
+        @case ('language') {
+          <rxdb-admin-language-widget />
+        }
+        @case ('timezone') {
+          <rxdb-admin-timezone-widget />
+        }
+        @case ('fullscreen') {
+          <button
+            class="btn btn-ghost btn-sm btn-square"
+            [attr.aria-label]="fullscreen() ? t('widget.exitFullscreen') : t('widget.fullscreen')"
+            [attr.aria-pressed]="fullscreen()"
+            [attr.title]="fullscreen() ? t('widget.exitFullscreen') : t('widget.fullscreen')"
+            (click)="shell.fullscreen.toggle()"
+            data-testid="admin-widget-fullscreen"
+            type="button"
+          >
+            @if (fullscreen()) {
+              <svg [lucideIcon]="Minimize2" [size]="18"></svg>
+            } @else {
+              <svg [lucideIcon]="Maximize2" [size]="18"></svg>
+            }
+          </button>
+        }
+        @case ('refresh') {
+          <button
+            class="btn btn-ghost btn-sm btn-square"
+            [attr.aria-label]="t('widget.refresh')"
+            [attr.title]="t('widget.refresh')"
+            (click)="shell.ui.refresh()"
+            data-testid="admin-widget-refresh"
+            type="button"
+          >
+            <svg [lucideIcon]="RotateCw" [size]="18"></svg>
+          </button>
+        }
+        @case ('lock') {
+          <button
+            class="btn btn-ghost btn-sm btn-square"
+            [attr.aria-label]="t('widget.lock')"
+            [attr.title]="t('widget.lock')"
+            (click)="shell.lock.lock()"
+            data-testid="admin-widget-lock"
+            type="button"
+          >
+            <svg [lucideIcon]="LockKeyhole" [size]="18"></svg>
+          </button>
+        }
+        @case ('preferences') {
+          <button
+            class="btn btn-ghost btn-sm btn-square"
+            [attr.aria-label]="t('widget.preferences')"
+            [attr.title]="t('widget.preferences')"
+            (click)="shell.ui.setPreferencesOpen(true)"
+            data-testid="admin-widget-preferences"
+            type="button"
+          >
+            <span class="relative inline-flex">
+              <svg [lucideIcon]="Settings2" [size]="18"></svg>
+              @if (hasDiff()) {
+                <span class="admin-reset-dot absolute -top-1 -right-1" aria-hidden="true"></span>
+              }
+            </span>
+          </button>
+        }
+      }
+    </span>
+  }
+</div>

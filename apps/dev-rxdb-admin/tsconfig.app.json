@@ -53,6 +53,12 @@
       "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
     },
     {
+      "path": "../../packages/rxdb-admin-react/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-admin/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-adapter-sqlite-wasm/tsconfig.lib.json"
     },
     {

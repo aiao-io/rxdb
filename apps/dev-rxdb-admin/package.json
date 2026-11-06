@@ -4,6 +4,8 @@
   "dependencies": {
     "@aiao/rxdb": "workspace:*",
     "@aiao/rxdb-adapter-sqlite-wasm": "workspace:*",
+    "@aiao/rxdb-admin": "workspace:*",
+    "@aiao/rxdb-admin-react": "workspace:*",
     "@aiao/rxdb-devtools": "workspace:*",
     "@aiao/rxdb-model-react": "workspace:*",
     "@aiao/rxdb-plugin-history": "workspace:*",

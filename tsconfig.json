@@ -278,6 +278,18 @@
     },
     {
       "path": "./packages/rxdb-i18n-vue"
+    },
+    {
+      "path": "./packages/rxdb-admin"
+    },
+    {
+      "path": "./packages/rxdb-admin-angular"
+    },
+    {
+      "path": "./packages/rxdb-admin-react"
+    },
+    {
+      "path": "./packages/rxdb-admin-vue"
     }
   ]
 }

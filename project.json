@@ -95,7 +95,12 @@
             "rxdb-plugin-board",
             "rxdb-plugin-board-angular",
             "rxdb-plugin-board-react",
-            "rxdb-plugin-board-vue"
+            "rxdb-plugin-board-vue",
+            "rxdb-i18n",
+            "rxdb-admin",
+            "rxdb-admin-angular",
+            "rxdb-admin-react",
+            "rxdb-admin-vue"
           ]
         }
       ],

@@ -3,8 +3,9 @@ import { expect, test } from '@playwright/test';
 import { createCategory, resetE2eState } from './e2e-utils.js';
 
 /**
- * 工作台 a11y 走查（axe）：扫描范围锁在应用壳内（app-nav + layout-container），
+ * 工作台 a11y 走查（axe）：扫描范围锁在应用壳内（admin-sidebar + layout-container），
  * 页面级扫描各做一次；发现的违规就地修组件，这份 spec 是回归门禁。
+ * 外壳自身的弹层（偏好抽屉、命令面板、锁屏）与主题 / 布局变体见 admin-shell.a11y.spec.ts。
  */
 test.describe('工作台 a11y 走查', () => {
   test.beforeEach(async ({ page }) => {
@@ -22,7 +23,9 @@ test.describe('工作台 a11y 走查', () => {
     await page.goto('/entities/assets/AssetCategory');
     await createCategory(page, '办公设备');
     await expect(page.getByTestId('entity-shell')).toBeVisible();
-    const results = await new AxeBuilder({ page }).include('[data-testid="app-nav"], #layout-container').analyze();
+    const results = await new AxeBuilder({ page })
+      .include('[data-testid="admin-sidebar"], #layout-container')
+      .analyze();
     expect(results.violations).toEqual([]);
   });
 

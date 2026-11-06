@@ -51,6 +51,12 @@
     },
     {
       "path": "../../packages/rxdb/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-admin/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-admin-react/tsconfig.lib.json"
     }
   ]
 }
