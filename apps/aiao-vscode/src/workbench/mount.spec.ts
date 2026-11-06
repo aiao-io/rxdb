@@ -2063,9 +2063,10 @@ describe('vscode.dev 起始页对齐', () => {
       if (!candidate) throw new Error('设置对话框缺失');
       return candidate;
     });
-    const radios = [...dialog.querySelectorAll<HTMLInputElement>('input[name="indent-unit"]')];
-    expect(radios.map(radio => radio.value)).toEqual(['  ', '    ', '        ']);
-    radios.find(radio => radio.value === '    ')?.click();
+    const indent = dialog.querySelector<HTMLSelectElement>('select[name="indent-unit"]');
+    expect(indent).not.toBeNull();
+    expect(Array.from(indent!.options).map(option => option.value)).toEqual(['  ', '    ', '        ']);
+    indent!.value = '    ';
     const always = dialog.querySelector<HTMLInputElement>('input[type="checkbox"]');
     expect(always).not.toBeNull();
     always?.click();

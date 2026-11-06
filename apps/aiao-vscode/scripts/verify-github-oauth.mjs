@@ -24,6 +24,13 @@ let context;
 let api;
 let clientId;
 let proxy;
+let cleanupError;
+
+function redact(message) {
+  return [proxy?.username, proxy?.password]
+    .filter(Boolean)
+    .reduce((value, credential) => value.replaceAll(credential, '[redacted]'), message);
+}
 
 function environmentProxy() {
   const address =
@@ -118,6 +125,40 @@ try {
     await popup.close();
   });
 
+  await step('仓库列表正确聚合两页，绝对 Link 地址保持 GitHub API origin', async () => {
+    const requests = [];
+    const apiRoute = /^https:\/\/api\.github\.com/;
+    await context.route(apiRoute, async route => {
+      const current = route.request();
+      const headers = {
+        'Access-Control-Allow-Origin': origin,
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Headers': '*',
+        'Access-Control-Expose-Headers': 'Link',
+        'Cross-Origin-Resource-Policy': 'cross-origin'
+      };
+      if (current.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+      requests.push({ url: current.url(), hasAuthorization: Boolean(current.headers()['authorization']) });
+      const number = new URL(current.url()).searchParams.get('page') === '2' ? 2 : 1;
+      if (number === 1) headers.Link = '<https://api.github.com/user/repos?page=2>; rel="next"';
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        headers,
+        body: JSON.stringify([{ full_name: `probe/page-${number}`, private: false }])
+      });
+    });
+    try {
+      const names = await page.evaluate(async () => (await window.github.api.listMyRepositories()).map(repo => repo.fullName));
+      assert.deepEqual(names, ['probe/page-1', 'probe/page-2'], '仓库列表应聚合两页');
+      assert.equal(requests.length, 2, '仓库列表应恰好请求两页');
+      assert.ok(requests.every(item => new URL(item.url).origin === 'https://api.github.com'), '两页请求都应使用正确 API origin');
+      assert.ok(requests.every(item => !item.hasAuthorization), '分页探针不能使用真实 token');
+    } finally {
+      await context.unroute(apiRoute);
+    }
+  });
+
   await step('同一浏览器上下文导航回调，Service Worker 不吞请求', async () => {
     const callbackPage = await context.newPage();
     const response = await callbackPage.goto(redirectUri);
@@ -128,16 +169,17 @@ try {
   report.status = 'passed';
   console.log(`通过：${report.checks.length} 步；报告 ${reportPath}`);
 } catch (cause) {
-  report.error = [proxy?.username, proxy?.password]
-    .filter(Boolean)
-    .reduce((message, value) => message.replaceAll(value, '[redacted]'), cause instanceof Error ? cause.message : String(cause));
-  throw new Error(report.error);
+  report.error = redact(cause instanceof Error ? cause.message : String(cause));
+  if (cause instanceof Error) {
+    cause.message = report.error;
+    if (cause.stack) cause.stack = redact(cause.stack);
+  }
+  throw cause;
 } finally {
   const cleanup = await Promise.allSettled([context?.close(), api?.dispose()]);
+  cleanupError = cleanup.find(result => result.status === 'rejected')?.reason;
   await browser?.close();
   report.generatedAt = new Date().toISOString();
   await writeFile(reportPath, JSON.stringify(report, null, 2));
-  for (const result of cleanup) {
-    if (result.status === 'rejected') throw result.reason;
-  }
 }
+if (cleanupError) throw cleanupError;

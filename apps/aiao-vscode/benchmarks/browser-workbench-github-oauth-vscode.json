@@ -3,8 +3,35 @@
   "version": 1,
   "host": "vscode",
   "url": "https://vscode.aiao.io",
-  "status": "failed",
-  "checks": [],
-  "error": "apiRequestContext.get: read ETIMEDOUT\nCall log:\n\u001b[2m  - → GET https://vscode.aiao.io/api/github-token\u001b[22m\n\u001b[2m    - user-agent: Playwright/1.64.1 (arm64; macOS 27.0) node/26.12\u001b[22m\n\u001b[2m    - accept: application/json\u001b[22m\n\u001b[2m    - accept-encoding: gzip,deflate,br\u001b[22m\n\u001b[2m    - Cache-Control: no-cache\u001b[22m\n",
-  "generatedAt": "2026-11-06T08:00:09.446Z"
+  "status": "passed",
+  "checks": [
+    {
+      "name": "公开配置返回真实 Client ID，响应不含 secret",
+      "milliseconds": 975
+    },
+    {
+      "name": "HTTP 回调端点缺少参数时返回 400",
+      "milliseconds": 853
+    },
+    {
+      "name": "工作台就绪，生产 Service Worker 已接管页面",
+      "milliseconds": 22440
+    },
+    {
+      "name": "点击账户登录，授权 URL 使用服务端 Client ID 与同源回调",
+      "milliseconds": 546
+    },
+    {
+      "name": "仓库列表正确聚合两页，绝对 Link 地址保持 GitHub API origin",
+      "milliseconds": 7
+    },
+    {
+      "name": "同一浏览器上下文导航回调，Service Worker 不吞请求",
+      "milliseconds": 320
+    }
+  ],
+  "browser": "156.0.8078.4",
+  "serviceWorkerControlled": true,
+  "serviceWorkerRequired": true,
+  "generatedAt": "2026-11-06T08:03:51.446Z"
 }
