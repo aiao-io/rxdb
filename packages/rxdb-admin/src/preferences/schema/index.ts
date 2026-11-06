@@ -42,9 +42,19 @@ const normalizeLocale = (value: string): string | undefined => {
   }
 };
 
+const normalizeTimezone = (value: string): string | undefined => {
+  if (value === '') return '';
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: value });
+    return value;
+  } catch {
+    return undefined;
+  }
+};
+
 const dynamicSelectConstraint = (source: 'themes' | 'locales' | 'timezones'): PreferenceConstraint | undefined => {
   if (source === 'locales') return { kind: 'pattern', pattern: LOCALE_PATTERN, normalize: normalizeLocale };
-  if (source === 'timezones') return { kind: 'pattern', pattern: TIMEZONE_PATTERN };
+  if (source === 'timezones') return { kind: 'pattern', pattern: TIMEZONE_PATTERN, normalize: normalizeTimezone };
   return undefined;
 };
 

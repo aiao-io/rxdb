@@ -42,19 +42,20 @@ test('新增对话框拖到视口边缘后仍可取消', async ({ page }) => {
   const dialog = page.getByRole('dialog');
   const titleBox = await dialog.locator('span.cursor-grab').boundingBox();
   const viewport = page.viewportSize();
-  if (!titleBox || !viewport) throw new Error('新增对话框标题或视口不可用');
+  expect(titleBox).not.toBeNull();
+  expect(viewport).not.toBeNull();
 
-  await page.mouse.move(titleBox.x + titleBox.width / 2, titleBox.y + titleBox.height / 2);
+  await page.mouse.move(titleBox!.x + titleBox!.width / 2, titleBox!.y + titleBox!.height / 2);
   await page.mouse.down();
-  await page.mouse.move(viewport.width - 1, viewport.height - 1, { steps: 10 });
+  await page.mouse.move(viewport!.width - 1, viewport!.height - 1, { steps: 10 });
   await page.mouse.up();
 
   await expect(dialog).toBeVisible();
   const movedBox = await dialog.boundingBox();
-  if (!movedBox) throw new Error('拖拽后对话框不存在');
-  expect(movedBox.y).toBeGreaterThan(titleBox.y);
-  expect(movedBox.x + movedBox.width).toBeLessThanOrEqual(viewport.width + 1);
-  expect(movedBox.y + movedBox.height).toBeLessThanOrEqual(viewport.height + 1);
+  expect(movedBox).not.toBeNull();
+  expect(movedBox!.y).toBeGreaterThan(titleBox!.y);
+  expect(movedBox!.x + movedBox!.width).toBeLessThanOrEqual(viewport!.width + 1);
+  expect(movedBox!.y + movedBox!.height).toBeLessThanOrEqual(viewport!.height + 1);
 
   const cancel = dialog.getByRole('button', { name: '取消', exact: true });
   await expect(cancel).toBeInViewport({ ratio: 1 });

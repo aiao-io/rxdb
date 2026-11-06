@@ -254,6 +254,26 @@ test.describe('后台外壳：偏好抽屉', () => {
     await expect(drawer.getByTestId('pref-import-panel')).toHaveCount(0);
   });
 
+  test('导入非法时区后后台保持可用，刷新后仍能打开偏好', async ({ page }) => {
+    await page.goto('/search');
+    const drawer = await openPreferences(page);
+    await drawer.getByTestId('pref-import').click();
+    await drawer
+      .getByTestId('pref-import-text')
+      .fill(JSON.stringify({ theme: { name: 'dark' }, app: { timezone: 'Mars/Base' } }));
+    await drawer.getByTestId('pref-import-apply').click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await expect(drawer).toBeVisible();
+    await drawer.getByTestId('pref-tab-general').click();
+    await expect(drawer.getByTestId('pref-app.timezone')).toHaveValue('');
+    await expectStoredPreferences(page, { theme: { name: 'dark' } });
+    await page.reload();
+    await expect(page.getByTestId('admin-shell')).toBeVisible();
+    const reopened = await openPreferences(page);
+    await reopened.getByTestId('pref-tab-general').click();
+    await expect(reopened.getByTestId('pref-app.timezone')).toHaveValue('');
+  });
+
   test('拓展：应用注册的「搜索每页条数」出现在拓展页签，并驱动搜索页分页', async ({ page }) => {
     await page.goto('/entities/assets/AssetCategory');
     for (let i = 1; i <= 6; i++) {
@@ -568,6 +588,20 @@ test.describe('后台外壳：侧栏宽度', () => {
 test.describe('后台外壳：页签栏', () => {
   test.beforeEach(async ({ page }) => {
     await resetE2eState(page);
+  });
+
+  test('点击品牌返回首页后取消页签高亮，关闭快捷键不删除旧页签', async ({ page }) => {
+    await page.goto('/search');
+    const tabs = page.getByTestId('admin-tab');
+    await expect(tabs).toHaveText(['搜索']);
+    const link = tabs.getByRole('link', { name: '搜索', exact: true });
+    await expect(link).toHaveAttribute('aria-current', 'page');
+    await page.getByRole('link', { name: '工作台', exact: true }).click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(link).not.toHaveAttribute('aria-current');
+    await page.keyboard.press('Alt+KeyW');
+    await expect(tabs).toHaveText(['搜索']);
+    await expect(page).toHaveURL(/\/$/);
   });
 
   test('访问页面生成页签；点击切换、关闭按钮、右键菜单关闭其他', async ({ page }) => {

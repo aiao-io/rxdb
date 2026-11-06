@@ -1,6 +1,6 @@
-import type { MenuNode } from '@aiao/rxdb-admin';
+import { findMenuPath, type MenuNode } from '@aiao/rxdb-admin';
 import { NgTemplateOutlet } from '@angular/common';
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { LucideChevronDown, LucideDynamicIcon } from '@lucide/angular';
 import { injectAdminShell, injectAdminStore, injectAdminText, type AdminIcon } from '../context';
 import { interceptNavigation } from './intercept-navigation';
@@ -23,14 +23,10 @@ export class AdminHeaderMenuComponent {
   protected readonly t = injectAdminText();
   protected readonly url = injectAdminStore(this.#shell.currentUrl);
   protected readonly ChevronDown = LucideChevronDown;
+  protected readonly activeId = computed(() => findMenuPath(this.nodes(), this.url()).at(-1)?.id);
 
   /** 菜单树。 */
   readonly nodes = input.required<readonly Node[]>();
-
-  protected isActive(route: string): boolean {
-    const url = this.url();
-    return route === '/' ? url === '/' : url === route || url.startsWith(`${route}/`);
-  }
 
   protected go(event: MouseEvent, node: Node): void {
     interceptNavigation(event, () => this.#shell.navigate(node.route as string));

@@ -52,6 +52,16 @@ describe('PreferencesStore', () => {
   afterEach(() => vi.useRealTimers());
 
   describe('加载', () => {
+    it('已保存的非法时区被清洗为默认值', () => {
+      const storage = createMemoryStorage({
+        [PREFERENCES_STORAGE_KEY]: JSON.stringify({
+          version: PREFERENCES_VERSION,
+          values: { app: { timezone: 'Mars/Base' } }
+        })
+      });
+      expect(create({ storage }).store.value.app.timezone).toBe(defaultPreferences.app.timezone);
+    });
+
     it('存储为空时使用默认树', () => {
       expect(create().store.value).toEqual(defaultPreferences);
     });
@@ -257,6 +267,29 @@ describe('PreferencesStore', () => {
   });
 
   describe('扩展偏好', () => {
+    it.each(['reset', 'import'] as const)('%s 清除已移除扩展的遗留配置并删除存储', action => {
+      const { store, storage } = create();
+      store.importJson(JSON.stringify({ extension: { retiredFeature: 'saved' } }));
+      store.flush();
+      expect(store.value.extension).toEqual({ retiredFeature: 'saved' });
+      if (action === 'reset') store.reset();
+      else expect(store.importJson('{}')).toEqual({ ok: true });
+      store.flush();
+      expect(store.value.extension).toEqual({});
+      expect(store.hasDiff.value).toBe(false);
+      expect(storage.getItem(PREFERENCES_STORAGE_KEY)).toBeNull();
+    });
+
+    it('其他标签清除遗留扩展后同步删除本地状态', () => {
+      const { store, storage, host } = create();
+      store.importJson(JSON.stringify({ extension: { retiredFeature: 'saved' } }));
+      store.flush();
+      storage.removeItem(PREFERENCES_STORAGE_KEY);
+      host.dispatch('storage', { key: PREFERENCES_STORAGE_KEY });
+      expect(store.value.extension).toEqual({});
+      expect(store.hasDiff.value).toBe(false);
+    });
+
     it('默认值进入默认树，diff 不含未改动的扩展', () => {
       const { store } = create({ extensions: [tablePageSize] });
       expect(store.value.extension).toEqual({ tablePageSize: 20 });

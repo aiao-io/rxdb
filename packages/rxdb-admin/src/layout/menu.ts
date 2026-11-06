@@ -33,21 +33,31 @@ export interface BreadcrumbItem<TIcon = unknown> {
 const matches = (route: string, key: string): boolean =>
   key === route || key.startsWith(`${route === '/' ? '' : route}/`);
 
+const routeLength = <T>(path: readonly MenuNode<T>[]): number => tabKeyOf(path[path.length - 1].route as string).length;
+
+const preferMatch = <T>(
+  best: MenuNode<T>[] | undefined,
+  candidate: MenuNode<T>[] | undefined
+): MenuNode<T>[] | undefined => {
+  if (!candidate) return best;
+  if (!best) return candidate;
+  const precision = routeLength(candidate) - routeLength(best);
+  return precision > 0 || (precision === 0 && candidate.length >= best.length) ? candidate : best;
+};
+
 const walk = <T>(nodes: readonly MenuNode<T>[], url: string, trail: MenuNode<T>[]): MenuNode<T>[] | undefined => {
   let best: MenuNode<T>[] | undefined;
   for (const node of nodes) {
     const here = [...trail, node];
     const deeper = node.children ? walk(node.children, url, here) : undefined;
-    if (deeper && (!best || deeper.length >= best.length)) best = deeper;
-    if (!deeper && node.route && node.route !== '/' && matches(tabKeyOf(node.route), url)) {
-      if (!best || here.length >= best.length) best = here;
-    }
+    const own = node.route && node.route !== '/' && matches(tabKeyOf(node.route), url) ? here : undefined;
+    best = preferMatch(best, preferMatch(own, deeper));
   }
   return best;
 };
 
 /**
- * 找到地址所在的菜单路径（从根到叶）。路由前缀匹配，最深的匹配优先；根路径 `/` 只精确匹配。
+ * 找到地址所在的菜单路径（从根到叶）。最长路由前缀优先，同一路由取更深节点；根路径 `/` 只精确匹配。
  * @param nodes - 菜单树。
  * @param url - 当前地址。
  * @returns 路径；没有匹配返回空数组。

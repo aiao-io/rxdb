@@ -196,6 +196,7 @@ export function createAdminShell<TIcon = unknown>(options: AdminShellOptions<TIc
       currentUrl.set(url);
       const title = menuTitleOf(menu.value, url);
       if (title !== undefined) tabs.open(url, title);
+      else tabs.deactivate();
       ui.setDrawer(false);
     },
     navigate: url => options.navigate(url),

@@ -35,6 +35,24 @@ const menu: MenuNode<string>[] = [
 ];
 
 describe('findMenuPath', () => {
+  it.each([false, true])('同层菜单按路由精度匹配，不受声明顺序影响：%s', reverse => {
+    const nodes = [
+      { id: 'specific', label: '设置', route: '/users/settings' },
+      { id: 'general', label: '用户', route: '/users' }
+    ];
+    if (reverse) nodes.reverse();
+    expect(findMenuPath(nodes, '/users/settings?tab=profile').map(node => node.id)).toEqual(['specific']);
+    expect(findMenuPath(nodes, '/users/settings/profile').map(node => node.id)).toEqual(['specific']);
+  });
+
+  it('精确路由优先于位于更深菜单分组内的通用路由', () => {
+    const nodes = [
+      { id: 'specific', label: '设置', route: '/users/settings' },
+      { id: 'group', label: '分组', children: [{ id: 'general', label: '用户', route: '/users' }] }
+    ];
+    expect(findMenuPath(nodes, '/users/settings').map(node => node.id)).toEqual(['specific']);
+  });
+
   it('精确匹配返回从根到叶的路径', () => {
     expect(findMenuPath(menu, '/entities/assets/Asset').map(node => node.id)).toEqual(['entities', 'asset']);
   });

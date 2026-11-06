@@ -20,6 +20,30 @@ const create = (overrides: Parameters<typeof createTestShell<string>>[0] = {}, w
   createTestShell<string>({ menu, brand: { title: '工作台' }, ...overrides }, windowOptions);
 
 describe('createAdminShell', () => {
+  it.each(['Mars/Base', 'Asia/NotAZone'])('导入非法时区 %s 后仍能读取偏好抽屉和格式化时间', timezone => {
+    const { shell } = create();
+    try {
+      expect(shell.preferences.importJson(JSON.stringify({ app: { timezone } }))).toEqual({ ok: true });
+      expect(shell.preferences.value.app.timezone).toBe('');
+      expect(() => shell.drawer.value).not.toThrow();
+      expect(() => shell.formatDate(new Date())).not.toThrow();
+    } finally {
+      shell.destroy();
+    }
+  });
+
+  it('导入不在常用选项里的有效时区仍保留原值', () => {
+    const { shell } = create();
+    try {
+      shell.preferences.importJson(JSON.stringify({ app: { timezone: 'Indian/Mahe' } }));
+      expect(shell.preferences.value.app.timezone).toBe('Indian/Mahe');
+      expect(() => shell.drawer.value).not.toThrow();
+      expect(() => shell.formatDate(new Date())).not.toThrow();
+    } finally {
+      shell.destroy();
+    }
+  });
+
   it('品牌与首页标题按宿主目录翻译，已有页面标题保留当前语言品牌', async () => {
     const i18n = new I18n({
       locale: 'zh-Hans',
@@ -47,6 +71,24 @@ describe('createAdminShell', () => {
   });
 
   describe('路由同步与页签', () => {
+    it('返回不在菜单中的首页后取消页签高亮，关闭快捷键不再操作旧页面', () => {
+      const { shell, fakeWindow, navigated } = create();
+      shell.attach();
+      try {
+        shell.syncRoute('/search');
+        shell.syncRoute('/');
+        expect(shell.tabs.value.activeKey).toBeNull();
+        fakeWindow.press({ key: 'w', code: 'KeyW', altKey: true });
+        expect(shell.tabs.value.tabs.map(tab => tab.key)).toEqual(['/search']);
+        expect(navigated).toEqual([]);
+        shell.syncRoute('/search?query=asset');
+        expect(shell.tabs.value.activeKey).toBe('/search');
+        expect(shell.tabs.value.tabs[0].url).toBe('/search?query=asset');
+      } finally {
+        shell.destroy();
+      }
+    });
+
     it('菜单里的页面打开页签并以菜单标题命名；不在菜单里的地址不开页签', () => {
       const { shell } = create();
       shell.syncRoute('/entities/assets/Asset');

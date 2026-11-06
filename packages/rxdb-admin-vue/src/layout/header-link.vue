@@ -1,20 +1,18 @@
 <script setup lang="ts">
 import type { MenuNode } from '@aiao/rxdb-admin';
 import { computed, type Component } from 'vue';
-import { useAdminShell, useAdminStore } from '../context.js';
+import { useAdminShell } from '../context.js';
 import { interceptNavigation } from './intercept-navigation.js';
 
 const props = defineProps<{
   /** 带路由的菜单叶子。 */
   node: MenuNode<Component>;
+  /** 是否为当前菜单项。 */
+  active: boolean;
 }>();
 
 const shell = useAdminShell();
-const url = useAdminStore(shell.currentUrl);
 const route = computed(() => props.node.route as string);
-const active = computed(() =>
-  route.value === '/' ? url.value === '/' : url.value === route.value || url.value.startsWith(`${route.value}/`)
-);
 
 const go = (event: MouseEvent): void => interceptNavigation(event, () => shell.navigate(route.value));
 </script>

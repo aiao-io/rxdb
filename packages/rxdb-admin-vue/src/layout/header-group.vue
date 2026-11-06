@@ -2,11 +2,13 @@
 import type { MenuNode } from '@aiao/rxdb-admin';
 import { ChevronDown as ChevronDownIcon } from '@lucide/vue';
 import type { Component } from 'vue';
-import HeaderLink from './header-link.vue';
+import HeaderItems from './header-items.vue';
 
 defineProps<{
   /** 带子项的分组节点。 */
   node: MenuNode<Component>;
+  /** 当前菜单项标识。 */
+  activeId: string | undefined;
 }>();
 </script>
 
@@ -25,12 +27,10 @@ defineProps<{
       tabindex="0"
       class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow"
     >
-      <li
-        v-for="child in node.children ?? []"
-        :key="child.id"
-      >
-        <HeaderLink :node="child" />
-      </li>
+      <HeaderItems
+        :nodes="node.children ?? []"
+        :active-id="activeId"
+      />
     </ul>
   </div>
 </template>

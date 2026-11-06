@@ -128,6 +128,11 @@ export class TabsStore implements ReadableStore<TabsState> {
     this.#apply(openTab(this.value, tab, { maxCount, visitHistory }));
   }
 
+  /** 当前路由不属于任何页签时，清除活动状态并保留已有页签与访问历史。 */
+  deactivate(): void {
+    this.#apply({ ...this.value, activeKey: null });
+  }
+
   /**
    * 关闭页签。
    * @param key - 页签键。

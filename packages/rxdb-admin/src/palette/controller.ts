@@ -211,7 +211,7 @@ export class PaletteController implements ReadableStore<PaletteState> {
   setQuery(query: string): void {
     if (!this.value.open) return;
     this.#cancelSearch();
-    this.#state.set(this.#compute({ ...this.value, query, selectedIndex: 0 }));
+    this.#state.set(this.#compute({ ...this.value, query, selectedIndex: 0, loading: false, failed: [] }));
     this.#scheduleSearch(query.trim());
   }
 
@@ -320,7 +320,7 @@ export class PaletteController implements ReadableStore<PaletteState> {
       const ranked =
         source.items ?
           rankItems(query, source.items(), limit)
-        : (this.#asyncResults.get(source.id) ?? []).map(item => ({
+        : (this.#asyncResults.get(source.id) ?? []).slice(0, limit).map(item => ({
             item,
             labelRanges: matchText(query, item.label)?.ranges ?? []
           }));

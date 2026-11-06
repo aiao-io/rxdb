@@ -244,6 +244,39 @@ describe('AdminLayout', () => {
   });
 
   describe('其他布局模式', () => {
+    it('顶栏只高亮最精确的路由，查询参数不影响匹配', async () => {
+      const nodes = [
+        { id: 'specific', label: '用户设置', route: '/users/settings', testId: 'nav-specific' },
+        { id: 'general', label: '用户列表', route: '/users', testId: 'nav-general' }
+      ];
+      const { rerender } = await mount(
+        { defaults: { app: { layout: 'header-nav' } } },
+        { menu: nodes, url: '/users/settings' }
+      );
+      expect(screen.getByTestId('nav-specific').getAttribute('aria-current')).toBe('page');
+      expect(screen.getByTestId('nav-general').getAttribute('aria-current')).toBeNull();
+      await rerender({ url: '/users/settings/profile?tab=account#form' });
+      expect(screen.getByTestId('nav-specific').getAttribute('aria-current')).toBe('page');
+      expect(screen.getByTestId('nav-general').getAttribute('aria-current')).toBeNull();
+    });
+
+    it('切换到顶栏导航后仍能访问多层分组内的页面', async () => {
+      const leaf = { id: 'leaf', label: '深层页面', route: '/deep', testId: 'nav-deep' };
+      const nested = { id: 'nested', label: '孙分组', children: [leaf] };
+      const group = { id: 'group', label: '子分组', children: [nested] };
+      const nodes = [{ id: 'root', label: '根分组', children: [group] }];
+      const { shell, navigated } = await mount({}, { menu: nodes, url: '/deep' });
+      expect(screen.getByTestId('nav-deep').getAttribute('href')).toBe('/deep');
+      await act(() => shell.preferences.setPath('app.layout', 'header-nav'));
+      const nav = within(screen.getByTestId('admin-header-menu'));
+      const link = nav.getByRole('link', { name: '深层页面' });
+      expect(link.getAttribute('href')).toBe('/deep');
+      expect(link.getAttribute('aria-current')).toBe('page');
+      expect(nav.queryByRole('link', { name: '子分组' })).toBeNull();
+      await fire.click(link);
+      expect(navigated).toEqual(['/deep']);
+    });
+
     it('header-nav：无侧栏，顶栏水平菜单（分组是下拉）', async () => {
       await mount({ defaults: { app: { layout: 'header-nav' } } });
       expect(screen.queryByTestId('admin-sidebar')).toBeNull();

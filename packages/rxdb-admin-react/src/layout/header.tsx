@@ -1,4 +1,4 @@
-import { type MenuNode } from '@aiao/rxdb-admin';
+import { findMenuPath, type MenuNode } from '@aiao/rxdb-admin';
 import { ChevronDown, Menu } from 'lucide-react';
 import type { ReactElement, ReactNode } from 'react';
 import { useAdminShell, useAdminStore, useAdminText } from '../context.js';
@@ -8,11 +8,9 @@ import { Brand } from './sidebar.js';
 
 type Node = MenuNode<ReactNode>;
 
-function HeaderLink({ node }: { node: Node }): ReactElement {
+function HeaderLink({ node, active }: { node: Node; active: boolean }): ReactElement {
   const shell = useAdminShell();
-  const url = useAdminStore(shell.currentUrl);
   const route = node.route as string;
-  const active = route === '/' ? url === '/' : url === route || url.startsWith(`${route}/`);
   return (
     <a
       href={route}
@@ -27,7 +25,29 @@ function HeaderLink({ node }: { node: Node }): ReactElement {
   );
 }
 
-function HeaderGroup({ node }: { node: Node }): ReactElement {
+function HeaderItems({ nodes, activeId }: { nodes: readonly Node[]; activeId: string | undefined }): ReactElement {
+  return (
+    <>
+      {nodes.map(node => (
+        <li key={node.id}>
+          {node.children?.length ?
+            <>
+              <span className='menu-title'>
+                {node.icon}
+                {node.label}
+              </span>
+              <ul>
+                <HeaderItems nodes={node.children} activeId={activeId} />
+              </ul>
+            </>
+          : <HeaderLink node={node} active={node.id === activeId} />}
+        </li>
+      ))}
+    </>
+  );
+}
+
+function HeaderGroup({ node, activeId }: { node: Node; activeId: string | undefined }): ReactElement {
   return (
     <div className='dropdown dropdown-hover'>
       <div tabIndex={0} role='button' className='btn btn-ghost btn-sm'>
@@ -36,11 +56,7 @@ function HeaderGroup({ node }: { node: Node }): ReactElement {
         <ChevronDown size={14} />
       </div>
       <ul tabIndex={0} className='dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow'>
-        {(node.children ?? []).map(child => (
-          <li key={child.id}>
-            <HeaderLink node={child} />
-          </li>
-        ))}
+        <HeaderItems nodes={node.children ?? []} activeId={activeId} />
       </ul>
     </div>
   );
@@ -52,11 +68,16 @@ function HeaderGroup({ node }: { node: Node }): ReactElement {
  * @returns 菜单元素。
  */
 export function HeaderMenu({ nodes }: { nodes: readonly Node[] }): ReactElement {
+  const shell = useAdminShell();
   const t = useAdminText();
+  const url = useAdminStore(shell.currentUrl);
+  const activeId = findMenuPath(nodes, url).at(-1)?.id;
   return (
     <nav className='admin-header-menu' aria-label={t('layout.navigation')} data-testid='admin-header-menu'>
       {nodes.map(node =>
-        node.children?.length ? <HeaderGroup key={node.id} node={node} /> : <HeaderLink key={node.id} node={node} />
+        node.children?.length ?
+          <HeaderGroup key={node.id} node={node} activeId={activeId} />
+        : <HeaderLink key={node.id} node={node} active={node.id === activeId} />
       )}
     </nav>
   );

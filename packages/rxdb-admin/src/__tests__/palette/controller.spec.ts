@@ -351,6 +351,70 @@ describe('PaletteController', () => {
     });
   });
 
+  describe('查询取消与异步结果上限', () => {
+    it.each([0, 100])('在防抖开始后 %i 毫秒清空查询会取消加载并丢弃迟到结果', async delay => {
+      const { controller } = setup();
+      const pending = deferred<PaletteItem[]>();
+      const search = vi.fn(() => pending.promise);
+      controller.registerSource({ id: 'records', search });
+      controller.open();
+      controller.setQuery('资产');
+      await vi.advanceTimersByTimeAsync(delay);
+      controller.setQuery('');
+      expect(controller.value.loading).toBe(false);
+      expect(controller.value.failed).toEqual([]);
+      pending.resolve([item('old', '资产')]);
+      await vi.advanceTimersByTimeAsync(200);
+      expect(controller.value.groups).toEqual([]);
+      expect(controller.value.loading).toBe(false);
+      expect(search).toHaveBeenCalledTimes(delay === 0 ? 0 : 1);
+    });
+
+    it('查询低于最短长度后停止加载', async () => {
+      const { controller } = setup();
+      const pending = deferred<PaletteItem[]>();
+      controller.registerSource({ id: 'records', minQueryLength: 2, search: () => pending.promise });
+      controller.open();
+      controller.setQuery('ab');
+      await vi.advanceTimersByTimeAsync(100);
+      controller.setQuery('a');
+      expect(controller.value.loading).toBe(false);
+      pending.resolve([]);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(controller.value.loading).toBe(false);
+    });
+
+    it('清空查询会移除上一次搜索的失败提示', async () => {
+      const { controller } = setup();
+      controller.registerSource({ id: 'records', search: async () => Promise.reject(new Error('fts down')) });
+      controller.open();
+      controller.setQuery('a');
+      await vi.advanceTimersByTimeAsync(100);
+      expect(controller.value.failed).toEqual(['records']);
+      controller.setQuery('');
+      expect(controller.value.failed).toEqual([]);
+    });
+
+    it('每个异步分组遵循结果上限并保持连续下标，重新查询使用最新偏好', async () => {
+      const { controller, preferences } = setup({ maxResults: 3 });
+      const results = Array.from({ length: 8 }, (_, i) => item(`r${i}`, `资产${i}`));
+      controller.registerSource({ id: 'records', search: async () => results });
+      controller.registerSource({ id: 'other', search: async () => results });
+      controller.open();
+      controller.setQuery('资产');
+      await vi.advanceTimersByTimeAsync(100);
+      expect(controller.value.groups.map(group => group.entries.length)).toEqual([3, 3]);
+      expect(controller.value.groups.flatMap(group => group.entries.map(entry => entry.index))).toEqual([
+        0, 1, 2, 3, 4, 5
+      ]);
+      preferences.update(current => ({ ...current, palette: { ...current.palette, maxResults: 1 } }));
+      controller.setQuery('资产');
+      await vi.advanceTimersByTimeAsync(100);
+      expect(controller.value.groups.map(group => group.entries.length)).toEqual([1, 1]);
+      expect(controller.value.total).toBe(2);
+    });
+  });
+
   describe('来源注册', () => {
     it('重复标识、既无 items 也无 search 都立即报错', () => {
       const { controller } = setup();

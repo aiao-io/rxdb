@@ -23,6 +23,15 @@ export const PREFERENCES_STORAGE_KEY = 'aiao.admin.preferences';
 
 const DEFAULT_DEBOUNCE_MS = 150;
 
+const sameValue = (a: unknown, b: unknown): boolean => {
+  if (Object.is(a, b)) return true;
+  if (Array.isArray(a) && Array.isArray(b))
+    return a.length === b.length && a.every((item, index) => sameValue(item, b[index]));
+  if (!isRecord(a) || !isRecord(b)) return false;
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every(key => Object.hasOwn(b, key) && sameValue(a[key], b[key]));
+};
+
 /** 偏好存储监听的宿主事件源，`window` 天然满足。 */
 export interface PreferencesHost {
   /** 注册监听。 */
@@ -216,7 +225,7 @@ export class PreferencesStore implements ReadableStore<AdminPreferences> {
   }
 
   #commit(next: AdminPreferences, persist: boolean): void {
-    if (diffPreferences(next, this.value) === null) return;
+    if (sameValue(next, this.value)) return;
     this.#state.set(next);
     if (!persist) return;
     this.#dirty = true;
