@@ -435,6 +435,19 @@ export class ReviewPage {
     };
   }
 
+  /** 窄屏选择后直接定位依据，宽屏保留列表键盘焦点。 */
+  selectChange(key: string): void {
+    this.selectedKey.set(key);
+    if (window.matchMedia('(max-width: 1100px)').matches) this.focusResult('review-paths-title');
+  }
+
+  /** 返回所选变化行，保留本次计算和生产条件。 */
+  returnToChanges(): void {
+    const row = this.element.nativeElement.querySelector<HTMLButtonElement>('.review-change-row.selected');
+    row?.focus();
+    row?.scrollIntoView({ block: 'center' });
+  }
+
   private focusResult(id: string): void {
     const key = this.view()?.key;
     afterNextRender(

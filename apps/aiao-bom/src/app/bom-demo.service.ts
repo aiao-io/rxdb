@@ -204,6 +204,7 @@ export class BomDemoService {
   readonly dataRevision = signal(0);
   readonly importedDrafts = signal<ImportedDraftSummary[]>([]);
   readonly ready = signal(false);
+  readonly connected = signal(false);
   readonly seedBatchNo = SCOOTER_SEED_BATCH_NO;
   readonly seedTimestamp = SCOOTER_SEED_TIMESTAMP;
   /** itemId → itemNo（业务键，种子 itemNo 即业务键）。 */
@@ -222,6 +223,7 @@ export class BomDemoService {
   resetAndSeed(): Promise<void> {
     if (this.resetPromise) return this.resetPromise;
     this.resetting.set(true);
+    this.connected.set(false);
     this.resetStatus.set('正在等待当前操作完成…');
     this.dataEpoch.update(value => value + 1);
     this.dataRevision.update(value => value + 1);
@@ -1086,6 +1088,7 @@ export class BomDemoService {
     if (this.connectPromise) return this.connectPromise;
     this.connectPromise = this.#doConnect()
       .then(() => this.#hydrate())
+      .then(() => this.connected.set(true))
       .finally(() => {
         this.connectPromise = undefined;
       });

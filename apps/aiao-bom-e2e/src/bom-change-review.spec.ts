@@ -212,3 +212,32 @@ test.describe('BOM 生产改版核对主线', () => {
     await expect(statistics).toHaveText(before, { timeout: 30000 });
   });
 });
+
+test('首次窄屏从首页准备案例，查看用量依据并返回，完成核对和下载', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto('/');
+  const entry = page.getByTestId('start-change-review');
+  await expect(entry).toHaveText(/准备案例并开始核对/);
+  await expect(entry).toBeEnabled();
+  await acceptDialog(page, () => entry.click());
+  await expect(page).toHaveURL(/\/review(?:\?|$)/, { timeout: 30000 });
+  await expect(page.getByTestId('review-qty')).toHaveValue('10');
+  await expect(page.getByTestId('review-ecn')).toHaveValue(ecnId);
+  await run(page);
+  const row = page.getByTestId('review-change-row').filter({ hasText: 'R10K' });
+  await row.click();
+  await expect(page.locator('#review-paths-title')).toBeFocused();
+  await expect(page.locator('#review-paths-title')).toBeInViewport();
+  await page.getByTestId('review-back-changes').click();
+  await expect(row).toBeFocused();
+  await expect(row).toBeInViewport();
+  await expect(page.getByTestId('review-qty')).toHaveValue('10');
+  await complete(page);
+  const downloading = page.waitForEvent('download');
+  await page.getByTestId('review-download').click();
+  const payload = await readDownload(await downloading);
+  expect(payload.context.plannedQty).toBe('10');
+  expect(payload.ecn.ecnNo).toBe('ECN-2026-014');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
+  await page.screenshot({ path: 'test-results/bom-first-run-mobile.png', fullPage: true, animations: 'disabled' });
+});

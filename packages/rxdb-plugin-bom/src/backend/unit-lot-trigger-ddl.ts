@@ -18,7 +18,7 @@ import { EntityMetadata } from '@aiao/rxdb';
 
 // 触发器消息前缀：三维有效域重叠（归一入口在 types.normalizeBomError）。
 import { BomLineOccurrence } from '../entities.js';
-import { BOM_EFFECTIVITY_OVERLAP_PREFIX } from '../types.js';
+import { BOM_EFFECTIVITY_OVERLAP_PREFIX, BOM_WRITE_PROTOCOL_PREFIX } from '../types.js';
 import {
   column,
   isEntity,
@@ -172,3 +172,36 @@ export const buildUnitLotOverlapGuardPg = (metadata: EntityMetadata): string[] =
  */
 export const unitFromGtUnitToCheck = (metadata: EntityMetadata): string =>
   `${column(metadata, 'unitFrom')} <= ${column(metadata, 'unitTo')}`;
+
+const emptyLotCodesMessage = `${BOM_WRITE_PROTOCOL_PREFIX}lot_codes：批次集合不能为空；NULL 表示全部批次`;
+
+/** SQLite 写入时拒绝空批次集合，已有空集合在升级后仍保留原始内容。 */
+export const buildLotCodesWriteGuardSqlite = (metadata: EntityMetadata): string[] => {
+  if (!isEntity(metadata, BomLineOccurrence)) return [];
+  const table = sqliteTableRef(metadata);
+  const body = `SELECT RAISE(ABORT, '${emptyLotCodesMessage}');`;
+  const when = `json_array_length(NEW.${column(metadata, 'lotCodes')}) = 0`;
+  return [
+    ...sqliteTrigger(table, 'bom_line_occurrence_lot_codes_i', 'BEFORE INSERT', body, when),
+    ...sqliteTrigger(table, 'bom_line_occurrence_lot_codes_u', 'BEFORE UPDATE', body, when)
+  ];
+};
+
+/** PGlite 写入时拒绝空批次集合，不把历史空集合自动改成全部批次。 */
+export const buildLotCodesWriteGuardPg = (metadata: EntityMetadata): string[] => {
+  if (!isEntity(metadata, BomLineOccurrence)) return [];
+  const functionName = 'bom_line_occurrence__lot_codes_guard';
+  const body =
+    `  IF jsonb_array_length(NEW.${column(metadata, 'lotCodes')}::jsonb) = 0 THEN\n` +
+    `    RAISE EXCEPTION '${emptyLotCodesMessage}';\n  END IF;`;
+  return [
+    pgTriggerFunction(metadata, functionName, body),
+    pgCreateTrigger(
+      metadata,
+      pgTableRef(metadata),
+      'bom_line_occurrence__lot_codes_trg',
+      'BEFORE INSERT OR UPDATE',
+      functionName
+    )
+  ];
+};

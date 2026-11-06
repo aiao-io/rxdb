@@ -16,3 +16,5 @@
 - [产品体验研究与历史验收](bom-product-ux-2026-10-19.md)
 
 - [Cloudflare 部署验收](cloudflare-deployment-verification.md)
+
+- [BOM 收尾与演示交付任务](bom-completion-tasks.md)

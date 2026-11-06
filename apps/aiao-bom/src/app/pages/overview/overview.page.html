@@ -17,11 +17,11 @@
       <div class="task-actions">
         <button
           class="btn btn-primary"
-          [disabled]="!canStart()"
-          (click)="startChangeReview()"
+          [disabled]="!canEnter()"
+          (click)="enterReview()"
           data-testid="start-change-review"
         >
-          开始改版核对
+          {{ entryLabel() }}
           <span aria-hidden="true">→</span>
         </button>
         @if (ready() && itemCount() > 0) {
@@ -35,7 +35,16 @@
           </a>
         }
       </div>
-      <p class="task-footnote">从生产条件出发，带走一份有计算依据的核对摘要。</p>
+      <p class="task-footnote" aria-live="polite">
+        @if (itemCount() === 0) {
+          首次使用先准备完整案例，确认后会直接进入核对。数据保存在当前浏览器。
+        } @else {
+          从生产条件出发，带走一份有计算依据的核对摘要。现有数据与修改会保留。
+        }
+      </p>
+      @if (resetError()) {
+        <p class="error-box" role="alert">案例准备失败：{{ resetError() }}。可以保留当前条件重试。</p>
+      }
     </div>
     <figure class="product-preview">
       <div class="product-label">
@@ -177,15 +186,6 @@
     </details>
     @if (notice()) {
       <p class="status-success" role="status">{{ notice() }}</p>
-    }
-    @if (resetError()) {
-      <div class="error-box" role="alert">
-        <p>准备数据失败，请查看原因后重试。</p>
-        <details>
-          <summary>查看原因</summary>
-          <pre>{{ resetError() }}</pre>
-        </details>
-      </div>
     }
     @if (statisticsError()) {
       <div class="error-box" role="alert">

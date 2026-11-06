@@ -180,6 +180,35 @@ afterEach(() => {
 });
 
 describe('生产改版核对的决策流程', () => {
+  it('窄屏选择用料变化后聚焦计算依据，返回时恢复所选行与生产条件', async () => {
+    vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: true } as MediaQueryList);
+    const { fixture, workspace } = await mount();
+    await run(fixture);
+    const row = find<HTMLButtonElement>(fixture, 'review-change-row');
+    row.click();
+    await fixture.whenStable();
+
+    expect(document.activeElement?.id).toBe('review-paths-title');
+    expect((document.activeElement as HTMLElement)?.textContent).toContain('10kΩ 电阻');
+    find<HTMLButtonElement>(fixture, 'review-back-changes').click();
+    expect(document.activeElement).toBe(row);
+    expect(row.getAttribute('aria-pressed')).toBe('true');
+    expect(workspace.context()).toEqual(context);
+  });
+
+  it('宽屏选择物料时保留列表焦点，计算依据仍同步更新', async () => {
+    vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: false } as MediaQueryList);
+    const { fixture } = await mount();
+    await run(fixture);
+    const row = find<HTMLButtonElement>(fixture, 'review-change-row');
+    row.focus();
+    row.click();
+    await fixture.whenStable();
+
+    expect(document.activeElement).toBe(row);
+    expect(row.getAttribute('aria-pressed')).toBe('true');
+  });
+
   it('计算和人工确认后把键盘焦点移到当前结果，完成操作的结论立即可见', async () => {
     const { fixture } = await mount();
     await run(fixture);

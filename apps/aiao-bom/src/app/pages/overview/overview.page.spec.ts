@@ -9,6 +9,7 @@ const makeService = (names = ['SC-100', 'B-01', 'R10K'], ready = true) => {
   const itemNos = signal(new Map(names.map((name, index) => [`item-${index}`, name])));
   return {
     ready: signal(ready),
+    connected: signal(true),
     dataEpoch: signal(0),
     resetting: signal(false),
     extRead: vi.fn().mockResolvedValue('{"rohs":"yes"}'),
@@ -99,16 +100,80 @@ describe('生产改版核对首页的真实状态与操作', () => {
     expect(root.querySelector('[data-testid=item-inventory]')?.closest('details')).not.toBeNull();
   });
 
-  it.each([false, true])('空库在就绪状态为 %s 时仍不能开始核对，准备入口保持可见', async ready => {
+  it.each([false, true])('已连接的空库就绪状态为 %s 时，首页直接提供准备并核对入口', async ready => {
     const fixture = await mount(makeService([], ready));
     const root = element(fixture);
     const entry = root.querySelector<HTMLButtonElement>('[data-testid=start-change-review]');
-    const prepare = root.querySelector<HTMLButtonElement>('[data-testid=prepare-data]');
+
+    expect(entry?.disabled).toBe(false);
+    expect(entry?.textContent).toContain('准备案例并开始核对');
+    expect(primaryEntries(root)).toEqual([entry]);
+  });
+
+  it('连接尚未完成时不允许通过首页清空未知的既有数据', async () => {
+    const service = makeService([], false);
+    service.connected.set(false);
+    const fixture = await mount(service);
+    const entry = element(fixture).querySelector<HTMLButtonElement>('[data-testid=start-change-review]');
 
     expect(entry?.disabled).toBe(true);
-    expect(prepare).not.toBeNull();
-    expect(prepare?.closest('details')).toBeNull();
-    expect(primaryEntries(root)).toEqual([entry]);
+    expect(entry?.textContent).toContain('正在连接');
+    expect(service.resetAndSeed).not.toHaveBeenCalled();
+  });
+
+  it('首次从首页准备案例后直接进入核对，连续点击只准备一次', async () => {
+    const service = makeService([], false);
+    let finish: () => void = () => undefined;
+    service.resetAndSeed.mockImplementation(
+      () =>
+        new Promise<void>(resolve => {
+          finish = () => {
+            service.itemNos.set(new Map([['scooter', 'SC-100']]));
+            service.ready.set(true);
+            resolve();
+          };
+        })
+    );
+    const fixture = await mount(service);
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const entry = element(fixture).querySelector<HTMLButtonElement>('[data-testid=start-change-review]')!;
+
+    entry.click();
+    entry.click();
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(service.resetAndSeed).toHaveBeenCalledOnce();
+    expect(navigate).not.toHaveBeenCalled();
+    finish();
+    await fixture.whenStable();
+
+    expect(navigate).toHaveBeenCalledOnce();
+    expect(navigate).toHaveBeenCalledWith(['/review'], {
+      queryParams: fixture.componentInstance.workspace.queryParams()
+    });
+    expect(fixture.componentInstance.workspace.plannedQty()).toBe('10');
+  });
+
+  it('首次准备被取消或失败时保留首页和工作条件，可再次操作', async () => {
+    const service = makeService([], false);
+    const fixture = await mount(service);
+    fixture.componentInstance.workspace.plannedQty.set('23');
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const entry = element(fixture).querySelector<HTMLButtonElement>('[data-testid=start-change-review]')!;
+    confirm.mockReturnValue(false);
+    entry.click();
+    await fixture.whenStable();
+    expect(service.resetAndSeed).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.workspace.plannedQty()).toBe('23');
+
+    confirm.mockReturnValue(true);
+    service.resetAndSeed.mockRejectedValue(new Error('案例装载失败'));
+    entry.click();
+    await fixture.whenStable();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.workspace.plannedQty()).toBe('23');
+    expect(fixture.componentInstance.busy()).toBe(false);
+    expect(element(fixture).querySelector('[role=alert]')?.textContent).toContain('案例装载失败');
   });
 
   it('开始核对显式初始化本次任务条件，不改动已有业务数据', async () => {

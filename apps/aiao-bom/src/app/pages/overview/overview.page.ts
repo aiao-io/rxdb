@@ -21,6 +21,7 @@ export class OverviewPage {
   readonly workspace = inject(BomWorkspaceState);
 
   readonly ready = this.service.ready;
+  readonly connected = this.service.connected;
   readonly resetting = this.service.resetting;
   readonly itemNos = this.service.itemNos;
   readonly itemCount = this.service.itemCount;
@@ -42,6 +43,14 @@ export class OverviewPage {
   readonly notice = signal('');
   readonly busy = signal(false);
   readonly canStart = computed(() => this.ready() && this.itemCount() > 0 && !this.busy() && !this.resetting());
+  readonly canEnter = computed(
+    () => this.connected() && !this.busy() && !this.resetting() && (this.itemCount() === 0 || this.ready())
+  );
+  readonly entryLabel = computed(() => {
+    if (this.busy() || this.resetting()) return '正在准备案例…';
+    if (!this.connected()) return '正在连接工作区…';
+    return this.itemCount() === 0 ? '准备案例并开始核对' : '开始改版核对';
+  });
   readonly scenarios = [
     { path: '/explosion', title: '整机展开', description: '按计划量查看所需物料，逐行了解用量的计算过程。' },
     { path: '/timeline', title: '变更时间轴', description: '选择生效日期，比较工程变更前后的结构。' },
@@ -98,6 +107,13 @@ export class OverviewPage {
   /** 重新读取数据统计，不清空或修改业务数据。 */
   refreshStatistics(): void {
     this.statisticsRevision.update(value => value + 1);
+  }
+
+  /** 首次准备与进入核对共用主入口，已有数据直接继续。 */
+  async enterReview(): Promise<void> {
+    if (!this.canEnter()) return;
+    if (this.itemCount() === 0) await this.resetAndSeed();
+    await this.startChangeReview();
   }
 
   /** 从固定案例开始一轮核对，保留当前数据库中的全部业务记录。 */

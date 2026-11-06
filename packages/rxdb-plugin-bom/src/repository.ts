@@ -37,7 +37,7 @@ import { BomResolutionError } from './resolve/resolution.js';
 import type { BomQueryExecutor } from './resolve/resolver.js';
 import { parseLotCodes } from './resolve/unit-lot.js';
 import { assertFormulaGrammar, normalizeDecimalColumns } from './resolve/write-rules.js';
-import { BomCycleError, BomInstanceError, normalizeBomError } from './types.js';
+import { BomCycleError, BomInstanceError, BomWriteProtocolError, normalizeBomError } from './types.js';
 import type { BomViewInput, BomViewSnapshot } from './view-types.js';
 import { bomViewRunner } from './view.js';
 
@@ -263,7 +263,9 @@ export const validateBomWrite = async (
     if (value != null && (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1))
       throw new BomResolutionError(field, '序列区间边界必须是安全正整数');
   }
-  if (data['lotCodes'] != null) parseLotCodes(String(data['lotCodes']));
+  if (data['lotCodes'] != null && parseLotCodes(String(data['lotCodes']))?.length === 0) {
+    throw new BomWriteProtocolError('lot_codes', '批次集合不能为空；NULL 表示全部批次');
+  }
   if (data['selectionConditionId'] == null) return;
   const headers = await readRows(
     query,

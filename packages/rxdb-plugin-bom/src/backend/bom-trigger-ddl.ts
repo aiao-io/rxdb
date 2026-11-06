@@ -49,7 +49,12 @@ import {
 import { buildPgInstanceNodeDdl, buildSqliteInstanceNodeDdl } from './instance-node-ddl.js';
 import { buildPgInstanceSourceDdl, buildSqliteInstanceSourceDdl } from './instance-source-ddl.js';
 import { buildPgStructuralDdl, buildSqliteStructuralDdl } from './structural-trigger-ddl.js';
-import { buildUnitLotOverlapGuardPg, buildUnitLotOverlapGuardSqlite } from './unit-lot-trigger-ddl.js';
+import {
+  buildLotCodesWriteGuardPg,
+  buildLotCodesWriteGuardSqlite,
+  buildUnitLotOverlapGuardPg,
+  buildUnitLotOverlapGuardSqlite
+} from './unit-lot-trigger-ddl.js';
 
 // -----------------------------------------------------[ 消息文本 ]
 
@@ -1673,6 +1678,7 @@ export const buildSqliteBomTriggerDdl = (
   // 有效域三维重叠守卫创建最早 = 执行最晚（SQLite 同事件触发器逆创建序）：
   // 让 ECN 派生 / 行归属等更具体的违约先报，三维重叠作兜底
   ...buildUnitLotOverlapGuardSqlite(metadata),
+  ...buildLotCodesWriteGuardSqlite(metadata),
   ...buildSqliteStructuralDdl(metadata),
   ...sqlitePublishedRevisionTrigger(metadata),
   ...sqlitePublishTransitionTrigger(metadata),
@@ -2779,6 +2785,7 @@ export const buildPgBomTriggerDdl = (
   ...buildPgInstanceNodeDdl(metadata),
   ...buildPgInstanceSourceDdl(metadata),
   ...buildUnitLotOverlapGuardPg(metadata),
+  ...buildLotCodesWriteGuardPg(metadata),
   ...buildPgStructuralDdl(metadata),
   ...pgPublishedRevisionFunction(metadata),
   ...pgPublishTransitionFunction(metadata),

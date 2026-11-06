@@ -248,7 +248,8 @@
                 class="review-change-row"
                 [attr.aria-pressed]="selectedKey() === row.key"
                 [class.selected]="selectedKey() === row.key"
-                (click)="selectedKey.set(row.key)"
+                (click)="selectChange(row.key)"
+                aria-controls="review-selected-paths"
                 data-testid="review-change-row"
               >
                 <span>
@@ -269,9 +270,13 @@
             }
           </div>
           @if (selectedChange(); as selected) {
-            <aside class="review-paths" aria-label="所选物料的用量依据">
+            <aside class="review-paths" id="review-selected-paths" aria-label="所选物料的用量依据">
+              <button class="btn review-back-changes" (click)="returnToChanges()" data-testid="review-back-changes">
+                <span aria-hidden="true">←</span>
+                返回用料变化
+              </button>
               <p class="page-eyebrow">所选物料的全部使用路径</p>
-              <h3>{{ itemLabel(selected.itemId) }}</h3>
+              <h3 id="review-paths-title" tabindex="-1">{{ itemLabel(selected.itemId) }}</h3>
               <p class="hint">归集前的每条需求保留自己的路径与计算过程。</p>
               <h4>改版前 · {{ result.beforeDate }}</h4>
               @for (line of selected.beforeLines; track $index) {
