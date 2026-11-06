@@ -184,7 +184,7 @@ export function EntityDialog({ title, children, onCloseRequested }: EntityDialog
           {/* 标题栏（拖拽手柄 + 全屏切换 + 关闭） */}
           <div className='border-base-300 flex shrink-0 items-center justify-between border-b px-4 py-2'>
             <span
-              className='flex-1 touch-none cursor-grab text-base font-semibold select-none active:cursor-grabbing'
+              className='flex-1 cursor-grab touch-none text-base font-semibold select-none active:cursor-grabbing'
               onPointerDown={onTitlePointerDown}
               onPointerMove={onTitlePointerMove}
               onPointerUp={onTitlePointerEnd}

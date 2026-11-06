@@ -27,68 +27,68 @@ Call log:
 
 ```yaml
 - link "跳到主要内容":
-  - /url: "#layout-content"
+    - /url: '#layout-content'
 - complementary "主导航":
-  - link "工作台":
-    - /url: /
-  - list:
-    - listitem:
-      - group:
-        - text: 实体
-        - list:
-          - listitem:
-            - link "资产 0":
-              - /url: /entities/assets/Asset
-          - listitem:
-            - link "资产分类 0":
-              - /url: /entities/assets/AssetCategory
-          - listitem:
-            - link "维护记录 0":
-              - /url: /entities/assets/AssetEvent
-    - listitem:
-      - group:
-        - text: 数据
-        - list:
-          - listitem:
-            - link "搜索":
-              - /url: /search
-          - listitem:
-            - link "备份 / 恢复":
-              - /url: /backup
-  - button "折叠导航" [expanded]
-  - separator "调整侧栏宽度"
-- banner:
-  - navigation "面包屑":
+    - link "工作台":
+        - /url: /
     - list:
-      - listitem: 实体
-      - listitem: 资产分类
-  - button "搜索 ⌘ K"
-  - button "切换语言"
-  - button "时区：GMT+8": GMT+8
-  - button "切换主题：跟随系统"
-  - button "全屏"
-  - button "刷新页面"
-  - button "锁屏"
-  - button "偏好设置"
+        - listitem:
+            - group:
+                - text: 实体
+                - list:
+                    - listitem:
+                        - link "资产 0":
+                            - /url: /entities/assets/Asset
+                    - listitem:
+                        - link "资产分类 0":
+                            - /url: /entities/assets/AssetCategory
+                    - listitem:
+                        - link "维护记录 0":
+                            - /url: /entities/assets/AssetEvent
+        - listitem:
+            - group:
+                - text: 数据
+                - list:
+                    - listitem:
+                        - link "搜索":
+                            - /url: /search
+                    - listitem:
+                        - link "备份 / 恢复":
+                            - /url: /backup
+    - button "折叠导航" [expanded]
+    - separator "调整侧栏宽度"
+- banner:
+    - navigation "面包屑":
+        - list:
+            - listitem: 实体
+            - listitem: 资产分类
+    - button "搜索 ⌘ K"
+    - button "切换语言"
+    - button "时区：GMT+8": GMT+8
+    - button "切换主题：跟随系统"
+    - button "全屏"
+    - button "刷新页面"
+    - button "锁屏"
+    - button "偏好设置"
 - navigation "页签":
-  - button "访问历史"
-  - list:
-    - listitem:
-      - link "资产分类":
-        - /url: /entities/assets/AssetCategory
-      - button "移除页签：资产分类"
+    - button "访问历史"
+    - list:
+        - listitem:
+            - link "资产分类":
+                - /url: /entities/assets/AssetCategory
+            - button "移除页签：资产分类"
 - main:
-  - heading "资产分类" [level=1]
-  - text: 资产分类
-  - button "撤销 (Ctrl+Z) 0" [disabled]
-  - button "重做 (Ctrl+Shift+Z) 0" [disabled]
-  - button "字段配置"
-  - button "排序"
-  - button "分组"
-  - button "筛选"
-  - button "+ 新增"
-  - textbox "数据表格焦点控制"
-  - status "暂无数据": 暂无数据 点击「+ 新增」开始录入第一条资产分类
+    - heading "资产分类" [level=1]
+    - text: 资产分类
+    - button "撤销 (Ctrl+Z) 0" [disabled]
+    - button "重做 (Ctrl+Shift+Z) 0" [disabled]
+    - button "字段配置"
+    - button "排序"
+    - button "分组"
+    - button "筛选"
+    - button "+ 新增"
+    - textbox "数据表格焦点控制"
+    - status "暂无数据": 暂无数据 点击「+ 新增」开始录入第一条资产分类
 ```
 
 # Test source
@@ -96,7 +96,7 @@ Call log:
 ```ts
   1   | import { expect, test, type Page } from '@playwright/test';
   2   | import { createCategory, expectActionIcon, fillField, openCreateDialog, resetE2eState } from './e2e-utils.js';
-  3   | 
+  3   |
   4   | async function snapshot(page: Page) {
   5   |   return page
   6   |     .getByTestId('entity-shell')
@@ -129,24 +129,24 @@ Call log:
   33  |       };
   34  |     });
   35  | }
-  36  | 
+  36  |
   37  | test('新增对话框拖到视口边缘后仍可取消', async ({ page }) => {
   38  |   await resetE2eState(page);
   39  |   await page.goto('/entities/assets/AssetCategory');
   40  |   await openCreateDialog(page);
-  41  | 
+  41  |
   42  |   const title = page.getByText('新建资产分类', { exact: true });
   43  |   const titleBox = await title.boundingBox();
   44  |   const viewport = page.viewportSize();
   45  |   expect(titleBox).not.toBeNull();
   46  |   expect(viewport).not.toBeNull();
   47  |   if (!titleBox || !viewport) throw new Error('新增对话框标题或视口不可用');
-  48  | 
+  48  |
   49  |   await page.mouse.move(titleBox.x + titleBox.width / 2, titleBox.y + titleBox.height / 2);
   50  |   await page.mouse.down();
   51  |   await page.mouse.move(viewport.width - 1, viewport.height - 1, { steps: 10 });
   52  |   await page.mouse.up();
-  53  | 
+  53  |
   54  |   console.log(
   55  |     await page.evaluate(() => ({
   56  |       url: location.href,
@@ -162,13 +162,13 @@ Call log:
   65  |   await cancel.click();
   66  |   await expect(page.getByRole('tab', { name: '基本信息' })).toHaveCount(0);
   67  | });
-  68  | 
+  68  |
   69  | test('字段配置、排序和空值分组在真实表格中可操作，分组后仍可编辑', async ({ page }) => {
   70  |   await resetE2eState(page);
   71  |   await page.goto('/entities/assets/AssetCategory');
   72  |   await createCategory(page, 'beta');
   73  |   await createCategory(page, 'alpha');
-  74  | 
+  74  |
   75  |   await page.getByText('字段配置', { exact: true }).click();
   76  |   await page.getByLabel('显示说明', { exact: true }).uncheck();
   77  |   await expect.poll(async () => (await snapshot(page)).fields.includes('description')).toBe(false);
@@ -182,13 +182,13 @@ Call log:
   85  |   await page.mouse.move(target!.x + target!.width / 2, target!.y + target!.height / 2, { steps: 8 });
   86  |   await page.mouse.up();
   87  |   await expect.poll(async () => (await snapshot(page)).fields[1]).toBe('name');
-  88  | 
+  88  |
   89  |   await page.getByText('排序', { exact: true }).click();
   90  |   await page.getByLabel('添加排序字段').selectOption('name');
   91  |   await expect.poll(async () => (await snapshot(page)).names).toEqual(['alpha', 'beta']);
   92  |   await page.getByLabel('分类名排序方向').selectOption('desc');
   93  |   await expect.poll(async () => (await snapshot(page)).names).toEqual(['beta', 'alpha']);
-  94  | 
+  94  |
   95  |   await page.getByText('分组', { exact: true }).click();
   96  |   await page.getByLabel('分组字段', { exact: true }).selectOption('description');
   97  |   await expect.poll(async () => (await snapshot(page)).groups).toEqual([{ value: null, count: 2 }]);
@@ -213,12 +213,12 @@ Call log:
   116 |   await fillField(page, '分类名', 'beta-edited');
   117 |   await page.getByRole('button', { name: '保存', exact: true }).click();
   118 |   await expect.poll(async () => (await snapshot(page)).names).toContain('beta-edited');
-  119 | 
+  119 |
   120 |   await page.getByText('分组 1', { exact: true }).click();
   121 |   await page.getByLabel('分组字段', { exact: true }).selectOption('');
   122 |   await expect.poll(async () => (await snapshot(page)).groups).toEqual([]);
   123 |   await page.getByText('分组', { exact: true }).click();
-  124 | 
+  124 |
   125 |   await page.getByTestId('admin-sidebar-toggle').click();
   126 |   await page.setViewportSize({ width: 375, height: 812 });
   127 |   await page.getByText('字段配置', { exact: true }).click();
@@ -227,7 +227,7 @@ Call log:
   130 |   await checkbox.uncheck();
   131 |   await expect.poll(async () => (await snapshot(page)).fields.includes('description')).toBe(false);
   132 | });
-  133 | 
+  133 |
   134 | test('字段开关和排序分组弹层在桌面及窄屏完整可见，支持 Escape 关闭', async ({ page }) => {
   135 |   await resetE2eState(page);
   136 |   await page.goto('/entities/assets/AssetCategory');
@@ -255,5 +255,5 @@ Call log:
   158 |     }
   159 |   }
   160 | });
-  161 | 
+  161 |
 ```
