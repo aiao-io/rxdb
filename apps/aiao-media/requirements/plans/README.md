@@ -9,6 +9,7 @@ MVP 首发收口与同步扩展的实施计划、真实环境验收记录和历�
 | [supabase-account-verification.md](supabase-account-verification.md)                 | 真实本地账号会话、开发探针授权及产品同步的边界                      |
 | [local-first-direct-probe-verification.md](local-first-direct-probe-verification.md) | 浏览器直连供应商的最小实验结论                                      |
 | [public-delivery-verification.md](public-delivery-verification.md)                   | 正式域名发布、代理三画幅、A→B→A 更新/回退的证据与发布身份           |
+| [platform-supabase-release-20261106.md](platform-supabase-release-20261106.md) | 平台 Supabase 正式版本、空库初始化、真实云 RLS/Storage 与公众注册邮件边界 |
 | [provider-acceptance-follow-up.md](provider-acceptance-follow-up.md)                 | 直连与真实 URL 补验、MiniMax 适配、未知请求锁定与尝试记录           |
 | [jpeg-delivery-verification.md](jpeg-delivery-verification.md)                       | PNG/JPEG 原图交付、JPEG 版本发布与原图网络诊断                      |
 | [rxdb-import-verification.md](rxdb-import-verification.md)                           | 同仓迁入的来源、目录映射、兼容性与复验结果                          |

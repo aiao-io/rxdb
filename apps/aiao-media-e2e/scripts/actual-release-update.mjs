@@ -5,6 +5,7 @@ import { createServer } from 'node:http';
 import { extname, resolve } from 'node:path';
 import sharp from 'sharp';
 import { importBackup, profile, verifyImageDownload } from '../src/local-first.helpers.ts';
+import { parsePublicAccountConfig, validatePublicAccountConfig } from './public-origin-smoke.mjs';
 
 const cachePrefix = 'aiao-media-shell-v1-';
 const requireCheck = (condition, code) => {
@@ -58,9 +59,10 @@ export async function readReleaseArtifact(directory) {
   requireCheck(manifest.version === version, 'RELEASE_VERSION_MISMATCH');
   const publicManifest = files.get('/offline-manifest.json');
   requireCheck(publicManifest && JSON.parse(publicManifest.toString()).version === version, 'PUBLIC_MANIFEST_MISMATCH');
+  const accountConfig = parsePublicAccountConfig(files.get('/app-config.js'));
   requireCheck(
-    /^globalThis\.__AIAO_SUPABASE_CONFIG__ = null;\s*$/.test(files.get('/app-config.js')?.toString() ?? ''),
-    'LOCAL_ONLY_RELEASE_REQUIRED'
+    manifest.assets.some(asset => asset.path === '/app-config.js'),
+    'RELEASE_ACCOUNT_CONFIG_MISSING'
   );
   for (const asset of manifest.assets) {
     const bytes = files.get(asset.path);
@@ -75,7 +77,7 @@ export async function readReleaseArtifact(directory) {
     return url.pathname;
   });
   requireCheck(entryScripts.length > 0 && entryScripts.every(path => files.has(path)), 'MISSING_RELEASE_ENTRY_SCRIPT');
-  return { root, files, manifest, version, manifestSha256: sha256(publicManifest), entryScripts };
+  return { root, files, manifest, version, manifestSha256: sha256(publicManifest), entryScripts, accountConfig };
 }
 
 export function artifactPair(a, b) {
@@ -224,6 +226,8 @@ async function assertEntryScripts(page, artifact, network) {
   const actual = await page.locator('script[src]').evaluateAll(scripts => scripts.map(script => script.src));
   const telemetry = classifyEntryScripts(actual, new URL(page.url()).origin, artifact);
   if (network) network.telemetryScriptElements += telemetry;
+  const config = validatePublicAccountConfig(await page.evaluate(() => globalThis.__AIAO_SUPABASE_CONFIG__));
+  requireCheck(JSON.stringify(config) === JSON.stringify(artifact.accountConfig), 'RELEASE_ACCOUNT_CONFIG_MISMATCH');
 }
 
 async function cacheState(page, artifact) {

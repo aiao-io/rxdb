@@ -1,6 +1,6 @@
 # Local-first Cloudflare 部署
 
-更新：2026-11-03。真实 Angular 应用已经迁移到 CSR，默认运行不需要登录、业务 API 或云数据库；本站代理改为 Durable Object 任务，结果加密暂存 R2。正式发布与验收身份见[公网交付记录](../requirements/plans/public-delivery-verification.md)。
+更新：2026-11-06。真实 Angular 应用已经迁移到 CSR，默认运行不需要登录、业务 API 或云数据库；本站代理改为 Durable Object 任务，结果加密暂存 R2。正式发布与验收身份见[公网交付记录](../requirements/plans/public-delivery-verification.md)。
 
 ## 部署结构
 
@@ -75,15 +75,24 @@ Worker 出站请求必须使用 `redirect: 'manual'` 并检查非 2xx 响应，�
 
 ## 正式发布
 
+当前按 [D-16](../requirements/decisions.md#d-16统一使用平台-supabase) 发布统一平台 Supabase：用户在应用内注册或登录平台账号，再确认同步范围。部署前先完成独立平台项目的初始化或已审阅的前向迁移、Auth 站点/邮件配置、表 RLS、Realtime 与私有 `aiao-media-images` Storage；空项目初始化使用 `aiao-media:production-bundle`，已有项目不能重复执行空库包。步骤见[平台服务配置](platform-services.md)和[账号服务运维边界](../requirements/plans/release-completion-tasks.md#后续正式账号服务的运维边界)。
+
+浏览器的 `AIAO_SUPABASE_URL`、`AIAO_SUPABASE_ANON_KEY` 必须预先导出到构建进程，Worker secrets `MEDIA_SUPABASE_URL`、`MEDIA_SUPABASE_ANON_KEY`、`MEDIA_SUPABASE_SERVICE_ROLE_KEY` 必须指向同一平台项目。只把 URL 和公开 publishable/anon Key 提供给前端；服务端凭据通过 Worker secrets 单独配置，不进入构建产物。当前流程保留公开账号配置，不再清空这两个变量。
+
 ```sh
 # 仅首次或凭据失效时进行 Cloudflare 官方授权
 pnpm --dir apps/aiao-media exec wrangler login
 
-# 本轮 Supabase 仅本地，正式静态站点关闭账号配置
+# 两个公开变量已从选定的平台项目导出到当前构建进程；不在文档或日志打印其值
+: "${AIAO_SUPABASE_URL:?请配置平台项目 URL}"
+: "${AIAO_SUPABASE_ANON_KEY:?请配置平台公开 Key}"
 NX_NO_CLOUD=true NX_LOAD_DOT_ENV_FILES=false \
-AIAO_SUPABASE_URL='' AIAO_SUPABASE_ANON_KEY='' \
+pnpm nx run aiao-media:deploy-check --skipRemoteCache
+NX_NO_CLOUD=true NX_LOAD_DOT_ENV_FILES=false \
 pnpm nx run aiao-media:deploy --skipRemoteCache
 ```
+
+以上是当前发布流程，执行结果以真实构建、dry-run 和部署回执为准；本页修改不表示已经部署或通过生产账号/Storage 验收。
 
 配置源为 `deploy/wrangler.json`，名称 `aiao-media`。部署脚本在 Git 忽略的 `.wrangler/local-first` 中生成实际配置并调用固定版本 Wrangler。发布成功后，以 CLI 返回的真实 URL、version ID、deployment ID 为准，不能预先假定 workers.dev 子域名。
 
@@ -98,7 +107,7 @@ pnpm --dir apps/aiao-media exec wrangler r2 bucket lifecycle add aiao-media-rela
 
 如果已有同名 Worker，应先核对它确实属于本项目，再更新。首次账号/子域名设置由 Cloudflare 官方流程完成，不通过创建匿名临时账号代替正式上线。2026-10-25 20:25 正式发布 C，地址 `https://media.aiao.io`，版本 `caaf54dd-054b-4be8-a523-518c3875c7a9`；官方 100% 流量、四路由/CSP、46/46 离线资源和断网新文档启动已复核，生成 0 次。具体身份与烟测边界见[补验记录](../requirements/plans/provider-acceptance-follow-up.md#正式发布-c-与公网烟测)。历史 B 的旧 API 404、真实供应商代理三画幅与官方更新/回退保留原证据。直连正方形结果未知，未重发，另两幅直连与跨 origin 原图 URL 尚未完成。具体发布摘要与各项证据边界见[公网交付记录](../requirements/plans/public-delivery-verification.md)。
 
-本轮构建必须禁用 Nx 自动 dotenv 加载并显式清空两个公开账号变量，再核对 `app-config.js` 为 `null`；仅设置空值会被 dotenv 展开行为覆盖。真实本地账号开发使用 `aiao-media:supabase-serve` 的回环配置，不修改私有 `.env` 中的其它供应商设置。
+历史的本机模式发布曾清空两个公开账号变量并要求 `app-config.js` 为 `null`，该口径只适用于已记录的旧发布。当前平台发布保持 `NX_LOAD_DOT_ENV_FILES=false`，显式提供选定平台项目的公开配置，并核对 `dist/browser/app-config.js` 中的 URL/公开 Key 与 Worker secrets 所属项目一致；不能把本机回环配置带到线上。真实本地账号开发继续使用 `aiao-media:supabase-serve`，与正式项目分开。
 
 产物审查记录在 `tmp/local-first/release.json`，包括源码 commit、工作区是否有未提交修改、每个产物的大小和 SHA-256；该记录不等于部署成功回执。
 
@@ -126,7 +135,7 @@ pnpm nx run aiao-media:deploy-check
 
 浏览器测试使用实际生产静态包、Chrome、RxDB、WASM、IndexedDB、OPFS 和 Service Worker；网络供应商使用 fixture。覆盖配置与草稿恢复、图片下载/回读、三种画幅、不确定请求、内存 Key、主动代理、四路由离线、备份恢复、移动布局、多标签页及本机写入失败。
 
-正式发布后仍需记录：公网四路由和 WASM/CSP、正式 origin 的供应商 CORS、免费计划状态，以及真实供应商的生成/保存结果。已经记录的本机 CORS 403 不能推导正式 origin 的结果。普通部署检查不调用真实模型；真实供应商验收走独立显式入口，持久记录每次尝试，遇到不确定结果停止，不自动重发。
+正式发布后仍需记录：公网四路由和 WASM/CSP、发布回执与产物摘要、平台注册与真实邮件确认、两账号数据隔离，以及两设备草稿/作品/原图上传取回的原字节一致性。真实 Storage、续传与 Web/Tauri 验收不得由字节 fixture 替代；本地浏览器与账号套件顺序运行。正式 origin 的供应商 CORS、免费计划状态和真实生成/保存结果继续按各自范围验收。已经记录的本机 CORS 403 不能推导正式 origin 的结果。普通部署检查不调用真实模型；真实供应商验收走独立显式入口，持久记录每次尝试，遇到不确定结果停止，不自动重发。
 
 ## Pages 纯静态替代方案
 

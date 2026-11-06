@@ -4,6 +4,7 @@ import { chmod, cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/prom
 import { createServer } from 'node:http';
 import { extname, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { validateSupabaseAuthConfig } from '../../aiao-media/src/app/supabase-auth-config.ts';
 
 const formalOrigin = 'https://media.aiao.io';
 const routes = ['/', '/create', '/images', '/providers'];
@@ -32,7 +33,8 @@ export function allowedPublicRequest(origin, address, method) {
   try {
     const url = new URL(address);
     if (url.origin !== origin || !['GET', 'HEAD'].includes(method)) return false;
-    if (/^\/api\//.test(url.pathname)) return ['/api/templates', '/api/provider-policies'].includes(url.pathname);
+    if (/^\/api\//.test(url.pathname))
+      return ['/api/templates', '/api/provider-policies', '/api/platform/catalog'].includes(url.pathname);
     return !/\/(?:images\/generations|auth\/v1)(?:\/|$)/.test(url.pathname);
   } catch {
     return false;
@@ -77,7 +79,33 @@ export function parsePublicBuild(manifestBytes, workerBytes, expectedSha256) {
   return build;
 }
 
-async function readPublicBuild(settings) {
+export function validatePublicAccountConfig(value) {
+  if (value === null) return null;
+  check(
+    value && typeof value === 'object' && JSON.stringify(Object.keys(value).sort()) === '["anonKey","url"]',
+    'SMOKE_ACCOUNT_CONFIG_INVALID'
+  );
+  try {
+    return validateSupabaseAuthConfig(value);
+  } catch {
+    throw new Error('SMOKE_ACCOUNT_CONFIG_INVALID');
+  }
+}
+
+export function parsePublicAccountConfig(bytes) {
+  check(bytes?.length > 0 && bytes.length < 65536, 'SMOKE_ACCOUNT_CONFIG_INVALID');
+  const assignment = /^globalThis\.__AIAO_SUPABASE_CONFIG__ = ([\s\S]+);\s*$/.exec(bytes.toString('utf8'));
+  check(assignment, 'SMOKE_ACCOUNT_CONFIG_INVALID');
+  let value;
+  try {
+    value = JSON.parse(assignment[1]);
+  } catch {
+    throw new Error('SMOKE_ACCOUNT_CONFIG_INVALID');
+  }
+  return validatePublicAccountConfig(value);
+}
+
+export async function readPublicBuild(settings) {
   const client = await request.newContext({ baseURL: settings.origin });
   try {
     const responses = await Promise.all(
@@ -90,11 +118,13 @@ async function readPublicBuild(settings) {
       'SMOKE_PUBLIC_ARTIFACT_UNAVAILABLE'
     );
     const [manifest, worker, config] = await Promise.all(responses.map(response => response.body()));
+    const build = parsePublicBuild(manifest, worker, settings.manifestSha256);
+    const accountAsset = build.assets.find(asset => asset.path === '/app-config.js');
     check(
-      config.toString('utf8').trim() === 'globalThis.__AIAO_SUPABASE_CONFIG__ = null;',
-      'SMOKE_ACCOUNTS_NOT_DISABLED'
+      accountAsset && accountAsset.size === config.length && accountAsset.sha256 === digest(config),
+      'SMOKE_ACCOUNT_CONFIG_CHANGED'
     );
-    return parsePublicBuild(manifest, worker, settings.manifestSha256);
+    return { ...build, accountConfig: parsePublicAccountConfig(config) };
   } finally {
     await client.dispose();
   }
@@ -128,12 +158,13 @@ async function inspectCache(page, build) {
   }, build);
 }
 
-async function visibleShell(page) {
+async function visibleShell(page, build) {
   await expect(page.getByRole('link', { name: 'Aiao Images 首页', exact: true })).toBeVisible({ timeout: 30000 });
-  check(await page.evaluate(() => globalThis.__AIAO_SUPABASE_CONFIG__ === null), 'SMOKE_ACCOUNTS_NOT_DISABLED');
+  const config = validatePublicAccountConfig(await page.evaluate(() => globalThis.__AIAO_SUPABASE_CONFIG__));
+  check(JSON.stringify(config) === JSON.stringify(build.accountConfig), 'SMOKE_ACCOUNT_CONFIG_CHANGED');
 }
 
-async function navigateOnline(page, path) {
+async function navigateOnline(page, path, build) {
   const direct = await page.request.get(path, { maxRedirects: 0, timeout: 30000 });
   check(direct.status() === 200, 'SMOKE_ROUTE_HTTP_UNAVAILABLE');
   const directCsp = direct.headers()['content-security-policy'];
@@ -142,7 +173,7 @@ async function navigateOnline(page, path) {
   check(response?.status() === 200, 'SMOKE_ROUTE_UNAVAILABLE');
   const csp = await response.headerValue('content-security-policy');
   check(csp?.includes("default-src 'self'") && csp.includes("script-src 'self'"), 'SMOKE_CSP_MISSING');
-  await visibleShell(page);
+  await visibleShell(page, build);
   return { path, status: response.status(), directHttpStatus: direct.status(), csp: true };
 }
 
@@ -174,9 +205,9 @@ async function verifyBrowser(settings, build, evidence) {
     page.setDefaultTimeout(30000);
     evidence.stage = 'online-routes';
     evidence.onlineRoutes = [];
-    for (const path of routes) evidence.onlineRoutes.push(await navigateOnline(page, path));
+    for (const path of routes) evidence.onlineRoutes.push(await navigateOnline(page, path, build));
     evidence.stage = 'draft-refresh';
-    await navigateOnline(page, '/create');
+    await navigateOnline(page, '/create', build);
     const draft = `正式隔离烟测草稿 ${randomUUID()}`;
     await page.locator('[contenteditable=true]').fill(draft);
     await expect(page.getByText('输入已保存到本机', { exact: true })).toBeVisible({ timeout: 30000 });
@@ -227,7 +258,7 @@ async function verifyBrowser(settings, build, evidence) {
       const cold = await context.newPage();
       const response = await cold.goto(path, { waitUntil: 'domcontentloaded' });
       check(response?.status() === 200 && response.fromServiceWorker(), 'SMOKE_COLD_START_NOT_FROM_CACHE');
-      await visibleShell(cold);
+      await visibleShell(cold, build);
       check(
         (await cold.evaluate(() => localStorage.getItem('aiao-local-profile-v1'))) === profile,
         'SMOKE_PROFILE_CHANGED'
@@ -291,26 +322,6 @@ async function fixture() {
   await mkdir(parent, { recursive: true, mode: 0o700 });
   const root = await mkdtemp(resolve(parent, 'public-origin-static-'));
   await cp(source, root, { recursive: true });
-  const config = Buffer.from('globalThis.__AIAO_SUPABASE_CONFIG__ = null;\n');
-  await writeFile(resolve(root, 'app-config.js'), config);
-  const original = parsePublicBuild(
-    await readFile(resolve(source, 'offline-manifest.json')),
-    await readFile(resolve(source, 'offline-worker.js')),
-    digest(await readFile(resolve(source, 'offline-manifest.json')))
-  );
-  const assets = original.assets.map(asset =>
-    asset.path === '/app-config.js' ? { ...asset, size: config.length, sha256: digest(config) } : asset
-  );
-  const workerTemplate = await readFile(
-    resolve(import.meta.dirname, '../../aiao-media/scripts/offline-worker.js'),
-    'utf8'
-  );
-  const version = digest(JSON.stringify(assets) + workerTemplate);
-  await writeFile(
-    resolve(root, 'offline-worker.js'),
-    `const MANIFEST = ${JSON.stringify({ version, assets })};\n${workerTemplate}`
-  );
-  await writeFile(resolve(root, 'offline-manifest.json'), JSON.stringify({ version }));
   const { default: worker } = await import('../../aiao-media/server/cloudflare/local-first-worker.mjs');
   const template = await readFile(resolve(root, '_headers'), 'utf8');
   const headersFor = path => {

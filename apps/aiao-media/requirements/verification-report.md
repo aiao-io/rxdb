@@ -49,17 +49,21 @@
 | `aiao-media-e2e:product-e2e` 的平台原图接线用例                    | “平台账号跨设备同步作品与原图，Storage 字节夹具验证上传和取回接线”1 项通过 | 隔离本地真实 Auth/数据库与双浏览器副本；Storage 上传/下载字节由 fixture 提供，不代表真实云 Storage |
 | `aiao-media:relay-test` / `production-bundle-test` / `script-test` | 30、7、59 项分别通过                                                       | 后端和构建脚本契约；不代表已发布或云端权限已验                                                     |
 
-浏览器用例见[平台注册入口](../../aiao-media-e2e/src/supabase-auth.spec.ts)和[平台作品/原图接线](../../aiao-media-e2e/src/product-local.spec.mts)。真实 Storage 的鉴权、续传与原字节回读、生产 Web/Tauri 跨设备恢复仍未验收；本轮没有部署生产服务，不据此将故事标为 Done。
+浏览器用例见[平台注册入口](../../aiao-media-e2e/src/supabase-auth.spec.ts)和[平台作品/原图接线](../../aiao-media-e2e/src/product-local.spec.mts)。本节记录部署前的本地验证，不折算真实云 Storage；同日后续生产部署和云 API 结果见下节及[平台发布记录](plans/platform-supabase-release-20261106.md)，未完成 AC 不因此标为 Done。
 
 ## 正式环境证据
 
 | 范围               | 当前结论                                                                                                                                                                         | 记录                                                  |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| 发布               | 线上为 JPEG 版本 `e6ece57b-cd1f-4834-99cb-f20813817eb2`，`wrangler deployments status` 核对 100% 流量；manifest SHA-256 `e83a9f05…`；四路由、CSP、46/46 缓存与断网新文档烟测通过 | [JPEG 交付验收](plans/jpeg-delivery-verification.md)  |
+| 发布               | 2026-11-06 16:12:14（Asia/Shanghai）发布统一平台版本 `cf252547-dd7c-4b0b-8b77-9e1de257ab4b`，100% 流量；正式域名 `https://media.aiao.io` | [平台发布记录](plans/platform-supabase-release-20261106.md) |
+| 平台数据库与文件权限 | 空库核验后执行 13 源 bootstrap，schema 10；真实云两普通账号/同账号第二会话的 metadata/log RLS、revision、tombstone 与私有 Storage 原字节 SHA-256 往返通过，B/匿名拒绝 | [平台发布记录](plans/platform-supabase-release-20261106.md#真实云-api-验证) |
+| 平台 UI             | 正式云 Auth/DB/Storage 下登录、确认范围、元数据同步、真实原图上传、第二设备草稿恢复和默认关闭上传、显式下载通过，下载字节/SHA-256 与原 PNG 一致；注册仅验证表单，未发邮件 | [平台发布记录](plans/platform-supabase-release-20261106.md#正式域名-ui-进展) |
+| 平台公开 HTTP       | `/providers`、`/api/templates` 为 200，CSP 允许平台项目 `wss`，公开账号配置与 Worker 同项目，旧 OAuth start 为 404；线上 offline-manifest 字节与本地产物一致。当前版本四路由/离线浏览器 smoke 待补 | [平台发布记录](plans/platform-supabase-release-20261106.md#正式域名-ui-进展) |
+| 公众注册邮件        | 未配置自定义 SMTP；默认邮件只向项目团队成员发送，公众邮箱注册/确认邮件闭环未验证 | [平台发布记录](plans/platform-supabase-release-20261106.md#公众注册与剩余边界) |
 | 更新与回退         | 官方 A→B→A 实际产物切换、waiting/旧页关闭/activated 顺序及各阶段真断网四路由已通过（原 B 版本）；没有注入更高 schema marker                                                      | [正式交付验收](plans/public-delivery-verification.md) |
 | 代理出图           | 原供应商三画幅各一次 HTTP 200，PNG 精确尺寸，保存、刷新回读与下载字节/SHA-256 一致；结果均为 base64                                                                              | [正式交付验收](plans/public-delivery-verification.md) |
 | 直连出图           | 原供应商预检 403、正方形无响应；MiniMax 正方形业务成功但浏览器未读到原图，结果 URL 已过期；两条未知记录锁定不重发；横向、纵向待诊断                                              | [供应商补验](plans/provider-acceptance-follow-up.md)  |
 | 跨 origin 原图 URL | 无真实成功证据                                                                                                                                                                   | [供应商补验](plans/provider-acceptance-follow-up.md)  |
 | 套餐               | Cloudflare 控制台显示 Workers 免费套餐 US$0 与活动 Workers Free 订阅；账户另有既有订阅，不称全账户免费或零账单                                                                   | [正式交付验收](plans/public-delivery-verification.md) |
 
-正式产物均以 `NX_LOAD_DOT_ENV_FILES=false AIAO_SUPABASE_URL='' AIAO_SUPABASE_ANON_KEY=''` 构建，公开账号配置为 `null`；生产 Supabase 未部署。
+历史 JPEG 及此前发布保持本机模式，其关闭账号配置的构建和离线证据仍见[原交付记录](plans/jpeg-delivery-verification.md)。2026-11-06 平台版本使用显式平台公开配置，生产 Supabase 已初始化并完成上述真实云 API 和完整浏览器同步样本；自定义 SMTP、公众注册确认邮件、当前版本四路由/离线浏览器 smoke 和生产 Web/Tauri 余项仍待验，故事状态保持未关闭。

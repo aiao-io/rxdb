@@ -13,18 +13,18 @@ import {
   verifyPublishedBuild
 } from './actual-release-update.mjs';
 
-async function artifact(root, label) {
+async function artifact(root, label, config = null, includeConfig = true) {
   await mkdir(root, { recursive: true });
   const html = `<html><head></head><body><script src="main-${label}.js" type="module"></script></body></html>`;
   const files = {
     '/index.html': html,
     '/offline-shell.html': html,
-    '/app-config.js': 'globalThis.__AIAO_SUPABASE_CONFIG__ = null;\n',
+    '/app-config.js': `globalThis.__AIAO_SUPABASE_CONFIG__ = ${JSON.stringify(config)};\n`,
     '/nested/resource.js': 'export const value = 1;',
     [`/main-${label}.js`]: `console.log('${label}');`
   };
   const assets = Object.entries(files)
-    .filter(([path]) => path !== '/index.html')
+    .filter(([path]) => path !== '/index.html' && (includeConfig || path !== '/app-config.js'))
     .map(([path, body]) => ({ path, size: Buffer.byteLength(body), sha256: sha256(Buffer.from(body)) }))
     .sort((a, b) => a.path.localeCompare(b.path));
   const template = 'self.addEventListener("fetch", () => {});\n';
@@ -56,7 +56,36 @@ test('真实产物按原始文件验证内嵌清单、资源摘要与空Auth，�
   }
 });
 
-test('相同manifest不能冒充静态升级，损坏资源、Auth启用和越界资源都拒绝', async () => {
+test('平台账号产物支持公开配置，私钥、损坏配置和未列入清单的配置均拒绝', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'aiao-actual-release-accounts-'));
+  try {
+    const config = { url: 'https://platform.supabase.co', anonKey: 'sb_publishable_fixture' };
+    const result = await readReleaseArtifact(await artifact(root, 'a', config));
+    assert.deepEqual(result.accountConfig, config);
+    assert.equal(
+      result.files.get('/app-config.js').toString(),
+      `globalThis.__AIAO_SUPABASE_CONFIG__ = ${JSON.stringify(config)};\n`
+    );
+    for (const invalid of [
+      {},
+      { ...config, anonKey: 'sb_secret_private' },
+      { ...config, url: 'https://user:password@platform.supabase.co' },
+      { ...config, serviceRoleKey: 'private' }
+    ])
+      await assert.rejects(readReleaseArtifact(await artifact(root, 'a', invalid)), /ACCOUNT_CONFIG_INVALID/);
+    await artifact(root, 'a', config);
+    await writeFile(join(root, 'app-config.js'), 'globalThis.__AIAO_SUPABASE_CONFIG__ = null;');
+    await assert.rejects(readReleaseArtifact(root), /RELEASE_RESOURCE_MISMATCH/);
+    await assert.rejects(
+      readReleaseArtifact(await artifact(root, 'a', config, false)),
+      /RELEASE_ACCOUNT_CONFIG_MISSING/
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('相同manifest不能冒充静态升级，损坏资源、账号配置和越界资源都拒绝', async () => {
   const root = await mkdtemp(join(tmpdir(), 'aiao-actual-release-invalid-'));
   try {
     const a = await readReleaseArtifact(await artifact(join(root, 'a'), 'a'));
@@ -65,7 +94,7 @@ test('相同manifest不能冒充静态升级，损坏资源、Auth启用和越�
     await assert.rejects(readReleaseArtifact(join(root, 'a')), /RELEASE_RESOURCE_MISMATCH/);
     await artifact(join(root, 'a'), 'a');
     await writeFile(join(root, 'a/app-config.js'), 'globalThis.__AIAO_SUPABASE_CONFIG__ = {};');
-    await assert.rejects(readReleaseArtifact(join(root, 'a')), /LOCAL_ONLY_RELEASE_REQUIRED/);
+    await assert.rejects(readReleaseArtifact(join(root, 'a')), /ACCOUNT_CONFIG_INVALID/);
     await artifact(join(root, 'a'), 'a');
     const worker = await readFile(join(root, 'a/offline-worker.js'), 'utf8');
     await writeFile(join(root, 'a/offline-worker.js'), worker.replace('/main-a.js', '/../main-a.js'));

@@ -11,7 +11,7 @@
 | D-05 | 已确定：本机独立工作区 + 显式绑定 + 按账号隔离复制 | 退出继续本机使用，切账号不复用另一账号的绑定副本。登录不上传，首次确认后才复制；流程见[账号与工作区计划](plans/account-workspace-binding.md)                                                                                                                                                                                               | MEDIA-US-201 阶段 B；MEDIA-US-302 阶段 A/B                |
 | D-06 | 已确定：无限期保留，不启用 TTL 或自动清理          | 保留 tombstone、冲突原始双方和同步变更日志，不重置远程序列。检查点不按时间过期；异常恢复采用用户明确触发的重新扫描，保留本机未确认改动、业务 revision 和推送水位，由现有 CAS/冲突流程处理重放。后续 GC 必须另做安全回收协议与离线设备恢复验收                                                                                              | MEDIA-US-302 阶段 C                                       |
 | D-07 | 已确定：只承诺已验证的迁移与安全回退范围           | 支持 0.0.26 基线升级；新版库不降级给旧引擎，拒绝打开后恢复新版数据仍在。未验证历史库不承诺自动迁移；未知/更高 schema marker 拒绝访问并保留原数据。线上回退仅选择认识 schema marker 且通过同库验收的构建，不用清库解决回退                                                                                                                  | MEDIA-US-301 AC 8；MEDIA-US-004 AC 4                      |
-| D-08 | 已确定：Supabase 本轮仅本地                        | 账号、同步与后台使用真实本地 Supabase 验证；生产账号/后台不作为图片发布的前置条件。正式静态产物保持关闭公开账号配置，不将本机服务或私有 `.env` 中的远程字段发布。后续生产启用需独立产品项目、迁移/RLS、Auth 与管理员授权验收；共享项目先提取并评审按对象收口的迁移                                                                         | MEDIA-US-004；MEDIA-US-201；MEDIA-US-203                  |
+| D-08 | 历史阶段：Supabase 仅本地，已由 D-16 的正式启用扩展 | 图片首发阶段只做本地账号/同步验证、正式产物关闭账号配置；2026-11-06 已按 D-16 初始化平台项目并发布。真实云 API/RLS/Storage 结果及公众注册邮件限制见[平台发布记录](plans/platform-supabase-release-20261106.md)，原本地证据不扩大为全部生产验收 | MEDIA-US-004；MEDIA-US-201/203/303/305 |
 | D-09 | 已确定：真实桌面 IME 本轮跳过，保持未验            | MEDIA-US-106 AC7 保持 ⚠️，不用粘贴或合成 composition 事件改成通过。恢复验收时运行 `aiao-media-e2e:desktop-ime-acceptance`：由 System Events 向 macOS 简体拼音发送物理按键，组字由系统输入法完成。移动真机继续按 D-04 暂缓，保留 MEDIA-US-107 的三个未验 AC                                                                                 | MEDIA-US-106 AC7；MEDIA-US-107                            |
 | D-10 | 已确定：本地作品检索与真实视口按需预览             | 独立 prompt/model 原生字面 contains、大小写敏感 AND；本地整日，createdAt/实体 id 稳定倒序，每页 24。仅 IO 相交卡片预览并回收失效 URL；ready 冷启动不读原图，saving 完整验证后提交，显式读取不改写历史保存事实；全库 metadata 未知时不推断无副本。无 schema/packages 改动；验收分层见[实施清单](plans/library-search-tasks.md)              | MEDIA-US-204                                              |
 | D-11 | 已确定：全部 AC 已验的七条故事在合并前记为 Done    | MEDIA-US-004/201/202/203/204/301/302 按当前分支验收结果结项，评审/合并单独跟踪。仅这七条采用此口径，其他故事保留默认关闭条件，未验 AC 不计为通过                                                                                                                                                                                           | 七条已验故事及派生视图                                    |
@@ -23,7 +23,7 @@
 
 已确定的产品方向：继续优化 Web；提供 Tauri 本地安装程序；在 Cloudflare 运行安全代理、免费/收费图片生成、带用户提示的任务队列及管理后台；同步方向最初包含自有 Supabase 与平台；现统一按 D-16 使用平台 Supabase。
 
-首阶段已进入实施，技术选择和证据见[产品交付计划](plans/product-completion-20261030.md)。完整范围与共同数据边界见[未来功能需求与目录规划](future-requirements.md)。这些方向不表示生产服务已启用，不改变 D-08 的当前发布约束、D-06 的同步保留规则或既有故事验收状态。
+首阶段已进入实施，技术选择和证据见[产品交付计划](plans/product-completion-20261030.md)。完整范围与共同数据边界见[未来功能需求与目录规划](future-requirements.md)。方向确定不等于验收完成；平台账号与同步的实际启用见 D-16 和正式发布记录，D-06 的同步保留规则与既有故事验收状态保持不变。
 
 ### D-14：自有 Supabase 授权接入与原图同步（已由 D-16 替代）
 
@@ -43,15 +43,15 @@
 
 表、RLS、bucket 和平台账号配置由部署方统一维护。应用尚未正式使用，移除未使用的自有项目代码与兼容入口，不承诺旧自有项目配置迁移。用户确认平台账号、工作区与上传范围后才开始复制。停止、切账号、离线恢复、冲突、tombstone 和日志保留规则继续遵守 D-05/D-06。
 
-[MEDIA-US-303](stories/local-first/MEDIA-US-303-sync-targets.md) 与 [MEDIA-US-305](stories/local-first/MEDIA-US-305-supabase-image-sync.md) 按本决策继续实施；原 MEDIA-US-304 需求与未使用的自有项目接入代码一并移除。平台承担存储与服务成本，生产配额、真实 Storage、Web/Tauri 跨设备与权限隔离仍需验收；本决策不等于生产服务已上线，不改变 D-08 的当前发布边界。
+[MEDIA-US-303](stories/local-first/MEDIA-US-303-sync-targets.md) 与 [MEDIA-US-305](stories/local-first/MEDIA-US-305-supabase-image-sync.md) 按本决策继续实施；原 MEDIA-US-304 需求与未使用的自有项目接入代码一并移除。平台承担存储与服务成本。2026-11-06 正式启用的版本、空库初始化、真实云 API/RLS/Storage 及完整浏览器同步样本证据见[平台发布记录](plans/platform-supabase-release-20261106.md)；自定义 SMTP 与公众注册邮件、当前版本四路由/离线浏览器 smoke、续传及生产 Web/Tauri 仍需验收，决策或部署不等于故事全部完成。
 
 ## 当前执行条件
 
 - 真实供应商：私有配置写在应用 `.env`（0600，Git 忽略）。验收入口、参数与尝试记录规则见[收尾清单](plans/release-completion-tasks.md#真实供应商自动验收入口)；未知记录不删除、不覆盖，也不因更换发布、产物或 Key 解锁。
-- 正式发布：生产构建、审查和部署必须同时设置 `NX_LOAD_DOT_ENV_FILES=false` 与 `AIAO_SUPABASE_URL='' AIAO_SUPABASE_ANON_KEY=''`；仅两个空值不足以阻止 Nx 展开 `.env`。产物须复核公开账号配置为 `null`，命令见[正式交付验收](plans/public-delivery-verification.md)。
+- 正式发布：保持 `NX_LOAD_DOT_ENV_FILES=false`，显式提供同一平台项目的 `AIAO_SUPABASE_URL` 和公开 `AIAO_SUPABASE_ANON_KEY`；Worker 配置同项目 secrets，不能发布本机回环值。当前发布流程见[部署说明](../deploy/local-first-pages.md#正式发布)，历史关闭账号的发布回执仍保留。
 - 正式域名路由在 [Wrangler 配置](../deploy/wrangler.json)；线上当前版本与历次发布身份见[验收记录](verification-report.md#正式环境证据)。域名绑定、证书与发布均以部署回执和公网检查为准。
 - Cloudflare：控制台显示 Workers 免费套餐 US$0 与活动 Workers Free 订阅；账户另有既有订阅，不据此宣称全账户免费、零账单或模型费用为零。
-- Supabase 仅本地（D-08）：生产项目与管理员凭据不是当前输入条件，`.env` 中存在远程字段不等于生产启用或权限验收；后续启用步骤见[收尾清单](plans/release-completion-tasks.md#后续正式账号服务的运维边界)。
+- 平台 Supabase 已按 D-16 正式初始化并发布；公众注册仍缺自定义 SMTP 与确认邮件验收。生产配置和权限依据实际回执，不从 `.env` 字段存在推断；后续运维与未验边界见[收尾清单](plans/release-completion-tasks.md#后续正式账号服务的运维边界)与[平台发布记录](plans/platform-supabase-release-20261106.md)。
 
 ## 版本与证据
 
