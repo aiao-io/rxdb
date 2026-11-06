@@ -1,4 +1,5 @@
 import { getEntityMetadata, type EntityType } from '@aiao/rxdb';
+import { appConfig } from '../app-config';
 
 /**
  * 工作台实体可见性：导航与「声明可见」从同一份元数据派生（US-526 AC#1）。
@@ -8,7 +9,7 @@ import { getEntityMetadata, type EntityType } from '@aiao/rxdb';
  */
 
 /** 工作台可见的实体命名空间。 */
-export const WORKBENCH_NAMESPACES = ['assets'] as const;
+export const WORKBENCH_NAMESPACES = appConfig.visibleNamespaces;
 
 /** 导航条目：一个可见实体。 */
 export interface WorkbenchEntityEntry {
@@ -18,10 +19,13 @@ export interface WorkbenchEntityEntry {
 }
 
 /** 从实体注册表派生可见实体导航条目（按命名空间、名称排序）。 */
-export function visibleEntityEntries(entities: readonly EntityType[]): WorkbenchEntityEntry[] {
+export function visibleEntityEntries(
+  entities: readonly EntityType[],
+  namespaces: readonly string[] = WORKBENCH_NAMESPACES
+): WorkbenchEntityEntry[] {
   return entities
     .map(cls => getEntityMetadata(cls))
-    .filter(meta => WORKBENCH_NAMESPACES.includes(meta.namespace as (typeof WORKBENCH_NAMESPACES)[number]))
+    .filter(meta => namespaces.includes(meta.namespace))
     .map(meta => ({ namespace: meta.namespace, name: meta.name, displayName: meta.displayName ?? meta.name }))
     .sort((a, b) => a.namespace.localeCompare(b.namespace) || a.name.localeCompare(b.name));
 }
@@ -30,7 +34,8 @@ export function visibleEntityEntries(entities: readonly EntityType[]): Workbench
 export function findWorkbenchEntity(
   entities: readonly EntityType[],
   namespace: string,
-  name: string
+  name: string,
+  namespaces: readonly string[] = WORKBENCH_NAMESPACES
 ): EntityType | null {
   const found = entities.find(cls => {
     const meta = getEntityMetadata(cls);
@@ -38,5 +43,5 @@ export function findWorkbenchEntity(
   });
   if (found === undefined) return null;
   const meta = getEntityMetadata(found);
-  return WORKBENCH_NAMESPACES.includes(meta.namespace as (typeof WORKBENCH_NAMESPACES)[number]) ? found : null;
+  return namespaces.includes(meta.namespace) ? found : null;
 }

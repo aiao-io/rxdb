@@ -29,7 +29,7 @@
     "vitest.config.mts"
   ],
   "extends": "../../tsconfig.base.json",
-  "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
+  "include": ["app.config.json", "src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
   "references": [
     {
       "path": "../../packages/rxdb-test/tsconfig.lib.json"

@@ -6,6 +6,31 @@
   "sourceRoot": "apps/dev-rxdb-admin/src",
   "tags": ["react-app"],
   "targets": {
+    "serve": {
+      "dependsOn": [{ "target": "build", "projects": ["rxdb-admin"] }]
+    },
+    "dev": {
+      "dependsOn": [{ "target": "build", "projects": ["rxdb-admin"] }]
+    },
+    "test": {
+      "dependsOn": ["^build", "requirements-check", "requirements-test"]
+    },
+    "requirements-check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "apps/dev-rxdb-admin",
+        "command": "node scripts/check-requirements.mjs"
+      }
+    },
+    "requirements-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "apps/dev-rxdb-admin",
+        "command": "node --test scripts/check-requirements.spec.mjs"
+      }
+    },
     "build": {
       "executor": "nx:run-commands",
       "outputs": ["{projectRoot}/dist"],

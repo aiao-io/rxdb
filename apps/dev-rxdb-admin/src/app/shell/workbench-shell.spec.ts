@@ -1,6 +1,7 @@
 import { createBootstrapScript, createMemoryStorage } from '@aiao/rxdb-admin';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { createServer } from 'vite';
 import { describe, expect, it } from 'vitest';
 import {
   SEARCH_PAGE_SIZE_KEY,
@@ -11,9 +12,21 @@ import {
 } from './workbench-shell';
 
 describe('workbench-shell', () => {
-  it('index.html 内联的首屏脚本与外壳生成的一致（防止存储键 / 逻辑漂移）', () => {
-    const html = readFileSync(resolve(import.meta.dirname, '../../../index.html'), 'utf8');
-    expect(html).toContain(createBootstrapScript({ storageKey: `${WORKBENCH_STORAGE_PREFIX}.preferences` }));
+  it('Vite 转换后的首屏脚本与外壳使用同一个存储键', async () => {
+    const appRoot = resolve(import.meta.dirname, '../../..');
+    const server = await createServer({
+      configFile: resolve(appRoot, 'vite.config.mts'),
+      server: { middlewareMode: true, hmr: false, ws: false },
+      optimizeDeps: { noDiscovery: true, include: [] }
+    });
+    try {
+      const template = readFileSync(resolve(appRoot, 'index.html'), 'utf8');
+      const html = await server.transformIndexHtml('/index.html', template);
+      expect(html).toContain(createBootstrapScript({ storageKey: `${WORKBENCH_STORAGE_PREFIX}.preferences` }));
+      expect(html).not.toContain('%APP_');
+    } finally {
+      await server.close();
+    }
   });
 
   it('旧键迁移：theme 与侧栏固定状态', () => {

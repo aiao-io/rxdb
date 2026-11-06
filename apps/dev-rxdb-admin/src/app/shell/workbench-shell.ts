@@ -3,14 +3,16 @@ import {
   pickThemes,
   type AdminPreferences,
   type AdminShell,
+  type AdminShellOptions,
   type DeepPartial,
   type PreferenceExtension,
   type StorageLike
 } from '@aiao/rxdb-admin';
 import type { ReactNode } from 'react';
+import { appConfig, type AppConfig } from '../app-config';
 
 /** 工作台偏好、页签等本机存储的键前缀（与同源其他应用隔离）。 */
-export const WORKBENCH_STORAGE_PREFIX = 'aiao.workbench';
+export const WORKBENCH_STORAGE_PREFIX = appConfig.storagePrefix;
 
 /** 全文搜索页的每页条数：作为「拓展」偏好注册，演示应用如何接入自己的设置项。 */
 export const SEARCH_PAGE_SIZE_KEY = 'searchPageSize';
@@ -53,24 +55,33 @@ export function bindWorkbenchNavigator(navigate: (url: string) => void): void {
   navigator = navigate;
 }
 
+/** 按应用配置创建后台外壳；宿主与存储可在测试中隔离。 */
+export function createWorkbenchShell(
+  config: AppConfig = appConfig,
+  environment: Pick<AdminShellOptions<ReactNode>, 'storage' | 'host'> = {}
+): AdminShell<ReactNode> {
+  return createAdminShell<ReactNode>({
+    ...environment,
+    brand: { title: config.brandTitle },
+    navigate: url => navigator(url),
+    storagePrefix: config.storagePrefix,
+    themes: pickThemes([
+      'light',
+      'dark',
+      'cupcake',
+      'emerald',
+      'corporate',
+      'retro',
+      'nord',
+      'dracula',
+      'night',
+      'business'
+    ]),
+    defaults: { navigation: { accordion: false } },
+    extensions: EXTENSIONS,
+    migrateLegacy: readLegacyPreferences
+  });
+}
+
 /** 工作台的后台外壳：主题 / 布局 / 页签 / 快捷键 / 命令面板 / 锁屏全部由它统一管理。 */
-export const workbenchShell: AdminShell<ReactNode> = createAdminShell<ReactNode>({
-  brand: { title: '工作台' },
-  navigate: url => navigator(url),
-  storagePrefix: WORKBENCH_STORAGE_PREFIX,
-  themes: pickThemes([
-    'light',
-    'dark',
-    'cupcake',
-    'emerald',
-    'corporate',
-    'retro',
-    'nord',
-    'dracula',
-    'night',
-    'business'
-  ]),
-  defaults: { navigation: { accordion: false } },
-  extensions: EXTENSIONS,
-  migrateLegacy: readLegacyPreferences
-});
+export const workbenchShell = createWorkbenchShell();

@@ -2,6 +2,7 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defaultClientConditions, defineConfig } from 'vite';
+import { appHtmlPlugin } from './app-html-plugin.ts';
 
 const sourceConditions = ['@aiao/source', ...defaultClientConditions];
 
@@ -20,7 +21,7 @@ export default defineConfig(() => ({
     port: 4175,
     host: '127.0.0.1'
   },
-  plugins: [react({}), tailwindcss()],
+  plugins: [appHtmlPlugin(), react({}), tailwindcss()],
   worker: {
     format: 'es' as const,
     plugins: () => [react({})]

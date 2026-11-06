@@ -3,16 +3,16 @@ import { RxDBAdapterSqlite, SqliteOptions } from '@aiao/rxdb-adapter-sqlite-wasm
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
 import { getE2eDbName } from '@aiao/rxdb-test';
+import { appConfig, type AppConfig } from '../app-config';
 
 import { ENTITIES } from '../entities/asset-entities';
 
-let rxdb: RxDB | null | undefined;
-const DEFAULT_DB_NAME = 'admin-workbench';
+let rxdb: RxDB | undefined;
 
-export default (): RxDB => {
-  if (rxdb) return rxdb;
-  const dbName = getE2eDbName(DEFAULT_DB_NAME);
-  rxdb = new RxDB({
+/** 按应用配置创建数据库，保留工作台的存储与插件组合。 */
+export function createWorkbenchDatabase(config: AppConfig = appConfig): RxDB {
+  const dbName = getE2eDbName(config.dbName);
+  const database = new RxDB({
     dbName,
     context: { userId: 'userId' },
     entities: [...ENTITIES],
@@ -23,7 +23,7 @@ export default (): RxDB => {
       type: SyncType.None
     }
   });
-  rxdb
+  database
     .use(rxDBPluginHistory)
     .use(rxDBPluginSearch, { debounce: 300, pageSize: 20, snippetLength: 64 })
     .adapter('sqlite-wasm', db => {
@@ -36,10 +36,15 @@ export default (): RxDB => {
       };
       return new RxDBAdapterSqlite(db, options);
     });
-  rxdb.init();
+  database.init();
+  return database;
+}
+
+export default (): RxDB => {
+  if (rxdb) return rxdb;
+  rxdb = createWorkbenchDatabase();
   if (import.meta.env.DEV) {
-    // 先在同步作用域里定住实例：模块级 `rxdb` 是 `RxDB | null | undefined`，
-    // 到了下面的 async 回调里收窄会失效。
+    // 在同步作用域保存实例，供异步开发工具回调使用。
     const instance = rxdb;
     void import('@aiao/rxdb-devtools').then(({ getDevToolsConnector }) => {
       const devtools = getDevToolsConnector();

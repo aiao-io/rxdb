@@ -32,4 +32,14 @@ describe('entity-registry', () => {
   it('findWorkbenchEntity 对非工作台命名空间的实体返回 null', () => {
     expect(findWorkbenchEntity([HiddenThing], 'secret', 'HiddenThing')).toBeNull();
   });
+
+  it('替换可见命名空间后，导航和实体路由查找使用同一份配置', () => {
+    const entities = [...ENTITIES, HiddenThing];
+    const namespaces = ['secret'];
+    expect(visibleEntityEntries(entities, namespaces)).toEqual([
+      { namespace: 'secret', name: 'HiddenThing', displayName: '隐藏实体' }
+    ]);
+    expect(findWorkbenchEntity(entities, 'secret', 'HiddenThing', namespaces)).toBe(HiddenThing);
+    expect(findWorkbenchEntity(entities, 'assets', 'Asset', namespaces)).toBeNull();
+  });
 });

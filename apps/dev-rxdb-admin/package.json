@@ -1,6 +1,7 @@
 {
   "name": "@aiao/dev-rxdb-admin",
   "version": "0.0.1",
+  "type": "module",
   "dependencies": {
     "@aiao/rxdb": "workspace:*",
     "@aiao/rxdb-adapter-sqlite-wasm": "workspace:*",
