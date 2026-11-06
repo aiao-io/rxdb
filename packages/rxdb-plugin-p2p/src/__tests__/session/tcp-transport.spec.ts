@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { FakeSocket, frameHeader, isSettled, sameBytes } from '../fixtures.js';
 import { createTcpTransport } from '../../session/tcp-transport.js';
+import { FakeSocket, frameHeader, isSettled, sameBytes } from '../fixtures.js';
 
 describe('TCP/TLS 适配器', () => {
   it('处理长度前缀的拆包和粘包', async () => {

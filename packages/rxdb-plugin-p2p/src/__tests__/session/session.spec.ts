@@ -1,4 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { P2PRequestError } from '../../session/errors.js';
+import { decodeP2PFrame, encodeP2PFrame, P2P_SESSION_VERSION, type P2PFrame } from '../../session/frame.js';
+import type { P2PPeerIdentity } from '../../session/identity.js';
+import { openP2PSession, type P2PProtocol } from '../../session/session.js';
 import {
   alice,
   bob,
@@ -10,10 +14,6 @@ import {
   sessionOptions,
   verifyCredential
 } from '../fixtures.js';
-import { P2PRequestError } from '../../session/errors.js';
-import { decodeP2PFrame, encodeP2PFrame, P2P_SESSION_VERSION, type P2PFrame } from '../../session/frame.js';
-import type { P2PPeerIdentity } from '../../session/identity.js';
-import { openP2PSession, type P2PProtocol } from '../../session/session.js';
 
 const empty = new Uint8Array(0);
 
