@@ -4,6 +4,10 @@
 
 Aiao Pool 的桌面端、跨网中继、扩展渠道与商业化的产品方向，统一见[未来功能需求与目录规划](../apps/dev-rxdb-p2p/requirements/future-requirements.md)。
 
+## 应用需求入口
+
+本目录维护平台与可复用领域能力。应用级产品需求由各应用在 `apps/<app>/requirements/` 独立管理，使用 `<APP>-US-XXX` 编号，独立统计和验收；怎么管沿用本目录的约定，应用目录结构、编号与门禁见[应用级需求管理办法](app-template/README.md)。底层能力通过带作用域的引用关联，不复制故事状态。
+
 ## 术语
 
 | 缩写 | 全称                   | 含义                                                                                                |
