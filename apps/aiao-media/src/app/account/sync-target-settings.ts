@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { type OAuthStatus, readOAuthAvailability } from '../supabase-oauth-status';
 import type { SyncTarget } from '../sync-target';
 
 @Component({
@@ -17,7 +18,6 @@ export class SyncTargetSettings {
   readonly configured = input.required<boolean>();
   readonly busy = input.required<boolean>();
   readonly message = input.required<string>();
-  readonly oauthAvailable = input.required<boolean>();
   readonly oauthProjects =
     input.required<{ ref: string; name: string; organizationId: string | null; status: string | null }[]>();
   readonly oauthBusy = input.required<boolean>();
@@ -27,6 +27,17 @@ export class SyncTargetSettings {
   readonly login = output<Event>();
   readonly connectOAuth = output<void>();
   readonly initializeOAuth = output<string>();
+  readonly oauthStatus = signal<OAuthStatus>('checking');
+
+  constructor() {
+    void this.checkOAuth();
+  }
+
+  /** 向 Worker 确认一键授权是否已开通；确认期间按钮保持禁用，部署方开通后可以重新检查。 */
+  async checkOAuth() {
+    this.oauthStatus.set('checking');
+    this.oauthStatus.set((await readOAuthAvailability()) ? 'available' : 'unavailable');
+  }
 
   /** 下拉框只作操作入口：选中即复位，取消确认或初始化失败后仍能再选同一项目。 */
   selectOAuthProject(select: HTMLSelectElement) {

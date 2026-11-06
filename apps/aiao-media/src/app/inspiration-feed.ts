@@ -27,9 +27,13 @@ export function authorInitial(author: string): string {
   return Array.from(author.trim())[0] ?? '';
 }
 
-/** 瀑布流在给定内容宽度下的列数，手机宽度也至少两列。 */
-export function columnCount(width: number): number {
-  return Math.max(2, Math.floor((width + columnGap) / (minColumnWidth + columnGap)));
+/**
+ * 瀑布流在给定内容宽度下的列数，手机宽度也至少两列。
+ * `minWidth` 是单列的最小宽度，`maxColumns` 是列数上限，都由用户选的卡片大小决定；窗口宽到放得下更多列时
+ * 列数停在上限，卡片随之变大。不传时用默认的 190 px、不设上限。
+ */
+export function columnCount(width: number, minWidth = minColumnWidth, maxColumns = Infinity): number {
+  return Math.max(2, Math.min(maxColumns, Math.floor((width + columnGap) / (minWidth + columnGap))));
 }
 
 /** 瀑布流分列：按封面比例估算高度，依次放进当前最矮的一列，同高靠左，使前几张排在第一排。 */

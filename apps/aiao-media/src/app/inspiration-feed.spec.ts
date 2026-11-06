@@ -53,6 +53,35 @@ describe('瀑布流列数', () => {
   ])('内容宽 %d 时分 %d 列，手机宽度至少两列', (width, count) => {
     expect(columnCount(width)).toBe(count);
   });
+
+  it.each([
+    [150, 7],
+    [190, 5],
+    [250, 4],
+    [320, 3]
+  ])('单列最小 %d px 时，1168 宽的主区分 %d 列', (minWidth, count) => {
+    expect(columnCount(1168, minWidth)).toBe(count);
+  });
+
+  it('超宽屏的主区里列数随宽度增长，卡片放大后列数相应减少', () => {
+    // 3440 宽窗口扣掉侧栏与两侧留白后约 3168。
+    expect(columnCount(3168)).toBe(15);
+    expect(columnCount(3168, 320)).toBe(9);
+    expect(columnCount(3168, 320)).toBeLessThan(columnCount(3168, 150));
+  });
+
+  it('列数有上限时，宽到放得下更多列也不再加列，卡片随之变大', () => {
+    expect(columnCount(3168, 190, 8)).toBe(8);
+    expect(columnCount(4848, 190, 8)).toBe(8);
+    // 上限不影响本来就放不下那么多列的窄窗口。
+    expect(columnCount(1168, 190, 8)).toBe(5);
+    expect(columnCount(1648, 190, 8)).toBe(8);
+  });
+
+  it('卡片再大，手机宽度也至少两列', () => {
+    expect(columnCount(350, 320)).toBe(2);
+    expect(columnCount(350, 320, 4)).toBe(2);
+  });
 });
 
 describe('瀑布流分列', () => {

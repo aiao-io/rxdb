@@ -16,9 +16,10 @@ const decode = value =>
   );
 const random = (size = 32) => base64(crypto.getRandomValues(new Uint8Array(size)));
 
+const cookieSecretConfigured = env =>
+  typeof env.SUPABASE_OAUTH_COOKIE_SECRET === 'string' && env.SUPABASE_OAUTH_COOKIE_SECRET.length >= 32;
 async function cryptoKey(env) {
-  if (!env.SUPABASE_OAUTH_COOKIE_SECRET || env.SUPABASE_OAUTH_COOKIE_SECRET.length < 32)
-    reject(503, 'Supabase 授权服务尚未配置。');
+  if (!cookieSecretConfigured(env)) reject(503, 'Supabase 授权服务尚未配置。');
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(env.SUPABASE_OAUTH_COOKIE_SECRET));
   return crypto.subtle.importKey('raw', digest, 'AES-GCM', false, ['encrypt', 'decrypt']);
 }
@@ -71,14 +72,53 @@ function responseHtml(origin, extraHeaders = []) {
   for (const [name, value] of extraHeaders) headers.append(name, value);
   return new Response(bodyText, { headers });
 }
+const credentialsConfigured = env =>
+  Boolean(env.SUPABASE_OAUTH_CLIENT_ID && env.SUPABASE_OAUTH_CLIENT_SECRET && env.SUPABASE_OAUTH_REDIRECT_URI);
 function configured(env) {
-  if (!env.SUPABASE_OAUTH_CLIENT_ID || !env.SUPABASE_OAUTH_CLIENT_SECRET || !env.SUPABASE_OAUTH_REDIRECT_URI)
-    reject(503, 'Supabase OAuth 尚未配置。');
+  if (!credentialsConfigured(env)) reject(503, 'Supabase OAuth 尚未配置。');
   return {
     clientId: env.SUPABASE_OAUTH_CLIENT_ID,
     clientSecret: env.SUPABASE_OAUTH_CLIENT_SECRET,
     redirectUri: env.SUPABASE_OAUTH_REDIRECT_URI
   };
+}
+const autoinitPath = '/supabase-autoinit.sql';
+const autoinitHeader = '-- Aiao Media automatic Supabase onboarding bundle.\n';
+const autoinitMissing = '自动初始化 SQL 尚未配置，项目未修改。';
+
+/**
+ * 自动初始化包由 build-supabase-autoinit.mjs 生成，随部署作为静态资源发布，Worker 只执行这一份。
+ * 资源缺失时 SPA 回退会返回 HTML，所以只放行带固定标题、单个事务和专用项目守卫的完整文本。
+ */
+export function isAutoinitBundle(text) {
+  return (
+    typeof text === 'string' &&
+    text.startsWith(autoinitHeader) &&
+    text.includes('\nBEGIN;\n') &&
+    text.includes('$aiao_media_autoinit_guard$') &&
+    text.endsWith('\nCOMMIT;\n')
+  );
+}
+/** 用不带任何请求头的新请求读取同源资源，管理 cookie 不会转交给资源绑定。 */
+async function autoinitSql(request, env) {
+  const asset = await env.ASSETS?.fetch(new Request(new URL(autoinitPath, request.url)));
+  if (!asset?.ok) {
+    await asset?.body?.cancel();
+    reject(503, autoinitMissing);
+  }
+  const sql = await asset.text();
+  if (!isAutoinitBundle(sql)) reject(503, autoinitMissing);
+  return sql;
+}
+/** 一键授权能走完整个流程才算可用：授权应用凭据、cookie 密钥和随部署发布的初始化 SQL 缺一不可。 */
+async function supabaseOAuthAvailable(request, env) {
+  if (!credentialsConfigured(env) || !cookieSecretConfigured(env)) return false;
+  try {
+    await autoinitSql(request, env);
+    return true;
+  } catch {
+    return false;
+  }
 }
 export function managementPermissionMessage(path) {
   if (path === '/projects')
@@ -310,10 +350,7 @@ export async function initializeSupabaseProject(request, env, suppliedConnection
   const projects = await managementForConnection(request, env, connection, '/projects');
   const project = projects.find(item => (item.ref ?? item.id) === value.projectRef);
   if (!project) reject(404, '该项目不在当前授权范围内。');
-  const initSql =
-    env.MEDIA_SUPABASE_AUTOINIT_SQL ||
-    (env.MEDIA_SUPABASE_AUTOINIT_SQL_B64 ? new TextDecoder().decode(decode(env.MEDIA_SUPABASE_AUTOINIT_SQL_B64)) : '');
-  if (!initSql) reject(503, '自动初始化 SQL 尚未配置，项目未修改。');
+  const initSql = await autoinitSql(request, env);
   const keys = await managementForConnection(
     request,
     env,
@@ -399,6 +436,8 @@ export function handleSupabaseOAuth(request, env) {
   return (async () => {
     try {
       const path = new URL(request.url).pathname.replace('/api/supabase/oauth', '');
+      if (path === '/status' && request.method === 'GET')
+        return await endpoint(async () => ({ available: await supabaseOAuthAvailable(request, env) }));
       if (path === '/start' && request.method === 'GET') return await startSupabaseOAuth(request, env);
       if (path === '/callback' && request.method === 'GET') return await finishSupabaseOAuth(request, env);
       if (path === '/projects' && request.method === 'GET') {

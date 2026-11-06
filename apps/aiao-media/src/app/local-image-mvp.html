@@ -122,6 +122,7 @@
 }
 <main
   id="main"
+  [attr.data-view]="view()"
   [hidden]="workspaceSwitching() || identityBlocked()"
   [inert]="workspaceSwitching() || identityBlocked()"
 >
@@ -947,7 +948,6 @@
           [kind]="targetKind()"
           [message]="targetMessage()"
           [nativeMode]="nativeMode"
-          [oauthAvailable]="oauthAvailable()"
           [oauthBusy]="oauthBusy()"
           [oauthProjects]="oauthProjects()"
           [platformAvailable]="platformAvailable()"
@@ -1034,6 +1034,103 @@
             </div>
           }
         }
+      </section>
+    </section>
+    <section
+      id="settings-panel-display"
+      [hidden]="settingsTab() !== 'display'"
+      aria-labelledby="settings-tab-display"
+      role="tabpanel"
+    >
+      <section class="composer display-panel" aria-label="显示偏好">
+        <h2>页面排版</h2>
+        <p class="display-lead">
+          这些选项只影响这台设备上的页面排版：保存在当前浏览器，不随账号同步，也不会改动作品、草稿和供应商配置。
+        </p>
+        @if (displayMessage()) {
+          <p class="notice" role="status">{{ displayMessage() }}</p>
+        }
+        <fieldset class="choice-group">
+          <legend>页面宽度</legend>
+          <p class="choice-help">
+            内容区的最大宽度。窗口比它更宽时两侧留白；3440、5120 这类带鱼屏想用满整个窗口，选「铺满窗口」。
+          </p>
+          <div class="choices">
+            @for (option of pageWidthOptions; track option.id) {
+              <label class="choice">
+                <input
+                  [checked]="display().pageWidth === option.id"
+                  [value]="option.id"
+                  (change)="setDisplay({ pageWidth: option.id })"
+                  name="pageWidth"
+                  type="radio"
+                />
+                <span class="choice-head">
+                  <span class="choice-name">{{ option.label }}</span>
+                  @if (option.id === defaults.pageWidth) {
+                    <span class="badge">默认</span>
+                  }
+                </span>
+                <small>{{ option.max ? option.max + ' px' : '不限制' }}</small>
+              </label>
+            }
+          </div>
+        </fieldset>
+        <fieldset class="choice-group">
+          <legend>卡片大小</legend>
+          <p class="choice-help">
+            决定「发现灵感」和「我的图片」里一行放多少张：卡片越大列数越少，图片看得越清楚。窗口再宽，列数也不超过下面的上限，多出的宽度用来放大卡片。
+          </p>
+          <div class="choices">
+            @for (option of cardSizeOptions; track option.id) {
+              <label class="choice">
+                <input
+                  [checked]="display().cardSize === option.id"
+                  [value]="option.id"
+                  (change)="setDisplay({ cardSize: option.id })"
+                  name="cardSize"
+                  type="radio"
+                />
+                <span class="choice-head">
+                  <span class="choice-name">{{ option.label }}</span>
+                  @if (option.id === defaults.cardSize) {
+                    <span class="badge">默认</span>
+                  }
+                </span>
+                <small>最多 {{ option.columns }} 列</small>
+              </label>
+            }
+          </div>
+        </fieldset>
+        <fieldset class="choice-group">
+          <legend>内容对齐</legend>
+          <p class="choice-help">内容区比窗口窄时放在哪里。「靠左」紧贴左侧导航，和旧版本的排版一致。</p>
+          <div class="choices">
+            @for (option of contentAlignOptions; track option.id) {
+              <label class="choice">
+                <input
+                  [checked]="display().align === option.id"
+                  [value]="option.id"
+                  (change)="setDisplay({ align: option.id })"
+                  name="align"
+                  type="radio"
+                />
+                <span class="choice-head">
+                  <span class="choice-name">{{ option.label }}</span>
+                  @if (option.id === defaults.align) {
+                    <span class="badge">默认</span>
+                  }
+                </span>
+                <small>{{ option.hint }}</small>
+              </label>
+            }
+          </div>
+        </fieldset>
+        <div class="provider-actions">
+          <button class="secondary" [disabled]="displayIsDefault()" (click)="resetDisplay()" type="button">
+            恢复默认
+          </button>
+        </div>
       </section>
     </section>
   }

@@ -18,9 +18,19 @@
     <a download href="/sync-setup.sql">下载并审阅初始化 SQL</a>
     ；已有项目按迁移说明逐项审阅。
   </p>
+  @if (oauthStatus() === 'unavailable') {
+    <p class="notice" role="status">
+      此站点暂未开通 Supabase 一键授权，请使用下方「手动连接已有项目」。
+      <button (click)="checkOAuth()" type="button">重新检查</button>
+    </p>
+  }
   <div class="provider-actions">
-    @if (oauthAvailable()) {
-      <button class="primary" [disabled]="busy() || oauthBusy()" (click)="connectOAuth.emit()">
+    @if (oauthStatus() !== 'unavailable') {
+      <button
+        class="primary"
+        [disabled]="busy() || oauthBusy() || oauthStatus() === 'checking'"
+        (click)="connectOAuth.emit()"
+      >
         {{ oauthBusy() ? '正在连接 Supabase…' : '连接自己的 Supabase' }}
       </button>
     }
@@ -32,7 +42,7 @@
   @if (configured()) {
     <button class="secondary" (click)="login.emit($event)">登录与同步设置</button>
   }
-  <details>
+  <details [open]="oauthStatus() === 'unavailable'">
     <summary>手动连接已有项目（高级）</summary>
     <p>OAuth 不可用或已有兼容项目时使用。只填写公开项目 URL 和 publishable/anon Key。</p>
     <label for="sync-url">自己的 Supabase 项目 URL</label>

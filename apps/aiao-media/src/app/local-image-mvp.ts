@@ -57,6 +57,22 @@ import {
   type BackupWorkspace
 } from './backup-workspaces';
 import { DEFAULT_FREE_PROVIDER, DEFAULT_FREE_PROVIDER_ID, defaultFreeProvider } from './default-provider';
+import {
+  cardSizeOptions,
+  clearDisplayPreferences,
+  contentAlignOptions,
+  defaultDisplayPreferences,
+  displayStorageKey,
+  feedColumnMin,
+  isDefaultDisplay,
+  libraryCardMin,
+  maxColumns,
+  pageMaxWidth,
+  pageWidthOptions,
+  readDisplayPreferences,
+  saveDisplayPreferences,
+  type DisplayPreferences
+} from './display-preferences';
 import { ElementWidthDirective } from './element-width.directive';
 import { imageMvpCatalog } from './image-mvp-catalog';
 import { authorInitial, columnCount, coverRatio, distribute } from './inspiration-feed';
@@ -97,7 +113,7 @@ import { WorkVisibleDirective } from './work-visible.directive';
 import { WorkspaceSession } from './workspace-session';
 
 type View = 'discover' | 'studio' | 'library' | 'providers' | 'admin';
-type SettingsTab = 'providers' | 'sync' | 'data';
+type SettingsTab = 'providers' | 'sync' | 'data' | 'display';
 type Work = LibraryWork;
 type WorkViewer = { work: Work; image: { url: string; mimeType: ImageMimeType } | null; failed: boolean };
 type OAuthProject = { ref: string; name: string; organizationId: string | null; status: string | null };
@@ -123,12 +139,15 @@ const routeView = (path: string): View =>
 const settingsTabs: { id: SettingsTab; label: string }[] = [
   { id: 'providers', label: '供应商' },
   { id: 'sync', label: '同步' },
-  { id: 'data', label: '本机数据' }
+  { id: 'data', label: '本机数据' },
+  { id: 'display', label: '显示' }
 ];
 const hashTab = (hash: string): SettingsTab =>
   hash === '#sync' ? 'sync'
   : hash === '#data' ? 'data'
+  : hash === '#display' ? 'display'
   : 'providers';
+const displaySessionOnly = '无法写入当前浏览器的存储，显示设置仅在本次打开期间生效。';
 const ratioSizes: Record<ImageAspectRatio, string> = {
   square: '1024 × 1024',
   landscape: '1536 × 1024',
@@ -174,7 +193,14 @@ const emptyLibrary = (): LibraryState => ({
     SyncTargetSettings
   ],
   templateUrl: './local-image-mvp.html',
-  host: { class: 'image-mvp' },
+  host: {
+    class: 'image-mvp',
+    '[attr.data-page-width]': 'display().pageWidth',
+    '[attr.data-align]': 'display().align',
+    '[style.--page-max]': 'pageMaxStyle()',
+    '[style.--library-card-min]': 'libraryCardMinStyle()',
+    '[style.--library-columns]': 'libraryColumnsStyle()'
+  },
   encapsulation: ViewEncapsulation.None,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -285,10 +311,30 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         words.every(w => `${t.title} ${t.prompt} ${t.tags.join(' ')}`.toLocaleLowerCase().includes(w))
     );
   });
+  /** 这台设备的排版偏好；先于首屏读取，页面一开始就按用户选的宽度和卡片大小排版。 */
+  readonly display = signal<DisplayPreferences>(readDisplayPreferences(localStorage));
+  readonly displayMessage = signal('');
+  readonly displayIsDefault = computed(() => isDefaultDisplay(this.display()));
+  readonly defaults = defaultDisplayPreferences;
+  readonly pageWidthOptions = pageWidthOptions;
+  readonly cardSizeOptions = cardSizeOptions;
+  readonly contentAlignOptions = contentAlignOptions;
+  /** 内容区最大宽度；「铺满窗口」不设上限，返回 null 让样式移除该变量。 */
+  readonly pageMaxStyle = computed(() => {
+    const max = pageMaxWidth(this.display().pageWidth);
+    return max === null ? null : `${max}px`;
+  });
+  readonly libraryCardMinStyle = computed(() => `${libraryCardMin(this.display().cardSize)}px`);
+  readonly libraryColumnsStyle = computed(() => String(maxColumns(this.display().cardSize)));
   /** 瀑布流容器的内容宽度；量到之前为 0，不渲染任何列。 */
   readonly feedWidth = signal(0);
   readonly feedColumns = computed(() =>
-    this.feedWidth() ? distribute(this.filtered(), columnCount(this.feedWidth())) : []
+    this.feedWidth() ?
+      distribute(
+        this.filtered(),
+        columnCount(this.feedWidth(), feedColumnMin(this.display().cardSize), maxColumns(this.display().cardSize))
+      )
+    : []
   );
   readonly detail = signal<PromptTemplate | null>(null);
   readonly failedTemplateImages = signal(new Set<string>());
@@ -391,7 +437,6 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   readonly targetMessage = signal('');
   readonly targetBusy = signal(false);
   readonly oauthBusy = signal(false);
-  readonly oauthAvailable = signal(true);
   readonly oauthProjects = signal<OAuthProject[]>([]);
   readonly syncPaused = signal(false);
   readonly lastSyncedAt = signal('');
@@ -584,6 +629,11 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   @HostListener('document:visibilitychange') onVisibility() {
     if (document.visibilityState === 'hidden') void this.studio?.flush();
   }
+  /** 其他标签页改了排版偏好（或清空了站点数据）时，本页跟着更新。 */
+  @HostListener('window:storage', ['$event']) onStorage(event: StorageEvent) {
+    if (event.storageArea === localStorage && (event.key === null || event.key === displayStorageKey))
+      this.display.set(readDisplayPreferences(localStorage));
+  }
   navigate(view: View, event?: Event) {
     if (
       event instanceof MouseEvent &&
@@ -641,6 +691,27 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   /** 容器被隐藏时宽度为 0，保持原有分列，恢复显示后再按真实宽度重排。 */
   feedWidthChange(width: number) {
     if (width > 0) this.feedWidth.set(width);
+  }
+  /** 调整排版偏好：立即生效并保存在此浏览器；保存失败时本次打开期间仍按新选择排版。 */
+  setDisplay(change: Partial<DisplayPreferences>) {
+    const next = { ...this.display(), ...change };
+    this.display.set(next);
+    try {
+      saveDisplayPreferences(localStorage, next);
+      this.displayMessage.set('');
+    } catch {
+      this.displayMessage.set(displaySessionOnly);
+    }
+  }
+  resetDisplay() {
+    this.display.set({ ...defaultDisplayPreferences });
+    try {
+      clearDisplayPreferences(localStorage);
+      this.displayMessage.set('');
+    } catch {
+      this.displayMessage.set(displaySessionOnly);
+    }
+    this.notify('已恢复默认显示设置');
   }
   resetGallery() {
     this.search.set('');

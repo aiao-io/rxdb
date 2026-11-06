@@ -27,6 +27,7 @@
   --shadow: 0 12px 32px rgb(28 28 44 / 8%);
   --header-height: 72px;
   --sidebar-width: 208px;
+  --page-pad: 32px;
 }
 * {
   box-sizing: border-box;
@@ -89,6 +90,22 @@ button:disabled {
 .image-mvp {
   display: block;
   color-scheme: light;
+  /*
+   * 内容区两侧的留白。--page-max（内容区最大宽度）、--library-card-min 由「设置 · 显示」写在本元素上；
+   * 窗口比上限更宽时，居中把多出的宽度平分到两侧，靠左则全放在右侧。
+   * 内联的百分比以本元素宽度为基准，所以要先减去固定在左侧的导航栏。
+   */
+  --inset-start: max(var(--page-pad), calc((100% - var(--sidebar-width) - var(--page-max, 3200px)) / 2));
+  --inset-end: var(--inset-start);
+}
+.image-mvp[data-align='start'] {
+  --inset-start: var(--page-pad);
+  --inset-end: max(var(--page-pad), calc(100% - var(--sidebar-width) - var(--page-max, 3200px) - var(--page-pad)));
+}
+/* 铺满窗口没有宽度上限，两侧只留固定边距；写在靠左之后，两种对齐都适用。 */
+.image-mvp[data-page-width='full'] {
+  --inset-start: var(--page-pad);
+  --inset-end: var(--page-pad);
 }
 .sr-only {
   position: absolute;
@@ -429,10 +446,22 @@ select.field {
 
 /* ---------- 页面骨架 ---------- */
 main {
-  max-width: 1600px;
   margin-left: var(--sidebar-width);
-  padding: 0 32px;
+  padding: 0 var(--inset-end) 0 var(--inset-start);
   min-height: calc(100vh - 150px);
+}
+/* 表单类页面行宽太长不好读，在内容区里再收一层；对齐方式与内容区一致。 */
+main[data-view='providers'] > *,
+main[data-view='admin'] > * {
+  max-width: 1280px;
+  margin-inline: auto;
+}
+main[data-view='admin'] > * {
+  max-width: 1600px;
+}
+.image-mvp[data-align='start'] main[data-view='providers'] > *,
+.image-mvp[data-align='start'] main[data-view='admin'] > * {
+  margin-inline: 0 auto;
 }
 .eyebrow {
   display: flex;
@@ -489,9 +518,10 @@ main {
   font-weight: 600;
 }
 footer {
-  max-width: 1600px;
-  margin: 48px 0 0 var(--sidebar-width);
-  padding: 22px 32px 24px;
+  /* 分隔线与 main 的内边距盒等宽：在留白之内、正文两侧各多出一个页边距。 */
+  margin: 48px calc(var(--inset-end) - var(--page-pad)) 0
+    calc(var(--sidebar-width) + var(--inset-start) - var(--page-pad));
+  padding: 22px var(--page-pad) 24px;
   border-top: 1px solid var(--line);
   display: flex;
   justify-content: space-between;
@@ -537,13 +567,18 @@ footer {
 .notice .secondary {
   margin: 4px 8px 0 0;
 }
+/* 页面顶层的提示条（切换工作区、同步进度）与 main 的内容区对齐。 */
+.image-mvp > .notice {
+  margin-inline: calc(var(--sidebar-width) + var(--inset-start)) var(--inset-end);
+}
 .sync-progress {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin: 16px 32px 0 calc(var(--sidebar-width) + 32px);
+  margin-top: 16px;
+  margin-bottom: 0;
 }
 .inline-alert {
   margin: 16px 0 0;
@@ -686,10 +721,25 @@ footer {
   color: var(--ink);
   font-size: 13px;
 }
+/*
+ * 列数随窗口增减，由「设置 · 显示」的卡片大小决定两个量：窄窗口里按卡片最小宽度排（至少两列），
+ * 窗口宽到放得下更多列时按列数上限排，多出的宽度让卡片变大。
+ * 取两者中较大的单列宽度，auto-fill 算出的列数就是二者中较少的那个；减去的 0.5px 防止浏览器取整后恰好少排一列。
+ */
 .cards {
+  --card-gap: 18px;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(
+      max(
+        min(var(--library-card-min, 300px), 45%),
+        calc((100% - (var(--library-columns, 8) - 1) * var(--card-gap)) / var(--library-columns, 8) - 0.5px)
+      ),
+      1fr
+    )
+  );
+  gap: var(--card-gap);
 }
 .card {
   position: relative;
@@ -708,14 +758,14 @@ footer {
 }
 .card-photo {
   position: relative;
-  height: 280px;
+  aspect-ratio: 4 / 3;
   overflow: hidden;
   background: var(--canvas);
 }
 .card-image {
   display: block;
   width: 100%;
-  height: 280px;
+  height: 100%;
   object-fit: cover;
   transition: transform 0.35s;
 }
@@ -768,8 +818,8 @@ footer {
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  margin: 0 -32px;
-  padding: 14px 32px;
+  margin: 0 calc(-1 * var(--page-pad));
+  padding: 14px var(--page-pad);
   background: rgb(247 247 250 / 94%);
   backdrop-filter: blur(12px);
 }
@@ -1502,6 +1552,7 @@ footer {
   display: grid;
   grid-template-columns: minmax(180px, 1.4fr) repeat(2, minmax(150px, 1fr));
   gap: 12px;
+  max-width: 960px;
   margin-top: 12px;
   padding: 16px;
   border: 1px solid var(--line);
@@ -1925,6 +1976,92 @@ footer {
   cursor: pointer;
 }
 
+/* ---------- 设置 · 显示 ---------- */
+.display-panel h2 {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+.display-lead {
+  margin: 0 0 20px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.75;
+}
+.choice-group {
+  min-width: 0;
+  margin: 0 0 24px;
+  padding: 0;
+  border: 0;
+}
+.choice-group legend {
+  margin: 0 0 4px;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.choice-help {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.choice {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  min-width: 104px;
+  padding: 10px 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--paper);
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s;
+}
+.choice:hover {
+  border-color: #b9c7ab;
+}
+.choice input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.choice-head {
+  display: flex;
+  align-items: center;
+}
+.choice-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+.choice small {
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.choice:has(input:checked) {
+  border-color: var(--green);
+  background: var(--green-soft);
+  box-shadow: inset 0 0 0 1px var(--green);
+}
+.choice:has(input:checked) .choice-name {
+  color: var(--green);
+}
+.choice:has(input:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
 /* ---------- 弹窗 ---------- */
 .modal-panel {
   position: fixed;
@@ -2283,10 +2420,33 @@ footer {
 }
 
 /* ---------- 响应式 ---------- */
-@media (min-width: 1500px) {
-  .card-photo,
-  .card-image {
-    height: 300px;
+/* 超宽屏：导航之外的内容区已经很宽，创作页、弹窗按窗口放大，别让它们缩在中间。 */
+@media (min-width: 1800px) {
+  .studio-grid {
+    grid-template-columns: clamp(384px, 22vw, 520px) minmax(0, 1fr);
+    gap: 28px;
+  }
+  /* 400px 是创作页标题、面板的工具栏与底栏、内边距占掉的高度，留足它整块面板仍在第一屏内。 */
+  .result-art img {
+    max-height: max(520px, calc(100dvh - 400px));
+  }
+  .template-panel {
+    max-width: 1180px;
+  }
+  .media-stage img {
+    max-height: min(82dvh, 960px);
+  }
+  .viewer-panel {
+    max-width: min(1560px, 90vw);
+  }
+  .viewer {
+    grid-template-columns: minmax(0, 1fr) 360px;
+  }
+}
+/* 供应商返回的原图最宽 1536 px，再放大弹窗也不会更清楚；这一档刚好让它能按原尺寸看。 */
+@media (min-width: 2400px) {
+  .viewer-panel {
+    max-width: min(1960px, 90vw);
   }
 }
 @media (max-width: 1100px) {
@@ -2305,11 +2465,7 @@ footer {
     gap: 6px;
   }
   .cards {
-    gap: 16px;
-  }
-  .card-photo,
-  .card-image {
-    height: 240px;
+    --card-gap: 16px;
   }
   .studio-grid {
     grid-template-columns: 336px minmax(0, 1fr);
@@ -2374,6 +2530,7 @@ footer {
   :root {
     --header-height: 0px;
     --sidebar-width: 0px;
+    --page-pad: 20px;
   }
   .app-sidebar {
     position: relative;
@@ -2451,9 +2608,6 @@ footer {
   .account-link {
     padding: 6px 10px;
   }
-  main {
-    padding: 0 20px;
-  }
   .page-heading {
     align-items: center;
     padding: 22px 0 18px;
@@ -2507,6 +2661,9 @@ footer {
   .card-photo,
   .card-image {
     height: 196px;
+  }
+  .card-photo {
+    aspect-ratio: auto;
   }
   .card .tag {
     top: 8px;

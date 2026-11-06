@@ -14,6 +14,7 @@ infra/supabase/kong.yml
 deploy/.dev.vars
 
 public/sync-setup.sql
+public/supabase-autoinit.sql
 src-tauri/target/
 src-tauri/gen/
 desktop-dist/

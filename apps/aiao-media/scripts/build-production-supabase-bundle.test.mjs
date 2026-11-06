@@ -4,6 +4,7 @@ import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
+import { isAutoinitBundle } from '../server/cloudflare/supabase-oauth.mjs';
 import {
   buildProductionBundle,
   emptyPublicGuard,
@@ -11,7 +12,12 @@ import {
   schemaMarker,
   schemaVersion
 } from './build-production-supabase-bundle.mjs';
-import { applicationFunctions, applicationRelations, buildAutoinitBundle } from './build-supabase-autoinit.mjs';
+import {
+  applicationFunctions,
+  applicationRelations,
+  autoinitOutput,
+  buildAutoinitBundle
+} from './build-supabase-autoinit.mjs';
 
 const application = resolve(import.meta.dirname, '..');
 const repositoryRoot = resolve(application, '../..');
@@ -169,6 +175,17 @@ test('automatic onboarding bundle is created in a missing output directory from 
       managedDdl.flatMap(pattern => withoutComments(sql).match(pattern) ?? []),
       []
     );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('automatic onboarding bundle is published as a static asset and satisfies the Worker integrity check', async () => {
+  assert.equal(resolve(autoinitOutput), resolve(application, 'public/supabase-autoinit.sql'));
+  const directory = await mkdtemp(join(tmpdir(), 'aiao-media-autoinit-'));
+  try {
+    const { sql } = await buildAutoinitBundle(join(directory, 'supabase-autoinit.sql'));
+    assert.equal(isAutoinitBundle(sql), true);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

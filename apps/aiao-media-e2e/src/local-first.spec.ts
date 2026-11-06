@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import sharp from 'sharp';
 import {
   backupText,
+  contentBox,
   downloadBackup,
   endpoint,
   importBackup,
@@ -439,6 +440,104 @@ test('移动端首页、供应商页和创作页不产生横向溢出', async ({
   await page.goto('/');
   await expect(page.locator('.feed-column')).toHaveCount(2);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+const near = (actual: number, expected: number) => expect(Math.abs(actual - expected)).toBeLessThanOrEqual(1);
+
+test('超宽屏首页：瀑布流按列数上限铺满主区，更宽的窗口里内容居中，页面不横向溢出', async ({ page }) => {
+  await page.setViewportSize({ width: 3440, height: 1440 });
+  await page.goto('/');
+  await expect(page.locator('.feed-card')).toHaveCount(12);
+  // 3440 宽：主区内容宽 3168 小于默认上限 3200，内容铺满主区，右侧没有空带；列数封顶在 8，卡片放大。
+  await expect(page.locator('.feed-column')).toHaveCount(8);
+  let box = await contentBox(page);
+  near(box.left, box.sidebar + 32);
+  near(box.right, 3440 - 32);
+  const feed = await page.locator('.feed').evaluate(node => {
+    const { left, right } = node.getBoundingClientRect();
+    return { left, right };
+  });
+  near(feed.left, box.left);
+  near(feed.right, box.right);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  // 5120 宽：内容限在 3200 宽并居中，两侧留白相等；列数仍是 8。
+  await page.setViewportSize({ width: 5120, height: 1440 });
+  await expect(page.locator('.feed-column')).toHaveCount(8);
+  box = await contentBox(page);
+  near(box.width, 3200);
+  near(box.left - box.sidebar, 5120 - box.right);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  // 1440 宽：与此前一样 5 列，内容区只受窗口限制。
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(page.locator('.feed-column')).toHaveCount(5);
+  box = await contentBox(page);
+  near(box.left, box.sidebar + 32);
+  near(box.right, 1440 - 32);
+});
+
+test('设置里的「显示」：页面宽度、卡片大小、对齐立即生效，刷新后保留，恢复默认回到出厂排版', async ({ page }) => {
+  await page.setViewportSize({ width: 3440, height: 1440 });
+  await page.goto('/providers#display');
+  const tab = page.getByRole('tab', { name: '显示', exact: true });
+  await expect(tab).toHaveAttribute('aria-selected', 'true');
+  const panel = page.getByRole('tabpanel', { name: '显示' });
+  const root = page.locator('app-root');
+  const radio = (name: RegExp) => panel.getByRole('radio', { name });
+  await expect(radio(/^超宽/)).toBeChecked();
+  await expect(radio(/^中/)).toBeChecked();
+  await expect(radio(/^居中/)).toBeChecked();
+  await expect(panel.getByRole('button', { name: '恢复默认' })).toBeDisabled();
+  // 紧凑居中：内容区 1200 宽，两侧留白相等。
+  await radio(/^紧凑/).check();
+  await expect(root).toHaveAttribute('data-page-width', 'compact');
+  let box = await contentBox(page);
+  near(box.width, 1200);
+  near(box.left - box.sidebar, 3440 - box.right);
+  // 靠左：内容区紧贴导航，仍是 1200 宽。
+  await radio(/^靠左/).check();
+  await expect(root).toHaveAttribute('data-align', 'start');
+  box = await contentBox(page);
+  near(box.left, box.sidebar + 32);
+  near(box.width, 1200);
+  // 刷新后选择仍在，页面直接按它排版。
+  await page.reload();
+  await expect(radio(/^紧凑/)).toBeChecked();
+  await expect(radio(/^靠左/)).toBeChecked();
+  box = await contentBox(page);
+  near(box.left, box.sidebar + 32);
+  near(box.width, 1200);
+  // 卡片大小：「特大」在 3440 宽的首页最多 4 列。
+  await radio(/^铺满窗口/).check();
+  await radio(/^特大/).check();
+  await page.goto('/');
+  await expect(page.locator('.feed-column')).toHaveCount(4);
+  box = await contentBox(page);
+  near(box.right, 3440 - 32);
+  // 恢复默认：属性、存储和选项都回到出厂值。
+  await page.goto('/providers#display');
+  await panel.getByRole('button', { name: '恢复默认' }).click();
+  await expect(root).toHaveAttribute('data-page-width', 'ultra');
+  await expect(root).toHaveAttribute('data-align', 'center');
+  await expect(radio(/^中/)).toBeChecked();
+  await expect(panel.getByRole('button', { name: '恢复默认' })).toBeDisabled();
+  expect(await page.evaluate(() => localStorage.getItem('aiao-media-display-v1'))).toBeNull();
+  // 手机宽度：分区不横向溢出，每个选项都有足够大的触点。
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  const heights = await panel.locator('.choice').evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect().height));
+  expect(heights).toHaveLength(11);
+  expect(Math.min(...heights)).toBeGreaterThanOrEqual(44);
+});
+
+test('另一个标签页改了显示偏好，已打开的页面立即跟着变', async ({ page, context }) => {
+  await page.goto('/');
+  await expect(page.locator('app-root')).toHaveAttribute('data-page-width', 'ultra');
+  const other = await context.newPage();
+  await other.goto('/providers#display');
+  await other.getByRole('radio', { name: /^紧凑/ }).check();
+  await expect(page.locator('app-root')).toHaveAttribute('data-page-width', 'compact');
+  await other.getByRole('button', { name: '恢复默认' }).click();
+  await expect(page.locator('app-root')).toHaveAttribute('data-page-width', 'ultra');
 });
 
 test('连续导入保留各工作区，原图与草稿可离线读取并从界面切回', async ({ page, context }) => {

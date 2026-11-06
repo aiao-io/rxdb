@@ -10,5 +10,4 @@ MEDIA_STRIPE_WEBHOOK_SECRET=replace_in_worker_secrets
 SUPABASE_OAUTH_CLIENT_ID=replace_in_worker_secrets
 SUPABASE_OAUTH_CLIENT_SECRET=replace_in_worker_secrets
 SUPABASE_OAUTH_COOKIE_SECRET=replace_in_worker_secrets
-SUPABASE_OAUTH_REDIRECT_URI=http://127.0.0.1:4398/api/supabase/oauth/callback
-MEDIA_SUPABASE_AUTOINIT_SQL=replace_with_reviewed_autoinit_bundle
+SUPABASE_OAUTH_REDIRECT_URI=http://localhost:4398/api/supabase/oauth/callback

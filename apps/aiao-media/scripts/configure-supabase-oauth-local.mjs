@@ -20,9 +20,6 @@ export async function configureSupabaseOAuthLocal(application = resolve(import.m
   const clientSecret = (env.SUPABASE_OAUTH_CLIENT_SECRET || values.SUPABASE_OAUTH_CLIENT_SECRET || '').trim();
   if (placeholder(clientId) || placeholder(clientSecret) || /[\r\n]/.test(clientId + clientSecret))
     throw new Error('请先在 deploy/.dev.vars 填入有效的 Client ID 和 Client Secret；密钥不会写入日志。');
-  const sql = await readFile(resolve(application, 'tmp/supabase-autoinit.sql'));
-  const text = sql.toString('utf8');
-  if (!text.includes('\nBEGIN;\n') || !text.includes('\nCOMMIT;')) throw new Error('初始化 SQL 不完整，原配置未修改。');
   const oldCookie = env.SUPABASE_OAUTH_COOKIE_SECRET || values.SUPABASE_OAUTH_COOKIE_SECRET || '';
   const configuredAllowlist = values.ALLOWED_PROVIDER_BASE_URLS?.trim();
   const additions = {
@@ -33,10 +30,14 @@ export async function configureSupabaseOAuthLocal(application = resolve(import.m
     SUPABASE_OAUTH_REDIRECT_URI: 'http://localhost:4398/api/supabase/oauth/callback',
     ALLOWED_PROVIDER_BASE_URLS:
       configuredAllowlist && configuredAllowlist !== '[]' ? configuredAllowlist : '["https://api.pengdevs.com"]',
-    ...(placeholderSupabaseUrl(values.MEDIA_SUPABASE_URL) ? { MEDIA_SUPABASE_URL: '' } : {}),
-    MEDIA_SUPABASE_AUTOINIT_SQL_B64: sql.toString('base64')
+    ...(placeholderSupabaseUrl(values.MEDIA_SUPABASE_URL) ? { MEDIA_SUPABASE_URL: '' } : {})
   };
-  const replaced = new Set([...Object.keys(additions), 'MEDIA_SUPABASE_AUTOINIT_SQL']);
+  // 初始化 SQL 随构建产物（dist/browser/supabase-autoinit.sql）发布；旧版写进变量的整包 SQL 一并清掉。
+  const replaced = new Set([
+    ...Object.keys(additions),
+    'MEDIA_SUPABASE_AUTOINIT_SQL',
+    'MEDIA_SUPABASE_AUTOINIT_SQL_B64'
+  ]);
   const kept = existing
     .split(/\r?\n/)
     .filter(line => !replaced.has(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/.exec(line)?.[1]));
@@ -57,7 +58,9 @@ export async function configureSupabaseOAuthLocal(application = resolve(import.m
 if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.filename)) {
   const path = await configureSupabaseOAuthLocal();
   console.log(`本地 OAuth 配置已补齐：${path}；保留其他变量，权限 0600。`);
-  console.log('重启 aiao-media:preview 后生效；未输出任何密钥。');
+  console.log(
+    '重启 aiao-media:preview 后生效；未输出任何密钥。初始化 SQL 取自 dist 里的构建产物，首次或改过迁移后先运行 aiao-media:build。'
+  );
   console.log(
     '本地入口：http://localhost:4398/providers；Supabase OAuth 应用需登记 http://localhost:4398/api/supabase/oauth/callback。'
   );

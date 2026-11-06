@@ -6,7 +6,7 @@ status: In Progress
 priority: High
 epic: MEDIA-EPIC-004
 created: 2026-10-30
-updated: 2026-11-02
+updated: 2026-11-06
 dependsOn: [MEDIA-US-303]
 tags: [supabase, oauth, onboarding, authorization]
 ---
@@ -87,6 +87,7 @@ tags: [supabase, oauth, onboarding, authorization]
 - 实施设计需先证明“管理授权主体 → 本产品连接归属 → 项目内同步用户/工作区 → 最小数据权限”的可信映射和跨设备恢复，再写自动身份引导代码。实现方式需符合 Supabase 支持的认证方式；不能将管理 token 伪装成项目 JWT、信任客户端 ownerId 或导出项目签名密钥。
 - 身份引导现状：管理 OAuth 令牌拿不到可验证的账号主体（`/profile` 对 OAuth 令牌恒为 401，令牌响应也不带邮箱）。服务端只在 Supabase 自己返回账号邮箱时经 `generate_link` + `verify` 签发项目会话，不接受浏览器提交的邮箱（那等于替任意邮箱完成验证）；拿不到时只完成初始化并保存项目配置，由用户登录或注册项目账号。这是降级，不算完成 AC#7/#11，可信映射仍待设计。
 - 自动初始化包（`supabase-autoinit`）开头带专用项目守卫，与迁移同一事务：没有 `media_private` 时 public 必须为空（同名的 `update_updated_at_column` 也算冲突）；已由本应用初始化时 public 只能有本应用的对象；`media_private` 上的 schema 版本标记高于本包时拒绝。拒绝即整体回滚、不写入。选中项目后还需确认才初始化，确认前的只读检查清单尚未做。bucket、权限和身份步骤需可恢复回执。自动升级只处理已识别的专用项目，不把清库作为恢复方案。
+- 可用性与部署：Worker 的 `GET /api/supabase/oauth/status`（[supabase-oauth.mjs](../../../server/cloudflare/supabase-oauth.mjs)）在授权应用凭据、cookie 密钥和随部署发布的 `/supabase-autoinit.sql` 三者都具备时才返回 `{"available":true}`；[sync-target-settings.html](../../../src/app/account/sync-target-settings.html) 据此启用「连接自己的 Supabase」，未开通时隐藏按钮、写明原因并展开手动连接，不再把运维配置错误抛给终端用户。初始化 SQL 以静态资源发布而不是 Worker 变量（单个变量上限 5 KB，整包约 125 KB，见 Cloudflare Workers limits），Worker 只执行这一份，执行前校验固定标题、单个事务和专用项目守卫（`isAutoinitBundle`）；`aiao-media:release-check` 校验发布产物含有效的这份文件。线上一次性开通步骤见 [平台服务配置](../../../deploy/platform-services.md)。复验：`pnpm nx run aiao-media:platform-test` 与 `pnpm nx run aiao-media:script-test`。
 - 验证分层：单元/契约覆盖 PKCE、回调重放、项目替换和初始化状态；真实本地 Supabase 覆盖数据会话/RLS 与 SQL 恢复；真实官方 OAuth 和云项目覆盖管理授权/身份引导；Web 与 Tauri 验收各自回调。`aiao-media:requirements-check` 只证明文档结构。
 - 外部前置为注册管理 OAuth 应用、配置最小 scopes 与正式回调、服务端 secret/令牌保护和独立测试项目；缺失时仍可做契约设计，不伪造真实验收通过。
 

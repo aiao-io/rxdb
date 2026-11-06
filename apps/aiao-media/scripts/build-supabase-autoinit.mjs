@@ -2,7 +2,8 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { productionSources, schemaMarker, schemaVersion } from './build-production-supabase-bundle.mjs';
 
-const outputDefault = resolve(import.meta.dirname, '../tmp/supabase-autoinit.sql');
+/** 写进 public/，Angular 构建把它作为 /supabase-autoinit.sql 随 Worker 同一个版本发布；Worker 变量放不下这份 SQL（单项 5 KB）。 */
+export const autoinitOutput = resolve(import.meta.dirname, '../public/supabase-autoinit.sql');
 const boundary = /^\s*(?:BEGIN|COMMIT)\s*;\s*$/gm;
 
 /** 初始化包在 public 下建的全部关系（含序列）；改迁移后由 build-production-supabase-bundle.test.mjs 核对。 */
@@ -133,7 +134,7 @@ $aiao_media_autoinit_guard$;
 `;
 
 /** 生成 OAuth 自动初始化 SQL；输出目录不存在时先创建，干净检出也能直接运行。 */
-export async function buildAutoinitBundle(output = outputDefault) {
+export async function buildAutoinitBundle(output = autoinitOutput) {
   const sources = await Promise.all(
     productionSources.map(async path => ({
       path,
@@ -142,7 +143,7 @@ export async function buildAutoinitBundle(output = outputDefault) {
   );
   const sql = [
     '-- Aiao Media automatic Supabase onboarding bundle.',
-    '-- Review before injecting as MEDIA_SUPABASE_AUTOINIT_SQL.',
+    '-- Published as /supabase-autoinit.sql; the OAuth onboarding endpoint runs exactly this file in one transaction.',
     'BEGIN;',
     "SET LOCAL lock_timeout = '5s';",
     dedicatedProjectGuard.trim(),
@@ -158,5 +159,5 @@ export async function buildAutoinitBundle(output = outputDefault) {
 
 if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.filename)) {
   const { output } = await buildAutoinitBundle();
-  console.log(`Generated reviewed-input bundle: ${output}`);
+  console.log(`Generated onboarding bundle: ${output}`);
 }

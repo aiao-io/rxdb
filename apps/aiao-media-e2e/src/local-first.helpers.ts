@@ -100,6 +100,18 @@ export async function profile(page: Page) {
   return page.evaluate(() => localStorage.getItem('aiao-local-profile-v1'));
 }
 
+/** 主区内容区（去掉左右内边距）在视口中的左右边界，以及固定在左侧的导航栏宽度。 */
+export async function contentBox(page: Page) {
+  return page.evaluate(() => {
+    const main = document.querySelector('main')!;
+    const rect = main.getBoundingClientRect();
+    const style = getComputedStyle(main);
+    const left = rect.left + parseFloat(style.paddingLeft);
+    const right = rect.right - parseFloat(style.paddingRight);
+    return { left, right, width: right - left, sidebar: document.querySelector('.app-sidebar')!.getBoundingClientRect().width };
+  });
+}
+
 export async function verifyImageDownload(page: Page, card: Locator, bytes: Buffer) {
   await card.getByText('生成信息', { exact: true }).click();
   const sha256 = createHash('sha256').update(bytes).digest('hex');

@@ -417,3 +417,46 @@ test('手机图库操作具有可辨认名称和至少 44px 的触点', async ({
     await expect(action).toHaveAccessibleName(new RegExp(jobs[0].request.prompt));
   }
 });
+
+test('超宽屏下我的图片按卡片大小排满整行，常见窗口的列数与此前一致', async ({ page }) => {
+  await seed(page, 24);
+  await page.goto('/images');
+  const cards = page.locator('.cards > .library-card').filter({ has: page.getByText('生成信息', { exact: true }) });
+  await expect(cards).toHaveCount(24);
+  const layout = () =>
+    cards.evaluateAll(nodes => {
+      const boxes = nodes.map(node => node.getBoundingClientRect());
+      return {
+        columns: new Set(boxes.map(box => Math.round(box.left))).size,
+        rows: new Set(boxes.map(box => Math.round(box.top + scrollY))).size,
+        right: Math.max(...boxes.map(box => box.right))
+      };
+    });
+  const columns = async () => (await layout()).columns;
+  // 3440 宽：默认「中」最多 8 列，24 张正好 3 整行，最右一列贴着内容区右缘（视口宽减页边距 32）。
+  await page.setViewportSize({ width: 3440, height: 1440 });
+  await expect.poll(columns).toBe(8);
+  const wide = await layout();
+  expect(wide.rows).toBe(3);
+  expect(Math.abs(wide.right - (3440 - 32))).toBeLessThanOrEqual(1);
+  // 1440 宽仍是 3 列，手机宽度是 2 列。
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await expect.poll(columns).toBe(3);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect.poll(columns).toBe(2);
+  // 换卡片大小：超宽屏上「特大」最多 4 列、「小」最多 12 列，每档都排成整行。
+  for (const [cardSize, count, rows] of [
+    ['xlarge', 4, 6],
+    ['small', 12, 2]
+  ] as const) {
+    await page.evaluate(
+      size => localStorage.setItem('aiao-media-display-v1', JSON.stringify({ pageWidth: 'ultra', cardSize: size, align: 'center' })),
+      cardSize
+    );
+    await page.setViewportSize({ width: 3440, height: 1440 });
+    await page.reload();
+    await expect(cards).toHaveCount(24);
+    await expect.poll(columns).toBe(count);
+    expect((await layout()).rows).toBe(rows);
+  }
+});

@@ -10,17 +10,24 @@
 4. `MEDIA_PLATFORM_MODELS` 为 JSON 数组，每项含 `id`、`name`、HTTPS `baseUrl`、上游 `model`、凭据环境变量名 `secret`、单张 `credits` 和单张预算 `costMicros`。上游路径固定，拒绝 IP、非 HTTPS、端口、凭据和重定向。模型原图使用 base64，不能以临时 URL 作为持久结果。
 5. 每个 `secret` 对应单独 Worker secret。设置 `MEDIA_PLATFORM_FREE_DAILY` 与 `MEDIA_PLATFORM_DAILY_BUDGET_MICROS`；缺省均零，禁止意外开放免费模型。`costMicros` 是运营配置的成本上界，预算统计包含预占和已结算，不能冒充供应商账单。
 6. Stripe secrets：`MEDIA_STRIPE_SECRET_KEY`、`MEDIA_STRIPE_WEBHOOK_SECRET`。配置 `MEDIA_CREDIT_PACK`，如 `{"credits":20,"amount":500,"currency":"usd"}`；随后管理员可发布新价格，旧订单价格不变。通知入口为 `/api/platform/webhook`，订阅 Checkout 完成、异步支付成功和 refund.created/refund.updated。
-7. Supabase 自动接入 secrets：`SUPABASE_OAUTH_CLIENT_ID`、`SUPABASE_OAUTH_CLIENT_SECRET`、`SUPABASE_OAUTH_COOKIE_SECRET`。OAuth App scopes 至少启用 `Projects Read`（`projects:read`）、`Database Write`（`database:write`）和 `Secrets Read`（`secrets:read`）；修改 scopes 后必须重新走 OAuth 授权，旧 access token 不会自动获得新权限。回调固定为 `SUPABASE_OAUTH_REDIRECT_URI`。`MEDIA_SUPABASE_AUTOINIT_SQL` 或 base64 版本由 `pnpm nx run aiao-media:supabase-autoinit` 生成后，经人工审阅作为受保护部署配置注入，不能由用户请求携带 SQL。生成的包开头带专用项目守卫（共享项目、同名对象或更高版本在写入前整体回滚）；迁移或守卫变化后须重新生成并替换这项配置，旧配置不带守卫。
+7. Supabase 自动接入：Worker secrets `SUPABASE_OAUTH_CLIENT_ID`、`SUPABASE_OAUTH_CLIENT_SECRET`、`SUPABASE_OAUTH_COOKIE_SECRET`（至少 32 个字符），回调固定为 vars 里的 `SUPABASE_OAUTH_REDIRECT_URI`。OAuth App 只能在 Supabase 组织设置的 OAuth Apps 里注册，scopes 至少启用 `Projects Read`（`projects:read`）、`Database Write`（`database:write`）和 `Secrets Read`（`secrets:read`）；修改 scopes 后必须重新走 OAuth 授权，旧 access token 不会自动获得新权限。初始化 SQL 不走 Worker 变量（单个变量上限 5 KB，整包约 125 KB）：`aiao-media:build` 依赖 `aiao-media:supabase-autoinit`，把它生成到 `public/supabase-autoinit.sql`，随静态资源和 Worker 在同一个版本发布，`aiao-media:release-check` 校验发布产物里的这份文件完整并带专用项目守卫。Worker 只执行这一份，不接受请求携带的 SQL；包开头的守卫让共享项目、同名对象或更高版本在写入前整体回滚。`GET /api/supabase/oauth/status` 在三项凭据、cookie 密钥和这份 SQL 都具备时返回 `{"available":true}`，页面据此启用「连接自己的 Supabase」；未开通时隐藏按钮并展开手动连接。
 
 本地 OAuth 配置：
 
 1. 在 Supabase 组织设置的 OAuth Apps 中登记回调 `http://localhost:4398/api/supabase/oauth/callback`。Supabase 的 HTTP 例外只接受 `localhost`，不能使用 `127.0.0.1`；生产回调使用 HTTPS。
-2. 将 Client ID 和 Client Secret 填入被 Git 忽略的 `deploy/.dev.vars`，再运行 `pnpm nx run aiao-media:supabase-oauth-local-config`。脚本保留其他变量和已有有效 cookie 密钥，补齐初始化 SQL、本地回调和默认代理白名单；示例 Supabase URL 会被清空，避免误触发产品策略请求，并将文件权限设为 0600。
-3. 重启 `pnpm nx run aiao-media:preview`，打开 `http://localhost:4398/providers` 重新连接。页面与回调必须使用同一主机名，才能保留 OAuth state cookie。
+2. 将 Client ID 和 Client Secret 填入被 Git 忽略的 `deploy/.dev.vars`，再运行 `pnpm nx run aiao-media:supabase-oauth-local-config`。脚本保留其他变量和已有有效 cookie 密钥，补齐本地回调和默认代理白名单，并删除旧版写入的 `MEDIA_SUPABASE_AUTOINIT_SQL`、`MEDIA_SUPABASE_AUTOINIT_SQL_B64`；示例 Supabase URL 会被清空，避免误触发产品策略请求，并将文件权限设为 0600。
+3. 运行 `pnpm nx run aiao-media:build`（预览读取 `dist/browser/supabase-autoinit.sql`，改过迁移后要重新构建），再重启 `pnpm nx run aiao-media:preview`，打开 `http://localhost:4398/providers` 重新连接。页面与回调必须使用同一主机名，才能保留 OAuth state cookie。
+
+线上开通（一次性）：
+
+1. 在 Supabase 组织设置的 OAuth Apps 里新建应用：网站填产品域名，回调填 `deploy/wrangler.json` 里的 `SUPABASE_OAUTH_REDIRECT_URI`，scopes 如上；记下 Client ID 与 Client Secret。
+2. 运行 `pnpm nx run aiao-media:supabase-oauth-production-config --output-style=stream`（不带 `--output-style=stream` 时 Nx 会吞掉输入提示）。脚本在终端询问 Client ID 和 Client Secret（后者不回显），随机生成 cookie 密钥，经 `wrangler secret bulk` 的标准输入一次写入线上 Worker，凭据不落盘、不进命令行参数，日志只列名称；追加 `--dry-run` 只预演。
+3. 发布包含 `supabase-autoinit.sql` 的新构建（`pnpm nx run aiao-media:deploy`）。
+4. 核对 `GET /api/supabase/oauth/status` 返回 `{"available":true}`。返回 `false` 时依次查：三项 OAuth 凭据与回调、cookie 密钥长度、`/supabase-autoinit.sql` 是否以 SQL（而非页面）返回。
 
 凭据只用部署平台 secrets 管理，不写入 Wrangler vars、Git、队列、网页或桌面包。示例见 [.dev.vars.example](.dev.vars.example)。生产发布前核对构建产物、RLS、Auth、管理员授权、bucket 权限及真实端到端验收；配置齐全不等于已验收。
 
-自动接入使用 Supabase Management OAuth 的 PKCE/state 回调；管理 token 只保存在 Worker 的加密 HttpOnly cookie。用户选择项目后，Worker 再次验证项目归属，执行固定初始化 SQL，读取公开项目 Key，并通过项目服务端管理接口为授权邮箱生成一次性项目登录链接、换取项目 session；service role 只在 Worker 内短暂使用，绝不返回浏览器。项目内 session 与 Management OAuth 会话分开撤销和过期。
+自动接入使用 Supabase Management OAuth 的 PKCE/state 回调；管理 token 只保存在 Worker 的加密 HttpOnly cookie。用户选择项目后，Worker 再次验证项目归属，执行固定初始化 SQL，读取公开项目 Key，并在 Supabase 返回了已验证的账号邮箱时，通过项目服务端管理接口生成一次性项目登录链接、换取项目 session；OAuth 令牌的 `/profile` 恒为 401，拿不到邮箱时只完成初始化，由用户登录或注册项目账号。service role 只在 Worker 内短暂使用，绝不返回浏览器。项目内 session 与 Management OAuth 会话分开撤销和过期。
 
 ## 任务与结算
 

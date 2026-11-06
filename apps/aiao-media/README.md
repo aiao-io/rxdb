@@ -157,7 +157,7 @@ pnpm nx run aiao-media:supabase-down
 ### 连接云上 Supabase
 
 - 整站使用一个项目：构建时注入公开配置，只填项目 URL 和 anon / publishable Key，禁止 service role 或 secret Key。例如 `AIAO_SUPABASE_URL=https://<ref>.supabase.co AIAO_SUPABASE_ANON_KEY=<anon Key> pnpm nx run aiao-media:serve`，也可以写进本机 `.env`（变量见 [.env.example](.env.example)）。
-- 每位用户连接自己的项目：设置页「同步」分区（`/providers#sync`）可「手动连接已有项目（高级）」，填项目 URL 和公开 Key；「连接自己的 Supabase」（OAuth）需要 Worker，走 4398 预览并配置 `deploy/.dev.vars`，步骤见[平台服务配置](deploy/platform-services.md)。
+- 每位用户连接自己的项目：设置页「同步」分区（`/providers#sync`）可「手动连接已有项目（高级）」，填项目 URL 和公开 Key；「连接自己的 Supabase」（OAuth）需要 Worker 且部署方已开通：Worker 的 `/api/supabase/oauth/status` 回答可用时页面才启用该按钮，未开通的站点隐藏它并展开手动连接。本地走 4398 预览并配置 `deploy/.dev.vars`，线上一次性开通的步骤见[平台服务配置](deploy/platform-services.md)。
 - 云项目需先初始化：`pnpm nx run aiao-media:production-bundle` 生成 `tmp/production-supabase-bundle.sql`，由项目所有者审阅后在空项目的 SQL Editor 执行；页面上「下载并审阅初始化 SQL」提供的 `/sync-setup.sql` 同源。已有项目逐个审阅前向迁移，不要重复运行空库初始化包。
 
 ## 构建、验证和部署

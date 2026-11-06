@@ -4,6 +4,7 @@ import {
   accessTokenEmail,
   handleSupabaseOAuth,
   initializeSupabaseProject,
+  isAutoinitBundle,
   management,
   managementForConnection,
   managementPermissionMessage,
@@ -17,6 +18,27 @@ const env = {
   SUPABASE_OAUTH_COOKIE_SECRET: 'a'.repeat(40),
   SUPABASE_OAUTH_REDIRECT_URI: 'https://media.example.com/api/supabase/oauth/callback'
 };
+/** 与 build-supabase-autoinit.mjs 的产物同形：固定标题、整体事务、专用项目守卫。 */
+const bundle = [
+  '-- Aiao Media automatic Supabase onboarding bundle.',
+  'BEGIN;',
+  'DO $aiao_media_autoinit_guard$ BEGIN END $aiao_media_autoinit_guard$;',
+  'select 1;',
+  'COMMIT;',
+  ''
+].join('\n');
+/** 模拟随部署发布的静态资源绑定；缺失的资源由 SPA 回退返回 HTML，与线上行为一致。 */
+const assetsFor = (body = bundle, status = 200) => ({
+  requests: [],
+  async fetch(request) {
+    this.requests.push(request);
+    return new Response(body, {
+      status,
+      headers: { 'content-type': status === 200 ? 'application/sql' : 'text/plain' }
+    });
+  }
+});
+const spaFallback = '<!doctype html><title>Aiao Media</title><app-root></app-root>';
 test('OAuth start uses PKCE, fixed redirect and HttpOnly state cookie without exposing secrets', async () => {
   const response = await startSupabaseOAuth(new Request('https://media.example.com/api/supabase/oauth/start'), env);
   const data = await response.json();
@@ -167,7 +189,7 @@ test('OAuth initialization continues when profile is unauthorized but the valida
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ projectRef: 'abcdefghijklmnopqrst' })
       }),
-      { ...env, MEDIA_SUPABASE_AUTOINIT_SQL: 'select 1' },
+      { ...env, ASSETS: assetsFor() },
       { accessToken: token, expiresAt: Date.now() + 3600000 }
     );
     assert.equal(result.initialized, true);
@@ -222,7 +244,7 @@ test('OAuth initialization never turns a browser-supplied email into a project s
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(payload)
       }),
-      { ...env, MEDIA_SUPABASE_AUTOINIT_SQL: 'select 1' },
+      { ...env, ASSETS: assetsFor() },
       { accessToken: 'opaque-access', expiresAt: Date.now() + 3600000 }
     );
   try {
@@ -236,7 +258,7 @@ test('OAuth initialization never turns a browser-supplied email into a project s
     assert.equal(result.initialized, true);
     assert.equal(result.session, null);
     assert.deepEqual(result.config, { url: 'https://abcdefghijklmnopqrst.supabase.co', anonKey: 'anon' });
-    assert.match(calls.find(call => call.url.includes('/database/query')).body, /select 1/);
+    assert.equal(JSON.parse(calls.find(call => call.url.includes('/database/query')).body).query, bundle);
     assert.equal(
       calls.some(call => call.url.includes('/auth/v1/')),
       false,
@@ -247,15 +269,19 @@ test('OAuth initialization never turns a browser-supplied email into a project s
   }
 });
 
-const oauthEnv = { ...env, MEDIA_SUPABASE_AUTOINIT_SQL: 'select 1' };
-const send = (path, init) =>
-  handleSupabaseOAuth(new Request(`https://media.example.com/api/supabase/oauth${path}`, init), oauthEnv);
-const post = (path, cookie, payload) =>
-  send(path, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', cookie },
-    body: JSON.stringify(payload)
-  });
+const oauthEnv = { ...env, ASSETS: assetsFor() };
+const send = (path, init, target = oauthEnv) =>
+  handleSupabaseOAuth(new Request(`https://media.example.com/api/supabase/oauth${path}`, init), target);
+const post = (path, cookie, payload, target) =>
+  send(
+    path,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', cookie },
+      body: JSON.stringify(payload)
+    },
+    target
+  );
 const cookieOf = response =>
   response.headers
     .getSetCookie()
@@ -278,7 +304,8 @@ function rotatingManagement({
     refresh: new Set(['refresh-1']),
     generation: 1,
     refreshGrants: 0,
-    urls: []
+    urls: [],
+    queries: []
   };
   const json = (value, status = 200) =>
     new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } });
@@ -318,8 +345,10 @@ function rotatingManagement({
         { type: 'publishable', api_key: 'anon' },
         { type: 'service_role', api_key: 'service' }
       ]);
-    if (value.includes('/database/query'))
+    if (value.includes('/database/query')) {
+      double.queries.push(JSON.parse(init.body).query);
       return databaseError ? json(databaseError, databaseStatus) : new Response(null, { status: databaseStatus });
+    }
     if (value.endsWith('/auth/v1/admin/generate_link'))
       return json({
         hashed_token: 'hash',
@@ -427,3 +456,82 @@ for (const verificationType of ['signup', 'magiclink']) {
     }
   });
 }
+
+test('OAuth status reports availability only when credentials, cookie secret and onboarding SQL are all deployed', async () => {
+  const status = async (overrides = {}, assets = assetsFor()) => {
+    const response = await send('/status', undefined, { ...env, ASSETS: assets, ...overrides });
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    const body = await response.json();
+    assert.doesNotMatch(JSON.stringify(body), /client-id|client-secret|aaaa/, 'the probe never echoes configuration');
+    return body;
+  };
+  assert.deepEqual(await status(), { available: true });
+  for (const name of ['SUPABASE_OAUTH_CLIENT_ID', 'SUPABASE_OAUTH_CLIENT_SECRET', 'SUPABASE_OAUTH_REDIRECT_URI'])
+    assert.deepEqual(await status({ [name]: '' }), { available: false }, `${name} missing`);
+  assert.deepEqual(await status({ SUPABASE_OAUTH_COOKIE_SECRET: 'too-short' }), { available: false });
+  assert.deepEqual(await status({}, assetsFor(spaFallback)), { available: false }, 'SPA fallback HTML is not SQL');
+  assert.deepEqual(await status({}, assetsFor('', 404)), { available: false });
+  assert.deepEqual(await status({ ASSETS: undefined }), { available: false });
+});
+test('OAuth status is a read-only GET', async () => {
+  assert.equal((await send('/status', { method: 'POST' })).status, 404);
+});
+test('OAuth initialization runs the onboarding SQL shipped with the deployment without forwarding the management cookie', async () => {
+  const double = rotatingManagement();
+  const assets = assetsFor();
+  try {
+    const response = await post(
+      '/initialize',
+      await authorize(),
+      { projectRef: 'abcdefghijklmnopqrst' },
+      { ...oauthEnv, ASSETS: assets }
+    );
+    assert.equal(response.status, 200);
+    assert.deepEqual(double.queries, [bundle], 'the Management API receives exactly the bundled SQL');
+    assert.equal(assets.requests.length, 1);
+    const [request] = assets.requests;
+    assert.equal(request.url, 'https://media.example.com/supabase-autoinit.sql');
+    assert.equal(request.headers.get('cookie'), null, 'the management cookie never reaches the asset binding');
+    assert.equal(request.headers.get('authorization'), null);
+  } finally {
+    double.restore();
+  }
+});
+for (const [label, assets] of [
+  ['an SPA fallback page', assetsFor(spaFallback)],
+  ['a missing asset', assetsFor('', 404)],
+  ['no asset binding', undefined],
+  ['a bundle without the dedicated-project guard', assetsFor(bundle.replaceAll('$aiao_media_autoinit_guard$', '$x$'))]
+]) {
+  test(`OAuth initialization refuses before any write when the deployment has ${label} instead of the onboarding SQL`, async () => {
+    const double = rotatingManagement();
+    try {
+      const response = await post(
+        '/initialize',
+        await authorize(),
+        { projectRef: 'abcdefghijklmnopqrst' },
+        { ...oauthEnv, ASSETS: assets }
+      );
+      assert.equal(response.status, 503);
+      assert.match((await response.json()).error, /自动初始化 SQL 尚未配置/);
+      assert.deepEqual(double.queries, [], 'nothing is executed on the project');
+      assert.equal(
+        double.urls.some(url => url.includes('/api-keys') || url.includes('/auth/v1/')),
+        false,
+        'neither project keys nor a project session are touched'
+      );
+    } finally {
+      double.restore();
+    }
+  });
+}
+test('onboarding bundle validation accepts only a complete guarded transaction', () => {
+  assert.equal(isAutoinitBundle(bundle), true);
+  assert.equal(isAutoinitBundle(spaFallback), false);
+  assert.equal(isAutoinitBundle(bundle.replace('COMMIT;\n', '')), false, 'truncated before COMMIT');
+  assert.equal(isAutoinitBundle(bundle.replaceAll('BEGIN;', '')), false, 'not wrapped in one transaction');
+  assert.equal(isAutoinitBundle(bundle.replaceAll('$aiao_media_autoinit_guard$', '$x$')), false, 'no project guard');
+  assert.equal(isAutoinitBundle(bundle.replace('onboarding bundle', 'something else')), false, 'unknown header');
+  assert.equal(isAutoinitBundle(undefined), false);
+});
