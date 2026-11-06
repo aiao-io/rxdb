@@ -1,4 +1,3 @@
-import type { ComponentFixture } from '@angular/core/testing';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SyncTargetSettings } from './sync-target-settings';
@@ -8,95 +7,73 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-/** 按顺序给每次探测一个答案；'pending' 表示一直没有回应。 */
-function stubStatus(...answers: (boolean | 'pending')[]) {
-  const request = vi.fn();
-  for (const answer of answers)
-    request.mockImplementationOnce(() =>
-      answer === 'pending' ?
-        new Promise<Response>(() => undefined)
-      : Promise.resolve(Response.json({ available: answer }))
-    );
-  vi.stubGlobal('fetch', request);
-  return request;
-}
-/** 探测用的是原生 async，whenStable 不跟踪它：等状态离开 checking 再刷新视图。 */
-async function settled(fixture: ComponentFixture<SyncTargetSettings>) {
-  await vi.waitFor(() => expect(fixture.componentInstance.oauthStatus()).not.toBe('checking'));
-  fixture.detectChanges();
-}
-function render() {
+function render(inputs: Record<string, unknown> = {}) {
   const fixture = TestBed.createComponent(SyncTargetSettings);
-  const inputs: Record<string, unknown> = {
-    kind: 'disconnected',
-    url: '',
-    publicKey: '',
-    platformAvailable: false,
+  for (const [name, value] of Object.entries({
+    kind: 'platform',
+    platformAvailable: true,
     nativeMode: false,
-    configured: false,
+    configured: true,
     busy: false,
     message: '',
-    oauthProjects: [],
-    oauthBusy: false
-  };
-  for (const [name, value] of Object.entries(inputs)) fixture.componentRef.setInput(name, value);
+    ...inputs
+  }))
+    fixture.componentRef.setInput(name, value);
   fixture.detectChanges();
   const root = fixture.nativeElement as HTMLElement;
-  const buttons = () => Array.from(root.querySelectorAll('button'));
-  const connect = () => buttons().find(button => button.textContent?.includes('连接自己的 Supabase'));
-  const recheck = () => buttons().find(button => button.textContent?.trim() === '重新检查');
-  const hint = () => root.querySelector('p.notice[role="status"]');
-  const manual = () => root.querySelector('details')!;
-  return { fixture, connect, recheck, hint, manual };
+  const button = (label: string) =>
+    Array.from(root.querySelectorAll('button')).find(item => item.textContent?.trim() === label);
+  return { fixture, root, button };
 }
 
-describe('同步目标设置里的 Supabase 一键授权入口', () => {
-  it('确认之前按钮保持禁用，不提前提示不可用', () => {
-    stubStatus('pending');
-    const { connect, hint, manual } = render();
-    expect(connect()?.disabled).toBe(true);
-    expect(hint()).toBeNull();
-    expect(manual().open).toBe(false);
+describe('平台账号同步设置', () => {
+  it('注册登录入口可用，页面没有项目配置也不探测管理授权', () => {
+    const request = vi.fn();
+    vi.stubGlobal('fetch', request);
+    const { fixture, root, button } = render();
+    const login = vi.fn();
+    fixture.componentInstance.login.subscribe(login);
+    expect(root.textContent).toContain('注册或登录平台账号');
+    expect(root.textContent).toContain('API Key 不同步');
+    expect(root.querySelector('input, select, details, a[download]')).toBeNull();
+    expect(root.textContent).not.toMatch(/Supabase|SQL|OAuth|项目 URL/);
+    expect(request).not.toHaveBeenCalled();
+    button('注册 / 登录与同步设置')!.click();
+    expect(login).toHaveBeenCalledTimes(1);
   });
 
-  it('Worker 回答可用后才启用按钮，页面不出现不可用提示', async () => {
-    const request = stubStatus(true);
-    const { fixture, connect, hint, manual } = render();
-    await settled(fixture);
-    expect(request).toHaveBeenCalledTimes(1);
-    expect(connect()?.disabled).toBe(false);
-    expect(hint()).toBeNull();
-    expect(manual().open).toBe(false);
+  it('没有平台配置时说明服务不可用，不提供用户项目入口', () => {
+    const { root, button } = render({ kind: 'disconnected', platformAvailable: false, configured: false });
+    expect(root.textContent).toContain('平台账号服务暂不可用');
+    expect(root.textContent).toContain('联系服务方');
+    expect(button('注册 / 登录与同步设置')).toBeUndefined();
+    expect(button('使用平台账号')).toBeUndefined();
+    expect(root.querySelector('input, select, details')).toBeNull();
   });
 
-  it('部署方没有开通时隐藏按钮、写明原因并直接展开手动连接', async () => {
-    stubStatus(false);
-    const { fixture, connect, hint, manual } = render();
-    await settled(fixture);
-    expect(connect()).toBeUndefined();
-    expect(hint()?.textContent).toContain('暂未开通');
-    expect(hint()?.textContent).toContain('手动连接已有项目');
-    expect(manual().open).toBe(true);
+  it('旧目标断开后须显式选择平台账号，不自动连接', () => {
+    const { fixture, button } = render({ kind: 'disconnected', configured: false });
+    const changeTarget = vi.fn();
+    fixture.componentInstance.changeTarget.subscribe(changeTarget);
+    expect(changeTarget).not.toHaveBeenCalled();
+    expect(button('注册 / 登录与同步设置')).toBeUndefined();
+    button('使用平台账号')!.click();
+    expect(changeTarget).toHaveBeenCalledWith('platform');
   });
 
-  it('重新检查在部署开通后恢复按钮，提示随之消失', async () => {
-    const request = stubStatus(false, true);
-    const { fixture, connect, recheck, hint } = render();
-    await settled(fixture);
-    recheck()!.click();
-    await settled(fixture);
-    expect(request).toHaveBeenCalledTimes(2);
-    expect(connect()?.disabled).toBe(false);
-    expect(hint()).toBeNull();
+  it('进行中的同步禁止更改服务和重复打开账号设置', () => {
+    const { button } = render({ busy: true });
+    expect(button('断开同步服务')?.disabled).toBe(true);
+    expect(button('注册 / 登录与同步设置')?.disabled).toBe(true);
   });
 
-  it('点击按钮把连接请求交给上层处理', async () => {
-    stubStatus(true);
-    const { fixture, connect } = render();
-    const connectOAuth = vi.fn();
-    fixture.componentInstance.connectOAuth.subscribe(connectOAuth);
-    await settled(fixture);
-    connect()!.click();
-    expect(connectOAuth).toHaveBeenCalledTimes(1);
+  it('可显式断开平台服务，操作消息和桌面存储边界可见', () => {
+    const { fixture, root, button } = render({ nativeMode: true, message: '同步已停止，本机内容保留。' });
+    const changeTarget = vi.fn();
+    fixture.componentInstance.changeTarget.subscribe(changeTarget);
+    expect(root.textContent).toContain('应用的数据目录');
+    expect(root.querySelector('[role="status"]')?.textContent).toContain('同步已停止');
+    button('断开同步服务')!.click();
+    expect(changeTarget).toHaveBeenCalledWith('disconnected');
   });
 });

@@ -40,7 +40,7 @@ async function configure(context: BrowserContext) {
 }
 async function authFixture(context: BrowserContext) {
   const calls: string[] = [];
-  const state = { failUser: false, rejectPassword: false };
+  const state = { failUser: false, rejectPassword: false, confirmSignup: true };
   await context.route(`${url}/auth/v1/**`, async route => {
     const request = route.request();
     const endpoint = new URL(request.url());
@@ -51,7 +51,8 @@ async function authFixture(context: BrowserContext) {
       if (state.failUser) return route.abort('failed');
       return route.fulfill({ json: account });
     }
-    if (endpoint.pathname.endsWith('/signup')) return route.fulfill({ json: { user: account } });
+    if (endpoint.pathname.endsWith('/signup'))
+      return route.fulfill({ json: state.confirmSignup ? { user: account } : receipt() });
     if (endpoint.pathname.endsWith('/logout')) return route.fulfill({ status: 204 });
     if (state.rejectPassword)
       return route.fulfill({
@@ -83,6 +84,66 @@ async function login(page: Page) {
 // Auth fixtures verify the built application + real SDK without contacting an external Auth project.
 // The local-first suite separately verifies Service Worker installation and offline cold starts.
 test.use({ serviceWorkers: 'block' });
+
+test('平台注册后可开启同步，无需配置自己的项目或管理授权', async ({ page, context }) => {
+  await configure(context);
+  const { calls, state } = await authFixture(context);
+  state.confirmSignup = false;
+  const projectAuthorization: string[] = [];
+  page.on('request', request => {
+    if (new URL(request.url()).pathname.startsWith('/api/supabase/oauth/')) projectAuthorization.push(request.url());
+  });
+  const workspaces: string[] = [];
+  await context.route(`${url}/rest/v1/**`, route => {
+    const path = new URL(route.request().url()).pathname;
+    workspaces.push(path);
+    if (path === '/rest/v1/media_workspaces') return route.fulfill({ json: [] });
+    if (path === '/rest/v1/rpc/media_sync_capabilities')
+      return route.fulfill({ json: { protocol: 1, rls: true, metadataOnly: true } });
+    return route.fulfill({ status: 500, json: { message: 'unexpected fixture business request' } });
+  });
+  await page.goto('/providers#sync');
+  const settings = page.getByRole('region', { name: '同步目标设置' });
+  await expect(settings).toBeVisible();
+  await expect(settings.getByLabel('自己的 Supabase 项目 URL')).toHaveCount(0);
+  await expect(settings.getByRole('button', { name: '连接自己的 Supabase', exact: true })).toHaveCount(0);
+  await expect(settings.getByRole('link', { name: '下载并审阅初始化 SQL', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: '登录账号', exact: true }).click();
+  await page.getByRole('button', { name: '还没有账号？注册' }).click();
+  await page.getByLabel('邮箱', { exact: true }).fill(email);
+  await page.getByLabel('密码', { exact: true }).fill('browser-fixture-password');
+  await page.getByRole('button', { name: '注册', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '已登录', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '启用同步', exact: true }).click();
+  await expect(page.getByRole('button', { name: '确认并启用同步', exact: true })).toBeVisible();
+  expect(calls).toContain('POST /auth/v1/signup');
+  expect(workspaces).toContain('/rest/v1/media_workspaces');
+  expect(workspaces).not.toContain('/rest/v1/rpc/media_ensure_workspace');
+  expect(projectAuthorization).toEqual([]);
+});
+
+test('旧自有项目配置保持断开，打开平台同步设置不访问旧账号或上传数据', async ({ page, context }) => {
+  await configure(context);
+  const legacyUrl = 'https://legacy-project.example.test';
+  const target = JSON.stringify({ kind: 'custom', config: { url: legacyUrl, anonKey: publicKey } });
+  await context.addInitScript(value => localStorage.setItem('aiao-media-sync-target-v1', value), target);
+  const legacyRequests: string[] = [];
+  const projectAuthorization: string[] = [];
+  await context.route(`${legacyUrl}/**`, route => {
+    legacyRequests.push(route.request().url());
+    return route.abort('failed');
+  });
+  page.on('request', request => {
+    if (new URL(request.url()).pathname.startsWith('/api/supabase/oauth/')) projectAuthorization.push(request.url());
+  });
+  await page.goto('/providers#sync');
+  const settings = page.getByRole('region', { name: '同步目标设置' });
+  await expect(settings).toBeVisible();
+  await expect(settings.getByLabel('自己的 Supabase 项目 URL')).toHaveCount(0);
+  expect(legacyRequests).toEqual([]);
+  expect(projectAuthorization).toEqual([]);
+  expect(await page.evaluate(() => localStorage.getItem('aiao-media-sync-target-v1'))).toBe(target);
+});
 
 test('平台接单响应丢失后刷新，使用原标识核对，不因修改提示词重复接单', async ({ page, context }) => {
   await configure(context);

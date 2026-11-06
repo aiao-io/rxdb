@@ -699,8 +699,8 @@
             <div class="card-caption">
               <h3 class="remote-prompt">{{ work.prompt }}</h3>
               <p>{{ work.modelId }} · {{ work.width }} × {{ work.height }}</p>
-              <small>仅同步作品信息，原图仍在生成设备。</small>
-              @if (targetKind() === 'custom' && imageSyncEnabled()) {
+              <small>本机尚未保存原图；已上传到平台账号的原图可取回。</small>
+              @if (targetKind() === 'platform' && syncInitialized() && authUser()) {
                 <button
                   class="secondary sm"
                   [disabled]="imageSyncBusy() || settingsBusy()"
@@ -948,17 +948,9 @@
           [kind]="targetKind()"
           [message]="targetMessage()"
           [nativeMode]="nativeMode"
-          [oauthBusy]="oauthBusy()"
-          [oauthProjects]="oauthProjects()"
           [platformAvailable]="platformAvailable()"
-          [publicKey]="targetKey()"
-          [url]="targetUrl()"
           (changeTarget)="changeSyncTarget($event)"
-          (connectOAuth)="startSupabaseOAuth()"
-          (initializeOAuth)="initializeOAuthProject($event)"
-          (keyChanged)="targetKey.set($event)"
           (login)="openAuth($event)"
-          (urlChanged)="targetUrl.set($event)"
         />
       }
     </section>
@@ -1391,7 +1383,7 @@
             <p>{{ remoteQuota() }}</p>
           }
           <p class="sync-state" [attr.data-state]="sync().status" role="status">
-            {{ syncLabel() }} · {{ targetKind() === 'custom' ? '自己的 Supabase' : '平台账号' }}
+            {{ syncLabel() }} · 平台账号
           </p>
           @if (lastSyncedAt()) {
             <p>最近成功：{{ lastSyncedAt() }}</p>
@@ -1399,10 +1391,10 @@
           @if (sync().message) {
             <p class="notice" role="status">{{ sync().message }}</p>
           }
-          @if (targetKind() === 'custom' && syncInitialized()) {
+          @if (targetKind() === 'platform' && syncInitialized()) {
             <article class="notice" aria-label="图片原图同步">
               <h3>图片原图同步</h3>
-              <p>元数据同步不会上传原图。原图会进入你自己的私有 Supabase Storage；Key、管理授权和本机路径不会上传。</p>
+              <p>选择范围后，原图会保存到平台账号的私有云存储，供其他设备取回；API Key 和本机路径不会上传。</p>
               @if (imageSyncEnabled()) {
                 <p>图片自动同步已启用。{{ imageSyncProgress() }} {{ imageSyncMessage() }}</p>
                 <button class="secondary sm" [disabled]="settingsBusy() || imageSyncBusy()" (click)="stopImageSync()">
@@ -1594,7 +1586,7 @@
         <button class="text-link auth-mode-toggle" [disabled]="authBusy()" (click)="toggleAuthMode()" type="button">
           {{ authMode() === 'sign-in' ? '还没有账号？注册' : '已有账号？登录' }}
         </button>
-        <small>账号服务由部署方配置的 Supabase 项目提供；未配置时此入口不会出现，也不会发起远程请求。</small>
+        <small>注册平台账号即可使用跨设备同步；首次开启时选择上传范围。</small>
       </form>
     }
   </dialog>

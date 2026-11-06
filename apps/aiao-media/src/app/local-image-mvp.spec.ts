@@ -83,6 +83,21 @@ function rig() {
 }
 
 describe('library ownership presentation', () => {
+  it('平台账号可取回已同步原图，无需先同意上传本机图片', () => {
+    const r = rig();
+    r.streams[0].next([]);
+    r.component.targetKind.set('platform');
+    r.component.authUser.set({ id: 'fixture-account', email: null });
+    r.component.syncInitialized.set(true);
+    expect(r.component.imageSyncEnabled()).toBe(false);
+    r.text();
+    const retrieve = [...r.element.querySelectorAll<HTMLButtonElement>('button')].find(
+      button => button.textContent?.trim() === '取回并保存原图'
+    );
+    expect(retrieve).toBeDefined();
+    expect(retrieve!.disabled).toBe(false);
+    r.session.close();
+  });
   it('本机备份说明 ZIP 内容，并接受 ZIP 和旧版 JSON 导入', () => {
     const r = rig();
     r.component.view.set('providers');

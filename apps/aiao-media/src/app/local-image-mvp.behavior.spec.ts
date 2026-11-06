@@ -196,7 +196,7 @@ describe('sync interaction boundaries', () => {
 
   it('defers remote original retrieval until syncing stops', async () => {
     const r = rig();
-    r.component.targetKind.set('custom');
+    r.component.targetKind.set('platform');
     r.component.sync.update(state => ({ ...state, busy: true }));
     const controller = vi.fn();
     Object.assign(r.component, { imageSyncController: controller });
@@ -294,93 +294,108 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('Supabase OAuth transport', () => {
-  it('turns an HTML OAuth start response into an actionable local Worker message', async () => {
+describe('平台账号同步入口', () => {
+  const config = { url: 'https://platform.supabase.co', anonKey: 'sb_publishable_fixture' };
+  const access = { config, userId: profileId, session: { access_token: 'platform-session' } };
+
+  it('连接平台后直接打开账号窗口，不请求用户项目授权或初始化', async () => {
     const r = rig();
-    vi.mocked(fetch).mockResolvedValue(new Response('<!doctype html>', { headers: { 'content-type': 'text/html' } }));
+    vi.stubGlobal('__AIAO_SUPABASE_CONFIG__', config);
+    vi.spyOn(SupabaseAuthClient.prototype, 'restore').mockResolvedValue(undefined);
+    vi.spyOn(SupabaseAuthClient.prototype, 'subscribe').mockReturnValue(() => undefined);
+    const confirm = vi.spyOn(window, 'confirm');
+    Object.assign(r.component, { checkpoint: vi.fn(), reconcileIdentity: vi.fn() });
 
-    await r.component.startSupabaseOAuth();
+    await r.component.changeSyncTarget('platform');
 
-    expect(r.component.targetMessage()).toContain('本地 Worker');
+    expect(confirm).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+    expect(r.component.targetKind()).toBe('platform');
+    expect(r.component.authOpen()).toBe(true);
+    expect(JSON.parse(localStorage.getItem('aiao-media-sync-target-v1')!)).toEqual({ kind: 'platform' });
   });
 
-  it('turns an HTML project list response into an actionable local Worker message', async () => {
+  it('平台服务未配置时保持断开，不调用用户项目', async () => {
     const r = rig();
-    vi.mocked(fetch).mockResolvedValue(new Response('<!doctype html>', { headers: { 'content-type': 'text/html' } }));
-
-    await r.component.loadOAuthProjects();
-
-    expect(r.component.targetMessage()).toContain('本地 Worker');
-  });
-
-  it('turns an HTML project initialization response into an actionable local Worker message', async () => {
-    const r = rig();
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    vi.mocked(fetch).mockResolvedValue(new Response('<!doctype html>', { headers: { 'content-type': 'text/html' } }));
-
-    await r.component.initializeOAuthProject('abcdefghijklmnopqrst');
-
-    expect(r.component.targetMessage()).toContain('本地 Worker');
-  });
-
-  it('does not initialize a Supabase project until the user confirms that project', async () => {
-    const r = rig();
-    r.component.oauthProjects.set([
-      { ref: 'abcdefghijklmnopqrst', name: '创作同步', organizationId: 'org', status: 'ACTIVE_HEALTHY' }
-    ]);
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
-
-    await r.component.initializeOAuthProject('abcdefghijklmnopqrst');
-
-    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('创作同步'));
+    vi.stubGlobal('__AIAO_SUPABASE_CONFIG__', null);
+    await r.component.changeSyncTarget('platform');
+    expect(r.component.targetKind()).toBe('disconnected');
+    expect(r.component.targetMessage()).toContain('尚未启用');
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it('connects an initialized project without asking for an email and leaves sign-in to the project account', async () => {
+  it('首次同步检查平台协议，通过后才展示上传范围', async () => {
     const r = rig();
-    const adopt = vi.spyOn(SupabaseAuthClient.prototype, 'adoptSession').mockResolvedValue(undefined);
-    const prompt = vi.fn(() => 'victim@example.com');
-    vi.stubGlobal('prompt', prompt);
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    vi.mocked(fetch).mockResolvedValue(
-      Response.json({
-        config: { url: 'https://owner.supabase.co', anonKey: 'sb_publishable_fixture' },
-        session: null,
-        initialized: true
-      })
-    );
+    const requestEnable = vi.fn();
+    r.component.targetKind.set('platform');
+    r.component.syncReady.set(true);
+    Object.assign(r.component, { product: { requestEnable, pause: vi.fn() }, adminApi: { authorization: vi.fn(async () => access) } });
+    vi.mocked(fetch).mockResolvedValue(Response.json({ protocol: 1, rls: true, metadataOnly: true }));
 
-    await r.component.initializeOAuthProject('abcdefghijklmnopqrst');
+    await r.component.enableSync();
 
-    expect(fetch).toHaveBeenCalledOnce();
-    expect(JSON.parse(vi.mocked(fetch).mock.calls[0][1]?.body as string)).toEqual({
-      projectRef: 'abcdefghijklmnopqrst'
-    });
-    expect(prompt).not.toHaveBeenCalled();
-    expect(adopt).not.toHaveBeenCalled();
-    expect(r.component.targetKind()).toBe('custom');
-    expect(r.component.targetMessage()).toContain('登录或注册此项目的账号');
+    expect(fetch).toHaveBeenCalledWith(`${config.url}/rest/v1/rpc/media_sync_capabilities`, expect.any(Object));
+    expect(requestEnable).toHaveBeenCalledOnce();
   });
 
-  it('adopts a project session only when the server verified the Supabase account itself', async () => {
+  it('平台协议不可用时不进入同步确认，保留本机数据', async () => {
     const r = rig();
-    const adopt = vi.spyOn(SupabaseAuthClient.prototype, 'adoptSession').mockResolvedValue(undefined);
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    vi.mocked(fetch).mockResolvedValue(
-      Response.json({
-        config: { url: 'https://owner.supabase.co', anonKey: 'sb_publishable_fixture' },
-        session: { access_token: 'access', refresh_token: 'refresh' }
-      })
-    );
+    const requestEnable = vi.fn();
+    r.component.targetKind.set('platform');
+    r.component.syncReady.set(true);
+    Object.assign(r.component, { product: { requestEnable, pause: vi.fn() }, adminApi: { authorization: vi.fn(async () => access) } });
+    vi.mocked(fetch).mockResolvedValue(new Response('', { status: 503 }));
 
-    await r.component.initializeOAuthProject('abcdefghijklmnopqrst');
+    await r.component.enableSync();
 
-    expect(adopt).toHaveBeenCalledWith({ access_token: 'access', refresh_token: 'refresh' });
-    expect(r.component.targetMessage()).toContain('已授权并初始化');
+    expect(requestEnable).not.toHaveBeenCalled();
+    expect(r.component.authMessage()).toContain('平台');
+    expect(r.store.saveResult).not.toHaveBeenCalled();
+  });
+
+  it('平台用户确认范围后可以上传已有原图并开启新图自动同步', async () => {
+    const r = rig();
+    const upload = vi.fn();
+    r.component.targetKind.set('platform');
+    r.component.syncInitialized.set(true);
+    r.component.history.set([job]);
+    Object.assign(r.component, {
+      adminApi: { authorization: vi.fn(async () => access) },
+      imageSyncController: vi.fn(async () => ({ upload })),
+      hasLocalCopy: () => true
+    });
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.mocked(fetch).mockResolvedValue(Response.json({ protocol: 1, privateBucket: 'aiao-media-images', maxBytes: 16777216, resumable: true, metadataOnly: false }));
+
+    await r.component.enableImageSync('existing');
+
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('平台'));
+    expect(upload).toHaveBeenCalledWith(job);
+    expect(r.component.imageSyncEnabled()).toBe(true);
+  });
+
+  it('原图范围取消或平台Storage不可用时不上传', async () => {
+    const r = rig();
+    const upload = vi.fn();
+    r.component.targetKind.set('platform');
+    r.component.syncInitialized.set(true);
+    Object.assign(r.component, {
+      adminApi: { authorization: vi.fn(async () => access) },
+      imageSyncController: vi.fn(async () => ({ upload }))
+    });
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    await r.component.enableImageSync('future');
+    expect(fetch).not.toHaveBeenCalled();
+    confirm.mockReturnValue(true);
+    vi.mocked(fetch).mockResolvedValue(new Response('', { status: 503 }));
+    await r.component.enableImageSync('future');
+    expect(upload).not.toHaveBeenCalled();
+    expect(r.component.imageSyncEnabled()).toBe(false);
+    expect(r.component.imageSyncMessage()).toContain('平台');
   });
 });
 
-describe('own Supabase image sync isolation', () => {
+describe('平台原图同步隔离', () => {
   const userId = '20000000-0000-4000-8000-000000000001';
   const projects = {
     a: {
@@ -420,10 +435,10 @@ describe('own Supabase image sync isolation', () => {
       createdAt: '2026-10-30T00:00:00Z'
     };
   }
-  /** 接上一个已登录、已绑定工作区的自有项目，略过真实登录与工作区选择。 */
+  /** 接上一个已登录、已绑定工作区的平台账号，略过真实登录与工作区选择。 */
   function connect(component: LocalImageMvp, project: (typeof projects)['a']) {
     const config = { url: project.url, anonKey: 'sb_publishable_fixture' };
-    component.targetKind.set('custom');
+    component.targetKind.set('platform');
     Object.assign(component, {
       auth: {
         config,

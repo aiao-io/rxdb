@@ -16,7 +16,7 @@ Local-first 图片创作应用：发现灵感 → Tiptap 编辑提示词 → 使
 pnpm install --frozen-lockfile
 ```
 
-应用没有独立的后端进程，也没有要安装的数据库：前端是 Angular CSR，后端是同一份 [Cloudflare Worker](server/cloudflare/local-first-worker.mjs)。生图代理 `/api/relay`、`/api/relay/tasks` 不依赖账号；`/api/platform`、`/api/admin`、`/api/templates`、`/api/supabase/oauth` 需要 Supabase 配置。本地有两种形态：开发服务器带热更新，并把代理部分内嵌在同一进程里，不必另起后端；Wrangler 预览在本机运行完整 Worker 和构建后的静态产物，没有热更新。
+本机创作不需要安装数据库：前端是 Angular CSR，后端是同一份 [Cloudflare Worker](server/cloudflare/local-first-worker.mjs)。生图代理 `/api/relay`、`/api/relay/tasks` 不依赖账号；`/api/platform`、`/api/admin`、`/api/templates` 及账号同步使用部署方统一的 Supabase 项目。本地有两种形态：开发服务器带热更新，并把代理部分内嵌在同一进程里，不必另起后端；Wrangler 预览在本机运行完整 Worker 和构建后的静态产物，没有热更新。
 
 下表命令省略 `pnpm nx run aiao-media:` 前缀，`supabase-local.mjs preview` 是直接用 node 运行的脚本。两行 Supabase 的完整步骤见[可选账号与本地 Supabase](#可选账号与本地-supabase)。
 
@@ -50,7 +50,7 @@ pnpm nx run aiao-media:preview          # Wrangler 本地运行，不需要登�
 
 打开 `http://localhost:4398`。`preview` 不会自己构建，改了前端要重新执行 `offline-assets` 再重启。用来验证完整 Worker（Durable Object 与 R2 由 Wrangler 本地模拟）、Service Worker 离线、CSP 和 `/api/provider-probe`。
 
-Wrangler 会自动读取被 Git 忽略的 `deploy/.dev.vars`（Worker 私有配置，模板见 [.dev.vars.example](deploy/.dev.vars.example)）。文件不存在时，依赖 Supabase 的接口不可用（返回 503 或空列表），本机创作不受影响；文件存在时，Worker 会带着其中的 Supabase、OAuth、Stripe 配置运行，要纯本机预览先把它移走。
+Wrangler 会自动读取被 Git 忽略的 `deploy/.dev.vars`（Worker 私有配置，模板见 [.dev.vars.example](deploy/.dev.vars.example)）。文件不存在时，依赖 Supabase 的接口不可用（返回 503 或空列表），本机创作不受影响；文件存在时，Worker 会带着其中的 Supabase、Stripe 配置运行，要纯本机预览先把它移走。
 
 ### 供应商与生成
 
@@ -73,7 +73,7 @@ Wrangler 会自动读取被 Git 忽略的 `deploy/.dev.vars`（Worker 私有配�
 
 ## 可选账号与本地 Supabase
 
-本机创作无需账号配置。部署方同时设置 `AIAO_SUPABASE_URL` 和公开 `AIAO_SUPABASE_ANON_KEY` 后重新构建，才显示注册/登录入口；禁止使用 service role 或 secret Key。登录本身不绑定、不上传。显式启用后仅同步草稿、供应商公开配置和作品信息，Key 和原图留在本机。后台私有配置、可信管理员初始化和验收边界见[本地产品交付验收](requirements/plans/local-delivery-verification.md)。
+本机创作无需账号配置。部署方为统一平台项目设置 `AIAO_SUPABASE_URL` 和公开 `AIAO_SUPABASE_ANON_KEY` 后重新构建，才显示注册/登录入口；禁止使用 service role 或 secret Key。用户只需注册平台账号并登录，无需自建 Supabase 项目或填写项目配置。登录本身不绑定、不上传；开启同步后同步草稿、供应商公开配置和作品信息，确认原图范围后可同步已保存的 PNG/JPEG。API Key、本机路径和文件句柄固定排除。后台私有配置、可信管理员初始化和验收边界见[本地产品交付验收](requirements/plans/local-delivery-verification.md)。
 
 ### 启动本地 Supabase
 
@@ -128,7 +128,7 @@ node apps/aiao-media/scripts/supabase-local.mjs preview
 ### 注册、同步和后台
 
 1. 点账号入口注册。本地 Auth 不自动确认邮箱，到 `http://127.0.0.1:54324`（Inbucket）收信并点确认链接，再登录。
-2. 登录不会自动上传。在账号窗口里点「启用同步」后，才同步草稿、供应商公开配置和作品信息；API Key 留在本机，原图需单独确认才上传。同步服务也可在设置页的「同步」分区（`/providers#sync`）选择和断开。
+2. 登录不会自动上传。在账号窗口里点「启用同步」后，才同步草稿、供应商公开配置和作品信息；API Key 留在本机，原图需单独确认才上传。设置页的「同步」分区（`/providers#sync`）只提供平台账号入口；另一设备使用同一账号即可继续同步。
 3. 首个管理员用 `pnpm nx run aiao-media:admin-membership --user-id=<Auth 用户 UUID> --state=enabled` 授权（UUID 在 Studio 的 `auth.users` 表里取），之后访问 `/admin`。后台接口在 Worker 里，只有生产形态预览提供。
 
 ### 验收、状态和停止
@@ -154,11 +154,11 @@ pnpm nx run aiao-media:supabase-down
 - 数据库认证失败，或 `supabase-up` 因服务不健康而超时：常见原因是数据卷与 `infra/supabase/.env` 的密码不匹配，`supabase-logs` 可确认。换一个 `COMPOSE_PROJECT_NAME` 即得到全新的卷；确需清空该项目的本地数据时，先 `supabase-down`，再 `docker volume rm ${COMPOSE_PROJECT_NAME}_db-data ${COMPOSE_PROJECT_NAME}_db-config`。
 - 端口被占用：改 `infra/supabase/.env` 里的 `API_PORT`、`DB_PORT`、`STUDIO_PORT`、`MAIL_PORT`（四个互不相同，范围 1024–65535），前端用的地址随 `API_PORT` 变化。
 
-### 连接云上 Supabase
+### 配置统一平台 Supabase
 
-- 整站使用一个项目：构建时注入公开配置，只填项目 URL 和 anon / publishable Key，禁止 service role 或 secret Key。例如 `AIAO_SUPABASE_URL=https://<ref>.supabase.co AIAO_SUPABASE_ANON_KEY=<anon Key> pnpm nx run aiao-media:serve`，也可以写进本机 `.env`（变量见 [.env.example](.env.example)）。
-- 每位用户连接自己的项目：设置页「同步」分区（`/providers#sync`）可「手动连接已有项目（高级）」，填项目 URL 和公开 Key；「连接自己的 Supabase」（OAuth）需要 Worker 且部署方已开通：Worker 的 `/api/supabase/oauth/status` 回答可用时页面才启用该按钮，未开通的站点隐藏它并展开手动连接。本地走 4398 预览并配置 `deploy/.dev.vars`，线上一次性开通的步骤见[平台服务配置](deploy/platform-services.md)。
-- 云项目需先初始化：`pnpm nx run aiao-media:production-bundle` 生成 `tmp/production-supabase-bundle.sql`，由项目所有者审阅后在空项目的 SQL Editor 执行；页面上「下载并审阅初始化 SQL」提供的 `/sync-setup.sql` 同源。已有项目逐个审阅前向迁移，不要重复运行空库初始化包。
+- 整站使用部署方的同一个项目：构建时注入公开配置，只填项目 URL 和 anon / publishable Key，禁止 service role 或 secret Key。例如 `AIAO_SUPABASE_URL=https://<ref>.supabase.co AIAO_SUPABASE_ANON_KEY=<anon Key> pnpm nx run aiao-media:serve`，也可以写进本机 `.env`（变量见 [.env.example](.env.example)）。Worker secrets 必须指向同一项目，见[平台服务配置](deploy/platform-services.md)。
+- 部署方一次初始化云项目：`pnpm nx run aiao-media:production-bundle` 生成 `tmp/production-supabase-bundle.sql`，由项目所有者审阅后在空项目的 SQL Editor 执行。已有项目逐个审阅前向迁移，不要重复运行空库初始化包。数据库与私有 `aiao-media-images` Storage bucket 均按账号和工作区执行访问控制。
+- 用户只注册、登录平台账号并确认同步范围。用户自带项目、Management OAuth 与自动初始化入口已退役，旧 `/api/supabase/oauth/*` 请求返回 `410`。升级保留本机与原项目数据，旧项目不会自动转存到平台；切回平台后重新登录并确认同步。
 
 ## 构建、验证和部署
 
@@ -180,9 +180,8 @@ pnpm nx run aiao-media:preview
 
 # Cloudflare 账号授权完成后发布真实应用
 pnpm --dir apps/aiao-media exec wrangler login
-# 本轮 Supabase 仅本地，正式产物关闭账号配置
+# 提前设置平台 AIAO_SUPABASE_URL、AIAO_SUPABASE_ANON_KEY 与同项目 Worker secrets
 NX_NO_CLOUD=true NX_LOAD_DOT_ENV_FILES=false \
-AIAO_SUPABASE_URL='' AIAO_SUPABASE_ANON_KEY='' \
 pnpm nx run aiao-media:deploy --skipRemoteCache
 # 正式站点： https://media.aiao.io
 ```

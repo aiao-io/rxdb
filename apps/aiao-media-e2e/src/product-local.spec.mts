@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { localEnvironment } from '../../aiao-media/scripts/supabase-local.mjs';
-import { endpoint, key, pngFixture, provider } from './local-first.helpers';
+import { endpoint, key, pngFixture, provider, verifyImageDownload } from './local-first.helpers';
 
 let admin: SupabaseClient;
 const ids = new Set<string>();
@@ -382,6 +382,61 @@ test('供应商和作品信息跨副本同步但凭据原图留在本机，任�
     await second.getByRole('button', { name: '编辑 / 填写 Key', exact: true }).click();
     await expect(second.getByLabel('API Key', { exact: true })).toHaveValue('');
     await expect(second.getByLabel('在此设备记住 Key')).not.toBeChecked();
+  } finally {
+    await context.close();
+  }
+});
+
+test('平台账号跨设备同步作品与原图，Storage 字节夹具验证上传和取回接线', async ({ page, browser, baseURL }) => {
+  const user = await account(),
+    png = await pngFixture();
+  const files = new Map<string, Buffer>();
+  await page.route(endpoint, route => route.fulfill({ json: { data: [{ b64_json: png.toString('base64') }] } }));
+  await page.route('**/storage/v1/object/aiao-media-images/**', async route => {
+    const request = route.request();
+    expect(request.method()).toBe('POST');
+    const bytes = request.postDataBuffer()!;
+    expect(bytes).toEqual(png);
+    files.set(new URL(request.url()).pathname.replace('/storage/v1/object/', ''), bytes);
+    await route.fulfill({ status: 200, json: {} });
+  });
+  await provider(page, true);
+  await page.getByRole('link', { name: '生成图片', exact: true }).click();
+  await editDraft(page, '平台原图跨设备恢复');
+  await page.getByRole('button', { name: '✧ 生成图片', exact: false }).click();
+  await expect(page.getByText('已保存到本机', { exact: true })).toBeVisible();
+  await enableReplica(page, user);
+  const imageSync = page.getByRole('article', { name: '图片原图同步' });
+  await expect(imageSync).toBeVisible();
+  page.once('dialog', dialog => dialog.accept());
+  await imageSync.getByRole('button', { name: '同步已有及以后图片', exact: true }).click();
+  await expect(imageSync).toContainText('已确认并处理 1 张本机图片');
+  expect(files.size).toBe(1);
+  const uploaded = (await admin.from('media_file_records').select('status,path,sha256').eq('createdBy', user.id)).data!;
+  expect(uploaded).toHaveLength(1);
+  expect(uploaded[0].status).toBe('uploaded');
+  expect(uploaded[0].path).toMatch(new RegExp(`^${user.id}/`));
+  const context = await browser.newContext({ baseURL });
+  try {
+    await context.route('**/storage/v1/object/authenticated/aiao-media-images/**', async route => {
+      const path = new URL(route.request().url()).pathname.replace('/storage/v1/object/authenticated/', '');
+      const bytes = files.get(path);
+      expect(bytes).toBeDefined();
+      await route.fulfill({ contentType: 'image/png', body: bytes! });
+    });
+    const second = await context.newPage();
+    await second.goto('/create');
+    await enableReplica(second, user);
+    second.once('dialog', dialog => dialog.accept());
+    await second.getByRole('button', { name: '只同步以后保存的图片', exact: true }).click();
+    await expect(second.getByRole('article', { name: '图片原图同步' })).toContainText('图片自动同步已启用');
+    await second.getByRole('button', { name: '关闭账号窗口' }).click();
+    await second.getByRole('link', { name: '我的图片', exact: true }).click();
+    await expect(second.getByText('本机无原图', { exact: true })).toBeVisible();
+    await second.getByRole('button', { name: '取回并保存原图', exact: true }).click();
+    const card = second.locator('.library-card').filter({ hasText: '平台原图跨设备恢复' });
+    await expect(card.getByAltText('本机生成作品')).toBeVisible();
+    await verifyImageDownload(second, card, png);
   } finally {
     await context.close();
   }

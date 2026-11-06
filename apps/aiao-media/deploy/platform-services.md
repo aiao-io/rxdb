@@ -5,29 +5,22 @@
 ## 必需配置
 
 1. 独立 Supabase 产品项目：由所有者审阅 `pnpm nx run aiao-media:production-bundle` 的 SQL，再在空项目初始化。已有产品项目逐个审阅前向迁移，禁止重复运行空库初始化包。初始化包只写私有 bucket 行和 `storage.objects` 策略，不在 `storage` schema 建表或改表（托管项目自带 Storage 表，自 2025-04-21 起不允许用户建表）；本地 Compose 没有 Storage 服务，其替身只在 `001-local-storage-standin.sql`，不进初始化包。
-2. Worker secrets：`MEDIA_SUPABASE_URL`、`MEDIA_SUPABASE_ANON_KEY`、`MEDIA_SUPABASE_SERVICE_ROLE_KEY`。公开配置只包含 URL 和 publishable/anon Key；生产启用必须显式构建和审查。
-3. Wrangler 的 `MEDIA_PLATFORM` Durable Object 绑定与 `media-platform-v1` SQLite migration 已配置。平台原图需要额外配置私有 R2 bucket 的 `MEDIA_RESULTS` 绑定，禁止公开 bucket 读权限。
+2. Worker secrets：`MEDIA_SUPABASE_URL`、`MEDIA_SUPABASE_ANON_KEY`、`MEDIA_SUPABASE_SERVICE_ROLE_KEY`。浏览器构建的 `AIAO_SUPABASE_URL` 和 `AIAO_SUPABASE_ANON_KEY` 必须指向同一平台项目，公开配置只包含 URL 和 publishable/anon Key；生产启用必须显式构建和审查。
+3. Wrangler 的 `MEDIA_PLATFORM` Durable Object 绑定与 `media-platform-v1` SQLite migration 已配置。平台生图结果需要额外配置私有 R2 bucket 的 `MEDIA_RESULTS` 绑定，禁止公开 bucket 读权限。用户作品原图同步使用统一 Supabase 项目的私有 `aiao-media-images` Storage bucket，与平台生图结果和 `RELAY_RESULTS` 临时中转分开。
 4. `MEDIA_PLATFORM_MODELS` 为 JSON 数组，每项含 `id`、`name`、HTTPS `baseUrl`、上游 `model`、凭据环境变量名 `secret`、单张 `credits` 和单张预算 `costMicros`。上游路径固定，拒绝 IP、非 HTTPS、端口、凭据和重定向。模型原图使用 base64，不能以临时 URL 作为持久结果。
 5. 每个 `secret` 对应单独 Worker secret。设置 `MEDIA_PLATFORM_FREE_DAILY` 与 `MEDIA_PLATFORM_DAILY_BUDGET_MICROS`；缺省均零，禁止意外开放免费模型。`costMicros` 是运营配置的成本上界，预算统计包含预占和已结算，不能冒充供应商账单。
 6. Stripe secrets：`MEDIA_STRIPE_SECRET_KEY`、`MEDIA_STRIPE_WEBHOOK_SECRET`。配置 `MEDIA_CREDIT_PACK`，如 `{"credits":20,"amount":500,"currency":"usd"}`；随后管理员可发布新价格，旧订单价格不变。通知入口为 `/api/platform/webhook`，订阅 Checkout 完成、异步支付成功和 refund.created/refund.updated。
-7. Supabase 自动接入：Worker secrets `SUPABASE_OAUTH_CLIENT_ID`、`SUPABASE_OAUTH_CLIENT_SECRET`、`SUPABASE_OAUTH_COOKIE_SECRET`（至少 32 个字符），回调固定为 vars 里的 `SUPABASE_OAUTH_REDIRECT_URI`。OAuth App 只能在 Supabase 组织设置的 OAuth Apps 里注册，scopes 至少启用 `Projects Read`（`projects:read`）、`Database Write`（`database:write`）和 `Secrets Read`（`secrets:read`）；修改 scopes 后必须重新走 OAuth 授权，旧 access token 不会自动获得新权限。初始化 SQL 不走 Worker 变量（单个变量上限 5 KB，整包约 125 KB）：`aiao-media:build` 依赖 `aiao-media:supabase-autoinit`，把它生成到 `public/supabase-autoinit.sql`，随静态资源和 Worker 在同一个版本发布，`aiao-media:release-check` 校验发布产物里的这份文件完整并带专用项目守卫。Worker 只执行这一份，不接受请求携带的 SQL；包开头的守卫让共享项目、同名对象或更高版本在写入前整体回滚。`GET /api/supabase/oauth/status` 在三项凭据、cookie 密钥和这份 SQL 都具备时返回 `{"available":true}`，页面据此启用「连接自己的 Supabase」；未开通时隐藏按钮并展开手动连接。
+7. 配置平台 Supabase Auth 的站点 URL、允许的登录回调与注册确认邮件。用户注册的是应用平台账号；无需 Supabase 管理账号、Management OAuth、项目 URL、项目 Key 或执行 SQL。启用邮箱确认的项目须在邮件验证后登录，注册响应没有 session 时不能提前开始同步。
 
-本地 OAuth 配置：
+## 账号与跨设备同步
 
-1. 在 Supabase 组织设置的 OAuth Apps 中登记回调 `http://localhost:4398/api/supabase/oauth/callback`。Supabase 的 HTTP 例外只接受 `localhost`，不能使用 `127.0.0.1`；生产回调使用 HTTPS。
-2. 将 Client ID 和 Client Secret 填入被 Git 忽略的 `deploy/.dev.vars`，再运行 `pnpm nx run aiao-media:supabase-oauth-local-config`。脚本保留其他变量和已有有效 cookie 密钥，补齐本地回调和默认代理白名单，并删除旧版写入的 `MEDIA_SUPABASE_AUTOINIT_SQL`、`MEDIA_SUPABASE_AUTOINIT_SQL_B64`；示例 Supabase URL 会被清空，避免误触发产品策略请求，并将文件权限设为 0600。
-3. 运行 `pnpm nx run aiao-media:build`（预览读取 `dist/browser/supabase-autoinit.sql`，改过迁移后要重新构建），再重启 `pnpm nx run aiao-media:preview`，打开 `http://localhost:4398/providers` 重新连接。页面与回调必须使用同一主机名，才能保留 OAuth state cookie。
+部署方一次初始化统一产品项目，并在后续发布中审阅前向迁移。用户在应用内注册、确认邮箱并登录后，即可开启草稿、供应商公开配置、作品信息和原图的跨设备同步。首次上传仍需确认本机范围；API Key、本机路径和文件句柄不上传，原图范围单独确认。
 
-线上开通（一次性）：
+结构化数据继续使用 `rxdb-adapter-supabase`、history 与 sync 插件；原图通过 Supabase Storage 上传、下载并校验 SHA-256。每个账号的工作区由 `media_ensure_workspace` 建立，表与私有 Storage 的 RLS 使用 `auth.uid()` 和工作区归属隔离用户。上线前验证两个普通账号之间无法读取、修改或下载对方数据；管理员权限不替代用户数据授权。
 
-1. 在 Supabase 组织设置的 OAuth Apps 里新建应用：网站填产品域名，回调填 `deploy/wrangler.json` 里的 `SUPABASE_OAUTH_REDIRECT_URI`，scopes 如上；记下 Client ID 与 Client Secret。
-2. 运行 `pnpm nx run aiao-media:supabase-oauth-production-config --output-style=stream`（不带 `--output-style=stream` 时 Nx 会吞掉输入提示）。脚本在终端询问 Client ID 和 Client Secret（后者不回显），随机生成 cookie 密钥，经 `wrangler secret bulk` 的标准输入一次写入线上 Worker，凭据不落盘、不进命令行参数，日志只列名称；追加 `--dry-run` 只预演。
-3. 发布包含 `supabase-autoinit.sql` 的新构建（`pnpm nx run aiao-media:deploy`）。
-4. 核对 `GET /api/supabase/oauth/status` 返回 `{"available":true}`。返回 `false` 时依次查：三项 OAuth 凭据与回调、cookie 密钥长度、`/supabase-autoinit.sql` 是否以 SQL（而非页面）返回。
+自带项目的授权与初始化入口已退役，旧 `/api/supabase/oauth/*` 请求返回 `410`，即使 Worker 仍保留历史 OAuth secrets 也不会访问用户项目。历史模块与配置脚本只保留用于历史版本维护，不属于当前上线步骤。升级保留原有本机工作区与旧项目数据，不自动把旧项目内容转存平台；用户重新登录平台并确认同步范围。
 
 凭据只用部署平台 secrets 管理，不写入 Wrangler vars、Git、队列、网页或桌面包。示例见 [.dev.vars.example](.dev.vars.example)。生产发布前核对构建产物、RLS、Auth、管理员授权、bucket 权限及真实端到端验收；配置齐全不等于已验收。
-
-自动接入使用 Supabase Management OAuth 的 PKCE/state 回调；管理 token 只保存在 Worker 的加密 HttpOnly cookie。用户选择项目后，Worker 再次验证项目归属，执行固定初始化 SQL，读取公开项目 Key，并在 Supabase 返回了已验证的账号邮箱时，通过项目服务端管理接口生成一次性项目登录链接、换取项目 session；OAuth 令牌的 `/profile` 恒为 401，拿不到邮箱时只完成初始化，由用户登录或注册项目账号。service role 只在 Worker 内短暂使用，绝不返回浏览器。项目内 session 与 Management OAuth 会话分开撤销和过期。
 
 ## 任务与结算
 

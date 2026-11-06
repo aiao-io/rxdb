@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { readSyncTarget, saveSyncTarget, verifyImageSyncTarget, verifySyncTarget } from './sync-target';
+import { readSyncTarget, saveSyncTarget, verifyImageSyncTarget, verifySyncTarget, type SyncTarget } from './sync-target';
 
 const config = { url: 'https://mine.supabase.co', anonKey: 'sb_publishable_public' };
 const storage = () => {
@@ -10,23 +10,46 @@ const storage = () => {
   };
 };
 describe('同步目标', () => {
-  it('默认使用部署方平台；自有配置须显式保存，断开不会退回另一目标', () => {
+  it('默认使用平台账号，显式断开后不自动恢复同步', () => {
     const port = storage();
     expect(readSyncTarget(port, config)).toEqual({ kind: 'platform', config });
-    saveSyncTarget(port, { kind: 'custom', config });
-    expect(readSyncTarget(port, null)).toEqual({ kind: 'custom', config });
+    expect(readSyncTarget(port, null)).toEqual({ kind: 'disconnected', config: null });
     saveSyncTarget(port, { kind: 'disconnected', config: null });
     expect(readSyncTarget(port, config)).toEqual({ kind: 'disconnected', config: null });
+    saveSyncTarget(port, { kind: 'platform', config });
+    expect(port.getItem('aiao-media-sync-target-v1')).toBe('{"kind":"platform"}');
+    expect(readSyncTarget(port, config)).toEqual({ kind: 'platform', config });
+    expect(readSyncTarget(port, null)).toEqual({ kind: 'disconnected', config: null });
   });
-  it('拒绝损坏配置和服务端密钥，不静默切换数据目的地', () => {
+
+  it('旧自有项目保持断开且保留配置，不静默改用平台上传', () => {
+    const port = storage();
+    const saved = JSON.stringify({ kind: 'custom', config });
+    port.setItem('aiao-media-sync-target-v1', saved);
+    expect(readSyncTarget(port, config)).toEqual({ kind: 'disconnected', config: null });
+    expect(readSyncTarget(port, null)).toEqual({ kind: 'disconnected', config: null });
+    expect(port.getItem('aiao-media-sync-target-v1')).toBe(saved);
+  });
+
+  it('平台公开配置由部署方提供，不使用历史配置里的项目地址', () => {
+    const port = storage();
+    port.setItem('aiao-media-sync-target-v1', JSON.stringify({ kind: 'platform', config }));
+    const platform = { ...config, url: 'https://platform.supabase.co' };
+    expect(readSyncTarget(port, platform)).toEqual({ kind: 'platform', config: platform });
+  });
+
+  it('拒绝损坏配置、新的自有项目和服务端密钥', () => {
     const port = storage();
     port.setItem('aiao-media-sync-target-v1', '{}');
     expect(() => readSyncTarget(port, config)).toThrow();
     expect(() =>
-      saveSyncTarget(port, { kind: 'custom', config: { ...config, anonKey: 'sb_secret_private' } })
+      saveSyncTarget(port, { kind: 'custom', config } as unknown as SyncTarget)
+    ).toThrow('平台账号');
+    expect(() =>
+      saveSyncTarget(port, { kind: 'platform', config: { ...config, anonKey: 'sb_secret_private' } })
     ).toThrow();
   });
-  it('兼容检查直接请求选定项目，不调用平台，不写数据', async () => {
+  it('兼容检查只读取平台能力，服务异常不要求用户初始化项目', async () => {
     const request = vi.fn().mockResolvedValue(Response.json({ protocol: 1, rls: true, metadataOnly: true }));
     await verifySyncTarget({ config, userId: 'user', session: { access_token: 'session' } } as never, request);
     expect(request).toHaveBeenCalledWith(
@@ -44,7 +67,7 @@ describe('同步目标', () => {
     );
     request.mockResolvedValueOnce(new Response('', { status: 404 }));
     await expect(verifySyncTarget({ config, session: { access_token: 'session' } } as never, request)).rejects.toThrow(
-      '初始化'
+      '平台同步服务'
     );
   });
   it('图片同步必须单独通过私有 Storage 和续传能力检查', async () => {
