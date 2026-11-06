@@ -503,7 +503,10 @@ function fun_regexp_replace(sqlite3: SQLiteAPI, db: number): void {
     try {
       const replacement = sqlite3.value_text(values[2]);
       const flags = values.length > 3 ? sqlite3.value_text(values[3]) : '';
-      sqlite3.result(context, String(text).replace(get_cached_regexp(String(pattern), String(flags)), String(replacement)));
+      sqlite3.result(
+        context,
+        String(text).replace(get_cached_regexp(String(pattern), String(flags)), String(replacement))
+      );
     } catch (error) {
       console.warn(`[SqliteClient] regexp_replace(${pattern}) failed:`, error);
       sqlite3.result(context, String(text));
