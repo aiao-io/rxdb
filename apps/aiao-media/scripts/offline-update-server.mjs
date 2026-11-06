@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, relative, resolve } from 'node:path';
+import worker from '../server/cloudflare/local-first-worker.mjs';
 
 const root = resolve(import.meta.dirname, '../dist/browser');
 const source = await readFile(resolve(root, 'offline-worker.js'), 'utf8');
@@ -40,6 +41,12 @@ const server = createServer(async (request, response) => {
     }
     if (request.method !== 'GET') {
       response.writeHead(405).end();
+      return;
+    }
+    if (path.startsWith('/api/')) {
+      const result = await worker.fetch(new Request(new URL(request.url, 'http://127.0.0.1:4397')), {});
+      response.writeHead(result.status, Object.fromEntries(result.headers));
+      response.end(Buffer.from(await result.arrayBuffer()));
       return;
     }
     const current = build();
