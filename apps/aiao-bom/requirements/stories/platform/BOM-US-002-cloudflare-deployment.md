@@ -5,7 +5,7 @@ status: In Review
 priority: High
 epic: BOM-EPIC-001
 created: 2026-11-06
-updated: 2026-11-06
+updated: 2026-11-07
 tags: [bom, platform, deployment]
 dependsOn: [BOM-US-001]
 capabilities: []
@@ -46,7 +46,7 @@ Cloudflare Workers Static Assets、生产产物发布、SPA 深链接、SQLite/W
 
 ## 验收证据
 
-已实际发布至 `https://aiao-bom.aiao.workers.dev`，Worker 版本 `90bd7049-23cb-49e8-bd57-c252fc8bc211`。本地 Wrangler 与真实公网 Chromium 部署验收均为 4/4，通过深链接、隔离响应头、WASM、同源持久化和改版计算。
+已实际发布至 `https://aiao-bom.aiao.workers.dev`，Worker 版本 `c514c0c9-3b51-43ff-801e-0f3fd180f783`。本地 Wrangler 与真实公网 Chromium 部署验收均为 5/5，通过深链接、隔离响应头、WASM、同源持久化、改版计算及首次窄屏从主入口准备案例直达核对；64 个发布资产 SHA-256 均与本地产物一致。
 
 证据符号包括 `BOM-US-002 所有入口与深链接返回应用及隔离响应头`、`BOM-US-002 SQLite WASM 返回可编译二进制及正确 MIME`、`BOM-US-002 相同部署 origin 重开保留本地样本并完成改版计算`。完整命令、产物核对和环境边界见[Cloudflare 验收记录](../../plans/cloudflare-deployment-verification.md)。保留 In Review，等待 PR 评审和合并。
 

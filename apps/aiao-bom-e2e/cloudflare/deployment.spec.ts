@@ -65,3 +65,25 @@ test('BOM-US-002 相同部署 origin 重开保留本地样本并完成改版计�
   });
   expect(errors).toEqual([]);
 });
+
+test('BOM-US-002 首次窄屏从主入口准备案例并进入核对', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto('/');
+  const entry = page.getByTestId('start-change-review');
+  await expect(entry).toHaveText(/准备案例并开始核对/);
+  await expect(entry).toBeEnabled();
+  await acceptDialog(page, () => entry.click());
+  await expect(page).toHaveURL(/\/review(?:\?|$)/, { timeout: 30000 });
+  await expect(page.getByTestId('review-qty')).toHaveValue('10');
+  await page.getByTestId('review-run').click();
+  await expect(page.getByTestId('review-after-cost')).toHaveAttribute('data-amount', /^-?\d+(?:\.\d+)?$/, {
+    timeout: 30000
+  });
+  const row = page.getByTestId('review-change-row').filter({ hasText: 'R10K' });
+  await row.click();
+  await expect(page.locator('#review-paths-title')).toBeFocused();
+  await page.getByTestId('review-back-changes').click();
+  await expect(row).toBeFocused();
+  await expect(page.getByTestId('review-qty')).toHaveValue('10');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
+});

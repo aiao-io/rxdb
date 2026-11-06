@@ -23,7 +23,7 @@
 | 导入、待发布草稿恢复及导出                  | 展开页的集成面板       | 事务回滚、显式选中发布与 manifest；真实 ERP 接线未验                                    |
 | 实例装机、换件与来源保护                    | 实例追溯页             | 样本安装事实，不代表真实设备验证                                                        |
 | 已加载核对页的离线重算                      | `/review` 热页         | 不承诺冷启动、整站离线刷新或资源缓存完整性                                              |
-| Cloudflare 静态发布                         | Workers Static Assets  | 公网 Chromium 4/4 通过；深链接、隔离、WASM 和同源数据重开可用，跨 origin 数据不自动迁移 |
+| Cloudflare 静态发布                         | Workers Static Assets  | 公网 Chromium 5/5 通过；深链接、隔离、WASM 和同源数据重开可用，跨 origin 数据不自动迁移 |
 | 真实生产样本与正式发行                      | 真实样本故事及未来需求 | 尚待业务试用、历史库升级与受支持浏览器证据                                              |
 
 Angular 是本应用的 UI 实现；平台 Angular / React / Vue 对称性由共享绑定及平台故事管理，不因本应用建档产生三套应用承诺。
