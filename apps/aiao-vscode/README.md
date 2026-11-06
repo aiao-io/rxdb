@@ -9,11 +9,11 @@
 ## 开发与构建
 
 ```sh
-pnpm nx serve aiao-vscode          # 开发服务器 http://127.0.0.1:4320
+pnpm nx serve aiao-vscode          # 开发服务器 http://localhost:4320
 pnpm nx build aiao-vscode          # 生产构建（默认配置，含 Service Worker）
 pnpm nx test aiao-vscode           # 内核 + Angular 外壳单测（vitest）
 pnpm nx run aiao-vscode:test-browser  # 真实 Chromium 探针（Git / 预览 / Angular）
-pnpm nx e2e aiao-vscode-e2e        # Playwright e2e：四模板编辑 / 运行 / 提交 / 归档，按项目还原布局
+pnpm nx e2e aiao-vscode-e2e        # Playwright e2e：四模板编辑 / 运行 / 提交 / 归档，布局 / 草稿 / 偏好恢复与分组预览标签
 ```
 
 开发服务器与生产构建都需要 `assets` 目标先生成自托管资源（`public/browser-workbench-assets/`），Nx 已配置依赖。
