@@ -353,6 +353,7 @@ export function mountWorkbench(
       focusEditor(path);
     },
     onRefresh: () => action(refreshGit),
+    onContextMenu: (position, entries) => showContextMenu(position, entries),
     getSavedMessage: id => savedCommitMessages.get(id),
     onCommitMessage: (id, message) => {
       savedCommitMessages.set(id, message);
@@ -2090,7 +2091,8 @@ export function mountWorkbench(
     const entries: readonly MenuEntry[] =
       sideView === 'git' ?
         [
-          { label: '刷新', id: 'refresh-tree', action: () => refreshGit() },
+          ...scm.getMenuEntries(),
+          SEPARATOR,
           {
             label: '始终显示操作',
             id: 'always-show-actions',

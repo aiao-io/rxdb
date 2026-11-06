@@ -1,20 +1,31 @@
-// Node ≥ 26 直跑：node deploy/verify-functions.mjs
-// 校验 /redirect 与 token 交换 / 撤销两个 Pages Function 的请求 → 响应行为。
+// 通过 pnpm nx run aiao-vscode:verify-functions 运行。
+// 校验 /redirect 与 OAuth 配置 / token 交换 / 撤销的请求 → 响应行为。
 import assert from 'node:assert/strict';
-import { onRequestPost } from './functions/api/github-token.ts';
+import * as githubToken from './functions/api/github-token.ts';
+import { onRequestPost as onRequestRevoke } from './functions/api/github-token/delete.ts';
 import { onRequestGet } from './functions/redirect.ts';
 
 const ORIGIN = 'https://ide.example';
 const ENV = { GITHUB_CLIENT_ID: 'client-1', GITHUB_CLIENT_SECRET: 'secret-1' };
 
 const get = (path, origin = ORIGIN) => onRequestGet({ request: new Request(`${origin}${path}`), env: {} });
+const getConfig = (env = ENV) =>
+  githubToken.onRequestGet({ request: new Request(`${ORIGIN}/api/github-token`), env });
 const post = (path, body, env = ENV, origin = ORIGIN) =>
-  onRequestPost({
+  githubToken.onRequestPost({
     request: new Request(`${origin}${path}`, {
       method: 'POST',
       body: typeof body === 'string' ? body : JSON.stringify(body)
     }),
     env
+  });
+const revoke = body =>
+  onRequestRevoke({
+    request: new Request(`${ORIGIN}/api/github-token/delete`, {
+      method: 'POST',
+      body: JSON.stringify(body)
+    }),
+    env: ENV
   });
 
 const results = [];
@@ -48,6 +59,28 @@ await check('redirect: 拒绝跨源与非法 state（开放重定向防护）', 
   assert.equal((await get('/redirect?code=abc&state=https%3A%2F%2Fevil.example%2Fx')).status, 400);
   assert.equal((await get('/redirect?code=abc&state=' + encodeURIComponent(`${ORIGIN}/elsewhere`))).status, 400);
   assert.equal((await get('/redirect?code=abc&state=not-a-url')).status, 400);
+});
+
+await check('config: 仅公开 clientId，禁用缓存且不泄漏 secret', async () => {
+  const response = await getConfig();
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('Cache-Control'), 'no-store');
+  assert.deepEqual(await response.json(), { clientId: 'client-1' });
+});
+
+await check('config: 不要求 client secret，去除 clientId 首尾空白', async () => {
+  const response = await getConfig({ GITHUB_CLIENT_ID: ' client-1 ' });
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { clientId: 'client-1' });
+});
+
+await check('config: 缺失、空白或占位 clientId 返回 503', async () => {
+  for (const clientId of [undefined, '', '   ', 'pending-aiao-vscode-oauth-app']) {
+    const response = await getConfig({ GITHUB_CLIENT_ID: clientId, GITHUB_CLIENT_SECRET: 'secret-1' });
+    assert.equal(response.status, 503);
+    assert.equal(response.headers.get('Cache-Control'), 'no-store');
+    assert.deepEqual(await response.json(), { error: 'GitHub OAuth client ID is not configured on this deployment' });
+  }
 });
 
 await check('exchange: 用 secret 交换授权码并返回 access_token', async () => {
@@ -111,7 +144,7 @@ await check('revoke: 带 Basic 认证调用 token 删除 API', async () => {
     return new Response(null, { status: 204 });
   };
   try {
-    const response = await post('/api/github-token/delete', { token: 'gho_abc' });
+    const response = await revoke({ token: 'gho_abc' });
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), { ok: true });
     assert.equal(upstream[0].input, 'https://api.github.com/applications/client-1/token');
@@ -124,7 +157,7 @@ await check('revoke: 带 Basic 认证调用 token 删除 API', async () => {
 });
 
 await check('revoke: 缺 token 返回 400', async () => {
-  assert.equal((await post('/api/github-token/delete', {})).status, 400);
+  assert.equal((await revoke({})).status, 400);
 });
 
 console.log(results.join('\n'));

@@ -17,6 +17,7 @@ const output = join(import.meta.dirname, '../benchmarks');
 await mkdir(output, { recursive: true });
 const reportPath = join(output, `browser-workbench-scm-${host}.json`);
 const screenshot = join(output, `browser-workbench-scm-${host}.png`);
+const changesScreenshot = join(output, `browser-workbench-scm-changes-${host}.png`);
 const temporary = await mkdtemp(join(tmpdir(), 'aiao-scm-ux-'));
 const context = await chromium.launchPersistentContext(join(temporary, 'profile'), {
   headless: true,
@@ -59,6 +60,7 @@ const markers = {
   staged: 'scm-staged-one',
   working: 'scm-working-two',
   discarded: 'scm-discard-saved',
+  bulk: 'scm-bulk-discard',
   unsaved: 'scm-discard-unsaved',
   other: 'scm-other-draft'
 };
@@ -90,8 +92,58 @@ function row(path, kind) {
 function fileAction(path, kind, action) {
   return row(path, kind).locator('..').locator(`[data-scm-action="${action}"]`);
 }
+async function clickFileAction(path, kind, action) {
+  await row(path, kind).hover();
+  await fileAction(path, kind, action).click();
+}
 async function count(kind, value) {
   await expect(scm.locator(`[data-scm-count="${kind}"]`)).toHaveText(String(value), { timeout: 30000 });
+}
+
+async function scmMenu(id) {
+  await root.locator('.wb-side-actions[data-view="git"] [data-action="more-actions"]').click();
+  const item = root.locator(`[role="menu"] [data-menu-id="${id}"]`);
+  await expect(item).toBeVisible();
+  return item;
+}
+
+async function verifyScmLayout() {
+  await step('vscode-scm-list-tree-sort-and-commit-layout', async () => {
+    const input = scm.getByRole('textbox', { name: '提交说明', exact: true });
+    const commit = scm.getByRole('button', { name: '提交已暂存内容', exact: true });
+    const inputBounds = await input.boundingBox();
+    const commitBounds = await commit.boundingBox();
+    assert(inputBounds && commitBounds);
+    assert(commitBounds.y >= inputBounds.y + inputBounds.height);
+    assert(Math.abs(commitBounds.width - inputBounds.width) <= 1);
+    await expect(scm.locator('.wb-scm-folder')).toHaveCount(0);
+    await expect(scm.locator('[data-scm-group="staged"]')).toBeHidden();
+    await expect(await scmMenu('scm-view-list')).toHaveAttribute('aria-checked', 'true');
+    await page.keyboard.press('Escape');
+    await (await scmMenu('scm-view-tree')).click();
+    const folder = scm.locator('[data-scm-group="working"] button.wb-scm-folder').filter({ hasText: /^src$/ });
+    await expect(folder).toHaveAttribute('aria-expanded', 'true');
+    await folder.click();
+    await expect(folder).toHaveAttribute('aria-expanded', 'false');
+    await expect(row(a, 'working')).toBeHidden();
+    await root.locator('.wb-side-actions[data-view="git"] [data-action="refresh-tree"]').click();
+    await expect(folder).toHaveAttribute('aria-expanded', 'false');
+    await folder.click();
+    await expect(row(a, 'working')).toBeVisible();
+    await (await scmMenu('scm-view-list')).click();
+    await expect(scm.locator('.wb-scm-folder')).toHaveCount(0);
+    await (await scmMenu('scm-sort-name')).click();
+    await expect(await scmMenu('scm-sort-name')).toHaveAttribute('aria-checked', 'true');
+    await page.keyboard.press('Escape');
+    await (await scmMenu('scm-sort-path')).click();
+    const layout = await row(a, 'working').locator('..').evaluate(element => ({
+      actions: [...element.querySelectorAll('[data-scm-action]')].map(button => button.dataset.scmAction),
+      lastIsStatus: element.lastElementChild?.classList.contains('wb-scm-status')
+    }));
+    assert.deepEqual(layout.actions, ['open', 'discard', 'stage']);
+    assert.equal(layout.lastIsStatus, true);
+    report.layout = { input: inputBounds, commit: commitBounds, ...layout };
+  });
 }
 
 async function openFile(path) {
@@ -179,7 +231,7 @@ try {
   await page.goto(url);
   root = page.getByRole('region', { name: '浏览器开发工作台', exact: true });
   await expect(root).toBeVisible({ timeout: 30000 });
-  await expect(root.locator('[data-slot="save-status"]')).toContainText('已保存', { timeout: 30000 });
+  await expect(root.locator('[data-slot="save-status"]')).toContainText('尚未打开项目', { timeout: 30000 });
   scm = root.locator('[data-slot="scm"]');
   await step('fresh-profile-project-and-initial-index-commit', async () => {
     await root.getByRole('button', { name: '应用程序菜单', exact: true }).click();
@@ -193,15 +245,19 @@ try {
       { timeout: 30000 }
     );
     await sidebar('git');
+    await verifyScmLayout();
     const button = scm.getByRole('button', { name: '暂存所有更改', exact: true });
     await expect(button).toBeEnabled();
     assert.equal(await button.locator('button').count(), 0);
     await button.click();
     await count('working', 0);
+    await expect(scm.locator('[data-scm-group="working"]')).toBeHidden();
     await expect
       .poll(async () => Number(await scm.locator('[data-scm-count="staged"]').textContent()))
       .toBeGreaterThan(5);
     await commit('scm-ux initial snapshot');
+    await expect(scm.locator('.wb-scm-empty')).toBeVisible();
+    await expect(scm.locator('.wb-scm-empty')).toContainText('没有更改');
   });
 
   await openFile(a);
@@ -221,7 +277,7 @@ try {
   });
 
   await step('per-file-stage-and-exact-staged-versus-working-diffs', async () => {
-    await fileAction(a, 'working', 'stage').click();
+    await clickFileAction(a, 'working', 'stage');
     await count('staged', 1);
     await count('working', 0);
     await replace(a, workingA);
@@ -229,6 +285,8 @@ try {
     await sidebar('git');
     await count('working', 1);
     await count('staged', 1);
+    await page.screenshot({ path: changesScreenshot, fullPage: true });
+    report.changesScreenshot = changesScreenshot;
     const stagedView = await diff(a, 'staged');
     await expect(stagedView.base).not.toContainText(markers.staged);
     await expect(stagedView.modified).toContainText(markers.staged);
@@ -240,10 +298,10 @@ try {
   });
 
   await step('per-file-unstage-and-index-only-mod-enter-commit-with-other-draft', async () => {
-    await fileAction(a, 'staged', 'unstage').click();
+    await clickFileAction(a, 'staged', 'unstage');
     await count('staged', 0);
     await count('working', 1);
-    await fileAction(a, 'working', 'stage').click();
+    await clickFileAction(a, 'working', 'stage');
     await count('staged', 1);
     await count('working', 0);
     await replace(b, `${originalB}\nconsole.log(${JSON.stringify(markers.other)});\n`);
@@ -267,13 +325,13 @@ try {
     await count('working', 1);
     await expect(fileAction(a, 'working', 'stage')).toBeDisabled();
     await expect(fileAction(a, 'working', 'discard')).toBeEnabled();
-    await fileAction(a, 'working', 'discard').click();
+    await clickFileAction(a, 'working', 'discard');
     await expect(page.getByRole('dialog')).toContainText('未保存的编辑也会被丢弃');
     await page.getByRole('dialog').getByRole('button', { name: '取消', exact: true }).click();
     await openFile(a);
     await expect(editor(a)).toContainText(markers.unsaved);
     await sidebar('git');
-    await fileAction(a, 'working', 'discard').click();
+    await clickFileAction(a, 'working', 'discard');
     await page.getByRole('dialog').getByRole('button', { name: '丢弃更改', exact: true }).click();
     await count('working', 0);
     await openFile(a);
@@ -288,22 +346,60 @@ try {
 
   await step('untracked-file-delete-requires-explicit-confirmation', async () => {
     const path = 'src/untracked-scm.ts';
-    await sidebar('explorer');
-    await root.getByRole('button', { name: '新建文件', exact: true }).click();
-    await page.getByRole('textbox', { name: '文件路径', exact: true }).fill(path);
-    await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
+    await openFile(b);
+    await root.locator('[data-tree-section="workspace"]').hover();
+    await root.getByRole('button', { name: '新建文件...', exact: true }).click();
+    const filename = root.getByRole('textbox', { name: '新建文件', exact: true });
+    await filename.fill('untracked-scm.ts');
+    await filename.press('Enter');
     await expect(editor(path)).toBeVisible();
     await editor(path).focus();
     await page.keyboard.insertText('export const untracked = 1;\n');
     await save(path);
     await sidebar('git');
     await count('working', 1);
-    await fileAction(path, 'working', 'discard').click();
+    await clickFileAction(path, 'working', 'discard');
     await page.getByRole('dialog').getByRole('button', { name: '取消', exact: true }).click();
     await expect(row(path, 'working')).toBeVisible();
-    await fileAction(path, 'working', 'discard').click();
+    await clickFileAction(path, 'working', 'discard');
     await page.getByRole('dialog').getByRole('button', { name: '删除文件', exact: true }).click();
     await count('working', 0);
+    await openFile(b);
+    await expect(editor(b)).toContainText(markers.other);
+    await expect(dirty(b)).toBeVisible();
+  });
+
+  await step('bulk-discard-confirms-once-and-preserves-other-unsaved-draft', async () => {
+    const stylesheet = 'src/style.css';
+    await openFile(stylesheet);
+    const originalStylesheet = await source(stylesheet);
+    await replace(a, `${workingA}\nexport const bulkDiscarded = ${JSON.stringify(markers.bulk)};\n`);
+    await save(a);
+    await replace(stylesheet, `${originalStylesheet}\n.scm-bulk-discard { color: red; }\n`);
+    await save(stylesheet);
+    await expect(dirty(b)).toBeVisible();
+    await sidebar('git');
+    await count('working', 2);
+    await (await scmMenu('scm-discard-all')).click();
+    await expect(page.getByRole('dialog')).toHaveCount(1);
+    await expect(page.getByRole('dialog')).toContainText('2 个文件');
+    await page.getByRole('dialog').getByRole('button', { name: '取消', exact: true }).click();
+    await count('working', 2);
+    const cancelled = await diff(a, 'working');
+    await expect(cancelled.modified).toContainText(markers.bulk);
+    await (await scmMenu('scm-discard-all')).click();
+    await expect(page.getByRole('dialog')).toHaveCount(1);
+    await page.getByRole('dialog').getByRole('button', { name: '丢弃所有更改', exact: true }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await count('working', 0);
+    await expect(scm.locator('.wb-scm-empty')).toBeVisible();
+    await openFile(a);
+    await expect(editor(a)).not.toContainText(markers.bulk);
+    await expect(editor(a)).toContainText(markers.working);
+    await expect(dirty(a)).toBeHidden();
+    await openFile(stylesheet);
+    assert.equal(await source(stylesheet), originalStylesheet);
+    await expect(dirty(stylesheet)).toBeHidden();
     await openFile(b);
     await expect(editor(b)).toContainText(markers.other);
     await expect(dirty(b)).toBeVisible();

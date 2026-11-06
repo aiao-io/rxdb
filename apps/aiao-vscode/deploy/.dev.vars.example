@@ -1,4 +1,4 @@
 # 复制为 .dev.vars（已被 deploy/.gitignore 忽略）供 wrangler pages dev 本地联调；
-# 生产环境用 `wrangler secret put GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET` 注入。
+# 生产环境用 `wrangler pages secret put` 分别注入下列配置。
 GITHUB_CLIENT_ID = "your-github-oauth-client-id"
 GITHUB_CLIENT_SECRET = "your-github-oauth-client-secret"

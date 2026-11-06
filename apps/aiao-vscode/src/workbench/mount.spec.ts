@@ -867,10 +867,29 @@ describe('VS Code 风格工作台', () => {
     expect((host.querySelector('.wb-side-actions[data-view="git"]') as HTMLElement).hidden).toBe(false);
     expect((host.querySelector('.wb-side-actions[data-view="explorer"]') as HTMLElement).hidden).toBe(true);
     await click(host, '[data-action="more-actions"]');
-    expect([...host.querySelectorAll<HTMLElement>('.wb-context-menu button')].map(item => item.textContent)).toEqual([
-      '刷新',
-      '始终显示操作'
-    ]);
+    const scmMenu = host.querySelector<HTMLElement>('.wb-context-menu');
+    if (!scmMenu) throw new Error('源代码管理菜单缺失');
+    expect([...scmMenu.querySelectorAll<HTMLElement>('button')].map(item => item.dataset['menuId'])).toEqual(
+      expect.arrayContaining([
+        'scm-stage-all',
+        'scm-unstage-all',
+        'scm-discard-all',
+        'scm-refresh',
+        'scm-collapse-all',
+        'always-show-actions'
+      ])
+    );
+    for (const [id, checked] of [
+      ['scm-view-list', 'true'],
+      ['scm-view-tree', 'false'],
+      ['scm-sort-path', 'true'],
+      ['scm-sort-name', 'false'],
+      ['scm-sort-status', 'false']
+    ]) {
+      const item = menuItem(scmMenu, id);
+      expect(item.getAttribute('role')).toBe('menuitemcheckbox');
+      expect(item.getAttribute('aria-checked')).toBe(checked);
+    }
     host
       .querySelector<HTMLElement>('.wb-context-menu [data-menu-id="always-show-actions"]')
       ?.dispatchEvent(new Event('click', { bubbles: true }));
@@ -1020,6 +1039,42 @@ describe('VS Code 风格工作台', () => {
     const before = vi.mocked(backend.status).mock.calls.length;
     await click(host, '[data-action="refresh-tree"]');
     await vi.waitFor(() => expect(vi.mocked(backend.status).mock.calls.length).toBeGreaterThan(before));
+    handle.dispose();
+  });
+
+  it('SCM 文件右键菜单通过宿主打开差异、打开文件和暂存更改', async () => {
+    const { host, handle, backend } = fixture();
+    await handle.ready;
+    vi.mocked(backend.status).mockResolvedValue({
+      branch: 'main',
+      head: 'a'.repeat(40),
+      entries: [{ path: 'src/label.ts', index: ' ', worktree: 'M' }]
+    });
+    await click(host, '[data-action="git"]');
+    const openMenu = async (): Promise<HTMLElement> => {
+      const file = await vi.waitFor(() => {
+        const row = host.querySelector<HTMLElement>('[data-scm-path="src/label.ts"]');
+        if (!row) throw new Error('源代码管理文件行缺失');
+        return row;
+      });
+      file.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 80, clientY: 120 }));
+      const menu = host.querySelector<HTMLElement>('.wb-context-menu');
+      if (!menu) throw new Error('源代码管理文件菜单缺失');
+      return menu;
+    };
+    const choose = async (label: string): Promise<void> => {
+      const menu = await openMenu();
+      const item = [...menu.querySelectorAll<HTMLButtonElement>('button')].find(button => button.textContent === label);
+      if (!item) throw new Error(`源代码管理操作缺失：${label}`);
+      expect(item.disabled).toBe(false);
+      item.click();
+    };
+    await choose('打开更改');
+    await vi.waitFor(() => expect(backend.readDiff).toHaveBeenCalledWith('one', 'src/label.ts', 'working'));
+    await choose('打开文件 src/label.ts');
+    await vi.waitFor(() => expect(handle.session.state.activePath).toBe('src/label.ts'));
+    await choose('暂存更改 src/label.ts');
+    await vi.waitFor(() => expect(backend.stage).toHaveBeenCalledWith('one', ['src/label.ts']));
     handle.dispose();
   });
 

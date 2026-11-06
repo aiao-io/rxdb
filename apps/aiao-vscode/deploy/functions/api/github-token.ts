@@ -4,10 +4,23 @@ interface PagesContext {
   readonly env: Record<string, string | undefined>;
 }
 
+/** 返回发起 OAuth 所需的公开 Client ID；secret 始终留在服务端。 */
+export function onRequestGet({ env }: PagesContext): Response {
+  const clientId = env['GITHUB_CLIENT_ID']?.trim();
+  const headers = { 'Cache-Control': 'no-store' };
+  if (!clientId || clientId === 'pending-aiao-vscode-oauth-app') {
+    return Response.json(
+      { error: 'GitHub OAuth client ID is not configured on this deployment' },
+      { status: 503, headers }
+    );
+  }
+  return Response.json({ clientId }, { headers });
+}
+
 /**
  * POST /api/github-token：用服务端持有的 client secret 交换授权码；
  * POST /api/github-token/delete：服务端撤销 OAuth token。
- * secret 经 `wrangler secret put` 注入，永不进入前端或仓库。
+ * secret 经 `wrangler pages secret put` 注入，永不进入前端或仓库。
  */
 export async function onRequestPost(context: PagesContext): Promise<Response> {
   const url = new URL(context.request.url);
@@ -16,7 +29,7 @@ export async function onRequestPost(context: PagesContext): Promise<Response> {
 }
 
 function credentials(env: PagesContext['env']): { clientId: string; clientSecret: string } | Response {
-  const clientId = env['GITHUB_CLIENT_ID'];
+  const clientId = env['GITHUB_CLIENT_ID']?.trim();
   const clientSecret = env['GITHUB_CLIENT_SECRET'];
   if (!clientId || !clientSecret) {
     return new Response('GitHub OAuth credentials are not configured on this deployment', { status: 500 });

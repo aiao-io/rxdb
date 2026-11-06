@@ -1,63 +1,71 @@
 import type { WorkbenchBackend, WorkbenchSession, WorkbenchSnapshot, WorkbenchStatus } from './session.js';
 import { confirmWorkbenchAction } from './workbench-dialog.js';
-import { createCodicon, createFileIcon, type CodiconName } from './workbench-icons.js';
+import { createCodicon } from './workbench-icons.js';
+import {
+  renderScmResources,
+  scmActionButton,
+  scmFileAction,
+  type ScmEntry,
+  type ScmFileAction,
+  type ScmGroup,
+  type WorkbenchScmSortKey,
+  type WorkbenchScmViewMode
+} from './workbench-scm-resources.js';
 
 /** SCM 文件点击请求，由宿主打开对应差异编辑器。 */
 export interface WorkbenchDiffRequest {
   readonly path: string;
-  readonly kind: 'working' | 'staged';
+  readonly kind: ScmGroup;
 }
+
+/** 源代码管理复用宿主的上下文菜单。 */
+export type WorkbenchScmMenuEntry =
+  | {
+      readonly label: string;
+      readonly id?: string;
+      readonly disabled?: boolean;
+      readonly checked?: boolean;
+      readonly action: () => void | Promise<unknown>;
+    }
+  | { readonly separator: true };
 
 /** 源代码管理视图使用已保存的工作区和真实 Git 暂存区。 */
 export interface WorkbenchScmOptions {
   readonly backend: WorkbenchBackend;
   readonly session: WorkbenchSession;
   onOpenDiff(request: WorkbenchDiffRequest): void | Promise<void>;
-  /** 用户点击文件行上的「打开文件」操作时请求宿主打开编辑器。 */
   onOpenFile(path: string): void | Promise<void>;
   onError(cause: unknown): void;
   onDidChange(snapshot?: WorkbenchSnapshot, paths?: readonly string[]): void | Promise<void>;
-  /** 用户点击刷新按钮时重新读取 Git 状态。 */
   onRefresh?(): void | Promise<void>;
-  /** 重开项目时回填上一次的提交说明。 */
+  onContextMenu?(position: { x: number; y: number }, entries: readonly WorkbenchScmMenuEntry[]): void;
   getSavedMessage?(projectId: string): string | undefined;
-  /** 提交成功后上报说明，宿主据此持久化。 */
   onCommitMessage?(projectId: string, message: string): void;
 }
 
-/** 宿主统一刷新状态，视图只负责明确的文件和提交动作。 */
+/** 宿主统一刷新状态，视图负责明确的文件、提交和展示操作。 */
 export interface WorkbenchScm {
   update(status: WorkbenchStatus): void;
   setBusy(busy: boolean): void;
-  /** 对齐 VS Code「视图和更多操作」：悬停显示的内联操作改为始终显示。 */
   setAlwaysShowActions(enabled: boolean): void;
-  /** 重开项目后回填持久化的提交说明。 */
+  setViewMode(mode: WorkbenchScmViewMode): void;
+  setSortKey(key: WorkbenchScmSortKey): void;
+  getMenuEntries(): readonly WorkbenchScmMenuEntry[];
   restoreMessage(message: string): void;
   commit(): Promise<void>;
   dispose(): void;
 }
 
-type Entry = WorkbenchStatus['entries'][number];
 type MutationResult = {
   readonly changed?: boolean;
   readonly snapshot?: WorkbenchSnapshot;
   readonly paths?: readonly string[];
 } | void;
-type FileAction = 'stage' | 'unstage' | 'discard';
-const stagedEntry = (entry: Entry): boolean => /^[MADRCT]$/.test(entry.index);
-const workingEntry = (entry: Entry): boolean => /^[MDRT?]$/.test(entry.worktree);
+const stagedEntry = (entry: ScmEntry): boolean => /^[MADRCT]$/.test(entry.index);
+const workingEntry = (entry: ScmEntry): boolean => /^[MDRT?]$/.test(entry.worktree);
+const separator = { separator: true } as const;
 
-function actionButton(action: string, label: string, icon: CodiconName): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.dataset['scmAction'] = action;
-  button.setAttribute('aria-label', label);
-  button.title = label;
-  button.append(createCodicon(icon));
-  return button;
-}
-
-function changeGroup(kind: 'working' | 'staged', title: string) {
+function changeGroup(kind: ScmGroup, title: string) {
   const section = document.createElement('section');
   section.className = 'wb-scm-group';
   section.dataset['scmGroup'] = kind;
@@ -74,10 +82,12 @@ function changeGroup(kind: 'working' | 'staged', title: string) {
   count.textContent = '0';
   const list = document.createElement('div');
   list.className = 'wb-scm-list';
+  list.setAttribute('role', 'tree');
+  list.setAttribute('aria-label', title);
   const heading = document.createElement('div');
   heading.className = 'wb-scm-group-heading';
-  header.append(chevron, label, count);
-  heading.append(header);
+  header.append(chevron, label);
+  heading.append(header, count);
   section.append(heading, list);
   header.onclick = event => {
     event.stopPropagation();
@@ -87,7 +97,7 @@ function changeGroup(kind: 'working' | 'staged', title: string) {
     chevron.replaceWith(next);
     chevron = next;
   };
-  return { section, list, count, heading };
+  return { section, list, count, heading, header };
 }
 
 /** 挂载暂存、更改和提交说明；不会自动保存或自动暂存编辑缓冲。 */
@@ -98,10 +108,11 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
   const form = document.createElement('form');
   form.className = 'wb-scm-commit-form';
   const message = document.createElement('textarea');
-  message.rows = 3;
+  message.rows = 1;
   message.setAttribute('aria-label', '提交说明');
-  message.placeholder = '消息 (⌘ / Ctrl + Enter 提交)';
-  const commitButton = actionButton('commit', '提交已暂存内容', 'check');
+  const shortcut = /mac/i.test(host.ownerDocument.defaultView?.navigator.platform ?? '') ? '⌘' : 'Ctrl';
+  message.placeholder = `消息 (${shortcut}+Enter 提交)`;
+  const commitButton = scmActionButton('commit', '提交已暂存内容', 'check');
   commitButton.className = 'wb-primary wb-scm-commit';
   const caption = document.createElement('span');
   caption.textContent = '提交';
@@ -116,28 +127,41 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
   const hint = document.createElement('p');
   hint.className = 'wb-scm-hint';
   hint.setAttribute('role', 'status');
-  form.append(message, hint);
+  form.append(message, toolbar, hint);
   const staged = changeGroup('staged', '暂存的更改');
   const working = changeGroup('working', '更改');
-  const stageAll = actionButton('stage-all', '暂存所有更改', 'add');
-  const unstageAll = actionButton('unstage-all', '取消暂存所有更改', 'remove');
-  working.heading.append(stageAll);
-  staged.heading.append(unstageAll);
+  const stageAll = scmActionButton('stage-all', '暂存所有更改', 'add');
+  const unstageAll = scmActionButton('unstage-all', '取消暂存所有更改', 'remove');
+  const discardAll = scmActionButton('discard-all', '丢弃所有更改', 'discard');
+  working.heading.insertBefore(discardAll, working.count);
+  working.heading.insertBefore(stageAll, working.count);
+  staged.heading.insertBefore(unstageAll, staged.count);
   const intro = document.createElement('p');
   intro.className = 'wb-scm-intro';
   intro.hidden = true;
-  intro.textContent = '这是新仓库：暂存全部更改并填写说明，创建首次提交。';
-  element.append(intro, toolbar, form, working.section, staged.section);
+  intro.textContent = '暂存更改并填写说明，创建首次提交。';
+  const empty = document.createElement('p');
+  empty.className = 'wb-scm-empty';
+  empty.setAttribute('role', 'status');
+  element.append(intro, form, staged.section, working.section, empty);
   host.replaceChildren(element);
-  const controls: { button: HTMLButtonElement; path: string; action: FileAction }[] = [];
   let status: WorkbenchStatus | null = null;
   let projectId = options.session.state.projectId;
   let generation = 0;
   let repoBusy = false;
   let externalBusy = false;
   let disposed = false;
+  let viewMode: WorkbenchScmViewMode = 'list';
+  let sortKey: WorkbenchScmSortKey = 'path';
+  let selected: string | null = null;
+  const collapsed = new Set<string>();
   const commitHistory = new Map<string, string[]>();
   let historyIndex = -1;
+  let historyDraft = '';
+
+  function entries(kind: ScmGroup): readonly ScmEntry[] {
+    return status?.entries.filter(kind === 'working' ? workingEntry : stagedEntry) ?? [];
+  }
 
   function historyFor(id: string): string[] {
     const history = commitHistory.get(id);
@@ -147,34 +171,54 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
     return created;
   }
 
-  function replayHistory(direction: -1 | 1): void {
+  function resizeMessage(): void {
+    message.style.height = 'auto';
+    message.style.height = `${Math.min(134, Math.max(26, message.scrollHeight))}px`;
+  }
+
+  function replayHistory(direction: -1 | 1): boolean {
     const history = historyFor(projectId ?? '');
-    if (!history.length) return;
+    if (!history.length || (direction === -1 && historyIndex === -1)) return false;
+    if (historyIndex === -1) historyDraft = message.value;
     historyIndex = Math.min(history.length - 1, Math.max(-1, historyIndex + direction));
-    message.value = historyIndex === -1 ? '' : history[history.length - 1 - historyIndex];
+    message.value = historyIndex === -1 ? historyDraft : history[history.length - 1 - historyIndex];
+    const cursor = direction === 1 ? 0 : message.value.length;
+    message.setSelectionRange(cursor, cursor);
+    resizeMessage();
     syncControls();
+    return true;
+  }
+
+  function busy(): boolean {
+    return repoBusy || externalBusy;
   }
 
   function syncControls(): void {
     if (disposed) return;
-    const busy = repoBusy || externalBusy;
-    message.disabled = busy || !projectId;
-    const hasStaged = status?.entries.some(stagedEntry) ?? false;
-    const changes = status?.entries.filter(workingEntry) ?? [];
+    message.disabled = busy() || !projectId;
+    form.hidden = !projectId;
+    const hasStaged = entries('staged').length > 0;
+    const changes = entries('working');
     const unsavedChanges = changes.some(entry => options.session.isModified(entry.path));
-    stageAll.disabled = busy || !projectId || !changes.length || unsavedChanges;
+    stageAll.disabled = busy() || !projectId || !changes.length || unsavedChanges;
     stageAll.title = unsavedChanges ? '部分文件有未保存的编辑，请先保存' : '暂存所有更改';
-    unstageAll.disabled = busy || !projectId || !hasStaged;
-    commitButton.disabled = busy || !projectId || !hasStaged || !message.value.trim();
+    unstageAll.disabled = busy() || !projectId || !hasStaged;
+    discardAll.disabled = busy() || !projectId || !changes.length;
+    commitButton.disabled = busy() || !projectId || !hasStaged || !message.value.trim();
     commitButton.title =
       !hasStaged ? '没有暂存的更改'
       : !message.value.trim() ? '请填写提交说明'
       : '提交已暂存内容';
     hint.textContent = options.session.state.dirty ? '提交仅包含暂存区；未保存的编辑不会被提交。' : '';
     hint.hidden = !hint.textContent;
-    for (const control of controls)
-      control.button.disabled =
-        busy || !projectId || (control.action === 'stage' && options.session.isModified(control.path));
+    for (const button of element.querySelectorAll<HTMLButtonElement>('[data-scm-target]')) {
+      const path = button.dataset['scmTarget'] ?? '';
+      const action = button.dataset['scmAction'];
+      button.disabled =
+        action === 'open' ?
+          !(path in options.session.state.files)
+        : busy() || !projectId || (action === 'stage' && options.session.isModified(path));
+    }
   }
 
   function launch(operation: () => Promise<void>): void {
@@ -187,7 +231,7 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
   async function mutate(operation: (id: string) => Promise<MutationResult>): Promise<void> {
     if (disposed) throw new Error('源代码管理已关闭');
     if (!projectId) throw new Error('请先打开项目');
-    if (repoBusy || externalBusy) throw new Error('Git 操作仍在进行');
+    if (busy()) throw new Error('Git 操作仍在进行');
     const expected = generation;
     const id = projectId;
     repoBusy = true;
@@ -204,192 +248,315 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
   }
 
   async function commit(): Promise<void> {
-    if (!status?.entries.some(stagedEntry)) throw new Error('没有暂存的更改');
+    if (!entries('staged').length) throw new Error('没有暂存的更改');
     if (!message.value.trim()) throw new Error('请填写提交说明');
     const original = message.value;
     const id = projectId;
+    const expected = generation;
     if (!id) throw new Error('请先打开项目');
     const trimmed = original.trim();
     await mutate(async current => {
       await options.backend.commit(current, trimmed);
     });
-    if (!disposed && projectId === id) {
+    if (!disposed && generation === expected && projectId === id) {
       const history = historyFor(id);
       if (history.at(-1) !== trimmed) history.push(trimmed);
       historyIndex = -1;
       options.onCommitMessage?.(id, trimmed);
       if (message.value === original) message.value = '';
     }
+    resizeMessage();
     syncControls();
   }
 
-  async function groupAction(kind: 'working' | 'staged'): Promise<void> {
+  async function groupAction(kind: ScmGroup): Promise<void> {
     await mutate(async id => {
-      const paths = [
-        ...new Set(
-          (status?.entries.filter(kind === 'working' ? workingEntry : stagedEntry) ?? []).map(entry => entry.path)
-        )
-      ];
+      const paths = [...new Set(entries(kind).map(entry => entry.path))];
       if (!paths.length) throw new Error(kind === 'working' ? '没有可暂存的更改' : '没有暂存的更改');
-      if (kind === 'staged') {
-        await options.backend.unstage(id, paths);
-        return;
-      }
+      if (kind === 'staged') return options.backend.unstage(id, paths);
       if (paths.some(path => options.session.isModified(path))) throw new Error('部分文件有未保存的编辑，请先保存');
       await options.backend.stage(id, paths);
     });
   }
 
-  async function fileAction(action: FileAction, entry: Entry): Promise<void> {
+  async function discardPaths(id: string, paths: readonly string[], expected: number): Promise<MutationResult> {
+    let snapshot: WorkbenchSnapshot | undefined;
+    const completed: string[] = [];
+    try {
+      for (const path of paths) {
+        if (disposed || generation !== expected || projectId !== id) return { changed: false };
+        snapshot = await options.backend.discardWorking(id, path);
+        if (disposed || generation !== expected || projectId !== id) return { changed: false };
+        completed.push(path);
+      }
+    } catch (cause) {
+      if (snapshot && !disposed && generation === expected && projectId === id)
+        await options.onDidChange(snapshot, completed);
+      throw cause;
+    }
+    return { snapshot, paths: completed };
+  }
+
+  async function discard(items: readonly ScmEntry[]): Promise<void> {
+    if (!items.length) return;
+    const expected = generation;
     await mutate(async id => {
-      if (action === 'unstage') {
-        await options.backend.unstage(id, [entry.path]);
-        return;
-      }
-      if (action === 'stage') {
-        if (options.session.isModified(entry.path)) throw new Error('此文件有未保存的编辑，请先保存');
-        await options.backend.stage(id, [entry.path]);
-        return;
-      }
+      const entry = items[0];
+      const multiple = items.length > 1;
       const untracked = entry.index === '?' && entry.worktree === '?';
-      const unsaved = options.session.isModified(entry.path) ? ' 此文件未保存的编辑也会被丢弃。' : '';
+      const title =
+        multiple ? '丢弃所有更改'
+        : untracked ? '删除未跟踪文件'
+        : '丢弃文件更改';
+      const description =
+        multiple ? `将丢弃 ${items.length} 个文件的更改。已跟踪文件恢复到暂存区版本，未跟踪文件将永久删除。`
+        : untracked ? `将永久删除 ${entry.path}。此文件尚未进入暂存区。`
+        : `将 ${entry.path} 恢复到暂存区版本。其他文件与已暂存内容保持不变。`;
+      const unsaved = items.some(item => options.session.isModified(item.path)) ? ' 未保存的编辑也会被丢弃。' : '';
       const confirmed = await confirmWorkbenchAction(
         host,
-        untracked ? '删除未跟踪文件' : '丢弃文件更改',
-        (untracked ?
-          `将永久删除 ${entry.path}。此文件尚未进入暂存区。`
-        : `将 ${entry.path} 恢复到暂存区版本。其他文件与已暂存内容保持不变。`) + unsaved,
-        untracked ? '删除文件' : '丢弃更改'
+        title,
+        description + unsaved,
+        multiple ? '丢弃所有更改'
+        : untracked ? '删除文件'
+        : '丢弃更改'
       );
-      if (!confirmed || disposed || projectId !== id) return { changed: false };
-      const snapshot = await options.backend.discardWorking(id, entry.path);
-      return { snapshot, paths: [entry.path] };
+      if (!confirmed || disposed || generation !== expected || projectId !== id) return { changed: false };
+      return discardPaths(id, [...new Set(items.map(item => item.path))], expected);
     });
   }
 
-  function row(entry: Entry, kind: 'working' | 'staged', display: string): HTMLElement {
-    const container = document.createElement('div');
-    container.className = 'wb-scm-change';
-    const file = document.createElement('button');
-    file.type = 'button';
-    file.className = 'wb-scm-file';
-    file.dataset['scmPath'] = entry.path;
-    file.title = entry.originalPath ? `${entry.originalPath} → ${entry.path}` : entry.path;
-    const name = document.createElement('span');
-    name.className = 'wb-scm-name';
-    name.textContent = display.split('/').at(-1) ?? display;
-    const directory = document.createElement('span');
-    directory.className = 'wb-scm-directory';
-    directory.textContent = display.includes('/') ? display.slice(0, display.lastIndexOf('/')) : '';
-    const decoration = document.createElement('span');
-    decoration.className = 'wb-scm-status';
-    const state = kind === 'staged' ? entry.index : entry.worktree;
-    const badge = state === '?' ? 'U' : state;
-    decoration.textContent = badge;
-    decoration.dataset['status'] = badge;
-    file.append(createFileIcon(entry.path), name, directory);
-    container.append(file, decoration);
-    file.onclick = event => {
-      event.stopPropagation();
-      launch(async () => {
-        await options.onOpenDiff({ path: entry.path, kind });
-      });
-    };
-    const open = actionButton('open', `打开文件 ${entry.path}`, 'go-to-file');
-    open.onclick = event => {
-      event.stopPropagation();
-      launch(() => Promise.resolve(options.onOpenFile(entry.path)));
-    };
-    container.append(open);
-    const actions = kind === 'staged' ? (['unstage'] as const) : (['stage', 'discard'] as const);
-    for (const action of actions) {
-      const untracked = entry.index === '?' && entry.worktree === '?';
-      const label =
-        action === 'stage' ? `暂存更改 ${entry.path}`
-        : action === 'unstage' ? `取消暂存 ${entry.path}`
-        : untracked ? `删除未跟踪文件 ${entry.path}`
-        : `丢弃更改 ${entry.path}`;
-      const button = actionButton(
-        action,
-        label,
-        action === 'stage' ? 'add'
-        : action === 'unstage' ? 'remove'
-        : 'discard'
-      );
-      button.onclick = event => {
-        event.stopPropagation();
-        launch(() => fileAction(action, entry));
-      };
-      controls.push({ button, path: entry.path, action });
-      container.append(button);
+  async function fileAction(action: ScmFileAction, entry: ScmEntry): Promise<void> {
+    if (action === 'open') {
+      await options.onOpenFile(entry.path);
+      return;
     }
-    return container;
+    if (action === 'discard') return discard([entry]);
+    await mutate(async id => {
+      if (action === 'unstage') return options.backend.unstage(id, [entry.path]);
+      if (options.session.isModified(entry.path)) throw new Error('此文件有未保存的编辑，请先保存');
+      await options.backend.stage(id, [entry.path]);
+    });
   }
 
-  /** 按目录树分组渲染条目；克隆只改展示路径，操作始终携带完整路径。 */
-  function appendRows(
-    list: HTMLElement,
-    items: readonly { entry: Entry; display: string }[],
-    kind: 'working' | 'staged',
-    depth: number
-  ): void {
-    const folders = new Map<string, { entry: Entry; display: string }[]>();
-    const direct: { entry: Entry; display: string }[] = [];
-    for (const item of items) {
-      const slash = item.display.indexOf('/');
-      if (slash === -1) direct.push(item);
-      else {
-        const folder = item.display.slice(0, slash);
-        const group = folders.get(folder) ?? [];
-        group.push({ entry: item.entry, display: item.display.slice(slash + 1) });
-        folders.set(folder, group);
+  function fileMenu(event: MouseEvent, entry: ScmEntry, kind: ScmGroup): void {
+    event.preventDefault();
+    event.stopPropagation();
+    const expected = generation;
+    const actions: readonly ScmFileAction[] = kind === 'staged' ? ['open', 'unstage'] : ['open', 'discard', 'stage'];
+    const menu: WorkbenchScmMenuEntry[] = [
+      {
+        label: '打开更改',
+        action: () => {
+          if (disposed || generation !== expected) return;
+          return options.onOpenDiff({ path: entry.path, kind });
+        }
       }
+    ];
+    for (const action of actions) {
+      const { label } = scmFileAction(action, entry);
+      const disabled =
+        action === 'open' ?
+          !(entry.path in options.session.state.files)
+        : busy() || (action === 'stage' && options.session.isModified(entry.path));
+      menu.push({
+        label,
+        disabled,
+        action: () => {
+          if (disposed || generation !== expected) return;
+          return fileAction(action, entry);
+        }
+      });
     }
-    for (const [folder, children] of [...folders.entries()].sort(([left], [right]) => left.localeCompare(right))) {
-      const folderRow = document.createElement('div');
-      folderRow.className = 'wb-scm-folder';
-      folderRow.style.paddingLeft = `${depth * 12}px`;
-      folderRow.append(createCodicon('chevron-down'));
-      const label = document.createElement('span');
-      label.textContent = folder;
-      folderRow.append(label);
-      list.append(folderRow);
-      appendRows(list, children, kind, depth + 1);
-    }
-    for (const item of direct) {
-      const entryRow = row(item.entry, kind, item.display);
-      entryRow.style.paddingLeft = `${depth * 12}px`;
-      list.append(entryRow);
+    options.onContextMenu?.({ x: event.clientX, y: event.clientY }, menu);
+  }
+
+  function visibleNodes(): HTMLButtonElement[] {
+    return [...element.querySelectorAll<HTMLButtonElement>('[data-scm-node]')].filter(
+      node => !node.closest('[hidden]')
+    );
+  }
+
+  function selectNode(node: HTMLButtonElement): void {
+    selected = node.dataset['scmNode'] ?? null;
+    for (const item of element.querySelectorAll<HTMLButtonElement>('[data-scm-node]')) {
+      item.tabIndex = item === node ? 0 : -1;
+      item.setAttribute('aria-selected', String(item === node));
     }
   }
 
   function render(): void {
-    controls.splice(0);
-    staged.list.replaceChildren();
-    working.list.replaceChildren();
-    const stagedEntries = status?.entries.filter(stagedEntry) ?? [];
-    const workingEntries = status?.entries.filter(workingEntry) ?? [];
-    intro.hidden = status === null || status.head !== null || workingEntries.length === 0;
-    staged.count.textContent = String(stagedEntries.length);
-    working.count.textContent = String(workingEntries.length);
-    staged.count.hidden = stagedEntries.length === 0;
-    working.count.hidden = workingEntries.length === 0;
-    appendRows(
-      staged.list,
-      stagedEntries.map(entry => ({ entry, display: entry.path })),
-      'staged',
-      0
-    );
-    appendRows(
-      working.list,
-      workingEntries.map(entry => ({ entry, display: entry.path })),
-      'working',
-      0
-    );
+    if (disposed) return;
+    const active = host.ownerDocument.activeElement;
+    const activeElement = active instanceof HTMLElement ? active : null;
+    const focusedRow = activeElement?.closest('.wb-scm-change');
+    const focusedNode = focusedRow?.querySelector<HTMLButtonElement>('[data-scm-node]') ?? activeElement;
+    const focusKey = focusedNode?.dataset['scmNode'];
+    const focusPath = focusedNode?.dataset['scmPath'];
+    const focusAction = activeElement?.dataset['scmAction'];
+    const focusIndex = visibleNodes().findIndex(node => node.dataset['scmNode'] === focusKey);
+    const resourceOptions = {
+      viewMode,
+      sortKey,
+      collapsed,
+      selected,
+      onOpen(entry: ScmEntry, kind: ScmGroup) {
+        launch(() => Promise.resolve(options.onOpenDiff({ path: entry.path, kind })));
+      },
+      onAction(action: ScmFileAction, entry: ScmEntry) {
+        launch(() => fileAction(action, entry));
+      },
+      onContextMenu: fileMenu,
+      onToggle: render
+    };
+    for (const [kind, group] of [
+      ['staged', staged],
+      ['working', working]
+    ] as const) {
+      const items = entries(kind);
+      group.section.hidden = !items.length;
+      group.count.textContent = String(items.length);
+      group.count.hidden = !items.length;
+      renderScmResources(group.list, items, kind, resourceOptions);
+    }
+    intro.hidden = status === null || status.head !== null || !entries('working').length;
+    empty.hidden = Boolean(status?.entries.length);
+    empty.textContent =
+      !projectId ? '请先打开项目以管理源代码。'
+      : status ? '没有更改'
+      : '正在读取更改…';
+    const nodes = visibleNodes();
+    const next =
+      nodes.find(node => node.dataset['scmNode'] === (focusKey ?? selected)) ??
+      (focusPath ? nodes.find(node => node.dataset['scmPath'] === focusPath) : undefined) ??
+      nodes[Math.min(Math.max(0, focusIndex), nodes.length - 1)];
     syncControls();
+    if (next) {
+      if (selected || focusKey) selectNode(next);
+      else next.tabIndex = 0;
+      const nextAction =
+        focusAction ?
+          [...(next.closest('.wb-scm-change')?.querySelectorAll<HTMLButtonElement>('[data-scm-action]') ?? [])].find(
+            button => button.dataset['scmAction'] === focusAction && !button.disabled
+          )
+        : undefined;
+      if (focusKey) (nextAction ?? next).focus();
+    } else if (focusKey) message.focus();
   }
 
-  message.oninput = syncControls;
+  function setViewMode(mode: WorkbenchScmViewMode): void {
+    viewMode = mode;
+    render();
+  }
+  function setSortKey(key: WorkbenchScmSortKey): void {
+    sortKey = key;
+    render();
+  }
+
+  function collapseAll(): void {
+    for (const folder of element.querySelectorAll<HTMLElement>('[data-scm-folder]'))
+      if (folder.dataset['scmNode']) collapsed.add(folder.dataset['scmNode']);
+    render();
+  }
+
+  function getMenuEntries(): readonly WorkbenchScmMenuEntry[] {
+    return [
+      { label: '提交已暂存内容', id: 'scm-commit', disabled: commitButton.disabled, action: commit },
+      { label: '暂存所有更改', id: 'scm-stage-all', disabled: stageAll.disabled, action: () => groupAction('working') },
+      {
+        label: '取消暂存所有更改',
+        id: 'scm-unstage-all',
+        disabled: unstageAll.disabled,
+        action: () => groupAction('staged')
+      },
+      {
+        label: '丢弃所有更改',
+        id: 'scm-discard-all',
+        disabled: discardAll.disabled,
+        action: () => discard(entries('working'))
+      },
+      { label: '刷新', id: 'scm-refresh', disabled: busy() || !projectId, action: () => options.onRefresh?.() },
+      separator,
+      { label: '以列表形式查看', id: 'scm-view-list', checked: viewMode === 'list', action: () => setViewMode('list') },
+      { label: '以树形式查看', id: 'scm-view-tree', checked: viewMode === 'tree', action: () => setViewMode('tree') },
+      separator,
+      {
+        label: '按路径排序',
+        id: 'scm-sort-path',
+        checked: sortKey === 'path',
+        disabled: viewMode === 'tree',
+        action: () => setSortKey('path')
+      },
+      {
+        label: '按名称排序',
+        id: 'scm-sort-name',
+        checked: sortKey === 'name',
+        disabled: viewMode === 'tree',
+        action: () => setSortKey('name')
+      },
+      {
+        label: '按状态排序',
+        id: 'scm-sort-status',
+        checked: sortKey === 'status',
+        disabled: viewMode === 'tree',
+        action: () => setSortKey('status')
+      },
+      {
+        label: '折叠全部',
+        id: 'scm-collapse-all',
+        disabled: viewMode !== 'tree' || !status?.entries.length,
+        action: collapseAll
+      }
+    ];
+  }
+
+  element.addEventListener('focusin', event => {
+    const node = event.target;
+    if (!(node instanceof HTMLButtonElement)) return;
+    const resource =
+      node.dataset['scmNode'] ?
+        node
+      : node.closest('.wb-scm-change')?.querySelector<HTMLButtonElement>('[data-scm-node]');
+    if (resource) selectNode(resource);
+  });
+  element.onkeydown = event => {
+    const node = event.target;
+    if (
+      !(node instanceof HTMLButtonElement) ||
+      !node.dataset['scmNode'] ||
+      event.altKey ||
+      event.ctrlKey ||
+      event.metaKey ||
+      event.shiftKey
+    )
+      return;
+    const nodes = visibleNodes();
+    const index = nodes.indexOf(node);
+    let next: HTMLButtonElement | undefined;
+    if (event.key === 'ArrowDown') next = nodes[Math.min(nodes.length - 1, index + 1)];
+    else if (event.key === 'ArrowUp') next = nodes[Math.max(0, index - 1)];
+    else if (event.key === 'Home') next = nodes[0];
+    else if (event.key === 'End') next = nodes.at(-1);
+    else if (event.key === 'ArrowRight' && node.hasAttribute('aria-expanded')) {
+      if (node.getAttribute('aria-expanded') === 'false') node.click();
+      else next = nodes[index + 1];
+    } else if (event.key === 'ArrowLeft') {
+      if (node.getAttribute('aria-expanded') === 'true') node.click();
+      else
+        next = nodes
+          .slice(0, index)
+          .reverse()
+          .find(item => Number(item.getAttribute('aria-level')) < Number(node.getAttribute('aria-level')));
+    } else return;
+    event.preventDefault();
+    event.stopPropagation();
+    next?.focus();
+  };
+  message.oninput = () => {
+    historyIndex = -1;
+    resizeMessage();
+    syncControls();
+  };
   stageAll.onclick = event => {
     event.stopPropagation();
     launch(() => groupAction('working'));
@@ -398,11 +565,20 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
     event.stopPropagation();
     launch(() => groupAction('staged'));
   };
+  discardAll.onclick = event => {
+    event.stopPropagation();
+    launch(() => discard(entries('working')));
+  };
   message.onkeydown = event => {
-    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+    if (event.isComposing) return;
+    const unmodified = !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey;
+    const caret = message.selectionStart === message.selectionEnd;
+    const atStart = message.selectionStart === 0;
+    const atEnd = message.selectionEnd === message.value.length;
+    const historyKey = (event.key === 'ArrowUp' && atStart) || (event.key === 'ArrowDown' && atEnd);
+    if (unmodified && caret && historyKey && replayHistory(event.key === 'ArrowUp' ? 1 : -1)) {
       event.preventDefault();
       event.stopPropagation();
-      replayHistory(event.key === 'ArrowUp' ? 1 : -1);
       return;
     }
     if (event.key !== 'Enter' || !(event.metaKey || event.ctrlKey)) return;
@@ -416,46 +592,56 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
     if (!commitButton.disabled) launch(commit);
   };
   const release = options.session.subscribe(state => {
-    if (state.projectId !== projectId) {
-      projectId = state.projectId;
-      generation++;
-      status = null;
-      historyIndex = -1;
-      message.value =
-        (projectId ? options.getSavedMessage?.(projectId) : undefined) ?? historyFor(projectId ?? '').at(-1) ?? '';
-      render();
-    } else syncControls();
+    if (state.projectId === projectId) {
+      syncControls();
+      return;
+    }
+    projectId = state.projectId;
+    generation++;
+    status = null;
+    selected = null;
+    collapsed.clear();
+    historyIndex = -1;
+    message.value =
+      (projectId ? options.getSavedMessage?.(projectId) : undefined) ?? historyFor(projectId ?? '').at(-1) ?? '';
+    resizeMessage();
+    render();
   });
   render();
 
   return {
     update(next) {
-      if (disposed) return;
-      status = next;
-      render();
+      if (!disposed) {
+        status = next;
+        render();
+      }
     },
-    setBusy(busy) {
-      externalBusy = busy;
+    setBusy(value) {
+      externalBusy = value;
       syncControls();
     },
     setAlwaysShowActions(enabled) {
-      if (disposed) return;
-      element.classList.toggle('wb-scm-show-actions', enabled);
+      if (!disposed) element.classList.toggle('wb-scm-show-actions', enabled);
     },
+    setViewMode,
+    setSortKey,
+    getMenuEntries,
     restoreMessage(value) {
-      if (disposed) return;
-      message.value = value;
-      historyIndex = -1;
-      syncControls();
+      if (!disposed) {
+        message.value = value;
+        historyIndex = -1;
+        resizeMessage();
+        syncControls();
+      }
     },
     commit,
     dispose() {
-      if (disposed) return;
-      disposed = true;
-      generation++;
-      release();
-      element.remove();
-      controls.splice(0);
+      if (!disposed) {
+        disposed = true;
+        generation++;
+        release();
+        element.remove();
+      }
     }
   };
 }

@@ -8,7 +8,7 @@ import type { GitHubSessionStore } from './github-session-store.js';
 import { createIndexedDbSessionStore, createMemorySessionStore } from './github-session-store.js';
 import type { GitHubSession } from './github-types.js';
 
-/** 应用级 GitHub 配置；OAuth App 注册前 clientId 为占位值，OAuth 登录会明确报错而不是静默降级。 */
+/** 应用级 GitHub 配置；未显式指定 clientId 时从同源 Pages Function 读取。 */
 export interface GitHubAppConfig {
   readonly clientId: string;
   /** 同源 Pages Function：POST 交换 code，POST /delete 撤销 token。 */
@@ -47,15 +47,44 @@ export interface GitHubService {
   beginOAuth(): Promise<GitHubOAuthRequest>;
 }
 
+async function loadDeploymentClientId(exchangeUrl: string, fetchFn: typeof fetch): Promise<string> {
+  let response: Response;
+  try {
+    response = await fetchFn(exchangeUrl, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      cache: 'no-store'
+    });
+  } catch (cause) {
+    throw new Error('无法读取 GitHub 登录配置，请检查网络连接后重试', { cause });
+  }
+  if (response.status === 503) throw new Error('请在 Cloudflare Pages 配置 GITHUB_CLIENT_ID 后重新部署');
+  if (!response.ok) throw new Error(`无法读取 GitHub 登录配置：HTTP ${response.status}`);
+  let config: { clientId?: unknown } | null;
+  try {
+    config = (await response.json()) as typeof config;
+  } catch (cause) {
+    throw new Error('GitHub 登录配置接口未返回 JSON，请确认 Pages Functions 已部署', { cause });
+  }
+  const clientId = typeof config?.clientId === 'string' ? config.clientId.trim() : '';
+  if (!clientId || clientId === PENDING_GITHUB_CLIENT_ID) {
+    throw new Error('GitHub 登录配置缺少有效的 GITHUB_CLIENT_ID');
+  }
+  return clientId;
+}
+
 /** 装配认证、API 客户端与虚拟仓库后端；token 自动注入所有 API 请求。 */
 export function createGitHubService(options: GitHubServiceOptions = {}): GitHubService {
   const config = resolveGitHubConfig(options.config);
   const sessionStore =
     options.sessionStore ??
     (typeof indexedDB !== 'undefined' ? createIndexedDbSessionStore() : createMemorySessionStore());
-  const fetchFn = options.fetchFn;
+  const fetchFn = options.fetchFn ?? fetch;
   const auth = createGitHubAuth({
-    clientId: config.clientId,
+    clientId: async () =>
+      config.clientId === PENDING_GITHUB_CLIENT_ID ?
+        loadDeploymentClientId(config.exchangeUrl, fetchFn)
+      : config.clientId,
     exchangeUrl: config.exchangeUrl,
     redirectUri: config.redirectUri,
     origin: config.origin,
@@ -72,11 +101,6 @@ export function createGitHubService(options: GitHubServiceOptions = {}): GitHubS
     api,
     createBackend: () => createGitHubBackend({ api }),
     getSession: () => auth.getSession(),
-    async beginOAuth() {
-      if (config.clientId === PENDING_GITHUB_CLIENT_ID) {
-        throw new Error('GitHub OAuth 尚未配置 clientId：请先注册 OAuth 应用并把 clientId 填入部署配置');
-      }
-      return auth.beginOAuth();
-    }
+    beginOAuth: () => auth.beginOAuth()
   };
 }

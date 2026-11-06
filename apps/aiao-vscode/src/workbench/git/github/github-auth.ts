@@ -9,7 +9,7 @@ const DEFAULT_SCOPES = ['repo', 'workflow', 'user:email', 'read:user'] as const;
 const AUTHORIZE_URL = 'https://github.com/login/oauth/authorize';
 
 export interface GitHubAuthOptions {
-  readonly clientId: string;
+  readonly clientId: string | (() => Promise<string>);
   /** 同源 Pages Function：POST 交换 code，POST /delete 撤销 token。 */
   readonly exchangeUrl: string;
   /** GitHub OAuth App 注册的回调地址（部署域 /redirect）。 */
@@ -134,12 +134,13 @@ export function createGitHubAuth(options: GitHubAuthOptions): GitHubAuth {
     },
 
     async beginOAuth(): Promise<GitHubOAuthRequest> {
+      const clientId = typeof options.clientId === 'function' ? await options.clientId() : options.clientId;
       const verifier = randomHex(32);
       const challenge = await pkceChallenge(verifier);
       const nonce = randomHex(8);
       const state = `${options.origin}${callbackPath}?nonce=${nonce}`;
       const params = new URLSearchParams({
-        client_id: options.clientId,
+        client_id: clientId,
         redirect_uri: options.redirectUri,
         scope: scopes.join(' '),
         state,

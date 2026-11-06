@@ -219,6 +219,14 @@
         "command": "node scripts/verify-scm.mjs"
       }
     },
+    "verify-functions": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "apps/aiao-vscode",
+        "command": "node deploy/verify-functions.mjs"
+      }
+    },
     "verify-github-auth": {
       "executor": "nx:run-commands",
       "cache": false,
