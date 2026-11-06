@@ -443,6 +443,32 @@ const captureOneWrite = async (database: RxDB, executor: TransactionExecutor, en
   });
 };
 
+/** 捕获两种来源后故意制造冗余总数漂移，用真实明细验证来源摘要。 */
+const captureMixedOriginsWithCountDrift = (database: RxDB, branchId: string): Promise<void> =>
+  withTransaction(database, async executor => {
+    const token = await readActiveBranchToken(executor);
+    await captureChanges(executor, database, {
+      token,
+      unitId: uuid(),
+      origin: 'local',
+      changes: [changeOf('target-local')],
+      shouldCapture: () => true
+    });
+    await captureChanges(executor, database, {
+      token,
+      unitId: uuid(),
+      origin: 'remote_sync',
+      changes: [changeOf('target-remote-a'), changeOf('target-remote-b')],
+      shouldCapture: () => true
+    });
+    const repository = executor.getRepository(WorkingTreeState);
+    const [state] = await repository.find({
+      where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: branchId }] },
+      limit: 1
+    });
+    await repository.update(state, { entryCount: 41 });
+  });
+
 /** 读一次工作树摘要，各开一个事务——这正是调用方捕获那三个位的那一次读。 */
 const readStatus = (database: RxDB): Promise<WorkingTreeStatus> => withTransaction(database, readWorkingTreeStatus);
 
@@ -1342,6 +1368,21 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
           revision: refBefore.headRevision
         });
       });
+    });
+
+    it('来源取真实行，隔离其他分支并支持含引号的分支名', async () => {
+      const targetBranchId = "status-origin-'quoted'";
+      await database.versionManager.createBranch(targetBranchId);
+      await withTransaction(database, executor => captureOneWrite(database, executor, 'source-local'));
+      await database.versionManager.switchBranch(targetBranchId);
+      expect((await database.workingTree.status()).byOrigin).toEqual({ local: 0, remote_sync: 0 });
+
+      await captureMixedOriginsWithCountDrift(database, targetBranchId);
+
+      const status = await database.workingTree.status();
+      expect(status.branchId).toBe(targetBranchId);
+      expect(status.entryCount).toBe(41);
+      expect(status.byOrigin).toEqual({ local: 1, remote_sync: 2 });
     });
 
     describe('§2.3 两类 CAS 分开（FR-031/FR-032、SC-008）', () => {

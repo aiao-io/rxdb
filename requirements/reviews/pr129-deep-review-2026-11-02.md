@@ -58,11 +58,13 @@ pr: https://github.com/aiao-io/rxdb/pull/129
 
 ## 结论
 
-当前分支已按红绿顺序修复该 P1：真实 SQLite/PGlite 共 4 条定向回归先失败，修复后 4/4 通过，覆盖生效日前排除、到达生效日后可见，以及两条查询入口和成本结果。完整覆盖率、三框架与应用门禁、统一评审及合并仍待完成，当前不计为全部交付。
+当前分支已按红绿顺序修复该 P1：真实 SQLite/PGlite 共 4 条定向回归先失败，修复后 4/4 通过，覆盖生效日前排除、到达生效日后可见，以及两条查询入口和成本结果。后续完整 BOM 测试与覆盖率、三框架和应用门禁均已通过，4b25a948 的完整 102 项目、414 目标 affected 门禁也已通过。最终性能 CI、统一评审及合并仍待闭环，当前不计为全部交付。
 
 ## 2026-11-07 修复验证
 
 - 复核基线为 6dd47b01，旧查询确实仍提前返回未来输出修订和未来逻辑行 ECN 的来源；未用存储绕过或模拟查询制造失败。
 - `coproduct.ts` 的来源查询关联输出修订，按发布状态、所属物料及 `effectiveFrom <= asOfDate` 过滤；发生项与逻辑行 ECN 复用 `bom-sql.ts` 的既有可见性表达式。
-- `bom-coproduct.spec.ts` 新增两组双后端回归，同时执行 `findJointCostSources`、`readJointProduction` 与成本核对；完整套件尚待复验。
+- `bom-coproduct.spec.ts` 新增两组双后端回归，同时执行 `findJointCostSources`、`readJointProduction` 与成本核对；完整套件 89 文件、1550 项通过、1 项后端条件跳过，四条新增回归包含在内，未处理异常为 0。
 - 红测日志：`/tmp/bom-joint-visibility-red.log`；定向绿测：`/tmp/bom-joint-visibility-green.log`。首轮测试夹具的 Repository 接口调用错误已更正后重新取得 4 条业务断言失败，不把夹具错误算作功能红。
+
+- 完整覆盖率证据：`/tmp/bom-joint-visibility-full-evidence.json`；102 项目 affected 最终通过证据：`/tmp/bom-final-affected-after-joint-evidence.json`。后续运行源码变化须重新核对受影响验证，不能沿用旧提交的 CI 结论。
