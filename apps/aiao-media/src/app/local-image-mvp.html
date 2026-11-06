@@ -111,6 +111,7 @@
     <details
       #syncStatus
       class="sync-indicator"
+      tabindex="-1"
       [class.sync-attention]="sync().status === 'failed' || sync().status === 'conflict'"
       (keydown.escape)="syncStatus.open = false"
       aria-label="同步状态"
