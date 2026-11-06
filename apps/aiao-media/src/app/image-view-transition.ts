@@ -5,9 +5,11 @@ export async function transitionImage(
   source: HTMLImageElement | null,
   update: () => Promise<HTMLImageElement | null>
 ): Promise<void> {
-  while (activeTransition) {
+  if (activeTransition) {
     activeTransition.skipTransition();
     await activeTransition.finished;
+    await update();
+    return;
   }
   if (!source || !document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) {
     await update();

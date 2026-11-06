@@ -1709,6 +1709,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     const coverImage = () => trigger?.querySelector<HTMLImageElement>('.feed-cover img') ?? null;
     const source = template ? coverImage() : detailImage();
     void transitionImage(source, () => {
+      if (!template) document.querySelector<HTMLDialogElement>('.template-panel')?.close();
       this.detail.set(template);
       return new Promise(resolve => {
         afterNextRender({ read: () => resolve(template ? detailImage() : coverImage()) }, { injector: this.injector });

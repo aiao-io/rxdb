@@ -22,6 +22,7 @@ class Observer implements ResizeObserver {
 
 const originalInert = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'inert');
 const originalShowModal = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, 'showModal');
+const originalClose = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, 'close');
 beforeAll(() => {
   Object.defineProperty(HTMLElement.prototype, 'inert', { value: false, writable: true, configurable: true });
   Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
@@ -30,12 +31,20 @@ beforeAll(() => {
       this.open = true;
     }
   });
+  Object.defineProperty(HTMLDialogElement.prototype, 'close', {
+    configurable: true,
+    value(this: HTMLDialogElement) {
+      this.open = false;
+    }
+  });
 });
 afterAll(() => {
   if (originalInert) Object.defineProperty(HTMLElement.prototype, 'inert', originalInert);
   else Reflect.deleteProperty(HTMLElement.prototype, 'inert');
   if (originalShowModal) Object.defineProperty(HTMLDialogElement.prototype, 'showModal', originalShowModal);
   else Reflect.deleteProperty(HTMLDialogElement.prototype, 'showModal');
+  if (originalClose) Object.defineProperty(HTMLDialogElement.prototype, 'close', originalClose);
+  else Reflect.deleteProperty(HTMLDialogElement.prototype, 'close');
 });
 beforeEach(() => {
   Observer.instances = [];
@@ -147,6 +156,7 @@ describe('发现灵感首页', () => {
     );
     r.component.onEscape();
     r.settle();
+    expect(dialog.open).toBe(false);
     expect(r.element.querySelector('dialog')).toBeNull();
   });
 

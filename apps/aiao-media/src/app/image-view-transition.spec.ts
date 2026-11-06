@@ -71,24 +71,22 @@ describe('灵感图片共享元素过渡', () => {
     expect(cover.style.viewTransitionName).toBe('');
   });
 
-  it('快速关闭时先结束上次过渡，避免两个快照争用同一个图片名称', async () => {
+  it('快速关闭时取消上次过渡并立即更新界面，避免争用同一个图片名称', async () => {
     const { source: cover, target: detail } = images();
     const opening = nativeTransition();
     const opened = transitionImage(cover, async () => detail);
     await opening.update();
     const closing = nativeTransition();
-    const closed = transitionImage(detail, async () => cover);
+    const change = vi.fn(async () => cover);
+    const closed = transitionImage(detail, change);
     expect(opening.skip).toHaveBeenCalledOnce();
-    expect(closing.start).not.toHaveBeenCalled();
     await opened;
-    await vi.waitFor(() => expect(closing.start).toHaveBeenCalledOnce());
-    expect(detail.style.viewTransitionName).toBe('template-image');
-    await closing.update();
-    expect(cover.style.viewTransitionName).toBe('template-image');
-    closing.finish();
     await closed;
+    expect(change).toHaveBeenCalledOnce();
+    expect(closing.start).not.toHaveBeenCalled();
     expect(cover.style.viewTransitionName).toBe('');
     expect(detail.style.viewTransitionName).toBe('');
+    expect(document.documentElement.classList.contains('template-image-transition')).toBe(false);
   });
 
   it('浏览器跳过动画时仍完成界面更新和清理', async () => {
