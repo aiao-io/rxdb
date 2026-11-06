@@ -27,6 +27,7 @@ export interface BrandProps {
  */
 export function Brand({ icon }: BrandProps): ReactElement | null {
   const shell = useAdminShell();
+  useAdminStore(shell.text);
   const { logo } = useAdminStore(shell.preferences);
   if (!logo.enable) return null;
   return (

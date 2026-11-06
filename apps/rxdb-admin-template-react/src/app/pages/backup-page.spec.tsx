@@ -1,8 +1,11 @@
 import { RxDBBackupError } from '@aiao/rxdb';
+import { I18n } from '@aiao/rxdb-i18n';
+import { I18nProvider } from '@aiao/rxdb-i18n-react';
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { pageEnMessages, pageZhMessages } from '../i18n/page-messages';
 import BackupPage from './backup-page';
 
 const mocks = vi.hoisted(() => ({
@@ -26,12 +29,28 @@ function archive(): File {
   return file;
 }
 
-function renderPage() {
-  return render(
-    <MemoryRouter>
-      <BackupPage />
-    </MemoryRouter>
-  );
+const runtimes: I18n[] = [];
+
+function renderPage(locale = 'zh-Hans') {
+  const runtime = new I18n({
+    locale,
+    namespace: 'workbench',
+    catalogs: [
+      { locale: 'zh-Hans', namespace: 'workbench', messages: pageZhMessages },
+      { locale: 'en', namespace: 'workbench', messages: pageEnMessages }
+    ]
+  });
+  runtimes.push(runtime);
+  return {
+    runtime,
+    ...render(
+      <I18nProvider value={runtime}>
+        <MemoryRouter>
+          <BackupPage />
+        </MemoryRouter>
+      </I18nProvider>
+    )
+  };
 }
 
 describe('备份恢复操作互斥', () => {
@@ -42,7 +61,43 @@ describe('备份恢复操作互斥', () => {
     mocks.adapterConnected$.mockReturnValue(of(false));
   });
 
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    for (const runtime of runtimes.splice(0)) runtime.destroy();
+  });
+
+  it('英文页面翻译标题和文件选择的无障碍名称', () => {
+    const view = renderPage('en');
+    expect(view.getByRole('heading', { name: 'Backup', exact: true })).toBeTruthy();
+    expect(view.getByLabelText('Choose a backup archive')).toBeTruthy();
+  });
+
+  it('已发生的备份错误随语言切换更新，同时保留重试入口', async () => {
+    mocks.backup.mockRejectedValueOnce(new RxDBBackupError('io_error', 'write failed'));
+    const view = renderPage();
+    fireEvent.click(view.getByTestId('backup-start'));
+    await waitFor(() => expect(view.getByTestId('backup-result').textContent).toContain('文件读写失败'));
+    await act(async () => view.runtime.setLocale('en'));
+    expect(view.getByTestId('backup-result').textContent).toContain(
+      'File access failed. Check disk space and file permissions.'
+    );
+    expect((view.getByTestId('backup-start') as HTMLButtonElement).disabled).toBe(false);
+    expect(mocks.backup).toHaveBeenCalledTimes(1);
+  });
+
+  it('恢复完成后的连接错误随语言切换更新，不再次恢复归档', async () => {
+    mocks.restore.mockResolvedValueOnce({ sha256: 'restored' });
+    mocks.connect.mockRejectedValueOnce(new Error('connection unavailable'));
+    const view = renderPage();
+    fireEvent.change(view.getByTestId('restore-input'), { target: { files: [archive()] } });
+    await waitFor(() => expect(view.getByTestId('restore-result').textContent).toContain('重新连接失败'));
+    await act(async () => view.runtime.setLocale('en'));
+    expect(view.getByTestId('restore-result').textContent).toBe(
+      'Restore completed, but reconnecting the workbench failed: Operation failed: connection unavailable. Refresh the page to continue.'
+    );
+    expect(mocks.restore).toHaveBeenCalledTimes(1);
+    expect(view.queryByTestId('restore-cleanup')).toBeNull();
+  });
 
   it('恢复期间禁用备份和文件输入，重复选择不会发起第二次恢复', async () => {
     const pending = Promise.withResolvers<{ sha256: string }>();

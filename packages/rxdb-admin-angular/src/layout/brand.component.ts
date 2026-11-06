@@ -14,14 +14,14 @@ import { interceptNavigation } from './intercept-navigation';
   host: { style: 'display: contents' },
   template: `
     @if (logo().enable) {
-      <a class="admin-brand" [attr.aria-label]="shell.brandTitle" [attr.href]="shell.homeUrl" (click)="go($event)">
+      <a class="admin-brand" [attr.aria-label]="brandTitle()" [attr.href]="shell.homeUrl" (click)="go($event)">
         @if (logo().source) {
           <img class="admin-brand-logo" [src]="logo().source" alt="" />
         } @else if (icon(); as slot) {
           <ng-container [ngTemplateOutlet]="slot" />
         }
         @if (logo().showText || !logo().source) {
-          <span class="admin-brand-text">{{ shell.brandTitle }}</span>
+          <span class="admin-brand-text">{{ brandTitle() }}</span>
         }
       </a>
     }
@@ -31,6 +31,11 @@ export class AdminBrandComponent {
   protected readonly shell = injectAdminShell();
   protected readonly prefs = injectAdminStore(this.shell.preferences);
   protected readonly logo = computed(() => this.prefs().logo);
+  protected readonly revision = injectAdminStore(this.shell.text);
+  protected readonly brandTitle = computed(() => {
+    this.revision();
+    return this.shell.brandTitle;
+  });
 
   /** 没有 Logo 图片时显示的图标模板。 */
   readonly icon = input<TemplateRef<unknown>>();

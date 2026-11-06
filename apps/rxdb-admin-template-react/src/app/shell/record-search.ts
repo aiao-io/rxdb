@@ -1,6 +1,8 @@
 import type { RxDB } from '@aiao/rxdb';
 import type { PaletteItem, PaletteSource } from '@aiao/rxdb-admin';
+import type { I18n } from '@aiao/rxdb-i18n';
 import { filter, firstValueFrom } from 'rxjs';
+import { entityDisplayName, fieldDisplayName } from '../entities/entity-labels';
 import { visibleEntityEntries } from '../entities/entity-registry';
 
 const ADAPTER = 'sqlite-wasm';
@@ -14,9 +16,14 @@ const MAX_RECORDS = 8;
  * 要求连接前不能有任何查询，面板不能破坏这个前置。
  * @param rxdb - 工作台的 RxDB 实例。
  * @param navigate - 路由跳转。
+ * @param translate - 当前应用的翻译函数。
  * @returns 异步来源。
  */
-export function createRecordSearchSource(rxdb: RxDB, navigate: (url: string) => void): PaletteSource {
+export function createRecordSearchSource(
+  rxdb: RxDB,
+  navigate: (url: string) => void,
+  translate?: I18n['t']
+): PaletteSource {
   const entries = visibleEntityEntries(rxdb.config.entities);
   return {
     id: 'records',
@@ -29,15 +36,18 @@ export function createRecordSearchSource(rxdb: RxDB, navigate: (url: string) => 
       try {
         const settled = firstValueFrom(handle.state$.pipe(filter(state => state !== 'idle' && state !== 'loading')));
         handle.setQuery(query);
-        if ((await settled) === 'error') throw new Error('Record search failed');
+        if ((await settled) === 'error') throw new Error(translate?.('search.recordFailed') ?? 'Record search failed');
         // state$ 与 results$ 派生自同一份快照：状态到达的瞬间 results$ 还可能是旧值，结算后再单独取最新结果
         const results = await firstValueFrom(handle.results$);
         return results.map<PaletteItem>(result => {
           const entry = entries.find(candidate => candidate.name === result.entity);
+          const entityLabel = entry ? entityDisplayName(entry, translate) : result.entity;
+          const fieldLabel =
+            entry && translate ? fieldDisplayName(entry, result.matchedField, translate) : result.matchedField;
           return {
             id: `record:${result.collection}:${result.id}`,
             label: result.snippet,
-            sublabel: `${entry?.displayName ?? result.entity} · ${result.matchedField}`,
+            sublabel: `${entityLabel} · ${fieldLabel}`,
             run: () => entry && navigate(`/entities/${entry.namespace}/${entry.name}`)
           };
         });

@@ -6,6 +6,7 @@ import { getE2eDbName } from '@aiao/rxdb-test';
 import { appConfig, type AppConfig } from '../app-config';
 
 import { ENTITIES } from '../entities/asset-entities';
+import { workbenchShell } from '../shell/workbench-shell';
 
 let rxdb: RxDB | undefined;
 
@@ -48,7 +49,7 @@ export default (): RxDB => {
     const instance = rxdb;
     void import('@aiao/rxdb-devtools').then(({ getDevToolsConnector }) => {
       const devtools = getDevToolsConnector();
-      devtools.init(instance, getEntityMetadata);
+      devtools.init(instance, getEntityMetadata, { i18n: workbenchShell.i18n });
     });
   }
   return rxdb;

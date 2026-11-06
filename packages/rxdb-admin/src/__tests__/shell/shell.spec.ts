@@ -1,3 +1,4 @@
+import { I18n } from '@aiao/rxdb-i18n';
 import { describe, expect, it, vi } from 'vitest';
 import type { MenuNode } from '../../layout/menu.js';
 import { createTestShell } from '../../testing.js';
@@ -19,6 +20,32 @@ const create = (overrides: Parameters<typeof createTestShell<string>>[0] = {}, w
   createTestShell<string>({ menu, brand: { title: '工作台' }, ...overrides }, windowOptions);
 
 describe('createAdminShell', () => {
+  it('品牌与首页标题按宿主目录翻译，已有页面标题保留当前语言品牌', async () => {
+    const i18n = new I18n({
+      locale: 'zh-Hans',
+      catalogs: [
+        { locale: 'zh-Hans', namespace: 'app', messages: { brand: '工作台', title: '数据工作台' } },
+        { locale: 'en', namespace: 'app', messages: { brand: 'Workbench', title: 'Data workbench' } }
+      ]
+    });
+    const { shell, fakeDocument } = create({
+      i18n,
+      brand: { title: '工作台', titleKey: 'brand', documentTitleKey: 'title' }
+    });
+    shell.attach();
+    try {
+      expect(fakeDocument.document.title).toBe('数据工作台');
+      await i18n.setLocale('en');
+      expect(shell.brandTitle).toBe('Workbench');
+      expect(fakeDocument.document.title).toBe('Data workbench');
+      shell.syncRoute('/search');
+      expect(fakeDocument.document.title).toBe('搜索 · Workbench');
+    } finally {
+      shell.destroy();
+      i18n.destroy();
+    }
+  });
+
   describe('路由同步与页签', () => {
     it('菜单里的页面打开页签并以菜单标题命名；不在菜单里的地址不开页签', () => {
       const { shell } = create();

@@ -38,6 +38,18 @@ pnpm nx run rxdb-admin-template-react-e2e:e2e --workers=2
 
 实体替换与页面扩展尚待完整的新业务验收，分别见 [ADMIN-US-101](requirements/stories/domain/ADMIN-US-101-replace-sample-domain.md) 和 [ADMIN-US-102](requirements/stories/domain/ADMIN-US-102-custom-pages-navigation.md)。不能仅替换 `ENTITIES` 就宣称整个应用已经摆脱资产样例。
 
+## 国际化
+
+应用通过一个 `@aiao/rxdb-i18n` 运行时与 `@aiao/rxdb-i18n-react` provider 共享中英文状态。目录包含 `rxdb-admin` 外壳、`rxdb-model` 模型组件及应用的 `workbench` 命名空间；自有目录集中在 `src/app/i18n/`。顶栏语言按钮更新外壳 `app.locale`，既有偏好存储负责刷新恢复与同源跨 Tab 通知。
+
+标题、描述、品牌、导航、已打开页签、搜索、备份恢复、无障碍文案和实体显示名随语言更新。模型组件默认中文目录来自 `modelMessages`，英文显式注册 `modelEnMessages`；扩展实体时，应同步补齐实体、属性及关系的中英文显示名。用户输入与已存记录保持原值，包括资产默认状态「在用」。
+
+应用标识的英文版本配置在 `app.config.json` 的 `locales.en`。实体显示目录位于 `domain-messages.ts`，使用 `rxdb-model` 命名空间：实体名为 `entity.<namespace>.<entity>.displayName`，字段为 `entity.<namespace>.<entity>.property.<field>`，关系为 `entity.<namespace>.<entity>.relation.<relation>`。这些 key 只控制显示，原始 schema 仍声明默认显示名。
+
+这里使用静态目录运行时，语言偏好不写入业务数据库，也不调用持久化 i18n 的 `init()`。因此在首页或「从备份恢复」页切换语言、刷新、跨 Tab 更新，均不会提前初始化空工作台，备份恢复仍遵守先恢复再连接的约束。远端目录与业务内容多语言翻译不属于当前接入范围。
+
+验收范围见 [ADMIN-US-003](requirements/stories/platform/ADMIN-US-003-client-i18n.md)，真实浏览器用例见 [i18n.spec.ts](../rxdb-admin-template-react-e2e/src/i18n.spec.ts)。
+
 ## 能力边界
 
 这是单人、本地优先的 Web 应用。当前 `userId` 是应用上下文，锁屏属于本机交互；账号认证、服务端授权、多用户隔离和跨设备协作需要独立设计与验收。公共包继续遵守 Angular / React / Vue API 对称要求，本应用目前使用 React。

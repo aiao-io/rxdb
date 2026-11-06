@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import { useRouteError, type LazyRouteFunction, type RouteObject } from 'react-router-dom';
 import AppLayout from './app';
 import setup_rxdb from './rxdb/setup_rxdb';
@@ -8,11 +9,12 @@ interface RouteModule {
 
 /** 搜索页 loader 失败（如本地适配器连不上）时的可读失败态，避免白屏。 */
 function SearchLoadError() {
+  const { t } = useI18n();
   const error = useRouteError();
   return (
     <div className='page-host items-center justify-center gap-2 p-8' data-testid='search-load-failed' role='alert'>
-      <span className='text-error font-semibold'>加载失败</span>
-      <span>{error instanceof Error ? error.message : '搜索页初始化失败，请刷新重试'}</span>
+      <span className='text-error font-semibold'>{t('app.loadFailed')}</span>
+      <span>{error instanceof Error ? error.message : t('app.searchLoadFailed')}</span>
     </div>
   );
 }

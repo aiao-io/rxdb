@@ -30,6 +30,8 @@ import {
   buildFormFields,
   entityToFormData,
   formDataToEntityChanges,
+  localizeEntityFormFields,
+  localizeEntityMetadata,
   validateForm
 } from '@aiao/rxdb-model';
 import { injectRxDBRef } from '@aiao/rxdb-vue';
@@ -271,7 +273,9 @@ const activeRelationName = computed<string | undefined>(() => {
 });
 
 const formFieldsValue = computed<FormFieldConfig[]>(() => {
-  const fields = props.formFields ?? formFieldsFromRouteInputs.value ?? [];
+  const sourceFields = props.formFields ?? formFieldsFromRouteInputs.value ?? [];
+  const metadata = metadataValue.value;
+  const fields = metadata ? localizeEntityFormFields(metadata, sourceFields, modelI18n) : sourceFields;
   const fixed = props.fixedFormData;
   if (!fixed) return fields;
   return fields.map(f => (f.field in fixed ? { ...f, readonly: true } : f));
@@ -293,9 +297,10 @@ const formDataValue = computed<EntityFormData>(() => {
 const relatedEntityProviderValue = computed<RelatedEntityProvider | undefined>(() => props.relatedEntityProvider);
 
 // 公开访问器 - 优先级：直接 props > 路由推导
-const metadataValue = computed<EntityMetadata | undefined>(
-  () => props.metadata ?? metadataFromRouteInputs.value ?? undefined
-);
+const metadataValue = computed<EntityMetadata | undefined>(() => {
+  const source = props.metadata ?? metadataFromRouteInputs.value ?? undefined;
+  return source ? localizeEntityMetadata(source, modelI18n) : undefined;
+});
 
 const tabs = computed(() => {
   const meta = metadataValue.value;

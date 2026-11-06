@@ -8,10 +8,13 @@
  * entityManager → Repository → 内存适配器链路。
  */
 import { Entity, EntityBase, getEntityMetadata, PropertyType, RelationKind, RxDB, type EntityType } from '@aiao/rxdb';
+import { I18n } from '@aiao/rxdb-i18n';
+import { I18nProvider } from '@aiao/rxdb-i18n-react';
+import { modelEnMessages, modelMessages } from '@aiao/rxdb-model';
 import type { EntityFormData, FormFieldConfig, FormValidationResult } from '@aiao/rxdb-model';
 import { RxDBProvider, useRxDBOptional } from '@aiao/rxdb-react';
 import { Account, Contract, Invoice, Todo } from '@aiao/rxdb-test/entities';
-import { act, fireEvent, render, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, waitFor, within } from '@testing-library/react';
 import type { JSX } from 'react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Dialog } from '../../dialog/dialog';
@@ -90,6 +93,45 @@ function DbReadyMarker(): JSX.Element | null {
 const FLUSH = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0));
 
 describe('EntityDetail（真实组件）', () => {
+  it('详情打开后切语言更新实体和字段标签，保留未保存输入及当前输入控件', async () => {
+    const runtime = new I18n({
+      locale: 'zh-Hans',
+      catalogs: [
+        ...modelMessages,
+        { locale: 'en', namespace: 'rxdb-model', messages: modelEnMessages },
+        { locale: 'zh-Hans', namespace: 'rxdb-model', messages: {
+          'entity.test.DetailGroup.displayName': '分组',
+          'entity.test.DetailGroup.property.title': '标题'
+        } },
+        { locale: 'en', namespace: 'rxdb-model', messages: {
+          'entity.test.DetailGroup.displayName': 'Groups',
+          'entity.test.DetailGroup.property.title': 'Title'
+        } }
+      ]
+    });
+    const view = render(
+      <I18nProvider value={runtime}>
+        <EntityDetail
+          metadata={getEntityMetadata(DetailGroup)}
+          formFields={[{ field: 'title', displayName: '标题', type: 'string', required: true }]}
+          formData={{ title: '' }}
+          formMode='create'
+          delegateSave
+        />
+      </I18nProvider>
+    );
+    const input = within(view.getByRole('group', { name: '标题' })).getByRole('textbox');
+    fireEvent.change(input, { target: { value: '尚未保存的业务内容' } });
+    await act(() => runtime.setLocale('en'));
+    const translatedInput = within(view.getByRole('group', { name: 'Title' })).getByRole('textbox');
+    expect(translatedInput).toBe(input);
+    expect((translatedInput as HTMLInputElement).value).toBe('尚未保存的业务内容');
+    await act(() => runtime.setLocale('zh-Hans'));
+    expect(within(view.getByRole('group', { name: '标题' })).getByRole('textbox')).toBe(input);
+    expect((input as HTMLInputElement).value).toBe('尚未保存的业务内容');
+    view.unmount();
+    runtime.destroy();
+  });
   let rxdb: RxDB;
   let adapter: InMemoryRxDBAdapter;
 

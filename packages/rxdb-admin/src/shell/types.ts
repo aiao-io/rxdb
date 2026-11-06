@@ -34,7 +34,13 @@ export interface AdminShellOptions<TIcon = unknown> {
   /** 首页地址：关闭最后一个页签后回到这里，缺省 `/`。 */
   readonly homeUrl?: string;
   /** 品牌：用于侧栏 / 顶栏的应用名、动态标题与水印默认文案。 */
-  readonly brand?: { readonly title: string };
+  readonly brand?: {
+    readonly title: string;
+    /** 应用运行时默认命名空间中的品牌翻译键。 */
+    readonly titleKey?: string;
+    /** 应用运行时默认命名空间中的文档标题翻译键。 */
+    readonly documentTitleKey?: string;
+  };
   /** 应用自己的国际化运行时；需要把 `adminMessages` 加入它的 `catalogs`。缺省使用只含外壳目录的静态运行时（中文）。 */
   readonly i18n?: I18n;
   /** 可选主题，必须与样式里启用的 daisyUI 主题一致，缺省 `light` / `dark`。 */

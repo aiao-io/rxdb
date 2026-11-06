@@ -57,8 +57,9 @@ export function createAdminShell<TIcon = unknown>(options: AdminShellOptions<TIc
   const extensions = options.extensions ?? [];
   const items = [...BUILTIN_PREFERENCE_ITEMS, ...extensions.map(extensionToItem)];
   const homeUrl = options.homeUrl ?? '/';
-  const brandTitle = options.brand?.title ?? 'Admin';
   const i18n = options.i18n ?? createAdminI18n();
+  const brandTitle = (): string =>
+    options.brand?.titleKey ? i18n.t(options.brand.titleKey) : (options.brand?.title ?? 'Admin');
   const t = (key: string, params?: Record<string, unknown>): string => translateAdmin(i18n, key, params);
 
   const preferences = new PreferencesStore({
@@ -114,7 +115,7 @@ export function createAdminShell<TIcon = unknown>(options: AdminShellOptions<TIc
   const widgets = derive([preferences], prefs => visibleWidgets(prefs.widget));
   const timezone = derive([preferences], prefs => resolveTimezone(prefs.app.timezone));
   const watermark = derive([preferences, text], prefs =>
-    prefs.app.watermark ? watermarkBackground(resolveWatermarkContent(prefs.app.watermarkContent, brandTitle)) : ''
+    prefs.app.watermark ? watermarkBackground(resolveWatermarkContent(prefs.app.watermarkContent, brandTitle())) : ''
   );
   const drawer = derive([preferences, text], prefs =>
     buildDrawerModel({
@@ -171,7 +172,9 @@ export function createAdminShell<TIcon = unknown>(options: AdminShellOptions<TIc
     watermark,
     timezone,
     text,
-    brandTitle,
+    get brandTitle() {
+      return brandTitle();
+    },
     homeUrl,
     i18n,
     theme: {
@@ -260,7 +263,8 @@ export function createAdminShell<TIcon = unknown>(options: AdminShellOptions<TIc
         ...computeLayoutVars(layout.value)
       });
       const label = prefs.app.dynamicTitle ? menuTitleOf(menu.value, currentUrl.value) : undefined;
-      document.title = label === undefined ? originalTitle : `${label} · ${brandTitle}`;
+      const title = options.brand?.documentTitleKey ? i18n.t(options.brand.documentTitleKey) : originalTitle;
+      document.title = label === undefined ? title : `${label} · ${brandTitle()}`;
       // 页面语言随外壳语言走，读屏软件才会用对应语音朗读（WCAG 3.1.1）
       root.setAttribute('lang', i18n.locale);
     };

@@ -50,19 +50,28 @@
       "path": "../../packages/rxdb-model-react/tsconfig.lib.json"
     },
     {
+      "path": "../../packages/rxdb-model/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-i18n-react/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-i18n/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb-admin-react/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/rxdb-admin/tsconfig.lib.json"
-    },
-    {
       "path": "../../packages/rxdb-adapter-sqlite-wasm/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-admin/tsconfig.lib.json"
     }
   ]
 }

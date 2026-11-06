@@ -1,9 +1,11 @@
 import type { RxDB } from '@aiao/rxdb';
 import type { PaletteItem, PaletteSource } from '@aiao/rxdb-admin';
+import { I18n } from '@aiao/rxdb-i18n';
 import type { SearchResult } from '@aiao/rxdb-plugin-search';
 import { BehaviorSubject, distinctUntilChanged, map, of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { ENTITIES } from '../entities/asset-entities';
+import { domainModelEnMessages, domainModelZhMessages } from '../i18n/domain-messages';
 import { createRecordSearchSource } from './record-search';
 
 type FakeState = 'idle' | 'loading' | 'success' | 'empty' | 'error';
@@ -66,6 +68,22 @@ function runSearch(
 }
 
 describe('record-search', () => {
+  it('命令搜索的实体和字段标签随语言变化，用户记录原样保留', async () => {
+    const { handle } = createHandle(() => ({ state: 'success', results: [hit('1', 'AssetCategory', '办公设备')] }));
+    const runtime = new I18n({
+      locale: 'en',
+      catalogs: [
+        { locale: 'en', namespace: 'rxdb-model', messages: domainModelEnMessages },
+        { locale: 'zh-Hans', namespace: 'rxdb-model', messages: domainModelZhMessages }
+      ]
+    });
+    const source = createRecordSearchSource(createRxdb(true, handle).rxdb, () => undefined, runtime.t);
+    const english = await runSearch(source, '办公');
+    expect(english[0]).toMatchObject({ label: '办公设备', sublabel: 'Asset categories · Category name' });
+    await runtime.setLocale('zh-Hans');
+    expect((await runSearch(source, '办公'))[0]?.sublabel).toBe('资产分类 · 分类名');
+    runtime.destroy();
+  });
   it('来源声明：数据记录分组、至少 1 个字符才触发', () => {
     const { handle } = createHandle(() => ({ state: 'empty', results: [] }));
     const source = createRecordSearchSource(createRxdb(true, handle).rxdb, () => undefined);

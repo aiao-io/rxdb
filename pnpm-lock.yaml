@@ -1146,6 +1146,15 @@ importers:
       '@aiao/rxdb-devtools':
         specifier: workspace:*
         version: link:../../packages/rxdb-devtools
+      '@aiao/rxdb-i18n':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-i18n
+      '@aiao/rxdb-i18n-react':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-i18n-react
+      '@aiao/rxdb-model':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-model
       '@aiao/rxdb-model-react':
         specifier: workspace:*
         version: link:../../packages/rxdb-model-react

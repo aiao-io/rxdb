@@ -10,6 +10,7 @@ import {
 } from '@aiao/rxdb-admin';
 import type { ReactNode } from 'react';
 import { appConfig, type AppConfig } from '../app-config';
+import { createWorkbenchI18n } from '../i18n/workbench-i18n';
 
 /** 工作台偏好、页签等本机存储的键前缀（与同源其他应用隔离）。 */
 export const WORKBENCH_STORAGE_PREFIX = appConfig.storagePrefix;
@@ -21,9 +22,10 @@ const EXTENSIONS: readonly PreferenceExtension[] = [
   {
     key: SEARCH_PAGE_SIZE_KEY,
     type: 'number',
-    label: '全文搜索每页条数',
-    hint: '搜索页每次加载的结果数，修改后立即生效',
-    section: '全文搜索',
+    labelKey: 'workbench.search.label',
+    hintKey: 'workbench.search.hint',
+    section: 'search',
+    sectionKey: 'workbench.search.section',
     defaultValue: 20,
     min: 5,
     max: 50,
@@ -60,9 +62,11 @@ export function createWorkbenchShell(
   config: AppConfig = appConfig,
   environment: Pick<AdminShellOptions<ReactNode>, 'storage' | 'host'> = {}
 ): AdminShell<ReactNode> {
-  return createAdminShell<ReactNode>({
+  const i18n = createWorkbenchI18n(config);
+  const shell = createAdminShell<ReactNode>({
     ...environment,
-    brand: { title: config.brandTitle },
+    brand: { title: config.brandTitle, titleKey: 'app.brandTitle', documentTitleKey: 'app.title' },
+    i18n,
     navigate: url => navigator(url),
     storagePrefix: config.storagePrefix,
     themes: pickThemes([
@@ -81,6 +85,19 @@ export function createWorkbenchShell(
     extensions: EXTENSIONS,
     migrateLegacy: readLegacyPreferences
   });
+  const updateLocale = (): void => {
+    const locale = shell.preferences.value.app.locale || 'zh-Hans';
+    if (locale !== i18n.locale) void i18n.setLocale(locale);
+  };
+  updateLocale();
+  const stopLocale = shell.preferences.subscribe(updateLocale);
+  const destroy = shell.destroy;
+  shell.destroy = () => {
+    stopLocale();
+    destroy();
+    i18n.destroy();
+  };
+  return shell;
 }
 
 /** 工作台的后台外壳：主题 / 布局 / 页签 / 快捷键 / 命令面板 / 锁屏全部由它统一管理。 */

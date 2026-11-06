@@ -57,6 +57,8 @@ export interface PreferenceItem {
   readonly section: string;
   /** 分组字面量标题（扩展用）。 */
   readonly sectionLabel?: string;
+  /** 分组标题翻译键，优先于字面量标题。 */
+  readonly sectionKey?: string;
   /** 翻译键，缺省为 `prefs.item.<path>`。 */
   readonly labelKey?: string;
   /** 字面量标题，无 `labelKey` 时使用。 */
@@ -89,6 +91,8 @@ export interface PreferenceExtension {
   readonly hintKey?: string;
   /** 分组标题，缺省归入「通用」分组。 */
   readonly section?: string;
+  /** 分组标题翻译键，优先于字面量标题。 */
+  readonly sectionKey?: string;
   /** `select` 的选项。 */
   readonly options?: readonly PreferenceOption[];
   /** `number` 的下限。 */

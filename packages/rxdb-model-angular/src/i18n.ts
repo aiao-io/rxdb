@@ -9,7 +9,7 @@ export function useModelI18n() {
   const modelRuntime: ModelI18n = {
     t: binding.t,
     changes$: runtime.changes$,
-    ...(provided ? { formatDate: binding.formatDate, formatNumber: binding.formatNumber } : {})
+    ...(provided ? { resolve: binding.resolve, formatDate: binding.formatDate, formatNumber: binding.formatNumber } : {})
   };
   return {
     runtime: modelRuntime,

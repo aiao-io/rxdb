@@ -152,7 +152,7 @@ const toRow = (item: PreferenceItem, input: DrawerModelInput): Omit<DrawerRow, '
 };
 
 const sectionTitle = (item: PreferenceItem, translate: Translate): string =>
-  item.sectionLabel ?? translate(`prefs.section.${item.section}`);
+  item.sectionKey ? translate(item.sectionKey) : (item.sectionLabel ?? translate(`prefs.section.${item.section}`));
 
 /**
  * 由偏好项构建抽屉的页签 / 分组 / 设置行视图模型：文案已翻译、选项已解析、当前值与可操作状态已计算，
@@ -164,7 +164,7 @@ export function buildDrawerModel(input: DrawerModelInput): DrawerTab[] {
   return PREFERENCE_TABS.map(tab => {
     const sections: DrawerSection[] = [];
     for (const item of input.items.filter(candidate => candidate.tab === tab)) {
-      const id = item.sectionLabel ?? item.section;
+      const id = item.sectionKey ?? item.sectionLabel ?? item.section;
       let section = sections.find(candidate => candidate.id === id);
       if (!section) {
         section = { id, title: sectionTitle(item, input.translate), rows: [] };

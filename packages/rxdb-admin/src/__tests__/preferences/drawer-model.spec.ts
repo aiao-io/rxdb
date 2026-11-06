@@ -33,6 +33,22 @@ const build = (patch: object = {}, extra: Partial<DrawerModelInput> = {}, locale
 };
 
 describe('buildDrawerModel', () => {
+  it('扩展分组使用翻译键，切换语言后不保留旧标题', () => {
+    const extension: PreferenceExtension = {
+      key: 'results',
+      type: 'number',
+      defaultValue: 20,
+      section: 'search',
+      sectionKey: 'custom.search',
+      labelKey: 'custom.results'
+    };
+    const items = [extensionToItem(extension)];
+    const messages: Record<string, string> = { 'custom.search': 'Search', 'custom.results': 'Results' };
+    const translate = (key: string) => messages[key] ?? key;
+    const { model } = build({ extension: { results: 20 } }, { items, translate });
+    expect(model[4].sections[0]).toMatchObject({ title: 'Search', rows: [{ label: 'Results' }] });
+  });
+
   it('页签固定五个，顺序与标题已翻译', () => {
     const { model } = build();
     expect(model.map(tab => tab.id)).toEqual(['appearance', 'layout', 'shortcuts', 'general', 'extension']);

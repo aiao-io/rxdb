@@ -89,7 +89,7 @@
           ></button>
           <button
             class="btn btn-ghost btn-sm"
-            [textContent]="copied() ? t('prefs.copied') : t('prefs.copy')"
+            [textContent]="t('prefs.' + copyState())"
             (click)="copy()"
             data-testid="pref-copy"
             type="button"

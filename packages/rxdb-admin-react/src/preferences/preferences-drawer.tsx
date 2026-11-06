@@ -76,15 +76,19 @@ export function PreferencesDrawer(): ReactElement {
   const hasDiff = useAdminStore(shell.preferences.hasDiff);
   const [active, setActive] = useState<PreferenceTab>('appearance');
   const [importing, setImporting] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copyState, setCopyState] = useState<'copy' | 'copied' | 'copyFailed'>('copy');
   const close = (): void => shell.ui.setPreferencesOpen(false);
   const ref = useModalDialog(ui.preferencesOpen, close);
   const current = tabs.find(tab => tab.id === active) ?? tabs[0];
 
   const copy = async (): Promise<void> => {
-    await navigator.clipboard?.writeText(shell.preferences.exportJson());
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    try {
+      await navigator.clipboard.writeText(shell.preferences.exportJson());
+      setCopyState('copied');
+    } catch {
+      setCopyState('copyFailed');
+    }
+    setTimeout(() => setCopyState('copy'), 1500);
   };
 
   return (
@@ -174,7 +178,7 @@ export function PreferencesDrawer(): ReactElement {
                     data-testid='pref-copy'
                     onClick={() => void copy()}
                   >
-                    {copied ? t('prefs.copied') : t('prefs.copy')}
+                    {t(`prefs.${copyState}`)}
                   </button>
                 </span>
               </>

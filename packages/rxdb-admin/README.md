@@ -102,6 +102,8 @@ shell.shortcuts.register({ id: 'sync', combo: 'Mod+Shift+S', label: '立即同�
 
 外壳文案在命名空间 `rxdb-admin` 下，随包提供 `zh-Hans` 与 `en`。默认使用只含外壳目录的静态运行时；应用已有 `@aiao/rxdb-i18n` 运行时时，把 `adminMessages` 加入它的 `catalogs` 并通过 `i18n` 选项传入，语言切换即全站联动。
 
+`brand.titleKey` 与 `brand.documentTitleKey` 从应用运行时的默认命名空间读取品牌和文档标题，随语言更新；未提供翻译键时沿用 `brand.title` 与宿主原标题。扩展偏好的 `sectionKey`、`labelKey`、`hintKey` 从 `rxdb-admin` 目录读取分组、标题和说明。
+
 ## 锁屏的边界
 
 锁屏是「防偷看」而不是安全边界：密码以 PBKDF2-SHA256（Web Crypto）加盐哈希后存放在本机，数据本身并未加密；环境缺少 `crypto.subtle`（非 HTTPS 且非 localhost）时设置密码直接报错，不会退让为弱哈希。

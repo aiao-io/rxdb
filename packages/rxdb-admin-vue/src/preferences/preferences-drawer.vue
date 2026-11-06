@@ -18,7 +18,7 @@ const tabs = useAdminStore(shell.drawer);
 const hasDiff = useAdminStore(shell.preferences.hasDiff);
 const active = ref<PreferenceTab>('appearance');
 const importing = ref(false);
-const copied = ref(false);
+const copyState = ref<'copy' | 'copied' | 'copyFailed'>('copy');
 
 const close = (): void => shell.ui.setPreferencesOpen(false);
 const dialog = useTemplateRef<HTMLDialogElement>('dialog');
@@ -26,10 +26,14 @@ useModalDialog(dialog, () => ui.value.preferencesOpen, close);
 const current = computed(() => tabs.value.find(tab => tab.id === active.value) ?? tabs.value[0]);
 
 const copy = async (): Promise<void> => {
-  await navigator.clipboard?.writeText(shell.preferences.exportJson());
-  copied.value = true;
+  try {
+    await navigator.clipboard.writeText(shell.preferences.exportJson());
+    copyState.value = 'copied';
+  } catch {
+    copyState.value = 'copyFailed';
+  }
   setTimeout(() => {
-    copied.value = false;
+    copyState.value = 'copy';
   }, 1500);
 };
 </script>
@@ -143,7 +147,7 @@ const copy = async (): Promise<void> => {
               data-testid="pref-copy"
               @click="copy"
             >
-              {{ copied ? t('prefs.copied') : t('prefs.copy') }}
+              {{ t(`prefs.${copyState}`) }}
             </button>
           </span>
         </template>

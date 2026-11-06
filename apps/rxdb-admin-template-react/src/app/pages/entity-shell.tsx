@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import { useRxDB } from '@aiao/rxdb-react';
 import { Navigate, Outlet, useParams } from 'react-router-dom';
 import { visibleEntityEntries } from '../entities/entity-registry';
@@ -8,6 +9,7 @@ import { visibleEntityEntries } from '../entities/entity-registry';
  * 本页只负责重定向与列表出口（US-526 AC#1 / #2 的导航闭环）。
  */
 export default function EntityShell() {
+  const { t } = useI18n();
   const rxdb = useRxDB();
   const entries = visibleEntityEntries(rxdb.config.entities);
   const { namespace, name } = useParams();
@@ -15,7 +17,7 @@ export default function EntityShell() {
   if (namespace === undefined || name === undefined) {
     const first = entries[0];
     if (first === undefined) {
-      return <div role='alert'>没有可见实体</div>;
+      return <div role='alert'>{t('entity.none')}</div>;
     }
     return <Navigate to={`/entities/${first.namespace}/${first.name}`} replace />;
   }

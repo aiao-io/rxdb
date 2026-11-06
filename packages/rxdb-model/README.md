@@ -65,6 +65,8 @@ Angular / React / Vue 组件消费对应 `@aiao/rxdb-i18n-{angular,react,vue}` �
 
 应用目录使用 namespace=`rxdb-model` 和 [文案盘点](../../requirements/client-i18n-inventory.md) 中的 key。数据库模式下通过 `i18n.setMessages({ locale: 'en', namespace: 'rxdb-model', messages: { 'common.save': 'Submit' } })` 持久化逐条覆盖，重启后仍生效；未覆盖 key 沿 fallback 链回退中文。`actionsTitle` 等已有 options 始终优先于目录。
 
+实体、字段与关系显示名可在同一 `rxdb-model` 命名空间声明稳定键：`entity.assets.Asset.displayName`、`entity.assets.Asset.property.name`、`entity.assets.Asset.relation.category`。三端列表、筛选、详情及已打开表单随目录和语言更新标签，保留未保存数据。缺少声明的键继续使用实体原有显示名，不记录缺失诊断。`localizeEntityMetadata(metadata, runtime)` 只克隆显示元数据，保持原实体声明、字段名、默认值和记录内容不变；`localizeEntityFormFields(metadata, fields, runtime)` 可更新已构造的表单字段标签。自定义 `ModelI18n` 可实现可选的 `resolve()` 以启用这一能力。
+
 ## 开发
 
 ```bash

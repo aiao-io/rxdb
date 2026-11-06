@@ -1,4 +1,6 @@
-import { isRxDBBackupError, type RxDBBackupErrorCode } from '@aiao/rxdb';
+import { isRxDBBackupError } from '@aiao/rxdb';
+import type { I18n } from '@aiao/rxdb-i18n';
+import { pageZhMessages } from '../i18n/page-messages';
 
 /**
  * 工作台的备份 / 恢复操作（US-527）。
@@ -36,10 +38,10 @@ export async function collectBackup(adapter: BackupAdapterLike): Promise<Collect
 }
 
 /** 归档下载文件名：`工作台备份-YYYYMMDD-HHmm.rxdb-backup`。 */
-export function backupDownloadName(now: Date = new Date()): string {
+export function backupDownloadName(now: Date = new Date(), prefix = pageZhMessages['backup.filePrefix']): string {
   const pad = (n: number): string => String(n).padStart(2, '0');
   const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`;
-  return `工作台备份-${stamp}.rxdb-backup`;
+  return `${prefix}-${stamp}.rxdb-backup`;
 }
 
 /** 把 Blob 交给浏览器下载。 */
@@ -54,34 +56,15 @@ export function downloadBlob(blob: Blob, name: string): void {
 }
 
 /** 已初始化的工作台需要换全新浏览器环境恢复，刷新不能清空目标存储。 */
-export const RESTORE_TARGET_INITIALIZED_MESSAGE =
-  '当前工作台已初始化或正在使用，恢复只支持空工作台。请在新浏览器配置中打开工作台首页，先选择「从备份恢复」。当前数据保持不变。';
-
-const CODE_MESSAGES: Record<RxDBBackupErrorCode, string> = {
-  unsupported_combination: '当前存储组合不支持备份 / 恢复（浏览器下仅 IndexedDB 存储支持）',
-  incompatible_archive: '归档与当前工作台版本不兼容',
-  auth_domain_mismatch: '归档的加密认证域与当前工作台不一致',
-  corrupt_archive: '归档文件损坏或不是有效的工作台备份',
-  truncated_archive: '归档文件不完整（传输中断）',
-  target_not_empty: RESTORE_TARGET_INITIALIZED_MESSAGE,
-  target_busy: RESTORE_TARGET_INITIALIZED_MESSAGE,
-  restore_in_progress: '已有恢复在进行中，请等待完成',
-  restore_incomplete: '上次恢复未完成，请先清理残留再重试',
-  cleanup_pending: '存在待清理的恢复残留，请先清理',
-  aborted: '操作已取消',
-  io_error: '文件读写失败，请检查磁盘与文件权限',
-  storage_full: '存储空间不足，无法完成备份',
-  lock_timeout: '数据库正忙，请稍后重试',
-  invalid_state: '当前状态不支持该操作，请刷新页面重试'
-};
+export const RESTORE_TARGET_INITIALIZED_MESSAGE = pageZhMessages['backup.error.target_busy'];
 
 /** 把引擎错误翻译成用户可读的失败原因（未知错误兜底为原文，不吞掉信息）。 */
-export function backupErrorMessage(error: unknown): string {
+export function backupErrorMessage(error: unknown, t: I18n['t']): string {
   if (isRxDBBackupError(error)) {
-    return CODE_MESSAGES[error.code];
+    return t(`backup.error.${error.code}`);
   }
   if (error instanceof Error && error.message) {
-    return `操作失败：${error.message}`;
+    return t('backup.error.operationFailed', { message: error.message });
   }
-  return '操作失败，原因未知';
+  return t('backup.error.unknown');
 }

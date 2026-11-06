@@ -1,6 +1,7 @@
 import type { EntityType } from '@aiao/rxdb';
 import type { MenuNode } from '@aiao/rxdb-admin';
 import { AdminLayout, AdminShellProvider } from '@aiao/rxdb-admin-react';
+import { I18nProvider, useI18n } from '@aiao/rxdb-i18n-react';
 import { RxDBProvider, useCount, useRxDB } from '@aiao/rxdb-react';
 import { Database } from 'lucide-react';
 import { Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -38,16 +39,17 @@ function CountValue({ entry }: { entry: WorkbenchEntityEntry }) {
 
 /** 外壳布局：菜单、当前地址、导航状态交给 AdminLayout，路由出口作为内容区。 */
 function AppLayout() {
+  const { t, locale } = useI18n();
   const rxdb = useRxDB();
   const location = useLocation();
   const navigation = useNavigation();
   const navigate = useNavigate();
-  const menu = useMemo<MenuNode<ReactNode>[]>(() => buildWorkbenchMenu(rxdb.config.entities), [rxdb]);
+  const menu = useMemo<MenuNode<ReactNode>[]>(() => buildWorkbenchMenu(rxdb.config.entities, t), [rxdb, t, locale]);
   const entries = useMemo(() => visibleEntityEntries(rxdb.config.entities), [rxdb]);
 
   useEffect(
-    () => workbenchShell.palette.registerSource(createRecordSearchSource(rxdb, url => void navigate(url))),
-    [rxdb, navigate]
+    () => workbenchShell.palette.registerSource(createRecordSearchSource(rxdb, url => void navigate(url), t)),
+    [rxdb, navigate, t, locale]
   );
 
   return (
@@ -63,7 +65,11 @@ function AppLayout() {
     >
       <Suspense
         fallback={
-          <div className='flex h-full items-center justify-center' data-testid='loading-fallback' aria-label='加载中'>
+          <div
+            className='flex h-full items-center justify-center'
+            data-testid='loading-fallback'
+            aria-label={t('app.loading')}
+          >
             <span className='loading loading-spinner loading-lg'></span>
           </div>
         }
@@ -77,9 +83,11 @@ function AppLayout() {
 export default function App() {
   return (
     <RxDBProvider db={db}>
-      <AdminShellProvider shell={workbenchShell}>
-        <AppLayout />
-      </AdminShellProvider>
+      <I18nProvider value={workbenchShell.i18n}>
+        <AdminShellProvider shell={workbenchShell}>
+          <AppLayout />
+        </AdminShellProvider>
+      </I18nProvider>
     </RxDBProvider>
   );
 }

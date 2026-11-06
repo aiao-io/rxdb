@@ -1,8 +1,11 @@
+import { getEntityMetadata } from '@aiao/rxdb';
+import { I18n } from '@aiao/rxdb-i18n';
 import { provideI18n } from '@aiao/rxdb-i18n-vue';
-import { buildPropertyColumn, defaultModelI18n, formatDateValue } from '@aiao/rxdb-model';
+import { buildPropertyColumn, defaultModelI18n, formatDateValue, localizeEntityMetadata } from '@aiao/rxdb-model';
+import { Todo } from '@aiao/rxdb-test/entities';
 import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
-import { defineComponent, h } from 'vue';
+import { computed, defineComponent, h, nextTick } from 'vue';
 import { useModelI18n } from '../i18n';
 
 const date = new Date(2026, 9, 28, 13, 14, 15);
@@ -59,5 +62,38 @@ describe('模型 Vue 的默认格式兼容', () => {
     } finally {
       wrapper.unmount();
     }
+  });
+});
+
+describe('显示目录的 Vue 响应式绑定', () => {
+  it('首次缺失目录后新增翻译和切语言都更新显示元数据', async () => {
+    const metadata = getEntityMetadata(Todo);
+    const key = `entity.${metadata.namespace}.${metadata.name}.displayName`;
+    const runtime = new I18n({ locale: 'en' });
+    const Consumer = defineComponent({
+      setup() {
+        const binding = useModelI18n();
+        const label = computed(() => localizeEntityMetadata(metadata, binding.runtime).displayName);
+        return () => h('span', label.value);
+      }
+    });
+    const Provider = defineComponent({
+      setup() {
+        provideI18n(runtime);
+        return () => h(Consumer);
+      }
+    });
+    const wrapper = mount(Provider);
+    expect(wrapper.text()).toBe(metadata.displayName);
+    runtime.registerCatalog({ locale: 'en', namespace: 'rxdb-model', messages: { [key]: 'Tasks' } });
+    runtime.registerCatalog({ locale: 'zh-Hans', namespace: 'rxdb-model', messages: { [key]: '任务' } });
+    await nextTick();
+    expect(wrapper.text()).toBe('Tasks');
+    await runtime.setLocale('zh-Hans');
+    await nextTick();
+    expect(wrapper.text()).toBe('任务');
+    expect(metadata.displayName).not.toBe('Tasks');
+    wrapper.unmount();
+    runtime.destroy();
   });
 });

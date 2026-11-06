@@ -64,6 +64,7 @@ export function extensionToItem(extension: PreferenceExtension): PreferenceItem 
     tab: 'extension',
     section: extension.section ?? 'extension',
     ...(extension.section ? { sectionLabel: extension.section } : {}),
+    ...(extension.sectionKey ? { sectionKey: extension.sectionKey } : {}),
     ...(extension.label ? { label: extension.label } : {}),
     ...(extension.labelKey ? { labelKey: extension.labelKey } : {}),
     ...(extension.hint ? { hint: extension.hint } : {}),

@@ -34,6 +34,7 @@ import {
   buildListViewTableOptions,
   createListViewState,
   getListViewFields,
+  localizeEntityMetadata,
   type ListViewState,
   deriveEntityCapabilities,
   describeHistoryBarrier,
@@ -229,19 +230,22 @@ const entityClsMap = new Map<string, EntityType>(
   })
 );
 
-const modelInfoMap = new Map<string, ModelInfo>(
-  rxdb.config.entities.map(cls => {
-    const meta = getEntityMetadata(cls);
-    return [
-      meta.name,
-      {
-        name: meta.name,
-        displayName: meta.displayName ?? meta.name,
-        entityClass: cls as new (...args: unknown[]) => unknown,
-        metadata: meta
-      }
-    ] as const;
-  })
+const modelInfoMap = computed(
+  () =>
+    new Map<string, ModelInfo>(
+      rxdb.config.entities.map(cls => {
+        const meta = localizeEntityMetadata(getEntityMetadata(cls), modelI18n);
+        return [
+          meta.name,
+          {
+            name: meta.name,
+            displayName: meta.displayName ?? meta.name,
+            entityClass: cls as new (...args: unknown[]) => unknown,
+            metadata: meta
+          }
+        ] as const;
+      })
+    )
 );
 
 /** 每实体一个无限滚动资源（Angular 侧按需建 InfiniteScrollingList；Vue 组合式须在 setup 建齐） */
@@ -402,7 +406,7 @@ const isLoadingMore = computed(() => {
 const displayName = computed(() => {
   const cls = entityCls.value;
   if (!cls) return props.name;
-  const meta = getEntityMetadata(cls);
+  const meta = localizeEntityMetadata(getEntityMetadata(cls), modelI18n);
   return meta.displayName ?? meta.name;
 });
 
@@ -414,7 +418,9 @@ const isCreateBlocked = computed(
 const queryBuilderFields = computed<FieldMetadata[]>(() => {
   const cls = entityCls.value;
   if (!cls) return [];
-  return organizeFields(extractFieldsFromMetadata(getEntityMetadata(cls), modelInfoMap));
+  return organizeFields(
+    extractFieldsFromMetadata(localizeEntityMetadata(getEntityMetadata(cls), modelI18n), modelInfoMap.value)
+  );
 });
 
 // ── Select mode ───────────────────────────────────────────────────────

@@ -1,28 +1,32 @@
 import { isRxDBBackupError } from '@aiao/rxdb';
 import { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
+import type { I18n } from '@aiao/rxdb-i18n';
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import { useRxDB } from '@aiao/rxdb-react';
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { firstValueFrom } from 'rxjs';
-import {
-  backupDownloadName,
-  backupErrorMessage,
-  collectBackup,
-  downloadBlob,
-  RESTORE_TARGET_INITIALIZED_MESSAGE
-} from '../backup/backup-ops';
+import { backupDownloadName, backupErrorMessage, collectBackup, downloadBlob } from '../backup/backup-ops';
 
 type BackupStatus =
   | { kind: 'idle' }
   | { kind: 'running' }
   | { kind: 'success'; sha256: string; bytes: number }
-  | { kind: 'failed'; message: string };
+  | { kind: 'failed'; error: unknown };
+
+type RestoreFailure = { kind: 'initialized' } | { kind: 'operation' | 'reconnect'; error: unknown };
 
 type RestoreStatus =
   | { kind: 'idle' }
   | { kind: 'running' }
   | { kind: 'success'; sha256: string }
-  | { kind: 'failed'; message: string; needsCleanup: boolean };
+  | { kind: 'failed'; failure: RestoreFailure; needsCleanup: boolean };
+
+function restoreFailureMessage(failure: RestoreFailure, t: I18n['t']): string {
+  if (failure.kind === 'initialized') return t('backup.error.target_busy');
+  const message = backupErrorMessage(failure.error, t);
+  return failure.kind === 'reconnect' ? t('backup.reconnectFailed', { message }) : message;
+}
 
 /**
  * 备份 / 恢复页（US-527）：备份产出可下载归档；恢复只支持空工作台
@@ -31,6 +35,7 @@ type RestoreStatus =
  */
 export default function BackupPage() {
   const db = useRxDB();
+  const { t, formatNumber } = useI18n();
   const [backup, setBackup] = useState<BackupStatus>({ kind: 'idle' });
   const [restore, setRestore] = useState<RestoreStatus>({ kind: 'idle' });
   const operationPending = useRef(false);
@@ -52,10 +57,10 @@ export default function BackupPage() {
     setBackup({ kind: 'running' });
     try {
       const collected = await collectBackup(await adapterOf());
-      downloadBlob(collected.blob, backupDownloadName());
+      downloadBlob(collected.blob, backupDownloadName(new Date(), t('backup.filePrefix')));
       setBackup({ kind: 'success', sha256: collected.sha256, bytes: collected.bytes });
     } catch (error) {
-      setBackup({ kind: 'failed', message: backupErrorMessage(error) });
+      setBackup({ kind: 'failed', error });
     }
   }
 
@@ -68,7 +73,7 @@ export default function BackupPage() {
       if (connected) {
         setRestore({
           kind: 'failed',
-          message: RESTORE_TARGET_INITIALIZED_MESSAGE,
+          failure: { kind: 'initialized' },
           needsCleanup: false
         });
         return;
@@ -79,7 +84,7 @@ export default function BackupPage() {
       } catch (connectError) {
         setRestore({
           kind: 'failed',
-          message: `恢复已完成，但工作台重新连接失败：${backupErrorMessage(connectError)}。请刷新页面后继续`,
+          failure: { kind: 'reconnect', error: connectError },
           needsCleanup: false
         });
         return;
@@ -88,7 +93,7 @@ export default function BackupPage() {
     } catch (error) {
       setRestore({
         kind: 'failed',
-        message: backupErrorMessage(error),
+        failure: { kind: 'operation', error },
         needsCleanup: isRxDBBackupError(error, 'restore_incomplete') || isRxDBBackupError(error, 'cleanup_pending')
       });
     }
@@ -101,17 +106,15 @@ export default function BackupPage() {
       setRestore({ kind: 'idle' });
     } catch (error) {
       // 清理失败也保留清理入口：按钮是页面唯一的清理途径，消失会让恢复流程死锁
-      setRestore({ kind: 'failed', message: backupErrorMessage(error), needsCleanup: true });
+      setRestore({ kind: 'failed', failure: { kind: 'operation', error }, needsCleanup: true });
     }
   }
 
   return (
     <div className='page-host gap-4 overflow-auto p-6' aria-busy={busy}>
-      <h2 className='text-base font-semibold'>备份</h2>
+      <h2 className='text-base font-semibold'>{t('backup.title')}</h2>
       <section className='bg-base-200 rounded-box flex flex-col gap-2 p-4'>
-        <p className='text-sm opacity-80'>
-          把工作台的全部数据导出为一致性归档文件。换设备或浏览器清数据后，可在空工作台用下方「恢复」导入。
-        </p>
+        <p className='text-sm opacity-80'>{t('backup.description')}</p>
         <button
           className='btn btn-primary w-fit'
           disabled={busy}
@@ -120,36 +123,34 @@ export default function BackupPage() {
         >
           {backup.kind === 'running' ?
             <>
-              <span className='loading loading-spinner loading-sm'></span>备份中…
+              <span className='loading loading-spinner loading-sm'></span>
+              {t('backup.running')}
             </>
-          : '备份并下载'}
+          : t('backup.download')}
         </button>
         <div data-testid='backup-result'>
           {backup.kind === 'success' && (
             <span className='text-success'>
-              备份成功：{backup.bytes} 字节，sha256 {backup.sha256}
+              {t('backup.success', { bytes: formatNumber(backup.bytes), sha256: backup.sha256 })}
             </span>
           )}
           {backup.kind === 'failed' && (
             <span className='text-error' role='alert'>
-              {backup.message}
+              {backupErrorMessage(backup.error, t)}
             </span>
           )}
         </div>
       </section>
 
-      <h2 className='text-base font-semibold'>恢复</h2>
+      <h2 className='text-base font-semibold'>{t('backup.restoreTitle')}</h2>
       <section className='bg-base-200 rounded-box flex flex-col gap-2 p-4'>
-        <p className='text-sm opacity-80'>
-          从归档文件恢复整个工作台。请在新浏览器环境中打开首页，先选择「从备份恢复」，再导入归档。
-          已打开实体列表、搜索或执行过备份的工作台不能直接恢复，已有数据保持不变。
-        </p>
+        <p className='text-sm opacity-80'>{t('backup.restoreDescription')}</p>
         <input
           disabled={busy}
           type='file'
           className='file-input file-input-bordered w-full max-w-sm'
           data-testid='restore-input'
-          aria-label='选择备份归档'
+          aria-label={t('backup.selectArchive')}
           onChange={event => {
             const file = event.target.files?.[0];
             // 清空 value：同一归档再次选择才会再次触发 change
@@ -160,20 +161,21 @@ export default function BackupPage() {
         <div data-testid='restore-result'>
           {restore.kind === 'running' && (
             <span>
-              <span className='loading loading-spinner loading-sm'></span>处理中…
+              <span className='loading loading-spinner loading-sm'></span>
+              {t('backup.processing')}
             </span>
           )}
           {restore.kind === 'success' && (
             <span className='text-success'>
-              恢复成功（sha256 {restore.sha256}），
+              {t('backup.restored', { sha256: restore.sha256 })}
               <Link className='link' to='/entities'>
-                去实体列表继续编辑
+                {t('backup.continue')}
               </Link>
             </span>
           )}
           {restore.kind === 'failed' && (
             <span className='text-error' role='alert'>
-              {restore.message}
+              {restoreFailureMessage(restore.failure, t)}
             </span>
           )}
         </div>
@@ -184,7 +186,7 @@ export default function BackupPage() {
             onClick={() => void runExclusive(handleCleanup)}
             data-testid='restore-cleanup'
           >
-            清理恢复残留
+            {t('backup.cleanup')}
           </button>
         )}
       </section>

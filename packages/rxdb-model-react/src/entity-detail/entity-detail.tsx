@@ -30,6 +30,8 @@ import {
   cn,
   entityToFormData,
   formDataToEntityChanges,
+  localizeEntityFormFields,
+  localizeEntityMetadata,
   validateForm
 } from '@aiao/rxdb-model';
 import { useHasRxDBProvider, useRxDBOptional } from '@aiao/rxdb-react';
@@ -301,15 +303,20 @@ export function EntityDetail({
 
   const [activeTabKey, setActiveTabKey] = useState('basic');
 
-  const metadataValue: EntityMetadata | undefined = metadata ?? (entityCls ? getEntityMetadata(entityCls) : undefined);
+  const metadataValue = useMemo<EntityMetadata | undefined>(() => {
+    void t;
+    const source = metadata ?? (entityCls ? getEntityMetadata(entityCls) : undefined);
+    return source ? localizeEntityMetadata(source, modelI18n) : undefined;
+  }, [metadata, entityCls, modelI18n, t]);
 
   const formFieldsValue: FormFieldConfig[] = useMemo(() => {
     t('common.actions');
 
-    const fields =
+    const sourceFields =
       formFields ??
       (entityCls && metadataValue ? buildFormFields(metadataValue, formModeValue, modelI18n) : undefined) ??
       [];
+    const fields = metadataValue ? localizeEntityFormFields(metadataValue, sourceFields, modelI18n) : sourceFields;
     const fixed = fixedFormData;
     if (!fixed) return fields;
     return fields.map(f => (f.field in fixed ? { ...f, readonly: true } : f));

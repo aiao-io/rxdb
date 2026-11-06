@@ -29,7 +29,7 @@ export class AdminPreferencesDrawerComponent {
   protected readonly hasDiff = injectAdminStore(this.shell.preferences.hasDiff);
   protected readonly active = signal<PreferenceTab>('appearance');
   protected readonly importing = signal(false);
-  protected readonly copied = signal(false);
+  protected readonly copyState = signal<'copy' | 'copied' | 'copyFailed'>('copy');
   protected readonly current = computed(() => this.tabs().find(tab => tab.id === this.active()) ?? this.tabs()[0]);
   protected readonly X = LucideX;
 
@@ -56,8 +56,12 @@ export class AdminPreferencesDrawerComponent {
   }
 
   protected async copy(): Promise<void> {
-    await navigator.clipboard?.writeText(this.shell.preferences.exportJson());
-    this.copied.set(true);
-    this.#copiedTimer = setTimeout(() => this.copied.set(false), COPIED_MS);
+    try {
+      await navigator.clipboard.writeText(this.shell.preferences.exportJson());
+      this.copyState.set('copied');
+    } catch {
+      this.copyState.set('copyFailed');
+    }
+    this.#copiedTimer = setTimeout(() => this.copyState.set('copy'), COPIED_MS);
   }
 }

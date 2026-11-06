@@ -7,15 +7,15 @@
 | 状态           | 数量 |
 | -------------- | ---- |
 | ✅ Done        | 0    |
-| 🚧 In Progress | 0    |
+| 🚧 In Progress | 1    |
 | 👀 In Review   | 2    |
 | 📝 Backlog     | 2    |
 | 🚫 Blocked     | 0    |
-| **合计**       | 4    |
+| **合计**       | 5    |
 
-## 进行中（0 条）
+## 进行中（1 条）
 
-暂无。
+完整客户端国际化正在接入，覆盖外壳、页面、模型显示名及空库恢复边界。
 
 ## 待评审（2 条）
 
@@ -27,5 +27,6 @@
 
 - 👀 [ADMIN-US-001 应用需求管理与结构门禁](stories/platform/ADMIN-US-001-application-requirements.md)
 - 👀 [ADMIN-US-002 应用标识与存储配置](stories/platform/ADMIN-US-002-application-configuration.md)
+- 🚧 [ADMIN-US-003 完整客户端国际化接入](stories/platform/ADMIN-US-003-client-i18n.md)
 - ⬜ [ADMIN-US-101 示例实体替换与元数据贯通](stories/domain/ADMIN-US-101-replace-sample-domain.md)
 - ⬜ [ADMIN-US-102 自定义页面与导航扩展路径](stories/domain/ADMIN-US-102-custom-pages-navigation.md)

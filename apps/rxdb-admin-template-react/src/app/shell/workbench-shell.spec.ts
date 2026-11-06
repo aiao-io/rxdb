@@ -7,11 +7,60 @@ import {
   SEARCH_PAGE_SIZE_KEY,
   WORKBENCH_STORAGE_PREFIX,
   bindWorkbenchNavigator,
+  createWorkbenchShell,
   readLegacyPreferences,
   workbenchShell
 } from './workbench-shell';
 
 describe('workbench-shell', () => {
+  it('清除语言选择或重置偏好后恢复应用默认语言', () => {
+    const shell = createWorkbenchShell(undefined, { host: {} });
+    try {
+      shell.preferences.setPath('app.locale', 'en');
+      expect(shell.i18n.locale).toBe('en');
+      shell.preferences.setPath('app.locale', '');
+      expect(shell.i18n.locale).toBe('zh-Hans');
+      shell.preferences.setPath('app.locale', 'en');
+      shell.preferences.reset();
+      expect(shell.i18n.locale).toBe('zh-Hans');
+    } finally {
+      shell.destroy();
+    }
+  });
+
+  it('应用、模型和外壳共用语言，品牌与扩展偏好即时翻译', async () => {
+    const shell = createWorkbenchShell(undefined, { host: {} });
+    try {
+      expect(shell.i18n.t('start.title')).toBe('开始使用工作台');
+      await shell.i18n.setLocale('en');
+      expect(shell.i18n.t('start.title')).toBe('Get started with your workbench');
+      expect(shell.brandTitle).toBe('Workbench');
+      expect(shell.i18n.t('common.save', undefined, 'rxdb-model')).toBe('Save');
+      expect(shell.t('widget.language')).toBe('Switch language');
+      const section = shell.drawer.value.find(tab => tab.id === 'extension')?.sections[0];
+      expect(section?.title).toBe('Full-text search');
+      expect(section?.rows[0]).toMatchObject({
+        label: 'Results per page',
+        hint: 'Number of results loaded at a time. Changes apply immediately.'
+      });
+    } finally {
+      shell.destroy();
+    }
+  });
+
+  it('语言选择由外壳偏好恢复，不需要连接业务数据库', () => {
+    const local = createMemoryStorage({
+      [`${WORKBENCH_STORAGE_PREFIX}.preferences`]: JSON.stringify({ version: 1, values: { app: { locale: 'en' } } })
+    });
+    const shell = createWorkbenchShell(undefined, { storage: { local }, host: {} });
+    try {
+      expect(shell.i18n.locale).toBe('en');
+      expect(shell.i18n.t('start.title')).toBe('Get started with your workbench');
+    } finally {
+      shell.destroy();
+    }
+  });
+
   it('Vite 转换后的首屏脚本与外壳使用同一个存储键', async () => {
     const appRoot = resolve(import.meta.dirname, '../../..');
     const server = await createServer({

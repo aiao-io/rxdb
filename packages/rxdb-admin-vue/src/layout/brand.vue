@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAdminShell, useAdminStore } from '../context.js';
+import { computed } from 'vue';
 import { interceptNavigation } from './intercept-navigation.js';
 
 /**
@@ -8,6 +9,11 @@ import { interceptNavigation } from './intercept-navigation.js';
  */
 const shell = useAdminShell();
 const prefs = useAdminStore(shell.preferences);
+const revision = useAdminStore(shell.text);
+const brandTitle = computed(() => {
+  void revision.value;
+  return shell.brandTitle;
+});
 
 defineSlots<{
   /** 没有 Logo 图片时显示的图标。 */
@@ -22,7 +28,7 @@ const go = (event: MouseEvent): void => interceptNavigation(event, () => shell.n
     v-if="prefs.logo.enable"
     class="admin-brand"
     :href="shell.homeUrl"
-    :aria-label="shell.brandTitle"
+    :aria-label="brandTitle"
     @click="go"
   >
     <img
@@ -38,7 +44,7 @@ const go = (event: MouseEvent): void => interceptNavigation(event, () => shell.n
     <span
       v-if="prefs.logo.showText || !prefs.logo.source"
       class="admin-brand-text"
-      >{{ shell.brandTitle }}</span
+      >{{ brandTitle }}</span
     >
   </a>
 </template>
