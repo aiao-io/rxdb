@@ -239,7 +239,7 @@ export async function runLayoutCase(page, expect) {
     await root
       .locator('.wb-file')
       .and(page.getByTitle(path, { exact: true }))
-      .click();
+      .dblclick();
     await expect(root.locator(`[data-editor-tab-path="${path}"]`)).toBeVisible();
   }
   await root.getByRole('button', { name: '向右拆分编辑器组', exact: true }).click();
@@ -247,7 +247,6 @@ export async function runLayoutCase(page, expect) {
   await expect(editorGroups).toHaveCount(2);
   const panel = root.locator('.wb-title-actions [data-action="panel"]');
   const sidebar = root.locator('[data-action="toggle-sidebar"]');
-  await panel.click();
   await sidebar.click();
   await expect(panel).toHaveAttribute('aria-pressed', 'false');
   await expect(sidebar).toHaveAttribute('aria-pressed', 'false');
@@ -272,4 +271,61 @@ export async function runLayoutCase(page, expect) {
   await expect(root.locator('[data-log="problems"]')).toBeHidden();
   expect(new URL(page.url()).hash).toBe('');
   expect(browserErrors).toEqual([]);
+}
+
+export async function runRecoveryCase(page, expect) {
+  await page.goto('/');
+  const root = await createProject(page, expect, 'vanilla');
+  const editor = root.locator('[data-editor-path="src/main.ts"] .cm-content');
+  for (let attempt = 0; attempt < 5; attempt++) {
+    await editor.click();
+    await page.keyboard.press('ControlOrMeta+End');
+    const marker = `immediate-refresh-${attempt}`;
+    await page.keyboard.insertText(`\n// ${marker}\n`);
+    await page.reload();
+    await expect(editor).toContainText(marker, { timeout: 30000 });
+    await expect(root.locator('[data-slot="save-status"]')).toContainText('未保存');
+  }
+  await root.getByRole('button', { name: '设置', exact: true }).click();
+  const settings = page.getByRole('dialog', { name: '设置', exact: true });
+  await settings.locator('select').selectOption('    ');
+  await settings.getByRole('button', { name: '确定', exact: true }).click();
+  await page.reload();
+  await expect(root.locator('[data-slot="indent"]')).toHaveText('空格: 4');
+  await expect(editor).toContainText('immediate-refresh-4');
+  await editor.click();
+  await page.keyboard.press('ControlOrMeta+S');
+  await expect(root.locator('[data-slot="save-status"]')).toContainText('已保存在此浏览器');
+  await page.reload();
+  for (let attempt = 0; attempt < 5; attempt++) await expect(editor).toContainText(`immediate-refresh-${attempt}`);
+  await expect(root.locator('[data-slot="save-status"]')).toContainText('已保存在此浏览器');
+  await expect(root.locator('[data-slot="indent"]')).toHaveText('空格: 4');
+}
+
+export async function runPreviewTabsCase(page, expect) {
+  await page.goto('/');
+  const root = await createProject(page, expect, 'vanilla');
+  const file = path => root.locator(`.wb-file[data-tree-path="${path}"]`);
+  const tab = path => root.locator(`[data-editor-tab-path="${path}"]`);
+  await file('src/label.ts').click();
+  await expect(tab('src/label.ts')).toHaveClass(/wb-preview-tab/);
+  await file('package.json').click();
+  await expect(tab('src/label.ts')).toHaveCount(0);
+  await expect(tab('package.json')).toHaveClass(/wb-preview-tab/);
+  await file('package.json').dblclick();
+  await expect(tab('package.json')).not.toHaveClass(/wb-preview-tab/);
+  await file('src/label.ts').click();
+  await root.getByRole('button', { name: '向右拆分编辑器组', exact: true }).click();
+  await tab('package.json').click();
+  await file('tsconfig.json').click();
+  await expect(tab('src/label.ts')).toBeVisible();
+  await expect(tab('tsconfig.json')).toHaveClass(/wb-preview-tab/);
+  const editor = root.locator('[data-editor-path="tsconfig.json"] .cm-content');
+  await editor.click();
+  await page.keyboard.press('ControlOrMeta+End');
+  await page.keyboard.insertText(' ');
+  await expect(tab('tsconfig.json')).not.toHaveClass(/wb-preview-tab/);
+  await file('src/main.ts').click();
+  await expect(tab('tsconfig.json')).toBeVisible();
+  await expect(tab('src/label.ts')).toBeVisible();
 }

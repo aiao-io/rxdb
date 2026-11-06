@@ -16,6 +16,7 @@ const instances: WorkbenchHandle[] = [];
 afterEach(() => {
   instances.splice(0).forEach(handle => handle.dispose());
   vi.restoreAllMocks();
+  window.sessionStorage.clear();
   document.body.replaceChildren();
 });
 
@@ -58,6 +59,8 @@ function fixture(withGithub = true): {
     getState: vi.fn(async () => null),
     putState: vi.fn(async () => undefined),
     getLayout: vi.fn(async () => null),
+    getPreferences: vi.fn(async () => null),
+    putPreferences: vi.fn(async () => undefined),
     putLayout: vi.fn(async () => undefined)
   } as unknown as WorkbenchCatalog & Record<string, ReturnType<typeof vi.fn>>;
   const editorHandle = {

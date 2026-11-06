@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { WorkbenchCatalog, WorkbenchProjectInfo } from './catalog.js';
+import type { WorkbenchCatalog, WorkbenchPreferences, WorkbenchProjectInfo } from './catalog.js';
 import type { WorkbenchCompiler } from './compiler-client.js';
 import { CompilationError } from './compiler/compiler-types.js';
 import type { WorkbenchEditorMount } from './editor.js';
@@ -8,12 +8,14 @@ import type { GitHubApi } from './git/github/github-api.js';
 import type { GitHubAuth } from './git/github/github-auth.js';
 import { mountWorkbench, type WorkbenchHandle } from './mount.js';
 import type { WorkbenchBackend, WorkbenchDiff, WorkbenchFiles, WorkbenchSnapshot } from './session.js';
+import { createWorkbenchRecoveryJournal } from './workbench-recovery.js';
 
 const instances: WorkbenchHandle[] = [];
 afterEach(() => {
   instances.splice(0).forEach(handle => handle.dispose());
   vi.restoreAllMocks();
   Reflect.deleteProperty(window, 'showDirectoryPicker');
+  window.sessionStorage.clear();
   document.body.replaceChildren();
 });
 
@@ -24,7 +26,8 @@ function fixture(
   bootstrapGate?: Promise<void>,
   extraProjects: readonly WorkbenchProjectInfo[] = [],
   initialFiles: WorkbenchFiles = files,
-  github?: { auth: GitHubAuth; api?: GitHubApi }
+  github?: { auth: GitHubAuth; api?: GitHubApi },
+  preferences: WorkbenchPreferences | null = null
 ) {
   let currentFiles: WorkbenchFiles = { ...initialFiles };
   let revision = 1;
@@ -108,7 +111,9 @@ function fixture(
     }),
     put: vi.fn(async () => undefined),
     getState: vi.fn<WorkbenchCatalog['getState']>(async () => null),
-    putState: vi.fn(async () => undefined),
+    getPreferences: vi.fn<WorkbenchCatalog['getPreferences']>(async () => preferences),
+    putPreferences: vi.fn<WorkbenchCatalog['putPreferences']>(async () => undefined),
+    putState: vi.fn<WorkbenchCatalog['putState']>(async () => undefined),
     getLayout: vi.fn(async () => null),
     putLayout: vi.fn(async () => undefined)
   };
@@ -276,6 +281,177 @@ function fakeDirectory(
 }
 
 describe('VS Code 风格工作台', () => {
+  it('空工作区收起预览和底部面板，隐藏无上下文状态并说明文件夹导入语义', async () => {
+    const { host, handle } = fixture(false);
+    await handle.ready;
+    expect(host.querySelector('[data-action="panel"]')?.getAttribute('aria-pressed')).toBe('false');
+    expect(host.querySelector('[data-action="preview"]')?.getAttribute('aria-pressed')).toBe('false');
+    expect(host.querySelector<HTMLElement>('[data-slot="branch"]')?.hidden).toBe(true);
+    expect(host.querySelector<HTMLElement>('[data-slot="cursor"]')?.hidden).toBe(true);
+    expect(host.querySelector('[data-welcome-action="open-folder"]')?.textContent).toBe('导入文件夹（副本）');
+    expect(host.querySelector('.wb-empty-view')?.textContent).toContain('保存在此浏览器');
+  });
+
+  it('打开项目恢复草稿和未保存状态，预览只读取已保存版本', async () => {
+    const { handle, catalog, backend, compiler } = fixture();
+    catalog.getState.mockResolvedValue({
+      tabs: ['src/main.ts'],
+      activePath: 'src/main.ts',
+      drafts: { 'src/main.ts': { base: files['src/main.ts'], content: 'recovered draft' } }
+    });
+    await handle.ready;
+    expect(handle.session.state.files['src/main.ts']).toBe('recovered draft');
+    expect(handle.session.state.dirty).toBe(true);
+    expect(handle.session.getSavedSnapshot().files).toEqual(files);
+    expect(backend.save).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(compiler.compile).toHaveBeenCalled());
+    expect(compiler.compile.mock.calls[0][0].files['src/main.ts']).toBe(files['src/main.ts']);
+  });
+
+  it('输入后持久化草稿，保存完成后删除恢复记录里的草稿', async () => {
+    const { handle, catalog } = fixture();
+    await handle.ready;
+    handle.session.edit('src/main.ts', 'draft');
+    await vi.waitFor(() =>
+      expect(catalog.putState).toHaveBeenLastCalledWith(
+        'one',
+        expect.objectContaining({
+          drafts: { 'src/main.ts': { base: files['src/main.ts'], content: 'draft' } }
+        })
+      )
+    );
+    await handle.session.save();
+    await vi.waitFor(() =>
+      expect(catalog.putState).toHaveBeenLastCalledWith('one', {
+        tabs: ['src/main.ts'],
+        activePath: 'src/main.ts'
+      })
+    );
+  });
+
+  it('异步写库尚未完成就重挂载时，从同步日志恢复最新草稿并重新落库', async () => {
+    const first = fixture();
+    await first.handle.ready;
+    let finishWrite!: () => void;
+    const pendingWrite = new Promise<void>(resolve => {
+      finishWrite = resolve;
+    });
+    first.catalog.putState.mockImplementation(() => pendingWrite);
+    first.handle.session.edit('src/main.ts', 'immediate refresh draft');
+    first.handle.dispose();
+    const reopened = fixture();
+    await reopened.handle.ready;
+    expect(reopened.handle.session.state.files['src/main.ts']).toBe('immediate refresh draft');
+    expect(reopened.handle.session.state.dirty).toBe(true);
+    expect(reopened.backend.save).not.toHaveBeenCalled();
+    await vi.waitFor(() =>
+      expect(reopened.catalog.putState).toHaveBeenCalledWith(
+        'one',
+        expect.objectContaining({
+          drafts: { 'src/main.ts': { base: files['src/main.ts'], content: 'immediate refresh draft' } }
+        })
+      )
+    );
+    finishWrite();
+  });
+
+  it('损坏的恢复日志显式报告，并保留日志和持久化状态', async () => {
+    const journal = createWorkbenchRecoveryJournal(window.sessionStorage);
+    journal.stageProject('one', { tabs: [], activePath: null });
+    const key = window.sessionStorage.key(0);
+    if (!key) throw new Error('恢复日志未写入');
+    window.sessionStorage.setItem(key, '{broken');
+    const { host, handle, catalog } = fixture();
+    await handle.ready;
+    expect(host.textContent).toContain('工作台恢复日志损坏');
+    expect(catalog.putState).not.toHaveBeenCalled();
+    expect(window.sessionStorage.getItem(key)).toBe('{broken');
+  });
+
+  it('同步日志空间不足时报告风险，但继续写入数据库保存草稿', async () => {
+    const storage = window.sessionStorage;
+    const setItem = storage.setItem;
+    Object.defineProperty(storage, 'setItem', {
+      configurable: true,
+      value: () => {
+        throw new DOMException('quota', 'QuotaExceededError');
+      }
+    });
+    try {
+      const { host, handle, catalog, backend } = fixture();
+      await handle.ready;
+      handle.session.edit('src/main.ts', 'durable draft');
+      await vi.waitFor(() =>
+        expect(catalog.putState).toHaveBeenLastCalledWith(
+          'one',
+          expect.objectContaining({
+            drafts: { 'src/main.ts': { base: files['src/main.ts'], content: 'durable draft' } }
+          })
+        )
+      );
+      expect(host.textContent).toContain('刷新恢复日志写入失败');
+      expect(backend.save).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(storage, 'setItem', { configurable: true, value: setItem });
+    }
+  });
+
+  it('偏好同步日志优先于旧数据库值，恢复后确认落库并清理日志', async () => {
+    const journal = createWorkbenchRecoveryJournal(window.sessionStorage);
+    const preferences = { indentUnit: '    ', alwaysShowScmActions: true };
+    journal.stagePreferences(preferences);
+    const { handle, catalog, mountEditor } = fixture();
+    await handle.ready;
+    expect(mountEditor.mock.calls[0]?.[1].indentUnit).toBe('    ');
+    await vi.waitFor(() => {
+      expect(catalog.putPreferences).toHaveBeenCalledWith(preferences);
+      expect(journal.getPreferences()).toBeNull();
+    });
+  });
+
+  it('重开时应用用户偏好，设置确认后持久化缩进和 SCM 偏好', async () => {
+    const { host, handle, catalog, mountEditor } = fixture(true, undefined, undefined, [], files, undefined, {
+      indentUnit: '    ',
+      alwaysShowScmActions: true
+    });
+    await handle.ready;
+    expect(mountEditor.mock.calls[0][1].indentUnit).toBe('    ');
+    await click(host, '[data-action="settings"]');
+    const dialog = host.querySelector<HTMLDialogElement>('dialog[aria-label="设置"]');
+    const select = dialog?.querySelector<HTMLSelectElement>('select');
+    if (!dialog || !select) throw new Error('设置对话框缺失');
+    select.value = '        ';
+    dialog.querySelector('form')?.dispatchEvent(new Event('submit'));
+    await vi.waitFor(() =>
+      expect(catalog.putPreferences).toHaveBeenCalledWith({
+        indentUnit: '        ',
+        alwaysShowScmActions: true
+      })
+    );
+  });
+
+  it('树内单击替换同组预览，双击后固定，编辑草稿不会被后续浏览替换', async () => {
+    const { host, handle } = fixture(true, '/browser-workbench-assets/', undefined, [], {
+      ...files,
+      'src/third.ts': 'third'
+    });
+    await handle.ready;
+    treeRow(host, 'src/label.ts').click();
+    expect(handle.session.state.previewTabs).toEqual(['src/label.ts']);
+    treeRow(host, 'src/third.ts').click();
+    expect(handle.session.state.tabs).toEqual(['src/main.ts', 'src/third.ts']);
+    expect(host.querySelector('[data-editor-tab-path="src/third.ts"]')?.classList.contains('wb-preview-tab')).toBe(
+      true
+    );
+    treeRow(host, 'src/third.ts').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    expect(handle.session.state.previewTabs).toEqual([]);
+    treeRow(host, 'src/label.ts').click();
+    handle.session.edit('src/label.ts', 'draft');
+    treeRow(host, 'src/main.ts').click();
+    expect(handle.session.state.tabs).toContain('src/label.ts');
+    expect(handle.session.state.previewTabs).toEqual([]);
+  });
+
   it('面板发起拉取时标题栏和状态栏同步置忙，命令面板隐藏Git写入动作，结束后恢复', async () => {
     const { host, handle, backend } = fixture();
     let finish!: (snapshot: WorkbenchSnapshot) => void;
@@ -435,7 +611,7 @@ describe('VS Code 风格工作台', () => {
     expect(backend.create).not.toHaveBeenCalled();
     expect(handle.session.state.projectId).toBeNull();
     expect(host.querySelector('.wb-empty-view-hint')?.textContent).toBe('尚未打开文件夹。');
-    expect(host.querySelector('[data-welcome-action="open-folder"]')?.textContent).toBe('打开文件夹');
+    expect(host.querySelector('[data-welcome-action="open-folder"]')?.textContent).toBe('导入文件夹（副本）');
     expect(host.querySelector('[data-welcome-action="init-demo"]')?.textContent).toBe('初始化 Demo 项目');
     expect(host.querySelector('.wb-empty-view-recent')).toBeNull();
     const menu = await openTitleMenu(host);
@@ -1699,6 +1875,19 @@ describe('VS Code 风格工作台', () => {
     handle.dispose();
   });
 
+  it('空工作区新建项目后展开预览并保留源码标签', async () => {
+    const { host, handle, compiler } = fixture(false);
+    await handle.ready;
+    expect(host.querySelector('[data-slot="panel-staging"] .wb-preview')).not.toBeNull();
+    await clickTitleMenu(host, 'new-project');
+    await answer(host, 'first project');
+    await answer(host, 'vanilla');
+    await vi.waitFor(() => expect(compiler.compile).toHaveBeenCalledOnce());
+    expect(host.querySelector('[data-slot="panel-staging"] .wb-preview')).toBeNull();
+    expect(host.querySelector('[data-editor-tab-path="src/main.ts"]')).not.toBeNull();
+    expect(handle.session.state.activePath).toBe('src/main.ts');
+  });
+
   it('新建固定模板项目，历史恢复通过明确按钮确认', async () => {
     const { host, handle, backend, catalog } = fixture();
     await handle.ready;
@@ -2002,7 +2191,8 @@ describe('vscode.dev 起始页对齐', () => {
   }
 
   it('标题栏提供四个视图切换，点击同步侧栏与面板状态', async () => {
-    const { host } = fixture();
+    const { host, handle } = fixture();
+    await handle.ready;
     const titleActions = host.querySelector<HTMLElement>('.wb-title-actions');
     const sidebar = titleActions?.querySelector<HTMLButtonElement>('[data-action="toggle-sidebar"]');
     const panel = titleActions?.querySelector<HTMLButtonElement>('[data-action="panel"]');
@@ -2012,23 +2202,23 @@ describe('vscode.dev 起始页对齐', () => {
     expect(preview).not.toBeNull();
     expect(titleActions?.querySelector('[data-action="reset-layout"]')).not.toBeNull();
     expect(sidebar?.getAttribute('aria-pressed')).toBe('true');
-    expect(panel?.getAttribute('aria-pressed')).toBe('true');
+    expect(panel?.getAttribute('aria-pressed')).toBe('false');
     expect(preview?.getAttribute('aria-pressed')).toBe('true');
     expect(sidebar?.querySelector('.codicon')?.classList.contains('codicon-layout-sidebar-left')).toBe(true);
-    expect(panel?.querySelector('.codicon')?.classList.contains('codicon-layout-panel')).toBe(true);
+    expect(panel?.querySelector('.codicon')?.classList.contains('codicon-layout-panel-off')).toBe(true);
     sidebar?.click();
     await Promise.resolve();
     expect(sidebar?.getAttribute('aria-pressed')).toBe('false');
     expect(sidebar?.querySelector('.codicon')?.classList.contains('codicon-layout-sidebar-left-off')).toBe(true);
     panel?.click();
     await Promise.resolve();
-    expect(panel?.getAttribute('aria-pressed')).toBe('false');
-    expect(panel?.querySelector('.codicon')?.classList.contains('codicon-layout-panel-off')).toBe(true);
+    expect(panel?.getAttribute('aria-pressed')).toBe('true');
+    expect(panel?.querySelector('.codicon')?.classList.contains('codicon-layout-panel')).toBe(true);
     expect(preview?.getAttribute('aria-pressed')).toBe('true');
     panel?.click();
     await Promise.resolve();
-    expect(panel?.getAttribute('aria-pressed')).toBe('true');
-    expect(panel?.querySelector('.codicon')?.classList.contains('codicon-layout-panel')).toBe(true);
+    expect(panel?.getAttribute('aria-pressed')).toBe('false');
+    expect(panel?.querySelector('.codicon')?.classList.contains('codicon-layout-panel-off')).toBe(true);
     preview?.click();
     await Promise.resolve();
     expect(preview?.getAttribute('aria-pressed')).toBe('true');

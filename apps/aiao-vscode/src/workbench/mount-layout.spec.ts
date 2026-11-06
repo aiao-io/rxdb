@@ -15,6 +15,7 @@ vi.mock('./preview/preview-sandbox.js', async () => {
 const instances: WorkbenchHandle[] = [];
 afterEach(() => {
   instances.splice(0).forEach(handle => handle.dispose());
+  window.sessionStorage.clear();
   document.body.replaceChildren();
 });
 
@@ -77,6 +78,8 @@ function fixture(layouts: Readonly<Record<string, unknown>> = {}) {
     getState: vi.fn(async () => restoredTabs),
     putState: vi.fn(async () => undefined),
     getLayout: vi.fn<WorkbenchCatalog['getLayout']>(async projectId => layouts[projectId] ?? null),
+    getPreferences: vi.fn(async () => null),
+    putPreferences: vi.fn(async () => undefined),
     putLayout: vi.fn<WorkbenchCatalog['putLayout']>(async () => undefined)
   };
   const host = document.createElement('div');
@@ -128,7 +131,7 @@ describe('按项目保存与恢复工作台布局', () => {
     await vi.waitFor(() => expect(catalog.putLayout).toHaveBeenCalledOnce());
     const [projectId, layout] = catalog.putLayout.mock.calls[0] ?? [];
     expect(projectId).toBe('one');
-    expect(layout?.panels).not.toHaveProperty('problems');
+    expect(layout?.panels).toHaveProperty('problems');
     expect(layout?.panels).toHaveProperty('editor:src/main.ts');
     panel.click();
     handle.dispose();
@@ -155,14 +158,14 @@ describe('按项目保存与恢复工作台布局', () => {
     const [projectId, layout] = catalog.putLayout.mock.calls[0] ?? [];
     expect(projectId).toBe('one');
     expect(layout?.edgeGroups?.left?.visible).toBe(false);
-    expect(layout?.panels).toHaveProperty('problems');
+    expect(layout?.panels).not.toHaveProperty('problems');
   });
 
   it('项目布局记录非法时在输出面板提示，并保留当前布局', async () => {
     const { host, handle } = fixture({ one: { grid: 'broken' } });
     await handle.ready;
     expect(host.querySelector('[data-log="output"]')?.textContent).toContain('项目布局记录无效');
-    expect(pressed(host, '.wb-title-actions [data-action="panel"]')).toBe('true');
+    expect(pressed(host, '.wb-title-actions [data-action="panel"]')).toBe('false');
     expect(pressed(host, '[data-action="toggle-sidebar"]')).toBe('true');
   });
 

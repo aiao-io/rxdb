@@ -41,6 +41,99 @@ function fixture() {
 }
 
 describe('WorkbenchSession', () => {
+  it('草稿快照仅包含未保存文本，恢复不写入已保存文件或 Git', async () => {
+    const { backend } = fixture();
+    const original = new WorkbenchSession(backend);
+    await original.open('first');
+    original.edit('main.ts', 'draft');
+    original.edit('new.ts', 'new draft');
+    const drafts = original.getDrafts();
+    expect(drafts).toEqual({
+      'main.ts': { base: 'console.log(1)', content: 'draft' },
+      'new.ts': { base: null, content: 'new draft' }
+    });
+    const restored = new WorkbenchSession(backend);
+    await restored.open('first');
+    expect(restored.restoreDrafts(drafts)).toEqual([]);
+    expect(restored.state.files).toMatchObject({ 'main.ts': 'draft', 'new.ts': 'new draft' });
+    expect(restored.getSavedSnapshot().files['main.ts']).toBe('console.log(1)');
+    expect(restored.state.dirty).toBe(true);
+    expect(backend.save).not.toHaveBeenCalled();
+    expect(backend.stage).not.toHaveBeenCalled();
+    restored.discard();
+    expect(restored.getDrafts()).toEqual({});
+  });
+
+  it('恢复草稿时保留外部文件版本，并报告基线变化', async () => {
+    const { backend } = fixture();
+    const session = new WorkbenchSession(backend);
+    await session.open('first');
+    expect(session.restoreDrafts({ 'main.ts': { base: 'old', content: 'recovered' } })).toEqual(['main.ts']);
+    expect(session.state.files['main.ts']).toBe('recovered');
+    expect(session.getSavedSnapshot().files['main.ts']).toBe('console.log(1)');
+  });
+
+  it('非法草稿路径和目录冲突原子拒绝，不破坏当前文件', async () => {
+    const { backend } = fixture();
+    const session = new WorkbenchSession(backend);
+    await session.open('first');
+    expect(() => session.restoreDrafts({ '../escape.ts': { base: null, content: 'bad' } })).toThrow();
+    expect(() => session.restoreDrafts({ 'main.ts/nested.ts': { base: null, content: 'bad' } })).toThrow();
+    expect(session.state.files['main.ts']).toBe('console.log(1)');
+    expect(session.state.dirty).toBe(false);
+  });
+
+  it('保存指定文件后仅清理该文件草稿', async () => {
+    const { backend } = fixture();
+    const session = new WorkbenchSession(backend);
+    await session.open('first');
+    session.edit('main.ts', 'saved');
+    session.edit('other.ts', 'still draft');
+    await session.save(['main.ts']);
+    expect(session.getDrafts()).toEqual({ 'other.ts': { base: null, content: 'still draft' } });
+  });
+
+  it('同组预览替换旧预览，双击固定和编辑固定后继续保留', async () => {
+    const { backend } = fixture();
+    vi.mocked(backend.open).mockResolvedValueOnce({
+      projectId: 'first',
+      revision: '1',
+      files: { 'a.ts': 'a', 'b.ts': 'b', 'c.ts': 'c' }
+    });
+    const session = new WorkbenchSession(backend);
+    await session.open('first');
+    session.restoreTabs([], null);
+    session.select('a.ts', { preview: true });
+    session.select('b.ts', { preview: true, replacePreview: 'a.ts' });
+    expect(session.state.tabs).toEqual(['b.ts']);
+    expect(session.state.previewTabs).toEqual(['b.ts']);
+    session.select('b.ts');
+    session.select('a.ts', { preview: true });
+    session.edit('a.ts', 'edited');
+    session.select('c.ts', { preview: true, replacePreview: 'a.ts' });
+    expect(session.state.tabs).toEqual(['b.ts', 'a.ts', 'c.ts']);
+    expect(session.state.previewTabs).toEqual(['c.ts']);
+  });
+
+  it('不同组的预览互不替换，重开已固定标签不会变成预览', async () => {
+    const { backend } = fixture();
+    vi.mocked(backend.open).mockResolvedValueOnce({
+      projectId: 'first',
+      revision: '1',
+      files: { 'a.ts': 'a', 'b.ts': 'b', 'c.ts': 'c' }
+    });
+    const session = new WorkbenchSession(backend);
+    await session.open('first');
+    session.select('b.ts', { preview: true });
+    session.select('c.ts', { preview: true });
+    expect(session.state.previewTabs).toEqual(['b.ts', 'c.ts']);
+    session.select('a.ts', { preview: true, replacePreview: 'b.ts' });
+    expect(session.state.tabs).toEqual(['a.ts', 'b.ts', 'c.ts']);
+    expect(session.state.previewTabs).toEqual(['b.ts', 'c.ts']);
+    session.closeTab('b.ts');
+    expect(session.state.previewTabs).toEqual(['c.ts']);
+  });
+
   it('已保存快照排除编辑缓冲，并隔离返回的二进制内容', async () => {
     const { backend } = fixture();
     vi.mocked(backend.open).mockResolvedValueOnce({

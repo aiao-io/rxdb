@@ -26,6 +26,7 @@ afterEach(() => {
   instances.splice(0).forEach(handle => handle.dispose());
   vi.mocked(mountPreview).mockClear();
   vi.restoreAllMocks();
+  window.sessionStorage.clear();
   document.body.replaceChildren();
 });
 
@@ -91,6 +92,8 @@ function fixture() {
     getState: vi.fn(async () => null),
     putState: vi.fn(async () => undefined),
     getLayout: vi.fn(async () => null),
+    getPreferences: vi.fn(async () => null),
+    putPreferences: vi.fn(async () => undefined),
     putLayout: vi.fn(async () => undefined)
   };
   const host = document.createElement('div');
@@ -250,23 +253,27 @@ describe('预览转发与工作台全局快捷键', () => {
     { key: 'F5' },
     { key: 'w', metaKey: true },
     { key: 'w', ctrlKey: true }
-  ])('刷新或关闭页面不弹出浏览器确认：%j', async init => {
-    const { handle } = fixture();
-    await handle.ready;
-    const unload = (): void => {
-      const event = new Event('beforeunload', { cancelable: true });
-      window.dispatchEvent(event);
-      expect(event.defaultPrevented).toBe(false);
-      expect(event.returnValue).not.toBe('');
-    };
-    unload();
-    window.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
-    unload();
-    handle.session.edit('src/main.ts', 'unsaved');
-    unload();
-    handle.dispose();
-    unload();
-  }, 10000);
+  ])(
+    '刷新或关闭页面不弹出浏览器确认：%j',
+    async init => {
+      const { handle } = fixture();
+      await handle.ready;
+      const unload = (): void => {
+        const event = new Event('beforeunload', { cancelable: true });
+        window.dispatchEvent(event);
+        expect(event.defaultPrevented).toBe(false);
+        expect(event.returnValue).not.toBe('');
+      };
+      unload();
+      window.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
+      unload();
+      handle.session.edit('src/main.ts', 'unsaved');
+      unload();
+      handle.dispose();
+      unload();
+    },
+    10000
+  );
 
   it('预览快捷键操作后离开页面不弹出确认，未保存缓冲也不拦截', async () => {
     const { host, handle } = fixture();

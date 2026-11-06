@@ -4,16 +4,16 @@
 
 布局使用 `dockview-core`，图标使用微软官方 `@vscode/codicons`。界面沿用 VS Code Dark Modern 的活动栏、资源管理器、编辑标签、预览、问题 / 输出 / Console / 终端面板和状态栏。编辑标签可拖动拆分、合并与停靠；预览与编辑器在布局移动时保留实例、撤销记录和运行状态，支持一键重置布局。布局随项目保存在本地目录里（与打开的标签同处），直接打开、刷新、重启浏览器或切换项目时都按该项目上次的样子还原；只排布已打开的文件，地址栏不带布局。
 
-首次打开空目录会生成最小 React、Vue、Angular Demo；后续重开恢复最近使用的项目。范围与验收见 [requirements/stories/US-404](requirements/stories/US-404-browser-development-workbench.md)。
+首次进入空工作区显示欢迎页，预览与底部面板按需打开；可选择导入文件夹、打开最近项目或初始化 React、Vue、Angular Demo。后续重开恢复最近打开过的项目及其布局。范围与验收见 [requirements/stories/US-404](requirements/stories/US-404-browser-development-workbench.md)。
 
 ## 开发与构建
 
 ```sh
-pnpm nx serve aiao-vscode          # 开发服务器 http://127.0.0.1:4320
+pnpm nx serve aiao-vscode          # 开发服务器 http://localhost:4320
 pnpm nx build aiao-vscode          # 生产构建（默认配置，含 Service Worker）
 pnpm nx test aiao-vscode           # 内核 + Angular 外壳单测（vitest）
 pnpm nx run aiao-vscode:test-browser  # 真实 Chromium 探针（Git / 预览 / Angular）
-pnpm nx e2e aiao-vscode-e2e        # Playwright e2e：四模板编辑 / 运行 / 提交 / 归档，按项目还原布局
+pnpm nx e2e aiao-vscode-e2e        # Playwright e2e：四模板编辑 / 运行 / 提交 / 归档，布局 / 草稿 / 偏好恢复与分组预览标签
 ```
 
 开发服务器与生产构建都需要 `assets` 目标先生成自托管资源（`public/browser-workbench-assets/`），Nx 已配置依赖。
@@ -49,6 +49,12 @@ WASM 响应使用 `application/wasm`，JS 使用 `text/javascript`，CSS 使用 
 源码文件；当前打开差异时保存其对应文件，其他未保存缓冲继续保留。`Ctrl/⌘ + Shift + S` 为
 Save All，运行按钮和导出也会明确保存全部缓冲；保存与运行不会自动暂存或提交。
 
+资源管理器单击文件打开斜体预览标签，同一编辑器组内的下次浏览替换干净的预览标签；双击或编辑后固定。不同组的预览互不替换。缩进大小与 SCM 操作按钮偏好在此浏览器持久化。
+
+「导入文件夹（副本）」只把目录读入浏览器，编辑与保存不会修改原目录；保存状态明确显示「已保存在此浏览器」。
+
+未保存文本缓冲单独保存为恢复草稿，刷新后仍保留未保存标记；不会改写已保存文件、暂存区或提交。输入先写入当前浏览器标签页的同步恢复日志，再异步写入项目目录数据库，数据库确认后清理日志，覆盖输入后立即刷新的窗口。恢复日志空间不足或数据损坏会在问题面板明确报告，损坏记录保留。清除站点数据仍会删除本地项目与草稿，应定期导出。
+
 `Ctrl/⌘ + P` 打开文件搜索；`Ctrl/⌘ + Shift + P` 打开命令面板。编辑器启用 Tab 缩进，`Ctrl/⌘ + Enter`
 在源码内沿用 CodeMirror 的插入行行为，在 Git 提交说明内提交暂存区。`Ctrl/⌘ + W` 关闭标签、
 `Ctrl/⌘ + 反斜杠` 拆分、F2 重命名、`Ctrl/⌘ + B/J` 切换侧栏和底部面板。
@@ -74,8 +80,7 @@ BOM、行尾和末尾换行变化单独说明，二进制只显示字节信息�
 不覆盖已有仓库。导出后可在 Node.js 26 与 pnpm 12 下执行 `pnpm install --frozen-lockfile`、
 `pnpm build`，继续使用普通 Git。
 
-OPFS 按站点隔离，清除站点数据会删除项目；数据库只保存项目目录元数据（`WorkbenchProject`
-实体，`log: false`、`sync: None`），代码与 Git 历史不写进数据库。请使用项目导出保留完整源码与历史。
+OPFS 按站点隔离，清除站点数据会删除项目；数据库保存项目元数据、会话恢复草稿与用户偏好（`log: false`、`sync: None`），已保存源码与 Git 历史由 OPFS Git Worker 管理。请使用项目导出保留完整源码与历史。
 
 ## 支持范围
 

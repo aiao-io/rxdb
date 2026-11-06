@@ -20,6 +20,7 @@ export type WorkbenchToolKind = 'problems' | 'output' | 'console' | 'terminal';
 /** Dockview 与工作台会话之间的单向事件。 */
 export interface WorkbenchDockviewCallbacks {
   onSelectEditor(path: string): void;
+  onPinEditor?(path: string): void;
   onCloseEditor(path: string): void;
   onSelectTool(kind: WorkbenchToolKind): void;
   onToggleTool?(visible: boolean): void;
@@ -40,6 +41,8 @@ export interface WorkbenchDockview {
   selectEditor(path: string): void;
   removeEditor(path: string): void;
   setEditorTitle(path: string, title: string): void;
+  setEditorPreview(path: string, preview: boolean): void;
+  getEditorGroupPaths(): readonly string[];
   ensureAuxiliary(id: string, title: string): HTMLElement;
   removeAuxiliary(id: string): void;
   setSidebarVisible(visible: boolean): void;
@@ -176,11 +179,16 @@ function createTab(id: string, auxiliary: boolean, callbacks: WorkbenchDockviewC
     dirty.hidden = !modified;
   };
   let titleSubscription: DockviewIDisposable | undefined;
+  let previewSubscription: DockviewIDisposable | undefined;
   let detachLongPress: (() => void) | undefined;
   return {
     element,
     init(parameters: TabPartInitParameters) {
       renderTitle(parameters.title);
+      element.classList.toggle('wb-preview-tab', parameters.params?.['preview'] === true);
+      previewSubscription = parameters.api.onDidParametersChange(params => {
+        element.classList.toggle('wb-preview-tab', params['preview'] === true);
+      });
       titleSubscription = parameters.api.onDidTitleChange(event => renderTitle(event.title));
       detachLongPress = attachWorkbenchLongPress(element, {
         onLongPress: event =>
@@ -200,6 +208,7 @@ function createTab(id: string, auxiliary: boolean, callbacks: WorkbenchDockviewC
         parameters.api.close();
       });
       if (path !== undefined) {
+        element.addEventListener('dblclick', () => callbacks.onPinEditor?.(path));
         element.addEventListener('contextmenu', event =>
           showTabMenu(event, path, () => parameters.api.close(), root, callbacks.onCloseOthers, callbacks.onCloseRight)
         );
@@ -220,6 +229,7 @@ function createTab(id: string, auxiliary: boolean, callbacks: WorkbenchDockviewC
     },
     dispose() {
       titleSubscription?.dispose();
+      previewSubscription?.dispose();
       detachLongPress?.();
     }
   };
@@ -317,7 +327,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
   let disposed = false;
   let lastEditor: string | undefined;
   let lastTool: WorkbenchToolKind = 'problems';
-  let toolsShown = true;
+  let toolsShown = false;
   let sized = false;
   let overlayMode = false;
   let overlayVisible = false;
@@ -569,9 +579,6 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
   sideGroup.model.header.hidden = true;
   addStatic('sidebar', side.id);
   addStatic('welcome');
-  addPreview();
-  tools.forEach(addTool);
-  api.getPanel('problems')?.api.setActive();
   api.getPanel('welcome')?.api.setActive();
   syncing = 0;
 
@@ -601,7 +608,10 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
   }
 
   function showTool(kind: WorkbenchToolKind): void {
-    program(() => addTool(kind).api.setActive());
+    program(() => {
+      tools.forEach(addTool);
+      api.getPanel(kind)?.api.setActive();
+    });
     lastTool = kind;
     reportTools(true);
     callbacks.onSelectTool(kind);
@@ -749,6 +759,15 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
     setEditorTitle(path, title) {
       api.getPanel(editorId(path))?.api.setTitle(title);
     },
+    setEditorPreview(path, preview) {
+      const panel = api.getPanel(editorId(path));
+      if (panel && panel.params?.['preview'] !== preview) panel.api.updateParameters({ preview });
+    },
+    getEditorGroupPaths: () =>
+      (editorGroup()?.panels ?? []).flatMap(panel => {
+        const path = editorPath(panel.id);
+        return path === undefined ? [] : [path];
+      }),
     ensureAuxiliary,
     removeAuxiliary(id) {
       if (!auxiliaryIds.has(id)) return;

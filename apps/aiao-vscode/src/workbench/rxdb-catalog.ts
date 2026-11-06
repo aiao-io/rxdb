@@ -1,6 +1,7 @@
 import { Entity, EntityBase, PropertyType, RxDB, SyncType, type Repository } from '@aiao/rxdb';
 import { firstValueFrom } from 'rxjs';
 import { githubProjectInfo, type WorkbenchCatalog, type WorkbenchProjectInfo } from './catalog.js';
+import { parseWorkbenchPreferences, parseWorkbenchProjectState } from './workbench-state.js';
 
 /** 项目目录元数据；源码与真实 Git 历史留在独立 OPFS 仓库。 */
 @Entity({
@@ -84,7 +85,24 @@ export class WorkbenchRemoteProject extends EntityBase<string> {
   lastOpenedAt!: number;
 }
 
-/** 用已注册 WorkbenchProject / WorkbenchRemoteProject 的宿主数据库保存项目目录。 */
+/** 完整编辑会话与用户偏好，独立表保留既有数据库结构。 */
+@Entity({
+  namespace: 'workbench',
+  name: 'WorkbenchLocalState',
+  tableName: 'workbench_local_state',
+  log: false,
+  sync: { type: SyncType.None },
+  properties: [
+    { name: 'value', type: PropertyType.json, required: true },
+    { name: 'lastTouchedAt', type: PropertyType.number, required: true }
+  ]
+})
+export class WorkbenchLocalState extends EntityBase<string> {
+  value!: unknown;
+  lastTouchedAt!: number;
+}
+
+/** 用宿主已注册的工作台实体保存项目目录、恢复草稿与偏好。 */
 export function createRxDBWorkbenchCatalog(db: RxDB): WorkbenchCatalog {
   const repository = db.entityManager.getRepository<typeof WorkbenchProject, Repository<typeof WorkbenchProject>>(
     WorkbenchProject
@@ -101,6 +119,23 @@ export function createRxDBWorkbenchCatalog(db: RxDB): WorkbenchCatalog {
     typeof WorkbenchLayoutState,
     Repository<typeof WorkbenchLayoutState>
   >(WorkbenchLayoutState);
+  const localRepository = db.entityManager.getRepository<
+    typeof WorkbenchLocalState,
+    Repository<typeof WorkbenchLocalState>
+  >(WorkbenchLocalState);
+  const findLocalState = (id: string) =>
+    firstValueFrom(
+      localRepository.findOne({
+        where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: id }] }
+      })
+    );
+  const putLocalState = async (id: string, value: unknown): Promise<void> => {
+    const existing = await findLocalState(id);
+    const record = existing ?? db.entityManager.instantiate(WorkbenchLocalState, { id });
+    record.value = value;
+    record.lastTouchedAt = Date.now();
+    await record.save();
+  };
   const findState = (projectId: string) =>
     firstValueFrom(
       stateRepository.findOne({
@@ -161,6 +196,8 @@ export function createRxDBWorkbenchCatalog(db: RxDB): WorkbenchCatalog {
       await record.save();
     },
     async getState(projectId) {
+      const local = await findLocalState(`project:${projectId}`);
+      if (local) return parseWorkbenchProjectState(local.value);
       const existing = await findState(projectId);
       if (!existing) return null;
       return {
@@ -169,15 +206,12 @@ export function createRxDBWorkbenchCatalog(db: RxDB): WorkbenchCatalog {
         commitMessage: existing.commitMessage
       };
     },
-    async putState(projectId, state) {
-      const existing = await findState(projectId);
-      const record = existing ?? db.entityManager.instantiate(WorkbenchSessionState, { id: projectId });
-      record.tabs = [...state.tabs];
-      record.activePath = state.activePath ?? undefined;
-      record.commitMessage = state.commitMessage;
-      record.lastTouchedAt = Date.now();
-      await record.save();
+    putState: (projectId, state) => putLocalState(`project:${projectId}`, state),
+    async getPreferences() {
+      const record = await findLocalState('preferences');
+      return record ? parseWorkbenchPreferences(record.value) : null;
     },
+    putPreferences: preferences => putLocalState('preferences', preferences),
     async getLayout(projectId) {
       return (await findLayout(projectId))?.layout ?? null;
     },

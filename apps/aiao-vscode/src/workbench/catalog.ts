@@ -1,5 +1,12 @@
 import type { SerializedDockview } from 'dockview-core';
 import type { ProjectTemplate } from './compiler/compiler-types.js';
+import {
+  parseWorkbenchPreferences,
+  parseWorkbenchProjectState,
+  type WorkbenchPreferences,
+  type WorkbenchProjectState
+} from './workbench-state.js';
+export type { WorkbenchPreferences, WorkbenchProjectState } from './workbench-state.js';
 
 /** GitHub 远程仓库的目录条目补充信息。 */
 export interface WorkbenchRemoteInfo {
@@ -42,17 +49,11 @@ export function githubProjectInfo(
   };
 }
 
-/** 打开项目时恢复的编辑会话状态。 */
-export interface WorkbenchProjectState {
-  readonly tabs: readonly string[];
-  readonly activePath: string | null;
-  /** 最后一次成功提交的说明，重开时回填提交框。 */
-  readonly commitMessage?: string;
-}
-
 /** 宿主可用 RxDB 等元数据存储实现本接口。 */
 export interface WorkbenchCatalog {
   list(): Promise<readonly WorkbenchProjectInfo[]>;
+  getPreferences(): Promise<WorkbenchPreferences | null>;
+  putPreferences(preferences: WorkbenchPreferences): Promise<void>;
   put(project: WorkbenchProjectInfo): Promise<void>;
   getState(projectId: string): Promise<WorkbenchProjectState | null>;
   putState(projectId: string, state: WorkbenchProjectState): Promise<void>;
@@ -70,16 +71,40 @@ export function createProjectCatalog(): WorkbenchCatalog {
       throw new Error('当前浏览器不支持 OPFS 或 Web Locks');
     return (await navigator.storage.getDirectory()).getDirectoryHandle('aiao-workbench-catalog', { create: true });
   };
-  const read = async (): Promise<WorkbenchProjectInfo[]> => {
+  const readJson = async (name: string): Promise<unknown> => {
     const root = await directory();
     let handle: FileSystemFileHandle;
     try {
-      handle = await root.getFileHandle(filename);
+      handle = await root.getFileHandle(name);
     } catch (cause) {
-      if (cause instanceof DOMException && cause.name === 'NotFoundError') return [];
+      if (cause instanceof DOMException && cause.name === 'NotFoundError') return undefined;
       throw cause;
     }
-    const value: unknown = JSON.parse(await (await handle.getFile()).text());
+    return JSON.parse(await (await handle.getFile()).text()) as unknown;
+  };
+  const writeJson = async (name: string, value: unknown): Promise<void> => {
+    const root = await directory();
+    let existed = true;
+    try {
+      await root.getFileHandle(name);
+    } catch (cause) {
+      if (!(cause instanceof DOMException && cause.name === 'NotFoundError')) throw cause;
+      existed = false;
+    }
+    const file = await root.getFileHandle(name, { create: true });
+    const writer = await file.createWritable();
+    try {
+      await writer.write(JSON.stringify(value));
+      await writer.close();
+    } catch (cause) {
+      await writer.abort().catch(() => undefined);
+      if (!existed) await root.removeEntry(name).catch(() => undefined);
+      throw cause;
+    }
+  };
+  const read = async (): Promise<WorkbenchProjectInfo[]> => {
+    const value = await readJson(filename);
+    if (value === undefined) return [];
     if (!Array.isArray(value) || !value.every(isWorkbenchProject))
       throw new Error('项目目录损坏，源码仓库仍保留在 OPFS');
     return value;
@@ -89,92 +114,29 @@ export function createProjectCatalog(): WorkbenchCatalog {
       return Promise.reject(new Error('当前浏览器不支持 OPFS 或 Web Locks'));
     return navigator.locks.request('aiao-workbench-catalog', operation);
   };
-  const stateFilename = (projectId: string): string => `state-${projectId}.json`;
-  const layoutFilename = (projectId: string): string => `layout-${projectId}.json`;
+  const stateFilename = (projectId: string): string => `state-${encodeURIComponent(projectId)}.json`;
+  const layoutFilename = (projectId: string): string => `layout-${encodeURIComponent(projectId)}.json`;
   return {
     list: () => lock(read),
     put: project =>
       lock(async () => {
         const projects = await read();
-        const next = [...projects.filter(item => item.id !== project.id), project];
-        const root = await directory();
-        let existed = true;
-        try {
-          await root.getFileHandle(filename);
-        } catch (cause) {
-          if (cause instanceof DOMException && cause.name === 'NotFoundError') existed = false;
-          else throw cause;
-        }
-        const file = await root.getFileHandle(filename, { create: true });
-        const writer = await file.createWritable();
-        try {
-          await writer.write(JSON.stringify(next));
-          await writer.close();
-        } catch (cause) {
-          await writer.abort().catch(() => undefined);
-          if (!existed) await root.removeEntry(filename).catch(() => undefined);
-          throw cause;
-        }
+        await writeJson(filename, [...projects.filter(item => item.id !== project.id), project]);
       }),
     getState: projectId =>
       lock(async () => {
-        const root = await directory();
-        let handle: FileSystemFileHandle;
-        try {
-          handle = await root.getFileHandle(stateFilename(projectId));
-        } catch (cause) {
-          if (cause instanceof DOMException && cause.name === 'NotFoundError') return null;
-          throw cause;
-        }
-        const value: unknown = JSON.parse(await (await handle.getFile()).text());
-        if (
-          !value ||
-          typeof value !== 'object' ||
-          !Array.isArray((value as Record<string, unknown>)['tabs']) ||
-          ((value as Record<string, unknown>)['tabs'] as unknown[]).some(item => typeof item !== 'string')
-        )
-          throw new Error('项目会话状态损坏');
-        const item = value as Record<string, unknown>;
-        return {
-          tabs: item['tabs'] as string[],
-          activePath: typeof item['activePath'] === 'string' ? item['activePath'] : null,
-          commitMessage: typeof item['commitMessage'] === 'string' ? item['commitMessage'] : undefined
-        };
+        const value = await readJson(stateFilename(projectId));
+        return value === undefined ? null : parseWorkbenchProjectState(value);
       }),
-    putState: (projectId, state) =>
+    putState: (projectId, state) => lock(() => writeJson(stateFilename(projectId), state)),
+    getPreferences: () =>
       lock(async () => {
-        const root = await directory();
-        const file = await root.getFileHandle(stateFilename(projectId), { create: true });
-        const writer = await file.createWritable();
-        await writer.write(
-          JSON.stringify({
-            tabs: [...state.tabs],
-            activePath: state.activePath,
-            ...(state.commitMessage === undefined ? {} : { commitMessage: state.commitMessage })
-          })
-        );
-        await writer.close();
+        const value = await readJson('preferences.json');
+        return value === undefined ? null : parseWorkbenchPreferences(value);
       }),
-    getLayout: projectId =>
-      lock(async () => {
-        const root = await directory();
-        let handle: FileSystemFileHandle;
-        try {
-          handle = await root.getFileHandle(layoutFilename(projectId));
-        } catch (cause) {
-          if (cause instanceof DOMException && cause.name === 'NotFoundError') return null;
-          throw cause;
-        }
-        return JSON.parse(await (await handle.getFile()).text()) as unknown;
-      }),
-    putLayout: (projectId, layout) =>
-      lock(async () => {
-        const root = await directory();
-        const file = await root.getFileHandle(layoutFilename(projectId), { create: true });
-        const writer = await file.createWritable();
-        await writer.write(JSON.stringify(layout));
-        await writer.close();
-      })
+    putPreferences: preferences => lock(() => writeJson('preferences.json', preferences)),
+    getLayout: projectId => lock(async () => (await readJson(layoutFilename(projectId))) ?? null),
+    putLayout: (projectId, layout) => lock(() => writeJson(layoutFilename(projectId), layout))
   };
 }
 
