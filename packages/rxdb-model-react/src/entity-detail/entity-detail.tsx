@@ -406,10 +406,10 @@ export function EntityDetail({
     [onValidationErrors]
   );
 
-  /** 落库失败：可读原因进错误面板（不再只进 console，US-104）。 */
+  /** 落库失败：保留引擎错误原文，显示前按当前语言加前缀（US-104）。 */
   const saveErrorMessage = useCallback(
-    (error: unknown): string => t('text.6ba723c9e6', { p0: error instanceof Error ? error.message : String(error) }),
-    [t]
+    (error: unknown): string => (error instanceof Error ? error.message : String(error)),
+    []
   );
 
   /** 切 tab：create 模式切到关系 tab 前先校验界面上的数据并同步草稿（Angular / Vue 侧同语义）。 */
@@ -660,7 +660,7 @@ export function EntityDetail({
                 {error.message}
               </span>
             ))}
-            {saveError !== null && <span className='text-error'>{saveError}</span>}
+            {saveError !== null && <span className='text-error'>{t('text.6ba723c9e6', { p0: saveError })}</span>}
             {loadError !== null && <span className='text-error'>{loadError}</span>}
           </div>
         )}

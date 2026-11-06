@@ -44,7 +44,7 @@ function AppLayout() {
   const location = useLocation();
   const navigation = useNavigation();
   const navigate = useNavigate();
-  const menu = useMemo<MenuNode<ReactNode>[]>(() => buildWorkbenchMenu(rxdb.config.entities, t), [rxdb, t, locale]);
+  const menu = useMemo<MenuNode<ReactNode>[]>(() => buildWorkbenchMenu(rxdb.config.entities, t), [rxdb, t]);
   const entries = useMemo(() => visibleEntityEntries(rxdb.config.entities), [rxdb]);
 
   useEffect(

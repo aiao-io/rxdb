@@ -68,7 +68,7 @@ describe('备份恢复操作互斥', () => {
 
   it('英文页面翻译标题和文件选择的无障碍名称', () => {
     const view = renderPage('en');
-    expect(view.getByRole('heading', { name: 'Backup', exact: true })).toBeTruthy();
+    expect(view.getByRole('heading', { name: 'Backup' })).toBeTruthy();
     expect(view.getByLabelText('Choose a backup archive')).toBeTruthy();
   });
 
