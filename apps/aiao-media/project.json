@@ -73,7 +73,7 @@
         }
       },
       "defaultConfiguration": "production",
-      "dependsOn": ["^build", "prompt-assets", "prepare-assets", "auth-config", "sync-setup"],
+      "dependsOn": ["^build", "prompt-assets", "prepare-assets", "auth-config"],
       "inputs": [
         "production",
         "^production",
@@ -510,14 +510,6 @@
         "cwd": "apps/aiao-media",
         "command": "vitest run --config vite.config.mts --project=aiao-media-ui src/app/platform-submission.spec.ts src/app/sync-target.spec.ts src/app/platform-client.spec.ts src/app/desktop-files.spec.ts"
       }
-    },
-    "sync-setup": {
-      "executor": "nx:run-commands",
-      "options": {
-        "cwd": "apps/aiao-media",
-        "command": "node scripts/build-production-supabase-bundle.mjs public/sync-setup.sql"
-      },
-      "outputs": ["{projectRoot}/public/sync-setup.sql"]
     },
     "desktop-icons": {
       "executor": "nx:run-commands",

@@ -37,6 +37,20 @@
 
 逐场景边界见[本地可靠性验收](plans/local-reliability-verification.md)，账号逐条证据见[真实账号验收说明](plans/supabase-account-verification.md)，产品复制、后台与显式上报见[本地产品交付验收](plans/local-delivery-verification.md)，作品检索的分层样本与覆盖率限制见[实施清单](plans/library-search-tasks.md)。
 
+## 2026-11-06 平台统一同步验证
+
+本轮按 [D-16](decisions.md#d-16统一使用平台-supabase) 将同步收敛到平台账号，并删除用户自有项目的 OAuth、初始化和配置入口。以下为本地执行结果，不改变 MEDIA-US-303/305 的 `In Progress` 状态。
+
+| 入口                                                               | 结果                                                                       | 证据边界                                                                                           |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `aiao-media:coverage --args='--maxWorkers=2'`                      | 57 个文件、984 项通过；语句 86.90%、分支 82.20%、函数 89.65%、行 90.12%    | 当前应用测试与覆盖率；不折算 E2E 或生产验收                                                        |
+| `lint` / `typecheck`（`aiao-media`、`aiao-media-e2e`）             | 通过                                                                       | 静态检查                                                                                           |
+| `aiao-media-e2e:local-first-e2e` 的平台注册用例                    | “平台注册后可开启同步，无需配置自己的项目或管理授权”通过                   | 真实浏览器与构建产物，Auth/业务请求为 fixture；本条仅记录该用例                                    |
+| `aiao-media-e2e:product-e2e` 的平台原图接线用例                    | “平台账号跨设备同步作品与原图，Storage 字节夹具验证上传和取回接线”1 项通过 | 隔离本地真实 Auth/数据库与双浏览器副本；Storage 上传/下载字节由 fixture 提供，不代表真实云 Storage |
+| `aiao-media:relay-test` / `production-bundle-test` / `script-test` | 30、7、59 项分别通过                                                       | 后端和构建脚本契约；不代表已发布或云端权限已验                                                     |
+
+浏览器用例见[平台注册入口](../../aiao-media-e2e/src/supabase-auth.spec.ts)和[平台作品/原图接线](../../aiao-media-e2e/src/product-local.spec.mts)。真实 Storage 的鉴权、续传与原字节回读、生产 Web/Tauri 跨设备恢复仍未验收；本轮没有部署生产服务，不据此将故事标为 Done。
+
 ## 正式环境证据
 
 | 范围               | 当前结论                                                                                                                                                                         | 记录                                                  |

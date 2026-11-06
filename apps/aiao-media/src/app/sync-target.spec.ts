@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { readSyncTarget, saveSyncTarget, verifyImageSyncTarget, verifySyncTarget, type SyncTarget } from './sync-target';
+import {
+  readSyncTarget,
+  saveSyncTarget,
+  verifyImageSyncTarget,
+  verifySyncTarget,
+  type SyncTarget
+} from './sync-target';
 
 const config = { url: 'https://mine.supabase.co', anonKey: 'sb_publishable_public' };
 const storage = () => {
@@ -33,9 +39,7 @@ describe('同步目标', () => {
     const port = storage();
     port.setItem('aiao-media-sync-target-v1', '{}');
     expect(() => readSyncTarget(port, config)).toThrow();
-    expect(() =>
-      saveSyncTarget(port, { kind: 'custom', config } as unknown as SyncTarget)
-    ).toThrow('平台账号');
+    expect(() => saveSyncTarget(port, { kind: 'custom', config } as unknown as SyncTarget)).toThrow('平台账号');
     expect(() =>
       saveSyncTarget(port, { kind: 'platform', config: { ...config, anonKey: 'sb_secret_private' } })
     ).toThrow();

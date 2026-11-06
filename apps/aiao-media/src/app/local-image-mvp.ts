@@ -702,7 +702,8 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     try {
       const config = kind === 'platform' ? readSupabaseAuthConfig() : null;
       if (kind === 'platform' && !config) throw new Error('平台账号服务尚未启用，请稍后重试。');
-      if (kind === 'disconnected' && !window.confirm('断开平台同步？本机和云端内容保留，之后可重新登录并开启同步。')) return;
+      if (kind === 'disconnected' && !window.confirm('断开平台同步？本机和云端内容保留，之后可重新登录并开启同步。'))
+        return;
       await this.checkpoint();
       const target: SyncTarget = config ? { kind: 'platform', config } : { kind: 'disconnected', config: null };
       saveSyncTarget(localStorage, target);
@@ -1491,8 +1492,15 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     }
   }
   onWorkspaceChanged(event: StorageEvent) {
+    if (event.key === this.imageSyncKey() && event.newValue === null) {
+      this.resetImageSync();
+      this.imageSyncEnabled.set(false);
+      return;
+    }
     if (event.key === this.syncPauseKey() && event.newValue === '1') {
       this.product?.pause();
+      this.resetImageSync();
+      this.imageSyncEnabled.set(false);
       this.syncPaused.set(true);
       return;
     }
@@ -1557,9 +1565,11 @@ export class LocalImageMvp implements OnInit, OnDestroy {
           this.history().filter(task => task.status === 'completed' && this.hasLocalCopy(task))
         : [];
       for (let index = 0; index < tasks.length; index++) {
+        signal.throwIfAborted();
         this.imageSyncProgress.set(`${index}/${tasks.length}`);
         await controller.upload(tasks[index]);
       }
+      signal.throwIfAborted();
       this.imageSyncProgress.set(tasks.length ? `${tasks.length}/${tasks.length}` : '');
       this.imageSyncMessage.set(
         scope === 'existing' ?
@@ -1567,9 +1577,10 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         : '已确认以后保存的图片自动同步；已有图片未上传。'
       );
     } catch (error) {
-      this.imageSyncMessage.set(error instanceof Error ? error.message : '图片同步未完成，本机原图保留。');
+      if (this.currentImageSync(signal))
+        this.imageSyncMessage.set(error instanceof Error ? error.message : '图片同步未完成，本机原图保留。');
     } finally {
-      this.imageSyncBusy.set(false);
+      if (this.currentImageSync(signal)) this.imageSyncBusy.set(false);
     }
   }
   async stopImageSync() {
@@ -1581,6 +1592,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   }
   async restoreRemoteWork(work: PublicWorkPayload) {
     if (this.imageSyncBusy() || this.settingsBusy() || this.targetKind() !== 'platform') return;
+    const signal = this.imageSyncScope.signal;
     const task =
       this.history().find(item => item.id === work.jobId) ??
       ({
@@ -1606,14 +1618,17 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.imageSyncBusy.set(true);
     this.imageSyncMessage.set('正在从平台账号取回原图…');
     try {
-      await (await this.imageSyncController()).download(work.jobId, work.sha256, task);
+      await (await this.imageSyncController(signal)).download(work.jobId, work.sha256, task);
+      if (!this.currentImageSync(signal)) return;
       await this.readTasks();
+      if (!this.currentImageSync(signal)) return;
       this.retryLibrary();
       this.imageSyncMessage.set('原图已校验并保存到本机。');
     } catch (error) {
-      this.imageSyncMessage.set(error instanceof Error ? error.message : '原图取回失败，本机数据保留。');
+      if (this.currentImageSync(signal))
+        this.imageSyncMessage.set(error instanceof Error ? error.message : '原图取回失败，本机数据保留。');
     } finally {
-      this.imageSyncBusy.set(false);
+      if (this.currentImageSync(signal)) this.imageSyncBusy.set(false);
     }
   }
   async rescanSync() {
@@ -1757,10 +1772,10 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private restoreImageSyncPreference() {
     this.imageSyncEnabled.set(
       this.targetKind() === 'platform' &&
-      this.authStatus() === 'signed-in' &&
-      this.syncInitialized() &&
-      !this.syncPaused() &&
-      localStorage.getItem(this.imageSyncKey()) !== null
+        this.authStatus() === 'signed-in' &&
+        this.syncInitialized() &&
+        !this.syncPaused() &&
+        localStorage.getItem(this.imageSyncKey()) !== null
     );
   }
   private imageSyncKey(): string {
@@ -1787,14 +1802,19 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private resetImageSync() {
     this.imageSyncScope.abort(new Error('同步目标、账号或工作区已变化，旧的图片传输已停止；本机原图保留。'));
     this.imageSyncScope = new AbortController();
+    this.imageSyncBusy.set(false);
+  }
+  private currentImageSync(signal: AbortSignal): boolean {
+    return !this.disposed && signal === this.imageSyncScope.signal && !signal.aborted;
   }
   private async syncSavedImage(task: LocalTask) {
     if (!this.imageSyncEnabled() || this.targetKind() !== 'platform' || task.status !== 'completed') return;
+    const signal = this.imageSyncScope.signal;
     try {
-      await (await this.imageSyncController()).upload(task);
-      if (!this.disposed) this.imageSyncMessage.set('新作品原图已同步到平台账号。');
+      await (await this.imageSyncController(signal)).upload(task);
+      if (this.currentImageSync(signal)) this.imageSyncMessage.set('新作品原图已同步到平台账号。');
     } catch (error) {
-      if (!this.disposed)
+      if (this.currentImageSync(signal))
         this.imageSyncMessage.set(error instanceof Error ? error.message : '新作品图片同步失败，本机原图保留。');
     }
   }

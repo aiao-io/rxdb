@@ -153,16 +153,38 @@ function rig() {
 }
 
 describe('sync interaction boundaries', () => {
+  it('另一标签页停止图片同步时中止原图传输，元数据同步继续', () => {
+    const r = rig();
+    const scope = new AbortController();
+    const pause = vi.fn();
+    r.component.imageSyncEnabled.set(true);
+    Object.assign(r.component, { imageSyncScope: scope, product: { pause, close: vi.fn() } });
+
+    r.component.onWorkspaceChanged(
+      new StorageEvent('storage', {
+        key: `aiao-media-image-sync-v1:::${profileId}`,
+        newValue: null
+      })
+    );
+
+    expect(r.component.imageSyncEnabled()).toBe(false);
+    expect(scope.signal.aborted).toBe(true);
+    expect(pause).not.toHaveBeenCalled();
+    expect(r.component.syncPaused()).toBe(false);
+  });
+
   it('另一标签页停止同步时同时停止原图上传并中止在途传输', () => {
     const r = rig();
     const scope = new AbortController();
     r.component.imageSyncEnabled.set(true);
     Object.assign(r.component, { imageSyncScope: scope });
 
-    r.component.onWorkspaceChanged(new StorageEvent('storage', {
-      key: `aiao-media-sync-paused-v1:::${profileId}`,
-      newValue: '1'
-    }));
+    r.component.onWorkspaceChanged(
+      new StorageEvent('storage', {
+        key: `aiao-media-sync-paused-v1:::${profileId}`,
+        newValue: '1'
+      })
+    );
 
     expect(r.component.syncPaused()).toBe(true);
     expect(r.component.imageSyncEnabled()).toBe(false);
@@ -361,7 +383,10 @@ describe('平台账号同步入口', () => {
     const requestEnable = vi.fn();
     r.component.targetKind.set('platform');
     r.component.syncReady.set(true);
-    Object.assign(r.component, { product: { requestEnable, pause: vi.fn(), close: vi.fn() }, adminApi: { authorization: vi.fn(async () => access) } });
+    Object.assign(r.component, {
+      product: { requestEnable, pause: vi.fn(), close: vi.fn() },
+      adminApi: { authorization: vi.fn(async () => access) }
+    });
     vi.mocked(fetch).mockResolvedValue(Response.json({ protocol: 1, rls: true, metadataOnly: true }));
 
     await r.component.enableSync();
@@ -375,7 +400,10 @@ describe('平台账号同步入口', () => {
     const requestEnable = vi.fn();
     r.component.targetKind.set('platform');
     r.component.syncReady.set(true);
-    Object.assign(r.component, { product: { requestEnable, pause: vi.fn(), close: vi.fn() }, adminApi: { authorization: vi.fn(async () => access) } });
+    Object.assign(r.component, {
+      product: { requestEnable, pause: vi.fn(), close: vi.fn() },
+      adminApi: { authorization: vi.fn(async () => access) }
+    });
     vi.mocked(fetch).mockResolvedValue(new Response('', { status: 503 }));
 
     await r.component.enableSync();
@@ -397,7 +425,15 @@ describe('平台账号同步入口', () => {
       hasLocalCopy: () => true
     });
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
-    vi.mocked(fetch).mockResolvedValue(Response.json({ protocol: 1, privateBucket: 'aiao-media-images', maxBytes: 16777216, resumable: true, metadataOnly: false }));
+    vi.mocked(fetch).mockResolvedValue(
+      Response.json({
+        protocol: 1,
+        privateBucket: 'aiao-media-images',
+        maxBytes: 16777216,
+        resumable: true,
+        metadataOnly: false
+      })
+    );
 
     await r.component.enableImageSync('existing');
 
@@ -534,11 +570,36 @@ describe('平台原图同步隔离', () => {
       expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes('.storage.supabase.co'))).toBe(true)
     );
     await r.component.changeSyncTarget('disconnected');
+    r.component.imageSyncMessage.set('当前账号提示');
     object.resolve(original());
     await restoring;
 
     expect(r.store.saveResult).not.toHaveBeenCalled();
-    expect(r.component.imageSyncMessage()).toContain('已变化');
+    expect(r.component.imageSyncMessage()).toBe('当前账号提示');
+  });
+
+  it('旧账号的原图落盘完成后不会刷新新账号列表或改写提示', async () => {
+    const r = rig();
+    const work = await remoteWork();
+    const saved = deferred<void>();
+    serve(work);
+    connect(r.component, projects.a);
+    r.store.saveResult.mockReturnValue(saved.promise);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    const restoring = r.component.restoreRemoteWork(work);
+    await vi.waitFor(() => expect(r.store.saveResult).toHaveBeenCalledOnce());
+    await r.component.changeSyncTarget('disconnected');
+    const readTasks = vi.fn(),
+      retryLibrary = vi.fn();
+    Object.assign(r.component, { readTasks, retryLibrary });
+    r.component.imageSyncMessage.set('当前账号提示');
+    saved.resolve();
+    await restoring;
+
+    expect(readTasks).not.toHaveBeenCalled();
+    expect(retryLibrary).not.toHaveBeenCalled();
+    expect(r.component.imageSyncMessage()).toBe('当前账号提示');
   });
 
   it('transfers with the newly selected project instead of reusing the previous project controller', async () => {

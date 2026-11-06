@@ -1382,9 +1382,7 @@
           @if (remoteQuota()) {
             <p>{{ remoteQuota() }}</p>
           }
-          <p class="sync-state" [attr.data-state]="sync().status" role="status">
-            {{ syncLabel() }} · 平台账号
-          </p>
+          <p class="sync-state" [attr.data-state]="sync().status" role="status">{{ syncLabel() }} · 平台账号</p>
           @if (lastSyncedAt()) {
             <p>最近成功：{{ lastSyncedAt() }}</p>
           }

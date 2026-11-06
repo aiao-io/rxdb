@@ -159,14 +159,13 @@ test('production bootstrap initializes platform workspaces and private image sto
     await apply(db, (await buildProductionBundle(join(directory, 'production.sql'))).sql);
     assert.equal(await schemaComment(db), `aiao-media schema ${schemaVersion}`);
     assert.equal(
-      (await db.query("SELECT relrowsecurity FROM pg_class WHERE oid = 'public.media_sync_records'::regclass"))
-        .rows[0].relrowsecurity,
+      (await db.query("SELECT relrowsecurity FROM pg_class WHERE oid = 'public.media_sync_records'::regclass")).rows[0]
+        .relrowsecurity,
       true
     );
-    assert.deepEqual(
-      (await db.query("SELECT id, public FROM storage.buckets WHERE id = 'aiao-media-images'")).rows,
-      [{ id: 'aiao-media-images', public: false }]
-    );
+    assert.deepEqual((await db.query("SELECT id, public FROM storage.buckets WHERE id = 'aiao-media-images'")).rows, [
+      { id: 'aiao-media-images', public: false }
+    ]);
   } finally {
     await db.close();
     await rm(directory, { recursive: true, force: true });

@@ -14,6 +14,8 @@ test.beforeAll(async () => {
 });
 test.afterEach(async () => {
   for (const id of ids) {
+    const files = await admin.from('media_file_records').delete().eq('createdBy', id);
+    expect(files.error).toBeNull();
     const result = await admin.auth.admin.deleteUser(id);
     expect(result.error).toBeNull();
   }
@@ -427,9 +429,8 @@ test('平台账号跨设备同步作品与原图，Storage 字节夹具验证上
     const second = await context.newPage();
     await second.goto('/create');
     await enableReplica(second, user);
-    second.once('dialog', dialog => dialog.accept());
-    await second.getByRole('button', { name: '只同步以后保存的图片', exact: true }).click();
-    await expect(second.getByRole('article', { name: '图片原图同步' })).toContainText('图片自动同步已启用');
+    await expect(second.getByRole('article', { name: '图片原图同步' })).not.toContainText('图片自动同步已启用');
+    await expect(second.getByRole('button', { name: '只同步以后保存的图片', exact: true })).toBeEnabled();
     await second.getByRole('button', { name: '关闭账号窗口' }).click();
     await second.getByRole('link', { name: '我的图片', exact: true }).click();
     await expect(second.getByText('本机无原图', { exact: true })).toBeVisible();
