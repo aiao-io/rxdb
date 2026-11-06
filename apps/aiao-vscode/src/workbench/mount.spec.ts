@@ -276,6 +276,69 @@ function fakeDirectory(
 }
 
 describe('VS Code 风格工作台', () => {
+  it('本地项目隐藏远端动作，GitHub 项目提供拉取、同步与明确的推送说明', async () => {
+    const { host, handle, backend } = fixture();
+    await handle.ready;
+    expect(host.querySelector<HTMLButtonElement>('[data-action="git-pull"]')?.hidden).toBe(true);
+    expect(host.querySelector<HTMLButtonElement>('[data-slot="remote-sync"]')?.hidden).toBe(true);
+    expect(host.querySelector('[data-action="commit"]')?.getAttribute('aria-label')).toBe('提交');
+
+    vi.mocked(backend.status).mockResolvedValue({
+      branch: 'feature/work',
+      head: 'head-1',
+      entries: [],
+      remote: { name: 'origin', url: 'https://github.com/octo/repo' }
+    });
+    await click(host, '[data-action="refresh-tree"]');
+    await vi.waitFor(() => expect(host.querySelector<HTMLButtonElement>('[data-action="git-pull"]')?.hidden).toBe(false));
+    expect(host.querySelector<HTMLButtonElement>('[data-slot="remote-sync"]')?.hidden).toBe(false);
+    expect(host.querySelector('[data-action="commit"]')?.getAttribute('aria-label')).toBe('提交并推送');
+    expect(host.querySelector('[data-slot="branch-name"]')?.textContent).toBe('feature/work');
+  });
+
+  it('远端拉取入口将快照应用到文件树和编辑器，保留当前标签', async () => {
+    const { host, handle, backend, editorHandle } = fixture();
+    backend.pull = vi.fn(async projectId => ({
+      projectId,
+      revision: 'remote-2',
+      files: { ...files, 'src/main.ts': 'remote update', 'remote.ts': 'new remote file' }
+    }));
+    vi.mocked(backend.status).mockResolvedValue({
+      branch: 'main', head: 'head-2', entries: [],
+      remote: { name: 'origin', url: 'https://github.com/octo/repo' }
+    });
+    await handle.ready;
+    handle.session.select('src/main.ts');
+    await click(host, '[data-action="git-pull"]');
+    await vi.waitFor(() => expect(handle.session.state.revision).toBe('remote-2'));
+    expect(backend.pull).toHaveBeenCalledExactlyOnceWith('one');
+    expect(handle.session.state.files['remote.ts']).toBe('new remote file');
+    expect(handle.session.state.activePath).toBe('src/main.ts');
+    expect(editorHandle.update).toHaveBeenCalledWith('remote update', 'typescript');
+  });
+
+  it('GitHub 命令面板注册真实推送、拉取和同步动作', async () => {
+    const { host, handle, backend } = fixture();
+    backend.pull = vi.fn(async projectId => ({ projectId, revision: 'remote-2', files }));
+    vi.mocked(backend.status).mockResolvedValue({
+      branch: 'main', head: 'head-1', entries: [],
+      remote: { name: 'origin', url: 'https://github.com/octo/repo' }
+    });
+    await handle.ready;
+    await click(host, '[data-action="commands"]');
+    const input = host.querySelector<HTMLInputElement>('.wb-quick-input input');
+    if (!input) throw new Error('命令面板未打开');
+    input.value = '>Git:';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    const items = [...host.querySelectorAll<HTMLButtonElement>('.wb-quick-input-list button')];
+    expect(items.some(item => item.textContent?.includes('Git: 推送'))).toBe(true);
+    expect(items.some(item => item.textContent?.includes('Git: 同步更改'))).toBe(true);
+    const pull = items.find(item => item.textContent?.includes('Git: 拉取'));
+    expect(pull).toBeDefined();
+    await vi.waitFor(() => expect(host.querySelector<HTMLButtonElement>('[data-action="git-pull"]')?.disabled).toBe(false));
+    pull?.click();
+    await vi.waitFor(() => expect(backend.pull).toHaveBeenCalledExactlyOnceWith('one'));
+  });
   beforeEach(() => {
     Object.defineProperty(HTMLIFrameElement.prototype, 'credentialless', {
       configurable: true,

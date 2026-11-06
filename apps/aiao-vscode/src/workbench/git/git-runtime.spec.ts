@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { encodeGitArchive } from './git-archive.js';
+import { GIT_WORKBENCH_LIMITS } from './git-protocol.js';
 import { GitWorkbenchRuntime } from './git-runtime.js';
 
 type Node = { readonly mode: number; bytes: Uint8Array<ArrayBuffer> };
@@ -39,6 +40,7 @@ class FixtureFilesystem {
   }
   writeFile(path: string, bytes: Uint8Array<ArrayBuffer>): void {
     if (!this.nodes.has(parent(path))) throw new Error(`ENOENT: ${parent(path)}`);
+    if (this.nodes.has(path) && this.isDir(this.stat(path).mode)) throw new Error(`EISDIR: ${path}`);
     this.nodes.set(path, { mode: 0o100644, bytes: new Uint8Array(bytes) });
   }
   unlink(path: string): void {
@@ -627,6 +629,61 @@ describe('Git workspace operation contract', () => {
     expect(await runtime.status('project')).toEqual(status);
     fixture.failCommand('commit');
     await expect(runtime.readDiff('project', 'a.ts', 'working')).rejects.toMatchObject({ code: 'git_failed' });
+    expect(await runtime.snapshot('project')).toEqual(before);
+  });
+
+  it('保存可原子写入与删除文件，保留未提及文件并只推进一次revision', async () => {
+    await runtime.initialize('project', [file('keep.ts', 'keep'), file('old.ts', 'old')]);
+    const saved = await runtime.save('project', [file('new.ts', 'new')], 1, ['old.ts']);
+    expect(saved).toEqual({
+      projectId: 'project',
+      revision: 2,
+      files: [file('keep.ts', 'keep'), file('new.ts', 'new')]
+    });
+  });
+
+  it('写入失败回滚同批已删除文件与revision', async () => {
+    await runtime.initialize('project', [file('old.ts', 'old')]);
+    const before = await runtime.snapshot('project');
+    fixture.failWrite('new.ts');
+    await expect(runtime.save('project', [file('new.ts', 'new')], 1, ['old.ts'])).rejects.toThrow('quota fixture');
+    expect(await runtime.snapshot('project')).toEqual(before);
+  });
+
+  it('原子保存允许文件和目录互换，删除遗留空目录不会阻塞写入', async () => {
+    await runtime.initialize('project', [file('nested/dir/old.ts', 'old')]);
+    const flat = await runtime.save('project', [file('nested', 'flat')], 1, ['nested/dir/old.ts']);
+    expect(flat.files).toEqual([file('nested', 'flat')]);
+    const nested = await runtime.save('project', [file('nested/next.ts', 'next')], 2, ['nested']);
+    expect(nested.files).toEqual([file('nested/next.ts', 'next')]);
+  });
+
+  it('删除路径与写入冲突、越界或过期revision时整批拒绝', async () => {
+    await runtime.initialize('project', [file('old.ts', 'old')]);
+    const before = await runtime.snapshot('project');
+    await expect(runtime.save('project', [file('new.ts', 'new')], 0, ['old.ts'])).rejects.toMatchObject({
+      code: 'revision_conflict'
+    });
+    await expect(runtime.save('project', [file('old.ts', 'new')], 1, ['old.ts'])).rejects.toMatchObject({
+      code: 'path_collision'
+    });
+    await expect(runtime.save('project', [], 1, ['.git/config'])).rejects.toMatchObject({ code: 'invalid_path' });
+    await expect(runtime.save('project', [], 1, ['../old.ts'])).rejects.toMatchObject({ code: 'invalid_path' });
+    await expect(runtime.save('project', [], 1, ['missing.ts'])).rejects.toMatchObject({ code: 'invalid_path' });
+    expect(await runtime.snapshot('project')).toEqual(before);
+  });
+
+  it('增量内容超限或保留文件产生路径碰撞时不删除原文件', async () => {
+    await runtime.initialize('project', [file('old.ts', 'old'), file('keep/child.ts', 'keep')]);
+    const before = await runtime.snapshot('project');
+    await expect(
+      runtime.save('project', [{ path: 'huge.bin', bytes: new Uint8Array(GIT_WORKBENCH_LIMITS.fileBytes + 1) }], 1, [
+        'old.ts'
+      ])
+    ).rejects.toMatchObject({ code: 'resource_limit' });
+    await expect(runtime.save('project', [file('keep', 'collision')], 1, ['old.ts'])).rejects.toMatchObject({
+      code: 'path_collision'
+    });
     expect(await runtime.snapshot('project')).toEqual(before);
   });
 

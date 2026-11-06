@@ -19,6 +19,7 @@ import type { GitHubSession } from './git/github/github-types.js';
 import { mountPreview, type PreviewEvent } from './preview/preview-sandbox.js';
 import { createSavePreviewController, type SavePreviewPhase } from './save-preview.js';
 import { WorkbenchSession, type WorkbenchBackend, type WorkbenchState, type WorkbenchStatus } from './session.js';
+import { createWorkbenchTerminal } from './terminal/workbench-terminal.js';
 import { angularTemplate, defaultAngularDemo } from './templates-angular.js';
 import { defaultFrontendDemos, frontendTemplates, type WorkbenchTemplate } from './templates.js';
 import { createWorkbenchCommands, type WorkbenchCommand } from './workbench-commands.js';
@@ -57,6 +58,8 @@ export interface BrowserWorkbenchOptions {
   readonly backend?: WorkbenchBackend;
   readonly compiler?: WorkbenchCompiler;
   readonly catalog?: WorkbenchCatalog;
+  /** 商用 WebContainer 授权配置，在首次启动终端前传入。 */
+  readonly webContainerApiKey?: string;
   /** 提供后在欢迎视图显示「从 GitHub 打开仓库」入口。 */
   readonly githubApi?: GitHubApi;
   /** 提供后在欢迎视图显示「登录 GitHub」入口，并给仓库选择器接上登录按钮。 */
@@ -218,6 +221,7 @@ export function mountWorkbench(
   const collapsedSections = new Set<string>();
   let alwaysShowScmActions = false;
   let githubSession: GitHubSession | null = null;
+  const serverPreviews = new Set<string>();
   const docking = createWorkbenchDockview(root, {
     onSelectEditor(path) {
       if (disposed || !session.state.tabs.includes(path)) return;
@@ -229,8 +233,9 @@ export function mountWorkbench(
       if (disposed) return;
       closeEditorTab(path);
     },
-    onSelectTool() {
+    onSelectTool(kind) {
       renderLogs();
+      if (kind === 'terminal') void terminal?.show();
     },
     onCloseAuxiliary(id) {
       diffs.get(id)?.view?.dispose();
@@ -308,6 +313,7 @@ export function mountWorkbench(
       if (!disposed) {
         editors.forEach(editor => editor.handle.layout?.());
         diffs.forEach(diff => diff.view?.layout());
+        terminal?.fit();
       }
     });
     scheduleLayoutSave();
@@ -409,6 +415,30 @@ export function mountWorkbench(
       onError: report
     }
   );
+
+  const terminal = createWorkbenchTerminal(element('[data-log="terminal"]'), {
+    session,
+    apiKey: options.webContainerApiKey,
+    onError: report,
+    onFilesChanged: () => { void refreshGit().catch(report); },
+    onPreview(port, url) {
+      const id = `server-preview:${port}`;
+      const host = docking.ensureAuxiliary(id, `项目服务 :${port}`);
+      const frame = document.createElement('iframe');
+      frame.className = 'wb-server-preview';
+      frame.title = `项目服务 :${port}`;
+      frame.referrerPolicy = 'no-referrer';
+      frame.setAttribute('credentialless', '');
+      frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-modals allow-popups');
+      frame.src = url;
+      host.replaceChildren(frame);
+      serverPreviews.add(id);
+    },
+    onStop() {
+      for (const id of serverPreviews) docking.removeAuxiliary(id);
+      serverPreviews.clear();
+    }
+  });
 
   function focusEditor(path: string | null): void {
     if (!path) return;
@@ -729,6 +759,7 @@ export function mountWorkbench(
     element('[data-slot="branch-name"]').textContent = status.branch;
     gitStatus = status;
     scm.update(status);
+    renderActionState();
     renderFiles(session.state);
     const badge = element('[data-slot="scm-count"]');
     badge.textContent = String(status.entries.length);
@@ -783,6 +814,7 @@ export function mountWorkbench(
       else session.discard();
       if (session.state.dirty) throw new Error('保存期间内容发生变化，请重新切换项目');
     }
+    await terminal?.stop();
     cancelCompilation();
     restoring = true;
     try {
@@ -1788,6 +1820,14 @@ export function mountWorkbench(
       '[data-mutation],[data-action=commit],[data-action=stage-all],[data-action=refresh-tree],[data-action=collapse-tree],[data-action=new-file],[data-action=new-folder],[data-action=discard]'
     ))
       button.disabled = !session.state.projectId || busy;
+    for (const button of root.querySelectorAll<HTMLButtonElement>('[data-remote-action]')) {
+      button.hidden = !gitStatus?.remote;
+      button.disabled = !backend.pull || !session.state.projectId || busy;
+    }
+    const commitControl = element<HTMLButtonElement>('[data-action="commit"]');
+    const commitLabel = gitStatus?.remote ? '提交并推送' : '提交';
+    commitControl.setAttribute('aria-label', commitLabel);
+    commitControl.title = commitLabel;
     element<HTMLButtonElement>('[data-action="workspace"]').disabled =
       initializing || (busy && previewPhase !== 'compiling');
   }
@@ -1807,6 +1847,7 @@ export function mountWorkbench(
       updatedAt: Date.now()
     };
     cancelCompilation();
+    await terminal?.stop();
     await session.create(id, {
       ...template.files,
       'workbench.project.json': JSON.stringify({ template: info.template, entry: info.entry }, null, 2)
@@ -1849,6 +1890,7 @@ export function mountWorkbench(
   async function exportProject(): Promise<void> {
     const info = project;
     const id = projectId();
+    await terminal?.flush();
     await session.save();
     if (session.state.dirty) throw new Error('保存期间内容发生变化，请重试导出');
     const archive = await backend.exportArchive(id);
@@ -1951,7 +1993,8 @@ export function mountWorkbench(
         { label: '导出项目', id: 'export', action: exportProject, disabled: !editable },
         { separator: true },
         { label: '保存当前文件', id: 'save', action: saveCurrent, disabled: !editable },
-        { label: '保存全部并预览', id: 'save-all', action: saveAll, disabled: !editable }
+        { label: '保存全部并预览', id: 'save-all', action: saveAll, disabled: !editable },
+        { label: '打开终端', id: 'terminal', action: () => docking.showTool('terminal'), disabled: !editable, keybinding: 'Ctrl + `'}
       ]);
     },
     workspace: () => {
@@ -1987,6 +2030,7 @@ export function mountWorkbench(
       ]);
     },
     'new-project': newProject,
+    terminal: () => docking.showTool('terminal'),
     run,
     'rerun-preview': run,
     export: exportProject,
@@ -2004,6 +2048,9 @@ export function mountWorkbench(
       if (path) return deletePath(path);
     },
     commit: () => scm.commit(),
+    'git-pull': () => scm.pull(),
+    'git-push': () => scm.push(),
+    'git-sync': () => scm.sync(),
     format: formatSource,
     'goto-line': () => editorCommand('gotoLine'),
     'show-scm': () => switchSide('git', true),
@@ -2182,7 +2229,7 @@ export function mountWorkbench(
       return;
     }
     const tool = target.dataset['panel'];
-    if (tool === 'problems' || tool === 'output' || tool === 'console') {
+    if (tool === 'problems' || tool === 'output' || tool === 'console' || tool === 'terminal') {
       docking.showTool(tool);
       return;
     }
@@ -2214,7 +2261,7 @@ export function mountWorkbench(
           return;
         action(operation);
       };
-      const definitions: readonly [string, string, string | undefined, () => Promise<unknown> | void][] = [
+      const definitions: readonly (readonly [string, string, string | undefined, () => Promise<unknown> | void])[] = [
         ['save', '文件: 保存并预览当前文件', '⌘ / Ctrl + S', saveCurrent],
         ['saveAll', '文件: 保存全部并预览', '⌘ / Ctrl + Shift + S', saveAll],
         ['format', '文件: 格式化代码', '⇧ / Shift + ⌥ / Alt + F', formatSource],
@@ -2236,7 +2283,15 @@ export function mountWorkbench(
         ['showScm', '查看: 源代码管理', '⌘ / Ctrl + Shift + G', () => switchSide('git', true)],
         ['showProblems', '查看: 显示问题面板', '⌘ / Ctrl + Shift + M', () => docking.showTool('problems')],
         ['showOutput', '查看: 显示输出面板', '⌘ / Ctrl + Shift + U', () => docking.showTool('output')],
-        ['commit', 'Git: 提交已暂存更改', undefined, () => scm.commit()],
+        ['showTerminal', '终端: 打开交互终端', 'Ctrl + `', () => docking.showTool('terminal')],
+        ['commit', gitStatus?.remote ? 'Git: 提交并推送' : 'Git: 提交已暂存更改', undefined, () => scm.commit()],
+        ...(gitStatus?.remote ?
+          ([
+            ['gitPush', 'Git: 推送', undefined, () => scm.push()],
+            ['gitPull', 'Git: 拉取', undefined, () => scm.pull()],
+            ['gitSync', 'Git: 同步更改', undefined, () => scm.sync()]
+          ] as const)
+        : []),
         ['togglePanel', '查看: 切换底部面板', '⌘ / Ctrl + J', () => docking.toggleTools()],
         ['split', '查看: 向右拆分编辑器', '⌘ / Ctrl + 反斜杠', () => docking.splitEditor()],
         ['resetLayout', '查看: 重置布局', undefined, operations['reset-layout']],
@@ -2297,6 +2352,7 @@ export function mountWorkbench(
       scm.dispose();
       search.dispose();
       savePreview.dispose();
+      terminal?.dispose();
       for (const diff of diffs.values()) diff.view?.dispose();
       diffs.clear();
       session.dispose();

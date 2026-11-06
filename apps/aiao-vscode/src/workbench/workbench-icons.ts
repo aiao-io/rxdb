@@ -21,6 +21,7 @@ export type CodiconName =
   | 'error'
   | 'output'
   | 'debug-console'
+  | 'terminal'
   | 'chevron-right'
   | 'arrow-left'
   | 'arrow-right'

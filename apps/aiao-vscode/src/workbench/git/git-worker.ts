@@ -19,6 +19,7 @@ interface WorkerRequest {
     oid?: string;
     archive?: number[];
     expectedRevision?: number;
+    removedPaths?: string[];
     vendorBaseUrl?: string;
     kind?: 'working' | 'staged';
   };
@@ -50,7 +51,9 @@ async function dispatch({ action, payload }: WorkerRequest): Promise<unknown> {
     case 'open':
       return git.open(projectId);
     case 'save':
-      return git.save(projectId, files(payload.files), payload.expectedRevision);
+      return payload.removedPaths === undefined ?
+          git.save(projectId, files(payload.files), payload.expectedRevision)
+        : git.save(projectId, files(payload.files), payload.expectedRevision, payload.removedPaths);
     case 'snapshot':
       return git.snapshot(projectId);
     case 'remove':

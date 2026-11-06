@@ -7,9 +7,11 @@ function fixture() {
   let files: WorkbenchFiles = { 'main.ts': 'console.log(1)' };
   const backend: WorkbenchBackend = {
     open: vi.fn(async projectId => ({ projectId, revision, files: { ...files } })),
-    save: vi.fn(async (projectId, changes, expected) => {
+    save: vi.fn<WorkbenchBackend['save']>(async (projectId, changes, expected, removedPaths = []) => {
       if (expected !== revision) throw new Error('文件已被其他标签修改');
-      files = { ...files, ...changes };
+      files = Object.fromEntries(
+        Object.entries({ ...files, ...changes }).filter(([path]) => !removedPaths.includes(path))
+      );
       revision = String(Number(revision) + 1);
       return { projectId, revision, files: { ...files } };
     }),
@@ -39,6 +41,118 @@ function fixture() {
 }
 
 describe('WorkbenchSession', () => {
+  it('已保存快照排除编辑缓冲，并隔离返回的二进制内容', async () => {
+    const { backend } = fixture();
+    vi.mocked(backend.open).mockResolvedValueOnce({
+      projectId: 'first',
+      revision: '1',
+      files: { 'main.ts': 'saved', 'asset.bin': new Uint8Array([1]) }
+    });
+    const session = new WorkbenchSession(backend);
+    expect(() => session.getSavedSnapshot()).toThrow('项目');
+    await session.open('first');
+    session.edit('main.ts', 'draft');
+    const snapshot = session.getSavedSnapshot();
+    expect(snapshot.files['main.ts']).toBe('saved');
+    (snapshot.files['asset.bin'] as Uint8Array)[0] = 9;
+    expect(session.getSavedSnapshot().files['asset.bin']).toEqual(new Uint8Array([1]));
+  });
+
+  it('外部文件变更原子回写，并保留修改或删除路径上的未保存缓冲', async () => {
+    const { backend } = fixture();
+    const session = new WorkbenchSession(backend);
+    await session.open('first');
+    session.edit('main.ts', 'draft');
+    await session.applyExternalFiles({ 'asset.bin': new Uint8Array([0, 255]) }, ['main.ts']);
+    expect(backend.save).toHaveBeenCalledWith('first', { 'asset.bin': new Uint8Array([0, 255]) }, '1', ['main.ts']);
+    expect(session.state.files).toEqual({ 'main.ts': 'draft', 'asset.bin': new Uint8Array([0, 255]) });
+    expect(session.state.tabs).toEqual(['main.ts']);
+    expect(session.state.dirty).toBe(true);
+    expect(session.getSavedSnapshot().files).toEqual({ 'asset.bin': new Uint8Array([0, 255]) });
+  });
+
+  it('外部删除已保存文件移除对应标签，并使旧编译结果失效', async () => {
+    const { backend } = fixture();
+    const session = new WorkbenchSession(backend);
+    await session.open('first');
+    let finish!: (value: { js: string; css: string }) => void;
+    const compile = session.runSaved(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    await session.applyExternalFiles({}, ['main.ts']);
+    finish({ js: 'stale', css: '' });
+    await compile;
+    expect(session.state.files).toEqual({});
+    expect(session.state.tabs).toEqual([]);
+    expect(session.state.activePath).toBeNull();
+    expect(session.state.preview).toBeNull();
+  });
+
+  it('外部变更等待在途保存，连续外部回写与后续保存依序使用最新revision', async () => {
+    const { backend } = fixture();
+    const session = new WorkbenchSession(backend);
+    await session.open('first');
+    session.edit('main.ts', 'saved next');
+    let finish!: () => void;
+    const save = vi.mocked(backend.save).getMockImplementation()!;
+    vi.mocked(backend.save).mockImplementationOnce(async (...args) => {
+      await new Promise<void>(resolve => {
+        finish = resolve;
+      });
+      return save(...args);
+    });
+    const saving = session.save();
+    const first = session.applyExternalFiles({ 'a.ts': 'a' }, []);
+    const second = session.applyExternalFiles({ 'b.ts': 'b' }, []);
+    const finalSave = session.save();
+    expect(backend.save).toHaveBeenCalledTimes(1);
+    finish();
+    await Promise.all([saving, first, second, finalSave]);
+    expect(backend.save).toHaveBeenNthCalledWith(2, 'first', { 'a.ts': 'a' }, '2', []);
+    expect(backend.save).toHaveBeenNthCalledWith(3, 'first', { 'b.ts': 'b' }, '3', []);
+    expect(session.state.revision).toBe('4');
+    expect(session.state.files).toMatchObject({ 'a.ts': 'a', 'b.ts': 'b', 'main.ts': 'saved next' });
+    expect(session.state.dirty).toBe(false);
+  });
+
+  it('项目切换忽略迟到外部回执，也不执行旧项目排队的变更', async () => {
+    const { backend } = fixture();
+    const session = new WorkbenchSession(backend);
+    await session.open('first');
+    let finish!: (value: Awaited<ReturnType<WorkbenchBackend['save']>>) => void;
+    vi.mocked(backend.save).mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    const pending = session.applyExternalFiles({ 'old.ts': 'old' }, []);
+    const queued = session.applyExternalFiles({ 'queued.ts': 'old' }, []);
+    await vi.waitFor(() => expect(backend.save).toHaveBeenCalledOnce());
+    await session.open('second');
+    finish({ projectId: 'first', revision: '2', files: { 'old.ts': 'old' } });
+    await Promise.all([pending, queued]);
+    expect(backend.save).toHaveBeenCalledOnce();
+    expect(session.state.projectId).toBe('second');
+    expect(session.state.files).toEqual({ 'main.ts': 'console.log(1)' });
+  });
+
+  it('外部回写失败保留缓冲与revision，后续回写可以继续', async () => {
+    const { backend } = fixture();
+    const session = new WorkbenchSession(backend);
+    await session.open('first');
+    session.edit('main.ts', 'draft');
+    vi.mocked(backend.save).mockRejectedValueOnce(new Error('quota'));
+    await expect(session.applyExternalFiles({}, ['main.ts'])).rejects.toThrow('quota');
+    expect(session.state.revision).toBe('1');
+    expect(session.state.files['main.ts']).toBe('draft');
+    await session.applyExternalFiles({ 'external.ts': 'next' }, []);
+    expect(session.state.files['external.ts']).toBe('next');
+    expect(session.state.dirty).toBe(true);
+  });
   it('保存失败保留缓冲，不把失败 revision 标成已保存', async () => {
     const { backend } = fixture();
     const session = new WorkbenchSession(backend);

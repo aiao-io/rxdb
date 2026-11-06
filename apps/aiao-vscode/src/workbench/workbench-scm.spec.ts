@@ -33,6 +33,7 @@ async function fixture() {
     readDiff: vi.fn(),
     discardWorking: vi.fn(async projectId => ({ projectId, revision: '2', files: { 'a.ts': 'index' } })),
     commit: vi.fn(async () => 'a'.repeat(40)),
+    pull: vi.fn(async projectId => ({ projectId, revision: '2', files: { 'a.ts': 'saved', 'new.ts': 'remote' } })),
     history: vi.fn(),
     restore: vi.fn(),
     exportArchive: vi.fn(),
@@ -62,8 +63,17 @@ async function fixture() {
       { path: 'new.ts', index: '?', worktree: '?' }
     ]
   };
+  vi.mocked(backend.status).mockResolvedValue(status);
   scm.update(status);
   return { host, backend, session, scm, callbacks, status };
+}
+
+async function remoteFixture() {
+  const context = await fixture();
+  const status = { ...context.status, remote: { name: 'origin', url: 'https://github.com/team/project' } };
+  vi.mocked(context.backend.status).mockResolvedValue(status);
+  context.scm.update(status);
+  return { ...context, status };
 }
 
 afterEach(() => {
@@ -73,6 +83,166 @@ afterEach(() => {
 });
 
 describe('VSCode式源代码管理', () => {
+  it('远端仓库显示提交并推送、拉取、同步与分支，本地项目保持提交入口', async () => {
+    const { host, scm, status } = await remoteFixture();
+    const commit = host.querySelector<HTMLButtonElement>('[data-scm-action="commit"]');
+    expect(commit?.textContent).toBe('提交并推送');
+    expect(commit?.querySelector('.codicon-cloud-upload')).not.toBeNull();
+    expect(host.querySelector('[data-scm-action="pull"]')?.textContent).toBe('拉取');
+    expect(host.querySelector('[data-scm-action="sync"]')?.textContent).toBe('同步更改');
+    const remote = host.querySelector<HTMLAnchorElement>('.wb-scm-remote-link');
+    expect(remote?.href).toBe('https://github.com/team/project');
+    expect(remote?.textContent).toContain('origin');
+    expect(remote?.textContent).toContain('main');
+    expect(menuEntry(scm, '推送（提交暂存更改）')).toBeDefined();
+    expect(menuEntry(scm, '拉取')).toBeDefined();
+    expect(menuEntry(scm, '同步更改')).toBeDefined();
+    scm.update({ branch: status.branch, head: status.head, entries: status.entries });
+    expect(commit?.textContent).toBe('提交');
+    expect(host.querySelector<HTMLElement>('.wb-scm-remote')?.hidden).toBe(true);
+    expect(host.querySelector<HTMLElement>('.wb-scm-remote-actions')?.hidden).toBe(true);
+    expect(scm.getMenuEntries().some(item => 'id' in item && item.id === 'scm-pull')).toBe(false);
+  });
+
+  it('推送要求暂存和说明，使用现有提交逻辑且保留未保存编辑', async () => {
+    const { scm, backend, session, status } = await remoteFixture();
+    await expect(scm.push()).rejects.toThrow('请填写提交说明');
+    scm.restoreMessage('  push staged  ');
+    session.edit('a.ts', 'unsaved after staging');
+    await scm.push();
+    expect(backend.commit).toHaveBeenCalledExactlyOnceWith('project', 'push staged');
+    expect(backend.save).not.toHaveBeenCalled();
+    expect(session.state.files['a.ts']).toBe('unsaved after staging');
+    scm.update({ ...status, entries: [] });
+    await expect(scm.push()).rejects.toThrow('没有暂存的更改');
+  });
+
+  it('拉取不隐式保存，干净缓冲把远端快照交给宿主合并', async () => {
+    const { scm, host, backend, session, callbacks } = await remoteFixture();
+    session.edit('a.ts', 'unsaved');
+    expect(host.querySelector<HTMLButtonElement>('[data-scm-action="pull"]')?.disabled).toBe(true);
+    await expect(scm.pull()).rejects.toThrow(/未保存/);
+    expect(backend.pull).not.toHaveBeenCalled();
+    expect(backend.save).not.toHaveBeenCalled();
+    session.discard();
+    callbacks.onDidChange.mockImplementation(async (snapshot, paths) => {
+      if (snapshot) session.applySavedSnapshot(snapshot, paths ?? []);
+    });
+    await scm.pull();
+    expect(backend.pull).toHaveBeenCalledExactlyOnceWith('project');
+    expect(callbacks.onDidChange).toHaveBeenCalledExactlyOnceWith(
+      { projectId: 'project', revision: '2', files: { 'a.ts': 'saved', 'new.ts': 'remote' } },
+      undefined
+    );
+    expect(session.state.files['new.ts']).toBe('remote');
+  });
+
+  it('拉取中新增的未保存编辑被保留，忙时不能重复远端操作', async () => {
+    const { scm, backend, session, callbacks } = await remoteFixture();
+    let finish!: (snapshot: WorkbenchSnapshot) => void;
+    vi.mocked(backend.pull!).mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    callbacks.onDidChange.mockImplementation(async (snapshot, paths) => {
+      if (snapshot) session.applySavedSnapshot(snapshot, paths ?? []);
+    });
+    const operation = scm.pull();
+    await expect(scm.pull()).rejects.toThrow(/操作仍在进行/);
+    session.edit('a.ts', 'edited while pulling');
+    finish({ projectId: 'project', revision: '2', files: { 'a.ts': 'saved', 'new.ts': 'remote' } });
+    await operation;
+    expect(session.state.files['a.ts']).toBe('edited while pulling');
+    expect(session.state.files['new.ts']).toBe('remote');
+    expect(session.isModified('a.ts')).toBe(true);
+    expect(backend.pull).toHaveBeenCalledOnce();
+  });
+
+  it('同步先拉取并应用快照，再提交推送暂存区，成功后清空说明并记录历史', async () => {
+    const { scm, host, backend, session, callbacks } = await remoteFixture();
+    const order: string[] = [];
+    const pull = backend.pull!;
+    vi.mocked(pull).mockImplementationOnce(async projectId => {
+      order.push('pull');
+      return { projectId, revision: '2', files: { 'a.ts': 'saved', 'new.ts': 'remote' } };
+    });
+    callbacks.onDidChange.mockImplementation(async snapshot => {
+      order.push(snapshot ? 'apply' : 'refresh');
+      if (snapshot) session.applySavedSnapshot(snapshot, []);
+    });
+    vi.mocked(backend.commit).mockImplementationOnce(async () => {
+      order.push('push');
+      return 'c'.repeat(40);
+    });
+    scm.restoreMessage('sync staged');
+    await scm.sync();
+    expect(order).toEqual(['pull', 'apply', 'push', 'refresh']);
+    expect(backend.commit).toHaveBeenCalledExactlyOnceWith('project', 'sync staged');
+    expect(host.querySelector<HTMLTextAreaElement>('[aria-label="提交说明"]')?.value).toBe('');
+    expect(callbacks.onCommitMessage).toHaveBeenCalledWith('project', 'sync staged');
+    expect(session.state.revision).toBe('2');
+  });
+
+  it('同步在有暂存但没有说明时提前失败，没有暂存时仅拉取', async () => {
+    const { scm, backend, status } = await remoteFixture();
+    await expect(scm.sync()).rejects.toThrow('请填写提交说明');
+    expect(backend.pull).not.toHaveBeenCalled();
+    scm.update({ ...status, entries: [] });
+    await scm.sync();
+    expect(backend.pull).toHaveBeenCalledOnce();
+    expect(backend.commit).not.toHaveBeenCalled();
+  });
+
+  it('拉取已包含全部暂存内容时同步成功且不创建空提交', async () => {
+    const { scm, host, backend, status, callbacks } = await remoteFixture();
+    scm.restoreMessage('already on remote');
+    vi.mocked(backend.status).mockResolvedValueOnce({ ...status, entries: [] });
+    await scm.sync();
+    expect(backend.pull).toHaveBeenCalledOnce();
+    expect(backend.commit).not.toHaveBeenCalled();
+    expect(callbacks.onDidChange).toHaveBeenCalledOnce();
+    expect(callbacks.onCommitMessage).not.toHaveBeenCalled();
+    expect(host.querySelector<HTMLTextAreaElement>('[aria-label="提交说明"]')?.value).toBe('already on remote');
+    expect(host.querySelector('[data-scm-count="staged"]')?.textContent).toBe('0');
+  });
+
+  it('拉取冲突与推送失败保留说明及暂存列表，不继续后续写入', async () => {
+    const { scm, host, backend, callbacks } = await remoteFixture();
+    scm.restoreMessage('retain draft');
+    const conflict = new Error('远端冲突 a.ts');
+    vi.mocked(backend.pull!).mockRejectedValueOnce(conflict);
+    await expect(scm.sync()).rejects.toBe(conflict);
+    expect(backend.commit).not.toHaveBeenCalled();
+    expect(callbacks.onDidChange).not.toHaveBeenCalled();
+    const failure = new Error('远端拒绝推送');
+    vi.mocked(backend.commit).mockRejectedValueOnce(failure);
+    await expect(scm.push()).rejects.toBe(failure);
+    expect(host.querySelector<HTMLTextAreaElement>('[aria-label="提交说明"]')?.value).toBe('retain draft');
+    expect(host.querySelector('[data-scm-count="staged"]')?.textContent).toBe('1');
+    expect(callbacks.onCommitMessage).not.toHaveBeenCalled();
+  });
+
+  it('同步拉取期间切换项目后不应用旧快照，也不推送上一项目', async () => {
+    const { scm, backend, session, callbacks } = await remoteFixture();
+    let finish!: (snapshot: WorkbenchSnapshot) => void;
+    vi.mocked(backend.pull!).mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    scm.restoreMessage('old project');
+    const operation = scm.sync();
+    await session.open('other');
+    finish({ projectId: 'project', revision: '2', files: { 'a.ts': 'late' } });
+    await operation;
+    expect(backend.commit).not.toHaveBeenCalled();
+    expect(callbacks.onDidChange).not.toHaveBeenCalled();
+    expect(session.state.projectId).toBe('other');
+  });
+
   it('提交消息按项目记忆，上下方向键回放历史，切换项目恢复最后一条', async () => {
     const { host, backend, session, callbacks } = await fixture();
     const message = host.querySelector<HTMLTextAreaElement>('.wb-scm-commit-form textarea');

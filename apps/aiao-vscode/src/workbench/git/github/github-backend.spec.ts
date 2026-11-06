@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { WorkbenchSession, type WorkbenchFiles } from '../../session.js';
 import { GitWorkbenchError } from '../git-protocol.js';
 import type { GitHubApi } from './github-api.js';
 import { GitHubApiError } from './github-api.js';
@@ -57,6 +58,21 @@ describe('GitHub virtual repository backend', () => {
     await backend.open('github:octo/repo@main');
   };
 
+  function remoteFiles(files: WorkbenchFiles, modes: Record<string, string> = {}): void {
+    api.getBranchSha.mockResolvedValue('remote-head');
+    api.getCommit.mockResolvedValue({
+      sha: 'remote-head',
+      treeSha: 'remote-tree',
+      parents: ['head-1'],
+      message: 'remote'
+    });
+    api.getTreeFiles.mockResolvedValue(treeWith(Object.keys(files).map(path => ({ path, mode: modes[path] }))));
+    api.getFileContents.mockImplementation(async (_owner: string, _repo: string, path: string) => {
+      const value = files[path];
+      return typeof value === 'string' ? text(value) : value;
+    });
+  }
+
   it('opens a repository snapshot with typed contents and branch encoding', async () => {
     await openMain();
     expect(api.getBranchSha).toHaveBeenCalledWith('octo', 'repo', 'main');
@@ -65,6 +81,7 @@ describe('GitHub virtual repository backend', () => {
     expect(await backend.status('github:octo/repo@main')).toMatchObject({
       head: 'head-1',
       branch: 'main',
+      remote: { name: 'origin', url: 'https://github.com/octo/repo' },
       entries: []
     });
 
@@ -131,6 +148,280 @@ describe('GitHub virtual repository backend', () => {
     await expect(
       backend.save('github:octo/repo@main', { 'src/a.ts': 'changed' }, 'stale-revision')
     ).rejects.toMatchObject({ code: 'revision_conflict' });
+  });
+
+  it('外部增量保存保留未提及文件，并原子删除指定路径', async () => {
+    await openMain();
+    const saved = await backend.save('github:octo/repo@main', { 'new.ts': 'new' }, 'head-1', ['src/a.ts']);
+    expect(saved.files).toEqual({ 'new.ts': 'new', 'src/b.ts': 'hello b', 'logo.png': new Uint8Array([0, 255, 1]) });
+    expect(saved.revision).toBe('head-1:1');
+  });
+
+  it('外部保存拒绝非法路径、写删冲突和不存在的删除，失败不修改内容', async () => {
+    await openMain();
+    const id = 'github:octo/repo@main';
+    await expect(backend.save(id, { 'src/a.ts': 'next' }, 'head-1', ['src/a.ts'])).rejects.toMatchObject({
+      code: 'path_collision'
+    });
+    await expect(backend.save(id, {}, 'head-1', ['.git/config'])).rejects.toMatchObject({ code: 'invalid_path' });
+    await expect(backend.save(id, {}, 'head-1', ['missing.ts'])).rejects.toMatchObject({ code: 'invalid_path' });
+    expect((await backend.status(id)).entries).toEqual([]);
+  });
+
+  it('pulls remote additions, deletions and binary changes as one clean snapshot', async () => {
+    await openMain();
+    const files = { 'src/a.ts': 'remote a', 'new.ts': 'remote new', 'logo.png': new Uint8Array([1, 2, 3]) };
+    remoteFiles(files);
+
+    const snapshot = await backend.pull!('github:octo/repo@main');
+
+    expect(snapshot.files).toEqual(files);
+    expect(snapshot.revision).not.toBe('head-1');
+    expect(await backend.status('github:octo/repo@main')).toMatchObject({ head: 'remote-head', entries: [] });
+    expect(api.getFileContents).toHaveBeenCalledWith('octo', 'repo', 'src/a.ts', 'remote-head');
+    expect(api.getTreeFiles).toHaveBeenLastCalledWith('octo', 'repo', 'remote-tree');
+  });
+
+  it('returns the existing snapshot without refetching file contents when the remote head is unchanged', async () => {
+    await openMain();
+    const snapshot = await backend.pull!('github:octo/repo@main');
+    expect(snapshot.revision).toBe('head-1');
+    expect(snapshot.files['src/a.ts']).toBe('hello a');
+    expect(api.getFileContents).toHaveBeenCalledTimes(3);
+    expect(api.getCommit).toHaveBeenCalledTimes(1);
+  });
+
+  it('preserves local working edits and staged snapshots while pulling non-overlapping changes', async () => {
+    await openMain();
+    const id = 'github:octo/repo@main';
+    const baseline = { 'src/b.ts': 'hello b', 'logo.png': new Uint8Array([0, 255, 1]) };
+    await backend.save(id, { ...baseline, 'src/a.ts': 'staged a' }, 'head-1');
+    await backend.stage(id, ['src/a.ts']);
+    await backend.save(id, { ...baseline, 'src/a.ts': 'working a', 'local.ts': 'local' }, 'head-1:1');
+    remoteFiles({ ...baseline, 'src/a.ts': 'hello a', 'src/b.ts': 'remote b' });
+
+    const snapshot = await backend.pull!(id);
+
+    expect(snapshot.files).toEqual({
+      ...baseline,
+      'src/a.ts': 'working a',
+      'src/b.ts': 'remote b',
+      'local.ts': 'local'
+    });
+    expect(await backend.status(id)).toMatchObject({
+      head: 'remote-head',
+      entries: [
+        { path: 'local.ts', index: '?', worktree: '?' },
+        { path: 'src/a.ts', index: 'M', worktree: 'M' }
+      ]
+    });
+    expect(await backend.readDiff(id, 'src/a.ts', 'staged')).toMatchObject({
+      base: { text: 'hello a' },
+      modified: { text: 'staged a' }
+    });
+    expect(await backend.readDiff(id, 'src/a.ts', 'working')).toMatchObject({
+      base: { text: 'staged a' },
+      modified: { text: 'working a' }
+    });
+  });
+
+  it('rejects conflicting pulls atomically and reports every conflicting path', async () => {
+    await openMain();
+    const id = 'github:octo/repo@main';
+    const local = { 'src/a.ts': 'local a', 'src/b.ts': 'hello b', 'logo.png': new Uint8Array([9]) };
+    await backend.save(id, local, 'head-1');
+    await backend.stage(id, ['src/a.ts']);
+    const before = await backend.status(id);
+    remoteFiles({ 'src/a.ts': 'remote a', 'src/b.ts': 'hello b', 'logo.png': new Uint8Array([8]) });
+
+    await expect(backend.pull!(id)).rejects.toMatchObject({
+      code: 'remote_conflict',
+      message: expect.stringMatching(/logo\.png.*src\/a\.ts/)
+    });
+    expect(await backend.status(id)).toEqual(before);
+    expect(await backend.readDiff(id, 'src/a.ts', 'staged')).toMatchObject({ modified: { text: 'local a' } });
+    api.getBranchSha.mockResolvedValue('head-1');
+    expect(await backend.pull!(id)).toMatchObject({ revision: 'head-1:1', files: local });
+  });
+
+  it('detects a staged conflict even when the working buffer was edited back to the old baseline', async () => {
+    await openMain();
+    const id = 'github:octo/repo@main';
+    const baseline = { 'src/a.ts': 'hello a', 'src/b.ts': 'hello b', 'logo.png': new Uint8Array([0, 255, 1]) };
+    await backend.save(id, { ...baseline, 'src/a.ts': 'staged a' }, 'head-1');
+    await backend.stage(id, ['src/a.ts']);
+    await backend.save(id, baseline, 'head-1:1');
+    remoteFiles({ ...baseline, 'src/a.ts': 'remote a' });
+
+    await expect(backend.pull!(id)).rejects.toMatchObject({
+      code: 'remote_conflict',
+      message: expect.stringContaining('src/a.ts')
+    });
+    expect(await backend.readDiff(id, 'src/a.ts', 'staged')).toMatchObject({ modified: { text: 'staged a' } });
+  });
+
+  it('accepts remote changes identical to local staged content without leaving a stale staged change', async () => {
+    await openMain();
+    const id = 'github:octo/repo@main';
+    const files = { 'src/a.ts': 'same a', 'src/b.ts': 'hello b', 'logo.png': new Uint8Array([0, 255, 1]) };
+    await backend.save(id, files, 'head-1');
+    await backend.stage(id, ['src/a.ts']);
+    remoteFiles(files);
+
+    expect((await backend.pull!(id)).files).toEqual(files);
+    expect((await backend.status(id)).entries).toEqual([]);
+  });
+
+  it('keeps working edits after the remote has already adopted the staged snapshot', async () => {
+    await openMain();
+    const id = 'github:octo/repo@main';
+    const baseline = { 'src/a.ts': 'hello a', 'src/b.ts': 'hello b', 'logo.png': new Uint8Array([0, 255, 1]) };
+    await backend.save(id, { ...baseline, 'src/a.ts': 'staged a' }, 'head-1');
+    await backend.stage(id, ['src/a.ts']);
+    await backend.save(id, baseline, 'head-1:1');
+    remoteFiles({ ...baseline, 'src/a.ts': 'staged a' });
+
+    expect((await backend.pull!(id)).files['src/a.ts']).toBe('hello a');
+    expect((await backend.status(id)).entries).toEqual([{ path: 'src/a.ts', index: ' ', worktree: 'M' }]);
+  });
+
+  it('keeps a local staged deletion when the remote changed another file', async () => {
+    await openMain();
+    const id = 'github:octo/repo@main';
+    await backend.remove(id, 'src/a.ts');
+    await backend.stage(id, ['src/a.ts']);
+    remoteFiles({ 'src/a.ts': 'hello a', 'src/b.ts': 'remote b', 'logo.png': new Uint8Array([0, 255, 1]) });
+
+    const snapshot = await backend.pull!(id);
+
+    expect(snapshot.files).not.toHaveProperty('src/a.ts');
+    expect(snapshot.files['src/b.ts']).toBe('remote b');
+    expect((await backend.status(id)).entries).toEqual([{ path: 'src/a.ts', index: 'D', worktree: ' ' }]);
+  });
+
+  it('rejects a remote deletion that would erase a local change', async () => {
+    await openMain();
+    const id = 'github:octo/repo@main';
+    await backend.save(
+      id,
+      { 'src/a.ts': 'local a', 'src/b.ts': 'hello b', 'logo.png': new Uint8Array([0, 255, 1]) },
+      'head-1'
+    );
+    remoteFiles({ 'src/b.ts': 'hello b', 'logo.png': new Uint8Array([0, 255, 1]) });
+    await expect(backend.pull!(id)).rejects.toMatchObject({
+      code: 'remote_conflict',
+      message: expect.stringContaining('src/a.ts')
+    });
+    expect((await backend.status(id)).head).toBe('head-1');
+  });
+
+  it('rejects file and directory collisions between local additions and the remote snapshot', async () => {
+    await openMain();
+    const id = 'github:octo/repo@main';
+    await backend.save(id, { 'local-dir': 'local file' }, 'head-1');
+    remoteFiles({
+      'src/a.ts': 'hello a',
+      'src/b.ts': 'hello b',
+      'logo.png': new Uint8Array([0, 255, 1]),
+      'local-dir/remote.ts': 'remote file'
+    });
+    await expect(backend.pull!(id)).rejects.toMatchObject({
+      code: 'remote_conflict',
+      message: expect.stringContaining('local-dir')
+    });
+    expect((await backend.status(id)).head).toBe('head-1');
+  });
+
+  it('rejects a collision in the staged tree even when the working tree has no colliding file', async () => {
+    await openMain();
+    const id = 'github:octo/repo@main';
+    const baseline = { 'src/a.ts': 'hello a', 'src/b.ts': 'hello b', 'logo.png': new Uint8Array([0, 255, 1]) };
+    await backend.save(id, { ...baseline, 'local-dir': 'staged file' }, 'head-1');
+    await backend.stage(id, ['local-dir']);
+    await backend.save(id, baseline, 'head-1:1');
+    remoteFiles({ ...baseline, 'local-dir/remote.ts': 'remote file' });
+
+    await expect(backend.pull!(id)).rejects.toMatchObject({
+      code: 'remote_conflict',
+      message: expect.stringContaining('local-dir')
+    });
+    expect((await backend.status(id)).head).toBe('head-1');
+  });
+
+  it('retains the original baseline and edits when remote contents fail to load', async () => {
+    await openMain();
+    const id = 'github:octo/repo@main';
+    await backend.stage(id, ['src/a.ts']);
+    const before = await backend.status(id);
+    remoteFiles({ 'src/a.ts': 'remote a' });
+    api.getFileContents.mockRejectedValue(new GitHubApiError('network_failed', 'offline'));
+    await expect(backend.pull!(id)).rejects.toMatchObject({ code: 'network_failed' });
+    expect(await backend.status(id)).toEqual(before);
+    expect(await backend.readDiff(id, 'src/a.ts', 'staged')).toMatchObject({
+      base: { text: 'hello a' },
+      modified: { text: 'hello a' }
+    });
+  });
+
+  it('rejects a pull when a save completes while remote files are downloading', async () => {
+    await openMain();
+    const id = 'github:octo/repo@main';
+    remoteFiles({ 'src/a.ts': 'remote a' });
+    let finish!: (bytes: Uint8Array) => void;
+    api.getFileContents.mockImplementation(
+      () =>
+        new Promise<Uint8Array>(resolve => {
+          finish = resolve;
+        })
+    );
+    const pulling = backend.pull!(id);
+    await vi.waitFor(() => expect(api.getFileContents).toHaveBeenCalledWith('octo', 'repo', 'src/a.ts', 'remote-head'));
+    await backend.save(id, { 'src/a.ts': 'saved during pull' }, 'head-1');
+    finish(text('remote a'));
+
+    await expect(pulling).rejects.toMatchObject({ code: 'revision_conflict' });
+    api.getBranchSha.mockResolvedValue('head-1');
+    expect(await backend.pull!(id)).toMatchObject({ revision: 'head-1:1', files: { 'src/a.ts': 'saved during pull' } });
+  });
+
+  it('rejects a pull when the staged snapshot changes during remote download', async () => {
+    await openMain();
+    const id = 'github:octo/repo@main';
+    remoteFiles({ 'src/a.ts': 'hello a' });
+    let finish!: (bytes: Uint8Array) => void;
+    api.getFileContents.mockImplementation(
+      () =>
+        new Promise<Uint8Array>(resolve => {
+          finish = resolve;
+        })
+    );
+    const pulling = backend.pull!(id);
+    await vi.waitFor(() => expect(api.getFileContents).toHaveBeenCalledWith('octo', 'repo', 'src/a.ts', 'remote-head'));
+    await backend.stage(id, ['src/a.ts']);
+    finish(text('hello a'));
+
+    await expect(pulling).rejects.toMatchObject({ code: 'revision_conflict' });
+    expect((await backend.status(id)).head).toBe('head-1');
+    expect(await backend.readDiff(id, 'src/a.ts', 'staged')).toMatchObject({ modified: { text: 'hello a' } });
+  });
+
+  it('uses pulled executable modes and trees for the next pushed commit', async () => {
+    await openMain();
+    const id = 'github:octo/repo@main';
+    remoteFiles({ 'src/a.ts': 'hello a' }, { 'src/a.ts': '100755' });
+    const pulled = await backend.pull!(id);
+    await backend.save(id, { 'src/a.ts': 'changed executable' }, pulled.revision);
+    await backend.stage(id, ['src/a.ts']);
+    api.createTree.mockResolvedValue('next-tree');
+    api.createCommit.mockResolvedValue('next-head');
+    api.updateRef.mockResolvedValue(undefined);
+
+    await backend.commit(id, 'after pull');
+
+    expect(api.createTree).toHaveBeenCalledWith('octo', 'repo', 'remote-tree', [
+      { path: 'src/a.ts', mode: '100755', content: 'changed executable' }
+    ]);
+    expect(api.createCommit).toHaveBeenCalledWith('octo', 'repo', 'after pull', 'next-tree', ['remote-head']);
   });
 
   it('stages, unstages and diffs both sides with binary awareness', async () => {
@@ -217,6 +508,58 @@ describe('GitHub virtual repository backend', () => {
       { path: 'logo.png', index: ' ', worktree: 'M' },
       { path: 'src/b.ts', index: ' ', worktree: 'M' }
     ]);
+  });
+
+  it('allows the same workbench session to save again after committing and pushing', async () => {
+    await openMain();
+    const id = 'github:octo/repo@main';
+    api.getFileContents.mockResolvedValue(text('initial'));
+    const session = new WorkbenchSession(backend);
+    await session.open(id);
+    session.edit('src/a.ts', 'first edit');
+    await session.save();
+    await backend.stage(id, ['src/a.ts']);
+    api.createTree.mockResolvedValue('tree-2');
+    api.createCommit.mockResolvedValue('head-2');
+    api.updateRef.mockResolvedValue(undefined);
+
+    await backend.commit(id, 'first push');
+    session.edit('src/a.ts', 'second edit');
+    await session.save();
+
+    expect(session.state.dirty).toBe(false);
+    expect(session.state.files['src/a.ts']).toBe('second edit');
+    expect((await backend.status(id)).entries).toContainEqual({ path: 'src/a.ts', index: ' ', worktree: 'M' });
+  });
+
+  it('keeps a new staged edit when an earlier staged snapshot finishes pushing', async () => {
+    await openMain();
+    const id = 'github:octo/repo@main';
+    const baseline = { 'src/b.ts': 'hello b', 'logo.png': new Uint8Array([0, 255, 1]) };
+    await backend.save(id, { ...baseline, 'src/a.ts': 'first staged' }, 'head-1');
+    await backend.stage(id, ['src/a.ts']);
+    let finish!: (tree: string) => void;
+    api.createTree.mockImplementation(
+      () =>
+        new Promise<string>(resolve => {
+          finish = resolve;
+        })
+    );
+    api.createCommit.mockResolvedValue('pushed-head');
+    api.updateRef.mockResolvedValue(undefined);
+    const pushing = backend.commit(id, 'first staged snapshot');
+    await vi.waitFor(() => expect(api.createTree).toHaveBeenCalled());
+    await backend.save(id, { ...baseline, 'src/a.ts': 'second staged' }, 'head-1:1');
+    await backend.stage(id, ['src/a.ts']);
+    finish('pushed-tree');
+
+    await expect(pushing).resolves.toBe('pushed-head');
+
+    expect(await backend.readDiff(id, 'src/a.ts', 'staged')).toMatchObject({
+      base: { text: 'first staged' },
+      modified: { text: 'second staged' }
+    });
+    expect((await backend.status(id)).entries).toContainEqual({ path: 'src/a.ts', index: 'M', worktree: ' ' });
   });
 
   it('uploads binary and oversized staged content as blobs and deletes staged removals', async () => {

@@ -87,4 +87,24 @@ describe('Git backend router', () => {
     expect(local.dispose).toHaveBeenCalledOnce();
     expect(github.dispose).toHaveBeenCalledOnce();
   });
+
+  it('原子删除列表随保存请求转发到实际后端', async () => {
+    await router.save('local-project', { 'next.ts': 'next' }, '1', ['old.ts']);
+    await router.save('github:octo/repo@main', {}, 'sha', ['old.ts']);
+    expect(local.save).toHaveBeenCalledWith('local-project', { 'next.ts': 'next' }, '1', ['old.ts']);
+    expect(github.save).toHaveBeenCalledWith('github:octo/repo@main', {}, 'sha', ['old.ts']);
+  });
+
+  it('routes pull to the selected remote backend and returns its snapshot', async () => {
+    const snapshot = { projectId: 'github:octo/repo@main', revision: 'head-2', files: { 'a.ts': 'remote' } };
+    github.pull = vi.fn(async () => snapshot);
+    expect(router.pull).toBeDefined();
+    await expect(router.pull?.(snapshot.projectId)).resolves.toEqual(snapshot);
+    expect(github.pull).toHaveBeenCalledWith(snapshot.projectId);
+  });
+
+  it('rejects pull for a backend without remote support', async () => {
+    expect(router.pull).toBeDefined();
+    await expect(router.pull?.('local-project')).rejects.toMatchObject({ code: 'unsupported_operation' });
+  });
 });

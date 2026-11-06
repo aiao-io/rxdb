@@ -8,7 +8,7 @@ const instances: WorkbenchDockview[] = [];
 function fixture(width = 1200, height = 800) {
   const root = document.createElement('section');
   root.innerHTML =
-    '<main data-slot="dockview"></main><div data-slot="panel-staging" hidden><aside class="wb-side">资源</aside><div class="wb-welcome">欢迎</div><section class="wb-preview"><div class="wb-preview-content"></div></section><section class="wb-panel" data-log="problems">问题日志</section><section class="wb-panel" data-log="output">输出日志</section><section class="wb-panel" data-log="console">控制台日志</section></div>';
+    '<main data-slot="dockview"></main><div data-slot="panel-staging" hidden><aside class="wb-side">资源</aside><div class="wb-welcome">欢迎</div><section class="wb-preview"><div class="wb-preview-content"></div></section><section class="wb-panel" data-log="problems">问题日志</section><section class="wb-panel" data-log="output">输出日志</section><section class="wb-panel" data-log="console">控制台日志</section><section class="wb-panel" data-log="terminal">终端内容</section></div>';
   document.body.append(root);
   const callbacks = {
     onSelectEditor: vi.fn(),
@@ -47,6 +47,18 @@ const pointer = (type: string, init: Record<string, unknown> = {}): PointerEvent
   });
 
 describe('Dockview 工作台布局', () => {
+  it('终端与日志共用工具区域，关闭重开和移动保留同一宿主', () => {
+    const { root, dock, callbacks } = fixture();
+    const host = root.querySelector('[data-log="terminal"]');
+    dock.showTool('terminal');
+    expect(dock.api.getPanel('terminal')?.group).toBe(dock.api.getPanel('output')?.group);
+    expect(callbacks.onSelectTool).toHaveBeenCalledWith('terminal');
+    dock.toggleTools();
+    dock.showTool('terminal');
+    expect(root.querySelector('[data-log="terminal"]')).toBe(host);
+    expect(host?.textContent).toBe('终端内容');
+  });
+
   it('中键点击标签关闭面板，与关闭按钮走同一生命周期', async () => {
     const { dock, callbacks } = fixture();
     dock.ensureEditor('main.ts');
@@ -584,7 +596,8 @@ describe('布局持久化', () => {
       'output',
       'preview',
       'problems',
-      'sidebar'
+      'sidebar',
+      'terminal'
     ]);
     expect(layout.panels['editor:src/a.ts']).toEqual({ id: 'editor:src/a.ts', contentComponent: 'editor' });
     expect(JSON.stringify(layout)).not.toContain('diff:working');

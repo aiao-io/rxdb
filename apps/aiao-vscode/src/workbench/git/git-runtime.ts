@@ -156,8 +156,17 @@ export class GitWorkbenchRuntime {
     return this.lock(projectId, true, context => this.snapshotContext(context));
   }
 
-  async save(projectId: string, files: readonly GitFile[], expectedRevision?: number): Promise<GitSnapshot> {
+  async save(
+    projectId: string,
+    files: readonly GitFile[],
+    expectedRevision?: number,
+    removedPaths: readonly string[] = []
+  ): Promise<GitSnapshot> {
     this.validateFiles(files);
+    removedPaths.forEach(path => assertGitPath(path));
+    const removed = new Set(removedPaths);
+    if (files.some(file => removed.has(file.path)))
+      throw new GitWorkbenchError('path_collision', 'A file cannot be written and removed together');
     return this.lock(projectId, true, async context => {
       if (expectedRevision !== undefined && expectedRevision !== context.revision)
         throw new GitWorkbenchError(
@@ -166,11 +175,14 @@ export class GitWorkbenchRuntime {
         );
       const current = this.snapshotContext(context).files;
       const previous = new Map(current.map(file => [file.path, file.bytes]));
+      for (const path of removed) this.requireFile(`${context.root}/${path}`);
       const changed = files.filter(file => !sameFileBytes(previous.get(file.path), file.bytes));
       const next = new Map(current.map(file => [file.path, file]));
+      for (const path of removed) next.delete(path);
       for (const file of files) next.set(file.path, file);
       this.validateFiles([...next.values()]);
       return this.mutate(context, async () => {
+        for (const path of removed) await this.removePersistent(context.root, path);
         for (const file of changed) await this.write(context.root, file);
         return () => this.snapshotContext(context);
       });

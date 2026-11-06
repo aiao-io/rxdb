@@ -434,6 +434,8 @@ export function createWorkbenchCommands(root: HTMLElement, options: WorkbenchCom
     const modifier = shortcut.ctrlKey || shortcut.metaKey;
     const key = shortcut.key.toLowerCase();
     if (target?.closest('dialog[open],[aria-modal="true"]')) return false;
+    if (shortcut.ctrlKey && !shortcut.metaKey && !shortcut.shiftKey && key === '`') return invokeCommand('showTerminal');
+    if (target?.closest('[data-workbench-terminal]')) return false;
     if (modifier && key === 'p') {
       show(shortcut.shiftKey ? '>' : '');
       return true;
@@ -473,6 +475,7 @@ export function createWorkbenchCommands(root: HTMLElement, options: WorkbenchCom
     const modifier = event.ctrlKey || event.metaKey;
     const target = targetElement(event.target);
     if (!target) return;
+    if (target.closest('[data-workbench-terminal]')) return;
     const key = event.key.toLowerCase();
     if (event.shiftKey && key === 'enter' && modifier) {
       if (!ordinaryInput(target) && editorContext(target)) {

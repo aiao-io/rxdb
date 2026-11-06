@@ -7,6 +7,8 @@ import type {
   WorkbenchStatus
 } from '../../session.js';
 import { decodeFileBytes, encodeFileBytes } from '../file-encoding.js';
+import { assertGitFileLimits } from '../git-archive.js';
+import { assertGitPath, assertNoPathCollisions } from '../git-paths.js';
 import { GIT_WORKBENCH_LIMITS, GitWorkbenchError } from '../git-protocol.js';
 import type { GitHubApi, GitHubTreeItem } from './github-api.js';
 import { GitHubApiError } from './github-api.js';
@@ -28,19 +30,28 @@ interface ProjectState {
   readonly branch: string;
   headSha: string;
   treeSha: string;
-  readonly modes: Map<string, string>;
+  modes: Map<string, string>;
   saved: Map<string, string | Uint8Array>;
   buffer: Map<string, string | Uint8Array>;
   /** 暂存集：内容快照；null 表示暂存删除。 */
   staged: Map<string, string | Uint8Array | null>;
   revision: string;
   counter: number;
+  mutation: number;
 }
 
 type FileValue = string | Uint8Array;
 
-function equalBytes(left: FileValue, right: FileValue): boolean {
+interface RemoteSnapshot {
+  readonly headSha: string;
+  readonly treeSha: string;
+  readonly modes: Map<string, string>;
+  readonly saved: Map<string, FileValue>;
+}
+
+function equalBytes(left: FileValue | undefined, right: FileValue | undefined): boolean {
   if (left === right) return true;
+  if (left === undefined || right === undefined) return false;
   if (typeof left === 'string' && typeof right === 'string') return false;
   const leftBytes = encodeFileBytes(left);
   const rightBytes = encodeFileBytes(right);
@@ -67,7 +78,9 @@ function mapError(cause: unknown, context: string): GitWorkbenchError {
     case 'rate_limited':
       return new GitWorkbenchError('rate_limited', 'GitHub 请求超出限额，请稍后重试', { cause });
     case 'conflict':
-      return new GitWorkbenchError('remote_conflict', '远端分支已被他人更新，请重新打开后再提交', { cause });
+      return new GitWorkbenchError('remote_conflict', '远端分支已更新，请先拉取远端更改后再提交；本地更改已保留', {
+        cause
+      });
     case 'network_failed':
       return new GitWorkbenchError('network_failed', '无法连接 GitHub API', { cause });
     default:
@@ -94,6 +107,62 @@ function parseProjectId(projectId: string): { owner: string; repo: string; branc
     throw new GitWorkbenchError('invalid_path', `分支名编码无效：${projectId}`, { cause });
   }
   return { owner, repo, branch };
+}
+
+function conflictsWithRemote(
+  base: FileValue | undefined,
+  local: FileValue | undefined,
+  remote: FileValue | undefined
+): boolean {
+  return !equalBytes(base, remote) && !equalBytes(base, local) && !equalBytes(local, remote);
+}
+
+function mergeRemote(project: ProjectState, remote: RemoteSnapshot): Pick<ProjectState, 'buffer' | 'staged'> {
+  const buffer = new Map(remote.saved);
+  const staged = new Map(project.staged);
+  const paths = new Set([
+    ...project.saved.keys(),
+    ...project.buffer.keys(),
+    ...project.staged.keys(),
+    ...remote.saved.keys()
+  ]);
+  const conflicts: string[] = [];
+  for (const path of paths) {
+    const base = project.saved.get(path);
+    const working = project.buffer.get(path);
+    const next = remote.saved.get(path);
+    const index = project.staged.get(path) ?? undefined;
+    const hasIndex = project.staged.has(path);
+    if (conflictsWithRemote(base, working, next) || (hasIndex && conflictsWithRemote(base, index, next))) {
+      conflicts.push(path);
+    }
+    const edited = !equalBytes(base, working) || (hasIndex && !equalBytes(index, working));
+    if (edited && working === undefined) buffer.delete(path);
+    if (edited && working !== undefined) buffer.set(path, working);
+    if (hasIndex && (equalBytes(base, index) || equalBytes(next, index))) staged.delete(path);
+  }
+  if (conflicts.length) {
+    throw new GitWorkbenchError(
+      'remote_conflict',
+      `拉取会覆盖本地更改：${conflicts.sort().join('、')}；请先处理这些文件`
+    );
+  }
+  const indexPaths = new Set(remote.saved.keys());
+  for (const [path, value] of staged) {
+    if (value === null) indexPaths.delete(path);
+    else indexPaths.add(path);
+  }
+  try {
+    assertNoPathCollisions([...buffer.keys()]);
+    assertNoPathCollisions([...indexPaths]);
+  } catch (cause) {
+    throw new GitWorkbenchError(
+      'remote_conflict',
+      `远端文件与本地更改存在路径冲突：${cause instanceof Error ? cause.message : String(cause)}`,
+      { cause }
+    );
+  }
+  return { buffer, staged };
 }
 
 /** 以 GitHub API 为存储的虚拟仓库后端：打开即快照、提交即推送，无本地 .git。 */
@@ -140,34 +209,62 @@ export function createGitHubBackend(options: GitHubBackendOptions): WorkbenchBac
     return files;
   }
 
+  async function readRemote(owner: string, repo: string, headSha: string): Promise<RemoteSnapshot> {
+    const head = await api.getCommit(owner, repo, headSha);
+    const entries = await api.getTreeFiles(owner, repo, head.treeSha);
+    const contents = await fetchContents(owner, repo, headSha, entries);
+    const saved = new Map<string, FileValue>();
+    const modes = new Map<string, string>();
+    for (const entry of entries) {
+      modes.set(entry.path, entry.mode);
+      saved.set(entry.path, decodeFileBytes(entry.path, contents.get(entry.path)!));
+    }
+    return { headSha, treeSha: head.treeSha, modes, saved };
+  }
+
+  function assertUnchanged(projectId: string, project: ProjectState, mutation: number): void {
+    if (projects.get(projectId) !== project || project.mutation !== mutation) {
+      throw new GitWorkbenchError('revision_conflict', '拉取期间本地状态发生变化，请重试；本地更改已保留');
+    }
+  }
+
   return {
     async open(projectId: string): Promise<WorkbenchSnapshot> {
       const { owner, repo, branch } = parseProjectId(projectId);
       try {
         const headSha = await api.getBranchSha(owner, repo, branch);
-        const head = await api.getCommit(owner, repo, headSha);
-        const entries = await api.getTreeFiles(owner, repo, head.treeSha);
-        const contents = await fetchContents(owner, repo, headSha, entries);
-        const saved = new Map<string, FileValue>();
-        const modes = new Map<string, string>();
-        for (const entry of entries) {
-          modes.set(entry.path, entry.mode);
-          saved.set(entry.path, decodeFileBytes(entry.path, contents.get(entry.path)!));
-        }
+        const remote = await readRemote(owner, repo, headSha);
         const project: ProjectState = {
           owner,
           repo,
           branch,
-          headSha,
-          treeSha: head.treeSha,
-          modes,
-          saved,
-          buffer: new Map(saved),
+          ...remote,
+          buffer: new Map(remote.saved),
           staged: new Map(),
           revision: headSha,
-          counter: 0
+          counter: 0,
+          mutation: 0
         };
         projects.set(projectId, project);
+        return snapshot(projectId, project);
+      } catch (cause) {
+        throw mapError(cause, projectId);
+      }
+    },
+
+    async pull(projectId: string): Promise<WorkbenchSnapshot> {
+      const project = state(projectId);
+      const mutation = project.mutation;
+      try {
+        const headSha = await api.getBranchSha(project.owner, project.repo, project.branch);
+        assertUnchanged(projectId, project, mutation);
+        if (headSha === project.headSha) return snapshot(projectId, project);
+        const remote = await readRemote(project.owner, project.repo, headSha);
+        assertUnchanged(projectId, project, mutation);
+        const merged = mergeRemote(project, remote);
+        Object.assign(project, remote, merged);
+        project.mutation++;
+        project.revision = bump(project);
         return snapshot(projectId, project);
       } catch (cause) {
         throw mapError(cause, projectId);
@@ -178,12 +275,34 @@ export function createGitHubBackend(options: GitHubBackendOptions): WorkbenchBac
       throw new GitWorkbenchError('unsupported_operation', 'GitHub 后端不支持创建项目空间，请使用「发布到 GitHub」');
     },
 
-    async save(projectId: string, files: WorkbenchFiles, expectedRevision: string): Promise<WorkbenchSnapshot> {
+    async save(
+      projectId: string,
+      files: WorkbenchFiles,
+      expectedRevision: string,
+      removedPaths?: readonly string[]
+    ): Promise<WorkbenchSnapshot> {
       const project = state(projectId);
       if (expectedRevision !== project.revision) {
         throw new GitWorkbenchError('revision_conflict', '项目已被其他操作更新，请重新打开');
       }
-      project.buffer = new Map(Object.entries(files));
+      const next = new Map(removedPaths === undefined ? [] : project.buffer);
+      const removed = new Set(removedPaths);
+      for (const path of removed) {
+        assertGitPath(path);
+        if (Object.hasOwn(files, path)) throw new GitWorkbenchError('path_collision', '同一文件不能同时写入和删除');
+        if (!next.has(path)) throw new GitWorkbenchError('invalid_path', `文件不存在：${path}`);
+        next.delete(path);
+      }
+      for (const [path, content] of Object.entries(files)) next.set(path, content);
+      if (removedPaths !== undefined) {
+        for (const path of next.keys()) assertGitPath(path);
+        assertNoPathCollisions([...next.keys()]);
+        assertGitFileLimits(
+          [...next].map(([path, content]) => ({ path, bytes: new Uint8Array(encodeFileBytes(content)) }))
+        );
+      }
+      project.buffer = next;
+      project.mutation++;
       project.revision = bump(project);
       return snapshot(projectId, project);
     },
@@ -194,6 +313,7 @@ export function createGitHubBackend(options: GitHubBackendOptions): WorkbenchBac
         throw new GitWorkbenchError('invalid_path', `文件不存在：${path}`);
       }
       project.buffer.delete(path);
+      project.mutation++;
     },
 
     async rename(projectId: string, from: string, to: string): Promise<void> {
@@ -203,12 +323,14 @@ export function createGitHubBackend(options: GitHubBackendOptions): WorkbenchBac
       }
       project.buffer.set(to, project.buffer.get(from)!);
       project.buffer.delete(from);
+      project.mutation++;
     },
 
     async move(projectId: string, from: string, to: string): Promise<void> {
       const project = state(projectId);
       const prefix = `${from}/`;
       const children = [...project.buffer.keys()].filter(path => path.startsWith(prefix));
+      project.mutation++;
       if (children.length) {
         for (const path of children) {
           project.buffer.set(`${to}/${path.slice(prefix.length)}`, project.buffer.get(path)!);
@@ -262,12 +384,14 @@ export function createGitHubBackend(options: GitHubBackendOptions): WorkbenchBac
       return {
         head: project.headSha,
         branch: project.branch,
+        remote: { name: 'origin', url: `https://github.com/${project.owner}/${project.repo}` },
         entries
       };
     },
 
     async stage(projectId: string, paths: readonly string[]): Promise<void> {
       const project = state(projectId);
+      project.mutation++;
       for (const path of paths) {
         if (project.buffer.has(path)) {
           project.staged.set(path, project.buffer.get(path)!);
@@ -281,6 +405,7 @@ export function createGitHubBackend(options: GitHubBackendOptions): WorkbenchBac
 
     async unstage(projectId: string, paths: readonly string[]): Promise<void> {
       const project = state(projectId);
+      project.mutation++;
       for (const path of paths) project.staged.delete(path);
     },
 
@@ -305,21 +430,28 @@ export function createGitHubBackend(options: GitHubBackendOptions): WorkbenchBac
       const base = staged === undefined ? project.saved.get(path) : staged;
       if (base === undefined || base === null) project.buffer.delete(path);
       else project.buffer.set(path, base);
+      project.mutation++;
       project.revision = bump(project);
       return snapshot(projectId, project);
     },
 
     async commit(projectId: string, message: string): Promise<string> {
       const project = state(projectId);
+      const committed = new Map(project.staged);
+      const baseline = new Map(project.saved);
+      const modes = new Map(project.modes);
+      const parent = project.headSha;
+      const baseTree = project.treeSha;
+      project.mutation++;
       const items: GitHubTreeItem[] = [];
-      for (const [path, staged] of project.staged) {
+      for (const [path, staged] of committed) {
         if (staged === null) {
           items.push({ path, sha: null });
           continue;
         }
-        const saved = project.saved.get(path);
+        const saved = baseline.get(path);
         if (saved !== undefined && equalBytes(staged, saved)) continue;
-        const mode = project.modes.get(path) ?? '100644';
+        const mode = modes.get(path) ?? '100644';
         if (typeof staged === 'string' && encodeFileBytes(staged).byteLength <= INLINE_TREE_CONTENT_BYTES) {
           items.push({ path, mode, content: staged });
         } else {
@@ -332,17 +464,20 @@ export function createGitHubBackend(options: GitHubBackendOptions): WorkbenchBac
       // 与 git index 一致，树条目按路径排序
       items.sort((left, right) => left.path.localeCompare(right.path));
       try {
-        const newTree = await api.createTree(project.owner, project.repo, project.treeSha, items);
-        const newSha = await api.createCommit(project.owner, project.repo, message, newTree, [project.headSha]);
+        const newTree = await api.createTree(project.owner, project.repo, baseTree, items);
+        const newSha = await api.createCommit(project.owner, project.repo, message, newTree, [parent]);
         await api.updateRef(project.owner, project.repo, `heads/${project.branch}`, newSha, false);
-        for (const [path, staged] of project.staged) {
+        for (const [path, staged] of committed) {
           if (staged === null) project.saved.delete(path);
           else project.saved.set(path, staged);
+          const current = project.staged.get(path);
+          if (current === staged || (current != null && staged !== null && equalBytes(current, staged))) {
+            project.staged.delete(path);
+          }
         }
-        project.staged.clear();
         project.headSha = newSha;
         project.treeSha = newTree;
-        project.revision = bump(project);
+        project.mutation++;
         return newSha;
       } catch (cause) {
         throw mapError(cause, projectId);
@@ -370,6 +505,7 @@ export function createGitHubBackend(options: GitHubBackendOptions): WorkbenchBac
         }
         project.buffer = buffer;
         project.staged.clear();
+        project.mutation++;
         project.revision = bump(project);
         return snapshot(projectId, project);
       } catch (cause) {

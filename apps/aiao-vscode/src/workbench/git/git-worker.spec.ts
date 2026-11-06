@@ -119,6 +119,11 @@ describe('Git Worker protocol', () => {
     );
   });
 
+  it('原子写入与删除通过同一次runtime保存执行', async () => {
+    request({ id: 8, action: 'save', payload: { ...payload, removedPaths: ['old.ts'] } });
+    await vi.waitFor(() => expect(fixture.save).toHaveBeenCalledWith('project', expect.any(Array), 1, ['old.ts']));
+  });
+
   it('reports coded runtime failures and rejects unknown commands', async () => {
     fixture.open.mockRejectedValueOnce(Object.assign(new Error('quota'), { code: 'storage_failed' }));
     request({ id: 1, action: 'open', payload });

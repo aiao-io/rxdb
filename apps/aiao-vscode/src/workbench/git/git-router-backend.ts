@@ -1,4 +1,5 @@
 import type { WorkbenchBackend, WorkbenchFiles, WorkbenchSnapshot } from '../session.js';
+import { GitWorkbenchError } from './git-protocol.js';
 
 export interface RouterBackendOptions {
   readonly local: WorkbenchBackend;
@@ -17,8 +18,10 @@ export function createRouterBackend(options: RouterBackendOptions): WorkbenchBac
     open: (projectId: string): Promise<WorkbenchSnapshot> => backend(projectId).open(projectId),
     create: (projectId: string, files: WorkbenchFiles): Promise<WorkbenchSnapshot> =>
       backend(projectId).create(projectId, files),
-    save: (projectId: string, files: WorkbenchFiles, expectedRevision: string): Promise<WorkbenchSnapshot> =>
-      backend(projectId).save(projectId, files, expectedRevision),
+    save: (projectId, files, expectedRevision, removedPaths): Promise<WorkbenchSnapshot> =>
+      removedPaths === undefined ?
+        backend(projectId).save(projectId, files, expectedRevision)
+      : backend(projectId).save(projectId, files, expectedRevision, removedPaths),
     remove: (projectId: string, path: string): Promise<void> => backend(projectId).remove(projectId, path),
     rename: (projectId: string, from: string, to: string): Promise<void> =>
       backend(projectId).rename(projectId, from, to),
@@ -32,6 +35,11 @@ export function createRouterBackend(options: RouterBackendOptions): WorkbenchBac
     discardWorking: (projectId: string, path: string): Promise<WorkbenchSnapshot> =>
       backend(projectId).discardWorking(projectId, path),
     commit: (projectId: string, message: string): Promise<string> => backend(projectId).commit(projectId, message),
+    pull: async (projectId: string): Promise<WorkbenchSnapshot> => {
+      const target = backend(projectId);
+      if (!target.pull) throw new GitWorkbenchError('unsupported_operation', '当前项目不支持拉取远端更改');
+      return target.pull(projectId);
+    },
     history: (projectId: string) => backend(projectId).history(projectId),
     restore: (projectId: string, oid: string): Promise<WorkbenchSnapshot> => backend(projectId).restore(projectId, oid),
     exportArchive: (projectId: string): Promise<Uint8Array> => backend(projectId).exportArchive(projectId),

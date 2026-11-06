@@ -26,6 +26,7 @@ export function createWorkbenchLayout(host: HTMLElement, assetBaseURL: string): 
       </div>
       <div class="wb-title-actions">
         <button class="wb-run-button" data-action="run" title="保存全部文件并运行项目">${iconMarkup('play')}<span>运行</span></button>
+        <button data-action="terminal" aria-label="打开终端" title="打开终端 · Ctrl + 反引号">${iconMarkup('terminal')}</button>
         <button data-action="commands" aria-label="命令面板" title="命令面板 · Ctrl / ⌘ + Shift + P">${iconMarkup('more')}</button>
         <span class="wb-title-divider" aria-hidden="true"></span>
         <button data-action="toggle-sidebar" aria-label="切换侧栏" aria-pressed="true" title="切换侧栏 · ${shortcutKey} B">${iconMarkup('layout-sidebar-left')}</button>
@@ -48,6 +49,7 @@ export function createWorkbenchLayout(host: HTMLElement, assetBaseURL: string): 
     <footer class="wb-status" aria-label="状态栏">
       <span class="wb-remote-indicator">${iconMarkup('remote')}</span>
       <button data-action="show-scm" data-slot="branch" title="源代码管理 · ⌘ / Ctrl + Shift + G">${iconMarkup('git-branch')}<span data-slot="branch-name">main</span></button>
+      <button data-action="git-sync" data-slot="remote-sync" data-remote-action aria-label="同步远端更改" title="先拉取远端更改，再提交并推送暂存内容" hidden>${iconMarkup('refresh')}<span>同步更改</span></button>
       <button data-action="panel" aria-label="打开问题面板">${iconMarkup('error')}<span data-slot="problem-count">0</span>${iconMarkup('warning')}<span>0</span></button>
       <span data-slot="save-status">尚未打开项目</span><span class="wb-spacer"></span>
       <button data-action="goto-line" data-slot="cursor" title="转到行 · ⌘ / Ctrl + G">行 1，列 1</button><button data-action="indent-picker" data-slot="indent" title="选择缩进大小">空格: 2</button><span data-slot="encoding">UTF-8</span><span data-slot="language">纯文本</span>
@@ -61,6 +63,8 @@ export function createWorkbenchLayout(host: HTMLElement, assetBaseURL: string): 
         </div>
         <div class="wb-side-actions" data-view="git" hidden>
           <button data-action="commit" aria-label="提交" title="提交">${iconMarkup('check')}</button>
+          <button data-action="git-pull" data-remote-action aria-label="拉取远端更改" title="拉取远端更改" hidden>${iconMarkup('cloud-download')}</button>
+          <button data-action="git-sync" data-remote-action aria-label="同步远端更改" title="同步远端更改" hidden>${iconMarkup('refresh')}</button>
           <button data-action="refresh-tree" aria-label="刷新" title="刷新">${iconMarkup('refresh')}</button>
           <button data-action="more-actions" aria-label="视图和更多操作…" title="视图和更多操作…">${iconMarkup('ellipsis')}</button>
         </div>
@@ -84,6 +88,7 @@ export function createWorkbenchLayout(host: HTMLElement, assetBaseURL: string): 
       <section class="wb-panel" data-log="problems" aria-label="底部面板"><div class="wb-panel-toolbar"><span>问题</span><span class="wb-spacer"></span><button data-action="clear-logs" aria-label="清空问题" title="清空">${iconMarkup('clear-all')}</button></div><div class="wb-panel-content" role="log" aria-live="polite"></div></section>
       <section class="wb-panel" data-log="output" aria-label="输出"><div class="wb-panel-toolbar"><span>工作台</span><span class="wb-spacer"></span><button data-action="clear-logs" aria-label="清空输出" title="清空">${iconMarkup('clear-all')}</button></div><div class="wb-panel-content" role="log"></div></section>
       <section class="wb-panel" data-log="console" aria-label="Console"><div class="wb-panel-toolbar"><span>预览控制台</span><span class="wb-spacer"></span><button data-action="clear-logs" aria-label="清空控制台" title="清空">${iconMarkup('clear-all')}</button></div><div class="wb-panel-content" role="log"></div></section>
+      <section class="wb-panel" data-log="terminal" aria-label="终端"></section>
     </div>`;
   for (const name of ['dockview', 'codicon']) {
     const link = document.createElement('link');

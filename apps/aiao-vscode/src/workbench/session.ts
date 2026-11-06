@@ -53,7 +53,12 @@ export interface WorkbenchCommit {
 export interface WorkbenchBackend {
   open(projectId: string): Promise<WorkbenchSnapshot>;
   create(projectId: string, files: WorkbenchFiles): Promise<WorkbenchSnapshot>;
-  save(projectId: string, files: WorkbenchFiles, expectedRevision: string): Promise<WorkbenchSnapshot>;
+  save(
+    projectId: string,
+    files: WorkbenchFiles,
+    expectedRevision: string,
+    removedPaths?: readonly string[]
+  ): Promise<WorkbenchSnapshot>;
   remove(projectId: string, path: string): Promise<void>;
   rename(projectId: string, from: string, to: string): Promise<void>;
   /** 移动文件或整个文件夹前缀（单次事务）。 */
@@ -156,6 +161,17 @@ export class WorkbenchSession {
     return !equalFile(this.#state.files[path], this.#saved[path]);
   }
 
+  /** 返回独立的已保存快照，未保存缓冲不会进入外部运行环境。 */
+  getSavedSnapshot(): WorkbenchSnapshot {
+    const projectId = this.#project();
+    const revision = this.#state.revision;
+    if (!revision) throw new Error('项目尚未保存');
+    const files = Object.fromEntries(
+      Object.entries(this.#saved).map(([path, value]) => [path, typeof value === 'string' ? value : value.slice()])
+    );
+    return Object.freeze({ projectId, revision, files: Object.freeze(files) });
+  }
+
   async open(projectId: string): Promise<void> {
     return this.#transition(() => this.backend.open(projectId));
   }
@@ -226,6 +242,27 @@ export class WorkbenchSession {
     return pending;
   }
 
+  /** 串行持久化外部文件变更，保留编辑器中尚未保存的缓冲。 */
+  applyExternalFiles(files: WorkbenchFiles, removedPaths: readonly string[]): Promise<void> {
+    const projectId = this.#project();
+    const generation = this.#generation;
+    const changes = Object.fromEntries(
+      Object.entries(files).map(([path, value]) => [path, typeof value === 'string' ? value : value.slice()])
+    );
+    const removed = [...removedPaths];
+    const pending = (this.#savePending ?? Promise.resolve()).then(() =>
+      this.#performExternalSave(projectId, generation, changes, removed)
+    );
+    this.#saveTarget = '';
+    this.#savePending = pending;
+    void pending
+      .finally(() => {
+        if (this.#savePending === pending) this.#savePending = null;
+      })
+      .catch(() => undefined);
+    return pending;
+  }
+
   /** 让在途编译失效，保留上次成功的预览。 */
   cancelRun(): void {
     this.#assertOpen();
@@ -236,29 +273,10 @@ export class WorkbenchSession {
   applySavedSnapshot(snapshot: WorkbenchSnapshot, overwrittenPaths: readonly string[]): void {
     this.#assertOpen();
     if (snapshot.projectId !== this.#state.projectId) throw new Error('不能应用其他项目的文件回执');
-    const overwritten = new Set(overwrittenPaths);
-    const files: Record<string, string | Uint8Array> = { ...snapshot.files };
-    for (const [path, value] of Object.entries(this.#state.files)) {
-      if (!overwritten.has(path) && !equalFile(value, this.#saved[path])) files[path] = value;
-    }
     this.#generation++;
     this.#runId++;
     this.#savePending = null;
-    this.#saved = snapshot.files;
-    const tabs = this.#state.tabs.filter(path => Object.hasOwn(files, path));
-    const activePath =
-      this.#state.activePath && Object.hasOwn(files, this.#state.activePath) ?
-        this.#state.activePath
-      : (tabs.at(-1) ?? null);
-    this.#update({
-      revision: snapshot.revision,
-      files,
-      tabs,
-      activePath,
-      dirty: !equalFiles(files, snapshot.files),
-      busy: false,
-      error: null
-    });
+    this.#mergeSavedSnapshot(snapshot, overwrittenPaths, false);
   }
 
   async run(compile: (snapshot: WorkbenchSnapshot) => Promise<WorkbenchCompilation>): Promise<void> {
@@ -316,6 +334,30 @@ export class WorkbenchSession {
     this.backend.dispose();
   }
 
+  #mergeSavedSnapshot(snapshot: WorkbenchSnapshot, overwrittenPaths: readonly string[], busy = this.#state.busy): void {
+    if (snapshot.projectId !== this.#state.projectId) throw new Error('不能应用其他项目的文件回执');
+    const overwritten = new Set(overwrittenPaths);
+    const files: Record<string, string | Uint8Array> = { ...snapshot.files };
+    for (const [path, value] of Object.entries(this.#state.files)) {
+      if (!overwritten.has(path) && !equalFile(value, this.#saved[path])) files[path] = value;
+    }
+    this.#saved = snapshot.files;
+    const tabs = this.#state.tabs.filter(path => Object.hasOwn(files, path));
+    const activePath =
+      this.#state.activePath && Object.hasOwn(files, this.#state.activePath) ?
+        this.#state.activePath
+      : (tabs.at(-1) ?? null);
+    this.#update({
+      revision: snapshot.revision,
+      files,
+      tabs,
+      activePath,
+      dirty: !equalFiles(files, snapshot.files),
+      busy,
+      error: null
+    });
+  }
+
   async #publishSaved(
     compile: (snapshot: WorkbenchSnapshot) => Promise<WorkbenchCompilation>,
     generation: number,
@@ -356,6 +398,30 @@ export class WorkbenchSession {
       if (!this.#current(generation)) return;
       this.#saved = result.files;
       this.#update({ revision: result.revision, dirty: !equalFiles(this.#state.files, result.files) });
+    } catch (cause) {
+      if (this.#current(generation)) this.#update({ error: errorMessage(cause) });
+      throw cause;
+    } finally {
+      release();
+    }
+  }
+
+  async #performExternalSave(
+    projectId: string,
+    generation: number,
+    changes: WorkbenchFiles,
+    removedPaths: readonly string[]
+  ): Promise<void> {
+    if (!this.#current(generation) || this.#state.projectId !== projectId) return;
+    const revision = this.#state.revision;
+    if (!revision) throw new Error('项目尚未保存');
+    const release = this.#beginWork(generation);
+    this.#update({ error: null });
+    try {
+      const snapshot = await this.backend.save(projectId, changes, revision, removedPaths);
+      if (!this.#current(generation)) return;
+      this.#runId++;
+      this.#mergeSavedSnapshot(snapshot, []);
     } catch (cause) {
       if (this.#current(generation)) this.#update({ error: errorMessage(cause) });
       throw cause;

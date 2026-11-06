@@ -91,6 +91,19 @@ describe('Git Worker backend', () => {
     backend.dispose();
   });
 
+  it('把原子删除列表与保存revision送入同一Worker请求', async () => {
+    const backend = createGitBackend('https://ide.example/assets/');
+    const pending = backend.save('project', { 'new.ts': 'next' }, '1', ['old.ts']);
+    const worker = FakeWorker.instances[0];
+    expect(worker.messages.at(-1)).toMatchObject({
+      action: 'save',
+      payload: { projectId: 'project', expectedRevision: 1, removedPaths: ['old.ts'] }
+    });
+    worker.reply({ projectId: 'project', revision: 2, files: [{ path: 'new.ts', bytes: [110] }] });
+    expect((await pending).revision).toBe('2');
+    backend.dispose();
+  });
+
   it('保留编辑文件BOM并映射取消暂存、差异和单文件丢弃', async () => {
     const backend = createGitBackend('https://ide.example/assets/');
     const worker = FakeWorker.instances[0];

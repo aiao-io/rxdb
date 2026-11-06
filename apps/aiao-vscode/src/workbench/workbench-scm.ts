@@ -53,6 +53,9 @@ export interface WorkbenchScm {
   getMenuEntries(): readonly WorkbenchScmMenuEntry[];
   restoreMessage(message: string): void;
   commit(): Promise<void>;
+  pull(): Promise<void>;
+  push(): Promise<void>;
+  sync(): Promise<void>;
   dispose(): void;
 }
 
@@ -107,6 +110,13 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
   element.setAttribute('aria-label', '源代码管理');
   const form = document.createElement('form');
   form.className = 'wb-scm-commit-form';
+  const remote = document.createElement('div');
+  remote.className = 'wb-scm-remote';
+  const remoteLink = document.createElement('a');
+  remoteLink.className = 'wb-scm-remote-link';
+  remoteLink.target = '_blank';
+  remoteLink.rel = 'noopener noreferrer';
+  remote.append(createCodicon('remote'), remoteLink);
   const message = document.createElement('textarea');
   message.rows = 1;
   message.setAttribute('aria-label', '提交说明');
@@ -124,10 +134,25 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
   const toolbar = document.createElement('div');
   toolbar.className = 'wb-scm-toolbar';
   toolbar.append(commitButton);
+  const remoteActions = document.createElement('div');
+  remoteActions.className = 'wb-scm-remote-actions';
+  const pullButton = scmActionButton('pull', '拉取', 'cloud-download');
+  pullButton.append(document.createTextNode('拉取'));
+  const syncButton = scmActionButton('sync', '同步更改', 'refresh');
+  syncButton.append(document.createTextNode('同步更改'));
+  pullButton.onclick = event => {
+    event.stopPropagation();
+    launch(pull);
+  };
+  syncButton.onclick = event => {
+    event.stopPropagation();
+    launch(sync);
+  };
+  remoteActions.append(pullButton, syncButton);
   const hint = document.createElement('p');
   hint.className = 'wb-scm-hint';
   hint.setAttribute('role', 'status');
-  form.append(message, toolbar, hint);
+  form.append(remote, message, toolbar, remoteActions, hint);
   const staged = changeGroup('staged', '暂存的更改');
   const working = changeGroup('working', '更改');
   const stageAll = scmActionButton('stage-all', '暂存所有更改', 'add');
@@ -198,6 +223,24 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
     message.disabled = busy() || !projectId;
     form.hidden = !projectId;
     const hasStaged = entries('staged').length > 0;
+    const hasRemote = Boolean(status?.remote);
+    const submitLabel = hasRemote ? '提交并推送' : '提交已暂存内容';
+    caption.textContent = hasRemote ? '提交并推送' : '提交';
+    commitButton.setAttribute('aria-label', submitLabel);
+    commitButton.replaceChildren(createCodicon(hasRemote ? 'cloud-upload' : 'check'), caption);
+    message.placeholder = `消息 (${shortcut}+Enter ${hasRemote ? '提交并推送' : '提交'})`;
+    remote.hidden = !hasRemote;
+    remoteActions.hidden = !hasRemote;
+    remoteLink.textContent = status?.remote ? `${status.remote.name} · ${status.branch}` : '';
+    if (status?.remote) remoteLink.href = status.remote.url;
+    else remoteLink.removeAttribute('href');
+    pullButton.disabled = busy() || !projectId || !options.backend.pull || options.session.state.dirty;
+    syncButton.disabled = pullButton.disabled || (hasStaged && !message.value.trim());
+    pullButton.title = options.session.state.dirty ? '有未保存的编辑，请先保存后拉取' : '拉取';
+    syncButton.title =
+      options.session.state.dirty ? '有未保存的编辑，请先保存后同步'
+      : hasStaged && !message.value.trim() ? '请填写提交说明'
+      : '同步更改';
     const changes = entries('working');
     const unsavedChanges = changes.some(entry => options.session.isModified(entry.path));
     stageAll.disabled = busy() || !projectId || !changes.length || unsavedChanges;
@@ -208,7 +251,7 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
     commitButton.title =
       !hasStaged ? '没有暂存的更改'
       : !message.value.trim() ? '请填写提交说明'
-      : '提交已暂存内容';
+      : submitLabel;
     hint.textContent = options.session.state.dirty ? '提交仅包含暂存区；未保存的编辑不会被提交。' : '';
     hint.hidden = !hint.textContent;
     for (const button of element.querySelectorAll<HTMLButtonElement>('[data-scm-target]')) {
@@ -247,17 +290,8 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
     }
   }
 
-  async function commit(): Promise<void> {
-    if (!entries('staged').length) throw new Error('没有暂存的更改');
-    if (!message.value.trim()) throw new Error('请填写提交说明');
-    const original = message.value;
-    const id = projectId;
-    const expected = generation;
-    if (!id) throw new Error('请先打开项目');
+  function finishCommit(id: string, original: string, expected: number): void {
     const trimmed = original.trim();
-    await mutate(async current => {
-      await options.backend.commit(current, trimmed);
-    });
     if (!disposed && generation === expected && projectId === id) {
       const history = historyFor(id);
       if (history.at(-1) !== trimmed) history.push(trimmed);
@@ -267,6 +301,65 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
     }
     resizeMessage();
     syncControls();
+  }
+
+  async function commit(): Promise<void> {
+    if (!entries('staged').length) throw new Error('没有暂存的更改');
+    if (!message.value.trim()) throw new Error('请填写提交说明');
+    const original = message.value;
+    const id = projectId;
+    const expected = generation;
+    if (!id) throw new Error('请先打开项目');
+    await mutate(async current => {
+      await options.backend.commit(current, original.trim());
+    });
+    finishCommit(id, original, expected);
+  }
+
+  function assertRemote(): void {
+    if (!status?.remote) throw new Error('当前项目没有远端仓库');
+  }
+
+  function assertPull(): NonNullable<WorkbenchBackend['pull']> {
+    assertRemote();
+    if (!options.backend.pull) throw new Error('当前项目不支持拉取');
+    if (options.session.state.dirty) throw new Error('有未保存的编辑，请先保存');
+    return options.backend.pull.bind(options.backend);
+  }
+
+  async function pull(): Promise<void> {
+    const fetch = assertPull();
+    await mutate(async id => ({ snapshot: await fetch(id) }));
+  }
+
+  async function push(): Promise<void> {
+    assertRemote();
+    await commit();
+  }
+
+  async function sync(): Promise<void> {
+    const fetch = assertPull();
+    const hasStaged = entries('staged').length > 0;
+    if (hasStaged && !message.value.trim()) throw new Error('请填写提交说明');
+    const original = message.value;
+    const expected = generation;
+    const id = projectId;
+    let pushed = false;
+    await mutate(async current => {
+      const snapshot = await fetch(current);
+      if (disposed || generation !== expected) return { changed: false };
+      if (!hasStaged) return { snapshot };
+      await options.onDidChange(snapshot);
+      if (disposed || generation !== expected) return { changed: false };
+      const next = await options.backend.status(current);
+      if (disposed || generation !== expected) return { changed: false };
+      status = next;
+      render();
+      if (!next.entries.some(stagedEntry)) return { changed: false };
+      await options.backend.commit(current, original.trim());
+      pushed = true;
+    });
+    if (pushed && id) finishCommit(id, original, expected);
   }
 
   async function groupAction(kind: ScmGroup): Promise<void> {
@@ -460,8 +553,23 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
   }
 
   function getMenuEntries(): readonly WorkbenchScmMenuEntry[] {
+    const remoteEntries: WorkbenchScmMenuEntry[] =
+      status?.remote ?
+        [
+          { label: '推送（提交暂存更改）', id: 'scm-push', disabled: commitButton.disabled, action: push },
+          { label: '拉取', id: 'scm-pull', disabled: pullButton.disabled, action: pull },
+          { label: '同步更改', id: 'scm-sync', disabled: syncButton.disabled, action: sync },
+          separator
+        ]
+      : [];
     return [
-      { label: '提交已暂存内容', id: 'scm-commit', disabled: commitButton.disabled, action: commit },
+      ...remoteEntries,
+      {
+        label: status?.remote ? '提交并推送' : '提交已暂存内容',
+        id: 'scm-commit',
+        disabled: commitButton.disabled,
+        action: commit
+      },
       { label: '暂存所有更改', id: 'scm-stage-all', disabled: stageAll.disabled, action: () => groupAction('working') },
       {
         label: '取消暂存所有更改',
@@ -635,6 +743,9 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
       }
     },
     commit,
+    pull,
+    push,
+    sync,
     dispose() {
       if (!disposed) {
         disposed = true;

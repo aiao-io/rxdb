@@ -86,12 +86,13 @@ export function createGitBackend(assetBaseURL: string): WorkbenchBackend {
   return {
     open: async projectId => snapshot(await call('open', { projectId })),
     create: async (projectId, files) => snapshot(await call('init', { projectId, files: serializeFiles(files) })),
-    save: async (projectId, files, expectedRevision) =>
+    save: async (projectId, files, expectedRevision, removedPaths) =>
       snapshot(
         await call('save', {
           projectId,
           files: serializeFiles(files),
-          expectedRevision: revisionNumber(expectedRevision)
+          expectedRevision: revisionNumber(expectedRevision),
+          removedPaths
         })
       ),
     remove: async (projectId, path) => {

@@ -81,6 +81,19 @@ function fixture(recent: readonly string[] = []) {
 }
 
 describe('VS Code 文件与命令快捷入口', () => {
+  it('终端保留 Shell 的 Ctrl+R / Ctrl+W / Ctrl+P 等按键，工作台快捷键不拦截', () => {
+    const { root, key, runs } = fixture();
+    const terminal = document.createElement('div');
+    terminal.dataset['workbenchTerminal'] = '';
+    const input = document.createElement('textarea');
+    terminal.append(input);
+    root.append(terminal);
+    for (const value of ['r', 'w', 'p', 's', 'b', 'j', 'c'])
+      expect(key(input, value, { ctrlKey: true }).defaultPrevented).toBe(false);
+    for (const run of Object.values(runs)) expect(run).not.toHaveBeenCalled();
+    expect(root.querySelector('.wb-quick-input')).toBeNull();
+  });
+
   it('命令中心空查询展示可执行模式，输入文件查询隐藏模式，清空后恢复', () => {
     const { root, input, service } = fixture();
     service.showCommandCenter();

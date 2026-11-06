@@ -15,7 +15,7 @@ import { normalizeWorkbenchLayout, SIDEBAR_EDGE, SIDEBAR_WIDTH } from './workben
 import { attachWorkbenchLongPress } from './workbench-longpress.js';
 
 /** 底部工具区域的固定面板。 */
-export type WorkbenchToolKind = 'problems' | 'output' | 'console';
+export type WorkbenchToolKind = 'problems' | 'output' | 'console' | 'terminal';
 
 /** Dockview 与工作台会话之间的单向事件。 */
 export interface WorkbenchDockviewCallbacks {
@@ -62,14 +62,15 @@ export interface WorkbenchDockview {
   dispose(): void;
 }
 
-const tools: readonly WorkbenchToolKind[] = ['problems', 'output', 'console'];
+const tools: readonly WorkbenchToolKind[] = ['problems', 'output', 'console', 'terminal'];
 const titles = {
   sidebar: '资源管理器',
   welcome: '欢迎',
   preview: '预览',
   problems: '问题',
   output: '输出',
-  console: 'Console'
+  console: 'Console',
+  terminal: '终端'
 };
 const editorId = (path: string) => `editor:${path}`;
 const editorPath = (id: string): string | undefined => (id.startsWith('editor:') ? id.slice(7) : undefined);
@@ -159,6 +160,7 @@ function createTab(id: string, auxiliary: boolean, callbacks: WorkbenchDockviewC
         : id === 'preview' ? 'open-preview'
         : id === 'welcome' ? 'code'
         : id === 'console' ? 'debug-console'
+        : id === 'terminal' ? 'terminal'
         : id === 'problems' ? 'warning'
         : 'output'
       );
