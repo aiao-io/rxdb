@@ -1,17 +1,16 @@
 import { createHash } from 'node:crypto';
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { extname, relative, resolve } from 'node:path';
-import { supabaseHeaders } from './build-supabase-config.mjs';
+import { pathToFileURL } from 'node:url';
+import { fingerprintSupabaseConfig, supabaseHeaders } from './build-supabase-config.mjs';
 
-const root = resolve(import.meta.dirname, '../dist/browser');
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 // Only compiler output and the non-personalized CSR shell, never SSR/API HTML.
-const assets = [];
 const extensions = new Set(['.js', '.css', '.wasm', '.ico', '.png', '.jpg', '.jpeg', '.svg', '.woff', '.woff2']);
-async function walk(path) {
+async function walk(root, path, assets) {
   for (const item of await readdir(path, { withFileTypes: true })) {
     const full = resolve(path, item.name);
-    if (item.isDirectory()) await walk(full);
+    if (item.isDirectory()) await walk(root, full, assets);
     else if (extensions.has(extname(item.name)) && item.name !== 'offline-worker.js') {
       const bytes = await readFile(full);
       if (bytes.length > 16 * 1024 * 1024) throw new Error('Offline resource exceeds size limit.');
@@ -23,27 +22,34 @@ async function walk(path) {
     }
   }
 }
-// Apply Auth CSP from the exact public configuration copied into this build.
-// Always start with the source template so switching builds removes old origins.
-const configScript = await readFile(resolve(root, 'app-config.js'), 'utf8');
-const configJSON = /^globalThis\.__AIAO_SUPABASE_CONFIG__ = (.+);\s*$/.exec(configScript)?.[1];
-if (!configJSON) throw new Error('Missing generated public account configuration.');
-await writeFile(
-  resolve(root, '_headers'),
-  supabaseHeaders(await readFile(resolve(import.meta.dirname, '../public/_headers'), 'utf8'), JSON.parse(configJSON))
-);
-await walk(root);
-const shell = await readFile(resolve(root, 'index.html'));
-await writeFile(resolve(root, 'offline-shell.html'), shell);
-assets.push({
-  path: '/offline-shell.html',
-  size: shell.length,
-  sha256: hash(shell)
-});
-assets.sort((a, b) => a.path.localeCompare(b.path));
-const template = await readFile(resolve(import.meta.dirname, 'offline-worker.js'), 'utf8');
-const version = hash(JSON.stringify(assets) + template);
-const manifest = { version, assets };
-await writeFile(resolve(root, 'offline-worker.js'), `const MANIFEST = ${JSON.stringify(manifest)};\n${template}`);
-await writeFile(resolve(root, 'offline-manifest.json'), JSON.stringify({ version }));
-console.log(`Offline shell ${version.slice(0, 12)}: ${assets.length} integrity-checked public build resources.`);
+export async function buildOfflineAssets(root = resolve(import.meta.dirname, '../dist/browser')) {
+  const assets = [];
+  await fingerprintSupabaseConfig(root);
+  // Apply Auth CSP from the exact public configuration copied into this build.
+  // Always start with the source template so switching builds removes old origins.
+  const configScript = await readFile(resolve(root, 'app-config.js'), 'utf8');
+  const configJSON = /^globalThis\.__AIAO_SUPABASE_CONFIG__ = (.+);\s*$/.exec(configScript)?.[1];
+  if (!configJSON) throw new Error('Missing generated public account configuration.');
+  await writeFile(
+    resolve(root, '_headers'),
+    supabaseHeaders(await readFile(resolve(import.meta.dirname, '../public/_headers'), 'utf8'), JSON.parse(configJSON))
+  );
+  await walk(root, root, assets);
+  const shell = await readFile(resolve(root, 'index.html'));
+  await writeFile(resolve(root, 'offline-shell.html'), shell);
+  assets.push({
+    path: '/offline-shell.html',
+    size: shell.length,
+    sha256: hash(shell)
+  });
+  assets.sort((a, b) => a.path.localeCompare(b.path));
+  const template = await readFile(resolve(import.meta.dirname, 'offline-worker.js'), 'utf8');
+  const version = hash(JSON.stringify(assets) + template);
+  const manifest = { version, assets };
+  await writeFile(resolve(root, 'offline-worker.js'), `const MANIFEST = ${JSON.stringify(manifest)};\n${template}`);
+  await writeFile(resolve(root, 'offline-manifest.json'), JSON.stringify({ version }));
+  console.log(`Offline shell ${version.slice(0, 12)}: ${assets.length} integrity-checked public build resources.`);
+  return manifest;
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) await buildOfflineAssets();
