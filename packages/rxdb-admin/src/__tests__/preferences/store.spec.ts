@@ -106,6 +106,30 @@ describe('PreferencesStore', () => {
       expect(store.value.sidebar.collapsed).toBe(true);
     });
 
+    it('迁移出来的偏好立即写入新键：之后以新键为准，旧键再变化也不影响', () => {
+      const storage = createMemoryStorage({ 'workbench-sidebar-pinned': '0' });
+      const migrateLegacy = vi.fn(() =>
+        storage.getItem('workbench-sidebar-pinned') === '0' ? { sidebar: { collapsed: true } } : null
+      );
+      const first = create({ storage, migrateLegacy });
+      expect(JSON.parse(storage.getItem(PREFERENCES_STORAGE_KEY) ?? 'null')).toEqual({
+        version: PREFERENCES_VERSION,
+        values: { sidebar: { collapsed: true } }
+      });
+      first.store.destroy();
+
+      storage.setItem('workbench-sidebar-pinned', '1');
+      const second = create({ storage, migrateLegacy });
+      expect(migrateLegacy).toHaveBeenCalledOnce();
+      expect(second.store.value.sidebar.collapsed).toBe(true);
+    });
+
+    it('迁移没有产出任何差异时不写新键', () => {
+      const storage = createMemoryStorage();
+      create({ storage, migrateLegacy: () => null });
+      expect(storage.getItem(PREFERENCES_STORAGE_KEY)).toBeNull();
+    });
+
     it('已有存量时不再迁移', () => {
       const storage = createMemoryStorage({
         [PREFERENCES_STORAGE_KEY]: JSON.stringify({ version: PREFERENCES_VERSION, values: {} })

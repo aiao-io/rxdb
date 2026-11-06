@@ -180,6 +180,39 @@ describe('Tabbar', () => {
       expect(titles()).toEqual(['资产', '搜索']);
     });
 
+    // 真实浏览器里实测：@for 的 keyed 重排把被聚焦页签的 DOM 节点移走（摘下再插入），焦点掉回 body，连按 Shift+方向键就断了
+    it('Shift+方向键重排后焦点仍在被移动的页签上，可以连续按', async () => {
+      const { shell } = await mount();
+      await open(shell, '/search', '/entities/assets/AssetCategory');
+      // 浏览器里节点被摘下再插回就会失焦，happy-dom 不模拟这一点：补一个同样语义的 shim
+      const blurWhenDetached = (node: Node): void => {
+        if (node.contains(document.activeElement)) (document.activeElement as HTMLElement).blur();
+      };
+      const originalInsertBefore = Node.prototype.insertBefore;
+      const insertBefore = vi.spyOn(Node.prototype, 'insertBefore').mockImplementation(function <T extends Node>(
+        this: Node,
+        node: T,
+        child: Node | null
+      ): T {
+        blurWhenDetached(node);
+        return originalInsertBefore.call(this, node, child) as T;
+      });
+      const link = (title: string): HTMLElement =>
+        within(tabs().find(tab => tab.textContent === title) as HTMLElement).getByRole('link');
+      try {
+        link('搜索').focus();
+        await fire.keyDown(link('搜索'), { key: 'ArrowRight', shiftKey: true });
+        expect(titles()).toEqual(['资产', '资产分类', '搜索']);
+        expect(document.activeElement).toBe(link('搜索'));
+        await fire.keyDown(document.activeElement as HTMLElement, { key: 'ArrowLeft', shiftKey: true });
+        await fire.keyDown(document.activeElement as HTMLElement, { key: 'ArrowLeft', shiftKey: true });
+        expect(titles()).toEqual(['搜索', '资产', '资产分类']);
+        expect(document.activeElement).toBe(link('搜索'));
+      } finally {
+        insertBefore.mockRestore();
+      }
+    });
+
     it('HTML5 拖放重排，拖到自己或没有拖起时忽略', async () => {
       const { shell } = await mount();
       await open(shell, '/search', '/entities/assets/AssetCategory');

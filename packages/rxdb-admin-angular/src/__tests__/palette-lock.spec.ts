@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { act, fire, mount, screen, waitFor, within } from './test-utils';
+import { act, fire, mount, screen, settle, waitFor, within } from './test-utils';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -65,6 +65,19 @@ describe('CommandPalette', () => {
     await act(() => shell.palette.open());
     await fire.click(screen.getByTestId('admin-palette'));
     expect(shell.palette.value.open).toBe(false);
+  });
+
+  it('Esc 之后立刻按 Mod+K（两者之间没有变更检测）：面板重新打开，晚到的 close 事件不会再把它关掉', async () => {
+    const { shell, fakeWindow } = await mount();
+    await act(() => shell.palette.open());
+    const dialog = screen.getByTestId('admin-palette') as HTMLDialogElement;
+    dialog.dispatchEvent(new Event('cancel'));
+    dialog.removeAttribute('open');
+    fakeWindow.press({ key: 'k', ctrlKey: true });
+    dialog.dispatchEvent(new Event('close'));
+    await settle();
+    expect(shell.palette.value.open).toBe(true);
+    expect(dialog.open).toBe(true);
   });
 
   it('异步来源：加载中提示、结果合并为独立分组、失败提示', async () => {

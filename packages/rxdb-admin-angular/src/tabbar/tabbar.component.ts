@@ -1,5 +1,15 @@
 import { findMenuPath } from '@aiao/rxdb-admin';
-import { ChangeDetectionStrategy, Component, computed, ElementRef, signal, viewChild } from '@angular/core';
+import {
+  afterNextRender,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  ElementRef,
+  inject,
+  Injector,
+  signal,
+  viewChild
+} from '@angular/core';
 import { LucideDynamicIcon, LucideHistory, LucidePin, LucideX } from '@lucide/angular';
 import { injectAdminShell, injectAdminStore, injectAdminText } from '../context';
 import { interceptNavigation } from '../layout/intercept-navigation';
@@ -17,6 +27,7 @@ import { AdminTabContextMenuComponent, type TabMenuAnchor } from './tab-context-
 })
 export class AdminTabbarComponent {
   readonly #shell = injectAdminShell();
+  readonly #injector = inject(Injector);
 
   private readonly scroller = viewChild<ElementRef<HTMLUListElement>>('scroller');
 
@@ -71,6 +82,7 @@ export class AdminTabbarComponent {
     } else if (this.tabbar().draggable && event.shiftKey && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
       event.preventDefault();
       this.#shell.tabs.reorder(key, index + (event.key === 'ArrowLeft' ? -1 : 1));
+      this.#refocus(key);
     }
   }
 
@@ -116,5 +128,20 @@ export class AdminTabbarComponent {
 
   #openMenu(key: string, x: number, y: number): void {
     this.anchor.set({ key, x, y });
+  }
+
+  /**
+   * `@for` 的 keyed 重排会把被聚焦页签的节点摘下再插回，浏览器因此让它失焦（实测：焦点掉回 body）。
+   * 渲染完成后把焦点还给被移动的页签，键盘才能连续重排。
+   * @param key - 被移动的页签键。
+   */
+  #refocus(key: string): void {
+    afterNextRender(
+      () => {
+        const index = this.tabsState().tabs.findIndex(tab => tab.key === key);
+        this.scroller()?.nativeElement.querySelectorAll<HTMLElement>('.admin-tab-title')[index]?.focus();
+      },
+      { injector: this.#injector }
+    );
   }
 }

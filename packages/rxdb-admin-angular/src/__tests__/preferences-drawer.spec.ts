@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { act, fire, mount, screen, waitFor, within, type Mounted } from './test-utils';
+import { act, fire, mount, screen, settle, waitFor, within, type Mounted } from './test-utils';
 
 const openDrawer = async (shell: Mounted['shell']): Promise<HTMLElement> => {
   await act(() => shell.ui.setPreferencesOpen(true));
@@ -29,6 +29,21 @@ describe('PreferencesDrawer', () => {
     expect(drawer.open).toBe(true);
     // 原生 close 事件比 cancel 晚十几毫秒才到，此时对话框已被重新打开
     await fire.event(drawer, new Event('close'));
+    expect(shell.ui.value.preferencesOpen).toBe(true);
+    expect(drawer.open).toBe(true);
+  });
+
+  // 真实浏览器里实测（Playwright：Esc 后立即 Mod+,）：零 zone 下「写回关闭」与「再次请求打开」之间没有变更检测，
+  // 模板绑定的 true → false → true 被折叠成没有变化，原生已关闭的对话框不会被重新 showModal；晚到的 close 事件还会把打开请求吃掉
+  it('Esc 的 cancel 与再次打开之间没有变更检测（零 zone 无渲染间隙）：晚到的 close 事件不吃掉打开请求，对话框重新打开', async () => {
+    const { shell } = await mount();
+    const drawer = (await openDrawer(shell)) as HTMLDialogElement;
+    // 浏览器的 Esc 顺序：同步 cancel → 原生关闭对话框 → 快捷键紧接着请求再次打开 → 十几毫秒后 close 事件才到
+    drawer.dispatchEvent(new Event('cancel'));
+    drawer.removeAttribute('open');
+    shell.ui.setPreferencesOpen(true);
+    drawer.dispatchEvent(new Event('close'));
+    await settle();
     expect(shell.ui.value.preferencesOpen).toBe(true);
     expect(drawer.open).toBe(true);
   });

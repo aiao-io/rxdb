@@ -111,8 +111,14 @@ export class PreferencesStore implements ReadableStore<AdminPreferences> {
     this.#constraints = options.constraints ?? {};
     this.#debounceMs = options.debounceMs ?? DEFAULT_DEBOUNCE_MS;
     this.#host = options.host;
+    const firstUse = this.#storage.getItem(this.#key) === null;
     this.#state = new Store(this.#load(options.migrateLegacy));
     this.hasDiff = derive([this.#state], prefs => diffPreferences(prefs, this.defaults) !== null);
+    // 首次使用时从旧键迁移出来的偏好立即写入新键：之后以新键为准，旧键再变化也不再影响
+    if (firstUse && this.hasDiff.value) {
+      this.#dirty = true;
+      this.flush();
+    }
     this.#host?.addEventListener('storage', this.#onStorage);
     this.#host?.addEventListener('pagehide', this.#onPageHide);
   }

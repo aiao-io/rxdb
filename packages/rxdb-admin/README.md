@@ -28,7 +28,7 @@ export const shell = createAdminShell({
 - 存储只落**相对默认值的差异**（`{ version: 1, values }`，键 `<storagePrefix>.preferences`），应用升级后调整默认值，未改动过的用户自动跟随。
 - 同源多标签通过 `storage` 事件同步，页面隐藏（`pagehide`）时落盘；`exportJson()` 导出差异，`importJson()` 整体替换。
 - 所有写入（界面、导入、其他标签）都经过同一套约束清洗，状态树始终合法。
-- `defaults` 覆盖包内默认值，`migrateLegacy` 在首次使用时把旧存储键迁移进来：
+- `defaults` 覆盖包内默认值，`migrateLegacy` 在首次使用时把旧存储键迁移进来（结果立即写入新键，之后以新键为准）：
 
 ```ts
 createAdminShell({

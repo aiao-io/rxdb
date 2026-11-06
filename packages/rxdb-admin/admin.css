@@ -64,6 +64,46 @@
     min-height: 0;
   }
 
+  /*
+   * 顶栏 + 侧栏：顶栏横跨整个宽度，侧栏在它下面。
+   * 把 .admin-main 的子元素提升为网格项（display: contents，Angular 的宿主元素同样是 contents），
+   * 侧栏占第一列并从页签行一直到页脚，页签 / 内容 / 页脚叠在第二列。移动端布局会回退成侧栏导航，不受影响。
+   */
+  .admin-shell[data-layout='header-sidebar-nav']:not([data-mobile='true']) {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+  }
+
+  .admin-shell[data-layout='header-sidebar-nav']:not([data-mobile='true']) > .admin-main {
+    display: contents;
+  }
+
+  .admin-shell[data-layout='header-sidebar-nav']:not([data-mobile='true']) .admin-header {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .admin-shell[data-layout='header-sidebar-nav']:not([data-mobile='true']) .admin-sidebar-slot {
+    grid-column: 1;
+    grid-row: 2 / -1;
+  }
+
+  .admin-shell[data-layout='header-sidebar-nav']:not([data-mobile='true']) .admin-tabbar {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .admin-shell[data-layout='header-sidebar-nav']:not([data-mobile='true']) .admin-content {
+    grid-column: 2;
+    grid-row: 3;
+  }
+
+  .admin-shell[data-layout='header-sidebar-nav']:not([data-mobile='true']) .admin-footer {
+    grid-column: 2;
+    grid-row: 4;
+  }
+
   .admin-skip-link {
     position: absolute;
     inset-block-start: 0.5rem;
@@ -175,6 +215,12 @@
     width: 1.25rem;
   }
 
+  /* 没有图标的菜单项（如分组标题）不留图标位，文字才能贴着左边起；图标轨里保留，免得整项缩成零宽而点不到 */
+  .admin-sidebar:not([data-collapsed='true']) .admin-menu-icon:empty,
+  .admin-sidebar[data-hover-expanded='true'] .admin-menu-icon:empty {
+    display: none;
+  }
+
   .admin-menu-extra {
     margin-inline-start: auto;
   }
@@ -273,7 +319,9 @@
     align-items: center;
     gap: 0.25rem;
     min-width: 0;
-    overflow-x: auto;
+    /* 分组下拉要伸出菜单条之外：overflow-x: auto 会把 overflow-y 也算成 auto，下拉被裁掉；clip 只裁横向、不产生滚动容器 */
+    overflow-x: clip;
+    overflow-y: visible;
   }
 
   .admin-header[data-menu-align='center'] .admin-header-menu {
@@ -1070,6 +1118,11 @@
     border-radius: var(--radius-field, 0.5rem);
   }
 
+  /* 没有图标的条目（命令、数据记录）让文字与有图标的条目对齐：图标 16px + 间距 0.5rem */
+  .admin-palette-item > span:first-child {
+    padding-inline-start: 1.5rem;
+  }
+
   .admin-palette-item[aria-selected='true'] {
     background: color-mix(in oklab, var(--color-primary) 16%, transparent);
   }
@@ -1200,23 +1253,33 @@
 
 /*
  * 侧栏菜单对 daisyUI `.menu` 的覆盖。原因同上：`.menu { width: fit-content; padding: .5rem }`、
- * 菜单项的 12px 横向内边距与圆角都在 `utilities` 的子层里，写在 `components` 层的覆盖永远输，
- * 结果是菜单停在文字宽度、右侧留白（拖宽侧栏也不变），图标轨里的图标偏右并被裁掉，plain 样式仍是圆角。
+ * 菜单项的 12px 横向内边距与圆角、子级 `ul` 的缩进都在 `utilities` 的子层里，写在 `components` 层的覆盖永远输，
+ * 结果是菜单停在文字宽度、右侧留白（拖宽侧栏也不变），图标轨里的图标偏右并被裁掉，plain 样式仍是圆角，
+ * 文字左侧留白过大。
  */
 @layer utilities {
+  /* 菜单项直接贴着侧栏主体的内边距（4px）起，不再叠 .menu 自带的 8px */
   .admin-menu {
     width: 100%;
+    padding-inline: 0;
+  }
+
+  /* 菜单项（链接与分组标题）的横向内边距 12px → 8px */
+  .admin-menu :where(li > a, li > details > summary) {
+    padding-inline: 0.5rem;
+  }
+
+  /* 子级缩进 24px → 12px：引导线落在分组标题的文字起点上，子项再退 4px */
+  .admin-menu :where(li ul) {
+    margin-inline-start: 0.5rem;
+    padding-inline-start: 0.25rem;
   }
 
   .admin-menu[data-style='plain'] :where(li > a, li > details > summary) {
     border-radius: 0;
   }
 
-  /* 图标轨：菜单自身的内边距归零，菜单项占满轨道宽度、图标居中 */
-  .admin-sidebar[data-collapsed='true']:not([data-hover-expanded='true']) .admin-menu {
-    padding-inline: 0;
-  }
-
+  /* 图标轨：菜单项占满轨道宽度、图标居中 */
   .admin-sidebar[data-collapsed='true']:not([data-hover-expanded='true']) .admin-menu :where(li > a) {
     justify-content: center;
     padding-inline: 0;
@@ -1230,5 +1293,17 @@
     grid-auto-columns: minmax(0, 1fr);
     justify-items: center;
     gap: 0.125rem;
+  }
+}
+
+/*
+ * 窄屏隐藏搜索按钮上的键帽（手机没有键盘）：daisyUI 的 `.kbd { display: inline-flex }` 同样在 utilities 的子层里，
+ * 写在 components 层的 display: none 压不过它。
+ */
+@layer utilities {
+  @media (max-width: 768px) {
+    .admin-search-trigger .kbd {
+      display: none;
+    }
   }
 }

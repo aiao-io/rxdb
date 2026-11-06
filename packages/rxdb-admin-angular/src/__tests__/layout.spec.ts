@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { LucideHouse } from '@lucide/angular';
 import { describe, expect, it } from 'vitest';
 import { AdminLayoutComponent } from '../layout/admin-layout.component';
 import { AdminPageDirective } from '../layout/admin-page.directive';
@@ -126,6 +127,31 @@ describe('AdminLayout', () => {
       expect(classes()).toEqual(['menu', 'admin-menu', 'menu-md']);
       await fire.click(screen.getByTestId('admin-sidebar-toggle'));
       expect(classes()).toEqual(['menu', 'admin-menu']);
+    });
+
+    it('没有图标的菜单项，图标位是空元素（样式据此不占位）；有图标的则不是', async () => {
+      await mount(
+        {},
+        {
+          url: '/with',
+          menu: [
+            {
+              id: 'group',
+              label: '分组',
+              expanded: true,
+              children: [
+                { id: 'with', label: '有图标', route: '/with', icon: LucideHouse, testId: 'nav-with' },
+                { id: 'without', label: '无图标', route: '/without', testId: 'nav-without' }
+              ]
+            }
+          ]
+        }
+      );
+      const iconSlot = (element: Element | null): Element | null => element?.querySelector('.admin-menu-icon') ?? null;
+      expect(iconSlot(screen.getByTestId('nav-without'))?.matches(':empty')).toBe(true);
+      expect(iconSlot(screen.getByTestId('nav-with'))?.matches(':empty')).toBe(false);
+      const groupTitle = within(screen.getByTestId('admin-menu')).getByText('分组');
+      expect(iconSlot(groupTitle.closest('summary'))?.matches(':empty')).toBe(true);
     });
 
     it('拖拽只预览：占位元素的宽度变量与 aria-valuenow 跟手，偏好原地不动；松手一次性提交，宽度限制在 160–320', async () => {
