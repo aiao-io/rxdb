@@ -1,16 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
-import { alice, delay, linkedChannels, linkedTransports, openSessionPair, sameBytes } from './__tests__/fixtures.js';
-import { createP2PFileManifest, type P2PFileManifest } from './chunking.js';
+import { alice, delay, linkedChannels, linkedTransports, openSessionPair, sameBytes } from './fixtures.js';
+import { createP2PFileManifest, type P2PFileManifest } from '../chunking.js';
 import {
   createP2PFilesProtocol,
   createP2PFilesSource,
   P2P_FILES_PROTOCOL,
   type P2PFilesAuthorizeContext,
   type P2PLocalContent
-} from './files-protocol.js';
-import type { P2PJsonValue } from './session/frame.js';
-import { createWebRTCTransport } from './session/webrtc-transport.js';
-import { transferP2PFile, type P2PChunkSource } from './transfer.js';
+} from '../files-protocol.js';
+import type { P2PJsonValue } from '../session/frame.js';
+import { createWebRTCTransport } from '../session/webrtc-transport.js';
+import { transferP2PFile, type P2PChunkSource } from '../transfer.js';
 
 interface Held {
   readonly bytes: Uint8Array;

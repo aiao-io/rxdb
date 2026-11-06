@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createP2PFileManifest, digestSha256Hex, type P2PFileManifest } from './chunking.js';
-import { P2PTransferError, transferP2PFile, type P2PChunkRequest, type P2PChunkSource } from './transfer.js';
+import { createP2PFileManifest, digestSha256Hex, type P2PFileManifest } from '../../chunking.js';
+import { P2PTransferError, transferP2PFile, type P2PChunkRequest, type P2PChunkSource } from '../../transfer.js';
 
 const CHUNK = 1024;
 

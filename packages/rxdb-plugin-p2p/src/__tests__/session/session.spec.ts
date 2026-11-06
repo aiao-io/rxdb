@@ -9,11 +9,11 @@ import {
   openSessionPair,
   sessionOptions,
   verifyCredential
-} from '../__tests__/fixtures.js';
-import { P2PRequestError } from './errors.js';
-import { decodeP2PFrame, encodeP2PFrame, P2P_SESSION_VERSION, type P2PFrame } from './frame.js';
-import type { P2PPeerIdentity } from './identity.js';
-import { openP2PSession, type P2PProtocol } from './session.js';
+} from '../fixtures.js';
+import { P2PRequestError } from '../../session/errors.js';
+import { decodeP2PFrame, encodeP2PFrame, P2P_SESSION_VERSION, type P2PFrame } from '../../session/frame.js';
+import type { P2PPeerIdentity } from '../../session/identity.js';
+import { openP2PSession, type P2PProtocol } from '../../session/session.js';
 
 const empty = new Uint8Array(0);
 

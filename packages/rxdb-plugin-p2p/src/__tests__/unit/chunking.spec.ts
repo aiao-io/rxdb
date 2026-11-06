@@ -7,7 +7,7 @@ import {
   digestSha256Hex,
   verifyChunk,
   verifyContentHash
-} from './chunking.js';
+} from '../../chunking.js';
 
 const bytes = (length: number, start = 0): Uint8Array =>
   Uint8Array.from({ length }, (_, index) => (start + index) % 256);

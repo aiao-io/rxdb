@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { alice, bob, linkedTransports, openSessionPair, sessionOptions } from '../__tests__/fixtures.js';
-import { P2PSessionRegistry } from './registry.js';
-import { openP2PSession } from './session.js';
+import { alice, bob, linkedTransports, openSessionPair, sessionOptions } from '../fixtures.js';
+import { P2PSessionRegistry } from '../../session/registry.js';
+import { openP2PSession } from '../../session/session.js';
 
 describe('P2P 会话登记处', () => {
   it('登记就绪的会话并推送列表；会话结束后自动移除', async () => {

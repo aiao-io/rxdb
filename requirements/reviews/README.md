@@ -10,6 +10,7 @@
 | -------------------- | -------------------------- | ------ |
 | `README.md`          | 本说明、状态约定与清理记录 | —      |
 | `review.template.md` | 新建 review 记录的模板     | —      |
+| [p2p-file-share-vs-main-2026-11-06.md](p2p-file-share-vs-main-2026-11-06.md) | P2P 分支相对 main 的深度评审（快照 `b3bb3aa4c`） | 12（P1：5，P2：7） |
 
 ## 状态约定
 

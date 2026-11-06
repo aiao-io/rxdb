@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { FakeChannel, isSettled, lastFragment, sameBytes } from '../__tests__/fixtures.js';
-import { DEFAULT_P2P_CHUNK_SIZE } from '../chunking.js';
-import { decodeP2PFrame, encodeP2PFrame } from './frame.js';
-import { MAX_FRAME_SIZE, MIN_WEBRTC_MESSAGE_SIZE } from './limits.js';
-import { createWebRTCTransport } from './webrtc-transport.js';
+import { FakeChannel, isSettled, lastFragment, sameBytes } from '../fixtures.js';
+import { DEFAULT_P2P_CHUNK_SIZE } from '../../chunking.js';
+import { decodeP2PFrame, encodeP2PFrame } from '../../session/frame.js';
+import { MAX_FRAME_SIZE, MIN_WEBRTC_MESSAGE_SIZE } from '../../session/limits.js';
+import { createWebRTCTransport } from '../../session/webrtc-transport.js';
 
 describe('WebRTC DataChannel 适配器', () => {
   it('默认块加协议元数据放得进一条 64 KiB 消息，不必分片', async () => {

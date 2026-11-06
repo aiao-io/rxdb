@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createP2PFileManifest } from './chunking.js';
-import { downloadFromServer, downloadP2PFile } from './fallback.js';
-import { P2PTransferError, type P2PChunkRequest } from './transfer.js';
+import { createP2PFileManifest } from '../chunking.js';
+import { downloadFromServer, downloadP2PFile } from '../fallback.js';
+import { P2PTransferError, type P2PChunkRequest } from '../transfer.js';
 
 async function fixture() {
   const bytes = new Uint8Array(2050);

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { createLocalManifestDiscovery, toRxDBManifestDocument, toSyncManifestDocument } from './discovery.js';
-import { createAuthenticatedP2PFileManifest, P2PManifestStore } from './manifest.js';
-import type { P2PPrincipal } from './session/identity.js';
+import { createLocalManifestDiscovery, toRxDBManifestDocument, toSyncManifestDocument } from '../discovery.js';
+import { createAuthenticatedP2PFileManifest, P2PManifestStore } from '../manifest.js';
+import type { P2PPrincipal } from '../session/identity.js';
 
 const laptop: P2PPrincipal = { principal: 'device-owner', deviceId: 'laptop' };
 

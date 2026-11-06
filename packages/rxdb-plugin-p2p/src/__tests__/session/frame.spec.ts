@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { frameHeader } from '../__tests__/fixtures.js';
-import { decodeP2PFrame, encodeP2PFrame, P2P_SESSION_VERSION, type P2PFrame } from './frame.js';
-import { MAX_P2P_FRAME_PAYLOAD } from './limits.js';
+import { frameHeader } from '../fixtures.js';
+import { decodeP2PFrame, encodeP2PFrame, P2P_SESSION_VERSION, type P2PFrame } from '../../session/frame.js';
+import { MAX_P2P_FRAME_PAYLOAD } from '../../session/limits.js';
 
 const encoder = new TextEncoder();
 

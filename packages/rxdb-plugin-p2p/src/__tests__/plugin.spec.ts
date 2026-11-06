@@ -1,7 +1,7 @@
 import { getEntityMetadata, RxDB, SyncType, type EntityType, type IRxDBPlugin } from '@aiao/rxdb';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { P2PFileManifestEntity } from './p2p-file-manifest.entity.js';
-import { RxDBPluginP2PFiles, rxDBPluginP2PFiles } from './plugin.js';
+import { P2PFileManifestEntity } from '../p2p-file-manifest.entity.js';
+import { RxDBPluginP2PFiles, rxDBPluginP2PFiles } from '../plugin.js';
 
 const databases: RxDB[] = [];
 let sequence = 0;
