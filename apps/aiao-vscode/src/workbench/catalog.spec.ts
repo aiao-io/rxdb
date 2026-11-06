@@ -174,6 +174,29 @@ describe('OPFS 项目布局', () => {
     });
   });
 
+
+  it('草稿与预览标签跨实例恢复，保存后清理且项目之间隔离', async () => {
+    const catalog = createProjectCatalog();
+    const state = {
+      tabs: ['src/main.ts'], activePath: 'src/main.ts', previewTabs: ['src/main.ts'],
+      drafts: { 'src/main.ts': { base: 'saved', content: 'draft' } }
+    };
+    await catalog.putState('one', state);
+    const reopened = createProjectCatalog();
+    expect(await reopened.getState('one')).toEqual(state);
+    expect(await reopened.getState('two')).toBeNull();
+    await reopened.putState('one', { tabs: state.tabs, activePath: state.activePath });
+    expect(await catalog.getState('one')).toEqual({ tabs: state.tabs, activePath: state.activePath });
+  });
+
+  it('用户偏好独立于项目会话持久化', async () => {
+    const catalog = createProjectCatalog();
+    expect(await catalog.getPreferences()).toBeNull();
+    await catalog.putPreferences({ indentUnit: '    ', alwaysShowScmActions: true });
+    expect(await createProjectCatalog().getPreferences()).toEqual({ indentUnit: '    ', alwaysShowScmActions: true });
+    expect(await catalog.getState('one')).toBeNull();
+  });
+
   it('按项目读写布局，没有记录时为 null', async () => {
     const catalog = createProjectCatalog();
     expect(await catalog.getLayout('one')).toBeNull();

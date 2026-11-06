@@ -91,6 +91,8 @@ function fixture() {
     getState: vi.fn(async () => null),
     putState: vi.fn(async () => undefined),
     getLayout: vi.fn(async () => null),
+    getPreferences: vi.fn(async () => null),
+    putPreferences: vi.fn(async () => undefined),
     putLayout: vi.fn(async () => undefined)
   };
   const host = document.createElement('div');

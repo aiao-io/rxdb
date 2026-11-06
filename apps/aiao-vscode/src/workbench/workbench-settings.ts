@@ -1,8 +1,8 @@
+import type { WorkbenchPreferences } from './workbench-state.js';
+
 /** 工作台设置对话框：对齐 vscode.dev 设置面板，含搜索框、分节与「标题 + 描述」设置行。 */
-export interface WorkbenchSettingsOptions {
-  readonly indentUnit: string;
-  readonly alwaysShowScmActions: boolean;
-  onApply(settings: { indentUnit: string; alwaysShowScmActions: boolean }): void;
+export interface WorkbenchSettingsOptions extends WorkbenchPreferences {
+  onApply(settings: WorkbenchPreferences): void;
 }
 
 const indentChoices: readonly (readonly [string, string])[] = [

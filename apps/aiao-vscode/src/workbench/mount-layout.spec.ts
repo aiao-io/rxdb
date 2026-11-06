@@ -77,6 +77,8 @@ function fixture(layouts: Readonly<Record<string, unknown>> = {}) {
     getState: vi.fn(async () => restoredTabs),
     putState: vi.fn(async () => undefined),
     getLayout: vi.fn<WorkbenchCatalog['getLayout']>(async projectId => layouts[projectId] ?? null),
+    getPreferences: vi.fn(async () => null),
+    putPreferences: vi.fn(async () => undefined),
     putLayout: vi.fn<WorkbenchCatalog['putLayout']>(async () => undefined)
   };
   const host = document.createElement('div');

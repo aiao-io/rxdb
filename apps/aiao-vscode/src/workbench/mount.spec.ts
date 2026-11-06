@@ -108,6 +108,8 @@ function fixture(
     }),
     put: vi.fn(async () => undefined),
     getState: vi.fn<WorkbenchCatalog['getState']>(async () => null),
+    getPreferences: vi.fn<WorkbenchCatalog['getPreferences']>(async () => null),
+    putPreferences: vi.fn<WorkbenchCatalog['putPreferences']>(async () => undefined),
     putState: vi.fn(async () => undefined),
     getLayout: vi.fn(async () => null),
     putLayout: vi.fn(async () => undefined)
@@ -276,6 +278,81 @@ function fakeDirectory(
 }
 
 describe('VS Code 风格工作台', () => {
+
+  it('空工作区收起预览和底部面板，隐藏无上下文状态并说明文件夹导入语义', async () => {
+    const { host, handle } = fixture(false);
+    await handle.ready;
+    expect(host.querySelector('[data-action="panel"]')?.getAttribute('aria-pressed')).toBe('false');
+    expect(host.querySelector('[data-action="preview"]')?.getAttribute('aria-pressed')).toBe('false');
+    expect(host.querySelector<HTMLElement>('[data-slot="branch"]')?.hidden).toBe(true);
+    expect(host.querySelector<HTMLElement>('[data-slot="cursor"]')?.hidden).toBe(true);
+    expect(host.querySelector('[data-welcome-action="open-folder"]')?.textContent).toBe('导入文件夹（副本）');
+    expect(host.querySelector('.wb-empty-view')?.textContent).toContain('保存在此浏览器');
+  });
+
+  it('打开项目恢复草稿和未保存状态，预览只读取已保存版本', async () => {
+    const { handle, catalog, backend, compiler } = fixture();
+    catalog.getState.mockResolvedValue({
+      tabs: ['src/main.ts'], activePath: 'src/main.ts',
+      drafts: { 'src/main.ts': { base: files['src/main.ts'], content: 'recovered draft' } }
+    });
+    await handle.ready;
+    expect(handle.session.state.files['src/main.ts']).toBe('recovered draft');
+    expect(handle.session.state.dirty).toBe(true);
+    expect(handle.session.getSavedSnapshot().files).toEqual(files);
+    expect(backend.save).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(compiler.compile).toHaveBeenCalled());
+    expect(compiler.compile.mock.calls[0][0].files['src/main.ts']).toBe(files['src/main.ts']);
+  });
+
+  it('输入后持久化草稿，保存完成后删除恢复记录里的草稿', async () => {
+    const { handle, catalog } = fixture();
+    await handle.ready;
+    handle.session.edit('src/main.ts', 'draft');
+    await vi.waitFor(() => expect(catalog.putState).toHaveBeenLastCalledWith('one', expect.objectContaining({
+      drafts: { 'src/main.ts': { base: files['src/main.ts'], content: 'draft' } }
+    })));
+    await handle.session.save();
+    await vi.waitFor(() => expect(catalog.putState).toHaveBeenLastCalledWith('one', {
+      tabs: ['src/main.ts'], activePath: 'src/main.ts'
+    }));
+  });
+
+  it('重开时应用用户偏好，设置确认后持久化缩进和 SCM 偏好', async () => {
+    const { host, handle, catalog, mountEditor } = fixture();
+    catalog.getPreferences.mockResolvedValue({ indentUnit: '    ', alwaysShowScmActions: true });
+    await handle.ready;
+    expect(mountEditor.mock.calls[0][1].indentUnit).toBe('    ');
+    await click(host, '[data-action="settings"]');
+    const dialog = host.querySelector<HTMLDialogElement>('dialog[aria-label="设置"]');
+    const select = dialog?.querySelector<HTMLSelectElement>('select');
+    if (!dialog || !select) throw new Error('设置对话框缺失');
+    select.value = '        ';
+    dialog.querySelector('form')?.dispatchEvent(new Event('submit'));
+    await vi.waitFor(() => expect(catalog.putPreferences).toHaveBeenCalledWith({
+      indentUnit: '        ', alwaysShowScmActions: true
+    }));
+  });
+
+  it('树内单击替换同组预览，双击后固定，编辑草稿不会被后续浏览替换', async () => {
+    const { host, handle } = fixture(true, '/browser-workbench-assets/', undefined, [], {
+      ...files, 'src/third.ts': 'third'
+    });
+    await handle.ready;
+    treeRow(host, 'src/label.ts').click();
+    expect(handle.session.state.previewTabs).toEqual(['src/label.ts']);
+    treeRow(host, 'src/third.ts').click();
+    expect(handle.session.state.tabs).toEqual(['src/main.ts', 'src/third.ts']);
+    expect(host.querySelector('[data-editor-tab-path="src/third.ts"]')?.classList.contains('wb-preview-tab')).toBe(true);
+    treeRow(host, 'src/third.ts').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    expect(handle.session.state.previewTabs).toEqual([]);
+    treeRow(host, 'src/label.ts').click();
+    handle.session.edit('src/label.ts', 'draft');
+    treeRow(host, 'src/main.ts').click();
+    expect(handle.session.state.tabs).toContain('src/label.ts');
+    expect(handle.session.state.previewTabs).toEqual([]);
+  });
+
   it('面板发起拉取时标题栏和状态栏同步置忙，命令面板隐藏Git写入动作，结束后恢复', async () => {
     const { host, handle, backend } = fixture();
     let finish!: (snapshot: WorkbenchSnapshot) => void;

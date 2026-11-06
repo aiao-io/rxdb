@@ -93,6 +93,15 @@ export interface WorkbenchPreview extends WorkbenchCompilation {
   readonly runId: number;
 }
 
+/** 未保存文本与其编辑基线；源码保存和 Git 暂存不包含此恢复记录。 */
+export type WorkbenchDrafts = Readonly<Record<string, { readonly base: string | null; readonly content: string }>>;
+
+/** 文件选择时的预览策略；替换目标由当前编辑器组确定。 */
+export interface WorkbenchFileSelection {
+  readonly preview?: boolean;
+  readonly replacePreview?: string;
+}
+
 /** 工作台的可订阅状态。 */
 export interface WorkbenchState {
   readonly projectId: string | null;
@@ -100,6 +109,7 @@ export interface WorkbenchState {
   readonly files: WorkbenchFiles;
   readonly activePath: string | null;
   readonly tabs: readonly string[];
+  readonly previewTabs: readonly string[];
   readonly dirty: boolean;
   readonly busy: boolean;
   readonly error: string | null;
@@ -112,6 +122,7 @@ const initialState: WorkbenchState = {
   files: {},
   activePath: null,
   tabs: [],
+  previewTabs: [],
   dirty: false,
   busy: false,
   error: null,
@@ -173,6 +184,28 @@ export class WorkbenchSession {
     return Object.freeze({ projectId, revision, files: Object.freeze(files) });
   }
 
+  /** 获取独立于源码文件的未保存文本快照。 */
+  getDrafts(): WorkbenchDrafts {
+    return Object.fromEntries(Object.entries(this.#state.files)
+      .filter(([path, value]) => typeof value === 'string' && this.isModified(path))
+      .map(([path, content]) => [path, {
+        base: typeof this.#saved[path] === 'string' ? this.#saved[path] : null,
+        content: content as string
+      }]));
+  }
+
+  /** 原子恢复草稿并返回编辑基线已变化的文件，保留当前已保存版本。 */
+  restoreDrafts(drafts: WorkbenchDrafts): readonly string[] {
+    this.#project();
+    const entries = Object.entries(drafts);
+    for (const [path] of entries) assertGitPath(path);
+    const files = { ...this.#state.files, ...Object.fromEntries(entries.map(([path, draft]) => [path, draft.content])) };
+    assertNoPathCollisions(Object.keys(files));
+    const conflicts = entries.filter(([path, draft]) => draft.base !== (this.#saved[path] ?? null)).map(([path]) => path);
+    this.#update({ files, dirty: !equalFiles(files, this.#saved) });
+    return conflicts;
+  }
+
   async open(projectId: string): Promise<void> {
     return this.#transition(() => this.backend.open(projectId));
   }
@@ -181,11 +214,19 @@ export class WorkbenchSession {
     return this.#transition(() => this.backend.create(projectId, files));
   }
 
-  select(path: string): void {
+  select(path: string, options: WorkbenchFileSelection = {}): void {
     this.#assertOpen();
-    if (!(path in this.#state.files)) throw new Error('文件不存在');
-    const tabs = this.#state.tabs.includes(path) ? this.#state.tabs : [...this.#state.tabs, path];
-    this.#update({ activePath: path, tabs });
+    if (!Object.hasOwn(this.#state.files, path)) throw new Error('文件不存在');
+    const opened = this.#state.tabs.includes(path);
+    const temporary = options.preview && !this.isModified(path);
+    const replaced = !opened && temporary && options.replacePreview &&
+      this.#state.previewTabs.includes(options.replacePreview) && !this.isModified(options.replacePreview) ?
+        options.replacePreview : null;
+    const tabs = this.#state.tabs.filter(tab => tab !== replaced);
+    if (!opened) tabs.push(path);
+    const previewTabs = this.#state.previewTabs.filter(tab => tab !== replaced && (temporary || tab !== path));
+    if (!opened && temporary) previewTabs.push(path);
+    this.#update({ activePath: path, tabs, previewTabs });
   }
 
   closeTab(path: string): void {
@@ -198,11 +239,11 @@ export class WorkbenchSession {
   }
 
   /** 重开项目时恢复上次的标签与活动文件，不存在的路径被过滤。 */
-  restoreTabs(paths: readonly string[], activePath: string | null): void {
+  restoreTabs(paths: readonly string[], activePath: string | null, previews: readonly string[] = []): void {
     this.#assertOpen();
     const tabs = [...new Set(paths)].filter(path => Object.hasOwn(this.#state.files, path));
     const active = tabs.length && activePath && tabs.includes(activePath) ? activePath : (tabs.at(-1) ?? null);
-    this.#update({ tabs, activePath: active });
+    this.#update({ tabs, activePath: active, previewTabs: previews.filter(path => tabs.includes(path) && !this.isModified(path)) });
   }
 
   edit(path: string, content: string): void {
@@ -509,6 +550,7 @@ export class WorkbenchSession {
       ...snapshot,
       activePath,
       tabs: activePath ? [activePath] : [],
+      previewTabs: [],
       dirty: false,
       error: null,
       preview: null
@@ -516,7 +558,11 @@ export class WorkbenchSession {
   }
 
   #update(update: Partial<WorkbenchState>): void {
-    this.#state = { ...this.#state, ...update };
+    const next = { ...this.#state, ...update };
+    this.#state = {
+      ...next,
+      previewTabs: next.previewTabs.filter(path => next.tabs.includes(path) && equalFile(next.files[path], this.#saved[path]))
+    };
     this.#listeners.forEach(listener => listener(this.#state));
   }
 }

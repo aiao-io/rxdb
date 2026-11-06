@@ -2,7 +2,8 @@ import {
   createProjectCatalog,
   githubProjectInfo,
   type WorkbenchCatalog,
-  type WorkbenchProjectInfo
+  type WorkbenchProjectInfo,
+  type WorkbenchProjectState
 } from './catalog.js';
 import { createCompiler, type WorkbenchCompiler } from './compiler-client.js';
 import type { ProjectTemplate } from './compiler/compiler-types.js';
@@ -49,6 +50,7 @@ import { createWorkbenchNavigation } from './workbench-navigation.js';
 import { createWorkbenchScm, type WorkbenchDiffRequest } from './workbench-scm.js';
 import { createWorkbenchSearch } from './workbench-search.js';
 import { openWorkbenchSettings } from './workbench-settings.js';
+import { defaultWorkbenchPreferences } from './workbench-state.js';
 import { resolveTreeMove, treePathBase, treePathParent, type TreeMoveDecision } from './workbench-tree-drag.js';
 
 /** 工作台的可注入服务与静态资源位置。 */
@@ -209,18 +211,19 @@ export function mountWorkbench(
   let contextMenu: HTMLElement | null = null;
   let gitStatus: WorkbenchStatus | null = null;
   let persistedState = '';
+  let unrestoredProject: string | null = null;
   /** 当前项目最近一次落库（或恢复）的布局 JSON，相同布局不重复写。 */
   let savedLayout = '';
   let layoutDirty = false;
   let layoutSaveTimer: ReturnType<typeof setTimeout> | undefined;
   let persistChain: Promise<void> = Promise.resolve();
   let restoring = false;
-  let indentUnit = '  ';
+  let indentUnit = defaultWorkbenchPreferences.indentUnit;
   const savedCommitMessages = new Map<string, string>();
   const editorDiagnostics = new Map<string, { line: number; column?: number; message: string }[]>();
   const collapsedFolders = new Set<string>();
   const collapsedSections = new Set<string>();
-  let alwaysShowScmActions = false;
+  let alwaysShowScmActions = defaultWorkbenchPreferences.alwaysShowScmActions;
   let githubSession: GitHubSession | null = null;
   const serverPreviews = new Set<string>();
   const docking = createWorkbenchDockview(root, {
@@ -229,6 +232,9 @@ export function mountWorkbench(
       if (session.state.activePath !== path) session.select(path);
       closeNarrowSidebar();
       if (!treeNavigation) focusEditor(path);
+    },
+    onPinEditor(path) {
+      session.select(path);
     },
     onCloseEditor(path) {
       if (disposed) return;
@@ -608,12 +614,14 @@ export function mountWorkbench(
     const path = activeResource();
     const modified = path ? session.isModified(path) : false;
     const remaining = Object.keys(state.files).filter(file => session.isModified(file)).length;
+    for (const slot of ['branch']) element(`[data-slot="${slot}"]`).hidden = !state.projectId;
+    for (const slot of ['cursor', 'indent', 'encoding', 'language']) element(`[data-slot="${slot}"]`).hidden = !path;
     const activity = previewPhase === 'compiling' || previewPhase === 'waiting' ? ' · 更新预览中…' : '';
     element('[data-slot="save-status"]').textContent =
       initializing ? '加载项目…'
       : previewPhase === 'saving' ? '正在保存…'
       : modified ? `未保存${activity}`
-      : state.projectId ? `已保存${remaining ? ` · 另有 ${remaining} 个文件未保存` : ''}${activity}`
+      : state.projectId ? `已保存在此浏览器${remaining ? ` · 另有 ${remaining} 个文件未保存` : ''}${activity}`
       : '尚未打开项目';
     previewVersion.textContent =
       state.preview ?
@@ -735,26 +743,31 @@ export function mountWorkbench(
     return project.id;
   }
   /** 标签、活动文件或提交说明变化时串行落库，重开项目时恢复；初始恢复期间不写库。 */
+  function captureProjectState(): WorkbenchProjectState {
+    const { tabs, activePath, previewTabs, projectId: id } = session.state;
+    const drafts = session.getDrafts();
+    const commitMessage = id ? savedCommitMessages.get(id) : undefined;
+    return {
+      tabs: [...tabs], activePath,
+      ...(commitMessage ? { commitMessage } : {}),
+      ...(previewTabs.length ? { previewTabs: [...previewTabs] } : {}),
+      ...(Object.keys(drafts).length ? { drafts } : {})
+    };
+  }
+
   function persistState(): void {
     const id = session.state.projectId;
-    if (!id || restoring) return;
-    const snapshot = JSON.stringify([
-      id,
-      session.state.tabs,
-      session.state.activePath,
-      savedCommitMessages.get(id) ?? ''
-    ]);
+    if (!id || restoring || unrestoredProject === id) return;
+    const state = captureProjectState();
+    const snapshot = JSON.stringify([id, state]);
     if (snapshot === persistedState) return;
     persistedState = snapshot;
-    persistChain = persistChain
-      .then(() =>
-        catalog.putState(id, {
-          tabs: [...session.state.tabs],
-          activePath: session.state.activePath,
-          commitMessage: savedCommitMessages.get(id) || undefined
-        })
-      )
-      .catch(report);
+    persistChain = persistChain.then(() => catalog.putState(id, state)).catch(report);
+  }
+
+  function persistPreferences(): void {
+    const preferences = { indentUnit, alwaysShowScmActions };
+    persistChain = persistChain.then(() => catalog.putPreferences(preferences)).catch(report);
   }
   async function refreshGit(): Promise<void> {
     if (!project || disposed) return;
@@ -822,12 +835,14 @@ export function mountWorkbench(
     }
     await terminal?.stop();
     cancelCompilation();
+    await persistChain;
     restoring = true;
+    unrestoredProject = id;
     try {
       await session.open(id);
       if (disposed || session.state.projectId !== id) return;
       const [saved, layout] = await Promise.all([
-        catalog.getState(id).catch(() => null),
+        catalog.getState(id),
         catalog.getLayout(id).catch((cause: unknown) => {
           report(cause);
           return null;
@@ -836,22 +851,21 @@ export function mountWorkbench(
       if (disposed || session.state.projectId !== id) return;
       savedCommitMessages.set(id, saved?.commitMessage ?? '');
       if (saved) {
-        session.restoreTabs(saved.tabs, saved.activePath);
+        const conflicts = session.restoreDrafts(saved.drafts ?? {});
+        if (conflicts.length) log('output', `已恢复草稿，以下文件的已保存版本已变化：${conflicts.join('、')}`);
+        session.restoreTabs(saved.tabs, saved.activePath, saved.previewTabs);
         if (saved.commitMessage) scm.restoreMessage(saved.commitMessage);
       }
       // 标签先恢复，布局再排布它们
       if (layout !== null) applySavedLayout(layout);
+      else docking.showPreview();
+      unrestoredProject = null;
     } finally {
       restoring = false;
     }
     if (session.state.activePath) navigation.record(id, session.state.activePath);
     renderActionState();
-    persistedState = JSON.stringify([
-      id,
-      session.state.tabs,
-      session.state.activePath,
-      savedCommitMessages.get(id) ?? ''
-    ]);
+    persistedState = JSON.stringify([id, captureProjectState()]);
     savedLayout = JSON.stringify(docking.serializeLayout());
     const opened = { ...next, updatedAt: Date.now() };
     project = opened;
@@ -884,9 +898,13 @@ export function mountWorkbench(
     openFolderButton.type = 'button';
     openFolderButton.className = 'wb-empty-view-action';
     openFolderButton.dataset['welcomeAction'] = 'open-folder';
-    openFolderButton.append(document.createTextNode('打开文件夹'));
+    openFolderButton.append(document.createTextNode('导入文件夹（副本）'));
     openFolderButton.onclick = () => action(openFolder);
     welcome.append(openFolderButton);
+    const storageHint = document.createElement('p');
+    storageHint.className = 'wb-empty-view-storage';
+    storageHint.textContent = '导入副本保存在此浏览器，编辑与保存不会修改原文件夹。';
+    welcome.append(storageHint);
     const recent = projects.slice(0, 10);
     if (recent.length) {
       const section = document.createElement('section');
@@ -1202,6 +1220,14 @@ export function mountWorkbench(
     return wrap;
   }
 
+  function previewFile(path: string): void {
+    const groupPaths = docking.getEditorGroupPaths();
+    const replacePreview = session.state.previewTabs.find(preview => groupPaths.includes(preview));
+    docking.ensureEditor(path);
+    session.select(path, { preview: true, replacePreview });
+    docking.selectEditor(path);
+  }
+
   /** 文件夹 / 文件行及其交互：文件夹点击折叠展开，文件点击打开（预览，不抢走树内焦点）。 */
   function explorerRowElement(row: ExplorerRow, context: ExplorerRowContext): HTMLButtonElement {
     const button = createExplorerRow(row, context);
@@ -1217,14 +1243,17 @@ export function mountWorkbench(
       }
       treeNavigation = true;
       try {
-        session.select(row.key);
-        docking.selectEditor(row.key);
+        previewFile(row.key);
         closeNarrowSidebar();
       } finally {
         queueMicrotask(() => {
           treeNavigation = false;
         });
       }
+    };
+    if (row.kind === 'file') button.ondblclick = () => {
+      session.select(row.key);
+      focusEditor(row.key);
     };
     return button;
   }
@@ -1370,8 +1399,7 @@ export function mountWorkbench(
     if (openFile && path) {
       treeNavigation = true;
       try {
-        session.select(path);
-        docking.selectEditor(path);
+        previewFile(path);
       } finally {
         queueMicrotask(() => {
           treeNavigation = false;
@@ -1508,10 +1536,11 @@ export function mountWorkbench(
   }
 
   /** 状态栏缩进选择器：应用到全部打开的编辑器（VS Code 的设置级行为）。 */
-  function applyIndentUnit(unit: string): void {
+  function applyIndentUnit(unit: string, persist = true): void {
     indentUnit = unit;
     element('[data-slot="indent"]').textContent = `空格: ${unit.length}`;
     for (const editor of editors.values()) editor.handle.setIndentUnit?.(unit);
+    if (persist) persistPreferences();
   }
 
   tree.addEventListener('keydown', event => {
@@ -1703,6 +1732,7 @@ export function mountWorkbench(
       const directory = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
       const label = duplicate && directory ? `${directory}/${base}` : base;
       docking.setEditorTitle(path, `${label}${session.isModified(path) ? ' •' : ''}`);
+      docking.setEditorPreview(path, state.previewTabs.includes(path));
       if (typeof value !== 'string') {
         parent.textContent = `二进制文件 · ${value?.byteLength ?? 0} bytes`;
         parent.classList.add('wb-binary');
@@ -2001,7 +2031,7 @@ export function mountWorkbench(
           keybinding: 'Ctrl + R'
         },
         {
-          label: '打开文件夹…',
+          label: '导入文件夹（副本）…',
           id: 'open-folder',
           action: openFolder,
           disabled: busy || !('showDirectoryPicker' in window)
@@ -2043,7 +2073,7 @@ export function mountWorkbench(
           keybinding: 'Ctrl + R'
         },
         {
-          label: '打开文件夹…',
+          label: '导入文件夹（副本）…',
           id: 'open-folder',
           action: openFolder,
           disabled: busy || !('showDirectoryPicker' in window)
@@ -2130,10 +2160,11 @@ export function mountWorkbench(
         indentUnit,
         alwaysShowScmActions,
         onApply(settings) {
-          applyIndentUnit(settings.indentUnit);
+          applyIndentUnit(settings.indentUnit, false);
           alwaysShowScmActions = settings.alwaysShowScmActions;
           scm.setAlwaysShowActions(alwaysShowScmActions);
-          log('output', '设置已更新');
+          persistPreferences();
+          log('output', '设置已更新并保存在此浏览器');
         }
       }),
     'github-account': () => {
@@ -2173,6 +2204,7 @@ export function mountWorkbench(
             action: () => {
               alwaysShowScmActions = !alwaysShowScmActions;
               scm.setAlwaysShowActions(alwaysShowScmActions);
+              persistPreferences();
             }
           }
         ]
@@ -2339,13 +2371,19 @@ export function mountWorkbench(
   });
   const releaseState = session.subscribe(render);
   const ready = (async () => {
-    projects = (await catalog.list()).toSorted((left, right) => right.updatedAt - left.updatedAt);
+    const [listed, preferences] = await Promise.all([catalog.list(), catalog.getPreferences()]);
     if (disposed) return;
+    projects = listed.toSorted((left, right) => right.updatedAt - left.updatedAt);
+    if (preferences) {
+      applyIndentUnit(preferences.indentUnit, false);
+      alwaysShowScmActions = preferences.alwaysShowScmActions;
+      scm.setAlwaysShowActions(alwaysShowScmActions);
+    }
     renderProjects();
     // 没有显式指定时恢复上次的会话：最近项目带会话状态（曾被打开过）就直接打开，
     // 全新目录或只有未打开过的新条目时停留在欢迎视图。
     const recent = projects[0];
-    const restorable = recent ? (await catalog.getState(recent.id).catch(() => null)) !== null : false;
+    const restorable = recent ? (await catalog.getState(recent.id)) !== null : false;
     const initial = options.initialProjectId ?? (restorable ? recent.id : null);
     if (initial) await openProject(initial);
   })()

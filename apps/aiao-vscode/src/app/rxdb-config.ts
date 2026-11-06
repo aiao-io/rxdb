@@ -4,6 +4,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { inject, PLATFORM_ID } from '@angular/core';
 import {
   WorkbenchLayoutState,
+  WorkbenchLocalState,
   WorkbenchProject,
   WorkbenchRemoteProject,
   WorkbenchSessionState
@@ -32,7 +33,7 @@ export function setupRxDB(): RxDB {
   rxdb = new RxDB({
     dbName: 'aiao-vscode',
     context: { userId: 'local' },
-    entities: [WorkbenchProject, WorkbenchRemoteProject, WorkbenchSessionState, WorkbenchLayoutState],
+    entities: [WorkbenchProject, WorkbenchRemoteProject, WorkbenchSessionState, WorkbenchLayoutState, WorkbenchLocalState],
     sync: { local: { adapter: ADAPTER_NAME }, type: SyncType.None }
   });
   rxdb.adapter(ADAPTER_NAME, async db => new RxDBAdapterSqlite(db, sqliteWasmOptions()));
