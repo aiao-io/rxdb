@@ -20,6 +20,7 @@ import type {
   AdminServerFile,
   AdminServerFiles
 } from '../shared/admin-protocol';
+import { fallbackSource } from '../shared/fallback-source';
 import { AdminConfigError, type AdminConfig } from './admin-config';
 import type { AdminRoom } from './admin-room';
 import { AccountNotFoundError } from './admin-supabase';
@@ -220,11 +221,20 @@ const resolveReport: Handler = async (context, [id = '']) => {
   if (!report) return json(404, { error: 'report not found or already resolved' });
   const kind = resolution as ReportResolution;
   if (kind === 'delete_copy' && report.targetHash) {
-    // 密文副本的键是密文哈希：按举报附的 sourceUrl 派生，退化成明文键
-    const key =
-      report.sourceUrl?.includes('/api/files/enc/') ?
-        encFileKey(report.sourceUrl.slice('/api/files/enc/'.length))
-      : fileKey(report.targetHash);
+    const source = fallbackSource(
+      report.sourceUrl ?? `/api/files/${report.targetHash}`,
+      report.targetHash,
+      context.url.origin
+    );
+    if (!source) return json(409, { error: 'invalid reported server copy' });
+    if (
+      source.encHash &&
+      !(await context.deps.reports.hasServerCopy(report.targetHash, source.path, context.url.origin))
+    ) {
+      return json(409, { error: 'the reported copy is no longer published for this content' });
+    }
+    const key = source.encHash ? encFileKey(source.encHash) : fileKey(report.targetHash);
+    if (!(await context.deps.bucket.head(key))) return json(404, { error: 'reported server copy not found' });
     await context.deps.bucket.delete(key);
   }
   if (kind === 'ban' && report.targetUser) {

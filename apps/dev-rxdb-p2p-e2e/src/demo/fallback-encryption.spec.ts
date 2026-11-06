@@ -196,6 +196,8 @@ test.describe('回退内容加密的处置与泄漏面', () => {
       const allowed = new Set([
         'id',
         'contentHash',
+        'encHash',
+        'publisherUserId',
         'recipientDeviceId',
         'kid',
         'epk',
@@ -209,6 +211,8 @@ test.describe('回退内容加密的处置与泄漏面', () => {
       ]);
       expect(Object.keys(row).every(key => allowed.has(key))).toBe(true);
       expect(row['kid']).toBe('p256-1');
+      expect(row['encHash']).toMatch(/^[0-9a-f]{64}$/);
+      expect(row['publisherUserId']).toMatch(/^[0-9a-f-]{36}$/);
       for (const field of ['epk', 'iv', 'ct', 'tag']) {
         expect(typeof row[field]).toBe('string');
         expect((row[field] as string).length).toBeGreaterThan(0);

@@ -38,7 +38,8 @@ describe('FilesPanel', () => {
     generateTestFile: vi.fn(async () => undefined),
     download: vi.fn(async () => undefined),
     saveToDisk: vi.fn(async () => undefined),
-    revoke: vi.fn(async () => undefined)
+    revoke: vi.fn(async () => undefined),
+    report: vi.fn(async () => ({ created: true }))
   };
   let panel: FilesPanel;
 
@@ -48,6 +49,14 @@ describe('FilesPanel', () => {
     workspace.downloadingHashes.set(new Set());
     TestBed.configureTestingModule({ providers: [{ provide: P2PWorkspace, useValue: workspace }] });
     panel = TestBed.runInInjectionContext(() => new FilesPanel());
+  });
+
+  it('includes the encrypted copy in the visible report action', async () => {
+    const file = sharedFile('report.bin');
+    const sourceUrl = `/api/files/enc/${'e'.repeat(64)}`;
+    const target = { ...file, manifest: { ...file.manifest, sourceUrl }, serverCopy: true };
+    await panel.submitReport(target, 'malware');
+    expect(workspace.report).toHaveBeenCalledExactlyOnceWith({ contentHash: file.contentHash, sourceUrl }, 'malware');
   });
 
   it('combines case-insensitive filename search with download availability and local filters', () => {

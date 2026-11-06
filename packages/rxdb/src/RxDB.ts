@@ -1142,14 +1142,15 @@ export class RxDB {
           const state = await this.#readBootstrapState(localAdapter);
           assertClaimedCapabilities(state.claimedNames, new Set(this.#system_contributions.keys()));
           const bootstrapComplete = state.bootstrapFingerprints.has(bootstrapFingerprint);
-          // 既有库补建缺失表的探测**每次连接都做**：指纹只覆盖迁移与约束漂移这半边，表存在性
-          // 的自愈语义不缩（既有库重开补建后加的系统表是有用例钉住的契约）。
+          // 指纹只证明迁移链执行过；物理表与约束仍须每次连接检查。
           await this.#ensureSystemTables(localAdapter);
           if (bootstrapComplete) {
-            // 指纹命中：两轮迁移事务与 sqlite_master 漂移比对都已在上一轮同结构引导里跑完
-            // （指纹覆盖实体结构与两条迁移链的名字）。系统 schema 版本检查与插件引导照常。
+            // 指纹命中只跳过迁移事务，不能把历史成功当成当前物理结构有效。
             await localAdapter.migrateSystemSchema();
             localAdapter.completeBootstrap();
+            await this.#ensureEntityTables(localAdapter);
+            await localAdapter.checkEntityConstraints?.(this.#config.entities);
+            await localAdapter.reconcileEntityIndexes?.(this.#config.entities);
           } else {
             // 已存在表结构，执行升级流程。
             //

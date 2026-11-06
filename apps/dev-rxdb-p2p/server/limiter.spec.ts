@@ -5,6 +5,7 @@ import {
   createMemoryLimiterStore,
   parsePolicyOverrides,
   poolPolicyOf,
+  reserveWithStore,
   type LimiterStore
 } from './limiter';
 
@@ -79,5 +80,17 @@ describe('createMemoryLimiterStore + consumeWithStore', () => {
     const store = createMemoryLimiterStore();
     consume(store, 'fallback-upload', 'user-1');
     expect([...store.keys()].join(' ')).not.toContain('contentHash');
+  });
+});
+
+describe('atomic byte reservations', () => {
+  it('never spends more than the shared quota and does not debit rejected chunks', async () => {
+    const store = createMemoryLimiterStore();
+    const overrides = parsePolicyOverrides(JSON.stringify({ 'fallback-download-bytes': { maxWeight: 6 } }));
+    const reserve = () => reserveWithStore(store, 'fallback-download-bytes', 'user', NOW, 4, overrides);
+    const results = await Promise.all([Promise.resolve().then(reserve), Promise.resolve().then(reserve)]);
+    expect(results.map(result => result.allowed)).toEqual([true, false]);
+    expect(store.check('fallback-download-bytes', 'user', NOW, 86_400_000).weight).toBe(4);
+    expect(reserveWithStore(store, 'fallback-download-bytes', 'user', NOW, 2, overrides).allowed).toBe(true);
   });
 });

@@ -28,7 +28,7 @@ tags: [encryption, r2, fallback, privacy, security]
 
 - **上传前加密**：客户端在上传回退副本前加密。每文件独立内容密钥，AES-256-GCM（WebCrypto），随机 96-bit IV；密文 + nonce + tag 经现有 `/api/files/:hash` 路径写入 R2。AAD 绑定 `fileId + contentHash + chunkIndex`，篡改、换块与跨文件重放都在解密期被拒。
 - **分块与续传交互**：文件按块独立加密（块号入 AAD），与 rxdb:US-705 的分块/续传契约对齐——重传单块不重传整文件，续传后整体 `contentHash` 校验仍成立。续传本身是 rxdb:US-705 范围，本故事只验收加密与分块的交互。
-- **内容密钥分发（信封）**：内容密钥不落服务器可解的位置。设备在本地生成 ECDH P-256 密钥对（WebCrypto 原生），私钥只存本机，公钥登记进设备登记实体；上传方用「接收设备公钥 + 一次性临时密钥」的 ephemeral-static ECDH 派生包封密钥，把内容密钥封装成信封，信封直写 Supabase 的信封表（不可解密的密文；RLS 对所有已认证用户可读、可写，与清单同口径——PostgreSQL 对 ON CONFLICT 的仲裁探测应用 SELECT 策略，收件人限定会让 upsert 报 42501，见技术笔记）。接收方回退下载时直读本设备信封，用本机私钥解出内容密钥再解密。
+- **内容密钥分发（信封）**：内容密钥不落服务器可解的位置。设备在本地生成 ECDH P-256 密钥对（WebCrypto 原生），私钥只存本机，公钥登记进设备登记实体；上传方用「接收设备公钥 + 一次性临时密钥」的 ephemeral-static ECDH 派生包封密钥，把内容密钥封装成信封，信封直写 Supabase 的信封表（不可解密的密文；RLS 允许已认证用户读取密文、向任意设备新建信封，仅发布者可更新和删除自己的信封——PostgreSQL 对 ON CONFLICT 的仲裁探测应用 SELECT 策略，收件人限定会让 upsert 报 42501，见技术笔记）。接收方回退下载时直读本设备信封，用本机私钥解出内容密钥再解密。
 - **取回**：无 peer 在线时回退下载密文 → 取信封 → 本机私钥解出内容密钥 → 解密 → `contentHash` 复核后落盘。取回行为与现有回退一致，只多解密一步。
 - **处置联动**：删服务器副本、删设备登记、删账号（rxdb:US-713 已有入口）时一并清对应信封与密文，不留孤儿信封。
 - **旧明文副本处置**：升级后新上传全加密；既有的明文 R2 对象由管理员删除或由上传方重传覆盖，不自动扫描与批量重加密。
@@ -74,7 +74,9 @@ tags: [encryption, r2, fallback, privacy, security]
 ## 技术笔记
 
 - 接入点现状（本分支源码）：回退上传/下载走 Worker `server/` 的 `/api/files/:hash`（R2）；清单实体 `p2p.p2p_file_manifest`（Supabase，RLS 拒绝伪造 `holderId`）；设备登记 `p2p.devices`；连接票据 Ed25519 在 `shared/`（见 [应用 README](../../../README.md) 与 [rxdb:US-704 开工前置](../../../../../requirements/stories/future/US-704-p2p-manifest-discovery.md#开工前置)）。
-- 方案要点：每文件独立内容密钥（AES-256-GCM）；ephemeral-static ECDH（P-256，WebCrypto 原生，零依赖）派生包封密钥；信封字段 `kid / epk / iv / ct / tag`（行键 `contentHash + recipientDeviceId`）直写 Supabase `p2p.p2p_fallback_envelope`，不经过同步实体——同步 RPC 会给新行重新生成 id，靠同步收敛有竞态；设备私钥存本机 localStorage 专用记录，不进备份、同步与日志。
+- 方案要点：每文件独立内容密钥（AES-256-GCM）；ephemeral-static ECDH（P-256，WebCrypto 原生，零依赖）派生包封密钥；信封字段 `kid / epk / iv / ct / tag`（行键 `encHash + recipientDeviceId`，同时记录 `contentHash` 与 `publisherUserId`）直写 Supabase `p2p.p2p_fallback_envelope`，不经过同步实体——同步 RPC 会给新行重新生成 id，靠同步收敛有竞态；设备私钥存本机 localStorage 专用记录，不进备份、同步与日志。
+- 信封权限与副本身份（2026-11-06 修订）：每次上传生成独立密文副本，信封按 `encHash + recipientDeviceId` 保存，避免同内容重复上传覆盖旧副本密钥。认证用户可给任意设备寄信封、可读密文信封以支持 upsert；`publisherUserId` 默认取 `auth.uid()`，仅发布者可更新或删除，不能改成他人身份。旧信封保留空 `encHash` 的只读兼容路径，不允许普通账号改删无法确认归属的历史信封。
+- 公钥登记校验 SPKI DER、P-256 OID、长度与曲线点；升级时把已有坏公钥置空，所属设备下次启动重登。上传在写入 R2 前准备有效设备的信封，损坏设备独立隔离，没有有效收件人时明确拒绝上传。
 - 平台依据（Cloudflare 官方文档）：R2 默认 AES-256 静态加密只防磁盘失窃，Worker 读取时是明文——本故事动机所在；加密在客户端完成，Worker CPU 不承担加密成本。
 - 证据层级：单元（信封/分块 AEAD）< 真实浏览器双上下文（真实上传与回退解密）< 本地真栈（Supabase 行与 Worker 日志断言）< 正式环境。
 - 与 rxdb:US-803 的关系：US-803 的 envelope 格式（`v/alg/kid/iv/ct/tag`、AAD 含主键）是本故事信封的格式参考；两者不共享密钥体系（US-803 是本地字段加密，本故事是回退传输加密）。
@@ -84,7 +86,7 @@ tags: [encryption, r2, fallback, privacy, security]
 - `apps/dev-rxdb-p2p/server/` — `/api/files/:hash` 上传/下载保持密文透明传输，日志脱敏；版本标记。
 - `apps/dev-rxdb-p2p/shared/` — 信封与分块 AEAD 契约、版本标记。
 - `apps/dev-rxdb-p2p/src/` — 设备密钥对、上传前加密、回退取回解密、旧版本报错。
-- `apps/dev-rxdb-p2p/supabase/` — 设备公钥列、信封表与 RLS（收件人读）、`team_device_keys()` 与删除级联。
+- `apps/dev-rxdb-p2p/supabase/` — 设备公钥列、信封表与 RLS（认证用户可读密文、发布者可改删）、`team_device_keys()` 与删除级联。
 
 ## References
 

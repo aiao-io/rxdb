@@ -13,7 +13,8 @@ import { BehaviorSubject, Subject } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SignalingPeer } from '../../../shared/signaling-protocol';
 import { AuthService } from '../auth/auth.service';
-import type { writeEnvelopes } from '../device/fallback-envelopes';
+import type { envelopeFor, writeEnvelopes } from '../device/fallback-envelopes';
+import * as fallbackCrypto from './fallback-crypto';
 import type { HeldFileWriter } from './held-files';
 import { P2PWorkspace, type SharedFileView } from './p2p-workspace.service';
 import type { LinkView, PeerLinksOptions } from './peer-links';
@@ -48,15 +49,7 @@ const device = vi.hoisted(() => ({
 }));
 const envelopeApi = vi.hoisted(() => ({
   writeEnvelopes: vi.fn<typeof writeEnvelopes>(),
-  envelopeFor: vi.fn<
-    () => Promise<{
-      readonly kid: string;
-      readonly epk: string;
-      readonly iv: string;
-      readonly ct: string;
-      readonly tag: string;
-    } | null>
-  >()
+  envelopeFor: vi.fn<typeof envelopeFor>()
 }));
 const deviceKeys = vi.hoisted(() => ({
   ensureDeviceKeyPair: vi.fn<() => Promise<{ publicKeyBase64: string; privateKeyJwk: JsonWebKey }>>()
@@ -133,6 +126,7 @@ vi.mock('./fallback-crypto', () => ({
   generateContentKey: vi.fn(async () => ({ type: 'secret' })),
   sealContentKey: vi.fn(async () => ({ kid: 'p256-1', epk: 'epk', iv: 'iv', ct: 'ct', tag: 'tag' })),
   openContentKey: vi.fn(async () => ({ type: 'secret' })),
+  importDevicePublicKey: vi.fn(async () => ({ type: 'public' })),
   importDevicePrivateKey: vi.fn(async () => ({ type: 'private' })),
   decodeEncryptedStream: vi.fn((_key: unknown, _shape: unknown, source: ReadableStream<Uint8Array>) => source),
   isEncryptedFallbackUrl: (url: string) => url.includes('/api/files/enc/'),
@@ -272,12 +266,17 @@ const cleanUp = (): void => {
   TestBed.resetTestingModule();
 };
 
-const recordFor = async (content: File, principal = remotePrincipal, server = false): Promise<P2PManifestRecord> => {
+const recordFor = async (
+  content: File,
+  principal = remotePrincipal,
+  server = false,
+  chunkSize = 2
+): Promise<P2PManifestRecord> => {
   const manifest = await createAuthenticatedP2PFileManifest({
     principal,
     fileName: content.name,
     size: content.size,
-    chunkSize: 2,
+    chunkSize,
     readChunk: async (offset, size) => new Uint8Array(await content.slice(offset, offset + size).arrayBuffer())
   });
   return createManifestRecord(
@@ -479,6 +478,123 @@ describe('P2PWorkspace file lifecycle', () => {
     expect(workspace.files()).toHaveLength(1);
     expect(persistence.save).toHaveBeenCalledTimes(1);
     expect(persistence.push).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(['https://attacker.invalid/collect', '//attacker.invalid/collect'])(
+    'never sends credentials to an external fallback %s',
+    async sourceUrl => {
+      await workspace.start();
+      const record = { ...(await recordFor(content(), remotePrincipal, true)), sourceUrl };
+      addRecord(record);
+      await workspace.download(record.contentHash);
+      expect(fetcher.mock.calls.some(([url]) => String(url).includes('attacker.invalid'))).toBe(false);
+      expect(writer.commit).not.toHaveBeenCalled();
+    }
+  );
+
+  it('downloads a same-origin absolute URL with credentials and refuses redirects', async () => {
+    await workspace.start();
+    const record = await recordFor(content(), remotePrincipal, true);
+    addRecord({ ...record, sourceUrl: `${location.origin}${record.sourceUrl!}` });
+    fetcher.mockResolvedValueOnce(new Response(bytes));
+    await workspace.download(record.contentHash);
+    expect(fetcher).toHaveBeenCalledWith(
+      record.sourceUrl,
+      expect.objectContaining({
+        headers: { authorization: 'Bearer access-token' },
+        redirect: 'error'
+      })
+    );
+    expect(writer.commit).toHaveBeenCalledOnce();
+  });
+
+  it('publishes a server copy added to an existing local share and retains it on a local-only reshare', async () => {
+    await workspace.start();
+    await workspace.share(content(), false);
+    fetcher.mockResolvedValueOnce(new Response(null, { status: 201 }));
+    await workspace.share(content(), true);
+    expect(workspace.files()[0]?.manifest.sourceUrl).toBe(`/api/files/enc/${'e'.repeat(64)}`);
+    await workspace.share(content(), false);
+    expect(workspace.files()[0]?.manifest.sourceUrl).toBe(`/api/files/enc/${'e'.repeat(64)}`);
+  });
+
+  it('downloads using the complete server-copy manifest when the newest holder is peer-only', async () => {
+    await workspace.start();
+    const older = {
+      ...(await recordFor(content(), remotePrincipal, true)),
+      sourceUrl: `/api/files/enc/${'e'.repeat(64)}`,
+      updatedAt: 1
+    };
+    envelopeApi.envelopeFor.mockResolvedValue({ kid: 'p256-1', epk: 'epk', iv: 'iv', ct: 'ct', tag: 'tag' });
+    const newer = {
+      ...(await recordFor(content(), { principal: 'new-user', deviceId: 'new-device' }, false, 4)),
+      updatedAt: 2
+    };
+    addRecord(older);
+    addRecord(newer);
+    fetcher.mockResolvedValueOnce(new Response(bytes));
+    await workspace.download(older.contentHash);
+    expect(fetcher).toHaveBeenCalledWith(older.sourceUrl, expect.any(Object));
+    expect(writer.commit).toHaveBeenCalledOnce();
+    expect(writer.write.mock.calls.map(([offset]) => offset)).toEqual([0, 2]);
+    expect(persistence.save.mock.calls.at(-1)?.[0].sourceUrl).toBe(older.sourceUrl);
+  });
+
+  it('keeps old ciphertext decryptable after identical bytes are shared twice using real WebCrypto', async () => {
+    const real = await vi.importActual<typeof fallbackCrypto>('./fallback-crypto');
+    vi.mocked(fallbackCrypto.generateContentKey).mockImplementation(real.generateContentKey);
+    vi.mocked(fallbackCrypto.encodeEncryptedBlob).mockImplementation(real.encodeEncryptedBlob);
+    vi.mocked(fallbackCrypto.sha256Hex).mockImplementation(real.sha256Hex);
+    vi.mocked(fallbackCrypto.sealContentKey).mockImplementation(real.sealContentKey);
+    vi.mocked(fallbackCrypto.openContentKey).mockImplementation(real.openContentKey);
+    vi.mocked(fallbackCrypto.importDevicePrivateKey).mockImplementation(real.importDevicePrivateKey);
+    vi.mocked(fallbackCrypto.importDevicePublicKey).mockImplementation(real.importDevicePublicKey);
+    vi.mocked(fallbackCrypto.decodeEncryptedStream).mockImplementation(real.decodeEncryptedStream);
+    const pair = await real.generateDeviceKeyPair();
+    deviceKeys.ensureDeviceKeyPair.mockResolvedValue(pair);
+    teamKeys.teamDeviceKeys.mockResolvedValue([{ deviceId: 'local-device', publicKeyBase64: pair.publicKeyBase64 }]);
+    const storedEnvelopes = new Map<string, Parameters<typeof writeEnvelopes>[1][number]>();
+    envelopeApi.writeEnvelopes.mockImplementation(async (_client, rows) => {
+      for (const row of rows) storedEnvelopes.set(`${row.encHash}:${row.recipientDeviceId}`, row);
+    });
+    envelopeApi.envelopeFor.mockImplementation(
+      async (_client, _hash, deviceId, encHash) => storedEnvelopes.get(`${encHash}:${deviceId}`) ?? null
+    );
+    await workspace.start();
+    const copies = new Map<string, Uint8Array<ArrayBuffer>>();
+    fetcher.mockImplementation(async (url, init) => {
+      if (init?.method === 'PUT') {
+        copies.set(String(url), new Uint8Array(await (init.body as Blob).arrayBuffer()));
+        return new Response(null, { status: 201 });
+      }
+      return new Response(copies.get(String(url)));
+    });
+    await workspace.share(content(), true);
+    const original = workspace.files()[0]!.manifest;
+    await workspace.share(content(), true);
+    expect(copies.size).toBe(2);
+    await workspace.revoke(original.contentHash);
+    addRecord(createManifestRecord(original, { principal: remotePrincipal }));
+    await workspace.download(original.contentHash);
+    await vi.advanceTimersByTimeAsync(250);
+    expect(workspace.transfers()[0]?.state).toBe('done');
+    expect(writer.write.mock.calls.map(([, bytes]) => [...bytes]).flat()).toEqual([...bytes]);
+  });
+
+  it('ignores a corrupt team key without stopping a valid encrypted share', async () => {
+    const real = await vi.importActual<typeof fallbackCrypto>('./fallback-crypto');
+    const pair = await real.generateDeviceKeyPair();
+    vi.mocked(fallbackCrypto.importDevicePublicKey).mockImplementation(real.importDevicePublicKey);
+    vi.mocked(fallbackCrypto.sealContentKey).mockImplementation(real.sealContentKey);
+    vi.mocked(fallbackCrypto.generateContentKey).mockImplementation(real.generateContentKey);
+    teamKeys.teamDeviceKeys.mockResolvedValue([
+      { deviceId: 'valid-device', publicKeyBase64: pair.publicKeyBase64 },
+      { deviceId: 'broken-device', publicKeyBase64: 'not-a-valid-spki' }
+    ]);
+    await workspace.start();
+    fetcher.mockResolvedValueOnce(new Response(null, { status: 201 }));
+    await expect(workspace.share(content(), true)).resolves.toBeUndefined();
+    expect(envelopeApi.writeEnvelopes.mock.calls[0]?.[1]).toMatchObject([{ recipientDeviceId: 'valid-device' }]);
   });
 
   it('encrypts an opted-in server copy before uploading it, seals envelopes, and advertises the ciphertext URL', async () => {

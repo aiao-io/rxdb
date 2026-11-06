@@ -95,7 +95,8 @@ const harness = (overrides: { config?: () => ReturnType<AdminRouteDeps['config']
   const reports = {
     listOpen: vi.fn<AdminRouteDeps['reports']['listOpen']>(async () => []),
     submit: vi.fn(async () => ({ created: true })),
-    resolve: vi.fn(async () => true)
+    resolve: vi.fn(async () => true),
+    hasServerCopy: vi.fn(async () => true)
   } satisfies AdminRouteDeps['reports'];
   const invites = {
     activate: vi.fn(async () => true),
@@ -616,6 +617,7 @@ describe('治理路由（POOL-US-102）', () => {
 
   it('按删除副本处置举报：按 sourceUrl 删除密文副本并关闭举报', async () => {
     const h = harness();
+    h.bucket.head.mockResolvedValue({ size: 10 });
     vi.mocked(h.reports.listOpen).mockResolvedValue([
       {
         id: REPORT,
@@ -763,6 +765,7 @@ describe('治理路由（POOL-US-102）', () => {
 
   it('按删除副本处置举报：按 sourceUrl 删除密文副本并关闭举报', async () => {
     const h = harness();
+    h.bucket.head.mockResolvedValue({ size: 10 });
     vi.mocked(h.reports.listOpen).mockResolvedValue([
       {
         id: REPORT,

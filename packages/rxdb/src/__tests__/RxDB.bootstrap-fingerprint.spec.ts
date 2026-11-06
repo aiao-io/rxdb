@@ -1,12 +1,5 @@
 /**
- * @fileoverview 引导指纹：表结构与迁移集没变时，二次连接跳过表探测、迁移与约束漂移检查。
- *
- * @remarks
- * 指纹行与迁移行同存一张 `rxdb_migration` 表：完整引导成功后写 `__rxdb_bootstrap__<指纹>`，
- * 下一次连接在守卫的同一趟只读事务里读到它，命中即只跑系统 schema 版本检查与插件引导，
- * 跳过逐表探测（每次连接十几次往返）、迁移事务与 `sqlite_master` 漂移比对。
- * 指纹覆盖实体结构（含 checks / exclusions / log）与系统/接入方迁移名，任一变化都会
- * 让指纹失配、回落完整引导；旧版本的指纹行不清理，按集合比对。
+ * @fileoverview 引导指纹只缓存迁移链完成状态；表存在性与物理约束每次连接都检查。
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -84,7 +77,7 @@ describe('引导指纹', () => {
     );
   });
 
-  it('结构未变时二次连接跳过迁移与漂移比对，指纹行不再重写，表探测仍保留自愈', async () => {
+  it('结构未变时二次连接跳过迁移，仍检查物理表与约束', async () => {
     const { database, adapter, migrationRepository } = createExistingDatabase([
       { name: 'init-schema', up: vi.fn(async () => undefined), down: vi.fn(async () => undefined) }
     ]);
@@ -105,11 +98,33 @@ describe('引导指纹', () => {
     expect(adapter.isTableExisted.mock.calls.length).toBeGreaterThan(1);
     // 两轮迁移事务跳过：守卫读了一次迁移表，runMigrations 没有再读
     expect(migrationRepository.find).toHaveBeenCalledTimes(1);
-    // 指纹行是命中状态，无需重写；约束漂移比对也不重跑
+    // 指纹无需重写，物理约束仍须重查
     expect(migrationRepository.create).not.toHaveBeenCalled();
-    expect(adapter.checkEntityConstraints).not.toHaveBeenCalled();
+    expect(adapter.checkEntityConstraints).toHaveBeenCalledOnce();
     // 系统 schema 版本检查仍然每次都做
     expect(migrateSystemSchema).toHaveBeenCalledTimes(1);
+  });
+
+  it('指纹命中仍补建丢失的业务表', async () => {
+    const { database, adapter } = createExistingDatabase();
+    database.init();
+    await database.connect('local');
+    await database.disconnectAll();
+    const missing = TEST_ENTITIES[0]!;
+    adapter.isTableExisted.mockImplementation(async entity => entity !== missing);
+    adapter.createTables.mockClear();
+    await database.connect('local');
+    expect(adapter.createTables).toHaveBeenCalledWith(expect.arrayContaining([missing]));
+  });
+
+  it('指纹命中仍拒绝当前物理约束漂移', async () => {
+    const { database, adapter } = createExistingDatabase();
+    adapter.checkEntityConstraints = vi.fn(async () => undefined);
+    database.init();
+    await database.connect('local');
+    await database.disconnectAll();
+    vi.mocked(adapter.checkEntityConstraints).mockRejectedValueOnce(new Error('physical constraint drift'));
+    await expect(database.connect('local')).rejects.toThrow('physical constraint drift');
   });
 
   it('指纹失配时回落完整引导并重写指纹行', async () => {

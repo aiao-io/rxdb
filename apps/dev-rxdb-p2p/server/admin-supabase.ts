@@ -6,6 +6,7 @@
  * （见 `supabase/p2p-schema.sql`），普通登录用户直接调用会被数据库拒绝。
  */
 import { ADMIN_ACCOUNTS_PAGE_SIZE } from '../shared/admin-protocol';
+import { fallbackSource } from '../shared/fallback-source';
 
 /** 访问 Supabase 管理接口的参数；`fetch` 可注入以便测试。 */
 export interface AdminSupabaseConfig {
@@ -184,6 +185,19 @@ export const createReportDirectory = (config: AdminSupabaseConfig): import('./re
     });
   };
   return {
+    async hasServerCopy(contentHash, sourceUrl, origin) {
+      const expected = fallbackSource(sourceUrl, contentHash, origin);
+      if (!expected) return false;
+      const query = new URLSearchParams({ select: 'sourceUrl', contentHash: `eq.${contentHash}` });
+      const response = await config.fetch(`${config.url}/rest/v1/p2p_file_manifest?${query}`, {
+        headers: { ...credentials, 'accept-profile': 'p2p' }
+      });
+      if (!response.ok) throw new Error(`PostgREST responded ${response.status}`);
+      const rows = (await response.json()) as readonly { sourceUrl: string | null }[];
+      return rows.some(
+        row => row.sourceUrl && fallbackSource(row.sourceUrl, contentHash, origin)?.path === expected.path
+      );
+    },
     async submit(input) {
       const response = await reports({
         method: 'POST',

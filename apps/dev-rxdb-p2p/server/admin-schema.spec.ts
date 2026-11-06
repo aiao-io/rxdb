@@ -2,6 +2,7 @@
 import { PGlite } from '@electric-sql/pglite';
 import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { generateDeviceKeyPair } from '../src/app/p2p/fallback-crypto';
 
 /**
  * 管理后台的数据库函数（US-713）：把真实的 `supabase/p2p-schema.sql` 灌进 PGlite（进程内的真 Postgres），
@@ -92,6 +93,87 @@ describe('p2p-schema.sql 管理后台函数', () => {
     );
     return rows.rows[0]?.n ?? -1;
   };
+
+  it('keeps activation retries idempotent and leaves other invite codes unused', async () => {
+    await db.exec("INSERT INTO p2p.invite_codes (code) VALUES ('first-invite-1234'), ('spare-invite-1234')");
+    const activate = (code: string) =>
+      as<{ activated: boolean }>('service_role', 'SELECT p2p.activate_invite($1, $2::uuid) AS activated', [
+        code,
+        ALICE
+      ]);
+    expect(await activate('first-invite-1234')).toEqual([{ activated: true }]);
+    expect(await activate('first-invite-1234')).toEqual([{ activated: true }]);
+    expect(await activate('spare-invite-1234')).toEqual([{ activated: true }]);
+    const spare = await db.query<{ used_by: string | null }>(
+      "SELECT used_by FROM p2p.invite_codes WHERE code = 'spare-invite-1234'"
+    );
+    expect(spare.rows).toEqual([{ used_by: null }]);
+  });
+
+  it('rejects malformed device public keys at registration', async () => {
+    await db.query("SELECT set_config('request.jwt.claim.sub', $1, false)", [ALICE]);
+    await expect(
+      as('authenticated', 'UPDATE p2p.devices SET public_key = $1 WHERE id = $2', ['not-a-valid-spki', ALICE_LAPTOP])
+    ).rejects.toThrow(/check constraint/);
+  });
+
+  it('accepts valid P-256 SPKI and rejects a wrong curve or an invalid point', async () => {
+    const pair = await generateDeviceKeyPair();
+    await db.query("SELECT set_config('request.jwt.claim.sub', $1, false)", [ALICE]);
+    await expect(
+      as('authenticated', 'UPDATE p2p.devices SET public_key = $1 WHERE id = $2', [pair.publicKeyBase64, ALICE_LAPTOP])
+    ).resolves.toBeDefined();
+    const wrongCurve = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-384' }, true, ['deriveBits']);
+    const wrongSpki = Buffer.from(await crypto.subtle.exportKey('spki', wrongCurve.publicKey)).toString('base64url');
+    const badPoint = Buffer.concat([
+      Buffer.from('3059301306072a8648ce3d020106082a8648ce3d03010703420004', 'hex'),
+      Buffer.alloc(64)
+    ]).toString('base64url');
+    for (const invalid of [wrongSpki, badPoint]) {
+      await expect(
+        as('authenticated', 'UPDATE p2p.devices SET public_key = $1 WHERE id = $2', [invalid, ALICE_LAPTOP])
+      ).rejects.toThrow(/check constraint/);
+    }
+  });
+
+  it('quarantines corrupt legacy keys when the schema is upgraded', async () => {
+    await db.exec(
+      "ALTER TABLE p2p.devices DROP CONSTRAINT devices_public_key_valid; UPDATE p2p.devices SET public_key = 'corrupt'"
+    );
+    await db.exec(SCHEMA);
+    expect(await as('authenticated', 'SELECT * FROM p2p.team_device_keys()')).toEqual([]);
+    expect((await db.query('SELECT public_key FROM p2p.devices WHERE public_key IS NOT NULL')).rows).toEqual([]);
+  });
+
+  it('isolates envelope updates and deletes by publisher while permitting cross-device sealing', async () => {
+    const encHash = 'e'.repeat(64);
+    await db.query("SELECT set_config('request.jwt.claim.sub', $1, false)", [ALICE]);
+    await as(
+      'authenticated',
+      `INSERT INTO p2p.p2p_fallback_envelope (id, "contentHash", "encHash", "recipientDeviceId", kid, epk, iv, ct, tag)
+      VALUES (gen_random_uuid(), $1, $2, $3, 'p256-1', 'key', 'iv', 'ct', 'tag')`,
+      [HASH_SHARED, encHash, BOB_LAPTOP]
+    );
+    await db.query("SELECT set_config('request.jwt.claim.sub', $1, false)", [BOB]);
+    expect(await as('authenticated', 'DELETE FROM p2p.p2p_fallback_envelope RETURNING id')).toEqual([]);
+    expect(await as('authenticated', "UPDATE p2p.p2p_fallback_envelope SET ct = 'bad' RETURNING id")).toEqual([]);
+    await expect(
+      as(
+        'authenticated',
+        `INSERT INTO p2p.p2p_fallback_envelope (id, "contentHash", "encHash", "recipientDeviceId", kid, epk, iv, ct, tag)
+      VALUES (gen_random_uuid(), $1, $2, $3, 'p256-1', 'key', 'iv', 'bad', 'tag')
+      ON CONFLICT ("encHash", "recipientDeviceId") DO UPDATE SET ct = EXCLUDED.ct`,
+        [HASH_SHARED, encHash, BOB_LAPTOP]
+      )
+    ).rejects.toThrow(/row-level security/);
+    await db.query("SELECT set_config('request.jwt.claim.sub', $1, false)", [ALICE]);
+    expect(
+      await as<{ ct: string }>('authenticated', "UPDATE p2p.p2p_fallback_envelope SET ct = 'resealed' RETURNING ct")
+    ).toEqual([{ ct: 'resealed' }]);
+    await expect(
+      as('authenticated', 'UPDATE p2p.p2p_fallback_envelope SET "publisherUserId" = $1', [BOB])
+    ).rejects.toThrow(/row-level security/);
+  });
 
   it('can be applied again without error', async () => {
     await expect(db.exec(SCHEMA)).resolves.toBeDefined();

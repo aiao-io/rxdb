@@ -123,17 +123,51 @@ describe.each([
     expect(check).toHaveBeenCalledExactlyOnceWith('fallback-download-bytes', 'user-1');
   });
 
+  it.each(['cancel', 'error'])('charges delivered bytes when the response ends with %s', async ending => {
+    const reserve = vi.fn(async () => ({ allowed: true, retryAfterMs: 0 }));
+    const cancelled = vi.fn();
+    const stream = new ReadableStream<Uint8Array>(
+      {
+        pull(controller) {
+          if (reserve.mock.calls.length === 0) controller.enqueue(BYTES);
+          else controller.error(new Error('source failed'));
+        },
+        cancel: cancelled
+      },
+      { highWaterMark: 0 }
+    );
+    const deps = { ...depsWith(), reserve };
+    vi.spyOn(deps.bucket, 'get').mockResolvedValue({ body: stream, size: 8 });
+    const response = await handle(authorized('GET'), HASH, deps);
+    const reader = response.body!.getReader();
+    expect((await reader.read()).value).toEqual(BYTES);
+    if (ending === 'cancel') {
+      await reader.cancel('stop');
+      expect(cancelled).toHaveBeenCalledOnce();
+    } else await expect(reader.read()).rejects.toThrow('source failed');
+    expect(reserve).toHaveBeenCalledExactlyOnceWith('fallback-download-bytes', 'user-1', BYTES.length);
+    expect(stream.locked).toBe(false);
+  });
+
+  it('does not send a chunk when its atomic byte reservation is refused', async () => {
+    const reserve = vi.fn(async () => ({ allowed: false, retryAfterMs: 1000 }));
+    const deps = { ...depsWith(), reserve };
+    deps.bucket.objects.set(keyOf(HASH), BYTES);
+    const response = await handle(authorized('GET'), HASH, deps);
+    await expect(response.arrayBuffer()).rejects.toThrow('download byte quota exceeded');
+  });
+
   it('accounts for the bytes actually streamed after permitting a download', async () => {
     const consume = vi.fn(async () => ({ allowed: true, retryAfterMs: 0 }));
     const check = vi.fn(async () => ({ allowed: true, retryAfterMs: 0 }));
-    const reportBytes = vi.fn();
-    const deps = { ...depsWith(), consume, check, reportBytes };
+    const reserve = vi.fn(async () => ({ allowed: true, retryAfterMs: 0 }));
+    const deps = { ...depsWith(), consume, check, reserve };
     deps.bucket.objects.set(keyOf(HASH), BYTES);
 
     const response = await handle(authorized('GET'), HASH, deps);
     expect(new Uint8Array(await response.arrayBuffer())).toEqual(BYTES);
 
-    expect(reportBytes).toHaveBeenCalledExactlyOnceWith('fallback-download-bytes', 'user-1', BYTES.length);
+    expect(reserve).toHaveBeenCalledExactlyOnceWith('fallback-download-bytes', 'user-1', BYTES.length);
   });
 });
 

@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   decodeEncryptedStream,
   decryptChunk,
@@ -124,5 +124,39 @@ describe('fallback-crypto', () => {
   it('回退地址判定：/api/files/enc/ 是密文回退，/api/files/ 明文不是', () => {
     expect(isEncryptedFallbackUrl('/api/files/enc/abc123')).toBe(true);
     expect(isEncryptedFallbackUrl('/api/files/abc123')).toBe(false);
+  });
+});
+
+describe('encrypted reader cleanup', () => {
+  it('cancels the locked response through its reader and releases it', async () => {
+    const cancel = vi.fn();
+    const source = new ReadableStream<Uint8Array>({ cancel });
+    const stream = decodeEncryptedStream(
+      await generateContentKey(),
+      { contentHash: 'a'.repeat(64), size: 1, chunkSize: 1 },
+      source
+    );
+    await expect(stream.cancel('stop')).resolves.toBeUndefined();
+    expect(cancel).toHaveBeenCalledExactlyOnceWith('stop');
+    expect(source.locked).toBe(false);
+  });
+
+  it('cancels the encrypted response after a decryption failure', async () => {
+    const key = await generateContentKey();
+    const shape = { contentHash: 'a'.repeat(64), size: 1, chunkSize: 1 };
+    const blob = await encodeEncryptedBlob(key, shape, async () => new Uint8Array([1]));
+    const encoded = new Uint8Array(await blob.arrayBuffer());
+    encoded[encoded.length - 1] ^= 1;
+    const cancel = vi.fn();
+    const source = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoded);
+      },
+      cancel
+    });
+    const reader = decodeEncryptedStream(key, shape, source).getReader();
+    await expect(reader.read()).rejects.toThrow();
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(source.locked).toBe(false);
   });
 });

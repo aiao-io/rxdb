@@ -187,6 +187,44 @@ GRANT EXECUTE ON FUNCTION p2p.admin_account_stats(), p2p.admin_file_catalog(), p
 -- ============================================
 ALTER TABLE p2p.devices ADD COLUMN IF NOT EXISTS public_key varchar;
 
+-- 固定的 DER SPKI 头绑定 ECDH P-256；同时验证坐标范围及曲线方程，拒绝畸形曲线点。
+CREATE OR REPLACE FUNCTION p2p.valid_device_public_key(value text)
+RETURNS boolean
+LANGUAGE plpgsql
+IMMUTABLE
+STRICT
+SET search_path = pg_catalog, pg_temp
+AS $$
+DECLARE
+  raw bytea;
+  x numeric := 0;
+  y numeric := 0;
+  prime CONSTANT numeric := 115792089210356248762697446949407573530086143415290314195533631308867097853951;
+  coefficient CONSTANT numeric := 41058363725152142129326129780047268409114441015993725554835256314039467401291;
+BEGIN
+  IF value !~ '^[A-Za-z0-9_-]{122}$' THEN RETURN false; END IF;
+  raw := decode(translate(value, '-_', '+/') || '==', 'base64');
+  IF octet_length(raw) <> 91 OR encode(substring(raw FROM 1 FOR 27), 'hex') <>
+    '3059301306072a8648ce3d020106082a8648ce3d03010703420004' THEN RETURN false; END IF;
+  FOR i IN 0..31 LOOP
+    x := x * 256 + get_byte(raw, 27 + i);
+    y := y * 256 + get_byte(raw, 59 + i);
+  END LOOP;
+  RETURN x < prime AND y < prime AND
+    mod(y * y, prime) = mod(mod(x * x * x - 3 * x + coefficient, prime) + prime, prime);
+EXCEPTION WHEN OTHERS THEN
+  RETURN false;
+END
+$$;
+
+-- 旧坏记录隔离成未登记公钥；所属设备下次启动会重新登记，不阻断团队上传。
+UPDATE p2p.devices SET public_key = NULL
+  WHERE public_key IS NOT NULL AND NOT p2p.valid_device_public_key(public_key);
+ALTER TABLE p2p.devices DROP CONSTRAINT IF EXISTS devices_public_key_valid;
+ALTER TABLE p2p.devices ADD CONSTRAINT devices_public_key_valid
+  CHECK (public_key IS NULL OR p2p.valid_device_public_key(public_key));
+
+
 DROP POLICY IF EXISTS devices_update ON p2p.devices;
 CREATE POLICY devices_update ON p2p.devices
   FOR UPDATE TO authenticated USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
@@ -202,7 +240,7 @@ SECURITY DEFINER
 STABLE
 SET search_path = pg_catalog, pg_temp
 AS $$
-  SELECT id, public_key FROM p2p.devices WHERE public_key IS NOT NULL
+  SELECT id, public_key FROM p2p.devices WHERE public_key IS NOT NULL AND p2p.valid_device_public_key(public_key)
 $$;
 
 REVOKE ALL ON FUNCTION p2p.team_device_keys() FROM PUBLIC, anon;
@@ -223,8 +261,14 @@ CREATE TABLE IF NOT EXISTS p2p.p2p_fallback_envelope (
   "updatedBy" varchar
 );
 
+-- 旧信封保留空 encHash 供新客户端读取；历史发布者不可可靠恢复，留给 service_role 管理。
+ALTER TABLE p2p.p2p_fallback_envelope ADD COLUMN IF NOT EXISTS "encHash" varchar;
+ALTER TABLE p2p.p2p_fallback_envelope ADD COLUMN IF NOT EXISTS "publisherUserId" uuid DEFAULT auth.uid();
+DROP INDEX IF EXISTS p2p.idx_p2p_envelope_content_recipient;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_p2p_envelope_copy_recipient ON p2p.p2p_fallback_envelope ("encHash", "recipientDeviceId");
+CREATE UNIQUE INDEX IF NOT EXISTS idx_p2p_envelope_legacy_recipient ON p2p.p2p_fallback_envelope ("contentHash", "recipientDeviceId") WHERE "encHash" IS NULL;
+
 CREATE INDEX IF NOT EXISTS idx_p2p_envelope_content ON p2p.p2p_fallback_envelope ("contentHash");
-CREATE UNIQUE INDEX IF NOT EXISTS idx_p2p_envelope_content_recipient ON p2p.p2p_fallback_envelope ("contentHash", "recipientDeviceId");
 CREATE INDEX IF NOT EXISTS idx_p2p_envelope_recipient ON p2p.p2p_fallback_envelope ("recipientDeviceId");
 
 ALTER TABLE p2p.p2p_fallback_envelope ENABLE ROW LEVEL SECURITY;
@@ -235,19 +279,19 @@ DROP POLICY IF EXISTS envelope_select ON p2p.p2p_fallback_envelope;
 CREATE POLICY envelope_select ON p2p.p2p_fallback_envelope
   FOR SELECT TO authenticated USING (true);
 
--- 写/改/删：任何已认证用户都能寄信封、更新或删掉自己的重复封装；篡改会被收件人的 AEAD 校验检出，
--- 删除只降级可用性，真正的清理走管理端的 admin_purge_account（service_role 绕过 RLS）。
+-- 认证用户可以给任意设备寄信封；只有发布者能修改或删除自己发布的副本信封。
 DROP POLICY IF EXISTS envelope_insert ON p2p.p2p_fallback_envelope;
 CREATE POLICY envelope_insert ON p2p.p2p_fallback_envelope
-  FOR INSERT TO authenticated WITH CHECK (true);
+  FOR INSERT TO authenticated WITH CHECK ("publisherUserId" = auth.uid() AND "encHash" ~ '^[0-9a-f]{64}$');
 
 DROP POLICY IF EXISTS envelope_update ON p2p.p2p_fallback_envelope;
 CREATE POLICY envelope_update ON p2p.p2p_fallback_envelope
-  FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+  FOR UPDATE TO authenticated USING ("publisherUserId" = auth.uid())
+  WITH CHECK ("publisherUserId" = auth.uid() AND "encHash" ~ '^[0-9a-f]{64}$');
 
 DROP POLICY IF EXISTS envelope_delete ON p2p.p2p_fallback_envelope;
 CREATE POLICY envelope_delete ON p2p.p2p_fallback_envelope
-  FOR DELETE TO authenticated USING (true);
+  FOR DELETE TO authenticated USING ("publisherUserId" = auth.uid());
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON p2p.p2p_fallback_envelope TO authenticated;
 
@@ -332,29 +376,35 @@ CREATE TABLE IF NOT EXISTS p2p.activated_users (
 GRANT SELECT, INSERT, UPDATE ON p2p.invite_codes TO service_role;
 GRANT SELECT, INSERT ON p2p.activated_users TO service_role;
 
--- 一条语句完成「校验码未用未作废 → 标记使用 → 登记激活」，返回是否激活成功；重复调用幂等。
+-- 按账号串行激活，重复调用不再消费邀请码；同一码的认领仍由 UPDATE 原子竞争。
 CREATE OR REPLACE FUNCTION p2p.activate_invite(code_text varchar, user_id uuid)
 RETURNS boolean
-LANGUAGE sql
+LANGUAGE plpgsql
 SET search_path = pg_catalog, pg_temp
 AS $$
+DECLARE
+  activated boolean;
+BEGIN
+  PERFORM pg_advisory_xact_lock(hashtextextended(user_id::text, 0));
+  IF EXISTS (SELECT 1 FROM p2p.activated_users AS au WHERE au.user_id = activate_invite.user_id) THEN
+    RETURN true;
+  END IF;
   WITH claimed AS (
     UPDATE p2p.invite_codes
-    SET used_by = user_id, used_at = now()
+    SET used_by = activate_invite.user_id, used_at = now()
     WHERE code = code_text
       AND used_by IS NULL AND used_at IS NULL AND revoked_at IS NULL
     RETURNING code
   ),
-  activated AS (
+  activation AS (
     INSERT INTO p2p.activated_users (user_id, code)
-    SELECT user_id, code FROM claimed
-    ON CONFLICT (user_id) DO NOTHING
-    RETURNING user_id
+    SELECT activate_invite.user_id, code FROM claimed
+    ON CONFLICT ON CONSTRAINT activated_users_pkey DO NOTHING
+    RETURNING 1
   )
-  SELECT COALESCE(
-    EXISTS (SELECT 1 FROM claimed),
-    EXISTS (SELECT 1 FROM p2p.activated_users AS au WHERE au.user_id = activate_invite.user_id)
-  )
+  SELECT EXISTS (SELECT 1 FROM activation) INTO activated;
+  RETURN activated;
+END
 $$;
 
 REVOKE ALL ON FUNCTION p2p.activate_invite(varchar, uuid) FROM PUBLIC, anon, authenticated;

@@ -220,8 +220,9 @@ export const encodeEncryptedBlob = async (
 };
 
 /** 从流里读满 `length` 字节；多余字节留在缓冲里给下一次读，流提前结束时报错。 */
-const readExact = (source: ReadableStream<Uint8Array>): ((length: number) => Promise<Uint8Array<ArrayBuffer>>) => {
-  const reader = source.getReader();
+const readExact = (
+  reader: ReadableStreamDefaultReader<Uint8Array>
+): ((length: number) => Promise<Uint8Array<ArrayBuffer>>) => {
   let buffer = new Uint8Array(0);
   return async (length: number): Promise<Uint8Array<ArrayBuffer>> => {
     while (buffer.byteLength < length) {
@@ -249,30 +250,42 @@ export const decodeEncryptedStream = (
 ): ReadableStream<Uint8Array> => {
   let chunksRead = 0;
   const decoder = new TextDecoder();
-  const readExactFrom = readExact(source);
-  return new ReadableStream<Uint8Array>({
-    async pull(controller) {
-      if (chunksRead === 0) {
-        const header = await readExactFrom(ENC_MAGIC.length + 1);
-        if (decoder.decode(header.subarray(0, ENC_MAGIC.length)) !== ENC_MAGIC) {
-          throw new Error('fallback encryption: not an encrypted fallback blob');
-        }
-        if (header[ENC_MAGIC.length] !== ENC_VERSION) {
-          throw new Error(`fallback encryption: unsupported blob version ${header[ENC_MAGIC.length]}`);
-        }
+  const reader = source.getReader();
+  const readExactFrom = readExact(reader);
+  let cleanup: Promise<void> | undefined;
+  const stop = (reason?: unknown): Promise<void> =>
+    (cleanup ??= reader.cancel(reason).finally(() => reader.releaseLock()));
+  const nextChunk = async (): Promise<Uint8Array | null> => {
+    if (chunksRead === 0) {
+      const header = await readExactFrom(ENC_MAGIC.length + 1);
+      if (decoder.decode(header.subarray(0, ENC_MAGIC.length)) !== ENC_MAGIC) {
+        throw new Error('fallback encryption: not an encrypted fallback blob');
       }
-      if (chunksRead >= chunkCount(shape)) {
-        controller.close();
-        return;
+      if (header[ENC_MAGIC.length] !== ENC_VERSION) {
+        throw new Error(`fallback encryption: unsupported blob version ${header[ENC_MAGIC.length]}`);
       }
-      const encoded = await readExactFrom(IV_BYTES + chunkLength(shape, chunksRead) + TAG_BYTES);
-      controller.enqueue(await decryptChunk(key, shape, chunksRead, encoded));
-      chunksRead += 1;
-    },
-    cancel(reason) {
-      return source.cancel(reason);
     }
-  });
+    if (chunksRead >= chunkCount(shape)) return null;
+    const encoded = await readExactFrom(IV_BYTES + chunkLength(shape, chunksRead) + TAG_BYTES);
+    const plaintext = await decryptChunk(key, shape, chunksRead, encoded);
+    chunksRead += 1;
+    return plaintext;
+  };
+  const pull = async (controller: ReadableStreamDefaultController<Uint8Array>): Promise<void> => {
+    try {
+      const plaintext = await nextChunk();
+      if (cleanup) return;
+      if (plaintext) controller.enqueue(plaintext);
+      else {
+        await stop();
+        controller.close();
+      }
+    } catch (error) {
+      await stop(error).catch(() => undefined);
+      throw error;
+    }
+  };
+  return new ReadableStream<Uint8Array>({ pull, cancel: stop });
 };
 
 /** 密文回退地址：`/api/files/enc/<密文哈希>`。 */

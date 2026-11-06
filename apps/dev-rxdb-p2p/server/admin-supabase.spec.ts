@@ -196,6 +196,24 @@ describe('createAdminDirectory', () => {
 });
 
 describe('createReportDirectory', () => {
+  it('validates the reported ciphertext against the content manifests in the current origin', async () => {
+    const hash = 'a'.repeat(64);
+    const source = `/api/files/enc/${'e'.repeat(64)}`;
+    const { fetch } = directoryWith((url, init) => {
+      const requestUrl = new URL(String(url));
+      expect(requestUrl.pathname).toBe('/rest/v1/p2p_file_manifest');
+      expect(requestUrl.searchParams.get('contentHash')).toBe(`eq.${hash}`);
+      expect(headersOf(init).get('accept-profile')).toBe('p2p');
+      return json(200, [{ sourceUrl: `https://pool.test${source}` }]);
+    });
+    const directory = createReportDirectory({ url: 'http://supabase.test', serviceRoleKey: 'service-key', fetch });
+    expect(await directory.hasServerCopy(hash, source, 'https://pool.test')).toBe(true);
+    fetch.mockResolvedValueOnce(json(200, [{ sourceUrl: `https://attacker.test${source}` }]));
+    expect(await directory.hasServerCopy(hash, source, 'https://pool.test')).toBe(false);
+    fetch.mockResolvedValueOnce(json(503, {}));
+    await expect(directory.hasServerCopy(hash, source, 'https://pool.test')).rejects.toThrow('503');
+  });
+
   it('submits a report through the p2p profile and maps duplicate reports to created false', async () => {
     const { fetch } = directoryWith((_url, init) => {
       expect(headersOf(init).get('content-profile')).toBe('p2p');

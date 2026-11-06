@@ -71,14 +71,14 @@ test.describe('滥用治理（POOL-US-102）', () => {
 
     // 举报：目标标识 + 服务器副本地址（处置时按它删密文副本），不落文件内容
     const sourceUrl = (await fileRow(holder, fileName).getAttribute('data-source')) as string;
-    const submitted = await api(holder.page, 'POST', '/api/reports', {
-      target: { contentHash, sourceUrl },
-      category: 'malware'
-    });
-    expect(submitted.status).toBe(201);
+    const reporter = await openDevice(browser, newAccount('reporter'), 'sign-up');
+    await expect(fileRow(reporter, fileName)).toBeVisible();
+    await fileRow(reporter, fileName).getByRole('button', { name: '举报', exact: true }).click();
+    await fileRow(reporter, fileName).getByRole('button', { name: '恶意软件', exact: true }).click();
+    await expect(reporter.page.getByText('举报已提交，管理员会在后台处置。')).toBeVisible();
 
     // 同一举报人重复举报同一目标：去重，不再新建
-    const duplicated = await api(holder.page, 'POST', '/api/reports', {
+    const duplicated = await api(reporter.page, 'POST', '/api/reports', {
       target: { contentHash, sourceUrl },
       category: 'malware'
     });

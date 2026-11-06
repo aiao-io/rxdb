@@ -43,13 +43,14 @@ const limiterOf = (env: Env) => {
   const call = async (
     scope: string,
     key: string,
-    cost: number
+    cost: number,
+    reserve = false
   ): Promise<{ readonly allowed: boolean; readonly retryAfterMs: number }> => {
     const response = await stub().fetch(
       new Request('http://limiter.internal/consume', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ scope, key, cost })
+        body: JSON.stringify({ scope, key, cost, reserve })
       })
     );
     if (!response.ok) throw new Error(`limiter responded ${response.status}`);
@@ -57,7 +58,8 @@ const limiterOf = (env: Env) => {
   };
   return {
     consume: (scope: string, key: string, cost = 1) => call(scope, key, cost),
-    check: (scope: string, key: string) => call(scope, key, 0)
+    check: (scope: string, key: string) => call(scope, key, 0),
+    reserve: (scope: string, key: string, cost: number) => call(scope, key, cost, true)
   };
 };
 
@@ -86,7 +88,7 @@ const adminDepsOf = (env: Env): AdminRouteDeps => {
   };
 };
 
-const fileDepsOf = (env: Env, ctx?: { readonly waitUntil: (promise: Promise<unknown>) => void }) => {
+const fileDepsOf = (env: Env) => {
   const config = supabaseConfigOf(env);
   const limiter = limiterOf(env);
   return {
@@ -94,10 +96,7 @@ const fileDepsOf = (env: Env, ctx?: { readonly waitUntil: (promise: Promise<unkn
     verifyUser: (token: string) => verifyAccessToken(config, token),
     consume: limiter.consume,
     check: limiter.check,
-    reportBytes: (scope: string, key: string, cost: number) => {
-      const accounting = limiter.consume(scope, key, cost);
-      if (ctx?.waitUntil) ctx.waitUntil(accounting);
-    },
+    reserve: limiter.reserve,
     requireActivation: requireActivation(env),
     isActivated: async (token: string, userId: string) =>
       isAdminUserId(env, userId) || (await isActivatedUser(config, token))
@@ -150,7 +149,7 @@ export const handleRequest = async (
     }
     return response;
   }
-  const deps = fileDepsOf(env, ctx);
+  const deps = fileDepsOf(env);
   const encrypted = ENC_FILE_ROUTE.exec(pathname);
   if (encrypted?.[1]) {
     return handleEncryptedFileRequest(request, encrypted[1], deps).catch(fileRouteFailed);

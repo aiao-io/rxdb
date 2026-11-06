@@ -171,6 +171,23 @@ export const consumeWithStore = (
   return judge(policy, window, now);
 };
 
+/** 发送前原子预留额度；超限不扣减，单次同步调用内完成检查与记账。 */
+export const reserveWithStore = (
+  store: LimiterStore,
+  scope: string,
+  key: string,
+  now: number,
+  cost: number,
+  overrides?: ReadonlyMap<string, LimiterPolicy>
+): { readonly allowed: boolean; readonly retryAfterMs: number } => {
+  const policy = poolPolicyOf(scope, overrides);
+  if (!policy) throw new Error(`limiter: unknown scope ${scope}`);
+  const current = store.check(scope, key, now, policy.windowMs);
+  const result = judge(policy, { ...current, count: current.count + 1, weight: current.weight + cost }, now);
+  if (result.allowed) store.consume(scope, key, now, cost, policy.windowMs);
+  return result;
+};
+
 /** 只看当前窗口是否已超限，不计数（下载前按流量预检用）。 */
 export const checkWithStore = (
   store: LimiterStore,

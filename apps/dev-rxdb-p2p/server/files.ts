@@ -37,8 +37,8 @@ export interface FileRouteDeps {
   /** 邀请制开关：开启时未激活账号 403（POOL-US-102）。 */
   readonly requireActivation?: boolean;
   readonly isActivated?: (accessToken: string, userId: string) => Promise<boolean>;
-  /** 回退下载流结束时按实际字节记账（POOL-US-102），发后即忘。 */
-  readonly reportBytes?: (scope: string, key: string, cost: number) => void;
+  /** 每个流块发送前原子预留字节额度，拒绝时不发出该块。 */
+  readonly reserve?: (scope: string, key: string, cost: number) => ReturnType<ConsumeLimiter>;
 }
 
 /** 限流拒绝：429 + Retry-After（POOL-US-102）。 */
@@ -72,24 +72,54 @@ const fileHeaders = (size: number): HeadersInit => ({
   'cache-control': 'private, no-store'
 });
 
-const download = async (key: string, bucket: R2BucketLike, countBytes?: (bytes: number) => void): Promise<Response> => {
+const meteredBody = (
+  source: ReadableStream<Uint8Array>,
+  reserve: (bytes: number) => Promise<{ readonly allowed: boolean }>
+): ReadableStream<Uint8Array> => {
+  const reader = source.getReader();
+  let stopped = false;
+  const cancel = async (reason?: unknown): Promise<void> => {
+    if (stopped) return;
+    stopped = true;
+    try {
+      await reader.cancel(reason);
+    } finally {
+      reader.releaseLock();
+    }
+  };
+  return new ReadableStream<Uint8Array>(
+    {
+      async pull(controller) {
+        try {
+          const { done, value } = await reader.read();
+          if (stopped) return;
+          if (done) {
+            stopped = true;
+            reader.releaseLock();
+            controller.close();
+            return;
+          }
+          if (!(await reserve(value.byteLength)).allowed) throw new Error('download byte quota exceeded');
+          if (!stopped) controller.enqueue(value);
+        } catch (error) {
+          await cancel(error).catch(() => undefined);
+          controller.error(error);
+        }
+      },
+      cancel
+    },
+    { highWaterMark: 0 }
+  );
+};
+
+const download = async (
+  key: string,
+  bucket: R2BucketLike,
+  reserve?: (bytes: number) => Promise<{ readonly allowed: boolean }>
+): Promise<Response> => {
   const object = await bucket.get(key);
   if (!object) return json(404, { error: 'file not found' });
-  let body: ReadableStream<Uint8Array> = object.body;
-  if (countBytes) {
-    let total = 0;
-    body = body.pipeThrough(
-      new TransformStream<Uint8Array, Uint8Array>({
-        transform(chunk, controller) {
-          total += chunk.byteLength;
-          controller.enqueue(chunk);
-        },
-        flush() {
-          countBytes(total);
-        }
-      })
-    );
-  }
+  const body = reserve ? meteredBody(object.body, reserve) : object.body;
   return new Response(body, { headers: fileHeaders(object.size) });
 };
 
@@ -147,9 +177,9 @@ export const handleFileRequest = async (
       if (!count.allowed) return limited(count.retryAfterMs);
       if (!bytes.allowed) return limited(bytes.retryAfterMs);
     }
-    const countBytes =
-      deps.reportBytes ? (bytes: number) => deps.reportBytes!('fallback-download-bytes', user.id, bytes) : undefined;
-    return download(key, deps.bucket, countBytes);
+    const reserve =
+      deps.reserve ? (bytes: number) => deps.reserve!('fallback-download-bytes', user.id, bytes) : undefined;
+    return download(key, deps.bucket, reserve);
   }
   if (request.method === 'HEAD') return describe(key, deps.bucket);
   return json(405, { error: 'allowed methods: GET, HEAD, PUT' });
@@ -196,9 +226,9 @@ export const handleEncryptedFileRequest = async (
       if (!count.allowed) return limited(count.retryAfterMs);
       if (!bytes.allowed) return limited(bytes.retryAfterMs);
     }
-    const countBytes =
-      deps.reportBytes ? (bytes: number) => deps.reportBytes!('fallback-download-bytes', user.id, bytes) : undefined;
-    return download(key, deps.bucket, countBytes);
+    const reserve =
+      deps.reserve ? (bytes: number) => deps.reserve!('fallback-download-bytes', user.id, bytes) : undefined;
+    return download(key, deps.bucket, reserve);
   }
   if (request.method === 'HEAD') return describe(key, deps.bucket);
   return json(405, { error: 'allowed methods: GET, HEAD, PUT' });

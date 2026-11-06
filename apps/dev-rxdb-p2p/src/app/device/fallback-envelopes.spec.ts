@@ -5,6 +5,7 @@ import { envelopeFor, writeEnvelopes } from './fallback-envelopes';
 
 const ROW = {
   contentHash: 'a'.repeat(64),
+  encHash: 'e'.repeat(64),
   recipientDeviceId: 'device-a',
   kid: 'p256-1',
   epk: 'ephemeral-key',
@@ -20,6 +21,7 @@ const clientWith = ({ data = null, error = null }: { data?: unknown; error?: Err
     ),
     select: vi.fn(() => table),
     eq: vi.fn(() => table),
+    is: vi.fn(() => table),
     maybeSingle: vi.fn(async () => ({ data, error }))
   };
   const from = vi.fn(() => table);
@@ -43,27 +45,44 @@ describe('fallback envelope persistence', () => {
     expect(from).toHaveBeenCalledExactlyOnceWith('p2p_fallback_envelope');
     const [rows, options] = table.upsert.mock.calls[0]!;
     expect(rows).toEqual([{ ...ROW, id: expect.any(String) }]);
-    expect(options).toEqual({ onConflict: '"contentHash","recipientDeviceId"' });
+    expect(options).toEqual({ onConflict: '"encHash","recipientDeviceId"' });
   });
 
   it('returns the recipient envelope or null and filters by file and device', async () => {
     const envelope = { kid: 'p256-1', epk: 'key', iv: 'iv', ct: 'data', tag: 'tag' };
     const found = clientWith({ data: envelope });
 
-    await expect(envelopeFor(found.client, ROW.contentHash, ROW.recipientDeviceId)).resolves.toEqual(envelope);
+    await expect(envelopeFor(found.client, ROW.contentHash, ROW.recipientDeviceId, ROW.encHash)).resolves.toEqual(
+      envelope
+    );
     expect(found.from).toHaveBeenCalledExactlyOnceWith('p2p_fallback_envelope');
     expect(found.table.select).toHaveBeenCalledExactlyOnceWith('kid,epk,iv,ct,tag');
     expect(found.table.eq.mock.calls).toEqual([
       ['contentHash', ROW.contentHash],
-      ['recipientDeviceId', ROW.recipientDeviceId]
+      ['recipientDeviceId', ROW.recipientDeviceId],
+      ['encHash', ROW.encHash]
     ]);
 
-    await expect(envelopeFor(clientWith().client, ROW.contentHash, ROW.recipientDeviceId)).resolves.toBeNull();
+    await expect(
+      envelopeFor(clientWith().client, ROW.contentHash, ROW.recipientDeviceId, ROW.encHash)
+    ).resolves.toBeNull();
+  });
+
+  it('reads a legacy envelope only when a copy-specific envelope is absent', async () => {
+    const envelope = { kid: 'p256-1', epk: 'key', iv: 'iv', ct: 'data', tag: 'tag' };
+    const { client, table } = clientWith();
+    table.maybeSingle
+      .mockResolvedValueOnce({ data: null, error: null })
+      .mockResolvedValueOnce({ data: envelope, error: null });
+    expect(await envelopeFor(client, ROW.contentHash, ROW.recipientDeviceId, ROW.encHash)).toEqual(envelope);
+    expect(table.is).toHaveBeenCalledExactlyOnceWith('encHash', null);
   });
 
   it('surfaces database errors for both read and write operations', async () => {
     const error = new Error('database unavailable');
     await expect(writeEnvelopes(clientWith({ error }).client, [ROW])).rejects.toBe(error);
-    await expect(envelopeFor(clientWith({ error }).client, ROW.contentHash, ROW.recipientDeviceId)).rejects.toBe(error);
+    await expect(
+      envelopeFor(clientWith({ error }).client, ROW.contentHash, ROW.recipientDeviceId, ROW.encHash)
+    ).rejects.toBe(error);
   });
 });

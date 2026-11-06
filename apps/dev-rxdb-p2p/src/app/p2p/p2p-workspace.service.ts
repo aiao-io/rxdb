@@ -23,6 +23,7 @@ import {
   type P2PServerFallback
 } from '@aiao/rxdb-plugin-p2p';
 import { computed, inject, Injectable, signal } from '@angular/core';
+import { fallbackSource } from '../../../shared/fallback-source';
 import type { ReportCategory } from '../../../shared/reporting-protocol';
 import type { SignalingPeer } from '../../../shared/signaling-protocol';
 import { AuthService } from '../auth/auth.service';
@@ -42,7 +43,7 @@ import {
   fallbackEncUrl,
   generateContentKey,
   importDevicePrivateKey,
-  isEncryptedFallbackUrl,
+  importDevicePublicKey,
   openContentKey,
   sealContentKey,
   sha256Hex,
@@ -124,13 +125,24 @@ export class P2PWorkspace {
   >();
   readonly #serverFallback: P2PServerFallback = {
     download: async ({ manifest, signal, token }) => {
-      const url = manifest.sourceUrl ?? fileUrl(manifest.contentHash);
+      const source = fallbackSource(
+        manifest.sourceUrl ?? fileUrl(manifest.contentHash),
+        manifest.contentHash,
+        location.origin
+      );
+      if (!source) throw new Error('不支持的服务器副本地址');
+      const url = source.path;
       const headers: HeadersInit = { authorization: `Bearer ${token}` };
-      const encrypted = isEncryptedFallbackUrl(url);
+      const encrypted = source.encHash !== null;
       if (encrypted) headers[FALLBACK_ENCODING_HEADER] = FALLBACK_ENCODING_VERSION;
-      const response = await fetch(url, { headers, signal });
+      const response = await fetch(url, { headers, signal, redirect: 'error' });
       if (!response.ok || !response.body) throw new Error(`server fallback responded ${response.status}`);
-      return encrypted ? await this.#decryptFallbackStream(manifest, response.body) : response.body;
+      try {
+        return encrypted ? await this.#decryptFallbackStream(manifest, response.body, source.encHash!) : response.body;
+      } catch (error) {
+        await response.body.cancel(error);
+        throw error;
+      }
     }
   };
   #starting: Promise<void> | null = null;
@@ -335,6 +347,11 @@ export class P2PWorkspace {
     target: { contentHash: string; sourceUrl?: string } | { accountId: string },
     category: ReportCategory
   ): Promise<{ created: boolean }> {
+    if ('contentHash' in target && target.sourceUrl) {
+      const source = fallbackSource(target.sourceUrl, target.contentHash, location.origin);
+      if (!source) throw new Error('不支持的服务器副本地址');
+      target = { ...target, sourceUrl: source.path };
+    }
     const response = await fetch('/api/reports', {
       method: 'POST',
       headers: {
@@ -560,6 +577,7 @@ export class P2PWorkspace {
     const contentKey = await generateContentKey();
     const blob = await encodeEncryptedBlob(contentKey, manifest, (offset, size) => readRange(file, offset, size));
     const encHash = await sha256Hex(await blob.arrayBuffer());
+    const envelopes = await this.#sealEnvelopes(manifest.contentHash, encHash, contentKey);
     const response = await fetch(fallbackEncUrl(encHash), {
       method: 'PUT',
       body: blob,
@@ -569,34 +587,46 @@ export class P2PWorkspace {
       }
     });
     if (!response.ok) throw new Error(`encrypted upload failed (${response.status}): ${await response.text()}`);
-    await this.#sealEnvelopes(manifest.contentHash, contentKey);
+    await writeEnvelopes(this.#auth.client, envelopes);
     return fallbackEncUrl(encHash);
   }
 
-  /** 给每台已登记公钥的设备封装信封并直写 Supabase；同一（内容哈希, 设备）重复写时覆盖。 */
-  async #sealEnvelopes(contentHash: string, contentKey: CryptoKey): Promise<void> {
+  /** 上传前为有效设备公钥准备信封，坏记录隔离，不让单台设备阻断团队上传。 */
+  async #sealEnvelopes(
+    contentHash: string,
+    encHash: string,
+    contentKey: CryptoKey
+  ): Promise<Parameters<typeof writeEnvelopes>[1]> {
     const teamKeys = await teamDeviceKeys(this.#auth.client);
     const rows = [];
     for (const entry of teamKeys) {
       if (entry.publicKeyBase64 === null) continue;
+      try {
+        await importDevicePublicKey(entry.publicKeyBase64);
+      } catch {
+        continue;
+      }
       rows.push({
         contentHash,
+        encHash,
         recipientDeviceId: entry.deviceId,
         ...(await sealContentKey(contentKey, entry.publicKeyBase64))
       });
     }
-    await writeEnvelopes(this.#auth.client, rows);
+    if (rows.length === 0) throw new Error('没有有效的设备公钥，无法创建可解密的服务器副本');
+    return rows;
   }
 
   /** 把密文回退流解成明文流：本设备信封 → 内容密钥 → 按块解密，交给 `downloadP2PFile` 逐块复核。 */
   async #decryptFallbackStream(
     manifest: P2PFileManifest,
-    body: ReadableStream<Uint8Array>
+    body: ReadableStream<Uint8Array>,
+    encHash: string
   ): Promise<ReadableStream<Uint8Array>> {
     const device = this.device();
     const keys = this.#deviceKeys;
     if (!device || !keys) throw new Error('workspace has not started');
-    const envelope = await envelopeFor(this.#auth.client, manifest.contentHash, device.id);
+    const envelope = await envelopeFor(this.#auth.client, manifest.contentHash, device.id, encHash);
     if (!envelope) {
       throw new Error('此服务器副本已加密，但本设备没有解密信封：请让上传者重新共享这个文件');
     }
@@ -604,11 +634,13 @@ export class P2PWorkspace {
     return decodeEncryptedStream(contentKey, manifest, body);
   }
 
-  /** 登记本设备持有某内容；已登记过就只推送。 */
+  /** 登记本设备持有某内容；已有声明补上新的服务器副本。 */
   async #claim(manifest: P2PFileManifest, sourceUrl: string | undefined): Promise<void> {
     const record = createManifestRecord(bareManifest(manifest, sourceUrl), { principal: this.#requirePrincipal() });
-    if (!this.#entities.has(record.id)) {
-      await Object.assign(new P2PFileManifestEntity(), toRxDBManifestDocument(record)).save();
+    const existing = this.#entities.get(record.id);
+    if (!existing) await Object.assign(new P2PFileManifestEntity(), toRxDBManifestDocument(record)).save();
+    else if (sourceUrl && existing.sourceUrl !== sourceUrl) {
+      await Object.assign(existing, toRxDBManifestDocument(record)).save();
     }
     await this.#requireSync().push();
   }

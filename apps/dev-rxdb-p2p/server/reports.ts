@@ -48,6 +48,7 @@ export interface ReportDirectory {
   submit(input: ReportInput & { readonly reporterUser: string }): Promise<{ readonly created: boolean }>;
   listOpen(): Promise<readonly ReportRow[]>;
   resolve(id: string, resolution: ReportResolution, resolvedBy: string): Promise<boolean>;
+  hasServerCopy(contentHash: string, sourceUrl: string, origin: string): Promise<boolean>;
 }
 
 export interface ReportDeps {
@@ -73,7 +74,10 @@ export const parseReportInput = (body: unknown): ReportInput | null => {
   if (hasAccount && !UUID_PATTERN.test(accountId as string)) return null;
   const hasSource = typeof sourceUrl === 'string';
   if (hasAccount && hasSource) return null;
+  if (sourceUrl !== undefined && !hasSource) return null;
   if (hasSource && !SOURCE_URL_PATTERN.test(sourceUrl as string)) return null;
+  if (hasSource && !(sourceUrl as string).includes('/enc/') && sourceUrl !== `/api/files/${contentHash as string}`)
+    return null;
   return {
     targetHash: hasHash ? (contentHash as string) : null,
     targetUser: hasAccount ? (accountId as string) : null,
@@ -95,6 +99,13 @@ export const handleReportRequest = async (request: Request, deps: ReportDeps): P
   const input = parseReportInput(await request.json().catch(() => null));
   if (!input)
     return json(400, { error: 'expected exactly one of target.contentHash or target.accountId, and a valid category' });
+  if (
+    input.targetHash &&
+    input.sourceUrl &&
+    !(await deps.directory.hasServerCopy(input.targetHash, input.sourceUrl, new URL(request.url).origin))
+  ) {
+    return json(400, { error: 'the server copy is not published for this content' });
+  }
   const { created } = await deps.directory.submit({ ...input, reporterUser: user.id });
   return json(created ? 201 : 200, { created });
 };

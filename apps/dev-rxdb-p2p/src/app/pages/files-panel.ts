@@ -403,7 +403,7 @@ export class FilesPanel {
   submitReport(file: SharedFileView, category: ReportCategory): Promise<void> {
     return this.#run(
       async () => {
-        await this.workspace.report({ contentHash: file.contentHash }, category);
+        await this.workspace.report({ contentHash: file.contentHash, sourceUrl: file.manifest.sourceUrl }, category);
       },
       '举报已提交，管理员会在后台处置。',
       false

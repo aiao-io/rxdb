@@ -6,6 +6,7 @@
  * 实体的 `updatedAt` 是 Date，记录里是 epoch 毫秒，`sourceUrl` 在库里是 null、在记录里是缺省。
  */
 import { findP2PFileHolders, isP2PManifestRecord, type P2PManifestRecord } from '@aiao/rxdb-plugin-p2p';
+import { fallbackSource } from '../../../shared/fallback-source';
 
 /** 清单实体行里用到的字段。 */
 export interface ManifestRow {
@@ -23,7 +24,7 @@ export interface ManifestRow {
 /** 界面上的一个共享文件：同一内容的全部持有声明。 */
 export interface SharedFile {
   readonly contentHash: string;
-  /** 最新那条声明，下载按它的块划分取数与校验。 */
+  /** 优先选有效服务器副本的完整声明，下载按它的块划分取数与校验。 */
   readonly manifest: P2PManifestRecord;
   /** 每个持有者最新的一条声明，按 `updatedAt` 倒序。 */
   readonly holders: readonly P2PManifestRecord[];
@@ -52,11 +53,14 @@ export const groupSharedFiles = (records: readonly P2PManifestRecord[]): SharedF
   [...new Set(records.map(record => record.contentHash))]
     .map(contentHash => {
       const holders = findP2PFileHolders(records, contentHash);
+      const serverManifest = holders.find(record =>
+        record.sourceUrl ? fallbackSource(record.sourceUrl, contentHash, location.origin) !== null : false
+      );
       return {
         contentHash,
-        manifest: holders[0] as P2PManifestRecord,
+        manifest: serverManifest ?? holders[0]!,
         holders,
-        serverCopy: holders.some(record => record.sourceUrl !== undefined)
+        serverCopy: serverManifest !== undefined
       };
     })
-    .sort((left, right) => right.manifest.updatedAt - left.manifest.updatedAt);
+    .sort((left, right) => right.holders[0]!.updatedAt - left.holders[0]!.updatedAt);

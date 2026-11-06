@@ -10,6 +10,7 @@ const directoryWith = (overrides: Partial<ReportDirectory> = {}): ReportDirector
   submit: vi.fn(async () => ({ created: true })),
   listOpen: vi.fn(async () => []),
   resolve: vi.fn(async () => true),
+  hasServerCopy: vi.fn(async () => true),
   ...overrides
 });
 
@@ -84,6 +85,19 @@ describe('handleReportRequest', () => {
       category: 'malware',
       reporterUser: USER
     });
+  });
+
+  it('rejects a ciphertext URL that is not published for the reported content', async () => {
+    const directory = directoryWith({ hasServerCopy: vi.fn(async () => false) });
+    const response = await handleReportRequest(
+      request('POST', {
+        target: { contentHash: HASH, sourceUrl: `/api/files/enc/${'e'.repeat(64)}` },
+        category: 'malware'
+      }),
+      depsWith(directory)
+    );
+    expect(response.status).toBe(400);
+    expect(directory.submit).not.toHaveBeenCalled();
   });
 
   it('同一举报人重复举报同一目标：200 且不再新建', async () => {

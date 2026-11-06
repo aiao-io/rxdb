@@ -13,6 +13,7 @@ import {
   consumeWithStore,
   createSqlLimiterStore,
   parsePolicyOverrides,
+  reserveWithStore,
   type LimiterPolicy,
   type LimiterStore
 } from './limiter';
@@ -34,6 +35,7 @@ export class PoolLimiter {
       readonly scope?: unknown;
       readonly key?: unknown;
       readonly cost?: unknown;
+      readonly reserve?: unknown;
     } | null;
     if (
       !body ||
@@ -41,15 +43,17 @@ export class PoolLimiter {
       typeof body.key !== 'string' ||
       body.key.length === 0 ||
       body.key.length > 128 ||
+      (body.reserve !== undefined && typeof body.reserve !== 'boolean') ||
       (body.cost !== undefined && (typeof body.cost !== 'number' || !Number.isSafeInteger(body.cost) || body.cost < 0))
     ) {
       return json(400, { error: 'expected { scope, key, cost? }' });
     }
     // cost 为 0 时只查不记：下载前的流量预检
+    const consume = body.reserve ? reserveWithStore : consumeWithStore;
     const result =
       body.cost === 0 ?
         checkWithStore(this.#store, body.scope, body.key, Date.now(), this.#overrides)
-      : consumeWithStore(this.#store, body.scope, body.key, Date.now(), body.cost ?? 1, this.#overrides);
+      : consume(this.#store, body.scope, body.key, Date.now(), body.cost ?? 1, this.#overrides);
     return json(200, result);
   }
 }
