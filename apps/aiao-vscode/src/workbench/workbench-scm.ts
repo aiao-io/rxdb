@@ -1,6 +1,6 @@
 import type { WorkbenchBackend, WorkbenchSession, WorkbenchSnapshot, WorkbenchStatus } from './session.js';
 import { confirmWorkbenchAction } from './workbench-dialog.js';
-import { createCodicon, createFileIcon, folderCodicon, type CodiconName } from './workbench-icons.js';
+import { createCodicon, createFileIcon, type CodiconName } from './workbench-icons.js';
 
 /** SCM 文件点击请求，由宿主打开对应差异编辑器。 */
 export interface WorkbenchDiffRequest {
@@ -349,7 +349,7 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
       const folderRow = document.createElement('div');
       folderRow.className = 'wb-scm-folder';
       folderRow.style.paddingLeft = `${depth * 12}px`;
-      folderRow.append(createCodicon(folderCodicon(true)));
+      folderRow.append(createCodicon('chevron-down'));
       const label = document.createElement('span');
       label.textContent = folder;
       folderRow.append(label);

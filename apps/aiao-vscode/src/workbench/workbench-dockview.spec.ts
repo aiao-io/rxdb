@@ -588,7 +588,7 @@ describe('布局持久化', () => {
     ]);
     expect(layout.panels['editor:src/a.ts']).toEqual({ id: 'editor:src/a.ts', contentComponent: 'editor' });
     expect(JSON.stringify(layout)).not.toContain('diff:working');
-    expect(layout.edgeGroups?.left).toMatchObject({ size: 240, visible: true });
+    expect(layout.edgeGroups?.left).toMatchObject({ size: 300, visible: true });
   });
 
   it('按布局还原拆分的编辑器组与侧栏、底部面板、预览的显隐，复用原宿主且不回调会话', async () => {

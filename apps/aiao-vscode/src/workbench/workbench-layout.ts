@@ -9,7 +9,8 @@ export function createWorkbenchLayout(host: HTMLElement, assetBaseURL: string): 
   root.setAttribute('aria-label', '浏览器开发工作台');
   const shortcutKey = /mac/i.test(host.ownerDocument.defaultView?.navigator.platform ?? '') ? '⌘' : 'Ctrl';
   const shortcutShift = shortcutKey === '⌘' ? '⌘ ⇧' : 'Ctrl + Shift';
-  root.innerHTML = `<style>${workbenchStyle}</style>
+  const setiFont = new URL('fonts/seti.woff', assetBaseURL).href;
+  root.innerHTML = `<style>@font-face{font-family:seti;font-weight:normal;font-style:normal;src:url("${setiFont}") format("woff")}${workbenchStyle}</style>
     <header class="wb-title">
       <button class="wb-menu-button" data-action="title-menu" aria-label="应用程序菜单" title="应用程序菜单">${iconMarkup('menu')}</button>
       <div class="wb-brand">${iconMarkup('code')}<span>Aiao Code</span></div>
@@ -47,12 +48,10 @@ export function createWorkbenchLayout(host: HTMLElement, assetBaseURL: string): 
       <aside class="wb-side" aria-label="资源管理器">
         <div class="wb-side-header"><h2 data-slot="side-title">资源管理器</h2>
         <div class="wb-side-actions" data-view="explorer">
-          <button data-action="new-file" aria-label="新建文件" title="新建文件">${iconMarkup('new-file')}</button>
-          <button data-action="refresh-tree" aria-label="刷新资源管理器" title="刷新资源管理器">${iconMarkup('refresh')}</button>
-          <button data-action="collapse-tree" aria-label="折叠资源管理器中的文件夹" title="折叠资源管理器中的文件夹">${iconMarkup('collapse-all')}</button>
           <button data-action="more-actions" aria-label="视图和更多操作…" title="视图和更多操作…">${iconMarkup('ellipsis')}</button>
         </div>
         <div class="wb-side-actions" data-view="git" hidden>
+          <button data-action="commit" aria-label="提交" title="提交">${iconMarkup('check')}</button>
           <button data-action="refresh-tree" aria-label="刷新" title="刷新">${iconMarkup('refresh')}</button>
           <button data-action="more-actions" aria-label="视图和更多操作…" title="视图和更多操作…">${iconMarkup('ellipsis')}</button>
         </div>

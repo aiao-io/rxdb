@@ -9,6 +9,9 @@ import {
 /** 侧栏所在左侧边缘组的固定 id 与宽度约束；侧栏面板与该组同名。 */
 export const SIDEBAR_EDGE = { id: 'sidebar', minimumSize: 180, maximumSize: 420 } as const;
 
+/** 侧栏默认宽度，与 vscode.dev 一致。 */
+export const SIDEBAR_WIDTH = 300;
+
 /** 规整布局时的面板规则。 */
 export interface WorkbenchLayoutRules {
   /** 侧栏是否停靠在左侧边缘组；窄屏抽屉模式下为 false，布局里的侧栏与边缘组一并丢弃。 */

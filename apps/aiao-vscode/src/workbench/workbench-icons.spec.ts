@@ -3,8 +3,6 @@ import { describe, expect, it } from 'vitest';
 import {
   createCodicon,
   createFileIcon,
-  fileCodicon,
-  folderCodicon,
   gitStatusCodicon,
   iconMarkup
 } from './workbench-icons.js';
@@ -51,31 +49,11 @@ describe('VS Code 官方图标', () => {
     expect(iconMarkup(name)).toContain(`codicon-${name}`);
   });
 
-  it.each([
-    ['src/main.ts', 'file-code'],
-    ['main.js', 'file-code'],
-    ['index.html', 'file-code'],
-    ['Counter.tsx', 'file-code'],
-    ['App.vue', 'file-code'],
-    ['style.css', 'symbol-color'],
-    ['package.json', 'json'],
-    ['README.md', 'markdown'],
-    ['logo.svg', 'file-media'],
-    ['photo.PNG', 'file-media'],
-    ['data.sqlite', 'file-binary'],
-    ['pnpm-lock.yaml', 'settings-gear'],
-    ['LICENSE', 'file-text'],
-    ['unknown.extension', 'file']
-  ] as const)('文件 %s 使用官方 %s 图标', (filename, expected) => {
-    expect(fileCodicon(filename)).toBe(expected);
-  });
-
-  it('文件语言只作为可着色元数据，目录开关与 Git 状态保持确定映射', () => {
-    expect(createFileIcon('Counter.tsx').dataset['language']).toBe('react');
-    expect(createFileIcon('App.vue').dataset['language']).toBe('vue');
-    expect(createFileIcon('app.component.ts').dataset['language']).toBe('angular');
-    expect(folderCodicon(false)).toBe('folder');
-    expect(folderCodicon(true)).toBe('folder-opened');
+  it('文件图标是 Seti 字体字形，与 Codicons 控件图标分开；Git 状态保持确定映射', () => {
+    const icon = createFileIcon('Counter.tsx');
+    expect(icon.className).toBe('wb-seti');
+    expect(icon.dataset['seti']).toBe('_react');
+    expect(icon.querySelector('.codicon')).toBeNull();
     expect(gitStatusCodicon(' M')).toBe('diff-modified');
     expect(gitStatusCodicon('A ')).toBe('diff-added');
     expect(gitStatusCodicon(' D')).toBe('diff-removed');

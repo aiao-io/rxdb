@@ -11,7 +11,7 @@ import {
   type TabPartInitParameters
 } from 'dockview-core';
 import { createCodicon, createFileIcon } from './workbench-icons.js';
-import { normalizeWorkbenchLayout, SIDEBAR_EDGE } from './workbench-layout-state.js';
+import { normalizeWorkbenchLayout, SIDEBAR_EDGE, SIDEBAR_WIDTH } from './workbench-layout-state.js';
 import { attachWorkbenchLongPress } from './workbench-longpress.js';
 
 /** 底部工具区域的固定面板。 */
@@ -331,7 +331,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
   function ensureSideGroup(): NonNullable<ReturnType<DockviewApi['getEdgeGroup']>> {
     const existing = api.getEdgeGroup('left');
     if (existing) return existing;
-    const created = api.addEdgeGroup('left', { ...SIDEBAR_EDGE, initialSize: 240 });
+    const created = api.addEdgeGroup('left', { ...SIDEBAR_EDGE, initialSize: SIDEBAR_WIDTH });
     created.locked = 'no-drop-target';
     const group = api.getGroup(created.id);
     if (!group) throw new Error('Dockview 侧栏初始化失败');
@@ -504,7 +504,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
       if (disposed || sized || api.width <= 0 || api.height <= 0) return;
       sized = true;
       program(() => {
-        api.getEdgeGroup('left')?.setSize({ width: 240 });
+        api.getEdgeGroup('left')?.setSize({ width: SIDEBAR_WIDTH });
         api.getPanel('preview')?.group.api.setSize({ width: previewWidth(api.width) });
         api.getPanel('problems')?.group.api.setSize({ height: 180 });
       });
@@ -553,7 +553,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
     })
   );
 
-  const side = api.addEdgeGroup('left', { ...SIDEBAR_EDGE, initialSize: 240 });
+  const side = api.addEdgeGroup('left', { ...SIDEBAR_EDGE, initialSize: SIDEBAR_WIDTH });
   side.locked = 'no-drop-target';
   const sideGroup = api.getGroup(side.id);
   if (!sideGroup) throw new Error('Dockview 侧栏初始化失败');
@@ -650,7 +650,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
       for (const kind of tools)
         addStatic(kind, bottom.id).api.moveTo({ group: bottom, position: 'center', skipSetActive: true });
       if (!overlayMode) {
-        api.getEdgeGroup('left')?.setSize({ width: 240 });
+        api.getEdgeGroup('left')?.setSize({ width: SIDEBAR_WIDTH });
         api.getEdgeGroup('left')?.expand();
         api.setEdgeGroupVisible('left', true);
       }

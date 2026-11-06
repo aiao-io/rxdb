@@ -1,4 +1,6 @@
-/** 工作台统一使用 VS Code 官方 Codicons 字形。 */
+import { createSetiIcon } from './workbench-seti.js';
+
+/** 界面控件统一使用 VS Code 官方 Codicons 字形；文件图标见 createFileIcon。 */
 export type CodiconName =
   | 'files'
   | 'source-control'
@@ -100,46 +102,9 @@ export function iconMarkup(name: CodiconName, label?: string): string {
   return `<span class="${iconClass(name)}" ${accessibility}></span>`;
 }
 
-function fileLanguage(path: string): string {
-  const name = path.split('/').at(-1)?.toLowerCase() ?? '';
-  if (/\.(?:component|service|directive|pipe|guard|module)\.ts$/.test(name)) return 'angular';
-  if (/\.[jt]sx$/.test(name)) return 'react';
-  if (/\.vue$/.test(name)) return 'vue';
-  if (/\.[cm]?ts$/.test(name)) return 'typescript';
-  if (/\.[cm]?js$/.test(name)) return 'javascript';
-  if (/\.(?:css|scss|sass|less)$/.test(name)) return 'css';
-  if (/\.jsonc?$/.test(name)) return 'json';
-  if (/\.mdx?$/.test(name)) return 'markdown';
-  if (/\.html?$/.test(name)) return 'html';
-  return '';
-}
-
-/** 文件名映射到 Codicons 内置文件字形，不引入第三方彩色文件图标。 */
-export function fileCodicon(path: string): CodiconName {
-  const name = path.split('/').at(-1)?.toLowerCase() ?? '';
-  const language = fileLanguage(path);
-  if (language === 'json') return 'json';
-  if (language === 'markdown') return 'markdown';
-  if (language === 'css') return 'symbol-color';
-  if (language) return 'file-code';
-  if (/\.(?:svg|png|jpe?g|gif|webp|avif|ico|mp[34]|wav|ogg|webm)$/.test(name)) return 'file-media';
-  if (/\.(?:bin|sqlite|sqlite3|db|wasm|ttf|woff2?)$/.test(name)) return 'file-binary';
-  if (/\.(?:ya?ml|toml|lock|ini|conf)$/.test(name) || name.startsWith('.')) return 'settings-gear';
-  if (/^(?:licen[cs]e|readme|notice)(?:\.|$)/.test(name) || name.endsWith('.txt')) return 'file-text';
-  return 'file';
-}
-
-/** 文件语言只控制宿主着色，图标形状始终来自官方字体。 */
+/** 文件图标沿用 VS Code 默认的 Seti 图标主题；目录没有图标，只有折叠箭头。 */
 export function createFileIcon(path: string): HTMLSpanElement {
-  const icon = createCodicon(fileCodicon(path));
-  const language = fileLanguage(path);
-  if (language) icon.dataset['language'] = language;
-  return icon;
-}
-
-/** 展开状态使用 VS Code 的目录字形。 */
-export function folderCodicon(expanded: boolean): CodiconName {
-  return expanded ? 'folder-opened' : 'folder';
+  return createSetiIcon(path);
 }
 
 /** 使用两列 Git 状态生成源代码管理的装饰图标。 */

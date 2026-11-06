@@ -19,6 +19,7 @@
       "cache": true,
       "inputs": [
         "{projectRoot}/scripts/build-assets.mjs",
+        "{projectRoot}/vendor/seti/*",
         "{projectRoot}/src/workbench/**/*.ts",
         "{workspaceRoot}/pnpm-lock.yaml"
       ],

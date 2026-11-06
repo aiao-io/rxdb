@@ -40,6 +40,16 @@ async function copyCodiconAssets(destination) {
   return ['styles/codicon.css', 'fonts/codicon.ttf', 'licenses/codicons.txt', 'licenses/codicons-code.txt'];
 }
 
+/** VS Code 默认文件图标主题 Seti 的字体与许可证（vendor/seti，MIT，Jesse Weed）。 */
+async function copySetiAssets(destination) {
+  const source = join(packageRoot, 'vendor/seti');
+  await mkdir(join(destination, 'fonts'), { recursive: true });
+  await mkdir(join(destination, 'licenses'), { recursive: true });
+  await copyFile(join(source, 'seti.woff'), join(destination, 'fonts/seti.woff'));
+  await copyFile(join(source, 'LICENSE.txt'), join(destination, 'licenses/seti.txt'));
+  return ['fonts/seti.woff', 'licenses/seti.txt'];
+}
+
 const output = resolve(process.argv[2] ?? join(packageRoot, 'public/browser-workbench-assets'));
 const entriesDir = join(output, '.entries');
 await mkdir(entriesDir, { recursive: true });
@@ -125,7 +135,11 @@ assetPaths.push(
   'esbuild.wasm',
   ...['lg2_opfs_auto.js', 'lg2_opfs_jspi.js', 'lg2_opfs_jspi.wasm', 'COPYING'].map(name => `git/${name}`)
 );
-assetPaths.push(...(await copyDockviewStyles(output)), ...(await copyCodiconAssets(output)));
+assetPaths.push(
+  ...(await copyDockviewStyles(output)),
+  ...(await copyCodiconAssets(output)),
+  ...(await copySetiAssets(output))
+);
 const assets = [];
 for (const path of assetPaths) {
   const bytes = await readFile(join(output, path));
