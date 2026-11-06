@@ -14,6 +14,10 @@ export interface WorkbenchSnapshot {
 export interface WorkbenchStatus {
   readonly branch: string;
   readonly head: string | null;
+  readonly remote?: {
+    readonly name: string;
+    readonly url: string;
+  };
   readonly entries: readonly {
     readonly path: string;
     readonly originalPath?: string;
@@ -60,6 +64,8 @@ export interface WorkbenchBackend {
   readDiff(projectId: string, path: string, kind: 'working' | 'staged'): Promise<WorkbenchDiff>;
   discardWorking(projectId: string, path: string): Promise<WorkbenchSnapshot>;
   commit(projectId: string, message: string): Promise<string>;
+  /** 拉取远端快照并保留不冲突的工作区与暂存更改。 */
+  pull?(projectId: string): Promise<WorkbenchSnapshot>;
   history(projectId: string): Promise<readonly WorkbenchCommit[]>;
   restore(projectId: string, oid: string): Promise<WorkbenchSnapshot>;
   exportArchive(projectId: string): Promise<Uint8Array>;
