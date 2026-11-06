@@ -195,7 +195,7 @@ describe('EntityRelationCache', () => {
     expect(cache.getObservableEntry(ORDINARY_RELATION)).toBe(entry);
   });
 
-  it.each([RelationKind.MANY_TO_ONE, RelationKind.ONE_TO_ONE])(
+  it.each([RelationKind.MANY_TO_ONE, RelationKind.ONE_TO_ONE] as const)(
     '%s 外部回填向已有 Observable 同步最新外键，保留零值并归一缺失值',
     kind => {
       const owner = new RelationCacheOwner();
