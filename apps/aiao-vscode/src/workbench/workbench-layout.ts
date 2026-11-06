@@ -11,13 +11,10 @@ export function createWorkbenchLayout(host: HTMLElement, assetBaseURL: string): 
   const shortcutShift = shortcutKey === '⌘' ? '⌘ ⇧' : 'Ctrl + Shift';
   root.innerHTML = `<style>${workbenchStyle}</style>
     <header class="wb-title">
+      <button class="wb-menu-button" data-action="title-menu" aria-label="应用程序菜单" title="应用程序菜单">${iconMarkup('menu')}</button>
       <div class="wb-brand">${iconMarkup('code')}<span>Aiao Code</span></div>
       <div class="wb-command-center"><button data-action="quick-open" aria-label="快速打开文件" title="快速打开文件 · Ctrl / ⌘ + P">${iconMarkup('search')}</button><select class="wb-projects" aria-label="当前项目"><option value="">选择项目</option></select>${iconMarkup('chevron-down')}</div>
       <div class="wb-title-actions">
-        <button data-action="new-project" title="新建项目">${iconMarkup('add')}<span>新建项目</span></button>
-        <button data-action="import" title="导入项目">${iconMarkup('cloud-download')}<span>导入</span></button>
-        <button data-action="export" title="导出项目">${iconMarkup('cloud-upload')}<span>导出</span></button>
-        <button data-action="save" title="保存当前文件并预览 · Ctrl / ⌘ + S">${iconMarkup('save')}<span>保存</span></button>
         <button class="wb-run-button" data-action="run" title="保存全部文件并运行项目">${iconMarkup('play')}<span>运行</span></button>
         <button data-action="commands" aria-label="命令面板" title="命令面板 · Ctrl / ⌘ + Shift + P">${iconMarkup('more')}</button>
         <span class="wb-title-divider" aria-hidden="true"></span>

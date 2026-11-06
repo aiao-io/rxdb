@@ -71,7 +71,7 @@
       "runtimeExecutable": "sh",
       "runtimeArgs": [
         "-c",
-        "export PATH=$HOME/.nvm/versions/node/v26.12.0/bin:$PATH && /tmp/pnpm-shim/pnpm nx serve aiao-vscode"
+        "export PATH=$HOME/.nvm/versions/node/v26.12.0/bin:$PATH NX_WORKSPACE_ROOT_PATH=\"$PWD\" NX_DAEMON=false && /tmp/pnpm-shim/pnpm nx serve aiao-vscode"
       ],
       "port": 4320
     },

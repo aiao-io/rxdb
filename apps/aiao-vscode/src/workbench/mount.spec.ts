@@ -138,6 +138,28 @@ const click = async (host: HTMLElement, selector: string): Promise<void> => {
   element.click();
 };
 
+/** 打开顶栏汉堡菜单；文件类动作（新建/导入/导出/保存）都在菜单里。 */
+const openTitleMenu = async (host: HTMLElement): Promise<HTMLElement> => {
+  await click(host, '[data-action="title-menu"]');
+  await vi.waitFor(() => expect(host.querySelector('.wb-context-menu')).not.toBeNull());
+  const menu = host.querySelector<HTMLElement>('.wb-context-menu');
+  if (!menu) throw new Error('应用程序菜单未打开');
+  return menu;
+};
+
+const menuItem = (menu: HTMLElement, id: string): HTMLButtonElement => {
+  const item = menu.querySelector<HTMLButtonElement>(`[data-menu-id="${id}"]`);
+  if (!item) throw new Error(`菜单项缺失：${id}`);
+  return item;
+};
+
+/** 打开顶栏汉堡菜单并点击指定文件类动作。 */
+const clickTitleMenu = async (host: HTMLElement, id: string): Promise<void> => {
+  const item = menuItem(await openTitleMenu(host), id);
+  await vi.waitFor(() => expect(item.disabled).toBe(false));
+  item.click();
+};
+
 /** 派发一次带 dataTransfer 桩的拖放事件；happy-dom 没有 DragEvent 构造器。 */
 const drag = (
   type: string
@@ -235,16 +257,18 @@ describe('VS Code 风格工作台', () => {
       release = resolve;
     });
     const { host, handle } = fixture(true, '/browser-workbench-assets/', gate);
-    const create = host.querySelector<HTMLButtonElement>('[data-action="new-project"]');
-    const upload = host.querySelector<HTMLButtonElement>('[data-action="import"]');
+    const menu = await openTitleMenu(host);
+    const create = menuItem(menu, 'new-project');
+    const upload = menuItem(menu, 'import');
     const project = host.querySelector<HTMLSelectElement>('.wb-projects');
     expect(create?.disabled).toBe(true);
     expect(upload?.disabled).toBe(true);
     expect(project?.disabled).toBe(true);
     release();
     await handle.ready;
-    expect(create?.disabled).toBe(false);
-    expect(upload?.disabled).toBe(false);
+    const readyMenu = await openTitleMenu(host);
+    expect(menuItem(readyMenu, 'new-project')?.disabled).toBe(false);
+    expect(menuItem(readyMenu, 'import')?.disabled).toBe(false);
     expect(project?.disabled).toBe(false);
     expect(handle.session.state.projectId).toBe('one');
   });
@@ -258,9 +282,10 @@ describe('VS Code 风格工作台', () => {
     expect(host.querySelector('[data-welcome-action="open-folder"]')?.textContent).toBe('打开文件夹');
     expect(host.querySelector('[data-welcome-action="init-demo"]')?.textContent).toBe('初始化 Demo 项目');
     expect(host.querySelector('.wb-empty-view-recent')).toBeNull();
-    expect(host.querySelector<HTMLButtonElement>('[data-action="save"]')?.disabled).toBe(true);
+    const menu = await openTitleMenu(host);
+    expect(menuItem(menu, 'save').disabled).toBe(true);
+    expect(menuItem(menu, 'new-project').disabled).toBe(false);
     expect(host.querySelector<HTMLButtonElement>('[data-action="run"]')?.disabled).toBe(true);
-    expect(host.querySelector<HTMLButtonElement>('[data-action="new-project"]')?.disabled).toBe(false);
   });
 
   it('欢迎视图初始化 Demo 项目：选择模板创建并打开', async () => {
@@ -395,7 +420,7 @@ describe('VS Code 风格工作台', () => {
         })
     );
     const calls = vi.mocked(backend.history).mock.calls.length;
-    await click(host, '[data-action="new-project"]');
+    await clickTitleMenu(host, 'new-project');
     await answer(host, 'slow initial preview');
     await answer(host, 'vanilla');
     await vi.waitFor(() => expect(backend.history).toHaveBeenCalledTimes(calls + 1));
@@ -428,9 +453,7 @@ describe('VS Code 风格工作台', () => {
     await vi.waitFor(() => expect(backend.history).toHaveBeenCalledOnce());
     mountEditor.mock.calls[0][1].onChange('explicit save while loading history');
     try {
-      await vi.waitFor(() =>
-        expect(host.querySelector<HTMLButtonElement>('[data-action="save"]')?.disabled).toBe(false)
-      );
+      await vi.waitFor(() => expect(host.querySelector<HTMLButtonElement>('[data-action="run"]')?.disabled).toBe(false));
       host
         .querySelector<HTMLElement>('.ao-workbench')!
         .dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true, bubbles: true, cancelable: true }));
@@ -580,7 +603,7 @@ describe('VS Code 风格工作台', () => {
     await inlineInput(host, 'src/created.ts');
     await vi.waitFor(() => expect(handle.session.state.activePath).toBe('src/created.ts'));
     expect(handle.session.state.dirty).toBe(true);
-    await click(host, '[data-action="save"]');
+    await clickTitleMenu(host, 'save');
     await vi.waitFor(() => expect(handle.session.state.dirty).toBe(false));
     await click(host, '[data-action="more-actions"]');
     await click(host, '.wb-context-menu [data-menu-id="rename"]');
@@ -928,7 +951,7 @@ describe('VS Code 风格工作台', () => {
       new CompilationError('Build failed', [{ file: 'src/main.ts', line: 3, column: 7, message: 'Unexpected "const"' }])
     );
     handle.session.edit('src/main.ts', 'broken');
-    await click(host, '[data-action="save"]');
+    await clickTitleMenu(host, 'save');
     await vi.waitFor(() => expect(host.querySelector('.wb-log-problem')).not.toBeNull());
     const problem = host.querySelector<HTMLButtonElement>('.wb-log-problem');
     expect(problem?.textContent).toContain('src/main.ts:3:7');
@@ -938,7 +961,7 @@ describe('VS Code 风格工作台', () => {
       expect(editorHandle.setDiagnostics).toHaveBeenCalledWith([{ line: 3, column: 7, message: 'Unexpected "const"' }])
     );
     handle.session.edit('src/main.ts', 'fixed');
-    await click(host, '[data-action="save"]');
+    await clickTitleMenu(host, 'save');
     await vi.waitFor(() => expect(editorHandle.setDiagnostics).toHaveBeenCalledWith([]));
     handle.dispose();
   });
@@ -1233,14 +1256,14 @@ describe('VS Code 风格工作台', () => {
     const bridge = vi.mocked(mountEditor.mock.results[0].value);
     vi.mocked(bridge.replace).mockImplementation((value: string) => mountEditor.mock.calls[0][1].onChange(value));
     const editorHost = host.querySelector<HTMLElement>('[data-editor-path="src/main.ts"]')!;
-    const save = host.querySelector<HTMLButtonElement>('[data-action="save"]')!;
+    const idle = host.querySelector<HTMLButtonElement>('[data-action="run"]')!;
     const format = () =>
       editorHost.dispatchEvent(new KeyboardEvent('keydown', { key: 'F', shiftKey: true, altKey: true, bubbles: true }));
     format();
     await vi.waitFor(() => expect(bridge.replace).toHaveBeenCalledOnce());
-    await vi.waitFor(() => expect(save.disabled).toBe(false));
+    await vi.waitFor(() => expect(idle.disabled).toBe(false));
     format();
-    await vi.waitFor(() => expect(save.disabled).toBe(false));
+    await vi.waitFor(() => expect(idle.disabled).toBe(false));
     expect(bridge.replace).toHaveBeenCalledOnce();
     expect(handle.session.isModified('src/main.ts')).toBe(true);
   });
@@ -1278,7 +1301,7 @@ describe('VS Code 风格工作台', () => {
     const root = host.querySelector<HTMLElement>('.ao-workbench')!;
     root.dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true, bubbles: true, cancelable: true }));
     await vi.waitFor(() => expect(handle.session.isModified('src/main.ts')).toBe(false));
-    await vi.waitFor(() => expect(host.querySelector<HTMLButtonElement>('[data-action="save"]')?.disabled).toBe(false));
+    await vi.waitFor(() => expect(host.querySelector<HTMLButtonElement>('[data-action="run"]')?.disabled).toBe(false));
     root.dispatchEvent(new KeyboardEvent('keydown', { key: 'w', ctrlKey: true, bubbles: true, cancelable: true }));
     await vi.waitFor(() => expect(handle.session.state.tabs).not.toContain('src/main.ts'));
     expect(host.querySelector('.wb-preview')).not.toBeNull();
@@ -1295,7 +1318,7 @@ describe('VS Code 风格工作台', () => {
     content.focus();
     await click(host, '[data-action="panel"]');
     await click(host, '[data-action="panel"]');
-    await vi.waitFor(() => expect(host.querySelector<HTMLButtonElement>('[data-action="save"]')?.disabled).toBe(false));
+    await vi.waitFor(() => expect(host.querySelector<HTMLButtonElement>('[data-action="run"]')?.disabled).toBe(false));
     expect(document.activeElement).toBe(content);
     content.dispatchEvent(new KeyboardEvent('keydown', { key: 'w', ctrlKey: true, bubbles: true, cancelable: true }));
     await vi.waitFor(() => expect(handle.session.state.tabs).not.toContain('src/main.ts'));
@@ -1320,7 +1343,7 @@ describe('VS Code 风格工作台', () => {
       head: 'a'.repeat(40),
       entries: [{ path: 'src/main.ts', index: ' ', worktree: 'M' }]
     });
-    await click(host, '[data-action="save"]');
+    await clickTitleMenu(host, 'save');
     await vi.waitFor(() => expect(compiler.compile).toHaveBeenCalledTimes(calls + 1));
     await click(host, '[data-action="git"]');
     await click(host, '[data-scm-action="stage"]');
@@ -1432,9 +1455,7 @@ describe('VS Code 风格工作台', () => {
       base: { exists: true, binary: false, text: '', byteLength: 0 },
       modified: { exists: true, binary: false, text: 'old', byteLength: 3 }
     });
-    await vi.waitFor(() =>
-      expect(host.querySelector<HTMLButtonElement>('[data-action="new-project"]')?.disabled).toBe(false)
-    );
+    await vi.waitFor(() => expect(host.querySelector<HTMLButtonElement>('[data-action="run"]')?.disabled).toBe(false));
     expect(host.querySelector('[data-slot="history"]')?.textContent).toContain('two current commit');
     expect(host.querySelector('[data-slot="history"]')?.textContent).not.toContain('one old commit');
     expect(handle.session.state.projectId).toBe('two');
@@ -1474,7 +1495,7 @@ describe('VS Code 风格工作台', () => {
     const { host, handle, backend, catalog } = fixture();
     await handle.ready;
     catalog.put.mockClear();
-    await click(host, '[data-action="new-project"]');
+    await clickTitleMenu(host, 'new-project');
     await answer(host, 'New project');
     await answer(host, 'vue');
     await vi.waitFor(() => expect(catalog.put).toHaveBeenCalled());
@@ -1517,7 +1538,7 @@ describe('VS Code 风格工作台', () => {
     const download = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
     const createURL = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:archive');
     handle.session.edit('src/main.ts', 'saved before export');
-    await click(host, '[data-action="export"]');
+    await clickTitleMenu(host, 'export');
     await vi.waitFor(() => expect(backend.exportArchive).toHaveBeenCalledWith('one'));
     expect(backend.save).toHaveBeenCalled();
     expect(download).toHaveBeenCalled();
@@ -1533,7 +1554,7 @@ describe('VS Code 风格工作台', () => {
       revision: '1',
       files: { ...files, 'workbench.project.json': JSON.stringify({ template: 'vanilla', entry: 'src/main.ts' }) }
     }));
-    await click(host, '[data-action="import"]');
+    await clickTitleMenu(host, 'import');
     await vi.waitFor(() =>
       expect(backend.importArchive).toHaveBeenCalledWith(expect.any(String), new Uint8Array([1, 2, 3]))
     );
@@ -1550,10 +1571,10 @@ describe('VS Code 风格工作台', () => {
   it('取消与非法模板不会创建项目，脏缓冲阻止切项目并触发离开确认', async () => {
     const { host, handle, backend } = fixture();
     await handle.ready;
-    await click(host, '[data-action="new-project"]');
+    await clickTitleMenu(host, 'new-project');
     await answer(host, null);
     expect(backend.create).not.toHaveBeenCalled();
-    await click(host, '[data-action="new-project"]');
+    await clickTitleMenu(host, 'new-project');
     await answer(host, 'Invalid');
     await answer(host, 'node');
     await vi.waitFor(() => expect(host.querySelector('.wb-panel-content')?.textContent).toContain('请选择'));
@@ -1596,7 +1617,7 @@ describe('VS Code 风格工作台', () => {
     const imported: WorkbenchFiles =
       source === undefined ? { ...files } : { ...files, 'workbench.project.json': source };
     vi.mocked(backend.open).mockImplementation(async projectId => ({ projectId, revision: '1', files: imported }));
-    await click(host, '[data-action="import"]');
+    await clickTitleMenu(host, 'import');
     await vi.waitFor(() => expect(host.querySelector('.wb-panel-content')?.textContent).toContain(message));
     expect(catalog.put).not.toHaveBeenCalled();
     expect(handle.session.state.projectId).toBe('one');
@@ -1611,7 +1632,7 @@ describe('VS Code 风格工作台', () => {
     host.querySelector('.wb-scm-commit-form')?.dispatchEvent(new Event('submit', { cancelable: true }));
     expect(backend.commit).not.toHaveBeenCalled();
     handle.session.edit('src/main.ts', 'unsaved');
-    await click(host, '[data-action="import"]');
+    await clickTitleMenu(host, 'import');
     await vi.waitFor(() => expect(host.querySelector('.wb-panel-content')?.textContent).toContain('存在未保存'));
     handle.session.discard();
     const file = new File([], 'oversized.zip');
@@ -1621,7 +1642,7 @@ describe('VS Code 风格工作台', () => {
       Object.defineProperty(this, 'files', { value: [file] });
       this.dispatchEvent(new Event('change'));
     });
-    await click(host, '[data-action="import"]');
+    await clickTitleMenu(host, 'import');
     await vi.waitFor(() => expect(host.querySelector('.wb-panel-content')?.textContent).toContain('24 MiB'));
     expect(backend.importArchive).not.toHaveBeenCalled();
     handle.dispose();
@@ -1784,19 +1805,38 @@ describe('vscode.dev 起始页对齐', () => {
     expect(sidebar?.getAttribute('aria-pressed')).toBe('true');
     expect(panel?.getAttribute('aria-pressed')).toBe('true');
     expect(preview?.getAttribute('aria-pressed')).toBe('true');
+    expect(sidebar?.querySelector('.codicon')?.classList.contains('codicon-layout-sidebar-left')).toBe(true);
+    expect(panel?.querySelector('.codicon')?.classList.contains('codicon-layout-panel')).toBe(true);
     sidebar?.click();
     await Promise.resolve();
     expect(sidebar?.getAttribute('aria-pressed')).toBe('false');
+    expect(sidebar?.querySelector('.codicon')?.classList.contains('codicon-layout-sidebar-left-off')).toBe(true);
     panel?.click();
     await Promise.resolve();
     expect(panel?.getAttribute('aria-pressed')).toBe('false');
+    expect(panel?.querySelector('.codicon')?.classList.contains('codicon-layout-panel-off')).toBe(true);
     expect(preview?.getAttribute('aria-pressed')).toBe('true');
     panel?.click();
     await Promise.resolve();
     expect(panel?.getAttribute('aria-pressed')).toBe('true');
+    expect(panel?.querySelector('.codicon')?.classList.contains('codicon-layout-panel')).toBe(true);
     preview?.click();
     await Promise.resolve();
     expect(preview?.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('顶栏汉堡菜单收纳文件类动作，按项目状态禁用条目', async () => {
+    const { host, handle } = fixture(false);
+    await handle.ready;
+    const menu = await openTitleMenu(host);
+    for (const id of ['new-project', 'import', 'export', 'save', 'save-all'])
+      expect(menuItem(menu, id)).not.toBeNull();
+    expect(menu.querySelectorAll('[role="separator"]')).toHaveLength(1);
+    expect(menuItem(menu, 'new-project').disabled).toBe(false);
+    expect(menuItem(menu, 'import').disabled).toBe(false);
+    expect(menuItem(menu, 'export').disabled).toBe(true);
+    expect(menuItem(menu, 'save').disabled).toBe(true);
+    expect(menuItem(menu, 'save-all').disabled).toBe(true);
   });
 
   it('活动栏底部提供设置入口，未配置认证时隐藏帐户按钮', () => {

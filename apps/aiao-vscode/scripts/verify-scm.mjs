@@ -182,7 +182,8 @@ try {
   await expect(root.locator('[data-slot="save-status"]')).toContainText('已保存', { timeout: 30000 });
   scm = root.locator('[data-slot="scm"]');
   await step('fresh-profile-project-and-initial-index-commit', async () => {
-    await root.getByRole('button', { name: '新建项目', exact: true }).click();
+    await root.getByRole('button', { name: '应用程序菜单', exact: true }).click();
+    await root.getByRole('menuitem', { name: '新建项目', exact: true }).click();
     await page.getByRole('textbox', { name: '项目名称', exact: true }).fill(`SCM UX ${host}`);
     await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
     await page.getByRole('textbox', { name: '模板：vanilla / react / vue / angular', exact: true }).fill('vanilla');

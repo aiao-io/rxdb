@@ -55,6 +55,12 @@ export interface WorkbenchHandle {
   dispose(): void;
 }
 
+/** 顶栏布局按钮的 on/off 字形对：状态靠字形变体表达，不靠按钮底色（对齐 VS Code）。 */
+const TOGGLE_ICONS: Readonly<Record<string, readonly [CodiconName, CodiconName]>> = {
+  'toggle-sidebar': ['layout-sidebar-left', 'layout-sidebar-left-off'],
+  panel: ['layout-panel', 'layout-panel-off']
+};
+
 const templates: Record<ProjectTemplate, WorkbenchTemplate> = {
   ...frontendTemplates,
   angular: { ...angularTemplate, title: 'Angular standalone' }
@@ -1435,7 +1441,7 @@ export function mountWorkbench(
 
   function showContextMenu(
     position: { x: number; y: number },
-    entries: readonly { label: string; id?: string; action: () => void }[],
+    entries: readonly ({ label: string; id?: string; action: () => void; disabled?: boolean } | { separator: true })[],
     anchor?: HTMLElement
   ): void {
     closeContextMenu();
@@ -1445,11 +1451,19 @@ export function mountWorkbench(
     menu.className = 'wb-context-menu';
     menu.setAttribute('role', 'menu');
     for (const entry of entries) {
+      if ('separator' in entry) {
+        const separator = document.createElement('div');
+        separator.className = 'wb-context-menu-sep';
+        separator.setAttribute('role', 'separator');
+        menu.append(separator);
+        continue;
+      }
       const item = document.createElement('button');
       item.type = 'button';
       item.setAttribute('role', 'menuitem');
       item.textContent = entry.label;
       if (entry.id) item.dataset['menuId'] = entry.id;
+      item.disabled = entry.disabled ?? false;
       item.onclick = () => {
         closeContextMenu();
         action(entry.action);
@@ -1740,28 +1754,37 @@ export function mountWorkbench(
     }
     if (state.error && logs.at(-1)?.text !== state.error) report(state.error);
   }
+  /** 初始化、编译或操作进行中时顶栏动作整体置忙。 */
+  function workbenchBusy(): boolean {
+    return initializing || (session.state.busy && previewPhase !== 'compiling') || pendingOperations > 0;
+  }
+  function setPressed(button: HTMLElement, pressed: boolean): void {
+    button.setAttribute('aria-pressed', String(pressed));
+    const pair = TOGGLE_ICONS[button.dataset['action'] ?? ''];
+    if (!pair) return;
+    const icon = button.querySelector<HTMLElement>('.codicon');
+    icon?.classList.toggle(`codicon-${pair[0]}`, pressed);
+    icon?.classList.toggle(`codicon-${pair[1]}`, !pressed);
+  }
   function renderActionState(): void {
     for (const button of root.querySelectorAll<HTMLElement>('[data-action="explorer"],[data-action="git"]')) {
       button.setAttribute('aria-pressed', String(docking.isSidebarVisible() && button.dataset['action'] === sideView));
     }
     const toolsVisible = docking.isToolsVisible();
     for (const button of root.querySelectorAll<HTMLElement>('.wb-title-actions [data-action="panel"]'))
-      button.setAttribute('aria-pressed', String(toolsVisible));
-    root
-      .querySelector<HTMLElement>('[data-action="toggle-sidebar"]')
-      ?.setAttribute('aria-pressed', String(docking.isSidebarVisible()));
+      setPressed(button, toolsVisible);
+    const sidebarButton = root.querySelector<HTMLElement>('[data-action="toggle-sidebar"]');
+    if (sidebarButton) setPressed(sidebarButton, docking.isSidebarVisible());
     const previewVisible = docking.isPreviewOpen();
     for (const button of root.querySelectorAll<HTMLElement>('.wb-title-actions [data-action="preview"]'))
       button.setAttribute('aria-pressed', String(previewVisible));
-    const busy = initializing || (session.state.busy && previewPhase !== 'compiling') || pendingOperations > 0;
+    const busy = workbenchBusy();
     for (const button of root.querySelectorAll<HTMLButtonElement>('[data-welcome-action],[data-welcome-recent]'))
       button.disabled = initializing || pendingOperations > 0;
     for (const button of root.querySelectorAll<HTMLButtonElement>(
-      '[data-action="save"],[data-action="run"],[data-action="rerun-preview"],[data-action="export"]'
+      '[data-action="run"],[data-action="rerun-preview"]'
     ))
       button.disabled = !session.state.projectId || busy;
-    for (const button of root.querySelectorAll<HTMLButtonElement>('[data-action="new-project"],[data-action="import"]'))
-      button.disabled = busy;
     for (const button of root.querySelectorAll<HTMLButtonElement>(
       '[data-mutation],[data-action=commit],[data-action=stage-all],[data-action=refresh-tree],[data-action=collapse-tree],[data-action=new-file],[data-action=new-folder],[data-action=discard]'
     ))
@@ -1876,6 +1899,20 @@ export function mountWorkbench(
     input.click();
   }
   const operations: Record<string, () => Promise<unknown> | void> = {
+    'title-menu': () => {
+      const rectangle = element('[data-action="title-menu"]').getBoundingClientRect();
+      // action() 在调用前已把本次菜单打开计为进行中操作；排除这一笔，只有另有操作在跑才算忙。
+      const busy = initializing || (session.state.busy && previewPhase !== 'compiling') || pendingOperations > 1;
+      const editable = !!session.state.projectId && !busy;
+      showContextMenu({ x: rectangle.left, y: rectangle.bottom }, [
+        { label: '新建项目', id: 'new-project', action: newProject, disabled: busy },
+        { label: '导入项目', id: 'import', action: importProject, disabled: busy },
+        { label: '导出项目', id: 'export', action: exportProject, disabled: !editable },
+        { separator: true },
+        { label: '保存当前文件', id: 'save', action: saveCurrent, disabled: !editable },
+        { label: '保存全部并预览', id: 'save-all', action: saveAll, disabled: !editable }
+      ]);
+    },
     'new-project': newProject,
     run,
     'rerun-preview': run,
@@ -2033,7 +2070,8 @@ export function mountWorkbench(
       '[data-action="explorer"],[data-action="search"],[data-action="git"]'
     ))
       button.setAttribute('aria-pressed', String(visible && button.dataset['action'] === view));
-    root.querySelector<HTMLElement>('[data-action="toggle-sidebar"]')?.setAttribute('aria-pressed', String(visible));
+    const sidebarButton = root.querySelector<HTMLElement>('[data-action="toggle-sidebar"]');
+    if (sidebarButton) setPressed(sidebarButton, visible);
     if (view === 'git') action(refreshGit);
     // 快捷键强制显示时把焦点送进对应视图（对齐 VS Code 的 Ctrl/⌘+Shift+E / F / G）
     if (force && visible) {

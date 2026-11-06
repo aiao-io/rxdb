@@ -8,10 +8,15 @@ const fixtures = {
   angular: { path: 'src/app.html', heading: 'Angular workspace', counter: 'Count:' }
 };
 
+async function openTitleMenu(root) {
+  await root.getByRole('button', { name: '应用程序菜单', exact: true }).click();
+}
+
 async function createProject(page, expect, template) {
   const root = page.getByRole('region', { name: '浏览器开发工作台', exact: true });
   await expect(root).toBeVisible({ timeout: 30000 });
-  await root.getByRole('button', { name: '新建项目', exact: true }).click();
+  await openTitleMenu(root);
+  await root.getByRole('menuitem', { name: '新建项目', exact: true }).click();
   await page.getByRole('textbox', { name: '项目名称', exact: true }).fill(`vscode-${template}-fixture`);
   await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
   await page.getByRole('textbox', { name: '模板：vanilla / react / vue / angular', exact: true }).fill(template);
@@ -52,7 +57,8 @@ async function replaceHeading(page, expect, root, fixture, marker) {
   await page.keyboard.press('ControlOrMeta+A');
   await page.keyboard.insertText(source.replace(fixture.heading, marker));
   await expect(root.locator('[data-slot="save-status"]')).toContainText('未保存');
-  await root.locator('[data-action="save"]').click();
+  await openTitleMenu(root);
+  await root.getByRole('menuitem', { name: '保存当前文件', exact: true }).click();
   await expect(root.locator('[data-slot="save-status"]')).toContainText('已保存', { timeout: 30000 });
 }
 
@@ -70,13 +76,15 @@ async function commitProject(expect, root, message) {
 async function verifyArchive(page, expect, root, fixture, marker, projectId, testInfo) {
   const projectCount = await root.getByRole('combobox', { name: '当前项目' }).locator('option').count();
   const downloadPromise = page.waitForEvent('download');
-  await root.getByRole('button', { name: '导出', exact: true }).click();
+  await openTitleMenu(root);
+  await root.getByRole('menuitem', { name: '导出项目', exact: true }).click();
   const download = await downloadPromise;
   const archive = testInfo.outputPath(download.suggestedFilename());
   await mkdir(dirname(archive), { recursive: true });
   await download.saveAs(archive);
   const chooserPromise = page.waitForEvent('filechooser');
-  await root.getByRole('button', { name: '导入', exact: true }).click();
+  await openTitleMenu(root);
+  await root.getByRole('menuitem', { name: '导入项目', exact: true }).click();
   const chooser = await chooserPromise;
   await chooser.setFiles(archive);
   await expect

@@ -49,8 +49,9 @@ try {
   report.browser = browser.version();
   await page.goto(url);
   await expect(root).toBeVisible({ timeout: 30000 });
-  await expect(root.locator('[data-action="new-project"]')).toBeEnabled({ timeout: 30000 });
-  await root.getByRole('button', { name: '新建项目', exact: true }).click();
+  await expect(root.getByRole('button', { name: '应用程序菜单', exact: true })).toBeEnabled({ timeout: 30000 });
+  await root.getByRole('button', { name: '应用程序菜单', exact: true }).click();
+  await root.getByRole('menuitem', { name: '新建项目', exact: true }).click();
   await page.getByRole('textbox', { name: '项目名称', exact: true }).fill(`Commands ${host}`);
   await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
   await page.getByRole('textbox', { name: '模板：vanilla / react / vue / angular', exact: true }).fill('react');
@@ -145,7 +146,7 @@ try {
 
   await page.keyboard.press('ControlOrMeta+s');
   await expect(root.locator('[data-slot="save-status"]')).toContainText('已保存');
-  await expect(root.locator('[data-action="save"]')).toBeEnabled();
+  await expect(root.locator('[data-action="run"]')).toBeEnabled();
   assert(
     await root
       .locator(`[data-editor-tab-path="${path}"]`)
