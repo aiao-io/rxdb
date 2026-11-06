@@ -77,7 +77,7 @@ const childRevisionExpr = (
  * ECN 可见性（US-515 / US-508 AC#12）：逻辑行与发生项的引入 ECN 都须已发布且不晚于评估日，
  * draft、cancelled 及尚未生效的引入都排除；ecn 表按方言引用。
  */
-const ecnVisibleExpr = (
+export const ecnVisibleExpr = (
   dialect: BomSqlDialect,
   alias: string,
   bind: (value: unknown) => string,

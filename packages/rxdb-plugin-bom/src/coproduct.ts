@@ -5,7 +5,7 @@ import type { PlannedQuantity } from './quantity/explosion.js';
 import type { JointCostOutputInput, JointCostSummary } from './quantity/joint-cost.js';
 import { convertUom, type UomConversionRates } from './quantity/uom.js';
 import { bomQueryRecords } from './resolve/bom-adapter.js';
-import type { BomSqlDialect } from './resolve/bom-sql.js';
+import { ecnVisibleExpr, type BomSqlDialect } from './resolve/bom-sql.js';
 import type { ResolutionContext } from './resolve/resolution.js';
 import type { BomQueryExecutor } from './resolve/resolver.js';
 export { BomJointCostSourceError } from './quantity/joint-cost-error.js';
@@ -86,18 +86,20 @@ const visibleOutputs = async (
     `h."state" = 'released'`,
     `r."state" = 'released'`,
     `r."effectiveFrom" <= ${bind(context.asOfDate)}`,
+    `childRevision."state" = 'released'`,
+    `childRevision."effectiveFrom" <= ${bind(context.asOfDate)}`,
     `h."bomType" = ${bind(context.bomType)}`,
     `h."orgId" = ${bind(context.orgId)}`,
     `o."effectiveFrom" <= ${bind(context.asOfDate)}`,
-    `(o."ecnInId" IS NULL OR EXISTS (SELECT 1 FROM ${dialect.table('ecn')} e WHERE e."id" = o."ecnInId" AND e."state" = 'released'))`,
-    `(l."ecnInId" IS NULL OR EXISTS (SELECT 1 FROM ${dialect.table('ecn')} e WHERE e."id" = l."ecnInId" AND e."state" = 'released'))`,
+    ecnVisibleExpr(dialect, 'o', bind, context.asOfDate),
+    ecnVisibleExpr(dialect, 'l', bind, context.asOfDate),
     `(o."effectiveTo" IS NULL OR o."effectiveTo" > ${bind(context.asOfDate)} OR (o."ecnOutId" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM ${dialect.table('ecn')} e WHERE e."id" = o."ecnOutId" AND e."state" = 'released')))`
   ];
   if (selection.headerId !== undefined) filters.push(`h."id" = ${bind(selection.headerId)}`);
   if (selection.revisionId !== undefined) filters.push(`o."childRevisionId" = ${bind(selection.revisionId)}`);
   return records(
     query,
-    `SELECT h."id" AS "headerId", h."parentRevisionId", r."itemId" AS "parentItemId", h."baseUom", h."baseQty", h."assemblyScrap", h."assemblyScrapConvention", h."costLotQty", h."routingId", o."id" AS "occurrenceId", l."id" AS "lineId", l."lineNo", o."childItemId" AS "itemId", o."childRevisionId" AS "revisionId", o."qty", o."uom", o."uomConversion", i."uomConversion" AS "itemUomConversion", o."jointCostShare" AS "share" FROM ${dialect.table('bom_line_occurrence')} o JOIN ${dialect.table('item')} i ON i."id" = o."childItemId" JOIN ${dialect.table('bom_line')} l ON l."id" = o."lineId" JOIN ${dialect.table('bom_header')} h ON h."id" = l."headerId" JOIN ${dialect.table('item_revision')} r ON r."id" = h."parentRevisionId" WHERE ${filters.join(' AND ')} ORDER BY h."id", l."lineNo", l."id", o."id"`,
+    `SELECT h."id" AS "headerId", h."parentRevisionId", r."itemId" AS "parentItemId", h."baseUom", h."baseQty", h."assemblyScrap", h."assemblyScrapConvention", h."costLotQty", h."routingId", o."id" AS "occurrenceId", l."id" AS "lineId", l."lineNo", o."childItemId" AS "itemId", o."childRevisionId" AS "revisionId", o."qty", o."uom", o."uomConversion", i."uomConversion" AS "itemUomConversion", o."jointCostShare" AS "share" FROM ${dialect.table('bom_line_occurrence')} o JOIN ${dialect.table('item')} i ON i."id" = o."childItemId" JOIN ${dialect.table('bom_line')} l ON l."id" = o."lineId" JOIN ${dialect.table('bom_header')} h ON h."id" = l."headerId" JOIN ${dialect.table('item_revision')} r ON r."id" = h."parentRevisionId" JOIN ${dialect.table('item_revision')} childRevision ON childRevision."id" = o."childRevisionId" AND childRevision."itemId" = o."childItemId" WHERE ${filters.join(' AND ')} ORDER BY h."id", l."lineNo", l."id", o."id"`,
     params
   );
 };

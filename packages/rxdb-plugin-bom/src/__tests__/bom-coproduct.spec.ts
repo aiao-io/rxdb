@@ -8,6 +8,7 @@ import type { EntityType, TransactionExecutor, TransactionFun, UUID } from '@aia
 import { firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
+  findJointCostSources,
   readJointProduction,
   type JointCostRollupContext,
   type JointCostRollupResult,
@@ -187,6 +188,27 @@ const production = (adapter: BomTestAdapter, fixture: JointFixture): Promise<Joi
       }
     )
   );
+
+const jointVisibility = (
+  adapter: BomTestAdapter,
+  fixture: JointFixture,
+  overrides: Partial<JointCostRollupContext> = {}
+) =>
+  adapter.transaction(async executor => {
+    const query = (executor as unknown as BomQueryExecutor).query.bind(executor);
+    const dialect = bomSqlDialectFor(adapter.name);
+    const input = { ...context, ...overrides };
+    const sources = await findJointCostSources(query, dialect, input, fixture.secondary.revisionId);
+    const production = await readJointProduction(query, dialect, {
+      context: input,
+      headerId: fixture.header.id,
+      plannedQty: { value: '100', uom: 'kg' }
+    });
+    return {
+      sources: sources.map(source => source.headerId),
+      outputs: production?.outputs.map(output => output.revisionId)
+    };
+  });
 
 const downstream = async (
   adapter: BomTestAdapter,
@@ -552,6 +574,63 @@ for (const backend of ['wa-sqlite', 'pglite'] satisfies BomTestBackend[]) {
       await expect(
         cost(adapter, imprecise, { jointCostSources: { [first.secondary.revisionId]: first.header.id } })
       ).rejects.toThrow(/联产.*来源/);
+    });
+
+    it('P1 时点：未来输出修订在生效日前不进入联产来源与成本', async () => {
+      const fixture = await makeFixture(adapter, { released: false });
+      const revision = entity(adapter, BomItemRevision, {
+        itemId: fixture.secondary.item.id,
+        revisionNo: 'B',
+        effectiveFrom: day('2099-01-02')
+      });
+      await revision.save();
+      revision.state = 'released';
+      await revision.save();
+      fixture.output.childRevisionId = revision.id;
+      await fixture.output.save();
+      fixture.secondary.revisionId = revision.id;
+      await release(fixture.header);
+
+      expect(await jointVisibility(adapter, fixture)).toEqual({
+        sources: [],
+        outputs: [fixture.primary.revisionId]
+      });
+      await expect(cost(adapter, fixture)).rejects.toThrow('份额合计必须精确为1');
+      const effective = { asOfDate: day('2099-01-02') };
+      expect(await jointVisibility(adapter, fixture, effective)).toEqual({
+        sources: [fixture.header.id],
+        outputs: [fixture.primary.revisionId, revision.id]
+      });
+      expect((await cost(adapter, fixture, effective)).root.jointCost?.outputs[1].unitCost).toBe('1.76');
+    });
+
+    it('P1 时点：逻辑行的未来ECN在生效日前不引入联产输出', async () => {
+      const fixture = await makeFixture(adapter, { released: false, primaryShare: '1', outputShare: '0' });
+      const ecn = entity(adapter, BomEcn, {
+        ecnNo: `JOINT-FUTURE-LINE-${crypto.randomUUID()}`,
+        effectiveDate: day('2099-01-02')
+      });
+      await ecn.save();
+      const line = await firstValueFrom(
+        adapter.rxdb.entityManager.getRepository(BomLine).get(id(fixture.seed, 'line:20'))
+      );
+      line.ecnInId = ecn.id;
+      await line.save();
+      ecn.state = 'released';
+      await ecn.save();
+      await release(fixture.header);
+
+      expect(await jointVisibility(adapter, fixture)).toEqual({
+        sources: [],
+        outputs: [fixture.primary.revisionId]
+      });
+      expect((await cost(adapter, fixture)).root.jointCost?.outputs).toHaveLength(1);
+      const effective = { asOfDate: day('2099-01-02') };
+      expect(await jointVisibility(adapter, fixture, effective)).toEqual({
+        sources: [fixture.header.id],
+        outputs: [fixture.primary.revisionId, fixture.secondary.revisionId]
+      });
+      expect((await cost(adapter, fixture, effective)).root.jointCost?.outputs).toHaveLength(2);
     });
 
     it('C11 ECN发布按转换后运行投影拒绝份额缺口并回滚', async () => {

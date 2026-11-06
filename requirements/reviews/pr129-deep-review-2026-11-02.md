@@ -3,7 +3,7 @@ id: PR-129-REVIEW-2026-11-02
 title: PR #129 BOM 领域闭环与三框架绑定深度评审
 status: Open
 created: 2026-11-02
-updated: 2026-11-02
+updated: 2026-11-07
 pr: https://github.com/aiao-io/rxdb/pull/129
 ---
 
@@ -18,7 +18,7 @@ pr: https://github.com/aiao-io/rxdb/pull/129
 - 范围：完整分支差异（BOM 核心包、SQLite/PGlite 适配器、RxDB 公共存储/仓储改动、Angular/React/Vue 绑定、demo/e2e、需求与规格文档）。
 - 规则：按仓库 `AGENTS.md`、`requirements/CONVENTIONS.md`、`requirements/reviews/README.md` 执行；整分支报告不占 `RV-*` 编号。
 
-## 发现
+## 初次评审发现
 
 ### 🔴 P1：联产成本来源绕过评估日，未来修订和未来生效 ECN 会进入当前成本
 
@@ -58,4 +58,11 @@ pr: https://github.com/aiao-io/rxdb/pull/129
 
 ## 结论
 
-当前分支三框架 API 对称性通过；核心与适配器存储元数据接线未见额外高置信问题。PR 合入前应先修复 P1，并补齐未来输出修订与未来 ECN 生效日的双后端成本回归。
+当前分支已按红绿顺序修复该 P1：真实 SQLite/PGlite 共 4 条定向回归先失败，修复后 4/4 通过，覆盖生效日前排除、到达生效日后可见，以及两条查询入口和成本结果。完整覆盖率、三框架与应用门禁、统一评审及合并仍待完成，当前不计为全部交付。
+
+## 2026-11-07 修复验证
+
+- 复核基线为 6dd47b01，旧查询确实仍提前返回未来输出修订和未来逻辑行 ECN 的来源；未用存储绕过或模拟查询制造失败。
+- `coproduct.ts` 的来源查询关联输出修订，按发布状态、所属物料及 `effectiveFrom <= asOfDate` 过滤；发生项与逻辑行 ECN 复用 `bom-sql.ts` 的既有可见性表达式。
+- `bom-coproduct.spec.ts` 新增两组双后端回归，同时执行 `findJointCostSources`、`readJointProduction` 与成本核对；完整套件尚待复验。
+- 红测日志：`/tmp/bom-joint-visibility-red.log`；定向绿测：`/tmp/bom-joint-visibility-green.log`。首轮测试夹具的 Repository 接口调用错误已更正后重新取得 4 条业务断言失败，不把夹具错误算作功能红。
