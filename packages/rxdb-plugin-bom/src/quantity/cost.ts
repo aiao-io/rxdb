@@ -1087,7 +1087,8 @@ const rollupCostInSnapshot = async (
           processingTotal = decimalAdd(processingTotal, sumAmounts(detail.processing));
           creditTotal = decimalAdd(creditTotal, sumAmounts(detail.credits));
           overheadAmount = decimalAdd(overheadAmount, detail.overhead);
-          if (detail.overheadReason !== '无路线') overheadReason = detail.overheadReason;
+          if (overheadReason !== '按工时计' && detail.overheadReason !== '无路线')
+            overheadReason = detail.overheadReason;
           continue;
         }
         const jointPrice = await jointUnitCost(row.resolvedChildRevisionId);

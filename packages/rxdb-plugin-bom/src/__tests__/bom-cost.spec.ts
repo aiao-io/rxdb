@@ -89,6 +89,7 @@ for (const backend of BACKENDS) {
         uom?: string;
         uomConversion?: string | null;
         isFixedQty?: boolean;
+        phantomOverride?: boolean;
         flowDirection?: 'consume' | 'by_product' | 'scrap_out';
       }[],
       options: {
@@ -136,6 +137,7 @@ for (const backend of BACKENDS) {
         occurrence.uom = line.uom ?? 'pcs';
         occurrence.uomConversion = line.uomConversion ?? null;
         occurrence.isFixedQty = line.isFixedQty ?? false;
+        occurrence.phantomOverride = line.phantomOverride ?? null;
         occurrence.flowDirection = line.flowDirection ?? 'consume';
         occurrence.effectiveFrom = day('2026-01-01');
         await occurrence.save();
@@ -241,6 +243,30 @@ for (const backend of BACKENDS) {
       expect(result.root.overhead).toBe('2.5');
       expect(result.root.overheadReason).toBe('按工时计');
     };
+
+    it.each([false, true])('混合虚拟件的制费理由不随发生项顺序改变：%s', async reverse => {
+      const raw = await makeItem('phantom-overhead-raw', { unitPrice: '1' });
+      const charged = await makeItem('phantom-overhead-charged');
+      const uncharged = await makeItem('phantom-overhead-uncharged');
+      const root = await makeItem('phantom-overhead-root');
+      const withOverhead = await makeCenter({ overheadRate: '2.5' });
+      const withoutOverhead = await makeCenter();
+      const chargedHeader = await makeHeader(charged, [{ child: raw, qty: '1' }], {}, false);
+      const unchargedHeader = await makeHeader(uncharged, [{ child: raw, qty: '1' }], {}, false);
+      await attachRouting(chargedHeader.header, withOverhead, [{ seq: 10, run: '1' }]);
+      await attachRouting(unchargedHeader.header, withoutOverhead, [{ seq: 10, run: '1' }]);
+      await releaseHeader(chargedHeader.header);
+      await releaseHeader(unchargedHeader.header);
+      const children = reverse ? [uncharged, charged] : [charged, uncharged];
+      await makeHeader(
+        root,
+        children.map(child => ({ child, qty: '1', phantomOverride: true }))
+      );
+      const result = await rollupCost(adapter, COST_CTX, { parentItemId: root.id });
+      expect(result.root.batchCost).toBe('6.5');
+      expect(result.root.overhead).toBe('2.5');
+      expect(result.root.overheadReason).toBe('按工时计');
+    });
 
     it('AC#7 A 用 2B、B 用 3C、C 单价 1：A 材料恰为 6（不是双计数 12）', async () => {
       const c = await makeItem('c7', { unitPrice: '1' });

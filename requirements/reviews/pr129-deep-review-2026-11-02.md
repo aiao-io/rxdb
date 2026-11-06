@@ -58,7 +58,7 @@ pr: https://github.com/aiao-io/rxdb/pull/129
 
 ## 结论
 
-当前分支已按红绿顺序修复该 P1：真实 SQLite/PGlite 共 4 条定向回归先失败，修复后 4/4 通过，覆盖生效日前排除、到达生效日后可见，以及两条查询入口和成本结果。后续完整 BOM 测试与覆盖率、三框架和应用门禁均已通过，4b25a948 的完整 102 项目、414 目标 affected 门禁也已通过。最终性能 CI、统一评审及合并仍待闭环，当前不计为全部交付。
+当前分支已按红绿顺序修复该 P1：真实 SQLite/PGlite 共 4 条定向回归先失败，修复后 4/4 通过，覆盖生效日前排除、到达生效日后可见，以及两条查询入口和成本结果。后续完整 BOM 测试与覆盖率、三框架和应用门禁均已通过，4b25a948 的完整 102 项目、414 目标 affected 门禁也已通过。a5a9f7cf 的正式性能 CI 后续已通过；虚拟件制费说明复核及修复见下文。最终集成源码的完整门禁、远端检查与统一评审仍待闭环，当前不计为全部交付。
 
 ## 2026-11-07 修复验证
 
@@ -68,3 +68,12 @@ pr: https://github.com/aiao-io/rxdb/pull/129
 - 红测日志：`/tmp/bom-joint-visibility-red.log`；定向绿测：`/tmp/bom-joint-visibility-green.log`。首轮测试夹具的 Repository 接口调用错误已更正后重新取得 4 条业务断言失败，不把夹具错误算作功能红。
 
 - 完整覆盖率证据：`/tmp/bom-joint-visibility-full-evidence.json`；102 项目 affected 最终通过证据：`/tmp/bom-final-affected-after-joint-evidence.json`。后续运行源码变化须重新核对受影响验证，不能沿用旧提交的 CI 结论。
+
+## 2026-11-07 虚拟件制费说明复核
+
+在提交 `a5a9f7cf` 上复核旧评审的工序制费问题时，发现虚拟件扁平汇总仍有同类 P2：根件依次消费两个虚拟件，第一个声明制费、第二个工作中心未声明制费，`rollupCost()` 返回制费 `2.5`，但 `overheadReason` 被后一个虚拟件覆盖为「工作中心未声明制费」。交换发生项顺序后说明又变为「按工时计」。应用成本明细直接展示该依据，金额与解释会矛盾。
+
+- 双后端各增加两种发生项顺序的回归，同时断言批成本 `6.5`、制费 `2.5` 与理由「按工时计」。旧实现 2 项失败、2 项通过，失败均为说明不符，金额断言已通过。
+- 修复只调整虚拟件聚合理由：已存在「按工时计」时保留该理由，后继未声明制费或无路线不会覆盖它；成本金额、工序明细及公开 API 保持原合同。
+- 定向验证完整执行 `bom-cost.spec.ts` 与 `bom-phantom-cost.spec.ts`，74/74 通过；lint、typecheck 通过。隔离工作区完整 BOM 套件 89 文件、1554 项通过、1 项后端条件跳过，语句/分支/函数/行覆盖率为 96.31% / 89.72% / 97.29% / 97.77%，四项均达到本包 80% 门槛。最终源码 affected、远端 CI 及部署产物须在集成后重新核对。
+- 原始红绿证据为 `/tmp/bom-phantom-overhead-red-evidence.json`、`/tmp/bom-phantom-overhead-green-costs-evidence.json`；完整套件证据为 `/tmp/bom-phantom-overhead-full-plugin-evidence.json`。隔离验证不替代最终集成源码的完整 affected 与远端检查。
