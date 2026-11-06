@@ -38,6 +38,15 @@
       "port": 3000
     },
     {
+      "name": "dev-rxdb-admin",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "export NX_WORKSPACE_ROOT_PATH=\"$PWD\" NX_DAEMON=false; cd apps/dev-rxdb-admin && node ../../node_modules/vite/bin/vite.js --port=${PORT:-5173}"
+      ],
+      "autoPort": true
+    },
+    {
       "name": "dev-rxdb-angular-e2e-static",
       "runtimeExecutable": "node",
       "runtimeArgs": [
