@@ -10,12 +10,12 @@
 | US-405 格式化收尾       | 键盘验收复跑与代码评审，随应用一起合并                                                                                                                     | 先起 `pnpm nx serve aiao-vscode`（4320）；报告写入 `apps/aiao-vscode/benchmarks/`                                                                                                                                                     |
 | 验收证据复跑            | `aiao-vscode:verify-export / verify-offline / verify-scm / verify-save-preview / verify-docking / verify-commands / verify-github-auth`                    | 先起 `pnpm nx serve aiao-vscode`（4320）或生产构建 + 静态服务；报告写入 `apps/aiao-vscode/benchmarks/`；verify-github-auth 需 `GITHUB_PAT` 环境变量                                                                                   |
 | 真实部署与公开访问      | 为生产构建选托管（COOP / COEP 响应头 + Service Worker）并公开验收                                                                                          | 依赖仓库级发布治理；离线与隔离边界必须在真实 origin 复验，本地 localhost 不算                                                                                                                                                         |
-| 应用产品化              | 模板扩充、项目模板市场、设置持久化、保存时自动格式化等按新故事立项                                                                                         | 不扩展为完整 Node IDE（任意 npm / 终端 / SSR 是另一档运行时，见可行性研究）                                                                                                                                                           |
+| 应用产品化              | 模板扩充、项目模板市场、设置持久化、保存时自动格式化等按新故事立项                                                                                         | 交互终端由 US-408 单独承接，受控预览不扩展为完整 Node IDE                                                                                                                                                           |
 | US-406 GitHub 集成      | 阶段 A 代码面完成：认证、虚拟仓库后端、选择器、登录对话框、欢迎视图入口、Cloudflare Pages Functions 与验收脚本均已落地；剩余真实 PAT 验收与 OAuth App 注册 | 依赖 [vscode.dev GitHub 集成研究](../../../requirements/domain-research/vscode-dev-github-integration.md)；`/redirect` 与 token 交换 / 登出在 `deploy/` 的 Pages Functions 里，secret 经 wrangler secret；不阻塞 US-404 / US-405 收尾 |
 | US-407 首次进入欢迎视图 | 空目录首启不初始化项目；资源管理器欢迎视图（打开文件夹 / 最近项目 / 初始化 Demo）红测与实现已完成，全量单测通过；待浏览器手动验收与评审                    | 依赖 US-404 内核；与 US-406 并行不冲突；打开文件夹走 File System Access API 单向导入，模板与入口推断见故事技术笔记                                                                                                                    |
 
 ## 边界备忘
 
-- 不立项完整 Node IDE：任意 npm / Nx 仓库、安装脚本、SSR、终端与原生扩展需要另一档运行时。
+- [US-408](stories/US-408-browser-terminal.md) 承接浏览器 WebContainer 终端；US-404 的受控编译边界保留。原生扩展与任意 Nx 仓库兼容仍不承诺。
 - 远端 Git（连接 / 打开 / 提交推送）已由 [US-406](stories/US-406-github-remote-repositories.md) 立项并解锁，阶段 A 进行中；真 git push（CORS 代理）、PR 创建、多人协作与 AI agent 仍不承诺，是后续独立候选。
 - 应用宿主（Angular）与所编辑项目框架独立：vanilla TS / React TSX / Vue SFC / Angular standalone 四类模板都必须在 aiao-vscode 里跑通。

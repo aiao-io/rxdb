@@ -358,6 +358,7 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
       if (!next.entries.some(stagedEntry)) return { changed: false };
       await options.backend.commit(current, original.trim());
       pushed = true;
+      return undefined;
     });
     if (pushed && id) finishCommit(id, original, expected);
   }

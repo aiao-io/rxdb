@@ -240,7 +240,9 @@ describe('浏览器 Node 终端运行时', () => {
     await echo;
     expect(f.options.onFiles).toHaveBeenCalledWith({ 'a/new.ts': 'new terminal file' }, []);
     expect(f.files.has('a/new.ts')).toBe(true);
+    expect(f.files.has('a/b.js')).toBe(true);
     expect(f.files.has('a')).toBe(false);
+    expect(f.container.fs.rm).not.toHaveBeenCalledWith('a/b.js', { force: true });
     expect(f.container.fs.rm).not.toHaveBeenCalledWith('a', { force: true, recursive: true });
   });
 

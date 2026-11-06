@@ -561,9 +561,20 @@ export class GitWorkbenchRuntime {
     let directory = await navigator.storage.getDirectory();
     const parts = `${root.slice('/opfs/'.length)}/${path}`.split('/');
     const name = parts.pop() as string;
-    for (const part of parts) directory = await directory.getDirectoryHandle(part);
+    const parents: { directory: FileSystemDirectoryHandle; name: string; path: string }[] = [];
+    let parentPath = '/opfs';
+    for (const part of parts) {
+      parentPath += `/${part}`;
+      parents.push({ directory, name: part, path: parentPath });
+      directory = await directory.getDirectoryHandle(part);
+    }
     await directory.removeEntry(name);
     this.fs.unlink(`${root}/${path}`);
+    for (const parent of parents.reverse()) {
+      if (parent.path === root || this.fs.readdir(parent.path).length > 2) break;
+      await parent.directory.removeEntry(parent.name);
+      this.fs.rmdir(parent.path);
+    }
   }
 
   private requireFile(path: string): void {

@@ -2,7 +2,7 @@
 
 浏览器内的本地开发工作台应用（Angular 22）。使用 CodeMirror 编辑器、独立 OPFS Git 仓库、受控编译 Worker 与隔离预览；支持 JavaScript / TypeScript、React TSX、Vue SFC 和 Angular standalone 四类受控模板。
 
-布局使用 `dockview-core`，图标使用微软官方 `@vscode/codicons`。界面沿用 VS Code Dark Modern 的活动栏、资源管理器、编辑标签、预览、问题 / 输出 / Console 面板和状态栏。编辑标签可拖动拆分、合并与停靠；预览与编辑器在布局移动时保留实例、撤销记录和运行状态，支持一键重置布局。布局随项目保存在本地目录里（与打开的标签同处），直接打开、刷新、重启浏览器或切换项目时都按该项目上次的样子还原；只排布已打开的文件，地址栏不带布局。
+布局使用 `dockview-core`，图标使用微软官方 `@vscode/codicons`。界面沿用 VS Code Dark Modern 的活动栏、资源管理器、编辑标签、预览、问题 / 输出 / Console / 终端面板和状态栏。编辑标签可拖动拆分、合并与停靠；预览与编辑器在布局移动时保留实例、撤销记录和运行状态，支持一键重置布局。布局随项目保存在本地目录里（与打开的标签同处），直接打开、刷新、重启浏览器或切换项目时都按该项目上次的样子还原；只排布已打开的文件，地址栏不带布局。
 
 首次打开空目录会生成最小 React、Vue、Angular Demo；后续重开恢复最近使用的项目。范围与验收见 [requirements/stories/US-404](requirements/stories/US-404-browser-development-workbench.md)。
 
@@ -78,9 +78,28 @@ credentialless iframe。缺少能力时明确失败，没有内存存储替代�
 OPFS、数据库和登录凭据；消息通道只回传当前会话的诊断，不提供宿主文件写入接口。这个边界
 不等于全网访问沙箱；不能据此宣称任意 JavaScript 的导航或 WebRTC 已被完全封锁。
 
-受控模板只解析项目快照与固定依赖。支持本地模块、普通 CSS、图片与 Vue scoped style；
-Angular 使用浏览器 JIT 与 TS 装饰器转换。完整 TS 类型检查、任意 npm 安装、Node API、终端、
-SSR、任意 Nx / Vite 插件、Git remote、AI 和实时协作不在当前范围。
+受控预览只解析项目快照与固定依赖，支持本地模块、普通 CSS、图片与 Vue scoped style；
+Angular 使用浏览器 JIT 与 TS 装饰器转换。受控编译不提供完整 TS 类型检查或任意插件执行。
+
+## 浏览器交互终端
+
+打开项目后，点击顶栏终端图标、底部「终端」标签或按 `Ctrl + 反引号`。
+终端惰性加载 xterm.js 与 WebContainer，在浏览器里运行 Node.js Shell，可输入 `node`、
+`npm`、`pnpm` 等命令。命令输出与报错实时显示，`Ctrl+C` 中断前台命令；
+开发服务器就绪后显示端口并打开独立服务预览，点击端口可重新打开。
+顶部「运行」仍使用受控编译预览；终端开发服务器通过项目自己的命令启动。
+
+终端初次挂载已保存源码。编辑器保存后同步到容器，终端新建、修改、删除的源码通过原子回执
+写回项目；双方修改同一文件时保留编辑器未保存缓冲。`.git`、`node_modules`、`dist`、`build`、
+`.angular`、`.vite`、`.cache` 和 `coverage` 不在同步范围，符号链接不会被遍历。
+关闭底部面板保留进程；点击「停止」或切换项目会先保存终端文件变化，再销毁容器和服务预览。
+终端源码沿用下方项目容量限制；停止后重新安装依赖，Git 操作继续使用源代码管理视图。
+
+启动 WebContainer 与首次安装依赖需要网络。终端需要 COOP / COEP；当前 `serve` 已配置。
+WebContainer 不支持原生 Node 扩展，不能据此保证任意 Nx / npm 仓库兼容。
+商用宿主可通过 `BrowserWorkbenchOptions.webContainerApiKey` 传入官方授权；
+授权要求见 [WebContainer 文档](https://webcontainers.io/enterprise)。
+范围与验证见 [US-408](requirements/stories/US-408-browser-terminal.md)。
 
 单项目限制：2,000 文件、单文件 2 MiB、文件总量 20 MiB、ZIP 24 MiB；不支持符号链接、可执行位
 和子模块。写入用仓库级 Web Lock 串行化，崩溃后先检查恢复日志，不误报写入成功。
@@ -102,6 +121,7 @@ pnpm nx run aiao-vscode:verify-commands --url=http://127.0.0.1:4320/
 pnpm nx run aiao-vscode:verify-save-preview --url=http://127.0.0.1:4320/
 pnpm nx run aiao-vscode:verify-scm --url=http://127.0.0.1:4320/
 pnpm nx run aiao-vscode:verify-docking --url=http://127.0.0.1:4320/
+pnpm nx run aiao-vscode:verify-terminal --url=http://localhost:4320/
 ```
 
 `verify-export` 检查四类模板的仓外冻结锁安装、生产构建与 Chromium 交互；`verify-offline`

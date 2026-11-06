@@ -332,10 +332,14 @@ export function createWebContainerRuntime(options: TerminalRuntimeOptions): Term
         const conflicts = await scan();
         if (disposed || !container) return;
         const conflicted = (path: string): boolean => [...conflicts].some(changed => overlappingPath(path, changed));
-        const writes = Object.entries(next).filter(([path, value]) =>
-          !sameFile(savedFiles[path], value) && !sameFile(observedFiles[path], value) && !conflicted(path));
+        const desiredWrites = Object.entries(next).filter(([path, value]) => !sameFile(savedFiles[path], value));
+        const protectedPaths = desiredWrites.map(([path]) => path).filter(conflicted);
+        const protectedPath = (path: string): boolean =>
+          conflicted(path) || protectedPaths.some(protectedRoot => overlappingPath(path, protectedRoot));
+        const writes = desiredWrites.filter(([path, value]) =>
+          !sameFile(observedFiles[path], value) && !protectedPath(path));
         const removed = Object.keys(savedFiles).filter(path =>
-          !Object.hasOwn(next, path) && Object.hasOwn(observedFiles, path) && !conflicted(path));
+          !Object.hasOwn(next, path) && Object.hasOwn(observedFiles, path) && !protectedPath(path));
         const directories = writes.map(([path]) => path).filter(path => observedDirectories.has(path));
         const protectedDirectory = directories.find(directory => Object.keys(observedFiles)
           .some(path => path.startsWith(`${directory}/`) && !removed.includes(path)));
