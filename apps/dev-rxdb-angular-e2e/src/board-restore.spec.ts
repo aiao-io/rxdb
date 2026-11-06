@@ -108,10 +108,10 @@ test.describe('看板备份恢复（US-539 AC#4 / #5）', () => {
     await renameTask(page, '写发布说明', '写发布说明（备份后）');
     const original = await activeDbOf(page);
 
-    // 工具菜单：已有看板先确认；恢复到新库名、重载读回成功才切换（先等活动位置换掉，切换前的旧板同样是 12 张卡）
+    // 工具菜单：已有看板先确认；恢复到新库名、重载读回成功才切换（先等整页重载，切换前的旧板同样是 12 张卡）
     await page.getByTestId('restore-file-menu').setInputFiles(archive);
     await expect(page.getByTestId('host-confirm')).toBeVisible();
-    await page.getByTestId('host-confirm-yes').click();
+    await Promise.all([page.waitForEvent('load', { timeout: 30000 }), page.getByTestId('host-confirm-yes').click()]);
     await expect.poll(() => activeDbOf(page), { timeout: 30000 }).not.toBe(original);
     await expect(page.getByTestId('task-title').getByText('写发布说明', { exact: true })).toBeVisible();
     await expect(cardWith(page, '修复登录 bug（备份版）')).toBeVisible();
