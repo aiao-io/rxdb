@@ -1,0 +1,11 @@
+{
+  "name": "@aiao/aiao-bom",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "name": "aiao-bom"
+  },
+  "devDependencies": {
+    "yaml": "2.9.0"
+  }
+}

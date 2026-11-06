@@ -166,7 +166,7 @@ ECN 场景（AC#6/#9/#14）随 US-515 同批关闭。
 
 ### 2026-10-18 阶段B功能验收收口
 
-此前demo首轮保留真实失败：原23条通过，新增联产场景因SC-100必填rohs未提供而装载失败。共享loader随后增加调用方显式`itemExt: { rohs: 'yes' }`，缺参数与非法枚举仍拒绝，种子6/6通过。第三轮完整收集现确认`dev-rxdb-bom-e2e` **24/24通过，50.9s**：新增首条联产场景验证220→132/88、显式下游来源及17.6成本，原23条全部回归通过，本地日志`bom-affected-complete3.log`（未留存）。
+此前demo首轮保留真实失败：原23条通过，新增联产场景因SC-100必填rohs未提供而装载失败。共享loader随后增加调用方显式`itemExt: { rohs: 'yes' }`，缺参数与非法枚举仍拒绝，种子6/6通过。第三轮完整收集现确认`aiao-bom-e2e` **24/24通过，50.9s**：新增首条联产场景验证220→132/88、显式下游来源及17.6成本，原23条全部回归通过，本地日志`bom-affected-complete3.log`（未留存）。
 
 结合完整领域886/886与三端包内绑定/组件回归，C14及阶段B功能验收据此关闭。三端共享51/51、Tauri、恢复后的PGlite有效覆盖率、8包严格审计及完整分支门禁均已通过，整体status已Done。
 
@@ -274,27 +274,27 @@ AC#7 的「停用后不入结果」展开面随 US-520 AC#11 同批（阶段 C �
 
 ### 2026-10-19 产品体验回归补记
 
-2026-10-18～19 并行会话的 demo 产品体验改进（研究与实施记录见[产品体验研究](../../requirements/domain-research/bom-demo-product-ux-2026-10-19.md)第 7 节）新增 10 条 e2e，此前未入任何切片账：
+2026-10-18～19 并行会话的 demo 产品体验改进（研究与实施记录见[产品体验研究](../../apps/aiao-bom/requirements/plans/bom-product-ux-2026-10-19.md)第 7 节）新增 10 条 e2e，此前未入任何切片账：
 
 | spec                           | 条数 | 覆盖                                                                                                                                                                                                                     |
 | ------------------------------ | ---: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `bom-redesign.spec.ts`         |    4 | 已有数据重开直接可用且取消重置不丢数据；成本按业务精度展示并可展开原值；窄屏导航可关闭且无横向溢出；反查树鼠标/键盘折叠与窄屏                                                                                            |
 | `bom-product-workflow.spec.ts` |    6 | 计划量改后结果待更新、重新展开后下载保留同一批量；搜索→快捷反查→回到结构及刷新保留条件；10 台生产引导贯穿结构/成本/反查；375px 导航焦点循环与 Escape；导入草稿离页刷新后显式勾选再发布；重复 M3 发生项各自路径与窄屏返回 |
 
-口径校准：`dev-rxdb-bom-e2e` 现共 34 条（`bom-demo.spec.ts` 23 + `bom-coproduct.spec.ts` 1 + 上表 10）。各切片与故事里的「demo24/24」「原23条」是 2026-10-18 最终门禁时点的统计（当时只有前两份 spec），保留为历史记录。34 条的可复核证据：PR #129 CI [run 39218306973](https://github.com/aiao-io/rxdb/actions/runs/39218306973)（d8542b3c）的 `e2e (bom)` lane「Running 34 tests using 1 worker / 34 passed」。
+口径校准：`aiao-bom-e2e` 现共 34 条（`bom-demo.spec.ts` 23 + `bom-coproduct.spec.ts` 1 + 上表 10）。各切片与故事里的「demo24/24」「原23条」是 2026-10-18 最终门禁时点的统计（当时只有前两份 spec），保留为历史记录。34 条的可复核证据：PR #129 CI [run 39218306973](https://github.com/aiao-io/rxdb/actions/runs/39218306973)（d8542b3c）的 `e2e (bom)` lane「Running 34 tests using 1 worker / 34 passed」。
 
 ### 2026-10-18 当前实现补记
 
-上节三框架绑定的“独立后续范围”属于第9步历史分工；当前三端绑定已在[spec020](../020-bom-slice-10/quickstart.md)实现，包内回归及四项覆盖率门槛已通过。完整BOM默认套件60文件、886/886通过，含联产49、v2集成16、种子6与Reach52；`dev-rxdb-bom-e2e`24/24通过（50.9s），新增联产验证220→132/88与显式下游来源，原23条全绿，证据为本地日志`bom-affected-complete3.log`（未留存）。最终三端共享e2e、Tauri、PGlite覆盖率、五项审计与整个分支结论仍待主会话收口。
+上节三框架绑定的“独立后续范围”属于第9步历史分工；当前三端绑定已在[spec020](../020-bom-slice-10/quickstart.md)实现，包内回归及四项覆盖率门槛已通过。完整BOM默认套件60文件、886/886通过，含联产49、v2集成16、种子6与Reach52；`aiao-bom-e2e`24/24通过（50.9s），新增联产验证220→132/88与显式下游来源，原23条全绿，证据为本地日志`bom-affected-complete3.log`（未留存）。最终三端共享e2e、Tauri、PGlite覆盖率、五项审计与整个分支结论仍待主会话收口。
 
 ### 首轮切片第 4 步关闭记录
 
 阶段 A 已交付（AC#1~#6 全绿）：
 `packages/rxdb-plugin-bom/src/testing/`（`scooter-dataset.ts` 确定性种子——id 由业务键 FNV-1a
 派生、审计时间戳固定基准、批次号常量，两遍装载全表 dump 逐字节相同；`scooter-golden.ts`
-手写 golden 表，不由被测 kernel 生成）、`apps/dev-rxdb-bom`（Angular：展开树 + 七步算式面板
+手写 golden 表，不由被测 kernel 生成）、`apps/aiao-bom`（Angular：展开树 + 七步算式面板
 （第 5 步显示「工序损耗未交付」）+ 评估日显式输入 + 直连写入按钮 + 位号发布校验演示 +
-where-used 面板，`pnpm nx serve dev-rxdb-bom` 一键起）、`apps/dev-rxdb-bom-e2e`
+where-used 面板，`pnpm nx serve aiao-bom` 一键起）、`apps/aiao-bom-e2e`
 （playwright 六条 AC 用例）。vitest 对账测试以独立 oracle 逐位比对 explodeBom 输出。
 端口：本机 4310 被 QQ 占用，demo 起在 **4311**（故事 INVEST 清单端口可调）。
 

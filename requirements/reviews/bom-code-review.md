@@ -16,7 +16,7 @@
 | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
 | `packages/rxdb-plugin-bom/src`                  | 核心插件：backend/（DDL 触发器）、quantity/（数量/成本/展开）、reach/（可达性）、resolve/（BOM 映射/解析/仓储）、testing/（测试夹具） |
 | `packages/rxdb-plugin-bom-{angular,react,vue}`  | 三框架绑定（useBomView / BomTree / BomLineEditor）                                                                                    |
-| `apps/dev-rxdb-bom` + `apps/dev-rxdb-bom-e2e`   | Angular demo 应用与 Playwright e2e                                                                                                    |
+| `apps/aiao-bom` + `apps/aiao-bom-e2e`           | Angular demo 应用与 Playwright e2e                                                                                                    |
 | `apps/dev-rxdb-angular/src/app/pages/bom-view*` | 三框架 demo 共享的 BOM 视图页（含 React/Vue e2e 复用）                                                                                |
 | `modules/e2e-parity/bom-view-parity.mjs`        | 跨框架一致性 e2e 模块                                                                                                                 |
 | `benchmarks/bom*.bench.ts`                      | BOM / BOM-reach 基准                                                                                                                  |
@@ -44,23 +44,23 @@
 
 ## 2. 结论总览
 
-| #   | 级别 | 位置                                                   | 标题                                                                    | 类别        | 判定      |
-| --- | ---- | ------------------------------------------------------ | ----------------------------------------------------------------------- | ----------- | --------- |
-| 1   | P0   | `resolve/expansion.ts:166`                             | NaN 预算使截断失效，环状 BOM 可无限遍历                                 | correctness | CONFIRMED |
-| 2   | P0   | `decimal-columns.ts:106`                               | equivQty 允许 0，替代件零当量静默蒸发主件需求                           | correctness | CONFIRMED |
-| 3   | P0   | `rxdb-plugin-bom-angular/src/use-bom-view.ts:94`       | setInput 绕过 appliedInput 缓存，视图与声明输入永久分歧（三端同路径）   | correctness | CONFIRMED |
-| 4   | P0   | `plugin.ts:96`                                         | pglite-electron 适配器被后端解析器拒绝，Electron 宿主无法安装 BOM 插件  | correctness | CONFIRMED |
-| 5   | P1   | `view-state.ts:159`                                    | calculate() 不等待在途保存，可能读到保存前的旧值                        | correctness | CONFIRMED |
-| 6   | P1   | `types.ts:221`                                         | 远程 PG 守卫消息被误归一化为物料环错误（伪造 path）                     | correctness | CONFIRMED |
-| 7   | P1   | `view-state.ts:235`                                    | 爆炸失败被渲染为「空」状态，错误计算被标成无数据                        | correctness | CONFIRMED |
-| 8   | P1   | `quantity/cost.ts:1105`                                | 多工序混合工作中心时 overheadReason 只报最后一个工序                    | correctness | CONFIRMED |
-| 9   | P2   | `resolve/expansion.ts:515`                             | whereUsed 路径方向与文档契约相反（当前被掩盖）                          | correctness | PLAUSIBLE |
-| 10  | P2   | `plugin.ts:506`                                        | 方言来源不一致（config 字符串 vs 适配器实例名），宿主错配时安装中途失败 | correctness | PLAUSIBLE |
-| 11  | P3   | `apps/dev-rxdb-bom/src/app/bom-workspace-state.ts:168` | guide 参数未做整数归一化，小数永不匹配任何步骤                          | correctness | CONFIRMED |
-| 12  | P3   | `modules/e2e-parity/bom-view-parity.mjs:473`           | 期望值用 JS 浮点计算小数，与引擎精确十进制输出可能不一致                | correctness | PLAUSIBLE |
-| 13  | —    | `quantity/explosion.ts:510`                            | 每次爆炸展开执行 3 条无 WHERE 全表 SELECT                               | efficiency  | CONFIRMED |
-| 14  | —    | `repository.ts:468`                                    | 每次结果发射对整个视图快照做全量确定性序列化                            | efficiency  | CONFIRMED |
-| 15  | —    | `resolve/history-loader.ts:443`                        | 控制流嵌套 5 层，违反「嵌套 ≤ 3 层」铁律                                | conventions | CONFIRMED |
+| #   | 级别 | 位置                                               | 标题                                                                    | 类别        | 判定      |
+| --- | ---- | -------------------------------------------------- | ----------------------------------------------------------------------- | ----------- | --------- |
+| 1   | P0   | `resolve/expansion.ts:166`                         | NaN 预算使截断失效，环状 BOM 可无限遍历                                 | correctness | CONFIRMED |
+| 2   | P0   | `decimal-columns.ts:106`                           | equivQty 允许 0，替代件零当量静默蒸发主件需求                           | correctness | CONFIRMED |
+| 3   | P0   | `rxdb-plugin-bom-angular/src/use-bom-view.ts:94`   | setInput 绕过 appliedInput 缓存，视图与声明输入永久分歧（三端同路径）   | correctness | CONFIRMED |
+| 4   | P0   | `plugin.ts:96`                                     | pglite-electron 适配器被后端解析器拒绝，Electron 宿主无法安装 BOM 插件  | correctness | CONFIRMED |
+| 5   | P1   | `view-state.ts:159`                                | calculate() 不等待在途保存，可能读到保存前的旧值                        | correctness | CONFIRMED |
+| 6   | P1   | `types.ts:221`                                     | 远程 PG 守卫消息被误归一化为物料环错误（伪造 path）                     | correctness | CONFIRMED |
+| 7   | P1   | `view-state.ts:235`                                | 爆炸失败被渲染为「空」状态，错误计算被标成无数据                        | correctness | CONFIRMED |
+| 8   | P1   | `quantity/cost.ts:1105`                            | 多工序混合工作中心时 overheadReason 只报最后一个工序                    | correctness | CONFIRMED |
+| 9   | P2   | `resolve/expansion.ts:515`                         | whereUsed 路径方向与文档契约相反（当前被掩盖）                          | correctness | PLAUSIBLE |
+| 10  | P2   | `plugin.ts:506`                                    | 方言来源不一致（config 字符串 vs 适配器实例名），宿主错配时安装中途失败 | correctness | PLAUSIBLE |
+| 11  | P3   | `apps/aiao-bom/src/app/bom-workspace-state.ts:168` | guide 参数未做整数归一化，小数永不匹配任何步骤                          | correctness | CONFIRMED |
+| 12  | P3   | `modules/e2e-parity/bom-view-parity.mjs:473`       | 期望值用 JS 浮点计算小数，与引擎精确十进制输出可能不一致                | correctness | PLAUSIBLE |
+| 13  | —    | `quantity/explosion.ts:510`                        | 每次爆炸展开执行 3 条无 WHERE 全表 SELECT                               | efficiency  | CONFIRMED |
+| 14  | —    | `repository.ts:468`                                | 每次结果发射对整个视图快照做全量确定性序列化                            | efficiency  | CONFIRMED |
+| 15  | —    | `resolve/history-loader.ts:443`                    | 控制流嵌套 5 层，违反「嵌套 ≤ 3 层」铁律                                | conventions | CONFIRMED |
 
 ---
 
@@ -148,7 +148,7 @@
 
 ### 3.11（P3）guide 参数未整数归一化
 
-- **位置**：`apps/dev-rxdb-bom/src/app/bom-workspace-state.ts:168`
+- **位置**：`apps/aiao-bom/src/app/bom-workspace-state.ts:168`
 - **问题**：`Math.max(0, Math.min(3, Number(params['guide']) || 0))` 有钳制但无 `Math.trunc/round`，`?guide=1.5` 原样通过。
 - **触发场景**：分享链接带小数 guide → 旅程面板显示（`guideStep() > 0`）但 `=== step.number` 永不命中任何步骤，且小数值经 :99 回写 URL。应用自身只写整数，严重度低。
 - **修复方向**：解析时 `Math.trunc`。
@@ -202,28 +202,28 @@
 
 ### 6.1 复用（reuse）
 
-| 位置                                                            | 内容                                                                                                                                                                                                                                             | 判定      |
-| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------- |
-| `rxdb-plugin-bom-angular/src/use-bom-view.ts:45`                | 整个 BOM 视图生命周期（inputIdentity 逐字相同、release/install/sync 状态机、命令委托、错误文案）三端近乎逐字重复，核心包无共享控制器（BomViewController 未导出）                                                                                 | CONFIRMED |
-| `rxdb-plugin-bom-angular/src/bom-tree.ts:164`                   | WAI-ARIA 键盘导航状态机（8 键映射、钳制、`JSON.stringify(path.slice(0,-1))` 父键）三端逐字重复，仅焦点机制不同；Vue moveRight 已出现细微分歧（用 depth 比较替代 expanded 守卫）                                                                  | CONFIRMED |
-| `rxdb-plugin-bom-angular/src/bom-line-editor.ts:12`             | 可编辑字段列表字节级相同 + 保存/重置/错误合并状态机三端重复；核心 view-fields.ts 只提供了 bomEditorFields/parseBomEditorFields                                                                                                                   | CONFIRMED |
-| `apps/dev-rxdb-bom/src/app/presentation/decimal-format.ts:8`    | formatDecimal 手写 BigInt half-even 舍入，逐字重复核心 decimal.ts 的平局规则（`% 2n !== 0n` ≡ `kept & 1n`）；核心无「舍入到 N 位小数」入口（roundToSignificant 按有效位、ceil 只上取），且它是全仓库唯一显示舍入点（三端绑定渲染原始规范字符串） | CONFIRMED |
-| `apps/dev-rxdb-bom/src/app/presentation/requirement-tree.ts:17` | 需求树与反查树（where-used-tree.ts:11）独立实现同一「路径→JSON 键索引 + 重复检测 + 父路径挂载」算法，仅 slice 方向与载荷不同                                                                                                                     | CONFIRMED |
-| `benchmarks/bom.bench.ts:81`                                    | 两个 benchmark 各自手写同一 PGlite 内存启动（实体列表、BomRepository 接线、connect），仅名称前缀与 legacy 标志不同                                                                                                                               | CONFIRMED |
-| `apps/dev-rxdb-bom/src/app/bom-demo.service.ts:134`             | 手写 200 条一批的 `or`-of-`=` 分块；适配器已导出 `chunkBySqliteBindLimit`（999 上限）却硬编码 200，且与适配器上限漂移                                                                                                                            | PLAUSIBLE |
-| `benchmarks/bom-reach.bench.ts:147`                             | diamonds() 重建了 tests-reach/graph-test-utils.ts 的 reachDiamonds(20)（同 3n+1 项/4n 边拓扑）；直接 import 受包边界阻断，需提升到 src/testing 共享                                                                                              | PLAUSIBLE |
+| 位置                                                        | 内容                                                                                                                                                                                                                                             | 判定      |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------- |
+| `rxdb-plugin-bom-angular/src/use-bom-view.ts:45`            | 整个 BOM 视图生命周期（inputIdentity 逐字相同、release/install/sync 状态机、命令委托、错误文案）三端近乎逐字重复，核心包无共享控制器（BomViewController 未导出）                                                                                 | CONFIRMED |
+| `rxdb-plugin-bom-angular/src/bom-tree.ts:164`               | WAI-ARIA 键盘导航状态机（8 键映射、钳制、`JSON.stringify(path.slice(0,-1))` 父键）三端逐字重复，仅焦点机制不同；Vue moveRight 已出现细微分歧（用 depth 比较替代 expanded 守卫）                                                                  | CONFIRMED |
+| `rxdb-plugin-bom-angular/src/bom-line-editor.ts:12`         | 可编辑字段列表字节级相同 + 保存/重置/错误合并状态机三端重复；核心 view-fields.ts 只提供了 bomEditorFields/parseBomEditorFields                                                                                                                   | CONFIRMED |
+| `apps/aiao-bom/src/app/presentation/decimal-format.ts:8`    | formatDecimal 手写 BigInt half-even 舍入，逐字重复核心 decimal.ts 的平局规则（`% 2n !== 0n` ≡ `kept & 1n`）；核心无「舍入到 N 位小数」入口（roundToSignificant 按有效位、ceil 只上取），且它是全仓库唯一显示舍入点（三端绑定渲染原始规范字符串） | CONFIRMED |
+| `apps/aiao-bom/src/app/presentation/requirement-tree.ts:17` | 需求树与反查树（where-used-tree.ts:11）独立实现同一「路径→JSON 键索引 + 重复检测 + 父路径挂载」算法，仅 slice 方向与载荷不同                                                                                                                     | CONFIRMED |
+| `benchmarks/bom.bench.ts:81`                                | 两个 benchmark 各自手写同一 PGlite 内存启动（实体列表、BomRepository 接线、connect），仅名称前缀与 legacy 标志不同                                                                                                                               | CONFIRMED |
+| `apps/aiao-bom/src/app/bom-demo.service.ts:134`             | 手写 200 条一批的 `or`-of-`=` 分块；适配器已导出 `chunkBySqliteBindLimit`（999 上限）却硬编码 200，且与适配器上限漂移                                                                                                                            | PLAUSIBLE |
+| `benchmarks/bom-reach.bench.ts:147`                         | diamonds() 重建了 tests-reach/graph-test-utils.ts 的 reachDiamonds(20)（同 3n+1 项/4n 边拓扑）；直接 import 受包边界阻断，需提升到 src/testing 共享                                                                                              | PLAUSIBLE |
 
 ### 6.2 简化（simplification）
 
-| 位置                                                     | 内容                                                                                                                                                     | 判定      |
-| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| `resolve/bom-map.ts:58`                                  | scopedAdapter 包装（事务重绑定到执行器）在 bom-map.ts:58、view.ts:15、integration.ts:174、ecn.ts:354 独立定义四份，且均丢失了 `transactionLog` 参数转发  | CONFIRMED |
-| `resolve/bom-sql.ts:102`                                 | 5 行 bind/placeholder 闭包在 7 个 SQL 构建函数中字符级复制（:102/155/183/209/249/355/426）                                                               | CONFIRMED |
-| `repository.ts:181`                                      | validateExtOf 对同一值调用 normalizeExtValue 两次（先 parse 丢弃、再对解析结果重序列化），依赖未言明的幂等性；路径为 src/repository.ts（非 resolve/ 下） | CONFIRMED |
-| `resolve/history-loader.ts:225`                          | id/createdAt/updatedAt 确定性种子赋值块复制 8 次（:225/298/309/319/338/354/373/500），仅类型断言不同                                                     | CONFIRMED |
-| `resolve/integration.ts:93`                              | 列索引→记录映射（Object.fromEntries）逐字重复 **5 处**（repository.ts:80、ecn.ts:44、integration.ts:95、coproduct.ts:69、ext-attr.ts:458）               | CONFIRMED |
-| `apps/dev-rxdb-bom/src/app/bom-demo.service.ts:1227`     | rawQuery 结果形态三元在 5 个方法内联（:276/698/1146/1227/1237），旁边已有私有 `#rows` 助手且 :276 变体还多出 Array.isArray + ?? [] 差异                  | CONFIRMED |
-| `apps/dev-rxdb-bom/src/app/components/cost-panel.ts:453` | costResult/resultKey 是 workspace.cost 的可派生镜像可写信号；当前仅一个写入方（漂移为未来风险），且 clearResult 不清 resultKey（当前被 stale 门掩盖）    | PLAUSIBLE |
+| 位置                                                 | 内容                                                                                                                                                     | 判定      |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| `resolve/bom-map.ts:58`                              | scopedAdapter 包装（事务重绑定到执行器）在 bom-map.ts:58、view.ts:15、integration.ts:174、ecn.ts:354 独立定义四份，且均丢失了 `transactionLog` 参数转发  | CONFIRMED |
+| `resolve/bom-sql.ts:102`                             | 5 行 bind/placeholder 闭包在 7 个 SQL 构建函数中字符级复制（:102/155/183/209/249/355/426）                                                               | CONFIRMED |
+| `repository.ts:181`                                  | validateExtOf 对同一值调用 normalizeExtValue 两次（先 parse 丢弃、再对解析结果重序列化），依赖未言明的幂等性；路径为 src/repository.ts（非 resolve/ 下） | CONFIRMED |
+| `resolve/history-loader.ts:225`                      | id/createdAt/updatedAt 确定性种子赋值块复制 8 次（:225/298/309/319/338/354/373/500），仅类型断言不同                                                     | CONFIRMED |
+| `resolve/integration.ts:93`                          | 列索引→记录映射（Object.fromEntries）逐字重复 **5 处**（repository.ts:80、ecn.ts:44、integration.ts:95、coproduct.ts:69、ext-attr.ts:458）               | CONFIRMED |
+| `apps/aiao-bom/src/app/bom-demo.service.ts:1227`     | rawQuery 结果形态三元在 5 个方法内联（:276/698/1146/1227/1237），旁边已有私有 `#rows` 助手且 :276 变体还多出 Array.isArray + ?? [] 差异                  | CONFIRMED |
+| `apps/aiao-bom/src/app/components/cost-panel.ts:453` | costResult/resultKey 是 workspace.cost 的可派生镜像可写信号；当前仅一个写入方（漂移为未来风险），且 clearResult 不清 resultKey（当前被 stale 门掩盖）    | PLAUSIBLE |
 
 ### 6.3 效率（efficiency）
 

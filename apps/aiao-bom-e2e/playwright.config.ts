@@ -20,7 +20,7 @@ export default defineConfig({
   },
   // 直接静态服务产物（先例同 dev-rxdb-angular-e2e：webServer 不带 buildTarget）
   webServer: {
-    command: 'node scripts/e2e-static-server.mjs --root dist/apps/dev-rxdb-bom/browser --port 4311',
+    command: 'node scripts/e2e-static-server.mjs --root dist/apps/aiao-bom/browser --port 4311',
     url: 'http://localhost:4311',
     reuseExistingServer: false,
     cwd: workspaceRoot,

@@ -5,7 +5,7 @@
 ## 演示
 
 ```bash
-pnpm nx serve dev-rxdb-bom
+pnpm nx serve aiao-bom
 ```
 
 打开 `http://localhost:4311`。首次空库显示“未装载种子”，不会写入悬空演示修订。概览装载后共 41 物料、43 发生项、4 历史批次、5 条安装事实；通过“实例追溯”查看第七页。
@@ -38,7 +38,7 @@ Vue 首轮失败由普通文本字段使用 `@change` 延迟同步引起：重�
 ```bash
 pnpm nx test rxdb-plugin-bom --testNamePattern='^(?!.*实例图规模隔离)' --coverage --coverage.reporter=text --coverage.reporter=json-summary
 pnpm nx test rxdb-plugin-bom --testNamePattern='实例图规模隔离'
-pnpm nx run dev-rxdb-bom-e2e:e2e --output-style=static
+pnpm nx run aiao-bom-e2e:e2e --output-style=static
 ```
 
 ## 性能

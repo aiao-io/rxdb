@@ -30,9 +30,9 @@
 
 ### US3 算式面板与 demo（US-525 阶段 A 的应用，Priority: P1）
 
-- `apps/dev-rxdb-bom`（Angular）：展开树（选中行联动面板）+ 算式面板（七步中间值与单位、每步标注取值字段；第 5 步显示「工序损耗未交付」，**不是「按 0 计算」**）+ 评估日显式输入（不读系统时钟）+ 直连写入按钮（证存储层环约束，AC#5）+ `reset` / `seed` target。
+- `apps/aiao-bom`（Angular）：展开树（选中行联动面板）+ 算式面板（七步中间值与单位、每步标注取值字段；第 5 步显示「工序损耗未交付」，**不是「按 0 计算」**）+ 评估日显式输入（不读系统时钟）+ 直连写入按钮（证存储层环约束，AC#5）+ `reset` / `seed` target。
 - **七步中间值暴露**：`explodeBom` 的需求行与穿透节点各带 `steps`（`{ P, prime, G, net, demand, uom 链, phantom 判定与来源修订 }`），demo 只展示、不重算。
-- `apps/dev-rxdb-bom-e2e`（playwright）：AC#1~#6 各至少一条用例；含「既有库重开」（先以非 BOM 实体建库、重开再装 BOM 插件并跑种子）。
+- `apps/aiao-bom-e2e`（playwright）：AC#1~#6 各至少一条用例；含「既有库重开」（先以非 BOM 实体建库、重开再装 BOM 插件并跑种子）。
 
 **Independent Test**：AC#2 三行位号独立可见可编辑；AC#3 页面上 39/100 拒绝且不自动补位号不改 qty；AC#4 无 WH-01 需求行、面板第 6/7 步显示换算与 `COALESCE(phantom_override, default_phantom)` 取值与来源修订号；AC#5 直连写入与表单两条路径同一存储层错误码；AC#6 where-used 全部父件与路径（含虚拟件路径）、每跳可点回。
 
@@ -42,7 +42,7 @@
 2. **种子落插件不落 app**：`packages/rxdb-plugin-bom/src/testing/`，vitest 与 demo 共用同一份；装载顺序固定（阶段 A 单层）。
 3. **分阶段 golden 的骨架**：golden 结构按阶段组织（本步只有阶段 A 的层），不受新层影响的路径各阶段值逐位相同（为 B~F 预留结构）。
 4. **算式面板是展示不是重算**：七步中间值由 `explodeBom` 返回；面板与单测的数字来自同一组输入。
-5. **demo 单端即可**（US-522 才要三端）：`apps/dev-rxdb-bom` Angular；`pnpm nx serve dev-rxdb-bom` 起在 `127.0.0.1:4310`。
+5. **demo 单端即可**（US-522 才要三端）：`apps/aiao-bom` Angular；`pnpm nx serve aiao-bom` 起在 `127.0.0.1:4310`。
 
 ## 约束与门禁
 

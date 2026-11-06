@@ -29,8 +29,8 @@
 ## Phase 6: US5 演示阶段 F
 
 - [x] T010 [P] [US5] 在 packages/rxdb-plugin-bom/src/testing/scooter-dataset.ts 接回 SC-100 两台实例与草稿来源种子，保持 A～E golden。
-- [x] T011 [US5] 在 apps/dev-rxdb-bom/src/app/pages/instances/、bom-demo.service.ts、components/app-shell.ts 接入追溯页与完整交互状态。
-- [x] T012 [US5] 在 apps/dev-rxdb-bom-e2e/src/bom-demo.spec.ts 先补 AC#21/#22 失败用例，再完成 23 条全量 e2e。
+- [x] T011 [US5] 在 apps/aiao-bom/src/app/pages/instances/、bom-demo.service.ts、components/app-shell.ts 接入追溯页与完整交互状态。
+- [x] T012 [US5] 在 apps/aiao-bom-e2e/src/bom-demo.spec.ts 先补 AC#21/#22 失败用例，再完成 23 条全量 e2e。
 
 ## Phase 7: 门禁与回写
 
@@ -44,7 +44,7 @@
 - [x] T017 在 `packages/rxdb-plugin-bom/src/__tests__/bom-instance-source.spec.ts` 保留单工序合法比例 1 的发布失败回归，修复 backend/bom-trigger-ddl.ts 双后端整数分摊聚合；在 T013～T016 门禁前完成。
 - [x] T018 修复 benchmarks/bom.bench.ts 暴露的导出 p95 16.75ms 超预算：在 packages/rxdb-plugin-bom/src/resolve/integration.ts 每行只构造一次排序自然键，复验导入导出回归和性能，再收口门禁。
 - [x] T019 在 `packages/rxdb-plugin-bom/src/__tests__/bom-instance-upgrade.spec.ts` 验证真实持久化 A～E 库升级实例 schema 后主数据不变、F 与来源保护可用。
-- [x] T020 在 apps/dev-rxdb-bom-e2e/src/bom-demo.spec.ts 补首次空库状态失败回归，修复 bom-demo.service.ts / components/app-shell.ts 的连接装载顺序与状态标签，禁止空库创建悬空演示修订。
+- [x] T020 在 apps/aiao-bom-e2e/src/bom-demo.spec.ts 补首次空库状态失败回归，修复 bom-demo.service.ts / components/app-shell.ts 的连接装载顺序与状态标签，禁止空库创建悬空演示修订。
 - [x] T021 将分支门禁发现的 Vue 普通文本未失焦重绘丢值补成确定性失败回归，最小修复输入同步，并复验 Vue 模型包与完整 e2e；登记既有断言辅助函数，零警告 lint 通过。
 
 ## 并行纪律

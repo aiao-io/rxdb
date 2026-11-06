@@ -57,14 +57,14 @@
 - 结构：`SCOOTER_GOLDEN = { context: { bomType, orgId, asOfDate: '2026-09-22' }, plannedQty: { value: '1', uom: 'pcs' }, rootItemKey: 'SC-100', requirements: [{ pathKey: string[]（发生项业务键）, itemKey, qty, uom, steps: {…手写中间值} }] }`
 - 对账测试（`src/__tests__/bom-scooter.spec.ts`，双后端）：`loadScooterDataset` → `explodeBom` → 与 golden 逐位比较（需求行数与每条路径的 qty/uom/steps）；AC#1 的 vitest 面：两遍装载后各表逐行 dump 相同（rawQuery 全表按主键排序 dump 字符串比对）
 
-### 5. demo（`apps/dev-rxdb-bom`）
+### 5. demo（`apps/aiao-bom`）
 
 - 参照 `dev-rxdb-angular` 接线：project.json（serve 4310 / build / lint / spec-typecheck / test）+ `reset` / `seed` target（`nx:run-commands` 跑脚本：删除 IndexedDB + 跑装载）
 - 页面：展开树（`explodeBom` 结果按路径树形渲染、选中行联动面板）、算式面板（七步 rows + 字段来源标注）、评估日输入（date input）、直连写入面板（构造一条指回 SC-100 的边直连 INSERT，显示存储层错误）
 - 位号编辑面（AC#2/#3）：PCBA 电阻三行可见可编辑位号清单；39/100 发布拒绝的错误直接展示
 - 种子经 `loadScooterDataset`；服务封装 `rxdb.bom.explodeBom`
 
-### 6. e2e（`apps/dev-rxdb-bom-e2e`）
+### 6. e2e（`apps/aiao-bom-e2e`）
 
 - 参照 `dev-rxdb-angular-e2e` 接线（playwright）；AC#1~#6 各一条用例 + 既有库重开用例
 - AC#1：`reset seed` 两遍后全表 dump 相同（在 e2e 里经 app 的 seed 状态或 vitest 面承担——e2e 承担「两遍 seed 页面相同」的可见面，逐字节在 vitest）

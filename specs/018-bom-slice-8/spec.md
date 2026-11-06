@@ -4,7 +4,7 @@
 **Created**: 2026-10-16
 **Status**: Implemented
 
-**Input**: 首轮切片第 1~7 步已交付（建图 → 视图 → 展开 → 反查 → 数量 → 时间轴 → 双图与卷算，affected 全绿）；本步两件事：① 把 `dev-rxdb-bom` 从「验收面板」升级为**产品级应用**（参照 `dev-rxdb-angular` 的壳、导航、视觉与交互质量）；② 按 [epic 切片表](../../requirements/epics/epic-009-bom-domain-model.md#首轮可开工切片) 第 5 步与 [US-525 阶段 E](../../requirements/stories/domain/US-525-bom-end-to-end-demo.md) 的引导，交付配置选择、序列/批次有效性、扩展属性与导入导出。
+**Input**: 首轮切片第 1~7 步已交付（建图 → 视图 → 展开 → 反查 → 数量 → 时间轴 → 双图与卷算，affected 全绿）；本步两件事：① 把 `aiao-bom` 从「验收面板」升级为**产品级应用**（参照 `dev-rxdb-angular` 的壳、导航、视觉与交互质量）；② 按 [epic 切片表](../../requirements/epics/epic-009-bom-domain-model.md#首轮可开工切片) 第 5 步与 [US-525 阶段 E](../../requirements/stories/domain/US-525-bom-end-to-end-demo.md) 的引导，交付配置选择、序列/批次有效性、扩展属性与导入导出。
 
 - [US-517 可配置销售 BOM](../../requirements/stories/domain/US-517-configurable-sales-bom.md) — 全部 AC#1~#7
 - [US-518 序列 / 批次有效性](../../requirements/stories/domain/US-518-bom-unit-lot-effectivity.md) — 全部 AC#1~#10

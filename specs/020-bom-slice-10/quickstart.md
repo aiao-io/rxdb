@@ -22,7 +22,7 @@ pnpm nx serve dev-rxdb-vue
 | 生命周期与编辑    | 27/27，含旧SQLite守卫持久升级                             | `pnpm nx test rxdb-plugin-bom --run src/__tests__/bom-view-lifecycle.spec.ts src/__tests__/bom-view-editor.spec.ts --coverage=false` |
 | 查询成本回归      | 2/2，两端99条路径不合并、单事务一次子头查询、下一事务重读 | `pnpm nx test rxdb-plugin-bom --run src/__tests__/bom-view-query-cost.spec.ts --coverage=false`                                      |
 | 三框架浏览器      | Angular/React/Vue各17/17，共51；最终完整应用回归均通过    | `pnpm nx e2e dev-rxdb-<framework>-e2e --grep='BOM 三框架共享验收' --workers=1`                                                       |
-| 原BOM演示         | 23/23                                                     | `pnpm nx e2e dev-rxdb-bom-e2e --grep='BOM demo' --workers=1`                                                                         |
+| 原BOM演示         | 23/23                                                     | `pnpm nx e2e aiao-bom-e2e --grep='BOM demo' --workers=1`                                                                             |
 | 最终完整BOM演示   | 24/24，含新联产与原23条，50.9s                            | 本地日志`bom-affected-complete3.log`（未留存）                                                                                       |
 
 实际运行使用`NX_DAEMON=false NX_ISOLATE_PLUGINS=false NX_NO_CLOUD=true`。初期锁定Chromium尚未下载，曾用本机Chrome临时配置；锁定浏览器安装完成后，前轮三端51项通过。新核心元数据曾与旧dist混用导致应用初始化失败，完整依赖构建后修复；没有加入缺Map fallback。早期通过不替代最终完整e2e；最终351任务已通过，首屏失败与修复历史保留在下方。

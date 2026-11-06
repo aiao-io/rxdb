@@ -48,6 +48,10 @@ BOM 的写入期有向无环约束属于领域规则，由 [US-509](../stories/d
       卷算的拓扑排序永不死锁，且副产品与废料的反向物料流（非 `consume` 边）**不被误判成环**
       （[US-509](../stories/domain/US-509-bom-dag-cycle-detection.md)）。
 
+## 应用需求边界
+
+[Aiao BOM](../../apps/aiao-bom/requirements/README.md) 独立管理产品范围、应用故事与验收。共享领域模型、三框架绑定和 US-525 的组合验收基线继续归本 Epic；应用状态不进入平台统计。
+
 ## 故事
 
 > 本清单只列范围，**不带状态**。状态见 [status-overview](../status-overview.md)（真相源是各 story 的 YAML `status`）。
@@ -114,7 +118,7 @@ US-518 新增 AC#12 单列为未关闭项，不能借首轮或其他阶段的验
   [microsoft/sql-server-samples@beaab06e](https://github.com/microsoft/sql-server-samples/tree/beaab06ef72831089ca80e5355d65e661fd19b26/samples/databases/adventure-works/oltp-install-script)
   的 `BillOfMaterials.csv` / `Product.csv` / `UnitMeasure.csv`（制表符分隔、无表头；SHA-256 前 12 位依次为
   `a27765426bd4` / `df0379a7cba8` / `6e4d07534b69`）。数据不进仓库；落成测试夹具时随实现 PR 定位置，并保留 MIT 声明。
-- **驱动者（已定，owner 2026-10-12 决定）**：完整功能的 BOM 演示应用——`apps/dev-rxdb-bom` 独立 app 展示全域能力
+- **驱动者（已定，owner 2026-10-12 决定）**：完整功能的 BOM 演示应用——`apps/aiao-bom` 独立 app 展示全域能力
   （US-525 阶段 A～F）。示例库仍只是形态样本，不代替驱动者；第 0 步复核的是演示范围与决策 1～8 对样本的成立性。
 
 | 形态       | 实测                                                                                                                                                                                                       | 对模型与默认决策的复核                                                                                                         |

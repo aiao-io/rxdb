@@ -99,7 +99,7 @@
 ## 验证策略
 
 - 单测按故事 AC 分组：`bom-ecn.spec.ts`（保存期协议 + 状态机，双后端参数化）、`bom-ecn-resolution.spec.ts`（可见性 + US-508 AC#12/#16）、`bom-ecn-impact.spec.ts`（AC#1/#2）、`bom-ecn-slice.spec.ts`（投影切片校验 AC#23~#25 + US-512#6/#9/#14）、既有 spec 回归（金样值不变——除非路径受影响）。
-- e2e：`dev-rxdb-bom-e2e` 第 11~13 条 + 既有 10 条回归。
+- e2e：`aiao-bom-e2e` 第 11~13 条 + 既有 10 条回归。
 - 门禁：lint / typecheck / test / 覆盖率 ≥ 80% / api-baseline / affected full。
 
 ## 分阶段任务

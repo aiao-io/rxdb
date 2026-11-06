@@ -122,8 +122,8 @@ AC#4 的「装机区间可查」意味着实例节点需要 `installed_at` / `re
 - `packages/rxdb-plugin-bom/src/testing/scooter-dataset.ts` — SC-100 两台整机的确定性阶段 F 种子
 - `packages/rxdb-plugin-bom/src/__tests__/bom-instance.spec.ts` / `bom-instance-source.spec.ts` / `bom-instance-scale.spec.ts` — 双后端节点、来源保护与规模隔离回归
 - `packages/rxdb-plugin-bom/src/__tests__/bom-scooter-f.spec.ts` — 双后端阶段 F 种子与 A～E 整机计算不变回归
-- `apps/dev-rxdb-bom/src/app/pages/instances/` / `bom-demo.service.ts` — 实例树、换件历史、追溯与主数据改版对照
-- `apps/dev-rxdb-bom-e2e/src/bom-demo.spec.ts` — US-525 AC#21/#22 消费方回归
+- `apps/aiao-bom/src/app/pages/instances/` / `bom-demo.service.ts` — 实例树、换件历史、追溯与主数据改版对照
+- `apps/aiao-bom-e2e/src/bom-demo.spec.ts` — US-525 AC#21/#22 消费方回归
 
 ## 第 9 步关闭记录
 

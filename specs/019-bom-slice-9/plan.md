@@ -42,9 +42,9 @@ packages/rxdb-plugin-bom/src/
   backend/instance-node-ddl.ts / instance-source-ddl.ts / bom-trigger-ddl.ts
   __tests__/bom-instance*.spec.ts
   testing/scooter-dataset.ts
-apps/dev-rxdb-bom/src/app/pages/instances/
-apps/dev-rxdb-bom/src/app/bom-demo.service.ts
-apps/dev-rxdb-bom-e2e/src/bom-demo.spec.ts
+apps/aiao-bom/src/app/pages/instances/
+apps/aiao-bom/src/app/bom-demo.service.ts
+apps/aiao-bom-e2e/src/bom-demo.spec.ts
 benchmarks/bom.bench.ts
 ```
 

@@ -72,7 +72,7 @@
 
 - [x] T028 在 `benchmarks/bom.bench.ts` 与三端浏览器场景测 100 节点查询/保存/刷新到 DOM/首屏，记录 p50/p95/max、环境和原始样本；在 `specs/020-bom-slice-10/quickstart.md` 记录每包入口及静态 gzip、完整动态体积，预算超限先修。
 - [x] T029 四包README已按实际代码核对并补齐等价useBomView/组件示例、三端容器与输入同步差异、订阅/数据库资源归属、候选完整消费及草稿/发布/draft ECN日期边界；公共导出中文TSDoc已核对，修正watchView与远端DDL注释归属，签名与运行代码不变。
-- [x] T030 主会话集中跑核心与三端包的 strict、零警告 lint、测试/覆盖率、build 与 `tri-framework-check`；非核心四项 ≥80%，若改核心则对应 ≥90%，保留原 23 条 `apps/dev-rxdb-bom-e2e/src/bom-demo.spec.ts` 全量回归。
+- [x] T030 主会话集中跑核心与三端包的 strict、零警告 lint、测试/覆盖率、build 与 `tri-framework-check`；非核心四项 ≥80%，若改核心则对应 ≥90%，保留原 23 条 `apps/aiao-bom-e2e/src/bom-demo.spec.ts` 全量回归。
 - [x] T031 更新 `requirements/api-baseline/` 与包图生成物，完成 API、包图、需求一致性、构建入口、覆盖率五项审计及格式检查；核对 `specs/020-bom-slice-10/contracts/bom-view-api.md` 与三端实际导出相符。
 - [x] T032 主会话按受影响范围集中执行当前分支 Nx 门禁，使用本环境配置与本地缓存，重负载串行/分段；实际命令、失败原因、修复与补齐结果记录到 `specs/020-bom-slice-10/quickstart.md`，不虚构单条命令首次全绿。
 - [x] T033 按实际验收证据回写 `requirements/stories/domain/US-522-bom-tri-framework-ui.md`、US-520 AC#11、US-524 AC#7 及 `specs/020-bom-slice-10/`；其他旧故事仅凭独立审计证据及spec021～024各自门禁回写，不凭本切片部分通过自动关闭，本次文档子任务不提交。

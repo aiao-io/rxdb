@@ -5,35 +5,36 @@
       "enabled": false
     }
   },
-  "name": "dev-rxdb-bom",
+  "name": "aiao-bom",
   "prefix": "bom",
   "projectType": "application",
-  "sourceRoot": "apps/dev-rxdb-bom/src",
-  "tags": ["angular-app", "demo"],
+  "sourceRoot": "apps/aiao-bom/src",
+  "tags": ["angular-app", "type:app", "scope:bom"],
   "targets": {
     "spec-typecheck": {
       "executor": "nx:run-commands",
       "dependsOn": ["^build", "^typecheck"],
       "inputs": ["default", "^production"],
       "options": {
-        "cwd": "apps/dev-rxdb-bom",
+        "cwd": "apps/aiao-bom",
         "command": "tsc --build tsconfig.spec.json --pretty false"
       }
     },
     "lint": {
       "executor": "nx:run-commands",
       "options": {
-        "cwd": "apps/dev-rxdb-bom",
+        "cwd": "apps/aiao-bom",
         "command": "eslint . --max-warnings=0"
-      }
+      },
+      "dependsOn": ["requirements-check"]
     },
     "test": {
       "executor": "nx:run-commands",
-      "dependsOn": ["^build", "spec-typecheck"],
+      "dependsOn": ["^build", "spec-typecheck", "requirements-test"],
       "inputs": ["default", "^production"],
-      "outputs": ["{workspaceRoot}/coverage/apps/dev-rxdb-bom"],
+      "outputs": ["{workspaceRoot}/coverage/apps/aiao-bom"],
       "options": {
-        "cwd": "apps/dev-rxdb-bom",
+        "cwd": "apps/aiao-bom",
         "command": "vitest"
       }
     },
@@ -46,7 +47,7 @@
         "assets": [
           {
             "glob": "**/*",
-            "input": "apps/dev-rxdb-bom/public"
+            "input": "apps/aiao-bom/public"
           },
           {
             "glob": "**/*.wasm",
@@ -54,12 +55,12 @@
             "output": "./wa-sqlite/"
           }
         ],
-        "browser": "apps/dev-rxdb-bom/src/main.ts",
+        "browser": "apps/aiao-bom/src/main.ts",
         "inlineStyleLanguage": "scss",
-        "outputPath": "dist/apps/dev-rxdb-bom",
+        "outputPath": "dist/apps/aiao-bom",
         "polyfills": [],
-        "styles": ["apps/dev-rxdb-bom/src/styles.scss"],
-        "tsConfig": "apps/dev-rxdb-bom/tsconfig.app.json",
+        "styles": ["apps/aiao-bom/src/styles.scss"],
+        "tsConfig": "apps/aiao-bom/tsconfig.app.json",
         "externalDependencies": []
       },
       "configurations": {
@@ -83,12 +84,15 @@
       "continuous": true,
       "defaultConfiguration": "development",
       "executor": "@angular/build:dev-server",
+      "readyWhen": {
+        "signal": true
+      },
       "options": {
         "port": 4311
       },
       "configurations": {
         "development": {
-          "buildTarget": "dev-rxdb-bom:build:development",
+          "buildTarget": "aiao-bom:build:development",
           "host": "0.0.0.0",
           "headers": {
             "Cross-Origin-Opener-Policy": "same-origin",
@@ -96,11 +100,8 @@
           }
         },
         "production": {
-          "buildTarget": "dev-rxdb-bom:build:production"
+          "buildTarget": "aiao-bom:build:production"
         }
-      },
-      "readyWhen": {
-        "signal": true
       }
     },
     "serve-static": {
@@ -111,10 +112,10 @@
       },
       "dependsOn": ["build"],
       "options": {
-        "buildTarget": "dev-rxdb-bom:build",
+        "buildTarget": "aiao-bom:build",
         "port": 4311,
         "spa": true,
-        "staticFilePath": "dist/apps/dev-rxdb-bom/browser"
+        "staticFilePath": "dist/apps/aiao-bom/browser"
       }
     },
     "serve-e2e": {
@@ -126,8 +127,28 @@
       "options": {
         "port": 4311,
         "spa": true,
-        "staticFilePath": "dist/apps/dev-rxdb-bom/browser",
+        "staticFilePath": "dist/apps/aiao-bom/browser",
         "watch": false
+      }
+    },
+    "requirements-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node --test apps/aiao-bom/scripts/check-requirements.spec.mjs"
+      },
+      "configurations": {
+        "coverage": {
+          "command": "node --test --experimental-test-coverage --test-coverage-include=apps/aiao-bom/scripts/check-requirements.mjs --test-coverage-lines=80 --test-coverage-branches=80 --test-coverage-functions=80 apps/aiao-bom/scripts/check-requirements.spec.mjs"
+        }
+      },
+      "defaultConfiguration": "coverage"
+    },
+    "requirements-check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node apps/aiao-bom/scripts/check-requirements.mjs"
       }
     }
   }

@@ -5,11 +5,11 @@ import { defineConfig } from 'vite';
 
 export default defineConfig(() => ({
   root: import.meta.dirname,
-  cacheDir: '../../node_modules/.vite/apps/dev-rxdb-bom',
+  cacheDir: '../../node_modules/.vite/apps/aiao-bom',
   plugins: [angular({ tsconfig: `${import.meta.dirname}/tsconfig.spec.json` }), nxReadySignal()],
   resolve: { tsconfigPaths: true },
   test: {
-    name: 'dev-rxdb-bom',
+    name: 'aiao-bom',
     watch: false,
     globals: true,
     environment: 'happy-dom',
@@ -19,7 +19,7 @@ export default defineConfig(() => ({
     reporters: ['default'],
     coverage: {
       include: ['src/app/**/*.ts'],
-      reportsDirectory: '../../coverage/apps/dev-rxdb-bom',
+      reportsDirectory: '../../coverage/apps/aiao-bom',
       provider: 'v8' as const
     }
   }

@@ -67,21 +67,21 @@
       "port": 4200
     },
     {
-      "name": "dev-rxdb-bom",
+      "name": "aiao-bom",
       "runtimeExecutable": "sh",
       "runtimeArgs": [
         "-c",
-        "pnpm nx serve dev-rxdb-bom --port=${PORT:-4311}"
+        "pnpm nx serve aiao-bom --port=${PORT:-4311}"
       ],
       "autoPort": true
     },
     {
-      "name": "dev-rxdb-bom-static",
+      "name": "aiao-bom-static",
       "runtimeExecutable": "node",
       "runtimeArgs": [
         "scripts/e2e-static-server.mjs",
         "--root",
-        "dist/apps/dev-rxdb-bom/browser",
+        "dist/apps/aiao-bom/browser",
         "--port",
         "4322"
       ],

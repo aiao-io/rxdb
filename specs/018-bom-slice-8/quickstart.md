@@ -5,7 +5,7 @@
 ## 演示
 
 ```bash
-pnpm nx serve dev-rxdb-bom
+pnpm nx serve aiao-bom
 ```
 
 打开 `http://localhost:4311`，概览页重置并装载种子；共 41 个物料、42 个发生项、4 个历史批次。

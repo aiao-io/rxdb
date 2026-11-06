@@ -19,8 +19,8 @@
 
 ## Phase 4: demo 与 e2e（US-525 阶段 A 应用）
 
-- [x] T006 `apps/dev-rxdb-bom`（Angular）：展开树 + 算式面板（七步 + 第 5 步「工序损耗未交付」）+ 评估日输入 + 直连写入按钮 + reset/seed target；本地 serve 验证
-- [x] T007 `apps/dev-rxdb-bom-e2e`（playwright）：AC#1~#6 各一条用例 + 既有库重开用例
+- [x] T006 `apps/aiao-bom`（Angular）：展开树 + 算式面板（七步 + 第 5 步「工序损耗未交付」）+ 评估日输入 + 直连写入按钮 + reset/seed target；本地 serve 验证
+- [x] T007 `apps/aiao-bom-e2e`（playwright）：AC#1~#6 各一条用例 + 既有库重开用例
 
 ## Phase 5: 门禁与回写
 

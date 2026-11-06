@@ -30,12 +30,12 @@ SQLite更新原先强制整行回填，现复用既有mergeQueryCache逐字段�
 
 ```bash
 pnpm nx run rxdb-plugin-bom:test --run src/__tests__/bom-coproduct.spec.ts src/__tests__/bom-coproduct-integration.spec.ts --coverage=false
-pnpm nx serve dev-rxdb-bom
+pnpm nx serve aiao-bom
 ```
 
 演示地址为 `http://localhost:4311`。在概览“重置并装载种子”，默认物料仍41条；进入成本卷算并点“装载联产演示”。选择JOINT-MAIN卷算，过程净成本应为220、两输出分配132/88、第二输出单位成本1.76/kg。选择JOINT-CONSUMER直接卷算应报来源未解析；手选JOINT-MAIN来源后应得17.6。刷新后再次卷算JOINT-MAIN，持久结果仍为220与132/88。
 
-自动浏览器验收新增在`apps/dev-rxdb-bom-e2e/src/bom-coproduct.spec.ts`。主会话第三轮通过Nx执行最终demo **24/24通过（50.9s）**：新联产场景展示220→132/88并显式选择下游成本来源，原23条全部通过。证据为本地日志`bom-affected-complete3.log`（未留存），此前rohs缺失的真实失败仍保留在本记录。J014/J015与US-513阶段B/C14功能验收据此关闭，故事整体现已随最终完整验收关闭为Done。
+自动浏览器验收新增在`apps/aiao-bom-e2e/src/bom-coproduct.spec.ts`。主会话第三轮通过Nx执行最终demo **24/24通过（50.9s）**：新联产场景展示220→132/88并显式选择下游成本来源，原23条全部通过。证据为本地日志`bom-affected-complete3.log`（未留存），此前rohs缺失的真实失败仍保留在本记录。J014/J015与US-513阶段B/C14功能验收据此关闭，故事整体现已随最终完整验收关闭为Done。
 
 ## 最终完整验收
 

@@ -14,8 +14,8 @@
 ## 测试与门禁（截至当日）
 
 - `rxdb-plugin-bom`:test — 416/416 通过（27 个 spec，新增 bom-cost / bom-map / bom-scooter-d）；覆盖率 94.85% 语句 / 82.58% 分支 / 93.76% 函数 / 96.45% 行
-- `dev-rxdb-bom-e2e` — 17/17 全绿（A~D 四阶段 AC）
-- `dev-rxdb-bom` + `dev-rxdb-bom-e2e` 的 lint/typecheck/test/build — 34 任务全绿（AC#16 门禁）
+- `aiao-bom-e2e` — 17/17 全绿（A~D 四阶段 AC）
+- `aiao-bom` + `aiao-bom-e2e` 的 lint/typecheck/test/build — 34 任务全绿（AC#16 门禁）
 - 插件主入口补 bom-map 导出、testing 入口补 D 层装载；`nx sync` 刷新 tsconfig 引用
 - affected full — 后台运行中（88 项目，nx reset 后全量）
 

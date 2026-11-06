@@ -16,7 +16,7 @@
 ## 测试与门禁（截至当日）
 
 - `rxdb-plugin-bom`:test — 354/354 通过（24 个 spec，新增 bom-ecn / bom-ecn-resolution / bom-ecn-slice / bom-ecn-impact / bom-scooter-c 五个）；覆盖率 95.66% 语句 / 85.36% 分支 / 94.51% 函数 / 96.96% 行
-- `dev-rxdb-bom-e2e` — 13/13 全绿（A/B/C 三阶段 AC）
+- `aiao-bom-e2e` — 13/13 全绿（A/B/C 三阶段 AC）
 - api-baseline 更新（BomEcn、ecnImpact/ecnDiff/EcnDiffEntry/EcnDiffResult/EcnImpactResult 等）
 - affected full — 见任务记录（无 TUI 重跑）
 

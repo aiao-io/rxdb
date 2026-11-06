@@ -16,7 +16,7 @@
 ## 测试与门禁（截至当日）
 
 - `rxdb-plugin-bom`:test — 278/278 通过（19 个 spec）；覆盖率 95.11% 语句 / 85.49% 分支 / 94.58% 函数 / 96.3% 行
-- `dev-rxdb-bom-e2e` — 10/10 全绿（A/B 两阶段 AC）；demo/e2e lint 零警告
+- `aiao-bom-e2e` — 10/10 全绿（A/B 两阶段 AC）；demo/e2e lint 零警告
 - `audit:api-surface` / `audit:requirements` — 通过（100 条故事，13 In Progress）
 - affected full（279 任务）— **279/279 全绿**（第一轮挂 rxdb-plugin-bom 两个旧 fixture 与新增互斥规则冲突——修 fixture 后第二轮全绿；3 个本机负载 flaky 照旧单跑即绿）
 

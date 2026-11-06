@@ -1,8 +1,8 @@
 {
-  "name": "@aiao/dev-rxdb-bom",
+  "name": "@aiao/aiao-bom-e2e",
   "version": "0.0.1",
   "private": true,
   "nx": {
-    "name": "dev-rxdb-bom"
+    "name": "aiao-bom-e2e"
   }
 }
