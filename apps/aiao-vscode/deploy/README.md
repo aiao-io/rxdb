@@ -31,9 +31,10 @@ GitHub 认证链路与 [vscode.dev](../../../requirements/domain-research/vscode
    ```bash
    pnpm nx build aiao-vscode
    cd apps/aiao-vscode/deploy
-   pnpm dlx wrangler pages deploy --project-name aiao-vscode
+   pnpm dlx wrangler pages deploy --project-name aiao-vscode --branch main
    ```
    首次采用本配置读取方式时需要重新构建并部署；后续调整服务端配置也需要重新部署以使绑定生效。
+   `main` 对应生产环境和 `vscode.aiao.io`；省略 `--branch main` 会按当前 Git 分支发布，可能只更新 Preview。
 
 ## 本地联调
 

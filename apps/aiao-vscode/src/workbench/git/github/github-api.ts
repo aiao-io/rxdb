@@ -222,9 +222,9 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
     parse: (item: unknown) => T
   ): Promise<T[]> {
     const result: T[] = [];
-    let next: string | null = `${path}?${query(params)}`;
+    let next: string | null = `${apiBase}${path}?${query(params)}`;
     while (next) {
-      const response = await requestRaw(apiBase + next);
+      const response = await requestRaw(next);
       if (response.status === 204) break;
       const value = await readJson(response);
       if (!Array.isArray(value)) throw new GitHubApiError('invalid_response', 'GitHub API 分页响应不是数组');

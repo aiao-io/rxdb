@@ -1,0 +1,10 @@
+{
+  "format": "aiao.browser-workbench.github-oauth",
+  "version": 1,
+  "host": "vscode",
+  "url": "https://vscode.aiao.io",
+  "status": "failed",
+  "checks": [],
+  "error": "apiRequestContext.get: read ETIMEDOUT\nCall log:\n\u001b[2m  - → GET https://vscode.aiao.io/api/github-token\u001b[22m\n\u001b[2m    - user-agent: Playwright/1.64.1 (arm64; macOS 27.0) node/26.12\u001b[22m\n\u001b[2m    - accept: application/json\u001b[22m\n\u001b[2m    - accept-encoding: gzip,deflate,br\u001b[22m\n\u001b[2m    - Cache-Control: no-cache\u001b[22m\n",
+  "generatedAt": "2026-11-06T08:00:09.446Z"
+}

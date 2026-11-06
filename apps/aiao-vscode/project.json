@@ -234,6 +234,14 @@
         "cwd": "apps/aiao-vscode",
         "command": "node scripts/verify-github-auth.mjs"
       }
+    },
+    "verify-github-oauth": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "apps/aiao-vscode",
+        "command": "node scripts/verify-github-oauth.mjs"
+      }
     }
   }
 }

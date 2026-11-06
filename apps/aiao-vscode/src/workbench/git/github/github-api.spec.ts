@@ -146,10 +146,38 @@ describe('GitHub API client', () => {
     );
     const repos = await api.listMyRepositories();
     expect(repos.map(repo => repo.fullName)).toEqual(['octo/one', 'octo/two']);
-    expect(calledUrl(1).url).toContain('page=2');
+    expect(calledUrl(0).url).toBe('https://api.github.com/user/repos?sort=updated&per_page=100&page=1');
+    expect(calledUrl(1).url).toBe('https://api.github.com/user/repos?page=2');
 
-    fetchMock.mockResolvedValueOnce(jsonResponse([{ name: 'main', commit: { sha: 'sha-main' } }]));
-    await expect(api.listBranches('octo', 'one')).resolves.toEqual([{ name: 'main', sha: 'sha-main' }]);
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse([{ name: 'main', commit: { sha: 'sha-main' } }], {
+        headers: { Link: '<https://api.github.com/repos/octo/one/branches?page=2>; rel="next"' }
+      })
+    );
+    fetchMock.mockResolvedValueOnce(jsonResponse([{ name: 'develop', commit: { sha: 'sha-develop' } }]));
+    await expect(api.listBranches('octo', 'one')).resolves.toEqual([
+      { name: 'main', sha: 'sha-main' },
+      { name: 'develop', sha: 'sha-develop' }
+    ]);
+    expect(calledUrl(3).url).toBe('https://api.github.com/repos/octo/one/branches?page=2');
+  });
+
+  it('preserves the configured API base path and follows absolute pagination links', async () => {
+    const custom = createGitHubApi({
+      getToken: async () => 'test-token',
+      apiBase: 'https://github.example/api/v3/',
+      fetchFn: fetchMock
+    });
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse([], { headers: { Link: '<https://github.example/api/v3/user/repos?page=2>; rel="next"' } })
+    );
+    fetchMock.mockResolvedValueOnce(jsonResponse([]));
+
+    await expect(custom.listMyRepositories()).resolves.toEqual([]);
+
+    expect(calledUrl(0).url).toBe('https://github.example/api/v3/user/repos?sort=updated&per_page=100&page=1');
+    expect(calledUrl(1).url).toBe('https://github.example/api/v3/user/repos?page=2');
+    expect(calledUrl(1).init.headers).toMatchObject({ Authorization: 'Bearer test-token' });
   });
 
   it('walks truncated trees by fetching subtree trees and merges blob paths', async () => {
