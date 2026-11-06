@@ -1,11 +1,11 @@
 ---
 id: US-517
 title: 可配置销售 BOM：特征、选项与选择条件
-status: Done
+status: In Review
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-16
+updated: 2026-11-06
 tags: [domain, bom, configuration]
 ---
 

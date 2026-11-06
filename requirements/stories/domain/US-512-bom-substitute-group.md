@@ -1,11 +1,11 @@
 ---
 id: US-512
 title: 替代组与替代策略
-status: Done
+status: In Review
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-18
+updated: 2026-11-06
 tags: [domain, bom, schema]
 ---
 

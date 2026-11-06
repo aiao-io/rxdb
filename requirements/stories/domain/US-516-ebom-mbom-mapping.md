@@ -1,11 +1,11 @@
 ---
 id: US-516
 title: EBOM ↔ MBOM 映射与差异对比
-status: Done
+status: In Review
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-21
+updated: 2026-11-06
 tags: [domain, bom, integration]
 ---
 

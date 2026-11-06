@@ -1,11 +1,11 @@
 ---
 id: US-507
 title: BOM 图骨架：物料、修订与多重边 BOM 行
-status: Done
+status: In Review
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-20
+updated: 2026-11-06
 tags: [domain, bom, schema]
 ---
 

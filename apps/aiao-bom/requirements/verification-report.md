@@ -13,16 +13,16 @@
 
 ## 证据层级
 
-| 层级                    | 复验入口或证据                                                                                                                                        | 当前结论                                                                                |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| L1 需求结构             | `pnpm nx run aiao-bom:requirements-check`                                                                                                             | 通过，7 条应用故事独立计数，四份派生视图与本地链接一致                                  |
-| L1 门禁回归             | `pnpm nx run aiao-bom:requirements-test`                                                                                                              | 16/16 通过；行 94.90%、分支 93.96%、函数 93.48%，默认阈值均为 80%                       |
-| L2 静态与单元测试       | `pnpm nx run-many --projects=aiao-bom,aiao-bom-e2e --targets=lint,typecheck,spec-typecheck,test --parallel=1 --skipRemoteCache --output-style=static` | lint 零警告、typecheck 与 spec-typecheck 通过；单测 25 文件、224/224 通过               |
-| L3 生产产物及浏览器     | `pnpm nx run aiao-bom-e2e:e2e`                                                                                                                        | 生产构建及浏览器 39/39 通过，单 worker、零重试；含既有库重开、离线热页重算及 375px 窄屏 |
-| L4 真实业务试用         | BOM-US-202 的样本、人工基线与目标用户记录                                                                                                             | 缺少真实样本与目标用户试用证据                                                          |
-| L3 Cloudflare 本地仿真  | `pnpm nx run aiao-bom-e2e:e2e-cloudflare`                                                                                                             | Wrangler 服务生产产物，部署验收 4/4 通过，单 worker、零重试                             |
-| L4 Cloudflare 公网部署  | `BASE_URL=https://aiao-bom.aiao.workers.dev pnpm nx run aiao-bom-e2e:e2e-cloudflare`                                                                  | 实际发布成功，公网 Chromium 4/4 通过；首页与 WASM 的 SHA-256 和本地生产产物一致         |
-| L4 历史库迁移与正式发行 | 受支持浏览器、历史版本及发行产物记录                                                                                                                  | 跨 origin 自动迁移、历史 schema 升级及正式发行仍需独立验收                              |
+| 层级                    | 复验入口或证据                                                                                                                                        | 当前结论                                                                                                                       |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| L1 需求结构             | `pnpm nx run aiao-bom:requirements-check`                                                                                                             | 通过，7 条应用故事独立计数，四份派生视图与本地链接一致                                                                         |
+| L1 门禁回归             | `pnpm nx run aiao-bom:requirements-test`                                                                                                              | 16/16 通过；行 94.90%、分支 93.96%、函数 93.48%，默认阈值均为 80%                                                              |
+| L2 静态与单元测试       | `pnpm nx run-many --projects=aiao-bom,aiao-bom-e2e --targets=lint,typecheck,spec-typecheck,test --parallel=1 --skipRemoteCache --output-style=static` | lint 零警告、typecheck 与 spec-typecheck 通过；单测 25 文件、229/229 通过                                                      |
+| L3 生产产物及浏览器     | `pnpm nx run aiao-bom-e2e:e2e`                                                                                                                        | 生产构建及浏览器 40/40 通过，单 worker、零重试；含既有库重开、离线热页重算、375px 窄屏，以及首次准备至依据查看、返回和摘要下载 |
+| L4 真实业务试用         | BOM-US-202 的样本、人工基线与目标用户记录                                                                                                             | 缺少真实样本与目标用户试用证据                                                                                                 |
+| L3 Cloudflare 本地仿真  | `pnpm nx run aiao-bom-e2e:e2e-cloudflare`                                                                                                             | Wrangler 服务生产产物，部署验收 4/4 通过，单 worker、零重试                                                                    |
+| L4 Cloudflare 公网部署  | `BASE_URL=https://aiao-bom.aiao.workers.dev pnpm nx run aiao-bom-e2e:e2e-cloudflare`                                                                  | 实际发布成功，公网 Chromium 4/4 通过；首页与 WASM 的 SHA-256 和本地生产产物一致                                                |
+| L4 历史库迁移与正式发行 | 受支持浏览器、历史版本及发行产物记录                                                                                                                  | 跨 origin 自动迁移、历史 schema 升级及正式发行仍需独立验收                                                                     |
 
 ## 复验规则
 

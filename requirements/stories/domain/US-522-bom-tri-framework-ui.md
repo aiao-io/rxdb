@@ -1,11 +1,11 @@
 ---
 id: US-522
 title: 三框架 BOM 编辑与展开视图
-status: Done
+status: In Review
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-20
+updated: 2026-11-06
 tags: [domain, bom, angular, react, vue, ui]
 ---
 

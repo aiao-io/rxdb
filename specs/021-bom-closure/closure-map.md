@@ -1,5 +1,7 @@
 # BOM 最终验收结果
 
+> 历史验收记录：下文的任务数量、Done 状态与门禁数字属于当时切片基线，不是当前交付状态。2026-11-06 核对时 PR #129 尚未合并，19 条平台故事统一为 In Review；应用状态、真实样本试用及最终验证见[收尾任务](../../apps/aiao-bom/requirements/plans/bom-completion-tasks.md)与[应用验收台账](../../apps/aiao-bom/requirements/verification-report.md)。
+
 BOM本轮已完成：spec011～024的256条任务全部勾选，19条BOM故事全部Done，跨域前置US-030也已Done。US-522 AC#1按三端共享51/51关闭。全仓YAML实际计数为95 Done、1 In Progress、1 In Review、3 Backlog，共100条；剩余故事均不属于BOM。
 
 ## 最终完整门禁

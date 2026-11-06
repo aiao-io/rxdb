@@ -7,14 +7,14 @@
 
 | 状态           | 数量   |
 | :------------- | :----- |
-| ✅ Done        | 108    |
-| 🚧 In Progress | 6      |
-| 👀 In Review   | 8      |
+| ✅ Done        | 89     |
+| 🚧 In Progress | 5      |
+| 👀 In Review   | 28     |
 | 📝 Backlog     | 7      |
 | 🚫 Blocked     | 0      |
-| **未完成合计** | **21** |
+| **未完成合计** | **40** |
 
-仓库还剩 **21 条**未关闭故事（6 In Progress + 8 In Review + 7 Backlog + 0 Blocked）。
+仓库还剩 **40 条**未关闭故事（5 In Progress + 28 In Review + 7 Backlog + 0 Blocked）。
 数字由 story YAML 推导；Backlog 包括已授权任务与价值待证候选，不能把全部未关闭故事当成可开工项。
 
 ## 未完成需求全景
@@ -26,7 +26,7 @@
 | [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md)                                                                                                                                                                    | 🚧 In Progress | 按平台矩阵核对剩余设备验证、demo 走查与公开支持边界                                                   | 批次 3      |
 | [US-403](stories/ui/US-403-entity-components-headless.md)                                                                                                                                                                          | 🚧 In Progress | 独立构建产物消费、Angular secondary entry 与三框架质量门禁待收口                                      | 批次 3      |
 | [US-219](stories/adapter/US-219-taro-plugin.md)                                                                                                                                                                                    | 👀 In Review   | 当前 Taro 版本的外部安装与开发者工具验收证据                                                          | 批次 3      |
-| [US-518](stories/domain/US-518-bom-unit-lot-effectivity.md) / [epic-009 BOM](epics/epic-009-bom-domain-model.md)                                                                                                                   | 🚧 In Progress | 既有功能已实现；新增 AC#12 的空批次集合写入拒绝与兼容性验收                                           | 批次 4      |
+| [US-518](stories/domain/US-518-bom-unit-lot-effectivity.md) / [epic-009 BOM](epics/epic-009-bom-domain-model.md)                                                                                                                   | 👀 In Review   | 既有功能已实现；新增 AC#12 的空批次集合写入拒绝与兼容性验收                                           | 批次 4      |
 | [US-528](stories/domain/US-528-admin-consumer-example.md)                                                                                                                                                                          | 👀 In Review   | AC#1 仓外发布 tarball 消费与 AC#3 按文档独立重搭仍待验证，AC#2 成本记录已通过；workspace 证据不能替代 | 批次 5      |
 | [US-534](stories/domain/US-534-board-column-task-skeleton.md)                                                                                                                                                                      | 👀 In Review   | 全部 AC 已验，等待合并收尾                                                                            | 批次 6      |
 | [US-537](stories/domain/US-537-board-backup-restore.md)                                                                                                                                                                            | 🚧 In Progress | 恢复中配额不足、关闭页面后重开的注入分支（AC#9）                                                      | 批次 6      |
@@ -52,12 +52,37 @@ US-603 的共享 preflight 仍待受控 registry 替身验收；US-223/224 是�
 | 优先修复建议 | US-223 / US-224 | 各自复现翻为正向断言，RLS、级联、重试和双端收敛边界通过；保持两条独立故事 |
 | 并行收尾     | US-211 / US-219 | 当前构建/工具/设备矩阵可复验，未验证的设备与平台不扩大支持声明            |
 
-### 批次 4：BOM 新增验收收尾
+### 批次 4：BOM 统一验收与合并
 
-结构、解析、数量、联产、路线成本、ECN、映射、热字段、实例和三框架绑定已在本分支实现，
-验收材料见 [epic-009](epics/epic-009-bom-domain-model.md)。剩余 [US-518](stories/domain/US-518-bom-unit-lot-effectivity.md)
-AC#12 要求 API 与直连 SQL 都拒绝空批次集合；当前显式合同接受 `[]` 并按永不匹配处理，
-需要写入守卫与兼容性验收，不能仅修改文档关闭。
+结构、解析、数量、联产、路线成本、ECN、映射、热字段、实例和三框架绑定已在本分支实现。
+US-518 AC#12 的 API/SQL 空批次写入守卫与旧库兼容已有双后端定向回归；旧空集合读取语义保持不变。
+以下 19 条领域故事及公共前置 US-030 保持 In Review，领域与公共包在 PR #129 中一起验证、评审、合并后再置 Done。
+最新收尾入口见[任务清单](../apps/aiao-bom/requirements/plans/bom-completion-tasks.md)，
+历史功能证据见 [epic-009](epics/epic-009-bom-domain-model.md)。
+
+| 故事                                                                                                          | 状态         | 关闭条件                                  |
+| ------------------------------------------------------------------------------------------------------------- | ------------ | ----------------------------------------- |
+| [US-030 声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)                               | 👀 In Review | 随 BOM 领域与公共包统一验证、评审并合并。 |
+| [US-507 BOM 图骨架：物料、修订与多重边 BOM 行](stories/domain/US-507-bom-graph-skeleton.md)                   | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-508 BOM 视图解析：类型/组织/修订/生效期过滤](stories/domain/US-508-bom-view-resolution.md)                | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-509 DAG 约束与环路检测下沉存储层](stories/domain/US-509-bom-dag-cycle-detection.md)                       | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-510 多级展开与 where-used 反查](stories/domain/US-510-bom-multilevel-explosion.md)                        | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-511 展开数量正确性：用量语义、三类损耗、虚拟件穿透](stories/domain/US-511-bom-quantity-semantics.md)      | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-512 替代组与替代策略](stories/domain/US-512-bom-substitute-group.md)                                      | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-513 联产品与副产品：多输出物料流](stories/domain/US-513-bom-coproduct-byproduct.md)                       | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-514 成本卷算](stories/domain/US-514-bom-cost-rollup.md)                                                   | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-515 变更管理（ECN）驱动的生效期](stories/domain/US-515-bom-change-management.md)                          | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-516 EBOM ↔ MBOM 映射与差异对比](stories/domain/US-516-ebom-mbom-mapping.md)                               | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-517 可配置销售 BOM：特征、选项与选择条件](stories/domain/US-517-configurable-sales-bom.md)                | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-518 序列与批次有效性](stories/domain/US-518-bom-unit-lot-effectivity.md)                                  | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-519 扩展属性：jsonb 值 + attr_def 元数据 + 热字段提升](stories/domain/US-519-bom-extension-attributes.md) | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-520 工艺路线挂接与工序投料分摊](stories/domain/US-520-bom-routing-operation.md)                           | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-521 ERP/MRP 集成契约](stories/domain/US-521-bom-erp-mrp-integration.md)                                   | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-522 三框架 BOM 编辑与展开视图](stories/domain/US-522-bom-tri-framework-ui.md)                             | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-523 as-built / as-maintained 实例 BOM](stories/domain/US-523-bom-as-built-instance.md)                    | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-524 工艺路线本体：工序、工作中心、工时与费率](stories/domain/US-524-routing-master-model.md)              | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-525 BOM 端到端 demo：一份数据集走完全域](stories/domain/US-525-bom-end-to-end-demo.md)                    | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+
 查询闭包剪枝没有进入默认读路径，不把尚未证明的优化收益写成已交付承诺。
 
 ### 批次 5：模型驱动后台首版（epic-010 已解锁）

@@ -1,11 +1,11 @@
 ---
 id: US-518
 title: 序列与批次有效性
-status: In Progress
+status: In Review
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-28
+updated: 2026-11-06
 tags: [domain, bom, effectivity, aerospace]
 ---
 
@@ -40,10 +40,13 @@ tags: [domain, bom, effectivity, aerospace]
 - 序列号的生成与分配（属事务域）
 - 实例化的装机结构（→ US-523）
 
-当前日期/序列/批次过滤、候选消歧与三维重叠约束已在本分支实现，AC#1～11/#13 有双后端回归。
-AC#12 是最新主线补入的验收缺口：当前 `parseLotCodes('[]')` 仍接受空集合，解析按永不匹配处理，
-与「保存时拒绝空集合」的新要求不同。已有合同不会在文档合并中改写；补齐 API 与直连 SQL 写入守卫及兼容性验收前，
-本故事保持 In Progress。现有断言见 [`bom-unit-lot.spec.ts`](../../../packages/rxdb-plugin-bom/src/__tests__/bom-unit-lot.spec.ts)。
+日期/序列/批次过滤、候选消歧与三维重叠约束有双后端回归。AC#12 的插件 API 与直连 SQL 写入守卫已补齐，
+空集合的新建和更新均拒绝；批量写入遇到非法发生项整批回滚。新增 8 条用例先失败，修复后连同既有有效性回归 29/29 通过，
+见 [`bom-lot-write.spec.ts`](../../../packages/rxdb-plugin-bom/src/__tests__/bom-lot-write.spec.ts) 与
+[`bom-unit-lot.spec.ts`](../../../packages/rxdb-plugin-bom/src/__tests__/bom-unit-lot.spec.ts)。本故事保持 In Review，等待最终门禁、评审与合并。
+
+旧库中的 `[]` 保留原值，`parseLotCodes('[]')` 继续解析为空集合，读取时不匹配指定批次。
+升级重放 DDL 不把它自动转换为表示全部批次的 NULL。后续修改旧空集合记录时也拒绝写入，调用方须显式修正为 NULL 或非空批次集合。
 
 ## 验收标准
 
@@ -60,7 +63,7 @@ AC#12 是最新主线补入的验收缺口：当前 `parseLotCodes('[]')` 仍接
 | 9                                                 | 日期、序列都不相交                                                             | 保存                               | 接受                                                                                                                   | ✅   |
 | 10                                                | 序列相交、日期相交、批次集合不相交                                             | 保存                               | 接受：三维要同时相交才算重叠                                                                                           | ✅   |
 | 11                                                | 同一逻辑行有日期、序列相同的两个发生项，批次集合分别为 `{B1}`、`{B2}`          | 不带批次参数解析，再显式传 B1 / B2 | 缺参时标 `unresolved`，点名批次维度并列出两候选；显式传值时只命中对应发生项；未解析结果交给数量、成本或 MRP 导出均拒绝 | ✅   |
-| 12                                                | 行发生项 `lot_codes = []`；对照组为 NULL 与 `{B1}`                             | 经插件 API 与直连 SQL 保存         | 空集合两后端均拒绝，错误点名 `lot_codes`；NULL 与非空集合接受，分别表示全部批次与指定批次                              | ⬜   |
+| 12                                                | 行发生项 `lot_codes = []`；对照组为 NULL 与 `{B1}`                             | 经插件 API 与直连 SQL 保存         | 空集合两后端均拒绝，错误点名 `lot_codes`；NULL 与非空集合接受，分别表示全部批次与指定批次                              | ✅   |
 | 13                                                | 同一逻辑行有按序列、批次区分的两候选；对照组只有一个候选                       | 不带 `unit` 与批次参数解析         | 两候选标 `unresolved` 并点名缺失维度，不产出双份需求；唯一候选照常入选                                                 | ✅   |
 | 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过 |
 

@@ -1,11 +1,11 @@
 ---
 id: US-030
 title: 实体元数据层的声明式存储约束
-status: Done
+status: In Review
 priority: Medium
 epic: epic-004-future-features
 created: 2026-09-22
-updated: 2026-10-28
+updated: 2026-11-06
 tags: [core, schema, integrity]
 ---
 

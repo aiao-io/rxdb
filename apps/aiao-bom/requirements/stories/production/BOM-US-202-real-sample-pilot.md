@@ -39,6 +39,7 @@ capabilities: []
 
 - [verification-report.md](../../verification-report.md)
 - [future-requirements.md](../../future-requirements.md)
+- [试用记录模板](../../plans/real-sample-pilot-verification.md)
 
 ## 验收证据
 

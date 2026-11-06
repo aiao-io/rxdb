@@ -21,7 +21,7 @@ capabilities: [rxdb:US-514, rxdb:US-515, rxdb:US-525]
 
 ### In Scope
 
-现有 /review 主线、逐修订用量比较、人工确认、JSON 摘要、离线热页重算和窄屏完成反馈。
+首页首次准备案例并进入 /review、逐修订用量比较、人工确认、JSON 摘要、离线热页重算和窄屏依据查看及返回。
 
 ### Out of Scope
 
@@ -39,6 +39,7 @@ capabilities: [rxdb:US-514, rxdb:US-515, rxdb:US-525]
 
 ## 实现文件
 
+- [overview.page.spec.ts](../../../src/app/pages/overview/overview.page.spec.ts)
 - [change-review.spec.ts](../../../src/app/presentation/change-review.spec.ts)
 - [review.page.spec.ts](../../../src/app/pages/review/review.page.spec.ts)
 - [bom-demo.service.spec.ts](../../../src/app/bom-demo.service.spec.ts)
@@ -46,7 +47,7 @@ capabilities: [rxdb:US-514, rxdb:US-515, rxdb:US-525]
 
 ## 验收证据
 
-本地应用验收通过，当前 AC 标为 ✅；证据符号包括 `从 10 台生产任务完成改版核对，下载条件、用量与真实成本一致的结论`、`改为 20 台后旧结论失效，必须重算并重新确认；刷新只恢复条件`，以及 `change-review.spec.ts` 的逐修订用量和路径重排断言。
+本地应用验收通过，当前 AC 标为 ✅。首页连接中禁止准备案例；空库须显式确认后准备并自动进入核对，取消或失败保留工作条件，重复点击只执行一次；已有数据直接开始核对。相关单元回归通过，首次准备与窄屏完整浏览器回归见验收台账。证据符号包括 `从 10 台生产任务完成改版核对，下载条件、用量与真实成本一致的结论`、`改为 20 台后旧结论失效，必须重算并重新确认；刷新只恢复条件`，以及 `change-review.spec.ts` 的逐修订用量和路径重排断言。
 
 复验命令和结果见[验收台账](../../verification-report.md)与[应用化验收记录](../../plans/application-promotion-verification.md)。story 保留 In Review，等待 PR 评审及合并后再置 Done。
 

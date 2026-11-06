@@ -1,11 +1,11 @@
 ---
 id: US-513
 title: 联产品与副产品：多输出物料流
-status: Done
+status: In Review
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-28
+updated: 2026-11-06
 tags: [domain, bom, process-industry]
 ---
 

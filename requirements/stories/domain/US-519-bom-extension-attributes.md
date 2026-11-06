@@ -1,11 +1,11 @@
 ---
 id: US-519
 title: 扩展属性：jsonb 值 + attr_def 元数据 + 热字段提升
-status: Done
+status: In Review
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-28
+updated: 2026-11-06
 tags: [domain, bom, extensibility, schema]
 ---
 

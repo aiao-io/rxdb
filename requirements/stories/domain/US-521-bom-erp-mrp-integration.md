@@ -1,11 +1,11 @@
 ---
 id: US-521
 title: ERP/MRP 集成契约
-status: Done
+status: In Review
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-16
+updated: 2026-11-06
 tags: [domain, bom, integration, api-baseline]
 ---
 

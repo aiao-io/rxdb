@@ -18,3 +18,5 @@
 - [Cloudflare 部署验收](cloudflare-deployment-verification.md)
 
 - [BOM 收尾与演示交付任务](bom-completion-tasks.md)
+
+- [真实生产样本试用记录](real-sample-pilot-verification.md)
