@@ -49,6 +49,7 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
   let savedRevision = '';
   let pendingRevision = '';
   let projectId = session.state.projectId;
+  const conflicts = new Set<string>();
 
   const active = (current: number): boolean => !disposed && current === epoch;
   const report = (current: number, cause: unknown): void => { if (active(current)) failure(cause); };
@@ -64,6 +65,7 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
     exited = false;
     savedRevision = '';
     pendingRevision = '';
+    conflicts.clear();
     servers.replaceChildren();
     content.replaceChildren();
     message.hidden = false;
@@ -95,6 +97,11 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
     options.onPreview(port, url.href);
   }
 
+  function showConflicts(): void {
+    message.textContent = `终端更新了 ${[...conflicts].join('、')}；编辑器未保存内容已保留。`;
+    message.hidden = false;
+  }
+
   function syncSaved(): Promise<void> {
     const run = runtime;
     if (!run || exited || !session.state.projectId) return Promise.resolve();
@@ -107,7 +114,8 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
       savedRevision = snapshot.revision;
       if (!exited && !starting) {
         status.textContent = '运行中';
-        message.hidden = true;
+        if (conflicts.size) showConflicts();
+        else message.hidden = true;
       }
     }).catch(cause => { report(current, cause); }).finally(() => {
       if (active(current) && pendingRevision === snapshot.revision) pendingRevision = '';
@@ -160,7 +168,11 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
         async onFiles(files, removedPaths) {
           if (!isCurrent()) return;
           await session.applyExternalFiles(files, removedPaths);
-          if (isCurrent()) options.onFilesChanged?.();
+          if (!isCurrent()) return;
+          for (const path of [...Object.keys(files), ...removedPaths])
+            if (session.isModified(path)) conflicts.add(path);
+          if (conflicts.size) showConflicts();
+          options.onFilesChanged?.();
         },
         onServerReady(port, url) {
           if (!isCurrent()) return;
@@ -238,6 +250,8 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
       reset();
       projectId = state.projectId;
     }
+    for (const path of conflicts) if (!session.isModified(path)) conflicts.delete(path);
+    if (!conflicts.size && status.textContent === '运行中') message.hidden = true;
     void syncSaved();
   });
   const click = (event: Event) => {

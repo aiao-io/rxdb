@@ -71,6 +71,43 @@ describe('WorkbenchSession', () => {
     expect(session.getSavedSnapshot().files).toEqual({ 'asset.bin': new Uint8Array([0, 255]) });
   });
 
+  it.each<{ draftPath: string; changes: WorkbenchFiles; removed: readonly string[] }>([
+    { draftPath: 'main.ts', changes: { 'main.ts/child.ts': 'external' }, removed: ['main.ts'] },
+    { draftPath: 'new/child.ts', changes: { new: 'external' }, removed: [] }
+  ])('外部路径结构与草稿冲突时在写入前拒绝并保留两端内容：$draftPath', async ({ draftPath, changes, removed }) => {
+    const { backend } = fixture();
+    const session = new WorkbenchSession(backend);
+    await session.open('first');
+    session.edit(draftPath, 'draft');
+    const snapshot = session.getSavedSnapshot();
+    const buffers = session.state.files;
+
+    await expect(session.applyExternalFiles(changes, removed)).rejects.toMatchObject({ code: 'path_collision' });
+
+    expect(backend.save).not.toHaveBeenCalled();
+    expect(session.getSavedSnapshot()).toEqual(snapshot);
+    expect(session.state.files).toEqual(buffers);
+    expect(session.state.files[draftPath]).toBe('draft');
+    expect(session.state.dirty).toBe(true);
+    session.discard();
+    await session.applyExternalFiles(changes, removed);
+    expect(session.state.files).toMatchObject(changes);
+    expect(session.state.dirty).toBe(false);
+  });
+
+  it('外部修改相同路径仍保留草稿，已保存快照接受外部内容', async () => {
+    const { backend } = fixture();
+    const session = new WorkbenchSession(backend);
+    await session.open('first');
+    session.edit('main.ts', 'draft');
+
+    await session.applyExternalFiles({ 'main.ts': 'external' }, []);
+
+    expect(session.state.files['main.ts']).toBe('draft');
+    expect(session.getSavedSnapshot().files['main.ts']).toBe('external');
+    expect(session.state.dirty).toBe(true);
+  });
+
   it('外部删除已保存文件移除对应标签，并使旧编译结果失效', async () => {
     const { backend } = fixture();
     const session = new WorkbenchSession(backend);

@@ -1,7 +1,7 @@
 ---
 id: US-408
 title: 浏览器 Node 交互终端与项目运行信息
-status: In Progress
+status: In Review
 priority: Medium
 epic: epic-003-ui-developer-tools
 created: 2026-11-06
@@ -31,7 +31,10 @@ tags: [aiao-vscode, terminal, webcontainer, node]
 | 启动失败重试、旧项目迟到回调与退出保存 | `workbench-terminal.spec.ts` | ✅ |
 | 双向文件变化、二进制、原子删除、dirty 缓冲与 revision 冲突 | `session.spec.ts`、Git backend/runtime/worker 测试 | ✅ |
 | 面板停靠保活、终端快捷键不被工作台拦截 | `workbench-dockview.spec.ts`、`workbench-commands.spec.ts` | ✅ |
-| 真实 Chromium 运行 Node、文件双向同步、服务预览、Ctrl+C 和停止 | `pnpm nx run aiao-vscode:verify-terminal`；`benchmarks/browser-workbench-terminal.json` | ⚠️ |
+| 真实 Chromium 运行 Node、文件双向同步、npm / pnpm 实际安装、服务预览、Ctrl+C、切项目和停止 | `pnpm nx run aiao-vscode:verify-terminal --production`；`benchmarks/browser-workbench-terminal.json` | ✅ |
+
+校验：全套 776 项单测通过，随后补充的会话结构冲突测试也已通过；语句覆盖率 91.59%、
+分支覆盖率 82.66%、行覆盖率 94.78%；ESLint 零警告、类型检查、生产构建通过。
 
 首次启动与包安装依赖 WebContainer 服务和网络；商用 API key 由宿主选项传入。
 官方接口依据：[WebContainer API](https://webcontainers.io/api)、[xterm.js](https://xtermjs.org/docs/)。

@@ -62,6 +62,12 @@ Git 视图区分「暂存的更改」和「更改」，支持逐文件或批量�
 BOM、行尾和末尾换行变化单独说明，二进制只显示字节信息。丢弃更改和删除未跟踪文件必须确认。
 更改默认按路径平铺，可在标题菜单切换目录树、按名称或状态排序；目录可折叠，菜单支持确认后批量丢弃更改。
 
+从 GitHub 打开的仓库使用虚拟仓库模式，与 vscode.dev 的 GitHub Repositories 一致：保存文件后，
+暂存更改并填写提交说明，点击「提交并推送」即可更新当前远端分支。「拉取」更新远端基线并保留
+本地更改与暂存内容；同一文件双方修改或路径冲突时整体拒绝拉取，列出冲突文件。
+「同步更改」先拉取，再提交并推送暂存内容；没有暂存内容时只拉取。拉取和同步前须保存未保存编辑。
+入口位于源代码管理面板、标题栏、状态栏及命令面板的 `Git: 推送 / 拉取 / 同步更改`。
+
 导出 ZIP 包含源码、资源、依赖锁、暂存区和 `.git`，不包含构建缓存。导入到全新项目空间，
 不覆盖已有仓库。导出后可在 Node.js 26 与 pnpm 12 下执行 `pnpm install --frozen-lockfile`、
 `pnpm build`，继续使用普通 Git。
@@ -74,7 +80,7 @@ OPFS 按站点隔离，清除站点数据会删除项目；数据库只保存项
 当前验收宿主为桌面 Chromium，要求安全上下文、OPFS、Web Locks、WebAssembly JSPI 和
 credentialless iframe。缺少能力时明确失败，没有内存存储替代路径。
 
-项目运行在 `sandbox="allow-scripts"` 的 opaque origin iframe，无法读取 IDE 或其他项目的 DOM、
+受控编译预览运行在 `sandbox="allow-scripts"` 的 opaque origin iframe，无法读取 IDE 或其他项目的 DOM、
 OPFS、数据库和登录凭据；消息通道只回传当前会话的诊断，不提供宿主文件写入接口。这个边界
 不等于全网访问沙箱；不能据此宣称任意 JavaScript 的导航或 WebRTC 已被完全封锁。
 
@@ -87,6 +93,7 @@ Angular 使用浏览器 JIT 与 TS 装饰器转换。受控编译不提供完整
 终端惰性加载 xterm.js 与 WebContainer，在浏览器里运行 Node.js Shell，可输入 `node`、
 `npm`、`pnpm` 等命令。命令输出与报错实时显示，`Ctrl+C` 中断前台命令；
 开发服务器就绪后显示端口并打开独立服务预览，点击端口可重新打开。
+服务预览沿用 WebContainer 的跨源 Service Worker 与浏览器存储上下文，和受控编译的 opaque origin 预览分别管理。
 顶部「运行」仍使用受控编译预览；终端开发服务器通过项目自己的命令启动。
 
 终端初次挂载已保存源码。编辑器保存后同步到容器，终端新建、修改、删除的源码通过原子回执
@@ -129,3 +136,7 @@ pnpm nx run aiao-vscode:verify-terminal --url=http://localhost:4320/
 暂存、提交、差异和丢弃；`verify-save-preview` 检查保存预览的功能与耗时，可用
 `--functional-only` 仅跑功能；`verify-docking` 检查真实拖拽、保活与字体摘要。
 原始报告保存在 `apps/aiao-vscode/benchmarks/browser-workbench-*.json`。
+
+终端可在生产构建上独立验收：先运行 `pnpm nx build aiao-vscode`，再运行
+`pnpm nx run aiao-vscode:verify-terminal --production`。脚本会临时启动带 COOP / COEP 的本地静态服务，
+验证真实 npm / pnpm 安装、文件双向同步、服务预览、Ctrl+C、项目切换和进程释放。

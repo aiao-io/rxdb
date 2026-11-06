@@ -7,7 +7,7 @@ import type { WorkbenchEditorMount } from './editor.js';
 import type { GitHubApi } from './git/github/github-api.js';
 import type { GitHubAuth } from './git/github/github-auth.js';
 import { mountWorkbench, type WorkbenchHandle } from './mount.js';
-import type { WorkbenchBackend, WorkbenchDiff, WorkbenchFiles } from './session.js';
+import type { WorkbenchBackend, WorkbenchDiff, WorkbenchFiles, WorkbenchSnapshot } from './session.js';
 
 const instances: WorkbenchHandle[] = [];
 afterEach(() => {
@@ -276,6 +276,54 @@ function fakeDirectory(
 }
 
 describe('VS Code 风格工作台', () => {
+  it('面板发起拉取时标题栏和状态栏同步置忙，命令面板隐藏Git写入动作，结束后恢复', async () => {
+    const { host, handle, backend } = fixture();
+    let finish!: (snapshot: WorkbenchSnapshot) => void;
+    backend.pull = vi.fn(
+      () =>
+        new Promise<WorkbenchSnapshot>(resolve => {
+          finish = resolve;
+        })
+    );
+    vi.mocked(backend.status).mockResolvedValue({
+      branch: 'main', head: 'head-1', entries: [],
+      remote: { name: 'origin', url: 'https://github.com/octo/repo' }
+    });
+    await handle.ready;
+    await click(host, '[data-scm-action="pull"]');
+    expect(backend.pull).toHaveBeenCalledExactlyOnceWith('one');
+    const header = host.querySelector<HTMLButtonElement>('[data-action="git-pull"]');
+    const footer = host.querySelector<HTMLButtonElement>('[data-slot="remote-sync"]');
+    expect(header?.disabled).toBe(true);
+    expect(footer?.disabled).toBe(true);
+    await click(host, '[data-action="commands"]');
+    const input = host.querySelector<HTMLInputElement>('.wb-quick-input input');
+    if (!input) throw new Error('命令面板未打开');
+    input.value = '>Git:';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(host.querySelectorAll('.wb-quick-input-list button')).toHaveLength(0);
+    finish({ projectId: 'one', revision: 'remote-2', files });
+    await vi.waitFor(() => expect(header?.disabled).toBe(false));
+    expect(footer?.disabled).toBe(false);
+    expect(backend.pull).toHaveBeenCalledOnce();
+  });
+
+  it('有未保存编辑时面板、标题栏和状态栏统一禁用拉取同步', async () => {
+    const { host, handle, backend } = fixture();
+    backend.pull = vi.fn(async projectId => ({ projectId, revision: 'remote-2', files }));
+    vi.mocked(backend.status).mockResolvedValue({
+      branch: 'main', head: 'head-1', entries: [],
+      remote: { name: 'origin', url: 'https://github.com/octo/repo' }
+    });
+    await handle.ready;
+    handle.session.edit('src/main.ts', 'unsaved');
+    expect(host.querySelector<HTMLButtonElement>('[data-scm-action="pull"]')?.disabled).toBe(true);
+    expect(host.querySelector<HTMLButtonElement>('[data-action="git-pull"]')?.disabled).toBe(true);
+    expect(host.querySelector<HTMLButtonElement>('[data-slot="remote-sync"]')?.disabled).toBe(true);
+    expect(backend.pull).not.toHaveBeenCalled();
+    expect(backend.save).not.toHaveBeenCalled();
+  });
+
   it('本地项目隐藏远端动作，GitHub 项目提供拉取、同步与明确的推送说明', async () => {
     const { host, handle, backend } = fixture();
     await handle.ready;

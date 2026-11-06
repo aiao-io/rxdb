@@ -347,7 +347,7 @@ export function createGitHubBackend(options: GitHubBackendOptions): WorkbenchBac
 
     async status(projectId: string): Promise<WorkbenchStatus> {
       const project = state(projectId);
-      const paths = new Set([...project.saved.keys(), ...project.buffer.keys()]);
+      const paths = new Set([...project.saved.keys(), ...project.buffer.keys(), ...project.staged.keys()]);
       const entries = [...paths]
         .sort()
         .map(path => {
@@ -367,7 +367,7 @@ export function createGitHubBackend(options: GitHubBackendOptions): WorkbenchBac
           if (bufferValue === undefined) {
             worktree =
               staged === null ? ' '
-              : savedValue !== undefined ? 'D'
+              : staged !== undefined || savedValue !== undefined ? 'D'
               : ' ';
           } else if (savedValue === undefined) {
             worktree =

@@ -23,7 +23,7 @@ async function fixture() {
   const session = new WorkbenchSession(backend);
   await session.open('one');
   const host = document.createElement('section');
-  const runtime = { start: vi.fn(async () => undefined), write: vi.fn(async () => undefined), resize: vi.fn(), sync: vi.fn(async () => undefined), flush: vi.fn(async () => undefined), stop: vi.fn<() => Promise<void>>(), dispose: vi.fn() };
+  const runtime = { start: vi.fn(async (): Promise<void> => undefined), write: vi.fn(async (): Promise<void> => undefined), resize: vi.fn(), sync: vi.fn(async (): Promise<void> => undefined), flush: vi.fn(async (): Promise<void> => undefined), stop: vi.fn<() => Promise<void>>(), dispose: vi.fn() };
   runtime.stop.mockImplementation(async () => { await runtime.flush(); runtime.dispose(); });
   const view = { write: vi.fn(), focus: vi.fn(), fit: vi.fn(), clear: vi.fn(), dispose: vi.fn(), cols: 80, rows: 24 };
   let runtimeOptions: TerminalRuntimeOptions;
@@ -63,8 +63,26 @@ describe('工作台交互终端', () => {
     expect(f.session.state.files['main.js']).toBe('draft');
     expect(f.session.state.files['new.js']).toBe('new');
     expect(f.session.state.dirty).toBe(true);
+    const notice = f.host.querySelector<HTMLElement>('.wb-terminal-message')!;
+    expect(notice.hidden).toBe(false);
+    expect(notice.textContent).toContain('终端更新了 main.js；编辑器未保存内容已保留');
+    await vi.waitFor(() => expect(f.runtime.sync).toHaveBeenCalled());
+    expect(notice.hidden).toBe(false);
     await f.session.save();
     await vi.waitFor(() => expect(f.runtime.sync).toHaveBeenLastCalledWith(expect.objectContaining({ files: { 'main.js': 'draft', 'new.js': 'new' } })));
+    expect(notice.hidden).toBe(true);
+  });
+
+  it('其他路径变更与相同内容不产生编辑冲突提示', async () => {
+    const f = await fixture();
+    await f.terminal.show();
+    f.session.edit('main.js', 'draft');
+    await f.runtimeOptions.onFiles({ 'new.js': 'new' }, []);
+    const notice = f.host.querySelector<HTMLElement>('.wb-terminal-message')!;
+    expect(notice.hidden).toBe(true);
+    await f.runtimeOptions.onFiles({ 'main.js': 'draft' }, []);
+    expect(f.session.state.dirty).toBe(false);
+    expect(notice.hidden).toBe(true);
   });
 
   it('服务器地址可预览；切换项目释放旧进程并拦截迟到回调', async () => {

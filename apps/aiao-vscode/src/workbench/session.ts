@@ -1,4 +1,5 @@
 import { assertGitPath, assertNoPathCollisions } from './git/git-paths.js';
+import { GitWorkbenchError } from './git/git-protocol.js';
 
 /** 工作区的普通文件；二进制内容不会被编辑器隐式转码。 */
 export type WorkbenchFiles = Readonly<Record<string, string | Uint8Array>>;
@@ -418,6 +419,7 @@ export class WorkbenchSession {
     const release = this.#beginWork(generation);
     this.#update({ error: null });
     try {
+      this.#assertExternalPaths(changes, removedPaths);
       const snapshot = await this.backend.save(projectId, changes, revision, removedPaths);
       if (!this.#current(generation)) return;
       this.#runId++;
@@ -427,6 +429,24 @@ export class WorkbenchSession {
       throw cause;
     } finally {
       release();
+    }
+  }
+
+  #assertExternalPaths(changes: WorkbenchFiles, removedPaths: readonly string[]): void {
+    const paths = new Set(Object.keys(this.#saved));
+    for (const path of removedPaths) paths.delete(path);
+    for (const path of Object.keys(changes)) paths.add(path);
+    for (const path of Object.keys(this.#state.files)) {
+      if (this.isModified(path)) paths.add(path);
+    }
+    try {
+      assertNoPathCollisions([...paths]);
+    } catch (cause) {
+      throw new GitWorkbenchError(
+        'path_collision',
+        `终端文件与未保存草稿存在路径冲突，请先保存或丢弃草稿后重试：${errorMessage(cause)}`,
+        { cause }
+      );
     }
   }
 

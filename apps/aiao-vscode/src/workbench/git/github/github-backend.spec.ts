@@ -299,6 +299,39 @@ describe('GitHub virtual repository backend', () => {
     expect((await backend.status(id)).entries).toEqual([{ path: 'src/a.ts', index: 'D', worktree: ' ' }]);
   });
 
+  it('keeps a staged new file visible after deletion and an unrelated pull', async () => {
+    await openMain();
+    const id = 'github:octo/repo@main';
+    const baseline = { 'src/a.ts': 'hello a', 'src/b.ts': 'hello b', 'logo.png': new Uint8Array([0, 255, 1]) };
+    await backend.save(id, { ...baseline, 'new.ts': 'staged addition' }, 'head-1');
+    await backend.stage(id, ['new.ts']);
+    await backend.remove(id, 'new.ts');
+    expect((await backend.status(id)).entries).toEqual([{ path: 'new.ts', index: 'A', worktree: 'D' }]);
+    remoteFiles({ ...baseline, 'src/b.ts': 'remote b' });
+
+    const snapshot = await backend.pull!(id);
+
+    expect(snapshot.files).not.toHaveProperty('new.ts');
+    expect(snapshot.files['src/b.ts']).toBe('remote b');
+    expect((await backend.status(id)).entries).toEqual([{ path: 'new.ts', index: 'A', worktree: 'D' }]);
+    api.createTree.mockResolvedValue('next-tree');
+    api.createCommit.mockResolvedValue('next-head');
+    api.updateRef.mockResolvedValue(undefined);
+
+    await backend.commit(id, 'add staged file');
+
+    expect(api.createTree).toHaveBeenCalledWith('octo', 'repo', 'remote-tree', [
+      { path: 'new.ts', mode: '100644', content: 'staged addition' }
+    ]);
+    expect(api.createCommit).toHaveBeenCalledWith('octo', 'repo', 'add staged file', 'next-tree', ['remote-head']);
+    expect(api.updateRef).toHaveBeenCalledWith('octo', 'repo', 'heads/main', 'next-head', false);
+    expect((await backend.status(id)).entries).toEqual([{ path: 'new.ts', index: ' ', worktree: 'D' }]);
+    expect(await backend.readDiff(id, 'new.ts', 'working')).toMatchObject({
+      base: { text: 'staged addition' },
+      modified: { exists: false }
+    });
+  });
+
   it('rejects a remote deletion that would erase a local change', async () => {
     await openMain();
     const id = 'github:octo/repo@main';

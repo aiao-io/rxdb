@@ -225,7 +225,8 @@ describe('GitHub remote source control in Chromium', () => {
     await expect.poll(async () => (await snapshot()).status.entries).toEqual([]);
     let state = await snapshot();
     expect(updates(state)).toEqual([{ kind: 'update-ref', sha: 'commit-1', ref: 'heads/main', force: false }]);
-    expect(state.revision).toMatch(/^commit-1/);
+    expect(state.status.head).toBe('commit-1');
+    expect(state.remoteHead).toBe('commit-1');
 
     await probe('edit', { path: 'a.ts', content: 'local edit after commit' });
     await probe('advance', { 'remote.txt': 'remote change for pull' });

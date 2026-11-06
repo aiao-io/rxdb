@@ -172,6 +172,7 @@ export function mountWorkbench(
     }
   >();
   let previewPhase: SavePreviewPhase = 'idle';
+  let scmBusy = false;
   const logs: {
     kind: 'problems' | 'output' | 'console';
     text: string;
@@ -235,7 +236,7 @@ export function mountWorkbench(
     },
     onSelectTool(kind) {
       renderLogs();
-      if (kind === 'terminal') void terminal?.show();
+      if (kind === 'terminal') void terminal.show().catch(report);
     },
     onCloseAuxiliary(id) {
       diffs.get(id)?.view?.dispose();
@@ -351,6 +352,10 @@ export function mountWorkbench(
     backend,
     session,
     onError: report,
+    onBusyChange(busy) {
+      scmBusy = busy;
+      if (!disposed) renderActionState();
+    },
     onOpenDiff: openDiff,
     onOpenFile(path) {
       session.select(path);
@@ -428,7 +433,6 @@ export function mountWorkbench(
       frame.className = 'wb-server-preview';
       frame.title = `项目服务 :${port}`;
       frame.referrerPolicy = 'no-referrer';
-      frame.setAttribute('credentialless', '');
       frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-modals allow-popups');
       frame.src = url;
       host.replaceChildren(frame);
@@ -1784,10 +1788,14 @@ export function mountWorkbench(
   }
   /** 初始化、编译或操作进行中时顶栏动作整体置忙。 */
   function workbenchBusy(): boolean {
-    return initializing || (session.state.busy && previewPhase !== 'compiling') || pendingOperations > 0;
+    return initializing || scmBusy || (session.state.busy && previewPhase !== 'compiling') || pendingOperations > 0;
   }
   function projectSwitchBusy(ownOperations = 0): boolean {
-    return initializing || ((session.state.busy || pendingOperations > ownOperations) && previewPhase !== 'compiling');
+    return (
+      initializing ||
+      scmBusy ||
+      ((session.state.busy || pendingOperations > ownOperations) && previewPhase !== 'compiling')
+    );
   }
   function setPressed(button: HTMLElement, pressed: boolean): void {
     button.setAttribute('aria-pressed', String(pressed));
@@ -1822,7 +1830,7 @@ export function mountWorkbench(
       button.disabled = !session.state.projectId || busy;
     for (const button of root.querySelectorAll<HTMLButtonElement>('[data-remote-action]')) {
       button.hidden = !gitStatus?.remote;
-      button.disabled = !backend.pull || !session.state.projectId || busy;
+      button.disabled = !backend.pull || !session.state.projectId || busy || session.state.dirty;
     }
     const commitControl = element<HTMLButtonElement>('[data-action="commit"]');
     const commitLabel = gitStatus?.remote ? '提交并推送' : '提交';
@@ -2252,8 +2260,10 @@ export function mountWorkbench(
     },
     onError: report,
     getCommands: () => {
+      const gitCommands = new Set(['commit', 'gitPush', 'gitPull', 'gitSync']);
       const invoke = (id: string, operation: () => Promise<unknown> | void) => () => {
         if (disposed || initializing) return;
+        if (scmBusy && gitCommands.has(id)) return;
         if (
           pendingOperations > 0 &&
           !['save', 'saveAll', 'run', 'gotoLine', 'selectLine', 'insertLineAbove', 'find'].includes(id)
@@ -2299,12 +2309,14 @@ export function mountWorkbench(
         ['nextEditor', '查看: 打开下一个编辑器', 'Ctrl + Tab', () => cycleEditor(1)],
         ['prevEditor', '查看: 打开上一个编辑器', 'Ctrl + Shift + Tab', () => cycleEditor(-1)]
       ];
-      return definitions.map(([id, label, keybinding, operation]): WorkbenchCommand => ({
-        id,
-        label,
-        keybinding,
-        run: invoke(id, operation)
-      }));
+      return definitions
+        .filter(([id]) => !scmBusy || !gitCommands.has(id))
+        .map(([id, label, keybinding, operation]): WorkbenchCommand => ({
+          id,
+          label,
+          keybinding,
+          run: invoke(id, operation)
+        }));
     }
   });
   const releaseState = session.subscribe(render);

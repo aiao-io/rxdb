@@ -48,6 +48,7 @@ async function fixture() {
     onOpenDiff: vi.fn(async () => undefined),
     onOpenFile: vi.fn(async () => undefined),
     onError: vi.fn(),
+    onBusyChange: vi.fn(),
     onDidChange: vi.fn<WorkbenchScmOptions['onDidChange']>(async () => undefined),
     onRefresh: vi.fn(async () => undefined),
     onCommitMessage: vi.fn(),
@@ -150,6 +151,7 @@ describe('VSCode式源代码管理', () => {
       if (snapshot) session.applySavedSnapshot(snapshot, paths ?? []);
     });
     const operation = scm.pull();
+    expect(callbacks.onBusyChange).toHaveBeenCalledExactlyOnceWith(true);
     await expect(scm.pull()).rejects.toThrow(/操作仍在进行/);
     session.edit('a.ts', 'edited while pulling');
     finish({ projectId: 'project', revision: '2', files: { 'a.ts': 'saved', 'new.ts': 'remote' } });
@@ -158,6 +160,17 @@ describe('VSCode式源代码管理', () => {
     expect(session.state.files['new.ts']).toBe('remote');
     expect(session.isModified('a.ts')).toBe(true);
     expect(backend.pull).toHaveBeenCalledOnce();
+    expect(callbacks.onBusyChange.mock.calls).toEqual([[true], [false]]);
+  });
+
+  it('远端操作失败也释放宿主busy，外部保存屏障不反向重复通知宿主', async () => {
+    const { scm, backend, callbacks } = await remoteFixture();
+    scm.setBusy(true);
+    expect(callbacks.onBusyChange).not.toHaveBeenCalled();
+    scm.setBusy(false);
+    vi.mocked(backend.pull!).mockRejectedValueOnce(new Error('network failed'));
+    await expect(scm.pull()).rejects.toThrow('network failed');
+    expect(callbacks.onBusyChange.mock.calls).toEqual([[true], [false]]);
   });
 
   it('同步先拉取并应用快照，再提交推送暂存区，成功后清空说明并记录历史', async () => {

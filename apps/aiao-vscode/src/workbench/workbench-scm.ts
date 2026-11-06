@@ -36,6 +36,7 @@ export interface WorkbenchScmOptions {
   onOpenDiff(request: WorkbenchDiffRequest): void | Promise<void>;
   onOpenFile(path: string): void | Promise<void>;
   onError(cause: unknown): void;
+  onBusyChange?(busy: boolean): void;
   onDidChange(snapshot?: WorkbenchSnapshot, paths?: readonly string[]): void | Promise<void>;
   onRefresh?(): void | Promise<void>;
   onContextMenu?(position: { x: number; y: number }, entries: readonly WorkbenchScmMenuEntry[]): void;
@@ -279,6 +280,7 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
     const id = projectId;
     repoBusy = true;
     syncControls();
+    options.onBusyChange?.(true);
     try {
       const result = await operation(id);
       if (disposed || generation !== expected || result?.changed === false) return;
@@ -287,6 +289,7 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
     } finally {
       repoBusy = false;
       syncControls();
+      options.onBusyChange?.(false);
     }
   }
 
