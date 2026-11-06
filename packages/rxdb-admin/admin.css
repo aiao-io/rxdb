@@ -1297,6 +1297,16 @@
 }
 
 /*
+ * 页签右键菜单：daisyUI 的 `.menu { width: fit-content }` 让 `<ul>` 停在文字宽度，
+ * 菜单项 hover 高亮只包住文字、撑不满 `.admin-context-menu` 的 min-width。覆盖为占满容器。
+ */
+@layer utilities {
+  .admin-context-menu .menu {
+    width: 100%;
+  }
+}
+
+/*
  * 窄屏隐藏搜索按钮上的键帽（手机没有键盘）：daisyUI 的 `.kbd { display: inline-flex }` 同样在 utilities 的子层里，
  * 写在 components 层的 display: none 压不过它。
  */

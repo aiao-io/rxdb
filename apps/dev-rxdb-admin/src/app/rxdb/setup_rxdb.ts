@@ -1,6 +1,5 @@
 import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterSqlite, SqliteOptions } from '@aiao/rxdb-adapter-sqlite-wasm';
-import { getDevToolsConnector } from '@aiao/rxdb-devtools';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
 import { getE2eDbName } from '@aiao/rxdb-test';
@@ -38,7 +37,14 @@ export default (): RxDB => {
       return new RxDBAdapterSqlite(db, options);
     });
   rxdb.init();
-  const devtools = getDevToolsConnector();
-  devtools.init(rxdb, getEntityMetadata);
+  if (import.meta.env.DEV) {
+    // 先在同步作用域里定住实例：模块级 `rxdb` 是 `RxDB | null | undefined`，
+    // 到了下面的 async 回调里收窄会失效。
+    const instance = rxdb;
+    void import('@aiao/rxdb-devtools').then(({ getDevToolsConnector }) => {
+      const devtools = getDevToolsConnector();
+      devtools.init(instance, getEntityMetadata);
+    });
+  }
   return rxdb;
 };
