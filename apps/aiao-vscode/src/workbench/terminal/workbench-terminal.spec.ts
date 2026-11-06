@@ -23,19 +23,33 @@ async function fixture() {
   const session = new WorkbenchSession(backend);
   await session.open('one');
   const host = document.createElement('section');
-  const runtime = { start: vi.fn(async (): Promise<void> => undefined), write: vi.fn(async (): Promise<void> => undefined), resize: vi.fn(), sync: vi.fn(async (): Promise<void> => undefined), flush: vi.fn(async (): Promise<void> => undefined), stop: vi.fn<() => Promise<void>>(), dispose: vi.fn() };
+  const runtime = { start: vi.fn(async (): Promise<void> => undefined), write: vi.fn(async (): Promise<void> => undefined), resize: vi.fn(), runProject: vi.fn(async (): Promise<void> => undefined), writeProject: vi.fn(async (): Promise<void> => undefined), resizeProject: vi.fn(), sync: vi.fn(async (): Promise<void> => undefined), flush: vi.fn(async (): Promise<void> => undefined), stop: vi.fn<() => Promise<void>>(), dispose: vi.fn() };
   runtime.stop.mockImplementation(async () => { await runtime.flush(); runtime.dispose(); });
   const view = { write: vi.fn(), focus: vi.fn(), fit: vi.fn(), clear: vi.fn(), dispose: vi.fn(), cols: 80, rows: 24 };
+  const views: typeof view[] = [];
   let runtimeOptions: TerminalRuntimeOptions;
   let viewOptions: { onData(data: string): void; onResize(size: { cols: number; rows: number }): void };
   const createRuntime = vi.fn((options: TerminalRuntimeOptions) => { runtimeOptions = options; return runtime; });
-  const createView = vi.fn(async (_host: HTMLElement, options: typeof viewOptions) => { viewOptions = options; return view; });
+  const viewCallbacks: (typeof viewOptions)[] = [];
+  const createView = vi.fn(async (_host: HTMLElement, options: typeof viewOptions) => {
+    viewOptions = options;
+    viewCallbacks.push(options);
+    const next = views.length ? { write: vi.fn(), focus: vi.fn(), fit: vi.fn(), clear: vi.fn(), dispose: vi.fn(), cols: 80, rows: 24 } : view;
+    views.push(next);
+    return next;
+  });
   const onPreview = vi.fn();
   const onStop = vi.fn();
   const onError = vi.fn();
   const terminal = createWorkbenchTerminal(host, { session, createRuntime, createView, onPreview, onStop, onError });
   disposers.push(() => { terminal.dispose(); session.dispose(); host.remove(); });
-  return { session, host, terminal, runtime, view, createRuntime, createView, onPreview, onStop, onError, get runtimeOptions() { return runtimeOptions!; }, get viewOptions() { return viewOptions!; } };
+  return { session, host, terminal, runtime, view, views, viewCallbacks, createRuntime, createView, onPreview, onStop, onError, get runtimeOptions() { return runtimeOptions!; }, get viewOptions() { return viewOptions!; } };
+}
+
+async function projectFixture() {
+  const f = await fixture();
+  await f.session.applyExternalFiles({ 'package.json': JSON.stringify({ scripts: { dev: 'vite' }, packageManager: 'pnpm@10.0.0' }) }, []);
+  return f;
 }
 
 describe('工作台交互终端', () => {
@@ -209,5 +223,140 @@ describe('工作台交互终端', () => {
     expect(f.host.querySelector('[data-terminal-status]')?.textContent).toBe('尚未启动');
     expect(f.view.focus).not.toHaveBeenCalled();
     expect(f.runtime.dispose).toHaveBeenCalledOnce();
+  });
+
+  it('运行项目自动选中独立项目终端，安装输出、交互与 Shell 分离', async () => {
+    const f = await projectFixture();
+    await f.terminal.runProject();
+    expect(f.runtime.runProject).toHaveBeenCalledExactlyOnceWith({ manager: 'pnpm', script: 'dev' });
+    expect(f.views).toHaveLength(2);
+    const project = f.views[1]!;
+    f.runtimeOptions.onProjectState?.('installing');
+    expect(f.host.querySelector('[data-terminal-status]')?.textContent).toBe('安装依赖');
+    f.runtimeOptions.onProjectOutput?.('Packages: +42\r\n');
+    expect(project.write).toHaveBeenCalledWith('Packages: +42\r\n');
+    expect(f.view.write).not.toHaveBeenCalledWith('Packages: +42\r\n');
+    f.viewCallbacks[1]!.onData('\u0003');
+    f.viewCallbacks[1]!.onResize({ cols: 110, rows: 32 });
+    expect(f.runtime.writeProject).toHaveBeenCalledWith('\u0003');
+    expect(f.runtime.resizeProject).toHaveBeenCalledWith({ cols: 110, rows: 32 });
+    expect(f.runtime.write).not.toHaveBeenCalled();
+    f.runtimeOptions.onProjectState?.('running');
+    expect(f.host.querySelector('[data-terminal-status]')?.textContent).toBe('项目运行中');
+    await f.terminal.show();
+    expect(project.focus).toHaveBeenCalled();
+    f.host.querySelector<HTMLButtonElement>('[data-terminal-session="shell"]')?.click();
+    expect(f.view.focus).toHaveBeenCalled();
+    f.viewCallbacks[0]!.onData('pwd\r');
+    expect(f.runtime.write).toHaveBeenCalledWith('pwd\r');
+  });
+
+  it('重复运行只聚焦现有项目，退出后可再次运行并保留 Shell', async () => {
+    const f = await projectFixture();
+    await f.terminal.runProject();
+    await f.terminal.runProject();
+    expect(f.runtime.runProject).toHaveBeenCalledOnce();
+    expect(f.views[1]!.clear).not.toHaveBeenCalled();
+    f.runtimeOptions.onProjectState?.('stopped', 130);
+    expect(f.host.querySelector('[data-terminal-status]')?.textContent).toBe('项目已停止 (130)');
+    await f.terminal.runProject();
+    expect(f.runtime.runProject).toHaveBeenCalledTimes(2);
+    expect(f.runtime.start).toHaveBeenCalledOnce();
+    expect(f.view.dispose).not.toHaveBeenCalled();
+    await f.terminal.stop();
+    expect(f.views[1]!.dispose).toHaveBeenCalledOnce();
+  });
+
+  it('项目启动等待已经在同步的已保存文件，并追上启动过程中保存的新版本', async () => {
+    const f = await projectFixture();
+    await f.terminal.show();
+    let finish: () => void = () => undefined;
+    f.runtime.sync.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
+    f.session.edit('main.js', 'new saved');
+    await f.session.save();
+    const running = f.terminal.runProject();
+    await vi.waitFor(() => expect(f.createView).toHaveBeenCalledTimes(2));
+    expect(f.runtime.runProject).not.toHaveBeenCalled();
+    f.session.edit('main.js', 'newest saved');
+    await f.session.save();
+    finish();
+    await running;
+    expect(f.runtime.sync).toHaveBeenLastCalledWith(expect.objectContaining({ files: expect.objectContaining({ 'main.js': 'newest saved' }) }));
+    expect(f.runtime.runProject).toHaveBeenCalledOnce();
+  });
+
+  it('容器启动期间的新保存必须同步后才能运行项目', async () => {
+    const f = await projectFixture();
+    let finish: () => void = () => undefined;
+    f.runtime.start.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
+    const running = f.terminal.runProject();
+    await vi.waitFor(() => expect(f.runtime.start).toHaveBeenCalledOnce());
+    f.session.edit('main.js', 'saved during boot');
+    await f.session.save();
+    finish();
+    await running;
+    expect(f.runtime.sync).toHaveBeenCalledWith(expect.objectContaining({ files: expect.objectContaining({ 'main.js': 'saved during boot' }) }));
+    expect(f.runtime.runProject).toHaveBeenCalledOnce();
+  });
+
+  it('同步失败拒绝启动并把错误留在项目终端', async () => {
+    const f = await projectFixture();
+    await f.terminal.show();
+    let rejectSync: (cause: Error) => void = () => undefined;
+    f.runtime.sync.mockImplementationOnce(() => new Promise<void>((_resolve, reject) => { rejectSync = reject; }));
+    f.session.edit('main.js', 'new saved');
+    await f.session.save();
+    const running = f.terminal.runProject();
+    await vi.waitFor(() => expect(f.createView).toHaveBeenCalledTimes(2));
+    rejectSync(new Error('sync refused'));
+    await expect(running).rejects.toThrow('sync refused');
+    expect(f.runtime.runProject).not.toHaveBeenCalled();
+    expect(f.views[1]!.write).toHaveBeenCalledWith(expect.stringContaining('sync refused'));
+    expect(f.onError).toHaveBeenCalledWith(expect.objectContaining({ message: 'sync refused' }));
+  });
+
+  it('项目终端 Ctrl+C 取消等待启动，迟到的容器就绪不会再运行项目', async () => {
+    const f = await projectFixture();
+    let finish: () => void = () => undefined;
+    f.runtime.start.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
+    const running = f.terminal.runProject();
+    await vi.waitFor(() => expect(f.views).toHaveLength(2));
+    f.viewCallbacks[1]!.onData('\u0003');
+    finish();
+    await running;
+    expect(f.runtime.runProject).not.toHaveBeenCalled();
+    expect(f.host.querySelector('[data-terminal-status]')?.textContent).toContain('项目已停止');
+    expect(f.runtime.dispose).not.toHaveBeenCalled();
+  });
+
+  it('切换项目拦截等待启动与旧项目输出，并释放两个终端视图', async () => {
+    const f = await projectFixture();
+    let finish: () => void = () => undefined;
+    f.runtime.start.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
+    const running = f.terminal.runProject();
+    await vi.waitFor(() => expect(f.runtime.start).toHaveBeenCalledOnce());
+    const old = f.runtimeOptions;
+    await f.session.open('two');
+    finish();
+    await running;
+    old.onProjectOutput?.('old output');
+    old.onProjectState?.('running');
+    expect(f.runtime.runProject).not.toHaveBeenCalled();
+    expect(f.views[1]!.write).not.toHaveBeenCalledWith('old output');
+    expect(f.views[1]!.dispose).toHaveBeenCalledOnce();
+    expect(f.host.querySelector('[data-terminal-status]')?.textContent).toBe('尚未启动');
+  });
+
+  it('无启动脚本与进程启动失败直接写入项目终端，后续允许重试', async () => {
+    const f = await fixture();
+    await expect(f.terminal.runProject()).rejects.toThrow();
+    expect(f.runtime.runProject).not.toHaveBeenCalled();
+    expect(f.views[1]!.write).toHaveBeenCalled();
+    await f.session.applyExternalFiles({ 'package.json': JSON.stringify({ scripts: { start: 'node main.js' } }) }, []);
+    f.runtime.runProject.mockRejectedValueOnce(new Error('spawn failed'));
+    await expect(f.terminal.runProject()).rejects.toThrow('spawn failed');
+    expect(f.views[1]!.write).toHaveBeenCalledWith(expect.stringContaining('spawn failed'));
+    await f.terminal.runProject();
+    expect(f.runtime.runProject).toHaveBeenCalledTimes(2);
   });
 });

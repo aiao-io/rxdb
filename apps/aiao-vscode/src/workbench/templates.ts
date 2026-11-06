@@ -60,7 +60,7 @@ const commonFiles = {
   ),
   '.gitignore': 'node_modules/\ndist/\n',
   'README.md':
-    '# 浏览器工作台项目\n\n使用 Node.js 26 与 pnpm 10：\n\n```sh\npnpm install\npnpm build\npnpm dev\n```\n\n浏览器预览与导出构建共用这些源码，浏览器中不执行安装脚本。\n'
+    '# 浏览器工作台项目\n\n使用 Node.js 26 与 pnpm 10：\n\n```sh\npnpm install\npnpm build\npnpm dev\n```\n\n点击工作台顶部「运行」会保存全部文件，自动展开底部项目终端，安装依赖并启动项目。包管理器优先读取 package.json 的 packageManager（npm@版本或 pnpm@版本）；未声明时优先使用 pnpm-lock.yaml，否则使用 npm。启动脚本优先使用 scripts.dev，其次使用 scripts.start。安装进度、编译与运行信息实时显示，Ctrl+C 停止安装或服务；重复点击「运行」会聚焦现有进程。\n\n独立 Shell 会话支持手动输入命令，与项目运行共用源码。预览栏刷新按钮保留独立的受控编译预览；浏览器预览与导出构建共用这些源码。\n'
 };
 
 export const vanillaTemplate: WorkbenchTemplate = {
