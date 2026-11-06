@@ -57,10 +57,11 @@
 
 | 范围               | 当前结论                                                                                                                                                                         | 记录                                                  |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| 发布               | 统一平台首发 `cf252547-dd7c-4b0b-8b77-9e1de257ab4b` 于 2026-11-06 16:12:14（Asia/Shanghai）发布；旧配置缓存修复 `fb9c2e12-c181-4ded-ba65-c13fd0a0585b` 于当日 16:41:57 发布，当前 100% 流量；正式域名 `https://media.aiao.io` | [平台发布记录](plans/platform-supabase-release-20261106.md) |
+| 发布               | 统一平台首发 `cf252547-dd7c-4b0b-8b77-9e1de257ab4b` 于 2026-11-06 16:12:14（Asia/Shanghai）发布；旧配置缓存修复 `fb9c2e12-c181-4ded-ba65-c13fd0a0585b` 于当日 16:41:57 发布；当前版本 `36d61b6b-fd39-4a99-94b8-80afa0c05063` 于当日 22:07:31 发布，100% 流量；正式域名 `https://media.aiao.io` | [平台发布记录](plans/platform-supabase-release-20261106.md) |
 | 平台数据库与文件权限 | 空库核验后执行 13 源 bootstrap，schema 10；真实云两普通账号/同账号第二会话的 metadata/log RLS、revision、tombstone 与私有 Storage 原字节 SHA-256 往返通过，B/匿名拒绝 | [平台发布记录](plans/platform-supabase-release-20261106.md#真实云-api-验证) |
 | 平台 UI             | 正式云 Auth/DB/Storage 下登录、确认范围、元数据同步、真实原图上传、第二设备草稿恢复和默认关闭上传、显式下载通过，下载字节/SHA-256 与原 PNG 一致；注册仅验证表单，未发邮件 | [平台发布记录](plans/platform-supabase-release-20261106.md#正式域名-ui-进展) |
-| 平台公开 HTTP       | `/providers`、`/api/templates` 为 200，CSP 允许平台项目 `wss`，公开账号配置与 Worker 同项目，旧 OAuth start 为 404；线上 offline-manifest 字节与本地产物一致。当前版本四路由/离线浏览器 smoke 待补 | [平台发布记录](plans/platform-supabase-release-20261106.md#正式域名-ui-进展) |
+| 平台公开 HTTP       | `/providers`、`/api/templates` 为 200，CSP 允许平台项目 `wss`，公开账号配置与 Worker 同项目，旧 OAuth start 为 404；线上 offline-manifest 字节与本地产物一致 | [平台发布记录](plans/platform-supabase-release-20261106.md#正式域名-ui-进展) |
+| 当前版本公网与离线浏览器 | 22:07 发布版本四路由直达及加载均为 200；58/58 缓存摘要匹配；真实断网后新开四路由保留 profile 与草稿；页面异常、生成和远端写入均为 0 | [晚间发布复验](plans/platform-supabase-release-20261106.md#晚间-cloudflare-发布复验) |
 | 旧配置缓存回归       | 本地真实旧缓存升级及离线回归通过；内容哈希配置 `/app-config-b29867111480b71c.js` 已发布并纳入离线 manifest。正式 `/providers#sync` 复验 `platformAvailable=true`、不可用提示消失、注册表单可见，未提交/发邮件 | [平台发布记录](plans/platform-supabase-release-20261106.md#正式域名-ui-进展) |
 | 公众注册邮件        | 未配置自定义 SMTP；默认邮件只向项目团队成员发送，公众邮箱注册/确认邮件闭环未验证 | [平台发布记录](plans/platform-supabase-release-20261106.md#公众注册与剩余边界) |
 | 更新与回退         | 官方 A→B→A 实际产物切换、waiting/旧页关闭/activated 顺序及各阶段真断网四路由已通过（原 B 版本）；没有注入更高 schema marker                                                      | [正式交付验收](plans/public-delivery-verification.md) |
@@ -69,4 +70,4 @@
 | 跨 origin 原图 URL | 无真实成功证据                                                                                                                                                                   | [供应商补验](plans/provider-acceptance-follow-up.md)  |
 | 套餐               | Cloudflare 控制台显示 Workers 免费套餐 US$0 与活动 Workers Free 订阅；账户另有既有订阅，不称全账户免费或零账单                                                                   | [正式交付验收](plans/public-delivery-verification.md) |
 
-历史 JPEG 及此前发布保持本机模式，其关闭账号配置的构建和离线证据仍见[原交付记录](plans/jpeg-delivery-verification.md)。2026-11-06 平台版本使用显式平台公开配置，生产 Supabase 已初始化并完成上述真实云 API 和完整浏览器同步样本，旧配置缓存修复已发布且正式站点表单复验通过；自定义 SMTP、公众注册确认邮件、当前版本四路由/离线浏览器 smoke 和生产 Web/Tauri 余项仍待验，故事状态保持未关闭。
+历史 JPEG 及此前发布保持本机模式，其关闭账号配置的构建和离线证据仍见[原交付记录](plans/jpeg-delivery-verification.md)。2026-11-06 平台版本使用显式平台公开配置，生产 Supabase 已初始化并完成上述真实云 API 和完整浏览器同步样本，旧配置缓存修复已发布且正式站点表单复验通过；22:07 再发布版本的正式四路由与离线浏览器 smoke 已通过，58/58 缓存摘要匹配。自定义 SMTP、公众注册确认邮件和生产 Web/Tauri 余项仍待验，故事状态保持未关闭。

@@ -43,7 +43,7 @@
 
 表、RLS、bucket 和平台账号配置由部署方统一维护。应用尚未正式使用，移除未使用的自有项目代码与兼容入口，不承诺旧自有项目配置迁移。用户确认平台账号、工作区与上传范围后才开始复制。停止、切账号、离线恢复、冲突、tombstone 和日志保留规则继续遵守 D-05/D-06。
 
-[MEDIA-US-303](stories/local-first/MEDIA-US-303-sync-targets.md) 与 [MEDIA-US-305](stories/local-first/MEDIA-US-305-supabase-image-sync.md) 按本决策继续实施；原 MEDIA-US-304 需求与未使用的自有项目接入代码一并移除。平台承担存储与服务成本。2026-11-06 正式启用的版本、空库初始化、真实云 API/RLS/Storage 及完整浏览器同步样本证据见[平台发布记录](plans/platform-supabase-release-20261106.md)；自定义 SMTP 与公众注册邮件、当前版本四路由/离线浏览器 smoke、续传及生产 Web/Tauri 仍需验收，决策或部署不等于故事全部完成。
+[MEDIA-US-303](stories/local-first/MEDIA-US-303-sync-targets.md) 与 [MEDIA-US-305](stories/local-first/MEDIA-US-305-supabase-image-sync.md) 按本决策继续实施；原 MEDIA-US-304 需求与未使用的自有项目接入代码一并移除。平台承担存储与服务成本。2026-11-06 正式启用的版本、空库初始化、真实云 API/RLS/Storage 及完整浏览器同步样本证据见[平台发布记录](plans/platform-supabase-release-20261106.md)；22:07 发布版本的正式四路由与离线浏览器 smoke 已通过，58/58 资源摘要匹配。自定义 SMTP 与公众注册邮件、续传及生产 Web/Tauri 仍需验收，决策或部署不等于故事全部完成。
 
 ### D-17：当前平台免费，暂缓独立平台图片服务与计费
 

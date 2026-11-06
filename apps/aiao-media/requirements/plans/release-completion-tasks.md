@@ -49,7 +49,7 @@ NX_NO_CLOUD=true pnpm nx run aiao-media-e2e:provider-acceptance-fixture --skipRe
 
 ## 后续正式账号服务的运维边界
 
-2026-11-06 已完成正式 Worker 发布、空库 bootstrap、Auth 正式返回地址与 Worker secrets 配置，真实云 API/RLS/Storage 及完整浏览器同步样本验证通过，原图下载字节与 SHA-256 一致，详见[平台发布记录](platform-supabase-release-20261106.md)。尚未配置自定义 SMTP，公众注册确认邮件及当前版本四路由/离线浏览器 smoke 仍待补；这些步骤不能据此全部标为完成。
+2026-11-06 已完成正式 Worker 发布、空库 bootstrap、Auth 正式返回地址与 Worker secrets 配置，真实云 API/RLS/Storage 及完整浏览器同步样本验证通过，原图下载字节与 SHA-256 一致，详见[平台发布记录](platform-supabase-release-20261106.md)。22:07 发布版本已通过正式四路由与离线浏览器 smoke，58/58 资源摘要匹配、离线新页面保留草稿。尚未配置自定义 SMTP，公众注册确认邮件仍待补；这些步骤不能据此全部标为完成。
 
 以下为当前平台账号与同步发布的执行前置和运维步骤，替代此前仅本地的发布口径。先核验选定平台项目的实际状态，再执行对应步骤；文档更新不表示迁移、秘密配置、正式部署或生产验收已经完成。
 
