@@ -604,7 +604,8 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.closeViewer();
     if (next === 'providers') this.settingsTab.set(hashTab(location.hash));
   }
-  @HostListener('document:keydown.escape') onEscape() {
+  @HostListener('document:keydown.escape', ['$event']) onEscape(event?: Event) {
+    if (this.detail()) event?.preventDefault();
     this.closeTemplate();
     this.feedbackOpen.set(false);
     this.closeAuth();
@@ -1165,7 +1166,9 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     try {
       await store.delete(work.jobId);
       if (epoch !== this.epoch) return false;
-      this.imageDownloads.update(current => new Map([...current].filter(([key]) => !key.startsWith(`${work.jobId}:`))));
+      this.imageDownloads.update(
+        current => new Map([...current].filter(([key]) => !key.startsWith(`${work.jobId}:`)))
+      );
       if (this.resultUrl() && !this.resultBlob) this.revokeResult();
       if (this.job()?.id === work.jobId) {
         this.revokeResult();

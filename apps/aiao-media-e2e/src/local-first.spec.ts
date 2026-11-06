@@ -76,7 +76,7 @@ test('首页图片从点击位置过渡到弹窗，关闭时平滑回到卡片',
   const cover = card.locator('img');
   await cover.evaluate((image: HTMLImageElement) => image.decode());
   await card.hover();
-  const origin = (await cover.boundingBox())!;
+  const origin = (await card.locator('.feed-cover').boundingBox())!;
   await card.click();
   const dialog = page.getByRole('dialog', { name: '把一杯咖啡，拍成一张好海报' });
   await expect(dialog).toBeVisible();
@@ -123,6 +123,29 @@ test('首页图片从点击位置过渡到弹窗，关闭时平滑回到卡片',
   await expect(page.locator('html')).not.toHaveClass(/template-image-transition/);
   await expect(card).toBeFocused();
   await expect(page.locator('[style*="view-transition-name"]')).toHaveCount(0);
+});
+
+test('首页图片还在放大时按 Esc 能关闭并再次打开', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto('/');
+  await page.addStyleTag({
+    content: ':root::view-transition-group(template-image) { animation-duration: 1s !important; }'
+  });
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  const card = page.getByRole('button', { name: '查看把一杯咖啡，拍成一张好海报', exact: true });
+  const dialog = page.getByRole('dialog', { name: '把一杯咖啡，拍成一张好海报' });
+  await card.click();
+  await expect(dialog).toBeVisible();
+  await expect(page.locator('html')).toHaveClass(/template-image-transition/);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator('html')).not.toHaveClass(/template-image-transition/);
+  await expect(card).toBeFocused();
+  await card.click();
+  await expect(dialog).toBeVisible();
+  await expect(page.locator('html')).not.toHaveClass(/template-image-transition/);
+  expect(errors).toEqual([]);
 });
 
 test('减少动态效果时首页图片直接打开和关闭详情', async ({ page }) => {

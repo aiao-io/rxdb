@@ -81,7 +81,7 @@ describe('灵感图片共享元素过渡', () => {
     expect(opening.skip).toHaveBeenCalledOnce();
     expect(closing.start).not.toHaveBeenCalled();
     await opened;
-    expect(closing.start).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(closing.start).toHaveBeenCalledOnce());
     expect(detail.style.viewTransitionName).toBe('template-image');
     await closing.update();
     expect(cover.style.viewTransitionName).toBe('template-image');
