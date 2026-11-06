@@ -199,7 +199,8 @@ const emptyLibrary = (): LibraryState => ({
     '[attr.data-align]': 'display().align',
     '[style.--page-max]': 'pageMaxStyle()',
     '[style.--library-card-min]': 'libraryCardMinStyle()',
-    '[style.--library-columns]': 'libraryColumnsStyle()'
+    '[style.--library-columns]': 'libraryColumnsStyle()',
+    '(window:storage)': 'onStorage($event); onWorkspaceChanged($event)'
   },
   encapsulation: ViewEncapsulation.None,
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -630,7 +631,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     if (document.visibilityState === 'hidden') void this.studio?.flush();
   }
   /** 其他标签页改了排版偏好（或清空了站点数据）时，本页跟着更新。 */
-  @HostListener('window:storage', ['$event']) onStorage(event: StorageEvent) {
+  onStorage(event: StorageEvent) {
     if (event.storageArea === localStorage && (event.key === null || event.key === displayStorageKey))
       this.display.set(readDisplayPreferences(localStorage));
   }
@@ -1518,7 +1519,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.dataMessage.set('此浏览器不支持申请持久存储，请定期导出备份。');
     }
   }
-  @HostListener('window:storage', ['$event']) onWorkspaceChanged(event: StorageEvent) {
+  onWorkspaceChanged(event: StorageEvent) {
     if (event.key === this.syncPauseKey() && event.newValue === '1') {
       this.product?.pause();
       this.syncPaused.set(true);
