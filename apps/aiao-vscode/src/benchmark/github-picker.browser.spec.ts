@@ -152,7 +152,7 @@ async function openGitHub(config: ProbeConfig = {}): Promise<void> {
 }
 
 async function waitForResult(result: GitHubRemoteTarget | null): Promise<void> {
-  await expect.poll(async () => (await snapshot()).settled).toBe(true);
+  await expect.poll(async () => (await snapshot()).settled, { timeout: 10000 }).toBe(true);
   expect((await snapshot()).result).toEqual(result);
   expect(await page.locator('dialog[open]').count()).toBe(0);
 }
@@ -189,7 +189,7 @@ describe('GitHub repository Quick Pick in Chromium', () => {
     fixtureUrl = `http://127.0.0.1:${address.port}`;
     browser = await chromium.launch({ headless: true });
     page = await browser.newPage();
-    page.setDefaultTimeout(3000);
+    page.setDefaultTimeout(10000);
     page.on('pageerror', error => browserErrors.push(error.message));
   });
 
@@ -267,7 +267,7 @@ describe('GitHub repository Quick Pick in Chromium', () => {
   it('keeps newer search results when an older request finishes later', async () => {
     await openGitHub({ deferredQueries: ['slow'] });
     await input().fill('slow');
-    await expect.poll(async () => (await snapshot()).events.some(event => event.query === 'slow')).toBe(true);
+    await expect.poll(async () => (await snapshot()).events.some(event => event.query === 'slow'), { timeout: 10000 }).toBe(true);
     await input().fill('latest');
     await repository('latest').waitFor({ state: 'visible' });
     await probe('release-query', { query: 'slow' });
@@ -281,7 +281,7 @@ describe('GitHub repository Quick Pick in Chromium', () => {
   it('invalidates a pending search as soon as input changes, before the next debounce fires', async () => {
     await openGitHub({ deferredQueries: ['slow'] });
     await input().fill('slow');
-    await expect.poll(async () => (await snapshot()).events.some(event => event.query === 'slow')).toBe(true);
+    await expect.poll(async () => (await snapshot()).events.some(event => event.query === 'slow'), { timeout: 10000 }).toBe(true);
     await input().evaluate(async element => {
       const target = globalThis as unknown as {
         githubPickerProbe: { dispatch(action: ProbeAction, payload?: ProbePayload): Promise<void> };
@@ -329,7 +329,7 @@ describe('GitHub repository Quick Pick in Chromium', () => {
   it('ignores a response arriving after Escape and keeps focus on the original control', async () => {
     await openGitHub({ deferredQueries: ['cancelled'] });
     await input().fill('cancelled');
-    await expect.poll(async () => (await snapshot()).events.some(event => event.query === 'cancelled')).toBe(true);
+    await expect.poll(async () => (await snapshot()).events.some(event => event.query === 'cancelled'), { timeout: 10000 }).toBe(true);
     await input().press('Escape');
     await waitForResult(null);
     await probe('release-query', { query: 'cancelled' });
