@@ -439,7 +439,6 @@ async function bodyUndo(context) {
 async function applyTemplate(page) {
   await page.getByRole('link', { name: '发现灵感', exact: true }).click();
   await page.getByRole('button', { name: TEMPLATE, exact: true }).click();
-  page.once('dialog', dialog => void dialog.accept());
   await page.getByRole('button', { name: '用这个灵感创作' }).click();
   await page.getByRole('textbox', { name: '模板参数：产品' }).waitFor();
   await openPreview(page);

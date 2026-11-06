@@ -1121,11 +1121,6 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.notify(issue);
       return;
     }
-    if (
-      (this.serialized().text.length || this.promptState().fields.length || this.selected()) &&
-      !window.confirm('使用此模板替换当前输入？当前输入会被新的模板覆盖。')
-    )
-      return;
     this.selected.set(template);
     this.selectedVersion.set(this.templateVersions.get(template.id) ?? 1);
     this.onPromptChanged(templateState(template));

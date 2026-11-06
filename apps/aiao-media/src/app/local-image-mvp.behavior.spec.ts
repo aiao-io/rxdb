@@ -1428,15 +1428,14 @@ describe('drafts and browsing', () => {
     expect(component.filtered()).toEqual(component.templates());
   });
 
-  it('requires confirmation before a template replaces edited text and blocks it during generation', () => {
+  it('replaces edited text with a template directly and blocks it during generation', () => {
     const { component } = rig();
     component.onPromptChanged(plainPrompt('未保存的创作'));
     const template = component.templates()[0];
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     component.applyTemplate(template);
-    expect(component.serialized().text).toBe('未保存的创作');
-    confirm.mockReturnValue(true);
-    component.applyTemplate(template);
+    expect(confirm).not.toHaveBeenCalled();
+    expect(component.serialized().text).toContain('手冲咖啡');
     expect(component.selected()).toBe(template);
     expect(component.view()).toBe('studio');
     component.sending.set(true);
@@ -1445,19 +1444,20 @@ describe('drafts and browsing', () => {
     expect(component.toast()).toContain('当前图片任务');
   });
 
-  it('preserves a restored draft when template replacement is cancelled', () => {
+  it('replaces a restored draft with a template without confirmation', () => {
     const { component } = rig();
     const original = plainPrompt('刷新后恢复的草稿');
     component.promptState.set(original);
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
-    component.applyTemplate(component.templates()[0]);
-    expect(confirm).toHaveBeenCalledOnce();
-    expect(component.promptState()).toBe(original);
-    expect(component.selected()).toBeNull();
-    expect(component.view()).toBe('discover');
+    const template = component.templates()[0];
+    component.applyTemplate(template);
+    expect(confirm).not.toHaveBeenCalled();
+    expect(component.serialized().text).toContain('手冲咖啡');
+    expect(component.selected()).toBe(template);
+    expect(component.view()).toBe('studio');
   });
 
-  it('preserves empty template fields when replacement is cancelled', () => {
+  it('replaces empty template fields without confirmation', () => {
     const { component } = rig();
     const original = {
       document: {
@@ -1471,9 +1471,11 @@ describe('drafts and browsing', () => {
     };
     component.onPromptChanged(original);
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
-    component.applyTemplate(component.templates()[0]);
-    expect(confirm).toHaveBeenCalledOnce();
-    expect(component.promptState()).toBe(original);
+    const template = component.templates()[0];
+    component.applyTemplate(template);
+    expect(confirm).not.toHaveBeenCalled();
+    expect(component.serialized().text).toContain('手冲咖啡');
+    expect(component.selected()).toBe(template);
   });
 
   it('rejects a structurally invalid template before changing the existing draft', () => {

@@ -487,7 +487,6 @@ test('模板字段可撤销重做，刷新恢复画幅，替换模板后撤销�
   await product.fill('不应进入下一模板的输入');
   await page.getByRole('link', { name: '发现灵感', exact: true }).click();
   await page.getByRole('button', { name: '查看一件陶器，也有自己的年轮', exact: true }).click();
-  page.once('dialog', dialog => dialog.accept());
   await page.getByRole('button', { name: '用这个灵感创作' }).click();
   const editor = page.locator('[contenteditable=true]');
   await expect(editor).toContainText('当代陶瓷展览海报');
