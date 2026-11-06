@@ -38,6 +38,14 @@ pnpm nx run rxdb-admin-template-react:test \
 
 报告输出到 `coverage/apps/rxdb-admin-template-react-changes/coverage-summary.json` 与 `coverage-final.json`，由命令重新生成，不作为仓库内必须存在的链接目标。
 
+## 未构建依赖时的配置加载
+
+应用 Vite 配置直接从后台核心源码注入首屏脚本工厂，HTML 插件只保留公共包的类型依赖。即使 `@aiao/rxdb-admin` 尚无构建产物，Nx 仍可读取应用配置与项目图。
+
+- `pnpm nx exec --projects=@aiao/source --excludeTaskDependencies -- node --test scripts/check-workspace.spec.mjs`：8 条通过；[配置加载回归](../../../../scripts/check-workspace.spec.mjs) 在临时目录模拟公共包未构建，验证真实 Vite 配置加载和首屏主题脚本。
+- `pnpm nx run rxdb-admin-template-react:test app-config.spec.ts --run --maxWorkers=1`：3 条通过；验证应用配置契约、存储命名空间与真实 HTML 转换。
+- `pnpm nx run @aiao/source:lint`：通过，零 ESLint 警告。
+
 ## 限制
 
 本记录证明本仓库孵化基线。新业务实体替换、自定义业务页面、独立仓库运行、正式部署与认证授权均未由这些测试证明。
@@ -45,7 +53,7 @@ pnpm nx run rxdb-admin-template-react:test \
 根需求审计命令通过 Nx 执行原脚本：
 
 ```bash
-pnpm nx run @aiao/source:test-scripts --command='node scripts/audit/requirements-consistency.mjs --check'
+pnpm nx exec --projects=@aiao/source --excludeTaskDependencies -- node scripts/audit/requirements-consistency.mjs --check
 ```
 
-该检查失败于公开包计数和 US-530～533 的索引 / 排期缺失，共九项。这些根派生视图不在本批次应用故事范围内。
+该检查通过：公开包计数与 US-530～533 的索引、排期已同步。现有看板研究文档仍有两个带日期标题的非阻塞叙述告警；根需求检查不改变本应用故事的验收状态。
