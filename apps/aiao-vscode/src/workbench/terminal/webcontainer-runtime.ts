@@ -202,8 +202,12 @@ function startCommand(plan: TerminalProjectPlan): string {
   return [plan.manager, 'run', plan.script, ...args].join(' ');
 }
 
-/** 项目终端屏蔽 Node 实验特性警告：vite 8 在 WebContainer 里走 rolldown 的 WASI 绑定，每次启动刷 4 条。 */
-const PROJECT_ENV = { NODE_OPTIONS: '--disable-warning=ExperimentalWarning' };
+/**
+ * 项目终端的环境变量：
+ * - 屏蔽 Node 实验特性警告：vite 8 在 WebContainer 里走 rolldown 的 WASI 绑定，每次启动刷 4 条；
+ * - 关掉 Angular 组件模板热更新：WebContainer 预览页会静默丢弃它，改走整页刷新才能看到改动。
+ */
+const PROJECT_ENV = { NODE_OPTIONS: '--disable-warning=ExperimentalWarning', NG_HMR_TEMPLATES: '0' };
 
 /** 停止读取时只断开、不取消源流：WebContainer 在进程结束时才关闭输出，源流已取消会抛未捕获异常。 */
 const detachOutput = (signal: AbortSignal): StreamPipeOptions => ({ signal, preventCancel: true });

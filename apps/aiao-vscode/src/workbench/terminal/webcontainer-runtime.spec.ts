@@ -247,7 +247,7 @@ describe('浏览器 Node 终端运行时', () => {
     await vi.waitFor(() =>
       expect(f.container.spawn).toHaveBeenNthCalledWith(2, 'jsh', ['--osc'], {
         terminal: { cols: 100, rows: 30 },
-        env: { NODE_OPTIONS: '--disable-warning=ExperimentalWarning' }
+        env: { NODE_OPTIONS: '--disable-warning=ExperimentalWarning', NG_HMR_TEMPLATES: '0' }
       })
     );
     shell.ready();

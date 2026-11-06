@@ -21,6 +21,7 @@ tags: [aiao-vscode, terminal, webcontainer, node]
 - 顶部「运行」保存全部文件，自动展开底部项目终端，先安装依赖，成功后再执行启动脚本；安装、编译、启动和运行报错实时可见。
 - 项目终端是带状态标记的 jsh（`jsh --osc`）：「运行」像手动输入一样把安装命令与启动脚本输入 Shell，提示符、命令回显与耗时与普通终端一致；按 OSC 654 标记判断安装中、运行中、已停止与终端退出。
 - 启动脚本是 vite 且未配置清屏时，「运行」补 `--clearScreen false`（npm 经 `--` 透传），导入项目同样适用；项目终端设置 `NODE_OPTIONS=--disable-warning=ExperimentalWarning`，只屏蔽实验特性警告。用户 2026-11-07 决定。
+- 项目终端设置 `NG_HMR_TEMPLATES=0`：Angular 的组件模板热更新（`Component update sent`）在 WebContainer 预览页里被静默丢弃，关闭后模板改动改走整页刷新，保存后约 2 秒服务页更新。用户 2026-11-07 决定。
 - 包管理器优先读取根 `package.json` 的 `packageManager`（仅支持 `npm@版本`、`pnpm@版本`）；未声明时根 `pnpm-lock.yaml` 优先，否则使用 npm。脚本优先非空 `scripts.dev`，其次非空 `scripts.start`，无有效脚本或清单配置错误时明确失败。
 - 项目运行与手动输入命令使用独立会话，共用当前项目源码。Ctrl+C 可中断安装或服务，回到提示符后可继续输入命令；重复点击「运行」聚焦既有进程，退出后允许再次启动；项目终端正在执行手动命令时「运行」明确拒绝，不往命令中插入输入。
 - 编辑器保存后增量同步；终端源码变化通过带 revision 的原子写入与删除回执保存，保留未保存缓冲。

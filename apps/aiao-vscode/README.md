@@ -105,7 +105,8 @@ Angular 使用浏览器 JIT 与 TS 装饰器转换。受控编译不提供完整
 安装成功后才执行启动脚本，安装进度、编译过程、服务输出与报错都实时显示。
 启动脚本是 vite 且没写清屏配置时，「运行」会在命令后补 `--clearScreen false`（npm 写作
 `-- --clearScreen false`），避免 vite 启动清屏冲掉安装过程；项目终端还设置了
-`NODE_OPTIONS=--disable-warning=ExperimentalWarning`，屏蔽 vite 8 在 WebContainer 里走 WASI 时的实验特性警告。
+`NODE_OPTIONS=--disable-warning=ExperimentalWarning`，屏蔽 vite 8 在 WebContainer 里走 WASI 时的实验特性警告；
+并设置 `NG_HMR_TEMPLATES=0`：Angular 的组件模板热更新在 WebContainer 预览页里会被静默丢弃，改走整页刷新。
 安装或服务仍在运行时，再次点击「运行」会聚焦现有进程；项目终端正在执行手动输入的命令时，
 「运行」会提示先结束该命令。
 
