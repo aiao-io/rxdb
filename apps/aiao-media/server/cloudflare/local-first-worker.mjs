@@ -253,8 +253,6 @@ const worker = {
     const url = new URL(request.url);
     if (!url.pathname.startsWith('/api/')) return fetchAsset(request, env);
     if (url.pathname.startsWith('/api/platform/')) return handlePlatform(request, env);
-    if (url.pathname === '/api/supabase/oauth' || url.pathname.startsWith('/api/supabase/oauth/'))
-      return jsonPayload({ error: '同步服务已统一为平台账号，请注册或登录平台账号。' }, 410);
     if (url.pathname.startsWith('/api/admin/')) return handleAdmin(request, env);
     if (url.pathname === '/api/templates' && request.method === 'GET') return endpoint(() => publishedTemplates(env));
     if (url.pathname === '/api/provider-policies' && request.method === 'GET')

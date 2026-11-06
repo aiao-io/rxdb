@@ -2,16 +2,16 @@
 
 > **真相源**：`stories/*/MEDIA-US-*.md` 的 YAML `status`。本页按该字段派生，有冲突以 YAML 为准并修正本页。排期见[路线图](roadmap.md)，能力范围见[能力矩阵](capability-matrix.md)，证据分层见[验收记录](verification-report.md)。
 
-当前范围是桌面浏览器上的本机图片创作：灵感与提示词、单张 PNG/JPEG 生成与交付、本机作品检索与按需预览、可选账号与跨设备同步、跨用户业务后台。账号、同步和后台只在真实本地 Supabase 上验证（[D-08](decisions.md)）。旧 Bun API/PostgreSQL、SSR/BFF、音视频、Electron 桌面与通用供应商证据机不在范围内；新增方向已拆为 MEDIA-US-005/108/205/303，实施状态见[产品交付计划](plans/product-completion-20261030.md)。MEDIA-US-304/305 已进入实现：OAuth 自动接入、私有 Storage 文件传输和 UI 已接线；真实云 OAuth、项目身份引导、跨设备原图联验仍未关闭。本站代理生图的服务端任务与刷新续接拆为 MEDIA-US-109，服务端与前端已实现并通过本地测试，待真实账号验证与正式发布，范围决策见 [D-15](decisions.md#d-15本站代理生图改为服务端任务)。
+当前范围是桌面浏览器上的本机图片创作：灵感与提示词、单张 PNG/JPEG 生成与交付、本机作品检索与按需预览、可选账号与跨设备同步、跨用户业务后台。账号、同步和后台只在真实本地 Supabase 上验证（[D-08](decisions.md)）。旧 Bun API/PostgreSQL、SSR/BFF、音视频、Electron 桌面与通用供应商证据机不在范围内；新增方向已拆为 MEDIA-US-005/108/205/303，实施状态见[产品交付计划](plans/product-completion-20261030.md)。按 [D-16](decisions.md#d-16统一使用平台-supabase)，MEDIA-US-303/305 收敛为平台注册登录后的元数据与原图同步，真实 Storage、生产服务和 Web/Tauri 跨设备验收仍未关闭。原自有项目接入需求与代码按用户决定移除。本站代理生图的服务端任务与刷新续接拆为 MEDIA-US-109，服务端与前端已实现并通过本地测试，待真实账号验证与正式发布，范围决策见 [D-15](decisions.md#d-15本站代理生图改为服务端任务)。
 
 | 状态           |   数量 | 说明                                                                        |
 | -------------- | -----: | --------------------------------------------------------------------------- |
 | ✅ Done        |      8 | 工作区骨架，以及全部 AC 已验、按 [D-11](decisions.md) 在当前分支结项的七条  |
-| 🚧 In Progress |      8 | 灵感库 IME 未验，以及桌面、平台任务、计费运维、同步目标和代理任务等新增范围 |
+| 🚧 In Progress |      7 | 灵感库 IME 未验，以及桌面、平台、同步和代理任务等新增范围 |
 | 👀 In Review   |      0 | 无                                                                          |
 | ⬜ Backlog     |      1 | 移动真机按 D-04 暂缓                                                        |
 | 🚫 Blocked     |      2 | 正式直连三画幅与真实跨 origin 原图 URL 缺少可用的真实供应商证据             |
-| **合计**       | **19** | 不含模板和上游故事                                                          |
+| **合计**       | **18** | 不含模板和上游故事                                                          |
 
 ## 按 Epic 索引
 
@@ -42,13 +42,12 @@
 
 - ✅ [MEDIA-US-301 浏览器本地草稿与图片持久化](stories/local-first/MEDIA-US-301-browser-persistence.md)
 - ✅ [MEDIA-US-302 多端草稿同步与冲突处理](stories/local-first/MEDIA-US-302-draft-sync.md)
-- 🚧 [MEDIA-US-303 自有 Supabase 与平台同步目标管理](stories/local-first/MEDIA-US-303-sync-targets.md)
-- 🚧 [MEDIA-US-304 Supabase 授权接入与自动初始化](stories/local-first/MEDIA-US-304-supabase-oauth-onboarding.md)
-- 🚧 [MEDIA-US-305 图片原文件同步到自有 Supabase](stories/local-first/MEDIA-US-305-supabase-image-sync.md)
+- 🚧 [MEDIA-US-303 平台账号与同步管理](stories/local-first/MEDIA-US-303-sync-targets.md)
+- 🚧 [MEDIA-US-305 图片原文件同步到平台 Supabase](stories/local-first/MEDIA-US-305-supabase-image-sync.md)
 
 ## 未完成验收与关闭条件
 
-19 条故事共 139 条 AC，90 条已通过，逐条见各 story 的验收标准表。既有实施清单已完成：[本地交付](plans/local-delivery-tasks.md) 17/17、[作品检索](plans/library-search-tasks.md) 10/10、[分支收尾](plans/branch-completion-20261029.md)。既有范围剩余 6 条只缺真实环境证据；新增四条故事按[产品交付计划](plans/product-completion-20261030.md)分别验收。MEDIA-US-109 的 12 条 AC 中 5 条已有本地证据，其余等真实账号验证、R2 生命周期配置与正式发布，分阶段关闭条件见[实施计划](plans/relay-durable-tasks.md)。新规划的 25 条 AC 属于 MEDIA-US-304/305，代码已部分接线但尚无真实环境通过；关闭条件包含真实官方 OAuth、项目内身份引导与 Web/Tauri 原图联验，不计入下表既有缺证项：
+18 条故事共 128 条 AC，90 条已通过，逐条见各 story 的验收标准表。既有实施清单已完成：[本地交付](plans/local-delivery-tasks.md) 17/17、[作品检索](plans/library-search-tasks.md) 10/10、[分支收尾](plans/branch-completion-20261029.md)。既有范围剩余 6 条只缺真实环境证据；新增四条故事按[产品交付计划](plans/product-completion-20261030.md)分别验收。MEDIA-US-109 的 12 条 AC 中 5 条已有本地证据，其余等真实账号验证、R2 生命周期配置与正式发布，分阶段关闭条件见[实施计划](plans/relay-durable-tasks.md)。MEDIA-US-305 的 14 条 AC 按统一平台目标继续验收，关闭条件为真实 Storage 与 Web/Tauri 原图联验；撤销的自有项目接入需求不再计入当前故事或 AC。这些不计入下表既有缺证项：
 
 | 故事 / AC                                                                  | 当前进展                                                                                                                                                                                  | 关闭所需证据                                                                                                                                                                                   |
 | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

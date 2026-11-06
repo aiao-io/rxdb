@@ -5,14 +5,14 @@ export type SyncTarget = { kind: 'platform'; config: SupabaseAuthConfig } | { ki
 const key = 'aiao-media-sync-target-v1';
 type TargetStorage = Pick<Storage, 'getItem' | 'setItem'>;
 
-/** 平台配置只由部署方提供；旧自有项目保持断开，等待用户重新确认同步。 */
+/** 平台配置只由部署方提供，用户只保存是否连接平台账号。 */
 export function readSyncTarget(storage: TargetStorage, platform: SupabaseAuthConfig | null): SyncTarget {
   const saved = storage.getItem(key);
   if (saved === null) return platform ? { kind: 'platform', config: platform } : { kind: 'disconnected', config: null };
   const value: unknown = JSON.parse(saved);
   if (!value || typeof value !== 'object') throw new Error('同步目标配置损坏，请重新选择。');
   const target = value as Record<string, unknown>;
-  if (target['kind'] === 'disconnected' || target['kind'] === 'custom') return { kind: 'disconnected', config: null };
+  if (target['kind'] === 'disconnected') return { kind: 'disconnected', config: null };
   if (target['kind'] === 'platform')
     return platform ? { kind: 'platform', config: platform } : { kind: 'disconnected', config: null };
   throw new Error('同步设置无效，请重新连接平台账号。');

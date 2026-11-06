@@ -539,11 +539,6 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   ngOnInit() {
     this.view.set(routeView(location.pathname));
     this.settingsTab.set(hashTab(location.hash));
-    if (new URL(location.href).searchParams.get('supabase_oauth') === 'complete') {
-      // 旧授权回调只回到平台同步入口，不再读取用户项目。
-      this.settingsTab.set('sync');
-      history.replaceState(null, '', `${location.pathname}#sync`);
-    }
     try {
       const platform = readSupabaseAuthConfig();
       this.platformAvailable.set(platform !== null);
@@ -1507,7 +1502,8 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     );
   }
   async enableSync() {
-    const product = this.product, version = this.identityVersion;
+    const product = this.product,
+      version = this.identityVersion;
     if (!product || !this.syncReady()) {
       this.authMessage.set('本机工作区尚未就绪，请稍后启用同步。');
       return;
@@ -1577,7 +1573,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     }
   }
   async stopImageSync() {
-    if (!window.confirm('停止以后图片自动上传？已上传到 Supabase 的原图和本机原图都保留。')) return;
+    if (!window.confirm('停止以后图片自动上传？平台账号里的原图和本机原图都保留。')) return;
     this.resetImageSync();
     localStorage.removeItem(this.imageSyncKey());
     this.imageSyncEnabled.set(false);
@@ -1643,7 +1639,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         `远端当前记录 ${data.records}/${data.recordLimit}（有效 ${data.active}），正文 ${Math.ceil(data.bytes / 1024)} KiB / ${data.byteLimit / 1024 / 1024} MiB。历史、冲突和删除标记持续保留；此配额仅统计元数据，原图存储单独计算。`
       );
     } catch {
-      this.authMessage.set('同步配额暂不可读，请确认项目已执行最新迁移。');
+      this.authMessage.set('平台同步配额暂不可读，请稍后重试或联系服务方。');
     }
   }
   async exportRemoteMetadata() {

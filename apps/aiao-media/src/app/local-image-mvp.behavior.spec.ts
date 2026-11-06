@@ -153,6 +153,38 @@ function rig() {
 }
 
 describe('sync interaction boundaries', () => {
+  it('另一标签页停止同步时同时停止原图上传并中止在途传输', () => {
+    const r = rig();
+    const scope = new AbortController();
+    r.component.imageSyncEnabled.set(true);
+    Object.assign(r.component, { imageSyncScope: scope });
+
+    r.component.onWorkspaceChanged(new StorageEvent('storage', {
+      key: `aiao-media-sync-paused-v1:::${profileId}`,
+      newValue: '1'
+    }));
+
+    expect(r.component.syncPaused()).toBe(true);
+    expect(r.component.imageSyncEnabled()).toBe(false);
+    expect(scope.signal.aborted).toBe(true);
+  });
+
+  it('手动恢复平台同步时恢复本账号已确认的原图范围', async () => {
+    const r = rig();
+    r.component.targetKind.set('platform');
+    r.component.authStatus.set('signed-in');
+    r.component.syncInitialized.set(true);
+    localStorage.setItem(`aiao-media-image-sync-v1:::${profileId}`, 'future');
+    Object.assign(r.component, { product: { synchronize: vi.fn(), pause: vi.fn(), close: vi.fn() } });
+
+    r.component.stopSync();
+    expect(r.component.imageSyncEnabled()).toBe(false);
+    await r.component.synchronize();
+
+    expect(r.component.syncPaused()).toBe(false);
+    expect(r.component.imageSyncEnabled()).toBe(true);
+  });
+
   it('defers manual image writes while metadata is syncing', async () => {
     const r = rig();
     Object.assign(r.component, { resultBlob: new Blob(['image'], { type: 'image/png' }) });
@@ -309,7 +341,7 @@ describe('平台账号同步入口', () => {
     await r.component.changeSyncTarget('platform');
 
     expect(confirm).not.toHaveBeenCalled();
-    expect(fetch).not.toHaveBeenCalled();
+    expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes('/api/supabase/'))).toBe(false);
     expect(r.component.targetKind()).toBe('platform');
     expect(r.component.authOpen()).toBe(true);
     expect(JSON.parse(localStorage.getItem('aiao-media-sync-target-v1')!)).toEqual({ kind: 'platform' });
@@ -329,7 +361,7 @@ describe('平台账号同步入口', () => {
     const requestEnable = vi.fn();
     r.component.targetKind.set('platform');
     r.component.syncReady.set(true);
-    Object.assign(r.component, { product: { requestEnable, pause: vi.fn() }, adminApi: { authorization: vi.fn(async () => access) } });
+    Object.assign(r.component, { product: { requestEnable, pause: vi.fn(), close: vi.fn() }, adminApi: { authorization: vi.fn(async () => access) } });
     vi.mocked(fetch).mockResolvedValue(Response.json({ protocol: 1, rls: true, metadataOnly: true }));
 
     await r.component.enableSync();
@@ -343,7 +375,7 @@ describe('平台账号同步入口', () => {
     const requestEnable = vi.fn();
     r.component.targetKind.set('platform');
     r.component.syncReady.set(true);
-    Object.assign(r.component, { product: { requestEnable, pause: vi.fn() }, adminApi: { authorization: vi.fn(async () => access) } });
+    Object.assign(r.component, { product: { requestEnable, pause: vi.fn(), close: vi.fn() }, adminApi: { authorization: vi.fn(async () => access) } });
     vi.mocked(fetch).mockResolvedValue(new Response('', { status: 503 }));
 
     await r.component.enableSync();
@@ -2238,16 +2270,9 @@ describe('interface interactions', () => {
     expect(r.component.settingsTab()).toBe('providers');
   });
 
-  it('opens the tab named by the hash and the sync tab after Supabase OAuth returns', async () => {
+  it('opens the settings tab named by the hash', async () => {
     history.replaceState(null, '', '/providers#data');
     expect((await boot()).component.settingsTab()).toBe('data');
-    TestBed.resetTestingModule();
-    TestBed.overrideComponent(LocalImageMvp, { set: { template: '', imports: [] } });
-    history.replaceState(null, '', '/providers?supabase_oauth=complete');
-    const r = await boot();
-    expect(r.component.settingsTab()).toBe('sync');
-    expect(location.search).toBe('');
-    expect(location.hash).toBe('#sync');
   });
 
   it('opens originals in the viewer, steps within the page and releases each loaded image', async () => {

@@ -84,7 +84,7 @@ function remote(route: (call: Call) => Response | undefined) {
   return { calls, request };
 }
 
-describe('自有 Supabase 图片同步', () => {
+describe('平台 Supabase 图片同步', () => {
   it('首次上传先 INSERT 待传记录，原图写入后按 id 与修订 UPDATE 为已上传，不用 upsert', async () => {
     const pending = await fileRecord();
     const { calls, request } = remote(call => {

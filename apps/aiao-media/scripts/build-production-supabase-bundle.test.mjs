@@ -4,7 +4,6 @@ import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
-import { isAutoinitBundle } from '../server/cloudflare/supabase-oauth.mjs';
 import {
   buildProductionBundle,
   emptyPublicGuard,
@@ -12,12 +11,6 @@ import {
   schemaMarker,
   schemaVersion
 } from './build-production-supabase-bundle.mjs';
-import {
-  applicationFunctions,
-  applicationRelations,
-  autoinitOutput,
-  buildAutoinitBundle
-} from './build-supabase-autoinit.mjs';
 
 const application = resolve(import.meta.dirname, '..');
 const repositoryRoot = resolve(application, '../..');
@@ -48,7 +41,7 @@ async function supabaseProject() {
   `);
   return db;
 }
-/** 执行整个初始化包；失败时像管理接口那样丢弃这次事务。 */
+/** 执行整个生产初始化包；失败时丢弃本次事务。 */
 async function apply(db, sql) {
   try {
     await db.exec(sql);
@@ -57,7 +50,6 @@ async function apply(db, sql) {
     throw error;
   }
 }
-const names = async (db, query) => (await db.query(query)).rows.map(row => row.name).sort();
 const schemaComment = async db =>
   (await db.query(`SELECT obj_description('media_private'::regnamespace, 'pg_namespace') AS marker`)).rows[0].marker;
 const refusal = pattern => error => error?.code === '55006' && pattern.test(error.message);
@@ -160,111 +152,37 @@ test('local Storage stand-in runs before the storage migration and stays out of 
   assert.ok(!productionSources.some(path => path.endsWith('001-local-storage-standin.sql')));
 });
 
-test('automatic onboarding bundle is created in a missing output directory from the production sources', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'aiao-media-autoinit-'));
-  try {
-    const { output, sql } = await buildAutoinitBundle(join(directory, 'missing', 'supabase-autoinit.sql'));
-    assert.equal(await readFile(output, 'utf8'), sql);
-    for (const path of productionSources) assert.ok(sql.includes(`-- BEGIN ${path}\n`), path);
-    assert.equal((sql.match(/^BEGIN;$/gm) ?? []).length, 1);
-    assert.equal((sql.match(/^COMMIT;$/gm) ?? []).length, 1);
-    const guard = sql.indexOf('$aiao_media_autoinit_guard$');
-    assert.ok(guard > 0 && guard < sql.indexOf('CREATE TABLE'));
-    assert.ok(sql.endsWith(`${schemaMarker}\nCOMMIT;\n`));
-    assert.deepEqual(
-      managedDdl.flatMap(pattern => withoutComments(sql).match(pattern) ?? []),
-      []
-    );
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
-});
-
-test('automatic onboarding bundle is published as a static asset and satisfies the Worker integrity check', async () => {
-  assert.equal(resolve(autoinitOutput), resolve(application, 'public/supabase-autoinit.sql'));
-  const directory = await mkdtemp(join(tmpdir(), 'aiao-media-autoinit-'));
-  try {
-    const { sql } = await buildAutoinitBundle(join(directory, 'supabase-autoinit.sql'));
-    assert.equal(isAutoinitBundle(sql), true);
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
-});
-
-test('automatic onboarding creates exactly the allow-listed objects and re-runs only on its own dedicated project', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'aiao-media-autoinit-'));
+test('production bootstrap initializes platform workspaces and private image storage in one transaction', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'aiao-media-production-sql-'));
   const db = await supabaseProject();
   try {
-    const { sql } = await buildAutoinitBundle(join(directory, 'autoinit.sql'));
-    await apply(db, sql);
-    // 守卫按这两张清单放行本应用的对象；迁移增删 public 对象时这里会提醒同步清单。
-    assert.deepEqual(
-      await names(
-        db,
-        `SELECT c.relname AS name FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p', 'v', 'm', 'f', 'S')`
-      ),
-      [...applicationRelations].sort()
+    await apply(db, (await buildProductionBundle(join(directory, 'production.sql'))).sql);
+    assert.equal(await schemaComment(db), `aiao-media schema ${schemaVersion}`);
+    assert.equal(
+      (await db.query("SELECT relrowsecurity FROM pg_class WHERE oid = 'public.media_sync_records'::regclass"))
+        .rows[0].relrowsecurity,
+      true
     );
     assert.deepEqual(
-      await names(
-        db,
-        `SELECT DISTINCT p.proname AS name FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.prokind IN ('f', 'p', 'a')`
-      ),
-      [...applicationFunctions].sort()
+      (await db.query("SELECT id, public FROM storage.buckets WHERE id = 'aiao-media-images'")).rows,
+      [{ id: 'aiao-media-images', public: false }]
     );
-    assert.equal(await schemaComment(db), `aiao-media schema ${schemaVersion}`);
-    await apply(db, sql);
-    // 写版本标记之前初始化的专用项目按兼容处理，并补上标记。
-    await db.exec('COMMENT ON SCHEMA media_private IS NULL');
-    await apply(db, sql);
-    assert.equal(await schemaComment(db), `aiao-media schema ${schemaVersion}`);
-
-    await db.exec('CREATE TABLE public.photo_orders (id integer PRIMARY KEY)');
-    await assert.rejects(apply(db, sql), refusal(/objects outside this application/));
-    await db.exec('DROP TABLE public.photo_orders');
-    await db.exec(`COMMENT ON SCHEMA media_private IS 'aiao-media schema ${schemaVersion + 1}'`);
-    await assert.rejects(apply(db, sql), refusal(/newer than this application/));
-    assert.equal(await schemaComment(db), `aiao-media schema ${schemaVersion + 1}`);
   } finally {
     await db.close();
     await rm(directory, { recursive: true, force: true });
   }
 });
 
-test('automatic onboarding refuses a shared project before any write and keeps same-name business functions', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'aiao-media-autoinit-'));
-  const businessFunction =
-    'CREATE FUNCTION public.update_updated_at_column() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN NEW.touched := now(); RETURN NEW; END $$;';
-  try {
-    const { sql } = await buildAutoinitBundle(join(directory, 'autoinit.sql'));
-    for (const business of [
-      `CREATE TABLE public.unrelated_business (id integer PRIMARY KEY); ${businessFunction}`,
-      businessFunction
-    ]) {
-      const db = await supabaseProject();
-      try {
-        await db.exec(business);
-        await assert.rejects(apply(db, sql), refusal(/not empty and was not initialized by this application/));
-        const { rows } = await db.query(`SELECT prosrc FROM pg_proc WHERE proname = 'update_updated_at_column'`);
-        assert.match(rows[0].prosrc, /NEW\.touched/);
-        assert.equal((await db.query(`SELECT to_regnamespace('media_private') AS schema`)).rows[0].schema, null);
-        assert.equal((await db.query(`SELECT count(*)::int AS count FROM storage.buckets`)).rows[0].count, 0);
-      } finally {
-        await db.close();
-      }
-    }
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
-});
-
-test('a project set up with the reviewed manual bundle is accepted by automatic onboarding', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'aiao-media-autoinit-'));
+test('production bootstrap refuses an occupied project before writing and preserves existing business data', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'aiao-media-production-sql-'));
   const db = await supabaseProject();
   try {
-    await apply(db, (await buildProductionBundle(join(directory, 'production.sql'))).sql);
-    assert.equal(await schemaComment(db), `aiao-media schema ${schemaVersion}`);
-    await apply(db, (await buildAutoinitBundle(join(directory, 'autoinit.sql'))).sql);
+    await db.exec("CREATE TABLE public.business_data (value text); INSERT INTO public.business_data VALUES ('kept');");
+    const { sql } = await buildProductionBundle(join(directory, 'production.sql'));
+    await assert.rejects(apply(db, sql), refusal(/public schema is not empty/));
+    assert.deepEqual((await db.query('SELECT value FROM public.business_data')).rows, [{ value: 'kept' }]);
+    assert.equal((await db.query("SELECT to_regnamespace('media_private') AS schema")).rows[0].schema, null);
+    assert.equal((await db.query('SELECT count(*)::int AS count FROM storage.buckets')).rows[0].count, 0);
   } finally {
     await db.close();
     await rm(directory, { recursive: true, force: true });

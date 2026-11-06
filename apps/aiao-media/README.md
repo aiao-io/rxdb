@@ -123,7 +123,7 @@ node apps/aiao-media/scripts/supabase-local.mjs preview
 这是前台进程（Ctrl-C 停止），不是 Nx 目标，在仓库根目录执行，要求本地栈已启动并迁移。[supabase-local.mjs](scripts/supabase-local.mjs) 依次：写入 `deploy/.dev.vars`（本地 URL、anon Key 和 service role Key，权限 0600，仅供 Worker 使用）→ 用本地公开配置构建 `offline-assets` → 用 Wrangler 在 4399 端口运行完整 Worker 与静态产物。没有热更新，改了前端要停掉重新运行。
 
 - 地址必须用 `http://127.0.0.1:4399`，不能用 `localhost`。本地 Auth 与 Kong 的来源白名单写死为 `http://localhost:4300`、`http://127.0.0.1:4300`、`http://127.0.0.1:4399`（[docker-compose.yml](infra/supabase/docker-compose.yml)、[kong.template.yml](infra/supabase/kong.template.yml)），所以 4398 的 `preview` 连不上本地 Docker Supabase。
-- **会整体覆盖 `deploy/.dev.vars`，只剩上面 3 个键**，已有的 OAuth、Stripe 等配置会丢。用完还原：`cp -p /tmp/aiao-dev.vars.bak apps/aiao-media/deploy/.dev.vars`。`supabase-e2e` 与 `aiao-media-e2e:product-e2e` 也会启动这个预览，同样覆盖。
+- **会整体覆盖 `deploy/.dev.vars`，只剩上面 3 个键**，已有的 Stripe 等配置会丢。用完还原：`cp -p /tmp/aiao-dev.vars.bak apps/aiao-media/deploy/.dev.vars`。`supabase-e2e` 与 `aiao-media-e2e:product-e2e` 也会启动这个预览，同样覆盖。
 
 ### 注册、同步和后台
 
@@ -158,7 +158,7 @@ pnpm nx run aiao-media:supabase-down
 
 - 整站使用部署方的同一个项目：构建时注入公开配置，只填项目 URL 和 anon / publishable Key，禁止 service role 或 secret Key。例如 `AIAO_SUPABASE_URL=https://<ref>.supabase.co AIAO_SUPABASE_ANON_KEY=<anon Key> pnpm nx run aiao-media:serve`，也可以写进本机 `.env`（变量见 [.env.example](.env.example)）。Worker secrets 必须指向同一项目，见[平台服务配置](deploy/platform-services.md)。
 - 部署方一次初始化云项目：`pnpm nx run aiao-media:production-bundle` 生成 `tmp/production-supabase-bundle.sql`，由项目所有者审阅后在空项目的 SQL Editor 执行。已有项目逐个审阅前向迁移，不要重复运行空库初始化包。数据库与私有 `aiao-media-images` Storage bucket 均按账号和工作区执行访问控制。
-- 用户只注册、登录平台账号并确认同步范围。用户自带项目、Management OAuth 与自动初始化入口已退役，旧 `/api/supabase/oauth/*` 请求返回 `410`。升级保留本机与原项目数据，旧项目不会自动转存到平台；切回平台后重新登录并确认同步。
+- 用户只注册、登录平台账号并确认同步范围，无需 Supabase 管理账号、项目配置或数据库操作。另一台设备使用同一平台账号，即可同步草稿、作品信息并取回已上传的原图。
 
 ## 构建、验证和部署
 

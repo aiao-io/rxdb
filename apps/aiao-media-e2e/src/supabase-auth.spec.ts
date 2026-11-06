@@ -122,29 +122,6 @@ test('平台注册后可开启同步，无需配置自己的项目或管理授�
   expect(projectAuthorization).toEqual([]);
 });
 
-test('旧自有项目配置保持断开，打开平台同步设置不访问旧账号或上传数据', async ({ page, context }) => {
-  await configure(context);
-  const legacyUrl = 'https://legacy-project.example.test';
-  const target = JSON.stringify({ kind: 'custom', config: { url: legacyUrl, anonKey: publicKey } });
-  await context.addInitScript(value => localStorage.setItem('aiao-media-sync-target-v1', value), target);
-  const legacyRequests: string[] = [];
-  const projectAuthorization: string[] = [];
-  await context.route(`${legacyUrl}/**`, route => {
-    legacyRequests.push(route.request().url());
-    return route.abort('failed');
-  });
-  page.on('request', request => {
-    if (new URL(request.url()).pathname.startsWith('/api/supabase/oauth/')) projectAuthorization.push(request.url());
-  });
-  await page.goto('/providers#sync');
-  const settings = page.getByRole('region', { name: '同步目标设置' });
-  await expect(settings).toBeVisible();
-  await expect(settings.getByLabel('自己的 Supabase 项目 URL')).toHaveCount(0);
-  expect(legacyRequests).toEqual([]);
-  expect(projectAuthorization).toEqual([]);
-  expect(await page.evaluate(() => localStorage.getItem('aiao-media-sync-target-v1'))).toBe(target);
-});
-
 test('平台接单响应丢失后刷新，使用原标识核对，不因修改提示词重复接单', async ({ page, context }) => {
   await configure(context);
   await authFixture(context);

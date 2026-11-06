@@ -28,7 +28,7 @@ export const productionSources = [
 
 const transactionBoundary = /^\s*(?:BEGIN|COMMIT)\s*;\s*$/gm;
 
-/** 应用 schema 版本取最后一个产品迁移的编号；两种初始化包都在提交前写入，自动接入据此判定兼容或更高版本。 */
+/** 应用 schema 版本取最后一个产品迁移的编号，在初始化事务提交前写入供后续迁移核对。 */
 export const schemaVersion = Math.max(
   ...productionSources.map(path => Number(/\/(\d{3})-[^/]+\.sql$/.exec(path)?.[1] ?? 0))
 );

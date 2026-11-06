@@ -7,7 +7,3 @@ MEDIA_PLATFORM_DAILY_BUDGET_MICROS=0
 MEDIA_CREDIT_PACK={"credits":20,"amount":500,"currency":"usd"}
 MEDIA_STRIPE_SECRET_KEY=replace_in_worker_secrets
 MEDIA_STRIPE_WEBHOOK_SECRET=replace_in_worker_secrets
-SUPABASE_OAUTH_CLIENT_ID=replace_in_worker_secrets
-SUPABASE_OAUTH_CLIENT_SECRET=replace_in_worker_secrets
-SUPABASE_OAUTH_COOKIE_SECRET=replace_in_worker_secrets
-SUPABASE_OAUTH_REDIRECT_URI=http://localhost:4398/api/supabase/oauth/callback

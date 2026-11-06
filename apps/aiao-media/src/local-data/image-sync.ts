@@ -44,7 +44,7 @@ class RecordRequestError extends Error {
   }
 }
 
-/** 自有项目图片传输：原图直达私有 Storage，数据库只保存不可变文件身份和完整性摘要。 */
+/** 平台账号图片传输：原图直达私有存储，数据库保存不可变文件身份和完整性摘要。 */
 export class ImageSyncController {
   constructor(
     private readonly store: LocalMediaStore,

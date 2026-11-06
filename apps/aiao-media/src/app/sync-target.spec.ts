@@ -22,15 +22,6 @@ describe('同步目标', () => {
     expect(readSyncTarget(port, null)).toEqual({ kind: 'disconnected', config: null });
   });
 
-  it('旧自有项目保持断开且保留配置，不静默改用平台上传', () => {
-    const port = storage();
-    const saved = JSON.stringify({ kind: 'custom', config });
-    port.setItem('aiao-media-sync-target-v1', saved);
-    expect(readSyncTarget(port, config)).toEqual({ kind: 'disconnected', config: null });
-    expect(readSyncTarget(port, null)).toEqual({ kind: 'disconnected', config: null });
-    expect(port.getItem('aiao-media-sync-target-v1')).toBe(saved);
-  });
-
   it('平台公开配置由部署方提供，不使用历史配置里的项目地址', () => {
     const port = storage();
     port.setItem('aiao-media-sync-target-v1', JSON.stringify({ kind: 'platform', config }));

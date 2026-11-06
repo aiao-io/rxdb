@@ -127,7 +127,7 @@ test('未知 API 返回 404，普通页面走静态资源', async () => {
   assert.equal(workerScript.headers.get('cache-control'), 'no-store');
 });
 
-test('平台统一同步后旧项目授权与初始化入口停止服务，不访问用户项目', async t => {
+test('平台统一同步不提供用户项目授权与初始化接口', async t => {
   const previous = globalThis.fetch;
   t.after(() => {
     globalThis.fetch = previous;
@@ -137,13 +137,6 @@ test('平台统一同步后旧项目授权与初始化入口停止服务，不�
     requested = true;
     throw new Error('不应访问项目管理接口');
   };
-  const configured = {
-    ...env,
-    SUPABASE_OAUTH_CLIENT_ID: 'retired-client',
-    SUPABASE_OAUTH_CLIENT_SECRET: 'retired-secret',
-    SUPABASE_OAUTH_COOKIE_SECRET: 'retired-cookie-secret-that-is-long-enough',
-    SUPABASE_OAUTH_REDIRECT_URI: `${origin}/api/supabase/oauth/callback`
-  };
   for (const [path, method] of [
     ['status', 'GET'],
     ['start', 'GET'],
@@ -152,10 +145,10 @@ test('平台统一同步后旧项目授权与初始化入口停止服务，不�
     ['initialize', 'POST'],
     ['revoke', 'POST']
   ]) {
-    const response = await worker.fetch(new Request(`${origin}/api/supabase/oauth/${path}`, { method }), configured);
-    assert.equal(response.status, 410);
+    const response = await worker.fetch(new Request(`${origin}/api/supabase/oauth/${path}`, { method }), env);
+    assert.equal(response.status, 404);
     assert.equal(response.headers.get('cache-control'), 'no-store');
-    assert.match((await response.json()).error, /平台账号/);
+    assert.equal((await response.json()).error, 'Unknown API');
   }
   assert.equal(requested, false);
 });

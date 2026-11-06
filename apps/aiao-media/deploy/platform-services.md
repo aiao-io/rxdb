@@ -18,8 +18,6 @@
 
 结构化数据继续使用 `rxdb-adapter-supabase`、history 与 sync 插件；原图通过 Supabase Storage 上传、下载并校验 SHA-256。每个账号的工作区由 `media_ensure_workspace` 建立，表与私有 Storage 的 RLS 使用 `auth.uid()` 和工作区归属隔离用户。上线前验证两个普通账号之间无法读取、修改或下载对方数据；管理员权限不替代用户数据授权。
 
-自带项目的授权与初始化入口已退役，旧 `/api/supabase/oauth/*` 请求返回 `410`，即使 Worker 仍保留历史 OAuth secrets 也不会访问用户项目。历史模块与配置脚本只保留用于历史版本维护，不属于当前上线步骤。升级保留原有本机工作区与旧项目数据，不自动把旧项目内容转存平台；用户重新登录平台并确认同步范围。
-
 凭据只用部署平台 secrets 管理，不写入 Wrangler vars、Git、队列、网页或桌面包。示例见 [.dev.vars.example](.dev.vars.example)。生产发布前核对构建产物、RLS、Auth、管理员授权、bucket 权限及真实端到端验收；配置齐全不等于已验收。
 
 ## 任务与结算

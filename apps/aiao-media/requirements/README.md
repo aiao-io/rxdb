@@ -4,9 +4,9 @@
 
 本目录管理 Aiao Media 的独立产品需求，编号为 `MEDIA-US-XXX`。仓库根 `requirements/` 管理平台与领域能力，两者分别统计；通过带作用域的能力引用关联，底层故事 Done 不代表应用已接线或验收。
 
-后续产品方向见[未来功能需求与目录规划](future-requirements.md)：Web 持续优化、Tauri 安装版、Cloudflare 后端与管理页面、安全代理、免费/收费生图及排队提示、自有 Supabase/平台同步。新增故事和本地实现见[产品交付计划](plans/product-completion-20261030.md)；生产服务、真实支付与正式桌面发行分别验收。
+后续产品方向见[未来功能需求与目录规划](future-requirements.md)：Web 持续优化、Tauri 安装版、Cloudflare 后端与管理页面、安全代理、免费/收费生图及排队提示、统一的平台账号同步。新增故事和本地实现见[产品交付计划](plans/product-completion-20261030.md)；生产服务、真实支付与正式桌面发行分别验收。
 
-“授权一次接入自己的 Supabase 并同步图片”拆为两条待实现故事：[MEDIA-US-304 授权接入与自动初始化](stories/local-first/MEDIA-US-304-supabase-oauth-onboarding.md)、[MEDIA-US-305 图片原文件同步](stories/local-first/MEDIA-US-305-supabase-image-sync.md)。前者消除手工 Key/SQL/项目账号配置，后者在独立确认后上传原图并跨设备取回；现有元数据同步不等于这两条已交付。
+按 [D-16](decisions.md#d-16统一使用平台-supabase) 统一使用平台 Supabase：用户只需注册或登录平台账号，确认同步范围后即可使用，无需提供自己的项目、Key 或 SQL。[MEDIA-US-303](stories/local-first/MEDIA-US-303-sync-targets.md) 跟踪平台账号与元数据管理，[MEDIA-US-305](stories/local-first/MEDIA-US-305-supabase-image-sync.md) 跟踪平台私有 Storage 原图同步；真实 Storage、生产服务与 Web/Tauri 跨设备验收仍未关闭。已撤销的用户自有项目接入需求和入口一并移除。
 
 ## 术语
 

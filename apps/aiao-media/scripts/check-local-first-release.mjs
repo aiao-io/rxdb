@@ -3,7 +3,6 @@ import { createHash } from 'node:crypto';
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { extname, relative, resolve } from 'node:path';
 import { parseEnv } from 'node:util';
-import { isAutoinitBundle } from '../server/cloudflare/supabase-oauth.mjs';
 import { validateSupabaseAuthConfig } from '../src/app/supabase-auth-config.ts';
 const root = resolve(import.meta.dirname, '..');
 const output = resolve(root, 'dist');
@@ -66,10 +65,6 @@ for (const required of [
   'browser/wa-sqlite/wa-sqlite-async.wasm'
 ])
   if (!inventory.some(file => file.path === required)) throw new Error(`Missing build resource: ${required}`);
-// Worker 只执行随部署发布的这份初始化 SQL；缺失或被 SPA 回退页替换时一键授权在线上永远走不完。
-const onboardingBundle = resolve(output, 'browser/supabase-autoinit.sql');
-if (!files.includes(onboardingBundle) || !isAutoinitBundle(await readFile(onboardingBundle, 'utf8')))
-  throw new Error('Missing or invalid onboarding bundle: browser/supabase-autoinit.sql');
 if (files.length > 20000) throw new Error('Free static asset count exceeded');
 await mkdir(resolve(root, 'tmp/local-first'), { recursive: true });
 await writeFile(

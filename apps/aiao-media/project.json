@@ -73,7 +73,7 @@
         }
       },
       "defaultConfiguration": "production",
-      "dependsOn": ["^build", "prompt-assets", "prepare-assets", "auth-config", "sync-setup", "supabase-autoinit"],
+      "dependsOn": ["^build", "prompt-assets", "prepare-assets", "auth-config", "sync-setup"],
       "inputs": [
         "production",
         "^production",
@@ -212,7 +212,7 @@
     "deploy": {
       "executor": "nx:run-commands",
       "cache": false,
-      "dependsOn": ["release-check", "supabase-autoinit"],
+      "dependsOn": ["release-check"],
       "options": {
         "command": "node scripts/deploy-local-first.mjs",
         "cwd": "apps/aiao-media"
@@ -329,7 +329,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/aiao-media",
-        "command": "node --test scripts/build-supabase-config.test.mjs scripts/build-production-supabase-bundle.test.mjs scripts/local-first-worker.test.mjs scripts/relay-task.test.mjs scripts/dev-relay.test.mjs scripts/product-api.test.mjs scripts/product-sync-contract.test.mjs scripts/migration.test.mjs scripts/configure-supabase-oauth-local.test.mjs scripts/configure-supabase-oauth-production.test.mjs"
+        "command": "node --test scripts/build-supabase-config.test.mjs scripts/build-production-supabase-bundle.test.mjs scripts/local-first-worker.test.mjs scripts/relay-task.test.mjs scripts/dev-relay.test.mjs scripts/product-api.test.mjs scripts/product-sync-contract.test.mjs scripts/migration.test.mjs"
       }
     },
     "production-bundle": {
@@ -347,31 +347,6 @@
       "options": {
         "cwd": "apps/aiao-media",
         "command": "node --test scripts/build-production-supabase-bundle.test.mjs"
-      }
-    },
-    "supabase-autoinit": {
-      "executor": "nx:run-commands",
-      "cache": false,
-      "outputs": ["{projectRoot}/public/supabase-autoinit.sql"],
-      "options": {
-        "cwd": "apps/aiao-media",
-        "command": "node scripts/build-supabase-autoinit.mjs"
-      }
-    },
-    "supabase-oauth-local-config": {
-      "executor": "nx:run-commands",
-      "cache": false,
-      "options": {
-        "cwd": "apps/aiao-media",
-        "command": "node scripts/configure-supabase-oauth-local.mjs"
-      }
-    },
-    "supabase-oauth-production-config": {
-      "executor": "nx:run-commands",
-      "cache": false,
-      "options": {
-        "cwd": "apps/aiao-media",
-        "command": "node scripts/configure-supabase-oauth-production.mjs"
       }
     },
     "supabase-init": {
