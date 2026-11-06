@@ -1,4 +1,4 @@
-import { createMemoryStorage } from '@aiao/rxdb-admin';
+import { createBootstrapScript, createMemoryStorage } from '@aiao/rxdb-admin';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { runInNewContext } from 'node:vm';
@@ -51,7 +51,7 @@ describe('应用配置接线', () => {
     const server = await createServer({
       configFile: false,
       root: resolve(import.meta.dirname, '../..'),
-      plugins: [appHtmlPlugin(customConfig)],
+      plugins: [appHtmlPlugin(createBootstrapScript, customConfig)],
       server: { middlewareMode: true, hmr: false, ws: false },
       optimizeDeps: { noDiscovery: true, include: [] }
     });

@@ -1,7 +1,16 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
 
 import { POSTINSTALL_NX_ENV, buildNeedLibs, pruneDanglingBinShims } from './check-workspace.mjs';
@@ -129,4 +138,47 @@ test('成员没有 node_modules/.bin 时跳过', () => {
     const removed = pruneDanglingBinShims({ rootDir, memberDirs: [join(rootDir, 'packages', 'empty')] });
     assert.deepEqual(removed, []);
   });
+});
+
+test('未构建工作区包时仍能加载应用 Vite 配置并生成首屏主题脚本', async () => {
+  const { loadConfigFromFile } = await import('vite');
+  const workspaceRoot = resolve(import.meta.dirname, '..');
+  const rootDir = mkdtempSync(join(tmpdir(), 'check-workspace-vite-'));
+  const appDir = join(rootDir, 'apps', 'rxdb-admin-template-react');
+  const adminDir = join(appDir, 'node_modules', '@aiao', 'rxdb-admin');
+  const files = [
+    'apps/rxdb-admin-template-react/vite.config.mts',
+    'apps/rxdb-admin-template-react/app-html-plugin.ts',
+    'apps/rxdb-admin-template-react/src/app/app-config.ts',
+    'apps/rxdb-admin-template-react/app.config.json',
+    'packages/rxdb-admin/src/bootstrap.ts'
+  ];
+
+  try {
+    for (const file of files) {
+      const target = join(rootDir, file);
+      mkdirSync(dirname(target), { recursive: true });
+      copyFileSync(join(workspaceRoot, file), target);
+    }
+    symlinkSync(join(workspaceRoot, 'node_modules'), join(rootDir, 'node_modules'), 'junction');
+    mkdirSync(adminDir, { recursive: true });
+    copyFileSync(join(workspaceRoot, 'packages/rxdb-admin/package.json'), join(adminDir, 'package.json'));
+
+    assert.equal(existsSync(join(adminDir, 'dist')), false);
+    const loaded = await loadConfigFromFile(
+      { command: 'serve', mode: 'development' },
+      join(appDir, 'vite.config.mts'),
+      rootDir
+    );
+    assert.ok(loaded);
+    const plugin = loaded.config.plugins.find(plugin => plugin.name === 'admin-app-html');
+    assert.ok(plugin);
+    const html = plugin.transformIndexHtml.handler('%APP_TITLE%|%APP_DESCRIPTION%|%APP_BOOTSTRAP%');
+    const config = JSON.parse(readFileSync(join(appDir, 'app.config.json'), 'utf8'));
+    assert.ok(html.includes(`${config.storagePrefix}.preferences`));
+    assert.ok(html.includes('data-theme'));
+    assert.ok(!html.includes('%APP_'));
+  } finally {
+    rmSync(rootDir, { recursive: true, force: true });
+  }
 });

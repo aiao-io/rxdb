@@ -1,4 +1,4 @@
-import { createBootstrapScript } from '@aiao/rxdb-admin';
+import type { BootstrapScriptOptions } from '@aiao/rxdb-admin';
 import type { Plugin } from 'vite';
 import { appConfig, type AppConfig } from './src/app/app-config.ts';
 
@@ -6,7 +6,10 @@ const escapeHtml = (value: string): string =>
   value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 
 /** 将应用配置写入 HTML，并在入口脚本执行前恢复该应用的主题。 */
-export function appHtmlPlugin(config: AppConfig = appConfig): Plugin {
+export function appHtmlPlugin(
+  createBootstrapScript: (options: BootstrapScriptOptions) => string,
+  config: AppConfig = appConfig
+): Plugin {
   return {
     name: 'admin-app-html',
     transformIndexHtml: {
