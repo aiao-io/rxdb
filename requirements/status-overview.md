@@ -9,8 +9,8 @@
 | :------------- | :--- |
 | ✅ Done        | 89   |
 | 🚧 In Progress | 9    |
-| 👀 In Review   | 9    |
-| 📝 Backlog     | 26   |
+| 👀 In Review   | 8    |
+| 📝 Backlog     | 27   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 133  |
 
@@ -27,16 +27,15 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 | [US-540 看板端到端 demo](stories/domain/US-540-board-end-to-end-demo.md)                                    | demo 既有库初态（AC#7）与无搜索插件构建（AC#12）仍待验。           |
 | [US-603 手工发布入口的提交与校验结果一致性](stories/tooling/US-603-manual-release-preflight.md)             | 两个手工发布入口已接入共享 preflight；待受控 registry 替身验收。   |
 
-## 待评审（9 条）
+## 待评审（8 条）
 
-| Story                                                                                         | 剩余范围                                                                                                       |
-| --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| [US-911 客户端国际化 / 本地化](stories/future/US-911-client-i18n.md)                          | A～D 已实现；偏好载体对照、历史隔离、三端/四运行时、目录分发与 DevTools 已验收，待代码评审。                   |
-| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)    | 当前Taro版本的外部安装/开发者工具证据仍需补齐。                                                                |
-| [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) | 当前承诺A～C已实现，等待评审收尾；D为候选，不参与当前关闭，仍保留未验状态。                                    |
-| [US-528 独立消费接入示例与接入成本记录](stories/domain/US-528-admin-consumer-example.md)      | workspace接线已验证、AC#2成本记录已通过；AC#1发布tarball仓外消费与AC#3试用者按文档独立重搭仍待验证，不能标绿。 |
-| [US-534 看板领域模型骨架](stories/domain/US-534-board-column-task-skeleton.md)                | 全部 AC 已验（既有库重开在 PGlite 与 sqlite-wasm 各验一遍），等待合并收尾。                                    |
-| [US-539 三框架看板视图与交互](stories/domain/US-539-board-tri-framework-ui.md)                | 阶段 A～C 三端全绿（含外壳恢复入口与跨页门禁），等待合并收尾。                                                 |
+| Story                                                                                         | 剩余范围                                                                                     |
+| --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| [US-911 客户端国际化 / 本地化](stories/future/US-911-client-i18n.md)                          | A～D 已实现；偏好载体对照、历史隔离、三端/四运行时、目录分发与 DevTools 已验收，待代码评审。 |
+| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)    | 当前Taro版本的外部安装/开发者工具证据仍需补齐。                                              |
+| [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) | 当前承诺A～C已实现，等待评审收尾；D为候选，不参与当前关闭，仍保留未验状态。                  |
+| [US-534 看板领域模型骨架](stories/domain/US-534-board-column-task-skeleton.md)                | 全部 AC 已验（既有库重开在 PGlite 与 sqlite-wasm 各验一遍），等待合并收尾。                  |
+| [US-539 三框架看板视图与交互](stories/domain/US-539-board-tri-framework-ui.md)                | 阶段 A～C 三端全绿（含外壳恢复入口与跨页门禁），等待合并收尾。                               |
 
 ## 阻塞（0 条）
 
@@ -188,7 +187,7 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 
 - ✅ [US-526 模型驱动数据工作台：预置 schema 的录入 / 编辑 / 筛选闭环](stories/domain/US-526-admin-workbench.md)
 - ✅ [US-527 工作台备份恢复闭环：失败语义与数据保留](stories/domain/US-527-admin-backup-restore.md)
-- 👀 [US-528 独立消费接入示例与接入成本记录](stories/domain/US-528-admin-consumer-example.md)
+- ⬜ [US-528 独立消费接入示例与接入成本记录](stories/domain/US-528-admin-consumer-example.md)
 - ✅ [US-529 实体列表视图配置：字段显隐、多字段排序与分组](stories/domain/US-529-entity-list-view-settings.md)
 
 ### [任务看板领域模型](epics/epic-011-task-board-domain-model.md)

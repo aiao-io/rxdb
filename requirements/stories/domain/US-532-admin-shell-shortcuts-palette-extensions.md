@@ -31,7 +31,7 @@ owner 于 2026-11-06 批准，是 [US-530](US-530-admin-shell-preferences-appear
 - 快捷键偏好：总开关与逐项停用，停用状态持久化；抽屉的快捷键页签显示键帽。
 - 命令面板：原生模态 `<dialog>`，输入框是 combobox、结果是 listbox；聚合「页面」（来自菜单）、「命令」、「最近使用」与应用注册的来源；
   模糊匹配与高亮、↑/↓ 选择、回车执行、Esc 与点击背景关闭；空结果、加载中、部分来源失败三种状态。
-- 异步来源：来源可声明最小查询长度，过期查询被取消；`apps/dev-rxdb-admin` 把全文搜索接成「数据记录」来源，命中后跳到所属实体列表。
+- 异步来源：来源可声明最小查询长度，过期查询被取消；`apps/rxdb-admin-template-react` 把全文搜索接成「数据记录」来源，命中后跳到所属实体列表。
 - 扩展偏好项：应用声明 `switch` / `text` / `select` / `number` 四类扩展，出现在「拓展」页签，值存放在 `extension.<key>`，与其他偏好一样被清洗、持久化、跨标签同步。
 - Angular / React / Vue 同功能。
 
@@ -42,14 +42,14 @@ owner 于 2026-11-06 批准，是 [US-530](US-530-admin-shell-preferences-appear
 
 ## 验收标准
 
-| #   | 前置条件               | 操作                                                             | 预期结果                                                                                         | 状态 |
-| --- | ---------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---- |
-| 1   | 外壳已挂载             | 按 `Mod+K`、`Mod+,`、`Alt+L`、`Mod+B`；锁屏状态下再按            | 对应动作生效；含 Alt 的组合在 macOS 也能匹配；锁屏时全部不响应                                   | ⬜   |
-| 2   | 抽屉的快捷键页签       | 关闭总开关，或单独停用「打开命令面板」                           | 被停用的快捷键失效、其余照常；搜索按钮仍可打开面板；停用状态刷新后保留                           | ⬜   |
-| 3   | 命令面板打开           | 输入页面名、用方向键移动、回车、Esc                              | 结果按分组显示并高亮匹配片段，回车跳转并关闭，Esc 关闭；无结果 / 加载中 / 部分失败各有可见提示   | ⬜   |
-| 4   | 应用注册了全文搜索来源 | 在工作台新建一条分类，离开列表后用面板检索其名称                 | 命中记录进入「数据记录」分组并带实体名与命中字段，回车跳到所属实体列表；适配器未连接时不触发搜索 | ⬜   |
-| 5   | 应用声明了数字类扩展   | 在拓展页签修改，再进入搜索页                                     | 值被约束到声明范围并写入 `extension.<key>`，搜索页的分页条数随之变化，刷新后保留                 | ⬜   |
-| 6   | 三框架外壳与真实工作台 | 在 Angular / React / Vue 与 `apps/dev-rxdb-admin` 上执行相同流程 | 三端行为与 DOM 契约一致；命令面板在有结果时 axe 零违规                                           | ⬜   |
+| #   | 前置条件               | 操作                                                                        | 预期结果                                                                                         | 状态 |
+| --- | ---------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---- |
+| 1   | 外壳已挂载             | 按 `Mod+K`、`Mod+,`、`Alt+L`、`Mod+B`；锁屏状态下再按                       | 对应动作生效；含 Alt 的组合在 macOS 也能匹配；锁屏时全部不响应                                   | ⬜   |
+| 2   | 抽屉的快捷键页签       | 关闭总开关，或单独停用「打开命令面板」                                      | 被停用的快捷键失效、其余照常；搜索按钮仍可打开面板；停用状态刷新后保留                           | ⬜   |
+| 3   | 命令面板打开           | 输入页面名、用方向键移动、回车、Esc                                         | 结果按分组显示并高亮匹配片段，回车跳转并关闭，Esc 关闭；无结果 / 加载中 / 部分失败各有可见提示   | ⬜   |
+| 4   | 应用注册了全文搜索来源 | 在工作台新建一条分类，离开列表后用面板检索其名称                            | 命中记录进入「数据记录」分组并带实体名与命中字段，回车跳到所属实体列表；适配器未连接时不触发搜索 | ⬜   |
+| 5   | 应用声明了数字类扩展   | 在拓展页签修改，再进入搜索页                                                | 值被约束到声明范围并写入 `extension.<key>`，搜索页的分页条数随之变化，刷新后保留                 | ⬜   |
+| 6   | 三框架外壳与真实工作台 | 在 Angular / React / Vue 与 `apps/rxdb-admin-template-react` 上执行相同流程 | 三端行为与 DOM 契约一致；命令面板在有结果时 axe 零违规                                           | ⬜   |
 
 验收证据：见下方「验收证据」。
 
@@ -68,15 +68,15 @@ owner 于 2026-11-06 批准，是 [US-530](US-530-admin-shell-preferences-appear
 - `packages/rxdb-admin/src/shortcuts/`、`src/palette/` — 快捷键与命令面板。
 - `packages/rxdb-admin/src/preferences/schema/extension.ts` — 扩展偏好项。
 - `packages/rxdb-admin-{react,vue,angular}/src/palette/`、`src/preferences/shortcut-list.*` — 三端命令面板与快捷键列表。
-- `apps/dev-rxdb-admin/src/app/shell/record-search.ts`、`workbench-shell.ts` — 全文搜索来源与「每页条数」扩展。
-- `apps/dev-rxdb-admin-e2e/src/admin-shell.spec.ts`、`admin-shell.a11y.spec.ts` — 快捷键、面板、扩展的组合验收。
+- `apps/rxdb-admin-template-react/src/app/shell/record-search.ts`、`workbench-shell.ts` — 全文搜索来源与「每页条数」扩展。
+- `apps/rxdb-admin-template-react-e2e/src/admin-shell.spec.ts`、`admin-shell.a11y.spec.ts` — 快捷键、面板、扩展的组合验收。
 
 ## 验收证据
 
 - 核心单测：[快捷键](../../../packages/rxdb-admin/src/__tests__/shortcuts/registry.spec.ts)、[命令面板](../../../packages/rxdb-admin/src/__tests__/palette/controller.spec.ts)、[模糊匹配](../../../packages/rxdb-admin/src/__tests__/palette/fuzzy.spec.ts)。
-- 应用单测：[全文搜索来源](../../../apps/dev-rxdb-admin/src/app/shell/record-search.spec.ts)（状态与结果到达顺序、未连接、失败、取消）。
+- 应用单测：[全文搜索来源](../../../apps/rxdb-admin-template-react/src/app/shell/record-search.spec.ts)（状态与结果到达顺序、未连接、失败、取消）。
 - 三端组件单测：[React](../../../packages/rxdb-admin-react/src/__tests__/palette-lock.spec.tsx)、[Vue](../../../packages/rxdb-admin-vue/src/__tests__/palette-lock.spec.ts)、[Angular](../../../packages/rxdb-admin-angular/src/__tests__/palette-lock.spec.ts)。
-- 真实工作台：[外壳验收](../../../apps/dev-rxdb-admin-e2e/src/admin-shell.spec.ts)（面板、数据记录来源、快捷键启停、扩展驱动分页）与 [a11y 走查](../../../apps/dev-rxdb-admin-e2e/src/admin-shell.a11y.spec.ts)。
+- 真实工作台：[外壳验收](../../../apps/rxdb-admin-template-react-e2e/src/admin-shell.spec.ts)（面板、数据记录来源、快捷键启停、扩展驱动分页）与 [a11y 走查](../../../apps/rxdb-admin-template-react-e2e/src/admin-shell.a11y.spec.ts)。
 
 ## References
 

@@ -35,7 +35,7 @@ owner 于 2026-11-06 批准，是 [US-530](US-530-admin-shell-preferences-appear
 - 通用设置：页面切换动画（`fade` / `fade-slide` / `fade-up` / `fade-down`）、顶部进度条、加载遮罩、动态标题；水印（默认取品牌名，可自定义文案）；
   版权信息（公司、链接、年份、ICP）与页脚；Logo（图片地址、是否显示文字）。
 - 全屏切换与刷新。
-- Angular / React / Vue 同功能；`apps/dev-rxdb-admin` 接入并以 `apps/dev-rxdb-admin-e2e` 完成组合验收。
+- Angular / React / Vue 同功能；`apps/rxdb-admin-template-react` 接入并以 `apps/rxdb-admin-template-react-e2e` 完成组合验收。
 
 ### Out of Scope
 
@@ -45,15 +45,15 @@ owner 于 2026-11-06 批准，是 [US-530](US-530-admin-shell-preferences-appear
 
 ## 验收标准
 
-| #   | 前置条件               | 操作                                                               | 预期结果                                                                                         | 状态 |
-| --- | ---------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ | ---- |
-| 1   | 外壳已挂载             | 在抽屉里隐藏、重排部件；尝试隐藏偏好设置                           | 顶栏按偏好顺序与显隐渲染，偏好设置部件不可隐藏；窄屏隐藏次要部件而不挤出设置入口                 | ⬜   |
-| 2   | 默认中文               | 切换到 English，打开抽屉，刷新                                     | 外壳文案（抽屉标题、页签、按钮）即时切换并在刷新后保留，`<html lang>` 同步为 `en`                | ⬜   |
-| 3   | 选择非本地时区         | 打开时区菜单，选择某个城市，再选「跟随浏览器」                     | 菜单按地理分组并显示各地当前时间与偏移，按钮显示偏移并带可访问名称；选择写入偏好，跟随浏览器清空 | ⬜   |
-| 4   | 从未设置过锁屏密码     | `Alt+L` 或点击锁屏部件，设置密码；再次锁定，输错 / 输对；Esc；刷新 | 首次要求设置并立即解锁；之后错误密码被拒绝并提示；Esc 与刷新都不能绕过；输对解锁                 | ⬜   |
-| 5   | 已设置密码并锁定       | 点击「忘记密码」并确认重置                                         | 密码被清除并解锁，业务数据不受影响，下次锁屏重新要求设置密码；缺少 Web Crypto 时给出明确错误     | ⬜   |
-| 6   | 通用页签               | 开启水印并填写文案，开启页脚、调整切换动画与进度条                 | 水印层覆盖内容区，页脚出现并带版权信息，切换动画与进度条按设置生效，均持久化                     | ⬜   |
-| 7   | 三框架外壳与真实工作台 | 在 Angular / React / Vue 与 `apps/dev-rxdb-admin` 上执行相同流程   | 三端行为与 DOM 契约一致；顶栏部件、锁屏、水印与页脚开启时 axe 零违规                             | ⬜   |
+| #   | 前置条件               | 操作                                                                        | 预期结果                                                                                         | 状态 |
+| --- | ---------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---- |
+| 1   | 外壳已挂载             | 在抽屉里隐藏、重排部件；尝试隐藏偏好设置                                    | 顶栏按偏好顺序与显隐渲染，偏好设置部件不可隐藏；窄屏隐藏次要部件而不挤出设置入口                 | ⬜   |
+| 2   | 默认中文               | 切换到 English，打开抽屉，刷新                                              | 外壳文案（抽屉标题、页签、按钮）即时切换并在刷新后保留，`<html lang>` 同步为 `en`                | ⬜   |
+| 3   | 选择非本地时区         | 打开时区菜单，选择某个城市，再选「跟随浏览器」                              | 菜单按地理分组并显示各地当前时间与偏移，按钮显示偏移并带可访问名称；选择写入偏好，跟随浏览器清空 | ⬜   |
+| 4   | 从未设置过锁屏密码     | `Alt+L` 或点击锁屏部件，设置密码；再次锁定，输错 / 输对；Esc；刷新          | 首次要求设置并立即解锁；之后错误密码被拒绝并提示；Esc 与刷新都不能绕过；输对解锁                 | ⬜   |
+| 5   | 已设置密码并锁定       | 点击「忘记密码」并确认重置                                                  | 密码被清除并解锁，业务数据不受影响，下次锁屏重新要求设置密码；缺少 Web Crypto 时给出明确错误     | ⬜   |
+| 6   | 通用页签               | 开启水印并填写文案，开启页脚、调整切换动画与进度条                          | 水印层覆盖内容区，页脚出现并带版权信息，切换动画与进度条按设置生效，均持久化                     | ⬜   |
+| 7   | 三框架外壳与真实工作台 | 在 Angular / React / Vue 与 `apps/rxdb-admin-template-react` 上执行相同流程 | 三端行为与 DOM 契约一致；顶栏部件、锁屏、水印与页脚开启时 axe 零违规                             | ⬜   |
 
 验收证据：见下方「验收证据」。
 
@@ -71,14 +71,14 @@ owner 于 2026-11-06 批准，是 [US-530](US-530-admin-shell-preferences-appear
 
 - `packages/rxdb-admin/src/widgets/`、`src/i18n/` — 锁屏、水印、时区、全屏、部件顺序与外壳文案目录。
 - `packages/rxdb-admin-{react,vue,angular}/src/widgets/`、`src/lock/`、`src/watermark.*`、`src/layout/footer.*` — 三端部件、锁屏、水印与页脚。
-- `apps/dev-rxdb-admin-e2e/src/admin-shell.spec.ts`、`admin-shell.a11y.spec.ts` — 锁屏、语言、水印与页脚的组合验收。
+- `apps/rxdb-admin-template-react-e2e/src/admin-shell.spec.ts`、`admin-shell.a11y.spec.ts` — 锁屏、语言、水印与页脚的组合验收。
 
 ## 验收证据
 
 - 核心单测：[部件、锁屏、水印、时区](../../../packages/rxdb-admin/src/__tests__/widgets/widgets.spec.ts)、[外壳装配](../../../packages/rxdb-admin/src/__tests__/shell/shell.spec.ts)。
 - 三端组件单测：[React 部件与上下文](../../../packages/rxdb-admin-react/src/__tests__/widgets-context.spec.tsx)和[锁屏](../../../packages/rxdb-admin-react/src/__tests__/palette-lock.spec.tsx)，
   [Vue](../../../packages/rxdb-admin-vue/src/__tests__/widgets-context.spec.ts)，[Angular](../../../packages/rxdb-admin-angular/src/__tests__/widgets-context.spec.ts)。
-- 真实工作台：[外壳验收](../../../apps/dev-rxdb-admin-e2e/src/admin-shell.spec.ts)（锁屏、忘记密码、语言、水印与页脚）与 [a11y 走查](../../../apps/dev-rxdb-admin-e2e/src/admin-shell.a11y.spec.ts)。
+- 真实工作台：[外壳验收](../../../apps/rxdb-admin-template-react-e2e/src/admin-shell.spec.ts)（锁屏、忘记密码、语言、水印与页脚）与 [a11y 走查](../../../apps/rxdb-admin-template-react-e2e/src/admin-shell.a11y.spec.ts)。
 
 ## References
 

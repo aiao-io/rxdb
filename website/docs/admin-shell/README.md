@@ -48,4 +48,4 @@ npm install @aiao/rxdb-admin-vue
 
 ## 参考实现
 
-仓库里的 `apps/dev-rxdb-admin` 是 React 版的完整接入（菜单、实体计数徽标、命令面板里的全文搜索来源、"每页条数"扩展、旧存储键迁移），`apps/dev-rxdb-admin-e2e` 是它的端到端与无障碍验收。
+仓库里的 `apps/rxdb-admin-template-react` 是 React 版的完整接入（菜单、实体计数徽标、命令面板里的全文搜索来源、"每页条数"扩展、旧存储键迁移），`apps/rxdb-admin-template-react-e2e` 是它的端到端与无障碍验收。

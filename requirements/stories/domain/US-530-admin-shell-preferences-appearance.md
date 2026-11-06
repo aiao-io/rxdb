@@ -21,7 +21,7 @@ tags: [domain, admin-framework, admin-shell, preferences, theme, cross-framework
 
 owner 于 2026-11-06 批准把 aiao-enterprise 偏好中心的外观、布局、快捷键、扩展能力引入本仓的后台外壳，落点为新包族
 `@aiao/rxdb-admin`（无头核心）与 `-react` / `-vue` / `-angular` 三端壳；布局模式取四种，不含登录、通知、AI 与页面缓存相关项。
-此前 `apps/dev-rxdb-admin` 只有固定宽度侧栏与亮 / 暗二选一，无处承载更多设置。
+此前 `apps/rxdb-admin-template-react` 只有固定宽度侧栏与亮 / 暗二选一，无处承载更多设置。
 
 偏好中心是四个故事的公共底座：[US-531](US-531-admin-shell-layout-tabbar.md) 布局与页签栏、
 [US-532](US-532-admin-shell-shortcuts-palette-extensions.md) 快捷键 / 命令面板 / 扩展、
@@ -39,7 +39,7 @@ owner 于 2026-11-06 批准把 aiao-enterprise 偏好中心的外观、布局、
 - 持久化：`localStorage` 差异存储、同源多标签 `storage` 同步、页面隐藏时落盘（不覆盖其他标签刚写入的值）、导出 / 导入 JSON、重置；
   首次使用从应用旧键迁移；内联首屏脚本在框架渲染前应用主题。
 - 偏好抽屉：原生模态 `<dialog>`，五个页签（外观 / 布局 / 快捷键 / 通用 / 拓展）；Esc、关闭按钮、点击背景关闭。
-- Angular / React / Vue 同功能；`apps/dev-rxdb-admin` 接入并以 `apps/dev-rxdb-admin-e2e` 完成组合验收。
+- Angular / React / Vue 同功能；`apps/rxdb-admin-template-react` 接入并以 `apps/rxdb-admin-template-react-e2e` 完成组合验收。
 
 ### Out of Scope
 
@@ -49,15 +49,15 @@ owner 于 2026-11-06 批准把 aiao-enterprise 偏好中心的外观、布局、
 
 ## 验收标准
 
-| #   | 前置条件                                  | 操作                                                             | 预期结果                                                                                                                 | 状态 |
-| --- | ----------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ---- |
-| 1   | 外壳已挂载，偏好为默认值                  | 点击顶栏齿轮或按 `Mod+,`，浏览五个页签，用 Esc / 关闭 / 背景关闭 | 抽屉是模态 `<dialog>`，五个页签由 schema 渲染，三种关闭方式都回写关闭状态，迟到的 `close` 事件不会吞掉紧随其后的重新打开 | ⬜   |
-| 2   | 应用启用了多个 daisyUI 主题               | 点击主题卡片、顶栏主题按钮，切换到深色主题                       | `<html data-theme>` 立即变化，`color-scheme` 随之切换；表格（VTable）随明暗重绘；刷新后首帧即为所选主题，无闪烁          | ⬜   |
-| 3   | 修改任意偏好                              | 刷新页面、另开同源标签页、修改默认值后重新加载                   | 只有与默认值不同的部分被存储；其他标签页同步；页面隐藏落盘不会用旧快照覆盖其他标签的新值；默认值变化被未改动的用户采纳   | ⬜   |
-| 4   | 偏好中有若干改动                          | 导出 JSON，重置，再导入；导入非法文本或非对象                    | 导出内容即差异；导入后整体替换并清洗非法取值；非法输入给出错误提示且当前偏好不变                                         | ⬜   |
-| 5   | 设置主色、圆角、字号、半深色、灰色 / 色弱 | 在抽屉中逐项调整                                                 | 根节点属性与 CSS 变量即时更新；对比度不足的主色自动选择可读前景；越界值被约束清洗                                        | ⬜   |
-| 6   | 应用声明旧存储键                          | 首次加载                                                         | 旧键内容并入偏好一次，之后以新键为准                                                                                     | ⬜   |
-| 7   | 三框架外壳与真实工作台                    | 在 Angular / React / Vue 与 `apps/dev-rxdb-admin` 上执行相同流程 | 三端 DOM 契约、类名、无障碍属性一致；抽屉各页签与各主题下 axe 零违规                                                     | ⬜   |
+| #   | 前置条件                                  | 操作                                                                        | 预期结果                                                                                                                 | 状态 |
+| --- | ----------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ---- |
+| 1   | 外壳已挂载，偏好为默认值                  | 点击顶栏齿轮或按 `Mod+,`，浏览五个页签，用 Esc / 关闭 / 背景关闭            | 抽屉是模态 `<dialog>`，五个页签由 schema 渲染，三种关闭方式都回写关闭状态，迟到的 `close` 事件不会吞掉紧随其后的重新打开 | ⬜   |
+| 2   | 应用启用了多个 daisyUI 主题               | 点击主题卡片、顶栏主题按钮，切换到深色主题                                  | `<html data-theme>` 立即变化，`color-scheme` 随之切换；表格（VTable）随明暗重绘；刷新后首帧即为所选主题，无闪烁          | ⬜   |
+| 3   | 修改任意偏好                              | 刷新页面、另开同源标签页、修改默认值后重新加载                              | 只有与默认值不同的部分被存储；其他标签页同步；页面隐藏落盘不会用旧快照覆盖其他标签的新值；默认值变化被未改动的用户采纳   | ⬜   |
+| 4   | 偏好中有若干改动                          | 导出 JSON，重置，再导入；导入非法文本或非对象                               | 导出内容即差异；导入后整体替换并清洗非法取值；非法输入给出错误提示且当前偏好不变                                         | ⬜   |
+| 5   | 设置主色、圆角、字号、半深色、灰色 / 色弱 | 在抽屉中逐项调整                                                            | 根节点属性与 CSS 变量即时更新；对比度不足的主色自动选择可读前景；越界值被约束清洗                                        | ⬜   |
+| 6   | 应用声明旧存储键                          | 首次加载                                                                    | 旧键内容并入偏好一次，之后以新键为准                                                                                     | ⬜   |
+| 7   | 三框架外壳与真实工作台                    | 在 Angular / React / Vue 与 `apps/rxdb-admin-template-react` 上执行相同流程 | 三端 DOM 契约、类名、无障碍属性一致；抽屉各页签与各主题下 axe 零违规                                                     | ⬜   |
 
 验收证据：见下方「验收证据」；仓外发布产物的消费验证由发布前的 `release-consumers` 组合承担。
 
@@ -83,13 +83,13 @@ owner 于 2026-11-06 批准把 aiao-enterprise 偏好中心的外观、布局、
 - `packages/rxdb-admin/admin.css` — 三端共享的样式契约。
 - `packages/rxdb-admin-{react,vue,angular}/src/preferences/` — 三端偏好抽屉与控件。
 - `packages/rxdb-model/src/entity-table/vtable/table-theme.ts` 与 `packages/rxdb-model-{angular,react,vue}/src/entity-table/` — 表格随主题重绘。
-- `apps/dev-rxdb-admin/` — 外壳接入、首屏脚本与旧键迁移；`apps/dev-rxdb-admin-e2e/src/admin-shell.spec.ts`、`admin-shell.a11y.spec.ts` — 组合验收。
+- `apps/rxdb-admin-template-react/` — 外壳接入、首屏脚本与旧键迁移；`apps/rxdb-admin-template-react-e2e/src/admin-shell.spec.ts`、`admin-shell.a11y.spec.ts` — 组合验收。
 
 ## 验收证据
 
 - 核心单测：[偏好存储](../../../packages/rxdb-admin/src/__tests__/preferences/store.spec.ts)、[抽屉视图模型](../../../packages/rxdb-admin/src/__tests__/preferences/drawer-model.spec.ts)、[schema](../../../packages/rxdb-admin/src/__tests__/preferences/schema.spec.ts)。
 - 三端组件单测：[React](../../../packages/rxdb-admin-react/src/__tests__/preferences-drawer.spec.tsx)、[Vue](../../../packages/rxdb-admin-vue/src/__tests__/preferences-drawer.spec.ts)、[Angular](../../../packages/rxdb-admin-angular/src/__tests__/preferences-drawer.spec.ts)，用例标题一一对应。
-- 真实工作台：[外壳验收](../../../apps/dev-rxdb-admin-e2e/src/admin-shell.spec.ts)（抽屉、主题、导入导出、刷新保留）与 [a11y 走查](../../../apps/dev-rxdb-admin-e2e/src/admin-shell.a11y.spec.ts)（五个页签与多主题 axe 零违规）。
+- 真实工作台：[外壳验收](../../../apps/rxdb-admin-template-react-e2e/src/admin-shell.spec.ts)（抽屉、主题、导入导出、刷新保留）与 [a11y 走查](../../../apps/rxdb-admin-template-react-e2e/src/admin-shell.a11y.spec.ts)（五个页签与多主题 axe 零违规）。
 
 ## References
 

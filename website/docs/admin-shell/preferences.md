@@ -62,7 +62,7 @@ import { createBootstrapScript } from '@aiao/rxdb-admin';
 createBootstrapScript({ storageKey: 'aiao.workbench.preferences' });
 ```
 
-建议在应用单测里断言 `index.html` 含有这段脚本，防止存储键或逻辑漂移（`apps/dev-rxdb-admin` 的 `workbench-shell.spec.ts` 是现成写法）。
+建议在应用单测里断言 `index.html` 含有这段脚本，防止存储键或逻辑漂移（`apps/rxdb-admin-template-react` 的 `workbench-shell.spec.ts` 是现成写法）。
 
 ## 主题
 

@@ -34,7 +34,7 @@ owner 于 2026-11-06 批准，是 [US-530](US-530-admin-shell-preferences-appear
 - 页签栏：随路由生成页签；点击切换、关闭、固定、拖拽与 Shift+方向键排序、中键关闭、滚轮横向滚动、访问历史菜单；右键菜单含关闭 / 刷新 / 固定 / 新窗口 /
   关闭左侧 / 关闭右侧 / 关闭其他 / 关闭全部 / 内容最大化；持久化模式 `off` / `session` / `local`；样式 `chrome` / `plain` / `card` / `brisk`。
 - 刷新当前页重新挂载页面内容；内容最大化隐藏顶栏、侧栏与页脚。
-- Angular / React / Vue 同功能；`apps/dev-rxdb-admin` 接入并以 `apps/dev-rxdb-admin-e2e` 完成组合验收。
+- Angular / React / Vue 同功能；`apps/rxdb-admin-template-react` 接入并以 `apps/rxdb-admin-template-react-e2e` 完成组合验收。
 
 ### Out of Scope
 
@@ -70,15 +70,15 @@ owner 于 2026-11-06 批准，是 [US-530](US-530-admin-shell-preferences-appear
 - `packages/rxdb-admin/src/layout/`、`src/tabs/`、`src/shell/` — 布局推导、菜单、瞬时界面状态、页签。
 - `packages/rxdb-admin/admin.css` — 布局、侧栏图标轨、移动抽屉、页签栏、页脚与动画。
 - `packages/rxdb-admin-{react,vue,angular}/src/layout/`、`src/tabbar/` — 三端布局、侧栏、顶栏、菜单树、页签栏与右键菜单。
-- `apps/dev-rxdb-admin/src/app/app.tsx`、`src/app/shell/workbench-menu.tsx` — 工作台的菜单与外壳接入。
-- `apps/dev-rxdb-admin-e2e/src/admin-shell.spec.ts`、`workbench.spec.ts`、`admin-shell.a11y.spec.ts` — 布局、移动端抽屉、页签与 a11y 验收。
+- `apps/rxdb-admin-template-react/src/app/app.tsx`、`src/app/shell/workbench-menu.tsx` — 工作台的菜单与外壳接入。
+- `apps/rxdb-admin-template-react-e2e/src/admin-shell.spec.ts`、`workbench.spec.ts`、`admin-shell.a11y.spec.ts` — 布局、移动端抽屉、页签与 a11y 验收。
 
 ## 验收证据
 
 - 核心单测：[布局推导](../../../packages/rxdb-admin/src/__tests__/layout/layout-state.spec.ts)、[页签](../../../packages/rxdb-admin/src/__tests__/tabs/tabs-store.spec.ts)。
 - 三端组件单测：[React 布局](../../../packages/rxdb-admin-react/src/__tests__/layout.spec.tsx)与[页签栏](../../../packages/rxdb-admin-react/src/__tests__/tabbar.spec.tsx)，
   [Vue](../../../packages/rxdb-admin-vue/src/__tests__/layout.spec.ts)，[Angular](../../../packages/rxdb-admin-angular/src/__tests__/layout.spec.ts)，用例标题一一对应。
-- 真实工作台：[外壳验收](../../../apps/dev-rxdb-admin-e2e/src/admin-shell.spec.ts)（布局切换、图标轨、页签）、[移动端抽屉](../../../apps/dev-rxdb-admin-e2e/src/workbench.spec.ts)与 [a11y 走查](../../../apps/dev-rxdb-admin-e2e/src/admin-shell.a11y.spec.ts)。
+- 真实工作台：[外壳验收](../../../apps/rxdb-admin-template-react-e2e/src/admin-shell.spec.ts)（布局切换、图标轨、页签）、[移动端抽屉](../../../apps/rxdb-admin-template-react-e2e/src/workbench.spec.ts)与 [a11y 走查](../../../apps/rxdb-admin-template-react-e2e/src/admin-shell.a11y.spec.ts)。
 
 ## References
 

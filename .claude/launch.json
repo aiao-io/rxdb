@@ -38,11 +38,11 @@
       "port": 3000
     },
     {
-      "name": "dev-rxdb-admin",
+      "name": "rxdb-admin-template-react",
       "runtimeExecutable": "sh",
       "runtimeArgs": [
         "-c",
-        "export NX_WORKSPACE_ROOT_PATH=\"$PWD\" NX_DAEMON=false; cd apps/dev-rxdb-admin && node ../../node_modules/vite/bin/vite.js --port=${PORT:-5173}"
+        "pnpm nx serve rxdb-admin-template-react --port=${PORT:-5173}"
       ],
       "autoPort": true
     },

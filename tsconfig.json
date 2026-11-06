@@ -256,16 +256,10 @@
       "path": "./apps/dev-rxdb-board"
     },
     {
-      "path": "./apps/dev-rxdb-admin-e2e"
+      "path": "./apps/rxdb-admin-template-react-e2e"
     },
     {
-      "path": "./apps/dev-rxdb-admin"
-    },
-    {
-      "path": "./apps/dev-rxdb-admin-consumer-e2e"
-    },
-    {
-      "path": "./apps/dev-rxdb-admin-consumer"
+      "path": "./apps/rxdb-admin-template-react"
     },
     {
       "path": "./packages/rxdb-i18n"
