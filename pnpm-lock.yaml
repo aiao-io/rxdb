@@ -164,6 +164,7 @@ settings:
 
 overrides:
   '@babel/core@7': ^7.29.7
+  '@electric-sql/pglite': 0.5.12
   '@angular/cdk': 22.2.6
   '@angular/common': 22.2.4
   '@angular/core': 22.2.4
@@ -307,8 +308,8 @@ importers:
         specifier: ^6.43.14
         version: 6.43.15
       '@electric-sql/pglite':
-        specifier: ^0.5.15
-        version: 0.5.15
+        specifier: 0.5.12
+        version: 0.5.12
       '@lucide/angular':
         specifier: 1.70.0
         version: 1.70.0(@angular/common@22.2.4(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2))
@@ -331,8 +332,8 @@ importers:
         specifier: 3.50.4-wasm.1.0.0-sync.1.2.1-vector.1.2.0-memory.1.3.6
         version: 3.50.4-wasm.1.0.0-sync.1.2.1-vector.1.2.0-memory.1.3.6
       '@subframe7536/sqlite-wasm':
-        specifier: 1.4.1
-        version: 1.4.1
+        specifier: 1.4.0
+        version: 1.4.0
       '@supabase/postgrest-js':
         specifier: ^2.119.0
         version: 2.119.0
@@ -850,8 +851,8 @@ importers:
   apps/dev-rxdb-electron:
     dependencies:
       '@electric-sql/pglite':
-        specifier: ^0.5.15
-        version: 0.5.15
+        specifier: 0.5.12
+        version: 0.5.12
     devDependencies:
       '@aiao/rxdb-adapter-electron':
         specifier: workspace:*
@@ -1572,8 +1573,8 @@ importers:
         specifier: workspace:*
         version: link:../rxdb-test
       '@electric-sql/pglite':
-        specifier: ^0.5.15
-        version: 0.5.15
+        specifier: 0.5.12
+        version: 0.5.12
 
   packages/rxdb-adapter-encrypted:
     dependencies:
@@ -1639,8 +1640,8 @@ importers:
         specifier: workspace:^
         version: link:../utils
       '@electric-sql/pglite':
-        specifier: ^0.5.15
-        version: 0.5.15
+        specifier: 0.5.12
+        version: 0.5.12
       rxjs:
         specifier: ^7.8.2
         version: 7.8.2
@@ -1756,8 +1757,8 @@ importers:
         specifier: workspace:^
         version: link:../utils
       '@subframe7536/sqlite-wasm':
-        specifier: 1.4.1
-        version: 1.4.1
+        specifier: 1.4.0
+        version: 1.4.0
       comlink:
         specifier: ^4.4.2
         version: 4.4.2
@@ -4896,8 +4897,8 @@ packages:
       open-ask-ai:
         optional: true
 
-  '@electric-sql/pglite@0.5.15':
-    resolution: {integrity: sha512-ERZWgaRTxueGV4cvL1tfpAOzFCWTXoUtbCBqnf2FhHDVs/so9eAKaanvrwWF9Dntx7BYsmFQujVQ0/B4S8Mmiw==}
+  '@electric-sql/pglite@0.5.12':
+    resolution: {integrity: sha512-IiAxv1ld1V9QP0AWsflliDqrGRo+20O+yXOr2fjk6YzBHsCvTPclwQhCB1uZ7eHtPrxUrSllNzWgqy/Ot76PEw==}
 
   '@electron-internal/extract-zip@1.0.8':
     resolution: {integrity: sha512-8iajeLFbzNwM0m3AsQZSZgYREWglAImyGvvFSWU34FgMW8sHlzdwj9QKvv9dgN7jMP591EFUF/sLOC3Jl9YIjQ==}
@@ -8402,8 +8403,8 @@ packages:
   '@subframe7536/sqlite-wasm@1.3.1':
     resolution: {integrity: sha512-0Xlapt/w6tzEjxPsjPSnIEcrgfJfDESYbkEf8gyPCU7HrM0Qcdd/ooXvkK6ZaMtx6aBdsABTBqC77fa2Sk1xsA==}
 
-  '@subframe7536/sqlite-wasm@1.4.1':
-    resolution: {integrity: sha512-Q6g5/U5V029LccnZrHyH7uGUYpfzLxD0QEg49fQC0ayu0pB+9nfeK3kaNDXXISkXvE1NYu7SBVwlfGd4JyiXuA==}
+  '@subframe7536/sqlite-wasm@1.4.0':
+    resolution: {integrity: sha512-Oo29xlIrUGKj7bIwwlZQaBUhoH2AISkW7q+5LdViT/lTbfWwJr9/+q51yUlQI81Xu+QJh4jX5IVnYiYfJsVXGA==}
 
   '@supabase/auth-js@2.119.0':
     resolution: {integrity: sha512-WI7KqJRxqZjm77PlRO/VfKretL4SG8g8stWfBmpyx9To+fFapZlSbXA8QkduoMvr72rRpIF24ZLrjktBrp+ZFA==}
@@ -8984,7 +8985,7 @@ packages:
     engines: {node: '>= 18'}
     peerDependencies:
       '@types/react': '*'
-      vue: '*'
+      vue: ^3.5.43
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -15474,7 +15475,7 @@ packages:
       imagemin: '*'
       lightningcss: '*'
       postcss: '*'
-      sharp: '*'
+      sharp: ^0.35.5
       svgo: '*'
       uglify-js: '*'
       webpack: ^5.1.0
@@ -23601,7 +23602,7 @@ snapshots:
       - utf-8-validate
       - webpack-cli
 
-  '@electric-sql/pglite@0.5.15': {}
+  '@electric-sql/pglite@0.5.12': {}
 
   '@electron-internal/extract-zip@1.0.8': {}
 
@@ -26872,7 +26873,7 @@ snapshots:
 
   '@subframe7536/sqlite-wasm@1.3.1': {}
 
-  '@subframe7536/sqlite-wasm@1.4.1': {}
+  '@subframe7536/sqlite-wasm@1.4.0': {}
 
   '@supabase/auth-js@2.119.0':
     dependencies:

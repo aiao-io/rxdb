@@ -39,6 +39,10 @@ gitShallowHosts:
   - bitbucket.org
 overrides:
   '@babel/core@7': ^7.29.7
+  # 0.5.15 把 Emscripten FS 移出 JS 产物（懒加载 artifact），rxdb-adapter-pglite 的
+  # 恢复/清理链路依赖 `Module.FS.filesystems.IDBFS` 直接失效（40+ 用例崩溃）。钉在 0.5.12，
+  # 升 0.5.16+ 前先让适配器适配新的 FS 生命周期。
+  '@electric-sql/pglite': 0.5.12
   '@angular/cdk': 22.2.6
   '@angular/common': 22.2.4
   '@angular/core': 22.2.4
