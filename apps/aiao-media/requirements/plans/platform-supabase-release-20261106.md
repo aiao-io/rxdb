@@ -8,9 +8,11 @@
 | --- | --- |
 | 正式 origin | `https://media.aiao.io` |
 | Worker | `aiao-media` |
-| Worker version | `cf252547-dd7c-4b0b-8b77-9e1de257ab4b` |
-| 流量 | 100% |
-| 发布时间 | 2026-11-06 16:12:14（Asia/Shanghai；UTC `2026-11-06T08:12:14Z`） |
+| 平台首发 Worker version | `cf252547-dd7c-4b0b-8b77-9e1de257ab4b` |
+| 旧配置缓存修复 Worker version | `fb9c2e12-c181-4ded-ba65-c13fd0a0585b` |
+| 当前修复版流量 | 100% |
+| 平台首发时间 | 2026-11-06 16:12:14（Asia/Shanghai；UTC `2026-11-06T08:12:14Z`） |
+| 缓存修复发布时间 | 2026-11-06 16:41:57（Asia/Shanghai；UTC `2026-11-06T08:41:57.118Z`） |
 | 平台 Supabase 项目名称 | `media` |
 | 产品 schema marker | 10 |
 | 13 源 bootstrap SHA-256 | `750516b353fe155c97d1276f3a56a5ee1c69fa0c6c7f681ec43c0643a3f24809` |
@@ -45,10 +47,16 @@ Auth 正式 Site URL 和允许的返回地址已设置，邮箱确认保持开�
 
 当前版本的公开四路由与离线缓存浏览器 smoke 两次遇到网络超时：首次在 `online-routes` 阶段，已确认 `/`、`/create`、`/images` 为 200 且 CSP 符合预期，`/providers` 浏览器阶段未完成；该次网络 unsafe、页面错误、写操作与生成调用计数均为 0。复跑在 `public-artifacts` 阶段 30.4 秒超时，回执位于 `apps/aiao-media-e2e/tmp/public-origin-smoke/1793953292523-cf252547-dd7c-4b0b-8b77-9e1de257ab4b.json`。浏览器四路由与离线缓存验收仍未完成，超时原因尚未确定，不以独立 HTTP 检查代替该项。核心线上 Auth/数据库/Storage 同步全链路通过的结果保持有效。
 
-**旧缓存回归待修复发布。** 用户反馈“平台账号服务暂不可用”，已定位为旧 Service Worker 对 `/app-config.js` 采用缓存优先并保留了账号配置为 `null` 的旧文件，而导航采用网络优先取得新 HTML，导致新界面读取旧配置；此反馈的原因不是实际 Supabase 健康故障。修复设计为生产 HTML 引用 `app-config-<内容 SHA-256 前 16 位>.js`，离线 manifest 缓存该内容哈希文件，并保留稳定文件名用于独立验收。当前修复待发布，尚未完成携带真实旧缓存的浏览器升级验证；前述干净浏览器同步通过不能覆盖该回归。
+**旧缓存回归已通过本地真实浏览器验证，修复已发布，正式站点表单复验通过。** 用户反馈“平台账号服务暂不可用”，已定位为旧 Service Worker 对 `/app-config.js` 采用缓存优先并保留了账号配置为 `null` 的旧文件，而导航采用网络优先取得新 HTML，导致新界面读取旧配置；此反馈的原因不是实际 Supabase 健康故障。修复使生产 HTML 引用 `app-config-<内容 SHA-256 前 16 位>.js`，离线 manifest 缓存该内容哈希文件，并保留稳定文件名用于独立验收。
+
+`platform-account-update-fixture --excludeTaskDependencies` 在真实浏览器中通过（22.2 秒）：旧版 stable-null Service Worker 保持 active、保活旧页未关闭时，重载的新页从网络取得新版内容哈希配置，平台注册表单立即可用；profile、schema、草稿及原图字节保持一致。关闭全部旧页后，新版变为 active，`waiting=null`、旧版 `clients=[]`；离线新开页时配置哈希一致、注册表单仍可打开、本机原图可读取，远端请求数为 0，未执行离线注册。此项使用本地产物与 fixture，不冒充正式域名或真实公众注册邮件验收。
+
+`auth-config-test` 3/3、脚本 lint、`deploy-check` 与 `release-check` 均通过。修复发布回执为 Worker version `fb9c2e12-c181-4ded-ba65-c13fd0a0585b`，2026-11-06 16:41:57（Asia/Shanghai）发布，部署状态核验为 100% 流量；配置路径 `/app-config-b29867111480b71c.js` 已纳入离线 manifest，新 `offline-manifest.json` SHA-256 为 `53289d69f6cbe7ac101c9d57eed6a8b5d1da9d607be762ee5a58a95fe5060d67`。
+
+正式站点 `/providers#sync` 复验通过：引用新的内容哈希配置，`platformAvailable=true`，“平台账号服务暂不可用”提示消失，注册表单可见。本次未提交注册，也未发送邮件；不扩大为公众注册闭环证据。上述首发版本公开 smoke 的两次网络超时记录保留。
 
 ## 公众注册与剩余边界
 
 **尚未配置自定义 SMTP。Supabase 默认邮件服务仅向项目团队成员发送邮件，普通公众邮箱的注册与确认邮件闭环尚未验证，也尚未具备完整的公众注册交付条件。** 云 API 使用的临时普通账号和线上登录/同步通过，不能替代公众自行注册和收到验证邮件的证据。
 
-后续仍需完成：旧配置缓存修复发布与真实旧缓存升级验证；自定义 SMTP 与公众邮箱注册/确认邮件；当前版本公开四路由与离线缓存浏览器 smoke；大图续传、失败恢复和删除冲突；macOS Tauri 与 Web 的真实跨设备原图与离线恢复验收。生产管理后台、模型与计费按各自故事验收，本次同步部署不扩大其通过范围。
+后续仍需完成：自定义 SMTP 与公众邮箱注册/确认邮件；当前版本公开四路由与离线缓存浏览器 smoke；大图续传、失败恢复和删除冲突；macOS Tauri 与 Web 的真实跨设备原图与离线恢复验收。生产管理后台、模型与计费按各自故事验收，本次同步部署不扩大其通过范围。

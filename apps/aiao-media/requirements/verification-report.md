@@ -48,6 +48,8 @@
 | `aiao-media-e2e:local-first-e2e` 的平台注册用例                    | “平台注册后可开启同步，无需配置自己的项目或管理授权”通过                   | 真实浏览器与构建产物，Auth/业务请求为 fixture；本条仅记录该用例                                    |
 | `aiao-media-e2e:product-e2e` 的平台原图接线用例                    | “平台账号跨设备同步作品与原图，Storage 字节夹具验证上传和取回接线”1 项通过 | 隔离本地真实 Auth/数据库与双浏览器副本；Storage 上传/下载字节由 fixture 提供，不代表真实云 Storage |
 | `aiao-media:relay-test` / `production-bundle-test` / `script-test` | 30、7、59 项分别通过                                                       | 后端和构建脚本契约；不代表已发布或云端权限已验                                                     |
+| `aiao-media-e2e:platform-account-update-fixture --excludeTaskDependencies` | 旧 stable-null active 且旧页未关闭时升级、内容哈希配置读取与注册表单可用、数据保留、新版接管均通过，22.2 秒；离线新开页配置可用、表单可打开、本机原图可读取 | 本地真实浏览器/产物与 fixture；远端请求 0，未执行离线注册，不代表正式域名或公众注册邮件验收 |
+| `auth-config-test`、脚本 lint、`deploy-check` / `release-check` | 配置测试 3/3，其余通过 | 内容哈希配置构建与发布检查；修复已发布，正式站点表单复验通过，未提交注册 |
 
 浏览器用例见[平台注册入口](../../aiao-media-e2e/src/supabase-auth.spec.ts)和[平台作品/原图接线](../../aiao-media-e2e/src/product-local.spec.mts)。本节记录部署前的本地验证，不折算真实云 Storage；同日后续生产部署和云 API 结果见下节及[平台发布记录](plans/platform-supabase-release-20261106.md)，未完成 AC 不因此标为 Done。
 
@@ -55,11 +57,11 @@
 
 | 范围               | 当前结论                                                                                                                                                                         | 记录                                                  |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| 发布               | 2026-11-06 16:12:14（Asia/Shanghai）发布统一平台版本 `cf252547-dd7c-4b0b-8b77-9e1de257ab4b`，100% 流量；正式域名 `https://media.aiao.io` | [平台发布记录](plans/platform-supabase-release-20261106.md) |
+| 发布               | 统一平台首发 `cf252547-dd7c-4b0b-8b77-9e1de257ab4b` 于 2026-11-06 16:12:14（Asia/Shanghai）发布；旧配置缓存修复 `fb9c2e12-c181-4ded-ba65-c13fd0a0585b` 于当日 16:41:57 发布，当前 100% 流量；正式域名 `https://media.aiao.io` | [平台发布记录](plans/platform-supabase-release-20261106.md) |
 | 平台数据库与文件权限 | 空库核验后执行 13 源 bootstrap，schema 10；真实云两普通账号/同账号第二会话的 metadata/log RLS、revision、tombstone 与私有 Storage 原字节 SHA-256 往返通过，B/匿名拒绝 | [平台发布记录](plans/platform-supabase-release-20261106.md#真实云-api-验证) |
 | 平台 UI             | 正式云 Auth/DB/Storage 下登录、确认范围、元数据同步、真实原图上传、第二设备草稿恢复和默认关闭上传、显式下载通过，下载字节/SHA-256 与原 PNG 一致；注册仅验证表单，未发邮件 | [平台发布记录](plans/platform-supabase-release-20261106.md#正式域名-ui-进展) |
 | 平台公开 HTTP       | `/providers`、`/api/templates` 为 200，CSP 允许平台项目 `wss`，公开账号配置与 Worker 同项目，旧 OAuth start 为 404；线上 offline-manifest 字节与本地产物一致。当前版本四路由/离线浏览器 smoke 待补 | [平台发布记录](plans/platform-supabase-release-20261106.md#正式域名-ui-进展) |
-| 旧配置缓存回归       | 已定位“平台账号服务暂不可用”为旧 Service Worker 的 `/app-config.js` 缓存 `null` 与新 HTML 混用；计划改为内容哈希配置文件并纳入离线 manifest，修复待发布、真实旧缓存升级待验 | [平台发布记录](plans/platform-supabase-release-20261106.md#正式域名-ui-进展) |
+| 旧配置缓存回归       | 本地真实旧缓存升级及离线回归通过；内容哈希配置 `/app-config-b29867111480b71c.js` 已发布并纳入离线 manifest。正式 `/providers#sync` 复验 `platformAvailable=true`、不可用提示消失、注册表单可见，未提交/发邮件 | [平台发布记录](plans/platform-supabase-release-20261106.md#正式域名-ui-进展) |
 | 公众注册邮件        | 未配置自定义 SMTP；默认邮件只向项目团队成员发送，公众邮箱注册/确认邮件闭环未验证 | [平台发布记录](plans/platform-supabase-release-20261106.md#公众注册与剩余边界) |
 | 更新与回退         | 官方 A→B→A 实际产物切换、waiting/旧页关闭/activated 顺序及各阶段真断网四路由已通过（原 B 版本）；没有注入更高 schema marker                                                      | [正式交付验收](plans/public-delivery-verification.md) |
 | 代理出图           | 原供应商三画幅各一次 HTTP 200，PNG 精确尺寸，保存、刷新回读与下载字节/SHA-256 一致；结果均为 base64                                                                              | [正式交付验收](plans/public-delivery-verification.md) |
@@ -67,4 +69,4 @@
 | 跨 origin 原图 URL | 无真实成功证据                                                                                                                                                                   | [供应商补验](plans/provider-acceptance-follow-up.md)  |
 | 套餐               | Cloudflare 控制台显示 Workers 免费套餐 US$0 与活动 Workers Free 订阅；账户另有既有订阅，不称全账户免费或零账单                                                                   | [正式交付验收](plans/public-delivery-verification.md) |
 
-历史 JPEG 及此前发布保持本机模式，其关闭账号配置的构建和离线证据仍见[原交付记录](plans/jpeg-delivery-verification.md)。2026-11-06 平台版本使用显式平台公开配置，生产 Supabase 已初始化并完成上述真实云 API 和完整浏览器同步样本；旧配置缓存修复发布与真实旧缓存升级、自定义 SMTP、公众注册确认邮件、当前版本四路由/离线浏览器 smoke 和生产 Web/Tauri 余项仍待验，故事状态保持未关闭。
+历史 JPEG 及此前发布保持本机模式，其关闭账号配置的构建和离线证据仍见[原交付记录](plans/jpeg-delivery-verification.md)。2026-11-06 平台版本使用显式平台公开配置，生产 Supabase 已初始化并完成上述真实云 API 和完整浏览器同步样本，旧配置缓存修复已发布且正式站点表单复验通过；自定义 SMTP、公众注册确认邮件、当前版本四路由/离线浏览器 smoke 和生产 Web/Tauri 余项仍待验，故事状态保持未关闭。
