@@ -329,6 +329,8 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
 
   /** 预览的初始宽度：桌面固定 400，窄屏按工作台宽度 45% 缩放并保底 160。 */
   const previewWidth = (width: number): number => Math.max(160, Math.min(400, Math.round(width * 0.45)));
+  /** 底部工具区的初始高度：取工作台高度的 1/3 并保底 180，容纳项目终端的安装与启动输出。 */
+  const toolHeight = (height: number): number => Math.max(180, Math.round(height / 3));
 
   function ensureSideGroup(): NonNullable<ReturnType<DockviewApi['getEdgeGroup']>> {
     const existing = api.getEdgeGroup('left');
@@ -467,12 +469,17 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
     });
   }
 
+  /** 无参照组的 addGroup 不认 initialHeight（dockview 按均分插入），只能建组后显式定高；无尺寸时交给首次布局。 */
+  function sizeToolGroup(group: DockviewGroupPanel): void {
+    if (api.height > 0) group.api.setSize({ height: toolHeight(api.height) });
+  }
+
   function addTool(kind: WorkbenchToolKind): IDockviewPanel {
-    const group =
-      tools.map(tool => api.getPanel(tool)?.group).find(Boolean) ??
-      api.addGroup({ direction: 'below', initialHeight: 180, skipSetActive: true });
-    const panel = addStatic(kind, group.id);
-    return panel;
+    const existing = tools.map(tool => api.getPanel(tool)?.group).find(Boolean);
+    if (existing) return addStatic(kind, existing.id);
+    const group = api.addGroup({ direction: 'below', skipSetActive: true });
+    sizeToolGroup(group);
+    return addStatic(kind, group.id);
   }
 
   function addPreview(): IDockviewPanel {
@@ -508,7 +515,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
       program(() => {
         api.getEdgeGroup('left')?.setSize({ width: SIDEBAR_WIDTH });
         api.getPanel('preview')?.group.api.setSize({ width: previewWidth(api.width) });
-        api.getPanel('problems')?.group.api.setSize({ height: 180 });
+        api.getPanel('problems')?.group.api.setSize({ height: toolHeight(api.height) });
       });
       // 边缘组面板经 overlay 渲染容器定位，其首帧测量为 0 时不再重试；
       // 布局落地后兜底重布局，让 overlay 按真实容器尺寸重新定位。
@@ -648,9 +655,11 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
         skipSetActive: true
       });
       preview.api.moveTo({ group: previewGroup, position: 'center', skipSetActive: true });
-      const bottom = api.addGroup({ direction: 'below', initialHeight: 180, skipSetActive: true });
+      const bottom = api.addGroup({ direction: 'below', skipSetActive: true });
       for (const kind of tools)
         addStatic(kind, bottom.id).api.moveTo({ group: bottom, position: 'center', skipSetActive: true });
+      // 旧工具组清空移除后会重新分配高度，移完再定高
+      sizeToolGroup(bottom);
       if (!overlayMode) {
         api.getEdgeGroup('left')?.setSize({ width: SIDEBAR_WIDTH });
         api.getEdgeGroup('left')?.expand();

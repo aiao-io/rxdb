@@ -133,7 +133,11 @@ try {
   await preview.getByRole('button', { name: '次数 0', exact: true }).click({ timeout: 30000 });
   await expect(preview.getByRole('button', { name: '次数 1', exact: true })).toBeVisible();
   const initialBottom = await rectangle(groupFor(root, '问题'));
-  assert(Math.abs(initialBottom.height - 180) <= 1, '底部面板首次布局应为 180px');
+  const expectedBottom = Math.max(180, Math.round((await rectangle(dock)).height / 3));
+  assert(
+    Math.abs(initialBottom.height - expectedBottom) <= 1,
+    `底部面板首次布局应为工作台高度的 1/3（${expectedBottom}px）`
+  );
   report.initialLayout = {
     bottomPanel: initialBottom,
     headerActions: await root
@@ -142,7 +146,7 @@ try {
     screenshot: initialScreenshotPath
   };
   await page.screenshot({ path: initialScreenshotPath, fullPage: true });
-  report.checks.push('initial-bottom-panel-height-180');
+  report.checks.push('initial-bottom-panel-height-third');
 
   const path = 'src/main.tsx';
   await openFile(root, path);

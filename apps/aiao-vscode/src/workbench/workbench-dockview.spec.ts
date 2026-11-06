@@ -145,19 +145,40 @@ describe('Dockview 工作台布局', () => {
     expect(callbacks.onCloseEditor).not.toHaveBeenCalled();
   });
 
-  it('首次非零布局把底部设为180px，后续尺寸变化保留用户调整', async () => {
-    const { dock } = fixture();
+  it('首次非零布局把底部设为工作台高度的 1/3，后续尺寸变化保留用户调整', async () => {
+    const { dock } = fixture(1200, 900);
+    const bottom = dock.api.getPanel('problems')?.group;
+    if (!bottom) throw new Error('工具group缺失');
+    await vi.waitFor(() => expect(bottom.api.height).toBeCloseTo(300, 0));
+    bottom.api.setSize({ height: 200 });
+    await vi.waitFor(() => expect(bottom.api.height).toBeCloseTo(200, 0));
+    dock.api.layout(1400, 900);
+    await Promise.resolve();
+    expect(bottom.api.height).toBeCloseTo(200, 0);
+    dock.api.layout(1400, 1200);
+    await Promise.resolve();
+    expect(bottom.api.height).not.toBeCloseTo(400, 0);
+  });
+
+  it('矮工作台的底部面板保底 180px', async () => {
+    const { dock } = fixture(1200, 450);
     const bottom = dock.api.getPanel('problems')?.group;
     if (!bottom) throw new Error('工具group缺失');
     await vi.waitFor(() => expect(bottom.api.height).toBeCloseTo(180, 0));
-    bottom.api.setSize({ height: 260 });
-    await vi.waitFor(() => expect(bottom.api.height).toBeCloseTo(260, 0));
-    dock.api.layout(1400, 800);
+  });
+
+  it('重置布局与关闭全部工具后重开，底部面板按工作台高度的 1/3 展开', async () => {
+    const { dock } = fixture(1200, 900);
+    await vi.waitFor(() => expect(dock.api.getPanel('problems')?.group.api.height).toBeCloseTo(300, 0));
+    dock.api.getPanel('problems')?.group.api.setSize({ height: 200 });
+    dock.resetLayout();
+    expect(dock.api.getPanel('terminal')?.group.api.height).toBeCloseTo(300, 0);
+    dock.toggleTools();
     await Promise.resolve();
-    expect(bottom.api.height).toBeCloseTo(260, 0);
-    dock.api.layout(1400, 900);
-    await Promise.resolve();
-    expect(bottom.api.height).not.toBeCloseTo(180, 0);
+    expect(dock.api.getPanel('terminal')).toBeUndefined();
+    dock.api.layout(1200, 600);
+    dock.showTool('terminal');
+    expect(dock.api.getPanel('terminal')?.group.api.height).toBeCloseTo(200, 0);
   });
 
   it('使用原生edge侧栏、右侧预览与底部共享工具group', () => {

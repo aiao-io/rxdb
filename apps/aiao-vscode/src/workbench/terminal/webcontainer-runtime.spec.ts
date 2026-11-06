@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { WorkbenchFiles, WorkbenchSnapshot } from '../session.js';
+import type { TerminalProjectPlan } from './project-command.js';
 import {
   createWebContainerRuntime,
   type TerminalContainer,
@@ -35,15 +36,17 @@ function projectProcess(closeOutputOnExit = true) {
   let output!: ReadableStreamDefaultController<string>;
   let outputClosed = false;
   const writeInput = vi.fn();
+  // WebContainer 进程结束时才关闭输出；源流被取消后它再 close 会抛未捕获异常，运行时只能断开读取
+  const cancelOutput = vi.fn(() => {
+    outputClosed = true;
+  });
   const process: TerminalProcess = {
     input: new WritableStream<string>({ write: writeInput }),
     output: new ReadableStream<string>({
       start: controller => {
         output = controller;
       },
-      cancel: () => {
-        outputClosed = true;
-      }
+      cancel: cancelOutput
     }),
     exit: exit.promise,
     resize: vi.fn(),
@@ -54,7 +57,33 @@ function projectProcess(closeOutputOnExit = true) {
     outputClosed = true;
     output.close();
   });
-  return { process, exit, writeInput, output: () => output };
+  return { process, exit, writeInput, cancelOutput, output: () => output };
+}
+
+const PROMPT = '\u001b]654;prompt\u0007';
+
+/** jsh --osc 的替身：输出夹带 OSC 654 标记，提示符与真实 jsh 一致。 */
+function projectShell(closeOutputOnExit = true) {
+  const shell = projectProcess(closeOutputOnExit);
+  const marker = (value: string): void => shell.output().enqueue(`\u001b]654;${value}\u0007`);
+  const prompt = (): void => {
+    shell.output().enqueue('\u001b[34m~/project\u001b[39m\r\n❯ ');
+    marker('prompt');
+  };
+  return {
+    ...shell,
+    ready(): void {
+      prompt();
+      marker('interactive');
+    },
+    begin(pid: number): void {
+      marker(`pid=${pid}`);
+    },
+    end(pid: number, code: number): void {
+      marker(`exit=${pid}:${code}`);
+      prompt();
+    }
+  };
 }
 
 function fixture(bootGate?: Promise<void>) {
@@ -66,12 +95,14 @@ function fixture(bootGate?: Promise<void>) {
   let watch: ((event: 'change' | 'rename', path: string) => void) | undefined;
   let serverReady: ((port: number, url: string) => void) | undefined;
   const writeInput = vi.fn();
+  const cancelOutput = vi.fn();
   const process = {
     input: new WritableStream<string>({ write: writeInput }),
     output: new ReadableStream<string>({
       start: controller => {
         output = controller;
-      }
+      },
+      cancel: cancelOutput
     }),
     exit: exit.promise,
     resize: vi.fn(),
@@ -180,6 +211,7 @@ function fixture(bootGate?: Promise<void>) {
     files,
     links,
     writeInput,
+    cancelOutput,
     output: () => output,
     exit,
     closeWatcher,
@@ -190,247 +222,272 @@ function fixture(bootGate?: Promise<void>) {
   };
 }
 
+/** 启动运行时并让项目终端就绪，返回时安装命令已经输入。 */
+async function readyProject(plan: TerminalProjectPlan = { manager: 'npm', script: 'dev' }) {
+  const f = fixture();
+  const shell = projectShell();
+  await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });
+  vi.mocked(f.container.spawn).mockResolvedValueOnce(shell.process);
+  const running = f.runtime.runProject(plan);
+  await vi.waitFor(() => expect(f.container.spawn).toHaveBeenCalledTimes(2));
+  shell.ready();
+  await running;
+  return { ...f, shell };
+}
+
 describe('浏览器 Node 终端运行时', () => {
-  it('进程退出后先排空最后一批错误输出，再报告退出并允许重新运行', async () => {
+  it('项目终端是带标记的 jsh，就绪后输入安装命令，成功后再输入启动脚本', async () => {
     const f = fixture();
-    const install = projectProcess();
-    const serve = projectProcess(false);
-    const retry = projectProcess();
+    const shell = projectShell();
     await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });
-    vi.mocked(f.container.spawn)
-      .mockResolvedValueOnce(install.process)
-      .mockResolvedValueOnce(serve.process)
-      .mockResolvedValueOnce(retry.process);
-    await f.runtime.runProject({ manager: 'npm', script: 'dev' });
-    install.exit.resolve(0);
-    await vi.waitFor(() => expect(f.options.onProjectState).toHaveBeenLastCalledWith('running'));
-    serve.exit.resolve(1);
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(f.options.onProjectState).not.toHaveBeenCalledWith('stopped', 1);
-    await f.runtime.runProject({ manager: 'npm', script: 'dev' });
-    expect(f.container.spawn).toHaveBeenCalledTimes(3);
-    serve.output().enqueue('last compiler error\r\n');
-    serve.output().close();
-    await vi.waitFor(() => expect(f.options.onProjectState).toHaveBeenLastCalledWith('stopped', 1));
-    const outputCalls = f.options.onProjectOutput.mock.calls;
-    const lastError = outputCalls.findIndex(([value]) => value === 'last compiler error\r\n');
-    const stopped = f.options.onProjectState.mock.calls.findIndex(([state]) => state === 'stopped');
-    expect(lastError).toBeGreaterThanOrEqual(0);
-    expect(f.options.onProjectOutput.mock.invocationCallOrder[lastError]).toBeLessThan(
-      f.options.onProjectState.mock.invocationCallOrder[stopped]
-    );
-    await f.runtime.runProject({ manager: 'npm', script: 'dev' });
-    expect(f.container.spawn).toHaveBeenCalledTimes(4);
-  });
-
-  it('不关闭输出的进程不会阻塞后续阶段，停止会中断输出排空等待', async () => {
-    vi.useFakeTimers();
-    const f = fixture();
-    const install = projectProcess(false);
-    const serve = projectProcess(false);
-    await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });
-    vi.mocked(f.container.spawn).mockResolvedValueOnce(install.process).mockResolvedValueOnce(serve.process);
-    await f.runtime.runProject({ manager: 'npm', script: 'dev' });
-    install.exit.resolve(0);
-    await vi.advanceTimersByTimeAsync(500);
-    expect(f.options.onProjectState).toHaveBeenLastCalledWith('running');
-    expect(install.process.output.locked).toBe(false);
-    serve.exit.resolve(0);
-    await vi.advanceTimersByTimeAsync(0);
-    expect(f.options.onProjectState).not.toHaveBeenCalledWith('stopped', 0);
-    f.process.kill.mockImplementation(() => f.exit.resolve(0));
-    await f.runtime.stop();
-    expect(f.container.teardown).toHaveBeenCalledOnce();
-  });
-
-  it('项目先安装再启动脚本，输出与输入尺寸独立于交互 Shell，重复运行不新增进程', async () => {
-    const f = fixture();
-    const install = projectProcess();
-    const serve = projectProcess();
-    await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });
-    vi.mocked(f.container.spawn).mockResolvedValueOnce(install.process).mockResolvedValueOnce(serve.process);
+    vi.mocked(f.container.spawn).mockResolvedValueOnce(shell.process);
     f.runtime.resizeProject({ cols: 100, rows: 30 });
-    await f.runtime.runProject({ manager: 'npm', script: 'dev' });
-    expect(f.container.spawn).toHaveBeenNthCalledWith(2, 'npm', ['install'], { terminal: { cols: 100, rows: 30 } });
-    expect(f.options.onProjectOutput).toHaveBeenNthCalledWith(1, '\r\n$ npm install\r\n');
-    expect(f.options.onProjectState).toHaveBeenLastCalledWith('installing');
-    install.output().enqueue('\u001b[32madded 3 packages\u001b[0m\r\n');
+    const running = f.runtime.runProject({ manager: 'npm', script: 'dev' });
     await vi.waitFor(() =>
-      expect(f.options.onProjectOutput).toHaveBeenCalledWith('\u001b[32madded 3 packages\u001b[0m\r\n')
+      expect(f.container.spawn).toHaveBeenNthCalledWith(2, 'jsh', ['--osc'], { terminal: { cols: 100, rows: 30 } })
     );
+    shell.ready();
+    await running;
+    await f.runtime.runProject({ manager: 'npm', script: 'dev' });
+    expect(shell.writeInput).toHaveBeenCalledExactlyOnceWith('npm install\r', expect.anything());
+    expect(f.options.onProjectState).toHaveBeenLastCalledWith('installing');
+    expect(f.options.onProjectOutput).toHaveBeenCalledWith('\u001b[34m~/project\u001b[39m\r\n❯ ');
+    shell.begin(7);
+    shell.output().enqueue('\u001b[32madded 3 packages\u001b[0m\r\n');
+    shell.end(7, 0);
+    await vi.waitFor(() => expect(shell.writeInput).toHaveBeenLastCalledWith('npm run dev\r', expect.anything()));
+    expect(f.options.onProjectState).toHaveBeenLastCalledWith('running');
+    expect(f.options.onProjectOutput).toHaveBeenCalledWith('\u001b[32madded 3 packages\u001b[0m\r\n');
+    shell.begin(8);
+    shell.end(8, 1);
+    await vi.waitFor(() => expect(f.options.onProjectState).toHaveBeenLastCalledWith('stopped', 1));
     expect(f.options.onOutput).not.toHaveBeenCalled();
+    expect(f.container.spawn).toHaveBeenCalledTimes(2);
+  });
+
+  it('pnpm 安装允许刷新锁文件并运行 start 脚本，切块的标记也能识别', async () => {
+    const f = fixture();
+    const shell = projectShell();
+    await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });
+    vi.mocked(f.container.spawn).mockResolvedValueOnce(shell.process);
+    const running = f.runtime.runProject({ manager: 'pnpm', script: 'start' });
+    await vi.waitFor(() => expect(f.container.spawn).toHaveBeenCalledTimes(2));
+    shell.output().enqueue(`❯ ${PROMPT}\u001b]65`);
+    shell.output().enqueue('4;inter');
+    await vi.waitFor(() => expect(f.options.onProjectOutput).toHaveBeenLastCalledWith('4;inter'));
+    expect(shell.writeInput).not.toHaveBeenCalled();
+    shell.output().enqueue('active\u0007');
+    await running;
+    expect(shell.writeInput).toHaveBeenCalledExactlyOnceWith('pnpm install --no-frozen-lockfile\r', expect.anything());
+    shell.output().enqueue('\u001b]654;pid=3\u0007Done in 1.6s\r\n\u001b]654;exit=3:');
+    shell.output().enqueue(`0\u0007${PROMPT}`);
+    await vi.waitFor(() => expect(shell.writeInput).toHaveBeenLastCalledWith('pnpm run start\r', expect.anything()));
+  });
+
+  it('安装失败不启动脚本；项目终端忙时拒绝运行，空闲后再次运行复用同一个终端', async () => {
+    const f = await readyProject();
+    f.shell.begin(7);
+    f.shell.end(7, 1);
+    await vi.waitFor(() => expect(f.options.onProjectState).toHaveBeenLastCalledWith('stopped', 1));
+    await f.runtime.writeProject('npm config list\r');
+    expect(f.shell.writeInput).toHaveBeenLastCalledWith('npm config list\r', expect.anything());
+    f.shell.begin(8);
+    await vi.waitFor(() => expect(f.options.onProjectOutput).toHaveBeenLastCalledWith('\u001b]654;pid=8\u0007'));
+    await expect(f.runtime.runProject({ manager: 'npm', script: 'dev' })).rejects.toThrow('正在执行命令');
+    expect(f.shell.writeInput).toHaveBeenCalledTimes(2);
+    f.shell.end(8, 0);
+    await vi.waitFor(() => expect(f.options.onProjectOutput).toHaveBeenLastCalledWith(PROMPT));
     await f.runtime.runProject({ manager: 'npm', script: 'dev' });
     expect(f.container.spawn).toHaveBeenCalledTimes(2);
-    install.exit.resolve(0);
-    await vi.waitFor(() =>
-      expect(f.container.spawn).toHaveBeenNthCalledWith(3, 'npm', ['run', 'dev'], { terminal: { cols: 100, rows: 30 } })
-    );
-    expect(f.options.onProjectOutput).toHaveBeenLastCalledWith('\r\n$ npm run dev\r\n');
-    expect(f.options.onProjectState).toHaveBeenLastCalledWith('running');
-    await f.runtime.writeProject('input\r');
-    await f.runtime.write('pwd\r');
-    expect(serve.writeInput).toHaveBeenCalledWith('input\r', expect.anything());
-    expect(f.writeInput).toHaveBeenCalledWith('pwd\r', expect.anything());
-    f.runtime.resizeProject({ cols: 120, rows: 32 });
-    expect(serve.process.resize).toHaveBeenCalledWith({ cols: 120, rows: 32 });
-    expect(f.process.resize).not.toHaveBeenCalled();
+    expect(f.shell.writeInput).toHaveBeenLastCalledWith('npm install\r', expect.anything());
+    expect(f.options.onProjectState).toHaveBeenLastCalledWith('installing');
+  });
+
+  it('安装期间 Ctrl+C 即使安装返回成功也不再输入启动脚本', async () => {
+    const f = await readyProject();
+    f.shell.begin(7);
     await f.runtime.writeProject('\u0003');
-    expect(serve.writeInput).toHaveBeenCalledWith('\u0003', expect.anything());
-    serve.exit.resolve(130);
+    expect(f.shell.writeInput).toHaveBeenLastCalledWith('\u0003', expect.anything());
+    f.shell.end(7, 0);
     await vi.waitFor(() => expect(f.options.onProjectState).toHaveBeenLastCalledWith('stopped', 130));
+    expect(f.shell.writeInput).not.toHaveBeenCalledWith('npm run dev\r', expect.anything());
+  });
+
+  it('服务运行中 Ctrl+C 回到提示符，之后的输入与尺寸仍交给项目终端', async () => {
+    const f = await readyProject();
+    f.shell.begin(7);
+    f.shell.end(7, 0);
+    await vi.waitFor(() => expect(f.options.onProjectState).toHaveBeenLastCalledWith('running'));
+    f.shell.begin(8);
+    await f.runtime.writeProject('\u0003');
+    f.shell.end(8, 0);
+    await vi.waitFor(() => expect(f.options.onProjectState).toHaveBeenLastCalledWith('stopped', 130));
+    await f.runtime.writeProject('ls\r');
+    await f.runtime.write('pwd\r');
+    expect(f.shell.writeInput).toHaveBeenLastCalledWith('ls\r', expect.anything());
+    expect(f.writeInput).toHaveBeenCalledExactlyOnceWith('pwd\r', expect.anything());
+    f.shell.begin(9);
+    f.shell.end(9, 2);
+    await vi.waitFor(() => expect(f.options.onProjectOutput).toHaveBeenLastCalledWith(PROMPT));
+    expect(f.options.onProjectState).toHaveBeenCalledTimes(3);
+    f.runtime.resizeProject({ cols: 120, rows: 32 });
+    expect(f.shell.process.resize).toHaveBeenCalledWith({ cols: 120, rows: 32 });
+    expect(f.process.resize).not.toHaveBeenCalled();
     expect(f.container.teardown).not.toHaveBeenCalled();
     expect(f.process.kill).not.toHaveBeenCalled();
   });
 
-  it('pnpm 安装允许刷新锁文件，并运行 start 脚本', async () => {
+  it('项目终端就绪前 Ctrl+C 取消运行，不输入命令并保留终端', async () => {
     const f = fixture();
-    const install = projectProcess();
-    const serve = projectProcess();
-    await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });
-    vi.mocked(f.container.spawn).mockResolvedValueOnce(install.process).mockResolvedValueOnce(serve.process);
-    await f.runtime.runProject({ manager: 'pnpm', script: 'start' });
-    expect(f.container.spawn).toHaveBeenNthCalledWith(2, 'pnpm', ['install', '--no-frozen-lockfile'], {
-      terminal: { cols: 80, rows: 24 }
-    });
-    expect(f.options.onProjectOutput).toHaveBeenLastCalledWith('\r\n$ pnpm install --no-frozen-lockfile\r\n');
-    install.exit.resolve(0);
-    await vi.waitFor(() =>
-      expect(f.container.spawn).toHaveBeenNthCalledWith(3, 'pnpm', ['run', 'start'], {
-        terminal: { cols: 80, rows: 24 }
-      })
-    );
-    expect(f.options.onProjectOutput).toHaveBeenLastCalledWith('\r\n$ pnpm run start\r\n');
-  });
-
-  it('安装失败不运行项目，Shell 保持可用并允许再次运行', async () => {
-    const f = fixture();
-    const install = projectProcess();
-    const retry = projectProcess();
-    await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });
-    vi.mocked(f.container.spawn).mockResolvedValueOnce(install.process).mockResolvedValueOnce(retry.process);
-    await f.runtime.runProject({ manager: 'npm', script: 'dev' });
-    install.exit.resolve(1);
-    await vi.waitFor(() => expect(f.options.onProjectState).toHaveBeenLastCalledWith('stopped', 1));
-    expect(f.container.spawn).toHaveBeenCalledTimes(2);
-    await f.runtime.write('npm config list\r');
-    expect(f.writeInput).toHaveBeenCalledWith('npm config list\r', expect.anything());
-    await f.runtime.runProject({ manager: 'npm', script: 'dev' });
-    expect(f.container.spawn).toHaveBeenCalledTimes(3);
-    await vi.waitFor(() => expect(install.process.output.locked).toBe(false));
-  });
-
-  it('安装期间 Ctrl+C 即使安装返回成功也不会继续启动服务', async () => {
-    const f = fixture();
-    const install = projectProcess();
-    await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });
-    vi.mocked(f.container.spawn).mockResolvedValueOnce(install.process);
-    await f.runtime.runProject({ manager: 'npm', script: 'dev' });
-    await f.runtime.writeProject('\u0003');
-    expect(install.writeInput).toHaveBeenCalledWith('\u0003', expect.anything());
-    install.exit.resolve(0);
-    await vi.waitFor(() => expect(f.options.onProjectState).toHaveBeenLastCalledWith('stopped', 130));
-    expect(f.container.spawn).toHaveBeenCalledTimes(2);
-  });
-
-  it('安装 spawn 尚未返回时取消，迟到进程会被杀掉且不启动服务', async () => {
-    const f = fixture();
-    const install = projectProcess();
+    const shell = projectShell();
     const spawn = deferred<TerminalProcess>();
     await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });
     vi.mocked(f.container.spawn).mockReturnValueOnce(spawn.promise);
     const running = f.runtime.runProject({ manager: 'npm', script: 'dev' });
     await vi.waitFor(() => expect(f.container.spawn).toHaveBeenCalledTimes(2));
     await f.runtime.writeProject('\u0003');
-    spawn.resolve(install.process);
+    spawn.resolve(shell.process);
+    shell.ready();
     await running;
-    expect(install.process.kill).toHaveBeenCalledOnce();
-    install.exit.resolve(0);
-    await vi.waitFor(() => expect(f.options.onProjectState).toHaveBeenLastCalledWith('stopped', 130));
-    expect(f.container.spawn).toHaveBeenCalledTimes(2);
+    expect(f.options.onProjectState).toHaveBeenLastCalledWith('stopped', 130);
+    expect(shell.writeInput).not.toHaveBeenCalled();
+    expect(shell.process.kill).not.toHaveBeenCalled();
+    await f.runtime.writeProject('pwd\r');
+    expect(shell.writeInput).toHaveBeenCalledExactlyOnceWith('pwd\r', expect.anything());
   });
 
-  it('安装后启动服务的 spawn 期间取消，迟到服务会被杀掉', async () => {
+  it('项目终端启动失败拒绝运行，重试会重新启动终端', async () => {
     const f = fixture();
-    const install = projectProcess();
-    const serve = projectProcess();
+    const shell = projectShell();
+    await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });
+    vi.mocked(f.container.spawn)
+      .mockRejectedValueOnce(new Error('jsh unavailable'))
+      .mockResolvedValueOnce(shell.process);
+    await expect(f.runtime.runProject({ manager: 'npm', script: 'dev' })).rejects.toThrow('jsh unavailable');
+    expect(f.options.onProjectState).toHaveBeenLastCalledWith('stopped', -1);
+    const running = f.runtime.runProject({ manager: 'npm', script: 'dev' });
+    await vi.waitFor(() => expect(f.container.spawn).toHaveBeenCalledTimes(3));
+    shell.ready();
+    await running;
+    expect(shell.writeInput).toHaveBeenCalledExactlyOnceWith('npm install\r', expect.anything());
+    expect(f.options.onError).not.toHaveBeenCalled();
+    expect(f.container.teardown).not.toHaveBeenCalled();
+  });
+
+  it('取消期间迟到的启动错误只结束取消状态，不伪装成启动失败', async () => {
+    const f = fixture();
     const spawn = deferred<TerminalProcess>();
     await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });
-    vi.mocked(f.container.spawn).mockResolvedValueOnce(install.process).mockReturnValueOnce(spawn.promise);
-    await f.runtime.runProject({ manager: 'npm', script: 'dev' });
-    install.exit.resolve(0);
-    await vi.waitFor(() => expect(f.container.spawn).toHaveBeenCalledTimes(3));
+    vi.mocked(f.container.spawn).mockReturnValueOnce(spawn.promise);
+    const running = f.runtime.runProject({ manager: 'npm', script: 'dev' });
+    await vi.waitFor(() => expect(f.container.spawn).toHaveBeenCalledTimes(2));
     await f.runtime.writeProject('\u0003');
-    spawn.resolve(serve.process);
-    await vi.waitFor(() => expect(serve.process.kill).toHaveBeenCalledOnce());
-    serve.exit.resolve(0);
-    await vi.waitFor(() => expect(f.options.onProjectState).toHaveBeenLastCalledWith('stopped', 130));
+    spawn.reject(new Error('spawn cancelled'));
+    await running;
+    expect(f.options.onProjectState).toHaveBeenLastCalledWith('stopped', 130);
+    expect(f.options.onError).not.toHaveBeenCalled();
   });
 
-  it('首次 spawn 错误拒绝运行，后续启动错误报告但不销毁 Shell', async () => {
-    const f = fixture();
-    const install = projectProcess();
-    await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });
-    vi.mocked(f.container.spawn).mockRejectedValueOnce(new Error('install unavailable'));
-    await expect(f.runtime.runProject({ manager: 'npm', script: 'dev' })).rejects.toThrow('install unavailable');
-    expect(f.options.onProjectState).toHaveBeenLastCalledWith('stopped', -1);
-    vi.mocked(f.container.spawn)
-      .mockResolvedValueOnce(install.process)
-      .mockRejectedValueOnce(new Error('serve unavailable'));
-    await f.runtime.runProject({ manager: 'npm', script: 'dev' });
-    install.exit.resolve(0);
-    await vi.waitFor(() => expect(f.options.onError).toHaveBeenCalledWith(new Error('serve unavailable')));
-    expect(f.options.onProjectOutput).toHaveBeenLastCalledWith('\r\n项目进程启动失败：serve unavailable\r\n');
+  it('输入启动脚本失败时报告错误并结束运行，不销毁 Shell', async () => {
+    const f = await readyProject();
+    f.shell.writeInput.mockRejectedValueOnce(new Error('input closed'));
+    f.shell.begin(7);
+    f.shell.end(7, 0);
+    await vi.waitFor(() => expect(f.options.onError).toHaveBeenCalledWith(new Error('input closed')));
     expect(f.options.onProjectState).toHaveBeenLastCalledWith('stopped', -1);
     expect(f.container.teardown).not.toHaveBeenCalled();
     expect(f.process.kill).not.toHaveBeenCalled();
   });
 
-  it('取消期间迟到的 spawn 错误只结束取消状态，不伪装成启动失败', async () => {
-    const f = fixture();
-    const install = projectProcess();
-    const spawn = deferred<TerminalProcess>();
-    await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });
-    vi.mocked(f.container.spawn).mockResolvedValueOnce(install.process).mockReturnValueOnce(spawn.promise);
-    await f.runtime.runProject({ manager: 'npm', script: 'dev' });
-    install.exit.resolve(0);
+  it('项目终端退出时排空输出再报告 exited，之后忽略输入，下次运行重新启动终端', async () => {
+    const f = await readyProject();
+    const next = projectShell();
+    f.shell.output().enqueue('exit\r\n');
+    f.shell.exit.resolve(0);
+    await vi.waitFor(() => expect(f.options.onProjectState).toHaveBeenLastCalledWith('exited', 0));
+    expect(f.options.onProjectState).not.toHaveBeenCalledWith('stopped', expect.anything());
+    const output = f.options.onProjectOutput.mock.calls.findIndex(([value]) => value === 'exit\r\n');
+    const exited = f.options.onProjectState.mock.calls.findIndex(([state]) => state === 'exited');
+    expect(f.options.onProjectOutput.mock.invocationCallOrder[output]).toBeLessThan(
+      f.options.onProjectState.mock.invocationCallOrder[exited]
+    );
+    await f.runtime.writeProject('ignored\r');
+    expect(f.shell.writeInput).toHaveBeenCalledOnce();
+    vi.mocked(f.container.spawn).mockResolvedValueOnce(next.process);
+    const running = f.runtime.runProject({ manager: 'npm', script: 'dev' });
     await vi.waitFor(() => expect(f.container.spawn).toHaveBeenCalledTimes(3));
-    await f.runtime.writeProject('\u0003');
-    spawn.reject(new Error('spawn cancelled'));
-    await vi.waitFor(() => expect(f.options.onProjectState).toHaveBeenLastCalledWith('stopped', 130));
-    expect(f.options.onError).not.toHaveBeenCalled();
-    expect(f.options.onProjectOutput).not.toHaveBeenCalledWith(expect.stringContaining('spawn cancelled'));
+    next.ready();
+    await running;
+    expect(next.writeInput).toHaveBeenCalledExactlyOnceWith('npm install\r', expect.anything());
   });
 
-  it('停止同时等待 Shell 和项目进程，回写最后文件再释放所有流', async () => {
+  it('项目终端刚退出、输出还在排空时再次运行，直接启动新终端', async () => {
     const f = fixture();
-    const install = projectProcess();
+    const shell = projectShell(false);
+    const next = projectShell();
     await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });
-    vi.mocked(f.container.spawn).mockResolvedValueOnce(install.process);
-    await f.runtime.runProject({ manager: 'npm', script: 'dev' });
+    vi.mocked(f.container.spawn).mockResolvedValueOnce(shell.process).mockResolvedValueOnce(next.process);
+    const first = f.runtime.runProject({ manager: 'npm', script: 'dev' });
+    await vi.waitFor(() => expect(f.container.spawn).toHaveBeenCalledTimes(2));
+    shell.ready();
+    await first;
+    shell.begin(7);
+    shell.end(7, 1);
+    await vi.waitFor(() => expect(f.options.onProjectState).toHaveBeenLastCalledWith('stopped', 1));
+    shell.exit.resolve(0);
+    await vi.waitFor(() => expect(shell.process.input.locked).toBe(false));
+    const running = f.runtime.runProject({ manager: 'npm', script: 'dev' });
+    await vi.waitFor(() => expect(f.container.spawn).toHaveBeenCalledTimes(3));
+    next.ready();
+    await running;
+    expect(next.writeInput).toHaveBeenCalledExactlyOnceWith('npm install\r', expect.anything());
+    await vi.waitFor(() => expect(shell.process.output.locked).toBe(false), { timeout: 2000 });
+    expect(f.options.onProjectState).not.toHaveBeenCalledWith('exited', expect.anything());
+  });
+
+  it('项目终端退出但输出不关闭时，最多等 500ms 也会报告 exited', async () => {
+    vi.useFakeTimers();
+    const f = fixture();
+    const shell = projectShell(false);
+    await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });
+    vi.mocked(f.container.spawn).mockResolvedValueOnce(shell.process);
+    const running = f.runtime.runProject({ manager: 'npm', script: 'dev' });
+    await vi.advanceTimersByTimeAsync(0);
+    shell.ready();
+    await running;
+    shell.exit.resolve(1);
+    await vi.advanceTimersByTimeAsync(499);
+    expect(f.options.onProjectState).not.toHaveBeenCalledWith('exited', 1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(f.options.onProjectState).toHaveBeenLastCalledWith('exited', 1);
+    expect(shell.process.output.locked).toBe(false);
+    expect(shell.cancelOutput).not.toHaveBeenCalled();
+  });
+
+  it('停止同时等待 Shell 和项目终端，回写最后文件再释放所有流', async () => {
+    const f = await readyProject();
     f.process.kill.mockImplementation(() => f.exit.resolve(0));
-    vi.mocked(install.process.kill).mockImplementation(() => {
+    vi.mocked(f.shell.process.kill).mockImplementation(() => {
       f.files.set('package-lock.json', encoder.encode('installed'));
-      install.exit.resolve(0);
+      f.shell.exit.resolve(0);
     });
     await f.runtime.stop();
-    expect(install.process.kill).toHaveBeenCalledOnce();
+    expect(f.shell.process.kill).toHaveBeenCalledOnce();
     expect(f.options.onFiles).toHaveBeenCalledWith({ 'package-lock.json': 'installed' }, []);
     expect(f.container.teardown).toHaveBeenCalledOnce();
-    expect(f.options.onProjectState).not.toHaveBeenCalledWith('running');
-    expect(f.options.onProjectState).not.toHaveBeenCalledWith('stopped', 130);
+    expect(f.options.onProjectState).toHaveBeenCalledExactlyOnceWith('installing');
     await vi.waitFor(() => {
       expect(f.process.input.locked).toBe(false);
-      expect(install.process.input.locked).toBe(false);
-      expect(install.process.output.locked).toBe(false);
+      expect(f.shell.process.input.locked).toBe(false);
+      expect(f.shell.process.output.locked).toBe(false);
     });
     await expect(f.runtime.writeProject('late')).rejects.toThrow('释放');
     await expect(f.runtime.runProject({ manager: 'npm', script: 'dev' })).rejects.toThrow('释放');
   });
 
-  it('释放期间迟到项目进程被杀掉，不产生任何项目回调', async () => {
+  it('释放期间迟到的项目终端被杀掉，不产生任何项目回调', async () => {
     const f = fixture();
-    const install = projectProcess();
+    const shell = projectShell();
     const spawn = deferred<TerminalProcess>();
     await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });
     vi.mocked(f.container.spawn).mockReturnValueOnce(spawn.promise);
@@ -438,15 +495,33 @@ describe('浏览器 Node 终端运行时', () => {
     await vi.waitFor(() => expect(f.container.spawn).toHaveBeenCalledTimes(2));
     f.runtime.dispose();
     f.options.onProjectState.mockClear();
-    f.options.onProjectOutput.mockClear();
-    spawn.resolve(install.process);
+    spawn.resolve(shell.process);
+    shell.ready();
     await running;
-    install.exit.resolve(0);
+    shell.exit.resolve(0);
     await Promise.resolve();
-    expect(install.process.kill).toHaveBeenCalledOnce();
+    expect(shell.process.kill).toHaveBeenCalledOnce();
+    expect(shell.cancelOutput).not.toHaveBeenCalled();
+    expect(shell.writeInput).not.toHaveBeenCalled();
     expect(f.options.onProjectState).not.toHaveBeenCalled();
     expect(f.options.onProjectOutput).not.toHaveBeenCalled();
     expect(f.options.onError).not.toHaveBeenCalled();
+  });
+
+  it('项目终端就绪前释放，运行随之结束且不输入命令', async () => {
+    const f = fixture();
+    const shell = projectShell();
+    await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });
+    vi.mocked(f.container.spawn).mockResolvedValueOnce(shell.process);
+    const running = f.runtime.runProject({ manager: 'npm', script: 'dev' });
+    await vi.waitFor(() => expect(shell.process.output.locked).toBe(true));
+    f.runtime.dispose();
+    await running;
+    expect(shell.process.kill).toHaveBeenCalledOnce();
+    expect(shell.writeInput).not.toHaveBeenCalled();
+    expect(f.options.onProjectState).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(shell.process.output.locked).toBe(false));
+    expect(shell.cancelOutput).not.toHaveBeenCalled();
   });
 
   it('挂载已保存文件并连接真实 shell 的输入、输出、尺寸、服务地址和退出', async () => {
@@ -627,6 +702,8 @@ describe('浏览器 Node 终端运行时', () => {
     expect(f.options.onServerReady).not.toHaveBeenCalled();
     expect(f.options.onExit).not.toHaveBeenCalled();
     await expect(f.runtime.write('pwd\r')).rejects.toThrow('释放');
+    await vi.waitFor(() => expect(f.process.output.locked).toBe(false));
+    expect(f.cancelOutput).not.toHaveBeenCalled();
   });
 
   it('启动中释放后等待旧容器销毁才允许下一次 boot', async () => {

@@ -1,10 +1,10 @@
 {
-  "browser": "156.0.8078.4",
+  "browser": "156.0.8078.80",
   "cancelledRequests": [
-    "https://t.staticblitz.com/w/v17/r/l: net::ERR_ABORTED",
-    "https://i51bsmvvoqyy82p5n6c5nixotr3cto-bn1b--5173--f669633e.local-corp.webcontainer-api.io/: net::ERR_ABORTED",
-    "https://i51bsmvvoqyy82p5n6c5nixotr3cto-bn1b-z625ht2r--5173--f669633e.local-corp.webcontainer-api.io/: net::ERR_ABORTED",
-    "https://i51bsmvvoqyy82p5n6c5nixotr3cto-bn1b-z625ht2r--4200--f669633e.local-corp.webcontainer-api.io/: net::ERR_ABORTED"
+    "https://t.staticblitz.com/w/v18/r/l: net::ERR_ABORTED",
+    "https://v8u30pftzsbqg3xlop590pz5c6m30x-jw34--5173--c538bd87.local-corp.webcontainer-api.io/: net::ERR_ABORTED",
+    "https://v8u30pftzsbqg3xlop590pz5c6m30x-jw34-ttwq52jy--5173--c538bd87.local-corp.webcontainer-api.io/: net::ERR_ABORTED",
+    "https://v8u30pftzsbqg3xlop590pz5c6m30x-jw34-ttwq52jy--4200--c538bd87.local-corp.webcontainer-api.io/: net::ERR_ABORTED"
   ],
   "checks": [
     "node-shell-and-package-managers",
@@ -20,11 +20,9 @@
     "process-and-preview-cleanup"
   ],
   "consoleErrors": [],
-  "errors": ["Failed to execute 'close' on 'ReadableStreamDefaultController': Cannot close an errored readable stream"],
-  "failure": "Expected values to be strictly deep-equal:\n\u001b[32m+ actual\u001b[39m \u001b[31m- expected\u001b[39m\n\n\u001b[32m+\u001b[39m [\n\u001b[32m+\u001b[39m   \"Failed to execute 'close' on 'ReadableStreamDefaultController': Cannot close an errored readable stream\"\n\u001b[32m+\u001b[39m ]\n\u001b[31m-\u001b[39m []\n",
+  "errors": [],
   "format": "aiao.workbench.terminal",
-  "status": "failed",
-  "terminal": "尚未启动",
-  "url": "http://127.0.0.1:58576/?workbench-verify=1",
+  "status": "passed",
+  "url": "http://127.0.0.1:56539/?workbench-verify=1",
   "version": 1
 }

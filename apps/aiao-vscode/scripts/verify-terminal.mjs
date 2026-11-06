@@ -163,6 +163,9 @@ try {
   await expect(preview.locator('body')).toHaveText('AIAO_SERVER_OK', { timeout: 60000 });
   await page.screenshot({ path: '/tmp/aiao-terminal-verification.png' });
   await input.press('Control+c');
+  // jsh 中断后会重绘提示符，重绘期间输入会被行编辑器打乱光标；等新提示符出现再输入
+  await expect.poll(async () => /\^C[\s\S]*❯\s*$/.test(await screen.innerText())).toBe(true);
+  await page.waitForTimeout(500);
   await command("node -e \"console.log('AIAO_AFTER_'+'INTERRUPT')\"");
   await expect(screen).toContainText('AIAO_AFTER_INTERRUPT');
   checked('server-preview-and-control-c');

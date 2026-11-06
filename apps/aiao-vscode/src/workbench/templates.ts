@@ -26,7 +26,8 @@ function manifest(template: ProjectTemplate): string {
       private: true,
       version: '1.0.0',
       type: 'module',
-      scripts: { dev: 'vite', build: 'vite build', preview: 'vite preview' },
+      // vite 在 TTY 下启动会清屏，冲掉项目终端里的依赖安装过程
+      scripts: { dev: 'vite --clearScreen false', build: 'vite build', preview: 'vite preview' },
       dependencies,
       devDependencies
     },

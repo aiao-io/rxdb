@@ -349,6 +349,50 @@ describe('工作台交互终端', () => {
     expect(f.views[1]!.dispose).toHaveBeenCalledOnce();
   });
 
+  it('项目停止后输入仍交给项目终端，终端退出后不再转发，重新运行后恢复', async () => {
+    const f = await projectFixture();
+    await f.terminal.runProject();
+    f.runtimeOptions.onProjectState?.('stopped', 130);
+    f.viewCallbacks[1]!.onData('ls\r');
+    expect(f.runtime.writeProject).toHaveBeenLastCalledWith('ls\r');
+    f.runtimeOptions.onProjectState?.('exited', 0);
+    expect(f.host.querySelector('[data-terminal-status]')?.textContent).toBe('项目终端已退出 (0)');
+    f.viewCallbacks[1]!.onData('pwd\r');
+    expect(f.runtime.writeProject).not.toHaveBeenCalledWith('pwd\r');
+    await f.terminal.runProject();
+    expect(f.runtime.runProject).toHaveBeenCalledTimes(2);
+    f.viewCallbacks[1]!.onData('pwd\r');
+    expect(f.runtime.writeProject).toHaveBeenLastCalledWith('pwd\r');
+  });
+
+  it('项目终端仍在时运行被拒绝也照常转发输入，等待同步时 Ctrl+C 取消启动并交给项目终端', async () => {
+    const f = await projectFixture();
+    await f.terminal.runProject();
+    f.runtimeOptions.onProjectState?.('stopped', 0);
+    f.runtime.runProject.mockRejectedValueOnce(new Error('项目终端正在执行命令'));
+    await expect(f.terminal.runProject()).rejects.toThrow('正在执行命令');
+    f.viewCallbacks[1]!.onData('\u0003');
+    expect(f.runtime.writeProject).toHaveBeenLastCalledWith('\u0003');
+    let finish: () => void = () => undefined;
+    f.runtime.sync.mockImplementationOnce(
+      () =>
+        new Promise<void>(resolve => {
+          finish = resolve;
+        })
+    );
+    f.session.edit('main.js', 'pending sync');
+    await f.session.save();
+    const running = f.terminal.runProject();
+    await vi.waitFor(() => expect(f.host.querySelector('[data-terminal-status]')?.textContent).toBe('正在准备项目…'));
+    f.viewCallbacks[1]!.onData('\u0003');
+    expect(f.runtime.writeProject).toHaveBeenCalledTimes(2);
+    finish();
+    await running;
+    expect(f.runtime.runProject).toHaveBeenCalledTimes(2);
+    expect(f.host.querySelector('[data-terminal-status]')?.textContent).toBe('项目已停止');
+    expect(f.views[1]!.write).not.toHaveBeenCalledWith('^C\r\n');
+  });
+
   it('项目启动等待已经在同步的已保存文件，并追上启动过程中保存的新版本', async () => {
     const f = await projectFixture();
     await f.terminal.show();

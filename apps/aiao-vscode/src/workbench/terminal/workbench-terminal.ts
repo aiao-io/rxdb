@@ -63,6 +63,8 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
   let exited = false;
   let projectBusy = false;
   let projectLaunched = false;
+  /** 项目终端已在运行时里启动，运行结束后仍接收输入，直到它退出。 */
+  let projectTerminal = false;
   let savedRevision = '';
   let projectId = session.state.projectId;
   let selected: TerminalSession = 'shell';
@@ -120,6 +122,7 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
     exited = false;
     projectBusy = false;
     projectLaunched = false;
+    projectTerminal = false;
     savedRevision = '';
     bootFailure = undefined;
     conflicts.clear();
@@ -210,6 +213,7 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
     projectRequest++;
     projectBusy = false;
     projectLaunched = false;
+    projectTerminal = false;
     shellStatus = `已退出 (${code})`;
     projectStatus = '项目已停止';
     updateStatus();
@@ -271,10 +275,16 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
         },
         onProjectState(state, exitCode) {
           if (!isCurrent()) return;
-          projectBusy = state !== 'stopped';
-          projectLaunched = state !== 'stopped';
-          projectStatus = state === 'installing' ? '安装依赖' : '项目运行中';
-          if (state === 'stopped') projectStatus = `项目已停止${exitCode === undefined ? '' : ` (${exitCode})`}`;
+          const code = exitCode === undefined ? '' : ` (${exitCode})`;
+          projectBusy = state === 'installing' || state === 'running';
+          projectLaunched = projectBusy;
+          if (state === 'exited') projectTerminal = false;
+          projectStatus = {
+            installing: '安装依赖',
+            running: '项目运行中',
+            stopped: `项目已停止${code}`,
+            exited: `项目终端已退出${code}`
+          }[state];
           updateStatus();
         },
         async onFiles(files, removedPaths) {
@@ -363,13 +373,13 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
       projectRequest++;
       projectBusy = false;
       projectStatus = '项目已停止';
-      projectView?.write('^C\r\n');
+      // 项目终端还没启动时没有进程回显 ^C；已启动的终端会自己回显并换新提示符
+      if (!projectTerminal) projectView?.write('^C\r\n');
       updateStatus();
-      return;
     }
     const run = runtime;
     const runtimeGeneration = generation;
-    if (!projectLaunched || exited || !run) return;
+    if (!projectTerminal || exited || !run) return;
     void run.writeProject(data).catch(cause => {
       if (!active(current) || generation !== runtimeGeneration || runtime !== run) return;
       writeProjectError(cause);
@@ -423,6 +433,7 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
         if (!isCurrent()) return;
         const plan = projectRunPlan(session.getSavedSnapshot().files);
         projectLaunched = true;
+        projectTerminal = true;
         runtime.resizeProject({ cols: projectView?.cols ?? 80, rows: projectView?.rows ?? 24 });
         await runtime.runProject(plan);
         if (isCurrent()) focus();

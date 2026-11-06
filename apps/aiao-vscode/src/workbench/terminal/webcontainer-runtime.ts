@@ -64,7 +64,8 @@ export interface TerminalRuntimeOptions {
   onError(cause: unknown): void;
   onExit(code: number): void;
   onProjectOutput?(data: string): void;
-  onProjectState?(state: 'installing' | 'running' | 'stopped', exitCode?: number): void;
+  /** 项目运行阶段；`exited` 表示项目终端本身已退出，下次运行会重新启动。 */
+  onProjectState?(state: 'installing' | 'running' | 'stopped' | 'exited', exitCode?: number): void;
 }
 
 /** 当前项目独占的浏览器 Node 进程与文件同步。 */
@@ -81,11 +82,22 @@ export interface TerminalRuntime {
   dispose(): void;
 }
 
-interface ProjectStage {
+/** 项目终端：带状态标记的 jsh，「运行」把命令输入这里，和交互 Shell 互不干扰。 */
+interface ProjectShell {
   readonly process: TerminalProcess;
   readonly input: WritableStreamDefaultWriter<string>;
   readonly outputAbort: AbortController;
+  readonly waiters: Set<() => void>;
   outputDone: Promise<void>;
+  /** 上一块输出结尾尚未闭合的标记。 */
+  partial: string;
+  interactive: boolean;
+  /** 停在提示符，没有前台命令。 */
+  idle: boolean;
+  /** 输入命令后已收到它的 pid 标记。 */
+  started: boolean;
+  /** 最近一条命令的退出码。 */
+  status: number;
   killed: boolean;
   exited: boolean;
   inputClosed: boolean;
@@ -93,9 +105,7 @@ interface ProjectStage {
 
 interface ProjectExecution {
   readonly ready: Promise<void>;
-  readonly stages: Set<ProjectStage>;
   done: Promise<void>;
-  current: ProjectStage | undefined;
   active: boolean;
   cancelled: boolean;
 }
@@ -149,6 +159,42 @@ function fileTree(files: WorkbenchFiles): TerminalFileTree {
   return tree;
 }
 
+// jsh --osc 在输出里夹带 ESC ] 654 ; <标记> BEL：interactive、prompt、pid=N、exit=pid:code，xterm 不显示它们
+const MARKER_START = '\u001b]654;';
+const MARKER_END = '\u0007';
+const MARKER_LIMIT = 64;
+
+/** 把每个完整标记交给 visit，返回结尾尚未闭合、要拼上下一块输出再解析的部分。 */
+function parseMarkers(text: string, visit: (marker: string) => void): string {
+  let start = text.indexOf(MARKER_START);
+  while (start >= 0) {
+    const end = text.indexOf(MARKER_END, start);
+    if (end < 0) return text.length - start > MARKER_LIMIT ? '' : text.slice(start);
+    visit(text.slice(start + MARKER_START.length, end));
+    start = text.indexOf(MARKER_START, end);
+  }
+  const escape = text.lastIndexOf('\u001b');
+  const tail = escape < 0 ? '' : text.slice(escape);
+  return MARKER_START.startsWith(tail) ? tail : '';
+}
+
+function readMarker(shell: ProjectShell, marker: string): void {
+  if (marker === 'interactive') shell.interactive = true;
+  if (marker === 'prompt') shell.idle = true;
+  if (marker.startsWith('pid=')) {
+    shell.idle = false;
+    shell.started = true;
+  }
+  const code = /^exit=-?\d+:(-?\d+)$/.exec(marker)?.[1];
+  if (code !== undefined) shell.status = Number(code);
+}
+
+const installCommand = (plan: TerminalProjectPlan): string =>
+  plan.manager === 'pnpm' ? 'pnpm install --no-frozen-lockfile' : 'npm install';
+
+/** 停止读取时只断开、不取消源流：WebContainer 在进程结束时才关闭输出，源流已取消会抛未捕获异常。 */
+const detachOutput = (signal: AbortSignal): StreamPipeOptions => ({ signal, preventCancel: true });
+
 /** 懒加载 WebContainer，按项目串行启动并双向同步已保存源码。 */
 export function createWebContainerRuntime(options: TerminalRuntimeOptions): TerminalRuntime {
   let disposed = false;
@@ -169,6 +215,7 @@ export function createWebContainerRuntime(options: TerminalRuntimeOptions): Term
   let observedFiles: WorkbenchFiles = {};
   let observedDirectories = new Set<string>();
   let project: ProjectExecution | undefined;
+  let projectShell: ProjectShell | undefined;
   let projectSize: TerminalSize = { cols: 80, rows: 24 };
   const outputAbort = new AbortController();
 
@@ -204,10 +251,10 @@ export function createWebContainerRuntime(options: TerminalRuntimeOptions): Term
     process.kill();
   }
 
-  function killProjectStage(stage: ProjectStage): void {
-    if (stage.killed || stage.exited) return;
-    stage.killed = true;
-    stage.process.kill();
+  function killProjectShell(shell: ProjectShell): void {
+    if (shell.killed || shell.exited) return;
+    shell.killed = true;
+    shell.process.kill();
   }
 
   function closeInput(writer: WritableStreamDefaultWriter<string>): void {
@@ -219,26 +266,32 @@ export function createWebContainerRuntime(options: TerminalRuntimeOptions): Term
       });
   }
 
-  function closeProjectInput(stage: ProjectStage): void {
-    if (stage.inputClosed) return;
-    stage.inputClosed = true;
-    closeInput(stage.input);
+  function closeProjectInput(shell: ProjectShell): void {
+    if (shell.inputClosed) return;
+    shell.inputClosed = true;
+    closeInput(shell.input);
   }
 
-  function closeProjectStreams(execution: ProjectExecution): void {
-    execution.stages.forEach(stage => {
-      stage.outputAbort.abort();
-      closeProjectInput(stage);
+  const wake = (shell: ProjectShell): void => shell.waiters.forEach(check => check());
+
+  /** 等项目终端满足条件；终端已退出或运行时已释放时得到 false。 */
+  function until(shell: ProjectShell, ready: () => boolean): Promise<boolean> {
+    return new Promise(resolve => {
+      const check = (): void => {
+        const gone = disposed || shell.exited;
+        if (!gone && !ready()) return;
+        shell.waiters.delete(check);
+        resolve(!gone);
+      };
+      shell.waiters.add(check);
+      check();
     });
   }
 
+  /** 停止或释放：取消进行中的运行，杀掉项目终端。 */
   function cancelProject(): void {
-    if (!project) return;
-    project.cancelled = true;
-    project.stages.forEach(stage => {
-      killProjectStage(stage);
-      stage.outputAbort.abort();
-    });
+    if (project) project.cancelled = true;
+    if (projectShell) killProjectShell(projectShell);
   }
 
   function dispose(): void {
@@ -249,7 +302,11 @@ export function createWebContainerRuntime(options: TerminalRuntimeOptions): Term
     outputAbort.abort();
     killProcess();
     cancelProject();
-    if (project) closeProjectStreams(project);
+    if (projectShell) {
+      projectShell.outputAbort.abort();
+      closeProjectInput(projectShell);
+      wake(projectShell);
+    }
     if (input) closeInput(input);
     input = undefined;
     if (container) release();
@@ -281,66 +338,17 @@ export function createWebContainerRuntime(options: TerminalRuntimeOptions): Term
 
   function finishProject(execution: ProjectExecution, code: number): void {
     execution.active = false;
-    execution.current = undefined;
     setProjectState(execution, 'stopped', execution.cancelled ? 130 : code);
   }
 
-  async function spawnProjectStage(
-    execution: ProjectExecution,
-    command: string,
-    args: string[]
-  ): Promise<ProjectStage> {
-    if (!container) throw new Error('终端尚未启动');
-    options.onProjectOutput?.(`\r\n$ ${command} ${args.join(' ')}\r\n`);
-    const child = await container.spawn(command, args, { terminal: projectSize });
-    const stage: ProjectStage = {
-      process: child,
-      input: child.input.getWriter(),
-      outputAbort: new AbortController(),
-      outputDone: Promise.resolve(),
-      killed: false,
-      exited: false,
-      inputClosed: false
-    };
-    execution.current = stage;
-    execution.stages.add(stage);
-    if (disposed || stopping || execution.cancelled) killProjectStage(stage);
-    if (disposed || stopping) {
-      closeProjectStreams(execution);
-      void child.output.cancel().catch(() => undefined);
-      return stage;
-    }
-    stage.outputDone = child.output
-      .pipeTo(
-        new WritableStream<string>({
-          write(data) {
-            if (!disposed && project === execution) options.onProjectOutput?.(data);
-          }
-        }),
-        { signal: stage.outputAbort.signal }
-      )
-      .catch(cause => {
-        if (!stage.outputAbort.signal.aborted && project === execution) report(cause);
-      });
-    return stage;
-  }
-
-  async function projectStageExit(execution: ProjectExecution, stage: ProjectStage): Promise<number> {
-    let code: number;
-    try {
-      code = await stage.process.exit;
-    } finally {
-      stage.exited = true;
-      if (execution.current === stage) execution.current = undefined;
-      closeProjectInput(stage);
-    }
+  async function drainProjectOutput(shell: ProjectShell): Promise<void> {
     let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
       await Promise.race([
-        stage.outputDone,
+        shell.outputDone,
         new Promise<void>(resolve => {
           timeout = setTimeout(() => {
-            stage.outputAbort.abort();
+            shell.outputAbort.abort();
             resolve();
           }, 500);
         })
@@ -348,8 +356,71 @@ export function createWebContainerRuntime(options: TerminalRuntimeOptions): Term
     } finally {
       clearTimeout(timeout);
     }
-    return code;
   }
+
+  /** 项目终端退出：排空剩余输出再报告 exited，下次运行重新启动终端。 */
+  async function closeProjectShell(shell: ProjectShell, code: number): Promise<void> {
+    shell.exited = true;
+    closeProjectInput(shell);
+    wake(shell);
+    await drainProjectOutput(shell);
+    if (projectShell !== shell) return;
+    projectShell = undefined;
+    if (project) project.active = false;
+    if (!disposed && !stopping) options.onProjectState?.('exited', code);
+  }
+
+  async function openProjectShell(): Promise<ProjectShell> {
+    if (!container) throw new Error('终端尚未启动');
+    const child = await container.spawn('jsh', ['--osc'], { terminal: projectSize });
+    if (disposed || stopping) {
+      child.kill();
+      throw new Error('终端已停止');
+    }
+    const shell: ProjectShell = {
+      process: child,
+      input: child.input.getWriter(),
+      outputAbort: new AbortController(),
+      waiters: new Set(),
+      outputDone: Promise.resolve(),
+      partial: '',
+      interactive: false,
+      idle: false,
+      started: false,
+      status: 0,
+      killed: false,
+      exited: false,
+      inputClosed: false
+    };
+    projectShell = shell;
+    shell.outputDone = child.output
+      .pipeTo(
+        new WritableStream<string>({
+          write(data) {
+            if (disposed || projectShell !== shell) return;
+            options.onProjectOutput?.(data);
+            shell.partial = parseMarkers(shell.partial + data, marker => readMarker(shell, marker));
+            wake(shell);
+          }
+        }),
+        detachOutput(shell.outputAbort.signal)
+      )
+      .catch(cause => {
+        if (!shell.outputAbort.signal.aborted && projectShell === shell) report(cause);
+      });
+    void child.exit.then(code => closeProjectShell(shell, code), report);
+    return shell;
+  }
+
+  /** 像用户一样在提示符后输入命令，回显、耗时与提示符都由 jsh 输出。 */
+  async function typeCommand(shell: ProjectShell, command: string): Promise<void> {
+    shell.idle = false;
+    shell.started = false;
+    await shell.input.write(`${command}\r`);
+  }
+
+  /** 等刚输入的命令结束并回到提示符；终端先退出时得到 false。 */
+  const commandSettled = (shell: ProjectShell): Promise<boolean> => until(shell, () => shell.started && shell.idle);
 
   async function executeProject(
     execution: ProjectExecution,
@@ -357,31 +428,31 @@ export function createWebContainerRuntime(options: TerminalRuntimeOptions): Term
     accept: () => void,
     reject: (cause: unknown) => void
   ): Promise<void> {
+    const halted = (): boolean => disposed || stopping || execution.cancelled;
     let ready = false;
     try {
       await started;
-      if (disposed || stopping || execution.cancelled) {
+      // 退出的终端可能还在排空输出，不必等它报告 exited，直接换新终端
+      const shell = projectShell && !projectShell.exited ? projectShell : await openProjectShell();
+      const usable = await until(shell, () => shell.interactive);
+      if (halted()) {
         accept();
         return finishProject(execution, 130);
       }
+      if (!usable) throw new Error('项目终端已退出，请重新运行');
+      if (!shell.idle) throw new Error('项目终端正在执行命令，请先结束当前命令再运行');
       setProjectState(execution, 'installing');
-      const installArgs = plan.manager === 'pnpm' ? ['install', '--no-frozen-lockfile'] : ['install'];
-      const install = await spawnProjectStage(execution, plan.manager, installArgs);
+      await typeCommand(shell, installCommand(plan));
       accept();
       ready = true;
-      const installed = await projectStageExit(execution, install);
-      if (disposed || stopping || execution.cancelled || installed !== 0) return finishProject(execution, installed);
-      const child = await spawnProjectStage(execution, plan.manager, ['run', plan.script]);
-      if (!execution.cancelled) setProjectState(execution, 'running');
-      finishProject(execution, await projectStageExit(execution, child));
+      if (!(await commandSettled(shell))) return;
+      if (halted() || shell.status !== 0) return finishProject(execution, shell.status);
+      await typeCommand(shell, `${plan.manager} run ${plan.script}`);
+      if (!halted()) setProjectState(execution, 'running');
+      if (await commandSettled(shell)) finishProject(execution, shell.status);
     } catch (cause) {
-      const cancelled = disposed || stopping || execution.cancelled;
-      if (!cancelled && project === execution)
-        options.onProjectOutput?.(
-          `\r\n项目进程启动失败：${cause instanceof Error ? cause.message : String(cause)}\r\n`
-        );
       finishProject(execution, -1);
-      if (cancelled) return accept();
+      if (halted()) return accept();
       if (ready) report(cause);
       else reject(cause);
     }
@@ -391,21 +462,13 @@ export function createWebContainerRuntime(options: TerminalRuntimeOptions): Term
     if (disposed) return Promise.reject(new Error('终端已释放'));
     if (stopping) return Promise.reject(new Error('终端正在停止'));
     if (project?.active) return project.ready;
-    if (project) closeProjectStreams(project);
     let accept!: () => void;
     let reject!: (cause: unknown) => void;
     const ready = new Promise<void>((resolve, decline) => {
       accept = resolve;
       reject = decline;
     });
-    const execution: ProjectExecution = {
-      ready,
-      done: Promise.resolve(),
-      stages: new Set(),
-      current: undefined,
-      active: true,
-      cancelled: false
-    };
+    const execution: ProjectExecution = { ready, done: Promise.resolve(), active: true, cancelled: false };
     project = execution;
     execution.done = executeProject(execution, plan, accept, reject);
     return ready;
@@ -526,7 +589,7 @@ export function createWebContainerRuntime(options: TerminalRuntimeOptions): Term
               if (!disposed) options.onOutput(data);
             }
           }),
-          { signal: outputAbort.signal }
+          detachOutput(outputAbort.signal)
         )
         .catch(report);
       void process.exit
@@ -570,20 +633,14 @@ export function createWebContainerRuntime(options: TerminalRuntimeOptions): Term
     runProject,
     async writeProject(data) {
       if (disposed) throw new Error('终端已释放');
-      const execution = project;
-      if (!execution?.active) throw new Error('当前没有运行中的项目进程');
-      if (data.includes('\u0003')) {
-        execution.cancelled = true;
-        if (!execution.current) return;
-      }
-      await execution.ready;
-      if (disposed) throw new Error('终端已释放');
-      if (!execution.active || !execution.current) return;
-      await execution.current.input.write(data);
+      if (data.includes('\u0003') && project?.active) project.cancelled = true;
+      const shell = projectShell;
+      // 项目终端还在启动或已经退出时没有接收方，Ctrl+C 只用于取消运行
+      if (shell && !shell.exited) await shell.input.write(data);
     },
     resizeProject(size) {
       projectSize = size;
-      if (!disposed) project?.current?.process.resize(size);
+      if (!disposed) projectShell?.process.resize(size);
     },
     sync(snapshot) {
       return enqueue(async () => {
@@ -648,9 +705,10 @@ export function createWebContainerRuntime(options: TerminalRuntimeOptions): Term
       stopping = true;
       stoppingPromise = (async () => {
         if (!process) return dispose();
+        const shell = projectShell;
         killProcess();
         cancelProject();
-        await waitForExit(Promise.all([process.exit, project?.done]));
+        await waitForExit(Promise.all([process.exit, shell?.process.exit, project?.done]));
         await flush();
         dispose();
       })().finally(() => {
