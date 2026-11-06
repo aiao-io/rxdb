@@ -147,7 +147,7 @@ try {
     await run.click();
     await expect(run).toBeEnabled();
     await expect(root.locator('.wb-server-preview')).toHaveCount(1);
-    await expect(screen).toHaveText(runningOutput);
+    await expect.poll(() => screen.innerText()).toBe(runningOutput);
     await input.press('Control+c');
     await expect(terminal.locator('[data-terminal-status]')).toContainText('项目已停止', { timeout: 30000 });
     await terminal.locator('[data-terminal-session="shell"]').click();
