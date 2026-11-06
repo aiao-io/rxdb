@@ -1,43 +1,11 @@
-import type { RxDB, TransactionExecutor } from '@aiao/rxdb';
+import type { RxDB } from '@aiao/rxdb';
 import { concat, defer, firstValueFrom, from, of, type Observable } from 'rxjs';
 import { explodeBom } from './quantity/explosion-api.js';
 import { scopedBomAdapter } from './resolve/bom-adapter.js';
-import { bomSqlDialectFor, type BomSqlDialect } from './resolve/bom-sql.js';
+import { bomSqlDialectFor } from './resolve/bom-sql.js';
 import { expandBom } from './resolve/expansion-api.js';
 import { viewItemIds } from './view-projection.js';
 import type { BomViewInput, BomViewSnapshot } from './view-types.js';
-
-/** 物料 IN 列表的分块大小（避开两后端的绑定变量上限，与展开同口径）。 */
-const CHUNK_SIZE = 200;
-
-type ViewItem = BomViewSnapshot['items'][number];
-
-const byId = (left: ViewItem, right: ViewItem): number => (left.id < right.id ? -1 : Number(left.id > right.id));
-
-/** 分块取物料显示信息；合并后按 id 排序，与单条 `ORDER BY "id"` 同序，快照指纹不随分块变化。 */
-const readViewItems = async (
-  executor: TransactionExecutor,
-  dialect: BomSqlDialect,
-  ids: readonly string[]
-): Promise<ViewItem[]> => {
-  const items: ViewItem[] = [];
-  for (let offset = 0; offset < ids.length; offset += CHUNK_SIZE) {
-    const chunk = ids.slice(offset, offset + CHUNK_SIZE);
-    const result = await executor.query(
-      `SELECT "id", "itemNo", "description" FROM ${dialect.table('item')} WHERE "id" IN (${chunk.map((_, index) => dialect.placeholder(index)).join(', ')})`,
-      chunk
-    );
-    const indexOf = (column: string) => result.columns.indexOf(column);
-    for (const row of result.rows) {
-      items.push({
-        id: String(row[indexOf('id')]),
-        itemNo: String(row[indexOf('itemNo')]),
-        description: row[indexOf('description')] == null ? null : String(row[indexOf('description')])
-      });
-    }
-  }
-  return items.sort(byId);
-};
 
 /** 在单个读事务中取得结构、数量和显示信息，供查询及完整消费复用。 */
 export const readBomViewSnapshot = async (db: RxDB, input: BomViewInput): Promise<BomViewSnapshot> => {
@@ -56,7 +24,12 @@ export const readBomViewSnapshot = async (db: RxDB, input: BomViewInput): Promis
     } catch (error) {
       quantityError = error;
     }
-    const items = await readViewItems(executor, bomSqlDialectFor(adapter.name), viewItemIds({ expansion, explosion }));
+    const { readBomViewItems } = await import('./view-items.js');
+    const items = await readBomViewItems(
+      executor,
+      bomSqlDialectFor(adapter.name),
+      viewItemIds({ expansion, explosion })
+    );
     return { expansion, explosion, quantityError, items, refreshing: false };
   }, false);
 };

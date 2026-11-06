@@ -5,7 +5,7 @@ status: In Review
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-11-06
+updated: 2026-11-07
 tags: [domain, bom, angular, react, vue, ui]
 ---
 
@@ -106,7 +106,9 @@ AC#10 是它在路径维度上的同一要求：同一子装配经两条路径�
 - `packages/rxdb-plugin-bom-angular/`、`packages/rxdb-plugin-bom-react/`、`packages/rxdb-plugin-bom-vue/` — 同名绑定与可复用树/行编辑器
 - `modules/e2e-parity/bom-view-parity.mjs` — 三端同一份业务与真实DOM引用断言
 
-## 最终验收
+## 历史验收
+
+以下为 2026-10 的切片记录；当前 YAML 状态仍为 In Review。2026-11-07 的最终集成收尾以[收尾任务](../../../apps/aiao-bom/requirements/plans/bom-completion-tasks.md)为准。
 
 三端绑定/组件Angular15、React17、Vue18全部通过，四项分别99.01/100/100/98.66、89.31/87.30/95.34/92.59、100/97.36/100/100%。React aria-selected、Angular/React叶子Space与disabled submit三处对称性差异经7条增强行为先红后绿后完成最小修复。
 
@@ -114,7 +116,7 @@ AC#10 是它在路径维度上的同一要求：同一子装配经两条路径�
 
 独立demo24/24（2026-10-18时点）、领域886、搜索Node299/browser52真实合并、Tauri及恢复后的PGlite产物通过；8包官方覆盖率审计逐包执行8次全部EXIT0，AC#1及整故事已Done。
 
-各轮真实失败、主动中断、OPFS/搜索修复、Angular1622.6ms失败与1340ms控制及原始报告均保留在[020记录](../../../specs/020-bom-slice-10/quickstart.md)，最终证据见[验收结果](../../../specs/021-bom-closure/closure-map.md)。三端workers=1，预算及零重试保持；CI 共享 runner 上的首屏断言另按实测校准为 3600ms、输入 p95 仍为 100ms，见验收结果的 2026-10-19 补记。
+各轮真实失败、主动中断、OPFS/搜索修复、Angular1622.6ms失败与1340ms控制及原始报告均保留在[020记录](../../../specs/020-bom-slice-10/quickstart.md)，最终证据见[验收结果](../../../specs/021-bom-closure/closure-map.md)。三端 workers=1、零重试。2026-10-19 曾采用 CI 3600ms 阈值，该历史记录保留；自 2026-10-25 起，现行共享用例在本地与 CI 均断言 `firstDataMs < 1500`、输入至 DOM 更新 `p95 < 100ms`。`firstDataMs` 从种子/数据就绪起计至 100 节点可见，排除数据库连接、WASM 与种子装载，不是冷导航耗时，也不是首屏 p95。输入测量保留 2 次预热和 20 个原始样本。
 
 ## References
 

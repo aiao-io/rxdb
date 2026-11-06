@@ -1325,6 +1325,9 @@ importers:
       '@aiao/rxdb-devtools':
         specifier: workspace:*
         version: link:../packages/rxdb-devtools
+      '@aiao/rxdb-plugin-bom':
+        specifier: workspace:*
+        version: link:../packages/rxdb-plugin-bom
       '@aiao/rxdb-plugin-history':
         specifier: workspace:*
         version: link:../packages/rxdb-plugin-history
