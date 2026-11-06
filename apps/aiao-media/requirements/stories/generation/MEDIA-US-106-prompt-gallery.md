@@ -7,7 +7,7 @@ status: In Progress
 priority: Medium
 epic: MEDIA-EPIC-002
 created: 2026-10-02
-updated: 2026-10-29
+updated: 2026-11-06
 dependsOn: []
 tags: [image, prompts, gallery, web, inspiration, tiptap, template-input]
 ---
@@ -26,7 +26,7 @@ tags: [image, prompts, gallery, web, inspiration, tiptap, template-input]
 
 ### In Scope
 
-- `/` 提供随应用静态发布的 12 条图片模板，覆盖产品海报、人像头像、插画绘本、创意设计四类用途；支持关键词搜索、分类筛选、完整提示词详情和复制。桌面采用图片卡片网格，键盘可打开和关闭详情。
+- `/` 是纯图片的瀑布流首页，提供随应用静态发布的 12 条图片模板，覆盖产品海报、人像头像、插画绘本、创意设计四类用途；支持关键词搜索、分类筛选、完整提示词详情和复制。每条灵感一张按真实宽高比显示的封面卡（标题、作者和「参考示例 / 原创示意」标注），按主区宽度分列并依次放入最矮的一列，手机至少两列；首页不放创作表单，创作入口是侧栏「生成图片」和顶栏「进入创作」。键盘可打开和关闭详情，详情把媒体完整显示在独立的舞台里，另一侧是提示词、来源和套用入口。
 - 模板记录稳定 ID、版本、正文、可选参数文档与字段定义、示例图、作者/来源与可用依据。社区参考示例和原创构图示意明确标注，不作为本产品生成结果或模型支持证据；来源未知时不伪造作者或效果承诺。
 - 套用前保护当前正文、模板字段值与草稿；已有修改时明确确认替换，取消或校验失败保留原内容。套用只修改创作输入，不调用模型、不上传文件、不切换供应商；本机草稿保存由 MEDIA-US-301 负责。
 - Tiptap 使用既有 `PromptInput` 与 `PromptState`，只支持文本、段落、换行、撤销/重做和声明的 `templateField` 行内参数。普通模板直接编辑，参数模板复用既有字段能力，不引入第二套编辑器或通用工具栏。
@@ -40,6 +40,7 @@ tags: [image, prompts, gallery, web, inspiration, tiptap, template-input]
 
 - 通用富文本编辑、任意 HTML/Markdown 导入、图片/附件嵌入、表达式/条件/循环模板和模板制作后台。
 - 用户投稿、收藏/点赞、公开社区、自动抓取第三方内容、自动改写、Tiptap AI/Cloud 与多人协同。
+- 视频、GIF 等非静态图片媒体：目录校验当前只收 JPEG 与 SVG；详情的媒体舞台已与文案栏分离，扩展时需同时放宽目录校验、登记封面尺寸并补上对应的详情渲染。
 - 参考图上传、自动应用模型/参数或对参考效果复现作保证；模板名出现某模型不代表应用已验证该模型。
 - 移动设备真实输入法与文件能力验收。
 
@@ -55,6 +56,7 @@ tags: [image, prompts, gallery, web, inspiration, tiptap, template-input]
 | 6   | 本机草稿收到自身保存回执或跨标签更新 | 继续输入                         | 自身回执不重置编辑器；外部冲突由用户选择，不覆盖未保存输入 | ✅   |
 | 7   | 桌面浏览器、真实操作系统中文输入法   | 正文/字段输入、粘贴、撤销重做    | 不丢字、不抢焦点、无布局溢出                               | ⚠️   |
 | 8   | 图片或编辑器资源加载失败             | 查看正文、复制或重试初始化       | 错误可见，输入保留；不把未解析模板作为有效请求提交         | ✅   |
+| 9   | 应用目录已加载                       | 在桌面和手机宽度打开 `/`         | 只有图片卡片、多列并排；点开完整显示，Esc 关闭回卡片       | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过。
 
@@ -62,12 +64,15 @@ tags: [image, prompts, gallery, web, inspiration, tiptap, template-input]
 
 当前复用 Tiptap `3.31.3` 最小扩展与同源运行时。`aiao-media:test` 中的提示词状态、焦点与草稿会话测试覆盖序列化及编辑状态；`aiao-media-e2e:local-first-e2e` 验证字段撤销/重做、画幅与字段刷新恢复、模板替换后清空旧撤销历史、真实双标签草稿冲突保留/载入选择，以及图片失败提示与编辑器失败后重试保留输入；见[可靠性验收](../../plans/local-reliability-verification.md)。自身保存回执不重置编辑器另有 `studio-draft-session.spec.ts` 状态机证据。桌面真实操作系统 IME 仍待验收，不用合成 composition 事件代替：入口 `aiao-media-e2e:desktop-ime-acceptance` 由 System Events 向 macOS 简体拼音发送物理按键，系统输入法负责组字，覆盖正文/字段输入、组字中途自动保存、粘贴、撤销重做、焦点、布局与刷新恢复；运行需要给 VS Code 开辅助功能权限，期间不能操作键鼠。入口尚未实跑，按 D-09 本轮跳过；移动端不作为当前关闭条件。
 
-界面参考与静态示例保留在[设计资料](../../design/image-mvp/README.md)；其中三页原型用于布局参考，当前产品另含设置页（供应商、同步、本机数据三个分区）。300 ms 自动保存和 CAS 冲突规则见[本机草稿说明](../local-first/local-first-studio.md)。
+首页瀑布流由 [inspiration-feed.spec.ts](../../../src/app/inspiration-feed.spec.ts)（封面比例逐张对照 `public/` 下的图片文件、分列算法）、[element-width.directive.spec.ts](../../../src/app/element-width.directive.spec.ts) 和 [discover-feed.spec.ts](../../../src/app/discover-feed.spec.ts)（分列、卡片标注、详情、加载失败态、创作页不再含瀑布流）覆盖；`aiao-media-e2e:local-first-e2e` 另验证多列并排、Esc 关闭后焦点回到卡片、离线冷开后六张参考图可解码和手机宽度无横向溢出。
+
+界面参考与静态示例保留在[设计资料](../../design/image-mvp/README.md)；其中三页原型用于布局参考，当前产品另含设置页（供应商、同步、本机数据三个分区），首页已改为纯图片瀑布流，原型里的英雄区与卡片网格仅作历史参考。300 ms 自动保存和 CAS 冲突规则见[本机草稿说明](../local-first/local-first-studio.md)。
 
 ## 实现文件
 
 - [当前静态模板目录](../../../src/app/image-mvp-catalog.ts)
 - [目录结构与校验](../../../src/app/prompts/prompt-catalog.ts)
+- [瀑布流分列与封面比例](../../../src/app/inspiration-feed.ts)及[元素宽度观察](../../../src/app/element-width.directive.ts)
 - [提示词状态与序列化](../../../src/app/prompts/prompt-state.ts)及[单元测试](../../../src/app/prompts/prompt-state.spec.ts)
 - [Tiptap 输入组件](../../../src/app/prompts/prompt-input.ts)、[运行时](../../../src/app/prompts/prompt-editor-runtime.ts)及[焦点保护](../../../src/app/prompts/prompt-focus.ts)
 - [草稿会话](../../../src/app/prompts/studio-draft-session.ts)

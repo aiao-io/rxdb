@@ -57,7 +57,9 @@ import {
   type BackupWorkspace
 } from './backup-workspaces';
 import { DEFAULT_FREE_PROVIDER, DEFAULT_FREE_PROVIDER_ID, defaultFreeProvider } from './default-provider';
+import { ElementWidthDirective } from './element-width.directive';
 import { imageMvpCatalog } from './image-mvp-catalog';
+import { authorInitial, columnCount, coverRatio, distribute } from './inspiration-feed';
 import {
   generateLocalImage,
   providerBase,
@@ -162,7 +164,15 @@ const emptyLibrary = (): LibraryState => ({
 });
 @Component({
   selector: 'app-root',
-  imports: [FormsModule, PromptInput, AdminConsole, WorkVisibleDirective, PlatformStudio, SyncTargetSettings],
+  imports: [
+    FormsModule,
+    PromptInput,
+    AdminConsole,
+    WorkVisibleDirective,
+    ElementWidthDirective,
+    PlatformStudio,
+    SyncTargetSettings
+  ],
   templateUrl: './local-image-mvp.html',
   host: { class: 'image-mvp' },
   encapsulation: ViewEncapsulation.None,
@@ -220,6 +230,8 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   readonly resultMimeType = signal<ImageMimeType | null>(null);
   readonly imageExtension = imageExtension;
   readonly formatBytes = formatBytes;
+  readonly coverRatio = coverRatio;
+  readonly authorInitial = authorInitial;
   readonly workspaceSwitching = signal(false);
   readonly identityBlocked = signal(false);
   readonly sync = signal<ProductWorkspaceState>({
@@ -273,6 +285,11 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         words.every(w => `${t.title} ${t.prompt} ${t.tags.join(' ')}`.toLocaleLowerCase().includes(w))
     );
   });
+  /** 瀑布流容器的内容宽度；量到之前为 0，不渲染任何列。 */
+  readonly feedWidth = signal(0);
+  readonly feedColumns = computed(() =>
+    this.feedWidth() ? distribute(this.filtered(), columnCount(this.feedWidth())) : []
+  );
   readonly detail = signal<PromptTemplate | null>(null);
   readonly failedTemplateImages = signal(new Set<string>());
   readonly selected = signal<PromptTemplate | null>(null);
@@ -620,6 +637,10 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   openTemplate(template: PromptTemplate, event: Event) {
     this.dialogTrigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
     this.detail.set(template);
+  }
+  /** 容器被隐藏时宽度为 0，保持原有分列，恢复显示后再按真实宽度重排。 */
+  feedWidthChange(width: number) {
+    if (width > 0) this.feedWidth.set(width);
   }
   resetGallery() {
     this.search.set('');

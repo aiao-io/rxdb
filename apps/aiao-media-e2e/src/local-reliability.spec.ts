@@ -24,35 +24,35 @@ const generate = async (page: Page) => {
   await expect(page.getByText('已保存到本机', { exact: true })).toBeVisible();
 };
 
-test('首页工作台输入在灵感筛选和页面切换后保留，不自动生成', async ({ page }) => {
+test('创作输入在浏览灵感、筛选和页面切换后保留，不自动生成', async ({ page }) => {
   await provider(page);
   let calls = 0;
   await page.route(endpoint, route => {
     calls++;
     return route.abort('blockedbyclient');
   });
-  await page.getByRole('link', { name: '发现灵感', exact: true }).click();
-  await expect(page).toHaveURL(/\/$/);
+  await page.getByRole('link', { name: '生成图片', exact: true }).click();
+  await expect(page).toHaveURL(/\/create$/);
   const editor = page.locator('[contenteditable=true]');
   await expect(editor).toBeVisible();
   const draft = '窗边的一杯拿铁，清晨自然光与安静的木质空间';
   await editor.fill(draft);
   await expect(page.getByText('输入已保存到本机', { exact: true })).toBeVisible();
+  await page.getByRole('link', { name: '发现灵感', exact: true }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.locator('[contenteditable=true]')).toHaveCount(0);
   await page.getByRole('button', { name: '产品海报', exact: true }).click();
   await page.getByRole('searchbox', { name: '搜索灵感' }).fill('咖啡');
   await expect(page.getByRole('button', { name: '查看把一杯咖啡，拍成一张好海报', exact: true })).toBeVisible();
-  await expect(editor).toContainText(draft);
   await page.getByRole('link', { name: '生成图片', exact: true }).click();
   await expect(page).toHaveURL(/\/create$/);
-  await expect(editor).toContainText(draft);
-  await page.getByRole('link', { name: '发现灵感', exact: true }).click();
   await expect(editor).toContainText(draft);
   await page.reload();
   await expect(editor).toContainText(draft);
   expect(calls).toBe(0);
 });
 
-test('首页工作台直接生成并保存作品，刷新后不重复请求', async ({ page }) => {
+test('创作页直接生成并保存作品，刷新后不重复请求', async ({ page }) => {
   await provider(page);
   const png = await pngFixture();
   let calls = 0;
@@ -61,10 +61,10 @@ test('首页工作台直接生成并保存作品，刷新后不重复请求', as
     expect(route.request().postDataJSON().prompt).toBe('清晨窗边的咖啡，温暖的胶片风格');
     return route.fulfill({ json: { data: [{ b64_json: png.toString('base64') }] } });
   });
-  await page.getByRole('link', { name: '发现灵感', exact: true }).click();
+  await page.getByRole('link', { name: '生成图片', exact: true }).click();
   await page.getByRole('textbox', { name: '创意描述' }).fill('清晨窗边的咖啡，温暖的胶片风格');
   await generate(page);
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/create$/);
   await expect(page.getByAltText('本次生成的图片')).toBeVisible();
   await page.reload();
   await page.getByRole('link', { name: '我的图片', exact: true }).click();

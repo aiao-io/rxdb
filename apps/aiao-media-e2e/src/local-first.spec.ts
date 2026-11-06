@@ -18,7 +18,7 @@ import {
 
 test('模板改写可转为普通提示词并保留正文和焦点', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: '查看精选灵感：把一杯咖啡，拍成一张好海报' }).click();
+  await page.getByRole('button', { name: '查看把一杯咖啡，拍成一张好海报', exact: true }).click();
   await page.getByRole('button', { name: '用这个灵感创作', exact: true }).click();
   const editor = page.getByRole('textbox', { name: '创意描述', exact: true });
   await expect(editor).toBeFocused();
@@ -34,6 +34,34 @@ test('模板改写可转为普通提示词并保留正文和焦点', async ({ pa
   await page.reload();
   await expect(editor).toHaveText(description, { useInnerText: true });
   await expect(page.getByRole('button', { name: '✧ 生成图片', exact: true })).toBeEnabled();
+});
+
+test('首页只有图片瀑布流：多列错落排开，点开详情完整显示并可用 Esc 关闭', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('.feed-card')).toHaveCount(12);
+  await expect(page.locator('[contenteditable=true]')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '✧ 生成图片' })).toHaveCount(0);
+  const columns = await page.locator('.feed-column').evaluateAll(nodes =>
+    nodes.map(node => {
+      const { left, width } = node.getBoundingClientRect();
+      return { left: Math.round(left), width: Math.round(width), cards: node.querySelectorAll('.feed-card').length };
+    })
+  );
+  expect(columns.length).toBeGreaterThanOrEqual(3);
+  expect(new Set(columns.map(column => column.left)).size).toBe(columns.length);
+  expect(new Set(columns.map(column => column.width)).size).toBe(1);
+  expect(columns.every(column => column.cards > 0)).toBe(true);
+  const first = page.getByRole('button', { name: '查看把一杯咖啡，拍成一张好海报', exact: true });
+  await first.click();
+  const dialog = page.getByRole('dialog', { name: '把一杯咖啡，拍成一张好海报' });
+  await expect(dialog).toBeVisible();
+  const image = dialog.locator('.media-stage img');
+  await expect(image).toBeVisible();
+  expect(await image.evaluate((element: HTMLImageElement) => element.naturalWidth > 0)).toBe(true);
+  expect(await image.evaluate(element => getComputedStyle(element).objectFit)).toBe('contain');
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(first).toBeFocused();
 });
 
 test('供应商保存后清空表单，切换落盘前禁止生成', async ({ page }) => {
@@ -391,10 +419,9 @@ test('从创作页首次安装后，离线冷开首页仍可解码六张参考�
   const response = await offline.goto('/');
   expect(response?.fromServiceWorker()).toBe(true);
   const referenceIds = ['coffee', 'ceramic', 'map', 'illustration', 'vr', 'portrait'];
-  for (const [index, id] of referenceIds.entries()) {
-    const card = offline.locator('.cards .card').nth(index);
-    await card.scrollIntoViewIfNeeded();
-    const image = card.locator(`img[src="/image-examples/${id}.jpg"]`);
+  for (const id of referenceIds) {
+    const image = offline.locator(`.feed-card img[src="/image-examples/${id}.jpg"]`);
+    await image.scrollIntoViewIfNeeded();
     await expect(image).toBeVisible();
     await expect
       .poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0))
@@ -402,12 +429,15 @@ test('从创作页首次安装后，离线冷开首页仍可解码六张参考�
   }
   await expect(offline.getByText('示例图暂时无法加载，可继续查看提示词')).toHaveCount(0);
 });
-test('移动端供应商页和创作页不产生横向溢出', async ({ page }) => {
+test('移动端首页、供应商页和创作页不产生横向溢出', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await provider(page);
   await prompt(page);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.goto('/providers');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.goto('/');
+  await expect(page.locator('.feed-column')).toHaveCount(2);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
