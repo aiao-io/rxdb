@@ -174,11 +174,12 @@ describe('OPFS 项目布局', () => {
     });
   });
 
-
   it('草稿与预览标签跨实例恢复，保存后清理且项目之间隔离', async () => {
     const catalog = createProjectCatalog();
     const state = {
-      tabs: ['src/main.ts'], activePath: 'src/main.ts', previewTabs: ['src/main.ts'],
+      tabs: ['src/main.ts'],
+      activePath: 'src/main.ts',
+      previewTabs: ['src/main.ts'],
       drafts: { 'src/main.ts': { base: 'saved', content: 'draft' } }
     };
     await catalog.putState('one', state);

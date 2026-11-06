@@ -16,6 +16,7 @@ const instances: WorkbenchHandle[] = [];
 afterEach(() => {
   instances.splice(0).forEach(handle => handle.dispose());
   vi.restoreAllMocks();
+  window.sessionStorage.clear();
   document.body.replaceChildren();
 });
 

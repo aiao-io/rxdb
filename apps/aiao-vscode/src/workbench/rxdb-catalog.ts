@@ -102,7 +102,7 @@ export class WorkbenchLocalState extends EntityBase<string> {
   lastTouchedAt!: number;
 }
 
-/** 用已注册 WorkbenchProject / WorkbenchRemoteProject 的宿主数据库保存项目目录。 */
+/** 用宿主已注册的工作台实体保存项目目录、恢复草稿与偏好。 */
 export function createRxDBWorkbenchCatalog(db: RxDB): WorkbenchCatalog {
   const repository = db.entityManager.getRepository<typeof WorkbenchProject, Repository<typeof WorkbenchProject>>(
     WorkbenchProject
@@ -123,9 +123,12 @@ export function createRxDBWorkbenchCatalog(db: RxDB): WorkbenchCatalog {
     typeof WorkbenchLocalState,
     Repository<typeof WorkbenchLocalState>
   >(WorkbenchLocalState);
-  const findLocalState = (id: string) => firstValueFrom(localRepository.findOne({
-    where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: id }] }
-  }));
+  const findLocalState = (id: string) =>
+    firstValueFrom(
+      localRepository.findOne({
+        where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: id }] }
+      })
+    );
   const putLocalState = async (id: string, value: unknown): Promise<void> => {
     const existing = await findLocalState(id);
     const record = existing ?? db.entityManager.instantiate(WorkbenchLocalState, { id });

@@ -26,14 +26,20 @@ function sqliteWasmOptions(): SqliteOptions {
   };
 }
 
-/** 应用数据库：只保存项目目录元数据，源码与 Git 历史留在工作台独占的 OPFS 仓库里。 */
+/** 应用数据库：保存项目元数据、恢复草稿与偏好，已保存源码与 Git 历史留在独占的 OPFS 仓库里。 */
 export function setupRxDB(): RxDB {
   if (rxdb) return rxdb;
   if (!isPlatformBrowser(inject(PLATFORM_ID))) throw new Error('RxDB setup requires a browser platform');
   rxdb = new RxDB({
     dbName: 'aiao-vscode',
     context: { userId: 'local' },
-    entities: [WorkbenchProject, WorkbenchRemoteProject, WorkbenchSessionState, WorkbenchLayoutState, WorkbenchLocalState],
+    entities: [
+      WorkbenchProject,
+      WorkbenchRemoteProject,
+      WorkbenchSessionState,
+      WorkbenchLayoutState,
+      WorkbenchLocalState
+    ],
     sync: { local: { adapter: ADAPTER_NAME }, type: SyncType.None }
   });
   rxdb.adapter(ADAPTER_NAME, async db => new RxDBAdapterSqlite(db, sqliteWasmOptions()));

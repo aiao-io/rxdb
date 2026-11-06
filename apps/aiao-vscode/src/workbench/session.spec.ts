@@ -41,7 +41,6 @@ function fixture() {
 }
 
 describe('WorkbenchSession', () => {
-
   it('草稿快照仅包含未保存文本，恢复不写入已保存文件或 Git', async () => {
     const { backend } = fixture();
     const original = new WorkbenchSession(backend);
@@ -97,7 +96,9 @@ describe('WorkbenchSession', () => {
   it('同组预览替换旧预览，双击固定和编辑固定后继续保留', async () => {
     const { backend } = fixture();
     vi.mocked(backend.open).mockResolvedValueOnce({
-      projectId: 'first', revision: '1', files: { 'a.ts': 'a', 'b.ts': 'b', 'c.ts': 'c' }
+      projectId: 'first',
+      revision: '1',
+      files: { 'a.ts': 'a', 'b.ts': 'b', 'c.ts': 'c' }
     });
     const session = new WorkbenchSession(backend);
     await session.open('first');
@@ -117,7 +118,9 @@ describe('WorkbenchSession', () => {
   it('不同组的预览互不替换，重开已固定标签不会变成预览', async () => {
     const { backend } = fixture();
     vi.mocked(backend.open).mockResolvedValueOnce({
-      projectId: 'first', revision: '1', files: { 'a.ts': 'a', 'b.ts': 'b', 'c.ts': 'c' }
+      projectId: 'first',
+      revision: '1',
+      files: { 'a.ts': 'a', 'b.ts': 'b', 'c.ts': 'c' }
     });
     const session = new WorkbenchSession(backend);
     await session.open('first');

@@ -1,6 +1,11 @@
 import type { SerializedDockview } from 'dockview-core';
 import type { ProjectTemplate } from './compiler/compiler-types.js';
-import { parseWorkbenchPreferences, parseWorkbenchProjectState, type WorkbenchPreferences, type WorkbenchProjectState } from './workbench-state.js';
+import {
+  parseWorkbenchPreferences,
+  parseWorkbenchProjectState,
+  type WorkbenchPreferences,
+  type WorkbenchProjectState
+} from './workbench-state.js';
 export type { WorkbenchPreferences, WorkbenchProjectState } from './workbench-state.js';
 
 /** GitHub 远程仓库的目录条目补充信息。 */
@@ -113,19 +118,22 @@ export function createProjectCatalog(): WorkbenchCatalog {
   const layoutFilename = (projectId: string): string => `layout-${encodeURIComponent(projectId)}.json`;
   return {
     list: () => lock(read),
-    put: project => lock(async () => {
-      const projects = await read();
-      await writeJson(filename, [...projects.filter(item => item.id !== project.id), project]);
-    }),
-    getState: projectId => lock(async () => {
-      const value = await readJson(stateFilename(projectId));
-      return value === undefined ? null : parseWorkbenchProjectState(value);
-    }),
+    put: project =>
+      lock(async () => {
+        const projects = await read();
+        await writeJson(filename, [...projects.filter(item => item.id !== project.id), project]);
+      }),
+    getState: projectId =>
+      lock(async () => {
+        const value = await readJson(stateFilename(projectId));
+        return value === undefined ? null : parseWorkbenchProjectState(value);
+      }),
     putState: (projectId, state) => lock(() => writeJson(stateFilename(projectId), state)),
-    getPreferences: () => lock(async () => {
-      const value = await readJson('preferences.json');
-      return value === undefined ? null : parseWorkbenchPreferences(value);
-    }),
+    getPreferences: () =>
+      lock(async () => {
+        const value = await readJson('preferences.json');
+        return value === undefined ? null : parseWorkbenchPreferences(value);
+      }),
     putPreferences: preferences => lock(() => writeJson('preferences.json', preferences)),
     getLayout: projectId => lock(async () => (await readJson(layoutFilename(projectId))) ?? null),
     putLayout: (projectId, layout) => lock(() => writeJson(layoutFilename(projectId), layout))

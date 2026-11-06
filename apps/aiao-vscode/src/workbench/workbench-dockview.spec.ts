@@ -5,7 +5,7 @@ import { createWorkbenchDockview, type WorkbenchDockview } from './workbench-doc
 
 const instances: WorkbenchDockview[] = [];
 
-function fixture(width = 1200, height = 800) {
+function fixture(width = 1200, height = 800, withPanels = true) {
   const root = document.createElement('section');
   root.innerHTML =
     '<main data-slot="dockview"></main><div data-slot="panel-staging" hidden><aside class="wb-side">资源</aside><div class="wb-welcome">欢迎</div><section class="wb-preview"><div class="wb-preview-content"></div></section><section class="wb-panel" data-log="problems">问题日志</section><section class="wb-panel" data-log="output">输出日志</section><section class="wb-panel" data-log="console">控制台日志</section><section class="wb-panel" data-log="terminal">终端内容</section></div>';
@@ -22,6 +22,7 @@ function fixture(width = 1200, height = 800) {
     onCloseSidebar: vi.fn()
   };
   const dock = createWorkbenchDockview(root, callbacks);
+  if (withPanels) dock.resetLayout();
   if (width > 0 && height > 0) dock.api.layout(width, height);
   instances.push(dock);
   return { root, dock, callbacks };
@@ -47,6 +48,18 @@ const pointer = (type: string, init: Record<string, unknown> = {}): PointerEvent
   });
 
 describe('Dockview 工作台布局', () => {
+  it('空工作区只显示侧栏和欢迎页，工具和预览按需打开', () => {
+    const { dock } = fixture(1200, 800, false);
+    expect(dock.api.panels.map(panel => panel.id).sort()).toEqual(['sidebar', 'welcome']);
+    expect(dock.isToolsVisible()).toBe(false);
+    expect(dock.isPreviewOpen()).toBe(false);
+    dock.showTool('output');
+    expect(dock.isToolsVisible()).toBe(true);
+    expect(dock.api.getPanel('terminal')).toBeDefined();
+    dock.showPreview();
+    expect(dock.isPreviewOpen()).toBe(true);
+  });
+
   it('终端与日志共用工具区域，关闭重开和移动保留同一宿主', () => {
     const { root, dock, callbacks } = fixture();
     const host = root.querySelector('[data-log="terminal"]');

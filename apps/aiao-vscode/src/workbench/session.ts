@@ -186,12 +186,17 @@ export class WorkbenchSession {
 
   /** 获取独立于源码文件的未保存文本快照。 */
   getDrafts(): WorkbenchDrafts {
-    return Object.fromEntries(Object.entries(this.#state.files)
-      .filter(([path, value]) => typeof value === 'string' && this.isModified(path))
-      .map(([path, content]) => [path, {
-        base: typeof this.#saved[path] === 'string' ? this.#saved[path] : null,
-        content: content as string
-      }]));
+    return Object.fromEntries(
+      Object.entries(this.#state.files)
+        .filter(([path, value]) => typeof value === 'string' && this.isModified(path))
+        .map(([path, content]) => [
+          path,
+          {
+            base: typeof this.#saved[path] === 'string' ? this.#saved[path] : null,
+            content: content as string
+          }
+        ])
+    );
   }
 
   /** 原子恢复草稿并返回编辑基线已变化的文件，保留当前已保存版本。 */
@@ -199,9 +204,14 @@ export class WorkbenchSession {
     this.#project();
     const entries = Object.entries(drafts);
     for (const [path] of entries) assertGitPath(path);
-    const files = { ...this.#state.files, ...Object.fromEntries(entries.map(([path, draft]) => [path, draft.content])) };
+    const files = {
+      ...this.#state.files,
+      ...Object.fromEntries(entries.map(([path, draft]) => [path, draft.content]))
+    };
     assertNoPathCollisions(Object.keys(files));
-    const conflicts = entries.filter(([path, draft]) => draft.base !== (this.#saved[path] ?? null)).map(([path]) => path);
+    const conflicts = entries
+      .filter(([path, draft]) => draft.base !== (this.#saved[path] ?? null))
+      .map(([path]) => path);
     this.#update({ files, dirty: !equalFiles(files, this.#saved) });
     return conflicts;
   }
@@ -219,9 +229,16 @@ export class WorkbenchSession {
     if (!Object.hasOwn(this.#state.files, path)) throw new Error('文件不存在');
     const opened = this.#state.tabs.includes(path);
     const temporary = options.preview && !this.isModified(path);
-    const replaced = !opened && temporary && options.replacePreview &&
-      this.#state.previewTabs.includes(options.replacePreview) && !this.isModified(options.replacePreview) ?
-        options.replacePreview : null;
+    const replaced =
+      (
+        !opened &&
+        temporary &&
+        options.replacePreview &&
+        this.#state.previewTabs.includes(options.replacePreview) &&
+        !this.isModified(options.replacePreview)
+      ) ?
+        options.replacePreview
+      : null;
     const tabs = this.#state.tabs.filter(tab => tab !== replaced);
     if (!opened) tabs.push(path);
     const previewTabs = this.#state.previewTabs.filter(tab => tab !== replaced && (temporary || tab !== path));
@@ -243,7 +260,11 @@ export class WorkbenchSession {
     this.#assertOpen();
     const tabs = [...new Set(paths)].filter(path => Object.hasOwn(this.#state.files, path));
     const active = tabs.length && activePath && tabs.includes(activePath) ? activePath : (tabs.at(-1) ?? null);
-    this.#update({ tabs, activePath: active, previewTabs: previews.filter(path => tabs.includes(path) && !this.isModified(path)) });
+    this.#update({
+      tabs,
+      activePath: active,
+      previewTabs: previews.filter(path => tabs.includes(path) && !this.isModified(path))
+    });
   }
 
   edit(path: string, content: string): void {
@@ -561,7 +582,9 @@ export class WorkbenchSession {
     const next = { ...this.#state, ...update };
     this.#state = {
       ...next,
-      previewTabs: next.previewTabs.filter(path => next.tabs.includes(path) && equalFile(next.files[path], this.#saved[path]))
+      previewTabs: next.previewTabs.filter(
+        path => next.tabs.includes(path) && equalFile(next.files[path], this.#saved[path])
+      )
     };
     this.#listeners.forEach(listener => listener(this.#state));
   }

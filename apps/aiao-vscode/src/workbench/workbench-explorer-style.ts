@@ -63,7 +63,7 @@ export const workbenchExplorerStyle = `
 .wb-editor-row:hover .wb-editor-row-close,.wb-editor-row:focus-within .wb-editor-row-close{opacity:1}
 .wb-empty-view{display:flex;flex-direction:column;align-items:center;padding:0 20px 13px;font-size:13px;line-height:18.2px;color:var(--wb-text)}
 .wb-empty-view>*{width:100%;max-width:300px}
-.wb-empty-view-hint{margin:13px 0 0}
+.wb-empty-view-hint{margin:13px 0 0}.wb-empty-view-storage{margin:8px 0 0;color:var(--wb-muted);font-size:12px;line-height:1.5}
 .ao-workbench .wb-empty-view-action{display:flex!important;align-items:center;justify-content:center!important;gap:0!important;height:26px;margin-top:13px;padding:4px 8px;border:1px solid var(--wb-button-border);border-radius:4px!important;background:var(--wb-blue)!important;color:#fff!important;font-size:12px!important;line-height:16px}
 .ao-workbench .wb-empty-view-action:hover{background:var(--wb-blue-hover)!important}
 .wb-empty-view-recent{display:flex;flex-direction:column;margin-top:13px}

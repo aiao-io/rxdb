@@ -21,6 +21,7 @@ afterEach(() => {
   instances.splice(0).forEach(handle => handle.dispose());
   vi.resetAllMocks();
   vi.restoreAllMocks();
+  window.sessionStorage.clear();
   document.body.replaceChildren();
 });
 
@@ -131,7 +132,6 @@ describe('顶部运行启动当前项目终端', () => {
     await handle.ready;
     const button = await runButton(host);
     const toggle = host.querySelector<HTMLButtonElement>('.wb-title-actions [data-action="panel"]');
-    toggle?.click();
     await vi.waitFor(() => expect(toggle?.getAttribute('aria-pressed')).toBe('false'));
     button.click();
     await vi.waitFor(() => expect(terminal.runProject).toHaveBeenCalledOnce());

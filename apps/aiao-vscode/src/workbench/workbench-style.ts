@@ -78,4 +78,3 @@ ${workbenchScmStyle}
 .wb-dialog button{padding:10px 16px}
 .wb-panel-toolbar button,.wb-preview-toolbar button{padding:6px}}
 `;
-

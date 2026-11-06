@@ -185,7 +185,7 @@ function createTab(id: string, auxiliary: boolean, callbacks: WorkbenchDockviewC
     element,
     init(parameters: TabPartInitParameters) {
       renderTitle(parameters.title);
-      element.classList.toggle('wb-preview-tab', parameters.params['preview'] === true);
+      element.classList.toggle('wb-preview-tab', parameters.params?.['preview'] === true);
       previewSubscription = parameters.api.onDidParametersChange(params => {
         element.classList.toggle('wb-preview-tab', params['preview'] === true);
       });
@@ -754,10 +754,11 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
       const panel = api.getPanel(editorId(path));
       if (panel && panel.params?.['preview'] !== preview) panel.api.updateParameters({ preview });
     },
-    getEditorGroupPaths: () => (editorGroup()?.panels ?? []).flatMap(panel => {
-      const path = editorPath(panel.id);
-      return path === undefined ? [] : [path];
-    }),
+    getEditorGroupPaths: () =>
+      (editorGroup()?.panels ?? []).flatMap(panel => {
+        const path = editorPath(panel.id);
+        return path === undefined ? [] : [path];
+      }),
     ensureAuxiliary,
     removeAuxiliary(id) {
       if (!auxiliaryIds.has(id)) return;

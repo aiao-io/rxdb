@@ -6,6 +6,7 @@ import { githubProjectInfo } from './catalog.js';
 import {
   createRxDBWorkbenchCatalog,
   WorkbenchLayoutState,
+  WorkbenchLocalState,
   WorkbenchProject,
   WorkbenchRemoteProject,
   WorkbenchSessionState
@@ -70,6 +71,7 @@ describe('RxDB workbench project catalog', () => {
   it('reads missing session state as null and persists state through the state repository', async () => {
     const record = {
       id: 'project',
+      value: undefined as unknown,
       tabs: ['src/main.ts'],
       activePath: 'src/main.ts',
       updatedAt: 1,
@@ -92,10 +94,54 @@ describe('RxDB workbench project catalog', () => {
     await expect(catalog.getState('project')).resolves.toBeNull();
     await expect(catalog.getState('project')).resolves.toEqual({ tabs: ['src/main.ts'], activePath: 'src/main.ts' });
     await catalog.putState('project', { tabs: ['src/label.ts'], activePath: 'src/label.ts' });
-    expect(instantiate).toHaveBeenCalledWith(WorkbenchSessionState, { id: 'project' });
-    expect(record.tabs).toEqual(['src/label.ts']);
-    expect(record.activePath).toBe('src/label.ts');
+    expect(instantiate).toHaveBeenCalledWith(WorkbenchLocalState, { id: 'project:project' });
+    expect(record.value).toEqual({ tabs: ['src/label.ts'], activePath: 'src/label.ts' });
     expect(record.save).toHaveBeenCalledOnce();
+  });
+
+  it('完整会话优先于旧会话，草稿和预览标签原样恢复', async () => {
+    const value = {
+      tabs: ['main.ts'],
+      activePath: 'main.ts',
+      previewTabs: [],
+      drafts: { 'main.ts': { base: 'saved', content: 'draft' } }
+    };
+    const legacyFind = vi.fn();
+    const localRepository = { findOne: vi.fn(() => of({ value })) };
+    const db = {
+      entityManager: {
+        getRepository: (entity: unknown) => (entity === WorkbenchLocalState ? localRepository : { findOne: legacyFind })
+      }
+    } as unknown as RxDB;
+    expect(await createRxDBWorkbenchCatalog(db).getState('project')).toEqual(value);
+    expect(legacyFind).not.toHaveBeenCalled();
+  });
+
+  it('损坏的草稿显式报错，不读取旧会话覆盖恢复记录', async () => {
+    const legacyFind = vi.fn();
+    const localRepository = { findOne: () => of({ value: { tabs: [], drafts: { a: 'corrupt' } } }) };
+    const db = {
+      entityManager: {
+        getRepository: (entity: unknown) => (entity === WorkbenchLocalState ? localRepository : { findOne: legacyFind })
+      }
+    } as unknown as RxDB;
+    await expect(createRxDBWorkbenchCatalog(db).getState('project')).rejects.toThrow('草稿损坏');
+    expect(legacyFind).not.toHaveBeenCalled();
+  });
+
+  it('偏好与完整会话使用不同的本地状态记录', async () => {
+    const preferences = { indentUnit: '    ', alwaysShowScmActions: true };
+    const record = { value: preferences, lastTouchedAt: 0, save: vi.fn(async () => undefined) };
+    const localRepository = { findOne: vi.fn(() => of(record)) };
+    const db = { entityManager: { getRepository: () => localRepository } } as unknown as RxDB;
+    const catalog = createRxDBWorkbenchCatalog(db);
+    expect(await catalog.getPreferences()).toEqual(preferences);
+    await catalog.putPreferences({ ...preferences, indentUnit: '        ' });
+    expect(record.value.indentUnit).toBe('        ');
+    expect(record.save).toHaveBeenCalledOnce();
+    expect(localRepository.findOne).toHaveBeenLastCalledWith({
+      where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: 'preferences' }] }
+    });
   });
 
   it('reads a missing layout as null and persists per-project layouts through the layout repository', async () => {

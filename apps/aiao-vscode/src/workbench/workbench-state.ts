@@ -30,9 +30,14 @@ function isStringArray(value: unknown): value is string[] {
 }
 
 function isDrafts(value: unknown): value is WorkbenchDrafts {
-  return isRecord(value) && Object.values(value).every(draft =>
-    isRecord(draft) && typeof draft['content'] === 'string' &&
-    (draft['base'] === null || typeof draft['base'] === 'string')
+  return (
+    isRecord(value) &&
+    Object.values(value).every(
+      draft =>
+        isRecord(draft) &&
+        typeof draft['content'] === 'string' &&
+        (draft['base'] === null || typeof draft['base'] === 'string')
+    )
   );
 }
 
@@ -57,7 +62,12 @@ export function parseWorkbenchProjectState(value: unknown): WorkbenchProjectStat
 
 /** 校验用户偏好，避免损坏的配置被静默覆盖。 */
 export function parseWorkbenchPreferences(value: unknown): WorkbenchPreferences {
-  if (!isRecord(value) || !['  ', '    ', '        '].includes(String(value['indentUnit'])) ||
-    typeof value['alwaysShowScmActions'] !== 'boolean') throw new Error('工作台设置损坏');
-  return { indentUnit: String(value['indentUnit']), alwaysShowScmActions: value['alwaysShowScmActions'] };
+  if (
+    !isRecord(value) ||
+    typeof value['indentUnit'] !== 'string' ||
+    !['  ', '    ', '        '].includes(value['indentUnit']) ||
+    typeof value['alwaysShowScmActions'] !== 'boolean'
+  )
+    throw new Error('工作台设置损坏');
+  return { indentUnit: value['indentUnit'], alwaysShowScmActions: value['alwaysShowScmActions'] };
 }
