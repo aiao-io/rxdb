@@ -11,30 +11,55 @@ afterEach(() => disposers.splice(0).forEach(dispose => dispose()));
 async function fixture() {
   let snapshot: WorkbenchSnapshot = { projectId: 'one', revision: '1', files: { 'main.js': 'saved' } };
   const backend = {
-    open: vi.fn(async (projectId: string) => { snapshot = { ...snapshot, projectId }; return snapshot; }),
-    save: vi.fn(async (_id: string, files: WorkbenchSnapshot['files'], _revision: string, removed: readonly string[] = []) => {
-      const next = { ...snapshot.files, ...files };
-      removed.forEach(path => delete next[path]);
-      snapshot = { ...snapshot, revision: String(Number(snapshot.revision) + 1), files: next };
+    open: vi.fn(async (projectId: string) => {
+      snapshot = { ...snapshot, projectId };
       return snapshot;
     }),
+    save: vi.fn(
+      async (_id: string, files: WorkbenchSnapshot['files'], _revision: string, removed: readonly string[] = []) => {
+        const next = { ...snapshot.files, ...files };
+        removed.forEach(path => delete next[path]);
+        snapshot = { ...snapshot, revision: String(Number(snapshot.revision) + 1), files: next };
+        return snapshot;
+      }
+    ),
     dispose: vi.fn()
   } as unknown as WorkbenchBackend;
   const session = new WorkbenchSession(backend);
   await session.open('one');
   const host = document.createElement('section');
-  const runtime = { start: vi.fn(async (): Promise<void> => undefined), write: vi.fn(async (): Promise<void> => undefined), resize: vi.fn(), runProject: vi.fn(async (): Promise<void> => undefined), writeProject: vi.fn(async (): Promise<void> => undefined), resizeProject: vi.fn(), sync: vi.fn(async (): Promise<void> => undefined), flush: vi.fn(async (): Promise<void> => undefined), stop: vi.fn<() => Promise<void>>(), dispose: vi.fn() };
-  runtime.stop.mockImplementation(async () => { await runtime.flush(); runtime.dispose(); });
+  const runtime = {
+    start: vi.fn(async (): Promise<void> => undefined),
+    write: vi.fn(async (): Promise<void> => undefined),
+    resize: vi.fn(),
+    runProject: vi.fn(async (): Promise<void> => undefined),
+    writeProject: vi.fn(async (): Promise<void> => undefined),
+    resizeProject: vi.fn(),
+    sync: vi.fn(async (): Promise<void> => undefined),
+    flush: vi.fn(async (): Promise<void> => undefined),
+    stop: vi.fn<() => Promise<void>>(),
+    dispose: vi.fn()
+  };
+  runtime.stop.mockImplementation(async () => {
+    await runtime.flush();
+    runtime.dispose();
+  });
   const view = { write: vi.fn(), focus: vi.fn(), fit: vi.fn(), clear: vi.fn(), dispose: vi.fn(), cols: 80, rows: 24 };
-  const views: typeof view[] = [];
+  const views: (typeof view)[] = [];
   let runtimeOptions: TerminalRuntimeOptions;
   let viewOptions: { onData(data: string): void; onResize(size: { cols: number; rows: number }): void };
-  const createRuntime = vi.fn((options: TerminalRuntimeOptions) => { runtimeOptions = options; return runtime; });
+  const createRuntime = vi.fn((options: TerminalRuntimeOptions) => {
+    runtimeOptions = options;
+    return runtime;
+  });
   const viewCallbacks: (typeof viewOptions)[] = [];
   const createView = vi.fn(async (_host: HTMLElement, options: typeof viewOptions) => {
     viewOptions = options;
     viewCallbacks.push(options);
-    const next = _host.dataset['terminalSessionView'] === 'project' ? { write: vi.fn(), focus: vi.fn(), fit: vi.fn(), clear: vi.fn(), dispose: vi.fn(), cols: 80, rows: 24 } : view;
+    const next =
+      _host.dataset['terminalSessionView'] === 'project' ?
+        { write: vi.fn(), focus: vi.fn(), fit: vi.fn(), clear: vi.fn(), dispose: vi.fn(), cols: 80, rows: 24 }
+      : view;
     views.push(next);
     return next;
   });
@@ -42,13 +67,39 @@ async function fixture() {
   const onStop = vi.fn();
   const onError = vi.fn();
   const terminal = createWorkbenchTerminal(host, { session, createRuntime, createView, onPreview, onStop, onError });
-  disposers.push(() => { terminal.dispose(); session.dispose(); host.remove(); });
-  return { session, host, terminal, runtime, view, views, viewCallbacks, createRuntime, createView, onPreview, onStop, onError, get runtimeOptions() { return runtimeOptions!; }, get viewOptions() { return viewOptions!; } };
+  disposers.push(() => {
+    terminal.dispose();
+    session.dispose();
+    host.remove();
+  });
+  return {
+    session,
+    host,
+    terminal,
+    runtime,
+    view,
+    views,
+    viewCallbacks,
+    createRuntime,
+    createView,
+    onPreview,
+    onStop,
+    onError,
+    get runtimeOptions() {
+      return runtimeOptions!;
+    },
+    get viewOptions() {
+      return viewOptions!;
+    }
+  };
 }
 
 async function projectFixture() {
   const f = await fixture();
-  await f.session.applyExternalFiles({ 'package.json': JSON.stringify({ scripts: { dev: 'vite' }, packageManager: 'pnpm@10.0.0' }) }, []);
+  await f.session.applyExternalFiles(
+    { 'package.json': JSON.stringify({ scripts: { dev: 'vite' }, packageManager: 'pnpm@10.0.0' }) },
+    []
+  );
   return f;
 }
 
@@ -59,7 +110,10 @@ describe('工作台交互终端', () => {
     expect(f.createRuntime).not.toHaveBeenCalled();
     await Promise.all([f.terminal.show(), f.terminal.show()]);
     expect(f.createRuntime).toHaveBeenCalledTimes(1);
-    expect(f.runtime.start).toHaveBeenCalledWith({ projectId: 'one', revision: '1', files: { 'main.js': 'saved' } }, { cols: 80, rows: 24 });
+    expect(f.runtime.start).toHaveBeenCalledWith(
+      { projectId: 'one', revision: '1', files: { 'main.js': 'saved' } },
+      { cols: 80, rows: 24 }
+    );
     f.viewOptions.onData('node --version\r');
     f.runtimeOptions.onOutput('v22.0.0\r\n');
     f.viewOptions.onResize({ cols: 100, rows: 30 });
@@ -83,7 +137,11 @@ describe('工作台交互终端', () => {
     await vi.waitFor(() => expect(f.runtime.sync).toHaveBeenCalled());
     expect(notice.hidden).toBe(false);
     await f.session.save();
-    await vi.waitFor(() => expect(f.runtime.sync).toHaveBeenLastCalledWith(expect.objectContaining({ files: { 'main.js': 'draft', 'new.js': 'new' } })));
+    await vi.waitFor(() =>
+      expect(f.runtime.sync).toHaveBeenLastCalledWith(
+        expect.objectContaining({ files: { 'main.js': 'draft', 'new.js': 'new' } })
+      )
+    );
     expect(notice.hidden).toBe(true);
   });
 
@@ -147,7 +205,12 @@ describe('工作台交互终端', () => {
     const f = await fixture();
     await f.terminal.show();
     let rejectInput: (cause: Error) => void = () => undefined;
-    f.runtime.write.mockImplementationOnce(() => new Promise<void>((_resolve, reject) => { rejectInput = reject; }));
+    f.runtime.write.mockImplementationOnce(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectInput = reject;
+        })
+    );
     f.viewOptions.onData('pending');
     await f.session.open('two');
     rejectInput(new Error('old process closed'));
@@ -165,7 +228,9 @@ describe('工作台交互终端', () => {
     await vi.waitFor(() => expect(f.onError).toHaveBeenCalledWith(expect.objectContaining({ message: 'sync failed' })));
     await Promise.all([f.terminal.show(), f.terminal.show()]);
     expect(f.runtime.sync).toHaveBeenCalledTimes(2);
-    expect(f.runtime.sync).toHaveBeenLastCalledWith(expect.objectContaining({ revision: '2', files: { 'main.js': 'next saved' } }));
+    expect(f.runtime.sync).toHaveBeenLastCalledWith(
+      expect.objectContaining({ revision: '2', files: { 'main.js': 'next saved' } })
+    );
     expect(f.host.querySelector('[data-terminal-status]')?.textContent).toBe('运行中');
   });
 
@@ -176,7 +241,12 @@ describe('工作台交互终端', () => {
     await expect(f.terminal.stop()).rejects.toThrow('disk full');
     expect(f.runtime.dispose).not.toHaveBeenCalled();
     let finish: () => void = () => undefined;
-    f.runtime.flush.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
+    f.runtime.flush.mockImplementationOnce(
+      () =>
+        new Promise<void>(resolve => {
+          finish = resolve;
+        })
+    );
     const stopped = f.terminal.stop();
     await Promise.resolve();
     expect(f.runtime.dispose).not.toHaveBeenCalled();
@@ -192,10 +262,17 @@ describe('工作台交互终端', () => {
   it('停止取消尚未完成的视图加载，迟到释放不会清掉新终端DOM', async () => {
     const f = await fixture();
     let finish: () => void = () => undefined;
-    const gate = new Promise<void>(resolve => { finish = resolve; });
+    const gate = new Promise<void>(resolve => {
+      finish = resolve;
+    });
     f.createView.mockImplementationOnce(async screen => {
       await gate;
-      return { ...f.view, dispose: vi.fn(() => { screen.replaceChildren(); }) };
+      return {
+        ...f.view,
+        dispose: vi.fn(() => {
+          screen.replaceChildren();
+        })
+      };
     });
     const first = f.terminal.show();
     await Promise.resolve();
@@ -214,7 +291,12 @@ describe('工作台交互终端', () => {
   it('切换项目时尚未完成的runtime启动不会重新显示运行状态', async () => {
     const f = await fixture();
     let finish: () => void = () => undefined;
-    f.runtime.start.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
+    f.runtime.start.mockImplementationOnce(
+      () =>
+        new Promise<void>(resolve => {
+          finish = resolve;
+        })
+    );
     const first = f.terminal.show();
     await vi.waitFor(() => expect(f.runtime.start).toHaveBeenCalledOnce());
     await f.session.open('two');
@@ -271,7 +353,12 @@ describe('工作台交互终端', () => {
     const f = await projectFixture();
     await f.terminal.show();
     let finish: () => void = () => undefined;
-    f.runtime.sync.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
+    f.runtime.sync.mockImplementationOnce(
+      () =>
+        new Promise<void>(resolve => {
+          finish = resolve;
+        })
+    );
     f.session.edit('main.js', 'new saved');
     await f.session.save();
     const running = f.terminal.runProject();
@@ -281,21 +368,30 @@ describe('工作台交互终端', () => {
     await f.session.save();
     finish();
     await running;
-    expect(f.runtime.sync).toHaveBeenLastCalledWith(expect.objectContaining({ files: expect.objectContaining({ 'main.js': 'newest saved' }) }));
+    expect(f.runtime.sync).toHaveBeenLastCalledWith(
+      expect.objectContaining({ files: expect.objectContaining({ 'main.js': 'newest saved' }) })
+    );
     expect(f.runtime.runProject).toHaveBeenCalledOnce();
   });
 
   it('容器启动期间的新保存必须同步后才能运行项目', async () => {
     const f = await projectFixture();
     let finish: () => void = () => undefined;
-    f.runtime.start.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
+    f.runtime.start.mockImplementationOnce(
+      () =>
+        new Promise<void>(resolve => {
+          finish = resolve;
+        })
+    );
     const running = f.terminal.runProject();
     await vi.waitFor(() => expect(f.runtime.start).toHaveBeenCalledOnce());
     f.session.edit('main.js', 'saved during boot');
     await f.session.save();
     finish();
     await running;
-    expect(f.runtime.sync).toHaveBeenCalledWith(expect.objectContaining({ files: expect.objectContaining({ 'main.js': 'saved during boot' }) }));
+    expect(f.runtime.sync).toHaveBeenCalledWith(
+      expect.objectContaining({ files: expect.objectContaining({ 'main.js': 'saved during boot' }) })
+    );
     expect(f.runtime.runProject).toHaveBeenCalledOnce();
   });
 
@@ -303,7 +399,12 @@ describe('工作台交互终端', () => {
     const f = await projectFixture();
     await f.terminal.show();
     let rejectSync: (cause: Error) => void = () => undefined;
-    f.runtime.sync.mockImplementationOnce(() => new Promise<void>((_resolve, reject) => { rejectSync = reject; }));
+    f.runtime.sync.mockImplementationOnce(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectSync = reject;
+        })
+    );
     f.session.edit('main.js', 'new saved');
     await f.session.save();
     const running = f.terminal.runProject();
@@ -318,7 +419,12 @@ describe('工作台交互终端', () => {
   it('项目终端 Ctrl+C 取消等待启动，迟到的容器就绪不会再运行项目', async () => {
     const f = await projectFixture();
     let finish: () => void = () => undefined;
-    f.runtime.start.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
+    f.runtime.start.mockImplementationOnce(
+      () =>
+        new Promise<void>(resolve => {
+          finish = resolve;
+        })
+    );
     const running = f.terminal.runProject();
     await vi.waitFor(() => expect(f.views).toHaveLength(2));
     f.viewCallbacks[1]!.onData('\u0003');
@@ -332,7 +438,12 @@ describe('工作台交互终端', () => {
   it('切换项目拦截等待启动与旧项目输出，并释放两个终端视图', async () => {
     const f = await projectFixture();
     let finish: () => void = () => undefined;
-    f.runtime.start.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
+    f.runtime.start.mockImplementationOnce(
+      () =>
+        new Promise<void>(resolve => {
+          finish = resolve;
+        })
+    );
     const running = f.terminal.runProject();
     await vi.waitFor(() => expect(f.runtime.start).toHaveBeenCalledOnce());
     const old = f.runtimeOptions;
@@ -367,8 +478,18 @@ describe('工作台交互终端', () => {
     await f.terminal.show();
     let finishSync: () => void = () => undefined;
     let finishStop: () => void = () => undefined;
-    f.runtime.sync.mockImplementationOnce(() => new Promise<void>(resolve => { finishSync = resolve; }));
-    f.runtime.stop.mockImplementationOnce(() => new Promise<void>(resolve => { finishStop = resolve; }));
+    f.runtime.sync.mockImplementationOnce(
+      () =>
+        new Promise<void>(resolve => {
+          finishSync = resolve;
+        })
+    );
+    f.runtime.stop.mockImplementationOnce(
+      () =>
+        new Promise<void>(resolve => {
+          finishStop = resolve;
+        })
+    );
     f.session.edit('main.js', 'pending sync');
     await f.session.save();
     const running = f.terminal.runProject();
@@ -397,7 +518,12 @@ describe('工作台交互终端', () => {
     const f = await fixture();
     await f.terminal.show();
     let finish: () => void = () => undefined;
-    f.runtime.flush.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
+    f.runtime.flush.mockImplementationOnce(
+      () =>
+        new Promise<void>(resolve => {
+          finish = resolve;
+        })
+    );
     f.runtimeOptions.onExit(0);
     const showing = f.terminal.show();
     await f.session.open('two');
@@ -412,8 +538,18 @@ describe('工作台交互终端', () => {
     await f.terminal.runProject();
     let rejectShell: (cause: Error) => void = () => undefined;
     let rejectProject: (cause: Error) => void = () => undefined;
-    f.runtime.write.mockImplementationOnce(() => new Promise<void>((_resolve, reject) => { rejectShell = reject; }));
-    f.runtime.writeProject.mockImplementationOnce(() => new Promise<void>((_resolve, reject) => { rejectProject = reject; }));
+    f.runtime.write.mockImplementationOnce(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectShell = reject;
+        })
+    );
+    f.runtime.writeProject.mockImplementationOnce(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectProject = reject;
+        })
+    );
     f.viewCallbacks[0]!.onData('pending');
     f.viewCallbacks[1]!.onData('pending');
     f.runtimeOptions.onExit(0);

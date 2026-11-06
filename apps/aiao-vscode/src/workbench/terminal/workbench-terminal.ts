@@ -1,7 +1,11 @@
 import type { WorkbenchSession } from '../session.js';
 import { projectRunPlan } from './project-command.js';
 import { createTerminalView, type TerminalView } from './terminal-view.js';
-import { createWebContainerRuntime, type TerminalRuntime, type TerminalRuntimeOptions } from './webcontainer-runtime.js';
+import {
+  createWebContainerRuntime,
+  type TerminalRuntime,
+  type TerminalRuntimeOptions
+} from './webcontainer-runtime.js';
 
 /** 项目终端与工作台之间的事件和可替换实现。 */
 export interface WorkbenchTerminalOptions {
@@ -33,7 +37,8 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
   const { session } = options;
   const document = host.ownerDocument;
   host.classList.add('wb-terminal');
-  host.innerHTML = '<div class="wb-panel-toolbar"><button data-terminal-session="shell" aria-pressed="true">Shell</button><button data-terminal-session="project" aria-pressed="false">项目</button><span data-terminal-status role="status">尚未启动</span><span class="wb-spacer"></span><span data-terminal-servers></span><button data-terminal-action="start" title="启动或重新连接终端" aria-label="启动终端">启动</button><button data-terminal-action="clear" title="清空终端显示" aria-label="清空终端">清空</button><button data-terminal-action="stop" title="停止终端与项目进程" aria-label="停止终端">停止</button></div><div class="wb-terminal-message">打开终端，运行 node、npm 或 pnpm 命令。编辑器保存后同步到终端。</div><div class="wb-terminal-content" data-workbench-terminal></div>';
+  host.innerHTML =
+    '<div class="wb-panel-toolbar"><button data-terminal-session="shell" aria-pressed="true">Shell</button><button data-terminal-session="project" aria-pressed="false">项目</button><span data-terminal-status role="status">尚未启动</span><span class="wb-spacer"></span><span data-terminal-servers></span><button data-terminal-action="start" title="启动或重新连接终端" aria-label="启动终端">启动</button><button data-terminal-action="clear" title="清空终端显示" aria-label="清空终端">清空</button><button data-terminal-action="stop" title="停止终端与项目进程" aria-label="停止终端">停止</button></div><div class="wb-terminal-message">打开终端，运行 node、npm 或 pnpm 命令。编辑器保存后同步到终端。</div><div class="wb-terminal-content" data-workbench-terminal></div>';
   const required = <T extends HTMLElement>(selector: string): T => {
     const element = host.querySelector<T>(selector);
     if (!element) throw new Error(`终端布局缺少 ${selector}`);
@@ -67,10 +72,17 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
   const conflicts = new Set<string>();
 
   const active = (current: number): boolean => !disposed && current === epoch;
-  const selectedView = (): TerminalView | undefined => selected === 'shell' ? view : projectView;
-  const updateStatus = (): void => { status.textContent = selected === 'shell' ? shellStatus : projectStatus; };
-  const report = (current: number, cause: unknown): void => { if (active(current)) failure(cause); };
-  const focus = (): void => { selectedView()?.fit(); selectedView()?.focus(); };
+  const selectedView = (): TerminalView | undefined => (selected === 'shell' ? view : projectView);
+  const updateStatus = (): void => {
+    status.textContent = selected === 'shell' ? shellStatus : projectStatus;
+  };
+  const report = (current: number, cause: unknown): void => {
+    if (active(current)) failure(cause);
+  };
+  const focus = (): void => {
+    selectedView()?.fit();
+    selectedView()?.focus();
+  };
 
   function select(next: TerminalSession): void {
     selected = next;
@@ -174,17 +186,20 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
     const snapshot = session.getSavedSnapshot();
     if (savedRevision === snapshot.revision) return Promise.resolve();
     const current = epoch;
-    const task = run.sync(snapshot).then(() => {
-      if (!active(current) || runtime !== run) return;
-      savedRevision = snapshot.revision;
-      if (exited || starting) return;
-      shellStatus = '运行中';
-      updateStatus();
-      if (conflicts.size) showConflicts();
-      else message.hidden = true;
-    }).finally(() => {
-      if (syncing === task) syncing = undefined;
-    });
+    const task = run
+      .sync(snapshot)
+      .then(() => {
+        if (!active(current) || runtime !== run) return;
+        savedRevision = snapshot.revision;
+        if (exited || starting) return;
+        shellStatus = '运行中';
+        updateStatus();
+        if (conflicts.size) showConflicts();
+        else message.hidden = true;
+      })
+      .finally(() => {
+        if (syncing === task) syncing = undefined;
+      });
     syncing = task;
     return task.then(syncSaved);
   }
@@ -202,15 +217,21 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
     message.hidden = false;
     const run = runtime;
     if (!run) return;
-    closing = run.flush().then(() => {
-      if (!active(current) || runtime !== run) return;
-      run.dispose();
-      runtime = undefined;
-      servers.replaceChildren();
-      options.onStop();
-    }).catch(cause => { report(current, cause); }).finally(() => {
-      if (active(current)) closing = undefined;
-    });
+    closing = run
+      .flush()
+      .then(() => {
+        if (!active(current) || runtime !== run) return;
+        run.dispose();
+        runtime = undefined;
+        servers.replaceChildren();
+        options.onStop();
+      })
+      .catch(cause => {
+        report(current, cause);
+      })
+      .finally(() => {
+        if (active(current)) closing = undefined;
+      });
   }
 
   async function start(current: number, id: string): Promise<void> {
@@ -226,7 +247,10 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
     try {
       const mounted = await (options.createView ?? createTerminalView)(screen, {
         onData(data) {
-          if (isCurrent() && !exited) void runtime?.write(data).catch(cause => { if (isCurrent()) failure(cause); });
+          if (isCurrent() && !exited)
+            void runtime?.write(data).catch(cause => {
+              if (isCurrent()) failure(cause);
+            });
         },
         onResize(size) {
           if (isCurrent()) runtime?.resize(size);
@@ -239,8 +263,12 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
       view = mounted;
       const run = (options.createRuntime ?? createWebContainerRuntime)({
         apiKey: options.apiKey,
-        onOutput(data) { if (isCurrent()) mounted.write(data); },
-        onProjectOutput(data) { if (isCurrent()) projectView?.write(data); },
+        onOutput(data) {
+          if (isCurrent()) mounted.write(data);
+        },
+        onProjectOutput(data) {
+          if (isCurrent()) projectView?.write(data);
+        },
         onProjectState(state, exitCode) {
           if (!isCurrent()) return;
           projectBusy = state !== 'stopped';
@@ -260,14 +288,20 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
         },
         onServerReady(port, url) {
           if (!isCurrent()) return;
-          try { serverReady(port, url); } catch (cause) { report(current, cause); }
+          try {
+            serverReady(port, url);
+          } catch (cause) {
+            report(current, cause);
+          }
         },
         onError(cause) {
           if (!isCurrent()) return;
           if (projectBusy) writeProjectError(cause);
           failure(cause);
         },
-        onExit(code) { if (isCurrent()) shellExit(current, code); }
+        onExit(code) {
+          if (isCurrent()) shellExit(current, code);
+        }
       });
       runtime = run;
       const snapshot = session.getSavedSnapshot();
@@ -349,17 +383,21 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
     const screen = createScreen('project');
     const opening = (options.createView ?? createTerminalView)(screen, {
       onData: data => projectInput(current, data),
-      onResize(size) { if (active(current)) runtime?.resizeProject(size); }
-    }).then(mounted => {
-      if (!active(current)) {
-        mounted.dispose();
-        return;
+      onResize(size) {
+        if (active(current)) runtime?.resizeProject(size);
       }
-      projectView = mounted;
-      focus();
-    }).finally(() => {
-      if (projectOpening === opening) projectOpening = undefined;
-    });
+    })
+      .then(mounted => {
+        if (!active(current)) {
+          mounted.dispose();
+          return;
+        }
+        projectView = mounted;
+        focus();
+      })
+      .finally(() => {
+        if (projectOpening === opening) projectOpening = undefined;
+      });
     projectOpening = opening;
     return opening;
   }
@@ -377,23 +415,26 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
     if (!conflicts.size) message.hidden = true;
     updateStatus();
     const opening = show();
-    const task = Promise.all([opening, openProjectView(current)]).then(async () => {
-      if (!isCurrent()) return;
-      if (!runtime) throw bootFailure ?? new Error('请先打开项目并启动终端');
-      await syncSaved();
-      if (!isCurrent()) return;
-      const plan = projectRunPlan(session.getSavedSnapshot().files);
-      projectLaunched = true;
-      runtime.resizeProject({ cols: projectView?.cols ?? 80, rows: projectView?.rows ?? 24 });
-      await runtime.runProject(plan);
-      if (isCurrent()) focus();
-    }).catch(cause => {
-      if (!isCurrent()) return;
-      projectFailure(cause);
-      throw cause;
-    }).finally(() => {
-      if (projectStarting === task) projectStarting = undefined;
-    });
+    const task = Promise.all([opening, openProjectView(current)])
+      .then(async () => {
+        if (!isCurrent()) return;
+        if (!runtime) throw bootFailure ?? new Error('请先打开项目并启动终端');
+        await syncSaved();
+        if (!isCurrent()) return;
+        const plan = projectRunPlan(session.getSavedSnapshot().files);
+        projectLaunched = true;
+        runtime.resizeProject({ cols: projectView?.cols ?? 80, rows: projectView?.rows ?? 24 });
+        await runtime.runProject(plan);
+        if (isCurrent()) focus();
+      })
+      .catch(cause => {
+        if (!isCurrent()) return;
+        projectFailure(cause);
+        throw cause;
+      })
+      .finally(() => {
+        if (projectStarting === task) projectStarting = undefined;
+      });
     projectStarting = task;
     return task;
   }
@@ -406,7 +447,9 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
     const current = epoch;
     const run = runtime;
     if (!starting && run) {
-      try { await run.stop(); } catch (cause) {
+      try {
+        await run.stop();
+      } catch (cause) {
         if (!active(current)) return;
         exited = true;
         throw cause;
@@ -447,7 +490,12 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
   return {
     show,
     runProject,
-    flush: async () => { await starting; await closing; await syncing; await runtime?.flush(); },
+    flush: async () => {
+      await starting;
+      await closing;
+      await syncing;
+      await runtime?.flush();
+    },
     stop,
     clear: () => selectedView()?.clear(),
     fit: () => selectedView()?.fit(),

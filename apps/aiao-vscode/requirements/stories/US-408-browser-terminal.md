@@ -28,16 +28,16 @@ tags: [aiao-vscode, terminal, webcontainer, node]
 
 ## 验收
 
-| 行为 | 证据 | 状态 |
-| --- | --- | --- |
-| 从已保存清单选择 npm / pnpm、dev / start，拒绝无效清单配置 | `project-command.spec.ts` | ✅ |
-| 顶部运行保存文件、展开项目终端，重复运行聚焦现有进程 | `mount.spec.ts`、`workbench-terminal.spec.ts` | 待本轮验证 |
-| 独立 Shell 与项目会话、安装失败阻止启动、Ctrl+C 停止安装或服务 | `webcontainer-runtime.spec.ts`、真实 Chromium 终端验证 | 待本轮验证 |
-| Shell 输入输出、ANSI、尺寸调整与资源释放 | `terminal-view.spec.ts`、`webcontainer-runtime.spec.ts` | ✅ |
-| 启动失败重试、旧项目迟到回调与退出保存 | `workbench-terminal.spec.ts` | ✅ |
-| 双向文件变化、二进制、原子删除、dirty 缓冲与 revision 冲突 | `session.spec.ts`、Git backend/runtime/worker 测试 | ✅ |
-| 面板停靠保活、终端快捷键不被工作台拦截 | `workbench-dockview.spec.ts`、`workbench-commands.spec.ts` | ✅ |
-| 真实 Chromium 运行 Node、文件双向同步、npm / pnpm 实际安装、服务预览、Ctrl+C、切项目和停止 | `pnpm nx run aiao-vscode:verify-terminal --production`；`benchmarks/browser-workbench-terminal.json` | ✅ |
+| 行为                                                                                       | 证据                                                                                                 | 状态       |
+| ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- | ---------- |
+| 从已保存清单选择 npm / pnpm、dev / start，拒绝无效清单配置                                 | `project-command.spec.ts`                                                                            | ✅         |
+| 顶部运行保存文件、展开项目终端，重复运行聚焦现有进程                                       | `mount.spec.ts`、`workbench-terminal.spec.ts`                                                        | 待本轮验证 |
+| 独立 Shell 与项目会话、安装失败阻止启动、Ctrl+C 停止安装或服务                             | `webcontainer-runtime.spec.ts`、真实 Chromium 终端验证                                               | 待本轮验证 |
+| Shell 输入输出、ANSI、尺寸调整与资源释放                                                   | `terminal-view.spec.ts`、`webcontainer-runtime.spec.ts`                                              | ✅         |
+| 启动失败重试、旧项目迟到回调与退出保存                                                     | `workbench-terminal.spec.ts`                                                                         | ✅         |
+| 双向文件变化、二进制、原子删除、dirty 缓冲与 revision 冲突                                 | `session.spec.ts`、Git backend/runtime/worker 测试                                                   | ✅         |
+| 面板停靠保活、终端快捷键不被工作台拦截                                                     | `workbench-dockview.spec.ts`、`workbench-commands.spec.ts`                                           | ✅         |
+| 真实 Chromium 运行 Node、文件双向同步、npm / pnpm 实际安装、服务预览、Ctrl+C、切项目和停止 | `pnpm nx run aiao-vscode:verify-terminal --production`；`benchmarks/browser-workbench-terminal.json` | ✅         |
 
 上次交互终端基线校验：全套 776 项单测通过，随后补充的会话结构冲突测试也已通过；语句覆盖率 91.59%、
 分支覆盖率 82.66%、行覆盖率 94.78%；ESLint 零警告、类型检查、生产构建通过。

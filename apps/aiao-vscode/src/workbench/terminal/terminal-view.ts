@@ -92,12 +92,22 @@ export async function createTerminalView(host: HTMLElement, options: TerminalVie
   void host.ownerDocument.fonts?.ready.then(fit);
 
   return {
-    get cols() { return terminal.cols; },
-    get rows() { return terminal.rows; },
-    write(data) { if (!disposed) terminal.write(data); },
-    focus() { if (!disposed) terminal.focus(); },
+    get cols() {
+      return terminal.cols;
+    },
+    get rows() {
+      return terminal.rows;
+    },
+    write(data) {
+      if (!disposed) terminal.write(data);
+    },
+    focus() {
+      if (!disposed) terminal.focus();
+    },
     fit,
-    clear() { if (!disposed) terminal.clear(); },
+    clear() {
+      if (!disposed) terminal.clear();
+    },
     dispose() {
       if (disposed) return;
       disposed = true;

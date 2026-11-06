@@ -38,8 +38,12 @@ function projectProcess(closeOutputOnExit = true) {
   const process: TerminalProcess = {
     input: new WritableStream<string>({ write: writeInput }),
     output: new ReadableStream<string>({
-      start: controller => { output = controller; },
-      cancel: () => { outputClosed = true; }
+      start: controller => {
+        output = controller;
+      },
+      cancel: () => {
+        outputClosed = true;
+      }
     }),
     exit: exit.promise,
     resize: vi.fn(),
@@ -64,7 +68,11 @@ function fixture(bootGate?: Promise<void>) {
   const writeInput = vi.fn();
   const process = {
     input: new WritableStream<string>({ write: writeInput }),
-    output: new ReadableStream<string>({ start: controller => { output = controller; } }),
+    output: new ReadableStream<string>({
+      start: controller => {
+        output = controller;
+      }
+    }),
     exit: exit.promise,
     resize: vi.fn(),
     kill: vi.fn()
@@ -78,7 +86,12 @@ function fixture(bootGate?: Promise<void>) {
       if (!path.startsWith(prefix)) continue;
       const rest = path.slice(prefix.length);
       const name = rest.split('/')[0];
-      entries.set(name, rest.includes('/') ? 'directory' : links.has(path) ? 'link' : 'file');
+      entries.set(
+        name,
+        rest.includes('/') ? 'directory'
+        : links.has(path) ? 'link'
+        : 'file'
+      );
     }
     for (const path of directories) {
       if (!path.startsWith(prefix)) continue;
@@ -98,9 +111,11 @@ function fixture(bootGate?: Promise<void>) {
         if ('directory' in entry) {
           directories.add(`${prefix}${name}`);
           walk(entry.directory, `${prefix}${name}/`);
-        }
-        else files.set(`${prefix}${name}`, typeof entry.file.contents === 'string'
-          ? encoder.encode(entry.file.contents) : entry.file.contents);
+        } else
+          files.set(
+            `${prefix}${name}`,
+            typeof entry.file.contents === 'string' ? encoder.encode(entry.file.contents) : entry.file.contents
+          );
       }
     }
     walk(tree);
@@ -113,7 +128,9 @@ function fixture(bootGate?: Promise<void>) {
         if (!bytes) throw new Error(`Missing ${path}`);
         return bytes;
       }),
-      mkdir: vi.fn(async path => { directories.add(path); }),
+      mkdir: vi.fn(async path => {
+        directories.add(path);
+      }),
       writeFile: vi.fn(async (path, value) => {
         if (directories.has(path)) throw new Error(`EISDIR: ${path}`);
         files.set(path, typeof value === 'string' ? encoder.encode(value) : value);
@@ -123,7 +140,8 @@ function fixture(bootGate?: Promise<void>) {
         if (directories.has(path) && !options.recursive) throw new Error(`EISDIR: ${path}`);
         files.delete(path);
         for (const file of files.keys()) if (file.startsWith(`${path}/`)) files.delete(file);
-        for (const directory of directories) if (directory === path || directory.startsWith(`${path}/`)) directories.delete(directory);
+        for (const directory of directories)
+          if (directory === path || directory.startsWith(`${path}/`)) directories.delete(directory);
         watch?.('rename', path);
       }),
       watch: vi.fn((_path, _options, listener) => {
@@ -155,8 +173,18 @@ function fixture(bootGate?: Promise<void>) {
   const runtime = createWebContainerRuntime(options);
   instances.push(runtime);
   return {
-    runtime, options, container, process, files, links, writeInput, output: () => output,
-    exit, closeWatcher, removeServerListener, readDirectory,
+    runtime,
+    options,
+    container,
+    process,
+    files,
+    links,
+    writeInput,
+    output: () => output,
+    exit,
+    closeWatcher,
+    removeServerListener,
+    readDirectory,
     change: (path: string) => watch?.('change', path),
     ready: (port: number, url: string) => serverReady?.(port, url)
   };
@@ -169,7 +197,9 @@ describe('浏览器 Node 终端运行时', () => {
     const serve = projectProcess(false);
     const retry = projectProcess();
     await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });
-    vi.mocked(f.container.spawn).mockResolvedValueOnce(install.process).mockResolvedValueOnce(serve.process)
+    vi.mocked(f.container.spawn)
+      .mockResolvedValueOnce(install.process)
+      .mockResolvedValueOnce(serve.process)
       .mockResolvedValueOnce(retry.process);
     await f.runtime.runProject({ manager: 'npm', script: 'dev' });
     install.exit.resolve(0);
@@ -187,8 +217,9 @@ describe('浏览器 Node 终端运行时', () => {
     const lastError = outputCalls.findIndex(([value]) => value === 'last compiler error\r\n');
     const stopped = f.options.onProjectState.mock.calls.findIndex(([state]) => state === 'stopped');
     expect(lastError).toBeGreaterThanOrEqual(0);
-    expect(f.options.onProjectOutput.mock.invocationCallOrder[lastError])
-      .toBeLessThan(f.options.onProjectState.mock.invocationCallOrder[stopped]);
+    expect(f.options.onProjectOutput.mock.invocationCallOrder[lastError]).toBeLessThan(
+      f.options.onProjectState.mock.invocationCallOrder[stopped]
+    );
     await f.runtime.runProject({ manager: 'npm', script: 'dev' });
     expect(f.container.spawn).toHaveBeenCalledTimes(4);
   });
@@ -225,12 +256,16 @@ describe('浏览器 Node 终端运行时', () => {
     expect(f.options.onProjectOutput).toHaveBeenNthCalledWith(1, '\r\n$ npm install\r\n');
     expect(f.options.onProjectState).toHaveBeenLastCalledWith('installing');
     install.output().enqueue('\u001b[32madded 3 packages\u001b[0m\r\n');
-    await vi.waitFor(() => expect(f.options.onProjectOutput).toHaveBeenCalledWith('\u001b[32madded 3 packages\u001b[0m\r\n'));
+    await vi.waitFor(() =>
+      expect(f.options.onProjectOutput).toHaveBeenCalledWith('\u001b[32madded 3 packages\u001b[0m\r\n')
+    );
     expect(f.options.onOutput).not.toHaveBeenCalled();
     await f.runtime.runProject({ manager: 'npm', script: 'dev' });
     expect(f.container.spawn).toHaveBeenCalledTimes(2);
     install.exit.resolve(0);
-    await vi.waitFor(() => expect(f.container.spawn).toHaveBeenNthCalledWith(3, 'npm', ['run', 'dev'], { terminal: { cols: 100, rows: 30 } }));
+    await vi.waitFor(() =>
+      expect(f.container.spawn).toHaveBeenNthCalledWith(3, 'npm', ['run', 'dev'], { terminal: { cols: 100, rows: 30 } })
+    );
     expect(f.options.onProjectOutput).toHaveBeenLastCalledWith('\r\n$ npm run dev\r\n');
     expect(f.options.onProjectState).toHaveBeenLastCalledWith('running');
     await f.runtime.writeProject('input\r');
@@ -255,10 +290,16 @@ describe('浏览器 Node 终端运行时', () => {
     await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });
     vi.mocked(f.container.spawn).mockResolvedValueOnce(install.process).mockResolvedValueOnce(serve.process);
     await f.runtime.runProject({ manager: 'pnpm', script: 'start' });
-    expect(f.container.spawn).toHaveBeenNthCalledWith(2, 'pnpm', ['install', '--no-frozen-lockfile'], { terminal: { cols: 80, rows: 24 } });
+    expect(f.container.spawn).toHaveBeenNthCalledWith(2, 'pnpm', ['install', '--no-frozen-lockfile'], {
+      terminal: { cols: 80, rows: 24 }
+    });
     expect(f.options.onProjectOutput).toHaveBeenLastCalledWith('\r\n$ pnpm install --no-frozen-lockfile\r\n');
     install.exit.resolve(0);
-    await vi.waitFor(() => expect(f.container.spawn).toHaveBeenNthCalledWith(3, 'pnpm', ['run', 'start'], { terminal: { cols: 80, rows: 24 } }));
+    await vi.waitFor(() =>
+      expect(f.container.spawn).toHaveBeenNthCalledWith(3, 'pnpm', ['run', 'start'], {
+        terminal: { cols: 80, rows: 24 }
+      })
+    );
     expect(f.options.onProjectOutput).toHaveBeenLastCalledWith('\r\n$ pnpm run start\r\n');
   });
 
@@ -333,7 +374,9 @@ describe('浏览器 Node 终端运行时', () => {
     vi.mocked(f.container.spawn).mockRejectedValueOnce(new Error('install unavailable'));
     await expect(f.runtime.runProject({ manager: 'npm', script: 'dev' })).rejects.toThrow('install unavailable');
     expect(f.options.onProjectState).toHaveBeenLastCalledWith('stopped', -1);
-    vi.mocked(f.container.spawn).mockResolvedValueOnce(install.process).mockRejectedValueOnce(new Error('serve unavailable'));
+    vi.mocked(f.container.spawn)
+      .mockResolvedValueOnce(install.process)
+      .mockRejectedValueOnce(new Error('serve unavailable'));
     await f.runtime.runProject({ manager: 'npm', script: 'dev' });
     install.exit.resolve(0);
     await vi.waitFor(() => expect(f.options.onError).toHaveBeenCalledWith(new Error('serve unavailable')));
@@ -449,9 +492,14 @@ describe('浏览器 Node 终端运行时', () => {
     f.links.add('linked.ts');
     f.change('main.ts');
     await f.runtime.flush();
-    expect(f.options.onFiles).toHaveBeenCalledWith({
-      'main.ts': 'two', 'src/new.ts': 'new', 'image.png': new Uint8Array([0, 255])
-    }, ['old.ts']);
+    expect(f.options.onFiles).toHaveBeenCalledWith(
+      {
+        'main.ts': 'two',
+        'src/new.ts': 'new',
+        'image.png': new Uint8Array([0, 255])
+      },
+      ['old.ts']
+    );
     expect(f.readDirectory).not.toHaveBeenCalledWith('node_modules', { withFileTypes: true });
     expect(f.readDirectory).not.toHaveBeenCalledWith('dist', { withFileTypes: true });
     await f.runtime.flush();
@@ -528,8 +576,9 @@ describe('浏览器 Node 终端运行时', () => {
   it('启动失败会释放全局容器所有权，下一项目仍能启动', async () => {
     const failed = fixture();
     failed.options.boot.mockRejectedValueOnce(new Error('blocked by browser'));
-    await expect(failed.runtime.start(snapshot({ 'main.ts': 'one' }), { cols: 80, rows: 24 }))
-      .rejects.toThrow('blocked by browser');
+    await expect(failed.runtime.start(snapshot({ 'main.ts': 'one' }), { cols: 80, rows: 24 })).rejects.toThrow(
+      'blocked by browser'
+    );
     const next = fixture();
     await next.runtime.start(snapshot({ 'main.ts': 'two' }), { cols: 80, rows: 24 });
     expect(next.options.boot).toHaveBeenCalledOnce();
@@ -548,8 +597,7 @@ describe('浏览器 Node 终端运行时', () => {
   it('不允许将其他项目快照写进已启动容器', async () => {
     const f = fixture();
     await f.runtime.start(snapshot({ 'main.ts': 'one' }), { cols: 80, rows: 24 });
-    await expect(f.runtime.sync({ ...snapshot({ 'main.ts': 'two' }), projectId: 'two' }))
-      .rejects.toThrow('项目');
+    await expect(f.runtime.sync({ ...snapshot({ 'main.ts': 'two' }), projectId: 'two' })).rejects.toThrow('项目');
     expect(f.container.fs.writeFile).not.toHaveBeenCalled();
   });
 
@@ -611,7 +659,9 @@ describe('浏览器 Node 终端运行时', () => {
     expect(f.process.kill).toHaveBeenCalledOnce();
     expect(f.options.onExit).not.toHaveBeenCalled();
     expect(f.container.teardown).toHaveBeenCalledOnce();
-    expect(f.options.onFiles.mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(f.container.teardown).mock.invocationCallOrder[0]);
+    expect(f.options.onFiles.mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(f.container.teardown).mock.invocationCallOrder[0]
+    );
   });
 
   it('读取文件期间释放后忽略已销毁文件系统的迟到异常', async () => {

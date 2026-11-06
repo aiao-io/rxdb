@@ -1,6 +1,6 @@
+import { terminalViewStyle } from './terminal/terminal-view.style.js';
 import { workbenchExplorerStyle } from './workbench-explorer-style.js';
 import { workbenchScmStyle } from './workbench-scm-style.js';
-import { terminalViewStyle } from './terminal/terminal-view.style.js';
 
 export const workbenchStyle = `
 ${terminalViewStyle}

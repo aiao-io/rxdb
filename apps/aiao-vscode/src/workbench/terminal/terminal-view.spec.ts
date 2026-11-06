@@ -21,19 +21,38 @@ vi.mock('@xterm/xterm', () => ({
     write = fake.write;
     focus = fake.focus;
     clear = fake.clear;
-    get cols() { return fake.cols; }
-    get rows() { return fake.rows; }
-    loadAddon() { return; }
-    open(host: HTMLElement) { host.append(this.textarea); }
+    get cols() {
+      return fake.cols;
+    }
+    get rows() {
+      return fake.rows;
+    }
+    loadAddon() {
+      return;
+    }
+    open(host: HTMLElement) {
+      host.append(this.textarea);
+    }
     onData(callback: (data: string) => void) {
       fake.input = callback;
-      return { dispose: () => { fake.input = undefined; } };
+      return {
+        dispose: () => {
+          fake.input = undefined;
+        }
+      };
     }
     onResize(callback: (size: { cols: number; rows: number }) => void) {
       fake.resize = callback;
-      return { dispose: () => { fake.resize = undefined; } };
+      return {
+        dispose: () => {
+          fake.resize = undefined;
+        }
+      };
     }
-    dispose() { fake.dispose(); fake.disposeAddon(); }
+    dispose() {
+      fake.dispose();
+      fake.disposeAddon();
+    }
   }
 }));
 
@@ -54,11 +73,18 @@ beforeEach(() => {
   fake.input = undefined;
   fake.resize = undefined;
   disconnected = vi.fn();
-  vi.stubGlobal('ResizeObserver', class {
-    disconnect = disconnected;
-    constructor(callback: ResizeObserverCallback) { resized = callback; }
-    observe() { return; }
-  });
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      disconnect = disconnected;
+      constructor(callback: ResizeObserverCallback) {
+        resized = callback;
+      }
+      observe() {
+        return;
+      }
+    }
+  );
 });
 
 afterEach(() => {

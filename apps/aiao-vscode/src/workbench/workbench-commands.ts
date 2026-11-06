@@ -434,7 +434,8 @@ export function createWorkbenchCommands(root: HTMLElement, options: WorkbenchCom
     const modifier = shortcut.ctrlKey || shortcut.metaKey;
     const key = shortcut.key.toLowerCase();
     if (target?.closest('dialog[open],[aria-modal="true"]')) return false;
-    if (shortcut.ctrlKey && !shortcut.metaKey && !shortcut.shiftKey && key === '`') return invokeCommand('showTerminal');
+    if (shortcut.ctrlKey && !shortcut.metaKey && !shortcut.shiftKey && key === '`')
+      return invokeCommand('showTerminal');
     if (target?.closest('[data-workbench-terminal]')) return false;
     if (modifier && key === 'p') {
       show(shortcut.shiftKey ? '>' : '');

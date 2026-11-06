@@ -166,6 +166,10 @@ export async function runWorkbenchCase(page, expect, template, testInfo) {
     await expect(root.locator('[data-slot="side-title"]')).toHaveText('资源管理器');
     await runPreview(page, expect, fixture.heading, fixture);
     await replaceHeading(page, expect, root, fixture, marker);
+    // 「打开的编辑器」树节默认关闭，经资源管理器「视图和更多操作」菜单开启（对齐单测 showOpenEditors 步骤）
+    await root.locator('.wb-side-actions[data-view="explorer"] [data-action="more-actions"]').click();
+    await expect(root.locator('.wb-context-menu [data-menu-id="toggle-open-editors"]')).toBeVisible();
+    await root.locator('.wb-context-menu [data-menu-id="toggle-open-editors"]').click();
     await expect(root.locator('[data-tree-section="open-editors"]')).toBeVisible();
     await expect(root.locator('.wb-editor-row').first()).toBeVisible();
     // 资源管理器文件拖放：新建文件与文件夹，保存全部后把文件拖进文件夹
@@ -178,11 +182,15 @@ export async function runWorkbenchCase(page, expect, template, testInfo) {
     await expect(root.locator('[data-slot="save-status"]')).toContainText('未保存');
     await page.keyboard.press('ControlOrMeta+Shift+S');
     await expect(root.locator('[data-slot="save-status"]')).toContainText('已保存', { timeout: 30000 });
+    // 新建落点在树焦点所在目录：replaceHeading 后活动文件在 src/ 下（各模板一致），故新文件与文件夹都落在 src/
     // Playwright 的 dragTo 只发鼠标事件，不发 HTML5 拖放事件；用真实 DataTransfer 走一遍完整管线
+    // 保存全部后树会异步刷新 Git 装饰（重渲染会短暂清空行），先等源 / 目标行可见再派发
+    await expect(root.locator('[data-tree-path="src/drag-me.txt"]')).toBeVisible();
+    await expect(root.locator('[data-tree-path="src/assets"]')).toBeVisible();
     await page.evaluate(() => {
       const tree = document.querySelector('.wb-tree');
-      const source = tree?.querySelector('button[data-tree-path="drag-me.txt"]');
-      const target = tree?.querySelector('button[data-tree-path="assets"]');
+      const source = tree?.querySelector('button[data-tree-path="src/drag-me.txt"]');
+      const target = tree?.querySelector('button[data-tree-path="src/assets"]');
       if (!source || !target) throw new Error('拖放源或目标行缺失');
       const data = new DataTransfer();
       source.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: data }));
@@ -190,8 +198,8 @@ export async function runWorkbenchCase(page, expect, template, testInfo) {
       target.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: data }));
       source.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer: data }));
     });
-    await expect(root.locator('button[data-tree-path="assets/drag-me.txt"]')).toBeVisible({ timeout: 30000 });
-    await expect(root.locator('button[data-tree-path="drag-me.txt"]')).toHaveCount(0);
+    await expect(root.locator('button[data-tree-path="src/assets/drag-me.txt"]')).toBeVisible({ timeout: 30000 });
+    await expect(root.locator('button[data-tree-path="src/drag-me.txt"]')).toHaveCount(0);
     await runPreview(page, expect, marker, fixture);
     await page.reload();
     await expect(root.locator('[data-action="workspace"]')).toHaveAttribute('data-project-id', projectId, {
