@@ -340,9 +340,11 @@ export class EntityRelationCache {
    * `defer`，而回填不会改主键，无需处理。
    */
   syncObservableForeignKeys(): void {
-    const target = this.getTarget() as unknown as Record<string, unknown>;
+    if (this.#observable_map.size === 0) return;
     for (const [relation, entry] of this.#observable_map) {
-      entry.syncForeignKeyId?.((target[relation.name + 'Id'] ?? null) as RxDBEntityId | null);
+      entry.syncForeignKeyId?.(
+        (getRelationValue(this.getTarget(), relation.name + 'Id') ?? null) as RxDBEntityId | null
+      );
     }
   }
 
