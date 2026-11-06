@@ -60,6 +60,8 @@ Authorization callback URL `http://localhost:8788/redirect`，并从 `http://loc
 - 点击「使用 GitHub 账号登录」后，授权 URL 的 `client_id` 应为上述真实值，不能是 `pending-aiao-vscode-oauth-app`。
 - 真实授权链路：部署后访问 `https://<域>/redirect?code=x&state=https%3A%2F%2F<域>%2Fgithub-callback%3Fnonce%3Da`
   应 302 回同域 `/github-callback`；完整 OAuth 走查在工作台登录入口进行。
+- 完整登录成功后，授权弹窗应自动关闭，原工作台更新登录状态；失败时保留回调页显示错误。
+  工作台启用 `COOP: same-origin`，跨域授权后 `window.opener` 可能为空，回调关闭不能依赖它。
 - 跨域隔离响应头（COOP / COEP）与 Service Worker 是工作台自身要求，配置见应用 README 的部署小节。
 
 ## 安全边界

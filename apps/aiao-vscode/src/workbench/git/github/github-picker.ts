@@ -48,7 +48,7 @@ export function parseGitHubRepository(value: string): RepositoryAddress | null {
   if (parts.length < 4 || parts[2] !== 'tree') return null;
   try {
     const branch = decodeURIComponent(parts.slice(3).join('/'));
-    return branch && !/\s|[~^:?*\[\\]|^\/|\/$|\/\//.test(branch) ? { owner, repo, branch } : null;
+    return branch && !/\s|[~^:?*[\\]|^\/|\/$|\/\//.test(branch) ? { owner, repo, branch } : null;
   } catch {
     return null;
   }

@@ -1,29 +1,30 @@
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import type { WorkbenchCompiler } from './compiler-client.js';
 import type { WorkbenchEditorMount } from './editor.js';
 import { mountWorkbench, type WorkbenchHandle } from './mount.js';
-import type { PreviewEvent } from './preview/preview-sandbox.js';
+import { mountPreview, type PreviewEvent } from './preview/preview-sandbox.js';
 import type { WorkbenchBackend, WorkbenchFiles } from './session.js';
 
-const { previewSpies } = vi.hoisted(() => ({
-  previewSpies: { onEvent: undefined as undefined | ((event: PreviewEvent) => void) }
-}));
+vi.hoisted(() => vi.resetModules());
+
 vi.mock('./preview/preview-sandbox.js', async () => {
   const actual = await vi.importActual<typeof import('./preview/preview-sandbox.js')>('./preview/preview-sandbox.js');
   return {
     ...actual,
-    mountPreview: vi.fn((_container: HTMLElement, _options: unknown, onEvent: (event: PreviewEvent) => void) => {
-      previewSpies.onEvent = onEvent;
-      return { iframe: document.createElement('iframe'), dispose: vi.fn() };
-    })
+    mountPreview: vi.fn(() => ({ iframe: document.createElement('iframe'), dispose: vi.fn() }))
   };
+});
+
+afterAll(() => {
+  vi.doUnmock('./preview/preview-sandbox.js');
+  vi.resetModules();
 });
 
 const instances: WorkbenchHandle[] = [];
 afterEach(() => {
   instances.splice(0).forEach(handle => handle.dispose());
-  previewSpies.onEvent = undefined;
+  vi.mocked(mountPreview).mockClear();
   vi.restoreAllMocks();
   document.body.replaceChildren();
 });
@@ -100,15 +101,24 @@ function fixture() {
 }
 
 const forward = (event: PreviewEvent): void => {
-  if (!previewSpies.onEvent) throw new Error('预览尚未挂载，转发回调缺失');
-  previewSpies.onEvent(event);
+  const onEvent = vi.mocked(mountPreview).mock.calls.at(-1)?.[2];
+  if (!onEvent) throw new Error('预览尚未挂载，转发回调缺失');
+  onEvent(event);
+};
+
+const openPreview = async (host: HTMLElement): Promise<void> => {
+  const button = host.querySelector<HTMLButtonElement>('[data-action="preview"]');
+  if (!button) throw new Error('打开预览按钮缺失');
+  await vi.waitFor(() => expect(button.disabled).toBe(false));
+  button.click();
+  await vi.waitFor(() => expect(mountPreview).toHaveBeenCalled());
 };
 
 describe('预览转发与工作台全局快捷键', () => {
   it('预览内 Cmd+W 关闭当前编辑器标签，Cmd+S 触发保存', async () => {
-    const { handle, backend } = fixture();
+    const { host, handle, backend } = fixture();
     await handle.ready;
-    await vi.waitFor(() => expect(previewSpies.onEvent).toBeDefined());
+    await openPreview(host);
     await vi.waitFor(() => expect(handle.session.state.tabs).toContain('src/main.ts'));
     handle.session.select('src/label.ts');
     await vi.waitFor(() => expect(handle.session.state.activePath).toBe('src/label.ts'));
@@ -234,36 +244,48 @@ describe('预览转发与工作台全局快捷键', () => {
     expect(root.querySelector('[data-slot="side-title"]')?.textContent).toBe('资源管理器');
   }, 10000);
 
-  it('键盘关闭网页（⌘ 按着时卸载）弹出浏览器确认，点标签页 × 不弹，释放后不再拦截', async () => {
+  it.each<KeyboardEventInit>([
+    { key: 'r', metaKey: true },
+    { key: 'r', ctrlKey: true },
+    { key: 'F5' },
+    { key: 'w', metaKey: true },
+    { key: 'w', ctrlKey: true }
+  ])('刷新或关闭页面不弹出浏览器确认：%j', async init => {
     const { handle } = fixture();
     await handle.ready;
-    const unload = (): boolean => {
+    const unload = (): void => {
       const event = new Event('beforeunload', { cancelable: true });
       window.dispatchEvent(event);
-      return event.defaultPrevented;
+      expect(event.defaultPrevented).toBe(false);
+      expect(event.returnValue).not.toBe('');
     };
-    expect(unload()).toBe(false);
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Meta', metaKey: true, bubbles: true, cancelable: true }));
-    expect(unload()).toBe(true);
-    window.dispatchEvent(new KeyboardEvent('keyup', { key: 'Meta', bubbles: true, cancelable: true }));
-    expect(unload()).toBe(false);
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Meta', metaKey: true, bubbles: true, cancelable: true }));
+    unload();
+    window.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
+    unload();
+    handle.session.edit('src/main.ts', 'unsaved');
+    unload();
     handle.dispose();
-    expect(unload()).toBe(false);
+    unload();
   }, 10000);
 
-  it('焦点在预览 iframe 里按着 ⌘ 关闭网页同样确认：预览经消息上报修饰键状态', async () => {
-    const { handle } = fixture();
+  it('预览快捷键操作后离开页面不弹出确认，未保存缓冲也不拦截', async () => {
+    const { host, handle } = fixture();
     await handle.ready;
-    await vi.waitFor(() => expect(previewSpies.onEvent).toBeDefined());
-    const unload = (): boolean => {
-      const event = new Event('beforeunload', { cancelable: true });
-      window.dispatchEvent(event);
-      return event.defaultPrevented;
-    };
-    forward({ sessionId: 'x', projectId: 'one', revision: 1, type: 'modifiers', pressed: true });
-    expect(unload()).toBe(true);
-    forward({ sessionId: 'x', projectId: 'one', revision: 1, type: 'modifiers', pressed: false });
-    expect(unload()).toBe(false);
+    await openPreview(host);
+    forward({
+      sessionId: 'x',
+      projectId: 'one',
+      revision: 1,
+      type: 'keydown',
+      key: 'b',
+      ctrlKey: false,
+      metaKey: true,
+      shiftKey: false
+    });
+    handle.session.edit('src/main.ts', 'unsaved');
+    const event = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+    expect(event.returnValue).not.toBe('');
   }, 10000);
 });

@@ -75,6 +75,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   localStorage.clear();
   history.replaceState({}, '', '/');
 });
@@ -195,7 +197,9 @@ describe('AppComponent workbench mount', () => {
     fixture.destroy();
   });
 
-  it('completes the OAuth callback when booted on the /github-callback route', async () => {
+  it.each([null, {}])('closes the OAuth callback window when opener is %j', async opener => {
+    vi.stubGlobal('opener', opener);
+    const close = vi.spyOn(window, 'close').mockImplementation(() => undefined);
     const state = 'https://ide.example/github-callback?nonce=abcd1234abcd1234';
     await savePendingOAuth({ verifier: 'verifier-1', nonce: 'abcd1234abcd1234', state, at: Date.now() });
     history.pushState({}, '', `/github-callback?code=code-1&state=${encodeURIComponent(state)}`);
@@ -203,8 +207,24 @@ describe('AppComponent workbench mount', () => {
     fixture.detectChanges();
     connected.next(true);
     await vi.waitFor(() => expect(mocks.completeOAuth).toHaveBeenCalledWith('code-1', 'verifier-1'));
-    await vi.waitFor(() => expect(location.pathname).toBe('/'));
+    await vi.waitFor(() => expect(close).toHaveBeenCalledOnce());
+    expect(location.pathname).toBe('/');
     expect(mocks.mount).toHaveBeenCalled();
+    fixture.destroy();
+  });
+
+  it('keeps the OAuth callback window open when the token exchange fails', async () => {
+    vi.stubGlobal('opener', null);
+    const close = vi.spyOn(window, 'close').mockImplementation(() => undefined);
+    mocks.completeOAuth.mockRejectedValueOnce(new Error('授权码交换失败'));
+    const state = 'https://ide.example/github-callback?nonce=abcd1234abcd1234';
+    await savePendingOAuth({ verifier: 'verifier-1', nonce: 'abcd1234abcd1234', state, at: Date.now() });
+    history.pushState({}, '', `/github-callback?code=code-1&state=${encodeURIComponent(state)}`);
+    const fixture = createComponentFixture();
+    fixture.detectChanges();
+    connected.next(true);
+    await vi.waitFor(() => expect(fixture.componentInstance.error()).toBe('授权码交换失败'));
+    expect(close).not.toHaveBeenCalled();
     fixture.destroy();
   });
 });

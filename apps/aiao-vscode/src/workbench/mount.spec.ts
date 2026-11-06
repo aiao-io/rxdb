@@ -1776,7 +1776,7 @@ describe('VS Code 风格工作台', () => {
     upload.mockRestore();
   });
 
-  it('取消与非法模板不会创建项目，脏缓冲阻止切项目并触发离开确认', async () => {
+  it('取消与非法模板不会创建项目，脏缓冲保留切项目确认但不拦截页面刷新或离开', async () => {
     const { host, handle, backend } = fixture(true, '/browser-workbench-assets/', undefined, [
       { id: 'two', name: '第二个项目', template: 'vanilla', entry: 'src/main.ts', updatedAt: 0 }
     ]);
@@ -1792,7 +1792,9 @@ describe('VS Code 风格工作台', () => {
     handle.session.edit('src/main.ts', 'unsaved');
     const event = new Event('beforeunload', { cancelable: true });
     window.dispatchEvent(event);
-    expect(event.defaultPrevented).toBe(true);
+    expect(event.defaultPrevented).toBe(false);
+    expect(event.returnValue).not.toBe('');
+    expect(backend.save).not.toHaveBeenCalled();
     await switchProject(host, 'two');
     await vi.waitFor(() => expect(host.querySelector('dialog')).not.toBeNull());
     const dialog = host.querySelector<HTMLDialogElement>('dialog');

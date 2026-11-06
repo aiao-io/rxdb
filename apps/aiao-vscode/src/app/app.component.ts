@@ -113,7 +113,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
           if (!code || !state) throw new Error('OAuth 回调缺少 code 或 state');
           await completeOAuthCallback(github.auth, code, state);
           history.replaceState({}, '', '/');
-          if (window.opener) window.close();
+          window.close();
         } catch (error) {
           this.error.set(error instanceof Error ? error.message : String(error));
           history.replaceState({}, '', '/');

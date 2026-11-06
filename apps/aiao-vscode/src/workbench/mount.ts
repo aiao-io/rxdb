@@ -22,7 +22,6 @@ import { WorkbenchSession, type WorkbenchBackend, type WorkbenchState, type Work
 import { angularTemplate, defaultAngularDemo } from './templates-angular.js';
 import { defaultFrontendDemos, frontendTemplates, type WorkbenchTemplate } from './templates.js';
 import { createWorkbenchTerminal } from './terminal/workbench-terminal.js';
-import { installWorkbenchCloseGuard } from './workbench-close-guard.js';
 import { createWorkbenchCommands, type WorkbenchCommand } from './workbench-commands.js';
 import { confirmWorkbenchAction, requestWorkbenchChoice, requestWorkbenchText } from './workbench-dialog.js';
 import { createWorkbenchDiff, type WorkbenchDiffHandle } from './workbench-diff.js';
@@ -1740,7 +1739,6 @@ export function mountWorkbench(
     if (event.type === 'console') log('console', event.values.join(' '), event.level);
     if (event.type === 'error') log('problems', `${event.message}\n${event.stack}`, 'error');
     if (event.type === 'ready') log('output', `运行 revision ${event.revision} 已就绪`);
-    if (event.type === 'modifiers') closeGuard.setPreviewModifier(event.pressed);
     if (event.type === 'keydown') {
       commands.dispatchShortcut({
         key: event.key,
@@ -2340,15 +2338,6 @@ export function mountWorkbench(
     }
   });
   const releaseState = session.subscribe(render);
-  const beforeUnload = (event: BeforeUnloadEvent) => {
-    if (session.state.dirty) {
-      event.preventDefault();
-      event.returnValue = '';
-    }
-  };
-  window.addEventListener('beforeunload', beforeUnload);
-  /** 键盘触发的关闭（⌘W / Ctrl+W）弹出浏览器的离开确认，对齐 vscode.dev。 */
-  const closeGuard = installWorkbenchCloseGuard(window);
   const ready = (async () => {
     projects = (await catalog.list()).toSorted((left, right) => right.updatedAt - left.updatedAt);
     if (disposed) return;
@@ -2396,8 +2385,6 @@ export function mountWorkbench(
       layoutChanges.dispose();
       docking.dispose();
       for (const dialog of root.querySelectorAll<HTMLDialogElement>('dialog')) dialog.close();
-      window.removeEventListener('beforeunload', beforeUnload);
-      closeGuard.dispose();
       narrowMedia.removeEventListener('change', onNarrowChange);
       for (const timer of layoutRetries) clearTimeout(timer);
       clearTimeout(layoutSaveTimer);
