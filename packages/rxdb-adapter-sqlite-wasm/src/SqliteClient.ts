@@ -462,8 +462,9 @@ function fun_regexp(sqlite3: SQLiteAPI, db: number): void {
   sqlite3.create_function(db, 'regexp', 2, SQLITE_UTF8 | SQLITE_DETERMINISTIC, 0, (context, values) => {
     const pattern = sqlite3.value_text(values[0]);
     try {
-      const re = get_cached_regexp(pattern);
-      sqlite3.result(context, re.test(sqlite3.value_text(values[1])) ? 1 : 0);
+      // `value_text` 对 SQL NULL 返回 null；与 Oo1ClientBase 的 String() 强转对齐（null → "null"）。
+      const re = get_cached_regexp(String(pattern));
+      sqlite3.result(context, re.test(String(sqlite3.value_text(values[1]))) ? 1 : 0);
     } catch (error) {
       console.warn(`[SqliteClient] regexp(${pattern}) failed:`, error);
       sqlite3.result(context, 0);
@@ -482,7 +483,8 @@ function fun_regexp(sqlite3: SQLiteAPI, db: number): void {
  */
 function fun_fts_bigram(sqlite3: SQLiteAPI, db: number): void {
   sqlite3.create_function(db, FTS_BIGRAM_SQL_FUNCTION, 1, SQLITE_UTF8 | SQLITE_DETERMINISTIC, 0, (context, values) => {
-    sqlite3.result(context, indexTextForFts(sqlite3.value_text(values[0])));
+    const value = sqlite3.value_text(values[0]);
+    sqlite3.result(context, value === null ? null : indexTextForFts(value));
   });
 }
 
@@ -501,10 +503,10 @@ function fun_regexp_replace(sqlite3: SQLiteAPI, db: number): void {
     try {
       const replacement = sqlite3.value_text(values[2]);
       const flags = values.length > 3 ? sqlite3.value_text(values[3]) : '';
-      sqlite3.result(context, text.replace(get_cached_regexp(pattern, flags), replacement));
+      sqlite3.result(context, String(text).replace(get_cached_regexp(String(pattern), String(flags)), String(replacement)));
     } catch (error) {
       console.warn(`[SqliteClient] regexp_replace(${pattern}) failed:`, error);
-      sqlite3.result(context, text);
+      sqlite3.result(context, String(text));
     }
   });
 }

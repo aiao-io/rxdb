@@ -59,7 +59,7 @@
   "dependencies": {
     "@aiao/rxdb-adapter-sqlite-core": "workspace:^",
     "@aiao/utils": "workspace:^",
-    "@subframe7536/sqlite-wasm": "1.4.0"
+    "@subframe7536/sqlite-wasm": "1.4.1"
   },
   "devDependencies": {
     "@aiao/rxdb-plugin-history": "workspace:*",
