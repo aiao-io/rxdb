@@ -184,17 +184,17 @@ cancel(reason) {
 
 ## 验证结果与边界
 
-| 检查 | 结果 | 证据范围 |
-| --- | --- | --- |
-| `rxdb-plugin-p2p:test` | 15 个文件、154 条通过 | 插件协议、传输与会话单元测试 |
-| 插件覆盖率 | statements 97.39%、branches 93.96%、functions 96.93%、lines 99.89% | 高覆盖率未覆盖本文列出的全部跨层组合 |
-| `dev-rxdb-p2p:test --maxWorkers=1` | 44 个文件、509 条全部通过 | 应用及 Worker 原有测试；默认并发首次遇到 PGlite 初始化超时，串行复跑通过 |
-| 核心启动相关原有测试 | 4 个文件、41 条通过 | `RxDB.bootstrap-fingerprint`、`RxDB.plugin-entities`、`RxDB.migration-watermark`、`RxDB.connect-lifecycle` |
-| `dev-rxdb-p2p-e2e:e2e` | 14 条通过 | 真实 WebRTC 与两个独立 Node 进程的 TLS 会话；不等同于产品完整真栈验收 |
-| 三个相关项目的 lint、typecheck | 通过 | `rxdb`、`rxdb-plugin-p2p`、`dev-rxdb-p2p` |
-| `dev-rxdb-p2p:build` | 生产构建通过 | Angular 产品编译与产物生成 |
-| 临时应用回归 | 11 条触发现状 | 10 条支撑待处理问题；1 条按既定范围排除，见下节 |
-| 临时核心回归 | 2 条触发现状 | 两条均支撑 P2P-R05 的启动行为回归 |
+| 检查                               | 结果                                                               | 证据范围                                                                                                   |
+| ---------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `rxdb-plugin-p2p:test`             | 15 个文件、154 条通过                                              | 插件协议、传输与会话单元测试                                                                               |
+| 插件覆盖率                         | statements 97.39%、branches 93.96%、functions 96.93%、lines 99.89% | 高覆盖率未覆盖本文列出的全部跨层组合                                                                       |
+| `dev-rxdb-p2p:test --maxWorkers=1` | 44 个文件、509 条全部通过                                          | 应用及 Worker 原有测试；默认并发首次遇到 PGlite 初始化超时，串行复跑通过                                   |
+| 核心启动相关原有测试               | 4 个文件、41 条通过                                                | `RxDB.bootstrap-fingerprint`、`RxDB.plugin-entities`、`RxDB.migration-watermark`、`RxDB.connect-lifecycle` |
+| `dev-rxdb-p2p-e2e:e2e`             | 14 条通过                                                          | 真实 WebRTC 与两个独立 Node 进程的 TLS 会话；不等同于产品完整真栈验收                                      |
+| 三个相关项目的 lint、typecheck     | 通过                                                               | `rxdb`、`rxdb-plugin-p2p`、`dev-rxdb-p2p`                                                                  |
+| `dev-rxdb-p2p:build`               | 生产构建通过                                                       | Angular 产品编译与产物生成                                                                                 |
+| 临时应用回归                       | 11 条触发现状                                                      | 10 条支撑待处理问题；1 条按既定范围排除，见下节                                                            |
+| 临时核心回归                       | 2 条触发现状                                                       | 两条均支撑 P2P-R05 的启动行为回归                                                                          |
 
 本次没有运行产品完整的 Supabase／Worker `e2e-remote`，也没有运行全仓 `pnpm test-all`。真实 PGlite 的角色／SQL 回归不等同于已跑真实 Supabase 的 PostgREST 全链路；workspace 回归中的认证、网络与持久化部分使用测试桩，真实加密实验使用 WebCrypto。
 
