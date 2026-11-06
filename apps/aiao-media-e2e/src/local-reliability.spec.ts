@@ -15,7 +15,7 @@ import {
 } from './local-first.helpers';
 
 const generate = async (page: Page) => {
-  const result = page.getByRole('link', { name: '下载图片' });
+  const result = page.getByRole('region', { name: '生成结果' }).getByRole('link', { name: '下载图片' });
   const previous = (await result.count()) ? await result.getAttribute('href') : null;
   await page.getByRole('button', { name: '✧ 生成图片' }).click();
   await expect(result).toBeVisible();
@@ -214,9 +214,9 @@ test('另一标签页保存草稿不重新读取作品，新增作品通过原�
   });
   await other.locator('[contenteditable=true]').fill('第二个窗口的新草稿');
   await expect(other.getByText('输入已保存到本机', { exact: true })).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('data-image-reads', '0');
   await page.getByRole('link', { name: '生成图片', exact: true }).click();
   await expect(page.locator('[contenteditable=true]')).toContainText('第二个窗口的新草稿');
-  await expect(page.locator('html')).toHaveAttribute('data-image-reads', '0');
   await page.goto('/images');
   await expect(page.locator('.library-card')).toHaveCount(1);
   await generate(other);

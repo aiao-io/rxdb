@@ -394,7 +394,7 @@ test('实际静态应用无需登录，RxDB 设置、草稿和图片经刷新仍
   await expect(page.getByText('已保存到本机', { exact: true })).toBeVisible();
   await expect(page.getByAltText('本次生成的图片')).toBeVisible();
   const downloadEvent = page.waitForEvent('download');
-  await page.getByRole('link', { name: '下载图片' }).click();
+  await page.getByRole('region', { name: '生成结果' }).getByRole('link', { name: '下载图片' }).click();
   expect((await downloadEvent).suggestedFilename()).toMatch(/\.png$/);
   await page.getByRole('link', { name: '我的图片', exact: true }).click();
   await expect(page.getByAltText('本机生成作品')).toBeVisible();
@@ -428,7 +428,7 @@ test('MiniMax JPEG 原图可保存、按真实后缀下载、刷新回读和备�
   await page.getByRole('button', { name: '✧ 生成图片' }).click();
   await expect(page.getByText('已保存到本机', { exact: true })).toBeVisible();
   const resultDownload = page.waitForEvent('download');
-  await page.getByRole('link', { name: '下载图片' }).click();
+  await page.getByRole('region', { name: '生成结果' }).getByRole('link', { name: '下载图片' }).click();
   const downloaded = await resultDownload;
   expect(downloaded.suggestedFilename()).toMatch(/\.jpg$/);
   expect(await readFile((await downloaded.path())!)).toEqual(jpeg);
@@ -957,8 +957,9 @@ test('本机写入失败时保留可下载结果，重试保存不再生成', as
     };
   });
   await page.getByRole('button', { name: '✧ 生成图片' }).click();
-  await expect(page.getByText('图片已生成，本机保存失败。请先下载，再释放空间并重试保存。')).toBeVisible();
-  await expect(page.getByRole('link', { name: '下载图片' })).toBeVisible();
+  const result = page.getByRole('region', { name: '生成结果' });
+  await expect(result.getByText('图片已生成，本机保存失败。请先下载，再释放空间并重试保存。')).toBeVisible();
+  await expect(result.getByRole('link', { name: '下载图片' })).toBeVisible();
   await page.evaluate(() => {
     (window as unknown as { __restoreOpfs: () => void }).__restoreOpfs();
   });
