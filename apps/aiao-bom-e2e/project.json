@@ -16,6 +16,15 @@
         "cwd": "apps/aiao-bom-e2e",
         "command": "eslint . --max-warnings=0"
       }
+    },
+    "e2e-cloudflare": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["aiao-bom:build"],
+      "options": {
+        "cwd": "apps/aiao-bom-e2e",
+        "command": "playwright test --config playwright.cloudflare.config.ts"
+      }
     }
   }
 }

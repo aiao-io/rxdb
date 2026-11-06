@@ -22,6 +22,8 @@ owner: jimmy
 
 - [BOM-US-001](../stories/platform/BOM-US-001-application-workspace.md)
 
+- [BOM-US-002](../stories/platform/BOM-US-002-cloudflare-deployment.md)
+
 ## 非目标
 
 新增共享领域算法、未经样本证实的产品范围和未经验证的生产发行承诺。

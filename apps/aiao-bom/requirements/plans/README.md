@@ -14,3 +14,5 @@
 
 - [应用化工程验收](application-promotion-verification.md)
 - [产品体验研究与历史验收](bom-product-ux-2026-10-19.md)
+
+- [Cloudflare 部署验收](cloudflare-deployment-verification.md)

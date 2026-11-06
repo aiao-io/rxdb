@@ -24,3 +24,28 @@ pnpm nx run-many --projects=aiao-bom,aiao-bom-e2e --targets=lint,typecheck,spec-
 数量、成本、生效期、ECN、实例与导入语义来自 `packages/rxdb-plugin-bom*`。应用使用 `BOM-*` 独立管理产品需求，平台能力引用写在 story 的 `capabilities` 中。
 
 浏览器继续使用原有持久化库标识 `dev-rxdb-bom`。项目名称与目录迁移不改变数据库身份；显式重置仍会清空当前工作区。首次成功载入后的部分计算支持离线，整站冷启动与离线刷新尚未承诺，详见[能力矩阵](requirements/capability-matrix.md)。
+
+## Cloudflare 发布
+
+当前地址：`https://aiao-bom.aiao.workers.dev`。
+
+应用通过 Workers Static Assets 发布，无需 Node 服务。先在本机完成 Wrangler 登录；自动化环境通过 `CLOUDFLARE_ACCOUNT_ID` 和 `CLOUDFLARE_API_TOKEN` 注入凭据，不写入仓库。
+
+```bash
+pnpm nx run aiao-bom:deploy-check
+pnpm nx run aiao-bom:preview
+pnpm nx run aiao-bom-e2e:e2e-cloudflare
+pnpm nx run aiao-bom:deploy
+```
+
+`preview` 在 `http://127.0.0.1:4312` 使用 Wrangler 服务生产产物。运行本地 `e2e-cloudflare` 前停止手工 preview，测试会启动自己的 Wrangler 服务。`deploy-check` 仅校验和打包，不上传；`deploy` 依赖生产构建且不使用部署缓存，发布后输出实际地址。
+
+公网验收使用发布输出的地址：
+
+```bash
+BASE_URL=https://aiao-bom.aiao.workers.dev pnpm nx run aiao-bom-e2e:e2e-cloudflare
+```
+
+设置 `BASE_URL` 后不会启动本地服务器。套件验证八个页面入口、SPA 刷新、COOP/COEP、WASM MIME 与二进制、浏览器隔离以及样本落库重开与改版计算。部署记录见[Cloudflare 验收记录](requirements/plans/cloudflare-deployment-verification.md)。
+
+`public/_headers` 随产物发布；不要只上传 `index.html` 或把产物目录选成 `dist/apps/aiao-bom`。访问者数据保存在浏览器：本地开发地址、Cloudflare 默认域名和自定义域名分别存储，首次打开新域名不自动读取旧 origin 的工作区。
