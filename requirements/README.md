@@ -4,7 +4,9 @@
 
 ## 应用需求入口
 
-本目录维护平台与可复用领域能力。Aiao Media 的产品需求位于 [apps/aiao-media/requirements](../apps/aiao-media/requirements/README.md)，使用 `MEDIA-US-*` 编号，独立统计和验收。底层能力通过带作用域的引用关联，不复制故事状态。
+本目录维护平台与可复用领域能力。应用级产品需求由各应用在 `apps/<app>/requirements/` 独立管理，使用 `<APP>-US-XXX` 编号，独立统计和验收；怎么管沿用本目录的约定，应用目录结构、编号与门禁见[应用级需求管理办法](app-template/README.md)。底层能力通过带作用域的引用关联，不复制故事状态。
+
+Aiao Media 的产品需求位于 [apps/aiao-media/requirements](../apps/aiao-media/requirements/README.md)，使用 `MEDIA-US-*` 编号，独立统计和验收。
 
 Aiao Media 的 Web、Tauri、Cloudflare 后端与管理页面、免费/收费生图和队列、自有 Supabase/平台同步及目录演进，统一见[未来功能需求与目录规划](../apps/aiao-media/requirements/future-requirements.md)。
 
