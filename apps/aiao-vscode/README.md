@@ -2,9 +2,9 @@
 
 浏览器内的本地开发工作台应用（Angular 22）。使用 CodeMirror 编辑器、独立 OPFS Git 仓库、受控编译 Worker 与隔离预览；支持 JavaScript / TypeScript、React TSX、Vue SFC 和 Angular standalone 四类受控模板。
 
-布局使用 `dockview-core`，图标使用微软官方 `@vscode/codicons`。界面沿用 VS Code Dark Modern 的活动栏、资源管理器、编辑标签、预览、问题 / 输出 / Console / 终端面板和状态栏。编辑标签可拖动拆分、合并与停靠；预览与编辑器在布局移动时保留实例、撤销记录和运行状态，支持一键重置布局。布局随项目保存在本地目录里（与打开的标签同处），直接打开、刷新、重启浏览器或切换项目时都按该项目上次的样子还原；只排布已打开的文件，地址栏不带布局。
+布局使用 `dockview-core`，图标使用微软官方 `@vscode/codicons`。界面沿用 VS Code Dark Modern 的活动栏、资源管理器、编辑标签、预览、问题 / 输出 / Console / 终端面板和状态栏。编辑标签可拖动拆分、合并与停靠；预览与编辑器在布局移动时保留实例、撤销记录和运行状态，支持一键重置布局。底部面板的标签与 VS Code 一样只有文字，在标签栏右键勾选即可显示或隐藏问题 / 输出 / Console / 终端。布局随项目保存在本地目录里（与打开的标签同处），直接打开、刷新、重启浏览器或切换项目时都按该项目上次的样子还原；只排布已打开的文件，地址栏不带布局。
 
-首次进入空工作区显示欢迎页，预览与底部面板按需打开；可选择导入文件夹、打开最近项目或初始化 React、Vue、Angular Demo。后续重开恢复最近打开过的项目及其布局。范围与验收见 [requirements/stories/US-404](requirements/stories/US-404-browser-development-workbench.md)。
+首次进入空工作区时编辑区只有欢迎背景（与 VS Code 一样没有「欢迎」标签，点开第一个文件才出现第一个标签，关掉最后一个标签后原地回到欢迎背景），预览与底部面板按需打开；可选择导入文件夹、打开最近项目或初始化 React、Vue、Angular Demo。后续重开恢复最近打开过的项目及其布局。范围与验收见 [requirements/stories/US-404](requirements/stories/US-404-browser-development-workbench.md)。
 
 ## 开发与构建
 
@@ -103,6 +103,9 @@ Angular 使用浏览器 JIT 与 TS 装饰器转换。受控编译不提供完整
 根目录存在 `pnpm-lock.yaml` 就使用 pnpm，否则使用 npm。启动脚本优先选择非空的
 `scripts.dev`，其次选择 `scripts.start`；缺少有效脚本或配置错误会明确报错。
 安装成功后才执行启动脚本，安装进度、编译过程、服务输出与报错都实时显示。
+启动脚本是 vite 且没写清屏配置时，「运行」会在命令后补 `--clearScreen false`（npm 写作
+`-- --clearScreen false`），避免 vite 启动清屏冲掉安装过程；项目终端还设置了
+`NODE_OPTIONS=--disable-warning=ExperimentalWarning`，屏蔽 vite 8 在 WebContainer 里走 WASI 时的实验特性警告。
 安装或服务仍在运行时，再次点击「运行」会聚焦现有进程；项目终端正在执行手动输入的命令时，
 「运行」会提示先结束该命令。
 

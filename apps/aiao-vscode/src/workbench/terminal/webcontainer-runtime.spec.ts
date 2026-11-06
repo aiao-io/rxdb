@@ -61,6 +61,7 @@ function projectProcess(closeOutputOnExit = true) {
 }
 
 const PROMPT = '\u001b]654;prompt\u0007';
+const NPM_DEV: TerminalProjectPlan = { manager: 'npm', script: 'dev', args: [] };
 
 /** jsh --osc 的替身：输出夹带 OSC 654 标记，提示符与真实 jsh 一致。 */
 function projectShell(closeOutputOnExit = true) {
@@ -223,7 +224,7 @@ function fixture(bootGate?: Promise<void>) {
 }
 
 /** 启动运行时并让项目终端就绪，返回时安装命令已经输入。 */
-async function readyProject(plan: TerminalProjectPlan = { manager: 'npm', script: 'dev' }) {
+async function readyProject(plan: TerminalProjectPlan = NPM_DEV) {
   const f = fixture();
   const shell = projectShell();
   await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });
@@ -242,13 +243,16 @@ describe('浏览器 Node 终端运行时', () => {
     await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });
     vi.mocked(f.container.spawn).mockResolvedValueOnce(shell.process);
     f.runtime.resizeProject({ cols: 100, rows: 30 });
-    const running = f.runtime.runProject({ manager: 'npm', script: 'dev' });
+    const running = f.runtime.runProject(NPM_DEV);
     await vi.waitFor(() =>
-      expect(f.container.spawn).toHaveBeenNthCalledWith(2, 'jsh', ['--osc'], { terminal: { cols: 100, rows: 30 } })
+      expect(f.container.spawn).toHaveBeenNthCalledWith(2, 'jsh', ['--osc'], {
+        terminal: { cols: 100, rows: 30 },
+        env: { NODE_OPTIONS: '--disable-warning=ExperimentalWarning' }
+      })
     );
     shell.ready();
     await running;
-    await f.runtime.runProject({ manager: 'npm', script: 'dev' });
+    await f.runtime.runProject(NPM_DEV);
     expect(shell.writeInput).toHaveBeenCalledExactlyOnceWith('npm install\r', expect.anything());
     expect(f.options.onProjectState).toHaveBeenLastCalledWith('installing');
     expect(f.options.onProjectOutput).toHaveBeenCalledWith('\u001b[34m~/project\u001b[39m\r\n❯ ');
@@ -265,12 +269,22 @@ describe('浏览器 Node 终端运行时', () => {
     expect(f.container.spawn).toHaveBeenCalledTimes(2);
   });
 
+  it.each([
+    [{ manager: 'pnpm', script: 'dev', args: ['--clearScreen', 'false'] }, 'pnpm run dev --clearScreen false\r'],
+    [{ manager: 'npm', script: 'dev', args: ['--clearScreen', 'false'] }, 'npm run dev -- --clearScreen false\r']
+  ] as const)('启动脚本的追加参数：pnpm 直接透传，npm 用 -- 分隔（%o）', async (plan, command) => {
+    const f = await readyProject(plan);
+    f.shell.begin(7);
+    f.shell.end(7, 0);
+    await vi.waitFor(() => expect(f.shell.writeInput).toHaveBeenLastCalledWith(command, expect.anything()));
+  });
+
   it('pnpm 安装允许刷新锁文件并运行 start 脚本，切块的标记也能识别', async () => {
     const f = fixture();
     const shell = projectShell();
     await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });
     vi.mocked(f.container.spawn).mockResolvedValueOnce(shell.process);
-    const running = f.runtime.runProject({ manager: 'pnpm', script: 'start' });
+    const running = f.runtime.runProject({ manager: 'pnpm', script: 'start', args: [] });
     await vi.waitFor(() => expect(f.container.spawn).toHaveBeenCalledTimes(2));
     shell.output().enqueue(`❯ ${PROMPT}\u001b]65`);
     shell.output().enqueue('4;inter');
@@ -293,11 +307,11 @@ describe('浏览器 Node 终端运行时', () => {
     expect(f.shell.writeInput).toHaveBeenLastCalledWith('npm config list\r', expect.anything());
     f.shell.begin(8);
     await vi.waitFor(() => expect(f.options.onProjectOutput).toHaveBeenLastCalledWith('\u001b]654;pid=8\u0007'));
-    await expect(f.runtime.runProject({ manager: 'npm', script: 'dev' })).rejects.toThrow('正在执行命令');
+    await expect(f.runtime.runProject(NPM_DEV)).rejects.toThrow('正在执行命令');
     expect(f.shell.writeInput).toHaveBeenCalledTimes(2);
     f.shell.end(8, 0);
     await vi.waitFor(() => expect(f.options.onProjectOutput).toHaveBeenLastCalledWith(PROMPT));
-    await f.runtime.runProject({ manager: 'npm', script: 'dev' });
+    await f.runtime.runProject(NPM_DEV);
     expect(f.container.spawn).toHaveBeenCalledTimes(2);
     expect(f.shell.writeInput).toHaveBeenLastCalledWith('npm install\r', expect.anything());
     expect(f.options.onProjectState).toHaveBeenLastCalledWith('installing');
@@ -343,7 +357,7 @@ describe('浏览器 Node 终端运行时', () => {
     const spawn = deferred<TerminalProcess>();
     await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });
     vi.mocked(f.container.spawn).mockReturnValueOnce(spawn.promise);
-    const running = f.runtime.runProject({ manager: 'npm', script: 'dev' });
+    const running = f.runtime.runProject(NPM_DEV);
     await vi.waitFor(() => expect(f.container.spawn).toHaveBeenCalledTimes(2));
     await f.runtime.writeProject('\u0003');
     spawn.resolve(shell.process);
@@ -363,9 +377,9 @@ describe('浏览器 Node 终端运行时', () => {
     vi.mocked(f.container.spawn)
       .mockRejectedValueOnce(new Error('jsh unavailable'))
       .mockResolvedValueOnce(shell.process);
-    await expect(f.runtime.runProject({ manager: 'npm', script: 'dev' })).rejects.toThrow('jsh unavailable');
+    await expect(f.runtime.runProject(NPM_DEV)).rejects.toThrow('jsh unavailable');
     expect(f.options.onProjectState).toHaveBeenLastCalledWith('stopped', -1);
-    const running = f.runtime.runProject({ manager: 'npm', script: 'dev' });
+    const running = f.runtime.runProject(NPM_DEV);
     await vi.waitFor(() => expect(f.container.spawn).toHaveBeenCalledTimes(3));
     shell.ready();
     await running;
@@ -379,7 +393,7 @@ describe('浏览器 Node 终端运行时', () => {
     const spawn = deferred<TerminalProcess>();
     await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });
     vi.mocked(f.container.spawn).mockReturnValueOnce(spawn.promise);
-    const running = f.runtime.runProject({ manager: 'npm', script: 'dev' });
+    const running = f.runtime.runProject(NPM_DEV);
     await vi.waitFor(() => expect(f.container.spawn).toHaveBeenCalledTimes(2));
     await f.runtime.writeProject('\u0003');
     spawn.reject(new Error('spawn cancelled'));
@@ -414,7 +428,7 @@ describe('浏览器 Node 终端运行时', () => {
     await f.runtime.writeProject('ignored\r');
     expect(f.shell.writeInput).toHaveBeenCalledOnce();
     vi.mocked(f.container.spawn).mockResolvedValueOnce(next.process);
-    const running = f.runtime.runProject({ manager: 'npm', script: 'dev' });
+    const running = f.runtime.runProject(NPM_DEV);
     await vi.waitFor(() => expect(f.container.spawn).toHaveBeenCalledTimes(3));
     next.ready();
     await running;
@@ -427,7 +441,7 @@ describe('浏览器 Node 终端运行时', () => {
     const next = projectShell();
     await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });
     vi.mocked(f.container.spawn).mockResolvedValueOnce(shell.process).mockResolvedValueOnce(next.process);
-    const first = f.runtime.runProject({ manager: 'npm', script: 'dev' });
+    const first = f.runtime.runProject(NPM_DEV);
     await vi.waitFor(() => expect(f.container.spawn).toHaveBeenCalledTimes(2));
     shell.ready();
     await first;
@@ -436,7 +450,7 @@ describe('浏览器 Node 终端运行时', () => {
     await vi.waitFor(() => expect(f.options.onProjectState).toHaveBeenLastCalledWith('stopped', 1));
     shell.exit.resolve(0);
     await vi.waitFor(() => expect(shell.process.input.locked).toBe(false));
-    const running = f.runtime.runProject({ manager: 'npm', script: 'dev' });
+    const running = f.runtime.runProject(NPM_DEV);
     await vi.waitFor(() => expect(f.container.spawn).toHaveBeenCalledTimes(3));
     next.ready();
     await running;
@@ -451,7 +465,7 @@ describe('浏览器 Node 终端运行时', () => {
     const shell = projectShell(false);
     await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });
     vi.mocked(f.container.spawn).mockResolvedValueOnce(shell.process);
-    const running = f.runtime.runProject({ manager: 'npm', script: 'dev' });
+    const running = f.runtime.runProject(NPM_DEV);
     await vi.advanceTimersByTimeAsync(0);
     shell.ready();
     await running;
@@ -482,7 +496,7 @@ describe('浏览器 Node 终端运行时', () => {
       expect(f.shell.process.output.locked).toBe(false);
     });
     await expect(f.runtime.writeProject('late')).rejects.toThrow('释放');
-    await expect(f.runtime.runProject({ manager: 'npm', script: 'dev' })).rejects.toThrow('释放');
+    await expect(f.runtime.runProject(NPM_DEV)).rejects.toThrow('释放');
   });
 
   it('释放期间迟到的项目终端被杀掉，不产生任何项目回调', async () => {
@@ -491,7 +505,7 @@ describe('浏览器 Node 终端运行时', () => {
     const spawn = deferred<TerminalProcess>();
     await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });
     vi.mocked(f.container.spawn).mockReturnValueOnce(spawn.promise);
-    const running = f.runtime.runProject({ manager: 'npm', script: 'dev' });
+    const running = f.runtime.runProject(NPM_DEV);
     await vi.waitFor(() => expect(f.container.spawn).toHaveBeenCalledTimes(2));
     f.runtime.dispose();
     f.options.onProjectState.mockClear();
@@ -513,7 +527,7 @@ describe('浏览器 Node 终端运行时', () => {
     const shell = projectShell();
     await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });
     vi.mocked(f.container.spawn).mockResolvedValueOnce(shell.process);
-    const running = f.runtime.runProject({ manager: 'npm', script: 'dev' });
+    const running = f.runtime.runProject(NPM_DEV);
     await vi.waitFor(() => expect(shell.process.output.locked).toBe(true));
     f.runtime.dispose();
     await running;

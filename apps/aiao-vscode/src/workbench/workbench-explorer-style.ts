@@ -76,7 +76,7 @@ export const workbenchExplorerStyle = `
 .ao-workbench .wb-context-menu button{position:relative;display:flex;align-items:center;justify-content:flex-start;width:calc(100% - 8px);height:24px;margin:0 4px;border:0;background:transparent;padding:0 26px;border-radius:6px;font:inherit;line-height:18px;color:inherit;text-align:left;cursor:pointer;white-space:nowrap}
 .ao-workbench .wb-context-menu button:hover:not(:disabled),.ao-workbench .wb-context-menu button:focus-visible{background:var(--wb-blue);color:#fff;outline:none}
 .ao-workbench .wb-context-menu button:disabled{opacity:.5;cursor:default}
-.wb-menu-check{position:absolute;left:0;top:0;width:26px;height:24px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.wb-context-menu .wb-menu-check{position:absolute;left:0;top:0;bottom:0;width:26px;display:flex;align-items:center;justify-content:center;font-size:16px}
 .wb-menu-label{flex:1;overflow:hidden;text-overflow:ellipsis}
 .wb-menu-keybinding{margin-left:24px;opacity:.7;font-size:12px}
 .wb-context-menu-sep{height:1px;margin:4px 8px;background:var(--wb-menu-border);flex:none}

@@ -20,6 +20,7 @@ tags: [aiao-vscode, terminal, webcontainer, node]
 - 惰性启动 WebContainer，只挂载当前项目已保存源码，不注入宿主 Git 元数据或 GitHub 凭据。
 - 顶部「运行」保存全部文件，自动展开底部项目终端，先安装依赖，成功后再执行启动脚本；安装、编译、启动和运行报错实时可见。
 - 项目终端是带状态标记的 jsh（`jsh --osc`）：「运行」像手动输入一样把安装命令与启动脚本输入 Shell，提示符、命令回显与耗时与普通终端一致；按 OSC 654 标记判断安装中、运行中、已停止与终端退出。
+- 启动脚本是 vite 且未配置清屏时，「运行」补 `--clearScreen false`（npm 经 `--` 透传），导入项目同样适用；项目终端设置 `NODE_OPTIONS=--disable-warning=ExperimentalWarning`，只屏蔽实验特性警告。用户 2026-11-07 决定。
 - 包管理器优先读取根 `package.json` 的 `packageManager`（仅支持 `npm@版本`、`pnpm@版本`）；未声明时根 `pnpm-lock.yaml` 优先，否则使用 npm。脚本优先非空 `scripts.dev`，其次非空 `scripts.start`，无有效脚本或清单配置错误时明确失败。
 - 项目运行与手动输入命令使用独立会话，共用当前项目源码。Ctrl+C 可中断安装或服务，回到提示符后可继续输入命令；重复点击「运行」聚焦既有进程，退出后允许再次启动；项目终端正在执行手动命令时「运行」明确拒绝，不往命令中插入输入。
 - 编辑器保存后增量同步；终端源码变化通过带 revision 的原子写入与删除回执保存，保留未保存缓冲。
@@ -35,6 +36,7 @@ tags: [aiao-vscode, terminal, webcontainer, node]
 | 顶部运行保存文件、展开项目终端，重复运行聚焦现有进程                                          | `mount.spec.ts`、`workbench-terminal.spec.ts`                                                        | ✅   |
 | 独立 Shell 与项目会话、安装失败阻止启动、Ctrl+C 停止安装或服务                                | `webcontainer-runtime.spec.ts`、真实 Chromium 终端验证                                               | ✅   |
 | 项目终端为 jsh：提示符、命令回显与耗时，Ctrl+C 后可继续输入，忙时拒绝运行，终端退出后重新启动 | `webcontainer-runtime.spec.ts`、`workbench-terminal.spec.ts`、真实 Chromium 终端验证                 | ✅   |
+| vite 启动脚本补 `--clearScreen false`、项目终端屏蔽实验特性警告，老项目也保留安装过程         | `project-command.spec.ts`、`webcontainer-runtime.spec.ts`、真实 Chromium 终端验证                    | ✅   |
 | Shell 输入输出、ANSI、尺寸调整与资源释放                                                      | `terminal-view.spec.ts`、`webcontainer-runtime.spec.ts`                                              | ✅   |
 | 启动失败重试、旧项目迟到回调与退出保存                                                        | `workbench-terminal.spec.ts`                                                                         | ✅   |
 | 双向文件变化、二进制、原子删除、dirty 缓冲与 revision 冲突                                    | `session.spec.ts`、Git backend/runtime/worker 测试                                                   | ✅   |

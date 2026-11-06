@@ -49,7 +49,11 @@ export interface TerminalContainer {
     };
   };
   mount(tree: TerminalFileTree): Promise<void>;
-  spawn(command: string, args: string[], options: { terminal: TerminalSize }): Promise<TerminalProcess>;
+  spawn(
+    command: string,
+    args: string[],
+    options: { terminal: TerminalSize; env?: Record<string, string> }
+  ): Promise<TerminalProcess>;
   on(event: 'server-ready', listener: (port: number, url: string) => void): () => void;
   teardown(): void;
 }
@@ -191,6 +195,15 @@ function readMarker(shell: ProjectShell, marker: string): void {
 
 const installCommand = (plan: TerminalProjectPlan): string =>
   plan.manager === 'pnpm' ? 'pnpm install --no-frozen-lockfile' : 'npm install';
+
+/** 启动脚本命令；npm 要用 `--` 把追加参数交给脚本，pnpm 直接透传。 */
+function startCommand(plan: TerminalProjectPlan): string {
+  const args = plan.args.length && plan.manager === 'npm' ? ['--', ...plan.args] : plan.args;
+  return [plan.manager, 'run', plan.script, ...args].join(' ');
+}
+
+/** 项目终端屏蔽 Node 实验特性警告：vite 8 在 WebContainer 里走 rolldown 的 WASI 绑定，每次启动刷 4 条。 */
+const PROJECT_ENV = { NODE_OPTIONS: '--disable-warning=ExperimentalWarning' };
 
 /** 停止读取时只断开、不取消源流：WebContainer 在进程结束时才关闭输出，源流已取消会抛未捕获异常。 */
 const detachOutput = (signal: AbortSignal): StreamPipeOptions => ({ signal, preventCancel: true });
@@ -372,7 +385,7 @@ export function createWebContainerRuntime(options: TerminalRuntimeOptions): Term
 
   async function openProjectShell(): Promise<ProjectShell> {
     if (!container) throw new Error('终端尚未启动');
-    const child = await container.spawn('jsh', ['--osc'], { terminal: projectSize });
+    const child = await container.spawn('jsh', ['--osc'], { terminal: projectSize, env: PROJECT_ENV });
     if (disposed || stopping) {
       child.kill();
       throw new Error('终端已停止');
@@ -447,7 +460,7 @@ export function createWebContainerRuntime(options: TerminalRuntimeOptions): Term
       ready = true;
       if (!(await commandSettled(shell))) return;
       if (halted() || shell.status !== 0) return finishProject(execution, shell.status);
-      await typeCommand(shell, `${plan.manager} run ${plan.script}`);
+      await typeCommand(shell, startCommand(plan));
       if (!halted()) setProjectState(execution, 'running');
       if (await commandSettled(shell)) finishProject(execution, shell.status);
     } catch (cause) {

@@ -4,6 +4,8 @@ import type { WorkbenchFiles } from '../session.js';
 export interface TerminalProjectPlan {
   readonly manager: 'npm' | 'pnpm';
   readonly script: 'dev' | 'start';
+  /** 追加给启动脚本的固定参数，只由下方规则产生，不取自清单内容。 */
+  readonly args: readonly string[];
 }
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -31,15 +33,23 @@ function manager(value: unknown, files: WorkbenchFiles): TerminalProjectPlan['ma
   throw new Error('package.json packageManager 仅支持 npm@版本 或 pnpm@版本');
 }
 
-function script(value: unknown): TerminalProjectPlan['script'] {
+/** vite 在终端里启动会清屏，冲掉刚输出的安装过程；脚本没写清屏配置时补 `--clearScreen false`。 */
+function scriptArgs(command: string): readonly string[] {
+  const vite = /^vite(\s|$)/.test(command.trim());
+  return vite && !/--clear-?screen/i.test(command) ? ['--clearScreen', 'false'] : [];
+}
+
+function script(value: unknown): Pick<TerminalProjectPlan, 'script' | 'args'> {
   const scripts: Record<string, unknown> = record(value) ? value : {};
-  const selected = (['dev', 'start'] as const).find(name => typeof scripts[name] === 'string' && scripts[name].trim());
-  if (selected) return selected;
+  for (const name of ['dev', 'start'] as const) {
+    const command = scripts[name];
+    if (typeof command === 'string' && command.trim()) return { script: name, args: scriptArgs(command) };
+  }
   throw new Error('package.json 需要配置非空的 scripts.dev 或 scripts.start 启动脚本');
 }
 
 /** 根据项目已保存文件选择包管理器和启动脚本，不执行清单内容。 */
 export function projectRunPlan(files: WorkbenchFiles): TerminalProjectPlan {
   const config = manifest(files);
-  return { manager: manager(config['packageManager'], files), script: script(config['scripts']) };
+  return { manager: manager(config['packageManager'], files), ...script(config['scripts']) };
 }

@@ -3,12 +3,14 @@ import type { SerializedDockview } from 'dockview-core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createWorkbenchDockview, type WorkbenchDockview } from './workbench-dockview.js';
 
+type GridNode = SerializedDockview['grid']['root'];
+
 const instances: WorkbenchDockview[] = [];
 
 function fixture(width = 1200, height = 800, withPanels = true) {
   const root = document.createElement('section');
   root.innerHTML =
-    '<main data-slot="dockview"></main><div data-slot="panel-staging" hidden><aside class="wb-side">资源</aside><div class="wb-welcome">欢迎</div><section class="wb-preview"><div class="wb-preview-content"></div></section><section class="wb-panel" data-log="problems">问题日志</section><section class="wb-panel" data-log="output">输出日志</section><section class="wb-panel" data-log="console">控制台日志</section><section class="wb-panel" data-log="terminal">终端内容</section></div>';
+    '<main data-slot="dockview"></main><div data-slot="panel-staging" hidden><aside class="wb-side">资源</aside><template data-slot="welcome"><div class="wb-welcome">欢迎</div></template><section class="wb-preview"><div class="wb-preview-content"></div></section><section class="wb-panel" data-log="problems">问题日志</section><section class="wb-panel" data-log="output">输出日志</section><section class="wb-panel" data-log="console">控制台日志</section><section class="wb-panel" data-log="terminal">终端内容</section></div>';
   document.body.append(root);
   const callbacks = {
     onSelectEditor: vi.fn(),
@@ -47,10 +49,38 @@ const pointer = (type: string, init: Record<string, unknown> = {}): PointerEvent
     ...init
   });
 
+/** 主网格里没有面板的组；侧栏所在的边缘组不算。 */
+const emptyGridGroups = (dock: WorkbenchDockview) =>
+  dock.api.groups.filter(group => group.api.location.type === 'grid' && group.panels.length === 0);
+/** 界面上正在展示的欢迎背景（空编辑组的水印）。 */
+const welcomes = (root: ParentNode) => [...root.querySelectorAll<HTMLElement>('.wb-welcome')];
+const tabTitles = (root: ParentNode) =>
+  [...root.querySelectorAll('.wb-dock-tab-title')].map(title => title.textContent);
+
+/** 与某个组同处最内层网格分支的组 id（含自己），用来断言补建的编辑区与预览并排成一行。 */
+function siblingGroupIds(dock: WorkbenchDockview, groupId: string): string[] {
+  const search = (node: GridNode): string[] | undefined => {
+    if (!Array.isArray(node.data)) return undefined;
+    const ids = node.data.flatMap(child => (Array.isArray(child.data) ? [] : [child.data.id]));
+    if (ids.includes(groupId)) return ids;
+    for (const child of node.data) {
+      const found = search(child);
+      if (found) return found;
+    }
+    return undefined;
+  };
+  return search(dock.api.toJSON().grid.root) ?? [];
+}
+
 describe('Dockview 工作台布局', () => {
-  it('空工作区只显示侧栏和欢迎页，工具和预览按需打开', () => {
-    const { dock } = fixture(1200, 800, false);
-    expect(dock.api.panels.map(panel => panel.id).sort()).toEqual(['sidebar', 'welcome']);
+  it('空工作区只有侧栏面板，编辑区是展示欢迎背景的空组而不是标签，工具和预览按需打开', () => {
+    const { root, dock } = fixture(1200, 800, false);
+    expect(dock.api.panels.map(panel => panel.id)).toEqual(['sidebar']);
+    expect(tabTitles(root)).not.toContain('欢迎');
+    const [area, ...others] = emptyGridGroups(dock);
+    expect(others).toEqual([]);
+    expect(welcomes(root)).toHaveLength(1);
+    expect(area?.element.contains(welcomes(root)[0] ?? null)).toBe(true);
     expect(dock.isToolsVisible()).toBe(false);
     expect(dock.isPreviewOpen()).toBe(false);
     dock.showTool('output');
@@ -141,6 +171,34 @@ describe('Dockview 工作台布局', () => {
     expect(callbacks.onCloseAuxiliary).toHaveBeenCalledTimes(1);
   });
 
+  it('差异面板是编辑区最后一个内容时，关闭或移除它后编辑区回到欢迎背景', async () => {
+    const { root, dock, callbacks } = fixture();
+    dock.ensureAuxiliary('diff:working:file.ts', 'file.ts');
+    const area = dock.api.getPanel('diff:working:file.ts')?.group;
+    expect(welcomes(root)).toHaveLength(0);
+    root.querySelector<HTMLButtonElement>('[aria-label="关闭 file.ts"]')?.click();
+    await Promise.resolve();
+    expect(callbacks.onCloseAuxiliary).toHaveBeenCalledExactlyOnceWith('diff:working:file.ts');
+    expect(emptyGridGroups(dock)).toEqual([area]);
+    expect(welcomes(root)).toHaveLength(1);
+    dock.ensureAuxiliary('diff:staged:file.ts', 'file.ts');
+    expect(dock.api.getPanel('diff:staged:file.ts')?.group).toBe(area);
+    expect(welcomes(root)).toHaveLength(0);
+    dock.removeAuxiliary('diff:staged:file.ts');
+    expect(emptyGridGroups(dock)).toEqual([area]);
+    expect(welcomes(root)).toHaveLength(1);
+  });
+
+  it('只有差异面板时打开编辑器，落进差异所在的编辑区而不是预览或工具组', () => {
+    const { dock } = fixture();
+    dock.ensureAuxiliary('diff:working:file.ts', 'file.ts');
+    dock.ensureEditor('main.ts');
+    const group = dock.api.getPanel('diff:working:file.ts')?.group;
+    expect(dock.api.getPanel('editor:main.ts')?.group).toBe(group);
+    expect(group).not.toBe(dock.api.getPanel('preview')?.group);
+    expect(group).not.toBe(dock.api.getPanel('problems')?.group);
+  });
+
   it('重置布局把辅助面板归入编辑组，保留同一差异 DOM', () => {
     const { dock, callbacks } = fixture();
     dock.ensureEditor('main.ts');
@@ -217,7 +275,7 @@ describe('Dockview 工作台布局', () => {
     expect(dock.ensureEditor('src/main.ts')).toBe(first);
     expect(first.firstChild).toBe(child);
     expect(dock.api.getPanel('editor:src/main.ts')?.api.renderer).toBe('always');
-    expect(dock.api.getPanel('welcome')).toBeUndefined();
+    expect(welcomes(root)).toHaveLength(0);
     expect(dock.api.getPanel('editor:src/main.ts')?.api.isActive).toBe(true);
     expect(dock.api.getPanel('editor:src/other.ts')?.api.isActive).toBe(false);
     dock.selectEditor('src/main.ts');
@@ -235,66 +293,110 @@ describe('Dockview 工作台布局', () => {
     expect(tab?.querySelector<HTMLElement>('.codicon-circle-filled')?.hidden).toBe(true);
   });
 
-  it('欢迎页是无编辑器时的默认页，打开第一个编辑器即被替换', () => {
+  it('欢迎是编辑区的默认背景而不是标签，打开第一个文件时才出现第一个标签', () => {
     const { root, dock } = fixture();
-    const welcome = root.querySelector('.wb-welcome');
-    expect(dock.api.getPanel('welcome')?.api.isActive).toBe(true);
-    expect(root.querySelector<HTMLElement>('[aria-label="关闭 欢迎"]')).toBeNull();
+    const [area] = emptyGridGroups(dock);
+    expect(tabTitles(root)).not.toContain('欢迎');
+    expect(root.querySelector('[data-editor-tab-path]')).toBeNull();
+    expect(welcomes(root)).toHaveLength(1);
     dock.ensureEditor('first.ts');
-    expect(dock.api.getPanel('welcome')).toBeUndefined();
-    expect(welcome?.parentElement).toBe(root.querySelector('[data-slot="panel-staging"]'));
+    expect(welcomes(root)).toHaveLength(0);
+    expect(root.querySelectorAll('[data-editor-tab-path]')).toHaveLength(1);
+    expect(dock.api.getPanel('editor:first.ts')?.group).toBe(area);
+    expect(emptyGridGroups(dock)).toEqual([]);
     dock.ensureEditor('second.ts');
-    expect(dock.api.getPanel('welcome')).toBeUndefined();
+    expect(welcomes(root)).toHaveLength(0);
+    expect(root.querySelectorAll('[data-editor-tab-path]')).toHaveLength(2);
   });
 
-  it('关闭最后一个编辑器时欢迎页回归并激活，重开编辑器再次替换', async () => {
+  it('点标签关闭最后一个编辑器，编辑区原地回到欢迎背景，其余分组不动，重开复用同一个组', async () => {
     const { root, dock, callbacks } = fixture();
-    const welcome = root.querySelector('.wb-welcome');
     dock.ensureEditor('first.ts');
     dock.ensureEditor('second.ts');
-    dock.api.getPanel('editor:first.ts')?.api.close();
+    const area = dock.api.getPanel('editor:first.ts')?.group;
+    const groups = dock.api.groups.map(group => group.id);
+    root.querySelector<HTMLButtonElement>('[aria-label="关闭 first.ts"]')?.click();
     await Promise.resolve();
-    expect(dock.api.getPanel('welcome')).toBeUndefined();
-    dock.api.getPanel('editor:second.ts')?.api.close();
+    expect(welcomes(root)).toHaveLength(0);
+    root.querySelector<HTMLButtonElement>('[aria-label="关闭 second.ts"]')?.click();
     await Promise.resolve();
     expect(callbacks.onCloseEditor).toHaveBeenCalledTimes(2);
-    const panel = dock.api.getPanel('welcome');
-    expect(panel).toBeDefined();
-    expect(panel?.api.isActive).toBe(true);
-    expect(panel?.group).not.toBe(dock.api.getPanel('preview')?.group);
-    expect(panel?.group).not.toBe(dock.api.getPanel('problems')?.group);
-    expect(root.querySelector('.wb-welcome')).toBe(welcome);
+    expect(emptyGridGroups(dock)).toEqual([area]);
+    expect(dock.api.groups.map(group => group.id)).toEqual(groups);
+    expect(welcomes(root)).toHaveLength(1);
+    expect(area?.element.contains(welcomes(root)[0] ?? null)).toBe(true);
     dock.ensureEditor('again.ts');
-    expect(dock.api.getPanel('welcome')).toBeUndefined();
-    expect(welcome?.parentElement).toBe(root.querySelector('[data-slot="panel-staging"]'));
+    expect(dock.api.getPanel('editor:again.ts')?.group).toBe(area);
+    expect(welcomes(root)).toHaveLength(0);
   });
 
-  it('程序移除最后一个编辑器同样恢复欢迎页，不触发关闭回调', () => {
-    const { dock, callbacks } = fixture();
+  it('原生 close 关掉最后一个编辑器、分组被 Dockview 收走时，欢迎背景补回编辑区并贴着预览左侧', async () => {
+    const { root, dock, callbacks } = fixture();
+    dock.ensureEditor('only.ts');
+    dock.api.getPanel('editor:only.ts')?.api.close();
+    await Promise.resolve();
+    expect(callbacks.onCloseEditor).toHaveBeenCalledExactlyOnceWith('only.ts');
+    const [area, ...others] = emptyGridGroups(dock);
+    expect(others).toEqual([]);
+    expect(welcomes(root)).toHaveLength(1);
+    expect(area?.element.contains(welcomes(root)[0] ?? null)).toBe(true);
+    expect(area).not.toBe(dock.api.getPanel('preview')?.group);
+    expect(area).not.toBe(dock.api.getPanel('problems')?.group);
+    // 与预览并排成一行，工具组仍独占底部整行，而不是堆成编辑区 / 预览 / 工具三行
+    expect(siblingGroupIds(dock, area?.id ?? '').sort()).toEqual(
+      [area?.id, dock.api.getPanel('preview')?.group.id].sort()
+    );
+    dock.ensureEditor('again.ts');
+    expect(dock.api.getPanel('editor:again.ts')?.group).toBe(area);
+  });
+
+  it('没有预览时补建的编辑区落在底部工具组上方，工具组高度回到默认的 1/3', async () => {
+    const { root, dock } = fixture(1200, 900);
+    const bottom = dock.api.getPanel('problems')?.group;
+    await vi.waitFor(() => expect(bottom?.api.height).toBeCloseTo(300, 0));
+    dock.api.getPanel('preview')?.api.close();
+    await Promise.resolve();
+    dock.ensureEditor('only.ts');
+    dock.api.getPanel('editor:only.ts')?.api.close();
+    await Promise.resolve();
+    const [area, ...others] = emptyGridGroups(dock);
+    expect(others).toEqual([]);
+    expect(welcomes(root)).toHaveLength(1);
+    expect(siblingGroupIds(dock, area?.id ?? '').sort()).toEqual([area?.id, bottom?.id].sort());
+    expect(bottom?.api.height).toBeCloseTo(300, 0);
+  });
+
+  it('程序移除最后一个编辑器同样回到欢迎背景，不触发关闭回调', () => {
+    const { root, dock, callbacks } = fixture();
     dock.ensureEditor('a.ts');
+    const area = dock.api.getPanel('editor:a.ts')?.group;
     dock.removeEditor('a.ts');
-    expect(dock.api.getPanel('welcome')?.api.isActive).toBe(true);
+    expect(emptyGridGroups(dock)).toEqual([area]);
+    expect(welcomes(root)).toHaveLength(1);
     expect(callbacks.onCloseEditor).not.toHaveBeenCalled();
   });
 
-  it('重置布局时无编辑器展示欢迎页，有编辑器保持替换状态', () => {
-    const { dock } = fixture();
+  it('重置布局时无编辑器只留一个展示欢迎背景的空编辑组，有编辑器则不留空组', () => {
+    const { root, dock } = fixture();
     dock.resetLayout();
-    expect(dock.api.getPanel('welcome')?.api.isActive).toBe(true);
+    expect(emptyGridGroups(dock)).toHaveLength(1);
+    expect(welcomes(root)).toHaveLength(1);
     dock.ensureEditor('main.ts');
     dock.selectEditor('main.ts');
     dock.resetLayout();
-    expect(dock.api.getPanel('welcome')).toBeUndefined();
+    expect(emptyGridGroups(dock)).toEqual([]);
+    expect(welcomes(root)).toHaveLength(0);
   });
 
-  it('重置布局时 lastEditor 已不在则回落到欢迎页', async () => {
-    const { dock } = fixture();
+  it('重置布局时 lastEditor 已不在则回到欢迎背景', async () => {
+    const { root, dock } = fixture();
     dock.ensureEditor('gone.ts');
     dock.selectEditor('gone.ts');
     dock.api.getPanel('editor:gone.ts')?.api.close();
     await Promise.resolve();
     dock.resetLayout();
-    expect(dock.api.getPanel('welcome')?.api.isActive).toBe(true);
+    expect(emptyGridGroups(dock)).toHaveLength(1);
+    expect(welcomes(root)).toHaveLength(1);
   });
 
   it('程序移除不重复close，用户关闭只在Dock移除完成后通知一次', async () => {
@@ -464,6 +566,227 @@ describe('Dockview 工作台布局', () => {
     dock.dispose();
     await Promise.resolve();
     expect(callbacks.onCloseEditor).not.toHaveBeenCalled();
+  });
+});
+
+describe('底部工具面板标签', () => {
+  const kinds = ['problems', 'output', 'console', 'terminal'] as const;
+  const toolTab = (kind: string): HTMLElement => {
+    const tab = document.querySelector<HTMLElement>(`[data-panel="${kind}"]`);
+    if (!tab) throw new Error(`工具标签缺失 ${kind}`);
+    return tab;
+  };
+  const openMenu = (target: Element): void => {
+    target.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 120, clientY: 60 }));
+  };
+  const menuItems = (): HTMLButtonElement[] => [
+    ...document.querySelectorAll<HTMLButtonElement>('.wb-context-menu button')
+  ];
+  const menuItem = (label: string): HTMLButtonElement => {
+    const item = menuItems().find(entry => entry.textContent === label);
+    if (!item) throw new Error(`菜单缺少 ${label}`);
+    return item;
+  };
+  /** 经右键菜单切换一个工具的显隐，与用户操作一致。 */
+  const toggle = (label: string, anchor = 'terminal'): void => {
+    openMenu(toolTab(anchor));
+    menuItem(label).click();
+  };
+  const present = (dock: WorkbenchDockview): string[] => kinds.filter(kind => dock.api.getPanel(kind));
+  const order = (dock: WorkbenchDockview): string[] | undefined =>
+    dock.api.getPanel('terminal')?.group.panels.map(panel => panel.id);
+
+  it('工具标签只有文字：没有图标、没有关闭按钮，中键也不关闭', async () => {
+    const { dock } = fixture();
+    for (const kind of kinds) {
+      const tab = toolTab(kind);
+      expect(tab.classList.contains('wb-dock-tab-tool')).toBe(true);
+      expect(tab.querySelector('.codicon')).toBeNull();
+      expect(tab.querySelector('button')).toBeNull();
+      tab.dispatchEvent(new MouseEvent('auxclick', { bubbles: true, cancelable: true, button: 1 }));
+    }
+    expect(toolTab('output').textContent).toBe('输出');
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(present(dock)).toEqual([...kinds]);
+  });
+
+  it('只有工具组带 wb-tool-group 标记，编辑器组与预览组没有', () => {
+    const { dock } = fixture();
+    dock.ensureEditor('main.ts');
+    const marked = (id: string) => dock.api.getPanel(id)?.group.element.classList.contains('wb-tool-group');
+    expect(marked('problems')).toBe(true);
+    expect(marked('editor:main.ts')).toBe(false);
+    expect(marked('preview')).toBe(false);
+  });
+
+  it('右键工具标签弹出带勾选的开关菜单', () => {
+    fixture();
+    openMenu(toolTab('output'));
+    const items = menuItems();
+    expect(items.map(item => item.textContent)).toEqual(['问题', '输出', 'Console', '终端']);
+    expect(items.map(item => item.getAttribute('role'))).toEqual(kinds.map(() => 'menuitemcheckbox'));
+    expect(items.map(item => item.getAttribute('aria-checked'))).toEqual(kinds.map(() => 'true'));
+    expect(items.every(item => item.querySelector('.codicon-check') !== null)).toBe(true);
+    expect(items.every(item => !item.disabled)).toBe(true);
+  });
+
+  it('取消勾选隐藏该工具并回存宿主，重新勾选按原顺序放回同一宿主', () => {
+    const { root, dock, callbacks } = fixture();
+    const host = root.querySelector('[data-log="output"]');
+    callbacks.onToggleTool.mockClear();
+    toggle('输出', 'problems');
+    expect(present(dock)).toEqual(['problems', 'console', 'terminal']);
+    expect(host?.parentElement).toBe(root.querySelector('[data-slot="panel-staging"]'));
+    expect(document.querySelector('.wb-context-menu')).toBeNull();
+    // 其余工具还在，底部面板没有整体关闭
+    expect(callbacks.onToggleTool).not.toHaveBeenCalled();
+    expect(dock.isToolsVisible()).toBe(true);
+
+    openMenu(toolTab('problems'));
+    expect(menuItem('输出').getAttribute('aria-checked')).toBe('false');
+    expect(menuItem('输出').querySelector('.codicon-check')).toBeNull();
+    menuItem('输出').click();
+    expect(root.querySelector('[data-log="output"]')).toBe(host);
+    expect(order(dock)).toEqual([...kinds]);
+    expect(dock.api.getPanel('output')?.api.isActive).toBe(true);
+    expect(callbacks.onSelectTool).toHaveBeenLastCalledWith('output');
+  });
+
+  it('隐藏当前活动的工具后，改选留下的工具并通知宿主', () => {
+    const { dock, callbacks } = fixture();
+    dock.showTool('output');
+    callbacks.onSelectTool.mockClear();
+    toggle('输出');
+    const active = dock.api.getPanel('problems')?.group.activePanel?.id;
+    expect(active).toBeDefined();
+    expect(active).not.toBe('output');
+    expect(callbacks.onSelectTool).toHaveBeenCalledExactlyOnceWith(active);
+  });
+
+  it('隐藏不活动的工具不改变选中项，也不通知宿主', () => {
+    const { dock, callbacks } = fixture();
+    dock.showTool('terminal');
+    callbacks.onSelectTool.mockClear();
+    toggle('Console');
+    expect(dock.api.getPanel('terminal')?.api.isActive).toBe(true);
+    expect(callbacks.onSelectTool).not.toHaveBeenCalled();
+  });
+
+  it('最后一个工具的条目禁用，底部面板不会被隐藏光', () => {
+    const { dock } = fixture();
+    for (const label of ['问题', '输出', 'Console']) toggle(label);
+    expect(present(dock)).toEqual(['terminal']);
+    openMenu(toolTab('terminal'));
+    const last = menuItem('终端');
+    expect(last.disabled).toBe(true);
+    expect(last.getAttribute('aria-checked')).toBe('true');
+    last.click();
+    expect(present(dock)).toEqual(['terminal']);
+  });
+
+  it('右键工具组标签栏空白处弹出同一个菜单，编辑器组不弹', () => {
+    const { dock } = fixture();
+    dock.ensureEditor('main.ts');
+    const blank = (id: string) => dock.api.getPanel(id)?.group.element.querySelector('.dv-void-container');
+    const editorBlank = blank('editor:main.ts');
+    if (!editorBlank) throw new Error('编辑器组标签栏缺失');
+    openMenu(editorBlank);
+    expect(document.querySelector('.wb-context-menu')).toBeNull();
+    const toolBlank = blank('terminal');
+    if (!toolBlank) throw new Error('工具组标签栏缺失');
+    openMenu(toolBlank);
+    expect(menuItems().map(item => item.textContent)).toEqual(['问题', '输出', 'Console', '终端']);
+  });
+
+  it('菜单按 Escape 关闭，点到菜单外也关闭', () => {
+    fixture();
+    openMenu(toolTab('console'));
+    const menu = document.querySelector<HTMLElement>('.wb-context-menu');
+    expect(menu).not.toBeNull();
+    menu?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    expect(document.querySelector('.wb-context-menu')).toBeNull();
+    openMenu(toolTab('console'));
+    expect(document.querySelector('.wb-context-menu')).not.toBeNull();
+    document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    expect(document.querySelector('.wb-context-menu')).toBeNull();
+  });
+
+  it('触屏长按工具标签同样弹出菜单', () => {
+    vi.useFakeTimers();
+    fixture();
+    toolTab('output').dispatchEvent(pointer('pointerdown'));
+    vi.advanceTimersByTime(500);
+    expect(menuItems().map(item => item.textContent)).toEqual(['问题', '输出', 'Console', '终端']);
+  });
+
+  it('被拖进编辑器组的工具标签也能右键隐藏', () => {
+    const { dock } = fixture();
+    dock.ensureEditor('main.ts');
+    const editorGroup = dock.api.getPanel('editor:main.ts')?.group;
+    if (!editorGroup) throw new Error('编辑器组缺失');
+    dock.api.getPanel('console')?.api.moveTo({ group: editorGroup, position: 'center' });
+    expect(editorGroup.element.classList.contains('wb-tool-group')).toBe(false);
+    toggle('Console', 'console');
+    expect(dock.api.getPanel('console')).toBeUndefined();
+    expect(present(dock)).toEqual(['problems', 'output', 'terminal']);
+  });
+
+  it('隐藏的工具在整体关闭再打开后仍然隐藏，显示其他工具也不会带回，显式显示才恢复', async () => {
+    const { dock } = fixture();
+    toggle('Console');
+    dock.toggleTools();
+    await Promise.resolve();
+    expect(dock.isToolsVisible()).toBe(false);
+    dock.toggleTools();
+    expect(present(dock)).toEqual(['problems', 'output', 'terminal']);
+    dock.showTool('problems');
+    expect(dock.api.getPanel('console')).toBeUndefined();
+    dock.showTool('console');
+    expect(present(dock)).toEqual([...kinds]);
+  });
+
+  it('整体关闭再打开回到上次选中的工具', async () => {
+    const { dock } = fixture();
+    dock.showTool('terminal');
+    dock.toggleTools();
+    await Promise.resolve();
+    dock.toggleTools();
+    expect(dock.api.getPanel('terminal')?.api.isActive).toBe(true);
+  });
+
+  it('重置布局把隐藏的工具全部找回', () => {
+    const { dock } = fixture();
+    toggle('输出');
+    toggle('Console');
+    dock.resetLayout();
+    expect(present(dock)).toEqual([...kinds]);
+    expect(order(dock)).toEqual([...kinds]);
+  });
+
+  it('布局不记隐藏的工具，按这份布局还原后它们保持隐藏', () => {
+    const { dock } = fixture();
+    toggle('Console');
+    const layout = JSON.parse(JSON.stringify(dock.serializeLayout())) as SerializedDockview;
+    expect(Object.keys(layout.panels)).not.toContain('console');
+    dock.resetLayout();
+    expect(present(dock)).toEqual([...kinds]);
+    expect(dock.applyLayout(layout)).toBe(true);
+    expect(present(dock)).toEqual(['problems', 'output', 'terminal']);
+    dock.showTool('problems');
+    expect(dock.api.getPanel('console')).toBeUndefined();
+  });
+
+  it('按底部面板关闭的布局还原后，所有工具重新可用', () => {
+    const closed = fixture();
+    toggle('Console');
+    closed.dock.toggleTools();
+    const layout = JSON.parse(JSON.stringify(closed.dock.serializeLayout())) as SerializedDockview;
+    const { dock } = fixture();
+    expect(dock.applyLayout(layout)).toBe(true);
+    expect(dock.isToolsVisible()).toBe(false);
+    dock.showTool('terminal');
+    expect(present(dock)).toEqual([...kinds]);
   });
 });
 
@@ -670,28 +993,61 @@ describe('布局持久化', () => {
 
   it('只排布已打开的编辑器：布局中未打开的被忽略并回收空组，已打开而布局里没有的回到编辑区', async () => {
     const layout = exported(splitEditors);
-    const { dock, callbacks } = fixture();
+    const { root, dock, callbacks } = fixture();
     dock.ensureEditor('second.ts');
     const third = dock.ensureEditor('third.ts');
     expect(dock.applyLayout(layout)).toBe(true);
     expect(dock.api.getPanel('editor:first.ts')).toBeUndefined();
     expect(dock.api.getPanel('editor:third.ts')?.group).toBe(dock.api.getPanel('editor:second.ts')?.group);
     expect(dock.ensureEditor('third.ts')).toBe(third);
-    expect(dock.api.getPanel('welcome')).toBeUndefined();
+    expect(welcomes(root)).toHaveLength(0);
     expect(emptyGroups(dock)).toEqual([]);
     await Promise.resolve();
     expect(callbacks.onCloseEditor).not.toHaveBeenCalled();
   });
 
-  it('布局里的编辑器都没打开时，欢迎页占据原编辑区', () => {
+  it('布局里的编辑器都没打开时，欢迎背景占据原编辑区，空组只留这一个', () => {
     const layout = exported(splitEditors);
-    const { dock } = fixture();
+    const { root, dock } = fixture();
     expect(dock.applyLayout(layout)).toBe(true);
-    const welcome = dock.api.getPanel('welcome');
-    expect(welcome).toBeDefined();
-    expect(welcome?.group).not.toBe(dock.api.getPanel('preview')?.group);
-    expect(welcome?.group).not.toBe(dock.api.getPanel('problems')?.group);
+    const [area, ...others] = emptyGroups(dock);
+    expect(others).toEqual([]);
+    expect(area).not.toBe(dock.api.getPanel('preview')?.group);
+    expect(area).not.toBe(dock.api.getPanel('problems')?.group);
+    expect(welcomes(root)).toHaveLength(1);
+    expect(area?.element.contains(welcomes(root)[0] ?? null)).toBe(true);
+  });
+
+  it('无编辑器时导出的布局不含欢迎面板，空编辑组原样记下并能还原', () => {
+    const layout = exported(() => undefined);
+    expect(Object.keys(layout.panels)).not.toContain('welcome');
+    const { root, dock } = fixture();
+    dock.ensureEditor('late.ts');
+    expect(dock.applyLayout(layout)).toBe(true);
     expect(emptyGroups(dock)).toEqual([]);
+    dock.removeEditor('late.ts');
+    expect(emptyGroups(dock)).toHaveLength(1);
+    expect(welcomes(root)).toHaveLength(1);
+  });
+
+  it('旧版布局里残留的欢迎面板被丢弃，其所在组按空编辑区展示欢迎背景', () => {
+    const legacy: SerializedDockview = JSON.parse(JSON.stringify(exported(() => undefined)));
+    // 旧版在无编辑器时把「欢迎」面板写进编辑组：给空叶子补上它，模拟旧布局记录
+    const addLegacyWelcome = (node: GridNode): boolean => {
+      if (Array.isArray(node.data)) return node.data.some(addLegacyWelcome);
+      if (node.data.views.length > 0) return false;
+      node.data.views.push('welcome');
+      node.data.activeView = 'welcome';
+      return true;
+    };
+    expect(addLegacyWelcome(legacy.grid.root)).toBe(true);
+    legacy.panels['welcome'] = { id: 'welcome', contentComponent: 'welcome', title: '欢迎', renderer: 'always' };
+    const { root, dock } = fixture();
+    expect(dock.applyLayout(legacy)).toBe(true);
+    expect(dock.api.getPanel('welcome')).toBeUndefined();
+    expect(emptyGroups(dock)).toHaveLength(1);
+    expect(welcomes(root)).toHaveLength(1);
+    expect(tabTitles(root)).not.toContain('欢迎');
   });
 
   it('结构非法的布局不改动现有布局', () => {

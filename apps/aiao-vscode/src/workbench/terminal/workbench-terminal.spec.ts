@@ -310,7 +310,11 @@ describe('工作台交互终端', () => {
   it('运行项目自动选中独立项目终端，安装输出、交互与 Shell 分离', async () => {
     const f = await projectFixture();
     await f.terminal.runProject();
-    expect(f.runtime.runProject).toHaveBeenCalledExactlyOnceWith({ manager: 'pnpm', script: 'dev' });
+    expect(f.runtime.runProject).toHaveBeenCalledExactlyOnceWith({
+      manager: 'pnpm',
+      script: 'dev',
+      args: ['--clearScreen', 'false']
+    });
     expect(f.views).toHaveLength(2);
     const project = f.views[1]!;
     f.runtimeOptions.onProjectState?.('installing');

@@ -49,7 +49,9 @@ export interface WorkbenchDockview {
   isSidebarVisible(): boolean;
   /** 窄屏时把侧栏切换为覆盖式抽屉（挂到工作台根），退出时归还 Dockview 边缘组。 */
   setSidebarOverlay(overlay: boolean): void;
+  /** 显示并选中一个底部工具；它之前被标签栏右键菜单隐藏的话一并恢复，其余隐藏的工具不受影响。 */
   showTool(kind: WorkbenchToolKind): void;
+  /** 整体开合底部面板；右键菜单隐藏的工具重开后仍保持隐藏。 */
   toggleTools(): void;
   isToolsVisible(): boolean;
   showPreview(): void;
@@ -68,7 +70,6 @@ export interface WorkbenchDockview {
 const tools: readonly WorkbenchToolKind[] = ['problems', 'output', 'console', 'terminal'];
 const titles = {
   sidebar: '资源管理器',
-  welcome: '欢迎',
   preview: '预览',
   problems: '问题',
   output: '输出',
@@ -80,8 +81,8 @@ const editorPath = (id: string): string | undefined => (id.startsWith('editor:')
 const isTool = (id: string): id is WorkbenchToolKind => tools.some(kind => kind === id);
 const isStatic = (id: string): id is keyof typeof titles => Object.hasOwn(titles, id);
 
-function required(root: HTMLElement, selector: string): HTMLElement {
-  const element = root.querySelector<HTMLElement>(selector);
+function required<T extends HTMLElement = HTMLElement>(root: HTMLElement, selector: string): T {
+  const element = root.querySelector<T>(selector);
   if (!element) throw new Error(`Dockview 布局缺少 ${selector}`);
   return element;
 }
@@ -98,6 +99,14 @@ function closeTabMenu(): void {
   document.removeEventListener('mousedown', outsideTabMenu, true);
 }
 
+/** 标签栏右键菜单的一项；`checked` 有值时是带勾选的开关项。 */
+interface TabMenuItem {
+  readonly label: string;
+  readonly checked?: boolean;
+  readonly disabled?: boolean;
+  readonly action: () => void;
+}
+
 /** 编辑器标签的右键菜单：关闭 / 关闭其他 / 关闭右侧，与 VS Code 一致。 */
 function showTabMenu(
   event: MouseEvent,
@@ -107,6 +116,42 @@ function showTabMenu(
   onCloseOthers?: (path: string) => void,
   onCloseRight?: (path: string) => void
 ): void {
+  showMenu(
+    event,
+    [
+      { label: '关闭', action: close },
+      ...(onCloseOthers ? [{ label: '关闭其他', action: () => onCloseOthers(path) }] : []),
+      ...(onCloseRight ? [{ label: '关闭右侧', action: () => onCloseRight(path) }] : [])
+    ],
+    root
+  );
+}
+
+function createMenuItem(item: TabMenuItem): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  const checkable = item.checked !== undefined;
+  button.setAttribute('role', checkable ? 'menuitemcheckbox' : 'menuitem');
+  if (checkable) button.setAttribute('aria-checked', String(item.checked));
+  if (item.checked) {
+    const check = createCodicon('check');
+    check.classList.add('wb-menu-check');
+    button.append(check);
+  }
+  const label = document.createElement('span');
+  label.className = 'wb-menu-label';
+  label.textContent = item.label;
+  button.append(label);
+  button.disabled = item.disabled ?? false;
+  button.onclick = () => {
+    closeTabMenu();
+    item.action();
+  };
+  return button;
+}
+
+/** 在光标处弹出标签栏右键菜单，同一时刻只保留一个。 */
+function showMenu(event: MouseEvent, items: readonly TabMenuItem[], root: HTMLElement): void {
   event.preventDefault();
   event.stopPropagation();
   closeTabMenu();
@@ -115,22 +160,7 @@ function showTabMenu(
   const menu = document.createElement('div');
   menu.className = 'wb-context-menu';
   menu.setAttribute('role', 'menu');
-  const items: { label: string; action: () => void }[] = [
-    { label: '关闭', action: close },
-    ...(onCloseOthers ? [{ label: '关闭其他', action: () => onCloseOthers(path) }] : []),
-    ...(onCloseRight ? [{ label: '关闭右侧', action: () => onCloseRight(path) }] : [])
-  ];
-  for (const item of items) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.setAttribute('role', 'menuitem');
-    button.textContent = item.label;
-    button.onclick = () => {
-      closeTabMenu();
-      item.action();
-    };
-    menu.append(button);
-  }
+  menu.append(...items.map(createMenuItem));
   menu.onkeydown = event => {
     if (event.key === 'Escape') {
       event.preventDefault();
@@ -148,11 +178,63 @@ function showTabMenu(
   document.addEventListener('mousedown', outsideTabMenu, true);
 }
 
-function createTab(id: string, auxiliary: boolean, callbacks: WorkbenchDockviewCallbacks, root: HTMLElement) {
+/** 触屏长按转成 contextmenu 事件，让标签在手机上也能弹出右键菜单。 */
+function forwardLongPress(element: HTMLElement): () => void {
+  return attachWorkbenchLongPress(element, {
+    onLongPress: event =>
+      element.dispatchEvent(
+        new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          clientX: event.clientX,
+          clientY: event.clientY
+        })
+      )
+  });
+}
+
+/**
+ * 底部工具标签对齐 VS Code 的面板标签栏：只有文字，没有图标、脏标记和关闭按钮，
+ * 显隐统一走标签栏右键菜单。
+ */
+function createToolTab(id: WorkbenchToolKind, showToolMenu: (event: MouseEvent) => void) {
+  const element = document.createElement('div');
+  element.className = 'wb-dock-tab wb-dock-tab-tool';
+  element.dataset['panel'] = id;
+  const label = document.createElement('span');
+  label.className = 'wb-dock-tab-title';
+  element.append(label);
+  const renderTitle = (title: string): void => {
+    label.textContent = title;
+  };
+  let titleSubscription: DockviewIDisposable | undefined;
+  let detachLongPress: (() => void) | undefined;
+  return {
+    element,
+    init(parameters: TabPartInitParameters) {
+      renderTitle(parameters.title);
+      titleSubscription = parameters.api.onDidTitleChange(event => renderTitle(event.title));
+      detachLongPress = forwardLongPress(element);
+      element.addEventListener('contextmenu', showToolMenu);
+    },
+    dispose() {
+      titleSubscription?.dispose();
+      detachLongPress?.();
+      element.removeEventListener('contextmenu', showToolMenu);
+    }
+  };
+}
+
+function createTab(
+  id: string,
+  auxiliary: boolean,
+  callbacks: WorkbenchDockviewCallbacks,
+  root: HTMLElement,
+  closeTab: () => void
+) {
   const element = document.createElement('div');
   element.className = 'wb-dock-tab';
   const path = editorPath(id);
-  if (isTool(id)) element.dataset['panel'] = id;
   if (path !== undefined) element.dataset['editorTabPath'] = path;
   if (auxiliary) element.dataset['auxiliaryId'] = id;
   const icon =
@@ -161,10 +243,6 @@ function createTab(id: string, auxiliary: boolean, callbacks: WorkbenchDockviewC
     : createCodicon(
         auxiliary ? 'git-compare'
         : id === 'preview' ? 'open-preview'
-        : id === 'welcome' ? 'code'
-        : id === 'console' ? 'debug-console'
-        : id === 'terminal' ? 'terminal'
-        : id === 'problems' ? 'warning'
         : 'output'
       );
   const label = document.createElement('span');
@@ -190,27 +268,17 @@ function createTab(id: string, auxiliary: boolean, callbacks: WorkbenchDockviewC
         element.classList.toggle('wb-preview-tab', params['preview'] === true);
       });
       titleSubscription = parameters.api.onDidTitleChange(event => renderTitle(event.title));
-      detachLongPress = attachWorkbenchLongPress(element, {
-        onLongPress: event =>
-          element.dispatchEvent(
-            new MouseEvent('contextmenu', {
-              bubbles: true,
-              cancelable: true,
-              clientX: event.clientX,
-              clientY: event.clientY
-            })
-          )
-      });
-      if (id === 'sidebar' || id === 'welcome') return;
+      detachLongPress = forwardLongPress(element);
+      if (id === 'sidebar') return;
       element.addEventListener('auxclick', event => {
         if (event.button !== 1) return;
         event.preventDefault();
-        parameters.api.close();
+        closeTab();
       });
       if (path !== undefined) {
         element.addEventListener('dblclick', () => callbacks.onPinEditor?.(path));
         element.addEventListener('contextmenu', event =>
-          showTabMenu(event, path, () => parameters.api.close(), root, callbacks.onCloseOthers, callbacks.onCloseRight)
+          showTabMenu(event, path, closeTab, root, callbacks.onCloseOthers, callbacks.onCloseRight)
         );
       }
       const close = document.createElement('button');
@@ -223,7 +291,7 @@ function createTab(id: string, auxiliary: boolean, callbacks: WorkbenchDockviewC
       close.onclick = event => {
         event.preventDefault();
         event.stopPropagation();
-        parameters.api.close();
+        closeTab();
       };
       element.append(close);
     },
@@ -237,7 +305,8 @@ function createTab(id: string, auxiliary: boolean, callbacks: WorkbenchDockviewC
 
 function createGroupActions(
   group: DockviewGroupPanel,
-  splitEditor: (panel: IDockviewPanel) => void
+  splitEditor: (panel: IDockviewPanel) => void,
+  showToolMenu: (event: MouseEvent) => void
 ): IHeaderActionsRenderer {
   const element = document.createElement('div');
   element.className = 'wb-dock-group-actions';
@@ -258,9 +327,19 @@ function createGroupActions(
   close.append(createCodicon('close'));
   element.append(split, maximize, close);
 
+  /** 只放底部工具标签的组；它的标签栏用紧凑的面板样式（wb-tool-group）。 */
+  const isToolGroup = (): boolean => group.panels.length > 0 && group.panels.every(panel => isTool(panel.id));
+
+  /** 工具组的整条标签栏（含空白处与右侧按钮）都响应右键，与点在标签上弹出同一个菜单。 */
+  const onHeaderContextMenu = (event: MouseEvent): void => {
+    if (isToolGroup() && event.target instanceof Element && event.target.closest('.dv-tabs-and-actions-container'))
+      showToolMenu(event);
+  };
+
   function update(): void {
     const active = group.activePanel;
-    const toolGroup = group.panels.length > 0 && group.panels.every(panel => isTool(panel.id));
+    const toolGroup = isToolGroup();
+    group.element.classList.toggle('wb-tool-group', toolGroup);
     split.hidden = !active || editorPath(active.id) === undefined;
     maximize.hidden = !toolGroup;
     close.hidden = !toolGroup;
@@ -299,10 +378,13 @@ function createGroupActions(
         group.model.onDidRemovePanel(update),
         api.onDidMaximizedGroupChange(update)
       );
+      group.element.addEventListener('contextmenu', onHeaderContextMenu);
       update();
     },
     dispose() {
       subscriptions.splice(0).forEach(subscription => subscription.dispose());
+      group.element.removeEventListener('contextmenu', onHeaderContextMenu);
+      group.element.classList.remove('wb-tool-group');
       split.onclick = null;
       maximize.onclick = null;
       close.onclick = null;
@@ -314,15 +396,17 @@ function createGroupActions(
 export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchDockviewCallbacks): WorkbenchDockview {
   const container = required(root, '[data-slot="dockview"]');
   const staging = required(root, '[data-slot="panel-staging"]');
+  const welcomeTemplate = required<HTMLTemplateElement>(root, '[data-slot="welcome"]');
   const hosts = new Map<string, HTMLElement>([
     ['sidebar', required(root, '.wb-side')],
-    ['welcome', required(root, '.wb-welcome')],
     ['preview', required(root, '.wb-preview')],
     ...tools.map(kind => [kind, required(root, `.wb-panel[data-log="${kind}"]`)] as [string, HTMLElement])
   ]);
   const subscriptions: DockviewIDisposable[] = [];
   const closing = new Set<string>();
   const auxiliaryIds = new Set<string>();
+  /** 用户在标签栏右键菜单里隐藏的工具；底部面板整体关闭再打开时保持隐藏。 */
+  const hiddenTools = new Set<WorkbenchToolKind>();
   let syncing = 1;
   let disposed = false;
   let lastEditor: string | undefined;
@@ -341,6 +425,13 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
   const previewWidth = (width: number): number => Math.max(160, Math.min(400, Math.round(width * 0.45)));
   /** 底部工具区的初始高度：取工作台高度的 1/3 并保底 180，容纳项目终端的安装与启动输出。 */
   const toolHeight = (height: number): number => Math.max(180, Math.round(height / 3));
+
+  /** 欢迎内容的模板拷贝：每个空组的水印各用一份，互不抢占节点。 */
+  function cloneWelcome(): HTMLElement {
+    const welcome = welcomeTemplate.content.firstElementChild?.cloneNode(true);
+    if (!(welcome instanceof HTMLElement)) throw new Error('Dockview 布局缺少欢迎内容');
+    return welcome;
+  }
 
   function ensureSideGroup(): NonNullable<ReturnType<DockviewApi['getEdgeGroup']>> {
     const existing = api.getEdgeGroup('left');
@@ -420,6 +511,8 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
     disableFloatingGroups: true,
     defaultTabComponent: 'workbench',
     closeEmptyGroups: true,
+    // 编辑区没有内容时空组渲染的水印：欢迎内容是默认背景，不是标签；每个空组各克隆一份
+    createWatermarkComponent: () => ({ element: cloneWelcome(), init: () => undefined }),
     createComponent: options => {
       const element = hosts.get(options.id);
       if (!element) throw new Error(`未知工作台面板 ${options.id}`);
@@ -430,8 +523,11 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
         }
       };
     },
-    createTabComponent: options => createTab(options.id, auxiliaryIds.has(options.id), callbacks, root),
-    createRightHeaderActionComponent: group => createGroupActions(group, splitPanel)
+    createTabComponent: options =>
+      isTool(options.id) ?
+        createToolTab(options.id, showToolMenu)
+      : createTab(options.id, auxiliaryIds.has(options.id), callbacks, root, () => closePanel(options.id)),
+    createRightHeaderActionComponent: group => createGroupActions(group, splitPanel, showToolMenu)
   });
 
   function splitPanel(panel: IDockviewPanel): void {
@@ -440,15 +536,20 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
     program(() => panel.api.moveTo({ group: panel.group, position }));
   }
 
+  /** 编辑区里放着编辑器或差异面板的面板。 */
+  const isEditorAreaPanel = (id: string): boolean => editorPath(id) !== undefined || auxiliaryIds.has(id);
+
+  /** 新编辑器与差异面板的落点：活动编辑器所在组，其次任一编辑器、任一差异面板所在组，都没有时是留作欢迎背景的空组。 */
   function editorGroup() {
     return (
       (lastEditor ? api.getPanel(editorId(lastEditor))?.group : undefined) ??
       api.panels.find(panel => editorPath(panel.id) !== undefined)?.group ??
-      api.getPanel('welcome')?.group
+      api.panels.find(panel => auxiliaryIds.has(panel.id))?.group ??
+      emptyGroups()[0]
     );
   }
 
-  function addStatic(id: keyof typeof titles, referenceGroup?: string): IDockviewPanel {
+  function addStatic(id: keyof typeof titles, referenceGroup?: string, index?: number): IDockviewPanel {
     const existing = api.getPanel(id);
     if (existing) return existing;
     // 无参照组时先占一个主区组，避免面板掉进当前活动组（预览/工具组）里
@@ -459,24 +560,51 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
       title: titles[id],
       renderer: 'always',
       inactive: true,
-      position: { referenceGroup: group, direction: 'within' as const }
+      position: { referenceGroup: group, direction: 'within' as const, ...(index === undefined ? {} : { index }) }
     });
   }
 
-  /** 对齐 VS Code：欢迎页只在没有任何编辑器打开时存在，并随最后一个编辑器关闭回归。 */
-  function syncWelcome(activate: boolean, referenceGroup?: string): void {
+  /**
+   * 补建空的编辑区：预览开在右侧时贴着它左边，免得掉到预览上方；
+   * 没有预览时落在最上层，补建会把上下重新均分，底部工具组回到默认高度。
+   */
+  function addEditorArea(): DockviewGroupPanel {
+    const preview = api.getPanel('preview')?.group;
+    if (preview) {
+      const room = preview.api.width - previewWidth(api.width);
+      return api.addGroup({ referenceGroup: preview, direction: 'left', ...(room > 0 ? { initialWidth: room } : {}) });
+    }
+    const group = api.addGroup();
+    const bottom = tools.map(kind => api.getPanel(kind)?.group).find(Boolean);
+    if (bottom) sizeToolGroup(bottom);
+    return group;
+  }
+
+  /**
+   * 对齐 VS Code：编辑区没有任何内容时展示欢迎背景，而不是一个「欢迎」标签。
+   * 放着编辑器或差异面板的组就是编辑区，其余空组回收；一个内容都没有时恰好留一个空组（由水印展示欢迎），缺则补建。
+   */
+  function settleEditorArea(keep?: DockviewGroupPanel): void {
     program(() => {
-      const welcome = api.getPanel('welcome');
-      if (api.panels.some(panel => editorPath(panel.id) !== undefined)) {
-        if (welcome) {
-          api.removePanel(welcome);
-          stash('welcome');
-        }
-        return;
-      }
-      if (!welcome) addStatic('welcome', referenceGroup);
-      if (activate) api.getPanel('welcome')?.api.setActive();
+      const empties = emptyGroups();
+      const filled = api.panels.some(panel => isEditorAreaPanel(panel.id));
+      const home = filled ? undefined : (empties.find(group => group === keep) ?? empties[0]);
+      for (const group of empties) if (group !== home) api.removeGroup(group);
+      if (!filled && !home) addEditorArea();
     });
+  }
+
+  /** 移除面板；它若是编辑区最后一个内容，保留空组当欢迎背景，免得 closeEmptyGroups 把整块编辑区收掉、其余分组跟着跳。 */
+  function removeFromEditorArea(panel: IDockviewPanel): void {
+    const last =
+      isEditorAreaPanel(panel.id) && !api.panels.some(other => other !== panel && isEditorAreaPanel(other.id));
+    api.removePanel(panel, last ? { removeEmptyGroup: false } : undefined);
+  }
+
+  /** 标签上的关闭按钮、中键与右键菜单的「关闭」统一走这里。 */
+  function closePanel(id: string): void {
+    const panel = api.getPanel(id);
+    if (panel) removeFromEditorArea(panel);
   }
 
   /** 无参照组的 addGroup 不认 initialHeight（dockview 按均分插入），只能建组后显式定高；无尺寸时交给首次布局。 */
@@ -486,16 +614,58 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
 
   function addTool(kind: WorkbenchToolKind): IDockviewPanel {
     const existing = tools.map(tool => api.getPanel(tool)?.group).find(Boolean);
-    if (existing) return addStatic(kind, existing.id);
+    if (existing) {
+      // 按固定顺序放回，被隐藏后重新显示的工具不会排到最后
+      const before = tools.slice(0, tools.indexOf(kind)).filter(tool => existing.panels.some(({ id }) => id === tool));
+      return addStatic(kind, existing.id, before.length);
+    }
     const group = api.addGroup({ direction: 'below', skipSetActive: true });
     sizeToolGroup(group);
     return addStatic(kind, group.id);
   }
 
-  function addPreview(): IDockviewPanel {
+  const openTools = (): WorkbenchToolKind[] => tools.filter(kind => Boolean(api.getPanel(kind)));
+
+  /** 右键菜单隐藏一个工具：记入隐藏集，之后整体开合底部面板也不会带回；唯一显示的工具不可隐藏。 */
+  function hideTool(kind: WorkbenchToolKind): void {
+    const panel = api.getPanel(kind);
+    const [fallback] = openTools().filter(tool => tool !== kind);
+    if (!panel || fallback === undefined) return;
+    const group = panel.group;
+    const wasActive = group.activePanel === panel;
+    hiddenTools.add(kind);
+    program(() => api.removePanel(panel));
+    stash(kind);
+    const next = wasActive ? group.activePanel?.id : undefined;
+    if (next !== undefined && isTool(next)) {
+      lastTool = next;
+      callbacks.onSelectTool(next);
+    } else if (lastTool === kind) {
+      lastTool = fallback;
+    }
+  }
+
+  /** 工具标签栏的右键菜单：四个工具的显隐开关，对齐 VS Code 底部面板。 */
+  function showToolMenu(event: MouseEvent): void {
+    const open = openTools();
+    showMenu(
+      event,
+      tools.map(kind => {
+        const checked = open.includes(kind);
+        return {
+          label: titles[kind],
+          checked,
+          disabled: checked && open.length === 1,
+          action: () => (checked ? hideTool(kind) : showTool(kind))
+        };
+      }),
+      root
+    );
+  }
+
+  function addPreview(reference = editorGroup()): IDockviewPanel {
     const existing = api.getPanel('preview');
     if (existing) return existing;
-    const reference = editorGroup();
     return api.addPanel({
       id: 'preview',
       component: 'preview',
@@ -557,12 +727,13 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
         if (path !== undefined) {
           hosts.delete(panel.id);
           callbacks.onCloseEditor(path);
-          syncWelcome(true);
+          settleEditorArea();
           return;
         }
         if (auxiliaryIds.delete(panel.id)) {
           hosts.delete(panel.id);
           callbacks.onCloseAuxiliary?.(panel.id);
+          settleEditorArea();
           return;
         }
         if (panel.id === 'preview') callbacks.onClosePreview?.();
@@ -578,8 +749,8 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
   if (!sideGroup) throw new Error('Dockview 侧栏初始化失败');
   sideGroup.model.header.hidden = true;
   addStatic('sidebar', side.id);
-  addStatic('welcome');
-  api.getPanel('welcome')?.api.setActive();
+  // 编辑区起初是个空组：没有标签，由水印展示欢迎背景，打开第一个文件时才出现第一个标签
+  api.addGroup();
   syncing = 0;
 
   function ensureEditor(path: string): HTMLElement {
@@ -592,7 +763,6 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
     host.style.cssText = 'height:100%;min-height:0;min-width:0';
     hosts.set(id, host);
     program(() => {
-      const reference = editorGroup();
       api.addPanel({
         id,
         component: 'editor',
@@ -600,16 +770,17 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
         params: { path },
         renderer: 'always',
         inactive: true,
-        ...(reference ? { position: { referenceGroup: reference, direction: 'within' } } : {})
+        position: { referenceGroup: editorGroup() ?? addEditorArea(), direction: 'within' }
       });
     });
-    syncWelcome(false);
     return host;
   }
 
   function showTool(kind: WorkbenchToolKind): void {
+    // 显式显示的工具撤销之前的隐藏；其余仍隐藏的工具不随之带回
+    hiddenTools.delete(kind);
     program(() => {
-      tools.forEach(addTool);
+      tools.filter(tool => !hiddenTools.has(tool)).forEach(addTool);
       api.getPanel(kind)?.api.setActive();
     });
     lastTool = kind;
@@ -636,13 +807,12 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
     hosts.set(id, host);
     auxiliaryIds.add(id);
     program(() => {
-      const reference = editorGroup();
       api.addPanel({
         id,
         component: 'auxiliary',
         title,
         renderer: 'always',
-        ...(reference ? { position: { referenceGroup: reference, direction: 'within' } } : {})
+        position: { referenceGroup: editorGroup() ?? addEditorArea(), direction: 'within' }
       });
     });
     return host;
@@ -652,12 +822,12 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
     program(() => {
       const activeAuxiliary = api.activePanel && auxiliaryIds.has(api.activePanel.id) ? api.activePanel.id : undefined;
       api.exitMaximizedGroup();
-      const editors = api.panels.filter(
-        panel => editorPath(panel.id) !== undefined || panel.id === 'welcome' || auxiliaryIds.has(panel.id)
-      );
+      const editors = api.panels.filter(panel => isEditorAreaPanel(panel.id));
       const group = api.addGroup({ direction: 'left', skipSetActive: true });
       for (const panel of editors) panel.api.moveTo({ group, position: 'center', skipSetActive: true });
-      const preview = addPreview();
+      // 没有编辑器可搬时旧的空编辑组还留在原处：趁预览与工具组还没建，只留新建的这一个
+      settleEditorArea(group);
+      const preview = addPreview(group);
       const previewGroup = api.addGroup({
         referenceGroup: group,
         direction: 'right',
@@ -665,6 +835,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
         skipSetActive: true
       });
       preview.api.moveTo({ group: previewGroup, position: 'center', skipSetActive: true });
+      hiddenTools.clear();
       const bottom = api.addGroup({ direction: 'below', skipSetActive: true });
       for (const kind of tools)
         addStatic(kind, bottom.id).api.moveTo({ group: bottom, position: 'center', skipSetActive: true });
@@ -678,7 +849,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
       api.getPanel(lastTool)?.api.setActive();
       if (activeAuxiliary) api.getPanel(activeAuxiliary)?.api.setActive();
       else if (lastEditor && api.getPanel(editorId(lastEditor))) api.getPanel(editorId(lastEditor))?.api.setActive();
-      else syncWelcome(true);
+      else if (group.panels.length === 0) group.api.setActive();
     });
     reportTools(true);
   }
@@ -703,7 +874,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
       stash(id);
       return;
     }
-    const group = editorGroup() ?? emptyGroups()[0] ?? api.addGroup();
+    const group = editorGroup() ?? addEditorArea();
     api.addPanelFromJSON(state, { position: { referenceGroup: group, direction: 'within' }, inactive: true });
   }
 
@@ -725,10 +896,14 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
       api.fromJSON(layout, { reuseExistingPanels: true });
       for (const [id, state] of before) if (!api.getPanel(id)) restorePanel(id, state);
       if (!overlayMode && !api.getPanel('sidebar')) addStatic('sidebar', ensureSideGroup().id);
-      // 布局里的编辑器都没打开时，欢迎页落进原编辑区留下的空组
-      syncWelcome(false, emptyGroups()[0]?.id);
-      for (const group of emptyGroups()) api.removeGroup(group);
+      // 布局里的编辑器都没打开时，原编辑区留下的空组当欢迎背景，其余空组回收
+      settleEditorArea();
     });
+    // 布局里没有的工具就是用户隐藏的；底部面板整体关闭的布局没有隐藏信息，所有工具重新可用
+    const shown = openTools();
+    const missing = shown.length > 0 ? tools.filter(kind => !shown.includes(kind)) : [];
+    hiddenTools.clear();
+    for (const kind of missing) hiddenTools.add(kind);
     const tool = tools.map(kind => api.getPanel(kind)).find(Boolean)?.group.activePanel?.id;
     if (tool && isTool(tool)) lastTool = tool;
     reportTools(tools.some(kind => Boolean(api.getPanel(kind))));
@@ -750,11 +925,11 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
       const id = editorId(path);
       const panel = api.getPanel(id);
       program(() => {
-        if (panel) api.removePanel(panel);
+        if (panel) removeFromEditorArea(panel);
       });
       closing.delete(id);
       hosts.delete(id);
-      syncWelcome(true);
+      settleEditorArea();
     },
     setEditorTitle(path, title) {
       api.getPanel(editorId(path))?.api.setTitle(title);
@@ -773,11 +948,12 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
       if (!auxiliaryIds.has(id)) return;
       const panel = api.getPanel(id);
       program(() => {
-        if (panel) api.removePanel(panel);
+        if (panel) removeFromEditorArea(panel);
       });
       closing.delete(id);
       auxiliaryIds.delete(id);
       hosts.delete(id);
+      settleEditorArea();
     },
     setSidebarVisible(visible) {
       if (overlayMode) {
@@ -801,7 +977,6 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
         });
         reportTools(false);
       } else {
-        program(() => tools.forEach(addTool));
         showTool(lastTool);
       }
     },
@@ -829,6 +1004,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
       closing.clear();
       hosts.clear();
       auxiliaryIds.clear();
+      hiddenTools.clear();
     }
   };
 }
