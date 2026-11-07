@@ -1,8 +1,10 @@
+import { isWorkbenchEditorEngine, type WorkbenchEditorEngine } from './editor.js';
 import type { WorkbenchDrafts } from './session.js';
 import { isRuntimeId, type RuntimeId } from './terminal/runtime-adapter.js';
 
 /** 在此浏览器内共享的编辑器偏好。 */
 export interface WorkbenchPreferences {
+  readonly editorEngine: WorkbenchEditorEngine;
   readonly indentUnit: string;
   readonly alwaysShowScmActions: boolean;
   /** 顶部「运行」使用的运行方式。 */
@@ -20,6 +22,7 @@ export interface WorkbenchProjectState {
 
 /** 新用户的编辑器偏好。 */
 export const defaultWorkbenchPreferences: WorkbenchPreferences = {
+  editorEngine: 'codemirror',
   indentUnit: '  ',
   alwaysShowScmActions: false,
   runtime: 'webcontainer'
@@ -76,5 +79,12 @@ export function parseWorkbenchPreferences(value: unknown): WorkbenchPreferences 
   // 旧版设置没有运行方式这一项，按默认值读
   const runtime = 'runtime' in value ? value['runtime'] : defaultWorkbenchPreferences.runtime;
   if (!isRuntimeId(runtime)) throw new Error('工作台设置损坏');
-  return { indentUnit: value['indentUnit'], alwaysShowScmActions: value['alwaysShowScmActions'], runtime };
+  const editorEngine = 'editorEngine' in value ? value['editorEngine'] : defaultWorkbenchPreferences.editorEngine;
+  if (!isWorkbenchEditorEngine(editorEngine)) throw new Error('工作台设置损坏');
+  return {
+    indentUnit: value['indentUnit'],
+    alwaysShowScmActions: value['alwaysShowScmActions'],
+    runtime,
+    editorEngine
+  };
 }

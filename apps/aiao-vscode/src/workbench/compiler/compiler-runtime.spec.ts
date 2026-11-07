@@ -51,6 +51,25 @@ describe('固定运行时资源与摘要', () => {
     expect(fetch.mock.calls.some(([url]) => url.includes('/git/'))).toBe(false);
   });
 
+  it('Monaco 增加资源清单条目后，仍只读取编译所需的 runtime JS', async () => {
+    const { manifest, fetch } = fixture();
+    for (let index = 0; index < 300; index++)
+      manifest.assets.push({ path: `monaco/chunk-${index}.js`, bytes: 0, sha256: 'a'.repeat(64) });
+    const result = await loadRuntimeBundle(new URL('https://assets.test/'));
+    expect(result.runtimeImports['react']).toBe('runtime/react.js');
+    expect(fetch.mock.calls.some(([url]) => url.includes('/monaco/'))).toBe(false);
+  });
+
+  it('超过 512 项的资源清单仍被拒绝', async () => {
+    const { manifest } = fixture();
+    manifest.assets = Array.from({ length: 513 }, (_, index) => ({
+      path: `runtime/chunk-${index}.js`,
+      bytes: 0,
+      sha256: 'a'.repeat(64)
+    }));
+    await expect(loadRuntimeBundle(new URL('https://assets.test/'))).rejects.toThrow('资源清单无效');
+  });
+
   it('内容摘要变化或资源缺失都明确失败，不信任缓存命中', async () => {
     const { sources } = fixture();
     sources['runtime/react.js'] = sources['runtime/react.js'].replace('marker', 'tamper');

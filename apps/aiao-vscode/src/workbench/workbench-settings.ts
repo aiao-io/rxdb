@@ -1,3 +1,4 @@
+import { isWorkbenchEditorEngine } from './editor.js';
 import { isRuntimeId, RUNTIME_IDS, RUNTIME_LABELS, type RuntimeId } from './terminal/runtime-adapter.js';
 import type { WorkbenchPreferences } from './workbench-state.js';
 
@@ -87,6 +88,19 @@ export function openWorkbenchSettings(host: HTMLElement, options: WorkbenchSetti
   indentSelect.value = options.indentUnit;
   const editorSection = buildSettingSection('文本编辑器');
   editorSection.append(buildSettingRow('缩进大小', '制表符或缩进所用的空格数。', indentSelect));
+  const editorSelect = document.createElement('select');
+  editorSelect.name = 'editor-engine';
+  for (const [value, label] of [
+    ['codemirror', 'CodeMirror'],
+    ['monaco', 'Monaco']
+  ]) {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = label;
+    editorSelect.append(option);
+  }
+  editorSelect.value = options.editorEngine;
+  editorSection.append(buildSettingRow('编辑器', '切换后立即生效，保留已打开文件的未保存内容。', editorSelect));
   body.append(editorSection);
 
   const scmCheckbox = document.createElement('input');
@@ -127,7 +141,14 @@ export function openWorkbenchSettings(host: HTMLElement, options: WorkbenchSetti
   form.onsubmit = () => {
     const runtime = runtimeSelect.value;
     if (!isRuntimeId(runtime)) throw new Error(`未知的运行方式：${runtime}`);
-    options.onApply({ indentUnit: indentSelect.value, alwaysShowScmActions: scmCheckbox.checked, runtime });
+    const editorEngine = editorSelect.value;
+    if (!isWorkbenchEditorEngine(editorEngine)) throw new Error(`未知的编辑器：${editorEngine}`);
+    options.onApply({
+      indentUnit: indentSelect.value,
+      alwaysShowScmActions: scmCheckbox.checked,
+      runtime,
+      editorEngine
+    });
   };
 
   searchInput.addEventListener('input', () => filterSettingRows(body, searchInput.value));

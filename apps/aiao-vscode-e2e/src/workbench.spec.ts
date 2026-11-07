@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import {
   browserWorkbenchTemplates,
+  runEditorSwitchCase,
   runLayoutCase,
   runPreviewTabsCase,
   runRecoveryCase,
@@ -14,6 +15,9 @@ test.describe('浏览器开发工作台：aiao-vscode 应用', () => {
       await runWorkbenchCase(page, expect, template, testInfo);
     });
   }
+  test('CodeMirror 与 Monaco 切换，格式化撤销、保存与刷新恢复', async ({ page }) => {
+    await runEditorSwitchCase(page, expect);
+  });
   test('立即刷新恢复草稿，保存后清理未保存状态，偏好跨刷新保留', async ({ page }) => {
     await runRecoveryCase(page, expect);
   });

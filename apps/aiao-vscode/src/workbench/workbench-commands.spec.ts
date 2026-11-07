@@ -81,6 +81,23 @@ function fixture(recent: readonly string[] = []) {
 }
 
 describe('VS Code 文件与命令快捷入口', () => {
+  it('Monaco快捷键先经过工作台，格式化与保存沿用统一命令', () => {
+    const { root, key, runs } = fixture();
+    const host = document.createElement('div');
+    host.className = 'monaco-editor';
+    host.dataset['editorPath'] = 'src/main.ts';
+    const input = document.createElement('textarea');
+    host.append(input);
+    root.append(host);
+    input.addEventListener('keydown', event => event.stopPropagation());
+    expect(key(input, 'f', { shiftKey: true, altKey: true }).defaultPrevented).toBe(true);
+    expect(runs['format']).toHaveBeenCalledOnce();
+    expect(key(input, 's', { ctrlKey: true }).defaultPrevented).toBe(true);
+    expect(runs['save']).toHaveBeenCalledOnce();
+    expect(key(input, 'z', { ctrlKey: true }).defaultPrevented).toBe(false);
+    expect(key(input, 'f', { ctrlKey: true }).defaultPrevented).toBe(false);
+  });
+
   it('终端保留 Shell 的 Ctrl+R / Ctrl+W / Ctrl+P 等按键，工作台快捷键不拦截', () => {
     const { root, key, runs } = fixture();
     const terminal = document.createElement('div');

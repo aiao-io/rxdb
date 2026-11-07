@@ -1,10 +1,19 @@
 # aiao-vscode
 
-浏览器内的本地开发工作台应用（Angular 22）。使用 CodeMirror 编辑器、独立 OPFS Git 仓库、受控编译 Worker 与隔离预览；支持 JavaScript / TypeScript、React TSX、Vue SFC 和 Angular standalone 四类受控模板。
+浏览器内的本地开发工作台应用（Angular 22）。支持 CodeMirror / Monaco 编辑器切换，使用独立 OPFS Git 仓库、受控编译 Worker 与隔离预览；支持 JavaScript / TypeScript、React TSX、Vue SFC 和 Angular standalone 四类受控模板。
 
 布局使用 `dockview-core`，图标使用微软官方 `@vscode/codicons`。界面沿用 VS Code Dark Modern 的活动栏、资源管理器、编辑标签、预览、问题 / 输出 / Console / 终端面板和状态栏。编辑标签可拖动拆分、合并与停靠；预览与编辑器在布局移动时保留实例、撤销记录和运行状态，支持一键重置布局。底部面板的标签与 VS Code 一样只有文字，在标签栏右键勾选即可显示或隐藏问题 / 输出 / Console / 终端。布局随项目保存在本地目录里（与打开的标签同处），直接打开、刷新、重启浏览器或切换项目时都按该项目上次的样子还原；只排布已打开的文件，地址栏不带布局。
 
 首次进入空工作区时编辑区只有欢迎背景（与 VS Code 一样没有「欢迎」标签，点开第一个文件才出现第一个标签，关掉最后一个标签后原地回到欢迎背景），预览与底部面板按需打开；可选择导入文件夹、打开最近项目或初始化 React、Vue、Angular Demo。后续重开恢复最近打开过的项目及其布局。范围与验收见 [requirements/stories/US-404](requirements/stories/US-404-browser-development-workbench.md)。
+
+## 编辑器选择
+
+打开左下角「设置」，在「文本编辑器 → 编辑器」选择 CodeMirror 或 Monaco，点击「确定」立即生效。
+默认使用 CodeMirror；选择保存在此浏览器，刷新和重开项目后继续沿用。
+
+切换保留已打开标签、未保存文本、选区和滚动位置；旧编辑器实例会释放，撤销历史在切换后重新开始。
+两种编辑器共用工作台的保存、格式化、诊断和快捷命令。Monaco 按需加载，语言服务 Worker 与字体资源自托管。
+Vue 文件在 Monaco 中暂按 HTML 语法展示；完整 Vue 语言服务和 VS Code 插件宿主另行评估。
 
 ## 开发与构建
 

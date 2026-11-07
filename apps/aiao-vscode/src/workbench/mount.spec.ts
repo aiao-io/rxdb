@@ -92,6 +92,7 @@ function fixture(
     dispose: disposeEditor,
     runCommand: vi.fn(() => true),
     setIndentUnit: vi.fn(),
+    setEngine: vi.fn(),
     setDiagnostics: vi.fn()
   };
   const mountEditor = vi.fn<WorkbenchEditorMount>(() => editorHandle);
@@ -398,7 +399,12 @@ describe('VS Code 风格工作台', () => {
 
   it('偏好同步日志优先于旧数据库值，恢复后确认落库并清理日志', async () => {
     const journal = createWorkbenchRecoveryJournal(window.sessionStorage);
-    const preferences = { indentUnit: '    ', alwaysShowScmActions: true, runtime: 'webcontainer' as const };
+    const preferences = {
+      indentUnit: '    ',
+      alwaysShowScmActions: true,
+      runtime: 'webcontainer' as const,
+      editorEngine: 'codemirror' as const
+    };
     journal.stagePreferences(preferences);
     const { handle, catalog, mountEditor } = fixture();
     await handle.ready;
@@ -413,7 +419,8 @@ describe('VS Code 风格工作台', () => {
     const { host, handle, catalog, mountEditor } = fixture(true, undefined, undefined, [], files, undefined, {
       indentUnit: '    ',
       alwaysShowScmActions: true,
-      runtime: 'webcontainer'
+      runtime: 'webcontainer',
+      editorEngine: 'codemirror'
     });
     await handle.ready;
     expect(mountEditor.mock.calls[0][1].indentUnit).toBe('    ');
@@ -427,9 +434,42 @@ describe('VS Code 风格工作台', () => {
       expect(catalog.putPreferences).toHaveBeenCalledWith({
         indentUnit: '        ',
         alwaysShowScmActions: true,
-        runtime: 'webcontainer'
+        runtime: 'webcontainer',
+        editorEngine: 'codemirror'
       })
     );
+  });
+
+  it('设置切换编辑器并持久化，保留打开标签与未保存内容', async () => {
+    const { host, handle, catalog, mountEditor, editorHandle } = fixture();
+    await handle.ready;
+    expect(mountEditor.mock.calls[0][1].engine).toBe('codemirror');
+    handle.session.edit('src/main.ts', 'unsaved editor content');
+    const tabs = [...handle.session.state.tabs];
+    await click(host, '[data-action="settings"]');
+    const dialog = host.querySelector<HTMLDialogElement>('dialog[aria-label="设置"]');
+    const select = dialog?.querySelector<HTMLSelectElement>('select[name="editor-engine"]');
+    if (!dialog || !select) throw new Error('编辑器设置缺失');
+    select.value = 'monaco';
+    dialog.querySelector('form')?.dispatchEvent(new Event('submit'));
+    expect(editorHandle.setEngine).toHaveBeenCalledWith('monaco');
+    expect(handle.session.state.tabs).toEqual(tabs);
+    expect(handle.session.state.files['src/main.ts']).toBe('unsaved editor content');
+    expect(handle.session.state.dirty).toBe(true);
+    await vi.waitFor(() =>
+      expect(catalog.putPreferences).toHaveBeenCalledWith(expect.objectContaining({ editorEngine: 'monaco' }))
+    );
+  });
+
+  it('重开工作台时使用持久化的 Monaco 选择', async () => {
+    const { handle, mountEditor } = fixture(true, undefined, undefined, [], files, undefined, {
+      indentUnit: '  ',
+      alwaysShowScmActions: false,
+      runtime: 'webcontainer',
+      editorEngine: 'monaco'
+    });
+    await handle.ready;
+    expect(mountEditor.mock.calls[0][1].engine).toBe('monaco');
   });
 
   it('树内单击替换同组预览，双击后固定，编辑草稿不会被后续浏览替换', async () => {

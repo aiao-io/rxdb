@@ -120,6 +120,28 @@ const workers = await build({
   legalComments: 'external',
   define: { 'process.env.NODE_ENV': '"production"' }
 });
+await rm(join(output, 'monaco'), { recursive: true, force: true });
+const monacoAssets = await build({
+  entryPoints: {
+    editor: join(packageRoot, 'src/workbench/monaco-editor.ts'),
+    'editor-worker': workbenchResolver.resolve('monaco-editor/editor/editor.worker.js'),
+    typescript: workbenchResolver.resolve('monaco-editor/language/typescript/ts.worker.js'),
+    json: workbenchResolver.resolve('monaco-editor/language/json/json.worker.js'),
+    css: workbenchResolver.resolve('monaco-editor/language/css/css.worker.js'),
+    html: workbenchResolver.resolve('monaco-editor/language/html/html.worker.js')
+  },
+  outdir: join(output, 'monaco'),
+  loader: { '.ttf': 'file' },
+  bundle: true,
+  splitting: true,
+  format: 'esm',
+  platform: 'browser',
+  target: 'es2022',
+  minify: true,
+  sourcemap: false,
+  metafile: true,
+  legalComments: 'external'
+});
 await rm(entriesDir, { recursive: true });
 const gitRoot = dirname(workbenchResolver.resolve('wasm-git/package.json'));
 await mkdir(join(output, 'git'), { recursive: true });
@@ -128,14 +150,22 @@ for (const name of ['lg2_opfs_auto.js', 'lg2_opfs_jspi.js', 'lg2_opfs_jspi.wasm'
 }
 const wasmRoot = dirname(workbenchResolver.resolve('esbuild-wasm/package.json'));
 await copyFile(join(wasmRoot, 'esbuild.wasm'), join(output, 'esbuild.wasm'));
-const assetPaths = [...Object.keys(result.metafile.outputs), ...Object.keys(workers.metafile.outputs)].map(path =>
-  resolve(path).slice(output.length + 1)
-);
+const assetPaths = [
+  ...Object.keys(result.metafile.outputs),
+  ...Object.keys(workers.metafile.outputs),
+  ...Object.keys(monacoAssets.metafile.outputs)
+].map(path => resolve(path).slice(output.length + 1));
 assetPaths.push(
   'esbuild.wasm',
   ...['lg2_opfs_auto.js', 'lg2_opfs_jspi.js', 'lg2_opfs_jspi.wasm', 'COPYING'].map(name => `git/${name}`)
 );
+await mkdir(join(output, 'licenses'), { recursive: true });
+await copyFile(
+  join(dirname(workbenchResolver.resolve('monaco-editor')), '../../LICENSE'),
+  join(output, 'licenses/monaco-editor.txt')
+);
 assetPaths.push(
+  'licenses/monaco-editor.txt',
   ...(await copyDockviewStyles(output)),
   ...(await copyCodiconAssets(output)),
   ...(await copySetiAssets(output))
