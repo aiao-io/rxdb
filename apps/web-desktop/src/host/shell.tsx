@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from 'react';
 import { builtins } from '../core/catalog.js';
 import type { Mode, WindowRecord } from '../core/types.js';
+import { HOST_VERSION } from './diagnostics.js';
 import { WindowGesture } from './gesture.js';
 import type { DesktopHost, RunningApp } from './runtime.js';
 
@@ -495,10 +496,14 @@ function InstanceWindow({ host, app }: { host: DesktopHost; app: RunningApp }) {
                   {command.label}
                 </button>
               ))}
-              <button onClick={event => {
-                event.currentTarget.closest('details')?.removeAttribute('open');
-                run(host, () => host.openLocation(app));
-              }}>打开位置…</button>
+              <button
+                onClick={event => {
+                  event.currentTarget.closest('details')?.removeAttribute('open');
+                  run(host, () => host.openLocation(app));
+                }}
+              >
+                打开位置…
+              </button>
               <button onClick={() => run(host, () => host.launch(app.definition.id, true))}>新建窗口</button>
               <button onClick={() => run(host, () => host.windowAction(app.id, 'left'))}>贴靠到左侧</button>
               <button onClick={() => run(host, () => host.windowAction(app.id, 'right'))}>贴靠到右侧</button>
@@ -678,7 +683,24 @@ export function DesktopApp({ host }: { host: DesktopHost }) {
               请求接管
             </button>
           )}
-          {host.phase === 'error' && <button onClick={() => run(host, () => host.start())}>重试</button>}
+          {host.phase === 'error' && (
+            <button disabled={host.resettingStorage} onClick={() => run(host, () => host.start())}>
+              重试
+            </button>
+          )}
+          {host.storageRecovery && (
+            <section aria-label='恢复诊断'>
+              <h2>恢复诊断</h2>
+              <p>原始数据已保留</p>
+              <p>
+                错误类别：{host.startupError} · 桌面版本 {HOST_VERSION}
+              </p>
+              <p>会话不兼容或损坏。重试不会清空数据；重置会永久删除本地文件及桌面配置。</p>
+              <button disabled={host.resettingStorage} onClick={() => run(host, () => host.recoverStoredState())}>
+                重置受损桌面…
+              </button>
+            </section>
+          )}
           {host.phase === 'update-required' && (
             <>
               <p>已保存的文件、设置和窗口会在更新后恢复。新版本准备完成后，由你确认切换。</p>
@@ -695,6 +717,7 @@ export function DesktopApp({ host }: { host: DesktopHost }) {
           )}
           <p role='status'>{host.message}</p>
         </section>
+        <SystemDialog host={host} />
       </main>
     );
   if (!host.state.profile.guided) return <Welcome host={host} />;
@@ -871,6 +894,14 @@ export function DesktopApp({ host }: { host: DesktopHost }) {
           新版本已准备完成。
           <button disabled={host.updatingShell} onClick={() => run(host, () => host.activateUpdate())}>
             保存工作并更新
+          </button>
+        </div>
+      )}
+      {host.sessionRestored && (
+        <div className='desktop-message session-notice' role='status'>
+          <span>已恢复上次持久化的布局和已保存内容。未保存内容无法保证找回。</span>
+          <button aria-label='关闭恢复提示' onClick={() => host.dismissSessionNotice()}>
+            ×
           </button>
         </div>
       )}

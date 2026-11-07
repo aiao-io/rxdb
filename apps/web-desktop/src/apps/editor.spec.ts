@@ -90,7 +90,12 @@ describe('DESKTOP-US-305/602 等待打开时的编辑保护', () => {
     const doc = new EditorDocument();
     doc.load(saved('原文'));
     let finish: (file: VirtualFile) => void = () => undefined;
-    const pending = doc.open(() => new Promise<VirtualFile>(resolve => { finish = resolve; }));
+    const pending = doc.open(
+      () =>
+        new Promise<VirtualFile>(resolve => {
+          finish = resolve;
+        })
+    );
     if (action === 'edit') doc.edit('读取期间的新草稿');
     else doc.rename('读取期间的新名称.txt');
     const before = { text: doc.text, name: doc.name, fileId: doc.fileId, revision: doc.revision };
@@ -104,8 +109,17 @@ describe('DESKTOP-US-305/602 等待打开时的编辑保护', () => {
     const doc = new EditorDocument();
     doc.load(saved('原文'));
     const controller = new AbortController();
-    await expect(doc.open(async () => { controller.abort(new Error('CANCELLED')); return saved('新内容'); }, controller.signal)).rejects.toThrow('CANCELLED');
-    await expect(doc.open(async () => { throw new Error('NOT_FOUND'); })).rejects.toThrow('NOT_FOUND');
+    await expect(
+      doc.open(async () => {
+        controller.abort(new Error('CANCELLED'));
+        return saved('新内容');
+      }, controller.signal)
+    ).rejects.toThrow('CANCELLED');
+    await expect(
+      doc.open(async () => {
+        throw new Error('NOT_FOUND');
+      })
+    ).rejects.toThrow('NOT_FOUND');
     expect(doc.text).toBe('原文');
     expect(doc.dirty).toBe(false);
   });

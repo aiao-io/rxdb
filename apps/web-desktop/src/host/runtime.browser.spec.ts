@@ -2,6 +2,7 @@ import type { OrbitInstance, OrbitState } from '@aiao/orbit';
 import { describe, expect, it, vi } from 'vitest';
 import { getDefinition } from '../core/catalog.js';
 import { openDatabase } from '../core/database.js';
+import { DesktopError } from '../core/errors.js';
 import { createFile } from '../core/files.js';
 import { grantPermission } from '../core/permissions.js';
 import { DesktopHost, type RunningApp } from './runtime.js';
@@ -159,7 +160,9 @@ describe('DESKTOP-US-501 恢复失败项重试', () => {
     const win = openWindow(host.model, app.id, app.definition.id, host.area());
     win.workspaceId = 'research';
     win.normalBounds = { x: 12, y: 24, width: 600, height: 400 };
-    win.state = 'left';
+    win.state = 'minimized';
+    win.beforeMinimized = 'maximized';
+    win.previousState = 'right';
     vi.spyOn(host, 'closeInstances').mockResolvedValue(true);
     const launch = vi.spyOn(host, 'launch').mockReturnValue(app);
     try {
@@ -170,8 +173,88 @@ describe('DESKTOP-US-501 恢复失败项重试', () => {
         route: '/documents/saved-file?line=3#L3',
         workspaceId: 'research',
         bounds: win.normalBounds,
-        state: 'left'
+        state: 'minimized',
+        previousState: 'right',
+        beforeMinimized: 'maximized'
       });
+    } finally {
+      await host.dispose();
+    }
+  });
+});
+
+describe('DESKTOP-US-501/AC6 受损会话显式重置', () => {
+  it('不是受损启动状态时拒绝重置且不出现确认框', async () => {
+    const host = new DesktopHost();
+    const ask = vi.spyOn(host.dialogs, 'ask');
+    try {
+      await expect(host.recoverStoredState()).rejects.toThrow('INVALID');
+      expect(ask).not.toHaveBeenCalled();
+    } finally {
+      await host.dispose();
+    }
+  });
+
+  it.each(['first', 'second'])('在 %s 阶段取消保留恢复状态，不重新启动或清除数据', async stage => {
+    const host = new DesktopHost();
+    host.phase = 'error';
+    host.storageRecovery = true;
+    host.ownership.owned = true;
+    const start = vi.spyOn(host, 'start').mockResolvedValue();
+    const ask = vi.spyOn(host.dialogs, 'ask');
+    if (stage === 'second') ask.mockResolvedValueOnce({ action: 'next', values: {} });
+    ask.mockResolvedValueOnce({ action: 'cancel', values: {} });
+    try {
+      await expect(host.recoverStoredState()).resolves.toBe(false);
+      expect(host.storageRecovery).toBe(true);
+      expect(host.phase).toBe('error');
+      expect(start).not.toHaveBeenCalled();
+    } finally {
+      await host.dispose();
+    }
+  });
+});
+
+describe('DESKTOP-US-501/AC4 布局保存失败范围', () => {
+  it('传播额度错误代码并明确布局/会话保存失败，原文件记录不变', async () => {
+    const host = new DesktopHost();
+    const name = `desktop-layout-quota-${crypto.randomUUID()}`;
+    host.ownership.owned = true;
+    host.database = await openDatabase(() => host.ownership.owned, 'windows', name);
+    await host.database.transact(state => createFile(state, { name: '保留.txt', bytes: 'QQ==' }));
+    const original = await host.database.read();
+    vi.spyOn(host, 'mutate').mockRejectedValue(new DesktopError('QUOTA', '浏览器存储额度不足'));
+    try {
+      await expect(host.persistSession()).rejects.toMatchObject({
+        code: 'QUOTA',
+        message: expect.stringContaining('桌面布局和会话保存失败')
+      });
+      expect(await host.database.read()).toEqual(original);
+    } finally {
+      await host.dispose();
+      indexedDB.deleteDatabase(name);
+    }
+  });
+});
+
+describe('DESKTOP-US-501/AC6 恢复重置拥有权', () => {
+  it('最终确认后拥有权已移交则拒绝清空，不重新启动', async () => {
+    const host = new DesktopHost();
+    host.phase = 'error';
+    host.storageRecovery = true;
+    host.ownership.owned = true;
+    const start = vi.spyOn(host, 'start').mockResolvedValue();
+    vi.spyOn(host.dialogs, 'ask')
+      .mockResolvedValueOnce({ action: 'next', values: {} })
+      .mockImplementationOnce(async () => {
+        host.ownership.owned = false;
+        return { action: 'reset', values: {} };
+      });
+    try {
+      await expect(host.recoverStoredState()).rejects.toThrow('OWNERSHIP');
+      expect(host.storageRecovery).toBe(true);
+      expect(host.resettingStorage).toBe(false);
+      expect(start).not.toHaveBeenCalled();
     } finally {
       await host.dispose();
     }

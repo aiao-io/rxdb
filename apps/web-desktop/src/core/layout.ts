@@ -5,6 +5,7 @@ import type { DesktopState } from './types.js';
 
 export function migrateState(value: unknown): DesktopState {
   requireCondition(isRecord(value), 'INVALID', '托管数据格式错误');
+  if (value['schemaVersion'] === 3) return migrateWindowStates(value);
   if (value['schemaVersion'] === 2) return migrateResources(value);
   if (value['schemaVersion'] !== 1) return validateState(value);
   requireCondition(!('navigation' in value), 'INVALID', '旧数据包含未知导航字段');
@@ -32,9 +33,19 @@ export function migrateState(value: unknown): DesktopState {
 function migrateResources(value: Record<string, unknown>): DesktopState {
   const installations = value['installations'];
   requireCondition(Array.isArray(installations) && installations.every(isRecord), 'INVALID', '旧安装记录无效');
-  return validateState({
+  return migrateWindowStates({
     ...value,
     schemaVersion: 3,
     installations: installations.map(item => ({ ...item, resourceVersion: null, previousResourceVersion: null }))
+  });
+}
+
+function migrateWindowStates(value: Record<string, unknown>): DesktopState {
+  const session = value['session'];
+  requireCondition(Array.isArray(session) && session.every(isRecord), 'INVALID', '旧会话格式错误');
+  return validateState({
+    ...value,
+    schemaVersion: 4,
+    session: session.map(win => ({ ...win, previousState: 'normal', beforeMinimized: 'normal' }))
   });
 }

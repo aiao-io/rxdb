@@ -38,7 +38,7 @@ export function validateState(value: unknown): DesktopState {
     'INVALID',
     '托管数据包含未知字段'
   );
-  requireCondition(value['schemaVersion'] === 3, 'INVALID', '不支持的数据版本，原数据保持不变');
+  requireCondition(value['schemaVersion'] === 4, 'INVALID', '不支持的数据版本，原数据保持不变');
   for (const key of ['files', 'workspaces', 'installations', 'grants', 'appData', 'session'])
     requireCondition(Array.isArray(value[key]), 'INVALID', `缺少 ${key}`);
   checkRecord(value['profile']);
@@ -179,7 +179,10 @@ function validateSavedWindow(win: DesktopState['session'][number], state: Deskto
     '会话工作区缺失'
   );
   requireCondition(
-    ['normal', 'minimized', 'maximized', 'left', 'right'].includes(win.state) && typeof win.route === 'string',
+    ['normal', 'minimized', 'maximized', 'left', 'right'].includes(win.state) &&
+      ['normal', 'left', 'right'].includes(win.previousState) &&
+      ['normal', 'maximized', 'left', 'right'].includes(win.beforeMinimized) &&
+      typeof win.route === 'string',
     'INVALID',
     '会话状态无效'
   );

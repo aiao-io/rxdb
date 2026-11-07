@@ -11,6 +11,7 @@ import {
 } from '../core/releases.js';
 import type { DesktopState, SavedWindow } from '../core/types.js';
 import type { DesktopHost, RunningApp } from './runtime.js';
+import { saveWindow } from './windows.js';
 
 function captureWindows(host: DesktopHost, appId: string): { app: RunningApp; saved: SavedWindow | undefined }[] {
   return [...host.instances.values()]
@@ -19,17 +20,7 @@ function captureWindows(host: DesktopHost, appId: string): { app: RunningApp; sa
       const win = host.model.windows.find(item => item.instanceId === app.id);
       return {
         app,
-        saved:
-          win ?
-            {
-              appId,
-              fileId: app.fileId,
-              route: app.route,
-              workspaceId: win.workspaceId,
-              bounds: { ...win.normalBounds },
-              state: win.state
-            }
-          : undefined
+        saved: win ? saveWindow(win, app.fileId, app.route) : undefined
       };
     });
 }

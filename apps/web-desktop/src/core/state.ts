@@ -16,7 +16,7 @@ export function defaultProfile(mode: Mode): Profile {
 
 export function createState(mode: Mode): DesktopState {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     navigation: { workspaceId: 'first', activeWindows: { first: null } },
     profile: defaultProfile(mode),
     workspaces: [{ id: 'first', name: '工作区 1' }],

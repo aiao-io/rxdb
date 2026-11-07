@@ -98,3 +98,29 @@ export async function openDatabase(owns: () => boolean, mode: Mode, name = 'orbi
     throw error;
   }
 }
+
+export async function resetStoredState(owns: () => boolean, mode: Mode, name = 'orbit-desktop'): Promise<void> {
+  requireCondition(owns(), 'OWNERSHIP', '没有重置此桌面的写入权');
+  const connection = await connect(name);
+  try {
+    await new Promise<void>((resolve, reject) => {
+      requireCondition(owns(), 'OWNERSHIP', '恢复期间桌面控制权已改变');
+      const tx = connection.transaction('state', 'readwrite');
+      let failure: unknown;
+      const request = tx.objectStore('state').put(createState(mode), 'desktop');
+      request.onsuccess = () => {
+        if (owns()) return;
+        failure = new DesktopError('OWNERSHIP', '提交恢复前桌面控制权已失效，原数据保持不变');
+        tx.abort();
+      };
+      tx.oncomplete = () => resolve();
+      tx.onabort = () =>
+        reject(storageError(failure ?? tx.error ?? new DesktopError('STORAGE', '恢复未提交，原数据保持不变')));
+      tx.onerror = () => {
+        failure ??= tx.error;
+      };
+    });
+  } finally {
+    connection.close();
+  }
+}

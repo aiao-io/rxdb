@@ -1,6 +1,6 @@
 import { createOrbit, type OrbitInstance, type OrbitObject, type OrbitState } from '@aiao/orbit';
 import { isRecord } from '../core/catalog.js';
-import { openDatabase, type DesktopDatabase } from '../core/database.js';
+import { openDatabase, resetStoredState, type DesktopDatabase } from '../core/database.js';
 import { DesktopError, errorMessage, requireCondition } from '../core/errors.js';
 import { checkPermission, grantPermission } from '../core/permissions.js';
 import { getRelease, installationFor } from '../core/releases.js';
@@ -26,6 +26,8 @@ import {
   focusRecent,
   openWindow,
   removeWindow,
+  restoreWindow,
+  saveWindow,
   setWindowState,
   switchMode,
   switchWorkspace,
@@ -109,6 +111,10 @@ export class DesktopHost {
   phase: 'loading' | 'ready' | 'spectator' | 'unsupported' | 'error' | 'update-required' = 'loading';
   revision = 0;
   message = '';
+  sessionRestored = false;
+  storageRecovery = false;
+  resettingStorage = false;
+  startupError = '';
   missing: string[] = [];
   offline = !navigator.onLine;
   offlineReady = false;
@@ -163,8 +169,57 @@ export class DesktopHost {
       }
       await this.loadDesktop();
     } catch (error) {
-      this.phase = error instanceof DesktopError && error.code === 'UPDATE_REQUIRED' ? 'update-required' : 'error';
-      this.report(error);
+      this.startupFailure(error);
+    }
+  }
+
+  async recoverStoredState(): Promise<boolean> {
+    requireCondition(
+      this.storageRecovery && this.phase === 'error' && this.instances.size === 0,
+      'INVALID',
+      '当前没有可重置的受损启动数据'
+    );
+    requireCondition(this.ownership.owned, 'OWNERSHIP', '当前页面没有桌面写入权');
+    requireCondition(!this.resettingStorage, 'BUSY', '正在确认恢复操作');
+    this.resettingStorage = true;
+    this.changed();
+    try {
+      const first = await this.dialogs.ask(
+        {
+          title: '重置受损桌面',
+          message:
+            '将永久删除此浏览器内的桌面文件、应用数据、授权和布局。仅在确认不再需要这些数据或已有备份时继续。取消或重试会保留原数据。',
+          actions: [
+            { id: 'next', label: '继续', danger: true },
+            { id: 'cancel', label: '取消' }
+          ]
+        },
+        this.lifetime.signal
+      );
+      if (first.action !== 'next') return false;
+      const second = await this.dialogs.ask(
+        {
+          title: '最终确认',
+          message: '此操作不可恢复。确认删除受损桌面的全部本地数据并重新开始？',
+          actions: [
+            { id: 'reset', label: '确认删除全部数据', danger: true },
+            { id: 'cancel', label: '取消' }
+          ]
+        },
+        this.lifetime.signal
+      );
+      if (second.action !== 'reset') return false;
+      await resetStoredState(
+        () => this.ownership.owned && this.storageRecovery && this.phase === 'error' && this.instances.size === 0,
+        this.model.mode
+      );
+      this.storageRecovery = false;
+      this.clearMessage();
+      await this.start();
+      return true;
+    } finally {
+      this.resettingStorage = false;
+      this.changed();
     }
   }
 
@@ -177,8 +232,7 @@ export class DesktopHost {
       }
       await this.loadDesktop();
     } catch (error) {
-      this.phase = error instanceof DesktopError && error.code === 'UPDATE_REQUIRED' ? 'update-required' : 'error';
-      this.report(error);
+      this.startupFailure(error);
     }
   }
 
@@ -275,12 +329,7 @@ export class DesktopHost {
     this.instances.set(id, app);
     const win = openWindow(this.model, id, appId, this.area());
     win.title = definition.name;
-    if (saved) {
-      win.workspaceId = saved.workspaceId;
-      win.bounds = constrainBounds(saved.bounds, this.area());
-      win.normalBounds = { ...win.bounds };
-      setWindowState(this.model, win.id, saved.state, this.area());
-    }
+    if (saved) restoreWindow(this.model, win, saved, this.area());
     registerBridge(this, app);
     handle.subscribe(snapshot => {
       app.status = snapshot.state;
@@ -503,14 +552,7 @@ export class DesktopHost {
     const windows = this.model.windows.slice().sort((a, b) => a.z - b.z);
     const session = windows.map(win => {
       const app = this.instances.get(win.instanceId);
-      return {
-        appId: win.appId,
-        fileId: app?.fileId ?? null,
-        route: app?.route ?? '',
-        workspaceId: win.workspaceId,
-        bounds: { ...win.normalBounds },
-        state: win.state
-      };
+      return saveWindow(win, app?.fileId ?? null, app?.route ?? '');
     });
     const activeWindows: Record<string, number | null> = {};
     for (const workspace of this.state.workspaces) {
@@ -521,11 +563,16 @@ export class DesktopHost {
       activeWindows[workspace.id] = index < 0 ? null : index;
     }
     const navigation = { workspaceId: this.model.workspaceId, activeWindows };
-    await this.mutate(state => {
-      state.session = session;
-      state.navigation = navigation;
-      state.grants = state.grants.filter(grant => grant.instanceId === null || this.instances.has(grant.instanceId));
-    });
+    try {
+      await this.mutate(state => {
+        state.session = session;
+        state.navigation = navigation;
+        state.grants = state.grants.filter(grant => grant.instanceId === null || this.instances.has(grant.instanceId));
+      });
+    } catch (error) {
+      const code = error instanceof DesktopError ? error.code : 'STORAGE';
+      throw new DesktopError(code, `桌面布局和会话保存失败；已保存的文件不受此次布局保存影响。${errorMessage(error)}`);
+    }
   }
 
   setPanel(panel: 'launcher' | 'overview' | 'notifications', value?: boolean): void {
@@ -541,6 +588,11 @@ export class DesktopHost {
     this.syncVisibility();
     this.changed();
   }
+  dismissSessionNotice(): void {
+    this.sessionRestored = false;
+    this.changed();
+  }
+
   clearMessage(): void {
     this.message = '';
     this.changed();
@@ -621,17 +673,7 @@ export class DesktopHost {
 
   async retry(app: RunningApp): Promise<void> {
     const win = this.model.windows.find(item => item.instanceId === app.id);
-    const saved =
-      win ?
-        {
-          appId: app.definition.id,
-          fileId: app.fileId,
-          route: app.route,
-          workspaceId: win.workspaceId,
-          bounds: { ...win.normalBounds },
-          state: win.state
-        }
-      : undefined;
+    const saved = win ? saveWindow(win, app.fileId, app.route) : undefined;
     if (!(await this.closeInstances([app.id]))) return;
     this.launch(app.definition.id, true, app.fileId, saved);
   }
@@ -916,9 +958,21 @@ export class DesktopHost {
     if (!visible && app.status === 'ready') app.handle.hide();
   }
 
+  private startupFailure(error: unknown): void {
+    this.startupError = error instanceof DesktopError ? error.code : 'STARTUP_FAILED';
+    this.phase = this.startupError === 'UPDATE_REQUIRED' ? 'update-required' : 'error';
+    this.report(error);
+  }
+
   private async loadDesktop(): Promise<void> {
+    this.storageRecovery = false;
     this.database?.close();
-    this.database = await openDatabase(() => this.ownership.owned, this.model.mode);
+    try {
+      this.database = await openDatabase(() => this.ownership.owned, this.model.mode);
+    } catch (error) {
+      this.storageRecovery = error instanceof DesktopError && ['INVALID', 'NOT_FOUND', 'DENIED'].includes(error.code);
+      throw error;
+    }
     this.state = await this.database.read();
     this.state.grants = this.state.grants.filter(grant => grant.instanceId === null);
     await this.database.transact(state => {
@@ -930,6 +984,7 @@ export class DesktopHost {
     this.model.workspaceId = this.state.navigation.workspaceId;
     this.phase = 'ready';
     const saved = [...this.state.session];
+    this.sessionRestored = saved.length > 0;
     const navigation = structuredClone(this.state.navigation);
     const restored: (string | null)[] = [];
     this.restoring = true;

@@ -796,6 +796,16 @@ input::placeholder {
   background: transparent;
   padding: 0;
 }
+.session-notice {
+  top: auto;
+  bottom: 104px;
+  left: 16px;
+  transform: none;
+  pointer-events: none;
+}
+.session-notice button {
+  pointer-events: auto;
+}
 .system-dialog {
   background: var(--panel);
   color: var(--text);

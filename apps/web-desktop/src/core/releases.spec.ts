@@ -79,7 +79,7 @@ describe('DESKTOP-US-204 应用独立版本与资源固定', () => {
     }
     const before = structuredClone(legacy);
     const upgraded = migrateState(legacy);
-    expect(upgraded.schemaVersion).toBe(3);
+    expect(upgraded.schemaVersion).toBe(4);
     expect(
       upgraded.installations.every(app => app.resourceVersion === null && app.previousResourceVersion === null)
     ).toBe(true);

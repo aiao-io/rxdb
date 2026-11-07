@@ -16,7 +16,9 @@ describe('DESKTOP-US-501/503 持久化与恢复输入边界', () => {
       route: '#document',
       workspaceId: 'first',
       bounds: { x: 0, y: 0, width: 800, height: 500 },
-      state: 'normal'
+      state: 'normal',
+      previousState: 'normal',
+      beforeMinimized: 'normal'
     });
     expect(validateState(state)).toBe(state);
     expect(isJson({ x: [null, false, 0, 'a'] })).toBe(true);
@@ -75,9 +77,11 @@ describe('DESKTOP-US-501/503 持久化与恢复输入边界', () => {
     ];
     const snapshot = structuredClone(legacy);
     const upgraded = migrateState(legacy);
-    expect(upgraded.schemaVersion).toBe(3);
+    expect(upgraded.schemaVersion).toBe(4);
     expect(upgraded).toHaveProperty('navigation', { workspaceId: 'first', activeWindows: { first: 0 } });
-    expect(upgraded.session).toEqual(legacy['session']);
+    expect(upgraded.session).toEqual(
+      (legacy['session'] as object[]).map(win => ({ ...win, previousState: 'normal', beforeMinimized: 'normal' }))
+    );
     expect(legacy).toEqual(snapshot);
     expect(() => migrateState({ ...legacy, secret: '不应迁移未知字段' })).toThrow('INVALID');
     expect(() => migrateState({ ...legacy, schemaVersion: 99 })).toThrow('INVALID');
@@ -90,7 +94,9 @@ describe('DESKTOP-US-501/503 持久化与恢复输入边界', () => {
       route: '',
       workspaceId: 'first',
       bounds: { x: 0, y: 0, width: 800, height: 500 },
-      state: 'normal'
+      state: 'normal',
+      previousState: 'normal',
+      beforeMinimized: 'normal'
     });
     expect(() =>
       validateState({ ...state, navigation: { workspaceId: 'missing', activeWindows: { first: 0 } } })

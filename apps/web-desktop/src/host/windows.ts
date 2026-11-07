@@ -1,5 +1,5 @@
 import { requireCondition } from '../core/errors.js';
-import type { Bounds, Mode, WindowModel, WindowRecord, WindowState } from '../core/types.js';
+import type { Bounds, Mode, SavedWindow, WindowModel, WindowRecord, WindowState } from '../core/types.js';
 
 export interface WorkArea {
   width: number;
@@ -111,14 +111,43 @@ export function setWindowState(model: WindowModel, id: string, action: WindowSta
   if (win.state === 'normal' && state !== 'normal') win.normalBounds = { ...win.bounds };
   if (state === 'maximized' && win.state !== 'maximized' && win.state !== 'minimized') win.previousState = win.state;
   win.state = state;
+  win.bounds = windowBounds(win, area);
+  activateWindow(model, id);
+}
+
+function windowBounds(win: WindowRecord, area: WorkArea): Bounds {
+  const state = win.state === 'minimized' ? win.beforeMinimized : win.state;
   const geometries = {
     normal: () => constrainBounds(win.normalBounds, area),
     maximized: () => ({ x: 0, y: 0, width: area.width, height: area.height }),
     left: () => ({ x: 0, y: 0, width: area.width / 2, height: area.height }),
     right: () => ({ x: area.width / 2, y: 0, width: area.width / 2, height: area.height })
   };
-  win.bounds = geometries[state]();
-  activateWindow(model, id);
+  return geometries[state]();
+}
+
+export function saveWindow(win: WindowRecord, fileId: string | null, route: string): SavedWindow {
+  return {
+    appId: win.appId,
+    fileId,
+    route,
+    workspaceId: win.workspaceId,
+    bounds: { ...win.normalBounds },
+    state: win.state,
+    previousState: win.previousState,
+    beforeMinimized: win.beforeMinimized
+  };
+}
+
+export function restoreWindow(model: WindowModel, win: WindowRecord, saved: SavedWindow, area: WorkArea): void {
+  win.workspaceId = saved.workspaceId;
+  win.normalBounds = constrainBounds(saved.bounds, area);
+  win.state = saved.state;
+  win.previousState = saved.previousState;
+  win.beforeMinimized = saved.beforeMinimized;
+  win.bounds = windowBounds(win, area);
+  if (win.state === 'minimized') focusRecent(model);
+  else activateWindow(model, win.id);
 }
 
 function restoredState(win: WindowRecord): Exclude<WindowState, 'minimized'> {

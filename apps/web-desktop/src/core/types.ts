@@ -101,9 +101,11 @@ export interface SavedWindow {
   workspaceId: string;
   bounds: Bounds;
   state: WindowState;
+  previousState: WindowRecord['previousState'];
+  beforeMinimized: WindowRecord['beforeMinimized'];
 }
 export interface DesktopState {
-  schemaVersion: 3;
+  schemaVersion: 4;
   navigation: { workspaceId: string; activeWindows: Record<string, number | null> };
   profile: Profile;
   workspaces: { id: string; name: string }[];

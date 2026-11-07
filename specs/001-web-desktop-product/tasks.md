@@ -11,7 +11,7 @@
 ## Phase 2: Foundational
 
 - [x] T004 先写持久化、文件冲突、状态机与拒绝授权红测试：apps/web-desktop/src/core/{files,permissions,session}.spec.ts 和 src/host/windows.spec.ts
-- [x] T005 实现版本化原子 IndexedDB 存储（v1/v2→v3 迁移）、所有权前置检查、显式存储错误：apps/web-desktop/src/core/database.ts
+- [x] T005 实现版本化原子 IndexedDB 存储（v1/v2/v3→v4 迁移）、所有权前置检查、显式存储错误：apps/web-desktop/src/core/database.ts
 - [x] T006 实现文件 name 非空/无路径分隔符、revision 正整数、同目录唯一且无环、bytes 与元数据原子提交：apps/web-desktop/src/core/files.ts
 - [x] T007 实现稳定类型与身份边界：apps/web-desktop/src/core/types.ts、src/host/bridge.ts
 
@@ -31,8 +31,8 @@
 - [ ] T017 [US1] DESKTOP-US-703 实现 静态部署、版本信息与诊断，保持对应故事全部 AC 约束：apps/web-desktop/src/host/diagnostics.ts；涉及 UI 使用同目录 .tsx；证据关联 apps/web-desktop/requirements/verification-report.md
 - [ ] T018 [US1] DESKTOP-US-001 先以数字 AC 编写 首次进入与交互模式选择 的成功/失败/取消用例：apps/web-desktop/src/host/first-run.spec.ts；浏览器交互纳入 apps/web-desktop/e2e/desktop.spec.ts
 - [ ] T019 [US1] DESKTOP-US-001 实现 首次进入与交互模式选择，保持对应故事全部 AC 约束：apps/web-desktop/src/host/first-run.ts；涉及 UI 使用同目录 .tsx；证据关联 apps/web-desktop/requirements/verification-report.md
-- [ ] T020 [US1] DESKTOP-US-501 先以数字 AC 编写会话恢复的成功/失败/取消用例：apps/web-desktop/src/core/session.spec.ts；src/host/runtime.browser.spec.ts；浏览器为 e2e/desktop.spec.ts、navigation.spec.ts；完整环境与窗口还原状态组合待验收
-- [ ] T021 [US1] DESKTOP-US-501 实现会话、当前位置和失败项重试恢复：apps/web-desktop/src/core/{session,layout}.ts、src/host/runtime.ts、src/apps/{session,navigation,files-view,settings-view,editor-view}.ts(x)；仍须满足原故事全部 AC；证据见 requirements/verification-report.md
+- [ ] T020 [US1] DESKTOP-US-501 先以数字 AC 编写会话恢复的成功/失败/取消用例：apps/web-desktop/src/core/{session,layout,database.browser}.spec.ts、src/host/{windows,runtime.browser}.spec.ts；浏览器为 e2e/{desktop,navigation,session,recovery}.spec.ts；已卸载应用快照的逐项恢复入口、完整支持环境与其余失败分支待验收
+- [ ] T021 [US1] DESKTOP-US-501 实现会话 v4、当前位置、完整窗口还原链、失败项重试、恢复边界提示和受损数据显式重置：apps/web-desktop/src/core/{session,layout}.ts、src/host/{runtime,windows,updates}.ts、src/apps/{session,navigation,files-view,settings-view,editor-view}.ts(x)；仍须满足原故事全部 AC；证据见 requirements/verification-report.md
 
 ## Phase 4: US2 多任务与双模式
 
@@ -58,8 +58,8 @@
 - [ ] T039 [US2] DESKTOP-US-105 实现 键盘操作与快捷命令，保持对应故事全部 AC 约束：apps/web-desktop/src/host/keyboard.ts；涉及 UI 使用同目录 .tsx；证据关联 apps/web-desktop/requirements/verification-report.md
 - [ ] T040 [US2] DESKTOP-US-106 先以数字 AC 编写 窗口概览与快速切换 的成功/失败/取消用例：apps/web-desktop/src/host/overview.spec.ts；浏览器交互纳入 apps/web-desktop/e2e/desktop.spec.ts
 - [ ] T041 [US2] DESKTOP-US-106 实现 窗口概览与快速切换，保持对应故事全部 AC 约束：apps/web-desktop/src/host/overview.ts；涉及 UI 使用同目录 .tsx；证据关联 apps/web-desktop/requirements/verification-report.md
-- [ ] T042 [US2] DESKTOP-US-107 先以数字 AC 编写 桌面内的虚拟工作区 的成功/失败/取消用例：apps/web-desktop/src/host/workspaces.spec.ts；浏览器交互纳入 apps/web-desktop/e2e/desktop.spec.ts
-- [ ] T043 [US2] DESKTOP-US-107 实现 桌面内的虚拟工作区，保持对应故事全部 AC 约束：apps/web-desktop/src/host/workspaces.ts；涉及 UI 使用同目录 .tsx；证据关联 apps/web-desktop/requirements/verification-report.md
+- [ ] T042 [US2] DESKTOP-US-107 先以数字 AC 编写 桌面内的虚拟工作区 的成功/失败/取消用例：apps/web-desktop/src/core/workspaces.spec.ts、src/host/windows.spec.ts；浏览器交互纳入 e2e/desktop.spec.ts、workspaces.spec.ts，仍待完整支持环境
+- [ ] T043 [US2] DESKTOP-US-107 实现 桌面内的虚拟工作区，保持对应故事全部 AC 约束：apps/web-desktop/src/core/workspaces.ts、src/host/{bridge,runtime,windows}.ts、src/apps/settings-view.tsx 与 src/host/shell.tsx；证据关联 apps/web-desktop/requirements/verification-report.md
 
 ## Phase 5: US3 受控应用与协作
 

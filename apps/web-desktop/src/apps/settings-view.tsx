@@ -56,6 +56,11 @@ export function SettingsView({ session }: { session: AppSession }) {
       setBusy(false);
     }
   }
+  function reorder(workspaces: SettingsData['workspaces'], index: number, direction: -1 | 1) {
+    const ids = workspaces.map(workspace => workspace.id);
+    [ids[index], ids[index + direction]] = [ids[index + direction], ids[index]];
+    void perform(() => session.request('workspaces.reorder', { ids }), '工作区顺序已保存');
+  }
   useEffect(() => {
     void session
       .request<SettingsData>('profile.get')
@@ -198,11 +203,27 @@ export function SettingsView({ session }: { session: AppSession }) {
           {data && tab === 'workspaces' && (
             <>
               <h2>让工作各就其位。</h2>
-              <p className='section-description'>工作区只改变窗口分组。应用和未保存内容持续运行。</p>
+              <p className='section-description'>
+                工作区只改变窗口分组，应用和未保存内容持续运行。至少保留一个工作区；前移、后移会保存入口顺序。
+              </p>
               <div className='settings-card'>
-                {data.workspaces.map(workspace => (
+                {data.workspaces.map((workspace, index) => (
                   <div className='workspace-setting' key={workspace.id}>
                     <strong>{workspace.name}</strong>
+                    <button
+                      aria-label={`前移工作区 ${workspace.name}`}
+                      disabled={busy || index === 0}
+                      onClick={() => reorder(data.workspaces, index, -1)}
+                    >
+                      前移
+                    </button>
+                    <button
+                      aria-label={`后移工作区 ${workspace.name}`}
+                      disabled={busy || index === data.workspaces.length - 1}
+                      onClick={() => reorder(data.workspaces, index, 1)}
+                    >
+                      后移
+                    </button>
                     <button
                       onClick={() => {
                         void perform(async () => {

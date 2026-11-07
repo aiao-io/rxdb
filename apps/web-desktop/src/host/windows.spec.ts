@@ -4,6 +4,8 @@ import {
   constrainBounds,
   createWindowModel,
   openWindow,
+  restoreWindow,
+  saveWindow,
   setWindowState,
   switchMode,
   switchWorkspace
@@ -70,5 +72,57 @@ describe('DESKTOP-US-004/101/102/103/107 窗口模型', () => {
     expect(model.activeId).toBe(second.id);
     switchWorkspace(model, 'first');
     expect(model.activeId).toBeNull();
+  });
+});
+
+describe('DESKTOP-US-501/AC1/5 窗口状态持久恢复', () => {
+  const originalArea = { width: 1440, height: 800 };
+  const smallerArea = { width: 640, height: 400 };
+  it.each([
+    ['normal'],
+    ['left'],
+    ['right'],
+    ['left', 'maximized'],
+    ['right', 'maximized'],
+    ['minimized'],
+    ['left', 'minimized'],
+    ['right', 'maximized', 'minimized']
+  ] as const)('刷新恢复 %j 的完整还原链和新视口几何', (...actions) => {
+    const model = createWindowModel('windows');
+    const win = openWindow(model, 'before', 'editor', originalArea);
+    for (const action of actions) setWindowState(model, win.id, action, originalArea);
+    const saved = saveWindow(win, 'document', '/documents/document?line=2#L2');
+    const recovered = createWindowModel('windows');
+    const restored = openWindow(recovered, 'after', 'editor', smallerArea);
+    restoreWindow(recovered, restored, saved, smallerArea);
+    expect(restored.state).toBe(win.state);
+    expect(restored.previousState).toBe(win.previousState);
+    expect(restored.beforeMinimized).toBe(win.beforeMinimized);
+    expect(saved).toMatchObject({ fileId: 'document', route: '/documents/document?line=2#L2' });
+    expect(restored.normalBounds).toEqual(constrainBounds(win.normalBounds, smallerArea));
+    const expected = structuredClone(model);
+    const expectedWindow = expected.windows[0];
+    while (expectedWindow.state !== 'normal') {
+      setWindowState(expected, win.id, 'restore', smallerArea);
+      setWindowState(recovered, restored.id, 'restore', smallerArea);
+      expect(restored.state).toBe(expectedWindow.state);
+      expect(restored.bounds).toEqual(expectedWindow.bounds);
+    }
+  });
+
+  it('保存边界与运行窗口互不引用，恢复最小化不会抢占活动窗口', () => {
+    const model = createWindowModel('windows');
+    const win = openWindow(model, 'before', 'editor', originalArea);
+    setWindowState(model, win.id, 'minimized', originalArea);
+    const saved = saveWindow(win, null, '/');
+    const recovered = createWindowModel('windows');
+    const active = openWindow(recovered, 'active', 'files', smallerArea);
+    const restored = openWindow(recovered, 'after', 'editor', smallerArea);
+    restoreWindow(recovered, restored, saved, smallerArea);
+    expect(recovered.activeId).toBe(active.id);
+    restored.normalBounds.x = 99;
+    expect(saved.bounds.x).toBe(win.normalBounds.x);
+    win.normalBounds.y = 101;
+    expect(saved.bounds.y).not.toBe(101);
   });
 });

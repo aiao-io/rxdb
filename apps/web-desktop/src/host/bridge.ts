@@ -26,6 +26,7 @@ import { normalizeRoute, readNavigationState } from '../core/routes.js';
 import { isJson } from '../core/session.js';
 import { createState, defaultProfile } from '../core/state.js';
 import type { DesktopState, Json, Profile } from '../core/types.js';
+import { reorderWorkspaces } from '../core/workspaces.js';
 import { diagnostics } from './diagnostics.js';
 import type { DesktopHost, RunningApp } from './runtime.js';
 import { changeApplication } from './updates.js';
@@ -632,6 +633,16 @@ export function registerBridge(host: DesktopHost, app: RunningApp): void {
           const name = text(data, 'name').trim();
           requireCondition(workspace && name.length > 0 && name.length <= 80, 'INVALID', '工作区名称无效');
           workspace.name = name;
+          return true;
+        },
+        signal
+      ),
+    'workspaces.reorder': (data, signal) =>
+      write(
+        'settings',
+        '*',
+        state => {
+          reorderWorkspaces(state, data['ids']);
           return true;
         },
         signal
