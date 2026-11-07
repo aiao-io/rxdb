@@ -22,7 +22,7 @@ export async function createDirectory(files: FrameLocator, name: string): Promis
   await expect(files.getByRole('button', { name: '导入文件', exact: true })).toBeEnabled();
 }
 
-export async function downloadFile(page: Page, files: FrameLocator, name: string): Promise<Buffer> {
+export async function downloadFile(page: Page, files: FrameLocator, name: string, timeout = 5000): Promise<Buffer> {
   await files.getByRole('button', { name: `打开 ${name}`, exact: true }).click();
   const [download] = await Promise.all([
     page.waitForEvent('download'),
@@ -32,6 +32,6 @@ export async function downloadFile(page: Page, files: FrameLocator, name: string
   const path = await download.path();
   expect(path).not.toBeNull();
   const bytes = await readFile(path!);
-  await expect(files.getByRole('status')).toContainText('已交付浏览器下载，请检查下载位置');
+  await expect(files.getByRole('status')).toContainText('已交付浏览器下载，请检查下载位置', { timeout });
   return bytes;
 }

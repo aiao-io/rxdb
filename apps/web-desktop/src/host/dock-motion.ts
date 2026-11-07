@@ -11,6 +11,7 @@ export class DockMotion {
   private center = 0;
   private pointer: number | null = null;
   private focused = -1;
+  private touching = false;
   private frame = 0;
   private lastTime = 0;
 
@@ -27,6 +28,7 @@ export class DockMotion {
     const options = { signal: this.lifetime.signal };
     root.addEventListener('pointerenter', this.point, options);
     root.addEventListener('pointermove', this.point, options);
+    root.addEventListener('pointerdown', this.point, options);
     root.addEventListener('pointerleave', this.leave, options);
     root.addEventListener('pointercancel', this.leave, options);
     root.addEventListener('focusin', this.focus, options);
@@ -95,7 +97,12 @@ export class DockMotion {
   };
 
   private readonly point = (event: PointerEvent) => {
-    if (event.pointerType === 'touch' || this.root.querySelector('.running-menu[open]')) return;
+    this.touching = event.pointerType === 'touch';
+    if (this.touching) {
+      this.leave();
+      return;
+    }
+    if (this.root.querySelector('.running-menu[open]')) return;
     this.pointer = event.clientX - this.center + this.geometry.width / 2;
     this.focused = -1;
     this.kick();
@@ -109,13 +116,14 @@ export class DockMotion {
 
   private readonly keyboard = (event: KeyboardEvent) => {
     if (event.key !== 'Tab') return;
+    this.touching = false;
     this.pointer = null;
     this.focused = this.nodes.findIndex(node => node.contains(document.activeElement));
     this.kick();
   };
 
   private readonly focus = (event: FocusEvent) => {
-    if (this.pointer !== null || !(event.target instanceof Element)) return;
+    if (this.touching || this.pointer !== null || !(event.target instanceof Element)) return;
     const item = event.target.closest<HTMLElement>('[data-dock-item]');
     this.focused = this.nodes.findIndex(node => node === item);
     this.kick();

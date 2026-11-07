@@ -95,3 +95,17 @@ test('macOS Dock：快速横移和小屏放大不越界，键盘聚焦可显示�
   await files.press('Tab');
   await expect(bar.getByRole('tooltip')).toHaveText('应用启动器');
 });
+
+test.describe('Dock 触屏输入', () => {
+  test.use({ hasTouch: true });
+  test('macOS Dock：真实触屏点击不会被焦点事件重新放大', async ({ page }) => {
+    await enter(page);
+    const bar = page.getByRole('navigation', { name: '应用栏' });
+    const resting = await bar.boundingBox();
+    const editor = await bar.getByRole('button', { name: '打开 文本编辑器', exact: true }).boundingBox();
+    await page.touchscreen.tap(editor!.x + editor!.width / 2, editor!.y + editor!.height / 2);
+    await expect(page.locator('[data-app-id="editor"]')).toBeVisible();
+    expect((await bar.boundingBox())!.width).toBe(resting!.width);
+    await expect(bar.getByRole('tooltip')).toBeHidden();
+  });
+});

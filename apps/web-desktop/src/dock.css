@@ -1,5 +1,16 @@
+.dock-art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .mode-macos .app-bar {
   --dock-size: 54px;
+  --dock-brightness: 1.12;
+  --dock-sheen: 0.85;
+  --dock-highlight: #ffffff8c;
+  --dock-near-shadow: #0000001a;
+  --dock-far-shadow: #00000047;
+  --dock-deep-shadow: #00000038;
   --dock-width: 322px;
   width: var(--dock-width);
   height: calc(var(--dock-size) + 14px);
@@ -8,14 +19,14 @@
   border: 0;
   border-radius: calc(var(--dock-size) * 0.4);
   background: var(--dock);
-  backdrop-filter: blur(30px) saturate(1.8) brightness(1.12);
+  backdrop-filter: blur(30px) saturate(1.8) brightness(var(--dock-brightness));
   box-shadow:
-    inset 0 0.5px #ffffff8c,
+    inset 0 0.5px var(--dock-highlight),
     inset 0 0 0 0.5px var(--dock-border),
     inset 0 -1px 1px #0000000d,
-    0 1px 2px #0000001a,
-    0 10px 26px -6px #00000047,
-    0 22px 48px -12px #00000038;
+    0 1px 2px var(--dock-near-shadow),
+    0 10px 26px -6px var(--dock-far-shadow),
+    0 22px 48px -12px var(--dock-deep-shadow);
 }
 .mode-macos .app-bar::before {
   content: '';
@@ -24,6 +35,7 @@
   border-radius: inherit;
   pointer-events: none;
   background: linear-gradient(#ffffff55, #ffffff0a 42%, #ffffff00 60%, #ffffff14);
+  opacity: var(--dock-sheen);
 }
 .mode-macos .taskbar-apps {
   position: relative;
@@ -147,4 +159,23 @@
 .mode-macos .dock-tooltip[data-visible] {
   opacity: 1;
   visibility: visible;
+}
+
+.mode-macos[data-theme='dark'] .app-bar {
+  --dock-brightness: 0.72;
+  --dock-sheen: 0.4;
+  --dock-highlight: #ffffff33;
+  --dock-near-shadow: #00000052;
+  --dock-far-shadow: #00000080;
+  --dock-deep-shadow: #00000066;
+}
+@media (prefers-color-scheme: dark) {
+  .mode-macos[data-theme='system'] .app-bar {
+    --dock-brightness: 0.72;
+    --dock-sheen: 0.4;
+    --dock-highlight: #ffffff33;
+    --dock-near-shadow: #00000052;
+    --dock-far-shadow: #00000080;
+    --dock-deep-shadow: #00000066;
+  }
 }

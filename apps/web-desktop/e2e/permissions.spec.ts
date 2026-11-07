@@ -58,7 +58,7 @@ for (const mode of ['macos', 'windows'] as const) {
     );
     const grant = settings.locator('.grant-row').filter({ hasText: '文件「我的文件/撤销.txt」' });
     await expect(grant).toContainText('文本编辑器 · 文件访问');
-    await expect(grant).toContainText('http://127.0.0.1:4300');
+    await expect(grant).toContainText(new URL(page.url()).origin);
     await expect(grant).toContainText('持久授权');
     await expect(grant).not.toContainText(target.id);
     const otherGrant = settings.locator('.grant-row').filter({ hasText: '文件「我的文件/保留.txt」' });

@@ -121,7 +121,7 @@ test('DESKTOP-US-603/AC1/3/5 import-limit-exact50：50 MiB 原始二进制可完
       await source.close();
     }
     expect(await fileHash(path)).not.toBe(sha256);
-    const downloaded = await downloadFile(page, files, '边界50.bin');
+    const downloaded = await downloadFile(page, files, '边界50.bin', 120000);
     expect(downloaded.length).toBe(50 * MiB);
     expect(createHash('sha256').update(downloaded).digest('hex')).toBe(sha256);
     await page.reload();

@@ -31,6 +31,7 @@ export default defineConfig({
       reporter: ['text', 'json-summary', 'lcovonly'],
       include: [
         'src/core/**/*.ts',
+        'src/host/dock-layout.ts',
         'src/host/windows.ts',
         'src/host/recovery.ts',
         'src/host/permission-labels.ts',

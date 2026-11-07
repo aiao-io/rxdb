@@ -39,7 +39,7 @@ for (const mode of ['macos', 'windows'] as const) {
     await files.getByRole('button', { name: '返回我的文件', exact: true }).click();
     await trash(files, '原目录');
     await importFile(files, '恢复.txt', '根目录中的同名内容');
-    await files.getByRole('button', { name: '♲ 回收站', exact: true }).click();
+    await files.getByRole('button', { name: '回收站', exact: true }).click();
     await files.getByRole('button', { name: '打开 恢复.txt', exact: true }).click();
     const before = (await snapshot(page)).files;
     await files.getByRole('button', { name: '恢复', exact: true }).click();
@@ -122,7 +122,7 @@ test('DESKTOP-US-604/AC4/6 trash-empty：清空确认含子项数量，取消及
   await trash(files, '带子文件');
   await importFile(files, '独立.txt', '独立文件字节');
   await trash(files, '独立.txt');
-  await files.getByRole('button', { name: '♲ 回收站', exact: true }).click();
+  await files.getByRole('button', { name: '回收站', exact: true }).click();
   const before = (await snapshot(page)).files;
   expect(before).toHaveLength(3);
   expect(before.every(file => file.deleted)).toBe(true);
@@ -164,7 +164,7 @@ test('DESKTOP-US-604/AC5 trash-revoked：撤销文件授权后拒绝恢复和永
   const files = await enter(page, 'windows');
   await importFile(files, '受保护.txt', '不应被未授权删除的内容');
   await trash(files, '受保护.txt');
-  await files.getByRole('button', { name: '♲ 回收站', exact: true }).click();
+  await files.getByRole('button', { name: '回收站', exact: true }).click();
   await files.getByRole('button', { name: '打开 受保护.txt', exact: true }).click();
   const before = (await snapshot(page)).files;
   await page.getByRole('button', { name: '打开 设置', exact: true }).click();
