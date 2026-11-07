@@ -42,20 +42,22 @@ describe('反查同行候选的分块与日期边界', () => {
     await pg.exec(`
       DROP SCHEMA IF EXISTS bom CASCADE;
       CREATE SCHEMA bom;
-      CREATE TABLE bom.item_revision (id uuid PRIMARY KEY, "itemId" uuid NOT NULL);
+      CREATE TABLE bom.item_revision (id uuid PRIMARY KEY, "itemId" uuid NOT NULL,
+        state text DEFAULT 'released', "effectiveFrom" timestamptz DEFAULT '2026-01-01');
       CREATE TABLE bom.bom_header (id uuid PRIMARY KEY, "parentRevisionId" uuid NOT NULL,
         "bomType" text DEFAULT 'ebom', "orgId" text DEFAULT 'X', state text DEFAULT 'released', "alternativeNo" integer DEFAULT 1);
-      CREATE TABLE bom.bom_line (id uuid PRIMARY KEY, "headerId" uuid NOT NULL, "lineNo" integer NOT NULL);
+      CREATE TABLE bom.bom_line (id uuid PRIMARY KEY, "headerId" uuid NOT NULL, "lineNo" integer NOT NULL, "ecnInId" uuid);
       CREATE TABLE bom.bom_line_occurrence (id uuid PRIMARY KEY, "lineId" uuid NOT NULL, "childItemId" uuid NOT NULL,
-        qty text DEFAULT '1', "effectiveFrom" timestamptz DEFAULT '2026-01-01', "effectiveTo" timestamptz,
+        qty text DEFAULT '1', "childRevisionId" uuid, "flowDirection" text DEFAULT 'consume',
+        "effectiveFrom" timestamptz DEFAULT '2026-01-01', "effectiveTo" timestamptz,
         "unitFrom" integer, "unitTo" integer, "lotCodes" text, "selectionConditionId" uuid, "ecnInId" uuid, "ecnOutId" uuid);
-      CREATE TABLE bom.ecn (id uuid PRIMARY KEY, state text);
+      CREATE TABLE bom.ecn (id uuid PRIMARY KEY, state text, "effectiveDate" timestamptz);
     `);
     const ids = Array.from({ length: 202 }, (_, index) => parent(index));
-    await pg.query('INSERT INTO bom.item_revision SELECT id, id FROM unnest($1::uuid[]) id', [ids]);
+    await pg.query('INSERT INTO bom.item_revision (id, "itemId") SELECT id, id FROM unnest($1::uuid[]) id', [ids]);
     await pg.exec(`
       INSERT INTO bom.bom_header (id, "parentRevisionId") SELECT id, id FROM bom.item_revision;
-      INSERT INTO bom.bom_line SELECT id, id, row_number() OVER (ORDER BY id) FROM bom.item_revision;
+      INSERT INTO bom.bom_line (id, "headerId", "lineNo") SELECT id, id, row_number() OVER (ORDER BY id) FROM bom.item_revision;
     `);
   });
 

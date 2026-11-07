@@ -17,7 +17,6 @@ import {
   bomSqlDialectFor,
   buildHeaderOccurrencesSql,
   buildParentRevisionSql,
-  buildParentsOfItemsSql,
   buildRevisionHeadersSql,
   type BomSqlDialect
 } from './bom-sql.js';
@@ -32,6 +31,7 @@ import {
   type BomQueryExecutor,
   type ResolveTarget
 } from './resolver.js';
+import { createUsageSnapshotReader, type UsageSnapshotReader } from './usage-snapshot.js';
 
 /**
  * 展开 / 反查预算（US-510 AC#1/#10）：深度、展开数、返回路径数，任一触顶即截断。
@@ -333,7 +333,8 @@ export const fetchUsageParents = async (
   dialect: BomSqlDialect,
   context: ResolutionContext,
   frontier: readonly UsageTarget[],
-  unresolved: UnresolvedAlternative[]
+  unresolved: UnresolvedAlternative[],
+  readSnapshot: UsageSnapshotReader = createUsageSnapshotReader(query, dialect, context)
 ): Promise<UsageRow[]> => {
   const revisionsByItem = new Map<string, Set<string | null>>();
   for (const entry of frontier) {
@@ -346,14 +347,7 @@ export const fetchUsageParents = async (
   const unresolvedLines = new Set(unresolved.map(entry => entry.lineId));
   for (let offset = 0; offset < itemIds.length; offset += CHUNK_SIZE) {
     const chunk = itemIds.slice(offset, offset + CHUNK_SIZE);
-    const built = buildParentsOfItemsSql(dialect, {
-      asOfDate: context.asOfDate,
-      bomType: context.bomType,
-      orgId: context.orgId,
-      itemIds: chunk,
-      includeLineCandidates: true
-    });
-    const result = await query(built.sql, built.params);
+    const result = await readSnapshot(chunk);
     const targets = new Set(chunk);
     const read = (row: unknown[], name: string): unknown => row[columnIndexOf(result.columns, name)];
     const matchesTarget = (row: unknown[]): boolean => {
@@ -481,9 +475,12 @@ const usageLevel = async (
   nodes: readonly ExpansionNode[],
   budget: ResolvedBudgets,
   signal: AbortSignal | undefined,
-  unresolved: UnresolvedAlternative[]
+  unresolved: UnresolvedAlternative[],
+  readSnapshot: UsageSnapshotReader
 ): Promise<UsageLevelStep> => {
-  const byChild = groupUsageByChild(await fetchUsageParents(query, dialect, context, frontier, unresolved));
+  const byChild = groupUsageByChild(
+    await fetchUsageParents(query, dialect, context, frontier, unresolved, readSnapshot)
+  );
   const added: ExpansionNode[] = [];
   const next: UsageLevelStep['next'] = [];
   for (const entry of frontier) {
@@ -626,8 +623,19 @@ export const whereUsed = async (
     let truncated: ExpansionResult['truncated'] = null;
     const unresolved: UnresolvedAlternative[] = [];
     let frontier: UsageFrontier[] = [{ nodeIndex: null, itemId: target.childItemId, revisionId: null }];
+    const readSnapshot = createUsageSnapshotReader(query, dialect, context);
     while (frontier.length > 0) {
-      const step = await usageLevel(query, dialect, context, frontier, nodes, budget, options.signal, unresolved);
+      const step = await usageLevel(
+        query,
+        dialect,
+        context,
+        frontier,
+        nodes,
+        budget,
+        options.signal,
+        unresolved,
+        readSnapshot
+      );
       nodes.push(...step.added);
       if (step.truncated !== null) {
         truncated = step.truncated;

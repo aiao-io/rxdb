@@ -427,6 +427,7 @@ export const buildParentsOfItemsSql = (
     `  occ."qty" AS "qty",`,
     `  occ."flowDirection" AS "flowDirection",`,
     `  occ."effectiveFrom" AS "effectiveFrom",`,
+    `  CAST(occ."effectiveFrom" AS TEXT) AS "effectiveFromOrder",`,
     `  occ."effectiveTo" AS "effectiveTo",`,
     `  occ."unitFrom" AS "unitFrom",`,
     `  occ."unitTo" AS "unitTo",`,
