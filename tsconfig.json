@@ -293,6 +293,18 @@
     },
     {
       "path": "./apps/dev-rxdb-p2p"
+    },
+    {
+      "path": "./apps/rxdb-admin-template-vue"
+    },
+    {
+      "path": "./apps/rxdb-admin-template-angular"
+    },
+    {
+      "path": "./apps/rxdb-admin-template-angular-e2e"
+    },
+    {
+      "path": "./apps/rxdb-admin-template-vue-e2e"
     }
   ]
 }

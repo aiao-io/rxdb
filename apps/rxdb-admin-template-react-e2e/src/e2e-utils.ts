@@ -1,7 +1,7 @@
-import { expect, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 /**
- * rxdb-admin-template-react 的 e2e 共享工具。
+ * 三框架 Admin 模板的 e2e 共享工具。
  *
  * @remarks `resetE2eState` 与三端 demo 同款语义：init script 只在首次文档加载时
  * 移除数据库名，同一测试内的 reload 保留已生成的名字——既隔离跨测试数据，
@@ -40,29 +40,34 @@ interface ActionIconHit {
  * 从场景树按图标 `name` 取包围盒换算成页面坐标，按真实位置点击。
  */
 async function findActionIcon(page: Page, iconName: string, row = 1): Promise<ActionIconHit | null> {
+  interface SceneNode {
+    name?: string;
+    globalAABBBounds: { x1: number; x2: number; y1: number; y2: number };
+    forEachChildren(cb: (child: SceneNode) => void): void;
+  }
+  interface VTableLike {
+    colCount: number;
+    records: Array<Record<string, unknown>>;
+    getHeaderField(col: number, row: number): unknown;
+    scrollToCell(cell: { col: number; row: number }): void;
+    scenegraph: { getCell(col: number, row: number): SceneNode };
+  }
   const canvas = page.getByTestId('entity-shell').locator('canvas').first();
+  await canvas.evaluate(async (el, targetRow) => {
+    const table = (el as unknown as { __vtable__: VTableLike }).__vtable__;
+    const col = Array.from({ length: table.colCount }, (_, i) => i).find(c => table.getHeaderField(c, 0) === 'actions');
+    if (col === undefined) throw new Error('表格没有操作列');
+    table.scrollToCell({ col, row: targetRow });
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  }, row);
+  // 滚动后重新定位画布，避免路由切换时读取已销毁的表格实例
   return canvas.evaluate(
-    async (el, [name, targetRow]) => {
-      interface SceneNode {
-        name?: string;
-        globalAABBBounds: { x1: number; x2: number; y1: number; y2: number };
-        forEachChildren(cb: (child: SceneNode) => void): void;
-      }
-      interface VTableLike {
-        colCount: number;
-        records: Array<Record<string, unknown>>;
-        getHeaderField(col: number, row: number): unknown;
-        scrollToCell(cell: { col: number; row: number }): void;
-        scenegraph: { getCell(col: number, row: number): SceneNode };
-      }
+    (el, [name, targetRow]) => {
       const table = (el as unknown as { __vtable__: VTableLike }).__vtable__;
       const col = Array.from({ length: table.colCount }, (_, i) => i).find(
         c => table.getHeaderField(c, 0) === 'actions'
       );
       if (col === undefined) throw new Error('表格没有操作列');
-      table.scrollToCell({ col, row: targetRow });
-      // 横向滚动触发异步重渲染：滚动后的下一帧场景树才带上图标，立即读会拿到空单元格
-      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       let icon: SceneNode | undefined;
       const visit = (node: SceneNode): void => {
         if (!icon && node.name === name) icon = node;
@@ -84,6 +89,7 @@ async function findActionIcon(page: Page, iconName: string, row = 1): Promise<Ac
 
 /** 等第 `row` 行的操作列图标出现并返回其坐标；图标不存在时抛错。 */
 export async function expectActionIcon(page: Page, iconName: string, row = 1): Promise<ActionIconHit> {
+  await settleAnimations(page);
   await expect.poll(async () => findActionIcon(page, iconName, row), { timeout: 15000 }).not.toBeNull();
   // 页面切换有进入动画（位移），画布坐标要等动画结束后再换算，否则点击会落空
   await settleAnimations(page);
@@ -150,11 +156,13 @@ export async function expectFilteredCount(page: Page, count: number): Promise<vo
 }
 
 /** 外壳偏好的存储键（`workbench-shell.ts` 的 `WORKBENCH_STORAGE_PREFIX` + `.preferences`）。 */
-export const PREFERENCES_STORAGE_KEY = 'aiao.workbench.preferences';
+export function preferencesStorageKey(): string {
+  return `${test.info().config.metadata['storagePrefix']}.preferences`;
+}
 
 /** 读取已持久化的偏好差异（只含与默认值不同的部分）；没有写过时为 `null`。 */
 export async function storedPreferenceValues(page: Page): Promise<unknown> {
-  const raw = await page.evaluate(key => window.localStorage.getItem(key), PREFERENCES_STORAGE_KEY);
+  const raw = await page.evaluate(key => window.localStorage.getItem(key), preferencesStorageKey());
   return raw === null ? null : (JSON.parse(raw) as { values: unknown }).values;
 }
 

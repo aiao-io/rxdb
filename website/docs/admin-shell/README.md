@@ -48,4 +48,4 @@ npm install @aiao/rxdb-admin-vue
 
 ## 参考实现
 
-仓库里的 `apps/rxdb-admin-template-react` 是 React 版的完整接入（菜单、实体计数徽标、命令面板里的全文搜索来源、"每页条数"扩展、旧存储键迁移），`apps/rxdb-admin-template-react-e2e` 是它的端到端与无障碍验收。
+仓库里的 `apps/rxdb-admin-template-{angular,react,vue}` 提供三端完整接入（菜单、实体计数徽标、命令面板里的全文搜索来源、"每页条数"扩展、旧存储键迁移）。开发端口分别为 4207、4206、4208；各模板的 `-e2e` 项目复用 `apps/rxdb-admin-template-react-e2e/src` 中的端到端与无障碍场景，验证各自的生产构建。

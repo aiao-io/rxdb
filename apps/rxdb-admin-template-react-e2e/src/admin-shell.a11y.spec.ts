@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { openPreferences, PREFERENCES_STORAGE_KEY, resetE2eState, settleAnimations } from './e2e-utils.js';
+import { openPreferences, preferencesStorageKey, resetE2eState, settleAnimations } from './e2e-utils.js';
 
 /**
  * 后台外壳 a11y 走查（axe）：弹层（偏好抽屉各页签、命令面板、锁屏）与主题 / 布局 / 移动端变体。
@@ -10,7 +10,7 @@ import { openPreferences, PREFERENCES_STORAGE_KEY, resetE2eState, settleAnimatio
 /** 在首次文档加载前写入偏好，直接以指定偏好启动（不经抽屉）。 */
 async function seedPreferences(page: Page, values: Record<string, unknown>): Promise<void> {
   await page.addInitScript(([key, value]) => window.localStorage.setItem(key, value), [
-    PREFERENCES_STORAGE_KEY,
+    preferencesStorageKey(),
     JSON.stringify({ version: 1, values })
   ] as const);
 }

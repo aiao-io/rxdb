@@ -92,7 +92,7 @@ test.describe('工作台完整国际化', () => {
     await page.locator('.rxdb-query-rule').first().locator('button[popovertarget]').first().click();
     await expect(page.locator('[role="treeitem"][id$="-item-name"]')).toContainText('Category name');
     await page.locator('[role="treeitem"][id$="-item-name"]').click();
-    await page.locator('.rxdb-filter-backdrop').click({ position: { x: 1, y: 1 } });
+    await page.keyboard.press('Escape');
 
     await page.getByTestId('search-nav-link').click();
     await page.getByTestId('search-input').fill('办公设备');

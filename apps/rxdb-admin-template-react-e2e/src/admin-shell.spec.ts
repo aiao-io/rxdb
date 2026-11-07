@@ -3,7 +3,7 @@ import {
   createCategory,
   expectStoredPreferences,
   openPreferences,
-  PREFERENCES_STORAGE_KEY,
+  preferencesStorageKey,
   resetE2eState,
   storedPreferenceValues
 } from './e2e-utils.js';
@@ -304,12 +304,12 @@ test.describe('后台外壳：持久化与首屏', () => {
 
   test('首屏：应用入口脚本还没执行时，内联脚本已把保存的主题写到根节点（不闪烁）', async ({ page }) => {
     await page.addInitScript(([key, value]) => window.localStorage.setItem(key, value), [
-      PREFERENCES_STORAGE_KEY,
+      preferencesStorageKey(),
       JSON.stringify({ version: 1, values: { theme: { name: 'dracula' } } })
     ] as const);
-    // 拦掉应用入口脚本（开发服务器的 src/main.tsx、生产产物的 assets/index-*.js）：页面上只剩 index.html 的内联脚本
+    // 拦掉三端应用入口脚本，页面上只剩 index.html 的内联脚本
     await page.route(
-      url => /\/(src\/main\.tsx|assets\/index-[^/]+\.js)$/.test(url.pathname),
+      url => /\/(src\/main\.tsx?|assets\/index-[^/]+\.js|main-[^/]+\.js)$/.test(url.pathname),
       route => route.abort()
     );
     await page.goto('/search');
@@ -444,7 +444,7 @@ test.describe('后台外壳：侧栏宽度', () => {
     await page.addInitScript(key => {
       const values = { app: { layout: 'header-sidebar-nav' } };
       window.localStorage.setItem(key, JSON.stringify({ version: 1, values }));
-    }, PREFERENCES_STORAGE_KEY);
+    }, preferencesStorageKey());
     await page.goto('/search');
     await expect(page.getByTestId('admin-shell')).toHaveAttribute('data-layout', 'header-sidebar-nav');
     const slot = page.locator('.admin-sidebar-slot');
@@ -521,7 +521,7 @@ test.describe('后台外壳：侧栏宽度', () => {
   test('plain 菜单样式：菜单项没有圆角', async ({ page }) => {
     await page.addInitScript(key => {
       window.localStorage.setItem(key, JSON.stringify({ version: 1, values: { navigation: { styleType: 'plain' } } }));
-    }, PREFERENCES_STORAGE_KEY);
+    }, preferencesStorageKey());
     await page.goto('/search');
     const menu = page.getByTestId('admin-menu');
     await expect(menu).toHaveAttribute('data-style', 'plain');
@@ -562,7 +562,7 @@ test.describe('后台外壳：侧栏宽度', () => {
     await page.addInitScript(key => {
       const values = { sidebar: { collapsed: true, collapsedShowTitle: true } };
       window.localStorage.setItem(key, JSON.stringify({ version: 1, values }));
-    }, PREFERENCES_STORAGE_KEY);
+    }, preferencesStorageKey());
     await page.goto('/search');
     await page.mouse.move(800, 400);
     await expect(page.getByTestId('admin-sidebar')).toHaveAttribute('data-show-title', 'true');

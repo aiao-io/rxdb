@@ -1106,7 +1106,7 @@ defineExpose({
             class="btn btn-xs btn-ghost"
             :disabled="!canUndo"
             :title="undoHint ?? undefined"
-            :aria-label="t('text.2b712a273d')"
+            :aria-label="t('text.63def656c9', { p0: undoCount })"
             type="button"
             @click="undo"
           >
@@ -1117,6 +1117,7 @@ defineExpose({
             <span
               v-if="undoCount"
               class="badge badge-xs"
+              aria-hidden="true"
               >{{ undoCount }}</span
             >
           </button>
@@ -1124,7 +1125,7 @@ defineExpose({
             class="btn btn-xs btn-ghost"
             :disabled="!canRedo"
             :title="redoHint ?? undefined"
-            :aria-label="t('text.e8f69d1ab3')"
+            :aria-label="t('text.a8e3b35a63', { p0: redoCount })"
             type="button"
             @click="redo"
           >
@@ -1135,6 +1136,7 @@ defineExpose({
             <span
               v-if="redoCount"
               class="badge badge-xs"
+              aria-hidden="true"
               >{{ redoCount }}</span
             >
           </button>

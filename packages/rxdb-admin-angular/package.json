@@ -36,7 +36,7 @@
   },
   "devDependencies": {
     "@aiao/rxdb-admin": "workspace:*",
-    "@angular/compiler": "22.2.3",
+    "@angular/compiler": "22.2.4",
     "vitest": "4.1.11"
   },
   "publishConfig": {

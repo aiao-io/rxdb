@@ -4,6 +4,8 @@
 
 当前交付范围以[应用需求](requirements/README.md)为准。独立仓库模板是长期目标；当前启动和验证均使用本仓库，不提供复制或导出流程。
 
+同功能版本：[Angular](../rxdb-admin-template-angular/README.md)（端口 4207）与 [Vue](../rxdb-admin-template-vue/README.md)（端口 4208）。三端共用浏览器验收场景，默认数据库与偏好存储分别隔离。
+
 ## 启动与验证
 
 在仓库根目录执行，环境要求沿用根 [package.json](../../package.json) 的 `engines` 与 `packageManager`。

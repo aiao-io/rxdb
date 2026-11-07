@@ -17,6 +17,7 @@ const baseURL = process.env['BASE_URL'] || `http://${host}:${port}`;
  */
 export default defineConfig({
   ...nxE2EPreset('.', { testDir: './src' }),
+  metadata: { storagePrefix: 'aiao.workbench' },
   fullyParallel: !isCI,
   workers: isCI ? 2 : 8,
   retries: isCI ? 2 : 0,
