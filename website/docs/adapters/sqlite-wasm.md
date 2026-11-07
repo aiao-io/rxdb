@@ -7,8 +7,10 @@
 ## 安装
 
 ```bash npm2yarn
-npm install @aiao/rxdb @aiao/rxdb-adapter-sqlite-wasm
+npm install @aiao/rxdb @aiao/rxdb-adapter-sqlite-wasm @subframe7536/sqlite-wasm@1.4.0
 ```
+
+下面的 Vite 示例直接导入底层 WASM 资源，因此安装命令显式声明与当前适配器一致的 `@subframe7536/sqlite-wasm@1.4.0`。适配器升级后，应按其 `dependencies` 中固定的版本同步更新；也可改用后文复制到 `public` 的方式。
 
 ## VFS 预设
 

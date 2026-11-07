@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
-import { readFile, readdir } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { getPackageNames } from './build-website.mjs';
 
 const websiteRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const contentFiles = [
@@ -42,7 +43,7 @@ test('兼容矩阵覆盖每个框架绑定声明的真实 peer 版本', async ()
   const rows = matrix.split('\n').filter(line => line.startsWith('|'));
   const violations = [];
 
-  for (const name of await readdir(packagesRoot)) {
+  for (const name of getPackageNames()) {
     const manifest = JSON.parse(await readFile(join(packagesRoot, name, 'package.json'), 'utf8'));
     if (manifest.private) continue;
     const peers = Object.entries(manifest.peerDependencies ?? {});
