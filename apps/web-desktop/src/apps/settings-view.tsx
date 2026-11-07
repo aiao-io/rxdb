@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { errorMessage, requireCondition } from '../core/errors.js';
 import { defaultProfile } from '../core/state.js';
 import type { Grant, Profile } from '../core/types.js';
+import { SymbolIcon } from '../ui/icons.js';
 import { download, type AppSession } from './session.js';
 
 interface SettingsData {
@@ -78,12 +79,12 @@ export function SettingsView({ session }: { session: AppSession }) {
     void perform(() => session.request('profile.set', { patch: value }));
   }
   const tabs = [
-    { id: 'appearance', label: '个性化', icon: '◐' },
-    { id: 'workspaces', label: '工作区', icon: '▤' },
-    { id: 'permissions', label: '权限', icon: '◇' },
-    { id: 'data', label: '数据与备份', icon: '▱' },
-    { id: 'about', label: '关于与帮助', icon: '◈' }
-  ];
+    { id: 'appearance', label: '个性化', icon: 'controls', glyph: '◐' },
+    { id: 'workspaces', label: '工作区', icon: 'overview', glyph: '▤' },
+    { id: 'permissions', label: '权限', icon: 'user', glyph: '◇' },
+    { id: 'data', label: '数据与备份', icon: 'drive', glyph: '▱' },
+    { id: 'about', label: '关于与帮助', icon: 'grid', glyph: '◈' }
+  ] as const;
   return (
     <main className='settings-app app-layout'>
       <div className='settings-body'>
@@ -92,13 +93,14 @@ export function SettingsView({ session }: { session: AppSession }) {
           {tabs.map(item => (
             <button
               key={item.id}
+              aria-label={`${item.glyph} ${item.label}`}
               aria-pressed={tab === item.id}
               onClick={() => {
                 setTab(item.id);
                 session.navigation.record('/' + item.id);
               }}
             >
-              {item.icon} {item.label}
+              <SymbolIcon name={item.icon} /> {item.label}
             </button>
           ))}
         </aside>
@@ -118,9 +120,8 @@ export function SettingsView({ session }: { session: AppSession }) {
           {!data && !error && <p role='status'>正在读取设置…</p>}
           {data && tab === 'appearance' && (
             <>
-              <span className='section-kicker'>MAKE IT YOURS</span>
-              <h2>熟悉，且属于你。</h2>
-              <p className='section-description'>改变操作方式，保留正在进行的工作。</p>
+              <h2>{data.profile.mode === 'windows' ? '个性化' : '外观'}</h2>
+              <p className='section-description'>选择桌面风格、主题与显示选项。</p>
               <div className='settings-card'>
                 <h3>交互模式</h3>
                 <div className='setting-options'>

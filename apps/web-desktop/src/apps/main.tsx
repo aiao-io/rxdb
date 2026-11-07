@@ -1,8 +1,8 @@
 import { connectOrbitClient } from '@aiao/orbit/client';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { createRoot } from 'react-dom/client';
+import '../appearance.css';
 import { errorMessage, requireCondition } from '../core/errors.js';
-import '../styles.css';
 import { CatalogView } from './catalog-view.js';
 import { EditorView } from './editor-view.js';
 import { FilesView } from './files-view.js';
@@ -55,6 +55,7 @@ function AppFrame({ session }: { session: AppSession }) {
       className='app-frame'
       data-route={session.navigation.state.route}
       data-theme={session.profile.theme}
+      data-mode={session.profile.mode}
       data-reduced-motion={session.profile.reducedMotion}
       style={{ '--desktop-scale': session.profile.scale / 100 } as React.CSSProperties}
     >

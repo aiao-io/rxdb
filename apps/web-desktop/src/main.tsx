@@ -1,7 +1,7 @@
 import { createRoot } from 'react-dom/client';
+import './appearance.css';
 import { DesktopHost } from './host/runtime.js';
 import { DesktopApp } from './host/shell.js';
-import './styles.css';
 
 const root = document.getElementById('root');
 if (!root) throw new Error('桌面根节点缺失');

@@ -297,7 +297,7 @@ test('DESKTOP-US-005/701：系统深色主题和 200% 字体缩放同步到独�
   await enter(page, 'windows');
   await page.getByRole('button', { name: '打开 文本编辑器', exact: true }).click();
   const editor = page.frameLocator('iframe[title="文本编辑器"]').first();
-  await expect(editor.getByLabel('文档内容')).toHaveCSS('color', 'rgb(228, 237, 242)');
+  await expect(editor.getByLabel('文档内容')).toHaveCSS('color', 'rgb(241, 241, 243)');
   await page.getByRole('button', { name: '打开 设置', exact: true }).click();
   await page.getByRole('button', { name: '始终允许', exact: true }).click();
   const settings = page.frameLocator('iframe[title="设置"]').first();

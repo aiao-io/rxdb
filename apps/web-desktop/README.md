@@ -1,6 +1,6 @@
 # Orbit Web Desktop
 
-浏览器内的本地桌面。React 宿主提供 macOS / Windows 两套交互方式，文件、文本编辑器、设置、应用目录和可选速记本作为独立 Web 页面通过仓内 `@aiao/orbit` 运行。文件、应用私有数据、授权和已保存会话保存在当前来源的 IndexedDB。
+浏览器内的本地桌面。React 宿主提供 macOS / Windows 两套交互方式，文件、文本编辑器、设置、应用目录和可选速记本作为独立 Web 页面通过仓内 `@aiao/orbit` 运行。文件目录和字节保存在当前来源的 OPFS；IndexedDB 保留文件标识、修订、回收站信息、应用私有数据、授权和已保存会话。
 
 这是进行中的产品实现。完整范围为 42 条故事、256 条验收标准；代码与自动化测试的进展不代表实机、用户研究或正式部署已经验收。参见 [任务清单](../../specs/001-web-desktop-product/tasks.md) 和 [验收台账](requirements/verification-report.md)。
 
@@ -36,7 +36,7 @@ NX_NO_CLOUD=true NX_DAEMON=false NX_ISOLATE_PLUGINS=false pnpm nx run web-deskto
 
 文件管理器提供祖先面包屑和键盘导航；切换目录清除原搜索及选择，过期查询不会覆盖新目录。文档的初始文件引用只在实例启动时读取；切换主题、模式或字号不会重新加载已保存文档并覆盖后续草稿。
 
-最近一次正式构建验证通过 51 条 Chromium 旅程和 229 条单元/浏览器集成测试；核心与窗口模型的覆盖率范围及完整产品缺口见验收台账。
+最近一次正式构建验证通过 53 条 Chromium 旅程和 242 条单元/浏览器集成测试；核心与窗口模型的覆盖率范围及完整产品缺口见验收台账。
 
 ## 应用位置与恢复
 
@@ -48,7 +48,7 @@ NX_NO_CLOUD=true NX_DAEMON=false NX_ISOLATE_PLUGINS=false pnpm nx run web-deskto
 
 ## 运行与资源
 
-桌面顶部的“运行与资源”显示静态预取和每个实例的后台状态。空闲 500ms 后才开始预取，最多同时准备两个版本；固定入口优先，前台打开可抢占纯后台任务，同版本共享下载。预取只下载并校验静态资源，不执行应用或请求权限，可以取消和继续。
+系统栏中的“运行与资源”显示静态预取和每个实例的后台状态。空闲 500ms 后才开始预取，最多同时准备两个版本；固定入口优先，前台打开可抢占纯后台任务，同版本共享下载。预取只下载并校验静态资源，不执行应用或请求权限，可以取消和继续。
 
 最小化显示“已隐藏”。支持协议的应用可以显式挂起：先确认没有未保存内容和正在处理的操作，应用回复已保存后才显示“已挂起”。恢复保留原 iframe、目录、搜索和保存内容；未声明协议或有脏内容的应用在批量检查中列为需要处理。挂起状态只保留在当前会话内存中。
 
@@ -56,7 +56,7 @@ NX_NO_CLOUD=true NX_DAEMON=false NX_ISOLATE_PLUGINS=false pnpm nx run web-deskto
 
 ## 静态部署
 
-构建结果位于 `apps/web-desktop/dist`。将整个目录作为同一版本原子部署到 HTTPS 来源；localhost 仅供本地开发与验证。浏览器需要 IndexedDB、Web Locks、BroadcastChannel、MessageChannel、Web Components 和 Web Crypto。不支持时界面会列出缺失能力。
+构建结果位于 `apps/web-desktop/dist`。将整个目录作为同一版本原子部署到 HTTPS 来源；localhost 仅供本地开发与验证。浏览器需要 OPFS、IndexedDB、Web Locks、BroadcastChannel、MessageChannel、Web Components 和 Web Crypto。不支持时界面会列出缺失能力。
 
 根目录部署直接运行 `web-desktop:build`。子路径部署时，基址必须以 `/` 开始和结束：
 
@@ -77,3 +77,11 @@ DESKTOP_BASE=/desktop/ NX_NO_CLOUD=true NX_DAEMON=false NX_ISOLATE_PLUGINS=false
 首次完整缓存后才显示“离线已就绪”。安装失败删除不完整版本缓存；更新等待用户确认并协商未保存内容。资源缓存与文件数据库分开管理。移除站点数据会删除本地文件，日常使用应主动导出文件或未加密桌面备份。
 
 HTTPS 生产发布、真实 Safari / Edge / Windows、输入法、读屏和用户研究仍需在 [验收台账](requirements/verification-report.md) 留下实际记录。
+
+## 桌面外观与文件来源
+
+macOS 模式提供顶部应用菜单、交通灯窗口控件、悬浮 Dock 和 Finder 文件管理器；Windows 11 模式提供居中任务栏、开始菜单、系统托盘和资源管理器。两种模式共享运行实例、真实文件和设置，切换不会重新挂载应用。文件管理器支持图标/列表切换、刷新、祖先面包屑和按实际目录层级显示的侧栏；空目录保持为空，不注入示例文件夹。
+
+文件管理器从 `navigator.storage.getDirectory()` 返回的 OPFS 根目录读取真实目录和字节。新建、重命名、移动、保存、回收、恢复和永久删除均写回 OPFS；外部更改可通过“刷新文件”重新读取。内部 `.orbit-desktop` 目录保存事务恢复记录和回收站，不作为用户文件展示。旧版 IndexedDB 文件首次启动会迁移到 OPFS，保留标识、字节和已保存会话；遇到同路径不同内容时明确报错并保留两侧数据。文件变更与元数据之间通过持久化恢复记录处理提交失败和启动恢复。
+
+视觉参考：[macos-web](https://github.com/StarKnightt/macos-web) 与 [windows-11-web](https://github.com/piyushsuthar/windows-11-web)。Windows 壁纸取自后者的 `default_light_compressed.jpg`，原项目许可证见 [windows-11-web.txt](public/licenses/windows-11-web.txt)。macOS 抽象壁纸和应用 SVG 图标由本项目绘制，所有壁纸随构建本地分发，离线使用无需第三方图片请求。

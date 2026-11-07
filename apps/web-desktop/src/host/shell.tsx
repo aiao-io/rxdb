@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from 'react';
 import { builtins } from '../core/catalog.js';
 import type { Mode, WindowRecord } from '../core/types.js';
+import { AppIcon, SymbolIcon, SystemMark } from '../ui/icons.js';
 import { HOST_VERSION } from './diagnostics.js';
 import { WindowGesture } from './gesture.js';
 import type { DesktopHost, RunningApp } from './runtime.js';
 
-const icons: Record<string, string> = { files: '▰', editor: '≡', settings: '⚙', catalog: '▦', notes: '✎' };
 const names: Record<string, string> = Object.fromEntries(builtins.map(app => [app.id, app.name]));
 const run = (host: DesktopHost, action: () => unknown | Promise<unknown>) => {
   try {
@@ -42,7 +42,12 @@ const prefetchNames = {
 function ResourcePanel({ host }: { host: DesktopHost }) {
   return (
     <section className='resource-panel' aria-label='运行与资源'>
-      <h2>运行与资源</h2>
+      <div className='panel-heading'>
+        <h2>运行与资源</h2>
+        <button aria-label='关闭资源面板' onClick={() => host.toggleResources()}>
+          ×
+        </button>
+      </div>
       <p>后台最多同时准备两个静态版本。前台加载优先；预取不会启动应用。</p>
       <div className='resource-actions'>
         {host.prefetch.enabled ?
@@ -104,18 +109,10 @@ function ResourcePanel({ host }: { host: DesktopHost }) {
   );
 }
 
-function AppIcon({ id }: { id: string }) {
-  return (
-    <span className={`app-icon icon-${id}`} aria-hidden='true'>
-      {icons[id]}
-    </span>
-  );
-}
-
 function Welcome({ host }: { host: DesktopHost }) {
   const [mode, setMode] = useState<Mode>(host.state.profile.mode);
   return (
-    <main className='welcome wallpaper'>
+    <main className={`welcome wallpaper mode-${mode}`}>
       <div className='welcome-orbit' aria-hidden='true'>
         ◈
       </div>
@@ -239,12 +236,8 @@ function Launcher({ host }: { host: DesktopHost }) {
   useEffect(() => {
     input.current?.focus();
   }, []);
-  const apps = host.state.installations.map(installation => ({
-    installation,
-    definition: [...host.instances.values()].find(app => app.definition.id === installation.appId)?.definition
-  }));
-  const results = apps.filter(({ installation }) =>
-    `${names[installation.appId]} ${installation.appId}`.toLocaleLowerCase().includes(search.toLocaleLowerCase())
+  const results = host.state.installations.filter(({ appId }) =>
+    `${names[appId]} ${appId}`.toLocaleLowerCase().includes(search.toLocaleLowerCase())
   );
   return (
     <section
@@ -257,7 +250,7 @@ function Launcher({ host }: { host: DesktopHost }) {
       }}
     >
       <div className='panel-heading'>
-        <h2>你的应用</h2>
+        <h2>{host.model.mode === 'macos' ? '应用程序' : '应用'}</h2>
         <button
           aria-label='关闭启动器'
           onClick={() => {
@@ -268,7 +261,7 @@ function Launcher({ host }: { host: DesktopHost }) {
         </button>
       </div>
       <label className='search-box'>
-        <span aria-hidden='true'>⌕</span>
+        <SymbolIcon name='search' />
         <input
           ref={input}
           aria-label='搜索应用'
@@ -278,16 +271,12 @@ function Launcher({ host }: { host: DesktopHost }) {
         />
       </label>
       <div className='launcher-list'>
-        {results.map(({ installation }) => (
+        {results.map(installation => (
           <div className='launcher-row' key={installation.appId}>
             <button className='launcher-app' onClick={() => run(host, () => host.launch(installation.appId))}>
               <AppIcon id={installation.appId} />
               <span>
                 <strong>{names[installation.appId]}</strong>
-                <small>内置 Web 应用 · {installation.version}</small>
-              </span>
-              <span className='open-arrow' aria-hidden='true'>
-                ↗
               </span>
             </button>
             <button
@@ -309,7 +298,14 @@ function Launcher({ host }: { host: DesktopHost }) {
         ))}
       </div>
       {!results.length && <p className='empty'>没有找到应用。试试其他名称。</p>}
-      <p className='panel-footnote'>可信应用 · 独立运行 · 数据保存在本地</p>
+      <div className='launcher-footer'>
+        <span>
+          <SymbolIcon name='user' /> 本地账户
+        </span>
+        <button onClick={() => run(host, () => host.launch('settings'))}>
+          <SymbolIcon name='controls' /> 桌面设置
+        </button>
+      </div>
     </section>
   );
 }
@@ -467,6 +463,9 @@ function InstanceWindow({ host, app }: { host: DesktopHost; app: RunningApp }) {
               →
             </button>
           </div>
+          <span className='titlebar-app-icon'>
+            <AppIcon id={app.definition.id} />
+          </span>
           <button
             className='window-title'
             aria-label={`移动窗口 ${app.definition.name}：${app.title}`}
@@ -574,70 +573,168 @@ function AppBar({ host }: { host: DesktopHost }) {
   const ids = [...new Set([...host.state.profile.pinned, ...running.map(app => app.definition.id)])];
   return (
     <nav className='app-bar glass' aria-label='应用栏'>
-      <button
-        className='start-button'
-        aria-label='应用启动器'
-        aria-expanded={host.launcherOpen}
-        onClick={() => {
-          host.setPanel('launcher');
-        }}
-      >
-        ◈
-      </button>
-      <span className='bar-divider' />
-      {ids.map(id => (
-        <div className={`bar-app ${running.some(app => app.definition.id === id) ? 'running' : ''}`} key={id}>
-          <button aria-label={`打开 ${names[id]}`} title={names[id]} onClick={() => run(host, () => host.launch(id))}>
-            <AppIcon id={id} />
-            <span className='bar-label'>{names[id]}</span>
-          </button>
-          {running.some(app => app.definition.id === id) && (
-            <details className='running-menu'>
-              <summary aria-label={`${names[id]} 的运行实例`}>⌃</summary>
-              <div className='menu-popover'>
-                {running
-                  .filter(app => app.definition.id === id)
-                  .map(app => (
-                    <button key={app.id} onClick={() => run(host, () => host.reveal(app.id))}>
-                      {app.dirty ? '● ' : ''}
-                      {app.title}
-                      {host.model.windows.some(win => win.instanceId === app.id) ? '' : ' · 窗口已关闭'}
-                    </button>
-                  ))}
-                <button onClick={() => run(host, () => host.launch(id, true))}>新建窗口</button>
-                <button
-                  onClick={() =>
-                    run(host, () =>
-                      host.closeInstances(running.filter(app => app.definition.id === id).map(app => app.id))
-                    )
-                  }
-                >
-                  退出应用
-                </button>
-              </div>
-            </details>
-          )}
-        </div>
-      ))}
-      <span className='bar-divider' />
-      <button
-        aria-label='窗口概览'
-        aria-expanded={host.overviewOpen}
-        onClick={() => {
-          host.setPanel('overview');
-        }}
-      >
-        <span className='overview-icon' aria-hidden='true'>
-          ▤
-        </span>
-      </button>
-      {host.model.mode === 'windows' && (
-        <div className='bar-system'>
-          <span>{host.offline ? '离线' : '在线'}</span>
-          <time>{host.clock.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</time>
-        </div>
-      )}
+      <div className='taskbar-apps'>
+        <button
+          className='start-button'
+          aria-label='应用启动器'
+          aria-expanded={host.launcherOpen}
+          onClick={() => {
+            host.setPanel('launcher');
+          }}
+        >
+          {host.model.mode === 'windows' ?
+            <SystemMark mode='windows' />
+          : <SymbolIcon name='grid' />}
+        </button>
+        <span className='bar-divider' />
+        {ids.map(id => (
+          <div
+            className={`bar-app ${running.some(app => app.definition.id === id) ? 'running' : ''} ${host.model.windows.some(win => win.appId === id && win.id === host.model.activeId) ? 'current' : ''}`}
+            key={id}
+          >
+            <button aria-label={`打开 ${names[id]}`} title={names[id]} onClick={() => run(host, () => host.launch(id))}>
+              <AppIcon id={id} />
+              <span className='bar-label'>{names[id]}</span>
+            </button>
+            {running.some(app => app.definition.id === id) && (
+              <details className='running-menu'>
+                <summary aria-label={`${names[id]} 的运行实例`}>⌃</summary>
+                <div className='menu-popover'>
+                  {running
+                    .filter(app => app.definition.id === id)
+                    .map(app => (
+                      <button key={app.id} onClick={() => run(host, () => host.reveal(app.id))}>
+                        {app.dirty ? '● ' : ''}
+                        {app.title}
+                        {host.model.windows.some(win => win.instanceId === app.id) ? '' : ' · 窗口已关闭'}
+                      </button>
+                    ))}
+                  <button onClick={() => run(host, () => host.launch(id, true))}>新建窗口</button>
+                  <button
+                    onClick={() =>
+                      run(host, () =>
+                        host.closeInstances(running.filter(app => app.definition.id === id).map(app => app.id))
+                      )
+                    }
+                  >
+                    退出应用
+                  </button>
+                </div>
+              </details>
+            )}
+          </div>
+        ))}
+        <span className='bar-divider' />
+        <button
+          aria-label='窗口概览'
+          aria-expanded={host.overviewOpen}
+          onClick={() => {
+            host.setPanel('overview');
+          }}
+        >
+          <SymbolIcon name='overview' />
+        </button>
+      </div>
+      {host.model.mode === 'windows' && <SystemTray host={host} />}
     </nav>
+  );
+}
+
+function DesktopMenu({ host }: { host: DesktopHost }) {
+  return (
+    <details className='desktop-menu'>
+      <summary aria-label='桌面菜单'>
+        {host.model.mode === 'macos' ?
+          <SystemMark mode='macos' />
+        : <SymbolIcon name='controls' />}
+      </summary>
+      <div className='menu-popover'>
+        <button
+          onClick={() => {
+            host.showDesktop();
+          }}
+        >
+          {host.model.showingDesktop ? '恢复窗口' : '显示桌面'}
+        </button>
+        <button onClick={() => run(host, () => host.launch('settings'))}>桌面设置</button>
+        <button onClick={() => host.toggleResources()}>运行与资源</button>
+        <button
+          onClick={() =>
+            run(host, () =>
+              document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()
+            )
+          }
+        >
+          {document.fullscreenElement ? '退出浏览器全屏' : '浏览器全屏'}
+        </button>
+        <button onClick={() => run(host, () => host.updateProfile({ guided: false }))}>快捷键与入门</button>
+      </div>
+    </details>
+  );
+}
+
+function SystemTray({ host }: { host: DesktopHost }) {
+  const windows = host.model.mode === 'windows';
+  return (
+    <div className='system-tray'>
+      {windows && <DesktopMenu host={host} />}
+      <button
+        className='mode-toggle'
+        title={`切换到 ${windows ? 'macOS' : 'Windows 11'}`}
+        aria-label={`切换交互模式，当前 ${windows ? 'Windows' : 'macOS'}`}
+        onClick={() => run(host, () => host.updateProfile({ mode: windows ? 'macos' : 'windows' }))}
+      >
+        <SymbolIcon name='switch' />
+      </button>
+      <button
+        aria-label='运行与资源'
+        title='运行与资源'
+        aria-expanded={host.resourcesOpen}
+        onClick={() => host.toggleResources()}
+      >
+        <SymbolIcon name='drive' />
+      </button>
+      {!import.meta.env.DEV && !host.offlineReady && (
+        <button
+          disabled={host.preparingOffline || host.offline}
+          onClick={() => run(host, () => host.prepareResources())}
+        >
+          {host.preparingOffline ? '正在准备离线资源…' : '准备离线资源'}
+        </button>
+      )}
+      <span className='network-status'>
+        {host.offline ?
+          '离线'
+        : host.offlineReady ?
+          '离线已就绪'
+        : '在线'}
+      </span>
+      <span className='tray-connectivity' title={host.offline ? '离线' : '已连接'}>
+        <SymbolIcon name='wifi' />
+      </span>
+      <button
+        className='tray-clock'
+        title='通知中心'
+        aria-expanded={host.notificationsOpen}
+        onClick={() => host.setPanel('notifications')}
+      >
+        <time>
+          {windows ?
+            <>
+              <span>{host.clock.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</span>
+              <span>{host.clock.toLocaleDateString('zh-CN')}</span>
+            </>
+          : <>
+              {host.clock.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', weekday: 'short' })}{' '}
+              {host.clock.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+            </>
+          }
+        </time>
+        {windows && <SymbolIcon name='bell' />}
+        <span className='sr-only'>通知中心</span>
+        {host.notifications.length > 0 && <span className='notification-dot' />}
+      </button>
+    </div>
   );
 }
 
@@ -730,82 +827,46 @@ export function DesktopApp({ host }: { host: DesktopHost }) {
       data-reduced-motion={host.state.profile.reducedMotion}
       style={{ '--desktop-scale': host.state.profile.scale / 100 } as React.CSSProperties}
     >
-      <header className='system-bar glass'>
-        <details className='desktop-menu'>
-          <summary aria-label='桌面菜单'>◈</summary>
-          <div className='menu-popover'>
-            <button
-              onClick={() => {
-                host.showDesktop();
-              }}
-            >
-              {host.model.showingDesktop ? '恢复窗口' : '显示桌面'}
-            </button>
-            <button onClick={() => run(host, () => host.launch('settings'))}>桌面设置</button>
-            <button
-              onClick={() =>
-                run(host, () =>
-                  document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()
-                )
-              }
-            >
-              {document.fullscreenElement ? '退出浏览器全屏' : '浏览器全屏'}
-            </button>
-            <button onClick={() => run(host, () => host.updateProfile({ guided: false }))}>快捷键与入门</button>
-          </div>
-        </details>
-        <strong className='active-app-name'>{activeApp?.definition.name ?? '桌面'}</strong>
-        {host.model.mode === 'macos' &&
-          activeApp?.commands.map(command => (
-            <button
-              key={command.id}
-              className='menu-command'
-              disabled={command.disabled}
-              onClick={() => run(host, () => host.command(activeApp.id, command.id))}
-            >
-              {command.label}
-            </button>
-          ))}
-        <div className='system-spacer' />
-        <button
-          aria-label={`切换交互模式，当前 ${host.model.mode === 'macos' ? 'macOS' : 'Windows'}`}
-          onClick={() =>
-            run(host, () => host.updateProfile({ mode: host.model.mode === 'macos' ? 'windows' : 'macos' }))
-          }
-        >
-          {host.model.mode === 'macos' ? 'macOS' : 'Windows'} <span aria-hidden='true'>⇄</span>
-        </button>
-        <button
-          aria-label='通知中心'
-          onClick={() => {
-            host.setPanel('notifications');
-          }}
-        >
-          通知 {host.notifications.length > 0 ? host.notifications.length : ''}
-        </button>
-        {!import.meta.env.DEV && !host.offlineReady && (
-          <button
-            disabled={host.preparingOffline || host.offline}
-            onClick={() => run(host, () => host.prepareResources())}
-          >
-            {host.preparingOffline ? '正在准备离线资源…' : '准备离线资源'}
-          </button>
-        )}
-        <button aria-label='运行与资源' aria-expanded={host.resourcesOpen} onClick={() => host.toggleResources()}>
-          运行与资源
-        </button>
-        <span className='network-status'>
-          {host.offline ?
-            '离线'
-          : host.offlineReady ?
-            '离线已就绪'
-          : '在线'}
-        </span>
-        <time>
-          {host.clock.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', weekday: 'short' })}{' '}
-          {host.clock.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
-        </time>
-      </header>
+      {host.model.mode === 'macos' && (
+        <header className='system-bar glass'>
+          <DesktopMenu host={host} />
+          <strong className='active-app-name'>
+            {activeApp?.definition.id === 'files' ? 'Finder' : (activeApp?.definition.name ?? 'Finder')}
+          </strong>
+          <details className='desktop-menu app-command-menu'>
+            <summary>文件</summary>
+            <div className='menu-popover'>
+              <button onClick={() => run(host, () => host.launch(activeApp?.definition.id ?? 'files', true))}>
+                新建窗口
+              </button>
+              {activeApp?.commands.map(command => (
+                <button
+                  key={command.id}
+                  disabled={command.disabled}
+                  onClick={() => run(host, () => host.command(activeApp.id, command.id))}
+                >
+                  {command.label}
+                </button>
+              ))}
+              {activeApp && (
+                <button onClick={() => run(host, () => host.windowAction(activeApp.id, 'close'))}>关闭窗口</button>
+              )}
+            </div>
+          </details>
+          <details className='desktop-menu app-command-menu'>
+            <summary>窗口</summary>
+            <div className='menu-popover'>
+              <button onClick={() => host.setPanel('overview')}>窗口概览</button>
+              <button onClick={() => host.showDesktop()}>显示桌面</button>
+              {activeApp && (
+                <button onClick={() => run(host, () => host.windowAction(activeApp.id, 'minimized'))}>最小化</button>
+              )}
+            </div>
+          </details>
+          <div className='system-spacer' />
+          <SystemTray host={host} />
+        </header>
+      )}
       {host.resourcesOpen && <ResourcePanel host={host} />}
       <div
         className='desktop-surface'
@@ -833,18 +894,7 @@ export function DesktopApp({ host }: { host: DesktopHost }) {
             </button>
           ))}
         </div>
-        {!host.model.windows.length && (
-          <div className='desktop-greeting' aria-hidden='true'>
-            <span>YOUR SPACE. YOUR PACE.</span>
-            <h1>
-              留一点空间，
-              <br />
-              给正在发生的事。
-            </h1>
-            <p>从下面打开一个应用，开始今天的工作。</p>
-          </div>
-        )}
-        <div className='workspace-switcher' aria-label='工作区'>
+        <div className='workspace-switcher' aria-label='工作区' hidden={host.state.workspaces.length < 2}>
           {host.state.workspaces.map(workspace => (
             <button
               key={workspace.id}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { errorMessage, requireCondition } from '../core/errors.js';
 import type { AppDefinition } from '../core/types.js';
+import { AppIcon } from '../ui/icons.js';
 import type { AppSession } from './session.js';
 
 type CatalogItem = AppDefinition & {
@@ -77,8 +78,7 @@ export function CatalogView({ session }: { session: AppSession }) {
   }
   return (
     <main className='catalog-app'>
-      <span className='section-kicker'>A SMALL COLLECTION. A REAL WORKFLOW.</span>
-      <h1>好工具，各就各位。</h1>
+      <h1>应用目录</h1>
       <p className='section-description'>经过批准的独立 Web 应用。无需账号，按需授权。</p>
       {error && (
         <p className='app-error' role='alert'>
@@ -98,15 +98,7 @@ export function CatalogView({ session }: { session: AppSession }) {
       <div className='catalog-grid'>
         {apps.map(app => (
           <article className='catalog-card' key={app.id}>
-            <span className={`app-icon icon-${app.id}`} aria-hidden='true'>
-              {app.id === 'editor' ?
-                '≡'
-              : app.id === 'files' ?
-                '▰'
-              : app.id === 'settings' ?
-                '⚙'
-              : '▦'}
-            </span>
+            <AppIcon id={app.id} />
             <h2>{app.name}</h2>
             <p>{app.description}</p>
             <dl>

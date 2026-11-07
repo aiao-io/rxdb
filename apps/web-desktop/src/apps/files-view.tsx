@@ -1,15 +1,43 @@
-import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { decodeBytes, encodeBytes } from '../core/bytes.js';
 import { errorMessage, requireCondition } from '../core/errors.js';
 import { MAX_FILE_BYTES, MAX_IMPORT_BYTES, MAX_IMPORT_COUNT } from '../core/files.js';
 import type { VirtualFile } from '../core/types.js';
+import { FileIcon, SymbolIcon } from '../ui/icons.js';
 import { directoryTrail, filesRoute, parseFilesRoute } from './files-navigation.js';
 import { download, type AppSession } from './session.js';
 
 type FileItem = VirtualFile & { size: number };
+
+function fileType(file: VirtualFile): string {
+  if (file.kind === 'directory') return '文件夹';
+  const types: Record<string, string> = {
+    'text/plain': '文本文档',
+    'text/markdown': 'Markdown 文档',
+    'application/json': 'JSON 文件',
+    'application/pdf': 'PDF 文档',
+    'image/png': 'PNG 图像',
+    'image/jpeg': 'JPEG 图像'
+  };
+  const extension = file.name.includes('.') ? file.name.split('.').at(-1)!.toUpperCase() : '';
+  return types[file.mime] ?? `${extension} 文件`.trim();
+}
+
+function fileSize(size: number): string {
+  const units = [
+    { unit: 'megabyte', divisor: 1048576 },
+    { unit: 'kilobyte', divisor: 1024 },
+    { unit: 'byte', divisor: 1 }
+  ];
+  const format = units.find(({ divisor }) => size >= divisor) ?? units[2];
+  return new Intl.NumberFormat('zh-CN', { style: 'unit', unit: format.unit, maximumFractionDigits: 1 }).format(
+    size / format.divisor
+  );
+}
 export function FilesView({ session }: { session: AppSession }) {
   const importInput = useRef<HTMLInputElement>(null);
   const requests = useRef(0);
+  const [view, setView] = useState<'list' | 'grid'>('list');
   const [entries, setEntries] = useState<FileItem[]>([]);
   const [directories, setDirectories] = useState<VirtualFile[]>([]);
   const [initialLocation] = useState(() => parseFilesRoute(session.navigation.state.route));
@@ -39,7 +67,13 @@ export function FilesView({ session }: { session: AppSession }) {
         session.request<VirtualFile[]>('files.directories')
       ]);
       if (revision !== requests.current) return;
-      setEntries(files);
+      setEntries(
+        files.toSorted(
+          (a, b) =>
+            Number(b.kind === 'directory') - Number(a.kind === 'directory') ||
+            a.name.localeCompare(b.name, 'zh-CN', { numeric: true })
+        )
+      );
       setDirectories(dirs);
       await session.update({ title: `文件 · ${location}`, dirty: false });
     } catch (error) {
@@ -48,6 +82,10 @@ export function FilesView({ session }: { session: AppSession }) {
       if (revision === requests.current) setBusy(false);
     }
   }, [session, parentId, search, trash, location]);
+  const latestRefresh = useRef(refresh);
+  useLayoutEffect(() => {
+    latestRefresh.current = refresh;
+  }, [refresh]);
   useEffect(() => {
     const changed = () => {
       void refresh();
@@ -102,7 +140,7 @@ export function FilesView({ session }: { session: AppSession }) {
     try {
       await action();
       if (success) setMessage(success);
-      await refresh();
+      await latestRefresh.current();
     } catch (error) {
       setError(errorMessage(error));
     } finally {
@@ -141,6 +179,29 @@ export function FilesView({ session }: { session: AppSession }) {
       await session.request('files.import', { files: inputs });
     }, `已处理 ${files.length} 个文件。它们与本机文件相互独立。`);
   }
+  function fileButton(file: FileItem) {
+    return (
+      <button
+        aria-label={`打开 ${file.name}`}
+        onClick={() => {
+          setSelected(file.id);
+          session.navigation.record(filesRoute({ parentId, trash, search, selected: file.id }), true);
+        }}
+        onDoubleClick={() => {
+          if (!trash) void open(file);
+        }}
+        onKeyDown={event => {
+          if (event.key === 'Enter' && !trash) {
+            event.preventDefault();
+            void open(file);
+          }
+        }}
+      >
+        <FileIcon kind={file.kind} />
+        <span className='file-name'>{file.name}</span>
+      </button>
+    );
+  }
   return (
     <main className='files-app app-layout'>
       <header className='app-toolbar'>
@@ -172,7 +233,27 @@ export function FilesView({ session }: { session: AppSession }) {
           {!trash && trail === null && <span role='status'>当前目录不可用，请返回我的文件。</span>}
         </nav>
         <span className='toolbar-spacer' />
+        <div className='file-view-controls' aria-label='显示方式'>
+          <button aria-label='图标视图' title='图标视图' aria-pressed={view === 'grid'} onClick={() => setView('grid')}>
+            <SymbolIcon name='grid' />
+          </button>
+          <button aria-label='列表视图' title='列表视图' aria-pressed={view === 'list'} onClick={() => setView('list')}>
+            <SymbolIcon name='list' />
+          </button>
+        </div>
+        <button
+          className='file-refresh'
+          aria-label='刷新文件'
+          title='刷新文件'
+          disabled={busy}
+          onClick={() => {
+            void refresh();
+          }}
+        >
+          <SymbolIcon name='refresh' />
+        </button>
         <label className='file-search'>
+          <SymbolIcon name='search' />
           <input
             aria-label='搜索当前目录'
             placeholder='搜索当前目录'
@@ -186,21 +267,29 @@ export function FilesView({ session }: { session: AppSession }) {
       </header>
       <div className='file-body'>
         <aside className='app-sidebar'>
-          <span className='sidebar-label'>你的桌面</span>
-          <button aria-pressed={!trash} onClick={() => navigate(null)}>
-            ▰ 我的文件
+          <span className='sidebar-label'>个人收藏</span>
+          <button aria-pressed={!trash && parentId === null} onClick={() => navigate(null)}>
+            <SymbolIcon name='drive' /> 我的文件
           </button>
           <button aria-pressed={trash} onClick={() => navigate(null, true)}>
-            ♲ 回收站
+            <SymbolIcon name='trash' /> 回收站
           </button>
           <span className='sidebar-label'>目录</span>
           {directories.map(dir => (
-            <button key={dir.id} onClick={() => navigate(dir.id)}>
-              ▱ {dir.name}
+            <button
+              key={dir.id}
+              aria-pressed={!trash && parentId === dir.id}
+              title={directoryTrail(directories, dir.id)
+                ?.map(item => item.name)
+                .join(' / ')}
+              style={{ paddingLeft: 10 + 12 * Math.max(0, (directoryTrail(directories, dir.id)?.length ?? 1) - 1) }}
+              onClick={() => navigate(dir.id)}
+            >
+              <SymbolIcon name='folder' /> {dir.name}
             </button>
           ))}
           <p>
-            保存在浏览器内，
+            保存在此浏览器，
             <br />
             不等同于本机磁盘。
           </p>
@@ -224,7 +313,7 @@ export function FilesView({ session }: { session: AppSession }) {
                     setName('新文档.txt');
                   }}
                 >
-                  新建文件
+                  <SymbolIcon name='file' /> 新建文件
                 </button>
                 <button
                   disabled={busy}
@@ -233,11 +322,11 @@ export function FilesView({ session }: { session: AppSession }) {
                     setName('新建文件夹');
                   }}
                 >
-                  新建文件夹
+                  <SymbolIcon name='folder' /> 新建文件夹
                 </button>
                 <div>
                   <button disabled={busy} onClick={() => importInput.current?.click()}>
-                    导入文件
+                    <SymbolIcon name='upload' /> 导入文件
                   </button>
                   <input
                     ref={importInput}
@@ -253,7 +342,7 @@ export function FilesView({ session }: { session: AppSession }) {
                 </div>
               </>
             )}
-            {!trash && (
+            {!trash && selectedFile && (
               <>
                 <>
                   <button
@@ -313,7 +402,7 @@ export function FilesView({ session }: { session: AppSession }) {
                 </button>
               </>
             )}
-            {!trash && (
+            {!trash && selectedFile && (
               <button
                 disabled={busy || selectedFile?.kind !== 'file'}
                 onClick={() => {
@@ -406,13 +495,13 @@ export function FilesView({ session }: { session: AppSession }) {
           )}
           {!entries.length && !busy && (
             <div className='file-empty'>
-              <span aria-hidden='true'>{trash ? '♲' : '▱'}</span>
+              <SymbolIcon name={trash ? 'trash' : 'folder'} />
               <h2>
                 {search ?
                   '没有找到文件'
                 : trash ?
                   '回收站是空的'
-                : '为你的想法留个位置'}
+                : '此文件夹为空'}
               </h2>
               <p>
                 {search ?
@@ -423,7 +512,7 @@ export function FilesView({ session }: { session: AppSession }) {
               </p>
             </div>
           )}
-          {entries.length > 0 && (
+          {entries.length > 0 && view === 'list' && (
             <table className='file-table'>
               <thead>
                 <tr>
@@ -436,42 +525,37 @@ export function FilesView({ session }: { session: AppSession }) {
               <tbody>
                 {entries.map(file => (
                   <tr key={file.id} data-selected={selected === file.id}>
+                    <td>{fileButton(file)}</td>
+                    <td>{fileType(file)}</td>
+                    <td>{file.kind === 'directory' ? '—' : fileSize(file.size)}</td>
                     <td>
-                      <button
-                        aria-label={`打开 ${file.name}`}
-                        onClick={() => {
-                          setSelected(file.id);
-                          session.navigation.record(filesRoute({ parentId, trash, search, selected: file.id }), true);
-                        }}
-                        onDoubleClick={() => {
-                          if (!trash) void open(file);
-                        }}
-                        onKeyDown={event => {
-                          if (event.key === 'Enter' && !trash) {
-                            event.preventDefault();
-                            void open(file);
-                          }
-                        }}
-                      >
-                        <span className='file-symbol' aria-hidden='true'>
-                          {file.kind === 'directory' ? '▰' : '▤'}
-                        </span>
-                        {file.name}
-                      </button>
+                      {new Date(file.modified).toLocaleString('zh-CN', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
                     </td>
-                    <td>{file.kind === 'directory' ? '文件夹' : file.mime}</td>
-                    <td>{file.kind === 'directory' ? '—' : `${file.size} B`}</td>
-                    <td>{new Date(file.modified).toLocaleDateString()}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           )}
+          {entries.length > 0 && view === 'grid' && (
+            <div className='file-grid'>
+              {entries.map(file => (
+                <div className='file-tile' key={file.id} data-selected={selected === file.id}>
+                  {fileButton(file)}
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       </div>
       <footer className='app-status' role='status'>
         <span>{busy ? '正在读取…' : message || `${entries.length} 个项目`}</span>
-        <span>浏览器内桌面存储</span>
+        <span>{selectedFile ? `已选择 ${selectedFile.name}` : '本地存储'}</span>
       </footer>
     </main>
   );

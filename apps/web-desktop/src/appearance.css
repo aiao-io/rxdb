@@ -1,0 +1,1083 @@
+@layer base, appearance;
+@import './styles.css' layer(base);
+
+@layer appearance {
+  :root,
+  [data-theme] {
+    --surface: #f5f5f5d9;
+    --panel: #fff;
+    --text: #242424;
+    --muted: #656570;
+    --border: #00000014;
+    --accent: #0068d9;
+    --control: #ffffffc9;
+    --control-hover: #00000008;
+    --input: #ffffffc9;
+    --sidebar: #f1f1f3;
+    --card: #f7f7f9;
+    --selected: #007aff18;
+    --chrome: #f5f5f7;
+    --dock: #f5f5f566;
+    --dock-border: #ffffff66;
+    --selection-ink: #005bb8;
+    --shadow-window: 0 0 0 0.5px #0003, 0 4px 12px #0001, 0 18px 35px -8px #0003, 0 40px 80px -16px #0005;
+  }
+  [data-theme='dark'] {
+    color-scheme: dark;
+    --surface: #28282be8;
+    --panel: #1e1e20;
+    --text: #f1f1f3;
+    --muted: #b4b4be;
+    --border: #ffffff19;
+    --accent: #8cc4ff;
+    --control: #ffffff0d;
+    --control-hover: #ffffff15;
+    --input: #ffffff0c;
+    --sidebar: #29292d;
+    --card: #2c2c30;
+    --selected: #0a84ff40;
+    --chrome: #303034;
+    --dock: #2424278c;
+    --dock-border: #ffffff30;
+    --selection-ink: #b5d9ff;
+  }
+  @media (prefers-color-scheme: dark) {
+    [data-theme='system'] {
+      color-scheme: dark;
+      --surface: #28282be8;
+      --panel: #1e1e20;
+      --text: #f1f1f3;
+      --muted: #b4b4be;
+      --border: #ffffff19;
+      --accent: #8cc4ff;
+      --control: #ffffff0d;
+      --control-hover: #ffffff15;
+      --input: #ffffff0c;
+      --sidebar: #29292d;
+      --card: #2c2c30;
+      --selected: #0a84ff40;
+      --chrome: #303034;
+      --dock: #2424278c;
+      --dock-border: #ffffff30;
+      --selection-ink: #b5d9ff;
+    }
+  }
+  body {
+    -webkit-font-smoothing: antialiased;
+  }
+  [hidden] {
+    display: none !important;
+  }
+  .mode-windows,
+  [data-mode='windows'] {
+    font-family: 'Segoe UI Variable', 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    --accent: #0067c0;
+  }
+  .mode-macos,
+  [data-mode='macos'] {
+    font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', sans-serif;
+  }
+  .wallpaper {
+    background: #30255e url('/wallpapers/macos.svg') center / cover;
+  }
+  .wallpaper::before,
+  .wallpaper::after {
+    content: none;
+  }
+  .mode-windows.wallpaper {
+    background: #d7e8fa url('/wallpapers/windows.jpg') center / cover;
+  }
+  .symbol-icon {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    vertical-align: middle;
+  }
+  .system-mark {
+    width: 18px;
+    height: 20px;
+    display: block;
+  }
+  .windows-mark {
+    width: 24px;
+    height: 24px;
+    color: #087ce5;
+  }
+  .glass {
+    background: var(--surface);
+    backdrop-filter: blur(36px) saturate(1.65);
+    border-color: var(--dock-border);
+  }
+  .desktop .system-bar {
+    height: 28px;
+    padding: 0 16px;
+    gap: 18px;
+    color: white;
+    background: #19142c2b;
+    border: 0;
+    box-shadow: inset 0 -0.5px #ffffff15;
+    font-size: calc(12px * var(--desktop-scale, 1));
+  }
+  .desktop .system-bar button {
+    background: transparent;
+    color: inherit;
+    padding: 3px 5px;
+    border: 0;
+  }
+  .desktop-menu {
+    position: relative;
+  }
+  .desktop-menu summary {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    cursor: default;
+  }
+  .desktop-menu summary::-webkit-details-marker {
+    display: none;
+  }
+  .app-command-menu summary {
+    font-size: calc(12px * var(--desktop-scale, 1));
+    padding: 5px 0;
+  }
+  .desktop-menu .menu-popover {
+    color: var(--text);
+  }
+  .desktop .system-bar .menu-popover button {
+    color: var(--text);
+    padding: 7px 12px;
+  }
+  .desktop .system-bar .menu-popover button:hover {
+    background: var(--selected);
+  }
+  .system-tray {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    font-size: calc(11px * var(--desktop-scale, 1));
+  }
+  .system-tray button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    background: transparent;
+    padding: 5px;
+  }
+  .system-tray button:hover {
+    background: var(--control-hover);
+  }
+  .system-tray .symbol-icon {
+    width: 16px;
+    height: 16px;
+  }
+  .tray-clock {
+    position: relative;
+    gap: 9px;
+  }
+  .tray-clock time {
+    display: block;
+    font-size: calc(12px * var(--desktop-scale, 1));
+    white-space: nowrap;
+  }
+  .network-status {
+    font-size: calc(10px * var(--desktop-scale, 1));
+    opacity: 0.75;
+  }
+  .notification-dot {
+    position: absolute;
+    right: 2px;
+    top: 3px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #ff6b65;
+  }
+  .desktop-surface {
+    height: calc(100dvh - 28px);
+  }
+  .mode-windows .desktop-surface {
+    height: calc(100dvh - 52px);
+  }
+  .desktop-shortcuts {
+    left: auto;
+    right: 20px;
+    top: 24px;
+    gap: 20px;
+  }
+  .desktop-shortcuts button {
+    width: 96px;
+    padding: 8px 4px;
+    gap: 7px;
+    font-size: calc(12px * var(--desktop-scale, 1));
+    border-radius: 5px;
+  }
+  .desktop-shortcuts .app-icon {
+    width: 58px;
+    height: 58px;
+  }
+  .mode-windows .desktop-shortcuts {
+    left: 12px;
+    right: auto;
+    top: 16px;
+    gap: 16px;
+  }
+  .mode-windows .desktop-shortcuts .app-icon {
+    width: 48px;
+    height: 48px;
+  }
+  .app-icon,
+  .mode-windows .app-icon {
+    width: 54px;
+    height: 54px;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    color: inherit;
+    text-shadow: none;
+  }
+  .app-icon svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 2px 2px #0002);
+  }
+  .explorer-art {
+    display: none;
+  }
+  .mode-windows .finder-art,
+  [data-mode='windows'] .finder-art {
+    display: none;
+  }
+  .mode-windows .explorer-art,
+  [data-mode='windows'] .explorer-art {
+    display: inline;
+  }
+  .app-bar {
+    bottom: 8px;
+    padding: 7px 9px 10px;
+    border-radius: 19px;
+    background: var(--dock);
+    border: 1px solid var(--dock-border);
+    box-shadow:
+      0 8px 24px #0003,
+      inset 0 1px #ffffff30;
+  }
+  .taskbar-apps {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .taskbar-apps > button,
+  .bar-app > button {
+    padding: 0;
+    background: transparent;
+    border: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .taskbar-apps > button:hover,
+  .bar-app > button:hover {
+    background: transparent;
+  }
+  .taskbar-apps .start-button {
+    width: 51px;
+    height: 54px;
+    color: var(--text);
+  }
+  .mode-macos .start-button .symbol-icon {
+    width: 30px;
+    height: 30px;
+    padding: 4px;
+    color: #fafaff;
+    background: linear-gradient(135deg, #aabbce, #6e7e96);
+    border-radius: 10px;
+    box-sizing: content-box;
+    box-shadow:
+      inset 0 1px #ffffff70,
+      0 2px 3px #0002;
+  }
+  .taskbar-apps > button:last-child {
+    width: 46px;
+    height: 50px;
+  }
+  .taskbar-apps > button:last-child .symbol-icon {
+    width: 29px;
+    height: 29px;
+    color: var(--text);
+    opacity: 0.75;
+  }
+  .bar-app {
+    padding: 0;
+  }
+  .bar-app .app-icon {
+    transition: transform 0.18s cubic-bezier(0.2, 0.7, 0.2, 1);
+    transform-origin: center bottom;
+  }
+  .mode-macos .bar-app:hover .app-icon {
+    transform: translateY(-9px) scale(1.18);
+  }
+  .bar-app.running::after {
+    bottom: -6px;
+    width: 4px;
+    height: 4px;
+    background: var(--text);
+  }
+  .bar-divider {
+    height: 38px;
+    background: var(--border);
+    margin: 0 5px;
+  }
+  .running-menu {
+    bottom: -10px;
+    right: -3px;
+  }
+  .running-menu summary {
+    color: var(--muted);
+    font-size: 9px;
+    opacity: 0;
+  }
+  .bar-app:hover .running-menu summary,
+  .running-menu:focus-within summary {
+    opacity: 1;
+  }
+  .mode-windows .app-bar {
+    bottom: 0;
+    border-radius: 0;
+    height: 52px;
+    padding: 0 12px;
+    justify-content: center;
+    border: 0;
+    border-top: 1px solid var(--dock-border);
+    background: var(--surface);
+    box-shadow: 0 -1px 12px #00000006;
+  }
+  .mode-windows .taskbar-apps {
+    height: 100%;
+    gap: 3px;
+  }
+  .mode-windows .taskbar-apps > button,
+  .mode-windows .bar-app {
+    height: 42px;
+    width: 43px;
+    padding: 4px;
+    border-radius: 4px;
+  }
+  .mode-windows .taskbar-apps > button:hover,
+  .mode-windows .bar-app:hover,
+  .mode-windows .bar-app.current {
+    background: var(--control);
+    box-shadow: 0 1px 2px #0000000a;
+  }
+  .mode-windows .app-bar .app-icon {
+    width: 33px;
+    height: 33px;
+  }
+  .mode-windows .bar-app:hover .app-icon {
+    transform: none;
+  }
+  .mode-windows .bar-app > button {
+    width: 100%;
+    height: 100%;
+  }
+  .mode-windows .bar-divider {
+    display: none;
+  }
+  .mode-windows .bar-app.running::after {
+    width: 6px;
+    height: 3px;
+    left: calc(50% - 3px);
+    bottom: 0;
+    border-radius: 3px;
+    background: #858585;
+  }
+  .mode-windows .bar-app.current::after {
+    width: 16px;
+    left: calc(50% - 8px);
+    background: var(--accent);
+  }
+  .mode-windows .taskbar-apps > button:last-child .symbol-icon {
+    width: 23px;
+    height: 23px;
+  }
+  .mode-windows .system-tray {
+    position: absolute;
+    right: 12px;
+    gap: 5px;
+    height: 100%;
+  }
+  .mode-windows .tray-clock {
+    padding: 0 5px;
+  }
+  .mode-windows .tray-clock time {
+    line-height: 1.1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    font-size: calc(11px * var(--desktop-scale, 1));
+  }
+  .mode-windows .network-status {
+    position: fixed;
+    left: 18px;
+    bottom: 18px;
+    font-size: calc(11px * var(--desktop-scale, 1));
+  }
+  .mode-windows .running-menu .menu-popover {
+    bottom: 54px;
+  }
+  .workspace-switcher {
+    bottom: 105px;
+    background: #0003;
+  }
+  .mode-windows .workspace-switcher {
+    bottom: 14px;
+  }
+  .desktop-window {
+    border: 1px solid #ffffff38;
+    border-radius: 11px;
+    box-shadow:
+      0 2px 6px #0001,
+      0 12px 35px #0003;
+  }
+  .desktop-window.active {
+    box-shadow: var(--shadow-window);
+  }
+  .desktop .titlebar {
+    height: 44px;
+    min-height: 44px;
+    padding: 0 14px;
+    gap: 12px;
+    background: var(--chrome);
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+  }
+  .titlebar .window-navigation button {
+    background: transparent;
+    border: 0;
+    color: var(--muted);
+    font-size: 20px;
+  }
+  .titlebar .window-navigation button:hover:not(:disabled) {
+    background: var(--control-hover);
+  }
+  .mode-macos .window-controls {
+    gap: 8px;
+  }
+  .mode-macos .window-controls button {
+    width: 12px;
+    height: 12px;
+    min-width: 12px;
+    box-shadow: inset 0 0 0 0.5px #0002;
+    border: 0;
+  }
+  .mode-macos .window-controls .close-control {
+    background: #ff5f57;
+  }
+  .mode-macos .window-controls .minimize-control {
+    background: #febc2e;
+  }
+  .mode-macos .window-controls .maximize-control {
+    background: #28c840;
+  }
+  .mode-macos .window-title {
+    font-weight: 600;
+    text-align: center;
+  }
+  .titlebar-app-icon {
+    display: none;
+  }
+  .mode-windows .titlebar-app-icon {
+    display: block;
+  }
+  .titlebar-app-icon .app-icon {
+    width: 21px;
+    height: 21px;
+  }
+  .mode-windows .desktop-window {
+    border-radius: 8px;
+    border-color: #00000020;
+  }
+  .mode-windows .titlebar {
+    height: 38px;
+    min-height: 38px;
+    padding-left: 14px;
+    gap: 8px;
+  }
+  .mode-windows .window-controls {
+    margin-right: -14px;
+  }
+  .mode-windows .window-controls button {
+    background: transparent;
+    color: var(--text);
+    width: 46px;
+  }
+  .mode-windows .window-controls button:hover {
+    background: var(--control-hover);
+  }
+  .mode-windows .window-controls .close-control:hover {
+    background: #c42b1c;
+    color: #fff;
+  }
+  .mode-windows .window-navigation {
+    order: 1;
+  }
+  .mode-windows .window-title {
+    order: 0;
+  }
+  .mode-windows .window-menu {
+    order: 2;
+  }
+  .window-menu summary {
+    font-size: 18px;
+  }
+  .desktop .window-title {
+    background: transparent;
+    color: inherit;
+  }
+  .launcher {
+    width: min(560px, calc(100vw - 32px));
+    padding: 26px 28px 0;
+    border-radius: 16px;
+    bottom: 94px;
+    max-height: calc(100dvh - 140px);
+    overflow-y: auto;
+    box-shadow: 0 12px 48px #0003;
+  }
+  .mode-windows .launcher {
+    width: min(600px, calc(100vw - 32px));
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 62px;
+    border-radius: 8px;
+  }
+  .launcher .panel-heading {
+    margin-bottom: 20px;
+  }
+  .launcher .panel-heading h2 {
+    font-size: calc(14px * var(--desktop-scale, 1));
+  }
+  .launcher .search-box {
+    background: var(--input);
+    border-color: var(--border);
+    border-radius: 7px;
+    margin-bottom: 20px;
+  }
+  .mode-windows .search-box {
+    border-bottom: 2px solid var(--accent);
+  }
+  .launcher-list {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px 6px;
+    padding: 12px 0 32px;
+  }
+  .launcher-row {
+    position: relative;
+    display: block;
+  }
+  .launcher-app {
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    padding: 12px 4px;
+    align-items: center;
+    border-radius: 7px;
+  }
+  .launcher-app:hover {
+    background: var(--control-hover);
+  }
+  .launcher-app > span:nth-child(2) {
+    font-size: calc(12px * var(--desktop-scale, 1));
+    text-align: center;
+  }
+  .launcher-app strong {
+    font-weight: 400;
+  }
+  .launcher-row > button:last-child {
+    position: absolute;
+    right: 2px;
+    top: 0;
+    opacity: 0;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .launcher-row:hover > button:last-child,
+  .launcher-row:focus-within > button:last-child {
+    opacity: 1;
+  }
+  .launcher-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 28px;
+    margin: 0 -28px;
+    background: var(--control-hover);
+    border-top: 1px solid var(--border);
+    font-size: calc(12px * var(--desktop-scale, 1));
+  }
+  .launcher-footer > span,
+  .launcher-footer button {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .launcher-footer button {
+    border: 0;
+    background: transparent;
+    font-size: inherit;
+    padding: 5px;
+  }
+  .resource-panel {
+    z-index: 100003;
+    top: 38px;
+  }
+  .mode-windows .resource-panel {
+    top: auto;
+    bottom: 62px;
+  }
+  .mode-windows .notification-center {
+    top: auto;
+    bottom: 62px;
+  }
+  .mode-macos .notification-center {
+    top: 38px;
+  }
+  .menu-popover {
+    background: var(--surface);
+    backdrop-filter: blur(32px);
+    border-radius: 7px;
+    box-shadow: 0 8px 32px #0003;
+  }
+  .mode-windows .desktop-menu .menu-popover {
+    top: auto;
+    bottom: 45px;
+    left: auto;
+    right: 0;
+  }
+  .welcome-card {
+    border-radius: 18px;
+    box-shadow: 0 30px 100px #0005;
+  }
+  .mode-preview.preview-macos {
+    background: url('/wallpapers/macos.svg') center / cover;
+  }
+  .mode-preview.preview-windows {
+    background: url('/wallpapers/windows.jpg') center / cover;
+  }
+  .mode-option.selected {
+    border-color: #007aff;
+    background: #eaf2ff;
+  }
+  .mode-option small {
+    color: #525b6c;
+  }
+  .primary {
+    background: #0068d9;
+  }
+  .primary:hover:not(:disabled) {
+    background: #006be0;
+  }
+  .file-view-controls {
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    background: var(--control-hover);
+    border-radius: 6px;
+  }
+  .file-view-controls button,
+  .app-toolbar .file-refresh {
+    padding: 5px 7px;
+    background: transparent;
+    border: 0;
+    border-radius: 4px;
+  }
+  .file-view-controls button[aria-pressed='true'] {
+    background: var(--control);
+    box-shadow: 0 1px 3px #0002;
+  }
+  .files-app .app-toolbar {
+    min-height: 54px;
+    padding: 8px 16px;
+    gap: 10px;
+    background: var(--chrome);
+  }
+  .file-breadcrumbs {
+    font-size: calc(12px * var(--desktop-scale, 1));
+  }
+  .file-breadcrumbs button {
+    border: 0;
+    background: transparent;
+    padding: 5px;
+  }
+  .file-breadcrumbs button[aria-current='page'] {
+    color: var(--text);
+  }
+  .file-search {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--input);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0 8px;
+    color: var(--muted);
+  }
+  .file-search .symbol-icon {
+    width: 14px;
+    height: 14px;
+  }
+  .file-search input {
+    width: 145px;
+    padding: 7px 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .files-app .app-sidebar {
+    width: 184px;
+    background: var(--sidebar);
+    padding: 18px 10px;
+    display: flex;
+    flex-direction: column;
+  }
+  .files-app .app-sidebar button {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 7px 10px;
+    margin: 1px 0;
+    border-radius: 5px;
+    font-weight: 400;
+    font-size: calc(12px * var(--desktop-scale, 1));
+    min-height: 31px;
+  }
+  .files-app .app-sidebar .symbol-icon {
+    width: 17px;
+    height: 17px;
+    color: var(--accent);
+  }
+  .files-app .sidebar-label {
+    font-size: calc(10px * var(--desktop-scale, 1));
+    font-weight: 600;
+    color: var(--muted);
+    margin: 0 10px 7px;
+  }
+  .files-app .sidebar-label:not(:first-child) {
+    margin-top: 24px;
+  }
+  .files-app .app-sidebar p {
+    margin-top: auto;
+    margin-bottom: 0;
+    padding: 28px 10px 0;
+    font-size: calc(10px * var(--desktop-scale, 1));
+    line-height: 1.7;
+  }
+  .files-app .file-content {
+    background: var(--panel);
+  }
+  .file-actions {
+    height: 52px;
+    min-height: 52px;
+    max-height: 52px;
+    padding: 8px 16px;
+    gap: 5px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  .file-actions > * {
+    flex-shrink: 0;
+  }
+  .file-actions button {
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: 0;
+    padding: 7px 8px;
+    font-size: calc(11px * var(--desktop-scale, 1));
+    border-radius: 5px;
+  }
+  .file-actions button:hover:not(:disabled) {
+    background: var(--control-hover);
+  }
+  .file-actions .symbol-icon {
+    width: 15px;
+    height: 15px;
+    color: var(--muted);
+  }
+  .file-table {
+    font-size: calc(12px * var(--desktop-scale, 1));
+  }
+  .file-table th {
+    background: var(--card);
+    font-size: calc(11px * var(--desktop-scale, 1));
+    padding: 7px 14px;
+  }
+  .file-table td {
+    padding: 5px 14px;
+    border: 0;
+  }
+  .file-table tbody tr:nth-child(even) {
+    background: var(--control-hover);
+  }
+  .file-table tr[data-selected='true'] td {
+    background: var(--selected);
+    color: var(--selection-ink);
+  }
+  .file-table td button {
+    padding: 4px 0;
+    min-height: 27px;
+    gap: 8px;
+    font-size: inherit;
+    background: transparent;
+    color: inherit;
+    border: 0;
+  }
+
+  [data-mode='windows'] .file-empty {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 250px;
+    padding: 50px 20px;
+  }
+  .file-empty > .symbol-icon {
+    width: 62px;
+    height: 62px;
+    stroke-width: 0.9px;
+    color: var(--muted);
+    opacity: 0.45;
+  }
+  .file-empty h2 {
+    font-size: calc(15px * var(--desktop-scale, 1));
+    font-weight: 500;
+  }
+  .file-empty p {
+    max-width: 280px;
+    font-size: calc(12px * var(--desktop-scale, 1));
+  }
+  .file-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(106px, 1fr));
+    gap: 20px 10px;
+    padding: 26px 20px;
+    align-items: start;
+  }
+  .file-tile button {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    gap: 9px;
+    padding: 10px 4px;
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    font-size: calc(12px * var(--desktop-scale, 1));
+  }
+  .file-tile button:hover {
+    background: var(--control-hover);
+  }
+  .file-tile[data-selected='true'] button {
+    background: var(--selected);
+    color: var(--selection-ink);
+  }
+  .file-tile .file-tile .file-name {
+    overflow-wrap: anywhere;
+    text-align: center;
+    line-height: 1.5;
+  }
+  .files-app .app-status {
+    background: var(--chrome);
+    font-size: calc(10px * var(--desktop-scale, 1));
+  }
+  .settings-card {
+    background: var(--card);
+    border-radius: 9px;
+  }
+  [data-mode='windows'] .app-toolbar,
+  [data-mode='windows'] .app-sidebar,
+  [data-mode='windows'] .app-status {
+    background: var(--chrome);
+  }
+  [data-mode='windows'] .files-app .app-sidebar {
+    width: 180px;
+  }
+  [data-mode='windows'] .files-app .app-sidebar button[aria-pressed='true'] {
+    position: relative;
+    background: var(--selected);
+    color: var(--text);
+  }
+  [data-mode='windows'] .files-app .app-sidebar button[aria-pressed='true']::before {
+    content: '';
+    position: absolute;
+    width: 3px;
+    height: 16px;
+    border-radius: 3px;
+    background: var(--accent);
+    left: 0;
+  }
+  [data-mode='macos'] .file-table tr[data-selected='true'] td {
+    background: #0068d9;
+    color: #fff;
+  }
+
+  @media (max-width: 1000px) {
+    .mode-windows .system-tray {
+      gap: 1px;
+      right: 6px;
+    }
+    .mode-windows .network-status {
+      display: none;
+    }
+    .mode-windows .tray-connectivity {
+      display: none;
+    }
+  }
+  @media (max-width: 720px) {
+    .desktop .system-bar {
+      padding: 0 10px;
+      gap: 12px;
+    }
+    .system-tray {
+      gap: 5px;
+    }
+    .system-tray .network-status,
+    .system-tray .tray-connectivity,
+    .system-tray button[aria-label='运行与资源'] {
+      display: none;
+    }
+    .system-tray .tray-clock time {
+      display: block;
+      font-size: 10px;
+    }
+    .mode-windows .taskbar-apps {
+      margin-right: 120px;
+      gap: 0;
+    }
+    .mode-windows .taskbar-apps > button,
+    .mode-windows .bar-app {
+      width: 36px;
+    }
+    .mode-windows .system-tray .mode-toggle {
+      display: inline-flex;
+    }
+    .mode-windows .tray-clock .symbol-icon {
+      display: none;
+    }
+    .mode-windows .tray-clock time {
+      display: flex;
+    }
+    .files-app .app-sidebar,
+    [data-mode='windows'] .files-app .app-sidebar {
+      width: 135px;
+      padding: 14px 6px;
+    }
+    .files-app .app-toolbar {
+      gap: 4px;
+      padding: 8px;
+    }
+    .file-search input {
+      width: 100px;
+    }
+    .file-view-controls button {
+      padding: 4px;
+    }
+    .file-breadcrumbs {
+      flex: 1;
+    }
+    .launcher-list {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  @media (max-width: 480px) {
+    .app-command-menu {
+      display: none;
+    }
+    .mode-windows .taskbar-apps {
+      margin-right: 78px;
+    }
+    .mode-windows .system-tray {
+      gap: 0;
+      right: 2px;
+    }
+    .mode-windows .tray-clock {
+      padding: 2px;
+    }
+    .mode-windows .tray-clock time {
+      font-size: 9px;
+    }
+    .file-search {
+      max-width: 90px;
+      padding: 0 4px;
+    }
+    .file-search input {
+      width: 60px;
+    }
+  }
+
+  .files-app .app-sidebar button[aria-pressed='true'] {
+    color: var(--selection-ink);
+  }
+
+  .mode-windows[data-theme='dark'],
+  [data-mode='windows'][data-theme='dark'] {
+    --accent: #8cc4ff;
+  }
+  @media (prefers-color-scheme: dark) {
+    .mode-windows[data-theme='system'],
+    [data-mode='windows'][data-theme='system'] {
+      --accent: #8cc4ff;
+    }
+  }
+
+  .file-art {
+    width: 22px;
+    height: 24px;
+    display: block;
+    --folder-front: #79c8f5;
+    --folder-back: #48a5de;
+    filter: drop-shadow(0 1px 1px #00000012);
+  }
+  [data-mode='windows'] .file-art {
+    --folder-front: #ffcf65;
+    --folder-back: #e9aa35;
+  }
+  .file-tile .file-art {
+    width: 64px;
+    height: 64px;
+  }
+  .settings-body .app-sidebar button {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .settings-content h2 {
+    font-weight: 600;
+    margin-top: 0;
+    font-size: calc(25px * var(--desktop-scale, 1));
+  }
+  .catalog-app h1 {
+    font-weight: 600;
+    font-size: calc(28px * var(--desktop-scale, 1));
+  }
+  input::placeholder {
+    color: var(--muted);
+    opacity: 1;
+  }
+  .search-box:focus-within,
+  .file-search:focus-within {
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  .search-box input:focus-visible,
+  .file-search input:focus-visible {
+    outline: none;
+  }
+}

@@ -2,6 +2,7 @@ import { createOrbit, type OrbitInstance, type OrbitObject, type OrbitState } fr
 import { isRecord } from '../core/catalog.js';
 import { openDatabase, resetStoredState, type DesktopDatabase } from '../core/database.js';
 import { DesktopError, errorMessage, requireCondition } from '../core/errors.js';
+import { openOpfsDatabase, resetOpfs } from '../core/opfs.js';
 import { checkPermission, grantPermission } from '../core/permissions.js';
 import { getRelease, installationFor } from '../core/releases.js';
 import type { ResourceReference } from '../core/resource-references.js';
@@ -213,6 +214,7 @@ export class DesktopHost {
         () => this.ownership.owned && this.storageRecovery && this.phase === 'error' && this.instances.size === 0,
         this.model.mode
       );
+      await resetOpfs(() => this.ownership.owned, await navigator.storage.getDirectory());
       this.storageRecovery = false;
       this.clearMessage();
       await this.start();
@@ -237,12 +239,10 @@ export class DesktopHost {
   }
 
   area(): WorkArea {
+    const workspaceHeight = this.state.workspaces.length > 1 ? 32 + (14 * this.state.profile.scale) / 100 : 0;
     return {
       width: Math.max(320, window.innerWidth),
-      height: Math.max(
-        200,
-        window.innerHeight - (this.model.mode === 'macos' ? 110 : 98) - (34 + (14 * this.state.profile.scale) / 100)
-      )
+      height: Math.max(200, window.innerHeight - (this.model.mode === 'macos' ? 122 : 64) - workspaceHeight)
     };
   }
 
@@ -250,7 +250,10 @@ export class DesktopHost {
     requireCondition(this.database && this.ownership.owned, 'OWNERSHIP', '当前标签页没有写入权');
     const result = await this.database.transact(operation);
     const previous = JSON.stringify(this.state.profile);
+    const hadWorkspaces = this.state.workspaces.length > 1;
     this.state = await this.database.read();
+    const hasWorkspaces = this.state.workspaces.length > 1;
+    if (hadWorkspaces !== hasWorkspaces) this.resized();
     if (previous !== JSON.stringify(this.state.profile)) this.applyProfile();
     this.changed();
     return result;
@@ -968,7 +971,17 @@ export class DesktopHost {
     this.storageRecovery = false;
     this.database?.close();
     try {
-      this.database = await openDatabase(() => this.ownership.owned, this.model.mode);
+      const database = await openDatabase(() => this.ownership.owned, this.model.mode);
+      try {
+        this.database = await openOpfsDatabase(
+          database,
+          () => this.ownership.owned,
+          await navigator.storage.getDirectory()
+        );
+      } catch (error) {
+        database.close();
+        throw error;
+      }
     } catch (error) {
       this.storageRecovery = error instanceof DesktopError && ['INVALID', 'NOT_FOUND', 'DENIED'].includes(error.code);
       throw error;

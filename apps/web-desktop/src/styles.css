@@ -1062,15 +1062,7 @@ input::placeholder {
 [data-theme='dark'] .system-bar {
   background: #203441de;
 }
-[data-theme='dark'] button {
-  color: var(--text);
-  background: #304957;
-}
-[data-theme='dark'] input,
-[data-theme='dark'] select {
-  background: #142b38;
-  color: var(--text);
-}
+
 @media (prefers-color-scheme: dark) {
   [data-theme='system'] {
     --surface: #203441ed;
@@ -1091,15 +1083,6 @@ input::placeholder {
   }
   [data-theme='system'] .system-bar {
     background: #203441de;
-  }
-  [data-theme='system'] button {
-    color: var(--text);
-    background: #304957;
-  }
-  [data-theme='system'] input,
-  [data-theme='system'] select {
-    background: #142b38;
-    color: var(--text);
   }
 }
 [data-reduced-motion='true'] *,

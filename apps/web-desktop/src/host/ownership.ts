@@ -111,6 +111,7 @@ export class DesktopOwnership {
 export function missingCapabilities(): string[] {
   return [
     ['安全上下文（HTTPS 或 localhost）', globalThis.isSecureContext],
+    ['OPFS', typeof navigator.storage?.getDirectory === 'function'],
     ['IndexedDB', 'indexedDB' in globalThis],
     ['Web Locks', 'locks' in navigator],
     ['BroadcastChannel', 'BroadcastChannel' in globalThis],
