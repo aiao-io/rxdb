@@ -49,7 +49,10 @@ describe('独立源宿主里的运行时适配器', () => {
     const host = connection();
     frames.openRuntimeHost.mockResolvedValueOnce(host);
     await expect(createHostedRuntimeAdapter('nodepod', 'http://localhost:4332').boot()).resolves.toBe(host);
-    expect(frames.openRuntimeHost).toHaveBeenCalledWith(document, { origin: 'http://localhost:4332', runtime: 'nodepod' });
+    expect(frames.openRuntimeHost).toHaveBeenCalledWith(document, {
+      origin: 'http://localhost:4332',
+      runtime: 'nodepod'
+    });
     expect(host.boot).toHaveBeenCalledOnce();
     expect(host.teardown).not.toHaveBeenCalled();
   });

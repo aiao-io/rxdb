@@ -2449,24 +2449,38 @@ describe('vscode.dev 起始页对齐', () => {
   });
 });
 
-
 describe('Markdown 扩展的实际工作台入口', () => {
   it('编辑器标题动作加载正式宿主边界，传入草稿和独立保存快照', async () => {
     const runtime = { sync: vi.fn(async () => undefined), execute: vi.fn(async () => undefined), dispose: vi.fn() };
     const mount = vi.fn<NonNullable<BrowserWorkbenchOptions['markdownRuntime']>>(async () => runtime);
-    const f = fixture(true, '/browser-workbench-assets/', undefined, [], { ...files, 'README.md': '# 保存版本' }, undefined, null, mount);
+    const f = fixture(
+      true,
+      '/browser-workbench-assets/',
+      undefined,
+      [],
+      { ...files, 'README.md': '# 保存版本' },
+      undefined,
+      null,
+      mount
+    );
     await f.handle.ready;
     f.handle.session.select('README.md');
     f.handle.session.edit('README.md', '# 未保存版本');
     await click(f.host, '[data-markdown-preview]:not([hidden])');
-    await vi.waitFor(() => expect(runtime.execute).toHaveBeenCalledWith('markdown-preview-enhanced.openPreviewToTheSide'));
+    await vi.waitFor(() =>
+      expect(runtime.execute).toHaveBeenCalledWith('markdown-preview-enhanced.openPreviewToTheSide')
+    );
     const snapshot = mount.mock.calls[0][1].snapshot;
     expect(snapshot.files['README.md']).toBe('# 未保存版本');
     expect(snapshot.savedFiles['README.md']).toBe('# 保存版本');
     expect(f.backend.save).not.toHaveBeenCalled();
     expect(f.host.querySelector('[data-auxiliary-id="markdown-extension"]')).not.toBeNull();
     f.handle.session.edit('README.md', '# 继续输入');
-    await vi.waitFor(() => expect(runtime.sync).toHaveBeenLastCalledWith(expect.objectContaining({ files: expect.objectContaining({ 'README.md': '# 继续输入' }) })));
+    await vi.waitFor(() =>
+      expect(runtime.sync).toHaveBeenLastCalledWith(
+        expect.objectContaining({ files: expect.objectContaining({ 'README.md': '# 继续输入' }) })
+      )
+    );
   });
 
   it('扩展侧栏可禁用且刷新挂载后保留，重新启用恢复预览入口', async () => {
@@ -2486,12 +2500,20 @@ describe('Markdown 扩展的实际工作台入口', () => {
   });
 });
 
-
 describe('扩展安装与卸载的工作台集成', () => {
   it('卸载激活扩展释放宿主、关闭预览、拒绝旧宿主编辑，刷新后不复活', async () => {
     const runtime = { sync: vi.fn(async () => undefined), execute: vi.fn(async () => undefined), dispose: vi.fn() };
     const mount = vi.fn<NonNullable<BrowserWorkbenchOptions['markdownRuntime']>>(async () => runtime);
-    const f = fixture(true, '/browser-workbench-assets/', undefined, [], { ...files, 'README.md': '# 标题' }, undefined, null, mount);
+    const f = fixture(
+      true,
+      '/browser-workbench-assets/',
+      undefined,
+      [],
+      { ...files, 'README.md': '# 标题' },
+      undefined,
+      null,
+      mount
+    );
     await f.handle.ready;
     f.handle.session.select('README.md');
     await click(f.host, '[data-markdown-preview]:not([hidden])');
@@ -2513,13 +2535,41 @@ describe('扩展安装与卸载的工作台集成', () => {
   });
 
   it('安装失败显示真实错误，正式资源校验成功后恢复预览且不提前激活', async () => {
-    localStorage.setItem('aiao-workbench:extensions:shd101wyy.markdown-preview-enhanced:installation', JSON.stringify({ installed: false, enabled: false }));
+    localStorage.setItem(
+      'aiao-workbench:extensions:shd101wyy.markdown-preview-enhanced:installation',
+      JSON.stringify({ installed: false, enabled: false })
+    );
     const bytes = new TextEncoder().encode('entry');
-    const sha256 = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), byte => byte.toString(16).padStart(2, '0')).join('');
-    const metadata = { id: 'shd101wyy.markdown-preview-enhanced', version: '0.8.40', manifest: { publisher: 'shd101wyy', name: 'markdown-preview-enhanced', version: '0.8.40', browser: './out/web/extension.js' }, files: [{ path: 'out/web/extension.js', bytes: bytes.length, sha256 }] };
+    const sha256 = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), byte =>
+      byte.toString(16).padStart(2, '0')
+    ).join('');
+    const metadata = {
+      id: 'shd101wyy.markdown-preview-enhanced',
+      version: '0.8.40',
+      manifest: {
+        publisher: 'shd101wyy',
+        name: 'markdown-preview-enhanced',
+        version: '0.8.40',
+        browser: './out/web/extension.js'
+      },
+      files: [{ path: 'out/web/extension.js', bytes: bytes.length, sha256 }]
+    };
     const fetcher = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('', { status: 404 }));
-    const mount = vi.fn<NonNullable<BrowserWorkbenchOptions['markdownRuntime']>>(async () => ({ sync: vi.fn(async () => undefined), execute: vi.fn(async () => undefined), dispose: vi.fn() }));
-    const f = fixture(true, '/browser-workbench-assets/', undefined, [], { ...files, 'README.md': '# 标题' }, undefined, null, mount);
+    const mount = vi.fn<NonNullable<BrowserWorkbenchOptions['markdownRuntime']>>(async () => ({
+      sync: vi.fn(async () => undefined),
+      execute: vi.fn(async () => undefined),
+      dispose: vi.fn()
+    }));
+    const f = fixture(
+      true,
+      '/browser-workbench-assets/',
+      undefined,
+      [],
+      { ...files, 'README.md': '# 标题' },
+      undefined,
+      null,
+      mount
+    );
     await f.handle.ready;
     f.handle.session.select('README.md');
     await click(f.host, '[data-action="extensions"]');

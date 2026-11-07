@@ -2,7 +2,12 @@ import { MARKDOWN_EXTENSION, type ExtensionInstallationState } from './extension
 import type { MarkdownExtensionStatus } from './markdown-extension.js';
 
 const labels: Readonly<Record<MarkdownExtensionStatus, string>> = {
-  uninstalled: '未安装', disabled: '已禁用', idle: '已启用 · 首次使用时加载', loading: '正在加载扩展…', active: '已激活', failed: '加载失败'
+  uninstalled: '未安装',
+  disabled: '已禁用',
+  idle: '已启用 · 首次使用时加载',
+  loading: '正在加载扩展…',
+  active: '已激活',
+  failed: '加载失败'
 };
 
 interface ExtensionViewState extends ExtensionInstallationState {
@@ -41,7 +46,9 @@ export function mountMarkdownExtensionView(host: HTMLElement, options: Extension
     if (term === '@disabled') return state.installed && !state.enabled;
     if (term === '@available') return !state.installed;
     if (term.startsWith('@id:')) return MARKDOWN_EXTENSION.id === term.slice(4);
-    return `${MARKDOWN_EXTENSION.name} ${MARKDOWN_EXTENSION.id} Markdown 实时预览 HTML Mermaid 数学公式`.toLowerCase().includes(term);
+    return `${MARKDOWN_EXTENSION.name} ${MARKDOWN_EXTENSION.id} Markdown 实时预览 HTML Mermaid 数学公式`
+      .toLowerCase()
+      .includes(term);
   }
   function filter(): void {
     const terms = search.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
@@ -50,21 +57,34 @@ export function mountMarkdownExtensionView(host: HTMLElement, options: Extension
     element('[data-extension-empty]').hidden = visible;
     element('[data-extension-group]').textContent = `${state.installed ? '已安装' : '可安装'}  ${Number(visible)}`;
     clear.disabled = !search.value;
-    for (const button of filters) button.setAttribute('aria-pressed', String(terms.includes(button.dataset['extensionFilter']!)));
+    for (const button of filters)
+      button.setAttribute('aria-pressed', String(terms.includes(button.dataset['extensionFilter']!)));
   }
   toggle.onclick = options.onToggle;
   install.onclick = options.onInstall;
   uninstall.onclick = options.onUninstall;
   preview.onclick = options.onPreview;
   search.oninput = filter;
-  clear.onclick = () => { search.value = ''; filter(); search.focus(); };
-  for (const button of filters) button.onclick = () => { search.value = button.dataset['extensionFilter']!; filter(); search.focus(); };
+  clear.onclick = () => {
+    search.value = '';
+    filter();
+    search.focus();
+  };
+  for (const button of filters)
+    button.onclick = () => {
+      search.value = button.dataset['extensionFilter']!;
+      filter();
+      search.focus();
+    };
   host.replaceChildren(view);
   return {
     render(next: ExtensionViewState): void {
       state = next;
       const busy = state.operation !== null;
-      status.textContent = state.operation === 'installing' ? '正在安装…' : state.operation === 'uninstalling' ? '正在卸载…' : labels[state.status];
+      status.textContent =
+        state.operation === 'installing' ? '正在安装…'
+        : state.operation === 'uninstalling' ? '正在卸载…'
+        : labels[state.status];
       status.dataset['extensionStatus'] = state.operation ?? state.status;
       section.setAttribute('aria-busy', String(busy));
       install.hidden = state.installed;
@@ -84,7 +104,9 @@ export function mountMarkdownExtensionView(host: HTMLElement, options: Extension
       error.hidden = !state.error;
       filter();
     },
-    focus(): void { search.focus(); },
+    focus(): void {
+      search.focus();
+    },
     dispose(): void {
       for (const button of [toggle, install, uninstall, preview, clear, ...filters]) button.onclick = null;
       search.oninput = null;

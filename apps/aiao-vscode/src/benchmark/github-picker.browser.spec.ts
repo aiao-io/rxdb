@@ -158,7 +158,9 @@ async function waitForResult(result: GitHubRemoteTarget | null): Promise<void> {
 }
 
 async function waitForQuery(query: string): Promise<void> {
-  await expect.poll(async () => (await snapshot()).events.some(event => event.query === query), { timeout: 10000 }).toBe(true);
+  await expect
+    .poll(async () => (await snapshot()).events.some(event => event.query === query), { timeout: 10000 })
+    .toBe(true);
 }
 
 describe('GitHub repository Quick Pick in Chromium', () => {

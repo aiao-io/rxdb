@@ -1,11 +1,11 @@
 {
-  "extends": "./tsconfig.json",
   "compilerOptions": {
     "paths": {
       "monaco-editor": ["./node_modules/@codingame/monaco-vscode-editor-api"],
       "monaco-editor/vscode/*": ["./node_modules/@codingame/monaco-vscode-api/vscode/src/*"]
     }
   },
+  "extends": "./tsconfig.json",
   "include": ["extension-host/**/*.ts"],
   "references": []
 }

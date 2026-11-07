@@ -41,7 +41,10 @@ describe('扩展视图的安装与卸载入口', () => {
     const f = fixture();
     const search = f.host.querySelector<HTMLInputElement>('[data-extension-search]')!;
     const card = f.host.querySelector<HTMLElement>('.wb-extension-details')!;
-    const query = (value: string) => { search.value = value; search.dispatchEvent(new Event('input')); };
+    const query = (value: string) => {
+      search.value = value;
+      search.dispatchEvent(new Event('input'));
+    };
     query('@installed markdown');
     expect(card.hidden).toBe(false);
     query('@disabled');

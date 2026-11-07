@@ -34,7 +34,8 @@ export function parseGitHubRepository(value: string): RepositoryAddress | null {
   if (/^[a-z][a-z\d+.-]*:/i.test(trimmed)) {
     try {
       const url = new URL(trimmed);
-      if (url.protocol !== 'https:' || url.hostname !== 'github.com' || url.port || url.username || url.password) return null;
+      if (url.protocol !== 'https:' || url.hostname !== 'github.com' || url.port || url.username || url.password)
+        return null;
       path = url.pathname;
     } catch {
       return null;
@@ -174,7 +175,8 @@ export function requestGitHubRepository(
       heading.textContent = screen === 'providers' ? '打开远程仓库' : '从 GitHub 打开仓库';
       dialog.setAttribute('aria-label', heading.textContent);
       input.setAttribute('aria-label', heading.textContent);
-      input.placeholder = screen === 'providers' ? '输入远程 URL，或选择远程提供程序' : '选择仓库，或键入要搜索的组织或仓库名称';
+      input.placeholder =
+        screen === 'providers' ? '输入远程 URL，或选择远程提供程序' : '选择仓库，或键入要搜索的组织或仓库名称';
       dialog.dataset['githubStep'] = screen;
       back.hidden = screen === 'providers';
       input.removeAttribute('aria-activedescendant');
@@ -252,17 +254,22 @@ export function requestGitHubRepository(
       const address = parseGitHubRepository(query);
       if (address) return render([direct(address)], '按 Enter 打开仓库');
       if (isAddress(query)) return render([], '请输入有效的 GitHub 仓库 URL 或 owner/repo', false, true);
-      const recent = (options.recentRepositories ?? []).filter(target => `${target.owner}/${target.repo} ${target.branch}`.toLowerCase().includes(query.toLowerCase()));
-      render([
-        { label: '从 GitHub 打开仓库', icon: 'github', action: 'provider', accept: enterGitHub },
-        ...recent.map((target): PickerEntry => ({
-          label: `${target.owner}/${target.repo}`,
-          detail: target.branch,
-          icon: 'repo',
-          action: 'recent',
-          accept: () => settle(target)
-        }))
-      ], recent.length ? '选择提供程序或最近打开的远程仓库' : '选择远程提供程序');
+      const recent = (options.recentRepositories ?? []).filter(target =>
+        `${target.owner}/${target.repo} ${target.branch}`.toLowerCase().includes(query.toLowerCase())
+      );
+      render(
+        [
+          { label: '从 GitHub 打开仓库', icon: 'github', action: 'provider', accept: enterGitHub },
+          ...recent.map((target): PickerEntry => ({
+            label: `${target.owner}/${target.repo}`,
+            detail: target.branch,
+            icon: 'repo',
+            action: 'recent',
+            accept: () => settle(target)
+          }))
+        ],
+        recent.length ? '选择提供程序或最近打开的远程仓库' : '选择远程提供程序'
+      );
     }
 
     async function showRepositories(query: string, expected: number): Promise<void> {
@@ -273,16 +280,19 @@ export function requestGitHubRepository(
       try {
         const repositories = query.trim() ? await api.searchRepositories(query.trim()) : await api.listMyRepositories();
         if (!current(expected)) return;
-        render(repositories.map((repository): PickerEntry => {
-          const [owner, repo] = repository.fullName.split('/');
-          return {
-            label: repository.fullName,
-            detail: repository.description ?? undefined,
-            icon: 'repo',
-            action: 'open',
-            accept: () => void openRepository({ owner, repo })
-          };
-        }), repositories.length ? `${repositories.length} 个仓库` : '没有找到匹配的仓库');
+        render(
+          repositories.map((repository): PickerEntry => {
+            const [owner, repo] = repository.fullName.split('/');
+            return {
+              label: repository.fullName,
+              detail: repository.description ?? undefined,
+              icon: 'repo',
+              action: 'open',
+              accept: () => void openRepository({ owner, repo })
+            };
+          }),
+          repositories.length ? `${repositories.length} 个仓库` : '没有找到匹配的仓库'
+        );
       } catch (cause) {
         if (current(expected)) renderError(cause, () => void showRepositories(query, invalidate()));
       }
@@ -313,7 +323,13 @@ export function requestGitHubRepository(
     dialog.onpointerdown = event => {
       if (event.target !== dialog) return;
       const rectangle = dialog.getBoundingClientRect();
-      if (event.clientX < rectangle.left || event.clientX > rectangle.right || event.clientY < rectangle.top || event.clientY > rectangle.bottom) settle(null);
+      if (
+        event.clientX < rectangle.left ||
+        event.clientX > rectangle.right ||
+        event.clientY < rectangle.top ||
+        event.clientY > rectangle.bottom
+      )
+        settle(null);
     };
     input.oninput = () => {
       const expected = invalidate();
@@ -325,7 +341,10 @@ export function requestGitHubRepository(
         return;
       }
       render([], '正在搜索仓库…', true);
-      timer = setTimeout(() => { timer = undefined; void showRepositories(query, expected); }, SEARCH_DEBOUNCE_MS);
+      timer = setTimeout(() => {
+        timer = undefined;
+        void showRepositories(query, expected);
+      }, SEARCH_DEBOUNCE_MS);
     };
     input.onkeydown = event => {
       if (event.isComposing) return;

@@ -1093,7 +1093,6 @@ describe('布局持久化', () => {
   });
 });
 
-
 describe('Markdown 预览的编辑器组入口', () => {
   it('Markdown 标签显示预览动作，普通代码不显示', () => {
     const { root, dock, callbacks } = fixture();
