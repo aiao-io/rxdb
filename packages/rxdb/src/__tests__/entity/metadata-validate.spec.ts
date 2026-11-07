@@ -47,6 +47,7 @@ const makeMeta = (overrides: Partial<EntityMetadata> = {}): EntityMetadata =>
     foreignKeyColumnNames: [],
     columnNameToPropertyName: new Map(),
     indexMap: new Map(),
+    generatedColumnMap: new Map(),
     checkMap: new Map(),
     exclusionMap: new Map(),
     defaultValueProperties: [],

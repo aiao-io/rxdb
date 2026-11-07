@@ -37,6 +37,47 @@ const surfaceOf = (): {
 };
 
 describe('watchDevToolsHandshake', () => {
+  it('启动链等待前已收到首轮握手时，按启动基线立即完成而不耗尽预算', async () => {
+    vi.useFakeTimers();
+    const { surface, emit } = surfaceOf();
+    const watcher = watchDevToolsHandshake(surface);
+    try {
+      await Promise.resolve();
+      emit({ type: 'HANDSHAKE_ACK', payload: { sessionId: 'already-connected' } });
+      let completed: number | null = null;
+      const pending = watcher.waitForHandshake(60_000, 0).then(count => {
+        completed = count;
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(completed).toBe(1);
+      await pending;
+    } finally {
+      watcher.settle();
+      vi.useRealTimers();
+    }
+  });
+
+  it('重建窗口的握手在调用等待前已到达时，按动作前基线完成且不等待第三轮', async () => {
+    vi.useFakeTimers();
+    const { surface, emit } = surfaceOf();
+    const watcher = watchDevToolsHandshake(surface);
+    try {
+      await Promise.resolve();
+      emit({ type: 'HANDSHAKE_ACK', payload: { sessionId: 'before-recycle' } });
+      emit({ type: 'HANDSHAKE_ACK', payload: { sessionId: 'after-recycle' } });
+      let completed: number | null = null;
+      const pending = watcher.waitForHandshake(60_000, 1).then(count => {
+        completed = count;
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(completed).toBe(2);
+      await pending;
+    } finally {
+      watcher.settle();
+      vi.useRealTimers();
+    }
+  });
+
   it('收到 HANDSHAKE_ACK 就立刻结束这一轮，并交出 session id 与去重后的类型', async () => {
     const { surface, emit, unlisten } = surfaceOf();
     const watcher = watchDevToolsHandshake(surface);

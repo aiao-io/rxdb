@@ -18,7 +18,7 @@ const isCI = Boolean(process.env['CI']);
 export default defineConfig({
   ...nxE2EPreset('.', { testDir: './src', openHtmlReport: 'never' }),
   fullyParallel: false,
-  workers: 2,
+  workers: 1,
   /*
    * P0-1 已收口（2026-08-07）：本地不再重试，失败就是失败。
    *

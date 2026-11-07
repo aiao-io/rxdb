@@ -51,6 +51,7 @@ const storageMatcher: UrlMatcher = (segments: UrlSegment[]) => {
 };
 
 export const appRoutes: Route[] = [
+  { path: 'bom-view', loadComponent: () => import('./pages/bom-view') },
   {
     path: 'home',
     loadComponent: () => import('./pages/home/home.page')

@@ -5,9 +5,10 @@ import path from 'node:path';
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 
-export default defineConfig(() => ({
+export default defineConfig(({ command }) => ({
   root: import.meta.dirname,
   cacheDir: '../../node_modules/.vite/packages/code-editor-react',
+  oxc: command === 'build' ? { jsx: { development: false } } : undefined,
   plugins: [
     react(),
     dts({

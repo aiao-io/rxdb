@@ -1,0 +1,25 @@
+<div class="page">
+  <section class="page-hero">
+    <div>
+      <p class="page-eyebrow">设计到制造</p>
+      <h1>双图映射</h1>
+      <p class="panel-desc">对照设计与制造两张物料清单，找出尚未落实的需求和需要跟进的变化。</p>
+    </div>
+    <label class="hero-control">
+      评估日
+      <input [(ngModel)]="asOfDate" data-testid="as-of-date" type="date" />
+    </label>
+  </section>
+
+  <bom-mapping-panel [asOfDate]="asOfDate()" />
+
+  <details class="panel details-panel">
+    <summary>如何理解设计与制造的对应关系</summary>
+    <p class="panel-desc">设计关注零件，制造还需要材料与工序件。同一评估日下，两张清单的层级可以不同。</p>
+    <ul class="note-list">
+      <li>钣金外壳在设计清单中使用一项板材，在制造清单中还需要折弯、切割两项工序件。</li>
+      <li>覆盖情况按使用路径核对，未覆盖的需求与失效的对应关系分别列出。</li>
+      <li>跟进缺口区分内容变化、原记录消失和新记录出现，帮助定位要重新确认的对应关系。</li>
+    </ul>
+  </details>
+</div>

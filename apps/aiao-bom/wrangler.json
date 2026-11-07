@@ -1,0 +1,10 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "assets": {
+    "directory": "../../dist/apps/aiao-bom/browser",
+    "not_found_handling": "single-page-application"
+  },
+  "compatibility_date": "2026-11-06",
+  "name": "aiao-bom",
+  "workers_dev": true
+}

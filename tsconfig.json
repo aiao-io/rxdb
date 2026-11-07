@@ -305,6 +305,24 @@
     },
     {
       "path": "./apps/rxdb-admin-template-vue-e2e"
+    },
+    {
+      "path": "./packages/rxdb-plugin-bom"
+    },
+    {
+      "path": "./apps/aiao-bom-e2e"
+    },
+    {
+      "path": "./apps/aiao-bom"
+    },
+    {
+      "path": "./packages/rxdb-plugin-bom-angular"
+    },
+    {
+      "path": "./packages/rxdb-plugin-bom-react"
+    },
+    {
+      "path": "./packages/rxdb-plugin-bom-vue"
     }
   ]
 }

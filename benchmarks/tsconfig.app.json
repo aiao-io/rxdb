@@ -73,6 +73,9 @@
       "path": "../packages/rxdb-test/tsconfig.lib.json"
     },
     {
+      "path": "../packages/rxdb-plugin-bom/tsconfig.lib.json"
+    },
+    {
       "path": "../packages/rxdb-adapter-pglite/tsconfig.lib.json"
     },
     {

@@ -10,8 +10,8 @@
 import {
   EntityStaticType,
   EntityType,
-  getEntityMetadata,
   getEntityStatus,
+  getEntityStorageMetadata,
   planMutationWrites,
   RxDBMutationsMap,
   toStorageConstraintViolationError
@@ -106,7 +106,7 @@ export default async <T extends EntityType = EntityType>(
   // ========== 处理 CREATE 操作 ==========
   const applyCreates = async (EntityType: T, entities: InstanceType<T>[]) => {
     entities.forEach(e => all_entities.add(e));
-    const meta = getEntityMetadata(EntityType);
+    const meta = getEntityStorageMetadata(adapter.rxdb, EntityType);
 
     // 生成 INSERT SQL
     const insertSql = await generate_entity_inserts_sql(
@@ -146,7 +146,7 @@ export default async <T extends EntityType = EntityType>(
   // ========== 处理 UPDATE 操作（按 patch 分组优化）==========
   const applyUpdates = async (EntityType: T, entities: InstanceType<T>[]) => {
     entities.forEach(e => all_entities.add(e));
-    const meta = getEntityMetadata(EntityType);
+    const meta = getEntityStorageMetadata(adapter.rxdb, EntityType);
 
     const repo = adapter.getRepository<typeof EntityType, PGliteRepository<typeof EntityType>>(EntityType);
 
@@ -183,7 +183,7 @@ export default async <T extends EntityType = EntityType>(
   // ========== 处理 DELETE 操作 ==========
   const applyRemoves = async (EntityType: T, entities: InstanceType<T>[]) => {
     if (entities.length === 0) return;
-    const meta = getEntityMetadata(EntityType);
+    const meta = getEntityStorageMetadata(adapter.rxdb, EntityType);
 
     // 生成 DELETE SQL
     for (const statement of generate_entity_deletes_sql(meta, adapter.tableSet, entities)) {

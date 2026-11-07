@@ -9,12 +9,12 @@
 | :------------- | :----- |
 | ✅ Done        | 89     |
 | 🚧 In Progress | 13     |
-| 👀 In Review   | 10     |
-| 📝 Backlog     | 27     |
+| 👀 In Review   | 29     |
+| 📝 Backlog     | 8      |
 | 🚫 Blocked     | 0      |
 | **未完成合计** | **50** |
 
-仓库还剩 **50 条**未关闭故事（13 In Progress + 10 In Review + 27 Backlog + 0 Blocked）。
+仓库还剩 **50 条**未关闭故事（13 In Progress + 29 In Review + 8 Backlog + 0 Blocked）。
 数字由 story YAML 推导；Backlog 包括已授权任务与价值待证候选，不能把全部未关闭故事当成可开工项。
 
 ## 未完成需求全景
@@ -27,7 +27,7 @@
 | [US-211](stories/adapter/US-211-multi-miniprogram-platforms.md)                                                                                                         | 🚧 In Progress | 按平台矩阵核对剩余设备验证、demo 走查与公开支持边界                                                    | 批次 3      |
 | [US-403](stories/ui/US-403-entity-components-headless.md)                                                                                                               | 🚧 In Progress | 独立构建产物消费、Angular secondary entry 与三框架质量门禁待收口                                       | 批次 3      |
 | [US-219](stories/adapter/US-219-taro-plugin.md)                                                                                                                         | 👀 In Review   | 当前 Taro 版本的外部安装与开发者工具验收证据                                                           | 批次 3      |
-| [epic-009 BOM](epics/epic-009-bom-domain-model.md)（19 条）                                                                                                             | 📝 Backlog     | 先首轮切片与贯穿应用，再按前置推进；候选优化不自动解锁                                                 | 批次 4      |
+| [US-518](stories/domain/US-518-bom-unit-lot-effectivity.md) / [epic-009 BOM](epics/epic-009-bom-domain-model.md)                                                        | 👀 In Review   | 既有功能已实现；新增 AC#12 的空批次集合写入拒绝与兼容性验收                                            | 批次 4      |
 | [US-528](stories/domain/US-528-admin-consumer-example.md)                                                                                                               | 📝 Backlog     | 由 React Admin 模板承接公开包消费与成本验证；仓外闭环和实际业务增量均待验，本轮仅仓内孵化              | 批次 5      |
 | [US-534](stories/domain/US-534-board-column-task-skeleton.md)                                                                                                           | 👀 In Review   | 全部 AC 已验，等待合并收尾                                                                             | 批次 6      |
 | [US-537](stories/domain/US-537-board-backup-restore.md)                                                                                                                 | 🚧 In Progress | 恢复中配额不足、关闭页面后重开的注入分支（AC#9）                                                       | 批次 6      |
@@ -55,23 +55,40 @@ US-603 的共享 preflight 仍待受控 registry 替身验收；US-223/224 是�
 | 顺序         | 范围            | 关闭条件                                                                  |
 | ------------ | --------------- | ------------------------------------------------------------------------- |
 | 优先修复建议 | US-223 / US-224 | 各自复现翻为正向断言，RLS、级联、重试和双端收敛边界通过；保持两条独立故事 |
-| 并行收尾     | US-030 A～C     | 当前承诺的双后端 AC 与评审完成；D 保留未验状态和独立准入                  |
 | 并行收尾     | US-211 / US-219 | 当前构建/工具/设备矩阵可复验，未验证的设备与平台不扩大支持声明            |
 
-US-211/219 有人工宿主验收，不用单元测试通过替代。US-030 的候选 D 不阻塞已授权范围。
+### 批次 4：BOM 统一验收与合并
 
-### 批次 4：BOM 首轮切片（epic-009 已解锁）
+结构、解析、数量、联产、路线成本、ECN、映射、热字段、实例和三框架绑定已在本分支实现。
+US-518 AC#12 的 API/SQL 空批次写入守卫与旧库兼容已有双后端定向回归；旧空集合读取语义保持不变。
+以下 19 条领域故事及公共前置 US-030 保持 In Review，领域与公共包在 PR #129 中一起验证、评审、合并后再置 Done。
+最新收尾入口见[任务清单](../apps/aiao-bom/requirements/plans/bom-completion-tasks.md)，
+历史功能证据见 [epic-009](epics/epic-009-bom-domain-model.md)。
 
-owner 已授权以完整演示应用为驱动，见 [epic-009](epics/epic-009-bom-domain-model.md)；不重新要求具名客户才能推进已批准切片。
-US-030 A～C 是首轮第 1 步前置；当前 Tauri rusqlite 已达 0.33，无需重复规划升级。
+| 故事                                                                                                          | 状态         | 关闭条件                                  |
+| ------------------------------------------------------------------------------------------------------------- | ------------ | ----------------------------------------- |
+| [US-030 声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)                               | 👀 In Review | 随 BOM 领域与公共包统一验证、评审并合并。 |
+| [US-507 BOM 图骨架：物料、修订与多重边 BOM 行](stories/domain/US-507-bom-graph-skeleton.md)                   | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-508 BOM 视图解析：类型/组织/修订/生效期过滤](stories/domain/US-508-bom-view-resolution.md)                | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-509 DAG 约束与环路检测下沉存储层](stories/domain/US-509-bom-dag-cycle-detection.md)                       | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-510 多级展开与 where-used 反查](stories/domain/US-510-bom-multilevel-explosion.md)                        | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-511 展开数量正确性：用量语义、三类损耗、虚拟件穿透](stories/domain/US-511-bom-quantity-semantics.md)      | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-512 替代组与替代策略](stories/domain/US-512-bom-substitute-group.md)                                      | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-513 联产品与副产品：多输出物料流](stories/domain/US-513-bom-coproduct-byproduct.md)                       | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-514 成本卷算](stories/domain/US-514-bom-cost-rollup.md)                                                   | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-515 变更管理（ECN）驱动的生效期](stories/domain/US-515-bom-change-management.md)                          | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-516 EBOM ↔ MBOM 映射与差异对比](stories/domain/US-516-ebom-mbom-mapping.md)                               | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-517 可配置销售 BOM：特征、选项与选择条件](stories/domain/US-517-configurable-sales-bom.md)                | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-518 序列与批次有效性](stories/domain/US-518-bom-unit-lot-effectivity.md)                                  | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-519 扩展属性：jsonb 值 + attr_def 元数据 + 热字段提升](stories/domain/US-519-bom-extension-attributes.md) | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-520 工艺路线挂接与工序投料分摊](stories/domain/US-520-bom-routing-operation.md)                           | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-521 ERP/MRP 集成契约](stories/domain/US-521-bom-erp-mrp-integration.md)                                   | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-522 三框架 BOM 编辑与展开视图](stories/domain/US-522-bom-tri-framework-ui.md)                             | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-523 as-built / as-maintained 实例 BOM](stories/domain/US-523-bom-as-built-instance.md)                    | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-524 工艺路线本体：工序、工作中心、工时与费率](stories/domain/US-524-routing-master-model.md)              | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
+| [US-525 BOM 端到端 demo：一份数据集走完全域](stories/domain/US-525-bom-end-to-end-demo.md)                    | 👀 In Review | 最终门禁通过，同一 PR 评审并合并。        |
 
-| 顺序 | 交付                                                                                                                            | 关闭条件                                                                                              |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| 0    | 复核默认决策 1～8 与演示种子/样本                                                                                               | 样本与决策无冲突，范围明确                                                                            |
-| 1～4 | US-507 A/B/C、US-508、US-509 首轮 AC、US-510 A、US-511 A/C/B1、US-525 A                                                         | 按 [首轮切片表](epics/epic-009-bom-domain-model.md#首轮可开工切片)逐步验收，当前承诺未完成不提前 Done |
-| 后续 | US-525 B～F 的消费方：US-512 / US-513 / US-514 / US-515 / US-516 / US-517 / US-518 / US-519 / US-520 / US-521 / US-523 / US-524 | 各按自身前置接入；US-524 在 US-520/514 前；US-522 三框架绑定单独排期                                  |
-
-US-513 联产品、US-510 热路径优化、US-519 可选索引与 US-030 D 保留各自准入；候选阶段不扩大本轮承诺。
+查询闭包剪枝没有进入默认读路径，不把尚未证明的优化收益写成已交付承诺。
 
 ### 批次 5：模型驱动后台首版（epic-010 已解锁）
 
@@ -128,7 +145,6 @@ epic-006 两份评审报告（`next-0912` 与 `review` 分支复核）收口时�
 | 项                                                                                | 挡着                                                                                                                                                                           | 前置决策 / 判据位置                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 提交图校验的「最后已验证 HEAD」水位（BFS 剪枝）＋ `list-commits` 的按分支派生结构 | 每次 commit / discard / restore / 切分支都全量重哈希整张可达图，O(N)                                                                                                           | **这是一次规格变更，不是性能重构**：剪枝直接违反 [US-305](stories/collaboration/US-305-commit-graph-head.md) FR-051「MUST 遍历**完整**可达父链」与原规格 SC-013「可达祖先损坏时三条入口各自报 `commit_graph_corrupted`」（`git show f9528e8f:specs/001-working-tree-commits/spec.md`），要先改 US-305 的 FR-051 与 epic-006 的验收。两条共用同一份 ref 状态，必须一起做。判据见 `packages/rxdb-plugin-working-tree/src/commit/commit-graph-guard.ts` 与 `commit/list-commits.ts` 的 `@remarks` |
-| `IRepository` 要不要长出聚合能力（`GROUP BY` / `COUNT`）                          | `working-tree/status.ts` 的两次顺序 `COUNT(*)`                                                                                                                                 | core ↔ plugin 公开面决策。另一条路（插件走 `executor.query()` 裸 SQL）会是本插件第一处生产裸读，方言返回类型与列名大小写不一致、测试替身只认结构化查询。判据见 `status.ts` 的 `readOriginBreakdown` `@remarks`                                                                                                                                                                                                                                                                                 |
 | 跨后端公共层落在哪个包 ＋ 语句收集协议统一（数组 vs `---STATEMENT_SEPARATOR---`） | 两个 `version/switch-result.utils.ts`、两个 `version/switch_branch.ts`、两处 `ensureBranchActiveKey`                                                                           | 两个适配器互不依赖，公共层放任一端都新增跨适配器边；核心拥有方言 SQL 等于让核心知道方言。**抽完只剩骨架**（类型口径、绑定与批量、值编解码、客户端协议四处都是方言原语），判据逐条写在这四个文件的 `@fileoverview` / `@remarks` 里。合一之前**任何改动必须两端同改**                                                                                                                                                                                                                            |
 | `activated` 改由 schema 从 `activeKey` 推出（生成列）                             | 17 处生产写点手工维护 `activated` 与哨兵同进同出（口径 `activated ⇔ activeKey = '*active*'`）                                                                                  | 要动 6 个适配器的 system schema 迁移并给既有库写迁移步骤；只改写点不改 schema 等于把手写换成同样多的调用。US-314 B1.2 起 `activeKey` 多了可写检出位的持有键、不再能由 `activated` 推出，原先的两种方向（`activeKey` 改生成列、`WHERE activated` 部分唯一索引）都装不下持有键，方向反过来。判据见 `packages/rxdb/src/system/branch.ts` 的 `RxDBBranch` `@remarks`                                                                                                                               |
 | 适配器长出「批量取现存表名」的公开能力                                            | `RxDB.ts` 每次 `connect()` 十几次顺序 `isTableExisted` 探测                                                                                                                    | 一次适配器公开面扩张（6 个后端两种方言各一遍），且落在全仓都走的连接路径上。判据见 `#ensureSystemTables` 的 `@remarks`                                                                                                                                                                                                                                                                                                                                                                         |
@@ -172,16 +188,15 @@ US-223/224 与 US-603 已有独立故事，不在这里另建一份待办。
 
 ## 明确不排期
 
-| 项                               | 条件或边界                                                                     |
-| -------------------------------- | ------------------------------------------------------------------------------ |
-| US-030 D、US-519 可选索引        | 真实故事必须生成列/表达式索引/索引方法才能达标时再解锁；不阻塞当前基础查询合同 |
-| US-016（无故事文件）             | 原症状由 US-015 覆盖，不再独立解锁                                             |
-| US-017（无故事文件）             | 三框架各有原生清理作用域，出现可复现泄漏才立项                                 |
-| US-212 行缓存 eviction           | 具体实体/量级出现缓存膨胀后再立项；HTTP 包不拥有本地执行面                     |
-| `rxdb-adapter-desktop` deprecate | 当前不做，迁移文档提供拆包路径                                                 |
-| Tauri Rust crate 发布            | 当前不发 crates.io，维持 path/git 消费边界                                     |
-| 桌面 installer 自动验收          | 当前人工验收；编译与 smoke 不冒充装包后启动验证                                |
-| 漂移门禁改 AST                   | 出现现有词法判据漏掉、AST 能拦的实例再评估，不为空泛稳健性增加全仓 Program     |
+| 项                               | 条件或边界                                                                 |
+| -------------------------------- | -------------------------------------------------------------------------- |
+| US-016（无故事文件）             | 原症状由 US-015 覆盖，不再独立解锁                                         |
+| US-017（无故事文件）             | 三框架各有原生清理作用域，出现可复现泄漏才立项                             |
+| US-212 行缓存 eviction           | 具体实体/量级出现缓存膨胀后再立项；HTTP 包不拥有本地执行面                 |
+| `rxdb-adapter-desktop` deprecate | 当前不做，迁移文档提供拆包路径                                             |
+| Tauri Rust crate 发布            | 当前不发 crates.io，维持 path/git 消费边界                                 |
+| 桌面 installer 自动验收          | 当前人工验收；编译与 smoke 不冒充装包后启动验证                            |
+| 漂移门禁改 AST                   | 出现现有词法判据漏掉、AST 能拦的实例再评估，不为空泛稳健性增加全仓 Program |
 
 ## 建议补充的验收维度
 

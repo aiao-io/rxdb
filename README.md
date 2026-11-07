@@ -135,7 +135,9 @@ await new Todo({ title: '读完 README' }).save();
 
 ```text
 aiao/
-├── apps/                            # 开发演示
+├── apps/                            # 业务应用与开发演示
+│   ├── aiao-bom/                    # BOM 工作台，独立应用需求
+│   ├── aiao-bom-e2e/                # BOM 应用 E2E
 │   ├── dev-rxdb-angular/            # Angular DEMO
 │   ├── dev-rxdb-angular-e2e/        # Angular E2E
 │   ├── dev-rxdb-electron/           # Electron DEMO
@@ -220,6 +222,8 @@ aiao/
 ```
 
 ## 可直接运行的入口
+
+- BOM 工作台：`pnpm nx serve aiao-bom`（[应用说明](apps/aiao-bom/README.md) / [独立需求](apps/aiao-bom/requirements/README.md)）
 
 - Web demo：`pnpm nx serve dev-rxdb-angular`、`pnpm nx serve dev-rxdb-react`、`pnpm nx serve dev-rxdb-vue`
 - HTTP 远程同步 demo：`pnpm nx serve dev-rxdb-http-server`（node:sqlite 参考后端）+ `pnpm nx serve dev-rxdb-http`（Angular 前端）

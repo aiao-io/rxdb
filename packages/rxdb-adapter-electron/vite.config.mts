@@ -95,6 +95,7 @@ export default defineConfig(() => ({
         extends: true,
         test: {
           name: 'rxdb-adapter-electron',
+          maxWorkers: 2,
           include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
           exclude: [MEMORY_SPECS]
         }

@@ -196,15 +196,16 @@ interface PanelFrame {
 /** 已经在收帧的观察者。 */
 export interface DevToolsHandshakeWatcher {
   /**
-   * 等到**再多一轮**握手完成，或预算耗尽。
+   * 等到指定基线之后的一轮握手完成，或预算耗尽。
    *
    * @param budgetMs - 预算，默认 {@link HANDSHAKE_BUDGET_MS}。
+   * @param afterSessionCount - 动作开始前的握手轮数；默认取调用时的轮数，启动等待显式传 0。
    * @returns 已经握上手的轮数（等于 `sessionIds.length`）。
    *
    * @remarks
    * 可以多次调用：AC#4 要先等第一轮，回收窗口，再等第二轮。
    */
-  waitForHandshake: (budgetMs?: number) => Promise<number>;
+  waitForHandshake: (budgetMs?: number, afterSessionCount?: number) => Promise<number>;
   /**
    * 等调试窗口里的驱动汇报一次结论（阶段 2）。
    *
@@ -303,11 +304,14 @@ export const watchDevToolsHandshake = (surface: DevToolsEventSurface): DevToolsH
   });
 
   return {
-    waitForHandshake: async (budgetMs: number = HANDSHAKE_BUDGET_MS): Promise<number> => {
-      // `wanted` **必须在任何 await 之前**算出来：它的语义是「比调用那一刻多一轮」。
+    waitForHandshake: async (
+      budgetMs: number = HANDSHAKE_BUDGET_MS,
+      afterSessionCount: number = sessionIds.length
+    ): Promise<number> => {
+      // `wanted` 必须在 await 之前按动作前基线计算；省略基线时才取调用时的轮数。
       // 放在 `await subscription` 之后算的话，等待期间到达的那一轮会把基数一起抬高，
       // 于是这次等待永远等的是「再下一轮」——表征是第二轮稳定超时，而第一轮好好的。
-      const wanted = sessionIds.length + 1;
+      const wanted = afterSessionCount + 1;
       await subscription;
       const next = new Promise<void>(resolve => {
         arrived = () => {

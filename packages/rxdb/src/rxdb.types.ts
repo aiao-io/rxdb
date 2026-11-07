@@ -22,10 +22,17 @@ export type RxDBConfig = RxDBOptions;
  *   构造函数已经把它换成本实例自有的快照（数组与条目、`sync` 两层纯数据各自浅冻结），
  *   只是不顺着实体类与函数往下冻。
  *
+ * - `entityStorage`：构造函数已深快照并冻结声明数据，实体类仍需正常绑定，不能顺着 `entity` 冻结。
+ *
  * 其余字段（`sync` / `context` 等）是声明式数据，仍然深冻结；新增声明式字段自动受保护。
  * 契约由 `__tests__/RxDB.config-freeze.spec.ts` 锁定。
  */
-export const LIVE_BEHAVIOUR_CONFIG_KEYS: ReadonlySet<string> = new Set(['entities', 'migrations', 'syncOverrides']);
+export const LIVE_BEHAVIOUR_CONFIG_KEYS: ReadonlySet<string> = new Set([
+  'entities',
+  'migrations',
+  'syncOverrides',
+  'entityStorage'
+]);
 
 /**
  * 一个打开中的事务上下文

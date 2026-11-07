@@ -127,7 +127,7 @@ const probeDevToolsWindow = async (): Promise<DevToolsProbeResult | null> => {
   const carried = sessionStorage.getItem(PROBE_CARRY_KEY);
   if (carried === null) {
     // 第一轮：调试窗口起来之后的首次协商。
-    const first = await devToolsWatcher.waitForHandshake();
+    const first = await devToolsWatcher.waitForHandshake(undefined, 0);
     // 第一轮都没握上就整段跳过——那时回收只会把「本来就没握上」变成一次与它无关的命令失败。
     if (first > 0) {
       // 阶段 2 AC#15：**先等驱动跑完，再回收那扇窗**，顺序是承重的。
@@ -143,8 +143,9 @@ const probeDevToolsWindow = async (): Promise<DevToolsProbeResult | null> => {
       // AC#4：同 label 关掉再建一次，等第二轮。重开的那扇窗**不带驱动**（见 `lib.rs` 的
       // `rxdb_devtools_recycle_window`）：它只需要加载面板、协商出一个新 session，
       // 而再跑一代驱动会在这之后把 e2e 要核对的目录删在半路。
+      const nextHandshake = devToolsWatcher.waitForHandshake();
       await recycleDevToolsWindow(globalThis);
-      await devToolsWatcher.waitForHandshake();
+      await nextHandshake;
     }
     // AC#3：刷新之前把冒名窗口那一趟跑掉——它自己会把窗口收掉，不污染 AC#1 的窗口集合。
     const relayRejected = first > 0 ? await probeImpostorWindow(globalThis) : 0;
@@ -156,7 +157,7 @@ const probeDevToolsWindow = async (): Promise<DevToolsProbeResult | null> => {
 
   // 刷新之后：connector 是新的，调试窗口是旧的那一个。
   const before = JSON.parse(carried) as DevToolsProbeResult;
-  await devToolsWatcher.waitForHandshake();
+  await devToolsWatcher.waitForHandshake(undefined, 0);
   return mergeDevToolsProbeRounds(before, devToolsWatcher.settle());
 };
 

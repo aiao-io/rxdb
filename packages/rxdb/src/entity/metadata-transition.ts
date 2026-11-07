@@ -6,11 +6,13 @@
 
 import { isArray, isFunction } from '@aiao/utils';
 import { tryGetEntityMetadata } from '../rxdb-utils.js';
+import { RxDBError } from '../RxDBError.js';
 import { EntityCheckMetadata } from './check-constraint.js';
 import { mergeEntityPermissions } from './entity-permissions.js';
 import { AbstractEntityType, EntityType } from './entity.interface.js';
 import { setSafeObjectKey, setSafeObjectKeyLazyInitOnce } from './entity.utils.js';
 import { EntityExclusionMetadata } from './exclusion-constraint.js';
+import type { EntityGeneratedColumnMetadataOptions } from './generated-column.js';
 import metadata_cascade_default from './metadata-cascade-default.js';
 import {
   EntityForeignKeyMetadata,
@@ -88,6 +90,40 @@ const nearest_declared = <K extends 'repository' | 'sync' | 'log' | 'manualOrder
   return undefined;
 };
 
+const cloneGeneratedColumn = (value: unknown): EntityGeneratedColumnMetadataOptions => {
+  if (!is_mergeable_record(value)) return value as EntityGeneratedColumnMetadataOptions;
+  const expression: unknown = value['expression'];
+  return {
+    ...value,
+    ...(is_mergeable_record(expression) ? { expression: { ...expression } } : {})
+  } as unknown as EntityGeneratedColumnMetadataOptions;
+};
+
+const collectGeneratedColumns = (
+  options: EntityMetadataOptions,
+  columns: Map<string, EntityGeneratedColumnMetadataOptions>
+): void => {
+  if ('propertyMap' in options) {
+    const parent = options as EntityMetadata;
+    if (!(parent.generatedColumnMap instanceof Map)) throw new RxDBError('已规范化父元数据缺少 generatedColumnMap');
+    parent.generatedColumnMap.forEach((column, name) => columns.set(name, cloneGeneratedColumn(column)));
+    return;
+  }
+  const declared: unknown = options.generatedColumns;
+  if (declared === undefined) return;
+  if (!Array.isArray(declared)) {
+    columns.set(`$generatedColumns:${options.name}`, cloneGeneratedColumn(declared));
+    return;
+  }
+  const names = new Set<string>();
+  declared.forEach((column: unknown, index: number) => {
+    const name = is_mergeable_record(column) && typeof column['name'] === 'string' ? column['name'] : undefined;
+    const field = name !== undefined && !names.has(name) ? name : `generatedColumns[${options.name}:${index}]`;
+    if (name !== undefined) names.add(name);
+    columns.set(field, cloneGeneratedColumn(column));
+  });
+};
+
 /**
  * 将元数据选项(metadataOptions)转换为实体元数据(metadata)
  *
@@ -115,6 +151,7 @@ export const transitionMetadata = (
   const computedPropertyMap = new Map<string, EntityPropertyMetadata>(); // 计算属性名到属性元数据的映射
   const relationMap = new Map<string, EntityRelationMetadata>(); // 关系名到关系元数据的映射
   const indexMap = new Map<string, EntityIndexMetadata>(); // 索引名到索引元数据的映射
+  const generatedColumnMap = new Map<string, EntityGeneratedColumnMetadataOptions>();
   const foreignKeyMap = new Map<string, EntityForeignKeyMetadata>();
   const checkMap = new Map<string, EntityCheckMetadata>(); // 约束 name 到 CHECK 元数据的映射
   const exclusionMap = new Map<string, EntityExclusionMetadata>(); // 约束 name 到区间排他元数据的映射
@@ -165,6 +202,7 @@ export const transitionMetadata = (
   metadataOptionsArray.forEach(meta => {
     // 不可原地修改入参元数据：父类元数据在多个子类间共享，原地写会互相污染
     const namespace = meta.namespace || 'public';
+    collectGeneratedColumns(meta, generatedColumnMap);
     // 处理属性
     meta.properties?.forEach(property => {
       const cloned = { ...property } as EntityPropertyMetadata;
@@ -290,6 +328,7 @@ export const transitionMetadata = (
   setSafeObjectKey(metadata, 'computedPropertyMap', computedPropertyMap); // 计算属性映射
   setSafeObjectKey(metadata, 'relationMap', relationMap); // 关系映射
   setSafeObjectKey(metadata, 'indexMap', indexMap); // 索引映射
+  setSafeObjectKey(metadata, 'generatedColumnMap', generatedColumnMap);
   setSafeObjectKey(metadata, 'checkMap', checkMap); // CHECK 约束映射（继承合并后的全集）
   setSafeObjectKey(metadata, 'exclusionMap', exclusionMap); // 区间排他映射（继承合并后的全集）
 
@@ -303,6 +342,9 @@ export const transitionMetadata = (
   metadata.foreignKeys = Array.from(foreignKeyMap.values());
   metadata.checks = metadata.checks.map(c => checkMap.get(c.name) as EntityCheckMetadata);
   metadata.exclusions = metadata.exclusions.map(e => exclusionMap.get(e.name) as EntityExclusionMetadata);
+  if (Array.isArray(metadata.generatedColumns)) {
+    metadata.generatedColumns = metadata.generatedColumns.map(column => cloneGeneratedColumn(column));
+  }
 
   // 加密属性映射 (004-local-field-encryption)
   // 仅收集 encrypted: true 的属性；不在此处校验冲突，校验由
