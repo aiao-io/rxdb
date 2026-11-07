@@ -71,6 +71,11 @@ test.describe('BOM demo（US-525 阶段 A）', () => {
   });
 
   test('AC#1 两遍 seed 的可见面逐字相同；批次号与基准是常量', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('console', message => {
+      if (message.type() === 'error') errors.push(message.text());
+    });
+    page.on('pageerror', error => errors.push(error.message));
     await expect(page.locator('.header .badge')).toContainText('待准备演示数据');
     await expect(page.locator('.connection-error')).toHaveCount(0);
     await openPage(page, '实例追溯');
@@ -100,6 +105,7 @@ test.describe('BOM demo（US-525 阶段 A）', () => {
     expect(second).toContain(`bom_instance_node=${SCOOTER_SEED_ROWS.instanceNode}`);
     await expect(page.getByTestId('seed-info')).toContainText(SCOOTER_SEED_BATCH_NO);
     await expect(page.getByTestId('seed-info')).toContainText(SCOOTER_SEED_TIMESTAMP);
+    expect(errors).toEqual([]);
   });
 
   test('AC#2 同一 10kΩ 电阻三行独立可见，位号清单各自完整', async ({ page }) => {

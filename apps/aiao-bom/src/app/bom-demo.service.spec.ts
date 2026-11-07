@@ -41,9 +41,12 @@ vi.mock('@aiao/rxdb-plugin-bom', async importOriginal => ({
   ecnImpact: vi.fn()
 }));
 
-const { initDevTools } = vi.hoisted(() => ({ initDevTools: vi.fn() }));
+const { initDevTools, disconnectDevTools } = vi.hoisted(() => ({
+  initDevTools: vi.fn(),
+  disconnectDevTools: vi.fn()
+}));
 vi.mock('@aiao/rxdb-devtools', () => ({
-  getDevToolsConnector: vi.fn(() => ({ init: initDevTools }))
+  getDevToolsConnector: vi.fn(() => ({ init: initDevTools, disconnect: disconnectDevTools }))
 }));
 
 type Stored = Record<string, unknown> & { id: string };
@@ -1049,6 +1052,33 @@ describe('connectDevTools', () => {
 
       await vi.waitFor(() => expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure));
     } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  it('重新准备案例换用新数据库时，连接器释放旧实例并能继续检查新数据', async () => {
+    const before = { rxdb: 'before-reset' } as unknown as RxDB;
+    const after = { rxdb: 'after-reset' } as unknown as RxDB;
+    let active: RxDB | undefined;
+    initDevTools.mockReset();
+    disconnectDevTools.mockReset();
+    initDevTools.mockImplementation((instance: RxDB) => {
+      if (active && active !== instance) throw new Error('DevToolsConnector supports a single RxDB instance');
+      active = instance;
+    });
+    disconnectDevTools.mockImplementation(() => {
+      active = undefined;
+    });
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      connectDevTools(before);
+      await vi.waitFor(() => expect(active).toBe(before));
+      connectDevTools(after);
+      await vi.waitFor(() => expect(active).toBe(after));
+      expect(consoleError).not.toHaveBeenCalled();
+    } finally {
+      initDevTools.mockReset();
+      disconnectDevTools.mockReset();
       consoleError.mockRestore();
     }
   });

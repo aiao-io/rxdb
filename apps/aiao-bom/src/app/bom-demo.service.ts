@@ -81,7 +81,9 @@ const BOM_DEMO_DB_NAME = 'dev-rxdb-bom';
 export const connectDevTools = (instance: RxDB): void => {
   void import('@aiao/rxdb-devtools')
     .then(({ getDevToolsConnector }) => {
-      getDevToolsConnector().init(instance, getEntityMetadata);
+      const connector = getDevToolsConnector();
+      connector.disconnect();
+      connector.init(instance, getEntityMetadata);
     })
     .catch((error: unknown) => {
       // 调试设施失败不该拖垮演示，但要报出来：chunk 加载失败多半是部署产物不全
