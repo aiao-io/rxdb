@@ -95,6 +95,8 @@ HTTPS 生产发布、真实 Safari / Edge / Windows、输入法、读屏和用�
 
 macOS 模式提供顶部应用菜单、交通灯窗口控件、悬浮 Dock 和 Finder 文件管理器；Windows 11 模式提供居中任务栏、开始菜单、系统托盘和资源管理器。两种模式共享运行实例、真实文件和设置，切换不会重新挂载应用。文件管理器支持图标/列表切换、刷新、祖先面包屑和按实际目录层级显示的侧栏；空目录保持为空，不注入示例文件夹。
 
+Dock 参考 `macos-web` 的距离衰减与底边对齐布局：以静止位置为基准，邻近图标连续放大并让开空间，玻璃底座同步伸缩。跟随速度按帧间经过时间计算；指针离开后回到原位并停止动画循环。启动弹跳与按压反馈使用独立图层；减少动态效果会禁用放大与弹跳，触屏不会触发悬停。
+
 文件管理器从 `navigator.storage.getDirectory()` 返回的 OPFS 根目录读取真实目录和字节。新建、重命名、移动、保存、回收、恢复和永久删除均写回 OPFS；外部更改可通过“刷新文件”重新读取。内部 `.orbit-desktop` 目录保存事务恢复记录和回收站，不作为用户文件展示。旧版 IndexedDB 文件首次启动会迁移到 OPFS，保留标识、字节和已保存会话；遇到同路径不同内容时明确报错并保留两侧数据。文件变更与元数据之间通过持久化恢复记录处理提交失败和启动恢复。
 
 视觉参考：[macos-web](https://github.com/StarKnightt/macos-web) 与 [windows-11-web](https://github.com/piyushsuthar/windows-11-web)。Windows 壁纸取自后者的 `default_light_compressed.jpg`，原项目许可证见 [windows-11-web.txt](public/licenses/windows-11-web.txt)。macOS 抽象壁纸和应用 SVG 图标由本项目绘制，所有壁纸随构建本地分发，离线使用无需第三方图片请求。

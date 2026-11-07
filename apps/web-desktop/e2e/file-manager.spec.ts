@@ -76,7 +76,7 @@ for (const mode of ['macos', 'windows'] as const) {
     await files.getByLabel('搜索当前目录').fill('同名');
     await expect(files.locator('tbody tr')).toHaveCount(1);
     await expect(files.getByRole('row').filter({ hasText: '同名.txt' })).toContainText(
-      `${Buffer.byteLength('子目录正文')}字节`
+      `${Buffer.byteLength('子目录正文')} B`
     );
     await files.getByLabel('搜索当前目录').fill('不存在');
     await expect(files.getByRole('heading', { name: '没有找到文件', exact: true })).toBeVisible();
@@ -198,7 +198,7 @@ for (const mode of ['macos', 'windows'] as const) {
     await files.getByRole('button', { name: '在新窗口打开', exact: true }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toContainText('文本编辑器');
-    await expect(dialog).toContainText('来源：http://127.0.0.1:4300');
+    await expect(dialog).toContainText(`来源：${new URL(page.url()).origin}`);
     await expect(dialog).toContainText('能力：文件访问');
     await expect(dialog).toContainText('范围：文件「我的文件/允许.txt」');
     await expect(dialog).toContainText('仅本次允许只用于当前应用窗口的这次运行，退出或刷新后失效。');

@@ -34,6 +34,31 @@ export function AppIcon({ id }: { id: string }) {
             <circle cx='32' cy='32' r='13' fill='#d6dce4' stroke='#f4f6f9' strokeWidth='2' />
             <circle cx='32' cy='32' r='8' fill='#637084' />
           </>
+        : id === 'launcher' ?
+          <>
+            <rect x='5' y='5' width='54' height='54' rx='12' fill='#ededf2' />
+            <path d='M17 6h30a11 11 0 0 1 11 11' stroke='white' strokeOpacity='.85' />
+            {Array.from({ length: 9 }, (_, index) => (
+              <rect
+                key={index}
+                x={16 + (index % 3) * 12}
+                y={16 + Math.floor(index / 3) * 12}
+                width='8'
+                height='8'
+                rx='2.5'
+                fill='#777b85'
+              />
+            ))}
+          </>
+        : id === 'overview' ?
+          <>
+            <rect x='5' y='9' width='54' height='43' rx='7' fill='#333b4b' />
+            <rect x='9' y='13' width='46' height='35' rx='3' fill='#439eeb' />
+            <path d='M9 16a3 3 0 0 1 3-3h40a3 3 0 0 1 3 3v13H9Z' fill='#7ec4ff' />
+            <rect x='14' y='21' width='19' height='20' rx='2' fill='#ffffff40' stroke='white' strokeWidth='1.5' />
+            <rect x='38' y='21' width='10' height='20' rx='2' fill='#ffffff40' stroke='white' strokeWidth='1.5' />
+            <path d='M23 56h18' stroke='#c7ccd6' strokeWidth='4' strokeLinecap='round' />
+          </>
         : id === 'catalog' ?
           <>
             <rect x='5' y='5' width='54' height='54' rx='12' fill='#1288f9' />

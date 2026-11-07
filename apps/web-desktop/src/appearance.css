@@ -1,5 +1,6 @@
-@layer base, appearance;
+@layer base, appearance, dock;
 @import './styles.css' layer(base);
+@import './dock.css' layer(dock);
 
 @layer appearance {
   :root,

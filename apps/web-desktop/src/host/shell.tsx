@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, type PointerEvent as
 import { builtins } from '../core/catalog.js';
 import type { Mode, WindowRecord } from '../core/types.js';
 import { AppIcon, SymbolIcon, SystemMark } from '../ui/icons.js';
+import { AppBar } from './app-bar.js';
 import { HOST_VERSION } from './diagnostics.js';
 import { WindowGesture } from './gesture.js';
 import { RecoveryPanel } from './recovery-view.js';
@@ -570,78 +571,6 @@ function InstanceWindow({ host, app }: { host: DesktopHost; app: RunningApp }) {
   );
 }
 
-function AppBar({ host }: { host: DesktopHost }) {
-  const running = [...host.instances.values()];
-  const ids = [...new Set([...host.state.profile.pinned, ...running.map(app => app.definition.id)])];
-  return (
-    <nav className='app-bar glass' aria-label='应用栏'>
-      <div className='taskbar-apps'>
-        <button
-          className='start-button'
-          aria-label='应用启动器'
-          aria-expanded={host.launcherOpen}
-          onClick={() => {
-            host.setPanel('launcher');
-          }}
-        >
-          {host.model.mode === 'windows' ?
-            <SystemMark mode='windows' />
-          : <SymbolIcon name='grid' />}
-        </button>
-        <span className='bar-divider' />
-        {ids.map(id => (
-          <div
-            className={`bar-app ${running.some(app => app.definition.id === id) ? 'running' : ''} ${host.model.windows.some(win => win.appId === id && win.id === host.model.activeId) ? 'current' : ''}`}
-            key={id}
-          >
-            <button aria-label={`打开 ${names[id]}`} title={names[id]} onClick={() => run(host, () => host.launch(id))}>
-              <AppIcon id={id} />
-              <span className='bar-label'>{names[id]}</span>
-            </button>
-            {running.some(app => app.definition.id === id) && (
-              <details className='running-menu'>
-                <summary aria-label={`${names[id]} 的运行实例`}>⌃</summary>
-                <div className='menu-popover'>
-                  {running
-                    .filter(app => app.definition.id === id)
-                    .map(app => (
-                      <button key={app.id} onClick={() => run(host, () => host.reveal(app.id))}>
-                        {app.dirty ? '● ' : ''}
-                        {app.title}
-                        {host.model.windows.some(win => win.instanceId === app.id) ? '' : ' · 窗口已关闭'}
-                      </button>
-                    ))}
-                  <button onClick={() => run(host, () => host.launch(id, true))}>新建窗口</button>
-                  <button
-                    onClick={() =>
-                      run(host, () =>
-                        host.closeInstances(running.filter(app => app.definition.id === id).map(app => app.id))
-                      )
-                    }
-                  >
-                    退出应用
-                  </button>
-                </div>
-              </details>
-            )}
-          </div>
-        ))}
-        <span className='bar-divider' />
-        <button
-          aria-label='窗口概览'
-          aria-expanded={host.overviewOpen}
-          onClick={() => {
-            host.setPanel('overview');
-          }}
-        >
-          <SymbolIcon name='overview' />
-        </button>
-      </div>
-      {host.model.mode === 'windows' && <SystemTray host={host} />}
-    </nav>
-  );
-}
-
 function DesktopMenu({ host }: { host: DesktopHost }) {
   return (
     <details className='desktop-menu'>
@@ -919,7 +848,9 @@ export function DesktopApp({ host }: { host: DesktopHost }) {
           ))}
         </div>
       </div>
-      <AppBar host={host} />
+      <AppBar host={host} action={operation => run(host, operation)}>
+        {host.model.mode === 'windows' && <SystemTray host={host} />}
+      </AppBar>
       {host.launcherOpen && <Launcher host={host} />}
       {host.overviewOpen && <WindowOverview host={host} />}
       {host.notificationsOpen && (
