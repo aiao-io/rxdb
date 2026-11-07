@@ -31,7 +31,6 @@ Angular / React / Vue 演示和 benchmarks 的 main 先握手，再动态导入 
 
 DESKTOP-US-301～306、308 保持 In Progress。第一轮之后，`apps/web-desktop` 已实现 macOS / Windows 交互外壳、托管文件与授权、完整版本资源缓存、预取和协作挂起；最新自动化范围与构建版本见分层验收台账。这些桌面能力由宿主管理，Orbit 核心的版本字段仍是运行元数据。桌面内三框架同任务六实例组合已有本机 Chromium 双交互模式证据，详见分层验收台账。完整文档站消费回归、其他未覆盖 AC、Safari/Edge/Windows 实机、输入法/读屏、性能及堆采样继续待验收。完整导航明确使连接失败，SPA history/hash 导航保留原文档；隐藏仅改变可见性，只有显式协作挂起才进入桌面挂起状态。
 
-
 ## 桌面三框架样例
 
 `apps/web-desktop/src/samples` 提供三个实际框架渲染入口，共用 `FrameworkDocument`、现有 `EditorDocument` 和 `AppSession`。样例是目录中的可选应用，沿用版本资源、授权、实例路由、关闭协商和挂起协议，不修改 Orbit 公共能力入口。框架完成首次渲染才报告 ready，销毁统一释放事件、导航、服务处理器与框架挂载。

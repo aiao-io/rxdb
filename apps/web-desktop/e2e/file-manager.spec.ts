@@ -341,11 +341,15 @@ for (const mode of ['macos', 'windows'] as const) {
       { name: '其他.txt', mimeType: 'text/plain', buffer: Buffer.from('其他内容') }
     ]);
     await expect
-      .poll(() => files.locator('main').evaluate(() => (window as Window & { importReadStarted?: boolean }).importReadStarted))
+      .poll(() =>
+        files.locator('main').evaluate(() => (window as Window & { importReadStarted?: boolean }).importReadStarted)
+      )
       .toBe(true);
     await files.getByLabel('搜索当前目录').fill('目标');
     await expect(files.getByLabel('搜索当前目录')).toHaveValue('目标');
-    await files.locator('main').evaluate(() => (window as Window & { releaseImportRead?: () => void }).releaseImportRead?.());
+    await files
+      .locator('main')
+      .evaluate(() => (window as Window & { releaseImportRead?: () => void }).releaseImportRead?.());
     await expect(files.getByRole('status')).toContainText('已处理 2 个文件');
     await expect(files.getByRole('button', { name: '打开 目标.txt', exact: true })).toBeVisible();
     await expect(files.getByRole('button', { name: '打开 其他.txt', exact: true })).toHaveCount(0);

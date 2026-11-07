@@ -46,10 +46,8 @@ NX_NO_CLOUD=true NX_DAEMON=false NX_ISOLATE_PLUGINS=false pnpm nx run orbit:test
 
 21. 文件撤权：给同一编辑器的两个文件分别持久授权，在设置中按中文能力和完整路径撤销其中一个。保存被撤权文件时拒绝重新授权，确认草稿仍在、旧字节未变，另一文件授权保持。明确本次授权后保存并退出应用，再打开及刷新：仅持久授权可复用；被撤销范围的新实例仍需确认。macOS 关闭窗口与退出应用按各自语义验证。
 
-
 22. 三框架便签：从应用目录分别安装 Angular / React / Vue 便签，各开两窗口，保存不同中文/emoji 内容并逐字节核对。拒绝各框架的可选剪贴板后仍可保存；每窗口设置独立 path/query/hash、强调色和未保存内容，连续切换模式 20 次，再切换深色主题，核对 iframe 资源、timeOrigin、路由、草稿和局部样式保持。退出任一取消须保留该框架两个窗口，明确放弃才销毁，原已保存内容不变。对应 `e2e/frameworks.spec.ts`。
 
 23. 分别直接打开 `sample-angular.html`、`sample-react.html`、`sample-vue.html`，编辑中文、撤销重做并真实下载，核对文件名和 UTF-8 字节。保存到我的文件、剪贴板和窗口能力必须明确不可用。此旅程证明普通浏览器独立运行；真实 IME、读屏和其他支持环境单独登记。
-
 
 24. `e2e/file-manager.spec.ts` 的 file-manager-import-search 旅程暂停真实 File 读取，在导入完成前输入搜索词，再释放读取；完成后仅显示匹配文件，清空搜索可见全部已导入字节。导入操作的晚到回调不得把列表恢复到旧搜索条件。
