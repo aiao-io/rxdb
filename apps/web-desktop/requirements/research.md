@@ -34,8 +34,8 @@
 
 | 当前事实                                | 一次跳转复验入口                                                                                                                                                               | 需求边界                                                         |
 | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
-| 已有内部路由、主题、Shadow DOM 样式协议 | [modules/wujie README](../../../modules/wujie/README.md)，[bindWujieRoute](../../../modules/wujie/src/host-route.ts)、[getWujieHost](../../../modules/wujie/src/host-theme.ts) | 可作为迁移回归入口，不能等同沙箱源码已经引入                     |
-| 文档站使用上游 React 封装依赖           | [website/package.json](../../../website/package.json) 中的 wujie-react                                                                                                         | 桌面产物不依赖上游运行时；迁移原消费方必须验证主题路由等用户行为 |
+| 已有内部路由、主题、Shadow DOM 样式协议 | [modules/orbit README](../../../modules/orbit/README.md)，[bindOrbitRoute](../../../modules/orbit/src/host-route.ts)、[getOrbitHost](../../../modules/orbit/src/host-theme.ts) | 作为迁移回归入口；运行内核另见 `packages/orbit`                  |
+| 文档站初始使用上游 React 封装依赖       | [website/package.json](../../../website/package.json) 调研时的 wujie-react（现已迁移至 `@aiao/orbit`）                                                                         | 桌面产物不依赖上游运行时；迁移原消费方必须验证主题路由等用户行为 |
 | 三个演示已使用内部协议                  | [Angular main](../../../apps/dev-rxdb-angular/src/main.ts)、[React main](../../../apps/dev-rxdb-react/src/main.tsx)、[Vue main](../../../apps/dev-rxdb-vue/src/main.ts)        | 用既有样例补充兼容验证，不把单个样例等同完整桌面接入             |
 | 应用需求与平台需求独立编号和统计        | [应用级需求管理办法](../../../requirements/app-template/README.md)                                                                                                             | 本产品放 apps/web-desktop/requirements，使用 DESKTOP 前缀        |
 

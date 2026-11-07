@@ -1,6 +1,6 @@
 ---
 id: DESKTOP-US-301
-title: 无界源码内化与独立运行内核
+title: Orbit 独立应用运行内核
 status: In Progress
 priority: High
 epic: DESKTOP-EPIC-004
@@ -12,11 +12,11 @@ dependsOn: []
 capabilities: []
 ---
 
-# 用户故事：无界源码内化与独立运行内核
+# 用户故事：Orbit 独立应用运行内核
 
 ## 作为/我想要/以便
 
-**作为**平台维护者，**我想要**把无界的隔离运行内核重构为仓库自有代码，**以便**能直接修复桌面问题并独立控制构建与发布。
+**作为**平台维护者，**我想要**以 Wujie 为基线独立维护仓内 Orbit 隔离运行内核，**以便**能直接修复桌面问题并独立控制构建与发布。
 
 ## 范围边界
 
@@ -50,11 +50,11 @@ capabilities: []
 
 ## 技术笔记
 
-固定参考提交 c45932998c0602f34454df8d3e29f4d33a38446a，重写源码已进入 packages/web-desktop-runtime。采用原生 iframe 文档承载，删除跨文档 DOM/CSS 代理；版本资源与自定义缓存尚未实现。来源和兼容取舍见包内 UPSTREAM.md。现有 modules/wujie 维护宿主协议，职责独立。
+固定参考提交 c45932998c0602f34454df8d3e29f4d33a38446a，重写源码已进入 packages/orbit。采用原生 iframe 文档承载，删除跨文档 DOM/CSS 代理；版本资源与自定义缓存尚未实现。来源和兼容取舍见包内 UPSTREAM.md。现有 modules/orbit 维护宿主协议，职责独立。
 
 ## 实现文件
 
-- [仓内运行内核与使用说明](../../../../../packages/web-desktop-runtime/README.md)
+- [仓内运行内核与使用说明](../../../../../packages/orbit/README.md)
 - [实现范围与未关闭事项](../../../../../specs/001-web-desktop-product/runtime-implementation.md)
 
 ## References

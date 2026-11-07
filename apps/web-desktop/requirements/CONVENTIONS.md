@@ -27,6 +27,6 @@
 
 修改故事后同步所属 Epic、status-overview、roadmap、capability-matrix 及受影响规格。提交使用 Refs: DESKTOP-US-XXX，不把故事编号写成 GitHub issue 的 Closes。
 
-应用脚手架落地时必须注册 Nx requirements-check 目标，检查 YAML、唯一 ID、AC 连号、硬依赖和闭环、派生视图、相对链接与标题锚点；本轮仅有文档，不虚构已存在的任务。需求文档使用 Nx format 检查，当前结构核验的范围与结果见分层验收台账。
+应用脚手架落地时必须注册 Nx requirements-check 目标，检查 YAML、唯一 ID、AC 连号、硬依赖和闭环、派生视图、相对链接与标题锚点；桌面应用尚未注册该目标，Orbit 内核已有独立 Nx 项目；不虚构已存在的产品门禁任务。需求文档使用 Nx format 检查，当前结构核验的范围与结果见分层验收台账。
 
 实现与回归任务全部通过 pnpm nx 运行。代码遵守 TS strict、ESLint 零警告、TSDoc、TDD 和根覆盖率阈值；运行内核新增的 90% 产品门槛见 DESKTOP-US-702，不能靠文字改变根覆盖率脚本的既有分层。

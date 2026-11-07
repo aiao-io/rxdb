@@ -1,10 +1,10 @@
 import {
-  getWujieHost,
+  getOrbitHost,
   parseResolvedTheme,
   requestHostTheme,
   subscribeHostTheme,
   type ResolvedTheme
-} from '@modules/wujie';
+} from '@modules/orbit';
 import { useCallback, useEffect, useState } from 'react';
 
 const THEME_KEY = 'rxdb-benchmarks-theme';
@@ -21,7 +21,7 @@ function isTheme(value: unknown): value is Theme {
  * 从宿主 props、localStorage 或系统偏好中获取当前主题
  */
 function getCurrentTheme(): Theme {
-  const host = getWujieHost();
+  const host = getOrbitHost();
   if (host?.props && Object.hasOwn(host.props, 'theme')) {
     return parseResolvedTheme(host.props.theme);
   }
@@ -37,7 +37,7 @@ function getCurrentTheme(): Theme {
  */
 export function useTheme() {
   const [theme, setThemeState] = useState<Theme>(getCurrentTheme);
-  const hosted = Boolean(getWujieHost());
+  const hosted = Boolean(getOrbitHost());
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);

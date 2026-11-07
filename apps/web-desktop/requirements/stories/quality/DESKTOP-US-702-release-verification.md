@@ -31,7 +31,7 @@ capabilities: []
 
 ## 前置与依赖
 
-- [DESKTOP-US-308 三框架接入与既有无界消费迁移](../runtime/DESKTOP-US-308-framework-parity.md)
+- [DESKTOP-US-308 三框架接入与既有演示迁移](../runtime/DESKTOP-US-308-framework-parity.md)
 - [DESKTOP-US-701 支持环境与无障碍验收](DESKTOP-US-701-accessibility-environments.md)
 - [DESKTOP-US-703 静态部署、版本信息与诊断](DESKTOP-US-703-deployment-diagnostics.md)
 

@@ -9,10 +9,10 @@
   "extends": "@docusaurus/tsconfig",
   "references": [
     {
-      "path": "../modules/wujie"
+      "path": "../modules/orbit"
     },
     {
-      "path": "../packages/web-desktop-runtime"
+      "path": "../packages/orbit"
     },
     {
       "path": "../packages/rxdb-adapter-wa-sqlite"

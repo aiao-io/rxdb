@@ -1,5 +1,5 @@
-import { WUJIE_THEME_EVENT, WUJIE_THEME_REQUEST_EVENT } from '@modules/wujie';
-import { createFakeWujieBus } from '@modules/wujie/testing';
+import { ORBIT_THEME_EVENT, ORBIT_THEME_REQUEST_EVENT } from '@modules/orbit';
+import { createFakeOrbitBus } from '@modules/orbit/testing';
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseThemeValue, useTheme } from './useTheme';
@@ -42,14 +42,14 @@ describe('useTheme host sync', () => {
   });
 
   afterEach(() => {
-    delete window.$wujie;
+    delete window.$orbit;
     localStorage.removeItem('theme');
     document.documentElement.removeAttribute('data-theme');
   });
 
-  it('applies the host theme from $wujie without persisting it', () => {
-    const bus = createFakeWujieBus();
-    window.$wujie = { bus, props: { theme: 'dark' } };
+  it('applies the host theme from $orbit without persisting it', () => {
+    const bus = createFakeOrbitBus();
+    window.$orbit = { bus, props: { theme: 'dark' } };
 
     const { result } = renderHook(() => useTheme());
 
@@ -57,17 +57,17 @@ describe('useTheme host sync', () => {
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
     expect(localStorage.getItem('theme')).toBeNull();
 
-    act(() => bus.$emit(WUJIE_THEME_EVENT, { theme: 'light' }));
+    act(() => bus.$emit(ORBIT_THEME_EVENT, { theme: 'light' }));
 
     expect(result.current.currentTheme).toBe('light');
     expect(localStorage.getItem('theme')).toBeNull();
   });
 
   it('用户切换主题时把请求推给宿主', () => {
-    const bus = createFakeWujieBus();
+    const bus = createFakeOrbitBus();
     const onRequest = vi.fn();
-    window.$wujie = { bus, props: { theme: 'light' } };
-    bus.$on(WUJIE_THEME_REQUEST_EVENT, onRequest);
+    window.$orbit = { bus, props: { theme: 'light' } };
+    bus.$on(ORBIT_THEME_REQUEST_EVENT, onRequest);
 
     const { result } = renderHook(() => useTheme());
     act(() => result.current.setTheme('dark'));
@@ -76,10 +76,10 @@ describe('useTheme host sync', () => {
   });
 
   it('切到 auto 时推的是解析后的主题，宿主只认 light / dark', () => {
-    const bus = createFakeWujieBus();
+    const bus = createFakeOrbitBus();
     const onRequest = vi.fn();
-    window.$wujie = { bus, props: { theme: 'light' } };
-    bus.$on(WUJIE_THEME_REQUEST_EVENT, onRequest);
+    window.$orbit = { bus, props: { theme: 'light' } };
+    bus.$on(ORBIT_THEME_REQUEST_EVENT, onRequest);
 
     const { result } = renderHook(() => useTheme());
     act(() => result.current.setTheme('auto'));
@@ -88,13 +88,13 @@ describe('useTheme host sync', () => {
   });
 
   it('宿主下发的主题不回推，避免两端互相触发', () => {
-    const bus = createFakeWujieBus();
+    const bus = createFakeOrbitBus();
     const onRequest = vi.fn();
-    window.$wujie = { bus, props: { theme: 'light' } };
-    bus.$on(WUJIE_THEME_REQUEST_EVENT, onRequest);
+    window.$orbit = { bus, props: { theme: 'light' } };
+    bus.$on(ORBIT_THEME_REQUEST_EVENT, onRequest);
 
     renderHook(() => useTheme());
-    act(() => bus.$emit(WUJIE_THEME_EVENT, { theme: 'dark' }));
+    act(() => bus.$emit(ORBIT_THEME_EVENT, { theme: 'dark' }));
 
     expect(onRequest).not.toHaveBeenCalled();
   });

@@ -6,13 +6,13 @@
 
 本组 7 条故事。组内依赖以 YAML dependsOn 为准，不按编号直接开工。
 
-- [DESKTOP-US-301 无界源码内化与独立运行内核](stories/runtime/DESKTOP-US-301-in-repository-runtime.md)
+- [DESKTOP-US-301 Orbit 独立应用运行内核](stories/runtime/DESKTOP-US-301-in-repository-runtime.md)
 - [DESKTOP-US-302 应用运行环境与样式隔离](stories/runtime/DESKTOP-US-302-application-isolation.md)
 - [DESKTOP-US-303 实例生命周期与资源回收](stories/runtime/DESKTOP-US-303-lifecycle-cleanup.md)
 - [DESKTOP-US-304 多实例身份与数据作用域](stories/runtime/DESKTOP-US-304-instance-storage-scope.md)
 - [DESKTOP-US-305 应用资源加载与独立路由](stories/runtime/DESKTOP-US-305-resources-routing.md)
 - [DESKTOP-US-306 应用故障呈现与恢复](stories/runtime/DESKTOP-US-306-failure-recovery.md)
-- [DESKTOP-US-308 三框架接入与既有无界消费迁移](stories/runtime/DESKTOP-US-308-framework-parity.md)
+- [DESKTOP-US-308 三框架接入与既有演示迁移](stories/runtime/DESKTOP-US-308-framework-parity.md)
 
 关闭条件：仓内源码能独立构建；三框架夹具可并行运行并通过隔离、路由、多实例、清理与故障分支；上游来源和迁移范围可追溯。DESKTOP-US-308 在夹具宿主验证协议，完整桌面组合在 M1/M2 再验收。
 

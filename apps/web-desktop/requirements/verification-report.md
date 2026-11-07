@@ -1,17 +1,35 @@
 # Web Desktop 分层验收台账
 
-当前仅有用户故事和规格文档，没有产品实现、运行内核重构产物或真实用户验收证据。256 条 AC 的产品验证状态全部为未验证；文档核验结果与产品能力分开登记。故事 YAML 与 AC 表为唯一状态来源，本页记录证据要求。
+已实现第一轮 Orbit 运行基础及仓内消费迁移，DESKTOP-US-301～306、308 共 7 条故事为 In Progress，其余 35 条 Backlog。256 条 AC 尚未完成完整产品验收；以下分别登记代码测试证据与产品验收缺口。故事 YAML 与 AC 表为唯一状态来源。
 
 ## 验证层级
 
-| 层级               | 可证明内容                                               | 不能替代的证据                                | 当前产品结果         |
-| ------------------ | -------------------------------------------------------- | --------------------------------------------- | -------------------- |
-| 文档结构           | 编号、YAML、AC 连续性、引用、依赖、派生视图和格式一致    | 任意运行行为                                  | 见本轮文档核验       |
-| 单元与集成         | 生命周期、资源加载、身份、服务授权、数据事务及错误分支   | 真实浏览器、实机或最终部署                    | 未执行，尚无产品代码 |
-| 浏览器端到端       | 双模式窗口操作、三框架组合、文件工作、离线、升级与恢复   | 真实 Safari、宿主快捷键、屏幕阅读器及正式部署 | 未执行               |
-| 真实环境与正式产物 | macOS / Windows 实机、Safari、读屏、最终部署、下载与性能 | 其他环境未经验证的组合                        | 未执行               |
+| 层级               | 可证明内容                                               | 不能替代的证据                                | 当前产品结果                                   |
+| ------------------ | -------------------------------------------------------- | --------------------------------------------- | ---------------------------------------------- |
+| 文档结构           | 编号、YAML、AC 连续性、引用、依赖、派生视图和格式一致    | 任意运行行为                                  | 见本轮文档核验                                 |
+| 单元与集成         | 生命周期、资源加载、身份、服务授权、数据事务及错误分支   | 真实浏览器、实机或最终部署                    | Orbit 运行基础已验证；服务授权和数据事务未实现 |
+| 浏览器端到端       | 双模式窗口操作、三框架组合、文件工作、离线、升级与恢复   | 真实 Safari、宿主快捷键、屏幕阅读器及正式部署 | 已有 Chromium 内核集成证据；完整桌面旅程未验证 |
+| 真实环境与正式产物 | macOS / Windows 实机、Safari、读屏、最终部署、下载与性能 | 其他环境未经验证的组合                        | 未执行                                         |
 
 每条 AC 在实现时登记故事 ID、AC 号、测试符号或操作脚本、提交和构建版本、真实宿主与浏览器版本、结果和产物位置。只有同层级证据完整时才可标 ✅，缺口用 ⬜ 或 ⚠️ 表达。
+
+## 2026-11-07 Orbit 运行基础证据
+
+本轮使用工作区代码在 macOS 上执行 Nx 检查，Node 26.13.0；真实浏览器测试使用 Playwright Chromium。源码位置为 [`packages/orbit`](../../../packages/orbit/README.md)，设计取舍与固定上游来源见 [UPSTREAM.md](../../../packages/orbit/UPSTREAM.md)。以下记录不将运行基础自动等同于完整桌面产品验收。
+
+| 检查                          | 结果                                                                                                                                   | 可复验入口                                                                                                                                                                                              |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 核心及协议构建 / 类型 / lint  | 两个项目六项任务通过；核心公共 API 文档检查通过                                                                                        | `pnpm nx run-many -t build,typecheck,lint -p orbit,orbit-protocol --parallel=1`                                                                                                                         |
+| 核心单元及 Chromium 集成      | 5 个文件、44 条测试通过；其中浏览器 16 条，含三框架真实渲染与生命周期                                                                  | `pnpm nx test orbit --coverage`；[测试源码](../../../packages/orbit/src/__tests__/runtime.browser.spec.ts)、[三框架源码](../../../packages/orbit/src/__tests__/frameworks.browser.spec.ts)              |
+| 全源码覆盖率                  | statements 97.19%、branches 95.37%、functions 97.50%、lines 98.57%，四项均超过核心 90% 门槛                                            | `coverage/packages/orbit/coverage-summary.json`，纳入全部 `src/**/*.ts` 实现文件                                                                                                                        |
+| 文档站主题 / 路由 / 样式协议  | 4 个文件、91 条测试通过                                                                                                                | `pnpm nx test orbit-protocol`；[协议测试](../../../modules/orbit/src/__tests__/host-route.spec.ts)                                                                                                      |
+| 既有消费方 lint / 类型 / 测试 | website、三框架演示、benchmarks 五个项目全部通过；Angular 514、React 374、Vue 308、benchmarks 131、website 43 条测试                   | `pnpm nx run-many -t lint,typecheck,test -p website,dev-rxdb-angular,dev-rxdb-react,dev-rxdb-vue,benchmarks --excludeTaskDependencies --parallel=1`；复用已构建依赖，website 接线断言修正后单独复跑通过 |
+| 生产构建                      | 三框架演示及 benchmarks 四个项目均通过                                                                                                 | `pnpm nx run-many -t build -p dev-rxdb-angular,dev-rxdb-react,dev-rxdb-vue,benchmarks --excludeTaskDependencies --parallel=1`                                                                           |
+| 真实生产应用冒烟              | 使用实际构建产物经 Orbit 装载，三端初始主题、主题下发 / 回请、双向路由、销毁及独立打开通过；benchmarks 验证就绪、主题和销毁 / 独立打开 | 本机临时 Playwright 脚本 `/tmp/orbit-consumers-smoke.mjs`，经 `pnpm nx exec --projects=@aiao/source --excludeTaskDependencies -- node /tmp/orbit-consumers-smoke.mjs` 执行；不代替正式桌面端到端门禁    |
+
+Chromium 场景包括：双实例 DOM / JS / 事件独立、精确来源准入与拒绝伪造握手、相对资源与动态导入、显式 ready、属性和定向事件、双向请求与取消、启动中关闭、超时重试、隐藏恢复，以及 30 轮创建销毁。三框架宿主入口共用 `OrbitBinding`，React 覆盖 StrictMode；三个实际框架子应用渲染完成后才 ready。
+
+30 轮检查证明实例登记与 iframe DOM 回收，不是堆快照或相对上游的性能对比。同源原生存储不按实例自动隔离；隐藏不等于挂起；服务授权、离线版本固定、桌面外壳和真实 Safari / Windows / 读屏仍需后续证据。完整文档导航按失败处理，SPA history / hash 导航保留。
 
 ## 首版必验收环境
 
@@ -51,13 +69,13 @@
 
 本轮核验结果仅适用于需求文档，不将产品 AC 标绿。应用 requirements-check Nx 目标由后续脚手架交付，本轮使用临时只读结构核验。
 
-| 检查           | 结果                                                                 | 复验口径                                                                                                                    |
-| -------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| 故事和 AC      | 42 条故事、8 个 Epic、256 条连续数字 AC；全部 Backlog，AC 全部未验证 | 解析 stories 下 YAML 与数字 AC 行，校验唯一 ID、必填字段、文件名和日期                                                      |
-| 依赖与范围     | 硬依赖均存在、无环、无里程碑倒挂；平台能力引用存在                   | 读取 dependsOn 和 capabilities，遍历依赖图并对照平台故事                                                                    |
-| 派生视图与规格 | 状态总览、Epic、路线图、能力矩阵中的故事齐全，24 条 FR 有承接故事    | 对照故事 ID、文件链接、里程碑与汇总数量                                                                                     |
-| 本地链接       | 62 份新增 Markdown 的本地目标及使用到的标题锚点有效                  | 逐条解析相对链接并检查文件及标题                                                                                            |
-| 平台需求门禁   | 通过；平台故事数量保持 129                                           | `pnpm nx exec --projects=@aiao/source --excludeTaskDependencies -- node scripts/audit/requirements-consistency.mjs --check` |
-| 格式与空白     | Nx 格式检查和 Git 空白检查通过                                       | 将本轮 63 份 Markdown 文件逐行输入 `pnpm nx format:check --stdin`；`git diff --check`                                       |
+| 检查           | 结果                                                                                      | 复验口径                                                                                                                    |
+| -------------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| 故事和 AC      | 42 条故事、8 个 Epic、256 条连续数字 AC；35 Backlog、7 In Progress，AC 全部未完成产品验收 | 解析 stories 下 YAML 与数字 AC 行，校验唯一 ID、必填字段、文件名和日期                                                      |
+| 依赖与范围     | 硬依赖均存在、无环、无里程碑倒挂；平台能力引用存在                                        | 读取 dependsOn 和 capabilities，遍历依赖图并对照平台故事                                                                    |
+| 派生视图与规格 | 状态总览、Epic、路线图、能力矩阵中的故事齐全，24 条 FR 有承接故事                         | 对照故事 ID、文件链接、里程碑与汇总数量                                                                                     |
+| 本地链接       | 本产品文档的本地目标及使用到的标题锚点有效                                                | 逐条解析相对链接并检查文件及标题                                                                                            |
+| 平台需求门禁   | 通过；平台故事数量保持 129                                                                | `pnpm nx exec --projects=@aiao/source --excludeTaskDependencies -- node scripts/audit/requirements-consistency.mjs --check` |
+| 格式与空白     | Nx 格式检查和 Git 空白检查通过                                                            | 将本轮修改文件逐行输入 `pnpm nx format:check --stdin`；`git diff --check`                                                   |
 
 平台门禁保留一条原有非阻塞提示：根研究文档 [board-v2-github-projects-style.md](../../../requirements/domain-research/board-v2-github-projects-style.md) 的两个带日期标题。该文档不在本轮修改范围，不影响本产品故事统计。

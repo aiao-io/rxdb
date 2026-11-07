@@ -1,4 +1,4 @@
-import { getWujieHost, parseResolvedTheme, requestHostTheme, subscribeHostTheme } from '@modules/wujie';
+import { getOrbitHost, parseResolvedTheme, requestHostTheme, subscribeHostTheme } from '@modules/orbit';
 import { computed, effectScope, onScopeDispose, ref, watchEffect, type EffectScope } from 'vue';
 
 const THEME_KEY = 'theme';
@@ -25,7 +25,7 @@ export function stopTheme(): void {
 export function useTheme() {
   // Initialize once
   if (!themeScope && typeof window !== 'undefined') {
-    const host = getWujieHost();
+    const host = getOrbitHost();
     if (host?.props && Object.hasOwn(host.props, 'theme')) {
       currentTheme.value = parseResolvedTheme(host.props.theme);
     } else {

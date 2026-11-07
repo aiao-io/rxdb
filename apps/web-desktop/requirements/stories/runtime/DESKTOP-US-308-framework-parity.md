@@ -1,6 +1,6 @@
 ---
 id: DESKTOP-US-308
-title: 三框架接入与既有无界消费迁移
+title: 三框架接入与既有演示迁移
 status: In Progress
 priority: High
 epic: DESKTOP-EPIC-004
@@ -12,7 +12,7 @@ dependsOn: ['DESKTOP-US-303', 'DESKTOP-US-304', 'DESKTOP-US-305']
 capabilities: []
 ---
 
-# 用户故事：三框架接入与既有无界消费迁移
+# 用户故事：三框架接入与既有演示迁移
 
 ## 作为/我想要/以便
 
@@ -43,7 +43,7 @@ capabilities: []
 | 2   | 三端分别使用路由、弹窗、动态样式和中文输入 | 并排运行同一测试旅程         | 行为一致，焦点、事件与样式不串实例，功能差异不得用单端完成代替            | ⬜   |
 | 3   | 三端调用公开能力入口                       | 比较名称、参数、结果与错误   | 桌面协议一致；框架生命周期绑定方式的差异可记录，但不改变能力范围          | ⬜   |
 | 4   | 任一样例在普通浏览器地址独立运行           | 执行应用自身任务             | 可正常运行；桌面专属能力明确显示不可用，不伪造成功                        | ⬜   |
-| 5   | 现有文档站改接仓内内核                     | 打开三框架演示并切换路由主题 | 保持原入口行为，覆盖 modules/wujie 的路由和主题协议及 Shadow DOM 样式处理 | ⬜   |
+| 5   | 现有文档站改接仓内内核                     | 打开三框架演示并切换路由主题 | 保持原入口行为，覆盖 modules/orbit 的路由和主题协议及 Shadow DOM 样式处理 | ⬜   |
 | 6   | 正式构建三个适配器与桌面                   | 检查产物与依赖               | 不重新引入上游运行时；迁移后对原消费方提供明确的兼容入口与迁移说明        | ⬜   |
 
 状态符号：⬜ 未验证 / ⚠️ 进行中或有保留 / ✅ 有同层级证据。
@@ -52,11 +52,11 @@ capabilities: []
 
 ## 技术笔记
 
-三个适配入口位于 @aiao/web-desktop-runtime/{angular,react,vue}，共用 WujieBinding；不为生命周期函数再拆三份工程。产品外壳尚未实现。
+三个适配入口位于 @aiao/orbit/{angular,react,vue}，共用 OrbitBinding；不为生命周期函数再拆三份工程。产品外壳尚未实现。
 
 ## 实现文件
 
-- [仓内运行内核与使用说明](../../../../../packages/web-desktop-runtime/README.md)
+- [仓内运行内核与使用说明](../../../../../packages/orbit/README.md)
 - [实现范围与未关闭事项](../../../../../specs/001-web-desktop-product/runtime-implementation.md)
 
 ## References

@@ -1,4 +1,4 @@
-import { createWujie, type WujieInstance } from '@aiao/web-desktop-runtime';
+import { createOrbit, type OrbitInstance } from '@aiao/orbit';
 import { useHistory, useLocation } from '@docusaurus/router';
 import { useColorMode } from '@docusaurus/theme-common';
 import {
@@ -11,7 +11,7 @@ import {
   subscribeSubRoute,
   subscribeThemeRequest,
   type ResolvedTheme
-} from '@modules/wujie';
+} from '@modules/orbit';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import type { DemoMicroAppProps } from './DemoMicroApp';
 
@@ -34,11 +34,15 @@ export default function DemoMicroAppClient({ name, url, title, allow, basePath }
   const [error, setError] = useState<string>();
   const [attempt, setAttempt] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
-  const instance = useRef<WujieInstance | undefined>(undefined);
-  const runtime = useMemo(() => createWujie({
-    allowedOrigins: [new URL(url, location.href).origin],
-    onError: failure => setError(failure instanceof Error ? failure.message : '演示运行失败'),
-  }), [url]);
+  const instance = useRef<OrbitInstance | undefined>(undefined);
+  const runtime = useMemo(
+    () =>
+      createOrbit({
+        allowedOrigins: [new URL(url, location.href).origin],
+        onError: failure => setError(failure instanceof Error ? failure.message : '演示运行失败')
+      }),
+    [url]
+  );
   const bus = runtime.bus;
   const { setColorMode } = useColorMode();
   const { pathname } = useLocation();
@@ -57,14 +61,25 @@ export default function DemoMicroAppClient({ name, url, title, allow, basePath }
     const container = containerRef.current;
     if (!container) return;
     setError(undefined);
-    const app = runtime.createApp({ appId: name, instanceId: name, version: 'workspace', url, title, allow, props: current.current });
+    const app = runtime.createApp({
+      appId: name,
+      instanceId: name,
+      version: 'workspace',
+      url,
+      title,
+      allow,
+      props: current.current
+    });
     instance.current = app;
     let active = true;
-    void app.mount(container).then(() => {
-      if (active) expectRoute(agreedRoute.current);
-    }).catch(failure => {
-      if (active) setError(failure instanceof Error ? failure.message : '演示启动失败');
-    });
+    void app
+      .mount(container)
+      .then(() => {
+        if (active) expectRoute(agreedRoute.current);
+      })
+      .catch(failure => {
+        if (active) setError(failure instanceof Error ? failure.message : '演示启动失败');
+      });
     return () => {
       active = false;
       app.destroy();
@@ -102,20 +117,29 @@ export default function DemoMicroAppClient({ name, url, title, allow, basePath }
 
   useEffect(() => {
     if (!basePath) return;
-    return subscribeSubRoute(name, route => {
-      if (!routeSync.current.accept(route)) return;
-      agreedRoute.current = route;
-      const next = toHostPath(basePath, route);
-      if (next !== history.location.pathname) history.replace(next);
-    }, bus);
+    return subscribeSubRoute(
+      name,
+      route => {
+        if (!routeSync.current.accept(route)) return;
+        agreedRoute.current = route;
+        const next = toHostPath(basePath, route);
+        if (next !== history.location.pathname) history.replace(next);
+      },
+      bus
+    );
   }, [basePath, bus, history, name]);
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
-      {error && <div role='alert' style={{ position: 'absolute', inset: 0, padding: 24 }}>
-        <p>{error}</p><button type='button' onClick={() => setAttempt(value => value + 1)}>重新加载演示</button>
-      </div>}
+      {error && (
+        <div role='alert' style={{ position: 'absolute', inset: 0, padding: 24 }}>
+          <p>{error}</p>
+          <button type='button' onClick={() => setAttempt(value => value + 1)}>
+            重新加载演示
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -33,7 +33,7 @@
 
 ## Structural Verification
 
-- [x] 42 条故事、8 个 Epic、256 条连续 AC，ID 唯一，全部 Backlog 且产品 AC 未验证。
+- [x] 42 条故事、8 个 Epic、256 条连续 AC，ID 唯一，35 条 Backlog、7 条 In Progress，产品 AC 尚未完成验收。
 - [x] 硬依赖均存在且无环，里程碑不存在依赖倒挂。
 - [x] 本地相对链接及文档标题锚点有效，派生视图的数量与状态一致。
 - [x] Nx 格式检查与平台需求一致性门禁通过。

@@ -12,7 +12,7 @@
   "include": ["src/**/*.ts"],
   "references": [
     {
-      "path": "../wujie/tsconfig.lib.json"
+      "path": "../orbit/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb/tsconfig.lib.json"

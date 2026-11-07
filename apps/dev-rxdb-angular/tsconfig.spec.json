@@ -32,7 +32,7 @@
       "path": "../../modules/angular/tsconfig.lib.json"
     },
     {
-      "path": "../../modules/wujie/tsconfig.lib.json"
+      "path": "../../modules/orbit/tsconfig.lib.json"
     },
     {
       "path": "../../packages/code-editor-angular/tsconfig.lib.json"

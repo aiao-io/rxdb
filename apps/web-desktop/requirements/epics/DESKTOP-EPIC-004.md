@@ -27,14 +27,14 @@ owner: jimmy
 
 本清单只列范围。状态以故事 YAML 为准，派生汇总见 [状态总览](../status-overview.md)。
 
-- [DESKTOP-US-301 无界源码内化与独立运行内核](../stories/runtime/DESKTOP-US-301-in-repository-runtime.md)（High，M0）
+- [DESKTOP-US-301 Orbit 独立应用运行内核](../stories/runtime/DESKTOP-US-301-in-repository-runtime.md)（High，M0）
 - [DESKTOP-US-302 应用运行环境与样式隔离](../stories/runtime/DESKTOP-US-302-application-isolation.md)（High，M0）
 - [DESKTOP-US-303 实例生命周期与资源回收](../stories/runtime/DESKTOP-US-303-lifecycle-cleanup.md)（High，M0）
 - [DESKTOP-US-304 多实例身份与数据作用域](../stories/runtime/DESKTOP-US-304-instance-storage-scope.md)（High，M0）
 - [DESKTOP-US-305 应用资源加载与独立路由](../stories/runtime/DESKTOP-US-305-resources-routing.md)（High，M0）
 - [DESKTOP-US-306 应用故障呈现与恢复](../stories/runtime/DESKTOP-US-306-failure-recovery.md)（High，M0）
 - [DESKTOP-US-307 预加载与后台资源管理](../stories/runtime/DESKTOP-US-307-preload-suspension.md)（Medium，M2）
-- [DESKTOP-US-308 三框架接入与既有无界消费迁移](../stories/runtime/DESKTOP-US-308-framework-parity.md)（High，M0）
+- [DESKTOP-US-308 三框架接入与既有演示迁移](../stories/runtime/DESKTOP-US-308-framework-parity.md)（High，M0）
 
 ## 非目标
 

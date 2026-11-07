@@ -31,7 +31,7 @@ capabilities: []
 
 ## 前置与依赖
 
-- [DESKTOP-US-301 无界源码内化与独立运行内核](../runtime/DESKTOP-US-301-in-repository-runtime.md)
+- [DESKTOP-US-301 Orbit 独立应用运行内核](../runtime/DESKTOP-US-301-in-repository-runtime.md)
 - [DESKTOP-US-502 离线启动与资源完整性](../workspace/DESKTOP-US-502-offline-cache.md)
 - [DESKTOP-US-701 支持环境与无障碍验收](DESKTOP-US-701-accessibility-environments.md)
 

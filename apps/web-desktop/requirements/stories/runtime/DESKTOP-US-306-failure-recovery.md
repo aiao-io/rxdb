@@ -55,7 +55,7 @@ capabilities: []
 
 ## 实现文件
 
-- [仓内运行内核与使用说明](../../../../../packages/web-desktop-runtime/README.md)
+- [仓内运行内核与使用说明](../../../../../packages/orbit/README.md)
 - [实现范围与未关闭事项](../../../../../specs/001-web-desktop-product/runtime-implementation.md)
 
 ## References

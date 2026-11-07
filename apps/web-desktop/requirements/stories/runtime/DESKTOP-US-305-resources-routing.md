@@ -31,7 +31,7 @@ capabilities: []
 
 ## 前置与依赖
 
-- [DESKTOP-US-301 无界源码内化与独立运行内核](DESKTOP-US-301-in-repository-runtime.md)
+- [DESKTOP-US-301 Orbit 独立应用运行内核](DESKTOP-US-301-in-repository-runtime.md)
 - [DESKTOP-US-302 应用运行环境与样式隔离](DESKTOP-US-302-application-isolation.md)
 
 ## 验收标准
@@ -55,7 +55,7 @@ capabilities: []
 
 ## 实现文件
 
-- [仓内运行内核与使用说明](../../../../../packages/web-desktop-runtime/README.md)
+- [仓内运行内核与使用说明](../../../../../packages/orbit/README.md)
 - [实现范围与未关闭事项](../../../../../specs/001-web-desktop-product/runtime-implementation.md)
 
 ## References

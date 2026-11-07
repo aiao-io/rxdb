@@ -8,7 +8,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 const DEMOS = ['angular', 'react', 'vue'];
 
-test('demo and benchmark pages embed sub-apps through wujie, not a raw iframe', () => {
+test('demo and benchmark pages embed sub-apps through orbit, not a raw iframe', () => {
   // demo 页组件不在 src/pages 下：pages 插件只生成 exact 路由，匹配不到 /demos/vue/todo
   const files = [...DEMOS.map(demo => `src/demos/${demo}.tsx`), 'src/pages/benchmarks.tsx'];
 
@@ -47,9 +47,9 @@ test('static hosting falls back to the demo host page for deep links', () => {
   }
 });
 
-test('wujie host syncs routes in both directions behind the shared protocol', () => {
+test('orbit host syncs routes in both directions behind the shared protocol', () => {
   const source = readFileSync(join(root, 'src/components/DemoMicroAppClient.tsx'), 'utf8');
-  // 协议本身（归一化、name 过滤、TTL 闸门）由 modules/wujie 的 host-route.spec.ts 覆盖，这里只锁接线
+  // 协议本身（归一化、name 过滤、TTL 闸门）由 modules/orbit 的 host-route.spec.ts 覆盖，这里只锁接线
   assert.match(source, /useLocation/, 'host should read its own pathname from the Docusaurus router');
   assert.match(source, /emitHostRoute\(bus, name/, 'host should push its path down to the sub-app');
   assert.match(source, /subscribeSubRoute/, 'host should subscribe to the sub-app route reports');
@@ -63,7 +63,7 @@ test('wujie host syncs routes in both directions behind the shared protocol', ()
   assert.match(source, /props:\s*current\.current/, 'initial route should ride on props');
 });
 
-test('sub-apps bind the wujie route adapter at bootstrap', () => {
+test('sub-apps bind the orbit route adapter at bootstrap', () => {
   const files = [
     '../apps/dev-rxdb-angular/src/bootstrap.ts',
     '../apps/dev-rxdb-react/src/bootstrap.tsx',
@@ -72,24 +72,24 @@ test('sub-apps bind the wujie route adapter at bootstrap', () => {
 
   for (const file of files) {
     const source = readFileSync(join(root, file), 'utf8');
-    assert.match(source, /bindWujieRoute/, `${file} should bind the shared route adapter`);
+    assert.match(source, /bindOrbitRoute/, `${file} should bind the shared route adapter`);
   }
 });
 
 test('demo host consumes the in-repository runtime and explicit theme protocol', () => {
   const source = readFileSync(join(root, 'src/components/DemoMicroAppClient.tsx'), 'utf8');
   const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-  assert.match(source, /@aiao\/web-desktop-runtime/);
-  assert.equal(manifest.dependencies['@aiao/web-desktop-runtime'], 'workspace:*');
+  assert.match(source, /@aiao\/orbit/);
+  assert.equal(manifest.dependencies['@aiao/orbit'], 'workspace:*');
   assert.equal(manifest.dependencies['wujie-react'], undefined);
   assert.doesNotMatch(source, /rewriteShadowCss|cssLoader|WujieReact/);
   assert.match(source, /runtime\.bus/);
   assert.match(source, /emitHostTheme/);
 });
 
-test('wujie host broadcasts theme changes only, initial theme rides on props', () => {
+test('orbit host broadcasts theme changes only, initial theme rides on props', () => {
   const source = readFileSync(join(root, 'src/components/DemoMicroAppClient.tsx'), 'utf8');
-  // 子应用起来之前 bus 上没有订阅者，抢跑的 $emit 只会打出「事件订阅数量为空」告警
+  // 初始主题通过 props 传入，后续变更才通过 bus 下发。
   assert.match(
     source,
     /if\s*\(emittedTheme\.current !== next\)\s*\{[^}]*emitHostTheme\(bus, next\);/s,
@@ -106,12 +106,12 @@ test('all embedded applications handshake before loading their framework bootstr
   ];
   for (const file of files) {
     const source = readFileSync(join(root, file), 'utf8');
-    assert.match(source, /connectWujieClient\(\)\.then/);
+    assert.match(source, /connectOrbitClient\(\)\s*\.then/);
     assert.match(source, /await import\('\.\/bootstrap'\)/);
   }
 });
 
-test('wujie host applies theme change requests coming back from the sub-app', () => {
+test('orbit host applies theme change requests coming back from the sub-app', () => {
   const source = readFileSync(join(root, 'src/components/DemoMicroAppClient.tsx'), 'utf8');
   // 子应用里切主题要能带动整个文档站，回推走独立的 request 事件，不与下发通道共用
   assert.match(source, /subscribeThemeRequest/, 'host should subscribe to sub-app theme requests');

@@ -38,10 +38,10 @@
       "path": "../../packages/rxdb-plugin-board/tsconfig.lib.json"
     },
     {
-      "path": "../../modules/wujie/tsconfig.lib.json"
+      "path": "../../modules/orbit/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/web-desktop-runtime/tsconfig.lib.json"
+      "path": "../../packages/orbit/tsconfig.lib.json"
     },
     {
       "path": "../../packages/utils/tsconfig.lib.json"
