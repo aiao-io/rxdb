@@ -76,10 +76,11 @@ for (const backend of ['wa-sqlite', 'pglite'] as const) {
         expect((await lineIndexes(adapter)).rows).toHaveLength(1);
         await readLineCandidates(adapter, fixture!);
         const migrations = await adapter.transaction(
-          executor => executor.query(
-            `SELECT "name" FROM ${executor.tableRef(RxDBMigration)} WHERE "name" = ${bomSqlDialectFor(backend).placeholder(0)}`,
-            [migrationName]
-          ),
+          executor =>
+            executor.query(
+              `SELECT "name" FROM ${executor.tableRef(RxDBMigration)} WHERE "name" = ${bomSqlDialectFor(backend).placeholder(0)}`,
+              [migrationName]
+            ),
           false
         );
         expect(migrations.rows).toEqual([[migrationName]]);
