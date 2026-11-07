@@ -85,9 +85,11 @@ for (const mode of ['macos', 'windows'] as const) {
     await targetWindow.getByLabel('窗口操作 文本编辑器', { exact: true }).click();
     await targetWindow.getByRole('button', { name: '退出应用', exact: true }).click();
     await expect(page.locator('[data-app-id="editor"]')).toHaveCount(0);
-    expect((await readState(page)).grants.some(value => value.appId === 'editor' && value.scope === target.id)).toBe(
-      false
-    );
+    await expect
+      .poll(async () =>
+        (await readState(page)).grants.some(value => value.appId === 'editor' && value.scope === target.id)
+      )
+      .toBe(false);
     const saved = (await readState(page)).files;
     expect(saved.find(file => file.id === target.id)).toMatchObject({
       bytes: Buffer.from(draft).toString('base64'),
