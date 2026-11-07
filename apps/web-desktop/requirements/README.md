@@ -2,7 +2,7 @@
 
 做一个可长期使用的浏览器桌面：同一份应用和数据，支持 macOS 与 Windows 两种交互方式；应用均为独立 Web 应用，由仓内独立维护的 Orbit 运行内核承载。首版面向单人、本地工作，内置文件管理器、文本编辑器和设置，形成真正的文件工作闭环。
 
-产品范围包含 42 条故事、256 条 AC、8 个 Epic。已开始实现仓内运行内核：7 条故事 In Progress，35 条 Backlog，尚无故事完成完整产品验收。运行基础与既有消费迁移见 [实施记录](../../../specs/001-web-desktop-product/runtime-implementation.md)。
+产品范围包含 42 条故事、256 条 AC、8 个 Epic。已进入桌面产品实施：42 条故事 In Progress，0 条 Backlog，尚无故事完成完整产品验收。桌面运行与验证见 [应用说明](../README.md)；运行基础与既有消费迁移见 [实施记录](../../../specs/001-web-desktop-product/runtime-implementation.md)。
 
 ## 阅读入口
 
@@ -19,6 +19,8 @@
 | [未来范围](future-requirements.md)                                                | 未承诺方向及进入条件                               |
 | [需求质量检查](../../../specs/001-web-desktop-product/checklists/requirements.md) | 文档完整性检查，不代替产品验收                     |
 | [应用约定](CONVENTIONS.md)                                                        | 编号、状态、依赖与变更规则                         |
+
+逐条差距与自动化片段见 [256 条 AC 登记](acceptance-evidence.md)。
 
 ## 用户与任务
 

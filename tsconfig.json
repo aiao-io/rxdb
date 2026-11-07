@@ -281,6 +281,9 @@
     },
     {
       "path": "./packages/orbit"
+    },
+    {
+      "path": "./apps/web-desktop"
     }
   ]
 }

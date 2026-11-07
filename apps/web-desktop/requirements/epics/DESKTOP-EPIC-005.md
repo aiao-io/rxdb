@@ -1,6 +1,6 @@
 ---
 id: DESKTOP-EPIC-005
-status: Backlog
+status: In Progress
 startDate: TBD
 targetDate: TBD
 owner: jimmy

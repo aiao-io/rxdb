@@ -1286,6 +1286,12 @@ importers:
 
   apps/rxdb-devtools-extension-e2e: {}
 
+  apps/web-desktop:
+    dependencies:
+      '@aiao/orbit':
+        specifier: workspace:*
+        version: link:../../packages/orbit
+
   benchmarks:
     dependencies:
       '@aiao/orbit':

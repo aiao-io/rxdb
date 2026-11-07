@@ -1,0 +1,9 @@
+{
+  "name": "@aiao/web-desktop",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@aiao/orbit": "workspace:*"
+  }
+}

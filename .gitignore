@@ -157,3 +157,5 @@ docker/.supabase-ci-state.*.env
 .nx-test-task-graph.json
 .nx-test-prereqs.tsv
 .vitest
+
+.vitest-attachments/

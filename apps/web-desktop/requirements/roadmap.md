@@ -1,6 +1,6 @@
 # Web Desktop 交付顺序
 
-用户要求覆盖完整 Web 桌面产品与 Orbit 运行内核。本路线图划分验收切片，不承诺工期，也不把 M1 当作删减 1.0 故事的理由。当前先实现仓内运行基础：DESKTOP-US-301～306、308 为 In Progress；完整产品里程碑尚未关闭。实现与剩余边界见 [实施记录](../../../specs/001-web-desktop-product/runtime-implementation.md)。
+用户要求覆盖完整 Web 桌面产品与 Orbit 运行内核。本路线图划分验收切片，不承诺工期，也不把 M1 当作删减 1.0 故事的理由。当前桌面主体、内置应用、离线和拥有权已进入实施，42 条故事为 In Progress；应用独立版本更新/回退、空闲预取、引用清理和协作挂起均已进入实施。完整产品里程碑尚未关闭。实现与剩余边界见 [实施记录](../../../specs/001-web-desktop-product/runtime-implementation.md)。
 
 ## M0：运行内核与接入验证
 

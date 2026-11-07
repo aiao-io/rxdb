@@ -1,7 +1,7 @@
 ---
 id: DESKTOP-US-205
 title: 卸载与应用数据管理
-status: Backlog
+status: In Progress
 priority: High
 epic: DESKTOP-EPIC-003
 milestone: M2
@@ -49,7 +49,7 @@ capabilities: []
 
 状态符号：⬜ 未验证 / ⚠️ 进行中或有保留 / ✅ 有同层级证据。
 
-验收证据：尚无实现或产品验收证据；本轮只完成需求编写。实施时按 [分层验收台账](../../verification-report.md) 逐 AC 登记用例、构建版本、环境和结果，失败分支同样需要证据。
+验收证据：已进入产品实施；当前源码和自动化旅程见 [应用说明](../../../README.md)。仍需按 [分层验收台账](../../verification-report.md) 逐 AC 登记用例、构建版本、环境和结果，失败分支同样需要证据。
 
 ## 技术笔记
 
@@ -57,7 +57,8 @@ capabilities: []
 
 ## 实现文件
 
-- 尚未实现；后续变更以本故事编号关联实际源码和测试文件，不能把拟定路径当已交付证据。
+- [桌面源码、运行方式与协议入口](../../../README.md)
+- [自动化测试及完整产品验收台账](../../verification-report.md)
 
 ## References
 
