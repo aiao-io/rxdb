@@ -13,17 +13,9 @@
 | `@aiao/rxdb-admin-react`   | React 壳：`AdminLayout`、`AdminShellProvider` 与 hooks                                                   |
 | `@aiao/rxdb-admin-vue`     | Vue 3 壳：`AdminLayout`、`AdminShellProvider` 与 composables                                             |
 
-## 安装
+## 接入状态
 
-```bash npm2yarn
-# 核心（必须）；外壳文案目录依赖 @aiao/rxdb-i18n，后者以 @aiao/rxdb 为 peer
-npm install @aiao/rxdb @aiao/rxdb-admin
-
-# 按框架选其一
-npm install @aiao/rxdb-admin-angular
-npm install @aiao/rxdb-admin-react
-npm install @aiao/rxdb-admin-vue
-```
+当前包族尚未进入 npm 发布集合，先从仓库工作区验证。包名与代码示例描述当前 main 的接入方式，不能把工作区的 `0.0.28` 当作这些包已经发布的证明。本地运行入口见[能力与示例](../getting-started/capabilities.md)。
 
 外壳的样式由应用的 Tailwind + daisyUI 管线生成，包不发布编译样式：在样式入口引入绑定包的 `tailwind.css`（让 Tailwind 扫描组件里用到的类）和核心包的 `admin.css`（三端共享的样式契约）。接入步骤见[三端用法](./frameworks.md)。
 

@@ -51,6 +51,16 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
 - **Storage**：`StorageFileMeta` 存储元数据
 - **Settings**：主题、清理本地数据
 
+## 国际化检视
+
+使用[客户端国际化](../i18n/README.md)时，把同一个运行时显式传给连接器：
+
+```ts
+getDevToolsConnector().init(rxdb, getEntityMetadata, { i18n: runtime });
+```
+
+I18n 面板显示当前语言、可用语言、消息目录的来源与覆盖优先级，以及缺失文案诊断。目录、语言和诊断变化会刷新检视内容；只有连接允许变更时才显示清空缺失诊断入口。清空只作用于缺失文案表，保留语言偏好与应用目录。
+
 ## 浏览器扩展
 
 安装浏览器扩展后，DevTools 面板会出现在浏览器开发者工具中（F12 → RxDB 标签页）。
