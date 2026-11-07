@@ -38,7 +38,7 @@ tags: [aiao-vscode, terminal, webcontainer, runtime, benchmark]
 - 更换默认运行时：本故事只产出数据与推荐，改默认值另行立项。
 - 为 almostnode、burrow 补终端、流、挂载等它们本身缺失的能力。
 - Nodepod 的商用采用：许可证为 MIT + Commons Clause，正式采用前需法务确认，本故事仅内部评估。
-- 线上子域名部署与真实 origin 复验，沿用路线图「真实部署与公开访问」。
+- Nodepod 的线上部署（许可证限制同上）。vivari 的线上宿主按用户决定于 2026-11-07 上线 `vscode-vivari.aiao.io`，真实 origin 复验见验收证据「阶段 B 线上」。
 
 ## 交付阶段
 
@@ -132,20 +132,21 @@ A 是 B～E 的前置：适配接口与基准口径先在两个已有方式上�
 
 ## 实现文件
 
-| 阶段 | 位置                                                                                        | 职责                                                                                |
-| ---- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| A    | `apps/aiao-vscode/src/workbench/terminal/runtime-adapter.ts`                                | 运行方式标识与名称、能力声明、适配器接口                                            |
-| A    | `apps/aiao-vscode/src/workbench/terminal/webcontainer-adapter.ts`                           | WebContainer 适配器：`jsh` / `jsh --osc`、授权 key 只配置一次                       |
-| A    | `apps/aiao-vscode/src/workbench/terminal/terminal-runtime.ts`                               | 与运行时无关的终端运行时：文件同步、交互 Shell，带标记 shell 与进程两种项目运行     |
-| A    | `apps/aiao-vscode/src/workbench/workbench-state.ts`、`workbench-settings.ts`、`mount.ts`    | 「运行方式」偏好与设置项、`?runtime=` 覆盖、「运行」按方式分支                      |
-| A～E | `apps/aiao-vscode/scripts/verify-runtimes.mjs`                                              | 对比基准脚本与报告                                                                  |
-| B～D | `apps/aiao-vscode/src/workbench/terminal/runtime-host-protocol.ts`、`runtime-host-frame.ts` | 宿主协议（端口上的请求、流、监听与故障）与工作台侧的宿主 iframe 握手                |
-| B～C | `apps/aiao-vscode/src/workbench/terminal/hosted-runtime-adapter.ts`、`runtime-host-page.ts` | 独立源运行时适配器（vivari、Nodepod 的能力声明）；宿主页一侧的握手与项目路径映射    |
-| B    | `apps/aiao-vscode/src/workbench/terminal/vivari-host.ts`、`project-watcher.ts`              | vivari 宿主后端（VM 内监听进程、输出视图）、内核宿主页、预览容器页                  |
-| C    | `apps/aiao-vscode/src/workbench/terminal/nodepod-host.ts`                                   | Nodepod 宿主后端（同步卷、NodepodTerminal 接只转发的 xterm、进程）与宿主页          |
-| B～D | `apps/aiao-vscode/src/runtime-hosts/`                                                       | 宿主页入口与部署配置（运行方式 → 工作台来源 → 宿主源）                              |
-| B～D | `apps/aiao-vscode/scripts/build-runtime-hosts.mjs`、`serve-runtime-hosts.mjs`               | 宿主构建（vivari 的 vendor 包下载并按 SHA-256 校验）与本地静态服务（:4331 / :4332） |
-| A～E | `apps/aiao-vscode/scripts/verify-terminal.mjs`、`runtime-host-server.mjs`                   | 终端断言按运行方式复跑（`--runtime=`），逐项记录成败与恢复办法                      |
+| 阶段 | 位置                                                                                               | 职责                                                                                                            |
+| ---- | -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| A    | `apps/aiao-vscode/src/workbench/terminal/runtime-adapter.ts`                                       | 运行方式标识与名称、能力声明、适配器接口                                                                        |
+| A    | `apps/aiao-vscode/src/workbench/terminal/webcontainer-adapter.ts`                                  | WebContainer 适配器：`jsh` / `jsh --osc`、授权 key 只配置一次                                                   |
+| A    | `apps/aiao-vscode/src/workbench/terminal/terminal-runtime.ts`                                      | 与运行时无关的终端运行时：文件同步、交互 Shell，带标记 shell 与进程两种项目运行                                 |
+| A    | `apps/aiao-vscode/src/workbench/workbench-state.ts`、`workbench-settings.ts`、`mount.ts`           | 「运行方式」偏好与设置项、`?runtime=` 覆盖、「运行」按方式分支                                                  |
+| A～E | `apps/aiao-vscode/scripts/verify-runtimes.mjs`                                                     | 对比基准脚本与报告                                                                                              |
+| B～D | `apps/aiao-vscode/src/workbench/terminal/runtime-host-protocol.ts`、`runtime-host-frame.ts`        | 宿主协议（端口上的请求、流、监听与故障）与工作台侧的宿主 iframe 握手                                            |
+| B～C | `apps/aiao-vscode/src/workbench/terminal/hosted-runtime-adapter.ts`、`runtime-host-page.ts`        | 独立源运行时适配器（vivari、Nodepod 的能力声明）；宿主页一侧的握手与项目路径映射                                |
+| B    | `apps/aiao-vscode/src/workbench/terminal/vivari-host.ts`、`project-watcher.ts`                     | vivari 宿主后端（VM 内监听进程、输出视图）、内核宿主页、预览容器页                                              |
+| C    | `apps/aiao-vscode/src/workbench/terminal/nodepod-host.ts`                                          | Nodepod 宿主后端（同步卷、NodepodTerminal 接只转发的 xterm、进程）与宿主页                                      |
+| B～D | `apps/aiao-vscode/src/runtime-hosts/`                                                              | 宿主页入口与部署配置（运行方式 → 工作台来源 → 宿主源）                                                          |
+| B～D | `apps/aiao-vscode/scripts/build-runtime-hosts.mjs`、`serve-runtime-hosts.mjs`                      | 宿主构建（vivari 的 vendor 包下载并按 SHA-256 校验）与本地静态服务（:4331 / :4332）                             |
+| B    | `apps/aiao-vscode/src/workbench/terminal/runtime-host-pages.ts`、`deploy/verify-pages-routing.mjs` | 宿主响应头（本地服务与 Pages 共用）、线上宿主的 `_headers` / `_redirects` 生成；本地 Pages 托管下的宿主产物检查 |
+| A～E | `apps/aiao-vscode/scripts/verify-terminal.mjs`、`runtime-host-server.mjs`                          | 终端断言按运行方式复跑（`--runtime=`），逐项记录成败与恢复办法                                                  |
 
 ## References
 

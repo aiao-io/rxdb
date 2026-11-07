@@ -92,9 +92,11 @@ pnpm dlx wrangler@4.158.0 pages deploy runtime-hosts/dist/vivari --project-name 
 
 产物里的 `_headers`、`_redirects` 由构建按部署配置生成：全站 COOP / COEP / CORP 与 `frame-ancestors 'self' https://vscode.aiao.io`，
 宿主页与预览容器页 200 改写；带内容哈希的 `/assets/` 长缓存，`/vendor/` 打包件的地址固定、内容随 `@vivari/core` 版本变，
-显式 `no-cache`。aiao.io 的 zone 浏览器缓存 TTL 是 4 小时，会把 Pages 默认的 `max-age=0` 改成 `max-age=14400`
-（只作用于 .js、.bin 这类静态扩展名，.html / .json 仍是 `max-age=0`；pages.dev 上没有这层）。所以宿主页的入口脚本
-由构建加内容哈希（`host-<哈希>.js`），受这层缓存影响的固定地址只剩 `/sw.js`（Service Worker 更新检查不走 HTTP 缓存）。
+显式 `no-cache`。aiao.io 的 zone 浏览器缓存 TTL 是 4 小时，会把 .js、.bin 这类静态扩展名的 `Cache-Control`
+改成 `max-age=14400`，**连显式的 `no-cache` 也覆盖**（.html / .json 不受影响；pages.dev 上没有这层）。所以宿主页的入口脚本
+由构建加内容哈希（`host-<哈希>.js`）；`/sw.js` 不受影响（Service Worker 更新检查不走 HTTP 缓存）；`/vendor/*.bin` 的地址是
+vivari 写死的，要让 `no-cache` 生效，得在 zone 上给 `vscode-vivari.aiao.io` 加一条缓存规则，浏览器 TTL 选「遵循源站」。
+没有这条规则时，升级 `@vivari/core` 后，升级前 4 小时内用过 vivari 的浏览器可能拿到旧打包件。
 升级 `@vivari/core` 或改宿主代码后要重新部署宿主。
 
 验证：发布前跑 `verify-pages-routing`（上节）；部署后 `curl -sI https://vscode-vivari.aiao.io/runtime-host.html` 应为 200
