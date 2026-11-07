@@ -4,6 +4,7 @@ import type { Mode, WindowRecord } from '../core/types.js';
 import { AppIcon, SymbolIcon, SystemMark } from '../ui/icons.js';
 import { HOST_VERSION } from './diagnostics.js';
 import { WindowGesture } from './gesture.js';
+import { RecoveryPanel } from './recovery-view.js';
 import type { DesktopHost, RunningApp } from './runtime.js';
 
 const names: Record<string, string> = Object.fromEntries(builtins.map(app => [app.id, app.name]));
@@ -124,6 +125,7 @@ function Welcome({ host }: { host: DesktopHost }) {
           新的可能。
         </h1>
         <p>选择你习惯的交互方式。应用和文件留在这个浏览器中，无需账号，随时可以切换。</p>
+        {host.message && <p role='status'>{host.message}</p>}
         <div className='mode-options'>
           {(['macos', 'windows'] as const).map(value => (
             <button
@@ -702,6 +704,11 @@ function SystemTray({ host }: { host: DesktopHost }) {
           {host.preparingOffline ? '正在准备离线资源…' : '准备离线资源'}
         </button>
       )}
+      {host.recovery.size > 0 && (
+        <button aria-label='恢复待办' aria-expanded={host.recoveryOpen} onClick={() => host.setPanel('recovery')}>
+          恢复待办 {host.recovery.size}
+        </button>
+      )}
       <span className='network-status'>
         {host.offline ?
           '离线'
@@ -868,6 +875,7 @@ export function DesktopApp({ host }: { host: DesktopHost }) {
         </header>
       )}
       {host.resourcesOpen && <ResourcePanel host={host} />}
+      {host.recoveryOpen && <RecoveryPanel host={host} />}
       <div
         className='desktop-surface'
         onPointerDown={event => {

@@ -1,0 +1,16 @@
+/**
+ * Tailwind source 注册入口（非编译产物）
+ *
+ * 在消费方的 Tailwind 入口引入，让 Tailwind 扫描本库组件里用到的 daisyUI / 工具类：
+ *
+ *   @import '@aiao/rxdb-admin-angular/tailwind.css';
+ *   @import '@aiao/rxdb-admin/admin.css';
+ *
+ * 本库不输出 preflight / theme / daisyUI 主题，全部由消费方决定。
+ */
+
+/* 发布产物：模板已被 ng-packagr 编译进 fesm 的字符串字面量 */
+@source './fesm2022/*.mjs';
+
+/* 本地开发：node_modules 软链指向源码目录 */
+@source './src/**/*.{ts,html}';

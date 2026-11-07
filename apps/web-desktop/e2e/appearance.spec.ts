@@ -4,6 +4,7 @@ import { expect, test } from '@playwright/test';
 for (const mode of ['macos', 'windows'] as const) {
   test(`${mode}：系统外观与 OPFS 真实目录双向同步`, async ({ page }, testInfo) => {
     await page.goto('/');
+    await expect(page.getByRole('button', { name: '进入桌面', exact: true })).toBeVisible();
     await page.evaluate(async () => {
       const root = await navigator.storage.getDirectory();
       const directory = await root.getDirectoryHandle('真实项目', { create: true });

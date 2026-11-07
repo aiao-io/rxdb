@@ -2261,6 +2261,87 @@
         "version": "0.0.28"
       },
       {
+        "description": "后台外壳无头核心：偏好中心（声明式 schema、主题、布局、页签、快捷键、命令面板、扩展、锁屏、水印、时区），与路由库和 UI 框架无关（epic-010）。",
+        "framework": null,
+        "homepage": "https://rxdb.aiao.io/docs",
+        "hosts": [
+          "browser",
+          "node"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "dependencies",
+            "name": "@aiao/rxdb-i18n",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-admin",
+        "role": "model",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "后台外壳的 Angular 绑定：AdminLayout、偏好抽屉、页签栏、命令面板与锁屏（epic-010）。",
+        "framework": "angular",
+        "homepage": "https://rxdb.aiao.io/docs",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-admin",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-admin-angular",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "后台外壳的 React 绑定：AdminLayout、偏好抽屉、页签栏、命令面板与锁屏（epic-010）。",
+        "framework": "react",
+        "homepage": "https://rxdb.aiao.io/docs",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-admin",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-admin-react",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "后台外壳的 Vue 绑定：AdminLayout、偏好抽屉、页签栏、命令面板与锁屏（epic-010）。",
+        "framework": "vue",
+        "homepage": "https://rxdb.aiao.io/docs",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-admin",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-admin-vue",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
         "description": "Angular 框架集成库，为 Angular 应用提供 RxDB 支持。基于 Angular Signals 实现响应式数据流。",
         "framework": "angular",
         "homepage": "https://rxdb.aiao.io/docs/frameworks/angular",
@@ -2771,6 +2852,34 @@
         "plugin": {
           "class": "RxDBPluginHistory",
           "factory": "rxDBPluginHistory",
+          "source": "src/plugin.ts"
+        },
+        "role": "plugin",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "局域网 P2P：一对设备一条会话、多协议复用；内置大文件共享（清单发现、分块校验、多源续传与服务器回退）。",
+        "framework": null,
+        "homepage": null,
+        "hosts": [
+          "browser",
+          "node",
+          "electron",
+          "tauri"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-p2p",
+        "plugin": {
+          "class": "RxDBPluginP2PFiles",
+          "factory": "rxDBPluginP2PFiles",
           "source": "src/plugin.ts"
         },
         "role": "plugin",
@@ -3755,7 +3864,7 @@
       }
     ]
   },
-  "digest": "91b37e51e5b3ca611e1be88f8e8045b75614f283d67a7f34a737c21aa21925e2",
+  "digest": "3c02a6d0e6ed310f534f6aad21160bd5b3b68737875d69de6092ee2dff2ab535",
   "sample": {
     "compilerOptions": {
       "experimentalDecorators": true,

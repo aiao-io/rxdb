@@ -46,7 +46,7 @@ describe('DESKTOP-US-503 备份格式与完整性', () => {
     delete data['navigation'];
     const checksum = await digest(new TextEncoder().encode(JSON.stringify(data)));
     const restored = await validateBackup({ ...backup, data, checksum });
-    expect(restored.schemaVersion).toBe(4);
+    expect(restored.schemaVersion).toBe(5);
     expect(restored.navigation).toEqual({ workspaceId: 'first', activeWindows: { first: null } });
     await expect(validateBackup({ ...backup, data, checksum: 'broken' })).rejects.toThrow('INTEGRITY');
   });

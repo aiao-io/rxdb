@@ -18,7 +18,15 @@ import type { DiagnosticEntry } from './diagnostics.js';
 import { Dialogs } from './dialogs.js';
 import { activateWorker, waitForActivation } from './offline.js';
 import { DesktopOwnership, missingCapabilities } from './ownership.js';
+import { capabilityLabel, fileScopeLabel } from './permission-labels.js';
 import { Prefetch } from './prefetch.js';
+import {
+  reconcileRecovery,
+  removeRecoveryEntry,
+  restoreSavedSession,
+  retryRecoveryEntry,
+  type RecoveryFailure
+} from './recovery.js';
 import { Suspension } from './suspension.js';
 import {
   activateWindow,
@@ -98,6 +106,8 @@ export class DesktopHost {
     body: string;
     time: number;
   }[] = [];
+  readonly recovery = new Map<string, RecoveryFailure>();
+  recoveryOpen = false;
   readonly listeners = new Set<() => void>();
   readonly dialogs = new Dialogs(() => this.changed());
   readonly runtime = createOrbit({ allowedOrigins: [window.location.origin] });
@@ -172,6 +182,43 @@ export class DesktopHost {
     } catch (error) {
       this.startupFailure(error);
     }
+  }
+
+  restoreSession(): void {
+    requireCondition(this.phase === 'ready' && this.ownership.owned, 'OWNERSHIP', '桌面当前不可写');
+    this.restoring = true;
+    try {
+      restoreSavedSession(this);
+    } finally {
+      this.restoring = false;
+    }
+    this.changed();
+  }
+
+  async replaceDesktopSession(
+    callerId: string,
+    commit: () => Promise<void>,
+    operation: 'restore' | 'reset' = 'restore'
+  ): Promise<void> {
+    requireCondition(this.phase === 'ready' && this.ownership.owned, 'OWNERSHIP', '桌面当前不可写');
+    requireCondition(!this.restoring && this.instances.has(callerId), 'BUSY', '桌面正在恢复或调用实例已关闭');
+    const ids = [...this.instances.keys()].filter(id => id !== callerId);
+    requireCondition(await this.closeInstances(ids, { preserveSession: true }), 'CANCELLED', '恢复已取消');
+    this.restoring = true;
+    try {
+      await commit();
+    } catch (error) {
+      this.restartAfterReplacement(operation, errorMessage(error));
+      throw error;
+    }
+    this.restartAfterReplacement(operation, null);
+  }
+
+  retryRecovery(id: string): Promise<boolean> {
+    return retryRecoveryEntry(this, id);
+  }
+  removeRecovery(id: string): Promise<boolean> {
+    return removeRecoveryEntry(this, id);
   }
 
   async recoverStoredState(): Promise<boolean> {
@@ -254,6 +301,7 @@ export class DesktopHost {
     this.state = await this.database.read();
     const hasWorkspaces = this.state.workspaces.length > 1;
     if (hadWorkspaces !== hasWorkspaces) this.resized();
+    reconcileRecovery(this);
     if (previous !== JSON.stringify(this.state.profile)) this.applyProfile();
     this.changed();
     return result;
@@ -330,7 +378,7 @@ export class DesktopHost {
       mounted: false
     };
     this.instances.set(id, app);
-    const win = openWindow(this.model, id, appId, this.area());
+    const win = openWindow(this.model, id, appId, this.area(), saved?.id);
     win.title = definition.name;
     if (saved) restoreWindow(this.model, win, saved, this.area());
     registerBridge(this, app);
@@ -568,7 +616,7 @@ export class DesktopHost {
     const navigation = { workspaceId: this.model.workspaceId, activeWindows };
     try {
       await this.mutate(state => {
-        state.session = session;
+        state.session = [...session, ...state.session.filter(win => this.recovery.has(win.id))];
         state.navigation = navigation;
         state.grants = state.grants.filter(grant => grant.instanceId === null || this.instances.has(grant.instanceId));
       });
@@ -578,10 +626,15 @@ export class DesktopHost {
     }
   }
 
-  setPanel(panel: 'launcher' | 'overview' | 'notifications', value?: boolean): void {
-    const key = ({ launcher: 'launcherOpen', overview: 'overviewOpen', notifications: 'notificationsOpen' } as const)[
-      panel
-    ];
+  setPanel(panel: 'launcher' | 'overview' | 'notifications' | 'recovery', value?: boolean): void {
+    const key = (
+      {
+        launcher: 'launcherOpen',
+        overview: 'overviewOpen',
+        notifications: 'notificationsOpen',
+        recovery: 'recoveryOpen'
+      } as const
+    )[panel];
     this[key] = value ?? !this[key];
     this.changed();
   }
@@ -895,6 +948,7 @@ export class DesktopHost {
     for (const id of this.instances.keys()) this.transfers.dispose(id);
     this.runtime.dispose();
     this.instances.clear();
+    this.recovery.clear();
     await this.database?.flush();
     this.database?.close();
     await this.ownership.dispose();
@@ -928,10 +982,14 @@ export class DesktopHost {
       '应用未声明此能力'
     );
     if (checkPermission(this.state, identity, capability, scope)) return;
+    const scopeLabel =
+      capability === 'files' ? fileScopeLabel(this.state, scope)
+      : scope === '*' ? '全部相关托管数据'
+      : scope;
     const result = await this.dialogs.ask(
       {
         title: '桌面能力授权',
-        message: `${app.definition.name}\n来源：${identity.origin}\n能力：${capability}\n范围：${scope === '*' ? '全部相关托管数据' : scope}\n授权只控制桌面服务；应用属于批准的可信代码。`,
+        message: `${app.definition.name}\n来源：${identity.origin}\n能力：${capabilityLabel(capability)}\n范围：${scopeLabel}\n仅本次允许只用于当前应用窗口的这次运行，退出或刷新后失效。始终允许可在设置中撤销。\n授权只控制桌面服务；应用属于批准的可信代码。`,
         actions: [
           { id: 'once', label: '仅本次允许' },
           { id: 'always', label: '始终允许' },
@@ -967,6 +1025,29 @@ export class DesktopHost {
     this.report(error);
   }
 
+  private restartAfterReplacement(operation: 'restore' | 'reset', error: string | null): void {
+    const prior: unknown = window.history.state;
+    window.history.replaceState(
+      { ...(isRecord(prior) ? prior : {}), orbitDesktopReplacement: { operation, error } },
+      ''
+    );
+    this.phase = 'loading';
+    this.changed();
+    window.location.reload();
+  }
+
+  private readReplacementResult(): void {
+    const receipt: unknown = window.history.state;
+    if (!isRecord(receipt) || !isRecord(receipt['orbitDesktopReplacement'])) return;
+    const { operation, error } = receipt['orbitDesktopReplacement'];
+    const action = operation === 'reset' ? '桌面数据重置' : '备份恢复';
+    const next = operation === 'reset' ? '请重新选择交互模式。' : '权限需重新授予。';
+    this.message =
+      error === null ? `${action}完成，${next}` : `${action}未完成：${String(error)}。请检查当前文件和布局后重试。`;
+    delete receipt['orbitDesktopReplacement'];
+    window.history.replaceState(receipt, '');
+  }
+
   private async loadDesktop(): Promise<void> {
     this.storageRecovery = false;
     this.database?.close();
@@ -996,34 +1077,8 @@ export class DesktopHost {
     this.model.mode = this.state.profile.mode;
     this.model.workspaceId = this.state.navigation.workspaceId;
     this.phase = 'ready';
-    const saved = [...this.state.session];
-    this.sessionRestored = saved.length > 0;
-    const navigation = structuredClone(this.state.navigation);
-    const restored: (string | null)[] = [];
-    this.restoring = true;
-    try {
-      for (const win of saved) {
-        try {
-          const app = this.launch(win.appId, true, win.fileId, win);
-          restored.push(this.model.windows.find(item => item.instanceId === app.id)?.id ?? null);
-        } catch (error) {
-          restored.push(null);
-          this.report(error);
-        }
-      }
-    } finally {
-      this.restoring = false;
-    }
-    this.model.workspaceId = navigation.workspaceId;
-    this.model.activeWindows = Object.fromEntries(
-      Object.entries(navigation.activeWindows).map(([workspace, index]) => [
-        workspace,
-        index === null ? null : restored[index]
-      ])
-    );
-    this.model.activeId = this.model.activeWindows[this.model.workspaceId];
-    this.syncVisibility();
-    this.changed();
+    this.restoreSession();
+    this.readReplacementResult();
     this.refreshOffline();
     this.startPrefetch();
   }

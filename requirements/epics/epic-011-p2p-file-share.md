@@ -1,7 +1,7 @@
 ---
 id: epic-011-p2p-file-share
-status: Backlog
-startDate: TBD
+status: In Progress
+startDate: 2026-11-03
 targetDate: TBD
 owner: jimmy
 ---
@@ -11,6 +11,8 @@ owner: jimmy
 ## 愿景
 
 公司内网里，大文件在已持有副本的机器之间点对点直传——元数据（谁有什么）走现有同步、字节流不经服务器；断外网时局域网照传，没有 peer 在线时回退服务器直下。
+
+本 Epic 六条故事已上升为产品 aiao-pool（文件池）的技术底座；产品化增量的故事、决策与里程碑在 [apps/dev-rxdb-p2p/requirements](../../apps/dev-rxdb-p2p/requirements/README.md)（`POOL-US-*` 编号，独立统计），本 Epic 的编号、状态与验收口径不变。
 
 ## 为什么单列一个 Epic
 
@@ -24,14 +26,16 @@ owner: jimmy
 - [ ] 浏览器 WebRTC / 桌面 TCP 的分块直传、内容校验、断点续传与多源（[US-705](../stories/future/US-705-p2p-byte-transfer.md)）
 - [ ] 无 peer 回退服务器、认证复用与坏 peer 隔离（[US-706](../stories/future/US-706-p2p-fallback-auth.md)）
 - [ ] 跨运行时 demo 与多实例 e2e（[US-707](../stories/future/US-707-p2p-cross-runtime-e2e.md)）；Tauri 双进程、大文件与离线超 TTL 验收由 US-707 阶段 B 认领
+- [ ] 与同一台设备只建一条已认证会话，多个文件与后续协议在会话上复用（[US-708](../stories/future/US-708-p2p-peer-session.md)）
+- [ ] 管理员在 demo 里总览并处置账号、在线设备与服务器副本（[US-713](../stories/future/US-713-p2p-admin-console.md)）
 
 ## 交付前置与关闭边界
 
-- 价值门禁未关闭，四条故事继续 Backlog；本次整理不授权开工。
-- US-704 先选定真实认证宿主、用户/设备标识和服务端授权合同；现有 HTTP 示例的 Bearer 格式检查不能作为身份验证。
+- US-704～US-707 已由 owner 解锁，US-708 由 owner 决定在 PR #172 内完成，US-713 由 owner 决定随独立 demo 交付（见[解锁记录](#价值待证)）；框架无关协议层的内存测试不充当任何 AC 的验收证据。
+- US-704 先选定真实认证宿主、用户/设备标识和服务端授权合同，依赖身份的验收在此之前不启动；现有 HTTP 示例的 Bearer 格式检查不能作为身份验证。
 - 持久持有声明与临时在线状态分离：服务器断开超过 presence TTL 后，局域网发现/探测仍可恢复可用 peer，心跳不写同步实体。
 - 大文件目标与缓冲上限见 US-705；US-707 的 1 MiB 用例只作握手/协议冒烟，不能代替大文件验收。
-- 四条故事的全部承诺通过后方可关闭 Epic；Tauri 验收有明确故事与阶段，不留范围外的永久关闭条件。
+- 六条故事的全部承诺通过后方可关闭 Epic；Tauri 验收有明确故事与阶段，不留范围外的永久关闭条件。
 
 ## 故事
 
@@ -41,16 +45,34 @@ owner: jimmy
 - [US-705 P2P 字节传输](../stories/future/US-705-p2p-byte-transfer.md) (High)
 - [US-706 服务器兜底与认证](../stories/future/US-706-p2p-fallback-auth.md) (Medium)
 - [US-707 跨运行时 demo 与多实例 e2e](../stories/future/US-707-p2p-cross-runtime-e2e.md) (Medium)
+- [US-708 P2P 会话层：一对设备一条会话、多协议复用](../stories/future/US-708-p2p-peer-session.md) (High)
+- [US-713 P2P demo 管理后台：管理员总览并处置账号与服务](../stories/future/US-713-p2p-admin-console.md) (Medium)
 
 ## 非目标
 
 - **不做公网 P2P**：不做 STUN/TURN 中继与 NAT 穿透，不做 DHT 对等发现；发现只靠公司内网（mDNS / 同步服务器信令）。
 - **浏览器端断外网新建连接的边界**：已建立的直连不依赖服务器，可继续传输；浏览器**新建**连接需要信令通道可达；桌面端可通过局域网发现新建连接，但仍须满足有效离线凭据的认证合同。边界与用例口径见 US-704 / US-707。
 - **不做目录级双向同步**（Syncthing 式文件夹镜像）：只做单文件按需拉取，方向是「有 → 没有」，不解决两台机器都改了同一文件。
-- **不替换同步协议**：结构化文档的复制仍走 `rxdb-plugin-sync`；P2P 只传大文件字节。
+- **不替换同步协议**：结构化文档的复制仍走 `rxdb-plugin-sync`；本 Epic 的 P2P 只传大文件字节。经 P2P 会话承载的结构化数据能力（整库克隆、实时信号、局域网枢纽）归 [epic-012](epic-012-p2p-lan-collaboration.md)，同样不替换同步协议。
 - **不做字节级持久加密**：链路加密（浏览器 WebRTC DTLS / 桌面 TLS）在 US-706 范围；落盘加密已有 [US-803](../stories/future/US-803-local-encryption.md)。
 - **不把传输进度同步上行**：进度只进本地内存事件，不进同步实体（写放大与冲突噪音换不来读者价值）。
 
 ## 价值待证
 
-当前驱动力是「假设某公司团队共用本系统共享大文件」的场景推演，尚无具名使用方踩到的具体症状（判据见 [CONVENTIONS](../CONVENTIONS.md#价值待证)）。本 Epic 与四条故事留在 Backlog。**解锁条件**（出现其一即提请 owner）：① 具名团队 / 应用出现「大文件经服务器同步慢、占带宽」的具体症状；② 仓库自举——某个 demo 或工具（如 DevTools 会话回放归档）成为真实使用方。
+**解锁记录（2026-11-03，owner 决定）**：US-704～US-707 四条全部解锁。驱动力仍是「假设某公司团队共用本系统共享大文件」的场景推演，
+尚无具名使用方踩到的具体症状；[CONVENTIONS「病灶数 ≥ 抽象数」](../CONVENTIONS.md#价值待证) 按 owner 决定豁免。
+原定的两条解锁信号（具名团队出现「大文件经服务器同步慢、占带宽」的症状；某个 demo 或工具成为真实使用方）
+仍是检验投入价值的依据，出现时补进本节。
+
+先行交付的是框架无关的协议层 `@aiao/rxdb-plugin-p2p`：持有声明与撤回、分块校验、续传与多源、
+WebRTC / TLS TCP 帧传输与服务器回退。它的内存协议测试只证明协议实现，不充当任何 AC 的验收证据；
+四条故事仍按各自 AC 在真实宿主上验收，认证宿主、信令与 mDNS 宿主接入、跨运行时 e2e 都是关闭条件。
+`priority` 不变，`targetDate` 保持 `TBD`，执行次序以 [roadmap 批次 7](../roadmap.md#批次-7局域网-p2p-大文件共享p2p-epic-已解锁) 为准。
+
+**US-708（2026-11-03，owner 决定）**：会话层在 PR #172 内完成。它修的是协议层自身的四处缺陷——一条连接只服务一个文件、
+握手按内容授权、帧格式没有版本协商、没有取消与心跳（见故事的「解决的问题」），病灶数不少于新增的一个抽象（会话）；
+它同时是 [epic-012](epic-012-p2p-lan-collaboration.md) 各能力的共同前置。
+
+**US-713（2026-11-05，owner 决定）**：给独立 demo 补管理后台。病灶：账号与服务只能走 Supabase / Cloudflare 控制台——
+删账号会在清单里留下孤儿持有声明、服务器副本没有删除入口、信令上谁在线与踢下线没有入口，病灶数不少于新增的一个抽象（管理员身份）。
+范围经 owner 选定为「总览 + 常用处置」，管理员身份用 Worker secret 白名单认定。

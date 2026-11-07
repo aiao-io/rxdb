@@ -64,5 +64,38 @@
       "writes": 1,
       "migration": "none"
     }
+  },
+  {
+    "appId": "sample-angular",
+    "version": "1.0.0",
+    "changes": ["同任务便签：中文编辑、保存、下载和独立路由。"],
+    "required": ["files"],
+    "data": {
+      "reads": [1],
+      "writes": 1,
+      "migration": "none"
+    }
+  },
+  {
+    "appId": "sample-react",
+    "version": "1.0.0",
+    "changes": ["同任务便签：中文编辑、保存、下载和独立路由。"],
+    "required": ["files"],
+    "data": {
+      "reads": [1],
+      "writes": 1,
+      "migration": "none"
+    }
+  },
+  {
+    "appId": "sample-vue",
+    "version": "1.0.0",
+    "changes": ["同任务便签：中文编辑、保存、下载和独立路由。"],
+    "required": ["files"],
+    "data": {
+      "reads": [1],
+      "writes": 1,
+      "migration": "none"
+    }
   }
 ]

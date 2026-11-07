@@ -1,5 +1,5 @@
+import { readStoredDesktop, writeStoredDesktop } from './database-storage.js';
 import { DesktopError, requireCondition } from './errors.js';
-import { migrateState } from './layout.js';
 import { validateState } from './session.js';
 import { createState } from './state.js';
 import type { DesktopState, Mode } from './types.js';
@@ -45,23 +45,29 @@ export async function openDatabase(owns: () => boolean, mode: Mode, name = 'orbi
       const request = store.get('desktop');
       let value: T;
       let failure: unknown;
-      request.onsuccess = () => {
+      const failed = (error: unknown) => {
+        failure = error;
+        tx.abort();
+      };
+      const loaded = (state: DesktopState, previous: Map<string, string> | null) => {
         try {
-          const state = request.result === undefined ? createState(mode) : migrateState(request.result);
           if (write) requireCondition(owns(), 'OWNERSHIP', '写入权已移交，事务取消');
           value = operation(state);
-          if (write) {
-            validateState(state);
-            requireCondition(owns(), 'OWNERSHIP', '提交前已失去桌面写入权');
-            store.put(state, 'desktop').onsuccess = () => {
-              if (owns()) return;
-              failure = new DesktopError('OWNERSHIP', '提交前已失去桌面写入权');
-              tx.abort();
-            };
-          }
+          if (!write) return;
+          validateState(state);
+          requireCondition(owns(), 'OWNERSHIP', '提交前已失去桌面写入权');
+          writeStoredDesktop(store, state, previous).onsuccess = () => {
+            if (!owns()) failed(new DesktopError('OWNERSHIP', '提交前已失去桌面写入权'));
+          };
         } catch (error) {
-          failure = error;
-          tx.abort();
+          failed(error);
+        }
+      };
+      request.onsuccess = () => {
+        try {
+          readStoredDesktop(store, request.result, mode, loaded, failed);
+        } catch (error) {
+          failed(error);
         }
       };
       tx.oncomplete = () => resolve(value);
@@ -107,18 +113,23 @@ export async function resetStoredState(owns: () => boolean, mode: Mode, name = '
       requireCondition(owns(), 'OWNERSHIP', '恢复期间桌面控制权已改变');
       const tx = connection.transaction('state', 'readwrite');
       let failure: unknown;
-      const request = tx.objectStore('state').put(createState(mode), 'desktop');
-      request.onsuccess = () => {
-        if (owns()) return;
-        failure = new DesktopError('OWNERSHIP', '提交恢复前桌面控制权已失效，原数据保持不变');
-        tx.abort();
-      };
       tx.oncomplete = () => resolve();
       tx.onabort = () =>
         reject(storageError(failure ?? tx.error ?? new DesktopError('STORAGE', '恢复未提交，原数据保持不变')));
       tx.onerror = () => {
         failure ??= tx.error;
       };
+      try {
+        const request = writeStoredDesktop(tx.objectStore('state'), createState(mode), null);
+        request.onsuccess = () => {
+          if (owns()) return;
+          failure = new DesktopError('OWNERSHIP', '提交恢复前桌面控制权已失效，原数据保持不变');
+          tx.abort();
+        };
+      } catch (error) {
+        failure = error;
+        tx.abort();
+      }
     });
   } finally {
     connection.close();

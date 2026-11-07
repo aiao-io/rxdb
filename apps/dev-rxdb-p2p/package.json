@@ -1,0 +1,13 @@
+{
+  "name": "@aiao/dev-rxdb-p2p",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "//": "Cloudflare Worker（信令 Durable Object、R2 服务器回退、静态资源）用 wrangler 本地开发与部署；Angular 前端经 tsconfig paths 消费工作区包。",
+  "nx": {
+    "name": "dev-rxdb-p2p"
+  },
+  "devDependencies": {
+    "wrangler": "^4.156.2"
+  }
+}

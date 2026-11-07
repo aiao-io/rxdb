@@ -1,0 +1,45 @@
+{
+  "name": "@aiao/rxdb-admin-angular",
+  "version": "0.0.28",
+  "description": "Angular bindings for the Aiao RxDB admin shell: layout, preferences drawer, tab bar, command palette and lock screen.",
+  "homepage": "https://rxdb.aiao.io/docs",
+  "bugs": {
+    "url": "https://github.com/aiao-io/rxdb/issues"
+  },
+  "keywords": [
+    "aiao",
+    "rxdb",
+    "angular",
+    "admin",
+    "preferences",
+    "layout",
+    "command-palette"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aiao-io/rxdb.git",
+    "directory": "packages/rxdb-admin-angular"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./tailwind.css": "./tailwind.css"
+  },
+  "peerDependencies": {
+    "@aiao/rxdb-admin": "workspace:^",
+    "@angular/common": "22.2.3",
+    "@angular/core": "22.2.3",
+    "@angular/platform-browser": "22.2.3",
+    "@lucide/angular": "1.61.0",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@aiao/rxdb-admin": "workspace:*",
+    "@angular/compiler": "22.2.4",
+    "vitest": "4.1.11"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -700,6 +700,8 @@ raw 写路径，先补一条能证明身份的传递通道，判据见 `git show
 - 每项 control CRUD 使用相同实体数量和事务边界；相对门禁比较“被测操作 p95 / 同次 control CRUD p95”。
   首个绿色实现先归档 reference commit 的 10 次独立运行并冻结各项 median ratio，候选版本不得超过该 ratio × 该项容差（读项 status / diff 130%，写项 restore / commit 110%）；
   reference JSON 与阈值必须先于发布候选签入，不能在失败后重算基线
+- 普通 PR CI 通过 `benchmarks:bench-working-tree-ci` 固定运行三个独立进程，每轮保留相同 fixture、5 次预热与 50 次采样；
+  各项 ratio 取三轮中位数后应用原有容差，并归档三轮原始报告。fixture、runner 画像、采样口径或 reference 不一致时失败，不能混合总体
 - 浏览器 OPFS / IDB 不承诺相同绝对数字，但三端 E2E 必须记录首次可见状态耗时，防止核心 promise 很快而 UI 长时间无反馈
 
 具体归属：status / diff / commit 的预算在 US-306 阶段 C，restore 的预算在 US-307。

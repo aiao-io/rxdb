@@ -130,7 +130,7 @@ export const WEIGHTS = {
   'rxdb-plugin-search-vue': 4,
   'rxdb-plugin-tree': 4,
   'code-editor-react': 3,
-  'dev-rxdb-admin': 3,
+  'rxdb-admin-template-react': 3,
   'recipes-domain': 3,
   'rxdb-adapter-tauri': 3,
   'rxdb-plugin-tree-react': 3,

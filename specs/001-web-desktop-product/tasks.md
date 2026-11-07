@@ -11,7 +11,7 @@
 ## Phase 2: Foundational
 
 - [x] T004 先写持久化、文件冲突、状态机与拒绝授权红测试：apps/web-desktop/src/core/{files,permissions,session}.spec.ts 和 src/host/windows.spec.ts
-- [x] T005 实现版本化原子 IndexedDB 存储（v1/v2/v3→v4 迁移）、所有权前置检查、显式存储错误：apps/web-desktop/src/core/database.ts
+- [x] T005 实现版本化原子 IndexedDB 存储（v1/v2/v3/v4→v5 迁移，数据库版本 1、物理 storageVersion=1 的逐文件字节存储及旧单条布局原子拆分）、所有权前置及提交检查、显式存储错误：apps/web-desktop/src/core/{database,database-storage}.ts；独立存储校验见 storage.browser.spec.ts
 - [x] T006 实现文件 name 非空/无路径分隔符、revision 正整数、同目录唯一且无环、bytes 与元数据原子提交：apps/web-desktop/src/core/files.ts
 - [x] T007 实现稳定类型与身份边界：apps/web-desktop/src/core/types.ts、src/host/bridge.ts
 
@@ -19,9 +19,9 @@
 
 独立验证：两种模式从新建到保存关闭重开，文件字节一致。
 
-- [ ] T008 [US1] DESKTOP-US-601 先以数字 AC 编写 虚拟文件系统与文件管理器 的成功/失败/取消用例：apps/web-desktop/src/core/files.spec.ts；浏览器交互纳入 apps/web-desktop/e2e/desktop.spec.ts
-- [ ] T009 [US1] DESKTOP-US-601 实现 虚拟文件系统与文件管理器，保持对应故事全部 AC 约束：apps/web-desktop/src/core/files.ts；涉及 UI 使用同目录 .tsx；证据关联 apps/web-desktop/requirements/verification-report.md
-- [ ] T010 [US1] DESKTOP-US-602 先以数字 AC 编写 内置文本编辑器与保存闭环 的成功/失败/取消用例：apps/web-desktop/src/apps/editor.spec.ts；浏览器交互纳入 apps/web-desktop/e2e/desktop.spec.ts
+- [ ] T008 [US1] DESKTOP-US-601 逐 AC 编写文件管理成功/失败/取消用例：apps/web-desktop/src/core/files.spec.ts、src/host/bridge.spec.ts；浏览器为 e2e/{desktop,editor,file-manager}.spec.ts，两模式覆盖空态、键盘选择/目录搜索、重名拒绝与明确改名、非法名称/目录环、新建/移动 QUOTA 与 abort 回滚、导入期间搜索变更的晚到刷新；文件/目录作用域和提交前撤权见服务边界测试；完整支持环境待验收
+- [ ] T009 [US1] DESKTOP-US-601 实现虚拟文件系统与文件管理器，保持对应故事全部 AC：apps/web-desktop/src/core/files.ts、src/host/{bridge,permission-labels}.ts、src/apps/files-view.tsx；文件授权显示真实虚拟路径并保持不透明 ID 判权；列表刷新读取当前导航位置，避免导入完成覆盖新搜索；完整支持环境待验收，证据见 requirements/verification-report.md
+- [ ] T010 [US1] DESKTOP-US-602 逐 AC 编写编辑与保存的成功/失败/取消用例：apps/web-desktop/src/apps/editor.spec.ts；浏览器交互为 e2e/{desktop,editor}.spec.ts，两模式补齐独立历史、另存为原稿保留、QUOTA 草稿保护与重试、重命名/跨目录移动取消和稳定文件 ID 恢复；完整支持环境待验收
 - [ ] T011 [US1] DESKTOP-US-602 实现 内置文本编辑器与保存闭环，保持对应故事全部 AC 约束：apps/web-desktop/src/apps/editor.ts；涉及 UI 使用同目录 .tsx；证据关联 apps/web-desktop/requirements/verification-report.md
 - [ ] T012 [US1] DESKTOP-US-701 先以数字 AC 编写 支持环境与无障碍验收 的成功/失败/取消用例：apps/web-desktop/src/host/accessibility.spec.ts；浏览器交互纳入 apps/web-desktop/e2e/desktop.spec.ts
 - [ ] T013 [US1] DESKTOP-US-701 实现 支持环境与无障碍验收，保持对应故事全部 AC 约束：apps/web-desktop/src/host/accessibility.ts；涉及 UI 使用同目录 .tsx；证据关联 apps/web-desktop/requirements/verification-report.md
@@ -31,8 +31,8 @@
 - [ ] T017 [US1] DESKTOP-US-703 实现 静态部署、版本信息与诊断，保持对应故事全部 AC 约束：apps/web-desktop/src/host/diagnostics.ts；涉及 UI 使用同目录 .tsx；证据关联 apps/web-desktop/requirements/verification-report.md
 - [ ] T018 [US1] DESKTOP-US-001 先以数字 AC 编写 首次进入与交互模式选择 的成功/失败/取消用例：apps/web-desktop/src/host/first-run.spec.ts；浏览器交互纳入 apps/web-desktop/e2e/desktop.spec.ts
 - [ ] T019 [US1] DESKTOP-US-001 实现 首次进入与交互模式选择，保持对应故事全部 AC 约束：apps/web-desktop/src/host/first-run.ts；涉及 UI 使用同目录 .tsx；证据关联 apps/web-desktop/requirements/verification-report.md
-- [ ] T020 [US1] DESKTOP-US-501 先以数字 AC 编写会话恢复的成功/失败/取消用例：apps/web-desktop/src/core/{session,layout,database.browser}.spec.ts、src/host/{windows,runtime.browser}.spec.ts；浏览器为 e2e/{desktop,navigation,session,recovery}.spec.ts；已卸载应用快照的逐项恢复入口、完整支持环境与其余失败分支待验收
-- [ ] T021 [US1] DESKTOP-US-501 实现会话 v4、当前位置、完整窗口还原链、失败项重试、恢复边界提示和受损数据显式重置：apps/web-desktop/src/core/{session,layout}.ts、src/host/{runtime,windows,updates}.ts、src/apps/{session,navigation,files-view,settings-view,editor-view}.ts(x)；仍须满足原故事全部 AC；证据见 requirements/verification-report.md
+- [ ] T020 [US1] DESKTOP-US-501 先以数字 AC 编写会话恢复的成功/失败/取消用例：apps/web-desktop/src/core/{session,layout,database.browser}.spec.ts、src/host/{windows,runtime.browser,recovery.browser}.spec.ts；浏览器为 e2e/{desktop,navigation,session,recovery}.spec.ts；已验证未安装快照的逐项重试/移除、安装后恢复及工作区迁移；完整支持环境与其余失败分支待验收
+- [ ] T021 [US1] DESKTOP-US-501 实现会话 v5、稳定窗口身份、未安装恢复待办、当前位置、完整窗口还原链、失败项重试、恢复边界提示和受损数据显式重置：apps/web-desktop/src/core/{session,layout}.ts、src/host/{runtime,windows,updates,recovery,recovery-view}.ts(x)、src/apps/{session,navigation,files-view,settings-view,editor-view}.ts(x)；仍须满足原故事全部 AC；证据见 requirements/verification-report.md
 
 ## Phase 4: US2 多任务与双模式
 
@@ -73,8 +73,8 @@
 - [ ] T049 [US3] DESKTOP-US-203 实现 启动与单实例、多实例策略，保持对应故事全部 AC 约束：apps/web-desktop/src/host/runtime.ts；涉及 UI 使用同目录 .tsx；证据关联 apps/web-desktop/requirements/verification-report.md
 - [ ] T050 [US3] DESKTOP-US-206 先以数字 AC 编写 应用启动器、搜索与固定 的成功/失败/取消用例：apps/web-desktop/src/host/launcher.spec.ts；浏览器交互纳入 apps/web-desktop/e2e/desktop.spec.ts
 - [ ] T051 [US3] DESKTOP-US-206 实现 应用启动器、搜索与固定，保持对应故事全部 AC 约束：apps/web-desktop/src/host/launcher.ts；涉及 UI 使用同目录 .tsx；证据关联 apps/web-desktop/requirements/verification-report.md
-- [ ] T052 [US3] DESKTOP-US-401 先以数字 AC 编写 桌面能力授权与撤销 的成功/失败/取消用例：apps/web-desktop/src/core/permissions.spec.ts；浏览器交互纳入 apps/web-desktop/e2e/desktop.spec.ts
-- [ ] T053 [US3] DESKTOP-US-401 实现 桌面能力授权与撤销，保持对应故事全部 AC 约束：apps/web-desktop/src/core/permissions.ts；涉及 UI 使用同目录 .tsx；证据关联 apps/web-desktop/requirements/verification-report.md
+- [ ] T052 [US3] DESKTOP-US-401 逐 AC 编写桌面授权/撤销用例：apps/web-desktop/src/core/permissions.spec.ts、src/host/{bridge,permission-labels}.spec.ts；浏览器为 e2e/{desktop,file-manager,permissions,trash,updates}.spec.ts，文件范围可读、单窗口授权不跨文件/实例、按文件撤权及拒绝保存草稿保护、退出后本次授权失效与持久授权跨刷新已有本机证据；其余能力/撤权时序和完整支持环境待验收
+- [ ] T053 [US3] DESKTOP-US-401 实现桌面能力授权与撤销，保持对应故事全部 AC：apps/web-desktop/src/core/permissions.ts、src/host/{runtime,bridge,permission-labels}.ts、src/apps/settings-view.tsx；提示及设置显示中文能力与真实文件范围，说明授权有效期；回收和永久删除范围保留可识别的撤销入口，显示字段不写回原授权身份；其余 AC 及支持环境待验收，证据见 requirements/verification-report.md
 - [ ] T054 [US3] DESKTOP-US-402 先以数字 AC 编写 应用与桌面交互协议 的成功/失败/取消用例：apps/web-desktop/src/host/bridge.spec.ts；浏览器交互纳入 apps/web-desktop/e2e/desktop.spec.ts
 - [ ] T055 [US3] DESKTOP-US-402 实现 应用与桌面交互协议，保持对应故事全部 AC 约束：apps/web-desktop/src/host/bridge.ts；涉及 UI 使用同目录 .tsx；证据关联 apps/web-desktop/requirements/verification-report.md
 - [ ] T056 [US3] DESKTOP-US-403 先以数字 AC 编写 按作用域通信与跨应用协作 的成功/失败/取消用例：apps/web-desktop/src/host/messaging.spec.ts；浏览器交互纳入 apps/web-desktop/e2e/desktop.spec.ts
@@ -100,8 +100,8 @@
 - [ ] T071 [US5] DESKTOP-US-306 实现 应用故障呈现与恢复，保持对应故事全部 AC 约束：apps/web-desktop/src/host/runtime.ts；涉及 UI 使用同目录 .tsx；证据关联 apps/web-desktop/requirements/verification-report.md
 - [ ] T072 [US5] DESKTOP-US-307 逐 AC 编写预取、调度、挂起与清理的成功/失败/取消用例：apps/web-desktop/src/core/{resource-scheduler,resource-references}.spec.ts、release-cache.browser.spec.ts；src/host/{prefetch,suspension,application-resources,service-worker}.spec.ts；src/apps/session.spec.ts；浏览器旅程为 apps/web-desktop/e2e/background.spec.ts；完整支持环境待验收
 - [ ] T073 [US5] DESKTOP-US-307 实现预取、协作挂起和按版本引用清理：apps/web-desktop/src/core/{resource-scheduler,resource-references,release-cache}.ts；src/host/{prefetch,suspension,application-resources,runtime,updates,bridge}.ts；src/apps/session.ts 和内置应用视图；tools/service-worker.js；UI 位于 src/host/shell.tsx；完整 AC 证据见 apps/web-desktop/requirements/verification-report.md
-- [ ] T074 [US5] DESKTOP-US-308 先以数字 AC 编写 三框架接入与既有演示迁移 的成功/失败/取消用例：apps/web-desktop/src/host/runtime.spec.ts；浏览器交互纳入 apps/web-desktop/e2e/desktop.spec.ts
-- [ ] T075 [US5] DESKTOP-US-308 实现 三框架接入与既有演示迁移，保持对应故事全部 AC 约束：apps/web-desktop/src/host/runtime.ts；涉及 UI 使用同目录 .tsx；证据关联 apps/web-desktop/requirements/verification-report.md
+- [ ] T074 [US5] DESKTOP-US-308 逐 AC 编写三框架接入与既有消费迁移用例：src/samples/document.spec.ts 验证共用文档、授权失败、导航、关闭与晚到保存；e2e/frameworks.spec.ts 验证真实三端安装、六实例隔离、双模式切换及独立下载；既有文档站主题/路由和完整支持环境继续待验收
+- [ ] T075 [US5] DESKTOP-US-308 实现同任务三端样例与既有消费迁移：apps/web-desktop/src/samples/{document,main,angular,vue}.ts、react.tsx、style.css，sample-{angular,react,vue}.html；目录和版本资源纳入既有 catalog/release 流程，公共文档模型与 AppSession 共用；其余 AC、既有文档站和实机矩阵待验收，证据见 requirements/verification-report.md
 
 ## Phase 7: US4 离线、版本与数据带出
 
@@ -111,16 +111,16 @@
 - [x] T077 [US4] DESKTOP-US-204 实现 应用更新与版本回退，保持对应故事全部 AC 约束：apps/web-desktop/src/core/releases.ts、apps/web-desktop/src/core/release-cache.ts、apps/web-desktop/src/host/updates.ts；UI 位于 apps/web-desktop/src/apps/catalog-view.tsx；证据关联 apps/web-desktop/requirements/verification-report.md
 - [ ] T078 [US4] DESKTOP-US-205 先以数字 AC 编写 卸载与应用数据管理 的成功/失败/取消用例：apps/web-desktop/src/core/catalog.spec.ts；浏览器交互纳入 apps/web-desktop/e2e/desktop.spec.ts
 - [ ] T079 [US4] DESKTOP-US-205 实现 卸载与应用数据管理，保持对应故事全部 AC 约束：apps/web-desktop/src/core/catalog.ts；涉及 UI 使用同目录 .tsx；证据关联 apps/web-desktop/requirements/verification-report.md
-- [ ] T080 [US4] DESKTOP-US-603 先以数字 AC 编写 本机文件导入与下载导出 的成功/失败/取消用例：apps/web-desktop/src/core/files.spec.ts；浏览器交互纳入 apps/web-desktop/e2e/desktop.spec.ts
-- [ ] T081 [US4] DESKTOP-US-603 实现 本机文件导入与下载导出，保持对应故事全部 AC 约束：apps/web-desktop/src/core/files.ts；涉及 UI 使用同目录 .tsx；证据关联 apps/web-desktop/requirements/verification-report.md
-- [ ] T082 [US4] DESKTOP-US-604 先以数字 AC 编写 回收站、恢复与永久删除 的成功/失败/取消用例：apps/web-desktop/src/core/files.spec.ts；浏览器交互纳入 apps/web-desktop/e2e/desktop.spec.ts
-- [ ] T083 [US4] DESKTOP-US-604 实现 回收站、恢复与永久删除，保持对应故事全部 AC 约束：apps/web-desktop/src/core/files.ts；涉及 UI 使用同目录 .tsx；证据关联 apps/web-desktop/requirements/verification-report.md
+- [ ] T080 [US4] DESKTOP-US-603 逐 AC 编写导入与下载的成功/失败/取消用例：apps/web-desktop/src/core/{files.spec,storage.browser.spec}.ts；浏览器交互为 e2e/{desktop,import-export,import-limits}.spec.ts，覆盖两模式拖入/下载、主动内容不执行、读取故障、整批取消/QUOTA/abort、真实 50/200 MiB 与 100 文件边界；完整支持环境待验收
+- [ ] T081 [US4] DESKTOP-US-603 实现整批导入及真实下载，保持对应故事全部 AC：apps/web-desktop/src/core/{files,database,database-storage}.ts、src/apps/{files-view,session}.ts(x)；逐文件存储保证真实 200 MiB 批次，字节与元数据同事务，旧布局原子迁移；完整支持环境待验收，证据见 requirements/verification-report.md
+- [ ] T082 [US4] DESKTOP-US-604 先以数字 AC 编写 回收站、恢复与永久删除 的成功/失败/取消用例：apps/web-desktop/src/core/files.spec.ts；浏览器交互纳入 apps/web-desktop/e2e/trash.spec.ts；两模式恢复、草稿保护、确认/取消、撤权及 QUOTA 重试已验证，完整支持环境与其余边界待验收
+- [ ] T083 [US4] DESKTOP-US-604 实现 回收站、恢复与永久删除，保持对应故事全部 AC 约束：apps/web-desktop/src/core/files.ts、src/host/bridge.ts、src/apps/{files-view,editor-view}.tsx；证据关联 apps/web-desktop/requirements/verification-report.md
 - [ ] T084 [US4] DESKTOP-US-405 先以数字 AC 编写 通知与剪贴板能力 的成功/失败/取消用例：apps/web-desktop/src/host/notifications.spec.ts；浏览器交互纳入 apps/web-desktop/e2e/desktop.spec.ts
 - [ ] T085 [US4] DESKTOP-US-405 实现 通知与剪贴板能力，保持对应故事全部 AC 约束：apps/web-desktop/src/host/notifications.ts；涉及 UI 使用同目录 .tsx；证据关联 apps/web-desktop/requirements/verification-report.md
 - [ ] T086 [US4] DESKTOP-US-502 先以数字 AC 编写 离线启动与资源完整性 的成功/失败/取消用例：apps/web-desktop/src/core/release-cache.browser.spec.ts、apps/web-desktop/src/host/offline.spec.ts、application-resources.spec.ts、service-worker.spec.ts；浏览器交互纳入 apps/web-desktop/e2e/desktop.spec.ts、offline-upgrade.spec.ts
 - [ ] T087 [US4] DESKTOP-US-502 实现 离线启动与资源完整性，保持对应故事全部 AC 约束：apps/web-desktop/src/core/release-cache.ts、apps/web-desktop/src/host/application-resources.ts、offline.ts、runtime.ts、tools/service-worker.js；UI 位于 src/host/shell.tsx；证据关联 apps/web-desktop/requirements/verification-report.md
-- [ ] T088 [US4] DESKTOP-US-503 先以数字 AC 编写 桌面备份、恢复与重置 的成功/失败/取消用例：apps/web-desktop/src/core/backup.spec.ts；浏览器交互纳入 apps/web-desktop/e2e/desktop.spec.ts
-- [ ] T089 [US4] DESKTOP-US-503 实现 桌面备份、恢复与重置，保持对应故事全部 AC 约束：apps/web-desktop/src/core/backup.ts；涉及 UI 使用同目录 .tsx；证据关联 apps/web-desktop/requirements/verification-report.md
+- [ ] T088 [US4] DESKTOP-US-503 先以数字 AC 编写 桌面备份、恢复与重置 的成功/失败/取消用例：apps/web-desktop/src/core/backup.spec.ts；浏览器交互纳入 apps/web-desktop/e2e/{desktop,backup}.spec.ts；已有下载/恢复/取消/损坏/额度失败旅程，全量重置两阶段取消及重新入门旅程已验证；替换/清除 QUOTA 与 put 后事务 abort 回滚已验证；实机进程中断与完整支持环境待验收
+- [ ] T089 [US4] DESKTOP-US-503 实现 桌面备份、恢复与重置，保持对应故事全部 AC 约束：apps/web-desktop/src/core/backup.ts、src/host/{runtime,bridge}.ts、src/apps/settings-view.tsx；原子替换后重启会话，失败保留旧快照；证据关联 apps/web-desktop/requirements/verification-report.md
 - [ ] T090 [US4] DESKTOP-US-504 先以数字 AC 编写 多标签页访问与写入协调 的成功/失败/取消用例：apps/web-desktop/src/host/ownership.spec.ts；浏览器交互纳入 apps/web-desktop/e2e/desktop.spec.ts
 - [ ] T091 [US4] DESKTOP-US-504 实现 多标签页访问与写入协调，保持对应故事全部 AC 约束：apps/web-desktop/src/host/ownership.ts；涉及 UI 使用同目录 .tsx；证据关联 apps/web-desktop/requirements/verification-report.md
 

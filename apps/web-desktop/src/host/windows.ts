@@ -38,12 +38,22 @@ function topZ(model: WindowModel): number {
   return Math.max(0, ...model.windows.map(win => win.z)) + 1;
 }
 
-export function openWindow(model: WindowModel, instanceId: string, appId: string, area: WorkArea): WindowRecord {
-  requireCondition(!model.windows.some(win => win.instanceId === instanceId), 'EXISTS', '实例已有窗口');
+export function openWindow(
+  model: WindowModel,
+  instanceId: string,
+  appId: string,
+  area: WorkArea,
+  id: string = crypto.randomUUID()
+): WindowRecord {
+  requireCondition(
+    !model.windows.some(win => win.instanceId === instanceId || win.id === id),
+    'EXISTS',
+    '实例或窗口身份已存在'
+  );
   const offset = (model.windows.length % 6) * 28;
   const bounds = constrainBounds({ x: 90 + offset, y: 48 + offset, width: 800, height: 520 }, area);
   const win: WindowRecord = {
-    id: crypto.randomUUID(),
+    id,
     instanceId,
     appId,
     workspaceId: model.workspaceId,
@@ -128,6 +138,7 @@ function windowBounds(win: WindowRecord, area: WorkArea): Bounds {
 
 export function saveWindow(win: WindowRecord, fileId: string | null, route: string): SavedWindow {
   return {
+    id: win.id,
     appId: win.appId,
     fileId,
     route,

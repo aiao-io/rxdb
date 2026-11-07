@@ -95,6 +95,7 @@ export interface WindowModel {
   showingDesktop: boolean;
 }
 export interface SavedWindow {
+  id: string;
   appId: string;
   fileId: string | null;
   route: string;
@@ -105,7 +106,7 @@ export interface SavedWindow {
   beforeMinimized: WindowRecord['beforeMinimized'];
 }
 export interface DesktopState {
-  schemaVersion: 4;
+  schemaVersion: 5;
   navigation: { workspaceId: string; activeWindows: Record<string, number | null> };
   profile: Profile;
   workspaces: { id: string; name: string }[];
