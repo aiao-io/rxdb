@@ -47,6 +47,7 @@ import { AiDrawerService } from './ai-drawer.service';
             <lucide-icon [img]="MessageSquare" size="16"></lucide-icon>
             <span class="text-sm font-medium">{{ translations.aiDrawer_title() }}</span>
           </div>
+          <a class="btn btn-ghost btn-xs mr-2 ml-auto" href="/login.html">账号</a>
           <button class="btn btn-ghost btn-xs btn-circle" (click)="drawer.close()">
             <lucide-icon [img]="X" size="14"></lucide-icon>
           </button>

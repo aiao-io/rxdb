@@ -134,7 +134,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/aiao-model-design",
-        "command": "wrangler dev --port 8788 --show-interactive-dev-session=false"
+        "command": "node scripts/serve-api.mjs"
       },
       "dependsOn": ["build"]
     },

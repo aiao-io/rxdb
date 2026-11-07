@@ -107,6 +107,7 @@
     "codemirror": "^6.0.2",
     "comlink": "^4.4.2",
     "daisyui": "^5.7.50",
+    "eventsource-parser": "3.1.1",
     "fastest-levenshtein": "^1.0.16",
     "fflate": "^0.8.3",
     "glob": "^13.0.7",
@@ -128,7 +129,8 @@
     "uuid": "^14.0.3",
     "vue": "^3.5.44",
     "vue-router": "^5.4.0",
-    "wa-sqlite": "https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994"
+    "wa-sqlite": "https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@aiao/rxdb": "workspace:*",

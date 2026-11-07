@@ -385,6 +385,9 @@ importers:
       daisyui:
         specifier: ^5.7.50
         version: 5.7.50
+      eventsource-parser:
+        specifier: 3.1.1
+        version: 3.1.1
       fastest-levenshtein:
         specifier: ^1.0.16
         version: 1.0.16
@@ -451,6 +454,9 @@ importers:
       wa-sqlite:
         specifier: https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994
         version: https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994
+      zod:
+        specifier: 4.6.7
+        version: 4.6.7
     devDependencies:
       '@aiao/rxdb':
         specifier: workspace:*
@@ -791,6 +797,9 @@ importers:
       ai:
         specifier: 7.0.64
         version: 7.0.64(zod@4.6.7)
+      eventsource-parser:
+        specifier: 3.1.1
+        version: 3.1.1
       zod:
         specifier: ^4.6.7
         version: 4.6.7

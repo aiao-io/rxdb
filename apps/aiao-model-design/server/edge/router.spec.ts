@@ -65,7 +65,7 @@ describe('只暴露模型 AI 和必要认证', () => {
   it('验证 cookie 后原样转交流式响应', async () => {
     const response = await run(post('/api/ai/model/generate', { prompt: '订单' }, { cookie: 'access_token=user-jwt' }));
     expect(await response.text()).toBe('model-stream');
-    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(response.headers.get('cache-control')).toBe('no-store, no-transform');
     expect(await ai.mock.calls[0][0].json()).toEqual({ prompt: '订单' });
     const headers = new Headers(upstream.mock.calls[0][1]?.headers);
     expect(headers.get('authorization')).toBe('Bearer user-jwt');

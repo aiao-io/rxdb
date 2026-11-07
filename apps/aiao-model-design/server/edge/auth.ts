@@ -118,7 +118,7 @@ async function signIn(request: Request, env: AuthEnvironment): Promise<Response>
 export function withSessionCookies(response: Response, cookies: readonly string[]): Response {
   const headers = new Headers(response.headers);
   for (const value of cookies) headers.append('set-cookie', value);
-  headers.set('cache-control', 'no-store');
+  headers.set('cache-control', 'no-store, no-transform');
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 

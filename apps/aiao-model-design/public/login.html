@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
+    <title>登录 · AIAO 模型设计器</title>
+    <link href="/login.css" rel="stylesheet" />
+    <script src="/login.js" type="module"></script>
+  </head>
+  <body>
+    <main>
+      <a class="back" href="/model-designer/canvas">← 返回模型设计器</a>
+      <h1>登录，开始 AI 建模</h1>
+      <p>使用已有账号登录。模型编辑和本地保存无需登录。</p>
+      <form id="signin">
+        <label for="email">邮箱</label>
+        <input id="email" autocomplete="username" name="email" required type="email" />
+        <label for="password">密码</label>
+        <input id="password" autocomplete="current-password" name="password" required type="password" />
+        <button type="submit">登录</button>
+      </form>
+      <section id="account" hidden>
+        <p id="identity"></p>
+        <a href="/model-designer/canvas">继续设计模型</a>
+        <button id="signout" type="button">退出登录</button>
+      </section>
+      <p id="status" aria-live="polite" role="status"></p>
+    </main>
+  </body>
+</html>

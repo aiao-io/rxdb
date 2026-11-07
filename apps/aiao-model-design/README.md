@@ -1,50 +1,115 @@
 # aiao-model-design
 
-从 `aiao-enterprise` 直接迁入模型设计器，入口为 `/model-designer/canvas`。
+从 `aiao-enterprise` 迁入的模型设计器，入口为 `/model-designer/canvas`。本地模型、画布位置、版本和 AI 会话保存在独立的 `aiao-model-design` SQLite 数据库中。
 
-## 原代码来源
+## 服务端范围
 
-- `packages/rxdb-model-designer/src` → `src/app/model-designer`，包含原画布、属性／关系／索引编辑器、代码与 SQL 预览、模型及版本管理、AI 会话和提案流程，以及原测试。
+服务端只处理模型 AI，直接运行在 Cloudflare Workers：
+
+| 接口                          | 用途                               | 响应                               |
+| ----------------------------- | ---------------------------------- | ---------------------------------- |
+| `POST /api/ai/model/generate` | 根据业务描述和现有实体生成模型     | SSE，增量 JSON 文本                |
+| `POST /api/ai/model/chat`     | 对话式迭代模型，生成结构化变更提案 | SSE，增量对话文本                  |
+| `POST /bff/auth/signin`       | 使用已有 Supabase 账号登录         | 用户信息及 HttpOnly cookie         |
+| `GET /bff/auth/session`       | 获取用户，刷新过期会话             | 用户信息                           |
+| `POST /bff/auth/signout`      | 退出当前登录                       | 清除会话 cookie                    |
+| `GET /health`                 | Worker 健康检查                    | `{ "ok": true }`                   |
+
+两个模型接口统一返回 `Content-Type: text/event-stream`，使用 AI SDK UI Message Stream 协议。客户端通过 POST `fetch` 持续读取 `text-delta` 事件；生成接口的 `delta` 拼接后为模型 JSON，对话接口的 `delta` 拼接后为回答文本：
+
+```text
+data: {"type":"text-delta","id":"0","delta":"文本片段"}
+
+data: [DONE]
+
+```
+
+流中错误通过 `type: "error"` 事件返回，`errorText` 是包含 `type`、`message`、`status` 的错误 JSON 字符串。客户端收到错误或连接提前中断时不调用成功回调。响应带 `Cache-Control: no-store, no-transform`，逐段传递生成内容。
+
+原 API 的语音、通用聊天、OpenAI / Anthropic 兼容网关、通知、PostgreSQL、远程 SQL 执行和 npm 发布均未保留。模型校验由设计器客户端完成。
+
+模型 AI 请求必须通过 Supabase 用户验证。AI 密钥只在 Worker 中使用，JWT 保存在 HttpOnly cookie 中，响应不返回 JWT。写入接口检查同源，模型请求支持客户端取消和 120 秒超时。
+
+## 代码来源
+
+- `packages/rxdb-model-designer/src` → `src/app/model-designer`：画布、实体编辑、代码与 SQL 预览、版本管理、AI 会话和提案流程。
 - `packages/rxdb-models/entities` → `entities`，生成文件位于 `src/app/model-designer/models`。
-- `apps/dashboard/src/app/layout/ai-drawer` → `src/app/adapters` 中的 AI 抽屉组件和服务。
-- `apps/dashboard/src/app/shared/services` → `src/app/adapters` 中的 HTTP 适配器。
+- `apps/dashboard` → `src/app/adapters` 中的 AI 抽屉和 HTTP adapter。
+- `apps/api/src/routes/gateway/project-compat/prompts` → `server/prompts`：保留模型生成、模型迭代提示词及生成输出 schema。服务端入口按 Worker 环境改写为 `server/ai.ts`、`server/edge` 和 `server/index.ts`。
 
-适配范围为应用路由、DI、本地 SQLite 初始化、当前公共包 API、独立页面布局与测试模块解析。原设计器组件和交互流程保留。
+## 本地运行
 
-## 运行
+复制环境变量模板，填写同一个 Supabase 项目的 URL、publishable / anon key，以及 DeepSeek API key：
 
-在仓库根目录执行：
+```bash
+cp apps/aiao-model-design/.dev.vars.example apps/aiao-model-design/.dev.vars
+pnpm nx run aiao-model-design:serve-api
+```
+
+该任务先构建 Angular，再启动本地 Worker。访问 `http://localhost:8788` 即可使用完整应用；AI 面板中的「账号」链接打开 `/login.html`。本地编辑不需要登录。
+
+前端需要热更新时，保留 Worker 进程，在另一个终端运行：
 
 ```bash
 pnpm nx serve aiao-model-design
 ```
 
-迁移预览配置使用 4201 端口：
+开发代理默认把 `/api/**` 和 `/bff/**` 交给 `http://localhost:8788`。可以用 `MODEL_DESIGN_API_URL` 指定其他 Worker 地址。迁移预览配置仍使用 4201 端口：
 
 ```bash
 pnpm nx run aiao-model-design:serve:migration
 ```
 
-本地模型、实体位置和 AI 会话保存在独立的 `aiao-model-design` SQLite 数据库中。首次运行从原模型列表创建模型。
-
-## 原服务端接口
-
-AI 生成／验证／对话、远程 SQL 和客户端包接口继续调用原服务端。开发代理默认指向 `http://localhost:3200`，可设置 `MODEL_DESIGN_API_URL` 指向部署了这些接口的服务：
+本地 Worker 的出站请求支持 `HTTPS_PROXY`、`HTTP_PROXY` 和 `NO_PROXY`。如果 Supabase 或 AI 服务只能通过代理访问，在启动时传入代理地址（端口以本机代理设置为准）：
 
 ```bash
-MODEL_DESIGN_API_URL=http://localhost:3200 pnpm nx serve aiao-model-design
+HTTPS_PROXY=http://127.0.0.1:7897 pnpm nx run aiao-model-design:serve-api
 ```
 
-代理覆盖 `/api/**` 与 `/bff/**`，后端沿用原认证和权限。前端不保存 AI 服务商密钥；没有后端时，本地模型编辑仍可使用，服务端操作会显示接口错误。
+代理配置只用于本地开发，Cloudflare 部署继续使用原生 Worker 网络。登录返回 `Authentication service is unavailable` 表示认证服务连接失败；账号密码错误会返回 401。
 
-## 验证与模型生成
+`.dev.vars` 和 `.wrangler/` 不提交。`DEEPSEEK_BASE_URL` 是完整 API 前缀，默认 `https://api.deepseek.com/v1`；`DEEPSEEK_MODEL` 默认 `deepseek-chat`。
+
+## 部署到 Cloudflare
+
+同一个 Worker 托管 Angular 静态资源、认证和模型 AI API。无需 Container、Bun 进程、数据库或 npm CLI。
+
+先检查构建和 Worker 打包：
 
 ```bash
+pnpm nx run aiao-model-design:build-server
+```
+
+在自己的 Cloudflare 账号登录并写入三个服务端 secret：
+
+```bash
+pnpm --dir apps/aiao-model-design exec wrangler login
+pnpm --dir apps/aiao-model-design exec wrangler secret put SUPABASE_URL
+pnpm --dir apps/aiao-model-design exec wrangler secret put SUPABASE_ANON_KEY
+pnpm --dir apps/aiao-model-design exec wrangler secret put DEEPSEEK_API_KEY
+```
+
+需要自定义模型或代理地址时，再写入 `DEEPSEEK_MODEL`、`DEEPSEEK_BASE_URL`。不要把真实值写进 `wrangler.jsonc`。
+
+部署：
+
+```bash
+pnpm nx run aiao-model-design:deploy-cloudflare
+```
+
+Worker 名称为 `aiao-model-design`。首次部署后访问 `/health`、`/login.html` 和 `/model-designer/canvas` 验证。当前仓库准备了配置与部署任务，实际线上部署需在配置账号和 secrets 后执行。
+
+## 验证
+
+```bash
+pnpm nx run aiao-model-design:test-server --coverage
+pnpm nx run aiao-model-design:typecheck-server
+pnpm nx run aiao-model-design:test-worker
 pnpm nx test aiao-model-design
 pnpm nx run aiao-model-design:typecheck
 pnpm nx lint aiao-model-design --max-warnings=0
-pnpm nx build aiao-model-design
+pnpm nx run aiao-model-design:build-server
 pnpm nx run aiao-model-design:generate-models
 ```
 
-迁入的 69 个测试文件共 738 条测试通过，包含真实 SQLite 级联删除与查询生命周期集成测试。迁入基线覆盖率为语句 61.75%、行 63.64%，尚未达到仓库 80% 门槛。生产构建仍有原依赖的 CommonJS 提示和初始包大小告警；构建成功不等于这些门槛已解决。
+服务端覆盖率门槛为语句、分支、函数、行均至少 80%。原前端迁入基线覆盖率为语句 61.75%、行 63.64%，尚未达到仓库 80% 门槛。前端生产构建仍有原依赖的 CommonJS 提示和初始包大小告警。
