@@ -13,7 +13,7 @@
 | 应用产品化              | 模板扩充、项目模板市场、设置持久化、保存时自动格式化等按新故事立项                                                                                         | 交互终端由 US-408 单独承接，受控预览不扩展为完整 Node IDE                                                                                                                                                                             |
 | US-406 GitHub 集成      | 阶段 A 代码面完成：认证、虚拟仓库后端、选择器、登录对话框、欢迎视图入口、Cloudflare Pages Functions 与验收脚本均已落地；剩余真实 PAT 验收与 OAuth App 注册 | 依赖 [vscode.dev GitHub 集成研究](../../../requirements/domain-research/vscode-dev-github-integration.md)；`/redirect` 与 token 交换 / 登出在 `deploy/` 的 Pages Functions 里，secret 经 wrangler secret；不阻塞 US-404 / US-405 收尾 |
 | US-407 首次进入欢迎视图 | 空目录首启不初始化项目；资源管理器欢迎视图（打开文件夹 / 最近项目 / 初始化 Demo）红测与实现已完成，全量单测通过；待浏览器手动验收与评审                    | 依赖 US-404 内核；与 US-406 并行不冲突；打开文件夹走 File System Access API 单向导入，模板与入口推断见故事技术笔记                                                                                                                    |
-| US-409 运行时对比       | 阶段 C：复用阶段 B 的宿主协议与 `runtime-hosts` 构建接 Nodepod（MIT + Commons Clause，仅内部评估），跑四个模板与终端断言；随后 D～E                        | 分层接入：vivari、Nodepod 完整适配，almostnode、burrow 只冒烟；非 WebContainer 运行时一律放独立源宿主 iframe，不注册在工作台源上；只出数据与推荐，改默认运行时另立项                                                                  |
+| US-409 运行时对比       | 阶段 D：almostnode、burrow 最薄适配，按各自声称的能力跑冒烟，失败记入兼容性矩阵；随后阶段 E 全矩阵同时段交替复测并出推荐                                   | 分层接入：vivari、Nodepod 完整适配，almostnode、burrow 只冒烟；非 WebContainer 运行时一律放独立源宿主 iframe，不注册在工作台源上；只出数据与推荐，改默认运行时另立项                                                                  |
 
 ## 边界备忘
 

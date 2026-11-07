@@ -2,9 +2,9 @@
   "browser": "156.0.8078.80",
   "cancelledRequests": [
     "https://t.staticblitz.com/w/v18/r/l: net::ERR_ABORTED",
-    "https://5j4uh3ndhx617xjp2e8kc5mymzsl2z-4mye--5173--c538bd87.local-corp.webcontainer-api.io/: net::ERR_ABORTED",
-    "https://5j4uh3ndhx617xjp2e8kc5mymzsl2z-4mye-19j593ti--5173--c538bd87.local-corp.webcontainer-api.io/: net::ERR_ABORTED",
-    "https://5j4uh3ndhx617xjp2e8kc5mymzsl2z-4mye-19j593ti--4200--c538bd87.local-corp.webcontainer-api.io/: net::ERR_ABORTED"
+    "https://d2wwpcs4yuv7z0czsjz3aiwkp3brcm-fsfj--5173--c538bd87.local-corp.webcontainer-api.io/: net::ERR_ABORTED",
+    "https://d2wwpcs4yuv7z0czsjz3aiwkp3brcm-fsfj-hdh80o4x--5173--c538bd87.local-corp.webcontainer-api.io/: net::ERR_ABORTED",
+    "https://d2wwpcs4yuv7z0czsjz3aiwkp3brcm-fsfj-hdh80o4x--4200--c538bd87.local-corp.webcontainer-api.io/: net::ERR_ABORTED"
   ],
   "checks": [
     "node-shell-and-package-managers",

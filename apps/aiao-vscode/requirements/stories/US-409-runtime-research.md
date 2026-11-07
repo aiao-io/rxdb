@@ -4,16 +4,16 @@
 
 ## 对比
 
-| 方式                         | 原理                                                                        | 装依赖                                                             | 终端与进程                                | 服务预览与热更新                                     | Angular                        | 许可与维护                                                          |
-| ---------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------- | ---------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------- |
-| esbuild-wasm（本地项目预览） | 浏览器内只编译项目源码，框架运行时构建时预打包                              | 不装，只用模板锁定的依赖                                           | 无                                        | 沙箱 iframe，保存即重编译                            | 浏览器 JIT                     | MIT；本仓库维护                                                     |
-| WebContainer（当前「运行」） | 闭源运行时，StackBlitz 托管                                                 | 真 npm 10 / pnpm 8.15.6                                            | `jsh` + pty（尺寸、resize、OSC 状态标记） | 独立域名预览 + WebSocket                             | ng serve 实测通过              | 客户端包 MIT；商业生产使用需授权；依赖 StackBlitz 服务              |
-| vivari                       | 浏览器引擎运行逐字 vendored 的 Node v24 `lib/`，Worker 内核 + Wasm 文件系统 | 真 npm 10.9 / yarn 1.22 / pnpm 9.15，读锁文件，OPFS 缓存           | 子进程 + 极简 `sh`；无 pty，固定 80×24    | Service Worker；WebSocket 经注入隧道；默认与宿主同源 | 22 + pnpm 实测装不上，npm 可行 | MIT（含 Artistic-2.0、MPL-2.0 组件）；2026-07 起，单人，无浏览器 CI |
-| Nodepod                      | JS 重写 Node API，每个进程一个 Worker                                       | 自研 npm / pnpm / yarn，只认 `package-lock.json`，不跑 postinstall | 自研 shell，无 pty                        | Service Worker + WebSocket 垫片；线上需通配域名      | 无任何证据                     | MIT + Commons Clause；单人                                          |
-| almostnode                   | JS shim，在宿主主线程 `eval`                                                | 自研 mini npm，无锁文件、无 postinstall，默认不装 devDependencies  | 无真进程，按输出静默判定退出              | 无 WebSocket；Vite / Next 为自研仿制                 | 无                             | MIT；2026-02 起停更，自称非生产可用                                 |
-| burrow                       | 浏览器引擎运行 TS，`bun.wasm` 只做转译                                      | 自研 `bun install`，不跑脚本                                       | 无子进程；shell 为 JS 版 bash，输出非流式 | 无 WebSocket；只声明 Bun.serve / Hono                | 无                             | MIT；仅 2026-07-14～15 有提交，无 npm 包                            |
+| 方式                         | 原理                                                                        | 装依赖                                                             | 终端与进程                                     | 服务预览与热更新                                     | Angular                        | 许可与维护                                                          |
+| ---------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------- | ---------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------- |
+| esbuild-wasm（本地项目预览） | 浏览器内只编译项目源码，框架运行时构建时预打包                              | 不装，只用模板锁定的依赖                                           | 无                                             | 沙箱 iframe，保存即重编译                            | 浏览器 JIT                     | MIT；本仓库维护                                                     |
+| WebContainer（当前「运行」） | 闭源运行时，StackBlitz 托管                                                 | 真 npm 10 / pnpm 8.15.6                                            | `jsh` + pty（尺寸、resize、OSC 状态标记）      | 独立域名预览 + WebSocket                             | ng serve 实测通过              | 客户端包 MIT；商业生产使用需授权；依赖 StackBlitz 服务              |
+| vivari                       | 浏览器引擎运行逐字 vendored 的 Node v24 `lib/`，Worker 内核 + Wasm 文件系统 | 真 npm 10.9 / yarn 1.22 / pnpm 9.15，读锁文件，OPFS 缓存           | 子进程 + 极简 `sh`；无 pty，固定 80×24         | Service Worker；WebSocket 经注入隧道；默认与宿主同源 | 22 + pnpm 实测装不上，npm 可行 | MIT（含 Artistic-2.0、MPL-2.0 组件）；2026-07 起，单人，无浏览器 CI |
+| Nodepod                      | JS 重写 Node API，每个进程一个 Worker                                       | 自研 npm / pnpm / yarn，只认 `package-lock.json`，不跑 postinstall | 自研 shell，无 pty（NodepodTerminal 可接尺寸） | Service Worker + WebSocket 垫片；线上需通配域名      | 实测装得上，Node 版本检查拒绝  | MIT + Commons Clause；单人                                          |
+| almostnode                   | JS shim，在宿主主线程 `eval`                                                | 自研 mini npm，无锁文件、无 postinstall，默认不装 devDependencies  | 无真进程，按输出静默判定退出                   | 无 WebSocket；Vite / Next 为自研仿制                 | 无                             | MIT；2026-02 起停更，自称非生产可用                                 |
+| burrow                       | 浏览器引擎运行 TS，`bun.wasm` 只做转译                                      | 自研 `bun install`，不跑脚本                                       | 无子进程；shell 为 JS 版 bash，输出非流式      | 无 WebSocket；只声明 Bun.serve / Hono                | 无                             | MIT；仅 2026-07-14～15 有提交，无 npm 包                            |
 
-结论：能完整跑「真实包管理器安装 + 真实开发服务器」的候选只有 vivari，其次 Nodepod（限 Vite 类）。almostnode、burrow 作为轻量方案的下限参照。
+结论：能完整跑「真实包管理器安装 + 真实开发服务器」的候选只有 vivari，其次 Nodepod（限 Vite 类）。almostnode、burrow 作为轻量方案的下限参照。阶段 B、C 实测：两者都在工作台里跑通了三个 vite 模板，Nodepod 最快（运行到服务页 5～7 秒，vivari 8～9 秒，WebContainer 14～16 秒）；两者都跑不起 Angular 22。
 
 ## 关键证据
 
@@ -104,3 +104,28 @@
 - **pnpm 9.15.9**：`pnpm run` 的脚本输出每行出现两次（原样一次、带 `. dev:` 前缀一次，`npm run` 不会）；每次调用都打印 store-alias 补丁失败的日志；Angular 模板因此装不上 esbuild。（同一项目先 `npm install` 再 `pnpm add` 曾表现为卡住，复查是上面递归监听进程崩溃所致，改为逐目录监听后通过。）
 - Angular + npm 没在工作台里复测：内置模板带 `pnpm-lock.yaml`，「运行」按锁文件选 pnpm；npm 路径的结论仍以上一节的宿主页验证为准。
 - 内核每次安装都会取 `/vendor/depcache/index.json`、`/vendor/locks/index.json`（按 id 查表的预构建快照与锁文件清单），宿主给空表 `{}` 即可，不必 404。
+
+## 阶段 C 接入：Nodepod 进工作台（2026-11-07）
+
+做法：复用阶段 B 的宿主协议，Nodepod 1.11.2 放在独立源宿主页（本地 `localhost:4332/runtime-host.html`）。交互 Shell 是 `NodepodTerminal` 接一个只转发的 xterm，项目进程走 `nodepod.spawn`，文件操作直接用主线程的同步卷；预览用路径形式 `/__virtual__/<实例>/<端口>`，直接跨源嵌进工作台。基准与终端断言口径同阶段 B：生产构建、全新浏览器上下文、每格 3 次，Chrome 156，Apple M1 Max，负载 3.7～7.9；[基准报告](../../benchmarks/browser-workbench-runtimes-nodepod.json)、[终端报告](../../benchmarks/browser-workbench-terminal-nodepod.json)。
+
+| 模板            | 运行到服务页（中位，最小～最大）            | 安装        | 开发服务器就绪 | 改动生效 | 停止    | 停止后再运行 | 运行期下载 | 进程树 RSS |
+| --------------- | ------------------------------------------- | ----------- | -------------- | -------- | ------- | ------------ | ---------- | ---------- |
+| vanilla         | 5.0 秒（5.0～5.0）                          | 3.0～3.1 秒 | 1.4 秒         | 0.12 秒  | 27 毫秒 | 1.3 秒       | 23.1 MB    | 2.4 GB     |
+| react           | 5.4 秒（5.2～5.6）                          | 3.0～3.3 秒 | 1.3～1.4 秒    | 0.12 秒  | 27 毫秒 | 1.4 秒       | 28.1 MB    | 1.7 GB     |
+| vue             | 7.1 秒（6.4～7.2）                          | 4.0～4.9 秒 | 1.7～1.8 秒    | 0.12 秒  | 28 毫秒 | 1.5 秒       | 28.6 MB    | 2.5 GB     |
+| angular（pnpm） | 3 次都在启动阶段失败（`ng serve` 退出码 3） | 约 8 秒     | —              | —        | —       | —            | 55.9 MB    | —          |
+
+同机同浏览器对照（不同时段，阶段 E 交替复测）：运行到服务页 WebContainer 13.6 / 15.3 / 15.6 秒、vivari 7.8 / 8.9 / 9.0 秒、Nodepod 5.0 / 5.4 / 7.1 秒；停止后再运行 WebContainer 3.7～4.7 秒、vivari 2.2～2.6 秒、Nodepod 1.3～1.5 秒。终端断言与 WebContainer 同一套 11 项全部通过，另加宿主隔离检查通过，控制台零错误。
+
+接入时实测到的约束：
+
+- **打包后报「No RuntimeHost registered」**：`package.json` 的 `sideEffects` 只列了 `./src/...` 与 `dist/index.*`，dist 分块被当成无副作用，浏览器宿主的注册（顶层副作用）被打包器摇掉；打包宿主页时要忽略这份声明（esbuild `ignoreAnnotations`）。库里给 Node / Bun 无头模式用的 `await import('node:…')` 都在 try 里，标外部即可。
+- **`reservedHostPaths` 以 `/` 结尾的条目按前缀匹配**：保留 `/` 等于保留全部路径，预览请求全部绕过它的 Service Worker（404）。宿主页因此放在 `/runtime-host.html`（vivari 一并迁移），只保留这个精确路径。
+- **Angular**：它自研的 pnpm 约 8 秒装好 249 个包，但对外报告的 Node 版本写死为 v22.12.0，Angular CLI 22 要求至少 v22.22.3，`ng serve` 直接拒绝启动（退出码 3）。另有一条「AST parse failed … falling back to regex」的模块转换警告。
+- **请求没有服务监听的本地端口时回 HTTP 503**，真实 Node 的 fetch 会直接 reject；只按 resolve / reject 判断会误以为停掉的服务还在。
+- **它的 pnpm 会写出 `package-lock.json`**，并被同步回项目，项目里多一个锁文件。
+- **终端**：`NodepodTerminal` 回显 `^C` 并给新提示符 `nodepod:/project$`；进程里 `isTTY` 为真，尺寸跟随工作台（协议因此带上终端尺寸与 resize）。它自己终端里的 vite 地址会改写成预览地址。
+- **预览**：Service Worker 给预览响应补 `CORP: cross-origin` 与 `COEP: credentialless`，WebSocket 经 Service Worker 里的 BroadcastChannel 中转，不需要 vivari 那样的容器页；预览默认带「nodepod」水印链接。
+- **网络**：运行时从 cdn.jsdelivr.net、esm.sh 取 esbuild-wasm、rollup、lightningcss 等，从 registry.npmjs.org 直取 npm 包，默认没有 CORS 代理；Angular 安装时会去取不存在的 `lightningcss-wasm32-wasi`（404，不影响结果）。
+- 卷的 `watch` 能看到进程写入：Shell 里新建的文件不用额外监听进程就能同步回工作台。

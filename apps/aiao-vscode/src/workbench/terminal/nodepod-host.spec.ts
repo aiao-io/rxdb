@@ -1,6 +1,12 @@
+import { MessageChannel as NodeMessageChannel } from 'node:worker_threads';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createNodepodBackend, type NodepodInstance } from './nodepod-host.js';
-import type { RuntimeHostProcessEvents } from './runtime-host-protocol.js';
+import { createNodepodBackend, startNodepodHost, type NodepodInstance } from './nodepod-host.js';
+import {
+  RUNTIME_HOST_CONNECT,
+  RUNTIME_HOST_READY,
+  connectRuntimeHost,
+  type RuntimeHostProcessEvents
+} from './runtime-host-protocol.js';
 
 const HOST = 'http://localhost:4332';
 const location = { origin: HOST };
@@ -89,6 +95,7 @@ interface FakeTerminal {
   rows: number;
   open(element: unknown): void;
   write(text: string): void;
+  writeln(text: string): void;
   clear(): void;
   onData(listener: (data: string) => void): { dispose(): void };
   onResize(listener: () => void): { dispose(): void };
@@ -240,9 +247,7 @@ describe('Nodepod 宿主后端', () => {
     process.stdout('Packages: +14\n');
     process.stderr('WARN deprecated\n');
     process.exit(0);
-    await vi.waitFor(() =>
-      expect(log).toEqual(['output:Packages: +14\n', 'output:WARN deprecated\n', 'exit:0'])
-    );
+    await vi.waitFor(() => expect(log).toEqual(['output:Packages: +14\n', 'output:WARN deprecated\n', 'exit:0']));
     await running.write('y\n');
     running.kill();
     expect(process.child.write).toHaveBeenCalledWith('y\n');
@@ -280,5 +285,44 @@ describe('Nodepod 宿主后端', () => {
     backend.teardown();
     expect(fake.nodepod.teardown).toHaveBeenCalledOnce();
     await expect(backend.readFile('main.ts')).rejects.toThrow('已拆除');
+  });
+});
+
+describe('Nodepod 宿主页', () => {
+  it('握手后经端口驱动 Nodepod：Shell 的提示符与行尾经协议回到工作台', async () => {
+    const fake = fakeNodepod();
+    const listeners = new Set<(event: MessageEvent) => void>();
+    const parent = { postMessage: vi.fn() };
+    const view = {
+      location,
+      document,
+      parent,
+      addEventListener: (_type: 'message', listener: (event: MessageEvent) => void) => listeners.add(listener),
+      removeEventListener: (_type: 'message', listener: (event: MessageEvent) => void) => listeners.delete(listener)
+    };
+    startNodepodHost(view as unknown as Window, {
+      parents: ['http://localhost:4320'],
+      boot: async () => fake.instance
+    });
+    expect(parent.postMessage).toHaveBeenCalledExactlyOnceWith({ type: RUNTIME_HOST_READY }, '*');
+    const channel = new NodeMessageChannel();
+    listeners.forEach(listener =>
+      listener({
+        source: parent,
+        origin: 'http://localhost:4320',
+        data: { type: RUNTIME_HOST_CONNECT },
+        ports: [channel.port2]
+      } as unknown as MessageEvent)
+    );
+    const host = connectRuntimeHost(channel.port1 as unknown as MessagePort, () => undefined);
+    await host.boot();
+    const shell = await host.spawn('sh', [], { terminal: { cols: 90, rows: 20 } });
+    const reader = shell.output.getReader();
+    expect((await reader.read()).value).toBe('nodepod:/project$ ');
+    fake.shell.terminal()!.writeln('done');
+    expect((await reader.read()).value).toBe('done\r\n');
+    host.teardown();
+    await vi.waitFor(() => expect(fake.nodepod.teardown).toHaveBeenCalledOnce());
+    channel.port1.close();
   });
 });
