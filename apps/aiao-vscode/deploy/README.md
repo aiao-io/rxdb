@@ -59,7 +59,9 @@ Authorization callback URL `http://localhost:8788/redirect`，并从 `http://loc
   `wrangler pages dev` 在本地托管 `dist/browser`，逐个确认 `browser-workbench-assets` 下的 `.html` 原样 200 返回，
   且不在 Service Worker 的导航回退范围内。Pages 默认把 `.html` 308 到无扩展名地址，工作台 iframe
   （Markdown 扩展宿主、VS Code webview）经 Service Worker 导航时不跟随这类重定向：没有 `public/_redirects`
-  的 200 改写，Markdown 预览会变成错误页，或被回退成整个工作台。
+  的 200 改写，Markdown 预览会变成错误页，或被回退成整个工作台。同一脚本再托管 vivari 宿主产物
+  （`runtime-hosts/dist/vivari`），确认宿主页、预览容器页、`/sw.js`、`/assets/`、`/vendor/` 原样 200 并带全套宿主响应头，
+  只有 `/assets/` 长缓存（见下节）。
 - 公开配置检查：访问 `https://vscode.aiao.io/api/github-token`，应返回 `{"clientId":"实际 Client ID"}`；
   不应包含 Client secret。缺失配置时返回 503。
 - 点击「使用 GitHub 账号登录」后，授权 URL 的 `client_id` 应为上述真实值，不能是 `pending-aiao-vscode-oauth-app`。
@@ -68,6 +70,32 @@ Authorization callback URL `http://localhost:8788/redirect`，并从 `http://loc
 - 完整登录成功后，授权弹窗应自动关闭，原工作台更新登录状态；失败时保留回调页显示错误。
   工作台启用 `COOP: same-origin`，跨域授权后 `window.opener` 可能为空，回调关闭不能依赖它。
 - 跨域隔离响应头（COOP / COEP）与 Service Worker 是工作台自身要求，配置见应用 README 的部署小节。
+
+## vivari 运行时宿主
+
+vivari 跑在独占一个源的宿主页里（原因见应用 README 的[运行时宿主](../README.md#运行时宿主)）：线上是单独的 Pages 项目
+`aiao-vscode-vivari`，域名 `vscode-vivari.aiao.io`，对应 `src/runtime-hosts/hosts.ts` 里 vivari 的线上映射。只有静态文件，没有 Functions。
+
+首次部署：
+
+1. 新建项目：`pnpm dlx wrangler@4.158.0 pages project create aiao-vscode-vivari --production-branch main`。
+2. 在 Pages 面板给项目绑定自定义域名 `vscode-vivari.aiao.io`。不开 Web Analytics：它会往宿主页注入脚本。
+
+每次部署（在仓库根执行；部署那步进 `apps/aiao-vscode`，那里没有 wrangler.toml，wrangler 只认命令行给的目录。
+**宿主先于工作台**：工作台带上映射后就会去连宿主）：
+
+```bash
+pnpm nx run aiao-vscode:runtime-hosts
+cd apps/aiao-vscode
+pnpm dlx wrangler@4.158.0 pages deploy runtime-hosts/dist/vivari --project-name aiao-vscode-vivari --branch main
+```
+
+产物里的 `_headers`、`_redirects` 由构建按部署配置生成：全站 COOP / COEP / CORP 与 `frame-ancestors 'self' https://vscode.aiao.io`，
+宿主页与预览容器页 200 改写；只有带内容哈希的 `/assets/` 长缓存，`/vendor/` 打包件的地址固定、内容随 `@vivari/core` 版本变，
+走 Pages 默认的重新验证。升级 `@vivari/core` 或改宿主代码后要重新部署宿主。
+
+验证：发布前跑 `verify-pages-routing`（上节）；部署后 `curl -sI https://vscode-vivari.aiao.io/runtime-host.html` 应为 200
+且带上述响应头，再在 vscode.aiao.io 的设置里选 vivari，跑 `verify-terminal --url=https://vscode.aiao.io/ --runtime=vivari`。
 
 ## 安全边界
 

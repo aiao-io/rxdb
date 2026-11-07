@@ -171,6 +171,8 @@ WebContainer 以外的运行时（[vivari](https://github.com/maitrungduc1410/vi
 - **宿主源只来自部署配置** `src/runtime-hosts/hosts.ts`（运行方式 → 工作台来源 → 宿主源），不接受地址参数：宿主页能读到挂进去的项目文件。
   宿主页只接受表里对应工作台来源的连接，静态服务按同一张表设置 `frame-ancestors`；当前来源没有配置的运行方式在设置里不可选。
   本地对应关系：`localhost:4320`（`serve`）与 `localhost:4330`（验证脚本的生产构建服务）→ vivari `localhost:4331`、Nodepod `localhost:4332`。
+  线上：`vscode.aiao.io` → vivari `vscode-vivari.aiao.io`（Pages 项目 `aiao-vscode-vivari`，部署见 [deploy/README.md](deploy/README.md#vivari-运行时宿主)）；
+  Nodepod 仅内部评估，不上线。宿主与 aiao.io 其他站点同站，SameSite Cookie 挡不住宿主里项目代码发的请求：哪个 aiao.io 站点改用 Cookie 认证，要先重新评估。
 - **构建** `pnpm nx run aiao-vscode:runtime-hosts`，产物在 `runtime-hosts/dist/<运行时>/`（git 忽略），来源与许可写在各自的 `NOTICE.txt`：
   - vivari：打包内核宿主页与预览容器页，把 `@vivari/core` 的 Worker 资源放到源根 `/assets/`、Service Worker 放到 `/sw.js`
     （去掉它放行 `/@fs/` 的一条规则：Angular 开发服务器的 Vite 客户端靠 `/@fs/` 导入 `env.mjs`，被放行成 404 就整体加载失败，
@@ -180,7 +182,9 @@ WebContainer 以外的运行时（[vivari](https://github.com/maitrungduc1410/vi
   - Nodepod：打包宿主页，复制预览 Service Worker `/__sw__.js` 与进程 Worker `/__worker__.js`。它的 `sideEffects` 声明只列了源码路径，
     打包时要忽略这份声明，否则浏览器宿主的注册会被摇掉。
 - **服务** `pnpm nx run aiao-vscode:serve-runtime-hosts`（`serve` 已依赖）：按部署配置给每个本地宿主源起一个端口，带 COOP / COEP、
-  `Cross-Origin-Resource-Policy: cross-origin` 与 `frame-ancestors`。线上部署需要单独的源与等价响应头。
+  `Cross-Origin-Resource-Policy: cross-origin` 与 `frame-ancestors`。线上的 Pages 用同一组响应头：部署配置里有线上宿主源的运行时，
+  构建时在产物里生成 `_headers`，并用 `_redirects` 的 200 改写让 `/runtime-host.html`、`/preview-frame.html` 原样返回（不被 308）；
+  组装都在 `src/workbench/terminal/runtime-host-pages.ts`。
 - **服务预览**：vivari 的热更新隧道要求预览 iframe 的父窗口能直达内核，面板因此加载宿主源上的预览容器页 `/preview-frame.html`，
   由它嵌入 `/preview/<端口>/`；Nodepod 的预览走它自己的 Service Worker（WebSocket 经 BroadcastChannel 中转），面板直接嵌宿主源上的
   `/__virtual__/<实例>/<端口>`，预览里带 Nodepod 默认的水印链接。

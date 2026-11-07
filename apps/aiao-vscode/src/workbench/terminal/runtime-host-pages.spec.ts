@@ -33,7 +33,10 @@ describe('运行时宿主的托管配置', () => {
 
   it('一种运行时配了多个线上宿主源时报错：一份产物只能带一组嵌入来源', () => {
     expect(() =>
-      deployedRuntimeHost({ 'https://a.example': 'https://host-a.example', 'https://b.example': 'https://host-b.example' })
+      deployedRuntimeHost({
+        'https://a.example': 'https://host-a.example',
+        'https://b.example': 'https://host-b.example'
+      })
     ).toThrow('多个线上宿主源');
   });
 
