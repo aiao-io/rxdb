@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join, relative, resolve } from 'node:path';
 import { test } from 'node:test';
@@ -63,4 +63,22 @@ test('预构建列表里不存在没有 README.md 入口的幽灵路径', () => 
   for (const path of relativePaths) {
     assert.ok(existsSync(join(websiteRoot, path)), `${path} does not exist`);
   }
+});
+
+test('每个产品公共包都有 API 文档入口和侧边栏入口', () => {
+  const entries = new Set(typedocConfig.entryPoints.map(entry => resolve(websiteRoot, entry)));
+  const sidebar = readFileSync(join(websiteRoot, 'sidebars.ts'), 'utf8');
+  const missing = [];
+
+  for (const name of readdirSync(join(repoRoot, 'packages'))) {
+    const packageDir = join(repoRoot, 'packages', name);
+    const manifestPath = join(packageDir, 'package.json');
+    if (!existsSync(manifestPath)) continue;
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    if (manifest.private || manifest.name === '@aiao/rxdb-test') continue;
+    if (!entries.has(packageDir)) missing.push(`${name}: TypeDoc`);
+    if (!sidebar.includes(`dirName: 'api/${name}'`)) missing.push(`${name}: sidebar`);
+  }
+
+  assert.deepEqual(missing, []);
 });
