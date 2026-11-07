@@ -48,7 +48,9 @@ assert.deepEqual(
 const [hostAsset] = await readdir(join(hostSite, 'assets'));
 /** 宿主页引用的入口脚本。 */
 const hostScripts = (
-  await Promise.all(hostPages.map(async page => [...(await readFile(join(hostSite, page), 'utf8')).matchAll(/src="([^"]+\.js)"/g)]))
+  await Promise.all(
+    hostPages.map(async page => [...(await readFile(join(hostSite, page), 'utf8')).matchAll(/src="([^"]+\.js)"/g)])
+  )
 )
   .flat()
   .map(([, src]) => src);
@@ -150,13 +152,14 @@ try {
 
 // 就绪探测用不受改写规则影响的文件：规则失效时由下面的检查报出 308，而不是在这里等到超时
 const vivari = await pagesDev(hostSite, '/sw.js');
-/** 宿主产物的文件原样返回、带全套宿主响应头；只有带内容哈希的 /assets/ 长缓存。 */
+/** 宿主产物的文件原样返回、带全套宿主响应头；只有带内容哈希的 /assets/ 长缓存，/vendor/ 每次重新验证。 */
 const checkHostFile = path =>
   check(`vivari 宿主 ${path} 原样 200 返回，带宿主响应头`, async () => {
     const headers = await servesFile(vivari.origin, hostSite, path);
     for (const [name, value] of Object.entries(hostHeaders)) assert.equal(headers.get(name), value, name);
     const cache = headers.get('cache-control') ?? '';
     assert.equal(cache.includes('immutable'), path.startsWith('/assets/'), `Cache-Control: ${cache}`);
+    if (path.startsWith('/vendor/')) assert.equal(cache, 'no-cache');
   });
 try {
   for (const path of [...hostPages, ...hostScripts, '/sw.js', `/assets/${hostAsset}`, '/vendor/npm-pack.bin'])

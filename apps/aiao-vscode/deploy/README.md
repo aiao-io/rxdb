@@ -91,8 +91,11 @@ pnpm dlx wrangler@4.158.0 pages deploy runtime-hosts/dist/vivari --project-name 
 ```
 
 产物里的 `_headers`、`_redirects` 由构建按部署配置生成：全站 COOP / COEP / CORP 与 `frame-ancestors 'self' https://vscode.aiao.io`，
-宿主页与预览容器页 200 改写；只有带内容哈希的 `/assets/` 长缓存，`/vendor/` 打包件的地址固定、内容随 `@vivari/core` 版本变，
-走 Pages 默认的重新验证。升级 `@vivari/core` 或改宿主代码后要重新部署宿主。
+宿主页与预览容器页 200 改写；带内容哈希的 `/assets/` 长缓存，`/vendor/` 打包件的地址固定、内容随 `@vivari/core` 版本变，
+显式 `no-cache`。aiao.io 的 zone 浏览器缓存 TTL 是 4 小时，会把 Pages 默认的 `max-age=0` 改成 `max-age=14400`
+（只作用于 .js、.bin 这类静态扩展名，.html / .json 仍是 `max-age=0`；pages.dev 上没有这层）。所以宿主页的入口脚本
+由构建加内容哈希（`host-<哈希>.js`），受这层缓存影响的固定地址只剩 `/sw.js`（Service Worker 更新检查不走 HTTP 缓存）。
+升级 `@vivari/core` 或改宿主代码后要重新部署宿主。
 
 验证：发布前跑 `verify-pages-routing`（上节）；部署后 `curl -sI https://vscode-vivari.aiao.io/runtime-host.html` 应为 200
 且带上述响应头，再在 vscode.aiao.io 的设置里选 vivari，跑 `verify-terminal --url=https://vscode.aiao.io/ --runtime=vivari`。

@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { copyFile, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { RUNTIME_HOSTS } from '../src/runtime-hosts/hosts.ts';
 import { deployedRuntimeHost, pagesHeaders, pagesRedirects } from '../src/workbench/terminal/runtime-host-pages.ts';
 import { patchPreviewServiceWorker } from '../src/workbench/terminal/vivari-service-worker.ts';
@@ -92,6 +92,21 @@ const bundle = (entryPoints, outdir, options = {}) =>
     logLevel: 'warning'
   });
 /**
+ * 打包宿主页的入口，返回入口名 → 带内容哈希的产物文件名。宿主页本身每次重新验证，入口脚本地址随内容变：
+ * 地址固定的话，自定义域名上 zone 的浏览器缓存 TTL 会让重新部署后的浏览器继续跑旧脚本。
+ */
+async function bundleEntries(entryPoints, outdir, options = {}) {
+  const { metafile } = await bundle(entryPoints, outdir, { ...options, entryNames: '[name]-[hash]', metafile: true });
+  const scripts = {};
+  for (const [file, { entryPoint }] of Object.entries(metafile.outputs)) {
+    const name = Object.keys(entryPoints).find(entry => entryPoint && resolve(entryPoint) === entryPoints[entry]);
+    if (name) scripts[name] = basename(file);
+  }
+  const missing = Object.keys(entryPoints).filter(entry => !scripts[entry]);
+  if (missing.length > 0) throw new Error(`esbuild 产物里找不到入口：${missing.join('、')}`);
+  return scripts;
+}
+/**
  * 部署配置里有线上宿主源的运行时，在产物里写 Cloudflare Pages 的 `_headers` / `_redirects`：
  * 响应头与本地静态服务同一组，iframe 直接导航的页面原样返回。本地静态服务不读这两个文件。
  */
@@ -121,7 +136,7 @@ if (vivari.version !== VIVARI_VERSION)
 const output = join(outputRoot, 'vivari');
 await mkdir(join(output, 'assets'), { recursive: true });
 await mkdir(join(output, 'vendor'), { recursive: true });
-await bundle(
+const vivariScripts = await bundleEntries(
   {
     host: join(packageRoot, 'src/runtime-hosts/vivari/host.ts'),
     'preview-frame': join(packageRoot, 'src/runtime-hosts/vivari/preview-frame.ts')
@@ -129,8 +144,8 @@ await bundle(
   output
 );
 // 宿主页路径与 runtime-host-frame.ts 的 RUNTIME_HOST_PAGE 一致
-await writeFile(join(output, 'runtime-host.html'), page('vivari 运行时宿主', 'host.js'));
-await writeFile(join(output, 'preview-frame.html'), page('项目服务预览', 'preview-frame.js'));
+await writeFile(join(output, 'runtime-host.html'), page('vivari 运行时宿主', vivariScripts.host));
+await writeFile(join(output, 'preview-frame.html'), page('项目服务预览', vivariScripts['preview-frame']));
 // 内核 Worker 写死从源根的 /assets/ 加载其余 Worker；预览 Service Worker 注册在源根，
 // 并去掉它放行 `/@fs/` 的一条规则（原因与升级时的核对见 vivari-service-worker.ts）
 const assets = join(vivariRoot, 'dist/assets');
@@ -169,11 +184,12 @@ await mkdir(join(nodepodOutput, 'licenses'), { recursive: true });
 // - 库里给 Node / Bun 无头模式用的 `await import('node:…')` 都包在 try 里，浏览器里不会走到；
 // - package.json 的 sideEffects 只列了 src/ 路径，dist 分块被当成无副作用，浏览器宿主的注册
 //   （顶层副作用）会被摇掉，报「No RuntimeHost registered」：忽略这份声明，保持和直接加载库一致
-await bundle({ host: join(packageRoot, 'src/runtime-hosts/nodepod/host.ts') }, nodepodOutput, {
-  external: ['node:*'],
-  ignoreAnnotations: true
-});
-await writeFile(join(nodepodOutput, 'runtime-host.html'), page('Nodepod 运行时宿主', 'host.js'));
+const nodepodScripts = await bundleEntries(
+  { host: join(packageRoot, 'src/runtime-hosts/nodepod/host.ts') },
+  nodepodOutput,
+  { external: ['node:*'], ignoreAnnotations: true }
+);
+await writeFile(join(nodepodOutput, 'runtime-host.html'), page('Nodepod 运行时宿主', nodepodScripts.host));
 for (const name of ['__sw__.js', '__worker__.js'])
   await copyFile(join(nodepodRoot, 'dist', name), join(nodepodOutput, name));
 await copyFile(join(nodepodRoot, 'LICENSE'), join(nodepodOutput, 'licenses/nodepod.txt'));

@@ -40,7 +40,7 @@ describe('运行时宿主的托管配置', () => {
     ).toThrow('多个线上宿主源');
   });
 
-  it('Pages 响应头：全站同一组宿主响应头，只有带内容哈希的 /assets/ 长缓存', () => {
+  it('Pages 响应头：全站同一组宿主响应头，带哈希的 /assets/ 长缓存，地址固定的 /vendor/ 每次重新验证', () => {
     expect(pagesHeaders(['https://vscode.aiao.io'])).toBe(
       [
         '# 由 scripts/build-runtime-hosts.mjs 按 src/runtime-hosts/hosts.ts 生成',
@@ -52,6 +52,8 @@ describe('运行时宿主的托管配置', () => {
         '  Service-Worker-Allowed: /',
         '/assets/*',
         '  Cache-Control: public, max-age=31536000, immutable',
+        '/vendor/*',
+        '  Cache-Control: no-cache',
         ''
       ].join('\n')
     );

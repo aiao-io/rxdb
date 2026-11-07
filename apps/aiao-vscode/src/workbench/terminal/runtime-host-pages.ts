@@ -42,8 +42,9 @@ export function deployedRuntimeHost(table: Readonly<Partial<Record<string, strin
 }
 
 /**
- * Pages 的 `_headers`：全站发宿主响应头。只有带内容哈希的 `/assets/` 长缓存；`/vendor/` 的打包件地址固定、
- * 内容随 @vivari/core 版本变，沿用 Pages 默认的重新验证，升级后浏览器才不会继续用旧包。
+ * Pages 的 `_headers`：全站发宿主响应头。带内容哈希的 `/assets/` 长缓存；`/vendor/` 的打包件地址固定、
+ * 内容随 @vivari/core 版本变，显式要求每次重新验证：自定义域名上 zone 的浏览器缓存 TTL 会把 Pages 默认的
+ * `max-age=0` 改成数小时，升级后回访的浏览器会继续用旧包。宿主页的入口脚本由构建加内容哈希，不在这里处理。
  */
 export function pagesHeaders(parents: readonly string[]): string {
   const headers = Object.entries(runtimeHostHeaders(parents)).map(([name, value]) => `  ${name}: ${value}`);
@@ -53,6 +54,8 @@ export function pagesHeaders(parents: readonly string[]): string {
     ...headers,
     '/assets/*',
     '  Cache-Control: public, max-age=31536000, immutable',
+    '/vendor/*',
+    '  Cache-Control: no-cache',
     ''
   ].join('\n');
 }
