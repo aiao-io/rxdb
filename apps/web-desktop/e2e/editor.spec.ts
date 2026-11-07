@@ -168,6 +168,9 @@ for (const mode of ['macos', 'windows'] as const) {
     expect(moved.files).toHaveLength(2);
     expect(document).toMatchObject({ name: '改名后的笔记.txt', parentId: directory.id, bytes: original.bytes });
     const windowId = moved.session.find(win => win.fileId === original.id)!.id;
+    await expect
+      .poll(async () => (await readState(page)).session.find(win => win.appId === 'files')?.route)
+      .toBe(`/folders/${encodeURIComponent(directory.id)}`);
     await page.reload();
     await expect(files.getByRole('button', { name: '打开 改名后的笔记.txt', exact: true })).toBeVisible();
     await page.getByRole('button', { name: '打开 文本编辑器', exact: true }).click();
