@@ -1,0 +1,31 @@
+{
+  "name": "@aiao/aiao-model-design",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "nx": {
+    "name": "aiao-model-design"
+  },
+  "dependencies": {
+    "@ai-sdk/deepseek": "^3.0.80",
+    "@elysiajs/cors": "^1.4.3",
+    "@elysiajs/openapi": "^1.4.17",
+    "@elysiajs/server-timing": "^1.4.1",
+    "ai": "7.0.64",
+    "drizzle-orm": "^0.45.4",
+    "elysia": "^1.4.31",
+    "jose": "^6.2.15",
+    "postgres": "^3.4.9",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "^0.112.5",
+    "@cloudflare/containers": "^0.3.7",
+    "@cloudflare/workers-types": "^5.20261107.1",
+    "@types/bun": "~1.3.14",
+    "drizzle-kit": "^0.31.11",
+    "openai": "^6.49.0",
+    "wrangler": "^4.156.2"
+  }
+}

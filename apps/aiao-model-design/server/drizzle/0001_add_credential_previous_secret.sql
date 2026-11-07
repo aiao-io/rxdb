@@ -1,0 +1,1 @@
+ALTER TABLE "workflow_credentials" ADD COLUMN "previous_secret" text;

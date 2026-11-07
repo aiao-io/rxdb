@@ -1,0 +1,27 @@
+{
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1784463429287,
+      "tag": "0000_special_dust",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785029600781,
+      "tag": "0001_add_credential_previous_secret",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786032200385,
+      "tag": "0002_drop_workflow_credentials",
+      "breakpoints": true
+    }
+  ],
+  "version": "7"
+}

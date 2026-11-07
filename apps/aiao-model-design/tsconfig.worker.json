@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": [
+      "ESNext",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "types": [
+      "@cloudflare/workers-types"
+    ]
+  },
+  "include": [
+    "server/cloudflare.ts",
+    "server/edge/**/*.ts"
+  ],
+  "exclude": [
+    "server/edge/**/*.spec.ts"
+  ]
+}
