@@ -60,14 +60,29 @@ describe('固定运行时资源与摘要', () => {
     expect(fetch.mock.calls.some(([url]) => url.includes('/monaco/'))).toBe(false);
   });
 
-  it('超过 512 项的资源清单仍被拒绝', async () => {
+  it('Monaco 与扩展资源让清单超过 512 项时，运行时仍能加载', async () => {
+    const { manifest, fetch } = fixture();
+    const folders = ['monaco', 'extension-host', 'extensions/markdown'];
+    manifest.assets.push(
+      ...Array.from({ length: 600 }, (_, index) => ({
+        path: `${folders[index % folders.length]}/chunk-${index}.js`,
+        bytes: 0,
+        sha256: 'a'.repeat(64)
+      }))
+    );
+    const result = await loadRuntimeBundle(new URL('https://assets.test/'));
+    expect(result.runtimeImports['react']).toBe('runtime/react.js');
+    expect(fetch.mock.calls.some(([url]) => folders.some(folder => url.includes(`/${folder}/`)))).toBe(false);
+  });
+
+  it('运行时资源超过 512 项仍被拒绝', async () => {
     const { manifest } = fixture();
     manifest.assets = Array.from({ length: 513 }, (_, index) => ({
       path: `runtime/chunk-${index}.js`,
       bytes: 0,
       sha256: 'a'.repeat(64)
     }));
-    await expect(loadRuntimeBundle(new URL('https://assets.test/'))).rejects.toThrow('资源清单无效');
+    await expect(loadRuntimeBundle(new URL('https://assets.test/'))).rejects.toThrow('运行时资源超过 512 项上限');
   });
 
   it('内容摘要变化或资源缺失都明确失败，不信任缓存命中', async () => {

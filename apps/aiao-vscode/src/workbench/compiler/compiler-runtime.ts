@@ -18,7 +18,7 @@ function record(value: unknown, message: string): Record<string, unknown> {
 }
 
 function manifestAssets(value: unknown): RuntimeAsset[] {
-  if (!Array.isArray(value) || value.length > 512) throw new Error('运行时 manifest 资源清单无效');
+  if (!Array.isArray(value)) throw new Error('运行时 manifest 资源清单无效');
   const paths = new Set<string>();
   return value.map(item => {
     const entry = record(item, '运行时 manifest 资源条目无效');
@@ -77,6 +77,7 @@ export async function loadRuntimeBundle(base: URL, signal?: AbortSignal): Promis
   const assets = manifestAssets(manifest['assets']).filter(
     asset => asset.path.startsWith('runtime/') && asset.path.endsWith('.js')
   );
+  if (assets.length > 512) throw new Error('运行时资源超过 512 项上限');
   if (assets.reduce((total, asset) => total + asset.bytes, 0) > 32 * 1024 * 1024)
     throw new Error('运行时资源超过 32 MiB 上限');
   const paths = new Set(assets.map(asset => asset.path));
