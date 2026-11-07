@@ -2155,7 +2155,7 @@ export class RxDB {
   }
 
   /**
-   * 本次引导的指纹：实体结构与系统/接入方两条迁移链的名字。
+   * 本次引导的指纹：实体结构、实例级存储声明与系统/接入方两条迁移链的名字。
    *
    * @param systemMigrations - 已按贡献方展开的系统迁移链
    * @returns 64 位十六进制 SHA-256
@@ -2163,6 +2163,7 @@ export class RxDB {
   #bootstrapFingerprint(systemMigrations: MigrationType[]): string {
     return computeBootstrapFingerprint({
       entities: [...new Set([...this.systemEntities, ...this.#config.entities])],
+      entityStorage: this.#config.entityStorage,
       systemMigrations: systemMigrations.map(migration => migration.name),
       userMigrations: (this.#config.migrations ?? []).map(migration => migration.name)
     });
