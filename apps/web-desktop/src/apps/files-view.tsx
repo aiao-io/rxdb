@@ -7,6 +7,11 @@ import { directoryTrail, filesRoute, parseFilesRoute } from './files-navigation.
 import { download, type AppSession } from './session.js';
 
 type FileItem = VirtualFile & { size: number };
+function directoryName(directories: readonly VirtualFile[], parentId: string | null, trash: boolean): string {
+  if (trash) return '回收站';
+  if (parentId === null) return '我的文件';
+  return directories.find(dir => dir.id === parentId)?.name ?? '目录不可用';
+}
 export function FilesView({ session }: { session: AppSession }) {
   const importInput = useRef<HTMLInputElement>(null);
   const requests = useRef(0);
@@ -24,12 +29,10 @@ export function FilesView({ session }: { session: AppSession }) {
   const [busy, setBusy] = useState(true);
   useEffect(() => session.bindSuspension(() => !busy && creating === null), [session, busy, creating]);
   const selectedFile = entries.find(file => file.id === selected);
-  const location =
-    trash ? '回收站'
-    : parentId === null ? '我的文件'
-    : (directories.find(dir => dir.id === parentId)?.name ?? '目录不可用');
+  const location = directoryName(directories, parentId, trash);
   const trail = directoryTrail(directories, parentId);
   const refresh = useCallback(async () => {
+    const { parentId, search, trash } = parseFilesRoute(session.navigation.state.route);
     const revision = ++requests.current;
     setBusy(true);
     setError('');
@@ -41,13 +44,13 @@ export function FilesView({ session }: { session: AppSession }) {
       if (revision !== requests.current) return;
       setEntries(files);
       setDirectories(dirs);
-      await session.update({ title: `文件 · ${location}`, dirty: false });
+      await session.update({ title: `文件 · ${directoryName(dirs, parentId, trash)}`, dirty: false });
     } catch (error) {
       if (revision === requests.current) setError(errorMessage(error));
     } finally {
       if (revision === requests.current) setBusy(false);
     }
-  }, [session, parentId, search, trash, location]);
+  }, [session]);
   useEffect(() => {
     const changed = () => {
       void refresh();
@@ -74,7 +77,7 @@ export function FilesView({ session }: { session: AppSession }) {
       active = false;
       invalidate();
     };
-  }, [refresh, folder, invalidate]);
+  }, [refresh, folder, search, invalidate]);
   const applyRoute = useCallback((route: string) => {
     const location = parseFilesRoute(route);
     requests.current++;

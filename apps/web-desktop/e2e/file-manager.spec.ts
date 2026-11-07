@@ -315,3 +315,48 @@ for (const mode of ['macos', 'windows'] as const) {
     });
   }
 }
+
+for (const mode of ['macos', 'windows'] as const) {
+  test(`${mode} DESKTOP-US-601/AC4 file-manager-import-search：导入期间更改搜索，晚到完成只刷新当前位置`, async ({
+    page
+  }) => {
+    const files = await openFiles(page, mode);
+    await files.locator('main').evaluate(() => {
+      const control = window as Window & { releaseImportRead?: () => void; importReadStarted?: boolean };
+      let release: () => void;
+      const gate = new Promise<void>(resolve => {
+        release = resolve;
+      });
+      control.releaseImportRead = () => release();
+      const read = File.prototype.arrayBuffer;
+      File.prototype.arrayBuffer = function () {
+        const result = read.call(this);
+        if (this.name !== '目标.txt') return result;
+        control.importReadStarted = true;
+        return Promise.all([result, gate]).then(([bytes]) => bytes);
+      };
+    });
+    await files.getByLabel('导入本机文件').setInputFiles([
+      { name: '目标.txt', mimeType: 'text/plain', buffer: Buffer.from('匹配内容') },
+      { name: '其他.txt', mimeType: 'text/plain', buffer: Buffer.from('其他内容') }
+    ]);
+    await expect
+      .poll(() => files.locator('main').evaluate(() => (window as Window & { importReadStarted?: boolean }).importReadStarted))
+      .toBe(true);
+    await files.getByLabel('搜索当前目录').fill('目标');
+    await expect(files.getByLabel('搜索当前目录')).toHaveValue('目标');
+    await files.locator('main').evaluate(() => (window as Window & { releaseImportRead?: () => void }).releaseImportRead?.());
+    await expect(files.getByRole('status')).toContainText('已处理 2 个文件');
+    await expect(files.getByRole('button', { name: '打开 目标.txt', exact: true })).toBeVisible();
+    await expect(files.getByRole('button', { name: '打开 其他.txt', exact: true })).toHaveCount(0);
+    await files.getByLabel('搜索当前目录').fill('');
+    await expect(files.locator('tbody tr')).toHaveCount(2);
+    const stored = (await readState(page)).files;
+    expect(stored.map(file => [file.name, file.bytes]).sort()).toEqual(
+      [
+        ['目标.txt', Buffer.from('匹配内容').toString('base64')],
+        ['其他.txt', Buffer.from('其他内容').toString('base64')]
+      ].sort()
+    );
+  });
+}

@@ -45,7 +45,14 @@ export const builtins: AppDefinition[] = [
   definition('catalog', '应用目录', '只运行经过批准的 Web 应用。', ['apps', 'storage']),
   definition('notes', '速记本', '轻量文本笔记，可单独安装并选择为文件打开方式。', ['files', 'storage'], true, false),
   ...(['Angular', 'React', 'Vue'] as const).map(framework =>
-    definition(`sample-${framework.toLowerCase()}`, `${framework} 便签`, '编辑、保存和下载文本，使用相同的桌面能力。', ['files'], true, false)
+    definition(
+      `sample-${framework.toLowerCase()}`,
+      `${framework} 便签`,
+      '编辑、保存和下载文本，使用相同的桌面能力。',
+      ['files'],
+      true,
+      false
+    )
   )
 ];
 

@@ -29,7 +29,13 @@ export default defineConfig({
       provider: 'v8',
       reportsDirectory: '../../coverage/apps/web-desktop',
       reporter: ['text', 'json-summary', 'lcovonly'],
-      include: ['src/core/**/*.ts', 'src/host/windows.ts', 'src/host/recovery.ts', 'src/host/permission-labels.ts', 'src/samples/document.ts'],
+      include: [
+        'src/core/**/*.ts',
+        'src/host/windows.ts',
+        'src/host/recovery.ts',
+        'src/host/permission-labels.ts',
+        'src/samples/document.ts'
+      ],
       exclude: ['src/**/*.spec.ts'],
       thresholds: { lines: 80, statements: 80, functions: 80, branches: 80 }
     }

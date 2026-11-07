@@ -1,6 +1,6 @@
 # Orbit Web Desktop
 
-浏览器内的本地桌面。React 宿主提供 macOS / Windows 两套交互方式，文件、文本编辑器、设置、应用目录和可选速记本作为独立 Web 页面通过仓内 `@aiao/orbit` 运行。文件、应用私有数据、授权和已保存会话保存在当前来源的 IndexedDB。
+浏览器内的本地桌面。React 宿主提供 macOS / Windows 两套交互方式，文件、文本编辑器、设置、应用目录、可选速记本及三框架便签作为独立 Web 页面通过仓内 `@aiao/orbit` 运行。文件、应用私有数据、授权和已保存会话保存在当前来源的 IndexedDB。
 
 这是进行中的产品实现。完整范围为 42 条故事、256 条验收标准；代码与自动化测试的进展不代表实机、用户研究或正式部署已经验收。参见 [任务清单](../../specs/001-web-desktop-product/tasks.md) 和 [验收台账](requirements/verification-report.md)。
 
@@ -25,6 +25,7 @@ NX_NO_CLOUD=true NX_DAEMON=false NX_ISOLATE_PLUGINS=false pnpm nx run web-deskto
 - `src/core`：文件模型、版本冲突、持久化校验、授权、备份和分块传输。
 - `src/host`：窗口、交互模式、拥有权、RPC 服务、关闭协商和系统模态。
 - `src/apps`：独立文件应用、编辑器、设置、应用目录。
+- `src/samples`：Angular / React / Vue 同任务便签，共用文档控制器与桌面服务契约。
 - `tools`：资源清单、Service Worker 和需求结构检查。
 - `e2e`：正式产物用户旅程。
 
@@ -48,6 +49,16 @@ NX_NO_CLOUD=true NX_DAEMON=false NX_ISOLATE_PLUGINS=false pnpm nx run web-deskto
 
 工作区设置支持前移、后移并保存顺序；排序保留窗口与活动状态。删除前须选择迁移目标，取消保留原布局；至少保留一个工作区。
 
+## 三框架便签
+
+从“应用目录”分别安装“Angular 便签”“React 便签”“Vue 便签”，再从启动器打开。三个应用默认不安装，各自支持多个窗口；它们共用文档状态、保存、导航和关闭协议，分别由对应框架实际渲染。
+
+便签支持中文文本编辑、撤销重做、保存到“我的文件”、下载文本、逻辑位置、宿主确认和局部强调色。复制全文需要可选剪贴板能力；拒绝后草稿保留，仍能编辑和保存。各窗口的完整 path/query/hash 和未保存内容独立，主题、缩放及交互模式由桌面同步。读取已有文件被拒绝时禁止编辑和保存，明确重试后才能继续。
+
+直接打开 `sample-angular.html`、`sample-react.html` 或 `sample-vue.html` 可独立编辑、撤销重做和下载文本；页面明确说明桌面托管文件、剪贴板和窗口能力不可用。下载提示仅表示已交付浏览器，实际落盘位置由浏览器决定。
+
+正式构建按生产模式裁剪 Angular 运行代码。当前 Angular 样例使用 JIT，编译器单块约 509.55 kB（gzip 133.71 kB），仍触发默认 500 kB 体积提示。框架代码按对应便签动态加载；该提示不代表标准性能预算已经验收。
+
 ## 运行与资源
 
 桌面顶部的“运行与资源”显示静态预取和每个实例的后台状态。空闲 500ms 后才开始预取，最多同时准备两个版本；固定入口优先，前台打开可抢占纯后台任务，同版本共享下载。预取只下载并校验静态资源，不执行应用或请求权限，可以取消和继续。
@@ -66,7 +77,7 @@ NX_NO_CLOUD=true NX_DAEMON=false NX_ISOLATE_PLUGINS=false pnpm nx run web-deskto
 DESKTOP_BASE=/desktop/ NX_NO_CLOUD=true NX_DAEMON=false NX_ISOLATE_PLUGINS=false pnpm nx run web-desktop:build --skipNxCache
 ```
 
-保持 `index.html`、`files.html`、`editor.html`、`settings.html`、`catalog.html`、`notes.html`、`sw.js`、`resources.json` 和全部 assets 的相对位置。HTML 与 `sw.js` 应要求重新验证；带内容哈希的 assets 可长期缓存。未知静态资源不能返回 HTML，`sw.js` 须使用 JavaScript MIME 类型，Service Worker 作用域限定在部署基址下。
+保持 `index.html`、`files.html`、`editor.html`、`settings.html`、`catalog.html`、`notes.html`、`sample-angular.html`、`sample-react.html`、`sample-vue.html`、`sw.js`、`resources.json` 和全部 assets 的相对位置。HTML 与 `sw.js` 应要求重新验证；带内容哈希的 assets 可长期缓存。未知静态资源不能返回 HTML，`sw.js` 须使用 JavaScript MIME 类型，Service Worker 作用域限定在部署基址下。
 
 允许宿主和应用相互 iframe 装载，保持同源 MessagePort、Worker、IndexedDB 和下载能力。不要在静态平台对 HTML 进行运行时注入或内容替换：离线安装会逐项验证构建资源的 SHA-256，内容不匹配会拒绝该版本。需要自定义 CSP 时，应按实际产物测试 `script-src`、`style-src`、`frame-src` 和 `worker-src`，并允许浏览器下载使用的 `blob:` URL。
 

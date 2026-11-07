@@ -7,13 +7,23 @@ export async function render(root: HTMLElement, model: FrameworkDocument): Promi
   class Sample {
     readonly model = model;
     readonly view = signal(model.snapshot);
-    rename(event: Event) { model.rename((event.target as HTMLInputElement).value); }
-    edit(event: Event) { model.edit((event.target as HTMLTextAreaElement).value); }
-    locate(event: Event) { model.setLocation((event.target as HTMLInputElement).value); }
-    navigate(event: Event) { event.preventDefault(); void model.navigate(); }
+    rename(event: Event) {
+      model.rename((event.target as HTMLInputElement).value);
+    }
+    edit(event: Event) {
+      model.edit((event.target as HTMLTextAreaElement).value);
+    }
+    locate(event: Event) {
+      model.setLocation((event.target as HTMLInputElement).value);
+    }
+    navigate(event: Event) {
+      event.preventDefault();
+      void model.navigate();
+    }
   }
   Component({
-    selector: 'desktop-sample', standalone: true,
+    selector: 'desktop-sample',
+    standalone: true,
     template: `
       <main class="framework-sample" [attr.data-route]="view().route" [attr.data-theme]="view().theme"
         [attr.data-accent]="view().accent" [style.--desktop-scale]="view().scale / 100">
@@ -47,5 +57,8 @@ export async function render(root: HTMLElement, model: FrameworkDocument): Promi
   const unsubscribe = model.subscribe(() => component.view.set(model.snapshot));
   component.view.set(model.snapshot);
   await app.whenStable();
-  return () => { unsubscribe(); app.destroy(); };
+  return () => {
+    unsubscribe();
+    app.destroy();
+  };
 }

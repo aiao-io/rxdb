@@ -19,8 +19,8 @@
 
 独立验证：两种模式从新建到保存关闭重开，文件字节一致。
 
-- [ ] T008 [US1] DESKTOP-US-601 逐 AC 编写文件管理成功/失败/取消用例：apps/web-desktop/src/core/files.spec.ts、src/host/bridge.spec.ts；浏览器为 e2e/{desktop,editor,file-manager}.spec.ts，两模式覆盖空态、键盘选择/目录搜索、重名拒绝与明确改名、非法名称/目录环、新建/移动 QUOTA 与 abort 回滚；文件/目录作用域和提交前撤权见服务边界测试；完整支持环境待验收
-- [ ] T009 [US1] DESKTOP-US-601 实现虚拟文件系统与文件管理器，保持对应故事全部 AC：apps/web-desktop/src/core/files.ts、src/host/{bridge,permission-labels}.ts、src/apps/files-view.tsx；文件授权显示真实虚拟路径并保持不透明 ID 判权；完整支持环境待验收，证据见 requirements/verification-report.md
+- [ ] T008 [US1] DESKTOP-US-601 逐 AC 编写文件管理成功/失败/取消用例：apps/web-desktop/src/core/files.spec.ts、src/host/bridge.spec.ts；浏览器为 e2e/{desktop,editor,file-manager}.spec.ts，两模式覆盖空态、键盘选择/目录搜索、重名拒绝与明确改名、非法名称/目录环、新建/移动 QUOTA 与 abort 回滚、导入期间搜索变更的晚到刷新；文件/目录作用域和提交前撤权见服务边界测试；完整支持环境待验收
+- [ ] T009 [US1] DESKTOP-US-601 实现虚拟文件系统与文件管理器，保持对应故事全部 AC：apps/web-desktop/src/core/files.ts、src/host/{bridge,permission-labels}.ts、src/apps/files-view.tsx；文件授权显示真实虚拟路径并保持不透明 ID 判权；列表刷新读取当前导航位置，避免导入完成覆盖新搜索；完整支持环境待验收，证据见 requirements/verification-report.md
 - [ ] T010 [US1] DESKTOP-US-602 逐 AC 编写编辑与保存的成功/失败/取消用例：apps/web-desktop/src/apps/editor.spec.ts；浏览器交互为 e2e/{desktop,editor}.spec.ts，两模式补齐独立历史、另存为原稿保留、QUOTA 草稿保护与重试、重命名/跨目录移动取消和稳定文件 ID 恢复；完整支持环境待验收
 - [ ] T011 [US1] DESKTOP-US-602 实现 内置文本编辑器与保存闭环，保持对应故事全部 AC 约束：apps/web-desktop/src/apps/editor.ts；涉及 UI 使用同目录 .tsx；证据关联 apps/web-desktop/requirements/verification-report.md
 - [ ] T012 [US1] DESKTOP-US-701 先以数字 AC 编写 支持环境与无障碍验收 的成功/失败/取消用例：apps/web-desktop/src/host/accessibility.spec.ts；浏览器交互纳入 apps/web-desktop/e2e/desktop.spec.ts
@@ -100,8 +100,8 @@
 - [ ] T071 [US5] DESKTOP-US-306 实现 应用故障呈现与恢复，保持对应故事全部 AC 约束：apps/web-desktop/src/host/runtime.ts；涉及 UI 使用同目录 .tsx；证据关联 apps/web-desktop/requirements/verification-report.md
 - [ ] T072 [US5] DESKTOP-US-307 逐 AC 编写预取、调度、挂起与清理的成功/失败/取消用例：apps/web-desktop/src/core/{resource-scheduler,resource-references}.spec.ts、release-cache.browser.spec.ts；src/host/{prefetch,suspension,application-resources,service-worker}.spec.ts；src/apps/session.spec.ts；浏览器旅程为 apps/web-desktop/e2e/background.spec.ts；完整支持环境待验收
 - [ ] T073 [US5] DESKTOP-US-307 实现预取、协作挂起和按版本引用清理：apps/web-desktop/src/core/{resource-scheduler,resource-references,release-cache}.ts；src/host/{prefetch,suspension,application-resources,runtime,updates,bridge}.ts；src/apps/session.ts 和内置应用视图；tools/service-worker.js；UI 位于 src/host/shell.tsx；完整 AC 证据见 apps/web-desktop/requirements/verification-report.md
-- [ ] T074 [US5] DESKTOP-US-308 先以数字 AC 编写 三框架接入与既有演示迁移 的成功/失败/取消用例：apps/web-desktop/src/host/runtime.spec.ts；浏览器交互纳入 apps/web-desktop/e2e/desktop.spec.ts
-- [ ] T075 [US5] DESKTOP-US-308 实现 三框架接入与既有演示迁移，保持对应故事全部 AC 约束：apps/web-desktop/src/host/runtime.ts；涉及 UI 使用同目录 .tsx；证据关联 apps/web-desktop/requirements/verification-report.md
+- [ ] T074 [US5] DESKTOP-US-308 逐 AC 编写三框架接入与既有消费迁移用例：src/samples/document.spec.ts 验证共用文档、授权失败、导航、关闭与晚到保存；e2e/frameworks.spec.ts 验证真实三端安装、六实例隔离、双模式切换及独立下载；既有文档站主题/路由和完整支持环境继续待验收
+- [ ] T075 [US5] DESKTOP-US-308 实现同任务三端样例与既有消费迁移：apps/web-desktop/src/samples/{document,main,angular,vue}.ts、react.tsx、style.css，sample-{angular,react,vue}.html；目录和版本资源纳入既有 catalog/release 流程，公共文档模型与 AppSession 共用；其余 AC、既有文档站和实机矩阵待验收，证据见 requirements/verification-report.md
 
 ## Phase 7: US4 离线、版本与数据带出
 
