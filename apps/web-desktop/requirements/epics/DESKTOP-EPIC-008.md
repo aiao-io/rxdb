@@ -15,7 +15,7 @@ owner: jimmy
 ## 目标
 
 - [ ] 避免某一交互模式只有外观而无法实际使用（[DESKTOP-US-701](../stories/quality/DESKTOP-US-701-accessibility-environments.md)）。
-- [ ] 避免双模式、多框架和无界重构各自通过但组合失败（[DESKTOP-US-702](../stories/quality/DESKTOP-US-702-release-verification.md)）。
+- [ ] 避免双模式、多框架和 Orbit 接入各自通过但组合失败（[DESKTOP-US-702](../stories/quality/DESKTOP-US-702-release-verification.md)）。
 - [ ] 让独立发布和问题复现可持续（[DESKTOP-US-703](../stories/quality/DESKTOP-US-703-deployment-diagnostics.md)）。
 
 ## 故事

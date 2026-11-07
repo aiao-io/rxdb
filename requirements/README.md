@@ -6,7 +6,7 @@
 
 本目录维护平台与可复用领域能力。应用级产品需求由各应用在 `apps/<app>/requirements/` 独立管理，使用 `<APP>-US-XXX` 编号，独立统计和验收；怎么管沿用本目录的约定，应用目录结构、编号与门禁见[应用级需求管理办法](app-template/README.md)。底层能力通过带作用域的引用关联，不复制故事状态。
 
-应用产品入口：[Web Desktop](../apps/web-desktop/requirements/README.md)（双交互模式桌面、Web 应用与仓内无界运行内核；独立编号与验收，不计入本目录平台故事统计）。
+应用产品入口：[Web Desktop](../apps/web-desktop/requirements/README.md)（双交互模式桌面、Web 应用与仓内 Orbit 运行内核；独立编号与验收，不计入本目录平台故事统计）。
 
 ## 术语
 
