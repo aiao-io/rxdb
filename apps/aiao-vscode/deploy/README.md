@@ -55,6 +55,11 @@ Authorization callback URL `http://localhost:8788/redirect`，并从 `http://loc
 ## 验证
 
 - Functions 行为回归：在仓库根执行 `pnpm nx run aiao-vscode:verify-functions`。
+- 静态路由回归：在仓库根执行 `pnpm nx run aiao-vscode:verify-pages-routing`（连带生产构建）。脚本用
+  `wrangler pages dev` 在本地托管 `dist/browser`，逐个确认 `browser-workbench-assets` 下的 `.html` 原样 200 返回，
+  且不在 Service Worker 的导航回退范围内。Pages 默认把 `.html` 308 到无扩展名地址，工作台 iframe
+  （Markdown 扩展宿主、VS Code webview）经 Service Worker 导航时不跟随这类重定向：没有 `public/_redirects`
+  的 200 改写，Markdown 预览会变成错误页，或被回退成整个工作台。
 - 公开配置检查：访问 `https://vscode.aiao.io/api/github-token`，应返回 `{"clientId":"实际 Client ID"}`；
   不应包含 Client secret。缺失配置时返回 503。
 - 点击「使用 GitHub 账号登录」后，授权 URL 的 `client_id` 应为上述真实值，不能是 `pending-aiao-vscode-oauth-app`。
