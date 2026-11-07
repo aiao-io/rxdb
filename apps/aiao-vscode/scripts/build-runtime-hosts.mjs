@@ -8,6 +8,7 @@ import { existsSync } from 'node:fs';
 import { copyFile, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
+import { patchPreviewServiceWorker } from '../src/workbench/terminal/vivari-service-worker.ts';
 
 const packageRoot = resolve(import.meta.dirname, '..');
 const resolver = createRequire(join(packageRoot, 'package.json'));
@@ -117,10 +118,16 @@ await bundle(
 // 宿主页路径与 runtime-host-frame.ts 的 RUNTIME_HOST_PAGE 一致
 await writeFile(join(output, 'runtime-host.html'), page('vivari 运行时宿主', 'host.js'));
 await writeFile(join(output, 'preview-frame.html'), page('项目服务预览', 'preview-frame.js'));
-// 内核 Worker 写死从源根的 /assets/ 加载其余 Worker；预览 Service Worker 注册在源根
+// 内核 Worker 写死从源根的 /assets/ 加载其余 Worker；预览 Service Worker 注册在源根，
+// 并去掉它放行 `/@fs/` 的一条规则（原因与升级时的核对见 vivari-service-worker.ts）
 const assets = join(vivariRoot, 'dist/assets');
 for (const name of await readdir(assets)) {
-  await copyFile(join(assets, name), name === 'sw.js' ? join(output, 'sw.js') : join(output, 'assets', name));
+  if (name === 'sw.js') {
+    const source = await readFile(join(assets, name), 'utf8');
+    await writeFile(join(output, 'sw.js'), patchPreviewServiceWorker(source));
+  } else {
+    await copyFile(join(assets, name), join(output, 'assets', name));
+  }
 }
 for (const pack of VENDOR_PACKS) {
   const bytes = (await cachedPack(pack)) ?? (await downloadPack(pack));
@@ -135,6 +142,7 @@ await writeFile(
   join(output, 'NOTICE.txt'),
   [
     `@vivari/core ${vivari.version}（${vivari.license}）：${vivari.homepage}`,
+    `sw.js 是其预览 Service Worker，仅去掉了放行 /@fs/ 的一条规则（修改见 src/workbench/terminal/vivari-service-worker.ts）。`,
     `vendor/ 下的打包件来自 ${VENDOR_BASE}，内含 npm、pnpm、yarn、corepack，各自沿用上游许可证：`,
     ...VENDOR_PACKS.map(pack => `  ${pack.name}  sha256=${pack.sha256}`),
     ''

@@ -41,6 +41,7 @@
         "{projectRoot}/src/workbench/terminal/runtime-host-protocol.ts",
         "{projectRoot}/src/workbench/terminal/sync-ignore.ts",
         "{projectRoot}/src/workbench/terminal/vivari-host.ts",
+        "{projectRoot}/src/workbench/terminal/vivari-service-worker.ts",
         "{workspaceRoot}/pnpm-lock.yaml"
       ],
       "outputs": ["{projectRoot}/runtime-hosts/dist"],

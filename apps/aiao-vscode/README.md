@@ -157,7 +157,9 @@ WebContainer 以外的运行时（[vivari](https://github.com/maitrungduc1410/vi
   宿主页只接受表里对应工作台来源的连接，静态服务按同一张表设置 `frame-ancestors`；当前来源没有配置的运行方式在设置里不可选。
   本地对应关系：`localhost:4320`（`serve`）与 `localhost:4330`（验证脚本的生产构建服务）→ vivari `localhost:4331`、Nodepod `localhost:4332`。
 - **构建** `pnpm nx run aiao-vscode:runtime-hosts`，产物在 `runtime-hosts/dist/<运行时>/`（git 忽略），来源与许可写在各自的 `NOTICE.txt`：
-  - vivari：打包内核宿主页与预览容器页，把 `@vivari/core` 的 Worker 资源放到源根 `/assets/`、Service Worker 放到 `/sw.js`，
+  - vivari：打包内核宿主页与预览容器页，把 `@vivari/core` 的 Worker 资源放到源根 `/assets/`、Service Worker 放到 `/sw.js`
+    （去掉它放行 `/@fs/` 的一条规则：Angular 开发服务器的 Vite 客户端靠 `/@fs/` 导入 `env.mjs`，被放行成 404 就整体加载失败，
+    保存后预览不刷新；规则写法变了构建会报错，见 `src/workbench/terminal/vivari-service-worker.ts`），
     并下载 `/vendor/{npm,pnpm,yarn,corepack}-pack.bin`（按 SHA-256 钉死在 `scripts/build-runtime-hosts.mjs`，与 `@vivari/core` 版本绑定，
     升级时要重新核对；下载缓存在 `node_modules/.cache/runtime-hosts/`）；
   - Nodepod：打包宿主页，复制预览 Service Worker `/__sw__.js` 与进程 Worker `/__worker__.js`。它的 `sideEffects` 声明只列了源码路径，
@@ -173,9 +175,16 @@ WebContainer 以外的运行时（[vivari](https://github.com/maitrungduc1410/vi
   vivari 的文件系统持久化在宿主源的 OPFS，挂载项目前先清空 `/project`；它的 SDK 监听看不到进程写入，宿主在 VM 里常驻一个监听进程。
 - **Nodepod 许可**：MIT + Commons Clause（`MIT WITH Commons-Clause`），**仅内部评估**，商用前需法务确认；许可全文随宿主产物分发在
   `licenses/nodepod.txt`。它运行时会从 cdn.jsdelivr.net、esm.sh 取 esbuild-wasm、rollup、lightningcss 等，从 registry.npmjs.org 取 npm 包。
-- **已知问题**（对比结果见 [US-409](requirements/stories/US-409-browser-runtime-comparison.md)）：Angular 模板在两者里都跑不起来——
-  vivari 对 pnpm 9.15.9 的 esbuild 替换补丁失效，装不上；Nodepod 装得上，但它报告的 Node 版本 v22.12.0 低于 Angular CLI 22 的要求，
-  `ng serve` 拒绝启动。vivari 里 pnpm 运行脚本时每行输出出现两次（npm 不会）。
+- **vivari 里的包管理器不读写锁文件**：它在注册表元数据层把原生二进制包（esbuild、rollup、lightningcss）换成 WASM 版本，只改写元数据请求、
+  不改 tarball 请求；锁文件钉着原生包的 tarball 与完整性哈希，沿用它就绕过了替换（Angular 模板的 `esbuild` 安装脚本报
+  `Unsupported platform: linux wasm32`，npm 带原生 `package-lock.json` 同样如此），装好之后不带开关的 `pnpm add` 还会把 WASM 包换回原生包。
+  所以宿主后端给 VM 里每个进程（「运行」与交互 Shell 一样）带 `npm_config_lockfile=false`（pnpm）与 `npm_config_package_lock=false`（npm）：
+  按 `package.json` 重新解析，项目自己的锁文件不被读写，WASM 包的哈希也不会写进去（pnpm 会提示「A pnpm-lock.yaml file exists. The current
+  configuration prohibits to read or write a lockfile」）。代价是冷装更慢（vite 模板约 3.5 → 8 秒，Angular + pnpm 约 25 秒）。
+- **已知问题**（对比结果见 [US-409](requirements/stories/US-409-browser-runtime-comparison.md)）：Nodepod 装得上 Angular 模板，但它报告的
+  Node 版本 v22.12.0 低于 Angular CLI 22 的要求，`ng serve` 拒绝启动。vivari 里 pnpm 运行脚本时每行输出出现两次（npm 不会）；
+  每次调用 pnpm 都会打印 `pnpm store-alias patch did NOT apply to …/bin/pnpm.cjs`，这是误报——补丁函数对启动器小文件 `bin/pnpm.cjs`
+  告警，真正的实现 `dist/pnpm.cjs` 已经打上，可以忽略。
 
 单项目限制：2,000 文件、单文件 2 MiB、文件总量 20 MiB、ZIP 24 MiB；不支持符号链接、可执行位
 和子模块。写入用仓库级 Web Lock 串行化，崩溃后先检查恢复日志，不误报写入成功。

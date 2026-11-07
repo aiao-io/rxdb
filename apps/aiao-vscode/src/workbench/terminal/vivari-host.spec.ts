@@ -213,7 +213,10 @@ describe('vivari 宿主：运行时后端', () => {
         exit: code => events.push(`exit:${code}`)
       }
     );
-    expect(fake.vivari.spawn).toHaveBeenCalledWith('pnpm', ['install'], { cwd: '/project', env: { CI: '1' } });
+    expect(fake.vivari.spawn).toHaveBeenCalledWith('pnpm', ['install'], {
+      cwd: '/project',
+      env: { npm_config_lockfile: 'false', npm_config_package_lock: 'false', CI: '1' }
+    });
     // 只读合并输出；不读的 stdout / stderr 视图要取消，否则长跑进程的输出会一直排在队列里
     expect(child.cancelStdout).toHaveBeenCalledOnce();
     expect(child.cancelStderr).toHaveBeenCalledOnce();
@@ -228,6 +231,18 @@ describe('vivari 宿主：运行时后端', () => {
     await vi.waitFor(() => expect(events).toEqual(['output:Progress', 'output:Done', 'exit:0']));
     running.kill();
     expect(child.process.kill).toHaveBeenCalledOnce();
+  });
+
+  it('没传环境变量的进程（如交互 Shell）也不读写锁文件：vivari 把原生包换成 WASM 版本，锁文件会把它们换回原生包', async () => {
+    const fake = fakeVivari();
+    fake.vivari.spawn.mockResolvedValueOnce(fakeProcess().process);
+    const backend = createVivariBackend({ boot: async () => fake.instance, location, hostName: 'host' });
+    await backend.boot();
+    await backend.spawn('sh', [], { env: undefined, size: { cols: 80, rows: 24 } }, { output: vi.fn(), exit: vi.fn() });
+    expect(fake.vivari.spawn).toHaveBeenCalledWith('sh', [], {
+      cwd: '/project',
+      env: { npm_config_lockfile: 'false', npm_config_package_lock: 'false' }
+    });
   });
 
   it('启动前注册的服务就绪回调在启动后收到预览容器页地址；拆除时释放 vivari', async () => {

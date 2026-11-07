@@ -66,6 +66,14 @@ async function readLines(output: OutputSource, onLine: (line: string) => void): 
 /** 故障信息里保留监听进程最后几行错误输出。 */
 const WATCH_DIAGNOSTIC_LINES = 20;
 
+/**
+ * 进程都不读写锁文件（pnpm 读 `npm_config_lockfile`，npm 读 `npm_config_package_lock`）。vivari 只在注册表元数据
+ * 请求上把原生二进制包（esbuild、rollup、lightningcss）换成 WASM 版本，锁文件却钉着原生包的 tarball 与完整性哈希，
+ * 沿用它就绕过了替换：wasm32 平台上装出用不了的原生包，esbuild 的安装脚本直接报 `Unsupported platform`；
+ * 装好之后在 Shell 里不带开关的 `pnpm add` 还会把 WASM 包换回原生包，把项目搞坏。所以一律按元数据重新解析。
+ */
+const LOCKFILE_FREE_ENV = { npm_config_lockfile: 'false', npm_config_package_lock: 'false' };
+
 /** vivari 进程只读合并输出；不读的 stdout / stderr 视图取消掉，否则每块输出都在那两个队列里积着。 */
 function readMergedOutputOnly(child: {
   readonly stdout: Pick<ReadableStream<string>, 'cancel'>;
@@ -187,7 +195,7 @@ export function createVivariBackend(options: VivariBackendOptions): RuntimeHostB
     async spawn(command, args, { env }, events) {
       const child = await instance().spawn(command, [...args], {
         cwd: PROJECT_ROOT,
-        ...(env ? { env: { ...env } } : {})
+        env: { ...LOCKFILE_FREE_ENV, ...env }
       });
       const input = child.input.getWriter();
       readMergedOutputOnly(child);
