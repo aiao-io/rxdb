@@ -260,8 +260,11 @@ try {
     await command(
       "node -e \"require('node:http').createServer((req,res)=>{res.setHeader('Content-Type','text/html');res.end('<h1>AIAO_SERVER_OK</h1>')}).listen(5173)\""
     );
+    // 看服务给的标题，不比整页文字：Nodepod 默认往预览页里插一个水印链接
     const preview = serviceFrame(5173);
-    await expect(preview.locator('body')).toHaveText('AIAO_SERVER_OK', { timeout: 60000 });
+    await expect(preview.getByRole('heading', { name: 'AIAO_SERVER_OK', exact: true })).toBeVisible({
+      timeout: 60000
+    });
     await page.screenshot({ path: '/tmp/aiao-terminal-verification.png' });
     await input.press('Control+c');
     // 中断后会重绘提示符，重绘期间输入会被行编辑器打乱光标；等新提示符出现再输入
@@ -294,8 +297,9 @@ try {
       await input.press('Control+c');
       await expect(terminal.locator('[data-terminal-status]')).toContainText('项目已停止', { timeout: 30000 });
       await terminal.locator('[data-terminal-session="shell"]').click();
+      // 端口上没有服务时 Node 的 fetch 直接 reject，Nodepod 则回 503：都算服务已停止
       await command(
-        `node -e "fetch('http://localhost:${port}').then(()=>console.log('AIAO_SERVICE_STILL_RUNNING')).catch(()=>console.log('AIAO_SERVICE_'+'STOPPED'))"`
+        `node -e "fetch('http://localhost:${port}').then(r=>console.log(r.ok?'AIAO_SERVICE_STILL_RUNNING':'AIAO_SERVICE_'+'STOPPED')).catch(()=>console.log('AIAO_SERVICE_'+'STOPPED'))"`
       );
       await expect(screen).toContainText('AIAO_SERVICE_STOPPED');
     });
@@ -318,7 +322,7 @@ try {
   if (hosted)
     await attempt('runtime-host-isolation', async () => {
       const hostOrigin = runtimeHostFor(runtime, url);
-      const hostFrame = page.frames().find(frame => frame.url() === `${hostOrigin}/`);
+      const hostFrame = page.frames().find(frame => frame.url() === `${hostOrigin}/runtime-host.html`);
       assert.ok(hostFrame, `找不到 ${runtime} 宿主 iframe`);
       const host = await hostFrame.evaluate(async () => ({
         isolated: crossOriginIsolated,

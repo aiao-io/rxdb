@@ -28,7 +28,7 @@ async function serve({ runtime, origin, parents }) {
     'Service-Worker-Allowed': '/'
   };
   const file = async pathname => {
-    const target = await realpath(join(root, pathname === '/' ? 'index.html' : pathname));
+    const target = await realpath(join(root, pathname));
     if (target !== root && !target.startsWith(`${root}${sep}`))
       throw Object.assign(new Error('越界'), { code: 'ENOENT' });
     return { target, body: await readFile(target) };

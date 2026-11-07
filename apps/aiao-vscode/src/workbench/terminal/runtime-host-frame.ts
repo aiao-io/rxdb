@@ -6,6 +6,12 @@ import {
   type RuntimeHostConnection
 } from './runtime-host-protocol.js';
 
+/**
+ * 宿主页在宿主源上的路径。不放源根：Nodepod 的 reservedHostPaths 里以 `/` 结尾的条目按前缀匹配，
+ * 保留 `/` 等于保留全部路径，宿主页要有自己能精确保留的路径。
+ */
+export const RUNTIME_HOST_PAGE = '/runtime-host.html';
+
 /** 宿主页只做加载与握手，正常一两秒内就绪；超过这个时间多半是宿主服务没启动。 */
 const HOST_READY_TIMEOUT_MS = 20_000;
 
@@ -34,7 +40,7 @@ export function openRuntimeHost(document: Document, options: RuntimeHostFrameOpt
   frame.setAttribute('aria-hidden', 'true');
   frame.tabIndex = -1;
   frame.style.cssText = 'position:absolute;width:0;height:0;border:0;visibility:hidden';
-  frame.src = `${origin}/`;
+  frame.src = `${origin}${RUNTIME_HOST_PAGE}`;
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       view.removeEventListener('message', onMessage);

@@ -114,7 +114,8 @@ await bundle(
   },
   output
 );
-await writeFile(join(output, 'index.html'), page('vivari 运行时宿主', 'host.js'));
+// 宿主页路径与 runtime-host-frame.ts 的 RUNTIME_HOST_PAGE 一致
+await writeFile(join(output, 'runtime-host.html'), page('vivari 运行时宿主', 'host.js'));
 await writeFile(join(output, 'preview-frame.html'), page('项目服务预览', 'preview-frame.js'));
 // 内核 Worker 写死从源根的 /assets/ 加载其余 Worker；预览 Service Worker 注册在源根
 const assets = join(vivariRoot, 'dist/assets');
@@ -150,7 +151,7 @@ await bundle({ host: join(packageRoot, 'src/runtime-hosts/nodepod/host.ts') }, n
   external: ['node:*'],
   ignoreAnnotations: true
 });
-await writeFile(join(nodepodOutput, 'index.html'), page('Nodepod 运行时宿主', 'host.js'));
+await writeFile(join(nodepodOutput, 'runtime-host.html'), page('Nodepod 运行时宿主', 'host.js'));
 for (const name of ['__sw__.js', '__worker__.js'])
   await copyFile(join(nodepodRoot, 'dist', name), join(nodepodOutput, name));
 await copyFile(join(nodepodRoot, 'LICENSE'), join(nodepodOutput, 'licenses/nodepod.txt'));

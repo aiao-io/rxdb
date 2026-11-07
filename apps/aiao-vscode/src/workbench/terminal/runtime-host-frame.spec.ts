@@ -62,7 +62,8 @@ describe('独立源运行时宿主页', () => {
     const opening = openRuntimeHost(document, { origin: HOST, runtime: 'vivari' });
     const host = backend();
     const { frame, contentWindow, post } = hostFrame(host);
-    expect(frame.src).toBe(`${HOST}/`);
+    // 宿主页不放在源根：Nodepod 的 reservedHostPaths 里 `/` 会按前缀匹配全部路径，宿主页要有自己的精确路径
+    expect(frame.src).toBe(`${HOST}/runtime-host.html`);
     expect(frame.getAttribute('allow')).toBe('cross-origin-isolated');
     expect(frame.getAttribute('aria-hidden')).toBe('true');
     expect(frame.name).toMatch(/^aiao-runtime-host-vivari-/);

@@ -30,7 +30,7 @@ export async function startRuntimeHost() {
 
 /** 已在运行的宿主服务（如 nx serve 带起的）是否可达。 */
 export async function assertRuntimeHost(host) {
-  const reachable = await fetch(host, { signal: AbortSignal.timeout(3000) }).then(
+  const reachable = await fetch(`${host}/runtime-host.html`, { signal: AbortSignal.timeout(3000) }).then(
     response => response.ok,
     () => false
   );

@@ -9,7 +9,7 @@
 ## 开发与构建
 
 ```sh
-pnpm nx serve aiao-vscode          # 开发服务器 http://localhost:4320（同时起运行时宿主 :4331）
+pnpm nx serve aiao-vscode          # 开发服务器 http://localhost:4320（同时起运行时宿主 :4331 / :4332）
 pnpm nx build aiao-vscode          # 生产构建（默认配置，含 Service Worker；连带构建运行时宿主）
 pnpm nx test aiao-vscode           # 内核 + Angular 外壳单测（vitest）
 pnpm nx run aiao-vscode:test-browser  # 真实 Chromium 探针（Git / 预览 / Angular）
@@ -131,7 +131,7 @@ Angular 使用浏览器 JIT 与 TS 装饰器转换。受控编译不提供完整
 启动 WebContainer 与首次安装依赖需要网络。终端需要 COOP / COEP；当前 `serve` 已配置。
 「运行」用哪种方式在设置的「运行方式」里选（保存在此浏览器），地址参数 `?runtime=` 只覆盖当前页面；
 选「即时编译（esbuild-wasm）」时「运行」只刷新本地项目预览，不启动终端。尚未接入的方式在设置里显示为待接入；
-vivari 要当前工作台来源配置了宿主源才可选（见下节）。
+vivari、Nodepod 要当前工作台来源配置了宿主源才可选（见下节）。
 WebContainer 不支持原生 Node 扩展，不能据此保证任意 Nx / npm 仓库兼容。
 商用宿主可通过 `BrowserWorkbenchOptions.webContainerApiKey` 传入官方授权；
 授权要求见 [WebContainer 文档](https://webcontainers.io/enterprise)。
@@ -139,26 +139,34 @@ WebContainer 不支持原生 Node 扩展，不能据此保证任意 Nx / npm 仓
 
 ## 运行时宿主
 
-WebContainer 以外的运行时（目前是 [vivari](https://github.com/maitrungduc1410/vivari)）跑在**独占一个源**的宿主页里：
-工作台用隐藏 iframe（`allow="cross-origin-isolated"`）加载宿主页，握手后经私有 `MessagePort` 驱动文件系统、进程与服务就绪事件。
+WebContainer 以外的运行时（[vivari](https://github.com/maitrungduc1410/vivari) 与 [Nodepod](https://github.com/R1ck404/Nodepod)）
+各自跑在**独占一个源**的宿主页 `/runtime-host.html` 里：工作台用隐藏 iframe（`allow="cross-origin-isolated"`）加载它，
+握手后经私有 `MessagePort` 驱动文件系统、进程（含终端尺寸）与服务就绪事件。
 宿主的 Service Worker 注册在自己的源上，不顶掉工作台的离线 Service Worker；项目代码与服务预览碰不到工作台的存储。
 
-- **宿主源只来自部署配置** `src/runtime-hosts/hosts.ts`（工作台来源 → 宿主源），不接受地址参数：宿主页能读到挂进去的项目文件。
-  宿主页只接受表里对应工作台来源的连接，静态服务按同一张表设置 `frame-ancestors`；当前来源不在表里时 vivari 在设置里不可选。
-  本地对应关系：`localhost:4320`（`serve`）与 `localhost:4330`（验证脚本的生产构建服务）→ `localhost:4331`。
-- **构建** `pnpm nx run aiao-vscode:runtime-hosts`：打包内核宿主页与预览容器页，把 `@vivari/core` 的 Worker 资源放到源根 `/assets/`、
-  Service Worker 放到 `/sw.js`，并下载 `/vendor/{npm,pnpm,yarn,corepack}-pack.bin`（按 SHA-256 钉死在
-  `scripts/build-runtime-hosts.mjs`，与 `@vivari/core` 版本绑定，升级时要重新核对）。产物在 `runtime-hosts/dist/vivari/`（git 忽略），
-  下载缓存在 `node_modules/.cache/runtime-hosts/`，来源与许可写在产物的 `NOTICE.txt`。
-- **服务** `pnpm nx run aiao-vscode:serve-runtime-hosts`（`serve` 已依赖）：`http://localhost:4331`，带 COOP / COEP、
+- **宿主源只来自部署配置** `src/runtime-hosts/hosts.ts`（运行方式 → 工作台来源 → 宿主源），不接受地址参数：宿主页能读到挂进去的项目文件。
+  宿主页只接受表里对应工作台来源的连接，静态服务按同一张表设置 `frame-ancestors`；当前来源没有配置的运行方式在设置里不可选。
+  本地对应关系：`localhost:4320`（`serve`）与 `localhost:4330`（验证脚本的生产构建服务）→ vivari `localhost:4331`、Nodepod `localhost:4332`。
+- **构建** `pnpm nx run aiao-vscode:runtime-hosts`，产物在 `runtime-hosts/dist/<运行时>/`（git 忽略），来源与许可写在各自的 `NOTICE.txt`：
+  - vivari：打包内核宿主页与预览容器页，把 `@vivari/core` 的 Worker 资源放到源根 `/assets/`、Service Worker 放到 `/sw.js`，
+    并下载 `/vendor/{npm,pnpm,yarn,corepack}-pack.bin`（按 SHA-256 钉死在 `scripts/build-runtime-hosts.mjs`，与 `@vivari/core` 版本绑定，
+    升级时要重新核对；下载缓存在 `node_modules/.cache/runtime-hosts/`）；
+  - Nodepod：打包宿主页，复制预览 Service Worker `/__sw__.js` 与进程 Worker `/__worker__.js`。它的 `sideEffects` 声明只列了源码路径，
+    打包时要忽略这份声明，否则浏览器宿主的注册会被摇掉。
+- **服务** `pnpm nx run aiao-vscode:serve-runtime-hosts`（`serve` 已依赖）：按部署配置给每个本地宿主源起一个端口，带 COOP / COEP、
   `Cross-Origin-Resource-Policy: cross-origin` 与 `frame-ancestors`。线上部署需要单独的源与等价响应头。
-- **服务预览**：面板加载宿主源上的预览容器页 `/preview-frame.html`，由它嵌入 vivari 的 `/preview/<端口>/` 并把热更新隧道
-  转交同源的内核宿主页（vivari 的隧道要求预览 iframe 的父窗口能直达内核）。
-- **与 WebContainer 的差异**：vivari 没有伪终端，进程看到的尺寸固定为 80×24（`isTTY` 为假）。Shell 页签用 vivari 自带的 `sh`（提示符 `project$`）；
-  「运行」不经 Shell，直接起安装、启动进程并自行回显命令行，`Ctrl+C` 结束前台进程。vivari 的文件系统持久化在宿主源的 OPFS，
-  挂载项目前先清空 `/project`，上一个项目的文件不会带进来。
-- **已知问题**（对比结果见 [US-409](requirements/stories/US-409-browser-runtime-comparison.md)）：Angular 模板用 pnpm 装不上
-  （vivari 对 pnpm 9.15.9 的 esbuild 替换补丁失效）；pnpm 运行脚本时每行输出出现两次（npm 不会）。
+- **服务预览**：vivari 的热更新隧道要求预览 iframe 的父窗口能直达内核，面板因此加载宿主源上的预览容器页 `/preview-frame.html`，
+  由它嵌入 `/preview/<端口>/`；Nodepod 的预览走它自己的 Service Worker（WebSocket 经 BroadcastChannel 中转），面板直接嵌宿主源上的
+  `/__virtual__/<实例>/<端口>`，预览里带 Nodepod 默认的水印链接。
+- **终端**：两者都没有伪终端，「运行」不经 Shell，直接起安装、启动进程并自行回显命令行，`Ctrl+C` 结束前台进程。
+  Shell 页签：vivari 用自带的 `sh`（提示符 `project$`，进程看到的尺寸固定为 80×24、`isTTY` 为假）；Nodepod 用它的 `NodepodTerminal`
+  （提示符 `nodepod:/project$`，宿主给它接了一个只转发的 xterm，尺寸跟随工作台、`isTTY` 为真）。
+  vivari 的文件系统持久化在宿主源的 OPFS，挂载项目前先清空 `/project`；它的 SDK 监听看不到进程写入，宿主在 VM 里常驻一个监听进程。
+- **Nodepod 许可**：MIT + Commons Clause（`MIT WITH Commons-Clause`），**仅内部评估**，商用前需法务确认；许可全文随宿主产物分发在
+  `licenses/nodepod.txt`。它运行时会从 cdn.jsdelivr.net、esm.sh 取 esbuild-wasm、rollup、lightningcss 等，从 registry.npmjs.org 取 npm 包。
+- **已知问题**（对比结果见 [US-409](requirements/stories/US-409-browser-runtime-comparison.md)）：Angular 模板在两者里都跑不起来——
+  vivari 对 pnpm 9.15.9 的 esbuild 替换补丁失效，装不上；Nodepod 装得上，但它报告的 Node 版本 v22.12.0 低于 Angular CLI 22 的要求，
+  `ng serve` 拒绝启动。vivari 里 pnpm 运行脚本时每行输出出现两次（npm 不会）。
 
 单项目限制：2,000 文件、单文件 2 MiB、文件总量 20 MiB、ZIP 24 MiB；不支持符号链接、可执行位
 和子模块。写入用仓库级 Web Lock 串行化，崩溃后先检查恢复日志，不误报写入成功。
@@ -194,11 +202,11 @@ pnpm nx run aiao-vscode:verify-runtimes --url=http://localhost:4320/
 `pnpm nx run aiao-vscode:verify-terminal --production`。脚本会临时启动带 COOP / COEP 的本地静态服务，
 验证真实 npm / pnpm 安装、文件双向同步、服务预览、Ctrl+C、项目切换和进程释放。
 本机没有 Playwright 自带的浏览器时加 `--channel=chrome` 改用系统 Chrome（`verify-runtimes` 同样支持）。
-加 `--runtime=vivari` 用同一套断言验另一种运行方式（`--templates=` 选「运行」要跑的模板，`--out=` 改报告路径，
-免得覆盖 WebContainer 的报告）；`--production` 的静态服务固定在 `localhost:4330`，验 vivari 时脚本还会自己起宿主服务（要先构建 `runtime-hosts`）。
+加 `--runtime=vivari` 或 `--runtime=nodepod` 用同一套断言验另一种运行方式（`--templates=` 选「运行」要跑的模板，`--out=` 改报告路径，
+免得覆盖 WebContainer 的报告）；`--production` 的静态服务固定在 `localhost:4330`，验独立源运行时时脚本还会自己起宿主服务（要先构建 `runtime-hosts`）。
 
 运行方式对比（[US-409](requirements/stories/US-409-browser-runtime-comparison.md)）：`verify-runtimes` 对每种运行方式 × 四个模板
 测本地预览、运行到服务页、改动生效与停止后再运行的耗时，以及下载量和浏览器进程内存，
 默认每格 3 次取中位数，报告写入 `benchmarks/browser-workbench-runtimes.json`。可用 `--runtimes=`、`--templates=`、
-`--repeat=` 缩小范围，`--out=` 改报告路径。跑 vivari 时 `--url=` 模式要求宿主服务已在运行（`serve` 会带起），`--production` 模式脚本自己起。
+`--repeat=` 缩小范围，`--out=` 改报告路径。跑 vivari、Nodepod 时 `--url=` 模式要求宿主服务已在运行（`serve` 会带起），`--production` 模式脚本自己起。
 页面级内存会把同站宿主 iframe 与 Worker 的共享内存算进来，跨运行时比较以浏览器进程树 RSS 为准。
