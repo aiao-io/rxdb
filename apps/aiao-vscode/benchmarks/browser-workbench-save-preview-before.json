@@ -1,0 +1,55 @@
+{
+  "browser": "156.0.8078.4",
+  "compilerWorkersCreated": 6,
+  "format": "aiao.workbench.save-preview-timing",
+  "label": "before",
+  "samples": [
+    {
+      "index": 0,
+      "cold": true,
+      "saveMs": 89.24883399999999,
+      "saveToVisibleMs": 1041.7170420000002,
+      "compilerWorkersCreated": 1
+    },
+    {
+      "index": 1,
+      "cold": false,
+      "saveMs": 85.15925000000016,
+      "saveToVisibleMs": 868.5600000000004,
+      "compilerWorkersCreated": 1
+    },
+    {
+      "index": 2,
+      "cold": false,
+      "saveMs": 83.36512500000026,
+      "saveToVisibleMs": 813.3711250000006,
+      "compilerWorkersCreated": 1
+    },
+    {
+      "index": 3,
+      "cold": false,
+      "saveMs": 83.40912500000013,
+      "saveToVisibleMs": 817.964833,
+      "compilerWorkersCreated": 1
+    },
+    {
+      "index": 4,
+      "cold": false,
+      "saveMs": 80.46283299999959,
+      "saveToVisibleMs": 828.2185,
+      "compilerWorkersCreated": 1
+    },
+    {
+      "index": 5,
+      "cold": false,
+      "saveMs": 83.45537500000046,
+      "saveToVisibleMs": 795.3385000000007,
+      "compilerWorkersCreated": 1
+    }
+  ],
+  "scenario": "Real React host: edit TSX, CtrlS, wait saved receipt, click Run, wait new iframe heading visible. Includes Playwright action/observation overhead.",
+  "version": 1,
+  "warmMaxMs": 868.5600000000004,
+  "warmMedianMs": 817.964833,
+  "warmMinMs": 795.3385000000007
+}

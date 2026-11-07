@@ -41,10 +41,11 @@ const MIME = {
 };
 
 export function usage(exitCode = 0) {
-  console.log(`Usage: node scripts/e2e-static-server.mjs --root <dir> --port <n> [--host <host>]
+  console.log(`Usage: node scripts/e2e-static-server.mjs --root <dir> --port <n> [--host <host>] [--coop-coep]
 
 Serves a built SPA directory over HTTP.
-Missing files fall back to index.html. Occupied ports fail immediately.`);
+Missing files fall back to index.html. Occupied ports fail immediately.
+--coop-coep adds cross-origin isolation headers (OPFS / SharedArrayBuffer consumers).`);
   process.exit(exitCode);
 }
 
@@ -69,6 +70,7 @@ export function parseArgs(argv) {
   let root = '';
   let port;
   let host;
+  let coopCoep = false;
   for (let i = 0; i < argv.length;) {
     const arg = argv[i];
     if (arg === '-h' || arg === '--help') usage(0);
@@ -99,6 +101,12 @@ export function parseArgs(argv) {
       continue;
     }
 
+    if (arg === '--coop-coep') {
+      coopCoep = true;
+      i++;
+      continue;
+    }
+
     if (arg.startsWith('-')) {
       throw new Error(`Unknown option: ${arg}`);
     }
@@ -107,7 +115,7 @@ export function parseArgs(argv) {
 
   if (!root) throw new Error('Missing --root');
   if (port === undefined) throw new Error('Missing --port');
-  return { root, port, host };
+  return { root, port, host, coopCoep };
 }
 
 export function readDocumentBaseHref(html) {
@@ -181,11 +189,17 @@ function send(res, status, body, type = 'text/plain; charset=utf-8') {
   res.end(body);
 }
 
-export function createStaticServer(rootPath) {
+export function createStaticServer(rootPath, { coopCoep = false } = {}) {
   const realRoot = realpathSync(rootPath);
   const indexFile = join(realRoot, 'index.html');
 
   return createServer((req, res) => {
+    // 浏览器开发工作台需要跨源隔离（OPFS / JSPI / credentialless 预览）；
+    // 其他 e2e 不受影响，只有显式传 --coop-coep 才开。
+    if (coopCoep) {
+      res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+      res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+    }
     // HEAD 走和 GET 完全一样的路径，Node 自己会丢掉响应体；其余方法一律拒绝，
     // 免得 e2e 里一个手滑的 POST 被当成静态文件请求、拿到 200 + index.html。
     if (req.method !== 'GET' && req.method !== 'HEAD') {
@@ -224,6 +238,8 @@ export function createStaticServer(rootPath) {
     }
 
     const type = MIME[extname(filePath).toLowerCase()] ?? 'application/octet-stream';
+    const assetPath = relative(realRoot, filePath);
+    if (assetPath.startsWith(`browser-workbench-assets${sep}`)) res.setHeader('Access-Control-Allow-Origin', '*');
     send(res, 200, body, type);
   });
 }
@@ -244,10 +260,10 @@ function listenExclusive(server, { port, host }) {
   });
 }
 
-export async function startStaticServer({ root, port, host }) {
+export async function startStaticServer({ root, port, host, coopCoep }) {
   const rootPath = resolve(root);
   assertStaticRoot(rootPath);
-  return listenExclusive(createStaticServer(rootPath), { port, host });
+  return listenExclusive(createStaticServer(rootPath, { coopCoep }), { port, host });
 }
 
 export function closeStaticServer(server) {

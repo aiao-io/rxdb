@@ -55,13 +55,34 @@ test('parseArgs 读取 --root / --port / --host', () => {
   assert.deepEqual(parseArgs(['--root', 'dist/app', '--port', '8200', '--host', '127.0.0.1']), {
     root: 'dist/app',
     port: 8200,
-    host: '127.0.0.1'
+    host: '127.0.0.1',
+    coopCoep: false
   });
   assert.deepEqual(parseArgs(['--root=dist/app', '--port=8313']), {
     root: 'dist/app',
     port: 8313,
-    host: undefined
+    host: undefined,
+    coopCoep: false
   });
+});
+
+test('只有工作台运行资源允许 opaque 预览跨域读取', async () => {
+  const root = await createFixture();
+  await mkdir(join(root, 'browser-workbench-assets'));
+  await writeFile(join(root, 'browser-workbench-assets', 'runtime.js'), 'export const runtime = true;');
+  const server = await startStaticServer({ root, port: 0, host: '127.0.0.1' });
+  const port = server.address().port;
+  try {
+    const asset = await rawGet(port, '/browser-workbench-assets/runtime.js');
+    assert.equal(asset.status, 200);
+    assert.equal(asset.headers['access-control-allow-origin'], '*');
+    for (const path of ['/app.js', '/browser-workbench', '/assets/ok.txt']) {
+      const response = await rawGet(port, path);
+      assert.equal(response.headers['access-control-allow-origin'], undefined);
+    }
+  } finally {
+    await closeStaticServer(server);
+  }
 });
 
 test('parseArgs 拒绝缺失参数与非法端口', () => {
@@ -222,4 +243,27 @@ test('路径穿越返回 403，不会读出根目录外的文件', async () => {
   } finally {
     await closeStaticServer(server);
   }
+});
+
+test('--coop-coep 只按显式开关加跨源隔离响应头', async () => {
+  const root = await createFixture();
+  const plain = await startStaticServer({ root, port: 0, host: '127.0.0.1' });
+  const { port: plainPort } = plain.address();
+  try {
+    const without = await rawGet(plainPort, '/index.html');
+    assert.equal(without.headers['cross-origin-opener-policy'], undefined);
+  } finally {
+    await closeStaticServer(plain);
+  }
+  const isolated = await startStaticServer({ root, port: 0, host: '127.0.0.1', coopCoep: true });
+  const { port } = isolated.address();
+  try {
+    const withHeaders = await rawGet(port, '/index.html');
+    assert.equal(withHeaders.headers['cross-origin-opener-policy'], 'same-origin');
+    assert.equal(withHeaders.headers['cross-origin-embedder-policy'], 'require-corp');
+  } finally {
+    await closeStaticServer(isolated);
+  }
+  assert.equal(parseArgs(['--root', root, '--port', '4321', '--coop-coep']).coopCoep, true);
+  assert.equal(parseArgs(['--root', root, '--port', '4321']).coopCoep, false);
 });

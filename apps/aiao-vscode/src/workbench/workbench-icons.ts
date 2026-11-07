@@ -1,0 +1,122 @@
+import { createSetiIcon } from './workbench-seti.js';
+
+/** 界面控件统一使用 VS Code 官方 Codicons 字形；文件图标见 createFileIcon。 */
+export type CodiconName =
+  | 'files'
+  | 'source-control'
+  | 'layout-panel'
+  | 'play'
+  | 'add'
+  | 'edit'
+  | 'trash'
+  | 'new-file'
+  | 'new-folder'
+  | 'cloud-upload'
+  | 'cloud-download'
+  | 'save'
+  | 'close'
+  | 'git-commit'
+  | 'git-branch'
+  | 'warning'
+  | 'error'
+  | 'output'
+  | 'debug-console'
+  | 'terminal'
+  | 'chevron-right'
+  | 'arrow-left'
+  | 'arrow-right'
+  | 'chevron-down'
+  | 'folder'
+  | 'folder-opened'
+  | 'file-code'
+  | 'json'
+  | 'markdown'
+  | 'symbol-color'
+  | 'file-media'
+  | 'file-binary'
+  | 'settings-gear'
+  | 'file-text'
+  | 'file'
+  | 'diff-modified'
+  | 'diff-added'
+  | 'diff-removed'
+  | 'diff-renamed'
+  | 'question'
+  | 'check'
+  | 'search'
+  | 'case-sensitive'
+  | 'whole-word'
+  | 'regex'
+  | 'replace'
+  | 'replace-all'
+  | 'go-to-file'
+  | 'extensions'
+  | 'account'
+  | 'more'
+  | 'menu'
+  | 'refresh'
+  | 'collapse-all'
+  | 'expand-all'
+  | 'split-horizontal'
+  | 'split-vertical'
+  | 'layout-sidebar-left'
+  | 'layout-sidebar-left-off'
+  | 'layout-panel-off'
+  | 'layout-sidebar-right'
+  | 'code'
+  | 'layout'
+  | 'remote'
+  | 'open-preview'
+  | 'globe'
+  | 'clear-all'
+  | 'circle-filled'
+  | 'chevron-up'
+  | 'remove'
+  | 'discard'
+  | 'git-compare'
+  | 'ellipsis'
+  | 'close-all'
+  | 'diff';
+
+function iconClass(name: CodiconName): string {
+  if (!/^[a-z][a-z0-9-]*$/.test(name)) throw new Error('无效的 VS Code 图标名称');
+  return `codicon codicon-${name}`;
+}
+
+function escapedAttribute(value: string): string {
+  const escapes: Record<string, string> = { '&': '&amp;', '"': '&quot;', "'": '&#39;', '<': '&lt;', '>': '&gt;' };
+  return value.replace(/[&"'<>]/g, character => escapes[character]);
+}
+
+/** 创建独立或装饰性的官方图标；可访问名称由调用方显式提供。 */
+export function createCodicon(name: CodiconName, label?: string): HTMLSpanElement {
+  const icon = document.createElement('span');
+  icon.className = iconClass(name);
+  if (label) {
+    icon.setAttribute('role', 'img');
+    icon.setAttribute('aria-label', label);
+  } else icon.setAttribute('aria-hidden', 'true');
+  return icon;
+}
+
+/** 用于静态工作台布局的图标标记，名称与属性不会作为 HTML 执行。 */
+export function iconMarkup(name: CodiconName, label?: string): string {
+  const accessibility = label ? `role="img" aria-label="${escapedAttribute(label)}"` : 'aria-hidden="true"';
+  return `<span class="${iconClass(name)}" ${accessibility}></span>`;
+}
+
+/** 文件图标沿用 VS Code 默认的 Seti 图标主题；目录没有图标，只有折叠箭头。 */
+export function createFileIcon(path: string): HTMLSpanElement {
+  return createSetiIcon(path);
+}
+
+/** 使用两列 Git 状态生成源代码管理的装饰图标。 */
+export function gitStatusCodicon(status: string): CodiconName {
+  if (status.includes('U')) return 'warning';
+  if (status.includes('?')) return 'question';
+  if (status.includes('R')) return 'diff-renamed';
+  if (status.includes('D')) return 'diff-removed';
+  if (status.includes('A')) return 'diff-added';
+  if (/[MCT]/.test(status)) return 'diff-modified';
+  return 'check';
+}

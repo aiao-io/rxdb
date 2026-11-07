@@ -53,6 +53,13 @@
 
 三端绑定不止上表的 hook：插件各有 `-angular` / `-react` / `-vue` 绑定包，包含 `rxdb-plugin-tree-*`（树 hook）、`rxdb-plugin-search-*`（`useSearch`）、`rxdb-plugin-working-tree-*`（`useWorkingTree` 等）、`rxdb-plugin-replay-*`（`Replayer` 组件与恢复提示）、`rxdb-plugin-board-*`（看板视图）、`rxdb-i18n-*`（客户端国际化）与 `rxdb-model-*`（实体模型 UI）；包清单与导出以 [api-baseline/](api-baseline/) 为准，对称性用 `tri-framework-check` 复核。
 
+## 浏览器开发工作台应用
+
+`apps/aiao-vscode` 是 Angular 单应用形态的 VS Code 风格本地开发工作台：OPFS Git、受控编译、
+隔离预览和带历史导出，宿主与模板独立（同一应用运行 vanilla TS、React TSX、Vue SFC、Angular
+standalone 四类模板）。当前支持桌面 Chromium 的 JSPI / credentialless 能力组合，项目文件不随
+数据库备份或复制。范围与验收以应用内 [US-404](../apps/aiao-vscode/requirements/stories/US-404-browser-development-workbench.md) 为准。
+
 ## 适配器能力对比
 
 | 适配器                  | 包名                             | `ADAPTER_NAME`          | 类型   | 核心能力                                                                                                                                                                                                                                                                                           | 需求覆盖                                                                                                                                                                                                                                                                                                                                       |
