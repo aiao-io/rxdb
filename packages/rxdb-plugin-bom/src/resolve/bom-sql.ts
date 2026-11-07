@@ -257,8 +257,6 @@ export const buildHeaderOccurrencesSql = (
   const revision = dialect.table('item_revision');
   const item = dialect.table('item');
 
-  // 同一表达式在 SELECT 与 JOIN ON 各出现一次：分别构造、各自绑定占位符
-  const resolvedSelect = childRevisionExpr(dialect, revision, p, params.asOfDate, 'occ');
   const resolvedJoin = childRevisionExpr(dialect, revision, p, params.asOfDate, 'occ');
   const sql = [
     `SELECT`,
@@ -276,7 +274,7 @@ export const buildHeaderOccurrencesSql = (
     `  occ."id" AS "occurrenceId",`,
     `  occ."childItemId" AS "childItemId",`,
     `  occ."childRevisionId" AS "childRevisionId",`,
-    `  ${resolvedSelect} AS "resolvedChildRevisionId",`,
+    `  COALESCE(occ."childRevisionId", cr."id") AS "resolvedChildRevisionId",`,
     `  occ."qty" AS "qty",`,
     `  occ."qtyFormula" AS "qtyFormula",`,
     `  occ."formulaGrammarVersion" AS "formulaGrammarVersion",`,

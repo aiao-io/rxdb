@@ -4,6 +4,7 @@ import { explodeBom } from './quantity/explosion-api.js';
 import { scopedBomAdapter } from './resolve/bom-adapter.js';
 import { bomSqlDialectFor } from './resolve/bom-sql.js';
 import { expandBom } from './resolve/expansion-api.js';
+import { memoizeBomSnapshotQuery } from './resolve/snapshot-query.js';
 import { viewItemIds } from './view-projection.js';
 import type { BomViewInput, BomViewSnapshot } from './view-types.js';
 
@@ -11,26 +12,32 @@ import type { BomViewInput, BomViewSnapshot } from './view-types.js';
 export const readBomViewSnapshot = async (db: RxDB, input: BomViewInput): Promise<BomViewSnapshot> => {
   const adapter = await firstValueFrom(db.localAdapter$);
   return adapter.transaction(async executor => {
-    const scoped = scopedBomAdapter(adapter, executor);
-    const expansion = await expandBom(scoped, input.context, input.target, { budgets: input.budgets });
-    let explosion: BomViewSnapshot['explosion'] = null;
-    let quantityError: unknown = null;
+    const query = executor.query;
+    executor.query = memoizeBomSnapshotQuery(query.bind(executor));
     try {
-      explosion = await explodeBom(scoped, input.context, input.target, {
-        plannedQty: input.plannedQty,
-        budgets: input.budgets,
-        params: input.params
-      });
-    } catch (error) {
-      quantityError = error;
+      const scoped = scopedBomAdapter(adapter, executor);
+      const expansion = await expandBom(scoped, input.context, input.target, { budgets: input.budgets });
+      let explosion: BomViewSnapshot['explosion'] = null;
+      let quantityError: unknown = null;
+      try {
+        explosion = await explodeBom(scoped, input.context, input.target, {
+          plannedQty: input.plannedQty,
+          budgets: input.budgets,
+          params: input.params
+        });
+      } catch (error) {
+        quantityError = error;
+      }
+      const { readBomViewItems } = await import('./view-items.js');
+      const items = await readBomViewItems(
+        executor,
+        bomSqlDialectFor(adapter.name),
+        viewItemIds({ expansion, explosion })
+      );
+      return { expansion, explosion, quantityError, items, refreshing: false };
+    } finally {
+      executor.query = query;
     }
-    const { readBomViewItems } = await import('./view-items.js');
-    const items = await readBomViewItems(
-      executor,
-      bomSqlDialectFor(adapter.name),
-      viewItemIds({ expansion, explosion })
-    );
-    return { expansion, explosion, quantityError, items, refreshing: false };
   }, false);
 };
 

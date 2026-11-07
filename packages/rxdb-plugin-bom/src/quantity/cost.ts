@@ -18,13 +18,8 @@ import {
 import type { BomLocalAdapter } from '../resolve/bom-adapter.js';
 import { bomSqlDialectFor, buildAlternativeHeadersSql, buildParentRevisionSql } from '../resolve/bom-sql.js';
 import { BomResolutionError, type ResolutionContext } from '../resolve/resolution.js';
-import {
-  assertContext,
-  columnIndexOf,
-  selectRootAlternatives,
-  type BomQueryExecutor,
-  type ResolveTarget
-} from '../resolve/resolver.js';
+import { assertContext, columnIndexOf, selectRootAlternatives, type ResolveTarget } from '../resolve/resolver.js';
+import { memoizeBomSnapshotQuery } from '../resolve/snapshot-query.js';
 import { BomError, BomTruncationError } from '../types.js';
 import { DEFAULT_COST_ROLLUP_BUDGETS } from './cost-budgets.js';
 import { BomCostError } from './cost-error.js';
@@ -692,16 +687,7 @@ const rollupCostInSnapshot = async (
     substituteAvailabilities: context.substituteAvailabilities
   };
   return adapter.transaction(async executor => {
-    const reads = new Map<string, ReturnType<BomQueryExecutor['query']>>();
-    const query: BomQueryExecutor['query'] = (sql, params) => {
-      const key = JSON.stringify([sql, params ?? []]);
-      let result = reads.get(key);
-      if (result === undefined) {
-        result = executor.query(sql, params);
-        reads.set(key, result);
-      }
-      return result;
-    };
+    const query = memoizeBomSnapshotQuery(executor.query.bind(executor));
 
     // 根：父修订选择（同 explodeBom 的根解析）
     const q: CostQuery = query;
