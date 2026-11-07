@@ -14,7 +14,7 @@ const demos = [
     icon: '/angular.svg',
     description: '使用 Signals 绑定查询与实体状态，覆盖表单、关系数据和管理页面。',
     focus: '表单与管理页面',
-    features: ['Signals 绑定', '实体表单', '关系详情页', 'Query Builder']
+    features: ['Signals 绑定', '实体表单', '任务看板', '国际化']
   },
   {
     name: 'React',
@@ -24,7 +24,7 @@ const demos = [
     icon: '/react.svg',
     description: '使用 Hooks 订阅查询与实体状态，覆盖列表、编辑器和分支管理。',
     focus: '组件化数据应用',
-    features: ['Hooks 查询', '虚拟列表', '代码编辑器', 'Branch Manager']
+    features: ['Hooks 查询', '任务看板', '代码编辑器', '国际化']
   },
   {
     name: 'Vue',
@@ -34,7 +34,7 @@ const demos = [
     icon: '/vue.svg',
     description: '使用 Composables 连接响应式实体，覆盖表格、关系页和文件管理。',
     focus: '表格与文件管理',
-    features: ['Composables', 'Reactive 数据流', 'AG Grid', 'File Manager']
+    features: ['Composables', '实体详情', '任务看板', '国际化']
   }
 ] as const;
 
@@ -57,7 +57,7 @@ const comparePoints = [
   {
     icon: Zap,
     title: '覆盖完整业务场景',
-    description: '包含关系详情页、Branch Manager 与 File Manager，可用于评估实际接入。'
+    description: '包含关系详情页、任务看板、语言切换与文件管理，可用于评估实际接入。'
   }
 ] as const;
 
@@ -95,7 +95,7 @@ export default function DemosIndexPage() {
                   </Link>
                 </Button>
                 <Button asChild variant='outline'>
-                  <Link to='/architecture'>了解架构</Link>
+                  <Link to='/docs/getting-started/capabilities'>更多能力与本地示例</Link>
                 </Button>
               </div>
               <div className='border-border mt-12 grid grid-cols-3 gap-0 border-t pt-8'>

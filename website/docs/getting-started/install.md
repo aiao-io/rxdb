@@ -1,11 +1,11 @@
 # 安装与初始化
 
-本页提供完整依赖清单、两种适配器的初始化示例，以及 Worker、WASM 与 Vite 配置。首次接入请先完成[快速开始](./README.md)。
+本页提供完整依赖清单、两种适配器的初始化示例，以及 WASM、可选 Worker 与 Vite 配置。首次接入请先完成[快速开始](./README.md)。
 
 ## 核心依赖
 
 ```bash npm2yarn
-npm install @aiao/rxdb @aiao/utils
+npm install @aiao/rxdb rxjs
 ```
 
 ## 数据库适配器
@@ -52,7 +52,6 @@ npm install @aiao/rxdb-angular
 ```typescript
 import { Entity, EntityBase, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
-import { checkOPFSAvailable } from '@aiao/utils';
 
 @Entity({
   name: 'Todo',
@@ -70,22 +69,15 @@ export async function createRxdb() {
     sync: { local: { adapter: 'wa-sqlite' }, type: SyncType.None }
   });
 
-  rxdb.adapter('wa-sqlite', async db => {
-    const available = await checkOPFSAvailable();
-
-    return new RxDBAdapterWaSqlite(db, {
-      vfs: available ? 'OPFSCoopSyncVFS' : 'IDBBatchAtomicVFS',
-      worker: available,
-      workerInstance:
-        available ? new Worker(new URL('./sqlite.worker', import.meta.url), { type: 'module' }) : undefined,
-      sharedWorker: !available,
-      sharedWorkerInstance:
-        !available ?
-          new SharedWorker(new URL('./sqlite-shared.worker', import.meta.url), { type: 'module' })
-        : undefined,
-      wasmPath: available ? '/wa-sqlite/wa-sqlite.wasm' : '/wa-sqlite/wa-sqlite-async.wasm'
-    });
-  });
+  rxdb.adapter(
+    'wa-sqlite',
+    db =>
+      new RxDBAdapterWaSqlite(db, {
+        vfs: 'IDBBatchAtomicVFS',
+        async: true,
+        wasmPath: '/wa-sqlite/wa-sqlite-async.wasm'
+      })
+  );
 
   await rxdb.connect('wa-sqlite');
   return rxdb;
@@ -127,7 +119,7 @@ export async function createRxdb() {
 
 ## Worker 文件配置
 
-Worker / SharedWorker 文件需要**自己编写**：用 comlink 的 `expose` 把适配器客户端暴露给主线程。Worker 文件会直接 `import` comlink，请把它显式装进项目依赖（包管理器不会替你把传递依赖暴露给源码引用）：
+主线程示例无需 Worker。选择 Worker / SharedWorker 时，文件需要**自己编写**：用 comlink 的 `expose` 把适配器客户端暴露给主线程。Worker 文件会直接 `import` comlink，请把它显式装进项目依赖（包管理器不会替你把传递依赖暴露给源码引用）：
 
 ```bash npm2yarn
 npm install comlink
@@ -177,7 +169,7 @@ public/
     wa-sqlite-async.wasm     # 用于 IDB
 ```
 
-最新版本可从 [wa-sqlite releases](https://github.com/rhashimoto/wa-sqlite/releases) 下载。
+WASM 必须来自适配器实际依赖的同一份 `wa-sqlite` 构建，不能混用上游最新 release。仓库把依赖固定到提交 `2bf1c59d89eb6497535a4217bc62fec68a0bb994`；消费方从安装后的依赖复制 `dist/wa-sqlite-async.wasm`，显式选择同步 OPFS 组合时再复制 `dist/wa-sqlite.wasm`。使用 pnpm 时可从 `node_modules/@aiao/rxdb-adapter-wa-sqlite/node_modules/wa-sqlite/dist/` 取文件；仓库示例从根 `node_modules/wa-sqlite/dist/` 复制。
 
 ### Vite 配置
 
@@ -191,7 +183,7 @@ export default defineConfig({
   },
   publicDir: 'public',
 
-  // 启用 OPFS 需要这组 HTTP 头，否则 SharedArrayBuffer 不可用
+  // 选择依赖 SharedArrayBuffer 的运行模式时启用跨源隔离
   server: {
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin',
@@ -213,21 +205,16 @@ export default defineConfig({
 - WASM 路径要和 `public` 目录下的实际路径对齐
 - 构建工具（Vite、Webpack 等）需要识别这些资源引用
 
-### HTTP 头
+### HTTP 头与浏览器能力
 
-使用 OPFS 时必须配置以下响应头，否则 `SharedArrayBuffer` 不可用：
+跨源隔离是 `SharedArrayBuffer` 的前提，是否需要由所选 VFS 决定。最小 IDB 示例和 wa-sqlite 的 `OPFSCoopSyncVFS` 都不要求它；需要时配置：
 
 ```text
 Cross-Origin-Opener-Policy: same-origin
 Cross-Origin-Embedder-Policy: require-corp
 ```
 
-### 浏览器支持
-
-| 级别     | 版本要求                                                           |
-| -------- | ------------------------------------------------------------------ |
-| 最低要求 | Chrome 90+ · Edge 90+ · Safari 14+ · Firefox 88+                   |
-| 推荐     | Chrome 102+ · Edge 102+ · Safari 15.2+ · Firefox 111+（支持 OPFS） |
+不要仅凭浏览器版本判断可用性。IDB 持久化要求 WebAssembly 与 IndexedDB；跨标签页事务协调依赖 Web Locks；选择 SharedWorker 或 OPFS 时还要确认相应 API、Worker 上下文和部署响应头。浏览器隐私模式、存储配额与嵌入策略也会影响结果。适配器差异见[版本兼容矩阵](../compatibility.md)。
 
 ## 示例项目
 
