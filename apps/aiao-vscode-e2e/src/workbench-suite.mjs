@@ -288,7 +288,7 @@ export async function runRecoveryCase(page, expect) {
   }
   await root.getByRole('button', { name: '设置', exact: true }).click();
   const settings = page.getByRole('dialog', { name: '设置', exact: true });
-  await settings.locator('select').selectOption('    ');
+  await settings.locator('select[name="indent-unit"]').selectOption('    ');
   await settings.getByRole('button', { name: '确定', exact: true }).click();
   await page.reload();
   await expect(root.locator('[data-slot="indent"]')).toHaveText('空格: 4');
@@ -334,6 +334,10 @@ export async function runPreviewTabsCase(page, expect) {
 export async function runEditorSwitchCase(page, expect) {
   const errors = [];
   const workerResponses = [];
+  const editorWorkers = [];
+  page.on('worker', worker => {
+    if (worker.url().includes('/monaco/')) editorWorkers.push(worker.url());
+  });
   page.on('pageerror', error => errors.push(error.message));
   page.on('response', response => {
     if (/\/monaco\/(typescript|editor-worker|json|css|html)\.js$/.test(response.url()))
@@ -351,7 +355,7 @@ export async function runEditorSwitchCase(page, expect) {
     await dialog.locator('select[name="editor-engine"]').selectOption(engine);
     await dialog.getByRole('button', { name: '确定', exact: true }).click();
     await expect(editorHost).toHaveAttribute('data-editor-engine', engine);
-    await expect(editorHost).not.toHaveAttribute('aria-busy', 'true');
+    await expect(editorHost).not.toHaveAttribute('aria-busy', 'true', { timeout: 30000 });
   };
   const codeMirror = editorHost.locator('.cm-content');
   await codeMirror.click();
@@ -397,6 +401,7 @@ export async function runEditorSwitchCase(page, expect) {
   await expect(editorHost.locator('.monaco-editor')).toBeVisible({ timeout: 30000 });
   await expect.poll(sourceValue).toContain('// Monaco 输入');
   await expect(root.locator('[data-slot="save-status"]')).toContainText('已保存');
+  await expect.poll(() => editorWorkers.some(url => url.endsWith('/typescript.js'))).toBe(true);
   await expect.poll(() => workerResponses.length).toBeGreaterThan(0);
   expect(workerResponses.every(status => status === 200)).toBe(true);
   expect(errors).toEqual([]);

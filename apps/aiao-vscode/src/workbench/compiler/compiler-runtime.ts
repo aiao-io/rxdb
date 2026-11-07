@@ -18,7 +18,7 @@ function record(value: unknown, message: string): Record<string, unknown> {
 }
 
 function manifestAssets(value: unknown): RuntimeAsset[] {
-  if (!Array.isArray(value) || value.length > 256) throw new Error('运行时 manifest 资源清单无效');
+  if (!Array.isArray(value) || value.length > 512) throw new Error('运行时 manifest 资源清单无效');
   const paths = new Set<string>();
   return value.map(item => {
     const entry = record(item, '运行时 manifest 资源条目无效');
