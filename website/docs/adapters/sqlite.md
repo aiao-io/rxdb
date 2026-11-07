@@ -5,17 +5,17 @@
 ## 安装
 
 ```bash npm2yarn
-npm install @aiao/rxdb @aiao/rxdb-adapter-wa-sqlite
+npm install @aiao/rxdb @aiao/rxdb-adapter-wa-sqlite rxjs
 ```
 
 ## 核心概念
 
 ### 虚拟文件系统 (VFS)
 
-SQLite 适配器支持多种 VFS，根据浏览器能力选择：
+SQLite 适配器支持多种 VFS，接入时同时考虑支持等级与宿主能力：
 
-- **OPFSCoopSyncVFS**: 使用 Origin Private File System (OPFS)，性能最佳；仅 dedicated Worker，不要求 SharedArrayBuffer
-- **IDBBatchAtomicVFS**: 使用 IndexedDB，生产支持（默认），适用于不支持 OPFS 的环境
+- **OPFSCoopSyncVFS**：实验性 OPFS 后端；仅 dedicated Worker，不要求 SharedArrayBuffer
+- **IDBBatchAtomicVFS**：使用 IndexedDB，默认且受支持的生产后端
 
 ### 运行模式
 
@@ -27,7 +27,6 @@ SQLite 适配器支持多种 VFS，根据浏览器能力选择：
 ```typescript
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
-import { checkOPFSAvailable } from '@aiao/utils';
 
 const rxdb = new RxDB({
   dbName: 'myapp',
@@ -35,19 +34,15 @@ const rxdb = new RxDB({
   sync: { local: { adapter: 'wa-sqlite' }, type: SyncType.None }
 });
 
-rxdb.adapter('wa-sqlite', async db => {
-  const available = await checkOPFSAvailable();
-
-  return new RxDBAdapterWaSqlite(db, {
-    vfs: available ? 'OPFSCoopSyncVFS' : 'IDBBatchAtomicVFS',
-    worker: available,
-    workerInstance: available ? new Worker(new URL('./sqlite.worker', import.meta.url), { type: 'module' }) : undefined,
-    sharedWorker: !available,
-    sharedWorkerInstance:
-      !available ? new SharedWorker(new URL('./sqlite-shared.worker', import.meta.url), { type: 'module' }) : undefined,
-    wasmPath: available ? '/wa-sqlite/wa-sqlite.wasm' : '/wa-sqlite/wa-sqlite-async.wasm'
-  });
-});
+rxdb.adapter(
+  'wa-sqlite',
+  db =>
+    new RxDBAdapterWaSqlite(db, {
+      vfs: 'IDBBatchAtomicVFS',
+      async: true,
+      wasmPath: '/wa-sqlite/wa-sqlite-async.wasm'
+    })
+);
 
 await rxdb.connect('wa-sqlite');
 ```
@@ -141,13 +136,14 @@ interface WaSqliteOptions {
 ```typescript
 const adapter = new RxDBAdapterWaSqlite(rxdb, {
   vfs: 'OPFSCoopSyncVFS',
+  async: false,
   worker: true,
   workerInstance: new Worker(new URL('./sqlite.worker', import.meta.url), { type: 'module' }),
   wasmPath: '/wa-sqlite/wa-sqlite.wasm'
 });
 ```
 
-性能最佳；仅 dedicated Worker 运行，不要求 SharedArrayBuffer。
+实验性；仅 dedicated Worker 运行，不要求 SharedArrayBuffer。
 
 ### IDB + SharedWorker
 
@@ -191,7 +187,7 @@ export default defineConfig({
   // 配置静态资源
   publicDir: 'public',
 
-  // 如果使用 OPFS，需要配置 HTTP 头
+  // 仅依赖 SharedArrayBuffer 的模式需要跨源隔离
   server: {
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin',
@@ -207,7 +203,7 @@ export default defineConfig({
 
 ### 静态资源配置
 
-将 wa-sqlite WASM 文件放到 `public` 目录：
+从适配器实际依赖的同一份 wa-sqlite 构建复制 WASM 到 `public`，不能混用上游最新 release。资源来源见[安装与初始化](../getting-started/install.md)。
 
 ```text
 public/
@@ -224,7 +220,8 @@ public/
 
 ```typescript
 const adapter = new RxDBAdapterWaSqlite(db, {
-  vfs: 'OPFSCoopSyncVFS',
+  vfs: 'IDBBatchAtomicVFS',
+  async: true,
   cacheSizeKb: 51200
 });
 ```
@@ -263,33 +260,15 @@ export class Todo extends EntityBase {
 
 ## 浏览器兼容性
 
-### OPFS + Worker 模式
+以实际宿主能力和 VFS 支持等级为准，不把浏览器版本号当作完整运行保证：
 
-| 浏览器  | 版本  | 支持 |
-| ------- | ----- | ---- |
-| Chrome  | 102+  | ✅   |
-| Edge    | 102+  | ✅   |
-| Safari  | 15.2+ | ✅   |
-| Firefox | 111+  | ✅   |
+| 运行方式                | 所需能力                                          | 约束                                                             |
+| :---------------------- | :------------------------------------------------ | :--------------------------------------------------------------- |
+| IDB 主线程              | WebAssembly、IndexedDB                            | 默认生产后端；连接仍需 Web Locks 协调事务                        |
+| IDB + SharedWorker      | 上述能力、SharedWorker、Web Locks                 | HTTPS 或 localhost；多个标签页共享同一连接                       |
+| OPFS + dedicated Worker | WebAssembly、OPFS 同步访问句柄、Worker、Web Locks | 实验性，必须显式评估；`OPFSCoopSyncVFS` 不要求 SharedArrayBuffer |
 
-**要求：**
-
-- 支持 OPFS (File System Access API)
-- 在 dedicated Worker 中运行
-
-### IDB + SharedWorker 模式
-
-| 浏览器  | 版本 | 支持 |
-| ------- | ---- | ---- |
-| Chrome  | 90+  | ✅   |
-| Edge    | 90+  | ✅   |
-| Safari  | 14+  | ✅   |
-| Firefox | 88+  | ✅   |
-
-**要求：**
-
-- 支持 IndexedDB
-- 支持 Shared Worker
+宿主还可能受隐私模式、存储配额和嵌入策略影响。更多组合见[兼容矩阵](../compatibility.md)。
 
 ## 故障排查
 
@@ -338,7 +317,7 @@ wasmPath: '/wa-sqlite/wa-sqlite.wasm';
 
 ### 从 IDB 迁移到 OPFS
 
-RxDB 没有整库导出/导入 API。保留数据的迁移方式是：保持旧库连接，用公开的查询/写入 API 把数据搬进一个**新 `dbName`** 的目标库，校验后再断开旧库（口径见[适配器切换与数据迁移](../migration/adapters.md)）。
+适配器已提供[整库备份与恢复](./backup.md)，但它不是跨 VFS 的自动迁移入口；尤其 Worker 传输不支持这条归档链路。需要迁移到 OPFS Worker 并保留数据时：保持旧库连接，用公开的查询/写入 API 把数据搬进一个**新 `dbName`** 的目标库，校验后再断开旧库（口径见[适配器切换与数据迁移](../migration/adapters.md)）。
 
 ```typescript
 import { firstValueFrom } from 'rxjs';
@@ -360,6 +339,7 @@ if (available) {
   target.adapter('wa-sqlite', async db => {
     return new RxDBAdapterWaSqlite(db, {
       vfs: 'OPFSCoopSyncVFS',
+      async: false,
       worker: true,
       workerInstance: new Worker(new URL('./sqlite.worker', import.meta.url), { type: 'module' })
       // ... OPFS 配置
@@ -382,6 +362,8 @@ if (available) {
 
 ## 完整示例
 
+下例默认使用 IDB。仅在完成实验性 OPFS 评估后，显式调用 `initDatabase({ experimentalOPFS: true })`；启用时检查宿主能力，不支持则报错。
+
 ```typescript
 import { RxDB, Entity, EntityBase, PropertyType, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite, WaSqliteOptions } from '@aiao/rxdb-adapter-wa-sqlite';
@@ -398,7 +380,7 @@ import { checkOPFSAvailable } from '@aiao/utils';
 export class Todo extends EntityBase {}
 
 // 初始化数据库
-async function initDatabase() {
+async function initDatabase({ experimentalOPFS = false } = {}) {
   const rxdb = new RxDB({
     dbName: 'todo-app',
     entities: [Todo],
@@ -411,11 +393,12 @@ async function initDatabase() {
   // 注册 SQLite 适配器
   rxdb.adapter('wa-sqlite', async db => {
     let options: WaSqliteOptions;
-    const available = await checkOPFSAvailable();
+    if (experimentalOPFS && !(await checkOPFSAvailable())) throw new Error('当前宿主不支持实验性 OPFS');
 
-    if (available) {
+    if (experimentalOPFS) {
       options = {
         vfs: 'OPFSCoopSyncVFS',
+        async: false,
         worker: true,
         workerInstance: new Worker(new URL('./sqlite.worker', import.meta.url), {
           type: 'module',

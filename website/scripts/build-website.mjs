@@ -67,7 +67,7 @@ export const steps = [
     // 直到下面的 cpSync 撞上 ENOENT 才暴露——2026-08-16 的 Netlify 部署就死在这里。
     command:
       'pnpm nx build dev-rxdb-angular --configuration=production' +
-      ' --base-href=/demo/angular/ --output-path=dist/apps/dev-rxdb-angular-website',
+      ' --baseHref=/demo/angular/ --outputPath=dist/apps/dev-rxdb-angular-website',
     postBuild: () => {
       const targetDir = join(repoRoot, 'website/public/demo/angular');
       console.log('  → 清理 website/public/demo/angular');

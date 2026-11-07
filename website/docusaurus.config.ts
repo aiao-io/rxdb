@@ -25,7 +25,7 @@ const config: Config = {
   // GitHub Pages 部署配置
   // 如果不使用 GitHub Pages，则不需要这些配置
   organizationName: 'aiao-io', // 通常是您的 GitHub 组织/用户名
-  projectName: 'aiao', // 通常是您的仓库名称
+  projectName: 'rxdb', // 通常是您的仓库名称
 
   onBrokenLinks: 'throw',
   onBrokenAnchors: 'throw',
