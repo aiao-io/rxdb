@@ -29,14 +29,11 @@ describe('顶栏部件', () => {
     expect(within(screen.getByTestId('admin-widget-search')).queryByText('Ctrl')).toBeNull();
   });
 
-  it('搜索按钮的可访问名称来自可见文字；关闭快捷键后只剩标题', async () => {
+  it('搜索按钮的可访问名称包含可见的全部文字（含键帽，label-in-name）；关闭快捷键后只剩标题', async () => {
     const { shell } = mount();
-    const button = screen.getByTestId('admin-widget-search');
-    expect(button.getAttribute('aria-label')).toBeNull();
-    expect(screen.getByRole('button', { name: /搜索.*Ctrl.*K/ })).toBe(button);
+    expect(screen.getByTestId('admin-widget-search').getAttribute('aria-label')).toBe('搜索 Ctrl K');
     await act(() => shell.shortcuts.setEnabled('palette', false));
-    expect(button.getAttribute('aria-label')).toBeNull();
-    expect(screen.getByRole('button', { name: '搜索' })).toBe(button);
+    expect(screen.getByTestId('admin-widget-search').getAttribute('aria-label')).toBe('搜索');
   });
 
   it('主题按钮循环 system → 浅色 → 深色，标签带当前主题名', async () => {

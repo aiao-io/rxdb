@@ -5,6 +5,7 @@
         @case ('search') {
           <button
             class="btn btn-ghost btn-sm admin-search-trigger"
+            [attr.aria-label]="searchLabel()"
             (click)="shell.palette.open()"
             aria-haspopup="dialog"
             data-testid="admin-widget-search"
@@ -13,8 +14,10 @@
             <svg [lucideIcon]="Search" [size]="16"></svg>
             <span class="admin-search-label" [textContent]="t('widget.search')"></span>
             @if (searchKeys().length > 0) {
+              {{ ' ' }}
               <span class="ms-auto flex gap-0.5">
-                @for (cap of searchKeys(); track cap) {
+                @for (cap of searchKeys(); track cap; let first = $first) {
+                  {{ first ? '' : ' ' }}
                   <kbd class="kbd kbd-sm">{{ cap }}</kbd>
                 }
               </span>

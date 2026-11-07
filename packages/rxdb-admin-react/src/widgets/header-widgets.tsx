@@ -11,7 +11,7 @@ import {
   Settings2,
   Sun
 } from 'lucide-react';
-import type { ReactElement } from 'react';
+import { Fragment, type ReactElement } from 'react';
 import { useAdminShell, useAdminStore, useAdminText } from '../context.js';
 import { LanguageWidget, TimezoneWidget } from './menu-widgets.js';
 
@@ -50,11 +50,13 @@ function SearchWidget(): ReactElement {
   const shell = useAdminShell();
   const t = useAdminText();
   const shortcut = useAdminStore(shell.shortcuts.list).find(info => info.id === 'palette');
+  // 可访问名称必须包含按钮上可见的全部文字（含键帽），否则语音控制用户喊不出按钮名（WCAG 2.5.3）
   const keys = shortcut?.enabled ? shortcut.keys : [];
   return (
     <button
       type='button'
       className='btn btn-ghost btn-sm admin-search-trigger'
+      aria-label={[t('widget.search'), ...keys].join(' ')}
       aria-haspopup='dialog'
       data-testid='admin-widget-search'
       onClick={() => shell.palette.open()}
@@ -63,10 +65,12 @@ function SearchWidget(): ReactElement {
       <span className='admin-search-label'>{t('widget.search')}</span>
       {keys.length > 0 && (
         <span className='ms-auto flex gap-0.5'>
-          {keys.map(key => (
-            <kbd key={key} className='kbd kbd-sm'>
-              {key}
-            </kbd>
+          {' '}
+          {keys.map((key, index) => (
+            <Fragment key={key}>
+              {index > 0 ? ' ' : null}
+              <kbd className='kbd kbd-sm'>{key}</kbd>
+            </Fragment>
           ))}
         </span>
       )}
