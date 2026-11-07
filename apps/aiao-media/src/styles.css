@@ -1,0 +1,12 @@
+/* The image MVP uses a small CSS interface; legacy full-media styling is not shipped. */
+:root {
+  color-scheme: light;
+}
+body {
+  margin: 0;
+}
+button,
+input,
+textarea {
+  font: inherit;
+}

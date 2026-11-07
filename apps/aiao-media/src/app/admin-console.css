@@ -1,0 +1,59 @@
+:host {
+  display: block;
+}
+nav,
+article {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+  align-items: center;
+}
+fieldset {
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+}
+th,
+td {
+  text-align: left;
+  padding: 12px;
+  border-bottom: 1px solid #dce1d9;
+  overflow-wrap: anywhere;
+}
+form,
+aside {
+  display: grid;
+  gap: 12px;
+  max-width: 780px;
+  margin: 20px 0;
+}
+label {
+  display: grid;
+  gap: 8px;
+}
+input,
+select,
+textarea,
+button {
+  font: inherit;
+  padding: 10px;
+  border: 1px solid #c8d0c5;
+  border-radius: 6px;
+}
+textarea {
+  min-height: 120px;
+}
+button {
+  cursor: pointer;
+  background: #f3f6ee;
+}
+button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}

@@ -52,6 +52,7 @@ overrides:
   '@angular/platform-browser': 22.2.4
   '@codemirror/language': ^6.13.1
   '@codemirror/state': ^6.7.6
+  '@codecov/bundler-plugin-core>zod': 4.6.6
   '@codemirror/view': ^6.43.14
   '@jimp/core>mkdirp': ^0.5.6
   '@jimp/core>phin': ^3.7.1
@@ -76,6 +77,7 @@ overrides:
   dev-rxdb-miniprogram>react-dom: ^18.3.1
   dompurify@3: ^3.4.16
   fast-uri@3: ^3.1.8
+  follow-redirects: ^1.16.2
   geojson-flatten>minimist: ^1.2.8
   handlebars@4: ^4.7.10
   image-size@2: ^2.0.3
@@ -85,6 +87,7 @@ overrides:
   lodash-es: ^4.18.1
   postcss-selector-parser@6: ^7.1.6
   postman-collection>uuid: ^11.1.1
+  query-string>decode-uri-component: 0.5.1
   proxy-addr@2: ^2.0.8
   qs: ^6.16.0
   react: ^19.3.0

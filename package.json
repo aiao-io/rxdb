@@ -204,7 +204,7 @@
     "eslint-plugin-react": "7.37.5",
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-vue": "^10.12.0",
-    "happy-dom": "20.14.6",
+    "happy-dom": "21.0.4",
     "husky": "^9.1.7",
     "is-ci": "^4.1.0",
     "jiti": "2.7.0",
