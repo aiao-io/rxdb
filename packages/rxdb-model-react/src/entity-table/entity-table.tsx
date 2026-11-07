@@ -34,6 +34,7 @@ import {
   handleTableKeydown,
   isDocumentDarkMode,
   isReadonly,
+  observeDocumentTheme,
   patchDragIconForReadonlyRows,
   readRowMove,
   restoreTableRecords,
@@ -144,16 +145,14 @@ export const EntityTable = forwardRef<EntityTableHandle, EntityTableProps>(funct
   const clipboardRef = useRef<TableClipboardManager | null>(null);
   const tooltipRef = useRef<CellTooltipManager | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
-  const themeObserverRef = useRef<MutationObserver | null>(null);
   const containerKeydownHandlerRef = useRef<((e: KeyboardEvent) => void) | null>(null);
-  const prefersDarkQueryRef = useRef<MediaQueryList | null>(null);
-  const prefersDarkListenerRef = useRef<(() => void) | null>(null);
   const configRef = useRef(config);
 
   const [tableReady, setTableReady] = useState(false);
   const [cellTooltip, setCellTooltip] = useState<CellTooltipState | null>(null);
   const [headerHeight, setHeaderHeight] = useState(40);
   const [detectedDarkMode, setDetectedDarkMode] = useState(false);
+  const [themeRevision, setThemeRevision] = useState(0);
 
   // 事件回调与可选项始终读最新值（VTable 事件在渲染周期外触发）
   const propsRef = useRef({
@@ -211,45 +210,20 @@ export const EntityTable = forwardRef<EntityTableHandle, EntityTableProps>(funct
   const resolvedDarkModeRef = useRef(resolvedDarkMode);
   resolvedDarkModeRef.current = resolvedDarkMode;
 
-  // ── 暗色模式探测（data-theme 属性 + prefers-color-scheme）──────────────
+  // ── 主题探测：data-theme / 内联样式 / 系统明暗任一变化都重绘（不只在明暗翻转时）────
   useEffect(() => {
     setDetectedDarkMode(isDocumentDarkMode());
-    if (typeof MutationObserver !== 'undefined') {
-      const observer = new MutationObserver(() => setDetectedDarkMode(isDocumentDarkMode()));
-      observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-      themeObserverRef.current = observer;
-    }
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-      return () => {
-        themeObserverRef.current?.disconnect();
-        themeObserverRef.current = null;
-      };
-    }
-    const query = window.matchMedia('(prefers-color-scheme: dark)');
-    const listener = (): void => {
-      if (!document.documentElement.hasAttribute('data-theme')) {
-        setDetectedDarkMode(isDocumentDarkMode());
-      }
-    };
-    query.addEventListener('change', listener);
-    prefersDarkQueryRef.current = query;
-    prefersDarkListenerRef.current = listener;
-    return () => {
-      themeObserverRef.current?.disconnect();
-      themeObserverRef.current = null;
-      if (prefersDarkQueryRef.current && prefersDarkListenerRef.current) {
-        prefersDarkQueryRef.current.removeEventListener('change', prefersDarkListenerRef.current);
-      }
-      prefersDarkQueryRef.current = null;
-      prefersDarkListenerRef.current = null;
-    };
+    return observeDocumentTheme(() => {
+      setDetectedDarkMode(isDocumentDarkMode());
+      setThemeRevision(revision => revision + 1);
+    });
   }, []);
 
   // ── 主题重绘 ────────────────────────────────────────────────────────────
   useEffect(() => {
     const table = tableRef.current;
     if (table) table.updateTheme(createTheme(resolvedDarkMode, getCSSVariables()));
-  }, [resolvedDarkMode, tableReady]);
+  }, [resolvedDarkMode, tableReady, themeRevision]);
 
   // ── 无障碍：VTable 焦点控制输入没有语义标签（axe label 违规）───────────
   useEffect(() => {
@@ -487,10 +461,6 @@ export const EntityTable = forwardRef<EntityTableHandle, EntityTableProps>(funct
     const container = containerRef.current;
     return () => {
       tooltipRef.current?.cleanup();
-      themeObserverRef.current?.disconnect();
-      if (prefersDarkQueryRef.current && prefersDarkListenerRef.current) {
-        prefersDarkQueryRef.current.removeEventListener('change', prefersDarkListenerRef.current);
-      }
       if (containerKeydownHandlerRef.current) {
         container?.removeEventListener('keydown', containerKeydownHandlerRef.current);
       }

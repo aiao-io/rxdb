@@ -1,0 +1,169 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "rxdb-admin-template-angular",
+  "prefix": "app",
+  "projectType": "application",
+  "sourceRoot": "apps/rxdb-admin-template-angular/src",
+  "tags": ["angular-app"],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "dist/apps/rxdb-admin-template-angular",
+        "browser": "apps/rxdb-admin-template-angular/src/main.ts",
+        "tsConfig": "apps/rxdb-admin-template-angular/tsconfig.app.json",
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "apps/rxdb-admin-template-angular/public"
+          },
+          {
+            "glob": "*.wasm",
+            "input": "packages/rxdb-adapter-sqlite-wasm/node_modules/@subframe7536/sqlite-wasm/dist",
+            "output": "sqlite-wasm/",
+            "followSymlinks": true
+          }
+        ],
+        "styles": ["apps/rxdb-admin-template-angular/src/styles.css"],
+        "index": {
+          "input": "apps/rxdb-admin-template-angular/.generated/index.html",
+          "output": "index.html"
+        },
+        "allowedCommonJsDependencies": [
+          "earcut",
+          "eventemitter3",
+          "lodash",
+          "path-browserify",
+          "reflect-metadata",
+          "ts-morph",
+          "mousetrap",
+          "simplify-geojson",
+          "pbf",
+          "point-in-polygon",
+          "@babel/runtime/regenerator"
+        ],
+        "externalDependencies": ["node:crypto"],
+        "define": {
+          "import.meta.env.DEV": "false"
+        }
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "2mb",
+              "maximumError": "3mb"
+            },
+            {
+              "type": "anyComponentStyle",
+              "maximumWarning": "4kb",
+              "maximumError": "8kb"
+            }
+          ],
+          "outputHashing": "all"
+        },
+        "development": {
+          "optimization": false,
+          "extractLicenses": false,
+          "sourceMap": true,
+          "define": {
+            "import.meta.env.DEV": "true"
+          }
+        }
+      },
+      "dependsOn": ["^build", "prepare-html"]
+    },
+    "serve": {
+      "continuous": true,
+      "readyWhen": {
+        "signal": true
+      },
+      "executor": "@angular/build:dev-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "port": 4207,
+        "host": "127.0.0.1"
+      },
+      "configurations": {
+        "production": {
+          "buildTarget": "rxdb-admin-template-angular:build:production"
+        },
+        "development": {
+          "buildTarget": "rxdb-admin-template-angular:build:development"
+        }
+      },
+      "dependsOn": [
+        "prepare-html",
+        {
+          "target": "build",
+          "projects": ["rxdb-admin-angular", "rxdb-model-angular", "rxdb-angular", "rxdb-i18n-angular"]
+        }
+      ]
+    },
+    "serve-static": {
+      "continuous": true,
+      "readyWhen": {
+        "signal": true
+      },
+      "dependsOn": ["build"],
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "rxdb-admin-template-angular:build",
+        "port": 4207,
+        "staticFilePath": "dist/apps/rxdb-admin-template-angular/browser",
+        "spa": true
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build"],
+      "options": {
+        "cwd": "apps/rxdb-admin-template-angular",
+        "command": "vitest run --config vitest.config.mts",
+        "forwardAllArgs": true
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/rxdb-admin-template-angular",
+        "command": "eslint . --max-warnings=0"
+      }
+    },
+    "prepare-html": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node apps/rxdb-admin-template-angular/prepare-html.ts"
+      },
+      "dependsOn": [
+        {
+          "target": "build",
+          "projects": ["rxdb-admin"]
+        }
+      ]
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build"],
+      "options": {
+        "command": "tsc --build tsconfig.app.json tsconfig.spec.json --emitDeclarationOnly",
+        "cwd": "apps/rxdb-admin-template-angular"
+      }
+    },
+    "serve-e2e": {
+      "executor": "@nx/web:file-server",
+      "continuous": true,
+      "options": {
+        "port": 8213,
+        "host": "127.0.0.1",
+        "spa": true,
+        "staticFilePath": "dist/apps/rxdb-admin-template-angular/browser",
+        "watch": false
+      }
+    }
+  }
+}

@@ -40,7 +40,7 @@ import {
 import { assertValidSystemContribution, type RxDBSystemContribution } from './rxdb-plugin-system.js';
 import { IRxDBPlugin, Plugin, RxDBPluginDependency } from './rxdb-plugin.js';
 import { getEntityMetadata, uuid } from './rxdb-utils.js';
-import { RxDBContext, RxDBOptions } from './rxdb.interface.js';
+import { MigrationType, RxDBContext, RxDBOptions } from './rxdb.interface.js';
 import {
   awaitPluginInstalls,
   createPluginScope,
@@ -70,11 +70,16 @@ import type { BranchMaterializationSource } from './sync-contract/branch-materia
 import { createEntitySyncResolver, type EntitySyncResolver } from './sync-contract/entity-sync-resolver.js';
 import { SyncStateHub } from './sync-state.js';
 import { ACTIVE_BRANCH_KEY, MAIN_BRANCH_ID } from './system/active-branch-guard.js';
+import {
+  bootstrapFingerprintName,
+  computeBootstrapFingerprint,
+  readBootstrapFingerprints
+} from './system/bootstrap-fingerprint.js';
 import { RxDBBranch } from './system/branch.js';
 import { assertClaimedCapabilities } from './system/capability-watermark.js';
 import { declaresStorageConstraints } from './system/constraint-drift.js';
 import { createMigrationWatermarks, runMigrations } from './system/migration-runner.js';
-import { RxDBMigration } from './system/migration.js';
+import { isUniqueConstraintViolation, RxDBMigration } from './system/migration.js';
 import { createSystemMigrations } from './system/migrations/index.js';
 import { sha256Hex } from './system/sha256.js';
 import { CORE_SYSTEM_ENTITIES, isSystemEntity, registerSystemEntities } from './system/system-entities.js';
@@ -513,6 +518,17 @@ export class RxDB {
    */
   get readOnly(): boolean {
     return this.#config.readOnly === true;
+  }
+
+  /**
+   * 本连接纪元是否已走过 {@link RxDB.init}（`connect()` 的第一步）
+   *
+   * @remarks
+   * 实体只在 `init()` 时绑定、建表；往 `config.entities` 补实体的插件靠它判断 `use()` 是否已经太晚。
+   * 停机窗口内仍为 `true`，拆完复位为 `false`；`init()` 抛错回滚后同样为 `false`。
+   */
+  get initialized(): boolean {
+    return this.#rxdb_initialized;
   }
 
   /**
@@ -1118,23 +1134,42 @@ export class RxDB {
         const existed = await adapter.isTableExisted(RxDBMigration);
         const contributions = [...this.#system_contributions.values()];
         const systemMigrations = createSystemMigrations(this.entityManager, contributions);
+        const bootstrapFingerprint = this.#bootstrapFingerprint(systemMigrations);
         if (existed) {
           // 守卫排在这一切之前，包括 #ensureSystemTables：它要回答的是「这个库该不该由本进程打开」，
           // 而所有后续步骤都已经在写了。放到 runMigrations 里顺带做会省一次读事务，但那样守卫与
           // 第一次写之间就只剩「同一个函数里靠前几行」这种靠读代码维持的保证。
-          await this.#assertClaimedCapabilities(localAdapter);
-          // 已存在表结构，执行升级流程。
-          //
-          // 系统表与系统迁移一律排在 migrateSystemSchema() **之前**：水位线一旦写下
-          // `__rxdb_system_schema__:N`，后面任何一步失败都会把库留在「标成 N、内容却没到位」
-          // 的状态——旧客户端被 UnsupportedRxDBSystemVersionError 拒之门外，新能力也没拿到。
-          // 反过来则是可重试的：水位线停在旧值，下次启动重跑整段（data-model.md §8「全有或全无」）。
+          const state = await this.#readBootstrapState(localAdapter);
+          assertClaimedCapabilities(state.claimedNames, new Set(this.#system_contributions.keys()));
+          const bootstrapComplete = state.bootstrapFingerprints.has(bootstrapFingerprint);
+          // 指纹只证明迁移链执行过；物理表与约束仍须每次连接检查。
           await this.#ensureSystemTables(localAdapter);
-          await runMigrations(systemMigrations, localAdapter, this.entityManager);
-          await localAdapter.migrateSystemSchema();
-          localAdapter.completeBootstrap();
-          await runMigrations(this.#config.migrations, localAdapter, this.entityManager);
-          await this.#ensureEntityTables(localAdapter);
+          if (bootstrapComplete) {
+            // 指纹命中只跳过迁移事务，不能把历史成功当成当前物理结构有效。
+            await localAdapter.migrateSystemSchema();
+            localAdapter.completeBootstrap();
+            await this.#ensureEntityTables(localAdapter);
+            await localAdapter.checkEntityConstraints?.(this.#config.entities);
+            await localAdapter.reconcileEntityIndexes?.(this.#config.entities);
+          } else {
+            // 已存在表结构，执行升级流程。
+            //
+            // 系统表与系统迁移一律排在 migrateSystemSchema() **之前**：水位线一旦写下
+            // `__rxdb_system_schema__:N`，后面任何一步失败都会把库留在「标成 N、内容却没到位」
+            // 的状态——旧客户端被 UnsupportedRxDBSystemVersionError 拒之门外，新能力也没拿到。
+            // 反过来则是可重试的：水位线停在旧值，下次启动重跑整段（data-model.md §8「全有或全无」）。
+            await runMigrations(systemMigrations, localAdapter, this.entityManager);
+            await localAdapter.migrateSystemSchema();
+            localAdapter.completeBootstrap();
+            await runMigrations(this.#config.migrations, localAdapter, this.entityManager);
+            await this.#ensureEntityTables(localAdapter);
+            // 漂移检查（只读）排在索引收敛之前：不一致时 fail-fast，不先做任何写入。
+            // 与 reconcileEntityIndexes 同一时机——用户迁移与缺表补建之后（US-030 AC#10）。
+            await localAdapter.checkEntityConstraints?.(this.#config.entities);
+            await localAdapter.reconcileEntityIndexes?.(this.#config.entities);
+            // 完整引导收尾才写指纹：半途失败（水位线停旧值）下次启动重跑整段。
+            await this.#recordBootstrapFingerprint(localAdapter, bootstrapFingerprint);
+          }
         } else {
           // 创建表结构
           const branch = this.entityManager.instantiate(RxDBBranch);
@@ -1152,15 +1187,17 @@ export class RxDB {
             ),
             // 新库不跑系统迁移：初始行已在上一行随建表写入，链里的名字在这里直接写成已执行水位。
             // 漏掉这批水位线，下次启动会在一张**已经初始化过**的库上重跑 up()，撞主键。
-            ...createMigrationWatermarks([...systemMigrations, ...(this.#config.migrations ?? [])], this.entityManager)
+            ...createMigrationWatermarks([...systemMigrations, ...(this.#config.migrations ?? [])], this.entityManager),
+            // 首轮引导即完成：指纹随建表同批写入，第二次连接直接走指纹跳过。
+            this.#bootstrapFingerprintRow(bootstrapFingerprint)
           ]);
           await localAdapter.migrateSystemSchema();
           localAdapter.completeBootstrap();
+          // 漂移检查（只读）排在索引收敛之前：不一致时 fail-fast，不先做任何写入。
+          // 与 reconcileEntityIndexes 同一时机——用户迁移与缺表补建之后（US-030 AC#10）。
+          await localAdapter.checkEntityConstraints?.(this.#config.entities);
+          await localAdapter.reconcileEntityIndexes?.(this.#config.entities);
         }
-        // 漂移检查（只读）排在索引收敛之前：不一致时 fail-fast，不先做任何写入。
-        // 与 reconcileEntityIndexes 同一时机——用户迁移与缺表补建之后（US-030 AC#10）。
-        await localAdapter.checkEntityConstraints?.(this.#config.entities);
-        await localAdapter.reconcileEntityIndexes?.(this.#config.entities);
         if (existed) {
           // 既有库才把贡献的能力接到这条连接上。新库不调：它的贡献行全是上面那次
           // `createTables()` 刚由本进程写下的，取值当场就已知道，读回来问的是自己一行之前
@@ -2088,10 +2125,10 @@ export class RxDB {
   }
 
   /**
-   * 未认领能力守卫：这个库启用过的能力，本进程是不是都装齐了插件。
+   * 引导期只读状态：未认领能力守卫与引导指纹共用同一趟事务读 `rxdb_migration` 全表。
    *
    * @param adapter - 本地适配器
-   * @throws {@link UnclaimedRxDBCapabilityError} 库里有本进程没认领的能力时
+   * @returns 已认领的能力名与已存的引导指纹
    *
    * @remarks
    * 防的事故没有编译期形态：装过插件的库被**没装**该插件的客户端打开，那些表照样在，
@@ -2100,12 +2137,57 @@ export class RxDB {
    * 自开一次引导期只读事务、不复用 `runMigrations()` 里那次读：省下的那次读换来的是
    * 「守卫一定跑在第一次写之前」这条由**调用位置**保证、而不是由函数内部行文保证的性质。
    */
-  async #assertClaimedCapabilities(adapter: RxDBAdapterLocalBase): Promise<void> {
+  async #readBootstrapState(adapter: RxDBAdapterLocalBase): Promise<{
+    readonly claimedNames: readonly string[];
+    readonly bootstrapFingerprints: ReadonlySet<string>;
+  }> {
     const names = await adapter.bootstrapTransaction(async executor => {
       const records = await executor.getRepository(RxDBMigration).find({ where: { combinator: 'and', rules: [] } });
       return records.map(record => record.name);
     }, false);
-    assertClaimedCapabilities(names, new Set(this.#system_contributions.keys()));
+    return { claimedNames: names, bootstrapFingerprints: readBootstrapFingerprints(names) };
+  }
+
+  /**
+   * 本次引导的指纹：实体结构与系统/接入方两条迁移链的名字。
+   *
+   * @param systemMigrations - 已按贡献方展开的系统迁移链
+   * @returns 64 位十六进制 SHA-256
+   */
+  #bootstrapFingerprint(systemMigrations: MigrationType[]): string {
+    return computeBootstrapFingerprint({
+      entities: [...new Set([...this.systemEntities, ...this.#config.entities])],
+      systemMigrations: systemMigrations.map(migration => migration.name),
+      userMigrations: (this.#config.migrations ?? []).map(migration => migration.name)
+    });
+  }
+
+  /** 指纹行的迁移表记录；首装随建表同批写入，既有库完整引导后单独写。 */
+  #bootstrapFingerprintRow(fingerprint: string): RxDBMigration {
+    const record = this.entityManager.instantiate(RxDBMigration);
+    record.name = bootstrapFingerprintName(fingerprint);
+    record.executedAt = new Date();
+    return record;
+  }
+
+  /**
+   * 把引导指纹写进 `rxdb_migration`。
+   *
+   * @param adapter - 本地适配器
+   * @param fingerprint - {@link RxDB.#bootstrapFingerprint} 的结果
+   *
+   * @remarks
+   * 并发实例写下同一指纹时唯一索引挡下后者——行里的值正是它要写的（指纹确定性），当作已写入。
+   */
+  async #recordBootstrapFingerprint(adapter: RxDBAdapterLocalBase, fingerprint: string): Promise<void> {
+    const record = this.#bootstrapFingerprintRow(fingerprint);
+    await adapter.bootstrapTransaction(async executor => {
+      try {
+        await executor.getRepository(RxDBMigration).create(record);
+      } catch (error) {
+        if (!isUniqueConstraintViolation(error)) throw error;
+      }
+    }, false);
   }
 
   /**

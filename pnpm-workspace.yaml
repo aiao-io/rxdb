@@ -24,6 +24,8 @@ allowBuilds:
   postman-code-generators: false
   sharp: true
   unrs-resolver: true
+  # wrangler 的 workerd：安装脚本只是校验 / 回退下载平台二进制，二进制由可选依赖 @cloudflare/workerd-<平台> 提供
+  workerd: false
 
 autoInstallPeers: true
 enablePrePostScripts: true
@@ -102,6 +104,7 @@ overrides:
   vue: ^3.5.43
   yaml@1: ^1.10.3
 patchedDependencies:
+  '@easyops-cn/docusaurus-search-local@0.55.3': patches/@easyops-cn__docusaurus-search-local@0.55.3.patch
   '@tarojs/vite-runner@4.3.2': patches/@tarojs__vite-runner@4.3.2.patch
   typescript@6.0.3: patches/typescript@6.0.3.patch
 peerDependencyRules:

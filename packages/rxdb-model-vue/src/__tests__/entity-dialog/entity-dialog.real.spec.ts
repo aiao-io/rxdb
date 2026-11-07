@@ -91,6 +91,32 @@ describe('EntityDialog（真实组件）', () => {
     expect(pane.style.width).toBe('400px');
   });
 
+  it('标题拖到视口边缘时保持整个对话框可见，松开后停止移动', async () => {
+    const { wrapper, dialog, pane } = await renderDialog();
+    vi.spyOn(pane, 'offsetWidth', 'get').mockReturnValue(600);
+    vi.spyOn(pane, 'offsetHeight', 'get').mockReturnValue(400);
+    pane.style.left = '100px';
+    pane.style.top = '50px';
+    const vm = dialog.vm as unknown as { startDrag(event: MouseEvent): void };
+
+    vm.startDrag(new MouseEvent('mousedown', { clientX: 200, clientY: 80 }));
+    document.dispatchEvent(
+      new MouseEvent('mousemove', { clientX: window.innerWidth + 500, clientY: window.innerHeight + 500 })
+    );
+    expect(pane.style.left).toBe(`${window.innerWidth - 600}px`);
+    expect(pane.style.top).toBe(`${window.innerHeight - 400}px`);
+
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: -500, clientY: -500 }));
+    expect(pane.style.left).toBe('0px');
+    expect(pane.style.top).toBe('0px');
+
+    document.dispatchEvent(new MouseEvent('mouseup'));
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 300, clientY: 300 }));
+    expect(pane.style.left).toBe('0px');
+    expect(pane.style.top).toBe('0px');
+    wrapper.unmount();
+  });
+
   it('close 输出 closeRequested 并关闭对话框上下文', async () => {
     const { dialog } = await renderDialog();
     const vm = dialog.vm as unknown as { close(): void };

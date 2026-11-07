@@ -160,9 +160,14 @@ describe('迁移水位线', () => {
 
     expect(adapter.createTables).toHaveBeenCalledTimes(1);
     expect(up).not.toHaveBeenCalled();
-    // 首装同时写下系统迁移与接入方迁移的水位线。少写系统那两条，下次启动会在一张
-    // **已经初始化过**的库上重跑贡献方的 up()，撞主键。
-    expect(created.map(record => record.name)).toEqual([PROBE_MIGRATION_NAME, PROBE_CLAIM_ROW, 'init-schema']);
+    // 首装同时写下系统迁移与接入方迁移的水位线，外加引导指纹行。少写系统那两条，
+    // 下次启动会在一张**已经初始化过**的库上重跑贡献方的 up()，撞主键。
+    expect(created.slice(0, 3).map(record => record.name)).toEqual([
+      PROBE_MIGRATION_NAME,
+      PROBE_CLAIM_ROW,
+      'init-schema'
+    ]);
+    expect(created[3]?.name).toMatch(/^__rxdb_bootstrap__/);
 
     await first.disconnectAll();
 
@@ -263,7 +268,7 @@ describe('首装原子提交（RXD-051）', () => {
 
     const initialEntities = adapter.createTables.mock.calls[0]?.[1] ?? [];
     // 「同一次建表」是这条用例的全部内容：主分支、**贡献方**的初始行、三条水位线
-    // （贡献方迁移 + 它的能力认领行 + 接入方迁移）必须搭在**同一次** createTables 上。
+    // （贡献方迁移 + 它的能力认领行 + 接入方迁移）与引导指纹行必须搭在**同一次** createTables 上。
     // 拆成第二次写入，中间崩一下库就停在「有表无记录」——下次启动重跑全部迁移，
     // 打在已是最新形态的库上。
     // 按 label 而不是 `EntityClass.name` 比对：`@Entity()` 装饰器返回的是匿名子类，
@@ -280,6 +285,7 @@ describe('首装原子提交（RXD-051）', () => {
       'WatermarkProbeState',
       'RxDBMigration',
       'RxDBMigration',
+      'RxDBMigration',
       'RxDBMigration'
     ]);
     // `activeKey` 与 `activated` 必须同写：可空唯一列只管得住非 NULL 的行，漏写这一处
@@ -289,10 +295,11 @@ describe('首装原子提交（RXD-051）', () => {
     );
     // 贡献方拿到的是**建表那一刻确实存在**的分支集合，不是一个空上下文：新库上恰好是 main。
     expect(initialEntities[1]).toEqual(expect.objectContaining({ branchId: 'main' }));
-    expect(initialEntities.slice(-3)).toEqual([
+    expect(initialEntities.slice(-4)).toEqual([
       expect.objectContaining({ name: PROBE_MIGRATION_NAME, executedAt: expect.any(Date) }),
       expect.objectContaining({ name: PROBE_CLAIM_ROW, executedAt: expect.any(Date) }),
-      expect.objectContaining({ name: 'init-schema', executedAt: expect.any(Date) })
+      expect.objectContaining({ name: 'init-schema', executedAt: expect.any(Date) }),
+      expect.objectContaining({ name: expect.stringMatching(/^__rxdb_bootstrap__/), executedAt: expect.any(Date) })
     ]);
     expect(adapter.transaction).not.toHaveBeenCalled();
   });
@@ -371,6 +378,8 @@ describe('迁移占坑与唯一约束（RXD-036）', () => {
     const { database } = createExistingDatabase(migrations, {
       find: vi.fn(async () => []),
       create: vi.fn(async (record: RxDBMigration) => {
+        // 引导指纹行排在迁移执行之后写，不进本用例编排的顺序
+        if (record.name.startsWith('__rxdb_bootstrap__')) return record;
         order.push('claim');
         return record;
       })
@@ -400,7 +409,8 @@ describe('迁移占坑与唯一约束（RXD-036）', () => {
 
     expect(up).not.toHaveBeenCalled();
     expect(find).toHaveBeenCalledTimes(2);
-    expect(create).toHaveBeenCalledTimes(1);
+    // 第二次 create 是完整引导收尾的引导指纹行：撞同一把唯一索引、被按「同值已写入」吞掉
+    expect(create).toHaveBeenCalledTimes(2);
   });
 
   it('占坑始终抢不到：重试用尽后抛错，不静默跳过迁移', async () => {

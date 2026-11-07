@@ -189,6 +189,31 @@ const COMBOS = [
     }
   },
   {
+    id: 'admin-shell',
+    directories: [
+      'utils',
+      'rxdb',
+      'rxdb-i18n',
+      'rxdb-admin',
+      'rxdb-admin-angular',
+      'rxdb-admin-react',
+      'rxdb-admin-vue'
+    ],
+    registryDependencies: {
+      rxjs: '^7.8.2',
+      react: '^19.3.0',
+      'react-dom': '^19.3.0',
+      'lucide-react': '^1.47.0',
+      vue: '^3.5.43',
+      '@lucide/vue': '^1.63.0',
+      '@angular/core': '22.2.3',
+      '@angular/common': '22.2.3',
+      '@angular/platform-browser': '22.2.3',
+      '@angular/compiler': '22.2.3',
+      '@lucide/angular': '1.61.0'
+    }
+  },
+  {
     id: 'optional-peers',
     directories: [
       'utils',
@@ -366,7 +391,7 @@ const require = createRequire(import.meta.url);
 const packages = ${JSON.stringify(packageNames)};
 
 // Angular 绑定是部分编译库：无 AOT 的裸 Node 导入需要 JIT 编译器兜底（Angular 官方提示的注册方式）。
-if (packages.includes('@aiao/rxdb-angular') || packages.includes('@aiao/rxdb-plugin-board-angular')) await import('@angular/compiler');
+if (packages.some(name => name.endsWith('-angular'))) await import('@angular/compiler');
 
 for (const pkg of packages) {
   const namespace = await import(pkg);
@@ -453,32 +478,52 @@ const writeTsconfig = async (root, files, resolution = 'NodeNext') => {
  * 看板组合三端都从同名 `./board-view.css` 子路径取样式（构建产物随后断言内容），入口同时导出 `useBoard`
  * （掉出包入口或改名时 tsc 报 TS2305）；`board-testing` 入口导入 `@aiao/rxdb-plugin-board/testing`：
  * 子路径声明没进 tgz 或 `types` 指错时严格模式下是 TS7016，运行时目标缺失时 esbuild 构建失败。
+ * 后台外壳组合三端都导入核心包的 `admin.css`（三端共享的样式契约，同样断言构建产物内容），
+ * 并导出各自的布局组件与外壳提供入口；`admin-testing` 入口导入 `@aiao/rxdb-admin/testing`，守护方式同 `board-testing`。
+ * @param {string} root 消费者根目录
+ * @param {'core' | 'board' | 'admin'} kind 组合种类
  */
-const writeBindingEntries = async (root, board) => {
-  const entries =
-    board ?
+const writeBindingEntries = async (root, kind) => {
+  const entriesByKind = {
+    core: [
+      ['angular', "import { provideRxDB, useRxDB } from '@aiao/rxdb-angular';\nvoid provideRxDB;\nvoid useRxDB;\n"],
+      ['react', "import { useRxDB } from '@aiao/rxdb-react';\nvoid useRxDB;\n"],
+      ['vue', "import { provideRxDB, useRxDB } from '@aiao/rxdb-vue';\nvoid provideRxDB;\nvoid useRxDB;\n"]
+    ],
+    board: [
       [
-        [
-          'angular',
-          "import '@angular/compiler';\nimport '@aiao/rxdb-plugin-board-angular/board-view.css';\nexport { BoardViewComponent, useBoard } from '@aiao/rxdb-plugin-board-angular';\n"
-        ],
-        [
-          'react',
-          "import '@aiao/rxdb-plugin-board-react/board-view.css';\nexport { BoardView, useBoard } from '@aiao/rxdb-plugin-board-react';\n"
-        ],
-        [
-          'vue',
-          "import '@aiao/rxdb-plugin-board-vue/board-view.css';\nexport { BoardView, useBoard } from '@aiao/rxdb-plugin-board-vue';\n"
-        ],
-        ['board-testing', "export { seedReleaseBoardDataset } from '@aiao/rxdb-plugin-board/testing';\n"]
-      ]
-    : [
-        ['angular', "import { provideRxDB, useRxDB } from '@aiao/rxdb-angular';\nvoid provideRxDB;\nvoid useRxDB;\n"],
-        ['react', "import { useRxDB } from '@aiao/rxdb-react';\nvoid useRxDB;\n"],
-        ['vue', "import { provideRxDB, useRxDB } from '@aiao/rxdb-vue';\nvoid provideRxDB;\nvoid useRxDB;\n"]
-      ];
+        'angular',
+        "import '@angular/compiler';\nimport '@aiao/rxdb-plugin-board-angular/board-view.css';\nexport { BoardViewComponent, useBoard } from '@aiao/rxdb-plugin-board-angular';\n"
+      ],
+      [
+        'react',
+        "import '@aiao/rxdb-plugin-board-react/board-view.css';\nexport { BoardView, useBoard } from '@aiao/rxdb-plugin-board-react';\n"
+      ],
+      [
+        'vue',
+        "import '@aiao/rxdb-plugin-board-vue/board-view.css';\nexport { BoardView, useBoard } from '@aiao/rxdb-plugin-board-vue';\n"
+      ],
+      ['board-testing', "export { seedReleaseBoardDataset } from '@aiao/rxdb-plugin-board/testing';\n"]
+    ],
+    admin: [
+      [
+        'angular',
+        "import '@angular/compiler';\nimport '@aiao/rxdb-admin/admin.css';\nexport { AdminLayoutComponent, injectAdminStore, provideAdminShell } from '@aiao/rxdb-admin-angular';\n"
+      ],
+      [
+        'react',
+        "import '@aiao/rxdb-admin/admin.css';\nexport { AdminLayout, AdminShellProvider, useAdminStore } from '@aiao/rxdb-admin-react';\n"
+      ],
+      [
+        'vue',
+        "import '@aiao/rxdb-admin/admin.css';\nexport { AdminLayout, AdminShellProvider, useAdminStore } from '@aiao/rxdb-admin-vue';\n"
+      ],
+      ['admin-testing', "export { createTestShell } from '@aiao/rxdb-admin/testing';\n"]
+    ]
+  };
+  const entries = entriesByKind[kind];
   for (const [name, content] of entries) await writeFile(path.join(root, `binding-${name}.ts`), content);
-  if (board) await writeFile(path.join(root, 'binding-assets.d.ts'), "declare module '*.css' {}\n");
+  if (kind !== 'core') await writeFile(path.join(root, 'binding-assets.d.ts'), "declare module '*.css' {}\n");
   return entries.map(([name]) => `binding-${name}.ts`);
 };
 
@@ -546,12 +591,12 @@ const auditConsumer = async (combo, manager, packed, bumped) => {
     await writeProbe(root, packageNames);
 
     const tscPath = path.join(workspaceRoot, 'node_modules/typescript/bin/tsc');
-    if (combo.id === 'bindings' || combo.id === 'board-bindings') {
-      const board = combo.id === 'board-bindings';
-      const files = await writeBindingEntries(root, board);
+    if (combo.id === 'bindings' || combo.id === 'board-bindings' || combo.id === 'admin-shell') {
+      const kind = { bindings: 'core', 'board-bindings': 'board', 'admin-shell': 'admin' }[combo.id];
+      const files = await writeBindingEntries(root, kind);
       // UI 绑定走 Bundler 解析（应用消费者标准姿势）；NodeNext 下 rxdb-vue 的
       // 无扩展名 `export *` d.ts 链不可见（已发布 0.0.26 同样如此，预存在缺陷，见 PR 遗留）。
-      await writeTsconfig(root, board ? [...files, 'binding-assets.d.ts'] : files, 'Bundler');
+      await writeTsconfig(root, kind === 'core' ? files : [...files, 'binding-assets.d.ts'], 'Bundler');
       await run(process.execPath, [tscPath, '--project', 'tsconfig.json', '--pretty', 'false'], root);
       await run(process.execPath, ['probe.mjs'], root);
       const esbuildPath = path.join(workspaceRoot, 'node_modules/esbuild/bin/esbuild');
@@ -563,10 +608,16 @@ const auditConsumer = async (combo, manager, packed, bumped) => {
           root
         );
       }
-      for (const framework of board ? ['angular', 'react', 'vue'] : []) {
+      for (const framework of kind === 'board' ? ['angular', 'react', 'vue'] : []) {
         const css = await readFile(path.join(root, `dist/binding-${framework}.ts.css`), 'utf8');
         assert.ok(css.includes('.rxb-columns'), `${framework}: 发布产物缺少看板列布局`);
         assert.ok(css.includes('.is-drop-before'), `${framework}: 发布产物缺少拖拽落点反馈`);
+      }
+      for (const framework of kind === 'admin' ? ['angular', 'react', 'vue'] : []) {
+        const css = await readFile(path.join(root, `dist/binding-${framework}.ts.css`), 'utf8');
+        assert.ok(css.includes('.admin-shell'), `${framework}: 发布产物缺少外壳布局样式`);
+        assert.ok(css.includes('.admin-tabbar'), `${framework}: 发布产物缺少页签栏样式`);
+        assert.ok(css.includes('.admin-palette'), `${framework}: 发布产物缺少命令面板样式`);
       }
       process.stdout.write(`Published consumer passed: ${combo.id}/${manager} 三框架绑定导入、tsc 与最小构建通过\n`);
       return;

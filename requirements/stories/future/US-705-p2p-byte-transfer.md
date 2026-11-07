@@ -1,11 +1,11 @@
 ---
 id: US-705
 title: P2P 字节传输
-status: Backlog
+status: In Progress
 priority: High
 epic: epic-011-p2p-file-share
 created: 2026-10-26
-updated: 2026-10-28
+updated: 2026-11-03
 tags: [p2p, webrtc, tcp, chunking, integrity]
 ---
 
@@ -66,7 +66,8 @@ tags: [p2p, webrtc, tcp, chunking, integrity]
 
 ## 实现文件
 
-- `packages/rxdb-plugin-p2p-files/`（拟新建）— 传输层所在包
-  - `transport/webrtc.ts` — 浏览器 DataChannel 通道（阶段 A）
-  - `transport/tcp.ts` — 桌面 TCP 通道（阶段 B）
-  - `chunking.ts` — 分块与校验协议（阶段 A 冻结，阶段 B 复用）
+- `packages/rxdb-plugin-p2p/src/` — 传输层所在包（协议层已实现，宿主接入与验收待做）
+  - `chunking.ts` / `session/frame.ts` — 分块、逐块校验与会话帧格式（阶段 A 冻结，阶段 B 复用）
+  - `transfer.ts` / `files-protocol.ts` — 续传、多源调度，以及会话上的双向块请求（files 协议，会话层见 [US-708](US-708-p2p-peer-session.md)）
+  - `session/webrtc-transport.ts` — 浏览器 DataChannel 通道与分片重组（阶段 A）
+  - `session/tcp-transport.ts` — 桌面 TLS TCP 通道（阶段 B）
