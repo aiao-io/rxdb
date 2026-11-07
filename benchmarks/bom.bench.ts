@@ -18,7 +18,7 @@ import {
 } from '@aiao/rxdb-plugin-bom';
 import { loadBomViewFixture } from '@aiao/rxdb-plugin-bom/testing';
 import { filter, firstValueFrom, map, ReplaySubject, timeout } from 'rxjs';
-import { summarise } from './bench-stats.ts';
+import { summarise } from './node/bench-stats.ts';
 
 const WARMUP = 5;
 const SAMPLES = 20;

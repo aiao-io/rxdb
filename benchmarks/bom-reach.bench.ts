@@ -16,8 +16,8 @@ import { deterministicId, reachDiamonds } from '@aiao/rxdb-plugin-bom/testing';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { cpus, totalmem } from 'node:os';
 import { resolve } from 'node:path';
-import { summarise } from './bench-stats.ts';
 import { createBomBenchmarkDatabase } from './bom-database.ts';
+import { summarise } from './node/bench-stats.ts';
 
 const WARMUP = 5;
 const SAMPLES = 20;
