@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
-import { copyFile, mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, readdir, rename, stat, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
+import { homedir } from 'node:os';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
@@ -10,20 +11,31 @@ const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(join(appRoot, 'package.json'));
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 
+async function download(lock, cache) {
+  console.log(`首次构建下载 Markdown 扩展（${(lock.bytes / 1e6).toFixed(1)} MB）：${lock.url} → ${cache}`);
+  try {
+    const response = await fetch(lock.url);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return new Uint8Array(await response.arrayBuffer());
+  } catch (cause) {
+    throw new Error(`下载 Markdown 扩展失败：直连 GitHub 不通时设代理重跑（NODE_USE_ENV_PROXY=1 HTTPS_PROXY=<代理地址>），或手动下载 ${lock.url} 放到 ${cache}`, { cause });
+  }
+}
+
 async function prepareExtension(output) {
   const lock = JSON.parse(await readFile(join(appRoot, 'vendor/markdown-preview-enhanced.lock.json'), 'utf8'));
-  const cache = join(appRoot, '../../node_modules/.cache/aiao-vscode/extensions', `${lock.id}-${lock.version}.vsix`);
+  const cache = join(homedir(), '.cache/aiao-vscode/extensions', `${lock.id}-${lock.version}.vsix`);
   await mkdir(dirname(cache), { recursive: true });
   let archive;
   try {
     archive = await readFile(cache);
   } catch (error) {
     if (error.code !== 'ENOENT') throw error;
-    const response = await fetch(lock.url);
-    if (!response.ok) throw new Error(`下载 Markdown 扩展失败：HTTP ${response.status}`, { cause: error });
-    archive = new Uint8Array(await response.arrayBuffer());
+    archive = await download(lock, cache);
     if (archive.length !== lock.bytes || digest(archive) !== lock.sha256) throw new Error('Markdown 扩展完整性校验失败', { cause: error });
-    await writeFile(cache, archive);
+    const partial = `${cache}.${process.pid}.tmp`;
+    await writeFile(partial, archive);
+    await rename(partial, cache);
   }
   if (archive.length !== lock.bytes || digest(archive) !== lock.sha256) throw new Error('Markdown 扩展完整性校验失败');
   const entries = unzipSync(archive);

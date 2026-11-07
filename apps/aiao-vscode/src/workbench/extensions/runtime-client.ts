@@ -9,6 +9,9 @@ export function mountMarkdownRuntime(host: HTMLElement, options: MarkdownRuntime
   iframe.style.cssText = 'width:100%;height:100%;border:0;display:block';
   iframe.allow = 'clipboard-read; clipboard-write';
   const url = new URL('extension-host/index.html', assetBase);
+  // 不带查询的旧地址曾被 Cloudflare Pages 308 到 extension-host/（响应没有 Cache-Control），
+  // 浏览器按永久重定向长期缓存；带上协议频道换成新地址，协议升级时地址随之变化。
+  url.searchParams.set('channel', EXTENSION_CHANNEL);
   iframe.src = url.href;
   const channel = new MessageChannel();
   let disposed = false;
