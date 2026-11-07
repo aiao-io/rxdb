@@ -29,12 +29,10 @@ module.exports = {
     '../packages/rxdb-model-angular',
     '../packages/rxdb-model-react',
     '../packages/rxdb-model-vue',
-    // 后台外壳
     '../packages/rxdb-admin',
     '../packages/rxdb-admin-angular',
     '../packages/rxdb-admin-react',
     '../packages/rxdb-admin-vue',
-    // 国际化
     '../packages/rxdb-i18n',
     '../packages/rxdb-i18n-angular',
     '../packages/rxdb-i18n-react',

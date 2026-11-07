@@ -25,6 +25,7 @@ npm install @aiao/rxdb @aiao/rxdb-adapter-sqlite-wasm
 ```typescript
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
+import wasmUrl from '@subframe7536/sqlite-wasm/wasm-async?url';
 
 const rxdb = new RxDB({
   dbName: 'demo',
@@ -37,7 +38,7 @@ rxdb.adapter(
   async db =>
     new RxDBAdapterSqlite(db, {
       vfs: 'idb',
-      wasmUrl: new URL('@subframe7536/sqlite-wasm/wasm-async', import.meta.url).href
+      wasmUrl
     })
 );
 
@@ -46,7 +47,7 @@ await rxdb.connect('sqlite-wasm');
 
 ## WASM 资源
 
-`wasmUrl` 必须指向本适配器实际安装的 `@subframe7536/sqlite-wasm` 产物。主线程 IDB 示例与看板外壳使用 `dist/wa-sqlite-async.wasm`，OPFS 预设使用 `dist/wa-sqlite.wasm`。Vite 可按上面的 `new URL()` 方式解析公开子路径；也可把对应文件复制到应用的 public 目录，再传入 `/sqlite-wasm/wa-sqlite-async.wasm` 等部署路径。
+`wasmUrl` 必须指向本适配器实际安装的 `@subframe7536/sqlite-wasm` 产物。主线程 IDB 示例与看板外壳使用 `dist/wa-sqlite-async.wasm`，OPFS 预设使用 `dist/wa-sqlite.wasm`。Vite 使用上面的 `?url` 导入解析包内资源；也可把对应文件复制到应用的 public 目录，再传入 `/sqlite-wasm/wa-sqlite-async.wasm` 等部署路径。
 
 仓库从 `packages/rxdb-adapter-sqlite-wasm/node_modules/@subframe7536/sqlite-wasm/dist/` 复制资源，确保取到适配器的实际依赖。不要用官方 SQLite WASM 或另一份 wa-sqlite 的同名文件替代。
 
@@ -63,12 +64,14 @@ expose(new SqliteClient());
 ```
 
 ```typescript
+import wasmUrl from '@subframe7536/sqlite-wasm/wasm?url';
+
 rxdb.adapter(
   'sqlite-wasm',
   async db =>
     new RxDBAdapterSqlite(db, {
       vfs: 'opfs',
-      wasmUrl: new URL('@subframe7536/sqlite-wasm/wasm', import.meta.url).href,
+      wasmUrl,
       worker: true,
       workerInstance: new Worker(new URL('./sqlite.worker', import.meta.url), { type: 'module' })
     })
@@ -92,12 +95,14 @@ self.onconnect = (event: MessageEvent) => expose(client, event.ports[0]);
 ```
 
 ```typescript
+import wasmUrl from '@subframe7536/sqlite-wasm/wasm-async?url';
+
 rxdb.adapter(
   'sqlite-wasm',
   async db =>
     new RxDBAdapterSqlite(db, {
       vfs: 'idb',
-      wasmUrl: new URL('@subframe7536/sqlite-wasm/wasm-async', import.meta.url).href,
+      wasmUrl,
       sharedWorker: true,
       sharedWorkerInstance: new SharedWorker(new URL('./sqlite-shared.worker', import.meta.url), { type: 'module' })
     })
@@ -131,7 +136,7 @@ rxdb.adapter(
   async db =>
     new RxDBAdapterSqlite(db, {
       vfs: 'idb',
-      wasmUrl: new URL('@subframe7536/sqlite-wasm/wasm-async', import.meta.url).href
+      wasmUrl
     })
 );
 

@@ -1,9 +1,14 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
 import { getPackageNames, repoRoot, steps } from './build-website.mjs';
+
+const require = createRequire(import.meta.url);
+const { createOverrides } = require('nx/src/utils/command-line-utils');
+const { getOutputsForTargetAndConfiguration } = require('nx/src/tasks-runner/utils');
 
 test('importing the module does not run the build', () => {
   // 能执行到这一行本身就是断言：没有主入口守卫时，import 会同步跑完整个 run-many，
@@ -56,8 +61,8 @@ test('Angular demo build writes to a dedicated output path, not the e2e dist', (
   assert.ok(step, 'missing Angular demo step');
   // baseHref 与 outputPath 必须成对出现：只改 baseHref 会把 /demo/angular/ 写进
   // e2e 的 webServer 根，localhost:8200 上整套 e2e 全红。
-  assert.match(step.command, /--base-href=\/demo\/angular\//);
-  assert.match(step.command, /--output-path=dist\/apps\/dev-rxdb-angular-website(?:["'\s]|$)/);
+  assert.match(step.command, /--baseHref=\/demo\/angular\//);
+  assert.match(step.command, /--outputPath=dist\/apps\/dev-rxdb-angular-website(?:["'\s]|$)/);
 
   const source = String(step.postBuild);
   assert.match(source, /dev-rxdb-angular-website\/browser/);
@@ -97,4 +102,17 @@ test('every --configuration referenced by a step exists in the target project.js
       );
     }
   }
+});
+
+test('Angular demo cache restores the website output directory', () => {
+  const step = steps.find(item => item.name === '构建 Angular 演示');
+  const project = JSON.parse(readFileSync(join(repoRoot, 'apps/dev-rxdb-angular/project.json'), 'utf8'));
+  const overrides = createOverrides(step.command.split(/\s+/).filter(argument => argument.startsWith('--')));
+  const outputs = getOutputsForTargetAndConfiguration(
+    { project: 'dev-rxdb-angular', target: 'build', configuration: 'production' },
+    overrides,
+    { name: 'dev-rxdb-angular', data: project }
+  );
+
+  assert.deepEqual(outputs, ['dist/apps/dev-rxdb-angular-website']);
 });

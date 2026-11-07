@@ -362,7 +362,7 @@ if (available) {
 
 ## 完整示例
 
-下例用于显式评估实验性 OPFS 与 IDB 的宿主差异；生产起点使用前面的 IDB 示例，不要只按 OPFS API 是否存在决定存储后端。
+下例默认使用 IDB。仅在完成实验性 OPFS 评估后，显式调用 `initDatabase({ experimentalOPFS: true })`；启用时检查宿主能力，不支持则报错。
 
 ```typescript
 import { RxDB, Entity, EntityBase, PropertyType, SyncType } from '@aiao/rxdb';
@@ -380,7 +380,7 @@ import { checkOPFSAvailable } from '@aiao/utils';
 export class Todo extends EntityBase {}
 
 // 初始化数据库
-async function initDatabase() {
+async function initDatabase({ experimentalOPFS = false } = {}) {
   const rxdb = new RxDB({
     dbName: 'todo-app',
     entities: [Todo],
@@ -393,9 +393,9 @@ async function initDatabase() {
   // 注册 SQLite 适配器
   rxdb.adapter('wa-sqlite', async db => {
     let options: WaSqliteOptions;
-    const available = await checkOPFSAvailable();
+    if (experimentalOPFS && !(await checkOPFSAvailable())) throw new Error('当前宿主不支持实验性 OPFS');
 
-    if (available) {
+    if (experimentalOPFS) {
       options = {
         vfs: 'OPFSCoopSyncVFS',
         async: false,

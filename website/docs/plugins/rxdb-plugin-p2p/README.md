@@ -27,23 +27,30 @@ import {
   createP2PFilesSource,
   createWebRTCTransport,
   downloadP2PFile,
-  openP2PSession
+  openP2PSession,
+  P2PSessionRegistry
 } from '@aiao/rxdb-plugin-p2p';
 
-const session = openP2PSession({
-  transport: createWebRTCTransport(dataChannel),
-  role: 'initiator',
-  connectionId,
-  local: { principal, instanceId },
-  credential,
-  authenticate: verifyPeerCredential,
-  protocols: [createP2PFilesProtocol({ contents: findLocalFile, authorize: authorizeRead })]
-});
+const registry = new P2PSessionRegistry();
+
+const session = await registry.add(
+  openP2PSession({
+    transport: createWebRTCTransport(dataChannel),
+    role: 'initiator',
+    connectionId,
+    local: { principal, instanceId },
+    credential,
+    authenticate: verifyPeerCredential,
+    protocols: [createP2PFilesProtocol({ contents: findLocalFile, authorize: authorizeRead })]
+  })
+);
 
 await downloadP2PFile({ manifest, sources: [createP2PFilesSource(session, holderId)], writeChunk });
 ```
 
-双方先交换 hello、认证并协商协议版本。凭据绑定 `connectionId`，认证失败以 `unauthorized` 关闭；files 协议逐请求授权，未经授权不查询内容。`P2PSessionRegistry` 按对端身份去重，心跳超时关闭失联会话。
+双方先交换 hello、认证并协商协议版本。凭据绑定 `connectionId`，认证失败以 `unauthorized` 关闭；files 协议逐请求授权，未经授权不查询内容。`P2PSessionRegistry` 按对端身份去重，心跳超时关闭失联会话。应用生命周期内复用同一个 `registry`，后续传输使用 `registry.add()` 返回的会话。
+
+拨号方必须串行处理同一对端的连接尝试，不能同时发起两条同方向连接；两端登记顺序相反时，重复连接可能互相关闭。双方同时拨号时，登记处会按双方身份键确定保留方向。
 
 ## 文件传输边界
 
