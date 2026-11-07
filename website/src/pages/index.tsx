@@ -167,6 +167,30 @@ const docEntrances: DocEntrance[] = [
     href: '/docs/collaboration/branch'
   },
   {
+    icon: Blocks,
+    title: '实体 UI 与 Headless',
+    description: '使用元数据驱动的表单、列表与详情，或通过独立控制器渲染自己的界面。',
+    href: '/docs/entity-model/'
+  },
+  {
+    icon: Layers3,
+    title: '后台外壳',
+    description: '接入三框架后台导航、布局、用户偏好和可运行模板。',
+    href: '/docs/admin-shell/'
+  },
+  {
+    icon: Workflow,
+    title: '客户端国际化',
+    description: '统一 ICU 文案与日期、数字格式化，按需持久化语言偏好和目录。',
+    href: '/docs/i18n/'
+  },
+  {
+    icon: Boxes,
+    title: '看板与 P2P',
+    description: '查看单人任务看板、认证会话和文件共享的接入方式与当前边界。',
+    href: '/docs/getting-started/capabilities'
+  },
+  {
     icon: PlayCircle,
     title: '在线演示',
     description: '对照三套框架的可运行页面与源码，评估实际接入方式。',

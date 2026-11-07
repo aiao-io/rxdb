@@ -34,7 +34,17 @@ module.exports = {
     '../packages/rxdb-admin-angular',
     '../packages/rxdb-admin-react',
     '../packages/rxdb-admin-vue',
+    // 国际化
+    '../packages/rxdb-i18n',
+    '../packages/rxdb-i18n-angular',
+    '../packages/rxdb-i18n-react',
+    '../packages/rxdb-i18n-vue',
     // 插件
+    '../packages/rxdb-plugin-board',
+    '../packages/rxdb-plugin-board-angular',
+    '../packages/rxdb-plugin-board-react',
+    '../packages/rxdb-plugin-board-vue',
+    '../packages/rxdb-plugin-p2p',
     '../packages/rxdb-plugin-graph',
     '../packages/rxdb-plugin-workspace',
     '../packages/rxdb-plugin-storage',

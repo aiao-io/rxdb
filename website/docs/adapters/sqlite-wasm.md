@@ -12,13 +12,13 @@ npm install @aiao/rxdb @aiao/rxdb-adapter-sqlite-wasm
 
 ## VFS 预设
 
-| `vfs` 取值   | 存储后端                       | 运行环境        | 说明                       |
-| ------------ | ------------------------------ | --------------- | -------------------------- |
-| `memory`     | 纯内存 `MemoryVFS`             | 主线程 / Worker | 测试 / 临时数据            |
-| `idb`        | IndexedDB `IDBBatchAtomicVFS`  | 主线程 / Worker | 通用持久化，兼容性最好     |
-| `idb-memory` | 内存 + IDB 镜像 `IDBMirrorVFS` | 主线程 / Worker | 读性能高，写异步镜像       |
-| `opfs`       | OPFS `OPFSCoopSyncVFS`         | **必须 Worker** | 最佳性能，需 SAB 支持      |
-| `fs-handle`  | 本地文件 `OPFSAnyContextVFS`   | 主线程 / Worker | OPFS FileHandle 或本地文件 |
+| `vfs` 取值   | 存储后端                       | 运行环境        | 说明                           |
+| ------------ | ------------------------------ | --------------- | ------------------------------ |
+| `memory`     | 纯内存 `MemoryVFS`             | 主线程 / Worker | 测试 / 临时数据                |
+| `idb`        | IndexedDB `IDBBatchAtomicVFS`  | 主线程 / Worker | 通用持久化，兼容性最好         |
+| `idb-memory` | 内存 + IDB 镜像 `IDBMirrorVFS` | 主线程 / Worker | 读性能高，写异步镜像           |
+| `opfs`       | OPFS `OPFSCoopSyncVFS`         | **必须 Worker** | 专用 Worker 中使用同步访问句柄 |
+| `fs-handle`  | 本地文件 `OPFSAnyContextVFS`   | 主线程 / Worker | OPFS FileHandle 或本地文件     |
 
 ## 基础使用
 
@@ -44,9 +44,15 @@ rxdb.adapter(
 await rxdb.connect('sqlite-wasm');
 ```
 
-## OPFS 模式（高性能）
+## WASM 资源
 
-OPFS 需要在 Worker 中运行，并要求服务器配置 `Cross-Origin-Opener-Policy` 和 `Cross-Origin-Embedder-Policy` 响应头。Worker 文件需要**自己编写**并用 comlink 的 `expose` 暴露客户端（comlink 是可选 peer 依赖，需自行安装）：
+`wasmUrl` 必须指向本适配器实际安装的 `@subframe7536/sqlite-wasm` 产物。主线程 IDB 示例与看板外壳使用 `dist/wa-sqlite-async.wasm`，OPFS 预设使用 `dist/wa-sqlite.wasm`。Vite 可按上面的 `new URL()` 方式解析公开子路径；也可把对应文件复制到应用的 public 目录，再传入 `/sqlite-wasm/wa-sqlite-async.wasm` 等部署路径。
+
+仓库从 `packages/rxdb-adapter-sqlite-wasm/node_modules/@subframe7536/sqlite-wasm/dist/` 复制资源，确保取到适配器的实际依赖。不要用官方 SQLite WASM 或另一份 wa-sqlite 的同名文件替代。
+
+## OPFS 模式
+
+此处的 `OPFSCoopSyncVFS` 需要在 dedicated Worker 中运行，不要求 SharedArrayBuffer；不能把其它 VFS 的跨源隔离要求套用到这个组合。Worker 文件需要**自己编写**并用 comlink 的 `expose` 暴露客户端（comlink 是可选 peer 依赖，需自行安装）：
 
 ```typescript
 // sqlite.worker.ts

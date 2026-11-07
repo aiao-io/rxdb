@@ -53,7 +53,7 @@ const fitTeams = [
 const nonFitTeams = [
   '只需缓存少量 REST 数据并渲染简单表单，引入数据库与模型层的成本高于收益。',
   '团队不使用 RxJS，也不接受模型驱动约束，接入成本会明显上升。',
-  '你要的是托管式同步服务、CRDT 多人实时协同或权限系统——当前重点不在这里。'
+  '应用需要开箱即用的托管同步服务、CRDT 多人实时协同或完整的服务端身份与权限体系。'
 ] as const;
 
 interface SectionProps {
@@ -200,8 +200,8 @@ function ComparisonContent(): ReactNode {
               <span className='eyebrow eyebrow--plain'>collaboration scope</span>
             </div>
             <p className='text-muted-foreground text-base leading-7 sm:text-lg sm:leading-8'>
-              当前已验证版本分支、撤销重做、条件同步与跨 Tab 同步。CRDT
-              多人实时协同、权限系统与托管云服务不在当前能力范围内。
+              当前已提供版本分支、撤销重做、条件同步、跨 Tab 通知，以及独立的 P2P 认证会话与文件共享。
+              实体操作权限可由应用上下文控制；服务端认证、授权与托管同步仍需应用接入，CRDT 多人实时协同尚未提供。
             </p>
             <div className='mt-6 flex flex-wrap gap-2'>
               {['Version branching', 'Undo / redo', 'Conditional sync', 'Cross-tab sync'].map(tag => (
