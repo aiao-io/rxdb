@@ -1,6 +1,6 @@
 # Aiao 包组合知识（v0.0.28）
 
-事实摘要：`1b08852445fce9ce27bb40ed7247817081c6e1ee262746d93686b390b4347baa`。本文件由事实源、manifest、插件源码与已验证样例生成。
+事实摘要：`2513e2ee5f3ebad4445b2dac5f6073183efc619b4a00b3b11d4bc54cecdc6f0f`。本文件由事实源、manifest、插件源码与已验证样例生成。
 安装清单只包含此发布标签树里的包；工作区新增能力见同目录 JSON 的 development 部分。
 情景的插件组合与下方样例取自工作区源码（样例在 CI 中执行过），可能新于此发布标签。
 
@@ -180,7 +180,7 @@ shared-impl 与 capability 不占后端槽位，tool 与 standalone 不要求 Rx
 
 ```sh
 pnpm add @aiao/rxdb@^0.0.28 @aiao/rxdb-adapter-pglite@^0.0.28 @aiao/rxdb-plugin-history@^0.0.28
-pnpm add -D typescript@~6.0.3 @types/node@^26.6.5 @types/emscripten@^1.41.6
+pnpm add -D typescript@~6.0.3 @types/node@^26.6.6 @types/emscripten@^1.41.6
 ```
 
 ```json
