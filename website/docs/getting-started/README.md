@@ -21,14 +21,14 @@ pnpm nx serve dev-rxdb-react
 pnpm nx serve dev-rxdb-vue
 ```
 
-如需从最小代码开始，请继续阅读。
+看板、后台外壳、国际化和 P2P 的适用边界与本地运行入口见[能力与示例](./capabilities.md)。如需从最小代码开始，请继续阅读。
 
 ## 安装
 
 ### 核心包
 
 ```bash npm2yarn
-npm install @aiao/rxdb @aiao/rxdb-adapter-wa-sqlite
+npm install @aiao/rxdb @aiao/rxdb-adapter-wa-sqlite rxjs
 ```
 
 ### 框架集成（按需）
@@ -71,7 +71,6 @@ export class Todo extends EntityBase {}
 ```typescript
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
-import { checkOPFSAvailable } from '@aiao/utils';
 
 const rxdb = new RxDB({
   dbName: 'myapp',
@@ -79,24 +78,20 @@ const rxdb = new RxDB({
   sync: { local: { adapter: 'wa-sqlite' }, type: SyncType.None }
 });
 
-rxdb.adapter('wa-sqlite', async db => {
-  const available = await checkOPFSAvailable();
-
-  return new RxDBAdapterWaSqlite(db, {
-    vfs: available ? 'OPFSCoopSyncVFS' : 'IDBBatchAtomicVFS',
-    worker: available,
-    workerInstance: available ? new Worker(new URL('./sqlite.worker', import.meta.url), { type: 'module' }) : undefined,
-    sharedWorker: !available,
-    sharedWorkerInstance:
-      !available ? new SharedWorker(new URL('./sqlite-shared.worker', import.meta.url), { type: 'module' }) : undefined,
-    wasmPath: available ? '/wa-sqlite/wa-sqlite.wasm' : '/wa-sqlite/wa-sqlite-async.wasm'
-  });
-});
+rxdb.adapter(
+  'wa-sqlite',
+  db =>
+    new RxDBAdapterWaSqlite(db, {
+      vfs: 'IDBBatchAtomicVFS',
+      async: true,
+      wasmPath: '/wa-sqlite/wa-sqlite-async.wasm'
+    })
+);
 
 await rxdb.connect('wa-sqlite');
 ```
 
-以上配置会根据浏览器能力选择 VFS 与 Worker 方案，并在支持时优先使用 OPFS。
+最小示例使用受支持的 `IDBBatchAtomicVFS`，在主线程通过 IndexedDB 持久化。先按[安装与初始化](./install.md)放置匹配的 WASM 文件；需要多标签页共享连接时，再显式接入 SharedWorker。wa-sqlite 的 OPFS VFS 目前属于实验性，不能只按浏览器是否支持 OPFS 自动选为生产默认。
 
 ### 3. 读写数据
 

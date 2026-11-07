@@ -9,8 +9,8 @@
 | 依赖       | 要求                                    | 说明                                                                       |
 | :--------- | :-------------------------------------- | :------------------------------------------------------------------------- |
 | Node.js    | `>=26`                                  | 见根 `package.json` 的 `engines.node`；开发环境与 CI 使用 `.nvmrc` 中的 26 |
-| pnpm       | `>=10`                                  | 仅开发/构建需要                                                            |
-| TypeScript | `~6.0`                                  | strict、ESM；消费端建议 `>=5.5` 以支持所用类型特性                         |
+| pnpm       | `>=10`                                  | 仅开发/构建需要；仓库使用 `packageManager` 固定的 `pnpm@12.16.1`           |
+| TypeScript | `~6.0.3`                                | strict、ESM；消费端建议 `>=5.5` 以支持所用类型特性                         |
 | 浏览器     | 支持 WASM + OPFS/IndexedDB 的现代浏览器 | 具体能力见下方「运行时能力 × 适配器」                                      |
 | 小程序     | 微信 / 抖音 / 支付宝逻辑层              | **实验性**，仅 `@aiao/rxdb-adapter-miniprogram`；边界见下方专节            |
 
@@ -18,35 +18,44 @@
 
 框架绑定采用 `peerDependencies`，因此由你的应用决定框架的具体次/补丁版本，只要落在下表范围内即可。
 
-| 框架    | 绑定包                                   | 框架版本要求                                                       | RxJS     |
-| :------ | :--------------------------------------- | :----------------------------------------------------------------- | :------- |
-| Angular | `@aiao/rxdb-angular`                     | `@angular/core 22.2.2`（精确 pin）                                 | `^7.8.2` |
-| React   | `@aiao/rxdb-react`                       | `react / react-dom ^19.3.0`                                        | `^7.8.0` |
-| Vue     | `@aiao/rxdb-vue`                         | `vue ^3.5.43`                                                      | `^7.8.0` |
-| Angular | `@aiao/rxdb-plugin-search-angular`       | `@angular/core 22.2.2`（精确 pin）                                 | `^7.8.2` |
-| React   | `@aiao/rxdb-plugin-search-react`         | `react ^19.3.0`                                                    | `^7.8.2` |
-| Vue     | `@aiao/rxdb-plugin-search-vue`           | `vue ^3.5.43`                                                      | `^7.8.2` |
-| Angular | `@aiao/rxdb-plugin-working-tree-angular` | `@angular/core 22.2.2`（精确 pin）                                 | `^7.8.2` |
-| React   | `@aiao/rxdb-plugin-working-tree-react`   | `react ^19.3.0`                                                    | `^7.8.2` |
-| Vue     | `@aiao/rxdb-plugin-working-tree-vue`     | `vue ^3.5.43`                                                      | `^7.8.2` |
-| Angular | `@aiao/rxdb-plugin-replay-angular`       | `@angular/core 22.2.2`（精确 pin）                                 | —        |
-| React   | `@aiao/rxdb-plugin-replay-react`         | `react ^19.3.0`                                                    | —        |
-| Vue     | `@aiao/rxdb-plugin-replay-vue`           | `vue ^3.5.43`                                                      | —        |
-| Angular | `@aiao/rxdb-plugin-tree-angular`         | `@angular/core 22.2.2`（精确 pin）                                 | `^7.8.2` |
-| React   | `@aiao/rxdb-plugin-tree-react`           | `react ^19.3.0`                                                    | `^7.8.2` |
-| Vue     | `@aiao/rxdb-plugin-tree-vue`             | `vue ^3.5.43`                                                      | `^7.8.2` |
-| Angular | `@aiao/rxdb-model-angular`               | `@angular/core 22.2.2`（精确 pin）                                 | `^7.8.2` |
-| React   | `@aiao/rxdb-model-react`                 | `react ^19.3.0`                                                    | `^7.8.2` |
-| Vue     | `@aiao/rxdb-model-vue`                   | `vue ^3.5.43`                                                      | `^7.8.2` |
-| Angular | `@aiao/code-editor-angular`              | `@angular/{common,core,forms,platform-browser} 22.2.2`（精确 pin） | —        |
-| React   | `@aiao/code-editor-react`                | `react / react-dom ^19.3.0`                                        | —        |
-| Vue     | `@aiao/code-editor-vue`                  | `vue ^3.5.43`                                                      | —        |
+| 框架    | 绑定包                                   | 框架 peer 要求                                                                                                                       | RxJS     |
+| :------ | :--------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------- | :------- |
+| Angular | `@aiao/rxdb-angular`                     | `@angular/core 22.2.4`、`@angular/platform-browser 22.2.4`                                                                           | `^7.8.2` |
+| React   | `@aiao/rxdb-react`                       | `react ^19.3.0`、`react-dom ^19.3.0`                                                                                                 | `^7.8.0` |
+| Vue     | `@aiao/rxdb-vue`                         | `vue ^3.5.43`                                                                                                                        | `^7.8.0` |
+| Angular | `@aiao/rxdb-model-angular`               | `@angular/cdk 22.2.6`、`@angular/common 22.2.4`、`@angular/core 22.2.4`、`@angular/forms 22.2.4`、`@angular/platform-browser 22.2.4` | `^7.8.2` |
+| React   | `@aiao/rxdb-model-react`                 | `react ^19.3.0`                                                                                                                      | `^7.8.2` |
+| Vue     | `@aiao/rxdb-model-vue`                   | `vue ^3.5.43`                                                                                                                        | `^7.8.2` |
+| Angular | `@aiao/rxdb-admin-angular`               | `@angular/common 22.2.3`、`@angular/core 22.2.3`、`@angular/platform-browser 22.2.3`                                                 | `^7.8.2` |
+| React   | `@aiao/rxdb-admin-react`                 | `react ^19.0.0`                                                                                                                      | `^7.8.2` |
+| Vue     | `@aiao/rxdb-admin-vue`                   | `vue ^3.5.43`                                                                                                                        | `^7.8.2` |
+| Angular | `@aiao/rxdb-i18n-angular`                | `@angular/core 22.2.4`                                                                                                               | `^7.8.2` |
+| React   | `@aiao/rxdb-i18n-react`                  | `react ^19.3.0`                                                                                                                      | `^7.8.2` |
+| Vue     | `@aiao/rxdb-i18n-vue`                    | `vue ^3.5.43`                                                                                                                        | `^7.8.2` |
+| Angular | `@aiao/rxdb-plugin-board-angular`        | `@angular/common 22.2.4`、`@angular/core 22.2.4`、`@angular/forms 22.2.4`                                                            | `^7.8.2` |
+| React   | `@aiao/rxdb-plugin-board-react`          | `react ^19.0.0`                                                                                                                      | `^7.8.2` |
+| Vue     | `@aiao/rxdb-plugin-board-vue`            | `vue ^3.5.0`                                                                                                                         | `^7.8.2` |
+| Angular | `@aiao/rxdb-plugin-search-angular`       | `@angular/core 22.2.4`                                                                                                               | `^7.8.2` |
+| React   | `@aiao/rxdb-plugin-search-react`         | `react ^19.3.0`                                                                                                                      | `^7.8.2` |
+| Vue     | `@aiao/rxdb-plugin-search-vue`           | `vue ^3.5.43`                                                                                                                        | `^7.8.2` |
+| Angular | `@aiao/rxdb-plugin-working-tree-angular` | `@angular/core 22.2.4`                                                                                                               | `^7.8.2` |
+| React   | `@aiao/rxdb-plugin-working-tree-react`   | `react ^19.3.0`                                                                                                                      | `^7.8.2` |
+| Vue     | `@aiao/rxdb-plugin-working-tree-vue`     | `vue ^3.5.43`                                                                                                                        | `^7.8.2` |
+| Angular | `@aiao/rxdb-plugin-replay-angular`       | `@angular/core 22.2.4`                                                                                                               | —        |
+| React   | `@aiao/rxdb-plugin-replay-react`         | `react ^19.3.0`                                                                                                                      | —        |
+| Vue     | `@aiao/rxdb-plugin-replay-vue`           | `vue ^3.5.43`                                                                                                                        | —        |
+| Angular | `@aiao/rxdb-plugin-tree-angular`         | `@angular/core 22.2.4`                                                                                                               | `^7.8.2` |
+| React   | `@aiao/rxdb-plugin-tree-react`           | `react ^19.3.0`                                                                                                                      | `^7.8.2` |
+| Vue     | `@aiao/rxdb-plugin-tree-vue`             | `vue ^3.5.43`                                                                                                                        | `^7.8.2` |
+| Angular | `@aiao/code-editor-angular`              | `@angular/common 22.2.4`、`@angular/core 22.2.4`、`@angular/forms 22.2.4`、`@angular/platform-browser 22.2.4`                        | —        |
+| React   | `@aiao/code-editor-react`                | `react ^19.3.0`、`react-dom ^19.3.0`                                                                                                 | —        |
+| Vue     | `@aiao/code-editor-vue`                  | `vue ^3.5.43`                                                                                                                        | —        |
 
-> Angular 绑定包当前把 `@angular/*` peer 写成了精确版本（工作区为 `22.2.2`）。改回区间的「peer 统一」归在 [US-602](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/tooling/US-602-ai-comprehensible-artifacts.md) 阶段 A2：目前仍在 **Backlog、尚未立项**，合入时将标注 `BREAKING CHANGE`——没有承诺的改版日期，见 [roadmap 未完成需求全景](https://github.com/aiao-io/rxdb/blob/main/requirements/roadmap.md#未完成需求全景)。
+Angular 包目前仍使用精确 peer，各包的要求可能不同：例如 `rxdb-admin-angular` 仍声明 `22.2.3`，其余表中 Angular 绑定声明 `22.2.4`。工作区通过 overrides 使用 Angular `22.2.4`，这不代表外部消费者可以忽略发布包的 peer 要求。统一 peer 区间的工作见 [US-602](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/tooling/US-602-ai-comprehensible-artifacts.md)。
 
 ## `@aiao/rxdb` × 适配器 / 插件
 
-工作区内所有 `@aiao/*` 包使用同一 `<aiao>` 版本号，互相之间按同一版本配套使用；部分包尚未发布到 npm。
+工作区内所有 `@aiao/*` 包使用同一 `<aiao>` 版本号，互相之间按同一版本配套使用；部分新增包尚未发布到 npm。网站反映当前 main 的实现，包清单中的版本号不保证 npm 已包含这些新增功能，安装前应核对对应包的发布产物。
 
 | 包                               | 类型       | 依赖关系                                                                                                                                                                               |
 | :------------------------------- | :--------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -72,11 +81,21 @@
 | `@aiao/rxdb-plugin-tree`         | 插件       | 树形实体、层级查询与增量合并                                                                                                                                                           |
 | `@aiao/rxdb-model`               | 模型库     | 框架无关的实体模型核心（元数据驱动的列表 / 表单）；三框架 UI 组件在 `@aiao/rxdb-model-{angular,react,vue}`                                                                             |
 
+新增能力按需组合：
+
+| 包族                                                | 作用与边界                                                   |
+| :-------------------------------------------------- | :----------------------------------------------------------- |
+| `@aiao/rxdb-model` / `-angular` / `-react` / `-vue` | 默认实体 UI 与独立 `/headless` 入口；Headless 不加载 VTable  |
+| `@aiao/rxdb-admin` / 三框架绑定                     | 后台导航、布局与偏好管理，复用实体 UI 与国际化               |
+| `@aiao/rxdb-i18n` / 三框架绑定                      | ICU 消息与 `Intl.*` 格式化，可选 RxDB 持久化；小程序尚不支持 |
+| `@aiao/rxdb-plugin-board` / 三框架绑定              | 单人任务看板；完整宿主首轮使用 sqlite-wasm 主线程 IDB        |
+| `@aiao/rxdb-plugin-p2p`                             | 认证会话与文件字节传输；应用提供发现、信令、认证和存储       |
+
 ## 运行时能力 × 适配器
 
 | 适配器                                             | 运行时       | 需要的运行时能力                                                                     | 持久化                                                           |
 | :------------------------------------------------- | :----------- | :----------------------------------------------------------------------------------- | :--------------------------------------------------------------- |
-| `rxdb-adapter-wa-sqlite`                           | 浏览器       | WASM；OPFS（推荐）或 IndexedDB 回退                                                  | OPFS 文件 / IDB                                                  |
+| `rxdb-adapter-wa-sqlite`                           | 浏览器       | WASM；默认 IndexedDB，OPFS VFS 为实验性                                              | IDB / 显式选择的 OPFS 文件                                       |
 | `rxdb-adapter-sqlite` / `rxdb-adapter-sqlite-wasm` | 浏览器       | WASM；OPFS（推荐）或 IndexedDB 回退                                                  | OPFS 文件 / IDB                                                  |
 | `rxdb-adapter-pglite`                              | 浏览器       | WASM；IndexedDB                                                                      | IDB                                                              |
 | `rxdb-adapter-sqliteai`                            | 浏览器       | WASM                                                                                 | 取决于运行时配置                                                 |
