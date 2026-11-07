@@ -1,0 +1,22 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "implicitDependencies": ["dev-rxdb-p2p"],
+  "name": "dev-rxdb-p2p-e2e",
+  "projectType": "application",
+  "sourceRoot": "apps/dev-rxdb-p2p-e2e/src",
+  "targets": {
+    "e2e": {
+      "// dependsOn": "两端都运行 @aiao/rxdb-plugin-p2p 的构建产物：桌面端由 Playwright 派生的 Node 进程直接 import，浏览器端由 esbuild 打进夹具页。产物缺失时必须红在构建上。",
+      "dependsOn": ["rxdb-plugin-p2p:build"]
+    },
+    "e2e-remote": {
+      "// e2e-remote": "US-707 阶段 A 浏览器半边：dev-rxdb-p2p 的构建产物经 wrangler 起 Worker，认证与清单同步走真实 Supabase。CI 按 e2e-remote 目标给这一行矩阵拉起 supabase action；本地由 apps/dev-rxdb-p2p/scripts/e2e-serve.sh 起本 checkout 的隔离栈。",
+      "executor": "nx:run-commands",
+      "dependsOn": ["dev-rxdb-p2p:build"],
+      "options": {
+        "cwd": "apps/dev-rxdb-p2p-e2e",
+        "command": "NX_DAEMON=false pnpm exec playwright test -c playwright.demo.config.ts && NX_DAEMON=false pnpm exec playwright test -c playwright.demo.limits.chrome.mts && NX_DAEMON=false pnpm exec playwright test -c playwright.demo.gated.chrome.mts"
+      }
+    }
+  }
+}

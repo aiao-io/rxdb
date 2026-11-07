@@ -177,9 +177,11 @@ describe.each(TRANSPORTS)('SharedWorker 上多个标签页共用一个客户端�
     const { b, workerName } = await openTabs(transport);
     const orphan = wrap<SqliteClient>(connectSharedWorker(workerName).port);
     await orphan.init(b.config.dbName, { ...LOAD_OPTIONS, sharedWorker: true });
-    await orphan.execute('CREATE TABLE orphan_probe (x INTEGER)');
-    await orphan.execute('BEGIN');
-    await orphan.execute('INSERT INTO orphan_probe VALUES (1)');
+    await navigator.locks.request(`rxdb-sqlite-shared-client:sqlite-wasm:${b.config.dbName}`, async () => {
+      await orphan.execute('CREATE TABLE orphan_probe (x INTEGER)');
+      await orphan.execute('BEGIN');
+      await orphan.execute('INSERT INTO orphan_probe VALUES (1)');
+    });
 
     await createNote(b, '孤儿事务之后 B 写的');
 

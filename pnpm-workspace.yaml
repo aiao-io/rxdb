@@ -24,6 +24,8 @@ allowBuilds:
   postman-code-generators: false
   sharp: true
   unrs-resolver: true
+  # wrangler 的 workerd：安装脚本只是校验 / 回退下载平台二进制，二进制由可选依赖 @cloudflare/workerd-<平台> 提供
+  workerd: false
 
 autoInstallPeers: true
 enablePrePostScripts: true

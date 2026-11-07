@@ -8,16 +8,16 @@
 | 状态           | 数量 |
 | :------------- | :--- |
 | ✅ Done        | 89   |
-| 🚧 In Progress | 5    |
-| 👀 In Review   | 9    |
+| 🚧 In Progress | 9    |
+| 👀 In Review   | 11   |
 | 📝 Backlog     | 26   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 129  |
+| **合计**       | 135  |
 
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
 
-## 进行中（5 条）
+## 进行中（9 条）
 
 | Story                                                                                                       | 剩余范围                                                           |
 | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
@@ -27,10 +27,12 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 | [US-540 看板端到端 demo](stories/domain/US-540-board-end-to-end-demo.md)                                    | demo 既有库初态（AC#7）与无搜索插件构建（AC#12）仍待验。           |
 | [US-603 手工发布入口的提交与校验结果一致性](stories/tooling/US-603-manual-release-preflight.md)             | 两个手工发布入口已接入共享 preflight；待受控 registry 替身验收。   |
 
-## 待评审（9 条）
+## 待评审（11 条）
 
 | Story                                                                                         | 剩余范围                                                                                                       |
 | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| [US-708 P2P 会话层](stories/future/US-708-p2p-peer-session.md)                                | 会话层与 10 条 AC 已在真实 DataChannel 双上下文与 TLS 双进程夹具上验收，随 PR #172 评审合并。                  |
+| [US-713 P2P demo 管理后台](stories/future/US-713-p2p-admin-console.md)                        | AC#1～#10 已在隔离 Supabase 栈与真 Worker 上经 e2e 验收；AC#11 待首次 CI 运行确认。                            |
 | [US-911 客户端国际化 / 本地化](stories/future/US-911-client-i18n.md)                          | A～D 已实现；偏好载体对照、历史隔离、三端/四运行时、目录分发与 DevTools 已验收，待代码评审。                   |
 | [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)    | 当前Taro版本的外部安装/开发者工具证据仍需补齐。                                                                |
 | [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) | 当前承诺A～C已实现，等待评审收尾；D为候选，不参与当前关闭，仍保留未验状态。                                    |
@@ -207,14 +209,30 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 
 ### [局域网 P2P 大文件共享](epics/epic-011-p2p-file-share.md)
 
-- ⬜ [US-704 文件清单与 P2P 发现](stories/future/US-704-p2p-manifest-discovery.md)
-- ⬜ [US-705 P2P 字节传输](stories/future/US-705-p2p-byte-transfer.md)
-- ⬜ [US-706 服务器兜底与认证](stories/future/US-706-p2p-fallback-auth.md)
-- ⬜ [US-707 跨运行时 demo 与多实例 e2e](stories/future/US-707-p2p-cross-runtime-e2e.md)
+US-704～US-707 已获 owner 授权，US-708 会话层由 owner 决定在 PR #172 内完成，US-713 管理后台由 owner 决定随独立 demo 交付；认证宿主已选定（Supabase + Cloudflare，见 US-704「开工前置」），US-707 本轮交付独立 demo 与浏览器半边。
+当前排期与准入见 [roadmap 批次 7](roadmap.md#批次-7局域网-p2p-大文件共享p2p-epic-已解锁)。
+
+- 🚧 [US-704 文件清单与 P2P 发现](stories/future/US-704-p2p-manifest-discovery.md)
+- 🚧 [US-705 P2P 字节传输](stories/future/US-705-p2p-byte-transfer.md)
+- 🚧 [US-706 服务器兜底与认证](stories/future/US-706-p2p-fallback-auth.md)
+- 🚧 [US-707 跨运行时 demo 与多实例 e2e](stories/future/US-707-p2p-cross-runtime-e2e.md)
+- 👀 [US-708 P2P 会话层：一对设备一条会话、多协议复用](stories/future/US-708-p2p-peer-session.md)
+- 👀 [US-713 P2P demo 管理后台：管理员总览并处置账号与服务](stories/future/US-713-p2p-admin-console.md)
+
+### [P2P 会话与局域网协作](epics/epic-012-p2p-lan-collaboration.md)
+
+四条均价值待证，留在立项池，共同前置是 US-708 会话层；owner 已定会话层之后先做 US-709，排序不等于解锁。
+
+- ⬜ [US-709 整库克隆：从局域网里自己的另一台设备克隆数据库](stories/future/US-709-p2p-database-clone.md)
+- ⬜ [US-710 实时信号：在线状态、编辑标记与变更提示](stories/future/US-710-p2p-live-signals.md)
+- ⬜ [US-711 远程 DevTools：经 P2P 会话检查另一台设备上的库](stories/future/US-711-p2p-remote-devtools.md)
+- ⬜ [US-712 局域网枢纽：一台设备充当远端](stories/future/US-712-p2p-lan-hub.md)
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 
 - BOM按已授权切片推进，后续故事仍受各自前置约束；联产品、热路径与可选索引保留独立准入。
-- US-029与P2P仍价值待证；US-910留在立项池，不因Backlog状态自动获得开工授权。US-603 已获授权并进入本轮执行。
+- US-029仍价值待证；US-910留在立项池，不因Backlog状态自动获得开工授权。US-603 已获授权并进入本轮执行。
+- P2P（US-704～707）已解锁，协议层的内存测试不替代真实宿主验收；依赖身份的验收等 US-704 选定认证宿主。US-708 会话层随 PR #172 交付。
+- epic-012（US-709 / US-710 / US-711 / US-712）价值待证，留在立项池，以 US-708 会话层为共同前置。
 - US-910/911的最小能力验证、US-211/219的真实宿主证据、US-528的仓外消费均不能由源码单测替代。
 - Epic关闭还须满足其当前承诺目标和实际发布验收，不能只看所属故事的Done数量。

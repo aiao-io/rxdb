@@ -1,0 +1,671 @@
+/**
+ * P2P 工作区：把登录用户的设备、本地库与同步、信令、对端会话、本机文件与下载串起来，交给页面一组 signal。
+ *
+ * @remarks
+ * - 持有声明是清单实体（P2P 插件登记），经 rxdb-plugin-sync 与 Supabase 同步；字节只走 P2P 会话或服务器回退。
+ * - 本机「持有」以本设备的清单记录为准，字节在 OPFS（{@link HeldFiles}）。
+ * - 故障注入只影响本机作为供块端的行为，用来演示授权拒绝、坏块隔离与慢源调度。
+ */
+import {
+  createAuthenticatedP2PFileManifest,
+  createManifestRecord,
+  createP2PFilesProtocol,
+  createP2PFilesSource,
+  deriveHolderId,
+  downloadP2PFile,
+  P2PFileManifestEntity,
+  toRxDBManifestDocument,
+  type P2PFileManifest,
+  type P2PLocalContent,
+  type P2PManifestRecord,
+  type P2PPrincipal,
+  type P2PProtocol,
+  type P2PServerFallback
+} from '@aiao/rxdb-plugin-p2p';
+import { computed, inject, Injectable, signal } from '@angular/core';
+import { fallbackSource } from '../../../shared/fallback-source';
+import type { ReportCategory } from '../../../shared/reporting-protocol';
+import type { SignalingPeer } from '../../../shared/signaling-protocol';
+import { AuthService } from '../auth/auth.service';
+import { groupSharedFiles, recordOf, type SharedFile } from '../db/manifest-records';
+import { ManifestSync, type ManifestSyncTarget, type SyncStatus } from '../db/manifest-sync';
+import { createP2PDatabase, LOCAL_ADAPTER, REMOTE_ADAPTER } from '../db/p2p-database';
+import { ensureDeviceKeyPair } from '../device/device-keys';
+import { defaultDeviceName, ensureDevice, type RegisteredDevice } from '../device/device-registration';
+import { envelopeFor, writeEnvelopes } from '../device/fallback-envelopes';
+import { supabaseDeviceApi } from '../device/supabase-device-api';
+import { teamDeviceKeys } from '../device/team-device-keys';
+import {
+  decodeEncryptedStream,
+  encodeEncryptedBlob,
+  FALLBACK_ENCODING_HEADER,
+  FALLBACK_ENCODING_VERSION,
+  fallbackEncUrl,
+  generateContentKey,
+  importDevicePrivateKey,
+  importDevicePublicKey,
+  openContentKey,
+  sealContentKey,
+  sha256Hex,
+  type DeviceKeyPair
+} from './fallback-crypto';
+import { HeldFiles, readRange } from './held-files';
+import { PeerLinks, type LinkView } from './peer-links';
+import { SignalingClient, type SignalingProblem, type SignalingState } from './signaling-client';
+import { TransferProgress, type TransferView } from './transfer-progress';
+
+/** 共享文件的一个持有者。 */
+export interface HolderView {
+  readonly holderId: string;
+  /** 本设备。 */
+  readonly mine: boolean;
+  /** 设备名；没在线见过的设备显示“其他设备”。 */
+  readonly label: string;
+  /** 这台设备当前可直连的实例：信令在线，或已有就绪会话。 */
+  readonly online: readonly SignalingPeer[];
+}
+
+/** 页面上的一个共享文件。 */
+export interface SharedFileView extends SharedFile {
+  readonly holderViews: readonly HolderView[];
+  /** 本设备持有。 */
+  readonly heldHere: boolean;
+  /** 可以直连取块的在线持有实例数。 */
+  readonly onlineSources: number;
+}
+
+/** 本机作为供块端的故障注入。 */
+export interface DemoFaults {
+  /** 拒绝授权：对端的块请求得到 `unauthorized`，会话不断。 */
+  readonly deny: boolean;
+  /** 篡改块：每块首字节取反，对端校验失败后隔离本机。 */
+  readonly corrupt: boolean;
+  /** 每块读盘前延迟（毫秒），演示多源调度向快的一方倾斜。 */
+  readonly delayMs: number;
+}
+
+/** 工作区启动阶段。 */
+export type WorkspacePhase = 'idle' | 'starting' | 'ready' | 'failed';
+
+const HEARTBEAT_INTERVAL_MS = 2000;
+const HEARTBEAT_TIMEOUT_MS = 6000;
+const TRANSFER_EMIT_MS = 200;
+const RANDOM_FILL_LIMIT = 65_536;
+
+/** 错误信息连同 `cause` 链：传输失败时包里只说「哪一块拿不到」，原因在 cause 上（例如对端拒绝授权）。 */
+const messageOf = (error: unknown): string => {
+  if (!(error instanceof Error)) return String(error);
+  return error.cause === undefined ? error.message : `${error.message}：${messageOf(error.cause)}`;
+};
+const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+const fileUrl = (contentHash: string): string => `/api/files/${contentHash}`;
+
+const bareManifest = (manifest: P2PFileManifest, sourceUrl: string | undefined): P2PFileManifest => ({
+  contentHash: manifest.contentHash,
+  fileName: manifest.fileName,
+  size: manifest.size,
+  chunkSize: manifest.chunkSize,
+  chunkHashes: [...manifest.chunkHashes],
+  ...(sourceUrl ? { sourceUrl } : {})
+});
+
+/** P2P 工作区。 */
+@Injectable({ providedIn: 'root' })
+export class P2PWorkspace {
+  readonly #auth = inject(AuthService);
+  readonly #held = new HeldFiles();
+  readonly #principal = signal<P2PPrincipal | null>(null);
+  readonly #records = signal<readonly P2PManifestRecord[]>([]);
+  readonly #entities = new Map<string, P2PFileManifestEntity>();
+  readonly #knownLabels = new Map<string, string>();
+  readonly #holderIds = new Map<string, string>();
+  readonly #transfers = new Map<
+    string,
+    { readonly progress: TransferProgress; readonly controller: AbortController }
+  >();
+  readonly #serverFallback: P2PServerFallback = {
+    download: async ({ manifest, signal, token }) => {
+      const source = fallbackSource(
+        manifest.sourceUrl ?? fileUrl(manifest.contentHash),
+        manifest.contentHash,
+        location.origin
+      );
+      if (!source) throw new Error('不支持的服务器副本地址');
+      const url = source.path;
+      const headers: HeadersInit = { authorization: `Bearer ${token}` };
+      const encrypted = source.encHash !== null;
+      if (encrypted) headers[FALLBACK_ENCODING_HEADER] = FALLBACK_ENCODING_VERSION;
+      const response = await fetch(url, { headers, signal, redirect: 'error' });
+      if (!response.ok || !response.body) throw new Error(`server fallback responded ${response.status}`);
+      try {
+        return encrypted ? await this.#decryptFallbackStream(manifest, response.body, source.encHash!) : response.body;
+      } catch (error) {
+        await response.body.cancel(error);
+        throw error;
+      }
+    }
+  };
+  #starting: Promise<void> | null = null;
+  #sync: ManifestSync | null = null;
+  #links: PeerLinks | null = null;
+  #signalingClient: SignalingClient | null = null;
+  #transferTimer: ReturnType<typeof setTimeout> | undefined;
+  #deviceKeys: DeviceKeyPair | null = null;
+
+  /** 本页面这个运行实例的标识。 */
+  readonly instanceId = crypto.randomUUID();
+  readonly phase = signal<WorkspacePhase>('idle');
+  readonly startError = signal<string | null>(null);
+  readonly device = signal<RegisteredDevice | null>(null);
+  readonly signalingState = signal<SignalingState>('offline');
+  /** 信令最近报告的问题；重新上线、或信令又给本机分配了连接时清掉。 */
+  readonly signalingError = signal<SignalingProblem | null>(null);
+  readonly peers = signal<readonly SignalingPeer[]>([]);
+  readonly links = signal<readonly LinkView[]>([]);
+  readonly sync = signal<SyncStatus>({ phase: 'idle', error: null, lastSyncedAt: null });
+  readonly transfers = signal<readonly TransferView[]>([]);
+  readonly downloadingHashes = signal<ReadonlySet<string>>(new Set());
+  readonly faults = signal<DemoFaults>({ deny: false, corrupt: false, delayMs: 0 });
+  /** 邀请制激活状态（POOL-US-102）：checking / activated / needs-invite。 */
+  readonly activation = signal<'checking' | 'activated' | 'needs-invite'>('checking');
+
+  /** 本设备的 holderId。 */
+  readonly myHolderId = computed(() => {
+    const principal = this.#principal();
+    return principal ? deriveHolderId(principal) : null;
+  });
+
+  /**
+   * 可以直连取块的实例：信令里在线的，加上已有就绪会话的。
+   * 信令断了 presence 清空，但已建立的会话不依赖服务器，照样能传（US-707 AC#2 / AC#6）。
+   */
+  readonly reachable = computed<readonly SignalingPeer[]>(() => {
+    const byKey = new Map(this.peers().map(peer => [peer.key, peer]));
+    for (const link of this.links()) if (link.state === 'ready') byKey.set(link.peer.key, link.peer);
+    return [...byKey.values()];
+  });
+
+  /** 共享文件，最新的在前。 */
+  readonly files = computed<readonly SharedFileView[]>(() => {
+    const reachable = this.reachable();
+    const mine = this.myHolderId();
+    return groupSharedFiles(this.#records()).map(file => this.#fileView(file, reachable, mine));
+  });
+
+  /** 启动工作区（可重复调用）。 */
+  start(): Promise<void> {
+    this.#starting ??= this.#start().catch((error: unknown) => {
+      this.phase.set('failed');
+      this.startError.set(messageOf(error));
+      throw error;
+    });
+    return this.#starting;
+  }
+
+  /** 共享一个本地文件；`upload` 时加密传到服务器作为回退（POOL-US-101），并给每台设备寄信封。 */
+  async share(file: File, upload: boolean): Promise<void> {
+    const manifest = await createAuthenticatedP2PFileManifest({
+      principal: this.#requirePrincipal(),
+      fileName: file.name,
+      size: file.size,
+      readChunk: (offset, size) => readRange(file, offset, size)
+    });
+    await this.#held.store(manifest.contentHash, file);
+    const sourceUrl = upload ? await this.#uploadEncrypted(file, manifest) : undefined;
+    await this.#claim(manifest, sourceUrl);
+  }
+
+  /** 生成一个随机内容的测试文件并共享。 */
+  generateTestFile(sizeMiB: number, upload: boolean): Promise<void> {
+    const bytes = new Uint8Array(sizeMiB * 1024 * 1024);
+    for (let offset = 0; offset < bytes.length; offset += RANDOM_FILL_LIMIT) {
+      crypto.getRandomValues(bytes.subarray(offset, offset + RANDOM_FILL_LIMIT));
+    }
+    const name = `random-${sizeMiB}MiB-${Date.now().toString(36)}.bin`;
+    return this.share(new File([bytes], name, { type: 'application/octet-stream' }), upload);
+  }
+
+  /** 下载一个共享文件：从全部在线持有者多源拉取，没有可用来源时回退服务器。 */
+  async download(contentHash: string): Promise<void> {
+    if (this.downloadingHashes().has(contentHash)) return;
+    const file = this.files().find(item => item.contentHash === contentHash);
+    if (!file) throw new Error(`unknown file ${contentHash}`);
+    this.downloadingHashes.update(hashes => new Set([...hashes, contentHash]));
+    const peers = file.holderViews.filter(holder => !holder.mine).flatMap(holder => holder.online);
+    const id = crypto.randomUUID();
+    const labels = peers.map(peer => peer.deviceName);
+    const progress = new TransferProgress(id, file.manifest, labels, Date.now, () => this.#emitTransfersSoon());
+    const controller = new AbortController();
+    this.#transfers.set(id, { progress, controller });
+    this.#emitTransfersSoon();
+    let abortConnectionWait: (() => void) | undefined;
+    try {
+      const connected = await Promise.race([
+        Promise.allSettled(peers.map(peer => this.#requireLinks().connect(peer.key))),
+        new Promise<never>((_resolve, reject) => {
+          abortConnectionWait = () => reject(controller.signal.reason);
+          controller.signal.addEventListener('abort', abortConnectionWait, { once: true });
+        })
+      ]);
+      controller.signal.throwIfAborted();
+      const sources = connected.flatMap((result, index) =>
+        result.status === 'fulfilled' ?
+          [progress.attribute(createP2PFilesSource(result.value, labels[index] as string))]
+        : []
+      );
+      if (sources.length === 0 && !file.serverCopy) {
+        const reasons = connected.flatMap(result => (result.status === 'rejected' ? [messageOf(result.reason)] : []));
+        throw new Error(reasons.join('; ') || '没有在线的持有者，也没有服务器副本');
+      }
+      await this.#runDownload(file, progress, controller, sources);
+    } catch (error) {
+      progress.finish(controller.signal.aborted ? 'cancelled' : 'failed', messageOf(error));
+    } finally {
+      if (abortConnectionWait) controller.signal.removeEventListener('abort', abortConnectionWait);
+      this.downloadingHashes.update(hashes => new Set([...hashes].filter(hash => hash !== contentHash)));
+    }
+  }
+
+  /** 清除已结束的传输记录，保留文件与正在进行的下载。 */
+  clearFinishedTransfers(): void {
+    for (const [id, { progress }] of this.#transfers)
+      if (progress.view().state !== 'running') this.#transfers.delete(id);
+    this.transfers.set([...this.#transfers.values()].map(({ progress }) => progress.view()).reverse());
+  }
+
+  /** 取消一次下载。 */
+  cancel(transferId: string): void {
+    this.#transfers.get(transferId)?.controller.abort(new Error('cancelled by user'));
+  }
+
+  /** 撤回本设备对某内容的持有声明，并删掉本机副本。 */
+  async revoke(contentHash: string): Promise<void> {
+    const mine = this.#records().find(
+      record => record.contentHash === contentHash && record.holderId === this.myHolderId()
+    );
+    const entity = mine ? this.#entities.get(mine.id) : undefined;
+    if (!entity) throw new Error('this device does not hold the file');
+    await entity.remove();
+    await this.#held.remove(contentHash);
+    await this.#requireSync().push();
+  }
+
+  /** 把本机持有的文件存到磁盘。 */
+  async saveToDisk(contentHash: string, fileName: string): Promise<void> {
+    const file = await this.#held.open(contentHash);
+    if (!file) throw new Error('the file is not stored on this device');
+    const url = URL.createObjectURL(file);
+    const anchor = Object.assign(document.createElement('a'), { href: url, download: fileName });
+    anchor.click();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }
+
+  /** 与一台在线设备建立会话。 */
+  async connect(peerKey: string): Promise<void> {
+    await this.#requireLinks().connect(peerKey);
+  }
+
+  /** 结束一条连接。 */
+  disconnect(connectionId: string): void {
+    this.#requireLinks().disconnect(connectionId);
+  }
+
+  /** 查询激活状态（启动后调用一次）；未激活时页面只给邀请码入口。 */
+  async checkActivation(): Promise<void> {
+    const response = await fetch('/api/me', {
+      headers: { authorization: `Bearer ${await this.#auth.accessToken()}` }
+    });
+    if (!response.ok) throw new Error(`activation check responded ${response.status}`);
+    const state = (await response.json()) as { activated: boolean; activationRequired: boolean };
+    this.activation.set(state.activationRequired && !state.activated ? 'needs-invite' : 'activated');
+  }
+
+  /** 用邀请码激活本账号；码无效、已用或已作废时为 false。 */
+  async activateInvite(code: string): Promise<boolean> {
+    const response = await fetch('/api/invite', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${await this.#auth.accessToken()}`,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({ code })
+    });
+    if (!response.ok && response.status !== 409) {
+      throw new Error(`invite activation responded ${response.status}`);
+    }
+    const result = (await response.json()) as { activated: boolean };
+    if (result.activated) {
+      this.activation.set('activated');
+      // 未激活时信令 hello 被拒且不自动重连：激活后主动重连（start() 对已拒绝的连接安全）
+      if (this.signalingState() === 'rejected') this.#signalingClient?.start();
+    }
+    return result.activated;
+  }
+
+  /** 举报一个文件（按内容哈希，附服务器副本地址）或账号；同一举报人重复举报同一目标时 created 为 false。 */
+  async report(
+    target: { contentHash: string; sourceUrl?: string } | { accountId: string },
+    category: ReportCategory
+  ): Promise<{ created: boolean }> {
+    if ('contentHash' in target && target.sourceUrl) {
+      const source = fallbackSource(target.sourceUrl, target.contentHash, location.origin);
+      if (!source) throw new Error('不支持的服务器副本地址');
+      target = { ...target, sourceUrl: source.path };
+    }
+    const response = await fetch('/api/reports', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${await this.#auth.accessToken()}`,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({ target, category })
+    });
+    if (!response.ok) throw new Error(`report responded ${response.status}: ${await response.text()}`);
+    return (await response.json()) as { created: boolean };
+  }
+
+  /** 修改故障注入。 */
+  setFaults(patch: Partial<DemoFaults>): void {
+    this.faults.update(current => ({ ...current, ...patch }));
+  }
+
+  /** 演示心跳超时：卡住本页主线程，对端会在心跳超时内以 `peer_lost` 结束会话。 */
+  freezeMainThread(ms: number): void {
+    const until = Date.now() + ms;
+    while (Date.now() < until) {
+      // 故意忙等：DataChannel 仍在，但本页不再应答心跳
+    }
+  }
+
+  async #start(): Promise<void> {
+    this.phase.set('starting');
+    const session = this.#auth.session();
+    if (!session) throw new Error('not signed in');
+    const userId = session.user.id;
+    const deviceApi = supabaseDeviceApi(this.#auth.client);
+    const name = `${defaultDeviceName(navigator.userAgent)} #${crypto.randomUUID().slice(0, 4)}`;
+    const deviceKeys = await ensureDeviceKeyPair(userId, localStorage);
+    this.#deviceKeys = deviceKeys;
+    // 设备登记与本地库连接并行：本地库引导（wa-sqlite 迁移/索引收敛）是启动的大头，
+    // 登记的 Supabase 验证往返藏在它里面，不额外占用启动时间。
+    const rxdb = createP2PDatabase(userId, this.#auth.client);
+    const [device] = await Promise.all([
+      ensureDevice(userId, localStorage, deviceApi, name, deviceKeys.publicKeyBase64).then(registered => {
+        this.device.set(registered);
+        this.#principal.set({ principal: userId, deviceId: registered.id });
+        return registered;
+      }),
+      rxdb.connect(LOCAL_ADAPTER)
+    ]);
+    await rxdb.connect(REMOTE_ADAPTER);
+    this.#watchRecords();
+    this.#startSync({
+      pull: () => rxdb.syncManager.pull(),
+      push: () => rxdb.syncManager.push(),
+      addEventListener: (type, listener) => rxdb.addEventListener(type as never, listener as never),
+      removeEventListener: (type, listener) => rxdb.removeEventListener(type as never, listener as never)
+    });
+    this.#startSignaling(device);
+    this.phase.set('ready');
+    // 激活状态查不到时保持 checking：不把「查不到」当「已激活」；服务端门禁会在传输时给出明确拒绝
+    void this.checkActivation().catch(() => undefined);
+  }
+
+  #watchRecords(): void {
+    P2PFileManifestEntity.findAll({
+      where: { combinator: 'and', rules: [] },
+      orderBy: [{ field: 'updatedAt', sort: 'desc' }]
+    }).subscribe(rows => {
+      this.#entities.clear();
+      for (const row of rows) this.#entities.set(row.id, row);
+      this.#records.set(
+        rows.map(row => recordOf(row)).filter((record): record is P2PManifestRecord => record !== null)
+      );
+    });
+  }
+
+  #startSync(target: ManifestSyncTarget): void {
+    const sync = new ManifestSync(target, { intervalMs: 15_000, debounceMs: 150, now: Date.now });
+    sync.status$.subscribe(status => this.sync.set(status));
+    sync.start();
+    this.#sync = sync;
+  }
+
+  #startSignaling(device: RegisteredDevice): void {
+    const signaling = new SignalingClient({
+      url: `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/signal`,
+      credentials: async () => ({
+        accessToken: await this.#auth.accessToken(),
+        deviceId: device.id,
+        instanceId: this.instanceId
+      }),
+      createSocket: url => new WebSocket(url),
+      reconnectDelayMs: 2000
+    });
+    signaling.state$.subscribe(state => this.#onSignalingState(state));
+    signaling.peers$.subscribe(peers => this.#onPresence(peers));
+    // 服务端的错误（认证宿主不可达、要连的设备已离线）没有别的出口：不显示就只剩「连接中」转圈到超时
+    signaling.errors$.subscribe(problem => this.signalingError.set(problem));
+    signaling.connections$.subscribe(() => this.signalingError.set(null));
+    const links = new PeerLinks({
+      signaling,
+      local: { principal: this.#requirePrincipal(), instanceId: this.instanceId },
+      protocols: () => [this.#filesProtocol()],
+      heartbeatIntervalMs: HEARTBEAT_INTERVAL_MS,
+      heartbeatTimeoutMs: HEARTBEAT_TIMEOUT_MS,
+      connectTimeoutMs: 10_000,
+      createPeerConnection: () => new RTCPeerConnection({ iceServers: [] })
+    });
+    links.links$.subscribe(views => this.links.set(views));
+    links.start();
+    signaling.start();
+    this.#links = links;
+    this.#signalingClient = signaling;
+  }
+
+  #onSignalingState(state: SignalingState): void {
+    this.signalingState.set(state);
+    if (state === 'online') this.signalingError.set(null);
+  }
+
+  #onPresence(peers: readonly SignalingPeer[]): void {
+    for (const peer of peers) this.#knownLabels.set(this.#holderIdOf(peer), peer.deviceName);
+    this.peers.set(peers);
+  }
+
+  #holderIdOf(peer: SignalingPeer): string {
+    const key = `${peer.principal}:${peer.deviceId}`;
+    const known = this.#holderIds.get(key);
+    if (known) return known;
+    const holderId = deriveHolderId({ principal: peer.principal, deviceId: peer.deviceId });
+    this.#holderIds.set(key, holderId);
+    return holderId;
+  }
+
+  #fileView(file: SharedFile, peers: readonly SignalingPeer[], mine: string | null): SharedFileView {
+    const holderViews = file.holders.map(record => {
+      const online = peers.filter(peer => this.#holderIdOf(peer) === record.holderId);
+      const isMine = record.holderId === mine;
+      const label = isMine ? (this.device()?.name ?? '本设备') : (this.#knownLabels.get(record.holderId) ?? '其他设备');
+      return { holderId: record.holderId, mine: isMine, label, online };
+    });
+    return {
+      ...file,
+      holderViews,
+      heldHere: holderViews.some(holder => holder.mine),
+      onlineSources: holderViews
+        .filter(holder => !holder.mine)
+        .reduce((count, holder) => count + holder.online.length, 0)
+    };
+  }
+
+  #filesProtocol(): P2PProtocol {
+    return createP2PFilesProtocol({
+      contents: contentHash => this.#localContent(contentHash),
+      authorize: () => {
+        if (this.faults().deny) throw new Error('this device has stopped sharing (demo: deny)');
+      }
+    });
+  }
+
+  async #localContent(contentHash: string): Promise<P2PLocalContent | undefined> {
+    const mine = this.#records().find(
+      record => record.contentHash === contentHash && record.holderId === this.myHolderId()
+    );
+    if (!mine) return undefined;
+    const file = await this.#held.open(contentHash);
+    if (file?.size !== mine.size) return undefined;
+    return { manifest: mine, readRange: (offset, size) => this.#serveRange(file, offset, size) };
+  }
+
+  async #serveRange(file: File, offset: number, size: number): Promise<Uint8Array> {
+    const { delayMs, corrupt } = this.faults();
+    if (delayMs > 0) await sleep(delayMs);
+    const bytes = await readRange(file, offset, size);
+    if (corrupt && bytes.byteLength > 0) bytes[0] = (bytes[0] as number) ^ 0xff;
+    return bytes;
+  }
+
+  async #runDownload(
+    file: SharedFileView,
+    progress: TransferProgress,
+    controller: AbortController,
+    sources: ReturnType<TransferProgress['attribute']>[]
+  ): Promise<void> {
+    const writer = await this.#held.createWriter(file.contentHash);
+    try {
+      await downloadP2PFile({
+        manifest: file.manifest,
+        sources,
+        fallback: file.serverCopy ? this.#fallbackTracking(progress) : undefined,
+        token: await this.#auth.accessToken(),
+        signal: controller.signal,
+        writeChunk: async (index, bytes) => {
+          await writer.write(index * file.manifest.chunkSize, bytes);
+          progress.written(index, bytes.byteLength);
+        },
+        onProgress: ({ route }) => progress.switchRoute(route)
+      });
+      await writer.commit();
+    } catch (error) {
+      await writer.discard();
+      progress.finish(controller.signal.aborted ? 'cancelled' : 'failed', messageOf(error));
+      return;
+    }
+    // 字节已完整落盘并通过校验：登记失败不能再当成下载失败去丢弃已提交的文件；没登记上的副本不算持有，下次下载覆盖它
+    await this.#claim(
+      file.manifest,
+      file.serverCopy ? (file.manifest.sourceUrl ?? fileUrl(file.contentHash)) : undefined
+    ).then(
+      () => progress.finish('done'),
+      (error: unknown) => progress.finish('failed', `文件已下载并通过校验，但登记本机持有失败：${messageOf(error)}`)
+    );
+  }
+
+  /** 回退开始拉流时就切到服务器路线：回退从 0 号块起重写，第一块落盘早于第一条 server 进度事件。 */
+  #fallbackTracking(progress: TransferProgress): P2PServerFallback {
+    return {
+      download: options => {
+        progress.switchRoute('server');
+        return this.#serverFallback.download(options);
+      }
+    };
+  }
+
+  /** 加密上传服务器回退副本（POOL-US-101）：R2 只见密文，信封经同步盲传。 */
+  async #uploadEncrypted(file: File, manifest: P2PFileManifest): Promise<string> {
+    const contentKey = await generateContentKey();
+    const blob = await encodeEncryptedBlob(contentKey, manifest, (offset, size) => readRange(file, offset, size));
+    const encHash = await sha256Hex(await blob.arrayBuffer());
+    const envelopes = await this.#sealEnvelopes(manifest.contentHash, encHash, contentKey);
+    const response = await fetch(fallbackEncUrl(encHash), {
+      method: 'PUT',
+      body: blob,
+      headers: {
+        authorization: `Bearer ${await this.#auth.accessToken()}`,
+        'content-type': 'application/octet-stream'
+      }
+    });
+    if (!response.ok) throw new Error(`encrypted upload failed (${response.status}): ${await response.text()}`);
+    await writeEnvelopes(this.#auth.client, envelopes);
+    return fallbackEncUrl(encHash);
+  }
+
+  /** 上传前为有效设备公钥准备信封，坏记录隔离，不让单台设备阻断团队上传。 */
+  async #sealEnvelopes(
+    contentHash: string,
+    encHash: string,
+    contentKey: CryptoKey
+  ): Promise<Parameters<typeof writeEnvelopes>[1]> {
+    const teamKeys = await teamDeviceKeys(this.#auth.client);
+    const rows = [];
+    for (const entry of teamKeys) {
+      if (entry.publicKeyBase64 === null) continue;
+      try {
+        await importDevicePublicKey(entry.publicKeyBase64);
+      } catch {
+        continue;
+      }
+      rows.push({
+        contentHash,
+        encHash,
+        recipientDeviceId: entry.deviceId,
+        ...(await sealContentKey(contentKey, entry.publicKeyBase64))
+      });
+    }
+    if (rows.length === 0) throw new Error('没有有效的设备公钥，无法创建可解密的服务器副本');
+    return rows;
+  }
+
+  /** 把密文回退流解成明文流：本设备信封 → 内容密钥 → 按块解密，交给 `downloadP2PFile` 逐块复核。 */
+  async #decryptFallbackStream(
+    manifest: P2PFileManifest,
+    body: ReadableStream<Uint8Array>,
+    encHash: string
+  ): Promise<ReadableStream<Uint8Array>> {
+    const device = this.device();
+    const keys = this.#deviceKeys;
+    if (!device || !keys) throw new Error('workspace has not started');
+    const envelope = await envelopeFor(this.#auth.client, manifest.contentHash, device.id, encHash);
+    if (!envelope) {
+      throw new Error('此服务器副本已加密，但本设备没有解密信封：请让上传者重新共享这个文件');
+    }
+    const contentKey = await openContentKey(envelope, await importDevicePrivateKey(keys.privateKeyJwk));
+    return decodeEncryptedStream(contentKey, manifest, body);
+  }
+
+  /** 登记本设备持有某内容；已有声明补上新的服务器副本。 */
+  async #claim(manifest: P2PFileManifest, sourceUrl: string | undefined): Promise<void> {
+    const record = createManifestRecord(bareManifest(manifest, sourceUrl), { principal: this.#requirePrincipal() });
+    const existing = this.#entities.get(record.id);
+    if (!existing) await Object.assign(new P2PFileManifestEntity(), toRxDBManifestDocument(record)).save();
+    else if (sourceUrl && existing.sourceUrl !== sourceUrl) {
+      await Object.assign(existing, toRxDBManifestDocument(record)).save();
+    }
+    await this.#requireSync().push();
+  }
+
+  #emitTransfersSoon(): void {
+    if (this.#transferTimer !== undefined) return;
+    this.#transferTimer = setTimeout(() => {
+      this.#transferTimer = undefined;
+      this.transfers.set([...this.#transfers.values()].map(({ progress }) => progress.view()).reverse());
+    }, TRANSFER_EMIT_MS);
+  }
+
+  #requirePrincipal(): P2PPrincipal {
+    const principal = this.#principal();
+    if (!principal) throw new Error('workspace has not started');
+    return principal;
+  }
+
+  #requireSync(): ManifestSync {
+    if (!this.#sync) throw new Error('workspace has not started');
+    return this.#sync;
+  }
+
+  #requireLinks(): PeerLinks {
+    if (!this.#links) throw new Error('workspace has not started');
+    return this.#links;
+  }
+}

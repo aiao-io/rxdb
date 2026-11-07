@@ -1,6 +1,7 @@
 import {
   ACTIVE_BRANCH_KEY,
   AmbiguousActiveBranchError,
+  compileCheckConstraint,
   encodeRxDBChangeEntityId,
   Entity,
   EntityBase,
@@ -12,13 +13,16 @@ import {
   RXDB_SYSTEM_SCHEMA_WATERMARK,
   RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX,
   RxDBChange,
+  RxDBConstraintDriftError,
   RxDBMigration,
   RxDBSystemMigrationLockError,
   SyncType,
   UnsupportedRxDBSystemVersionError,
   uuid,
   WorktreeBranchHeldError,
-  WorktreeTableSet
+  WorktreeTableSet,
+  type EntityType,
+  type MigrationType
 } from '@aiao/rxdb';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
@@ -42,6 +46,47 @@ let databaseIndex = 0;
 class PGliteLegacyTodo extends EntityBase {
   title!: string;
 }
+
+@Entity({
+  name: 'BootstrapVersioned',
+  namespace: 'bootstrap',
+  tableName: 'versioned',
+  log: false,
+  properties: [{ name: 'qty', type: PropertyType.integer }],
+  checks: [{ name: 'positive', rule: { combinator: 'and', rules: [{ field: 'qty', operator: '>', value: 0 }] } }]
+})
+class BootstrapVersionA extends EntityBase {
+  qty!: number;
+}
+
+@Entity({
+  name: 'BootstrapVersioned',
+  namespace: 'bootstrap',
+  tableName: 'versioned',
+  log: false,
+  properties: [{ name: 'qty', type: PropertyType.integer }],
+  checks: [{ name: 'nonnegative', rule: { combinator: 'and', rules: [{ field: 'qty', operator: '>=', value: 0 }] } }]
+})
+class BootstrapVersionB extends EntityBase {
+  qty!: number;
+}
+
+const bootstrapFixture = async () => {
+  const dataDir = await mkdtemp(join(tmpdir(), 'aiao-bootstrap-schema-'));
+  temporaryDirectories.add(dataDir);
+  const dbName = `bootstrap-schema-${++databaseIndex}`;
+  return (entity: EntityType, migrations: MigrationType[] = []) => {
+    const database = new RxDB({
+      dbName,
+      entities: [entity],
+      migrations,
+      sync: { local: { adapter: 'pglite' }, type: SyncType.None }
+    });
+    database.adapter('pglite', rxdb => new RxDBAdapterPGlite(rxdb, { dataDir }));
+    databases.add(database);
+    return database;
+  };
+};
 
 const createLegacyDatabase = async (): Promise<RxDBAdapterPGlite> => {
   databaseIndex += 1;
@@ -275,6 +320,43 @@ afterEach(async () => {
 });
 
 describe('PGlite system schema migration', () => {
+  it('历史 A 指纹不能放行 B 迁移后的物理约束，A → B → A 重开必须拒绝', async () => {
+    const create = await bootstrapFixture();
+    const a = create(BootstrapVersionA);
+    await a.connect('pglite');
+    await a.disconnectAll();
+    const metaA = getEntityMetadata(BootstrapVersionA);
+    const metaB = getEntityMetadata(BootstrapVersionB);
+    const checkA = compileCheckConstraint(metaA, metaA.checkMap.get('positive')!);
+    const checkB = compileCheckConstraint(metaB, metaB.checkMap.get('nonnegative')!);
+    const b = create(BootstrapVersionB, [
+      {
+        name: 'bootstrap-version-b',
+        up: async executor => {
+          await executor.query(
+            `ALTER TABLE "bootstrap"."versioned" DROP CONSTRAINT "${checkA.name}", ADD CONSTRAINT "${checkB.name}" CHECK (${checkB.expression})`
+          );
+        },
+        down: async () => undefined
+      }
+    ]);
+    await b.connect('pglite');
+    await b.disconnectAll();
+    await expect(create(BootstrapVersionA).connect('pglite')).rejects.toBeInstanceOf(RxDBConstraintDriftError);
+  });
+
+  it('指纹命中仍补建磁盘库中丢失的业务表', async () => {
+    const create = await bootstrapFixture();
+    const initial = create(BootstrapVersionA);
+    const adapter = await initial.connect('pglite');
+    await adapter.internalQuery('DROP TABLE "bootstrap"."versioned" CASCADE');
+    await initial.disconnectAll();
+    const reopened = create(BootstrapVersionA);
+    const current = await reopened.connect('pglite');
+    expect(await current.isTableExisted(BootstrapVersionA)).toBe(true);
+    await expect(current.checkEntityConstraints([BootstrapVersionA])).resolves.toBeUndefined();
+  });
+
   it('RxDB.connect 自动升级磁盘旧库，旧 change 可切换分支并撤销', async () => {
     const dataDir = await mkdtemp(join(tmpdir(), 'aiao-pglite-legacy-'));
     temporaryDirectories.add(dataDir);
