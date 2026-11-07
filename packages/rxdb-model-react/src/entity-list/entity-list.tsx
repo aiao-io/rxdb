@@ -36,6 +36,7 @@ import {
   describeHistoryBarrier,
   extractFieldsFromMetadata,
   getListViewFields,
+  localizeEntityMetadata,
   organizeFields,
   parsePropertyColumnValue,
   type BatchChangeItem,
@@ -228,9 +229,10 @@ export function EntityList({
   }, [rxdb]);
 
   const modelInfoMap = useMemo(() => {
+    void t;
     const map = new Map<string, ModelInfo>();
     for (const cls of rxdb.config.entities) {
-      const meta = getEntityMetadata(cls);
+      const meta = localizeEntityMetadata(getEntityMetadata(cls), modelI18n);
       map.set(meta.name, {
         name: meta.name,
         displayName: meta.displayName ?? meta.name,
@@ -239,7 +241,7 @@ export function EntityList({
       });
     }
     return map;
-  }, [rxdb]);
+  }, [rxdb, modelI18n, t]);
 
   // ── 列表槽位：为配置内全部实体 + 它们的外键关联实体各维护一个活查询列表 ──
   // （Angular 侧 columnsCache 在构造时为每个实体的 FK 关系 eager 创建 InfiniteScrollingList）
@@ -441,18 +443,22 @@ export function EntityList({
   const isLoadingMore = currentList ? currentList.isLoading && currentList.value.length > 0 : false;
 
   const displayName = useMemo(() => {
+    void t;
     if (!entityCls) return name;
-    const meta = getEntityMetadata(entityCls);
+    const meta = localizeEntityMetadata(getEntityMetadata(entityCls), modelI18n);
     return meta.displayName ?? meta.name;
-  }, [entityCls, name]);
+  }, [entityCls, name, modelI18n, t]);
 
   /** 当前实体不接受从列表新增：`create` 只许系统写，或已在祖先创建链路中（循环创建检测）。 */
   const isCreateBlocked = capabilities?.canCreate === false || creationChain.includes(entityKey);
 
   const queryBuilderFields = useMemo<FieldMetadata[]>(() => {
+    void t;
     if (!entityCls) return [];
-    return organizeFields(extractFieldsFromMetadata(getEntityMetadata(entityCls), modelInfoMap));
-  }, [entityCls, modelInfoMap]);
+    return organizeFields(
+      extractFieldsFromMetadata(localizeEntityMetadata(getEntityMetadata(entityCls), modelI18n), modelInfoMap)
+    );
+  }, [entityCls, modelInfoMap, modelI18n, t]);
 
   const sourceTableRecords = useMemo<EntityTableRecord[]>(() => {
     // `update` 只许系统写：已落库的行交给现成的 `_readonly` 行守卫挡住编辑与粘贴，详情走 view 模式；

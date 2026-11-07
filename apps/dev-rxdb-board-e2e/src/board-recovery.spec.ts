@@ -32,7 +32,11 @@ test('没有看板行的合法空库归档也能恢复', async ({ page }) => {
   await page.getByTestId('export-backup').click();
   const archive = await (await downloading).path();
   await page.getByTestId('restore-file-menu').setInputFiles(archive!);
+  // 恢复成功即整页重载、重载后读回才写活动库：先等重载完成再轮询。新旧都是空板，没有可等的界面差异；
+  // 轮询的 evaluate 在途时撞上重载会被销毁，而 expect.poll 不重试取值抛错（CI 上间隔恰好撞上，三次全挂）
+  const reloaded = page.waitForEvent('load');
   await page.getByTestId('host-confirm-yes').click();
+  await reloaded;
   await expect.poll(() => page.evaluate(() => localStorage.getItem('rxdb-board-active-db'))).not.toBe(oldActive);
   await expect(page.getByTestId('app-error')).toHaveCount(0);
   await expect(page.getByTestId('empty-board')).toBeVisible();

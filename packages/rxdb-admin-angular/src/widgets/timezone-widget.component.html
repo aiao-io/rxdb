@@ -1,0 +1,53 @@
+<div class="dropdown dropdown-end">
+  <button
+    class="btn btn-ghost btn-sm gap-1"
+    [attr.aria-label]="t('widget.timezone') + '：' + offset()"
+    aria-haspopup="menu"
+    data-testid="admin-widget-timezone"
+    tabindex="0"
+    type="button"
+  >
+    <svg [lucideIcon]="Clock" [size]="16"></svg>
+    <span class="admin-widget-text text-xs" [textContent]="offset()"></span>
+  </button>
+  <div
+    class="dropdown-content bg-base-100 rounded-box admin-popover-list z-50 mt-1 p-2 shadow"
+    role="menu"
+    tabindex="0"
+  >
+    <button
+      class="admin-popover-item"
+      [attr.aria-checked]="prefs().app.timezone === ''"
+      (click)="choose('')"
+      role="menuitemradio"
+      type="button"
+    >
+      <span [textContent]="t('prefs.option.app.timezone.system')"></span>
+      @if (prefs().app.timezone === '') {
+        <svg [lucideIcon]="Check" [size]="14"></svg>
+      }
+    </button>
+    @for (group of regions(); track group.region) {
+      <div [attr.aria-label]="t('timezone.region.' + group.region)" role="group">
+        <div class="admin-popover-group" [textContent]="t('timezone.region.' + group.region)"></div>
+        @for (entry of group.items; track entry.zone) {
+          <button
+            class="admin-popover-item"
+            [attr.aria-checked]="prefs().app.timezone === entry.zone"
+            (click)="choose(entry.zone)"
+            role="menuitemradio"
+            type="button"
+          >
+            <span>
+              {{ entry.city }}
+              @if (prefs().app.timezone === entry.zone) {
+                <svg class="ms-1 inline" [lucideIcon]="Check" [size]="14"></svg>
+              }
+            </span>
+            <span class="text-xs opacity-70">{{ timeIn(entry.zone) }} · {{ entry.offset }}</span>
+          </button>
+        }
+      </div>
+    }
+  </div>
+</div>

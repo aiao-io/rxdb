@@ -15,6 +15,7 @@ import {
   describeHistoryBarrier,
   extractFieldsFromMetadata,
   getListViewFields,
+  localizeEntityMetadata,
   organizeFields,
   parsePropertyColumnValue,
   type BatchChangeItem,
@@ -210,19 +211,22 @@ export class EntityListComponent {
     })
   );
 
-  readonly #modelInfoMap = new Map<string, ModelInfo>(
-    this.#rxdb.config.entities.map(cls => {
-      const meta = getEntityMetadata(cls);
-      return [
-        meta.name,
-        {
-          name: meta.name,
-          displayName: meta.displayName ?? meta.name,
-          entityClass: cls as new (...args: unknown[]) => unknown,
-          metadata: meta
-        }
-      ] as const;
-    })
+  readonly #modelInfoMap = computed(
+    () =>
+      new Map<string, ModelInfo>(
+        this.#rxdb.config.entities.map(cls => {
+          const meta = localizeEntityMetadata(getEntityMetadata(cls), this.modelI18n);
+          return [
+            meta.name,
+            {
+              name: meta.name,
+              displayName: meta.displayName ?? meta.name,
+              entityClass: cls as new (...args: unknown[]) => unknown,
+              metadata: meta
+            }
+          ] as const;
+        })
+      )
   );
 
   readonly #scrollListMap = new Map<string, InfiniteScrollingList<EntityType>>();
@@ -442,7 +446,7 @@ export class EntityListComponent {
   readonly displayName = computed(() => {
     const cls = this.#entityCls();
     if (!cls) return this.name();
-    const meta = getEntityMetadata(cls);
+    const meta = localizeEntityMetadata(getEntityMetadata(cls), this.modelI18n);
     return meta.displayName ?? meta.name;
   });
 
@@ -480,7 +484,9 @@ export class EntityListComponent {
   readonly queryBuilderFields = computed<FieldMetadata[]>(() => {
     const cls = this.#entityCls();
     if (!cls) return [];
-    return organizeFields(extractFieldsFromMetadata(getEntityMetadata(cls), this.#modelInfoMap));
+    return organizeFields(
+      extractFieldsFromMetadata(localizeEntityMetadata(getEntityMetadata(cls), this.modelI18n), this.#modelInfoMap())
+    );
   });
 
   readonly createFormFieldConfigs = computed<FormFieldConfig[]>(() => {

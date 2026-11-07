@@ -94,6 +94,13 @@ export interface FormFieldValidationError {
   field: string;
   /** 错误提示信息 */
   message: string;
+  /** 用于按当前语言重新生成文案的确定性校验来源。 */
+  reason?: {
+    /** 区分字段约束校验与输入解析失败。 */
+    kind: 'validation' | 'parse';
+    /** 产生该错误时的原始字段值。 */
+    value: unknown;
+  };
 }
 
 /**

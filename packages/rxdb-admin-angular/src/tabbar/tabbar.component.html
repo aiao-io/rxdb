@@ -1,0 +1,86 @@
+@if (visible()) {
+  <nav
+    class="admin-tabbar"
+    [attr.aria-label]="t('tabbar.label')"
+    [attr.data-style]="tabbar().styleType"
+    data-testid="admin-tabbar"
+  >
+    @if (tabbar().visitHistory && titled().length > 0) {
+      <div class="dropdown">
+        <button
+          class="btn btn-ghost btn-xs btn-square"
+          [attr.aria-label]="t('tabbar.history')"
+          aria-haspopup="menu"
+          data-testid="admin-tab-history"
+          tabindex="0"
+          type="button"
+        >
+          <svg [lucideIcon]="History" [size]="14"></svg>
+        </button>
+        <ul
+          class="dropdown-content menu menu-sm bg-base-100 rounded-box z-50 max-h-72 w-56 overflow-y-auto p-1 shadow"
+          tabindex="0"
+        >
+          @for (tab of titled(); track tab.key) {
+            <li>
+              <a [attr.href]="tab.url" [textContent]="tab.title" (click)="activate($event, tab.key)"></a>
+            </li>
+          }
+        </ul>
+      </div>
+    }
+    <ul class="admin-tabbar-scroll" #scroller (wheel)="onWheel($event)">
+      @for (tab of tabsState().tabs; track tab.key; let index = $index) {
+        <li
+          class="admin-tab"
+          [attr.data-active]="tab.key === tabsState().activeKey"
+          [attr.data-dragging]="dragKey() === tab.key"
+          [attr.data-drop-target]="dropKey() === tab.key && dragKey() !== tab.key"
+          [attr.data-pinned]="tab.pinned"
+          [attr.draggable]="tabbar().draggable"
+          (auxclick)="onAuxClick($event, tab.key, tab.pinned)"
+          (contextmenu)="onContextMenu($event, tab.key)"
+          (dragend)="onDragEnd()"
+          (dragover)="onDragOver($event, tab.key)"
+          (dragstart)="onDragStart($event, tab.key)"
+          (drop)="onDrop($event, tab.key)"
+          (mousedown)="onMouseDown($event)"
+          data-testid="admin-tab"
+        >
+          <a
+            class="admin-tab-title"
+            [attr.aria-current]="tab.key === tabsState().activeKey ? 'page' : null"
+            [attr.href]="tab.url"
+            [attr.title]="tab.title"
+            (click)="activate($event, tab.key)"
+            (keydown)="onKeyDown($event, tab.key, index)"
+          >
+            @if (tab.pinned) {
+              <svg [lucideIcon]="Pin" [size]="12"></svg>
+            }
+            @if (tabbar().showIcon) {
+              @if (icons().get(tab.key); as icon) {
+                <svg [lucideIcon]="icon" [size]="16"></svg>
+              }
+            }
+            <span [textContent]="tab.title"></span>
+          </a>
+          @if (!tab.pinned) {
+            <button
+              class="admin-tab-close"
+              [attr.aria-label]="t('tabbar.close') + '：' + tab.title"
+              (click)="close(tab.key)"
+              data-testid="admin-tab-close"
+              type="button"
+            >
+              <svg [lucideIcon]="X" [size]="12"></svg>
+            </button>
+          }
+        </li>
+      }
+    </ul>
+    @if (anchor(); as menuAnchor) {
+      <rxdb-admin-tab-context-menu [anchor]="menuAnchor" (closed)="closeMenu()" />
+    }
+  </nav>
+}

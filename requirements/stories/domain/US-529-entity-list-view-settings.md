@@ -71,13 +71,13 @@ owner 批准字段配置、排序和分组三项，依据为 [Teable 调研](../
 - `packages/rxdb-model/src/__tests__/entity-list/list-view.spec.ts` — 核心配置与边界测试。
 - `packages/rxdb-model/src/__tests__/entity-list/list-view-settings.spec.ts` — 弹层边界、拖拽与取消、销毁清理测试。
 - `packages/rxdb-model-{angular,react,vue}/src/__tests__/entity-list/` — 三端真实组件交互回归。
-- `apps/dev-rxdb-admin-e2e/src/list-view.spec.ts` — 真实表格、空值分组、分组后编辑与窄屏验收。
+- `apps/rxdb-admin-template-react-e2e/src/list-view.spec.ts` — 真实表格、空值分组、分组后编辑与窄屏验收。
 
 ## 验收证据
 
 - [共享视图断言](../../../packages/rxdb-model/src/__tests__/entity-list/list-view.spec.ts)与[配置交互断言](../../../packages/rxdb-model/src/__tests__/entity-list/list-view-settings.spec.ts)：排序、分组、弹层边界、拖拽取消与销毁清理。
 - [Angular](../../../packages/rxdb-model-angular/src/__tests__/entity-list/entity-list.real.spec.ts)、[React](../../../packages/rxdb-model-react/src/__tests__/entity-list/entity-list.real.spec.tsx)、[Vue](../../../packages/rxdb-model-vue/src/__tests__/entity-list/entity-list.real.spec.ts)：真实组件的字段显隐、方向键调序、重置、排序清除与实体切换；字段显隐不重查分页。
-- [工作台真实表格验收](../../../apps/dev-rxdb-admin-e2e/src/list-view.spec.ts)：拖拽、排序、空值分组、折叠与分组后编辑；桌面及窄屏弹层完整可见，Escape 关闭。
+- [工作台真实表格验收](../../../apps/rxdb-admin-template-react-e2e/src/list-view.spec.ts)：拖拽、排序、空值分组、折叠与分组后编辑；桌面及窄屏弹层完整可见，Escape 关闭。
 
 配置只保存在当前组件会话中；页面刷新或切换实体会恢复默认值。分组计数只覆盖已加载记录。
 命名视图、配置持久化、多层分组及全量汇总仍需单独确定范围。

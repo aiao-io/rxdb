@@ -15,7 +15,7 @@ export function useModelI18n() {
     () => ({
       t: translate,
       changes$: runtime.changes$,
-      ...(provided ? { formatDate, formatNumber } : {})
+      ...(provided ? { resolve: runtime.resolve, formatDate, formatNumber } : {})
     }),
     [provided, runtime, translate, formatDate, formatNumber]
   );

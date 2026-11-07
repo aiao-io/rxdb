@@ -131,8 +131,10 @@ const startDrag = (e: MouseEvent): void => {
   const startT = parseFloat(currentPane.style.top) || 0;
 
   const onMove = (ev: MouseEvent): void => {
-    currentPane.style.left = startL + ev.clientX - startX + 'px';
-    currentPane.style.top = startT + ev.clientY - startY + 'px';
+    const maxLeft = Math.max(0, window.innerWidth - currentPane.offsetWidth);
+    const maxTop = Math.max(0, window.innerHeight - currentPane.offsetHeight);
+    currentPane.style.left = Math.min(maxLeft, Math.max(0, startL + ev.clientX - startX)) + 'px';
+    currentPane.style.top = Math.min(maxTop, Math.max(0, startT + ev.clientY - startY)) + 'px';
   };
   const onUp = (): void => {
     dragCleanup = null;

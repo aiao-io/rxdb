@@ -1,0 +1,28 @@
+{
+  "name": "@aiao/rxdb-admin-template-react",
+  "version": "0.0.1",
+  "type": "module",
+  "dependencies": {
+    "@aiao/rxdb": "workspace:*",
+    "@aiao/rxdb-adapter-sqlite-wasm": "workspace:*",
+    "@aiao/rxdb-admin": "workspace:*",
+    "@aiao/rxdb-admin-react": "workspace:*",
+    "@aiao/rxdb-devtools": "workspace:*",
+    "@aiao/rxdb-i18n": "workspace:*",
+    "@aiao/rxdb-i18n-react": "workspace:*",
+    "@aiao/rxdb-model": "workspace:*",
+    "@aiao/rxdb-model-react": "workspace:*",
+    "@aiao/rxdb-plugin-history": "workspace:*",
+    "@aiao/rxdb-plugin-search": "workspace:*",
+    "@aiao/rxdb-plugin-search-react": "workspace:*",
+    "@aiao/rxdb-react": "workspace:*",
+    "@aiao/rxdb-test": "workspace:*",
+    "lucide-react": "^1.70.0",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.4",
+    "daisyui": "^5.7.50",
+    "tailwindcss": "^4.3.4"
+  }
+}

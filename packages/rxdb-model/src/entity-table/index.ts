@@ -43,7 +43,13 @@ export {
   updateTableRecords,
   type HeaderSortClick
 } from './vtable/table-operations.js';
-export { createTheme, getCSSVariables, getDefaultColors, type CSSVariables } from './vtable/table-theme.js';
+export {
+  createTheme,
+  getCSSVariables,
+  getDefaultColors,
+  observeDocumentTheme,
+  type CSSVariables
+} from './vtable/table-theme.js';
 export { CellTooltipManager, computeTooltipPosition } from './vtable/table-tooltip.js';
 export {
   ROW_SERIES_COL_OFFSET,

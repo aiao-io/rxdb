@@ -1,0 +1,35 @@
+diff --git a/dist/server/server/utils/scanDocuments.js b/dist/server/server/utils/scanDocuments.js
+index ac892fd42d230d5acd1a1114edf3acb51dfceb6f..6dec0d04082f0ac2df9777d42341c475e867e46c 100644
+--- a/dist/server/server/utils/scanDocuments.js
++++ b/dist/server/server/utils/scanDocuments.js
+@@ -27,16 +27,20 @@ function scanDocuments(DocInfoWithFilePathList, config) {
+             contentDocuments,
+         ];
+         // Process documents in parallel but assign IDs deterministically based on input order
+-        const processedDocs = yield Promise.all(DocInfoWithFilePathList.map(({ filePath, url, type }, index) => tslib_1.__awaiter(this, void 0, void 0, function* () {
+-            (0, debug_1.debugVerbose)(`parsing %s file %o of %o`, type, path_1.default.relative(process.cwd(), filePath), url);
+-            const html = yield readFileAsync(filePath, { encoding: "utf8" });
+-            const parsed = (0, parse_1.parse)(html, type, url, config);
+-            if (!parsed) {
+-                // Unlisted content
+-                return null;
+-            }
+-            return { parsed, url, index };
+-        })));
++        const processedDocs = [];
++        for (let offset = 0; offset < DocInfoWithFilePathList.length; offset += 8) {
++            const batch = yield Promise.all(DocInfoWithFilePathList.slice(offset, offset + 8).map(({ filePath, url, type }, index) => tslib_1.__awaiter(this, void 0, void 0, function* () {
++                (0, debug_1.debugVerbose)(`parsing %s file %o of %o`, type, path_1.default.relative(process.cwd(), filePath), url);
++                const html = yield readFileAsync(filePath, { encoding: "utf8" });
++                const parsed = (0, parse_1.parse)(html, type, url, config);
++                if (!parsed) {
++                    // Unlisted content
++                    return null;
++                }
++                return { parsed, url, index: offset + index };
++            })));
++            processedDocs.push(...batch);
++        }
+         // Process results in input order to ensure deterministic ID assignment
+         for (let i = 0; i < processedDocs.length; i++) {
+             const result = processedDocs[i];

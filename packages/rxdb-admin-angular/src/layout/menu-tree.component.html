@@ -1,0 +1,67 @@
+<ng-template #link let-node>
+  <a
+    [attr.aria-current]="node.id === activeId() ? 'page' : null"
+    [attr.data-testid]="node.testId ?? 'admin-menu-link'"
+    [attr.href]="node.route"
+    [attr.title]="node.label"
+    [class.menu-active]="node.id === activeId()"
+    (click)="go($event, node)"
+  >
+    <span class="admin-menu-icon">
+      @if (node.icon) {
+        <svg [lucideIcon]="node.icon" [size]="16"></svg>
+      }
+    </span>
+    <span class="admin-menu-label">{{ node.label }}</span>
+    @if (extra(); as extraTemplate) {
+      <span class="admin-menu-extra">
+        <ng-container [ngTemplateOutlet]="extraTemplate" [ngTemplateOutletContext]="{ $implicit: node }" />
+      </span>
+    }
+  </a>
+</ng-template>
+
+<ng-template #items let-nodes>
+  @for (node of nodes; track node.id) {
+    <li>
+      @if (node.children?.length) {
+        <details [open]="open().has(node.id)">
+          <summary (click)="toggle($event, node.id, nodes)">
+            <span class="admin-menu-icon">
+              @if (node.icon) {
+                <svg [lucideIcon]="node.icon" [size]="16"></svg>
+              }
+            </span>
+            <span class="admin-menu-label">{{ node.label }}</span>
+          </summary>
+          <ul>
+            <ng-container [ngTemplateOutlet]="items" [ngTemplateOutletContext]="{ $implicit: node.children }" />
+          </ul>
+        </details>
+      } @else {
+        <ng-container [ngTemplateOutlet]="link" [ngTemplateOutletContext]="{ $implicit: node }" />
+      }
+    </li>
+  }
+</ng-template>
+
+<ul
+  class="menu admin-menu"
+  [attr.data-style]="prefs().navigation.styleType"
+  [class.menu-md]="rail()"
+  data-testid="admin-menu"
+>
+  @if (rail()) {
+    @for (entry of rails(); track entry === null ? 'separator-' + $index : entry.id) {
+      @if (entry === null) {
+        <li class="admin-menu-rail-separator" aria-hidden="true"></li>
+      } @else {
+        <li>
+          <ng-container [ngTemplateOutlet]="link" [ngTemplateOutletContext]="{ $implicit: entry }" />
+        </li>
+      }
+    }
+  } @else {
+    <ng-container [ngTemplateOutlet]="items" [ngTemplateOutletContext]="{ $implicit: nodes() }" />
+  }
+</ul>

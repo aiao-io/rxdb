@@ -1,0 +1,110 @@
+{
+  "entries": {
+    ".": [
+      {
+        "name": "AdminLayout",
+        "kind": "value"
+      },
+      {
+        "name": "AdminLayoutProps",
+        "kind": "type"
+      },
+      {
+        "name": "AdminShellProvider",
+        "kind": "value"
+      },
+      {
+        "name": "AdminShellProviderProps",
+        "kind": "type"
+      },
+      {
+        "name": "Brand",
+        "kind": "value"
+      },
+      {
+        "name": "BrandProps",
+        "kind": "type"
+      },
+      {
+        "name": "Breadcrumb",
+        "kind": "value"
+      },
+      {
+        "name": "CommandPalette",
+        "kind": "value"
+      },
+      {
+        "name": "Footer",
+        "kind": "value"
+      },
+      {
+        "name": "Header",
+        "kind": "value"
+      },
+      {
+        "name": "HeaderMenu",
+        "kind": "value"
+      },
+      {
+        "name": "HeaderProps",
+        "kind": "type"
+      },
+      {
+        "name": "HeaderWidgets",
+        "kind": "value"
+      },
+      {
+        "name": "interceptNavigation",
+        "kind": "value"
+      },
+      {
+        "name": "LockScreen",
+        "kind": "value"
+      },
+      {
+        "name": "MenuTree",
+        "kind": "value"
+      },
+      {
+        "name": "MenuTreeProps",
+        "kind": "type"
+      },
+      {
+        "name": "PreferencesDrawer",
+        "kind": "value"
+      },
+      {
+        "name": "RenderMenuExtra",
+        "kind": "type"
+      },
+      {
+        "name": "Sidebar",
+        "kind": "value"
+      },
+      {
+        "name": "SidebarProps",
+        "kind": "type"
+      },
+      {
+        "name": "Tabbar",
+        "kind": "value"
+      },
+      {
+        "name": "useAdminShell",
+        "kind": "value"
+      },
+      {
+        "name": "useAdminStore",
+        "kind": "value"
+      },
+      {
+        "name": "useAdminText",
+        "kind": "value"
+      },
+      {
+        "name": "Watermark",
+        "kind": "value"
+      }
+    ]
+  }
+}

@@ -38,10 +38,13 @@ const workspaceRoot = process.cwd();
 const workspacePackageJson = JSON.parse(await readFile(path.join(workspaceRoot, 'package.json'), 'utf8'));
 
 // pnpm 12 安装时不再读 .npmrc 里的 node-linker（实测按 isolated 装），所以和 overrides 一起写进 pnpm-workspace.yaml。
+// minimumReleaseAge: 0 与仓库主 workspace 决策一致：消费者项目的依赖按 registry 最新解析，
+// 24h 发布年龄门槛下 pnpm 会尝试把新发布版本写进单行 JSON 风格的 minimumReleaseAgeExclude，
+// 就地编辑不了直接 ERR_PNPM_WORKSPACE_MANIFEST_WRITER_UNSUPPORTED_INLINE_BLOCK。
 const writePnpmWorkspace = (root, overrides) =>
   writeFile(
     path.join(root, 'pnpm-workspace.yaml'),
-    `${JSON.stringify({ packages: [], nodeLinker: 'hoisted', overrides }, null, 2)}\n`
+    `${JSON.stringify({ packages: [], nodeLinker: 'hoisted', minimumReleaseAge: 0, overrides }, null, 2)}\n`
   );
 
 /**
