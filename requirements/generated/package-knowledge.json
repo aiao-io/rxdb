@@ -2261,6 +2261,87 @@
         "version": "0.0.28"
       },
       {
+        "description": "后台外壳无头核心：偏好中心（声明式 schema、主题、布局、页签、快捷键、命令面板、扩展、锁屏、水印、时区），与路由库和 UI 框架无关（epic-010）。",
+        "framework": null,
+        "homepage": "https://rxdb.aiao.io/docs",
+        "hosts": [
+          "browser",
+          "node"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "dependencies",
+            "name": "@aiao/rxdb-i18n",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-admin",
+        "role": "model",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "后台外壳的 Angular 绑定：AdminLayout、偏好抽屉、页签栏、命令面板与锁屏（epic-010）。",
+        "framework": "angular",
+        "homepage": "https://rxdb.aiao.io/docs",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-admin",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-admin-angular",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "后台外壳的 React 绑定：AdminLayout、偏好抽屉、页签栏、命令面板与锁屏（epic-010）。",
+        "framework": "react",
+        "homepage": "https://rxdb.aiao.io/docs",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-admin",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-admin-react",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
+        "description": "后台外壳的 Vue 绑定：AdminLayout、偏好抽屉、页签栏、命令面板与锁屏（epic-010）。",
+        "framework": "vue",
+        "homepage": "https://rxdb.aiao.io/docs",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-admin",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-admin-vue",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.28"
+      },
+      {
         "description": "Angular 框架集成库，为 Angular 应用提供 RxDB 支持。基于 Angular Signals 实现响应式数据流。",
         "framework": "angular",
         "homepage": "https://rxdb.aiao.io/docs/frameworks/angular",
@@ -3783,7 +3864,7 @@
       }
     ]
   },
-  "digest": "2513e2ee5f3ebad4445b2dac5f6073183efc619b4a00b3b11d4bc54cecdc6f0f",
+  "digest": "3c02a6d0e6ed310f534f6aad21160bd5b3b68737875d69de6092ee2dff2ab535",
   "sample": {
     "compilerOptions": {
       "experimentalDecorators": true,

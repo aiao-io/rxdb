@@ -8,37 +8,42 @@
 | 状态           | 数量 |
 | :------------- | :--- |
 | ✅ Done        | 89   |
-| 🚧 In Progress | 9    |
-| 👀 In Review   | 11   |
-| 📝 Backlog     | 26   |
+| 🚧 In Progress | 13   |
+| 👀 In Review   | 10   |
+| 📝 Backlog     | 27   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 135  |
+| **合计**       | 139  |
 
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
 
-## 进行中（9 条）
+## 进行中（13 条）
 
-| Story                                                                                                       | 剩余范围                                                           |
-| ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| [US-403](stories/ui/US-403-entity-components-headless.md)                                                   | 独立消费、依赖隔离及三框架质量门禁待收口                           |
-| [US-211 多端小程序宿主（支付宝 / 抖音 / 百度 / QQ）](stories/adapter/US-211-multi-miniprogram-platforms.md) | 剩余平台/设备证据、demo 走查与支持声明须按当前可行性矩阵一致关闭。 |
-| [US-537 重开恢复与备份导出](stories/domain/US-537-board-backup-restore.md)                                  | 恢复中配额不足、关闭页面后重开的注入分支（AC#9）仍待补齐。         |
-| [US-540 看板端到端 demo](stories/domain/US-540-board-end-to-end-demo.md)                                    | demo 既有库初态（AC#7）与无搜索插件构建（AC#12）仍待验。           |
-| [US-603 手工发布入口的提交与校验结果一致性](stories/tooling/US-603-manual-release-preflight.md)             | 两个手工发布入口已接入共享 preflight；待受控 registry 替身验收。   |
+| Story                                                                                                                                                                   | 剩余范围                                                           |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| [US-704](stories/future/US-704-p2p-manifest-discovery.md) / [US-705](stories/future/US-705-p2p-byte-transfer.md) / [US-706](stories/future/US-706-p2p-fallback-auth.md) | 协议层与浏览器宿主已接入；桌面 mDNS、握手及剩余 AC 待验收。        |
+| [US-707](stories/future/US-707-p2p-cross-runtime-e2e.md)                                                                                                                | 浏览器半边与独立 demo 已接入；Electron 与 Tauri 按阶段继续验收。   |
+| [US-403](stories/ui/US-403-entity-components-headless.md)                                                                                                               | 独立消费、依赖隔离及三框架质量门禁待收口                           |
+| [US-211 多端小程序宿主（支付宝 / 抖音 / 百度 / QQ）](stories/adapter/US-211-multi-miniprogram-platforms.md)                                                             | 剩余平台/设备证据、demo 走查与支持声明须按当前可行性矩阵一致关闭。 |
+| [US-537 重开恢复与备份导出](stories/domain/US-537-board-backup-restore.md)                                                                                              | 恢复中配额不足、关闭页面后重开的注入分支（AC#9）仍待补齐。         |
+| [US-540 看板端到端 demo](stories/domain/US-540-board-end-to-end-demo.md)                                                                                                | demo 既有库初态（AC#7）与无搜索插件构建（AC#12）仍待验。           |
+| [US-603 手工发布入口的提交与校验结果一致性](stories/tooling/US-603-manual-release-preflight.md)                                                                         | 两个手工发布入口已接入共享 preflight；待受控 registry 替身验收。   |
+| [US-530](stories/domain/US-530-admin-shell-preferences-appearance.md)                                                                                                   | 外壳实现与三端测试已接入，验收和代码评审待收口。                   |
+| [US-531](stories/domain/US-531-admin-shell-layout-tabbar.md)                                                                                                            | 外壳实现与三端测试已接入，验收和代码评审待收口。                   |
+| [US-532](stories/domain/US-532-admin-shell-shortcuts-palette-extensions.md)                                                                                             | 外壳实现与三端测试已接入，验收和代码评审待收口。                   |
+| [US-533](stories/domain/US-533-admin-shell-widgets-lock-general.md)                                                                                                     | 外壳实现与三端测试已接入，验收和代码评审待收口。                   |
 
-## 待评审（11 条）
+## 待评审（10 条）
 
-| Story                                                                                         | 剩余范围                                                                                                       |
-| --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| [US-708 P2P 会话层](stories/future/US-708-p2p-peer-session.md)                                | 会话层与 10 条 AC 已在真实 DataChannel 双上下文与 TLS 双进程夹具上验收，随 PR #172 评审合并。                  |
-| [US-713 P2P demo 管理后台](stories/future/US-713-p2p-admin-console.md)                        | AC#1～#10 已在隔离 Supabase 栈与真 Worker 上经 e2e 验收；AC#11 待首次 CI 运行确认。                            |
-| [US-911 客户端国际化 / 本地化](stories/future/US-911-client-i18n.md)                          | A～D 已实现；偏好载体对照、历史隔离、三端/四运行时、目录分发与 DevTools 已验收，待代码评审。                   |
-| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)    | 当前Taro版本的外部安装/开发者工具证据仍需补齐。                                                                |
-| [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) | 当前承诺A～C已实现，等待评审收尾；D为候选，不参与当前关闭，仍保留未验状态。                                    |
-| [US-528 独立消费接入示例与接入成本记录](stories/domain/US-528-admin-consumer-example.md)      | workspace接线已验证、AC#2成本记录已通过；AC#1发布tarball仓外消费与AC#3试用者按文档独立重搭仍待验证，不能标绿。 |
-| [US-534 看板领域模型骨架](stories/domain/US-534-board-column-task-skeleton.md)                | 全部 AC 已验（既有库重开在 PGlite 与 sqlite-wasm 各验一遍），等待合并收尾。                                    |
-| [US-539 三框架看板视图与交互](stories/domain/US-539-board-tri-framework-ui.md)                | 阶段 A～C 三端全绿（含外壳恢复入口与跨页门禁），等待合并收尾。                                                 |
+| Story                                                                                         | 剩余范围                                                                                      |
+| --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| [US-708 P2P 会话层](stories/future/US-708-p2p-peer-session.md)                                | 会话层与 10 条 AC 已在真实 DataChannel 双上下文与 TLS 双进程夹具上验收，随 PR #172 评审合并。 |
+| [US-713 P2P demo 管理后台](stories/future/US-713-p2p-admin-console.md)                        | AC#1～#10 已在隔离 Supabase 栈与真 Worker 上经 e2e 验收；AC#11 待首次 CI 运行确认。           |
+| [US-911 客户端国际化 / 本地化](stories/future/US-911-client-i18n.md)                          | A～D 已实现；偏好载体对照、历史隔离、三端/四运行时、目录分发与 DevTools 已验收，待代码评审。  |
+| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)    | 当前Taro版本的外部安装/开发者工具证据仍需补齐。                                               |
+| [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) | 当前承诺A～C已实现，等待评审收尾；D为候选，不参与当前关闭，仍保留未验状态。                   |
+| [US-534 看板领域模型骨架](stories/domain/US-534-board-column-task-skeleton.md)                | 全部 AC 已验（既有库重开在 PGlite 与 sqlite-wasm 各验一遍），等待合并收尾。                   |
+| [US-539 三框架看板视图与交互](stories/domain/US-539-board-tri-framework-ui.md)                | 阶段 A～C 三端全绿（含外壳恢复入口与跨页门禁），等待合并收尾。                                |
 
 ## 阻塞（0 条）
 
@@ -190,8 +195,12 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 
 - ✅ [US-526 模型驱动数据工作台：预置 schema 的录入 / 编辑 / 筛选闭环](stories/domain/US-526-admin-workbench.md)
 - ✅ [US-527 工作台备份恢复闭环：失败语义与数据保留](stories/domain/US-527-admin-backup-restore.md)
-- 👀 [US-528 独立消费接入示例与接入成本记录](stories/domain/US-528-admin-consumer-example.md)
+- ⬜ [US-528 独立消费接入示例与接入成本记录](stories/domain/US-528-admin-consumer-example.md)
 - ✅ [US-529 实体列表视图配置：字段显隐、多字段排序与分组](stories/domain/US-529-entity-list-view-settings.md)
+- 🚧 [US-530 后台外壳偏好中心：声明式 schema 驱动的偏好抽屉与外观设置](stories/domain/US-530-admin-shell-preferences-appearance.md)
+- 🚧 [US-531 后台外壳布局：四种布局模式、侧栏图标轨、移动端抽屉与页签栏](stories/domain/US-531-admin-shell-layout-tabbar.md)
+- 🚧 [US-532 后台外壳快捷键、命令面板与扩展偏好项](stories/domain/US-532-admin-shell-shortcuts-palette-extensions.md)
+- 🚧 [US-533 后台外壳顶栏部件、锁屏与通用设置：语言、时区、水印、版权页脚](stories/domain/US-533-admin-shell-widgets-lock-general.md)
 
 ### [任务看板领域模型](epics/epic-011-task-board-domain-model.md)
 

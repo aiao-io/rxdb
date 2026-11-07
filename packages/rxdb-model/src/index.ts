@@ -66,4 +66,5 @@ export * from './query-builder/services/index.js';
 export * from './query-builder/utils/index.js';
 
 export * from './i18n.js';
+export * from './localized-metadata.js';
 export * from './messages.js';

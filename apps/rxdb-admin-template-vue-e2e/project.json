@@ -1,0 +1,25 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "implicitDependencies": ["rxdb-admin-template-vue", "rxdb-admin-template-react-e2e"],
+  "name": "rxdb-admin-template-vue-e2e",
+  "projectType": "application",
+  "tags": [],
+  "targets": {
+    "e2e": {
+      "dependsOn": ["rxdb-admin-template-vue:build"],
+      "inputs": ["default", "^production", "{workspaceRoot}/apps/rxdb-admin-template-react-e2e/src/**/*"],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/rxdb-admin-template-vue-e2e",
+        "command": "playwright test --config e2e.config.ts"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/rxdb-admin-template-vue-e2e",
+        "command": "eslint . --max-warnings=0"
+      }
+    }
+  }
+}

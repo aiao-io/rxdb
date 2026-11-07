@@ -130,7 +130,12 @@
       "@aiao/rxdb-i18n-angular": ["./packages/rxdb-i18n-angular/src/index.ts"],
       "@aiao/rxdb-i18n-react": ["./packages/rxdb-i18n-react/src/index.ts"],
       "@aiao/rxdb-i18n-vue": ["./packages/rxdb-i18n-vue/src/index.ts"],
-      "@aiao/rxdb-i18n/testing": ["./packages/rxdb-i18n/src/testing.ts"]
+      "@aiao/rxdb-i18n/testing": ["./packages/rxdb-i18n/src/testing.ts"],
+      "@aiao/rxdb-admin": ["./packages/rxdb-admin/src/index.ts"],
+      "@aiao/rxdb-admin/testing": ["./packages/rxdb-admin/src/testing.ts"],
+      "@aiao/rxdb-admin-angular": ["./packages/rxdb-admin-angular/src/index.ts"],
+      "@aiao/rxdb-admin-react": ["./packages/rxdb-admin-react/src/index.ts"],
+      "@aiao/rxdb-admin-vue": ["./packages/rxdb-admin-vue/src/index.ts"]
     },
     "resolveJsonModule": true,
     "skipDefaultLibCheck": true,

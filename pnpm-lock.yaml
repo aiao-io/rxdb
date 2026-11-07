@@ -225,6 +225,7 @@ overrides:
   yaml@1: ^1.10.3
 
 patchedDependencies:
+  '@easyops-cn/docusaurus-search-local@0.55.3': 428eb451d6492adb9263762f2d8e8304b18143e3fffe52c2874657d1abace8e0
   '@tarojs/vite-runner@4.3.2': 1d5e2cce4dac325b58c75b865953f92daf0e2aeeecb557c22f2c36bc6badf71d
   typescript@6.0.3: ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb
 
@@ -762,90 +763,6 @@ importers:
         specifier: ^9.5.1
         version: 9.5.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
 
-  apps/dev-rxdb-admin:
-    dependencies:
-      '@aiao/rxdb':
-        specifier: workspace:*
-        version: link:../../packages/rxdb
-      '@aiao/rxdb-adapter-sqlite-wasm':
-        specifier: workspace:*
-        version: link:../../packages/rxdb-adapter-sqlite-wasm
-      '@aiao/rxdb-devtools':
-        specifier: workspace:*
-        version: link:../../packages/rxdb-devtools
-      '@aiao/rxdb-model-react':
-        specifier: workspace:*
-        version: link:../../packages/rxdb-model-react
-      '@aiao/rxdb-plugin-history':
-        specifier: workspace:*
-        version: link:../../packages/rxdb-plugin-history
-      '@aiao/rxdb-plugin-search':
-        specifier: workspace:*
-        version: link:../../packages/rxdb-plugin-search
-      '@aiao/rxdb-plugin-search-react':
-        specifier: workspace:*
-        version: link:../../packages/rxdb-plugin-search-react
-      '@aiao/rxdb-react':
-        specifier: workspace:*
-        version: link:../../packages/rxdb-react
-      '@aiao/rxdb-test':
-        specifier: workspace:*
-        version: link:../../packages/rxdb-test
-      lucide-react:
-        specifier: ^1.70.0
-        version: 1.70.0(@types/react@19.3.0)(react@19.3.1)
-      rxjs:
-        specifier: ^7.8.2
-        version: 7.8.2
-    devDependencies:
-      '@tailwindcss/vite':
-        specifier: ^4.3.4
-        version: 4.3.4(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1(supports-color@8.1.1))(sass-embedded@1.104.1)(sass@1.108.0)(terser@5.51.2)(yaml@2.9.1))
-      daisyui:
-        specifier: ^5.7.50
-        version: 5.7.50
-      tailwindcss:
-        specifier: ^4.3.4
-        version: 4.3.4
-
-  apps/dev-rxdb-admin-consumer:
-    dependencies:
-      '@aiao/rxdb':
-        specifier: workspace:*
-        version: link:../../packages/rxdb
-      '@aiao/rxdb-adapter-wa-sqlite':
-        specifier: workspace:*
-        version: link:../../packages/rxdb-adapter-wa-sqlite
-      '@aiao/rxdb-model-react':
-        specifier: workspace:*
-        version: link:../../packages/rxdb-model-react
-      '@aiao/rxdb-plugin-history':
-        specifier: workspace:*
-        version: link:../../packages/rxdb-plugin-history
-      '@aiao/rxdb-react':
-        specifier: workspace:*
-        version: link:../../packages/rxdb-react
-      lucide-react:
-        specifier: ^1.70.0
-        version: 1.70.0(@types/react@19.3.0)(react@19.3.1)
-      wa-sqlite:
-        specifier: https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994
-        version: https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994
-    devDependencies:
-      '@tailwindcss/vite':
-        specifier: ^4.3.4
-        version: 4.3.4(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1(supports-color@8.1.1))(sass-embedded@1.104.1)(sass@1.108.0)(terser@5.51.2)(yaml@2.9.1))
-      daisyui:
-        specifier: ^5.7.50
-        version: 5.7.50
-      tailwindcss:
-        specifier: ^4.3.4
-        version: 4.3.4
-
-  apps/dev-rxdb-admin-consumer-e2e: {}
-
-  apps/dev-rxdb-admin-e2e: {}
-
   apps/dev-rxdb-angular-e2e: {}
 
   apps/dev-rxdb-electron:
@@ -1228,6 +1145,219 @@ importers:
         version: 4.3.4
 
   apps/dev-rxdb-vue-e2e: {}
+
+  apps/rxdb-admin-template-angular:
+    dependencies:
+      '@aiao/rxdb':
+        specifier: workspace:*
+        version: link:../../packages/rxdb
+      '@aiao/rxdb-adapter-sqlite-wasm':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-adapter-sqlite-wasm
+      '@aiao/rxdb-admin':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-admin
+      '@aiao/rxdb-admin-angular':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-admin-angular
+      '@aiao/rxdb-angular':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-angular
+      '@aiao/rxdb-devtools':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-devtools
+      '@aiao/rxdb-i18n':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-i18n
+      '@aiao/rxdb-i18n-angular':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-i18n-angular
+      '@aiao/rxdb-model':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-model
+      '@aiao/rxdb-model-angular':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-model-angular
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-history
+      '@aiao/rxdb-plugin-search':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-search
+      '@aiao/rxdb-plugin-search-angular':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-search-angular
+      '@aiao/rxdb-test':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-test
+      '@angular/common':
+        specifier: 22.2.4
+        version: 22.2.4(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core':
+        specifier: 22.2.4
+        version: 22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2)
+      '@angular/platform-browser':
+        specifier: 22.2.4
+        version: 22.2.4(@angular/common@22.2.4(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2))
+      '@angular/router':
+        specifier: 22.2.4
+        version: 22.2.4(@angular/common@22.2.4(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2))(@angular/platform-browser@22.2.4(@angular/common@22.2.4(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2)))(rxjs@7.8.2)
+      '@lucide/angular':
+        specifier: 1.70.0
+        version: 1.70.0(@angular/common@22.2.4(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2))
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+    devDependencies:
+      '@tailwindcss/postcss':
+        specifier: ^4.3.4
+        version: 4.3.4
+      '@tailwindcss/vite':
+        specifier: ^4.3.4
+        version: 4.3.4(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1(supports-color@8.1.1))(sass-embedded@1.104.1)(sass@1.108.0)(terser@5.51.2)(yaml@2.9.1))
+      daisyui:
+        specifier: ^5.7.50
+        version: 5.7.50
+      tailwindcss:
+        specifier: ^4.3.4
+        version: 4.3.4
+
+  apps/rxdb-admin-template-angular-e2e: {}
+
+  apps/rxdb-admin-template-react:
+    dependencies:
+      '@aiao/rxdb':
+        specifier: workspace:*
+        version: link:../../packages/rxdb
+      '@aiao/rxdb-adapter-sqlite-wasm':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-adapter-sqlite-wasm
+      '@aiao/rxdb-admin':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-admin
+      '@aiao/rxdb-admin-react':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-admin-react
+      '@aiao/rxdb-devtools':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-devtools
+      '@aiao/rxdb-i18n':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-i18n
+      '@aiao/rxdb-i18n-react':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-i18n-react
+      '@aiao/rxdb-model':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-model
+      '@aiao/rxdb-model-react':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-model-react
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-history
+      '@aiao/rxdb-plugin-search':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-search
+      '@aiao/rxdb-plugin-search-react':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-search-react
+      '@aiao/rxdb-react':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-react
+      '@aiao/rxdb-test':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-test
+      lucide-react:
+        specifier: ^1.70.0
+        version: 1.70.0(@types/react@19.3.0)(react@19.3.1)
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+    devDependencies:
+      '@tailwindcss/vite':
+        specifier: ^4.3.4
+        version: 4.3.4(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1(supports-color@8.1.1))(sass-embedded@1.104.1)(sass@1.108.0)(terser@5.51.2)(yaml@2.9.1))
+      daisyui:
+        specifier: ^5.7.50
+        version: 5.7.50
+      tailwindcss:
+        specifier: ^4.3.4
+        version: 4.3.4
+
+  apps/rxdb-admin-template-react-e2e: {}
+
+  apps/rxdb-admin-template-vue:
+    dependencies:
+      '@aiao/rxdb':
+        specifier: workspace:*
+        version: link:../../packages/rxdb
+      '@aiao/rxdb-adapter-sqlite-wasm':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-adapter-sqlite-wasm
+      '@aiao/rxdb-admin':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-admin
+      '@aiao/rxdb-admin-vue':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-admin-vue
+      '@aiao/rxdb-devtools':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-devtools
+      '@aiao/rxdb-i18n':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-i18n
+      '@aiao/rxdb-i18n-vue':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-i18n-vue
+      '@aiao/rxdb-model':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-model
+      '@aiao/rxdb-model-vue':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-model-vue
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-history
+      '@aiao/rxdb-plugin-search':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-search
+      '@aiao/rxdb-plugin-search-vue':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-plugin-search-vue
+      '@aiao/rxdb-test':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-test
+      '@aiao/rxdb-vue':
+        specifier: workspace:*
+        version: link:../../packages/rxdb-vue
+      '@lucide/vue':
+        specifier: ^1.70.0
+        version: 1.70.0(vue@3.5.45(typescript@6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb)))
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+      vue:
+        specifier: ^3.5.43
+        version: 3.5.45(typescript@6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb))
+      vue-router:
+        specifier: ^5.4.0
+        version: 5.4.0(@rspack/core@1.7.12(@swc/helpers@0.5.24))(@vue/compiler-sfc@3.5.45)(esbuild@0.28.2)(rolldown@1.3.0)(rollup@4.67.5)(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1(supports-color@8.1.1))(sass-embedded@1.104.1)(sass@1.108.0)(terser@5.51.2)(yaml@2.9.1))(vue@3.5.45(typescript@6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb)))(webpack@5.112.2(@swc/core@1.16.22(@swc/helpers@0.5.24))(@swc/html@1.16.22)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.32))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.32)(sharp@0.35.5(@types/node@26.6.6))(svgo@3.3.5)(uglify-js@3.19.3))
+    devDependencies:
+      '@tailwindcss/postcss':
+        specifier: ^4.3.4
+        version: 4.3.4
+      '@tailwindcss/vite':
+        specifier: ^4.3.4
+        version: 4.3.4(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1(supports-color@8.1.1))(sass-embedded@1.104.1)(sass@1.108.0)(terser@5.51.2)(yaml@2.9.1))
+      daisyui:
+        specifier: ^5.7.50
+        version: 5.7.50
+      tailwindcss:
+        specifier: ^4.3.4
+        version: 4.3.4
+
+  apps/rxdb-admin-template-vue-e2e: {}
 
   apps/rxdb-devtools-extension:
     dependencies:
@@ -1917,6 +2047,78 @@ importers:
       ms:
         specifier: ^2.1.3
         version: 2.1.3
+
+  packages/rxdb-admin:
+    dependencies:
+      '@aiao/rxdb-i18n':
+        specifier: workspace:^
+        version: link:../rxdb-i18n
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+
+  packages/rxdb-admin-angular:
+    dependencies:
+      '@angular/common':
+        specifier: 22.2.4
+        version: 22.2.4(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@angular/core':
+        specifier: 22.2.4
+        version: 22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2)
+      '@angular/platform-browser':
+        specifier: 22.2.4
+        version: 22.2.4(@angular/common@22.2.4(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2))
+      '@lucide/angular':
+        specifier: 1.70.0
+        version: 1.70.0(@angular/common@22.2.4(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2))
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+    devDependencies:
+      '@aiao/rxdb-admin':
+        specifier: workspace:*
+        version: link:../rxdb-admin
+      '@angular/compiler':
+        specifier: 22.2.4
+        version: 22.2.4
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@types/node@26.6.6)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-istanbul@4.1.11)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(happy-dom@20.14.6)(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1(supports-color@8.1.1))(sass-embedded@1.104.1)(sass@1.108.0)(terser@5.51.2)(yaml@2.9.1))
+
+  packages/rxdb-admin-react:
+    dependencies:
+      lucide-react:
+        specifier: ^1.47.0
+        version: 1.70.0(@types/react@19.3.0)(react@19.3.1)
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+    devDependencies:
+      '@aiao/rxdb-admin':
+        specifier: workspace:*
+        version: link:../rxdb-admin
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.3.0
+      react:
+        specifier: ^19.3.0
+        version: 19.3.1
+
+  packages/rxdb-admin-vue:
+    dependencies:
+      '@lucide/vue':
+        specifier: ^1.63.0
+        version: 1.70.0(vue@3.5.45(typescript@6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb)))
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
+    devDependencies:
+      '@aiao/rxdb-admin':
+        specifier: workspace:*
+        version: link:../rxdb-admin
+      vue:
+        specifier: ^3.5.43
+        version: 3.5.45(typescript@6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb))
 
   packages/rxdb-angular:
     dependencies:
@@ -2926,7 +3128,7 @@ importers:
         version: 3.10.2(79ce019b1bbc62c9c9641e29fa36e628)
       '@easyops-cn/docusaurus-search-local':
         specifier: ^0.55.3
-        version: 0.55.3(ed93c85607f66ce02c41c6ca00297995)
+        version: 0.55.3(patch_hash=428eb451d6492adb9263762f2d8e8304b18143e3fffe52c2874657d1abace8e0)(ed93c85607f66ce02c41c6ca00297995)
       '@mdx-js/react':
         specifier: ^3.1.1
         version: 3.1.1(@types/react@19.3.0)(react@19.3.1)
@@ -9075,7 +9277,7 @@ packages:
     engines: {node: '>= 18'}
     peerDependencies:
       '@types/react': '*'
-      vue: '*'
+      vue: ^3.5.43
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -15574,7 +15776,7 @@ packages:
       imagemin: '*'
       lightningcss: '*'
       postcss: '*'
-      sharp: '*'
+      sharp: ^0.35.5
       svgo: '*'
       uglify-js: '*'
       webpack: ^5.1.0
@@ -23719,7 +23921,7 @@ snapshots:
       cssesc: 3.0.0
       immediate: 3.3.0
 
-  '@easyops-cn/docusaurus-search-local@0.55.3(ed93c85607f66ce02c41c6ca00297995)':
+  '@easyops-cn/docusaurus-search-local@0.55.3(patch_hash=428eb451d6492adb9263762f2d8e8304b18143e3fffe52c2874657d1abace8e0)(ed93c85607f66ce02c41c6ca00297995)':
     dependencies:
       '@docusaurus/plugin-content-docs': 3.10.2(a42828ec0575682ec25626e88bff43ea)
       '@docusaurus/theme-common': 3.10.2(@docusaurus/plugin-content-docs@3.10.2(a42828ec0575682ec25626e88bff43ea))(@swc/core@1.16.22(@swc/helpers@0.5.24))(@swc/html@1.16.22)(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.32))(csso@5.0.5)(esbuild@0.28.2)(html-minifier-terser@7.2.0)(lightningcss@1.33.0)(postcss@8.5.32)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(sharp@0.35.5(@types/node@26.6.6))(supports-color@8.1.1)(svgo@3.3.5)(uglify-js@3.19.3)

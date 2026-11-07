@@ -17,7 +17,7 @@ export const I18N: InjectionKey<I18n> = Symbol('I18n');
 /** Vue 原生响应式国际化绑定。 */
 export interface I18nBinding extends Pick<
   I18n,
-  't' | 'setLocale' | 'formatNumber' | 'formatDate' | 'formatRelativeTime'
+  't' | 'resolve' | 'setLocale' | 'formatNumber' | 'formatDate' | 'formatRelativeTime'
 > {
   /** 当前生效语言。 */
   readonly locale: Readonly<Ref<string>>;
@@ -76,6 +76,10 @@ export const useI18n = (runtime?: I18n): I18nBinding => {
     t: (...args) => {
       track();
       return instance.t(...args);
+    },
+    resolve: (...args) => {
+      track();
+      return instance.resolve(...args);
     },
     setLocale: instance.setLocale,
     formatNumber: (...args) => {

@@ -8,13 +8,13 @@
 | 状态           | 数量   |
 | :------------- | :----- |
 | ✅ Done        | 89     |
-| 🚧 In Progress | 9      |
-| 👀 In Review   | 11     |
-| 📝 Backlog     | 26     |
+| 🚧 In Progress | 13     |
+| 👀 In Review   | 10     |
+| 📝 Backlog     | 27     |
 | 🚫 Blocked     | 0      |
-| **未完成合计** | **46** |
+| **未完成合计** | **50** |
 
-仓库还剩 **46 条**未关闭故事（9 In Progress + 11 In Review + 26 Backlog + 0 Blocked）。
+仓库还剩 **50 条**未关闭故事（13 In Progress + 10 In Review + 27 Backlog + 0 Blocked）。
 数字由 story YAML 推导；Backlog 包括已授权任务与价值待证候选，不能把全部未关闭故事当成可开工项。
 
 ## 未完成需求全景
@@ -28,7 +28,7 @@
 | [US-403](stories/ui/US-403-entity-components-headless.md)                                                                                                               | 🚧 In Progress | 独立构建产物消费、Angular secondary entry 与三框架质量门禁待收口                                       | 批次 3      |
 | [US-219](stories/adapter/US-219-taro-plugin.md)                                                                                                                         | 👀 In Review   | 当前 Taro 版本的外部安装与开发者工具验收证据                                                           | 批次 3      |
 | [epic-009 BOM](epics/epic-009-bom-domain-model.md)（19 条）                                                                                                             | 📝 Backlog     | 先首轮切片与贯穿应用，再按前置推进；候选优化不自动解锁                                                 | 批次 4      |
-| [US-528](stories/domain/US-528-admin-consumer-example.md)                                                                                                               | 👀 In Review   | AC#1 仓外发布 tarball 消费与 AC#3 按文档独立重搭仍待验证，AC#2 成本记录已通过；workspace 证据不能替代  | 批次 5      |
+| [US-528](stories/domain/US-528-admin-consumer-example.md)                                                                                                               | 📝 Backlog     | 由 React Admin 模板承接公开包消费与成本验证；仓外闭环和实际业务增量均待验，本轮仅仓内孵化              | 批次 5      |
 | [US-534](stories/domain/US-534-board-column-task-skeleton.md)                                                                                                           | 👀 In Review   | 全部 AC 已验，等待合并收尾                                                                             | 批次 6      |
 | [US-537](stories/domain/US-537-board-backup-restore.md)                                                                                                                 | 🚧 In Progress | 恢复中配额不足、关闭页面后重开的注入分支（AC#9）                                                       | 批次 6      |
 | [US-539](stories/domain/US-539-board-tri-framework-ui.md)                                                                                                               | 👀 In Review   | 阶段 A～C 三端全绿，等待合并收尾                                                                       | 批次 6      |
@@ -75,8 +75,11 @@ US-513 联产品、US-510 热路径优化、US-519 可选索引与 US-030 D 保�
 
 ### 批次 5：模型驱动后台首版（epic-010 已解锁）
 
-当前剩余为 US-528 的真实发布消费证据。以仓外安装、样式/WASM 资源、CRUD 和重开闭环证明独立接入；
-再记录一个真实任务的接入成本，不能只靠 workspace 应用代码量推导用户收益。
+当前在 `apps/rxdb-admin-template-react` 孵化应用配置与扩展路径，范围见 [ADMIN 应用路线图](../apps/rxdb-admin-template-react/requirements/roadmap.md)。
+US-528 保留 Backlog；待明确发布产物、具体业务任务与试用者后，再验证仓外安装、样式 / WASM、CRUD 和重开闭环及真实接入增量。
+本轮不实施独立复制，workspace 模板代码量不能推导独立接入收益。
+
+后台外壳扩展按 owner 已批准的 US-530 / US-531 / US-532 / US-533 推进，覆盖偏好中心、布局与页签、快捷键与命令面板、顶栏部件与通用设置。三框架公共包与 React 模板在同一 PR 中验证和评审，各故事验收通过后再关闭。
 
 ### 批次 6：看板首轮切片（epic-011 已解锁）
 

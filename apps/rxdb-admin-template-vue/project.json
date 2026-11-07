@@ -1,0 +1,50 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "// targets": "to see all targets run: nx show project rxdb-admin-template-vue --web",
+  "name": "rxdb-admin-template-vue",
+  "projectType": "application",
+  "sourceRoot": "apps/rxdb-admin-template-vue/src",
+  "tags": ["vue-app"],
+  "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build"],
+      "options": {
+        "cwd": "apps/rxdb-admin-template-vue",
+        "command": "vitest run --config vitest.config.mts",
+        "forwardAllArgs": true
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/rxdb-admin-template-vue",
+        "command": "eslint . --max-warnings=0"
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{projectRoot}/dist"],
+      "options": {
+        "cwd": "apps/rxdb-admin-template-vue",
+        "command": "node ../../node_modules/vite/bin/vite.js build"
+      }
+    },
+    "serve": {
+      "dependsOn": [
+        {
+          "target": "build",
+          "projects": ["rxdb-admin"]
+        }
+      ]
+    },
+    "dev": {
+      "dependsOn": [
+        {
+          "target": "build",
+          "projects": ["rxdb-admin"]
+        }
+      ]
+    }
+  }
+}

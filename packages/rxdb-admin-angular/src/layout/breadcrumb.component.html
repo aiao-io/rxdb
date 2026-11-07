@@ -1,0 +1,28 @@
+@if (visible()) {
+  <nav [attr.aria-label]="t('layout.breadcrumb')" data-testid="admin-breadcrumb">
+    <ol class="admin-breadcrumb" [attr.data-style]="breadcrumb().styleType">
+      @for (item of items(); track item.id; let last = $last) {
+        <li>
+          @if (item.route && !last) {
+            <a class="admin-breadcrumb-item link link-hover" [attr.href]="item.route" (click)="go($event, item)">
+              @if (breadcrumb().showIcon && item.icon) {
+                <svg [lucideIcon]="item.icon" [size]="16"></svg>
+              }
+              {{ item.label }}
+            </a>
+          } @else {
+            <span class="admin-breadcrumb-item" [attr.aria-current]="last ? 'page' : null">
+              @if (breadcrumb().showIcon && item.icon) {
+                <svg [lucideIcon]="item.icon" [size]="16"></svg>
+              }
+              {{ item.label }}
+            </span>
+          }
+          @if (!last) {
+            <span class="admin-breadcrumb-sep" aria-hidden="true">/</span>
+          }
+        </li>
+      }
+    </ol>
+  </nav>
+}

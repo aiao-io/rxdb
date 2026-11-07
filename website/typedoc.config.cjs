@@ -29,6 +29,11 @@ module.exports = {
     '../packages/rxdb-model-angular',
     '../packages/rxdb-model-react',
     '../packages/rxdb-model-vue',
+    // 后台外壳
+    '../packages/rxdb-admin',
+    '../packages/rxdb-admin-angular',
+    '../packages/rxdb-admin-react',
+    '../packages/rxdb-admin-vue',
     // 插件
     '../packages/rxdb-plugin-graph',
     '../packages/rxdb-plugin-workspace',

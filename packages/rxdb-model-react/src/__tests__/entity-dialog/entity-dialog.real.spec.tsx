@@ -149,18 +149,70 @@ describe('EntityDialog（真实组件）', () => {
     expect(container.querySelector('.resize-handle')).toBeNull();
   });
 
-  it('标题栏拖拽移动面板 left/top（CdkDrag 等价物）', () => {
+  it('标题栏用同一指针拖拽面板，释放后不再随指针移动', () => {
     const { pane } = renderDialog();
     pane.style.left = '100px';
     pane.style.top = '50px';
 
     const title = [...pane.querySelectorAll('span')].find(s => s.textContent === '标题') as HTMLElement;
-    fireEvent.pointerDown(title, { clientX: 100, clientY: 100 });
-    fireEvent.mouseMove(document, { clientX: 140, clientY: 120 });
-    fireEvent.mouseUp(document);
+    fireEvent.pointerDown(title, { pointerId: 1, clientX: 100, clientY: 100, button: 0 });
+    expect(title.hasPointerCapture(1)).toBe(true);
+    fireEvent.pointerMove(title, { pointerId: 2, clientX: 900, clientY: 900 });
+    expect(pane.style.left).toBe('100px');
+    fireEvent.pointerMove(title, { pointerId: 1, clientX: 140, clientY: 120 });
+    fireEvent.pointerUp(title, { pointerId: 1 });
+    fireEvent.pointerMove(title, { pointerId: 1, clientX: 500, clientY: 500 });
 
     expect(pane.style.left).toBe('140px');
     expect(pane.style.top).toBe('70px');
+  });
+
+  it('标题栏拖拽限制在视口内，避免底部操作按钮移出屏幕', () => {
+    const { pane } = renderDialog();
+    Object.defineProperties(pane, {
+      offsetWidth: { configurable: true, value: 720 },
+      offsetHeight: { configurable: true, value: 600 }
+    });
+    pane.style.left = '100px';
+    pane.style.top = '50px';
+
+    const title = [...pane.querySelectorAll('span')].find(s => s.textContent === '标题') as HTMLElement;
+    fireEvent.pointerDown(title, { pointerId: 1, clientX: 100, clientY: 100, button: 0 });
+    fireEvent.pointerMove(title, { pointerId: 1, clientX: -1000, clientY: -1000 });
+    expect(pane.style.left).toBe('0px');
+    expect(pane.style.top).toBe('0px');
+
+    fireEvent.pointerMove(title, { pointerId: 1, clientX: 10000, clientY: 10000 });
+    expect(pane.style.left).toBe(`${Math.max(0, window.innerWidth - 720)}px`);
+    expect(pane.style.top).toBe(`${Math.max(0, window.innerHeight - 600)}px`);
+    fireEvent.pointerUp(title, { pointerId: 1 });
+  });
+
+  it.each(['pointerCancel', 'lostPointerCapture'] as const)('%s 终止拖拽，之后仍可关闭', event => {
+    const { pane, onDialogClose } = renderDialog();
+    pane.style.left = '100px';
+    pane.style.top = '50px';
+    const title = [...pane.querySelectorAll('span')].find(s => s.textContent === '标题') as HTMLElement;
+    fireEvent.pointerDown(title, { pointerId: 1, clientX: 100, clientY: 100, button: 0 });
+    fireEvent.pointerMove(title, { pointerId: 1, clientX: 140, clientY: 120 });
+    fireEvent[event](title, { pointerId: 1 });
+    fireEvent.pointerMove(title, { pointerId: 1, clientX: 500, clientY: 500 });
+
+    expect(pane.style.left).toBe('140px');
+    expect(pane.style.top).toBe('70px');
+    fireEvent.click(pane.querySelector('[aria-label="关闭"]') as HTMLElement);
+    expect(onDialogClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('右键不会启动标题拖拽', () => {
+    const { pane } = renderDialog();
+    pane.style.left = '100px';
+    pane.style.top = '50px';
+    const title = [...pane.querySelectorAll('span')].find(s => s.textContent === '标题') as HTMLElement;
+    fireEvent.pointerDown(title, { pointerId: 1, clientX: 100, clientY: 100, button: 2 });
+    fireEvent.pointerMove(title, { pointerId: 1, clientX: 500, clientY: 500 });
+    expect(pane.style.left).toBe('100px');
+    expect(pane.style.top).toBe('50px');
   });
 
   it('全屏后拖拽与缩放被禁用', () => {
@@ -170,9 +222,9 @@ describe('EntityDialog（真实组件）', () => {
     fireEvent.click(pane.querySelector('[aria-label="全屏"]') as HTMLElement);
 
     const title = [...pane.querySelectorAll('span')].find(s => s.textContent === '标题') as HTMLElement;
-    fireEvent.pointerDown(title, { clientX: 100, clientY: 100 });
-    fireEvent.mouseMove(document, { clientX: 200, clientY: 200 });
-    fireEvent.mouseUp(document);
+    fireEvent.pointerDown(title, { pointerId: 1, clientX: 100, clientY: 100, button: 0 });
+    fireEvent.pointerMove(title, { pointerId: 1, clientX: 200, clientY: 200 });
+    fireEvent.pointerUp(title, { pointerId: 1 });
     // 全屏时拖拽不生效
     expect(pane.style.left).toBe('0px');
     expect(pane.style.top).toBe('0px');

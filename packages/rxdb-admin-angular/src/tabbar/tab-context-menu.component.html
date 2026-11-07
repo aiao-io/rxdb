@@ -1,0 +1,27 @@
+@if (tab(); as target) {
+  <div
+    class="admin-context-menu"
+    #menu
+    [attr.aria-label]="target.title"
+    [style.left.px]="position().left"
+    [style.top.px]="position().top"
+    (keydown)="onKeyDown($event)"
+    data-testid="admin-tab-menu"
+    role="menu"
+  >
+    <ul class="menu menu-sm p-0">
+      @for (item of items(); track item.id) {
+        <li [class.menu-disabled]="item.disabled">
+          <button
+            [attr.data-testid]="'admin-tab-menu-' + item.id"
+            [disabled]="item.disabled"
+            [textContent]="item.label"
+            (click)="choose(item)"
+            role="menuitem"
+            type="button"
+          ></button>
+        </li>
+      }
+    </ul>
+  </div>
+}
