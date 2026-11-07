@@ -60,6 +60,25 @@
         "command": "playwright test --config playwright.config.ts",
         "cwd": "apps/web-desktop"
       }
+    },
+    "deploy": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "apps/web-desktop",
+        "command": "node tools/cloudflare-assets.mjs && wrangler deploy"
+      }
+    },
+    "preview-cloudflare": {
+      "executor": "nx:run-commands",
+      "continuous": true,
+      "cache": false,
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "apps/web-desktop",
+        "command": "node tools/cloudflare-assets.mjs && wrangler dev --ip 127.0.0.1"
+      }
     }
   }
 }

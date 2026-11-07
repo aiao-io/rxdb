@@ -1,4 +1,5 @@
 const CACHE = `orbit-desktop-${BUILD.version}`;
+const SHELL_BATCH_SIZE = 4;
 const base = new URL('./', globalThis.location.href);
 const applicationCache = new ReleaseCache(base);
 const releaseScheduler = new ResourceScheduler();
@@ -15,15 +16,24 @@ async function verify(response, expected) {
 
 let preparation = null;
 
+async function cacheResource(cache, resource) {
+  const url = new URL(resource.path, base).href;
+  const response = await fetch(url, { cache: 'no-store', credentials: 'same-origin' });
+  await verify(response, resource.sha256);
+  await cache.put(url, response);
+}
+
+async function cacheBatch(cache, resources) {
+  const results = await Promise.allSettled(resources.map(resource => cacheResource(cache, resource)));
+  const failure = results.find(result => result.status === 'rejected');
+  if (failure) throw failure.reason;
+}
+
 async function cacheResources() {
   const cache = await caches.open(CACHE);
   try {
-    for (const resource of BUILD.resources) {
-      const url = new URL(resource.path, base).href;
-      const response = await fetch(url, { cache: 'no-store', credentials: 'same-origin' });
-      await verify(response, resource.sha256);
-      await cache.put(url, response);
-    }
+    for (let offset = 0; offset < BUILD.resources.length; offset += SHELL_BATCH_SIZE)
+      await cacheBatch(cache, BUILD.resources.slice(offset, offset + SHELL_BATCH_SIZE));
   } catch (error) {
     await caches.delete(CACHE);
     throw error;

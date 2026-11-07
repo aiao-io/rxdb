@@ -9,10 +9,12 @@ const source = readFileSync(new URL('../../tools/service-worker.js', import.meta
 const pin = { appId: 'editor', version: '1.0.0', key: 'a'.repeat(64) };
 const turn = () => new Promise<void>(resolve => queueMicrotask(resolve));
 
-function worker() {
+function worker(resources = [{ path: 'index.html', sha256: 'hash' }]) {
   const listeners = new Map<string, (event: unknown) => void>();
   const match = vi.fn(async () => new Response('完整旧外壳'));
   const fetch = vi.fn(async () => new Response('尚未确认的新外壳'));
+  const put = vi.fn(async () => undefined);
+  const remove = vi.fn(async () => true);
   const prepare = vi.fn(async (_pin: unknown, signal: AbortSignal) => signal.throwIfAborted());
   const prune = vi.fn(async (_retained: Set<string>): Promise<string[]> => []);
   const matchAll = vi.fn(async (): Promise<{ id: string; url: string }[]> => []);
@@ -22,11 +24,12 @@ function worker() {
     clients: { matchAll },
     ResourceScheduler,
     ResourceReferences,
-    BUILD: { version: 'old', resources: [{ path: 'index.html', sha256: 'hash' }], releases: [pin] },
+    BUILD: { version: 'old', resources, releases: [pin] },
+    crypto,
     URL,
     Response,
     fetch,
-    caches: { open: async () => ({ match }) },
+    caches: { open: async () => ({ match, put }), delete: remove },
     ReleaseCache: class {
       prepare = prepare;
       preparePinned = prepare;
@@ -52,8 +55,57 @@ function worker() {
     });
     return { reply, pending };
   };
-  return { listeners, match, fetch, prepare, prune, matchAll, message };
+  const install = () => {
+    let pending = Promise.resolve();
+    listeners.get('install')!({ waitUntil: (value: Promise<void>) => (pending = value) });
+    return pending;
+  };
+  return { listeners, match, fetch, put, remove, prepare, prune, matchAll, message, install };
 }
+
+describe('DESKTOP-US-502 首次离线安装', () => {
+  async function fixture() {
+    const bytes = new TextEncoder().encode('完整资源');
+    const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+    const sha256 = Array.from(digest, byte => byte.toString(16).padStart(2, '0')).join('');
+    const resources = Array.from({ length: 6 }, (_, index) => ({ path: `assets/${index}.js`, sha256 }));
+    const instance = worker(resources);
+    const replies: ((response: Response) => void)[] = [];
+    instance.fetch.mockImplementation(() => new Promise<Response>(resolve => replies.push(resolve)));
+    return { ...instance, replies };
+  }
+
+  it('每批同时下载四项，完整校验并写入后才进入下一批', async () => {
+    const instance = await fixture();
+    const pending = instance.install();
+    await vi.waitFor(() => expect(instance.fetch).toHaveBeenCalledTimes(4));
+    for (const reply of instance.replies.slice(0, 3)) reply(new Response('完整资源'));
+    await vi.waitFor(() => expect(instance.put).toHaveBeenCalledTimes(3));
+    expect(instance.fetch).toHaveBeenCalledTimes(4);
+    instance.replies[3](new Response('完整资源'));
+    await vi.waitFor(() => expect(instance.fetch).toHaveBeenCalledTimes(6));
+    for (const reply of instance.replies.slice(4)) reply(new Response('完整资源'));
+    await pending;
+    expect(instance.put).toHaveBeenCalledTimes(6);
+    expect(instance.remove).not.toHaveBeenCalled();
+  });
+
+  it('一项校验失败时等待同批任务结束，再删除不完整缓存并停止后续下载', async () => {
+    const instance = await fixture();
+    const pending = instance.install();
+    const rejected = expect(pending).rejects.toThrow('离线资源完整性校验失败');
+    await vi.waitFor(() => expect(instance.fetch).toHaveBeenCalledTimes(4));
+    instance.replies[0](new Response('损坏资源'));
+    instance.replies[1](new Response('完整资源'));
+    await vi.waitFor(() => expect(instance.put).toHaveBeenCalledTimes(1));
+    expect(instance.remove).not.toHaveBeenCalled();
+    for (const reply of instance.replies.slice(2)) reply(new Response('完整资源'));
+    await rejected;
+    expect(instance.put).toHaveBeenCalledTimes(3);
+    expect(instance.remove).toHaveBeenCalledWith('orbit-desktop-old');
+    expect(instance.fetch).toHaveBeenCalledTimes(4);
+  });
+});
 
 describe('DESKTOP-US-502 外壳资源版本隔离', () => {
   it.each(['/space/', '/space/?from=bookmark', '/space/index.html'])('导航 %s 始终使用当前完整外壳', async path => {

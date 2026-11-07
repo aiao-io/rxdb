@@ -22,7 +22,7 @@ export function waitForActivation(
         resolve();
       }
     };
-    const timer = setTimeout(() => fail('TIMEOUT', '离线安装等待超时，请联网重新准备'), 30000);
+    const timer = setTimeout(() => fail('TIMEOUT', '离线安装等待超时，请联网重新准备'), 120000);
     worker.addEventListener('statechange', changed);
     signal?.addEventListener('abort', cancelled, { once: true });
     if (signal?.aborted) cancelled();

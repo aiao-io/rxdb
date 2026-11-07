@@ -1454,6 +1454,10 @@ importers:
       vue:
         specifier: ^3.5.43
         version: 3.5.45(typescript@6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb))
+    devDependencies:
+      wrangler:
+        specifier: 4.156.2
+        version: 4.156.2(@types/node@26.6.6)
 
   benchmarks:
     dependencies:

@@ -67,6 +67,18 @@ NX_NO_CLOUD=true NX_DAEMON=false NX_ISOLATE_PLUGINS=false pnpm nx run web-deskto
 
 清理仅回收当前部署的无引用应用版本缓存，保留安装、回退、实例、准备任务及活 iframe 引用，不删除用户文件。更新和卸载取消相关预取，再根据剩余引用安排清理。
 
+## Cloudflare 上线
+
+线上地址：<https://aiao-web-desktop.aiao.workers.dev>。当前站点使用 Cloudflare Workers 静态资源托管，Worker 名称为 `aiao-web-desktop`。首次发布前通过 `pnpm --filter @aiao/web-desktop exec wrangler login` 登录目标账号。
+
+```bash
+NX_NO_CLOUD=true NX_DAEMON=false NX_ISOLATE_PLUGINS=false pnpm nx run web-desktop:deploy --dry-run
+NX_NO_CLOUD=true NX_DAEMON=false NX_ISOLATE_PLUGINS=false pnpm nx run web-desktop:preview-cloudflare
+NX_NO_CLOUD=true NX_DAEMON=false NX_ISOLATE_PLUGINS=false pnpm nx run web-desktop:deploy
+```
+
+部署目标先完成正式构建，再生成 Cloudflare 的缓存与根路径重写规则。规则文件在离线资源清单生成后写入产物，避免 Service Worker 请求平台不公开的 `_headers` 和 `_redirects`。HTML、Service Worker 和资源清单重新验证；带哈希的资源与发布归档长期缓存。未知路径返回 404，各应用的 `.html` 入口保持原路径。本机部署会在 `.wrangler/release-archive` 保留并合并历史 `releases` 归档，避免旧会话失去固定版本。换机器或 CI 发布前须恢复该目录，不能只上传新构建。
+
 ## 静态部署
 
 构建结果位于 `apps/web-desktop/dist`。将整个目录作为同一版本原子部署到 HTTPS 来源；localhost 仅供本地开发与验证。浏览器需要 OPFS、IndexedDB、Web Locks、BroadcastChannel、MessageChannel、Web Components 和 Web Crypto。不支持时界面会列出缺失能力。

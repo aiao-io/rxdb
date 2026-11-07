@@ -22,11 +22,23 @@ describe('DESKTOP-US-502 离线安装失败不能永久等待', () => {
     failed.transition('redundant');
     await expect(failure).rejects.toThrow('OFFLINE');
   });
+  it('公网下载超过三十秒时继续等待，预算内激活仍可完成首次启动', async () => {
+    vi.useFakeTimers();
+    const ready = new InstallingWorker();
+    const pending = waitForActivation(ready);
+    const settled = vi.fn();
+    void pending.then(settled, settled);
+    await vi.advanceTimersByTimeAsync(30000);
+    expect(settled).not.toHaveBeenCalled();
+    ready.transition('activated');
+    await expect(pending).resolves.toBeUndefined();
+    expect(vi.getTimerCount()).toBe(0);
+  });
   it('超时或宿主销毁都会结束等待并清理监听', async () => {
     vi.useFakeTimers();
     const timed = waitForActivation(new InstallingWorker());
     const rejected = expect(timed).rejects.toThrow('TIMEOUT');
-    await vi.advanceTimersByTimeAsync(30000);
+    await vi.advanceTimersByTimeAsync(120000);
     await rejected;
     expect(vi.getTimerCount()).toBe(0);
     const controller = new AbortController();
