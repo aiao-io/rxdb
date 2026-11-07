@@ -82,10 +82,13 @@ describe('真实插件宿主的消息桥', () => {
     expect(f.channel.port1.close).toHaveBeenCalledOnce();
   });
 
-  it('宿主页地址带协议频道查询参数，绕开浏览器缓存的旧 308 重定向', () => {
-    const src = new URL(fixture().host.querySelector('iframe')!.src);
+  it('宿主页地址带协议频道查询参数，绕开浏览器缓存的旧 308 重定向', async () => {
+    const f = fixture();
+    const src = new URL(f.host.querySelector('iframe')!.src);
     expect(src.pathname).toBe('/assets/extension-host/index.html');
     expect(src.searchParams.get('channel')).toBe('aiao-vscode-extension-host-v1');
+    f.lifetime.abort();
+    await expect(f.pending).rejects.toThrow('已经释放');
   });
 
   it('文档、命令、光标和视区都有独立编号并等待实际回复', async () => {
