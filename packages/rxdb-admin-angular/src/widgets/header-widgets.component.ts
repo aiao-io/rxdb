@@ -40,8 +40,6 @@ export class AdminHeaderWidgetsComponent {
     const shortcut = this.shortcuts().find(info => info.id === 'palette');
     return shortcut?.enabled ? shortcut.keys : [];
   });
-  /** 可访问名称必须包含按钮上可见的全部文字（含键帽），否则语音控制用户喊不出按钮名（WCAG 2.5.3）。 */
-  protected readonly searchLabel = computed(() => [this.t('widget.search'), ...this.searchKeys()].join(' '));
   protected readonly themeLabel = computed(
     () => `${this.t('widget.theme')}：${this.shell.theme.label(this.prefs().theme.name)}`
   );
