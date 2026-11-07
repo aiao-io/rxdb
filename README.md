@@ -160,8 +160,9 @@ aiao/
 │   └── rxdb-devtools-extension-e2e/ # Devtools 扩展 E2E
 ├── benchmarks/                      # 性能测试
 ├── docker/                          # Docker 配置
-├── modules/                         # 内部共享模块（angular / angular-todo / e2e-parity / recipes-domain / rxdb-devtools-panel / wujie）
+├── modules/                         # 内部共享模块（angular / angular-todo / e2e-parity / recipes-domain / rxdb-devtools-panel / orbit）
 ├── packages/                        # 核心库
+│   ├── orbit/                       # Web 应用隔离运行内核（@aiao/orbit）
 │   ├── rxdb/                        # 核心：模型、查询、适配器接口
 │   ├── rxdb-adapter-wa-sqlite/      # WA SQLite 适配器
 │   ├── rxdb-adapter-sqlite/         # SQLite 官方适配器

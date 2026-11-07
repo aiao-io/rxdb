@@ -1,0 +1,65 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "// targets": "to see all targets run: nx show project web-desktop --web",
+  "name": "web-desktop",
+  "projectType": "application",
+  "sourceRoot": "apps/web-desktop/src",
+  "tags": [],
+  "targets": {
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/web-desktop",
+        "command": "eslint . --max-warnings=0"
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{projectRoot}/dist"],
+      "options": {
+        "cwd": "apps/web-desktop",
+        "command": "vite build",
+        "env": {
+          "NODE_ENV": "production"
+        }
+      },
+      "inputs": [
+        "production",
+        "^production",
+        {
+          "env": "DESKTOP_BASE"
+        }
+      ]
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "continuous": true,
+      "options": {
+        "cwd": "apps/web-desktop",
+        "command": "vite --host 127.0.0.1 --port 4300"
+      }
+    },
+    "preview": {
+      "executor": "nx:run-commands",
+      "continuous": true,
+      "options": {
+        "cwd": "apps/web-desktop",
+        "command": "vite preview --host 127.0.0.1 --port 4300"
+      }
+    },
+    "requirements-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/web-desktop",
+        "command": "node tools/requirements-check.mjs"
+      }
+    },
+    "e2e": {
+      "dependsOn": ["build"],
+      "options": {
+        "command": "playwright test --config playwright.config.ts",
+        "cwd": "apps/web-desktop"
+      }
+    }
+  }
+}
