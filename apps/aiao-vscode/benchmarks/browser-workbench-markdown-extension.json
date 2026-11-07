@@ -1,0 +1,29 @@
+{
+  "format": "aiao.workbench.markdown-extension",
+  "version": 1,
+  "extension": "shd101wyy.markdown-preview-enhanced@0.8.40",
+  "url": "http://localhost:4320/",
+  "status": "passed",
+  "checks": [
+    "formal-extension-html-list-code-image-katex-mermaid-from-unsaved-codemirror",
+    "monaco-switch-keeps-host-draft-and-live-update",
+    "monaco-bidirectional-scroll-keeps-focus",
+    "codemirror-switch-keeps-draft-and-host",
+    "bidirectional-scroll-without-moving-source-selection",
+    "preview-follows-active-markdown-without-stealing-focus",
+    "locked-preview-keeps-original-document",
+    "plugin-edit-enters-undoable-unsaved-buffer",
+    "native-preview-close-removes-outer-panel",
+    "chord-opens-side-preview",
+    "shortcut-opens-current-group-preview",
+    "context-menu-opens-preview",
+    "disable-reload-enable-keeps-unsaved-draft",
+    "explicit-save-keeps-preview-and-cleans-only-on-request",
+    "project-switch-disposes-and-reopens-new-runtime"
+  ],
+  "limitations": [
+    "TikZ 在线资源受 COEP 限制"
+  ],
+  "errors": [],
+  "browser": "156.0.8078.4"
+}

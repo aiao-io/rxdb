@@ -88,4 +88,6 @@ ${workbenchScmStyle}
 .wb-log-problem{padding:8px 6px;min-height:34px}
 .wb-dialog button{padding:10px 16px}
 .wb-panel-toolbar button,.wb-preview-toolbar button{padding:6px}}
+
+.ao-workbench .wb-extension-details{padding:14px;font-size:12px;line-height:1.6;overflow-wrap:anywhere}.ao-workbench .wb-extension-heading{display:flex;align-items:center;gap:8px}.ao-workbench .wb-extension-heading h3{font-size:14px;margin:0}.ao-workbench .wb-extension-heading>.codicon{font-size:28px}.ao-workbench .wb-extension-actions{display:flex;gap:8px;flex-wrap:wrap}.ao-workbench .wb-extension-actions button{padding:4px 10px;background:#0e639c;color:white;border:0;cursor:pointer}.ao-workbench .wb-extension-actions button:disabled{opacity:.5;cursor:default}.ao-workbench [data-extension-error]{color:#f48771;white-space:pre-wrap}
 `;

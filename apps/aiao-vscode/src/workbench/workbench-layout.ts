@@ -40,6 +40,7 @@ export function createWorkbenchLayout(host: HTMLElement, assetBaseURL: string): 
         <button aria-label="切换资源管理器" aria-pressed="true" data-action="explorer" title="资源管理器">${iconMarkup('files')}</button>
         <button aria-label="切换搜索" aria-pressed="false" data-action="search" title="搜索">${iconMarkup('search')}</button>
         <button aria-label="切换 Git 视图" aria-pressed="false" data-action="git" title="源代码管理">${iconMarkup('source-control')}<span class="wb-activity-badge" data-slot="scm-count" hidden>0</span></button>
+        <button aria-label="扩展" aria-pressed="false" data-action="extensions" title="扩展">${iconMarkup('extensions')}</button>
         <span class="wb-spacer"></span>
         <button aria-label="GitHub 帐户" data-action="github-account" title="GitHub 帐户" hidden>${iconMarkup('account')}<span class="wb-account-badge" data-slot="account-badge" hidden></span></button>
         <button aria-label="设置" data-action="settings" title="设置">${iconMarkup('settings-gear')}</button>
@@ -75,6 +76,7 @@ export function createWorkbenchLayout(host: HTMLElement, assetBaseURL: string): 
         </div></div>
         <div class="wb-tree" data-slot="files" role="tree" aria-label="项目文件树"></div>
         <div data-slot="search-view" hidden></div>
+        <div data-slot="extensions-view" hidden></div>
         <div data-slot="git-view" hidden>
           <div data-slot="scm"></div>
           <details class="wb-history" data-scm-group="history">

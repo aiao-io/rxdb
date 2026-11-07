@@ -1,3 +1,7 @@
+import { createMarkdownExtension, isMarkdownPath, type MarkdownExtensionOptions } from './extensions/markdown-extension.js';
+import { mountMarkdownRuntime } from './extensions/runtime-client.js';
+import { mountMarkdownExtensionView } from './extensions/extension-view.js';
+import { decodeFileBytes } from './git/file-encoding.js';
 import {
   createProjectCatalog,
   githubProjectInfo,
@@ -64,6 +68,8 @@ import { resolveTreeMove, treePathBase, treePathParent, type TreeMoveDecision } 
 /** 工作台的可注入服务与静态资源位置。 */
 export interface BrowserWorkbenchOptions {
   readonly assetBaseURL?: string;
+  /** 可注入正式扩展宿主加载器，默认运行独立同源页面。 */
+  readonly markdownRuntime?: MarkdownExtensionOptions['mount'];
   readonly initialProjectId?: string;
   readonly backend?: WorkbenchBackend;
   readonly compiler?: WorkbenchCompiler;
@@ -267,7 +273,12 @@ export function mountWorkbench(
       renderLogs();
       if (kind === 'terminal') void terminal.show().catch(report);
     },
+    onPreviewMarkdown(path) {
+      session.select(path);
+      action(() => markdownExtension.execute('markdown-preview-enhanced.openPreviewToTheSide'));
+    },
     onCloseAuxiliary(id) {
+      if (id === 'markdown-extension') markdownExtension.closePreview();
       diffs.get(id)?.view?.dispose();
       diffs.delete(id);
     },
@@ -337,6 +348,55 @@ export function mountWorkbench(
       githubSession = session;
       renderAccountState();
     });
+  }
+  const markdownEnabledKey = 'aiao-workbench:extensions:shd101wyy.markdown-preview-enhanced:enabled';
+  let markdownError = '';
+  const markdownExtension = createMarkdownExtension({
+    enabled: localStorage.getItem(markdownEnabledKey) !== 'false',
+    getHost: side => docking.ensureAuxiliary('markdown-extension', 'Markdown Preview Enhanced', side ? 'right' : 'within'),
+    mount: options.markdownRuntime ?? ((host, runtimeOptions) => mountMarkdownRuntime(host, runtimeOptions, base)),
+    onEdit(path, content) {
+      const editor = editors.get(path);
+      if (editor) editor.handle.replace(content);
+      else session.edit(path, content);
+    },
+    onSave: path => session.save([path]),
+    async onWrite(path, bytes) {
+      const content = decodeFileBytes(path, bytes);
+      if (typeof content === 'string') {
+        session.edit(path, content);
+        await session.save([path]);
+      } else await session.applyExternalFiles({ [path]: content }, []);
+      await refreshGit();
+    },
+    onReveal(path, line) {
+      session.select(path);
+      docking.selectEditor(path);
+      editors.get(path)?.handle.runCommand?.('gotoLineAt', line);
+      focusEditor(path);
+    },
+    onScroll(path, line) { editors.get(path)?.handle.scrollToLine?.(line); },
+    onError(error) { markdownError = messageFor(error); renderMarkdownExtension(); report(error); },
+    onStatus(status) {
+      if (status !== 'failed') markdownError = '';
+      if (status === 'disabled' || status === 'idle') docking.removeAuxiliary('markdown-extension');
+      renderMarkdownExtension();
+    }
+  });
+  const markdownExtensionView = mountMarkdownExtensionView(element('[data-slot="extensions-view"]'), {
+    onToggle() {
+      try {
+        const next = !markdownExtension.enabled;
+        localStorage.setItem(markdownEnabledKey, String(next));
+        markdownExtension.setEnabled(next);
+        renderMarkdownExtension();
+      } catch (error) { report(error); }
+    },
+    onPreview: () => action(() => markdownExtension.execute('markdown-preview-enhanced.openPreviewToTheSide'))
+  });
+  function renderMarkdownExtension(): void {
+    markdownExtensionView.render({ enabled: markdownExtension.enabled, status: markdownExtension.status, markdown: isMarkdownPath(session.state.activePath), error: markdownError });
+    for (const button of root.querySelectorAll<HTMLButtonElement>('[data-markdown-preview]')) button.disabled = !markdownExtension.enabled;
   }
   const layoutChanges = docking.api.onDidLayoutChange(() => {
     queueMicrotask(() => {
@@ -1747,6 +1807,7 @@ export function mountWorkbench(
     if (!editorHost) return;
     event.preventDefault();
     showContextMenu({ x: event.clientX, y: event.clientY }, [
+      ...(isMarkdownPath(editorHost.dataset['editorPath']) && markdownExtension.enabled ? [{ label: 'Markdown Preview Enhanced: 打开侧边预览', action: () => action(() => markdownExtension.execute('markdown-preview-enhanced.openPreviewToTheSide')) }] : []),
       { label: '格式化文档', action: () => void formatSource().catch(report) },
       { label: '转到行', action: () => editorCommand('gotoLine') },
       { label: '命令面板', action: () => commands.showCommandPalette() }
@@ -1801,8 +1862,10 @@ export function mountWorkbench(
           engine: editorEngine,
           indentUnit,
           onChange: content => session.edit(path, content),
+          onViewport: viewport => { if (session.state.activePath === path) markdownExtension.viewport(viewport); },
           onCursor: (line, column) => {
             element('[data-slot="cursor"]').textContent = `行 ${line}，列 ${column}`;
+            if (session.state.activePath === path) markdownExtension.cursor(line, column);
           }
         });
         editor = { host: parent, handle };
@@ -1842,8 +1905,12 @@ export function mountWorkbench(
       flushLayout();
       savedLayout = '';
     }
+    if (state.projectId) markdownExtension.sync({ projectId: state.projectId, activePath: state.activePath, files: state.files, savedFiles: session.getSavedSnapshot().files });
+    renderMarkdownExtension();
     renderFiles(state);
     renderEditors(state);
+    const viewport = state.activePath ? editors.get(state.activePath)?.handle.getViewport?.() : undefined;
+    if (viewport) markdownExtension.viewport(viewport);
     renderStatus();
     search.refresh(state.files);
     element('[data-slot="language"]').textContent = state.activePath ? languageLabel(state.activePath) : '纯文本';
@@ -2314,19 +2381,22 @@ export function mountWorkbench(
     sideView = view;
     const isExplorer = view === 'explorer';
     const isSearch = view === 'search';
+    const isExtensions = view === 'extensions';
+    element('[data-slot="extensions-view"]').hidden = !isExtensions;
     element('[data-slot="files"]').hidden = !isExplorer;
-    element('[data-slot="git-view"]').hidden = isExplorer || isSearch;
+    element('[data-slot="git-view"]').hidden = view !== 'git';
     element('[data-slot="search-view"]').hidden = !isSearch;
     for (const actions of root.querySelectorAll<HTMLElement>('.wb-side-actions[data-view]'))
       actions.hidden = actions.dataset['view'] !== view;
     const title =
       isExplorer ? '资源管理器'
       : isSearch ? '搜索'
+      : isExtensions ? '扩展'
       : '源代码管理';
     element('[data-slot="side-title"]').textContent = title;
     element('.wb-side').setAttribute('aria-label', title);
     for (const button of root.querySelectorAll<HTMLElement>(
-      '[data-action="explorer"],[data-action="search"],[data-action="git"]'
+      '[data-action="explorer"],[data-action="search"],[data-action="git"],[data-action="extensions"]'
     ))
       button.setAttribute('aria-pressed', String(visible && button.dataset['action'] === view));
     const sidebarButton = root.querySelector<HTMLElement>('[data-action="toggle-sidebar"]');
@@ -2351,7 +2421,7 @@ export function mountWorkbench(
       event.target instanceof Element ? event.target.closest<HTMLElement>('[data-action],[data-panel]') : null;
     if (!target) return;
     const name = target.dataset['action'];
-    if (name === 'explorer' || name === 'search' || name === 'git') {
+    if (name === 'explorer' || name === 'search' || name === 'git' || name === 'extensions') {
       switchSide(name);
       return;
     }
@@ -2433,14 +2503,17 @@ export function mountWorkbench(
         ['nextEditor', '查看: 打开下一个编辑器', 'Ctrl + Tab', () => cycleEditor(1)],
         ['prevEditor', '查看: 打开上一个编辑器', 'Ctrl + Shift + Tab', () => cycleEditor(-1)]
       ];
-      return definitions
+      const extensionCommands: WorkbenchCommand[] = isMarkdownPath(session.state.activePath) ? markdownExtension.commands.map(command => ({ ...command, run: async () => {
+        try { await markdownExtension.execute(command.id); } catch (error) { markdownError = messageFor(error); renderMarkdownExtension(); throw error; }
+      } })) : [];
+      return [...extensionCommands, { id: 'showExtensions', label: '查看: 扩展', run: () => switchSide('extensions', true) }, ...definitions
         .filter(([id]) => !scmBusy || !gitCommands.has(id))
         .map(([id, label, keybinding, operation]): WorkbenchCommand => ({
           id,
           label,
           keybinding,
           run: invoke(id, operation)
-        }));
+        }))];
     }
   });
   const releaseState = session.subscribe(render);
@@ -2492,6 +2565,8 @@ export function mountWorkbench(
       disposed = true;
       closeContextMenu();
       releaseState();
+      markdownExtension.dispose();
+      markdownExtensionView.dispose();
       commands.dispose();
       scm.dispose();
       search.dispose();

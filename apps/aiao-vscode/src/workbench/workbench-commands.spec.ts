@@ -515,3 +515,32 @@ describe('VS Code 文件与命令快捷入口', () => {
     expect(root.querySelector('.wb-quick-input')).not.toBeNull();
   });
 });
+
+describe('Markdown 插件的 VS Code 快捷键', () => {
+  it('预览快捷键与侧边预览组合键调用已注册插件命令', () => {
+    const f = fixture();
+    const preview = vi.fn();
+    const side = vi.fn();
+    f.commands.push(
+      { id: 'markdown-preview-enhanced.openPreview', label: 'Markdown: 打开预览', run: preview },
+      { id: 'markdown-preview-enhanced.openPreviewToTheSide', label: 'Markdown: 打开侧边预览', run: side }
+    );
+    expect(f.key(f.editor, 'v', { ctrlKey: true, shiftKey: true }).defaultPrevented).toBe(true);
+    expect(preview).toHaveBeenCalledOnce();
+    expect(f.key(f.editor, 'k', { metaKey: true }).defaultPrevented).toBe(true);
+    expect(f.key(f.editor, 'v').defaultPrevented).toBe(true);
+    expect(side).toHaveBeenCalledOnce();
+  });
+
+  it('没有插件命令时保留按键，组合键遇到其他键会取消', () => {
+    const f = fixture();
+    expect(f.key(f.editor, 'v', { ctrlKey: true, shiftKey: true }).defaultPrevented).toBe(false);
+    expect(f.key(f.editor, 'k', { ctrlKey: true }).defaultPrevented).toBe(false);
+    const side = vi.fn();
+    f.commands.push({ id: 'markdown-preview-enhanced.openPreviewToTheSide', label: '侧边预览', run: side });
+    f.key(f.editor, 'k', { ctrlKey: true });
+    f.key(f.editor, 'a');
+    f.key(f.editor, 'v');
+    expect(side).not.toHaveBeenCalled();
+  });
+});

@@ -93,6 +93,8 @@ export function mountSwitchableEditor(
       diagnostics = next;
       current?.setDiagnostics?.(next);
     },
+    getViewport: () => current?.getViewport?.(),
+    scrollToLine: line => current?.scrollToLine?.(line),
     getViewState: () => current?.getViewState?.() ?? viewState ?? { anchor: 0, head: 0, scrollTop: 0, scrollLeft: 0 },
     restoreViewState(state) {
       viewState = state;

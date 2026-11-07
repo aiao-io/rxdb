@@ -13,7 +13,15 @@
 
 切换保留已打开标签、未保存文本、选区和滚动位置；旧编辑器实例会释放，撤销历史在切换后重新开始。
 两种编辑器共用工作台的保存、格式化、诊断和快捷命令。Monaco 按需加载，语言服务 Worker 与字体资源自托管。
-Vue 文件在 Monaco 中暂按 HTML 语法展示；完整 Vue 语言服务和 VS Code 插件宿主另行评估。
+Vue 文件在 Monaco 中暂按 HTML 语法展示；完整 Vue 语言服务另行评估。
+
+## Markdown 插件预览
+
+已预装 `shd101wyy.markdown-preview-enhanced@0.8.40`，默认启用。左侧「扩展」可以查看加载状态、启用或禁用。
+打开 `.md` 文件后，点击文档标签栏「打开 Markdown 侧边预览」，或按 `Ctrl/⌘ + K` 后按 `V`；`Ctrl/⌘ + Shift + V` 在当前组打开预览。编辑区右键和命令面板也提供入口。
+
+预览实时读取未保存草稿，支持 HTML、相对图片、Mermaid 和 KaTeX；CodeMirror / Monaco 都可使用，切换编辑器保留预览宿主。工作台全局「打开预览」用于运行项目，Markdown 预览使用文档标签栏入口。
+实现、可重跑验收和浏览器限制见 [Markdown 扩展加载与使用](requirements/markdown-extension-implementation.md)。
 
 ## 开发与构建
 
@@ -21,6 +29,7 @@ Vue 文件在 Monaco 中暂按 HTML 语法展示；完整 Vue 语言服务和 VS
 pnpm nx serve aiao-vscode          # 开发服务器 http://localhost:4320
 pnpm nx build aiao-vscode          # 生产构建（默认配置，含 Service Worker）
 pnpm nx test aiao-vscode           # 内核 + Angular 外壳单测（vitest）
+pnpm nx run aiao-vscode:verify-markdown-extension  # 已启动开发服务器时验证正式 Markdown 插件
 pnpm nx run aiao-vscode:test-browser  # 真实 Chromium 探针（Git / 预览 / Angular）
 pnpm nx e2e aiao-vscode-e2e        # Playwright e2e：四模板编辑 / 运行 / 提交 / 归档，布局 / 草稿 / 偏好恢复与分组预览标签
 ```

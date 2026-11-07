@@ -6,7 +6,7 @@ import { CompilationError } from './compiler/compiler-types.js';
 import type { WorkbenchEditorMount } from './editor.js';
 import type { GitHubApi } from './git/github/github-api.js';
 import type { GitHubAuth } from './git/github/github-auth.js';
-import { mountWorkbench, type WorkbenchHandle } from './mount.js';
+import { mountWorkbench, type BrowserWorkbenchOptions, type WorkbenchHandle } from './mount.js';
 import type { WorkbenchBackend, WorkbenchDiff, WorkbenchFiles, WorkbenchSnapshot } from './session.js';
 import { createWorkbenchRecoveryJournal } from './workbench-recovery.js';
 
@@ -16,6 +16,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   Reflect.deleteProperty(window, 'showDirectoryPicker');
   window.sessionStorage.clear();
+  localStorage.removeItem('aiao-workbench:extensions:shd101wyy.markdown-preview-enhanced:enabled');
   document.body.replaceChildren();
 });
 
@@ -27,7 +28,8 @@ function fixture(
   extraProjects: readonly WorkbenchProjectInfo[] = [],
   initialFiles: WorkbenchFiles = files,
   github?: { auth: GitHubAuth; api?: GitHubApi },
-  preferences: WorkbenchPreferences | null = null
+  preferences: WorkbenchPreferences | null = null,
+  markdownRuntime?: BrowserWorkbenchOptions['markdownRuntime']
 ) {
   let currentFiles: WorkbenchFiles = { ...initialFiles };
   let revision = 1;
@@ -127,6 +129,7 @@ function fixture(
       compiler,
       catalog,
       assetBaseURL,
+      markdownRuntime,
       ...(withProject ? { initialProjectId: 'one' } : {}),
       ...(github?.auth ? { githubAuth: github.auth } : {}),
       ...(github?.api ? { githubApi: github.api } : {})
@@ -2442,5 +2445,42 @@ describe('vscode.dev 起始页对齐', () => {
     expect(host.querySelector('[data-slot="indent"]')?.textContent).toBe('空格: 4');
     await click(host, '[data-action="git"]');
     expect(host.querySelector('.wb-scm')?.classList.contains('wb-scm-show-actions')).toBe(true);
+  });
+});
+
+
+describe('Markdown 扩展的实际工作台入口', () => {
+  it('编辑器标题动作加载正式宿主边界，传入草稿和独立保存快照', async () => {
+    const runtime = { sync: vi.fn(async () => undefined), execute: vi.fn(async () => undefined), dispose: vi.fn() };
+    const mount = vi.fn<NonNullable<BrowserWorkbenchOptions['markdownRuntime']>>(async () => runtime);
+    const f = fixture(true, '/browser-workbench-assets/', undefined, [], { ...files, 'README.md': '# 保存版本' }, undefined, null, mount);
+    await f.handle.ready;
+    f.handle.session.select('README.md');
+    f.handle.session.edit('README.md', '# 未保存版本');
+    await click(f.host, '[data-markdown-preview]:not([hidden])');
+    await vi.waitFor(() => expect(runtime.execute).toHaveBeenCalledWith('markdown-preview-enhanced.openPreviewToTheSide'));
+    const snapshot = mount.mock.calls[0][1].snapshot;
+    expect(snapshot.files['README.md']).toBe('# 未保存版本');
+    expect(snapshot.savedFiles['README.md']).toBe('# 保存版本');
+    expect(f.backend.save).not.toHaveBeenCalled();
+    expect(f.host.querySelector('[data-auxiliary-id="markdown-extension"]')).not.toBeNull();
+    f.handle.session.edit('README.md', '# 继续输入');
+    await vi.waitFor(() => expect(runtime.sync).toHaveBeenLastCalledWith(expect.objectContaining({ files: expect.objectContaining({ 'README.md': '# 继续输入' }) })));
+  });
+
+  it('扩展侧栏可禁用且刷新挂载后保留，重新启用恢复预览入口', async () => {
+    const f = fixture(true, '/browser-workbench-assets/', undefined, [], { ...files, 'README.md': '# 标题' });
+    await f.handle.ready;
+    f.handle.session.select('README.md');
+    await click(f.host, '[data-action="extensions"]');
+    expect(f.host.querySelector('[data-slot="extensions-view"]')?.hasAttribute('hidden')).toBe(false);
+    await click(f.host, '[data-extension-toggle]');
+    expect(f.host.querySelector('[data-extension-status]')?.textContent).toBe('已禁用');
+    expect(f.host.querySelector<HTMLButtonElement>('[data-markdown-preview]:not([hidden])')?.disabled).toBe(true);
+    const next = fixture();
+    await next.handle.ready;
+    expect(next.host.querySelector('[data-extension-status]')?.textContent).toBe('已禁用');
+    await click(next.host, '[data-extension-toggle]');
+    expect(next.host.querySelector('[data-extension-status]')?.textContent).toContain('已启用');
   });
 });
