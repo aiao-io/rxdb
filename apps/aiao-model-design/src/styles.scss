@@ -1,0 +1,10 @@
+@use 'tailwindcss';
+@import '@angular/cdk/overlay-prebuilt.css';
+@import '../../../packages/rxdb-model-angular/tailwind.css';
+@source '.';
+@plugin 'daisyui' { themes: light --default, dark --prefersdark; }
+
+html, body { height: 100%; margin: 0; overflow: hidden; font-family: system-ui, sans-serif; }
+.full-page { position: absolute; inset: 0; overflow: hidden; }
+.cdk-overlay-pane { max-height: 95dvh; }
+.cdk-dialog-container { display: block; max-height: 95dvh; overflow: auto; }

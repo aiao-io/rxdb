@@ -1,0 +1,113 @@
+<section
+  class="bg-base-100 text-base-content max-h-[90dvh] w-[min(42rem,calc(100vw-2rem))] overflow-y-auto rounded-lg p-6 shadow-xl"
+  data-testid="version-manager-dialog-surface"
+>
+  <h3 class="text-lg font-bold">{{ t().versionManager.title }}</h3>
+
+  <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <div>
+      <span class="text-base-content/60 text-xs">{{ t().versionManager.targetLabel }}</span>
+      <select
+        class="select select-sm select-bordered w-full"
+        [attr.aria-label]="t().versionManager.targetLabel"
+        (change)="onTargetChange($event)"
+      >
+        <option value="">{{ t().versionManager.selectPlaceholder }}</option>
+        @for (design of designs(); track design.id) {
+          <option [value]="design.id">{{ design.name }}</option>
+        }
+      </select>
+    </div>
+
+    <div>
+      <span class="text-base-content/60 text-xs">{{ t().versionManager.snapshotLabel }}</span>
+      <select
+        class="select select-sm select-bordered w-full"
+        [attr.aria-label]="t().versionManager.snapshotLabel"
+        (change)="onSnapshotChange($event)"
+      >
+        <option value="">{{ t().versionManager.selectPlaceholder }}</option>
+        @for (design of designs(); track design.id) {
+          <option [value]="design.id">{{ design.name }}</option>
+        }
+      </select>
+    </div>
+  </div>
+
+  @if (diff(); as d) {
+    <div class="mt-4 space-y-3 text-sm">
+      <div>
+        <span class="text-success font-semibold">{{ t().versionManager.addedEntities }} ({{ d.added.length }})</span>
+        <ul class="list-disc pl-5">
+          @for (entry of d.added; track entry.name) {
+            <li>{{ entry.name }}</li>
+          }
+        </ul>
+      </div>
+      <div>
+        <span class="text-error font-semibold">{{ t().versionManager.removedEntities }} ({{ d.removed.length }})</span>
+        <ul class="list-disc pl-5">
+          @for (entry of d.removed; track entry.name) {
+            <li>{{ entry.name }}</li>
+          }
+        </ul>
+      </div>
+      <div>
+        <span class="font-semibold">{{ t().versionManager.commonEntities }} ({{ d.common.length }})</span>
+
+        <!-- 字段级差异（US-103 AC#2）：只列真有变化的实体，无差异的不摊开 -->
+        @if (fieldDiffs().length > 0) {
+          <div class="mt-2 space-y-2">
+            @for (item of fieldDiffs(); track item.entity.name) {
+              <div class="border-base-300 rounded border p-2">
+                <p class="font-medium">{{ item.entity.name }} — {{ t().versionManager.fieldChanges }}</p>
+
+                @if (item.diff.added.length > 0) {
+                  <p class="text-success mt-1 text-xs">
+                    {{ t().versionManager.fieldAdded }}:
+                    @for (p of item.diff.added; track p.name) {
+                      <span class="ms-1">{{ p.name }}</span>
+                    }
+                  </p>
+                }
+                @if (item.diff.removed.length > 0) {
+                  <p class="text-error mt-1 text-xs">
+                    {{ t().versionManager.fieldRemoved }}:
+                    @for (p of item.diff.removed; track p.name) {
+                      <span class="ms-1">{{ p.name }}</span>
+                    }
+                  </p>
+                }
+                @if (item.diff.changed.length > 0) {
+                  <p class="text-warning mt-1 text-xs">
+                    {{ t().versionManager.fieldChanged }}:
+                    @for (p of item.diff.changed; track p.name) {
+                      <span class="ms-1">{{ p.name }} ({{ p.changedFields.join(', ') }})</span>
+                    }
+                  </p>
+                }
+              </div>
+            }
+          </div>
+        } @else if (d.common.length > 0) {
+          <p class="text-base-content/60 mt-1 text-xs">{{ t().versionManager.noFieldChange }}</p>
+        }
+      </div>
+    </div>
+  } @else {
+    <p class="text-base-content/60 mt-4 text-sm">{{ t().versionManager.noDiff }}</p>
+  }
+
+  @if (error(); as err) {
+    <p class="text-error mt-2 text-sm">{{ err }}</p>
+  }
+
+  <div class="modal-action">
+    <button class="btn btn-sm" (click)="onClose()" type="button">
+      {{ t().versionManager.closeButton }}
+    </button>
+    <button class="btn btn-sm btn-error" [disabled]="!canRollback()" (click)="onRollback()" type="button">
+      {{ t().versionManager.rollbackButton }}
+    </button>
+  </div>
+</section>

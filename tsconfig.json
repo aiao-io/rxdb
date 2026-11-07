@@ -287,6 +287,9 @@
     },
     {
       "path": "./apps/dev-rxdb-p2p"
+    },
+    {
+      "path": "./apps/aiao-model-design"
     }
   ]
 }

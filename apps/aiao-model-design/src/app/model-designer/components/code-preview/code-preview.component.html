@@ -1,0 +1,84 @@
+<div class="bg-base-200 border-base-300 border-t" [class.hidden]="!isOpen()">
+  <div class="border-base-300 flex flex-wrap items-center gap-2 border-b px-4 py-1">
+    <span class="text-sm font-semibold">{{ t().codePreview.title }}</span>
+    <div class="flex-1"></div>
+
+    @if (errors().length > 0) {
+      <span class="badge badge-error badge-sm">{{ errors().length }} {{ t().codePreview.errors }}</span>
+    }
+
+    <div class="join" role="tablist">
+      @for (file of files(); track file.path; let i = $index) {
+        <button
+          class="btn join-item btn-xs"
+          [attr.aria-selected]="activeTab() === i"
+          [class.btn-active]="activeTab() === i"
+          (click)="activeTab.set(i)"
+          role="tab"
+        >
+          {{ fileName(file.path) }}
+        </button>
+      }
+    </div>
+
+    <label class="input input-sm w-64 max-w-full">
+      <span class="label">{{ t().codePreview.packageName }}</span>
+      <input
+        [attr.placeholder]="t().codePreview.packageNamePlaceholder"
+        [value]="packageName()"
+        (input)="onPackageNameInput($event)"
+        data-testid="client-package-name"
+        type="text"
+      />
+    </label>
+    @if (packageVersion(); as version) {
+      <span class="badge badge-success badge-sm">{{ t().codePreview.packageVersion }} {{ version }}</span>
+    }
+    <button
+      class="btn btn-sm btn-secondary"
+      [disabled]="packageBusy() || files().length === 0"
+      (click)="archivePackage.emit()"
+      data-testid="client-package-archive"
+      type="button"
+    >
+      {{ packageBusy() ? t().codePreview.archiving : t().codePreview.archivePackage }}
+    </button>
+    <button
+      class="btn btn-sm btn-accent"
+      [disabled]="packageBusy() || files().length === 0"
+      (click)="publishPackage.emit()"
+      data-testid="client-package-publish"
+      type="button"
+    >
+      {{ packageBusy() ? t().codePreview.publishing : t().codePreview.publishPackage }}
+    </button>
+
+    <button class="btn btn-sm btn-primary" [disabled]="files().length === 0" (click)="download.emit()">
+      {{ t().codePreview.downloadZip }}
+    </button>
+    <button class="btn btn-sm btn-ghost" [attr.aria-label]="t().codePreview.ariaClose" (click)="isOpen.set(false)">
+      ✕
+    </button>
+  </div>
+
+  @if (errors().length > 0) {
+    <div class="bg-error/10 p-3 text-sm" role="alert">
+      <ul class="list-disc pl-4">
+        @for (err of errors(); track err) {
+          <li class="text-error">{{ err }}</li>
+        }
+      </ul>
+    </div>
+  }
+  @if (activeFile(); as file) {
+    <div class="max-h-80 overflow-auto" role="tabpanel">
+      <ao-code-editor
+        [language]="fileLanguage()"
+        [lineWrapping]="true"
+        [readonly]="true"
+        [value]="file.content"
+        setup="basic"
+      />
+    </div>
+  }
+</div>

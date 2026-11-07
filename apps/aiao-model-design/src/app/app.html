@@ -1,0 +1,4 @@
+<main class="designer-workspace" [style.margin-right.px]="drawer.isOpen() ? drawer.drawerWidth() : 0"><router-outlet /></main>
+@defer (when drawer.isOpen(); prefetch on idle) {
+  <aiao-ai-drawer />
+}

@@ -1,0 +1,163 @@
+<section
+  class="bg-base-100 text-base-content max-h-[90dvh] w-[min(42rem,calc(100vw-2rem))] overflow-y-auto rounded-lg shadow-xl"
+  data-testid="sql-execution-dialog-surface"
+>
+  <header class="border-base-300 flex items-center gap-3 border-b px-5 py-4">
+    <lucide-icon class="text-primary h-5 w-5 shrink-0" [img]="DatabaseZap" aria-hidden="true" />
+    <h2 class="min-w-0 flex-1 text-base font-semibold">{{ t().sqlExecution.title }}</h2>
+    <button
+      class="btn btn-ghost btn-square btn-sm"
+      [attr.aria-label]="t().sqlExecution.close"
+      [disabled]="busy()"
+      [title]="t().sqlExecution.close"
+      (click)="onClose()"
+      type="button"
+    >
+      <lucide-icon class="h-4 w-4" [img]="X" aria-hidden="true" />
+    </button>
+  </header>
+
+  <div class="min-h-52 px-5 py-5" aria-live="polite">
+    @if (state(); as current) {
+      @switch (current.phase) {
+        @case ('idle') {
+          <div class="flex min-h-40 items-center justify-center">
+            <span class="loading loading-spinner loading-md" [attr.aria-label]="t().sqlExecution.preflighting"></span>
+          </div>
+        }
+        @case ('preflighting') {
+          <div class="flex min-h-40 flex-col items-center justify-center gap-3 text-center">
+            <lucide-icon class="text-primary h-7 w-7 animate-spin" [img]="LoaderCircle" aria-hidden="true" />
+            <p class="font-medium">{{ t().sqlExecution.preflighting }}</p>
+            <p class="text-base-content/60 text-sm">{{ t().sqlExecution.rollbackOnly }}</p>
+          </div>
+        }
+        @case ('ready') {
+          <div class="space-y-4">
+            @if (current.preview.destructive) {
+              <div class="alert alert-error items-start" role="alert">
+                <lucide-icon class="mt-0.5 h-5 w-5 shrink-0" [img]="CircleAlert" aria-hidden="true" />
+                <div>
+                  <h3 class="font-semibold">{{ t().sqlExecution.destructiveTitle }}</h3>
+                  <p class="mt-1 text-sm">{{ t().sqlExecution.destructiveWarning }}</p>
+                  <p class="mt-2 font-medium">{{ t().sqlExecution.backupWarning }}</p>
+                </div>
+              </div>
+            } @else {
+              <div class="flex items-start gap-3">
+                <lucide-icon class="text-success mt-0.5 h-5 w-5 shrink-0" [img]="CircleCheck" aria-hidden="true" />
+                <div>
+                  <h3 class="font-semibold">{{ t().sqlExecution.ready }}</h3>
+                  <p class="text-base-content/70 mt-1 text-sm">{{ t().sqlExecution.safeConfirmation }}</p>
+                </div>
+              </div>
+            }
+
+            <dl class="border-base-300 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 border-y py-3 text-sm">
+              <dt class="text-base-content/60">{{ t().sqlExecution.statementCount }}</dt>
+              <dd class="font-medium">{{ current.preview.statementCount }}</dd>
+              <dt class="text-base-content/60">{{ t().sqlExecution.affectedTables }}</dt>
+              <dd class="min-w-0">
+                @if (current.preview.affectedTables.length > 0) {
+                  <ul class="flex flex-wrap gap-1.5">
+                    @for (table of current.preview.affectedTables; track table) {
+                      <li class="badge badge-outline badge-sm max-w-full break-all">{{ table }}</li>
+                    }
+                  </ul>
+                } @else {
+                  <span>{{ t().sqlExecution.noAffectedTables }}</span>
+                }
+              </dd>
+            </dl>
+          </div>
+        }
+        @case ('executing') {
+          <div class="flex min-h-40 flex-col items-center justify-center gap-3 text-center">
+            <lucide-icon class="text-primary h-7 w-7 animate-spin" [img]="LoaderCircle" aria-hidden="true" />
+            <p class="font-medium">{{ t().sqlExecution.executing }}</p>
+          </div>
+        }
+        @case ('preflight-error') {
+          <div class="alert alert-error items-start" role="alert">
+            <lucide-icon class="mt-0.5 h-5 w-5 shrink-0" [img]="CircleAlert" aria-hidden="true" />
+            <div class="min-w-0">
+              <h3 class="font-semibold">{{ t().sqlExecution.preflightFailed }}</h3>
+              <p class="mt-1 text-sm break-words">{{ current.message }}</p>
+              <p class="mt-2 text-sm">{{ t().sqlExecution.sqlRetained }}</p>
+            </div>
+          </div>
+        }
+        @case ('execution-error') {
+          <div class="alert alert-error items-start" role="alert">
+            <lucide-icon class="mt-0.5 h-5 w-5 shrink-0" [img]="CircleAlert" aria-hidden="true" />
+            <div class="min-w-0">
+              <h3 class="font-semibold">{{ t().sqlExecution.executionFailed }}</h3>
+              <p class="mt-1 text-sm break-words">{{ current.message }}</p>
+              <p class="mt-2 text-sm">{{ t().sqlExecution.sqlRetained }}</p>
+            </div>
+          </div>
+        }
+        @case ('execution-unknown') {
+          <div class="alert alert-warning items-start" role="alert">
+            <lucide-icon class="mt-0.5 h-5 w-5 shrink-0" [img]="CircleAlert" aria-hidden="true" />
+            <div class="min-w-0">
+              <h3 class="font-semibold">{{ t().sqlExecution.outcomeUnknown }}</h3>
+              <p class="mt-1 text-sm break-words">{{ current.message }}</p>
+              <p class="mt-2 text-sm font-medium">{{ t().sqlExecution.compareBeforeContinuing }}</p>
+            </div>
+          </div>
+        }
+        @case ('success') {
+          <div class="flex min-h-40 flex-col items-center justify-center gap-3 text-center">
+            <lucide-icon class="text-success h-9 w-9" [img]="CircleCheck" aria-hidden="true" />
+            <h3 class="text-lg font-semibold">{{ t().sqlExecution.successTitle }}</h3>
+            <p class="text-base-content/70 text-sm">
+              {{ t().sqlExecution.successMessage.replace('{count}', current.result.affectedTables.length.toString()) }}
+            </p>
+          </div>
+        }
+      }
+    }
+  </div>
+
+  <footer class="border-base-300 flex min-h-16 items-center justify-end gap-2 border-t px-5 py-3">
+    @if (state(); as current) {
+      @switch (current.phase) {
+        @case ('ready') {
+          <button class="btn btn-sm" (click)="onClose()" type="button">{{ t().sqlExecution.cancel }}</button>
+          <button
+            class="btn btn-sm"
+            [attr.data-testid]="current.preview.destructive ? 'confirm-destructive' : null"
+            [class.btn-error]="current.preview.destructive"
+            [class.btn-primary]="!current.preview.destructive"
+            (click)="onExecute(current.preview.destructive)"
+            type="button"
+          >
+            <lucide-icon class="h-4 w-4" [img]="DatabaseZap" aria-hidden="true" />
+            {{ current.preview.destructive ? t().sqlExecution.confirmDestructive : t().sqlExecution.execute }}
+          </button>
+        }
+        @case ('preflight-error') {
+          <button class="btn btn-sm" (click)="onClose()" type="button">{{ t().sqlExecution.cancel }}</button>
+          <button class="btn btn-primary btn-sm" (click)="onRetry()" type="button">
+            <lucide-icon class="h-4 w-4" [img]="RotateCcw" aria-hidden="true" />
+            {{ t().sqlExecution.retry }}
+          </button>
+        }
+        @case ('execution-error') {
+          <button class="btn btn-sm" (click)="onClose()" type="button">{{ t().sqlExecution.close }}</button>
+          <button class="btn btn-primary btn-sm" (click)="onRetry()" type="button">
+            <lucide-icon class="h-4 w-4" [img]="RotateCcw" aria-hidden="true" />
+            {{ t().sqlExecution.retry }}
+          </button>
+        }
+        @case ('execution-unknown') {
+          <button class="btn btn-primary btn-sm" (click)="onClose()" type="button">{{ t().sqlExecution.close }}</button>
+        }
+        @case ('success') {
+          <button class="btn btn-primary btn-sm" (click)="onClose()" type="button">{{ t().sqlExecution.close }}</button>
+        }
+      }
+    }
+  </footer>
+</section>

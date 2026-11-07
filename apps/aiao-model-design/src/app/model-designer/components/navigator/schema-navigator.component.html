@@ -1,0 +1,59 @@
+<div
+  class="border-base-300 bg-base-100 flex h-full w-72 max-w-[calc(100vw-3rem)] flex-col border-r lg:w-56 lg:max-w-none"
+>
+  <!-- Schema Root -->
+  <div
+    class="border-base-300 text-base-content/70 flex items-center justify-between border-b px-2 py-2 text-xs font-medium"
+  >
+    <div class="flex items-center gap-1.5 overflow-hidden">
+      <lucide-icon class="h-4 w-4 shrink-0" [img]="Database" />
+      <span class="truncate">{{ schema()?.name ?? 'Schema' }}</span>
+    </div>
+    <button
+      class="btn btn-ghost btn-square text-primary min-h-11 min-w-11 shrink-0 lg:min-h-6 lg:min-w-6"
+      [attr.aria-label]="t().tableView.newTab"
+      (click)="entityCreated.emit()"
+    >
+      <lucide-icon class="h-4 w-4" [img]="Plus" />
+    </button>
+  </div>
+
+  <!-- Entity Tree -->
+  <div class="flex-1 overflow-y-auto">
+    @if (entities().length === 0) {
+      <div class="text-base-content/40 p-4 text-center text-xs">{{ t().navigator.empty }}</div>
+    } @else {
+      <ul class="menu lg:menu-xs w-full p-1 text-sm lg:p-0">
+        @for (group of groupedEntities(); track group.namespace) {
+          <li>
+            <details open>
+              <summary class="font-medium opacity-70">
+                <lucide-icon class="h-3.5 w-3.5" [img]="Folder" />
+                {{ group.namespace }}
+              </summary>
+              <ul>
+                @for (entity of group.entities; track entity.id) {
+                  <li>
+                    <button
+                      class="min-h-11 lg:min-h-0"
+                      [class.menu-active]="selectedEntityIds().has(entity.id)"
+                      (click)="onEntityClick(entity.id)"
+                    >
+                      <lucide-icon class="h-3.5 w-3.5 opacity-80" [img]="Table2" />
+                      <span class="truncate">{{ entity.name }}</span>
+                    </button>
+                  </li>
+                }
+              </ul>
+            </details>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+
+  <!-- Footer -->
+  <div class="border-base-300 text-base-content/40 flex items-center justify-between border-t px-3 py-1.5 text-xs">
+    <span>{{ t().navigator.entityCount.replace('{count}', '' + entities().length) }}</span>
+  </div>
+</div>
