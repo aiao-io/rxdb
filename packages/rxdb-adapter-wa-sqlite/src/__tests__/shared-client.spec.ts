@@ -162,9 +162,11 @@ describe('SharedWorker 上多个标签页共用一个客户端（US-314 B2.3b）
     const orphan = wrap<WaSqliteClient>(connectSharedWorker(workerName).port);
     // 适配器按 RxDB 的物理库名 init（带版本后缀），身份对不上会被当成冲突的配置拒掉
     await orphan.init(b.config.dbName, { ...LOAD_OPTIONS, sharedWorker: true });
-    await orphan.execute('CREATE TABLE orphan_probe (x INTEGER)');
-    await orphan.execute('BEGIN');
-    await orphan.execute('INSERT INTO orphan_probe VALUES (1)');
+    await navigator.locks.request(`rxdb-sqlite-shared-client:wa-sqlite:${b.config.dbName}`, async () => {
+      await orphan.execute('CREATE TABLE orphan_probe (x INTEGER)');
+      await orphan.execute('BEGIN');
+      await orphan.execute('INSERT INTO orphan_probe VALUES (1)');
+    });
 
     await createNote(b, '孤儿事务之后 B 写的');
 

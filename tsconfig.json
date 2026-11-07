@@ -214,6 +214,9 @@
       "path": "./packages/rxdb-plugin-history"
     },
     {
+      "path": "./packages/rxdb-plugin-p2p"
+    },
+    {
       "path": "./packages/rxdb-plugin-sync"
     },
     {
@@ -284,6 +287,12 @@
     },
     {
       "path": "./packages/rxdb-admin-vue"
+    },
+    {
+      "path": "./apps/dev-rxdb-p2p-e2e"
+    },
+    {
+      "path": "./apps/dev-rxdb-p2p"
     }
   ]
 }

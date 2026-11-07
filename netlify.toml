@@ -35,6 +35,11 @@ DOCUSAURUS_SSG_WORKER_THREAD_COUNT = "1"
 # 限制单进程堆与 Rspack 原生线程，给构建机上的其余进程留出内存。
 NODE_OPTIONS = "--max-old-space-size=4096"
 RAYON_NUM_THREADS = "2"
+# 关掉 rspack 持久化缓存（只作用于 Netlify，本地构建照常启用）。冷构建要额外序列化约 1.3 GB
+# 缓存，本机实测峰值内存（footprint）8.5～8.9 GB → 6.9 GB；构建机内存约 8 GiB，2026-11 的
+# 冷构建连续两次在 Docusaurus 阶段被内核 OOM 杀掉（Killed / exit 137）。SSG worker 减到 1
+# 只省约 0.4 GB，不是这里的大头。
+DOCUSAURUS_NO_PERSISTENT_CACHE = "true"
 
 # 生产环境配置
 [context.production]

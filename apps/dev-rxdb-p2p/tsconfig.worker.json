@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "lib": ["es2022", "webworker"],
+    "outDir": "../../dist/out-tsc/apps/dev-rxdb-p2p/worker",
+    "types": []
+  },
+  "extends": "./tsconfig.json",
+  "include": ["src/**/*.worker.ts"]
+}
