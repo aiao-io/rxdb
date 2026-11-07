@@ -44,11 +44,17 @@ function worker(resources = [{ path: 'index.html', sha256: 'hash' }]) {
     location: { href: 'https://desktop.test/space/sw.js' },
     addEventListener: (type: string, handler: (event: unknown) => void) => listeners.set(type, handler)
   });
-  const message = (data: Record<string, unknown>, id = 'desktop', url = 'https://desktop.test/space/') => {
+  const message = (
+    data: Record<string, unknown>,
+    id = 'desktop',
+    url = 'https://desktop.test/space/',
+    origin = new URL(url).origin
+  ) => {
     const reply = vi.fn();
     let pending = Promise.resolve();
     listeners.get('message')!({
       data,
+      origin,
       source: { id, url },
       ports: [{ postMessage: reply }],
       waitUntil: (value: Promise<void>) => (pending = value)
@@ -124,6 +130,7 @@ describe('DESKTOP-US-502 外壳资源版本隔离', () => {
     const reply = vi.fn();
     let pending: Promise<void> | undefined;
     fixture.listeners.get('message')?.({
+      origin: 'https://desktop.test',
       data: { type: 'status' },
       ports: [{ postMessage: reply }],
       waitUntil: (value: Promise<void>) => (pending = value)
@@ -244,4 +251,22 @@ describe('DESKTOP-US-307 Worker 资源任务与清理协议', () => {
     expect(fixture.prepare).toHaveBeenCalledTimes(1);
     expect(request.reply).toHaveBeenCalledWith({ complete: true });
   });
+});
+
+describe('Service Worker 消息来源校验', () => {
+  it.each(['https://attacker.test', 'https://desktop.test.attacker.test', 'null', ''])(
+    '拒绝来源 %s 的资源准备请求',
+    async origin => {
+      const fixture = worker();
+      const request = fixture.message(
+        { type: 'prepare-release', ...pin, id: 'foreign', priority: 'foreground' },
+        'desktop',
+        'https://desktop.test/space/',
+        origin
+      );
+      await request.pending;
+      expect(fixture.prepare).not.toHaveBeenCalled();
+      expect(request.reply).not.toHaveBeenCalled();
+    }
+  );
 });

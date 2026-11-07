@@ -81,6 +81,7 @@ globalThis.addEventListener('fetch', event => {
 });
 
 globalThis.addEventListener('message', event => {
+  if (event.origin !== base.origin) return;
   if (event.data?.type === 'releases') event.ports[0]?.postMessage({ releases: BUILD.releases });
   if (event.data?.type === 'prepare-release') event.waitUntil(prepareRelease(event));
   if (event.data?.type === 'cancel-release') releaseRequests.get(`${event.source?.id}:${event.data.id}`)?.abort();

@@ -6,9 +6,7 @@ await mkdir(archive, { recursive: true });
 await cp(new URL('releases/', output), archive, { recursive: true });
 await cp(archive, new URL('releases/', output), { recursive: true });
 const { resources } = JSON.parse(await readFile(new URL('resources.json', output), 'utf8'));
-const pages = resources
-  .map(({ path }) => path)
-  .filter(path => path.endsWith('.html') && !path.includes('/'));
+const pages = resources.map(({ path }) => path).filter(path => path.endsWith('.html') && !path.includes('/'));
 const revalidate = ['/', ...pages.map(path => `/${path}`), '/sw.js', '/resources.json'];
 const immutable = ['/assets/*', '/releases/*'];
 const headers = [
