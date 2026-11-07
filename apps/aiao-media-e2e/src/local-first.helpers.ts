@@ -108,7 +108,12 @@ export async function contentBox(page: Page) {
     const style = getComputedStyle(main);
     const left = rect.left + parseFloat(style.paddingLeft);
     const right = rect.right - parseFloat(style.paddingRight);
-    return { left, right, width: right - left, sidebar: document.querySelector('.app-sidebar')!.getBoundingClientRect().width };
+    return {
+      left,
+      right,
+      width: right - left,
+      sidebar: document.querySelector('.app-sidebar')!.getBoundingClientRect().width
+    };
   });
 }
 

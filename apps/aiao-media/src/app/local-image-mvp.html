@@ -109,12 +109,12 @@
       <span aria-hidden="true">↗</span>
     </a>
     <details
-      #syncStatus
       class="sync-indicator"
-      tabindex="-1"
+      #syncStatus
       [class.sync-attention]="sync().status === 'failed' || sync().status === 'conflict'"
       (keydown.escape)="syncStatus.open = false"
       aria-label="同步状态"
+      tabindex="-1"
     >
       <summary [attr.aria-label]="'同步状态：' + (syncActive() ? '同步中' : syncLabel())" title="查看同步详情">
         <svg class="icon sync-icon" [class.sync-spinning]="syncActive()" aria-hidden="true" viewBox="0 0 20 20">

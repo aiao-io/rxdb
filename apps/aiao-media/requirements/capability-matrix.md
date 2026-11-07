@@ -35,8 +35,8 @@ Tauri 与平台同步继续实施；Cloudflare 平台任务与计费已退出当
 | 能力                   | 当前边界                                                                                             | 故事                                                                    |
 | ---------------------- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | Tauri 安装版           | ⚠️ 原生数据库/文件、指针与兼容守卫已接线，前端构建与两项 Rust 测试通过；实际安装、签名公证和升级待验 | [MEDIA-US-005](stories/platform/MEDIA-US-005-tauri-desktop.md)          |
-| 平台持久生图           | ⬜ D-17 暂缓；平台图片服务入口与对外 API 已移除，后端历史实现及存量数据保留              | [MEDIA-US-108](stories/generation/MEDIA-US-108-platform-generation.md)  |
-| 支付与运维             | ⬜ D-17 暂缓；平台生图与计费后台及支付 API 已移除，未来收费需求明确后重新评审                     | [MEDIA-US-205](stories/account/MEDIA-US-205-platform-billing.md)        |
+| 平台持久生图           | ⬜ D-17 暂缓；平台图片服务入口与对外 API 已移除，后端历史实现及存量数据保留                          | [MEDIA-US-108](stories/generation/MEDIA-US-108-platform-generation.md)  |
+| 支付与运维             | ⬜ D-17 暂缓；平台生图与计费后台及支付 API 已移除，未来收费需求明确后重新评审                        | [MEDIA-US-205](stories/account/MEDIA-US-205-platform-billing.md)        |
 | 平台账号同步           | ⚠️ 按 D-16 统一平台；平台注册入口与本地 Auth/数据库跨设备接线已验，生产跨设备待验                    | [MEDIA-US-303](stories/local-first/MEDIA-US-303-sync-targets.md)        |
 | 平台 Supabase 原图同步 | ⚠️ 独立范围确认与私有 Storage 传输已接线；持久队列、真实 Storage 和 Web/Tauri 跨设备待验             | [MEDIA-US-305](stories/local-first/MEDIA-US-305-supabase-image-sync.md) |
 

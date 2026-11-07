@@ -4,21 +4,21 @@
 
 ## 发布身份
 
-| 项目 | 实际记录 |
-| --- | --- |
-| 正式 origin | `https://media.aiao.io` |
-| Worker | `aiao-media` |
-| 平台首发 Worker version | `cf252547-dd7c-4b0b-8b77-9e1de257ab4b` |
-| 旧配置缓存修复 Worker version | `fb9c2e12-c181-4ded-ba65-c13fd0a0585b` |
-| 当前 Worker version | `36d61b6b-fd39-4a99-94b8-80afa0c05063` |
-| 当前 Deployment | `95c035ab-f69d-43b7-a59b-fc9b17f81e5e` |
-| 当前版本流量 | 100% |
-| 当前发布时间 | 2026-11-06 22:07:31（Asia/Shanghai；UTC `2026-11-06T14:07:31.586246Z`） |
-| 平台首发时间 | 2026-11-06 16:12:14（Asia/Shanghai；UTC `2026-11-06T08:12:14Z`） |
-| 缓存修复发布时间 | 2026-11-06 16:41:57（Asia/Shanghai；UTC `2026-11-06T08:41:57.118Z`） |
-| 平台 Supabase 项目名称 | `media` |
-| 产品 schema marker | 10 |
-| 13 源 bootstrap SHA-256 | `750516b353fe155c97d1276f3a56a5ee1c69fa0c6c7f681ec43c0643a3f24809` |
+| 项目                          | 实际记录                                                                |
+| ----------------------------- | ----------------------------------------------------------------------- |
+| 正式 origin                   | `https://media.aiao.io`                                                 |
+| Worker                        | `aiao-media`                                                            |
+| 平台首发 Worker version       | `cf252547-dd7c-4b0b-8b77-9e1de257ab4b`                                  |
+| 旧配置缓存修复 Worker version | `fb9c2e12-c181-4ded-ba65-c13fd0a0585b`                                  |
+| 当前 Worker version           | `36d61b6b-fd39-4a99-94b8-80afa0c05063`                                  |
+| 当前 Deployment               | `95c035ab-f69d-43b7-a59b-fc9b17f81e5e`                                  |
+| 当前版本流量                  | 100%                                                                    |
+| 当前发布时间                  | 2026-11-06 22:07:31（Asia/Shanghai；UTC `2026-11-06T14:07:31.586246Z`） |
+| 平台首发时间                  | 2026-11-06 16:12:14（Asia/Shanghai；UTC `2026-11-06T08:12:14Z`）        |
+| 缓存修复发布时间              | 2026-11-06 16:41:57（Asia/Shanghai；UTC `2026-11-06T08:41:57.118Z`）    |
+| 平台 Supabase 项目名称        | `media`                                                                 |
+| 产品 schema marker            | 10                                                                      |
+| 13 源 bootstrap SHA-256       | `750516b353fe155c97d1276f3a56a5ee1c69fa0c6c7f681ec43c0643a3f24809`      |
 
 初始化前已核验选定项目的 public schema 无关系/函数、Auth 用户数为 0、Storage bucket 数为 0，然后执行审阅后的 13 源生产 bootstrap。此记录只证明本次空库初始化，不授权把该包重复用于已有产品数据或其他共享项目。
 

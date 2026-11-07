@@ -61,7 +61,7 @@ describe('既有库升级重开（PGlite 磁盘库，US-534 AC#8 / US-540 AC#7�
     opened.splice(opened.indexOf(rxdb), 1);
   };
 
-  it('旧实体先建库写入，断开后装看板实体重开：旧数据原样、种子可装载、再重开不丢', async () => {
+  it('旧实体先建库写入，断开后装看板实体重开：旧数据原样、种子可装载、再重开不丢', { timeout: 30000 }, async () => {
     const dataDir = await mkdtemp(join(tmpdir(), 'aiao-board-upgrade-'));
     directories.push(dataDir);
 

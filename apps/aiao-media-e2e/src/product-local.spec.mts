@@ -163,7 +163,9 @@ test('两台独立设备通过原生 RxDB 同步草稿，登录/退出与 A→B�
     await second.getByRole('button', { name: '启用同步', exact: true }).click();
     await expect(second.getByText('此账号已有同步工作区', { exact: false })).toBeVisible();
     await second.getByRole('button', { name: '确认并启用同步' }).click();
-    await expect(second.getByLabel('工作区同步').getByText('同步已确认', { exact: false })).toBeVisible({ timeout: 25000 });
+    await expect(second.getByLabel('工作区同步').getByText('同步已确认', { exact: false })).toBeVisible({
+      timeout: 25000
+    });
     expect(await second.evaluate(() => localStorage.getItem('aiao-local-profile-v1'))).not.toBe(unbound);
     await second.getByRole('button', { name: '关闭账号窗口' }).click();
     await expect(second.locator('[contenteditable=true]')).toContainText('设备 A 的输入');
@@ -282,12 +284,16 @@ test('离线多次编辑与重开可推送，修改冲突和删除冲突保留�
     await editDraft(second, '离线第一版');
     await editDraft(second, '离线第二版');
     await second.getByRole('button', { name: '我的账号', exact: true }).click();
-    await expect(second.getByText('有待同步改动', { exact: false })).toBeVisible({ timeout: 25000 });
+    await expect(second.getByLabel('工作区同步').locator('p.sync-state')).toContainText('有待同步改动', {
+      timeout: 25000
+    });
     await context.setOffline(false);
     await second.reload();
     await expect(second.locator('[contenteditable=true]')).toContainText('离线第二版');
     await second.getByRole('button', { name: '我的账号', exact: true }).click();
-    await expect(second.getByLabel('工作区同步').getByText('同步已确认', { exact: false })).toBeVisible({ timeout: 25000 });
+    await expect(second.getByLabel('工作区同步').getByText('同步已确认', { exact: false })).toBeVisible({
+      timeout: 25000
+    });
     await synchronizePage(page);
     await page.getByRole('button', { name: '关闭账号窗口' }).click();
     await expect(page.locator('[contenteditable=true]')).toContainText('离线第二版');
@@ -306,7 +312,9 @@ test('离线多次编辑与重开可推送，修改冲突和删除冲突保留�
     await second.getByRole('button', { name: '我的账号', exact: true }).click();
     await expect(second.getByRole('heading', { name: '草稿存在冲突', exact: true })).toBeVisible({ timeout: 25000 });
     await second.getByRole('button', { name: '保留本机版本', exact: true }).click();
-    await expect(second.getByLabel('工作区同步').getByText('同步已确认', { exact: false })).toBeVisible({ timeout: 25000 });
+    await expect(second.getByLabel('工作区同步').getByText('同步已确认', { exact: false })).toBeVisible({
+      timeout: 25000
+    });
     await second.getByRole('button', { name: '关闭账号窗口' }).click();
     await expect(second.locator('[contenteditable=true]')).toContainText('B未上传的并发稿');
     await synchronizePage(page);
@@ -318,7 +326,9 @@ test('离线多次编辑与重开可推送，修改冲突和删除冲突保留�
     await second.getByRole('button', { name: '立即同步', exact: true }).click();
     await expect(second.getByText('同步端：已删除', { exact: false })).toBeVisible({ timeout: 25000 });
     await second.getByRole('button', { name: '采用同步端版本', exact: true }).click();
-    await expect(second.getByLabel('工作区同步').getByText('同步已确认', { exact: false })).toBeVisible({ timeout: 25000 });
+    await expect(second.getByLabel('工作区同步').getByText('同步已确认', { exact: false })).toBeVisible({
+      timeout: 25000
+    });
     await second.getByRole('button', { name: '关闭账号窗口' }).click();
     await expect(second.locator('[contenteditable=true]')).toBeEmpty();
     await second.reload();
@@ -521,7 +531,9 @@ test('明确重新扫描重放旧日志，保留未上传修订和删除冲突�
     await second.getByRole('button', { name: '重新扫描远程记录', exact: true }).click();
     await expect(second.getByRole('button', { name: '采用同步端版本', exact: true })).toBeEnabled({ timeout: 25000 });
     await second.getByRole('button', { name: '采用同步端版本', exact: true }).click();
-    await expect(second.getByLabel('工作区同步').getByText('同步已确认', { exact: false })).toBeVisible({ timeout: 25000 });
+    await expect(second.getByLabel('工作区同步').getByText('同步已确认', { exact: false })).toBeVisible({
+      timeout: 25000
+    });
     const workspace = (await admin.from('media_workspaces').select('id').eq('owner_id', user.id).single()).data!;
     const record = () =>
       admin

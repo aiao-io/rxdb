@@ -452,7 +452,11 @@ test('超宽屏下我的图片按卡片大小排满整行，常见窗口的列�
     ['small', 12, 2]
   ] as const) {
     await page.evaluate(
-      size => localStorage.setItem('aiao-media-display-v1', JSON.stringify({ pageWidth: 'ultra', cardSize: size, align: 'center' })),
+      size =>
+        localStorage.setItem(
+          'aiao-media-display-v1',
+          JSON.stringify({ pageWidth: 'ultra', cardSize: size, align: 'center' })
+        ),
       cardSize
     );
     await page.setViewportSize({ width: 3440, height: 1440 });
