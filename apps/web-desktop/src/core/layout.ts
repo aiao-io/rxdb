@@ -5,6 +5,7 @@ import type { DesktopState } from './types.js';
 
 export function migrateState(value: unknown): DesktopState {
   requireCondition(isRecord(value), 'INVALID', '托管数据格式错误');
+  if (value['schemaVersion'] === 4) return migrateWindowIds(value);
   if (value['schemaVersion'] === 3) return migrateWindowStates(value);
   if (value['schemaVersion'] === 2) return migrateResources(value);
   if (value['schemaVersion'] !== 1) return validateState(value);
@@ -43,9 +44,36 @@ function migrateResources(value: Record<string, unknown>): DesktopState {
 function migrateWindowStates(value: Record<string, unknown>): DesktopState {
   const session = value['session'];
   requireCondition(Array.isArray(session) && session.every(isRecord), 'INVALID', '旧会话格式错误');
-  return validateState({
+  return migrateWindowIds({
     ...value,
     schemaVersion: 4,
     session: session.map(win => ({ ...win, previousState: 'normal', beforeMinimized: 'normal' }))
   });
+}
+
+function migrateWindowIds(value: Record<string, unknown>): DesktopState {
+  const session = value['session'];
+  requireCondition(Array.isArray(session) && session.every(isRecord), 'INVALID', '旧会话格式错误');
+  return validateState({
+    ...value,
+    schemaVersion: 5,
+    session: session.map(win => ({ ...win, id: crypto.randomUUID() }))
+  });
+}
+
+export function removeSavedWindow(state: DesktopState, id: string): void {
+  requireCondition(
+    state.session.some(win => win.id === id),
+    'NOT_FOUND',
+    '待恢复窗口不存在'
+  );
+  const active = Object.entries(state.navigation.activeWindows).map(
+    ([workspace, index]) => [workspace, index === null ? null : state.session[index].id] as const
+  );
+  const remaining = state.session.filter(win => win.id !== id);
+  const indices = new Map(remaining.map((win, index) => [win.id, index]));
+  state.navigation.activeWindows = Object.fromEntries(
+    active.map(([workspace, id]) => [workspace, id === null ? null : (indices.get(id) ?? null)])
+  );
+  state.session = remaining;
 }

@@ -11,6 +11,7 @@ describe('DESKTOP-US-501/503 持久化与恢复输入边界', () => {
     const file = createFile(state, { name: 'a.txt' });
     state.appData.push({ appId: 'editor', schemaVersion: 1, key: 'x', value: { list: [null, true, 1, '文本'] } });
     state.session.push({
+      id: crypto.randomUUID(),
       appId: 'editor',
       fileId: file.id,
       route: '#document',
@@ -77,10 +78,15 @@ describe('DESKTOP-US-501/503 持久化与恢复输入边界', () => {
     ];
     const snapshot = structuredClone(legacy);
     const upgraded = migrateState(legacy);
-    expect(upgraded.schemaVersion).toBe(4);
+    expect(upgraded.schemaVersion).toBe(5);
     expect(upgraded).toHaveProperty('navigation', { workspaceId: 'first', activeWindows: { first: 0 } });
     expect(upgraded.session).toEqual(
-      (legacy['session'] as object[]).map(win => ({ ...win, previousState: 'normal', beforeMinimized: 'normal' }))
+      (legacy['session'] as object[]).map(win => ({
+        ...win,
+        id: expect.any(String),
+        previousState: 'normal',
+        beforeMinimized: 'normal'
+      }))
     );
     expect(legacy).toEqual(snapshot);
     expect(() => migrateState({ ...legacy, secret: '不应迁移未知字段' })).toThrow('INVALID');
@@ -89,6 +95,7 @@ describe('DESKTOP-US-501/503 持久化与恢复输入边界', () => {
   it('拒绝失效的工作区、跨区活动窗口、最小化活动窗口和额外导航字段', () => {
     const state = createState('windows');
     state.session.push({
+      id: crypto.randomUUID(),
       appId: 'editor',
       fileId: null,
       route: '',

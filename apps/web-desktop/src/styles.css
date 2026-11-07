@@ -1209,3 +1209,19 @@ input::placeholder {
   min-width: 24px;
   background: transparent;
 }
+
+.recovery-panel {
+  z-index: 6001;
+}
+.recovery-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.recovery-heading h2 {
+  margin: 0;
+}
+.recovery-catalog {
+  margin-bottom: 16px;
+}

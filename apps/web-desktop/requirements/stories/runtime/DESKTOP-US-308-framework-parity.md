@@ -52,7 +52,7 @@ capabilities: []
 
 ## 技术笔记
 
-三个适配入口位于 @aiao/orbit/{angular,react,vue}，共用 OrbitBinding；不为生命周期函数再拆三份工程。产品外壳尚未实现。
+三个适配入口位于 @aiao/orbit/{angular,react,vue}，共用 OrbitBinding；不为生命周期函数再拆三份工程。React 桌面外壳已在 apps/web-desktop 实施；现有框架集成与演示冒烟证据不替代桌面内三框架同任务双实例的组合验收。
 
 ## 实现文件
 

@@ -19,7 +19,7 @@
 
 宿主发往子应用的事件：desktop.changed、files.changed、document.invalidated、message.received。command 是宿主对目标实例的 RPC。子应用暴露 document.save、document.prepareClose、document.discard 和 command。prepareClose 返回 `{dirty:boolean}`，宿主先收集全部同意再销毁；任一取消或保存失败停止整个退出。5 秒无响应提供显式强制关闭。
 
-授权窗口为宿主模态，显示应用名、精确来源、能力和范围，可选本次或持久授予；拒绝无副作用。所有能力默认拒绝；系统内置应用也须声明能力并通过受控安装策略赋予明确范围。
+授权窗口为宿主模态，显示应用名、精确来源、能力和范围，可选本次或持久授予；拒绝无副作用。所有能力默认拒绝；系统内置应用也须声明能力并通过受控安装策略赋予明确范围。 文件范围展示“我的文件”下的完整虚拟路径与文件/目录类型，能力使用用户可读名称；授权记录仍保存原不透明文件 ID 或目录 scope。仅本次授权绑定当前窗口的本次运行，退出或刷新后对新实例无效，不跨文件或运行实例复用；持久授权仍按 appId 和批准来源绑定。不存在的文件或损坏目录引用明确报错，不生成伪造访问说明。
 
 已实现的补充入口包括 `window.focus`、`desktop.confirm/prompt/saveFile/selectDirectory/chooseWorkspace/shortcut`、`files.directories/open`、`workspaces.create/rename/reorder/delete` 和 `diagnostics.export`。`files.open` 接收 `id`、可选 `appId`、`choose`、`newInstance`；显式无效应用返回 UNSUPPORTED，失效的保存默认则要求重新选择。定向消息只向 ready/hidden 实例发送，尚未就绪返回 NOT_READY。
 
@@ -70,3 +70,5 @@ Service Worker 私有资源协议为 2，Orbit RPC 协议仍为 1。`prepare-rel
 会话重新打开后只承诺已持久化的布局和已保存内容，并显示未保存内容无法保证找回的提示。布局/会话保存失败传播原稳定错误代码并说明影响范围，不把运行内存当作已保存快照，原文件事务与布局事务分别承诺。
 
 启动读取数据校验失败（INVALID / NOT_FOUND / DENIED）才提供受损会话恢复入口，普通资源或存储连接故障仍显示原错误和重试。诊断只展示错误类别、桌面版本及原数据保留状态，不输出正文。显式重置需要两次宿主确认，仅在拥有写入权、无运行实例且仍处于该失败状态时执行；提交前再次检查拥有权，取消或丢失拥有权不修改记录。重置原子替换托管桌面数据，然后回到首次进入流程，不删除资源缓存。该入口属于宿主启动恢复，不通过普通应用 RPC 绕过确认。
+
+`profile.get` 的每条授权保留原 `Grant` 身份字段，并增加仅供显示的 `appName`、`capabilityName`、`scopeName`。设置使用中文应用与能力、完整虚拟路径、来源和有效期帮助用户选择撤销对象，`permissions.revoke` 仍只接收原授权 ID。已回收文件显示路径和回收状态，永久删除后的孤立授权显示“文件或目录已不存在”，保留撤销入口；显示字段不写回持久授权。新授权请求仍拒绝已回收或不存在的目标。

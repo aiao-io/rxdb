@@ -168,6 +168,7 @@ describe('DESKTOP-US-501 恢复失败项重试', () => {
     try {
       await host.retry(app);
       expect(launch).toHaveBeenCalledWith('editor', true, 'saved-file', {
+        id: win.id,
         appId: 'editor',
         fileId: 'saved-file',
         route: '/documents/saved-file?line=3#L3',

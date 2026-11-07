@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { errorMessage, requireCondition } from '../core/errors.js';
 import { defaultProfile } from '../core/state.js';
-import type { Grant, Profile } from '../core/types.js';
+import type { Profile } from '../core/types.js';
+import type { GrantView } from '../host/permission-labels.js';
 import { download, type AppSession } from './session.js';
 
 interface SettingsData {
   profile: Profile;
   workspaces: { id: string; name: string }[];
-  grants: Grant[];
+  grants: GrantView[];
   offlineReady: boolean;
   version: string;
 }
@@ -289,12 +290,12 @@ export function SettingsView({ session }: { session: AppSession }) {
                   <div className='grant-row' key={grant.id}>
                     <span>
                       <strong>
-                        {grant.appId} · {grant.capability}
+                        {grant.appName} · {grant.capabilityName}
                       </strong>
                       <small>
                         {grant.origin}
                         <br />
-                        {grant.scope} · {grant.instanceId === null ? '持久授权' : '本次实例'}
+                        {grant.scopeName} · {grant.instanceId === null ? '持久授权' : '本次实例'}
                       </small>
                     </span>
                     <button
@@ -370,6 +371,8 @@ export function SettingsView({ session }: { session: AppSession }) {
                     onChange={event => {
                       const file = event.target.files?.[0];
                       if (!file) return;
+                      setBackup(null);
+                      setBackupInfo(null);
                       void perform(async () => {
                         if (file.size > 300 * 1024 * 1024) throw new Error('LIMIT: 备份文件不能超过 300 MiB');
                         const imported: unknown = JSON.parse(await file.text());
@@ -388,6 +391,7 @@ export function SettingsView({ session }: { session: AppSession }) {
                     已验证：{backupInfo.files} 个文件，{backupInfo.workspaces} 个工作区。
                     <button
                       className='danger'
+                      disabled={busy}
                       onClick={() => {
                         void perform(async () => {
                           await session.request('backup.restore', { backup: backup });

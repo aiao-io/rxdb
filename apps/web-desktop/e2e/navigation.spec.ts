@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { readState } from './state.js';
 
 async function enter(page: Page) {
   await page.goto('/');
@@ -12,21 +13,7 @@ async function openLocation(page: Page, window: Locator, route: string) {
   await page.getByRole('button', { name: '打开位置', exact: true }).click();
 }
 async function savedRoutes(page: Page): Promise<string[]> {
-  return page.evaluate(
-    () =>
-      new Promise<string[]>((resolve, reject) => {
-        const request = indexedDB.open('orbit-desktop', 1);
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => {
-          const database = request.result;
-          const transaction = database.transaction('state', 'readonly');
-          const read = transaction.objectStore('state').get('desktop');
-          read.onsuccess = () => resolve(read.result.session.map((item: { route: string }) => item.route));
-          read.onerror = () => reject(read.error);
-          transaction.oncomplete = () => database.close();
-        };
-      })
-  );
+  return (await readState(page)).session.map(item => item.route);
 }
 
 test('DESKTOP-US-305/501：文件目录、搜索、选择和设置页面刷新后恢复，前进后退只作用于目标应用', async ({ page }) => {

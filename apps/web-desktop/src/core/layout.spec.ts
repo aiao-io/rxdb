@@ -27,9 +27,10 @@ describe('DESKTOP-US-501 v3 窗口还原状态升级', () => {
       const legacy = legacySession(state);
       const original = structuredClone(legacy);
       const upgraded = migrateState(legacy);
-      expect(upgraded.schemaVersion).toBe(4);
+      expect(upgraded.schemaVersion).toBe(5);
       expect(upgraded.session[0]).toEqual({
         ...original.session[0],
+        id: expect.any(String),
         previousState: 'normal',
         beforeMinimized: 'normal'
       });

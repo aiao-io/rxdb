@@ -75,6 +75,108 @@ function fixture(appId: string) {
   return { host, close, transport, launch, dialogs };
 }
 
+async function scopedFiles() {
+  const context = fixture('files');
+  const entries = await context.host.mutate(state => {
+    state.grants = [];
+    const directory = createFile(state, { name: '授权目录', kind: 'directory' });
+    const outside = createFile(state, { name: '其他目录', kind: 'directory' });
+    const allowed = createFile(state, { name: '允许.txt', parentId: directory.id, bytes: 'QQ==' });
+    const privateFile = createFile(state, { name: '不能猜测.txt', parentId: outside.id, bytes: 'Qg==' });
+    return { directory, outside, allowed, privateFile };
+  });
+  const identity = context.host.identity(context.host.instances.get('one')!);
+  return { ...context, ...entries, identity };
+}
+
+describe('DESKTOP-US-601/AC5 文件作用域服务提交边界', () => {
+  it('单文件授权允许读写该文件，不需要扩大到所有文件', async () => {
+    const { host, transport, allowed, identity } = await scopedFiles();
+    await host.mutate(state => grantPermission(state, identity, 'files', allowed.id, false));
+    await expect(transport.request('files.read', { id: allowed.id })).resolves.toMatchObject({
+      id: allowed.id,
+      bytes: 'QQ=='
+    });
+    await expect(
+      transport.request('files.write', { id: allowed.id, revision: allowed.revision, bytes: 'Qw==' })
+    ).resolves.toMatchObject({ id: allowed.id, bytes: 'Qw==', revision: allowed.revision + 1 });
+    expect(host.state.grants.map(grant => grant.scope)).toEqual([allowed.id]);
+  });
+
+  it.each(['read', 'write', 'rename', 'move', 'list', 'directories', 'trash', 'open'] as const)(
+    '单文件授权不能通过 files.%s 越过作用域，拒绝不修改原数据',
+    async method => {
+      const { host, transport, allowed, privateFile, outside, identity, launch, dialogs } = await scopedFiles();
+      await host.mutate(state => grantPermission(state, identity, 'files', allowed.id, false));
+      const before = structuredClone(host.state);
+      const requests = {
+        read: { id: privateFile.id },
+        write: { id: privateFile.id, revision: privateFile.revision, bytes: 'WA==' },
+        rename: { id: privateFile.id, name: '不能覆盖.txt' },
+        move: { id: allowed.id, parentId: outside.id },
+        list: { parentId: outside.id },
+        directories: {},
+        trash: { id: privateFile.id },
+        open: { id: privateFile.id }
+      };
+      await expect(transport.request(`files.${method}`, requests[method])).rejects.toThrow('DENIED');
+      expect(host.state).toEqual(before);
+      expect(launch).not.toHaveBeenCalled();
+      expect(dialogs.current).toBeNull();
+    }
+  );
+
+  it.each(['../private', 'allowed/../private', '/private'])(
+    '路径形式 %s 不能绕过不透明文件身份和单文件授权',
+    async path => {
+      const { host, transport, allowed, identity } = await scopedFiles();
+      await host.mutate(state => grantPermission(state, identity, 'files', allowed.id, false));
+      const before = structuredClone(host.state);
+      await expect(transport.request('files.read', { id: path })).rejects.toThrow('DENIED');
+      await expect(transport.request('files.rename', { id: allowed.id, name: path })).rejects.toThrow('INVALID');
+      expect(host.state).toEqual(before);
+    }
+  );
+
+  it('目录授权只能在该目录创建，创建文件继承对应的精确文件授权', async () => {
+    const { host, transport, directory, outside, identity } = await scopedFiles();
+    await host.mutate(state => grantPermission(state, identity, 'files', `directory:${directory.id}`, true));
+    await expect(
+      transport.request('files.create', { name: '新文件.txt', parentId: directory.id, bytes: 'Qw==' })
+    ).resolves.toMatchObject({ name: '新文件.txt', parentId: directory.id });
+    const created = host.state.files.find(file => file.name === '新文件.txt')!;
+    await expect(transport.request('files.read', { id: created.id })).resolves.toMatchObject({ bytes: 'Qw==' });
+    expect(host.state.grants.map(grant => grant.scope)).toEqual([`directory:${directory.id}`, created.id]);
+    const before = structuredClone(host.state);
+    await expect(transport.request('files.create', { name: '越界.txt', parentId: outside.id })).rejects.toThrow(
+      'DENIED'
+    );
+    await expect(transport.request('files.list', { parentId: outside.id })).rejects.toThrow('DENIED');
+    expect(host.state).toEqual(before);
+  });
+
+  it('移动已确认目标目录后撤销其授权，提交时再次检查且原文件不移动', async () => {
+    const { host, transport, allowed, outside, identity } = await scopedFiles();
+    const target = `directory:${outside.id}`;
+    await host.mutate(state => {
+      grantPermission(state, identity, 'files', allowed.id, false);
+      grantPermission(state, identity, 'files', target, false);
+    });
+    const before = structuredClone(host.state.files);
+    const authorize = vi.spyOn(host, 'authorize').mockImplementation(async (_app, _capability, scope) => {
+      if (scope === allowed.id)
+        await host.mutate(state => {
+          state.grants = state.grants.filter(grant => grant.scope !== target);
+        });
+    });
+    await expect(transport.request('files.move', { id: allowed.id, parentId: outside.id })).rejects.toThrow(
+      '目标目录授权已撤销'
+    );
+    expect(host.state.files).toEqual(before);
+    expect(authorize.mock.calls.map(call => call[2])).toEqual([target, allowed.id]);
+  });
+});
+
 describe('DESKTOP-US-401/402 宿主服务边界', () => {
   it('实例更新保留 path/query/hash，非法位置在改标题或持久化前拒绝', async () => {
     const { transport, host } = fixture('editor');

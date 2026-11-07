@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import type { DesktopState } from '../src/core/types.js';
+import { readState as snapshot } from './state.js';
 
 async function saveDocument(page: Page, mode: 'macos' | 'windows') {
   await page.goto('/');
@@ -14,24 +14,6 @@ async function saveDocument(page: Page, mode: 'macos' | 'windows') {
   await page.getByRole('button', { name: '始终允许', exact: true }).click();
   await expect(editor.getByRole('status')).toContainText('已保存');
   return editor;
-}
-
-async function snapshot(page: Page): Promise<DesktopState> {
-  return page.evaluate(
-    () =>
-      new Promise<DesktopState>((resolve, reject) => {
-        const request = indexedDB.open('orbit-desktop', 1);
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => {
-          const database = request.result;
-          const tx = database.transaction('state', 'readonly');
-          const read = tx.objectStore('state').get('desktop');
-          read.onsuccess = () => resolve(read.result as DesktopState);
-          read.onerror = () => reject(read.error);
-          tx.oncomplete = () => database.close();
-        };
-      })
-  );
 }
 
 async function replace(page: Page, state: unknown) {
@@ -115,9 +97,47 @@ for (const corruption of ['unsupported', 'damaged', 'unknownVersion', 'unknownAp
     await page.getByRole('button', { name: '确认删除全部数据', exact: true }).click();
     await expect(page.getByRole('button', { name: '进入桌面', exact: true })).toBeVisible();
     const reset = await snapshot(page);
-    expect(reset.schemaVersion).toBe(4);
+    expect(reset.schemaVersion).toBe(5);
     expect(reset.files).toEqual([]);
     expect(reset.session).toEqual([]);
+  });
+}
+
+for (const failure of ['quota', 'abort'] as const) {
+  test(`DESKTOP-US-501/AC6 recovery-reset-${failure}：受损桌面重置失败保留原始记录，刷新后可明确重试`, async ({
+    page
+  }) => {
+    await saveDocument(page, 'windows');
+    const original = await snapshot(page);
+    const invalid = { ...original, schemaVersion: 99 };
+    await replace(page, invalid);
+    await page.reload();
+    await expect(page.getByRole('heading', { name: '桌面未能启动', exact: true })).toBeVisible();
+    await page.evaluate(kind => {
+      const put = IDBObjectStore.prototype.put;
+      IDBObjectStore.prototype.put = function (value: unknown, key?: IDBValidKey) {
+        if (this.name === 'state' && key === 'desktop' && kind === 'quota')
+          throw new DOMException('模拟恢复额度不足', 'QuotaExceededError');
+        const request = put.call(this, value, key);
+        if (this.name === 'state' && key === 'desktop' && kind === 'abort')
+          request.addEventListener('success', () => this.transaction.abort(), { once: true });
+        return request;
+      };
+    }, failure);
+    await page.getByRole('button', { name: '重置受损桌面…', exact: true }).click();
+    await page.getByRole('button', { name: '继续', exact: true }).click();
+    await page.getByRole('button', { name: '确认删除全部数据', exact: true }).click();
+    await expect(page.locator('.boot-card')).toContainText(failure === 'quota' ? 'QUOTA' : 'STORAGE');
+    await expect(page.getByRole('button', { name: '进入桌面', exact: true })).toHaveCount(0);
+    expect(await snapshot(page)).toEqual(invalid);
+    await page.reload();
+    await expect(page.getByRole('heading', { name: '桌面未能启动', exact: true })).toBeVisible();
+    expect(await snapshot(page)).toEqual(invalid);
+    await page.getByRole('button', { name: '重置受损桌面…', exact: true }).click();
+    await page.getByRole('button', { name: '继续', exact: true }).click();
+    await page.getByRole('button', { name: '确认删除全部数据', exact: true }).click();
+    await expect(page.getByRole('button', { name: '进入桌面', exact: true })).toBeVisible();
+    expect((await snapshot(page)).files).toEqual([]);
   });
 }
 
@@ -189,3 +209,162 @@ test('DESKTOP-US-501/AC2：单个恢复实例启动失败不阻塞设置，重�
   await expect.poll(async () => (await snapshot(page)).session.some(win => win.appId === 'editor')).toBe(false);
   expect((await snapshot(page)).files).toEqual(original.files);
 });
+
+test('DESKTOP-US-501/AC2 missing-install：未安装应用的两个快照保留到显式移除，布局操作与刷新不会丢项', async ({
+  page
+}) => {
+  await saveDocument(page, 'windows');
+  const state = await snapshot(page);
+  const missing = {
+    ...state.session[0],
+    id: 'pending-a',
+    appId: 'notes',
+    state: 'minimized' as const,
+    previousState: 'right' as const,
+    beforeMinimized: 'maximized' as const
+  };
+  state.session.unshift(missing, { ...missing, id: 'pending-b' });
+  state.navigation.activeWindows['first'] = 2;
+  await replace(page, state);
+  await page.reload();
+  const pending = page.getByRole('region', { name: '待恢复窗口', exact: true });
+  await expect(pending.locator('[data-recovery-id]')).toHaveCount(2);
+  await expect(pending).toContainText('速记本');
+  await expect(pending.getByRole('button', { name: '关闭恢复待办', exact: true })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(pending).toHaveCount(0);
+  const toggle = page.getByRole('button', { name: '恢复待办', exact: true });
+  await toggle.click();
+  await expect(pending.getByRole('button', { name: '关闭恢复待办', exact: true })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(toggle).toBeFocused();
+  await toggle.click();
+  await pending.getByRole('button', { name: '关闭恢复待办', exact: true }).click();
+  await expect(page.frameLocator('iframe[title="文本编辑器"]').getByLabel('文档内容')).toHaveValue(
+    '上次保存的原始正文'
+  );
+  await page.getByRole('button', { name: '最小化窗口 文本编辑器', exact: true }).click();
+  await expect.poll(async () => (await snapshot(page)).session.filter(win => win.appId === 'notes').length).toBe(2);
+  await page.reload();
+  await expect(pending.locator('[data-recovery-id]')).toHaveCount(2);
+  await pending
+    .locator('[data-recovery-id="pending-a"]')
+    .getByRole('button', { name: '重试恢复', exact: true })
+    .click();
+  await expect(pending.locator('[data-recovery-id="pending-a"]')).toContainText('NOT_FOUND');
+  await pending
+    .locator('[data-recovery-id="pending-a"]')
+    .getByRole('button', { name: '移除恢复项', exact: true })
+    .click();
+  await expect(pending.locator('[data-recovery-id]')).toHaveCount(1);
+  expect((await snapshot(page)).files).toEqual(state.files);
+  await page.reload();
+  await expect(pending.locator('[data-recovery-id="pending-b"]')).toBeVisible();
+  await pending.getByRole('button', { name: '移除恢复项', exact: true }).click();
+  await expect(pending).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '恢复待办', exact: true })).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByRole('button', { name: '恢复待办', exact: true })).toHaveCount(0);
+  expect((await snapshot(page)).files).toEqual(state.files);
+});
+
+for (const mode of ['macos', 'windows'] as const) {
+  test(`${mode} DESKTOP-US-501/AC2 missing-install-install：目录安装后按身份恢复一个窗口，保留同应用另一待办与文件路由`, async ({
+    page
+  }) => {
+    await saveDocument(page, mode);
+    const state = await snapshot(page);
+    const fileId = state.files[0].id;
+    const missing = {
+      ...state.session[0],
+      id: 'pending-a',
+      appId: 'notes',
+      fileId,
+      route: `/documents/${fileId}?line=2#L2`,
+      state: 'minimized' as const,
+      previousState: 'right' as const,
+      beforeMinimized: 'maximized' as const
+    };
+    state.session.unshift(missing, { ...missing, id: 'pending-b' });
+    state.navigation.activeWindows['first'] = 2;
+    await replace(page, state);
+    await page.reload();
+    const pending = page.getByRole('region', { name: '待恢复窗口', exact: true });
+    await pending.getByRole('button', { name: '打开应用目录', exact: true }).click();
+    await expect(pending).toHaveCount(0);
+    await page.getByRole('button', { name: '始终允许', exact: true }).click();
+    await expect.poll(async () => (await snapshot(page)).session.filter(win => win.appId === 'notes').length).toBe(2);
+    const catalog = page.frameLocator('iframe[title="应用目录"]');
+    const card = catalog.getByRole('article').filter({ hasText: '速记本' });
+    await card.getByRole('button', { name: '安装', exact: true }).click();
+    await page.getByRole('button', { name: '确认', exact: true }).click();
+    await expect(card.getByRole('button', { name: '卸载', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: '恢复待办', exact: true }).click();
+    await expect(pending.locator('[data-recovery-id]')).toHaveCount(2);
+    await pending
+      .locator('[data-recovery-id="pending-a"]')
+      .getByRole('button', { name: '重试恢复', exact: true })
+      .click();
+    await page.getByRole('button', { name: '始终允许', exact: true }).click();
+    await expect(pending.locator('[data-recovery-id]')).toHaveCount(1);
+    await expect(pending.locator('[data-recovery-id="pending-b"]')).toBeVisible();
+    const restored = page.locator('[data-app-id="notes"]');
+    await expect(restored).toHaveCount(1);
+    await expect(restored.locator('iframe').contentFrame().getByLabel('文档内容')).toHaveValue('上次保存的原始正文');
+    await expect.poll(async () => (await snapshot(page)).session.find(win => win.id === 'pending-a')).toEqual(missing);
+    expect((await snapshot(page)).files).toEqual(state.files);
+    await page.reload();
+    await expect(page.locator('[data-app-id="notes"]')).toHaveCount(2);
+    await expect(page.getByRole('button', { name: '恢复待办', exact: true })).toHaveCount(0);
+    const current = await snapshot(page);
+    expect(
+      current.session
+        .filter(win => win.appId === 'notes')
+        .map(win => win.id)
+        .sort()
+    ).toEqual(['pending-a', 'pending-b']);
+    expect(current.files).toEqual(state.files);
+  });
+}
+
+for (const mode of ['macos', 'windows'] as const) {
+  test(`${mode} DESKTOP-US-501/AC2 missing-install-workspace：删除工作区迁移待恢复快照，之后移除与刷新使用最新位置`, async ({
+    page
+  }) => {
+    await saveDocument(page, mode);
+    const state = await snapshot(page);
+    state.workspaces.push({ id: 'writing', name: '待删写作区' });
+    state.navigation.activeWindows['writing'] = null;
+    const missing = { ...state.session[0], id: 'pending-a', appId: 'notes', workspaceId: 'writing' };
+    state.session.push(missing, { ...missing, id: 'pending-b' });
+    await replace(page, state);
+    await page.reload();
+    const pending = page.getByRole('region', { name: '待恢复窗口', exact: true });
+    await expect(pending.locator('[data-recovery-id]')).toHaveCount(2);
+    await expect(pending).toContainText('待删写作区');
+    await pending.getByRole('button', { name: '关闭恢复待办', exact: true }).click();
+    await page.getByRole('button', { name: '打开 设置', exact: true }).click();
+    await page.getByRole('button', { name: '始终允许', exact: true }).click();
+    const settings = page.frameLocator('iframe[title="设置"]');
+    await settings.getByRole('button', { name: '▤ 工作区', exact: true }).click();
+    const writing = settings.locator('.workspace-setting').filter({ hasText: '待删写作区' });
+    await writing.getByRole('button', { name: '删除并迁移窗口', exact: true }).click();
+    await page.getByLabel('迁移到', { exact: true }).selectOption('first');
+    await page.getByRole('button', { name: '确认', exact: true }).click();
+    await expect(writing).toHaveCount(0);
+    await expect
+      .poll(async () => (await snapshot(page)).session.filter(win => win.appId === 'notes').map(win => win.workspaceId))
+      .toEqual(['first', 'first']);
+    await page.getByRole('button', { name: '恢复待办', exact: true }).click();
+    await expect(pending.locator('[data-recovery-id="pending-a"]')).toContainText('工作区 1');
+    await expect(pending).not.toContainText('待删写作区');
+    await pending
+      .locator('[data-recovery-id="pending-a"]')
+      .getByRole('button', { name: '移除恢复项', exact: true })
+      .click();
+    await expect(pending.locator('[data-recovery-id]')).toHaveCount(1);
+    await page.reload();
+    await expect(pending.locator('[data-recovery-id="pending-b"]')).toContainText('工作区 1');
+    expect((await snapshot(page)).files).toEqual(state.files);
+  });
+}

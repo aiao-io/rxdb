@@ -28,6 +28,7 @@ import { createState, defaultProfile } from '../core/state.js';
 import type { DesktopState, Json, Profile } from '../core/types.js';
 import { reorderWorkspaces } from '../core/workspaces.js';
 import { diagnostics } from './diagnostics.js';
+import { permissionView } from './permission-labels.js';
 import type { DesktopHost, RunningApp } from './runtime.js';
 import { changeApplication } from './updates.js';
 
@@ -589,7 +590,7 @@ export function registerBridge(host: DesktopHost, app: RunningApp): void {
         state => ({
           profile: state.profile,
           workspaces: state.workspaces,
-          grants: state.grants,
+          grants: state.grants.map(grant => permissionView(state, grant)),
           offlineReady: host.offlineReady,
           version: '1.0.0'
         }),
@@ -822,23 +823,18 @@ export function registerBridge(host: DesktopHost, app: RunningApp): void {
         },
         signal
       );
-      requireCondition(
-        result.action === 'restore' &&
-          (await host.closeInstances([...host.instances.keys()].filter(id => id !== app.id))),
-        'CANCELLED',
-        '恢复已取消'
+      requireCondition(result.action === 'restore', 'CANCELLED', '恢复已取消');
+      await host.replaceDesktopSession(app.id, () =>
+        write(
+          'settings',
+          '*',
+          state => {
+            Object.assign(state, replacement);
+            state.grants = [];
+          },
+          signal
+        )
       );
-      await write(
-        'settings',
-        '*',
-        state => {
-          Object.assign(state, replacement);
-          state.grants = [];
-        },
-        signal
-      );
-      host.model.workspaceId = replacement.workspaces[0].id;
-      host.changed();
       return true;
     },
     'backup.reset': async (data, signal) => {
@@ -875,32 +871,29 @@ export function registerBridge(host: DesktopHost, app: RunningApp): void {
         },
         signal
       );
-      requireCondition(
-        second.action === 'reset' &&
-          (configuration || (await host.closeInstances([...host.instances.keys()].filter(id => id !== app.id)))),
-        'CANCELLED',
-        '重置已取消'
-      );
-      await write(
-        'settings',
-        '*',
-        state => {
-          if (!configuration) {
-            Object.assign(state, createState(host.model.mode));
-            return;
-          }
-          const defaults = defaultProfile(state.profile.mode);
-          const installed = new Set(state.installations.map(installation => installation.appId));
-          state.profile = {
-            ...defaults,
-            guided: state.profile.guided,
-            pinned: defaults.pinned.filter(id => installed.has(id)),
-            shortcuts: defaults.shortcuts.filter(id => installed.has(id))
-          };
-        },
-        signal
-      );
-      if (!configuration) host.model.workspaceId = 'first';
+      requireCondition(second.action === 'reset', 'CANCELLED', '重置已取消');
+      const reset = () =>
+        write(
+          'settings',
+          '*',
+          state => {
+            if (!configuration) {
+              Object.assign(state, createState(host.model.mode));
+              return;
+            }
+            const defaults = defaultProfile(state.profile.mode);
+            const installed = new Set(state.installations.map(installation => installation.appId));
+            state.profile = {
+              ...defaults,
+              guided: state.profile.guided,
+              pinned: defaults.pinned.filter(id => installed.has(id)),
+              shortcuts: defaults.shortcuts.filter(id => installed.has(id))
+            };
+          },
+          signal
+        );
+      if (configuration) await reset();
+      else await host.replaceDesktopSession(app.id, reset, 'reset');
       host.changed();
       return true;
     },

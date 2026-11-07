@@ -52,7 +52,7 @@ describe('DESKTOP-US-501/504/601 IndexedDB 原子提交', () => {
     indexedDB.deleteDatabase(name);
   });
 
-  it.each([1, 2, 3])('已有 v%s 数据在单次写事务中升级，重新连接仍保留文件和窗口', async version => {
+  it.each([1, 2, 3, 4])('已有 v%s 数据在单次写事务中升级，重新连接仍保留文件和窗口', async version => {
     const name = `desktop-migration-${crypto.randomUUID()}`;
     const initial = await openDatabase(() => true, 'windows', name);
     initial.close();
@@ -70,13 +70,14 @@ describe('DESKTOP-US-501/504/601 IndexedDB 原子提交', () => {
         route: '/documents/saved?line=2#L2',
         workspaceId: 'first',
         bounds: { x: 90, y: 48, width: 800, height: 520 },
-        state: 'minimized'
+        state: 'minimized',
+        ...(version === 4 ? { previousState: 'right', beforeMinimized: 'maximized' } : {})
       }
     ];
     await replaceStoredState(name, legacy);
     const migrated = await openDatabase(() => true, 'windows', name);
     const state = await migrated.read();
-    expect(state.schemaVersion).toBe(4);
+    expect(state.schemaVersion).toBe(5);
     expect(state.installations[0].resourceVersion).toBe(version === 3 ? 'a'.repeat(64) : null);
     expect(state.navigation).toEqual({ workspaceId: 'first', activeWindows: { first: null } });
     expect(state.files[0]).toMatchObject({ name: '升级前.txt', bytes: 'QQ==' });
@@ -84,13 +85,14 @@ describe('DESKTOP-US-501/504/601 IndexedDB 原子提交', () => {
       fileId: fileState.files[0].id,
       route: '/documents/saved?line=2#L2',
       state: 'minimized',
-      previousState: 'normal',
-      beforeMinimized: 'normal'
+      id: expect.any(String),
+      previousState: version === 4 ? 'right' : 'normal',
+      beforeMinimized: version === 4 ? 'maximized' : 'normal'
     });
     migrated.close();
     const reopened = await openDatabase(() => true, 'windows', name);
     const persisted = await reopened.read();
-    expect(persisted.schemaVersion).toBe(4);
+    expect(persisted.schemaVersion).toBe(5);
     expect(persisted.session).toEqual(state.session);
     reopened.close();
     indexedDB.deleteDatabase(name);
@@ -122,13 +124,13 @@ describe('DESKTOP-US-501/504/601 IndexedDB 原子提交', () => {
     indexedDB.deleteDatabase(name);
   });
 
-  it('损坏 v3 会话迁移失败时原始记录和文件字节保留', async () => {
+  it.each([3, 4])('损坏 v%s 会话迁移失败时原始记录和文件字节保留', async version => {
     const name = `desktop-bad-migration-${crypto.randomUUID()}`;
     const initial = await openDatabase(() => true, 'windows', name);
     initial.close();
     const state = createState('windows');
     createFile(state, { name: '保留.txt', bytes: 'QQ==' });
-    const invalid = { ...state, schemaVersion: 3, session: [null] };
+    const invalid = { ...state, schemaVersion: version, session: [null] };
     await replaceStoredState(name, invalid);
     await expect(openDatabase(() => true, 'windows', name)).rejects.toThrow('INVALID');
     const raw = await new Promise<unknown>((resolve, reject) => {

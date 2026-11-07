@@ -2,10 +2,17 @@
   {
     "appId": "files",
     "version": "1.0.0",
-    "changes": ["首个完整版本。"],
-    "required": ["files", "storage"],
+    "changes": [
+      "首个完整版本。"
+    ],
+    "required": [
+      "files",
+      "storage"
+    ],
     "data": {
-      "reads": [1],
+      "reads": [
+        1
+      ],
       "writes": 1,
       "migration": "none"
     }
@@ -13,10 +20,17 @@
   {
     "appId": "editor",
     "version": "1.0.0",
-    "changes": ["首个完整版本。"],
-    "required": ["files", "storage"],
+    "changes": [
+      "首个完整版本。"
+    ],
+    "required": [
+      "files",
+      "storage"
+    ],
     "data": {
-      "reads": [1],
+      "reads": [
+        1
+      ],
       "writes": 1,
       "migration": "none"
     }
@@ -24,10 +38,17 @@
   {
     "appId": "settings",
     "version": "1.0.0",
-    "changes": ["首个完整版本。"],
-    "required": ["settings", "storage"],
+    "changes": [
+      "首个完整版本。"
+    ],
+    "required": [
+      "settings",
+      "storage"
+    ],
     "data": {
-      "reads": [1],
+      "reads": [
+        1
+      ],
       "writes": 1,
       "migration": "none"
     }
@@ -35,10 +56,17 @@
   {
     "appId": "catalog",
     "version": "1.0.0",
-    "changes": ["首个完整版本。"],
-    "required": ["apps", "storage"],
+    "changes": [
+      "首个完整版本。"
+    ],
+    "required": [
+      "apps",
+      "storage"
+    ],
     "data": {
-      "reads": [1],
+      "reads": [
+        1
+      ],
       "writes": 1,
       "migration": "none"
     }
@@ -46,10 +74,17 @@
   {
     "appId": "notes",
     "version": "1.0.0",
-    "changes": ["首个完整版本。"],
-    "required": ["files", "storage"],
+    "changes": [
+      "首个完整版本。"
+    ],
+    "required": [
+      "files",
+      "storage"
+    ],
     "data": {
-      "reads": [1],
+      "reads": [
+        1
+      ],
       "writes": 1,
       "migration": "none"
     }
@@ -57,10 +92,69 @@
   {
     "appId": "editor",
     "version": "1.1.0",
-    "changes": ["新增复制全文按钮。复制功能需要剪贴板能力，保存内容与原版本兼容。"],
-    "required": ["files", "storage", "clipboard"],
+    "changes": [
+      "新增复制全文按钮。复制功能需要剪贴板能力，保存内容与原版本兼容。"
+    ],
+    "required": [
+      "files",
+      "storage",
+      "clipboard"
+    ],
     "data": {
-      "reads": [1],
+      "reads": [
+        1
+      ],
+      "writes": 1,
+      "migration": "none"
+    }
+  },
+  {
+    "appId": "sample-angular",
+    "version": "1.0.0",
+    "changes": [
+      "同任务便签：中文编辑、保存、下载和独立路由。"
+    ],
+    "required": [
+      "files"
+    ],
+    "data": {
+      "reads": [
+        1
+      ],
+      "writes": 1,
+      "migration": "none"
+    }
+  },
+  {
+    "appId": "sample-react",
+    "version": "1.0.0",
+    "changes": [
+      "同任务便签：中文编辑、保存、下载和独立路由。"
+    ],
+    "required": [
+      "files"
+    ],
+    "data": {
+      "reads": [
+        1
+      ],
+      "writes": 1,
+      "migration": "none"
+    }
+  },
+  {
+    "appId": "sample-vue",
+    "version": "1.0.0",
+    "changes": [
+      "同任务便签：中文编辑、保存、下载和独立路由。"
+    ],
+    "required": [
+      "files"
+    ],
+    "data": {
+      "reads": [
+        1
+      ],
       "writes": 1,
       "migration": "none"
     }

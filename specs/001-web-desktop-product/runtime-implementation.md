@@ -29,4 +29,4 @@ Angular / React / Vue 演示和 benchmarks 的 main 先握手，再动态导入 
 
 ## 未关闭范围
 
-DESKTOP-US-301～306、308 已进入实现，均保持 In Progress。尚无完整产品验收；预加载/挂起、托管存储与服务授权、离线资源完整性、macOS/Windows 外壳、Safari/Edge/Windows 实机矩阵、输入法/无障碍和性能/堆采样仍未完成。完整导航明确使连接失败，SPA history/hash 导航保留原文档。隐藏仅影响可见性，后台代码继续运行。
+DESKTOP-US-301～306、308 保持 In Progress。第一轮之后，`apps/web-desktop` 已实现 macOS / Windows 交互外壳、托管文件与授权、完整版本资源缓存、预取和协作挂起；最新自动化范围与构建版本见分层验收台账。这些桌面能力由宿主管理，Orbit 核心的版本字段仍是运行元数据。桌面内三框架同任务组合、完整文档站消费回归、其他未覆盖 AC、Safari/Edge/Windows 实机、输入法/读屏、性能及堆采样继续待验收。完整导航明确使连接失败，SPA history/hash 导航保留原文档；隐藏仅改变可见性，只有显式协作挂起才进入桌面挂起状态。

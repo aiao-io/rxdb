@@ -50,7 +50,7 @@ capabilities: []
 
 ## 技术笔记
 
-固定参考提交 c45932998c0602f34454df8d3e29f4d33a38446a，重写源码已进入 packages/orbit。采用原生 iframe 文档承载，删除跨文档 DOM/CSS 代理；版本资源与自定义缓存尚未实现。来源和兼容取舍见包内 UPSTREAM.md。现有 modules/orbit 维护宿主协议，职责独立。
+固定参考提交 c45932998c0602f34454df8d3e29f4d33a38446a，重写源码已进入 packages/orbit。采用原生 iframe 文档承载，删除跨文档 DOM/CSS 代理；桌面宿主已实现完整版本资源固定与缓存，Orbit 核心的 version 保持运行元数据职责，完整产品验收仍未完成。来源和兼容取舍见包内 UPSTREAM.md。现有 modules/orbit 维护宿主协议，职责独立。
 
 ## 实现文件
 

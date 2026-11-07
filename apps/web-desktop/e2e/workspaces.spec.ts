@@ -1,5 +1,5 @@
 import { expect, test, type FrameLocator, type Page } from '@playwright/test';
-import type { DesktopState } from '../src/core/types.js';
+import { readState as snapshot } from './state.js';
 
 async function enter(page: Page, mode: 'macos' | 'windows') {
   await page.goto('/');
@@ -19,24 +19,6 @@ async function createWorkspace(frame: FrameLocator, name: string) {
   await frame.getByLabel('新工作区名称').fill(name);
   await frame.getByRole('button', { name: '创建工作区', exact: true }).click();
   await expect(frame.locator('.workspace-setting').filter({ hasText: name })).toBeVisible();
-}
-
-async function snapshot(page: Page): Promise<DesktopState> {
-  return page.evaluate(
-    () =>
-      new Promise<DesktopState>((resolve, reject) => {
-        const request = indexedDB.open('orbit-desktop', 1);
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => {
-          const database = request.result;
-          const transaction = database.transaction('state', 'readonly');
-          const read = transaction.objectStore('state').get('desktop');
-          read.onsuccess = () => resolve(read.result as DesktopState);
-          read.onerror = () => reject(read.error);
-          transaction.oncomplete = () => database.close();
-        };
-      })
-  );
 }
 
 for (const mode of ['macos', 'windows'] as const) {

@@ -48,3 +48,16 @@ describe('DESKTOP-US-201/202/205 受控目录', () => {
     expect(state.installations.filter(app => app.appId === 'notes')).toHaveLength(1);
   });
 });
+
+
+describe('DESKTOP-US-308 三框架桌面样例', () => {
+  it.each(['angular', 'react', 'vue'])('%s 样例为可选择安装的同任务多实例应用', framework => {
+    const state = createState('windows');
+    const id = `sample-${framework}`;
+    expect(state.installations.some(app => app.appId === id)).toBe(false);
+    const app = builtins.find(app => app.id === id);
+    expect(app).toMatchObject({ entry: `${id}.html`, instances: 'multiple', system: false, capabilities: ['files'], suspension: 1 });
+    installApp(state, id);
+    expect(state.installations.filter(app => app.appId === id)).toHaveLength(1);
+  });
+});
