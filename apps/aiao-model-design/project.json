@@ -1,0 +1,162 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "aiao-model-design",
+  "prefix": "aiao",
+  "projectType": "application",
+  "sourceRoot": "apps/aiao-model-design/src",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "dist/apps/aiao-model-design",
+        "browser": "apps/aiao-model-design/src/main.ts",
+        "tsConfig": "apps/aiao-model-design/tsconfig.app.json",
+        "inlineStyleLanguage": "scss",
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "apps/aiao-model-design/public"
+          },
+          {
+            "glob": "*.wasm",
+            "input": "node_modules/@subframe7536/sqlite-wasm/dist",
+            "output": "sqlite-wasm"
+          }
+        ],
+        "styles": ["apps/aiao-model-design/src/styles.scss"]
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "1mb",
+              "maximumError": "2.2mb"
+            },
+            {
+              "type": "anyComponentStyle",
+              "maximumWarning": "8kb",
+              "maximumError": "32kb"
+            }
+          ],
+          "outputHashing": "all"
+        },
+        "development": {
+          "optimization": false,
+          "extractLicenses": false,
+          "sourceMap": true
+        }
+      }
+    },
+    "serve": {
+      "continuous": true,
+      "readyWhen": {
+        "signal": true
+      },
+      "executor": "@angular/build:dev-server",
+      "defaultConfiguration": "development",
+      "configurations": {
+        "production": {
+          "buildTarget": "aiao-model-design:build:production"
+        },
+        "development": {
+          "buildTarget": "aiao-model-design:build:development"
+        },
+        "migration": {
+          "buildTarget": "aiao-model-design:build:development",
+          "port": 4201
+        }
+      },
+      "options": {
+        "proxyConfig": "apps/aiao-model-design/proxy.conf.cjs"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "vitest run --config apps/aiao-model-design/vite.config.mts"
+      },
+      "dependsOn": ["^build", "test-server"]
+    },
+    "serve-static": {
+      "continuous": true,
+      "readyWhen": {
+        "signal": true
+      },
+      "dependsOn": ["build"],
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "aiao-model-design:build",
+        "staticFilePath": "dist/apps/aiao-model-design/browser",
+        "spa": true
+      }
+    },
+    "generate-models": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        {
+          "projects": ["rxdb-client-generator"],
+          "target": "build"
+        }
+      ],
+      "options": {
+        "command": "node packages/rxdb-client-generator/dist/cli.js apps/aiao-model-design/rxdb-models.config.ts"
+      }
+    },
+    "test-server": {
+      "cache": true,
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/coverage/apps/aiao-model-design-server"],
+      "options": {
+        "command": "vitest run --config apps/aiao-model-design/vitest.server.config.mts"
+      }
+    },
+    "typecheck-server": {
+      "cache": true,
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --project apps/aiao-model-design/tsconfig.server.json --noEmit"
+      }
+    },
+    "deploy-cloudflare": {
+      "dependsOn": ["build"],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/aiao-model-design",
+        "command": "wrangler deploy"
+      }
+    },
+    "serve-api": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/aiao-model-design",
+        "command": "node scripts/serve-api.mjs"
+      },
+      "dependsOn": ["build"]
+    },
+    "build-server": {
+      "cache": true,
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/dist/apps/aiao-model-design/worker"],
+      "options": {
+        "cwd": "apps/aiao-model-design",
+        "command": "wrangler deploy --dry-run --outdir ../../dist/apps/aiao-model-design/worker"
+      },
+      "dependsOn": ["build"]
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck", "typecheck-server"]
+    },
+    "test-worker": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "command": "node apps/aiao-model-design/scripts/test-worker.mjs"
+      }
+    }
+  }
+}

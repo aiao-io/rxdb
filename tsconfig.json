@@ -305,6 +305,9 @@
     },
     {
       "path": "./apps/rxdb-admin-template-vue-e2e"
+    },
+    {
+      "path": "./apps/aiao-model-design"
     }
   ]
 }

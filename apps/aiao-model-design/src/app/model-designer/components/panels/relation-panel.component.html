@@ -1,0 +1,77 @@
+<div class="flex flex-col space-y-2 p-2">
+  @if (inheritedRelationGroups().length > 0) {
+    <div class="flex items-center justify-end gap-1">
+      <button
+        class="btn btn-ghost btn-xs"
+        (click)="groupBulkToggled.emit(true)"
+        data-testid="expand-all-groups"
+        type="button"
+      >
+        {{ t().entityPanel.expandAllGroups }}
+      </button>
+      <button
+        class="btn btn-ghost btn-xs"
+        (click)="groupBulkToggled.emit(false)"
+        data-testid="collapse-all-groups"
+        type="button"
+      >
+        {{ t().entityPanel.collapseAllGroups }}
+      </button>
+    </div>
+  }
+  @for (group of inheritedRelationGroups(); track group.source) {
+    <div class="border-base-300 border-warning/30 rounded border">
+      <button
+        class="flex w-full items-center gap-1 px-2 py-1.5"
+        [attr.aria-expanded]="expandedGroups().has(group.source)"
+        (click)="groupToggled.emit(group.source)"
+        type="button"
+      >
+        <lucide-icon
+          class="text-warning h-3 w-3 shrink-0 transition-transform duration-150"
+          [class.rotate-90]="expandedGroups().has(group.source)"
+          [img]="ChevronRight"
+        />
+        <span class="text-warning text-xs font-medium">
+          {{ t().relationPanel.inheritedFrom.replace('{source}', group.source) }}
+        </span>
+        <span class="badge badge-warning badge-xs">{{ t().entityPanel.readonlyBadge }}</span>
+      </button>
+      @if (expandedGroups().has(group.source)) {
+        <div class="bg-warning/10 px-2 py-1.5">
+          @for (rel of group.relations; track rel.name) {
+            <div class="bg-base-100/50 mt-1 flex items-center gap-2 rounded px-2 py-1 text-xs opacity-60">
+              <span class="font-mono font-medium">{{ rel.name }}</span>
+              <span class="badge badge-ghost badge-xs">{{ rel.type }}</span>
+              <span class="text-base-content/40 ml-auto text-xs">{{ rel.displayName }}</span>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+  <div class="flex flex-col space-y-2" (cdkDropListDropped)="onRelationDrop($event)" cdkDropList>
+    @if (relationSnapshots().length === 0) {
+      <div class="text-base-content/50 rounded border border-dashed px-3 py-6 text-center text-xs">
+        {{ t().entityPanel.emptyRelations }}
+      </div>
+    }
+    @for (rel of relationSnapshots(); track rel.id) {
+      <div cdkDrag>
+        <lib-relation-item
+          [allRelations]="allRelations()"
+          [autoFocus]="autoFocusId() === rel.id"
+          [entities]="entities()"
+          [errors]="relationErrors().get(rel.id) ?? []"
+          [expanded]="expandedItemId() === rel.id"
+          [isInvalid]="invalidRelationIds().has(rel.id)"
+          [relation]="rel"
+          (deleted)="relationDeleted.emit(rel.id)"
+          (expandToggled)="itemExpandToggled.emit(rel.id)"
+          (focusHandled)="focusHandled.emit()"
+          (updated)="relationUpdated.emit({ id: rel.id, changes: $event })"
+        />
+      </div>
+    }
+  </div>
+</div>

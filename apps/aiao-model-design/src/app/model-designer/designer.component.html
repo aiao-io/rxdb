@@ -1,0 +1,149 @@
+<div class="flex h-full flex-col">
+  @if (state.bannerError(); as error) {
+    <div class="alert alert-error m-2 shrink-0" data-testid="designer-error" role="alert">
+      <span class="flex-1 break-all">{{ error }}</span>
+      @if (state.bannerDismissible()) {
+        <button
+          class="btn btn-ghost btn-square min-h-11 min-w-11"
+          [attr.aria-label]="t().errorBanner.ariaDismiss"
+          (click)="state.lastError.set(null)"
+          data-testid="designer-error-dismiss"
+          type="button"
+        >
+          <lucide-icon class="h-5 w-5" [img]="X" aria-hidden="true" />
+        </button>
+      }
+    </div>
+  }
+
+  @if (modelDesign.activeDesign() && !listRequested()) {
+    <div class="relative flex flex-1 overflow-hidden">
+      <div class="hidden shrink-0 lg:block">
+        <lib-schema-navigator
+          [entities]="state.entities()"
+          [schema]="modelDesign.activeDesign()"
+          [selectedEntityIds]="state.selectedEntityIds()"
+          (entityCreated)="state.onAddEntity()"
+          (entitySelected)="onEntitySelected($event)"
+        />
+      </div>
+
+      @if (navigatorOpen()) {
+        <div class="absolute inset-0 z-40 flex lg:hidden">
+          <button
+            class="absolute inset-0 bg-black/40"
+            [attr.aria-label]="t().toolbar.closeNavigator"
+            (click)="navigatorOpen.set(false)"
+            type="button"
+          ></button>
+          <div class="relative z-10 h-full shadow-xl">
+            <lib-schema-navigator
+              [entities]="state.entities()"
+              [schema]="modelDesign.activeDesign()"
+              [selectedEntityIds]="state.selectedEntityIds()"
+              (entityCreated)="state.onAddEntity(); navigatorOpen.set(false)"
+              (entitySelected)="onEntitySelected($event)"
+            />
+          </div>
+        </div>
+      }
+
+      <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <lib-designer-toolbar
+          [entityCount]="state.entities().length"
+          [executeDisabled]="executeDisabled()"
+          [modelName]="state.activeDesignName()"
+          [redoCount]="state.redoCount()"
+          [redoDisabled]="state.redoCount() === 0"
+          [undoCount]="state.undoCount()"
+          [undoDisabled]="state.undoCount() === 0"
+          [viewMode]="viewMode()"
+          (addEntity)="state.onAddEntity()"
+          (compareSql)="state.onCompareSql()"
+          (executeSql)="onExecuteSql()"
+          (generateCode)="state.onGenerate()"
+          (generateSql)="state.onGenerateSql()"
+          (openNavigator)="navigatorOpen.set(true)"
+          (openVersionManager)="onOpenVersionManager()"
+          (redo)="state.onRedo()"
+          (switchModel)="onSwitchModel()"
+          (toggleAi)="onToggleAi()"
+          (undo)="state.onUndo()"
+          (viewModeChange)="onViewModeChange($event)"
+        />
+        <div class="relative flex flex-1 overflow-hidden">
+          <router-outlet />
+        </div>
+      </div>
+    </div>
+
+    <lib-code-preview
+      [(isOpen)]="state.codePreviewOpen"
+      [(packageName)]="state.clientPackageName"
+      [errors]="state.generatedErrors()"
+      [files]="state.generatedFiles()"
+      [packageBusy]="state.clientPackageBusy()"
+      [packageVersion]="state.clientPackageVersion()"
+      (archivePackage)="state.onArchiveClientPackage()"
+      (download)="state.onDownloadZip()"
+      (publishPackage)="state.onPublishClientPackage()"
+    />
+  } @else {
+    <lib-model-list
+      [activeId]="modelDesign.activeDesignId()"
+      [designs]="modelDesign.designs()"
+      (copied)="onModelCopied($event)"
+      (created)="onModelCreated($event)"
+      (deleted)="onModelDeleted($event)"
+      (selected)="onModelSelected($event)"
+    />
+  }
+</div>
+
+<!-- AI Chat Panel template for drawer content injection -->
+<ng-template #aiChatPanelTpl>
+  <!-- 孤立分支恢复对话框 -->
+  @if (orphanBranchDetected()) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div class="modal-box">
+        <h3 class="text-lg font-bold">{{ t().ai.pendingChanges }}</h3>
+        <p class="py-4">发现上次未完成的 AI 变更，是否继续预览或丢弃？</p>
+        <div class="modal-action">
+          <button class="btn btn-primary" (click)="onRecoverOrphanBranch()">继续预览</button>
+          <button class="btn btn-error" (click)="onDiscardOrphanBranch()">丢弃</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <lib-ai-chat-panel
+    [activeProposal]="aiOrchestrator.activeProposal()"
+    [activeSessionId]="aiOrchestrator.activeSessionId()"
+    [branchDiff]="aiOrchestrator.sessionDiff()"
+    [branches]="aiOrchestrator.branches()"
+    [canStartOperation]="state.aiGuard.canStartAiOperation()"
+    [chatMode]="aiOrchestrator.chatMode()"
+    [currentBranchId]="aiOrchestrator.currentBranchId() ?? 'main'"
+    [hasError]="aiOrchestrator.hasError()"
+    [messages]="aiOrchestrator.messages()"
+    [operationState]="aiOrchestrator.operationState()"
+    [retainedEntityCount]="aiOrchestrator.retainedEntityCount()"
+    [selectedEntityName]="$safeNavigationMigration(state.selectedEntity()?.name)"
+    [sessions]="aiOrchestrator.sessions()"
+    [streamingCharCount]="aiOrchestrator.streamingCharCount()"
+    (abortGeneration)="aiOrchestrator.abort()"
+    (acceptPartial)="aiOrchestrator.acceptPartial()"
+    (backToList)="aiOrchestrator.backToList()"
+    (cancelProposal)="aiOrchestrator.cancelProposal()"
+    (compareBranch)="onCompareBranch($event)"
+    (confirmMerge)="aiOrchestrator.confirmMerge()"
+    (confirmProposal)="aiOrchestrator.confirmProposal()"
+    (continueGeneration)="aiOrchestrator.continueGeneration()"
+    (createSessionEvent)="aiOrchestrator.createSession()"
+    (deleteSessionEvent)="aiOrchestrator.deleteSession($event)"
+    (discardChanges)="aiOrchestrator.discard()"
+    (retryRequest)="aiOrchestrator.retryLastRequest()"
+    (selectSessionEvent)="aiOrchestrator.selectSession($event)"
+    (sendMessage)="aiOrchestrator.send($event)"
+  />
+</ng-template>
