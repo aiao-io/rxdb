@@ -8,9 +8,7 @@
   "targets": {
     "build": {
       "executor": "@angular/build:application",
-      "outputs": [
-        "{options.outputPath}"
-      ],
+      "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",
       "options": {
         "outputPath": "dist/apps/aiao-model-design",
@@ -28,9 +26,7 @@
             "output": "sqlite-wasm"
           }
         ],
-        "styles": [
-          "apps/aiao-model-design/src/styles.scss"
-        ]
+        "styles": ["apps/aiao-model-design/src/styles.scss"]
       },
       "configurations": {
         "production": {
@@ -82,16 +78,15 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "vitest run --config apps/aiao-model-design/vite.config.mts"
-      }
+      },
+      "dependsOn": ["^build", "test-server"]
     },
     "serve-static": {
       "continuous": true,
       "readyWhen": {
         "signal": true
       },
-      "dependsOn": [
-        "build"
-      ],
+      "dependsOn": ["build"],
       "executor": "@nx/web:file-server",
       "options": {
         "buildTarget": "aiao-model-design:build",
@@ -103,9 +98,7 @@
       "executor": "nx:run-commands",
       "dependsOn": [
         {
-          "projects": [
-            "rxdb-client-generator"
-          ],
+          "projects": ["rxdb-client-generator"],
           "target": "build"
         }
       ],
@@ -113,20 +106,10 @@
         "command": "node packages/rxdb-client-generator/dist/cli.js apps/aiao-model-design/rxdb-models.config.ts"
       }
     },
-    "serve-api": {
-      "continuous": true,
-      "executor": "nx:run-commands",
-      "options": {
-        "cwd": "apps/aiao-model-design/server",
-        "command": "bun --env-file=.env run --watch src/index.ts"
-      }
-    },
     "test-server": {
       "cache": true,
       "executor": "nx:run-commands",
-      "outputs": [
-        "{workspaceRoot}/coverage/apps/aiao-model-design-server"
-      ],
+      "outputs": ["{workspaceRoot}/coverage/apps/aiao-model-design-server"],
       "options": {
         "command": "vitest run --config apps/aiao-model-design/vitest.server.config.mts"
       }
@@ -135,55 +118,44 @@
       "cache": true,
       "executor": "nx:run-commands",
       "options": {
-        "command": "tsc --project apps/aiao-model-design/tsconfig.server.json --noEmit && tsc --project apps/aiao-model-design/tsconfig.worker.json --noEmit"
-      }
-    },
-    "build-server": {
-      "cache": true,
-      "executor": "nx:run-commands",
-      "outputs": [
-        "{workspaceRoot}/dist/apps/aiao-model-design/server"
-      ],
-      "options": {
-        "command": "bun build apps/aiao-model-design/server/src/index.ts --target=bun --outdir=dist/apps/aiao-model-design/server && cp -R apps/aiao-model-design/server/config dist/apps/aiao-model-design/server/config"
-      }
-    },
-    "preview-cloudflare": {
-      "continuous": true,
-      "dependsOn": [
-        "build",
-        "build-server"
-      ],
-      "executor": "nx:run-commands",
-      "options": {
-        "cwd": "apps/aiao-model-design",
-        "command": "wrangler dev --port 8788 --show-interactive-dev-session=false"
+        "command": "tsc --project apps/aiao-model-design/tsconfig.server.json --noEmit"
       }
     },
     "deploy-cloudflare": {
-      "dependsOn": [
-        "build",
-        "build-server"
-      ],
+      "dependsOn": ["build"],
       "executor": "nx:run-commands",
       "options": {
         "cwd": "apps/aiao-model-design",
         "command": "wrangler deploy"
       }
     },
-    "check-cloudflare": {
-      "cache": true,
-      "dependsOn": [
-        "build",
-        "build-server"
-      ],
+    "serve-api": {
+      "continuous": true,
       "executor": "nx:run-commands",
-      "outputs": [
-        "{workspaceRoot}/dist/apps/aiao-model-design/worker"
-      ],
+      "options": {
+        "cwd": "apps/aiao-model-design",
+        "command": "wrangler dev --port 8788 --show-interactive-dev-session=false"
+      },
+      "dependsOn": ["build"]
+    },
+    "build-server": {
+      "cache": true,
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/dist/apps/aiao-model-design/worker"],
       "options": {
         "cwd": "apps/aiao-model-design",
         "command": "wrangler deploy --dry-run --outdir ../../dist/apps/aiao-model-design/worker"
+      },
+      "dependsOn": ["build"]
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck", "typecheck-server"]
+    },
+    "test-worker": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "command": "node apps/aiao-model-design/scripts/test-worker.mjs"
       }
     }
   }

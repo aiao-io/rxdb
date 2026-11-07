@@ -1,27 +1,16 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "aiao-model-design",
-  "main": "server/cloudflare.ts",
+  "main": "server/index.ts",
   "compatibility_date": "2026-11-07",
   "workers_dev": true,
   "assets": {
     "directory": "../../dist/apps/aiao-model-design/browser",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/bff/*", "/v1/*", "/openapi", "/openapi/*", "/health"]
+    "run_worker_first": ["/api/*", "/bff/*", "/health"]
   },
-  "containers": [
-    {
-      "class_name": "ModelDesignApi",
-      "image": "./server/Dockerfile",
-      "image_build_context": "../../dist/apps/aiao-model-design",
-      "instance_type": "basic",
-      "max_instances": 1
-    }
-  ],
-  "durable_objects": {
-    "bindings": [{ "name": "API", "class_name": "ModelDesignApi" }]
-  },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ModelDesignApi"] }],
-  "observability": { "enabled": true }
+  "observability": {
+    "enabled": true
+  }
 }

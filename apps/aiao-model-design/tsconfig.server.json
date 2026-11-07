@@ -3,20 +3,13 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "lib": [
-      "ESNext",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "strict": true,
     "skipLibCheck": true,
     "noEmit": true,
     "esModuleInterop": true,
-    "types": [
-      "bun"
-    ]
+    "types": ["@cloudflare/workers-types"]
   },
-  "include": [
-    "server/src/**/*.ts"
-  ]
+  "exclude": ["server/**/*.spec.ts"],
+  "include": ["server/**/*.ts"]
 }
