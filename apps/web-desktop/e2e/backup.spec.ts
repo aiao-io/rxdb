@@ -200,7 +200,9 @@ for (const mode of ['macos', 'windows'] as const) {
     expect((await snapshot(page)).session).toEqual([]);
     await page.getByRole('button', { name: '打开 设置', exact: true }).click();
     await page.getByRole('button', { name: '始终允许', exact: true }).click();
-    await expect(settings.getByRole('heading', { name: mode === 'macos' ? '外观' : '个性化', exact: true })).toBeVisible();
+    await expect(
+      settings.getByRole('heading', { name: mode === 'macos' ? '外观' : '个性化', exact: true })
+    ).toBeVisible();
     await page.reload();
     expect((await snapshot(page)).files).toEqual([]);
     await expect(page.locator('[data-app-id="settings"]')).toHaveCount(1);
