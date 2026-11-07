@@ -63,6 +63,8 @@ WASM 响应使用 `application/wasm`，JS 使用 `text/javascript`，CSS 使用 
 资产里的 `.html`（Markdown 扩展宿主、VS Code webview 的 index / fake 页）由 iframe 直接导航，托管方必须原样返回，
 不能重定向到去掉扩展名的地址：Service Worker 接管导航时不跟随这类重定向。Cloudflare Pages 默认会做这种重定向，
 `public/_redirects` 用 200 改写关闭它，`pnpm nx run aiao-vscode:verify-pages-routing` 在本地 Pages 模拟中校验。
+这类 308 不带 `Cache-Control`，浏览器会当永久重定向长期缓存：被重定向过的固定地址要换新，扩展宿主页因此带
+`channel` 查询参数。
 
 离线重开依赖 Service Worker 缓存应用外壳与完整资源目录。首次访问缺少资源时不承诺离线启动；
 缺资源或摘要不符会明确报错。
