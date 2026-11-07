@@ -3,6 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { chromium } from 'playwright';
 import { expect } from 'playwright/test';
+import { isTikzResource } from '../src/workbench/extensions/markdown-resource-origin.ts';
 
 const url = process.argv.find(value => value.startsWith('--url='))?.slice('--url='.length) ?? 'http://localhost:4320/';
 const directory = resolve(import.meta.dirname, '../benchmarks');
@@ -36,7 +37,7 @@ page.on('pageerror', error => report.errors.push(error.stack ?? error.message));
 page.on('console', message => {
   if (message.type() !== 'error') return;
   const text = `${message.text()} ${message.location().url}`;
-  if (text.includes('tikzjax.com')) {
+  if (isTikzResource(message.location().url)) {
     if (!report.limitations.includes('TikZ 在线资源受 COEP 限制')) report.limitations.push('TikZ 在线资源受 COEP 限制');
   } else report.errors.push(text);
 });

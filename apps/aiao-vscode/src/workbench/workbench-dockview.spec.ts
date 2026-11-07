@@ -2,6 +2,7 @@
 import type { SerializedDockview } from 'dockview-core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createWorkbenchDockview, type WorkbenchDockview } from './workbench-dockview.js';
+import { SIDEBAR_WIDTH } from './workbench-layout-state.js';
 
 type GridNode = SerializedDockview['grid']['root'];
 
@@ -74,6 +75,28 @@ function siblingGroupIds(dock: WorkbenchDockview, groupId: string): string[] {
 }
 
 describe('Dockview 工作台布局', () => {
+  it('零尺寸挂载后的侧栏留在边缘组内容中，布局恢复后不进入浮层', () => {
+    const { root, dock } = fixture(0, 0);
+    dock.api.layout(1200, 800);
+    const sidebar = root.querySelector('.wb-side');
+    expect(dock.api.getPanel('sidebar')?.group.element.contains(sidebar)).toBe(true);
+    expect(sidebar?.closest('.dv-render-overlay')).toBeNull();
+    expect(dock.applyLayout(dock.serializeLayout())).toBe(true);
+    expect(dock.api.getPanel('sidebar')?.group.element.contains(sidebar)).toBe(true);
+  });
+
+  it('强制重布局采用容器首次非零尺寸', () => {
+    const { root, dock } = fixture(0, 0);
+    const container = root.querySelector('[data-slot="dockview"]');
+    Object.defineProperties(container, {
+      clientWidth: { value: 1200 },
+      clientHeight: { value: 800 }
+    });
+    dock.refreshLayout();
+    expect(dock.api.width).toBe(1200 - SIDEBAR_WIDTH);
+    expect(dock.api.height).toBe(800);
+  });
+
   it('空工作区只有侧栏面板，编辑区是展示欢迎背景的空组而不是标签，工具和预览按需打开', () => {
     const { root, dock } = fixture(1200, 800, false);
     expect(dock.api.panels.map(panel => panel.id)).toEqual(['sidebar']);

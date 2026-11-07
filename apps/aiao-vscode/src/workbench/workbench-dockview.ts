@@ -498,17 +498,8 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
     });
   }
 
-  /** 强制按当前容器尺寸重布局；侧栏内容高度为 0 时重建边缘组（见调用处注释）。 */
   function refreshLayout(): void {
     if (disposed || container.clientWidth <= 0 || container.clientHeight <= 0) return;
-    const host = hosts.get('sidebar');
-    // dockview 在挂载窗口内按 0 尺寸建立的边缘组布局会永久塌陷（上游已知竞态），
-    // 检测到侧栏内容高度为 0 时移出再放回，按当前容器尺寸重建边缘组。
-    if (!overlayMode && host && host.clientHeight <= 0) {
-      setSidebarOverlay(true);
-      setSidebarOverlay(false);
-      return;
-    }
     api.layout(container.clientWidth, container.clientHeight, true);
   }
 
@@ -575,7 +566,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
       id,
       component: id,
       title: titles[id],
-      renderer: 'always',
+      renderer: id === 'sidebar' ? 'onlyWhenVisible' : 'always',
       inactive: true,
       position: { referenceGroup: group, direction: 'within' as const, ...(index === undefined ? {} : { index }) }
     });
@@ -882,7 +873,9 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
     if (auxiliaryIds.has(id)) return undefined;
     const panel = api.getPanel(id);
     if (panel) return panel.toJSON();
-    return isStatic(id) ? { id, contentComponent: id, title: titles[id], renderer: 'always' } : undefined;
+    return isStatic(id) ?
+        { id, contentComponent: id, title: titles[id], renderer: id === 'sidebar' ? 'onlyWhenVisible' : 'always' }
+      : undefined;
   }
 
   /** fromJSON 会清掉布局之外的面板：编辑器与辅助面板连同原宿主放回编辑区，静态面板回存 staging。 */

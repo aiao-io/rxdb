@@ -333,10 +333,6 @@ export function mountWorkbench(
   const onNarrowChange = (event: MediaQueryListEvent): void => applyNarrow(event.matches);
   narrowMedia.addEventListener('change', onNarrowChange);
 
-  // 首访时 dockview 的边缘组可能在挂载窗口内按 0 尺寸布局（上游竞态），布局事件与
-  // ready 流程都可能延迟；refreshLayout 幂等且健康时开销极小，分档重试直到修复。
-  const layoutRetries = [500, 1500, 4000].map(delay => setTimeout(() => docking.refreshLayout(), delay));
-
   /** 活动栏底部 GitHub 帐户入口：无认证能力时隐藏，登录后显示徽标与用户名。 */
   function renderAccountState(): void {
     const button = element<HTMLButtonElement>('[data-action="github-account"]');
@@ -2655,7 +2651,6 @@ export function mountWorkbench(
       docking.dispose();
       for (const dialog of root.querySelectorAll<HTMLDialogElement>('dialog')) dialog.close();
       narrowMedia.removeEventListener('change', onNarrowChange);
-      for (const timer of layoutRetries) clearTimeout(timer);
       clearTimeout(layoutSaveTimer);
       root.removeEventListener('click', click);
       root.remove();
