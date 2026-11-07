@@ -17,6 +17,8 @@ for (const backend of ['wa-sqlite', 'pglite'] as const) {
         const fixture = await loadBomViewFixture(adapter.rxdb);
         const input = fixture.inputFor('performance');
         const reads: Map<string, number>[] = [];
+        let occurrenceReads = 0;
+        let headerReads = 0;
         adapter.transaction = async <Fun extends TransactionFun>(
           fun: Fun,
           transactionLog?: boolean
@@ -30,7 +32,17 @@ for (const backend of ['wa-sqlite', 'pglite'] as const) {
               executor.query = (sql, params) => {
                 const key = JSON.stringify([sql, params ?? []]);
                 counts.set(key, (counts.get(key) ?? 0) + 1);
-                return query.call(executor, sql, params);
+                return query.call(executor, sql, params).then(result => {
+                  if (['lineId', 'occurrenceId', 'parentRevisionId'].every(column => result.columns.includes(column)))
+                    occurrenceReads += 1;
+                  if (
+                    result.columns.includes('headerId') &&
+                    result.columns.includes('alternativeNo') &&
+                    !result.columns.includes('occurrenceId')
+                  )
+                    headerReads += 1;
+                  return result;
+                });
               };
               try {
                 return await fun(executor);
@@ -65,6 +77,8 @@ for (const backend of ['wa-sqlite', 'pglite'] as const) {
         expect(second.quantityError).toBeNull();
         expect(firstReadCounts.length).toBeGreaterThan(0);
         expect(Math.max(...firstReadCounts)).toBe(1);
+        expect(occurrenceReads).toBe(1);
+        expect(headerReads).toBe(new Set(first.expansion.nodes.map(node => node.revisionId)).size);
       } finally {
         adapter.transaction = transaction;
         await disposeBomTestAdapter(adapter);
@@ -146,7 +160,8 @@ for (const backend of ['wa-sqlite', 'pglite'] as const) {
                   )
                 )
                   expect(sql).toContain('WHERE');
-                if (sql === expected.sql && params?.[0] === fixture.ids.revisions.resistor) childHeaderReads += 1;
+                if (sql === expected.sql && JSON.stringify(params ?? []) === JSON.stringify(expected.params))
+                  childHeaderReads += 1;
                 return query.call(executor, sql, params);
               };
               try {

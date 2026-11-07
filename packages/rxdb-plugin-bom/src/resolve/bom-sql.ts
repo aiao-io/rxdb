@@ -161,31 +161,8 @@ export const buildResolvedOccurrencesSql = (
 };
 
 /**
- * 生成「备选头」查询：父修订下的 released 头（按 bom_type / org / 可选 alternative）。
- */
-export const buildAlternativeHeadersSql = (
-  dialect: BomSqlDialect,
-  params: { parentRevisionId: string; bomType: string; orgId: string }
-): { sql: string; params: unknown[] } => {
-  const { bind, p } = sqlBindings(dialect);
-  const header = dialect.table('bom_header');
-  const sql = [
-    `SELECT h."id" AS "headerId", h."alternativeNo" AS "alternativeNo", h."baseUom" AS "baseUom",`,
-    `  h."baseQty" AS "baseQty", h."assemblyScrap" AS "assemblyScrap", h."assemblyScrapConvention" AS "assemblyScrapConvention",`,
-    `  h."costLotQty" AS "costLotQty", h."routingId" AS "routingId"`,
-    `FROM ${header} h`,
-    `WHERE h."state" = 'released'`,
-    `  AND h."parentRevisionId" = ${p(params.parentRevisionId)}`,
-    `  AND h."bomType" = ${p(params.bomType)}`,
-    `  AND h."orgId" = ${p(params.orgId)}`,
-    `ORDER BY h."alternativeNo" ASC`
-  ].join('\n');
-  return { sql, params: bind };
-};
-
-/**
  * 生成「前沿修订的备选头」查询（US-510 下钻按修订裁决备选）：给定修订集下的 released 头，
- * 行列为 `headerId, parentRevisionId, parentItemId, alternativeNo`，按修订与备选编号排序。
+ * 同时携带数量与成本所需的头元数据，按修订与备选编号排序。
  */
 export const buildRevisionHeadersSql = (
   dialect: BomSqlDialect,
@@ -194,7 +171,9 @@ export const buildRevisionHeadersSql = (
   const { bind, p } = sqlBindings(dialect);
   const sql = [
     `SELECT h."id" AS "headerId", h."parentRevisionId" AS "parentRevisionId", r."itemId" AS "parentItemId",`,
-    `  h."alternativeNo" AS "alternativeNo"`,
+    `  h."alternativeNo" AS "alternativeNo", h."baseUom" AS "baseUom", h."baseQty" AS "baseQty",`,
+    `  h."assemblyScrap" AS "assemblyScrap", h."assemblyScrapConvention" AS "assemblyScrapConvention",`,
+    `  h."costLotQty" AS "costLotQty", h."routingId" AS "routingId"`,
     `FROM ${dialect.table('bom_header')} h`,
     `JOIN ${dialect.table('item_revision')} r ON r."id" = h."parentRevisionId"`,
     `WHERE h."state" = 'released'`,
@@ -205,6 +184,17 @@ export const buildRevisionHeadersSql = (
   ].join('\n');
   return { sql, params: bind };
 };
+
+/** 读取单个父修订的已发布备选头，结构与数量共用同一份元数据查询。 */
+export const buildAlternativeHeadersSql = (
+  dialect: BomSqlDialect,
+  params: { parentRevisionId: string; bomType: string; orgId: string }
+): { sql: string; params: unknown[] } =>
+  buildRevisionHeadersSql(dialect, {
+    bomType: params.bomType,
+    orgId: params.orgId,
+    revisionIds: [params.parentRevisionId]
+  });
 
 /**
  * 生成「父修订选择」查询：显式 id 或「评估日前已发布的最新修订」（US-508 AC#6）。

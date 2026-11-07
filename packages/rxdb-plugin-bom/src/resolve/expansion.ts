@@ -15,7 +15,7 @@ import type { TruncationReason } from '../types.js';
 import type { BomLocalAdapter } from './bom-adapter.js';
 import {
   bomSqlDialectFor,
-  buildChildrenOfRevisionsSql,
+  buildHeaderOccurrencesSql,
   buildParentRevisionSql,
   buildParentsOfItemsSql,
   buildRevisionHeadersSql,
@@ -290,30 +290,23 @@ const selectExpandableHeaders = (
   return allowed;
 };
 
-/** 按前沿修订集取一层子件发生项（分块 IN）；只保留可下钻头的发生项，再过序列 / 批次 / 配置。 */
+/** 按已裁决的头读取一层原始发生项，与数量展开共用同快照查询，再过序列 / 批次 / 配置。 */
 const fetchChildren = async (
   query: BomQueryExecutor['query'],
   dialect: BomSqlDialect,
   context: ResolutionContext,
-  revisionIds: string[],
-  allowedHeaders: ReadonlySet<string>,
+  headerIds: string[],
   unresolved: UnresolvedAlternative[]
 ): Promise<ChildRow[]> => {
   const rows: ChildRow[] = [];
-  for (let offset = 0; offset < revisionIds.length; offset += CHUNK_SIZE) {
-    const chunk = revisionIds.slice(offset, offset + CHUNK_SIZE);
-    const built = buildChildrenOfRevisionsSql(dialect, {
+  for (let offset = 0; offset < headerIds.length; offset += CHUNK_SIZE) {
+    const built = buildHeaderOccurrencesSql(dialect, {
       asOfDate: context.asOfDate,
       bomType: context.bomType,
       orgId: context.orgId,
-      revisionIds: chunk
+      headerIds: headerIds.slice(offset, offset + CHUNK_SIZE)
     });
-    const fetched = await query(built.sql, built.params);
-    const headerIndex = columnIndexOf(fetched.columns, 'headerId');
-    const result = {
-      columns: fetched.columns,
-      rows: fetched.rows.filter(row => allowedHeaders.has(String(row[headerIndex])))
-    };
+    const result = await query(built.sql, built.params);
     for (const row of await filteredQueryRows(query, dialect, context, result, unresolved)) {
       rows.push({
         parentRevisionId: String(row[columnIndexOf(result.columns, 'parentRevisionId')]),
@@ -450,12 +443,7 @@ const expandLevel = async (
   const revisionIds = [...new Set(frontier.map(entry => entry.revisionId))];
   const byRevision = await fetchRevisionHeaders(query, dialect, context, revisionIds);
   const allowedHeaders = selectExpandableHeaders(revisionIds, byRevision, context, rootRevisionId, unresolved);
-  const expandable = revisionIds.filter(revisionId =>
-    (byRevision.get(revisionId) ?? []).some(header => allowedHeaders.has(header.headerId))
-  );
-  const byParent = groupChildrenByParent(
-    await fetchChildren(query, dialect, context, expandable, allowedHeaders, unresolved)
-  );
+  const byParent = groupChildrenByParent(await fetchChildren(query, dialect, context, [...allowedHeaders], unresolved));
   const added: ExpansionNode[] = [];
   const next: ExpandLevelStep['next'] = [];
   for (const entry of frontier) {
