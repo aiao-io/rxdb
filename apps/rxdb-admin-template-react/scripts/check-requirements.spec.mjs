@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import fs, { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { syncBuiltinESMExports } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
@@ -230,4 +231,40 @@ test('同编号辅助文档没有 frontmatter 且不参与故事统计', async t
   const result = await checkRequirements(options);
   assert.deepEqual(result.errors, []);
   assert.equal(result.counts.total, 2);
+});
+
+test('校验链接锚点时文件被替换仍读取已检查的文件', async t => {
+  const options = await fixture(t);
+  await options.put('linked.md', '# 原始标题\n');
+  await options.edit('README.md', text => `${text}\n[链接](linked.md#原始标题)\n`);
+  const file = path.join(options.requirements, 'linked.md');
+  const originalStat = fs.stat;
+  const originalOpen = fs.open;
+  let replaced = false;
+  const replaceAfterStat = async info => {
+    if (replaced) return info;
+    replaced = true;
+    await rename(file, `${file}.checked`);
+    await writeFile(file, '# 替换后的标题\n');
+    return info;
+  };
+  t.mock.method(fs, 'stat', async target => {
+    const info = await originalStat(target);
+    return target === file ? replaceAfterStat(info) : info;
+  });
+  t.mock.method(fs, 'open', async (...args) => {
+    const handle = await originalOpen(...args);
+    if (args[0] !== file) return handle;
+    const handleStat = handle.stat.bind(handle);
+    t.mock.method(handle, 'stat', async () => replaceAfterStat(await handleStat()));
+    return handle;
+  });
+  t.after(() => {
+    t.mock.restoreAll();
+    syncBuiltinESMExports();
+  });
+  syncBuiltinESMExports();
+
+  assert.deepEqual((await checkRequirements(options)).errors, []);
+  assert.equal(replaced, true);
 });

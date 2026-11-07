@@ -40,8 +40,10 @@ export const EMPTY_TABS: TabsState = { tabs: [], activeKey: null, history: [] };
  * @returns 页签键。
  */
 export function tabKeyOf(url: string): string {
-  const path = url.split(/[?#]/, 1)[0] || '/';
-  return path.length > 1 ? path.replace(/\/+$/, '') || '/' : path;
+  const path = url.split(/[?#]/, 1)[0];
+  let end = path.length;
+  while (end > 0 && path[end - 1] === '/') end--;
+  return path.slice(0, end) || '/';
 }
 
 const pinnedFirst = (tabs: readonly TabItem[]): TabItem[] => [

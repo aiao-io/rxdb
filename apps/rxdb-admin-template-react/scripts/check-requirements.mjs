@@ -1,4 +1,4 @@
-import { readdir, readFile, stat } from 'node:fs/promises';
+import { open, readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
@@ -267,15 +267,20 @@ async function checkLink(doc, raw, errors) {
   if (/^(?:[a-z][\w+.-]*:|\/\/)/i.test(raw)) return;
   const [target, anchor] = decodeURI(raw).split('#');
   const file = target ? path.resolve(path.dirname(doc.file), target) : doc.file;
-  let info;
+  let handle;
   try {
-    info = await stat(file);
+    handle = await open(file, 'r');
   } catch {
     errors.push(`${doc.rel}: 链接目标不存在 → ${raw}`);
     return;
   }
-  if (!info.isFile() || !anchor || !file.endsWith('.md')) return;
-  if (!headings(await readFile(file, 'utf8')).has(anchor)) errors.push(`${doc.rel}: 标题锚点不存在 → ${raw}`);
+  try {
+    const info = await handle.stat();
+    if (!info.isFile() || !anchor || !file.endsWith('.md')) return;
+    if (!headings(await handle.readFile('utf8')).has(anchor)) errors.push(`${doc.rel}: 标题锚点不存在 → ${raw}`);
+  } finally {
+    await handle.close();
+  }
 }
 
 async function checkLinks(documents, errors) {

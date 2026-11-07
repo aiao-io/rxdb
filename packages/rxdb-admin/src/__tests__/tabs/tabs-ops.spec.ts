@@ -24,6 +24,19 @@ const build = (...keys: string[]): TabsState => keys.reduce((state, key) => open
 const keysOf = (state: TabsState) => state.tabs.map(item => item.key);
 
 describe('tabKeyOf', () => {
+  it('连续斜杠后接路径字符时不会因正则回溯阻塞', () => {
+    const url = `/entities/${'/'.repeat(50_000)}asset///?q=1#top`;
+    const start = performance.now();
+
+    expect(tabKeyOf(url)).toBe(url.slice(0, url.indexOf('///?')));
+    expect(performance.now() - start).toBeLessThan(500);
+  });
+
+  it('保留内部斜杠并把纯斜杠地址归一化为根路径', () => {
+    expect(tabKeyOf('/entities//assets///')).toBe('/entities//assets');
+    expect(tabKeyOf('////?q=1')).toBe('/');
+  });
+
   it('去掉查询串、哈希与末尾斜杠', () => {
     expect(tabKeyOf('/entities/assets/Asset?x=1#top')).toBe('/entities/assets/Asset');
     expect(tabKeyOf('/search/')).toBe('/search');
