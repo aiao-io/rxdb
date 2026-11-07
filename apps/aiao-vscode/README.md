@@ -26,8 +26,8 @@ Vue 文件在 Monaco 中暂按 HTML 语法展示；完整 Vue 语言服务另行
 ## 开发与构建
 
 ```sh
-pnpm nx serve aiao-vscode          # 开发服务器 http://localhost:4320
-pnpm nx build aiao-vscode          # 生产构建（默认配置，含 Service Worker）
+pnpm nx serve aiao-vscode          # 开发服务器 http://localhost:4320（同时起运行时宿主 :4331 / :4332）
+pnpm nx build aiao-vscode          # 生产构建（默认配置，含 Service Worker；连带构建运行时宿主）
 pnpm nx test aiao-vscode           # 内核 + Angular 外壳单测（vitest）
 pnpm nx run aiao-vscode:verify-markdown-extension  # 已启动开发服务器时验证正式 Markdown 插件
 pnpm nx run aiao-vscode:test-browser  # 真实 Chromium 探针（Git / 预览 / Angular）
@@ -35,6 +35,8 @@ pnpm nx e2e aiao-vscode-e2e        # Playwright e2e：四模板编辑 / 运行 /
 ```
 
 开发服务器与生产构建都需要 `assets` 目标先生成自托管资源（`public/browser-workbench-assets/`），Nx 已配置依赖。
+两者还依赖 `runtime-hosts` 目标构建[运行时宿主](#运行时宿主)；首次构建会从 vivari.run 下载并校验包管理器打包件（约 7.8 MB），
+下载失败或校验不符时构建明确失败。
 
 ## 目录结构
 
@@ -43,6 +45,7 @@ pnpm nx e2e aiao-vscode-e2e        # Playwright e2e：四模板编辑 / 运行 /
 | `src/app/`                     | Angular 外壳：RxDB 项目目录、编辑器挂载、连接与离线生命周期   |
 | `src/workbench/`               | 框架无关内核：会话、Git / 编译协议、Dockview 布局、SCM 与差异 |
 | `src/benchmark/`               | 真实浏览器探针：Git 持久化、预览隔离、Angular JIT / AOT       |
+| `src/runtime-hosts/`           | 运行时宿主页入口与部署配置（工作台来源 → 宿主源）             |
 | `scripts/`                     | 自托管资产构建与可重跑验证脚本                                |
 | `requirements/`、`benchmarks/` | 故事、状态、路线图与验收证据快照                              |
 
@@ -129,7 +132,7 @@ Angular 使用浏览器 JIT 与 TS 装饰器转换。受控编译不提供完整
 「运行」会提示先结束该命令。
 
 点击顶栏终端图标、底部「终端」标签或按 `Ctrl + 反引号` 可打开终端。
-终端惰性加载 xterm.js 与 WebContainer，在浏览器里运行 Node.js；独立 Shell 会话支持手动输入
+终端惰性加载 xterm.js 与选定的运行时（默认 WebContainer），在浏览器里运行 Node.js；独立 Shell 会话支持手动输入
 `node`、`npm`、`pnpm` 等命令，与项目终端共用当前项目源码。
 在项目终端按 `Ctrl+C` 可停止安装或开发服务，回到提示符后可以继续输入命令；
 在 Shell 中可中断当前前台命令。
@@ -145,11 +148,43 @@ Angular 使用浏览器 JIT 与 TS 装饰器转换。受控编译不提供完整
 
 启动 WebContainer 与首次安装依赖需要网络。终端需要 COOP / COEP；当前 `serve` 已配置。
 「运行」用哪种方式在设置的「运行方式」里选（保存在此浏览器），地址参数 `?runtime=` 只覆盖当前页面；
-选「即时编译（esbuild-wasm）」时「运行」只刷新本地项目预览，不启动终端。尚未接入的方式在设置里显示为待接入。
+选「即时编译（esbuild-wasm）」时「运行」只刷新本地项目预览，不启动终端。尚未接入的方式在设置里显示为待接入；
+vivari、Nodepod 要当前工作台来源配置了宿主源才可选（见下节）。
 WebContainer 不支持原生 Node 扩展，不能据此保证任意 Nx / npm 仓库兼容。
 商用宿主可通过 `BrowserWorkbenchOptions.webContainerApiKey` 传入官方授权；
 授权要求见 [WebContainer 文档](https://webcontainers.io/enterprise)。
 范围与验证见 [US-408](requirements/stories/US-408-browser-terminal.md)。
+
+## 运行时宿主
+
+WebContainer 以外的运行时（[vivari](https://github.com/maitrungduc1410/vivari) 与 [Nodepod](https://github.com/R1ck404/Nodepod)）
+各自跑在**独占一个源**的宿主页 `/runtime-host.html` 里：工作台用隐藏 iframe（`allow="cross-origin-isolated"`）加载它，
+握手后经私有 `MessagePort` 驱动文件系统、进程（含终端尺寸）与服务就绪事件。
+宿主的 Service Worker 注册在自己的源上，不顶掉工作台的离线 Service Worker；项目代码与服务预览碰不到工作台的存储。
+
+- **宿主源只来自部署配置** `src/runtime-hosts/hosts.ts`（运行方式 → 工作台来源 → 宿主源），不接受地址参数：宿主页能读到挂进去的项目文件。
+  宿主页只接受表里对应工作台来源的连接，静态服务按同一张表设置 `frame-ancestors`；当前来源没有配置的运行方式在设置里不可选。
+  本地对应关系：`localhost:4320`（`serve`）与 `localhost:4330`（验证脚本的生产构建服务）→ vivari `localhost:4331`、Nodepod `localhost:4332`。
+- **构建** `pnpm nx run aiao-vscode:runtime-hosts`，产物在 `runtime-hosts/dist/<运行时>/`（git 忽略），来源与许可写在各自的 `NOTICE.txt`：
+  - vivari：打包内核宿主页与预览容器页，把 `@vivari/core` 的 Worker 资源放到源根 `/assets/`、Service Worker 放到 `/sw.js`，
+    并下载 `/vendor/{npm,pnpm,yarn,corepack}-pack.bin`（按 SHA-256 钉死在 `scripts/build-runtime-hosts.mjs`，与 `@vivari/core` 版本绑定，
+    升级时要重新核对；下载缓存在 `node_modules/.cache/runtime-hosts/`）；
+  - Nodepod：打包宿主页，复制预览 Service Worker `/__sw__.js` 与进程 Worker `/__worker__.js`。它的 `sideEffects` 声明只列了源码路径，
+    打包时要忽略这份声明，否则浏览器宿主的注册会被摇掉。
+- **服务** `pnpm nx run aiao-vscode:serve-runtime-hosts`（`serve` 已依赖）：按部署配置给每个本地宿主源起一个端口，带 COOP / COEP、
+  `Cross-Origin-Resource-Policy: cross-origin` 与 `frame-ancestors`。线上部署需要单独的源与等价响应头。
+- **服务预览**：vivari 的热更新隧道要求预览 iframe 的父窗口能直达内核，面板因此加载宿主源上的预览容器页 `/preview-frame.html`，
+  由它嵌入 `/preview/<端口>/`；Nodepod 的预览走它自己的 Service Worker（WebSocket 经 BroadcastChannel 中转），面板直接嵌宿主源上的
+  `/__virtual__/<实例>/<端口>`，预览里带 Nodepod 默认的水印链接。
+- **终端**：两者都没有伪终端，「运行」不经 Shell，直接起安装、启动进程并自行回显命令行，`Ctrl+C` 结束前台进程。
+  Shell 页签：vivari 用自带的 `sh`（提示符 `project$`，进程看到的尺寸固定为 80×24、`isTTY` 为假）；Nodepod 用它的 `NodepodTerminal`
+  （提示符 `nodepod:/project$`，宿主给它接了一个只转发的 xterm，尺寸跟随工作台、`isTTY` 为真）。
+  vivari 的文件系统持久化在宿主源的 OPFS，挂载项目前先清空 `/project`；它的 SDK 监听看不到进程写入，宿主在 VM 里常驻一个监听进程。
+- **Nodepod 许可**：MIT + Commons Clause（`MIT WITH Commons-Clause`），**仅内部评估**，商用前需法务确认；许可全文随宿主产物分发在
+  `licenses/nodepod.txt`。它运行时会从 cdn.jsdelivr.net、esm.sh 取 esbuild-wasm、rollup、lightningcss 等，从 registry.npmjs.org 取 npm 包。
+- **已知问题**（对比结果见 [US-409](requirements/stories/US-409-browser-runtime-comparison.md)）：Angular 模板在两者里都跑不起来——
+  vivari 对 pnpm 9.15.9 的 esbuild 替换补丁失效，装不上；Nodepod 装得上，但它报告的 Node 版本 v22.12.0 低于 Angular CLI 22 的要求，
+  `ng serve` 拒绝启动。vivari 里 pnpm 运行脚本时每行输出出现两次（npm 不会）。
 
 单项目限制：2,000 文件、单文件 2 MiB、文件总量 20 MiB、ZIP 24 MiB；不支持符号链接、可执行位
 和子模块。写入用仓库级 Web Lock 串行化，崩溃后先检查恢复日志，不误报写入成功。
@@ -185,8 +220,11 @@ pnpm nx run aiao-vscode:verify-runtimes --url=http://localhost:4320/
 `pnpm nx run aiao-vscode:verify-terminal --production`。脚本会临时启动带 COOP / COEP 的本地静态服务，
 验证真实 npm / pnpm 安装、文件双向同步、服务预览、Ctrl+C、项目切换和进程释放。
 本机没有 Playwright 自带的浏览器时加 `--channel=chrome` 改用系统 Chrome（`verify-runtimes` 同样支持）。
+加 `--runtime=vivari` 或 `--runtime=nodepod` 用同一套断言验另一种运行方式（`--templates=` 选「运行」要跑的模板，`--out=` 改报告路径，
+免得覆盖 WebContainer 的报告）；`--production` 的静态服务固定在 `localhost:4330`，验独立源运行时时脚本还会自己起宿主服务（要先构建 `runtime-hosts`）。
 
 运行方式对比（[US-409](requirements/stories/US-409-browser-runtime-comparison.md)）：`verify-runtimes` 对每种运行方式 × 四个模板
 测本地预览、运行到服务页、改动生效与停止后再运行的耗时，以及下载量和浏览器进程内存，
 默认每格 3 次取中位数，报告写入 `benchmarks/browser-workbench-runtimes.json`。可用 `--runtimes=`、`--templates=`、
-`--repeat=` 缩小范围。
+`--repeat=` 缩小范围，`--out=` 改报告路径。跑 vivari、Nodepod 时 `--url=` 模式要求宿主服务已在运行（`serve` 会带起），`--production` 模式脚本自己起。
+页面级内存会把同站宿主 iframe 与 Worker 的共享内存算进来，跨运行时比较以浏览器进程树 RSS 为准。

@@ -38,6 +38,35 @@
         "cwd": "apps/aiao-vscode"
       }
     },
+    "runtime-hosts": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/scripts/build-runtime-hosts.mjs",
+        "{projectRoot}/src/runtime-hosts/**/*.ts",
+        "{projectRoot}/src/workbench/terminal/nodepod-host.ts",
+        "{projectRoot}/src/workbench/terminal/project-watcher.ts",
+        "{projectRoot}/src/workbench/terminal/runtime-host-page.ts",
+        "{projectRoot}/src/workbench/terminal/runtime-host-protocol.ts",
+        "{projectRoot}/src/workbench/terminal/sync-ignore.ts",
+        "{projectRoot}/src/workbench/terminal/vivari-host.ts",
+        "{workspaceRoot}/pnpm-lock.yaml"
+      ],
+      "outputs": ["{projectRoot}/runtime-hosts/dist"],
+      "options": {
+        "command": "node scripts/build-runtime-hosts.mjs",
+        "cwd": "apps/aiao-vscode"
+      }
+    },
+    "serve-runtime-hosts": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "dependsOn": ["runtime-hosts"],
+      "options": {
+        "command": "node scripts/serve-runtime-hosts.mjs",
+        "cwd": "apps/aiao-vscode"
+      }
+    },
     "build": {
       "executor": "@angular/build:application",
       "outputs": [
@@ -45,6 +74,7 @@
       ],
       "dependsOn": [
         "assets",
+        "runtime-hosts",
         "^build"
       ],
       "options": {
@@ -115,6 +145,7 @@
       "continuous": true,
       "dependsOn": [
         "assets",
+        "serve-runtime-hosts",
         "^build"
       ],
       "executor": "@angular/build:dev-server",

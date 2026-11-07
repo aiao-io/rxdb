@@ -66,7 +66,11 @@ async function fixture() {
   });
   const adapterFor = (id: TerminalRuntimeAdapter['id']): TerminalRuntimeAdapter => ({
     id,
-    capabilities: { shell: { command: 'jsh', args: [] }, markedShell: { command: 'jsh', args: ['--osc'] } },
+    capabilities: {
+      shell: { command: 'jsh', args: [] },
+      markedShell: { command: 'jsh', args: ['--osc'] },
+      pty: true
+    },
     boot: vi.fn()
   });
   let adapter = adapterFor('webcontainer');

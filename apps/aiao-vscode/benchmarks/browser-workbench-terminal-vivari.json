@@ -1,0 +1,38 @@
+{
+  "browser": "156.0.8078.80",
+  "cancelledRequests": [
+    "http://localhost:4331/preview-frame.html?host=aiao-runtime-host-vivari-ebca9db6-4281-41b3-bf27-419479ba3afe&src=%2Fpreview%2F5173%2F%3F__vv_kernel%3D1r4k1t: net::ERR_ABORTED",
+    "http://localhost:4331/preview-frame.html?host=aiao-runtime-host-vivari-ebca9db6-4281-41b3-bf27-419479ba3afe&src=%2Fpreview%2F5173%2F%3F__vv_kernel%3D1r4k1t: net::ERR_ABORTED",
+    "http://localhost:4331/preview-frame.html?host=aiao-runtime-host-vivari-ebca9db6-4281-41b3-bf27-419479ba3afe&src=%2Fpreview%2F5173%2F%3F__vv_kernel%3D1r4k1t: net::ERR_ABORTED",
+    "http://localhost:4331/preview-frame.html?host=aiao-runtime-host-vivari-ebca9db6-4281-41b3-bf27-419479ba3afe&src=%2Fpreview%2F5173%2F%3F__vv_kernel%3D1r4k1t: net::ERR_ABORTED",
+    "http://localhost:4331/preview-frame.html?host=aiao-runtime-host-vivari-ebca9db6-4281-41b3-bf27-419479ba3afe&src=%2Fpreview%2F5173%2F%3F__vv_kernel%3D1r4k1t: net::ERR_ABORTED",
+    "http://localhost:4331/preview-frame.html?host=aiao-runtime-host-vivari-ebca9db6-4281-41b3-bf27-419479ba3afe&src=%2Fpreview%2F5173%2F%3F__vv_kernel%3D1r4k1t: net::ERR_ABORTED",
+    "http://localhost:4331/preview-frame.html?host=aiao-runtime-host-vivari-ab406cf2-79cb-49a1-bb17-a88e5bc55d80&src=%2Fpreview%2F5173%2F%3F__vv_kernel%3D565b42: net::ERR_ABORTED",
+    "http://localhost:4331/preview-frame.html?host=aiao-runtime-host-vivari-ab406cf2-79cb-49a1-bb17-a88e5bc55d80&src=%2Fpreview%2F5173%2F%3F__vv_kernel%3D565b42: net::ERR_ABORTED",
+    "http://localhost:4331/preview-frame.html?host=aiao-runtime-host-vivari-ab406cf2-79cb-49a1-bb17-a88e5bc55d80&src=%2Fpreview%2F5173%2F%3F__vv_kernel%3D565b42: net::ERR_ABORTED",
+    "http://localhost:4331/preview-frame.html?host=aiao-runtime-host-vivari-c53faf4f-36ce-4b37-9a30-42a704f2a8ef&src=%2Fpreview%2F5173%2F%3F__vv_kernel%3D435i4e: net::ERR_ABORTED",
+    "http://localhost:4331/preview-frame.html?host=aiao-runtime-host-vivari-c53faf4f-36ce-4b37-9a30-42a704f2a8ef&src=%2Fpreview%2F5173%2F%3F__vv_kernel%3D435i4e: net::ERR_ABORTED",
+    "http://localhost:4331/preview-frame.html?host=aiao-runtime-host-vivari-c53faf4f-36ce-4b37-9a30-42a704f2a8ef&src=%2Fpreview%2F5173%2F%3F__vv_kernel%3D435i4e: net::ERR_ABORTED"
+  ],
+  "checks": [
+    "node-shell-and-package-managers",
+    "bidirectional-files-and-terminal-deletion",
+    "npm-and-pnpm-installation-output",
+    "server-preview-and-control-c",
+    "top-run-vanilla-install-start-preview-control-c",
+    "top-run-restart-after-control-c",
+    "top-run-react-install-start-preview-control-c",
+    "top-run-vue-install-start-preview-control-c",
+    "runtime-host-isolation",
+    "project-switch-process-and-filesystem-isolation",
+    "process-and-preview-cleanup"
+  ],
+  "consoleErrors": [],
+  "errors": [],
+  "failures": [],
+  "format": "aiao.workbench.terminal",
+  "runtime": "vivari",
+  "status": "passed",
+  "url": "http://localhost:4330/?workbench-verify=1&runtime=vivari",
+  "version": 1
+}

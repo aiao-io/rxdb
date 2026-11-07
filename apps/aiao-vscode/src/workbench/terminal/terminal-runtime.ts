@@ -5,6 +5,7 @@ import { GIT_WORKBENCH_LIMITS } from '../git/git-protocol.js';
 import type { WorkbenchFiles, WorkbenchSnapshot } from '../session.js';
 import type { TerminalProjectPlan } from './project-command.js';
 import type { TerminalCommand, TerminalRuntimeAdapter } from './runtime-adapter.js';
+import { SYNC_IGNORED_DIRECTORIES } from './sync-ignore.js';
 
 /** 交互终端当前的字符尺寸。 */
 export interface TerminalSize {
@@ -130,16 +131,7 @@ interface ProjectExecution {
   cancelled: boolean;
 }
 
-const ignoredDirectories = new Set([
-  '.git',
-  'node_modules',
-  'dist',
-  'build',
-  '.angular',
-  '.vite',
-  '.cache',
-  'coverage'
-]);
+const ignoredDirectories = new Set(SYNC_IGNORED_DIRECTORIES);
 const sameFile = (left: string | Uint8Array | undefined, right: string | Uint8Array | undefined): boolean => {
   if (left === undefined || right === undefined) return left === right;
   const a = encodeFileBytes(left);
@@ -793,7 +785,11 @@ export function createTerminalRuntime(options: TerminalRuntimeOptions): Terminal
       if (!execution?.active || !stage) return;
       await execution.ready;
       if (disposed) throw new Error('终端已释放');
-      if (execution.current === stage && !stage.exited) await stage.input.write(data);
+      if (execution.current !== stage || stage.exited) return;
+      if (capabilities.pty || !data.includes('\u0003')) return stage.input.write(data);
+      // 没有伪终端时 ^C 到不了进程的信号处理：像终端的行规程一样回显，并结束前台进程
+      options.onProjectOutput?.('^C\r\n');
+      killProjectStage(stage);
     },
     resizeProject(size) {
       projectSize = size;

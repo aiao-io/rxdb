@@ -24,12 +24,13 @@ afterEach(() => {
 });
 
 describe('WebContainer 运行时适配器', () => {
-  it('声明 jsh 交互 Shell 与带状态标记的项目 Shell', async () => {
+  it('声明 jsh 交互 Shell、带状态标记的项目 Shell 与伪终端', async () => {
     const adapter = await freshAdapter();
     expect(adapter.id).toBe('webcontainer');
     expect(adapter.capabilities).toEqual({
       shell: { command: 'jsh', args: [] },
-      markedShell: { command: 'jsh', args: ['--osc'] }
+      markedShell: { command: 'jsh', args: ['--osc'] },
+      pty: true
     });
   });
 

@@ -45,8 +45,8 @@ tags: [aiao-vscode, terminal, webcontainer, runtime, benchmark]
 | 阶段 | 交付                     | 前置与关闭条件                                                                                                                  | 范围         | 状态 |
 | ---- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------- | ------------ | ---- |
 | A    | 适配接口、切换入口与基线 | WebContainer 迁为适配器且 US-408 用例与 verify-terminal 全绿；可切换 esbuild-wasm / WebContainer；基准脚本测出两者基线，AC#1～4 | 当前登记范围 | ✅   |
-| B    | 独立源宿主与 vivari      | A 通过后先做宿主验证（跨源隔离、SharedArrayBuffer、Service Worker 作用域、Worker 资源路径），再接 vivari 跑四个模板，AC#5～8    | 当前登记范围 | ⬜   |
-| C    | Nodepod                  | 复用 B 的宿主协议，完整适配并跑四个模板，AC#9～10                                                                               | 当前登记范围 | ⬜   |
+| B    | 独立源宿主与 vivari      | A 通过后先做宿主验证（跨源隔离、SharedArrayBuffer、Service Worker 作用域、Worker 资源路径），再接 vivari 跑四个模板，AC#5～8    | 当前登记范围 | ✅   |
+| C    | Nodepod                  | 复用 B 的宿主协议，完整适配并跑四个模板，AC#9～10                                                                               | 当前登记范围 | ✅   |
 | D    | almostnode、burrow 冒烟  | 最薄适配，按各自声称的能力跑冒烟并记录失败原因，AC#11                                                                           | 当前登记范围 | ⬜   |
 | E    | 全矩阵与推荐             | 全部运行时跑完矩阵（每格 3 次取中位数，记录机器负载与浏览器版本），出对比报告与推荐，AC#12～13                                  | 当前登记范围 | ⬜   |
 
@@ -68,17 +68,17 @@ A 是 B～E 的前置：适配接口与基准口径先在两个已有方式上�
 
 | #   | 前置条件         | 操作                                     | 预期结果                                                                                             | 状态 |
 | --- | ---------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------- | ---- |
-| 5   | 工作台已跨源隔离 | 嵌入独立源宿主 iframe                    | 宿主内 `crossOriginIsolated` 为真、SharedArrayBuffer 可用；宿主的 Service Worker 不影响工作台的 ngsw | ⬜   |
-| 6   | vivari 宿主      | 运行四个内置模板                         | 安装、启动、服务预览与热更新逐项给出成败；Angular 22 + pnpm 单独给出结论                             | ⬜   |
-| 7   | vivari 服务预览  | 在服务页里读取工作台的存储               | 读不到：服务预览与工作台不同源                                                                       | ⬜   |
-| 8   | vivari 终端      | 交互命令、Ctrl+C、文件双向同步、终端尺寸 | 用与 WebContainer 相同的断言，结果写进报告；不支持 pty 时终端固定 80×24 而不报错                     | ⬜   |
+| 5   | 工作台已跨源隔离 | 嵌入独立源宿主 iframe                    | 宿主内 `crossOriginIsolated` 为真、SharedArrayBuffer 可用；宿主的 Service Worker 不影响工作台的 ngsw | ✅   |
+| 6   | vivari 宿主      | 运行四个内置模板                         | 安装、启动、服务预览与热更新逐项给出成败；Angular 22 + pnpm 单独给出结论                             | ✅   |
+| 7   | vivari 服务预览  | 在服务页里读取工作台的存储               | 读不到：服务预览与工作台不同源                                                                       | ✅   |
+| 8   | vivari 终端      | 交互命令、Ctrl+C、文件双向同步、终端尺寸 | 用与 WebContainer 相同的断言，结果写进报告；不支持 pty 时终端固定 80×24 而不报错                     | ✅   |
 
 ### 阶段 C：Nodepod
 
 | #   | 前置条件      | 操作             | 预期结果                                               | 状态 |
 | --- | ------------- | ---------------- | ------------------------------------------------------ | ---- |
-| 9   | Nodepod 宿主  | 运行四个内置模板 | 与 AC#6 同一口径给出结果；Angular 无上游证据，单独记录 | ⬜   |
-| 10  | 报告与 README | 查看许可说明     | 标明 MIT + Commons Clause 与「仅内部评估」             | ⬜   |
+| 9   | Nodepod 宿主  | 运行四个内置模板 | 与 AC#6 同一口径给出结果；Angular 无上游证据，单独记录 | ✅   |
+| 10  | 报告与 README | 查看许可说明     | 标明 MIT + Commons Clause 与「仅内部评估」             | ✅   |
 
 ### 阶段 D：almostnode、burrow 冒烟
 
@@ -97,13 +97,21 @@ A 是 B～E 的前置：适配接口与基准口径先在两个已有方式上�
 
 ## 验收证据
 
-| 范围        | 复验方式                                                                                                                                                                                                                                                                                                                                            |
-| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 调研结论    | [运行时调研](US-409-runtime-research.md)（只读上游源码与文档，未运行其代码）                                                                                                                                                                                                                                                                        |
-| 阶段 A 单测 | `pnpm nx test aiao-vscode`：`terminal-runtime.spec.ts`（带标记 shell 与进程两种项目运行、适配器声明的命令）、`webcontainer-adapter.spec.ts`、`workbench-state.spec.ts`、`mount-run.spec.ts`「运行方式」、`mount.spec.ts` 设置对话框                                                                                                                 |
-| 阶段 A 回归 | `pnpm nx run aiao-vscode:verify-terminal --production --channel=chrome`：11 项通过，页面与控制台无错误                                                                                                                                                                                                                                              |
-| 阶段 A 基线 | `pnpm nx run aiao-vscode:verify-runtimes --production --channel=chrome`；[报告](../../benchmarks/browser-workbench-runtimes.json)：四模板各 3 次全部通过。中位数——esbuild-wasm 运行 0.1～1.4 秒、改动生效 0.2～1.9 秒、运行期下载 0；WebContainer 运行到服务页 13.6～27.9 秒、改动生效 0.1～1.8 秒、停止后再运行 3.7～8.9 秒、运行期下载 42～111 MB |
-| 阶段 B～E   | 随阶段补充；基准统一由 `pnpm nx run aiao-vscode:verify-runtimes` 复跑                                                                                                                                                                                                                                                                               |
+| 范围        | 复验方式                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 调研结论    | [运行时调研](US-409-runtime-research.md)（只读上游源码与文档，未运行其代码）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| 阶段 A 单测 | `pnpm nx test aiao-vscode`：`terminal-runtime.spec.ts`（带标记 shell 与进程两种项目运行、适配器声明的命令）、`webcontainer-adapter.spec.ts`、`workbench-state.spec.ts`、`mount-run.spec.ts`「运行方式」、`mount.spec.ts` 设置对话框                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 阶段 A 回归 | `pnpm nx run aiao-vscode:verify-terminal --production --channel=chrome`：11 项通过，页面与控制台无错误                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| 阶段 A 基线 | `pnpm nx run aiao-vscode:verify-runtimes --production --channel=chrome`；[报告](../../benchmarks/browser-workbench-runtimes.json)：四模板各 3 次全部通过。中位数——esbuild-wasm 运行 0.1～1.4 秒、改动生效 0.2～1.9 秒、运行期下载 0；WebContainer 运行到服务页 13.6～27.9 秒、改动生效 0.1～1.8 秒、停止后再运行 3.7～8.9 秒、运行期下载 42～111 MB                                                                                                                                                                                                                                                                                                          |
+| 阶段 B 验证 | [vivari 独立源宿主验证](US-409-runtime-research.md#阶段-b-验证vivari-独立源宿主2026-11-07)：模拟工作台上 AC#5、#7 成立，vanilla / react / vue 跑通；Angular + pnpm 失败、npm 可行                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| 阶段 B 单测 | `pnpm nx test aiao-vscode`：`runtime-host-protocol.spec.ts`（请求 / 流 / 监听 / 故障 / 释放）、`runtime-host-frame.spec.ts`（握手只认配置的源）、`hosted-runtime-adapter.spec.ts`、`vivari-host.spec.ts`（路径映射、VM 内监听进程、输出视图、握手）、`vivari-preview-frame.spec.ts`、`terminal-runtime.spec.ts`（无伪终端时的 Ctrl+C）、`mount-run.spec.ts` 与 `app.component.spec.ts`（vivari 只在配置了宿主源时可选）                                                                                                                                                                                                                                      |
+| 阶段 B 基准 | `pnpm nx run aiao-vscode:verify-runtimes --production --runtimes=vivari --channel=chrome --out=benchmarks/browser-workbench-runtimes-vivari.json`；[报告](../../benchmarks/browser-workbench-runtimes-vivari.json)：vanilla / react / vue 各 3 次全部通过，运行到服务页中位数 7.8 / 8.9 / 9.0 秒、改动生效 0.11～0.12 秒、停止 26～28 毫秒、停止后再运行 2.2～2.6 秒、运行期下载 19～22 MB；Angular + pnpm 3 次都在安装阶段失败。[分析](US-409-runtime-research.md#阶段-b-接入vivari-进工作台2026-11-07)                                                                                                                                                     |
+| 阶段 B 终端 | `pnpm nx run aiao-vscode:verify-terminal --production --runtime=vivari --templates=vanilla,react,vue --channel=chrome --out=benchmarks/browser-workbench-terminal-vivari.json`；[报告](../../benchmarks/browser-workbench-terminal-vivari.json)：与 WebContainer 同一套断言 11 项全部通过（Shell 与 npm / pnpm、文件双向同步、服务预览与 Ctrl+C、三个模板的运行 / 停止 / 再运行、项目切换隔离、释放），另加 vivari 专项 `runtime-host-isolation`（宿主跨源隔离、宿主 Service Worker 只在宿主源、工作台 ngsw 不变、服务预览读工作台文档与 localStorage 都报 SecurityError）；控制台零错误。终端里 `process.stdout.isTTY` 为假、`columns` 为 80，resize 不报错 |
+| 阶段 C 单测 | `pnpm nx test aiao-vscode`：`nodepod-host.spec.ts`（同步卷的文件操作、监听、进程合并输出与退出、无参 `sh` 接 NodepodTerminal 的输入 / 尺寸 / 结束）、`runtime-host-protocol.spec.ts`（终端尺寸与 resize）、`hosted-runtime-adapter.spec.ts`、`mount-run.spec.ts` 与 `app.component.spec.ts`（按部署配置给出各运行方式的宿主源）                                                                                                                                                                                                                                                                                                                              |
+| 阶段 C 基准 | `pnpm nx run aiao-vscode:verify-runtimes --production --runtimes=nodepod --channel=chrome --out=benchmarks/browser-workbench-runtimes-nodepod.json`；[报告](../../benchmarks/browser-workbench-runtimes-nodepod.json)：vanilla / react / vue 各 3 次全部通过，运行到服务页中位数 5.0 / 5.4 / 7.1 秒、改动生效 0.12 秒、停止 27～28 毫秒、停止后再运行 1.3～1.5 秒、运行期下载 23～29 MB；Angular 3 次都卡在 Nodepod 报告的 Node 版本（v22.12.0 低于 Angular CLI 22 的要求）。[分析](US-409-runtime-research.md#阶段-c-接入nodepod-进工作台2026-11-07)                                                                                                        |
+| 阶段 C 终端 | `pnpm nx run aiao-vscode:verify-terminal --production --runtime=nodepod --templates=vanilla,react,vue --channel=chrome --out=benchmarks/browser-workbench-terminal-nodepod.json`；[报告](../../benchmarks/browser-workbench-terminal-nodepod.json)：同一套 11 项与宿主隔离检查全部通过，控制台零错误；进程里 `isTTY` 为真、尺寸跟随工作台                                                                                                                                                                                                                                                                                                                    |
+| 阶段 C 许可 | README「运行时宿主」写明 Nodepod 为 MIT + Commons Clause、仅内部评估；宿主产物附 `licenses/nodepod.txt` 与 `NOTICE.txt`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 阶段 B～E   | 随阶段补充；基准统一由 `pnpm nx run aiao-vscode:verify-runtimes` 复跑                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 ## 技术笔记
 
@@ -112,17 +120,32 @@ A 是 B～E 的前置：适配接口与基准口径先在两个已有方式上�
 - **独立源宿主**：vivari、Nodepod、almostnode 都在根作用域注册 Service Worker，同源嵌入会顶掉 ngsw，且它们的服务预览默认与宿主同源。宿主页按运行时分源（本地不同端口、线上子域名），带 COOP / COEP / CORP 响应头，iframe 声明 `allow="cross-origin-isolated"`；协议把 `TerminalContainer` 的方法与流映射成 postMessage 请求、响应与流事件。
 - **测量口径**：冷启动用全新浏览器上下文（无 OPFS 缓存），热启动用同一上下文再跑；改动延迟从保存到服务页内容变化计时，以页面导航与 DOM 读数为准；记录 `os.loadavg()` 与浏览器版本，负载过高时重跑。安装耗时受网络与 CDN 缓存影响很大（同一天两轮 WebContainer 运行到服务页的中位数相差 30%～70%），阶段 E 各运行时在同一时段交替跑，报告给出最小 / 最大值而不只给中位数。
 - **已知风险**：vivari 发布产物里 Worker 资源路径写死，需自托管验证；Nodepod 线上预览需要通配域名；almostnode 在宿主主线程执行项目代码，只能在独立源宿主里跑。
+- **宿主协议**：工作台用隐藏 iframe 加载宿主页，宿主页加载完向父窗口宣告就绪（不带数据），工作台回一个私有 `MessagePort`，只发往配置的宿主源；宿主页只接受父窗口从部署配置里的工作台来源发来的第一次连接。之后文件系统、进程流、监听与服务就绪都走这个端口；拆除连接时移除 iframe，宿主里的 Worker 随文档结束。
+- **宿主源只来自部署配置**（`src/runtime-hosts/hosts.ts`）：宿主页能读到挂进去的项目文件，不接受地址参数覆盖；当前工作台来源没有配置时，设置里 vivari 不可选。
+- **vivari 预览热更新**：预览页的 WebSocket / SSE 垫片只发给父窗口，内核页要直接收到；工作台跨源转发不了，服务预览面板因此加载宿主源上的预览容器页，由它嵌入 vivari 的预览并把出站帧转交同源的内核页。
+- **没有伪终端**：适配器声明 `pty: false`，项目「运行」走进程模式，Ctrl+C 由运行时回显并结束前台进程；Shell 页签用 vivari 自带的 `sh`，它自己处理行编辑与 ^C。
+- **宿主页路径**：所有宿主页都在 `/runtime-host.html`，不放源根——Nodepod 的 `reservedHostPaths` 里以 `/` 结尾的条目按前缀匹配，保留 `/` 等于保留全部路径，预览请求会全部绕过它的 Service Worker。
+- **终端尺寸**：协议的 spawn 带上终端尺寸并转发 resize；Nodepod 的 Shell 跟随工作台尺寸，vivari 忽略（固定 80×24）。
+- **Nodepod 交互 Shell**：`NodepodTerminal` 自带提示符、行编辑、历史与 Ctrl+C，只缺一个 xterm；宿主给它一个只转发的 xterm（写出交给工作台的终端，输入与尺寸来自工作台），无参 `sh` 接到它上面。项目进程走 `nodepod.spawn`（非 `node 脚本` 的命令一律交给它自己的 Shell 解释器执行）。
+- **Nodepod 打包**：`package.json` 的 `sideEffects` 只列了 `src/` 路径，dist 分块被当成无副作用，浏览器宿主的注册会被摇掉（报「No RuntimeHost registered」）；打包宿主页时让 esbuild 忽略这份声明。预览用路径形式 `/__virtual__/<实例>/<端口>`（`previewOrigin: false`），它的 Service Worker 给预览响应补 `CORP: cross-origin` 与 `COEP: credentialless`，WebSocket 经 BroadcastChannel 中转，可以直接跨源嵌进工作台。
+- **文件回写**：vivari 1.2.1 的 SDK 监听看不到 VM 内进程的写入，宿主后端在 VM 里常驻一个 Node 监听进程转发事件，逐目录监听并跳过不同步的目录（VM 内递归监听在安装时会因临时文件竞态崩溃）；它意外退出时经协议报故障。挂载前清空 `/project`，避免宿主源 OPFS 里上个项目的文件被同步进来。
 
 ## 实现文件
 
-| 阶段 | 位置                                                                                     | 职责                                                                            |
-| ---- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| A    | `apps/aiao-vscode/src/workbench/terminal/runtime-adapter.ts`                             | 运行方式标识与名称、能力声明、适配器接口                                        |
-| A    | `apps/aiao-vscode/src/workbench/terminal/webcontainer-adapter.ts`                        | WebContainer 适配器：`jsh` / `jsh --osc`、授权 key 只配置一次                   |
-| A    | `apps/aiao-vscode/src/workbench/terminal/terminal-runtime.ts`                            | 与运行时无关的终端运行时：文件同步、交互 Shell，带标记 shell 与进程两种项目运行 |
-| A    | `apps/aiao-vscode/src/workbench/workbench-state.ts`、`workbench-settings.ts`、`mount.ts` | 「运行方式」偏好与设置项、`?runtime=` 覆盖、「运行」按方式分支                  |
-| A～E | `apps/aiao-vscode/scripts/verify-runtimes.mjs`                                           | 对比基准脚本与报告                                                              |
-| B～D | `apps/aiao-vscode/runtime-hosts/`                                                        | 各运行时的独立源宿主页与 postMessage 协议                                       |
+| 阶段 | 位置                                                                                        | 职责                                                                                |
+| ---- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| A    | `apps/aiao-vscode/src/workbench/terminal/runtime-adapter.ts`                                | 运行方式标识与名称、能力声明、适配器接口                                            |
+| A    | `apps/aiao-vscode/src/workbench/terminal/webcontainer-adapter.ts`                           | WebContainer 适配器：`jsh` / `jsh --osc`、授权 key 只配置一次                       |
+| A    | `apps/aiao-vscode/src/workbench/terminal/terminal-runtime.ts`                               | 与运行时无关的终端运行时：文件同步、交互 Shell，带标记 shell 与进程两种项目运行     |
+| A    | `apps/aiao-vscode/src/workbench/workbench-state.ts`、`workbench-settings.ts`、`mount.ts`    | 「运行方式」偏好与设置项、`?runtime=` 覆盖、「运行」按方式分支                      |
+| A～E | `apps/aiao-vscode/scripts/verify-runtimes.mjs`                                              | 对比基准脚本与报告                                                                  |
+| B～D | `apps/aiao-vscode/src/workbench/terminal/runtime-host-protocol.ts`、`runtime-host-frame.ts` | 宿主协议（端口上的请求、流、监听与故障）与工作台侧的宿主 iframe 握手                |
+| B～C | `apps/aiao-vscode/src/workbench/terminal/hosted-runtime-adapter.ts`、`runtime-host-page.ts` | 独立源运行时适配器（vivari、Nodepod 的能力声明）；宿主页一侧的握手与项目路径映射    |
+| B    | `apps/aiao-vscode/src/workbench/terminal/vivari-host.ts`、`project-watcher.ts`              | vivari 宿主后端（VM 内监听进程、输出视图）、内核宿主页、预览容器页                  |
+| C    | `apps/aiao-vscode/src/workbench/terminal/nodepod-host.ts`                                   | Nodepod 宿主后端（同步卷、NodepodTerminal 接只转发的 xterm、进程）与宿主页          |
+| B～D | `apps/aiao-vscode/src/runtime-hosts/`                                                       | 宿主页入口与部署配置（运行方式 → 工作台来源 → 宿主源）                              |
+| B～D | `apps/aiao-vscode/scripts/build-runtime-hosts.mjs`、`serve-runtime-hosts.mjs`               | 宿主构建（vivari 的 vendor 包下载并按 SHA-256 校验）与本地静态服务（:4331 / :4332） |
+| A～E | `apps/aiao-vscode/scripts/verify-terminal.mjs`、`runtime-host-server.mjs`                   | 终端断言按运行方式复跑（`--runtime=`），逐项记录成败与恢复办法                      |
 
 ## References
 
