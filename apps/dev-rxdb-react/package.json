@@ -24,6 +24,7 @@
     "@aiao/rxdb-react": "workspace:*",
     "@aiao/rxdb-test": "workspace:*",
     "@aiao/utils": "workspace:*",
+    "@aiao/web-desktop-runtime": "workspace:*",
     "@modules/wujie": "workspace:*",
     "@tanstack/react-virtual": "^3.14.26",
     "clsx": "^2.1.1",

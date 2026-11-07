@@ -1,10 +1,10 @@
 # Web Desktop 状态总览
 
-本页由故事 YAML 派生。当前 42 条故事、256 条数字 AC、8 个 Epic；全部 Backlog，全部 AC 未验证。需求已编写不等于产品已实现。
+本页由故事 YAML 派生。当前 42 条故事、256 条数字 AC、8 个 Epic；35 条 Backlog、7 条 In Progress，全部 AC 尚未完成产品验收。运行基础的代码证据见验收台账。
 
 | Backlog | In Progress | In Review | Done | Blocked |
 | ------- | ----------- | --------- | ---- | ------- |
-| 42      | 0           | 0         | 0    | 0       |
+| 35      | 7           | 0         | 0    | 0       |
 
 | 故事                                                                            | 标题                         | 里程碑 | 优先级 | 状态    |
 | ------------------------------------------------------------------------------- | ---------------------------- | ------ | ------ | ------- |
@@ -26,14 +26,14 @@
 | [DESKTOP-US-204](stories/application/DESKTOP-US-204-update-rollback.md)         | 应用更新与版本回退           | M2     | High   | Backlog |
 | [DESKTOP-US-205](stories/application/DESKTOP-US-205-uninstall-data.md)          | 卸载与应用数据管理           | M2     | High   | Backlog |
 | [DESKTOP-US-206](stories/application/DESKTOP-US-206-launcher-pinning.md)        | 应用启动器、搜索与固定       | M1     | Medium | Backlog |
-| [DESKTOP-US-301](stories/runtime/DESKTOP-US-301-in-repository-runtime.md)       | 无界源码内化与独立运行内核   | M0     | High   | Backlog |
-| [DESKTOP-US-302](stories/runtime/DESKTOP-US-302-application-isolation.md)       | 应用运行环境与样式隔离       | M0     | High   | Backlog |
-| [DESKTOP-US-303](stories/runtime/DESKTOP-US-303-lifecycle-cleanup.md)           | 实例生命周期与资源回收       | M0     | High   | Backlog |
-| [DESKTOP-US-304](stories/runtime/DESKTOP-US-304-instance-storage-scope.md)      | 多实例身份与数据作用域       | M0     | High   | Backlog |
-| [DESKTOP-US-305](stories/runtime/DESKTOP-US-305-resources-routing.md)           | 应用资源加载与独立路由       | M0     | High   | Backlog |
-| [DESKTOP-US-306](stories/runtime/DESKTOP-US-306-failure-recovery.md)            | 应用故障呈现与恢复           | M0     | High   | Backlog |
+| [DESKTOP-US-301](stories/runtime/DESKTOP-US-301-in-repository-runtime.md)       | 无界源码内化与独立运行内核   | M0     | High   | In Progress |
+| [DESKTOP-US-302](stories/runtime/DESKTOP-US-302-application-isolation.md)       | 应用运行环境与样式隔离       | M0     | High   | In Progress |
+| [DESKTOP-US-303](stories/runtime/DESKTOP-US-303-lifecycle-cleanup.md)           | 实例生命周期与资源回收       | M0     | High   | In Progress |
+| [DESKTOP-US-304](stories/runtime/DESKTOP-US-304-instance-storage-scope.md)      | 多实例身份与数据作用域       | M0     | High   | In Progress |
+| [DESKTOP-US-305](stories/runtime/DESKTOP-US-305-resources-routing.md)           | 应用资源加载与独立路由       | M0     | High   | In Progress |
+| [DESKTOP-US-306](stories/runtime/DESKTOP-US-306-failure-recovery.md)            | 应用故障呈现与恢复           | M0     | High   | In Progress |
 | [DESKTOP-US-307](stories/runtime/DESKTOP-US-307-preload-suspension.md)          | 预加载与后台资源管理         | M2     | Medium | Backlog |
-| [DESKTOP-US-308](stories/runtime/DESKTOP-US-308-framework-parity.md)            | 三框架接入与既有无界消费迁移 | M0     | High   | Backlog |
+| [DESKTOP-US-308](stories/runtime/DESKTOP-US-308-framework-parity.md)            | 三框架接入与既有无界消费迁移 | M0     | High   | In Progress |
 | [DESKTOP-US-401](stories/integration/DESKTOP-US-401-capability-permissions.md)  | 桌面能力授权与撤销           | M1     | High   | Backlog |
 | [DESKTOP-US-402](stories/integration/DESKTOP-US-402-desktop-sdk.md)             | 应用与桌面交互协议           | M1     | High   | Backlog |
 | [DESKTOP-US-403](stories/integration/DESKTOP-US-403-scoped-messaging.md)        | 按作用域通信与跨应用协作     | M1     | High   | Backlog |

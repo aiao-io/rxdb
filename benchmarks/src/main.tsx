@@ -1,12 +1,11 @@
-import { StrictMode } from 'react';
-import * as ReactDOM from 'react-dom/client';
-import App from './app/app';
-import './styles.css';
+import { connectWujieClient } from '@aiao/web-desktop-runtime/client';
 
-const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
-
-root.render(
-  <StrictMode>
-    <App />
-  </StrictMode>
-);
+void connectWujieClient().then(async client => {
+  try {
+    const { bootstrap } = await import('./bootstrap');
+    await bootstrap(client);
+  } catch (error) {
+    client?.fail(error instanceof Error ? error.message : '应用启动失败');
+    throw error;
+  }
+}).catch(error => console.error(error));

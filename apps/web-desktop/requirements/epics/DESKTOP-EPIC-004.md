@@ -1,7 +1,7 @@
 ---
 id: DESKTOP-EPIC-004
-status: Backlog
-startDate: TBD
+status: In Progress
+startDate: 2026-11-07
 targetDate: TBD
 owner: jimmy
 ---
@@ -40,3 +40,5 @@ owner: jimmy
 
 - 本 Epic 不扩展产品规格中排除的原生程序、任意不可信网页、账号云同步与多人协作。
 - 不通过提前标记 Done 或降低验收环境来关闭未验证能力。
+
+当前运行基础的实现和验证范围见 [实施记录](../../../../specs/001-web-desktop-product/runtime-implementation.md)；Epic 目标尚未整体关闭。

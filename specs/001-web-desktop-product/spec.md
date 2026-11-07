@@ -4,11 +4,11 @@
 
 **Created**: 2026-11-07
 
-**Status**: Draft（用户故事已编写，产品尚未实现或验收）
+**Status**: Draft（运行基础实现中，完整产品尚未验收）
 
 **Input**: 参考 awesome-web-desktops，建设同时支持 macOS 与 Windows 交互的 Web 桌面；所有软件为 Web 应用，使用无界式隔离；无界必须重构到本仓库并为产品优化；本轮完成产品用户故事编写。
 
-应用需求目录为 [apps/web-desktop/requirements](../../apps/web-desktop/requirements/README.md)。本规格描述用户旅程与产品约束；原子故事、数字 AC、硬依赖和状态唯一维护在该目录。共有 42 条故事、8 个 Epic，当前全部 Backlog。运行内核来源与重构约束属于用户明确要求，详细设计留给实施计划。
+应用需求目录为 [apps/web-desktop/requirements](../../apps/web-desktop/requirements/README.md)。本规格描述用户旅程与产品约束；原子故事、数字 AC、硬依赖和状态唯一维护在该目录。共有 42 条故事、8 个 Epic，当前 7 条 In Progress、35 条 Backlog。运行内核来源与重构约束属于用户明确要求，已开始的实现及取舍见 [运行基础实施记录](runtime-implementation.md)。
 
 ## User Scenarios & Testing
 

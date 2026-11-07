@@ -9,13 +9,16 @@
   "extends": "@docusaurus/tsconfig",
   "references": [
     {
+      "path": "../modules/wujie"
+    },
+    {
+      "path": "../packages/web-desktop-runtime"
+    },
+    {
       "path": "../packages/rxdb-adapter-wa-sqlite"
     },
     {
       "path": "../packages/code-editor-react"
-    },
-    {
-      "path": "../modules/wujie"
     }
   ]
 }

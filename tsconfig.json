@@ -278,6 +278,9 @@
     },
     {
       "path": "./packages/rxdb-i18n-vue"
+    },
+    {
+      "path": "./packages/web-desktop-runtime"
     }
   ]
 }

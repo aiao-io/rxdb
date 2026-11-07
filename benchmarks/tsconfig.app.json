@@ -37,22 +37,10 @@
       "path": "../modules/wujie/tsconfig.lib.json"
     },
     {
-      "path": "../packages/utils/tsconfig.lib.json"
-    },
-    {
-      "path": "../packages/rxdb-plugin-working-tree/tsconfig.lib.json"
-    },
-    {
-      "path": "../packages/rxdb-plugin-sync/tsconfig.lib.json"
+      "path": "../packages/web-desktop-runtime/tsconfig.lib.json"
     },
     {
       "path": "../packages/rxdb-plugin-search/tsconfig.lib.json"
-    },
-    {
-      "path": "../packages/rxdb-plugin-querycache/tsconfig.lib.json"
-    },
-    {
-      "path": "../packages/rxdb-plugin-history/tsconfig.lib.json"
     },
     {
       "path": "../packages/rxdb-devtools/tsconfig.lib.json"
@@ -68,6 +56,21 @@
     },
     {
       "path": "../packages/rxdb-adapter-sqlite/tsconfig.lib.json"
+    },
+    {
+      "path": "../packages/rxdb-plugin-working-tree/tsconfig.lib.json"
+    },
+    {
+      "path": "../packages/rxdb-plugin-querycache/tsconfig.lib.json"
+    },
+    {
+      "path": "../packages/utils/tsconfig.lib.json"
+    },
+    {
+      "path": "../packages/rxdb-plugin-sync/tsconfig.lib.json"
+    },
+    {
+      "path": "../packages/rxdb-plugin-history/tsconfig.lib.json"
     },
     {
       "path": "../packages/rxdb-test/tsconfig.lib.json"

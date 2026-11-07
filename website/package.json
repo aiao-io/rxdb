@@ -18,6 +18,7 @@
   "dependencies": {
     "@aiao/code-editor-react": "workspace:*",
     "@aiao/rxdb-adapter-wa-sqlite": "workspace:*",
+    "@aiao/web-desktop-runtime": "workspace:*",
     "@docusaurus/core": "^3.10.2",
     "@docusaurus/faster": "^3.10.2",
     "@docusaurus/plugin-content-docs": "^3.10.2",
@@ -45,8 +46,7 @@
     "ogl": "^1.0.11",
     "prism-react-renderer": "^2.4.1",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1",
-    "wujie-react": "^2.1.0"
+    "react-dom": "^19.3.1"
   },
   "devDependencies": {
     "@docusaurus/module-type-aliases": "3.10.2",

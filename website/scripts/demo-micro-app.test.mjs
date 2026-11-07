@@ -56,18 +56,18 @@ test('wujie host syncs routes in both directions behind the shared protocol', ()
   assert.match(source, /HostRouteSync/, 'host should gate reports through the TTL sync lock');
   // 裸 replaceState 不更新 react-router 的内部 location，useLocation() 会停在旧路径
   assert.match(source, /useHistory/, 'host should write back through the Docusaurus history');
-  // 子应用的返回栈由无界代理的 iframe history 维护，宿主再 push 会双份
+  // 子应用的返回栈由原生 iframe history 维护，宿主再 push 会双份
   assert.match(source, /history\.replace\(next\)/, 'host should replace rather than push its URL');
   assert.doesNotMatch(source, /history\.replaceState/, 'host must not bypass react-router with raw replaceState');
   // 子应用起来之前 bus 上没有订阅者，初始路径必须搭 props 进去
-  assert.match(source, /route:\s*initialRoute\.current/, 'initial route should ride on props');
+  assert.match(source, /props:\s*current\.current/, 'initial route should ride on props');
 });
 
 test('sub-apps bind the wujie route adapter at bootstrap', () => {
   const files = [
-    '../apps/dev-rxdb-angular/src/main.ts',
-    '../apps/dev-rxdb-react/src/main.tsx',
-    '../apps/dev-rxdb-vue/src/main.ts'
+    '../apps/dev-rxdb-angular/src/bootstrap.ts',
+    '../apps/dev-rxdb-react/src/bootstrap.tsx',
+    '../apps/dev-rxdb-vue/src/bootstrap.ts'
   ];
 
   for (const file of files) {
@@ -76,12 +76,14 @@ test('sub-apps bind the wujie route adapter at bootstrap', () => {
   }
 });
 
-test('wujie host wires the shared cssLoader and the theme bus', () => {
+test('demo host consumes the in-repository runtime and explicit theme protocol', () => {
   const source = readFileSync(join(root, 'src/components/DemoMicroAppClient.tsx'), 'utf8');
-  // 选择器改写的行为由 modules/wujie 的 shadow-css.spec.ts 覆盖，这里只锁接线
-  assert.match(source, /cssLoader:\s*rewriteShadowCss/, 'cssLoader should use the shared rewriteShadowCss');
-  assert.doesNotMatch(source, /rewriteRootToHost/, 'the local :root→:host hack should be gone');
-  assert.match(source, /WujieReact\.bus/);
+  const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+  assert.match(source, /@aiao\/web-desktop-runtime/);
+  assert.equal(manifest.dependencies['@aiao/web-desktop-runtime'], 'workspace:*');
+  assert.equal(manifest.dependencies['wujie-react'], undefined);
+  assert.doesNotMatch(source, /rewriteShadowCss|cssLoader|WujieReact/);
+  assert.match(source, /runtime\.bus/);
   assert.match(source, /emitHostTheme/);
 });
 
@@ -95,17 +97,18 @@ test('wujie host broadcasts theme changes only, initial theme rides on props', (
   );
 });
 
-test('wujie host pushes data-theme onto the <wujie-app> element itself', () => {
-  const source = readFileSync(join(root, 'src/components/DemoMicroAppClient.tsx'), 'utf8');
-  // 子应用只能写到 Shadow 内的 <html>，够不到承载底色的宿主元素 —— 主题必须由外往内推
-  assert.match(
-    source,
-    /querySelector\('wujie-app'\)/,
-    'host should locate the shadow host element to carry data-theme'
-  );
-  assert.match(source, /setAttribute\(HOST_THEME_ATTRIBUTE/, 'host should set data-theme on the shadow host');
-  // startApp 是异步的，挂载时 <wujie-app> 还不存在，必须监听它出现
-  assert.match(source, /childList:\s*true/, 'host should observe the container for the async <wujie-app> insert');
+test('all embedded applications handshake before loading their framework bootstrap', () => {
+  const files = [
+    '../apps/dev-rxdb-angular/src/main.ts',
+    '../apps/dev-rxdb-react/src/main.tsx',
+    '../apps/dev-rxdb-vue/src/main.ts',
+    '../benchmarks/src/main.tsx'
+  ];
+  for (const file of files) {
+    const source = readFileSync(join(root, file), 'utf8');
+    assert.match(source, /connectWujieClient\(\)\.then/);
+    assert.match(source, /await import\('\.\/bootstrap'\)/);
+  }
 });
 
 test('wujie host applies theme change requests coming back from the sub-app', () => {

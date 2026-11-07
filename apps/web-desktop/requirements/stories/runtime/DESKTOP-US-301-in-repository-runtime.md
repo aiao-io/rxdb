@@ -1,7 +1,7 @@
 ---
 id: DESKTOP-US-301
 title: 无界源码内化与独立运行内核
-status: Backlog
+status: In Progress
 priority: High
 epic: DESKTOP-EPIC-004
 milestone: M0
@@ -46,15 +46,16 @@ capabilities: []
 
 状态符号：⬜ 未验证 / ⚠️ 进行中或有保留 / ✅ 有同层级证据。
 
-验收证据：尚无实现或产品验收证据；本轮只完成需求编写。实施时按 [分层验收台账](../../verification-report.md) 逐 AC 登记用例、构建版本、环境和结果，失败分支同样需要证据。
+验收证据：仓内运行内核已开始实现，代码与真实 Chromium 测试的范围见 [实施记录](../../../../../specs/001-web-desktop-product/runtime-implementation.md) 和 [分层验收台账](../../verification-report.md)。下表 AC 仍未完成完整产品验证，不因底层测试通过而自动关闭。
 
 ## 技术笔记
 
-候选基线为调研时读取的上游 c45932998c0602f34454df8d3e29f4d33a38446a；实施前锁定并登记。packages/web-desktop-runtime 为拟定代码位置。现有 modules/wujie 维护宿主协议，职责独立。
+固定参考提交 c45932998c0602f34454df8d3e29f4d33a38446a，重写源码已进入 packages/web-desktop-runtime。采用原生 iframe 文档承载，删除跨文档 DOM/CSS 代理；版本资源与自定义缓存尚未实现。来源和兼容取舍见包内 UPSTREAM.md。现有 modules/wujie 维护宿主协议，职责独立。
 
 ## 实现文件
 
-- 尚未实现；后续变更以本故事编号关联实际源码和测试文件，不能把拟定路径当已交付证据。
+- [仓内运行内核与使用说明](../../../../../packages/web-desktop-runtime/README.md)
+- [实现范围与未关闭事项](../../../../../specs/001-web-desktop-product/runtime-implementation.md)
 
 ## References
 

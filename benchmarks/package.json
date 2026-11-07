@@ -25,6 +25,7 @@
     "@aiao/rxdb-plugin-working-tree": "workspace:*",
     "@aiao/rxdb-test": "workspace:*",
     "@aiao/utils": "workspace:*",
+    "@aiao/web-desktop-runtime": "workspace:*",
     "@modules/wujie": "workspace:*",
     "@tailwindcss/postcss": "^4.3.4",
     "comlink": "^4.4.2",
