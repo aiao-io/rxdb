@@ -1,0 +1,54 @@
+<div data-testid="pref-widgets">
+  <p class="admin-row-hint mb-2" [textContent]="t('prefs.widgets.dragHint')"></p>
+  <ul [attr.aria-label]="t('prefs.widgets.visible')">
+    @for (key of visible(); track key; let index = $index) {
+      <li
+        class="admin-widget-row"
+        [attr.data-dragging]="dragFrom() === index"
+        [attr.data-drop-target]="dropTo() === index && dragFrom() !== index"
+        [attr.data-testid]="'pref-widget-' + key"
+        [id]="'prefs-widget-' + key"
+        (dragend)="onDragEnd()"
+        (dragover)="onDragOver($event, index)"
+        (dragstart)="onDragStart($event, key, index)"
+        (drop)="onDrop($event, index)"
+        (keydown)="onKeyDown($event, index)"
+        draggable="true"
+        tabindex="0"
+      >
+        <svg class="admin-widget-handle" [lucideIcon]="GripVertical" [size]="16"></svg>
+        <span class="grow" [textContent]="t('widget.' + key)"></span>
+        <button
+          class="btn btn-ghost btn-xs btn-square"
+          [attr.aria-label]="t('prefs.widgets.hide') + '：' + t('widget.' + key)"
+          [attr.data-testid]="'pref-widget-toggle-' + key"
+          [attr.title]="pinned.includes(key) ? t('prefs.widgets.pinned') : null"
+          [disabled]="pinned.includes(key)"
+          (click)="toggle(key)"
+          type="button"
+        >
+          <svg [lucideIcon]="Eye" [size]="14"></svg>
+        </button>
+      </li>
+    }
+  </ul>
+  @if (hidden().length > 0) {
+    <p class="admin-row-hint mt-3 mb-1" [textContent]="t('prefs.widgets.hidden')"></p>
+    <ul [attr.aria-label]="t('prefs.widgets.hidden')">
+      @for (key of hidden(); track key) {
+        <li class="admin-widget-row" [attr.data-testid]="'pref-widget-' + key">
+          <span class="grow line-through opacity-60" [textContent]="t('widget.' + key)"></span>
+          <button
+            class="btn btn-ghost btn-xs btn-square"
+            [attr.aria-label]="t('prefs.widgets.show') + '：' + t('widget.' + key)"
+            [attr.data-testid]="'pref-widget-toggle-' + key"
+            (click)="toggle(key)"
+            type="button"
+          >
+            <svg [lucideIcon]="EyeOff" [size]="14"></svg>
+          </button>
+        </li>
+      }
+    </ul>
+  }
+</div>

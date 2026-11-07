@@ -63,8 +63,8 @@ for (const backend of ['wa-sqlite', 'pglite'] as const) {
         await adapter.transaction(async executor => {
           await executor.query(`DROP INDEX ${backend === 'pglite' ? '"bom".' : ''}"${name}"`);
           await executor.query(
-            `DELETE FROM ${executor.tableRef(RxDBMigration)} WHERE "name" = ${bomSqlDialectFor(backend).placeholder(0)}`,
-            [migrationName]
+            `DELETE FROM ${executor.tableRef(RxDBMigration)} WHERE "name" = ${bomSqlDialectFor(backend).placeholder(0)} OR "name" LIKE ${bomSqlDialectFor(backend).placeholder(1)}`,
+            [migrationName, '__rxdb_bootstrap__%']
           );
         }, false);
         expect((await lineIndexes(adapter)).rows).toEqual([]);

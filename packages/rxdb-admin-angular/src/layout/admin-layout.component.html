@@ -1,0 +1,46 @@
+<ng-template #brandIconSlot><ng-content select="[brandIcon]" /></ng-template>
+<ng-template #headerStartSlot><ng-content select="[headerStart]" /></ng-template>
+<ng-template #headerEndSlot><ng-content select="[headerEnd]" /></ng-template>
+
+<div
+  class="admin-shell"
+  id="layout-main"
+  [attr.data-layout]="layout().mode"
+  [attr.data-maximized]="ui().maximized"
+  [attr.data-mobile]="mobile()"
+  data-testid="admin-shell"
+>
+  <a
+    class="btn btn-primary btn-sm admin-skip-link"
+    [textContent]="t('layout.skipToContent')"
+    (click)="skipToContent($event)"
+    href="#layout-content"
+  ></a>
+  <rxdb-admin-sidebar [brandIcon]="brandIconSlot" [menu]="menu()" [menuExtra]="menuExtra()" />
+  <div class="admin-main" id="layout-container">
+    <rxdb-admin-header [brandIcon]="brandIconSlot" [end]="headerEndSlot" [menu]="menu()" [start]="headerStartSlot" />
+    <rxdb-admin-tabbar />
+    <main class="admin-content" id="layout-content" #content tabindex="-1">
+      <h1 class="admin-sr-only" [textContent]="pageTitle()" data-testid="admin-page-title"></h1>
+      @if (prefs().transition.progress && ui().navigating) {
+        <div class="admin-progress" [attr.aria-label]="t('layout.loading')" role="progressbar"></div>
+      }
+      @if (prefs().transition.loading && ui().navigating) {
+        <div class="admin-loading-mask" data-testid="admin-loading-mask">
+          <span class="loading loading-spinner loading-lg" [attr.aria-label]="t('layout.loading')"></span>
+        </div>
+      }
+      <div class="admin-page" #page *rxdbAdminRemount="refreshKey()" data-testid="admin-page">
+        <ng-content />
+        @if (pageTemplate(); as pageContent) {
+          <ng-container [ngTemplateOutlet]="pageContent.template" />
+        }
+      </div>
+    </main>
+    <rxdb-admin-footer />
+  </div>
+  <rxdb-admin-watermark />
+  <rxdb-admin-preferences-drawer />
+  <rxdb-admin-command-palette />
+  <rxdb-admin-lock-screen />
+</div>

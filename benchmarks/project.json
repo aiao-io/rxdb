@@ -74,6 +74,14 @@
         "command": "node --experimental-strip-types node/working-tree/working-tree.bench.ts"
       }
     },
+    "bench-working-tree-ci": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["typecheck", "^build"],
+      "options": {
+        "cwd": "benchmarks",
+        "command": "node --experimental-strip-types node/working-tree/working-tree-ci.ts"
+      }
+    },
     "bench-push-receipts": {
       "executor": "nx:run-commands",
       "dependsOn": ["typecheck", "^build"],

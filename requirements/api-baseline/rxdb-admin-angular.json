@@ -1,0 +1,102 @@
+{
+  "entries": {
+    ".": [
+      {
+        "name": "ADMIN_SHELL",
+        "kind": "value"
+      },
+      {
+        "name": "AdminBrandComponent",
+        "kind": "both"
+      },
+      {
+        "name": "AdminBreadcrumbComponent",
+        "kind": "both"
+      },
+      {
+        "name": "AdminCommandPaletteComponent",
+        "kind": "both"
+      },
+      {
+        "name": "AdminFooterComponent",
+        "kind": "both"
+      },
+      {
+        "name": "AdminHeaderComponent",
+        "kind": "both"
+      },
+      {
+        "name": "AdminHeaderMenuComponent",
+        "kind": "both"
+      },
+      {
+        "name": "AdminHeaderWidgetsComponent",
+        "kind": "both"
+      },
+      {
+        "name": "AdminIcon",
+        "kind": "type"
+      },
+      {
+        "name": "AdminLayoutComponent",
+        "kind": "both"
+      },
+      {
+        "name": "AdminLockScreenComponent",
+        "kind": "both"
+      },
+      {
+        "name": "AdminMenuTreeComponent",
+        "kind": "both"
+      },
+      {
+        "name": "AdminPageDirective",
+        "kind": "both"
+      },
+      {
+        "name": "AdminPreferencesDrawerComponent",
+        "kind": "both"
+      },
+      {
+        "name": "AdminSidebarComponent",
+        "kind": "both"
+      },
+      {
+        "name": "AdminTabbarComponent",
+        "kind": "both"
+      },
+      {
+        "name": "AdminWatermarkComponent",
+        "kind": "both"
+      },
+      {
+        "name": "injectAdminShell",
+        "kind": "value"
+      },
+      {
+        "name": "injectAdminStore",
+        "kind": "value"
+      },
+      {
+        "name": "injectAdminText",
+        "kind": "value"
+      },
+      {
+        "name": "interceptNavigation",
+        "kind": "value"
+      },
+      {
+        "name": "MenuExtraContext",
+        "kind": "type"
+      },
+      {
+        "name": "MenuExtraTemplate",
+        "kind": "type"
+      },
+      {
+        "name": "provideAdminShell",
+        "kind": "value"
+      }
+    ]
+  }
+}

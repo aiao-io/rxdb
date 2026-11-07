@@ -27,13 +27,13 @@
     "@aiao/rxdb-test": "workspace:*",
     "@aiao/utils": "workspace:*",
     "@modules/wujie": "workspace:*",
-    "@tailwindcss/postcss": "^4.3.3",
+    "@tailwindcss/postcss": "^4.3.4",
     "comlink": "^4.4.2",
-    "lucide-react": "^1.63.0",
+    "lucide-react": "^1.70.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "simple-statistics": "^7.12.1",
-    "tailwindcss": "^4.3.3",
+    "tailwindcss": "^4.3.4",
     "wa-sqlite": "https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994"
   },
   "devDependencies": {
@@ -43,7 +43,7 @@
     "daisyui": "^5.7.50",
     "isomorphic-git": "1.44.4",
     "typescript": "~6.0.3",
-    "vite": "8.3.5",
+    "vite": "8.3.6",
     "vite-plugin-static-copy": "^4.1.1",
     "wasm-git": "0.0.17"
   }

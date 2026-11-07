@@ -24,10 +24,10 @@
 字段配置通过开关控制显隐、拖拽调整顺序，排序在查询端生效，单字段分组使用原生折叠并显示已加载计数。
 本轮配置仅在当前列表会话有效，命名视图和持久化继续保留为后续决策项。
 
-调研时 [US-526 工作台](stories/domain/US-526-admin-workbench.md)、
-[US-527 备份恢复](stories/domain/US-527-admin-backup-restore.md)、
-[US-528 独立消费示例](stories/domain/US-528-admin-consumer-example.md) 的 YAML 均为 `In Review`。
-后续决策先复核三条故事的评审结果，状态仍以各 story 的 YAML 为准。
+[US-526 工作台](stories/domain/US-526-admin-workbench.md) 与
+[US-527 备份恢复](stories/domain/US-527-admin-backup-restore.md) 的 YAML 为 `Done`。
+[US-528 独立消费示例](stories/domain/US-528-admin-consumer-example.md) 为 `Backlog`，由 React Admin 模板承接后续独立消费与成本验证。
+后续决策仍以各 story 的 YAML、范围和验收证据为准。
 
 ## 现有能力与复验入口
 
@@ -136,7 +136,7 @@ Teable 的公开功能可能属于不同托管套餐或自部署版本。立项�
 ### 入场条件与最小范围
 
 已有界面重复拼装关联名称或聚合值，使用者需要在当前列表直接查看这些结果。
-现有 [资产分类、资产与维护记录](../apps/dev-rxdb-admin/src/app/entities/asset-entities.ts) 可作验证载体，
+现有 [资产分类、资产与维护记录](../apps/rxdb-admin-template-react/src/app/entities/asset-entities.ts) 可作验证载体，
 但示例本身仍需实际使用证明需求。
 
 建议首版交付：

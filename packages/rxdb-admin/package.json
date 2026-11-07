@@ -1,0 +1,61 @@
+{
+  "name": "@aiao/rxdb-admin",
+  "version": "0.0.28",
+  "description": "Framework-agnostic admin shell core for Aiao RxDB: preferences, theme, layout, tabs, shortcuts, command palette and extensions.",
+  "homepage": "https://rxdb.aiao.io/docs",
+  "bugs": {
+    "url": "https://github.com/aiao-io/rxdb/issues"
+  },
+  "keywords": [
+    "aiao",
+    "rxdb",
+    "admin",
+    "preferences",
+    "layout",
+    "command-palette"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aiao-io/rxdb.git",
+    "directory": "packages/rxdb-admin"
+  },
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./testing": {
+      "@aiao/source": "./src/testing.ts",
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js",
+      "default": "./dist/testing.js"
+    },
+    "./admin.css": "./admin.css"
+  },
+  "files": [
+    "dist",
+    "src",
+    "admin.css",
+    "!src/**/*.spec.*",
+    "!src/**/*.test.*",
+    "!src/**/__tests__/**",
+    "!**/*.tsbuildinfo"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@aiao/rxdb-i18n": "workspace:^",
+    "rxjs": "^7.8.2"
+  }
+}

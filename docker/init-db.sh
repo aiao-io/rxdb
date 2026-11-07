@@ -42,6 +42,9 @@ psql_file 01-rxdb-system-tables.sql 'Loading system tables...'
 psql_file 02-rxdb-sync-functions.sql 'Loading sync functions...'
 psql_file 03-business-tables.sql 'Loading business tables...'
 psql_file 04-rxdb-utils-functions.sql 'Loading utility functions...'
+# dev-rxdb-p2p 的设备登记与清单表（p2p schema）。PGRST_DB_SCHEMAS 含 p2p，schema 不存在时
+# PostgREST 加载不了 schema 缓存（PGRST002）；表结构归 demo 所有，这里只负责在初始化链里建好。
+psql_file ../../apps/dev-rxdb-p2p/supabase/p2p-schema.sql 'Loading dev-rxdb-p2p schema...'
 # 生产权限脚本必须最后加载：01 / 03 的 `GRANT ALL ON ALL TABLES IN SCHEMA public` 会把
 # rxdb_change 的写权限放宽回去，排在它们之后收紧才作数。开发库因此与生产同口径，
 # 测试对 rxdb_change 的预置与清理走 service_role（见 rxdb-adapter-supabase 的 test-utils.ts）。

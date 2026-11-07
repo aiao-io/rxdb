@@ -1,0 +1,129 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "dev-rxdb-p2p",
+  "prefix": "app",
+  "projectType": "application",
+  "sourceRoot": "apps/dev-rxdb-p2p/src",
+  "tags": ["angular-app"],
+  "targets": {
+    "build": {
+      "defaultConfiguration": "production",
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "allowedCommonJsDependencies": ["@supabase/postgrest-js", "ms"],
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "apps/dev-rxdb-p2p/public"
+          },
+          {
+            "glob": "**/*.wasm",
+            "input": "./node_modules/wa-sqlite/dist",
+            "output": "./wa-sqlite/"
+          }
+        ],
+        "browser": "apps/dev-rxdb-p2p/src/main.ts",
+        "index": "apps/dev-rxdb-p2p/src/index.html",
+        "outputPath": "dist/apps/dev-rxdb-p2p",
+        "polyfills": [],
+        "styles": ["apps/dev-rxdb-p2p/src/styles.css"],
+        "tsConfig": "apps/dev-rxdb-p2p/tsconfig.app.json",
+        "webWorkerTsConfig": "apps/dev-rxdb-p2p/tsconfig.worker.json"
+      },
+      "configurations": {
+        "development": {
+          "extractLicenses": false,
+          "optimization": false,
+          "sourceMap": true
+        },
+        "production": {
+          "budgets": [
+            {
+              "maximumError": "2mb",
+              "maximumWarning": "1mb",
+              "type": "initial"
+            },
+            {
+              "maximumError": "8kb",
+              "maximumWarning": "4kb",
+              "type": "anyComponentStyle"
+            }
+          ],
+          "define": {
+            "import.meta.env": "{\"MODE\":\"production\",\"BASE_URL\":\"/\",\"DEV\":false,\"PROD\":true,\"SSR\":false}",
+            "import.meta.env.DEV": "false"
+          },
+          "outputHashing": "all"
+        }
+      }
+    },
+    "supabase-up": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "bash apps/dev-rxdb-p2p/scripts/supabase-up.sh"
+      },
+      "metadata": {
+        "description": "Start this checkout's isolated Supabase stack (docker/supabase-ci-up.sh) and apply apps/dev-rxdb-p2p/supabase/p2p-schema.sql."
+      }
+    },
+    "dev-vars": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node apps/dev-rxdb-p2p/scripts/dev-vars.mjs"
+      },
+      "metadata": {
+        "description": "Write apps/dev-rxdb-p2p/.dev.vars for wrangler: Supabase URL, anon key and service role key, plus a ticket signing key generated once. Set P2P_ADMIN_USER_IDS to enable the admin console."
+      }
+    },
+    "serve-worker": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "dependsOn": ["dev-vars"],
+      "options": {
+        "cwd": "apps/dev-rxdb-p2p",
+        "command": "mkdir -p ../../dist/apps/dev-rxdb-p2p/browser && wrangler dev --port 8787 --ip 127.0.0.1 --show-interactive-dev-session=false"
+      }
+    },
+    "serve": {
+      "continuous": true,
+      "defaultConfiguration": "development",
+      "executor": "@angular/build:dev-server",
+      "dependsOn": ["serve-worker"],
+      "options": {
+        "port": 4380,
+        "proxyConfig": "apps/dev-rxdb-p2p/proxy.conf.json"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "dev-rxdb-p2p:build:development"
+        }
+      }
+    },
+    "preview": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "dependsOn": ["build", "dev-vars"],
+      "options": {
+        "cwd": "apps/dev-rxdb-p2p",
+        "command": "wrangler dev --port 4381 --ip 127.0.0.1 --show-interactive-dev-session=false --persist-to ../../tmp/dev-rxdb-p2p-preview"
+      },
+      "metadata": {
+        "description": "Serve the production build through the Worker exactly as Cloudflare would (static assets + signaling Durable Object + local R2)."
+      }
+    },
+    "deploy": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "apps/dev-rxdb-p2p",
+        "command": "wrangler deploy"
+      },
+      "metadata": {
+        "description": "Deploy to Cloudflare. Needs `wrangler login`, the R2 bucket, SUPABASE_URL / SUPABASE_ANON_KEY vars and the TICKET_PRIVATE_JWK secret; the admin console also needs SUPABASE_SERVICE_ROLE_KEY and ADMIN_USER_IDS. See README."
+      }
+    }
+  }
+}

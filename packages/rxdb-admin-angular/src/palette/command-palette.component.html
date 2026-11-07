@@ -1,0 +1,89 @@
+<dialog
+  class="admin-palette"
+  [attr.aria-label]="t('widget.search')"
+  [rxdbAdminModal]="state().open"
+  (click)="onBackdropClick($event)"
+  (closed)="close()"
+  data-testid="admin-palette"
+>
+  @if (state().open) {
+    <div class="admin-palette-input">
+      <svg [lucideIcon]="Search" [size]="18"></svg>
+      <input
+        #input
+        [attr.aria-activedescendant]="state().total > 0 ? 'admin-palette-option-' + state().selectedIndex : null"
+        [attr.aria-label]="t('palette.placeholder')"
+        [placeholder]="t('palette.placeholder')"
+        [value]="state().query"
+        (input)="onQuery($event)"
+        (keydown)="onKeyDown($event)"
+        aria-autocomplete="list"
+        aria-controls="admin-palette-list"
+        aria-expanded="true"
+        autocomplete="off"
+        data-testid="admin-palette-input"
+        role="combobox"
+        type="text"
+      />
+    </div>
+    <div class="admin-palette-list" id="admin-palette-list" [attr.aria-label]="t('widget.search')" role="listbox">
+      @for (group of state().groups; track group.id) {
+        <div [attr.aria-label]="groupLabel(group)" role="group">
+          <div class="admin-palette-group" [textContent]="groupLabel(group)" aria-hidden="true"></div>
+          @for (entry of group.entries; track entry.item.id) {
+            <div
+              class="admin-palette-item"
+              [attr.aria-selected]="entry.index === state().selectedIndex"
+              [id]="'admin-palette-option-' + entry.index"
+              (click)="choose(entry)"
+              (mousemove)="hover(entry)"
+              data-testid="admin-palette-option"
+              role="option"
+            >
+              @if (iconOf(entry); as icon) {
+                <svg [lucideIcon]="icon" [size]="16"></svg>
+              }
+              <span>
+                @for (segment of entry.segments; track $index) {
+                  @if (segment.match) {
+                    <mark [textContent]="segment.text"></mark>
+                  } @else {
+                    <span [textContent]="segment.text"></span>
+                  }
+                }
+              </span>
+              @if (entry.item.sublabel) {
+                <span class="admin-palette-sub" [textContent]="entry.item.sublabel"></span>
+              }
+            </div>
+          }
+        </div>
+      }
+      @if (state().total === 0 && !state().loading && state().mode === 'results') {
+        <p class="admin-palette-empty" [textContent]="t('palette.empty')" role="status"></p>
+      }
+      @if (state().loading) {
+        <p class="admin-palette-empty" [textContent]="t('palette.loading')" role="status"></p>
+      }
+      @if (state().failed.length > 0) {
+        <p class="admin-palette-empty text-warning" [textContent]="t('palette.failed')" role="status"></p>
+      }
+    </div>
+    <div class="admin-palette-footer" aria-hidden="true">
+      <span>
+        <kbd class="kbd kbd-xs">↑</kbd>
+        &ngsp;
+        <kbd class="kbd kbd-xs">↓</kbd>
+        &ngsp;{{ t('palette.hint.navigate') }}
+      </span>
+      <span>
+        <kbd class="kbd kbd-xs">↵</kbd>
+        &ngsp;{{ t('palette.hint.open') }}
+      </span>
+      <span>
+        <kbd class="kbd kbd-xs">Esc</kbd>
+        &ngsp;{{ t('palette.hint.close') }}
+      </span>
+    </div>
+  }
+</dialog>

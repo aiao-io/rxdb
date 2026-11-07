@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    // 桌面端的对端进程由 `node src/desktop/peer.ts` 直接运行，靠 Node 26 的类型剥离执行 TS：
+    // 相对导入必须写全 `.ts` 后缀，enum / namespace / 参数属性这类会生成运行时代码的语法一律不用。
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "allowJs": true,
+    "outDir": "out-tsc/playwright",
+    "sourceMap": false,
+    "strict": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "ignoreDeprecations": "6.0",
+    "rootDir": ".",
+    "types": ["node"]
+  },
+  "exclude": ["out-tsc", "test-output", "eslint.config.mjs"],
+  "extends": "../../tsconfig.base.json",
+  "include": ["**/*.ts", "playwright.config.ts"],
+  "references": [
+    {
+      "path": "../../packages/rxdb-plugin-p2p"
+    },
+    {
+      "path": "../../packages/rxdb"
+    }
+  ]
+}

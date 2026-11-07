@@ -1,11 +1,11 @@
 ---
 id: US-706
 title: 服务器兜底与认证
-status: Backlog
+status: In Progress
 priority: Medium
 epic: epic-011-p2p-file-share
 created: 2026-10-26
-updated: 2026-10-28
+updated: 2026-11-04
 tags: [p2p, fallback, auth, security]
 ---
 
@@ -19,7 +19,7 @@ tags: [p2p, fallback, auth, security]
 
 ## 开工前置
 
-遵守 epic-011 的具名使用方门禁；认证部分另依赖 US-704 选定的真实认证宿主、用户/设备标识与服务端授权合同。
+epic-011 已由 owner 解锁；认证部分依赖 US-704 选定的真实认证宿主、用户/设备标识与服务端授权合同。
 缺少签发/校验与授权入口时不得把本故事描述成“只做选路”；必要服务端实现必须列出归属与验收。
 
 ## 范围边界
@@ -40,12 +40,21 @@ tags: [p2p, fallback, auth, security]
 
 | #   | 前置条件                                 | 操作          | 预期结果                                                                         | 状态 |
 | --- | ---------------------------------------- | ------------- | -------------------------------------------------------------------------------- | ---- |
-| 1   | 无持有 peer 在线                         | 拉取文件      | 回退服务器下载成功，字节对照清单 `contentHash` 复核后落盘，与 P2P 结果逐字节一致 | ⬜   |
-| 2   | 未认证对等方                             | 发起信令/连接 | 被拒，不泄露清单细节                                                             | ⬜   |
+| 1   | 无持有 peer 在线                         | 拉取文件      | 回退服务器下载成功，字节对照清单 `contentHash` 复核后落盘，与 P2P 结果逐字节一致 | ✅   |
+| 2   | 未认证对等方                             | 发起信令/连接 | 被拒，不泄露清单细节                                                             | ✅   |
 | 3   | 一个 peer 持续发坏块                     | 多源拉取      | 该 peer 被退避，其余源正常完成                                                   | ⬜   |
 | 4   | 桌面两 peer 之间                         | 抓包          | 数据面密文，无明文块                                                             | ⬜   |
 | 5   | 服务器返回字节与清单不符，或缓存命中过期 | 拉取          | 报错不落盘，不返回错误文件                                                       | ⬜   |
-| 6   | 客户端自报他人 `holderId` 的清单行       | 同步          | 写入口按认证身份派生/校验 `holderId`，伪造行被拒                                 | ⬜   |
+| 6   | 客户端自报他人 `holderId` 的清单行       | 同步          | 写入口按认证身份派生/校验 `holderId`，伪造行被拒                                 | ✅   |
+
+## 验收证据
+
+浏览器半边在参考宿主 `apps/dev-rxdb-p2p` 上验收，运行方式与环境见 [US-707 验收证据](US-707-p2p-cross-runtime-e2e.md#验收证据)。
+
+- **AC#1**：[transfer.spec.ts](../../../apps/dev-rxdb-p2p-e2e/src/demo/transfer.spec.ts)「AC#3」。持有方离线后下载走 R2 回退，落盘文件的 SHA-256 等于清单 `contentHash`；R2 写入时也按 `contentHash` 校验。
+- **AC#2**：[server-contract.spec.ts](../../../apps/dev-rxdb-p2p-e2e/src/demo/server-contract.spec.ts)。未认证的信令 hello 得到不带细节的 `unauthorized`；回退文件接口无 token 返回 401。
+- **AC#6**：同文件。清单表 RLS 只放行由 `auth.uid()` 与本人登记设备派生的 `holderId`，伪造行返回 403。
+- AC#3（坏 peer 退避）在 demo 的故障注入里可手工演示，尚无自动化用例；AC#4、#5 未覆盖。
 
 ## 技术笔记
 
@@ -53,3 +62,11 @@ tags: [p2p, fallback, auth, security]
 - 不自造密码或账号体系；在开工前冻结认证宿主、token 校验位置、设备标识和授权范围，并记录必要服务端改动。客户端能带 header 不代表服务器能验证身份
 - 回退请求携带 sync 认证凭据：storage 的 `fetch(opfsPath, { url })` 参数里没有凭据位，需扩展其 options 或改走 HTTP 适配器的认证路径（实现时定）
 - 「回退服务器」是显式选路（有 peer → P2P，无 peer → 服务器），不是实现层静默兜底；与 CLAUDE.md「无 fallback 兜底」约束不冲突，失败仍显式报错
+
+## 实现文件
+
+- `packages/rxdb-plugin-p2p/src/fallback.ts` — 显式选路与服务器回退：响应字节流按清单逐块校验后落盘，不整体载入文件
+- `packages/rxdb-plugin-p2p/src/transfer.ts` — 坏块换源与坏 peer 退避
+- `packages/rxdb-plugin-p2p/src/session/session.ts` / `src/files-protocol.ts` — 会话级认证（hello 阶段对未认证方只回通用拒绝）与 files 协议的逐请求授权
+- `packages/rxdb-plugin-p2p/src/session/tcp-transport.ts` — 桌面通道默认拒绝非 TLS socket
+- 认证宿主、服务端授权与信令中转路由待 US-704 选定宿主后接入
