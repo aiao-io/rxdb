@@ -4,6 +4,7 @@ import { readFile, realpath } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, join, resolve, sep } from 'node:path';
 import { RUNTIME_HOSTS, hostParents } from '../src/runtime-hosts/hosts.ts';
+import { runtimeHostHeaders } from '../src/workbench/terminal/runtime-host-pages.ts';
 
 const types = {
   '.html': 'text/html; charset=utf-8',
@@ -19,14 +20,8 @@ const cacheControl = path =>
 
 async function serve({ runtime, origin, parents }) {
   const root = await realpath(resolve(import.meta.dirname, '../runtime-hosts/dist', runtime));
-  const headers = {
-    'Cross-Origin-Opener-Policy': 'same-origin',
-    'Cross-Origin-Embedder-Policy': 'require-corp',
-    // 工作台跨源嵌入宿主页并加载其中资源
-    'Cross-Origin-Resource-Policy': 'cross-origin',
-    'Content-Security-Policy': `frame-ancestors 'self' ${parents.join(' ')}`,
-    'Service-Worker-Allowed': '/'
-  };
+  // 与线上 Pages 的 _headers 同一组（build-runtime-hosts.mjs 生成）
+  const headers = runtimeHostHeaders(parents);
   const file = async pathname => {
     const target = await realpath(join(root, pathname));
     if (target !== root && !target.startsWith(`${root}${sep}`))

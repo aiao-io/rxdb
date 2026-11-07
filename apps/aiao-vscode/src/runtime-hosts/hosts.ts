@@ -9,7 +9,9 @@ export const RUNTIME_HOSTS: Readonly<Record<'vivari' | 'nodepod', Readonly<Parti
     // pnpm nx serve aiao-vscode
     'http://localhost:4320': 'http://localhost:4331',
     // verify-runtimes / verify-terminal --production 的静态服务
-    'http://localhost:4330': 'http://localhost:4331'
+    'http://localhost:4330': 'http://localhost:4331',
+    // 线上：Cloudflare Pages 项目 aiao-vscode-vivari（部署见 deploy/README.md）
+    'https://vscode.aiao.io': 'https://vscode-vivari.aiao.io'
   },
   // Nodepod 是 MIT + Commons Clause，仅内部评估（US-409）
   nodepod: {

@@ -8,6 +8,8 @@ import { existsSync } from 'node:fs';
 import { copyFile, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
+import { RUNTIME_HOSTS } from '../src/runtime-hosts/hosts.ts';
+import { deployedRuntimeHost, pagesHeaders, pagesRedirects } from '../src/workbench/terminal/runtime-host-pages.ts';
 import { patchPreviewServiceWorker } from '../src/workbench/terminal/vivari-service-worker.ts';
 
 const packageRoot = resolve(import.meta.dirname, '..');
@@ -89,6 +91,17 @@ const bundle = (entryPoints, outdir, options = {}) =>
     legalComments: 'external',
     logLevel: 'warning'
   });
+/**
+ * 部署配置里有线上宿主源的运行时，在产物里写 Cloudflare Pages 的 `_headers` / `_redirects`：
+ * 响应头与本地静态服务同一组，iframe 直接导航的页面原样返回。本地静态服务不读这两个文件。
+ */
+async function writePagesConfig(output, table, pages) {
+  const deployed = deployedRuntimeHost(table);
+  if (!deployed) return;
+  await writeFile(join(output, '_headers'), pagesHeaders(deployed.parents));
+  await writeFile(join(output, '_redirects'), pagesRedirects(pages));
+}
+
 /** 包根与清单；有的包（Nodepod）的 exports 不暴露 package.json，从入口往上找。 */
 const packageOf = async name => {
   let root = dirname(resolver.resolve(name));
@@ -148,6 +161,7 @@ await writeFile(
     ''
   ].join('\n')
 );
+await writePagesConfig(output, RUNTIME_HOSTS.vivari, ['/runtime-host.html', '/preview-frame.html']);
 // Nodepod：预览 Service Worker 注册在源根；进程 Worker 按「库文件旁的 ./__worker__.js」探测（打包后就是源根）
 const { root: nodepodRoot, manifest: nodepod } = await packageOf('@r1ck404/nodepod');
 const nodepodOutput = join(outputRoot, 'nodepod');
@@ -171,4 +185,5 @@ await writeFile(
     ''
   ].join('\n')
 );
+await writePagesConfig(nodepodOutput, RUNTIME_HOSTS.nodepod, ['/runtime-host.html']);
 console.log(`运行时宿主已构建：${outputRoot}`);

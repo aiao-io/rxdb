@@ -42,6 +42,7 @@
         "{projectRoot}/src/workbench/terminal/nodepod-host.ts",
         "{projectRoot}/src/workbench/terminal/project-watcher.ts",
         "{projectRoot}/src/workbench/terminal/runtime-host-page.ts",
+        "{projectRoot}/src/workbench/terminal/runtime-host-pages.ts",
         "{projectRoot}/src/workbench/terminal/runtime-host-protocol.ts",
         "{projectRoot}/src/workbench/terminal/sync-ignore.ts",
         "{projectRoot}/src/workbench/terminal/vivari-host.ts",
