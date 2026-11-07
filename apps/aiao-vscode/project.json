@@ -295,6 +295,17 @@
         "command": "node deploy/verify-functions.mjs"
       }
     },
+    "verify-pages-routing": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [
+        "build"
+      ],
+      "options": {
+        "cwd": "apps/aiao-vscode",
+        "command": "node deploy/verify-pages-routing.mjs"
+      }
+    },
     "verify-github-auth": {
       "executor": "nx:run-commands",
       "cache": false,

@@ -41,5 +41,13 @@
     }
   ],
   "index": "/index.html",
-  "navigationUrls": ["/**", "!/**/*.*", "!/**/*__*", "!/**/*__*/**", "!/redirect", "!/api/**"]
+  "navigationUrls": [
+    "/**",
+    "!/**/*.*",
+    "!/**/*__*",
+    "!/**/*__*/**",
+    "!/redirect",
+    "!/api/**",
+    "!/browser-workbench-assets/**"
+  ]
 }

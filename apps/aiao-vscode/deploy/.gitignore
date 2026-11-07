@@ -1,1 +1,3 @@
 .dev.vars
+# wrangler pages dev 的 Functions 编译目录与缓存
+.wrangler/
