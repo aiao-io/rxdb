@@ -1,0 +1,25 @@
+@if (layout().showFooter) {
+  <footer class="admin-footer" [attr.data-fixed]="layout().footerFixed" data-testid="admin-footer">
+    @if (copyright().enable) {
+      <span>
+        @if (copyright().companySiteLink) {
+          <a
+            class="link link-hover"
+            [attr.href]="copyright().companySiteLink"
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            {{ copyrightText() }}
+          </a>
+        } @else {
+          <ng-container>{{ copyrightText() }}</ng-container>
+        }
+      </span>
+      @if (copyright().icp) {
+        <a class="link link-hover" [attr.href]="icpHref()" rel="noopener noreferrer" target="_blank">
+          {{ copyright().icp }}
+        </a>
+      }
+    }
+  </footer>
+}

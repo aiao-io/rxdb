@@ -7,7 +7,7 @@ const I18nContext = createContext<I18n | undefined>(undefined);
 /** React 状态驱动的国际化绑定。 */
 export interface I18nBinding extends Pick<
   I18n,
-  't' | 'setLocale' | 'formatNumber' | 'formatDate' | 'formatRelativeTime'
+  't' | 'resolve' | 'setLocale' | 'formatNumber' | 'formatDate' | 'formatRelativeTime'
 > {
   /** 当前生效语言。 */
   readonly locale: string;
@@ -59,6 +59,7 @@ const useBinding = (runtime: I18n | undefined): I18nBinding | undefined => {
     locale: locale as string,
     availableLocales: availableLocales as string[],
     t: runtime.t,
+    resolve: runtime.resolve,
     setLocale: runtime.setLocale,
     formatNumber: runtime.formatNumber,
     formatDate: runtime.formatDate,

@@ -15,6 +15,9 @@ import {
   buildFormFields,
   entityToFormData,
   formDataToEntityChanges,
+  localizeEntityFormFields,
+  localizeEntityMetadata,
+  refreshFormValidationResult,
   validateForm
 } from '@aiao/rxdb-model';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
@@ -316,14 +319,22 @@ export class EntityDetailComponent {
   // 三者都缺（独立使用且路由参数解析不到实体）时与 React / Vue 一致降级为 undefined / []，
   // 不在模板变更检测里抛 TypeError
   get metadataValue(): EntityMetadata | undefined {
-    return this.metadata() ?? this.#metadataFromRouteInputs() ?? this.#dialogData?.metadata;
+    const source = this.metadata() ?? this.#metadataFromRouteInputs() ?? this.#dialogData?.metadata;
+    return source ? localizeEntityMetadata(source, this.modelI18n) : undefined;
   }
 
   get formFieldsValue(): FormFieldConfig[] {
-    const fields = this.formFields() ?? this.#formFieldsFromRouteInputs() ?? this.#dialogData?.formFields ?? [];
+    const sourceFields = this.formFields() ?? this.#formFieldsFromRouteInputs() ?? this.#dialogData?.formFields ?? [];
+    const metadata = this.metadataValue;
+    const fields = metadata ? localizeEntityFormFields(metadata, sourceFields, this.modelI18n) : sourceFields;
     const fixed = this.fixedFormDataValue;
     if (!fixed) return fields;
     return fields.map(f => (f.field in fixed ? { ...f, readonly: true } : f));
+  }
+
+  get displayedFormErrors(): FormValidationResult | null {
+    const errors = this.formErrors();
+    return errors ? refreshFormValidationResult(errors, this.formFieldsValue, this.modelI18n) : null;
   }
 
   get formDataValue(): EntityFormData {

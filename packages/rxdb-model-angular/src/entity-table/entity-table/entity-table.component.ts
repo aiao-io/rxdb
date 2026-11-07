@@ -20,6 +20,7 @@ import {
   handleTableKeydown,
   isDocumentDarkMode,
   isReadonly,
+  observeDocumentTheme,
   patchDragIconForReadonlyRows,
   readRowMove,
   restoreTableRecords,
@@ -33,7 +34,6 @@ import { isPlatformBrowser } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
-  DOCUMENT,
   ElementRef,
   OnDestroy,
   PLATFORM_ID,
@@ -77,7 +77,6 @@ import { ENTITY_TABLE_CONFIG } from '../config';
 export class EntityTableComponent implements OnDestroy, EntityTableHandle {
   readonly #modelBinding = useModelI18n();
 
-  readonly #document = inject(DOCUMENT);
   readonly #platformId = inject(PLATFORM_ID);
   readonly #config = inject(ENTITY_TABLE_CONFIG, { optional: true });
   #tableInstance: VTable.ListTable | null = null;
@@ -95,9 +94,7 @@ export class EntityTableComponent implements OnDestroy, EntityTableHandle {
   readonly #clipboard = new TableClipboardManager();
   readonly #tooltip = new CellTooltipManager();
   readonly #detectedDarkMode = signal(false);
-  #themeObserver: MutationObserver | null = null;
-  #prefersDarkQuery: MediaQueryList | null = null;
-  #prefersDarkListener: (() => void) | null = null;
+  #stopObservingTheme: (() => void) | null = null;
   #container: HTMLElement | null = null;
 
   readonly tableContainer = viewChild<ElementRef<HTMLDivElement>>('tableContainer');
@@ -231,13 +228,8 @@ export class EntityTableComponent implements OnDestroy, EntityTableHandle {
   ngOnDestroy(): void {
     this.#destroyed = true;
     this.#tooltip.cleanup();
-    this.#themeObserver?.disconnect();
-    this.#themeObserver = null;
-    if (this.#prefersDarkQuery && this.#prefersDarkListener) {
-      this.#prefersDarkQuery.removeEventListener('change', this.#prefersDarkListener);
-    }
-    this.#prefersDarkQuery = null;
-    this.#prefersDarkListener = null;
+    this.#stopObservingTheme?.();
+    this.#stopObservingTheme = null;
     if (this.#containerKeydownHandler) {
       this.#container?.removeEventListener('keydown', this.#containerKeydownHandler);
       this.#containerKeydownHandler = null;
@@ -289,26 +281,12 @@ export class EntityTableComponent implements OnDestroy, EntityTableHandle {
     this.#detectedDarkMode.set(isDocumentDarkMode());
   }
 
+  /** data-theme / 内联样式 / 系统明暗任一变化都重绘（不只在明暗翻转时） */
   #observeThemeChanges(): void {
-    if (typeof MutationObserver !== 'undefined') {
-      this.#themeObserver = new MutationObserver(() => this.#syncDetectedDarkMode());
-      this.#themeObserver.observe(this.#document.documentElement, {
-        attributes: true,
-        attributeFilter: ['data-theme']
-      });
-    }
-
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-      return;
-    }
-
-    this.#prefersDarkQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    this.#prefersDarkListener = () => {
-      if (!this.#document.documentElement.hasAttribute('data-theme')) {
-        this.#syncDetectedDarkMode();
-      }
-    };
-    this.#prefersDarkQuery.addEventListener('change', this.#prefersDarkListener);
+    this.#stopObservingTheme = observeDocumentTheme(() => {
+      this.#syncDetectedDarkMode();
+      this.redrawTheme();
+    });
   }
 
   #bindTableEvents(table: VTable.ListTable, container: HTMLElement): void {

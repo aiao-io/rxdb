@@ -259,16 +259,10 @@
       "path": "./apps/dev-rxdb-board"
     },
     {
-      "path": "./apps/dev-rxdb-admin-e2e"
+      "path": "./apps/rxdb-admin-template-react-e2e"
     },
     {
-      "path": "./apps/dev-rxdb-admin"
-    },
-    {
-      "path": "./apps/dev-rxdb-admin-consumer-e2e"
-    },
-    {
-      "path": "./apps/dev-rxdb-admin-consumer"
+      "path": "./apps/rxdb-admin-template-react"
     },
     {
       "path": "./packages/rxdb-i18n"
@@ -283,10 +277,34 @@
       "path": "./packages/rxdb-i18n-vue"
     },
     {
+      "path": "./packages/rxdb-admin"
+    },
+    {
+      "path": "./packages/rxdb-admin-angular"
+    },
+    {
+      "path": "./packages/rxdb-admin-react"
+    },
+    {
+      "path": "./packages/rxdb-admin-vue"
+    },
+    {
       "path": "./apps/dev-rxdb-p2p-e2e"
     },
     {
       "path": "./apps/dev-rxdb-p2p"
+    },
+    {
+      "path": "./apps/rxdb-admin-template-vue"
+    },
+    {
+      "path": "./apps/rxdb-admin-template-angular"
+    },
+    {
+      "path": "./apps/rxdb-admin-template-angular-e2e"
+    },
+    {
+      "path": "./apps/rxdb-admin-template-vue-e2e"
     },
     {
       "path": "./apps/aiao-model-design"

@@ -10,6 +10,7 @@ import type { ColumnDefine } from '@visactor/vtable/es/ts-types/index.js';
 import { deriveEntityCapabilities } from '../../entity-capabilities.js';
 import type { RelatedEntityItem } from '../../entity-form/interfaces.js';
 import { modelText, type ModelI18n } from '../../i18n.js';
+import { localizeEntityMetadata } from '../../localized-metadata.js';
 import { actionsColumn, buildPropertyColumn, formatDateValue, type KVSchemaEntry } from './column-utils.js';
 import { COLUMN_READONLY_KEY } from './column-writable.js';
 
@@ -112,12 +113,12 @@ export function normalizeKVSchemaEntryType(type: EntityPropertyMetadata['type'])
  * 5. createdAt / updatedAt 系统时间列
  * 6. 操作列（查看 + 删除；删除按实体 `permissions.delete` 派生，见 {@link deriveEntityCapabilities}）
  *
- * @param metadata 实体元数据
+ * @param source 实体元数据
  * @param options 可选构建选项
  * @returns 可编辑的列定义数组
  */
 export function buildEditableColumns(
-  metadata: EntityMetadata,
+  source: EntityMetadata,
   options: BuildEditableColumnsOptions = {}
 ): ColumnDefine[] {
   const {
@@ -131,6 +132,7 @@ export function buildEditableColumns(
     readOnly = false
   } = options;
 
+  const metadata = localizeEntityMetadata(source, i18n);
   const { canDelete } = deriveEntityCapabilities(metadata, { readOnly });
   // id 与时间戳列由系统维护：不挂编辑器，并打上列级只读标记，键盘 / 剪贴板 / 清空入口同样不写
   const columns: ColumnDefine[] = [{ field: 'id', title: 'ID', width: 260, sort: true, ...SYSTEM_COLUMN_READONLY }];

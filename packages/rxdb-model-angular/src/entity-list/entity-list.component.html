@@ -17,7 +17,7 @@
       <!-- Undo / Redo -->
       <button
         class="btn btn-xs btn-ghost"
-        [attr.aria-label]="t('text.2b712a273d')"
+        [attr.aria-label]="t('text.63def656c9', { p0: undoCount() })"
         [disabled]="!canUndo()"
         [title]="undoHint()"
         (click)="undo()"
@@ -25,12 +25,12 @@
       >
         <svg class="h-3.5 w-3.5" [lucideIcon]="Undo2"></svg>
         @if (undoCount(); as c) {
-          <span class="badge badge-xs">{{ c }}</span>
+          <span class="badge badge-xs" aria-hidden="true">{{ c }}</span>
         }
       </button>
       <button
         class="btn btn-xs btn-ghost"
-        [attr.aria-label]="t('text.e8f69d1ab3')"
+        [attr.aria-label]="t('text.a8e3b35a63', { p0: redoCount() })"
         [disabled]="!canRedo()"
         [title]="redoHint()"
         (click)="redo()"
@@ -38,7 +38,7 @@
       >
         <svg class="h-3.5 w-3.5" [lucideIcon]="Redo2"></svg>
         @if (redoCount(); as c) {
-          <span class="badge badge-xs">{{ c }}</span>
+          <span class="badge badge-xs" aria-hidden="true">{{ c }}</span>
         }
       </button>
       <div class="divider divider-horizontal mx-0.5 h-5 self-center"></div>

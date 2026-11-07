@@ -1,0 +1,868 @@
+{
+  "entries": {
+    ".": [
+      {
+        "name": "activeGroupIds",
+        "kind": "value"
+      },
+      {
+        "name": "ADMIN_I18N_NAMESPACE",
+        "kind": "value"
+      },
+      {
+        "name": "ADMIN_THEMES",
+        "kind": "value"
+      },
+      {
+        "name": "adminEnMessages",
+        "kind": "value"
+      },
+      {
+        "name": "AdminMessageKey",
+        "kind": "type"
+      },
+      {
+        "name": "adminMessages",
+        "kind": "value"
+      },
+      {
+        "name": "AdminPreferences",
+        "kind": "type"
+      },
+      {
+        "name": "AdminShell",
+        "kind": "type"
+      },
+      {
+        "name": "AdminShellOptions",
+        "kind": "type"
+      },
+      {
+        "name": "adminZhHansMessages",
+        "kind": "value"
+      },
+      {
+        "name": "applyPatch",
+        "kind": "value"
+      },
+      {
+        "name": "assertValidExtension",
+        "kind": "value"
+      },
+      {
+        "name": "BootstrapScriptOptions",
+        "kind": "type"
+      },
+      {
+        "name": "BREADCRUMB_STYLES",
+        "kind": "value"
+      },
+      {
+        "name": "BreadcrumbItem",
+        "kind": "type"
+      },
+      {
+        "name": "BreadcrumbStyle",
+        "kind": "type"
+      },
+      {
+        "name": "buildBreadcrumb",
+        "kind": "value"
+      },
+      {
+        "name": "buildDrawerModel",
+        "kind": "value"
+      },
+      {
+        "name": "buildTimezoneEntries",
+        "kind": "value"
+      },
+      {
+        "name": "buildWatermarkSvg",
+        "kind": "value"
+      },
+      {
+        "name": "BUILTIN_PREFERENCE_ITEMS",
+        "kind": "value"
+      },
+      {
+        "name": "builtinCommands",
+        "kind": "value"
+      },
+      {
+        "name": "cityOf",
+        "kind": "value"
+      },
+      {
+        "name": "closeAll",
+        "kind": "value"
+      },
+      {
+        "name": "closeLeft",
+        "kind": "value"
+      },
+      {
+        "name": "closeOthers",
+        "kind": "value"
+      },
+      {
+        "name": "CloseOutcome",
+        "kind": "type"
+      },
+      {
+        "name": "closeRight",
+        "kind": "value"
+      },
+      {
+        "name": "closeTab",
+        "kind": "value"
+      },
+      {
+        "name": "COLOR_PRESETS",
+        "kind": "value"
+      },
+      {
+        "name": "commandSource",
+        "kind": "value"
+      },
+      {
+        "name": "computeLayoutVars",
+        "kind": "value"
+      },
+      {
+        "name": "computeRootAttributes",
+        "kind": "value"
+      },
+      {
+        "name": "computeThemeStyle",
+        "kind": "value"
+      },
+      {
+        "name": "CONTENT_COMPACTS",
+        "kind": "value"
+      },
+      {
+        "name": "ContentCompact",
+        "kind": "type"
+      },
+      {
+        "name": "createAdminI18n",
+        "kind": "value"
+      },
+      {
+        "name": "createAdminShell",
+        "kind": "value"
+      },
+      {
+        "name": "createBootstrapScript",
+        "kind": "value"
+      },
+      {
+        "name": "createMediaQueryStore",
+        "kind": "value"
+      },
+      {
+        "name": "createMemoryStorage",
+        "kind": "value"
+      },
+      {
+        "name": "createRootBinding",
+        "kind": "value"
+      },
+      {
+        "name": "createSystemDarkStore",
+        "kind": "value"
+      },
+      {
+        "name": "createWebStorage",
+        "kind": "value"
+      },
+      {
+        "name": "DAISYUI_THEMES",
+        "kind": "value"
+      },
+      {
+        "name": "DeepPartial",
+        "kind": "type"
+      },
+      {
+        "name": "DEFAULT_WATERMARK_OPTIONS",
+        "kind": "value"
+      },
+      {
+        "name": "DEFAULT_WIDGET_ORDER",
+        "kind": "value"
+      },
+      {
+        "name": "defaultPreferences",
+        "kind": "value"
+      },
+      {
+        "name": "derive",
+        "kind": "value"
+      },
+      {
+        "name": "deriveConstraints",
+        "kind": "value"
+      },
+      {
+        "name": "deriveLayout",
+        "kind": "value"
+      },
+      {
+        "name": "detectPlatform",
+        "kind": "value"
+      },
+      {
+        "name": "diffPreferences",
+        "kind": "value"
+      },
+      {
+        "name": "DrawerModelInput",
+        "kind": "type"
+      },
+      {
+        "name": "DrawerRow",
+        "kind": "type"
+      },
+      {
+        "name": "DrawerSection",
+        "kind": "type"
+      },
+      {
+        "name": "DrawerTab",
+        "kind": "type"
+      },
+      {
+        "name": "EMPTY_TABS",
+        "kind": "value"
+      },
+      {
+        "name": "extensionDefaults",
+        "kind": "value"
+      },
+      {
+        "name": "extensionToItem",
+        "kind": "value"
+      },
+      {
+        "name": "findActiveRoot",
+        "kind": "value"
+      },
+      {
+        "name": "findMenuPath",
+        "kind": "value"
+      },
+      {
+        "name": "flattenMenu",
+        "kind": "value"
+      },
+      {
+        "name": "formatCombo",
+        "kind": "value"
+      },
+      {
+        "name": "formatInTimezone",
+        "kind": "value"
+      },
+      {
+        "name": "FormattedCombo",
+        "kind": "type"
+      },
+      {
+        "name": "FullscreenController",
+        "kind": "both"
+      },
+      {
+        "name": "FullscreenDocument",
+        "kind": "type"
+      },
+      {
+        "name": "getPath",
+        "kind": "value"
+      },
+      {
+        "name": "groupIds",
+        "kind": "value"
+      },
+      {
+        "name": "groupsToOpen",
+        "kind": "value"
+      },
+      {
+        "name": "HEX_COLOR_PATTERN",
+        "kind": "value"
+      },
+      {
+        "name": "ImportResult",
+        "kind": "type"
+      },
+      {
+        "name": "isRecord",
+        "kind": "value"
+      },
+      {
+        "name": "KeyEventLike",
+        "kind": "type"
+      },
+      {
+        "name": "landingRoute",
+        "kind": "value"
+      },
+      {
+        "name": "LAYOUT_MODES",
+        "kind": "value"
+      },
+      {
+        "name": "LayoutInput",
+        "kind": "type"
+      },
+      {
+        "name": "LayoutMode",
+        "kind": "type"
+      },
+      {
+        "name": "LayoutState",
+        "kind": "type"
+      },
+      {
+        "name": "LOCALE_PATTERN",
+        "kind": "value"
+      },
+      {
+        "name": "LOCK_PASSWORD_KEY",
+        "kind": "value"
+      },
+      {
+        "name": "LOCK_STATE_KEY",
+        "kind": "value"
+      },
+      {
+        "name": "LockController",
+        "kind": "both"
+      },
+      {
+        "name": "LockControllerOptions",
+        "kind": "type"
+      },
+      {
+        "name": "matchesCombo",
+        "kind": "value"
+      },
+      {
+        "name": "MatchMedia",
+        "kind": "type"
+      },
+      {
+        "name": "MatchRange",
+        "kind": "type"
+      },
+      {
+        "name": "MatchResult",
+        "kind": "type"
+      },
+      {
+        "name": "matchText",
+        "kind": "value"
+      },
+      {
+        "name": "MAX_VISIT_HISTORY",
+        "kind": "value"
+      },
+      {
+        "name": "MediaQueryLike",
+        "kind": "type"
+      },
+      {
+        "name": "MENU_ALIGNS",
+        "kind": "value"
+      },
+      {
+        "name": "MenuAlign",
+        "kind": "type"
+      },
+      {
+        "name": "MenuNode",
+        "kind": "type"
+      },
+      {
+        "name": "menuSource",
+        "kind": "value"
+      },
+      {
+        "name": "menuTitleOf",
+        "kind": "value"
+      },
+      {
+        "name": "moveVisibleWidget",
+        "kind": "value"
+      },
+      {
+        "name": "NAVIGATION_STYLES",
+        "kind": "value"
+      },
+      {
+        "name": "NavigationStyle",
+        "kind": "type"
+      },
+      {
+        "name": "nextThemeName",
+        "kind": "value"
+      },
+      {
+        "name": "offsetOf",
+        "kind": "value"
+      },
+      {
+        "name": "openTab",
+        "kind": "value"
+      },
+      {
+        "name": "PALETTE_RECENTS_KEY",
+        "kind": "value"
+      },
+      {
+        "name": "PaletteController",
+        "kind": "both"
+      },
+      {
+        "name": "PaletteControllerOptions",
+        "kind": "type"
+      },
+      {
+        "name": "PaletteEntry",
+        "kind": "type"
+      },
+      {
+        "name": "PaletteGroup",
+        "kind": "type"
+      },
+      {
+        "name": "PaletteItem",
+        "kind": "type"
+      },
+      {
+        "name": "PaletteSource",
+        "kind": "type"
+      },
+      {
+        "name": "PaletteState",
+        "kind": "type"
+      },
+      {
+        "name": "parseCombo",
+        "kind": "value"
+      },
+      {
+        "name": "ParsedCombo",
+        "kind": "type"
+      },
+      {
+        "name": "PasswordHasher",
+        "kind": "type"
+      },
+      {
+        "name": "pathToPatch",
+        "kind": "value"
+      },
+      {
+        "name": "pickThemes",
+        "kind": "value"
+      },
+      {
+        "name": "PINNED_WIDGETS",
+        "kind": "value"
+      },
+      {
+        "name": "PlatformSource",
+        "kind": "type"
+      },
+      {
+        "name": "PREFERENCE_TABS",
+        "kind": "value"
+      },
+      {
+        "name": "PreferenceConstraint",
+        "kind": "type"
+      },
+      {
+        "name": "PreferenceConstraints",
+        "kind": "type"
+      },
+      {
+        "name": "PreferenceControl",
+        "kind": "type"
+      },
+      {
+        "name": "PreferenceExtension",
+        "kind": "type"
+      },
+      {
+        "name": "PreferenceItem",
+        "kind": "type"
+      },
+      {
+        "name": "PreferenceOption",
+        "kind": "type"
+      },
+      {
+        "name": "PreferenceOptions",
+        "kind": "type"
+      },
+      {
+        "name": "PreferenceOptionSource",
+        "kind": "type"
+      },
+      {
+        "name": "PreferencePreview",
+        "kind": "type"
+      },
+      {
+        "name": "PREFERENCES_STORAGE_KEY",
+        "kind": "value"
+      },
+      {
+        "name": "PREFERENCES_VERSION",
+        "kind": "value"
+      },
+      {
+        "name": "PreferencesHost",
+        "kind": "type"
+      },
+      {
+        "name": "PreferencesStore",
+        "kind": "both"
+      },
+      {
+        "name": "PreferencesStoreOptions",
+        "kind": "type"
+      },
+      {
+        "name": "PreferenceTab",
+        "kind": "type"
+      },
+      {
+        "name": "RADII",
+        "kind": "value"
+      },
+      {
+        "name": "Radius",
+        "kind": "type"
+      },
+      {
+        "name": "Rankable",
+        "kind": "type"
+      },
+      {
+        "name": "Ranked",
+        "kind": "type"
+      },
+      {
+        "name": "rankItems",
+        "kind": "value"
+      },
+      {
+        "name": "readableContentFor",
+        "kind": "value"
+      },
+      {
+        "name": "ReadableStore",
+        "kind": "type"
+      },
+      {
+        "name": "recordVisit",
+        "kind": "value"
+      },
+      {
+        "name": "registerBuiltinShortcuts",
+        "kind": "value"
+      },
+      {
+        "name": "reorderTab",
+        "kind": "value"
+      },
+      {
+        "name": "ResolvedControl",
+        "kind": "type"
+      },
+      {
+        "name": "ResolvedOption",
+        "kind": "type"
+      },
+      {
+        "name": "resolveThemeName",
+        "kind": "value"
+      },
+      {
+        "name": "resolveTimezone",
+        "kind": "value"
+      },
+      {
+        "name": "resolveWatermarkContent",
+        "kind": "value"
+      },
+      {
+        "name": "retitleTabs",
+        "kind": "value"
+      },
+      {
+        "name": "RootBinding",
+        "kind": "type"
+      },
+      {
+        "name": "RootTarget",
+        "kind": "type"
+      },
+      {
+        "name": "sanitizeExtensions",
+        "kind": "value"
+      },
+      {
+        "name": "sanitizePreferences",
+        "kind": "value"
+      },
+      {
+        "name": "ShellCommand",
+        "kind": "type"
+      },
+      {
+        "name": "ShellHost",
+        "kind": "type"
+      },
+      {
+        "name": "ShellTheme",
+        "kind": "type"
+      },
+      {
+        "name": "ShellUi",
+        "kind": "both"
+      },
+      {
+        "name": "ShellUiState",
+        "kind": "type"
+      },
+      {
+        "name": "ShortcutDefinition",
+        "kind": "type"
+      },
+      {
+        "name": "ShortcutInfo",
+        "kind": "type"
+      },
+      {
+        "name": "ShortcutKeyboardEvent",
+        "kind": "type"
+      },
+      {
+        "name": "ShortcutPlatform",
+        "kind": "type"
+      },
+      {
+        "name": "ShortcutPreferences",
+        "kind": "type"
+      },
+      {
+        "name": "ShortcutRegistry",
+        "kind": "both"
+      },
+      {
+        "name": "ShortcutTarget",
+        "kind": "type"
+      },
+      {
+        "name": "SIDEBAR_WIDTH_RANGE",
+        "kind": "value"
+      },
+      {
+        "name": "SidebarDrag",
+        "kind": "both"
+      },
+      {
+        "name": "splitHighlight",
+        "kind": "value"
+      },
+      {
+        "name": "StorageLike",
+        "kind": "type"
+      },
+      {
+        "name": "Store",
+        "kind": "both"
+      },
+      {
+        "name": "SYSTEM_THEME",
+        "kind": "value"
+      },
+      {
+        "name": "systemTimezone",
+        "kind": "value"
+      },
+      {
+        "name": "TABBAR_PERSISTS",
+        "kind": "value"
+      },
+      {
+        "name": "TABBAR_STYLES",
+        "kind": "value"
+      },
+      {
+        "name": "TabbarPersist",
+        "kind": "type"
+      },
+      {
+        "name": "TabbarStyle",
+        "kind": "type"
+      },
+      {
+        "name": "TabItem",
+        "kind": "type"
+      },
+      {
+        "name": "tabKeyOf",
+        "kind": "value"
+      },
+      {
+        "name": "TABS_STORAGE_KEY",
+        "kind": "value"
+      },
+      {
+        "name": "TabsConfig",
+        "kind": "type"
+      },
+      {
+        "name": "TabsResult",
+        "kind": "type"
+      },
+      {
+        "name": "TabsState",
+        "kind": "type"
+      },
+      {
+        "name": "TabsStore",
+        "kind": "both"
+      },
+      {
+        "name": "TabsStoreOptions",
+        "kind": "type"
+      },
+      {
+        "name": "TextSegment",
+        "kind": "type"
+      },
+      {
+        "name": "themeDisplayName",
+        "kind": "value"
+      },
+      {
+        "name": "ThemeOption",
+        "kind": "type"
+      },
+      {
+        "name": "timeInZone",
+        "kind": "value"
+      },
+      {
+        "name": "TIMEZONE_PATTERN",
+        "kind": "value"
+      },
+      {
+        "name": "TIMEZONE_REGIONS",
+        "kind": "value"
+      },
+      {
+        "name": "TIMEZONE_ZONES",
+        "kind": "value"
+      },
+      {
+        "name": "TimezoneEntry",
+        "kind": "type"
+      },
+      {
+        "name": "timezoneOptions",
+        "kind": "value"
+      },
+      {
+        "name": "TimezoneRegion",
+        "kind": "type"
+      },
+      {
+        "name": "toggleGroup",
+        "kind": "value"
+      },
+      {
+        "name": "togglePin",
+        "kind": "value"
+      },
+      {
+        "name": "toggleWidgetHidden",
+        "kind": "value"
+      },
+      {
+        "name": "TransitionName",
+        "kind": "type"
+      },
+      {
+        "name": "TRANSITIONS",
+        "kind": "value"
+      },
+      {
+        "name": "translateAdmin",
+        "kind": "value"
+      },
+      {
+        "name": "validateExtensionValue",
+        "kind": "value"
+      },
+      {
+        "name": "visibleWidgets",
+        "kind": "value"
+      },
+      {
+        "name": "watermarkBackground",
+        "kind": "value"
+      },
+      {
+        "name": "WatermarkOptions",
+        "kind": "type"
+      },
+      {
+        "name": "webCryptoHasher",
+        "kind": "value"
+      },
+      {
+        "name": "WidgetKey",
+        "kind": "type"
+      }
+    ],
+    "./testing": [
+      {
+        "name": "createFakeDocument",
+        "kind": "value"
+      },
+      {
+        "name": "createFakeWindow",
+        "kind": "value"
+      },
+      {
+        "name": "createTestShell",
+        "kind": "value"
+      },
+      {
+        "name": "FakeDocument",
+        "kind": "type"
+      },
+      {
+        "name": "FakeWindow",
+        "kind": "type"
+      },
+      {
+        "name": "FakeWindowOptions",
+        "kind": "type"
+      },
+      {
+        "name": "TestShell",
+        "kind": "type"
+      }
+    ]
+  }
+}

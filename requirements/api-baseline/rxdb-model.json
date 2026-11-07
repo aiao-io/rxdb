@@ -682,6 +682,14 @@
         "kind": "type"
       },
       {
+        "name": "localizeEntityFormFields",
+        "kind": "value"
+      },
+      {
+        "name": "localizeEntityMetadata",
+        "kind": "value"
+      },
+      {
         "name": "lucideToSvgElement",
         "kind": "value"
       },
@@ -756,6 +764,10 @@
       {
         "name": "NumberEditorOptions",
         "kind": "type"
+      },
+      {
+        "name": "observeDocumentTheme",
+        "kind": "value"
       },
       {
         "name": "OperatorDefinition",
@@ -907,6 +919,10 @@
       },
       {
         "name": "refocusTable",
+        "kind": "value"
+      },
+      {
+        "name": "refreshFormValidationResult",
         "kind": "value"
       },
       {
@@ -1410,6 +1426,10 @@
       {
         "name": "QueryTableSnapshot",
         "kind": "type"
+      },
+      {
+        "name": "refreshFormValidationResult",
+        "kind": "value"
       },
       {
         "name": "RelatedEntityItem",
