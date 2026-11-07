@@ -1,4 +1,3 @@
-import type { DesignEntity, DesignProperty, DesignRelation, ModelDesign } from '../../models/index.js';
 import {
   AfterViewInit,
   ChangeDetectionStrategy,
@@ -17,6 +16,7 @@ import {
 } from '@angular/core';
 import type { Graph as GraphType, Selection as SelectionType } from '@antv/x6';
 import type { InteractionMode } from '../../interfaces/designer.interface';
+import type { DesignEntity, DesignProperty, DesignRelation, ModelDesign } from '../../models/index.js';
 import { NS_PREFIX } from './canvas-constants';
 import { edgeTopologyKey, relationTopologyKey, syncGraphEdges } from './canvas-edge-sync';
 import { initCanvasGraph } from './canvas-graph-init';

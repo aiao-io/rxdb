@@ -2,9 +2,9 @@
  * 实体编辑工具函数
  * 提供继承属性/关系构建、快照等辅助功能
  */
-import type { DesignProperty, DesignRelation } from '../../models/index.js';
 import { computed, type Signal } from '@angular/core';
 import { getInheritedProperties, isInheritedProperty, type ExtendsOption } from '../../constants';
+import type { DesignProperty, DesignRelation } from '../../models/index.js';
 
 export function buildTargetRelationsByEntity(allRelations: Signal<DesignRelation[]>) {
   return computed(() => {

@@ -1,3 +1,5 @@
+import { type RuleGroup, type RxDB } from '@aiao/rxdb';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   ChatMessage,
   ChatSession,
@@ -7,9 +9,7 @@ import {
   DesignRelation,
   ModelDesign
 } from '../../models/index.js';
-import { type RxDB, type RuleGroup } from '@aiao/rxdb';
 import { createTestDatabase } from './sqlite-database';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 const EMPTY_RULES = { combinator: 'and', rules: [] } as RuleGroup<ModelDesign>;
 
@@ -18,7 +18,15 @@ describe('RxDB query lifecycle (real SQLite)', () => {
   let dispose: () => Promise<void>;
 
   beforeAll(async () => {
-    const testDatabase = await createTestDatabase([ModelDesign, DesignEntity, DesignProperty, DesignRelation, DesignIndex, ChatSession, ChatMessage]);
+    const testDatabase = await createTestDatabase([
+      ModelDesign,
+      DesignEntity,
+      DesignProperty,
+      DesignRelation,
+      DesignIndex,
+      ChatSession,
+      ChatMessage
+    ]);
     rxdb = testDatabase.database;
     dispose = testDatabase.dispose;
   });

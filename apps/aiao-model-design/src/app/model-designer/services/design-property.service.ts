@@ -1,8 +1,8 @@
-import { DesignIndex, DesignProperty } from '../models/index.js';
 import { RxDB, type UUID } from '@aiao/rxdb';
 import { useFindAll } from '@aiao/rxdb-angular';
 import { computed, inject, Injectable, Injector, type Signal } from '@angular/core';
 import { KEYVALUE_SUB_TYPES, type PropertyType } from '../constants';
+import { DesignIndex, DesignProperty } from '../models/index.js';
 import { DesignEntityService } from './design-entity.service';
 import { DesignIndexService } from './design-index.service';
 import { compareSortOrder, nextSortOrder, optimisticUpdate, reorderItems } from './entity-utils';

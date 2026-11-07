@@ -2,12 +2,12 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { ChatChangeProposal } from '../../types/ai-schemas';
 import { AiChatApplyService } from '../../services/ai-chat-apply.service';
 import { DesignEntityService } from '../../services/design-entity.service';
 import { DesignIndexService } from '../../services/design-index.service';
 import { DesignPropertyService } from '../../services/design-property.service';
 import { DesignRelationService } from '../../services/design-relation.service';
+import type { ChatChangeProposal } from '../../types/ai-schemas';
 
 function createMockEntityService() {
   return {

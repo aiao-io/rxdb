@@ -1,8 +1,8 @@
-import { DesignEntity, DesignRelation } from '../models/index.js';
 import { RxDB } from '@aiao/rxdb';
 import { useFindAll } from '@aiao/rxdb-angular';
 import { computed, inject, Injectable, Injector, signal } from '@angular/core';
 import { generateUniqueName } from '../constants';
+import { DesignEntity, DesignRelation } from '../models/index.js';
 import { DesignIndexService } from './design-index.service';
 import { DesignPropertyService } from './design-property.service';
 import { DesignRelationService } from './design-relation.service';

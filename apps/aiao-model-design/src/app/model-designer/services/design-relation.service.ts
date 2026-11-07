@@ -1,8 +1,8 @@
-import { DesignRelation } from '../models/index.js';
 import { RxDB, UUID } from '@aiao/rxdb';
 import { useFindAll } from '@aiao/rxdb-angular';
 import { computed, inject, Injectable, type Signal } from '@angular/core';
 import { INVERSE_RELATION_KIND, RELATION_KINDS, type RelationKind } from '../constants';
+import { DesignRelation } from '../models/index.js';
 import { DesignEntityService } from './design-entity.service';
 import { compareSortOrder, nextSortOrder, optimisticUpdate } from './entity-utils';
 import { firstQueryError } from './lazy-query';

@@ -1,4 +1,3 @@
-import type { DesignEntity, DesignRelation } from '../../models/index.js';
 import { computed, effect, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { Graph as GraphType } from '@antv/x6';
@@ -6,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { edgeTopologyKey, relationTopologyKey } from '../../components/canvas/canvas-edge-sync';
 import { CanvasMoveCoordinator } from '../../components/canvas/canvas-move-coordinator';
 import { CanvasViewportController } from '../../components/canvas/canvas-viewport-controller';
+import type { DesignEntity, DesignRelation } from '../../models/index.js';
 
 type Handler = (...args: unknown[]) => void;
 

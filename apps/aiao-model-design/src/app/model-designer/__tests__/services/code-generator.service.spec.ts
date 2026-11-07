@@ -47,8 +47,8 @@ vi.mock('fflate', () => ({
   zipSync: vi.fn(() => new Uint8Array([80, 75, 3, 4]))
 }));
 
-import type { DesignEntity, DesignIndex, DesignProperty, DesignRelation } from '../../models/index.js';
 import type { KeyValuePropertyMetadata } from '@aiao/rxdb';
+import type { DesignEntity, DesignIndex, DesignProperty, DesignRelation } from '../../models/index.js';
 import { CodeGeneratorService } from '../../services/code-generator.service';
 import { ModelValidatorService } from '../../services/model-validator.service';
 

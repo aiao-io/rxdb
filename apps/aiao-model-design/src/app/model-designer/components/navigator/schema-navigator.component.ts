@@ -3,10 +3,10 @@
  *
  * 显示模型设计中的实体列表，按命名空间分组，支持快速选择实体。
  */
-import type { DesignEntity, ModelDesign } from '../../models/index.js';
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { Database, Folder, LucideAngularModule, Plus, Table2 } from 'lucide-angular';
 import { MODEL_DESIGNER_TRANSLATIONS } from '../../i18n/translations';
+import type { DesignEntity, ModelDesign } from '../../models/index.js';
 
 @Component({
   selector: 'lib-schema-navigator',

@@ -15,10 +15,10 @@ export { DesignerToolbarComponent } from './components/toolbar/designer-toolbar.
 export * from './designer.routes';
 
 // 模块导出
-export * from './models/index.js';
 export * from './constants';
 export * from './designer.component';
 export * from './i18n';
 export * from './interfaces/designer.interface';
+export * from './models/index.js';
 export * from './services';
 export * from './sql';

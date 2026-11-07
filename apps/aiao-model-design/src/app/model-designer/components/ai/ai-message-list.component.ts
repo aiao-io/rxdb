@@ -1,12 +1,12 @@
 import { DecimalPipe } from '@angular/common';
 import {
-    afterRenderEffect,
-    ChangeDetectionStrategy,
-    Component,
-    ElementRef,
-    inject,
-    input,
-    viewChild
+  afterRenderEffect,
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  inject,
+  input,
+  viewChild
 } from '@angular/core';
 import { Loader2, LucideAngularModule } from 'lucide-angular';
 import { MODEL_DESIGNER_TRANSLATIONS } from '../../i18n/translations';
@@ -23,7 +23,7 @@ import { AiMessageComponent, type ChatMessageItem } from './ai-message.component
   imports: [DecimalPipe, LucideAngularModule, AiMessageComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div #scrollContainer class="flex flex-1 flex-col gap-2 overflow-y-auto p-4">
+    <div class="flex flex-1 flex-col gap-2 overflow-y-auto p-4" #scrollContainer>
       @for (msg of messages(); track msg.id) {
         <lib-ai-message [message]="msg" />
       }

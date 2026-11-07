@@ -1,5 +1,5 @@
-import { TreeAdjacencyListEntityBase, TreeEntity } from '@aiao/rxdb-plugin-tree';
 import { OnDeleteAction, PropertyType, RelationKind } from '@aiao/rxdb';
+import { TreeAdjacencyListEntityBase, TreeEntity } from '@aiao/rxdb-plugin-tree';
 
 /**
  * 设计属性实体

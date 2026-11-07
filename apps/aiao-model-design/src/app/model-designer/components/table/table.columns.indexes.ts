@@ -3,12 +3,12 @@ import type { ColumnsDefine } from '@visactor/vtable';
 import type { ColumnDefine, StylePropertyFunctionArg } from '@visactor/vtable/es/ts-types';
 
 import {
-    actionsColumn,
-    getCellRecord,
-    isReadonlyOrAddRow,
-    type DropdownOptions,
-    type SwitchDisableCallback,
-    type Translations
+  actionsColumn,
+  getCellRecord,
+  isReadonlyOrAddRow,
+  type DropdownOptions,
+  type SwitchDisableCallback,
+  type Translations
 } from './table.columns.shared';
 
 export function createIndexColumns(

@@ -20,9 +20,7 @@ describe('firstQueryError', () => {
   });
 
   it('带上原始 message，不做转写', () => {
-    expect(firstQueryError([query(new Error('changestream closed'))])()).toBe(
-      'Live query failed: changestream closed'
-    );
+    expect(firstQueryError([query(new Error('changestream closed'))])()).toBe('Live query failed: changestream closed');
   });
 
   it('多条出错时取第一条 —— 后面的多半是同一次故障的回声', () => {

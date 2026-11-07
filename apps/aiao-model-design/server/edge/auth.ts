@@ -24,13 +24,20 @@ export interface VerifiedSession {
 
 /** 带 HTTP 状态码的认证错误。 */
 export class AuthError extends Error {
-  constructor(readonly status: number, message: string) {
+  constructor(
+    readonly status: number,
+    message: string
+  ) {
     super(message);
   }
 }
 
 function readCookie(request: Request, name: string): string | null {
-  const segment = request.headers.get('cookie')?.split(';').map(value => value.trim()).find(value => value.startsWith(`${name}=`));
+  const segment = request.headers
+    .get('cookie')
+    ?.split(';')
+    .map(value => value.trim())
+    .find(value => value.startsWith(`${name}=`));
   if (!segment) return null;
   try {
     return decodeURIComponent(segment.slice(name.length + 1)) || null;
@@ -54,7 +61,10 @@ function clearCookies(request: Request): string[] {
 }
 
 function sessionCookies(request: Request, session: SupabaseSession): string[] {
-  return [cookie(request, 'access_token', session.access_token, session.expires_in), cookie(request, 'refresh_token', session.refresh_token, 30 * 24 * 60 * 60)];
+  return [
+    cookie(request, 'access_token', session.access_token, session.expires_in),
+    cookie(request, 'refresh_token', session.refresh_token, 30 * 24 * 60 * 60)
+  ];
 }
 
 async function supabase(env: AuthEnvironment, path: string, init?: RequestInit): Promise<Response> {
@@ -63,7 +73,11 @@ async function supabase(env: AuthEnvironment, path: string, init?: RequestInit):
   headers.set('apikey', env.SUPABASE_ANON_KEY);
   headers.set('content-type', 'application/json');
   try {
-    return await fetch(`${env.SUPABASE_URL.replace(/\/$/, '')}/auth/v1/${path}`, { ...init, headers, signal: AbortSignal.timeout(10000) });
+    return await fetch(`${env.SUPABASE_URL.replace(/\/$/, '')}/auth/v1/${path}`, {
+      ...init,
+      headers,
+      signal: AbortSignal.timeout(10000)
+    });
   } catch {
     throw new AuthError(502, 'Authentication service is unavailable');
   }
@@ -75,10 +89,17 @@ function isUser(value: unknown): value is AuthUser {
 
 function isSession(value: unknown): value is SupabaseSession {
   if (typeof value !== 'object' || value === null) return false;
-  return 'access_token' in value && typeof value.access_token === 'string' &&
-    'refresh_token' in value && typeof value.refresh_token === 'string' &&
-    'expires_in' in value && typeof value.expires_in === 'number' && value.expires_in > 0 &&
-    'user' in value && isUser(value.user);
+  return (
+    'access_token' in value &&
+    typeof value.access_token === 'string' &&
+    'refresh_token' in value &&
+    typeof value.refresh_token === 'string' &&
+    'expires_in' in value &&
+    typeof value.expires_in === 'number' &&
+    value.expires_in > 0 &&
+    'user' in value &&
+    isUser(value.user)
+  );
 }
 
 /** 获取 Supabase 用户，过期的会话使用 refresh token 更新。 */
@@ -95,18 +116,35 @@ export async function verifySession(request: Request, env: AuthEnvironment): Pro
   }
   const refreshToken = readCookie(request, 'refresh_token');
   if (!refreshToken) return { user: null, cookies: token ? clearCookies(request) : [] };
-  const response = await supabase(env, 'token?grant_type=refresh_token', { method: 'POST', body: JSON.stringify({ refresh_token: refreshToken }) });
+  const response = await supabase(env, 'token?grant_type=refresh_token', {
+    method: 'POST',
+    body: JSON.stringify({ refresh_token: refreshToken })
+  });
   if (response.status >= 500) throw new AuthError(502, 'Authentication service is unavailable');
   const session: unknown = response.ok ? await response.json() : null;
-  return isSession(session) ? { user: session.user, cookies: sessionCookies(request, session) } : { user: null, cookies: clearCookies(request) };
+  return isSession(session) ?
+      { user: session.user, cookies: sessionCookies(request, session) }
+    : { user: null, cookies: clearCookies(request) };
 }
 
 async function signIn(request: Request, env: AuthEnvironment): Promise<Response> {
   const body: unknown = await request.json().catch(() => null);
-  if (!body || typeof body !== 'object' || !('email' in body) || typeof body.email !== 'string' || !body.email.trim() || !('password' in body) || typeof body.password !== 'string' || !body.password) {
+  if (
+    !body ||
+    typeof body !== 'object' ||
+    !('email' in body) ||
+    typeof body.email !== 'string' ||
+    !body.email.trim() ||
+    !('password' in body) ||
+    typeof body.password !== 'string' ||
+    !body.password
+  ) {
     throw new AuthError(400, 'Email and password are required');
   }
-  const response = await supabase(env, 'token?grant_type=password', { method: 'POST', body: JSON.stringify({ email: body.email, password: body.password }) });
+  const response = await supabase(env, 'token?grant_type=password', {
+    method: 'POST',
+    body: JSON.stringify({ email: body.email, password: body.password })
+  });
   if (response.status >= 500) throw new AuthError(502, 'Authentication service is unavailable');
   if (!response.ok) throw new AuthError(401, 'Email or password is invalid');
   const session: unknown = await response.json();
@@ -132,7 +170,11 @@ export async function authRoute(request: Request, env: AuthEnvironment): Promise
   }
   if (path === '/bff/auth/signout' && request.method === 'POST') {
     const token = accessToken(request);
-    if (token) await supabase(env, 'logout?scope=local', { method: 'POST', headers: { authorization: `Bearer ${token}` } }).catch(() => undefined);
+    if (token)
+      await supabase(env, 'logout?scope=local', {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}` }
+      }).catch(() => undefined);
     return withSessionCookies(Response.json({ error: null }), clearCookies(request));
   }
   return Response.json({ error: 'not_found' }, { status: 404 });

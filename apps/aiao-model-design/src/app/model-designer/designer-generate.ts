@@ -1,6 +1,6 @@
-import type { DesignEntity, DesignRelation } from './models/index.js';
 import type { EntityMetadataOptions } from '@aiao/rxdb';
 import type { GeneratedFile, ModelValidationResult } from './interfaces/designer.interface';
+import type { DesignEntity, DesignRelation } from './models/index.js';
 import type { CodeGeneratorService } from './services/code-generator.service';
 
 /** 翻译带参数的错误消息 */

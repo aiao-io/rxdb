@@ -1,6 +1,6 @@
-import type { DesignEntity, DesignProperty, DesignRelation } from '../../models/index.js';
 import { getInheritedProperties } from '../../constants';
 import type { EntityNodeData, EntityNodeField } from '../../interfaces/designer.interface';
+import type { DesignEntity, DesignProperty, DesignRelation } from '../../models/index.js';
 
 /** 根据实体、属性、关系构建 EntityNodeData，用于 ER 图画布节点 */
 export function toNodeData(

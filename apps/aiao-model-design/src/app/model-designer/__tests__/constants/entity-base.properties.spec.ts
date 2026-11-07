@@ -45,11 +45,7 @@ vi.mock('@aiao/rxdb', () => ({
 }));
 
 import { vi } from 'vitest';
-import {
-  getInheritedProperties,
-  getRepositoryType,
-  isInheritedProperty
-} from '../../constants/entity-base.properties';
+import { getInheritedProperties, getRepositoryType, isInheritedProperty } from '../../constants/entity-base.properties';
 
 describe('entity-base.properties', () => {
   describe('getInheritedProperties', () => {

@@ -54,7 +54,12 @@ it.each([
   const text = await response.text();
   const packets = text.split('\n').filter(line => line.startsWith('data: ') && line !== 'data: [DONE]');
   const events = packets.map(line => JSON.parse(line.slice(6)));
-  expect(events.filter(event => event.type === 'text-delta').map(event => event.delta).join('')).toBe(content);
+  expect(
+    events
+      .filter(event => event.type === 'text-delta')
+      .map(event => event.delta)
+      .join('')
+  ).toBe(content);
   expect(text).toMatch(/data: \[DONE\]\n\n$/);
   const call = upstream.mock.calls.find(([url]) => String(url).endsWith('/chat/completions'));
   expect(call).toBeDefined();
@@ -66,19 +71,28 @@ it.each([
 });
 
 it.each(['generate', 'chat'])('上游失败通过 %s SSE 错误事件返回，不暴露密钥', async action => {
-  vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockImplementation(async input => {
-    if (String(input).endsWith('/auth/v1/user')) return Response.json(user);
-    return Response.json({ error: { message: 'private-provider-details' } }, { status: 429 });
-  }));
+  vi.stubGlobal(
+    'fetch',
+    vi.fn<typeof fetch>().mockImplementation(async input => {
+      if (String(input).endsWith('/auth/v1/user')) return Response.json(user);
+      return Response.json({ error: { message: 'private-provider-details' } }, { status: 429 });
+    })
+  );
   const body = action === 'generate' ? { prompt: '订单' } : { messages: [{ role: 'user', content: '订单' }] };
-  const response = await routeRequest(new Request(`https://designer.example/api/ai/model/${action}`, {
-    method: 'POST',
-    headers: { cookie: 'access_token=test-user-jwt', 'content-type': 'application/json' },
-    body: JSON.stringify(body)
-  }), env);
+  const response = await routeRequest(
+    new Request(`https://designer.example/api/ai/model/${action}`, {
+      method: 'POST',
+      headers: { cookie: 'access_token=test-user-jwt', 'content-type': 'application/json' },
+      body: JSON.stringify(body)
+    }),
+    env
+  );
   expect(response.headers.get('content-type')).toContain('text/event-stream');
   const text = await response.text();
-  const events = text.split('\n').filter(line => line.startsWith('data: {')).map(line => JSON.parse(line.slice(6)));
+  const events = text
+    .split('\n')
+    .filter(line => line.startsWith('data: {'))
+    .map(line => JSON.parse(line.slice(6)));
   const error = events.find(event => event.type === 'error');
   expect(JSON.parse(error.errorText)).toMatchObject({ type: 'rate-limit', status: 429 });
   expect(text).not.toContain('private-provider-details');

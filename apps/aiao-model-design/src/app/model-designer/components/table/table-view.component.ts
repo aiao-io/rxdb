@@ -1,4 +1,3 @@
-import type { DesignEntity, DesignIndex, DesignProperty, DesignRelation } from '../../models/index.js';
 import {
   EntityTableComponent,
   ensureBaseEditorRegistered,
@@ -29,6 +28,7 @@ import {
 import { MODEL_DESIGNER_TRANSLATIONS } from '../../i18n/translations';
 import type { DesignIndexChanges, DesignPropertyChanges, DesignRelationChanges } from '../../interfaces';
 import { RelationFieldErrors } from '../../interfaces/designer.interface';
+import type { DesignEntity, DesignIndex, DesignProperty, DesignRelation } from '../../models/index.js';
 import {
   buildCustomProperties,
   buildInheritedProperties,

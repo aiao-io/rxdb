@@ -1,6 +1,6 @@
-import type { DesignEntity, DesignProperty, DesignRelation } from '../../models/index.js';
 import type { Graph as GraphType, Selection as SelectionType } from '@antv/x6';
 import type { EntityNodeField, InteractionMode } from '../../interfaces/designer.interface';
+import type { DesignEntity, DesignProperty, DesignRelation } from '../../models/index.js';
 import {
   EXTENDS_BASE_HEIGHT,
   FIELD_HEIGHT,

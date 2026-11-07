@@ -1,6 +1,6 @@
-import type { DesignEntity } from '../../models/index.js';
 import { describe, expect, it } from 'vitest';
 import { resolveActiveEntity } from '../../components/table/table-view.component';
+import type { DesignEntity } from '../../models/index.js';
 
 describe('resolveActiveEntity', () => {
   const entities = [{ id: 'e1', name: 'User' }] as unknown as DesignEntity[];

@@ -18,9 +18,12 @@ const post = (path: string, body: unknown, signal?: AbortSignal) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
-  toSseResponse.mockImplementation(({ headers }) => new Response('data: [DONE]\n\n', {
-    headers: { ...headers, 'content-type': 'text/event-stream' }
-  }));
+  toSseResponse.mockImplementation(
+    ({ headers }) =>
+      new Response('data: [DONE]\n\n', {
+        headers: { ...headers, 'content-type': 'text/event-stream' }
+      })
+  );
   runStream.mockReturnValue({ toUIMessageStreamResponse: toSseResponse });
 });
 afterEach(() => vi.restoreAllMocks());

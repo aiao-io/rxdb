@@ -32,19 +32,23 @@ export class AiApiService {
     existingModel?: { entityNames: string[]; entities?: unknown[] },
     callbacks?: AiStreamCallbacks<ModelGenerationOutput> & { onTextChunk?: (chunk: string) => void }
   ): Promise<void> {
-    await this.#streamText('/api/ai/model/generate', { prompt, existingModel }, {
-      onDelta: async (chunk, fullText) => {
-        callbacks?.onTextChunk?.(chunk);
-        if (!callbacks?.onPartial) return;
-        const { value } = await parsePartialJson(fullText);
-        if (value !== undefined) callbacks.onPartial(value as unknown as ModelGenerationOutput);
-      },
-      onComplete: async fullText => {
-        const result = JSON.parse(fullText) as ModelGenerationOutput;
-        await callbacks?.onComplete?.(result);
-      },
-      onError: callbacks?.onError
-    });
+    await this.#streamText(
+      '/api/ai/model/generate',
+      { prompt, existingModel },
+      {
+        onDelta: async (chunk, fullText) => {
+          callbacks?.onTextChunk?.(chunk);
+          if (!callbacks?.onPartial) return;
+          const { value } = await parsePartialJson(fullText);
+          if (value !== undefined) callbacks.onPartial(value as unknown as ModelGenerationOutput);
+        },
+        onComplete: async fullText => {
+          const result = JSON.parse(fullText) as ModelGenerationOutput;
+          await callbacks?.onComplete?.(result);
+        },
+        onError: callbacks?.onError
+      }
+    );
   }
 
   /** 增量输出对话片段和累计文本。 */
@@ -58,14 +62,18 @@ export class AiApiService {
       onError?: (error: AiApiError | Error) => void;
     }
   ): Promise<void> {
-    await this.#streamText('/api/ai/model/chat', { messages, modelContext }, {
-      onDelta: (chunk, fullText) => {
-        callbacks?.onChunk?.(chunk);
-        callbacks?.onPartial?.(fullText);
-      },
-      onComplete: callbacks?.onComplete,
-      onError: callbacks?.onError
-    });
+    await this.#streamText(
+      '/api/ai/model/chat',
+      { messages, modelContext },
+      {
+        onDelta: (chunk, fullText) => {
+          callbacks?.onChunk?.(chunk);
+          callbacks?.onPartial?.(fullText);
+        },
+        onComplete: callbacks?.onComplete,
+        onError: callbacks?.onError
+      }
+    );
   }
 
   /** 取消正在读取的 SSE 请求。 */
@@ -114,7 +122,8 @@ export class AiApiService {
   #classifyStreamError(error: unknown): AiApiError {
     if (error instanceof AiStreamError) return error.detail;
     if (error instanceof SyntaxError) return { type: 'server', message: 'Invalid model response' };
-    if (error instanceof Error && error.name === 'TimeoutError') return { type: 'timeout', message: 'Request timed out' };
+    if (error instanceof Error && error.name === 'TimeoutError')
+      return { type: 'timeout', message: 'Request timed out' };
     if (error instanceof Error && error.name === 'AbortError') return { type: 'network', message: 'AbortError' };
     return { type: 'network', message: error instanceof Error ? error.message : 'Network error' };
   }

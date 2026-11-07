@@ -1,4 +1,3 @@
-import type { DesignEntity, DesignRelation } from '../../models/index.js';
 import type { Graph as GraphType } from '@antv/x6';
 import { describe, expect, it } from 'vitest';
 import { syncGraphEdges } from '../../components/canvas/canvas-edge-sync';
@@ -8,6 +7,7 @@ import {
   type X6NodeLike
 } from '../../components/canvas/canvas-edge-utils';
 import { RELATION_KINDS } from '../../constants';
+import type { DesignEntity, DesignRelation } from '../../models/index.js';
 
 interface EdgeConfig {
   id: string;

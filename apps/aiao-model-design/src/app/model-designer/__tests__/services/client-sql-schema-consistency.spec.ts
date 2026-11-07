@@ -1,6 +1,6 @@
-import type { DesignEntity, DesignProperty } from '../../models/index.js';
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it } from 'vitest';
+import type { DesignEntity, DesignProperty } from '../../models/index.js';
 import { CodeGeneratorService } from '../../services/code-generator.service';
 import { designToSqlSchema } from '../../sql/design-to-schema';
 

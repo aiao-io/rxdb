@@ -3,7 +3,6 @@
  *
  * 在索引面板中显示单个索引的编辑项，支持索引属性选择和唯一性配置。
  */
-import type { DesignIndex } from '../../models/index.js';
 import { CdkDragHandle } from '@angular/cdk/drag-drop';
 import { NgClass } from '@angular/common';
 import {
@@ -21,6 +20,7 @@ import { ChevronRight, GripVertical, LucideAngularModule, Trash2, X } from 'luci
 import { toggleArrayItem } from '../../constants';
 import { MODEL_DESIGNER_TRANSLATIONS } from '../../i18n/translations';
 import type { DesignIndexChanges } from '../../interfaces';
+import type { DesignIndex } from '../../models/index.js';
 
 @Component({
   selector: 'lib-index-item',

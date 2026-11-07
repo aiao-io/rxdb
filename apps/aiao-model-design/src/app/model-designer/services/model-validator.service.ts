@@ -1,4 +1,3 @@
-import type { DesignEntity, DesignProperty, DesignRelation } from '../models/index.js';
 import { Injectable } from '@angular/core';
 import {
   ENTITY_NAME_PATTERN,
@@ -8,6 +7,7 @@ import {
   type RelationKind
 } from '../constants';
 import type { ModelValidationResult, ValidationResult } from '../interfaces/designer.interface';
+import type { DesignEntity, DesignProperty, DesignRelation } from '../models/index.js';
 import { resolveTableName } from '../sql';
 
 const RESERVED_WORDS = new Set(['id', 'constructor', 'prototype', 'createdAt', 'updatedAt', 'createdBy', 'updatedBy']);

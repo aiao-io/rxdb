@@ -3,7 +3,6 @@
  *
  * 在属性面板中显示单个关系的编辑项，支持关系类型、目标实体、级联操作等配置。
  */
-import type { DesignRelation } from '../../models/index.js';
 import { CdkDragHandle } from '@angular/cdk/drag-drop';
 import { NgClass } from '@angular/common';
 import {
@@ -25,6 +24,7 @@ import type { CascadeAction } from '../../constants/options';
 import { RELATION_LABELS, type RelationKind } from '../../constants/relation';
 import { MODEL_DESIGNER_TRANSLATIONS } from '../../i18n/translations';
 import type { DesignRelationChanges } from '../../interfaces';
+import type { DesignRelation } from '../../models/index.js';
 import { buildTargetRelationsByEntity, targetRelationsOf as targetRelationsOfFn } from '../shared/entity-edit-utils';
 
 @Component({

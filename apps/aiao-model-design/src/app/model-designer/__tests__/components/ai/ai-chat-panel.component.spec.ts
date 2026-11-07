@@ -2,9 +2,9 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it, vi } from 'vitest';
 
+import { AiChatPanelComponent } from '../../../components/ai/ai-chat-panel.component';
 import { DEFAULT_TRANSLATIONS, MODEL_DESIGNER_TRANSLATIONS } from '../../../i18n/translations';
 import type { AiOperationState } from '../../../services/ai-state.types';
-import { AiChatPanelComponent } from '../../../components/ai/ai-chat-panel.component';
 
 /**
  * Angular 21 JIT (Vitest/happy-dom) 不支持 signal inputs 的模板绑定测试（NG0303），

@@ -1,5 +1,16 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
-import { Check, CheckCircle2, Database, Info, Layers, Link, LucideAngularModule, Type, X, type LucideIconData } from 'lucide-angular';
+import {
+  Check,
+  CheckCircle2,
+  Database,
+  Info,
+  Layers,
+  Link,
+  LucideAngularModule,
+  Type,
+  X,
+  type LucideIconData
+} from 'lucide-angular';
 import { MODEL_DESIGNER_TRANSLATIONS } from '../../i18n/translations';
 import type { ValidationSuggestion } from '../../types/ai-schemas';
 

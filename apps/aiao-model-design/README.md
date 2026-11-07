@@ -6,14 +6,14 @@
 
 服务端只处理模型 AI，直接运行在 Cloudflare Workers：
 
-| 接口                          | 用途                               | 响应                               |
-| ----------------------------- | ---------------------------------- | ---------------------------------- |
-| `POST /api/ai/model/generate` | 根据业务描述和现有实体生成模型     | SSE，增量 JSON 文本                |
-| `POST /api/ai/model/chat`     | 对话式迭代模型，生成结构化变更提案 | SSE，增量对话文本                  |
-| `POST /bff/auth/signin`       | 使用已有 Supabase 账号登录         | 用户信息及 HttpOnly cookie         |
-| `GET /bff/auth/session`       | 获取用户，刷新过期会话             | 用户信息                           |
-| `POST /bff/auth/signout`      | 退出当前登录                       | 清除会话 cookie                    |
-| `GET /health`                 | Worker 健康检查                    | `{ "ok": true }`                   |
+| 接口                          | 用途                               | 响应                       |
+| ----------------------------- | ---------------------------------- | -------------------------- |
+| `POST /api/ai/model/generate` | 根据业务描述和现有实体生成模型     | SSE，增量 JSON 文本        |
+| `POST /api/ai/model/chat`     | 对话式迭代模型，生成结构化变更提案 | SSE，增量对话文本          |
+| `POST /bff/auth/signin`       | 使用已有 Supabase 账号登录         | 用户信息及 HttpOnly cookie |
+| `GET /bff/auth/session`       | 获取用户，刷新过期会话             | 用户信息                   |
+| `POST /bff/auth/signout`      | 退出当前登录                       | 清除会话 cookie            |
+| `GET /health`                 | Worker 健康检查                    | `{ "ok": true }`           |
 
 两个模型接口统一返回 `Content-Type: text/event-stream`，使用 AI SDK UI Message Stream 协议。客户端通过 POST `fetch` 持续读取 `text-delta` 事件；生成接口的 `delta` 拼接后为模型 JSON，对话接口的 `delta` 拼接后为回答文本：
 

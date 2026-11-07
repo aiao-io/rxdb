@@ -4,11 +4,11 @@ import type { ColumnDefine, StylePropertyFunctionArg } from '@visactor/vtable/es
 import type { LucideIconData } from 'lucide-angular';
 import { Binary, Braces, Calendar, Code, Hash, KeyRound, List, ListOrdered, ToggleLeft, Type } from 'lucide-angular';
 import {
-    getCellRecord,
-    isReadonly,
-    propertyActionsColumn,
-    type DropdownOptions,
-    type Translations
+  getCellRecord,
+  isReadonly,
+  propertyActionsColumn,
+  type DropdownOptions,
+  type Translations
 } from './table.columns.shared';
 
 /** 属性类型对应的图标与颜色（与 property-item.component.ts 保持一致） */

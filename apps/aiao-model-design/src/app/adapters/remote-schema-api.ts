@@ -1,5 +1,5 @@
-import type { SqlSchema } from '../model-designer';
 import { Injectable } from '@angular/core';
+import type { SqlSchema } from '../model-designer';
 
 const REMOTE_SCHEMA_URL = '/bff/model-designer/sql/remote-schema';
 

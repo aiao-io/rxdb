@@ -1,5 +1,5 @@
-import type { DesignEntity } from '../../models/index.js';
 import type { Graph as GraphType, Node as NodeType } from '@antv/x6';
+import type { DesignEntity } from '../../models/index.js';
 import { NS_PREFIX } from './canvas-constants';
 import { asNodeLike, nodeChildren, parentGroupId } from './canvas-edge-utils';
 import { fitGroupToChildren } from './canvas-node-sync';

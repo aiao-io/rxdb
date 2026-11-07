@@ -2,9 +2,9 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it } from 'vitest';
 
+import { AiValidationReportComponent } from '../../../components/ai/ai-validation-report.component';
 import { DEFAULT_TRANSLATIONS, MODEL_DESIGNER_TRANSLATIONS } from '../../../i18n/translations';
 import type { ValidationSuggestion } from '../../../types/ai-schemas';
-import { AiValidationReportComponent } from '../../../components/ai/ai-validation-report.component';
 
 /**
  * Class-level tests for AiValidationReportComponent.

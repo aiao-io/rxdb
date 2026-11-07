@@ -1,5 +1,5 @@
-import type { DesignEntity, DesignProperty, DesignRelation } from '../../models/index.js';
 import { describe, expect, it } from 'vitest';
+import type { DesignEntity, DesignProperty, DesignRelation } from '../../models/index.js';
 import { ModelValidatorService } from '../../services/model-validator.service';
 
 describe('ModelValidatorService', () => {

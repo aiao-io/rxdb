@@ -1,6 +1,6 @@
-import { DesignEntity, DesignProperty } from '../models/index.js';
 import { useFindAll } from '@aiao/rxdb-angular';
 import { Injectable } from '@angular/core';
+import { DesignEntity, DesignProperty } from '../models/index.js';
 
 /** 可参与实体级对比的最小字段集 */
 interface EntityComparable {

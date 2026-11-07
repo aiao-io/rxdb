@@ -1,13 +1,13 @@
 import {
-    actionsColumn as baseActionsColumn,
-    disabledEditorForReadonly,
-    getCellRecord,
-    isReadonly,
-    isReadonlyOrAddRow,
-    makeDeleteIcons,
-    switchDisabledForReadonly,
-    type MultiSelectOption,
-    type SwitchDisableCallback
+  actionsColumn as baseActionsColumn,
+  disabledEditorForReadonly,
+  getCellRecord,
+  isReadonly,
+  isReadonlyOrAddRow,
+  makeDeleteIcons,
+  switchDisabledForReadonly,
+  type MultiSelectOption,
+  type SwitchDisableCallback
 } from '@aiao/rxdb-model-angular';
 import type { ColumnDefine, StylePropertyFunctionArg } from '@visactor/vtable/es/ts-types';
 
@@ -15,12 +15,12 @@ const DELETE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" 
 
 // Re-export generic utilities
 export {
-    disabledEditorForReadonly as disabledEditorForInherited,
-    getCellRecord,
-    isReadonly,
-    isReadonlyOrAddRow,
-    makeDeleteIcons,
-    switchDisabledForReadonly as switchDisabledForInherited
+  disabledEditorForReadonly as disabledEditorForInherited,
+  getCellRecord,
+  isReadonly,
+  isReadonlyOrAddRow,
+  makeDeleteIcons,
+  switchDisabledForReadonly as switchDisabledForInherited
 };
 export type { SwitchDisableCallback };
 

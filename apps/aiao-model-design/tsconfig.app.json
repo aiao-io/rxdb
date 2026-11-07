@@ -3,16 +3,9 @@
     "outDir": "../../dist/out-tsc",
     "types": []
   },
-  "exclude": [
-    "src/**/*.spec.ts",
-    "src/**/*.test.ts",
-    "src/**/__tests__/**"
-  ],
+  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts", "src/**/__tests__/**"],
   "extends": "./tsconfig.json",
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.js"
-  ],
+  "include": ["src/**/*.ts", "src/**/*.js"],
   "references": [
     {
       "path": "../../packages/rxdb-client-generator/tsconfig.lib.json"

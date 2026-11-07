@@ -1,4 +1,3 @@
-import type { DesignProperty } from '../models/index.js';
 import { RxDB, UUID } from '@aiao/rxdb';
 import { computed, inject, Injectable, linkedSignal, signal, type Signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -16,6 +15,7 @@ import type {
   ModelValidationResult,
   RelationFieldErrors
 } from '../interfaces/designer.interface';
+import type { DesignProperty } from '../models/index.js';
 import { designToSqlSchema, diffSqlSchema, generateCreateSql } from '../sql';
 import { REMOTE_SCHEMA_SOURCE, resolveCompareRemoteSchema } from '../sql/compare-remote';
 import type { DesignSqlInput, SqlSchema } from '../sql/types';

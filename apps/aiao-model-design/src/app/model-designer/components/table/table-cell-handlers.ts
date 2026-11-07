@@ -1,6 +1,6 @@
-import type { DesignEntity, DesignProperty, DesignRelation } from '../../models/index.js';
 import { PROPERTY_COLUMN_NAME_PATTERN, PROPERTY_NAME_PATTERN } from '../../constants';
 import type { DesignIndexChanges, DesignPropertyChanges, DesignRelationChanges } from '../../interfaces';
+import type { DesignEntity, DesignProperty, DesignRelation } from '../../models/index.js';
 import type { TableRecord } from './table.types';
 
 /** 将逗号分隔的字符串解析为去重去空的枚举值数组，空输入返回 null */

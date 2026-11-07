@@ -25,7 +25,8 @@ export class AiStreamError extends Error {
 
 function readDelta(data: string): string | undefined {
   const chunk = StreamChunkSchema.parse(JSON.parse(data));
-  if (chunk.type === 'error') throw new AiStreamError(ApiErrorSchema.parse(JSON.parse(z.string().parse(chunk.errorText))));
+  if (chunk.type === 'error')
+    throw new AiStreamError(ApiErrorSchema.parse(JSON.parse(z.string().parse(chunk.errorText))));
   if (chunk.type === 'abort') throw new DOMException('AbortError', 'AbortError');
   if (chunk.type === 'text-delta') return z.string().parse(chunk.delta);
   return undefined;
@@ -36,7 +37,10 @@ export async function* readAiTextDeltas(response: Response): AsyncGenerator<stri
   const contentType = response.headers.get('content-type')?.split(';')[0].trim().toLowerCase();
   if (contentType !== 'text/event-stream' || !response.body)
     throw new AiStreamError({ type: 'server', message: 'Expected an AI event stream' });
-  const reader = response.body.pipeThrough(new TextDecoderStream()).pipeThrough(new EventSourceParserStream()).getReader();
+  const reader = response.body
+    .pipeThrough(new TextDecoderStream())
+    .pipeThrough(new EventSourceParserStream())
+    .getReader();
   try {
     while (true) {
       const { done, value } = await reader.read();

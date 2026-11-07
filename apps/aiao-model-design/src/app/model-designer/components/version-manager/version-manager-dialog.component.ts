@@ -1,7 +1,12 @@
 import { DialogRef } from '@angular/cdk/dialog';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MODEL_DESIGNER_TRANSLATIONS } from '../../i18n';
-import { DesignDiffService, type EntityDiffEntry, type EntitySetDiff, type PropertySetDiff } from '../../services/design-diff.service';
+import {
+  DesignDiffService,
+  type EntityDiffEntry,
+  type EntitySetDiff,
+  type PropertySetDiff
+} from '../../services/design-diff.service';
 import { ModelDesignService } from '../../services/model-design.service';
 
 /**

@@ -8,9 +8,16 @@ describe('AiBranchService', () => {
       createBranch: vi.fn<(name: string) => Promise<{ id: string }>>().mockResolvedValue({ id: 'ai-model1-123' }),
       switchBranch: vi.fn<(branchId: string) => Promise<void>>().mockResolvedValue(undefined),
       removeBranch: vi.fn<(branchId: string) => Promise<void>>().mockResolvedValue(undefined),
-      mergeBranch: vi.fn<(sourceBranchId: string, options?: { strategy?: string; deleteSource?: boolean }) => Promise<{ merged: number; strategy: string; sourceDeleted: boolean }>>().mockResolvedValue({ merged: 3, strategy: 'squash', sourceDeleted: true }),
-      getCurrentBranch: vi.fn(
-        (): Promise<{ id: string; parentId: string | null }> => Promise.resolve({ id: 'main', parentId: null })
+      mergeBranch: vi
+        .fn<
+          (
+            sourceBranchId: string,
+            options?: { strategy?: string; deleteSource?: boolean }
+          ) => Promise<{ merged: number; strategy: string; sourceDeleted: boolean }>
+        >()
+        .mockResolvedValue({ merged: 3, strategy: 'squash', sourceDeleted: true }),
+      getCurrentBranch: vi.fn((): Promise<{ id: string; parentId: string | null }> =>
+        Promise.resolve({ id: 'main', parentId: null })
       ),
       getChanges: vi.fn<(fromBranch: string, toBranch: string) => Promise<BranchChange[]>>().mockResolvedValue([])
     };
@@ -128,14 +135,11 @@ describe('AiBranchService', () => {
 
   describe('performance: SC-006 branch ops ≤2s', () => {
     function createMockVm50Entities() {
-      const changes = Array.from(
-        { length: 50 },
-        (_, i): BranchChange => ({
-          type: 'entity',
-          action: 'insert',
-          data: { id: `e${i}`, name: `Entity${i}` }
-        })
-      );
+      const changes = Array.from({ length: 50 }, (_, i): BranchChange => ({
+        type: 'entity',
+        action: 'insert',
+        data: { id: `e${i}`, name: `Entity${i}` }
+      }));
       const vm = createMockVersionManager();
       vm.getChanges.mockResolvedValue(changes);
       return vm;

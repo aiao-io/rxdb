@@ -2,9 +2,9 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it } from 'vitest';
 
+import { BranchDiffViewComponent } from '../../../components/ai/branch-diff-view.component';
 import { DEFAULT_TRANSLATIONS, MODEL_DESIGNER_TRANSLATIONS } from '../../../i18n/translations';
 import type { BranchDiff } from '../../../services/ai-branch.service';
-import { BranchDiffViewComponent } from '../../../components/ai/branch-diff-view.component';
 
 function createComponent(diff?: BranchDiff) {
   TestBed.configureTestingModule({

@@ -1,8 +1,8 @@
-import type { DesignEntity, DesignRelation } from '../../models/index.js';
 import type { RelationEntityObservable, UUID } from '@aiao/rxdb';
 import { of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { RELATION_KINDS } from '../../constants/relation';
+import type { DesignEntity, DesignRelation } from '../../models/index.js';
 import {
   collectAffectedRelations,
   formatDeleteEntityMessage,
@@ -25,7 +25,12 @@ function designEntityRef(): RelationEntityObservable<typeof DesignEntity> {
  * 构造完整的 {@link DesignRelation} fixture。
  * 补齐全部字段而非转型，是为了让 fixture 与实体真实结构一起漂移。
  */
-function rel(partial: { id: UUID; name: string; designEntityId: UUID; mappedEntityId?: string | null }): DesignRelation {
+function rel(partial: {
+  id: UUID;
+  name: string;
+  designEntityId: UUID;
+  mappedEntityId?: string | null;
+}): DesignRelation {
   return {
     id: partial.id,
     createdAt: new Date(0),

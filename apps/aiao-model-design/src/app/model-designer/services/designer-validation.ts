@@ -1,6 +1,6 @@
-import type { DesignEntity, DesignProperty, DesignRelation } from '../models/index.js';
 import { computed, type Signal } from '@angular/core';
 import type { RelationFieldError, RelationFieldErrors } from '../interfaces/designer.interface';
+import type { DesignEntity, DesignProperty, DesignRelation } from '../models/index.js';
 import type { ModelValidatorService } from './model-validator.service';
 
 /**

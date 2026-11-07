@@ -1,7 +1,7 @@
-import { DesignEntity, DesignIndex, DesignProperty, DesignRelation } from '../models/index.js';
 import type { UUID } from '@aiao/rxdb';
 import type { PropertyType } from '../constants/options';
 import type { RelationKind } from '../constants/relation';
+import { DesignEntity, DesignIndex, DesignProperty, DesignRelation } from '../models/index.js';
 import type { AiEntityContext } from '../types/ai-schemas';
 import { LAYOUT, calculateLayout, resolveEntityNameConflicts } from './ai-model-layout';
 import {

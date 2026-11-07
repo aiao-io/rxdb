@@ -4,13 +4,13 @@
  * 显示实体所有关系的列表，包括继承关系和自定义关系。
  * 支持关系的添加、编辑、删除和排序操作。
  */
-import type { DesignRelation } from '../../models/index.js';
 import { CdkDrag, CdkDragDrop, CdkDropList } from '@angular/cdk/drag-drop';
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { ChevronRight, LucideAngularModule } from 'lucide-angular';
 import { type InheritedPropertyDef } from '../../constants';
 import { MODEL_DESIGNER_TRANSLATIONS } from '../../i18n/translations';
 import type { DesignRelationChanges } from '../../interfaces';
+import type { DesignRelation } from '../../models/index.js';
 import { sortOrderBetween } from '../../services/entity-utils';
 import { snapshotEntity } from '../shared/entity-edit-utils';
 import { RelationItemComponent } from './relation-item.component';

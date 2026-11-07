@@ -1,15 +1,9 @@
-import {
-  DesignEntity,
-  DesignIndex,
-  DesignProperty,
-  DesignRelation,
-  ModelDesign
-} from '../models/index.js';
 import { RxDB } from '@aiao/rxdb';
 import { useFindAll } from '@aiao/rxdb-angular';
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { generateCopyName } from '../constants/naming';
 import { MODEL_DESIGNER_TRANSLATIONS } from '../i18n';
+import { DesignEntity, DesignIndex, DesignProperty, DesignRelation, ModelDesign } from '../models/index.js';
 import {
   cloneDesignSnapshot,
   type ClonedSnapshot,

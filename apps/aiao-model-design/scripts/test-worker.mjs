@@ -4,22 +4,25 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { createServer as createHttpServer } from 'node:http';
+import { createRequire } from 'node:module';
 import { connect } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createRequire } from 'node:module';
 import { createServer } from 'vite';
 
 const app = new URL('../', import.meta.url).pathname;
 const origin = 'http://127.0.0.1:4389';
 const temporary = await mkdtemp(join(tmpdir(), 'model-design-worker-'));
 const envFile = join(temporary, '.dev.vars');
-await writeFile(envFile, [
-  'SUPABASE_URL="http://supabase.invalid"',
-  'SUPABASE_ANON_KEY="test-anon"',
-  'DEEPSEEK_API_KEY="test-ai-key"',
-  'DEEPSEEK_BASE_URL="http://provider.invalid/v1"'
-].join('\n'));
+await writeFile(
+  envFile,
+  [
+    'SUPABASE_URL="http://supabase.invalid"',
+    'SUPABASE_ANON_KEY="test-anon"',
+    'DEEPSEEK_API_KEY="test-ai-key"',
+    'DEEPSEEK_BASE_URL="http://provider.invalid/v1"'
+  ].join('\n')
+);
 const configFile = join(temporary, 'wrangler.json');
 const workerConfig = JSON.parse(await readFile(new URL('../wrangler.jsonc', import.meta.url), 'utf8'));
 workerConfig.name = 'aiao-model-design-network-test';
@@ -37,10 +40,15 @@ const completions = [];
 const firstDelta = '{"thinking":"逐步';
 const lastDelta = '生成","entities":[]}';
 function sendCompletion(response, content, finishReason = null) {
-  response.write(`data: ${JSON.stringify({
-    id: 'worker-completion', object: 'chat.completion.chunk', created: 1, model: 'deepseek-chat',
-    choices: [{ index: 0, delta: { content }, finish_reason: finishReason }]
-  })}\n\n`);
+  response.write(
+    `data: ${JSON.stringify({
+      id: 'worker-completion',
+      object: 'chat.completion.chunk',
+      created: 1,
+      model: 'deepseek-chat',
+      choices: [{ index: 0, delta: { content }, finish_reason: finishReason }]
+    })}\n\n`
+  );
 }
 function upstreamRequest(request, response) {
   const url = new URL(request.url, 'http://supabase.invalid');
@@ -81,13 +89,7 @@ await new Promise(resolve => outboundProxy.listen(0, '127.0.0.1', resolve));
 const proxyUrl = `http://127.0.0.1:${outboundProxy.address().port}`;
 const server = spawn(
   process.execPath,
-  [
-    new URL('./serve-api.mjs', import.meta.url).pathname,
-    '--port',
-    '4389',
-    '--config',
-    configFile
-  ],
+  [new URL('./serve-api.mjs', import.meta.url).pathname, '--port', '4389', '--config', configFile],
   {
     cwd: app,
     env: {
@@ -165,13 +167,19 @@ try {
     assert.equal(response.status, 200);
     assert.match(response.headers.get('content-type'), /text\/event-stream/);
     assert.match(response.headers.get('cache-control'), /no-transform/);
-    const reader = response.body.pipeThrough(new TextDecoderStream()).pipeThrough(new EventSourceParserStream()).getReader();
+    const reader = response.body
+      .pipeThrough(new TextDecoderStream())
+      .pipeThrough(new EventSourceParserStream())
+      .getReader();
     let text = '';
     let finished = false;
     while (!finished) {
       const next = await reader.read();
       assert.equal(next.done, false, `${action}: 必须有结束标志`);
-      if (next.value.data === '[DONE]') { finished = true; continue; }
+      if (next.value.data === '[DONE]') {
+        finished = true;
+        continue;
+      }
       const event = JSON.parse(next.value.data);
       assert.notEqual(event.type, 'error', `${action}: ${event.errorText}`);
       if (event.type !== 'text-delta') continue;

@@ -1,9 +1,9 @@
-import { ChatMessage, ChatSession } from '../models/index.js';
 import { type UUID } from '@aiao/rxdb';
 import { useFindAll } from '@aiao/rxdb-angular';
 import { Injectable, type Signal, computed } from '@angular/core';
 import type { ChatMessageItem } from '../components/ai/ai-message.component';
 import type { ChatSessionItem } from '../components/ai/ai-session-list.component';
+import { ChatMessage, ChatSession } from '../models/index.js';
 
 /**
  * AI 对话会话管理服务

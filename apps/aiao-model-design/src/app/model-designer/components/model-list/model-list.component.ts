@@ -3,9 +3,9 @@
  *
  * 显示模型设计列表，支持选择、创建和删除操作。
  */
-import type { ModelDesign } from '../../models/index.js';
 import { ChangeDetectionStrategy, Component, inject, input, output, signal } from '@angular/core';
 import { MODEL_DESIGNER_TRANSLATIONS } from '../../i18n/translations';
+import type { ModelDesign } from '../../models/index.js';
 
 @Component({
   selector: 'lib-model-list',

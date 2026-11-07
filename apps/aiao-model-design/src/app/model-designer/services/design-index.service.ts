@@ -1,7 +1,7 @@
-import { DesignIndex } from '../models/index.js';
 import { RxDB, type UUID } from '@aiao/rxdb';
 import { useFindAll } from '@aiao/rxdb-angular';
 import { computed, inject, Injectable, type Signal } from '@angular/core';
+import { DesignIndex } from '../models/index.js';
 import { compareSortOrder, nextSortOrder, optimisticUpdate } from './entity-utils';
 import { firstQueryError } from './lazy-query';
 

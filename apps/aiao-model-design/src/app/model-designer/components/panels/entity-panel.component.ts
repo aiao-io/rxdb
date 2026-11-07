@@ -1,4 +1,3 @@
-import type { DesignEntity, DesignIndex, DesignProperty, DesignRelation } from '../../models/index.js';
 import { CdkDrag, CdkDragDrop, CdkDropList } from '@angular/cdk/drag-drop';
 import {
   ChangeDetectionStrategy,
@@ -35,6 +34,7 @@ import type {
   DesignPropertyChanges,
   DesignRelationChanges
 } from '../../interfaces';
+import type { DesignEntity, DesignIndex, DesignProperty, DesignRelation } from '../../models/index.js';
 import { sortOrderBetween } from '../../services/entity-utils';
 import {
   buildCustomProperties,

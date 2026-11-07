@@ -19,9 +19,9 @@ vi.mock('@aiao/rxdb', () => ({
   TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS: { properties: [], computedProperties: [], relations: [] }
 }));
 
-import type { DesignIndex, DesignProperty, DesignRelation } from '../../../models/index.js';
 import { EntityPanelComponent } from '../../../components/panels/entity-panel.component';
 import { DEFAULT_TRANSLATIONS, MODEL_DESIGNER_TRANSLATIONS } from '../../../i18n/translations';
+import type { DesignIndex, DesignProperty, DesignRelation } from '../../../models/index.js';
 
 /**
  * 造一个满足 UUID 模板字面量类型的确定性测试 id。

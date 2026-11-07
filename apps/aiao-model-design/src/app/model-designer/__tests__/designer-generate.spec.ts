@@ -1,7 +1,7 @@
-import type { DesignEntity, DesignRelation } from '../models/index.js';
 import type { EntityMetadataOptions } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import { formatValidationErrors, generateOrGetErrors, translateError } from '../designer-generate';
+import type { DesignEntity, DesignRelation } from '../models/index.js';
 import type { CodeGeneratorService } from '../services/code-generator.service';
 
 describe('translateError', () => {

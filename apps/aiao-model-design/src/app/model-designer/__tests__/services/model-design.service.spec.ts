@@ -70,8 +70,8 @@ vi.mock('@aiao/rxdb-angular', () => ({
   }
 }));
 
-import { DesignEntity, DesignIndex, DesignProperty, DesignRelation } from '../../models/index.js';
 import { RxDB } from '@aiao/rxdb';
+import { DesignEntity, DesignIndex, DesignProperty, DesignRelation } from '../../models/index.js';
 import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { ModelDesignService } from '../../services/model-design.service';
 

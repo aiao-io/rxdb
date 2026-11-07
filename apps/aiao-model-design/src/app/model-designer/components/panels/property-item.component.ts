@@ -4,7 +4,6 @@
  * 在属性面板中显示单个属性的编辑项，支持属性类型、默认值、约束条件等配置。
  * 支持 keyValue 类型的嵌套子属性。
  */
-import type { DesignProperty } from '../../models/index.js';
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList } from '@angular/cdk/drag-drop';
 import {
   ChangeDetectionStrategy,
@@ -49,6 +48,7 @@ import {
 } from '../../constants';
 import { MODEL_DESIGNER_TRANSLATIONS } from '../../i18n/translations';
 import type { DesignPropertyChanges } from '../../interfaces';
+import type { DesignProperty } from '../../models/index.js';
 
 interface TypeOption {
   readonly value: PropertyType;

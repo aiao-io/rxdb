@@ -1,4 +1,3 @@
-import type { DesignEntity } from '../models/index.js';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -25,6 +24,7 @@ import {
 } from '../constants';
 import { MODEL_DESIGNER_TRANSLATIONS } from '../i18n';
 import type { DesignEntityChanges, DetailTab } from '../interfaces';
+import type { DesignEntity } from '../models/index.js';
 import { DesignerStateService } from '../services/designer-state.service';
 
 /**

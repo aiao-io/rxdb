@@ -1,3 +1,6 @@
+import { type RxDB } from '@aiao/rxdb';
+import { firstValueFrom } from 'rxjs';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   ChatMessage,
   ChatSession,
@@ -7,10 +10,7 @@ import {
   DesignRelation,
   ModelDesign
 } from '../../models/index.js';
-import { type RxDB } from '@aiao/rxdb';
 import { createTestDatabase } from './sqlite-database';
-import { firstValueFrom } from 'rxjs';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 /**
  * 用真实（非 mock）RxDB 实例验证 DesignProperty/DesignRelation/DesignIndex
@@ -22,7 +22,15 @@ describe('DesignEntity cascade delete (real RxDB)', () => {
   let dispose: () => Promise<void>;
 
   beforeAll(async () => {
-    const testDatabase = await createTestDatabase([ModelDesign, DesignEntity, DesignProperty, DesignRelation, DesignIndex, ChatSession, ChatMessage]);
+    const testDatabase = await createTestDatabase([
+      ModelDesign,
+      DesignEntity,
+      DesignProperty,
+      DesignRelation,
+      DesignIndex,
+      ChatSession,
+      ChatMessage
+    ]);
     rxdb = testDatabase.database;
     dispose = testDatabase.dispose;
   });

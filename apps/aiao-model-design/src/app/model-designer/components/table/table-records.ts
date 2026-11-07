@@ -1,5 +1,5 @@
-import type { DesignEntity, DesignIndex, DesignProperty, DesignRelation } from '../../models/index.js';
 import type { InheritedPropertyDef } from '../../constants';
+import type { DesignEntity, DesignIndex, DesignProperty, DesignRelation } from '../../models/index.js';
 import type { TableRecord } from './table.types';
 
 /**

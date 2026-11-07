@@ -7,12 +7,16 @@ const done = 'data: [DONE]\n\n';
 
 function response(text: string, size = 1024): Response {
   const bytes = new TextEncoder().encode(text);
-  return new Response(new ReadableStream<Uint8Array>({
-    start(controller) {
-      for (let offset = 0; offset < bytes.length; offset += size) controller.enqueue(bytes.slice(offset, offset + size));
-      controller.close();
-    }
-  }), { headers: { 'content-type': 'text/event-stream; charset=utf-8' } });
+  return new Response(
+    new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (let offset = 0; offset < bytes.length; offset += size)
+          controller.enqueue(bytes.slice(offset, offset + size));
+        controller.close();
+      }
+    }),
+    { headers: { 'content-type': 'text/event-stream; charset=utf-8' } }
+  );
 }
 
 describe('AiApiService SSE', () => {
@@ -27,7 +31,12 @@ describe('AiApiService SSE', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('跨字节分块、心跳、CRLF 和同块多事件仍完整收到中文', async () => {
-    fetchMock.mockResolvedValue(response((': heartbeat\n\ndata: {"type":"start"}\n\n' + delta('你好') + delta('模型') + done).replaceAll('\n', '\r\n'), 1));
+    fetchMock.mockResolvedValue(
+      response(
+        (': heartbeat\n\ndata: {"type":"start"}\n\n' + delta('你好') + delta('模型') + done).replaceAll('\n', '\r\n'),
+        1
+      )
+    );
     const onChunk = vi.fn();
     const onPartial = vi.fn();
     const onComplete = vi.fn();
@@ -35,18 +44,32 @@ describe('AiApiService SSE', () => {
     expect(onChunk.mock.calls.map(([text]) => text)).toEqual(['你好', '模型']);
     expect(onPartial.mock.calls.map(([text]) => text)).toEqual(['你好', '你好模型']);
     expect(onComplete).toHaveBeenCalledExactlyOnceWith('你好模型');
-    expect(fetchMock).toHaveBeenCalledWith('/api/ai/model/chat', expect.objectContaining({
-      method: 'POST', credentials: 'include', headers: expect.objectContaining({ Accept: 'text/event-stream' })
-    }));
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/ai/model/chat',
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+        headers: expect.objectContaining({ Accept: 'text/event-stream' })
+      })
+    );
     expect(service.isStreaming()).toBe(false);
   });
 
   it('连接结束前就推送文本，不等待完整响应', async () => {
     let writer!: ReadableStreamDefaultController<Uint8Array>;
     const encoder = new TextEncoder();
-    fetchMock.mockResolvedValue(new Response(new ReadableStream({ start(controller) { writer = controller; } }), {
-      headers: { 'content-type': 'text/event-stream' }
-    }));
+    fetchMock.mockResolvedValue(
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            writer = controller;
+          }
+        }),
+        {
+          headers: { 'content-type': 'text/event-stream' }
+        }
+      )
+    );
     const onChunk = vi.fn();
     const onComplete = vi.fn();
     const request = service.chat([{ role: 'user', content: '你好' }], { entityNames: [] }, { onChunk, onComplete });
@@ -83,7 +106,11 @@ describe('AiApiService SSE', () => {
 
   it('流中错误只触发错误回调，保留已有文本', async () => {
     const error = { type: 'rate-limit', message: 'AI rate limit exceeded', status: 429 };
-    fetchMock.mockResolvedValue(response(delta('已生成') + `data: ${JSON.stringify({ type: 'error', errorText: JSON.stringify(error) })}\n\n` + done));
+    fetchMock.mockResolvedValue(
+      response(
+        delta('已生成') + `data: ${JSON.stringify({ type: 'error', errorText: JSON.stringify(error) })}\n\n` + done
+      )
+    );
     const onPartial = vi.fn();
     const onError = vi.fn();
     const onComplete = vi.fn();
@@ -124,14 +151,18 @@ describe('AiApiService SSE', () => {
     expect(onError).toHaveBeenCalledOnce();
   });
 
-  it.each([[400, 'validation'], [401, 'unauthorized'], [429, 'rate-limit'], [504, 'timeout'], [502, 'server']])(
-    'HTTP %s 保留错误分类 %s', async (status, type) => {
-      fetchMock.mockResolvedValue(new Response('{}', { status: Number(status) }));
-      const onError = vi.fn();
-      await service.generate('模型', undefined, { onError });
-      expect(onError).toHaveBeenCalledWith(expect.objectContaining({ type, status }));
-    }
-  );
+  it.each([
+    [400, 'validation'],
+    [401, 'unauthorized'],
+    [429, 'rate-limit'],
+    [504, 'timeout'],
+    [502, 'server']
+  ])('HTTP %s 保留错误分类 %s', async (status, type) => {
+    fetchMock.mockResolvedValue(new Response('{}', { status: Number(status) }));
+    const onError = vi.fn();
+    await service.generate('模型', undefined, { onError });
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ type, status }));
+  });
 
   it('服务端中止事件不触发成功回调', async () => {
     fetchMock.mockResolvedValue(response(delta('部分模型') + 'data: {"type":"abort"}\n\n' + done));
@@ -144,16 +175,31 @@ describe('AiApiService SSE', () => {
 
   it('接收部分内容后仍可取消，保留已展示内容并释放读取器', async () => {
     const encoder = new TextEncoder();
-    fetchMock.mockImplementation((_url, init) => Promise.resolve(new Response(new ReadableStream<Uint8Array>({
-      start(controller) {
-        controller.enqueue(encoder.encode(delta('部分模型')));
-        init!.signal!.addEventListener('abort', () => controller.error(new DOMException('Aborted', 'AbortError')), { once: true });
-      }
-    }), { headers: { 'content-type': 'text/event-stream' } })));
+    fetchMock.mockImplementation((_url, init) =>
+      Promise.resolve(
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(encoder.encode(delta('部分模型')));
+              init!.signal!.addEventListener(
+                'abort',
+                () => controller.error(new DOMException('Aborted', 'AbortError')),
+                { once: true }
+              );
+            }
+          }),
+          { headers: { 'content-type': 'text/event-stream' } }
+        )
+      )
+    );
     const onPartial = vi.fn();
     const onError = vi.fn();
     const onComplete = vi.fn();
-    const request = service.chat([{ role: 'user', content: '模型' }], { entityNames: [] }, { onPartial, onError, onComplete });
+    const request = service.chat(
+      [{ role: 'user', content: '模型' }],
+      { entityNames: [] },
+      { onPartial, onError, onComplete }
+    );
     await vi.waitFor(() => expect(onPartial).toHaveBeenCalledWith('部分模型'));
     service.abort();
     await request;
@@ -164,10 +210,13 @@ describe('AiApiService SSE', () => {
 
   it('取消请求中止 fetch 并复原状态', async () => {
     let signal!: AbortSignal;
-    fetchMock.mockImplementation((_url, init) => new Promise((_resolve, reject) => {
-      signal = init!.signal!;
-      signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
-    }));
+    fetchMock.mockImplementation(
+      (_url, init) =>
+        new Promise((_resolve, reject) => {
+          signal = init!.signal!;
+          signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
+        })
+    );
     const onError = vi.fn();
     const request = service.chat([{ role: 'user', content: '模型' }], { entityNames: [] }, { onError });
     expect(service.isStreaming()).toBe(true);

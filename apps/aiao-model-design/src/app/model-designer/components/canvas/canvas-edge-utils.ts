@@ -1,5 +1,5 @@
-import type { DesignRelation } from '../../models/index.js';
 import { INVERSE_RELATION_KIND, RELATION_LABELS } from '../../constants';
+import type { DesignRelation } from '../../models/index.js';
 
 type RelationPortSide = 'left' | 'right';
 

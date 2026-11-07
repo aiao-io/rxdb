@@ -2,8 +2,8 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it, vi } from 'vitest';
 
-import { DEFAULT_TRANSLATIONS, MODEL_DESIGNER_TRANSLATIONS } from '../../../i18n/translations';
 import { AiSessionListComponent, type ChatSessionItem } from '../../../components/ai/ai-session-list.component';
+import { DEFAULT_TRANSLATIONS, MODEL_DESIGNER_TRANSLATIONS } from '../../../i18n/translations';
 
 function createComponent(sessions: ChatSessionItem[] = [], activeId?: string) {
   TestBed.configureTestingModule({

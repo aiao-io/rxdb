@@ -1,6 +1,6 @@
-import type { DesignEntity, DesignRelation } from '../../models/index.js';
 import type { Edge, Graph as GraphType } from '@antv/x6';
 import { RELATION_KINDS, RELATION_LABELS } from '../../constants';
+import type { DesignEntity, DesignRelation } from '../../models/index.js';
 import {
   asNodeLike,
   chooseNearestRelationPorts,

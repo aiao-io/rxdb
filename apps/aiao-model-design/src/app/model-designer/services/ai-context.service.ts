@@ -62,7 +62,10 @@ export class AiContextService {
    *
    * 返回完整模型，包含名称、命名空间和全部实体列表。
    */
-  buildValidateContext(name: string, namespace: string): { name: string; namespace: string; entities: AiEntityContext[] } {
+  buildValidateContext(
+    name: string,
+    namespace: string
+  ): { name: string; namespace: string; entities: AiEntityContext[] } {
     return { name, namespace, entities: this.#entities };
   }
 

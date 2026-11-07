@@ -1,4 +1,3 @@
-import type { DesignEntity, DesignIndex, DesignProperty, DesignRelation } from '../models/index.js';
 import {
   type EntityIndexMetadataOptions,
   type EntityMetadataOptions,
@@ -15,6 +14,7 @@ import { DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { inject, Injectable, PLATFORM_ID } from '@angular/core';
 import { zipSync } from 'fflate';
 import type { GeneratedFile, GenerateResult } from '../interfaces/designer.interface';
+import type { DesignEntity, DesignIndex, DesignProperty, DesignRelation } from '../models/index.js';
 import type { ClientDesignContract } from './client-package-adapter';
 import { compareSortOrder } from './entity-utils';
 

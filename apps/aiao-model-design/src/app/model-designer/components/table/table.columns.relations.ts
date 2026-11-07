@@ -3,11 +3,11 @@ import type { ColumnsDefine } from '@visactor/vtable';
 import { ColumnDefine, StylePropertyFunctionArg } from '@visactor/vtable/es/ts-types';
 
 import {
-    actionsColumn,
-    getCellRecord,
-    isReadonly,
-    type DropdownOptions,
-    type Translations
+  actionsColumn,
+  getCellRecord,
+  isReadonly,
+  type DropdownOptions,
+  type Translations
 } from './table.columns.shared';
 
 export type RelationColumnsErrorContext = {
