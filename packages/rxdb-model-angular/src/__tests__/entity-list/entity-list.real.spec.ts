@@ -363,6 +363,24 @@ describe('EntityListComponent（真实组件）', () => {
     });
   });
 
+  it('撤销与重做按钮的无障碍名称包含可见次数', async () => {
+    const versionManager = (rxdb as unknown as { versionManager: { history(): HistoryScopeAPI } }).versionManager;
+    const history = vi.spyOn(versionManager, 'history').mockReturnValue({
+      ...versionManager.history(),
+      undoCount$: of(2),
+      redoCount$: of(3)
+    });
+    try {
+      const { fixture } = await renderList();
+      fixture.detectChanges();
+      const button = (name: string) => (fixture.nativeElement as HTMLElement).querySelector(`[aria-label="${name}"]`);
+      expect(button('撤销 (Ctrl+Z) 2')?.textContent).toContain('2');
+      expect(button('重做 (Ctrl+Shift+Z) 3')?.textContent).toContain('3');
+    } finally {
+      history.mockRestore();
+    }
+  });
+
   it('撤销 / 重做栈被子分支分叉点拦住：按钮停用并说明原因（US-315）', async () => {
     const versionManager = (rxdb as unknown as { versionManager: { history(): HistoryScopeAPI } }).versionManager;
     const inherited = { reason: 'inherited_by_branch' as const, branchIds: ['feature'] };
@@ -378,9 +396,9 @@ describe('EntityListComponent（真实组件）', () => {
       fixture.detectChanges();
       const button = (label: string) =>
         fixture.nativeElement.querySelector(`[aria-label="${label}"]`) as HTMLButtonElement;
-      expect(button('撤销 (Ctrl+Z)').disabled).toBe(true);
-      expect(button('撤销 (Ctrl+Z)').title).toBe('更早的改动已被分支 feature 继承，撤销不了');
-      expect(button('重做 (Ctrl+Shift+Z)').title).toBe('要重做的改动已被分支 feature 继承，重做不了');
+      expect(button('撤销 (Ctrl+Z) 0').disabled).toBe(true);
+      expect(button('撤销 (Ctrl+Z) 0').title).toBe('更早的改动已被分支 feature 继承，撤销不了');
+      expect(button('重做 (Ctrl+Shift+Z) 0').title).toBe('要重做的改动已被分支 feature 继承，重做不了');
     } finally {
       history.mockRestore();
     }

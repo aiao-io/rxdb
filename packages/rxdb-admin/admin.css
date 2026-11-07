@@ -1,0 +1,1447 @@
+/*
+ * @aiao/rxdb-admin 外壳样式：三端绑定共用的 DOM 契约。
+ *
+ * 只依赖 daisyUI 主题变量（--color-*、--radius-*），不依赖 Tailwind 生成的工具类；
+ * 布局尺寸来自外壳写在 <html> 上的 --admin-* 变量（见 computeLayoutVars）。
+ * 在 Tailwind 入口之后引入：@import '@aiao/rxdb-admin/admin.css';
+ *
+ * 规则位于 components 层：工具类（utilities 层）与应用自己的无层样式都能覆盖它。
+ * 例外是需要压过 daisyUI 的覆盖，它们在文件末尾的 utilities 层（原因见该处注释）。
+ */
+
+@layer base {
+  :root[data-theme='material'],
+  [data-theme='material'] {
+    color-scheme: light;
+    --color-base-100: #f6f8ff;
+    --color-base-200: #eaecfa;
+    --color-base-300: #e0e2f8;
+    --color-base-content: #191e28;
+    --color-primary: #167bff;
+    --color-primary-content: #ffffff;
+    --color-secondary: #9c5de8;
+    --color-secondary-content: #ffffff;
+    --color-accent: #00d3bb;
+    --color-accent-content: #f3fbf6;
+    --color-neutral: #1e2832;
+    --color-neutral-content: #fafcff;
+    --color-info: #8fa7ff;
+    --color-info-content: #1a2236;
+    --color-success: #1f9d63;
+    --color-success-content: #ffffff;
+    --color-warning: #ffc947;
+    --color-warning-content: #5a4200;
+    --color-error: #e11d6a;
+    --color-error-content: #ffffff;
+    --radius-selector: 20px;
+    --radius-field: 20px;
+    --radius-box: 20px;
+    --size-selector: 0.25rem;
+    --size-field: 0.25rem;
+    --border: 1px;
+    --depth: 0;
+    --noise: 0;
+    --admin-background: #fdfeff;
+    --admin-sidebar-background: #f5f7ff;
+    --admin-header-background: #f5f7ff;
+  }
+
+  :root[data-theme='material-dark'],
+  [data-theme='material-dark'] {
+    color-scheme: dark;
+    --color-base-100: #181e24;
+    --color-base-200: #202830;
+    --color-base-300: #2c323a;
+    --color-base-content: #f0f4f8;
+    --color-primary: #378dff;
+    --color-primary-content: #ffffff;
+    --color-secondary: #b071ff;
+    --color-secondary-content: #ffffff;
+    --color-accent: #00d3bb;
+    --color-accent-content: #f3fbf6;
+    --color-neutral: #dce1e6;
+    --color-neutral-content: #1e2832;
+    --color-info: #14b4ff;
+    --color-info-content: #04222e;
+    --color-success: #0bbf58;
+    --color-success-content: #04220f;
+    --color-warning: #f5a524;
+    --color-warning-content: #2a1700;
+    --color-error: #f31260;
+    --color-error-content: #ffffff;
+    --radius-selector: 20px;
+    --radius-field: 20px;
+    --radius-box: 20px;
+    --size-selector: 0.25rem;
+    --size-field: 0.25rem;
+    --border: 1px;
+    --depth: 0;
+    --noise: 0;
+    --admin-background: #141618;
+    --admin-sidebar-background: #181c20;
+    --admin-header-background: #181c22;
+  }
+}
+
+@layer components {
+  :root {
+    --admin-sidebar-width: 240px;
+    --admin-sidebar-expanded-width: 240px;
+    --admin-header-height: 56px;
+    --admin-footer-height: 48px;
+    --admin-content-max-width: none;
+    --admin-content-padding: 0;
+    --admin-motion: 240ms;
+    --admin-mobile-drawer-width: min(80vw, 280px);
+    --admin-border: color-mix(in oklab, var(--color-base-content) 12%, transparent);
+    --admin-muted: color-mix(in oklab, var(--color-base-content) 72%, transparent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :root {
+      --admin-motion: 0ms;
+    }
+  }
+
+  /* ── 色彩模式 ── */
+  html[data-color-mode='gray'] {
+    filter: grayscale(1);
+  }
+
+  html[data-color-mode='weak'] {
+    filter: invert(1) hue-rotate(180deg);
+  }
+
+  /* ── 紧凑密度：daisyUI 的 --size-field / --size-selector 驱动按钮、输入、开关尺寸 ── */
+  html[data-compact='true'] {
+    --size-field: 0.1875rem;
+    --size-selector: 0.1875rem;
+  }
+
+  /* ── 根布局 ── */
+  .admin-shell {
+    position: relative;
+    display: flex;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--color-base-100);
+    color: var(--color-base-content);
+  }
+
+  .admin-main {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  /*
+   * 顶栏 + 侧栏：顶栏横跨整个宽度，侧栏在它下面。
+   * 把 .admin-main 的子元素提升为网格项（display: contents，Angular 的宿主元素同样是 contents），
+   * 侧栏占第一列并从页签行一直到页脚，页签 / 内容 / 页脚叠在第二列。移动端布局会回退成侧栏导航，不受影响。
+   */
+  .admin-shell[data-layout='header-sidebar-nav']:not([data-mobile='true']) {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+  }
+
+  .admin-shell[data-layout='header-sidebar-nav']:not([data-mobile='true']) > .admin-main {
+    display: contents;
+  }
+
+  .admin-shell[data-layout='header-sidebar-nav']:not([data-mobile='true']) .admin-header {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .admin-shell[data-layout='header-sidebar-nav']:not([data-mobile='true']) .admin-sidebar-slot {
+    grid-column: 1;
+    grid-row: 2 / -1;
+  }
+
+  .admin-shell[data-layout='header-sidebar-nav']:not([data-mobile='true']) .admin-tabbar {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .admin-shell[data-layout='header-sidebar-nav']:not([data-mobile='true']) .admin-content {
+    grid-column: 2;
+    grid-row: 3;
+  }
+
+  .admin-shell[data-layout='header-sidebar-nav']:not([data-mobile='true']) .admin-footer {
+    grid-column: 2;
+    grid-row: 4;
+  }
+
+  .admin-skip-link {
+    position: absolute;
+    inset-block-start: 0.5rem;
+    inset-inline-start: 0.5rem;
+    z-index: 200;
+    transform: translateY(-300%);
+  }
+
+  .admin-skip-link:focus {
+    transform: none;
+  }
+
+  /* ── 侧栏 ── */
+  .admin-sidebar-slot {
+    position: relative;
+    z-index: 30;
+    flex: 0 0 var(--admin-sidebar-width);
+    width: var(--admin-sidebar-width);
+    transition:
+      flex-basis var(--admin-motion) ease,
+      width var(--admin-motion) ease;
+  }
+
+  /* 拖拽调宽期间（SidebarDrag 写的标记）关掉宽度过渡：侧栏紧跟指针，而不是被动画拖在后面 */
+  .admin-sidebar-slot[data-resizing='true'] {
+    transition: none;
+  }
+
+  .admin-sidebar {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    overflow: hidden;
+    background: var(--color-base-200);
+    color: var(--color-base-content);
+    border-inline-end: 1px solid var(--admin-border);
+    transition:
+      width var(--admin-motion) ease,
+      transform var(--admin-motion) ease,
+      box-shadow var(--admin-motion) ease;
+  }
+
+  .admin-sidebar[data-hover-expanded='true'] {
+    width: var(--admin-sidebar-expanded-width);
+    box-shadow: 4px 0 16px rgb(0 0 0 / 0.18);
+  }
+
+  .admin-sidebar-resizer {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-end: 0;
+    width: 4px;
+    cursor: col-resize;
+    background: transparent;
+    touch-action: none;
+  }
+
+  .admin-sidebar-resizer:hover,
+  .admin-sidebar-resizer[data-dragging='true'] {
+    background: color-mix(in oklab, var(--color-primary) 55%, transparent);
+  }
+
+  .admin-brand {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+    height: var(--admin-header-height);
+    padding-inline: 0.75rem;
+    font-weight: 600;
+  }
+
+  .admin-brand-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .admin-brand-logo {
+    flex: none;
+    max-height: 1.75rem;
+    width: auto;
+    object-fit: contain;
+  }
+
+  .admin-sidebar-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 0.25rem;
+  }
+
+  .admin-menu-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .admin-menu-icon {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+  }
+
+  /* 没有图标的菜单项（如分组标题）不留图标位，文字才能贴着左边起；图标轨里保留，免得整项缩成零宽而点不到 */
+  .admin-sidebar:not([data-collapsed='true']) .admin-menu-icon:empty,
+  .admin-sidebar[data-hover-expanded='true'] .admin-menu-icon:empty {
+    display: none;
+  }
+
+  .admin-menu-extra {
+    margin-inline-start: auto;
+  }
+
+  /* 折叠为图标轨：隐藏文字，只留图标 */
+  .admin-sidebar[data-collapsed='true']:not([data-hover-expanded='true']) {
+    .admin-menu-label,
+    .admin-menu-extra,
+    .admin-brand-text {
+      display: none;
+    }
+
+    .admin-menu-rail-separator {
+      display: block;
+      margin-block: 0.25rem;
+      border-top: 1px solid var(--admin-border);
+    }
+  }
+
+  .admin-sidebar[data-collapsed='true'][data-show-title='true']:not([data-hover-expanded='true']) {
+    .admin-menu-label {
+      display: block;
+      max-width: 100%;
+      font-size: 0.625rem;
+    }
+  }
+
+  .admin-menu-rail-separator {
+    display: none;
+  }
+
+  .admin-sidebar-footer {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0.25rem;
+    border-block-start: 1px solid var(--admin-border);
+  }
+
+  .admin-backdrop {
+    display: none;
+  }
+
+  /* ── 移动端：侧栏变抽屉 ── */
+  .admin-shell[data-mobile='true'] {
+    .admin-sidebar-slot {
+      position: static;
+      z-index: auto;
+      flex-basis: 0;
+      width: 0;
+    }
+
+    .admin-sidebar {
+      position: fixed;
+      inset-block: 0;
+      inset-inline-start: 0;
+      z-index: 100;
+      width: var(--admin-mobile-drawer-width);
+      transform: translateX(-100%);
+      box-shadow: none;
+    }
+
+    .admin-sidebar[data-open='true'] {
+      transform: none;
+      box-shadow: 2px 0 12px rgb(0 0 0 / 0.2);
+    }
+
+    .admin-backdrop[data-open='true'] {
+      position: fixed;
+      inset: 0;
+      z-index: 90;
+      display: block;
+      background: rgb(0 0 0 / 0.32);
+      cursor: pointer;
+    }
+  }
+
+  /* ── 顶栏 ── */
+  .admin-header {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+    height: var(--admin-header-height);
+    padding-inline: 0.75rem;
+    background: var(--color-base-100);
+    color: var(--color-base-content);
+    border-block-end: 1px solid var(--admin-border);
+  }
+
+  .admin-header-menu {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: 0.25rem;
+    min-width: 0;
+    /* 分组下拉要伸出菜单条之外：overflow-x: auto 会把 overflow-y 也算成 auto，下拉被裁掉；clip 只裁横向、不产生滚动容器 */
+    overflow-x: clip;
+    overflow-y: visible;
+  }
+
+  .admin-header[data-menu-align='center'] .admin-header-menu {
+    justify-content: center;
+  }
+
+  .admin-header-spacer {
+    flex: 1 1 auto;
+  }
+
+  .admin-widgets {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 0.125rem;
+  }
+
+  .admin-widget {
+    display: contents;
+  }
+
+  /* 窄屏：时区只留图标；更窄时隐藏次要部件（语言 / 时区 / 全屏仍可在设置抽屉与命令面板里使用），设置入口始终可达 */
+  @media (max-width: 768px) {
+    .admin-widget-text {
+      display: none;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .admin-widget[data-widget='language'],
+    .admin-widget[data-widget='timezone'],
+    .admin-widget[data-widget='fullscreen'] {
+      display: none;
+    }
+  }
+
+  .admin-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    font-size: 0.875rem;
+    list-style: none;
+  }
+
+  .admin-breadcrumb > li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .admin-breadcrumb[data-style='background'] {
+    padding: 0.125rem 0.5rem;
+    background: var(--color-base-200);
+    border-radius: var(--radius-field, 0.5rem);
+  }
+
+  .admin-breadcrumb-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    max-width: 10rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .admin-breadcrumb-sep {
+    color: var(--admin-muted);
+  }
+
+  .admin-search-trigger {
+    gap: 0.5rem;
+    min-width: 12rem;
+    justify-content: flex-start;
+    color: var(--admin-muted);
+  }
+
+  @media (max-width: 768px) {
+    .admin-search-trigger .admin-search-label,
+    .admin-search-trigger .kbd {
+      display: none;
+    }
+
+    .admin-search-trigger {
+      min-width: 0;
+    }
+
+    .admin-breadcrumb {
+      display: none;
+    }
+  }
+
+  /* ── 页签栏 ── */
+  .admin-tabbar {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 0.25rem;
+    min-width: 0;
+    padding: 0.25rem 0.5rem 0;
+    border-block-end: 1px solid var(--admin-border);
+    background: var(--color-base-100);
+  }
+
+  .admin-tabbar-scroll {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: flex-end;
+    gap: 0.25rem;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .admin-tabbar-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  .admin-tab {
+    position: relative;
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 0.375rem;
+    max-width: 12rem;
+    padding: 0.375rem 0.625rem;
+    font-size: 0.8125rem;
+    cursor: pointer;
+    user-select: none;
+    color: var(--admin-muted);
+    border-radius: var(--radius-field, 0.5rem) var(--radius-field, 0.5rem) 0 0;
+    transition: background var(--admin-motion) ease;
+  }
+
+  .admin-tab:hover {
+    background: color-mix(in oklab, var(--color-base-content) 6%, transparent);
+  }
+
+  .admin-tab[data-active='true'] {
+    color: var(--color-base-content);
+    background: var(--color-base-200);
+  }
+
+  .admin-tab[data-dragging='true'] {
+    opacity: 0.5;
+  }
+
+  .admin-tab[data-drop-target='true'] {
+    box-shadow: inset 2px 0 0 var(--color-primary);
+  }
+
+  .admin-tab-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    min-width: 0;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .admin-tab-title > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .admin-tab-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 9999px;
+    opacity: 0.6;
+  }
+
+  .admin-tab-close:hover {
+    opacity: 1;
+    background: color-mix(in oklab, var(--color-base-content) 15%, transparent);
+  }
+
+  /* 页签风格 */
+  .admin-tabbar[data-style='plain'] .admin-tab {
+    border-radius: 0;
+    border-block-end: 2px solid transparent;
+  }
+
+  .admin-tabbar[data-style='plain'] .admin-tab[data-active='true'] {
+    background: transparent;
+    border-block-end-color: var(--color-primary);
+  }
+
+  .admin-tabbar[data-style='card'] .admin-tab {
+    margin-block-end: 0.25rem;
+    border: 1px solid var(--admin-border);
+    border-radius: var(--radius-field, 0.5rem);
+  }
+
+  .admin-tabbar[data-style='card'] .admin-tab[data-active='true'] {
+    border-color: color-mix(in oklab, var(--color-primary) 50%, transparent);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.1);
+  }
+
+  .admin-tabbar[data-style='brisk'] .admin-tab {
+    margin-block-end: 0.25rem;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.75rem;
+    border-radius: var(--radius-field, 0.375rem);
+  }
+
+  .admin-context-menu {
+    position: fixed;
+    z-index: 150;
+    min-width: 11rem;
+    padding: 0.25rem;
+    background: var(--color-base-100);
+    border: 1px solid var(--admin-border);
+    border-radius: var(--radius-box, 0.5rem);
+    box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+  }
+
+  /* ── 内容区 ── */
+  .admin-content {
+    position: relative;
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .admin-page {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    width: 100%;
+    min-height: 0;
+    max-width: var(--admin-content-max-width);
+    margin-inline: auto;
+    padding: var(--admin-content-padding);
+  }
+
+  html:not([data-transition='none']) .admin-page[data-entering='true'] {
+    animation: admin-fade var(--admin-motion) ease both;
+  }
+
+  html[data-transition='fade-slide'] .admin-page[data-entering='true'] {
+    animation-name: admin-fade-slide;
+  }
+
+  html[data-transition='fade-up'] .admin-page[data-entering='true'] {
+    animation-name: admin-fade-up;
+  }
+
+  html[data-transition='fade-down'] .admin-page[data-entering='true'] {
+    animation-name: admin-fade-down;
+  }
+
+  @keyframes admin-fade {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes admin-fade-slide {
+    from {
+      opacity: 0;
+      transform: translateX(-24px);
+    }
+  }
+
+  @keyframes admin-fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+  }
+
+  @keyframes admin-fade-down {
+    from {
+      opacity: 0;
+      transform: translateY(-12px);
+    }
+  }
+
+  .admin-progress {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline: 0;
+    z-index: 120;
+    height: 2px;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .admin-progress::before {
+    content: '';
+    display: block;
+    width: 40%;
+    height: 100%;
+    background: var(--color-primary);
+    animation: admin-progress 1s ease-in-out infinite;
+  }
+
+  @keyframes admin-progress {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(260%);
+    }
+  }
+
+  .admin-loading-mask {
+    position: absolute;
+    inset: 0;
+    z-index: 110;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in oklab, var(--color-base-100) 55%, transparent);
+  }
+
+  /* ── 页脚 ── */
+  .admin-footer {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    min-height: var(--admin-footer-height);
+    padding-inline: 1rem;
+    font-size: 0.8125rem;
+    color: var(--admin-muted);
+    border-block-start: 1px solid var(--admin-border);
+    background: var(--color-base-100);
+  }
+
+  .admin-footer[data-fixed='true'] {
+    position: sticky;
+    inset-block-end: 0;
+    z-index: 10;
+  }
+
+  /* ── 水印 ── */
+  .admin-watermark {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    pointer-events: none;
+  }
+
+  /* ── 模态层：偏好抽屉 / 命令面板 / 锁屏 ── */
+  dialog.admin-drawer,
+  dialog.admin-palette,
+  dialog.admin-lock {
+    padding: 0;
+    color: var(--color-base-content);
+    background: var(--color-base-100);
+    border: 1px solid var(--admin-border);
+  }
+
+  dialog.admin-drawer::backdrop,
+  dialog.admin-palette::backdrop,
+  dialog.admin-lock::backdrop {
+    background: rgb(0 0 0 / 0.32);
+  }
+
+  dialog.admin-drawer {
+    position: fixed;
+    inset-block: 0;
+    inset-inline: auto 0;
+    width: min(100vw, 30rem);
+    max-width: 100vw;
+    height: 100%;
+    max-height: 100%;
+    margin: 0;
+    border-width: 0 0 0 1px;
+    border-radius: 0;
+    box-shadow: -8px 0 24px rgb(0 0 0 / 0.18);
+  }
+
+  dialog.admin-drawer[open] {
+    display: flex;
+    flex-direction: column;
+    animation: admin-drawer-in var(--admin-motion) ease both;
+  }
+
+  @keyframes admin-drawer-in {
+    from {
+      transform: translateX(100%);
+    }
+  }
+
+  .admin-drawer-tabs {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 5;
+    background: var(--color-base-100);
+  }
+
+  .admin-drawer-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 1rem 1.25rem;
+    overflow-y: auto;
+  }
+
+  .admin-drawer-footer {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    border-block-start: 1px solid var(--admin-border);
+  }
+
+  .admin-section + .admin-section {
+    margin-block-start: 1.5rem;
+  }
+
+  .admin-section-title {
+    margin-block-end: 0.75rem;
+    font-weight: 600;
+  }
+
+  .admin-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-block: 0.375rem;
+  }
+
+  .admin-row[data-disabled='true'] {
+    opacity: 0.5;
+  }
+
+  .admin-row-label {
+    font-size: 0.875rem;
+  }
+
+  .admin-row-hint {
+    font-size: 0.75rem;
+    color: var(--admin-muted);
+  }
+
+  .admin-row[data-stacked='true'] {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-reset-dot {
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    margin-inline-start: 0.375rem;
+    border-radius: 9999px;
+    background: var(--color-error);
+  }
+
+  /* 主题卡片：在卡片自己的 data-theme 作用域里直接取该主题的变量 */
+  .admin-theme-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+    gap: 0.75rem;
+  }
+
+  .admin-theme-card {
+    display: block;
+    padding: 0;
+    overflow: hidden;
+    text-align: start;
+    cursor: pointer;
+    color: var(--color-base-content);
+    background: var(--color-base-100);
+    border: 1px solid var(--admin-border);
+    border-radius: var(--radius-box, 0.5rem);
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+  }
+
+  .admin-theme-card[aria-pressed='true'] {
+    outline-color: var(--color-primary);
+  }
+
+  .admin-theme-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+
+  .admin-theme-swatches {
+    display: flex;
+    gap: 0.25rem;
+  }
+
+  .admin-theme-swatches i {
+    display: block;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 0.25rem;
+  }
+
+  .admin-theme-swatches i:nth-child(1) {
+    background: var(--color-primary);
+  }
+
+  .admin-theme-swatches i:nth-child(2) {
+    background: var(--color-secondary);
+  }
+
+  .admin-theme-swatches i:nth-child(3) {
+    background: var(--color-accent);
+  }
+
+  .admin-theme-swatches i:nth-child(4) {
+    background: var(--color-neutral);
+  }
+
+  /* 主色 */
+  .admin-color-dot {
+    width: 1.75rem;
+    height: 1.75rem;
+    border: 1px solid var(--admin-border);
+    border-radius: 9999px;
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+    cursor: pointer;
+  }
+
+  .admin-color-dot[aria-pressed='true'] {
+    outline-color: var(--color-base-content);
+  }
+
+  .admin-color-input {
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    cursor: pointer;
+    background: none;
+    border: 1px solid var(--admin-border);
+    border-radius: 9999px;
+  }
+
+  .admin-color-input::-webkit-color-swatch-wrapper {
+    padding: 0;
+  }
+
+  .admin-color-input::-webkit-color-swatch {
+    border: 0;
+    border-radius: 9999px;
+  }
+
+  /* 选项卡片（布局 / 页签风格 / 过渡） */
+  .admin-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .admin-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem;
+    width: 6.5rem;
+    font-size: 0.75rem;
+    cursor: pointer;
+    color: var(--admin-muted);
+    background: transparent;
+    border: 1px solid var(--admin-border);
+    border-radius: var(--radius-box, 0.5rem);
+  }
+
+  .admin-card[aria-pressed='true'] {
+    color: var(--color-base-content);
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 1px var(--color-primary);
+  }
+
+  .admin-card[aria-disabled='true'] {
+    pointer-events: none;
+  }
+
+  /* 预览示意图：纯 CSS，三端共用同一份标记 <span class="admin-preview" data-kind data-value><i></i><i></i><i></i></span> */
+  .admin-preview {
+    position: relative;
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+    background: color-mix(in oklab, var(--color-base-content) 6%, transparent);
+    border-radius: 0.25rem;
+  }
+
+  .admin-preview i {
+    position: absolute;
+    display: block;
+    background: color-mix(in oklab, var(--color-base-content) 28%, transparent);
+    border-radius: 1px;
+  }
+
+  .admin-preview[data-kind='layout'] i:nth-child(1) {
+    inset: 0 auto 0 0;
+    width: 24%;
+  }
+
+  .admin-preview[data-kind='layout'] i:nth-child(2) {
+    inset: 0 0 auto 24%;
+    height: 18%;
+    background: color-mix(in oklab, var(--color-primary) 55%, transparent);
+  }
+
+  .admin-preview[data-kind='layout'] i:nth-child(3) {
+    inset: 28% 6% 10% 30%;
+    opacity: 0.6;
+  }
+
+  .admin-preview[data-kind='layout'][data-value='header-sidebar-nav'] i:nth-child(1) {
+    inset: 18% auto 0 0;
+  }
+
+  .admin-preview[data-kind='layout'][data-value='header-sidebar-nav'] i:nth-child(2) {
+    inset: 0 0 auto 0;
+  }
+
+  .admin-preview[data-kind='layout'][data-value='header-nav'] i:nth-child(1) {
+    display: none;
+  }
+
+  .admin-preview[data-kind='layout'][data-value='header-nav'] i:nth-child(2) {
+    inset: 0 0 auto 0;
+  }
+
+  .admin-preview[data-kind='layout'][data-value='header-nav'] i:nth-child(3) {
+    inset: 28% 6% 10% 6%;
+  }
+
+  .admin-preview[data-kind='layout'][data-value='full-content'] i:nth-child(1),
+  .admin-preview[data-kind='layout'][data-value='full-content'] i:nth-child(2) {
+    display: none;
+  }
+
+  .admin-preview[data-kind='layout'][data-value='full-content'] i:nth-child(3) {
+    inset: 12% 8%;
+  }
+
+  .admin-preview[data-kind='tabbar'] i {
+    inset-block: 30% 30%;
+    width: 22%;
+  }
+
+  .admin-preview[data-kind='tabbar'] i:nth-child(1) {
+    inset-inline-start: 8%;
+    background: color-mix(in oklab, var(--color-primary) 55%, transparent);
+  }
+
+  .admin-preview[data-kind='tabbar'] i:nth-child(2) {
+    inset-inline-start: 36%;
+  }
+
+  .admin-preview[data-kind='tabbar'] i:nth-child(3) {
+    inset-inline-start: 64%;
+  }
+
+  .admin-preview[data-kind='tabbar'][data-value='plain'] i {
+    border-radius: 0;
+    inset-block: 40% 30%;
+  }
+
+  .admin-preview[data-kind='tabbar'][data-value='card'] i {
+    border-radius: 4px;
+    inset-block: 32% 32%;
+  }
+
+  .admin-preview[data-kind='tabbar'][data-value='brisk'] i {
+    border-radius: 6px;
+    inset-block: 36% 36%;
+  }
+
+  .admin-preview[data-kind='transition'] i {
+    inset: 42% 12% 42% 12%;
+    background: color-mix(in oklab, var(--color-primary) 70%, transparent);
+    animation: admin-fade var(--admin-motion) ease infinite alternate;
+  }
+
+  .admin-preview[data-kind='transition'] i:nth-child(n + 2) {
+    display: none;
+  }
+
+  .admin-preview[data-kind='transition'][data-value='fade-slide'] i {
+    animation-name: admin-fade-slide;
+  }
+
+  .admin-preview[data-kind='transition'][data-value='fade-up'] i {
+    animation-name: admin-fade-up;
+  }
+
+  .admin-preview[data-kind='transition'][data-value='fade-down'] i {
+    animation-name: admin-fade-down;
+  }
+
+  /* 部件排序 / 快捷键列表 */
+  .admin-widget-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.5rem;
+    margin-block-end: 0.375rem;
+    font-size: 0.875rem;
+    border: 1px solid var(--admin-border);
+    border-radius: var(--radius-field, 0.5rem);
+    background: var(--color-base-100);
+  }
+
+  .admin-widget-row[data-dragging='true'] {
+    opacity: 0.5;
+  }
+
+  .admin-widget-row[data-drop-target='true'] {
+    box-shadow: 0 -2px 0 var(--color-primary);
+  }
+
+  .admin-widget-handle {
+    cursor: grab;
+    color: var(--admin-muted);
+  }
+
+  /* ── 命令面板 ── */
+  dialog.admin-palette {
+    position: fixed;
+    inset-block-start: 12vh;
+    inset-inline: 0;
+    width: min(90vw, 40rem);
+    max-height: 70vh;
+    margin: 0 auto;
+    overflow: hidden;
+    border-radius: var(--radius-box, 0.75rem);
+    box-shadow: 0 16px 48px rgb(0 0 0 / 0.28);
+  }
+
+  dialog.admin-palette[open] {
+    display: flex;
+    flex-direction: column;
+    animation: admin-fade var(--admin-motion) ease both;
+  }
+
+  .admin-palette-input {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-block-end: 1px solid var(--admin-border);
+  }
+
+  .admin-palette-input input {
+    flex: 1 1 auto;
+    min-width: 0;
+    background: transparent;
+    border: 0;
+    outline: 0;
+  }
+
+  .admin-palette-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0.5rem;
+  }
+
+  .admin-palette-group {
+    padding: 0.5rem 0.5rem 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--admin-muted);
+  }
+
+  .admin-palette-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.625rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+    border-radius: var(--radius-field, 0.5rem);
+  }
+
+  /* 没有图标的条目（命令、数据记录）让文字与有图标的条目对齐：图标 16px + 间距 0.5rem */
+  .admin-palette-item > span:first-child {
+    padding-inline-start: 1.5rem;
+  }
+
+  .admin-palette-item[aria-selected='true'] {
+    background: color-mix(in oklab, var(--color-primary) 16%, transparent);
+  }
+
+  .admin-palette-item mark {
+    color: var(--color-primary);
+    background: transparent;
+    font-weight: 700;
+  }
+
+  .admin-palette-sub {
+    margin-inline-start: auto;
+    font-size: 0.75rem;
+    color: var(--admin-muted);
+  }
+
+  .admin-palette-footer {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+    color: var(--admin-muted);
+    border-block-start: 1px solid var(--admin-border);
+  }
+
+  .admin-palette-empty {
+    padding: 1.5rem 1rem;
+    text-align: center;
+    color: var(--admin-muted);
+  }
+
+  /* ── 锁屏 ── */
+  dialog.admin-lock {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    max-width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    margin: 0;
+    background: color-mix(in oklab, var(--color-base-300) 82%, transparent);
+    backdrop-filter: blur(10px);
+    border: 0;
+  }
+
+  dialog.admin-lock[open] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .admin-lock-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: min(90vw, 20rem);
+    padding: 1.5rem;
+    text-align: center;
+    background: var(--color-base-100);
+    border-radius: var(--radius-box, 0.75rem);
+    box-shadow: 0 16px 48px rgb(0 0 0 / 0.28);
+  }
+
+  .admin-lock-clock {
+    font-size: 1.875rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── 时区 / 语言菜单 ── */
+  .admin-popover-list {
+    max-height: 20rem;
+    overflow-y: auto;
+    min-width: 16rem;
+  }
+
+  .admin-popover-group {
+    padding: 0.5rem 0.75rem 0.25rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--admin-muted);
+  }
+
+  .admin-popover-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+    text-align: start;
+    cursor: pointer;
+    border-radius: var(--radius-field, 0.5rem);
+  }
+
+  .admin-popover-item:hover,
+  .admin-popover-item[aria-checked='true'] {
+    background: color-mix(in oklab, var(--color-base-content) 8%, transparent);
+  }
+
+  .admin-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+
+@layer components {
+  html:is([data-theme='material'], [data-theme='material-dark']) {
+    .admin-shell {
+      --admin-material-inset: 1rem;
+      --admin-material-gap: 1.25rem;
+      --admin-material-content-padding: 1.5rem;
+      gap: var(--admin-material-gap);
+      padding: var(--admin-material-inset);
+      background: var(--admin-background);
+    }
+
+    .admin-shell[data-mobile='true'] {
+      --admin-material-inset: 0.5rem;
+      --admin-material-gap: 0.75rem;
+      --admin-material-content-padding: 1rem;
+    }
+
+    .admin-main {
+      gap: var(--admin-material-gap);
+    }
+
+    .admin-sidebar,
+    .admin-header,
+    .admin-tabbar,
+    .admin-content,
+    .admin-footer {
+      border: 0;
+      border-radius: var(--radius-box);
+    }
+
+    .admin-sidebar:not([data-theme]) {
+      background: var(--admin-sidebar-background);
+    }
+
+    .admin-header:not([data-theme]) {
+      background: var(--admin-header-background);
+    }
+
+    .admin-content {
+      min-width: 0;
+      padding: var(--admin-material-content-padding);
+      background: var(--color-base-100);
+    }
+
+    .admin-tabbar {
+      padding-block: 0.375rem;
+    }
+
+    .admin-shell[data-mobile='true'] .admin-sidebar {
+      inset-block: var(--admin-material-inset);
+    }
+  }
+}
+
+/*
+ * 偏好抽屉页签：daisyUI 的未选中页签只有 50% 前景色，在白底上对比度不到 WCAG AA 的 4.5:1。
+ * daisyUI 的规则位于 `utilities` 的子层（utilities.daisyui…），同一父层里直属规则优先级更高，
+ * 所以这里放在 `utilities` 本层而不是 `components`（后者无论特异性多高都会输给 `utilities`）。
+ */
+@layer utilities {
+  .admin-drawer-tabs > .tab:not(.tab-active, :hover) {
+    color: var(--admin-muted);
+  }
+}
+
+/*
+ * 侧栏菜单对 daisyUI `.menu` 的覆盖。原因同上：`.menu { width: fit-content; padding: .5rem }`、
+ * 菜单项的 12px 横向内边距与圆角、子级 `ul` 的缩进都在 `utilities` 的子层里，写在 `components` 层的覆盖永远输，
+ * 结果是菜单停在文字宽度、右侧留白（拖宽侧栏也不变），图标轨里的图标偏右并被裁掉，plain 样式仍是圆角，
+ * 文字左侧留白过大。
+ */
+@layer utilities {
+  /* 菜单项直接贴着侧栏主体的内边距（4px）起，不再叠 .menu 自带的 8px */
+  .admin-menu {
+    width: 100%;
+    padding-inline: 0;
+  }
+
+  /* 菜单项（链接与分组标题）的横向内边距 12px → 8px */
+  .admin-menu :where(li > a, li > details > summary) {
+    padding-inline: 0.5rem;
+  }
+
+  /* 子级缩进 24px → 12px：引导线落在分组标题的文字起点上，子项再退 4px */
+  .admin-menu :where(li ul) {
+    margin-inline-start: 0.5rem;
+    padding-inline-start: 0.25rem;
+  }
+
+  .admin-menu[data-style='plain'] :where(li > a, li > details > summary) {
+    border-radius: 0;
+  }
+
+  /* 图标轨：菜单项占满轨道宽度、图标居中 */
+  .admin-sidebar[data-collapsed='true']:not([data-hover-expanded='true']) .admin-menu :where(li > a) {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  /* 图标轨显示标题：图标在上、小标题在下。菜单项是 grid（daisyUI），不是 flex；单列且不超过轨道宽度，过长的标题才会省略 */
+  .admin-sidebar[data-collapsed='true'][data-show-title='true']:not([data-hover-expanded='true'])
+    .admin-menu
+    :where(li > a) {
+    grid-auto-flow: row;
+    grid-auto-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 0.125rem;
+  }
+}
+
+/*
+ * 页签右键菜单：daisyUI 的 `.menu { width: fit-content }` 让 `<ul>` 停在文字宽度，
+ * 菜单项 hover 高亮只包住文字、撑不满 `.admin-context-menu` 的 min-width。覆盖为占满容器。
+ */
+@layer utilities {
+  .admin-context-menu .menu {
+    width: 100%;
+  }
+}
+
+/*
+ * 窄屏隐藏搜索按钮上的键帽（手机没有键盘）：daisyUI 的 `.kbd { display: inline-flex }` 同样在 utilities 的子层里，
+ * 写在 components 层的 display: none 压不过它。
+ */
+@layer utilities {
+  @media (max-width: 768px) {
+    .admin-search-trigger .kbd {
+      display: none;
+    }
+  }
+}

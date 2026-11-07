@@ -20,11 +20,11 @@ tags: [domain, admin-framework, workbench, rxdb-model, e2e]
 
 ## 交付阶段
 
-| 阶段 | 内容                                                                                                                                 | 状态 |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------ | ---- |
-| A    | 应用壳 `apps/dev-rxdb-admin`：预置有关联的实体 schema + 会持续维护的轻量数据场景（非演示种子）、实体可见性声明、列表与详情构成的导航 | ✅   |
-| B    | CRUD 接线：创建 / 编辑 / 删除、校验反馈、查询筛选；加载 / 失败 / 空态                                                                | ✅   |
-| C    | 本地持久化（刷新 / 重开继续编辑）+ `apps/dev-rxdb-admin-e2e` 端到端组合验收                                                          | ✅   |
+| 阶段 | 内容                                                                                                                                            | 状态 |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| A    | 应用壳 `apps/rxdb-admin-template-react`：预置有关联的实体 schema + 会持续维护的轻量数据场景（非演示种子）、实体可见性声明、列表与详情构成的导航 | ✅   |
+| B    | CRUD 接线：创建 / 编辑 / 删除、校验反馈、查询筛选；加载 / 失败 / 空态                                                                           | ✅   |
+| C    | 本地持久化（刷新 / 重开继续编辑）+ `apps/rxdb-admin-template-react-e2e` 端到端组合验收                                                          | ✅   |
 
 阶段归属：A 关闭 AC#1 / #2；B 关闭 AC#3～#6；C 关闭 AC#7 / #8。
 
@@ -41,7 +41,7 @@ tags: [domain, admin-framework, workbench, rxdb-model, e2e]
   角色 / owner / 行级隔离
 - 加载、失败与空态在列表 / 详情 / 表单上都有可断言的呈现
 - 本地持久化走已验证的浏览器本地适配器，刷新与关闭重开后数据仍在、可继续编辑
-- 组合验收在 `apps/dev-rxdb-admin-e2e` 以端到端用例关闭（domain/ 目录硬约束，见 [CONVENTIONS](../../CONVENTIONS.md)）
+- 组合验收在 `apps/rxdb-admin-template-react-e2e` 以端到端用例关闭（domain/ 目录硬约束，见 [CONVENTIONS](../../CONVENTIONS.md)）
 
 ### Out of Scope
 
@@ -96,13 +96,13 @@ sqlite-wasm 而非 wa-sqlite 是第二个硬约束：全文搜索需要 FTS5，�
 
 ## 实现文件
 
-- `apps/dev-rxdb-admin/` — 工作台应用（壳、预置 schema、导航、CRUD 接线、持久化；`@aiao/rxdb-devtools` 经 `getDevToolsConnector` 接线）
-- `apps/dev-rxdb-admin-e2e/` — 已交付；端到端组合验收（domain/ 目录硬约束的领域测试应用）
+- `apps/rxdb-admin-template-react/` — 工作台应用（壳、预置 schema、导航、CRUD 接线、持久化；`@aiao/rxdb-devtools` 经 `getDevToolsConnector` 接线）
+- `apps/rxdb-admin-template-react-e2e/` — 已交付；端到端组合验收（domain/ 目录硬约束的领域测试应用）
 
 ## References
 
 - [合入 PR #152](https://github.com/aiao-io/rxdb/pull/152)
-- [工作台组合验收](../../../apps/dev-rxdb-admin-e2e/src/workbench.spec.ts) — AC#1～#8 的导航、CRUD、校验、关联筛选、刷新重开与失败反馈
+- [工作台组合验收](../../../apps/rxdb-admin-template-react-e2e/src/workbench.spec.ts) — AC#1～#8 的导航、CRUD、校验、关联筛选、刷新重开与失败反馈
 - [epic-010 模型驱动后台管理框架](../../epics/epic-010-model-driven-admin-framework.md)
 - [admin-framework 候选分析](../../domain-research/admin-framework.md) — 设计依据（孵化即冻结；首版边界与成功信号见其「首版边界与验收」）
 - [US-527 工作台备份恢复闭环](US-527-admin-backup-restore.md) · [US-528 独立消费接入示例](US-528-admin-consumer-example.md)

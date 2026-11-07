@@ -1,0 +1,52 @@
+@if (layout().showSidebar) {
+  <div class="admin-sidebar-slot">
+    <aside
+      class="admin-sidebar"
+      id="admin-sidebar"
+      [attr.aria-label]="t('layout.navigation')"
+      [attr.data-collapsed]="collapsed()"
+      [attr.data-hover-expanded]="hoverExpanded()"
+      [attr.data-open]="ui().drawerOpen"
+      [attr.data-show-title]="prefs().sidebar.collapsedShowTitle"
+      [attr.data-theme]="semiDark()"
+      (mouseenter)="hoverIn()"
+      (mouseleave)="hoverOut()"
+      data-testid="admin-sidebar"
+    >
+      @if (!layout().brandInHeader) {
+        <rxdb-admin-brand [icon]="brandIcon()" />
+      }
+      <div class="admin-sidebar-body">
+        <rxdb-admin-menu-tree [extra]="menuExtra()" [nodes]="menu()" [rail]="rail()" />
+      </div>
+      @if (!mobile()) {
+        <div class="admin-sidebar-footer">
+          <button
+            class="btn btn-ghost btn-sm btn-square"
+            [attr.aria-expanded]="!collapsed()"
+            [attr.aria-label]="collapsed() ? t('layout.expand') : t('layout.collapse')"
+            (click)="shell.toggleSidebar()"
+            aria-controls="admin-sidebar"
+            data-testid="admin-sidebar-toggle"
+            type="button"
+          >
+            @if (collapsed()) {
+              <svg [lucideIcon]="PanelLeftOpen" [size]="16"></svg>
+            } @else {
+              <svg [lucideIcon]="PanelLeftClose" [size]="16"></svg>
+            }
+          </button>
+        </div>
+      }
+      @if (prefs().sidebar.draggable && !collapsed() && !mobile()) {
+        <rxdb-admin-sidebar-resizer />
+      }
+    </aside>
+  </div>
+  <div
+    class="admin-backdrop"
+    [attr.data-open]="ui().drawerOpen"
+    (click)="shell.ui.setDrawer(false)"
+    aria-hidden="true"
+  ></div>
+}

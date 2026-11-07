@@ -30,6 +30,9 @@ import {
   cn,
   entityToFormData,
   formDataToEntityChanges,
+  localizeEntityFormFields,
+  localizeEntityMetadata,
+  refreshFormValidationResult,
   validateForm
 } from '@aiao/rxdb-model';
 import { useHasRxDBProvider, useRxDBOptional } from '@aiao/rxdb-react';
@@ -301,15 +304,20 @@ export function EntityDetail({
 
   const [activeTabKey, setActiveTabKey] = useState('basic');
 
-  const metadataValue: EntityMetadata | undefined = metadata ?? (entityCls ? getEntityMetadata(entityCls) : undefined);
+  const metadataValue = useMemo<EntityMetadata | undefined>(() => {
+    void t;
+    const source = metadata ?? (entityCls ? getEntityMetadata(entityCls) : undefined);
+    return source ? localizeEntityMetadata(source, modelI18n) : undefined;
+  }, [metadata, entityCls, modelI18n, t]);
 
   const formFieldsValue: FormFieldConfig[] = useMemo(() => {
     t('common.actions');
 
-    const fields =
+    const sourceFields =
       formFields ??
       (entityCls && metadataValue ? buildFormFields(metadataValue, formModeValue, modelI18n) : undefined) ??
       [];
+    const fields = metadataValue ? localizeEntityFormFields(metadataValue, sourceFields, modelI18n) : sourceFields;
     const fixed = fixedFormData;
     if (!fixed) return fields;
     return fields.map(f => (f.field in fixed ? { ...f, readonly: true } : f));
@@ -328,6 +336,8 @@ export function EntityDetail({
     const fixed = fixedFormData;
     return fixed ? { ...base, ...fixed } : base;
   }, [isCreateMode, isCreatePending, draftFormData, fixedFormData, entityInstance, formFieldsValue, formData]);
+
+  const displayedFormErrors = formErrors ? refreshFormValidationResult(formErrors, formFieldsValue, modelI18n) : null;
 
   /** 弹框标题。 */
   const dialogTitle = (() => {
@@ -396,10 +406,10 @@ export function EntityDetail({
     [onValidationErrors]
   );
 
-  /** 落库失败：可读原因进错误面板（不再只进 console，US-104）。 */
+  /** 落库失败：保留引擎错误原文，显示前按当前语言加前缀（US-104）。 */
   const saveErrorMessage = useCallback(
-    (error: unknown): string => t('text.6ba723c9e6', { p0: error instanceof Error ? error.message : String(error) }),
-    [t]
+    (error: unknown): string => (error instanceof Error ? error.message : String(error)),
+    []
   );
 
   /** 切 tab：create 模式切到关系 tab 前先校验界面上的数据并同步草稿（Angular / Vue 侧同语义）。 */
@@ -645,12 +655,12 @@ export function EntityDetail({
             data-testid='entity-detail-errors'
             role='alert'
           >
-            {formErrors?.errors.map(error => (
+            {displayedFormErrors?.errors.map(error => (
               <span className='text-error' key={`${error.field}:${error.message}`}>
                 {error.message}
               </span>
             ))}
-            {saveError !== null && <span className='text-error'>{saveError}</span>}
+            {saveError !== null && <span className='text-error'>{t('text.6ba723c9e6', { p0: saveError })}</span>}
             {loadError !== null && <span className='text-error'>{loadError}</span>}
           </div>
         )}

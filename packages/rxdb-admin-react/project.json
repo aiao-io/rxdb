@@ -1,0 +1,12 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "rxdb-admin-react",
+  "projectType": "library",
+  "sourceRoot": "packages/rxdb-admin-react/src",
+  "tags": ["react-lib"],
+  "targets": {
+    "typecheck": {
+      "dependsOn": ["build", "^typecheck"]
+    }
+  }
+}

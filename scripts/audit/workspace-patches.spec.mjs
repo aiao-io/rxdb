@@ -49,14 +49,14 @@ test('YAML 注释不影响解析：段头行尾注释、段内注释行、条目
     '  # 编译器崩溃的回退',
     '  typescript@6.0.3: patches/typescript@6.0.3.patch # 上游未修',
     '# 顶格注释也属于注释',
-    "  '@tarojs/vite-runner@4.3.1': patches/@tarojs__vite-runner@4.3.1.patch",
+    "  '@tarojs/vite-runner@4.3.2': patches/@tarojs__vite-runner@4.3.2.patch",
     'overrides:',
     '  qs: ^6.16.0'
   ].join('\n');
 
   assert.deepEqual(
     parsePatchedDependencies(yaml).map(entry => entry.key),
-    ['typescript@6.0.3', '@tarojs/vite-runner@4.3.1']
+    ['typescript@6.0.3', '@tarojs/vite-runner@4.3.2']
   );
 });
 

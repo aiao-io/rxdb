@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="utf-8" />
+    <title>RxDB P2P</title>
+    <base href="/" />
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
+    <meta content="Local-first P2P file sharing demo for @aiao/rxdb-plugin-p2p" name="description" />
+    <!-- Worker 下发的公开配置（Supabase 地址与 anon key），必须先于应用脚本加载 -->
+    <script src="/app-config.js"></script>
+    <!-- wa-sqlite 的 wasm 在 worker 启动后才串行请求，预取让它与页面资源并行下载 -->
+    <link as="fetch" crossorigin href="/wa-sqlite/wa-sqlite.wasm" rel="preload" />
+  </head>
+  <body>
+    <app-root></app-root>
+  </body>
+</html>

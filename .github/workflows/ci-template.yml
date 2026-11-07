@@ -1161,7 +1161,7 @@ jobs:
   # 所以这个 job 和 test/e2e 一样需要 chromium —— 旧流程里它和别的任务同 job，
   # 白蹭了前面装好的浏览器，拆出来后必须自己装。
   #
-  # bench-working-tree 同住这个 job：它是纯 Node（PGlite）跑分，一个浏览器都不要，但触发
+  # bench-working-tree-ci 同住这个 job：它是纯 Node（PGlite）跑分，一个浏览器都不要，但触发
   # 条件与 search-ci 逐字相同（need_benchmark），单开一个 job 只会把同一份 setup-workspace
   # 与 nx-cache-restore 再付一遍。它是 epic-006「性能预算的口径」指定的**普通 PR CI
   # 唯一硬门禁**：拿与本 runner 同比值画像（系统/架构 + CPU 型号 + Node 主版本）的 reference 比相对
@@ -1174,6 +1174,8 @@ jobs:
   # 在同一次运行里自比，比值超过 1.2 即失败；另量已有树里新建单个节点，中位数超过 100 ms 即失败（SC-004 的两条判据）。
   # 它不依赖冻结的 reference，换 CPU 型号也不会报环境不匹配。
   #
+  # 工作树基准跑三次独立进程，逐项取 median ratio；每次保留 5 次预热和 50 次采样。
+  # 60 分钟预算覆盖三轮 fixture 初始化、测量和前置构建。
   # 几个 target 走一次 run-many 而不是分成几个 step：串成几步的话，前一个红了
   # 后面的就不跑了，而一轮 CI 本该同时看到全部结论。run-many 默认不 bail。
   benchmark:
@@ -1181,7 +1183,7 @@ jobs:
     needs: setup
     if: needs.setup.outputs.need_benchmark == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     env:
       NX_NO_CLOUD: ${{ needs.setup.outputs.nx_no_cloud }}
     steps:
@@ -1193,9 +1195,19 @@ jobs:
       - uses: ./.github/actions/playwright-chromium
       - uses: ./.github/actions/build-task-prerequisites
         with:
-          targets: search-ci,bench-working-tree,bench-sortable-batch
+          targets: search-ci,bench-working-tree-ci,bench-sortable-batch
           projects: benchmarks
-      - run: pnpm exec nx run-many -t search-ci bench-working-tree bench-sortable-batch -p benchmarks --output-style=stream --parallel=1
+      - run: pnpm exec nx run-many -t search-ci bench-working-tree-ci bench-sortable-batch -p benchmarks --output-style=stream --parallel=1
+
+      - name: Upload benchmark reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: benchmark-reports
+          path: |
+            benchmarks/reports/working-tree-latest.json
+            benchmarks/reports/rxdb-plugin-search-latest.json
+          retention-days: 7
 
   # ---------------------------------------------------------------------------
   # 覆盖率汇总：把各 lane 的 artifact 合回一个 coverage/ 目录，跑阈值门禁 + 上报 Codecov。

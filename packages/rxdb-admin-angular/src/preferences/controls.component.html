@@ -1,0 +1,116 @@
+@let spec = row().control;
+@switch (spec.kind) {
+  @case ('switch') {
+    <input
+      class="toggle toggle-sm"
+      [attr.data-testid]="'pref-' + row().path"
+      [attr.id]="'prefs-' + row().id"
+      [checked]="row().value === true"
+      [disabled]="!row().enabled"
+      (change)="onSwitch($event)"
+      type="checkbox"
+    />
+  }
+  @case ('select') {
+    <select
+      class="select select-sm w-56"
+      [attr.data-testid]="'pref-' + row().path"
+      [attr.id]="'prefs-' + row().id"
+      [disabled]="!row().enabled"
+      (change)="onValue($event)"
+    >
+      @for (option of spec.options; track option.value) {
+        <option [selected]="option.value === text()" [value]="option.value">{{ option.label }}</option>
+      }
+    </select>
+  }
+  @case ('segmented') {
+    <span class="join" [attr.aria-label]="row().label" role="group">
+      @for (option of spec.options; track option.value) {
+        <button
+          class="btn btn-xs join-item"
+          [attr.aria-pressed]="row().value === option.value"
+          [attr.data-testid]="'pref-' + row().path + '-' + (option.value || 'default')"
+          [class.btn-primary]="row().value === option.value"
+          [disabled]="!row().enabled"
+          [textContent]="option.label"
+          (click)="row().set(option.value)"
+          type="button"
+        ></button>
+      }
+    </span>
+  }
+  @case ('cards') {
+    <div class="admin-cards" [attr.aria-label]="row().label" role="group">
+      @for (option of spec.options; track option.value) {
+        <button
+          class="admin-card"
+          [attr.aria-disabled]="!row().enabled"
+          [attr.aria-pressed]="row().value === option.value"
+          [attr.data-testid]="'pref-' + row().path + '-' + option.value"
+          (click)="row().enabled && row().set(option.value)"
+          type="button"
+        >
+          <span
+            class="admin-preview"
+            [attr.data-kind]="spec.preview"
+            [attr.data-value]="option.value"
+            aria-hidden="true"
+          >
+            <i></i>
+            <i></i>
+            <i></i>
+          </span>
+          {{ option.label }}
+        </button>
+      }
+    </div>
+  }
+  @case ('number') {
+    <rxdb-admin-number-control [control]="spec" [row]="row()" />
+  }
+  @case ('text') {
+    <rxdb-admin-text-control [placeholder]="spec.placeholder" [row]="row()" />
+  }
+  @case ('color') {
+    <span class="flex flex-wrap items-center gap-2" [attr.aria-label]="row().label" role="group">
+      @for (color of spec.presets; track color) {
+        <button
+          class="admin-color-dot"
+          [attr.aria-label]="color"
+          [attr.aria-pressed]="text().toLowerCase() === color"
+          [style.background-color]="color"
+          (click)="row().set(color)"
+          data-testid="pref-color-preset"
+          type="button"
+        ></button>
+      }
+      <input
+        class="admin-color-input"
+        [attr.aria-label]="row().label"
+        [value]="text() || '#167bff'"
+        (input)="onValue($event)"
+        data-testid="pref-color-input"
+        type="color"
+      />
+      @if (text() !== '') {
+        <button
+          class="btn btn-ghost btn-xs"
+          [textContent]="t('prefs.reset')"
+          (click)="row().set('')"
+          data-testid="pref-color-reset"
+          type="button"
+        ></button>
+      }
+    </span>
+  }
+  @case ('themes') {
+    <rxdb-admin-theme-grid [row]="row()" />
+  }
+  @case ('widgets') {
+    <rxdb-admin-widget-list />
+  }
+  @case ('shortcuts') {
+    <rxdb-admin-shortcut-list />
+  }
+}

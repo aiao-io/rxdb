@@ -31,6 +31,7 @@ import {
   handleTableKeydown,
   isReadonly,
   isDocumentDarkMode,
+  observeDocumentTheme,
   patchDragIconForReadonlyRows,
   readRowMove,
   restoreTableRecords,
@@ -122,9 +123,7 @@ let selectedCell: { col: number; row: number } | null = null;
 let containerKeydownHandler: ((e: KeyboardEvent) => void) | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let containerEl: HTMLElement | null = null;
-let themeObserver: MutationObserver | null = null;
-let prefersDarkQuery: MediaQueryList | null = null;
-let prefersDarkListener: (() => void) | null = null;
+let stopObservingTheme: (() => void) | null = null;
 
 const detectedDarkMode = ref(false);
 const clipboard = new TableClipboardManager();
@@ -136,26 +135,12 @@ const syncDetectedDarkMode = (): void => {
   detectedDarkMode.value = isDocumentDarkMode();
 };
 
+/** data-theme / 内联样式 / 系统明暗任一变化都重绘（不只在明暗翻转时） */
 const observeThemeChanges = (): void => {
-  if (typeof MutationObserver !== 'undefined') {
-    themeObserver = new MutationObserver(() => syncDetectedDarkMode());
-    themeObserver.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['data-theme']
-    });
-  }
-
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-    return;
-  }
-
-  prefersDarkQuery = window.matchMedia('(prefers-color-scheme: dark)');
-  prefersDarkListener = (): void => {
-    if (!document.documentElement.hasAttribute('data-theme')) {
-      syncDetectedDarkMode();
-    }
-  };
-  prefersDarkQuery.addEventListener('change', prefersDarkListener);
+  stopObservingTheme = observeDocumentTheme(() => {
+    syncDetectedDarkMode();
+    redrawTheme();
+  });
 };
 
 const initTable = (container: HTMLElement): void => {
@@ -383,13 +368,8 @@ watch([() => props.isDarkMode, detectedDarkMode], () => {
 
 onBeforeUnmount(() => {
   tooltip.cleanup();
-  themeObserver?.disconnect();
-  themeObserver = null;
-  if (prefersDarkQuery && prefersDarkListener) {
-    prefersDarkQuery.removeEventListener('change', prefersDarkListener);
-  }
-  prefersDarkQuery = null;
-  prefersDarkListener = null;
+  stopObservingTheme?.();
+  stopObservingTheme = null;
   if (containerKeydownHandler) {
     containerEl?.removeEventListener('keydown', containerKeydownHandler);
     containerKeydownHandler = null;

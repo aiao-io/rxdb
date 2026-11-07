@@ -1,0 +1,91 @@
+@import 'tailwindcss';
+
+@plugin 'daisyui' {
+  themes:
+    light --default,
+    dark --prefersdark;
+}
+
+@source './app/';
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background: var(--color-base-200);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+.card {
+  border: 1px solid var(--color-base-300);
+  box-shadow: none;
+}
+.btn {
+  font-weight: 500;
+}
+.nav-active {
+  background: var(--color-primary);
+  color: var(--color-primary-content);
+}
+.step-number {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--color-base-200);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+.skip-link {
+  position: fixed;
+  z-index: 10;
+  top: 0.5rem;
+  left: 0.5rem;
+  transform: translateY(-200%);
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  background: var(--color-base-100);
+}
+.skip-link:focus {
+  transform: none;
+}
+summary {
+  list-style-position: inside;
+}
+button,
+a,
+input,
+select,
+summary {
+  outline-offset: 3px;
+}
+
+@media (max-width: 639px) {
+  .shared-files-table,
+  .shared-files-table tbody {
+    display: block;
+    width: 100%;
+  }
+  .shared-files-table thead {
+    display: none;
+  }
+  .shared-files-table tbody tr {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    border-top: 1px solid var(--color-base-200);
+    padding: 1.25rem 0;
+  }
+  .shared-files-table td {
+    min-width: 0;
+    max-width: none;
+    padding: 0;
+  }
+  .shared-files-table .file-actions {
+    justify-content: flex-start;
+  }
+}

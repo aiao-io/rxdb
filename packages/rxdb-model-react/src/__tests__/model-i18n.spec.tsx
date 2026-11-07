@@ -1,6 +1,9 @@
+import { getEntityMetadata } from '@aiao/rxdb';
+import { I18n } from '@aiao/rxdb-i18n';
 import { I18nProvider } from '@aiao/rxdb-i18n-react';
-import { buildPropertyColumn, defaultModelI18n, formatDateValue } from '@aiao/rxdb-model';
-import { cleanup, renderHook } from '@testing-library/react';
+import { buildPropertyColumn, defaultModelI18n, formatDateValue, localizeEntityMetadata } from '@aiao/rxdb-model';
+import { Todo } from '@aiao/rxdb-test/entities';
+import { act, cleanup, renderHook } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { useModelI18n } from '../i18n';
@@ -43,5 +46,32 @@ describe('模型 React 的默认格式兼容', () => {
     expect(numberValue(runtime)).toBe(new Intl.NumberFormat(defaultModelI18n.locale).format(1234567.89));
     hook.rerender();
     expect(hook.result.current.runtime).toBe(runtime);
+  });
+});
+
+describe('显示目录的 React 响应式绑定', () => {
+  it('首次缺失目录后新增翻译和切语言都更新显示元数据', async () => {
+    const metadata = getEntityMetadata(Todo);
+    const key = `entity.${metadata.namespace}.${metadata.name}.displayName`;
+    const runtime = new I18n({ locale: 'en' });
+    const wrapper = ({ children }: { children: ReactNode }) => <I18nProvider value={runtime}>{children}</I18nProvider>;
+    const hook = renderHook(
+      () => {
+        const binding = useModelI18n();
+        return localizeEntityMetadata(metadata, binding.runtime).displayName;
+      },
+      { wrapper }
+    );
+    expect(hook.result.current).toBe(metadata.displayName);
+    await act(async () => {
+      runtime.registerCatalog({ locale: 'en', namespace: 'rxdb-model', messages: { [key]: 'Tasks' } });
+      runtime.registerCatalog({ locale: 'zh-Hans', namespace: 'rxdb-model', messages: { [key]: '任务' } });
+    });
+    expect(hook.result.current).toBe('Tasks');
+    await act(() => runtime.setLocale('zh-Hans'));
+    expect(hook.result.current).toBe('任务');
+    expect(metadata.displayName).not.toBe('Tasks');
+    hook.unmount();
+    runtime.destroy();
   });
 });

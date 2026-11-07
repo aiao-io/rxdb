@@ -527,7 +527,7 @@ defineExpose({
             :placeholder="field.placeholder ?? '#rrggbb'"
             :value="displayInputValue(field)"
             type="text"
-            @change="onFieldChange(field, ($event.target as HTMLInputElement).value)"
+            @input="onFieldChange(field, ($event.target as HTMLInputElement).value)"
           />
         </div>
         <textarea
@@ -535,7 +535,7 @@ defineExpose({
           class="textarea min-h-16"
           :placeholder="field.placeholder ?? ''"
           :value="displayInputValue(field)"
-          @change="onFieldChange(field, ($event.target as HTMLTextAreaElement).value)"
+          @input="onFieldChange(field, ($event.target as HTMLTextAreaElement).value)"
         />
         <input
           v-else

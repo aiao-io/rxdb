@@ -6,6 +6,8 @@ import { modelMessages } from './messages.js';
 export interface ModelI18n {
   /** 解析命名空间中的消息。 */
   t(key: string, params?: Record<string, unknown>, namespace?: string): string;
+  /** 检查目录中是否存在文案，不记录缺失诊断。 */
+  resolve?(key: string, namespace?: string): { readonly value?: string };
   /** 目录和语言变化通知。 */
   readonly changes$?: Observable<unknown>;
   /** 使用当前语言格式化日期。 */

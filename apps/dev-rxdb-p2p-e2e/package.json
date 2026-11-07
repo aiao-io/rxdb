@@ -1,0 +1,14 @@
+{
+  "name": "@aiao/dev-rxdb-p2p-e2e",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "//": "验收夹具的两端（桌面 Node 进程、浏览器夹具页）都直接运行 P2P 包的构建产物，所以声明为依赖。",
+  "dependencies": {
+    "@aiao/rxdb": "workspace:*",
+    "@aiao/rxdb-plugin-p2p": "workspace:*"
+  },
+  "nx": {
+    "name": "dev-rxdb-p2p-e2e"
+  }
+}

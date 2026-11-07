@@ -38,6 +38,15 @@
       "port": 3000
     },
     {
+      "name": "rxdb-admin-template-react",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "pnpm nx serve rxdb-admin-template-react --port=${PORT:-5173}"
+      ],
+      "autoPort": true
+    },
+    {
       "name": "dev-rxdb-angular-e2e-static",
       "runtimeExecutable": "node",
       "runtimeArgs": [

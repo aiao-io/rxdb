@@ -1,11 +1,12 @@
 // @vitest-environment happy-dom
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createTheme,
   getCSSVariables,
   getCSSVariableValue,
   getDefaultColors,
-  isDocumentDarkMode
+  isDocumentDarkMode,
+  observeDocumentTheme
 } from '../../../entity-table/vtable/table-theme.js';
 
 describe('getDefaultColors', () => {
@@ -133,6 +134,102 @@ describe('isDocumentDarkMode', () => {
       writable: true,
       value: originalMatchMedia
     });
+  });
+});
+
+describe('isDocumentDarkMode：按 color-scheme 识别任意主题', () => {
+  const withScheme = (colorScheme: string, run: () => void): void => {
+    const spy = vi.spyOn(window, 'getComputedStyle').mockReturnValue({ colorScheme } as CSSStyleDeclaration);
+    try {
+      run();
+    } finally {
+      spy.mockRestore();
+      document.documentElement.removeAttribute('data-theme');
+    }
+  };
+
+  it('名字不是 dark 的深色主题（dracula）也判为暗色', () => {
+    document.documentElement.setAttribute('data-theme', 'dracula');
+    withScheme('dark', () => expect(isDocumentDarkMode()).toBe(true));
+  });
+
+  it('名字不是 light 的浅色主题（cupcake）判为亮色，即使系统是暗色', () => {
+    document.documentElement.setAttribute('data-theme', 'cupcake');
+    const originalMatchMedia = window.matchMedia;
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: vi.fn().mockReturnValue({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })
+    });
+    withScheme('light', () => expect(isDocumentDarkMode()).toBe(false));
+    Object.defineProperty(window, 'matchMedia', { configurable: true, writable: true, value: originalMatchMedia });
+  });
+
+  it('only dark / only light 同样识别；light dark（两者皆可）继续看 data-theme', () => {
+    withScheme('only dark', () => expect(isDocumentDarkMode()).toBe(true));
+    withScheme('only light', () => expect(isDocumentDarkMode()).toBe(false));
+    document.documentElement.setAttribute('data-theme', 'dark');
+    withScheme('light dark', () => expect(isDocumentDarkMode()).toBe(true));
+  });
+});
+
+describe('observeDocumentTheme', () => {
+  const root = document.documentElement;
+
+  afterEach(() => {
+    root.removeAttribute('data-theme');
+    root.style.removeProperty('--color-primary');
+  });
+
+  it('data-theme 在任意两个主题之间切换都会通知（不要求明暗翻转）', async () => {
+    const onChange = vi.fn();
+    const stop = observeDocumentTheme(onChange);
+    root.setAttribute('data-theme', 'light');
+    await vi.waitFor(() => expect(onChange).toHaveBeenCalledTimes(1));
+    root.setAttribute('data-theme', 'cupcake');
+    await vi.waitFor(() => expect(onChange).toHaveBeenCalledTimes(2));
+    stop();
+  });
+
+  it('内联样式变化（运行时覆盖主色）会通知', async () => {
+    const onChange = vi.fn();
+    const stop = observeDocumentTheme(onChange);
+    root.style.setProperty('--color-primary', '#ff0000');
+    await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
+    stop();
+  });
+
+  it('停止后不再通知', async () => {
+    const onChange = vi.fn();
+    observeDocumentTheme(onChange)();
+    root.setAttribute('data-theme', 'dark');
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('系统明暗变化：没有显式 data-theme 时通知，有则忽略；停止时移除监听', () => {
+    let listener: (() => void) | undefined;
+    const removeEventListener = vi.fn();
+    const originalMatchMedia = window.matchMedia;
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: vi.fn().mockReturnValue({
+        matches: false,
+        addEventListener: (_: string, next: () => void) => (listener = next),
+        removeEventListener
+      })
+    });
+    const onChange = vi.fn();
+    const stop = observeDocumentTheme(onChange);
+    listener?.();
+    expect(onChange).toHaveBeenCalledTimes(1);
+    root.setAttribute('data-theme', 'dark');
+    listener?.();
+    expect(onChange).toHaveBeenCalledTimes(1);
+    stop();
+    expect(removeEventListener).toHaveBeenCalledWith('change', listener);
+    Object.defineProperty(window, 'matchMedia', { configurable: true, writable: true, value: originalMatchMedia });
   });
 });
 
