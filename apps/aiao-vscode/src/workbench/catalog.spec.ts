@@ -193,8 +193,9 @@ describe('OPFS 项目布局', () => {
   it('用户偏好独立于项目会话持久化', async () => {
     const catalog = createProjectCatalog();
     expect(await catalog.getPreferences()).toBeNull();
-    await catalog.putPreferences({ indentUnit: '    ', alwaysShowScmActions: true });
-    expect(await createProjectCatalog().getPreferences()).toEqual({ indentUnit: '    ', alwaysShowScmActions: true });
+    const preferences = { indentUnit: '    ', alwaysShowScmActions: true, runtime: 'vivari' as const };
+    await catalog.putPreferences(preferences);
+    expect(await createProjectCatalog().getPreferences()).toEqual(preferences);
     expect(await catalog.getState('one')).toBeNull();
   });
 

@@ -4,6 +4,7 @@ import type { WorkbenchCompiler } from './compiler-client.js';
 import type { WorkbenchEditorMount } from './editor.js';
 import { mountWorkbench, type WorkbenchHandle } from './mount.js';
 import type { WorkbenchBackend, WorkbenchFiles } from './session.js';
+import type { WorkbenchPreferences } from './workbench-state.js';
 
 const terminal = vi.hoisted(() => ({
   show: vi.fn(async () => undefined),
@@ -26,7 +27,7 @@ afterEach(() => {
 });
 
 const files: WorkbenchFiles = { 'src/main.ts': 'console.log(1)', 'src/label.ts': 'export const label = 1;' };
-function fixture() {
+function fixture(preferences: WorkbenchPreferences | null = null) {
   let currentFiles: WorkbenchFiles = { ...files };
   let revision = 1;
   const backend: WorkbenchBackend = {
@@ -87,7 +88,7 @@ function fixture() {
     getState: vi.fn(async () => null),
     putState: vi.fn(async () => undefined),
     getLayout: vi.fn(async () => null),
-    getPreferences: vi.fn(async () => null),
+    getPreferences: vi.fn(async () => preferences),
     putPreferences: vi.fn(async () => undefined),
     putLayout: vi.fn(async () => undefined)
   };
@@ -95,7 +96,7 @@ function fixture() {
   document.body.append(host);
   const handle = mountWorkbench(host, { backend, compiler, catalog, initialProjectId: 'one' }, mountEditor);
   instances.push(handle);
-  return { host, handle, backend, compiler };
+  return { host, handle, backend, compiler, catalog };
 }
 
 async function runButton(host: HTMLElement): Promise<HTMLButtonElement> {
@@ -176,5 +177,56 @@ describe('顶部运行启动当前项目终端', () => {
     await vi.waitFor(() => expect(host.textContent).toContain('项目启动失败'));
     (await runButton(host)).click();
     await vi.waitFor(() => expect(terminal.runProject).toHaveBeenCalledTimes(2));
+  });
+});
+
+describe('运行方式', () => {
+  it('选即时编译（esbuild-wasm）时运行只刷新本地项目预览，不启动终端', async () => {
+    const { host, handle, compiler } = fixture({
+      indentUnit: '  ',
+      alwaysShowScmActions: false,
+      runtime: 'esbuild-wasm'
+    });
+    await handle.ready;
+    const button = await runButton(host);
+    vi.mocked(compiler.compile).mockClear();
+    button.click();
+    await vi.waitFor(() => expect(compiler.compile).toHaveBeenCalled());
+    expect(terminal.runProject).not.toHaveBeenCalled();
+  });
+
+  it('地址参数 ?runtime= 只覆盖当前页面，不写回设置', async () => {
+    window.history.replaceState(null, '', '/?runtime=esbuild-wasm');
+    try {
+      const { host, handle, compiler, catalog } = fixture();
+      await handle.ready;
+      const button = await runButton(host);
+      vi.mocked(compiler.compile).mockClear();
+      button.click();
+      await vi.waitFor(() => expect(compiler.compile).toHaveBeenCalled());
+      expect(terminal.runProject).not.toHaveBeenCalled();
+      expect(catalog.putPreferences).not.toHaveBeenCalledWith(expect.objectContaining({ runtime: 'esbuild-wasm' }));
+    } finally {
+      window.history.replaceState(null, '', '/');
+    }
+  });
+
+  it('设置里切换运行方式会停止当前终端并保存', async () => {
+    const { host, handle, catalog } = fixture();
+    await handle.ready;
+    host.querySelector<HTMLButtonElement>('[data-action="settings"]')?.click();
+    const dialog = await vi.waitFor(() => {
+      const candidate = host.querySelector<HTMLDialogElement>('dialog[aria-label="设置"]');
+      if (!candidate) throw new Error('设置对话框缺失');
+      return candidate;
+    });
+    const select = dialog.querySelector<HTMLSelectElement>('select[name="runtime"]');
+    if (!select) throw new Error('运行方式设置缺失');
+    select.value = 'esbuild-wasm';
+    dialog.querySelector('form')?.dispatchEvent(new Event('submit'));
+    await vi.waitFor(() =>
+      expect(catalog.putPreferences).toHaveBeenCalledWith(expect.objectContaining({ runtime: 'esbuild-wasm' }))
+    );
+    expect(terminal.stop).toHaveBeenCalled();
   });
 });

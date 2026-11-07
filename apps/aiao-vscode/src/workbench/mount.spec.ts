@@ -398,7 +398,7 @@ describe('VS Code 风格工作台', () => {
 
   it('偏好同步日志优先于旧数据库值，恢复后确认落库并清理日志', async () => {
     const journal = createWorkbenchRecoveryJournal(window.sessionStorage);
-    const preferences = { indentUnit: '    ', alwaysShowScmActions: true };
+    const preferences = { indentUnit: '    ', alwaysShowScmActions: true, runtime: 'webcontainer' as const };
     journal.stagePreferences(preferences);
     const { handle, catalog, mountEditor } = fixture();
     await handle.ready;
@@ -412,7 +412,8 @@ describe('VS Code 风格工作台', () => {
   it('重开时应用用户偏好，设置确认后持久化缩进和 SCM 偏好', async () => {
     const { host, handle, catalog, mountEditor } = fixture(true, undefined, undefined, [], files, undefined, {
       indentUnit: '    ',
-      alwaysShowScmActions: true
+      alwaysShowScmActions: true,
+      runtime: 'webcontainer'
     });
     await handle.ready;
     expect(mountEditor.mock.calls[0][1].indentUnit).toBe('    ');
@@ -425,7 +426,8 @@ describe('VS Code 风格工作台', () => {
     await vi.waitFor(() =>
       expect(catalog.putPreferences).toHaveBeenCalledWith({
         indentUnit: '        ',
-        alwaysShowScmActions: true
+        alwaysShowScmActions: true,
+        runtime: 'webcontainer'
       })
     );
   });
@@ -2381,6 +2383,16 @@ describe('vscode.dev 起始页对齐', () => {
     const indent = dialog.querySelector<HTMLSelectElement>('select[name="indent-unit"]');
     expect(indent).not.toBeNull();
     expect(Array.from(indent!.options).map(option => option.value)).toEqual(['  ', '    ', '        ']);
+    const runtime = dialog.querySelector<HTMLSelectElement>('select[name="runtime"]');
+    expect(runtime?.value).toBe('webcontainer');
+    expect(Array.from(runtime!.options).map(option => [option.value, option.disabled])).toEqual([
+      ['esbuild-wasm', false],
+      ['webcontainer', false],
+      ['vivari', true],
+      ['nodepod', true],
+      ['almostnode', true],
+      ['burrow', true]
+    ]);
     indent!.value = '    ';
     const always = dialog.querySelector<HTMLInputElement>('input[type="checkbox"]');
     expect(always).not.toBeNull();

@@ -1,9 +1,12 @@
 import type { WorkbenchDrafts } from './session.js';
+import { isRuntimeId, type RuntimeId } from './terminal/runtime-adapter.js';
 
 /** 在此浏览器内共享的编辑器偏好。 */
 export interface WorkbenchPreferences {
   readonly indentUnit: string;
   readonly alwaysShowScmActions: boolean;
+  /** 顶部「运行」使用的运行方式。 */
+  readonly runtime: RuntimeId;
 }
 
 /** 项目重开时恢复的标签、草稿和提交说明。 */
@@ -18,7 +21,8 @@ export interface WorkbenchProjectState {
 /** 新用户的编辑器偏好。 */
 export const defaultWorkbenchPreferences: WorkbenchPreferences = {
   indentUnit: '  ',
-  alwaysShowScmActions: false
+  alwaysShowScmActions: false,
+  runtime: 'webcontainer'
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -69,5 +73,8 @@ export function parseWorkbenchPreferences(value: unknown): WorkbenchPreferences 
     typeof value['alwaysShowScmActions'] !== 'boolean'
   )
     throw new Error('工作台设置损坏');
-  return { indentUnit: value['indentUnit'], alwaysShowScmActions: value['alwaysShowScmActions'] };
+  // 旧版设置没有运行方式这一项，按默认值读
+  const runtime = 'runtime' in value ? value['runtime'] : defaultWorkbenchPreferences.runtime;
+  if (!isRuntimeId(runtime)) throw new Error('工作台设置损坏');
+  return { indentUnit: value['indentUnit'], alwaysShowScmActions: value['alwaysShowScmActions'], runtime };
 }

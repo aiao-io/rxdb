@@ -2,7 +2,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { WorkbenchBackend, WorkbenchSnapshot } from '../session.js';
 import { WorkbenchSession } from '../session.js';
-import type { TerminalRuntimeOptions } from './webcontainer-runtime.js';
+import type { TerminalRuntimeAdapter } from './runtime-adapter.js';
+import type { TerminalRuntimeOptions } from './terminal-runtime.js';
 import { createWorkbenchTerminal } from './workbench-terminal.js';
 
 const disposers: (() => void)[] = [];
@@ -63,10 +64,24 @@ async function fixture() {
     views.push(next);
     return next;
   });
+  const adapterFor = (id: TerminalRuntimeAdapter['id']): TerminalRuntimeAdapter => ({
+    id,
+    capabilities: { shell: { command: 'jsh', args: [] }, markedShell: { command: 'jsh', args: ['--osc'] } },
+    boot: vi.fn()
+  });
+  let adapter = adapterFor('webcontainer');
   const onPreview = vi.fn();
   const onStop = vi.fn();
   const onError = vi.fn();
-  const terminal = createWorkbenchTerminal(host, { session, createRuntime, createView, onPreview, onStop, onError });
+  const terminal = createWorkbenchTerminal(host, {
+    session,
+    adapter: () => adapter,
+    createRuntime,
+    createView,
+    onPreview,
+    onStop,
+    onError
+  });
   disposers.push(() => {
     terminal.dispose();
     session.dispose();
@@ -85,6 +100,10 @@ async function fixture() {
     onPreview,
     onStop,
     onError,
+    adapterFor,
+    useAdapter(next: TerminalRuntimeAdapter) {
+      adapter = next;
+    },
     get runtimeOptions() {
       return runtimeOptions!;
     },
@@ -120,6 +139,18 @@ describe('工作台交互终端', () => {
     expect(f.runtime.write).toHaveBeenCalledWith('node --version\r');
     expect(f.view.write).toHaveBeenCalledWith('v22.0.0\r\n');
     expect(f.runtime.resize).toHaveBeenCalledWith({ cols: 100, rows: 30 });
+  });
+
+  it('每次启动运行时都取当前选中的适配器，切换后停止再启动即生效', async () => {
+    const f = await fixture();
+    await f.terminal.show();
+    expect(f.runtimeOptions.adapter.id).toBe('webcontainer');
+    const vivari = f.adapterFor('vivari');
+    f.useAdapter(vivari);
+    await f.terminal.stop();
+    await f.terminal.show();
+    expect(f.createRuntime).toHaveBeenCalledTimes(2);
+    expect(f.runtimeOptions.adapter).toBe(vivari);
   });
 
   it('终端写回不覆盖未保存缓冲，编辑器保存后再同步到终端', async () => {

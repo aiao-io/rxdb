@@ -250,6 +250,14 @@
         "cwd": "apps/aiao-vscode",
         "command": "node scripts/verify-terminal.mjs"
       }
+    },
+    "verify-runtimes": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "apps/aiao-vscode",
+        "command": "node scripts/verify-runtimes.mjs"
+      }
     }
   }
 }

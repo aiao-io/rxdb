@@ -36,7 +36,7 @@ describe('刷新前的同步恢复日志', () => {
 
   it('偏好独立恢复，损坏日志显式报错且保留原文', () => {
     const { journal, entries } = fixture();
-    const preferences = { indentUnit: '    ', alwaysShowScmActions: true };
+    const preferences = { indentUnit: '    ', alwaysShowScmActions: true, runtime: 'webcontainer' as const };
     const acknowledge = journal.stagePreferences(preferences);
     expect(journal.getPreferences()).toEqual(preferences);
     acknowledge();

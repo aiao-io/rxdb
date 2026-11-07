@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { RUNTIME_IDS } from './terminal/runtime-adapter.js';
 import { parseWorkbenchPreferences, parseWorkbenchProjectState } from './workbench-state.js';
 
 describe('工作台持久化状态校验', () => {
@@ -37,8 +38,20 @@ describe('工作台持久化状态校验', () => {
   });
 
   it.each(['  ', '    ', '        '])('接受支持的缩进大小：%j', indentUnit => {
-    const preferences = { indentUnit, alwaysShowScmActions: true };
+    const preferences = { indentUnit, alwaysShowScmActions: true, runtime: 'webcontainer' };
     expect(parseWorkbenchPreferences(preferences)).toEqual(preferences);
+  });
+
+  it.each(RUNTIME_IDS)('接受运行方式 %s', runtime => {
+    expect(parseWorkbenchPreferences({ indentUnit: '  ', alwaysShowScmActions: false, runtime }).runtime).toBe(runtime);
+  });
+
+  it('旧版设置没有运行方式时按 WebContainer 读', () => {
+    expect(parseWorkbenchPreferences({ indentUnit: '  ', alwaysShowScmActions: false })).toEqual({
+      indentUnit: '  ',
+      alwaysShowScmActions: false,
+      runtime: 'webcontainer'
+    });
   });
 
   it.each([
@@ -46,6 +59,8 @@ describe('工作台持久化状态校验', () => {
     {},
     { indentUnit: '\t', alwaysShowScmActions: true },
     { indentUnit: ['  '], alwaysShowScmActions: true },
-    { indentUnit: '  ', alwaysShowScmActions: 1 }
+    { indentUnit: '  ', alwaysShowScmActions: 1 },
+    { indentUnit: '  ', alwaysShowScmActions: true, runtime: 'deno' },
+    { indentUnit: '  ', alwaysShowScmActions: true, runtime: null }
   ])('拒绝损坏偏好：%j', value => expect(() => parseWorkbenchPreferences(value)).toThrow('设置损坏'));
 });

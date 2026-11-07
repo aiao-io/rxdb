@@ -56,7 +56,9 @@ const url =
 const reportPath = resolve(import.meta.dirname, '../benchmarks/browser-workbench-terminal.json');
 const report = { format: 'aiao.workbench.terminal', version: 1, url, status: 'failed', checks: [], errors: [] };
 report.cancelledRequests = [];
-const browser = await chromium.launch({ headless: true });
+// --channel=chrome：本机没装 Playwright 自带的浏览器时改用系统 Chrome
+const channel = process.argv.find(value => value.startsWith('--channel='))?.slice(10);
+const browser = await chromium.launch({ headless: true, ...(channel ? { channel } : {}) });
 const context = await browser.newContext({ viewport: { width: 1680, height: 1050 } });
 const page = await context.newPage();
 page.setDefaultTimeout(30000);
@@ -232,7 +234,9 @@ try {
   process.exitCode = 1;
 } finally {
   await mkdir(resolve(reportPath, '..'), { recursive: true });
-  await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+  // 顶层键按字母序写出，与仓库 prettier 的 sort-json 一致
+  const sorted = Object.fromEntries(Object.entries(report).toSorted(([left], [right]) => left.localeCompare(right)));
+  await writeFile(reportPath, `${JSON.stringify(sorted, null, 2)}\n`);
   await browser.close();
   if (production) await new Promise(resolve => production.server.close(resolve));
   console.log(JSON.stringify(report, null, 2));

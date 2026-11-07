@@ -1,16 +1,14 @@
 import type { WorkbenchSession } from '../session.js';
 import { projectRunPlan } from './project-command.js';
+import type { TerminalRuntimeAdapter } from './runtime-adapter.js';
+import { createTerminalRuntime, type TerminalRuntime, type TerminalRuntimeOptions } from './terminal-runtime.js';
 import { createTerminalView, type TerminalView } from './terminal-view.js';
-import {
-  createWebContainerRuntime,
-  type TerminalRuntime,
-  type TerminalRuntimeOptions
-} from './webcontainer-runtime.js';
 
 /** 项目终端与工作台之间的事件和可替换实现。 */
 export interface WorkbenchTerminalOptions {
   readonly session: WorkbenchSession;
-  readonly apiKey?: string;
+  /** 当前选中的运行时；每次启动时读取，切换后停止再启动即生效。 */
+  readonly adapter: () => TerminalRuntimeAdapter;
   readonly onPreview: (port: number, url: string) => void;
   readonly onStop: () => void;
   readonly onError: (cause: unknown) => void;
@@ -265,8 +263,8 @@ export function createWorkbenchTerminal(host: HTMLElement, options: WorkbenchTer
         return;
       }
       view = mounted;
-      const run = (options.createRuntime ?? createWebContainerRuntime)({
-        apiKey: options.apiKey,
+      const run = (options.createRuntime ?? createTerminalRuntime)({
+        adapter: options.adapter(),
         onOutput(data) {
           if (isCurrent()) mounted.write(data);
         },

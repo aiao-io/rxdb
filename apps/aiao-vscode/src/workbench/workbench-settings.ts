@@ -1,7 +1,10 @@
+import { isRuntimeId, RUNTIME_IDS, RUNTIME_LABELS, type RuntimeId } from './terminal/runtime-adapter.js';
 import type { WorkbenchPreferences } from './workbench-state.js';
 
 /** 工作台设置对话框：对齐 vscode.dev 设置面板，含搜索框、分节与「标题 + 描述」设置行。 */
 export interface WorkbenchSettingsOptions extends WorkbenchPreferences {
+  /** 已接入、可以选择的运行方式；其余显示为待接入。 */
+  readonly availableRuntimes: ReadonlySet<RuntimeId>;
   onApply(settings: WorkbenchPreferences): void;
 }
 
@@ -93,6 +96,22 @@ export function openWorkbenchSettings(host: HTMLElement, options: WorkbenchSetti
   scmSection.append(buildSettingRow('始终显示行内操作', '在文件行上始终显示源代码管理的行内操作按钮。', scmCheckbox));
   body.append(scmSection);
 
+  const runtimeSelect = document.createElement('select');
+  runtimeSelect.name = 'runtime';
+  for (const id of RUNTIME_IDS) {
+    const option = document.createElement('option');
+    option.value = id;
+    option.disabled = !options.availableRuntimes.has(id);
+    option.textContent = option.disabled ? `${RUNTIME_LABELS[id]}（待接入）` : RUNTIME_LABELS[id];
+    runtimeSelect.append(option);
+  }
+  runtimeSelect.value = options.runtime;
+  const runtimeSection = buildSettingSection('运行');
+  runtimeSection.append(
+    buildSettingRow('运行方式', '顶部「运行」使用的浏览器内运行方式；切换后停止当前终端。', runtimeSelect)
+  );
+  body.append(runtimeSection);
+
   const actions = document.createElement('div');
   actions.className = 'wb-dialog-actions';
   const cancel = document.createElement('button');
@@ -106,10 +125,9 @@ export function openWorkbenchSettings(host: HTMLElement, options: WorkbenchSetti
   actions.append(cancel, submit);
 
   form.onsubmit = () => {
-    options.onApply({
-      indentUnit: indentSelect.value,
-      alwaysShowScmActions: scmCheckbox.checked
-    });
+    const runtime = runtimeSelect.value;
+    if (!isRuntimeId(runtime)) throw new Error(`未知的运行方式：${runtime}`);
+    options.onApply({ indentUnit: indentSelect.value, alwaysShowScmActions: scmCheckbox.checked, runtime });
   };
 
   searchInput.addEventListener('input', () => filterSettingRows(body, searchInput.value));

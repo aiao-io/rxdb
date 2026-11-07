@@ -126,6 +126,8 @@ Angular 使用浏览器 JIT 与 TS 装饰器转换。受控编译不提供完整
 终端源码沿用下方项目容量限制；停止后重新安装依赖，Git 操作继续使用源代码管理视图。
 
 启动 WebContainer 与首次安装依赖需要网络。终端需要 COOP / COEP；当前 `serve` 已配置。
+「运行」用哪种方式在设置的「运行方式」里选（保存在此浏览器），地址参数 `?runtime=` 只覆盖当前页面；
+选「即时编译（esbuild-wasm）」时「运行」只刷新本地项目预览，不启动终端。尚未接入的方式在设置里显示为待接入。
 WebContainer 不支持原生 Node 扩展，不能据此保证任意 Nx / npm 仓库兼容。
 商用宿主可通过 `BrowserWorkbenchOptions.webContainerApiKey` 传入官方授权；
 授权要求见 [WebContainer 文档](https://webcontainers.io/enterprise)。
@@ -152,6 +154,7 @@ pnpm nx run aiao-vscode:verify-save-preview --url=http://127.0.0.1:4320/
 pnpm nx run aiao-vscode:verify-scm --url=http://127.0.0.1:4320/
 pnpm nx run aiao-vscode:verify-docking --url=http://127.0.0.1:4320/
 pnpm nx run aiao-vscode:verify-terminal --url=http://localhost:4320/
+pnpm nx run aiao-vscode:verify-runtimes --url=http://localhost:4320/
 ```
 
 `verify-export` 检查四类模板的仓外冻结锁安装、生产构建与 Chromium 交互；`verify-offline`
@@ -163,3 +166,9 @@ pnpm nx run aiao-vscode:verify-terminal --url=http://localhost:4320/
 终端可在生产构建上独立验收：先运行 `pnpm nx build aiao-vscode`，再运行
 `pnpm nx run aiao-vscode:verify-terminal --production`。脚本会临时启动带 COOP / COEP 的本地静态服务，
 验证真实 npm / pnpm 安装、文件双向同步、服务预览、Ctrl+C、项目切换和进程释放。
+本机没有 Playwright 自带的浏览器时加 `--channel=chrome` 改用系统 Chrome（`verify-runtimes` 同样支持）。
+
+运行方式对比（[US-409](requirements/stories/US-409-browser-runtime-comparison.md)）：`verify-runtimes` 对每种运行方式 × 四个模板
+测本地预览、运行到服务页、改动生效与停止后再运行的耗时，以及下载量和浏览器进程内存，
+默认每格 3 次取中位数，报告写入 `benchmarks/browser-workbench-runtimes.json`。可用 `--runtimes=`、`--templates=`、
+`--repeat=` 缩小范围。

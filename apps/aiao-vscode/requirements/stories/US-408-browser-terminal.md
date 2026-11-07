@@ -35,10 +35,10 @@ tags: [aiao-vscode, terminal, webcontainer, node]
 | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ---- |
 | 从已保存清单选择 npm / pnpm、dev / start，拒绝无效清单配置                                    | `project-command.spec.ts`                                                                            | ✅   |
 | 顶部运行保存文件、展开项目终端，重复运行聚焦现有进程                                          | `mount.spec.ts`、`workbench-terminal.spec.ts`                                                        | ✅   |
-| 独立 Shell 与项目会话、安装失败阻止启动、Ctrl+C 停止安装或服务                                | `webcontainer-runtime.spec.ts`、真实 Chromium 终端验证                                               | ✅   |
-| 项目终端为 jsh：提示符、命令回显与耗时，Ctrl+C 后可继续输入，忙时拒绝运行，终端退出后重新启动 | `webcontainer-runtime.spec.ts`、`workbench-terminal.spec.ts`、真实 Chromium 终端验证                 | ✅   |
-| vite 启动脚本补 `--clearScreen false`、项目终端屏蔽实验特性警告，老项目也保留安装过程         | `project-command.spec.ts`、`webcontainer-runtime.spec.ts`、真实 Chromium 终端验证                    | ✅   |
-| Shell 输入输出、ANSI、尺寸调整与资源释放                                                      | `terminal-view.spec.ts`、`webcontainer-runtime.spec.ts`                                              | ✅   |
+| 独立 Shell 与项目会话、安装失败阻止启动、Ctrl+C 停止安装或服务                                | `terminal-runtime.spec.ts`、真实 Chromium 终端验证                                                   | ✅   |
+| 项目终端为 jsh：提示符、命令回显与耗时，Ctrl+C 后可继续输入，忙时拒绝运行，终端退出后重新启动 | `terminal-runtime.spec.ts`、`workbench-terminal.spec.ts`、真实 Chromium 终端验证                     | ✅   |
+| vite 启动脚本补 `--clearScreen false`、项目终端屏蔽实验特性警告，老项目也保留安装过程         | `project-command.spec.ts`、`terminal-runtime.spec.ts`、真实 Chromium 终端验证                        | ✅   |
+| Shell 输入输出、ANSI、尺寸调整与资源释放                                                      | `terminal-view.spec.ts`、`terminal-runtime.spec.ts`                                                  | ✅   |
 | 启动失败重试、旧项目迟到回调与退出保存                                                        | `workbench-terminal.spec.ts`                                                                         | ✅   |
 | 双向文件变化、二进制、原子删除、dirty 缓冲与 revision 冲突                                    | `session.spec.ts`、Git backend/runtime/worker 测试                                                   | ✅   |
 | 面板停靠保活、终端快捷键不被工作台拦截                                                        | `workbench-dockview.spec.ts`、`workbench-commands.spec.ts`                                           | ✅   |

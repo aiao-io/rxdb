@@ -22,6 +22,13 @@ import { createSavePreviewController, type SavePreviewPhase } from './save-previ
 import { WorkbenchSession, type WorkbenchBackend, type WorkbenchState, type WorkbenchStatus } from './session.js';
 import { angularTemplate, defaultAngularDemo } from './templates-angular.js';
 import { defaultFrontendDemos, frontendTemplates, type WorkbenchTemplate } from './templates.js';
+import {
+  isRuntimeId,
+  RUNTIME_LABELS,
+  type RuntimeId,
+  type TerminalRuntimeAdapter
+} from './terminal/runtime-adapter.js';
+import { createWebContainerAdapter } from './terminal/webcontainer-adapter.js';
 import { createWorkbenchTerminal } from './terminal/workbench-terminal.js';
 import { createWorkbenchCommands, type WorkbenchCommand } from './workbench-commands.js';
 import { confirmWorkbenchAction, requestWorkbenchChoice, requestWorkbenchText } from './workbench-dialog.js';
@@ -98,6 +105,8 @@ type MenuEntry =
   | { readonly separator: true };
 
 const SEPARATOR = { separator: true } as const;
+/** 已接入、可在设置里选择的运行方式；其余在设置里显示为待接入（US-409）。 */
+const AVAILABLE_RUNTIMES: ReadonlySet<RuntimeId> = new Set<RuntimeId>(['esbuild-wasm', 'webcontainer']);
 
 const templates: Record<ProjectTemplate, WorkbenchTemplate> = {
   ...frontendTemplates,
@@ -231,6 +240,11 @@ export function mountWorkbench(
   const collapsedFolders = new Set<string>();
   const collapsedSections = new Set<string>();
   let alwaysShowScmActions = defaultWorkbenchPreferences.alwaysShowScmActions;
+  /** 设置里保存的运行方式；地址参数 `?runtime=` 只覆盖当前页面，供基准脚本批量切换，不写回设置。 */
+  let preferredRuntime = defaultWorkbenchPreferences.runtime;
+  const requestedRuntime = new URLSearchParams(location.search).get('runtime');
+  const runtimeOverride = isRuntimeId(requestedRuntime) ? requestedRuntime : undefined;
+  const currentRuntime = (): RuntimeId => runtimeOverride ?? preferredRuntime;
   let githubSession: GitHubSession | null = null;
   const serverPreviews = new Set<string>();
   const docking = createWorkbenchDockview(root, {
@@ -437,7 +451,7 @@ export function mountWorkbench(
 
   const terminal = createWorkbenchTerminal(element('[data-log="terminal"]'), {
     session,
-    apiKey: options.webContainerApiKey,
+    adapter: () => runtimeAdapter(currentRuntime()),
     onError: report,
     onFilesChanged: () => {
       void refreshGit().catch(report);
@@ -794,7 +808,7 @@ export function mountWorkbench(
 
   function persistPreferences(): void {
     if (!preferencesRestored) return;
-    const preferences = { indentUnit, alwaysShowScmActions };
+    const preferences = { indentUnit, alwaysShowScmActions, runtime: preferredRuntime };
     const acknowledge = stageRecovery(() => recovery.stagePreferences(preferences));
     persistChain = persistChain
       .then(async () => {
@@ -1941,7 +1955,18 @@ export function mountWorkbench(
     void refreshGit().catch(report);
     log('output', `已创建 ${name} · ${template.title}`);
   }
+  /** 「运行方式」对应的终端运行时；即时编译与尚未接入的方式明确报错。 */
+  function runtimeAdapter(id: RuntimeId): TerminalRuntimeAdapter {
+    if (id === 'webcontainer') return createWebContainerAdapter({ apiKey: options.webContainerApiKey });
+    if (id === 'esbuild-wasm') throw new Error('即时编译方式不提供终端，请在设置里换成 Node 运行时');
+    throw new Error(`运行方式「${RUNTIME_LABELS[id]}」尚未接入`);
+  }
+  async function switchRuntime(): Promise<void> {
+    await terminal.stop();
+    log('output', `运行方式已切换为 ${RUNTIME_LABELS[currentRuntime()]}`);
+  }
   async function run(): Promise<void> {
+    if (currentRuntime() === 'esbuild-wasm') return runControlledPreview();
     const id = projectId();
     cancelCompilation();
     await session.save();
@@ -2198,12 +2223,17 @@ export function mountWorkbench(
       openWorkbenchSettings(root, {
         indentUnit,
         alwaysShowScmActions,
+        runtime: preferredRuntime,
+        availableRuntimes: AVAILABLE_RUNTIMES,
         onApply(settings) {
+          const runtimeBefore = currentRuntime();
           applyIndentUnit(settings.indentUnit, false);
           alwaysShowScmActions = settings.alwaysShowScmActions;
           scm.setAlwaysShowActions(alwaysShowScmActions);
+          preferredRuntime = settings.runtime;
           persistPreferences();
           log('output', '设置已更新并保存在此浏览器');
+          if (currentRuntime() !== runtimeBefore) void switchRuntime().catch(report);
         }
       }),
     'github-account': () => {
@@ -2420,8 +2450,11 @@ export function mountWorkbench(
       applyIndentUnit(preferences.indentUnit, false);
       alwaysShowScmActions = preferences.alwaysShowScmActions;
       scm.setAlwaysShowActions(alwaysShowScmActions);
+      preferredRuntime = preferences.runtime;
     }
     if (recoveredPreferences) persistPreferences();
+    if (requestedRuntime !== null && !runtimeOverride)
+      report(new Error(`地址参数里的运行方式无效：${requestedRuntime}`));
     renderProjects();
     // 没有显式指定时恢复上次的会话：最近项目带会话状态（曾被打开过）就直接打开，
     // 全新目录或只有未打开过的新条目时停留在欢迎视图。

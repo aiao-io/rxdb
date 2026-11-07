@@ -135,8 +135,9 @@ describe('RxDB workbench project catalog', () => {
     const localRepository = { findOne: vi.fn(() => of(record)) };
     const db = { entityManager: { getRepository: () => localRepository } } as unknown as RxDB;
     const catalog = createRxDBWorkbenchCatalog(db);
-    expect(await catalog.getPreferences()).toEqual(preferences);
-    await catalog.putPreferences({ ...preferences, indentUnit: '        ' });
+    // 旧版记录没有运行方式，读出时按 WebContainer 补齐
+    expect(await catalog.getPreferences()).toEqual({ ...preferences, runtime: 'webcontainer' });
+    await catalog.putPreferences({ ...preferences, runtime: 'webcontainer', indentUnit: '        ' });
     expect(record.value.indentUnit).toBe('        ');
     expect(record.save).toHaveBeenCalledOnce();
     expect(localRepository.findOne).toHaveBeenLastCalledWith({
