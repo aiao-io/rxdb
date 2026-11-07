@@ -461,7 +461,10 @@ export class BomLine extends EntityBase {
       mappedProperties: ['id']
     }
   ],
-  indexes: [{ name: 'occurrence_child_item', properties: ['childItemId'] }]
+  indexes: [
+    { name: 'occurrence_child_item', properties: ['childItemId'] },
+    { name: 'occurrence_line', properties: ['lineId'] }
+  ]
 })
 export class BomLineOccurrence extends EntityBase {
   jointCostShare!: string | null;
