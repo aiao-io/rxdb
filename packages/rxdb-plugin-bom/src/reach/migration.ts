@@ -1,4 +1,5 @@
 import type { MigrationType, TransactionExecutor } from '@aiao/rxdb';
+import { BomLineOccurrence } from '../entities.js';
 import { readTableCatalog } from '../storage-catalog.js';
 import { BOM_GRAPH_ENTITIES } from './entities.js';
 import { buildReachInstallDdl } from './install.js';
@@ -74,4 +75,17 @@ export const createReachMigration = (adapterName: string): MigrationType => ({
     for (const statement of buildReachInstallDdl(adapterName)) await executor.query(statement);
   },
   down: () => Promise.reject(new Error('[rxdb-plugin-bom] 可达性迁移不可逆，禁止删除已启用的写入约束'))
+});
+
+/** 为已有发生项补建逻辑行读取索引，不改变数据或存储约束。 */
+export const createOccurrenceLineIndexMigration = (adapterName: string): MigrationType => ({
+  name: '0002-bom-occurrence-line-index',
+  async up(executor) {
+    const sql = reachSqlFor(adapterName);
+    const table = executor.tableRef(BomLineOccurrence);
+    if ((await readTableCatalog(executor, sql.postgres, table)).columns.size === 0) return;
+    const index = `idx_${sql.postgres ? '' : 'bom$'}bom_line_occurrence_occurrence_line`;
+    await executor.query(`CREATE INDEX IF NOT EXISTS "${index}" ON ${table} ("lineId")`);
+  },
+  down: () => Promise.reject(new Error('[rxdb-plugin-bom] 逻辑行索引迁移不支持回退'))
 });

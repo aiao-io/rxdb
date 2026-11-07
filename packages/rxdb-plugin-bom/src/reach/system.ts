@@ -1,6 +1,6 @@
 import type { EntityType, RxDB, RxDBSystemContribution } from '@aiao/rxdb';
 import { BOM_GRAPH_ENTITIES, BomReach } from './entities.js';
-import { assertReachComplete, createReachMigration } from './migration.js';
+import { assertReachComplete, createOccurrenceLineIndexMigration, createReachMigration } from './migration.js';
 
 const noWork = (): Promise<void> => Promise.resolve();
 
@@ -30,7 +30,10 @@ export const createBomReachSystem = (db: RxDB): RxDBSystemContribution => ({
   packageSpecifier: '@aiao/rxdb-plugin-bom',
   entities: [BomReach],
   createInitialRows: () => [],
-  createMigrations: () => (hasCompleteBomGraph(db) ? [createReachMigration(adapterName(db))] : []),
+  createMigrations: () =>
+    hasCompleteBomGraph(db) ?
+      [createReachMigration(adapterName(db)), createOccurrenceLineIndexMigration(adapterName(db))]
+    : [],
   bootstrapExisting: async ({ adapter }) => {
     if (hasCompleteBomGraph(db))
       await adapter.bootstrapTransaction(executor => assertReachComplete(executor, adapterName(db)), false);
