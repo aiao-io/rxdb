@@ -46,6 +46,12 @@ assert.deepEqual(
   '缺少 vivari 宿主页，先运行 pnpm nx run aiao-vscode:runtime-hosts'
 );
 const [hostAsset] = await readdir(join(hostSite, 'assets'));
+/** 宿主页引用的入口脚本。 */
+const hostScripts = (
+  await Promise.all(hostPages.map(async page => [...(await readFile(join(hostSite, page), 'utf8')).matchAll(/src="([^"]+\.js)"/g)]))
+)
+  .flat()
+  .map(([, src]) => src);
 
 const freePort = () =>
   new Promise((resolvePort, reject) => {
@@ -153,8 +159,13 @@ const checkHostFile = path =>
     assert.equal(cache.includes('immutable'), path.startsWith('/assets/'), `Cache-Control: ${cache}`);
   });
 try {
-  for (const path of [...hostPages, '/sw.js', `/assets/${hostAsset}`, '/vendor/npm-pack.bin'])
+  for (const path of [...hostPages, ...hostScripts, '/sw.js', `/assets/${hostAsset}`, '/vendor/npm-pack.bin'])
     await checkHostFile(path);
+  // 宿主页本身不缓存，入口脚本地址固定的话，zone 的浏览器缓存 TTL（aiao.io 为 4 小时）会让重新部署后仍跑旧脚本
+  await check('vivari 宿主页引用的入口脚本带内容哈希', () => {
+    assert.equal(hostScripts.length, hostPages.length, `入口脚本：${hostScripts.join('、')}`);
+    for (const src of hostScripts) assert.match(src, /^\/[a-z-]+-[A-Z0-9]{8}\.js$/);
+  });
 } finally {
   await vivari.stop();
 }
