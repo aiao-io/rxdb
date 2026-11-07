@@ -89,7 +89,7 @@ const browserRuntime = [
   {
     icon: Database,
     title: '本地数据库层',
-    description: 'SQLite + OPFS 负责事务、索引、查询执行与持久化。'
+    description: 'SQLite 或 PGlite 负责事务、索引与查询，持久化按适配器选择 IndexedDB 或 OPFS。'
   }
 ] as const;
 
@@ -122,7 +122,7 @@ const techStack: TechItem[] = [
   {
     name: 'wa-sqlite',
     role: '推荐 SQLite 运行时',
-    reason: '浏览器端 WebAssembly SQLite 的推荐实现，与 OPFS 深度集成，是官方适配器外的首选方案。',
+    reason: '浏览器端 WebAssembly SQLite 实现；默认使用受支持的 IDB 后端，OPFS VFS 需按实验性能力评估。',
     icon: Database
   },
   {
@@ -146,7 +146,7 @@ const techStack: TechItem[] = [
   {
     name: 'OPFS',
     role: '可选持久化增强',
-    reason: '浏览器支持时使用 OPFS 持久化文件，不支持时选择其他 VFS。',
+    reason: '按适配器和 VFS 的支持等级选择 OPFS；wa-sqlite 默认使用 IDB，不能只凭 API 可用自动切换。',
     icon: FileCode
   },
   {
@@ -187,7 +187,7 @@ const implementedFeatures: ImplementedFeature[] = [
     title: '性能基础设施',
     status: '已实现',
     description: '通过浏览器内数据库、Worker 与查询缓存划分计算和持久化职责。',
-    features: ['Worker 支持', 'OPFS 优先持久化', '查询缓存', 'WASM 数据库执行']
+    features: ['Worker 支持', 'IDB / OPFS 持久化', '查询缓存', 'WASM 数据库执行']
   },
   {
     title: '版本与同步基础',
