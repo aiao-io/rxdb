@@ -31,6 +31,27 @@ gitShallowHosts:
   - github.com
   - gitlab.com
   - bitbucket.org
+minimumReleaseAgeExclude:
+  - '@codingame/monaco-vscode-api@39.0.3'
+  - '@codingame/monaco-vscode-base-service-override@39.0.3'
+  - '@codingame/monaco-vscode-bulk-edit-service-override@39.0.3'
+  - '@codingame/monaco-vscode-configuration-service-override@39.0.3'
+  - '@codingame/monaco-vscode-editor-api@39.0.3'
+  - '@codingame/monaco-vscode-environment-service-override@39.0.3'
+  - '@codingame/monaco-vscode-extension-api@39.0.3'
+  - '@codingame/monaco-vscode-extensions-service-override@39.0.3'
+  - '@codingame/monaco-vscode-files-service-override@39.0.3'
+  - '@codingame/monaco-vscode-host-service-override@39.0.3'
+  - '@codingame/monaco-vscode-keybindings-service-override@39.0.3'
+  - '@codingame/monaco-vscode-layout-service-override@39.0.3'
+  - '@codingame/monaco-vscode-model-service-override@39.0.3'
+  - '@codingame/monaco-vscode-notifications-service-override@39.0.3'
+  - '@codingame/monaco-vscode-quickaccess-service-override@39.0.3'
+  - '@codingame/monaco-vscode-storage-service-override@39.0.3'
+  - '@codingame/monaco-vscode-theme-service-override@39.0.3'
+  - '@codingame/monaco-vscode-view-common-service-override@39.0.3'
+  - '@codingame/monaco-vscode-views-service-override@39.0.3'
+  - '@codingame/monaco-vscode-languages-service-override@39.0.3'
 overrides:
   '@babel/core@7': ^7.29.7
   '@angular/cdk': 22.2.4

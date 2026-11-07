@@ -247,7 +247,7 @@ describe('运行方式', () => {
     });
   }
   const preferences = (runtime: 'vivari' | 'nodepod') =>
-    ({ indentUnit: '  ', alwaysShowScmActions: false, runtime }) as const;
+    ({ indentUnit: '  ', alwaysShowScmActions: false, runtime, editorEngine: 'codemirror' }) as const;
 
   it.each(['vivari', 'nodepod'] as const)('配置了宿主源时设置里可以选 %s，终端按它启动', async runtime => {
     const { host, handle } = fixture(preferences(runtime), {

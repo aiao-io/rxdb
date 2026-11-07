@@ -2,7 +2,7 @@
 
 > 分析日期：2026-11-07。
 > 范围：aiao-vscode 兼容 VS Code 插件的可选路线，重点分析保留 CodeMirror 的可行性。
-> 状态：研究建议，待目标插件清单与原型验证；不代表新增故事已立项、确定排期或兼容性已验收。
+> 状态：本文保留最初选型分析。2026-11-07 后续已实现双编辑器与 Markdown Preview Enhanced 的真实扩展宿主；当前实现与验收见 [Markdown 扩展加载与使用](markdown-extension-implementation.md)。单个插件的验收不代表任意 VSIX 已兼容。
 
 ## 结论
 
@@ -14,7 +14,7 @@ Monaco 不是插件兼容的硬性前提。插件通过 `vscode` API 访问文�
 建议先选少量目标插件做完整功能验证，再决定是否扩展兼容范围。
 如果需求主要是补全、跳转、诊断、重命名，则优先评估语言服务或 LSP；语言能力接入与运行原有 VS Code 插件是两个不同目标。
 
-本轮整理了方案与本地接入点，没有完成插件宿主选型、CodeMirror 兼容原型或真实插件运行验收。
+最初研究阶段仅整理了方案与本地接入点。后续针对 Markdown Preview Enhanced 采用独立页面内的 Codingame VS Code API 与本地扩展宿主，桥接 CodeMirror / Monaco；下面的候选方案和成本分析保留为历史记录。
 不能据此承诺任意 VSIX、全部 Web 插件或桌面插件可用。
 
 ## 第一阶段：双编辑器接入
@@ -43,6 +43,12 @@ Monaco 不是插件兼容的硬性前提。插件通过 `vscode` API 访问文�
 - 预览标签首轮遇到侧栏 overlay 高度为 0、点击被布局面板遮挡的竞态，复跑通过；该布局问题仍需跟踪。
 - 生产构建仍有初始包体积超过 1.5 MB 提醒阈值、`ms` 使用 CommonJS 两项警告。
 
+## 目标插件首次尝试
+
+已针对 `shd101wyy.markdown-preview-enhanced@0.8.40` 核验正式 VSIX，并在 Monaco 的实际浏览器工作台中检查入口加载与命令可用性。
+当前结果为激活前阻塞：插件提供浏览器入口，但工作台尚无扩展模块运行时、`vscode` API 与 Webview 服务。
+具体证据、失败边界和后续验收见 [Markdown Preview Enhanced 兼容性尝试](markdown-preview-enhanced-compatibility-check.md)。
+
 ## 当前架构与可复用边界
 
 | 现有能力                               | 本地证据                                                                                                                                                                           | 对插件兼容的意义                                                       |
@@ -70,7 +76,7 @@ Monaco 不是插件兼容的硬性前提。插件通过 `vscode` API 访问文�
 
 ## 保留 CodeMirror 的适配设计
 
-以下是拟议职责划分，尚未实现：
+以下为研究阶段提出的职责划分；后续针对 Markdown 插件的落地结构见实现文档：
 
 ```text
 VS Code 插件

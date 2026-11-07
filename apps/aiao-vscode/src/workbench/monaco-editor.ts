@@ -65,6 +65,12 @@ export const mountMonacoEditor: WorkbenchEditorMount = (host, initial) => {
   const change = view.onDidChangeModelContent(() => {
     if (!synchronizing) initial.onChange(model.getValue());
   });
+  const viewport = () => {
+    const ranges = view.getVisibleRanges();
+    if (!ranges.length) return undefined;
+    return { firstLine: ranges[0].startLineNumber, lastLine: ranges[ranges.length - 1].endLineNumber };
+  };
+  const scroll = view.onDidScrollChange(() => { const value = viewport(); if (value) initial.onViewport?.(value); });
   const cursor = view.onDidChangeCursorPosition(event =>
     initial.onCursor(event.position.lineNumber, event.position.column)
   );
@@ -144,6 +150,8 @@ export const mountMonacoEditor: WorkbenchEditorMount = (host, initial) => {
       view.trigger('workbench', actions[command], undefined);
       return true;
     },
+    getViewport: viewport,
+    scrollToLine: line => view.setScrollTop(view.getTopForLineNumber(Math.max(1, Math.min(line, model.getLineCount())))),
     getViewState() {
       const selection = view.getSelection()!;
       return {
@@ -164,6 +172,7 @@ export const mountMonacoEditor: WorkbenchEditorMount = (host, initial) => {
       disposed = true;
       change.dispose();
       cursor.dispose();
+      scroll.dispose();
       view.dispose();
       model.dispose();
     }

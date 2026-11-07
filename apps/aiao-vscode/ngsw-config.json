@@ -9,6 +9,14 @@
       }
     },
     {
+      "name": "vscode-extensions",
+      "installMode": "lazy",
+      "updateMode": "lazy",
+      "resources": {
+        "files": ["/browser-workbench-assets/extension-host/**", "/browser-workbench-assets/extensions/**"]
+      }
+    },
+    {
       "name": "assets",
       "installMode": "lazy",
       "updateMode": "prefetch",

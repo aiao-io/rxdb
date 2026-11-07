@@ -12,7 +12,10 @@
   "prefix": "app",
   "projectType": "application",
   "sourceRoot": "apps/aiao-vscode/src",
-  "tags": ["product:vscode", "type:app"],
+  "tags": [
+    "product:vscode",
+    "type:app"
+  ],
   "targets": {
     "assets": {
       "executor": "nx:run-commands",
@@ -21,9 +24,15 @@
         "{projectRoot}/scripts/build-assets.mjs",
         "{projectRoot}/vendor/seti/*",
         "{projectRoot}/src/workbench/**/*.ts",
-        "{workspaceRoot}/pnpm-lock.yaml"
+        "{workspaceRoot}/pnpm-lock.yaml",
+        "{projectRoot}/scripts/build-extension-host.mjs",
+        "{projectRoot}/extension-host/**/*.ts",
+        "{projectRoot}/vendor/markdown-preview-enhanced.lock.json",
+        "{projectRoot}/vendor/monaco-vscode-api-LICENSE.txt"
       ],
-      "outputs": ["{projectRoot}/public/browser-workbench-assets"],
+      "outputs": [
+        "{projectRoot}/public/browser-workbench-assets"
+      ],
       "options": {
         "command": "node scripts/build-assets.mjs",
         "cwd": "apps/aiao-vscode"
@@ -61,8 +70,14 @@
     },
     "build": {
       "executor": "@angular/build:application",
-      "outputs": ["{options.outputPath}"],
-      "dependsOn": ["assets", "runtime-hosts", "^build"],
+      "outputs": [
+        "{options.outputPath}"
+      ],
+      "dependsOn": [
+        "assets",
+        "runtime-hosts",
+        "^build"
+      ],
       "options": {
         "outputPath": "apps/aiao-vscode/dist",
         "browser": "apps/aiao-vscode/src/main.ts",
@@ -86,7 +101,9 @@
             "followSymlinks": true
           }
         ],
-        "styles": ["apps/aiao-vscode/src/styles.css"]
+        "styles": [
+          "apps/aiao-vscode/src/styles.css"
+        ]
       },
       "configurations": {
         "production": {
@@ -127,7 +144,11 @@
     },
     "serve": {
       "continuous": true,
-      "dependsOn": ["assets", "serve-runtime-hosts", "^build"],
+      "dependsOn": [
+        "assets",
+        "serve-runtime-hosts",
+        "^build"
+      ],
       "executor": "@angular/build:dev-server",
       "configurations": {
         "production": {
@@ -160,16 +181,22 @@
     },
     "typecheck": {
       "executor": "nx:run-commands",
-      "dependsOn": ["^build"],
+      "dependsOn": [
+        "^build"
+      ],
       "options": {
         "cwd": "apps/aiao-vscode",
-        "command": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.spec.json"
+        "command": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.spec.json && tsc --noEmit -p tsconfig.extension-host.json"
       }
     },
     "test": {
       "executor": "nx:run-commands",
-      "dependsOn": ["^build"],
-      "outputs": ["{workspaceRoot}/coverage/apps/aiao-vscode"],
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "{workspaceRoot}/coverage/apps/aiao-vscode"
+      ],
       "options": {
         "cwd": "apps/aiao-vscode",
         "command": "vitest run --config vite.config.mts --project=aiao-vscode-ui --project=aiao-vscode-workbench"
@@ -177,7 +204,10 @@
     },
     "test-browser": {
       "executor": "nx:run-commands",
-      "dependsOn": ["^build", "assets"],
+      "dependsOn": [
+        "^build",
+        "assets"
+      ],
       "options": {
         "cwd": "apps/aiao-vscode",
         "command": "vitest run --config vite.config.mts --project=aiao-vscode-browser"
@@ -185,8 +215,12 @@
     },
     "coverage": {
       "executor": "nx:run-commands",
-      "dependsOn": ["^build"],
-      "outputs": ["{workspaceRoot}/coverage/apps/aiao-vscode"],
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "{workspaceRoot}/coverage/apps/aiao-vscode"
+      ],
       "options": {
         "cwd": "apps/aiao-vscode",
         "command": "vitest run --config vite.config.mts --project=aiao-vscode-ui --project=aiao-vscode-workbench --coverage"
@@ -202,7 +236,9 @@
     "verify-export": {
       "executor": "nx:run-commands",
       "cache": false,
-      "dependsOn": ["build"],
+      "dependsOn": [
+        "build"
+      ],
       "options": {
         "cwd": "apps/aiao-vscode",
         "command": "node scripts/verify-export.mjs"
@@ -211,7 +247,9 @@
     "verify-offline": {
       "executor": "nx:run-commands",
       "cache": false,
-      "dependsOn": ["build"],
+      "dependsOn": [
+        "build"
+      ],
       "options": {
         "cwd": "apps/aiao-vscode",
         "command": "node scripts/verify-offline.mjs"
@@ -287,6 +325,14 @@
       "options": {
         "cwd": "apps/aiao-vscode",
         "command": "node scripts/verify-runtimes.mjs"
+      }
+    },
+    "verify-markdown-extension": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "apps/aiao-vscode",
+        "command": "node scripts/verify-markdown-extension.mjs"
       }
     }
   }

@@ -430,6 +430,9 @@ export function createWorkbenchCommands(root: HTMLElement, options: WorkbenchCom
     return true;
   }
 
+  let markdownChord = false;
+  let markdownChordTimer: ReturnType<typeof setTimeout> | undefined;
+
   function route(shortcut: WorkbenchShortcut, target: Element | null): boolean {
     const modifier = shortcut.ctrlKey || shortcut.metaKey;
     const key = shortcut.key.toLowerCase();
@@ -437,6 +440,19 @@ export function createWorkbenchCommands(root: HTMLElement, options: WorkbenchCom
     if (shortcut.ctrlKey && !shortcut.metaKey && !shortcut.shiftKey && key === '`')
       return invokeCommand('showTerminal');
     if (target?.closest('[data-workbench-terminal]')) return false;
+    if (markdownChord) {
+      markdownChord = false;
+      clearTimeout(markdownChordTimer);
+      if (key === 'v' && !modifier && !shortcut.shiftKey && !shortcut.altKey)
+        return invokeCommand('markdown-preview-enhanced.openPreviewToTheSide');
+    }
+    if (modifier && !ordinaryInput(target) && !shortcut.shiftKey && !shortcut.altKey && key === 'k' && options.getCommands().some(command => command.id === 'markdown-preview-enhanced.openPreviewToTheSide')) {
+      markdownChord = true;
+      markdownChordTimer = setTimeout(() => { markdownChord = false; }, 1500);
+      return true;
+    }
+    if (modifier && !ordinaryInput(target) && shortcut.shiftKey && !shortcut.altKey && key === 'v')
+      return invokeCommand('markdown-preview-enhanced.openPreview');
     if (modifier && key === 'p') {
       show(shortcut.shiftKey ? '>' : '');
       return true;
@@ -541,6 +557,7 @@ export function createWorkbenchCommands(root: HTMLElement, options: WorkbenchCom
     dispose() {
       if (disposed) return;
       disposed = true;
+      clearTimeout(markdownChordTimer);
       close(true);
       style.remove();
       owner.removeEventListener('keydown', pageKeydown, true);

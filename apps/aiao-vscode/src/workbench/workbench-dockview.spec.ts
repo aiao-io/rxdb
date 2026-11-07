@@ -14,6 +14,7 @@ function fixture(width = 1200, height = 800, withPanels = true) {
   document.body.append(root);
   const callbacks = {
     onSelectEditor: vi.fn(),
+    onPreviewMarkdown: vi.fn(),
     onCloseEditor: vi.fn(),
     onCloseOthers: vi.fn(),
     onCloseRight: vi.fn(),
@@ -1089,5 +1090,28 @@ describe('布局持久化', () => {
     await new Promise(resolve => setTimeout(resolve, 0));
     expect(dock.serializeLayout().edgeGroups?.left?.size).toBe(320);
     expect(dock.api.getPanel('problems')?.group.api.height).toBeCloseTo(260, 0);
+  });
+});
+
+
+describe('Markdown 预览的编辑器组入口', () => {
+  it('Markdown 标签显示预览动作，普通代码不显示', () => {
+    const { root, dock, callbacks } = fixture();
+    dock.ensureEditor('README.md');
+    dock.selectEditor('README.md');
+    const button = root.querySelector<HTMLButtonElement>('[data-markdown-preview]:not([hidden])')!;
+    expect(button).not.toBeNull();
+    button.click();
+    expect(callbacks.onPreviewMarkdown).toHaveBeenCalledWith('README.md');
+    dock.ensureEditor('main.ts');
+    dock.selectEditor('main.ts');
+    expect(root.querySelector('[data-markdown-preview]:not([hidden])')).toBeNull();
+  });
+
+  it('侧边预览独立成组，默认辅助面板仍在当前组', () => {
+    const { dock } = fixture();
+    dock.ensureEditor('README.md');
+    dock.ensureAuxiliary('markdown-extension', 'Markdown 预览', 'right');
+    expect(dock.api.getPanel('markdown-extension')!.group.id).not.toBe(dock.api.getPanel('editor:README.md')!.group.id);
   });
 });

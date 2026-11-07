@@ -1,3 +1,4 @@
+import { isMarkdownPath } from './extensions/markdown-extension.js';
 import {
   createDockview,
   themeDark,
@@ -20,6 +21,7 @@ export type WorkbenchToolKind = 'problems' | 'output' | 'console' | 'terminal';
 /** Dockview 与工作台会话之间的单向事件。 */
 export interface WorkbenchDockviewCallbacks {
   onSelectEditor(path: string): void;
+  onPreviewMarkdown?(path: string): void;
   onPinEditor?(path: string): void;
   onCloseEditor(path: string): void;
   onSelectTool(kind: WorkbenchToolKind): void;
@@ -43,7 +45,7 @@ export interface WorkbenchDockview {
   setEditorTitle(path: string, title: string): void;
   setEditorPreview(path: string, preview: boolean): void;
   getEditorGroupPaths(): readonly string[];
-  ensureAuxiliary(id: string, title: string): HTMLElement;
+  ensureAuxiliary(id: string, title: string, direction?: 'right' | 'within'): HTMLElement;
   removeAuxiliary(id: string): void;
   setSidebarVisible(visible: boolean): void;
   isSidebarVisible(): boolean;
@@ -306,7 +308,8 @@ function createTab(
 function createGroupActions(
   group: DockviewGroupPanel,
   splitEditor: (panel: IDockviewPanel) => void,
-  showToolMenu: (event: MouseEvent) => void
+  showToolMenu: (event: MouseEvent) => void,
+  previewMarkdown?: (path: string) => void
 ): IHeaderActionsRenderer {
   const element = document.createElement('div');
   element.className = 'wb-dock-group-actions';
@@ -325,7 +328,14 @@ function createGroupActions(
   close.setAttribute('aria-label', '关闭面板');
   close.title = '关闭面板';
   close.append(createCodicon('close'));
-  element.append(split, maximize, close);
+  const markdown = document.createElement('button');
+  markdown.type = 'button';
+  markdown.dataset['markdownPreview'] = '';
+  markdown.setAttribute('aria-label', '打开 Markdown 侧边预览');
+  markdown.title = 'Markdown Preview Enhanced: 打开侧边预览 · Ctrl / ⌘ + K V';
+  markdown.append(createCodicon('open-preview'));
+  markdown.onclick = event => { event.stopPropagation(); const path = group.activePanel && editorPath(group.activePanel.id); if (path) previewMarkdown?.(path); };
+  element.append(markdown, split, maximize, close);
 
   /** 只放底部工具标签的组；它的标签栏用紧凑的面板样式（wb-tool-group）。 */
   const isToolGroup = (): boolean => group.panels.length > 0 && group.panels.every(panel => isTool(panel.id));
@@ -341,6 +351,7 @@ function createGroupActions(
     const toolGroup = isToolGroup();
     group.element.classList.toggle('wb-tool-group', toolGroup);
     split.hidden = !active || editorPath(active.id) === undefined;
+    markdown.hidden = !previewMarkdown || !active || !isMarkdownPath(editorPath(active.id));
     maximize.hidden = !toolGroup;
     close.hidden = !toolGroup;
     const expanded = group.api.isMaximized();
@@ -385,6 +396,7 @@ function createGroupActions(
       subscriptions.splice(0).forEach(subscription => subscription.dispose());
       group.element.removeEventListener('contextmenu', onHeaderContextMenu);
       group.element.classList.remove('wb-tool-group');
+      markdown.onclick = null;
       split.onclick = null;
       maximize.onclick = null;
       close.onclick = null;
@@ -527,7 +539,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
       isTool(options.id) ?
         createToolTab(options.id, showToolMenu)
       : createTab(options.id, auxiliaryIds.has(options.id), callbacks, root, () => closePanel(options.id)),
-    createRightHeaderActionComponent: group => createGroupActions(group, splitPanel, showToolMenu)
+    createRightHeaderActionComponent: group => createGroupActions(group, splitPanel, showToolMenu, callbacks.onPreviewMarkdown)
   });
 
   function splitPanel(panel: IDockviewPanel): void {
@@ -788,7 +800,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
     callbacks.onSelectTool(kind);
   }
 
-  function ensureAuxiliary(id: string, title: string): HTMLElement {
+  function ensureAuxiliary(id: string, title: string, direction: 'right' | 'within' = 'within'): HTMLElement {
     if (!id || Object.hasOwn(titles, id) || editorPath(id) !== undefined)
       throw new Error(`辅助面板 id 与工作台保留面板冲突：${id}`);
     const existing = hosts.get(id);
@@ -812,7 +824,7 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
         component: 'auxiliary',
         title,
         renderer: 'always',
-        position: { referenceGroup: editorGroup() ?? addEditorArea(), direction: 'within' }
+        position: { referenceGroup: editorGroup() ?? addEditorArea(), direction }
       });
     });
     return host;

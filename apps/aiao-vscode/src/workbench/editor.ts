@@ -14,6 +14,12 @@ export interface WorkbenchEditorViewState {
   readonly scrollLeft: number;
 }
 
+/** 编辑器当前实际可见的文本行。 */
+export interface WorkbenchEditorViewport {
+  readonly firstLine: number;
+  readonly lastLine: number;
+}
+
 /** 原生编辑器绑定的初始属性。 */
 export interface WorkbenchEditorOptions {
   readonly value: string;
@@ -23,6 +29,7 @@ export interface WorkbenchEditorOptions {
   readonly indentUnit?: string;
   readonly onChange: (value: string) => void;
   readonly onCursor: (line: number, column: number) => void;
+  readonly onViewport?: (viewport: WorkbenchEditorViewport) => void;
 }
 
 /** 宿主编辑器可代工作台执行的 VS Code 风格命令。 */
@@ -56,6 +63,9 @@ export interface WorkbenchEditorHandle {
   getViewState?(): WorkbenchEditorViewState;
   /** 恢复选区与滚动位置，超出文档的偏移由编辑器截断。 */
   restoreViewState?(state: WorkbenchEditorViewState): void;
+  /** 预览滚动同步仅改变视区，保留光标、选区和焦点。 */
+  scrollToLine?(line: number): void;
+  getViewport?(): WorkbenchEditorViewport | undefined;
   dispose(): void;
 }
 
