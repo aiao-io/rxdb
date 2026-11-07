@@ -1,4 +1,5 @@
 import { modelText, type ModelI18n } from '../i18n.js';
+import { localizeEntityMetadata } from '../localized-metadata.js';
 /**
  * Entity Detail 标签构建工具
  * 根据实体元数据生成详情页标签配置
@@ -23,7 +24,7 @@ export function buildDetailTabs(metadata: EntityMetadata, i18n?: ModelI18n): Det
 
   const relationTabs: DetailTableTab[] = [];
 
-  metadata.relationMap.forEach((relation, name) => {
+  localizeEntityMetadata(metadata, i18n).relationMap.forEach((relation, name) => {
     if (relation.kind !== RelationKind.ONE_TO_MANY && relation.kind !== RelationKind.MANY_TO_MANY) return;
 
     const tab: DetailTableTab = {

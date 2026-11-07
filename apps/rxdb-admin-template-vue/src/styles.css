@@ -1,0 +1,29 @@
+@import 'tailwindcss';
+@import '@aiao/rxdb-model-vue/tailwind.css';
+@import '@aiao/rxdb-admin-vue/tailwind.css';
+@import '@aiao/rxdb-admin/admin.css';
+
+@plugin 'daisyui/index.js' {
+  themes:
+    light --default,
+    dark --prefersdark,
+    cupcake,
+    emerald,
+    corporate,
+    retro,
+    nord,
+    dracula,
+    night,
+    business;
+  root: ':is(:host, :root)';
+}
+
+@utility page-host {
+  @apply bg-base-100 flex h-full flex-col;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}

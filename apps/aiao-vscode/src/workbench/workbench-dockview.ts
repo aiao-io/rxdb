@@ -1,4 +1,3 @@
-import { isMarkdownPath } from './extensions/markdown-extension.js';
 import {
   createDockview,
   themeDark,
@@ -11,6 +10,7 @@ import {
   type SerializedDockview,
   type TabPartInitParameters
 } from 'dockview-core';
+import { isMarkdownPath } from './extensions/markdown-extension.js';
 import { createCodicon, createFileIcon } from './workbench-icons.js';
 import { normalizeWorkbenchLayout, SIDEBAR_EDGE, SIDEBAR_WIDTH } from './workbench-layout-state.js';
 import { attachWorkbenchLongPress } from './workbench-longpress.js';
@@ -334,7 +334,11 @@ function createGroupActions(
   markdown.setAttribute('aria-label', '打开 Markdown 侧边预览');
   markdown.title = 'Markdown Preview Enhanced: 打开侧边预览 · Ctrl / ⌘ + K V';
   markdown.append(createCodicon('open-preview'));
-  markdown.onclick = event => { event.stopPropagation(); const path = group.activePanel && editorPath(group.activePanel.id); if (path) previewMarkdown?.(path); };
+  markdown.onclick = event => {
+    event.stopPropagation();
+    const path = group.activePanel && editorPath(group.activePanel.id);
+    if (path) previewMarkdown?.(path);
+  };
   element.append(markdown, split, maximize, close);
 
   /** 只放底部工具标签的组；它的标签栏用紧凑的面板样式（wb-tool-group）。 */
@@ -539,7 +543,8 @@ export function createWorkbenchDockview(root: HTMLElement, callbacks: WorkbenchD
       isTool(options.id) ?
         createToolTab(options.id, showToolMenu)
       : createTab(options.id, auxiliaryIds.has(options.id), callbacks, root, () => closePanel(options.id)),
-    createRightHeaderActionComponent: group => createGroupActions(group, splitPanel, showToolMenu, callbacks.onPreviewMarkdown)
+    createRightHeaderActionComponent: group =>
+      createGroupActions(group, splitPanel, showToolMenu, callbacks.onPreviewMarkdown)
   });
 
   function splitPanel(panel: IDockviewPanel): void {

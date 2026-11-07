@@ -15,12 +15,12 @@ type ScalarFunction = NonNullable<Parameters<SQLiteAPI['create_function']>[5]>;
 interface FunctionHarness {
   readonly functions: ReadonlyMap<string, ScalarFunction>;
   readonly result: ReturnType<typeof vi.fn>;
-  readonly values: Map<number, string>;
+  readonly values: Map<number, string | null>;
 }
 
 async function createFunctionHarness(): Promise<FunctionHarness> {
   const functions = new Map<string, ScalarFunction>();
-  const values = new Map<number, string>();
+  const values = new Map<number, string | null>();
   const result = vi.fn();
   const sqlite = {
     changes: vi.fn().mockReturnValue(0),
@@ -45,7 +45,7 @@ async function createFunctionHarness(): Promise<FunctionHarness> {
       yield* [];
     }),
     update_hook: vi.fn(),
-    value_text: vi.fn((value: number) => values.get(value) ?? '')
+    value_text: vi.fn((value: number) => (values.has(value) ? values.get(value) : ''))
   } as unknown as SQLiteAPI;
   sqliteLoadMock.mockResolvedValue({ pointer: 1, sqlite, vfs: { close: vi.fn() } });
 
@@ -170,5 +170,40 @@ describe('SqliteClient regexp 函数', () => {
     expect(harness.result).toHaveBeenCalledWith(10, 'foobar');
     expect(warn).toHaveBeenCalled();
     warn.mockRestore();
+  });
+
+  // SQL NULL 经 value_text 拿到的是 null；契约与 oo1 系（Oo1ClientBase）的 String() 强转
+  // 逐条对齐：regexp / regexp_replace 把 null 当 "null" 字符串，fts_bigram 原样返回 NULL。
+  it('regexp 对 NULL 文本按 "null" 字符串匹配（与 oo1 系对齐）', async () => {
+    const harness = await createFunctionHarness();
+    const regexp = harness.functions.get('regexp');
+    harness.values.set(1, 'null');
+    harness.values.set(2, null);
+
+    await invoke(regexp!, 10, new Uint32Array([1, 2]));
+
+    expect(harness.result).toHaveBeenCalledWith(10, 1);
+  });
+
+  it('regexp_replace 对 NULL 参数按 "null" 字符串处理（与 oo1 系对齐）', async () => {
+    const harness = await createFunctionHarness();
+    const regexpReplace = harness.functions.get('regexp_replace');
+    harness.values.set(1, 'x');
+    harness.values.set(2, null);
+    harness.values.set(3, 'y');
+
+    await invoke(regexpReplace!, 10, new Uint32Array([1, 2, 3]));
+
+    expect(harness.result).toHaveBeenCalledWith(10, 'null');
+  });
+
+  it('rxdb_fts_bigram 对 NULL 原样返回 NULL', async () => {
+    const harness = await createFunctionHarness();
+    const ftsBigram = harness.functions.get('rxdb_fts_bigram');
+    harness.values.set(1, null);
+
+    await invoke(ftsBigram!, 10, new Uint32Array([1]));
+
+    expect(harness.result).toHaveBeenCalledWith(10, null);
   });
 });

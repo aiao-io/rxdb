@@ -19,10 +19,10 @@
 
 ## 研究基线与证据边界
 
-| 项目 | 读取的本地提交 | 比较范围 |
-| --- | --- | --- |
+| 项目        | 读取的本地提交                             | 比较范围                                                                                  |
+| ----------- | ------------------------------------------ | ----------------------------------------------------------------------------------------- |
 | aiao-vscode | `ebdb01edf70998c588547dccc810ec8dc3d271f6` | Angular 应用、框架无关工作台内核、Git Worker、受控编译、WebContainer 终端、测试与验收报告 |
-| Vivari | `d2719f9fdd9a0f4feafde7e2e5a9efd46d8c06ff` | `packages/core`、`kernel-host`、`protocol`、`runtime`、`vfs`、`studio` 及测试脚本 |
+| Vivari      | `d2719f9fdd9a0f4feafde7e2e5a9efd46d8c06ff` | `packages/core`、`kernel-host`、`protocol`、`runtime`、`vfs`、`studio` 及测试脚本         |
 
 本文采用以下证据口径：
 
@@ -58,30 +58,30 @@ RxDB 保存项目元数据、恢复草稿和偏好，CodeMirror 提供编辑，D
 
 ## 相同功能的实现对照
 
-| 功能 | Vivari | aiao-vscode | 判断 |
-| --- | --- | --- | --- |
-| 浏览器 Node 环境 | 自研进程、文件系统与虚拟网络；Node JS 标准库运行在 binding 层之上 | 使用 `@webcontainer/api`，由 WebContainer 提供 Node 环境 | Vivari 底层控制更强；我们承担的运行时维护范围更小 |
-| 编辑与语言服务 | Monaco 配合 TS/JS language-service Worker；提供跨文件补全、悬停、跳转与语义诊断 | CodeMirror 语法支持、查找、Prettier 格式化与编译诊断；当前接入未提供项目级 TS language service | Vivari 的项目级语言服务值得优先借鉴 |
-| 源码与进程文件 | 编辑器保存、终端、开发服务器和 Git 共用 VFS | OPFS Git 持久化与 WebContainer 运行副本分开，通过协议双向同步源码 | Vivari 数据路径更直接；我们显式约束保存、冲突和恢复 |
-| 重复安装依赖 | 包管理器缓存持久化；按锁文件保存、恢复 `node_modules` 快照，带 LRU 容量上限 | 停止后销毁容器；同步与项目归档排除 `node_modules`，重开需要重新安装 | Vivari 提供了依赖复用设计，实际收益需基准验证 |
-| 编译与预览 | 真实项目开发服务器，通过 Service Worker 与虚拟网络提供 HTTP、WebSocket 和 HMR；支持不同预览 origin 模式 | 受控编译预览与 WebContainer 服务预览并存，执行边界不同 | 我们兼顾离线与完整项目，交互语义还需统一 |
-| Git 与差异 | isomorphic-git 经异步 fs 适配访问 VFS；多仓库、本地分支管理；差异视图是 HEAD 与工作区 | Git WASM Worker；区分 HEAD/index/worktree；另有 GitHub API 虚拟仓库后端 | Vivari 强在本地分支与多仓库；我们远端链路和差异语义更完整 |
-| 工作区与终端 | 多根目录、多项目、多个终端与服务 | 当前项目独占容器；切换项目先回写文件，再销毁进程和服务预览 | Vivari 适合多服务联调；我们生命周期约束更集中 |
-| 布局 | React 组件与可调整大小的面板 | Dockview 支持拖动、拆分、停靠，按项目恢复布局与标签 | 保留我们的布局与实例生命周期设计 |
-| 导入、导出与分享 | 文件夹、公开 GitHub/npm 导入；源码 ZIP；压缩源码生成分享链接 | 文件夹、GitHub、ZIP；本地项目归档包含源码、锁文件、暂存区与 `.git` | 分享链接与完整归档互补 |
-| 调试与其他语言 | 源码插桩调试；Python、Notebook、Bun API shim 等 | 编译诊断、Console、输出与终端，当前没有同等的集成调试与多语言链路 | 独立候选，不能从功能表推导为低成本扩展 |
+| 功能             | Vivari                                                                                                  | aiao-vscode                                                                                    | 判断                                                      |
+| ---------------- | ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| 浏览器 Node 环境 | 自研进程、文件系统与虚拟网络；Node JS 标准库运行在 binding 层之上                                       | 使用 `@webcontainer/api`，由 WebContainer 提供 Node 环境                                       | Vivari 底层控制更强；我们承担的运行时维护范围更小         |
+| 编辑与语言服务   | Monaco 配合 TS/JS language-service Worker；提供跨文件补全、悬停、跳转与语义诊断                         | CodeMirror 语法支持、查找、Prettier 格式化与编译诊断；当前接入未提供项目级 TS language service | Vivari 的项目级语言服务值得优先借鉴                       |
+| 源码与进程文件   | 编辑器保存、终端、开发服务器和 Git 共用 VFS                                                             | OPFS Git 持久化与 WebContainer 运行副本分开，通过协议双向同步源码                              | Vivari 数据路径更直接；我们显式约束保存、冲突和恢复       |
+| 重复安装依赖     | 包管理器缓存持久化；按锁文件保存、恢复 `node_modules` 快照，带 LRU 容量上限                             | 停止后销毁容器；同步与项目归档排除 `node_modules`，重开需要重新安装                            | Vivari 提供了依赖复用设计，实际收益需基准验证             |
+| 编译与预览       | 真实项目开发服务器，通过 Service Worker 与虚拟网络提供 HTTP、WebSocket 和 HMR；支持不同预览 origin 模式 | 受控编译预览与 WebContainer 服务预览并存，执行边界不同                                         | 我们兼顾离线与完整项目，交互语义还需统一                  |
+| Git 与差异       | isomorphic-git 经异步 fs 适配访问 VFS；多仓库、本地分支管理；差异视图是 HEAD 与工作区                   | Git WASM Worker；区分 HEAD/index/worktree；另有 GitHub API 虚拟仓库后端                        | Vivari 强在本地分支与多仓库；我们远端链路和差异语义更完整 |
+| 工作区与终端     | 多根目录、多项目、多个终端与服务                                                                        | 当前项目独占容器；切换项目先回写文件，再销毁进程和服务预览                                     | Vivari 适合多服务联调；我们生命周期约束更集中             |
+| 布局             | React 组件与可调整大小的面板                                                                            | Dockview 支持拖动、拆分、停靠，按项目恢复布局与标签                                            | 保留我们的布局与实例生命周期设计                          |
+| 导入、导出与分享 | 文件夹、公开 GitHub/npm 导入；源码 ZIP；压缩源码生成分享链接                                            | 文件夹、GitHub、ZIP；本地项目归档包含源码、锁文件、暂存区与 `.git`                             | 分享链接与完整归档互补                                    |
+| 调试与其他语言   | 源码插桩调试；Python、Notebook、Bun API shim 等                                                         | 编译诊断、Console、输出与终端，当前没有同等的集成调试与多语言链路                              | 独立候选，不能从功能表推导为低成本扩展                    |
 
 主要复验入口：
 
-| 对照项 | Vivari 源码符号 | aiao-vscode 源码或文档 |
-| --- | --- | --- |
-| 语言服务 | [`IdeController.configureLanguageService()`、`ensureBackgroundModels()`、`ensureModel()`][v-controller] | [`AppComponent`](../src/app/app.component.ts) 中 `CodeEditor` 创建与扩展注入；[`formatWorkbenchSource()`](../src/workbench/formatter.ts) |
-| 文件同步 | [`IdeController.saveFile()`][v-controller]、[`FsServer`][v-fs-server] | [`createWebContainerRuntime()`](../src/workbench/terminal/webcontainer-runtime.ts) 内 `readFiles()`、`scan()`、`sync()` |
-| 依赖缓存 | [`hashDepKey()`、`createDepCache()`][v-depcache]、[`shouldPersist()`][v-fs-worker] | [终端生命周期与同步范围](../README.md#浏览器交互终端) |
-| Git | [`ScmSession`][v-scm]、[`createGitFs()`][v-git-fs] | [`WorkbenchBackend`](../src/workbench/session.ts)、[`createGitHubBackend()`](../src/workbench/git/github/github-backend.ts) |
-| 预览 | [`BootOptions.previewOrigin`、`previewWildcardDomain`][v-types]、[`PreviewPanel`][v-preview] | [`mountPreview()`](../src/workbench/preview/preview-sandbox.ts)、[两类预览的行为说明](../README.md#浏览器交互终端) |
-| 工作区与分享 | [`IdeController` 的 `workspaceFolders`、`shareProject()`][v-controller] | [布局与恢复说明](../README.md)、[`WorkbenchBackend.exportArchive()`](../src/workbench/session.ts) |
-| 调试 | [`DebugSession`][v-debug-session]、[`instrumentSource()`][v-instrument] | [现有应用范围](../README.md) |
+| 对照项       | Vivari 源码符号                                                                                         | aiao-vscode 源码或文档                                                                                                                   |
+| ------------ | ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| 语言服务     | [`IdeController.configureLanguageService()`、`ensureBackgroundModels()`、`ensureModel()`][v-controller] | [`AppComponent`](../src/app/app.component.ts) 中 `CodeEditor` 创建与扩展注入；[`formatWorkbenchSource()`](../src/workbench/formatter.ts) |
+| 文件同步     | [`IdeController.saveFile()`][v-controller]、[`FsServer`][v-fs-server]                                   | [`createWebContainerRuntime()`](../src/workbench/terminal/webcontainer-runtime.ts) 内 `readFiles()`、`scan()`、`sync()`                  |
+| 依赖缓存     | [`hashDepKey()`、`createDepCache()`][v-depcache]、[`shouldPersist()`][v-fs-worker]                      | [终端生命周期与同步范围](../README.md#浏览器交互终端)                                                                                    |
+| Git          | [`ScmSession`][v-scm]、[`createGitFs()`][v-git-fs]                                                      | [`WorkbenchBackend`](../src/workbench/session.ts)、[`createGitHubBackend()`](../src/workbench/git/github/github-backend.ts)              |
+| 预览         | [`BootOptions.previewOrigin`、`previewWildcardDomain`][v-types]、[`PreviewPanel`][v-preview]            | [`mountPreview()`](../src/workbench/preview/preview-sandbox.ts)、[两类预览的行为说明](../README.md#浏览器交互终端)                       |
+| 工作区与分享 | [`IdeController` 的 `workspaceFolders`、`shareProject()`][v-controller]                                 | [布局与恢复说明](../README.md)、[`WorkbenchBackend.exportArchive()`](../src/workbench/session.ts)                                        |
+| 调试         | [`DebugSession`][v-debug-session]、[`instrumentSource()`][v-instrument]                                 | [现有应用范围](../README.md)                                                                                                             |
 
 ## aiao-vscode 已有优势
 
@@ -258,15 +258,15 @@ Vivari 值得学的是分层、批量跨线程操作和兼容性验证。
 
 ## 建议顺序与后续验证
 
-| 优先级 | 候选工作 | 首轮验证重点 | 决策边界 |
-| --- | --- | --- | --- |
-| P0 | 项目级 TS/JS 语言服务 | 未打开文件的跨文件跳转、依赖类型、未保存编辑诊断、过期结果取消与 Worker 回收 | 保留 CodeMirror；框架模板语义另评估 |
-| P0 | 预览模式交互整合 | 同一项目在两种模式中的运行、刷新、诊断与新增依赖行为一致可解释 | 保留受控离线预览边界 |
-| P1 | 依赖复用与启动流程 | 冷启动、重启、切项目后重开、缓存失效、容量上限与恢复失败 | 先基准和原型，不先承诺启动时间 |
-| P1 | 源码分享链接 | 文本与二进制往返、路径校验、超限、独立项目导入、未保存内容策略 | 适配小型示例与复现，不扩为实时协作 |
-| P1 | 进程与端口视图、本地分支 | 进程退出清理、服务归属、分支切换的草稿和暂存保护 | 两个可独立交付的候选范围 |
-| P2 | 多根工作区 | 根目录身份、并行服务、跨项目路径与恢复隔离 | 依赖单项目生命周期稳定 |
-| P2 | 断点调试、Python、Notebook、自研运行时评估 | 用户场景、兼容矩阵、资源成本、隔离与维护责任 | 分别立项，避免捆绑扩张 |
+| 优先级 | 候选工作                                   | 首轮验证重点                                                                 | 决策边界                            |
+| ------ | ------------------------------------------ | ---------------------------------------------------------------------------- | ----------------------------------- |
+| P0     | 项目级 TS/JS 语言服务                      | 未打开文件的跨文件跳转、依赖类型、未保存编辑诊断、过期结果取消与 Worker 回收 | 保留 CodeMirror；框架模板语义另评估 |
+| P0     | 预览模式交互整合                           | 同一项目在两种模式中的运行、刷新、诊断与新增依赖行为一致可解释               | 保留受控离线预览边界                |
+| P1     | 依赖复用与启动流程                         | 冷启动、重启、切项目后重开、缓存失效、容量上限与恢复失败                     | 先基准和原型，不先承诺启动时间      |
+| P1     | 源码分享链接                               | 文本与二进制往返、路径校验、超限、独立项目导入、未保存内容策略               | 适配小型示例与复现，不扩为实时协作  |
+| P1     | 进程与端口视图、本地分支                   | 进程退出清理、服务归属、分支切换的草稿和暂存保护                             | 两个可独立交付的候选范围            |
+| P2     | 多根工作区                                 | 根目录身份、并行服务、跨项目路径与恢复隔离                                   | 依赖单项目生命周期稳定              |
+| P2     | 断点调试、Python、Notebook、自研运行时评估 | 用户场景、兼容矩阵、资源成本、隔离与维护责任                                 | 分别立项，避免捆绑扩张              |
 
 现有性能成本的验证与功能候选分开安排：先测量源码扫描和 Git 日志开销，再决定是否调整实现。
 进入实现前，为选定范围补红测、验收场景和故事；实际状态以

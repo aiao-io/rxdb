@@ -6,37 +6,63 @@ import { expect } from 'playwright/test';
 
 const url = process.argv.find(value => value.startsWith('--url='))?.slice('--url='.length) ?? 'http://localhost:4320/';
 const directory = resolve(import.meta.dirname, '../benchmarks');
-const report = { format: 'aiao.workbench.markdown-extension', version: 1, extension: 'shd101wyy.markdown-preview-enhanced@0.8.40', url, status: 'failed', checks: [], limitations: [], errors: [] };
+const report = {
+  format: 'aiao.workbench.markdown-extension',
+  version: 1,
+  extension: 'shd101wyy.markdown-preview-enhanced@0.8.40',
+  url,
+  status: 'failed',
+  checks: [],
+  limitations: [],
+  errors: []
+};
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ viewport: { width: 1680, height: 1050 } });
 const page = await context.newPage();
 page.setDefaultTimeout(20000);
 const root = page.getByRole('region', { name: '浏览器开发工作台', exact: true });
 const host = () => page.locator('iframe[data-markdown-extension-host]');
-const source = path => root.locator(`[data-editor-path="${path}"]`).getByRole('textbox', { name: '项目源码', exact: true });
+const source = path =>
+  root.locator(`[data-editor-path="${path}"]`).getByRole('textbox', { name: '项目源码', exact: true });
 const preview = () => page.frames().find(frame => frame.name() === 'pending-frame');
 const heading = async () => {
-  try { return await preview()?.locator('[data-for="preview"] h1').textContent({ timeout: 1000 }); }
-  catch { return undefined; }
+  try {
+    return await preview()?.locator('[data-for="preview"] h1').textContent({ timeout: 1000 });
+  } catch {
+    return undefined;
+  }
 };
 page.on('pageerror', error => report.errors.push(error.stack ?? error.message));
 page.on('console', message => {
   if (message.type() !== 'error') return;
   const text = `${message.text()} ${message.location().url}`;
-  if (text.includes('tikzjax.com')) { if (!report.limitations.includes('TikZ 在线资源受 COEP 限制')) report.limitations.push('TikZ 在线资源受 COEP 限制'); }
-  else report.errors.push(text);
+  if (text.includes('tikzjax.com')) {
+    if (!report.limitations.includes('TikZ 在线资源受 COEP 限制')) report.limitations.push('TikZ 在线资源受 COEP 限制');
+  } else report.errors.push(text);
 });
 page.on('response', response => {
-  if (response.status() >= 400 && /extension-host|extensions\/shd101wyy|vscode-resource/.test(response.url())) report.errors.push(`HTTP ${response.status()} ${response.url()}`);
+  if (response.status() >= 400 && /extension-host|extensions\/shd101wyy|vscode-resource/.test(response.url()))
+    report.errors.push(`HTTP ${response.status()} ${response.url()}`);
 });
-function check(name) { report.checks.push(name); console.log(`通过：${name}`); }
+function check(name) {
+  report.checks.push(name);
+  console.log(`通过：${name}`);
+}
 async function settlePreview() {
-  await preview().evaluate(() => new Promise(resolve => {
-    let previous = window.scrollY;
-    let stable = 0;
-    const sample = () => { stable = window.scrollY === previous ? stable + 1 : 0; previous = window.scrollY; if (stable >= 12) resolve(); else requestAnimationFrame(sample); };
-    requestAnimationFrame(sample);
-  }));
+  await preview().evaluate(
+    () =>
+      new Promise(resolve => {
+        let previous = window.scrollY;
+        let stable = 0;
+        const sample = () => {
+          stable = window.scrollY === previous ? stable + 1 : 0;
+          previous = window.scrollY;
+          if (stable >= 12) resolve();
+          else requestAnimationFrame(sample);
+        };
+        requestAnimationFrame(sample);
+      })
+  );
 }
 async function open(path) {
   await root.getByRole('button', { name: '搜索文件和命令', exact: true }).click();
@@ -61,14 +87,17 @@ async function engine(value) {
   await root.getByRole('button', { name: '设置', exact: true }).click();
   await root.locator('select[name="editor-engine"]').selectOption(value);
   await root.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
-  await expect(root.locator(`[data-editor-path="README.md"] ${value === 'monaco' ? '.monaco-editor' : '.cm-editor'}`)).toBeVisible();
+  await expect(
+    root.locator(`[data-editor-path="README.md"] ${value === 'monaco' ? '.monaco-editor' : '.cm-editor'}`)
+  ).toBeVisible();
 }
 async function closePreview() {
   await root.getByRole('button', { name: '关闭 Markdown Preview Enhanced', exact: true }).click();
   await expect(host()).toHaveCount(0);
 }
 async function createProject(name) {
-  if (await root.locator('[data-editor-path]').count()) await expect(root.locator('[data-action="run"]')).toBeEnabled({ timeout: 30000 });
+  if (await root.locator('[data-editor-path]').count())
+    await expect(root.locator('[data-action="run"]')).toBeEnabled({ timeout: 30000 });
   await root.getByRole('button', { name: '应用程序菜单', exact: true }).click();
   await root.getByRole('menuitem', { name: '新建项目', exact: true }).click();
   await page.getByRole('textbox', { name: '项目名称', exact: true }).fill(name);
@@ -84,11 +113,19 @@ try {
   await expect(root).toBeVisible({ timeout: 30000 });
   await createProject('Markdown Extension 验收');
   await open('README.md');
-  const long = Array.from({ length: 90 }, (_, index) => `## 章节 ${index}\n\n第 ${index} 章，滚动同步测试。\n`).join('\n');
-  const sample = '# 正式插件草稿\n\n<div data-html-test="passed">HTML 结构</div>\n\n- 列表\n\n```ts\nconst x = 1;\n```\n\n![相对图片](./src/icon.svg)\n\n公式 $x^2+y^2=z^2$\n\n```mermaid\ngraph TD\nA[开始] --> B[结束]\n```\n\n' + long;
+  const long = Array.from({ length: 90 }, (_, index) => `## 章节 ${index}\n\n第 ${index} 章，滚动同步测试。\n`).join(
+    '\n'
+  );
+  const sample =
+    '# 正式插件草稿\n\n<div data-html-test="passed">HTML 结构</div>\n\n- 列表\n\n```ts\nconst x = 1;\n```\n\n![相对图片](./src/icon.svg)\n\n公式 $x^2+y^2=z^2$\n\n```mermaid\ngraph TD\nA[开始] --> B[结束]\n```\n\n' +
+    long;
   await replace('README.md', sample);
   await page.keyboard.press('ControlOrMeta+Home');
-  await root.getByRole('button', { name: '打开 Markdown 侧边预览', exact: true }).filter({ visible: true }).first().click();
+  await root
+    .getByRole('button', { name: '打开 Markdown 侧边预览', exact: true })
+    .filter({ visible: true })
+    .first()
+    .click();
   await expect.poll(heading, { timeout: 60000 }).toContain('正式插件草稿');
   const frame = preview();
   await expect(frame.locator('[data-html-test="passed"]')).toHaveText('HTML 结构');
@@ -96,7 +133,9 @@ try {
   await expect(frame.locator('[data-for="preview"] pre').first()).toContainText('const x = 1');
   await expect(frame.locator('[data-for="preview"] .katex')).toHaveCount(1);
   await expect(frame.locator('[data-for="preview"] svg[id^="mermaid"]')).toHaveCount(1);
-  await expect.poll(() => frame.locator('[data-for="preview"] img').evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
+  await expect
+    .poll(() => frame.locator('[data-for="preview"] img').evaluate(image => image.complete && image.naturalWidth > 0))
+    .toBe(true);
   await expect(root.locator('[data-editor-tab-path="README.md"] .wb-dirty-marker')).toBeVisible();
   await frame.locator('[data-for="preview"] img').click();
   await expect(frame.locator('.mpe-lightbox-overlay')).toHaveClass(/mpe-lightbox-visible/);
@@ -132,16 +171,28 @@ try {
   await page.keyboard.press('ControlOrMeta+Home');
   await root.locator('[data-editor-path="README.md"]').hover();
   await page.mouse.wheel(0, 4000);
-  await expect.poll(() => preview().locator('[data-for="preview"]').evaluate(element => element.scrollTop || window.scrollY)).toBeGreaterThan(100);
+  await expect
+    .poll(() =>
+      preview()
+        .locator('[data-for="preview"]')
+        .evaluate(element => element.scrollTop || window.scrollY)
+    )
+    .toBeGreaterThan(100);
   await settlePreview();
   const selection = await source('README.md').evaluate(() => window.getSelection()?.anchorOffset);
-  const sourceTop = () => root.locator('[data-editor-path="README.md"] .cm-scroller').evaluate(element => element.scrollTop);
-  await preview().locator('[data-for="preview"]').evaluate(element => { element.scrollTop = 0; window.scrollTo(0, 0); });
+  const sourceTop = () =>
+    root.locator('[data-editor-path="README.md"] .cm-scroller').evaluate(element => element.scrollTop);
+  await preview()
+    .locator('[data-for="preview"]')
+    .evaluate(element => {
+      element.scrollTop = 0;
+      window.scrollTo(0, 0);
+    });
   await expect.poll(sourceTop).toBeLessThan(500);
   assert.equal(await source('README.md').evaluate(() => window.getSelection()?.anchorOffset), selection);
   check('bidirectional-scroll-without-moving-source-selection');
   const explorer = root.getByRole('button', { name: '切换资源管理器', exact: true });
-  if (await explorer.getAttribute('aria-pressed') !== 'true') await explorer.click();
+  if ((await explorer.getAttribute('aria-pressed')) !== 'true') await explorer.click();
   await root.locator('[data-tree-section="workspace"]').hover();
   await root.getByRole('button', { name: '新建文件...', exact: true }).click();
   const filename = root.getByRole('textbox', { name: '新建文件', exact: true });
@@ -221,7 +272,9 @@ try {
   await root.getByRole('button', { name: '卸载 Markdown Preview Enhanced', exact: true }).click();
   await expect(host()).toHaveCount(0);
   await expect(root.locator('[data-extension-status]')).toHaveText('未安装');
-  await expect(root.getByRole('button', { name: '打开 Markdown 侧边预览', exact: true }).filter({ visible: true }).first()).toBeDisabled();
+  await expect(
+    root.getByRole('button', { name: '打开 Markdown 侧边预览', exact: true }).filter({ visible: true }).first()
+  ).toBeDisabled();
   check('uninstall-disposes-active-host-and-disables-preview');
   await page.reload();
   await root.getByRole('button', { name: '扩展', exact: true }).click();
@@ -240,11 +293,29 @@ try {
   report.status = 'passed';
 } catch (error) {
   report.failure = error.stack ?? String(error);
-  report.frames = await Promise.all(page.frames().map(async frame => ({ url: frame.url(), scroll: await frame.evaluate(() => ({ window: window.scrollY, active: document.activeElement?.tagName, scrollbars: [...document.querySelectorAll('.monaco-scrollable-element, .cm-scroller')].map(element => element.scrollTop) })).catch(() => null) })));
-  await page.screenshot({ path: resolve(directory, 'browser-workbench-markdown-extension-failure.png') }).catch(() => undefined);
+  report.frames = await Promise.all(
+    page.frames().map(async frame => ({
+      url: frame.url(),
+      scroll: await frame
+        .evaluate(() => ({
+          window: window.scrollY,
+          active: document.activeElement?.tagName,
+          scrollbars: [...document.querySelectorAll('.monaco-scrollable-element, .cm-scroller')].map(
+            element => element.scrollTop
+          )
+        }))
+        .catch(() => null)
+    }))
+  );
+  await page
+    .screenshot({ path: resolve(directory, 'browser-workbench-markdown-extension-failure.png') })
+    .catch(() => undefined);
   process.exitCode = 1;
 } finally {
-  await writeFile(resolve(directory, 'browser-workbench-markdown-extension.json'), JSON.stringify(report, null, 2) + '\n');
+  await writeFile(
+    resolve(directory, 'browser-workbench-markdown-extension.json'),
+    JSON.stringify(report, null, 2) + '\n'
+  );
   console.log(JSON.stringify(report, null, 2));
   await browser.close();
 }

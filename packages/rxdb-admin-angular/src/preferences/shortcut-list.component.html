@@ -1,0 +1,31 @@
+@if (infos().length === 0) {
+  <p class="text-sm opacity-60" [textContent]="t('prefs.shortcuts.empty')"></p>
+} @else {
+  <ul class="flex flex-col gap-1">
+    @for (info of infos(); track info.id) {
+      <li class="admin-row" [attr.data-disabled]="!prefs().shortcuts.enable">
+        <label
+          class="admin-row-label"
+          [attr.for]="'prefs-shortcut-' + info.id"
+          [textContent]="info.labelKey ? t(info.labelKey) : (info.label ?? info.id)"
+        ></label>
+        <span class="flex items-center gap-3">
+          <span class="flex gap-0.5" aria-hidden="true">
+            @for (key of info.keys; track key) {
+              <kbd class="kbd kbd-sm">{{ key }}</kbd>
+            }
+          </span>
+          <input
+            class="toggle toggle-sm"
+            [attr.data-testid]="'pref-shortcut-' + info.id"
+            [attr.id]="'prefs-shortcut-' + info.id"
+            [checked]="!prefs().shortcuts.disabled.includes(info.id)"
+            [disabled]="!prefs().shortcuts.enable"
+            (change)="onToggle($event, info.id)"
+            type="checkbox"
+          />
+        </span>
+      </li>
+    }
+  </ul>
+}

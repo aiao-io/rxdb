@@ -1,5 +1,5 @@
 import type { WorkbenchEditorViewport } from '../editor.js';
-import type { ExtensionCommand, ExtensionSnapshot, ExtensionFileBaseline } from './extension-protocol.js';
+import type { ExtensionCommand, ExtensionFileBaseline, ExtensionSnapshot } from './extension-protocol.js';
 
 /** 扩展可观察的真实生命周期状态。 */
 export type MarkdownExtensionStatus = 'uninstalled' | 'disabled' | 'idle' | 'loading' | 'active' | 'failed';
@@ -44,8 +44,16 @@ export interface MarkdownExtensionOptions {
 }
 
 const declaredCommands: readonly ExtensionCommand[] = [
-  { id: 'markdown-preview-enhanced.openPreview', label: 'Markdown Preview Enhanced: 打开预览', keybinding: '⌘ / Ctrl + Shift + V' },
-  { id: 'markdown-preview-enhanced.openPreviewToTheSide', label: 'Markdown Preview Enhanced: 打开侧边预览', keybinding: '⌘ / Ctrl + K V' },
+  {
+    id: 'markdown-preview-enhanced.openPreview',
+    label: 'Markdown Preview Enhanced: 打开预览',
+    keybinding: '⌘ / Ctrl + Shift + V'
+  },
+  {
+    id: 'markdown-preview-enhanced.openPreviewToTheSide',
+    label: 'Markdown Preview Enhanced: 打开侧边预览',
+    keybinding: '⌘ / Ctrl + K V'
+  },
   { id: 'markdown-preview-enhanced.openLockedPreviewToTheSide', label: 'Markdown Preview Enhanced: 打开锁定的侧边预览' }
 ];
 
@@ -58,7 +66,10 @@ export function isMarkdownPath(path: string | null | undefined): boolean {
 export function createMarkdownExtension(options: MarkdownExtensionOptions) {
   let installed = options.installed;
   let enabled = installed && options.enabled;
-  let status: MarkdownExtensionStatus = !installed ? 'uninstalled' : enabled ? 'idle' : 'disabled';
+  let status: MarkdownExtensionStatus =
+    !installed ? 'uninstalled'
+    : enabled ? 'idle'
+    : 'disabled';
   let snapshot: ExtensionSnapshot | undefined;
   let runtime: MarkdownRuntime | undefined;
   let loading: Promise<MarkdownRuntime> | undefined;
@@ -80,12 +91,19 @@ export function createMarkdownExtension(options: MarkdownExtensionOptions) {
     runtime = undefined;
     loading = undefined;
     commands = declaredCommands;
-    updateStatus(!installed ? 'uninstalled' : enabled ? 'idle' : 'disabled');
+    updateStatus(
+      !installed ? 'uninstalled'
+      : enabled ? 'idle'
+      : 'disabled'
+    );
   }
   function sync(next: ExtensionSnapshot): void {
     if (disposed) return;
     if (snapshot && snapshot.projectId !== next.projectId) stop();
-    if (snapshot?.projectId !== next.projectId || snapshot?.activePath !== next.activePath) { cursor = undefined; viewport = undefined; }
+    if (snapshot?.projectId !== next.projectId || snapshot?.activePath !== next.activePath) {
+      cursor = undefined;
+      viewport = undefined;
+    }
     snapshot = next;
     if (runtime) void runtime.sync(next).catch(options.onError);
   }
@@ -101,61 +119,123 @@ export function createMarkdownExtension(options: MarkdownExtensionOptions) {
       updateStatus('loading');
       lifetime = new AbortController();
       const current = () => !disposed && ticket === generation;
-      const assertCurrent = () => { if (!current()) throw new Error('项目已切换或扩展已禁用'); };
-      loading = options.mount(options.getHost(command.endsWith('ToTheSide')), {
-        snapshot: initial,
-        signal: lifetime.signal,
-        onEdit: (path, content, baseContent) => {
-          if (!current()) return;
-          if (snapshot?.files[path] === baseContent) { options.onEdit(path, content); return; }
-          options.onError(new Error(`插件修改已过期，保留当前草稿：${path}`));
-          if (runtime && snapshot) void runtime.sync(snapshot).catch(options.onError);
-        },
-        onSave: async path => { assertCurrent(); await options.onSave(path); },
-        onWrite: async (path, content, baseline) => {
-          assertCurrent();
-          const same = (left: string | Uint8Array | undefined, right: string | Uint8Array | undefined) => left === right || (left instanceof Uint8Array && right instanceof Uint8Array && left.length === right.length && left.every((byte, index) => byte === right[index]));
-          if (!same(snapshot?.files[path], baseline.draft) || !same(snapshot?.savedFiles[path], baseline.saved)) throw new Error(`插件保存已过期，保留当前文件：${path}`);
-          if (!options.onWrite) throw new Error('工作台未接入扩展文件写入');
-          await options.onWrite(path, content);
-        },
-        onReveal: (path, line) => { if (current()) options.onReveal(path, line); },
-        onScroll: (path, line) => { if (current()) options.onScroll?.(path, line); },
-        onClosed: () => { if (current()) { stop(); options.onClosed?.(); } },
-        onError: error => { if (current()) options.onError(error); },
-        onCommands: next => { if (current()) commands = next; }
-      }).then(async next => {
-        if (!current()) { next.dispose(); throw new Error('项目已切换或扩展已禁用'); }
-        runtime = next;
-        if (snapshot !== initial && snapshot) await runtime.sync(snapshot);
-        if (cursor) await runtime.cursor?.(cursor.line, cursor.column);
-        if (viewport) await runtime.viewport?.(viewport);
-        updateStatus('active');
-        return next;
-      }).catch(error => {
-        if (current()) { loading = undefined; runtime?.dispose(); runtime = undefined; updateStatus('failed'); }
-        throw error;
-      });
+      const assertCurrent = () => {
+        if (!current()) throw new Error('项目已切换或扩展已禁用');
+      };
+      loading = options
+        .mount(options.getHost(command.endsWith('ToTheSide')), {
+          snapshot: initial,
+          signal: lifetime.signal,
+          onEdit: (path, content, baseContent) => {
+            if (!current()) return;
+            if (snapshot?.files[path] === baseContent) {
+              options.onEdit(path, content);
+              return;
+            }
+            options.onError(new Error(`插件修改已过期，保留当前草稿：${path}`));
+            if (runtime && snapshot) void runtime.sync(snapshot).catch(options.onError);
+          },
+          onSave: async path => {
+            assertCurrent();
+            await options.onSave(path);
+          },
+          onWrite: async (path, content, baseline) => {
+            assertCurrent();
+            const same = (left: string | Uint8Array | undefined, right: string | Uint8Array | undefined) =>
+              left === right ||
+              (left instanceof Uint8Array &&
+                right instanceof Uint8Array &&
+                left.length === right.length &&
+                left.every((byte, index) => byte === right[index]));
+            if (!same(snapshot?.files[path], baseline.draft) || !same(snapshot?.savedFiles[path], baseline.saved))
+              throw new Error(`插件保存已过期，保留当前文件：${path}`);
+            if (!options.onWrite) throw new Error('工作台未接入扩展文件写入');
+            await options.onWrite(path, content);
+          },
+          onReveal: (path, line) => {
+            if (current()) options.onReveal(path, line);
+          },
+          onScroll: (path, line) => {
+            if (current()) options.onScroll?.(path, line);
+          },
+          onClosed: () => {
+            if (current()) {
+              stop();
+              options.onClosed?.();
+            }
+          },
+          onError: error => {
+            if (current()) options.onError(error);
+          },
+          onCommands: next => {
+            if (current()) commands = next;
+          }
+        })
+        .then(async next => {
+          if (!current()) {
+            next.dispose();
+            throw new Error('项目已切换或扩展已禁用');
+          }
+          runtime = next;
+          if (snapshot !== initial && snapshot) await runtime.sync(snapshot);
+          if (cursor) await runtime.cursor?.(cursor.line, cursor.column);
+          if (viewport) await runtime.viewport?.(viewport);
+          updateStatus('active');
+          return next;
+        })
+        .catch(error => {
+          if (current()) {
+            loading = undefined;
+            runtime?.dispose();
+            runtime = undefined;
+            updateStatus('failed');
+          }
+          throw error;
+        });
     }
     const active = await loading;
     if (disposed || generation !== ticket) throw new Error('项目已切换或扩展已禁用');
     await active.execute(command);
   }
   return {
-    get status() { return status; },
-    get installed() { return installed; },
-    get enabled() { return enabled; },
-    get commands(): readonly ExtensionCommand[] { return enabled ? commands : []; },
+    get status() {
+      return status;
+    },
+    get installed() {
+      return installed;
+    },
+    get enabled() {
+      return enabled;
+    },
+    get commands(): readonly ExtensionCommand[] {
+      return enabled ? commands : [];
+    },
     sync,
     execute,
-    cursor(line: number, column: number): void { cursor = { line, column }; void runtime?.cursor?.(line, column).catch(options.onError); },
-    viewport(value: WorkbenchEditorViewport): void { viewport = value; void runtime?.viewport?.(value).catch(options.onError); },
+    cursor(line: number, column: number): void {
+      cursor = { line, column };
+      void runtime?.cursor?.(line, column).catch(options.onError);
+    },
+    viewport(value: WorkbenchEditorViewport): void {
+      viewport = value;
+      void runtime?.viewport?.(value).catch(options.onError);
+    },
     setInstallation(next: { installed: boolean; enabled: boolean }): void {
       if (disposed || (installed === next.installed && enabled === (next.installed && next.enabled))) return;
-      installed = next.installed; enabled = installed && next.enabled; stop();
+      installed = next.installed;
+      enabled = installed && next.enabled;
+      stop();
     },
-    setEnabled(value: boolean): void { if (enabled === value || disposed || !installed) return; enabled = value; stop(); },
+    setEnabled(value: boolean): void {
+      if (enabled === value || disposed || !installed) return;
+      enabled = value;
+      stop();
+    },
     closePreview: stop,
-    dispose(): void { if (disposed) return; disposed = true; stop(); }
+    dispose(): void {
+      if (disposed) return;
+      disposed = true;
+      stop();
+    }
   };
 }

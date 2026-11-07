@@ -58,7 +58,7 @@
       data-testid="entity-detail-errors"
       role="alert"
     >
-      @for (error of formErrors()?.errors ?? []; track error.field + ':' + error.message) {
+      @for (error of displayedFormErrors?.errors ?? []; track error.field + ':' + error.message) {
         <span class="text-error">{{ error.message }}</span>
       }
       @if (saveError() !== null) {

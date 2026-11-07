@@ -7,13 +7,15 @@
 | 文件                               | 作用                                                                                  |
 | ---------------------------------- | ------------------------------------------------------------------------------------- |
 | `working-tree.bench.ts`            | benchmark 入口；创建 control / treatment 数据库、灌入 fixture、采样四类操作并执行门禁 |
+| `working-tree-ci.ts`               | CI 入口；在三个独立进程中采样，再按逐项 median ratio 执行原有门禁                     |
+| `working-tree-ci-report.ts`        | 核对三轮报告的同质性，保留原始报告并汇总各测点中位数                                  |
 | `working-tree-fixture.ts`          | 生成固定形状和固定内容 hash 的 10,000 实体 fixture，提供提交、恢复和完整性校验操作    |
 | `working-tree-report.ts`           | 报告类型、采样常量、绝对预算、reference 目录和最新报告路径                            |
 | `working-tree-gate.ts`             | 收集运行环境、计算画像、读取 reference、选择 reference、执行相对门禁和冻结准入判定    |
 | `working-tree-gate.spec.ts`        | 测试画像计算、reference 选择、门禁和冻结准入规则                                      |
 | `freeze-working-tree-reference.ts` | 在同一机器上独立运行多次，汇总结果并冻结新画像 reference                              |
 
-这些文件放在同一目录，是因为它们共享同一份报告契约和 fixture 形状；只有 `working-tree.bench.ts` 与冻结脚本是可执行入口，其余文件都是可测试的纯模块或共享模块。
+这些文件放在同一目录，是因为它们共享同一份报告契约和 fixture 形状；`working-tree.bench.ts`、`working-tree-ci.ts` 与冻结脚本是可执行入口，其余文件都是可测试的纯模块或共享模块。
 
 ## 运行 benchmark
 
@@ -28,6 +30,18 @@ benchmarks/reports/working-tree-latest.json
 ```
 
 该文件每次运行都会覆盖，属于本地运行产物。没有匹配的 reference 时，任务会以 `benchmark_environment_mismatch` 失败，不会降级为通过。
+
+## CI 采样
+
+```bash
+pnpm nx run benchmarks:bench-working-tree-ci
+```
+
+CI 固定运行三个独立进程，每轮重新建库、灌 fixture，并执行 5 次预热与 50 次正式采样。
+每项 ratio 取三轮中位数，与原有 reference 和容差比较；连续回退仍会失败。
+三轮必须使用相同 fixture、runner 画像、采样口径和 reference，且任何一轮执行失败都会终止任务。
+汇总报告在 `working-tree-latest.json` 中记录 `aggregation`、`attemptCount` 和完整 `attempts`；
+CI 将它与搜索基准报告一并上传为 `benchmark-reports` artifact。
 
 ## 冻结新画像
 

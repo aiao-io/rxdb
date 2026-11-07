@@ -7,12 +7,25 @@ import { mountMarkdownRuntime } from './runtime-client.js';
 
 class TestChannel {
   static latest: TestChannel;
-  readonly port1 = { onmessage: undefined as ((event: { data: ExtensionEvent | ExtensionReply }) => void) | undefined, postMessage: vi.fn(), close: vi.fn() };
+  readonly port1 = {
+    onmessage: undefined as ((event: { data: ExtensionEvent | ExtensionReply }) => void) | undefined,
+    postMessage: vi.fn(),
+    close: vi.fn()
+  };
   readonly port2 = { close: vi.fn() };
-  constructor() { TestChannel.latest = this; }
-  receive(data: ExtensionEvent | ExtensionReply): void { this.port1.onmessage?.({ data }); }
+  constructor() {
+    TestChannel.latest = this;
+  }
+  receive(data: ExtensionEvent | ExtensionReply): void {
+    this.port1.onmessage?.({ data });
+  }
 }
-const snapshot = { projectId: 'test', activePath: 'README.md', files: { 'README.md': '# 草稿' }, savedFiles: { 'README.md': '# 磁盘' } };
+const snapshot = {
+  projectId: 'test',
+  activePath: 'README.md',
+  files: { 'README.md': '# 草稿' },
+  savedFiles: { 'README.md': '# 磁盘' }
+};
 const lifetimes: AbortController[] = [];
 function fixture(aborted = false) {
   const lifetime = new AbortController();
@@ -20,7 +33,18 @@ function fixture(aborted = false) {
   if (aborted) lifetime.abort();
   const host = document.createElement('div');
   document.body.append(host);
-  const options: MarkdownRuntimeOptions = { snapshot, signal: lifetime.signal, onEdit: vi.fn(), onSave: vi.fn(async () => undefined), onWrite: vi.fn(async () => undefined), onReveal: vi.fn(), onScroll: vi.fn(), onClosed: vi.fn(), onError: vi.fn(), onCommands: vi.fn() };
+  const options: MarkdownRuntimeOptions = {
+    snapshot,
+    signal: lifetime.signal,
+    onEdit: vi.fn(),
+    onSave: vi.fn(async () => undefined),
+    onWrite: vi.fn(async () => undefined),
+    onReveal: vi.fn(),
+    onScroll: vi.fn(),
+    onClosed: vi.fn(),
+    onError: vi.fn(),
+    onCommands: vi.fn()
+  };
   const pending = mountMarkdownRuntime(host, options, 'http://localhost/assets/');
   return { lifetime, host, options, pending, channel: TestChannel.latest };
 }
@@ -29,8 +53,16 @@ async function active() {
   f.channel.receive({ type: 'ready', commands: [{ id: 'markdown-preview-enhanced.openPreview', label: '预览' }] });
   return { ...f, runtime: await f.pending };
 }
-beforeEach(() => { vi.useFakeTimers(); vi.stubGlobal('MessageChannel', TestChannel); });
-afterEach(() => { for (const lifetime of lifetimes.splice(0)) lifetime.abort(); document.body.replaceChildren(); vi.useRealTimers(); vi.unstubAllGlobals(); });
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.stubGlobal('MessageChannel', TestChannel);
+});
+afterEach(() => {
+  for (const lifetime of lifetimes.splice(0)) lifetime.abort();
+  document.body.replaceChildren();
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 describe('真实插件宿主的消息桥', () => {
   it('同源 iframe 加载后传递独立端口和草稿快照，等插件 ready 才返回运行时', async () => {
@@ -39,7 +71,9 @@ describe('真实插件宿主的消息桥', () => {
     const post = vi.fn();
     Object.defineProperty(iframe, 'contentWindow', { value: { postMessage: post } });
     iframe.dispatchEvent(new Event('load'));
-    expect(post).toHaveBeenCalledWith({ channel: 'aiao-vscode-extension-host-v1', snapshot }, 'http://localhost', [f.channel.port2]);
+    expect(post).toHaveBeenCalledWith({ channel: 'aiao-vscode-extension-host-v1', snapshot }, 'http://localhost', [
+      f.channel.port2
+    ]);
     f.channel.receive({ type: 'ready', commands: [] });
     const runtime = await f.pending;
     expect(f.options.onCommands).toHaveBeenCalledWith([]);
@@ -56,8 +90,18 @@ describe('真实插件宿主的消息桥', () => {
 
   it('文档、命令、光标和视区都有独立编号并等待实际回复', async () => {
     const f = await active();
-    const calls = [f.runtime.sync(snapshot), f.runtime.execute('markdown-preview-enhanced.openPreview'), f.runtime.cursor!(2, 3), f.runtime.viewport!({ firstLine: 2, lastLine: 30 })];
-    expect(f.channel.port1.postMessage.mock.calls.map(([message]) => message.type)).toEqual(['sync', 'execute', 'cursor', 'viewport']);
+    const calls = [
+      f.runtime.sync(snapshot),
+      f.runtime.execute('markdown-preview-enhanced.openPreview'),
+      f.runtime.cursor!(2, 3),
+      f.runtime.viewport!({ firstLine: 2, lastLine: 30 })
+    ];
+    expect(f.channel.port1.postMessage.mock.calls.map(([message]) => message.type)).toEqual([
+      'sync',
+      'execute',
+      'cursor',
+      'viewport'
+    ]);
     for (let id = 1; id <= 4; id++) f.channel.receive({ type: 'reply', id });
     await Promise.all(calls);
     f.channel.receive({ type: 'reply', id: 999 });

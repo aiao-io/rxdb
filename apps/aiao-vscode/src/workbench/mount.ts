@@ -1,8 +1,3 @@
-import { createExtensionManagement, prepareMarkdownExtension } from './extensions/extension-management.js';
-import { createMarkdownExtension, isMarkdownPath, type MarkdownExtensionOptions } from './extensions/markdown-extension.js';
-import { mountMarkdownRuntime } from './extensions/runtime-client.js';
-import { mountMarkdownExtensionView } from './extensions/extension-view.js';
-import { decodeFileBytes } from './git/file-encoding.js';
 import {
   createProjectCatalog,
   githubProjectInfo,
@@ -14,9 +9,18 @@ import { createCompiler, type WorkbenchCompiler } from './compiler-client.js';
 import type { ProjectTemplate } from './compiler/compiler-types.js';
 import { CompilationError, type WorkbenchDiagnostic } from './compiler/compiler-types.js';
 import type { WorkbenchEditorCommand, WorkbenchEditorHandle, WorkbenchEditorMount } from './editor.js';
+import { createExtensionManagement, prepareMarkdownExtension } from './extensions/extension-management.js';
+import { mountMarkdownExtensionView } from './extensions/extension-view.js';
+import {
+  createMarkdownExtension,
+  isMarkdownPath,
+  type MarkdownExtensionOptions
+} from './extensions/markdown-extension.js';
+import { mountMarkdownRuntime } from './extensions/runtime-client.js';
 import { readFolderProject } from './folder-import.js';
 import { formatWorkbenchSource } from './formatter.js';
 import { createGitBackend } from './git-backend.js';
+import { decodeFileBytes } from './git/file-encoding.js';
 import type { GitHubApi } from './git/github/github-api.js';
 import type { GitHubAuth } from './git/github/github-auth.js';
 import { requestGitHubLogin } from './git/github/github-login.js';
@@ -374,7 +378,8 @@ export function mountWorkbench(
   const markdownExtension = createMarkdownExtension({
     installed: extensionManagement.state.installed,
     enabled: extensionManagement.state.enabled,
-    getHost: side => docking.ensureAuxiliary('markdown-extension', 'Markdown Preview Enhanced', side ? 'right' : 'within'),
+    getHost: side =>
+      docking.ensureAuxiliary('markdown-extension', 'Markdown Preview Enhanced', side ? 'right' : 'within'),
     mount: options.markdownRuntime ?? ((host, runtimeOptions) => mountMarkdownRuntime(host, runtimeOptions, base)),
     onEdit(path, content) {
       const editor = editors.get(path);
@@ -396,11 +401,18 @@ export function mountWorkbench(
       editors.get(path)?.handle.runCommand?.('gotoLineAt', line);
       focusEditor(path);
     },
-    onScroll(path, line) { editors.get(path)?.handle.scrollToLine?.(line); },
-    onError(error) { markdownError = messageFor(error); renderMarkdownExtension(); report(error); },
+    onScroll(path, line) {
+      editors.get(path)?.handle.scrollToLine?.(line);
+    },
+    onError(error) {
+      markdownError = messageFor(error);
+      renderMarkdownExtension();
+      report(error);
+    },
     onStatus(status) {
       if (status !== 'failed') markdownError = '';
-      if (status === 'uninstalled' || status === 'disabled' || status === 'idle') docking.removeAuxiliary('markdown-extension');
+      if (status === 'uninstalled' || status === 'disabled' || status === 'idle')
+        docking.removeAuxiliary('markdown-extension');
       renderMarkdownExtension();
     }
   });
@@ -411,8 +423,14 @@ export function mountWorkbench(
     onPreview: () => action(() => markdownExtension.execute('markdown-preview-enhanced.openPreviewToTheSide'))
   });
   function renderMarkdownExtension(): void {
-    markdownExtensionView.render({ ...extensionManagement.state, status: markdownExtension.status, markdown: isMarkdownPath(session.state.activePath), error: extensionManagement.state.error || markdownError });
-    for (const button of root.querySelectorAll<HTMLButtonElement>('[data-markdown-preview]')) button.disabled = !markdownExtension.enabled;
+    markdownExtensionView.render({
+      ...extensionManagement.state,
+      status: markdownExtension.status,
+      markdown: isMarkdownPath(session.state.activePath),
+      error: extensionManagement.state.error || markdownError
+    });
+    for (const button of root.querySelectorAll<HTMLButtonElement>('[data-markdown-preview]'))
+      button.disabled = !markdownExtension.enabled;
   }
   const layoutChanges = docking.api.onDidLayoutChange(() => {
     queueMicrotask(() => {
@@ -1823,7 +1841,14 @@ export function mountWorkbench(
     if (!editorHost) return;
     event.preventDefault();
     showContextMenu({ x: event.clientX, y: event.clientY }, [
-      ...(isMarkdownPath(editorHost.dataset['editorPath']) && markdownExtension.enabled ? [{ label: 'Markdown Preview Enhanced: 打开侧边预览', action: () => action(() => markdownExtension.execute('markdown-preview-enhanced.openPreviewToTheSide')) }] : []),
+      ...(isMarkdownPath(editorHost.dataset['editorPath']) && markdownExtension.enabled ?
+        [
+          {
+            label: 'Markdown Preview Enhanced: 打开侧边预览',
+            action: () => action(() => markdownExtension.execute('markdown-preview-enhanced.openPreviewToTheSide'))
+          }
+        ]
+      : []),
       { label: '格式化文档', action: () => void formatSource().catch(report) },
       { label: '转到行', action: () => editorCommand('gotoLine') },
       { label: '命令面板', action: () => commands.showCommandPalette() }
@@ -1878,7 +1903,9 @@ export function mountWorkbench(
           engine: editorEngine,
           indentUnit,
           onChange: content => session.edit(path, content),
-          onViewport: viewport => { if (session.state.activePath === path) markdownExtension.viewport(viewport); },
+          onViewport: viewport => {
+            if (session.state.activePath === path) markdownExtension.viewport(viewport);
+          },
           onCursor: (line, column) => {
             element('[data-slot="cursor"]').textContent = `行 ${line}，列 ${column}`;
             if (session.state.activePath === path) markdownExtension.cursor(line, column);
@@ -1921,7 +1948,13 @@ export function mountWorkbench(
       flushLayout();
       savedLayout = '';
     }
-    if (state.projectId) markdownExtension.sync({ projectId: state.projectId, activePath: state.activePath, files: state.files, savedFiles: session.getSavedSnapshot().files });
+    if (state.projectId)
+      markdownExtension.sync({
+        projectId: state.projectId,
+        activePath: state.activePath,
+        files: state.files,
+        savedFiles: session.getSavedSnapshot().files
+      });
     renderMarkdownExtension();
     renderFiles(state);
     renderEditors(state);
@@ -2526,17 +2559,33 @@ export function mountWorkbench(
         ['nextEditor', '查看: 打开下一个编辑器', 'Ctrl + Tab', () => cycleEditor(1)],
         ['prevEditor', '查看: 打开上一个编辑器', 'Ctrl + Shift + Tab', () => cycleEditor(-1)]
       ];
-      const extensionCommands: WorkbenchCommand[] = isMarkdownPath(session.state.activePath) ? markdownExtension.commands.map(command => ({ ...command, run: async () => {
-        try { await markdownExtension.execute(command.id); } catch (error) { markdownError = messageFor(error); renderMarkdownExtension(); throw error; }
-      } })) : [];
-      return [...extensionCommands, { id: 'showExtensions', label: '查看: 扩展', run: () => switchSide('extensions', true) }, ...definitions
-        .filter(([id]) => !scmBusy || !gitCommands.has(id))
-        .map(([id, label, keybinding, operation]): WorkbenchCommand => ({
-          id,
-          label,
-          keybinding,
-          run: invoke(id, operation)
-        }))];
+      const extensionCommands: WorkbenchCommand[] =
+        isMarkdownPath(session.state.activePath) ?
+          markdownExtension.commands.map(command => ({
+            ...command,
+            run: async () => {
+              try {
+                await markdownExtension.execute(command.id);
+              } catch (error) {
+                markdownError = messageFor(error);
+                renderMarkdownExtension();
+                throw error;
+              }
+            }
+          }))
+        : [];
+      return [
+        ...extensionCommands,
+        { id: 'showExtensions', label: '查看: 扩展', run: () => switchSide('extensions', true) },
+        ...definitions
+          .filter(([id]) => !scmBusy || !gitCommands.has(id))
+          .map(([id, label, keybinding, operation]): WorkbenchCommand => ({
+            id,
+            label,
+            keybinding,
+            run: invoke(id, operation)
+          }))
+      ];
     }
   });
   const releaseState = session.subscribe(render);

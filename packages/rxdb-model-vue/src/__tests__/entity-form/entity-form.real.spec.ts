@@ -566,3 +566,24 @@ describe('EntityForm format 语义控件（真实组件）', () => {
     expect(fieldset(wrapper, '评分').textContent).toContain('3.5 ★');
   });
 });
+
+describe('文本输入保留未失焦的草稿', () => {
+  it.each([
+    { field: 'name', displayName: '名称', type: 'string' as const },
+    { field: 'note', displayName: '备注', type: 'string' as const, format: { kind: 'multilineText' as const } }
+  ])('$field 输入后立即提交给控制器，字段文案与关联候选刷新保留草稿', async field => {
+    const wrapper = mount(EntityForm, { props: { fields: [field], data: {}, mode: 'create' } });
+    const input = wrapper.get('input,textarea');
+    (input.element as HTMLInputElement).value = '未失焦的草稿';
+    await input.trigger('input');
+    expect(wrapper.emitted('fieldChanged')?.at(-1)?.[0]).toMatchObject({ field: field.field, value: '未失焦的草稿' });
+    await wrapper.setProps({
+      fields: [{ ...field, displayName: 'Translated field' }],
+      relatedEntityProvider: () => []
+    });
+    expect((wrapper.get('input,textarea').element as HTMLInputElement).value).toBe('未失焦的草稿');
+    await wrapper.get('form').trigger('submit');
+    expect(wrapper.emitted('formSubmitted')?.at(-1)?.[0]).toEqual({ [field.field]: '未失焦的草稿' });
+    wrapper.unmount();
+  });
+});

@@ -41,7 +41,13 @@ export type ExtensionEvent =
   | { readonly type: 'ready'; readonly commands: readonly ExtensionCommand[] }
   | { readonly type: 'error'; readonly message: string }
   | { readonly type: 'edit'; readonly path: string; readonly content: string; readonly baseContent: string | undefined }
-  | { readonly type: 'write'; readonly id: number; readonly path: string; readonly content: Uint8Array; readonly baseline: ExtensionFileBaseline }
+  | {
+      readonly type: 'write';
+      readonly id: number;
+      readonly path: string;
+      readonly content: Uint8Array;
+      readonly baseline: ExtensionFileBaseline;
+    }
   | { readonly type: 'reveal'; readonly path: string; readonly line: number }
   | { readonly type: 'scroll'; readonly path: string; readonly line: number }
   | { readonly type: 'closed' };

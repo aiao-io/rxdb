@@ -1,9 +1,9 @@
-import { buildExtensionHost } from './build-extension-host.mjs';
 import { build } from 'esbuild';
 import { createHash } from 'node:crypto';
 import { copyFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
+import { buildExtensionHost } from './build-extension-host.mjs';
 
 const packageRoot = resolve(import.meta.dirname, '..');
 const workspaceRoot = resolve(packageRoot, '../..');
@@ -171,7 +171,7 @@ assetPaths.push(
   ...(await copyCodiconAssets(output)),
   ...(await copySetiAssets(output))
 );
-assetPaths.push(...await buildExtensionHost(output));
+assetPaths.push(...(await buildExtensionHost(output)));
 const assets = [];
 for (const path of assetPaths) {
   const bytes = await readFile(join(output, path));

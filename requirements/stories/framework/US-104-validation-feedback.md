@@ -55,7 +55,7 @@ tags: [framework, rxdb-model, tri-framework, validation]
 - [Angular `entity-detail.real.spec.ts`](../../../packages/rxdb-model-angular/src/__tests__/entity-detail/entity-detail.real.spec.ts)：校验拒绝、错误状态、字段变更清空、保存失败保留对话框
 - [React `entity-detail.real.spec.tsx`](../../../packages/rxdb-model-react/src/__tests__/entity-detail/entity-detail.real.spec.tsx)：create / edit 校验面板、保存错误、字段变更与取消
 - [Vue `entity-detail.real.spec.ts`](../../../packages/rxdb-model-vue/src/__tests__/entity-detail/entity-detail.real.spec.ts)：错误面板、保存错误、字段变更与取消
-- [工作台 `workbench.spec.ts`](../../../apps/dev-rxdb-admin-e2e/src/workbench.spec.ts)：必填字段校验可见、不入库、关闭后列表仍为空
+- [工作台 `workbench.spec.ts`](../../../apps/rxdb-admin-template-react-e2e/src/workbench.spec.ts)：必填字段校验可见、不入库、关闭后列表仍为空
 
 ## 实现文件
 

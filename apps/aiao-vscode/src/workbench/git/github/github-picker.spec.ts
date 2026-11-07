@@ -13,7 +13,12 @@ function makeApi(): { [K in keyof GitHubApi]: ReturnType<typeof vi.fn> } {
     getAuthenticatedUser: vi.fn(),
     searchRepositories: vi.fn(async () => []),
     listMyRepositories: vi.fn(async () => []),
-    getRepository: vi.fn(async (owner: string, repo: string) => ({ owner, repo, defaultBranch: 'main', isPrivate: false })),
+    getRepository: vi.fn(async (owner: string, repo: string) => ({
+      owner,
+      repo,
+      defaultBranch: 'main',
+      isPrivate: false
+    })),
     listBranches: vi.fn(),
     getBranchSha: vi.fn(),
     getTreeFiles: vi.fn(),
@@ -31,7 +36,13 @@ function makeApi(): { [K in keyof GitHubApi]: ReturnType<typeof vi.fn> } {
   };
 }
 
-const repository = (fullName: string) => ({ fullName, description: '仓库说明', stars: 1, cloneUrl: '', isPrivate: false });
+const repository = (fullName: string) => ({
+  fullName,
+  description: '仓库说明',
+  stars: 1,
+  cloneUrl: '',
+  isPrivate: false
+});
 const flush = async (): Promise<void> => {
   await Promise.resolve();
   await Promise.resolve();
@@ -50,11 +61,21 @@ describe('parseGitHubRepository', () => {
   });
 
   it.each([
-    '', 'hello', 'http://github.com/octo/repo', 'https://gitlab.com/octo/repo',
-    'https://github.com.evil.example/octo/repo', 'https://name@github.com/octo/repo',
-    'https://github.com:8443/octo/repo', 'https//github.com/octo/repo', 'git@github.com:octo/repo.git',
-    'octo/repo/extra', 'https://github.com/octo/repo/blob/main/a.ts', 'https://github.com/octo/repo/pull/1',
-    'https://github.com/octo/repo/tree/', 'https://github.com/octo/repo/tree/%ZZ', 'octo/repo name'
+    '',
+    'hello',
+    'http://github.com/octo/repo',
+    'https://gitlab.com/octo/repo',
+    'https://github.com.evil.example/octo/repo',
+    'https://name@github.com/octo/repo',
+    'https://github.com:8443/octo/repo',
+    'https//github.com/octo/repo',
+    'git@github.com:octo/repo.git',
+    'octo/repo/extra',
+    'https://github.com/octo/repo/blob/main/a.ts',
+    'https://github.com/octo/repo/pull/1',
+    'https://github.com/octo/repo/tree/',
+    'https://github.com/octo/repo/tree/%ZZ',
+    'octo/repo name'
   ])('拒绝非法地址或非仓库路径 %s', value => {
     expect(parseGitHubRepository(value)).toBeNull();
   });
@@ -79,7 +100,8 @@ describe('打开远程仓库Quick Pick', () => {
 
   const dialog = (): HTMLDialogElement => host.querySelector('dialog')!;
   const input = (): HTMLInputElement => dialog().querySelector('input')!;
-  const begin = (options: GitHubRepositoryRequestOptions = {}) => requestGitHubRepository(host, api as unknown as GitHubApi, options);
+  const begin = (options: GitHubRepositoryRequestOptions = {}) =>
+    requestGitHubRepository(host, api as unknown as GitHubApi, options);
   const choose = async (action: string): Promise<void> => {
     dialog().querySelector<HTMLButtonElement>(`[data-github-action="${action}"]`)!.click();
     await flush();
@@ -89,7 +111,9 @@ describe('打开远程仓库Quick Pick', () => {
     input().dispatchEvent(new Event('input'));
   };
   const key = (value: string, composing = false): void => {
-    input().dispatchEvent(new KeyboardEvent('keydown', { key: value, isComposing: composing, bubbles: true, cancelable: true }));
+    input().dispatchEvent(
+      new KeyboardEvent('keydown', { key: value, isComposing: composing, bubbles: true, cancelable: true })
+    );
   };
 
   it('首屏只展示提供程序和最近远端，选择GitHub后才请求我的仓库', async () => {
@@ -128,17 +152,24 @@ describe('打开远程仓库Quick Pick', () => {
     expect(api.listMyRepositories).not.toHaveBeenCalled();
   });
 
-  it.each(['octo/direct', 'https://github.com/octo/direct/tree/feature%2Fx'])('粘贴地址立即提供选项，Enter后查询元数据并打开 %s', async value => {
-    const pending = begin();
-    type(value);
-    expect(api.getRepository).not.toHaveBeenCalled();
-    expect(dialog().querySelector('[data-github-action="open"]')?.textContent).toContain('打开 octo/direct');
-    key('Enter');
-    await expect(pending).resolves.toEqual({ owner: 'octo', repo: 'direct', branch: value.includes('/tree/') ? 'feature/x' : 'main' });
-    expect(api.getRepository).toHaveBeenCalledExactlyOnceWith('octo', 'direct');
-    expect(api.searchRepositories).not.toHaveBeenCalled();
-    expect(api.listBranches).not.toHaveBeenCalled();
-  });
+  it.each(['octo/direct', 'https://github.com/octo/direct/tree/feature%2Fx'])(
+    '粘贴地址立即提供选项，Enter后查询元数据并打开 %s',
+    async value => {
+      const pending = begin();
+      type(value);
+      expect(api.getRepository).not.toHaveBeenCalled();
+      expect(dialog().querySelector('[data-github-action="open"]')?.textContent).toContain('打开 octo/direct');
+      key('Enter');
+      await expect(pending).resolves.toEqual({
+        owner: 'octo',
+        repo: 'direct',
+        branch: value.includes('/tree/') ? 'feature/x' : 'main'
+      });
+      expect(api.getRepository).toHaveBeenCalledExactlyOnceWith('octo', 'direct');
+      expect(api.searchRepositories).not.toHaveBeenCalled();
+      expect(api.listBranches).not.toHaveBeenCalled();
+    }
+  );
 
   it('非法远端地址显示提示，不发出仓库搜索或打开请求', async () => {
     void begin();
@@ -152,7 +183,12 @@ describe('打开远程仓库Quick Pick', () => {
 
   it('输入事件立即使旧响应失效，debounce尚未结束时也不能回灌旧列表', async () => {
     let finish!: (value: ReturnType<typeof repository>[]) => void;
-    api.listMyRepositories.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    api.listMyRepositories.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
     api.searchRepositories.mockResolvedValue([repository('octo/new')]);
     void begin();
     await choose('provider');
@@ -214,7 +250,12 @@ describe('打开远程仓库Quick Pick', () => {
 
   it('加载和空态通过aria-live播报，不提供可误接受的旧项目', async () => {
     let finish!: (value: never[]) => void;
-    api.listMyRepositories.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    api.listMyRepositories.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
     const pending = begin();
     await choose('provider');
     expect(dialog().querySelector('[role="status"]')?.getAttribute('aria-live')).toBe('polite');
@@ -230,7 +271,8 @@ describe('打开远程仓库Quick Pick', () => {
   });
 
   it('API失败保留原查询，可重试后选择结果', async () => {
-    api.searchRepositories.mockRejectedValueOnce(new GitHubApiError('network_failed', '网络断开'))
+    api.searchRepositories
+      .mockRejectedValueOnce(new GitHubApiError('network_failed', '网络断开'))
       .mockResolvedValueOnce([repository('octo/retry')]);
     void begin();
     type('query');
@@ -244,8 +286,14 @@ describe('打开远程仓库Quick Pick', () => {
 
   it('认证失败等待登录完成后恢复原查询，登录期间不能重复接受', async () => {
     let finishLogin!: () => void;
-    const onLogin = vi.fn(() => new Promise<void>(resolve => { finishLogin = resolve; }));
-    api.searchRepositories.mockRejectedValueOnce(new GitHubApiError('auth_required', '请登录', 401))
+    const onLogin = vi.fn(
+      () =>
+        new Promise<void>(resolve => {
+          finishLogin = resolve;
+        })
+    );
+    api.searchRepositories
+      .mockRejectedValueOnce(new GitHubApiError('auth_required', '请登录', 401))
       .mockResolvedValueOnce([repository('octo/recovered')]);
     void begin({ onLogin });
     type('original');
@@ -263,7 +311,12 @@ describe('打开远程仓库Quick Pick', () => {
 
   it('取消后忽略迟到的登录和仓库请求', async () => {
     let finishLogin!: () => void;
-    const onLogin = vi.fn(() => new Promise<void>(resolve => { finishLogin = resolve; }));
+    const onLogin = vi.fn(
+      () =>
+        new Promise<void>(resolve => {
+          finishLogin = resolve;
+        })
+    );
     api.listMyRepositories.mockRejectedValueOnce(new GitHubApiError('auth_required', '请登录', 401));
     const pending = begin({ onLogin });
     await choose('provider');

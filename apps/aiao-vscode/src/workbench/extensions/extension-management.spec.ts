@@ -4,7 +4,12 @@ import { createExtensionManagement, MARKDOWN_EXTENSION, prepareMarkdownExtension
 
 function fixture(initial: Record<string, string> = {}) {
   const values = new Map(Object.entries(initial));
-  const storage = { getItem: vi.fn((key: string) => values.get(key) ?? null), setItem: vi.fn((key: string, value: string) => { values.set(key, value); }) };
+  const storage = {
+    getItem: vi.fn((key: string) => values.get(key) ?? null),
+    setItem: vi.fn((key: string, value: string) => {
+      values.set(key, value);
+    })
+  };
   const prepare = vi.fn<(signal: AbortSignal) => Promise<void>>(async () => undefined);
   const onChange = vi.fn();
   const manager = createExtensionManagement({ storage, prepare, onChange });
@@ -33,7 +38,12 @@ describe('扩展安装管理', () => {
   it('安装验证真实资源后才持久化，并在重装时启用', async () => {
     const f = fixture(removed);
     let finish!: () => void;
-    f.prepare.mockImplementation(() => new Promise<void>(resolve => { finish = resolve; }));
+    f.prepare.mockImplementation(
+      () =>
+        new Promise<void>(resolve => {
+          finish = resolve;
+        })
+    );
     const installing = f.manager.install();
     expect(f.manager.state).toMatchObject({ installed: false, enabled: false, operation: 'installing' });
     expect(f.storage.setItem).not.toHaveBeenCalled();
@@ -46,7 +56,12 @@ describe('扩展安装管理', () => {
   it('重复安装共用一次操作，安装中不能卸载或启停', async () => {
     const f = fixture(removed);
     let finish!: () => void;
-    f.prepare.mockImplementation(() => new Promise<void>(resolve => { finish = resolve; }));
+    f.prepare.mockImplementation(
+      () =>
+        new Promise<void>(resolve => {
+          finish = resolve;
+        })
+    );
     const first = f.manager.install();
     const second = f.manager.install();
     await expect(f.manager.uninstall()).rejects.toThrow('正在');
@@ -60,7 +75,12 @@ describe('扩展安装管理', () => {
     const f = fixture(removed);
     f.prepare.mockRejectedValueOnce(new Error('资源不存在：404'));
     await expect(f.manager.install()).rejects.toThrow('404');
-    expect(f.manager.state).toMatchObject({ installed: false, enabled: false, operation: null, error: '资源不存在：404' });
+    expect(f.manager.state).toMatchObject({
+      installed: false,
+      enabled: false,
+      operation: null,
+      error: '资源不存在：404'
+    });
     expect(f.storage.setItem).not.toHaveBeenCalled();
     await f.manager.install();
     expect(f.manager.state).toMatchObject({ installed: true, enabled: true, error: '' });
@@ -68,7 +88,9 @@ describe('扩展安装管理', () => {
 
   it('持久化失败不误报卸载成功，也不禁用正在运行的插件', async () => {
     const f = fixture();
-    f.storage.setItem.mockImplementationOnce(() => { throw new Error('存储已满'); });
+    f.storage.setItem.mockImplementationOnce(() => {
+      throw new Error('存储已满');
+    });
     await expect(f.manager.uninstall()).rejects.toThrow('存储已满');
     expect(f.manager.state).toMatchObject({ installed: true, enabled: true, operation: null, error: '存储已满' });
   });
@@ -85,7 +107,12 @@ describe('扩展安装管理', () => {
   it('工作台释放后中止安装，迟到结果不能恢复安装记录', async () => {
     const f = fixture(removed);
     let finish!: () => void;
-    f.prepare.mockImplementation(() => new Promise<void>(resolve => { finish = resolve; }));
+    f.prepare.mockImplementation(
+      () =>
+        new Promise<void>(resolve => {
+          finish = resolve;
+        })
+    );
     const installing = f.manager.install();
     const signal = f.prepare.mock.calls[0][0];
     f.manager.dispose();
@@ -97,17 +124,23 @@ describe('扩展安装管理', () => {
 
   it('同步资源异常和安装记录写入失败均恢复未安装状态', async () => {
     const f = fixture(removed);
-    f.prepare.mockImplementationOnce(() => { throw new Error('网络断开'); });
+    f.prepare.mockImplementationOnce(() => {
+      throw new Error('网络断开');
+    });
     await expect(f.manager.install()).rejects.toThrow('网络断开');
     expect(f.manager.state.operation).toBeNull();
-    f.storage.setItem.mockImplementationOnce(() => { throw new Error('无法写入'); });
+    f.storage.setItem.mockImplementationOnce(() => {
+      throw new Error('无法写入');
+    });
     await expect(f.manager.install()).rejects.toThrow('无法写入');
     expect(f.manager.state).toMatchObject({ installed: false, enabled: false, operation: null });
   });
 
   it('禁用记录写入失败保留原状态，释放后拒绝操作', async () => {
     const f = fixture();
-    f.storage.setItem.mockImplementationOnce(() => { throw new Error('拒绝写入'); });
+    f.storage.setItem.mockImplementationOnce(() => {
+      throw new Error('拒绝写入');
+    });
     expect(() => f.manager.setEnabled(false)).toThrow('拒绝写入');
     expect(f.manager.state.enabled).toBe(true);
     f.manager.dispose();
@@ -135,13 +168,30 @@ describe('扩展安装管理', () => {
 describe('正式扩展安装资源检查', () => {
   const bytes = new TextEncoder().encode('extension entry');
   const metadata = async () => ({
-    id: MARKDOWN_EXTENSION.id, version: MARKDOWN_EXTENSION.version,
-    manifest: { publisher: 'shd101wyy', name: 'markdown-preview-enhanced', version: MARKDOWN_EXTENSION.version, browser: './out/web/extension.js' },
-    files: [{ path: 'out/web/extension.js', bytes: bytes.length, sha256: Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), byte => byte.toString(16).padStart(2, '0')).join('') }]
+    id: MARKDOWN_EXTENSION.id,
+    version: MARKDOWN_EXTENSION.version,
+    manifest: {
+      publisher: 'shd101wyy',
+      name: 'markdown-preview-enhanced',
+      version: MARKDOWN_EXTENSION.version,
+      browser: './out/web/extension.js'
+    },
+    files: [
+      {
+        path: 'out/web/extension.js',
+        bytes: bytes.length,
+        sha256: Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), byte =>
+          byte.toString(16).padStart(2, '0')
+        ).join('')
+      }
+    ]
   });
 
   it('校验清单与浏览器入口内容，正确使用部署资源根', async () => {
-    const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(new Response(JSON.stringify(await metadata()))).mockResolvedValueOnce(new Response(bytes));
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify(await metadata())))
+      .mockResolvedValueOnce(new Response(bytes));
     await prepareMarkdownExtension('https://example.com/sub/assets/', new AbortController().signal, fetcher);
     expect(fetcher.mock.calls.map(call => String(call[0]))).toEqual([
       `https://example.com/sub/assets/extensions/${MARKDOWN_EXTENSION.id}/extension-assets.json`,
@@ -151,14 +201,38 @@ describe('正式扩展安装资源检查', () => {
 
   it('清单 404、版本不匹配、浏览器入口缺失或校验失败均拒绝安装', async () => {
     const signal = new AbortController().signal;
-    await expect(prepareMarkdownExtension('https://example.com/', signal, vi.fn<typeof fetch>().mockResolvedValue(new Response('', { status: 404 })))).rejects.toThrow('404');
-    const wrong = { ...await metadata(), version: '0.0.0' };
-    await expect(prepareMarkdownExtension('https://example.com/', signal, vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify(wrong))))).rejects.toThrow('清单');
-    const missing = { ...await metadata(), files: [] };
-    await expect(prepareMarkdownExtension('https://example.com/', signal, vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify(missing))))).rejects.toThrow('入口');
-    const unavailable = vi.fn<typeof fetch>().mockResolvedValueOnce(new Response(JSON.stringify(await metadata()))).mockResolvedValueOnce(new Response('', { status: 503 }));
+    await expect(
+      prepareMarkdownExtension(
+        'https://example.com/',
+        signal,
+        vi.fn<typeof fetch>().mockResolvedValue(new Response('', { status: 404 }))
+      )
+    ).rejects.toThrow('404');
+    const wrong = { ...(await metadata()), version: '0.0.0' };
+    await expect(
+      prepareMarkdownExtension(
+        'https://example.com/',
+        signal,
+        vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify(wrong)))
+      )
+    ).rejects.toThrow('清单');
+    const missing = { ...(await metadata()), files: [] };
+    await expect(
+      prepareMarkdownExtension(
+        'https://example.com/',
+        signal,
+        vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify(missing)))
+      )
+    ).rejects.toThrow('入口');
+    const unavailable = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify(await metadata())))
+      .mockResolvedValueOnce(new Response('', { status: 503 }));
     await expect(prepareMarkdownExtension('https://example.com/', signal, unavailable)).rejects.toThrow('503');
-    const corrupt = vi.fn<typeof fetch>().mockResolvedValueOnce(new Response(JSON.stringify(await metadata()))).mockResolvedValueOnce(new Response('corrupted entry'));
+    const corrupt = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify(await metadata())))
+      .mockResolvedValueOnce(new Response('corrupted entry'));
     await expect(prepareMarkdownExtension('https://example.com/', signal, corrupt)).rejects.toThrow('校验');
   });
 });

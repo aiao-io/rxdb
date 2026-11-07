@@ -1,0 +1,32 @@
+{
+  "name": "@aiao/rxdb-admin-template-vue",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@aiao/rxdb": "workspace:*",
+    "@aiao/rxdb-adapter-sqlite-wasm": "workspace:*",
+    "@aiao/rxdb-admin": "workspace:*",
+    "@aiao/rxdb-admin-vue": "workspace:*",
+    "@aiao/rxdb-devtools": "workspace:*",
+    "@aiao/rxdb-i18n": "workspace:*",
+    "@aiao/rxdb-i18n-vue": "workspace:*",
+    "@aiao/rxdb-model": "workspace:*",
+    "@aiao/rxdb-model-vue": "workspace:*",
+    "@aiao/rxdb-plugin-history": "workspace:*",
+    "@aiao/rxdb-plugin-search": "workspace:*",
+    "@aiao/rxdb-plugin-search-vue": "workspace:*",
+    "@aiao/rxdb-test": "workspace:*",
+    "@aiao/rxdb-vue": "workspace:*",
+    "@lucide/vue": "^1.70.0",
+    "rxjs": "^7.8.2",
+    "vue": "^3.5.45",
+    "vue-router": "^5.4.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.4",
+    "@tailwindcss/vite": "^4.3.4",
+    "daisyui": "^5.7.50",
+    "tailwindcss": "^4.3.4"
+  }
+}

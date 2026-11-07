@@ -1,0 +1,51 @@
+<form class="admin-lock-card" (submit)="onSubmit($event)">
+  <rxdb-admin-lock-clock />
+  <p class="text-sm opacity-70" [textContent]="hasPassword() ? t('lock.enterPassword') : t('lock.setPassword')"></p>
+  <input
+    class="input w-full"
+    #field
+    [attr.aria-label]="t('lock.placeholder')"
+    [attr.autocomplete]="hasPassword() ? 'current-password' : 'new-password'"
+    [placeholder]="t('lock.placeholder')"
+    [value]="password()"
+    (input)="onInput($event)"
+    data-testid="admin-lock-input"
+    type="password"
+  />
+  @if (error(); as reason) {
+    <p
+      class="text-error text-sm"
+      [textContent]="reason === 'wrong' ? t('lock.wrong') : t('lock.unavailable')"
+      data-testid="admin-lock-error"
+      role="alert"
+    ></p>
+  }
+  <button
+    class="btn btn-primary w-full"
+    [textContent]="hasPassword() ? t('lock.unlock') : t('lock.set')"
+    data-testid="admin-lock-submit"
+    type="submit"
+  ></button>
+  @if (hasPassword()) {
+    @if (confirmingReset()) {
+      <div class="flex flex-col gap-2">
+        <p class="text-xs opacity-70" [textContent]="t('lock.forgotConfirm')"></p>
+        <button
+          class="btn btn-error btn-sm"
+          [textContent]="t('lock.forgotApply')"
+          (click)="reset()"
+          data-testid="admin-lock-reset-apply"
+          type="button"
+        ></button>
+      </div>
+    } @else {
+      <button
+        class="btn btn-ghost btn-sm"
+        [textContent]="t('lock.forgot')"
+        (click)="confirmingReset.set(true)"
+        data-testid="admin-lock-forgot"
+        type="button"
+      ></button>
+    }
+  }
+</form>

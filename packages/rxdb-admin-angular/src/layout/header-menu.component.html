@@ -1,0 +1,56 @@
+<ng-template #link let-node>
+  <a
+    class="btn btn-ghost btn-sm"
+    [attr.aria-current]="node.id === activeId() ? 'page' : null"
+    [attr.data-testid]="node.testId ?? 'admin-header-link'"
+    [attr.href]="node.route"
+    [class.btn-active]="node.id === activeId()"
+    (click)="go($event, node)"
+  >
+    @if (node.icon) {
+      <svg [lucideIcon]="node.icon" [size]="16"></svg>
+    }
+    {{ node.label }}
+  </a>
+</ng-template>
+
+<ng-template #items let-nodes>
+  @for (node of nodes; track node.id) {
+    <li>
+      @if (node.children?.length) {
+        <span class="menu-title">
+          @if (node.icon) {
+            <svg [lucideIcon]="node.icon" [size]="16"></svg>
+          }
+          {{ node.label }}
+        </span>
+        <ul>
+          <ng-container [ngTemplateOutlet]="items" [ngTemplateOutletContext]="{ $implicit: node.children }" />
+        </ul>
+      } @else {
+        <ng-container [ngTemplateOutlet]="link" [ngTemplateOutletContext]="{ $implicit: node }" />
+      }
+    </li>
+  }
+</ng-template>
+
+<nav class="admin-header-menu" [attr.aria-label]="t('layout.navigation')" data-testid="admin-header-menu">
+  @for (node of nodes(); track node.id) {
+    @if (node.children?.length) {
+      <div class="dropdown dropdown-hover">
+        <div class="btn btn-ghost btn-sm" role="button" tabindex="0">
+          @if (node.icon) {
+            <svg [lucideIcon]="node.icon" [size]="16"></svg>
+          }
+          {{ node.label }}
+          <svg [lucideIcon]="ChevronDown" [size]="14"></svg>
+        </div>
+        <ul class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow" tabindex="0">
+          <ng-container [ngTemplateOutlet]="items" [ngTemplateOutletContext]="{ $implicit: node.children }" />
+        </ul>
+      </div>
+    } @else {
+      <ng-container [ngTemplateOutlet]="link" [ngTemplateOutletContext]="{ $implicit: node }" />
+    }
+  }
+</nav>

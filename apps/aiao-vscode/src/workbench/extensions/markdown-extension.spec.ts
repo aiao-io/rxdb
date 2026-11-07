@@ -2,21 +2,56 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createMarkdownExtension, type MarkdownRuntime, type MarkdownRuntimeOptions } from './markdown-extension.js';
 
-const initial = { savedFiles: { 'README.md': '# 已保存标题', 'image.svg': '<svg />' }, projectId: 'one', activePath: 'README.md', files: { 'README.md': '# 未保存的标题', 'image.svg': '<svg />' } };
+const initial = {
+  savedFiles: { 'README.md': '# 已保存标题', 'image.svg': '<svg />' },
+  projectId: 'one',
+  activePath: 'README.md',
+  files: { 'README.md': '# 未保存的标题', 'image.svg': '<svg />' }
+};
 
 function fixture(installed = true, enabled = true) {
-  const runtime: MarkdownRuntime = { sync: vi.fn(async () => undefined), execute: vi.fn(async () => undefined), dispose: vi.fn() };
+  const runtime: MarkdownRuntime = {
+    sync: vi.fn(async () => undefined),
+    execute: vi.fn(async () => undefined),
+    dispose: vi.fn()
+  };
   let events: MarkdownRuntimeOptions | undefined;
-  const mount = vi.fn(async (_host: HTMLElement, options: MarkdownRuntimeOptions) => { events = options; return runtime; });
+  const mount = vi.fn(async (_host: HTMLElement, options: MarkdownRuntimeOptions) => {
+    events = options;
+    return runtime;
+  });
   const onEdit = vi.fn();
   const onWrite = vi.fn(async () => undefined);
   const onError = vi.fn();
   const onScroll = vi.fn();
   const onSave = vi.fn(async () => undefined);
   const host = document.createElement('div');
-  const extension = createMarkdownExtension({ getHost: () => host, mount, onEdit, onSave, onWrite, onReveal: vi.fn(), onScroll, onError, installed, enabled });
+  const extension = createMarkdownExtension({
+    getHost: () => host,
+    mount,
+    onEdit,
+    onSave,
+    onWrite,
+    onReveal: vi.fn(),
+    onScroll,
+    onError,
+    installed,
+    enabled
+  });
   extension.sync(initial);
-  return { extension, runtime, mount, onEdit, onSave, onWrite, onScroll, onError, get events() { return events!; } };
+  return {
+    extension,
+    runtime,
+    mount,
+    onEdit,
+    onSave,
+    onWrite,
+    onScroll,
+    onError,
+    get events() {
+      return events!;
+    }
+  };
 }
 
 describe('真实 Markdown 扩展的工作台生命周期', () => {
@@ -104,7 +139,12 @@ describe('真实 Markdown 扩展的工作台生命周期', () => {
     const f = fixture();
     let finish!: (runtime: MarkdownRuntime) => void;
     let signal!: AbortSignal;
-    f.mount.mockImplementationOnce((_host, options) => { signal = options.signal; return new Promise(resolve => { finish = resolve; }); });
+    f.mount.mockImplementationOnce((_host, options) => {
+      signal = options.signal;
+      return new Promise(resolve => {
+        finish = resolve;
+      });
+    });
     const pending = f.extension.execute('markdown-preview-enhanced.openPreviewToTheSide');
     f.extension.setInstallation({ installed: false, enabled: false });
     expect(signal.aborted).toBe(true);
@@ -130,7 +170,12 @@ describe('真实 Markdown 扩展的工作台生命周期', () => {
   it('加载期间切换项目后丢弃并释放迟到宿主，不执行旧命令', async () => {
     const f = fixture();
     let finish!: (runtime: MarkdownRuntime) => void;
-    f.mount.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    f.mount.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
     const pending = f.extension.execute('markdown-preview-enhanced.openPreviewToTheSide');
     await vi.waitFor(() => expect(f.mount).toHaveBeenCalledOnce());
     f.extension.sync({ ...initial, projectId: 'two' });

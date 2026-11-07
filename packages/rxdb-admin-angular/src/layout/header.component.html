@@ -1,0 +1,39 @@
+@if (layout().showHeader) {
+  <header
+    class="admin-header"
+    [attr.data-menu-align]="prefs().header.menuAlign"
+    [attr.data-theme]="semiDark()"
+    data-testid="admin-header"
+  >
+    @if (layout().showMenuToggle) {
+      <button
+        class="btn btn-ghost btn-sm btn-square"
+        [attr.aria-expanded]="expanded()"
+        [attr.aria-label]="t('layout.toggleMenu')"
+        (click)="shell.toggleSidebar()"
+        aria-controls="admin-sidebar"
+        data-testid="admin-menu-toggle"
+        type="button"
+      >
+        <svg [lucideIcon]="Menu" [size]="18"></svg>
+      </button>
+    }
+    @if (layout().brandInHeader) {
+      <rxdb-admin-brand [icon]="brandIcon()" />
+    }
+    @if (layout().headerMenu) {
+      <rxdb-admin-header-menu [nodes]="menu()" />
+    }
+    @if (layout().showBreadcrumb) {
+      <rxdb-admin-breadcrumb />
+    }
+    <div class="admin-header-spacer"></div>
+    @if (start(); as startSlot) {
+      <ng-container [ngTemplateOutlet]="startSlot" />
+    }
+    <rxdb-admin-header-widgets />
+    @if (end(); as endSlot) {
+      <ng-container [ngTemplateOutlet]="endSlot" />
+    }
+  </header>
+}

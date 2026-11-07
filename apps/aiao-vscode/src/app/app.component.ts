@@ -118,13 +118,19 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     };
     const viewport = () => {
       const view = editor.instance.view;
-      if (view?.scrollDOM.clientHeight) view.requestMeasure({ key: viewport, read: visibleLines, write: value => initial.onViewport?.(value) });
+      if (view?.scrollDOM.clientHeight)
+        view.requestMeasure({ key: viewport, read: visibleLines, write: value => initial.onViewport?.(value) });
     };
     element.addEventListener('scroll', viewport, true);
     this.application.attachView(editor.hostView);
     editor.changeDetectorRef.detectChanges();
     // basicSetup 只带 searchKeymap，面板靠按 Mod+F 时自装且默认停在底部；这里显式预装并把查找组件对齐到编辑器顶部。
-    editor.instance.setExtensions([search({ top: true }), EditorView.updateListener.of(update => { if (update.viewportChanged || update.geometryChanged) viewport(); })]);
+    editor.instance.setExtensions([
+      search({ top: true }),
+      EditorView.updateListener.of(update => {
+        if (update.viewportChanged || update.geometryChanged) viewport();
+      })
+    ]);
     return {
       update: (value, language) => {
         editor.setInput('value', value);
@@ -177,10 +183,19 @@ export class AppComponent implements AfterViewInit, OnDestroy {
         if (command === 'find') return openSearchPanel(view);
         return insertBlankLineAbove(view);
       },
-      getViewport: () => { const view = editor.instance.view; return view?.scrollDOM.clientHeight ? visibleLines(view) : undefined; },
+      getViewport: () => {
+        const view = editor.instance.view;
+        return view?.scrollDOM.clientHeight ? visibleLines(view) : undefined;
+      },
       scrollToLine: line => {
         const view = editor.instance.view;
-        if (view) view.dispatch({ effects: EditorView.scrollIntoView(view.state.doc.line(Math.max(1, Math.min(line, view.state.doc.lines))).from, { y: 'start', yMargin: 0 }) });
+        if (view)
+          view.dispatch({
+            effects: EditorView.scrollIntoView(
+              view.state.doc.line(Math.max(1, Math.min(line, view.state.doc.lines))).from,
+              { y: 'start', yMargin: 0 }
+            )
+          });
       },
       getViewState: () => {
         const view = editor.instance.view!;

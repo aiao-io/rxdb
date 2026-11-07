@@ -446,9 +446,18 @@ export function createWorkbenchCommands(root: HTMLElement, options: WorkbenchCom
       if (key === 'v' && !modifier && !shortcut.shiftKey && !shortcut.altKey)
         return invokeCommand('markdown-preview-enhanced.openPreviewToTheSide');
     }
-    if (modifier && !ordinaryInput(target) && !shortcut.shiftKey && !shortcut.altKey && key === 'k' && options.getCommands().some(command => command.id === 'markdown-preview-enhanced.openPreviewToTheSide')) {
+    if (
+      modifier &&
+      !ordinaryInput(target) &&
+      !shortcut.shiftKey &&
+      !shortcut.altKey &&
+      key === 'k' &&
+      options.getCommands().some(command => command.id === 'markdown-preview-enhanced.openPreviewToTheSide')
+    ) {
       markdownChord = true;
-      markdownChordTimer = setTimeout(() => { markdownChord = false; }, 1500);
+      markdownChordTimer = setTimeout(() => {
+        markdownChord = false;
+      }, 1500);
       return true;
     }
     if (modifier && !ordinaryInput(target) && shortcut.shiftKey && !shortcut.altKey && key === 'v')

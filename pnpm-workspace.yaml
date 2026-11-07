@@ -24,9 +24,17 @@ allowBuilds:
   postman-code-generators: false
   sharp: true
   unrs-resolver: true
+  # wrangler 的 workerd：安装脚本只是校验 / 回退下载平台二进制，二进制由可选依赖 @cloudflare/workerd-<平台> 提供
+  workerd: false
 
 autoInstallPeers: true
 enablePrePostScripts: true
+# pnpm 11+ 默认给安装加 24 小时「发布年龄」门槛：锁文件里出现发布不满 24h 的版本
+# 就拒绝安装（含 --frozen-lockfile 的 CI）。本仓库按固定节奏做安全升级，刚刷新的
+# 锁文件必然含新发布版本（caniuse-lite 这类每日发布的传递依赖更无法避免），
+# 门槛只会让升级 PR 的 CI 恒红。供应链完整性由 scripts/audit/ 的 wa-sqlite 钉死、
+# 工作区补丁审计与 action pin 审计兜底，这里显式关掉年龄门槛（0 = 不设门槛）。
+minimumReleaseAge: 0
 gitShallowHosts:
   - github.com
   - gitlab.com
@@ -54,11 +62,15 @@ minimumReleaseAgeExclude:
   - '@codingame/monaco-vscode-languages-service-override@39.0.3'
 overrides:
   '@babel/core@7': ^7.29.7
-  '@angular/cdk': 22.2.4
-  '@angular/common': 22.2.3
-  '@angular/core': 22.2.3
-  '@angular/forms': 22.2.3
-  '@angular/platform-browser': 22.2.3
+  # 0.5.15 把 Emscripten FS 移出 JS 产物（懒加载 artifact），rxdb-adapter-pglite 的
+  # 恢复/清理链路依赖 `Module.FS.filesystems.IDBFS` 直接失效（40+ 用例崩溃）。钉在 0.5.12，
+  # 升 0.5.16+ 前先让适配器适配新的 FS 生命周期。
+  '@electric-sql/pglite': 0.5.12
+  '@angular/cdk': 22.2.6
+  '@angular/common': 22.2.4
+  '@angular/core': 22.2.4
+  '@angular/forms': 22.2.4
+  '@angular/platform-browser': 22.2.4
   '@codemirror/language': ^6.13.1
   '@codemirror/state': ^6.7.6
   '@codemirror/view': ^6.43.14
@@ -66,7 +78,7 @@ overrides:
   '@jimp/core>phin': ^3.7.1
   '@jimp/jpeg>jpeg-js': ^0.4.4
   miniprogram-automator>debug: ^4.4.3
-  '@lucide/angular': 1.61.0
+  '@lucide/angular': 1.70.0
   '@tarojs/helper>esbuild': ^0.25.12
   '@tarojs/plugin-doctor>glob': ^10.5.0
   '@tarojs/plugin-framework-react>vite': 6.4.4
@@ -113,7 +125,8 @@ overrides:
   vue: ^3.5.43
   yaml@1: ^1.10.3
 patchedDependencies:
-  '@tarojs/vite-runner@4.3.1': patches/@tarojs__vite-runner@4.3.1.patch
+  '@easyops-cn/docusaurus-search-local@0.55.3': patches/@easyops-cn__docusaurus-search-local@0.55.3.patch
+  '@tarojs/vite-runner@4.3.2': patches/@tarojs__vite-runner@4.3.2.patch
   typescript@6.0.3: patches/typescript@6.0.3.patch
 peerDependencyRules:
   allowedVersions:

@@ -81,10 +81,15 @@ const EXCLUDED = new Set(['rxdb-test']);
  * `rxdb-model-react` / `rxdb-model-vue` 的 `index.css`（vite 抽出的编译后组件样式 bundle）
  * 都无 TS 导出表面，前者由消费方的 Tailwind 管线消费、后者由消费方直接引入，无供应链风险面。
  * 看板核心包的 `board.css` 与三个看板绑定包同名的 `board-view.css`（三端共用样式的交付入口）同理。
+ * 后台外壳核心包的 `admin.css`（三端共享的样式契约）与三个外壳绑定包的 `tailwind.css` 同理。
  * @type {Map<string, string[]>}
  */
 const ASSET_SUBPATHS = new Map([
   ['rxdb-adapter-miniprogram', ['./alipay-random-worker.js']],
+  ['rxdb-admin', ['./admin.css']],
+  ['rxdb-admin-angular', ['./tailwind.css']],
+  ['rxdb-admin-react', ['./tailwind.css']],
+  ['rxdb-admin-vue', ['./tailwind.css']],
   ['rxdb-model-angular', ['./tailwind.css']],
   ['rxdb-model-react', ['./index.css', './tailwind.css']],
   ['rxdb-plugin-board', ['./board.css']],
