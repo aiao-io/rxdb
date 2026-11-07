@@ -17,6 +17,7 @@ afterEach(() => {
   Reflect.deleteProperty(window, 'showDirectoryPicker');
   window.sessionStorage.clear();
   localStorage.removeItem('aiao-workbench:extensions:shd101wyy.markdown-preview-enhanced:enabled');
+  localStorage.removeItem('aiao-workbench:extensions:shd101wyy.markdown-preview-enhanced:installation');
   document.body.replaceChildren();
 });
 
@@ -2482,5 +2483,56 @@ describe('Markdown 扩展的实际工作台入口', () => {
     expect(next.host.querySelector('[data-extension-status]')?.textContent).toBe('已禁用');
     await click(next.host, '[data-extension-toggle]');
     expect(next.host.querySelector('[data-extension-status]')?.textContent).toContain('已启用');
+  });
+});
+
+
+describe('扩展安装与卸载的工作台集成', () => {
+  it('卸载激活扩展释放宿主、关闭预览、拒绝旧宿主编辑，刷新后不复活', async () => {
+    const runtime = { sync: vi.fn(async () => undefined), execute: vi.fn(async () => undefined), dispose: vi.fn() };
+    const mount = vi.fn<NonNullable<BrowserWorkbenchOptions['markdownRuntime']>>(async () => runtime);
+    const f = fixture(true, '/browser-workbench-assets/', undefined, [], { ...files, 'README.md': '# 标题' }, undefined, null, mount);
+    await f.handle.ready;
+    f.handle.session.select('README.md');
+    await click(f.host, '[data-markdown-preview]:not([hidden])');
+    await vi.waitFor(() => expect(runtime.execute).toHaveBeenCalled());
+    const events = mount.mock.calls[0][1];
+    await click(f.host, '[data-action="extensions"]');
+    await click(f.host, '[data-extension-uninstall]');
+    await vi.waitFor(() => expect(f.host.querySelector('[data-extension-status]')?.textContent).toBe('未安装'));
+    expect(runtime.dispose).toHaveBeenCalledOnce();
+    expect(events.signal.aborted).toBe(true);
+    expect(f.host.querySelector('[data-auxiliary-id="markdown-extension"]')).toBeNull();
+    events.onEdit('README.md', '# 迟到修改', '# 标题');
+    expect(f.handle.session.state.files['README.md']).toBe('# 标题');
+    expect(f.host.querySelector<HTMLButtonElement>('[data-markdown-preview]:not([hidden])')?.disabled).toBe(true);
+    const next = fixture();
+    await next.handle.ready;
+    expect(next.host.querySelector('[data-extension-status]')?.textContent).toBe('未安装');
+    expect(next.host.querySelector<HTMLElement>('[data-extension-install]')!.hidden).toBe(false);
+  });
+
+  it('安装失败显示真实错误，正式资源校验成功后恢复预览且不提前激活', async () => {
+    localStorage.setItem('aiao-workbench:extensions:shd101wyy.markdown-preview-enhanced:installation', JSON.stringify({ installed: false, enabled: false }));
+    const bytes = new TextEncoder().encode('entry');
+    const sha256 = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), byte => byte.toString(16).padStart(2, '0')).join('');
+    const metadata = { id: 'shd101wyy.markdown-preview-enhanced', version: '0.8.40', manifest: { publisher: 'shd101wyy', name: 'markdown-preview-enhanced', version: '0.8.40', browser: './out/web/extension.js' }, files: [{ path: 'out/web/extension.js', bytes: bytes.length, sha256 }] };
+    const fetcher = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('', { status: 404 }));
+    const mount = vi.fn<NonNullable<BrowserWorkbenchOptions['markdownRuntime']>>(async () => ({ sync: vi.fn(async () => undefined), execute: vi.fn(async () => undefined), dispose: vi.fn() }));
+    const f = fixture(true, '/browser-workbench-assets/', undefined, [], { ...files, 'README.md': '# 标题' }, undefined, null, mount);
+    await f.handle.ready;
+    f.handle.session.select('README.md');
+    await click(f.host, '[data-action="extensions"]');
+    await click(f.host, '[data-extension-install]');
+    await vi.waitFor(() => expect(f.host.querySelector('[data-extension-error]')?.textContent).toContain('404'));
+    expect(f.host.querySelector('[data-extension-status]')?.textContent).toBe('未安装');
+    fetcher.mockResolvedValueOnce(new Response(JSON.stringify(metadata))).mockResolvedValueOnce(new Response(bytes));
+    await click(f.host, '[data-extension-install]');
+    await vi.waitFor(() => expect(f.host.querySelector('[data-extension-status]')?.textContent).toContain('已启用'));
+    expect(mount).not.toHaveBeenCalled();
+    expect(f.host.querySelector<HTMLButtonElement>('[data-markdown-preview]:not([hidden])')?.disabled).toBe(false);
+    await click(f.host, '[data-markdown-preview]:not([hidden])');
+    await vi.waitFor(() => expect(mount).toHaveBeenCalledOnce());
+    expect(f.backend.save).not.toHaveBeenCalled();
   });
 });

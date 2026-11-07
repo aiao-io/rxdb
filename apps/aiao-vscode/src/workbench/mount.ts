@@ -1,3 +1,4 @@
+import { createExtensionManagement, prepareMarkdownExtension } from './extensions/extension-management.js';
 import { createMarkdownExtension, isMarkdownPath, type MarkdownExtensionOptions } from './extensions/markdown-extension.js';
 import { mountMarkdownRuntime } from './extensions/runtime-client.js';
 import { mountMarkdownExtensionView } from './extensions/extension-view.js';
@@ -361,10 +362,18 @@ export function mountWorkbench(
       renderAccountState();
     });
   }
-  const markdownEnabledKey = 'aiao-workbench:extensions:shd101wyy.markdown-preview-enhanced:enabled';
   let markdownError = '';
+  const extensionManagement = createExtensionManagement({
+    storage: localStorage,
+    prepare: signal => prepareMarkdownExtension(base, signal),
+    onChange(state) {
+      markdownExtension.setInstallation(state);
+      renderMarkdownExtension();
+    }
+  });
   const markdownExtension = createMarkdownExtension({
-    enabled: localStorage.getItem(markdownEnabledKey) !== 'false',
+    installed: extensionManagement.state.installed,
+    enabled: extensionManagement.state.enabled,
     getHost: side => docking.ensureAuxiliary('markdown-extension', 'Markdown Preview Enhanced', side ? 'right' : 'within'),
     mount: options.markdownRuntime ?? ((host, runtimeOptions) => mountMarkdownRuntime(host, runtimeOptions, base)),
     onEdit(path, content) {
@@ -391,23 +400,18 @@ export function mountWorkbench(
     onError(error) { markdownError = messageFor(error); renderMarkdownExtension(); report(error); },
     onStatus(status) {
       if (status !== 'failed') markdownError = '';
-      if (status === 'disabled' || status === 'idle') docking.removeAuxiliary('markdown-extension');
+      if (status === 'uninstalled' || status === 'disabled' || status === 'idle') docking.removeAuxiliary('markdown-extension');
       renderMarkdownExtension();
     }
   });
   const markdownExtensionView = mountMarkdownExtensionView(element('[data-slot="extensions-view"]'), {
-    onToggle() {
-      try {
-        const next = !markdownExtension.enabled;
-        localStorage.setItem(markdownEnabledKey, String(next));
-        markdownExtension.setEnabled(next);
-        renderMarkdownExtension();
-      } catch (error) { report(error); }
-    },
+    onToggle: () => action(() => extensionManagement.setEnabled(!extensionManagement.state.enabled)),
+    onInstall: () => action(() => extensionManagement.install()),
+    onUninstall: () => action(() => extensionManagement.uninstall()),
     onPreview: () => action(() => markdownExtension.execute('markdown-preview-enhanced.openPreviewToTheSide'))
   });
   function renderMarkdownExtension(): void {
-    markdownExtensionView.render({ enabled: markdownExtension.enabled, status: markdownExtension.status, markdown: isMarkdownPath(session.state.activePath), error: markdownError });
+    markdownExtensionView.render({ ...extensionManagement.state, status: markdownExtension.status, markdown: isMarkdownPath(session.state.activePath), error: extensionManagement.state.error || markdownError });
     for (const button of root.querySelectorAll<HTMLButtonElement>('[data-markdown-preview]')) button.disabled = !markdownExtension.enabled;
   }
   const layoutChanges = docking.api.onDidLayoutChange(() => {
@@ -2427,6 +2431,8 @@ export function mountWorkbench(
           (treeRow(treeFocusPath) ?? tree.querySelector<HTMLElement>('[data-tree-section],[data-tree-path]'))?.focus();
         } else if (isSearch) {
           search.focus();
+        } else if (isExtensions) {
+          markdownExtensionView.focus();
         } else {
           element<HTMLTextAreaElement>('.wb-scm-commit-form textarea')?.focus();
         }
@@ -2582,6 +2588,7 @@ export function mountWorkbench(
       disposed = true;
       closeContextMenu();
       releaseState();
+      extensionManagement.dispose();
       markdownExtension.dispose();
       markdownExtensionView.dispose();
       commands.dispose();

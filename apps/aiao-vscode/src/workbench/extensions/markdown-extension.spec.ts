@@ -4,7 +4,7 @@ import { createMarkdownExtension, type MarkdownRuntime, type MarkdownRuntimeOpti
 
 const initial = { savedFiles: { 'README.md': '# 已保存标题', 'image.svg': '<svg />' }, projectId: 'one', activePath: 'README.md', files: { 'README.md': '# 未保存的标题', 'image.svg': '<svg />' } };
 
-function fixture() {
+function fixture(installed = true, enabled = true) {
   const runtime: MarkdownRuntime = { sync: vi.fn(async () => undefined), execute: vi.fn(async () => undefined), dispose: vi.fn() };
   let events: MarkdownRuntimeOptions | undefined;
   const mount = vi.fn(async (_host: HTMLElement, options: MarkdownRuntimeOptions) => { events = options; return runtime; });
@@ -14,7 +14,7 @@ function fixture() {
   const onScroll = vi.fn();
   const onSave = vi.fn(async () => undefined);
   const host = document.createElement('div');
-  const extension = createMarkdownExtension({ getHost: () => host, mount, onEdit, onSave, onWrite, onReveal: vi.fn(), onScroll, onError, enabled: true });
+  const extension = createMarkdownExtension({ getHost: () => host, mount, onEdit, onSave, onWrite, onReveal: vi.fn(), onScroll, onError, installed, enabled });
   extension.sync(initial);
   return { extension, runtime, mount, onEdit, onSave, onWrite, onScroll, onError, get events() { return events!; } };
 }
@@ -64,6 +64,56 @@ describe('真实 Markdown 扩展的工作台生命周期', () => {
     f.extension.setEnabled(true);
     await f.extension.execute('markdown-preview-enhanced.openPreviewToTheSide');
     expect(f.mount).toHaveBeenCalledTimes(2);
+    f.extension.dispose();
+  });
+
+  it('未安装启动和项目切换均不恢复扩展，同一安装状态不重复释放', async () => {
+    const f = fixture(false, true);
+    expect(f.extension.installed).toBe(false);
+    expect(f.extension.enabled).toBe(false);
+    expect(f.extension.status).toBe('uninstalled');
+    f.extension.sync({ ...initial, projectId: 'two' });
+    expect(f.extension.status).toBe('uninstalled');
+    f.extension.setInstallation({ installed: true, enabled: true });
+    await f.extension.execute('markdown-preview-enhanced.openPreviewToTheSide');
+    f.extension.setInstallation({ installed: true, enabled: true });
+    expect(f.runtime.dispose).not.toHaveBeenCalled();
+    expect(f.events.signal.aborted).toBe(false);
+    f.extension.dispose();
+    f.extension.setInstallation({ installed: false, enabled: false });
+    expect(f.extension.installed).toBe(true);
+  });
+
+  it('卸载移除命令并拒绝启用，重装恢复命令但仍按需加载', async () => {
+    const f = fixture();
+    f.extension.setInstallation({ installed: false, enabled: false });
+    expect(f.extension.commands).toEqual([]);
+    expect(f.extension.status).toBe('uninstalled');
+    f.extension.setEnabled(true);
+    expect(f.extension.enabled).toBe(false);
+    await expect(f.extension.execute('markdown-preview-enhanced.openPreviewToTheSide')).rejects.toThrow('未安装');
+    f.extension.setInstallation({ installed: true, enabled: true });
+    expect(f.extension.commands.length).toBeGreaterThan(0);
+    expect(f.mount).not.toHaveBeenCalled();
+    await f.extension.execute('markdown-preview-enhanced.openPreviewToTheSide');
+    expect(f.extension.status).toBe('active');
+    f.extension.dispose();
+  });
+
+  it('加载期间卸载并重装后，迟到宿主不能接管新安装', async () => {
+    const f = fixture();
+    let finish!: (runtime: MarkdownRuntime) => void;
+    let signal!: AbortSignal;
+    f.mount.mockImplementationOnce((_host, options) => { signal = options.signal; return new Promise(resolve => { finish = resolve; }); });
+    const pending = f.extension.execute('markdown-preview-enhanced.openPreviewToTheSide');
+    f.extension.setInstallation({ installed: false, enabled: false });
+    expect(signal.aborted).toBe(true);
+    f.extension.setInstallation({ installed: true, enabled: true });
+    finish(f.runtime);
+    await expect(pending).rejects.toThrow('已切换');
+    expect(f.runtime.dispose).toHaveBeenCalledOnce();
+    expect(f.runtime.execute).not.toHaveBeenCalled();
+    expect(f.extension.status).toBe('idle');
     f.extension.dispose();
   });
 

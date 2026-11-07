@@ -2,7 +2,7 @@ import type { WorkbenchEditorViewport } from '../editor.js';
 import type { ExtensionCommand, ExtensionSnapshot, ExtensionFileBaseline } from './extension-protocol.js';
 
 /** 扩展可观察的真实生命周期状态。 */
-export type MarkdownExtensionStatus = 'disabled' | 'idle' | 'loading' | 'active' | 'failed';
+export type MarkdownExtensionStatus = 'uninstalled' | 'disabled' | 'idle' | 'loading' | 'active' | 'failed';
 
 /** 已启动的真实扩展宿主。 */
 export interface MarkdownRuntime {
@@ -30,6 +30,7 @@ export interface MarkdownRuntimeOptions {
 /** 工作台注入实际面板、文件保存和运行时加载器。 */
 export interface MarkdownExtensionOptions {
   readonly enabled: boolean;
+  readonly installed: boolean;
   getHost(side: boolean): HTMLElement;
   mount(host: HTMLElement, options: MarkdownRuntimeOptions): Promise<MarkdownRuntime>;
   onEdit(path: string, content: string): void;
@@ -55,8 +56,9 @@ export function isMarkdownPath(path: string | null | undefined): boolean {
 
 /** 管理正式插件宿主，项目切换后拒绝所有迟到的文件事件。 */
 export function createMarkdownExtension(options: MarkdownExtensionOptions) {
-  let enabled = options.enabled;
-  let status: MarkdownExtensionStatus = enabled ? 'idle' : 'disabled';
+  let installed = options.installed;
+  let enabled = installed && options.enabled;
+  let status: MarkdownExtensionStatus = !installed ? 'uninstalled' : enabled ? 'idle' : 'disabled';
   let snapshot: ExtensionSnapshot | undefined;
   let runtime: MarkdownRuntime | undefined;
   let loading: Promise<MarkdownRuntime> | undefined;
@@ -78,7 +80,7 @@ export function createMarkdownExtension(options: MarkdownExtensionOptions) {
     runtime = undefined;
     loading = undefined;
     commands = declaredCommands;
-    updateStatus(enabled ? 'idle' : 'disabled');
+    updateStatus(!installed ? 'uninstalled' : enabled ? 'idle' : 'disabled');
   }
   function sync(next: ExtensionSnapshot): void {
     if (disposed) return;
@@ -89,6 +91,7 @@ export function createMarkdownExtension(options: MarkdownExtensionOptions) {
   }
   async function execute(command: string): Promise<void> {
     if (disposed) throw new Error('Markdown 扩展已经释放');
+    if (!installed) throw new Error('Markdown Preview Enhanced 未安装，请先安装扩展');
     if (!enabled) throw new Error('Markdown Preview Enhanced 已禁用，请先启用扩展');
     if (!snapshot || !isMarkdownPath(snapshot.activePath)) throw new Error('请先打开一个 Markdown 文件');
     const ticket = generation;
@@ -140,13 +143,18 @@ export function createMarkdownExtension(options: MarkdownExtensionOptions) {
   }
   return {
     get status() { return status; },
+    get installed() { return installed; },
     get enabled() { return enabled; },
     get commands(): readonly ExtensionCommand[] { return enabled ? commands : []; },
     sync,
     execute,
     cursor(line: number, column: number): void { cursor = { line, column }; void runtime?.cursor?.(line, column).catch(options.onError); },
     viewport(value: WorkbenchEditorViewport): void { viewport = value; void runtime?.viewport?.(value).catch(options.onError); },
-    setEnabled(value: boolean): void { if (enabled === value || disposed) return; enabled = value; stop(); },
+    setInstallation(next: { installed: boolean; enabled: boolean }): void {
+      if (disposed || (installed === next.installed && enabled === (next.installed && next.enabled))) return;
+      installed = next.installed; enabled = installed && next.enabled; stop();
+    },
+    setEnabled(value: boolean): void { if (enabled === value || disposed || !installed) return; enabled = value; stop(); },
     closePreview: stop,
     dispose(): void { if (disposed) return; disposed = true; stop(); }
   };

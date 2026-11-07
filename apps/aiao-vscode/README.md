@@ -17,7 +17,7 @@ Vue 文件在 Monaco 中暂按 HTML 语法展示；完整 Vue 语言服务另行
 
 ## Markdown 插件预览
 
-已预装 `shd101wyy.markdown-preview-enhanced@0.8.40`，默认启用。左侧「扩展」可以查看加载状态、启用或禁用。
+已预装 `shd101wyy.markdown-preview-enhanced@0.8.40`，默认启用。左侧「扩展」支持搜索、已安装／已启用／已禁用／可安装筛选、启停、卸载和重新安装；安装状态与启停偏好跨刷新保留。卸载立即关闭扩展宿主和预览，重新安装校验正式包资源后按需激活。
 打开 `.md` 文件后，点击文档标签栏「打开 Markdown 侧边预览」，或按 `Ctrl/⌘ + K` 后按 `V`；`Ctrl/⌘ + Shift + V` 在当前组打开预览。编辑区右键和命令面板也提供入口。
 
 预览实时读取未保存草稿，支持 HTML、相对图片、Mermaid 和 KaTeX；CodeMirror / Monaco 都可使用，切换编辑器保留预览宿主。工作台全局「打开预览」用于运行项目，Markdown 预览使用文档标签栏入口。

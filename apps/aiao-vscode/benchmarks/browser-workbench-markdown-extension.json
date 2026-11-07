@@ -19,7 +19,12 @@
     "context-menu-opens-preview",
     "disable-reload-enable-keeps-unsaved-draft",
     "explicit-save-keeps-preview-and-cleans-only-on-request",
-    "project-switch-disposes-and-reopens-new-runtime"
+    "project-switch-disposes-and-reopens-new-runtime",
+    "extension-search-filters-installation-and-enabled-state",
+    "uninstall-disposes-active-host-and-disables-preview",
+    "uninstall-persists-across-reload",
+    "reinstall-verifies-real-package-and-stays-lazy",
+    "reinstalled-extension-opens-real-preview"
   ],
   "limitations": [
     "TikZ 在线资源受 COEP 限制"
