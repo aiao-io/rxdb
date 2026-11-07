@@ -42,11 +42,21 @@ const workspacePackageJson = JSON.parse(await readFile(path.join(workspaceRoot, 
 
 // pnpm 12 安装时不再读 .npmrc 里的 node-linker 等 pnpm 专属设置（实测按 isolated 装），
 // 所以和 overrides 一起写进 pnpm-workspace.yaml。
+// minimumReleaseAge: 0 与仓库主 workspace 决策一致：消费者项目的依赖按 registry 最新解析，
+// 24h 发布年龄门槛下 pnpm 会尝试把新发布版本写进单行 JSON 风格的 minimumReleaseAgeExclude，
+// 就地编辑不了直接 ERR_PNPM_WORKSPACE_MANIFEST_WRITER_UNSUPPORTED_INLINE_BLOCK。
 const writePnpmWorkspace = (root, overrides) =>
   writeFile(
     path.join(root, 'pnpm-workspace.yaml'),
     `${JSON.stringify(
-      { packages: [], nodeLinker: 'hoisted', autoInstallPeers: false, strictPeerDependencies: true, overrides },
+      {
+        packages: [],
+        nodeLinker: 'hoisted',
+        minimumReleaseAge: 0,
+        autoInstallPeers: false,
+        strictPeerDependencies: true,
+        overrides
+      },
       null,
       2
     )}\n`
@@ -144,10 +154,10 @@ const COMBOS = [
       react: '^19.3.0',
       'react-dom': '^19.3.0',
       vue: '^3.5.43',
-      '@angular/core': '22.2.3',
-      '@angular/common': '22.2.3',
-      '@angular/platform-browser': '22.2.3',
-      '@angular/compiler': '22.2.3',
+      '@angular/core': '22.2.4',
+      '@angular/common': '22.2.4',
+      '@angular/platform-browser': '22.2.4',
+      '@angular/compiler': '22.2.4',
       ngxtension: '^7.0.1'
     }
   },
@@ -171,11 +181,11 @@ const COMBOS = [
       react: '^19.3.0',
       'react-dom': '^19.3.0',
       vue: '^3.5.43',
-      '@angular/core': '22.2.3',
-      '@angular/common': '22.2.3',
-      '@angular/forms': '22.2.3',
-      '@angular/platform-browser': '22.2.3',
-      '@angular/compiler': '22.2.3'
+      '@angular/core': '22.2.4',
+      '@angular/common': '22.2.4',
+      '@angular/forms': '22.2.4',
+      '@angular/platform-browser': '22.2.4',
+      '@angular/compiler': '22.2.4'
     }
   },
   {
