@@ -14,10 +14,13 @@ test('搜索索引限制同时读取的页面数，并保留标题、正文与�
     const index = Number(path.basename(file, '.html').slice(5));
     active++;
     peak = Math.max(peak, active);
-    setTimeout(() => {
-      active--;
-      callback(null, `<article><h1>页面 ${index}</h1><p>检索正文 ${index}</p></article>`);
-    }, (count - index) % 4);
+    setTimeout(
+      () => {
+        active--;
+        callback(null, `<article><h1>页面 ${index}</h1><p>检索正文 ${index}</p></article>`);
+      },
+      (count - index) % 4
+    );
   });
   const scanner = path.join(
     path.dirname(require.resolve('@easyops-cn/docusaurus-search-local')),
