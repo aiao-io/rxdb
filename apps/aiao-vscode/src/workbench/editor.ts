@@ -1,7 +1,24 @@
+/** 工作台支持的编辑器引擎。 */
+export type WorkbenchEditorEngine = 'codemirror' | 'monaco';
+
+/** 校验持久化的编辑器选择。 */
+export function isWorkbenchEditorEngine(value: unknown): value is WorkbenchEditorEngine {
+  return value === 'codemirror' || value === 'monaco';
+}
+
+/** 两种编辑器之间可迁移的选区与滚动位置。 */
+export interface WorkbenchEditorViewState {
+  readonly anchor: number;
+  readonly head: number;
+  readonly scrollTop: number;
+  readonly scrollLeft: number;
+}
+
 /** 原生编辑器绑定的初始属性。 */
 export interface WorkbenchEditorOptions {
   readonly value: string;
   readonly language: string;
+  readonly engine: WorkbenchEditorEngine;
   /** 初始缩进单位，如两空格 `'  '`。 @defaultValue '  ' */
   readonly indentUnit?: string;
   readonly onChange: (value: string) => void;
@@ -33,8 +50,14 @@ export interface WorkbenchEditorHandle {
   setIndentUnit?(unit: string): void;
   /** 设置该文件的诊断波浪线，空数组清除。 */
   setDiagnostics?(diagnostics: readonly WorkbenchEditorDiagnostic[]): void;
+  /** 切换引擎并保留未保存文本与视图位置。 */
+  setEngine?(engine: WorkbenchEditorEngine): void;
+  /** 读取选区与滚动位置，偏移按 UTF-16 代码单元计算。 */
+  getViewState?(): WorkbenchEditorViewState;
+  /** 恢复选区与滚动位置，超出文档的偏移由编辑器截断。 */
+  restoreViewState?(state: WorkbenchEditorViewState): void;
   dispose(): void;
 }
 
-/** 由框架绑定挂载已有 CodeMirror 编辑器。 */
+/** 由应用挂载所选编辑器，向工作台提供统一操作接口。 */
 export type WorkbenchEditorMount = (host: HTMLElement, options: WorkbenchEditorOptions) => WorkbenchEditorHandle;

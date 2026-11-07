@@ -17,27 +17,44 @@ Monaco 不是插件兼容的硬性前提。插件通过 `vscode` API 访问文�
 本轮整理了方案与本地接入点，没有完成插件宿主选型、CodeMirror 兼容原型或真实插件运行验收。
 不能据此承诺任意 VSIX、全部 Web 插件或桌面插件可用。
 
+## 第一阶段：双编辑器接入
+
+本阶段按用户确认的范围接入 Monaco，同时保留 CodeMirror，在设置中切换；插件兼容分析继续作为后续研究。
+默认选择 CodeMirror，旧配置自动补齐该默认值，明确无效的编辑器配置仍报错。
+
+- 选择在当前浏览器内持久化，刷新和重开项目继续沿用。
+- 两种编辑器使用统一的挂载接口，共用工作台的编辑缓冲、保存、格式化、诊断与快捷命令。
+- 切换迁移文本、选区与滚动位置，释放旧实例；撤销历史在切换后重新开始。
+- Monaco 的脚本、样式、字体与 Worker 由现有资产构建流程生成并自托管，所需资源就绪后再挂载。
+- 异步加载期间的文本更新继续进入最新缓冲；切换或关闭后忽略已过期的加载结果。
+- Vue 文件暂使用 HTML 语法展示，完整 Vue 语言服务和插件宿主仍需后续评估。
+
+实现入口为 [编辑器接口](../src/workbench/editor.ts)、[切换生命周期](../src/workbench/editor-switcher.ts)、
+[Monaco 资源加载](../src/workbench/monaco-loader.ts)、[Monaco 适配](../src/workbench/monaco-editor.ts) 与
+[设置及持久化](../src/workbench/workbench-state.ts)。使用方式见[应用说明](../README.md#编辑器选择)。
+验收覆盖设置恢复、切换时保留草稿、加载取消，以及真实浏览器输入、格式化撤销、保存、刷新与 Worker 资源。
+
 ## 当前架构与可复用边界
 
-| 现有能力 | 本地证据 | 对插件兼容的意义 |
-| --- | --- | --- |
-| Angular + CodeMirror + Dockview 工作台 | [应用说明](../README.md)、[Angular 编辑器挂载](../src/app/app.component.ts) | 可以继续承接编辑器与工作台界面 |
-| 编辑器挂载与命令式操作接口 | [`WorkbenchEditorMount` / `WorkbenchEditorHandle`](../src/workbench/editor.ts) | 已有文本更新、可撤销替换、光标回调、诊断和部分命令的入口 |
-| 项目会话、编辑缓冲、保存与 Git 后端 | [`WorkbenchSession` / `WorkbenchBackend`](../src/workbench/session.ts) | 可以作为文档与工作区适配的基础，需要保留草稿、保存快照、暂存区的区别 |
-| 文件与命令选择器 | [`createWorkbenchCommands()`](../src/workbench/workbench-commands.ts) | 可以承接插件命令与部分 Quick Pick 交互，仍需补注册、注销和生命周期协议 |
-| WebContainer 终端与项目进程 | [终端运行时](../src/workbench/terminal/terminal-runtime.ts)、[WebContainer 适配器](../src/workbench/terminal/webcontainer-adapter.ts)、[应用终端说明](../README.md#浏览器交互终端) | 已有浏览器 Node 运行能力，但没有因此自动获得 VS Code 插件宿主 |
+| 现有能力                               | 本地证据                                                                                                                                                                           | 对插件兼容的意义                                                       |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Angular + CodeMirror + Dockview 工作台 | [应用说明](../README.md)、[Angular 编辑器挂载](../src/app/app.component.ts)                                                                                                        | 可以继续承接编辑器与工作台界面                                         |
+| 编辑器挂载与命令式操作接口             | [`WorkbenchEditorMount` / `WorkbenchEditorHandle`](../src/workbench/editor.ts)                                                                                                     | 已有文本更新、可撤销替换、光标回调、诊断和部分命令的入口               |
+| 项目会话、编辑缓冲、保存与 Git 后端    | [`WorkbenchSession` / `WorkbenchBackend`](../src/workbench/session.ts)                                                                                                             | 可以作为文档与工作区适配的基础，需要保留草稿、保存快照、暂存区的区别   |
+| 文件与命令选择器                       | [`createWorkbenchCommands()`](../src/workbench/workbench-commands.ts)                                                                                                              | 可以承接插件命令与部分 Quick Pick 交互，仍需补注册、注销和生命周期协议 |
+| WebContainer 终端与项目进程            | [终端运行时](../src/workbench/terminal/terminal-runtime.ts)、[WebContainer 适配器](../src/workbench/terminal/webcontainer-adapter.ts)、[应用终端说明](../README.md#浏览器交互终端) | 已有浏览器 Node 运行能力，但没有因此自动获得 VS Code 插件宿主          |
 
 现有编辑器接口还不是完整的 `TextDocument` / `TextEditor` 模型。
 插件需要的稳定文档 URI、版本号、精确变更事件、多选区和批量编辑语义，需要在原型中补充并验证。
 
 ## 可选路线
 
-| 路线 | 主要工作 | 适用条件与限制 |
-| --- | --- | --- |
-| 保留 CodeMirror，开发插件适配层 | 选定插件宿主和 API 实现方案，桥接文档、编辑器、文件系统、命令及所需界面服务 | 适合继续发展现有工作台；兼容成本由目标插件实际使用的 API 决定 |
-| Monaco + `monaco-vscode-api` | 在应用编辑器边界接入 Monaco，复用兼容项目提供的扩展注册与服务，再连接现有工作区 | 现成服务较多；仍需处理插件与工作台的集成，不等于替换编辑器后即可兼容全部插件 |
-| Eclipse Theia | 采用支持 VS Code 扩展的 IDE 平台，迁移或重新集成现有应用能力 | 适合将更多 IDE 平台职责交给成熟框架，需要评估迁移与浏览器部署模式 |
-| Code OSS / OpenVSCode Server | 采用 VS Code 内核，将领域能力接入其工作台；按需要配置真实 Node 宿主 | 适合把插件生态作为核心目标；OpenVSCode Server 引入服务端部署，与当前本地优先模式需重新对齐 |
+| 路线                            | 主要工作                                                                        | 适用条件与限制                                                                             |
+| ------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| 保留 CodeMirror，开发插件适配层 | 选定插件宿主和 API 实现方案，桥接文档、编辑器、文件系统、命令及所需界面服务     | 适合继续发展现有工作台；兼容成本由目标插件实际使用的 API 决定                              |
+| Monaco + `monaco-vscode-api`    | 在应用编辑器边界接入 Monaco，复用兼容项目提供的扩展注册与服务，再连接现有工作区 | 现成服务较多；仍需处理插件与工作台的集成，不等于替换编辑器后即可兼容全部插件               |
+| Eclipse Theia                   | 采用支持 VS Code 扩展的 IDE 平台，迁移或重新集成现有应用能力                    | 适合将更多 IDE 平台职责交给成熟框架，需要评估迁移与浏览器部署模式                          |
+| Code OSS / OpenVSCode Server    | 采用 VS Code 内核，将领域能力接入其工作台；按需要配置真实 Node 宿主             | 适合把插件生态作为核心目标；OpenVSCode Server 引入服务端部署，与当前本地优先模式需重新对齐 |
 
 `monaco-vscode-api` 围绕 Monaco 与 VS Code 服务集成。
 本轮没有验证其插件宿主或服务能否独立复用于 CodeMirror；不能把它视为现成的 CodeMirror 兼容层。
@@ -59,13 +76,13 @@ aiao 工作台适配层
 
 ### 文档与编辑器
 
-| VS Code 契约 | 拟议接入点 | 必须验证的语义 |
-| --- | --- | --- |
-| `TextDocument`、文档打开/修改/关闭事件 | 项目会话与 CodeMirror 文档状态 | 项目级稳定 URI、语言标识、文档版本、增量变更与事件顺序 |
-| `TextEditor`、选区与编辑操作 | CodeMirror state、selection、transaction | 行列与 UTF-16 偏移转换、多选区、编辑来源、撤销与重做 |
-| `WorkspaceEdit` | 项目会话与编辑器事务 | 跨文件操作、未打开文件、并发编辑、失败处理，以及编辑与保存的边界 |
-| 补全、悬浮提示、定义跳转等 provider | CodeMirror 对应扩展或界面 | 请求取消、异步结果过期、跨文件定位与结果释放 |
-| `DiagnosticCollection` | CodeMirror 诊断与问题面板 | 文件与范围映射、严重性、来源、替换与清除 |
+| VS Code 契约                           | 拟议接入点                               | 必须验证的语义                                                   |
+| -------------------------------------- | ---------------------------------------- | ---------------------------------------------------------------- |
+| `TextDocument`、文档打开/修改/关闭事件 | 项目会话与 CodeMirror 文档状态           | 项目级稳定 URI、语言标识、文档版本、增量变更与事件顺序           |
+| `TextEditor`、选区与编辑操作           | CodeMirror state、selection、transaction | 行列与 UTF-16 偏移转换、多选区、编辑来源、撤销与重做             |
+| `WorkspaceEdit`                        | 项目会话与编辑器事务                     | 跨文件操作、未打开文件、并发编辑、失败处理，以及编辑与保存的边界 |
+| 补全、悬浮提示、定义跳转等 provider    | CodeMirror 对应扩展或界面                | 请求取消、异步结果过期、跨文件定位与结果释放                     |
+| `DiagnosticCollection`                 | CodeMirror 诊断与问题面板                | 文件与范围映射、严重性、来源、替换与清除                         |
 
 插件修改文档后，应进入现有编辑缓冲并触发正常的变更通知；保存仍通过项目会话完成。
 `workspace.fs` 面向工作区文件系统，打开文档则可能存在未保存内容，适配时必须保留二者的区别。
@@ -103,11 +120,11 @@ aiao 工作台适配层
 CodeMirror 有官方 `@codemirror/lsp-client`，可评估用于接入语言服务器。
 语言服务器还需要选择浏览器 Worker、本地或远端等运行方式，并与工作区及编辑缓冲保持同步。
 
-| 目标 | 建议优先验证 | 不应推导的结论 |
-| --- | --- | --- |
-| 补全、跳转、诊断、重命名 | 项目级语言服务或 LSP + CodeMirror | 支持某语言服务，不等于运行该语言的整个 VS Code 插件 |
-| 运行指定 VS Code Web 插件 | 浏览器插件宿主 + 该插件所需 API 和贡献点 | 一个插件通过，不等于所有 Web 插件通过 |
-| 运行依赖 Node 的插件 | 真实 Node 宿主或另行验证的运行后端 + 工作台桥接 | 浏览器里能执行 Node 命令，不等于具备完整桌面兼容性 |
+| 目标                      | 建议优先验证                                    | 不应推导的结论                                      |
+| ------------------------- | ----------------------------------------------- | --------------------------------------------------- |
+| 补全、跳转、诊断、重命名  | 项目级语言服务或 LSP + CodeMirror               | 支持某语言服务，不等于运行该语言的整个 VS Code 插件 |
+| 运行指定 VS Code Web 插件 | 浏览器插件宿主 + 该插件所需 API 和贡献点        | 一个插件通过，不等于所有 Web 插件通过               |
+| 运行依赖 Node 的插件      | 真实 Node 宿主或另行验证的运行后端 + 工作台桥接 | 浏览器里能执行 Node 命令，不等于具备完整桌面兼容性  |
 
 ## 建议的原型与验收
 

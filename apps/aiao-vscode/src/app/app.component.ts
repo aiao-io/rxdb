@@ -20,11 +20,14 @@ import { gotoLine, openSearchPanel, search } from '@codemirror/search';
 import { EditorSelection, Transaction } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 import { filter, firstValueFrom, of, take, timeout } from 'rxjs';
+import { mountSwitchableEditor } from '../workbench/editor-switcher.js';
+import type { WorkbenchEditorMount } from '../workbench/editor.js';
 import { createGitBackend } from '../workbench/git-backend.js';
 import { createRouterBackend } from '../workbench/git/git-router-backend.js';
 import { completeOAuthCallback } from '../workbench/git/github/github-oauth-bridge.js';
 import type { GitHubService } from '../workbench/git/github/github-service.js';
 import { createGitHubService } from '../workbench/git/github/github-service.js';
+import { loadMonacoEditor } from '../workbench/monaco-loader.js';
 import { mountWorkbench, type WorkbenchHandle } from '../workbench/mount.js';
 import { createRxDBWorkbenchCatalog } from '../workbench/rxdb-catalog.js';
 
@@ -90,6 +93,103 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     this.workbench?.dispose();
   }
 
+  private readonly mountCodeMirror: WorkbenchEditorMount = (element, initial) => {
+    const editor = createComponent(CodeEditor, { hostElement: element, environmentInjector: this.environment });
+    editor.setInput('value', initial.value);
+    editor.setInput('language', initial.language);
+    editor.setInput('label', '项目源码');
+    editor.setInput('theme', 'dark');
+    editor.setInput('indentWithTab', true);
+    editor.setInput('indentUnit', initial.indentUnit ?? '  ');
+    const change = editor.instance.aoChange.subscribe(initial.onChange);
+    const cursor = () => {
+      const view = editor.instance.view!;
+      const position = view.state.selection.main.head;
+      const line = view.state.doc.lineAt(position);
+      initial.onCursor(line.number, position - line.from + 1);
+    };
+    for (const event of ['keyup', 'mouseup', 'input']) element.addEventListener(event, cursor);
+    this.application.attachView(editor.hostView);
+    editor.changeDetectorRef.detectChanges();
+    // basicSetup 只带 searchKeymap，面板靠按 Mod+F 时自装且默认停在底部；这里显式预装并把查找组件对齐到编辑器顶部。
+    editor.instance.setExtensions([search({ top: true })]);
+    return {
+      update: (value, language) => {
+        editor.setInput('value', value);
+        editor.setInput('language', language);
+        editor.changeDetectorRef.detectChanges();
+      },
+      replace: value => {
+        const view = editor.instance.view;
+        if (!view) return;
+        const change = computeMinimalDocumentChange(view.state.doc.toString(), value);
+        // 空 userEvent 会被 history 并入上一次输入组，一次撤销连格式化前的编辑一起回退；独立标签保证单步撤销。
+        if (change) view.dispatch({ changes: change, annotations: Transaction.userEvent.of('format') });
+      },
+      layout: () => editor.instance.view?.requestMeasure(),
+      focus: () => editor.instance.focus(),
+      setIndentUnit: unit => {
+        editor.setInput('indentUnit', unit);
+        editor.changeDetectorRef.detectChanges();
+      },
+      setDiagnostics: diagnostics => {
+        const view = editor.instance.view;
+        if (!view) return;
+        view.dispatch(
+          setDiagnostics(
+            view.state,
+            diagnostics.map(diagnostic => {
+              const line = view.state.doc.line(Math.min(Math.max(1, diagnostic.line), view.state.doc.lines));
+              const from = Math.min(line.to, line.from + Math.max(0, (diagnostic.column ?? 1) - 1));
+              return {
+                from,
+                to: from === line.to ? from : Math.min(line.to, from + 1),
+                severity: 'error',
+                message: diagnostic.message
+              } satisfies Parameters<typeof setDiagnostics>[1][number];
+            })
+          )
+        );
+      },
+      runCommand: (command, argument) => {
+        const view = editor.instance.view;
+        if (!view) return false;
+        if (command === 'gotoLine') return gotoLine(view);
+        if (command === 'gotoLineAt') {
+          const line = view.state.doc.line(Math.min(Math.max(1, argument ?? 1), view.state.doc.lines));
+          view.dispatch({ selection: EditorSelection.cursor(line.from), scrollIntoView: true });
+          view.focus();
+          return true;
+        }
+        if (command === 'selectLine') return selectLine(view);
+        if (command === 'find') return openSearchPanel(view);
+        return insertBlankLineAbove(view);
+      },
+      getViewState: () => {
+        const view = editor.instance.view!;
+        return {
+          anchor: view.state.selection.main.anchor,
+          head: view.state.selection.main.head,
+          scrollTop: view.scrollDOM.scrollTop,
+          scrollLeft: view.scrollDOM.scrollLeft
+        };
+      },
+      restoreViewState: state => {
+        const view = editor.instance.view!;
+        const clamp = (offset: number) => Math.min(Math.max(0, offset), view.state.doc.length);
+        view.dispatch({ selection: EditorSelection.single(clamp(state.anchor), clamp(state.head)) });
+        view.scrollDOM.scrollTop = state.scrollTop;
+        view.scrollDOM.scrollLeft = state.scrollLeft;
+      },
+      dispose: () => {
+        for (const event of ['keyup', 'mouseup', 'input']) element.removeEventListener(event, cursor);
+        change.unsubscribe();
+        this.application.detachView(editor.hostView);
+        editor.destroy();
+      }
+    };
+  };
+
   /** 数据库连不上时退回内存目录：项目仍可编辑 / 预览 / 导出，只是重开不恢复目录列表。 */
   private async mountWhenReady(): Promise<void> {
     let connected = false;
@@ -131,86 +231,11 @@ export class AppComponent implements AfterViewInit, OnDestroy {
         githubApi: github.api,
         githubAuth: github.auth
       },
-      (element, initial) => {
-        const editor = createComponent(CodeEditor, { hostElement: element, environmentInjector: this.environment });
-        editor.setInput('value', initial.value);
-        editor.setInput('language', initial.language);
-        editor.setInput('label', '项目源码');
-        editor.setInput('theme', 'dark');
-        editor.setInput('indentWithTab', true);
-        editor.setInput('indentUnit', initial.indentUnit ?? '  ');
-        const change = editor.instance.aoChange.subscribe(initial.onChange);
-        const cursor = () => {
-          const view = editor.instance.view!;
-          const position = view.state.selection.main.head;
-          const line = view.state.doc.lineAt(position);
-          initial.onCursor(line.number, position - line.from + 1);
-        };
-        for (const event of ['keyup', 'mouseup', 'input']) element.addEventListener(event, cursor);
-        this.application.attachView(editor.hostView);
-        editor.changeDetectorRef.detectChanges();
-        // basicSetup 只带 searchKeymap，面板靠按 Mod+F 时自装且默认停在底部；这里显式预装并把查找组件对齐到编辑器顶部。
-        editor.instance.setExtensions([search({ top: true })]);
-        return {
-          update: (value, language) => {
-            editor.setInput('value', value);
-            editor.setInput('language', language);
-            editor.changeDetectorRef.detectChanges();
-          },
-          replace: value => {
-            const view = editor.instance.view;
-            if (!view) return;
-            const change = computeMinimalDocumentChange(view.state.doc.toString(), value);
-            // 空 userEvent 会被 history 并入上一次输入组，一次撤销连格式化前的编辑一起回退；独立标签保证单步撤销。
-            if (change) view.dispatch({ changes: change, annotations: Transaction.userEvent.of('format') });
-          },
-          layout: () => editor.instance.view?.requestMeasure(),
-          focus: () => editor.instance.focus(),
-          setIndentUnit: unit => {
-            editor.setInput('indentUnit', unit);
-            editor.changeDetectorRef.detectChanges();
-          },
-          setDiagnostics: diagnostics => {
-            const view = editor.instance.view;
-            if (!view) return;
-            view.dispatch(
-              setDiagnostics(
-                view.state,
-                diagnostics.map(diagnostic => {
-                  const line = view.state.doc.line(Math.min(Math.max(1, diagnostic.line), view.state.doc.lines));
-                  const from = Math.min(line.to, line.from + Math.max(0, (diagnostic.column ?? 1) - 1));
-                  return {
-                    from,
-                    to: from === line.to ? from : Math.min(line.to, from + 1),
-                    severity: 'error',
-                    message: diagnostic.message
-                  } satisfies Parameters<typeof setDiagnostics>[1][number];
-                })
-              )
-            );
-          },
-          runCommand: (command, argument) => {
-            const view = editor.instance.view;
-            if (!view) return false;
-            if (command === 'gotoLine') return gotoLine(view);
-            if (command === 'gotoLineAt') {
-              const line = view.state.doc.line(Math.min(Math.max(1, argument ?? 1), view.state.doc.lines));
-              view.dispatch({ selection: EditorSelection.cursor(line.from), scrollIntoView: true });
-              view.focus();
-              return true;
-            }
-            if (command === 'selectLine') return selectLine(view);
-            if (command === 'find') return openSearchPanel(view);
-            return insertBlankLineAbove(view);
-          },
-          dispose: () => {
-            for (const event of ['keyup', 'mouseup', 'input']) element.removeEventListener(event, cursor);
-            change.unsubscribe();
-            this.application.detachView(editor.hostView);
-            editor.destroy();
-          }
-        };
-      }
+      (element, initial) =>
+        mountSwitchableEditor(element, initial, async engine => {
+          if (engine === 'codemirror') return this.mountCodeMirror;
+          return loadMonacoEditor();
+        })
     );
     this.ready.set(true);
     if (new URLSearchParams(location.search).has('workbench-verify')) {

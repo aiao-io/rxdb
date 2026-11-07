@@ -329,3 +329,75 @@ export async function runPreviewTabsCase(page, expect) {
   await expect(tab('tsconfig.json')).toBeVisible();
   await expect(tab('src/label.ts')).toBeVisible();
 }
+
+/** 两种编辑器的切换、草稿恢复、格式化撤销与保存。 */
+export async function runEditorSwitchCase(page, expect) {
+  const errors = [];
+  const workerResponses = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('response', response => {
+    if (/\/monaco\/(typescript|editor-worker|json|css|html)\.js$/.test(response.url()))
+      workerResponses.push(response.status());
+  });
+  await page.goto('/?workbench-verify');
+  const root = await createProject(page, expect, 'vanilla');
+  const path = 'src/main.ts';
+  const editorHost = root.locator(`[data-editor-path="${path}"]`);
+  const source = 'const message="切换😀";\nconsole.log(message);\n';
+  const sourceValue = () => page.evaluate(() => window.workbench.session.state.files['src/main.ts']);
+  const chooseEditor = async engine => {
+    await root.locator('[data-action="settings"]').click();
+    const dialog = page.getByRole('dialog', { name: '设置', exact: true });
+    await dialog.locator('select[name="editor-engine"]').selectOption(engine);
+    await dialog.getByRole('button', { name: '确定', exact: true }).click();
+    await expect(editorHost).toHaveAttribute('data-editor-engine', engine);
+    await expect(editorHost).not.toHaveAttribute('aria-busy', 'true');
+  };
+  const codeMirror = editorHost.locator('.cm-content');
+  await codeMirror.click();
+  await page.keyboard.press('ControlOrMeta+A');
+  await page.keyboard.insertText(source);
+  await page.keyboard.press('ControlOrMeta+Home');
+  await page.keyboard.press('ArrowRight');
+  const cursorBefore = await root.locator('[data-slot="cursor"]').textContent();
+  await chooseEditor('monaco');
+  await expect(editorHost.locator('.monaco-editor')).toBeVisible();
+  await expect(editorHost.locator('.monaco-editor .overflow-guard')).toHaveCSS('position', 'relative');
+  await expect(editorHost.locator('.cm-editor')).toHaveCount(0);
+  await expect.poll(sourceValue).toBe(source);
+  await expect(root.locator('[data-slot="cursor"]')).toHaveText(cursorBefore);
+  await expect(root.locator('[data-slot="save-status"]')).toContainText('未保存');
+
+  const monacoInput = editorHost.getByRole('textbox', { name: /项目源码/ });
+  const monacoModifier = await page.evaluate(() => (navigator.userAgent.includes('Macintosh') ? 'Meta' : 'Control'));
+  await monacoInput.focus();
+  await page.keyboard.press(`${monacoModifier}+a`);
+  await page.keyboard.insertText(source + '// Monaco 输入\n');
+  await expect.poll(sourceValue).toContain('// Monaco 输入');
+  await page.keyboard.press('Shift+Alt+f');
+  await expect.poll(sourceValue).toContain("const message = '切换😀';");
+  await page.keyboard.press(`${monacoModifier}+z`);
+  await expect.poll(sourceValue).toContain('const message="切换😀";');
+  await page.keyboard.press(`${monacoModifier}+f`);
+  await expect(editorHost.locator('.find-widget')).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  await chooseEditor('codemirror');
+  await expect(codeMirror).toContainText('// Monaco 输入');
+  await expect(editorHost.locator('.monaco-editor')).toHaveCount(0);
+  await chooseEditor('monaco');
+  await page.reload();
+  await expect(editorHost.locator('.monaco-editor')).toBeVisible({ timeout: 30000 });
+  await expect.poll(sourceValue).toContain('// Monaco 输入');
+  await expect(root.locator('[data-slot="save-status"]')).toContainText('未保存');
+  await monacoInput.focus();
+  await page.keyboard.press('ControlOrMeta+s');
+  await expect(root.locator('[data-slot="save-status"]')).toContainText('已保存', { timeout: 30000 });
+  await page.reload();
+  await expect(editorHost.locator('.monaco-editor')).toBeVisible({ timeout: 30000 });
+  await expect.poll(sourceValue).toContain('// Monaco 输入');
+  await expect(root.locator('[data-slot="save-status"]')).toContainText('已保存');
+  await expect.poll(() => workerResponses.length).toBeGreaterThan(0);
+  expect(workerResponses.every(status => status === 200)).toBe(true);
+  expect(errors).toEqual([]);
+}

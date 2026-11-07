@@ -38,7 +38,7 @@ describe('工作台持久化状态校验', () => {
   });
 
   it.each(['  ', '    ', '        '])('接受支持的缩进大小：%j', indentUnit => {
-    const preferences = { indentUnit, alwaysShowScmActions: true, runtime: 'webcontainer' };
+    const preferences = { indentUnit, alwaysShowScmActions: true, runtime: 'webcontainer', editorEngine: 'codemirror' };
     expect(parseWorkbenchPreferences(preferences)).toEqual(preferences);
   });
 
@@ -50,8 +50,21 @@ describe('工作台持久化状态校验', () => {
     expect(parseWorkbenchPreferences({ indentUnit: '  ', alwaysShowScmActions: false })).toEqual({
       indentUnit: '  ',
       alwaysShowScmActions: false,
-      runtime: 'webcontainer'
+      runtime: 'webcontainer',
+      editorEngine: 'codemirror'
     });
+  });
+
+  it.each(['codemirror', 'monaco'])('接受编辑器 %s', editorEngine => {
+    expect(
+      parseWorkbenchPreferences({ indentUnit: '  ', alwaysShowScmActions: false, editorEngine }).editorEngine
+    ).toBe(editorEngine);
+  });
+
+  it('旧版设置保留 CodeMirror', () => {
+    expect(
+      parseWorkbenchPreferences({ indentUnit: '  ', alwaysShowScmActions: false, runtime: 'webcontainer' }).editorEngine
+    ).toBe('codemirror');
   });
 
   it.each([
@@ -61,6 +74,8 @@ describe('工作台持久化状态校验', () => {
     { indentUnit: ['  '], alwaysShowScmActions: true },
     { indentUnit: '  ', alwaysShowScmActions: 1 },
     { indentUnit: '  ', alwaysShowScmActions: true, runtime: 'deno' },
-    { indentUnit: '  ', alwaysShowScmActions: true, runtime: null }
+    { indentUnit: '  ', alwaysShowScmActions: true, runtime: null },
+    { indentUnit: '  ', alwaysShowScmActions: true, editorEngine: 'unknown' },
+    { indentUnit: '  ', alwaysShowScmActions: true, editorEngine: null }
   ])('拒绝损坏偏好：%j', value => expect(() => parseWorkbenchPreferences(value)).toThrow('设置损坏'));
 });

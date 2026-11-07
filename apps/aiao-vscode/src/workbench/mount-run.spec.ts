@@ -185,7 +185,8 @@ describe('运行方式', () => {
     const { host, handle, compiler } = fixture({
       indentUnit: '  ',
       alwaysShowScmActions: false,
-      runtime: 'esbuild-wasm'
+      runtime: 'esbuild-wasm',
+      editorEngine: 'codemirror'
     });
     await handle.ready;
     const button = await runButton(host);

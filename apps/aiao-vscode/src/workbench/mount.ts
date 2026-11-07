@@ -235,6 +235,7 @@ export function mountWorkbench(
   let persistChain: Promise<void> = Promise.resolve();
   let restoring = false;
   let indentUnit = defaultWorkbenchPreferences.indentUnit;
+  let editorEngine = defaultWorkbenchPreferences.editorEngine;
   const savedCommitMessages = new Map<string, string>();
   const editorDiagnostics = new Map<string, { line: number; column?: number; message: string }[]>();
   const collapsedFolders = new Set<string>();
@@ -808,7 +809,7 @@ export function mountWorkbench(
 
   function persistPreferences(): void {
     if (!preferencesRestored) return;
-    const preferences = { indentUnit, alwaysShowScmActions, runtime: preferredRuntime };
+    const preferences = { indentUnit, alwaysShowScmActions, runtime: preferredRuntime, editorEngine };
     const acknowledge = stageRecovery(() => recovery.stagePreferences(preferences));
     persistChain = persistChain
       .then(async () => {
@@ -1797,6 +1798,7 @@ export function mountWorkbench(
         const handle = mountEditor(parent, {
           value,
           language: languageFor(path),
+          engine: editorEngine,
           indentUnit,
           onChange: content => session.edit(path, content),
           onCursor: (line, column) => {
@@ -2222,6 +2224,7 @@ export function mountWorkbench(
     settings: () =>
       openWorkbenchSettings(root, {
         indentUnit,
+        editorEngine,
         alwaysShowScmActions,
         runtime: preferredRuntime,
         availableRuntimes: AVAILABLE_RUNTIMES,
@@ -2231,6 +2234,8 @@ export function mountWorkbench(
           alwaysShowScmActions = settings.alwaysShowScmActions;
           scm.setAlwaysShowActions(alwaysShowScmActions);
           preferredRuntime = settings.runtime;
+          editorEngine = settings.editorEngine;
+          for (const editor of editors.values()) editor.handle.setEngine?.(editorEngine);
           persistPreferences();
           log('output', '设置已更新并保存在此浏览器');
           if (currentRuntime() !== runtimeBefore) void switchRuntime().catch(report);
@@ -2451,6 +2456,7 @@ export function mountWorkbench(
       alwaysShowScmActions = preferences.alwaysShowScmActions;
       scm.setAlwaysShowActions(alwaysShowScmActions);
       preferredRuntime = preferences.runtime;
+      editorEngine = preferences.editorEngine;
     }
     if (recoveredPreferences) persistPreferences();
     if (requestedRuntime !== null && !runtimeOverride)

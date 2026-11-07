@@ -470,13 +470,19 @@ export function createWorkbenchCommands(root: HTMLElement, options: WorkbenchCom
     return id ? invokeCommand(id) : false;
   }
 
-  /** 专属捕获层：⌘/Ctrl+W 与编辑器级快捷键无论焦点在哪都先于 CodeMirror 路由。 */
+  /** 捕获工作台快捷键，避免编辑器先消费保存、格式化等统一命令。 */
   function pageKeydown(event: KeyboardEvent): void {
-    if (event.defaultPrevented || event.isComposing || event.altKey) return;
+    if (event.defaultPrevented || event.isComposing || (event.altKey && !event.shiftKey)) return;
     const modifier = event.ctrlKey || event.metaKey;
     const target = targetElement(event.target);
     if (!target) return;
     if (target.closest('[data-workbench-terminal]')) return;
+    if (target.closest('.monaco-editor') && route(event, target)) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    if (event.altKey) return;
     const key = event.key.toLowerCase();
     if (event.shiftKey && key === 'enter' && modifier) {
       if (!ordinaryInput(target) && editorContext(target)) {

@@ -62,6 +62,7 @@ beforeEach(() => {
     editor = mountEditor(element, {
       value: 'initial',
       language: 'plaintext',
+      engine: 'codemirror',
       onChange: mocks.change,
       onCursor: mocks.cursor
     });
