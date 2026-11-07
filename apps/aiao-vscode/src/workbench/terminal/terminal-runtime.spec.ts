@@ -65,7 +65,9 @@ const PROMPT = '\u001b]654;prompt\u0007';
 const NPM_DEV: TerminalProjectPlan = { manager: 'npm', script: 'dev', args: [] };
 const PROJECT_ENV_SPEC = { NODE_OPTIONS: '--disable-warning=ExperimentalWarning', NG_HMR_TEMPLATES: '0' };
 /** 没有带状态标记 shell 的运行时：项目运行直接起安装、启动进程。 */
-const processCapabilities: RuntimeCapabilities = { shell: { command: 'sh', args: [] } };
+const processCapabilities: RuntimeCapabilities = { shell: { command: 'sh', args: [] }, pty: true };
+/** 没有伪终端的运行时（vivari）：^C 到不了进程的信号处理。 */
+const noPtyCapabilities: RuntimeCapabilities = { shell: { command: 'sh', args: [] }, pty: false };
 
 /** jsh --osc 的替身：输出夹带 OSC 654 标记，提示符与真实 jsh 一致。 */
 function projectShell(closeOutputOnExit = true) {
@@ -93,7 +95,8 @@ function projectShell(closeOutputOnExit = true) {
 
 const jshCapabilities: RuntimeCapabilities = {
   shell: { command: 'jsh', args: [] },
-  markedShell: { command: 'jsh', args: ['--osc'] }
+  markedShell: { command: 'jsh', args: ['--osc'] },
+  pty: true
 };
 
 function fixture(bootGate?: Promise<void>, capabilities = jshCapabilities) {
@@ -719,6 +722,40 @@ describe('浏览器 Node 终端运行时', () => {
     expect(f.container.spawn).toHaveBeenCalledTimes(2);
   });
 
+  it('进程模式（无伪终端）：Ctrl+C 回显 ^C 并结束前台服务进程，不把控制字符写进进程输入', async () => {
+    const f = fixture(undefined, noPtyCapabilities);
+    const install = projectProcess();
+    const serve = projectProcess();
+    await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });
+    vi.mocked(f.container.spawn).mockResolvedValueOnce(install.process).mockResolvedValueOnce(serve.process);
+    await f.runtime.runProject(NPM_DEV);
+    install.exit.resolve(0);
+    await vi.waitFor(() => expect(f.options.onProjectState).toHaveBeenLastCalledWith('running'));
+    await f.runtime.writeProject('h\r');
+    expect(serve.writeInput).toHaveBeenCalledWith('h\r', expect.anything());
+    await f.runtime.writeProject('\u0003');
+    expect(f.options.onProjectOutput).toHaveBeenLastCalledWith('^C\r\n');
+    expect(serve.process.kill).toHaveBeenCalledOnce();
+    expect(serve.writeInput).not.toHaveBeenCalledWith('\u0003', expect.anything());
+    serve.exit.resolve(143);
+    await vi.waitFor(() => expect(f.options.onProjectState).toHaveBeenLastCalledWith('stopped', 130));
+    expect(f.process.kill).not.toHaveBeenCalled();
+  });
+
+  it('进程模式（无伪终端）：安装期间 Ctrl+C 结束安装进程，不再启动服务', async () => {
+    const f = fixture(undefined, noPtyCapabilities);
+    const install = projectProcess();
+    await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });
+    vi.mocked(f.container.spawn).mockResolvedValueOnce(install.process);
+    await f.runtime.runProject(NPM_DEV);
+    await f.runtime.writeProject('\u0003');
+    expect(install.process.kill).toHaveBeenCalledOnce();
+    expect(install.writeInput).not.toHaveBeenCalled();
+    install.exit.resolve(143);
+    await vi.waitFor(() => expect(f.options.onProjectState).toHaveBeenLastCalledWith('stopped', 130));
+    expect(f.container.spawn).toHaveBeenCalledTimes(2);
+  });
+
   it('进程模式：安装 spawn 尚未返回时取消，迟到进程会被杀掉且不启动服务', async () => {
     const f = fixture(undefined, processCapabilities);
     const install = projectProcess();
@@ -860,7 +897,8 @@ describe('浏览器 Node 终端运行时', () => {
   it('交互 Shell 与项目终端按适配器声明的命令启动', async () => {
     const f = fixture(undefined, {
       shell: { command: 'sh', args: ['-i'] },
-      markedShell: { command: 'marked-sh', args: ['--status'] }
+      markedShell: { command: 'marked-sh', args: ['--status'] },
+      pty: true
     });
     const shell = projectShell();
     await f.runtime.start(snapshot({ 'package.json': '{}' }), { cols: 80, rows: 24 });

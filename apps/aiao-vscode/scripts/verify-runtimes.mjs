@@ -1,12 +1,15 @@
 // US-409 运行时对比基准：按「运行方式 × 内置模板」逐格测耗时、改动生效延迟、内存与下载量，写入 benchmarks/。
 // 用法：node scripts/verify-runtimes.mjs [--url=http://localhost:4320/ | --production]
-//        [--runtimes=esbuild-wasm,webcontainer] [--templates=vanilla,react,vue,angular] [--repeat=3] [--channel=chrome]
+//        [--runtimes=esbuild-wasm,webcontainer,vivari,nodepod] [--templates=vanilla,react,vue,angular] [--repeat=3]
+//        [--channel=chrome] [--out=benchmarks/browser-workbench-runtimes.json]
+// vivari、nodepod 需要运行时宿主服务：--production 时脚本自己起（要先构建 runtime-hosts），--url 时要求已在运行。
 import { execFileSync } from 'node:child_process';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { cpus, loadavg, platform } from 'node:os';
 import { extname, join, resolve } from 'node:path';
 import { chromium } from 'playwright';
+import { assertRuntimeHost, isHostedRuntime, runtimeHostFor, startRuntimeHost } from './runtime-host-server.mjs';
 
 const argument = name => process.argv.find(value => value.startsWith(`--${name}=`))?.slice(name.length + 3);
 const list = (name, fallback) => (argument(name) ?? fallback).split(',').filter(Boolean);
@@ -58,12 +61,24 @@ async function serveProduction() {
       response.writeHead(404).end();
     }
   });
-  await new Promise(done => server.listen(0, '127.0.0.1', done));
-  return { server, url: `http://127.0.0.1:${server.address().port}/` };
+  // 固定来源：vivari 宿主只接受部署配置（src/runtime-hosts/hosts.ts）里的工作台来源
+  await new Promise(done => server.listen(4330, 'localhost', done));
+  return { server, url: 'http://localhost:4330/' };
+}
+
+/** 独立源运行时的宿主源按工作台来源取自部署配置：--production 时自己起宿主服务，--url 时要求它已在运行。 */
+async function prepareHosts(url, hosted) {
+  const hosts = hosted.map(runtime => runtimeHostFor(runtime, url));
+  if (production) return startRuntimeHost();
+  await Promise.all(hosts.map(assertRuntimeHost));
+  return undefined;
 }
 
 const production = process.argv.includes('--production') ? await serveProduction() : undefined;
 const baseURL = production?.url ?? argument('url') ?? 'http://localhost:4320/';
+const hosted = runtimes.filter(isHostedRuntime);
+const runtimeHost = hosted.length ? await prepareHosts(baseURL, hosted) : undefined;
+const output = resolve(import.meta.dirname, '..', argument('out') ?? 'benchmarks/browser-workbench-runtimes.json');
 const browser = await chromium.launch({
   headless: true,
   ...(channel ? { channel } : {}),
@@ -116,12 +131,20 @@ function plain(text) {
   return result;
 }
 
-/** 读某个 iframe 当前文档里第一个 h1；iframe 正在导航时得到空串。 */
+/** 读某个 iframe（vivari 的预览在容器页里面再嵌一层）当前文档里第一个 h1；正在导航时得到空串。 */
 async function frameHeading(page, selector) {
   const handle = await page.$(selector);
   const frame = await handle?.contentFrame();
-  return (await frame?.evaluate(() => document.querySelector('h1')?.textContent ?? '').catch(() => '')) ?? '';
+  if (!frame) return '';
+  for (const candidate of [frame, ...frame.childFrames()]) {
+    const heading = await candidate.evaluate(() => document.querySelector('h1')?.textContent ?? '').catch(() => '');
+    if (heading) return heading;
+  }
+  return '';
 }
+
+/** 已经记进 errors 的步骤失败，外层不再重复记录。 */
+class StepFailure extends Error {}
 
 async function until(check, timeout, step = 100) {
   const start = performance.now();
@@ -175,8 +198,9 @@ async function measureCell(runtime, template, round) {
     try {
       cell.steps[name] = await action();
     } catch (cause) {
-      cell.errors.push(`${name}: ${cause instanceof Error ? cause.message : String(cause)}`);
-      throw cause;
+      const message = `${name}: ${cause instanceof Error ? cause.message : String(cause)}`;
+      cell.errors.push(message);
+      throw new StepFailure(message, { cause });
     }
   };
   try {
@@ -214,6 +238,8 @@ async function measureCell(runtime, template, round) {
           const text = (await status.textContent()) ?? '';
           if (/安装依赖/.test(text)) phases.installStartMs ??= since(runAt);
           if (/项目运行中/.test(text)) phases.serverStartMs ??= since(runAt);
+          // 安装或启动失败时不必等满超时
+          if (/项目已停止|项目启动失败|终端错误/.test(text)) throw new Error(`项目没有起来：${text}`);
           return (await frameHeading(page, service)) === fixture.heading;
         }, 300000).then(() => since(runAt))
       );
@@ -250,8 +276,14 @@ async function measureCell(runtime, template, round) {
 
     if (node) {
       await page.locator('[data-terminal-session-view="project"] .xterm').click();
+      const stopAt = performance.now();
       await page.keyboard.press('Control+c');
-      await status.filter({ hasText: '项目已停止' }).waitFor({ timeout: 30000 });
+      await step('stopMs', () =>
+        status
+          .filter({ hasText: '项目已停止' })
+          .waitFor({ timeout: 30000 })
+          .then(() => since(stopAt))
+      );
       // 停止后服务窗口仍显示旧页面：先给旧文档打标记，只认新加载的文档
       const stale = await (await page.$(service))?.contentFrame();
       await stale?.evaluate(() => {
@@ -281,8 +313,9 @@ async function measureCell(runtime, template, round) {
     cell.steps.pageMemoryBytes = memory?.bytes ?? null;
     cell.pageMemoryByScope = memory?.byScope ?? null;
     cell.steps.browserRssBytes = browserRssBytes();
-  } catch {
-    // 失败的步骤已记进 errors，继续下一格
+  } catch (cause) {
+    // 步骤失败已记进 errors；步骤之外的失败（页面操作、选择器）也要记下，再继续下一格
+    if (!(cause instanceof StepFailure)) cell.errors.push(cause instanceof Error ? cause.message : String(cause));
   } finally {
     cell.runDownloadedBytes = downloaded;
     await context.close();
@@ -323,6 +356,7 @@ try {
         'installStartMs',
         'serverStartMs',
         'editToUpdateMs',
+        'stopMs',
         'rerunToPageMs',
         'pageMemoryBytes',
         'browserRssBytes'
@@ -340,12 +374,12 @@ try {
     }
 } finally {
   report.finishedAt = new Date().toISOString();
-  const path = resolve(import.meta.dirname, '../benchmarks/browser-workbench-runtimes.json');
-  await mkdir(resolve(path, '..'), { recursive: true });
+  await mkdir(resolve(output, '..'), { recursive: true });
   // 顶层键按字母序写出，与仓库 prettier 的 sort-json 一致；写完仍需 prettier 格式化后再提交
   const sorted = Object.fromEntries(Object.entries(report).toSorted(([left], [right]) => left.localeCompare(right)));
-  await writeFile(path, `${JSON.stringify(sorted, null, 2)}\n`);
+  await writeFile(output, `${JSON.stringify(sorted, null, 2)}\n`);
   await browser.close();
   if (production) await new Promise(done => production.server.close(done));
+  runtimeHost?.kill();
   console.table(report.summary);
 }

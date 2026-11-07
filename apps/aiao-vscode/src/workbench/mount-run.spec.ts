@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { WorkbenchCompiler } from './compiler-client.js';
 import type { WorkbenchEditorMount } from './editor.js';
-import { mountWorkbench, type WorkbenchHandle } from './mount.js';
+import { mountWorkbench, type BrowserWorkbenchOptions, type WorkbenchHandle } from './mount.js';
 import type { WorkbenchBackend, WorkbenchFiles } from './session.js';
 import type { WorkbenchPreferences } from './workbench-state.js';
 
@@ -15,7 +15,14 @@ const terminal = vi.hoisted(() => ({
   fit: vi.fn(),
   dispose: vi.fn()
 }));
-vi.mock('./terminal/workbench-terminal.js', () => ({ createWorkbenchTerminal: () => terminal }));
+/** 工作台交给终端的选项，用来检查选中的运行方式对应哪个运行时。 */
+const terminalOptions = vi.hoisted(() => ({ current: undefined as undefined | { adapter: () => { id: string } } }));
+vi.mock('./terminal/workbench-terminal.js', () => ({
+  createWorkbenchTerminal: (_host: HTMLElement, options: { adapter: () => { id: string } }) => {
+    terminalOptions.current = options;
+    return terminal;
+  }
+}));
 
 const instances: WorkbenchHandle[] = [];
 afterEach(() => {
@@ -27,7 +34,7 @@ afterEach(() => {
 });
 
 const files: WorkbenchFiles = { 'src/main.ts': 'console.log(1)', 'src/label.ts': 'export const label = 1;' };
-function fixture(preferences: WorkbenchPreferences | null = null) {
+function fixture(preferences: WorkbenchPreferences | null = null, extra: Partial<BrowserWorkbenchOptions> = {}) {
   let currentFiles: WorkbenchFiles = { ...files };
   let revision = 1;
   const backend: WorkbenchBackend = {
@@ -94,7 +101,7 @@ function fixture(preferences: WorkbenchPreferences | null = null) {
   };
   const host = document.createElement('div');
   document.body.append(host);
-  const handle = mountWorkbench(host, { backend, compiler, catalog, initialProjectId: 'one' }, mountEditor);
+  const handle = mountWorkbench(host, { ...extra, backend, compiler, catalog, initialProjectId: 'one' }, mountEditor);
   instances.push(handle);
   return { host, handle, backend, compiler, catalog };
 }
@@ -228,5 +235,41 @@ describe('运行方式', () => {
       expect(catalog.putPreferences).toHaveBeenCalledWith(expect.objectContaining({ runtime: 'esbuild-wasm' }))
     );
     expect(terminal.stop).toHaveBeenCalled();
+  });
+
+  async function runtimeSelect(host: HTMLElement): Promise<HTMLSelectElement> {
+    host.querySelector<HTMLButtonElement>('[data-action="settings"]')?.click();
+    return vi.waitFor(() => {
+      const select = host.querySelector<HTMLSelectElement>('dialog[aria-label="设置"] select[name="runtime"]');
+      if (!select) throw new Error('运行方式设置缺失');
+      return select;
+    });
+  }
+  const preferences = (runtime: 'vivari' | 'nodepod') =>
+    ({ indentUnit: '  ', alwaysShowScmActions: false, runtime }) as const;
+
+  it.each(['vivari', 'nodepod'] as const)('配置了宿主源时设置里可以选 %s，终端按它启动', async runtime => {
+    const { host, handle } = fixture(preferences(runtime), {
+      runtimeHosts: { vivari: 'http://localhost:4331', nodepod: 'http://localhost:4332' }
+    });
+    await handle.ready;
+    const select = await runtimeSelect(host);
+    expect([...select.options].filter(option => !option.disabled).map(option => option.value)).toEqual([
+      'esbuild-wasm',
+      'webcontainer',
+      'vivari',
+      'nodepod'
+    ]);
+    expect(select.value).toBe(runtime);
+    expect(terminalOptions.current?.adapter().id).toBe(runtime);
+  });
+
+  it('没有配置宿主源的运行方式不可选，已保存的选择在启动终端时明确报错', async () => {
+    const { host, handle } = fixture(preferences('nodepod'), { runtimeHosts: { vivari: 'http://localhost:4331' } });
+    await handle.ready;
+    const select = await runtimeSelect(host);
+    expect([...select.options].find(option => option.value === 'vivari')?.disabled).toBe(false);
+    expect([...select.options].find(option => option.value === 'nodepod')?.disabled).toBe(true);
+    expect(() => terminalOptions.current?.adapter()).toThrow('没有给「Nodepod」配置宿主源');
   });
 });

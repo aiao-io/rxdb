@@ -23,7 +23,13 @@ import { WorkbenchSession, type WorkbenchBackend, type WorkbenchState, type Work
 import { angularTemplate, defaultAngularDemo } from './templates-angular.js';
 import { defaultFrontendDemos, frontendTemplates, type WorkbenchTemplate } from './templates.js';
 import {
+  createHostedRuntimeAdapter,
+  isHostedRuntime,
+  type HostedRuntimeId
+} from './terminal/hosted-runtime-adapter.js';
+import {
   isRuntimeId,
+  RUNTIME_IDS,
   RUNTIME_LABELS,
   type RuntimeId,
   type TerminalRuntimeAdapter
@@ -70,6 +76,8 @@ export interface BrowserWorkbenchOptions {
   readonly catalog?: WorkbenchCatalog;
   /** 商用 WebContainer 授权配置，在首次启动终端前传入。 */
   readonly webContainerApiKey?: string;
+  /** 独立源运行时（vivari、Nodepod）的宿主源；只来自部署配置，配置了的运行方式才能在设置里选。 */
+  readonly runtimeHosts?: Readonly<Partial<Record<HostedRuntimeId, string>>>;
   /** 提供后在欢迎视图显示「从 GitHub 打开仓库」入口。 */
   readonly githubApi?: GitHubApi;
   /** 提供后在欢迎视图显示「登录 GitHub」入口，并给仓库选择器接上登录按钮。 */
@@ -105,8 +113,6 @@ type MenuEntry =
   | { readonly separator: true };
 
 const SEPARATOR = { separator: true } as const;
-/** 已接入、可在设置里选择的运行方式；其余在设置里显示为待接入（US-409）。 */
-const AVAILABLE_RUNTIMES: ReadonlySet<RuntimeId> = new Set<RuntimeId>(['esbuild-wasm', 'webcontainer']);
 
 const templates: Record<ProjectTemplate, WorkbenchTemplate> = {
   ...frontendTemplates,
@@ -245,6 +251,12 @@ export function mountWorkbench(
   const requestedRuntime = new URLSearchParams(location.search).get('runtime');
   const runtimeOverride = isRuntimeId(requestedRuntime) ? requestedRuntime : undefined;
   const currentRuntime = (): RuntimeId => runtimeOverride ?? preferredRuntime;
+  /** 可在设置里选择的运行方式；独立源运行时要有部署配置的宿主源，其余在设置里显示为待接入（US-409）。 */
+  const availableRuntimes: ReadonlySet<RuntimeId> = new Set<RuntimeId>([
+    'esbuild-wasm',
+    'webcontainer',
+    ...RUNTIME_IDS.filter(id => isHostedRuntime(id) && options.runtimeHosts?.[id])
+  ]);
   let githubSession: GitHubSession | null = null;
   const serverPreviews = new Set<string>();
   const docking = createWorkbenchDockview(root, {
@@ -1959,6 +1971,11 @@ export function mountWorkbench(
   function runtimeAdapter(id: RuntimeId): TerminalRuntimeAdapter {
     if (id === 'webcontainer') return createWebContainerAdapter({ apiKey: options.webContainerApiKey });
     if (id === 'esbuild-wasm') throw new Error('即时编译方式不提供终端，请在设置里换成 Node 运行时');
+    if (isHostedRuntime(id)) {
+      const hostOrigin = options.runtimeHosts?.[id];
+      if (!hostOrigin) throw new Error(`这个部署没有给「${RUNTIME_LABELS[id]}」配置宿主源，请在设置里换一种运行方式`);
+      return createHostedRuntimeAdapter(id, hostOrigin);
+    }
     throw new Error(`运行方式「${RUNTIME_LABELS[id]}」尚未接入`);
   }
   async function switchRuntime(): Promise<void> {
@@ -2224,7 +2241,7 @@ export function mountWorkbench(
         indentUnit,
         alwaysShowScmActions,
         runtime: preferredRuntime,
-        availableRuntimes: AVAILABLE_RUNTIMES,
+        availableRuntimes,
         onApply(settings) {
           const runtimeBefore = currentRuntime();
           applyIndentUnit(settings.indentUnit, false);

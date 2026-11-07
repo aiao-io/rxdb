@@ -9,7 +9,8 @@ export function createWebContainerAdapter(options: { apiKey?: string } = {}): Te
     id: 'webcontainer',
     capabilities: {
       shell: { command: 'jsh', args: [] },
-      markedShell: { command: 'jsh', args: ['--osc'] }
+      markedShell: { command: 'jsh', args: ['--osc'] },
+      pty: true
     },
     async boot() {
       if (!globalThis.crossOriginIsolated) throw new Error('终端需要跨源隔离，请配置 COOP / COEP 响应头');

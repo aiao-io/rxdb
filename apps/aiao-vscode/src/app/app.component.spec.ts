@@ -21,6 +21,14 @@ const mocks = vi.hoisted(() => ({
   completeOAuth: vi.fn(async () => ({ token: 'gho_abc', login: 'octo', avatarUrl: null, provider: 'oauth' }))
 }));
 vi.mock('../workbench/mount.js', () => ({ mountWorkbench: mocks.mount }));
+/** 运行时宿主的部署配置，按用例换成不同的表。 */
+const hosts = vi.hoisted(() => ({ table: {} as Record<string, Record<string, string>> }));
+vi.mock('../runtime-hosts/hosts.js', async importOriginal => ({
+  ...(await importOriginal<typeof import('../runtime-hosts/hosts.js')>()),
+  get RUNTIME_HOSTS() {
+    return hosts.table;
+  }
+}));
 vi.mock('../workbench/git-backend.js', () => ({ createGitBackend: mocks.gitBackend }));
 vi.mock('../workbench/git/github/github-service.js', () => ({ createGitHubService: mocks.githubService }));
 vi.mock('../workbench/git/git-router-backend.js', () => ({ createRouterBackend: mocks.routerBackend }));
@@ -82,6 +90,31 @@ afterEach(() => {
 });
 
 describe('AppComponent workbench mount', () => {
+  it('按部署配置给工作台传当前来源对应的各运行时宿主源', async () => {
+    hosts.table = {
+      vivari: { [location.origin]: 'http://localhost:4331' },
+      nodepod: { [location.origin]: 'http://localhost:4332', 'http://other.example': 'http://localhost:9999' }
+    };
+    const fixture = createComponentFixture();
+    fixture.detectChanges();
+    connected.next(true);
+    await vi.waitFor(() => expect(mocks.mount).toHaveBeenCalledOnce());
+    expect(mocks.mount.mock.calls[0][1]).toMatchObject({
+      runtimeHosts: { vivari: 'http://localhost:4331', nodepod: 'http://localhost:4332' }
+    });
+    fixture.destroy();
+  });
+
+  it('当前来源不在部署配置里时不提供宿主源', async () => {
+    hosts.table = { vivari: { 'http://localhost:4320': 'http://localhost:4331' } };
+    const fixture = createComponentFixture();
+    fixture.detectChanges();
+    connected.next(true);
+    await vi.waitFor(() => expect(mocks.mount).toHaveBeenCalledOnce());
+    expect(mocks.mount.mock.calls[0][1]).toMatchObject({ runtimeHosts: {} });
+    fixture.destroy();
+  });
+
   it('waits for the database connection before mounting the workbench', async () => {
     const fixture = createComponentFixture();
     fixture.detectChanges();

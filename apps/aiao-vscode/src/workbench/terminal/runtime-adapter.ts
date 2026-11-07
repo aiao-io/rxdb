@@ -33,6 +33,11 @@ export interface RuntimeCapabilities {
    * 没有时项目运行直接起安装、启动进程并自行回显命令行。
    */
   readonly markedShell?: TerminalCommand;
+  /**
+   * 进程接在伪终端上：Ctrl+C 原样写给进程，由终端驱动转成 SIGINT；
+   * 没有伪终端时项目运行自己回显 ^C 并结束前台进程。
+   */
+  readonly pty: boolean;
 }
 
 /** 浏览器内 Node 运行时的接入点：声明能力并启动容器。 */

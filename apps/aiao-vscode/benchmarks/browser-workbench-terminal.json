@@ -2,9 +2,9 @@
   "browser": "156.0.8078.80",
   "cancelledRequests": [
     "https://t.staticblitz.com/w/v18/r/l: net::ERR_ABORTED",
-    "https://c11toljfpqaixiobpigk27dyu1y3el-d2w5--5173--c538bd87.local-corp.webcontainer-api.io/: net::ERR_ABORTED",
-    "https://c11toljfpqaixiobpigk27dyu1y3el-d2w5-btjadrz2--5173--c538bd87.local-corp.webcontainer-api.io/: net::ERR_ABORTED",
-    "https://c11toljfpqaixiobpigk27dyu1y3el-d2w5-btjadrz2--4200--c538bd87.local-corp.webcontainer-api.io/: net::ERR_ABORTED"
+    "https://5j4uh3ndhx617xjp2e8kc5mymzsl2z-4mye--5173--c538bd87.local-corp.webcontainer-api.io/: net::ERR_ABORTED",
+    "https://5j4uh3ndhx617xjp2e8kc5mymzsl2z-4mye-19j593ti--5173--c538bd87.local-corp.webcontainer-api.io/: net::ERR_ABORTED",
+    "https://5j4uh3ndhx617xjp2e8kc5mymzsl2z-4mye-19j593ti--4200--c538bd87.local-corp.webcontainer-api.io/: net::ERR_ABORTED"
   ],
   "checks": [
     "node-shell-and-package-managers",
@@ -21,8 +21,10 @@
   ],
   "consoleErrors": [],
   "errors": [],
+  "failures": [],
   "format": "aiao.workbench.terminal",
+  "runtime": "webcontainer",
   "status": "passed",
-  "url": "http://127.0.0.1:62735/?workbench-verify=1",
+  "url": "http://localhost:4330/?workbench-verify=1",
   "version": 1
 }

@@ -20,6 +20,7 @@ import { gotoLine, openSearchPanel, search } from '@codemirror/search';
 import { EditorSelection, Transaction } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 import { filter, firstValueFrom, of, take, timeout } from 'rxjs';
+import { RUNTIME_HOSTS, runtimeHostsFor } from '../runtime-hosts/hosts.js';
 import { createGitBackend } from '../workbench/git-backend.js';
 import { createRouterBackend } from '../workbench/git/git-router-backend.js';
 import { completeOAuthCallback } from '../workbench/git/github/github-oauth-bridge.js';
@@ -124,6 +125,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
       this.host.nativeElement,
       {
         ...(connected ? { catalog: createRxDBWorkbenchCatalog(this.rxdb) } : {}),
+        runtimeHosts: runtimeHostsFor(RUNTIME_HOSTS, location.origin),
         backend: createRouterBackend({
           local: createGitBackend('/browser-workbench-assets/'),
           github: github.createBackend()
