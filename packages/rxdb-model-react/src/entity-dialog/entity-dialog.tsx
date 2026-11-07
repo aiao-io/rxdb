@@ -53,6 +53,13 @@ export function EntityDialog({ title, children, onCloseRequested }: EntityDialog
   }, [isFullscreen]);
 
   const resizingRef = useRef(false);
+  const dragStartRef = useRef<{
+    pointerId: number;
+    x: number;
+    y: number;
+    left: number;
+    top: number;
+  } | null>(null);
   const savedPaneStateRef = useRef<{ left: string; top: string; width: string; height: string } | null>(null);
 
   /** 关闭：先通知宿主，再关闭对话框（Angular 侧 `closeRequested.emit()` → `dialogRef.close()`）。 */
@@ -91,25 +98,33 @@ export function EntityDialog({ title, children, onCloseRequested }: EntityDialog
     }
   };
 
-  /** 标题栏拖拽（替代 CdkDrag）：按住标题移动面板 left/top，全屏时禁用。 */
-  const onTitlePointerDown = (event: React.PointerEvent): void => {
+  /** 标题栏捕获当前指针，拖拽结束时点击仍落在面板内。 */
+  const onTitlePointerDown = (event: React.PointerEvent<HTMLSpanElement>): void => {
     const pane = paneRef.current;
-    if (!pane || isFullscreenRef.current) return;
+    if (!pane || isFullscreenRef.current || event.button !== 0) return;
     event.preventDefault();
-    const startX = event.clientX;
-    const startY = event.clientY;
-    const startLeft = parseFloat(pane.style.left) || 0;
-    const startTop = parseFloat(pane.style.top) || 0;
-    const onMove = (moveEvent: MouseEvent): void => {
-      pane.style.left = `${startLeft + moveEvent.clientX - startX}px`;
-      pane.style.top = `${startTop + moveEvent.clientY - startY}px`;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragStartRef.current = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      left: parseFloat(pane.style.left) || 0,
+      top: parseFloat(pane.style.top) || 0
     };
-    const onUp = (): void => {
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-    };
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
+  };
+
+  const onTitlePointerMove = (event: React.PointerEvent<HTMLSpanElement>): void => {
+    const pane = paneRef.current;
+    const start = dragStartRef.current;
+    if (!pane || !start || event.pointerId !== start.pointerId || isFullscreenRef.current) return;
+    const maxLeft = Math.max(0, window.innerWidth - pane.offsetWidth);
+    const maxTop = Math.max(0, window.innerHeight - pane.offsetHeight);
+    pane.style.left = `${Math.min(maxLeft, Math.max(0, start.left + event.clientX - start.x))}px`;
+    pane.style.top = `${Math.min(maxTop, Math.max(0, start.top + event.clientY - start.y))}px`;
+  };
+
+  const onTitlePointerEnd = (event: React.PointerEvent<HTMLSpanElement>): void => {
+    if (dragStartRef.current?.pointerId === event.pointerId) dragStartRef.current = null;
   };
 
   /** 边缘缩放（Angular 侧 `startResize` 原样移植）。 */
@@ -169,8 +184,12 @@ export function EntityDialog({ title, children, onCloseRequested }: EntityDialog
           {/* 标题栏（拖拽手柄 + 全屏切换 + 关闭） */}
           <div className='border-base-300 flex shrink-0 items-center justify-between border-b px-4 py-2'>
             <span
-              className='flex-1 cursor-grab text-base font-semibold select-none active:cursor-grabbing'
+              className='flex-1 cursor-grab touch-none text-base font-semibold select-none active:cursor-grabbing'
               onPointerDown={onTitlePointerDown}
+              onPointerMove={onTitlePointerMove}
+              onPointerUp={onTitlePointerEnd}
+              onPointerCancel={onTitlePointerEnd}
+              onLostPointerCapture={onTitlePointerEnd}
             >
               {title}
             </span>

@@ -289,7 +289,7 @@ describe('SchemaManager 建表与实体注册冲突检测', () => {
       adapter.createTablesCalls[0].entities
         .filter((entity): entity is RxDBMigration => entity instanceof RxDBMigration)
         .map(record => record.name)
-    ).toEqual([PROBE_MIGRATION_NAME, PROBE_CLAIM_ROW]);
+    ).toEqual([PROBE_MIGRATION_NAME, PROBE_CLAIM_ROW, expect.stringMatching(/^__rxdb_bootstrap__/)]);
   });
 
   it('adds only missing tables when an existing schema has no migrations', async () => {

@@ -1,0 +1,15 @@
+{
+  "brandTitle": "工作台",
+  "dbName": "admin-workbench",
+  "description": "基于 RxDB 的模型驱动本地数据工作台：预置实体 schema，录入、编辑、筛选与备份恢复",
+  "locales": {
+    "en": {
+      "brandTitle": "Workbench",
+      "description": "A local-first, model-driven RxDB workbench for creating, editing, filtering, backing up and restoring data.",
+      "title": "Model-driven data workbench"
+    }
+  },
+  "storagePrefix": "aiao.workbench",
+  "title": "模型驱动数据工作台",
+  "visibleNamespaces": ["assets"]
+}

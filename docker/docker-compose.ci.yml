@@ -123,7 +123,7 @@ services:
         condition: service_healthy
     environment:
       PGRST_DB_URI: postgres://authenticator:postgres@db:5432/postgres
-      PGRST_DB_SCHEMAS: public,shop,storage
+      PGRST_DB_SCHEMAS: public,shop,storage,p2p
       PGRST_DB_ANON_ROLE: anon
       # 与 docker-compose.yml（开发/部署）的默认值保持一致。
       # 此前 CI 环境不设该值 = 服务端不限行数，于是「结果集超过 max-rows 被静默截断」
@@ -136,6 +136,12 @@ services:
 
   realtime:
     container_name: ${SUPABASE_REALTIME_CONTAINER:-realtime-dev.supabase-realtime}
+    # Kong（ci/kong.yml）按主机名 realtime-dev.supabase-realtime 转发，Realtime 又按这个主机名的首段认租户
+    # （realtime-dev）。隔离栈改了 container_name，没有这个别名 Kong 就解析不到，Realtime 只在 CI 默认名下可用。
+    networks:
+      default:
+        aliases:
+          - realtime-dev.supabase-realtime
     image: supabase/realtime:v2.102.3
     depends_on:
       db:

@@ -84,14 +84,14 @@ US-217 已交付的契约（证据见其[阶段 A / B 验收记录](../adapter/U
 
 ## 实现文件
 
-- `apps/dev-rxdb-admin/` — 备份 / 恢复入口与失败语义接线（随 US-526 的应用壳）
-- `apps/dev-rxdb-admin-e2e/` — 备份 → 独立环境恢复的端到端用例
+- `apps/rxdb-admin-template-react/` — 备份 / 恢复入口与失败语义接线（随 US-526 的应用壳）
+- `apps/rxdb-admin-template-react-e2e/` — 备份 → 独立环境恢复的端到端用例
 
 ## References
 
 - [合入 PR #152](https://github.com/aiao-io/rxdb/pull/152)
-- [备份与独立环境恢复验收](../../../apps/dev-rxdb-admin-e2e/src/backup-restore.spec.ts) — 下载、故障注入、独立浏览器上下文恢复与已有库保留
-- [备份错误分类断言](../../../apps/dev-rxdb-admin/src/app/backup/backup-ops.spec.ts) · [恢复中断与清理入口断言](../../../apps/dev-rxdb-admin/src/app/pages/backup-page.spec.tsx)
+- [备份与独立环境恢复验收](../../../apps/rxdb-admin-template-react-e2e/src/backup-restore.spec.ts) — 下载、故障注入、独立浏览器上下文恢复与已有库保留
+- [备份错误分类断言](../../../apps/rxdb-admin-template-react/src/app/backup/backup-ops.spec.ts) · [恢复中断与清理入口断言](../../../apps/rxdb-admin-template-react/src/app/pages/backup-page.spec.tsx)
 - [epic-010 模型驱动后台管理框架](../../epics/epic-010-model-driven-admin-framework.md)
 - [admin-framework 候选分析](../../domain-research/admin-framework.md) — 设计依据（首版边界第 4 条）
 - [US-217 本地数据库一致性备份与恢复](../adapter/US-217-local-database-backup-restore.md) — 前置（已 Done）；只承诺同 adapter 恢复

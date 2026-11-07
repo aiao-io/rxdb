@@ -1,4 +1,5 @@
 import type { ModelI18n } from '../i18n.js';
+import { localizeEntityMetadata } from '../localized-metadata.js';
 /**
  * 表单字段构建工具
  * 根据实体元数据与表单模式生成、排序与过滤表单字段
@@ -16,7 +17,7 @@ import type { FormFieldConfig, FormMode } from './interfaces.js';
  * @returns 表单字段配置列表
  */
 export function buildFormFields(metadata: EntityMetadata, mode: FormMode, i18n?: ModelI18n): FormFieldConfig[] {
-  const entityFields = extractEntityFields(metadata).map(f => f as FormFieldConfig);
+  const entityFields = extractEntityFields(localizeEntityMetadata(metadata, i18n)).map(f => f as FormFieldConfig);
   const systemFields = extractSystemFields(metadata, i18n).map(f => ({ ...f, readonly: true }) as FormFieldConfig);
 
   switch (mode) {

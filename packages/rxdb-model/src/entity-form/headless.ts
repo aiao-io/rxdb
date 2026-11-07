@@ -93,9 +93,10 @@ type Listener = (snapshot: EntityFormSnapshot, event: EntityFormEvent | EntityFo
 const cloneData = (data: EntityFormData): EntityFormData => cloneStructured(data);
 
 /** 解析失败的字段错误：字段显示名 + 解析器给出的原因。 */
-const parseFailureError = (field: FormFieldConfig, message: string): FormFieldValidationError => ({
+const parseFailureError = (field: FormFieldConfig, message: string, raw: unknown): FormFieldValidationError => ({
   field: field.field,
-  message: `${field.displayName} ${message}`
+  message: `${field.displayName} ${message}`,
+  reason: { kind: 'parse', value: cloneStructured(raw) }
 });
 
 const equalData = (left: EntityFormData, right: EntityFormData): boolean => {
@@ -232,7 +233,7 @@ export class EntityFormController {
       };
     const parsed = parseEntityFieldValueStrict(field.type, rawValue, this.#i18n);
     if (!parsed.ok) {
-      const result = { valid: false, errors: [parseFailureError(field, parsed.message)] };
+      const result = { valid: false, errors: [parseFailureError(field, parsed.message, rawValue)] };
       this.#parseFailures.set(field.field, cloneStructured(rawValue));
       this.#snapshot = this.#buildSnapshot();
       this.#emit({ type: 'validationErrors', result });
@@ -335,7 +336,7 @@ export class EntityFormController {
     for (const field of this.#fields) {
       if (!this.#parseFailures.has(field.field)) continue;
       const parsed = parseEntityFieldValueStrict(field.type, this.#parseFailures.get(field.field), this.#i18n);
-      if (!parsed.ok) errors.push(parseFailureError(field, parsed.message));
+      if (!parsed.ok) errors.push(parseFailureError(field, parsed.message, this.#parseFailures.get(field.field)));
     }
     return errors;
   }

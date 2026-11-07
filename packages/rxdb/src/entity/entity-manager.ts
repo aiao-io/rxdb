@@ -104,6 +104,15 @@ export class EntityManager {
   readonly #entity_cache_map = new Map<EntityType, EntityIdentityCache<EntityInstanceType<EntityType>>>();
 
   /**
+   * `init()` 实际绑定到本管理器的实体类
+   *
+   * @remarks
+   * 解绑按这份清单走，不读拆卸时刻的 `config.entities`：插件作用域的释放早于
+   * {@link EntityManager.destroy}，插件可能已经把自己补进配置的实体摘掉了。
+   */
+  #bound_types: EntityType[] = [];
+
+  /**
    * 创建实体管理器实例
    *
    * 构造函数会：
@@ -178,6 +187,7 @@ export class EntityManager {
       boundTypes.forEach(EntityType => unregisterEntityManager(EntityType, this));
       throw error;
     }
+    this.#bound_types = boundTypes;
 
     // PROXY 绑在管理器实例自身且不可重定义（`setSafeObjectKey` 的 `configurable: false`），
     // 而管理器会跨断连-重连存活。闭包只捕获 `this`，重绑没有任何意义，只会抛
@@ -271,6 +281,9 @@ export class EntityManager {
    * 解绑放在 finally：即便 {@link EntityManager.cleanAllCache} 因某个仓储销毁失败而抛错，
    * 实体类也必须解除与本管理器的绑定，否则下一个复用同一实体类的数据库会被
    * 「registered with multiple RxDB instances」误挡。原始错误在解绑完成后原样重新抛出。
+   *
+   * 解绑对象是 `init()` 时实际绑定的实体类，而不是此刻的 `config.entities`：
+   * 插件在作用域释放时摘掉的实体同样要解绑，否则实体类会永久绑在已拆掉的实例上。
    */
   destroy() {
     let error: unknown;
@@ -279,7 +292,8 @@ export class EntityManager {
     } catch (caught) {
       error = caught;
     } finally {
-      this.rxdb.config.entities.forEach(EntityType => unregisterEntityManager(EntityType, this));
+      this.#bound_types.forEach(EntityType => unregisterEntityManager(EntityType, this));
+      this.#bound_types = [];
     }
     if (error !== undefined) throw error;
   }
