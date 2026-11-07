@@ -60,7 +60,6 @@ import type { ResolutionContext, ResolutionResult } from './resolve/resolution.j
 import { resolveBom, type ResolveTarget } from './resolve/resolver.js';
 import { BomBackendCapabilityError, BomError, BomSyncUnsupportedError } from './types.js';
 import type { BomViewInput, BomViewSnapshot } from './view-types.js';
-export { installedBomDdl, type InstalledBomDdl } from './backend/installed-ddl.js';
 
 /** SQLite 家族适配器名（与各适配器包的 `ADAPTER_NAME` 一致）。 */
 const SQLITE_ADAPTER_NAMES: ReadonlySet<string> = new Set([
@@ -346,7 +345,7 @@ export class RxDBPluginBom extends RxDBPluginBase implements IRxDBPlugin {
    * 校验全部排在第一条 DDL 之前。全部语句在一个引导事务里执行：任一失败整体回滚
    * （PG 首条失败即中止事务），不留「部分实体装上新触发器」的半成品。作用域在开事务前
    * 已失活就收手——DDL 幂等，新纪元从头重装；事务一旦开始就整体提交或整体回滚。
-   * 库里已装定义与本批语句完全一致时（见 {@link installedBomDdl}）整批跳过，重连只读不写，
+   * 库里已装定义与本批语句完全一致时（按安装模块的指纹判定）整批跳过，重连只读不写，
    * 不与同库其他连接争写锁；不一致就整批重装，保持「每次装全量、同表同事件按安装序执行」。
    */
   async #installTriggers(scope: LifecycleScope): Promise<void> {

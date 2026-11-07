@@ -18,6 +18,7 @@ import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { describe, expect, it } from 'vitest';
 import { buildPgBomTriggerDdl, buildSqliteBomTriggerDdl } from '../backend/bom-trigger-ddl.js';
+import { installedBomDdl } from '../backend/installed-ddl.js';
 import {
   BOM_ENTITIES,
   BomAttrDef,
@@ -27,7 +28,7 @@ import {
   BomLine,
   BomLineDesignator
 } from '../entities.js';
-import { installedBomDdl, rxDBPluginBom } from '../plugin.js';
+import { rxDBPluginBom } from '../plugin.js';
 import { buildReachInstallDdl } from '../reach/install.js';
 import { loadHistory } from '../resolve/history-loader.js';
 import { BomBackendCapabilityError, BomError } from '../types.js';

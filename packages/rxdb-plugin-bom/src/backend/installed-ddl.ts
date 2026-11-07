@@ -1,6 +1,7 @@
 import type { TransactionExecutor } from '@aiao/rxdb';
 import { isBomPostgres } from '../resolve/bom-sql.js';
 
+/** 执行安装语句，失败时附上原语句并保留底层错误。 */
 export const executeDdl = async (executor: TransactionExecutor, statement: string): Promise<void> => {
   try {
     await executor.query(statement);
