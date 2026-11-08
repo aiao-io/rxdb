@@ -1,6 +1,6 @@
 # Admin 应用需求
 
-当前交付：[0/5 已交付]。状态真相源为 `stories/<domain>/ADMIN-US-*.md` 的 YAML `status`，其余视图由故事派生。
+当前交付：[2/5 已交付]。状态真相源为 `stories/<domain>/ADMIN-US-*.md` 的 YAML `status`，其余视图由故事派生。
 
 ## 当前范围
 

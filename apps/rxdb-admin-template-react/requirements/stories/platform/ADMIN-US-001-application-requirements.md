@@ -1,11 +1,11 @@
 ---
 id: ADMIN-US-001
 title: 应用需求管理与结构门禁
-status: In Review
+status: Done
 priority: High
 epic: ADMIN-EPIC-001
 created: 2026-11-06
-updated: 2026-11-06
+updated: 2026-11-08
 tags: [admin, requirements, tooling]
 dependsOn: []
 capabilities: []
@@ -57,3 +57,4 @@ story YAML 是状态真相源，`dependsOn` 只表示应用内硬依赖；`capab
 
 - [应用级需求管理办法](../../../../../requirements/app-template/README.md)
 - [ADMIN-EPIC-001](../../epics/ADMIN-EPIC-001.md)
+- [PR #199](https://github.com/aiao-io/rxdb/pull/199)

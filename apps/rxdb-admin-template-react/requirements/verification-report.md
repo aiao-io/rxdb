@@ -13,7 +13,7 @@
 | ADMIN-US-002 #4    | 静态检查 / 构建 / 浏览器        | 应用 lint、typecheck、test、build；`pnpm nx run rxdb-admin-template-react-e2e:e2e --workers=2`                                                                                                   | 通过，覆盖首屏主题、旧键迁移、CRUD、搜索、刷新重开和备份恢复          |
 | ADMIN-US-003 #1～6 | 单测 / 静态检查 / 构建 / 浏览器 | [国际化本地验收](plans/client-i18n-verification.md)、[国际化浏览器测试](../../rxdb-admin-template-react-e2e/src/i18n.spec.ts)                                                                    | 接入中，待实际运行验证                                                |
 
-详细命令与证据见 [孵化基线本地验收](plans/incubation-verification.md)。当前两条实现故事处于 `In Review`，尚未以本地验证替代合并。
+详细命令与证据见 [孵化基线本地验收](plans/incubation-verification.md)。ADMIN-US-001 / ADMIN-US-002 的实现随 [PR #199](https://github.com/aiao-io/rxdb/pull/199) 合入。
 
 ## 根需求审计
 

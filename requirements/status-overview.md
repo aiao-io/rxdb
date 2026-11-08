@@ -7,9 +7,9 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 89   |
+| ✅ Done        | 96   |
 | 🚧 In Progress | 13   |
-| 👀 In Review   | 29   |
+| 👀 In Review   | 22   |
 | 📝 Backlog     | 8    |
 | 🚫 Blocked     | 0    |
 | **合计**       | 139  |
@@ -33,36 +33,32 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 | [US-532](stories/domain/US-532-admin-shell-shortcuts-palette-extensions.md)                                                                                             | 外壳实现与三端测试已接入，验收和代码评审待收口。                   |
 | [US-533](stories/domain/US-533-admin-shell-widgets-lock-general.md)                                                                                                     | 外壳实现与三端测试已接入，验收和代码评审待收口。                   |
 
-## 待评审（29 条）
+## 待评审（22 条）
 
-| Story                                                                                                         | 剩余范围                                                                                      |
-| ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| [US-708 P2P 会话层](stories/future/US-708-p2p-peer-session.md)                                                | 会话层与 10 条 AC 已在真实 DataChannel 双上下文与 TLS 双进程夹具上验收，随 PR #172 评审合并。 |
-| [US-713 P2P demo 管理后台](stories/future/US-713-p2p-admin-console.md)                                        | AC#1～#10 已在隔离 Supabase 栈与真 Worker 上经 e2e 验收；AC#11 待首次 CI 运行确认。           |
-| [US-911 客户端国际化 / 本地化](stories/future/US-911-client-i18n.md)                                          | A～D 已实现；偏好载体对照、历史隔离、三端/四运行时、目录分发与 DevTools 已验收，待代码评审。  |
-| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)                    | 当前Taro版本的外部安装/开发者工具证据仍需补齐。                                               |
-| [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)                 | 当前承诺A～C已实现，等待评审收尾；D为候选，不参与当前关闭，仍保留未验状态。                   |
-| [US-534 看板领域模型骨架](stories/domain/US-534-board-column-task-skeleton.md)                                | 全部 AC 已验（既有库重开在 PGlite 与 sqlite-wasm 各验一遍），等待合并收尾。                   |
-| [US-539 三框架看板视图与交互](stories/domain/US-539-board-tri-framework-ui.md)                                | 阶段 A～C 三端全绿（含外壳恢复入口与跨页门禁），等待合并收尾。                                |
-| [US-507 BOM 图骨架：物料、修订与多重边 BOM 行](stories/domain/US-507-bom-graph-skeleton.md)                   | 本分支已实现；待最终门禁、统一评审与合并。                                                    |
-| [US-508 BOM 视图解析：类型/组织/修订/生效期过滤](stories/domain/US-508-bom-view-resolution.md)                | 本分支已实现；待最终门禁、统一评审与合并。                                                    |
-| [US-509 DAG 约束与环路检测下沉存储层](stories/domain/US-509-bom-dag-cycle-detection.md)                       | 本分支已实现；待最终门禁、统一评审与合并。                                                    |
-| [US-510 多级展开与 where-used 反查](stories/domain/US-510-bom-multilevel-explosion.md)                        | 本分支已实现；待最终门禁、统一评审与合并。                                                    |
-| [US-511 展开数量正确性：用量语义、三类损耗、虚拟件穿透](stories/domain/US-511-bom-quantity-semantics.md)      | 本分支已实现；待最终门禁、统一评审与合并。                                                    |
-| [US-512 替代组与替代策略](stories/domain/US-512-bom-substitute-group.md)                                      | 本分支已实现；待最终门禁、统一评审与合并。                                                    |
-| [US-513 联产品与副产品：多输出物料流](stories/domain/US-513-bom-coproduct-byproduct.md)                       | 本分支已实现；待最终门禁、统一评审与合并。                                                    |
-| [US-514 成本卷算](stories/domain/US-514-bom-cost-rollup.md)                                                   | 本分支已实现；待最终门禁、统一评审与合并。                                                    |
-| [US-515 变更管理（ECN）驱动的生效期](stories/domain/US-515-bom-change-management.md)                          | 本分支已实现；待最终门禁、统一评审与合并。                                                    |
-| [US-516 EBOM ↔ MBOM 映射与差异对比](stories/domain/US-516-ebom-mbom-mapping.md)                               | 本分支已实现；待最终门禁、统一评审与合并。                                                    |
-| [US-517 可配置销售 BOM：特征、选项与选择条件](stories/domain/US-517-configurable-sales-bom.md)                | 本分支已实现；待最终门禁、统一评审与合并。                                                    |
-| [US-518 序列与批次有效性](stories/domain/US-518-bom-unit-lot-effectivity.md)                                  | 本分支已实现；待最终门禁、统一评审与合并。                                                    |
-| [US-519 扩展属性：jsonb 值 + attr_def 元数据 + 热字段提升](stories/domain/US-519-bom-extension-attributes.md) | 本分支已实现；待最终门禁、统一评审与合并。                                                    |
-| [US-520 工艺路线挂接与工序投料分摊](stories/domain/US-520-bom-routing-operation.md)                           | 本分支已实现；待最终门禁、统一评审与合并。                                                    |
-| [US-521 ERP/MRP 集成契约](stories/domain/US-521-bom-erp-mrp-integration.md)                                   | 本分支已实现；待最终门禁、统一评审与合并。                                                    |
-| [US-522 三框架 BOM 编辑与展开视图](stories/domain/US-522-bom-tri-framework-ui.md)                             | 本分支已实现；待最终门禁、统一评审与合并。                                                    |
-| [US-523 as-built / as-maintained 实例 BOM](stories/domain/US-523-bom-as-built-instance.md)                    | 本分支已实现；待最终门禁、统一评审与合并。                                                    |
-| [US-524 工艺路线本体：工序、工作中心、工时与费率](stories/domain/US-524-routing-master-model.md)              | 本分支已实现；待最终门禁、统一评审与合并。                                                    |
-| [US-525 BOM 端到端 demo：一份数据集走完全域](stories/domain/US-525-bom-end-to-end-demo.md)                    | 本分支已实现；待最终门禁、统一评审与合并。                                                    |
+| Story                                                                                                         | 剩余范围                                                                            |
+| ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| [US-713 P2P demo 管理后台](stories/future/US-713-p2p-admin-console.md)                                        | AC#1～#10 已在隔离 Supabase 栈与真 Worker 上经 e2e 验收；AC#11 待首次 CI 运行确认。 |
+| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)                    | 当前Taro版本的外部安装/开发者工具证据仍需补齐。                                     |
+| [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)                 | 当前承诺A～C已实现，等待评审收尾；D为候选，不参与当前关闭，仍保留未验状态。         |
+| [US-507 BOM 图骨架：物料、修订与多重边 BOM 行](stories/domain/US-507-bom-graph-skeleton.md)                   | 本分支已实现；待最终门禁、统一评审与合并。                                          |
+| [US-508 BOM 视图解析：类型/组织/修订/生效期过滤](stories/domain/US-508-bom-view-resolution.md)                | 本分支已实现；待最终门禁、统一评审与合并。                                          |
+| [US-509 DAG 约束与环路检测下沉存储层](stories/domain/US-509-bom-dag-cycle-detection.md)                       | 本分支已实现；待最终门禁、统一评审与合并。                                          |
+| [US-510 多级展开与 where-used 反查](stories/domain/US-510-bom-multilevel-explosion.md)                        | 本分支已实现；待最终门禁、统一评审与合并。                                          |
+| [US-511 展开数量正确性：用量语义、三类损耗、虚拟件穿透](stories/domain/US-511-bom-quantity-semantics.md)      | 本分支已实现；待最终门禁、统一评审与合并。                                          |
+| [US-512 替代组与替代策略](stories/domain/US-512-bom-substitute-group.md)                                      | 本分支已实现；待最终门禁、统一评审与合并。                                          |
+| [US-513 联产品与副产品：多输出物料流](stories/domain/US-513-bom-coproduct-byproduct.md)                       | 本分支已实现；待最终门禁、统一评审与合并。                                          |
+| [US-514 成本卷算](stories/domain/US-514-bom-cost-rollup.md)                                                   | 本分支已实现；待最终门禁、统一评审与合并。                                          |
+| [US-515 变更管理（ECN）驱动的生效期](stories/domain/US-515-bom-change-management.md)                          | 本分支已实现；待最终门禁、统一评审与合并。                                          |
+| [US-516 EBOM ↔ MBOM 映射与差异对比](stories/domain/US-516-ebom-mbom-mapping.md)                               | 本分支已实现；待最终门禁、统一评审与合并。                                          |
+| [US-517 可配置销售 BOM：特征、选项与选择条件](stories/domain/US-517-configurable-sales-bom.md)                | 本分支已实现；待最终门禁、统一评审与合并。                                          |
+| [US-518 序列与批次有效性](stories/domain/US-518-bom-unit-lot-effectivity.md)                                  | 本分支已实现；待最终门禁、统一评审与合并。                                          |
+| [US-519 扩展属性：jsonb 值 + attr_def 元数据 + 热字段提升](stories/domain/US-519-bom-extension-attributes.md) | 本分支已实现；待最终门禁、统一评审与合并。                                          |
+| [US-520 工艺路线挂接与工序投料分摊](stories/domain/US-520-bom-routing-operation.md)                           | 本分支已实现；待最终门禁、统一评审与合并。                                          |
+| [US-521 ERP/MRP 集成契约](stories/domain/US-521-bom-erp-mrp-integration.md)                                   | 本分支已实现；待最终门禁、统一评审与合并。                                          |
+| [US-522 三框架 BOM 编辑与展开视图](stories/domain/US-522-bom-tri-framework-ui.md)                             | 本分支已实现；待最终门禁、统一评审与合并。                                          |
+| [US-523 as-built / as-maintained 实例 BOM](stories/domain/US-523-bom-as-built-instance.md)                    | 本分支已实现；待最终门禁、统一评审与合并。                                          |
+| [US-524 工艺路线本体：工序、工作中心、工时与费率](stories/domain/US-524-routing-master-model.md)              | 本分支已实现；待最终门禁、统一评审与合并。                                          |
+| [US-525 BOM 端到端 demo：一份数据集走完全域](stories/domain/US-525-bom-end-to-end-demo.md)                    | 本分支已实现；待最终门禁、统一评审与合并。                                          |
 
 ## 阻塞（0 条）
 
@@ -121,7 +117,7 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - ✅ [US-026 实例级实体同步配置覆盖](stories/core/US-026-instance-sync-override.md)
 - ✅ [US-027 实体操作权限模型](stories/core/US-027-entity-permission-model.md)
 - ✅ [US-028 可排序实体（普通实体手动排序）](stories/core/US-028-sortable-entity.md)
-- 👀 [US-032 跨 Tab 增量 UPDATE 的活查询刷新](stories/core/US-032-cross-tab-update-live-query.md)
+- ✅ [US-032 跨 Tab 增量 UPDATE 的活查询刷新](stories/core/US-032-cross-tab-update-live-query.md)
 - ⬜ [US-029 多用户 RBAC：角色与所有权写权限](stories/core/US-029-rbac-owner-role-permission.md)
 - 👀 [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)
 - ✅ [US-031 树形实体迁移到排序模块](stories/core/US-031-tree-sortable-migration.md)
@@ -141,8 +137,8 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - 👀 [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)
 - ✅ [US-220 Supabase 推送 UPDATE 的落库语义](stories/adapter/US-220-supabase-update-push-semantics.md)
 - ✅ [US-221 OPFS 库在整页刷新后偶发打不开：上一个页面还占着同步访问句柄](stories/adapter/US-221-opfs-reload-access-handle-race.md)
-- 👀 [US-223 Supabase 直写路径的 UPDATE 落库语义](stories/adapter/US-223-supabase-mutations-update-semantics.md)
-- 👀 [US-224 Supabase 推送路径上级联删除的子行不写变更日志](stories/adapter/US-224-supabase-cascade-delete-change-log.md)
+- ✅ [US-223 Supabase 直写路径的 UPDATE 落库语义](stories/adapter/US-223-supabase-mutations-update-semantics.md)
+- ✅ [US-224 Supabase 推送路径上级联删除的子行不写变更日志](stories/adapter/US-224-supabase-cascade-delete-change-log.md)
 - ✅ [US-504 Electron 本地文件存储](stories/plugin/US-504-electron-local-file-storage.md)
 - ✅ [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md)
 - ✅ [US-506 website 插件文档补齐（history / sync / querycache）](stories/plugin/US-506-website-plugin-docs.md)
@@ -150,7 +146,7 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - ✅ [US-703 PGlite 全文搜索](stories/future/US-703-pglite-full-text-search.md)
 - ✅ [US-909 会话录制回放与失败现场数据还原](stories/future/US-909-session-replay-debugging.md)
 - ⬜ [US-910 数据国际化 / 本地化（多语言实体翻译）](stories/future/US-910-data-i18n.md)
-- 👀 [US-911 客户端国际化 / 本地化（UI 文案与 locale 状态）](stories/future/US-911-client-i18n.md)
+- ✅ [US-911 客户端国际化 / 本地化（UI 文案与 locale 状态）](stories/future/US-911-client-i18n.md)
 
 ### [类型系统演进](epics/epic-005-type-system-evolution.md)
 
@@ -226,12 +222,12 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 单人范围 US-534～US-540 已获 owner 授权；US-541 团队版保留价值待证。
 当前排期与准入见 [roadmap 批次 6](roadmap.md#批次-6看板首轮切片epic-011-已解锁)。
 
-- 👀 [US-534 看板领域模型骨架：Board / Column / Task 与按列排序域](stories/domain/US-534-board-column-task-skeleton.md)
+- ✅ [US-534 看板领域模型骨架：Board / Column / Task 与按列排序域](stories/domain/US-534-board-column-task-skeleton.md)
 - ✅ [US-535 跨列移动与本列排序的领域语义](stories/domain/US-535-cross-column-move-ordering.md)
 - ✅ [US-536 任务详情与编辑：标签、截止日与撤销重做](stories/domain/US-536-task-detail-editing.md)
 - 🚧 [US-537 重开恢复与备份导出](stories/domain/US-537-board-backup-restore.md)
 - ✅ [US-538 看板任务搜索：FTS 接线](stories/domain/US-538-board-task-search.md)
-- 👀 [US-539 三框架看板视图与交互](stories/domain/US-539-board-tri-framework-ui.md)
+- ✅ [US-539 三框架看板视图与交互](stories/domain/US-539-board-tri-framework-ui.md)
 - 🚧 [US-540 看板端到端 demo：一份数据集走完全域](stories/domain/US-540-board-end-to-end-demo.md)
 - ⬜ [US-541 团队版看板：Supabase 同步与身份](stories/domain/US-541-board-team-sync.md)
 
@@ -244,7 +240,7 @@ US-704～US-707 已获 owner 授权，US-708 会话层由 owner 决定在 PR #17
 - 🚧 [US-705 P2P 字节传输](stories/future/US-705-p2p-byte-transfer.md)
 - 🚧 [US-706 服务器兜底与认证](stories/future/US-706-p2p-fallback-auth.md)
 - 🚧 [US-707 跨运行时 demo 与多实例 e2e](stories/future/US-707-p2p-cross-runtime-e2e.md)
-- 👀 [US-708 P2P 会话层：一对设备一条会话、多协议复用](stories/future/US-708-p2p-peer-session.md)
+- ✅ [US-708 P2P 会话层：一对设备一条会话、多协议复用](stories/future/US-708-p2p-peer-session.md)
 - 👀 [US-713 P2P demo 管理后台：管理员总览并处置账号与服务](stories/future/US-713-p2p-admin-console.md)
 
 ### [P2P 会话与局域网协作](epics/epic-012-p2p-lan-collaboration.md)
