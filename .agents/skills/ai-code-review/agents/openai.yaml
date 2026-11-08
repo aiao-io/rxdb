@@ -1,0 +1,6 @@
+interface:
+  display_name: "项目 AI 代码评审"
+  short_description: "按项目或分支做全量或增量评审，问题持久记录，可按 ID 修复、复核、异议"
+  default_prompt: "使用 $ai-code-review 对当前分支改到的项目做增量评审，问题按项目记录。"
+policy:
+  allow_implicit_invocation: false
