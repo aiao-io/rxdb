@@ -1,32 +1,11 @@
 # AI Review 规则与记录
 
-这个目录存放 review 记录模板与**尚未处理**的问题报告。没有按 RV 编号管理的待处理报告时，目录里只有 `README.md` 与 `review.template.md`。
+代码评审使用仓库的 `ai-code-review` skill，命名和状态沿用 [CONVENTIONS.md](../CONVENTIONS.md)。
+新代码问题统一写仓库根 `requirements/reviews/<projectKey>/RV-<uuid>.md`，应用项目也按真实 Nx 名称归档。
+本目录保存模板与已经存在的应用内问题；旧记录继续按原 ID 处理，显式迁移时保留来源，不维护两份可编辑副本。
 
-## 目录结构
+只为有证据的问题建记录，没有发现就不生成空报告。发现、修复、复核、异议分别记录实际模型/维护者、快照、结论和验证结果。
+修复为 Fixed，复核有效为 Resolved；异议为 Disputed，证明不成立为 Dismissed，维护者明确接受风险为 Accepted。完整含义以根约定为准。
+关闭后保留修复和不修结论，不执行修复后删除；不同分支状态独立，不同模型处理同一问题时追加原记录。
 
-报告只留**尚未处理**的条目。复核确认已修、或判定不值得做的条目直接删除——修法与判据都写在代码注释里，报告再留一份副本只会与代码漂移。整份报告清空即删文件，删前在下方「清理记录」留一行。
-
-| 路径                 | 说明                       |
-| -------------------- | -------------------------- |
-| `README.md`          | 本说明、状态约定与清理记录 |
-| `review.template.md` | 新建 review 记录的模板     |
-
-## 状态约定
-
-见 [../CONVENTIONS.md](../CONVENTIONS.md#状态定义)。`RV-XXX` 状态 `Open` / `Resolved`。
-
-## 工作流
-
-1. AI review 发现问题 → 从 `review.template.md` 复制出 `RV-XXX-描述.md`，`status: Open`
-2. 开 PR 修复 → 在 `pr` 字段记录 PR 链接
-3. PR 合并、修复完成 → 删除报告文件，在下方清理记录留一行（修法与判据留在代码注释与回归测试里）
-
-## 命名规范
-
-见 [../CONVENTIONS.md](../CONVENTIONS.md#命名规范)。`RV-XXX-描述.md`，编号 `RV-001` 起递增。
-例外：整分支 / 整包评审报告结论一次性给出、没有 Open/Resolved 生命周期，不占用 RV 编号；它们的「状态」体现为文件里还剩几条。
-
-## 清理记录
-
-每条只记删了什么、结论是什么；修法细节在代码注释与回归测试里。删除前的完整记录可用
-`git show <commit>:<路径>` 取回。
+[review.template.md](review.template.md) 提供记录结构；应用创建或更新模板时与仓库根 `requirements/reviews/review.template.md` 同步。
