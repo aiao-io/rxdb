@@ -10,13 +10,15 @@
 
 </div>
 
-RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。所有 `@aiao/*` 公开包当前同步发布为 `0.0.26`（例外：`@aiao/rxdb-angular` 为 `0.0.27`，见 [release-plan 开项：版本漂移](requirements/release-plan.md#开项版本漂移)），仍处于 0.x 演进阶段。
+RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层，提供 SQL 存储、响应式查询、实体管理 UI 与 Angular / React / Vue 三端集成。当前登记的已发布基线为 `v0.0.28`，仍处于 0.x 演进阶段；发布范围与下一次迁移发布见[发布计划](requirements/release-plan.md)。
 
 > 本项目发布在 `@aiao/*` 作用域下，与 npm 上的 [`rxdb`](https://rxdb.info)（NoSQL 文档数据库）**无关**：这里是装饰器实体 + SQL 引擎（SQLite / PGlite）+ 三框架绑定，不是它的 fork 或插件。
 
 - 使用装饰器定义的实体模型，自动生成类型安全的 Repository 和查询 API
 - 一份模型声明同时驱动数据库 schema、TypeScript 类型和响应式数据流
 - 浏览器里直接跑 SQLite，用接近原生 App 的体验构建离线优先应用
+
+> 本文能力说明对应当前 main。Admin、I18n、Board 与 P2P 包族尚未进入 npm 发布集合，请先在仓库工作区运行示例；发布包请按对应版本文档接入，兼容要求见[版本兼容矩阵](website/docs/compatibility.md)。
 
 ## Demo
 
@@ -31,7 +33,7 @@ RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。所有 `@aiao/
 | 层     | 技术                                                          |
 | ------ | ------------------------------------------------------------- |
 | 语言   | TypeScript 6.0+ strict, ESM                                   |
-| 构建   | Nx 23 + pnpm 10                                               |
+| 构建   | Nx 24.0.5 + pnpm 12.16.1                                      |
 | 框架   | Angular 22+ / React 19+ / Vue 3.5+                            |
 | 响应式 | RxJS 7.8+                                                     |
 | 存储   | wa-sqlite / sqlite-wasm / PGlite / Supabase / HTTP / sqliteai |
@@ -39,7 +41,7 @@ RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。所有 `@aiao/
 | 运行时 | 浏览器 (OPFS/IDB) + Node 26+ + Electron + Tauri               |
 
 > [!NOTE]
-> ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.aiao.io/docs/migration/)。当前交付状态 [89/139 已交付](requirements/status-overview.md)
+> ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.aiao.io/docs/migration/)。当前交付状态 [96/139 已交付](requirements/status-overview.md)；需求交付状态以状态概览与各 story 的 YAML 为准。
 
 支持与反馈：可复现的 bug 请提交 [Bug Issue](https://github.com/aiao-io/rxdb/issues/new?template=bug_report.yml)，功能建议提交 [Feature Issue](https://github.com/aiao-io/rxdb/issues/new?template=feature_request.yml)，使用问题请提交 [Question Issue](https://github.com/aiao-io/rxdb/issues/new?template=question.yml)。
 
@@ -69,13 +71,13 @@ RxDB 把这些能力统一到一份模型声明里：同一份实体定义，同
 
 ## 5 分钟跑通
 
-不用装环境，直接在浏览器里打开一个可编辑的最小 Todo（wa-sqlite · 装饰器实体 · 响应式查询 · OPFS / IndexedDB 持久化）：
+不用装环境，直接在浏览器里打开一个可编辑的最小 Todo（wa-sqlite · 装饰器实体 · 响应式查询 · IndexedDB 持久化）：
 
 - [React](https://stackblitz.com/~/github.com/aiao-io/rxdb-todo-react)
 - [Vue](https://stackblitz.com/~/github.com/aiao-io/rxdb-todo-vue)
 - [Angular](https://stackblitz.com/~/github.com/aiao-io/rxdb-todo-angular)
 
-核心代码就这几行——同一份声明同时生成表、类型与 Repository：
+核心代码如下（Vite 的 WASM 资源导入写法）——同一份声明同时生成表、类型与 Repository：
 
 ```ts
 import { Entity, EntityBase, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
@@ -104,17 +106,20 @@ await rxdb.connect('wa-sqlite');
 await new Todo({ title: '读完 README' }).save();
 ```
 
-完整安装、三框架 `useFind` 响应式查询与 Worker / WASM 接线见[快速开始](https://rxdb.aiao.io/docs/getting-started/)。
+完整安装、三框架 `useFind` 响应式查询与 Worker / WASM 接线见[快速开始](https://rxdb.aiao.io/docs/getting-started/)。 wa-sqlite 默认使用 IndexedDB；OPFS VFS 仍为实验性，支持边界见[适配器说明](packages/rxdb-adapter-wa-sqlite/README.md)。
 
 ## 现在有什么？
 
-一句话版本，细节与「哪些组合不支持」见 [能力矩阵](requirements/capability-matrix.md)：
+当前 main 的主要能力如下；组合限制见[能力矩阵](requirements/capability-matrix.md)，接入路径见[能力与示例](website/docs/getting-started/capabilities.md)。
 
 - **核心引擎**：装饰器实体 → DDL + 类型 + Repository；关系映射（含 M:N 中间表）、事务、变更追踪、跨 Tab 同步、树形实体、bigint / binary、远端 QueryCache 行缓存。
-- **存储适配器**：浏览器 SQLite 三种（wa-sqlite / sqlite-wasm / 官方 sqlite）、sqliteai（向量）、PGlite、Electron `node:sqlite`、Tauri `rusqlite`、Supabase、HTTP；字段级加密内建；微信小程序**实验性**，抖音 / 支付宝小程序**实验性**（Android 未验证）。
-- **插件**：图数据、全文搜索（FTS5 / pg tsvector，三端绑定）、文件存储（OPFS 与桌面目录）、工作区（NEW 草稿的本地缓存，刷新不丢未保存的新实体）。
-- **协作**：Git 式分支 / 合并 / 切换、撤销重做、Supabase 与 HTTP 同步、加密字段不进索引与历史。
-- **UI 与工具**：CodeMirror 6 编辑器三端组件、DevTools 面板 + Chrome 扩展 + Electron / Tauri 原生存储调试。
+- **存储适配器**：浏览器 SQLite（wa-sqlite / sqlite-wasm / 官方 sqlite）、sqliteai 向量、PGlite、Electron `node:sqlite`、Tauri `rusqlite`、Supabase、HTTP；字段级加密；微信 / 抖音 / 支付宝小程序仍为实验性，设备验证范围见[兼容矩阵](website/docs/compatibility.md)。
+- **实体 UI 与 Headless**：元数据生成表单、详情、表格与查询构建器；六类 Headless 控制器提供独立状态与动作，三框架均有绑定，默认组件迁移与部分交互仍在收尾。
+- **后台与国际化**：三框架后台外壳及模板，包含导航、布局、主题、页签与用户偏好；ICU 消息、数字 / 日期格式化、语言偏好与目录管理。
+- **插件与协作**：图数据、全文搜索（FTS5 / PostgreSQL tsvector）、文件存储、草稿缓存、Git 式分支与合并、撤销重做、Supabase 与 HTTP 同步。
+- **任务看板**：单人本地任务管理，包含多看板、列、拖放、筛选、历史与备份恢复；三框架视图已接入，完整外壳首轮支持 sqlite-wasm 主线程 IDB，仍有验收项待收口。
+- **P2P 会话与文件共享**：已认证会话、分块校验、断点续传与多源下载；应用负责发现、信令、认证与字节存储，桌面真实宿主仍有验收范围。
+- **开发工具**：CodeMirror 6 编辑器三端组件、DevTools 面板与浏览器扩展、Electron / Tauri 原生存储调试。
 
 对应文档（线上站：[rxdb.aiao.io](https://rxdb.aiao.io)）：
 
@@ -125,6 +130,9 @@ await new Todo({ title: '读完 README' }).save();
 - [数据变更](https://rxdb.aiao.io/docs/model-mutation/)
 - [数据协作](https://rxdb.aiao.io/docs/collaboration/branch)
 - [框架集成](https://rxdb.aiao.io/docs/frameworks/)
+- [实体模型 UI](website/docs/entity-model/README.md)与[Headless 实体能力](website/docs/entity-model/headless.md)
+- [后台外壳](website/docs/admin-shell/README.md)与[客户端国际化](website/docs/i18n/README.md)
+- [任务看板](website/docs/plugins/rxdb-plugin-board/README.md)与[P2P 会话及文件共享](website/docs/plugins/rxdb-plugin-p2p/README.md)
 - [数据库适配器](https://rxdb.aiao.io/docs/adapters/)
 - [code-editor](https://rxdb.aiao.io/docs/code-editor/)
 - [迁移指南](https://rxdb.aiao.io/docs/migration/)
@@ -134,98 +142,33 @@ await new Todo({ title: '读完 README' }).save();
 ## 架构一览
 
 ```text
-aiao/
-├── apps/                            # 开发演示
-│   ├── dev-rxdb-angular/            # Angular DEMO
-│   ├── dev-rxdb-angular-e2e/        # Angular E2E
-│   ├── dev-rxdb-electron/           # Electron DEMO
-│   ├── dev-rxdb-electron-e2e/       # Electron E2E
-│   ├── dev-rxdb-http/               # HTTP 远程同步 DEMO（Angular 前端）
-│   ├── dev-rxdb-http-e2e/           # HTTP E2E
-│   ├── dev-rxdb-http-server/        # HTTP 参考后端（node:sqlite）
-│   ├── dev-rxdb-miniprogram/        # 小程序 DEMO（微信 / 抖音 / 支付宝）
-│   ├── dev-rxdb-miniprogram-alipay-probe/ # 支付宝平台探针
-│   ├── dev-rxdb-miniprogram-alipay-probe-e2e/ # 支付宝探针 E2E
-│   ├── dev-rxdb-miniprogram-douyin-spike/   # 抖音平台 spike
-│   ├── dev-rxdb-miniprogram-e2e/    # 小程序 E2E
-│   ├── dev-rxdb-react/              # React DEMO
-│   ├── dev-rxdb-react-e2e/          # React E2E
-│   ├── dev-rxdb-supabase/           # Supabase 同步 DEMO
-│   ├── dev-rxdb-supabase-e2e/       # Supabase E2E
-│   ├── dev-rxdb-tauri/              # Tauri DEMO
-│   ├── dev-rxdb-tauri-e2e/          # Tauri E2E
-│   ├── dev-rxdb-vue/                # Vue DEMO
-│   ├── dev-rxdb-vue-e2e/            # Vue E2E
-│   ├── rxdb-devtools-extension/     # 浏览器 Devtools 扩展
-│   └── rxdb-devtools-extension-e2e/ # Devtools 扩展 E2E
-├── benchmarks/                      # 性能测试
-├── docker/                          # Docker 配置
-├── modules/                         # 内部共享模块（angular / angular-todo / e2e-parity / recipes-domain / rxdb-devtools-panel / wujie）
-├── packages/                        # 核心库
-│   ├── rxdb/                        # 核心：模型、查询、适配器接口
-│   ├── rxdb-adapter-wa-sqlite/      # WA SQLite 适配器
-│   ├── rxdb-adapter-sqlite/         # SQLite 官方适配器
-│   ├── rxdb-adapter-sqlite-core/    # SQLite 核心共享代码
-│   ├── rxdb-adapter-sqlite-wasm/    # SQLite WASM 适配器
-│   ├── rxdb-adapter-sqliteai/       # SQLite AI 适配器（向量 + AI 函数）
-│   ├── rxdb-adapter-desktop/        # 旧桌面适配器（已拆分为 electron/tauri，停在 0.0.25）
-│   ├── rxdb-adapter-electron/       # Electron 适配器（node:sqlite 特权宿主）
-│   ├── rxdb-adapter-tauri/          # Tauri 适配器（Rust rusqlite 宿主，WebView 侧）
-│   ├── rxdb-adapter-encrypted/      # 字段级加密（AES-GCM-256）
-│   ├── rxdb-adapter-miniprogram/    # 小程序适配器（微信 / 抖音 / 支付宝，实验性）
-│   ├── rxdb-adapter-pglite/         # PGlite 适配器（PostgreSQL）
-│   ├── rxdb-adapter-supabase/       # Supabase 适配器
-│   ├── rxdb-adapter-http/           # HTTP 远程适配器（QueryCache + 条件请求 + SSE）
-│   ├── rxdb-angular/                # Angular 集成（signals）
-│   ├── rxdb-react/                  # React 集成（hooks）
-│   ├── rxdb-vue/                    # Vue 集成（composables）
-│   ├── rxdb-client-generator/       # 客户端代码生成
-│   ├── rxdb-devtools/               # 运行时调试工具
-│   ├── rxdb-model/                  # 实体模型库（框架无关核心）
-│   ├── rxdb-model-angular/          # Angular 实体模型 UI
-│   ├── rxdb-model-react/            # React 实体模型 UI
-│   ├── rxdb-model-vue/              # Vue 实体模型 UI
-│   ├── rxdb-plugin-graph/           # 图插件
-│   ├── rxdb-plugin-history/         # 历史与分支插件
-│   ├── rxdb-plugin-querycache/      # QueryCache 插件
-│   ├── rxdb-plugin-workspace/       # 工作区插件
-│   ├── rxdb-plugin-storage/         # 存储插件
-│   ├── rxdb-plugin-sync/            # 同步插件
-│   ├── rxdb-plugin-replay/          # 会话录制与回放插件（rrweb）
-│   ├── rxdb-plugin-replay-angular/  # Angular 回放组件
-│   ├── rxdb-plugin-replay-react/    # React 回放组件
-│   ├── rxdb-plugin-replay-vue/      # Vue 回放组件
-│   ├── rxdb-plugin-search/          # 全文搜索插件（FTS5）
-│   ├── rxdb-plugin-search-angular/  # Angular 搜索集成
-│   ├── rxdb-plugin-search-react/    # React 搜索集成
-│   ├── rxdb-plugin-search-vue/      # Vue 搜索集成
-│   ├── rxdb-plugin-tree/            # 树形实体插件
-│   ├── rxdb-plugin-tree-angular/    # Angular 树集成
-│   ├── rxdb-plugin-tree-react/      # React 树集成
-│   ├── rxdb-plugin-tree-vue/        # Vue 树集成
-│   ├── rxdb-plugin-working-tree/    # 工作树与提交历史插件
-│   ├── rxdb-plugin-working-tree-angular/ # Angular 工作树集成
-│   ├── rxdb-plugin-working-tree-react/   # React 工作树集成
-│   ├── rxdb-plugin-working-tree-vue/     # Vue 工作树集成
-│   ├── rxdb-test/                   # 测试库与跨框架 fixture
-│   ├── rxdb-taro/                   # Taro 小程序插件（./vite + ./runtime）
-│   ├── code-editor/                 # 代码编辑器核心
-│   ├── code-editor-angular/         # Angular 编辑器集成
-│   ├── code-editor-react/           # React 编辑器集成
-│   ├── code-editor-vue/             # Vue 编辑器集成
-│   └── utils/                       # 通用工具
-├── requirements/                    # 需求文档
-├── scripts/                         # 构建脚本
-└── website/                         # 文档站
+rxdb/
+├── apps/             # 三框架演示、后台模板、看板、P2P、桌面与小程序应用及 E2E
+├── packages/         # 核心引擎、适配器、框架绑定、UI 与插件公共包
+├── modules/          # 内部共享模块、领域示例与跨框架 E2E 契约
+├── website/          # 文档站、API 参考与在线演示入口
+├── requirements/     # 用户故事、能力矩阵、路线图与发布计划
+├── benchmarks/       # 性能测试
+├── scripts/          # 质量审计、发布与开发脚本
+└── docker/           # 本地服务配置
 ```
 
-## 可直接运行的入口
+公共包按能力拆分，`{angular,react,vue}` 表示三端分别提供的绑定包：
 
-- Web demo：`pnpm nx serve dev-rxdb-angular`、`pnpm nx serve dev-rxdb-react`、`pnpm nx serve dev-rxdb-vue`
-- HTTP 远程同步 demo：`pnpm nx serve dev-rxdb-http-server`（node:sqlite 参考后端）+ `pnpm nx serve dev-rxdb-http`（Angular 前端）
-- 同步 demo：`pnpm nx serve dev-rxdb-supabase`
-- 桌面 demo：`pnpm nx serve dev-rxdb-electron`、`pnpm nx serve dev-rxdb-tauri`
-- 调试扩展：`pnpm nx serve rxdb-devtools-extension`
+| 能力                       | 包族 / 目录                                                           |
+| -------------------------- | --------------------------------------------------------------------- |
+| 核心与框架绑定             | `rxdb`、`rxdb-{angular,react,vue}`                                    |
+| 存储与加密                 | `rxdb-adapter-*`，选择见[适配器文档](website/docs/adapters/README.md) |
+| 实体 UI 与 Headless        | `rxdb-model`、`rxdb-model-{angular,react,vue}`                        |
+| 后台外壳                   | `rxdb-admin`、`rxdb-admin-{angular,react,vue}`                        |
+| 客户端国际化               | `rxdb-i18n`、`rxdb-i18n-{angular,react,vue}`                          |
+| 任务看板                   | `rxdb-plugin-board`、`rxdb-plugin-board-{angular,react,vue}`          |
+| P2P 会话与文件共享         | `rxdb-plugin-p2p`                                                     |
+| 历史、同步、搜索与其他插件 | `rxdb-plugin-*`，入口见[插件文档](website/docs/plugins/README.md)     |
+| 编辑器                     | `code-editor`、`code-editor-{angular,react,vue}`                      |
+| 开发与测试工具             | `rxdb-client-generator`、`rxdb-devtools`、`rxdb-test`                 |
+
+完整包清单见 [packages/](packages/)，发布组合见[包关系登记](requirements/package-graph.json)。
 
 ## 适合什么场景？
 
@@ -236,40 +179,36 @@ aiao/
 
 ## 当前进展
 
-交付状态见 [status-overview](requirements/status-overview.md)。核心引擎、十种存储适配器、三框架集成、插件体系和协作能力均已就绪。
+核心引擎、存储适配器、三框架绑定与历史 / 同步等插件已有实现和验证。工作区新增能力是否发布、故事是否关闭，分别以[发布计划](requirements/release-plan.md)和[状态概览](requirements/status-overview.md)为准。
 
-### 已验证场景
+### 已有示例与验证
 
-- **Todo List** — 增删改、历史记录、撤销/重做
-- **树结构文件管理** — 增删改、拖拽移动、路径唯一性校验、撤销/重做、搜索
-- **树结构菜单管理** — 增删改、同路径告警、拖拽排序、撤销/重做、搜索
-- **Supabase 同步** — 本地优先远端同步，PostgREST + Realtime + RPC 推送
-- **HTTP 远程同步** — Angular 前端 + node:sqlite 参考后端，QueryCache 行缓存，双客户端 SSE 实时收敛
+- **Todo、文件树与菜单树**：增删改、拖放、搜索、历史记录与撤销重做。
+- **Supabase 与 HTTP 同步**：本地优先同步、QueryCache 行缓存、双客户端 SSE 收敛。
+- **三框架后台模板**：后台外壳、实体页面、主题偏好与国际化。
+- **任务看板与 P2P**：提供独立应用入口，运行条件与当前边界见[能力与示例](website/docs/getting-started/capabilities.md)。
 
-### 进行中
+### 实现与验收中的范围
 
-- ⚠️ **多端小程序宿主**（[US-211](requirements/stories/adapter/US-211-multi-miniprogram-platforms.md)）— 抖音已登记为实验性支持（开发者工具 + iOS 真机验证，单连接、rollback journal、无崩溃恢复保证）；Taro tt demo 已过开发者工具与 iOS 真机，剩 Android 真机。支付宝已登记为实验性支持（依赖未文档化能力，开发者工具 + iOS 真机验证，Android 未验证），Taro 支付宝 demo 已过开发者工具；百度 / QQ 判不支持
-
-本地工作树与提交历史（[epic-006](requirements/epics/epic-006-working-tree-commits.md)）的代码已全部合入，桥接版本 `v0.0.26` 已于 2026-10-01 发布；系统 schema 3→7 的迁移发布与迁移收尾暂缓到 1.0.0 前，见 [release-plan](requirements/release-plan.md)。
-
-### 待办
-
-下一批能力补齐，顺序与理由见 [roadmap 批次 3](requirements/roadmap.md#批次-3能力补齐可并行开-pr)：
-
-- 🚧 **多端小程序宿主**（[US-211](requirements/stories/adapter/US-211-multi-miniprogram-platforms.md)）与 👀 **Taro 插件一行接入**（[US-219](requirements/stories/adapter/US-219-taro-plugin.md)）见上方「进行中 / 待评审」
-- ⬜ **实体元数据层的声明式存储约束**（[US-030](requirements/stories/core/US-030-declarative-storage-constraints.md)）— 阶段 A～C 已解锁进批次 3，阶段 D 仍价值待证
+| 范围                                                                                                                                                                  | 当前状态                                                                       |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| [Headless 实体 API（US-403）](requirements/stories/ui/US-403-entity-components-headless.md)                                                                           | 控制器与三框架绑定已接入；独立消费、依赖隔离、默认组件迁移及质量门禁仍待收口。 |
+| [后台外壳（US-530～533）](requirements/epics/epic-010-model-driven-admin-framework.md)                                                                                | 外壳实现与三端测试已接入；验收和代码评审待收口，仓外消费验证另行推进。         |
+| [客户端国际化（US-911）](requirements/stories/future/US-911-client-i18n.md)                                                                                           | A～D 已实现，三端 / 四运行时等验证已记录，等待代码评审。                       |
+| [任务看板](requirements/epics/epic-011-task-board-domain-model.md)                                                                                                    | 领域模型与三端视图待评审，恢复异常分支及 demo 验收仍有缺口。                   |
+| [P2P 文件共享](requirements/epics/epic-011-p2p-file-share.md)                                                                                                         | 浏览器协议与会话已接入；Electron / Tauri 宿主和剩余验收继续推进。              |
+| [多端小程序（US-211）](requirements/stories/adapter/US-211-multi-miniprogram-platforms.md)与[Taro 插件（US-219）](requirements/stories/adapter/US-219-taro-plugin.md) | 实验性支持，设备证据与当前 Taro 版本的外部安装验收仍待补齐。                   |
+| [声明式存储约束（US-030）](requirements/stories/core/US-030-declarative-storage-constraints.md)                                                                       | A～C 已实现并待评审，阶段 D 仍为候选。                                         |
 
 ## 路线图
 
-路线图按 Epic 组织，已完成 [Epic 1（核心 MVP）](requirements/epics/epic-001-core-mvp.md)、[Epic 2（数据同步）](requirements/epics/epic-002-data-sync.md)、[Epic 3（UI 与开发者工具）](requirements/epics/epic-003-ui-developer-tools.md)、[Epic 5（类型系统演进）](requirements/epics/epic-005-type-system-evolution.md)、[Epic 6（本地工作树与提交历史）](requirements/epics/epic-006-working-tree-commits.md) 与 [Epic 8（生命周期作用域）](requirements/epics/epic-008-lifecycle-scope.md)，[Epic 4（未来功能）](requirements/epics/epic-004-future-features.md) 与 [Epic 7（公开 API 门禁）](requirements/epics/epic-007-public-api-gates.md) 进行中，[Epic 9（BOM 领域模型）](requirements/epics/epic-009-bom-domain-model.md) 已解锁（2026-10-12，owner 决定），首轮切片见其文档。所有阶段遵守相同的横向原则：跨框架 API 对称、Local-first 优先、模型驱动、适配器无关。
+排期、前置与可开工条件见[路线图](requirements/roadmap.md)；BOM、后台框架、任务看板与 P2P 等范围按各 Epic 和用户故事推进。
 
 ### 阶段 1 → 1.0 发布
 
-将已完成能力推到稳定可发版状态。阻塞项：
-
-- **API 冻结**：核心 / 适配器 / 框架集成锁定对外类型，进入 semver
-- **覆盖率门禁**：核心包 ≥ 90%，其余 ≥ 80%（已接入 CI，门槛只升不降）
-- **1.0 文档**：API 参考、迁移指南、兼容矩阵已完成骨架，内容补齐中（新增的 electron / tauri / http / miniprogram 包 API 文档待生成）
+- **API 与质量门禁**：对外类型冻结，核心包覆盖率 ≥ 90%、其余包 ≥ 80%，保持 Angular / React / Vue 的能力与 API 对称。
+- **迁移发布**：已发布 `v0.0.28` 的系统 schema 为 7，当前源码为 8；下一次发布必须承接 7→8 升级及旧客户端隔离策略，执行条件见[发布计划](requirements/release-plan.md)。
+- **文档与消费验证**：随发布更新 API 参考、迁移指南、兼容矩阵和包组合登记；工作区实现与发布产物分别验证。
 
 ### 1.0 之后
 
@@ -280,31 +219,51 @@ aiao/
 
 ## 开发与贡献
 
-欢迎提交 Issue 和 PR。提交前请先确保：
+### 本地开发与示例
 
-- 完整的测试：核心包覆盖率 ≥ 90%，其余包 ≥ 80%
-- 通过所有检查：`pnpm run test-all`
-- 保持跨框架 API 一致：Angular / React / Vue 三端示例齐全
-
-快速开始：
+需要 Node.js ≥ 26（[.nvmrc](.nvmrc) 固定为 26），包管理器使用根 [package.json](package.json) 固定的 `pnpm@12.16.1`。
 
 ```bash
 pnpm install
+
+# 按框架选一个综合演示
 pnpm nx serve dev-rxdb-angular
+pnpm nx serve dev-rxdb-react
+pnpm nx serve dev-rxdb-vue
 ```
 
-也可以启动其他示例：
+其他工作区示例：
 
-- `pnpm nx serve dev-rxdb-supabase`
-- `pnpm nx serve rxdb-devtools-extension`
+| 示例               | 启动方式                                                                                      |
+| ------------------ | --------------------------------------------------------------------------------------------- |
+| 单人任务看板       | `pnpm nx serve dev-rxdb-board`                                                                |
+| Angular 后台模板   | `pnpm nx serve rxdb-admin-template-angular`                                                   |
+| React 后台模板     | `pnpm nx serve rxdb-admin-template-react`                                                     |
+| Vue 后台模板       | `pnpm nx serve rxdb-admin-template-vue`                                                       |
+| P2P 会话与文件共享 | `pnpm nx serve dev-rxdb-p2p`，认证与本地服务配置见[应用说明](apps/dev-rxdb-p2p/README.md)     |
+| HTTP 同步          | 分别运行 `pnpm nx serve dev-rxdb-http-server` 与 `pnpm nx serve dev-rxdb-http`                |
+| Supabase 同步      | `pnpm nx serve dev-rxdb-supabase`，服务配置见[应用说明](apps/dev-rxdb-supabase/README.md)     |
+| Electron / Tauri   | `pnpm nx serve dev-rxdb-electron` / `pnpm nx serve dev-rxdb-tauri`，宿主要求见对应应用 README |
+| 浏览器调试扩展     | `pnpm nx serve rxdb-devtools-extension`                                                       |
+| 文档站             | `pnpm nx serve website`                                                                       |
 
-完整检查：
+### 提交前检查
+
+欢迎提交 Issue 和 PR。功能改动遵循 TDD，保持三框架 API 与示例一致，核心包覆盖率 ≥ 90%、其余包 ≥ 80%。
 
 ```bash
-pnpm run test-all
+# 针对核心包开发；其他项目替换项目名
+pnpm nx test rxdb --watch
+pnpm nx run rxdb:lint
+pnpm nx run rxdb:typecheck
+
+# 按受影响项目执行提交前门禁
+pnpm test-all
 ```
 
-详情见：[CONTRIBUTING.md](CONTRIBUTING.md)
+`test-all` 使用 `nx affected` 执行 lint、typecheck、test、test-memory、test-browser、build、audit-lazy-backend 与 e2e，默认基线通常为 `main`，并禁用远端缓存。要检查所有公共包，使用 `pnpm test-packages`。
+
+详情见[贡献指南](CONTRIBUTING.md)、[脚本说明](scripts/README.md)与[需求管理](requirements/README.md)。
 
 ## 许可证
 

@@ -1,11 +1,11 @@
 ---
 id: ADMIN-US-002
 title: 应用标识与存储配置
-status: In Review
+status: Done
 priority: High
 epic: ADMIN-EPIC-001
 created: 2026-11-06
-updated: 2026-11-06
+updated: 2026-11-08
 tags: [admin, configuration, compatibility]
 dependsOn: []
 capabilities: [rxdb:US-526, rxdb:US-530]
@@ -60,3 +60,4 @@ capabilities: [rxdb:US-526, rxdb:US-530]
 - [US-526 工作台能力](../../../../../requirements/stories/domain/US-526-admin-workbench.md)
 - [US-530 外壳偏好能力](../../../../../requirements/stories/domain/US-530-admin-shell-preferences-appearance.md)
 - [D-03 数据兼容与宿主边界](../../decisions.md#d-03数据兼容与宿主边界)
+- [PR #199](https://github.com/aiao-io/rxdb/pull/199)
