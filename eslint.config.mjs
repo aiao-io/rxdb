@@ -13,23 +13,21 @@ export default [
   ...nx.configs['flat/typescript'],
   ...nx.configs['flat/javascript'],
   {
-    ignores: [
-      '**/node_modules',
-      '**/dist',
-      '**/out-tsc',
-      '**/coverage',
-      '**/tmp',
-      '**/*.min.js',
-      '**/vite.config.*.timestamp*',
-      '**/vitest.config.*.timestamp*',
-      '**/test-output',
-      '**/playwright-report',
-      '**/build',
-      '**/.react-router',
-      // 测试期临时目录（`compileGeneratedRuntime` 用 mkdtemp 建在包根下），
-      // 与 lint 并发时会被删掉，eslint 扫到一半报 ENOENT 直接崩。
-      '**/.tmp-generated-runtime-*'
-    ]
+      "ignores": [
+        "**/node_modules",
+        "**/dist",
+        "**/out-tsc",
+        "**/coverage",
+        "**/tmp",
+        "**/*.min.js",
+        "**/vite.config.*.timestamp*",
+        "**/vitest.config.*.timestamp*",
+        "**/test-output",
+        "**/playwright-report",
+        "**/build",
+        "**/.react-router",
+        "**/.tmp-generated-runtime-*"
+      ]
   },
   {
     files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx', '**/*.vue'],
