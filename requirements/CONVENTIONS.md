@@ -84,16 +84,16 @@ review 状态含义：
 
 review 状态转移（评审与 fix / verify / dispute 只按此表改状态）：
 
-| 从                                    | 到          | 条件                                             | 动作          |
-| ------------------------------------- | ----------- | ------------------------------------------------ | ------------- |
-| `Open`                                | `Fixed`     | 补丁就绪，回归测试转绿，相关检查通过             | fix           |
+| 从                                    | 到          | 条件                                               | 动作          |
+| ------------------------------------- | ----------- | -------------------------------------------------- | ------------- |
+| `Open`                                | `Fixed`     | 补丁就绪，回归测试转绿，相关检查通过               | fix           |
 | `Open`                                | `Resolved`  | 问题因其他改动消失（代码被删、别人修了），复核确认 | verify        |
-| `Open` / `Fixed`                      | `Disputed`  | 对原断言或修复提出有证据的异议                   | dispute       |
-| `Open` / `Disputed`                   | `Dismissed` | 复核确认原发现不成立，保留反证                   | verify        |
-| `Open` / `Disputed`                   | `Accepted`  | 维护者明确决定接受风险或延期，记下决定出处       | verify        |
-| `Fixed`                               | `Resolved`  | 复核确认修复有效，必要验证通过                   | verify        |
-| `Fixed` / `Disputed`                  | `Open`      | 复核发现修复无效、回归失败，或问题仍成立         | verify        |
-| `Resolved` / `Dismissed` / `Accepted` | `Open`      | 复发、反证失效或风险前提变化                     | verify 或评审 |
+| `Open` / `Fixed`                      | `Disputed`  | 对原断言或修复提出有证据的异议                     | dispute       |
+| `Open` / `Disputed`                   | `Dismissed` | 复核确认原发现不成立，保留反证                     | verify        |
+| `Open` / `Disputed`                   | `Accepted`  | 维护者明确决定接受风险或延期，记下决定出处         | verify        |
+| `Fixed`                               | `Resolved`  | 复核确认修复有效，必要验证通过                     | verify        |
+| `Fixed` / `Disputed`                  | `Open`      | 复核发现修复无效、回归失败，或问题仍成立           | verify        |
+| `Resolved` / `Dismissed` / `Accepted` | `Open`      | 复发、反证失效或风险前提变化                       | verify 或评审 |
 
 检查没过的修复尝试不改状态，只追加 fix 事件写明失败。
 

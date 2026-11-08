@@ -1,28 +1,5 @@
 # AI Review 规则与记录
 
-这个目录存放 review 记录模板与**尚未处理**的问题报告，当前入口见下表。
+Aiao Pool 应用（`apps/dev-rxdb-p2p` 与 `apps/dev-rxdb-p2p-e2e`）的新问题不在这里新建，统一写在仓库根的 `requirements/reviews/dev-rxdb-p2p/` 与 `requirements/reviews/dev-rxdb-p2p-e2e/`，用仓库的 `ai-code-review` skill 评审与处理。规则、模板与状态转移只有根目录一份，见[根评审规则](../../../../requirements/reviews/README.md)。
 
-## 目录结构
-
-报告只留**尚未处理**的条目。复核确认已修、或判定不值得做的条目直接删除——修法与判据都写在代码注释里，报告再留一份副本只会与代码漂移。整份报告清空即删文件，删前在下方「清理记录」留一行。目录里除 `README.md` 与模板外没有文件，就是没有待处理项。
-
-| 路径                 | 说明                       | 剩余项 |
-| -------------------- | -------------------------- | ------ |
-| `README.md`          | 本说明、状态约定与清理记录 | —      |
-| `review.template.md` | 新建 review 记录的模板     | —      |
-
-## 状态约定
-
-| 状态       | 含义                |
-| ---------- | ------------------- |
-| `Open`     | 已发现，待修复      |
-| `Resolved` | PR 已合并，修复落地 |
-
-## 范围
-
-本目录只跟踪 Aiao Pool 应用（`apps/dev-rxdb-p2p` 与 `apps/dev-rxdb-p2p-e2e`）的评审；
-平台包（`packages/*`）与根 requirements 的评审在根 [requirements/reviews](../../../../requirements/reviews/README.md)。
-
-## 清理记录
-
-（尚无）
+本目录只保留应用早先写下的旧记录（目前没有）：按原 ID 就地处理，关闭后保留处置结果。
