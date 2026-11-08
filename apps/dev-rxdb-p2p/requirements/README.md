@@ -34,7 +34,7 @@
 | [plans/](plans/README.md)                        | 立项方案、实施验收记录和历史归档                               |
 | `epics/`                                         | 史诗目标与范围划分                                             |
 | `stories/`                                       | 按领域拆分的用户故事（**状态真相源**，含 `story.template.md`） |
-| `reviews/`                                       | 旧记录入口；新问题写仓库根 `requirements/reviews/`             |
+| `reviews/`                                       | AI review 模板与尚未处理的问题报告（修复后删除，留清理记录）   |
 | `code-scanning/`                                 | GitHub CodeQL 告警工作集（open 才留文件，关闭即归档删除）      |
 | `CONVENTIONS.md`                                 | 命名 / 状态 / 写作规范（单一真相源）                           |
 

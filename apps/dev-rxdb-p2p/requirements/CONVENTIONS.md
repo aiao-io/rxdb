@@ -10,12 +10,12 @@
 
 `requirements/` 下有四类带编号的文档，各自 id 前缀与编号段如下：
 
-| 类型           | id 前缀         | 编号段 / 规则                                                                                           | 目录                                        |
-| -------------- | --------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| 用户故事 story | `POOL-US-XXX`   | 按领域分段（见下）                                                                                      | `stories/<domain>/`                         |
-| 史诗 epic      | `POOL-EPIC-XXX` | 递增，与 `epics/*.md` 文件名一致                                                                        | `epics/`                                    |
-| review 记录    | `RV-<uuid>`     | 沿用根规范：新问题写在仓库根；本目录 `reviews/` 里的旧 ID 保留                                          | 仓库根 `requirements/reviews/<projectKey>/` |
-| code-scanning  | `CS-XXX`        | 与 GitHub code scanning 告警 `number` 一一对应；工作集条目，GitHub 关闭后归档进该目录 README 并删除文件 | `code-scanning/`                            |
+| 类型           | id 前缀         | 编号段 / 规则                                                                                           | 目录                |
+| -------------- | --------------- | ------------------------------------------------------------------------------------------------------- | ------------------- |
+| 用户故事 story | `POOL-US-XXX`   | 按领域分段（见下）                                                                                      | `stories/<domain>/` |
+| 史诗 epic      | `POOL-EPIC-XXX` | 递增，与 `epics/*.md` 文件名一致                                                                        | `epics/`            |
+| review 记录    | `RV-XXX`        | `RV-001` 起递增，不与 `US` / `CS` 混用                                                                  | `reviews/`          |
+| code-scanning  | `CS-XXX`        | 与 GitHub code scanning 告警 `number` 一一对应；工作集条目，GitHub 关闭后归档进该目录 README 并删除文件 | `code-scanning/`    |
 
 `stories/` 子目录与编号段：
 
@@ -32,7 +32,7 @@
 
 - 用户故事：`POOL-US-XXX-description.md`
 - 史诗：`POOL-EPIC-XXX.md`
-- review：新问题写仓库根 `requirements/reviews/<projectKey>/RV-<uuid>.md`（本应用为 `dev-rxdb-p2p/` 与 `dev-rxdb-p2p-e2e/`）；`reviews/` 里的旧记录按原 ID 就地处理。
+- review：`RV-XXX-描述.md`
 - code-scanning：`CS-XXX-*.md`（编号与 GitHub 告警 number 对应）
 
 **不使用** `POOL-US-XXXa` / `POOL-US-XXXb` 这类字母后缀文件；大故事在文件内分「交付阶段」。
@@ -46,7 +46,7 @@
 | 类型          | 状态集合                                                                                    |
 | ------------- | ------------------------------------------------------------------------------------------- |
 | story         | `Backlog` / `In Progress` / `In Review` / `Done` / `Blocked`                                |
-| review        | 沿用根规范：`Open` / `Fixed` / `Resolved` / `Disputed` / `Dismissed` / `Accepted`           |
+| review        | `Open` / `Resolved`                                                                         |
 | code-scanning | `Open` / `Resolved` / `Dismissed`                                                           |
 | epic          | `Backlog` / `In Progress` / `Done`（frontmatter 另含 `startDate` / `targetDate` / `owner`） |
 
@@ -66,7 +66,7 @@ epic 状态由所属 story 派生（不单独维护）：成员故事全 Done �
 
 `Done` 要求该 story 全部 In Scope 均有验收覆盖、范围内全部 AC 都为 ✅，并有可复验的实现/测试证据。占位表结构、工具函数或尚未接入 UI 的工厂不等于产品能力。
 
-review 状态含义与转移表沿用根 [CONVENTIONS](../../../requirements/CONVENTIONS.md#状态定义)，不在本应用另行定义。
+review 状态含义：`Open` 已发现待修复；`Resolved` PR 已合并、修复落地。
 
 code-scanning 状态含义（GitHub 是真相源，本地文件是镜像）：`Open` 待修复；`Resolved` 已修复代码合并；`Dismissed` 已承认风险、不修。
 
