@@ -3,7 +3,7 @@ import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 
 const applicationRoot = resolve(import.meta.dirname, '..');
-const repositoryRoot = resolve(applicationRoot, '../..');
+const repositoryRoot = resolve(applicationRoot, '../../..');
 const outputDefault = resolve(applicationRoot, 'tmp/production-supabase-bundle.sql');
 
 /**

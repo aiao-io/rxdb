@@ -14,7 +14,7 @@ const relayed = pathname => pathname === relayPath || pathname.startsWith(`${rel
 
 // The allow-list committed for deployment, which `wrangler dev` starts from as well.
 const deployedAllowList = () =>
-  JSON.parse(readFileSync(new URL('../api/wrangler.json', import.meta.url), 'utf8')).vars.ALLOWED_PROVIDER_BASE_URLS;
+  JSON.parse(readFileSync(new URL('../../api/wrangler.json', import.meta.url), 'utf8')).vars.ALLOWED_PROVIDER_BASE_URLS;
 
 function toRequest(incoming, signal) {
   const headers = new Headers();

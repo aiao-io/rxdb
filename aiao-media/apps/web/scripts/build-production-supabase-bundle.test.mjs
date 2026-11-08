@@ -13,7 +13,7 @@ import {
 } from './build-production-supabase-bundle.mjs';
 
 const application = resolve(import.meta.dirname, '..');
-const repositoryRoot = resolve(application, '../..');
+const repositoryRoot = resolve(application, '../../..');
 const managed = '"?(?:auth|storage|realtime)"?';
 const managedDdl = [
   `CREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:TABLE|FUNCTION|PROCEDURE|VIEW|MATERIALIZED\\s+VIEW|SEQUENCE|TYPE)\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?${managed}\\.`,

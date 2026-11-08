@@ -10,7 +10,9 @@
     "declarationMap": false,
     "emitDeclarationOnly": false,
     "allowJs": false,
-    "rootDir": "../../../"
+    "rootDir": "../../../",
+    "allowImportingTsExtensions": true,
+    "noEmit": true
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,

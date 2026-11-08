@@ -7,7 +7,7 @@ import type {
   DraftSyncResolutionResult,
   SyncedDraft,
   SyncedDraftContent
-} from './draft-sync';
+} from './draft-sync.ts';
 
 export class DraftSyncProtocolError extends Error {
   constructor() {

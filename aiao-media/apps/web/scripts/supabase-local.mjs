@@ -149,7 +149,7 @@ async function main(action) {
       'production/rxdb-change-grants.sql'
     ];
     const files = [
-      ...core.map(name => resolve(workspaceRoot, '../../docker/sql', name)),
+      ...core.map(name => resolve(workspaceRoot, '../../../docker/sql', name)),
       ...(await readdir(resolve(directory, 'migrations')))
         .filter(name => name.endsWith('.sql'))
         .sort()

@@ -34,7 +34,7 @@ export type {
   GenerationReviewRequest,
   ImageJobRequest,
   ReferenceImageUpload
-} from './generation-jobs';
+} from './generation-jobs.ts';
 
 export type {
   DraftSyncConflict,
@@ -47,7 +47,7 @@ export type {
   DraftSyncResolutionResult,
   SyncedDraft,
   SyncedDraftContent
-} from './draft-sync';
+} from './draft-sync.ts';
 export {
   DraftSyncProtocolError,
   validateDraftConflicts,
@@ -57,10 +57,10 @@ export {
   validateDraftPush,
   validateDraftResolution,
   validateSyncedDraft
-} from './draft-sync-validation';
+} from './draft-sync-validation.ts';
 
-export { REFERENCE_IMAGE_MAX_BYTES } from './generation-jobs';
-export type { ImageGenerationOption } from './generation-jobs';
+export { REFERENCE_IMAGE_MAX_BYTES } from './generation-jobs.ts';
+export type { ImageGenerationOption } from './generation-jobs.ts';
 export {
   GenerationProtocolError,
   isGenerationUuid,
@@ -68,9 +68,9 @@ export {
   validateImageGenerationOptions,
   validateImageJobRequest,
   validateReferenceImageUpload
-} from './generation-validation';
+} from './generation-validation.ts';
 
-export { AUDIO_DURATION_MAX_MS, AUDIO_TEXT_MAX_LENGTH, AUDIO_WAV_MAX_BYTES } from './generation-jobs';
+export { AUDIO_DURATION_MAX_MS, AUDIO_TEXT_MAX_LENGTH, AUDIO_WAV_MAX_BYTES } from './generation-jobs.ts';
 export type {
   AudioGenerationJobSummary,
   AudioGenerationOption,
@@ -78,27 +78,27 @@ export type {
   AudioResultMetadata,
   GenerationJobRequest,
   MediaGenerationJobSummary
-} from './generation-jobs';
+} from './generation-jobs.ts';
 export {
   validateAudioGenerationJobSummary,
   validateAudioGenerationOptions,
   validateAudioJobRequest,
   validateAudioResultMetadata
-} from './generation-validation';
+} from './generation-validation.ts';
 
-export { VIDEO_MP4_MAX_BYTES, VIDEO_TEXT_MAX_LENGTH } from './generation-jobs';
+export { VIDEO_MP4_MAX_BYTES, VIDEO_TEXT_MAX_LENGTH } from './generation-jobs.ts';
 export type {
   VideoGenerationJobSummary,
   VideoGenerationOption,
   VideoJobRequest,
   VideoResultMetadata
-} from './generation-jobs';
+} from './generation-jobs.ts';
 export {
   validateVideoGenerationJobSummary,
   validateVideoGenerationOptions,
   validateVideoJobRequest,
   validateVideoResultMetadata
-} from './generation-validation';
+} from './generation-validation.ts';
 
-export { IMAGE_PROMPT_MAX_LENGTH } from './generation-jobs';
-export type { ImageAspectRatio } from './generation-jobs';
+export { IMAGE_PROMPT_MAX_LENGTH } from './generation-jobs.ts';
+export type { ImageAspectRatio } from './generation-jobs.ts';

@@ -4,10 +4,11 @@ import { readFile, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import test from 'node:test';
 import { parse } from 'yaml';
-import { auditRequirements } from './check-requirements.mjs';
+import { auditRequirements } from '../../../scripts/check-requirements.mjs';
 
-const application = resolve(import.meta.dirname, '..');
-const repository = resolve(application, '../..');
+const webRoot = resolve(import.meta.dirname, '..');
+const application = resolve(webRoot, '../..');
+const repository = resolve(application, '..');
 const manifest = JSON.parse(await readFile(resolve(application, 'requirements/plans/source-import.json'), 'utf8'));
 
 test('all imported binary design and product resources retain their original bytes', async () => {
@@ -45,10 +46,10 @@ test('all original application stories retain their independent identity and all
 
 test('private data remains app-owned while shared contracts are package-owned', async () => {
   for (const directory of ['src/local-data', 'infra/supabase']) {
-    assert.ok((await stat(resolve(application, directory))).isDirectory());
+    assert.ok((await stat(resolve(webRoot, directory))).isDirectory());
     for (const config of ['project.json', 'package.json'])
-      await assert.rejects(stat(resolve(application, directory, config)), { code: 'ENOENT' });
+      await assert.rejects(stat(resolve(webRoot, directory, config)), { code: 'ENOENT' });
   }
-  await assert.rejects(stat(resolve(application, 'src/contracts')), { code: 'ENOENT' });
+  await assert.rejects(stat(resolve(webRoot, 'src/contracts')), { code: 'ENOENT' });
   assert.ok((await stat(resolve(repository, 'aiao-media/packages/api-contracts/package.json'))).isFile());
 });

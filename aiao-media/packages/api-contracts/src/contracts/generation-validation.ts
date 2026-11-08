@@ -18,7 +18,7 @@ import {
   type VideoGenerationOption,
   type VideoJobRequest,
   type VideoResultMetadata
-} from './generation-jobs';
+} from './generation-jobs.ts';
 
 export class GenerationProtocolError extends Error {
   constructor() {

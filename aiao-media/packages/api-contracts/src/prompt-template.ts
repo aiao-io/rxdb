@@ -1,4 +1,4 @@
-import type { PromptField, PromptNode } from './prompt-state';
+import type { PromptField, PromptNode } from './prompt-state.ts';
 
 export type PromptTemplate = {
   id: string;
