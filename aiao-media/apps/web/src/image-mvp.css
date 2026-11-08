@@ -502,16 +502,11 @@ main {
   min-height: calc(100vh - 150px);
 }
 /* 表单类页面行宽太长不好读，在内容区里再收一层；对齐方式与内容区一致。 */
-main[data-view='providers'] > *,
-main[data-view='admin'] > * {
+main[data-view='providers'] > * {
   max-width: 1280px;
   margin-inline: auto;
 }
-main[data-view='admin'] > * {
-  max-width: 1600px;
-}
-.image-mvp[data-align='start'] main[data-view='providers'] > *,
-.image-mvp[data-align='start'] main[data-view='admin'] > * {
+.image-mvp[data-align='start'] main[data-view='providers'] > * {
   margin-inline: 0 auto;
 }
 .eyebrow {

@@ -141,10 +141,12 @@ const jsonPayload = (payload: unknown, status = 200) =>
     }
   });
 const encoder = new TextEncoder();
-const navigationPaths = new Set(['/', '/create', '/images', '/providers', '/admin']);
+const navigationPaths = new Set(['/', '/create', '/images', '/providers']);
+const hiddenPaths = new Set(['/admin', '/admin/']);
 async function fetchAsset(request: Request, env: WorkerEnv) {
-  const response = await env.ASSETS!.fetch(request);
   const pathname = new URL(request.url).pathname;
+  if (request.method === 'GET' && hiddenPaths.has(pathname)) return jsonPayload({ error: 'Not found' }, 404);
+  const response = await env.ASSETS!.fetch(request);
   if (
     request.method === 'GET' &&
     (navigationPaths.has(pathname) ||

@@ -199,70 +199,18 @@ test('两台独立设备通过原生 RxDB 同步草稿，登录/退出与 A→B�
   expect(await page.evaluate(() => localStorage.getItem('aiao-local-profile-v1'))).toBe(aProfile);
 });
 
-test('后台直达受保护，模板发布可读取且不覆盖本机草稿，角色撤销立即拒绝', async ({ page }) => {
-  const user = await account();
-  const templateId = `browser-${randomUUID()}`;
-  await page.goto('/admin');
-  await expect(page.getByText('请使用有效管理员账号登录。', { exact: true })).toBeVisible();
-  await signIn(page, user);
-  await page.getByRole('button', { name: '关闭账号窗口' }).click();
-  await expect(page.getByText('账号或权限已失效，远程操作已暂停。', { exact: true })).toBeVisible();
-  expect((await admin.from('media_admin_memberships').insert({ user_id: user.id })).error).toBeNull();
-  await page.getByRole('button', { name: '重新载入后台' }).click();
-  await expect(page.getByRole('heading', { name: '用户列表', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: user.email, exact: true })).toBeVisible();
-  try {
-    await page.getByRole('button', { name: '模板', exact: true }).click();
-    await page.getByRole('button', { name: '新建模板草稿' }).click();
-    await page.getByLabel('模板标识', { exact: true }).fill(templateId);
-    await page.getByLabel('标题', { exact: true }).fill('本地后台发布模板');
-    await page.getByRole('button', { name: '校验并保存草稿' }).click();
-    await expect(page.getByText('模板草稿已保存，尚未发布。', { exact: true })).toBeVisible();
-    const row = page.locator('article').filter({ has: page.getByText(templateId, { exact: true }) });
-    await row.getByRole('button', { name: '发布模板', exact: true }).click();
-    await expect(page.getByText('模板已发布。', { exact: true })).toBeVisible();
-    const published = await page.request.get('/api/templates');
-    expect(published.status()).toBe(200);
-    expect(
-      (await published.json()).templates.some((row: { template: { id: string } }) => row.template.id === templateId)
-    ).toBe(true);
-    await page.getByRole('link', { name: '生成图片', exact: true }).click();
-    await page.locator('[contenteditable=true]').fill('后台更新不能覆盖本机的输入');
-    await expect(page.getByText('输入已保存到本机', { exact: true })).toBeVisible();
-    await page.reload();
-    await expect(page.locator('[contenteditable=true]')).toContainText('后台更新不能覆盖本机的输入');
-    await page.goto('/admin');
-    await expect(page.getByRole('heading', { name: '用户列表', exact: true })).toBeVisible();
-    expect(
-      (await admin.from('media_admin_memberships').update({ enabled: false }).eq('user_id', user.id)).error
-    ).toBeNull();
-    await page.getByRole('button', { name: '重新载入后台' }).click();
-    await expect(page.getByText('账号或权限已失效，远程操作已暂停。', { exact: true })).toBeVisible();
-    await expect(page.getByRole('heading', { name: '用户列表', exact: true })).toHaveCount(0);
-  } finally {
-    await admin.from('media_public_content').delete().eq('kind', 'template').eq('key', templateId);
-    await admin.from('media_content_drafts').delete().eq('kind', 'template').eq('key', templateId);
+test('主站不公开后台入口，后台路径不回落到主站页面', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('后台已迁移', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /独立后台|业务管理后台/ })).toHaveCount(0);
+
+  for (const pathname of ['/admin', '/admin/']) {
+    const response = await page.request.get(pathname);
+    expect(response.status()).toBe(404);
+    await expect(page.goto(pathname)).resolves.toBeTruthy();
+    await expect(page.getByText('后台已迁移', { exact: true })).toHaveCount(0);
   }
 });
-
-async function editDraft(page: Page, text: string) {
-  const editor = page.locator('[contenteditable=true]');
-  await editor.click();
-  await editor.press('ControlOrMeta+A');
-  await editor.pressSequentially(text);
-  const preview = page.getByLabel('最终提示词预览', { exact: true });
-  if (!(await preview.isVisible())) await page.getByRole('button', { name: '预览最终提示词', exact: true }).click();
-  await expect(preview).toHaveText(text);
-  await expect(page.getByTestId('prompt-count')).toHaveText(`${text.length} / 2000`);
-  await expect(page.getByText('输入已保存到本机', { exact: true })).toBeVisible();
-}
-async function enableReplica(page: Page, user: { email: string; password: string }) {
-  await signIn(page, user);
-  await page.getByRole('button', { name: '启用同步', exact: true }).click();
-  await page.getByRole('button', { name: '确认并启用同步' }).click();
-  await expect(page.getByLabel('工作区同步').getByText('同步已确认', { exact: false })).toBeVisible({ timeout: 25000 });
-  await expect(page.getByRole('button', { name: '立即同步', exact: true })).toBeEnabled();
-}
 
 test('离线多次编辑与重开可推送，修改冲突和删除冲突保留双方，明确采用删除后不复活', async ({
   page,

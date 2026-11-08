@@ -118,6 +118,14 @@ test('供应商错误不泄露响应和 Key；网络失败不重试', async () =
     globalThis.fetch = previous;
   }
 });
+test('主站不公开后台页面，后台路径不会回落到主站壳', async () => {
+  for (const pathname of ['/admin', '/admin/']) {
+    const response = await worker.fetch(new Request(`${origin}${pathname}`), env);
+    assert.equal(response.status, 404);
+    assert.deepEqual(await response.json(), { error: 'Not found' });
+  }
+});
+
 test('未知 API 返回 404，普通页面走静态资源', async () => {
   assert.equal((await worker.fetch(new Request(`${origin}/api/auth/session`), env)).status, 404);
   const page = await worker.fetch(new Request(`${origin}/providers`), env);

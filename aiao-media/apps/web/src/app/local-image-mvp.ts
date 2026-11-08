@@ -109,7 +109,7 @@ import { WorkMetadataSession } from './work-metadata-session';
 import { WorkVisibleDirective } from './work-visible.directive';
 import { WorkspaceSession } from './workspace-session';
 
-type View = 'discover' | 'studio' | 'library' | 'providers' | 'admin';
+type View = 'discover' | 'studio' | 'library' | 'providers';
 type SettingsTab = 'providers' | 'sync' | 'data' | 'display';
 type Work = LibraryWork;
 type WorkViewer = { work: Work; image: { url: string; mimeType: ImageMimeType } | null; failed: boolean };
@@ -126,14 +126,12 @@ const paths: Record<View, string> = {
   discover: '/',
   studio: '/create',
   library: '/images',
-  providers: '/providers',
-  admin: '/admin'
+  providers: '/providers'
 };
 const routeView = (path: string): View =>
   path === '/create' ? 'studio'
   : path === '/images' ? 'library'
   : path === '/providers' ? 'providers'
-  : path === '/admin' ? 'admin'
   : 'discover';
 // Settings sections are in-page tabs; the hash only deep-links a tab and never adds a route.
 const settingsTabs: { id: SettingsTab; label: string }[] = [
