@@ -26,7 +26,7 @@ owner: jimmy
 - [ ] 浏览器 WebRTC / 桌面 TCP 的分块直传、内容校验、断点续传与多源（[US-705](../stories/future/US-705-p2p-byte-transfer.md)）
 - [ ] 无 peer 回退服务器、认证复用与坏 peer 隔离（[US-706](../stories/future/US-706-p2p-fallback-auth.md)）
 - [ ] 跨运行时 demo 与多实例 e2e（[US-707](../stories/future/US-707-p2p-cross-runtime-e2e.md)）；Tauri 双进程、大文件与离线超 TTL 验收由 US-707 阶段 B 认领
-- [ ] 与同一台设备只建一条已认证会话，多个文件与后续协议在会话上复用（[US-708](../stories/future/US-708-p2p-peer-session.md)）
+- [x] 与同一台设备只建一条已认证会话，多个文件与后续协议在会话上复用（[US-708](../stories/future/US-708-p2p-peer-session.md)）
 - [ ] 管理员在 demo 里总览并处置账号、在线设备与服务器副本（[US-713](../stories/future/US-713-p2p-admin-console.md)）
 
 ## 交付前置与关闭边界
