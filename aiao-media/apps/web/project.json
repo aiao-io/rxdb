@@ -74,18 +74,6 @@
           "optimization": false,
           "extractLicenses": false,
           "sourceMap": true
-        },
-        "desktop": {
-          "outputPath": "aiao-media/apps/web/desktop-dist",
-          "fileReplacements": [
-            {
-              "replace": "aiao-media/apps/web/src/platform/local-backend.ts",
-              "with": "aiao-media/apps/web/src/platform/tauri/local-backend.ts"
-            }
-          ],
-          "optimization": true,
-          "sourceMap": false,
-          "outputHashing": "all"
         }
       },
       "defaultConfiguration": "production",

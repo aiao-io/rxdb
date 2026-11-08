@@ -59,7 +59,7 @@ NX_NO_CLOUD=true pnpm nx run aiao-media-e2e:provider-acceptance-fixture --skipRe
 4. 复验所有产品表 RLS、匿名/A/B 的私有数据隔离、变更日志隔离、普通用户管理 RPC 拒绝，以及 `rxdb_change` 的 Realtime publication。SQL 执行成功不代表权限矩阵通过。
 5. Auth Site URL 设为 `https://media.aiao.io`，仅允许精确正式返回地址。当前是邮箱密码流程，邮箱确认后回站点再登录；没有 `/auth/callback`，不声明 OAuth/PKCE 已实现。真实邮件投递必须验收。
 6. 核验首管理员存在于该项目 `auth.users`、已验证且未被封禁，通过可信 SQL Editor 或受保护数据库会话调用 `media_trusted_membership`。使用目标 UUID、当前成员 revision（不存在才为 0）及固定操作 UUID；超时沿用相同操作 ID 核对结果。现有 `admin-membership` target 强制本地，不能用于生产；部署账号不自动获得产品管理权。
-7. 浏览器构建设置 `AIAO_SUPABASE_URL`、`AIAO_SUPABASE_ANON_KEY`；GitHub 手动发布 workflow 已映射同名公开 vars。Worker 的 `MEDIA_SUPABASE_URL`、`MEDIA_SUPABASE_ANON_KEY`、`MEDIA_SUPABASE_SERVICE_ROLE_KEY` 全部使用 secrets，指向同一项目。`deploy/.dev.vars` 不会自动上传。普通远程 vars 未列入配置会被后续部署删除；secrets 保留。首轮使用已验证的 legacy anon/service_role JWT，新 Key 格式另验。
+7. 浏览器构建设置 `AIAO_SUPABASE_URL`、`AIAO_SUPABASE_ANON_KEY`；GitHub 手动发布 workflow 已映射同名公开 vars。Worker 的 `MEDIA_SUPABASE_URL`、`MEDIA_SUPABASE_ANON_KEY`、`MEDIA_SUPABASE_SERVICE_ROLE_KEY` 全部使用 secrets，指向同一项目。`../../deploy/cloudflare/.dev.vars` 不会自动上传。普通远程 vars 未列入配置会被后续部署删除；secrets 保留。首轮使用已验证的 legacy anon/service_role JWT，新 Key 格式另验。
 8. 服务端配置以 0600、Git 忽略的私密 JSON 经 Wrangler `secret bulk` 接入，不把值写入 shell 参数或日志。然后执行 `aiao-media:deploy-check`，核对公开配置与 Supabase 精确 CSP、无服务端 Key，最后 `aiao-media:deploy` 并保存真实回执。
 9. 记录真实部署回执与 `offline-manifest.json` 摘要，在 `https://media.aiao.io` 验证注册/邮件确认/登录、首次范围确认、草稿与作品往返、原图上传取回及 SHA-256、匿名/A/B 隔离、退出与离线恢复。正式服务按本页验收表收口；Storage 字节 fixture 不代表云 Storage、续传或生产 Web/Tauri 已验。服务端 schema 采用前向修复，前端回退不自动删除表、冲突、tombstone、SQLite 或 OPFS；数据库恢复单独作为灾备操作处理。
 

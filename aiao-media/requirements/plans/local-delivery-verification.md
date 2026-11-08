@@ -43,7 +43,7 @@
 
 本地管理员授权通过 `pnpm nx run aiao-media:admin-membership --user-id=<Auth UUID> --state=enabled` 执行。仅服务端可信运维凭据可调用对应 RPC；同样遵守 revision 和最后管理员保护。审计的全零操作者标识可信运维入口。命令只连接应用独立本地服务。
 
-本地 Worker 私有配置自动写入忽略的 `deploy/.dev.vars`（0600），服务端 Key 不进入公开配置或浏览器构建。正式环境需把 `MEDIA_SUPABASE_URL`、`MEDIA_SUPABASE_ANON_KEY` 与 `MEDIA_SUPABASE_SERVICE_ROLE_KEY` 全部设置为 Worker secrets，公开构建另外使用同项目 URL/anon key。当前正式条件未就绪，执行顺序与未验项见[收尾清单](release-completion-tasks.md)。
+本地 Worker 私有配置自动写入忽略的 `../../deploy/cloudflare/.dev.vars`（0600），服务端 Key 不进入公开配置或浏览器构建。正式环境需把 `MEDIA_SUPABASE_URL`、`MEDIA_SUPABASE_ANON_KEY` 与 `MEDIA_SUPABASE_SERVICE_ROLE_KEY` 全部设置为 Worker secrets，公开构建另外使用同项目 URL/anon key。当前正式条件未就绪，执行顺序与未验项见[收尾清单](release-completion-tasks.md)。
 
 Supabase SDK 在锁文件去重到 2.117.3，无全局版本 override。同步副本使用 SDK 公共 CommonJS 构造入口，以匹配 adapter 声明的条件导出类型；Angular 仅为此依赖显式声明 CommonJS 支持。复制客户端独立于主 Auth SDK，凭据仅保存在其内存会话，不共享可变账号 client。
 

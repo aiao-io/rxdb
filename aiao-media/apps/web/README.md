@@ -6,7 +6,7 @@ Local-first 图片创作应用：发现灵感 → Tiptap 编辑提示词 → 使
 
 迁入来源与兼容验证见[迁移验收](../../requirements/plans/rxdb-import-verification.md)。应用需求在本目录内独立维护，平台需求仍位于仓库根。
 
-当前平台免费，平台图片服务、积分购买和计费后台已移除，`/api/platform/*` 返回 404；未来提供收费功能时再评审。桌面安装版与统一平台账号同步的实现及未验边界见[产品交付计划](../../requirements/plans/product-completion-20261030.md)。本地安装说明见 [Tauri](src-tauri/README.md)，平台配置见[服务部署](../../deploy/supabase/platform-services.md)。
+当前平台免费，平台图片服务、积分购买和计费后台已移除，`/api/platform/*` 返回 404；未来提供收费功能时再评审。桌面安装版与统一平台账号同步的实现及未验边界见[产品交付计划](../../requirements/plans/product-completion-20261030.md)。本地安装说明见 [Tauri](../desktop/src-tauri/README.md)，平台配置见[服务部署](../../deploy/supabase/platform-services.md)。
 
 ## 运行
 

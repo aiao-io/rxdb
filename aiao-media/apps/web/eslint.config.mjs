@@ -4,7 +4,7 @@ import baseConfig from '../../../eslint.config.mjs';
 export default [
   ...baseConfig,
   // Local esbuild output is generated, not hand-authored application code.
-  { ignores: ['public/prompt-runtime/**', 'desktop-dist/**', 'src-tauri/target/**', 'src-tauri/gen/**'] },
+  { ignores: ['public/prompt-runtime/**', 'desktop-dist/**'] },
   ...nx.configs['flat/angular'],
   ...nx.configs['flat/angular-template'],
   {

@@ -4,7 +4,7 @@
 
 ## 运行入口
 
-需要 Docker、pnpm、Node.js 26+ 和 Chrome/Chromium；所有服务仅监听本机回环地址。端口与开发凭据保存在忽略的 `infra/supabase/.env`，初始化保留既有配置；命令使用 `NX_NO_CLOUD=true NX_LOAD_DOT_ENV_FILES=false`，防止应用私有 `.env` 的公网配置影响本地复验。
+需要 Docker、pnpm、Node.js 26+ 和 Chrome/Chromium；所有服务仅监听本机回环地址。端口与开发凭据保存在忽略的 `../../infra/supabase/.env`，初始化保留既有配置；命令使用 `NX_NO_CLOUD=true NX_LOAD_DOT_ENV_FILES=false`，防止应用私有 `.env` 的公网配置影响本地复验。
 
 ```sh
 # 真实 Auth / 邮件确认、开发探针表 RLS、Realtime 和刷新凭据撤销

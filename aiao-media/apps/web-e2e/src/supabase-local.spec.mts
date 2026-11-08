@@ -4,8 +4,8 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { backupText } from './local-first.helpers';
 // Node-only Compose helpers are shared with the SDK/RLS probes.
-import { localEnvironment, type LocalSupabaseEnvironment } from '../../web/scripts/supabase-local.mjs';
-import { confirmLocalEmail } from '../../web/scripts/test-supabase-local.mjs';
+import { localEnvironment, type LocalSupabaseEnvironment } from '../../scripts/supabase/supabase-local.mjs';
+import { confirmLocalEmail } from '../../scripts/supabase/test-supabase-local.mjs';
 
 let local: LocalSupabaseEnvironment;
 let admin: SupabaseClient;

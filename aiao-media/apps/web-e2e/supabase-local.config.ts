@@ -16,7 +16,7 @@ export default defineConfig({
     screenshot: 'only-on-failure'
   },
   webServer: {
-    command: 'node scripts/supabase-local.mjs preview',
+    command: 'node scripts/supabase/supabase-local.mjs preview',
     url: 'http://127.0.0.1:4399',
     cwd: new URL('../../', import.meta.url).pathname,
     reuseExistingServer: false,
