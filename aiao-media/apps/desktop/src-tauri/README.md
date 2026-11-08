@@ -6,11 +6,11 @@
 
 ```sh
 pnpm nx run aiao-media:build:desktop
-pnpm nx run aiao-media:desktop-test
-pnpm nx run aiao-media:desktop-package
+pnpm nx run aiao-media-desktop:desktop-test
+pnpm nx run aiao-media-desktop:desktop-package
 ```
 
-前端产物位于 `desktop-dist/browser`，与 Web 的 `dist/browser` 分开。Rust 产物位于 `src-tauri/target`；本地构建或 ad-hoc 签名不代表可公开发行，正式安装包仍需 Apple 发行签名、公证与安装升级验收。
+前端产物位于 `apps/desktop/desktop-dist/browser`，与 Web 的 `dist/browser` 分开。Rust 产物位于 `apps/desktop/src-tauri/target`；本地构建或 ad-hoc 签名不代表可公开发行，正式安装包仍需 Apple 发行签名、公证与安装升级验收。
 
 数据库在系统应用数据目录 `io.aiao.media/rxdb-data`，原图在同目录下 `rxdb-files`，工作区指针及格式标记分别为 `media-profile-v1`、`media-schema`。清理 WebView 缓存不丢失原生工作区索引。供应商 Key 只保留当前会话；可选账号会话仍由 SDK 保存在此应用 WebView 的本机存储中，退出会清除，不进入图片备份。
 

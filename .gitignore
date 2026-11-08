@@ -159,5 +159,5 @@ docker/.supabase-ci-state.*.env
 
 # Aiao Media public configuration examples
 !aiao-media/apps/web/.env.example
-!aiao-media/apps/web/infra/supabase/.env.example
+!aiao-media/infra/supabase/.env.example
 .vitest

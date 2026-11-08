@@ -12,8 +12,8 @@ import {
   schemaVersion
 } from './build-production-supabase-bundle.mjs';
 
-const application = resolve(import.meta.dirname, '..');
-const repositoryRoot = resolve(application, '../../..');
+const application = resolve(import.meta.dirname, '../..');
+const repositoryRoot = resolve(application, '..');
 const managed = '"?(?:auth|storage|realtime)"?';
 const managedDdl = [
   `CREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:TABLE|FUNCTION|PROCEDURE|VIEW|MATERIALIZED\\s+VIEW|SEQUENCE|TYPE)\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?${managed}\\.`,
@@ -100,7 +100,7 @@ test('JPEG metadata migration preserves PNG validation and rejects other formats
   try {
     await db.exec('CREATE SCHEMA media_private;');
     const original = await readFile(
-      new URL('../infra/supabase/migrations/005-product-content.sql', import.meta.url),
+      new URL('../../infra/supabase/migrations/005-product-content.sql', import.meta.url),
       'utf8'
     );
     await db.exec(original.slice(0, original.indexOf('ALTER TABLE public.media_sync_records')) + 'COMMIT;');
@@ -126,7 +126,7 @@ test('JPEG metadata migration preserves PNG validation and rejects other formats
     assert.equal(await valid('image/png'), true);
     assert.equal(await valid('image/jpeg'), false);
     await db.exec(
-      await readFile(new URL('../infra/supabase/migrations/007-jpeg-work-metadata.sql', import.meta.url), 'utf8')
+      await readFile(new URL('../../infra/supabase/migrations/007-jpeg-work-metadata.sql', import.meta.url), 'utf8')
     );
     assert.equal(await valid('image/png'), true);
     assert.equal(await valid('image/jpeg'), true);

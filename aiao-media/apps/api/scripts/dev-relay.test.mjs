@@ -101,7 +101,7 @@ test('refuses cross-origin callers, other providers and other API routes before 
 });
 test('starts from the allow-list committed for deployment and listens on loopback only', async () => {
   const [committed] = JSON.parse(
-    JSON.parse(readFileSync(new URL('../../api/wrangler.json', import.meta.url), 'utf8')).vars
+    JSON.parse(readFileSync(new URL('../wrangler.json', import.meta.url), 'utf8')).vars
       .ALLOWED_PROVIDER_BASE_URLS
   );
   await withRelay(undefined, image, async (relay, calls) => {

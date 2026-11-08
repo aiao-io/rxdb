@@ -9,10 +9,3 @@ tmp/
 public/prompt-runtime/
 public/wa-sqlite/
 public/app-config.js
-infra/supabase/.env
-infra/supabase/kong.yml
-deploy/.dev.vars
-
-src-tauri/target/
-src-tauri/gen/
-desktop-dist/

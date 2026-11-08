@@ -62,6 +62,22 @@
         "cwd": "aiao-media/apps/api",
         "command": "pnpm exec wrangler deploy --config wrangler.json --dry-run"
       }
+    },
+    "relay-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-media/apps/api",
+        "command": "eslint src/local-first-worker.ts src/relay-input.ts src/relay-task.ts src/relay-task-api.ts scripts/local-first-worker.test.mjs scripts/relay-task.test.mjs scripts/cloudflare-stand-ins.mjs && node --test scripts/local-first-worker.test.mjs scripts/relay-task.test.mjs"
+      }
+    },
+    "script-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-media/apps/api",
+        "command": "eslint src scripts/*.mjs --max-warnings=0 && node --test scripts/*.test.mjs"
+      }
     }
   }
 }

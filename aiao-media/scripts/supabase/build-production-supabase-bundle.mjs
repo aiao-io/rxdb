@@ -2,8 +2,8 @@ import { createHash } from 'node:crypto';
 import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 
-const applicationRoot = resolve(import.meta.dirname, '..');
-const repositoryRoot = resolve(applicationRoot, '../../..');
+const applicationRoot = resolve(import.meta.dirname, '../..');
+const repositoryRoot = resolve(applicationRoot, '..');
 const outputDefault = resolve(applicationRoot, 'tmp/production-supabase-bundle.sql');
 
 /**
@@ -15,15 +15,15 @@ export const productionSources = [
   'docker/sql/02-rxdb-sync-functions.sql',
   'docker/sql/04-rxdb-utils-functions.sql',
   'docker/sql/production/rxdb-change-grants.sql',
-  'aiao-media/apps/web/infra/supabase/migrations/002-product-workspaces.sql',
-  'aiao-media/apps/web/infra/supabase/migrations/003-rxdb-product-permissions.sql',
-  'aiao-media/apps/web/infra/supabase/migrations/004-admin-foundation.sql',
-  'aiao-media/apps/web/infra/supabase/migrations/005-product-content.sql',
-  'aiao-media/apps/web/infra/supabase/migrations/006-trusted-membership.sql',
-  'aiao-media/apps/web/infra/supabase/migrations/007-jpeg-work-metadata.sql',
-  'aiao-media/apps/web/infra/supabase/migrations/008-sync-target-capabilities.sql',
-  'aiao-media/apps/web/infra/supabase/migrations/009-sync-data-management.sql',
-  'aiao-media/apps/web/infra/supabase/migrations/010-image-storage.sql'
+  'aiao-media/infra/supabase/migrations/002-product-workspaces.sql',
+  'aiao-media/infra/supabase/migrations/003-rxdb-product-permissions.sql',
+  'aiao-media/infra/supabase/migrations/004-admin-foundation.sql',
+  'aiao-media/infra/supabase/migrations/005-product-content.sql',
+  'aiao-media/infra/supabase/migrations/006-trusted-membership.sql',
+  'aiao-media/infra/supabase/migrations/007-jpeg-work-metadata.sql',
+  'aiao-media/infra/supabase/migrations/008-sync-target-capabilities.sql',
+  'aiao-media/infra/supabase/migrations/009-sync-data-management.sql',
+  'aiao-media/infra/supabase/migrations/010-image-storage.sql'
 ];
 
 const transactionBoundary = /^\s*(?:BEGIN|COMMIT)\s*;\s*$/gm;

@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseEnv } from 'node:util';
 
-export const workspaceRoot = resolve(import.meta.dirname, '..');
+export const workspaceRoot = resolve(import.meta.dirname, '../..');
 const directory = resolve(workspaceRoot, 'infra/supabase');
 const envFile = resolve(directory, '.env');
 
@@ -149,7 +149,7 @@ async function main(action) {
       'production/rxdb-change-grants.sql'
     ];
     const files = [
-      ...core.map(name => resolve(workspaceRoot, '../../../docker/sql', name)),
+      ...core.map(name => resolve(workspaceRoot, '../docker/sql', name)),
       ...(await readdir(resolve(directory, 'migrations')))
         .filter(name => name.endsWith('.sql'))
         .sort()
@@ -167,13 +167,13 @@ async function main(action) {
       MEDIA_SUPABASE_SERVICE_ROLE_KEY: local.SERVICE_ROLE_KEY
     };
     await writeFile(
-      resolve(workspaceRoot, 'deploy/.dev.vars'),
+      resolve(workspaceRoot, 'deploy/cloudflare/.dev.vars'),
       Object.entries(privateConfig)
         .map(([name, value]) => `${name}=${JSON.stringify(value)}`)
         .join('\n') + '\n',
       { mode: 0o600 }
     );
-    await chmod(resolve(workspaceRoot, 'deploy/.dev.vars'), 0o600);
+    await chmod(resolve(workspaceRoot, 'deploy/cloudflare/.dev.vars'), 0o600);
     const env = { ...process.env, ...publicEnv };
     // Build with the local public Auth settings before starting the production worker.
     // Keep service-role credentials in this Node process and out of the client build.
@@ -187,7 +187,7 @@ async function main(action) {
         'wrangler',
         'dev',
         '--config',
-        '../api/wrangler.json',
+        'apps/api/wrangler.json',
         '--local',
         '--port',
         '4399',

@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import worker from '../../api/src/local-first-worker.ts';
-import { RelayTask } from '../../api/src/relay-task.ts';
+import worker from '../src/local-first-worker.ts';
+import { RelayTask } from '../src/relay-task.ts';
 import { durableObjectNamespace, r2Bucket } from './cloudflare-stand-ins.mjs';
 
 // Development stand-in for the production /api/relay and its durable tasks. It runs the same Worker code in this
@@ -14,7 +14,7 @@ const relayed = pathname => pathname === relayPath || pathname.startsWith(`${rel
 
 // The allow-list committed for deployment, which `wrangler dev` starts from as well.
 const deployedAllowList = () =>
-  JSON.parse(readFileSync(new URL('../../api/wrangler.json', import.meta.url), 'utf8')).vars.ALLOWED_PROVIDER_BASE_URLS;
+  JSON.parse(readFileSync(new URL('../wrangler.json', import.meta.url), 'utf8')).vars.ALLOWED_PROVIDER_BASE_URLS;
 
 function toRequest(incoming, signal) {
   const headers = new Headers();

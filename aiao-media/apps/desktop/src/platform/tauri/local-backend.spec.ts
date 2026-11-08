@@ -1,6 +1,6 @@
 import { Blob as NodeBlob } from 'node:buffer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { interceptDownload, saveDownload } from '../platform/tauri/local-backend';
+import { interceptDownload, saveDownload } from './local-backend';
 const port = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock('@tauri-apps/api/core', () => port);
 

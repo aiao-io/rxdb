@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import assert from 'node:assert/strict';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { handleAdmin } from '../../api/src/admin-api.ts';
-import { localEnvironment } from './supabase-local.mjs';
+import { handleAdmin } from '../../apps/api/src/admin-api.ts';
+import { localEnvironment } from '../supabase/supabase-local.mjs';
 
 const { env, url } = await localEnvironment();
 const options = { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } };

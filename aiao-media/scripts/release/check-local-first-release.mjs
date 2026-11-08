@@ -3,9 +3,10 @@ import { createHash } from 'node:crypto';
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { extname, relative, resolve } from 'node:path';
 import { parseEnv } from 'node:util';
-import { validateSupabaseAuthConfig } from '../src/app/supabase-auth-config.ts';
-const root = resolve(import.meta.dirname, '..');
-const output = resolve(root, 'dist');
+import { validateSupabaseAuthConfig } from '../../apps/web/src/app/supabase-auth-config.ts';
+const productRoot = resolve(import.meta.dirname, '../..');
+const webRoot = resolve(productRoot, 'apps/web');
+const output = resolve(webRoot, 'dist');
 const files = [];
 async function walk(directory) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
@@ -17,7 +18,7 @@ async function walk(directory) {
 await walk(output);
 let env = {};
 try {
-  env = parseEnv(await readFile(resolve(root, '.env'), 'utf8'));
+  env = parseEnv(await readFile(resolve(webRoot, '.env'), 'utf8'));
 } catch (e) {
   if (e.code !== 'ENOENT') throw e;
 }
@@ -66,9 +67,9 @@ for (const required of [
 ])
   if (!inventory.some(file => file.path === required)) throw new Error(`Missing build resource: ${required}`);
 if (files.length > 20000) throw new Error('Free static asset count exceeded');
-await mkdir(resolve(root, 'tmp/local-first'), { recursive: true });
+await mkdir(resolve(webRoot, 'tmp/local-first'), { recursive: true });
 await writeFile(
-  resolve(root, 'tmp/local-first/release.json'),
+  resolve(webRoot, 'tmp/local-first/release.json'),
   JSON.stringify(
     {
       createdAt: new Date().toISOString(),

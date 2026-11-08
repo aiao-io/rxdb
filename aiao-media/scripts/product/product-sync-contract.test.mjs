@@ -2,7 +2,7 @@ import { PGlite } from '@electric-sql/pglite';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { after, before, test } from 'node:test';
-import { ownedStudioPrompt } from '../src/local-data/studio-draft.ts';
+import { ownedStudioPrompt } from '../../apps/web/src/local-data/studio-draft.ts';
 
 const userId = '00000000-0000-4000-8000-000000000001';
 const workspaceId = '00000000-0000-4000-8000-000000000002';
@@ -21,7 +21,7 @@ before(async () => {
     CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT '${userId}'::uuid $$;
     INSERT INTO auth.users VALUES ('${userId}');
   `);
-  const directory = new URL('../infra/supabase/migrations/', import.meta.url);
+  const directory = new URL('../../infra/supabase/migrations/', import.meta.url);
   for (const name of (await readdir(directory)).sort()) {
     if (/^(001|003)-/.test(name) || !name.endsWith('.sql')) continue;
     await db.exec(await readFile(new URL(name, directory), 'utf8'));

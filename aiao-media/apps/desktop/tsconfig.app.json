@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "outDir": "../../../dist/out-tsc",
+    "types": []
+  },
+  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
+  "extends": "./tsconfig.json",
+  "include": ["src/**/*.ts"],
+  "references": [
+    {
+      "path": "../../../packages/rxdb-plugin-storage/tsconfig.lib.json"
+    },
+    {
+      "path": "../../../packages/rxdb-adapter-tauri/tsconfig.lib.json"
+    },
+    {
+      "path": "../../../packages/rxdb/tsconfig.lib.json"
+    }
+  ]
+}

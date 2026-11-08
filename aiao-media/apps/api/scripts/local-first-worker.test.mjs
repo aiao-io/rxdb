@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import worker from '../../api/src/local-first-worker.ts';
+import worker from '../src/local-first-worker.ts';
 const origin = 'https://app.example.test';
 const env = {
   ALLOWED_PROVIDER_BASE_URLS: '["https://provider.example.test/v1"]',

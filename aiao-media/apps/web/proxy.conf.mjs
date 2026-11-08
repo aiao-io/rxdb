@@ -1,4 +1,4 @@
-import { startDevRelay } from './scripts/dev-relay.mjs';
+import { startDevRelay } from '../api/scripts/dev-relay.mjs';
 
 // Loaded once by the Angular dev server. The relay runs inside that process on a free loopback port and gets
 // only /api/relay, so `aiao-media:serve` generates images through the production Worker code without a second

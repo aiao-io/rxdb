@@ -314,6 +314,9 @@
     },
     {
       "path": "./aiao-media/apps/api"
+    },
+    {
+      "path": "./aiao-media/apps/desktop"
     }
   ]
 }
