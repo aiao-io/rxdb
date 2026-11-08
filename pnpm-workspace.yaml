@@ -1,6 +1,9 @@
 packages:
   - 'packages/*'
   - 'apps/*'
+  - 'aiao-media'
+  - 'aiao-media/apps/*'
+  - 'aiao-media/packages/*'
   # modules/ 其余成员只靠 tsconfig paths 被消费，不必进 workspace；wujie 与 recipes-domain 是例外：
   # wujie 给 Docusaurus 的 webpack 走 node_modules 软链；recipes-domain 给 dev-rxdb-http-server
   # 的 Node 类型剥离直跑（`node src/main.ts` 不认 tsconfig paths，只能顺着 node_modules 找 dist）。

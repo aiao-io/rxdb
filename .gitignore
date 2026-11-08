@@ -158,5 +158,5 @@ docker/.supabase-ci-state.*.env
 .nx-test-prereqs.tsv
 
 # Aiao Media public configuration examples
-!apps/aiao-media/.env.example
-!apps/aiao-media/infra/supabase/.env.example
+!aiao-media/apps/web/.env.example
+!aiao-media/apps/web/infra/supabase/.env.example

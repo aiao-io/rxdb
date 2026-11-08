@@ -271,4 +271,4 @@ pnpm test-all
 
 ## 实际应用
 
-[Aiao Media](apps/aiao-media/README.md) 是同仓孵化的 local-first 图片创作应用，包含独立产品需求、部署和浏览器验收。启动：`pnpm nx run aiao-media:serve`。
+[Aiao Media](aiao-media/apps/web/README.md) 是同仓孵化的 local-first 图片创作应用，包含独立产品需求、部署和浏览器验收。启动：`pnpm nx run aiao-media:serve`。

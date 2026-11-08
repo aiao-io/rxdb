@@ -9,8 +9,8 @@ on:
         default: false
   pull_request:
     paths:
-      - 'apps/aiao-media/**'
-      - 'apps/aiao-media-e2e/**'
+      - 'aiao-media/apps/web/**'
+      - 'aiao-media/apps/web-e2e/**'
       - 'packages/rxdb/**'
       - 'packages/rxdb-adapter-wa-sqlite/**'
       - 'packages/rxdb-adapter-supabase/**'
@@ -67,7 +67,7 @@ jobs:
       - name: Stop application test services
         if: ${{ always() }}
         run: |
-          if [ -f apps/aiao-media/infra/supabase/.env ]; then
+          if [ -f aiao-media/apps/web/infra/supabase/.env ]; then
             pnpm nx run aiao-media:supabase-down --output-style=static
           fi
 

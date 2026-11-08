@@ -766,32 +766,38 @@ importers:
         specifier: ^9.5.1
         version: 9.5.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
 
-  apps/aiao-media:
+  aiao-media:
+    devDependencies:
+      yaml:
+        specifier: 2.9.0
+        version: 2.9.0
+
+  aiao-media/apps/web:
     dependencies:
       '@aiao/rxdb':
         specifier: workspace:*
-        version: link:../../packages/rxdb
+        version: link:../../../packages/rxdb
       '@aiao/rxdb-adapter-supabase':
         specifier: workspace:*
-        version: link:../../packages/rxdb-adapter-supabase
+        version: link:../../../packages/rxdb-adapter-supabase
       '@aiao/rxdb-adapter-tauri':
         specifier: workspace:*
-        version: link:../../packages/rxdb-adapter-tauri
+        version: link:../../../packages/rxdb-adapter-tauri
       '@aiao/rxdb-adapter-wa-sqlite':
         specifier: workspace:*
-        version: link:../../packages/rxdb-adapter-wa-sqlite
+        version: link:../../../packages/rxdb-adapter-wa-sqlite
       '@aiao/rxdb-devtools':
         specifier: workspace:*
-        version: link:../../packages/rxdb-devtools
+        version: link:../../../packages/rxdb-devtools
       '@aiao/rxdb-plugin-history':
         specifier: workspace:*
-        version: link:../../packages/rxdb-plugin-history
+        version: link:../../../packages/rxdb-plugin-history
       '@aiao/rxdb-plugin-storage':
         specifier: workspace:*
-        version: link:../../packages/rxdb-plugin-storage
+        version: link:../../../packages/rxdb-plugin-storage
       '@aiao/rxdb-plugin-sync':
         specifier: workspace:*
-        version: link:../../packages/rxdb-plugin-sync
+        version: link:../../../packages/rxdb-plugin-sync
       '@angular/common':
         specifier: 22.2.4
         version: 22.2.4(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2)(zone.js@0.16.2))(rxjs@7.8.2)
@@ -860,7 +866,7 @@ importers:
         specifier: 2.9.0
         version: 2.9.0
 
-  apps/aiao-media-e2e:
+  aiao-media/apps/web-e2e:
     devDependencies:
       sharp:
         specifier: ^0.35.5

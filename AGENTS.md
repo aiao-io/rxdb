@@ -41,7 +41,7 @@
 
 ## 实际应用
 
-`apps/aiao-media` 是独立 Angular 产品，应用私有代码不要求 React/Vue 对称实现。可复用包与领域 UI 的公共能力继续遵循三框架规则；其余产品约束见应用目录的 AGENTS.md。
+`aiao-media/apps/web` 是独立 Angular 产品，应用私有代码不要求 React/Vue 对称实现。可复用包与领域 UI 的公共能力继续遵循三框架规则；其余产品约束见应用目录的 AGENTS.md。
 
 ## 候选领域合并治理
 
