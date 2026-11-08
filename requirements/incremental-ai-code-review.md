@@ -219,9 +219,9 @@ PR 发布作为后续能力：受信工作流只读取冻结代码，分别配�
 评审标准改动会让全部覆盖失效，只在判定标准真的变化时修改；旧问题结论以其适用快照解释，不覆盖历史处置证据。
 
 ```bash
-node --test scripts/ai-review/ai-review.spec.mjs
+pnpm nx run @aiao/source:test-scripts
 pnpm nx format:check --files=requirements/incremental-ai-code-review.md,requirements/CONVENTIONS.md,requirements/reviews/README.md,requirements/reviews/review.template.md
-pnpm audit:requirements
+pnpm nx exec --projects=@aiao/source --excludeTaskDependencies -- node scripts/audit/requirements-consistency.mjs --check
 ```
 
 Git 比较与祖先语义依据 [git diff](https://git-scm.com/docs/git-diff) 和 [git merge-base](https://git-scm.com/docs/git-merge-base)；项目范围以 [Nx 项目图与 affected](https://nx.dev/docs/features/ci-features/affected) 及目标快照配置核对。

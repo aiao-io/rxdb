@@ -70,7 +70,7 @@ CI 的 `setup` job 每轮都会执行。表格里各 spec 那一行写的 `node 
 | `audit/ai-example.mjs`                                                      | 改核心 / PGlite / history / 样例后           | 真实 pack 核心查入口说明，再严格编译并执行 `examples/ai-local` 离线样例                                       | `pnpm verify:ai-example`（CI extras job）                                     |
 | `examples/ai-local/`                                                        | 改样例后                                     | 离线 AI 样例源、安装清单与编译选项：知识生成物与 `llms.txt` 样例的唯一输入                                    | 由 `package-graph.mjs` / `ai-example.mjs` 读取                                |
 | [ai-review/ai-review.mjs](#ai-reviewai-reviewmjs)                           | 执行 ai-code-review skill 时                 | 评审快照、项目归属、必审清单与覆盖登记（按内容寻址），问题 ID 与记录查找                                      | `node scripts/ai-review/ai-review.mjs <命令>`                                 |
-| `ai-review/ai-review.spec.mjs`                                              | 改评审记账后                                 | Node test runner，临时仓库覆盖快照、归属、覆盖失效规则、range=branch 与 CLI                                   | `node --test scripts/ai-review/ai-review.spec.mjs`                            |
+| `ai-review/ai-review.spec.mjs`                                              | 改评审记账后                                 | Node test runner，临时仓库覆盖快照、归属、覆盖失效规则、range=branch 与 CLI                                   | `pnpm nx run @aiao/source:test-scripts`                                       |
 
 ---
 
