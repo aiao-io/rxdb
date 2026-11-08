@@ -1,77 +1,69 @@
 ---
 name: ai-code-review
-description: 对本仓库按分支、项目执行全量或增量代码评审，将问题和处理结果按项目保存；支持按问题 ID 单独修复、复核或提出异议，以及不同 AI 模型接续处理。用户要求代码评审或处理已有评审问题时使用。
+description: 本仓库的持久化代码评审：按项目或分支做全量或增量评审，问题写进 requirements/reviews，可按 ID 修复、复核或提异议，不同模型能接着做。只在用户点名本 skill，或明确要求持久化 / 增量评审、处理已有 RV 问题时使用；普通看 PR、评审文档不用它。
 ---
 
 # 项目 AI 代码评审
 
-用当前 AI 会话执行任务。遵守目标路径适用的 AGENTS.md；项目和任务发现沿用仓库的 Nx 规范，库/API 用法需要时再查 Context7。
+由当前 AI 会话执行，遵守目标路径适用的 AGENTS.md。快照、项目归属、必审清单、覆盖登记和问题 ID 一律用 `node scripts/ai-review/ai-review.mjs <命令>`（下称 `ai-review`），不手算指纹，不手写状态文件。评审标准与严重程度见 [references/rubric.md](references/rubric.md)。
 
-此 skill 已可直接使用，不依赖拟议中的 `ai-review` Nx target、模型 SDK 或后台服务。参数是任务约定，不是已安装的命令行工具。
+调用写法：Codex 用 `$ai-code-review …`，Claude Code 用 `/ai-code-review …`，中文描述也可以。参数是任务约定，不是命令行程序。
 
-## 识别操作与范围
+## 操作与范围
 
-| 输入 | 操作 |
-| --- | --- |
-| 全量 / `full` | 重新检查所选范围全部必审内容，不复用既有评审结论 |
-| 增量 / `incremental` | 从相同作用域的完整检查点继续，检查变化及关联影响；无有效基线时对该范围全量评审 |
-| 修复 / `fix --issue=...` | 只处理指定问题及其必要代码、三框架和测试改动 |
-| 复核 / `verify --issue=...` | 只核对指定问题当前是否成立、修复是否有效或异议是否成立 |
-| 异议 / `dispute --issue=...` | 为指定问题追加有证据的不修复理由，保留争议状态 |
+| 输入                          | 操作                                                         |
+| ----------------------------- | ------------------------------------------------------------ |
+| `incremental` / 增量（默认）  | 只审从未覆盖或覆盖已失效的单元，有效覆盖直接继承             |
+| `full` / 全量                 | 记下开始时间，只认这之后登记的覆盖，整个范围重审             |
+| `fix --issue=<ID>`            | 只修这一个问题，及其必要的三框架与测试改动                   |
+| `verify --issue=<ID>`         | 只核对这一个问题：修复是否有效、异议是否成立、问题是否还在   |
+| `dispute --issue=<ID> <理由>` | 为这一个问题追加有证据的不修理由                             |
 
-默认操作是增量评审；默认分支为当前 checkout，默认项目为当前任务已明确的项目，否则覆盖所有项目。默认 `range=project`：检查所选项目在目标分支的代码。只有明确 `range=branch` 时，才限于该分支相对 `base` 的净变化。
-`--project` 选择真实 Nx 项目名，支持显式多个项目；`--branch` 选择待审分支；`--worktree` 显式纳入当前未提交改动。默认提交快照不包含未提交业务改动，必须在范围说明中写清。`--worktree` 仅适用于当前 checkout，不能把本地改动叠加到另一条指定分支。
-未指定 `base` 的分支差异评审先检查仓库默认分支；不能解析唯一目标时给出具体缺口。名称不匹配时列出候选，不能猜测为相似项目。
-
-使用示例：
+- `--project=a,b`：真实 Nx 项目名。默认取 `ai-review affected` 的结果，即当前快照相对默认分支改到的项目；审全仓写 `--project=all`。名字对不上就列出候选，不猜。
+- `--range=project`（默认）审所选项目在快照里的全部文件；`--range=branch` 只审 merge base 以来的改动，`--base` 默认 `origin/HEAD`。
+- `--branch=<ref>`：审别的分支，读冻结的 git 对象，不动当前工作区。
+- `--worktree`：纳入当前检出位的未提交改动，不能与 `--branch` 同时用。默认只审提交快照，未提交改动要在回复里写明已排除。
+- `--independent`：只认当前评审者自己登记的覆盖；身份未知时不能用。
 
 ```text
-$ai-code-review incremental
-$ai-code-review full --branch=codex/feature-x --project=rxdb
-$ai-code-review incremental --branch=codex/feature-x --project=rxdb-angular
-$ai-code-review full --branch=codex/feature-x --project=rxdb --range=branch --base=main
-$ai-code-review incremental --project=rxdb --worktree
-$ai-code-review fix --issue=RV-<id>
-$ai-code-review verify --issue=RV-<id>
-$ai-code-review dispute --issue=RV-<id> 原调用有上游约束，核对是否误报
+ai-code-review incremental
+ai-code-review full --project=rxdb
+ai-code-review incremental --branch=codex/feature-x --project=rxdb-angular
+ai-code-review full --branch=codex/feature-x --project=rxdb --range=branch --base=origin/main
+ai-code-review incremental --project=rxdb --worktree
+ai-code-review full --project=rxdb --independent
+ai-code-review fix --issue=RV-<id>
+ai-code-review verify --issue=RV-<id>
+ai-code-review dispute --issue=RV-<id> 原调用有上游约束，核对是否误报
 ```
 
 ## 评审流程
 
-全量或增量评审时读取 [references/review.md](references/review.md)。
+全量或增量评审时读 [references/review.md](references/review.md)，按它执行：
 
-1. 解析项目、分支、快照和范围，先简要报告本次选择。读取其他分支时用冻结的 Git 对象或已有目标 checkout，保护当前工作区。
-2. 为每个项目列出必审文件及关联契约；读取现有项目问题。全量覆盖整个选择范围，增量按有效检查点重算变化及受影响上下文。
-3. 检查可证明的行为缺陷、用户兼容性、异步边界及三框架/后端组合。需要补读时先补证，不能只凭 diff 或名称断言。
-4. 只有发现具体问题才按 [requirements/reviews/README.md](../../../requirements/reviews/README.md) 创建或更新记录。问题模板唯一入口为 [review.template.md](../../../requirements/reviews/review.template.md)。
-5. 输出终端范围与覆盖结果。完成全部必审项且快照仍匹配后，更新该项目、该范围的检查点；部分评审保留未完成清单。
+1. `ai-review snapshot` 冻结快照，之后的命令都带它给出的 SHA。
+2. 没给项目就跑 `ai-review affected`，再跑 `ai-review status` 得到必审清单。
+3. 先报告范围：项目、分支与快照、视图、range、待审文件数与行数、可继承的覆盖。待审超过 3 个项目或 200 个文件时，列出计划等用户确认，可以建议改用 `--range=branch` 或缩小项目。
+4. 按相关文件分批审。发现问题先写记录，再用 `ai-review cover` 登记这一批实际读过的文件。
+5. 重复第 4 步，直到 `status` 显示 `complete`；资源用完就停在批次边界，报告剩余范围。
 
-默认接续允许沿用其他模型已完成且仍有效的覆盖，必须保留每部分的原评审者。用户要求独立复审或 `--independent` 时，使用当前评审者独立检查点；没有就全量检查所选范围。不能把继承的覆盖表述为当前模型重新审过。
-模型响应缓存按实际模型与输入隔离；模型切换不能伪装成同一模型缓存命中。详情见评审参考。
+评审者签名写 `<provider>/<model>`，只用会话里实际看得到的模型 ID（如 `anthropic/claude-opus-5-5`）；看不到就写 `unknown`，不编造，不拿客户端名代替。
 
 ## 单问题处理
 
-修复、复核、异议时读取 [references/issue-actions.md](references/issue-actions.md)，先加载指定记录与适用分支。
+修复、复核、异议时读 [references/issue-actions.md](references/issue-actions.md)。用 `ai-review find-issue <ID 或前缀>` 定位，多个匹配就列出候选，不任选。状态只按 [CONVENTIONS](../../../requirements/CONVENTIONS.md)「状态定义」一节的转移表改。单问题动作不登记覆盖，也不动其他问题。
 
-- 用完整 ID 或唯一前缀定位；多个匹配时列出候选，不任选一个。
-- 修复须先复现并写有意义的回归，再做必要改动并通过对应 Nx 检查。不能顺手处理其他独立问题。
-- 追加处理事件，记录实际执行者、输入/输出快照、变更、验证命令与结果；不同模型直接读取同一记录接续。
-- 修复写成 `Fixed`，复核成立并满足验证条件才改为 `Resolved`；未复核的补丁不能直接宣布关闭。
-- 异议写成 `Disputed` 并给反证；“不成立”与“成立但接受风险”按项目状态约定区分，不能把未修改代码记录成已修复。
+## 记录与交接
 
-单问题动作不推进项目/分支的完整评审检查点，也不自动推进其他项目或其他问题状态。一个模型可以承担多个步骤，如实记录每次角色，不强制另起模型会话。
-
-## 持久化与交接底线
-
-- 问题写入 `requirements/reviews/<projectKey>/RV-<id>.md`；只建有问题的记录，修复和异议结论继续留在原文件。
-- 所有 Nx 项目的新代码问题统一归仓库根，包括应用项目；已存在的应用内旧记录按原 ID 就地处理并保留，迁移时显式记录来源，不复制出第二份事实源。
-- 分支、项目、项目/分支差异范围和提交/工作区视图分别隔离；单项目完成不能代表整条分支完成。
-- 同一问题在不同分支分别建记录并用 `related_findings` 关联；修复不跨分支自动传播。
-- 评审者、修复者、复核者按事件记录实际身份。未知模型版本或会话标识写 `unknown`，不能编造。
-- 并发更新前核对原文件摘要；冲突时重读并归并事件。不能覆盖别人新写的修复或异议。
-- 评审只发现并记录；修改业务代码需要用户的修复指令。推送、PR 评论或额外模型调用沿用用户现有授权。
+- 记录描述它所在那棵树的代码：写在被评审快照的检出位，跟着 merge / cherry-pick 走，不按分支另建副本。别的分支没有检出位时，问题只在终端输出，相关文件不登记覆盖。
+- 一个问题一个文件：`requirements/reviews/<key>/RV-<id>.md`。所有项目（含应用）的新问题都写在仓库根；`key` 取 `ai-review projects` 输出里的 `key`，ID 用 `ai-review new-id` 生成。模板只有 [review.template.md](../../../requirements/reviews/review.template.md) 一份。应用目录里的旧记录按原 ID 就地处理。
+- 证据写成行内代码 `path:line` 并注明快照 SHA，或用带 SHA 的 GitHub 永久链接；不写指向源码的相对链接。
+- 每次动作追加事件，写实际执行者与角色，不改写、不删除别人的事件。写前用 `git hash-object` 记下记录的摘要，写入前再核对，变了就重读合并。
+- 评审只写记录和覆盖；改业务代码要用户下 fix 指令；提交、推送、PR 评论和额外的模型调用沿用用户现有授权。
 
 ## 交付
 
-回复本次项目、分支、快照、全量/增量及范围类型；列出新增问题或指定问题的处理结果，链接实际 Markdown。
-无发现时只在回复中说明覆盖与限制，不生成“无问题”评审文件。未完成时明确剩余范围；不要把工具失败或证据不足当成通过。
+- 写明操作、项目、分支与快照、视图、range 与 base，以及全量 / 增量 / 独立。
+- 覆盖情况：本次新审、按评审者列出的继承、skip 及理由、排除项、剩余文件数与行数。没审完就写明剩余范围；工具失败或证据不足不算通过。
+- 先按 AGENTS.md「代码审查」给总评（🟢 好 / 🟡 凑合 / 🔴 垃圾），再列新增问题与处理结果，链接实际记录。待复核的旧问题和范围外线索单独列。
+- 没有发现就只在回复里说明覆盖与限制，不生成「无问题」记录。

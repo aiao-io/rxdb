@@ -1,64 +1,73 @@
 # 全量与增量评审执行
 
-## 冻结范围
+下文 `ai-review` 指 `node scripts/ai-review/ai-review.mjs`，输出都是 JSON。
 
-先读仓库需求约定与对应路径 AGENTS.md。当前 checkout 的项目发现使用 `pnpm nx show projects --json`、`pnpm nx show project <name> --json`；不以 `project.json` 的部分配置代替已解析配置。
-其他分支的项目归属也必须对应目标快照：优先已有目标 checkout；否则读该 SHA 的包清单、项目配置和源码路径做静态映射。需要运行插件才能确定归属时，使用隔离 checkout，不能拿当前分支图冒充目标图。
+## 冻结快照
 
-将分支名解析为不可变 `H`，记录完整 ref；detached checkout 没有明确分支时用该 worktree 的稳定标识隔离，不猜测它属于哪条分支。
-默认 `range=project` 枚举所选项目在 `H` 的全部受版本控制内容；支持性测试、入口、需求和直接相关依赖加入上下文。
-显式 `range=branch` 时同时冻结目标分支 `B`，要求 `M = merge-base(B,H)` 唯一，必审种子为 `git diff M H` 中属于所选项目的变化。
+- 当前检出位：`ai-review snapshot`。记下 `commit` 与 `tree`，后续命令都带 `--rev <commit>`。
+- 未提交改动：`ai-review snapshot --worktree`，后续命令再加 `--tree <tree>`。
+- 别的分支：`ai-review snapshot --rev <ref>`。要写记录，就到 `git worktree list` 里检出了该分支的检出位去运行；没有这样的检出位，问题只在终端输出。
+- 内容一律从快照读：`git show <commit 或 tree>:<path>`。提交视图下 `dirty` 为空时，直接读工作区文件也一样；不为空就说明工作区与提交不同，回复里写明这些未提交改动已排除。
+- 项目归属读的是快照里的 `project.json`，审别的分支拿到的就是那条分支的项目图。`ai-review projects` 列出项目名、root 和记录目录 `key`。
 
-读取 Git 路径使用 NUL 分隔；关闭外部 diff/textconv。删除与重命名读取两端内容，拒绝越界路径及符号链接越界读取。
-评审记录、运行状态不反向进入业务代码的评审义务，避免写报告导致自我失效；用户明确评审记录格式或工具链本身时按该任务纳入。
-`--worktree` 保存独立内容快照，包含 index、未暂存、未跟踪、删除和文件模式；不更改真实 index。捕获前后摘要不一致则重捕获一次，仍变化就报告无法得到稳定快照。
+## 选范围、报计划
 
-## 检查点协议
+1. 没给 `--project` 时，跑 `ai-review affected --rev <commit>`（工作区视图加 `--tree`）。
+2. 跑 `ai-review status --rev <commit> --project <a,b>`，分支差异再加 `--range branch --base <ref>`：
+   - 全量：加 `--since <开始时间>`，开始前用 `date -u +%Y-%m-%dT%H:%M:%SZ` 取时间；
+   - 独立复审：加 `--independent=<签名>`。
+3. 用 `required`、`outstanding`、`outstandingLines`、`reviewers`（可继承的覆盖来自谁）和 `excluded` 报告范围。超过 3 个项目或 200 个待审文件时，先列计划等确认。
+4. 根项目 `@aiao/source` 的 root 是 `.`，包含 requirements、scripts、workflow 等所有不属于其他项目的文件；选它之前先说明这一点。
 
-状态保存在 Git common dir 的 `ai-review/v1/`，运行清单与覆盖使用 JSON；持续问题状态以仓库根按项目归档的 Markdown 为准，JSON 索引可重建。
-作用域由仓库身份、分支/worktree 标识、项目、`range`、base ref 和提交/工作区视图组成，默认接续与独立复审分别存储。
-至少保存以下信息，写入前填真实值，不把示例占位符存成有效检查点：
+## 读与审
 
-```text
-schemaVersion, scopeId, project, branchRef, view, range, baseRef
-baseSha, mergeBaseSha, headSha, sourceFingerprint, contextFingerprint
-policyDigest, reviewStrategy, coverageProvenance
-requiredFiles, coveredFiles, outstandingUnits, complete, createdAt
-```
-
-`coverageProvenance` 为文件组/契约单元记录来源运行、实际评审者签名、输入指纹及 reviewed/reused；模型签名由 provider、model、version、行为参数与 prompt/policy 标识组成；session 只作溯源，不进入模型签名，取不到的身份信息写 unknown。
-独立复审的检查点额外按实际评审者签名隔离；身份不稳定时不复用“该模型独立审过”的结论。
-运行记录还保存实际读过的路径、内容摘要、排除理由与补证缺口。以标准库计算摘要与写 JSON，避免引入工具依赖。
-
-## 全量
-
-列出全部必审内容，按项目内相关文件组分批阅读，检查入口、实现、测试、调用者和需求契约。`range=branch` 的“全量”只表示完整分支差异，不代表项目全源码。
-没有问题的项目也更新真实覆盖清单和终端结果，但不创建空目录或问题 Markdown。
-处理完每个项目可独立保存该项目完整检查点；整次请求只有所有所选项目都完成才可声明完成。
-
-## 增量
-
-1. 加载同一作用域最近完整检查点，重建目标文件清单及关联上下文；不能把空问题目录视为已全量审过。
-2. 没有可验证基线、规则不兼容、历史不足、rebase/force push 使旧 head 不再是祖先、目标 base 前移或 merge base 改变时，全量评审本次选择范围。历史无法补齐时报告未完成。
-3. 比较旧 head 与 `H` 两棵树；工作区模式比较保存的文件清单。将变动文件、删除两端及相关依赖作为重审候选。
-4. 变化实现的上下文包含完整文件、必要旧行为、测试和调用者；公共语义变化加入消费者和对应 Angular/React/Vue 绑定；共享测试变化加入所有后端入口。
-5. 每轮重新核对项目关系与候选目录清单，捕获新消费者和删边。无法证明依赖影响边界时重审所选项目全部内容，并补读相关契约。
-6. 未变且上下文仍匹配的覆盖可继承。默认接续保留原模型来源；独立复审只能继承本评审者的有效覆盖。模型响应缓存始终要求实际模型、规则和完整输入匹配。
-7. 对证据变化的旧问题追加复核任务。整条分支 revert 或文件被删除，也必须核对旧问题，不能因净 diff 为空自动关闭。
-8. 将重审与继承覆盖合成当前完整清单；有必审内容未读、补读不足或运行中快照变化时不推进完整检查点。
-
-检查源码字节、范围文件清单、依赖配置和规则摘要，不能只 hash diff 片段。项目范围增减要重新核对清单，不能借单项目完成覆盖新增项目。
-只存执行者确实阅读/复核过的覆盖；不得为了生成完整检查点把候选文件列表整体标为已审。
+- 从 `outstandingPaths` 取一批相关文件，例如同一模块、同一入口及其测试；`--limit` 调整列出的条数。
+- 每个单元读完整文件，再按需读上下文：调用者、测试、公共语义变化影响到的消费者、Angular / React / Vue 对应绑定、共享 conformance 套件的全部后端入口。
+- `range=branch` 的单元有新旧两侧：用 `git show <mergeBase>:<path>` 读旧版本；删除的文件要核对还有谁在引用它。
+- 按 [rubric.md](rubric.md) 判定。需要补读就先补证据，不能只凭 diff 或名称下结论。
+- `invalid` 列出的单元以前审过，但上下文变了或引用的记录不见了，照常重审。
 
 ## 记录发现
 
-按根因项目归属定位记录，使用仓库根 review 模板；新记录统一放仓库根，已有应用内记录不强制迁移。新 ID 使用 `RV-` 加无连字符 UUID，避免不同模型并行分配流水号；旧 RV 编号继续识别。
-相同项目、分支和根因证据命中已有问题时追加本次发现事件，不按模型、运行或 project/branch 评审范围复制文件；范围保存在首次发现字段和后续事件中，不参与问题主身份。不同分支新建独立记录并关联。
-跨项目问题以根因项目为主，`affected_projects` 列出受影响方。根因不在用户选择范围时，在终端说明范围外线索，不冒称已评审该项目。
-问题必须包含触发条件、影响和可定位证据；没有可证明缺陷就不创建条目。不凭模型不再提及来关闭旧问题。
+- 新建前先在 `requirements/reviews/<key>/` 里 grep `anchors` 查重。同一棵树里已有同根因的记录，就追加一个发现事件，不另建文件。
+- 新问题用 `ai-review new-id` 取 ID，按 [review.template.md](../../../../requirements/reviews/review.template.md) 写到 `requirements/reviews/<key>/RV-<id>.md`（可加 `-<英文 slug>`），`found_*` 字段填本次的快照与范围。
+- 跨项目问题归到根因所在项目，受影响的项目写进 `affected_projects`。根因不在本次范围时只在终端说明线索。
+- 重审一个文件时，grep 其所属项目记录的 `anchors`，找出涉及它的旧问题：
+  - 仍成立的，在终端注明；
+  - 已经消失的，列为「待 verify」，不在评审里改状态；
+  - 已关闭又复发的，追加 review 事件并重开为 `Open`。
 
-## 保存与结束
+## 登记覆盖
 
-每个作用域按锁或乐观版本检查写入，临时文件成功后原子替换。推进检查点前核对原检查点与来源 refs；旧运行不得覆盖新结果。
-完整覆盖可以存在 Open/Disputed 问题，完整性与缺陷是否关闭分开描述。修复导致快照变化后需后续增量评审，不能由 fix 动作顺手标为整个项目已审。
-用户未设硬预算时按可完成的项目批次持续执行并报告进度；资源限制导致中断时保留实际完成和剩余清单，不削减范围制造完整结论。
+每审完一批就登记，不要攒到最后。输入写成 JSON 文件：
+
+```json
+{
+  "reviewer": "anthropic/claude-opus-5-5",
+  "session": "unknown",
+  "units": [
+    { "path": "packages/rxdb/src/a.ts", "context": ["packages/rxdb/src/b.ts"], "findings": [] },
+    { "path": "packages/rxdb/src/generated.ts", "skip": "生成物，改生成源头" }
+  ]
+}
+```
+
+然后运行 `ai-review cover --rev <commit> --project <a,b> --input <文件>`，范围参数（`--range`、`--base`、`--tree`）与 `status` 保持一致。
+
+- `units` 只写这一批实际读过的文件；`context` 写判断它时依赖的其他文件；`findings` 写它产出或确认仍成立的记录 ID，这些记录必须已经写在工作区。
+- 不审的文件写 `skip` 和理由（生成物、纯数据等），结果里会单独列出。不能为了凑完成，把没读的文件登记成已审。
+- 脚本会拒绝范围外的路径、不存在的上下文和找不到的记录。
+
+## 覆盖的含义
+
+- 单元按内容标识：评审标准摘要、range、路径、新旧两侧 blob。只要上下文文件的 blob 没变、引用的记录还在，覆盖就有效。
+- 与提交历史无关：rebase、force push、base 前移之后，只有内容真正变了的单元要重审；中断后再跑 `status`，得到的就是续跑清单。
+- 改了 [rubric.md](rubric.md)，全部覆盖都会失效。
+- 默认接续可以继承任何评审者的有效覆盖；来源看 `reviewers`，回复里如实写，不能说成当前模型重新审过。
+- 状态存在 `<git common dir>/ai-review/v1/coverage.jsonl`，同一仓库的所有 worktree 共享，只追加、不改写。
+
+## 完成与中断
+
+- `complete: true` 才能说这个范围审完了。多个项目要逐个看 `byProject`，单个项目审完不代表整个请求审完。
+- 完成与否和有没有未关闭问题分开说：范围审完了，仍可以有 `Open` 或 `Disputed` 的问题。
+- 用户没给预算时，按批次持续执行并报告进度；资源用完就停在批次边界，报告剩余清单，不缩小范围凑出「已完成」。
