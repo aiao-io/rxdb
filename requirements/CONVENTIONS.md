@@ -7,12 +7,12 @@
 
 `requirements/` 下有四类带编号的文档，各自 id 前缀与编号段如下：
 
-| 类型           | id 前缀         | 编号段 / 规则                                                                                           | 目录                |
-| -------------- | --------------- | ------------------------------------------------------------------------------------------------------- | ------------------- |
-| 用户故事 story | `US-XXX`        | 按领域分段（见下）                                                                                      | `stories/<domain>/` |
-| 史诗 epic      | `epic-XXX-name` | 递增，与 `epics/*.md` 文件名一致                                                                        | `epics/`            |
-| review 记录    | `RV-XXX`        | `RV-001` 起递增，不与 `US` / `CS` 混用                                                                  | `reviews/`          |
-| code-scanning  | `CS-XXX`        | 与 GitHub code scanning 告警 `number` 一一对应；工作集条目，GitHub 关闭后归档进该目录 README 并删除文件 | `code-scanning/`    |
+| 类型           | id 前缀         | 编号段 / 规则                                                                                           | 目录                    |
+| -------------- | --------------- | ------------------------------------------------------------------------------------------------------- | ----------------------- |
+| 用户故事 story | `US-XXX`        | 按领域分段（见下）                                                                                      | `stories/<domain>/`     |
+| 史诗 epic      | `epic-XXX-name` | 递增，与 `epics/*.md` 文件名一致                                                                        | `epics/`                |
+| review 记录    | `RV-<uuid>`     | 新编号使用无连字符 UUID；旧 `RV-XXX` 保留                                                               | `reviews/<projectKey>/` |
+| code-scanning  | `CS-XXX`        | 与 GitHub code scanning 告警 `number` 一一对应；工作集条目，GitHub 关闭后归档进该目录 README 并删除文件 | `code-scanning/`        |
 
 `stories/` 子目录与编号段：
 
@@ -38,7 +38,7 @@
 
 - 用户故事：`US-XXX-description.md`
 - 史诗：`epic-XXX-name.md`
-- review：`RV-XXX-描述.md`
+- review：`reviews/<projectKey>/RV-<uuid>.md`；按项目分目录，一个问题一个文件，旧 ID 继续有效。
 - code-scanning：`CS-XXX-*.md`（编号与 GitHub 告警 number 对应）
 
 **不使用** `US-XXXa` / `US-XXXb` 这类字母后缀文件；大故事在文件内分「交付阶段」，见下文「大故事分阶段」。
@@ -50,7 +50,7 @@
 | 类型          | 状态集合                                                                                    |
 | ------------- | ------------------------------------------------------------------------------------------- |
 | story         | `Backlog` / `In Progress` / `In Review` / `Done` / `Blocked`                                |
-| review        | `Open` / `Resolved`                                                                         |
+| review        | `Open` / `Fixed` / `Resolved` / `Disputed` / `Dismissed` / `Accepted`                       |
 | code-scanning | `Open` / `Resolved` / `Dismissed`                                                           |
 | epic          | `Backlog` / `In Progress` / `Done`（frontmatter 另含 `startDate` / `targetDate` / `owner`） |
 
@@ -73,10 +73,19 @@ story 的 YAML `status` 是状态**唯一真相源**；`status-overview.md` 与�
 
 review 状态含义：
 
-| 状态       | 含义                |
-| ---------- | ------------------- |
-| `Open`     | 已发现，待修复      |
-| `Resolved` | PR 已合并，修复落地 |
+| 状态        | 含义                                                         |
+| ----------- | ------------------------------------------------------------ |
+| `Open`      | 有证据的问题，待修复或待重新核对                             |
+| `Fixed`     | 已有明确修复快照，待最终复核；验证缺口必须记录               |
+| `Resolved`  | 修复在本记录的分支和快照上复核有效，必要验证已通过           |
+| `Disputed`  | 已提出有证据的异议，等待复核或裁决                           |
+| `Dismissed` | 复核确认不构成所述问题，保留反证                             |
+| `Accepted`  | 问题成立，维护者明确决定接受风险或延期，保留决定与再评估条件 |
+
+review 的 YAML `status` 是问题状态事实源，正文追加发现、修复、复核与异议事件，并记录每次实际执行的模型或维护者。
+问题只在有证据时建文件；关闭后保留修复或不修结论，不创建无问题报告。`Resolved` 不自动代表已经合入 main。
+同一问题在不同分支分别记录、关联 ID；单问题处理不推进整项目评审检查点。目录与事件格式见 [评审规则](reviews/README.md)。
+评审处理事件属于问题证据，可以在记录中保留；下文需求正文的过程叙述清理规则不要求删除这些证据。
 
 code-scanning 状态含义（GitHub 是真相源，本地文件是镜像）：
 
