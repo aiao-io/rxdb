@@ -457,3 +457,13 @@ test(
     assert.match(unknown.stderr, /^ai-review: 未知项目 nope/);
   })
 );
+
+test('Claude Code 入口与 Codex skill 的 name、description 一致', () => {
+  const frontmatter = file => {
+    const block = readFileSync(path.join(workspaceRoot, file), 'utf8').split('---')[1];
+    return ['name', 'description'].map(key => new RegExp(`^${key}: (.*)$`, 'm').exec(block)?.[1]);
+  };
+  const codex = frontmatter('.agents/skills/ai-code-review/SKILL.md');
+  assert.ok(codex.every(Boolean));
+  assert.deepEqual(frontmatter('.claude/skills/ai-code-review/SKILL.md'), codex);
+});
