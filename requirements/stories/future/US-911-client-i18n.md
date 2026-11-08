@@ -1,11 +1,11 @@
 ---
 id: US-911
 title: 客户端国际化 / 本地化（UI 文案与 locale 状态）
-status: In Review
+status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-10-12
-updated: 2026-10-28
+updated: 2026-11-08
 tags: [i18n, rxdb-model, tri-framework, plugin]
 ---
 
@@ -232,3 +232,4 @@ NX_DAEMON=false pnpm nx affected -t lint typecheck test test-memory test-browser
 - 外部：[FormatJS intl-messageformat](https://formatjs.github.io/docs/intl-messageformat)、
   [TC39 proposal-intl-messageformat](https://github.com/tc39/proposal-intl-messageformat)
 - [Epic: 未来功能](../../epics/epic-004-future-features.md)
+- [PR #176](https://github.com/aiao-io/rxdb/pull/176)
