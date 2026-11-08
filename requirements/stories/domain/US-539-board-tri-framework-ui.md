@@ -1,11 +1,11 @@
 ---
 id: US-539
 title: 三框架看板视图与交互
-status: In Review
+status: Done
 priority: Low
 epic: epic-011-task-board-domain-model
 created: 2026-10-19
-updated: 2026-10-29
+updated: 2026-11-08
 tags: [domain, board, angular, react, vue, ui]
 ---
 
@@ -249,3 +249,4 @@ RxDB 实例，它的历史不包含宿主其他页面的写入。
 - [US-522 BOM 三框架 UI](US-522-bom-tri-framework-ui.md) — 领域三框架绑定的同型故事
 - [GitHub Projects 文档](https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects) — 交互参照：卡片内联编辑、列头菜单、键盘操作
 - [roadmap 零散收尾项](../../roadmap.md#零散收尾项不成故事随手可带) — T049 / T050 对拍口径
+- [PR #139](https://github.com/aiao-io/rxdb/pull/139)

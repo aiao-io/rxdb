@@ -18,4 +18,4 @@
 - 线上正式环境为 aiao-rxdb-p2p.aiao.workers.dev，当前版本 aa0962b2（源 6f1dfcbf，2026-11-05 发布），8/8 线上验收通过；发布配方与回滚点见[验收记录](verification-report.md)。
 - US-713 管理后台：管理接口、信令踢下线与管理页已在隔离 Supabase 栈与真 Worker 上验收 AC#1～#10；AC#11 待首次 CI 运行确认；上线需的 secret 与 SQL 尚未在正式环境执行。
 - 测试账号待清理；桌面端（Electron）与 US-707 阶段 B 尚未开工。
-- 回退内容加密（[POOL-US-101](stories/ops/POOL-US-101-fallback-content-encryption.md)）与速率限制/举报（[POOL-US-102](stories/ops/POOL-US-102-rate-limit-report-invite.md)）已在 `claude/p2p-product-reqs` 分支实现并验收（PR #196）：101 除 AC6 的浏览器断点续传交互与阶段 D 正式环境复验外全部关闭；102 的 9 条 AC 全部关闭（三组 e2e + 单元证据）。
+- 回退内容加密（[POOL-US-101](stories/ops/POOL-US-101-fallback-content-encryption.md)）与速率限制/举报（[POOL-US-102](stories/ops/POOL-US-102-rate-limit-report-invite.md)）已实现并合入（PR #196）：101 剩 AC5（只有单元证据）、AC6 的浏览器断点续传交互与阶段 D 正式环境复验；102 剩 AC9（只有单元证据）。

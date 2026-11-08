@@ -1,11 +1,11 @@
 ---
 id: US-032
 title: 跨 Tab 增量 UPDATE 的活查询刷新
-status: In Review
+status: Done
 priority: High
 epic: epic-004-future-features
 created: 2026-10-28
-updated: 2026-10-29
+updated: 2026-11-08
 tags: [core, reactive-query, cross-tab, bug]
 ---
 
@@ -104,3 +104,4 @@ tags: [core, reactive-query, cross-tab, bug]
 - [响应式查询](US-006-reactive-queries.md)
 - [跨 Tab 同步](US-009-cross-tab-sync.md)
 - [未来功能 Epic](../../epics/epic-004-future-features.md)
+- [PR #167](https://github.com/aiao-io/rxdb/pull/167)

@@ -1,11 +1,11 @@
 ---
 id: US-223
 title: Supabase 直写路径的 UPDATE 落库语义
-status: In Review
+status: Done
 priority: High
 epic: epic-004-future-features
 created: 2026-10-27
-updated: 2026-10-29
+updated: 2026-11-08
 tags: [adapter, supabase, rls, mutations]
 ---
 
@@ -105,7 +105,7 @@ const upserts = [
 
 ## 验证记录
 
-验证日期：2026-10-28，评审修复复验 2026-10-29。AC#1～7 全部通过，待评审；尚未合并，不标 Done。
+验证日期：2026-10-28，评审修复复验 2026-10-29。AC#1～7 全部通过，实现见 [PR #170](https://github.com/aiao-io/rxdb/pull/170)。
 
 - 先写失败回归，再实现并转绿：直写载荷不再混入 upsert，owner / 共享编辑 RLS 正向修改、拒绝与已删除错误、整批回滚、`mutations()` 返回服务器最终行均有覆盖。列级 SELECT 权限回归同时验证原计数 UPDATE 不要求读取无关列。
 - 与 US-224 共同完成完整 affected 门禁：49 项任务、4 个受影响项目、36 项依赖任务全部通过。
