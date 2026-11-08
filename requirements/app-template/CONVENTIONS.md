@@ -6,12 +6,12 @@
 
 应用内四类带编号的文档沿用根的四类结构，id 前缀加上应用短前缀 `<APP>`（如 `MEDIA`）：
 
-| 类型           | id 前缀          | 编号段 / 规则                                                                              | 目录                |
-| -------------- | ---------------- | ------------------------------------------------------------------------------------------ | ------------------- |
-| 用户故事 story | `<APP>-US-XXX`   | 按领域分段（见下）                                                                         | `stories/<domain>/` |
-| 史诗 epic      | `<APP>-EPIC-XXX` | 递增，与 `epics/*.md` 文件名一致                                                           | `epics/`            |
-| review 记录    | `RV-XXX`         | `RV-001` 起递增，不与 `US` / `CS` 混用                                                     | `reviews/`          |
-| code-scanning  | `CS-XXX`         | 与 GitHub code scanning 告警 `number` 一一对应；工作集条目，关闭后归档进 README 并删除文件 | `code-scanning/`    |
+| 类型           | id 前缀          | 编号段 / 规则                                                                              | 目录                                        |
+| -------------- | ---------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------- |
+| 用户故事 story | `<APP>-US-XXX`   | 按领域分段（见下）                                                                         | `stories/<domain>/`                         |
+| 史诗 epic      | `<APP>-EPIC-XXX` | 递增，与 `epics/*.md` 文件名一致                                                           | `epics/`                                    |
+| review 记录    | `RV-<uuid>`      | 沿用根规范，新代码问题按真实项目名归档；旧 ID 保留                                         | 仓库根 `requirements/reviews/<projectKey>/` |
+| code-scanning  | `CS-XXX`         | 与 GitHub code scanning 告警 `number` 一一对应；工作集条目，关闭后归档进 README 并删除文件 | `code-scanning/`                            |
 
 `stories/` 子目录按应用自己的领域划分，每个领域分配一段 100 个编号（`001~099`、`101~199`……），新增故事按目录就近取未占用编号，不强制重排。Aiao Media 的划分是示例：`platform/` MEDIA-US-001~099、`generation/` MEDIA-US-101~199、`account/` MEDIA-US-201~299、`local-first/` MEDIA-US-301~399。
 
@@ -19,7 +19,7 @@
 
 - 用户故事：`<APP>-US-XXX-description.md`
 - 史诗：`<APP>-EPIC-XXX.md`
-- review：`RV-XXX-描述.md`
+- review：新代码问题统一写仓库根 `requirements/reviews/<projectKey>/RV-<uuid>.md`；现有应用内旧记录按原 ID 处理，关闭后保留处置。
 - code-scanning：`CS-XXX-*.md`（编号与 GitHub 告警 number 对应）
 
 其余与根一致：不用字母后缀文件（大故事文件内分「交付阶段」）；辅助文件与所属 story 同目录、无 frontmatter、不进状态统计；计划与验收记录放 `plans/`，不参与状态统计。

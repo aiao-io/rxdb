@@ -37,26 +37,27 @@ Aiao Pool 的桌面端、跨网中继、扩展渠道与商业化的产品方向�
 
 ## 目录结构
 
-一个问题一个文件。查什么去哪里：
+按主题组织文档；评审问题按项目分目录，一个问题一个文件。查什么去哪里：
 
-| 文件                                          | 回答的问题                                                                 |
-| --------------------------------------------- | -------------------------------------------------------------------------- |
-| [status-overview.md](status-overview.md)      | 每条故事**现在是什么状态**、哪些在做、哪些卡住                             |
-| [roadmap.md](roadmap.md)                      | **接下来做什么**、什么必须排在什么前面                                     |
-| [capability-matrix.md](capability-matrix.md)  | 仓库**现在能做什么**、哪些组合还不支持                                     |
-| [release-plan.md](release-plan.md)            | **下一次发布**要做什么、桥接版本卡在哪                                     |
-| [vision.md](vision.md)                        | 1.0 之后的长期方向（不是排期、不是承诺）                                   |
-| [teable-research.md](teable-research.md)      | Teable 功能借鉴：价值排序、最小范围、验收场景与后续待决事项                |
-| [versioning-policy.md](versioning-policy.md)  | 什么算公开 API、什么改动算破坏性                                           |
-| [zh-glossary.md](zh-glossary.md)              | 中文注释 / TSDoc 词汇规约（哪些词保留、哪些要改）                          |
-| [code-scanning/](code-scanning/README.md)     | GitHub CodeQL 告警工作集（open 才留文件，关闭即归档删除）                  |
-| `migration-release.json`                      | 当前发布的迁移清单（门禁读它）                                             |
-| `epics/`                                      | 史诗目标与阶段划分                                                         |
-| `stories/`                                    | 按领域拆分的用户故事（**状态真相源**，含 `story.template.md`）             |
-| `api-baseline/`                               | 各包公开 API 表面基线（由门禁生成与校验）                                  |
-| `reviews/`                                    | review 模板与尚未处理的问题报告（修复后删除，留清理记录）                  |
-| [domain-research/](domain-research/README.md) | 候选领域研究区：领域想法在成为用户故事之前的家（不是故事、不参与状态统计） |
-| `CONVENTIONS.md`                              | 命名 / 状态 / 写作规范（单一真相源）                                       |
+| 文件                                                           | 回答的问题                                                                 |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| [status-overview.md](status-overview.md)                       | 每条故事**现在是什么状态**、哪些在做、哪些卡住                             |
+| [roadmap.md](roadmap.md)                                       | **接下来做什么**、什么必须排在什么前面                                     |
+| [capability-matrix.md](capability-matrix.md)                   | 仓库**现在能做什么**、哪些组合还不支持                                     |
+| [release-plan.md](release-plan.md)                             | **下一次发布**要做什么、桥接版本卡在哪                                     |
+| [vision.md](vision.md)                                         | 1.0 之后的长期方向（不是排期、不是承诺）                                   |
+| [teable-research.md](teable-research.md)                       | Teable 功能借鉴：价值排序、最小范围、验收场景与后续待决事项                |
+| [incremental-ai-code-review.md](incremental-ai-code-review.md) | 全量/增量、分支/项目评审与单问题处理，多模型交接和持久记录                 |
+| [versioning-policy.md](versioning-policy.md)                   | 什么算公开 API、什么改动算破坏性                                           |
+| [zh-glossary.md](zh-glossary.md)                               | 中文注释 / TSDoc 词汇规约（哪些词保留、哪些要改）                          |
+| [code-scanning/](code-scanning/README.md)                      | GitHub CodeQL 告警工作集（open 才留文件，关闭即归档删除）                  |
+| `migration-release.json`                                       | 当前发布的迁移清单（门禁读它）                                             |
+| `epics/`                                                       | 史诗目标与阶段划分                                                         |
+| `stories/`                                                     | 按领域拆分的用户故事（**状态真相源**，含 `story.template.md`）             |
+| `api-baseline/`                                                | 各包公开 API 表面基线（由门禁生成与校验）                                  |
+| `reviews/`                                                     | 按项目保存问题，持续记录修复、复核、异议与不修结论                         |
+| [domain-research/](domain-research/README.md)                  | 候选领域研究区：领域想法在成为用户故事之前的家（不是故事、不参与状态统计） |
+| `CONVENTIONS.md`                                               | 命名 / 状态 / 写作规范（单一真相源）                                       |
 
 `stories/` 子目录与编号段见 [CONVENTIONS.md](CONVENTIONS.md#文档类型与编号段)（唯一真相源，不在此重复）。
 
