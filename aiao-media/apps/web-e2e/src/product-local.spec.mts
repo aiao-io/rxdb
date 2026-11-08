@@ -212,6 +212,26 @@ test('主站不公开后台入口，后台路径不回落到主站页面', async
   }
 });
 
+
+async function editDraft(page: Page, text: string) {
+  const editor = page.locator('[contenteditable=true]');
+  await editor.click();
+  await editor.press('ControlOrMeta+A');
+  await editor.pressSequentially(text);
+  const preview = page.getByLabel('最终提示词预览', { exact: true });
+  if (!(await preview.isVisible())) await page.getByRole('button', { name: '预览最终提示词', exact: true }).click();
+  await expect(preview).toHaveText(text);
+  await expect(page.getByTestId('prompt-count')).toHaveText(`${text.length} / 2000`);
+  await expect(page.getByText('输入已保存到本机', { exact: true })).toBeVisible();
+}
+async function enableReplica(page: Page, user: { email: string; password: string }) {
+  await signIn(page, user);
+  await page.getByRole('button', { name: '启用同步', exact: true }).click();
+  await page.getByRole('button', { name: '确认并启用同步' }).click();
+  await expect(page.getByLabel('工作区同步').getByText('同步已确认', { exact: false })).toBeVisible({ timeout: 25000 });
+  await expect(page.getByRole('button', { name: '立即同步', exact: true })).toBeEnabled();
+}
+
 test('离线多次编辑与重开可推送，修改冲突和删除冲突保留双方，明确采用删除后不复活', async ({
   page,
   browser,
