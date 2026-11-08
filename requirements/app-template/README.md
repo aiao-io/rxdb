@@ -24,7 +24,7 @@
 | `verification-report.md` | 哪些证据来自本地/模拟，哪些仍需真实环境（分层验收台账）        |
 | `future-requirements.md` | 未来产品做什么、目录如何演进、范围与验收边界                   |
 | `plans/`                 | 实施计划、验收记录与历史归档（不是 story，不参与状态统计）     |
-| `reviews/`               | 评审模板与旧记录入口；新代码问题按项目归仓库根并保留处置结果   |
+| `reviews/`               | 应用旧记录入口；新问题写仓库根 `requirements/reviews/`         |
 | `code-scanning/`         | GitHub CodeQL 告警工作集（open 才留文件，关闭即归档删除）      |
 
 ## 怎么管
