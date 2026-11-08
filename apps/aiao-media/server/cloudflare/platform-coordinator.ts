@@ -32,6 +32,15 @@ type PlatformJobRow = {
   started_at: number | null;
   payload: string;
 };
+type PlatformLedgerEntry = { reference: string; action: string; amount: number; created_at: number };
+type PlatformAuditRow = {
+  id: number;
+  actor: string;
+  action: string;
+  target: string;
+  detail: string;
+  created_at: number;
+};
 type PlatformOrderRow = { id: string; owner: string; request_id: string; payload: string; paid: number };
 type OrderPayload = CreditPack & { paymentIntent?: string | null; refund?: { requestId: string; status: string } };
 type PaymentReceipt = { amount: number; currency: string; paid: boolean; paymentIntent?: string };
@@ -114,7 +123,7 @@ export class PlatformCoordinator {
     ])
       this.sql.exec(query);
   }
-  rows<Row extends Record<string, SqlStorageValue> = PlatformJobRow>(query: string, ...args: SqlStorageValue[]): Row[] {
+  rows<Row extends Record<string, SqlStorageValue>>(query: string, ...args: SqlStorageValue[]): Row[] {
     return [...this.sql.exec<Row>(query, ...args)];
   }
   atomic<T>(operation: () => T): T {
@@ -142,7 +151,7 @@ export class PlatformCoordinator {
       ...policy,
       models: models(this.env).map(m => ({ id: m.id, name: m.name ?? m.id, credits: m.credits, sizes })),
       pack:
-        this.env.MEDIA_CREDIT_PACK || this.rows('SELECT id FROM platform_policy WHERE id=2').length ?
+        this.env.MEDIA_CREDIT_PACK || this.rows<{ id: number }>('SELECT id FROM platform_policy WHERE id=2').length ?
           this.pack()
         : null,
       fairness: '按接单顺序处理，免费与付费同序；未知结果保留预占，核对后结算。'
@@ -159,7 +168,7 @@ export class PlatformCoordinator {
             ?.used ?? 0)
       ),
       freeReset: '每日 UTC 00:00',
-      ledger: this.rows(
+      ledger: this.rows<PlatformLedgerEntry>(
         'SELECT reference,action,amount,created_at FROM platform_ledger WHERE owner=? ORDER BY id DESC LIMIT 100',
         owner
       )
@@ -214,7 +223,7 @@ export class PlatformCoordinator {
     const fingerprint = await hash(JSON.stringify([value.model, value.prompt, value.size, value.billing]));
     await this.ctx.storage.setAlarm(Date.now() + 1000);
     return this.atomic(() => {
-      const previous = this.rows(
+      const previous = this.rows<PlatformJobRow>(
         'SELECT * FROM platform_jobs WHERE owner=? AND request_id=?',
         owner,
         value.requestId
@@ -305,7 +314,7 @@ export class PlatformCoordinator {
     };
   }
   owned(owner: string, id: string) {
-    const row = this.rows('SELECT * FROM platform_jobs WHERE id=? AND owner=?', id, owner)[0];
+    const row = this.rows<PlatformJobRow>('SELECT * FROM platform_jobs WHERE id=? AND owner=?', id, owner)[0];
     if (!row) reject(404, '任务不存在。');
     return row;
   }
@@ -313,9 +322,10 @@ export class PlatformCoordinator {
     return this.publicJob(this.owned(owner, id));
   }
   jobs(owner: string) {
-    return this.rows('SELECT * FROM platform_jobs WHERE owner=? ORDER BY created_at DESC,id DESC LIMIT 100', owner).map(
-      row => this.publicJob(row)
-    );
+    return this.rows<PlatformJobRow>(
+      'SELECT * FROM platform_jobs WHERE owner=? ORDER BY created_at DESC,id DESC LIMIT 100',
+      owner
+    ).map(row => this.publicJob(row));
   }
   release(row: PlatformJobRow, status: string) {
     const p = JSON.parse(row.payload) as PlatformJobPayload;
@@ -346,7 +356,7 @@ export class PlatformCoordinator {
   }
   resolve(actor: string, id: string, outcome: string, note: unknown) {
     return this.atomic(() => {
-      const row = this.rows('SELECT * FROM platform_jobs WHERE id=?', id)[0];
+      const row = this.rows<PlatformJobRow>('SELECT * FROM platform_jobs WHERE id=?', id)[0];
       if (!row) reject(404, '任务不存在。');
       if (row.status === 'failed' && outcome === 'failed') return this.publicJob(row);
       if (
@@ -564,7 +574,7 @@ export class PlatformCoordinator {
     }
   }
   async recover(actor: string, id: string, note: unknown) {
-    const row = this.rows('SELECT * FROM platform_jobs WHERE id=?', id)[0];
+    const row = this.rows<PlatformJobRow>('SELECT * FROM platform_jobs WHERE id=?', id)[0];
     if (
       !row ||
       row.status !== 'needs_review' ||
@@ -607,7 +617,7 @@ export class PlatformCoordinator {
     const claimed = this.atomic(() => {
       const running = this.rows<{ n: number }>("SELECT count(*) AS n FROM platform_jobs WHERE status='generating'")[0]
         .n;
-      const jobs = this.rows(
+      const jobs = this.rows<PlatformJobRow>(
         "SELECT * FROM platform_jobs WHERE status='queued' ORDER BY created_at,id LIMIT ?",
         Math.max(0, this.policy().concurrency - running)
       );
@@ -651,14 +661,20 @@ export class PlatformCoordinator {
       if (url.pathname === '/admin' && request.method === 'GET')
         return {
           policy: this.policy(),
-          jobs: this.rows('SELECT * FROM platform_jobs ORDER BY created_at DESC LIMIT 100').map(row => ({
-            ...this.publicJob(row, false),
-            owner: row.owner
-          })),
-          audit: this.rows('SELECT * FROM platform_audit ORDER BY id DESC LIMIT 100'),
-          budget: this.rows('SELECT * FROM platform_budget ORDER BY day DESC LIMIT 30'),
-          ledger: this.rows('SELECT * FROM platform_ledger ORDER BY id DESC LIMIT 100'),
-          orders: this.rows('SELECT id,owner,paid,payload FROM platform_orders ORDER BY rowid DESC LIMIT 100')
+          jobs: this.rows<PlatformJobRow>('SELECT * FROM platform_jobs ORDER BY created_at DESC LIMIT 100').map(
+            row => ({
+              ...this.publicJob(row, false),
+              owner: row.owner
+            })
+          ),
+          audit: this.rows<PlatformAuditRow>('SELECT * FROM platform_audit ORDER BY id DESC LIMIT 100'),
+          budget: this.rows<{ day: string; used: number }>('SELECT * FROM platform_budget ORDER BY day DESC LIMIT 30'),
+          ledger: this.rows<PlatformLedgerEntry & { id: number; owner: string }>(
+            'SELECT * FROM platform_ledger ORDER BY id DESC LIMIT 100'
+          ),
+          orders: this.rows<Pick<PlatformOrderRow, 'id' | 'owner' | 'paid' | 'payload'>>(
+            'SELECT id,owner,paid,payload FROM platform_orders ORDER BY rowid DESC LIMIT 100'
+          )
         };
       if (url.pathname === '/admin/policy') {
         const p = await body<{ policy: unknown; note: unknown }>(request, 4096);

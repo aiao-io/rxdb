@@ -54,8 +54,8 @@ tags: [product-completion]
 
 ## 实现文件
 
-- [platform-api.mjs](../../../server/cloudflare/platform-api.ts)
-- [platform-coordinator.mjs](../../../server/cloudflare/platform-coordinator.ts)
+- [platform-api.ts](../../../server/cloudflare/platform-api.ts)
+- [platform-coordinator.ts](../../../server/cloudflare/platform-coordinator.ts)
 
 ## References
 
