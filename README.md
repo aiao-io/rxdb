@@ -41,11 +41,7 @@ RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层，提供 SQL 存
 | 运行时 | 浏览器 (OPFS/IDB) + Node 26+ + Electron + Tauri               |
 
 > [!NOTE]
-<<<<<<< Updated upstream
-> ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.aiao.io/docs/migration/)。当前交付状态 [96/139 已交付](requirements/status-overview.md)
-=======
 > ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.aiao.io/docs/migration/)。需求交付状态以[状态概览](requirements/status-overview.md)与各 story 的 YAML 为准。
->>>>>>> Stashed changes
 
 支持与反馈：可复现的 bug 请提交 [Bug Issue](https://github.com/aiao-io/rxdb/issues/new?template=bug_report.yml)，功能建议提交 [Feature Issue](https://github.com/aiao-io/rxdb/issues/new?template=feature_request.yml)，使用问题请提交 [Question Issue](https://github.com/aiao-io/rxdb/issues/new?template=question.yml)。
 
