@@ -1,15 +1,21 @@
-import type { WorkerEnv } from './worker-env.ts';
 import { imageGenerationRequest, isMiniMaxImageProvider } from '../../src/contracts/image-provider-protocol.ts';
 import { handleAdmin } from './admin-api.ts';
 import { publishedTemplates, runtimePolicy } from './product-content.ts';
 import { endpoint } from './product-http.ts';
 import { base, json, relayInput } from './relay-input.ts';
 import { handleRelayTask } from './relay-task-api.ts';
+import type { WorkerEnv } from './worker-env.ts';
+
 export { PlatformCoordinator } from './platform-coordinator.ts';
 export { RelayTask } from './relay-task.ts';
 // Optional relay: stateless /api/relay for installed older pages, durable /api/relay/tasks for the current app.
 // Static assets are served by the ASSETS binding.
-async function probeProvider(url: string, init: RequestInit = {}) {
+type ProviderProbe = { elapsedMs: number } & (
+  | { ok: true; status: number; contentType: string | null; allowOrigin: string | null }
+  | { ok: false; error: string; detail: string }
+);
+
+async function probeProvider(url: string, init: RequestInit = {}): Promise<ProviderProbe> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 10_000);
   const started = Date.now();
@@ -161,7 +167,11 @@ const upstreamStatus = (status: number) => ([400, 401, 403, 404, 413, 422, 429].
 // Image generation can take tens of seconds. Keep a slow upstream response alive
 // after the edge has committed the response headers. Whitespace is valid JSON and
 // is ignored by JSON.parse once the final provider payload arrives.
-function lateRelayResponse(responsePromise: Promise<Response>, upstreamController: AbortController, cleanup: () => void) {
+function lateRelayResponse(
+  responsePromise: Promise<Response>,
+  upstreamController: AbortController,
+  cleanup: () => void
+) {
   return new Response(
     new ReadableStream({
       async start(stream) {
@@ -291,7 +301,9 @@ const worker = {
         body: JSON.stringify(imageRequest.body)
       });
       const early = await Promise.race([
-        responsePromise.then(response => ({ kind: 'response' as const, response })).catch(error => ({ kind: 'error' as const, error })),
+        responsePromise
+          .then(response => ({ kind: 'response' as const, response }))
+          .catch(error => ({ kind: 'error' as const, error })),
         new Promise<{ kind: 'pending' }>(resolve => setTimeout(() => resolve({ kind: 'pending' }), 250))
       ]);
       if (early.kind === 'pending') {
@@ -382,4 +394,4 @@ export default {
     headers.set('vary', 'Origin');
     return new Response(result.body, { status: result.status, headers });
   }
-};
+} satisfies ExportedHandler<WorkerEnv>;

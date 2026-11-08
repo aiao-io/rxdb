@@ -11,6 +11,7 @@ export interface BackendOptions {
 /** 产品后端的泛型 JSON 调用契约。 */
 export type BackendClient = ReturnType<typeof backend>;
 
+/** 携带可公开状态码和提示的产品接口错误。 */
 export class ProductApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -18,8 +19,10 @@ export class ProductApiError extends Error {
     this.status = status;
   }
 }
+/** 判断外部标识是否为受支持的 UUID。 */
 export const uuid = (value: unknown): value is string =>
   typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+/** 生成禁止缓存的产品接口 JSON 响应。 */
 export const response = (data: unknown, status = 200) =>
   Response.json(data, {
     status,
@@ -29,9 +32,11 @@ export const response = (data: unknown, status = 200) =>
       'x-content-type-options': 'nosniff'
     }
   });
+/** 中断当前操作并返回可公开的接口错误。 */
 export function reject(status: number, message: string): never {
   throw new ProductApiError(status, message);
 }
+/** 统一包装接口结果并隐藏内部异常。 */
 export async function endpoint(operation: () => unknown) {
   try {
     return response(await operation());
@@ -42,6 +47,7 @@ export async function endpoint(operation: () => unknown) {
     );
   }
 }
+/** 判断请求是否来自同源页面或已启用的桌面端。 */
 export function originAllowed(request: Request, env: WorkerEnv = {}) {
   const origin = request.headers.get('origin');
   return (
@@ -49,9 +55,11 @@ export function originAllowed(request: Request, env: WorkerEnv = {}) {
     (env.MEDIA_ALLOW_DESKTOP_ORIGIN === 'true' && origin === 'tauri://localhost')
   );
 }
+/** 限制写请求的来源。 */
 export function sameOriginWrite(request: Request, env: WorkerEnv = {}) {
   if (!['GET', 'HEAD'].includes(request.method) && !originAllowed(request, env)) reject(403, '仅允许同源操作。');
 }
+/** 检查对象及字段白名单；具体字段值由调用方校验。 */
 export function fields<T extends object = Record<string, unknown>>(value: unknown, allowed: readonly string[]): T {
   if (
     !value ||
@@ -88,6 +96,7 @@ export async function bounded(result: Response, max: number) {
   }
   return bytes;
 }
+/** 有界读取 JSON 请求，内容结构由调用方校验。 */
 export async function body<T = Record<string, unknown>>(request: Request, limit = 262144): Promise<T> {
   if (!request.headers.get('content-type')?.startsWith('application/json')) reject(400, '需要 JSON 请求。');
   const reader = request.body?.getReader();
@@ -116,10 +125,11 @@ export async function body<T = Record<string, unknown>>(request: Request, limit 
     return reject(400, 'JSON 无效。');
   }
 }
+/** 创建只向已配置产品后端发起请求的客户端。 */
 export function backend(env: WorkerEnv) {
   let origin;
   try {
-    const url = new URL(env.MEDIA_SUPABASE_URL ?? '');
+    const url = new URL(env.MEDIA_SUPABASE_URL!);
     if (
       url.href !== `${url.origin}/` ||
       url.username ||
@@ -136,7 +146,10 @@ export function backend(env: WorkerEnv) {
   }
   if (!env.MEDIA_SUPABASE_ANON_KEY) reject(503, '产品服务未配置。');
   return {
-    async call<T = unknown>(path: string, { method = 'GET', payload, token, privileged = true }: BackendOptions = {}): Promise<T> {
+    async call<T = unknown>(
+      path: string,
+      { method = 'GET', payload, token, privileged = true }: BackendOptions = {}
+    ): Promise<T> {
       const key = privileged ? env.MEDIA_SUPABASE_SERVICE_ROLE_KEY : env.MEDIA_SUPABASE_ANON_KEY;
       if (!key) reject(503, '管理服务未配置。');
       const result = await fetch(`${origin}${path}`, {
@@ -162,6 +175,7 @@ export function backend(env: WorkerEnv) {
     }
   };
 }
+/** 验证账号会话与当前管理员权限。 */
 export async function administrator(request: Request, env: WorkerEnv) {
   sameOriginWrite(request, env);
   const token = /^Bearer ([A-Za-z0-9._~-]+)$/.exec(request.headers.get('authorization') ?? '')?.[1];

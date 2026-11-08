@@ -1,5 +1,6 @@
 /** Worker 入口使用的 Cloudflare 绑定与服务配置。 */
 export interface WorkerEnv {
+  [secret: string]: unknown;
   ASSETS?: Fetcher;
   MEDIA_PLATFORM?: DurableObjectNamespace;
   RELAY_TASKS?: DurableObjectNamespace;
@@ -16,7 +17,6 @@ export interface WorkerEnv {
   MEDIA_PLATFORM_FREE_DAILY?: string;
   MEDIA_PLATFORM_DAILY_BUDGET_MICROS?: string;
   MEDIA_CREDIT_PACK?: string;
-  [secret: string]: unknown;
 }
 
 /** 持久对象使用的同步 SQL 接口，允许本地 SQLite 提供同一契约。 */

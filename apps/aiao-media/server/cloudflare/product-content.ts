@@ -1,8 +1,9 @@
-import type { BackendClient } from './product-http.ts';
-import type { WorkerEnv } from './worker-env.ts';
 import { validateProviderPolicy, validatePublishedTemplate } from '../../src/contracts/product-data.mjs';
+import type { BackendClient } from './product-http.ts';
 import { backend, body, fields, reject, uuid } from './product-http.ts';
+import type { WorkerEnv } from './worker-env.ts';
 
+/** 按内容类型校验模板或供应商运行策略。 */
 export function validateContent(kind: string, payload: unknown) {
   try {
     return kind === 'template' ? validatePublishedTemplate(payload) : validateProviderPolicy(payload);
@@ -10,6 +11,7 @@ export function validateContent(kind: string, payload: unknown) {
     return reject(400, '内容校验失败；未保存或发布。');
   }
 }
+/** 执行带修订号和幂等标识的内容管理操作。 */
 export async function manageContent(request: Request, client: BackendClient, actorId: string, path: string) {
   const match = /^content\/(template|provider-policy)\/([a-z][a-z0-9-]{0,59})(?:\/(publish|withdraw))?$/.exec(path);
   if (!match) reject(404, '内容管理接口不存在。');
@@ -53,6 +55,7 @@ export async function manageContent(request: Request, client: BackendClient, act
       : 'draft'
   };
 }
+/** 读取已发布的供应商运行策略及修订号。 */
 export async function runtimePolicy(env: WorkerEnv) {
   if (!env.MEDIA_SUPABASE_URL) return null;
   const rows = await backend(env).call<{ payload: unknown; revision: number }[]>(
@@ -62,6 +65,7 @@ export async function runtimePolicy(env: WorkerEnv) {
   if (!Array.isArray(rows) || rows.length > 1) reject(502, '运行策略不可读。');
   return rows.length ? { ...validateProviderPolicy(rows[0].payload), revision: rows[0].revision } : null;
 }
+/** 读取并校验已发布模板。 */
 export async function publishedTemplates(env: WorkerEnv) {
   if (!env.MEDIA_SUPABASE_URL) return { templates: [] };
   const rows = await backend(env).call<{ payload: unknown; revision: number }[]>(

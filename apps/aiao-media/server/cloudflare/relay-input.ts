@@ -1,10 +1,9 @@
-import type { WorkerEnv } from './worker-env.ts';
-
-type ImageInput = { model: string; prompt: string; size: string; n: number };
-
 import { imageGenerationRequest } from '../../src/contracts/image-provider-protocol.ts';
 import { runtimePolicy } from './product-content.ts';
 import { originAllowed } from './product-http.ts';
+import type { WorkerEnv } from './worker-env.ts';
+
+type ImageInput = { model: string; prompt: string; size: string; n: number };
 
 /** 代理接口的错误响应：不缓存、不带 referrer。 */
 export const json = (status: number, error: string) =>

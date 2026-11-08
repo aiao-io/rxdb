@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
-import { DatabaseSync } from 'node:sqlite';
+import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 import { test } from 'node:test';
 import { PlatformCoordinator } from './platform-coordinator.ts';
+import type { WorkerEnv, WorkerRequest } from './worker-env.ts';
 
 const owner = '11111111-1111-4111-8111-111111111111';
 const other = '22222222-2222-4222-8222-222222222222';
@@ -12,16 +13,21 @@ const input = () => ({
   size: '1024x1024',
   billing: 'free'
 });
-function setup(overrides = {}, request = async () => new Response('failure', { status: 500 })) {
+function setup(
+  overrides: Record<string, unknown> = {},
+  request: WorkerRequest = async () => new Response('failure', { status: 500 })
+) {
   const db = new DatabaseSync(':memory:');
   const storage = {
     sql: {
-      exec(query, ...params) {
+      exec<Row extends Record<string, SqlStorageValue>>(query: string, ...params: SqlStorageValue[]): Row[] {
         const stmt = db.prepare(query);
-        return stmt.columns().length ? stmt.all(...params) : (stmt.run(...params), []);
+        return stmt.columns().length ?
+            (stmt.all(...(params as SQLInputValue[])) as Row[])
+          : (stmt.run(...(params as SQLInputValue[])), []);
       }
     },
-    transactionSync(operation) {
+    transactionSync<T>(operation: () => T): T {
       db.exec('BEGIN');
       try {
         const result = operation();
@@ -58,7 +64,7 @@ function setup(overrides = {}, request = async () => new Response('failure', { s
     },
     ...overrides
   };
-  return { engine: new PlatformCoordinator({ storage }, env, request), db, storage, env };
+  return { engine: new PlatformCoordinator({ storage }, env as unknown as WorkerEnv, request), db, storage, env };
 }
 test('原子预占：并发第三笔免费请求被拒，重复提交返回原任务且参数不能变化', async () => {
   const { engine } = setup();
@@ -88,7 +94,7 @@ test('上游 5xx 结果未知，重启与重复 alarm 不会再次生图或释�
   });
   const job = await engine.submit(owner, input());
   await engine.alarm();
-  const restarted = new PlatformCoordinator({ storage }, env, async () => {
+  const restarted = new PlatformCoordinator({ storage }, env as unknown as WorkerEnv, async () => {
     calls++;
     throw new Error('unexpected');
   });
@@ -153,11 +159,11 @@ test('退款先冻结未消费积分，未知结果不释放；重复回执不�
 test('成功原图原样入 R2；响应不泄露供应商配置；重复任务不再调用上游', async () => {
   const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jV1kAAAAASUVORK5CYII=';
   let calls = 0,
-    stored;
+    stored: Uint8Array | undefined;
   const { engine } = setup(
     {
       MEDIA_RESULTS: {
-        async put(_id, bytes) {
+        async put(_id: string, bytes: Uint8Array) {
           stored = bytes;
         }
       }
@@ -166,7 +172,7 @@ test('成功原图原样入 R2；响应不泄露供应商配置；重复任务�
       calls++;
       assert.equal(url, 'https://api.example.com/v1/images/generations');
       assert.equal(init.redirect, 'manual');
-      assert.equal(init.headers.authorization, 'Bearer private-key');
+      assert.equal(new Headers(init.headers).get('authorization'), 'Bearer private-key');
       return Response.json({ data: [{ b64_json: png }] });
     }
   );
@@ -174,6 +180,7 @@ test('成功原图原样入 R2；响应不泄露供应商配置；重复任务�
   const job = await engine.submit(owner, params);
   await engine.alarm();
   assert.equal(engine.job(owner, job.id).status, 'completed');
+  assert.ok(stored);
   assert.deepEqual(Buffer.from(stored), Buffer.from(png, 'base64'));
   assert.ok(!JSON.stringify(engine.job(owner, job.id)).includes('private-key'));
   assert.ok(!JSON.stringify(engine.catalog()).includes('TEST_PROVIDER_KEY'));

@@ -1,12 +1,11 @@
-import type { WorkerEnv } from './worker-env.ts';
-
-type ForwardOperation = { path: string; method: string; write?: boolean; body?: string };
-
 import { isMiniMaxImageProvider } from '../../src/contracts/image-provider-protocol.ts';
 import { isRelayTaskToken, relayTaskTokenHeader } from '../../src/contracts/relay-task.ts';
 import { originAllowed, uuid } from './product-http.ts';
 import { json, relayInput } from './relay-input.ts';
 import { missingRelayTask, relayTaskLimits } from './relay-task.ts';
+import type { WorkerEnv } from './worker-env.ts';
+
+type ForwardOperation = { path: string; method: string; write?: boolean; body?: string };
 
 const route = /^\/api\/relay\/tasks\/([^/]+)(\/result|\/abandon)?$/;
 const seconds = (url: URL) =>

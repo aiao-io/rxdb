@@ -1,4 +1,11 @@
 import type { RelayTaskStatus } from '../../src/contracts/relay-task.ts';
+import {
+  relayResultKey,
+  relayTaskTokenHash,
+  relayTaskTokenHeader,
+  sealRelayResult
+} from '../../src/contracts/relay-task.ts';
+import { bounded } from './product-http.ts';
 import type { RelayTaskContext, WorkerEnv, WorkerRequest } from './worker-env.ts';
 
 type RelayTaskRow = {
@@ -10,14 +17,6 @@ type RelayTaskRow = {
   created_at: number;
   updated_at: number;
 };
-
-import {
-  relayResultKey,
-  relayTaskTokenHash,
-  relayTaskTokenHeader,
-  sealRelayResult
-} from '../../src/contracts/relay-task.ts';
-import { bounded } from './product-http.ts';
 
 /** 上游超时、看门狗、保留期、结果上限与长轮询上限。 */
 export const relayTaskLimits = {
@@ -52,7 +51,11 @@ export class RelayTask {
   env: WorkerEnv & { RELAY_RESULTS: R2Bucket };
   request: WorkerRequest;
   waiters: Set<() => void>;
-  constructor(ctx: RelayTaskContext, env: WorkerEnv & { RELAY_RESULTS: R2Bucket }, request: WorkerRequest = (url, init) => fetch(url, init)) {
+  constructor(
+    ctx: RelayTaskContext,
+    env: WorkerEnv & { RELAY_RESULTS: R2Bucket },
+    request: WorkerRequest = (url, init) => fetch(url, init)
+  ) {
     this.ctx = ctx;
     this.env = env;
     this.request = request;
@@ -136,7 +139,10 @@ export class RelayTask {
     return ['received', response.status];
   }
   async finish(pending: Promise<Response>, key: CryptoKey, taskId: string) {
-    const [status, upstreamStatus] = await this.answer(pending, key, taskId).catch((): [RelayTaskStatus, null] => ['needs_review', null]);
+    const [status, upstreamStatus] = await this.answer(pending, key, taskId).catch((): [RelayTaskStatus, null] => [
+      'needs_review',
+      null
+    ]);
     // If recording fails (for example after a reset), the row stays dispatched and the watchdog consults R2.
     await this.settle(status, upstreamStatus);
   }

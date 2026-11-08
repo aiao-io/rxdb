@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { handlePlatform, paymentEvent } from './platform-api.ts';
+import type { WorkerEnv } from './worker-env.ts';
 
-async function signed(payload, secret = 'webhook-secret', timestamp = Math.floor(Date.now() / 1000)) {
+async function signed(payload: unknown, secret = 'webhook-secret', timestamp = Math.floor(Date.now() / 1000)) {
   const raw = JSON.stringify(payload);
   const key = await crypto.subtle.importKey(
     'raw',
@@ -42,7 +43,7 @@ test('未登录和跨 origin 请求在进入任务协调器之前被拒绝', asy
         throw new Error('unexpected');
       }
     }
-  };
+  } as unknown as WorkerEnv;
   const unauthenticated = await handlePlatform(new Request('https://media.example.com/api/platform/jobs'), env);
   assert.equal(unauthenticated.status, 401);
   const crossOrigin = await handlePlatform(

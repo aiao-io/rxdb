@@ -1,4 +1,7 @@
 import type { ImageMimeType } from '../../src/contracts/image-format.ts';
+import { imageMetadata } from '../../src/contracts/image-format.ts';
+import { imageGenerationRequest, isMiniMaxImageProvider } from '../../src/contracts/image-provider-protocol.ts';
+import { body, bounded, endpoint, fields, reject, uuid } from './product-http.ts';
 import type { PlatformContext, WorkerEnv, WorkerRequest, WorkerSql } from './worker-env.ts';
 
 type PlatformModel = {
@@ -10,10 +13,25 @@ type PlatformModel = {
   credits: number;
   costMicros: number;
 };
-type PlatformPolicy = { enabled: boolean; concurrency: number; capacity: number; freeDaily: number; dailyBudgetMicros: number };
+type PlatformPolicy = {
+  enabled: boolean;
+  concurrency: number;
+  capacity: number;
+  freeDaily: number;
+  dailyBudgetMicros: number;
+};
 type CreditPack = { credits: number; amount: number; currency: string };
 type PlatformInput = { requestId: string; model: string; prompt: string; size: string; billing: 'free' | 'credits' };
-type PlatformJobRow = { id: string; owner: string; request_id: string; fingerprint: string; status: string; created_at: number; started_at: number | null; payload: string };
+type PlatformJobRow = {
+  id: string;
+  owner: string;
+  request_id: string;
+  fingerprint: string;
+  status: string;
+  created_at: number;
+  started_at: number | null;
+  payload: string;
+};
 type PlatformOrderRow = { id: string; owner: string; request_id: string; payload: string; paid: number };
 type OrderPayload = CreditPack & { paymentIntent?: string | null; refund?: { requestId: string; status: string } };
 type PaymentReceipt = { amount: number; currency: string; paid: boolean; paymentIntent?: string };
@@ -25,15 +43,15 @@ type PlatformJobPayload = Omit<PlatformInput, 'prompt'> & {
   provider: PlatformModel;
   result?: { mimeType: ImageMimeType; width: number; height: number; bytes: number; sha256: string };
 };
-type ImageEnvelope = { base_resp?: { status_code: number }; data?: { image_base64?: string[]; length?: number; 0?: { b64_json?: string } } };
-type PlatformCommand = { eventId: string; orderId: string; receipt: PaymentReceipt; requestId: string; status: string; policy: unknown; pack: unknown; note: unknown; id: string; outcome: string };
-
-import { imageMetadata } from '../../src/contracts/image-format.ts';
-import { imageGenerationRequest, isMiniMaxImageProvider } from '../../src/contracts/image-provider-protocol.ts';
-import { body, bounded, endpoint, fields, reject, uuid } from './product-http.ts';
+type ImageEnvelope = {
+  base_resp?: { status_code: number };
+  data?: { image_base64?: string[]; length?: number; 0?: { b64_json?: string } };
+};
+type RefundReceipt = { orderId: string; requestId: string; status: string };
 
 const sizes = ['1024x1024', '1536x1024', '1024x1536'];
-const integer = (value: unknown, min: number, max: number): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value >= min && value <= max;
+const integer = (value: unknown, min: number, max: number): value is number =>
+  typeof value === 'number' && Number.isSafeInteger(value) && value >= min && value <= max;
 const day = () => new Date().toISOString().slice(0, 10);
 const hash = async (value: string) =>
   [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)))]
@@ -106,7 +124,7 @@ export class PlatformCoordinator {
     const saved = this.rows<{ payload: string }>('SELECT payload FROM platform_policy WHERE id=1')[0];
     const policy =
       saved ?
-        JSON.parse(saved.payload) as PlatformPolicy
+        (JSON.parse(saved.payload) as PlatformPolicy)
       : {
           enabled: true,
           concurrency: 1,
@@ -132,11 +150,13 @@ export class PlatformCoordinator {
   }
   account(owner: string) {
     return {
-      credits: this.rows<{ credits: number }>('SELECT credits FROM platform_accounts WHERE owner=?', owner)[0]?.credits ?? 0,
+      credits:
+        this.rows<{ credits: number }>('SELECT credits FROM platform_accounts WHERE owner=?', owner)[0]?.credits ?? 0,
       freeRemaining: Math.max(
         0,
         this.policy().freeDaily -
-          (this.rows<{ used: number }>('SELECT used FROM platform_free WHERE owner=? AND day=?', owner, day())[0]?.used ?? 0)
+          (this.rows<{ used: number }>('SELECT used FROM platform_free WHERE owner=? AND day=?', owner, day())[0]
+            ?.used ?? 0)
       ),
       freeReset: '每日 UTC 00:00',
       ledger: this.rows(
@@ -206,8 +226,8 @@ export class PlatformCoordinator {
       const policy = this.policy();
       if (!policy.enabled) reject(503, '平台已暂停接单。');
       if (
-        this.rows<{ n: number }>("SELECT count(*) AS n FROM platform_jobs WHERE status IN ('queued','generating')")[0].n >=
-        policy.capacity
+        this.rows<{ n: number }>("SELECT count(*) AS n FROM platform_jobs WHERE status IN ('queued','generating')")[0]
+          .n >= policy.capacity
       )
         reject(429, '当前队列已满，请稍后再试。');
       if (
@@ -353,7 +373,13 @@ export class PlatformCoordinator {
     );
   }
   setPolicy(actor: string, input: unknown, note: unknown) {
-    const value = fields<PlatformPolicy>(input, ['enabled', 'concurrency', 'capacity', 'freeDaily', 'dailyBudgetMicros']);
+    const value = fields<PlatformPolicy>(input, [
+      'enabled',
+      'concurrency',
+      'capacity',
+      'freeDaily',
+      'dailyBudgetMicros'
+    ]);
     if (
       typeof value.enabled !== 'boolean' ||
       !integer(value.concurrency, 1, 5) ||
@@ -377,7 +403,11 @@ export class PlatformCoordinator {
   order(owner: string, requestId: unknown) {
     if (!uuid(requestId)) reject(400, '订单标识无效。');
     return this.atomic(() => {
-      const previous = this.rows<PlatformOrderRow>('SELECT * FROM platform_orders WHERE owner=? AND request_id=?', owner, requestId)[0];
+      const previous = this.rows<PlatformOrderRow>(
+        'SELECT * FROM platform_orders WHERE owner=? AND request_id=?',
+        owner,
+        requestId
+      )[0];
       if (previous) return { id: previous.id, ...(JSON.parse(previous.payload) as OrderPayload) };
       const pack = this.pack(),
         id = crypto.randomUUID();
@@ -575,7 +605,8 @@ export class PlatformCoordinator {
     );
     await this.ctx.storage.setAlarm(Date.now() + 125000);
     const claimed = this.atomic(() => {
-      const running = this.rows<{ n: number }>("SELECT count(*) AS n FROM platform_jobs WHERE status='generating'")[0].n;
+      const running = this.rows<{ n: number }>("SELECT count(*) AS n FROM platform_jobs WHERE status='generating'")[0]
+        .n;
       const jobs = this.rows(
         "SELECT * FROM platform_jobs WHERE status='queued' ORDER BY created_at,id LIMIT ?",
         Math.max(0, this.policy().concurrency - running)
@@ -589,7 +620,9 @@ export class PlatformCoordinator {
       return jobs;
     });
     await Promise.all(claimed.map(job => this.execute(job)));
-    if (this.rows<{ n: number }>("SELECT count(*) AS n FROM platform_jobs WHERE status IN ('queued','generating')")[0].n)
+    if (
+      this.rows<{ n: number }>("SELECT count(*) AS n FROM platform_jobs WHERE status IN ('queued','generating')")[0].n
+    )
       await this.ctx.storage.setAlarm(Date.now() + 1000);
   }
   async fetch(request: Request) {
@@ -597,19 +630,21 @@ export class PlatformCoordinator {
       owner = request.headers.get('x-media-owner');
     return endpoint(async () => {
       if (url.pathname === '/payment') {
-        const p = await body<PlatformCommand>(request);
+        const p = await body<{ eventId: string; orderId: string; receipt: PaymentReceipt }>(request);
         return this.creditPayment(p.eventId, p.orderId, p.receipt);
       }
       if (url.pathname === '/refund-complete') {
-        const p = await body<PlatformCommand>(request);
+        const p = await body<RefundReceipt>(request);
         return this.finishRefund('stripe', p.orderId, p.requestId, p.status);
       }
       if (!uuid(owner)) reject(401, '账号无效。');
       if (url.pathname === '/catalog') return this.catalog();
       if (url.pathname === '/account') return this.account(owner);
-      if (url.pathname === '/jobs' && request.method === 'POST') return this.submit(owner, await body<PlatformInput>(request, 16384));
+      if (url.pathname === '/jobs' && request.method === 'POST')
+        return this.submit(owner, await body<PlatformInput>(request, 16384));
       if (url.pathname === '/jobs') return { jobs: this.jobs(owner) };
-      if (url.pathname === '/order') return this.order(owner, (await body<PlatformCommand>(request, 4096)).requestId);
+      if (url.pathname === '/order')
+        return this.order(owner, (await body<{ requestId: string }>(request, 4096)).requestId);
       const match = /^\/jobs\/([a-f0-9-]+)(\/cancel)?$/.exec(url.pathname);
       if (match) return match[2] ? this.cancel(owner, match[1]) : this.job(owner, match[1]);
       if (request.headers.get('x-media-admin') !== 'true') reject(403, '需要管理员权限。');
@@ -626,23 +661,23 @@ export class PlatformCoordinator {
           orders: this.rows('SELECT id,owner,paid,payload FROM platform_orders ORDER BY rowid DESC LIMIT 100')
         };
       if (url.pathname === '/admin/policy') {
-        const p = await body<PlatformCommand>(request, 4096);
+        const p = await body<{ policy: unknown; note: unknown }>(request, 4096);
         return this.setPolicy(owner, p.policy, p.note);
       }
       if (url.pathname === '/admin/price') {
-        const p = await body<PlatformCommand>(request, 4096);
+        const p = await body<{ pack: unknown; note: unknown }>(request, 4096);
         return this.setPack(owner, p.pack, p.note);
       }
       if (url.pathname === '/admin/refund/prepare') {
-        const p = await body<PlatformCommand>(request, 4096);
+        const p = await body<{ orderId: string; note: unknown }>(request, 4096);
         return this.prepareRefund(owner, p.orderId, p.note);
       }
       if (url.pathname === '/admin/refund/finish') {
-        const p = await body<PlatformCommand>(request, 4096);
+        const p = await body<RefundReceipt>(request, 4096);
         return this.finishRefund(owner, p.orderId, p.requestId, p.status);
       }
       if (url.pathname === '/admin/resolve') {
-        const p = await body<PlatformCommand>(request, 4096);
+        const p = await body<{ id: string; outcome: string; note: unknown }>(request, 4096);
         if (p.outcome === 'completed') return this.recover(owner, p.id, p.note);
         if (await this.env.MEDIA_RESULTS?.head?.(p.id)) reject(409, '平台已有原图，请恢复原图回执。');
         return this.resolve(owner, p.id, p.outcome, p.note);

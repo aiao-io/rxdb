@@ -1,19 +1,12 @@
 {
-  "extends": "./tsconfig.json",
   "compilerOptions": {
     "noEmit": true,
     "allowImportingTsExtensions": true,
     "erasableSyntaxOnly": true,
-    "lib": [
-      "es2022"
-    ],
-    "types": [
-      "@cloudflare/workers-types",
-      "node"
-    ],
+    "lib": ["es2022", "dom"],
+    "types": ["@cloudflare/workers-types", "node"],
     "skipLibCheck": true
   },
-  "include": [
-    "server/cloudflare/**/*.ts"
-  ]
+  "extends": "./tsconfig.json",
+  "include": ["server/cloudflare/**/*.ts"]
 }

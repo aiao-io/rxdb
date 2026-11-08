@@ -1,4 +1,7 @@
+import { manageContent } from './product-content.ts';
 import type { BackendClient } from './product-http.ts';
+import { administrator, body, endpoint, fields, reject, uuid } from './product-http.ts';
+import { reports } from './product-reports.ts';
 import type { WorkerEnv } from './worker-env.ts';
 
 type AuthUser = {
@@ -9,10 +12,6 @@ type AuthUser = {
   banned_until?: string;
 };
 type AccountState = { user_id: string; disabled: boolean; revision: number; auth_state: string };
-
-import { manageContent } from './product-content.ts';
-import { administrator, body, endpoint, fields, reject, uuid } from './product-http.ts';
-import { reports } from './product-reports.ts';
 
 const accountQueues = new Map<string, Promise<unknown>>();
 function accountLock<T>(targetId: string, operation: () => Promise<T>) {
@@ -32,7 +31,9 @@ function pageNumber(value: string | null, fallback: number, max: number) {
 async function users(client: BackendClient, url: URL) {
   const page = pageNumber(url.searchParams.get('page'), 1, 1000000);
   const perPage = pageNumber(url.searchParams.get('perPage'), 25, 100);
-  const result = await client.call<{ users: AuthUser[]; total?: number }>(`/auth/v1/admin/users?page=${page}&per_page=${perPage}`);
+  const result = await client.call<{ users: AuthUser[]; total?: number }>(
+    `/auth/v1/admin/users?page=${page}&per_page=${perPage}`
+  );
   if (!Array.isArray(result.users)) reject(502, '用户列表暂不可读。');
   const ids = result.users.map(user => user.id);
   if (!ids.every(uuid)) reject(502, '用户标识无效。');
@@ -60,7 +61,11 @@ async function users(client: BackendClient, url: URL) {
 }
 async function setAccount(request: Request, client: BackendClient, actorId: string, targetId: string) {
   return accountLock(targetId, async () => {
-    const value = fields<{ disabled: boolean; revision: number; requestId: string }>(await body(request, 4096), ['disabled', 'revision', 'requestId']);
+    const value = fields<{ disabled: boolean; revision: number; requestId: string }>(await body(request, 4096), [
+      'disabled',
+      'revision',
+      'requestId'
+    ]);
     if (
       typeof value.disabled !== 'boolean' ||
       !Number.isSafeInteger(value.revision) ||
@@ -113,6 +118,7 @@ async function setAccount(request: Request, client: BackendClient, actorId: stri
     }
   });
 }
+/** 验证管理员权限后执行产品管理接口。 */
 export function handleAdmin(request: Request, env: WorkerEnv) {
   return endpoint(async () => {
     const { client, actorId } = await administrator(request, env);

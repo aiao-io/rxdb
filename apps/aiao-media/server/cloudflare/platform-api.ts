@@ -1,22 +1,23 @@
+import { administrator, backend, body, endpoint, reject, sameOriginWrite, uuid } from './product-http.ts';
 import type { WorkerEnv } from './worker-env.ts';
 
 type CheckoutOrder = { id: string; currency: string; amount: number; credits: number };
 type PaymentEvent = {
   id: string;
   type: string;
-  data?: { object?: {
-    metadata?: { media_order?: string; media_request?: string };
-    status?: string;
-    client_reference_id?: string;
-    mode?: string;
-    amount_total?: number;
-    currency?: string;
-    payment_status?: string;
-    payment_intent?: string;
-  } };
+  data?: {
+    object?: {
+      metadata?: { media_order?: string; media_request?: string };
+      status?: string;
+      client_reference_id?: string;
+      mode?: string;
+      amount_total?: number;
+      currency?: string;
+      payment_status?: string;
+      payment_intent?: string;
+    };
+  };
 };
-
-import { administrator, backend, body, endpoint, reject, sameOriginWrite, uuid } from './product-http.ts';
 
 async function member(request: Request, env: WorkerEnv) {
   sameOriginWrite(request, env);
@@ -25,7 +26,9 @@ async function member(request: Request, env: WorkerEnv) {
   const client = backend(env);
   const user = await client.call<{ id: string }>('/auth/v1/user', { token, privileged: false });
   if (!uuid(user?.id)) reject(401, '账号无效。');
-  const accounts = await client.call<{ disabled: boolean }[]>(`/rest/v1/media_accounts?select=disabled&user_id=eq.${user.id}`);
+  const accounts = await client.call<{ disabled: boolean }[]>(
+    `/rest/v1/media_accounts?select=disabled&user_id=eq.${user.id}`
+  );
   if (!Array.isArray(accounts) || accounts.some(account => account.disabled)) reject(403, '账号已禁用。');
   return user.id;
 }
@@ -165,6 +168,7 @@ export async function paymentEvent(request: Request, secret: string | undefined)
   if (!valid.some(Boolean)) reject(400, '支付通知签名无效。');
   return JSON.parse(raw);
 }
+/** 处理平台账号、任务、支付通知与运维请求。 */
 export async function handlePlatform(request: Request, env: WorkerEnv) {
   const path = new URL(request.url).pathname.replace('/api/platform', '');
   if (path === '/webhook')
@@ -213,7 +217,12 @@ export async function handlePlatform(request: Request, env: WorkerEnv) {
     }
     const owner = await member(request, env);
     if (path === '/checkout' && request.method === 'POST')
-      return await checkout(env, owner, (await body<{ requestId: string }>(request, 4096)).requestId, new URL(request.url).origin);
+      return await checkout(
+        env,
+        owner,
+        (await body<{ requestId: string }>(request, 4096)).requestId,
+        new URL(request.url).origin
+      );
     if (path === '/catalog' || path === '/account' || (path === '/jobs' && request.method === 'GET')) {
       if (request.method !== 'GET') reject(405, '需要 GET。');
       return await call(env, path, owner);

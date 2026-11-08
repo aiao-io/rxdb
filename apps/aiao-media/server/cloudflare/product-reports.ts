@@ -1,5 +1,6 @@
 import type { TaskReport } from '../../src/contracts/product-data.mjs';
 import type { BackendClient } from './product-http.ts';
+import { reject, uuid } from './product-http.ts';
 
 type UsageBucket = {
   records: number;
@@ -10,8 +11,7 @@ type UsageBucket = {
   unknown: Record<'requestCount' | 'providerUnits' | 'verifiedCost', number>;
 };
 
-import { reject, uuid } from './product-http.ts';
-
+/** 校验并生成任务报表的筛选与分页参数。 */
 export function reportFilter(url: URL) {
   const query = new URLSearchParams({
     select: 'id,owner_id,workspace_id,task_id,model,channel,status,started_at,payload,received_at',
@@ -46,6 +46,7 @@ export function reportFilter(url: URL) {
   query.set('offset', String((page - 1) * 100));
   return query;
 }
+/** 读取任务报表或按来源汇总已知用量与未知条数。 */
 export async function reports(client: BackendClient, url: URL, usage = false) {
   const query = reportFilter(url);
   if (!usage) return { reports: await client.call(`/rest/v1/media_task_reports?${query}`), limit: 100 };
