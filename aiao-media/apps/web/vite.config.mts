@@ -30,7 +30,7 @@ export default defineConfig({
           name: 'aiao-media-data',
           globals: true,
           environment: 'happy-dom',
-          include: ['src/contracts/**/*.spec.ts', 'src/local-data/**/*.spec.ts']
+          include: ['src/local-data/**/*.spec.ts']
         }
       },
       {

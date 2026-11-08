@@ -18,7 +18,7 @@ export default defineConfig({
   webServer: {
     command: 'node scripts/supabase-local.mjs preview',
     url: 'http://127.0.0.1:4399',
-    cwd: new URL('../aiao-media/', import.meta.url).pathname,
+    cwd: new URL('../../', import.meta.url).pathname,
     reuseExistingServer: false,
     gracefulShutdown: { signal: 'SIGTERM', timeout: 5000 },
     timeout: 120000

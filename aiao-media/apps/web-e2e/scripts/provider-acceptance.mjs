@@ -4,12 +4,12 @@ import { existsSync } from 'node:fs';
 import { chmod, mkdir, open, readFile, readdir, unlink } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { imageMetadata } from '../../aiao-media/src/contracts/image-format.ts';
+import { imageMetadata } from '@aiao-media/api-contracts';
 import {
   imageGenerationRequest,
   isMiniMaxImageProvider
-} from '../../aiao-media/src/contracts/image-provider-protocol.ts';
-import { openRelayResult, relayResultKey } from '../../aiao-media/src/contracts/relay-task.ts';
+} from '@aiao-media/api-contracts';
+import { openRelayResult, relayResultKey } from '@aiao-media/api-contracts';
 import { prompt, provider, verifyImageDownload } from '../src/local-first.helpers.ts';
 import { installFetchCapture } from './provider-fetch-capture.mjs';
 import { observeResultNetwork, resultNetworkFailure } from './provider-result-network.mjs';

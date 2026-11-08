@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import { parseEnv } from 'node:util';
 const root = resolve(import.meta.dirname, '..');
-const config = JSON.parse(await readFile(resolve(root, 'deploy/wrangler.json'), 'utf8'));
+const config = JSON.parse(await readFile(resolve(root, '../api/wrangler.json'), 'utf8'));
 let local = {};
 try {
   local = parseEnv(await readFile(resolve(root, '.env'), 'utf8'));
@@ -28,7 +28,7 @@ const allowed = [
       })
   )
 ];
-config.main = resolve(root, 'server/cloudflare/local-first-worker.ts');
+config.main = resolve(root, '../api/src/local-first-worker.ts');
 config.assets.directory = resolve(root, 'dist/browser');
 config.vars.ALLOWED_PROVIDER_BASE_URLS = JSON.stringify(allowed);
 const directory = resolve(root, '.wrangler/local-first');

@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "lib": ["es2022", "dom"],
+    "types": ["@cloudflare/workers-types", "node"],
+    "skipLibCheck": true,
+    "composite": false,
+    "rootDir": "../../../",
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "target": "es2022"
+  },
+  "extends": "../../../tsconfig.base.json",
+  "include": ["src/**/*.ts"],
+  "references": []
+}

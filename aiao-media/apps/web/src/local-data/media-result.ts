@@ -3,7 +3,7 @@ import {
   validateVideoResultMetadata,
   type AudioResultMetadata,
   type VideoResultMetadata
-} from '../contracts/index';
+} from '@aiao-media/api-contracts';
 
 export type LocalAssetKind = 'audio' | 'video';
 export type LocalAssetResult = AudioResultMetadata | VideoResultMetadata;

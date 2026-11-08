@@ -1,7 +1,8 @@
-import { domain } from './domain.js';
+import { describe, expect, it } from 'vitest';
+import { domain } from '../index.js';
 
-describe('domain', () => {
-  it('should work', () => {
-    expect(domain()).toEqual('domain');
-  })
-})
+describe('aiao media domain', () => {
+  it('exposes the product domain package', () => {
+    expect(domain()).toBe('aiao-media');
+  });
+});

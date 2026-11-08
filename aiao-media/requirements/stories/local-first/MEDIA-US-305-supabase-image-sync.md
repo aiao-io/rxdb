@@ -95,7 +95,7 @@ tags: [supabase, storage, image, sync, local-first]
 
 ## 技术笔记
 
-- 图片同步控制器、私有 Storage 迁移和平台 UI 入口已接线；隔离本地真实 Auth/数据库的双设备接线已补验，但 Storage 字节为 fixture，尚无真实云 Storage/生产 Web-Tauri 验收。证据见[平台统一同步验证](../../verification-report.md#2026-11-06-平台统一同步验证)。现有 [product-sync-store.ts](../../../apps/web/src/local-data/product-sync-store.ts) 仅复制元数据，[browser-media.ts](../../../apps/web/src/local-data/browser-media.ts) 维护本机原图；[平台 R2 交付](../../../apps/web/server/cloudflare/platform-coordinator.ts) 不属于本故事的平台 Supabase 文件同步。
+- 图片同步控制器、私有 Storage 迁移和平台 UI 入口已接线；隔离本地真实 Auth/数据库的双设备接线已补验，但 Storage 字节为 fixture，尚无真实云 Storage/生产 Web-Tauri 验收。证据见[平台统一同步验证](../../verification-report.md#2026-11-06-平台统一同步验证)。现有 [product-sync-store.ts](../../../apps/web/src/local-data/product-sync-store.ts) 仅复制元数据，[browser-media.ts](../../../apps/web/src/local-data/browser-media.ts) 维护本机原图；[平台 R2 交付](../../../apps/api/src/platform-coordinator.ts) 不属于本故事的平台 Supabase 文件同步。
 - 根据 Supabase Storage 官方文档，私有 bucket 的上传和下载均须授权；实现需同时限定 bucket、平台账号与工作区，并拒绝路径替换、公开 URL 和越权签名。临时预览/签名 URL 不作为持久图片身份，不进入同步 DTO。
 - 对象路径包含平台用户、工作区、作品 ID 与不可变文件版本/摘要；不同版本不 upsert 覆盖，文件与记录采用可恢复提交。重试只允许可核对、可幂等的传输，不复用生图重试规则重新调用模型。
 - 传输现状：文件记录先 INSERT 建 `pending`，对象写入后按修订 UPDATE 为 `uploaded`（`BEFORE INSERT` 触发器先于冲突判定执行，用 upsert 推进会被拒）；下载按作品记录的摘要精确取版本；切换目标、账号或工作区即中止在途传输，迟到结果不提交记录、不写入本机。持久传输队列尚未实现：刷新/重开不续传，TUS 会话地址与 offset 不落盘，失败没有退避与持久状态（AC#5/#6）。
@@ -109,7 +109,7 @@ tags: [supabase, storage, image, sync, local-first]
 
 - [local-image-mvp.html](../../../apps/web/src/app/local-image-mvp.html) — 当前作品信息/原图状态和本机文件入口。
 - [product-workspace.ts](../../../apps/web/src/app/product-workspace.ts)、[product-sync-store.ts](../../../apps/web/src/local-data/product-sync-store.ts) — 元数据复制与项目/账号隔离。
-- [browser-media.ts](../../../apps/web/src/local-data/browser-media.ts)、[image-format.ts](../../../apps/web/src/contracts/image-format.ts) — 原图读取、格式与摘要校验、本机提交。
+- [browser-media.ts](../../../apps/web/src/local-data/browser-media.ts)、[image-format.ts](../../../packages/api-contracts/src/contracts/image-format.ts) — 原图读取、格式与摘要校验、本机提交。
 - [image-sync.ts](../../../apps/web/src/local-data/image-sync.ts) — 原图传输、文件记录提交与按摘要取回。
 - [platform](../../../apps/web/src/platform/) — Web/Tauri 本机文件差异。
 - [infra/supabase/migrations](../../../apps/web/infra/supabase/migrations/) — 待扩展的文件版本/关联/权限与兼容迁移归属。

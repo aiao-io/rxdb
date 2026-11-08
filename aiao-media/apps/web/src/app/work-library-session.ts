@@ -1,5 +1,5 @@
 import { type Observable, Subscription } from 'rxjs';
-import type { ImageMimeType } from '../contracts/image-format';
+import type { ImageMimeType } from '@aiao-media/api-contracts';
 import type { LocalImageInfo, LocalWorkFilters, LocalWorkQuery, LocalWorkSummary } from '../local-data/index';
 
 export type LibraryWork = LocalWorkSummary & {

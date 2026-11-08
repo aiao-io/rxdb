@@ -1,0 +1,24 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  background: #f5f1ea;
+  color: #24211d;
+}
+.admin-shell {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 32px 0 64px;
+}
+.eyebrow {
+  color: #8c5b2f;
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+}
+h1 {
+  margin: 8px 0;
+  font-size: clamp(2rem, 5vw, 4.5rem);
+  letter-spacing: -0.06em;
+}
+p {
+  color: #6f665d;
+}

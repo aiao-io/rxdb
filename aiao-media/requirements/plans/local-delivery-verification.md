@@ -53,8 +53,8 @@ Supabase SDK 在锁文件去重到 2.117.3，无全局版本 override。同步�
 
 - [应用接线](../../apps/web/src/app/local-image-mvp.ts)、[绑定控制器](../../apps/web/src/app/product-workspace.ts)、[工作区会话](../../apps/web/src/app/workspace-session.ts)
 - [本机注册表](../../apps/web/src/local-data/workspace-registry.ts)、[持久注册表](../../apps/web/src/local-data/workspace-registry-store.ts)、[原生复制](../../apps/web/src/local-data/product-sync-store.ts)
-- [私有投影](../../apps/web/src/local-data/product-projection.ts)、[集合迁移](../../apps/web/src/local-data/local-collections.ts)、[产品 DTO](../../apps/web/src/contracts/product-data.mjs)
-- [后台界面](../../apps/web/src/app/admin-console.ts)、[后台 API](../../apps/web/server/cloudflare/admin-api.ts)、[运行策略](../../apps/web/server/cloudflare/product-content.ts)
+- [私有投影](../../apps/web/src/local-data/product-projection.ts)、[集合迁移](../../apps/web/src/local-data/local-collections.ts)、[产品 DTO](../../packages/api-contracts/src/contracts/product-data.mjs)
+- [后台界面](../../apps/admin/src/app/admin-console.ts)、[后台 API](../../apps/api/src/admin-api.ts)、[运行策略](../../apps/api/src/product-content.ts)
 - [真实服务测试](../../apps/web/scripts/test-product-local.mjs)、[真实产品浏览器测试](../../apps/web-e2e/src/product-local.spec.mts)
 
 ## 最终本地门禁

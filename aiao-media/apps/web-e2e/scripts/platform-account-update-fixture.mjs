@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { cp, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { buildOfflineAssets } from '../../aiao-media/scripts/build-offline-assets.mjs';
+import { buildOfflineAssets } from '../../apps/web/scripts/build-offline-assets.mjs';
 import { importBackup, profile, verifyImageDownload } from '../src/local-first.helpers.ts';
 import { createArtifactServer, defaultUpdateSeed, readReleaseArtifact, sha256 } from './actual-release-update.mjs';
 

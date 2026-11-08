@@ -187,7 +187,7 @@ async function main(action) {
         'wrangler',
         'dev',
         '--config',
-        'deploy/wrangler.json',
+        '../api/wrangler.json',
         '--local',
         '--port',
         '4399',

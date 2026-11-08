@@ -1,2 +1,8 @@
-<aiao-media-admin-nx-welcome></aiao-media-admin-nx-welcome>
-<router-outlet></router-outlet>
+<main class="admin-shell">
+  <header>
+    <span class="eyebrow">AIAO MEDIA / ADMIN</span>
+    <h1>后台管理</h1>
+    <p>管理账号、模板、供应商策略、任务用量和操作审计。</p>
+  </header>
+  <app-admin-console [client]="client" [identity]="identity" [status]="status" />
+</main>

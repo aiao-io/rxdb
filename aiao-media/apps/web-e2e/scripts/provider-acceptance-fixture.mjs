@@ -4,12 +4,12 @@ import { mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, relative, resolve } from 'node:path';
 import sharp from 'sharp';
-import { durableObjectNamespace, r2Bucket } from '../../aiao-media/scripts/cloudflare-stand-ins.mjs';
-import worker from '../../aiao-media/server/cloudflare/local-first-worker.mjs';
-import { RelayTask } from '../../aiao-media/server/cloudflare/relay-task.mjs';
+import { durableObjectNamespace, r2Bucket } from '../../apps/web/scripts/cloudflare-stand-ins.mjs';
+import worker from '../../api/src/local-first-worker.ts';
+import { RelayTask } from '../../api/src/relay-task.ts';
 import { acceptanceSelection, attemptPath, runProviderAcceptance } from './provider-acceptance.mjs';
 
-const root = resolve(import.meta.dirname, '../../aiao-media/dist/browser');
+const root = resolve(import.meta.dirname, '../../apps/web/dist/browser');
 await mkdir(resolve(import.meta.dirname, '../tmp'), { recursive: true, mode: 0o700 });
 const directory = await mkdtemp(resolve(import.meta.dirname, '../tmp/provider-acceptance-fixture-'));
 const nativeBase = 'https://api.minimax.cn/v1';

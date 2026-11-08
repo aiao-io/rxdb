@@ -2,13 +2,13 @@
 
 本记录保留该阶段实际执行的基线与证据；最新实现、测试数量和收尾边界见[本地产品交付验收](local-delivery-verification.md)与[收尾清单](release-completion-tasks.md)。
 
-Aiao Media 已导入 RxDB 的 `codex/aiao-media-incubation` 分支。应用专属文件位于 `aiao-media/apps/web`，e2e 位于 `aiao-media/apps/web-e2e`。生产发布入口尚未切换。
+Aiao Media 已导入 RxDB 的 `codex/aiao-media-incubation` 分支。当前产品目录位于 `aiao-media/`，主站、后台、API、e2e 和产品私有包分别位于 `apps/web`、`apps/admin`、`apps/api`、`apps/web-e2e` 与 `packages/*`。
 
 ## 来源与结构
 
 - 原仓基线：`43bc9eeb696c4b3c4c51351724d2fe91f0f8e8f3`；目标仓起点：`23d8a098c0ca348b451cf19c7fa1bc127f7a80db`。
 - [导入清单](source-import.json)记录原 tracked 文件与本次确认的迁移方案的 SHA-256、去向及整合方式。旧仓保留完整历史。
-- 只有应用与 e2e 两个 Nx 项目；`src/contracts`、`src/local-data`、`infra/supabase` 均为普通文件夹。
+- 主站、后台、API、e2e、`api-contracts` 和 `domain` 都是独立 Nx 项目；Web 的 `src/local-data` 仍是应用内部目录。
 - 应用使用 pnpm、Angular 22.2.3 与工作区 RxDB 0.0.28。数据层、备份版本、profile key、数据库名、OPFS 路径及 Compose 项目／卷身份保留。
 - 原 11 条 story 保留状态，使用 `MEDIA-US-*`，以 `legacyId` 关联原编号；平台故事使用原编号，分别统计。私有目录和需求检查归属应用，脚本测试由应用常规 test target 执行。
 

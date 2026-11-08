@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { TaskReport } from '../contracts/product-data.mjs';
+import type { TaskReport } from '@aiao-media/api-contracts';
 import { ProductClient } from './product-client';
 import type { ProductAuthorization } from './supabase-auth';
 

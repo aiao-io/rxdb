@@ -1,7 +1,7 @@
 # Aiao Media
 
 - Aiao Media 用户端 Angular 应用；用户端代码、数据层、部署和本地服务在本目录，产品需求位于上级 `aiao-media/requirements/`，E2E 位于同级 `web-e2e`。
-- src/contracts、src/local-data 是普通文件夹，共用应用配置，不创建独立包或 Nx 项目。
+- src/local-data 是 web 私有文件夹；跨应用协议统一从 `@aiao-media/api-contracts` 引用。
 - 当前 MVP 行为、四路由、存储 key、数据库与 OPFS 标识保持兼容；迁移不删除用户数据。
 - 需求真相源为 `aiao-media/requirements/stories` 的 MEDIA-US-* YAML；仓库根 `requirements` 是平台／领域需求，两者分别统计。
 - 底层能力 Done 不代表应用接线或验收完成。

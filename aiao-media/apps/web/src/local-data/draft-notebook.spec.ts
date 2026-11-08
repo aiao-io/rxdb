@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { DraftSyncMutation, DraftSyncPullResult, SyncedDraft, SyncedDraftContent } from '../contracts/index';
+import type { DraftSyncMutation, DraftSyncPullResult, SyncedDraft, SyncedDraftContent } from '@aiao-media/api-contracts';
 import {
   acceptNotebookPull,
   acceptNotebookPush,

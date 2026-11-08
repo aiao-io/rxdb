@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { validateImageJobRequest } from '../contracts/index';
+import { validateImageJobRequest } from '@aiao-media/api-contracts';
 import {
   confirmImageSubmission,
   createImageSubmission,

@@ -1,5 +1,5 @@
 import { BehaviorSubject } from 'rxjs';
-import type { TaskReport } from '../contracts/product-data.mjs';
+import type { TaskReport } from '@aiao-media/api-contracts';
 import type { ProductSnapshot } from '../local-data/product-projection';
 import type {
   ApplyProductSync,

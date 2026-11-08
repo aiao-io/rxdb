@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { AudioGenerationJobSummary, AudioJobRequest } from '../contracts/index';
+import type { AudioGenerationJobSummary, AudioJobRequest } from '@aiao-media/api-contracts';
 import {
   confirmAudioSubmission,
   createAudioSubmission,

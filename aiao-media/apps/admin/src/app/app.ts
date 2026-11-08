@@ -1,13 +1,17 @@
 import { Component } from '@angular/core';
-import { RouterModule } from '@angular/router';
-import { NxWelcome } from './nx-welcome';
+import { AdminConsole } from './admin-console';
+import { ProductClient } from './product-client';
 
 @Component({
-  imports: [NxWelcome, RouterModule],
+  imports: [AdminConsole],
   selector: 'aiao-media-admin-root',
   templateUrl: './app.html',
-  styleUrl: './app.css',
+  styleUrl: './app.css'
 })
 export class App {
-  protected title = 'aiao-media-admin';
+  readonly client = new ProductClient(async () => {
+    throw new Error('后台账号验证尚未配置。');
+  });
+  readonly identity = '';
+  readonly status = 'signed-out';
 }

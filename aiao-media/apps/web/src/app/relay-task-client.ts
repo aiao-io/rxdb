@@ -1,11 +1,11 @@
-import type { ImageAspectRatio } from '../contracts/index';
+import type { ImageAspectRatio } from '@aiao-media/api-contracts';
 import {
   isRelayTaskToken,
   openRelayResult,
   relayResultKey,
   relayTaskTokenHeader,
   type RelayTaskView
-} from '../contracts/relay-task';
+} from '@aiao-media/api-contracts';
 import { apiEndpoint } from '../platform/local-backend';
 import {
   bounded,

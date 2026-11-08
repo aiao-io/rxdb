@@ -9,7 +9,7 @@ import {
   validateImageBlob,
   type ImageMetadata,
   type ImageMimeType
-} from '../contracts/image-format';
+} from '@aiao-media/api-contracts';
 import type {
   DraftSyncConflictView,
   DraftSyncMutation,
@@ -21,7 +21,7 @@ import type {
   ImageJobRequest,
   ReferenceImageUpload,
   SyncedDraftContent
-} from '../contracts/index';
+} from '@aiao-media/api-contracts';
 import {
   validateAudioGenerationJobSummary,
   validateAudioJobRequest,
@@ -29,8 +29,8 @@ import {
   validateVideoJobRequest,
   type AudioResultMetadata,
   type VideoResultMetadata
-} from '../contracts/index';
-import { productPayloadText, validateSyncPayload, type PublicWorkPayload } from '../contracts/product-data.mjs';
+} from '@aiao-media/api-contracts';
+import { productPayloadText, validateSyncPayload, type PublicWorkPayload } from '@aiao-media/api-contracts';
 import {
   configureLocalAdapter,
   localAdapterName,
@@ -82,7 +82,7 @@ import {
 } from './media-result';
 import { readStudioPayload, studioPayload, type StudioDraftSnapshot, type StudioPromptState } from './studio-draft';
 
-import type { AudioGenerationJobSummary, AudioJobRequest } from '../contracts/index';
+import type { AudioGenerationJobSummary, AudioJobRequest } from '@aiao-media/api-contracts';
 import type { AudioSubmissionBook } from './audio-submissions';
 import {
   confirmAudioSubmission,
@@ -91,7 +91,7 @@ import {
   validateAudioSubmissionBook
 } from './audio-submissions';
 
-import type { VideoGenerationJobSummary, VideoJobRequest } from '../contracts/index';
+import type { VideoGenerationJobSummary, VideoJobRequest } from '@aiao-media/api-contracts';
 import type { VideoSubmissionBook } from './video-submissions';
 import {
   confirmVideoSubmission,

@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { imageMvpCatalog } from '../app/image-mvp-catalog';
 import {
   productRecordId,
   validateProviderPolicy,
@@ -9,6 +8,29 @@ import {
 } from './product-data.mjs';
 
 const uuid = '00000000-0000-4000-8000-000000000001';
+const template = {
+  id: 'fixture-template',
+  title: 'Fixture',
+  purpose: '测试',
+  style: '简洁',
+  tags: ['测试'],
+  prompt: '一张测试图片',
+  image: '/prompt-art/fixture.svg',
+  alt: '测试图片',
+  updatedAt: '2026-10-25',
+  author: 'Aiao',
+  source: 'Aiao 原创文本与 SVG',
+  rights: 'aiao-original-text-and-svg' as const,
+  referenceModel: null,
+  needsReference: false,
+  featuredRank: 1,
+  fields: [],
+  templateDocument: {
+    type: 'doc' as const,
+    content: [{ type: 'paragraph' as const, content: [{ type: 'text' as const, text: '一张测试图片' }] }]
+  }
+};
+
 describe('product transport field whitelists', () => {
   it.each(['image/png', 'image/jpeg'])('keeps %s work metadata without binary data or credentials', mimeType => {
     const value = {
@@ -35,6 +57,7 @@ describe('product transport field whitelists', () => {
     expect(await productRecordId('00000000-0000-4000-8000-000000000002', 'provider', uuid)).not.toBe(first);
     expect(await productRecordId(uuid, 'work', uuid)).not.toBe(first);
   });
+
   it('rejects credentials and local file identifiers in synced records', () => {
     const provider = {
       version: 1,
@@ -47,6 +70,7 @@ describe('product transport field whitelists', () => {
     for (const key of ['apiKey', 'rememberKey', 'fileId', 'opfsPath', 'access_token'])
       expect(() => validateSyncPayload('provider', { ...provider, [key]: 'secret' })).toThrow();
   });
+
   it('validates inert draft nodes and rejects unknown nested fields', () => {
     const value = { version: 1, state: { document: { type: 'doc', content: [] }, fields: [], values: {} } };
     expect(validateSyncPayload('draft', value)).toEqual(value);
@@ -58,11 +82,13 @@ describe('product transport field whitelists', () => {
       })
     ).toThrow();
   });
+
   it('publishes only validated template snapshots', () => {
-    expect(validatePublishedTemplate(imageMvpCatalog[0])).toEqual(imageMvpCatalog[0]);
-    expect(() => validatePublishedTemplate({ ...imageMvpCatalog[0], image: 'javascript:alert(1)' })).toThrow();
-    expect(() => validatePublishedTemplate({ ...imageMvpCatalog[0], templateDocument: { type: 'script' } })).toThrow();
+    expect(validatePublishedTemplate(template)).toEqual(template);
+    expect(() => validatePublishedTemplate({ ...template, image: 'javascript:alert(1)' })).toThrow();
+    expect(() => validatePublishedTemplate({ ...template, templateDocument: { type: 'script' } })).toThrow();
   });
+
   it('拒绝策略中的凭据、重复目标和非法地址', () => {
     const provider = {
       id: uuid,
@@ -87,6 +113,7 @@ describe('product transport field whitelists', () => {
       expect(() => validateProviderPolicy({ version: 1, providers: [value] })).toThrow();
     expect(() => validateProviderPolicy({ version: 1, providers: [provider, provider] })).toThrow();
   });
+
   it('keeps unknown usage unknown and excludes prompts and credentials', () => {
     const report = {
       id: uuid,

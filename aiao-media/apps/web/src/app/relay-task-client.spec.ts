@@ -1,7 +1,7 @@
 import { Blob as NodeBlob } from 'node:buffer';
 import { webcrypto } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createRelayTaskToken, relayResultKey, sealRelayResult } from '../contracts/relay-task';
+import { createRelayTaskToken, relayResultKey, sealRelayResult } from '@aiao-media/api-contracts';
 import type { LocalProvider } from './local-provider';
 import { deleteRelayTask, relayTickets, runRelayTask, type RelayRun, type RelayTicket } from './relay-task-client';
 

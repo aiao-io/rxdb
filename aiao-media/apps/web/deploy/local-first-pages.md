@@ -39,7 +39,7 @@ pnpm nx run aiao-media:serve
 pnpm nx run aiao-media:offline-assets
 ```
 
-- `aiao-media:serve`：4300，启动 Angular 开发服务器，并由 `proxy.conf.mjs` 在同一进程内以随机本机端口（仅 127.0.0.1）运行同一份 Worker 的 `/api/relay` 与代理任务接口，允许列表取自 `deploy/wrangler.json`，DO 与 R2 为 `scripts/cloudflare-stand-ins.mjs` 的进程内替身；不启动 Supabase 和其它业务 API。关闭了依赖预构建（`prebundle: false`）：预构建从仓库根 `node_modules` 解析，找不到只链接在 `aiao-media/apps/web/node_modules` 的 `@aiao/*` 包；关闭后与生产构建一样按源文件位置解析。
+- `aiao-media:serve`：4300，启动 Angular 开发服务器，并由 `proxy.conf.mjs` 在同一进程内以随机本机端口（仅 127.0.0.1）运行同一份 Worker 的 `/api/relay` 与代理任务接口，允许列表取自 `../api/wrangler.json`，DO 与 R2 为 `scripts/cloudflare-stand-ins.mjs` 的进程内替身；不启动 Supabase 和其它业务 API。关闭了依赖预构建（`prebundle: false`）：预构建从仓库根 `node_modules` 解析，找不到只链接在 `aiao-media/apps/web/node_modules` 的 `@aiao/*` 包；关闭后与生产构建一样按源文件位置解析。
 - `aiao-media:build`：生产 CSR 编译到 `aiao-media/apps/web/dist/browser`。
 - `aiao-media:offline-assets`：先 build，再写带摘要的离线壳和 Service Worker。
 - `aiao-media:preview`：4398，使用 Wrangler 本地运行生产形态。
@@ -94,7 +94,7 @@ pnpm nx run aiao-media:deploy --skipRemoteCache
 
 以上是当前发布流程，执行结果以真实构建、dry-run 和部署回执为准；本页修改不表示已经部署或通过生产账号/Storage 验收。
 
-配置源为 `deploy/wrangler.json`，名称 `aiao-media`。部署脚本在 Git 忽略的 `.wrangler/local-first` 中生成实际配置并调用固定版本 Wrangler。发布成功后，以 CLI 返回的真实 URL、version ID、deployment ID 为准，不能预先假定 workers.dev 子域名。
+配置源为 `../api/wrangler.json`，名称 `aiao-media`。部署脚本在 Git 忽略的 `.wrangler/local-first` 中生成实际配置并调用固定版本 Wrangler。发布成功后，以 CLI 返回的真实 URL、version ID、deployment ID 为准，不能预先假定 workers.dev 子域名。
 
 首次发布代理任务前，账号所有者先在 Cloudflare 控制台完成 R2 订阅流程，再创建私有 bucket 与生命周期规则（不开放公开访问）：
 

@@ -37,47 +37,34 @@
 
 ## 3. 目录与项目映射
 
-下面均为目标仓 `/Users/jimmy/Documents/aiao/rxdb` 内的规划路径。
+当前结构已按独立应用与产品私有包落地：
 
 ```text
-rxdb/
-  requirements/                       # 原有平台、领域需求，保留编号与统计口径
-  packages/                           # 通用、可发布能力
-  apps/
-    aiao-media/                       # 唯一应用项目，承载全部产品文件
-      README.md                       # 产品定位、运行、发布入口
-      AGENTS.md                       # 应用范围与开发约定
-      project.json                    # 应用、需求、部署和本地服务的 Nx targets
-      src/
-        app/                          # 当前 Angular 页面与交互
-        contracts/                    # 当前 aiao-media/apps/web/src/contracts，普通文件夹
-        local-data/                   # 当前 aiao-media/apps/web/src/local-data，普通文件夹
-      public/                         # 模板图片、编辑器资源、WASM 等
-      direct-provider-probe/          # 现有直连探针
-      requirements/                   # 完整迁入当前 requirements
-      deploy/                         # Worker、Wrangler、部署说明
-      infra/supabase/                 # 本地 Auth、SQL、Compose
-      scripts/                        # 应用资产、验收和部署脚本
-    aiao-media-e2e/                   # 当前 aiao-media/apps/web-e2e，独立 Nx 项目
+aiao-media/
+├── requirements/                   # 产品需求、设计与验收记录
+├── apps/
+│   ├── web/                        # 主站 Angular 应用
+│   ├── admin/                      # 独立后台 Angular 应用
+│   ├── api/                        # Worker、产品 API 与管理 API
+│   └── web-e2e/                    # 主站端到端验收
+├── packages/
+│   ├── api-contracts/              # @aiao-media/api-contracts
+│   └── domain/                     # @aiao-media/domain
+└── scripts/                        # 产品级需求检查脚本
 ```
 
-| 当前 Nx 项目 | 目标归属                                        | 处理                                               |
-| ------------ | ----------------------------------------------- | -------------------------------------------------- |
-| `web`        | `aiao-media`                                    | 独立应用，保留现有 target 能力                     |
-| `web-e2e`    | `aiao-media-e2e`                                | 保留本机与真实 Auth 两套验收                       |
-| `contracts`  | `aiao-media` 的 `src/contracts/`                | 普通源码文件夹，既有测试归入应用测试               |
-| `local-data` | `aiao-media` 的 `src/local-data/`               | 普通源码文件夹，既有测试归入应用测试               |
-| `supabase`   | `aiao-media` 的 `infra/supabase/` 与 `scripts/` | 生命周期和探针通过应用的 `supabase-*` targets 编排 |
+| 当前 Nx 项目 | 归属 | 处理 |
+| ------------ | ---- | ---- |
+| `aiao-media` | `apps/web` | 主站应用，保留现有 Web、Tauri 与本地数据 target |
+| `aiao-media-admin` | `apps/admin` | 独立后台应用，后台认证与发布边界独立 |
+| `aiao-media-api` | `apps/api` | Worker、产品 API 和管理 API 的服务端运行单元 |
+| `aiao-media-e2e` | `apps/web-e2e` | 保留本机与真实 Auth 两套主站验收 |
+| `api-contracts` | `packages/api-contracts` | 通过 `@aiao-media/api-contracts` 供 Web、后台和 API 使用 |
+| `domain` | `packages/domain` | 通过 `@aiao-media/domain` 供产品服务使用 |
 
-迁入后只有 `aiao-media`、`aiao-media-e2e` 两个 Nx 项目。`contracts`、`local-data` 和 `infra/supabase` 均不创建独立 `project.json`、包或 workspace 成员；它们的依赖、lint、类型检查与测试由应用统一承担。
+Web 的 `src/local-data` 仍是应用内部目录；需求检查位于 `requirements/` 与 `scripts/`，不另建 Nx 项目。应用之间禁止直接引用彼此的 `src/*`，跨应用协议和领域规则必须通过 `@aiao-media/*` 包提供。
 
-原 `@aiao/media-contracts`、`@aiao/media-local-data` 引用改成应用内相对导入；如确需路径别名，只在应用编译与测试配置中定义。原有单测随源码迁入并由 `aiao-media:test` 统一发现，保留各自场景和覆盖率要求。
-
-产品定位、负责人和运行入口维护在应用 README；目录映射使用本方案及应用配置，不额外引入产品清单文件。故事状态与完成比例仍只从 story YAML 推导。
-
-所有脚本按迁入后的文件位置或显式参数定位目录，消除 `aiao-media/apps/web`、`dist/aiao-media/apps/web`、`../rxdb_ai` 等隐含路径。源仓根 `README.md` 迁入应用入口；其他受版本控制的资源、说明和历史资料逐项登记去向，不能只搬 `src`。
-
-根级工作区配置只做必要的项目／依赖注册；GitHub Actions 在仓库固有的 `.github/workflows/` 保留调用入口，产品构建、验收和部署逻辑放在应用目录的脚本与 Nx targets 中。
+所有脚本按迁入后的文件位置或显式参数定位目录。用户数据标识、页面地址、构建与部署入口由对应应用继续维护；迁移目录不改变业务数据格式。
 
 ## 4. requirements 隔离办法
 
@@ -169,7 +156,7 @@ RxDB 0.0.26 → 工作区 0.0.28 必须单独验证。使用不含凭据的旧�
 
 ## 7. 工程边界与发布治理
 
-应用及 e2e 项目加 `product:media` 标签，平台与可复用领域按层标记。使用 Nx 的 `@nx/enforce-module-boundaries`／`depConstraints` 禁止下层引用应用源码，并校验实际 project graph。`src/contracts/` 与 `src/local-data/` 的边界属于应用内部代码组织，不建立独立 Nx 节点。
+应用及 e2e 项目加 `product:media` 标签，平台与可复用领域按层标记。使用 Nx 的 `@nx/enforce-module-boundaries`／`depConstraints` 禁止下层引用应用源码，并校验实际 project graph。`apps/web/src/local-data/` 属于 Web 应用内部代码组织；`packages/api-contracts` 与 `packages/domain` 是独立 Nx 包节点。
 
 目标仓当前该规则是 `warn`，约束为任意标签可互相依赖。要形成可执行边界，应对本次涉及的项目补齐标签，并将相应约束设为错误；不要同时对全仓做无关整改。
 

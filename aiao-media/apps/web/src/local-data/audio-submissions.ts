@@ -4,7 +4,7 @@ import {
   validateAudioJobRequest,
   type AudioGenerationJobSummary,
   type AudioJobRequest
-} from '../contracts/index';
+} from '@aiao-media/api-contracts';
 
 export interface LocalAudioSubmission {
   key: string;

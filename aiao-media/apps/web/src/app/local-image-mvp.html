@@ -1154,10 +1154,13 @@
       </section>
     </section>
   }
-  @defer (when view() === 'admin') {
-    @if (view() === 'admin') {
-      <app-admin-console [client]="adminApi" [identity]="authUser()?.id ?? ''" [status]="authStatus()" />
-    }
+  @if (view() === 'admin') {
+    <section class="panel admin-migration" aria-labelledby="admin-migration-title">
+      <p class="eyebrow">AIAO MEDIA / ADMIN</p>
+      <h2 id="admin-migration-title">后台已迁移</h2>
+      <p>后台管理已经独立为应用，账号、模板、供应商策略、任务用量和操作审计将在独立后台继续处理。</p>
+      <a class="primary" href="/admin/">打开独立后台</a>
+    </section>
   }
 </main>
 <footer>

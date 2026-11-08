@@ -1,0 +1,55 @@
+{
+  "name": "aiao-media-api",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "aiao-media/apps/api/src",
+  "tags": ["scope:aiao-media", "type:app", "runtime:worker"],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{projectRoot}/dist"],
+      "options": {
+        "cwd": "aiao-media/apps/api",
+        "command": "tsc --noEmit -p tsconfig.json"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "aiao-media/apps/api",
+        "command": "tsc --noEmit -p tsconfig.json"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-media/apps/api",
+        "command": "node --test src/*.test.ts"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "aiao-media/apps/api",
+        "command": "eslint src --max-warnings=0"
+      }
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "aiao-media/apps/api",
+        "command": "pnpm exec wrangler dev --config wrangler.json --local --port 8787 --show-interactive-dev-session false"
+      }
+    },
+    "deploy-check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-media/apps/api",
+        "command": "pnpm exec wrangler deploy --config wrangler.json --dry-run"
+      }
+    }
+  }
+}

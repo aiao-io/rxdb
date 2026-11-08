@@ -10,7 +10,7 @@ import type {
   SyncedDraft,
   VideoGenerationJobSummary,
   VideoJobRequest
-} from '../contracts/index';
+} from '@aiao-media/api-contracts';
 import { LocalMediaStore } from './browser-media';
 
 let store: LocalMediaStore, profileId: string;

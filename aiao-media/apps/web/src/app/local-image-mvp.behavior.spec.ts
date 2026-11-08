@@ -3,7 +3,7 @@ import { webcrypto } from 'node:crypto';
 import type { EventEmitter } from 'node:events';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { GenerationJobSummary } from '../contracts/index';
+import type { GenerationJobSummary } from '@aiao-media/api-contracts';
 import { LocalMediaStore, type LocalWorkSummary } from '../local-data/index';
 import type { WorkspaceRegistryState } from '../local-data/workspace-registry';
 import { WorkspaceRegistryStore } from '../local-data/workspace-registry-store';

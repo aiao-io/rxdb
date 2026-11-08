@@ -16,7 +16,7 @@ Local-first 图片创作应用：发现灵感 → Tiptap 编辑提示词 → 使
 pnpm install --frozen-lockfile
 ```
 
-本机创作不需要安装数据库：前端是 Angular CSR，后端是同一份 [Cloudflare Worker](server/cloudflare/local-first-worker.ts)。生图代理 `/api/relay`、`/api/relay/tasks` 不依赖账号；`/api/admin`、`/api/templates` 及账号同步使用部署方统一的 Supabase 项目。本地有两种形态：开发服务器带热更新，并把代理部分内嵌在同一进程里，不必另起后端；Wrangler 预览在本机运行完整 Worker 和构建后的静态产物，没有热更新。
+本机创作不需要安装数据库：前端是 Angular CSR，后端是同一份 [Cloudflare Worker](../api/src/local-first-worker.ts)。生图代理 `/api/relay`、`/api/relay/tasks` 不依赖账号；`/api/admin`、`/api/templates` 及账号同步使用部署方统一的 Supabase 项目。本地有两种形态：开发服务器带热更新，并把代理部分内嵌在同一进程里，不必另起后端；Wrangler 预览在本机运行完整 Worker 和构建后的静态产物，没有热更新。
 
 下表命令省略 `pnpm nx run aiao-media:` 前缀，`supabase-local.mjs preview` 是直接用 node 运行的脚本。两行 Supabase 的完整步骤见[可选账号与本地 Supabase](#可选账号与本地-supabase)。
 
@@ -59,7 +59,7 @@ Wrangler 会自动读取被 Git 忽略的 `deploy/.dev.vars`（Worker 私有配�
 模型 ID 使用 1–128 位英数字、点、下划线、冒号或短横线。支持读取 `b64_json` 或允许跨域读取的 HTTPS 图片 URL，不代表兼容所有图片 API。
 
 - **浏览器直连，自建配置默认**：Key 和提示词直接发给供应商，本站不接收。供应商 API 和结果图片均须支持 CORS。
-- **本站代理，明确选择或预设声明**：每次生成是本站 Worker 上的一个任务（`/api/relay/tasks`），仅允许运营配置的供应商前缀。Key 只在接单时用于向供应商发出这一次请求，不写入任何存储；生成中可以刷新或关闭页面，回来后会接着取回结果，不会重复生成。供应商返回的结果用只保存在本机的任务令牌加密后暂存在私有 R2，本站读不出内容；取回保存后立即删除，无人取回的 24 小时后删除，R2 生命周期规则 1 天兜底，最长约 48 小时。开发服务器（`aiao-media:serve`）在同一进程内以本机随机端口运行同一份 Worker 的代理与任务接口（仅监听 127.0.0.1，允许列表取自 `deploy/wrangler.json`，DO/R2 为进程内替身）；生产形态预览使用 `aiao-media:preview`。已安装的旧版页面继续使用无状态的 `/api/relay`。
+- **本站代理，明确选择或预设声明**：每次生成是本站 Worker 上的一个任务（`/api/relay/tasks`），仅允许运营配置的供应商前缀。Key 只在接单时用于向供应商发出这一次请求，不写入任何存储；生成中可以刷新或关闭页面，回来后会接着取回结果，不会重复生成。供应商返回的结果用只保存在本机的任务令牌加密后暂存在私有 R2，本站读不出内容；取回保存后立即删除，无人取回的 24 小时后删除，R2 生命周期规则 1 天兜底，最长约 48 小时。开发服务器（`aiao-media:serve`）在同一进程内以本机随机端口运行同一份 Worker 的代理与任务接口（仅监听 127.0.0.1，允许列表取自 `../api/wrangler.json`，DO/R2 为进程内替身）；生产形态预览使用 `aiao-media:preview`。已安装的旧版页面继续使用无状态的 `/api/relay`。
 - 默认 Key 只保留在当前页面内存。勾选“在此设备记住 Key”后，写入本机专门的凭据记录；配置、任务记录和备份不包含凭据，代理任务令牌也单独存放，不进任务记录、备份或同步。
 - 请求发送前先写本机任务记录。直连请求在超时、CORS、断网或刷新后结果不确定时不自动重发、不自动切换代理；代理任务在刷新后继续，只有本站确认上游结果不确定时才进入核对。用户核对供应商记录后才能解除锁定。
 

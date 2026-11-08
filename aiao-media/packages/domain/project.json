@@ -3,7 +3,29 @@
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "aiao-media/packages/domain/src",
   "projectType": "library",
-  "tags": [],
-  "// targets": "to see all targets run: nx show project domain --web",
-  "targets": {}
+  "tags": ["scope:aiao-media", "type:domain"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "aiao-media/packages/domain",
+        "command": "tsc --noEmit -p tsconfig.lib.json && tsc --noEmit -p tsconfig.spec.json"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-media/packages/domain",
+        "command": "vitest run --config vitest.config.mts"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "aiao-media/packages/domain",
+        "command": "eslint src --max-warnings=0"
+      }
+    }
+  }
 }

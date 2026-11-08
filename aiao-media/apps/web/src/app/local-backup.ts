@@ -1,7 +1,7 @@
 import { strFromU8, strToU8, unzip, zip, type AsyncZippable, type Unzipped } from 'fflate';
-import { imageExtension, imageMetadata, validateImageBlob } from '../contracts/image-format';
-import type { GenerationJobSummary } from '../contracts/index';
-import { validateGenerationJobSummary } from '../contracts/index';
+import { imageExtension, imageMetadata, validateImageBlob } from '@aiao-media/api-contracts';
+import type { GenerationJobSummary } from '@aiao-media/api-contracts';
+import { validateGenerationJobSummary } from '@aiao-media/api-contracts';
 import type { LocalMediaStore, StudioPromptState } from '../local-data/index';
 import { ownedStudioPrompt } from '../local-data/studio-draft';
 import { publicProvider, type LocalProvider } from './local-provider';

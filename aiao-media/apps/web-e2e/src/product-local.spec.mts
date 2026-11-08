@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { localEnvironment } from '../../aiao-media/scripts/supabase-local.mjs';
+import { localEnvironment } from '../../apps/web/scripts/supabase-local.mjs';
 import { endpoint, importBackup, key, pngFixture, provider, verifyImageDownload } from './local-first.helpers';
 
 let admin: SupabaseClient;

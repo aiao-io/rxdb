@@ -1,5 +1,5 @@
-import { isMiniMaxImageProvider } from '../../src/contracts/image-provider-protocol.ts';
-import { isRelayTaskToken, relayTaskTokenHeader } from '../../src/contracts/relay-task.ts';
+import { isMiniMaxImageProvider } from '@aiao-media/api-contracts';
+import { isRelayTaskToken, relayTaskTokenHeader } from '@aiao-media/api-contracts';
 import { originAllowed, uuid } from './product-http.ts';
 import { json, relayInput } from './relay-input.ts';
 import { missingRelayTask, relayTaskLimits } from './relay-task.ts';

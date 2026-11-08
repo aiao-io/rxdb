@@ -5,10 +5,10 @@ import {
   type ProviderPolicy,
   type ProviderPolicyEntry,
   type TaskReport
-} from '../contracts/product-data.mjs';
-import { imageMvpCatalog } from './image-mvp-catalog';
+} from '@aiao-media/api-contracts';
+import { defaultAdminTemplate } from './admin-defaults';
 import type { ProductClient } from './product-client';
-import type { PromptTemplate } from './prompts/prompt-catalog';
+import type { PromptTemplate } from '@aiao-media/api-contracts';
 
 interface AdminUser {
   id: string;
@@ -146,7 +146,7 @@ export class AdminConsole {
         row ?
           validatePublishedTemplate(row.payload)
         : {
-            ...imageMvpCatalog[0],
+            ...defaultAdminTemplate,
             id: 'new-template',
             title: '新模板',
             prompt: '描述你要创建的画面',

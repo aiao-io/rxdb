@@ -41,7 +41,7 @@ MiniMax 原生请求路径为 `/v1/image_generation`，使用 `width/height` 或
 
 | 已实现项     | 行为与边界                                                                                                                                                                                                                                          |
 | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 固定请求映射 | 浏览器、Worker 与正式验收脚本共用[请求协议映射](../../apps/web/src/contracts/image-provider-protocol.ts)；只将 `https://api.minimax.cn/v1`、`https://api.minimax.io/v1`、`https://api.minimaxi.com/v1` 识别为 MiniMax 原生接口，其他 API 前缀沿用 Images API |
+| 固定请求映射 | 浏览器、Worker 与正式验收脚本共用[请求协议映射](../../packages/api-contracts/src/contracts/image-provider-protocol.ts)；只将 `https://api.minimax.cn/v1`、`https://api.minimax.io/v1`、`https://api.minimaxi.com/v1` 识别为 MiniMax 原生接口，其他 API 前缀沿用 Images API |
 | 模型和参数   | 当前适配 `image-01`，提示词最多 1500 字符；固定单张、`response_format=url`、关闭提示词优化；三画幅通过 `width/height` 精确请求 1024×1024、1536×1024、1024×1536，不使用会改变像素尺寸的 `aspect_ratio`                                               |
 | 代理契约     | 浏览器仍向 `/api/relay` 发送既有单张 Images API 参数；Worker 在允许列表和运行策略通过后映射原生路径及参数。没有自动扩展允许列表或切换通道                                                                                                           |
 | 结果与错误   | 只接受业务码 0、单一 URL 或 base64 结果；拒绝混合、多张和损坏响应。1002/1004/1008/1026/2013/2049 按明确拒绝处理，1033、超时、系统错误及未知码保持不确定，不回显上游消息                                                                             |

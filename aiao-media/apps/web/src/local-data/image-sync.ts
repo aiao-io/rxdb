@@ -1,6 +1,6 @@
 import type { ProductAuthorization } from '../app/supabase-auth';
-import { imageExtension, imageMetadata, type ImageMimeType } from '../contracts/image-format';
-import type { GenerationJobSummary } from '../contracts/index';
+import { imageExtension, imageMetadata, type ImageMimeType } from '@aiao-media/api-contracts';
+import type { GenerationJobSummary } from '@aiao-media/api-contracts';
 import type { LocalMediaStore } from './browser-media';
 
 export interface RemoteFileRecord {

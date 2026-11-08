@@ -4,7 +4,7 @@ import {
   validateVideoJobRequest,
   type VideoGenerationJobSummary,
   type VideoJobRequest
-} from '../contracts/index';
+} from '@aiao-media/api-contracts';
 
 export interface LocalVideoSubmission {
   key: string;

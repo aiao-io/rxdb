@@ -308,6 +308,9 @@
     },
     {
       "path": "./aiao-media/packages/domain"
+    },
+    {
+      "path": "./aiao-media/packages/api-contracts"
     }
   ]
 }

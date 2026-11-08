@@ -8,7 +8,7 @@ export default defineConfig({
   webServer: {
     command: 'node scripts/offline-update-server.mjs',
     url: 'http://127.0.0.1:4397',
-    cwd: new URL('../aiao-media/', import.meta.url).pathname,
+    cwd: new URL('../../', import.meta.url).pathname,
     reuseExistingServer: false,
     gracefulShutdown: { signal: 'SIGTERM', timeout: 5000 }
   }

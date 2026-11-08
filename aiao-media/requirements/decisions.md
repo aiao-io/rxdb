@@ -57,7 +57,7 @@
 
 - 真实供应商：私有配置写在应用 `.env`（0600，Git 忽略）。验收入口、参数与尝试记录规则见[收尾清单](plans/release-completion-tasks.md#真实供应商自动验收入口)；未知记录不删除、不覆盖，也不因更换发布、产物或 Key 解锁。
 - 正式发布：保持 `NX_LOAD_DOT_ENV_FILES=false`，显式提供同一平台项目的 `AIAO_SUPABASE_URL` 和公开 `AIAO_SUPABASE_ANON_KEY`；Worker 配置同项目 secrets，不能发布本机回环值。当前发布流程见[部署说明](../apps/web/deploy/local-first-pages.md#正式发布)，历史关闭账号的发布回执仍保留。
-- 正式域名路由在 [Wrangler 配置](../apps/web/deploy/wrangler.json)；线上当前版本与历次发布身份见[验收记录](verification-report.md#正式环境证据)。域名绑定、证书与发布均以部署回执和公网检查为准。
+- 正式域名路由在 [Wrangler 配置](../apps/api/wrangler.json)；线上当前版本与历次发布身份见[验收记录](verification-report.md#正式环境证据)。域名绑定、证书与发布均以部署回执和公网检查为准。
 - Cloudflare：控制台显示 Workers 免费套餐 US$0 与活动 Workers Free 订阅；账户另有既有订阅，不据此宣称全账户免费、零账单或模型费用为零。
 - 平台 Supabase 已按 D-16 正式初始化并发布；公众注册仍缺自定义 SMTP 与确认邮件验收。生产配置和权限依据实际回执，不从 `.env` 字段存在推断；后续运维与未验边界见[收尾清单](plans/release-completion-tasks.md#后续正式账号服务的运维边界)与[平台发布记录](plans/platform-supabase-release-20261106.md)。
 

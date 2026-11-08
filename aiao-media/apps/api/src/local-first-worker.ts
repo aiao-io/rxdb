@@ -1,4 +1,4 @@
-import { imageGenerationRequest, isMiniMaxImageProvider } from '../../src/contracts/image-provider-protocol.ts';
+import { imageGenerationRequest, isMiniMaxImageProvider } from '@aiao-media/api-contracts';
 import { handleAdmin } from './admin-api.ts';
 import { publishedTemplates, runtimePolicy } from './product-content.ts';
 import { endpoint } from './product-http.ts';

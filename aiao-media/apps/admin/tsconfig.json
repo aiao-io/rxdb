@@ -4,7 +4,13 @@
     "noPropertyAccessFromIndexSignature": true,
     "target": "es2022",
     "moduleResolution": "bundler",
-    "module": "preserve"
+    "module": "preserve",
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "emitDeclarationOnly": false,
+    "allowJs": false,
+    "rootDir": "../../../"
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,

@@ -118,47 +118,33 @@
 
 ### 现状与目标
 
-现有 [`src/app/`](../apps/web/src/app/) 中多数功能平铺，[`deploy/`](../apps/web/deploy/) 同时承载部署配置与 Worker/管理 API 运行代码。随着桌面版和平台服务增加，需要按功能与运行环境明确职责。
+现有 Web 页面、独立后台和 Worker/API 已拆成不同运行单元，需要按应用边界与共享包边界维护职责。
 
-目标结构沿用[产品目录约定](../apps/web/AGENTS.md)：产品私有代码集中在 `aiao-media/apps/web`，E2E 留在同级 `aiao-media-e2e`。下树是目标方案，新增目录随对应功能落地，不创建空目录。
+目标结构如下，新增目录随对应功能落地，不创建空目录。
 
 ```text
-apps/
-├── aiao-media/
-│   ├── src/
-│   │   ├── app/
-│   │   │   ├── studio/          创作与任务界面
-│   │   │   ├── library/         作品检索、预览与导出
-│   │   │   ├── providers/       用户供应商配置
-│   │   │   ├── account/         身份、工作区与同步设置
-│   │   │   ├── admin/           管理页面
-│   │   │   └── prompts/         灵感与提示词编辑
-│   │   ├── contracts/          产品共用的纯数据契约
-│   │   ├── local-data/         本地存储、复制与恢复
-│   │   └── platform/           浏览器与桌面环境差异
-│   │       ├── browser/
-│   │       └── tauri/
-│   ├── src-tauri/              Rust 宿主、权限、安装与更新
-│   ├── server/
-│   │   └── cloudflare/         Worker API、代理、任务与业务服务
-│   ├── deploy/                 部署配置与发布说明
-│   ├── infra/
-│   │   └── supabase/           本地环境、迁移与 RLS
-│   ├── scripts/                构建、验证与运维入口
-│   ├── requirements/           产品需求、设计与验收记录
-│   └── project.json
-└── aiao-media-e2e/              产品端到端验收
+aiao-media/
+├── apps/
+│   ├── web/                  主站 Angular 应用、浏览器/桌面页面与本地数据
+│   ├── admin/                独立后台 Angular 应用
+│   ├── api/                  Cloudflare Worker、产品 API 与管理 API
+│   └── web-e2e/              主站端到端验收
+├── packages/
+│   ├── api-contracts/        Web、后台和 API 共用的纯数据契约
+│   └── domain/               产品领域类型与规则
+├── requirements/             产品需求、设计与验收记录
+└── scripts/                  需求检查等产品级流程入口
 ```
 
 ### 目录职责与迁移约束
 
-- Web 与管理页继续复用同一 Angular 前端，Tauri 复用相同产品界面；只有出现独立发布或依赖隔离的实际需要时才评估拆项目。
-- `src/contracts`、`src/local-data` 继续是普通目录，不创建独立包或 Nx 项目。契约不能依赖 Angular、DOM、原生宿主或服务端凭据。
+- Web 与后台分别是独立 Angular 应用；Tauri 继续复用 Web 应用界面。共享协议与领域规则通过产品私有 workspace 包复用。
+- `packages/api-contracts` 与 `packages/domain` 作为产品私有 workspace 包维护；契约不能依赖 Angular、DOM、原生宿主或服务端凭据。`apps/web/src/local-data` 继续是 Web 应用内部目录。
 - `src/platform` 只承载真实存在的浏览器/桌面差异；桌面适配按功能引入，浏览器构建不得包含原生特权实现和服务端代码。
-- 将 `deploy/*.mjs` 的 Worker、管理 API 和产品服务逐步迁至 `server/cloudflare`；`deploy` 保留部署配置，`scripts` 保留流程入口，相关测试随实现就近维护。
+- Worker、管理 API 和产品服务统一位于 `apps/api/src`；Wrangler 配置位于 `apps/api/wrangler.json`，Web `deploy` 保留部署说明，`scripts` 保留流程入口，相关测试随实现就近维护。
 - 先整理现有服务端与部署边界，再随功能调整前端目录和增加桌面目录；迁移提交必须同时更新导入、Wrangler 入口、静态资源路径、脚本、测试和文档引用。
 - 保持现有页面 URL、存储 key、工作区 ID、数据库/OPFS 标识和备份格式兼容；目录搬迁不成为数据迁移或清库理由。
-- 保留现有 Nx 使用入口；新增桌面/服务端任务优先加入产品项目。产品私有能力不预先提升到 `packages/*`，确有复用需要时再按公共包与三框架约束评审。
+- 保留现有 Nx 使用入口；新增桌面/服务端任务优先加入对应应用。产品私有能力使用 `@aiao-media/*` 包名，确有跨产品复用需要时再按公共包与三框架约束评审。
 
 ## 建议交付顺序与依赖
 

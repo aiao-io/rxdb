@@ -513,7 +513,7 @@
     {
       "source": "deploy/wrangler.json",
       "sha256": "7ee5e15e16cb9d81ac853f1ef69d2650ae972cce8970ec0a3ac67db4cf695394",
-      "destination": "aiao-media/apps/web/deploy/wrangler.json",
+      "destination": "aiao-media/apps/api/wrangler.json",
       "disposition": "imported"
     },
     {
@@ -585,61 +585,61 @@
     {
       "source": "packages/contracts/src/audio-validation.spec.ts",
       "sha256": "0300184ed6a0e9f23f00df49d35665acef4cad5fd1328135d97d9b4da66eb32c",
-      "destination": "aiao-media/apps/web/src/contracts/audio-validation.spec.ts",
+      "destination": "aiao-media/packages/api-contracts/src/contracts/audio-validation.spec.ts",
       "disposition": "imported"
     },
     {
       "source": "packages/contracts/src/draft-sync-validation.spec.ts",
       "sha256": "b41cab8e5468247d501c0bf2cae4e9fd055a82911d41893de7b8faa65b80773e",
-      "destination": "aiao-media/apps/web/src/contracts/draft-sync-validation.spec.ts",
+      "destination": "aiao-media/packages/api-contracts/src/contracts/draft-sync-validation.spec.ts",
       "disposition": "imported"
     },
     {
       "source": "packages/contracts/src/draft-sync-validation.ts",
       "sha256": "ef45052e89e371a2fc5495f34cfb0e77a91ef2a5d5197cdbe93d927098a93ce6",
-      "destination": "aiao-media/apps/web/src/contracts/draft-sync-validation.ts",
+      "destination": "aiao-media/packages/api-contracts/src/contracts/draft-sync-validation.ts",
       "disposition": "imported"
     },
     {
       "source": "packages/contracts/src/draft-sync.ts",
       "sha256": "bb181f945e8db6ffce60f670c28237722bd379ff4dc456d91bab36cdeab8cd6b",
-      "destination": "aiao-media/apps/web/src/contracts/draft-sync.ts",
+      "destination": "aiao-media/packages/api-contracts/src/contracts/draft-sync.ts",
       "disposition": "imported"
     },
     {
       "source": "packages/contracts/src/generation-jobs.ts",
       "sha256": "bd5342787619b46dece379a875d78641b7876dab3b50ef770436756cca660b35",
-      "destination": "aiao-media/apps/web/src/contracts/generation-jobs.ts",
+      "destination": "aiao-media/packages/api-contracts/src/contracts/generation-jobs.ts",
       "disposition": "imported"
     },
     {
       "source": "packages/contracts/src/generation-validation.spec.ts",
       "sha256": "6092180885a03c07ddb9ff08f598669d1d187ed79ecf1f5bedd2d0a65c26a77f",
-      "destination": "aiao-media/apps/web/src/contracts/generation-validation.spec.ts",
+      "destination": "aiao-media/packages/api-contracts/src/contracts/generation-validation.spec.ts",
       "disposition": "imported"
     },
     {
       "source": "packages/contracts/src/generation-validation.ts",
       "sha256": "ba279b1ef56b97a6cb101fc442daf771ad79fc5d3346273563b5fc1ac2f93062",
-      "destination": "aiao-media/apps/web/src/contracts/generation-validation.ts",
+      "destination": "aiao-media/packages/api-contracts/src/contracts/generation-validation.ts",
       "disposition": "imported"
     },
     {
       "source": "packages/contracts/src/index.spec.ts",
       "sha256": "96e7c1fed624ca91ac0730b230839b679b372058687157424b995bc2168a735c",
-      "destination": "aiao-media/apps/web/src/contracts/index.spec.ts",
+      "destination": "aiao-media/packages/api-contracts/src/contracts/index.spec.ts",
       "disposition": "imported"
     },
     {
       "source": "packages/contracts/src/index.ts",
       "sha256": "2cec16a1911827e78c18b800dd46c25e33aa1e61a0e9241e968f378138b5e167",
-      "destination": "aiao-media/apps/web/src/contracts/index.ts",
+      "destination": "aiao-media/packages/api-contracts/src/contracts/index.ts",
       "disposition": "imported"
     },
     {
       "source": "packages/contracts/src/video-validation.spec.ts",
       "sha256": "2ae2b21746a679007340afccf4eb2b50d24fbc0356c05d7c6f9a1dc9f54961ce",
-      "destination": "aiao-media/apps/web/src/contracts/video-validation.spec.ts",
+      "destination": "aiao-media/packages/api-contracts/src/contracts/video-validation.spec.ts",
       "disposition": "imported"
     },
     {

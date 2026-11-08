@@ -14,7 +14,7 @@ import {
   type ProductRecordKind,
   type ProductRecordPayload,
   type TaskReport
-} from '../contracts/product-data.mjs';
+} from '@aiao-media/api-contracts';
 import { configureLocalAdapter, localAdapterName } from '../platform/local-backend';
 import { splitReportBatches } from './report-batches';
 import SupabaseSDK = require('@supabase/supabase-js');

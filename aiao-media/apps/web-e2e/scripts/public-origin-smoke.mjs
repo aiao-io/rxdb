@@ -4,7 +4,7 @@ import { chmod, cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/prom
 import { createServer } from 'node:http';
 import { extname, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { validateSupabaseAuthConfig } from '../../aiao-media/src/app/supabase-auth-config.ts';
+import { validateSupabaseAuthConfig } from '../../apps/web/src/app/supabase-auth-config.ts';
 
 const formalOrigin = 'https://media.aiao.io';
 const routes = ['/', '/create', '/images', '/providers'];
@@ -316,12 +316,12 @@ export async function runPublicSmoke(settings) {
 }
 
 async function fixture() {
-  const source = resolve(import.meta.dirname, '../../aiao-media/dist/browser');
+  const source = resolve(import.meta.dirname, '../../apps/web/dist/browser');
   const parent = resolve(import.meta.dirname, '../tmp');
   await mkdir(parent, { recursive: true, mode: 0o700 });
   const root = await mkdtemp(resolve(parent, 'public-origin-static-'));
   await cp(source, root, { recursive: true });
-  const { default: worker } = await import('../../aiao-media/server/cloudflare/local-first-worker.mjs');
+  const { default: worker } = await import('../../api/src/local-first-worker.ts');
   const template = await readFile(resolve(root, '_headers'), 'utf8');
   const headersFor = path => {
     let matches = false;

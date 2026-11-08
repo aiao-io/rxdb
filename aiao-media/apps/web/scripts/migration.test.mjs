@@ -43,11 +43,12 @@ test('all original application stories retain their independent identity and all
   }
 });
 
-test('private data and contracts remain ordinary folders owned by the application', async () => {
-  for (const directory of ['src/contracts', 'src/local-data', 'infra/supabase']) {
+test('private data remains app-owned while shared contracts are package-owned', async () => {
+  for (const directory of ['src/local-data', 'infra/supabase']) {
     assert.ok((await stat(resolve(application, directory))).isDirectory());
-    for (const config of ['project.json', 'package.json']) {
+    for (const config of ['project.json', 'package.json'])
       await assert.rejects(stat(resolve(application, directory, config)), { code: 'ENOENT' });
-    }
   }
+  await assert.rejects(stat(resolve(application, 'src/contracts')), { code: 'ENOENT' });
+  assert.ok((await stat(resolve(repository, 'aiao-media/packages/api-contracts/package.json'))).isFile());
 });

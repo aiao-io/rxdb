@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminConsole } from './admin-console';
-import { imageMvpCatalog } from './image-mvp-catalog';
+import { defaultAdminTemplate } from './admin-defaults';
 import { ProductClient } from './product-client';
 
 const user = {
@@ -13,7 +13,7 @@ const user = {
   revision: 2,
   authState: 'applied'
 };
-const templateRow = { kind: 'template' as const, key: imageMvpCatalog[0].id, revision: 3, payload: imageMvpCatalog[0] };
+const templateRow = { kind: 'template' as const, key: defaultAdminTemplate.id, revision: 3, payload: defaultAdminTemplate };
 const policyRow = {
   kind: 'provider-policy' as const,
   key: 'runtime',
@@ -25,6 +25,10 @@ const content = {
   published: [{ kind: policyRow.kind, key: policyRow.key, revision: 2 }]
 };
 const usage = { sources: {}, partial: true };
+
+beforeEach(() => {
+  vi.stubGlobal('confirm', () => true);
+});
 
 async function rig(status = 'signed-in', render = false) {
   if (!render) TestBed.overrideComponent(AdminConsole, { set: { template: '', imports: [] } });
@@ -52,6 +56,7 @@ async function rig(status = 'signed-in', render = false) {
 afterEach(() => {
   TestBed.resetTestingModule();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe('administrative access and identity', () => {

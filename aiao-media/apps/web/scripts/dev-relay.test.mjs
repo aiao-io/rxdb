@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { test } from 'node:test';
-import { createRelayTaskToken, openRelayResult, relayResultKey } from '../src/contracts/relay-task.ts';
+import { createRelayTaskToken, openRelayResult, relayResultKey } from '@aiao-media/api-contracts';
 import { startDevRelay } from './dev-relay.mjs';
 
 const provider = 'https://provider.example.test/v1';
@@ -101,7 +101,7 @@ test('refuses cross-origin callers, other providers and other API routes before 
 });
 test('starts from the allow-list committed for deployment and listens on loopback only', async () => {
   const [committed] = JSON.parse(
-    JSON.parse(readFileSync(new URL('../deploy/wrangler.json', import.meta.url), 'utf8')).vars
+    JSON.parse(readFileSync(new URL('../api/wrangler.json', import.meta.url), 'utf8')).vars
       .ALLOWED_PROVIDER_BASE_URLS
   );
   await withRelay(undefined, image, async (relay, calls) => {

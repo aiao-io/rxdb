@@ -23,5 +23,10 @@
     "local-product.config.ts",
     "upgrade.config.ts",
     "offline-update.config.ts"
+  ],
+  "references": [
+    {
+      "path": "../../packages/api-contracts"
+    }
   ]
 }

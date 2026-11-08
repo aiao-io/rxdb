@@ -7,8 +7,8 @@ import type {
   DraftSyncResolutionResult,
   SyncedDraft,
   SyncedDraftContent
-} from '../contracts/index';
-import { validateDraftContent, validateDraftMutation, validateSyncedDraft } from '../contracts/index';
+} from '@aiao-media/api-contracts';
+import { validateDraftContent, validateDraftMutation, validateSyncedDraft } from '@aiao-media/api-contracts';
 
 export interface NotebookDraft {
   id: string;

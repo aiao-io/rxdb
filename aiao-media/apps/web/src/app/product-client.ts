@@ -1,4 +1,4 @@
-import { validateTaskReport, type TaskReport } from '../contracts/product-data.mjs';
+import { validateTaskReport, type TaskReport } from '@aiao-media/api-contracts';
 import { apiEndpoint } from '../platform/local-backend';
 import type { ProductAuthorization } from './supabase-auth';
 

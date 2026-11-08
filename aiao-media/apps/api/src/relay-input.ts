@@ -1,4 +1,4 @@
-import { imageGenerationRequest } from '../../src/contracts/image-provider-protocol.ts';
+import { imageGenerationRequest } from '@aiao-media/api-contracts';
 import { runtimePolicy } from './product-content.ts';
 import { originAllowed } from './product-http.ts';
 import type { WorkerEnv } from './worker-env.ts';

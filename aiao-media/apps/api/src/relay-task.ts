@@ -1,10 +1,10 @@
-import type { RelayTaskStatus } from '../../src/contracts/relay-task.ts';
+import type { RelayTaskStatus } from '@aiao-media/api-contracts';
 import {
   relayResultKey,
   relayTaskTokenHash,
   relayTaskTokenHeader,
   sealRelayResult
-} from '../../src/contracts/relay-task.ts';
+} from '@aiao-media/api-contracts';
 import { bounded } from './product-http.ts';
 import type { RelayTaskContext, WorkerEnv, WorkerRequest } from './worker-env.ts';
 

@@ -1,4 +1,4 @@
-import type { TaskReport } from '../../src/contracts/product-data.mjs';
+import type { TaskReport } from '@aiao-media/api-contracts';
 import type { BackendClient } from './product-http.ts';
 import { reject, uuid } from './product-http.ts';
 

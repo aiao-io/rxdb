@@ -1,4 +1,4 @@
-import { validateProviderPolicy, validatePublishedTemplate } from '../../src/contracts/product-data.mjs';
+import { validateProviderPolicy, validatePublishedTemplate } from '@aiao-media/api-contracts';
 import type { BackendClient } from './product-http.ts';
 import { backend, body, fields, reject, uuid } from './product-http.ts';
 import type { WorkerEnv } from './worker-env.ts';

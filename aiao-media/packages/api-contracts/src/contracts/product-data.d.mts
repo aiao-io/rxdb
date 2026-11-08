@@ -1,5 +1,5 @@
-import type { PromptTemplate } from '../app/prompts/prompt-catalog';
-import type { StudioPromptState } from '../local-data/studio-draft';
+import type { PromptTemplate } from '../prompt-template';
+import type { StudioPromptState } from '../studio-draft';
 import type { ImageMimeType } from './image-format';
 export type ProductRecordKind = 'draft' | 'provider' | 'work';
 export function productRecordId(workspaceId: string, kind: ProductRecordKind, sourceId: string): Promise<string>;

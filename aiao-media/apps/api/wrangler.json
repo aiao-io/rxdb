@@ -1,11 +1,13 @@
 {
-  "$schema": "../node_modules/wrangler/config-schema.json",
+  "$schema": "../../node_modules/wrangler/config-schema.json",
   "assets": {
-    "directory": "../dist/browser",
+    "directory": "../web/dist/browser",
     "binding": "ASSETS",
     "html_handling": "none",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*"]
+    "run_worker_first": [
+      "/api/*"
+    ]
   },
   "compatibility_date": "2026-10-23",
   "durable_objects": {
@@ -20,15 +22,19 @@
       }
     ]
   },
-  "main": "../server/cloudflare/local-first-worker.ts",
+  "main": "src/local-first-worker.ts",
   "migrations": [
     {
       "tag": "media-platform-v1",
-      "new_sqlite_classes": ["PlatformCoordinator"]
+      "new_sqlite_classes": [
+        "PlatformCoordinator"
+      ]
     },
     {
       "tag": "media-relay-v1",
-      "new_sqlite_classes": ["RelayTask"]
+      "new_sqlite_classes": [
+        "RelayTask"
+      ]
     }
   ],
   "name": "aiao-media",

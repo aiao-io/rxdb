@@ -16,8 +16,8 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { concatMap, EMPTY, merge, Subscription } from 'rxjs';
-import { imageExtension, type ImageMimeType } from '../contracts/image-format';
-import type { GenerationJobSummary, ImageAspectRatio } from '../contracts/index';
+import { imageExtension, type ImageMimeType } from '@aiao-media/api-contracts';
+import type { GenerationJobSummary, ImageAspectRatio } from '@aiao-media/api-contracts';
 import {
   productRecordId,
   validateProviderPolicy,
@@ -25,8 +25,8 @@ import {
   validateSyncPayload,
   type ProviderPolicy,
   type PublicWorkPayload
-} from '../contracts/product-data.mjs';
-import { createRelayTaskToken } from '../contracts/relay-task';
+} from '@aiao-media/api-contracts';
+import { createRelayTaskToken } from '@aiao-media/api-contracts';
 import { ImageSyncController } from '../local-data/image-sync';
 import type { LocalMediaStore, LocalWorkSummary, StudioPromptState } from '../local-data/index';
 import { libraryWhere, type LocalWorkFilters } from '../local-data/library-query';
@@ -47,7 +47,6 @@ import {
   saveDownload
 } from '../platform/local-backend';
 import { SyncTargetSettings } from './account/sync-target-settings';
-import { AdminConsole } from './admin-console';
 import {
   consumeBackupSelection,
   readBackupSelection,
@@ -178,7 +177,6 @@ const emptyLibrary = (): LibraryState => ({
     FormsModule,
     NgTemplateOutlet,
     PromptInput,
-    AdminConsole,
     WorkVisibleDirective,
     ElementWidthDirective,
     SyncTargetSettings
