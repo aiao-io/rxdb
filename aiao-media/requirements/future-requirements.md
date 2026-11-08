@@ -118,9 +118,9 @@
 
 ### 现状与目标
 
-现有 [`src/app/`](../src/app/) 中多数功能平铺，[`deploy/`](../deploy/) 同时承载部署配置与 Worker/管理 API 运行代码。随着桌面版和平台服务增加，需要按功能与运行环境明确职责。
+现有 [`src/app/`](../apps/web/src/app/) 中多数功能平铺，[`deploy/`](../apps/web/deploy/) 同时承载部署配置与 Worker/管理 API 运行代码。随着桌面版和平台服务增加，需要按功能与运行环境明确职责。
 
-目标结构沿用[产品目录约定](../AGENTS.md)：产品私有代码集中在 `aiao-media/apps/web`，E2E 留在同级 `aiao-media-e2e`。下树是目标方案，新增目录随对应功能落地，不创建空目录。
+目标结构沿用[产品目录约定](../apps/web/AGENTS.md)：产品私有代码集中在 `aiao-media/apps/web`，E2E 留在同级 `aiao-media-e2e`。下树是目标方案，新增目录随对应功能落地，不创建空目录。
 
 ```text
 apps/

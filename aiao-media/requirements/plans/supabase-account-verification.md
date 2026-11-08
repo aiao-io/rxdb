@@ -27,13 +27,13 @@ pnpm nx run aiao-media:supabase-down
 
 ## 已验证能力
 
-[`supabase-local.spec.mts`](../../../aiao-media-e2e/src/supabase-local.spec.mts) 的 3 项场景使用真实响应：
+[`supabase-local.spec.mts`](../../apps/web-e2e/src/supabase-local.spec.mts) 的 3 项场景使用真实响应：
 
 1. UI 注册、收取本地邮件并确认、确认前登录被拒绝、登录成功、刷新恢复及退出保留本机草稿和工作区。
 2. 错误密码的准确提示和密码输入清空；只阻断 Auth 网络后显示待验证，本机编辑仍可保存，网络恢复后可重新验证。
 3. 两标签页退出同步生效；导出备份不含访问/刷新令牌、邮箱、密码或管理 Key，账号操作不上传本机业务数据。
 
-[`test-supabase-local.mjs`](../../scripts/test-supabase-local.mjs) 验证真实邮箱确认、服务端会话、开发探针表的跨账号读/改/删及 owner 伪造拒绝、Realtime 事件隔离、会话刷新和退出后刷新凭据撤销。Realtime 检查等待 PostgreSQL 订阅就绪，逐条校验事件 owner，并等待本次写入的目标事件。
+[`test-supabase-local.mjs`](../../apps/web/scripts/test-supabase-local.mjs) 验证真实邮箱确认、服务端会话、开发探针表的跨账号读/改/删及 owner 伪造拒绝、Realtime 事件隔离、会话刷新和退出后刷新凭据撤销。Realtime 检查等待 PostgreSQL 订阅就绪，逐条校验事件 owner，并等待本次写入的目标事件。
 
 临时账号使用随机邮箱，测试结束仅删除本次创建的账号和邮箱。service role 只供 Node 进程创建/清理测试账号，不传入页面、公开配置或备份。
 
@@ -49,7 +49,7 @@ pnpm nx run aiao-media:supabase-down
 
 ## 当前产品接线
 
-产品使用本仓 `0.0.28` 的 Supabase adapter、history 与 sync 插件，独立 DTO 库接线见[product-sync-store](../../src/local-data/product-sync-store.ts)。私有图片/凭据仍留在原本机库，只有草稿、公开供应商配置和作品元数据进入确认后的复制范围。
+产品使用本仓 `0.0.28` 的 Supabase adapter、history 与 sync 插件，独立 DTO 库接线见[product-sync-store](../../apps/web/src/local-data/product-sync-store.ts)。私有图片/凭据仍留在原本机库，只有草稿、公开供应商配置和作品元数据进入确认后的复制范围。
 
 真实本地产品证据已覆盖会话传递、产品 RLS、双方冲突保留、tombstone 与检查点重扫，见[交付记录](local-delivery-verification.md)。开发探针和依赖库测试仍只代表各自层，不替代产品场景；本次新增作品检索的 AC 也不复用这些通过标记。
 

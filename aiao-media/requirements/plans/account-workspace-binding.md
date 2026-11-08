@@ -74,9 +74,9 @@ B1–B6 均已有真实本地产品证据，切片表描述已交付范围。新
 
 ## 研究依据与源码
 
-- [LocalMediaStore](../../src/local-data/browser-media.ts) 使用本机 UUID、`SyncType.None`；`close()`/`lockAccount()` 可关闭存储和预览，私有文件仍留在本机，产品绑定和 DTO 复制由独立控制器接入。
-- [Auth 客户端](../../src/app/supabase-auth.ts) 按项目隔离会话，调用 `getUser()` 验证，使用 generation 丢弃迟到认证结果和 `signOut({scope: 'local'})`；这些不能代替复制回调的 workspace/epoch 校验。
-- [当前界面](../../src/app/local-image-mvp.ts) 的 Auth 订阅会暂停旧复制并切换匹配副本；`epoch`、绑定 generation 和检查点共同隔离在途结果。
+- [LocalMediaStore](../../apps/web/src/local-data/browser-media.ts) 使用本机 UUID、`SyncType.None`；`close()`/`lockAccount()` 可关闭存储和预览，私有文件仍留在本机，产品绑定和 DTO 复制由独立控制器接入。
+- [Auth 客户端](../../apps/web/src/app/supabase-auth.ts) 按项目隔离会话，调用 `getUser()` 验证，使用 generation 丢弃迟到认证结果和 `signOut({scope: 'local'})`；这些不能代替复制回调的 workspace/epoch 校验。
+- [当前界面](../../apps/web/src/app/local-image-mvp.ts) 的 Auth 订阅会暂停旧复制并切换匹配副本；`epoch`、绑定 generation 和检查点共同隔离在途结果。
 - [Supabase 退出 scope](https://supabase.com/docs/guides/auth/signout)：退出撤销刷新凭据，已发 access token 可能有效到期；不能承诺 RLS 仅凭未过期 JWT 就能即时识别所有退出。
 - [服务端会话验证](https://supabase.com/docs/guides/auth/server-side/advanced-guide)：缓存中的 `getSession()` 用户不能代替身份验证；需要最新用户/会话信息时向 Auth 验证。
 - [Supabase RLS](https://supabase.com/docs/guides/database/postgres/row-level-security)：可信 owner、读写双向策略，不用用户可改的 `user_metadata` 决定权限。

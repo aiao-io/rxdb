@@ -64,25 +64,25 @@ tags: [image, prompts, gallery, web, inspiration, tiptap, template-input]
 
 当前复用 Tiptap `3.31.3` 最小扩展与同源运行时。`aiao-media:test` 中的提示词状态、焦点与草稿会话测试覆盖序列化及编辑状态；`aiao-media-e2e:local-first-e2e` 验证字段撤销/重做、画幅与字段刷新恢复、模板替换后清空旧撤销历史、真实双标签草稿冲突保留/载入选择，以及图片失败提示与编辑器失败后重试保留输入；见[可靠性验收](../../plans/local-reliability-verification.md)。自身保存回执不重置编辑器另有 `studio-draft-session.spec.ts` 状态机证据。桌面真实操作系统 IME 仍待验收，不用合成 composition 事件代替：入口 `aiao-media-e2e:desktop-ime-acceptance` 由 System Events 向 macOS 简体拼音发送物理按键，系统输入法负责组字，覆盖正文/字段输入、组字中途自动保存、粘贴、撤销重做、焦点、布局与刷新恢复；运行需要给 VS Code 开辅助功能权限，期间不能操作键鼠。入口尚未实跑，按 D-09 本轮跳过；移动端不作为当前关闭条件。
 
-首页瀑布流由 [inspiration-feed.spec.ts](../../../src/app/inspiration-feed.spec.ts)（封面比例逐张对照 `public/` 下的图片文件、分列算法）、[element-width.directive.spec.ts](../../../src/app/element-width.directive.spec.ts) 和 [discover-feed.spec.ts](../../../src/app/discover-feed.spec.ts)（分列、卡片标注、详情、加载失败态、创作页不再含瀑布流）覆盖；`aiao-media-e2e:local-first-e2e` 另验证多列并排、Esc 关闭后焦点回到卡片、离线冷开后六张参考图可解码和手机宽度无横向溢出。
+首页瀑布流由 [inspiration-feed.spec.ts](../../../apps/web/src/app/inspiration-feed.spec.ts)（封面比例逐张对照 `public/` 下的图片文件、分列算法）、[element-width.directive.spec.ts](../../../apps/web/src/app/element-width.directive.spec.ts) 和 [discover-feed.spec.ts](../../../apps/web/src/app/discover-feed.spec.ts)（分列、卡片标注、详情、加载失败态、创作页不再含瀑布流）覆盖；`aiao-media-e2e:local-first-e2e` 另验证多列并排、Esc 关闭后焦点回到卡片、离线冷开后六张参考图可解码和手机宽度无横向溢出。
 
 界面参考与静态示例保留在[设计资料](../../design/image-mvp/README.md)；其中三页原型用于布局参考，当前产品另含设置页（供应商、同步、本机数据三个分区），首页已改为纯图片瀑布流，原型里的英雄区与卡片网格仅作历史参考。300 ms 自动保存和 CAS 冲突规则见[本机草稿说明](../local-first/local-first-studio.md)。
 
 ## 实现文件
 
-- [当前静态模板目录](../../../src/app/image-mvp-catalog.ts)
-- [目录结构与校验](../../../src/app/prompts/prompt-catalog.ts)
-- [瀑布流分列与封面比例](../../../src/app/inspiration-feed.ts)及[元素宽度观察](../../../src/app/element-width.directive.ts)
-- [提示词状态与序列化](../../../src/app/prompts/prompt-state.ts)及[单元测试](../../../src/app/prompts/prompt-state.spec.ts)
-- [Tiptap 输入组件](../../../src/app/prompts/prompt-input.ts)、[运行时](../../../src/app/prompts/prompt-editor-runtime.ts)及[焦点保护](../../../src/app/prompts/prompt-focus.ts)
-- [草稿会话](../../../src/app/prompts/studio-draft-session.ts)
-- [编辑器资源构建](../../../scripts/build-prompt-assets.mjs)
-- [本地应用](../../../src/app/local-image-mvp.ts)
+- [当前静态模板目录](../../../apps/web/src/app/image-mvp-catalog.ts)
+- [目录结构与校验](../../../apps/web/src/app/prompts/prompt-catalog.ts)
+- [瀑布流分列与封面比例](../../../apps/web/src/app/inspiration-feed.ts)及[元素宽度观察](../../../apps/web/src/app/element-width.directive.ts)
+- [提示词状态与序列化](../../../apps/web/src/app/prompts/prompt-state.ts)及[单元测试](../../../apps/web/src/app/prompts/prompt-state.spec.ts)
+- [Tiptap 输入组件](../../../apps/web/src/app/prompts/prompt-input.ts)、[运行时](../../../apps/web/src/app/prompts/prompt-editor-runtime.ts)及[焦点保护](../../../apps/web/src/app/prompts/prompt-focus.ts)
+- [草稿会话](../../../apps/web/src/app/prompts/studio-draft-session.ts)
+- [编辑器资源构建](../../../apps/web/scripts/build-prompt-assets.mjs)
+- [本地应用](../../../apps/web/src/app/local-image-mvp.ts)
 
 ## References
 
 - [MEDIA-US-102 图片生成与本机交付](MEDIA-US-102-image-generation.md)
 - [MEDIA-US-301 浏览器本地草稿与图片持久化](../local-first/MEDIA-US-301-browser-persistence.md)
 - [设计参考图片来源](../../design/image-mvp/assets/SOURCES.md)
-- [真实系统输入法验收入口](../../../../aiao-media-e2e/scripts/desktop-ime-acceptance.mjs)
+- [真实系统输入法验收入口](../../../apps/web-e2e/scripts/desktop-ime-acceptance.mjs)
 - [验收记录](../../verification-report.md)

@@ -72,17 +72,17 @@ tags: [rxdb, web, offline, image, opfs, backup]
 
 ## 实现文件
 
-- [本地工作区与文件存储](../../../src/local-data/browser-media.ts)
-- [草稿结构与校验](../../../src/local-data/studio-draft.ts)
-- [草稿会话与冲突处理](../../../src/app/prompts/studio-draft-session.ts)
-- [本机启动、设置与隔离导入](../../../src/app/local-image-mvp.ts)
-- [备份编解码与校验](../../../src/app/local-backup.ts)
-- [离线资源构建](../../../scripts/build-offline-assets.mjs)与[Service Worker](../../../scripts/offline-worker.js)
-- [真实应用浏览器测试](../../../../aiao-media-e2e/src/local-first.spec.ts)
+- [本地工作区与文件存储](../../../apps/web/src/local-data/browser-media.ts)
+- [草稿结构与校验](../../../apps/web/src/local-data/studio-draft.ts)
+- [草稿会话与冲突处理](../../../apps/web/src/app/prompts/studio-draft-session.ts)
+- [本机启动、设置与隔离导入](../../../apps/web/src/app/local-image-mvp.ts)
+- [备份编解码与校验](../../../apps/web/src/app/local-backup.ts)
+- [离线资源构建](../../../apps/web/scripts/build-offline-assets.mjs)与[Service Worker](../../../apps/web/scripts/offline-worker.js)
+- [真实应用浏览器测试](../../../apps/web-e2e/src/local-first.spec.ts)
 
 ## References
 
 - [MEDIA-US-202 本地图片作品与任务历史](../account/MEDIA-US-202-library.md)
 - [MEDIA-US-302 多端草稿同步与冲突处理](MEDIA-US-302-draft-sync.md)
 - [真实应用集成验证](../../plans/local-first-app-verification.md)
-- [静态部署与回退](../../../deploy/local-first-pages.md)
+- [静态部署与回退](../../../apps/web/deploy/local-first-pages.md)

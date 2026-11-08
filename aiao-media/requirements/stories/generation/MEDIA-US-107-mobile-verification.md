@@ -58,7 +58,7 @@ inherited_acs:
 
 ## 实现文件
 
-- [现有桌面/视口浏览器套件](../../../../aiao-media-e2e/src/local-first.spec.ts)：已有基线。
+- [现有桌面/视口浏览器套件](../../../apps/web-e2e/src/local-first.spec.ts)：已有基线。
 - 真实移动设备记录与必要修复：待实施。
 
 ## References

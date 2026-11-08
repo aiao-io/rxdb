@@ -71,4 +71,4 @@
 
 既有网关在本机 origin 的 CORS 403 证据仍见 [直连实测记录](local-first-direct-probe-verification.md)。本次未重新触发真实收费生成；fixture 通过不证明该网关在正式域名支持浏览器直连。
 
-相关：[当前路线图](../roadmap.md)、[部署说明](../../deploy/local-first-pages.md)、[项目说明](../../README.md)。
+相关：[当前路线图](../roadmap.md)、[部署说明](../../apps/web/deploy/local-first-pages.md)、[项目说明](../../apps/web/README.md)。

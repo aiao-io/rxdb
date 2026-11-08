@@ -51,11 +51,11 @@ Supabase SDK 在锁文件去重到 2.117.3，无全局版本 override。同步�
 
 ## 实现与测试
 
-- [应用接线](../../src/app/local-image-mvp.ts)、[绑定控制器](../../src/app/product-workspace.ts)、[工作区会话](../../src/app/workspace-session.ts)
-- [本机注册表](../../src/local-data/workspace-registry.ts)、[持久注册表](../../src/local-data/workspace-registry-store.ts)、[原生复制](../../src/local-data/product-sync-store.ts)
-- [私有投影](../../src/local-data/product-projection.ts)、[集合迁移](../../src/local-data/local-collections.ts)、[产品 DTO](../../src/contracts/product-data.mjs)
-- [后台界面](../../src/app/admin-console.ts)、[后台 API](../../server/cloudflare/admin-api.ts)、[运行策略](../../server/cloudflare/product-content.ts)
-- [真实服务测试](../../scripts/test-product-local.mjs)、[真实产品浏览器测试](../../../aiao-media-e2e/src/product-local.spec.mts)
+- [应用接线](../../apps/web/src/app/local-image-mvp.ts)、[绑定控制器](../../apps/web/src/app/product-workspace.ts)、[工作区会话](../../apps/web/src/app/workspace-session.ts)
+- [本机注册表](../../apps/web/src/local-data/workspace-registry.ts)、[持久注册表](../../apps/web/src/local-data/workspace-registry-store.ts)、[原生复制](../../apps/web/src/local-data/product-sync-store.ts)
+- [私有投影](../../apps/web/src/local-data/product-projection.ts)、[集合迁移](../../apps/web/src/local-data/local-collections.ts)、[产品 DTO](../../apps/web/src/contracts/product-data.mjs)
+- [后台界面](../../apps/web/src/app/admin-console.ts)、[后台 API](../../apps/web/server/cloudflare/admin-api.ts)、[运行策略](../../apps/web/server/cloudflare/product-content.ts)
+- [真实服务测试](../../apps/web/scripts/test-product-local.mjs)、[真实产品浏览器测试](../../apps/web-e2e/src/product-local.spec.mts)
 
 ## 最终本地门禁
 
@@ -67,8 +67,8 @@ Supabase SDK 在锁文件去重到 2.117.3，无全局版本 override。同步�
 
 ## 正式验收自动化准备
 
-[正式 runner](../../../aiao-media-e2e/scripts/provider-acceptance.mjs)通过产品页面逐项验证直连/代理与三画幅，返回尺寸精确匹配请求；保存后刷新并比较回读摘要/下载字节。[页面响应捕获](../../../aiao-media-e2e/scripts/provider-fetch-capture.mjs)在内存中读取本次原生 fetch 的 Response 副本，原 Response 立即交给应用；生成 JSON 限 24 MiB、图片限 16 MiB，并限制捕获份数和截止时间。发送前持久化独占尝试并 fsync，失败或不确定后停止；Key 轮换不能绕过同一尝试，报告无 Key 或完整响应。复用证据前使用独立无凭据 context 校验线上 manifest 与审核摘要；身份包括发布版本与产物摘要，避免旧证据被新发布误用。
+[正式 runner](../../apps/web-e2e/scripts/provider-acceptance.mjs)通过产品页面逐项验证直连/代理与三画幅，返回尺寸精确匹配请求；保存后刷新并比较回读摘要/下载字节。[页面响应捕获](../../apps/web-e2e/scripts/provider-fetch-capture.mjs)在内存中读取本次原生 fetch 的 Response 副本，原 Response 立即交给应用；生成 JSON 限 24 MiB、图片限 16 MiB，并限制捕获份数和截止时间。发送前持久化独占尝试并 fsync，失败或不确定后停止；Key 轮换不能绕过同一尝试，报告无 Key 或完整响应。复用证据前使用独立无凭据 context 校验线上 manifest 与审核摘要；身份包括发布版本与产物摘要，避免旧证据被新发布误用。
 
-[fixture](../../../aiao-media-e2e/scripts/provider-acceptance-fixture.mjs)调用真实 production Worker handler 与模拟供应商；预置私有 Cookie 仍不随结果图片请求发送。产物变化时零新尝试/零生成请求；错误尺寸拒绝，成功复用和中断/失败重跑均零重发。正式环境尚未执行；Base64 结果不替代跨 origin URL 结果证据。
+[fixture](../../apps/web-e2e/scripts/provider-acceptance-fixture.mjs)调用真实 production Worker handler 与模拟供应商；预置私有 Cookie 仍不随结果图片请求发送。产物变化时零新尝试/零生成请求；错误尺寸拒绝，成功复用和中断/失败重跑均零重发。正式环境尚未执行；Base64 结果不替代跨 origin URL 结果证据。
 
 fixture 另将页面的 Playwright `Response.body()` 设为必抛，断言调用数为 0；六个组合仍完成精确下载，防止回到已证实会丢失响应体的 CDP 读取方式。原生 fetch 单次调用、原 Response/参数不变、提前到达的结果 GET、超限/截止/clone 失败、重复 URL 与跨分块 base64 均有保护测试；只取消副本，失败不重读或重发。

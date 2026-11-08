@@ -71,12 +71,12 @@ tags: [library, local-first, search, pagination, preview, performance]
 
 ## 实现文件
 
-- [作品预览会话](../../../src/app/work-library-session.ts)及[现有单测](../../../src/app/work-library-session.spec.ts)
-- [真实视口指令](../../../src/app/work-visible.directive.ts)、[全库事实会话](../../../src/app/work-metadata-session.ts)与[根组件呈现测试](../../../src/app/local-image-mvp.spec.ts)
-- [原生查询契约](../../../src/local-data/library-query.ts)、[查询单测](../../../src/local-data/library-query.spec.ts)和[真实 SQLite/冷启动测试](../../../src/local-data/library-query.browser.test.ts)
-- [应用状态/作品归属](../../../src/app/local-image-mvp.ts)、[作品界面](../../../src/app/local-image-mvp.html)
-- [本机作品 metadata 与原图](../../../src/local-data/browser-media.ts)
-- [作品检索浏览器验收](../../../../aiao-media-e2e/src/library.spec.ts)与[本机浏览器回归](../../../../aiao-media-e2e/src/local-first.spec.ts)
+- [作品预览会话](../../../apps/web/src/app/work-library-session.ts)及[现有单测](../../../apps/web/src/app/work-library-session.spec.ts)
+- [真实视口指令](../../../apps/web/src/app/work-visible.directive.ts)、[全库事实会话](../../../apps/web/src/app/work-metadata-session.ts)与[根组件呈现测试](../../../apps/web/src/app/local-image-mvp.spec.ts)
+- [原生查询契约](../../../apps/web/src/local-data/library-query.ts)、[查询单测](../../../apps/web/src/local-data/library-query.spec.ts)和[真实 SQLite/冷启动测试](../../../apps/web/src/local-data/library-query.browser.test.ts)
+- [应用状态/作品归属](../../../apps/web/src/app/local-image-mvp.ts)、[作品界面](../../../apps/web/src/app/local-image-mvp.html)
+- [本机作品 metadata 与原图](../../../apps/web/src/local-data/browser-media.ts)
+- [作品检索浏览器验收](../../../apps/web-e2e/src/library.spec.ts)与[本机浏览器回归](../../../apps/web-e2e/src/local-first.spec.ts)
 
 ## References
 

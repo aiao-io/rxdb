@@ -72,12 +72,12 @@ tags: [auth, security, supabase, local-first]
 
 | 阶段 | 文件                                                                                                                                                     | 用途                                                |
 | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| A    | [Supabase 会话](../../../src/app/supabase-auth.ts)及[配置校验](../../../src/app/supabase-auth-config.ts)                                                 | 注册、登录、恢复、退出和公开 Key 限制               |
-| A    | [应用入口](../../../src/app/local-image-mvp.ts)及[账号界面](../../../src/app/local-image-mvp.html)                                                       | 可选登录、不阻断本机创作                            |
-| A    | [账号单测](../../../src/app/supabase-auth.spec.ts)及[配置构建测试](../../../scripts/build-supabase-config.test.mjs)                                      | 会话边界、公开配置及静态 CSP                        |
-| A    | [fixture 浏览器测试](../../../../aiao-media-e2e/src/supabase-auth.spec.ts)及[真实本地浏览器测试](../../../../aiao-media-e2e/src/supabase-local.spec.mts) | UI、真实 SDK、真实 Auth 与故障恢复                  |
-| A    | [本地 Supabase 入口](../../../scripts/supabase-local.mjs)及[真实服务探针](../../../scripts/test-supabase-local.mjs)                                      | 邮箱确认、刷新撤销与探针表授权                      |
-| B    | [本机工作区存储](../../../src/local-data/browser-media.ts)                                                                                               | 私有存储与账号独立副本；产品复制使用单独 DTO 数据库 |
+| A    | [Supabase 会话](../../../apps/web/src/app/supabase-auth.ts)及[配置校验](../../../apps/web/src/app/supabase-auth-config.ts)                                                 | 注册、登录、恢复、退出和公开 Key 限制               |
+| A    | [应用入口](../../../apps/web/src/app/local-image-mvp.ts)及[账号界面](../../../apps/web/src/app/local-image-mvp.html)                                                       | 可选登录、不阻断本机创作                            |
+| A    | [账号单测](../../../apps/web/src/app/supabase-auth.spec.ts)及[配置构建测试](../../../apps/web/scripts/build-supabase-config.test.mjs)                                      | 会话边界、公开配置及静态 CSP                        |
+| A    | [fixture 浏览器测试](../../../apps/web-e2e/src/supabase-auth.spec.ts)及[真实本地浏览器测试](../../../apps/web-e2e/src/supabase-local.spec.mts) | UI、真实 SDK、真实 Auth 与故障恢复                  |
+| A    | [本地 Supabase 入口](../../../apps/web/scripts/supabase-local.mjs)及[真实服务探针](../../../apps/web/scripts/test-supabase-local.mjs)                                      | 邮箱确认、刷新撤销与探针表授权                      |
+| B    | [本机工作区存储](../../../apps/web/src/local-data/browser-media.ts)                                                                                               | 私有存储与账号独立副本；产品复制使用单独 DTO 数据库 |
 
 ## References
 

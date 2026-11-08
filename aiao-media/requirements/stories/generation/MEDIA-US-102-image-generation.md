@@ -71,11 +71,11 @@ AC7 的正式 origin 证据：
 
 ## 实现文件
 
-- [本地创作入口](../../../src/app/local-image-mvp.ts)及[界面](../../../src/app/local-image-mvp.html)
-- [浏览器供应商适配器](../../../src/app/local-provider.ts)
-- [提示词序列化与校验](../../../src/app/prompts/prompt-state.ts)
-- [本地文件与作品存储](../../../src/local-data/browser-media.ts)
-- [真实应用浏览器测试](../../../../aiao-media-e2e/src/local-first.spec.ts)
+- [本地创作入口](../../../apps/web/src/app/local-image-mvp.ts)及[界面](../../../apps/web/src/app/local-image-mvp.html)
+- [浏览器供应商适配器](../../../apps/web/src/app/local-provider.ts)
+- [提示词序列化与校验](../../../apps/web/src/app/prompts/prompt-state.ts)
+- [本地文件与作品存储](../../../apps/web/src/local-data/browser-media.ts)
+- [真实应用浏览器测试](../../../apps/web-e2e/src/local-first.spec.ts)
 
 ## References
 

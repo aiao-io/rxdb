@@ -47,10 +47,10 @@ tags: [nx, pnpm, tooling]
 
 ## 实现文件
 
-- [应用依赖](../../../package.json)
-- [工作区配置](../../../../../nx.json)
-- [应用目标](../../../project.json)
-- [e2e 目标](../../../../aiao-media-e2e/project.json)
+- [应用依赖](../../../apps/web/package.json)
+- [工作区配置](../../../../nx.json)
+- [应用目标](../../../apps/web/project.json)
+- [e2e 目标](../../../apps/web-e2e/project.json)
 
 ## References
 

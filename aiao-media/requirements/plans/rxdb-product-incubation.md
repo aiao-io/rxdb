@@ -229,7 +229,7 @@ pnpm nx run aiao-media:deploy-check
 ## 参考
 
 - [当前需求入口](../README.md)、[决策与执行条件](../decisions.md)。
-- [当前界面实现](../../src/app/local-image-mvp.ts)中的 `LocalImageMvp`，负责四页面、生成、供应商、备份与会话入口。
-- [当前数据实现](../../src/local-data/browser-media.ts)中的 `LocalMediaStore`，负责本机存储标识、锁与恢复。
+- [当前界面实现](../../apps/web/src/app/local-image-mvp.ts)中的 `LocalImageMvp`，负责四页面、生成、供应商、备份与会话入口。
+- [当前数据实现](../../apps/web/src/local-data/browser-media.ts)中的 `LocalMediaStore`，负责本机存储标识、锁与恢复。
 - [当前需求检查器](../../scripts/check-requirements.mjs)中的 `auditRequirements`，负责应用需求结构和相对链接检查。
 - [Nx 项目依赖规则](https://nx.dev/docs/kb/project-dependency-rules)、[多维标签约束](https://nx.dev/docs/guides/enforce-module-boundaries/tag-multiple-dimensions)：已通过 Context7 查证标签与依赖约束机制；目标仓实际配置仍须落地与验证。

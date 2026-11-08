@@ -51,10 +51,10 @@ tags: [product-completion, supabase, platform, sync]
 
 ## 实现文件
 
-- [sync-target.ts](../../../src/app/sync-target.ts)
-- [sync-target-settings.ts](../../../src/app/account/sync-target-settings.ts)
-- [supabase-auth.ts](../../../src/app/supabase-auth.ts)
-- [009-sync-data-management.sql](../../../infra/supabase/migrations/009-sync-data-management.sql)
+- [sync-target.ts](../../../apps/web/src/app/sync-target.ts)
+- [sync-target-settings.ts](../../../apps/web/src/app/account/sync-target-settings.ts)
+- [supabase-auth.ts](../../../apps/web/src/app/supabase-auth.ts)
+- [009-sync-data-management.sql](../../../apps/web/infra/supabase/migrations/009-sync-data-management.sql)
 
 ## References
 

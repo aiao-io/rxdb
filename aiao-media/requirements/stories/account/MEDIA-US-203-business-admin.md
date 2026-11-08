@@ -71,9 +71,9 @@ tags: [admin, users, templates, provider-policy, tasks, usage, supabase]
 
 ## 实现文件
 
-- [后台界面](../../../src/app/admin-console.ts)、[管理 API](../../../server/cloudflare/admin-api.ts)、[服务端授权](../../../server/cloudflare/product-http.ts)
-- [模板与运行策略](../../../server/cloudflare/product-content.ts)、[任务筛选与用量](../../../server/cloudflare/product-reports.ts)
-- [后台授权与审计](../../../infra/supabase/migrations/004-admin-foundation.sql)、[内容与上报](../../../infra/supabase/migrations/005-product-content.sql)、[可信运维授权](../../../scripts/admin-membership.mjs)
+- [后台界面](../../../apps/web/src/app/admin-console.ts)、[管理 API](../../../apps/web/server/cloudflare/admin-api.ts)、[服务端授权](../../../apps/web/server/cloudflare/product-http.ts)
+- [模板与运行策略](../../../apps/web/server/cloudflare/product-content.ts)、[任务筛选与用量](../../../apps/web/server/cloudflare/product-reports.ts)
+- [后台授权与审计](../../../apps/web/infra/supabase/migrations/004-admin-foundation.sql)、[内容与上报](../../../apps/web/infra/supabase/migrations/005-product-content.sql)、[可信运维授权](../../../apps/web/scripts/admin-membership.mjs)
 
 ## References
 

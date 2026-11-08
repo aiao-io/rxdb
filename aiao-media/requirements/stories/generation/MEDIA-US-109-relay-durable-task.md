@@ -75,7 +75,7 @@ tags: [relay, durable-object, r2, generation]
 
 ## 技术笔记
 
-- 实现（读源码与测试）：`/api/relay/tasks/:id` 由 [relay-task-api.ts](../../../server/cloudflare/relay-task-api.ts) 校验后交给 [RelayTask](../../../server/cloudflare/relay-task.ts)；接单前的校验与无状态 `/api/relay` 共用 [relay-input.ts](../../../server/cloudflare/relay-input.ts)。浏览器端的接单、重发、放弃、长轮询、取回和解密在 [relay-task-client.ts](../../../src/app/relay-task-client.ts)；创作页在 `generate()` 中把任务记录与令牌写在同一事务里，`readTasks()` 遇到带令牌的未结清代理任务时在生成锁后续接，不再标记待核对。
+- 实现（读源码与测试）：`/api/relay/tasks/:id` 由 [relay-task-api.ts](../../../apps/web/server/cloudflare/relay-task-api.ts) 校验后交给 [RelayTask](../../../apps/web/server/cloudflare/relay-task.ts)；接单前的校验与无状态 `/api/relay` 共用 [relay-input.ts](../../../apps/web/server/cloudflare/relay-input.ts)。浏览器端的接单、重发、放弃、长轮询、取回和解密在 [relay-task-client.ts](../../../apps/web/src/app/relay-task-client.ts)；创作页在 `generate()` 中把任务记录与令牌写在同一事务里，`readTasks()` 遇到带令牌的未结清代理任务时在生成锁后续接，不再标记待核对。
 - 本地证据（2026-11-03，Node 26.12.0）：`aiao-media:relay-test` 29/29、`aiao-media:script-test` 62/62（含 Worker 与 DO 替身上的任务状态机、重置后看门狗、24 小时删除、令牌与来源校验），`aiao-media:test` 43 个文件、786 项通过（含任务客户端与创作页续接），`aiao-media-e2e:local-first-e2e` 39/39（含生成中刷新续接、回执不明刷新后放弃），`aiao-media-e2e:provider-acceptance-fixture` 12 个组合通过（代理组合走任务接口，MiniMax 代理为 base64），`aiao-media:deploy-check` 的 Wrangler dry-run 列出 `RELAY_TASKS` 与 `RELAY_RESULTS` 绑定。浏览器套件拦截的是任务接口，DO 行为来自 Node 替身，都不能证明真实 Cloudflare 上客户端断开后仍能收到上游结果；AC1、2、6、9、10、11 因此保留 ⚠️，分别等阶段 A 实测、R2 生命周期配置和真实双标签页、桌面安装版验证。
 - 平台依据（读 Cloudflare 官方文档 2026-10 版，未在真实账号实测）：客户端断开后 Worker 的 `waitUntil` 最多再延长 30 秒；Durable Object 中交给 `waitUntil` 的 Promise 或进行中的出站 `fetch` 可阻止驱逐，最长 15 分钟；DO 默认最多推迟 300 秒切换新代码，长于 180 秒上游超时；运行时升级时进行中的 DO 请求只保证 30 秒；SQLite 单行上限 2 MB；R2 需开通订阅，默认 AES-256 静态加密，生命周期规则按天设置、到期后通常 24 小时内删除；新增 DO 类后不能回滚到加类之前的 Worker 版本。选型对比与容量估算见[实施计划](../../plans/relay-durable-tasks.md)。
 - 推断：免费计划下 DO 单次调用的 CPU 上限文档未写明（Workers 免费计划为 10 ms），所以服务端只做有界读取和 AES-GCM 加密，不解码 base64；阶段 A 实测后再决定结果上限或是否升级 Workers Paid。
@@ -84,15 +84,15 @@ tags: [relay, durable-object, r2, generation]
 
 ## 实现文件
 
-- [relay-task.ts](../../../src/contracts/relay-task.ts) — 令牌、摘要与结果加解密的共享契约。
-- [relay-task.ts](../../../server/cloudflare/relay-task.ts) — RelayTask Durable Object：接单、去重、上游调用、加密写入 R2、放弃、看门狗与过期删除。
-- [relay-task-api.ts](../../../server/cloudflare/relay-task-api.ts) 与 [relay-input.ts](../../../server/cloudflare/relay-input.ts) — Worker 任务路由与共用的代理校验。
-- [local-first-worker.ts](../../../server/cloudflare/local-first-worker.ts) — 路由入口、桌面预检，保留无状态 `/api/relay`。
-- [wrangler.json](../../../deploy/wrangler.json) — `RELAY_TASKS` DO 绑定与 `media-relay-v1` 迁移、`RELAY_RESULTS` R2 绑定。
-- [cloudflare-stand-ins.mjs](../../../scripts/cloudflare-stand-ins.mjs) 与 [dev-relay.mjs](../../../scripts/dev-relay.mjs) — 进程内 DO/R2 替身，开发服务器的任务接口。
-- [relay-task-client.ts](../../../src/app/relay-task-client.ts) 与 [local-provider.ts](../../../src/app/local-provider.ts) — 浏览器任务客户端，与直连共用的请求校验和结果解析。
-- [local-image-mvp.ts](../../../src/app/local-image-mvp.ts) — 任务提交、刷新续接、放弃，以及结清后删除服务端结果。
-- [relay-task.test.mjs](../../../scripts/relay-task.test.mjs)、[local-first.spec.ts](../../../../aiao-media-e2e/src/local-first.spec.ts) — 服务端状态机测试与浏览器续接套件。
+- [relay-task.ts](../../../apps/web/src/contracts/relay-task.ts) — 令牌、摘要与结果加解密的共享契约。
+- [relay-task.ts](../../../apps/web/server/cloudflare/relay-task.ts) — RelayTask Durable Object：接单、去重、上游调用、加密写入 R2、放弃、看门狗与过期删除。
+- [relay-task-api.ts](../../../apps/web/server/cloudflare/relay-task-api.ts) 与 [relay-input.ts](../../../apps/web/server/cloudflare/relay-input.ts) — Worker 任务路由与共用的代理校验。
+- [local-first-worker.ts](../../../apps/web/server/cloudflare/local-first-worker.ts) — 路由入口、桌面预检，保留无状态 `/api/relay`。
+- [wrangler.json](../../../apps/web/deploy/wrangler.json) — `RELAY_TASKS` DO 绑定与 `media-relay-v1` 迁移、`RELAY_RESULTS` R2 绑定。
+- [cloudflare-stand-ins.mjs](../../../apps/web/scripts/cloudflare-stand-ins.mjs) 与 [dev-relay.mjs](../../../apps/web/scripts/dev-relay.mjs) — 进程内 DO/R2 替身，开发服务器的任务接口。
+- [relay-task-client.ts](../../../apps/web/src/app/relay-task-client.ts) 与 [local-provider.ts](../../../apps/web/src/app/local-provider.ts) — 浏览器任务客户端，与直连共用的请求校验和结果解析。
+- [local-image-mvp.ts](../../../apps/web/src/app/local-image-mvp.ts) — 任务提交、刷新续接、放弃，以及结清后删除服务端结果。
+- [relay-task.test.mjs](../../../apps/web/scripts/relay-task.test.mjs)、[local-first.spec.ts](../../../apps/web-e2e/src/local-first.spec.ts) — 服务端状态机测试与浏览器续接套件。
 
 ## References
 

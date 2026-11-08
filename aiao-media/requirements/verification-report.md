@@ -51,7 +51,7 @@
 | `aiao-media-e2e:platform-account-update-fixture --excludeTaskDependencies` | 旧 stable-null active 且旧页未关闭时升级、内容哈希配置读取与注册表单可用、数据保留、新版接管均通过，22.2 秒；离线新开页配置可用、表单可打开、本机原图可读取 | 本地真实浏览器/产物与 fixture；远端请求 0，未执行离线注册，不代表正式域名或公众注册邮件验收        |
 | `auth-config-test`、脚本 lint、`deploy-check` / `release-check`            | 配置测试 3/3，其余通过                                                                                                                                      | 内容哈希配置构建与发布检查；修复已发布，正式站点表单复验通过，未提交注册                           |
 
-浏览器用例见[平台注册入口](../../aiao-media-e2e/src/supabase-auth.spec.ts)和[平台作品/原图接线](../../aiao-media-e2e/src/product-local.spec.mts)。本节记录部署前的本地验证，不折算真实云 Storage；同日后续生产部署和云 API 结果见下节及[平台发布记录](plans/platform-supabase-release-20261106.md)，未完成 AC 不因此标为 Done。
+浏览器用例见[平台注册入口](../apps/web-e2e/src/supabase-auth.spec.ts)和[平台作品/原图接线](../apps/web-e2e/src/product-local.spec.mts)。本节记录部署前的本地验证，不折算真实云 Storage；同日后续生产部署和云 API 结果见下节及[平台发布记录](plans/platform-supabase-release-20261106.md)，未完成 AC 不因此标为 Done。
 
 ## 正式环境证据
 

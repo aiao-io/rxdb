@@ -25,7 +25,7 @@ pnpm nx run aiao-media:supabase-e2e
 pnpm nx run aiao-media:requirements-check
 ```
 
-浏览器新增场景位于 [local-reliability.spec.ts](../../../aiao-media-e2e/src/local-reliability.spec.ts)，原有本机和账号 fixture 场景继续运行。27/27 浏览器场景通过（11 项本机图片、12 项可靠性、4 项账号 fixture）；类型、lint、单元测试、relay/auth-config 检查和 release/deploy dry-run 通过。相关 story 的 AC 已逐项回写；精确结果见[验收总表](../verification-report.md)。
+浏览器新增场景位于 [local-reliability.spec.ts](../../apps/web-e2e/src/local-reliability.spec.ts)，原有本机和账号 fixture 场景继续运行。27/27 浏览器场景通过（11 项本机图片、12 项可靠性、4 项账号 fixture）；类型、lint、单元测试、relay/auth-config 检查和 release/deploy dry-run 通过。相关 story 的 AC 已逐项回写；精确结果见[验收总表](../verification-report.md)。
 
 真实本地 Supabase 的 Auth、开发探针表 RLS、Realtime 与刷新/退出检查通过，3 项真实账号浏览器场景通过。测试服务已停止，数据卷和本地私有配置保留用于复验；没有启用产品数据复制。
 
@@ -37,11 +37,11 @@ pnpm nx run aiao-media:requirements-check
 
 ## 代码入口
 
-- [本机数据库与文件 journal](../../src/local-data/browser-media.ts)
-- [供应商校验与调用](../../src/app/local-provider.ts)
-- [备份校验](../../src/app/local-backup.ts)
-- [界面行为](../../src/app/local-image-mvp.ts)及[模板](../../src/app/local-image-mvp.html)
-- [草稿会话](../../src/app/prompts/studio-draft-session.ts)与[编辑器资源](../../src/app/prompts/prompt-assets.ts)
+- [本机数据库与文件 journal](../../apps/web/src/local-data/browser-media.ts)
+- [供应商校验与调用](../../apps/web/src/app/local-provider.ts)
+- [备份校验](../../apps/web/src/app/local-backup.ts)
+- [界面行为](../../apps/web/src/app/local-image-mvp.ts)及[模板](../../apps/web/src/app/local-image-mvp.html)
+- [草稿会话](../../apps/web/src/app/prompts/studio-draft-session.ts)与[编辑器资源](../../apps/web/src/app/prompts/prompt-assets.ts)
 
 ## JPEG 格式兼容标记
 

@@ -15,11 +15,11 @@
 
 ## 本次实现
 
-- [验证页](../../direct-provider-probe/index.html)、[浏览器请求代码](../../direct-provider-probe/main.js)、[使用说明](../../direct-provider-probe/README.md)。
-- [构建与静态预览脚本](../../scripts/direct-provider-probe.mjs)：只复制四个公开静态文件；预览服务不接受 POST、不提供 API、不暴露环境文件。
-- [真实浏览器测试](../../scripts/direct-provider-probe.test.mjs)：本机静态站点与另一个 origin 的 HTTPS 测试供应商，执行真实 CORS 预检。
-- [单次真实网关实验](../../scripts/direct-provider-probe-live.mjs)：读取本机配置到内存，Key 不写入产物/报告/截图，不自动重试。
-- [Nx 入口](../../project.json)：`direct-probe-build`、`direct-probe-serve`、`direct-probe-test`、`direct-probe-live`；均不依赖现有 API 启动或数据库。
+- [验证页](../../apps/web/direct-provider-probe/index.html)、[浏览器请求代码](../../apps/web/direct-provider-probe/main.js)、[使用说明](../../apps/web/direct-provider-probe/README.md)。
+- [构建与静态预览脚本](../../apps/web/scripts/direct-provider-probe.mjs)：只复制四个公开静态文件；预览服务不接受 POST、不提供 API、不暴露环境文件。
+- [真实浏览器测试](../../apps/web/scripts/direct-provider-probe.test.mjs)：本机静态站点与另一个 origin 的 HTTPS 测试供应商，执行真实 CORS 预检。
+- [单次真实网关实验](../../apps/web/scripts/direct-provider-probe-live.mjs)：读取本机配置到内存，Key 不写入产物/报告/截图，不自动重试。
+- [Nx 入口](../../apps/web/project.json)：`direct-probe-build`、`direct-probe-serve`、`direct-probe-test`、`direct-probe-live`；均不依赖现有 API 启动或数据库。
 
 API Key 只在当前页面内存。此页没有 RxDB/持久任务，不标记“已保存到本机作品库”；仅在验证真实图片后提供下载。
 
@@ -63,4 +63,4 @@ fixture 图片用于协议和浏览器验证，不是真实模型生成证据。
 - 正式 origin 的真实供应商生成与文件回读。
 - 目标移动设备中文输入、存储策略和下载行为。
 
-以上不通过 fixture 或本次命令的退出成功替代验收。后续实施以[当前路线图](../roadmap.md)和[静态部署方案](../../deploy/local-first-pages.md)为准。
+以上不通过 fixture 或本次命令的退出成功替代验收。后续实施以[当前路线图](../roadmap.md)和[静态部署方案](../../apps/web/deploy/local-first-pages.md)为准。

@@ -59,11 +59,11 @@ tags: [cloudflare, deployment, static, relay]
 
 ## 实现文件
 
-- [`deploy/wrangler.json`](../../../deploy/wrangler.json) — Worker 配置。
-- [`server/cloudflare/local-first-worker.ts`](../../../server/cloudflare/local-first-worker.ts) — `/api/relay` 无状态代理。
-- [`deploy/local-first-pages.md`](../../../deploy/local-first-pages.md) — 静态部署方案与免费额度边界。
-- [`scripts/deploy-local-first.mjs`](../../../scripts/deploy-local-first.mjs) / [`scripts/check-local-first-release.mjs`](../../../scripts/check-local-first-release.mjs) — 发布与产物审查。
-- [`scripts/build-offline-assets.mjs`](../../../scripts/build-offline-assets.mjs) — 离线壳与 Service Worker。
+- [`deploy/wrangler.json`](../../../apps/web/deploy/wrangler.json) — Worker 配置。
+- [`server/cloudflare/local-first-worker.ts`](../../../apps/web/server/cloudflare/local-first-worker.ts) — `/api/relay` 无状态代理。
+- [`deploy/local-first-pages.md`](../../../apps/web/deploy/local-first-pages.md) — 静态部署方案与免费额度边界。
+- [`scripts/deploy-local-first.mjs`](../../../apps/web/scripts/deploy-local-first.mjs) / [`scripts/check-local-first-release.mjs`](../../../apps/web/scripts/check-local-first-release.mjs) — 发布与产物审查。
+- [`scripts/build-offline-assets.mjs`](../../../apps/web/scripts/build-offline-assets.mjs) — 离线壳与 Service Worker。
 
 ## References
 

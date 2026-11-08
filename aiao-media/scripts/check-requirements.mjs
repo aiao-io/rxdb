@@ -317,7 +317,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   try {
     const report = await auditRequirements(resolve(dirname(fileURLToPath(import.meta.url)), '..'), {
       namespace: 'MEDIA',
-      repositoryRoot: resolve(import.meta.dirname, '../../..')
+      repositoryRoot: resolve(import.meta.dirname, '../..')
     });
     console.log(JSON.stringify(report, null, 2));
     if (report.errors.length) process.exitCode = 1;

@@ -75,11 +75,11 @@ tags: [rxdb, sync, conflict, supabase]
 
 ## 实现文件
 
-- [现有本地存储与稳定工作区](../../../src/local-data/browser-media.ts)
-- [结构化草稿](../../../src/local-data/studio-draft.ts)
-- [当前供应商配置结构](../../../src/app/local-provider.ts)
-- [原生复制接线](../../../src/local-data/product-sync-store.ts)、[私有投影](../../../src/local-data/product-projection.ts)、[首次绑定控制器](../../../src/app/product-workspace.ts)
-- [产品 schema/RLS](../../../infra/supabase/migrations/002-product-workspaces.sql)、[同步权限](../../../infra/supabase/migrations/003-rxdb-product-permissions.sql)
+- [现有本地存储与稳定工作区](../../../apps/web/src/local-data/browser-media.ts)
+- [结构化草稿](../../../apps/web/src/local-data/studio-draft.ts)
+- [当前供应商配置结构](../../../apps/web/src/app/local-provider.ts)
+- [原生复制接线](../../../apps/web/src/local-data/product-sync-store.ts)、[私有投影](../../../apps/web/src/local-data/product-projection.ts)、[首次绑定控制器](../../../apps/web/src/app/product-workspace.ts)
+- [产品 schema/RLS](../../../apps/web/infra/supabase/migrations/002-product-workspaces.sql)、[同步权限](../../../apps/web/infra/supabase/migrations/003-rxdb-product-permissions.sql)
 
 ## References
 

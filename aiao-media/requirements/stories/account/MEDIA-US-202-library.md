@@ -63,10 +63,10 @@ tags: [assets, history, rxdb, local-storage]
 
 ## 实现文件
 
-- [本地作品、文件与 journal](../../../src/local-data/browser-media.ts)
-- [作品和任务历史界面](../../../src/app/local-image-mvp.html)及[行为](../../../src/app/local-image-mvp.ts)
-- [完整图片备份](../../../src/app/local-backup.ts)
-- [真实应用浏览器测试](../../../../aiao-media-e2e/src/local-first.spec.ts)
+- [本地作品、文件与 journal](../../../apps/web/src/local-data/browser-media.ts)
+- [作品和任务历史界面](../../../apps/web/src/app/local-image-mvp.html)及[行为](../../../apps/web/src/app/local-image-mvp.ts)
+- [完整图片备份](../../../apps/web/src/app/local-backup.ts)
+- [真实应用浏览器测试](../../../apps/web-e2e/src/local-first.spec.ts)
 
 ## References
 

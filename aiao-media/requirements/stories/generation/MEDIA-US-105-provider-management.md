@@ -59,7 +59,7 @@ tags: [image, providers, local-first, security]
 
 配置与凭据通过本机 `LocalPreference` 分开保存，凭据记录为 `provider-keys-v1`。`aiao-media-e2e:local-first-e2e` 验证本机配置恢复、内存 Key、记住/替换/单独移除、主动代理、非法 URL/模型和损坏 PNG 拒绝、无 Key 备份，以及 fixture 跨 origin 图片读取不带凭据与精确下载；`aiao-media:relay-test` 验证代理边界。[本地可靠性验收](../../plans/local-reliability-verification.md)记录故障边界。
 
-MiniMax `image-01` 原生适配由浏览器、Worker 与正式验收共用[请求协议映射](../../../src/contracts/image-provider-protocol.ts)：只识别三个官方 API 前缀，固定单张、`response_format=url`、关闭提示词优化，三画幅用 `width/height` 精确请求；1002/1004/1008/1026/2013/2049 按明确拒绝处理，1033、超时与未知码保持不确定。范围与 12 个 fixture 组合见[供应商补验](../../plans/provider-acceptance-follow-up.md#minimax-原生适配与本地验证2026-10-25)。
+MiniMax `image-01` 原生适配由浏览器、Worker 与正式验收共用[请求协议映射](../../../apps/web/src/contracts/image-provider-protocol.ts)：只识别三个官方 API 前缀，固定单张、`response_format=url`、关闭提示词优化，三画幅用 `width/height` 精确请求；1002/1004/1008/1026/2013/2049 按明确拒绝处理，1033、超时与未知码保持不确定。范围与 12 个 fixture 组合见[供应商补验](../../plans/provider-acceptance-follow-up.md#minimax-原生适配与本地验证2026-10-25)。
 
 AC6 已由正式 origin 证据关闭：带 Key 模型目录 GET 200 且配置模型存在；无 Key OPTIONS 403；显式代理三画幅各一次 HTTP 200，保存、刷新回读与精确下载通过。可用范围限定该供应商/模型的代理参数组合，见[正式交付验收](../../plans/public-delivery-verification.md)。
 
@@ -67,12 +67,12 @@ AC7 仍缺真实证据：产品内成功结果均为 base64；MiniMax 正方形�
 
 ## 实现文件
 
-- [本机配置与凭据生命周期](../../../src/app/local-image-mvp.ts)
-- [浏览器供应商适配器](../../../src/app/local-provider.ts)
-- [无 Key 备份](../../../src/app/local-backup.ts)
-- [本地数据存储](../../../src/local-data/browser-media.ts)
-- [无状态代理](../../../server/cloudflare/local-first-worker.ts)
-- [真实应用浏览器测试](../../../../aiao-media-e2e/src/local-first.spec.ts)
+- [本机配置与凭据生命周期](../../../apps/web/src/app/local-image-mvp.ts)
+- [浏览器供应商适配器](../../../apps/web/src/app/local-provider.ts)
+- [无 Key 备份](../../../apps/web/src/app/local-backup.ts)
+- [本地数据存储](../../../apps/web/src/local-data/browser-media.ts)
+- [无状态代理](../../../apps/web/server/cloudflare/local-first-worker.ts)
+- [真实应用浏览器测试](../../../apps/web-e2e/src/local-first.spec.ts)
 
 ## References
 
