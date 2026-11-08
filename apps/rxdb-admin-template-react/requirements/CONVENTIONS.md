@@ -4,12 +4,12 @@
 
 ## 文档类型与编号段
 
-| 类型          | ID 与文件名                            | 目录                |
-| ------------- | -------------------------------------- | ------------------- |
-| 用户故事      | `ADMIN-US-XXX-description.md`          | `stories/<domain>/` |
-| 史诗          | `ADMIN-EPIC-XXX.md`                    | `epics/`            |
-| Review        | `RV-XXX-描述.md`                       | `reviews/`          |
-| Code scanning | `CS-XXX-描述.md`，编号对应 GitHub 告警 | `code-scanning/`    |
+| 类型          | ID 与文件名                            | 目录                                                               |
+| ------------- | -------------------------------------- | ------------------------------------------------------------------ |
+| 用户故事      | `ADMIN-US-XXX-description.md`          | `stories/<domain>/`                                                |
+| 史诗          | `ADMIN-EPIC-XXX.md`                    | `epics/`                                                           |
+| Review        | `RV-<uuid>.md`，沿用根规范             | 仓库根 `requirements/reviews/<projectKey>/`；`reviews/` 只放旧记录 |
+| Code scanning | `CS-XXX-描述.md`，编号对应 GitHub 告警 | `code-scanning/`                                                   |
 
 | 领域        | 编号段            | 范围                     |
 | ----------- | ----------------- | ------------------------ |
@@ -62,9 +62,9 @@ pnpm nx run rxdb-admin-template-react:requirements-check
 
 ## 模板位置
 
-| 类型          | 模板                                                                 |
-| ------------- | -------------------------------------------------------------------- |
-| Story         | [story.template.md](stories/story.template.md)                       |
-| Epic          | [epic.template.md](epics/epic.template.md)                           |
-| Review        | [review.template.md](reviews/review.template.md)                     |
-| Code scanning | [code-scanning.template.md](code-scanning/code-scanning.template.md) |
+| 类型          | 模板                                                                          |
+| ------------- | ----------------------------------------------------------------------------- |
+| Story         | [story.template.md](stories/story.template.md)                                |
+| Epic          | [epic.template.md](epics/epic.template.md)                                    |
+| Review        | 仓库根 [review.template.md](../../../requirements/reviews/review.template.md) |
+| Code scanning | [code-scanning.template.md](code-scanning/code-scanning.template.md)          |
