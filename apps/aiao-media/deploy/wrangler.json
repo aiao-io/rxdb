@@ -20,7 +20,7 @@
       }
     ]
   },
-  "main": "../server/cloudflare/local-first-worker.mjs",
+  "main": "../server/cloudflare/local-first-worker.ts",
   "migrations": [
     {
       "tag": "media-platform-v1",

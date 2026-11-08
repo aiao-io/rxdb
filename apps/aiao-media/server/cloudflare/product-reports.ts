@@ -1,6 +1,18 @@
-import { reject, uuid } from './product-http.mjs';
+import type { TaskReport } from '../../src/contracts/product-data.mjs';
+import type { BackendClient } from './product-http.ts';
 
-export function reportFilter(url) {
+type UsageBucket = {
+  records: number;
+  requestCount: number | null;
+  providerUnits: number | null;
+  verifiedCost: number | null;
+  currencies: Record<string, number>;
+  unknown: Record<'requestCount' | 'providerUnits' | 'verifiedCost', number>;
+};
+
+import { reject, uuid } from './product-http.ts';
+
+export function reportFilter(url: URL) {
   const query = new URLSearchParams({
     select: 'id,owner_id,workspace_id,task_id,model,channel,status,started_at,payload,received_at',
     order: 'started_at.desc,id',
@@ -34,11 +46,11 @@ export function reportFilter(url) {
   query.set('offset', String((page - 1) * 100));
   return query;
 }
-export async function reports(client, url, usage = false) {
+export async function reports(client: BackendClient, url: URL, usage = false) {
   const query = reportFilter(url);
   if (!usage) return { reports: await client.call(`/rest/v1/media_task_reports?${query}`), limit: 100 };
   query.delete('offset');
-  const sources = Object.fromEntries(
+  const sources: Record<string, UsageBucket> = Object.fromEntries(
     ['application', 'provider', 'verified'].map(source => [
       source,
       {
@@ -54,18 +66,18 @@ export async function reports(client, url, usage = false) {
   let offset = 0;
   while (true) {
     query.set('offset', String(offset));
-    const rows = await client.call(`/rest/v1/media_task_reports?${query}`);
+    const rows = await client.call<{ payload: TaskReport }[]>(`/rest/v1/media_task_reports?${query}`);
     for (const row of rows) {
       const payload = row.payload,
         bucket = sources[payload.source];
       if (!bucket) reject(502, '用量来源不可识别。');
       bucket.records++;
-      for (const key of ['requestCount', 'providerUnits']) {
+      for (const key of ['requestCount', 'providerUnits'] as const) {
         if (payload[key] === null) bucket.unknown[key]++;
         else bucket[key] = (bucket[key] ?? 0) + payload[key];
       }
       if (payload.verifiedCost === null) bucket.unknown.verifiedCost++;
-      else bucket.currencies[payload.currency] = (bucket.currencies[payload.currency] ?? 0) + payload.verifiedCost;
+      else bucket.currencies[payload.currency!] = (bucket.currencies[payload.currency!] ?? 0) + payload.verifiedCost;
     }
     offset += rows.length;
     if (rows.length < 100) break;

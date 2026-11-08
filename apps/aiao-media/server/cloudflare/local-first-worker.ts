@@ -1,14 +1,15 @@
+import type { WorkerEnv } from './worker-env.ts';
 import { imageGenerationRequest, isMiniMaxImageProvider } from '../../src/contracts/image-provider-protocol.ts';
-import { handleAdmin } from './admin-api.mjs';
-import { publishedTemplates, runtimePolicy } from './product-content.mjs';
-import { endpoint } from './product-http.mjs';
-import { base, json, relayInput } from './relay-input.mjs';
-import { handleRelayTask } from './relay-task-api.mjs';
-export { PlatformCoordinator } from './platform-coordinator.mjs';
-export { RelayTask } from './relay-task.mjs';
+import { handleAdmin } from './admin-api.ts';
+import { publishedTemplates, runtimePolicy } from './product-content.ts';
+import { endpoint } from './product-http.ts';
+import { base, json, relayInput } from './relay-input.ts';
+import { handleRelayTask } from './relay-task-api.ts';
+export { PlatformCoordinator } from './platform-coordinator.ts';
+export { RelayTask } from './relay-task.ts';
 // Optional relay: stateless /api/relay for installed older pages, durable /api/relay/tasks for the current app.
 // Static assets are served by the ASSETS binding.
-async function probeProvider(url, init = {}) {
+async function probeProvider(url: string, init: RequestInit = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 10_000);
   const started = Date.now();
@@ -40,10 +41,10 @@ async function probeProvider(url, init = {}) {
     clearTimeout(timer);
   }
 }
-async function providerProbe(env, origin) {
+async function providerProbe(env: WorkerEnv, origin: string) {
   let targets;
   try {
-    targets = JSON.parse(env.ALLOWED_PROVIDER_BASE_URLS || '[]').map(base);
+    targets = (JSON.parse(env.ALLOWED_PROVIDER_BASE_URLS || '[]') as string[]).map(base);
   } catch {
     return { error: 'Invalid provider configuration' };
   }
@@ -54,7 +55,7 @@ async function providerProbe(env, origin) {
         model: 'image-01',
         prompt: 'reachability-probe',
         size: '1024x1024'
-      });
+      })!;
       const endpoint = imageRequest.url;
       // Server-to-server reachability is what the relay needs. A keyless POST
       // costs nothing: providers answer 401 and prove the path works. The
@@ -125,7 +126,7 @@ async function providerProbe(env, origin) {
     interpretation: interpretation.join(' ')
   };
 }
-const jsonPayload = (payload, status = 200) =>
+const jsonPayload = (payload: unknown, status = 200) =>
   Response.json(payload, {
     status,
     headers: {
@@ -135,8 +136,8 @@ const jsonPayload = (payload, status = 200) =>
   });
 const encoder = new TextEncoder();
 const navigationPaths = new Set(['/', '/create', '/images', '/providers', '/admin']);
-async function fetchAsset(request, env) {
-  const response = await env.ASSETS.fetch(request);
+async function fetchAsset(request: Request, env: WorkerEnv) {
+  const response = await env.ASSETS!.fetch(request);
   const pathname = new URL(request.url).pathname;
   if (
     request.method === 'GET' &&
@@ -155,12 +156,12 @@ async function fetchAsset(request, env) {
   }
   return response;
 }
-const upstreamStatus = status => ([400, 401, 403, 404, 413, 422, 429].includes(status) ? status : 502);
+const upstreamStatus = (status: number) => ([400, 401, 403, 404, 413, 422, 429].includes(status) ? status : 502);
 
 // Image generation can take tens of seconds. Keep a slow upstream response alive
 // after the edge has committed the response headers. Whitespace is valid JSON and
 // is ignored by JSON.parse once the final provider payload arrives.
-function lateRelayResponse(responsePromise, upstreamController, cleanup) {
+function lateRelayResponse(responsePromise: Promise<Response>, upstreamController: AbortController, cleanup: () => void) {
   return new Response(
     new ReadableStream({
       async start(stream) {
@@ -248,7 +249,7 @@ function lateRelayResponse(responsePromise, upstreamController, cleanup) {
   );
 }
 const worker = {
-  async fetch(request, env) {
+  async fetch(request: Request, env: WorkerEnv): Promise<Response> {
     const url = new URL(request.url);
     if (!url.pathname.startsWith('/api/')) return fetchAsset(request, env);
     if (url.pathname.startsWith('/api/admin/')) return handleAdmin(request, env);
@@ -290,8 +291,8 @@ const worker = {
         body: JSON.stringify(imageRequest.body)
       });
       const early = await Promise.race([
-        responsePromise.then(response => ({ kind: 'response', response })).catch(error => ({ kind: 'error', error })),
-        new Promise(resolve => setTimeout(() => resolve({ kind: 'pending' }), 250))
+        responsePromise.then(response => ({ kind: 'response' as const, response })).catch(error => ({ kind: 'error' as const, error })),
+        new Promise<{ kind: 'pending' }>(resolve => setTimeout(() => resolve({ kind: 'pending' }), 250))
       ]);
       if (early.kind === 'pending') {
         const response = lateRelayResponse(responsePromise, controller, cleanup);
@@ -358,7 +359,7 @@ const worker = {
 };
 
 export default {
-  async fetch(request, env) {
+  async fetch(request: Request, env: WorkerEnv): Promise<Response> {
     const origin = request.headers.get('origin');
     const desktop = origin === 'tauri://localhost' && env.MEDIA_ALLOW_DESKTOP_ORIGIN === 'true';
     if (request.method === 'OPTIONS' && new URL(request.url).pathname.startsWith('/api/')) {
@@ -366,7 +367,7 @@ export default {
       return new Response(null, {
         status: 204,
         headers: {
-          'access-control-allow-origin': origin,
+          'access-control-allow-origin': origin!,
           'access-control-allow-methods': 'GET,POST,PUT,DELETE',
           'access-control-allow-headers': 'authorization,content-type,x-provider-base,x-relay-task-token',
           'access-control-max-age': '600',
@@ -377,7 +378,7 @@ export default {
     const result = await worker.fetch(request, env);
     if (!desktop || !new URL(request.url).pathname.startsWith('/api/')) return result;
     const headers = new Headers(result.headers);
-    headers.set('access-control-allow-origin', origin);
+    headers.set('access-control-allow-origin', origin!);
     headers.set('vary', 'Origin');
     return new Response(result.body, { status: result.status, headers });
   }

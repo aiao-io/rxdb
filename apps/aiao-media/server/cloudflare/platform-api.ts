@@ -1,21 +1,39 @@
-import { administrator, backend, body, endpoint, reject, sameOriginWrite, uuid } from './product-http.mjs';
+import type { WorkerEnv } from './worker-env.ts';
 
-async function member(request, env) {
+type CheckoutOrder = { id: string; currency: string; amount: number; credits: number };
+type PaymentEvent = {
+  id: string;
+  type: string;
+  data?: { object?: {
+    metadata?: { media_order?: string; media_request?: string };
+    status?: string;
+    client_reference_id?: string;
+    mode?: string;
+    amount_total?: number;
+    currency?: string;
+    payment_status?: string;
+    payment_intent?: string;
+  } };
+};
+
+import { administrator, backend, body, endpoint, reject, sameOriginWrite, uuid } from './product-http.ts';
+
+async function member(request: Request, env: WorkerEnv) {
   sameOriginWrite(request, env);
   const token = /^Bearer ([A-Za-z0-9._~-]+)$/.exec(request.headers.get('authorization') ?? '')?.[1];
   if (!token) reject(401, '请先登录平台账号。');
   const client = backend(env);
-  const user = await client.call('/auth/v1/user', { token, privileged: false });
+  const user = await client.call<{ id: string }>('/auth/v1/user', { token, privileged: false });
   if (!uuid(user?.id)) reject(401, '账号无效。');
-  const accounts = await client.call(`/rest/v1/media_accounts?select=disabled&user_id=eq.${user.id}`);
+  const accounts = await client.call<{ disabled: boolean }[]>(`/rest/v1/media_accounts?select=disabled&user_id=eq.${user.id}`);
   if (!Array.isArray(accounts) || accounts.some(account => account.disabled)) reject(403, '账号已禁用。');
   return user.id;
 }
-function coordinator(env) {
+function coordinator(env: WorkerEnv) {
   if (!env.MEDIA_PLATFORM) reject(503, '平台服务尚未启用。');
   return env.MEDIA_PLATFORM.get(env.MEDIA_PLATFORM.idFromName('platform-v1'));
 }
-async function call(env, path, owner, payload, admin = false) {
+async function call(env: WorkerEnv, path: string, owner: string, payload?: unknown, admin = false) {
   return coordinator(env).fetch(
     new Request(`https://platform.internal${path}`, {
       method: payload === undefined ? 'GET' : 'POST',
@@ -24,11 +42,11 @@ async function call(env, path, owner, payload, admin = false) {
     })
   );
 }
-async function checkout(env, owner, requestId, origin) {
+async function checkout(env: WorkerEnv, owner: string, requestId: unknown, origin: string) {
   if (!env.MEDIA_STRIPE_SECRET_KEY) reject(503, '充值服务尚未启用。');
   const response = await call(env, '/order', owner, { requestId });
   if (!response.ok) return response;
-  const order = await response.json();
+  const order = await response.json<CheckoutOrder>();
   const form = new URLSearchParams({
     mode: 'payment',
     client_reference_id: order.id,
@@ -55,18 +73,18 @@ async function checkout(env, owner, requestId, origin) {
     await result.body?.cancel();
     reject(502, '支付会话尚未确认，请使用原订单重试。');
   }
-  const session = await result.json();
+  const session = await result.json<{ url: string }>();
   const url = new URL(session.url);
   if (url.protocol !== 'https:' || url.hostname !== 'checkout.stripe.com' || url.username || url.password)
     reject(502, '支付跳转地址无效。');
   return Response.json({ url: url.href, orderId: order.id }, { headers: { 'cache-control': 'no-store' } });
 }
 
-async function refund(env, actorId, value) {
+async function refund(env: WorkerEnv, actorId: string, value: unknown) {
   if (!env.MEDIA_STRIPE_SECRET_KEY) reject(503, '退款服务尚未启用。');
   const prepared = await call(env, '/admin/refund/prepare', actorId, value, true);
   if (!prepared.ok) return prepared;
-  const order = await prepared.json();
+  const order = await prepared.json<{ status: string; paymentIntent: string; orderId: string; requestId: string }>();
   if (order.status !== 'pending') return Response.json({ status: order.status });
   const form = new URLSearchParams({
     payment_intent: order.paymentIntent,
@@ -88,7 +106,7 @@ async function refund(env, actorId, value) {
     await result.body?.cancel();
     reject(502, '退款结果未确认，积分保持冻结。请核对 Stripe 后用原订单继续查询。');
   }
-  const receipt = await result.json();
+  const receipt = await result.json<{ status: string }>();
   return call(
     env,
     '/admin/refund/finish',
@@ -99,7 +117,7 @@ async function refund(env, actorId, value) {
 }
 
 /** 验签使用原始正文，时间窗和持久事件回执共同阻止伪造与重复入账。 */
-export async function paymentEvent(request, secret) {
+export async function paymentEvent(request: Request, secret: string | undefined): Promise<PaymentEvent> {
   if (!secret) reject(503, '支付通知尚未启用。');
   const header = request.headers.get('stripe-signature') ?? '';
   const timestamp = /(?:^|,)t=(\d+)/.exec(header)?.[1];
@@ -139,7 +157,7 @@ export async function paymentEvent(request, secret) {
       crypto.subtle.verify(
         'HMAC',
         key,
-        Uint8Array.from(signature.match(/../g), value => parseInt(value, 16)),
+        Uint8Array.from(signature.match(/../g)!, value => parseInt(value, 16)),
         new TextEncoder().encode(`${timestamp}.${raw}`)
       )
     )
@@ -147,7 +165,7 @@ export async function paymentEvent(request, secret) {
   if (!valid.some(Boolean)) reject(400, '支付通知签名无效。');
   return JSON.parse(raw);
 }
-export async function handlePlatform(request, env) {
+export async function handlePlatform(request: Request, env: WorkerEnv) {
   const path = new URL(request.url).pathname.replace('/api/platform', '');
   if (path === '/webhook')
     return endpoint(async () => {
@@ -195,7 +213,7 @@ export async function handlePlatform(request, env) {
     }
     const owner = await member(request, env);
     if (path === '/checkout' && request.method === 'POST')
-      return await checkout(env, owner, (await body(request, 4096)).requestId, new URL(request.url).origin);
+      return await checkout(env, owner, (await body<{ requestId: string }>(request, 4096)).requestId, new URL(request.url).origin);
     if (path === '/catalog' || path === '/account' || (path === '/jobs' && request.method === 'GET')) {
       if (request.method !== 'GET') reject(405, '需要 GET。');
       return await call(env, path, owner);
@@ -207,7 +225,7 @@ export async function handlePlatform(request, env) {
     if (request.method !== 'GET') reject(405, '需要 GET。');
     const response = await call(env, `/jobs/${match[1]}`, owner);
     if (match[2] !== '/result' || !response.ok) return response;
-    const job = await response.json();
+    const job = await response.json<{ id: string; status: string; result: { mimeType: string } }>();
     if (job.status !== 'completed') reject(409, '图片尚未完成。');
     const object = await env.MEDIA_RESULTS?.get(job.id);
     if (!object) reject(410, '平台原图暂不可用或已按保留规则移除。');

@@ -844,6 +844,9 @@ importers:
         specifier: 0.16.2
         version: 0.16.2
     devDependencies:
+      '@cloudflare/workers-types':
+        specifier: ^5.20261108.1
+        version: 5.20261108.1
       jsdom:
         specifier: ~22.1.0
         version: 22.1.0(supports-color@8.1.1)
@@ -852,7 +855,7 @@ importers:
         version: 0.35.5(@types/node@26.6.6)
       wrangler:
         specifier: 4.152.0
-        version: 4.152.0(@types/node@26.6.6)
+        version: 4.152.0(@cloudflare/workers-types@5.20261108.1)(@types/node@26.6.6)
       yaml:
         specifier: 2.9.0
         version: 2.9.0
@@ -1036,7 +1039,7 @@ importers:
     devDependencies:
       wrangler:
         specifier: ^4.156.2
-        version: 4.156.2(@types/node@26.6.6)
+        version: 4.156.2(@cloudflare/workers-types@5.20261108.1)(@types/node@26.6.6)
 
   apps/dev-rxdb-p2p-e2e:
     dependencies:
@@ -4587,6 +4590,9 @@ packages:
     engines: {node: '>=16'}
     cpu: [x64]
     os: [win32]
+
+  '@cloudflare/workers-types@5.20261108.1':
+    resolution: {integrity: sha512-lCGPhVOCy4sepGLuuy6KGxlxt8pVD8kbAt+mkdPcdr29fi5YLtihOLGKeNtInnmgdkSGiKhPCkRv/iq5tXC1/w==}
 
   '@codecov/bundler-plugin-core@2.0.1':
     resolution: {integrity: sha512-TkdKn/rEwZQ723M7DDUmHe5r0IJa23rUT4TAx5jXmg12wGZGAHGWWU7LKeQsYCsKdLMxK7bLaGk9M++4wSRD5w==}
@@ -22408,6 +22414,8 @@ snapshots:
 
   '@cloudflare/workerd-windows-64@1.20261102.1':
     optional: true
+
+  '@cloudflare/workers-types@5.20261108.1': {}
 
   '@codecov/bundler-plugin-core@2.0.1':
     dependencies:
@@ -41616,7 +41624,7 @@ snapshots:
       '@cloudflare/workerd-linux-arm64': 1.20261102.1
       '@cloudflare/workerd-windows-64': 1.20261102.1
 
-  wrangler@4.152.0(@types/node@26.6.6):
+  wrangler@4.152.0(@cloudflare/workers-types@5.20261108.1)(@types/node@26.6.6):
     dependencies:
       '@cloudflare/kv-asset-handler': 0.5.0
       '@cloudflare/unenv-preset': 2.16.2(unenv@2.0.0-rc.24)(workerd@1.20261019.1)
@@ -41627,13 +41635,14 @@ snapshots:
       unenv: 2.0.0-rc.24
       workerd: 1.20261019.1
     optionalDependencies:
+      '@cloudflare/workers-types': 5.20261108.1
       fsevents: 2.3.3
     transitivePeerDependencies:
       - '@types/node'
       - bufferutil
       - utf-8-validate
 
-  wrangler@4.156.2(@types/node@26.6.6):
+  wrangler@4.156.2(@cloudflare/workers-types@5.20261108.1)(@types/node@26.6.6):
     dependencies:
       '@cloudflare/kv-asset-handler': 0.5.0
       '@cloudflare/unenv-preset': 2.16.2(unenv@2.0.0-rc.24)(workerd@1.20261102.1)
@@ -41645,6 +41654,7 @@ snapshots:
       unenv: 2.0.0-rc.24
       workerd: 1.20261102.1
     optionalDependencies:
+      '@cloudflare/workers-types': 5.20261108.1
       fsevents: 2.3.3
     transitivePeerDependencies:
       - '@types/node'

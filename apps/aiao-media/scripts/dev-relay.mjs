@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import worker from '../server/cloudflare/local-first-worker.mjs';
-import { RelayTask } from '../server/cloudflare/relay-task.mjs';
+import worker from '../server/cloudflare/local-first-worker.ts';
+import { RelayTask } from '../server/cloudflare/relay-task.ts';
 import { durableObjectNamespace, r2Bucket } from './cloudflare-stand-ins.mjs';
 
 // Development stand-in for the production /api/relay and its durable tasks. It runs the same Worker code in this

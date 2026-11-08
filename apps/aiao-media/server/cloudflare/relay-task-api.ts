@@ -1,14 +1,18 @@
+import type { WorkerEnv } from './worker-env.ts';
+
+type ForwardOperation = { path: string; method: string; write?: boolean; body?: string };
+
 import { isMiniMaxImageProvider } from '../../src/contracts/image-provider-protocol.ts';
 import { isRelayTaskToken, relayTaskTokenHeader } from '../../src/contracts/relay-task.ts';
-import { originAllowed, uuid } from './product-http.mjs';
-import { json, relayInput } from './relay-input.mjs';
-import { missingRelayTask, relayTaskLimits } from './relay-task.mjs';
+import { originAllowed, uuid } from './product-http.ts';
+import { json, relayInput } from './relay-input.ts';
+import { missingRelayTask, relayTaskLimits } from './relay-task.ts';
 
 const route = /^\/api\/relay\/tasks\/([^/]+)(\/result|\/abandon)?$/;
-const seconds = url =>
+const seconds = (url: URL) =>
   Math.min(Math.max(Math.trunc(Number(url.searchParams.get('wait'))) || 0, 0), relayTaskLimits.waitMs / 1000);
 // Reads need only the task token; writes also require the same-origin or enabled desktop browser.
-const operations = {
+const operations: Record<string, (url: URL, taskId: string) => ForwardOperation> = {
   'GET ': url => ({ path: `/?wait=${seconds(url)}`, method: 'GET' }),
   'GET /result': () => ({ path: '/result', method: 'GET' }),
   'POST /abandon': (_url, taskId) => ({
@@ -20,7 +24,7 @@ const operations = {
   'DELETE ': () => ({ path: '/', method: 'DELETE', write: true })
 };
 
-async function create(request, env, task, taskId, token) {
+async function create(request: Request, env: WorkerEnv, task: DurableObjectStub, taskId: string, token: string) {
   if (!isRelayTaskToken(token)) return json(400, 'Task token required');
   let input;
   try {
@@ -44,7 +48,7 @@ async function create(request, env, task, taskId, token) {
 }
 
 /** 代理任务的 Worker 入口：校验后交给按任务标识寻址的 Durable Object。 */
-export async function handleRelayTask(request, env) {
+export async function handleRelayTask(request: Request, env: WorkerEnv) {
   const url = new URL(request.url);
   const [, taskId, action = ''] = route.exec(url.pathname) ?? [];
   if (!uuid(taskId)) return json(404, 'Unknown API');

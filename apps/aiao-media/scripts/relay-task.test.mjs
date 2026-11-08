@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import worker from '../server/cloudflare/local-first-worker.mjs';
-import { RelayTask } from '../server/cloudflare/relay-task.mjs';
+import worker from '../server/cloudflare/local-first-worker.ts';
+import { RelayTask } from '../server/cloudflare/relay-task.ts';
 import { createRelayTaskToken, openRelayResult, relayResultKey } from '../src/contracts/relay-task.ts';
 import { durableObjectNamespace, r2Bucket } from './cloudflare-stand-ins.mjs';
 

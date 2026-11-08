@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, relative, resolve } from 'node:path';
-import worker from '../server/cloudflare/local-first-worker.mjs';
+import worker from '../server/cloudflare/local-first-worker.ts';
 
 const root = resolve(import.meta.dirname, '../dist/browser');
 const source = await readFile(resolve(root, 'offline-worker.js'), 'utf8');

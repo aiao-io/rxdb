@@ -1,12 +1,26 @@
+import type { WorkerEnv } from './worker-env.ts';
+
+/** 产品后端调用的认证方式与请求正文。 */
+export interface BackendOptions {
+  method?: string;
+  payload?: unknown;
+  token?: string;
+  privileged?: boolean;
+}
+
+/** 产品后端的泛型 JSON 调用契约。 */
+export type BackendClient = ReturnType<typeof backend>;
+
 export class ProductApiError extends Error {
-  constructor(status, message) {
+  status: number;
+  constructor(status: number, message: string) {
     super(message);
     this.status = status;
   }
 }
-export const uuid = value =>
+export const uuid = (value: unknown): value is string =>
   typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
-export const response = (data, status = 200) =>
+export const response = (data: unknown, status = 200) =>
   Response.json(data, {
     status,
     headers: {
@@ -15,10 +29,10 @@ export const response = (data, status = 200) =>
       'x-content-type-options': 'nosniff'
     }
   });
-export const reject = (status, message) => {
+export function reject(status: number, message: string): never {
   throw new ProductApiError(status, message);
-};
-export async function endpoint(operation) {
+}
+export async function endpoint(operation: () => unknown) {
   try {
     return response(await operation());
   } catch (error) {
@@ -28,17 +42,17 @@ export async function endpoint(operation) {
     );
   }
 }
-export function originAllowed(request, env = {}) {
+export function originAllowed(request: Request, env: WorkerEnv = {}) {
   const origin = request.headers.get('origin');
   return (
     origin === new URL(request.url).origin ||
     (env.MEDIA_ALLOW_DESKTOP_ORIGIN === 'true' && origin === 'tauri://localhost')
   );
 }
-export function sameOriginWrite(request, env = {}) {
+export function sameOriginWrite(request: Request, env: WorkerEnv = {}) {
   if (!['GET', 'HEAD'].includes(request.method) && !originAllowed(request, env)) reject(403, '仅允许同源操作。');
 }
-export function fields(value, allowed) {
+export function fields<T extends object = Record<string, unknown>>(value: unknown, allowed: readonly string[]): T {
   if (
     !value ||
     typeof value !== 'object' ||
@@ -46,10 +60,10 @@ export function fields(value, allowed) {
     Object.keys(value).some(key => !allowed.includes(key))
   )
     reject(400, '请求包含无效字段。');
-  return value;
+  return value as T;
 }
 /** 有界读取响应正文；超过上限时取消读取并抛错。 */
-export async function bounded(result, max) {
+export async function bounded(result: Response, max: number) {
   const reader = result.body?.getReader();
   if (!reader) throw new Error('empty');
   const chunks = [];
@@ -74,7 +88,7 @@ export async function bounded(result, max) {
   }
   return bytes;
 }
-export async function body(request, limit = 262144) {
+export async function body<T = Record<string, unknown>>(request: Request, limit = 262144): Promise<T> {
   if (!request.headers.get('content-type')?.startsWith('application/json')) reject(400, '需要 JSON 请求。');
   const reader = request.body?.getReader();
   if (!reader) reject(400, '请求为空。');
@@ -102,10 +116,10 @@ export async function body(request, limit = 262144) {
     return reject(400, 'JSON 无效。');
   }
 }
-export function backend(env) {
+export function backend(env: WorkerEnv) {
   let origin;
   try {
-    const url = new URL(env.MEDIA_SUPABASE_URL);
+    const url = new URL(env.MEDIA_SUPABASE_URL ?? '');
     if (
       url.href !== `${url.origin}/` ||
       url.username ||
@@ -122,7 +136,7 @@ export function backend(env) {
   }
   if (!env.MEDIA_SUPABASE_ANON_KEY) reject(503, '产品服务未配置。');
   return {
-    async call(path, { method = 'GET', payload, token, privileged = true } = {}) {
+    async call<T = unknown>(path: string, { method = 'GET', payload, token, privileged = true }: BackendOptions = {}): Promise<T> {
       const key = privileged ? env.MEDIA_SUPABASE_SERVICE_ROLE_KEY : env.MEDIA_SUPABASE_ANON_KEY;
       if (!key) reject(503, '管理服务未配置。');
       const result = await fetch(`${origin}${path}`, {
@@ -136,24 +150,24 @@ export function backend(env) {
         referrerPolicy: 'no-referrer'
       });
       if (result.status >= 300 && result.status < 400) reject(502, '产品服务禁止重定向。');
-      const data = result.status === 204 ? null : await result.json();
-      if (result.ok) return data;
+      const data = result.status === 204 ? null : await result.json<{ code?: string }>();
+      if (result.ok) return data as T;
       if (result.status === 401) reject(401, '账号会话已失效。');
       if (result.status === 403 || data?.code === '42501') reject(403, '没有此操作权限。');
       if (data?.code === '23503') reject(404, '目标记录已不存在。');
-      if (result.status === 409 || ['40001', '23505', '23514', 'PT409'].includes(data?.code))
+      if (result.status === 409 || ['40001', '23505', '23514', 'PT409'].includes(data?.code ?? ''))
         reject(409, '数据版本或管理员状态已变化，请重新载入。');
       if (String(data?.code ?? '').startsWith('22')) reject(400, '请求数据无效。');
       reject(502, '产品服务操作失败，未确认成功。');
     }
   };
 }
-export async function administrator(request, env) {
+export async function administrator(request: Request, env: WorkerEnv) {
   sameOriginWrite(request, env);
   const token = /^Bearer ([A-Za-z0-9._~-]+)$/.exec(request.headers.get('authorization') ?? '')?.[1];
   if (!token) reject(401, '请先登录。');
   const client = backend(env);
-  const user = await client.call('/auth/v1/user', { token, privileged: false });
+  const user = await client.call<{ id: string }>('/auth/v1/user', { token, privileged: false });
   if (!uuid(user?.id)) reject(401, '当前账号无效。');
   const authorized = await client.call('/rest/v1/rpc/media_admin_authorized', {
     method: 'POST',

@@ -16,7 +16,7 @@ Local-first 图片创作应用：发现灵感 → Tiptap 编辑提示词 → 使
 pnpm install --frozen-lockfile
 ```
 
-本机创作不需要安装数据库：前端是 Angular CSR，后端是同一份 [Cloudflare Worker](server/cloudflare/local-first-worker.mjs)。生图代理 `/api/relay`、`/api/relay/tasks` 不依赖账号；`/api/admin`、`/api/templates` 及账号同步使用部署方统一的 Supabase 项目。本地有两种形态：开发服务器带热更新，并把代理部分内嵌在同一进程里，不必另起后端；Wrangler 预览在本机运行完整 Worker 和构建后的静态产物，没有热更新。
+本机创作不需要安装数据库：前端是 Angular CSR，后端是同一份 [Cloudflare Worker](server/cloudflare/local-first-worker.ts)。生图代理 `/api/relay`、`/api/relay/tasks` 不依赖账号；`/api/admin`、`/api/templates` 及账号同步使用部署方统一的 Supabase 项目。本地有两种形态：开发服务器带热更新，并把代理部分内嵌在同一进程里，不必另起后端；Wrangler 预览在本机运行完整 Worker 和构建后的静态产物，没有热更新。
 
 下表命令省略 `pnpm nx run aiao-media:` 前缀，`supabase-local.mjs preview` 是直接用 node 运行的脚本。两行 Supabase 的完整步骤见[可选账号与本地 Supabase](#可选账号与本地-supabase)。
 

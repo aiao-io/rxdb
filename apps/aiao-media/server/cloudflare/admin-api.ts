@@ -1,9 +1,21 @@
-import { manageContent } from './product-content.mjs';
-import { administrator, body, endpoint, fields, reject, uuid } from './product-http.mjs';
-import { reports } from './product-reports.mjs';
+import type { BackendClient } from './product-http.ts';
+import type { WorkerEnv } from './worker-env.ts';
 
-const accountQueues = new Map();
-function accountLock(targetId, operation) {
+type AuthUser = {
+  id: string;
+  email?: string;
+  created_at?: string;
+  last_sign_in_at?: string;
+  banned_until?: string;
+};
+type AccountState = { user_id: string; disabled: boolean; revision: number; auth_state: string };
+
+import { manageContent } from './product-content.ts';
+import { administrator, body, endpoint, fields, reject, uuid } from './product-http.ts';
+import { reports } from './product-reports.ts';
+
+const accountQueues = new Map<string, Promise<unknown>>();
+function accountLock<T>(targetId: string, operation: () => Promise<T>) {
   const previous = accountQueues.get(targetId) ?? Promise.resolve();
   const current = previous.catch(() => undefined).then(operation);
   accountQueues.set(targetId, current);
@@ -12,21 +24,21 @@ function accountLock(targetId, operation) {
   });
 }
 
-function pageNumber(value, fallback, max) {
+function pageNumber(value: string | null, fallback: number, max: number) {
   const number = value === null ? fallback : Number(value);
   if (!Number.isSafeInteger(number) || number < 1 || number > max) reject(400, '分页参数无效。');
   return number;
 }
-async function users(client, url) {
+async function users(client: BackendClient, url: URL) {
   const page = pageNumber(url.searchParams.get('page'), 1, 1000000);
   const perPage = pageNumber(url.searchParams.get('perPage'), 25, 100);
-  const result = await client.call(`/auth/v1/admin/users?page=${page}&per_page=${perPage}`);
+  const result = await client.call<{ users: AuthUser[]; total?: number }>(`/auth/v1/admin/users?page=${page}&per_page=${perPage}`);
   if (!Array.isArray(result.users)) reject(502, '用户列表暂不可读。');
   const ids = result.users.map(user => user.id);
   if (!ids.every(uuid)) reject(502, '用户标识无效。');
   const states =
     ids.length ?
-      await client.call(
+      await client.call<AccountState[]>(
         `/rest/v1/media_accounts?select=user_id,disabled,revision,auth_state&user_id=in.(${ids.join(',')})`
       )
     : [];
@@ -46,9 +58,9 @@ async function users(client, url) {
     }))
   };
 }
-async function setAccount(request, client, actorId, targetId) {
+async function setAccount(request: Request, client: BackendClient, actorId: string, targetId: string) {
   return accountLock(targetId, async () => {
-    const value = fields(await body(request, 4096), ['disabled', 'revision', 'requestId']);
+    const value = fields<{ disabled: boolean; revision: number; requestId: string }>(await body(request, 4096), ['disabled', 'revision', 'requestId']);
     if (
       typeof value.disabled !== 'boolean' ||
       !Number.isSafeInteger(value.revision) ||
@@ -56,7 +68,7 @@ async function setAccount(request, client, actorId, targetId) {
       !uuid(value.requestId)
     )
       reject(400, '账号修改参数无效。');
-    const account = await client.call('/rest/v1/rpc/media_admin_set_account', {
+    const account = await client.call<AccountState>('/rest/v1/rpc/media_admin_set_account', {
       method: 'POST',
       payload: {
         p_actor: actorId,
@@ -77,7 +89,7 @@ async function setAccount(request, client, actorId, targetId) {
       });
       if (applied) return { account: { ...account, auth_state: 'applied' } };
 
-      const latest = await client.call(
+      const latest = await client.call<AccountState[]>(
         `/rest/v1/media_accounts?select=disabled,revision&user_id=eq.${targetId}&limit=1`
       );
       const current = Array.isArray(latest) ? latest[0] : null;
@@ -101,7 +113,7 @@ async function setAccount(request, client, actorId, targetId) {
     }
   });
 }
-export function handleAdmin(request, env) {
+export function handleAdmin(request: Request, env: WorkerEnv) {
   return endpoint(async () => {
     const { client, actorId } = await administrator(request, env);
     const url = new URL(request.url),

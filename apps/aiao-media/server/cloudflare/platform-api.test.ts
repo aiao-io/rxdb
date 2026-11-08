@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { handlePlatform, paymentEvent } from './platform-api.mjs';
+import { handlePlatform, paymentEvent } from './platform-api.ts';
 
 async function signed(payload, secret = 'webhook-secret', timestamp = Math.floor(Date.now() / 1000)) {
   const raw = JSON.stringify(payload);
