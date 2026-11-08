@@ -1,18 +1,37 @@
 {
   "compilerOptions": {
-    "noEmit": true,
     "allowImportingTsExtensions": true,
     "erasableSyntaxOnly": true,
-    "lib": ["es2022", "dom"],
-    "types": ["@cloudflare/workers-types", "node"],
+    "lib": [
+      "es2022",
+      "dom"
+    ],
+    "types": [
+      "@cloudflare/workers-types",
+      "node"
+    ],
     "skipLibCheck": true,
-    "composite": false,
+    "composite": true,
     "rootDir": "../../../",
     "module": "preserve",
     "moduleResolution": "bundler",
-    "target": "es2022"
+    "target": "es2022",
+    "declaration": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": true,
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/tsconfig.tsbuildinfo"
   },
   "extends": "../../../tsconfig.base.json",
-  "include": ["src/**/*.ts"],
-  "references": []
+  "include": [
+    "src/**/*.ts"
+  ],
+  "references": [
+    {
+      "path": "../../packages/domain"
+    },
+    {
+      "path": "../../packages/api-contracts"
+    }
+  ]
 }

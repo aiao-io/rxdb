@@ -3,22 +3,34 @@
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "projectType": "application",
   "sourceRoot": "aiao-media/apps/api/src",
-  "tags": ["scope:aiao-media", "type:app", "runtime:worker"],
+  "tags": [
+    "scope:aiao-media",
+    "type:app",
+    "runtime:worker"
+  ],
   "targets": {
     "build": {
       "executor": "nx:run-commands",
-      "outputs": ["{projectRoot}/dist"],
+      "outputs": [
+        "{projectRoot}/dist"
+      ],
       "options": {
         "cwd": "aiao-media/apps/api",
-        "command": "tsc --noEmit -p tsconfig.json"
-      }
+        "command": "tsc -p tsconfig.json"
+      },
+      "dependsOn": [
+        "^build"
+      ]
     },
     "typecheck": {
       "executor": "nx:run-commands",
       "options": {
         "cwd": "aiao-media/apps/api",
         "command": "tsc --noEmit -p tsconfig.json"
-      }
+      },
+      "dependsOn": [
+        "^build"
+      ]
     },
     "test": {
       "executor": "nx:run-commands",

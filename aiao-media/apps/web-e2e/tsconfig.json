@@ -2,16 +2,10 @@
   "compilerOptions": {
     "strict": true,
     "target": "ES2022",
-    "lib": [
-      "ES2022",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "preserve",
     "moduleResolution": "bundler",
-    "types": [
-      "node"
-    ],
+    "types": ["node"],
     "noEmit": true,
     "composite": false,
     "declaration": false,
@@ -34,6 +28,9 @@
   "references": [
     {
       "path": "../../packages/api-contracts"
+    },
+    {
+      "path": "../api"
     }
   ]
 }

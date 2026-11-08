@@ -311,6 +311,9 @@
     },
     {
       "path": "./aiao-media/packages/api-contracts"
+    },
+    {
+      "path": "./aiao-media/apps/api"
     }
   ]
 }

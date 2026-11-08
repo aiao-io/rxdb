@@ -85,6 +85,13 @@
         "staticFilePath": "dist/aiao-media/apps/admin/browser",
         "spa": true
       }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "aiao-media/apps/admin",
+        "command": "eslint src --max-warnings=0"
+      }
     }
   }
 }
