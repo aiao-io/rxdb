@@ -1,14 +1,14 @@
-import { ChangeDetectionStrategy, Component, effect, input, signal, untracked } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import type { PromptTemplate } from '@aiao-media/api-contracts';
 import {
   validatePublishedTemplate,
   type ProviderPolicy,
   type ProviderPolicyEntry,
   type TaskReport
 } from '@aiao-media/api-contracts';
+import { ChangeDetectionStrategy, Component, effect, input, signal, untracked } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { defaultAdminTemplate } from './admin-defaults';
 import type { ProductClient } from './product-client';
-import type { PromptTemplate } from '@aiao-media/api-contracts';
 
 interface AdminUser {
   id: string;

@@ -1,8 +1,8 @@
 {
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "name": "aiao-media-desktop",
-  "projectType": "application",
   "prefix": "media",
+  "projectType": "application",
   "sourceRoot": "aiao-media/apps/desktop/src",
   "tags": ["product:media", "type:app", "runtime:desktop"],
   "targets": {
@@ -14,16 +14,29 @@
         "outputPath": "aiao-media/apps/desktop/desktop-dist",
         "browser": "aiao-media/apps/web/src/main.ts",
         "polyfills": [],
-        "tsConfig": "aiao-media/apps/web/tsconfig.app.json",
-        "assets": [{"glob": "**/*", "input": "aiao-media/apps/web/public"}],
+        "tsConfig": "aiao-media/apps/desktop/tsconfig.build.json",
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "aiao-media/apps/web/public"
+          }
+        ],
         "styles": ["aiao-media/apps/web/src/styles.css", "aiao-media/apps/web/src/image-mvp.css"],
         "allowedCommonJsDependencies": ["@supabase/supabase-js", "ms"]
       },
       "configurations": {
         "desktop": {
           "budgets": [
-            {"type": "initial", "maximumWarning": "510kb", "maximumError": "1mb"},
-            {"type": "anyComponentStyle", "maximumWarning": "4kb", "maximumError": "8kb"}
+            {
+              "type": "initial",
+              "maximumWarning": "510kb",
+              "maximumError": "1mb"
+            },
+            {
+              "type": "anyComponentStyle",
+              "maximumWarning": "4kb",
+              "maximumError": "8kb"
+            }
           ],
           "fileReplacements": [
             {
@@ -54,8 +67,12 @@
       "executor": "@angular/build:dev-server",
       "defaultConfiguration": "development",
       "configurations": {
-        "development": {"buildTarget": "aiao-media-desktop:build:development"},
-        "desktop": {"buildTarget": "aiao-media-desktop:build:desktop"}
+        "development": {
+          "buildTarget": "aiao-media-desktop:build:development"
+        },
+        "desktop": {
+          "buildTarget": "aiao-media-desktop:build:desktop"
+        }
       }
     },
     "serve-static": {

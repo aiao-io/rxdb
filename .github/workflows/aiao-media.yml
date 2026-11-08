@@ -67,7 +67,7 @@ jobs:
       - name: Stop application test services
         if: ${{ always() }}
         run: |
-          if [ -f aiao-media/apps/web/infra/supabase/.env ]; then
+          if [ -f aiao-media/infra/supabase/.env ]; then
             pnpm nx run aiao-media:supabase-down --output-style=static
           fi
 

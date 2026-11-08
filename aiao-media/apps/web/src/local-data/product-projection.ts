@@ -1,5 +1,5 @@
-import { publicProvider, type LocalProvider } from '../app/local-provider';
 import { validateSyncPayload } from '@aiao-media/api-contracts';
+import { publicProvider, type LocalProvider } from '../app/local-provider';
 import type { LocalMediaStore, StudioPromptState } from './index';
 import type { ProductEntry, ProductRecord } from './product-sync-store';
 

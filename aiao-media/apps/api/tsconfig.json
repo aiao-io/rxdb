@@ -2,14 +2,8 @@
   "compilerOptions": {
     "allowImportingTsExtensions": true,
     "erasableSyntaxOnly": true,
-    "lib": [
-      "es2022",
-      "dom"
-    ],
-    "types": [
-      "@cloudflare/workers-types",
-      "node"
-    ],
+    "lib": ["es2022", "dom"],
+    "types": ["@cloudflare/workers-types", "node"],
     "skipLibCheck": true,
     "composite": true,
     "rootDir": "../../../",
@@ -23,9 +17,7 @@
     "tsBuildInfoFile": "dist/tsconfig.tsbuildinfo"
   },
   "extends": "../../../tsconfig.base.json",
-  "include": [
-    "src/**/*.ts"
-  ],
+  "include": ["src/**/*.ts"],
   "references": [
     {
       "path": "../../packages/domain"

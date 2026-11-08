@@ -1,6 +1,6 @@
+import type { GenerationJobSummary } from '@aiao-media/api-contracts';
 import { combineLatest, filter, firstValueFrom, take } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { GenerationJobSummary } from '@aiao-media/api-contracts';
 import { LocalImageWork, LocalMediaStore } from './browser-media';
 import { collectProductSnapshot } from './product-projection';
 

@@ -13,21 +13,21 @@ export default [
   ...nx.configs['flat/typescript'],
   ...nx.configs['flat/javascript'],
   {
-      "ignores": [
-        "**/node_modules",
-        "**/dist",
-        "**/out-tsc",
-        "**/coverage",
-        "**/tmp",
-        "**/*.min.js",
-        "**/vite.config.*.timestamp*",
-        "**/vitest.config.*.timestamp*",
-        "**/test-output",
-        "**/playwright-report",
-        "**/build",
-        "**/.react-router",
-        "**/.tmp-generated-runtime-*"
-      ]
+    ignores: [
+      '**/node_modules',
+      '**/dist',
+      '**/out-tsc',
+      '**/coverage',
+      '**/tmp',
+      '**/*.min.js',
+      '**/vite.config.*.timestamp*',
+      '**/vitest.config.*.timestamp*',
+      '**/test-output',
+      '**/playwright-report',
+      '**/build',
+      '**/.react-router',
+      '**/.tmp-generated-runtime-*'
+    ]
   },
   {
     files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx', '**/*.vue'],

@@ -17,10 +17,7 @@
     "isolatedModules": true,
     "emitDecoratorMetadata": false,
     "module": "preserve",
-    "lib": [
-      "dom",
-      "es2022"
-    ],
+    "lib": ["dom", "es2022"],
     "composite": false,
     "declaration": false,
     "declarationMap": false,
@@ -28,9 +25,7 @@
     "allowJs": false,
     "paths": {},
     "rootDir": ".",
-    "types": [
-      "node"
-    ],
+    "types": ["node"],
     "allowImportingTsExtensions": true,
     "noEmit": true
   },

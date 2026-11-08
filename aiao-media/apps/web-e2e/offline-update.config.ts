@@ -6,7 +6,7 @@ export default defineConfig({
   timeout: 90000,
   use: { ...base.use, baseURL: 'http://127.0.0.1:4397' },
   webServer: {
-    command: 'node scripts/offline-update-server.mjs',
+    command: 'node apps/web/scripts/offline-update-server.mjs',
     url: 'http://127.0.0.1:4397',
     cwd: new URL('../../', import.meta.url).pathname,
     reuseExistingServer: false,

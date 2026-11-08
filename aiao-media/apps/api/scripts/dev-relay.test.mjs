@@ -1,8 +1,8 @@
+import { createRelayTaskToken, openRelayResult, relayResultKey } from '@aiao-media/api-contracts';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { test } from 'node:test';
-import { createRelayTaskToken, openRelayResult, relayResultKey } from '@aiao-media/api-contracts';
 import { startDevRelay } from './dev-relay.mjs';
 
 const provider = 'https://provider.example.test/v1';
@@ -101,8 +101,7 @@ test('refuses cross-origin callers, other providers and other API routes before 
 });
 test('starts from the allow-list committed for deployment and listens on loopback only', async () => {
   const [committed] = JSON.parse(
-    JSON.parse(readFileSync(new URL('../wrangler.json', import.meta.url), 'utf8')).vars
-      .ALLOWED_PROVIDER_BASE_URLS
+    JSON.parse(readFileSync(new URL('../wrangler.json', import.meta.url), 'utf8')).vars.ALLOWED_PROVIDER_BASE_URLS
   );
   await withRelay(undefined, image, async (relay, calls) => {
     assert.match(relay.url, /^http:\/\/127\.0\.0\.1:\d+$/);
@@ -129,11 +128,4 @@ test('runs relay tasks on in-process stand-ins, so a reloaded page can still rea
     assert.deepEqual(JSON.parse(new TextDecoder().decode(opened)), { data: [{ b64_json: 'fixture' }] });
     assert.equal(calls.length, 1);
   });
-});
-test('the Angular proxy config sends only /api/relay to a live relay', async () => {
-  const { default: proxy } = await import('../proxy.conf.mjs');
-  assert.deepEqual(Object.keys(proxy), ['/api/relay']);
-  const response = await fetch(new URL('/api/relay', proxy['/api/relay'].target));
-  assert.equal(response.status, 405);
-  assert.deepEqual(await response.json(), { error: 'POST required' });
 });

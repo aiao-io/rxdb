@@ -15,7 +15,7 @@ export default defineConfig({
   webServer: {
     // The Nx test target prepares the build; keep the runtime in Playwright's process group for reliable shutdown.
     command:
-      'pnpm exec wrangler dev --config apps/api/wrangler.json --local --port 4398 --show-interactive-dev-session false',
+      'pnpm --dir apps/api exec wrangler dev --config wrangler.json --local --port 4398 --show-interactive-dev-session false',
     url: 'http://127.0.0.1:4398',
     cwd: new URL('../../', import.meta.url).pathname,
     reuseExistingServer: false,

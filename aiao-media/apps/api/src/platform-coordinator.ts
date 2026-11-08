@@ -1,6 +1,5 @@
 import type { ImageMimeType } from '@aiao-media/api-contracts';
-import { imageMetadata } from '@aiao-media/api-contracts';
-import { imageGenerationRequest, isMiniMaxImageProvider } from '@aiao-media/api-contracts';
+import { imageGenerationRequest, imageMetadata, isMiniMaxImageProvider } from '@aiao-media/api-contracts';
 import { body, bounded, endpoint, fields, reject, uuid } from './product-http.ts';
 import type { PlatformContext, WorkerEnv, WorkerRequest, WorkerSql } from './worker-env.ts';
 

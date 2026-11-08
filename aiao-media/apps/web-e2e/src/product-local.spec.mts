@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { localEnvironment } from '../../scripts/supabase/supabase-local.mjs';
+import { localEnvironment } from '../../../scripts/supabase/supabase-local.mjs';
 import { endpoint, importBackup, key, pngFixture, provider, verifyImageDownload } from './local-first.helpers';
 
 let admin: SupabaseClient;
@@ -211,7 +211,6 @@ test('主站不公开后台入口，后台路径不回落到主站页面', async
     await expect(page.getByText('后台已迁移', { exact: true })).toHaveCount(0);
   }
 });
-
 
 async function editDraft(page: Page, text: string) {
   const editor = page.locator('[contenteditable=true]');

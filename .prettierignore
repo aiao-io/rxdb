@@ -12,6 +12,8 @@ tmp/
 out-tsc/
 test-output/
 playwright-report/
+**/.wrangler/
+**/public/prompt-runtime/
 .env*
 
 # Cargo 构建产物（crate 内 .gitignore 对 Prettier / nx format 无效）

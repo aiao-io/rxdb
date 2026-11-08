@@ -1,3 +1,4 @@
+import { validateGenerationJobSummary } from '@aiao-media/api-contracts';
 import {
   Entity,
   EntityBase,
@@ -8,7 +9,6 @@ import {
   type TransactionExecutor
 } from '@aiao/rxdb';
 import { publicProvider } from '../app/local-provider';
-import { validateGenerationJobSummary } from '@aiao-media/api-contracts';
 import { validateAudioSubmissionBook } from './audio-submissions';
 import { validateNotebook } from './draft-notebook';
 import { validateImageSubmissionBook } from './image-submissions';

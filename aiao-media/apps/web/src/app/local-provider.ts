@@ -1,6 +1,11 @@
-import { ImageFormatError, imageMetadata, validateImageBlob } from '@aiao-media/api-contracts';
-import { imageGenerationRequest, isMiniMaxImageProvider } from '@aiao-media/api-contracts';
 import type { ImageAspectRatio } from '@aiao-media/api-contracts';
+import {
+  ImageFormatError,
+  imageGenerationRequest,
+  imageMetadata,
+  isMiniMaxImageProvider,
+  validateImageBlob
+} from '@aiao-media/api-contracts';
 
 export interface LocalProvider {
   id: string;

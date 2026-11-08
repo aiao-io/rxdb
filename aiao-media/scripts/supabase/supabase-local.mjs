@@ -167,13 +167,13 @@ async function main(action) {
       MEDIA_SUPABASE_SERVICE_ROLE_KEY: local.SERVICE_ROLE_KEY
     };
     await writeFile(
-      resolve(workspaceRoot, 'deploy/cloudflare/.dev.vars'),
+      resolve(workspaceRoot, 'apps/api/.dev.vars'),
       Object.entries(privateConfig)
         .map(([name, value]) => `${name}=${JSON.stringify(value)}`)
         .join('\n') + '\n',
       { mode: 0o600 }
     );
-    await chmod(resolve(workspaceRoot, 'deploy/cloudflare/.dev.vars'), 0o600);
+    await chmod(resolve(workspaceRoot, 'apps/api/.dev.vars'), 0o600);
     const env = { ...process.env, ...publicEnv };
     // Build with the local public Auth settings before starting the production worker.
     // Keep service-role credentials in this Node process and out of the client build.
@@ -183,11 +183,13 @@ async function main(action) {
     await run(
       'pnpm',
       [
+        '--dir',
+        'apps/api',
         'exec',
         'wrangler',
         'dev',
         '--config',
-        'apps/api/wrangler.json',
+        'wrangler.json',
         '--local',
         '--port',
         '4399',

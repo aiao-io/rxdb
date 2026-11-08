@@ -1,8 +1,8 @@
+import type { GenerationJobSummary } from '@aiao-media/api-contracts';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { describe, expect, it, vi } from 'vitest';
 import { defaultFreeProvider } from '../app/default-provider';
 import { createLocalBackup, readLocalBackup } from '../app/local-backup';
-import type { GenerationJobSummary } from '@aiao-media/api-contracts';
 import { LocalMediaStore } from './browser-media';
 
 const createdAt = '2026-10-01T00:00:00.000Z';

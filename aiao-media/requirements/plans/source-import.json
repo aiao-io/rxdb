@@ -1279,10 +1279,7 @@
   },
   "sourceCommit": "43bc9eeb696c4b3c4c51351724d2fe91f0f8e8f3",
   "sourceRepository": "aiao-media",
-  "sourceWorkingTreeChanges": [
-    "requirements/plans/README.md",
-    "requirements/plans/rxdb-product-incubation.md"
-  ],
+  "sourceWorkingTreeChanges": ["requirements/plans/README.md", "requirements/plans/rxdb-product-incubation.md"],
   "stories": [
     {
       "legacyId": "aiao-media:US-001",
