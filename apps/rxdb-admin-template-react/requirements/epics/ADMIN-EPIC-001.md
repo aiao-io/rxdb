@@ -14,8 +14,8 @@ owner: jimmy
 
 ## 目标
 
-- [ ] 应用需求独立管理，门禁约束状态、引用与派生视图（[ADMIN-US-001](../stories/platform/ADMIN-US-001-application-requirements.md)）。
-- [ ] 应用标识与本机存储配置集中，默认数据兼容且首屏主题一致（[ADMIN-US-002](../stories/platform/ADMIN-US-002-application-configuration.md)）。
+- [x] 应用需求独立管理，门禁约束状态、引用与派生视图（[ADMIN-US-001](../stories/platform/ADMIN-US-001-application-requirements.md)）。
+- [x] 应用标识与本机存储配置集中，默认数据兼容且首屏主题一致（[ADMIN-US-002](../stories/platform/ADMIN-US-002-application-configuration.md)）。
 - [ ] 中英文覆盖外壳、页面和模型显示名，偏好恢复与空库备份恢复兼容（[ADMIN-US-003](../stories/platform/ADMIN-US-003-client-i18n.md)）。
 - [ ] 新业务实体贯通列表、表单、导航和搜索（[ADMIN-US-101](../stories/domain/ADMIN-US-101-replace-sample-domain.md)）。
 - [ ] 自定义页面与导航可按明确路径扩展，并复用外壳行为（[ADMIN-US-102](../stories/domain/ADMIN-US-102-custom-pages-navigation.md)）。
