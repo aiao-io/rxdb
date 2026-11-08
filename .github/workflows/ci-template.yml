@@ -1201,7 +1201,11 @@ jobs:
         with:
           targets: search-ci,bench-working-tree-ci,bench-sortable-batch
           projects: benchmarks
-      - run: pnpm exec nx run-many -t search-ci bench-working-tree-ci bench-sortable-batch -p benchmarks --output-style=stream --parallel=1
+      # 测量沿用 reference 冻结时的默认堆，避免继承构建阶段的 6 GiB 设置而改变 GC 行为。
+      - name: Run performance gates
+        env:
+          NODE_OPTIONS: ''
+        run: pnpm exec nx run-many -t search-ci bench-working-tree-ci bench-sortable-batch -p benchmarks --output-style=stream --parallel=1
 
       - name: Upload benchmark reports
         if: ${{ always() }}
