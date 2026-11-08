@@ -1,6 +1,6 @@
-# 应用级需求管理办法
+# 应用级需求模板
 
-仓库里每个需要独立产品需求的应用（业务应用、demo 应用），在 `apps/<app>/requirements/` 建立自己的需求目录，独立统计和验收。管理办法与根 `requirements/` 一致：**怎么管**（命名、状态、写作规范）沿用根[约定](../CONVENTIONS.md)与[需求管理说明](../README.md)，本目录只提供应用级的**目录位置、编号前缀与模板**。方法从 Aiao Media 的实践总结而来（`codex/aiao-media-incubation` 分支的 `apps/aiao-media/requirements/`）。
+仓库里每个需要独立产品需求的应用（业务应用、demo 应用）或产品组，在自己的需求根目录建立需求集合，独立统计和验收。通用治理规则见根[应用级需求与项目治理办法](../application-governance.md)，本目录只提供应用级的**目录位置、编号前缀与模板**。单应用通常使用 `apps/<app>/requirements/`；多个 Nx 应用组成一个产品时，可以使用 `<product>/requirements/` 统一管理。
 
 ## 与根 requirements 的关系
 
