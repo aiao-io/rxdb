@@ -114,6 +114,7 @@ test('记住、替换和移除 Key 后只保留非敏感配置，刷新不复用
 test('非法配置和损坏 PNG 被拒绝，不泄露 Key、不创建假作品或自动重发', async ({ page }) => {
   await provider(page);
   await page.getByRole('button', { name: '编辑 / 填写 Key' }).click();
+  await expect(page.getByLabel('HTTPS Base URL')).toHaveValue('https://images.example.test/v1');
   await page.getByLabel('HTTPS Base URL').fill(`https://user:${key}@images.example.test/v1`);
   await page.getByRole('button', { name: '保存到本机', exact: true }).click();
   await expect(page.getByText('Base URL 需要使用 HTTPS，且不能包含账号、查询参数或片段。')).toBeVisible();
