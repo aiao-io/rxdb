@@ -12,8 +12,8 @@
 | 管理后台                  | ⚠️ AC#1～#10 已在隔离 Supabase 栈与真 Worker 验收；AC#11 待首次 CI，正式环境上线待执行 | rxdb:US-713                                                           |
 | 断点续传                  | 📋 计划中；US-705 承诺的一部分，M1 补齐                                                | rxdb:US-705                                                           |
 | 桌面端（Electron/Tauri）  | 📋 计划中；1 GiB、断外网传输、离线 TTL 按 US-707 阶段 B 验收口径，M2 交付（D-05）      | rxdb:US-707 阶段 B                                                    |
-| 回退内容加密              | ⬜ 已立项待开工；客户端加密后上传，Worker 不可读是验收硬线                             | [POOL-US-101](stories/ops/POOL-US-101-fallback-content-encryption.md) |
-| 速率限制 + 举报 + 邀请制  | ⬜ 已立项待开工；服务端断言 + 举报处置闭环 + 滥用演练                                  | [POOL-US-102](stories/ops/POOL-US-102-rate-limit-report-invite.md)    |
+| 回退内容加密              | ⚠️ 已实现并合入；客户端加密后上传、Worker 不可读，AC5、AC6 与阶段 D 正式环境复验待补   | [POOL-US-101](stories/ops/POOL-US-101-fallback-content-encryption.md) |
+| 速率限制 + 举报 + 邀请制  | ⚠️ 已实现并合入；服务端限流、举报处置闭环与滥用演练已在本地真栈验收，AC9 待补          | [POOL-US-102](stories/ops/POOL-US-102-rate-limit-report-invite.md)    |
 | 自定义域名 + 独立部署线   | 📋 计划中；工程项，wrangler 绑定 pool.aiao.io（D-02）                                  | 见[路线图 M1](roadmap.md#m1-当前任务顺序)                             |
 | 局域网发现增强 / 枢纽     | 立项池；桌面端局域网发现进 M2，rxdb:US-712 价值待证                                    | rxdb:US-712                                                           |
 | 整库克隆 / 实时信号       | 立项池；以 rxdb:US-708 会话层为共同前置，owner 已定先做 US-709                         | rxdb:US-709～US-711                                                   |

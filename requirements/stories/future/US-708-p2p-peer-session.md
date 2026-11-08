@@ -1,11 +1,11 @@
 ---
 id: US-708
 title: P2P 会话层：一对设备一条会话、多协议复用
-status: In Review
+status: Done
 priority: High
 epic: epic-011-p2p-file-share
 created: 2026-11-03
-updated: 2026-11-05
+updated: 2026-11-08
 tags: [p2p, session, multiplexing, protocol, webrtc, tcp]
 ---
 
@@ -96,3 +96,7 @@ tags: [p2p, session, multiplexing, protocol, webrtc, tcp]
 - `packages/rxdb-plugin-p2p/src/session/webrtc-transport.ts` / `tcp-transport.ts` — 两种字节传输
 - `packages/rxdb-plugin-p2p/src/files-protocol.ts` — files 协议：逐请求授权、按内容表供块、会话到块来源的适配
 - `apps/dev-rxdb-p2p-e2e/` — 验收夹具：`src/browser/`（夹具页与它的服务）、`src/desktop/`（对端进程与用例侧句柄）、`src/shared/`（两端共用的身份、凭据与确定性文件内容）
+
+## References
+
+- [PR #172](https://github.com/aiao-io/rxdb/pull/172)
