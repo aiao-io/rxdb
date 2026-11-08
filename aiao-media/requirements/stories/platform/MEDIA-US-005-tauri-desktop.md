@@ -47,9 +47,9 @@ tags: [product-completion]
 
 ## 实现文件
 
-- [main.rs](../../../apps/web/src-tauri/src/main.rs)
-- [files.rs](../../../apps/web/src-tauri/src/files.rs)
-- [local-backend.ts](../../../apps/web/src/platform/tauri/local-backend.ts)
+- [main.rs](../../../apps/desktop/src-tauri/src/main.rs)
+- [files.rs](../../../apps/desktop/src-tauri/src/files.rs)
+- [local-backend.ts](../../../apps/desktop/src/platform/tauri/local-backend.ts)
 
 ## References
 

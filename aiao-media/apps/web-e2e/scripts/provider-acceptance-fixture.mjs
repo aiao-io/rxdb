@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, relative, resolve } from 'node:path';
 import sharp from 'sharp';
-import { durableObjectNamespace, r2Bucket } from '../../apps/web/scripts/cloudflare-stand-ins.mjs';
+import { durableObjectNamespace, r2Bucket } from '../../apps/api/scripts/cloudflare-stand-ins.mjs';
 import worker from '../../api/src/local-first-worker.ts';
 import { RelayTask } from '../../api/src/relay-task.ts';
 import { acceptanceSelection, attemptPath, runProviderAcceptance } from './provider-acceptance.mjs';

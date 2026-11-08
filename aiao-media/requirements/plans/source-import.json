@@ -3,7 +3,7 @@
     {
       "source": ".editorconfig",
       "sha256": "3970ce473928bdf945236b8aa6c7cbf6b0022f5ce379b7b0ba8e7343d8fec451",
-      "destination": null,
+      "destination": "",
       "disposition": "integrated"
     },
     {
@@ -33,31 +33,31 @@
     {
       "source": ".prettierignore",
       "sha256": "8246eb22e3c8c01de6f42fb4e464a37dc2eae6e510235de88226a6090a94c001",
-      "destination": null,
+      "destination": "",
       "disposition": "integrated"
     },
     {
       "source": ".prettierrc",
       "sha256": "37055c98043228133ffcc5cad7bba5ef6c8f24698a551cae547b90f51d22e519",
-      "destination": null,
+      "destination": "",
       "disposition": "integrated"
     },
     {
       "source": ".vscode/extensions.json",
       "sha256": "3c964d104722645e40d5a852dda2e6a59b12368ba9584e9a425e7e42c2a049a8",
-      "destination": null,
+      "destination": "",
       "disposition": "integrated"
     },
     {
       "source": ".vscode/launch.json",
       "sha256": "4c9d31b4b770f63d23c684bbf09f776f61b970a27910cf782af01dab7910e820",
-      "destination": null,
+      "destination": "",
       "disposition": "integrated"
     },
     {
       "source": "AGENTS.md",
       "sha256": "45964d7171942305b5edb1354526b25179deb557856facfb7a6c5b839ebaee21",
-      "destination": null,
+      "destination": "",
       "disposition": "integrated"
     },
     {
@@ -118,36 +118,6 @@
       "source": "apps/web-e2e/tsconfig.json",
       "sha256": "d97da27d9fbc941b16f937e3138fa5371f65a4fae93cd13c9f142f7c43d22ab2",
       "destination": "aiao-media/apps/web-e2e/tsconfig.json",
-      "disposition": "imported"
-    },
-    {
-      "source": "apps/web/direct-provider-probe/README.md",
-      "sha256": "489ce8f629b3b86af2d5f45d3fbd04f2eb6494c35353e9cef4e6ae8812e7d956",
-      "destination": "aiao-media/apps/web/direct-provider-probe/README.md",
-      "disposition": "imported"
-    },
-    {
-      "source": "apps/web/direct-provider-probe/_headers",
-      "sha256": "582db89f12141bbede6e638de390c29021b7a6fcfec88cd935d0316e21907062",
-      "destination": "aiao-media/apps/web/direct-provider-probe/_headers",
-      "disposition": "imported"
-    },
-    {
-      "source": "apps/web/direct-provider-probe/index.html",
-      "sha256": "7dd3b4c395a5f608ea48f1645683a5a7f487c60e95389d6c222a5f0d38109bcc",
-      "destination": "aiao-media/apps/web/direct-provider-probe/index.html",
-      "disposition": "imported"
-    },
-    {
-      "source": "apps/web/direct-provider-probe/main.js",
-      "sha256": "d437554a572c72f1c6ba9dbd1a8b12f6e94b999149fb677586f7e733ecc90012",
-      "destination": "aiao-media/apps/web/direct-provider-probe/main.js",
-      "disposition": "imported"
-    },
-    {
-      "source": "apps/web/direct-provider-probe/styles.css",
-      "sha256": "c85428c4ade782bd8b3ad16ed77fa01da95697e772727b1e94d6fb80269bd011",
-      "destination": "aiao-media/apps/web/direct-provider-probe/styles.css",
       "disposition": "imported"
     },
     {
@@ -495,19 +465,13 @@
     {
       "source": "bun.lock",
       "sha256": "d336e6194f50f72682c4984476aef8b4aa6eefb1a28f9a986f079228e0a0d078",
-      "destination": null,
+      "destination": "",
       "disposition": "integrated"
     },
     {
       "source": "deploy/local-first-pages.md",
       "sha256": "9a464192f659e3ba51460ce955226b2c3b694fc224faad0b4f08a69c2bcad9df",
-      "destination": "aiao-media/apps/web/deploy/local-first-pages.md",
-      "disposition": "imported"
-    },
-    {
-      "source": "deploy/local-first-worker.mjs",
-      "sha256": "2ccb49ef148222eefada18ed3f1c13e328771acde6998ea9b3d91ca0ff629cc8",
-      "destination": "aiao-media/apps/web/deploy/local-first-worker.mjs",
+      "destination": "aiao-media/deploy/cloudflare/local-first-pages.md",
       "disposition": "imported"
     },
     {
@@ -519,67 +483,67 @@
     {
       "source": "eslint.config.mjs",
       "sha256": "44acd13675e72cf600180ce6b8495c82390011016a8b549360502907f44d5e64",
-      "destination": null,
+      "destination": "",
       "disposition": "integrated"
     },
     {
       "source": "infra/supabase/.env.example",
       "sha256": "676dece253f19fad8d20de9089348eabdbec32968afd2f87d9781be69ba9e32b",
-      "destination": "aiao-media/apps/web/infra/supabase/.env.example",
+      "destination": "aiao-media/infra/supabase/.env.example",
       "disposition": "imported"
     },
     {
       "source": "infra/supabase/docker-compose.yml",
       "sha256": "88265ceda242e4c47444b34b04f1b7824bca98ad0b9733a5cba3f34fef7c4660",
-      "destination": "aiao-media/apps/web/infra/supabase/docker-compose.yml",
+      "destination": "aiao-media/infra/supabase/docker-compose.yml",
       "disposition": "imported"
     },
     {
       "source": "infra/supabase/init/realtime.sql",
       "sha256": "88dc0716a4b2f781192d70aabd8251cb5ba828d44c4eb264b351dd6e13b54ef7",
-      "destination": "aiao-media/apps/web/infra/supabase/init/realtime.sql",
+      "destination": "aiao-media/infra/supabase/init/realtime.sql",
       "disposition": "imported"
     },
     {
       "source": "infra/supabase/init/roles.sql",
       "sha256": "8486281c67f28e863fa0ac60c039449d534e95fba6c100a9d5bd2c1054ba37b1",
-      "destination": "aiao-media/apps/web/infra/supabase/init/roles.sql",
+      "destination": "aiao-media/infra/supabase/init/roles.sql",
       "disposition": "imported"
     },
     {
       "source": "infra/supabase/kong.template.yml",
       "sha256": "961eeff4df56830ef487f481bb94d833ec3366aecc3f8b6e0c62648177fc0f38",
-      "destination": "aiao-media/apps/web/infra/supabase/kong.template.yml",
+      "destination": "aiao-media/infra/supabase/kong.template.yml",
       "disposition": "imported"
     },
     {
       "source": "infra/supabase/migrations/001-local-account-checks.sql",
       "sha256": "32d0232dbf8866e164f2500f6f3ceb3202b960adc080142ef2e37b9af274dabc",
-      "destination": "aiao-media/apps/web/infra/supabase/migrations/001-local-account-checks.sql",
+      "destination": "aiao-media/infra/supabase/migrations/001-local-account-checks.sql",
       "disposition": "imported"
     },
     {
       "source": "infra/supabase/project.json",
       "sha256": "49eedd02831b70bfa0fa5540f27be0b8b690b84e471a24a02b009ff871f45266",
-      "destination": null,
+      "destination": "",
       "disposition": "integrated"
     },
     {
       "source": "nx.json",
       "sha256": "2dda780f74bd3ace8dd8f8269363e2db7726d9f8b22f76dd3527358c5b14db5c",
-      "destination": null,
+      "destination": "",
       "disposition": "integrated"
     },
     {
       "source": "package.json",
       "sha256": "6de461940753bc049089ac565abab2e65a5e72e26a1c77de0c917f60dc18d7e0",
-      "destination": null,
+      "destination": "",
       "disposition": "integrated"
     },
     {
       "source": "packages/contracts/project.json",
       "sha256": "055d6a799905d9cb040b07080f34ec5cbc2ba16dd6f164e63c1cf2864011698d",
-      "destination": null,
+      "destination": "",
       "disposition": "integrated"
     },
     {
@@ -645,7 +609,7 @@
     {
       "source": "packages/local-data/project.json",
       "sha256": "7790eb88b46223c32161f7bac0b21c07ca37e928adab3deab909ad1c172d3eba",
-      "destination": null,
+      "destination": "",
       "disposition": "integrated"
     },
     {
@@ -741,7 +705,7 @@
     {
       "source": "packages/local-data/tsconfig.json",
       "sha256": "9a066dbfd155bcd963655a5557ea3bd83b59282135dcac72987f348391f3f0c2",
-      "destination": null,
+      "destination": "",
       "disposition": "integrated"
     },
     {
@@ -1221,61 +1185,37 @@
     {
       "source": "scripts/check-local-first-release.mjs",
       "sha256": "a06d63b8a80e914dd41dfc3e20e827d5ff13151d9f83a311bc411c5a65d96545",
-      "destination": "aiao-media/apps/web/scripts/check-local-first-release.mjs",
+      "destination": "aiao-media/scripts/release/check-local-first-release.mjs",
       "disposition": "imported"
     },
     {
       "source": "scripts/check-requirements.mjs",
       "sha256": "aa28197930cdaa07ad937c719d6b26f5db90b9a5f5c01a402ff695c8edb5647e",
-      "destination": "aiao-media/apps/web/scripts/check-requirements.mjs",
-      "disposition": "imported"
-    },
-    {
-      "source": "scripts/check-requirements.test.mjs",
-      "sha256": "c926b5032d59fdb856695f686c96dc0544ee83cabdf96f44807d67f51271ca90",
-      "destination": "aiao-media/apps/web/scripts/check-requirements.test.mjs",
+      "destination": "aiao-media/scripts/check-requirements.mjs",
       "disposition": "imported"
     },
     {
       "source": "scripts/deploy-local-first.mjs",
       "sha256": "6cd76ebb1ec166ae8a8ce4f18cd090af511b04cbdc76cb2422e1fd17badc9340",
-      "destination": "aiao-media/apps/web/scripts/deploy-local-first.mjs",
-      "disposition": "imported"
-    },
-    {
-      "source": "scripts/direct-provider-probe-live.mjs",
-      "sha256": "264bc6b4f782d8599d8d606e9cbf3ecf76ee1a153911ae2a6029404cf500e586",
-      "destination": "aiao-media/apps/web/scripts/direct-provider-probe-live.mjs",
-      "disposition": "imported"
-    },
-    {
-      "source": "scripts/direct-provider-probe.mjs",
-      "sha256": "04bd2a7ab39fa01514263a54312458a69f442cd7db25a20c64d346bc5bd8941a",
-      "destination": "aiao-media/apps/web/scripts/direct-provider-probe.mjs",
-      "disposition": "imported"
-    },
-    {
-      "source": "scripts/direct-provider-probe.test.mjs",
-      "sha256": "636d455bd597ca6387eb60671cfae70bda3616703d5cfe80d4c518e85504c25c",
-      "destination": "aiao-media/apps/web/scripts/direct-provider-probe.test.mjs",
+      "destination": "aiao-media/scripts/release/deploy-local-first.mjs",
       "disposition": "imported"
     },
     {
       "source": "scripts/link-rxdb.mjs",
       "sha256": "d47812ef699a9ab3a987f585023d7e703410e531c6786997f6d80e0a522ee0cb",
-      "destination": null,
+      "destination": "",
       "disposition": "replaced-by-workspace-dependencies"
     },
     {
       "source": "scripts/link-rxdb.test.mjs",
       "sha256": "69a9b906547ca1f31ac4989ffa21e7c2a347ccf9e1a7e4428a518044502d7190",
-      "destination": null,
+      "destination": "",
       "disposition": "replaced-by-workspace-dependencies"
     },
     {
       "source": "scripts/local-first-worker.test.mjs",
       "sha256": "e6f95ced45b145ff329d80e65c67b68e8109e804c0cbe1ad36b5111134ffeea8",
-      "destination": "aiao-media/apps/web/scripts/local-first-worker.test.mjs",
+      "destination": "aiao-media/apps/api/scripts/local-first-worker.test.mjs",
       "disposition": "imported"
     },
     {
@@ -1293,37 +1233,37 @@
     {
       "source": "scripts/supabase-local.d.mts",
       "sha256": "2cef3f29f7b01cd76d3fde5de37eeacef1bfa821a661558641d686bd2be74158",
-      "destination": "aiao-media/apps/web/scripts/supabase-local.d.mts",
+      "destination": "aiao-media/scripts/supabase/supabase-local.d.mts",
       "disposition": "imported"
     },
     {
       "source": "scripts/supabase-local.mjs",
       "sha256": "43368796cc510078f6ab449dd24ebacb26246402811a3c6f1125cb92f3deddbf",
-      "destination": "aiao-media/apps/web/scripts/supabase-local.mjs",
+      "destination": "aiao-media/scripts/supabase/supabase-local.mjs",
       "disposition": "imported"
     },
     {
       "source": "scripts/test-supabase-local.d.mts",
       "sha256": "b8e1f9fbd98bf8e465845a0c3853f110bafcdc17b297b1e877b847379a615879",
-      "destination": "aiao-media/apps/web/scripts/test-supabase-local.d.mts",
+      "destination": "aiao-media/scripts/supabase/test-supabase-local.d.mts",
       "disposition": "imported"
     },
     {
       "source": "scripts/test-supabase-local.mjs",
       "sha256": "999b532bc0446be619ea4c0752d71943e2c75f2ec2e35c3604262bc654073ada",
-      "destination": "aiao-media/apps/web/scripts/test-supabase-local.mjs",
+      "destination": "aiao-media/scripts/supabase/test-supabase-local.mjs",
       "disposition": "imported"
     },
     {
       "source": "tsconfig.base.json",
       "sha256": "9e82b626c1dd4945a5121f584b5fb1c2c8f94ad75ff26cca86fe4eb4995bf1f1",
-      "destination": null,
+      "destination": "",
       "disposition": "integrated"
     },
     {
       "source": "vitest.config.mts",
       "sha256": "af2c88519b4db555d0c91fc03aa80faa4a00d5a9382e3016b2b1f8d3fd96a6a1",
-      "destination": null,
+      "destination": "",
       "disposition": "integrated"
     },
     {
@@ -1339,7 +1279,10 @@
   },
   "sourceCommit": "43bc9eeb696c4b3c4c51351724d2fe91f0f8e8f3",
   "sourceRepository": "aiao-media",
-  "sourceWorkingTreeChanges": ["requirements/plans/README.md", "requirements/plans/rxdb-product-incubation.md"],
+  "sourceWorkingTreeChanges": [
+    "requirements/plans/README.md",
+    "requirements/plans/rxdb-product-incubation.md"
+  ],
   "stories": [
     {
       "legacyId": "aiao-media:US-001",

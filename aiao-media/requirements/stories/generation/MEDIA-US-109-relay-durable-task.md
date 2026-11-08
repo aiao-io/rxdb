@@ -89,10 +89,10 @@ tags: [relay, durable-object, r2, generation]
 - [relay-task-api.ts](../../../apps/api/src/relay-task-api.ts) 与 [relay-input.ts](../../../apps/api/src/relay-input.ts) — Worker 任务路由与共用的代理校验。
 - [local-first-worker.ts](../../../apps/api/src/local-first-worker.ts) — 路由入口、桌面预检，保留无状态 `/api/relay`。
 - [wrangler.json](../../../apps/api/wrangler.json) — `RELAY_TASKS` DO 绑定与 `media-relay-v1` 迁移、`RELAY_RESULTS` R2 绑定。
-- [cloudflare-stand-ins.mjs](../../../apps/web/scripts/cloudflare-stand-ins.mjs) 与 [dev-relay.mjs](../../../apps/web/scripts/dev-relay.mjs) — 进程内 DO/R2 替身，开发服务器的任务接口。
+- [cloudflare-stand-ins.mjs](../../../apps/api/scripts/cloudflare-stand-ins.mjs) 与 [dev-relay.mjs](../../../apps/api/scripts/dev-relay.mjs) — 进程内 DO/R2 替身，开发服务器的任务接口。
 - [relay-task-client.ts](../../../apps/web/src/app/relay-task-client.ts) 与 [local-provider.ts](../../../apps/web/src/app/local-provider.ts) — 浏览器任务客户端，与直连共用的请求校验和结果解析。
 - [local-image-mvp.ts](../../../apps/web/src/app/local-image-mvp.ts) — 任务提交、刷新续接、放弃，以及结清后删除服务端结果。
-- [relay-task.test.mjs](../../../apps/web/scripts/relay-task.test.mjs)、[local-first.spec.ts](../../../apps/web-e2e/src/local-first.spec.ts) — 服务端状态机测试与浏览器续接套件。
+- [relay-task.test.mjs](../../../apps/api/scripts/relay-task.test.mjs)、[local-first.spec.ts](../../../apps/web-e2e/src/local-first.spec.ts) — 服务端状态机测试与浏览器续接套件。
 
 ## References
 

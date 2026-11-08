@@ -61,8 +61,8 @@ tags: [cloudflare, deployment, static, relay]
 
 - [`apps/api/wrangler.json`](../../../apps/api/wrangler.json) — Worker 配置。
 - [`apps/api/src/local-first-worker.ts`](../../../apps/api/src/local-first-worker.ts) — `/api/relay` 无状态代理。
-- [`deploy/local-first-pages.md`](../../../apps/web/deploy/local-first-pages.md) — 静态部署方案与免费额度边界。
-- [`scripts/deploy-local-first.mjs`](../../../apps/web/scripts/deploy-local-first.mjs) / [`scripts/check-local-first-release.mjs`](../../../apps/web/scripts/check-local-first-release.mjs) — 发布与产物审查。
+- [`deploy/local-first-pages.md`](../../../deploy/cloudflare/local-first-pages.md) — 静态部署方案与免费额度边界。
+- [`scripts/deploy-local-first.mjs`](../../../scripts/release/deploy-local-first.mjs) / [`scripts/check-local-first-release.mjs`](../../../scripts/release/check-local-first-release.mjs) — 发布与产物审查。
 - [`scripts/build-offline-assets.mjs`](../../../apps/web/scripts/build-offline-assets.mjs) — 离线壳与 Service Worker。
 
 ## References

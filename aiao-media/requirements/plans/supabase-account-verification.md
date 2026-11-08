@@ -33,7 +33,7 @@ pnpm nx run aiao-media:supabase-down
 2. 错误密码的准确提示和密码输入清空；只阻断 Auth 网络后显示待验证，本机编辑仍可保存，网络恢复后可重新验证。
 3. 两标签页退出同步生效；导出备份不含访问/刷新令牌、邮箱、密码或管理 Key，账号操作不上传本机业务数据。
 
-[`test-supabase-local.mjs`](../../apps/web/scripts/test-supabase-local.mjs) 验证真实邮箱确认、服务端会话、开发探针表的跨账号读/改/删及 owner 伪造拒绝、Realtime 事件隔离、会话刷新和退出后刷新凭据撤销。Realtime 检查等待 PostgreSQL 订阅就绪，逐条校验事件 owner，并等待本次写入的目标事件。
+[`test-supabase-local.mjs`](../../scripts/supabase/test-supabase-local.mjs) 验证真实邮箱确认、服务端会话、开发探针表的跨账号读/改/删及 owner 伪造拒绝、Realtime 事件隔离、会话刷新和退出后刷新凭据撤销。Realtime 检查等待 PostgreSQL 订阅就绪，逐条校验事件 owner，并等待本次写入的目标事件。
 
 临时账号使用随机邮箱，测试结束仅删除本次创建的账号和邮箱。service role 只供 Node 进程创建/清理测试账号，不传入页面、公开配置或备份。
 

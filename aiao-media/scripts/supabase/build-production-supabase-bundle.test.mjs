@@ -66,7 +66,7 @@ test('production bundle is deterministic, excludes development probe, and keeps 
       productionSources
     );
     assert.ok(
-      !first.sql.includes('-- BEGIN SOURCE aiao-media/apps/web/infra/supabase/migrations/001-local-account-checks.sql')
+      !first.sql.includes('-- BEGIN SOURCE aiao-media/infra/supabase/migrations/001-local-account-checks.sql')
     );
     for (const source of first.sources) {
       assert.match(

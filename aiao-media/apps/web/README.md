@@ -6,7 +6,7 @@ Local-first 图片创作应用：发现灵感 → Tiptap 编辑提示词 → 使
 
 迁入来源与兼容验证见[迁移验收](../../requirements/plans/rxdb-import-verification.md)。应用需求在本目录内独立维护，平台需求仍位于仓库根。
 
-当前平台免费，平台图片服务、积分购买和计费后台已移除，`/api/platform/*` 返回 404；未来提供收费功能时再评审。桌面安装版与统一平台账号同步的实现及未验边界见[产品交付计划](../../requirements/plans/product-completion-20261030.md)。本地安装说明见 [Tauri](src-tauri/README.md)，平台配置见[服务部署](deploy/platform-services.md)。
+当前平台免费，平台图片服务、积分购买和计费后台已移除，`/api/platform/*` 返回 404；未来提供收费功能时再评审。桌面安装版与统一平台账号同步的实现及未验边界见[产品交付计划](../../requirements/plans/product-completion-20261030.md)。本地安装说明见 [Tauri](src-tauri/README.md)，平台配置见[服务部署](../../deploy/supabase/platform-services.md)。
 
 ## 运行
 
@@ -50,7 +50,7 @@ pnpm nx run aiao-media:preview          # Wrangler 本地运行，不需要登�
 
 打开 `http://localhost:4398`。`preview` 不会自己构建，改了前端要重新执行 `offline-assets` 再重启。用来验证完整 Worker（Durable Object 与 R2 由 Wrangler 本地模拟）、Service Worker 离线、CSP 和 `/api/provider-probe`。
 
-Wrangler 会自动读取被 Git 忽略的 `deploy/.dev.vars`（Worker 私有配置，模板见 [.dev.vars.example](deploy/.dev.vars.example)）。文件不存在时，依赖 Supabase 的接口不可用（返回 503 或空列表），本机创作不受影响；文件存在时，Worker 会带着其中的 Supabase 配置运行，要纯本机预览先把它移走。已有平台模型或支付配置不会重新开放已停用的接口。
+Wrangler 会自动读取被 Git 忽略的 `../../deploy/cloudflare/.dev.vars`（Worker 私有配置，模板见 [.dev.vars.example](../../deploy/cloudflare/.dev.vars.example)）。文件不存在时，依赖 Supabase 的接口不可用（返回 503 或空列表），本机创作不受影响；文件存在时，Worker 会带着其中的 Supabase 配置运行，要纯本机预览先把它移走。已有平台模型或支付配置不会重新开放已停用的接口。
 
 ### 供应商与生成
 
@@ -77,7 +77,7 @@ Wrangler 会自动读取被 Git 忽略的 `deploy/.dev.vars`（Worker 私有配�
 
 ### 启动本地 Supabase
 
-本机调试和真实服务验收用 Docker Compose 运行本地服务（[docker-compose.yml](infra/supabase/docker-compose.yml)）：Postgres、Auth、PostgREST、Realtime、Kong 网关和 Inbucket 邮箱，只监听 127.0.0.1。开发凭据在首次启动时生成到被 Git 忽略的 `infra/supabase/.env`，已存在则沿用；端口也在该文件里改。
+本机调试和真实服务验收用 Docker Compose 运行本地服务（[docker-compose.yml](../../infra/supabase/docker-compose.yml)）：Postgres、Auth、PostgREST、Realtime、Kong 网关和 Inbucket 邮箱，只监听 127.0.0.1。开发凭据在首次启动时生成到被 Git 忽略的 `../../infra/supabase/.env`，已存在则沿用；端口也在该文件里改。
 
 | 默认端口 | 服务                                             |
 | -------- | ------------------------------------------------ |
@@ -95,7 +95,7 @@ export COMPOSE_PROJECT_NAME=aiao-media-dev
 export NX_NO_CLOUD=true NX_LOAD_DOT_ENV_FILES=false
 ```
 
-Compose 文件的默认项目名是 `aiao-media-supabase`，所有检出位共用同名数据卷，而每个检出位的 `infra/supabase/.env` 密码各自随机，复用别处遗留的卷会出现数据库密码对不上。`COMPOSE_PROJECT_NAME` 让每个检出位使用独立的卷；`supabase-down`、`supabase-status`、`supabase-logs` 也要在同一个名字下执行，否则操作的是默认项目。
+Compose 文件的默认项目名是 `aiao-media-supabase`，所有检出位共用同名数据卷，而每个检出位的 `../../infra/supabase/.env` 密码各自随机，复用别处遗留的卷会出现数据库密码对不上。`COMPOSE_PROJECT_NAME` 让每个检出位使用独立的卷；`supabase-down`、`supabase-status`、`supabase-logs` 也要在同一个名字下执行，否则操作的是默认项目。
 
 起栈并迁移，首次要拉取镜像：
 
@@ -103,7 +103,7 @@ Compose 文件的默认项目名是 `aiao-media-supabase`，所有检出位共�
 pnpm nx run aiao-media:supabase-migrate
 ```
 
-`supabase-migrate` 依赖 `supabase-up`：生成凭据和 Kong 配置、拉取镜像并 `docker compose up -d --wait`，再把仓库根 `docker/sql` 的核心 SQL 与 `infra/supabase/migrations/*.sql`（同步表、RLS、后台、图片存储）执行进数据库。依赖它的验收目标每次都会先跑一遍，所以可以重复执行。`supabase-serve` 只起栈、不迁移，因此先跑这一步。
+`supabase-migrate` 依赖 `supabase-up`：生成凭据和 Kong 配置、拉取镜像并 `docker compose up -d --wait`，再把仓库根 `docker/sql` 的核心 SQL 与 `../../infra/supabase/migrations/*.sql`（同步表、RLS、后台、图片存储）执行进数据库。依赖它的验收目标每次都会先跑一遍，所以可以重复执行。`supabase-serve` 只起栈、不迁移，因此先跑这一步。
 
 ### 有 Supabase：开发服务器
 
@@ -116,14 +116,14 @@ pnpm nx run aiao-media:supabase-serve
 ### 有 Supabase：生产形态预览
 
 ```sh
-cp -p aiao-media/apps/web/deploy/.dev.vars /tmp/aiao-dev.vars.bak   # 已有该文件时先备份
-node aiao-media/apps/web/scripts/supabase-local.mjs preview
+cp -p aiao-media/deploy/cloudflare/.dev.vars /tmp/aiao-dev.vars.bak   # 已有该文件时先备份
+node aiao-media/scripts/supabase/supabase-local.mjs preview
 ```
 
-这是前台进程（Ctrl-C 停止），不是 Nx 目标，在仓库根目录执行，要求本地栈已启动并迁移。[supabase-local.mjs](scripts/supabase-local.mjs) 依次：写入 `deploy/.dev.vars`（本地 URL、anon Key 和 service role Key，权限 0600，仅供 Worker 使用）→ 用本地公开配置构建 `offline-assets` → 用 Wrangler 在 4399 端口运行完整 Worker 与静态产物。没有热更新，改了前端要停掉重新运行。
+这是前台进程（Ctrl-C 停止），不是 Nx 目标，在仓库根目录执行，要求本地栈已启动并迁移。[supabase-local.mjs](../../scripts/supabase/supabase-local.mjs) 依次：写入 `../../deploy/cloudflare/.dev.vars`（本地 URL、anon Key 和 service role Key，权限 0600，仅供 Worker 使用）→ 用本地公开配置构建 `offline-assets` → 用 Wrangler 在 4399 端口运行完整 Worker 与静态产物。没有热更新，改了前端要停掉重新运行。
 
-- 地址必须用 `http://127.0.0.1:4399`，不能用 `localhost`。本地 Auth 与 Kong 的来源白名单写死为 `http://localhost:4300`、`http://127.0.0.1:4300`、`http://127.0.0.1:4399`（[docker-compose.yml](infra/supabase/docker-compose.yml)、[kong.template.yml](infra/supabase/kong.template.yml)），所以 4398 的 `preview` 连不上本地 Docker Supabase。
-- **会整体覆盖 `deploy/.dev.vars`，只剩上面 3 个键**，已有的 Stripe 等配置会丢。用完还原：`cp -p /tmp/aiao-dev.vars.bak aiao-media/apps/web/deploy/.dev.vars`。`supabase-e2e` 与 `aiao-media-e2e:product-e2e` 也会启动这个预览，同样覆盖。
+- 地址必须用 `http://127.0.0.1:4399`，不能用 `localhost`。本地 Auth 与 Kong 的来源白名单写死为 `http://localhost:4300`、`http://127.0.0.1:4300`、`http://127.0.0.1:4399`（[docker-compose.yml](../../infra/supabase/docker-compose.yml)、[kong.template.yml](../../infra/supabase/kong.template.yml)），所以 4398 的 `preview` 连不上本地 Docker Supabase。
+- **会整体覆盖 `../../deploy/cloudflare/.dev.vars`，只剩上面 3 个键**，已有的 Stripe 等配置会丢。用完还原：`cp -p /tmp/aiao-dev.vars.bak aiao-media/deploy/cloudflare/.dev.vars`。`supabase-e2e` 与 `aiao-media-e2e:product-e2e` 也会启动这个预览，同样覆盖。
 
 ### 注册、同步和后台
 
@@ -151,12 +151,12 @@ pnpm nx run aiao-media:supabase-down
 
 常见问题：
 
-- 数据库认证失败，或 `supabase-up` 因服务不健康而超时：常见原因是数据卷与 `infra/supabase/.env` 的密码不匹配，`supabase-logs` 可确认。换一个 `COMPOSE_PROJECT_NAME` 即得到全新的卷；确需清空该项目的本地数据时，先 `supabase-down`，再 `docker volume rm ${COMPOSE_PROJECT_NAME}_db-data ${COMPOSE_PROJECT_NAME}_db-config`。
-- 端口被占用：改 `infra/supabase/.env` 里的 `API_PORT`、`DB_PORT`、`STUDIO_PORT`、`MAIL_PORT`（四个互不相同，范围 1024–65535），前端用的地址随 `API_PORT` 变化。
+- 数据库认证失败，或 `supabase-up` 因服务不健康而超时：常见原因是数据卷与 `../../infra/supabase/.env` 的密码不匹配，`supabase-logs` 可确认。换一个 `COMPOSE_PROJECT_NAME` 即得到全新的卷；确需清空该项目的本地数据时，先 `supabase-down`，再 `docker volume rm ${COMPOSE_PROJECT_NAME}_db-data ${COMPOSE_PROJECT_NAME}_db-config`。
+- 端口被占用：改 `../../infra/supabase/.env` 里的 `API_PORT`、`DB_PORT`、`STUDIO_PORT`、`MAIL_PORT`（四个互不相同，范围 1024–65535），前端用的地址随 `API_PORT` 变化。
 
 ### 配置统一平台 Supabase
 
-- 整站使用部署方的同一个项目：构建时注入公开配置，只填项目 URL 和 anon / publishable Key，禁止 service role 或 secret Key。例如 `AIAO_SUPABASE_URL=https://<ref>.supabase.co AIAO_SUPABASE_ANON_KEY=<anon Key> pnpm nx run aiao-media:serve`，也可以写进本机 `.env`（变量见 [.env.example](.env.example)）。Worker secrets 必须指向同一项目，见[平台服务配置](deploy/platform-services.md)。
+- 整站使用部署方的同一个项目：构建时注入公开配置，只填项目 URL 和 anon / publishable Key，禁止 service role 或 secret Key。例如 `AIAO_SUPABASE_URL=https://<ref>.supabase.co AIAO_SUPABASE_ANON_KEY=<anon Key> pnpm nx run aiao-media:serve`，也可以写进本机 `.env`（变量见 [.env.example](.env.example)）。Worker secrets 必须指向同一项目，见[平台服务配置](../../deploy/supabase/platform-services.md)。
 - 部署方一次初始化云项目：`pnpm nx run aiao-media:production-bundle` 生成 `tmp/production-supabase-bundle.sql`，由项目所有者审阅后在空项目的 SQL Editor 执行。已有项目逐个审阅前向迁移，不要重复运行空库初始化包。数据库与私有 `aiao-media-images` Storage bucket 均按账号和工作区执行访问控制。
 - 用户只注册、登录平台账号并确认同步范围，无需 Supabase 管理账号、项目配置或数据库操作。另一台设备使用同一平台账号，即可同步草稿、作品信息并取回已上传的原图。
 
@@ -186,14 +186,14 @@ pnpm nx run aiao-media:deploy --skipRemoteCache
 # 正式站点： https://media.aiao.io
 ```
 
-部署使用 Cloudflare Workers Static Assets 和同一个 Worker 的代理接口；代理任务使用 SQLite Durable Object 与私有 R2 bucket（需先开通 R2 订阅并创建 bucket 与生命周期规则），不需要容器或云数据库；静态目录也可独立发布到 Pages。方案、免费额度边界、代理允许列表、分两次发布与回退见 [部署说明](deploy/local-first-pages.md)。发布前会检查产物中的凭据、旧 API 调用、文件大小和 SSR 运行时。
+部署使用 Cloudflare Workers Static Assets 和同一个 Worker 的代理接口；代理任务使用 SQLite Durable Object 与私有 R2 bucket（需先开通 R2 订阅并创建 bucket 与生命周期规则），不需要容器或云数据库；静态目录也可独立发布到 Pages。方案、免费额度边界、代理允许列表、分两次发布与回退见 [部署说明](../../deploy/cloudflare/local-first-pages.md)。发布前会检查产物中的凭据、旧 API 调用、文件大小和 SSR 运行时。
 
 正式域名的代理三画幅、离线内容回读及真实静态构建更新/回退已验，线上当前版本见[验收记录](../../requirements/verification-report.md#正式环境证据)。本轮账号、同步与后台仅使用本地 Supabase；直连和跨 origin 原图 URL 仍有未验项，见[状态概览](../../requirements/status-overview.md#未完成验收与关闭条件)。
 
 ## 设计与历史资料
 
 - [当前路线图](../../requirements/roadmap.md) · [真实应用集成验证](../../requirements/plans/local-first-app-verification.md)
-- [独立直连实验](direct-provider-probe/README.md) · [真实网关 CORS 实测](../../requirements/plans/local-first-direct-probe-verification.md)
+- [真实网关 CORS 实测](../../requirements/plans/local-first-direct-probe-verification.md)
 - [界面设计总览](../../requirements/design/image-mvp/00-overview.png) · [交互原型](../../requirements/design/image-mvp/index.html)
 - [需求索引](../../requirements/README.md) · [验收记录](../../requirements/verification-report.md)
 

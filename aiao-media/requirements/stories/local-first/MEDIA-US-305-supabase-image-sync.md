@@ -112,7 +112,7 @@ tags: [supabase, storage, image, sync, local-first]
 - [browser-media.ts](../../../apps/web/src/local-data/browser-media.ts)、[image-format.ts](../../../packages/api-contracts/src/contracts/image-format.ts) — 原图读取、格式与摘要校验、本机提交。
 - [image-sync.ts](../../../apps/web/src/local-data/image-sync.ts) — 原图传输、文件记录提交与按摘要取回。
 - [platform](../../../apps/web/src/platform/) — Web/Tauri 本机文件差异。
-- [infra/supabase/migrations](../../../apps/web/infra/supabase/migrations/) — 待扩展的文件版本/关联/权限与兼容迁移归属。
+- [infra/supabase/migrations](../../../infra/supabase/migrations/) — 待扩展的文件版本/关联/权限与兼容迁移归属。
 
 ## References
 

@@ -1,6 +1,6 @@
 # Local-first Cloudflare 部署
 
-更新：2026-11-06。真实 Angular 应用已经迁移到 CSR，默认运行不需要登录、业务 API 或云数据库；本站代理改为 Durable Object 任务，结果加密暂存 R2。正式发布与验收身份见[公网交付记录](../requirements/plans/public-delivery-verification.md)。
+更新：2026-11-06。真实 Angular 应用已经迁移到 CSR，默认运行不需要登录、业务 API 或云数据库；本站代理改为 Durable Object 任务，结果加密暂存 R2。正式发布与验收身份见[公网交付记录](../../requirements/plans/public-delivery-verification.md)。
 
 ## 部署结构
 
@@ -39,7 +39,7 @@ pnpm nx run aiao-media:serve
 pnpm nx run aiao-media:offline-assets
 ```
 
-- `aiao-media:serve`：4300，启动 Angular 开发服务器，并由 `proxy.conf.mjs` 在同一进程内以随机本机端口（仅 127.0.0.1）运行同一份 Worker 的 `/api/relay` 与代理任务接口，允许列表取自 `../api/wrangler.json`，DO 与 R2 为 `scripts/cloudflare-stand-ins.mjs` 的进程内替身；不启动 Supabase 和其它业务 API。关闭了依赖预构建（`prebundle: false`）：预构建从仓库根 `node_modules` 解析，找不到只链接在 `aiao-media/apps/web/node_modules` 的 `@aiao/*` 包；关闭后与生产构建一样按源文件位置解析。
+- `aiao-media:serve`：4300，启动 Angular 开发服务器，并由 `proxy.conf.mjs` 在同一进程内以随机本机端口（仅 127.0.0.1）运行同一份 Worker 的 `/api/relay` 与代理任务接口，允许列表取自 `../../apps/api/wrangler.json`，DO 与 R2 为 `apps/api/scripts/cloudflare-stand-ins.mjs` 的进程内替身；不启动 Supabase 和其它业务 API。关闭了依赖预构建（`prebundle: false`）：预构建从仓库根 `node_modules` 解析，找不到只链接在 `aiao-media/apps/web/node_modules` 的 `@aiao/*` 包；关闭后与生产构建一样按源文件位置解析。
 - `aiao-media:build`：生产 CSR 编译到 `aiao-media/apps/web/dist/browser`。
 - `aiao-media:offline-assets`：先 build，再写带摘要的离线壳和 Service Worker。
 - `aiao-media:preview`：4398，使用 Wrangler 本地运行生产形态。
@@ -61,7 +61,7 @@ AIAO_RELAY_PROVIDER_BASE_URLS=https://api.example.com/v1,https://images.example.
 
 允许列表是精确的规范化 API 前缀；用户任意填写的 Base URL 不会自动获准。Worker 只允许同源浏览器（或已启用的桌面来源）提交、固定图片生成路径、单张图片及受限参数；无状态 `/api/relay` 与代理任务的接单共用同一套校验。Images API 使用 `/images/generations`，已适配的 MiniMax 官方前缀使用 `/image_generation`，不转发 Cookie 或其他请求头，拒绝重定向，响应 no-store。Key 仅放在本次上游 Authorization，不持久化、不打印敏感正文；生产 observability 日志已关闭。
 
-代理任务（`PUT /api/relay/tasks/:id`）由页面生成任务标识与 32 字节任务令牌，令牌只存本机。RelayTask DO 只保存令牌摘要、请求指纹与状态，在接单调用内发出上游请求，同一标识重发不会再次调用上游；上游完整 JSON 用令牌派生的 AES-256-GCM 密钥加密后写入 `RELAY_RESULTS`，本站读不出内容。查询、取回、删除与放弃都必须带令牌，令牌错误与任务不存在返回相同的 404。任务结清后页面删除结果；无人取回的 24 小时后由 alarm 删除，bucket 的 1 天生命周期规则兜底。任务绑定缺失时接单在调用上游前返回 503，页面明确报错，不改走其他通道。接口、状态与安全边界见[实施计划](../requirements/plans/relay-durable-tasks.md)。
+代理任务（`PUT /api/relay/tasks/:id`）由页面生成任务标识与 32 字节任务令牌，令牌只存本机。RelayTask DO 只保存令牌摘要、请求指纹与状态，在接单调用内发出上游请求，同一标识重发不会再次调用上游；上游完整 JSON 用令牌派生的 AES-256-GCM 密钥加密后写入 `RELAY_RESULTS`，本站读不出内容。查询、取回、删除与放弃都必须带令牌，令牌错误与任务不存在返回相同的 404。任务结清后页面删除结果；无人取回的 24 小时后由 alarm 删除，bucket 的 1 天生命周期规则兜底。任务绑定缺失时接单在调用上游前返回 503，页面明确报错，不改走其他通道。接口、状态与安全边界见[实施计划](../../requirements/plans/relay-durable-tasks.md)。
 
 MiniMax 当前只适配 `image-01`，官方 API 前缀为 `https://api.minimax.cn/v1`、`https://api.minimax.io/v1` 或 `https://api.minimaxi.com/v1`。模型和提示词在转发前检查，最多 1500 字符；三画幅使用明确的宽高，供应商结果仍须为原始 PNG，非 PNG 拒绝保存。代理任务向 MiniMax 请求 base64，避免暂存会过期的临时 URL。启用 MiniMax 代理仍须显式加入允许列表，不因应用支持适配器而自动获准。
 
@@ -75,7 +75,7 @@ Worker 出站请求必须使用 `redirect: 'manual'` 并检查非 2xx 响应，�
 
 ## 正式发布
 
-当前按 [D-16](../requirements/decisions.md#d-16统一使用平台-supabase) 发布统一平台 Supabase：用户在应用内注册或登录平台账号，再确认同步范围。部署前先完成独立平台项目的初始化或已审阅的前向迁移、Auth 站点/邮件配置、表 RLS、Realtime 与私有 `aiao-media-images` Storage；空项目初始化使用 `aiao-media:production-bundle`，已有项目不能重复执行空库包。步骤见[平台服务配置](platform-services.md)和[账号服务运维边界](../requirements/plans/release-completion-tasks.md#后续正式账号服务的运维边界)。
+当前按 [D-16](../../requirements/decisions.md#d-16统一使用平台-supabase) 发布统一平台 Supabase：用户在应用内注册或登录平台账号，再确认同步范围。部署前先完成独立平台项目的初始化或已审阅的前向迁移、Auth 站点/邮件配置、表 RLS、Realtime 与私有 `aiao-media-images` Storage；空项目初始化使用 `aiao-media:production-bundle`，已有项目不能重复执行空库包。步骤见[平台服务配置](platform-services.md)和[账号服务运维边界](../../requirements/plans/release-completion-tasks.md#后续正式账号服务的运维边界)。
 
 浏览器的 `AIAO_SUPABASE_URL`、`AIAO_SUPABASE_ANON_KEY` 必须预先导出到构建进程，Worker secrets `MEDIA_SUPABASE_URL`、`MEDIA_SUPABASE_ANON_KEY`、`MEDIA_SUPABASE_SERVICE_ROLE_KEY` 必须指向同一平台项目。只把 URL 和公开 publishable/anon Key 提供给前端；服务端凭据通过 Worker secrets 单独配置，不进入构建产物。当前流程保留公开账号配置，不再清空这两个变量。
 
@@ -94,7 +94,7 @@ pnpm nx run aiao-media:deploy --skipRemoteCache
 
 以上是当前发布流程，执行结果以真实构建、dry-run 和部署回执为准；本页修改不表示已经部署或通过生产账号/Storage 验收。
 
-配置源为 `../api/wrangler.json`，名称 `aiao-media`。部署脚本在 Git 忽略的 `.wrangler/local-first` 中生成实际配置并调用固定版本 Wrangler。发布成功后，以 CLI 返回的真实 URL、version ID、deployment ID 为准，不能预先假定 workers.dev 子域名。
+配置源为 `../../apps/api/wrangler.json`，名称 `aiao-media`。部署脚本在 Git 忽略的 `.wrangler/local-first` 中生成实际配置并调用固定版本 Wrangler。发布成功后，以 CLI 返回的真实 URL、version ID、deployment ID 为准，不能预先假定 workers.dev 子域名。
 
 首次发布代理任务前，账号所有者先在 Cloudflare 控制台完成 R2 订阅流程，再创建私有 bucket 与生命周期规则（不开放公开访问）：
 
@@ -105,7 +105,7 @@ pnpm --dir aiao-media/apps/web exec wrangler r2 bucket lifecycle add aiao-media-
 
 `media-relay-v1` 迁移新增 `RelayTask` 类后，`wrangler rollback` 不能再回到加类之前的版本。因此分两次发布：第一次只带服务端（DO 类、R2 绑定与任务接口），前端仍是旧版本；用 `wrangler deployments status` 和任务接口确认可用后，第二次发布前端切换。前端出问题时回滚到第一次发布，两次发布之间没有类生命周期变化。发布不传 `--durable-objects-code-update-mode immediate`，默认 300 秒的代码更新延迟覆盖 180 秒上游超时。
 
-如果已有同名 Worker，应先核对它确实属于本项目，再更新。首次账号/子域名设置由 Cloudflare 官方流程完成，不通过创建匿名临时账号代替正式上线。2026-10-25 20:25 正式发布 C，地址 `https://media.aiao.io`，版本 `caaf54dd-054b-4be8-a523-518c3875c7a9`；官方 100% 流量、四路由/CSP、46/46 离线资源和断网新文档启动已复核，生成 0 次。具体身份与烟测边界见[补验记录](../requirements/plans/provider-acceptance-follow-up.md#正式发布-c-与公网烟测)。历史 B 的旧 API 404、真实供应商代理三画幅与官方更新/回退保留原证据。直连正方形结果未知，未重发，另两幅直连与跨 origin 原图 URL 尚未完成。具体发布摘要与各项证据边界见[公网交付记录](../requirements/plans/public-delivery-verification.md)。
+如果已有同名 Worker，应先核对它确实属于本项目，再更新。首次账号/子域名设置由 Cloudflare 官方流程完成，不通过创建匿名临时账号代替正式上线。2026-10-25 20:25 正式发布 C，地址 `https://media.aiao.io`，版本 `caaf54dd-054b-4be8-a523-518c3875c7a9`；官方 100% 流量、四路由/CSP、46/46 离线资源和断网新文档启动已复核，生成 0 次。具体身份与烟测边界见[补验记录](../../requirements/plans/provider-acceptance-follow-up.md#正式发布-c-与公网烟测)。历史 B 的旧 API 404、真实供应商代理三画幅与官方更新/回退保留原证据。直连正方形结果未知，未重发，另两幅直连与跨 origin 原图 URL 尚未完成。具体发布摘要与各项证据边界见[公网交付记录](../../requirements/plans/public-delivery-verification.md)。
 
 历史的本机模式发布曾清空两个公开账号变量并要求 `app-config.js` 为 `null`，该口径只适用于已记录的旧发布。当前平台发布保持 `NX_LOAD_DOT_ENV_FILES=false`，显式提供选定平台项目的公开配置，并核对 `dist/browser/app-config.js` 中的 URL/公开 Key 与 Worker secrets 所属项目一致；不能把本机回环配置带到线上。真实本地账号开发继续使用 `aiao-media:supabase-serve`，与正式项目分开。
 
@@ -145,7 +145,7 @@ pnpm nx run aiao-media:deploy-check
 
 保留已验证的静态产物和 Worker version ID，通过 Cloudflare 版本回退应用；新增 Durable Object 类之后，只能回退到同一类配置的版本（见上文分两次发布）。客户端 Service Worker 和 RxDB 不随服务器回退自动降级；禁止为回退清空本机库。正式域名应长期稳定，换 origin 时用户需先导出备份，再手动导入。JSON 备份不含 Key，恢复后重新配置凭据。
 
-含 schema 守卫的应用在打开数据库前和每次操作前检查 `aiao-local-schema-<UUID>`；未知或更高版本阻止访问并保留文件。未来不兼容迁移必须在同一工作区锁内先提高 marker，再修改数据；不得删除或降低 marker 绕过检查。**不认识 marker 的旧产物不能作为安全回退目标**；本地守卫测试不代替正式版本/Service Worker 更新验收。详见[可靠性验收](../requirements/plans/local-reliability-verification.md)。
+含 schema 守卫的应用在打开数据库前和每次操作前检查 `aiao-local-schema-<UUID>`；未知或更高版本阻止访问并保留文件。未来不兼容迁移必须在同一工作区锁内先提高 marker，再修改数据；不得删除或降低 marker 绕过检查。**不认识 marker 的旧产物不能作为安全回退目标**；本地守卫测试不代替正式版本/Service Worker 更新验收。详见[可靠性验收](../../requirements/plans/local-reliability-verification.md)。
 
 旧账号工作区不会自动合并。本轮备份恢复采用新 UUID 工作区，原数据保留；不能据此宣称所有旧账号或更高 schema 版本均已完成迁移验证。
 
@@ -158,4 +158,4 @@ pnpm nx run aiao-media:deploy-check
 - [Wrangler 配置](https://developers.cloudflare.com/workers/wrangler/configuration/)
 - [Pages SPA](https://developers.cloudflare.com/pages/configuration/serving-pages/)
 
-当前移动真机验收暂缓；业务后台已通过真实本地服务与浏览器验收，见[后台计划](../requirements/plans/business-admin.md)。正式项目迁移、Worker secrets、首管理员、域名和发布验收按[收尾清单](../requirements/plans/release-completion-tasks.md)执行。服务端配置必须作为 Worker secrets 提供：`MEDIA_SUPABASE_URL`、`MEDIA_SUPABASE_ANON_KEY`、`MEDIA_SUPABASE_SERVICE_ROLE_KEY`；普通 dashboard vars 不在版本配置中，后续 deploy 可能删除它们。公开构建使用同一项目的 `AIAO_SUPABASE_URL` 与 `AIAO_SUPABASE_ANON_KEY`，不能把本机回环地址发布为正式配置。
+当前移动真机验收暂缓；业务后台已通过真实本地服务与浏览器验收，见[后台计划](../../requirements/plans/business-admin.md)。正式项目迁移、Worker secrets、首管理员、域名和发布验收按[收尾清单](../../requirements/plans/release-completion-tasks.md)执行。服务端配置必须作为 Worker secrets 提供：`MEDIA_SUPABASE_URL`、`MEDIA_SUPABASE_ANON_KEY`、`MEDIA_SUPABASE_SERVICE_ROLE_KEY`；普通 dashboard vars 不在版本配置中，后续 deploy 可能删除它们。公开构建使用同一项目的 `AIAO_SUPABASE_URL` 与 `AIAO_SUPABASE_ANON_KEY`，不能把本机回环地址发布为正式配置。

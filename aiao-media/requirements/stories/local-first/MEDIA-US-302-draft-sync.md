@@ -79,7 +79,7 @@ tags: [rxdb, sync, conflict, supabase]
 - [结构化草稿](../../../apps/web/src/local-data/studio-draft.ts)
 - [当前供应商配置结构](../../../apps/web/src/app/local-provider.ts)
 - [原生复制接线](../../../apps/web/src/local-data/product-sync-store.ts)、[私有投影](../../../apps/web/src/local-data/product-projection.ts)、[首次绑定控制器](../../../apps/web/src/app/product-workspace.ts)
-- [产品 schema/RLS](../../../apps/web/infra/supabase/migrations/002-product-workspaces.sql)、[同步权限](../../../apps/web/infra/supabase/migrations/003-rxdb-product-permissions.sql)
+- [产品 schema/RLS](../../../infra/supabase/migrations/002-product-workspaces.sql)、[同步权限](../../../infra/supabase/migrations/003-rxdb-product-permissions.sql)
 
 ## References
 

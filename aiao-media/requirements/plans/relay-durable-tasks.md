@@ -75,14 +75,14 @@
 - 新增 DO 类后，`wrangler rollback` 不能回到加类之前的版本。仓库规则不允许加 fallback，所以不设“关闭任务接口后改走无状态代理”的开关，改为分两次发布：第一次发布只带服务端（DO 类、R2 绑定与任务接口），前端仍是旧版；确认 `wrangler deployments status` 与任务接口可用后，第二次发布前端切换。前端出问题时回滚到第一次发布，两个版本之间没有类生命周期变化。
 - 发布不使用 `--durable-objects-code-update-mode immediate`：默认 300 秒的代码更新延迟覆盖 180 秒上游超时。
 - 已安装的旧版页面继续使用 `/api/relay`，接口保持不变，是否下线另行决定。
-- [开发代理](../../apps/web/scripts/dev-relay.mjs)转发 `/api/relay` 与任务路径，使用 [进程内替身](../../apps/web/scripts/cloudflare-stand-ins.mjs)（`node:sqlite` 的 DO 存储与内存 R2）；`aiao-media:preview` 与浏览器套件使用 Wrangler 本地模式，直接运行 DO 与 R2。
+- [开发代理](../../apps/api/scripts/dev-relay.mjs)转发 `/api/relay` 与任务路径，使用 [进程内替身](../../apps/api/scripts/cloudflare-stand-ins.mjs)（`node:sqlite` 的 DO 存储与内存 R2）；`aiao-media:preview` 与浏览器套件使用 Wrangler 本地模式，直接运行 DO 与 R2。
 
 ## 分阶段验收
 
 | 阶段       | 内容                                                                                                                                                  | 证据层级                                                                                                         |
 | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | A 技术验证 | 用临时 Worker 在真实账号验证：断开客户端后 DO 仍收到上游结果；4 MiB、24 MiB 加密的 CPU 时间（`wrangler tail` 的 `cpuTime`）；R2 bucket 与生命周期规则 | 真实平台实测，结论回写本页                                                                                       |
-| B 服务端   | 已完成：`RelayTask` 状态机、去重、放弃、看门狗、过期删除、令牌与来源校验、加密；Worker 路由与开发替身                                                 | [relay-task.test.mjs](../../apps/web/scripts/relay-task.test.mjs) 与 dev relay 测试在 Node 替身上运行，`relay-test` 29/29 |
+| B 服务端   | 已完成：`RelayTask` 状态机、去重、放弃、看门狗、过期删除、令牌与来源校验、加密；Worker 路由与开发替身                                                 | [relay-task.test.mjs](../../apps/api/scripts/relay-task.test.mjs) 与 dev relay 测试在 Node 替身上运行，`relay-test` 29/29 |
 | C 前端续接 | 已完成：共用 `local-provider.ts` 的请求校验与结果解析；提交、重发、续接、放弃、解密保存、生成锁后续接和提示文案；验收工具改按任务接口抓取并解密结果   | 单测 786 项；浏览器套件 39/39，拦截任务接口并在生成中 reload；验收 fixture 12 个组合                             |
 | D 正式验收 | 开通 R2、分两次发布、真实供应商三画幅生成中刷新；补正式环境证据                                                                                       | 正式来源实测，按 D-02 每个组合只发一次                                                                           |
 

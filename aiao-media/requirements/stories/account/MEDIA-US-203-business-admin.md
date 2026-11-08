@@ -73,7 +73,7 @@ tags: [admin, users, templates, provider-policy, tasks, usage, supabase]
 
 - [后台界面](../../../apps/admin/src/app/admin-console.ts)、[管理 API](../../../apps/api/src/admin-api.ts)、[服务端授权](../../../apps/api/src/product-http.ts)
 - [模板与运行策略](../../../apps/api/src/product-content.ts)、[任务筛选与用量](../../../apps/api/src/product-reports.ts)
-- [后台授权与审计](../../../apps/web/infra/supabase/migrations/004-admin-foundation.sql)、[内容与上报](../../../apps/web/infra/supabase/migrations/005-product-content.sql)、[可信运维授权](../../../apps/web/scripts/admin-membership.mjs)
+- [后台授权与审计](../../../infra/supabase/migrations/004-admin-foundation.sql)、[内容与上报](../../../infra/supabase/migrations/005-product-content.sql)、[可信运维授权](../../../scripts/supabase/admin-membership.mjs)
 
 ## References
 

@@ -85,4 +85,4 @@ tags: [rxdb, web, offline, image, opfs, backup]
 - [MEDIA-US-202 本地图片作品与任务历史](../account/MEDIA-US-202-library.md)
 - [MEDIA-US-302 多端草稿同步与冲突处理](MEDIA-US-302-draft-sync.md)
 - [真实应用集成验证](../../plans/local-first-app-verification.md)
-- [静态部署与回退](../../../apps/web/deploy/local-first-pages.md)
+- [静态部署与回退](../../../deploy/cloudflare/local-first-pages.md)
