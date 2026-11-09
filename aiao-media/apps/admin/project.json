@@ -48,10 +48,14 @@
     "serve": {
       "continuous": true,
       "readyWhen": {
-        "signal": true
+        "port": 4302
       },
       "executor": "@angular/build:dev-server",
       "defaultConfiguration": "development",
+      "options": {
+        "port": 4302,
+        "proxyConfig": "aiao-media/scripts/dev/proxy.conf.mjs"
+      },
       "configurations": {
         "production": {
           "buildTarget": "aiao-media-admin:build:production"

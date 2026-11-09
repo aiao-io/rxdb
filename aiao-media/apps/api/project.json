@@ -5,6 +5,19 @@
   "sourceRoot": "aiao-media/apps/api/src",
   "tags": ["scope:aiao-media", "type:app", "runtime:worker"],
   "targets": {
+    "dev": {
+      "executor": "nx:run-commands",
+      "continuous": true,
+      "cache": false,
+      "dependsOn": ["^build", "aiao-media:dev-config"],
+      "readyWhen": {
+        "url": "http://127.0.0.1:8787/api/templates"
+      },
+      "options": {
+        "cwd": "aiao-media/apps/api",
+        "command": "pnpm exec wrangler dev --config .wrangler/local-dev/wrangler.json --env-file .wrangler/local-dev/.dev.vars --local --ip 127.0.0.1 --port 8787 --show-interactive-dev-session false"
+      }
+    },
     "build": {
       "executor": "nx:run-commands",
       "outputs": ["{projectRoot}/dist"],

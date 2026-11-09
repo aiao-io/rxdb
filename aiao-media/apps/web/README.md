@@ -1,5 +1,7 @@
 # Aiao Images
 
+完整本地开发环境统一使用 `pnpm nx dev aiao-media`，自动启动并迁移数据库、启动完整 API、Web 与 Admin，默认在 Nx TUI 中查看各服务日志。地址与停止方式见[产品开发入口](../../README.md)。下面保留各独立运行方式。
+
 Local-first 图片创作应用：发现灵感 → Tiptap 编辑提示词 → 使用自己的供应商生成 → 本机保存、下载和备份。
 
 默认 Angular 入口已切换到本地版本，无需登录、业务 API、PostgreSQL 或 Supabase。应用数据使用 RxDB / SQLite / IndexedDB，原图使用 storage plugin / OPFS；可选 Supabase 注册/登录和会话恢复已实现；账号绑定、原生 RxDB 多副本同步和业务后台已在真实本地服务接线验证。旧账号命名空间保留，不会自动删除或合并。当前优先桌面能力与跨用户业务后台，移动端验收暂缓；绑定和后台方案见[实施计划](../../requirements/plans/README.md)。
@@ -83,7 +85,7 @@ Wrangler 会自动读取被 Git 忽略的 `../../deploy/cloudflare/.dev.vars`（
 | -------- | ------------------------------------------------ |
 | 54321    | API 网关（Kong），即前端用的 `AIAO_SUPABASE_URL` |
 | 54322    | Postgres                                         |
-| 54323    | Studio，仅 `supabase-studio` 启动                |
+| 54323    | Studio，统一 `dev` 或独立 `supabase-studio` 启动 |
 | 54324    | Inbucket 邮箱，注册确认邮件在这里收              |
 
 先在终端里设置环境变量，之后的命令都在同一个终端执行：
@@ -127,7 +129,7 @@ node aiao-media/scripts/supabase/supabase-local.mjs preview
 
 ### 注册、同步和后台
 
-1. 点账号入口注册。本地 Auth 不自动确认邮箱，到 `http://127.0.0.1:54324`（Inbucket）收信并点确认链接，再登录。
+1. 点账号入口注册。本地 Auth 不自动确认邮箱，到启动日志显示的 Mailbox / Inbucket 地址收信并点确认链接，再登录。默认是 `http://127.0.0.1:54324`，实际端口取自 `../../infra/supabase/.env` 的 `MAIL_PORT`。
 2. 登录不会自动上传。在账号窗口里点「启用同步」后，才同步草稿、供应商公开配置和作品信息；API Key 留在本机，原图需单独确认才上传。设置页的「同步」分区（`/providers#sync`）只提供平台账号入口；另一设备使用同一账号即可继续同步。
 3. 首个管理员用 `pnpm nx run aiao-media:admin-membership --user-id=<Auth 用户 UUID> --state=enabled` 授权（UUID 在 Studio 的 `auth.users` 表里取）。后台界面属于独立 `apps/admin` 应用，通过内部部署入口访问；主站不公开后台路由，直达 `/admin` 返回 404。后台接口在 Worker 里，只有生产形态预览提供。
 

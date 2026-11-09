@@ -7,6 +7,69 @@
   "sourceRoot": "aiao-media/apps/web/src",
   "tags": ["product:media", "type:app"],
   "targets": {
+    "dev": {
+      "executor": "@angular/build:dev-server",
+      "continuous": true,
+      "cache": false,
+      "dependsOn": [
+        "^build",
+        "prompt-assets",
+        "prepare-assets",
+        "dev-config",
+        "supabase-dev",
+        {
+          "projects": ["aiao-media-api"],
+          "target": "dev",
+          "waitFor": "ready"
+        },
+        "aiao-media-admin:serve"
+      ],
+      "readyWhen": {
+        "port": 4300
+      },
+      "options": {
+        "buildTarget": "aiao-media:build:development",
+        "port": 4300,
+        "prebundle": false,
+        "proxyConfig": "aiao-media/scripts/dev/proxy.conf.mjs"
+      }
+    },
+    "dev-config": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["dev-studio"],
+      "options": {
+        "cwd": "aiao-media",
+        "command": "node scripts/dev/prepare-dev.mjs"
+      }
+    },
+    "dev-studio": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["supabase-migrate"],
+      "options": {
+        "cwd": "aiao-media",
+        "command": "node scripts/supabase/supabase-local.mjs studio"
+      }
+    },
+    "supabase-dev": {
+      "executor": "nx:run-commands",
+      "continuous": true,
+      "cache": false,
+      "dependsOn": ["dev-studio"],
+      "options": {
+        "cwd": "aiao-media",
+        "command": "node scripts/supabase/supabase-local.mjs logs-follow"
+      }
+    },
+    "dev-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-media",
+        "command": "eslint scripts/dev/*.mjs scripts/supabase/supabase-local.mjs --max-warnings=0 && node --test scripts/dev/*.test.mjs"
+      }
+    },
     "build": {
       "executor": "@angular/build:application",
       "outputs": ["{options.outputPath}"],
@@ -283,7 +346,7 @@
         "cwd": "aiao-media/apps/web",
         "command": "node --test scripts/*.test.mjs ../../scripts/supabase/build-production-supabase-bundle.test.mjs ../../scripts/product/product-sync-contract.test.mjs ../../scripts/supabase/migration.test.mjs"
       },
-      "dependsOn": ["aiao-media-api:script-test"]
+      "dependsOn": ["aiao-media-api:script-test", "dev-test"]
     },
     "production-bundle": {
       "executor": "nx:run-commands",

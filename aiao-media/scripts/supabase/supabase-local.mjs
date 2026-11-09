@@ -139,8 +139,8 @@ async function main(action) {
     console.log('Stopped local Supabase; database volumes retained.');
   } else if (action === 'status') {
     await compose(['--profile', 'studio', 'ps']);
-  } else if (action === 'logs') {
-    await compose(['--profile', 'studio', 'logs', '--tail', '60']);
+  } else if (action === 'logs' || action === 'logs-follow') {
+    await compose(['--profile', 'studio', 'logs', '--tail', '60', ...(action === 'logs-follow' ? ['--follow'] : [])]);
   } else if (action === 'migrate') {
     const core = [
       '01-rxdb-system-tables.sql',
@@ -203,7 +203,10 @@ async function main(action) {
     await run('pnpm', ['exec', 'nx', 'run', action === 'serve' ? 'aiao-media:serve' : 'aiao-media-e2e:supabase-e2e'], {
       env: { ...process.env, ...publicEnv }
     });
-  } else throw new Error('Expected init, up, studio, validate, down, status, logs, migrate, preview, serve or e2e.');
+  } else
+    throw new Error(
+      'Expected init, up, studio, validate, down, status, logs, logs-follow, migrate, preview, serve or e2e.'
+    );
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
