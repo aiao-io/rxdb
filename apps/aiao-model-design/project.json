@@ -15,7 +15,7 @@
         "browser": "apps/aiao-model-design/src/main.ts",
         "tsConfig": "apps/aiao-model-design/tsconfig.app.json",
         "inlineStyleLanguage": "scss",
-        "allowedCommonJsDependencies": ["geobuf", "pdf", "geojson-dissolve", "cssfontparser"],
+        "allowedCommonJsDependencies": ["cssfontparser", "eventemitter3", "geobuf", "geojson-dissolve", "gifuct-js", "lodash/get", "lottie-web", "mousetrap", "pbf", "pdf", "simplify-geojson"],
         "assets": [
           {
             "glob": "**/*",

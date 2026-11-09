@@ -3130,9 +3130,6 @@ importers:
       fastest-levenshtein:
         specifier: ^1.0.16
         version: 1.0.16
-      ms:
-        specifier: ^2.1.3
-        version: 2.1.3
       rxjs:
         specifier: ^7.8.2
         version: 7.8.2
