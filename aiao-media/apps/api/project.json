@@ -15,7 +15,7 @@
       },
       "options": {
         "cwd": "aiao-media/apps/api",
-        "command": "pnpm exec wrangler dev --config .wrangler/local-dev/wrangler.json --env-file .wrangler/local-dev/.dev.vars --local --ip 127.0.0.1 --port 8787 --show-interactive-dev-session false"
+        "command": "pnpm exec wrangler dev --config .wrangler/local-dev/wrangler.json --local --ip 127.0.0.1 --port 8787 --show-interactive-dev-session false"
       }
     },
     "build": {

@@ -3,8 +3,31 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { buildSupabaseConfig } from '../../apps/web/scripts/build-supabase-config.mjs';
 import { localEnvironment, workspaceRoot } from '../supabase/supabase-local.mjs';
+import { developmentAccounts, seedDevelopmentAccounts } from './seed-accounts.mjs';
 
-export async function writeDevelopmentConfig(root, { publicEnv, env, url }) {
+async function developmentDashboard({ env, url, mailUrl }) {
+  const [user, admin] = developmentAccounts;
+  const values = {
+    API_URL: url,
+    STUDIO_URL: `http://127.0.0.1:${env.STUDIO_PORT}`,
+    MAIL_URL: mailUrl,
+    DB_PORT: env.DB_PORT,
+    DB_PASSWORD: env.POSTGRES_PASSWORD,
+    DB_URI: `postgresql://postgres:${encodeURIComponent(env.POSTGRES_PASSWORD)}@127.0.0.1:${env.DB_PORT}/postgres`,
+    USER_EMAIL: user.email,
+    USER_PASSWORD: user.password,
+    ADMIN_EMAIL: admin.email,
+    ADMIN_PASSWORD: admin.password
+  };
+  const html = await readFile(new URL('./dashboard.html', import.meta.url), 'utf8');
+  const entities = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  return html.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, name) =>
+    String(values[name]).replace(/[&<>"']/g, char => entities[char])
+  );
+}
+
+export async function writeDevelopmentConfig(root, local) {
+  const { publicEnv, env, url } = local;
   const api = resolve(root, 'apps/api');
   const directory = resolve(api, '.wrangler/local-dev');
   const assets = resolve(directory, 'assets');
@@ -18,18 +41,10 @@ export async function writeDevelopmentConfig(root, { publicEnv, env, url }) {
   delete config.$schema;
   config.main = resolve(api, config.main);
   await mkdir(assets, { recursive: true });
-  await writeFile(
-    resolve(assets, 'index.html'),
-    `<!doctype html>
-<html lang="zh-CN">
-<meta charset="utf-8">
-<title>Aiao Media API</title>
-<h1>Aiao Media API</h1>
-<p><a href="/api/templates">查看公开模板</a></p>
-<p><a href="http://localhost:4300">Web</a> · <a href="http://localhost:4302">Admin</a></p>
-</html>
-`
-  );
+  const homepage = resolve(assets, 'index.html');
+  await writeFile(homepage, await developmentDashboard(local), { mode: 0o600 });
+  await chmod(homepage, 0o600);
+  await writeFile(resolve(assets, '_headers'), '/*\n  Cache-Control: no-store\n  Referrer-Policy: no-referrer\n');
   await writeFile(resolve(directory, 'wrangler.json'), JSON.stringify(config, null, 2) + '\n');
   const secrets = resolve(directory, '.dev.vars');
   await writeFile(
@@ -49,6 +64,7 @@ export async function writeDevelopmentConfig(root, { publicEnv, env, url }) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const local = await localEnvironment();
+  await seedDevelopmentAccounts(local);
   await writeDevelopmentConfig(workspaceRoot, local);
   console.log(
     '本地开发配置已准备：Web http://localhost:4300 · Admin http://localhost:4302 · API http://127.0.0.1:8787'

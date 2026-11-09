@@ -8,6 +8,21 @@
   "tags": ["product:media", "type:app"],
   "targets": {
     "dev": {
+      "executor": "nx:run-commands",
+      "continuous": true,
+      "cache": false,
+      "dependsOn": [
+        { "target": "dev-web", "waitFor": "ready" },
+        { "projects": ["aiao-media-admin"], "target": "dev", "waitFor": "ready" },
+        "supabase-dev"
+      ],
+      "readyWhen": { "url": "http://127.0.0.1:8787/" },
+      "options": {
+        "cwd": "aiao-media",
+        "command": "node scripts/dev/open-dashboard.mjs"
+      }
+    },
+    "dev-web": {
       "executor": "@angular/build:dev-server",
       "continuous": true,
       "cache": false,
@@ -17,16 +32,14 @@
         "prepare-assets",
         "dev-ports",
         "dev-config",
-        "supabase-dev",
         {
           "projects": ["aiao-media-api"],
           "target": "dev",
           "waitFor": "ready"
-        },
-        "aiao-media-admin:dev"
+        }
       ],
       "readyWhen": {
-        "port": 4300
+        "url": "http://localhost:4300"
       },
       "options": {
         "buildTarget": "aiao-media:build:development",

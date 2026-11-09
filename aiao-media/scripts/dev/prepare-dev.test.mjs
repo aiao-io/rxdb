@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import { test } from 'node:test';
 import { parseEnv } from 'node:util';
 import { writeDevelopmentConfig } from './prepare-dev.mjs';
+import { developmentAccounts } from './seed-accounts.mjs';
 
 test('local development isolates Worker secrets and needs no frontend build', async () => {
   const root = await mkdtemp(resolve(tmpdir(), 'aiao-media-dev-'));
@@ -25,7 +26,15 @@ test('local development isolates Worker secrets and needs no frontend build', as
   };
   const local = {
     url: 'http://127.0.0.1:55421',
-    env: { ANON_KEY: 'public-local-key', SERVICE_ROLE_KEY: 'private-local-key' },
+    mailUrl: 'http://127.0.0.1:55424',
+    env: {
+      ANON_KEY: 'public-local-key',
+      SERVICE_ROLE_KEY: 'private-local-key',
+      JWT_SECRET: 'private-jwt-secret',
+      POSTGRES_PASSWORD: 'local-database-password',
+      DB_PORT: '55422',
+      STUDIO_PORT: '55423'
+    },
     publicEnv: {
       AIAO_SUPABASE_URL: 'http://127.0.0.1:55421',
       AIAO_SUPABASE_ANON_KEY: `header.${Buffer.from('{"role":"anon"}').toString('base64url')}.signature`
@@ -45,9 +54,22 @@ test('local development isolates Worker secrets and needs no frontend build', as
       not_found_handling: 'none'
     });
     const homepage = await readFile(resolve(generated.assets.directory, 'index.html'), 'utf8');
-    assert.match(homepage, /Aiao Media API/);
+    assert.equal((await stat(resolve(generated.assets.directory, 'index.html'))).mode & 0o777, 0o600);
+    assert.match(homepage, /Aiao Media 开发导航/);
     assert.match(homepage, /href="\/api\/templates"/);
+    for (const address of ['http://localhost:4300', 'http://localhost:4302', local.url, local.mailUrl])
+      assert.ok(homepage.includes(`href="${address}"`), address);
+    assert.ok(homepage.includes('http://127.0.0.1:55423'));
+    assert.ok(homepage.includes('127.0.0.1:55422'));
+    for (const account of developmentAccounts) {
+      assert.ok(homepage.includes(account.email));
+      assert.ok(homepage.includes(account.password));
+    }
+    assert.ok(homepage.includes(local.env.POSTGRES_PASSWORD));
+    assert.ok(!homepage.includes(local.env.JWT_SECRET));
     assert.ok(!homepage.includes(local.env.SERVICE_ROLE_KEY));
+    assert.doesNotMatch(homepage, /\{\{.*?\}\}/);
+    assert.match(await readFile(resolve(generated.assets.directory, '_headers'), 'utf8'), /Cache-Control: no-store/);
     assert.equal(generated.main, resolve(api, config.main));
     assert.deepEqual(generated.vars, config.vars);
     assert.deepEqual(generated.durable_objects, config.durable_objects);
@@ -66,6 +88,8 @@ test('local development isolates Worker secrets and needs no frontend build', as
     assert.ok(browser.includes(local.publicEnv.AIAO_SUPABASE_URL));
     assert.ok(browser.includes(local.publicEnv.AIAO_SUPABASE_ANON_KEY));
     assert.ok(!browser.includes(local.env.SERVICE_ROLE_KEY));
+    assert.ok(!browser.includes(local.env.POSTGRES_PASSWORD));
+    for (const account of developmentAccounts) assert.ok(!browser.includes(account.password));
     assert.ok(!JSON.stringify(generated).includes(local.env.SERVICE_ROLE_KEY));
     assert.equal(await readFile(resolve(api, '.dev.vars'), 'utf8'), 'existing-private-config');
     assert.deepEqual(JSON.parse(await readFile(resolve(api, 'wrangler.json'), 'utf8')), config);
