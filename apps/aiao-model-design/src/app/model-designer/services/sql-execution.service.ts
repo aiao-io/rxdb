@@ -20,7 +20,7 @@ export type SqlExecutionState =
 /** Coordinates rollback-only preflight, commit, and phase-specific retry for one designer instance. */
 @Injectable()
 export class SqlExecutionService {
-  readonly #adapter = inject(SQL_EXECUTION_ADAPTER);
+  readonly #adapter = inject(SQL_EXECUTION_ADAPTER, { optional: true });
   readonly #state = signal<SqlExecutionState>({ phase: 'idle' });
   #operation: Promise<void> | null = null;
 
@@ -32,6 +32,10 @@ export class SqlExecutionService {
     if (this.#operation) return this.#operation;
 
     const snapshot = String(sql);
+    if (!this.#adapter) {
+      this.#state.set({ phase: 'preflight-error', sql: snapshot, message: 'SQL execution service is unavailable' });
+      return Promise.resolve();
+    }
     this.#state.set({ phase: 'preflighting', sql: snapshot });
     this.#operation = this.#runPreflight(snapshot);
     return this.#operation;
@@ -66,6 +70,7 @@ export class SqlExecutionService {
   }
 
   async #runPreflight(sql: string): Promise<void> {
+    if (!this.#adapter) return;
     try {
       const preview = await this.#adapter.dryRun(sql);
       if (preview.sql !== sql) {
@@ -80,6 +85,7 @@ export class SqlExecutionService {
   }
 
   async #runExecution(preview: SqlExecutionPreview, confirmDestructive: boolean): Promise<void> {
+    if (!this.#adapter) return;
     try {
       const result = await this.#adapter.execute(preview.sql, confirmDestructive);
       if (result.sql !== preview.sql) {

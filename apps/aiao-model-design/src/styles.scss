@@ -6,6 +6,33 @@
   themes:
     light --default,
     dark --prefersdark;
+  include:
+    rootcolor,
+    svg,
+    rootscrollgutter,
+    properties,
+    scrollbar,
+    rootscrolllock,
+    alert,
+    badge,
+    button,
+    card,
+    checkbox,
+    divider,
+    dropdown,
+    fieldset,
+    input,
+    join,
+    label,
+    loading,
+    menu,
+    modal,
+    range,
+    select,
+    tab,
+    textarea,
+    toast,
+    toggle;
 }
 
 html,

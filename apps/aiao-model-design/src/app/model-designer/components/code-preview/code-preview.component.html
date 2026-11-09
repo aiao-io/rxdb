@@ -21,37 +21,43 @@
       }
     </div>
 
-    <label class="input input-sm w-64 max-w-full">
-      <span class="label">{{ t().codePreview.packageName }}</span>
-      <input
-        [attr.placeholder]="t().codePreview.packageNamePlaceholder"
-        [value]="packageName()"
-        (input)="onPackageNameInput($event)"
-        data-testid="client-package-name"
-        type="text"
-      />
-    </label>
-    @if (packageVersion(); as version) {
-      <span class="badge badge-success badge-sm">{{ t().codePreview.packageVersion }} {{ version }}</span>
+    @if (canArchivePackage() || canPublishPackage()) {
+      <label class="input input-sm w-64 max-w-full">
+        <span class="label">{{ t().codePreview.packageName }}</span>
+        <input
+          [attr.placeholder]="t().codePreview.packageNamePlaceholder"
+          [value]="packageName()"
+          (input)="onPackageNameInput($event)"
+          data-testid="client-package-name"
+          type="text"
+        />
+      </label>
+      @if (packageVersion(); as version) {
+        <span class="badge badge-success badge-sm">{{ t().codePreview.packageVersion }} {{ version }}</span>
+      }
+      @if (canArchivePackage()) {
+        <button
+          class="btn btn-sm btn-secondary"
+          [disabled]="packageBusy() || files().length === 0"
+          (click)="archivePackage.emit()"
+          data-testid="client-package-archive"
+          type="button"
+        >
+          {{ packageBusy() ? t().codePreview.archiving : t().codePreview.archivePackage }}
+        </button>
+      }
+      @if (canPublishPackage()) {
+        <button
+          class="btn btn-sm btn-accent"
+          [disabled]="packageBusy() || files().length === 0"
+          (click)="publishPackage.emit()"
+          data-testid="client-package-publish"
+          type="button"
+        >
+          {{ packageBusy() ? t().codePreview.publishing : t().codePreview.publishPackage }}
+        </button>
+      }
     }
-    <button
-      class="btn btn-sm btn-secondary"
-      [disabled]="packageBusy() || files().length === 0"
-      (click)="archivePackage.emit()"
-      data-testid="client-package-archive"
-      type="button"
-    >
-      {{ packageBusy() ? t().codePreview.archiving : t().codePreview.archivePackage }}
-    </button>
-    <button
-      class="btn btn-sm btn-accent"
-      [disabled]="packageBusy() || files().length === 0"
-      (click)="publishPackage.emit()"
-      data-testid="client-package-publish"
-      type="button"
-    >
-      {{ packageBusy() ? t().codePreview.publishing : t().codePreview.publishPackage }}
-    </button>
 
     <button class="btn btn-sm btn-primary" [disabled]="files().length === 0" (click)="download.emit()">
       {{ t().codePreview.downloadZip }}

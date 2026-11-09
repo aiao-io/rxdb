@@ -135,6 +135,11 @@ describe('AiApiService SSE', () => {
     ['提前断流', delta('未完成')],
     ['损坏事件', 'data: {broken}\n\n' + done],
     ['损坏文本事件', 'data: {"type":"text-delta"}\n\n' + done],
+    ['文本字段类型错误', 'data: {"type":"text-delta","delta":123}\n\n' + done],
+    [
+      '错误分类无效',
+      `data: ${JSON.stringify({ type: 'error', errorText: JSON.stringify({ type: 'unknown', message: 'bad' }) })}\n\n` + done
+    ],
     ['损坏错误事件', 'data: {"type":"error","errorText":"bad"}\n\n' + done]
   ])('%s 不冒充成功', async (_name, text) => {
     fetchMock.mockResolvedValue(response(text));
@@ -143,6 +148,16 @@ describe('AiApiService SSE', () => {
     await service.chat([{ role: 'user', content: '模型' }], { entityNames: [] }, { onError, onComplete });
     expect(onError).toHaveBeenCalledOnce();
     expect(onComplete).not.toHaveBeenCalled();
+  });
+
+  it('错误事件省略 status 时保持错误对象形状', async () => {
+    const error = { type: 'server' as const, message: 'upstream failed' };
+    fetchMock.mockResolvedValue(
+      response(`data: ${JSON.stringify({ type: 'error', errorText: JSON.stringify(error) })}\n\n` + done)
+    );
+    const onError = vi.fn();
+    await service.chat([{ role: 'user', content: '模型' }], { entityNames: [] }, { onError });
+    expect(onError).toHaveBeenCalledExactlyOnceWith(error);
   });
 
   it('生成结果不是完整 JSON 时提示错误', async () => {

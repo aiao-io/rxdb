@@ -5,6 +5,25 @@ import { CodePreviewComponent } from '../../components/code-preview/code-preview
 import { DEFAULT_TRANSLATIONS, MODEL_DESIGNER_TRANSLATIONS } from '../../i18n/translations';
 
 describe('CodePreviewComponent client package commands', () => {
+  it('clamps the active tab when generated files shrink', () => {
+    TestBed.configureTestingModule({
+      imports: [CodePreviewComponent],
+      providers: [{ provide: MODEL_DESIGNER_TRANSLATIONS, useValue: signal(DEFAULT_TRANSLATIONS) }]
+    });
+    const fixture = TestBed.createComponent(CodePreviewComponent);
+    fixture.componentRef.setInput('files', [
+      { path: 'index.js', content: 'export {}' },
+      { path: 'index.d.ts', content: 'export {}' }
+    ]);
+    fixture.detectChanges();
+    fixture.componentInstance.activeTab.set(1);
+    fixture.componentRef.setInput('files', [{ path: 'index.js', content: 'export {}' }]);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.activeTab()).toBe(0);
+    expect(fixture.componentInstance.activeFile()?.path).toBe('index.js');
+  });
+
   it('edits the package name and emits an archive command', () => {
     TestBed.configureTestingModule({
       imports: [CodePreviewComponent],
@@ -16,6 +35,7 @@ describe('CodePreviewComponent client package commands', () => {
     fixture.componentRef.setInput('isOpen', true);
     fixture.componentRef.setInput('files', [{ path: 'index.js', content: 'export {}' }]);
     fixture.componentRef.setInput('packageName', '@acme/blog-rxdb');
+    fixture.componentRef.setInput('canArchivePackage', true);
     fixture.detectChanges();
 
     const input = fixture.nativeElement.querySelector('[data-testid="client-package-name"]') as HTMLInputElement;
@@ -37,11 +57,27 @@ describe('CodePreviewComponent client package commands', () => {
     fixture.componentRef.setInput('isOpen', true);
     fixture.componentRef.setInput('files', [{ path: 'index.js', content: 'export {}' }]);
     fixture.componentRef.setInput('packageVersion', '1.1.0');
+    fixture.componentRef.setInput('canPublishPackage', true);
     fixture.detectChanges();
 
     const button = fixture.nativeElement.querySelector('[data-testid="client-package-publish"]') as HTMLButtonElement;
     expect(fixture.nativeElement.textContent).toContain('1.1.0');
     button.click();
     expect(publish).toHaveBeenCalledOnce();
+  });
+
+  it('hides host-only package controls when no package adapter is available', () => {
+    TestBed.configureTestingModule({
+      imports: [CodePreviewComponent],
+      providers: [{ provide: MODEL_DESIGNER_TRANSLATIONS, useValue: signal(DEFAULT_TRANSLATIONS) }]
+    });
+    const fixture = TestBed.createComponent(CodePreviewComponent);
+    fixture.componentRef.setInput('isOpen', true);
+    fixture.componentRef.setInput('files', [{ path: 'index.js', content: 'export {}' }]);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="client-package-name"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="client-package-archive"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="client-package-publish"]')).toBeNull();
   });
 });

@@ -21,6 +21,7 @@ export interface ModelDesignerTranslations {
     singleSelectMode: string;
     rubberSelectMode: string;
     versionManager: string;
+    hostCapabilityUnavailable: string;
   };
   entityPanel: {
     deleteEntity: string;
@@ -312,7 +313,8 @@ export const DEFAULT_TRANSLATIONS: ModelDesignerTranslations = {
     moreActions: 'More actions',
     singleSelectMode: 'Single Select',
     rubberSelectMode: 'Rubber Band Select',
-    versionManager: 'Version Manager'
+    versionManager: 'Version Manager',
+    hostCapabilityUnavailable: 'This action requires a host application capability'
   },
   entityPanel: {
     deleteEntity: 'Delete',
@@ -399,7 +401,7 @@ export const DEFAULT_TRANSLATIONS: ModelDesignerTranslations = {
     ariaDismiss: 'Dismiss error'
   },
   sql: {
-    remoteUnavailable: 'No remote schema source configured — diffing against an empty schema.',
+    remoteUnavailable: 'No remote schema source configured — unable to generate a diff.',
     remoteFetchFailed: 'Failed to read the remote schema',
     remoteStale: 'Failed to read the remote schema; using the last cached snapshot',
     noDifferences: 'no differences'

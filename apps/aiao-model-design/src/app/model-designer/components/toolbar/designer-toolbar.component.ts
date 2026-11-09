@@ -55,6 +55,8 @@ export class DesignerToolbarComponent {
   readonly generateSql = output<void>();
   readonly compareSql = output<void>();
   readonly executeDisabled = input(true);
+  readonly compareAvailable = input(true);
+  readonly executeAvailable = input(true);
   readonly executeSql = output<void>();
   readonly undo = output<void>();
   readonly redo = output<void>();

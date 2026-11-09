@@ -31,6 +31,7 @@ import { DesignRelationService } from './design-relation.service';
 import { createValidationSignals } from './designer-validation';
 import { ModelDesignService } from './model-design.service';
 import { ModelValidatorService } from './model-validator.service';
+import { SQL_EXECUTION_ADAPTER } from './sql-execution-adapter';
 
 /**
  * 设计器共享状态服务
@@ -44,6 +45,7 @@ export class DesignerStateService {
   readonly #confirmDialog = inject(ConfirmDialogService);
   readonly #remoteSchemaSource = inject(REMOTE_SCHEMA_SOURCE, { optional: true });
   readonly #clientPackageAdapter = inject(CLIENT_PACKAGE_ADAPTER, { optional: true });
+  readonly #sqlExecutionAdapter = inject(SQL_EXECUTION_ADAPTER, { optional: true });
 
   readonly modelValidation: Signal<ModelValidationResult>;
   readonly invalidRelationIds: Signal<Set<string>>;
@@ -120,6 +122,10 @@ export class DesignerStateService {
       this.generatedFiles().some(file => file.path.endsWith('.d.ts'))
   );
   readonly canPublishClientPackage = this.canArchiveClientPackage;
+  /** 远程 schema 对比能力由宿主应用注入；独立 Worker 不提供此接口。 */
+  readonly canCompareSql = computed(() => Boolean(this.#remoteSchemaSource));
+  /** SQL 执行能力由宿主应用注入；独立 Worker 不提供此接口。 */
+  readonly canExecuteSql = computed(() => Boolean(this.#sqlExecutionAdapter));
   readonly entities = computed(() => this.entityService.entities());
   readonly entityPairs = computed(() => this.entities().map(e => ({ id: e.id, name: e.name })));
   readonly selectedEntityIds = computed(() => this.entityService.selectedEntityIds());
@@ -409,6 +415,12 @@ export class DesignerStateService {
    * 拉取失败且无缓存时只报错，不退化成与空 schema 对比（否则会把远端已有的表误报成全量 CREATE）。
    */
   async onCompareSql(remoteOverride?: SqlSchema | null) {
+    if (!this.#remoteSchemaSource && remoteOverride === undefined && !this.remoteSqlSchema()) {
+      this.generatedFiles.set([]);
+      this.generatedErrors.set([this.#t().sql.remoteUnavailable]);
+      this.codePreviewOpen.set(true);
+      return;
+    }
     if (!this.#canGenerateSql()) return;
     const source = this.#remoteSchemaSource;
     const resolution = await resolveCompareRemoteSchema({

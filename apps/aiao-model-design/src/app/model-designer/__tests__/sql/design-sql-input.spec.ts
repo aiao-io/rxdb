@@ -31,7 +31,7 @@ describe('design SQL snapshot pipeline', () => {
     expect(sql).toContain('id uuid PRIMARY KEY');
   });
 
-  it('compare against empty remote yields CREATE-heavy diff (onCompareSql default)', () => {
+  it('compare against an explicitly empty remote yields a CREATE-heavy diff', () => {
     const desired = designToSqlSchema(input);
     const { sql } = diffSqlSchema(desired, { tables: [] });
     expect(sql).toContain('CREATE TABLE items');

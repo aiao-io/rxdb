@@ -139,7 +139,10 @@ export default class DesignerComponent {
   protected readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
   protected readonly aiChatPanelTpl = viewChild<TemplateRef<unknown>>('aiChatPanelTpl');
   protected readonly executeDisabled = computed(
-    () => this.#executionDialogOpen() || executableSqlPreview(this.state.generatedFiles()) === null
+    () =>
+      this.#executionDialogOpen() ||
+      !this.state.canExecuteSql() ||
+      executableSqlPreview(this.state.generatedFiles()) === null
   );
   protected readonly X = X;
   protected readonly navigatorOpen = signal(false);
@@ -306,7 +309,7 @@ export default class DesignerComponent {
   /** Opens rollback-only preflight for the current generated SQL snapshot. */
   onExecuteSql(): void {
     const sql = executableSqlPreview(this.state.generatedFiles());
-    if (!sql || this.#executionDialogOpen()) return;
+    if (!this.state.canExecuteSql() || !sql || this.#executionDialogOpen()) return;
 
     this.#executionDialogOpen.set(true);
     const ref = this.#dialog.open<void, SqlExecutionDialogData>(SqlExecutionDialogComponent, {

@@ -19,7 +19,8 @@ export const ZH_TRANSLATIONS: ModelDesignerTranslations = {
     moreActions: '更多操作',
     singleSelectMode: '单选模式',
     rubberSelectMode: '框选模式',
-    versionManager: '版本管理'
+    versionManager: '版本管理',
+    hostCapabilityUnavailable: '此操作需要宿主应用提供对应能力'
   },
   entityPanel: {
     deleteEntity: '删除',
@@ -106,7 +107,7 @@ export const ZH_TRANSLATIONS: ModelDesignerTranslations = {
     ariaDismiss: '关闭错误提示'
   },
   sql: {
-    remoteUnavailable: '未配置远程 schema 数据源，本次与空 schema 对比',
+    remoteUnavailable: '未配置远程 schema 数据源，无法生成对比',
     remoteFetchFailed: '读取远程 schema 失败',
     remoteStale: '读取远程 schema 失败，已使用上次缓存快照',
     noDifferences: '无差异'

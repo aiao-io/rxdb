@@ -30,6 +30,8 @@ data: [DONE]
 
 模型 AI 请求必须通过 Supabase 用户验证。AI 密钥只在 Worker 中使用，JWT 保存在 HttpOnly cookie 中，响应不返回 JWT。写入接口检查同源，模型请求支持客户端取消和 120 秒超时。
 
+独立 Worker 只提供本地模型设计、代码/SQL 预览和模型 AI。远程 schema 对比、SQL 执行以及客户端包归档/发布属于宿主应用能力；未注入对应 adapter 时，设计器会自动禁用这些入口，不会请求不存在的接口。
+
 ## 代码来源
 
 - `packages/rxdb-model-designer/src` → `src/app/model-designer`：画布、实体编辑、代码与 SQL 预览、版本管理、AI 会话和提案流程。

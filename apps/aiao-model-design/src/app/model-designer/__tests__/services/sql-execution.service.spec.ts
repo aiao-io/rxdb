@@ -219,4 +219,18 @@ describe('SqlExecutionService', () => {
       message: 'SQL execution response does not match the preflight snapshot'
     });
   });
+
+  it('fails closed when the host does not provide SQL execution', async () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: [SqlExecutionService] });
+    const unavailable = TestBed.inject(SqlExecutionService);
+
+    await unavailable.preflight(SQL);
+
+    expect(unavailable.state()).toEqual({
+      phase: 'preflight-error',
+      sql: SQL,
+      message: 'SQL execution service is unavailable'
+    });
+  });
 });

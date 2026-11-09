@@ -1,5 +1,5 @@
 import { CodeEditor } from '@aiao/code-editor-angular';
-import { ChangeDetectionStrategy, Component, computed, inject, input, model, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, model, output, signal } from '@angular/core';
 import { MODEL_DESIGNER_TRANSLATIONS } from '../../i18n/translations';
 import type { GeneratedFile } from '../../interfaces/designer.interface';
 
@@ -23,6 +23,8 @@ export class CodePreviewComponent {
   readonly packageName = model('');
   readonly packageBusy = input(false);
   readonly packageVersion = input<string | null>(null);
+  readonly canArchivePackage = input(false);
+  readonly canPublishPackage = input(false);
   readonly download = output<void>();
   readonly archivePackage = output<void>();
   readonly publishPackage = output<void>();
@@ -50,6 +52,14 @@ export class CodePreviewComponent {
     };
     return langMap[ext ?? ''] ?? 'typescript';
   });
+
+  constructor() {
+    effect(() => {
+      const lastTab = this.files().length - 1;
+      const currentTab = this.activeTab();
+      if (currentTab > lastTab) this.activeTab.set(Math.max(0, lastTab));
+    });
+  }
 
   fileName(path: string): string {
     return path.split('/').pop() ?? path;

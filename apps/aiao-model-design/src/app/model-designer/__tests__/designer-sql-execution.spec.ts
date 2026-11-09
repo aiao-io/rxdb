@@ -17,11 +17,13 @@ interface DesignerExecutionView {
   readonly executeDisabled: Signal<boolean>;
 }
 
-function createDesigner(generatedFiles: readonly GeneratedFile[]) {
+function createDesigner(generatedFiles: readonly GeneratedFile[], executeAvailable = true) {
   const files = signal([...generatedFiles]);
   const open = vi.fn(() => ({ closed: of(undefined) }));
   const state = {
     generatedFiles: files,
+    canCompareSql: signal(true),
+    canExecuteSql: signal(executeAvailable),
     modelDesign: {
       activeDesign: signal({ id: 'design-1' }),
       designs: signal([]),
@@ -85,6 +87,15 @@ describe('DesignerComponent SQL execution', () => {
 
     expect(view.executeDisabled()).toBe(true);
     component.onExecuteSql();
+    expect(open).not.toHaveBeenCalled();
+  });
+
+  it('does not open SQL execution when the host adapter is unavailable', () => {
+    const files = [{ path: 'schema.sql', content: 'ALTER TABLE users ADD COLUMN name text;' }];
+    const { component, open } = createDesigner(files, false);
+
+    component.onExecuteSql();
+
     expect(open).not.toHaveBeenCalled();
   });
 });

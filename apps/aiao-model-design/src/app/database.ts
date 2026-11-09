@@ -1,6 +1,4 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
-import { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
-import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import {
   ChatMessage,
@@ -14,6 +12,10 @@ import {
 
 /** 创建并连接设计器的持久化本地数据库。 */
 export async function createDesignerDatabase(): Promise<RxDB> {
+  const [{ RxDBAdapterSqlite }, { rxDBPluginHistory }] = await Promise.all([
+    import('@aiao/rxdb-adapter-sqlite-wasm'),
+    import('@aiao/rxdb-plugin-history')
+  ]);
   const database = new RxDB({
     dbName: 'aiao-model-design',
     context: { userId: 'local-designer' },

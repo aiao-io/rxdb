@@ -51,6 +51,8 @@
       <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
         <lib-designer-toolbar
           [entityCount]="state.entities().length"
+          [compareAvailable]="state.canCompareSql()"
+          [executeAvailable]="state.canExecuteSql()"
           [executeDisabled]="executeDisabled()"
           [modelName]="state.activeDesignName()"
           [redoCount]="state.redoCount()"
@@ -77,17 +79,21 @@
       </div>
     </div>
 
-    <lib-code-preview
-      [(isOpen)]="state.codePreviewOpen"
-      [(packageName)]="state.clientPackageName"
-      [errors]="state.generatedErrors()"
-      [files]="state.generatedFiles()"
-      [packageBusy]="state.clientPackageBusy()"
-      [packageVersion]="state.clientPackageVersion()"
-      (archivePackage)="state.onArchiveClientPackage()"
-      (download)="state.onDownloadZip()"
-      (publishPackage)="state.onPublishClientPackage()"
-    />
+    @defer (when state.codePreviewOpen()) {
+      <lib-code-preview
+        [(isOpen)]="state.codePreviewOpen"
+        [(packageName)]="state.clientPackageName"
+        [errors]="state.generatedErrors()"
+        [files]="state.generatedFiles()"
+        [canArchivePackage]="state.canArchiveClientPackage()"
+        [canPublishPackage]="state.canPublishClientPackage()"
+        [packageBusy]="state.clientPackageBusy()"
+        [packageVersion]="state.clientPackageVersion()"
+        (archivePackage)="state.onArchiveClientPackage()"
+        (download)="state.onDownloadZip()"
+        (publishPackage)="state.onPublishClientPackage()"
+      />
+    }
   } @else {
     <lib-model-list
       [activeId]="modelDesign.activeDesignId()"

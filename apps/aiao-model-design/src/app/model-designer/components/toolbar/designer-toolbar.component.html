@@ -85,14 +85,20 @@
         </button>
       </li>
       <li>
-        <button (click)="compareSql.emit(); closeMobileActions(mobileActions)" type="button">
+        <button
+          [disabled]="!compareAvailable()"
+          [title]="compareAvailable() ? t().toolbar.compareSql : t().toolbar.hostCapabilityUnavailable"
+          (click)="compareSql.emit(); closeMobileActions(mobileActions)"
+          type="button"
+        >
           <lucide-icon class="h-4 w-4" [img]="GitCompareArrows" aria-hidden="true" />
           {{ t().toolbar.compareSql }}
         </button>
       </li>
       <li>
         <button
-          [disabled]="executeDisabled()"
+          [disabled]="executeDisabled() || !executeAvailable()"
+          [title]="executeAvailable() ? t().toolbar.executeSql : t().toolbar.hostCapabilityUnavailable"
           (click)="executeSql.emit(); closeMobileActions(mobileActions)"
           type="button"
         >
@@ -192,14 +198,20 @@
   <button class="btn btn-ghost btn-xs" (click)="generateSql.emit()" type="button">
     {{ t().toolbar.generateSql }}
   </button>
-  <button class="btn btn-ghost btn-xs" (click)="compareSql.emit()" type="button">
+  <button
+    class="btn btn-ghost btn-xs"
+    [disabled]="!compareAvailable()"
+    [title]="compareAvailable() ? t().toolbar.compareSql : t().toolbar.hostCapabilityUnavailable"
+    (click)="compareSql.emit()"
+    type="button"
+  >
     {{ t().toolbar.compareSql }}
   </button>
   <button
     class="btn btn-ghost btn-xs"
     [attr.aria-label]="t().toolbar.executeSql"
-    [disabled]="executeDisabled()"
-    [title]="t().toolbar.executeSql"
+    [disabled]="executeDisabled() || !executeAvailable()"
+    [title]="executeAvailable() ? t().toolbar.executeSql : t().toolbar.hostCapabilityUnavailable"
     (click)="executeSql.emit()"
     type="button"
   >

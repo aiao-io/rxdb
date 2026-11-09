@@ -1,4 +1,45 @@
-import type { ChatChangeProposal } from '../types/ai-schemas';
+import type { ChatChange, ChatChangeProposal } from '../types/ai-schemas';
+
+const CHAT_CHANGE_ACTIONS = [
+  'addEntity',
+  'modifyEntity',
+  'removeEntity',
+  'addProperty',
+  'modifyProperty',
+  'removeProperty',
+  'addRelation',
+  'modifyRelation',
+  'removeRelation',
+  'addIndex',
+  'removeIndex'
+] as const;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isChatChange(value: unknown): value is ChatChange {
+  if (!isRecord(value)) return false;
+  const action = value['action'];
+  const entityId = value['entityId'];
+  const entityName = value['entityName'];
+  return (
+    typeof action === 'string' &&
+    (CHAT_CHANGE_ACTIONS as readonly string[]).includes(action) &&
+    (entityId === undefined || typeof entityId === 'string') &&
+    typeof entityName === 'string' &&
+    isRecord(value['details'])
+  );
+}
+
+function isChatChangeProposal(value: unknown): value is ChatChangeProposal {
+  return (
+    isRecord(value) &&
+    typeof value['description'] === 'string' &&
+    Array.isArray(value['changes']) &&
+    value['changes'].every(isChatChange)
+  );
+}
 
 /**
  * 从 AI 回复文本中提取 ChatChangeProposal 块
@@ -14,9 +55,7 @@ export function parseChatChangeProposals(text: string): ChatChangeProposal[] {
   while ((match = regex.exec(text)) !== null) {
     try {
       const parsed = JSON.parse(match[1]);
-      if (parsed && typeof parsed.description === 'string' && Array.isArray(parsed.changes)) {
-        proposals.push(parsed as ChatChangeProposal);
-      }
+      if (isChatChangeProposal(parsed)) proposals.push(parsed);
     } catch {
       // Malformed JSON — skip
     }

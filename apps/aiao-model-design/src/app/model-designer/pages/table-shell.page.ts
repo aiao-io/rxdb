@@ -199,10 +199,12 @@ export default class TableShellPage {
   protected readonly state = inject(DesignerStateService);
   readonly extendsOptions = EXTENDS_OPTIONS;
 
-  readonly entityId = input.required<string>();
+  // 路由参数通过 component input binding 注入，组件首次计算 signal 时可能尚未到位。
+  readonly entityId = input<string>();
 
   readonly activeEntity = computed<DesignEntity | null>(() => {
     const id = this.entityId();
+    if (!id) return null;
     return this.state.entities().find(e => e.id === id) ?? null;
   });
 
@@ -240,6 +242,7 @@ export default class TableShellPage {
     // entity 选中同步
     effect(() => {
       const id = this.entityId();
+      if (!id) return;
       const entitySelected = this.state.onEntitySelected(id);
       if (!entitySelected && this.state.entities().length > 0) {
         void this.#router.navigate(['model-designer', 'canvas']);

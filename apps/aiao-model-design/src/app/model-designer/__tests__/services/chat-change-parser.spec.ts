@@ -75,4 +75,45 @@ describe('ChatChangeParser', () => {
     const proposals = parseChatChangeProposals(text);
     expect(proposals).toHaveLength(0);
   });
+
+  it.each([
+    ['null change', null],
+    ['unknown action', { action: 'dropDatabase', entityName: 'User', details: {} }],
+    ['missing entity name', { action: 'addEntity', details: {} }],
+    ['invalid entity name', { action: 'addEntity', entityName: 42, details: {} }],
+    ['invalid entity id', { action: 'addEntity', entityId: 42, entityName: 'User', details: {} }],
+    ['invalid details', { action: 'addEntity', entityName: 'User', details: null }],
+    ['array details', { action: 'addEntity', entityName: 'User', details: [] }]
+  ])('should reject proposal with %s', (_name, change) => {
+    const text = `\`\`\`json:model-change
+${JSON.stringify({ description: '非法提案', changes: [change] })}
+\`\`\``;
+
+    expect(parseChatChangeProposals(text)).toEqual([]);
+  });
+
+  it.each([
+    ['invalid description', { description: 42, changes: [] }],
+    ['invalid changes', { description: '非法提案', changes: {} }]
+  ])('should reject proposal with %s', (_name, proposal) => {
+    const text = `\`\`\`json:model-change
+${JSON.stringify(proposal)}
+\`\`\``;
+
+    expect(parseChatChangeProposals(text)).toEqual([]);
+  });
+
+  it('should keep compatibility with proposals that omit entityId', () => {
+    const text = `\`\`\`json:model-change
+${JSON.stringify({
+  description: '兼容旧格式',
+  changes: [{ action: 'addEntity', entityName: 'Audit', details: {} }]
+})}
+\`\`\``;
+
+    expect(parseChatChangeProposals(text)[0]).toMatchObject({
+      description: '兼容旧格式',
+      changes: [{ action: 'addEntity', entityName: 'Audit', details: {} }]
+    });
+  });
 });

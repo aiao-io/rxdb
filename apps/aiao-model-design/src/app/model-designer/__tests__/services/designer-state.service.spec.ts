@@ -407,6 +407,15 @@ describe('DesignerStateService — 删除二次确认 / 关系 / 类型变更', 
       expect(service.generatedErrors()).not.toHaveLength(0);
       expect(service.codePreviewOpen()).toBe(true);
     });
+
+    it('MUST fail closed when no remote schema source is configured', async () => {
+      validateEntityIdentitySpy.mockReturnValue({ valid: true, errors: [] });
+      await service.onCompareSql();
+
+      expect(service.generatedFiles()).toEqual([]);
+      expect(service.generatedErrors()).toEqual([DEFAULT_TRANSLATIONS.sql.remoteUnavailable]);
+      expect(service.codePreviewOpen()).toBe(true);
+    });
   });
 
   describe('client package archive', () => {
