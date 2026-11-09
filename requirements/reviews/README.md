@@ -1,7 +1,7 @@
 # AI Review 规则与记录
 
-本目录按真实项目名保存代码问题，作为不同 AI 模型和维护者之间的交接记录。只为有证据的问题建文件；修复、异议与最终结论继续留在原文件中。
-操作入口为仓库 [ai-code-review skill](../../.agents/skills/ai-code-review/SKILL.md)，设计依据见 [全量与增量评审方案](../incremental-ai-code-review.md)。
+本目录按项目保存代码问题，是不同 AI 模型与维护者之间的交接记录。只为有证据的问题建文件；修复、复核、异议与最终结论都追加在原文件里。
+操作入口是 [ai-code-review skill](../../.agents/skills/ai-code-review/SKILL.md)，记账脚本是 `scripts/ai-review/ai-review.mjs`，设计依据见[全量与增量评审方案](../incremental-ai-code-review.md)。
 
 ## 目录结构
 
@@ -12,36 +12,39 @@ reviews/
   rxdb/
     RV-<uuid>.md
   rxdb-angular/
-    RV-<uuid>.md
-  dev-rxdb-p2p/
+    RV-<uuid>-<slug>.md
+  aiao__source/
     RV-<uuid>.md
 ```
 
-新记录统一位于仓库根的 `requirements/reviews/<projectKey>/`，包括应用项目；一个问题一个文件。
-`project` 填真实 Nx 项目名；普通项目名直接作目录名，含 `/`、`@` 等字符时按 UTF-8 百分号编码形成可逆 `projectKey`，例如 `@aiao/source` 对应 `%40aiao%2Fsource`。
-新 ID 为 `RV-` 加无连字符 UUID；旧 `RV-001` 等 ID 继续有效，不为迁移而重分配编号。
+- 所有 Nx 项目（含应用）的新问题都写在仓库根的 `requirements/reviews/<projectKey>/`，一个问题一个文件。
+- `project` 字段填真实 Nx 项目名；目录名 `projectKey` 是项目名去掉开头的 `@`、`/` 换成 `__`（`@aiao/source` → `aiao__source`），`node scripts/ai-review/ai-review.mjs projects` 会列出。
+- 新 ID 是 `RV-` 加无连字符 UUIDv7，用 `node scripts/ai-review/ai-review.mjs new-id` 生成；文件名可加 `-<英文 slug>`。旧的 `RV-001` 等编号继续有效，不为迁移重新编号。
+- 没有发现就不建目录，也不写空报告或「检查通过」条目。覆盖与进度存在本地 `<git common dir>/ai-review/v1/`，记录里不抄文件清单。
 
-没有发现问题就不创建项目目录、空报告或“检查通过”条目。已创建记录保留处置结果；文件仍存在不代表问题仍未解决，以其 YAML `status` 为准。
-代码评审的执行范围、覆盖和检查点放本地运行状态及终端输出，问题 Markdown 只记录问题与处理证据，不抄全量文件清单。
+## 记录跟着代码走
 
-## 状态与事实源
+- 记录描述的是它所在那棵树的代码：写在被评审快照的检出位，随 merge / cherry-pick 一起走，不按分支另建副本。`found_*` 字段只记首次发现时的分支、快照与范围。
+- 同一棵树里同一根因只留一份。各分支分别发现、合并后出现两份时，保留创建较早的一份，把另一份的事件按时间并入，删除重复文件，并在保留的记录里追加一个 merge 事件写明来源 ID（原文件可从 git 历史取回）。
+- 状态只对最近一次复核的快照成立；`Resolved` 不代表已经合入 main，也不代表别的分支修好了。
+- 跨项目的同根因问题归根因项目，受影响方写进 `affected_projects`；相关但根因不同的记录写进 `related_findings`。
 
-状态定义见 [CONVENTIONS.md](../CONVENTIONS.md#状态定义)。问题记录的 YAML `status` 是问题当前状态事实源；正文处理事件保存依据。
-`Resolved`、`Dismissed`、`Accepted` 的记录保留，便于核对修复、复发和不修原因。关闭只对记录中的分支与证据范围有效，不代表已经合入 main。
+## 状态与证据
 
-同一项目、分支和根因的问题沿用原 ID，不按模型、运行或评审范围重复建文件；其他模型或其他 range 发现相同问题追加证据即可。记录的 range/base/scope 是发现来源，不参与问题主身份。
-同一问题在不同分支分别建记录，以 `related_findings` 关联，各自修复与关闭。跨项目同根因问题归根因项目，关联方填 `affected_projects`。
+- 状态定义与转移表见 [CONVENTIONS.md](../CONVENTIONS.md#状态定义)。YAML `status` 是问题当前状态的事实源，正文事件保存依据；`Resolved`、`Dismissed`、`Accepted` 的记录都保留。
+- 严重程度见 skill 的[评审标准](../../.agents/skills/ai-code-review/references/rubric.md)。
+- 证据写成行内代码 `path:line` 并注明快照 SHA，或用带 SHA 的 GitHub 永久链接。不写指向源码的相对链接：记录永久保留，`pnpm audit:requirements` 会校验本目录的相对链接与行号，代码一改 CI 就红。
 
 ## 工作流
 
-1. 全量或增量评审发现具体问题，使用 [review.template.md](review.template.md) 建记录，状态为 `Open`，填写真实来源分支、快照、项目和评审者。
-2. 只修一个问题时按 ID 加载该文件，完成必要代码和回归，记录修改、快照、命令与实际结果，标为 `Fixed`。
-3. 复核确认修复有效且必要验证通过，追加复核事件并改为 `Resolved`。可以由不同模型或同一模型承担不同步骤，如实记录角色。
-4. 不赞同发现或认为无需修改时，追加反证和不修理由，标为 `Disputed`；复核证明不成立可改为 `Dismissed`，维护者明确接受已确认风险才可改为 `Accepted`。
-5. 相关代码或前提变化时重新核对，必要时重开为 `Open`；保留旧修复和处置证据，不能因本轮没有再次提及就自动关闭。
+1. 评审发现问题：按 [review.template.md](review.template.md) 建记录，状态 `Open`，填写真实的快照、项目与评审者。
+2. fix：按 ID 加载记录，先写回归测试；修完且检查通过才标 `Fixed`，检查没过就只追加事件。
+3. verify：修复有效且必要验证通过，改为 `Resolved`；问题因其他改动消失、原发现不成立或维护者接受风险，按转移表改为 `Resolved`、`Dismissed` 或 `Accepted`。
+4. dispute：不同意发现或认为不必修，追加反证与理由，标为 `Disputed`，等复核或维护者裁决。
+5. 相关代码或前提变化时重新核对，必要时重开为 `Open`；旧的修复与处置证据保留，不因本轮没提到就自动关闭。
 
-每个事件记录独立 eventId、实际 actor、时间、输入/输出快照、状态变化、结论、验证及剩余事项。模型版本取不到就写 `unknown`，不能把客户端名当作模型名。
-多个执行者写同一文件时，写前核对原内容摘要并重读归并，避免覆盖刚追加的修复或异议。提交、推送与评论沿用用户授权。
+每个事件写独立 eventId、实际执行者、时间、输入 / 输出快照、状态变化、结论、验证与剩余事项。模型版本取不到写 `unknown`，不把客户端名当模型名。
+多人或多个模型写同一文件时，写前记下摘要、写入前再核对，变了就重读合并，不覆盖刚追加的修复或异议。提交、推送与评论沿用用户授权。
 
 ## 历史记录兼容
 
