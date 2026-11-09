@@ -7,4 +7,4 @@ export interface LocalSupabaseEnvironment {
     AIAO_SUPABASE_ANON_KEY: string;
   };
 }
-export function localEnvironment(): Promise<LocalSupabaseEnvironment>;
+export function localEnvironment(environmentFile?: string): Promise<LocalSupabaseEnvironment>;

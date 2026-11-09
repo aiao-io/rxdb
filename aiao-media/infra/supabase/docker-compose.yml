@@ -6,7 +6,7 @@ services:
     image: supabase/postgres:17.6.1.136
     restart: unless-stopped
     ports:
-      - '127.0.0.1:${DB_PORT:-54322}:5432'
+      - '127.0.0.1:${DB_PORT:?Run pnpm nx dev aiao-media}:5432'
     environment:
       POSTGRES_HOST: /var/run/postgresql
       PGPORT: 5432
@@ -41,7 +41,7 @@ services:
     environment:
       GOTRUE_API_HOST: 0.0.0.0
       GOTRUE_API_PORT: 9999
-      API_EXTERNAL_URL: http://127.0.0.1:${API_PORT:-54321}
+      API_EXTERNAL_URL: http://127.0.0.1:${API_PORT}
       GOTRUE_DB_DRIVER: postgres
       GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/postgres
       GOTRUE_SITE_URL: http://localhost:4300
@@ -146,7 +146,7 @@ services:
       realtime:
         condition: service_started
     ports:
-      - '127.0.0.1:${API_PORT:-54321}:8000'
+      - '127.0.0.1:${API_PORT:?Run pnpm nx dev aiao-media}:8000'
     environment:
       KONG_DATABASE: 'off'
       KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
@@ -167,7 +167,7 @@ services:
     image: inbucket/inbucket:3.0.3
     restart: unless-stopped
     ports:
-      - '127.0.0.1:${MAIL_PORT:-54324}:9000'
+      - '127.0.0.1:${MAIL_PORT:?Run pnpm nx dev aiao-media}:9000'
     environment:
       INBUCKET_WEB_ADDR: 0.0.0.0:9000
       INBUCKET_SMTP_ADDR: 0.0.0.0:2500
@@ -200,7 +200,7 @@ services:
       meta:
         condition: service_started
     ports:
-      - '127.0.0.1:${STUDIO_PORT:-54323}:3000'
+      - '127.0.0.1:${STUDIO_PORT:?Run pnpm nx dev aiao-media}:3000'
     environment:
       HOSTNAME: 0.0.0.0
       STUDIO_PG_META_URL: http://meta:8080
@@ -212,7 +212,7 @@ services:
       DEFAULT_ORGANIZATION_NAME: Aiao Local
       DEFAULT_PROJECT_NAME: aiao-media
       SUPABASE_URL: http://kong:8000
-      SUPABASE_PUBLIC_URL: http://127.0.0.1:${API_PORT:-54321}
+      SUPABASE_PUBLIC_URL: http://127.0.0.1:${API_PORT}
       SUPABASE_ANON_KEY: ${ANON_KEY}
       SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
       AUTH_JWT_SECRET: ${JWT_SECRET}

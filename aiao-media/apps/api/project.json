@@ -9,7 +9,7 @@
       "executor": "nx:run-commands",
       "continuous": true,
       "cache": false,
-      "dependsOn": ["^build", "aiao-media:dev-config"],
+      "dependsOn": ["^build", "aiao-media:dev-ports", "aiao-media:dev-config"],
       "readyWhen": {
         "url": "http://127.0.0.1:8787/api/templates"
       },

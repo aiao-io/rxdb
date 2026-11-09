@@ -79,9 +79,9 @@ Wrangler 会自动读取被 Git 忽略的 `../../deploy/cloudflare/.dev.vars`（
 
 ### 启动本地 Supabase
 
-本机调试和真实服务验收用 Docker Compose 运行本地服务（[docker-compose.yml](../../infra/supabase/docker-compose.yml)）：Postgres、Auth、PostgREST、Realtime、Kong 网关和 Inbucket 邮箱，只监听 127.0.0.1。开发凭据在首次启动时生成到被 Git 忽略的 `../../infra/supabase/.env`，已存在则沿用；端口也在该文件里改。
+本机调试和真实服务验收用 Docker Compose 运行本地服务（[docker-compose.yml](../../infra/supabase/docker-compose.yml)）：Postgres、Auth、PostgREST、Realtime、Kong 网关和 Inbucket 邮箱，只监听 127.0.0.1。开发凭据在首次启动时生成到被 Git 忽略的 `../../infra/supabase/.env`，已存在则沿用。端口固定在已提交的 `../../infra/supabase/ports.env`，私有 `.env` 中的旧端口值不会生效。
 
-| 默认端口 | 服务                                             |
+| 固定端口 | 服务                                             |
 | -------- | ------------------------------------------------ |
 | 54321    | API 网关（Kong），即前端用的 `AIAO_SUPABASE_URL` |
 | 54322    | Postgres                                         |
@@ -129,7 +129,7 @@ node aiao-media/scripts/supabase/supabase-local.mjs preview
 
 ### 注册、同步和后台
 
-1. 点账号入口注册。本地 Auth 不自动确认邮箱，到启动日志显示的 Mailbox / Inbucket 地址收信并点确认链接，再登录。默认是 `http://127.0.0.1:54324`，实际端口取自 `../../infra/supabase/.env` 的 `MAIL_PORT`。
+1. 点账号入口注册。本地 Auth 不自动确认邮箱，到 `http://127.0.0.1:54324`（Inbucket）收信并点确认链接，再登录。
 2. 登录不会自动上传。在账号窗口里点「启用同步」后，才同步草稿、供应商公开配置和作品信息；API Key 留在本机，原图需单独确认才上传。设置页的「同步」分区（`/providers#sync`）只提供平台账号入口；另一设备使用同一账号即可继续同步。
 3. 首个管理员用 `pnpm nx run aiao-media:admin-membership --user-id=<Auth 用户 UUID> --state=enabled` 授权（UUID 在 Studio 的 `auth.users` 表里取）。后台界面属于独立 `apps/admin` 应用，通过内部部署入口访问；主站不公开后台路由，直达 `/admin` 返回 404。后台接口在 Worker 里，只有生产形态预览提供。
 
@@ -154,7 +154,7 @@ pnpm nx run aiao-media:supabase-down
 常见问题：
 
 - 数据库认证失败，或 `supabase-up` 因服务不健康而超时：常见原因是数据卷与 `../../infra/supabase/.env` 的密码不匹配，`supabase-logs` 可确认。换一个 `COMPOSE_PROJECT_NAME` 即得到全新的卷；确需清空该项目的本地数据时，先 `supabase-down`，再 `docker volume rm ${COMPOSE_PROJECT_NAME}_db-data ${COMPOSE_PROJECT_NAME}_db-config`。
-- 端口被占用：改 `../../infra/supabase/.env` 里的 `API_PORT`、`DB_PORT`、`STUDIO_PORT`、`MAIL_PORT`（四个互不相同，范围 1024–65535），前端用的地址随 `API_PORT` 变化。
+- 端口被占用：先停止占用固定端口的服务，再重新运行；不自动换号，也不通过私有 `.env` 改端口。多个检出目录不能同时占用同一套固定端口。
 
 ### 配置统一平台 Supabase
 

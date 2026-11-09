@@ -12,7 +12,13 @@ test('local development isolates Worker secrets and needs no frontend build', as
   const config = {
     main: 'src/local-first-worker.ts',
     name: 'aiao-media',
-    assets: { directory: '../web/dist/browser', binding: 'ASSETS' },
+    assets: {
+      directory: '../web/dist/browser',
+      binding: 'ASSETS',
+      html_handling: 'none',
+      not_found_handling: 'single-page-application',
+      run_worker_first: ['/api/*', '/admin', '/admin/*']
+    },
     vars: { ALLOWED_PROVIDER_BASE_URLS: '["https://provider.test"]' },
     durable_objects: { bindings: [{ name: 'RELAY_TASKS', class_name: 'RelayTask' }] },
     r2_buckets: [{ binding: 'RELAY_RESULTS', bucket_name: 'test-results' }]
@@ -32,7 +38,16 @@ test('local development isolates Worker secrets and needs no frontend build', as
     await writeDevelopmentConfig(root, local);
 
     const generated = JSON.parse(await readFile(resolve(api, '.wrangler/local-dev/wrangler.json'), 'utf8'));
-    assert.equal(generated.assets, undefined);
+    assert.deepEqual(generated.assets, {
+      ...config.assets,
+      directory: resolve(api, '.wrangler/local-dev/assets'),
+      html_handling: 'auto-trailing-slash',
+      not_found_handling: 'none'
+    });
+    const homepage = await readFile(resolve(generated.assets.directory, 'index.html'), 'utf8');
+    assert.match(homepage, /Aiao Media API/);
+    assert.match(homepage, /href="\/api\/templates"/);
+    assert.ok(!homepage.includes(local.env.SERVICE_ROLE_KEY));
     assert.equal(generated.main, resolve(api, config.main));
     assert.deepEqual(generated.vars, config.vars);
     assert.deepEqual(generated.durable_objects, config.durable_objects);

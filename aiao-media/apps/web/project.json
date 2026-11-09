@@ -15,6 +15,7 @@
         "^build",
         "prompt-assets",
         "prepare-assets",
+        "dev-ports",
         "dev-config",
         "supabase-dev",
         {
@@ -22,7 +23,7 @@
           "target": "dev",
           "waitFor": "ready"
         },
-        "aiao-media-admin:serve"
+        "aiao-media-admin:dev"
       ],
       "readyWhen": {
         "port": 4300
@@ -32,6 +33,14 @@
         "port": 4300,
         "prebundle": false,
         "proxyConfig": "aiao-media/scripts/dev/proxy.conf.mjs"
+      }
+    },
+    "dev-ports": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-media",
+        "command": "node scripts/dev/check-ports.mjs"
       }
     },
     "dev-config": {

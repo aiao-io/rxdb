@@ -6,6 +6,18 @@
   "sourceRoot": "aiao-media/apps/admin/src",
   "tags": [],
   "targets": {
+    "dev": {
+      "executor": "@angular/build:dev-server",
+      "continuous": true,
+      "cache": false,
+      "dependsOn": ["aiao-media:dev-ports", { "projects": ["aiao-media-api"], "target": "dev", "waitFor": "ready" }],
+      "readyWhen": { "port": 4302 },
+      "options": {
+        "buildTarget": "aiao-media-admin:build:development",
+        "port": 4302,
+        "proxyConfig": "aiao-media/scripts/dev/proxy.conf.mjs"
+      }
+    },
     "build": {
       "executor": "@angular/build:application",
       "outputs": ["{options.outputPath}"],

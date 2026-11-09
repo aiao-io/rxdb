@@ -8,6 +8,7 @@ import { parseEnv } from 'node:util';
 export const workspaceRoot = resolve(import.meta.dirname, '../..');
 const directory = resolve(workspaceRoot, 'infra/supabase');
 const envFile = resolve(directory, '.env');
+const portsFile = resolve(directory, 'ports.env');
 
 function token(role, secret) {
   const encode = data => Buffer.from(JSON.stringify(data)).toString('base64url');
@@ -16,10 +17,11 @@ function token(role, secret) {
   return `${data}.${createHmac('sha256', secret).update(data).digest('base64url')}`;
 }
 
-export async function localEnvironment() {
+export async function localEnvironment(environmentFile = envFile) {
+  const ports = parseEnv(await readFile(portsFile, 'utf8'));
   let env;
   try {
-    env = parseEnv(await readFile(envFile, 'utf8'));
+    env = { ...parseEnv(await readFile(environmentFile, 'utf8')), ...ports };
   } catch (error) {
     if (error.code === 'ENOENT') throw new Error('Run pnpm nx run aiao-media:supabase-init first.', { cause: error });
     throw error;
@@ -55,10 +57,6 @@ export async function localEnvironment() {
 async function initialize() {
   const secret = randomBytes(32).toString('hex');
   const initial = {
-    API_PORT: '54321',
-    DB_PORT: '54322',
-    STUDIO_PORT: '54323',
-    MAIL_PORT: '54324',
     POSTGRES_PASSWORD: randomBytes(24).toString('hex'),
     JWT_SECRET: secret,
     ANON_KEY: token('anon', secret),
@@ -78,7 +76,7 @@ async function initialize() {
     console.log('Created private local Supabase configuration.');
   } catch (error) {
     if (error.code !== 'EEXIST') throw error;
-    console.log('Kept existing local Supabase credentials and ports.');
+    console.log('Kept existing local Supabase credentials; ports are fixed by infra/supabase/ports.env.');
   }
   const { env } = await localEnvironment();
   const template = await readFile(resolve(directory, 'kong.template.yml'), 'utf8');
@@ -109,10 +107,20 @@ export function run(command, args, { input, env = process.env } = {}) {
 export async function compose(args, options) {
   // Do not inherit unrelated app .env values into Compose interpolation.
   const { env } = await localEnvironment();
-  return run('docker', ['compose', '--env-file', envFile, '-f', resolve(directory, 'docker-compose.yml'), ...args], {
-    ...options,
-    env: { ...process.env, ...env }
-  });
+  return run(
+    'docker',
+    [
+      'compose',
+      '--env-file',
+      envFile,
+      '--env-file',
+      portsFile,
+      '-f',
+      resolve(directory, 'docker-compose.yml'),
+      ...args
+    ],
+    { ...options, env: { ...process.env, ...env } }
+  );
 }
 
 async function main(action) {
