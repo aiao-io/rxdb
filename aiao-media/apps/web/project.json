@@ -407,7 +407,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "aiao-media/apps/web",
-        "command": "node --test scripts/*.test.mjs ../../scripts/supabase/build-production-supabase-bundle.test.mjs ../../scripts/product/product-sync-contract.test.mjs ../../scripts/supabase/migration.test.mjs"
+        "command": "node --test scripts/*.test.mjs ../../scripts/supabase/build-production-supabase-bundle.test.mjs ../../scripts/product/product-sync-contract.test.mjs ../../scripts/supabase/migration.test.mjs ../../scripts/supabase/supabase-local.test.mjs"
       },
       "dependsOn": ["aiao-media-api:script-test", "dev-test"]
     },
