@@ -117,7 +117,11 @@ describe('realmVitePlugin：指令序言', () => {
     ['块注释 banner', `/*! license */\n"use strict";${REALM_BINDING}.x;`, `/*! license */\n"use strict";`],
     ['行注释', `// generated\n'use strict';${REALM_BINDING}.x;`, `// generated\n'use strict';`],
     ['前置的其他指令', `"use client";"use strict";${REALM_BINDING}.x;`, `"use client";"use strict";`],
-    ['指令之间夹注释', `'use client'; /* keep */ "use strict" ;${REALM_BINDING}.x;`, `'use client'; /* keep */ "use strict" ;`]
+    [
+      '指令之间夹注释',
+      `'use client'; /* keep */ "use strict" ;${REALM_BINDING}.x;`,
+      `'use client'; /* keep */ "use strict" ;`
+    ]
   ])('%s：插在指令序言之后，chunk 仍是严格模式', (_case, code, prologue) => {
     const rewritten = rewrite(code);
 
@@ -149,9 +153,7 @@ describe('realmVitePlugin：指令序言', () => {
   });
 
   it('抖音入口：banner 或前置指令之后的 use strict 同样按严格入口拒绝', () => {
-    expect(() => generate('tt', { 'app.js': chunk('app.js', '/*! license */\n"use strict";') })).toThrow(
-      /use strict/
-    );
+    expect(() => generate('tt', { 'app.js': chunk('app.js', '/*! license */\n"use strict";') })).toThrow(/use strict/);
     expect(() => generate('tt', { 'app.js': chunk('app.js', '"use client";\n"use strict"\nfoo();') })).toThrow(
       /use strict/
     );

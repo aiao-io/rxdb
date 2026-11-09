@@ -35,6 +35,14 @@ describe('parseEntityFieldValue', () => {
     expect(parseEntityFieldValue('boolean', false)).toBe(false);
   });
 
+  // 与核心同根因（RV-01a1bba6ab29728087a86f29e433b88e）：SQLite INTEGER 列与远端常把布尔给成 0 / 1，数字 1 原先被解码成 false
+  it('数字 1 与字符串 "1" 同口径解码为 true，0 为 false', () => {
+    expect(parseEntityFieldValue('boolean', 1)).toBe(true);
+    expect(parseEntityFieldValue('boolean', 0)).toBe(false);
+    expect(parseEntityFieldValue('boolean', '0')).toBe(false);
+    expect(parseEntityFieldValueStrict('boolean', 1)).toEqual({ ok: true, value: true });
+  });
+
   it('should parse date', () => {
     const result = parseEntityFieldValue('date', '2026-01-01T00:00:00.000Z');
     expect(result).toBe('2026-01-01T00:00:00.000Z');

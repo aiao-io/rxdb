@@ -10,8 +10,8 @@
 import type { Subscription } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SyncType } from '../../entity/metadata-options.interface.js';
-import type { IRepository } from '../../repository/repository.interface.js';
 import type { RuleGroup } from '../../repository/query.interface.js';
+import type { IRepository } from '../../repository/repository.interface.js';
 import { EntityLocalCreatedEvent, EntityLocalUpdatedEvent } from '../../rxdb-events.js';
 import { RxDB } from '../../RxDB.js';
 import { createMockAdapter, type MockLocalAdapter } from '../fixtures/test-db-setup.js';

@@ -113,3 +113,15 @@ await db.destroy();
 - 改动：`packages/rxdb/src/RxDB.ts` 新增 `#teardown_map`（适配器名 → 拆的是哪一份缓存实例与拆完信号），`disconnect()` / `disconnectAll()` 同步登记、拆完按身份摘除（`#track_teardown`）；`connect()` 在终态判定之后、连接缓存之前查它，有在飞的拆卸就等它结算（成败都）再调一次 `connect()`。`disconnectAll()` 覆盖它开始时缓存着的每个名字。`connect()` / `disconnect()` / `disconnectAll()` 的 TSDoc 写明新语义。
 - 验证：回归 `packages/rxdb/src/__tests__/RxDB.disconnect-window.spec.ts`「拆卸窗口内的 connect() 不交出正在关闭的旧适配器」三条（单适配器 / disconnectAll / 两适配器只断一个）。修复前 3 failed（拆卸尚未结束时 `connect()` 已结算，`expected true to be false`）；修复后通过，并断言新实例不同于旧实例、`connected$` 为 `true`、`localAdapterSync` 指向新实例、未断开的那个适配器始终连着。生命周期 8 个文件 102/102 通过；本组改动文件 eslint（max-warnings 0）与 `tsc -p packages/rxdb/tsconfig.lib.json --noEmit` 通过。
 - 剩余事项：本组收尾统一跑 `rxdb:test` 整包后 verify；建议主会话在 CHANGELOG 的 Bug Fixes 记一条（拆卸窗口内同名 `connect()` 改为等拆卸结束后重新引导）。
+
+### EV-01a1c072b79579159836d8ed54613749：复核（核心整包通过，消费者待主会话）
+
+- 时间：2026-11-09T21:15:05+08:00
+- 操作：verify
+- 执行者：ai；anthropic/claude-opus-5-5；会话 aa117580-681a-4540-85b2-3c61967b2092（Claude Code 并行子 agent G03，复核角色）
+- 输入快照：工作区树 `2fd7ea2d2bcbd101339003bd55cc144fa886b6b7`（修复事件的输出快照）
+- 输出快照：工作区树 `59a948adcb0fe90699bfcf69c873e0dff61d1594`（`ai-review snapshot --worktree`，基于 `bad25587`（外部自动提交，含各组 WIP））
+- 状态：Fixed（不变）
+- 结论：核心侧修复有效：`pnpm nx run rxdb:test --exclude-task-dependencies --skip-nx-cache`（21:08:25 – 21:09:13，晚于本组全部代码改动）173 个文件，2815 通过 / 1 跳过，覆盖率 statements 95.86% / branches 92.76% / functions 96.14% / lines 96.52%；`rxdb:lint` 与 `tsc -p packages/rxdb/tsconfig.lib.json --noEmit` 通过。但「拆卸窗口内同名 `connect()` 等拆卸结束再引导」是公开生命周期语义的变化，三端绑定（Provider 卸载后立即重挂）、适配器与应用的测试经核心 **dist** 解析，本轮未重建 dist（并行规约禁止），必要的消费者验证尚未完成，暂不改为 Resolved。
+- 验证：见结论；消费者未跑。
+- 剩余事项：主会话重建核心 dist（`pnpm nx run-many -t build --projects='packages/*'`）后跑 `pnpm nx run-many -t test --projects=rxdb-react,rxdb-vue,rxdb-angular,rxdb-adapter-sqlite-core,rxdb-adapter-pglite,rxdb-adapter-wa-sqlite,rxdb-adapter-sqlite-wasm,rxdb-plugin-working-tree,rxdb-plugin-sync --parallel=1`，以及最终的 `pnpm test-all`；全绿后补 verify 事件改为 Resolved。

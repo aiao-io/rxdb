@@ -45,7 +45,7 @@ describe('usePersistedState（hydrate）', () => {
     const recoverable = vi.fn();
 
     await act(async () => {
-      root = hydrateRoot(container, <Theme namespace="hydrate-theme" />, { onRecoverableError: recoverable });
+      root = hydrateRoot(container, <Theme namespace='hydrate-theme' />, { onRecoverableError: recoverable });
     });
 
     expect(recoverable).not.toHaveBeenCalled();

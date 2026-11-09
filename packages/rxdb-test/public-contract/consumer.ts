@@ -58,17 +58,17 @@ import {
   type SyncOverrideNoteType
 } from '@aiao/rxdb-test';
 import {
+  checkConstraintFixtures,
   CheckQtyItem,
   CheckRangeItem,
   CheckXorItem,
+  conditionalUniqueFixtures,
   ConditionalUniqueRevision,
+  exclusionFixtures,
   ExclusionLine,
   ExclusionLineSlot,
   ExclusionOccurrence,
   ExclusionSegment,
-  checkConstraintFixtures,
-  conditionalUniqueFixtures,
-  exclusionFixtures,
   runCheckConstraintWriteBehaviorSuite,
   runConditionalUniqueWriteBehaviorSuite,
   runExclusionWriteBehaviorSuite,

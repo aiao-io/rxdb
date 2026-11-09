@@ -78,3 +78,15 @@ pr: null
 - 改动：`packages/rxdb/src/RxDB.ts` 拆卸本体抽成 `#disconnect_adapter(name, cached)`：`await cached` 之后、插件释放等待之后各核对一次缓存里是否仍是自己这一份，不是就整段退出（不二次关闭、不清理）；finally 的收尾 `#release_adapter_entry` 同样只在仍属自己这一代时执行。同一份实例的并发 `disconnect()` 经 `#teardown_map` 共用一次拆卸；`disconnectAll()` 接管单点拆卸的登记，拆完即摘，重连不必等那条可能永远等不到的旧释放（保留全局停机不等挂起安装的契约）。
 - 验证：`packages/rxdb/src/__tests__/RxDB.disconnect-window.spec.ts` 另两条：并发两次 `disconnect` 只关一次；旧 `disconnect` 被接管后 `getAdapter('local')` 与 `localAdapterSync` 都是新实例、工厂只调 2 次、旧实例只关 1 次、`destroy()` 关掉新实例。修复前 2 failed（`expected "vi.fn()" to be called 1 times, but got 2 times`；`getAdapter` 返回另一份实例）；修复后本文件 5/5，生命周期 8 个文件 102/102 通过；本组改动文件 eslint（max-warnings 0）与 `tsc -p packages/rxdb/tsconfig.lib.json --noEmit` 通过。
 - 剩余事项：本组收尾统一跑 `rxdb:test` 整包后 verify。
+
+### EV-01a1c072b7c471d2a6a3c570ea3536db：复核（核心整包通过，消费者待主会话）
+
+- 时间：2026-11-09T21:15:05+08:00
+- 操作：verify
+- 执行者：ai；anthropic/claude-opus-5-5；会话 aa117580-681a-4540-85b2-3c61967b2092（Claude Code 并行子 agent G03，复核角色）
+- 输入快照：工作区树 `2fd7ea2d2bcbd101339003bd55cc144fa886b6b7`（修复事件的输出快照）
+- 输出快照：工作区树 `59a948adcb0fe90699bfcf69c873e0dff61d1594`（`ai-review snapshot --worktree`，基于 `bad25587`（外部自动提交，含各组 WIP））
+- 状态：Fixed（不变）
+- 结论：核心侧修复有效：`pnpm nx run rxdb:test --exclude-task-dependencies --skip-nx-cache`（21:08:25 – 21:09:13）173 个文件，2815 通过 / 1 跳过，覆盖率 statements 95.86% / branches 92.76% / functions 96.14% / lines 96.52%；`rxdb:lint` 与 `tsc -p packages/rxdb/tsconfig.lib.json --noEmit` 通过。并发 `disconnect()` 共用一次拆卸、被 `disconnectAll()` 接管后不再二次关闭，是适配器可观察到的行为变化（`adapter.disconnect()` 调用次数），适配器、绑定与应用的测试经核心 dist 解析，本轮未验证，暂不改为 Resolved。
+- 验证：见结论；消费者未跑。
+- 剩余事项：同 RV-01a1ba3ae17c7e2eb56b5e4fd2c4e08f 的主会话命令（重建核心 dist 后跑三端绑定、四个本地适配器、working-tree / sync 插件，再 `pnpm test-all`），全绿后补 verify 事件改为 Resolved。

@@ -5,7 +5,7 @@
  * 分片执行之前实例可能已经换挂到另一套表、任务可能已经被清理：旧分片若仍拿着接收时筛好的
  * 负载，就会把主表上的行合进影子表的查询结果，并经 `createEntityRef` 打上新表集的身份。
  */
-import { firstValueFrom, filter } from 'rxjs';
+import { filter, firstValueFrom } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EntityBase } from '../../entity/entity-base.js';
 import { Entity } from '../../entity/entity.decorator.js';

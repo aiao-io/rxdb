@@ -34,7 +34,10 @@ const importedNames = (source: string): Map<string, Set<string>> => {
     const specifier = (statement.moduleSpecifier as ts.StringLiteral).text;
     const bindings = statement.importClause?.namedBindings;
     const names = bindings && ts.isNamedImports(bindings) ? bindings.elements : [];
-    imported.set(specifier, new Set([...(imported.get(specifier) ?? []), ...names.map(n => (n.propertyName ?? n.name).text)]));
+    imported.set(
+      specifier,
+      new Set([...(imported.get(specifier) ?? []), ...names.map(n => (n.propertyName ?? n.name).text)])
+    );
   }
   return imported;
 };

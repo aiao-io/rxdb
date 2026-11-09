@@ -7,7 +7,7 @@ range: project
 base_ref: null
 review_scopes: []
 scope_id: 'project:rxdb'
-status: Fixed
+status: Resolved
 severity: P2
 source_view: commit
 source_snapshot: '0ffa3c419fcc59dc3e13d695ca4658116134bfa0'
@@ -70,3 +70,28 @@ pr: null
 - 改动：`packages/rxdb/README.md`（快速开始的 `create`、事务速查第 1 / 2 条、迁移示例，各加一行说明）。
 - 验证：文档类，没有能把 README 片段类型检查进门禁的现成机制（`scripts/check-doc-code.mjs` 只查 `website/docs` 的 import 路径与语法）。按修正后的写法在真实 PGlite 内存库上跑闭环（`/tmp/claude-rvfix/G04/probe-readme-tx.mjs`，`dist` + `RxDBAdapterPGlite` memory）：普通对象被拒；`instantiate` 后 `create` 成功，`find` 读回 1 行（`title` = `write docs`、`done` = `false`）。
 - 剩余事项：同一错误写法还出现在 `website/docs/model-mutation/transaction.md:86`、`website/docs/adapters/pglite.md:164-165, 263`、`website/docs/adapters/sqlite.md:241`、`packages/rxdb-adapter-sqlite-core/README.md:28`（G10 / G06 范围，本条不改，已在报告列为跨组线索）。生成物 `packages/rxdb/skills/aiao-rxdb/SKILL.md` 若收录 README 片段需重新生成，交主会话。
+
+### EV-01a1c0528f687171832b7e6cced891c0：复核
+
+- 时间：2026-11-09T21:30:00+08:00
+- 操作：verify
+- 执行者：ai；anthropic/claude-opus-5-5；会话 aa117580-681a-4540-85b2-3c61967b2092（Claude Code 并行子 agent G04，复核角色）
+- 输入快照：工作区树 `69e635a6cc13240c82cc4f8c146507bb0f9b5a4b`（修复事件的输出快照）
+- 输出快照：工作区树 `48c585041df86f3f253a89fde3fe63b0a1e72b88`（`ai-review snapshot --worktree`，基于 `ebba026b`（外部自动提交，含各组 WIP））
+- 状态：Fixed → Resolved
+- 结论：README 里四处传普通对象的 `create` 都已改成实体实例；修正后的快速开始在真实 PGlite 上完成「连接 → 创建 → 读取」闭环，旧写法照旧在写入前被拒，与 `IRepository.create(entity: InstanceType<T>)` 的类型一致。
+- 验证：`/tmp/claude-rvfix/G04/probe-readme-tx.mjs` 复跑结果同修复事件；`./node_modules/.bin/prettier --check packages/rxdb/README.md` 通过。
+- 剩余事项：网站与 sqlite-core README 的同类写法（见修复事件）由对应组处理。
+
+### EV-01a1c07ec1ca74cdb5fbd9d3e2c3dd37：修复（同根因补修）
+
+- 时间：2026-11-09T21:28:15+08:00
+- 操作：fix
+- 执行者：ai；anthropic/claude-opus-5-5；会话 aa117580-681a-4540-85b2-3c61967b2092（Claude Code 并行子 agent G06，按主会话转交）
+- 输入快照：`1b5fb4e43f449bace1d6f67df78e55a129863f50`（提交视图）
+- 输出快照：工作区树 `14bcdb7ce13ca6569bec0ab10e2745b9da40fa31`（`ai-review snapshot --worktree`，基于 `ebba026b`（外部自动提交，含各组 WIP））
+- 状态：Resolved（不变）
+- 结论：修复事件剩余事项里点名的 `packages/rxdb-adapter-sqlite-core/README.md:28` 是同一错误写法（事务示例 `repo.create({ title: 'inside tx' })` 传普通对象），按核心 README 的同一改法补上。
+- 改动：`packages/rxdb-adapter-sqlite-core/README.md` 事务 API 示例改为 `repo.create(rxdb.entityManager.instantiate(Todo, { title: 'inside tx' }))`，注释补「仓库只收实体实例，不收普通对象」。
+- 验证：`./node_modules/.bin/prettier --check packages/rxdb-adapter-sqlite-core/README.md` 通过；写法与已复核的核心 README 一致（`EntityManager.instantiate` 见 `packages/rxdb/src/entity/entity-manager.ts:306`），文档类无自动化回归。
+- 剩余事项：网站文档的同类写法仍归 G10。

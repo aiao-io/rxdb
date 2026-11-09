@@ -7,7 +7,7 @@ range: project
 base_ref: null
 review_scopes: []
 scope_id: 'project:rxdb'
-status: Fixed
+status: Resolved
 severity: P2
 source_view: commit
 source_snapshot: '0ffa3c419fcc59dc3e13d695ca4658116134bfa0'
@@ -74,3 +74,15 @@ pr: null
 - 改动：`packages/rxdb/src/entity/metadata-transition.ts`（`sugarCheckNames` 集合与两处登记 / 注销）；新增 `packages/rxdb/src/__tests__/entity/check-constraint-inheritance.spec.ts`（父显式同名约束在子类重声明后仍在且编译为 `("qty" > 0)`、注册期零违规；继承来的语法糖照旧摘除；三层继承中间层显式覆盖祖先语法糖后孙类重声明仍保留；子类自身语法糖覆盖父类同名显式约束）。
 - 验证：修复前该文件 2 failed（`expected [] to deeply equal [ 'qty' ]`，父显式约束与三层继承两条）、2 passed；修复后 4 passed，`check-constraint.spec.ts` 同跑全绿。两后端 DDL 用临时探针核对（放在被忽略的 `src/__tests__/tmp/`，跑完即删）：`rxdb-adapter-pglite` 与 `rxdb-adapter-sqlite-core` 的 `create_table_sql` 对子类都生成 `CONSTRAINT "ck_G04Child_qty_…" CHECK (("qty" > 0))`（两包测试经 alias / tsconfig paths 走核心源码）。eslint 与 lib `tsc --noEmit` 通过。
 - 剩余事项：已有库若按旧元数据建过子类表（缺这条 CHECK），升级后 `connect()` 会按约束漂移报 `RxDBConstraintDriftError`，需迁移补约束——这是契约本来的要求（表上缺了声明的约束），CHANGELOG 修复条目须写明，交主会话。
+
+### EV-01a1c0528a4c7d1e8bd329aef29df14e：复核
+
+- 时间：2026-11-09T21:26:00+08:00
+- 操作：verify
+- 执行者：ai；anthropic/claude-opus-5-5；会话 aa117580-681a-4540-85b2-3c61967b2092（Claude Code 并行子 agent G04，复核角色）
+- 输入快照：工作区树 `69e635a6cc13240c82cc4f8c146507bb0f9b5a4b`（修复事件的输出快照）
+- 输出快照：工作区树 `48c585041df86f3f253a89fde3fe63b0a1e72b88`（`ai-review snapshot --worktree`，基于 `ebba026b`（外部自动提交，含各组 WIP））
+- 状态：Fixed → Resolved
+- 结论：父类显式、与字段同名的 CHECK 在子类重声明字段后保留并进入两后端 DDL；继承来的属性级语法糖仍按原规则摘除，子类自身语法糖仍覆盖同名约束，AC#17 的四种组合各有用例。只有命中原触发条件（约束名与被重声明字段同名）的实体，约束集合才与修复前不同。
+- 验证：整包复跑（21:10～21:20）：`packages/rxdb` 下 `npx vitest run --maxWorkers=3`，排除 G03 / G05 正在推进的两份先红用例（不归本组）→ 171 files / 2804 passed / 1 skipped，覆盖率 95.62% / 92.48% / 96.02% / 96.27%（含既有 `check-constraint.spec.ts`、`constraint-drift.spec.ts`）；`pnpm nx lint rxdb --exclude-task-dependencies` 通过；lib `tsc --noEmit` 0 错；`rxdb-adapter-sqlite-core` 整包 74 files / 1613 passed / 21 skipped；`rxdb-adapter-pglite` 整包 190 files 中 188 passed，2 条红在工作树一致性的保存写回路径（G05 WIP），与约束编译无关。
+- 剩余事项：无（CHANGELOG 说明见修复事件）。

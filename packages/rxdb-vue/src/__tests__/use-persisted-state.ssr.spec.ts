@@ -6,9 +6,9 @@
  * 长驻 SSR 进程会连续、并发地处理不同用户的请求。服务端状态按 SSR 上下文（每个请求一份）隔离：
  * 同一请求内同 key 仍是同一份状态，请求之间互不可见。
  */
+import { describe, expect, it } from 'vitest';
 import { createSSRApp, defineComponent, h } from 'vue';
 import { renderToString } from 'vue/server-renderer';
-import { describe, expect, it } from 'vitest';
 import { usePersistedState } from '../use-persisted-state';
 
 const Profile = defineComponent({
@@ -44,9 +44,7 @@ describe('usePersistedState（SSR）', () => {
   });
 
   it('连续两个请求用同一业务键时，各自渲染本次的 initialValue', async () => {
-    expect(await renderToString(createSSRApp(Profile, { secret: 'alice-private' }))).toBe(
-      '<span>alice-private</span>'
-    );
+    expect(await renderToString(createSSRApp(Profile, { secret: 'alice-private' }))).toBe('<span>alice-private</span>');
     expect(await renderToString(createSSRApp(Profile, { secret: 'bob-private' }))).toBe('<span>bob-private</span>');
   });
 

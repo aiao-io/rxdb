@@ -7,7 +7,11 @@
  * 放进组件执行，用次数上限拦住失控的循环，断言稳定挂载只读一次、真的换挂才再读一次。
  */
 import { WorktreeTableSet, type RxDB } from '@aiao/rxdb';
-import { createWorkingTreeHookStubs, createWorktreeHookStubs, statusWith } from '@aiao/rxdb-plugin-working-tree/testing';
+import {
+  createWorkingTreeHookStubs,
+  createWorktreeHookStubs,
+  statusWith
+} from '@aiao/rxdb-plugin-working-tree/testing';
 import { RxDBProvider } from '@aiao/rxdb-react';
 import { act, cleanup, render } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
@@ -55,11 +59,11 @@ describe('README：订阅 mounted 重读工作树状态', () => {
   it('示例的 effect 在稳定挂载时只读一次，换挂之后再读一次', async () => {
     const runReadmeEffect = new Function('useEffect', 'tree', 'worktrees', readmeEffectLine());
     let effectRuns = 0;
+    // 依赖数组原样取自 README，正是被测对象
     const cappedUseEffect = (effect: () => void, deps: readonly unknown[]): void =>
       useEffect(() => {
         effectRuns += 1;
         if (effectRuns <= EFFECT_RUN_CAP) effect();
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- 依赖数组取自 README 原文，正是被测对象
       }, deps);
     const ReadmePanel = () => {
       const worktrees = useWorktrees();
