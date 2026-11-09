@@ -231,7 +231,8 @@ describe('运行方式', () => {
     const select = dialog.querySelector<HTMLSelectElement>('select[name="runtime"]');
     if (!select) throw new Error('运行方式设置缺失');
     select.value = 'esbuild-wasm';
-    dialog.querySelector('form')?.dispatchEvent(new Event('submit'));
+    select.dispatchEvent(new Event('change'));
+    dialog.close();
     await vi.waitFor(() =>
       expect(catalog.putPreferences).toHaveBeenCalledWith(expect.objectContaining({ runtime: 'esbuild-wasm' }))
     );

@@ -5,6 +5,8 @@ import { getSearchQuery, search, searchKeymap, setSearchQuery, type SearchQuery 
 import { EditorState } from '@codemirror/state';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { EditorView, highlightSpecialChars, keymap, lineNumbers } from '@codemirror/view';
+import type { WorkbenchEditorEngine } from './editor.js';
+import { loadMonacoDiff } from './monaco-loader.js';
 import type { WorkbenchDiff, WorkbenchFileVersion } from './session.js';
 import { workbenchDiffStyle } from './workbench-diff-style.js';
 import { createCodicon } from './workbench-icons.js';
@@ -14,6 +16,9 @@ export interface WorkbenchDiffHandle {
   layout(): void;
   dispose(): void;
 }
+
+/** 将 Git 快照挂载为独立的只读比较。 */
+export type WorkbenchDiffMount = (host: HTMLElement, diff: WorkbenchDiff) => WorkbenchDiffHandle;
 
 function lineEnding(text: string): string {
   const remaining = text.replace(/\r\n/g, '');
@@ -90,8 +95,78 @@ async function loadLanguage(path: string, status: HTMLElement): Promise<Language
   return support;
 }
 
-/** 按精确 Git 文本模型创建只读双栏比较；行尾与 BOM 差异不依赖 MergeView 的行归一化。 */
-export async function createWorkbenchDiff(parent: HTMLElement, diff: WorkbenchDiff): Promise<WorkbenchDiffHandle> {
+async function mountDiff(
+  parent: HTMLElement,
+  diff: WorkbenchDiff,
+  engine: WorkbenchEditorEngine,
+  status: HTMLElement,
+  validate: () => void
+): Promise<WorkbenchDiffHandle> {
+  if (engine === 'monaco') {
+    status.textContent = '正在加载 Monaco…';
+    const mount = await loadMonacoDiff();
+    validate();
+    const view = mount(parent, diff);
+    status.textContent = 'Monaco · 只读比较';
+    return view;
+  }
+  const support = await loadLanguage(diff.path, status);
+  validate();
+  const labels = diff.kind === 'staged' ? ['HEAD', 'index'] : ['index', 'worktree'];
+  const mirrorSearchQuery = EditorView.updateListener.of(update => {
+    const other =
+      update.view === merge?.a ? merge.b
+      : update.view === merge?.b ? merge.a
+      : undefined;
+    if (!other) return;
+    const changed = update.transactions.some(transaction =>
+      transaction.effects.some(effect => effect.is(setSearchQuery))
+    );
+    if (!changed) return;
+    const query = getSearchQuery(update.view.state);
+    if (!query.valid || searchQueryKey(query) === searchQueryKey(getSearchQuery(other.state))) return;
+    other.dispatch({ effects: setSearchQuery.of(query) });
+  });
+  const extensions = [
+    oneDark,
+    lineNumbers(),
+    highlightSpecialChars(),
+    EditorState.readOnly.of(true),
+    EditorView.editable.of(false),
+    search({ top: true }),
+    keymap.of(searchKeymap),
+    mirrorSearchQuery,
+    ...(support ? [support.extension] : [])
+  ];
+  const side = (version: WorkbenchFileVersion, label: string) => ({
+    doc: textDocument(version),
+    extensions: [
+      ...extensions,
+      EditorView.contentAttributes.of({ 'aria-label': `${label}（只读）`, 'aria-readonly': 'true' })
+    ]
+  });
+  const merge = new MergeView({
+    parent,
+    a: side(diff.base, labels[0]),
+    b: side(diff.modified, labels[1]),
+    highlightChanges: true,
+    gutter: true
+  });
+  return {
+    layout() {
+      merge.a.requestMeasure();
+      merge.b.requestMeasure();
+    },
+    dispose: () => merge.destroy()
+  };
+}
+
+/** 按所选引擎创建只读比较，并独立呈现精确 Git 文本的行尾与 BOM 差异。 */
+export async function createWorkbenchDiff(
+  parent: HTMLElement,
+  diff: WorkbenchDiff,
+  engine: WorkbenchEditorEngine = 'codemirror'
+): Promise<WorkbenchDiffHandle> {
   const connected = parent.isConnected;
   const wrapper = document.createElement('section');
   wrapper.className = 'wb-diff';
@@ -129,7 +204,7 @@ export async function createWorkbenchDiff(parent: HTMLElement, diff: WorkbenchDi
   }
   wrapper.append(status, body);
   parent.replaceChildren(wrapper);
-  let merge: MergeView | undefined;
+  let view: WorkbenchDiffHandle | undefined;
   let disposed = false;
   if (diff.base.binary || diff.modified.binary) {
     status.textContent = '二进制文件不进行文本比较';
@@ -142,56 +217,11 @@ export async function createWorkbenchDiff(parent: HTMLElement, diff: WorkbenchDi
     }
   } else {
     try {
-      const support = await loadLanguage(diff.path, status);
-      if ((connected && !parent.isConnected) || wrapper.parentElement !== parent) {
-        wrapper.remove();
-        throw new DOMException('差异窗口已关闭', 'AbortError');
-      }
-      // 一侧 pane 的查询变化镜像到对侧，两侧同时高亮；查询键相同（回声/导航）或非法查询不镜像。
-      const mirrorSearchQuery = EditorView.updateListener.of(update => {
-        const other =
-          update.view === merge?.a ? merge?.b
-          : update.view === merge?.b ? merge?.a
-          : undefined;
-        if (!other) return;
-        const changed = update.transactions.some(transaction =>
-          transaction.effects.some(effect => effect.is(setSearchQuery))
-        );
-        if (!changed) return;
-        const query = getSearchQuery(update.view.state);
-        if (!query.valid) return;
-        if (searchQueryKey(query) === searchQueryKey(getSearchQuery(other.state))) return;
-        other.dispatch({ effects: setSearchQuery.of(query) });
-      });
-      const extensions = [
-        oneDark,
-        lineNumbers(),
-        highlightSpecialChars(),
-        EditorState.readOnly.of(true),
-        EditorView.editable.of(false),
-        search({ top: true }),
-        keymap.of(searchKeymap),
-        mirrorSearchQuery,
-        ...(support ? [support.extension] : [])
-      ];
-      merge = new MergeView({
-        parent: body,
-        a: {
-          doc: textDocument(diff.base),
-          extensions: [
-            ...extensions,
-            EditorView.contentAttributes.of({ 'aria-label': `${labels[0]}（只读）`, 'aria-readonly': 'true' })
-          ]
-        },
-        b: {
-          doc: textDocument(diff.modified),
-          extensions: [
-            ...extensions,
-            EditorView.contentAttributes.of({ 'aria-label': `${labels[1]}（只读）`, 'aria-readonly': 'true' })
-          ]
-        },
-        highlightChanges: true,
-        gutter: true
+      view = await mountDiff(body, diff, engine, status, () => {
+        if ((connected && !parent.isConnected) || wrapper.parentElement !== parent) {
+          wrapper.remove();
+          throw new DOMException('差异窗口已关闭', 'AbortError');
+        }
       });
     } catch (cause) {
       if (cause instanceof DOMException && cause.name === 'AbortError') throw cause;
@@ -203,15 +233,12 @@ export async function createWorkbenchDiff(parent: HTMLElement, diff: WorkbenchDi
   }
   return {
     layout() {
-      if (!disposed) {
-        merge?.a.requestMeasure();
-        merge?.b.requestMeasure();
-      }
+      if (!disposed) view?.layout();
     },
     dispose() {
       if (disposed) return;
       disposed = true;
-      merge?.destroy();
+      view?.dispose();
       wrapper.remove();
     }
   };

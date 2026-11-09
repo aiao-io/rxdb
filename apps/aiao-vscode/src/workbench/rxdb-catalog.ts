@@ -168,9 +168,10 @@ export function createRxDBWorkbenchCatalog(db: RxDB): WorkbenchCatalog {
           entry: record.entry,
           updatedAt: record.lastOpenedAt
         })),
-        ...remoteRecords.map(record =>
-          githubProjectInfo(record.remoteOwner, record.remoteRepo, record.remoteBranch, record.lastOpenedAt)
-        )
+        ...remoteRecords.map(record => ({
+          ...githubProjectInfo(record.remoteOwner, record.remoteRepo, record.remoteBranch, record.lastOpenedAt),
+          name: record.name
+        }))
       ];
     },
     async put(project) {

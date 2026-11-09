@@ -7,13 +7,17 @@ import { getSearchQuery } from '@codemirror/search';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { loadMonacoDiff } from './monaco-loader.js';
 import type { WorkbenchDiff, WorkbenchFileVersion } from './session.js';
 import { createWorkbenchDiff } from './workbench-diff.js';
+
+vi.mock('./monaco-loader.js', () => ({ loadMonacoDiff: vi.fn() }));
 
 const disposals: (() => void)[] = [];
 afterEach(() => {
   disposals.splice(0).forEach(dispose => dispose());
   vi.restoreAllMocks();
+  vi.mocked(loadMonacoDiff).mockReset();
   document.body.replaceChildren();
 });
 const text = (value: string): WorkbenchFileVersion => ({
@@ -36,6 +40,66 @@ const host = () => {
 };
 
 describe('只读 Git 双栏差异', () => {
+  it('选择 Monaco 后加载原生 diff，并转发布局与幂等释放', async () => {
+    const handle = { layout: vi.fn(), dispose: vi.fn() };
+    const mount = vi.fn(() => handle);
+    vi.mocked(loadMonacoDiff).mockResolvedValue(mount);
+    const parent = host();
+    const diff = model();
+    const view = await createWorkbenchDiff(parent, diff, 'monaco');
+    expect(mount).toHaveBeenCalledExactlyOnceWith(parent.querySelector('.wb-diff-body'), diff);
+    expect(parent.querySelector('.cm-editor')).toBeNull();
+    expect(parent.textContent).toContain('index → worktree');
+    view.layout();
+    expect(handle.layout).toHaveBeenCalledOnce();
+    view.dispose();
+    view.dispose();
+    view.layout();
+    expect(handle.dispose).toHaveBeenCalledOnce();
+    expect(handle.layout).toHaveBeenCalledOnce();
+    expect(parent.children).toHaveLength(0);
+  });
+
+  it('Monaco 加载失败直接显示错误，不降级到 CodeMirror', async () => {
+    vi.mocked(loadMonacoDiff).mockRejectedValue(new Error('Monaco unavailable'));
+    const parent = host();
+    await expect(createWorkbenchDiff(parent, model(), 'monaco')).rejects.toThrow('Monaco unavailable');
+    expect(parent.querySelector('[role="alert"]')?.textContent).toContain('Monaco unavailable');
+    expect(parent.querySelector('.cm-editor')).toBeNull();
+  });
+
+  it('Monaco 加载期间宿主内容被替换，不创建迟到的编辑器', async () => {
+    const mount = vi.fn(() => ({ layout: vi.fn(), dispose: vi.fn() }));
+    let finish!: (value: typeof mount) => void;
+    vi.mocked(loadMonacoDiff).mockImplementation(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    const parent = host();
+    const pending = createWorkbenchDiff(parent, model(), 'monaco');
+    parent.replaceChildren();
+    finish(mount);
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    expect(mount).not.toHaveBeenCalled();
+  });
+
+  it('Monaco 设置下二进制仍显示字节说明，不加载编辑器', async () => {
+    const parent = host();
+    const view = await createWorkbenchDiff(
+      parent,
+      {
+        ...model(),
+        modified: { exists: true, binary: true, text: null, byteLength: 128 }
+      },
+      'monaco'
+    );
+    disposals.push(view.dispose);
+    expect(parent.textContent).toContain('128 字节');
+    expect(loadMonacoDiff).not.toHaveBeenCalled();
+  });
+
   it('双侧使用真实 readonly MergeView，显示工作区来源且标记变化', async () => {
     const parent = host();
     const view = await createWorkbenchDiff(parent, model());

@@ -288,7 +288,7 @@ export async function runRecoveryCase(page, expect) {
   await root.getByRole('button', { name: '设置', exact: true }).click();
   const settings = page.getByRole('dialog', { name: '设置', exact: true });
   await settings.locator('select[name="indent-unit"]').selectOption('    ');
-  await settings.getByRole('button', { name: '确定', exact: true }).click();
+  await settings.getByRole('button', { name: '关闭设置', exact: true }).click();
   await page.reload();
   await expect(root.locator('[data-slot="indent"]')).toHaveText('空格: 4');
   await expect(editor).toContainText('immediate-refresh-4');
@@ -352,7 +352,7 @@ export async function runEditorSwitchCase(page, expect) {
     await root.locator('[data-action="settings"]').click();
     const dialog = page.getByRole('dialog', { name: '设置', exact: true });
     await dialog.locator('select[name="editor-engine"]').selectOption(engine);
-    await dialog.getByRole('button', { name: '确定', exact: true }).click();
+    await dialog.getByRole('button', { name: '关闭设置', exact: true }).click();
     await expect(editorHost).toHaveAttribute('data-editor-engine', engine);
     await expect(editorHost).not.toHaveAttribute('aria-busy', 'true', { timeout: 30000 });
   };

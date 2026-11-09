@@ -295,6 +295,43 @@ try {
     await expect(workingView.modified).toContainText(markers.working);
   });
 
+  await step('open-staged-and-working-diffs-follow-editor-engine-and-remain-readonly', async () => {
+    const setEngine = async value => {
+      await root.getByRole('button', { name: '设置', exact: true }).click();
+      await root.locator('select[name="editor-engine"]').selectOption(value);
+      await root.getByRole('dialog').getByRole('button', { name: '关闭设置', exact: true }).click();
+    };
+    await setEngine('monaco');
+    await sidebar('git');
+    for (const kind of ['staged', 'working']) {
+      const panel = root.locator(`.wb-auxiliary-host[data-auxiliary-id="diff:${kind}:${a}"]`);
+      await expect(panel.locator('.monaco-diff-editor')).toHaveCount(1);
+      await expect(panel.locator('.cm-editor')).toHaveCount(0);
+      await row(a, kind).click();
+      const base = panel.locator('.editor.original .view-lines');
+      const modified = panel.locator('.editor.modified .view-lines');
+      await expect(modified).toContainText(kind === 'staged' ? markers.staged : markers.working);
+      if (kind === 'staged') {
+        await expect(base).not.toContainText(markers.staged);
+        await expect(modified).not.toContainText(markers.working);
+      } else {
+        await expect(base).toContainText(markers.staged);
+        await expect(base).not.toContainText(markers.working);
+      }
+      for (const side of ['original', 'modified']) {
+        await panel.locator(`.editor.${side} .view-lines`).click();
+        await page.keyboard.insertText('SCM_READONLY_EDIT');
+        await expect(panel.locator(`.editor.${side} .view-lines`)).not.toContainText('SCM_READONLY_EDIT');
+      }
+    }
+    await setEngine('codemirror');
+    for (const kind of ['staged', 'working']) {
+      const panel = root.locator(`.wb-auxiliary-host[data-auxiliary-id="diff:${kind}:${a}"]`);
+      await expect(panel.locator('.cm-editor')).toHaveCount(2);
+      await expect(panel.locator('.monaco-diff-editor')).toHaveCount(0);
+    }
+  });
+
   await step('per-file-unstage-and-index-only-mod-enter-commit-with-other-draft', async () => {
     await clickFileAction(a, 'staged', 'unstage');
     await count('staged', 0);

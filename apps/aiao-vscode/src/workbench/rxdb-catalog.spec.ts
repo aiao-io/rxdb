@@ -226,6 +226,25 @@ describe('RxDB workbench project catalog', () => {
     ]);
   });
 
+  it('项目重命名：远程项目重新读取时保留显示名称和仓库标识', async () => {
+    const record = {
+      id: 'github:octo/repo@main',
+      name: '我的远程项目',
+      remoteOwner: 'octo',
+      remoteRepo: 'repo',
+      remoteBranch: 'main',
+      lastOpenedAt: 7
+    };
+    const db = {
+      entityManager: {
+        getRepository: (entity: unknown) => ({ findAll: () => of(entity === WorkbenchRemoteProject ? [record] : []) })
+      }
+    } as unknown as RxDB;
+    await expect(createRxDBWorkbenchCatalog(db).list()).resolves.toEqual([
+      { ...githubProjectInfo('octo', 'repo', 'main', 7), name: '我的远程项目' }
+    ]);
+  });
+
   it('persists remote entries through the remote repository', async () => {
     const record = {
       id: 'github:octo/repo@main',

@@ -1,6 +1,12 @@
 import type { WorkbenchEditorMount } from './editor.js';
+import type { WorkbenchDiffMount } from './workbench-diff.js';
 
-let loading: Promise<WorkbenchEditorMount> | undefined;
+interface MonacoModule {
+  readonly mountMonacoEditor: WorkbenchEditorMount;
+  readonly mountMonacoDiff: WorkbenchDiffMount;
+}
+
+let loading: Promise<MonacoModule> | undefined;
 
 function loadStyles(url: URL): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -17,16 +23,26 @@ function loadStyles(url: URL): Promise<void> {
 }
 
 /** 同时加载自托管脚本与样式，资源就绪后再创建编辑器。 */
-export function loadMonacoEditor(): Promise<WorkbenchEditorMount> {
+function loadMonaco(): Promise<MonacoModule> {
   const base = new URL('/browser-workbench-assets/monaco/', location.href);
   loading ??= Promise.all([
-    import(/* @vite-ignore */ new URL('editor.js', base).href) as Promise<{ mountMonacoEditor: WorkbenchEditorMount }>,
+    import(/* @vite-ignore */ new URL('editor.js', base).href) as Promise<MonacoModule>,
     loadStyles(new URL('editor.css', base))
   ])
-    .then(([module]) => module.mountMonacoEditor)
+    .then(([module]) => module)
     .catch((error: unknown) => {
       loading = undefined;
       throw error;
     });
   return loading;
+}
+
+/** 按需加载源码编辑器，与差异视图共享脚本和样式。 */
+export async function loadMonacoEditor(): Promise<WorkbenchEditorMount> {
+  return (await loadMonaco()).mountMonacoEditor;
+}
+
+/** 按需加载只读双栏差异编辑器。 */
+export async function loadMonacoDiff(): Promise<WorkbenchDiffMount> {
+  return (await loadMonaco()).mountMonacoDiff;
 }

@@ -6,14 +6,19 @@ import { CompilationError } from './compiler/compiler-types.js';
 import type { WorkbenchEditorMount } from './editor.js';
 import type { GitHubApi } from './git/github/github-api.js';
 import type { GitHubAuth } from './git/github/github-auth.js';
+import { loadMonacoDiff } from './monaco-loader.js';
 import { mountWorkbench, type BrowserWorkbenchOptions, type WorkbenchHandle } from './mount.js';
 import type { WorkbenchBackend, WorkbenchDiff, WorkbenchFiles, WorkbenchSnapshot } from './session.js';
+import type { WorkbenchDiffMount } from './workbench-diff.js';
 import { createWorkbenchRecoveryJournal } from './workbench-recovery.js';
+
+vi.mock('./monaco-loader.js', () => ({ loadMonacoDiff: vi.fn() }));
 
 const instances: WorkbenchHandle[] = [];
 afterEach(() => {
   instances.splice(0).forEach(handle => handle.dispose());
   vi.restoreAllMocks();
+  vi.mocked(loadMonacoDiff).mockReset();
   Reflect.deleteProperty(window, 'showDirectoryPicker');
   window.sessionStorage.clear();
   localStorage.removeItem('aiao-workbench:extensions:shd101wyy.markdown-preview-enhanced:enabled');
@@ -119,7 +124,7 @@ function fixture(
     putPreferences: vi.fn<WorkbenchCatalog['putPreferences']>(async () => undefined),
     putState: vi.fn<WorkbenchCatalog['putState']>(async () => undefined),
     getLayout: vi.fn(async () => null),
-    putLayout: vi.fn(async () => undefined)
+    putLayout: vi.fn<WorkbenchCatalog['putLayout']>(async () => undefined)
   };
   const host = document.createElement('div');
   document.body.append(host);
@@ -414,7 +419,7 @@ describe('VS Code 风格工作台', () => {
     });
   });
 
-  it('重开时应用用户偏好，设置确认后持久化缩进和 SCM 偏好', async () => {
+  it('重开时应用用户偏好，设置修改后立即持久化缩进和 SCM 偏好', async () => {
     const { host, handle, catalog, mountEditor } = fixture(true, undefined, undefined, [], files, undefined, {
       indentUnit: '    ',
       alwaysShowScmActions: true,
@@ -428,7 +433,8 @@ describe('VS Code 风格工作台', () => {
     const select = dialog?.querySelector<HTMLSelectElement>('select');
     if (!dialog || !select) throw new Error('设置对话框缺失');
     select.value = '        ';
-    dialog.querySelector('form')?.dispatchEvent(new Event('submit'));
+    select.dispatchEvent(new Event('change'));
+    dialog.close();
     await vi.waitFor(() =>
       expect(catalog.putPreferences).toHaveBeenCalledWith({
         indentUnit: '        ',
@@ -450,7 +456,8 @@ describe('VS Code 风格工作台', () => {
     const select = dialog?.querySelector<HTMLSelectElement>('select[name="editor-engine"]');
     if (!dialog || !select) throw new Error('编辑器设置缺失');
     select.value = 'monaco';
-    dialog.querySelector('form')?.dispatchEvent(new Event('submit'));
+    select.dispatchEvent(new Event('change'));
+    dialog.close();
     expect(editorHandle.setEngine).toHaveBeenCalledWith('monaco');
     expect(handle.session.state.tabs).toEqual(tabs);
     expect(handle.session.state.files['src/main.ts']).toBe('unsaved editor content');
@@ -469,6 +476,53 @@ describe('VS Code 风格工作台', () => {
     });
     await handle.ready;
     expect(mountEditor.mock.calls[0][1].engine).toBe('monaco');
+  });
+
+  it('SCM diff 使用持久化引擎，设置变化后重建已打开的暂存区与工作区比较', async () => {
+    const views: { layout: ReturnType<typeof vi.fn>; dispose: ReturnType<typeof vi.fn> }[] = [];
+    const mount = vi.fn<WorkbenchDiffMount>(() => {
+      const view = { layout: vi.fn(), dispose: vi.fn() };
+      views.push(view);
+      return view;
+    });
+    vi.mocked(loadMonacoDiff).mockResolvedValue(mount);
+    const { host, handle, backend } = fixture(true, undefined, undefined, [], files, undefined, {
+      indentUnit: '  ',
+      alwaysShowScmActions: false,
+      runtime: 'webcontainer',
+      editorEngine: 'monaco'
+    });
+    await handle.ready;
+    vi.mocked(backend.status).mockResolvedValue({
+      branch: 'main',
+      head: 'a'.repeat(40),
+      entries: [{ path: 'src/main.ts', index: 'M', worktree: 'M' }]
+    });
+    await click(host, '[data-action="git"]');
+    await vi.waitFor(() => expect(host.querySelectorAll('[data-scm-path="src/main.ts"]')).toHaveLength(2));
+    for (const kind of ['staged', 'working']) {
+      await click(host, `[data-scm-group="${kind}"] [data-scm-path="src/main.ts"]`);
+    }
+    await vi.waitFor(() => expect(mount).toHaveBeenCalledTimes(2));
+    expect(mount.mock.calls.map(([, diff]) => diff.kind)).toEqual(['staged', 'working']);
+
+    await click(host, '[data-action="settings"]');
+    const dialog = host.querySelector<HTMLDialogElement>('dialog[aria-label="设置"]')!;
+    const codeMirror = dialog.querySelector<HTMLSelectElement>('select[name="editor-engine"]')!;
+    codeMirror.value = 'codemirror';
+    codeMirror.dispatchEvent(new Event('change'));
+    dialog.close();
+    await vi.waitFor(() => expect(host.querySelectorAll('.wb-diff .cm-editor')).toHaveLength(4));
+    expect(views.every(view => view.dispose.mock.calls.length === 1)).toBe(true);
+
+    await click(host, '[data-action="settings"]');
+    const settings = host.querySelector<HTMLDialogElement>('dialog[aria-label="设置"]')!;
+    const monaco = settings.querySelector<HTMLSelectElement>('select[name="editor-engine"]')!;
+    monaco.value = 'monaco';
+    monaco.dispatchEvent(new Event('change'));
+    settings.close();
+    await vi.waitFor(() => expect(mount).toHaveBeenCalledTimes(4));
+    expect(host.querySelector('.wb-diff .cm-editor')).toBeNull();
   });
 
   it('树内单击替换同组预览，双击后固定，编辑草稿不会被后续浏览替换', async () => {
@@ -970,6 +1024,36 @@ describe('VS Code 风格工作台', () => {
     handle.dispose();
   });
 
+  it.each(['隐藏视图', '移动到底部面板'])('%s后新建文件会显示原视图并聚焦输入行', async operation => {
+    const { host, handle } = fixture();
+    await handle.ready;
+    const body = host.querySelector<HTMLElement>('[data-workbench-view="workspace"]')!;
+    host
+      .querySelector<HTMLElement>('[data-tree-section="workspace"]')!
+      .dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    [...host.querySelectorAll<HTMLButtonElement>('.wb-context-menu button')]
+      .find(button => button.textContent === operation)!
+      .click();
+    if (operation === '移动到底部面板') {
+      await vi.waitFor(() => expect(host.querySelector('.wb-dock-tab[data-panel="workspace"]')).not.toBeNull());
+      await click(host, '.wb-title-actions [data-action="panel"]');
+    }
+    await vi.waitFor(() => expect(body.closest('[data-view-parking]')).not.toBeNull());
+    host
+      .querySelector<HTMLElement>('[data-slot="files"]')!
+      .dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await click(host, '.wb-context-menu [data-menu-id="new-file"]');
+    await vi.waitFor(() => expect(body.closest('[data-view-parking]')).toBeNull());
+    if (operation === '隐藏视图') expect(body.closest('[data-slot="files"]')).not.toBeNull();
+    else expect(host.querySelector('.wb-dock-tab[data-panel="workspace"]')).not.toBeNull();
+    const input = body.querySelector<HTMLInputElement>('input[aria-label="新建文件"]');
+    expect(input).not.toBeNull();
+    await vi.waitFor(() => expect(document.activeElement).toBe(input));
+    await inlineInput(host, 'visible.ts');
+    await vi.waitFor(() => expect(handle.session.state.activePath).toBe('visible.ts'));
+    handle.dispose();
+  });
+
   it('新建文件与重命名使用树内输入行，删除先取消再明确确认', async () => {
     const { host, handle, backend } = fixture();
     await handle.ready;
@@ -1012,6 +1096,137 @@ describe('VS Code 风格工作台', () => {
     await inlineInput(host, 'moved.ts');
     await vi.waitFor(() => expect(backend.rename).toHaveBeenCalledWith('one', 'src/main.ts', 'src/moved.ts'));
     handle.dispose();
+  });
+
+  const workspaceRow = (host: HTMLElement): HTMLButtonElement => {
+    const row = host.querySelector<HTMLButtonElement>('[data-tree-section="workspace"]');
+    if (!row) throw new Error('项目根节点缺失');
+    return row;
+  };
+
+  const renameProject = async (host: HTMLElement): Promise<HTMLInputElement> => {
+    workspaceRow(host).dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 100, clientY: 100 })
+    );
+    await click(host, '.wb-context-menu [data-menu-id="rename"]');
+    return vi.waitFor(() => {
+      const input = host.querySelector<HTMLInputElement>('[aria-label="重命名项目"]');
+      if (!input) throw new Error('项目重命名输入缺失');
+      return input;
+    });
+  };
+
+  it('项目重命名：根节点右键保存名称，同步标题和最近项目，并保留源码草稿', async () => {
+    const { host, handle, catalog, backend } = fixture();
+    await handle.ready;
+    handle.session.edit('src/main.ts', '未保存的源码');
+    catalog.put.mockClear();
+    const input = await renameProject(host);
+    expect(input.value).toBe('本地项目');
+    expect(input.closest('.wb-tree-section-row')).not.toBeNull();
+    await inlineInput(host, '  我的项目 v2.0  ');
+    await vi.waitFor(() =>
+      expect(catalog.put).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'one',
+          name: '我的项目 v2.0',
+          template: 'vanilla',
+          entry: 'src/main.ts'
+        })
+      )
+    );
+    await vi.waitFor(() => expect(workspaceRow(host).textContent).toContain('我的项目 v2.0'));
+    expect(host.querySelector('[data-slot="workspace-label"]')?.textContent).toBe('我的项目 v2.0');
+    expect(document.title).toContain('我的项目 v2.0');
+    expect(handle.session.state.projectId).toBe('one');
+    expect(handle.session.state.files['src/main.ts']).toBe('未保存的源码');
+    expect(handle.session.state.dirty).toBe(true);
+    expect(backend.rename).not.toHaveBeenCalled();
+    expect(backend.save).not.toHaveBeenCalled();
+    const menu = await openWorkspaceMenu(host);
+    expect(menuItem(menu, 'project:one').textContent).toContain('我的项目 v2.0');
+    menuItem(menu, 'open-recent').click();
+    await vi.waitFor(() =>
+      expect(host.querySelector('.wb-quick-input [role="option"]')?.textContent).toContain('我的项目 v2.0')
+    );
+  });
+
+  it('项目重命名：根节点 F2 全选含点号的名称，Esc 和原名不落库', async () => {
+    const { host, handle, catalog, backend } = fixture();
+    await handle.ready;
+    await renameProject(host);
+    await inlineInput(host, '项目 v1.0');
+    await vi.waitFor(() => expect(workspaceRow(host).textContent).toContain('项目 v1.0'));
+    catalog.put.mockClear();
+    await vi.waitFor(() =>
+      expect(host.querySelector<HTMLButtonElement>('[data-action="workspace"]')?.disabled).toBe(false)
+    );
+    workspaceRow(host).focus();
+    workspaceRow(host).dispatchEvent(new KeyboardEvent('keydown', { key: 'F2', bubbles: true, cancelable: true }));
+    await vi.waitFor(() =>
+      expect(host.querySelector<HTMLInputElement>('[aria-label="重命名项目"]')?.selectionEnd).toBe(7)
+    );
+    await inlineInput(host, null);
+    expect(document.activeElement).toBe(workspaceRow(host));
+    await renameProject(host);
+    await inlineInput(host, '项目 v1.0');
+    expect(catalog.put).not.toHaveBeenCalled();
+    expect(backend.rename).not.toHaveBeenCalled();
+  });
+
+  it('项目重命名：空名称保留输入并提示，失焦取消，合法名称失焦提交一次', async () => {
+    const { host, handle, catalog } = fixture();
+    await handle.ready;
+    catalog.put.mockClear();
+    const input = await renameProject(host);
+    input.value = '   ';
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect(host.querySelector('.wb-input-validation')?.textContent).toBe('必须提供项目名称。');
+    expect(catalog.put).not.toHaveBeenCalled();
+    input.dispatchEvent(new Event('blur'));
+    expect(host.querySelector('.wb-inline-input')).toBeNull();
+    expect(workspaceRow(host).textContent).toContain('本地项目');
+    const next = await renameProject(host);
+    next.value = '失焦保存';
+    next.dispatchEvent(new Event('blur'));
+    next.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await vi.waitFor(() => expect(workspaceRow(host).textContent).toContain('失焦保存'));
+    expect(catalog.put).toHaveBeenCalledOnce();
+  });
+
+  it('项目重命名：落库失败保留原名并显示错误，可再次重命名', async () => {
+    const { host, handle, catalog } = fixture();
+    await handle.ready;
+    catalog.put.mockClear();
+    catalog.put.mockRejectedValueOnce(new Error('项目目录写入失败'));
+    await renameProject(host);
+    await inlineInput(host, '不能保存的名称');
+    await vi.waitFor(() =>
+      expect(host.querySelector('[data-log="problems"]')?.textContent).toContain('项目目录写入失败')
+    );
+    expect(workspaceRow(host).textContent).toContain('本地项目');
+    expect(host.querySelector('[data-slot="workspace-label"]')?.textContent).toBe('本地项目');
+    await renameProject(host);
+    await inlineInput(host, '重新保存的名称');
+    await vi.waitFor(() => expect(workspaceRow(host).textContent).toContain('重新保存的名称'));
+  });
+
+  it('项目重命名：根节点折叠和输入期间文件变化不丢失名称输入，空白区不显示重命名', async () => {
+    const { host, handle } = fixture();
+    await handle.ready;
+    workspaceRow(host).click();
+    const input = await renameProject(host);
+    input.value = '输入中的名称';
+    handle.session.edit('src/main.ts', '并行编辑');
+    expect(host.querySelector('[aria-label="重命名项目"]')).toBe(input);
+    await inlineInput(host, '新的根节点');
+    await vi.waitFor(() => expect(workspaceRow(host).textContent).toContain('新的根节点'));
+    expect(workspaceRow(host).getAttribute('aria-expanded')).toBe('false');
+    host
+      .querySelector('[data-slot="files"]')
+      ?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    expect(host.querySelector('.wb-context-menu [data-menu-id="rename"]')).toBeNull();
   });
 
   const dragFiles = {
@@ -1198,6 +1413,83 @@ describe('VS Code 风格工作台', () => {
     handle.dispose();
   });
 
+  it('文件夹视图移到底部后仍能导航、重命名与持久化，再从标签菜单放回', async () => {
+    const { host, handle, catalog } = fixture();
+    await handle.ready;
+    const body = host.querySelector<HTMLElement>('[data-workbench-view="workspace"]')!;
+    const header = host.querySelector<HTMLElement>('[data-tree-section="workspace"]')!;
+    header.click();
+    host
+      .querySelector<HTMLElement>('[data-tree-section="workspace"]')!
+      .dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    const move = [...host.querySelectorAll<HTMLButtonElement>('.wb-context-menu button')].find(
+      button => button.textContent === '移动到底部面板'
+    )!;
+    move.click();
+    await vi.waitFor(() =>
+      expect(host.querySelector('[data-slot="files"] [data-workbench-view="workspace"]')).toBeNull()
+    );
+    expect(body.querySelector('[data-tree-path="src/main.ts"]')).not.toBeNull();
+    treeRow(host, 'src/label.ts').click();
+    await vi.waitFor(() => expect(handle.session.state.activePath).toBe('src/label.ts'));
+    treeRow(host, 'src/label.ts').dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'ArrowUp',
+        bubbles: true,
+        cancelable: true
+      })
+    );
+    await openTreeMenu(host, 'src/main.ts');
+    await click(host, '.wb-context-menu [data-menu-id="rename"]');
+    expect(body.querySelector('input[aria-label="重命名文件"]')).not.toBeNull();
+    body.querySelector('input')!.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+        cancelable: true
+      })
+    );
+    await vi.waitFor(() => expect(catalog.putLayout).toHaveBeenCalled());
+    const saved = catalog.putLayout.mock.calls.at(-1)?.[1];
+    expect(saved).toMatchObject({ viewLayout: { views: { workspace: { detached: true, expanded: false } } } });
+    const tab = host.querySelector<HTMLElement>('.wb-dock-tab[data-panel="workspace"]')!;
+    tab.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    const back = [...host.querySelectorAll<HTMLButtonElement>('.wb-context-menu button')].find(
+      button => button.textContent === '移动到资源管理器'
+    )!;
+    back.click();
+    expect(body.closest('[data-slot="files"]')).not.toBeNull();
+    expect(host.querySelector('[data-tree-section="workspace"]')?.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('创建新项目恢复默认侧栏归属，原项目的移出布局仍被保存', async () => {
+    const { host, handle, catalog } = fixture();
+    await handle.ready;
+    host
+      .querySelector<HTMLElement>('[data-tree-section="workspace"]')!
+      .dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    [...host.querySelectorAll<HTMLButtonElement>('.wb-context-menu button')]
+      .find(button => button.textContent === '移动到底部面板')!
+      .click();
+    await vi.waitFor(() => expect(host.querySelector('.wb-dock-tab[data-panel="workspace"]')).not.toBeNull());
+    await clickTitleMenu(host, 'new-project');
+    await createProject(host, '独立布局', 'vanilla');
+    await vi.waitFor(() => expect(host.querySelector('.wb-dock-tab[data-panel="workspace"]')).toBeNull());
+    expect(host.querySelector('[data-slot="files"] [data-workbench-view="workspace"]')).not.toBeNull();
+    await vi.waitFor(() =>
+      expect(catalog.putLayout).toHaveBeenCalledWith(
+        'one',
+        expect.objectContaining({
+          viewLayout: expect.objectContaining({
+            views: expect.objectContaining({
+              workspace: expect.objectContaining({ detached: true })
+            })
+          })
+        })
+      )
+    );
+  });
+
   it('活动栏切换视图更换标题与标题动作组，更多菜单按视图提供条目', async () => {
     const { host, handle } = fixture();
     await handle.ready;
@@ -1238,7 +1530,8 @@ describe('VS Code 风格工作台', () => {
     await click(host, '[data-action="more-actions"]');
     expect([...host.querySelectorAll<HTMLElement>('.wb-context-menu button')].map(item => item.textContent)).toEqual([
       '打开的编辑器',
-      '文件夹'
+      '文件夹',
+      '重置视图位置'
     ]);
     handle.dispose();
   });
@@ -2435,10 +2728,11 @@ describe('vscode.dev 起始页对齐', () => {
       ['burrow', true]
     ]);
     indent!.value = '    ';
+    indent!.dispatchEvent(new Event('change'));
     const always = dialog.querySelector<HTMLInputElement>('input[type="checkbox"]');
     expect(always).not.toBeNull();
     always?.click();
-    dialog.querySelector<HTMLButtonElement>('button[type="submit"]')?.click();
+    dialog.querySelector<HTMLButtonElement>('[aria-label="关闭设置"]')!.click();
     await Promise.resolve();
     expect(host.querySelector('[data-slot="indent"]')?.textContent).toBe('空格: 4');
     await click(host, '[data-action="git"]');

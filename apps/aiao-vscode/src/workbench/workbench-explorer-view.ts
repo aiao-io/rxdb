@@ -90,7 +90,7 @@ export function createExplorerRow(row: ExplorerRow, context: ExplorerRowContext)
 /** 树内输入行的配置：新建文件 / 文件夹或重命名，提交与取消由调用方决定如何落地。 */
 export interface ExplorerInputOptions {
   readonly level: number;
-  readonly kind: 'file' | 'folder';
+  readonly kind: 'file' | 'folder' | 'project';
   readonly initial: string;
   readonly label: string;
   readonly icon?: HTMLElement;
@@ -106,10 +106,10 @@ function strong(text: string): HTMLElement {
 }
 
 /** VS Code 简体中文措辞的命名校验提示。 */
-function validationNodes(error: ExplorerNameError): (string | Node)[] {
+function validationNodes(error: ExplorerNameError, kind: ExplorerInputOptions['kind']): (string | Node)[] {
   switch (error.kind) {
     case 'empty':
-      return ['必须提供文件或文件夹名。'];
+      return [kind === 'project' ? '必须提供项目名称。' : '必须提供文件或文件夹名。'];
     case 'slash':
       return ['文件或文件夹名称不能以斜杠开头。'];
     case 'invalid':
@@ -127,7 +127,7 @@ export function createExplorerInputRow(options: ExplorerInputOptions): HTMLEleme
   const row = document.createElement('div');
   row.className = 'wb-input-row';
   row.style.setProperty('--wb-level', String(options.level));
-  if (options.kind === 'folder') {
+  if (options.kind !== 'file') {
     const twistie = createCodicon('chevron-right');
     twistie.classList.add('wb-twistie');
     row.append(twistie);
@@ -145,7 +145,7 @@ export function createExplorerInputRow(options: ExplorerInputOptions): HTMLEleme
   const show = (error: ExplorerNameError | null): void => {
     input.setAttribute('aria-invalid', String(error !== null));
     validation.hidden = error === null;
-    validation.replaceChildren(...(error ? validationNodes(error) : []));
+    validation.replaceChildren(...(error ? validationNodes(error, options.kind) : []));
   };
   let settled = false;
   const settle = (commit: boolean): void => {
@@ -169,7 +169,7 @@ export function createExplorerInputRow(options: ExplorerInputOptions): HTMLEleme
   input.onblur = () => settle(!options.validate(input.value));
   queueMicrotask(() => {
     input.focus();
-    const dot = options.initial.lastIndexOf('.');
+    const dot = options.kind === 'file' ? options.initial.lastIndexOf('.') : -1;
     input.setSelectionRange(0, dot > 0 ? dot : options.initial.length);
   });
   row.append(input, validation);

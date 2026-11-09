@@ -87,7 +87,7 @@ async function palette(command) {
 async function engine(value) {
   await root.getByRole('button', { name: '设置', exact: true }).click();
   await root.locator('select[name="editor-engine"]').selectOption(value);
-  await root.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
+  await root.getByRole('dialog').getByRole('button', { name: '关闭设置', exact: true }).click();
   await expect(
     root.locator(`[data-editor-path="README.md"] ${value === 'monaco' ? '.monaco-editor' : '.cm-editor'}`)
   ).toBeVisible();

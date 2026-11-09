@@ -230,9 +230,8 @@ export function mountWorkbench(
   let creatingFolder = false;
   /** 新建文件 / 文件夹的落点目录（空串为根）。 */
   let creatingParent = '';
-  /** 对齐 vscode.dev：默认不显示「打开的编辑器」，由视图菜单切换。 */
-  let showOpenEditors = false;
   let renamingPath: string | null = null;
+  let renamingProject = false;
   let treeFocusPath: string | null = null;
   let treeNavigation = false;
   let dragPath: string | null = null;
@@ -256,7 +255,6 @@ export function mountWorkbench(
   const savedCommitMessages = new Map<string, string>();
   const editorDiagnostics = new Map<string, { line: number; column?: number; message: string }[]>();
   const collapsedFolders = new Set<string>();
-  const collapsedSections = new Set<string>();
   let alwaysShowScmActions = defaultWorkbenchPreferences.alwaysShowScmActions;
   /** 设置里保存的运行方式；地址参数 `?runtime=` 只覆盖当前页面，供基准脚本批量切换，不写回设置。 */
   let preferredRuntime = defaultWorkbenchPreferences.runtime;
@@ -317,6 +315,41 @@ export function mountWorkbench(
       previewId = 0;
     }
   });
+  docking.views.addContainer({ id: 'explorer', element: tree });
+  for (const [id, title] of [
+    ['open-editors', '打开的编辑器'],
+    ['workspace', '文件夹']
+  ] as const) {
+    const { pane, header } = createExplorerPane(id, title, false, [], () => toggleSection(id));
+    pane.classList.add('wb-tree', 'wb-view-body');
+    docking.views.addView({
+      id,
+      title,
+      element: pane,
+      header,
+      containerId: 'explorer',
+      visible: id === 'workspace',
+      size: id === 'workspace' ? 400 : 180
+    });
+  }
+  const sectionId = (key: string): string => (key === 'no-folder' ? 'workspace' : key);
+  const collapsedSections = {
+    has: (key: string): boolean =>
+      !docking.views.isExpanded(sectionId(key)) && !docking.views.isDetached(sectionId(key)),
+    add: (key: string): void => docking.views.setExpanded(sectionId(key), false),
+    delete: (key: string): void => docking.views.setExpanded(sectionId(key), true)
+  };
+  const explorerTarget = (target: EventTarget | null): boolean =>
+    target instanceof Element &&
+    (target === tree ||
+      target.closest(
+        '[data-workbench-view="workspace"],[data-workbench-view="open-editors"],[data-workbench-view-header]'
+      ) !== null) &&
+    target.closest('[data-view-parking]') === null;
+  const explorerRows = (): HTMLButtonElement[] =>
+    [...root.querySelectorAll<HTMLButtonElement>('button[data-tree-path],button[data-tree-section]')].filter(row =>
+      explorerTarget(row)
+    );
   const narrowQuery = '(max-width: 768px)';
   const narrowMedia = window.matchMedia(narrowQuery);
   /** 窄屏抽屉模式下，选择文件后收起侧栏回到编辑器。 */
@@ -438,6 +471,25 @@ export function mountWorkbench(
     });
     scheduleLayoutSave();
   });
+  const viewPresentation = (): string =>
+    JSON.stringify(
+      Object.entries(docking.views.serialize().views).map(([id, state]) => [
+        id,
+        state.visible,
+        state.detached,
+        state.expanded
+      ])
+    );
+  let renderedViews = viewPresentation();
+  const viewLayoutChanges = docking.views.onDidLayoutChange(() => {
+    const current = viewPresentation();
+    if (renderedViews !== current) {
+      renderedViews = current;
+      renderFiles(session.state);
+    }
+    renderActionState();
+    scheduleLayoutSave();
+  });
   /** 布局变化防抖落库；恢复项目期间的中间布局不记。 */
   function scheduleLayoutSave(): void {
     if (disposed || restoring || !renderedProjectId) return;
@@ -463,6 +515,7 @@ export function mountWorkbench(
       log('output', '项目布局记录无效，已保留当前布局');
       return;
     }
+    renderFiles(session.state);
     if (session.state.activePath) docking.selectEditor(session.state.activePath);
     renderActionState();
   }
@@ -675,7 +728,7 @@ export function mountWorkbench(
         return;
       const staging = document.createElement('div');
       staging.style.height = '100%';
-      const view = await createWorkbenchDiff(staging, model);
+      const view = await createWorkbenchDiff(staging, model, editorEngine);
       if (
         disposed ||
         session.state.projectId !== entry.projectId ||
@@ -999,7 +1052,11 @@ export function mountWorkbench(
       }
       // 标签先恢复，布局再排布它们
       if (layout !== null) applySavedLayout(layout);
-      else ensureSavePreview();
+      else {
+        docking.views.reset();
+        ensureSavePreview();
+      }
+      renderFiles(session.state);
       unrestoredProject = null;
       persistedState = saved && !recovered ? JSON.stringify([id, saved]) : '';
     } finally {
@@ -1021,9 +1078,7 @@ export function mountWorkbench(
   }
   const treeRow = (path: string | null): HTMLElement | undefined =>
     path === null ? undefined : (
-      [...tree.querySelectorAll<HTMLElement>('button[data-tree-path],button[data-tree-section]')].find(
-        row => (row.dataset['treePath'] ?? row.dataset['treeSection']) === path
-      )
+      explorerRows().find(row => (row.dataset['treePath'] ?? row.dataset['treeSection']) === path)
     );
 
   /** 无项目打开时资源管理器显示 vscode.dev 风格的「无打开的文件夹」区块：打开文件夹 / 最近项目 / 初始化 Demo。 */
@@ -1095,7 +1150,6 @@ export function mountWorkbench(
     }
     const pane = explorerPane('no-folder', '无打开的文件夹');
     if (!collapsedSections.has('no-folder')) pane.append(welcome);
-    tree.append(pane);
   }
 
   /** 初始化 Demo 的模板选择菜单，条目与首次引导提供的三个最小 Demo 一致。 */
@@ -1176,8 +1230,8 @@ export function mountWorkbench(
 
   /** 应用拖放反馈：目标行整行高亮（VS Code 的 drop-target），根区落点冒泡到最后一行。 */
   function applyTreeDropFeedback(decision: TreeMoveDecision | null, feedbackKey: string | null = null): void {
-    for (const row of tree.querySelectorAll('.wb-drop-into')) row.classList.remove('wb-drop-into');
-    tree.classList.remove('wb-root-drop');
+    for (const row of root.querySelectorAll('.wb-drop-into')) row.classList.remove('wb-drop-into');
+    docking.views.getView('workspace').element.classList.remove('wb-root-drop');
     pendingDrop = decision;
     dropFeedbackKey = feedbackKey;
     if (!decision || decision.kind !== 'move') return;
@@ -1185,9 +1239,11 @@ export function mountWorkbench(
       treeRow(feedbackKey)?.classList.add('wb-drop-into');
       return;
     }
-    const last = [...tree.querySelectorAll<HTMLButtonElement>('button[data-tree-path]')].at(-1);
+    const last = explorerRows()
+      .filter(row => row.dataset['treePath'])
+      .at(-1);
     if (last) last.classList.add('wb-drop-into');
-    else tree.classList.add('wb-root-drop');
+    else docking.views.getView('workspace').element.classList.add('wb-root-drop');
   }
 
   /** 折叠文件夹悬停约 1 秒自动展开（VS Code 的 list.autoExpand）。 */
@@ -1252,7 +1308,7 @@ export function mountWorkbench(
         )
     });
     button.addEventListener('dragstart', event => {
-      if (creatingFile || creatingFolder || renamingPath) {
+      if (treeInputActive()) {
         event.preventDefault();
         return;
       }
@@ -1290,7 +1346,7 @@ export function mountWorkbench(
   }
 
   function syncTreeTabIndexes(): void {
-    const rows = [...tree.querySelectorAll<HTMLButtonElement>('button[data-tree-path],button[data-tree-section]')];
+    const rows = explorerRows();
     const focused = rows.find(row => (row.dataset['treePath'] ?? row.dataset['treeSection']) === treeFocusPath);
     rows.forEach(row => (row.tabIndex = row === focused ? 0 : -1));
     if (!focused) rows[0]?.setAttribute('tabindex', '0');
@@ -1311,7 +1367,13 @@ export function mountWorkbench(
 
   /** 区块头：可折叠，悬停 / 聚焦该区块时显示区块级动作。 */
   function explorerPane(key: string, label: string, actions: HTMLButtonElement[] = []): HTMLElement {
-    return createExplorerPane(key, label, collapsedSections.has(key), actions, () => toggleSection(key)).pane;
+    const id = sectionId(key);
+    const view = docking.views.getView(id);
+    const fresh = createExplorerPane(key, label, collapsedSections.has(key), actions, () => toggleSection(key));
+    view.header.replaceChildren(...fresh.header.childNodes);
+    view.element.replaceChildren();
+    docking.views.setTitle(id, label);
+    return view.element;
   }
 
   /** 打开的编辑器行：与资源管理器行同样的图标与选中语义，关闭按钮在行首。 */
@@ -1474,32 +1536,72 @@ export function mountWorkbench(
     });
   }
 
+  function treeInputActive(): boolean {
+    return creatingFile || creatingFolder || renamingPath !== null || renamingProject;
+  }
+
+  function projectRenameRow(info: WorkbenchProjectInfo): HTMLElement {
+    const finish = (): void => {
+      renamingProject = false;
+      renderFiles(session.state);
+      treeRow('workspace')?.focus();
+    };
+    return createExplorerInputRow({
+      level: 0,
+      kind: 'project',
+      initial: info.name,
+      label: '重命名项目',
+      validate: value => (value.trim() ? null : { kind: 'empty' }),
+      onCommit: name => {
+        finish();
+        if (name === info.name) return;
+        action(async () => {
+          const renamed = { ...info, name, updatedAt: Date.now() };
+          await catalog.put(renamed);
+          if (disposed) return;
+          projects = projects.map(item => (item.id === info.id ? renamed : item));
+          if (project?.id === info.id) project = renamed;
+          renderProjects();
+          render(session.state);
+          if (session.state.projectId === info.id) treeRow('workspace')?.focus();
+        });
+      },
+      onCancel: finish
+    });
+  }
+
+  function startProjectRename(): void {
+    if (!project || treeInputActive() || projectSwitchBusy(1)) return;
+    treeFocusPath = 'workspace';
+    renamingProject = true;
+    renderFiles(session.state);
+  }
+
   function renderFiles(state: WorkbenchState): void {
     if (treeProjectId !== state.projectId) {
       treeProjectId = state.projectId;
       creatingFile = false;
       creatingFolder = false;
       renamingPath = null;
+      renamingProject = false;
       gitStatus = null;
     }
-    if ((creatingFile || creatingFolder || renamingPath) && tree.querySelector('.wb-inline-input')) return;
+    if (treeInputActive() && root.querySelector('.wb-inline-input')) return;
+    docking.views.setAvailable('open-editors', Boolean(state.projectId && state.tabs.length));
     if (!state.projectId) {
-      tree.replaceChildren();
       if (!initializing) renderWelcomeView();
       return;
     }
-    tree.replaceChildren();
     if (state.activePath !== activeTreePath) {
       activeTreePath = state.activePath;
       const parts = state.activePath?.split('/') ?? [];
       parts.slice(0, -1).forEach((_, index) => collapsedFolders.delete(parts.slice(0, index + 1).join('/')));
     }
-    if (showOpenEditors && state.tabs.length) {
+    if (docking.views.isVisible('open-editors') && state.tabs.length) {
       const pane = explorerPane('open-editors', '打开的编辑器', [
         createExplorerAction('close-all-editors', '关闭全部编辑器', 'close-all')
       ]);
       if (!collapsedSections.has('open-editors')) pane.append(...state.tabs.map(openEditorRow));
-      tree.append(pane);
     }
     if (creatingFile || creatingFolder) collapsedSections.delete('workspace');
     const projectName = projects.find(item => item.id === state.projectId)?.name ?? '项目';
@@ -1509,7 +1611,8 @@ export function mountWorkbench(
       createExplorerAction('refresh-tree', '刷新资源管理器', 'refresh'),
       createExplorerAction('collapse-tree', '在资源管理器中折叠文件夹', 'collapse-all')
     ]);
-    tree.append(pane);
+    if (renamingProject && project)
+      docking.views.getView('workspace').header.replaceChildren(projectRenameRow(project));
     if (collapsedSections.has('workspace')) {
       if (dragPath) applyTreeDropFeedback(pendingDrop, dropFeedbackKey);
       syncTreeTabIndexes();
@@ -1556,7 +1659,12 @@ export function mountWorkbench(
   /** 开始新建：输入行落在选中的文件夹里（选中文件则落在其父目录，无选中落在根），并展开该目录。 */
   function beginCreate(kind: 'file' | 'folder'): void {
     projectId();
-    if (creatingFile || creatingFolder || renamingPath) return;
+    if (treeInputActive()) return;
+    docking.views.setVisible('workspace', true);
+    if (docking.views.isDetached('workspace')) {
+      docking.views.setDockVisible(true);
+      docking.api.getPanel('workspace')!.api.setActive();
+    } else switchSide('explorer', true);
     creatingParent = explorerCreationParent(visibleRows(), treeFocusPath);
     collapsedFolders.delete(creatingParent);
     if (kind === 'file') creatingFile = true;
@@ -1578,7 +1686,7 @@ export function mountWorkbench(
   }
 
   function startRename(path: string): void {
-    if (creatingFile || creatingFolder || renamingPath) return;
+    if (treeInputActive()) return;
     renamingPath = path;
     const parts = path.split('/');
     parts.slice(0, -1).forEach((_, index) => collapsedFolders.delete(parts.slice(0, index + 1).join('/')));
@@ -1686,11 +1794,12 @@ export function mountWorkbench(
     if (persist) persistPreferences();
   }
 
-  tree.addEventListener('keydown', event => {
+  root.addEventListener('keydown', event => {
+    if (!explorerTarget(event.target)) return;
     if (event.defaultPrevented || event.isComposing) return;
     if (event.target instanceof Element && event.target.closest('input,textarea,select')) return;
-    if (creatingFile || creatingFolder || renamingPath) return;
-    const rows = [...tree.querySelectorAll<HTMLElement>('button[data-tree-path],button[data-tree-section]')];
+    if (treeInputActive()) return;
+    const rows = explorerRows();
     if (!rows.length) return;
     const rowKey = (element: HTMLElement): string | undefined =>
       element.dataset['treePath'] ?? element.dataset['treeSection'];
@@ -1773,29 +1882,43 @@ export function mountWorkbench(
     }
   });
   // 树空白区（行外的空隙）是根目录落点：反馈冒泡到最后一行，树为空时整树高亮。
-  tree.addEventListener('dragover', event => {
-    if (!dragPath) return;
+  root.addEventListener('dragover', event => {
+    if (!dragPath || !explorerTarget(event.target)) return;
     event.preventDefault();
     const transfer = event.dataTransfer;
     const decision = resolveTreeMove(Object.keys(session.state.files), dragPath, null);
     if (transfer) transfer.dropEffect = decision.kind === 'move' ? 'move' : 'none';
     applyTreeDropFeedback(decision);
   });
-  tree.addEventListener('dragleave', event => {
+  root.addEventListener('dragleave', event => {
+    if (!dragPath || !explorerTarget(event.target)) return;
     const related = event.relatedTarget;
-    if (related instanceof Node && tree.contains(related)) return;
+    if (explorerTarget(related)) return;
     applyTreeDropFeedback(null);
   });
-  tree.addEventListener('drop', event => {
+  root.addEventListener('drop', event => {
+    if (!dragPath || !explorerTarget(event.target)) return;
     event.preventDefault();
     finishTreeDrop();
   });
   /** 资源管理器右键菜单：条目与顺序对齐 vscode.dev，浏览器里不存在的动作不列。 */
-  function explorerMenuEntries(targetPath: string | null, folder: boolean): MenuEntry[] {
+  function explorerMenuEntries(targetPath: string | null, folder: boolean, workspace: boolean): MenuEntry[] {
     const create: MenuEntry[] = [
       { label: '新建文件...', id: 'new-file', action: operations['new-file'] },
       { label: '新建文件夹...', id: 'new-folder', action: operations['new-folder'] }
     ];
+    if (workspace)
+      return [
+        ...create,
+        SEPARATOR,
+        {
+          label: '重命名...',
+          id: 'rename',
+          keybinding: 'F2',
+          action: startProjectRename,
+          disabled: projectSwitchBusy()
+        }
+      ];
     if (!targetPath) return create;
     const projectName = projects.find(item => item.id === session.state.projectId)?.name ?? '';
     const copy: MenuEntry[] = [
@@ -1810,24 +1933,41 @@ export function mountWorkbench(
     return [...(folder ? [...create, SEPARATOR] : []), ...copy, SEPARATOR, ...modify];
   }
 
-  tree.addEventListener('contextmenu', event => {
-    if (creatingFile || creatingFolder || renamingPath) return;
-    if (!session.state.projectId) return;
+  root.addEventListener('contextmenu', event => {
+    if (!explorerTarget(event.target) || treeInputActive()) return;
+    const header =
+      event.target instanceof Element ? event.target.closest<HTMLElement>('[data-workbench-view-header]') : null;
+    const id = header?.dataset['workbenchViewHeader'];
+    const viewEntries: MenuEntry[] =
+      id ?
+        [
+          { label: '移动到底部面板', action: () => docking.views.moveToDock(id) },
+          { label: '隐藏视图', action: () => docking.views.setVisible(id, false) },
+          { label: '重置视图位置', action: () => docking.views.reset() }
+        ]
+      : [];
+    if (!session.state.projectId || id === 'open-editors') {
+      if (viewEntries.length) showContextMenu({ x: event.clientX, y: event.clientY }, viewEntries);
+      return;
+    }
     event.preventDefault();
     const row =
       event.target instanceof Element ?
         event.target.closest<HTMLElement>('button[data-tree-path]:not(.wb-editor-open)')
       : null;
     const targetPath = row?.dataset['treePath'] ?? null;
-    if (targetPath) {
-      treeFocusPath = targetPath;
+    const workspace =
+      event.target instanceof Element && event.target.closest('[data-workbench-view-header="workspace"]') !== null;
+    const target = workspace ? 'workspace' : targetPath;
+    if (target) {
+      treeFocusPath = target;
       renderFiles(session.state);
-      treeRow(targetPath)?.focus();
+      treeRow(target)?.focus();
     }
-    showContextMenu(
-      { x: event.clientX, y: event.clientY },
-      explorerMenuEntries(targetPath, !row || row.classList.contains('wb-folder'))
-    );
+    showContextMenu({ x: event.clientX, y: event.clientY }, [
+      ...explorerMenuEntries(targetPath, !row || row.classList.contains('wb-folder'), workspace),
+      ...(viewEntries.length ? [SEPARATOR, ...viewEntries] : [])
+    ]);
   });
   root.addEventListener('mousedown', event => {
     if (contextMenu && !(event.target instanceof Node && contextMenu.contains(event.target))) closeContextMenu();
@@ -2059,6 +2199,8 @@ export function mountWorkbench(
     projects = [...projects, info];
     project = info;
     renderProjects();
+    docking.views.reset();
+    renderFiles(session.state);
     ensureSavePreview();
     focusEditor(session.state.activePath);
     void savePreview.runSaved().catch(report);
@@ -2276,6 +2418,10 @@ export function mountWorkbench(
     'new-file': () => beginCreate('file'),
     'new-folder': () => beginCreate('folder'),
     rename: () => {
+      if (treeRow('workspace') === root.ownerDocument.activeElement) {
+        startProjectRename();
+        return;
+      }
       const path = renameTargetPath() ?? activeResource();
       if (path) startRename(path);
     },
@@ -2344,12 +2490,14 @@ export function mountWorkbench(
         availableRuntimes,
         onApply(settings) {
           const runtimeBefore = currentRuntime();
+          const engineBefore = editorEngine;
           applyIndentUnit(settings.indentUnit, false);
           alwaysShowScmActions = settings.alwaysShowScmActions;
           scm.setAlwaysShowActions(alwaysShowScmActions);
           preferredRuntime = settings.runtime;
           editorEngine = settings.editorEngine;
           for (const editor of editors.values()) editor.handle.setEngine?.(editorEngine);
+          if (editorEngine !== engineBefore) void Promise.all([...diffs.keys()].map(loadDiff));
           persistPreferences();
           log('output', '设置已更新并保存在此浏览器');
           if (currentRuntime() !== runtimeBefore) void switchRuntime().catch(report);
@@ -2405,19 +2553,23 @@ export function mountWorkbench(
           {
             label: '打开的编辑器',
             id: 'toggle-open-editors',
-            checked: showOpenEditors,
+            checked: docking.views.isVisible('open-editors'),
             action: () => {
-              showOpenEditors = !showOpenEditors;
+              docking.views.setVisible('open-editors', !docking.views.isVisible('open-editors'));
               renderFiles(session.state);
             }
           },
           {
             label: session.state.projectId ? '文件夹' : '无打开的文件夹',
             id: 'toggle-folders',
-            checked: true,
-            disabled: true,
-            action: () => undefined
-          }
+            checked: docking.views.isVisible('workspace'),
+            action: () => {
+              docking.views.setVisible('workspace', !docking.views.isVisible('workspace'));
+              renderFiles(session.state);
+            }
+          },
+          SEPARATOR,
+          { label: '重置视图位置', action: () => docking.views.reset() }
         ];
     showContextMenu({ x: rectangle.left, y: rectangle.bottom }, entries);
   }
@@ -2454,7 +2606,7 @@ export function mountWorkbench(
       queueMicrotask(() => {
         if (disposed) return;
         if (isExplorer) {
-          (treeRow(treeFocusPath) ?? tree.querySelector<HTMLElement>('[data-tree-section],[data-tree-path]'))?.focus();
+          (treeRow(treeFocusPath) ?? explorerRows()[0])?.focus();
         } else if (isSearch) {
           search.focus();
         } else if (isExtensions) {
@@ -2645,6 +2797,7 @@ export function mountWorkbench(
       preview?.dispose();
       for (const editor of editors.values()) editor.handle.dispose();
       layoutChanges.dispose();
+      viewLayoutChanges.dispose();
       docking.dispose();
       for (const dialog of root.querySelectorAll<HTMLDialogElement>('dialog')) dialog.close();
       narrowMedia.removeEventListener('change', onNarrowChange);

@@ -2,6 +2,8 @@ import { computeMinimalDocumentChange } from '@aiao/code-editor';
 import * as monaco from 'monaco-editor';
 import type { WorkbenchEditorMount } from './editor.js';
 
+export { mountMonacoDiff } from './monaco-diff.js';
+
 const workerKinds: Readonly<Record<string, string>> = {
   typescript: 'typescript',
   javascript: 'typescript',

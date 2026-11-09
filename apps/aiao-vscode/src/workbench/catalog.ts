@@ -1,4 +1,3 @@
-import type { SerializedDockview } from 'dockview-core';
 import type { ProjectTemplate } from './compiler/compiler-types.js';
 import {
   parseWorkbenchPreferences,
@@ -6,6 +5,7 @@ import {
   type WorkbenchPreferences,
   type WorkbenchProjectState
 } from './workbench-state.js';
+import type { WorkbenchLayout } from './workbench-view-state.js';
 export type { WorkbenchPreferences, WorkbenchProjectState } from './workbench-state.js';
 
 /** GitHub 远程仓库的目录条目补充信息。 */
@@ -60,7 +60,7 @@ export interface WorkbenchCatalog {
   /** 读取项目上次的工作台布局；没有时为 null。读出的值不可信，由 Dockview 桥校验后才会应用。 */
   getLayout(projectId: string): Promise<unknown>;
   /** 保存项目的工作台布局（Dockview 序列化结果）。 */
-  putLayout(projectId: string, layout: SerializedDockview): Promise<void>;
+  putLayout(projectId: string, layout: WorkbenchLayout): Promise<void>;
 }
 
 /** 独立演示的项目目录；不与 Git 工作区共用文件根。 */

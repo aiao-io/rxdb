@@ -13,8 +13,21 @@ export const workbenchExplorerStyle = `
 .wb-tree{position:relative;padding:0 0 8px;outline:none;font-size:13px;line-height:22px}
 .wb-tree,.wb-scm,.wb-search-results{scrollbar-width:thin;scrollbar-color:#79797966 transparent}
 .wb-pane{display:flex;flex-direction:column}
+.wb-view-container.wb-tree{overflow:hidden;padding:0}
+.wb-view-container>.dv-paneview{height:100%;width:100%}
+.wb-view-content{width:100%;height:100%;min-height:0;overflow:hidden}
+.wb-view-body.wb-pane{display:block;height:100%;box-sizing:border-box;overflow:auto}
+.wb-view-heading{height:100%;outline:none;touch-action:none}
+.wb-view-heading:focus-visible{outline:1px solid var(--wb-focus);outline-offset:-1px}
+.wb-view-heading:hover .wb-tree-section-actions,.wb-view-heading:focus-within .wb-tree-section-actions{opacity:1}
+.wb-view-container .dv-pane-header{background:transparent;color:var(--wb-text)}
+.wb-view-container .dv-pane-header:not(:first-child){border-top:1px solid var(--wb-line)}
+.wb-view-container-empty:after{content:"将视图拖到这里";position:absolute;inset:12px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--wb-line);color:var(--wb-muted);font-size:12px;pointer-events:none}
+.wb-view-container.wb-view-drop{background:var(--wb-drop)}
+
 .wb-pane+.wb-pane>.wb-tree-section-row:before{content:"";position:absolute;top:0;left:4px;right:4px;height:1px;background:var(--wb-line);pointer-events:none}
 .wb-tree-section-row{display:flex;align-items:center;position:relative;height:28px;margin:0 4px;border-radius:4px}
+.wb-tree-section-row>.wb-input-row{flex:1;min-width:0;margin:0}
 .ao-workbench .wb-tree-section-row:hover{background:var(--wb-hover)}
 .ao-workbench .wb-tree-section{display:flex!important;flex:1;min-width:0;height:28px;align-items:center;justify-content:flex-start!important;border-radius:4px!important;padding:0 0 0 4px!important;gap:0!important;background:transparent!important;font-size:12px!important;font-weight:600;line-height:28px;color:var(--wb-text);text-transform:none;white-space:nowrap}
 .wb-tree-section:hover{background:transparent!important}
@@ -51,8 +64,8 @@ export const workbenchExplorerStyle = `
 .wb-input-row{position:relative;display:flex;align-items:center;height:22px;margin:0 4px;padding:0 0 0 calc(var(--wb-level,1)*8px)}
 .wb-input-row>.wb-seti{margin-right:6px}
 .wb-input-row>.wb-twistie{visibility:hidden}
-.ao-workbench .wb-tree .wb-inline-input{display:block;flex:1;min-width:0;height:22px;padding:0 4px;background:var(--wb-input);border:1px solid var(--wb-input-border);border-radius:4px;color:var(--wb-text);font-size:13px;line-height:20px;outline:1px solid var(--wb-focus);outline-offset:-1px}
-.ao-workbench .wb-tree .wb-inline-input[aria-invalid=true]{outline-color:var(--wb-error)}
+.ao-workbench :is(.wb-tree,.wb-view-heading) .wb-inline-input{display:block;flex:1;min-width:0;height:22px;padding:0 4px;background:var(--wb-input);border:1px solid var(--wb-input-border);border-radius:4px;color:var(--wb-text);font-size:13px;line-height:20px;outline:1px solid var(--wb-focus);outline-offset:-1px}
+.ao-workbench :is(.wb-tree,.wb-view-heading) .wb-inline-input[aria-invalid=true]{outline-color:var(--wb-error)}
 .wb-input-validation{position:absolute;z-index:5;top:22px;left:calc(var(--wb-level,1)*8px + 22px);right:0;padding:3px 6px;border:1px solid var(--wb-error);border-top:0;border-radius:0 0 4px 4px;background:#5a1d1d;color:#fff;font-size:12px;line-height:16px}
 .wb-editor-row{position:relative;display:flex;align-items:center;height:22px;margin:0 4px;border-radius:4px}
 .ao-workbench .wb-editor-row:hover{background:var(--wb-hover)}

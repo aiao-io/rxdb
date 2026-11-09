@@ -12,6 +12,7 @@
 | [roadmap.md](roadmap.md)                                                                 | **接下来做什么**、什么必须排在什么前面                        |
 | [vivari-comparison-research.md](vivari-comparison-research.md)                           | Vivari 与本工作台的功能、实现差异、可借鉴设计和验证边界       |
 | [vscode-extension-compatibility-research.md](vscode-extension-compatibility-research.md) | VS Code 插件兼容路线、保留 CodeMirror 的适配成本与验证范围    |
+| [dockview-view-container-research.md](dockview-view-container-research.md)               | 侧栏区块折叠、调高、排序及与底部面板双向拖放的实现路线        |
 | [stories/](stories/)                                                                     | 用户故事与可行性研究（含 `story.template.md`）                |
 | [../benchmarks/](../benchmarks/)                                                         | 验收证据：导出 / Git / 离线 / 保存 / SCM / 键盘的验证报告快照 |
 
