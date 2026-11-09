@@ -8,9 +8,9 @@
  */
 import {
   RxDBBranch,
+  RxDBSync,
   type RxDB,
   type RxDBChange,
-  RxDBSync,
   type SwitchBranchOptions,
   type TransactionExecutor,
   type UUID

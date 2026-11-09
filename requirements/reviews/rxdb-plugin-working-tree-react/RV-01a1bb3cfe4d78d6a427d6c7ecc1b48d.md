@@ -7,7 +7,7 @@ range: project
 base_ref: null
 review_scopes: []
 scope_id: 'project:rxdb-plugin-working-tree-react'
-status: Fixed
+status: Resolved
 severity: P2
 source_view: commit
 source_snapshot: '0ffa3c419fcc59dc3e13d695ca4658116134bfa0'
@@ -90,3 +90,15 @@ pr: null
 - 改动：`packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts`、`packages/rxdb-plugin-working-tree-react/src/use-worktrees.ts`（`openSlot()`、`entry`、`patch` 依赖 `[entry]`）；回归 `packages/rxdb-plugin-working-tree-react/src/__tests__/provider-switch.spec.ts` 新增两条（A→B→A 后首次 A 入口迟到的 `isEnabled` 成功与 `status` 失败都不覆盖第二次入口；StrictMode 下同样丢弃），`packages/rxdb-plugin-working-tree-react/src/__tests__/use-worktrees.spec.tsx` 新增一条（迟到的 `list()` 结果不覆盖第二次入口的空列表）。
 - 验证：修复前红：`npx vitest run --coverage.enabled=false src/__tests__/provider-switch.spec.ts src/__tests__/use-worktrees.spec.tsx` 3 条失败——`isEnabledState` 被改回 `{ phase: 'success', value: true }`、`listState.phase` 被改回 `success`。修复后绿：该包 4 个文件 70 条全部通过（含原有「一次命令都没发起过就换库，不触发多余的状态写入」与 StrictMode 用例）；`npx tsc -p tsconfig.lib.json --noEmit` / `tsconfig.spec.json --noEmit` 无错误，改动文件 eslint（max-warnings 0）通过。
 - 剩余事项：无；收尾复核。
+
+### EV-01a1c08283ac7960bcb71f15ab921b45：复核
+
+- 时间：2026-11-09T21:32:21+08:00
+- 操作：verify
+- 执行者：ai；anthropic/claude-opus-5-5；会话 aa117580-681a-4540-85b2-3c61967b2092（Claude Code 并行子 agent G08，复核角色）
+- 输入快照：工作区树 `d60ea42302e76908ddc1302dd6c243e290ce9e26`（修复事件的输出快照）
+- 输出快照：工作区树 `bc1f2a85f04d66d2fe1d923c2cba3c8237b435c5`（`ai-review snapshot --worktree`，基于 `74da4983`（外部自动提交，含各组 WIP））
+- 状态：Fixed → Resolved
+- 结论：修复有效。两个 hook 的写回只认建 slot 时生成的 `entry`，A→B→A 每次进入都是新入口；渲染期调整状态的复位方式与「不在渲染期写 ref」的约束保持不变，普通换库、StrictMode、从未发命令就换库的既有用例照绿。Angular / Vue 入口绑定创建时的库，无对应路径。消费者 `dev-rxdb-react` 经源码使用两个 hook，相关单测通过。
+- 验证：`pnpm nx run rxdb-plugin-working-tree-react:test --exclude-task-dependencies --skip-nx-cache`：5 个文件 71 条通过；整包 eslint（max-warnings 0）通过；`apps/dev-rxdb-react` 下 `npx vitest run src/app/components/AppBranchManager.spec.tsx src/app/pages/working-tree/working-tree.compare.spec.tsx --coverage.enabled=false`：9 条通过。
+- 剩余事项：无。

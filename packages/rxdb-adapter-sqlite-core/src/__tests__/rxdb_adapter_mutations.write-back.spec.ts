@@ -73,7 +73,10 @@ const CREATED = '2026-01-01T00:00:00.000Z';
 const STORED = '2026-01-02T00:00:00.000Z';
 const WRITTEN = '2026-01-03T00:00:00.000Z';
 
-const createDatabase = (dbName: string, entities: (typeof Todo | typeof WriteBackBigParent | typeof WriteBackBigChild)[]) => {
+const createDatabase = (
+  dbName: string,
+  entities: (typeof Todo | typeof WriteBackBigParent | typeof WriteBackBigChild)[]
+) => {
   const rxdb = new RxDB({
     dbName,
     entities,

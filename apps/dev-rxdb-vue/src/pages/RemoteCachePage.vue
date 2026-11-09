@@ -9,6 +9,7 @@ import { useRxDB } from '@aiao/rxdb-vue';
 import { formatFileSize } from '@aiao/utils';
 import { Cloud, CloudDownload, Download, FileText, RefreshCw, Trash2, Wifi, WifiOff } from '@lucide/vue';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { createObjectUrlCache } from './remote-cache-object-urls';
 import { resolveRemoteCachePreviewKind } from './remote-cache-preview';
 
 interface RemoteResource {
@@ -57,7 +58,12 @@ const online = ref(typeof navigator === 'undefined' ? true : navigator.onLine);
 const cached = ref<CachedItem[]>([]);
 const logs = ref<LogEntry[]>([]);
 
-const objectUrls = new Map<string, string>();
+// 本页的预览地址：按文件复用，离开页面时全部回收，迟到的分配当场回收
+const previews = createObjectUrlCache<StorageFileMeta>({
+  list: () => rxdb.storage.list({ path: REMOTE_DIR }),
+  createObjectUrl: id => rxdb.storage.createObjectUrl(id),
+  revokeObjectUrl: url => rxdb.storage.revokeObjectUrl(url)
+});
 
 const cachedSet = computed(() => new Set(cached.value.map(item => item.meta.opfsPath)));
 
@@ -83,27 +89,8 @@ function describeError(error: unknown, resource: RemoteResource): string {
 }
 
 async function refresh(): Promise<void> {
-  const metas = await rxdb.storage.list({ path: REMOTE_DIR });
-  const liveIds = new Set<string>(metas.map(meta => meta.id as string));
-
-  for (const [id, url] of Array.from(objectUrls.entries())) {
-    if (!liveIds.has(id)) {
-      rxdb.storage.revokeObjectUrl(url);
-      objectUrls.delete(id);
-    }
-  }
-
-  const items: CachedItem[] = [];
-  for (const meta of metas) {
-    let objectUrl = objectUrls.get(meta.id);
-    if (!objectUrl) {
-      objectUrl = await rxdb.storage.createObjectUrl(meta.id);
-      objectUrls.set(meta.id, objectUrl);
-    }
-    items.push({ meta, objectUrl });
-  }
-
-  cached.value = items;
+  const items = await previews.load();
+  if (items) cached.value = items;
 }
 
 async function fetchResource(resource: RemoteResource): Promise<void> {
@@ -181,10 +168,7 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('online', onOnline);
   window.removeEventListener('offline', onOffline);
-  for (const url of objectUrls.values()) {
-    rxdb.storage.revokeObjectUrl(url);
-  }
-  objectUrls.clear();
+  previews.dispose();
 });
 </script>
 

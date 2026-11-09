@@ -103,7 +103,8 @@ it('压缩合并：分叉前就有的行在源分支删掉、同 id 重建、再
         mergeChanges: async (actions: SwitchVersionActions) => {
           writes.push(actions);
           for (const key of actions.deletes.keys()) target.delete(String(parseRxDBChangeKey(key)[2]));
-          for (const [key, value] of actions.inserts) target.set(String(parseRxDBChangeKey(key)[2]), { ...value.patch });
+          for (const [key, value] of actions.inserts)
+            target.set(String(parseRxDBChangeKey(key)[2]), { ...value.patch });
         }
       } as unknown as TransactionExecutor)
   };

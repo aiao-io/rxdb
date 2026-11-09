@@ -7,7 +7,7 @@ range: project
 base_ref: null
 review_scopes: []
 scope_id: 'project:rxdb-taro'
-status: Fixed
+status: Resolved
 severity: P2
 source_view: commit
 source_snapshot: '0ffa3c419fcc59dc3e13d695ca4658116134bfa0'
@@ -83,3 +83,15 @@ pr: null
 - 改动：新增 `packages/rxdb-taro/src/directive-prologue.ts`（`scanDirectivePrologue`，不从包入口导出）；`packages/rxdb-taro/src/realm-plugin.ts`（`afterDirective` 与抖音入口判定改用扫描结果）；回归 `packages/rxdb-taro/src/__tests__/realm-plugin.spec.ts` 新增「指令序言」一组 8 条（块注释 banner、行注释、前置 `use client`、指令间夹注释、无分号换行，均在 Node vm 里按 CommonJS 函数体执行断言仍是严格模式；非严格 chunk 与续成表达式的字符串插在最前；转义写法不是严格指令；抖音入口 banner / 前置指令后的 `use strict` 照样拒绝），新增 `packages/rxdb-taro/src/__tests__/directive-prologue.spec.ts` 16 条覆盖扫描器各分支。原有「函数体内 use strict 不影响顶层」等用例保留不变。
 - 验证：修复前红：`npx vitest run --coverage.enabled=false src/__tests__/realm-plugin.spec.ts` 新增 8 条全部失败（4 条 chunk 变非严格，无分号用例得到 `"use strict"var __rxdbRealm=…`，转义用例插入点错误，抖音入口未拒绝）。修复后绿：rxdb-taro 全部 9 个文件 96 条通过；`npx tsc -p tsconfig.lib.json --noEmit` 无错误，改动文件 eslint（max-warnings 0）通过。`tsconfig.spec.json --noEmit` 对新文件报 TS6305（项目引用要求 `dist/directive-prologue.d.ts`，本轮禁止重建 dist）；改用仓库被忽略的 `tmp/` 下不带项目引用的临时配置对两个 spec 与两个源文件做类型检查，无错误，临时配置已删除。未跑真实 Taro / 真机构建。
 - 剩余事项：主会话重建 rxdb-taro dist 后复跑 `tsc -p packages/rxdb-taro/tsconfig.spec.json --noEmit`（预期 TS6305 消失）。
+
+### EV-01a1c08283d27b8f83f0721601fbc8a7：复核
+
+- 时间：2026-11-09T21:32:21+08:00
+- 操作：verify
+- 执行者：ai；anthropic/claude-opus-5-5；会话 aa117580-681a-4540-85b2-3c61967b2092（Claude Code 并行子 agent G08，复核角色）
+- 输入快照：工作区树 `1bf4ea446ccf17e5d72ffca4b5b7cba1dc23baa7`（修复事件的输出快照）
+- 输出快照：工作区树 `bc1f2a85f04d66d2fe1d923c2cba3c8237b435c5`（`ai-review snapshot --worktree`，基于 `74da4983`（外部自动提交，含各组 WIP））
+- 状态：Fixed → Resolved
+- 结论：修复有效。非入口 chunk 与抖音入口判定都改用同一份序言扫描；原报告的四种触发（块注释 banner、行注释、前置指令、抖音入口 banner）以及补上的无分号换行都在 Node vm 里按 CommonJS 函数体执行验证仍为严格模式，函数体内 `use strict` 不算顶层指令的旧用例保留通过。扫描器拿不准一律判「不是指令」，退化行为与修复前一致，不会改写表达式语义。类型检查已用不带项目引用的配置覆盖新文件与 spec，剩下的 TS6305 只是项目引用要求先有 dist 声明，构建后的 typecheck 由主会话 `pnpm test-all` 复跑。
+- 验证：`pnpm nx run rxdb-taro:test --exclude-task-dependencies --skip-nx-cache`：9 个文件 96 条通过；整包 `eslint . --max-warnings=0` 通过；`npx tsc -p tsconfig.lib.json --noEmit` 无错误。
+- 剩余事项：无（主会话全量门禁会带上 rxdb-taro 的 build 与 typecheck）。

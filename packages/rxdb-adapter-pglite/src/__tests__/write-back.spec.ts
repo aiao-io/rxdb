@@ -231,9 +231,7 @@ describe('PGlite 写入回填', () => {
     await parent.save();
 
     const table = getTableNameByMetadata(getEntityMetadata(WriteBackChild), adapter.tableSet);
-    const stored = await adapter.query<{ parentId: string | null }>(`SELECT * FROM ${table} WHERE id = $1`, [
-      child.id
-    ]);
+    const stored = await adapter.query<{ parentId: string | null }>(`SELECT * FROM ${table} WHERE id = $1`, [child.id]);
     expect(stored.rows[0].parentId).toBeNull();
   });
 

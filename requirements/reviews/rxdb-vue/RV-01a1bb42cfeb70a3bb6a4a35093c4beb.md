@@ -88,3 +88,15 @@ pr: null
 - 改动：React `packages/rxdb-react/src/useInfiniteScroll.ts`（`PageHandle.loadId`、`isLatestLoad`、重锚传 `next.loadId`、丢弃尾页时 `settles`）；Vue `packages/rxdb-vue/src/useInfiniteScroll.ts`（`PageHandle.loadId`、`finishLatestLoad` 收 `undefined`、重锚与丢弃同上）；Angular `packages/rxdb-angular/src/InfiniteScrollingList.ts`（`PageHandle.request`、`#settleRequest`、重锚传 `next.request`、`#truncatePages` 结算被丢的最新请求）。三端各新增同一组四条回归「在途页被重锚或丢弃时的加载结算」：替代页返回后结束加载且还能继续翻页、替代页失败时结束加载并报错、替代页无首值 complete 时结束加载并收敛 `hasMore`、上一页清空丢弃在途下一页时结束加载。
 - 验证：修复前红：rxdb-react `useInfiniteScroll.spec.ts` 4 条、rxdb-vue `useInfiniteScroll.spec.ts`（`--coverage.enabled=false`）4 条、rxdb-angular `InfiniteScrollingList.spec.ts` 4 条全部失败，均为 `isLoading` 停在 `true`。修复后绿：React 26 条、Vue 48 条、Angular 59 条通过；React 全部 node 单测 243 条通过；三端 `npx tsc -p tsconfig.lib.json --noEmit` / `tsconfig.spec.json --noEmit` 无错误，改动文件 eslint（max-warnings 0）通过。三端整包测试留到本组收尾统一跑。
 - 剩余事项：无（三端已同时修复）；收尾复核。
+
+### EV-01a1c0861ebe768c8b602973bdbb9de1：复核（部分，待主会话）
+
+- 时间：2026-11-09T21:36:17+08:00
+- 操作：verify
+- 执行者：ai；anthropic/claude-opus-5-5；会话 aa117580-681a-4540-85b2-3c61967b2092（Claude Code 并行子 agent G08，复核角色）
+- 输入快照：工作区树 `d5fd4fd913ad3d439bb538504e32a6599ef5e0b8`（修复事件的输出快照）
+- 输出快照：工作区树 `bc1f2a85f04d66d2fe1d923c2cba3c8237b435c5`（`ai-review snapshot --worktree`，基于 `74da4983`（外部自动提交，含各组 WIP））
+- 状态：Fixed（不变）
+- 结论：三端绑定本身复核通过；经源码使用绑定的 React / Angular 消费者也已验证。Vue 侧消费者（`rxdb-model-vue` 的实体列表、`dev-rxdb-vue` 的 `TodoCursorPage`）经 `@aiao/rxdb-vue` 的 dist 导入，本轮禁止重建 dist，跑出来的是旧实现，因此暂不关闭。
+- 验证：`pnpm nx run rxdb-react:test`（17 个文件 245 条）、`rxdb-vue:test`（15 个文件 243 条）、`rxdb-angular:test`（13 个文件 271 条）均 `--exclude-task-dependencies --skip-nx-cache` 通过，`rxdb-react:test-browser` 18 条通过，三包整包 eslint 通过；`rxdb-model-react` 实体列表真实库用例 57 条、`rxdb-model-angular` 实体列表真实库用例 61 条通过（两次进程退出码 1 都来自 `rxdb-plugin-history/src/history-item-builder.ts:50` 的未处理异常，属别组范围）。
+- 剩余事项：主会话重建 `rxdb-vue` dist 后跑 `pnpm nx run rxdb-model-vue:test` 与 `pnpm nx run dev-rxdb-vue:test`（或 `pnpm test-all`），通过即可转 Resolved。

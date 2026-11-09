@@ -176,7 +176,7 @@ describe('EntityStatus.applyWriteResult：写入成功后的收尾', () => {
     expect(status.patch).toEqual({ title: 'typed after insert' });
     expect(status.modified).toBe(true);
   });
-it('patch 取走之后、写入开始之前（事务排队期间）的编辑同样算提交之后', () => {
+  it('patch 取走之后、写入开始之前（事务排队期间）的编辑同样算提交之后', () => {
     const note = storedNote(createDatabase('write-result-queued'));
     const status = getEntityStatus(note);
     note.title = 'submitted';

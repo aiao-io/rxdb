@@ -1,8 +1,10 @@
 import type { RxDB, RxDBEntityId } from '@aiao/rxdb';
 import { SortableFileNode } from '@aiao/rxdb-test/entities';
 import { computed, ref, type Ref } from 'vue';
+import { formatFileName } from '../utils/file-name';
 import { getSortComparator, loadStoredSortMode, persistSortMode, SortMode } from '../utils/file-sorters';
 import { generateBatchFiles } from '../utils/file-utils';
+import { collectSearchPath } from '../utils/tree-search';
 import { type PathConflict, useFilePathValidator } from './useFilePathValidator';
 import { useTreeWriteError } from './useTreeWriteError';
 
@@ -42,7 +44,7 @@ export function useFileManagerStore(files: Ref<SortableFileNode[]>, rxdb: RxDB) 
 
     const keyword = searchKeyword.value.toLowerCase();
     files.value.forEach(file => {
-      const fullName = file.extension ? `${file.name}${file.extension}` : file.name;
+      const fullName = formatFileName(file.name, file.extension);
       if (fullName.toLowerCase().includes(keyword)) {
         matched.add(file.id);
       }
@@ -95,33 +97,19 @@ export function useFileManagerStore(files: Ref<SortableFileNode[]>, rxdb: RxDB) 
     const sortFiles = (fileList: SortableFileNode[]): SortableFileNode[] =>
       comparator ? [...fileList].sort(comparator) : fileList;
 
+    // 搜索时只显示命中项及其祖先，祖先临时画成展开（不改用户的展开集合），与 Angular / React 同一口径
+    const search = searchKeyword.value ? collectSearchPath(files.value, file => matchedFileIds.value.has(file.id)) : null;
+
     // 递归构建节点
     const buildNodes = (parentId: RxDBEntityId | null, level: number) => {
       const children = childrenMap.get(parentId) || [];
       const sorted = sortFiles(children);
 
       sorted.forEach(file => {
+        if (search && !search.visible.has(file.id)) return;
         const hasChildren = childrenMap.has(file.id) && childrenMap.get(file.id)!.length > 0;
-        const isExpanded = expandedIds.value.has(file.id);
-        const isMatched = matchedFileIds.value.has(file.id); // 搜索过滤
-        if (searchKeyword.value) {
-          const keyword = searchKeyword.value.toLowerCase();
-          const fileFullName = file.extension ? `${file.name}${file.extension}` : file.name;
-          const matchesSearch = fileFullName.toLowerCase().includes(keyword);
-          if (!matchesSearch) {
-            // 检查是否有匹配的子节点
-            const hasMatchingChildren = (id: RxDBEntityId): boolean => {
-              const kids = childrenMap.get(id) || [];
-              return kids.some(kid => {
-                const kidFullName = kid.extension ? `${kid.name}${kid.extension}` : kid.name;
-                return kidFullName.toLowerCase().includes(keyword) || hasMatchingChildren(kid.id);
-              });
-            };
-            if (!hasMatchingChildren(file.id)) {
-              return;
-            }
-          }
-        }
+        const isExpanded = expandedIds.value.has(file.id) || (search?.ancestors.has(file.id) ?? false);
+        const isMatched = matchedFileIds.value.has(file.id);
 
         nodes.push({
           file,
@@ -131,7 +119,7 @@ export function useFileManagerStore(files: Ref<SortableFileNode[]>, rxdb: RxDB) 
           isMatched
         });
 
-        if ((isExpanded || searchKeyword.value) && file.type === 'folder') {
+        if (isExpanded && file.type === 'folder') {
           buildNodes(file.id, level + 1);
         }
       });

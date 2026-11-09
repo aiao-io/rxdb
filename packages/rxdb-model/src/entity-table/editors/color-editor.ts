@@ -1,8 +1,7 @@
 import type { EditContext, IEditor, RectProps } from '@visactor/vtable-editors';
 import { ModelEditorI18n } from '../../i18n.js';
+import { readCellOrigin } from './cell-origin.js';
 import { DAISY_COLORS, refocusTable, scheduleEditorSetup } from './global-overlay-editor.js';
-
-type TableLike = { getCellOriginValue(col: number, row: number): unknown } | null;
 
 /** 十六进制颜色（允许省略 `#`） */
 const HEX_COLOR_RE = /^#?[0-9a-fA-F]{6}$/;
@@ -43,7 +42,7 @@ export class ColorEditor implements IEditor<unknown> {
       refocusTable(container);
       ctx.endEdit();
     };
-    const origin = (ctx.table as TableLike)?.getCellOriginValue(ctx.col, ctx.row) ?? ctx.value;
+    const origin = readCellOrigin(ctx);
     const normalized = origin != null && origin !== '' ? normalizeHexColor(String(origin)) : null;
     this.#value = normalized;
     this.#originalValue = normalized;

@@ -13,9 +13,9 @@ import {
   EntityLocalCreatedEvent,
   EntityLocalRemovedEvent,
   EntityLocalUpdatedEvent,
+  getEntityStatus,
   type EntityStaticType,
   type EntityType,
-  getEntityStatus,
   type RxDBEntityLocalCreatedEventData,
   type RxDBEntityLocalRemovedEventData,
   type RxDBEntityLocalUpdatedEventData

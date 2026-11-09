@@ -148,7 +148,11 @@ describe('版本切换 SQL：自定义主键列', () => {
     const { entity, table, column, id } = cases[0];
     const key = `public:${entity}:${String(id)}`;
 
-    await adapter.mergeChanges(actionsOf({ inserts: new Map([[key, change({ id, label: 'pulled' })]]) }), undefined, true);
+    await adapter.mergeChanges(
+      actionsOf({ inserts: new Map([[key, change({ id, label: 'pulled' })]]) }),
+      undefined,
+      true
+    );
     expect(await labelsOf(table, column)).toEqual([{ key: String(id), label: 'pulled' }]);
 
     await adapter.mergeChanges(

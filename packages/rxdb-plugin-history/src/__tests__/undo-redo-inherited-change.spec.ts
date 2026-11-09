@@ -7,7 +7,7 @@
  * 真后端上的端到端判定在适配器的分支套件里（PGlite `undo_inherited_change.spec.ts`、SQLite 共享分支套件）；
  * 这里钉住纯函数的口径，以及「选候选之后才建出子分支」那个只能在写事务里判的竞态。
  */
-import { RxDBBranch, type RxDB, type RxDBChange, RxDBSync, type UUID } from '@aiao/rxdb';
+import { RxDBBranch, RxDBSync, type RxDB, type RxDBChange, type UUID } from '@aiao/rxdb';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import {

@@ -1,6 +1,7 @@
 import type { EditContext, IEditor, RectProps } from '@visactor/vtable-editors';
 import type { RelatedEntityItem } from '../../entity-form/interfaces.js';
 import { ModelEditorI18n } from '../../i18n.js';
+import { readCellOrigin } from './cell-origin.js';
 import { DAISY_COLORS, positionOverlayPanel, refocusTable } from './global-overlay-editor.js';
 
 /** 关联实体选项项 */
@@ -94,8 +95,7 @@ export class RelationEditor implements IEditor<string> {
   /** 弹出搜索浮层，解析候选列表并绑定键盘与点击事件 */
   onStart(ctx: EditContext<string>): void {
     this.#messages.start(ctx.table);
-    const table = ctx.table as { getCellOriginValue(col: number, row: number): unknown } | null;
-    const origin = table?.getCellOriginValue(ctx.col, ctx.row) ?? ctx.value;
+    const origin = readCellOrigin(ctx);
     this.#currentValue = origin != null ? String(origin) : '';
     this.#originalValue = this.#currentValue;
     this.#container = ctx.container;
