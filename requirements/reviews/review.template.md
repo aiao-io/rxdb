@@ -2,20 +2,18 @@
 id: RV-<uuid>
 title: '<问题一句话>'
 project: '<真实 Nx 项目名>'
-branch: '<完整分支 ref 或 detached worktree 标识>'
-range: project
-base_ref: null
-review_scopes: []
-scope_id: '<与模型无关的作用域标识>'
 status: Open
-severity: P2
-source_view: commit
-source_snapshot: '<完整提交 SHA 或 worktree 快照标识>'
-base_sha: null
-created: YYYY-MM-DD
-updated: YYYY-MM-DD
+severity: '<P0 | P1 | P2 | P3>'
+anchors: ['<path>#<symbol>']
 affected_projects: []
 related_findings: []
+found_on_branch: '<首次发现时的完整分支 ref；detached 写 null>'
+found_view: commit
+found_snapshot: '<首次发现时的提交 SHA；工作区视图写树 SHA>'
+found_range: project
+found_base: null
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
 pr: null
 ---
 
@@ -23,32 +21,31 @@ pr: null
 
 ## 问题与影响
 
-写明确切触发条件、用户影响及严重程度依据。只记录存在具体证据的问题。range/base/scope 保存首次发现来源；后续其他评审范围写入 review_scopes 或处理事件，不因此重建问题。
+写明触发条件、用户影响和严重程度依据（级别定义见 skill 的评审标准 `.agents/skills/ai-code-review/references/rubric.md`）。只记录有具体证据的问题。
 
 ## 证据与根因
 
-记录对应快照的路径、符号或短代码片段、调用链与复现方式；分支差异评审还需指出引入或放大问题的变化。
+源码位置写成行内代码（如 `packages/x/src/a.ts:120`）并注明快照 SHA，或用带提交 SHA 的 GitHub 永久链接；不写指向源码的相对链接。写出符号、短代码片段、调用链与复现方式；分支差异评审还要指出引入或放大问题的改动。
 
 ## 修复方向
 
-写最小修复范围与需要核对的框架、消费者或后端契约。提出方向不代表补丁已经完成。
+最小修复范围，以及需要一起核对的三框架绑定、消费者或后端契约。写出方向不代表补丁已经完成。
 
 ## 处理记录
 
-每次发现、修复、复核、异议或重开都追加一个事件，填写真实值；已有事件不被后一个模型覆盖。
+每次发现、修复、复核、异议、重开或合并重复记录都追加一个事件，填真实值；已有事件不改写、不删除。
 
 ### EV-<uuid>：发现
 
 - 时间：<含时区的实际时间>
-- 操作：review/full 或 review/incremental
-- 执行者：<human/ai；provider、model、version、session；无法取得的身份字段写 unknown>
-- 输入快照：<真实 SHA 或隔离工作区清单摘要>
+- 操作：review/full、review/incremental 或 review/independent
+- 执行者：<ai 或 human>；<provider>/<model>；会话 <session>；取不到的字段写 unknown
+- 输入快照：<提交 SHA 或工作区树 SHA>
 - 输出快照：<没有代码变化时同输入>
 - 状态：未登记 → Open
 - 结论：<发现与证据>
-- 验证：<实际命令、结果；未执行时明确写未执行及原因>
-- 剩余事项：<待确认或待修复内容>
+- 验证：<实际命令与结果；没执行就写明原因>
+- 剩余事项：<待确认或待修复的内容>
 
-修复事件补充改动路径、修复前后行为、回归结果及验证缺口；状态先为 Fixed，复核有效再为 Resolved。
-异议事件补充反证、不修理由与建议裁决；提出异议为 Disputed，证实不成立为 Dismissed，维护者明确接受风险为 Accepted。
-关闭后保留本文件。状态与命名的唯一约定见仓库根 requirements/CONVENTIONS.md。
+修复事件补写改动路径、修复前后行为、回归与检查结果：回归转绿且检查通过才写 Fixed，否则状态不变。
+复核与异议按仓库根 requirements/CONVENTIONS.md 的状态转移表改状态；关闭后保留本文件。
