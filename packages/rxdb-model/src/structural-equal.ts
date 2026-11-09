@@ -28,7 +28,13 @@ export function cloneStructured<T>(value: T, seen = new WeakMap<object, unknown>
   const copy: Record<string, unknown> = {};
   seen.set(object, copy);
   for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
-    copy[key] = cloneStructured(item, seen);
+    // 按自有数据属性定义：`copy[key] = …` 遇到 JSON 的 `__proto__` 键会走继承的 setter，键丢失、原型被换掉
+    Object.defineProperty(copy, key, {
+      value: cloneStructured(item, seen),
+      writable: true,
+      enumerable: true,
+      configurable: true
+    });
   }
   return copy as T;
 }
