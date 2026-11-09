@@ -1,6 +1,6 @@
+import type { ImageMimeType } from '@aiao-media/api-contracts';
 import { of, Subject } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
-import type { ImageMimeType } from '@aiao-media/api-contracts';
 import type { LocalWorkQuery, LocalWorkSummary } from '../local-data/index';
 import { type LibraryState, WorkLibrarySession } from './work-library-session';
 

@@ -4,7 +4,7 @@ import { extname, relative, resolve } from 'node:path';
 import { downloadBackup, endpoint, importBackup, pngFixture, profile, prompt, provider } from './local-first.helpers';
 
 const baseline = resolve(
-  process.env['AIAO_MEDIA_BASELINE'] ?? new URL('../../aiao-media/tmp/migration-baseline/', import.meta.url).pathname
+  process.env['AIAO_MEDIA_BASELINE'] ?? new URL('../../web/tmp/migration-baseline/', import.meta.url).pathname
 );
 
 test('0.0.26 旧构建写入的工作区、原图与备份可由迁入后的工作区版本继续使用', async ({ page }) => {

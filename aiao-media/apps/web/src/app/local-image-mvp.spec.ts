@@ -1,8 +1,7 @@
+import type { GenerationJobSummary, PublicWorkPayload } from '@aiao-media/api-contracts';
 import { TestBed } from '@angular/core/testing';
 import { Subject } from 'rxjs';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import type { GenerationJobSummary } from '@aiao-media/api-contracts';
-import type { PublicWorkPayload } from '@aiao-media/api-contracts';
 import type { LocalWorkSummary } from '../local-data/index';
 import { LocalImageMvp } from './local-image-mvp';
 import { PromptInput } from './prompts/prompt-input';

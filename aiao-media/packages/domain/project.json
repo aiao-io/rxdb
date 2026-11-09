@@ -1,18 +1,13 @@
 {
-  "name": "domain",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "aiao-media/packages/domain/src",
+  "name": "domain",
   "projectType": "library",
-  "tags": [
-    "scope:aiao-media",
-    "type:domain"
-  ],
+  "sourceRoot": "aiao-media/packages/domain/src",
+  "tags": ["scope:aiao-media", "type:domain"],
   "targets": {
     "build": {
       "executor": "nx:run-commands",
-      "outputs": [
-        "{projectRoot}/dist"
-      ],
+      "outputs": ["{projectRoot}/dist"],
       "options": {
         "cwd": "aiao-media/packages/domain",
         "command": "tsc -p tsconfig.lib.json"

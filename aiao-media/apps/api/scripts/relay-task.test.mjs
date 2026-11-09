@@ -1,8 +1,8 @@
+import { createRelayTaskToken, openRelayResult, relayResultKey } from '@aiao-media/api-contracts';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import worker from '../src/local-first-worker.ts';
 import { RelayTask } from '../src/relay-task.ts';
-import { createRelayTaskToken, openRelayResult, relayResultKey } from '@aiao-media/api-contracts';
 import { durableObjectNamespace, r2Bucket } from './cloudflare-stand-ins.mjs';
 
 const origin = 'https://app.example.test';

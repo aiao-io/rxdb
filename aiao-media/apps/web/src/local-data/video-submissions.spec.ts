@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import type { VideoGenerationJobSummary, VideoJobRequest } from '@aiao-media/api-contracts';
+import { describe, expect, it } from 'vitest';
 import {
   confirmVideoSubmission,
   createVideoSubmission,

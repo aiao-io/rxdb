@@ -7,7 +7,7 @@ import {
   runActualReleaseUpdate
 } from './actual-release-update.mjs';
 
-const application = resolve(import.meta.dirname, '../../aiao-media');
+const application = resolve(import.meta.dirname, '../../web');
 const releases = artifactPair(
   await readReleaseArtifact(process.env.AIAO_MEDIA_UPDATE_A_DIR || resolve(application, 'tmp/public-release-baseline')),
   await readReleaseArtifact(process.env.AIAO_MEDIA_UPDATE_B_DIR || resolve(application, 'tmp/public-release-current'))

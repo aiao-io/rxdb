@@ -654,11 +654,7 @@ jobs:
           COVERAGE: ${{ matrix.coverage }}
         run: |
           set -euo pipefail
-          COVERAGE_ARGS=()
-          if [ "$COVERAGE" = "true" ]; then
-            COVERAGE_ARGS=(--coverage --coverage.reporter=json --coverage.reporter=json-summary --coverage.reporter=lcovonly)
-          fi
-          pnpm exec nx run-many -t "$TARGET" -p "$PROJECTS" --output-style=stream --parallel=1 "${COVERAGE_ARGS[@]}"
+          node scripts/ci/run-test-lane.mjs .nx-test-task-graph.json "$TARGET" "$PROJECTS" "$COVERAGE"
 
       # 只传门禁和 Codecov 真正要读的四种文件。html 报告有几百 MB，
       # 传上去除了拖慢 CI 没人看。
@@ -964,14 +960,24 @@ jobs:
       #   pnpm exec playwright show-trace <zip>
       # 第二条 path 是为了兜住 dev-rxdb-react-e2e —— 它覆写了 reporter，
       # html 报告落在 playwright-report/ 而不是 preset 的 test-output/playwright/report/。
+      - name: Resolve Playwright project root
+        if: ${{ !cancelled() }}
+        id: e2e_root
+        env:
+          PROJECT: ${{ matrix.project }}
+        run: |
+          set -euo pipefail
+          PROJECT_ROOT=$(pnpm exec nx show project "$PROJECT" --json | jq -er '.root')
+          printf 'path=%s\n' "$PROJECT_ROOT" >> "$GITHUB_OUTPUT"
+
       - name: Upload Playwright artifacts
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: playwright-${{ matrix.project }}-${{ matrix.target }}
           path: |
-            apps/${{ matrix.project }}/test-output/playwright/**
-            apps/${{ matrix.project }}/playwright-report/**
+            ${{ steps.e2e_root.outputs.path }}/test-output/playwright/**
+            ${{ steps.e2e_root.outputs.path }}/playwright-report/**
           retention-days: 7
           if-no-files-found: ignore
 
@@ -1195,7 +1201,11 @@ jobs:
         with:
           targets: search-ci,bench-working-tree-ci,bench-sortable-batch
           projects: benchmarks
-      - run: pnpm exec nx run-many -t search-ci bench-working-tree-ci bench-sortable-batch -p benchmarks --output-style=stream --parallel=1
+      # 测量沿用 reference 冻结时的默认堆，避免继承构建阶段的 6 GiB 设置而改变 GC 行为。
+      - name: Run performance gates
+        env:
+          NODE_OPTIONS: ''
+        run: pnpm exec nx run-many -t search-ci bench-working-tree-ci bench-sortable-batch -p benchmarks --output-style=stream --parallel=1
 
       - name: Upload benchmark reports
         if: ${{ always() }}

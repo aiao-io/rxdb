@@ -1,11 +1,3 @@
-import type { TransactionExecutor } from '@aiao/rxdb';
-import { Entity, EntityBase, PropertyType, RxDB, RxDBSync, SyncType, type Conflict, type UUID } from '@aiao/rxdb';
-import { RxDBAdapterSupabase } from '@aiao/rxdb-adapter-supabase';
-import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
-import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
-import { firstValueFrom } from 'rxjs';
-import { serializePrompt } from '../app/prompts/prompt-state';
-import type { ProductAuthorization } from '../app/supabase-auth';
 import {
   productPayloadText,
   productRecordId,
@@ -15,6 +7,14 @@ import {
   type ProductRecordPayload,
   type TaskReport
 } from '@aiao-media/api-contracts';
+import type { TransactionExecutor } from '@aiao/rxdb';
+import { Entity, EntityBase, PropertyType, RxDB, RxDBSync, SyncType, type Conflict, type UUID } from '@aiao/rxdb';
+import { RxDBAdapterSupabase } from '@aiao/rxdb-adapter-supabase';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
+import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
+import { firstValueFrom } from 'rxjs';
+import { serializePrompt } from '../app/prompts/prompt-state';
+import type { ProductAuthorization } from '../app/supabase-auth';
 import { configureLocalAdapter, localAdapterName } from '../platform/local-backend';
 import { splitReportBatches } from './report-batches';
 import SupabaseSDK = require('@supabase/supabase-js');

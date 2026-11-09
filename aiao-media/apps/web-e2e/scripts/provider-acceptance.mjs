@@ -1,15 +1,16 @@
+import {
+  imageGenerationRequest,
+  imageMetadata,
+  isMiniMaxImageProvider,
+  openRelayResult,
+  relayResultKey
+} from '@aiao-media/api-contracts';
 import { chromium, expect, request as playwrightRequest } from '@playwright/test';
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { chmod, mkdir, open, readFile, readdir, unlink } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { imageMetadata } from '@aiao-media/api-contracts';
-import {
-  imageGenerationRequest,
-  isMiniMaxImageProvider
-} from '@aiao-media/api-contracts';
-import { openRelayResult, relayResultKey } from '@aiao-media/api-contracts';
 import { prompt, provider, verifyImageDownload } from '../src/local-first.helpers.ts';
 import { installFetchCapture } from './provider-fetch-capture.mjs';
 import { observeResultNetwork, resultNetworkFailure } from './provider-result-network.mjs';
@@ -607,7 +608,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   let summary;
   try {
     requireCheck(process.env.AIAO_MEDIA_ACCEPTANCE_GENERATE === '1', 'LIVE_OPT_IN_REQUIRED');
-    const envFile = resolve(import.meta.dirname, '../../aiao-media/.env');
+    const envFile = resolve(import.meta.dirname, '../../web/.env');
     if (existsSync(envFile)) process.loadEnvFile(envFile);
     const settings = liveSettings(process.env);
     summary = {

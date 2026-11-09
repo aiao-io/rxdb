@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import { cp, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { buildOfflineAssets } from '../../apps/web/scripts/build-offline-assets.mjs';
+import { buildOfflineAssets } from '../../web/scripts/build-offline-assets.mjs';
 import { importBackup, profile, verifyImageDownload } from '../src/local-first.helpers.ts';
 import { createArtifactServer, defaultUpdateSeed, readReleaseArtifact, sha256 } from './actual-release-update.mjs';
 
-const application = resolve(import.meta.dirname, '../../aiao-media');
+const application = resolve(import.meta.dirname, '../../web');
 const config = { url: 'https://account-update.example.test', anonKey: 'sb_publishable_update_fixture' };
 const configScript = value => `globalThis.__AIAO_SUPABASE_CONFIG__ = ${JSON.stringify(value)};\n`;
 const fingerprintPattern = /^app-config-[a-f0-9]{16}\.js$/;

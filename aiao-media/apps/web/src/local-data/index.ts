@@ -1,5 +1,5 @@
-import { Entity, EntityBase, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
 import type { GenerationStatus, MediaKind } from '@aiao-media/api-contracts';
+import { Entity, EntityBase, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
 
 @Entity({
   name: 'MediaGeneration',

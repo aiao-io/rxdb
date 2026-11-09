@@ -4,7 +4,7 @@ import { chmod, cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/prom
 import { createServer } from 'node:http';
 import { extname, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { validateSupabaseAuthConfig } from '../../apps/web/src/app/supabase-auth-config.ts';
+import { validateSupabaseAuthConfig } from '../../web/src/app/supabase-auth-config.ts';
 
 const formalOrigin = 'https://media.aiao.io';
 const routes = ['/', '/create', '/images', '/providers'];
@@ -316,7 +316,7 @@ export async function runPublicSmoke(settings) {
 }
 
 async function fixture() {
-  const source = resolve(import.meta.dirname, '../../apps/web/dist/browser');
+  const source = resolve(import.meta.dirname, '../../web/dist/browser');
   const parent = resolve(import.meta.dirname, '../tmp');
   await mkdir(parent, { recursive: true, mode: 0o700 });
   const root = await mkdtemp(resolve(parent, 'public-origin-static-'));

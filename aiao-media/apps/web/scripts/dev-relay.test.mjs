@@ -1,8 +1,8 @@
+import { createRelayTaskToken, openRelayResult, relayResultKey } from '@aiao-media/api-contracts';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { test } from 'node:test';
-import { createRelayTaskToken, openRelayResult, relayResultKey } from '@aiao-media/api-contracts';
 import { startDevRelay } from '../../api/scripts/dev-relay.mjs';
 
 const provider = 'https://provider.example.test/v1';

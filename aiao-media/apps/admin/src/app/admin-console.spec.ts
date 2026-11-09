@@ -13,7 +13,12 @@ const user = {
   revision: 2,
   authState: 'applied'
 };
-const templateRow = { kind: 'template' as const, key: defaultAdminTemplate.id, revision: 3, payload: defaultAdminTemplate };
+const templateRow = {
+  kind: 'template' as const,
+  key: defaultAdminTemplate.id,
+  revision: 3,
+  payload: defaultAdminTemplate
+};
 const policyRow = {
   kind: 'provider-policy' as const,
   key: 'runtime',

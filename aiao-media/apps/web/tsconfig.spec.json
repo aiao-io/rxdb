@@ -7,7 +7,9 @@
       "vite/client",
       "node",
       "vitest"
-    ]
+    ],
+    "noEmit": false,
+    "rewriteRelativeImportExtensions": true
   },
   "extends": "./tsconfig.json",
   "files": [

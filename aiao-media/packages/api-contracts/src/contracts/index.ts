@@ -36,6 +36,16 @@ export type {
   ReferenceImageUpload
 } from './generation-jobs.ts';
 
+export {
+  DraftSyncProtocolError,
+  validateDraftConflicts,
+  validateDraftContent,
+  validateDraftMutation,
+  validateDraftPull,
+  validateDraftPush,
+  validateDraftResolution,
+  validateSyncedDraft
+} from './draft-sync-validation.ts';
 export type {
   DraftSyncConflict,
   DraftSyncConflictView,
@@ -48,16 +58,6 @@ export type {
   SyncedDraft,
   SyncedDraftContent
 } from './draft-sync.ts';
-export {
-  DraftSyncProtocolError,
-  validateDraftConflicts,
-  validateDraftContent,
-  validateDraftMutation,
-  validateDraftPull,
-  validateDraftPush,
-  validateDraftResolution,
-  validateSyncedDraft
-} from './draft-sync-validation.ts';
 
 export { REFERENCE_IMAGE_MAX_BYTES } from './generation-jobs.ts';
 export type { ImageGenerationOption } from './generation-jobs.ts';

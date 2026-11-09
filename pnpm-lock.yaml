@@ -952,6 +952,9 @@ importers:
 
   aiao-media/apps/web-e2e:
     devDependencies:
+      '@aiao-media/api-contracts':
+        specifier: workspace:*
+        version: link:../../packages/api-contracts
       sharp:
         specifier: ^0.35.5
         version: 0.35.5(@types/node@26.6.6)

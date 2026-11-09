@@ -1,15 +1,3 @@
-import type { EntityStaticType, EntityType, FindAllOptions, IRepository, RxDBEvent } from '@aiao/rxdb';
-import { Entity, EntityBase, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
-import type { StorageFilesystem } from '@aiao/rxdb-plugin-storage';
-import { defer, distinctUntilChanged, firstValueFrom, map, Observable, Subject, takeUntil } from 'rxjs';
-import {
-  imageExtension,
-  imageMetadata,
-  isImageMimeType,
-  validateImageBlob,
-  type ImageMetadata,
-  type ImageMimeType
-} from '@aiao-media/api-contracts';
 import type {
   DraftSyncConflictView,
   DraftSyncMutation,
@@ -23,14 +11,26 @@ import type {
   SyncedDraftContent
 } from '@aiao-media/api-contracts';
 import {
+  imageExtension,
+  imageMetadata,
+  isImageMimeType,
+  productPayloadText,
   validateAudioGenerationJobSummary,
   validateAudioJobRequest,
+  validateImageBlob,
+  validateSyncPayload,
   validateVideoGenerationJobSummary,
   validateVideoJobRequest,
   type AudioResultMetadata,
+  type ImageMetadata,
+  type ImageMimeType,
+  type PublicWorkPayload,
   type VideoResultMetadata
 } from '@aiao-media/api-contracts';
-import { productPayloadText, validateSyncPayload, type PublicWorkPayload } from '@aiao-media/api-contracts';
+import type { EntityStaticType, EntityType, FindAllOptions, IRepository, RxDBEvent } from '@aiao/rxdb';
+import { Entity, EntityBase, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
+import type { StorageFilesystem } from '@aiao/rxdb-plugin-storage';
+import { defer, distinctUntilChanged, firstValueFrom, map, Observable, Subject, takeUntil } from 'rxjs';
 import {
   configureLocalAdapter,
   localAdapterName,

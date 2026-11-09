@@ -193,14 +193,14 @@ function startLocalServer(origin) {
       'wrangler',
       'dev',
       '--config',
-      'apps/api/wrangler.json',
+      'wrangler.json',
       '--local',
       '--port',
       port,
       '--show-interactive-dev-session',
       'false'
     ],
-    { cwd: resolve(import.meta.dirname, '../../aiao-media'), detached: true, stdio: 'ignore' }
+    { cwd: resolve(import.meta.dirname, '../../api'), detached: true, stdio: 'ignore' }
   );
   return {
     close: () => {

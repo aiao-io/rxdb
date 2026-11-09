@@ -19,6 +19,7 @@ import { REFERENCE_DIR } from './working-tree-report.ts';
 const M1 = 'Darwin darwin arm64 / Apple M1 Max / node 26';
 const EPYC = 'Linux linux x64 / AMD EPYC 7763 64-Core Processor / node 26';
 const XEON = 'Linux linux x64 / INTEL(R) XEON(R) PLATINUM 8573C / node 26';
+const XEON_8370 = 'Linux linux x64 / Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz / node 26';
 
 /** M1 首次冻结（9e5ddc92）的四个 median，数字逐字取自当时签入的 reference。 */
 const M1_MEDIANS = {
@@ -189,6 +190,16 @@ describe('readReferences', () => {
 });
 
 describe('decideRelativeGate', () => {
+  it('回归（PR #154）：8370C 已有可比较基线，性能回归仍判失败', async () => {
+    const references = await readReferences(REFERENCE_DIR);
+    const decision = decideRelativeGate(
+      references,
+      XEON_8370,
+      makeMeasurements({ status: 1000, diff: 1000, restore: 1000, commit: 1000 })
+    );
+    expect(decision).toMatchObject({ kind: 'evaluated', passed: false });
+  });
+
   it('一份 reference 都没有时是 unfrozen：首个绿色实现得先跑出数字', () => {
     expect(decideRelativeGate([], M1, makeMeasurements({ status: 9 })).kind).toBe('unfrozen');
   });

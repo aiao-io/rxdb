@@ -1,0 +1,16 @@
+{
+  "commit": "0ffa3c419fcc59dc3e13d695ca4658116134bfa0",
+  "frozenAbsolute": {
+    "commit": 819.1853570000094
+  },
+  "medianRatios": {
+    "status": 1.8901337383798178,
+    "diff": 2.3016310401481883,
+    "restore": 12.500703104478081,
+    "commit": 15.693959286723507
+  },
+  "ratioProfile": "Linux linux x64 / Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz / node 26",
+  "regeneratedBecause": "Accepted main 0ffa3c419fcc59dc3e13d695ca4658116134bfa0 passed benchmarks:bench-working-tree-ci on frozen Apple M1 Max / Darwin arm64 / Node26 profile with 3 independent runs (commit median16.52263747408588 <= budget17.216729185904565). PR154 twice received unregistered Intel Xeon Platinum8370C CPU@2.80GHz / Linux x64 / Node26. Freeze NEW CPU profiles only using contract10 independent runs, warmup5/samples50; preserve all existing references and tolerances. Control source is accepted main, not PR154 candidate. Dispatch rounds42468475787 and42468943185 only matched already frozen CPU profiles; tag-triggered allocation seeks new8370C profile using the same tested accepted main commit.",
+  "runnerProfileHash": "744f5845a7a22d817d6e537eacd4b4913f4ca5bf49981f2c60e9fa6624b04903",
+  "runs": 10
+}

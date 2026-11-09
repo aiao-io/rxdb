@@ -35,14 +35,14 @@
 
 2026-10-25，Node 26.12.0，全部入口通过 `pnpm nx`、禁用 Nx Cloud；本轮未部署、未执行真实供应商生成。生产 CSR/offline-assets 构建 `36099280eb40`，46 个完整性校验公开资源；统一 Chrome E2E 使用该产物，31/31 通过，耗时约 1 分 27 秒。
 
-| 入口与用例                                                                | 已验证结果                                                                                                                                 | 对应 AC 与边界                                                     |
-| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
-| [library-query.spec.ts](../../apps/web/src/local-data/library-query.spec.ts)，7 项 | prompt/model 独立 AND、日期/非法输入、23/25 小时 DST 日与稳定排序/分页参数                                                                 | AC1–4；时区夹具不替代真实视口                                      |
-| `aiao-media:test-browser`，22 项                                          | 真实 SQLite/IndexedDB/OPFS；新增查询、1,005 metadata、冷启动 ready 零读/只读错误和 saving 完整恢复                                         | AC1/2/4/8–11；1,005 条压力记录为 metadata，不是 1,005 张可读原图   |
-| 会话/视口指令/metadata/根组件呈现专项测试                                 | 可见性去重、隐藏重进、迟到/关闭回收、查询错误/重试、末页收敛、全库未知与失败后归属保留                                                     | AC5–9；根组件真实模板呈现，存储失败通过可控流注入                  |
-| `aiao-media-e2e:library-e2e`，统一 31 项                                  | 原有 28 项加[新增 3 项](../../apps/web-e2e/src/library.spec.ts)：50 张图片筛选/IO、末页删除/离线精确下载、同文档 Alice→Bob→Alice 切换 | AC3/5–11；生成/上传为零，Auth 和绑定服务为 fixture，无真实业务服务 |
-| 应用/e2e lint、typecheck；`aiao-media:offline-assets` / `release-check`   | 零 ESLint 告警、类型检查和生产构建通过；静态审查60文件无凭据/SSR运行时/source map/旧API                                                    | 无 schema/backfill/packages 变更；不是正式发布                     |
-| `aiao-media:coverage`，30 文件、294/294                                   | 272 项 unit/data + 22 项真实浏览器通过；query/directive/metadata 四项100%，预览会话各项88.63%以上                                          | 测试通过不等于全应用80%覆盖率；详见下方限制                        |
+| 入口与用例                                                                         | 已验证结果                                                                                                                            | 对应 AC 与边界                                                     |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| [library-query.spec.ts](../../apps/web/src/local-data/library-query.spec.ts)，7 项 | prompt/model 独立 AND、日期/非法输入、23/25 小时 DST 日与稳定排序/分页参数                                                            | AC1–4；时区夹具不替代真实视口                                      |
+| `aiao-media:test-browser`，22 项                                                   | 真实 SQLite/IndexedDB/OPFS；新增查询、1,005 metadata、冷启动 ready 零读/只读错误和 saving 完整恢复                                    | AC1/2/4/8–11；1,005 条压力记录为 metadata，不是 1,005 张可读原图   |
+| 会话/视口指令/metadata/根组件呈现专项测试                                          | 可见性去重、隐藏重进、迟到/关闭回收、查询错误/重试、末页收敛、全库未知与失败后归属保留                                                | AC5–9；根组件真实模板呈现，存储失败通过可控流注入                  |
+| `aiao-media-e2e:library-e2e`，统一 31 项                                           | 原有 28 项加[新增 3 项](../../apps/web-e2e/src/library.spec.ts)：50 张图片筛选/IO、末页删除/离线精确下载、同文档 Alice→Bob→Alice 切换 | AC3/5–11；生成/上传为零，Auth 和绑定服务为 fixture，无真实业务服务 |
+| 应用/e2e lint、typecheck；`aiao-media:offline-assets` / `release-check`            | 零 ESLint 告警、类型检查和生产构建通过；静态审查60文件无凭据/SSR运行时/source map/旧API                                               | 无 schema/backfill/packages 变更；不是正式发布                     |
+| `aiao-media:coverage`，30 文件、294/294                                            | 272 项 unit/data + 22 项真实浏览器通过；query/directive/metadata 四项100%，预览会话各项88.63%以上                                     | 测试通过不等于全应用80%覆盖率；详见下方限制                        |
 
 切换验收只有一份 50 张图片库：Alice 显式确认绑定后 fixture 的 ensure 请求返回 503，保留合法、未初始化的待完成绑定；再经真实 UI 退出并登录 Bob 创建同组空库，Bob 设置筛选后返回 Alice 原 50 库。每次切换重置四筛选框/页码、释放旧 URL，返回后全部 50 条任务仍有本机保存记录，URL owner 属于原 profile，`performance.timeOrigin` 不变。准备阶段仅有 1 次 fixture 工作区目录读取和 1 次失败 ensure；随后浏览/切换不新增业务请求，不启用复制、上报或上传。
 

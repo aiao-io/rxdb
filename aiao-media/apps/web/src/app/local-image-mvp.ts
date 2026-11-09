@@ -1,3 +1,15 @@
+import type { GenerationJobSummary, ImageAspectRatio } from '@aiao-media/api-contracts';
+import {
+  createRelayTaskToken,
+  imageExtension,
+  productRecordId,
+  validateProviderPolicy,
+  validatePublishedTemplate,
+  validateSyncPayload,
+  type ImageMimeType,
+  type ProviderPolicy,
+  type PublicWorkPayload
+} from '@aiao-media/api-contracts';
 import { NgTemplateOutlet } from '@angular/common';
 import {
   afterNextRender,
@@ -16,17 +28,6 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { concatMap, EMPTY, merge, Subscription } from 'rxjs';
-import { imageExtension, type ImageMimeType } from '@aiao-media/api-contracts';
-import type { GenerationJobSummary, ImageAspectRatio } from '@aiao-media/api-contracts';
-import {
-  productRecordId,
-  validateProviderPolicy,
-  validatePublishedTemplate,
-  validateSyncPayload,
-  type ProviderPolicy,
-  type PublicWorkPayload
-} from '@aiao-media/api-contracts';
-import { createRelayTaskToken } from '@aiao-media/api-contracts';
 import { ImageSyncController } from '../local-data/image-sync';
 import type { LocalMediaStore, LocalWorkSummary, StudioPromptState } from '../local-data/index';
 import { libraryWhere, type LocalWorkFilters } from '../local-data/library-query';

@@ -1,8 +1,3 @@
-import { filter, firstValueFrom, take } from 'rxjs';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { defaultFreeProvider } from '../app/default-provider';
-import { createLocalBackup, readLocalBackup } from '../app/local-backup';
-import { plainPrompt } from '../app/prompts/prompt-state';
 import type {
   AudioGenerationJobSummary,
   AudioJobRequest,
@@ -11,6 +6,11 @@ import type {
   VideoGenerationJobSummary,
   VideoJobRequest
 } from '@aiao-media/api-contracts';
+import { filter, firstValueFrom, take } from 'rxjs';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { defaultFreeProvider } from '../app/default-provider';
+import { createLocalBackup, readLocalBackup } from '../app/local-backup';
+import { plainPrompt } from '../app/prompts/prompt-state';
 import { LocalMediaStore } from './browser-media';
 
 let store: LocalMediaStore, profileId: string;

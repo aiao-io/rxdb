@@ -9,7 +9,8 @@ import {
   verifyPublishedBuild
 } from './actual-release-update.mjs';
 
-const application = resolve(import.meta.dirname, '../../aiao-media');
+const application = resolve(import.meta.dirname, '../../..');
+const webRoot = resolve(application, 'apps/web');
 const uuid = value => typeof value === 'string' && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(value);
 const requireCheck = (condition, code) => {
   if (!condition) throw new Error(code);
@@ -215,7 +216,7 @@ function runWrangler(args, options) {
     Object.entries(process.env).filter(([name]) => !/^(AIAO_|MEDIA_|SUPABASE_|DEBUG$|PWDEBUG$)/.test(name))
   );
   env.WRANGLER_SEND_METRICS = 'false';
-  return runGuardedCommand('pnpm', ['exec', 'wrangler', ...args], { ...options, env });
+  return runGuardedCommand('pnpm', ['--dir', 'apps/api', 'exec', 'wrangler', ...args], { ...options, env });
 }
 
 async function main() {
@@ -223,12 +224,12 @@ async function main() {
   requireCheck(process.platform !== 'win32', 'FORMAL_UPDATE_POSIX_REQUIRED');
   const settings = actualUpdateSettings(process.env);
   const builds = artifactPair(
-    await readReleaseArtifact(resolve(application, 'tmp/public-release-baseline')),
-    await readReleaseArtifact(resolve(application, 'tmp/public-release-current'))
+    await readReleaseArtifact(resolve(webRoot, 'tmp/public-release-baseline')),
+    await readReleaseArtifact(resolve(webRoot, 'tmp/public-release-current'))
   );
-  const source = JSON.parse(await readFile(resolve(application, '.wrangler/local-first/wrangler.deploy.json'), 'utf8'));
+  const source = JSON.parse(await readFile(resolve(webRoot, '.wrangler/local-first/wrangler.deploy.json'), 'utf8'));
   const prepared = baselineDeployConfig(source, builds.a);
-  const directory = resolve(application, '.wrangler/local-first/actual-release-update');
+  const directory = resolve(webRoot, '.wrangler/local-first/actual-release-update');
   await mkdir(directory, { recursive: true, mode: 0o700 });
   const configPath = resolve(directory, 'wrangler.json'),
     emptyEnv = resolve(directory, 'empty.env');

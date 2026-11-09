@@ -1,16 +1,26 @@
 {
-  "name": "aiao-media-admin",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "projectType": "application",
+  "name": "aiao-media-admin",
   "prefix": "aiao-media-admin",
+  "projectType": "application",
   "sourceRoot": "aiao-media/apps/admin/src",
   "tags": [],
   "targets": {
+    "dev": {
+      "executor": "@angular/build:dev-server",
+      "continuous": true,
+      "cache": false,
+      "dependsOn": ["aiao-media:dev-ports", { "projects": ["aiao-media-api"], "target": "dev", "waitFor": "ready" }],
+      "readyWhen": { "port": 4302 },
+      "options": {
+        "buildTarget": "aiao-media-admin:build:development",
+        "port": 4302,
+        "proxyConfig": "aiao-media/scripts/dev/proxy.conf.mjs"
+      }
+    },
     "build": {
       "executor": "@angular/build:application",
-      "outputs": [
-        "{options.outputPath}"
-      ],
+      "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",
       "options": {
         "outputPath": "dist/aiao-media/apps/admin",
@@ -22,9 +32,7 @@
             "input": "aiao-media/apps/admin/public"
           }
         ],
-        "styles": [
-          "aiao-media/apps/admin/src/styles.css"
-        ]
+        "styles": ["aiao-media/apps/admin/src/styles.css"]
       },
       "configurations": {
         "production": {
@@ -52,10 +60,14 @@
     "serve": {
       "continuous": true,
       "readyWhen": {
-        "signal": true
+        "port": 4302
       },
       "executor": "@angular/build:dev-server",
       "defaultConfiguration": "development",
+      "options": {
+        "port": 4302,
+        "proxyConfig": "aiao-media/scripts/dev/proxy.conf.mjs"
+      },
       "configurations": {
         "production": {
           "buildTarget": "aiao-media-admin:build:production"
@@ -76,9 +88,7 @@
       "readyWhen": {
         "signal": true
       },
-      "dependsOn": [
-        "build"
-      ],
+      "dependsOn": ["build"],
       "executor": "@nx/web:file-server",
       "options": {
         "buildTarget": "aiao-media-admin:build",

@@ -1,26 +1,31 @@
 {
-  "name": "aiao-media-api",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "name": "aiao-media-api",
   "projectType": "application",
   "sourceRoot": "aiao-media/apps/api/src",
-  "tags": [
-    "scope:aiao-media",
-    "type:app",
-    "runtime:worker"
-  ],
+  "tags": ["scope:aiao-media", "type:app", "runtime:worker"],
   "targets": {
+    "dev": {
+      "executor": "nx:run-commands",
+      "continuous": true,
+      "cache": false,
+      "dependsOn": ["^build", "aiao-media:dev-ports", "aiao-media:dev-config"],
+      "readyWhen": {
+        "url": "http://127.0.0.1:8787/api/templates"
+      },
+      "options": {
+        "cwd": "aiao-media/apps/api",
+        "command": "pnpm exec wrangler dev --config .wrangler/local-dev/wrangler.json --local --ip 127.0.0.1 --port 8787 --show-interactive-dev-session false"
+      }
+    },
     "build": {
       "executor": "nx:run-commands",
-      "outputs": [
-        "{projectRoot}/dist"
-      ],
+      "outputs": ["{projectRoot}/dist"],
       "options": {
         "cwd": "aiao-media/apps/api",
         "command": "tsc -p tsconfig.json"
       },
-      "dependsOn": [
-        "^build"
-      ]
+      "dependsOn": ["^build"]
     },
     "typecheck": {
       "executor": "nx:run-commands",
@@ -28,9 +33,7 @@
         "cwd": "aiao-media/apps/api",
         "command": "tsc --noEmit -p tsconfig.json"
       },
-      "dependsOn": [
-        "^build"
-      ]
+      "dependsOn": ["^build"]
     },
     "test": {
       "executor": "nx:run-commands",

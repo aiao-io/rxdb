@@ -53,14 +53,14 @@ aiao-media/
 └── scripts/                        # 产品级需求检查脚本
 ```
 
-| 当前 Nx 项目 | 归属 | 处理 |
-| ------------ | ---- | ---- |
-| `aiao-media` | `apps/web` | 主站应用，保留现有 Web、Tauri 与本地数据 target |
-| `aiao-media-admin` | `apps/admin` | 独立后台应用，后台认证与发布边界独立 |
-| `aiao-media-api` | `apps/api` | Worker、产品 API 和管理 API 的服务端运行单元 |
-| `aiao-media-e2e` | `apps/web-e2e` | 保留本机与真实 Auth 两套主站验收 |
-| `api-contracts` | `packages/api-contracts` | 通过 `@aiao-media/api-contracts` 供 Web、后台和 API 使用 |
-| `domain` | `packages/domain` | 通过 `@aiao-media/domain` 供产品服务使用 |
+| 当前 Nx 项目       | 归属                     | 处理                                                     |
+| ------------------ | ------------------------ | -------------------------------------------------------- |
+| `aiao-media`       | `apps/web`               | 主站应用，保留现有 Web、Tauri 与本地数据 target          |
+| `aiao-media-admin` | `apps/admin`             | 独立后台应用，后台认证与发布边界独立                     |
+| `aiao-media-api`   | `apps/api`               | Worker、产品 API 和管理 API 的服务端运行单元             |
+| `aiao-media-e2e`   | `apps/web-e2e`           | 保留本机与真实 Auth 两套主站验收                         |
+| `api-contracts`    | `packages/api-contracts` | 通过 `@aiao-media/api-contracts` 供 Web、后台和 API 使用 |
+| `domain`           | `packages/domain`        | 通过 `@aiao-media/domain` 供产品服务使用                 |
 
 Web 的 `src/local-data` 仍是应用内部目录；需求检查位于 `requirements/` 与 `scripts/`，不另建 Nx 项目。应用之间禁止直接引用彼此的 `src/*`，跨应用协议和领域规则必须通过 `@aiao-media/*` 包提供。
 
@@ -70,14 +70,14 @@ Web 的 `src/local-data` 仍是应用内部目录；需求检查位于 `requirem
 
 ### 4.1 目录、编号、统计、验收分别隔离
 
-| 维度             | 平台／领域                    | Aiao Media                              |
-| ---------------- | ----------------------------- | --------------------------------------- |
+| 维度             | 平台／领域                    | Aiao Media                         |
+| ---------------- | ----------------------------- | ---------------------------------- |
 | 真相源目录       | `requirements/stories/`       | `aiao-media/requirements/stories/` |
-| Story ID         | 原有 `MEDIA-US-XXX` 保持      | `MEDIA-US-XXX`                          |
-| Epic ID          | 原有 ID 保持                  | `MEDIA-EPIC-XXX`                        |
-| 状态总览／路线图 | 原有文档只统计自己的故事      | 产品目录内独立派生                      |
-| 关闭依据         | 包 API、adapter、领域组合验收 | 完整应用、真实浏览器与部署验收          |
-| 发布             | npm 包版本与引擎发布门禁      | 应用构建标识与 Cloudflare 发布          |
+| Story ID         | 原有 `MEDIA-US-XXX` 保持      | `MEDIA-US-XXX`                     |
+| Epic ID          | 原有 ID 保持                  | `MEDIA-EPIC-XXX`                   |
+| 状态总览／路线图 | 原有文档只统计自己的故事      | 产品目录内独立派生                 |
+| 关闭依据         | 包 API、adapter、领域组合验收 | 完整应用、真实浏览器与部署验收     |
+| 发布             | npm 包版本与引擎发布门禁      | 应用构建标识与 Cloudflare 发布     |
 
 例如原 `MEDIA-US-102` 改为 `MEDIA-US-102`，原 `MEDIA-EPIC-002` 改为 `MEDIA-EPIC-002`。同步更新文件名、frontmatter、dependsOn、正文链接、索引、验证材料中的有效引用；不重排数字。
 

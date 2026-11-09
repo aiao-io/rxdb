@@ -21,6 +21,7 @@ export async function provider(
   await page.getByLabel('请求通道').selectOption(mode);
   await page.getByRole('button', { name: '保存到本机', exact: true }).click();
   await expect(page.getByRole('heading', { name: '本机供应商 · 默认' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '保存到本机', exact: true })).toBeEnabled();
 }
 export async function prompt(page: Page, text = '一片绿色的森林') {
   await page.getByRole('link', { name: '生成图片', exact: true }).click();
