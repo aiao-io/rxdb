@@ -53,9 +53,8 @@ try {
   await root.getByRole('button', { name: '应用程序菜单', exact: true }).click();
   await root.getByRole('menuitem', { name: '新建项目', exact: true }).click();
   await page.getByRole('textbox', { name: '项目名称', exact: true }).fill(`Commands ${host}`);
-  await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
-  await page.getByRole('textbox', { name: '模板：vanilla / react / vue / angular', exact: true }).fill('react');
-  await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
+  await page.getByRole('dialog').locator('input[name="template"][value="react"]').check();
+  await page.getByRole('dialog').getByRole('button', { name: '创建项目', exact: true }).click();
   await expect(root.locator('[data-slot="workspace-label"]')).toHaveText(`Commands ${host}`, { timeout: 30000 });
   await expect(
     page.frameLocator('iframe[title="项目隔离预览"]').getByRole('button', { name: '次数 0', exact: true })

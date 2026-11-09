@@ -46,7 +46,7 @@ import {
 import { createWebContainerAdapter } from './terminal/webcontainer-adapter.js';
 import { createWorkbenchTerminal } from './terminal/workbench-terminal.js';
 import { createWorkbenchCommands, type WorkbenchCommand } from './workbench-commands.js';
-import { confirmWorkbenchAction, requestWorkbenchChoice, requestWorkbenchText } from './workbench-dialog.js';
+import { confirmWorkbenchAction, requestWorkbenchChoice, requestWorkbenchProject } from './workbench-dialog.js';
 import { createWorkbenchDiff, type WorkbenchDiffHandle } from './workbench-diff.js';
 import { createWorkbenchDockview } from './workbench-dockview.js';
 import {
@@ -2038,16 +2038,13 @@ export function mountWorkbench(
       initializing || (busy && previewPhase !== 'compiling');
   }
   async function newProject(): Promise<void> {
-    const name = await requestWorkbenchText(root, '项目名称', '我的项目');
-    if (!name) return;
-    const kind = await requestWorkbenchText(root, '模板：vanilla / react / vue / angular', 'react');
-    if (!kind) return;
-    if (!Object.hasOwn(templates, kind)) throw new Error('请选择 vanilla、react、vue 或 angular');
-    const template = templates[kind as ProjectTemplate];
+    const request = await requestWorkbenchProject(root);
+    if (!request) return;
+    const template = templates[request.template];
     const id = crypto.randomUUID();
     const info: WorkbenchProjectInfo = {
       id,
-      name,
+      name: request.name,
       template: template.template,
       entry: template.entry,
       updatedAt: Date.now()
@@ -2067,7 +2064,7 @@ export function mountWorkbench(
     void savePreview.runSaved().catch(report);
     await catalog.put(info).catch(report);
     void refreshGit().catch(report);
-    log('output', `已创建 ${name} · ${template.title}`);
+    log('output', `已创建 ${request.name} · ${template.title}`);
   }
   /** 「运行方式」对应的终端运行时；即时编译与尚未接入的方式明确报错。 */
   function runtimeAdapter(id: RuntimeId): TerminalRuntimeAdapter {

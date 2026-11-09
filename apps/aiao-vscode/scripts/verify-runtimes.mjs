@@ -210,10 +210,9 @@ async function measureCell(runtime, template, round) {
     await root.getByRole('button', { name: '应用程序菜单', exact: true }).click();
     await root.getByRole('menuitem', { name: '新建项目', exact: true }).click();
     await page.getByRole('textbox', { name: '项目名称', exact: true }).fill(`${runtime}-${template}-${round}`);
-    await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
-    await page.getByRole('textbox', { name: '模板：vanilla / react / vue / angular', exact: true }).fill(template);
+    await page.getByRole('dialog').locator(`input[name="template"][value="${template}"]`).check();
     const created = performance.now();
-    await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: '创建项目', exact: true }).click();
     await step('localPreviewMs', () =>
       until(async () => (await frameHeading(page, local)) === fixture.heading, 120000).then(() => since(created))
     );

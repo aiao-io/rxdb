@@ -219,18 +219,13 @@ const openTreeMenu = async (host: HTMLElement, path: string): Promise<void> => {
   await vi.waitFor(() => expect(host.querySelector('.wb-context-menu')).not.toBeNull());
 };
 
-async function answer(host: HTMLElement, value: string | null): Promise<void> {
+async function createProject(host: HTMLElement, name: string, template: string): Promise<void> {
   await vi.waitFor(() => expect(host.querySelector('dialog')).not.toBeNull());
-  const dialog = host.querySelector<HTMLDialogElement>('dialog');
-  if (!dialog) throw new Error('Dialog missing');
-  const input = dialog.querySelector<HTMLInputElement>('input');
-  if (!input) throw new Error('Dialog input missing');
-  if (value !== null) {
-    input.value = value;
-    dialog.querySelector('form')?.dispatchEvent(new Event('submit'));
-  }
-  dialog.close();
-  await Promise.resolve();
+  const dialog = host.querySelector<HTMLDialogElement>('dialog')!;
+  dialog.querySelector<HTMLInputElement>('[aria-label="项目名称"]')!.value = name;
+  dialog.querySelector<HTMLInputElement>(`input[name="template"][value="${template}"]`)!.click();
+  dialog.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
+  await vi.waitFor(() => expect(host.querySelector('dialog')).toBeNull());
 }
 
 async function inlineInput(host: HTMLElement, value: string | null): Promise<void> {
@@ -799,8 +794,7 @@ describe('VS Code 风格工作台', () => {
     );
     const calls = vi.mocked(backend.history).mock.calls.length;
     await clickTitleMenu(host, 'new-project');
-    await answer(host, 'slow initial preview');
-    await answer(host, 'vanilla');
+    await createProject(host, 'slow initial preview', 'vanilla');
     await vi.waitFor(() => expect(backend.history).toHaveBeenCalledTimes(calls + 1));
     expect(compiler.compile).toHaveBeenCalledOnce();
     const editor = mountEditor.mock.calls.at(-1)![1];
@@ -1926,8 +1920,7 @@ describe('VS Code 风格工作台', () => {
     await handle.ready;
     expect(host.querySelector('[data-slot="panel-staging"] .wb-preview')).not.toBeNull();
     await clickTitleMenu(host, 'new-project');
-    await answer(host, 'first project');
-    await answer(host, 'vanilla');
+    await createProject(host, 'first project', 'vanilla');
     await vi.waitFor(() => expect(compiler.compile).toHaveBeenCalledOnce());
     expect(host.querySelector('[data-slot="panel-staging"] .wb-preview')).toBeNull();
     expect(host.querySelector('[data-editor-tab-path="src/main.ts"]')).not.toBeNull();
@@ -1939,8 +1932,7 @@ describe('VS Code 风格工作台', () => {
     await handle.ready;
     catalog.put.mockClear();
     await clickTitleMenu(host, 'new-project');
-    await answer(host, 'New project');
-    await answer(host, 'vue');
+    await createProject(host, 'New project', 'vue');
     await vi.waitFor(() => expect(catalog.put).toHaveBeenCalled());
     expect(backend.create).toHaveBeenCalledWith(
       expect.any(String),
@@ -2011,18 +2003,23 @@ describe('VS Code 风格工作台', () => {
     upload.mockRestore();
   });
 
-  it('取消与非法模板不会创建项目，脏缓冲保留切项目确认但不拦截页面刷新或离开', async () => {
+  it('取消与空名称不会创建项目，脏缓冲保留切项目确认但不拦截页面刷新或离开', async () => {
     const { host, handle, backend } = fixture(true, '/browser-workbench-assets/', undefined, [
       { id: 'two', name: '第二个项目', template: 'vanilla', entry: 'src/main.ts', updatedAt: 0 }
     ]);
     await handle.ready;
     await clickTitleMenu(host, 'new-project');
-    await answer(host, null);
+    await click(host, 'dialog [aria-label="关闭"]');
+    await vi.waitFor(() => expect(host.querySelector('dialog')).toBeNull());
     expect(backend.create).not.toHaveBeenCalled();
     await clickTitleMenu(host, 'new-project');
-    await answer(host, 'Invalid');
-    await answer(host, 'node');
-    await vi.waitFor(() => expect(host.querySelector('.wb-panel-content')?.textContent).toContain('请选择'));
+    const name = host.querySelector<HTMLInputElement>('dialog [aria-label="项目名称"]')!;
+    name.value = '   ';
+    name.dispatchEvent(new Event('input'));
+    expect(host.querySelector<HTMLButtonElement>('dialog [type=submit]')?.disabled).toBe(true);
+    host.querySelector('dialog form')!.dispatchEvent(new Event('submit', { cancelable: true }));
+    await click(host, 'dialog [aria-label="关闭"]');
+    await vi.waitFor(() => expect(host.querySelector('dialog')).toBeNull());
     expect(backend.create).not.toHaveBeenCalled();
     handle.session.edit('src/main.ts', 'unsaved');
     const event = new Event('beforeunload', { cancelable: true });

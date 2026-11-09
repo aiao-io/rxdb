@@ -239,9 +239,8 @@ try {
     await root.getByRole('button', { name: '应用程序菜单', exact: true }).click();
     await root.getByRole('menuitem', { name: '新建项目', exact: true }).click();
     await page.getByRole('textbox', { name: '项目名称', exact: true }).fill(`SCM UX ${host}`);
-    await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
-    await page.getByRole('textbox', { name: '模板：vanilla / react / vue / angular', exact: true }).fill('vanilla');
-    await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
+    await page.getByRole('dialog').locator('input[name="template"][value="vanilla"]').check();
+    await page.getByRole('dialog').getByRole('button', { name: '创建项目', exact: true }).click();
     await expect(root.locator('[data-slot="workspace-label"]')).toHaveText(`SCM UX ${host}`, { timeout: 30000 });
     await sidebar('git');
     await verifyScmLayout();

@@ -27,9 +27,8 @@ async function createProject(page, expect, template) {
   await openTitleMenu(root);
   await root.getByRole('menuitem', { name: '新建项目', exact: true }).click();
   await page.getByRole('textbox', { name: '项目名称', exact: true }).fill(`vscode-${template}-fixture`);
-  await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
-  await page.getByRole('textbox', { name: '模板：vanilla / react / vue / angular', exact: true }).fill(template);
-  await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
+  await page.getByRole('dialog').locator(`input[name="template"][value="${template}"]`).check();
+  await page.getByRole('dialog').getByRole('button', { name: '创建项目', exact: true }).click();
   await expect(root.locator('[data-slot="workspace-label"]')).toHaveText(`vscode-${template}-fixture`, {
     timeout: 30000
   });

@@ -77,9 +77,8 @@ async function createProject(root) {
   await root.getByRole('button', { name: '应用程序菜单', exact: true }).click();
   await root.getByRole('menuitem', { name: '新建项目', exact: true }).click();
   await page.getByRole('textbox', { name: '项目名称', exact: true }).fill(`Dockview ${host}`);
-  await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
-  await page.getByRole('textbox', { name: '模板：vanilla / react / vue / angular', exact: true }).fill('react');
-  await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
+  await page.getByRole('dialog').locator('input[name="template"][value="react"]').check();
+  await page.getByRole('dialog').getByRole('button', { name: '创建项目', exact: true }).click();
   await expect(root.locator('[data-slot="workspace-label"]')).toHaveText(`Dockview ${host}`, { timeout: 30000 });
   await expect(root.locator('[data-slot="save-status"]')).toContainText('已保存');
 }
