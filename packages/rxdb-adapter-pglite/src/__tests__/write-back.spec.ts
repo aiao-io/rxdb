@@ -20,6 +20,7 @@ import {
 } from '@aiao/rxdb';
 import { firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { PGliteRepository } from '../repository/PGliteRepository.js';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 import { getTableNameByMetadata } from '../table-name-resolver.js';
 import type { PGliteTransactionExecutor } from '../transaction/PGliteTransactionExecutor.js';
@@ -70,16 +71,19 @@ class WriteBackChild extends EntityBase {
 const interceptStatements = (adapter: RxDBAdapterPGlite, pattern: RegExp, onStatement: (sql: string) => void) => {
   const realTransaction = adapter.transaction.bind(adapter);
   adapter.transaction = (<T extends TransactionFun>(transactionFun: T, transactionLog?: boolean) =>
-    realTransaction(async executor => {
-      const tx = executor as PGliteTransactionExecutor;
-      const queryRaw = tx.queryRaw.bind(tx);
-      tx.queryRaw = (async (sql: string, bindings?: unknown[]) => {
-        const result = await queryRaw(sql, bindings);
-        if (pattern.test(sql)) onStatement(sql);
-        return result;
-      }) as typeof tx.queryRaw;
-      return transactionFun(executor);
-    }, transactionLog)) as typeof adapter.transaction;
+    realTransaction(
+      (async executor => {
+        const tx = executor as PGliteTransactionExecutor;
+        const queryRaw = tx.queryRaw.bind(tx);
+        tx.queryRaw = (async (sql: string, bindings?: unknown[]) => {
+          const result = await queryRaw(sql, bindings);
+          if (pattern.test(sql)) onStatement(sql);
+          return result;
+        }) as typeof tx.queryRaw;
+        return transactionFun(executor);
+      }) as T,
+      transactionLog
+    )) as typeof adapter.transaction;
   return () => {
     adapter.transaction = realTransaction;
   };
@@ -160,7 +164,7 @@ describe('PGlite 写入回填', () => {
     await row.save();
     const ahead = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
     await adapter.query(`UPDATE ${rowTable} SET "updatedAt" = $1 WHERE id = $2`, [ahead, row.id]);
-    await adapter.getRepository(WriteBackRow).findOne({
+    await adapter.getRepository(WriteBackRow).find({
       where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: row.id }] }
     });
     expect(row.updatedAt.getTime()).toBe(ahead.getTime());
@@ -246,5 +250,20 @@ describe('PGlite 写入回填', () => {
     const table = getTableNameByMetadata(getEntityMetadata(WriteBackDisabledRow), adapter.tableSet);
     const stored = await adapter.query<{ title: string }>(`SELECT title FROM ${table} ORDER BY title`);
     expect(stored.rows.map(row => row.title)).toEqual(['batch-alone', 'mixed-disabled', 'single']);
+  });
+
+  it('仓储 create / update 接受没挂载的普通对象（插件写系统表如迁移记录），照常写进库里', async () => {
+    // 与 search / board 插件记迁移的写法一致：有实体原型、没经 RxDB 挂载（没有实体状态）
+    const detached = Object.create(WriteBackRow.prototype) as WriteBackRow;
+    const now = new Date();
+    Object.assign(detached, { id: crypto.randomUUID(), title: 'plain', createdAt: now, updatedAt: now });
+    // 裸仓储：插件在适配器的安装钩子里拿到的就是它，不经 `adapter.getRepository` 的事务包装层
+    const repository = new PGliteRepository(adapter, WriteBackRow);
+
+    await expect(repository.create(detached)).resolves.toBe(detached);
+    expect((await storedRow(detached.id)).title).toBe('plain');
+
+    await expect(repository.update(detached, { title: 'changed' })).resolves.toBe(detached);
+    expect((await storedRow(detached.id)).title).toBe('changed');
   });
 });

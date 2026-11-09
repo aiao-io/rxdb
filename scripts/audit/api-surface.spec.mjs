@@ -117,7 +117,7 @@ test('US-217 备份契约的核心导出全部逐名登记——基线与导出�
     .map(entry => entry.name)
     .filter(name => /backup|^RxDBRestore|SchemaFingerprint$|^createSha256$|^Sha256Hasher$/i.test(name));
 
-  assert.equal(added.length, 33);
+  assert.equal(added.length, 34);
   assert.deepEqual(auditNaming({ pkg: 'rxdb', currentNames: added, addedNames: added }), []);
 });
 

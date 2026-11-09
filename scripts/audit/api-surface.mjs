@@ -478,6 +478,7 @@ const NAMING = {
     // Web Locks 独占协议（备份源与恢复目标的「唯一持有者」判定），以及只让排队段受超时 / 取消控制
     // 的串行执行。各适配器各写一份，同一种并发冲突就会在不同后端落到不同 code 或不同锁名上。
     'getRxDBBackupAuthDomain',
+    'getRxDBBackupConstraintFingerprint',
     'getRxDBBackupSchemaFingerprint',
     'hasRxDBBackupWebLocks',
     'RxDBBackupHeldLock',

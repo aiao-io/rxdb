@@ -2,6 +2,7 @@ import type { RxDB, RxDBBackupManifest, RxDBBackupOptions, RxDBBackupResult, RxD
 import {
   classifyBackupIoError,
   getRxDBBackupAuthDomain,
+  getRxDBBackupConstraintFingerprint,
   getRxDBBackupSchemaFingerprint,
   runRxDBBackupWhenQueued,
   RXDB_BACKUP_FORMAT,
@@ -63,6 +64,7 @@ const snapshot = async (
       changeCodecVersion: versions.codecVersion
     },
     schemaFingerprint: getRxDBBackupSchemaFingerprint(rxdb),
+    constraintFingerprint: getRxDBBackupConstraintFingerprint(rxdb),
     encryption: authDomain === null ? null : { authDomain }
   };
   const trailer = await snapshotDataDir(async items => {

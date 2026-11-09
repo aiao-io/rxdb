@@ -138,4 +138,38 @@ describe('SqliteRepository 写入成功后的回填', () => {
     expect(status.patch).toEqual({ title: 'typed after insert' });
     expect(status.modified).toBe(true);
   });
+
+  it('create 接受没挂载的普通对象（插件写系统表如迁移记录）：不取实体状态、照常写入', async () => {
+    const { adapter, repository } = setup('sqlite-write-back-plain-create', false);
+    const plain = {
+      id: 'plain',
+      title: 'plain',
+      completed: false,
+      createdAt: new Date(CREATED),
+      updatedAt: new Date(STORED)
+    };
+    const saving = repository.create(plain as never);
+    await flush();
+    adapter.release([1, 'plain', 'plain', 0, CREATED, STORED]);
+
+    await expect(saving).resolves.toBe(plain);
+    expect(adapter.writes).toHaveLength(1);
+  });
+
+  it('update 接受没挂载的普通对象：不取实体状态、照常写入', async () => {
+    const { adapter, repository } = setup('sqlite-write-back-plain-update', true);
+    const plain = {
+      id: 'plain',
+      title: 'plain',
+      completed: false,
+      createdAt: new Date(CREATED),
+      updatedAt: new Date(STORED)
+    };
+    const saving = repository.update(plain as never, { title: 'changed' } as never);
+    await flush();
+    adapter.release([1, 'plain', 'changed', 0, CREATED, WRITTEN]);
+
+    await expect(saving).resolves.toBe(plain);
+    expect(adapter.writes).toHaveLength(1);
+  });
 });

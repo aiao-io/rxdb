@@ -7,7 +7,7 @@ range: project
 base_ref: null
 review_scopes: []
 scope_id: 'project:rxdb'
-status: Fixed
+status: Resolved
 severity: P2
 source_view: commit
 source_snapshot: '0ffa3c419fcc59dc3e13d695ca4658116134bfa0'
@@ -16,7 +16,7 @@ found_branch: refs/heads/codex/full-review-main-20261108
 found_snapshot: '0ffa3c419fcc59dc3e13d695ca4658116134bfa0'
 found_range: project
 created: 2026-11-08
-updated: 2026-11-09
+updated: 2026-11-10
 anchors:
   - 'packages/rxdb/src/RxDB.ts#disconnect'
 affected_projects: []
@@ -90,3 +90,15 @@ pr: null
 - 结论：核心侧修复有效：`pnpm nx run rxdb:test --exclude-task-dependencies --skip-nx-cache`（21:08:25 – 21:09:13）173 个文件，2815 通过 / 1 跳过，覆盖率 statements 95.86% / branches 92.76% / functions 96.14% / lines 96.52%；`rxdb:lint` 与 `tsc -p packages/rxdb/tsconfig.lib.json --noEmit` 通过。并发 `disconnect()` 共用一次拆卸、被 `disconnectAll()` 接管后不再二次关闭，是适配器可观察到的行为变化（`adapter.disconnect()` 调用次数），适配器、绑定与应用的测试经核心 dist 解析，本轮未验证，暂不改为 Resolved。
 - 验证：见结论；消费者未跑。
 - 剩余事项：同 RV-01a1ba3ae17c7e2eb56b5e4fd2c4e08f 的主会话命令（重建核心 dist 后跑三端绑定、四个本地适配器、working-tree / sync 插件，再 `pnpm test-all`），全绿后补 verify 事件改为 Resolved。
+
+### EV-01a1c25ebdf37de6bf39806f612ed6d8：复核
+
+- 时间：2026-11-10T06:12:31+08:00
+- 操作：verify
+- 执行者：ai；anthropic/claude-sonnet-5-5；会话 aa117580-681a-4540-85b2-3c61967b2092（Claude Code 主会话，复核角色）
+- 输入快照：工作区树 `044e8370001ccbd4355dfbc5ef673d4ac730e326`（基于 `0aad34cf`，含未提交改动）
+- 输出快照：工作区树 `044e8370001ccbd4355dfbc5ef673d4ac730e326`（复核未改代码）
+- 状态：Fixed → Resolved
+- 结论：旧 disconnect 的收尾只清自己那一代的缓存，被 disconnectAll 接管后整段退出，并发调用共用一次拆卸。
+- 验证：`pnpm test-all`（`lint`、`typecheck`、`test`、`test-memory`、`test-browser`、`build`、`audit-lazy-backend`、`e2e` 共 101 个项目与 27 个依赖任务）最终一轮全部成功，退出码 0；同上：核心整包与上述消费者的 `test` 通过。
+- 剩余事项：无。

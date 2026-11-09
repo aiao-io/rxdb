@@ -34,6 +34,7 @@ const target = (overrides: Partial<RxDBBackupCompatibility> = {}): RxDBBackupCom
   systemSchemaVersion: 6,
   changeCodecVersion: 1,
   schemaFingerprint: 'f'.repeat(64),
+  constraintFingerprint: 'c'.repeat(64),
   authDomain: null,
   ...overrides
 });

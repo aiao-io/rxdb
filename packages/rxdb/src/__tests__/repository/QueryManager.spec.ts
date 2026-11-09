@@ -24,6 +24,7 @@ Object.assign(TestEntity, {
   [METADATA]: {
     name: 'TestEntity',
     namespace: 'public',
+    propertyMap: new Map([['name', { name: 'name', type: 'string' }]]),
     sync: {
       type: SyncType.None,
       local: { adapter: 'local' }
@@ -35,6 +36,7 @@ Object.assign(RelatedEntity, {
   [METADATA]: {
     name: 'RelatedEntity',
     namespace: 'public',
+    propertyMap: new Map(),
     sync: {
       type: SyncType.None,
       local: { adapter: 'local' }
@@ -416,6 +418,68 @@ describe('QueryManager', () => {
 
       subscription.unsubscribe();
       vi.unstubAllGlobals();
+    });
+
+    describe('CREATE 载荷的完整性', () => {
+      /** 查询按 `name` 过滤；返回任务、合并策略桩与执行器桩 */
+      const watchByName = () => {
+        const runner = vi.fn(() => of([]));
+        const task = queryManager.createTask({
+          options: {
+            type: 'find' as const,
+            options: { where: { combinator: 'and' as const, rules: [{ field: 'name', operator: '=', value: 'x' }] } }
+          } as never,
+          runner,
+          getFingerprint: vi.fn(result => [result.length])
+        });
+        const mergeCreate = vi.fn<MergeQueryTaskCreateFn<typeof TestEntity>>();
+        queryManager.registerMergeCreateFn('find', mergeCreate);
+        const subscription = task.result$.subscribe();
+        vi.stubGlobal('requestIdleCallback', (callback: IdleRequestCallback) => {
+          callback({ didTimeout: false, timeRemaining: () => 50 } as IdleDeadline);
+          return 1;
+        });
+        return { runner, mergeCreate, subscription };
+      };
+
+      const createEvent = (patch: Record<string, unknown>) => ({
+        type: ENTITY_LOCAL_CREATE_EVENT,
+        entities: [
+          {
+            type: 'INSERT',
+            namespace: 'public',
+            entity: 'TestEntity',
+            id: 1,
+            patch,
+            inversePatch: null,
+            recordAt: new Date()
+          }
+        ]
+      });
+
+      it('载荷缺 where 读的列（只带 id）：回库重查，不交给合并策略', async () => {
+        const { runner, mergeCreate, subscription } = watchByName();
+        await vi.waitFor(() => expect(runner).toHaveBeenCalledTimes(1));
+
+        eventListeners.get(ENTITY_LOCAL_CREATE_EVENT)!(createEvent({ id: 1 }));
+
+        await vi.waitFor(() => expect(runner).toHaveBeenCalledTimes(2));
+        expect(mergeCreate).not.toHaveBeenCalled();
+        subscription.unsubscribe();
+        vi.unstubAllGlobals();
+      });
+
+      it('载荷带齐 where 读的列：交给合并策略，不回库重查', async () => {
+        const { runner, mergeCreate, subscription } = watchByName();
+        await vi.waitFor(() => expect(runner).toHaveBeenCalledTimes(1));
+
+        eventListeners.get(ENTITY_LOCAL_CREATE_EVENT)!(createEvent({ id: 1, name: 'x' }));
+
+        await vi.waitFor(() => expect(mergeCreate).toHaveBeenCalledTimes(1));
+        expect(runner).toHaveBeenCalledTimes(1);
+        subscription.unsubscribe();
+        vi.unstubAllGlobals();
+      });
     });
 
     it('应处理 ENTITY_LOCAL_UPDATE_EVENT', () => {

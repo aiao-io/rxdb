@@ -25,11 +25,20 @@ const DOCKER_FILES = [
 ];
 
 const FAKE_DOCKER = String.raw`#!/usr/bin/env node
-const { appendFileSync } = require('node:fs');
+const { appendFileSync, readFileSync } = require('node:fs');
 const args = process.argv.slice(2);
 appendFileSync(process.env.FAKE_DOCKER_LOG, JSON.stringify({ cwd: process.cwd(), args }) + '\n');
 const missing = (process.env.FAKE_DOCKER_MISSING || '').split(',').filter(Boolean);
 const valueAfter = flag => args[args.indexOf(flag) + 1];
+const isHealthInspect = args[0] === 'inspect' && String(valueAfter('-f')).includes('.State.Health.Status');
+if (isHealthInspect) {
+  const sequence = (process.env.FAKE_KONG_HEALTH || 'healthy').split(',');
+  const earlier = readFileSync(process.env.FAKE_DOCKER_LOG, 'utf8')
+    .split('\n')
+    .filter(line => line.includes('.State.Health.Status')).length;
+  process.stdout.write(sequence[Math.min(earlier, sequence.length) - 1] + '\n');
+  process.exit(0);
+}
 if (args[0] === 'compose' && args.includes('port')) {
   let hash = 7;
   for (const char of valueAfter('-p') || 'default') hash = (hash * 31 + char.charCodeAt(0)) % 10000;
@@ -168,3 +177,40 @@ for (const [label, missing] of [
     assert.equal(reinspected.length, missing ? missing.split(',').length : 0, '缺席的默认容器只在快照时 inspect 一次');
   });
 }
+
+const healthInspects = calls =>
+  calls.filter(
+    call =>
+      call.args[0] === 'inspect' && String(call.args[call.args.indexOf('-f') + 1]).includes('.State.Health.Status')
+  );
+
+test('supabase-ci-up.sh 等 Kong 通过健康检查才结束，端口先于监听发布时不提前放行', async t => {
+  const harness = await createHarness(t);
+  const { calls } = await harness.run('supabase-ci-up.sh', {
+    SUPABASE_CI_ID: 'spec-kong-wait',
+    FAKE_KONG_HEALTH: 'starting,starting,healthy',
+    SUPABASE_CI_KONG_POLL_SECONDS: '0'
+  });
+
+  const polled = healthInspects(calls);
+  assert.equal(polled.length, 3, '前两次 starting 继续等，第三次 healthy 才放行');
+  assert.equal(polled.at(-1).args.at(-1), 'rxdb-supabase-kong-spec-kong-wait', '查的是这套隔离栈自己的 Kong 容器');
+});
+
+test('supabase-ci-up.sh 在 Kong 一直不健康时报错退出，不把端口当成可用', async t => {
+  const harness = await createHarness(t);
+  await assert.rejects(
+    harness.run('supabase-ci-up.sh', {
+      SUPABASE_CI_ID: 'spec-kong-stuck',
+      FAKE_KONG_HEALTH: 'starting',
+      SUPABASE_CI_KONG_WAIT_SECONDS: '1',
+      SUPABASE_CI_KONG_POLL_SECONDS: '0.2'
+    }),
+    error => {
+      assert.equal(error.code, 1);
+      assert.match(error.stderr, /Kong/);
+      assert.match(error.stderr, /starting/);
+      return true;
+    }
+  );
+});

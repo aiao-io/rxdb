@@ -17,9 +17,10 @@ import {
   RxDBEntityLocalRemovedEventData,
   RxDBEntityLocalUpdatedEventData
 } from '../rxdb-events.js';
-import { deterministicStringify, getEntityStatus } from '../rxdb-utils.js';
+import { deterministicStringify, getEntityStatus, tryGetEntityMetadata } from '../rxdb-utils.js';
 import type { RxDB } from '../RxDB.js';
 import type { WorktreeTableSet } from '../system/worktree-table-set.js';
+import { restoreEventDates } from './event-date-payload.utils.js';
 import { Fingerprint } from './fingerprint.utils.js';
 import { QueryOptions } from './QueryManager.interface.js';
 import { QueryTask } from './QueryTask.js';
@@ -73,6 +74,23 @@ const whereReadsUpdatedAt = (where: unknown): boolean => {
     if (Array.isArray(item.rules)) return whereReadsUpdatedAt(item);
     return readsUpdatedAt(item.field) || whereReadsUpdatedAt(item.where);
   });
+};
+
+/**
+ * 收集 `where` 在主实体上直接读的字段名：穿透嵌套规则组；跨关系的路径（`author.name`）与
+ * EXISTS 子查询（规则上的 `where`）读的是别的实体，不算。
+ */
+const whereColumns = (where: unknown, columns = new Set<string>()): Set<string> => {
+  const rules = (where as { rules?: unknown[] } | undefined)?.rules;
+  if (!Array.isArray(rules)) return columns;
+  for (const rule of rules) {
+    const item = rule as { field?: unknown; rules?: unknown[]; where?: unknown };
+    if (Array.isArray(item.rules)) whereColumns(item, columns);
+    else if (item.where === undefined && typeof item.field === 'string' && !item.field.includes('.')) {
+      columns.add(item.field);
+    }
+  }
+  return columns;
 };
 
 /**
@@ -333,7 +351,12 @@ export class QueryManager<T extends EntityType> {
     // 字段在 `inversePatch` 里（见各事件载荷的契约）。`RxDBChange` 元事件的 `type` 写的是那条变更行记录的
     // 业务操作——记录一次删除的变更行，CREATE 元事件的 `type` 是 `'DELETE'`、整行却在 `patch` 里，
     // 按 `type` 取值会合出一个只有 id 的实体
-    const entityData = { id: data.id, ...(data.patch ?? data.inversePatch) } as EntityUpdateData<T>;
+    const payload = { id: data.id, ...(data.patch ?? data.inversePatch) };
+    // 载荷可能来自变更记录的原始 JSON（合并 / 拉取路径），日期是字符串；先还原成 `Date`，
+    // 下面的单调性守卫与可见值比较、以及造出的实体才有统一的类型。
+    // 探测元数据而不是直取：未装饰 `@Entity` 的类型（查询管线单测里的替身）没有元数据，也就没有日期属性可还原
+    const metadata = tryGetEntityMetadata(entityType);
+    const entityData = (metadata ? restoreEventDates(metadata, payload) : payload) as EntityUpdateData<T>;
     // P0-004 单调性守卫：命中缓存时 `createEntityRef` 会走 `EntityStatus.replace`，
     // 而 `replace` 的 `Object.assign(this.target, data)` **绕过 Proxy**，同时把 `_origin`
     // 重设为新 target、`_modified` 归零。事件迟到时这会把用户尚未保存的编辑连同 origin
@@ -446,7 +469,11 @@ export class QueryManager<T extends EntityType> {
       }
       switch (event.type) {
         case ENTITY_LOCAL_CREATE_EVENT: {
-          if (target_entities.some(entity => this.#is_superseded_create(entity))) {
+          if (
+            target_entities.some(
+              entity => this.#is_superseded_create(entity) || this.#lacks_where_columns(task, entity)
+            )
+          ) {
             task.refresh();
             return;
           }
@@ -514,6 +541,29 @@ export class QueryManager<T extends EntityType> {
     const seen = this.#seen_versions.get(data.id as RxDBEntityId);
     if (seen === undefined) return false;
     return (readUpdatedAtTime(data.patch) ?? -Infinity) <= seen;
+  }
+
+  /**
+   * CREATE 负载是否缺 `where` 要读的列。
+   *
+   * @param task - 要合并进去的查询任务
+   * @param data - CREATE 事件里的一条负载
+   * @returns 缺任何一个主实体上被 `where` 读的列时为 `true`
+   *
+   * @remarks
+   * JS 增量合并按「CREATE 负载是完整的行」判断成员资格。负载缺查询条件要读的列时（只带 `id`、
+   * 适配器只发了部分字段），缺的列按空值判：把属于结果的行丢掉，订阅者停在旧结果上，而库里这一行已经存在。
+   * 这里证明不了成员资格，只能回库里查。主键 `id` 由事件自带，不算缺；关系名与跨关系路径不是列，不看。
+   */
+  #lacks_where_columns(task: QueryTask<T>, data: RxDBEntityLocalEventData): boolean {
+    const metadata = tryGetEntityMetadata(this.EntityType);
+    const where = (task.options as { where?: unknown }).where;
+    if (!metadata || !where) return false;
+    const patch = (data.patch ?? {}) as Record<string, unknown>;
+    for (const column of whereColumns(where)) {
+      if (column !== 'id' && metadata.propertyMap.has(column) && !(column in patch)) return true;
+    }
+    return false;
   }
 
   /**

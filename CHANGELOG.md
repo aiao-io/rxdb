@@ -14,8 +14,19 @@
 - **rxdb:** `UpdateDataCache.getSerializedBefore(id, inversePatch)` 去掉第二参，改为 `getSerializedBefore(id)`：同批同 id 的多条 UPDATE 在构造时已合成一条，前态按 id 缓存、只算一份，另给的旧值只会拿到先算出来的那份。删掉第二个实参即可（US-032）
 - **rxdb:** `HistoryScopeAPI` 多了两个必填成员 `undoBarrier$` / `redoBarrier$`：撤销 / 重做栈停在子分支分叉点时给出原因（`{ reason: 'inherited_by_branch', branchIds }`），否则 `null`。自己实现 `HistoryScopeAPI` 的（如测试替身、没装历史插件时的兜底对象）要补上这两个成员，没有分支的实现发一个 `null` 即可（US-315）
 
+- **rxdb:** 实体注册期新增 `reservedName` 规则（`MetadataValidationRule` 多了 `'reservedName'`）：属性名、关系名或 `columnName` 为 `__proto__` 时 `init()` 报错（此前写入时静默丢列）。实体命名空间、public 实体名占用 RxDB 实例自身成员（`destroy`、`context`、`schemaManager` 等原型方法 / 访问器 / 构造期字段，或实例上同名的函数 / 原始值）时同样在注册期报错，不再覆盖实例方法或污染共享原型；插件按约定挂在实例上的服务对象（如 `rxdb.storage`）仍可作为同名命名空间的容器。
+- **rxdb:** 子类重声明字段不再误删父类显式声明、与字段同名的实体级 CHECK。此前按旧元数据建过子类表的库，升级后 `connect()` 会报约束漂移，需要写迁移补上这条约束。
+- **rxdb-plugin-sync:** 本地回执提交失败而远端已应用过条目时，`pushRepository` / `syncRepository` 改抛 `RxDBPartialSyncError`（`cause` 是原错误，`result.pushed` 是远端已应用的条数），不再记 0 并抛裸错误。
+- **rxdb-adapter-wa-sqlite:** 拒绝会折叠到别的 VFS 文件的库名（字面 `%20` 这类转义、`?`、`#`、`\`、制表 / 换行、开头空白、`.` 段、像 scheme 的前缀）：此前这些库名能打开，却与别的名字共用同一个物理文件。`%20` 一类可改用解码后的名字打开原数据，`?`、`#` 一类需手工迁移。
+- **rxdb-adapter-wa-sqlite / -sqlite-wasm:** 含 NUL 的字符串绑定参数改为报错，此前在 NUL 处静默截断、写成另一个值。
+- **rxdb:** `RxDBBackupCompatibility` 多了必填的 `constraintFingerprint`。自己实现备份恢复的适配器要补上，取 `getRxDBBackupConstraintFingerprint(rxdb)` 即可；内置适配器都已补。
+
 ### 🚀 Features
 
+- **rxdb:** `QueryTaskOptions` 新增可选 `onError(cacheKey, task)`，`onClean` 多了第二参数 `task`（按任务身份摘除缓存项；只收一个参数的旧回调仍可赋值）。
+- **rxdb:** `EntityStatus` 新增 `writeMark()` / `applyWriteResult()`：写入开始时记下提交的值与编辑序号，成功后只把基线推进到提交值，提交之后才改的字段保留为未保存改动。
+- **rxdb / rxdb-adapter-sqlite-core / -pglite / -electron:** 备份清单新增可选的 `constraintFingerprint`（实体级 CHECK、条件唯一索引、区间排他的约束名指纹），恢复前与目标比对，只差这些约束的归档在写目标之前就以 `incompatible_archive` 拒绝，不再恢复出缺约束的库。旧归档没有这一项，照常恢复；旧版本读到新归档会忽略这个键，格式版本不变。新增 `getRxDBBackupConstraintFingerprint(rxdb)`。
+- **rxdb-adapter-electron:** `@aiao/rxdb-adapter-electron/host` 转出 `isDesktopHostTemporaryName`（宿主未提交写入的临时产物判据：点 + UUID + `.rxdb-tmp`），宿主应用的启动清扫按它识别遗留产物。
 - **三端 demo:** Worktree 下拉、新建、改名、删除确认与分支右键检出；分支可选，失败可重试，换挂重读 Changes / History，写入期间禁止换挂，支持键盘与明暗主题（US-314 C2.2）
 
 - **rxdb:** 新增 `WorktreeTableSet`：一套业务表，`WorktreeTableSet.MAIN` 是主检出位那一套；两个适配器新增 `adapter.tableSet`（本实例挂的表集），sqlite-core 新增 `get_storage_object_name`，PGlite 新增 `getSchemaName` / `getChangeTriggerFunctionName`。业务实体的物理名只从两个适配器的表名解析器出，`pnpm audit:table-name-resolver` 守着解析器之外不推物理名（US-314）
@@ -109,6 +120,35 @@
 - **rxdb-client-generator:** 输出目录尚未创建、经父目录软链指向同一物理目录的多个配置，在 CLI 加载配置与 Vite 插件创建时即被拒绝，不再首次生成时互删产物；判据统一为从最近存在的祖先解析物理路径，大小写不敏感的文件系统上只差大小写的已存在目录同样判为重复。
 - **rxdb-devtools:** database provider 在运行期换实例后自动换绑事件订阅：旧实例在切换后发出的事件不再转发，新实例的事件不必重新调用 `events` 就能收到。
 - **utils:** `toPlainObject` 把 `__proto__` 数据键写成自有属性，不再改写结果对象的原型；`plainObjectToFlattenPathObject` 遇到末位是空洞的数组（含 `new Array(n)`）改为抛 `TypeError`，不再静默缩短或丢弃（中间空洞、显式 `undefined` 与密集数组不变）。
+- **rxdb:** `disconnect()` / `disconnectAll()` 拆卸期间，同名 `connect()` 改为等拆卸结束后重新引导，不再返回正在关闭的旧适配器；同一实例的并发 `disconnect()` 共用一次拆卸；被 `disconnectAll()` 接管后，旧调用不再清理新连接的缓存、也不再泄漏已连接的适配器。`reset()` 之后，插件旧的释放 / 安装任务作废，不再反复拆装新纪元的插件。
+- **rxdb:** 查询增量合并：换挂表集或任务被清理后，排队的分片在执行时重新核对任务身份并按当前挂载的表集筛选，不再把旧表的事件写进新表的查询与实体缓存；普通实体的本表 CREATE 不再被误判成关系变更而整查；只改 `updatedAt` 的关联实体变更在查询读到它（关系路径或 EXISTS 子查询）时生效；findAll 的成员资格、前后态分类与排序按数据库里的持久化值计算，不再因未保存字段把仍匹配的行移出结果；日期 `in` / `notIn` 按时间点比较；撤销等场景下迟到的 CREATE 批不再把已删除的行加回结果；合并 / 拉取路径派发的实体事件载荷里的日期（变更记录里的 ISO 字符串）并入活查询时还原成 `Date`，订阅者读到的 `updatedAt` 不再是字符串；新建事件的载荷缺查询条件要读的列时回库重查，不再静默丢弃；共享查询在错误分发期间调用 `retry()` 会重新执行，结果回调里新增的订阅者只收到一次结果。
+- **rxdb:** 多实例网关出站负载可结构化克隆：外部更新通知不再因直接传实体实例抛 `DataCloneError`。
+- **rxdb / rxdb-adapter-sqlite-core / -pglite:** 保存等待期间的新输入不再被成功回填覆盖：提交之后才改的字段保留为未保存改动，`modified` 按 patch 重算（PGlite 批量回填不再无条件清 `modified`）；一对多 `remove()` 解绑后保存所属实体，会写出子实体的外键置空；批量保存对 `{ type: SyncType.None }` 覆盖的主适配器判定与单条保存一致，缺适配器时逐个点名实体。
+- **rxdb:** CHECK 与条件唯一索引的字符串区间端点按码点比较，与 SQLite 和 PGlite 的排序一致；字段描述解析、值校验以及 `enum` / `schemes` / `manualOrder.groupBy` 一律拒绝稀疏数组的空位；`parseEntityFieldValue('boolean', 1)` 返回 `true`；`parseEntityRecordValues` 的结果原型固定为普通对象并丢弃 `__proto__` 键；`__decorateClass` 的返回类型按 `kind` 分支；生成实体或多对多中间表撞上用户实体时，不论注册顺序都报命名冲突。
+- **rxdb-adapter-sqlite-core:** 批量删除不再丢掉主键中的 NUL（含 NUL 的字符串写成 `char(0)` 拼接），不会误删另一个实体；查询 SQL 不再整串压缩空白，字符串字面量里的空白保持原样；嵌套 EXISTS 按层分配别名，内层关系不再关联到顶层实体；默认事务先 `BEGIN` 再读当前分支，并发切换分支后写入不会记进旧分支；加密列的建表语句不再写入明文 `DEFAULT`（单条 INSERT 在加密前补默认值；0.0.28 及更早版本建出的表仍留着旧的明文默认值文本，升级不做自动迁移，需要自行重建该表，说明见加密适配器文档）；OO1 路径上只读查询与 DDL 返回的 `rowsAffected` 不再沿用上一条写入的计数；OO1 加载指纹纳入 `locateFile` 回调，后续客户端不再加载错误的 WASM；漂移检查不再把建表注释里的伪 `CHECK` 当成真实约束；批量写回查按目标主键类型还原外键，bigint 外键不再回填成 number；桌面客户端同步订阅失败时关闭已打开的 host 会话。
+- **rxdb-adapter-sqlite-wasm:** 共用客户端按身份校验 `init`（库名、VFS、只读、资源与锁配置），第二个逻辑库不再静默访问首库；关闭数据库失败时仍释放 VFS，两步都失败时两个错误都抛出。
+- **rxdb-adapter-encrypted:** 再次解锁清除旧密钥时取消在途解密，锁定后不再返回明文。
+- **rxdb-adapter-pglite:** QueryCache 拉取与写回执回填按外部数据合并，不再覆盖未保存的草稿；`saveMany` 的 `updatedAt` 与单条写入同样单调递增，没有可写差异的实体不发 UPDATE；版本切换的删除与 upsert 按主键物理列定位行。
+- **rxdb-plugin-history / -sync:** 撤销在写事务里按当时的推送认领与已推水位线复核，推送先认领、再按同一口径复查，认领前已被撤销的变更不再上行；压缩合并不再丢掉对分叉前已存在行的删除（删除、同 id 重建、再删除）；历史项指纹带上变更 id，同毫秒同实体的两次变更不会被一次 redo 一起出栈。
+- **rxdb-plugin-workspace:** `flush()` 跨断连重连时拒绝，不再拿新纪元的队列报成功。
+- **rxdb-react / rxdb-vue:** `usePersistedState` 在 SSR 下不再跨请求共享状态：React 服务端与 hydrate 快照恒为本次调用的 `initialValue`，hydrate 不再因盘上值产生 mismatch；Vue 按 SSR 上下文为每个请求单独建注册表。
+- **rxdb-react / rxdb-vue / rxdb-angular:** 无限滚动修了两处：用户发起的下一页首值未到时被活查询重锚、或上一页清空时被丢弃，`isLoading` 不再永远卡在加载中；React 还修了换筛选或换库后的首个提交仍把旧列表报告为已加载的问题。
+- **rxdb-vue:** `provideRxDB(ref)` 换库后，`useSyncState` 跟随新库并释放旧库订阅。
+- **rxdb-plugin-working-tree-react:** Provider 换库后再切回同一个库（A→B→A）时，第一次 A 的迟到结果不再覆盖新结果。
+- **rxdb-taro:** realm 绑定语句插在整段指令序言之后（兼容 banner、注释、前置指令与无分号换行），抖音入口对 banner 之后的 `use strict` 同样拒绝。
+- **rxdb-model:** JSON 值里自有的 `__proto__` 键在表单克隆、快照与提交中保留；宿主传入的 ±Infinity 与超出安全范围的整数被表单校验拒绝；布尔字段把数字 `1` 解码为 `true`；系统剪贴板粘贴拒收非有限数与超出安全范围的整数；单元格编辑器在原值为 `null` 时不再改用编辑上下文里的值；`parseYmdToLocalDate` 遇到不存在的日期返回 `null`。
+- **rxdb-model-vue:** headless 表单与详情撤下 `mode` 后恢复默认的 `edit`，与 Angular / React 一致。
+- **utils:** `numberStep` 按十进制计算，已对齐的小数不再多进一步（`numberStep(0.28, 0.01)` 得 `0.28`）；`canBeDate` 遇到 bigint、Symbol 或无法转换的对象返回 `false`，不再抛错（行为收窄：数组、带 `valueOf` 的普通对象、函数这类声明之外的值原来碰巧返回 `true`，现在一律 `false`）；`once` 与 `throttle` 在回调同步重入时不再多执行；`parseChineseNumber` 把显式写出的零当真（`零万`、`0亿` 得 0）；`urlJoin` 不再改写查询参数里的 `.` / `..`。
+- **rxdb-client-generator:** 实体元数据里的枚举按绑定符号解析，同名局部对象或别的模块的同名枚举不再被静默换成核心值，`PropertyType` 等的别名导入可用；保留的 getter 若引用 getter 之外的模块绑定，生成前报错并点名绑定（此前生成成功、读取时才抛 `ReferenceError`）；实体名与 `EntityBase`、`ENTITY_STATIC_TYPES` 或所继承的基类同名时生成前报撞名；split 模式下实体名含 `$` 或 Unicode 时补上对端 keyValue 接口的导入，空 schema 的 keyValue 统一声明为核心 `KeyValue` 并导入；实体 glob 改用 glob 自身的解析，支持 `@(…)` / `+(…)` / `!(…)`，不成对的 `[` 按字面文件名处理，Vite watch 根同一口径。
+- **rxdb-admin:** `aqua` 归为深色主题；命令面板注销来源时中止它的请求，迟到结果与失败不会进入同名新来源，旧注销函数不再误删新来源；`destroy()` 关闭命令面板并取消搜索；mac 上快捷键冲突按 Command 计算；带路由的父菜单的子页面也能在命令面板里搜到。
+- **rxdb-admin-angular / -react / -vue:** 命令面板忽略输入法组合中的回车（含 Safari 确认候选时的 `keyCode 229`）；React、Vue 的模态对话框在同一轮关闭再重开时不再丢掉打开请求；Vue、Angular 在当前页面不在菜单里时，页面一级标题会随语言切换。
+- **rxdb-devtools-extension:** 同源导航的旧权限查询不再覆盖刚成功的授权，面板不会重新要求授权。
+- **三端 demo:** 文件搜索按「名称.扩展名」命中；全折叠时搜索会展开命中路径；懒加载树折叠后重新展开不再出现「标成已展开却没有子项」；「展开全部」后批量添加不再丢失全部监听；批量添加失败或中途离开页面时订阅收尾正确；远程缓存页离开后回收迟到的预览地址；Angular 的 OPFS / storage 路由不再二次解码目录名；生成器页的 Menu（TreeRepository）示例三端都能生成，输入无效时显示错误、不能下载；Angular Todo 的撤销 / 重做按 Task 作用域执行；Angular / Vue 分支切换被拒后选择器显示真实分支；React 主题在多个组件间同步；Vue 详情页保存 / 取消后回到实体列表。
+- **Electron demo:** 启动清扫不再删除以 `.rxdb-tmp` 结尾的已提交用户文件，清扫结束前不建本轮临时文件；首页离开路由时摘掉分支监听。
+- **HTTP 参考后端:** token 翻页改按 `(createdAt, id)` 作 keyset，翻页途中被更新的行不再漏掉；旧 token 回 400。
+- **P2P demo:** 举报归档失败回 502 并可重试收尾，举报提交失败不再标「已举报」；删设备登记或删账号时一并清掉寄给该设备的信封（线上需重放 `p2p-schema.sql`）。
+- **aiao:** `docker/init-db.sh` 不再把本地 `start.sh` / `reset.sh` 起的默认栈初始化发给 `supabase-ci` 项目，隔离 CI 栈由 `supabase-ci-up.sh` 显式传 `-p/-f`，并等 Kong 通过健康检查才结束（Apple 芯片上 amd64 镜像靠模拟运行，端口先于 Kong 监听发布，原先紧接着连上去会被重置），隔离回归脚本在没有默认栈容器的机器上不再误判失败；入库 `docker/.env.example`，干净检出可照 `docker/README.md` 的快速开始操作；Supabase 参考 SQL 给 `menu_large` 补上 `(parentId, title)` 的 normalized 唯一索引，与本地适配器一致（已有开发库里若残留重复的同级菜单，需先清理或 `./reset.sh`）；`test-all:log` 的默认范围改为 `--base=main`，与 `pnpm test-all` 一致；e2e 静态服务与覆盖率首页在文件或目录被并发删换时不再崩溃；git-stats 合并时不再丢掉普通代码行；affected-ci 的 full 模式直接调用 `pnpm test-all`；评审脚本与审计门禁的判据修正：覆盖日志截断续写、`range=branch` 遇到被删项目、`--since` 同秒覆盖、覆盖率按源位置合并、API 基线的 type-only 转出、文档别名按代码块、惰性后端门禁的不可达 chunk、需求清单与 AC 继承。
+- **文档:** README 与网站的 `create` 示例改为先建实体实例；rxdb-react / -vue 的树查询 hook 改为指向 tree 插件包；Vue `useEntityChange` 的示例改为解构写法；working-tree-react 示例的 effect 依赖改为稳定的方法引用；search 的 React / Vue README 改为 `useSearch`；history 快速示例改为先切回 `main` 再合并；`bulkSync` 的仅 pull 示例改为 `operation: 'pull'`；rxdb-model 的查询构建器示例对齐 `addRule` 签名；图查询文档按 Promise 静态 API 修正；Angular 编辑器 README 删去已不存在的命令式 setter；架构页的客户端生成命令改为 `npx @aiao/rxdb-client-generator`；`getRepository` 的 TSDoc 订正为不自动归属当前事务。
 
 ## 0.0.28 (2026-10-24)
 

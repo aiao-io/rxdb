@@ -7,7 +7,7 @@ range: project
 base_ref: null
 review_scopes: []
 scope_id: 'project:rxdb-vue'
-status: Fixed
+status: Resolved
 severity: P2
 source_view: commit
 source_snapshot: '0ffa3c419fcc59dc3e13d695ca4658116134bfa0'
@@ -16,7 +16,7 @@ found_branch: refs/heads/codex/full-review-main-20261108
 found_snapshot: '0ffa3c419fcc59dc3e13d695ca4658116134bfa0'
 found_range: project
 created: 2026-11-08
-updated: 2026-11-09
+updated: 2026-11-10
 anchors:
   - 'packages/rxdb-vue/src/useInfiniteScroll.ts#commitPage'
   - 'packages/rxdb-angular/src/InfiniteScrollingList.ts#commitPage'
@@ -100,3 +100,15 @@ pr: null
 - 结论：三端绑定本身复核通过；经源码使用绑定的 React / Angular 消费者也已验证。Vue 侧消费者（`rxdb-model-vue` 的实体列表、`dev-rxdb-vue` 的 `TodoCursorPage`）经 `@aiao/rxdb-vue` 的 dist 导入，本轮禁止重建 dist，跑出来的是旧实现，因此暂不关闭。
 - 验证：`pnpm nx run rxdb-react:test`（17 个文件 245 条）、`rxdb-vue:test`（15 个文件 243 条）、`rxdb-angular:test`（13 个文件 271 条）均 `--exclude-task-dependencies --skip-nx-cache` 通过，`rxdb-react:test-browser` 18 条通过，三包整包 eslint 通过；`rxdb-model-react` 实体列表真实库用例 57 条、`rxdb-model-angular` 实体列表真实库用例 61 条通过（两次进程退出码 1 都来自 `rxdb-plugin-history/src/history-item-builder.ts:50` 的未处理异常，属别组范围）。
 - 剩余事项：主会话重建 `rxdb-vue` dist 后跑 `pnpm nx run rxdb-model-vue:test` 与 `pnpm nx run dev-rxdb-vue:test`（或 `pnpm test-all`），通过即可转 Resolved。
+
+### EV-01a1c25ec14f7d1f9583424602b39a3b：复核
+
+- 时间：2026-11-10T06:12:32+08:00
+- 操作：verify
+- 执行者：ai；anthropic/claude-sonnet-5-5；会话 aa117580-681a-4540-85b2-3c61967b2092（Claude Code 主会话，复核角色）
+- 输入快照：工作区树 `044e8370001ccbd4355dfbc5ef673d4ac730e326`（基于 `0aad34cf`，含未提交改动）
+- 输出快照：工作区树 `044e8370001ccbd4355dfbc5ef673d4ac730e326`（复核未改代码）
+- 状态：Fixed → Resolved
+- 结论：三端无限滚动在途页被重锚后正确结算加载编号。
+- 验证：`pnpm test-all`（`lint`、`typecheck`、`test`、`test-memory`、`test-browser`、`build`、`audit-lazy-backend`、`e2e` 共 101 个项目与 27 个依赖任务）最终一轮全部成功，退出码 0；`rxdb-react`、`rxdb-vue`、`rxdb-angular`、`rxdb-model-react`、`rxdb-model-vue`、`rxdb-model-angular` 的 `test` 与 `dev-rxdb-vue:test` 通过。
+- 剩余事项：无。

@@ -147,6 +147,10 @@ export const assertRxDBBackupCompatible = (manifest: RxDBBackupManifest, expecte
   for (const [field, want, got] of pairs) {
     if (want !== got) throw mismatch(field, want, got);
   }
+  const { constraintFingerprint } = manifest;
+  if (constraintFingerprint !== undefined && constraintFingerprint !== expected.constraintFingerprint) {
+    throw mismatch('constraintFingerprint', expected.constraintFingerprint, constraintFingerprint);
+  }
   const missing = manifest.adapter.extensions.filter(name => !expected.extensions.includes(name));
   if (missing.length > 0) throw mismatch('adapter.extensions', expected.extensions, manifest.adapter.extensions);
   assertEncryption(manifest, expected);

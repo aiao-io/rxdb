@@ -85,7 +85,7 @@ describe('computeRxDBConstraintFingerprint', () => {
     const checkedParent = slot({ checks: [POSITIVE_FROM] } as Partial<EntityMetadataOptions>, 'FingerprintBase');
     const childOf = (Parent: EntityType): EntityType => {
       @Entity({ name: 'FingerprintChild', namespace: 'review', properties: [] })
-      class Child extends (Parent as typeof EntityBase) {}
+      class Child extends (Parent as unknown as typeof EntityBase) {}
       return Child;
     };
 
@@ -112,14 +112,20 @@ describe('清单的 constraintFingerprint', () => {
   });
 
   it('新格式原样保留这一项，与目标相同时通过', () => {
-    const manifest = parseRxDBBackupManifest({ ...structuredClone(sampleManifest()), constraintFingerprint: 'c'.repeat(64) });
+    const manifest = parseRxDBBackupManifest({
+      ...structuredClone(sampleManifest()),
+      constraintFingerprint: 'c'.repeat(64)
+    });
 
     expect(manifest.constraintFingerprint).toBe('c'.repeat(64));
     expect(() => assertRxDBBackupCompatible(manifest, target())).not.toThrow();
   });
 
   it('与目标不同时在写目标之前判为不兼容，点名这一项', () => {
-    const manifest = parseRxDBBackupManifest({ ...structuredClone(sampleManifest()), constraintFingerprint: 'd'.repeat(64) });
+    const manifest = parseRxDBBackupManifest({
+      ...structuredClone(sampleManifest()),
+      constraintFingerprint: 'd'.repeat(64)
+    });
     const error = caught(() => assertRxDBBackupCompatible(manifest, target()));
 
     expect(error.code).toBe('incompatible_archive');
@@ -130,15 +136,16 @@ describe('清单的 constraintFingerprint', () => {
     });
   });
 
-  it.each([['null', null], ['非十六进制', 'not-a-fingerprint'], ['大写', 'C'.repeat(64)]])(
-    '这一项出现但格式非法（%s）时报 incompatible_archive',
-    (_label, value) => {
-      const error = caught(() =>
-        parseRxDBBackupManifest({ ...structuredClone(sampleManifest()), constraintFingerprint: value })
-      );
+  it.each([
+    ['null', null],
+    ['非十六进制', 'not-a-fingerprint'],
+    ['大写', 'C'.repeat(64)]
+  ])('这一项出现但格式非法（%s）时报 incompatible_archive', (_label, value) => {
+    const error = caught(() =>
+      parseRxDBBackupManifest({ ...structuredClone(sampleManifest()), constraintFingerprint: value })
+    );
 
-      expect(error.code).toBe('incompatible_archive');
-      expect(error.details.field).toBe('constraintFingerprint');
-    }
-  );
+    expect(error.code).toBe('incompatible_archive');
+    expect(error.details.field).toBe('constraintFingerprint');
+  });
 });

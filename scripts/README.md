@@ -21,7 +21,7 @@ CI 的 `setup` job 每轮都会执行。表格里各 spec 那一行写的 `node 
 | [check-workspace.mjs](#check-workspacemjs)                                  | `pnpm install` 后                            | 复制 `.env.example` → `.env`，预构建依赖库                                                                    | `postinstall` → `check-workspace`                                             |
 | [clean.mjs](#cleanmjs)                                                      | 想彻底清盘                                   | 递归删除 `dist` / `tmp` / `coverage` / 构建产物                                                               | `pnpm clean`                                                                  |
 | [commitizen.mjs](#commitizenmjs)                                            | 交互式写 commit                              | 定义 czg 的 scope/type 选项                                                                                   | `pnpm commit`（czg）                                                          |
-| [commit-lint.mjs](#commit-lintmjs)                                          | `commit-msg` / `pre-push`，全部分支          | 校验最新 commit 是否符合 `<type>(<scope>): subject`                                                           | `pre-commit` / `pre-push` / `pnpm check-commit`                               |
+| [commit-lint.mjs](#commit-lintmjs)                                          | `commit-msg` / `pre-push`，仅配置列出的分支  | 校验最新 commit 是否符合 `<type>(<scope>): subject`                                                           | `pre-commit` / `pre-push` / `pnpm check-commit`                               |
 | [check-doc-code.mjs](#check-doc-codemjs)                                    | 改 `website/docs/**` 后                      | 抽取文档代码块里的 `@aiao/*` import，验证指向真实包                                                           | `node scripts/check-doc-code.mjs [--strict]`                                  |
 | [check-externals.mjs](#check-externalsmjs)                                  | 新增/删除包依赖后                            | 检查 `vite.config.mts` 的 `external` 是否覆盖 `dependencies + peerDependencies`                               | `node scripts/check-externals.mjs`                                            |
 | [check-migration-release-gate.mjs](#check-migration-release-gatemjs)        | 发 bridge / migration release 前             | 校验 `requirements/migration-release.json` 字段语义                                                           | `pnpm check-migration-release-gate` / `check-migration-release-gate.spec.mjs` |
@@ -132,7 +132,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 
 - **触发**：`husky#pre-commit` / `husky#pre-push` / `pnpm check-commit`。
 - **做什么**：
-  1. 本地路径（`commit-msg` 文件 / 无参）在**全部分支**上执行（`NEED_CHECK_BRANCHES` = `workspace.mjs#NEED_CHECK_COMMIT_BRANCH_NAMES` = `['*']`，见 §10）；
+  1. 本地路径（`commit-msg` 文件 / 无参）只在 `NEED_CHECK_BRANCHES`（= `workspace.mjs#NEED_CHECK_COMMIT_BRANCH_NAMES`，按分支名精确匹配、不支持通配符，见 §10）列出的分支上执行；当前为空，本地钩子不校验任何分支，落 main 的文案由 CI 校验 PR 标题；
   2. 读最新 commit（或 commit msg 文件）正则匹配 `type(scope)!?: subject`，类型来自 `commitizen.types`，scope 来自 `commitizen.scopes`，同时放行 `Revert` / `Release` / `wip`；
   3. 失败时把首行的不可见空白（空格/Tab/换行）用 `·` `→` `↵` 可视化输出，便于排查 CJK 输入法的隐形空格。
 - **何时手动跑**：想在 push 前手动确认 commit 文案合规。
@@ -467,7 +467,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 - **做什么**：导出 3 个共享常量：
   - `NPM_SCOPE = 'aiao'`；
   - `NEED_BUILDS = ['rxdb-test']`（`check-workspace` 在 install 后预构建哪些库）；
-  - `NEED_CHECK_COMMIT_BRANCH_NAMES = ['*']`（`commit-lint` 在哪些分支强制校验；`'*'` = 全部）。
+  - `NEED_CHECK_COMMIT_BRANCH_NAMES = []`（`commit-lint` 本地钩子在哪些分支强制校验，按分支名精确匹配、不支持通配符；当前为空）。
 - **调用方**：`check-workspace.mjs`、`commit-lint.mjs` 等需要跨文件共享配置的脚本。
 
 ---
@@ -493,7 +493,7 @@ pnpm install          # 触发 preinstall（wa-sqlite integrity + 版本校验�
 pnpm test-packages    # 跑 packages/* 的 lint/typecheck/test/test-memory/test-browser/build/e2e
 ```
 
-如果你想 **提交**，按 `pnpm commit` 走 czg 交互式流程，husky 会在 `pre-commit` / `pre-push` 自动过 `commit-lint.mjs`。
+如果你想 **提交**，按 `pnpm commit` 走 czg 交互式流程，husky 的 `commit-msg` / `pre-push` 会调 `commit-lint.mjs`，但只在 `NEED_CHECK_COMMIT_BRANCH_NAMES` 列出的分支上校验（当前为空）；落 main 的文案由 CI 校验 PR 标题。
 
 如果你要 **发版**，按顺序跑：
 
