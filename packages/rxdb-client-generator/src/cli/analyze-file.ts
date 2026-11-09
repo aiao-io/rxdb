@@ -202,7 +202,10 @@ const evaluatePropertyAccess = (node: Node): StaticValue => {
 
   const constants = resolveSafeConstants(owner);
   if (!constants) {
-    throw createEvaluationError(node, `${owner.getText()} must resolve to ${SAFE_CONSTANT_NAMES} exported by ${CORE_PACKAGE}`);
+    throw createEvaluationError(
+      node,
+      `${owner.getText()} must resolve to ${SAFE_CONSTANT_NAMES} exported by ${CORE_PACKAGE}`
+    );
   }
   const member = node.getName();
   const value = constants.get(member);
@@ -528,7 +531,9 @@ const isGlobalDeclaration = (declaration: Node): boolean =>
   !ts.isExternalModule(declaration.getSourceFile().compilerNode) ||
   declaration
     .getAncestors()
-    .some(ancestor => Node.isModuleDeclaration(ancestor) && ancestor.getDeclarationKind() === ModuleDeclarationKind.Global);
+    .some(
+      ancestor => Node.isModuleDeclaration(ancestor) && ancestor.getDeclarationKind() === ModuleDeclarationKind.Global
+    );
 
 const isInside = (node: Node, container: Node): boolean =>
   node === container || node.getFirstAncestor(ancestor => ancestor === container) !== undefined;

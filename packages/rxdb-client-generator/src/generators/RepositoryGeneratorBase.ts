@@ -7,7 +7,11 @@
 
 import { type EntityMetadata, type EntityMetadataOptions, PropertyType } from '@aiao/rxdb';
 import { capitalizeFirst } from '@aiao/utils';
-import { addEntityBaseNamedImport, getKeyValueRuleTypeName, KEY_VALUE_TYPE } from '../core/RxDBClientGenerator.utils.js';
+import {
+  addEntityBaseNamedImport,
+  getKeyValueRuleTypeName,
+  KEY_VALUE_TYPE
+} from '../core/RxDBClientGenerator.utils.js';
 import { generateEntityRules, RuleTypeData } from './entity-rules.js';
 import type {
   GeneratorContext,

@@ -7,7 +7,7 @@ range: project
 base_ref: null
 review_scopes: []
 scope_id: 'project:@aiao/source'
-status: Fixed
+status: Resolved
 severity: P2
 source_view: commit
 source_snapshot: '0ffa3c419fcc59dc3e13d695ca4658116134bfa0'
@@ -16,7 +16,7 @@ found_branch: 'refs/heads/codex/full-review-main-20261108'
 found_snapshot: '0ffa3c419fcc59dc3e13d695ca4658116134bfa0'
 found_range: project
 created: 2026-11-08
-updated: 2026-11-09
+updated: 2026-11-10
 anchors:
   - 'scripts/merge-vitest-reports.mjs'
 affected_projects: [rxdb-plugin-search, rxdb-plugin-storage]
@@ -82,3 +82,15 @@ pr: null
 - 改动：`scripts/merge-vitest-reports.mjs:196` 入口判定改为 `pathToFileURL(realpathSync(process.argv[1])).href`，同时处理空格编码与符号链接；合并或读取失败照常以非零码退出（顶层 await 抛出）。仓库其余 CLI 用 `pathToFileURL(process.argv[1])`，空格没问题，只在经符号链接启动时有同样的局限，不在本记录范围。
 - 验证：修复前新用例「CLI 在带空格的路径下照常合并…」红：拷到 `repo dir/scripts/` 下启动后没有生成 `coverage-summary.json`（ENOENT）；只改成 `pathToFileURL(process.argv[1])` 时在 macOS 临时目录下仍红（符号链接），改用 `realpathSync` 后通过：成功时产出合并后的 summary 与 JUnit（`tests="2"`），输入目录不存在时非零退出、stderr 含 ENOENT。全文件 6/6 通过，`npx eslint --max-warnings=0` 通过。Windows 未验证（本机没有环境；`pathToFileURL` 本身处理盘符与反斜线）。
 - 剩余事项：收尾用 heavy.sh 跑一个 test-browser 消费者（`rxdb-plugin-replay`）端到端核对，并跑根项目 `test-scripts` / `lint` 后复核。
+
+### EV-01a1c173110379b6b17b4edb27034562：复核
+
+- 时间：2026-11-10T01:55:04+08:00
+- 操作：verify
+- 执行者：ai；anthropic/claude-opus-5-5；会话 aa117580-681a-4540-85b2-3c61967b2092（Claude Code 并行子 agent G01，复核角色）
+- 输入快照：工作区树 `fc1c68d7845c228e431c4e9fb69ea5c252c69bd8`（修复事件的输出快照）
+- 输出快照：工作区树 `6850a8a89a0c4add2dff1465350090c799c2ffd8`（`ai-review snapshot --worktree`，基于 `62cc9a51`（外部自动提交，含各组 WIP））
+- 状态：Fixed → Resolved
+- 结论：修复有效。入口判定改为真实路径转 file URL，路径含空格与经符号链接启动都能进入 CLI；回归用例把脚本拷到带空格的目录、在 macOS 经 `/var` 符号链接的临时目录下启动，成功时产出合并 summary 与 JUnit，输入缺失时非零退出。
+- 验证：`node --test scripts/merge-vitest-reports.spec.mjs` 6/6。根项目 `pnpm nx run @aiao/source:test-scripts --exclude-task-dependencies --skip-nx-cache` 590/590 通过，`pnpm nx run @aiao/source:lint --exclude-task-dependencies --skip-nx-cache` 通过；改动文件 `prettier --check` 通过。
+- 剩余事项：Windows 未验证（本机无环境）。

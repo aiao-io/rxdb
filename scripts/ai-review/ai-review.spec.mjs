@@ -530,7 +530,10 @@ test('多个进程同时 cover：各批都完整落盘', async () => {
     const run = file =>
       new Promise((resolve, reject) => {
         const input = path.join(repo.dir, `${path.posix.basename(file)}.json`);
-        writeFileSync(input, JSON.stringify({ reviewer: REVIEWER, units: [{ path: file, context: [], findings: [] }] }));
+        writeFileSync(
+          input,
+          JSON.stringify({ reviewer: REVIEWER, units: [{ path: file, context: [], findings: [] }] })
+        );
         const child = spawn(process.execPath, [SCRIPT, 'cover', '--project', 'core', '--input', input], {
           cwd: repo.dir
         });

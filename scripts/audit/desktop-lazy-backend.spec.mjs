@@ -220,7 +220,8 @@ test('首屏另有无关的动态路由、后端标记只在没人引用的孤�
 
 test('惰性分支经 worker 的 new URL(...) 加载的 chunk 算可达', async () => {
   const files = healthyDist();
-  files['chunk-wasqlite.js'] = 'export const open=()=>new Worker(new URL("worker-sqlite.js",import.meta.url),{type:"module"});';
+  files['chunk-wasqlite.js'] =
+    'export const open=()=>new Worker(new URL("worker-sqlite.js",import.meta.url),{type:"module"});';
   files['worker-sqlite.js'] = 'const wasm="wa-sqlite-async.wasm";self.onmessage=()=>import("./chunk-engine.js");';
   files['chunk-engine.js'] = 'export const engine=1;';
   const dist = await makeDist(files);
@@ -233,7 +234,10 @@ test('首屏图里的动态 import() 指向不存在的 chunk 时失败', async 
   files['main.js'] = `${files['main.js']}\nconst gone=()=>import(\`./chunk-gone.js\`);`;
   const dist = await makeDist(files);
 
-  await assert.rejects(() => auditDemo({ project: 'fixture', dist }), /动态 import\(\) 指向不存在的 chunk：chunk-gone\.js/);
+  await assert.rejects(
+    () => auditDemo({ project: 'fixture', dist }),
+    /动态 import\(\) 指向不存在的 chunk：chunk-gone\.js/
+  );
 });
 
 test('产物不存在时报错并给出 build 命令，而不是跳过', async () => {

@@ -153,7 +153,11 @@ function listAmbientDeclarations(srcDir) {
  * @param {import('typescript').TypeChecker} checker 同一 program 的类型检查器
  */
 function isTypeOnlyExport(symbol, checker) {
-  for (let alias = symbol; alias && alias.flags & ts.SymbolFlags.Alias; alias = checker.getImmediateAliasedSymbol(alias)) {
+  for (
+    let alias = symbol;
+    alias && alias.flags & ts.SymbolFlags.Alias;
+    alias = checker.getImmediateAliasedSymbol(alias)
+  ) {
     if (declaredTypeOnly(alias)) return true;
   }
   return false;

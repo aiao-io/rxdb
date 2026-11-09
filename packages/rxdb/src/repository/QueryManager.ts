@@ -329,24 +329,11 @@ export class QueryManager<T extends EntityType> {
 
   #serialize = (data: RxDBEntityLocalEventData<T>): InstanceType<T> => {
     const entityType = data.entityType || this.rxdb.schemaManager.getEntityType(data.entity, data.namespace)!;
-    let entityData: EntityUpdateData<T> = { id: data.id } as EntityUpdateData<T>;
-    switch (data.type) {
-      case 'INSERT':
-      case 'UPDATE':
-        entityData = {
-          ...entityData,
-          ...data.patch
-        };
-        break;
-      case 'DELETE':
-        entityData = {
-          ...entityData,
-          ...data.inversePatch
-        };
-        break;
-      default:
-        break;
-    }
+    // 按负载形态取值，不按负载里的 `type`：CREATE / UPDATE 的 `patch` 非空，DELETE 的 `patch` 为 `null`、
+    // 字段在 `inversePatch` 里（见各事件载荷的契约）。`RxDBChange` 元事件的 `type` 写的是那条变更行记录的
+    // 业务操作——记录一次删除的变更行，CREATE 元事件的 `type` 是 `'DELETE'`、整行却在 `patch` 里，
+    // 按 `type` 取值会合出一个只有 id 的实体
+    const entityData = { id: data.id, ...(data.patch ?? data.inversePatch) } as EntityUpdateData<T>;
     // P0-004 单调性守卫：命中缓存时 `createEntityRef` 会走 `EntityStatus.replace`，
     // 而 `replace` 的 `Object.assign(this.target, data)` **绕过 Proxy**，同时把 `_origin`
     // 重设为新 target、`_modified` 归零。事件迟到时这会把用户尚未保存的编辑连同 origin

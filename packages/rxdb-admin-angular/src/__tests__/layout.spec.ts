@@ -242,7 +242,7 @@ describe('AdminLayout', () => {
       const i18n = createAdminI18n();
       i18n.registerCatalog({ locale: 'zh-Hans', namespace: 'app', messages: { brand: '数据工作台' } });
       i18n.registerCatalog({ locale: 'en', namespace: 'app', messages: { brand: 'Data workbench' } });
-      await mount({ i18n, brand: { titleKey: 'brand' } }, { url: '/not-in-menu' });
+      await mount({ i18n, brand: { title: '工作台', titleKey: 'brand' } }, { url: '/not-in-menu' });
       expect(screen.getByTestId('admin-page-title').textContent).toBe('数据工作台');
       await act(async () => i18n.setLocale('en'));
       expect(screen.getByTestId('admin-page-title').textContent).toBe('Data workbench');

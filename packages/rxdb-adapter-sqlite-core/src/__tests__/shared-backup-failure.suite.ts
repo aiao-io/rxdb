@@ -3,7 +3,7 @@
  *
  * 每条持久化目标上的失败都同时断言两件事：错误码对，且目标回到「从未恢复过」（没有任何对象、没有标记）。
  */
-import { Entity, EntityBase, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
+import { Entity, EntityBase, isRxDBBackupError, PropertyType, RelationKind, RxDB, SyncType } from '@aiao/rxdb';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { SqliteRestoreStage } from '../backup/sqlite-backup.interface.js';
@@ -42,6 +42,22 @@ import {
 })
 class BackupFailureTag extends EntityBase {
   label!: string;
+}
+
+/**
+ * 与夹具的 `BackupAuthor` 逐字同结构，只多一条实体级 CHECK：结构指纹不变、约束指纹不同。
+ * 恢复必须在写目标之前凭清单的约束指纹拒绝它，而不是等 `connect()` 报约束漂移。
+ */
+@Entity({
+  name: 'BackupAuthor',
+  properties: [{ name: 'name', type: PropertyType.string, unique: true }],
+  relations: [{ name: 'notes', kind: RelationKind.ONE_TO_MANY, mappedEntity: 'BackupNote', mappedProperty: 'author' }],
+  checks: [
+    { name: 'name_not_blank', rule: { combinator: 'and', rules: [{ field: 'name', operator: '!=', value: '' }] } }
+  ]
+})
+class CheckedBackupAuthor extends EntityBase {
+  name!: string;
 }
 
 /** 随 `testing` 入口发布：import 时不构造编码器，与库代码同一条规矩（抖音 iOS 没有原生编码器）。 */
@@ -156,6 +172,20 @@ export const backupFailureSuite = (harness: SqliteBackupHarness): void => {
         const dbName = uniqueDbName('backup-fail-dst');
         const target = open('persistent', dbName, [...PLAIN_ENTITIES, BackupFailureTag]);
         expect(await backupErrorCode(restoreInto(target, chunkedSource(archive).stream))).toBe('incompatible_archive');
+        await expectClean(dbName);
+      });
+
+      it('rejects an archive whose entity-level CHECK differs (same columns)', async () => {
+        const { archive } = await sharedSource();
+        const dbName = uniqueDbName('backup-fail-dst');
+        const [, note] = PLAIN_ENTITIES;
+        const target = open('persistent', dbName, [CheckedBackupAuthor, note]);
+        const error = await restoreInto(target, chunkedSource(archive).stream).then(
+          () => undefined,
+          (reason: unknown) => reason
+        );
+        expect(isRxDBBackupError(error) && error.code).toBe('incompatible_archive');
+        expect(isRxDBBackupError(error) && error.details.field).toBe('constraintFingerprint');
         await expectClean(dbName);
       });
 

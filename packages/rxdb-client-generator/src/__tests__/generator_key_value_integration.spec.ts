@@ -105,66 +105,98 @@ describe('RxDBClientGenerator - KeyValue Type Generation', () => {
   });
 
   // 实体名允许 `$` 与 Unicode 标识符；关系规则引用的对端精确接口同样要随 sibling 导入
-  it.each(['Post$', '文章'] as const)('imports sibling keyValue interfaces of entity %s in split mode', async postName => {
-    const generator = new RxDBClientGenerator({ splitFiles: true, relationQueryDeep: 2 });
-    generator.addEntity({
-      name: 'Author',
-      namespace: 'public',
-      extends: ['EntityBase'],
-      properties: [],
-      relations: [
-        { name: 'posts', kind: RelationKind.ONE_TO_MANY, mappedEntity: postName, mappedNamespace: 'public', mappedProperty: 'author' }
-      ]
-    });
-    generator.addEntity({
-      name: postName,
-      namespace: 'public',
-      extends: ['EntityBase'],
-      properties: [{ name: 'meta', type: PropertyType.keyValue, properties: [{ name: 'title', type: PropertyType.string }] }],
-      relations: [
-        { name: 'author', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'Author', mappedNamespace: 'public', mappedProperty: 'posts' }
-      ]
-    });
-    generator.exec();
+  it.each(['Post$', '文章'] as const)(
+    'imports sibling keyValue interfaces of entity %s in split mode',
+    async postName => {
+      const generator = new RxDBClientGenerator({ splitFiles: true, relationQueryDeep: 2 });
+      generator.addEntity({
+        name: 'Author',
+        namespace: 'public',
+        extends: ['EntityBase'],
+        properties: [],
+        relations: [
+          {
+            name: 'posts',
+            kind: RelationKind.ONE_TO_MANY,
+            mappedEntity: postName,
+            mappedNamespace: 'public',
+            mappedProperty: 'author'
+          }
+        ]
+      });
+      generator.addEntity({
+        name: postName,
+        namespace: 'public',
+        extends: ['EntityBase'],
+        properties: [
+          { name: 'meta', type: PropertyType.keyValue, properties: [{ name: 'title', type: PropertyType.string }] }
+        ],
+        relations: [
+          {
+            name: 'author',
+            kind: RelationKind.MANY_TO_ONE,
+            mappedEntity: 'Author',
+            mappedNamespace: 'public',
+            mappedProperty: 'posts'
+          }
+        ]
+      });
+      generator.exec();
 
-    await expect(
-      compileGeneratedConsumer(generator.getSourceFiles(), "import './generated/index.js';")
-    ).resolves.toEqual([]);
-  });
+      await expect(
+        compileGeneratedConsumer(generator.getSourceFiles(), "import './generated/index.js';")
+      ).resolves.toEqual([]);
+    }
+  );
 
   // 空 schema 的 keyValue 没有精确接口：属性、自身规则与关系规则都落到核心的 `KeyValue`，且要导入它
-  it.each([false, true])('declares an empty keyValue schema with the imported KeyValue type (splitFiles=%s)', async splitFiles => {
-    const generator = new RxDBClientGenerator({ splitFiles, relationQueryDeep: 2 });
-    generator.addEntity({
-      name: 'Owner',
-      namespace: 'public',
-      extends: ['EntityBase'],
-      properties: [],
-      relations: [
-        { name: 'configs', kind: RelationKind.ONE_TO_MANY, mappedEntity: 'EmptyConfig', mappedNamespace: 'public', mappedProperty: 'owner' }
-      ]
-    });
-    generator.addEntity({
-      name: 'EmptyConfig',
-      namespace: 'public',
-      extends: ['EntityBase'],
-      properties: [
-        { name: 'data', type: PropertyType.keyValue, properties: [] },
-        { name: 'extra', type: PropertyType.keyValue, nullable: true, properties: [] }
-      ],
-      relations: [
-        { name: 'owner', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'Owner', mappedNamespace: 'public', mappedProperty: 'configs' }
-      ]
-    });
-    generator.exec();
+  it.each([false, true])(
+    'declares an empty keyValue schema with the imported KeyValue type (splitFiles=%s)',
+    async splitFiles => {
+      const generator = new RxDBClientGenerator({ splitFiles, relationQueryDeep: 2 });
+      generator.addEntity({
+        name: 'Owner',
+        namespace: 'public',
+        extends: ['EntityBase'],
+        properties: [],
+        relations: [
+          {
+            name: 'configs',
+            kind: RelationKind.ONE_TO_MANY,
+            mappedEntity: 'EmptyConfig',
+            mappedNamespace: 'public',
+            mappedProperty: 'owner'
+          }
+        ]
+      });
+      generator.addEntity({
+        name: 'EmptyConfig',
+        namespace: 'public',
+        extends: ['EntityBase'],
+        properties: [
+          { name: 'data', type: PropertyType.keyValue, properties: [] },
+          { name: 'extra', type: PropertyType.keyValue, nullable: true, properties: [] }
+        ],
+        relations: [
+          {
+            name: 'owner',
+            kind: RelationKind.MANY_TO_ONE,
+            mappedEntity: 'Owner',
+            mappedNamespace: 'public',
+            mappedProperty: 'configs'
+          }
+        ]
+      });
+      generator.exec();
 
-    await expect(
-      compileGeneratedConsumer(
-        generator.getSourceFiles(),
-        "import { EmptyConfig } from './generated/index.js';\ndeclare const config: EmptyConfig;\nconfig.data;\nconfig.extra;"
-      )
-    ).resolves.toEqual([]);
-  });
+      await expect(
+        compileGeneratedConsumer(
+          generator.getSourceFiles(),
+          "import { EmptyConfig } from './generated/index.js';\ndeclare const config: EmptyConfig;\nconfig.data;\nconfig.extra;"
+        )
+      ).resolves.toEqual([]);
+    }
+  );
 
   // 关系递归到对端实体时，keyValue 的 valueType 是对端的精确接口（PostMetaKeyValue）。
   // split 模式下每个实体各占一个文件，该接口若不随 sibling 一起导入就是 TS2304；

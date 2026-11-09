@@ -31,10 +31,12 @@ test('renderer 依赖图：裸名与 node: 前缀的内建、静态与动态 imp
     });
     const { files, builtins } = await collectRendererGraph(path.join(root, 'dist/index.js'), deps);
 
-    assert.deepEqual(
-      [...files].map(file => path.relative(root, file)).sort(),
-      ['dist/a.js', 'dist/b.js', 'dist/index.js', 'node_modules/@aiao/x/index.js']
-    );
+    assert.deepEqual([...files].map(file => path.relative(root, file)).sort(), [
+      'dist/a.js',
+      'dist/b.js',
+      'dist/index.js',
+      'node_modules/@aiao/x/index.js'
+    ]);
     assert.deepEqual(Object.fromEntries([...builtins].map(([name, file]) => [name, path.relative(root, file)])), {
       'node:path': 'dist/index.js',
       fs: 'dist/a.js',

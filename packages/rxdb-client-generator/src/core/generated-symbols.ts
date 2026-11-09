@@ -164,7 +164,9 @@ const addFixedDeclarationImportSymbols = (table: GeneratedSymbolTable, generator
     entityInterfaces.forEach(symbol => addImport(symbol, `entity base interface import "${symbol}"`));
     // 插件基类（`extends` 的第一项）同样按名导入；与固定导入同名同源的（核心 `EntityBase`）不重复占名
     baseClassImports(generator, scopeMetadata)
-      .filter(({ module, symbol }) => module !== DEFAULT_ENTITY_BASE_MODULE || !FIXED_RXDB_TYPE_IMPORTS.includes(symbol))
+      .filter(
+        ({ module, symbol }) => module !== DEFAULT_ENTITY_BASE_MODULE || !FIXED_RXDB_TYPE_IMPORTS.includes(symbol)
+      )
       .forEach(({ symbol }) => addImport(symbol, `entity base class import "${symbol}"`));
   });
 };
@@ -201,10 +203,22 @@ const addRuntimeSymbols = (table: GeneratedSymbolTable, generator: RxDBClientGen
     : [['runtime:index', Array.from(generator.metadataSet)]];
   scopes.forEach(([scope, scopeMetadata]) => {
     baseClassImports(generator, scopeMetadata).forEach(({ symbol }) =>
-      table.add({ entity: symbol, kind: 'runtime import', scope, source: `entity base class import "${symbol}"`, symbol })
+      table.add({
+        entity: symbol,
+        kind: 'runtime import',
+        scope,
+        source: `entity base class import "${symbol}"`,
+        symbol
+      })
     );
     scopeMetadata.forEach(({ name }) =>
-      table.add({ entity: name, kind: 'runtime binding', scope, source: `entity class binding "${name}"`, symbol: name })
+      table.add({
+        entity: name,
+        kind: 'runtime binding',
+        scope,
+        source: `entity class binding "${name}"`,
+        symbol: name
+      })
     );
   });
 };

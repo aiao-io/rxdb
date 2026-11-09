@@ -223,16 +223,19 @@ describe('generated symbol collisions', () => {
   );
 
   // 运行时模块按 `extends` 导入基类：实体与基类同名时生成 `import { EntityBase }` + `let EntityBase`，Node 直接 SyntaxError
-  it.each([false, true])('rejects an entity binding that shadows its runtime base class import (splitFiles=%s)', splitFiles => {
-    const generator = new RxDBClientGenerator({ splitFiles });
-    generator.addEntity(createEntity('EntityBase'));
+  it.each([false, true])(
+    'rejects an entity binding that shadows its runtime base class import (splitFiles=%s)',
+    splitFiles => {
+      const generator = new RxDBClientGenerator({ splitFiles });
+      generator.addEntity(createEntity('EntityBase'));
 
-    expectCollision(generator, {
-      entity: 'EntityBase',
-      symbol: 'EntityBase',
-      sources: ['entity base class import "EntityBase"', 'entity class binding "EntityBase"']
-    });
-  });
+      expectCollision(generator, {
+        entity: 'EntityBase',
+        symbol: 'EntityBase',
+        sources: ['entity base class import "EntityBase"', 'entity class binding "EntityBase"']
+      });
+    }
+  );
 
   it('rejects a plugin entity named after the plugin base class it extends', () => {
     const generator = new RxDBClientGenerator();

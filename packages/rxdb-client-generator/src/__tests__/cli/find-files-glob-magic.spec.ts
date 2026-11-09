@@ -1,8 +1,8 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import findFiles, { GLOB_MAGIC } from '../../cli/find-files.js';
+import findFiles, { getGlobWatchRoot, isGlobPattern } from '../../cli/find-files.js';
 
 describe('实体模式使用完整 glob 语法（RV-064）', () => {
   let directory: string;
@@ -41,12 +41,53 @@ describe('实体模式使用完整 glob 语法（RV-064）', () => {
     expect(actual).toEqual([path.normalize(path.resolve(literalPath))]);
   });
 
-  it('GLOB_MAGIC 与 plugins/vite.ts 共用同一判定，覆盖全部魔法字符', () => {
-    // 这里直接断言正则字符集，防止两处判定（find-files 的「是否当 glob 处理」
-    // 与 vite.ts 的 watch 根计算）未来被分别修改导致语义再次分叉（RV-064）。
-    for (const magicChar of ['*', '?', '[', ']', '{', '}']) {
-      expect(GLOB_MAGIC.test(`entity${magicChar}.ts`)).toBe(true);
-    }
-    expect(GLOB_MAGIC.test('entity.ts')).toBe(false);
+  it.each([
+    ['@(A|B).ts', ['A.ts', 'B.ts']],
+    ['+(A|B).ts', ['A.ts', 'B.ts']],
+    ['!(B).ts', ['A.ts']]
+  ])('按 glob 语义展开 extglob 分组 %s', async (pattern, expected) => {
+    const actual = await findFiles([path.join(directory, pattern)]);
+    expect(actual.sort()).toEqual(expected.map(file => path.join(directory, file)).sort());
+  });
+
+  it('展开目录层级上的 extglob 分组', async () => {
+    await Promise.all(['d1', 'd2'].map(dir => mkdir(path.join(directory, dir))));
+    await writeFile(path.join(directory, 'd1', 'C.ts'), 'export {};');
+    await writeFile(path.join(directory, 'd2', 'D.ts'), 'export {};');
+
+    const actual = await findFiles([path.join(directory, '@(d1|d2)', '*.ts')]);
+    expect(actual.sort()).toEqual([path.join(directory, 'd1', 'C.ts'), path.join(directory, 'd2', 'D.ts')].sort());
+  });
+
+  it('extglob 零匹配同样遵守 allowEmpty 契约', async () => {
+    const pattern = path.join(directory, '@(C|D).ts');
+    await expect(findFiles([pattern])).rejects.toThrow('No files matched the entity pattern');
+    await expect(findFiles([pattern], { allowEmpty: true })).resolves.toEqual([]);
+  });
+
+  it.each(['plain(1).ts', 'file[1.ts'])('glob 不认作魔法的字面名 %s 按字面路径解析', async name => {
+    const literalPath = path.join(directory, name);
+    await writeFile(literalPath, 'export {};');
+    expect(await findFiles([literalPath])).toEqual([path.normalize(path.resolve(literalPath))]);
+  });
+
+  // 文件发现与 vite watch 根共用同一套 glob 解析（RV-064）：watch 根只能落在真实存在的字面目录上
+  it.each([
+    ['@(A|B).ts', []],
+    ['+(A|B).ts', []],
+    ['*.ts', []],
+    ['[AB].ts', []],
+    ['{A,B}.ts', []],
+    [path.join('@(d1|d2)', '*.ts'), []],
+    [path.join('{a,b}', 'c', '*.ts'), []],
+    [path.join('sub', '**', '*.ts'), ['sub']]
+  ])('watch 根取 %s 第一个魔法段之前的字面目录', (pattern, literal) => {
+    expect(getGlobWatchRoot(path.join(directory, pattern))).toBe(path.join(directory, ...literal));
+  });
+
+  it('不含魔法的模式以自身为 watch 根', () => {
+    const literalPath = path.join(directory, 'plain(1).ts');
+    expect(isGlobPattern(literalPath)).toBe(false);
+    expect(getGlobWatchRoot(literalPath)).toBe(path.normalize(literalPath));
   });
 });

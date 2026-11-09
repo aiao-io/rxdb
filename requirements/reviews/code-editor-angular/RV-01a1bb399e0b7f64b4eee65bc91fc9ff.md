@@ -7,7 +7,7 @@ range: project
 base_ref: null
 review_scopes: []
 scope_id: 'project:code-editor-angular'
-status: Fixed
+status: Resolved
 severity: P2
 source_view: commit
 source_snapshot: '0ffa3c419fcc59dc3e13d695ca4658116134bfa0'
@@ -70,3 +70,15 @@ README 告诉现有消费者 setValue、setTheme 等命令式 setter 已标记 d
 - 改动：`packages/code-editor-angular/README.md` 删去该段，改为说明除 `setExtensions` / `setLanguage` 与 handle 外不提供别的命令式 setter，文档内容、主题、占位符、只读、缩进、换行与空白高亮经同名输入配置，可编辑状态由 `disabled` 输入或表单禁用状态控制。
 - 验证：`packages/code-editor-angular/src/__tests__/code-editor.spec.ts` 新增「README 列出的命令式 set* 方法在公开的 CodeEditor 上都真实存在」（从 README 提取反引号里的 `set*` 名字，逐个核对 `CodeEditor.prototype`，并要求 `setExtensions` / `setLanguage` 仍在文档里）。修复前在 `packages/code-editor-angular` 跑 `npx vitest run --coverage.enabled=false src/__tests__/code-editor.spec.ts -t README` → 1 failed（`expected [ 'setValue', 'setTheme', …(7) ] to deeply equal []`）；修复后该文件 74 passed；`eslint . --max-warnings=0`、`tsc -p tsconfig.lib.json --noEmit`、`tsc -p tsconfig.spec.json --noEmit` 通过，README 过 prettier。React / Vue 的 README 与网站文档没有同类说明（grep 核对）。
 - 剩余事项：本组收尾复核。
+
+### EV-01a1c17136807f7ead2a8a4ccd889c2d：复核
+
+- 时间：2026-11-10T01:53:04+08:00
+- 操作：verify
+- 执行者：ai；anthropic/claude-opus-5-5；会话 aa117580-681a-4540-85b2-3c61967b2092（Claude Code 并行子 agent G11，复核角色）
+- 输入快照：工作区树 `980db0185930ab864593c9c6940408b16f015434`
+- 输出快照：工作区树 `2aaec263c41eba83ea2704af1e413c70a270c8eb`（`ai-review snapshot --worktree`，基于 `62cc9a51`（外部自动提交，含各组 WIP））
+- 状态：Fixed → Resolved
+- 结论：README 不再承诺不存在的 setter，列出的 `set*` 方法与公开类一致，新增用例会在今后任何一次文档 / 源码漂移时变红；配置方式指向已有的 Inputs 表。
+- 验证：`packages/code-editor-angular` 全量 4 个文件 81 passed；README 过 prettier。
+- 剩余事项：无。

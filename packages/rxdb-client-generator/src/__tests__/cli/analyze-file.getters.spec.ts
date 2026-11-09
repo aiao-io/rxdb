@@ -43,9 +43,24 @@ describe('analyzeFile 保留的 getter 只能引用自身可携带的绑定', ()
   };
 
   it.each([
-    ['同模块 helper', 'const double = (value: number): number => value * 2;', 'get doubled(): number { return double(this.value); }', 'double'],
-    ['对象简写里的 helper', 'const double = (value: number): number => value * 2;', 'get snapshot() { return { double }; }', 'double'],
-    ['import 进来的值', "import { scale } from './scale.js';", 'get scaled(): number { return scale(this.value); }', 'scale'],
+    [
+      '同模块 helper',
+      'const double = (value: number): number => value * 2;',
+      'get doubled(): number { return double(this.value); }',
+      'double'
+    ],
+    [
+      '对象简写里的 helper',
+      'const double = (value: number): number => value * 2;',
+      'get snapshot() { return { double }; }',
+      'double'
+    ],
+    [
+      'import 进来的值',
+      "import { scale } from './scale.js';",
+      'get scaled(): number { return scale(this.value); }',
+      'scale'
+    ],
     ['核心包导出的值', '', 'get kind(): string { return PropertyType.number; }', 'PropertyType']
   ])('%s：生成前拒绝并点名绑定', async (_label, prelude, getter, binding) => {
     const analyze = await analyzeEntity(prelude, getter);

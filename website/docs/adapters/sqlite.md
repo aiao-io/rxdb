@@ -238,7 +238,8 @@ const adapter = await rxdb.getAdapter('wa-sqlite');
 await adapter.transaction(async (executor: TransactionExecutor) => {
   const todoRepo = executor.getRepository(Todo);
   for (const item of items) {
-    await todoRepo.create({ title: item.title });
+    // 仓库只收实体实例，不收普通对象
+    await todoRepo.create(rxdb.entityManager.instantiate(Todo, { title: item.title }));
   }
 });
 ```

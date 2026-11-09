@@ -45,11 +45,11 @@ describe('CommandPalette', () => {
     await act(() => shell.palette.open());
     await fireEvent.change(input(), { target: { value: '资产' } });
     expect(options().length).toBeGreaterThan(1);
-    expect(await fireEvent.keyDown(input(), { key: 'ArrowDown', isComposing: true } as KeyboardEventInit)).toBe(true);
+    expect(await fireEvent.keyDown(input(), { key: 'ArrowDown', isComposing: true })).toBe(true);
     expect(options()[0].getAttribute('aria-selected')).toBe('true');
-    expect(await fireEvent.keyDown(input(), { key: 'Enter', isComposing: true } as KeyboardEventInit)).toBe(true);
+    expect(await fireEvent.keyDown(input(), { key: 'Enter', isComposing: true })).toBe(true);
     // Safari 确认候选的回车在 compositionend 之后到达，isComposing 为 false、keyCode 为 229
-    expect(await fireEvent.keyDown(input(), { key: 'Enter', keyCode: 229 } as KeyboardEventInit)).toBe(true);
+    expect(await fireEvent.keyDown(input(), { key: 'Enter', keyCode: 229 })).toBe(true);
     expect(navigated).toEqual([]);
     expect(shell.palette.value.open).toBe(true);
     await fireEvent.keyDown(input(), { key: 'Enter' });

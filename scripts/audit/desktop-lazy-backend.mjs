@@ -257,7 +257,9 @@ export async function auditDemo({ project, dist }) {
     throw new Error(
       [
         `${project} 的本地后端分支不可达：`,
-        ...orphans.map(([marker, carriers]) => `  ${marker}：只出现在没有入口能加载到的 chunk ${carriers.join('、')} 里`),
+        ...orphans.map(
+          ([marker, carriers]) => `  ${marker}：只出现在没有入口能加载到的 chunk ${carriers.join('、')} 里`
+        ),
         '',
         `可达图（${reachable.size} 个 chunk）：${[...reachable].sort().join('、')}`,
         '',

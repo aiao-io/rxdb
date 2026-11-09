@@ -630,7 +630,8 @@ test('inherited_acs：按源 AC 表的最大编号判越界，不按行数', asy
     .join('\n');
   await writeFile(
     path.join(dir, 'requirements/stories/core/US-002-x.md'),
-    story('US-002', 'Done') + `\n## 验收标准\n\n| # | 前置 | 操作 | 预期 | 状态 |\n| --- | --- | --- | --- | --- |\n${rows}\n`
+    story('US-002', 'Done') +
+      `\n## 验收标准\n\n| # | 前置 | 操作 | 预期 | 状态 |\n| --- | --- | --- | --- | --- |\n${rows}\n`
   );
   const inherit = ac => `  - from: US-002\n    ac: ${ac}\n    note: x\n`;
   await writeFile(

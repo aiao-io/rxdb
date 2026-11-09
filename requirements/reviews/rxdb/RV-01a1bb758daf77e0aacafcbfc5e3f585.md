@@ -16,7 +16,7 @@ found_branch: refs/heads/codex/full-review-main-20261108
 found_snapshot: '0ffa3c419fcc59dc3e13d695ca4658116134bfa0'
 found_range: project
 created: 2026-11-08
-updated: 2026-11-09
+updated: 2026-11-10
 anchors:
   - 'packages/rxdb/README.md'
 affected_projects: []
@@ -95,3 +95,16 @@ pr: null
 - 改动：`packages/rxdb-adapter-sqlite-core/README.md` 事务 API 示例改为 `repo.create(rxdb.entityManager.instantiate(Todo, { title: 'inside tx' }))`，注释补「仓库只收实体实例，不收普通对象」。
 - 验证：`./node_modules/.bin/prettier --check packages/rxdb-adapter-sqlite-core/README.md` 通过；写法与已复核的核心 README 一致（`EntityManager.instantiate` 见 `packages/rxdb/src/entity/entity-manager.ts:306`），文档类无自动化回归。
 - 剩余事项：网站文档的同类写法仍归 G10。
+
+### EV-01a1c16b1b09740fbeb53ec60fa06a86：修复（网站文档同根因补修）
+
+- 时间：2026-11-10T01:50:02+08:00
+- 操作：fix
+- 执行者：ai；anthropic/claude-opus-5-5；会话 aa117580-681a-4540-85b2-3c61967b2092（Claude Code 并行子 agent G10，按主会话转交）
+- 输入快照：`1b5fb4e43f449bace1d6f67df78e55a129863f50`（提交视图）
+- 输出快照：工作区树 `761aa6e49a07e2d854aa1f342bfb869970fe19e8`（`ai-review snapshot --worktree`，基于 `62cc9a51`（外部自动提交，含各组 WIP））
+- 状态：Resolved（不变）
+- 结论：上一事件剩余事项里的网站文档同类写法：仓库的 `create` 收普通对象，照抄即在写入前被拒。全站 grep（不含被忽略的 `website/docs/api` 生成物）只有这五处，按核心 README 的同一改法补上。
+- 改动：`website/docs/model-mutation/transaction.md:87`、`website/docs/adapters/pglite.md:165`、`website/docs/adapters/pglite.md:166`、`website/docs/adapters/pglite.md:264`、`website/docs/adapters/sqlite.md:242` 改为 `create(rxdb.entityManager.instantiate(Todo, { ... }))`，相应位置补注释「仓库只收实体实例，不收普通对象」。
+- 验证：`node scripts/check-doc-code.mjs website/docs/adapters website/docs/model-mutation` 通过；`--strict` 报的 7 处语法问题在 `1b5fb4e4` 同样存在（`backup.md`、`pglite.md` 另一代码块、`supabase.md`），与本次无关；`./node_modules/.bin/prettier --check` 三个文件通过。文档类无自动化回归。
+- 剩余事项：无。

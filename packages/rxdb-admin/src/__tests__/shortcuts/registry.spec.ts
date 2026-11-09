@@ -147,9 +147,7 @@ describe('ShortcutRegistry', () => {
       const palette = vi.fn();
       const control = vi.fn();
       mac.register({ id: 'palette', combo: 'Mod+K', handler: palette });
-      expect(() => mac.register({ id: 'meta', combo: 'Meta+K', handler: vi.fn() })).toThrow(
-        /conflicts with "palette"/
-      );
+      expect(() => mac.register({ id: 'meta', combo: 'Meta+K', handler: vi.fn() })).toThrow(/conflicts with "palette"/);
       expect(() => mac.register({ id: 'control', combo: 'Ctrl+K', handler: control })).not.toThrow();
       expect(mac.handle(key({ ctrlKey: true, metaKey: false }))).toBe(true);
       expect(mac.handle(key({ ctrlKey: false, metaKey: true }))).toBe(true);

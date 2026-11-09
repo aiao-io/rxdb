@@ -719,9 +719,16 @@ const classifyPrimitiveCall = (call, { relPath, declarationsByFunction, registry
     return `\`${call.enclosing}()\` 调了 ${call.receiver}.${call.method}() 却没有 declareTrustedWrite()：未携带意图标记的批量重写按未知入口拒绝`;
   }
 
-  const matching = declared.filter(declaration => registryByKey.has(registryKeyOf(declaration)));
+  // 运行时按宿主对象登记声明（trusted-write-scope 的 WeakMap 以 scope 对象为键）：给 executor 的声明，
+  // adapter 上的写拿不到。只认同一宿主上的声明。
+  const onScope = declared.filter(declaration => declaration.scope === scope);
+  if (onScope.length === 0) {
+    const scopes = [...new Set(declared.map(declaration => declaration.scope))].join(' / ');
+    return `\`${call.enclosing}()\` 只给 ${scopes} 声明了意图，写却打在 ${scope} 上：declareTrustedWrite() 按宿主对象登记，要给 ${scope} 自己声明`;
+  }
+  const matching = onScope.filter(declaration => registryByKey.has(registryKeyOf(declaration)));
   if (matching.length === 0) {
-    return `\`${call.enclosing}()\` 自报的意图都不在登记表里：${declared.map(registryKeyOf).join('、')}`;
+    return `\`${call.enclosing}()\` 自报的意图都不在登记表里：${onScope.map(registryKeyOf).join('、')}`;
   }
   return null;
 };

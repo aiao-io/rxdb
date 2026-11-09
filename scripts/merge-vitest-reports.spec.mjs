@@ -149,7 +149,10 @@ test('同一文件两份报告的计数 ID 指向不同位置时，按源位置�
   try {
     const summary = await mergeCoverageDirectories(dirs.nodeDir, dirs.browserDir, dirs.outputDir);
     assert.deepEqual(
-      ['lines', 'statements', 'functions', 'branches'].map(key => [summary.total[key].covered, summary.total[key].total]),
+      ['lines', 'statements', 'functions', 'branches'].map(key => [
+        summary.total[key].covered,
+        summary.total[key].total
+      ]),
       [
         [2, 2],
         [2, 2],
@@ -159,9 +162,18 @@ test('同一文件两份报告的计数 ID 指向不同位置时，按源位置�
     );
     const merged = JSON.parse(await readFile(join(dirs.outputDir, 'coverage-final.json'), 'utf8'))[node.path];
     const hitsAt = (map, hits, key, line) => hits[Object.keys(map).find(id => key(map[id]).start.line === line)];
-    assert.equal(hitsAt(merged.statementMap, merged.s, item => item, 2), 1);
-    assert.equal(hitsAt(merged.fnMap, merged.f, item => item.loc, 2), 1);
-    assert.deepEqual(hitsAt(merged.branchMap, merged.b, item => item.loc, 2), [0, 3]);
+    assert.equal(
+      hitsAt(merged.statementMap, merged.s, item => item, 2),
+      1
+    );
+    assert.equal(
+      hitsAt(merged.fnMap, merged.f, item => item.loc, 2),
+      1
+    );
+    assert.deepEqual(
+      hitsAt(merged.branchMap, merged.b, item => item.loc, 2),
+      [0, 3]
+    );
     assert.deepEqual(Object.keys(merged.statementMap), ['0', '1']);
   } finally {
     await rm(dirs.root, { recursive: true, force: true });
