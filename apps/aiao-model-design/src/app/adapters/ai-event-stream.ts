@@ -13,6 +13,8 @@ const StreamChunkSchema = z.object({
   errorText: z.string().optional()
 });
 
+const STREAM_FINISHED = Symbol('stream-finished');
+
 /** AI API 的 HTTP 和流内错误分类。 */
 export type AiApiError = z.infer<typeof ApiErrorSchema>;
 
@@ -23,8 +25,9 @@ export class AiStreamError extends Error {
   }
 }
 
-function readDelta(data: string): string | undefined {
+function readDelta(data: string): string | typeof STREAM_FINISHED | undefined {
   const chunk = StreamChunkSchema.parse(JSON.parse(data));
+  if (chunk.type === 'finish') return STREAM_FINISHED;
   if (chunk.type === 'error')
     throw new AiStreamError(ApiErrorSchema.parse(JSON.parse(z.string().parse(chunk.errorText))));
   if (chunk.type === 'abort') throw new DOMException('AbortError', 'AbortError');
@@ -47,6 +50,7 @@ export async function* readAiTextDeltas(response: Response): AsyncGenerator<stri
       if (done) throw new AiStreamError({ type: 'network', message: 'AI stream ended before completion' });
       if (value.data === '[DONE]') return;
       const delta = readDelta(value.data);
+      if (delta === STREAM_FINISHED) return;
       if (delta !== undefined) yield delta;
     }
   } catch (error) {

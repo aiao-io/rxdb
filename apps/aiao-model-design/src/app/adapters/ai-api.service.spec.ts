@@ -4,6 +4,7 @@ import { AiApiService } from './ai-api.service';
 
 const delta = (text: string) => `data: ${JSON.stringify({ type: 'text-delta', id: 'text-1', delta: text })}\n\n`;
 const done = 'data: [DONE]\n\n';
+const finish = 'data: {"type":"finish","finishReason":"stop"}\n\n';
 
 function response(text: string, size = 1024): Response {
   const bytes = new TextEncoder().encode(text);
@@ -53,6 +54,15 @@ describe('AiApiService SSE', () => {
       })
     );
     expect(service.isStreaming()).toBe(false);
+  });
+
+  it('识别 AI SDK finish 事件作为成功结束', async () => {
+    fetchMock.mockResolvedValue(response(delta('完成') + finish));
+    const onError = vi.fn();
+    const onComplete = vi.fn();
+    await service.chat([{ role: 'user', content: '模型' }], { entityNames: [] }, { onError, onComplete });
+    expect(onError).not.toHaveBeenCalled();
+    expect(onComplete).toHaveBeenCalledExactlyOnceWith('完成');
   });
 
   it('连接结束前就推送文本，不等待完整响应', async () => {
