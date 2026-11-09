@@ -715,35 +715,73 @@ describe('VS Code 风格工作台', () => {
     expect(host.querySelector<HTMLButtonElement>('[data-action="run"]')?.disabled).toBe(true);
   });
 
-  it('欢迎视图初始化 Demo 项目：选择模板创建并打开', async () => {
-    const { host, handle, backend } = fixture(false);
+  it.each([
+    { template: 'react', entry: 'src/main.tsx', source: 'src/Counter.tsx' },
+    { template: 'vue', entry: 'src/main.ts', source: 'src/Counter.vue' },
+    { template: 'angular', entry: 'src/main.ts', source: 'src/counter.ts' },
+    { template: 'vanilla', entry: 'src/main.ts', source: 'src/label.ts' }
+  ])('欢迎视图初始化 Demo 项目：与新建项目共用弹窗并创建 $template 模板', async ({ template, entry, source }) => {
+    const { host, handle, backend, compiler, catalog } = fixture(false);
     await handle.ready;
     await click(host, '[data-welcome-action="init-demo"]');
-    await vi.waitFor(() => expect(host.querySelector('.wb-context-menu')).not.toBeNull());
-    [...host.querySelectorAll<HTMLButtonElement>('.wb-context-menu button')]
-      .find(button => button.textContent === 'React 最小 Demo')
-      ?.click();
-    await vi.waitFor(() => expect(handle.session.state.projectId).toBe('default-react'));
-    expect(backend.create).toHaveBeenCalledWith(
-      'default-react',
-      expect.objectContaining({ 'src/main.tsx': expect.stringContaining('Hello React') })
+    const dialog = host.querySelector<HTMLDialogElement>('dialog[aria-label="新建项目"]');
+    expect(dialog).not.toBeNull();
+    expect(dialog?.querySelectorAll('input[type="radio"]')).toHaveLength(4);
+    expect(host.querySelector('.wb-context-menu')).toBeNull();
+    expect(backend.create).not.toHaveBeenCalled();
+    const name = `我的 ${template} 项目`;
+    await createProject(host, name, template);
+    await vi.waitFor(() => expect(compiler.compile).toHaveBeenCalledOnce());
+    const id = handle.session.state.projectId;
+    expect(id).toEqual(expect.any(String));
+    expect(backend.create).toHaveBeenCalledExactlyOnceWith(
+      id,
+      expect.objectContaining({ [entry]: expect.any(String), [source]: expect.any(String) })
     );
-    expect(String(handle.session.state.files['workbench.project.json'])).toContain('"template": "react"');
+    expect(JSON.parse(String(handle.session.state.files['workbench.project.json']))).toEqual({ template, entry });
+    expect(catalog.put).toHaveBeenCalledWith(expect.objectContaining({ id, name, template, entry }));
+    expect(host.querySelector('[data-slot="workspace-label"]')?.textContent).toBe(name);
     expect(host.querySelector('.wb-empty-view')).toBeNull();
+    expect(host.querySelector('[data-slot="panel-staging"] .wb-preview')).toBeNull();
+    expect(host.querySelector(`[data-editor-tab-path="${entry}"]`)).not.toBeNull();
+    expect(handle.session.state.activePath).toBe(entry);
   });
 
-  it('欢迎视图初始化 Demo 项目：目录已登记同 id 项目时直接打开', async () => {
-    const { host, handle, backend } = fixture(false, '/browser-workbench-assets/', undefined, [
+  it('欢迎视图初始化 Demo 项目：取消弹窗不创建项目并恢复入口', async () => {
+    const { host, handle, backend, catalog } = fixture(false);
+    await handle.ready;
+    await click(host, '[data-welcome-action="init-demo"]');
+    const dialog = host.querySelector<HTMLDialogElement>('dialog[aria-label="新建项目"]');
+    expect(dialog).not.toBeNull();
+    const cancel = [...dialog!.querySelectorAll('button')].find(button => button.textContent === '取消')!;
+    cancel.click();
+    await vi.waitFor(() =>
+      expect(host.querySelector<HTMLButtonElement>('[data-welcome-action="init-demo"]')?.disabled).toBe(false)
+    );
+    expect(host.querySelector('dialog')).toBeNull();
+    expect(host.querySelector('.wb-empty-view')).not.toBeNull();
+    expect(handle.session.state.projectId).toBeNull();
+    expect(backend.create).not.toHaveBeenCalled();
+    expect(catalog.put).not.toHaveBeenCalled();
+    await click(host, '[data-welcome-action="init-demo"]');
+    expect(host.querySelector('dialog[aria-label="新建项目"]')).not.toBeNull();
+  });
+
+  it('欢迎视图初始化 Demo 项目：已有旧 Demo 时仍按名称创建独立项目', async () => {
+    const { host, handle, backend, catalog } = fixture(false, '/browser-workbench-assets/', undefined, [
       { id: 'default-react', name: 'React 最小 Demo', template: 'react' as const, entry: 'src/main.tsx', updatedAt: 5 }
     ]);
     await handle.ready;
     await click(host, '[data-welcome-action="init-demo"]');
-    await vi.waitFor(() => expect(host.querySelector('.wb-context-menu')).not.toBeNull());
-    [...host.querySelectorAll<HTMLButtonElement>('.wb-context-menu button')]
-      .find(button => button.textContent === 'React 最小 Demo')
-      ?.click();
-    await vi.waitFor(() => expect(handle.session.state.projectId).toBe('default-react'));
-    expect(backend.create).not.toHaveBeenCalled();
+    expect(host.querySelector('dialog[aria-label="新建项目"]')).not.toBeNull();
+    await createProject(host, '新的 React 项目', 'react');
+    await vi.waitFor(() => expect(catalog.put).toHaveBeenCalled());
+    expect(handle.session.state.projectId).not.toBe('default-react');
+    expect(backend.create).toHaveBeenCalledOnce();
+    expect(backend.open).not.toHaveBeenCalled();
+    expect(catalog.put).toHaveBeenCalledWith(
+      expect.objectContaining({ id: handle.session.state.projectId, name: '新的 React 项目', template: 'react' })
+    );
   });
 
   it('欢迎视图列出最近项目，点击打开对应项目', async () => {

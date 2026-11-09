@@ -15,6 +15,33 @@ test.describe('浏览器开发工作台：aiao-vscode 应用', () => {
       await runWorkbenchCase(page, expect, template, testInfo);
     });
   }
+  test('欢迎视图初始化 Demo 项目：新建弹窗、取消、创建与刷新恢复', async ({ page }) => {
+    await page.goto('/');
+    const root = page.getByRole('region', { name: '浏览器开发工作台', exact: true });
+    const initialize = root.getByRole('button', { name: '初始化 Demo 项目', exact: true });
+    const dialog = page.getByRole('dialog', { name: '新建项目', exact: true });
+    await initialize.click();
+    await expect(dialog.getByRole('radio')).toHaveCount(4);
+    await expect(dialog.getByRole('textbox', { name: '项目名称', exact: true })).toBeFocused();
+    await dialog.getByRole('button', { name: '取消', exact: true }).click();
+    await expect(dialog).toBeHidden();
+    await expect(root.locator('[data-slot="workspace-label"]')).toHaveText('工作区');
+    await expect(initialize).toBeEnabled();
+    await initialize.click();
+    await dialog.getByRole('textbox', { name: '项目名称', exact: true }).fill('欢迎页 Vue 项目');
+    await dialog.getByRole('radio', { name: 'Vue', exact: true }).check();
+    await dialog.getByRole('button', { name: '创建项目', exact: true }).click();
+    await expect(root.locator('[data-slot="workspace-label"]')).toHaveText('欢迎页 Vue 项目', { timeout: 30000 });
+    await expect(root.locator('[data-editor-tab-path="src/main.ts"]')).toBeVisible();
+    const preview = page.frameLocator('.wb-preview-content iframe');
+    await expect(preview.getByRole('heading', { name: '本地 Vue 模板', exact: true })).toBeVisible({ timeout: 60000 });
+    await preview.getByRole('button', { name: '次数 0', exact: true }).click();
+    await expect(preview.getByRole('button', { name: '次数 1', exact: true })).toBeVisible();
+    await page.reload();
+    await expect(root.locator('[data-slot="workspace-label"]')).toHaveText('欢迎页 Vue 项目', { timeout: 30000 });
+    await expect(root.locator('[data-editor-tab-path="src/main.ts"]')).toBeVisible();
+    await expect(preview.getByRole('heading', { name: '本地 Vue 模板', exact: true })).toBeVisible({ timeout: 60000 });
+  });
   test('CodeMirror 与 Monaco 切换，格式化撤销、保存与刷新恢复', async ({ page }) => {
     await runEditorSwitchCase(page, expect);
   });

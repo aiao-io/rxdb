@@ -116,37 +116,3 @@ export const vueTemplate: WorkbenchTemplate = {
 };
 
 export const frontendTemplates = { vanilla: vanillaTemplate, react: reactTemplate, vue: vueTemplate };
-
-/** 欢迎视图「初始化 Demo 项目」提供的最小 React / Vue 示例。 */
-export const defaultFrontendDemos = {
-  react: {
-    ...reactTemplate,
-    title: 'React 最小 Demo',
-    files: {
-      'package.json': reactTemplate.files['package.json'],
-      'pnpm-lock.yaml': reactTemplate.files['pnpm-lock.yaml'],
-      'index.html': reactTemplate.files['index.html'],
-      'src/main.tsx': `import { createRoot } from 'react-dom/client';
-
-createRoot(document.getElementById('app')!).render(<h1>Hello React</h1>);
-`
-    }
-  },
-  vue: {
-    ...vueTemplate,
-    title: 'Vue 最小 Demo',
-    files: {
-      'package.json': vueTemplate.files['package.json'],
-      'pnpm-lock.yaml': vueTemplate.files['pnpm-lock.yaml'],
-      'index.html': vueTemplate.files['index.html'],
-      'vite.config.ts': vueTemplate.files['vite.config.ts'],
-      'src/main.ts': `import { createApp } from 'vue';
-import App from './App.vue';
-
-createApp(App).mount('#app');
-`,
-      'src/App.vue': `<template><h1>Hello Vue</h1></template>
-`
-    }
-  }
-} as const;

@@ -4,7 +4,7 @@
 
 布局使用 `dockview-core`，图标使用微软官方 `@vscode/codicons`。界面沿用 VS Code Dark Modern 的活动栏、资源管理器、编辑标签、预览、问题 / 输出 / Console / 终端面板和状态栏。编辑标签可拖动拆分、合并与停靠；预览与编辑器在布局移动时保留实例、撤销记录和运行状态，支持一键重置布局。底部面板的标签与 VS Code 一样只有文字，在标签栏右键勾选即可显示或隐藏问题 / 输出 / Console / 终端。布局随项目保存在本地目录里（与打开的标签同处），直接打开、刷新、重启浏览器或切换项目时都按该项目上次的样子还原；只排布已打开的文件，地址栏不带布局。
 
-首次进入空工作区时编辑区只有欢迎背景（与 VS Code 一样没有「欢迎」标签，点开第一个文件才出现第一个标签，关掉最后一个标签后原地回到欢迎背景），预览与底部面板按需打开；可选择导入文件夹、打开最近项目或初始化 React、Vue、Angular Demo。后续重开恢复最近打开过的项目及其布局。范围与验收见 [requirements/stories/US-404](requirements/stories/US-404-browser-development-workbench.md)。
+首次进入空工作区时编辑区只有欢迎背景（与 VS Code 一样没有「欢迎」标签，点开第一个文件才出现第一个标签，关掉最后一个标签后原地回到欢迎背景），预览与底部面板按需打开；可选择导入文件夹、打开最近项目，或点击「初始化 Demo 项目」打开与「新建项目」相同的弹窗，填写名称并选择 React、Vue、Angular、Vanilla 模板后创建项目。后续重开恢复最近打开过的项目及其布局。范围与验收见 [requirements/stories/US-404](requirements/stories/US-404-browser-development-workbench.md)。
 
 ## 编辑器选择
 

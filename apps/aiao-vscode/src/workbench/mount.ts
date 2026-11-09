@@ -29,8 +29,8 @@ import type { GitHubSession } from './git/github/github-types.js';
 import { mountPreview, type PreviewEvent } from './preview/preview-sandbox.js';
 import { createSavePreviewController, type SavePreviewPhase } from './save-preview.js';
 import { WorkbenchSession, type WorkbenchBackend, type WorkbenchState, type WorkbenchStatus } from './session.js';
-import { angularTemplate, defaultAngularDemo } from './templates-angular.js';
-import { defaultFrontendDemos, frontendTemplates, type WorkbenchTemplate } from './templates.js';
+import { angularTemplate } from './templates-angular.js';
+import { frontendTemplates, type WorkbenchTemplate } from './templates.js';
 import {
   createHostedRuntimeAdapter,
   isHostedRuntime,
@@ -129,11 +129,6 @@ const templates: Record<ProjectTemplate, WorkbenchTemplate> = {
   ...frontendTemplates,
   angular: { ...angularTemplate, title: 'Angular standalone' }
 };
-const defaultDemos: readonly { id: string; name: string; template: WorkbenchTemplate }[] = [
-  { id: 'default-react', name: 'React 最小 Demo', template: defaultFrontendDemos.react },
-  { id: 'default-vue', name: 'Vue 最小 Demo', template: defaultFrontendDemos.vue },
-  { id: 'default-angular', name: 'Angular 最小 Demo', template: defaultAngularDemo }
-];
 const languages: Record<string, string> = {
   ts: 'typescript',
   tsx: 'tsx',
@@ -1128,7 +1123,7 @@ export function mountWorkbench(
     demoButton.className = 'wb-empty-view-action';
     demoButton.dataset['welcomeAction'] = 'init-demo';
     demoButton.append(document.createTextNode('初始化 Demo 项目'));
-    demoButton.onclick = () => showDemoMenu(demoButton);
+    demoButton.onclick = () => action(newProject);
     welcome.append(demoButton);
     if (options.githubApi) {
       const githubButton = document.createElement('button');
@@ -1150,39 +1145,6 @@ export function mountWorkbench(
     }
     const pane = explorerPane('no-folder', '无打开的文件夹');
     if (!collapsedSections.has('no-folder')) pane.append(welcome);
-  }
-
-  /** 初始化 Demo 的模板选择菜单，条目与首次引导提供的三个最小 Demo 一致。 */
-  function showDemoMenu(anchor: HTMLElement): void {
-    const rectangle = anchor.getBoundingClientRect();
-    showContextMenu(
-      { x: rectangle.left, y: rectangle.bottom },
-      defaultDemos.map(demo => ({ label: demo.name, action: () => createDefaultDemo(demo) }))
-    );
-  }
-
-  /** 创建或直接打开一个内置最小 Demo；目录已登记同 id 项目时不重复创建。 */
-  async function createDefaultDemo(demo: (typeof defaultDemos)[number]): Promise<void> {
-    if (projects.some(item => item.id === demo.id)) {
-      await openProject(demo.id);
-      return;
-    }
-    const info: WorkbenchProjectInfo = {
-      id: demo.id,
-      name: demo.name,
-      template: demo.template.template,
-      entry: demo.template.entry,
-      updatedAt: Date.now()
-    };
-    await backend.create(demo.id, {
-      ...demo.template.files,
-      'workbench.project.json': JSON.stringify({ template: info.template, entry: info.entry }, null, 2)
-    });
-    if (disposed) return;
-    await catalog.put(info);
-    projects = [...projects, info];
-    await openProject(demo.id);
-    log('output', `已初始化 ${demo.name}`);
   }
 
   /** 打开本地文件夹：目录选择器读取后登记为受控模板项目并打开，取消选择静默。 */

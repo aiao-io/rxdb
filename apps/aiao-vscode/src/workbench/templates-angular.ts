@@ -121,30 +121,4 @@ export class Counter {
   }
 };
 
-/** 首次打开工作台时提供的最小 Angular standalone 示例。 */
-export const defaultAngularDemo = {
-  ...angularTemplate,
-  title: 'Angular 最小 Demo',
-  files: {
-    'pnpm-lock.yaml': angularTemplate.files['pnpm-lock.yaml'],
-    'package.json': angularTemplate.files['package.json'],
-    'angular.json': angularTemplate.files['angular.json'],
-    'tsconfig.json': angularTemplate.files['tsconfig.json'],
-    'index.html': angularTemplate.files['index.html'],
-    'src/main.ts': `import '@angular/compiler';
-import { bootstrapApplication } from '@angular/platform-browser';
-import { App } from './app';
-
-bootstrapApplication(App);
-`,
-    'src/app.ts': `import { Component } from '@angular/core';
-
-@Component({
-  selector: 'app-root',
-  template: '<h1>Hello Angular</h1>'
-})
-export class App {}
-`
-  }
-};
 import { templateLocks } from './template-locks.js';
