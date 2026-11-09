@@ -154,7 +154,7 @@ describe('只改 updatedAt 的关系实体变更', () => {
     const { count, seen } = countPosts({
       combinator: 'and',
       rules: [{ field: 'author.name', operator: '=', value: 'x' }]
-    } as RuleGroup<InstanceType<typeof Post>>);
+    } as unknown as RuleGroup<InstanceType<typeof Post>>);
     await vi.waitFor(() => expect(seen).toEqual([0]));
 
     database.dispatchEvent(bumpAuthor('00000000-0000-7000-8000-00000000b002'));

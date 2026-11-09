@@ -131,9 +131,9 @@ SSR 下（无 `window`）不会发起订阅，资源停在 `isLoading: true` 的
 - `useFindAll`
 - `useCount`
 
-Tree API：`useFindDescendants`、`useCountDescendants`、`useFindAncestors`、`useCountAncestors`。
+Graph API：`useGraphNeighbors`、`useCountNeighbors`、`useGraphPaths`。实体仍需安装并配置对应的 RxDB graph 能力。
 
-Graph API：`useGraphNeighbors`、`useCountNeighbors`、`useGraphPaths`。实体仍需安装并配置对应的 RxDB tree/graph 能力。
+树查询（`useFindDescendants`、`useCountDescendants`、`useFindAncestors`、`useCountAncestors`）不在本包，由 [`@aiao/rxdb-plugin-tree-vue`](../rxdb-plugin-tree-vue/README.md) 提供。
 
 ## 无限滚动
 
@@ -214,16 +214,16 @@ theme.value.value = 'light'; // 立即落盘到 'my-app:theme'
 import { useEntityChange } from '@aiao/rxdb-vue';
 
 const props = defineProps<{ todo: Todo }>();
-// 输入停止 200ms 后才重渲染
-const live = useEntityChange(() => props.todo, { debounceTime: 200 });
+// 输入停止 200ms 后才重渲染；把 value 解构成顶层 Ref，模板才会自动解包
+const { value: todo } = useEntityChange(() => props.todo, { debounceTime: 200 });
 </script>
 
 <template>
-  <div>{{ live.value?.title }}</div>
+  <div>{{ todo?.title }}</div>
 </template>
 ```
 
-模板必须经由 `live.value` 读实体，直接读原始实例的字段不会重渲染。`debounceTime` 与 `auditTime` 单位是毫秒，同时设置时**串联**生效（顺序 `debounceTime → auditTime`），仅**正有限值**生效：`0`、负值、`NaN`、`Infinity` 一律表示禁用，两者都禁用时 patch 同步透传。两个字段都接受响应式入参。
+模板必须经由返回的 `value`（上例解构成顶层的 `todo`）读实体，直接读原始实例的字段不会重渲染。返回值是普通对象，不解构时要写 `live.value.value?.title`：模板只自动解包顶层 `Ref`，`live.value?.title` 读到的是 `Ref` 本身，标题永远为空。`debounceTime` 与 `auditTime` 单位是毫秒，同时设置时**串联**生效（顺序 `debounceTime → auditTime`），仅**正有限值**生效：`0`、负值、`NaN`、`Infinity` 一律表示禁用，两者都禁用时 patch 同步透传。两个字段都接受响应式入参。
 
 ## 三端 API 对照
 

@@ -33,8 +33,10 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
   const em = adapter.rxdb.entityManager;
   const all_entities = new Set<InstanceType<T>>();
 
-  // 每个实体这次实际提交的字段值：回查回填按它收尾，执行期间的新输入留作未保存改动
-  const submitted_values = new Map<InstanceType<T>, Readonly<Partial<InstanceType<T>>>>();
+  // 每个实体这次的提交记录（提交值 + 提交时的编辑序号）：回查回填按它收尾，执行期间的新输入留作未保存改动
+  const submissions = new Map<InstanceType<T>, { submitted: object; mark: number }>();
+  const remember_submission = (entity: InstanceType<T>, submitted: object) =>
+    submissions.set(entity, { submitted, mark: getEntityStatus(entity).writeMark(submitted) });
 
   const remember_entity_instance = (entityType: T, entity: InstanceType<T>) => {
     let inner = entity_instance_map.get(entityType);
@@ -106,7 +108,8 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
         // 不再无条件归零 modified：执行期间的新输入要留到下一次 save()（applyWriteResult 已按 patch 重算）。
         // 回查命中的若不是本批提交的那个实例（没有提交值），按「全部未提交」处理，等同外部合并、不丢编辑
         const state = getEntityStatus(targetEntity);
-        state.applyWriteResult(entityObjectData, submitted_values.get(targetEntity) ?? {});
+        const { submitted, mark } = submissions.get(targetEntity) ?? { submitted: {}, mark: state.writeMark({}) };
+        state.applyWriteResult(entityObjectData, submitted, mark);
         state.local = true;
 
         if (rowIdIndex !== -1) {
@@ -126,7 +129,7 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
     const meta = getEntityMetadata(EntityType);
 
     for (const entitiesChunk of chunkBySqliteBindLimit(entities, get_insert_column_count(meta))) {
-      for (const entity of entitiesChunk) submitted_values.set(entity, { ...entity });
+      for (const entity of entitiesChunk) remember_submission(entity, { ...entity });
       const insert_result = await generate_entity_inserts_sql(
         meta,
         adapter.tableSet,
@@ -164,7 +167,7 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
 
     for (const entity of entities) {
       const patch = getEntityStatus(entity).patch;
-      submitted_values.set(entity, patch);
+      remember_submission(entity, patch);
       if (patch === null || Object.keys(patch).length === 0) continue;
 
       const updateResult = await generate_entity_update_sql(meta, adapter.tableSet, entity, patch, {

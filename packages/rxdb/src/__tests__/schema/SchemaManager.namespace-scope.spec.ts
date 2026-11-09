@@ -94,7 +94,12 @@ describe('合法命名空间照常挂载', () => {
     const Row = entityIn('catalog', 'CatalogScopedRow');
     const database = createDatabase([Row]);
     const catalog: Record<string, unknown> = { retained: true };
-    Object.defineProperty(database, 'catalog', { configurable: true, enumerable: true, value: catalog, writable: true });
+    Object.defineProperty(database, 'catalog', {
+      configurable: true,
+      enumerable: true,
+      value: catalog,
+      writable: true
+    });
 
     database.init();
 

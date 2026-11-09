@@ -7,7 +7,7 @@ range: project
 base_ref: null
 review_scopes: []
 scope_id: 'project:rxdb'
-status: Open
+status: Fixed
 severity: P2
 source_view: commit
 source_snapshot: '0ffa3c419fcc59dc3e13d695ca4658116134bfa0'
@@ -16,7 +16,7 @@ found_branch: refs/heads/codex/full-review-main-20261108
 found_snapshot: '0ffa3c419fcc59dc3e13d695ca4658116134bfa0'
 found_range: project
 created: 2026-11-08
-updated: 2026-11-08
+updated: 2026-11-09
 anchors:
   - 'packages/rxdb/src/entity/primary-adapter.ts#resolveBatchPrimaryAdapter'
 affected_projects: []
@@ -64,3 +64,16 @@ pr: null
 - 结论：真实 PGlite 复现同一生效配置下单条成功、同类批量报错、混合批量又成功。
 - 验证：`node <git-common-dir>/ai-review/v1/runs/full-main-20261108/parallel-001/core/repro-disabled-batch.mjs`，退出 0，输出 singleSaved=true、batchError=RxDBMissingPrimaryAdapterError、storedTitles=[mixed-disabled,single]；诊断断言确认缺陷仍在。未改业务代码或原测试。
 - 剩余事项：补正式红灯回归、按 fix/verify 处理；继续全仓评审。
+
+### EV-01a1c064206d71cd81cd2aece6e28b0a：修复
+
+- 时间：2026-11-09T21:02:59+08:00
+- 操作：fix
+- 执行者：ai；anthropic/claude-opus-5-5；会话 aa117580-681a-4540-85b2-3c61967b2092（Claude Code 并行子 agent G05）
+- 输入快照：`1b5fb4e43f449bace1d6f67df78e55a129863f50`（提交视图，修复起点）
+- 输出快照：工作区树 `ae8f828f6dce9f057f67e104c047b34b5050a154`（`ai-review snapshot --worktree`，基于 `bad25587`（外部自动提交，含各组 WIP））
+- 状态：Open → Fixed
+- 结论：属实，P2 维持。单条与批量写入实际都经数据库级 `sync` 驱动的 `localAdapter$` / `remoteAdapter$` 落地，`resolveBatchPrimaryAdapter` 却只按实体生效配置找适配器名：两侧都没声明的 `{ type: SyncType.None }` 覆盖在纯同类批量里误报缺适配器，混进继承库级配置的实体又被「批内第一个非空 selection」放行。
+- 改动：`packages/rxdb/src/entity/primary-adapter.ts` 新增 `entityPrimaryAdapter`：主端仍按生效配置判定（单条 `Repository.primary$` 用的同一个 `selectPrimaryAdapterKind`，不改），适配器名缺省时取数据库级同侧；适配器名逐个实体判，批内任一实体缺失即抛 `RxDBMissingPrimaryAdapterError` 并只点名缺失的实体，不再拿批内别的实体顶。
+- 验证：修复前红：`packages/rxdb` 下 `npx vitest run src/__tests__/entity/primary-adapter.sync-disabled.spec.ts --coverage.enabled=false` → 3 failed / 1 passed（纯同类批量、逐个点名缺失、EntityManager 三种保存形态；混批守卫本就通过）；修复后 4 条与原 `primary-adapter.spec.ts`、`entity-manager.spec.ts` 全绿；PGlite `packages/rxdb-adapter-pglite` 下 `RXDB_PGLITE_NODE_TEST=true npx vitest run src/__tests__/write-back.spec.ts --browser.enabled=false` 的 SyncDisabled 三种保存形态真实写库通过。
+- 剩余事项：线索（未改，Repository 主端判定属 G03 所有权）：数据库级只有 remote 时，两侧都没声明的 None 覆盖实体主端被判成 local，单条 `save()` 会挂在永不发射的 `localAdapter$` 上（批量照旧报缺适配器），None 覆盖在 remote-only 库上的预期落点需维护者确认。整包回归见随后的复核事件。

@@ -145,7 +145,8 @@ describe('entity demo page construction contracts', () => {
     expect(stubs.listProps.props?.['fixedQuery']).toBeUndefined();
   });
 
-  it('entity-detail 页按 namespace/name/entityId 路由参数定位实体，提交/取消后相对导航回实体列表', async () => {
+  // 最终落到哪个地址由 entity-detail-navigation.spec.ts 用真实路由核对
+  it('entity-detail 页按 namespace/name/entityId 路由参数定位实体，提交/取消后按命名路由回实体列表', async () => {
     rxdbHolder.current = makeRxdb();
     setRoute('/entities/public/Todo/abc', { namespace: 'public', name: 'Todo', entityId: 'abc' });
     const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => undefined);
@@ -161,7 +162,8 @@ describe('entity demo page construction contracts', () => {
 
     expect(infoSpy).toHaveBeenCalledTimes(2);
     expect(push).toHaveBeenCalledTimes(2);
-    expect(push).toHaveBeenNthCalledWith(1, '..');
-    expect(push).toHaveBeenNthCalledWith(2, '..');
+    const toList = { name: 'entity-list', params: { namespace: 'public', name: 'Todo' } };
+    expect(push).toHaveBeenNthCalledWith(1, toList);
+    expect(push).toHaveBeenNthCalledWith(2, toList);
   });
 });

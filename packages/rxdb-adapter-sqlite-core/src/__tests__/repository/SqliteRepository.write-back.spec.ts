@@ -7,23 +7,23 @@ import { Todo } from '../fixtures/Todo.js';
 
 /** 写入挂在 `gate` 上：测试在写入返回之前改实体，模拟「保存等待期间继续输入」 */
 class DeferredWriteAdapter extends RxDBAdapterSqliteBase {
+  #pending?: (result: SqliteSuccessResult) => void;
   readonly name = 'sqlite-core-deferred-write-test';
   readonly writes: string[] = [];
-  #release?: (result: SqliteSuccessResult) => void;
-
-  override writeQuery(sql: string, _params?: SQLiteCompatibleType[]): Promise<SqliteSuccessResult> {
-    this.writes.push(sql);
-    return new Promise(resolve => {
-      this.#release = resolve;
-    });
-  }
 
   release(row: (string | number)[]): void {
-    this.#release?.({
+    this.#pending?.({
       sql: this.writes.at(-1) ?? '',
       rowsAffected: 1,
       elapsed: 0,
       results: [{ columns: ['__rowid', 'id', 'title', 'completed', 'createdAt', 'updatedAt'], rows: [row] }]
+    });
+  }
+
+  override writeQuery(sql: string, params?: SQLiteCompatibleType[]): Promise<SqliteSuccessResult> {
+    this.writes.push(`${sql} ${JSON.stringify(params ?? [])}`);
+    return new Promise(resolve => {
+      this.#pending = resolve;
     });
   }
 
@@ -106,6 +106,20 @@ describe('SqliteRepository 写入成功后的回填', () => {
     await saving;
 
     expect(todo.title).toBe('SUBMITTED');
+    expect(status.patch).toEqual({});
+    expect(status.modified).toBe(false);
+  });
+
+  it('update 提交实例上从未写过的值（调用方自算的增量）时，实例上的旧值不算新编辑', async () => {
+    const { adapter, repository, todo, status } = setup('sqlite-write-back-explicit-patch', true);
+    todo.title = 'stale local';
+    status.mergeExternal({ title: 'stale local' });
+    const saving = repository.update(todo, { title: 'computed elsewhere' });
+    await flush();
+    adapter.release([1, 'todo', 'computed elsewhere', 0, CREATED, WRITTEN]);
+    await saving;
+
+    expect(todo.title).toBe('computed elsewhere');
     expect(status.patch).toEqual({});
     expect(status.modified).toBe(false);
   });

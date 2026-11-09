@@ -42,13 +42,13 @@ export class PGliteRepositoryBase<T extends EntityType> extends RepositoryBase<T
    *
    * @param result - 查询或写入回执
    * @param forcedUpdate - 命中缓存的实体按外部数据刷新（脏实体逐字段避让本地编辑）
-   * @param submitted - 写入回执专用：本次写入提交的字段值（按被写的实体索引），命中的实体按
-   *   `EntityStatus.applyWriteResult` 收尾，以返回行推进基线并保留提交之后的新编辑
+   * @param submissions - 写入回执专用：本次写入的提交记录（提交值 + 提交时的编辑序号，按被写的实体索引），
+   *   命中的实体按 `EntityStatus.applyWriteResult` 收尾，以返回行推进基线并保留提交之后的新编辑
    */
   protected async addQueryCache(
     result: Results<Record<string, unknown>>,
     forcedUpdate = true,
-    submitted?: ReadonlyMap<InstanceType<T>, Readonly<Partial<InstanceType<T>>>>
+    submissions?: ReadonlyMap<InstanceType<T>, { readonly submitted: object; readonly mark: number }>
   ): Promise<InstanceType<T>[]> {
     return await Promise.all(
       result.rows.map(async row => {
@@ -60,7 +60,7 @@ export class PGliteRepositoryBase<T extends EntityType> extends RepositoryBase<T
         if (super.hasEntityRef(id)) {
           // 同下面那条边界：`getEntityRef` 也已如实返回 `EntityInstanceType<T>`。
           entity = super.getEntityRef(id)! as InstanceType<T>;
-          this.#settleCachedEntity(entity, entityData, forcedUpdate, submitted);
+          this.#settleCachedEntity(entity, entityData, forcedUpdate, submissions);
         } else {
           // `RepositoryBase.createEntityRef` 现在如实返回实例类型（从前是塌陷成 `any` 的
           // `InstanceType<T>`）。本包这条链上的 `InstanceType<T>` 还没跟着改——改它会一路
@@ -83,10 +83,10 @@ export class PGliteRepositoryBase<T extends EntityType> extends RepositoryBase<T
     entity: InstanceType<T>,
     data: InstanceType<T>,
     forcedUpdate: boolean,
-    submitted: ReadonlyMap<InstanceType<T>, Readonly<Partial<InstanceType<T>>>> | undefined
+    submissions: ReadonlyMap<InstanceType<T>, { readonly submitted: object; readonly mark: number }> | undefined
   ): void {
-    const sent = submitted?.get(entity);
-    if (sent) return getEntityStatus(entity).applyWriteResult(data, sent);
+    const submission = submissions?.get(entity);
+    if (submission) return getEntityStatus(entity).applyWriteResult(data, submission.submitted, submission.mark);
     if (forcedUpdate) super.updateEntity(entity, data);
   }
 }

@@ -16,6 +16,7 @@ import GeneratorPage from './generator.page';
 
 /** CodeMirror 在 happy-dom 里只渲染可视区的行：换成直接显示文本、可模拟输入的桩。 */
 @Component({
+  // eslint-disable-next-line @angular-eslint/component-selector -- 测试桩：顶替 @aiao/code-editor-angular 的同名元素
   selector: 'ao-code-editor',
   template: '<pre data-testid="code-editor-stub">{{ value() ?? text() }}</pre>',
   providers: [{ provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => CodeEditorStub), multi: true }]
@@ -25,28 +26,30 @@ class CodeEditorStub implements ControlValueAccessor {
   readonly language = input<string>();
   readonly theme = input<string>();
   readonly text = signal('');
-  #onChange: (value: string) => void = () => undefined;
+  readonly changes: ((value: string) => void)[] = [];
 
   writeValue(value: string | null): void {
     this.text.set(value ?? '');
   }
   registerOnChange(fn: (value: string) => void): void {
-    this.#onChange = fn;
+    this.changes.push(fn);
   }
   registerOnTouched(): void {
     // 桩不跟踪 touched
   }
   type(value: string): void {
     this.text.set(value);
-    this.#onChange(value);
+    for (const change of this.changes) change(value);
   }
 }
 
+// eslint-disable-next-line @angular-eslint/component-selector -- 测试桩：顶替 angular-split 的同名元素
 @Component({ selector: 'as-split', template: '<ng-content />' })
 class SplitStub {
   readonly direction = input<string>();
 }
 
+// eslint-disable-next-line @angular-eslint/component-selector -- 测试桩：顶替 angular-split 的同名元素
 @Component({ selector: 'as-split-area', template: '<ng-content />' })
 class SplitAreaStub {
   readonly size = input<number>();

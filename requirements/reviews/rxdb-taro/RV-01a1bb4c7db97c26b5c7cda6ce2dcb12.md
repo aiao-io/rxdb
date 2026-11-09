@@ -7,7 +7,7 @@ range: project
 base_ref: null
 review_scopes: []
 scope_id: 'project:rxdb-taro'
-status: Open
+status: Fixed
 severity: P2
 source_view: commit
 source_snapshot: '0ffa3c419fcc59dc3e13d695ca4658116134bfa0'
@@ -16,7 +16,7 @@ found_branch: refs/heads/codex/full-review-main-20261108
 found_snapshot: '0ffa3c419fcc59dc3e13d695ca4658116134bfa0'
 found_range: project
 created: 2026-11-08
-updated: 2026-11-08
+updated: 2026-11-09
 anchors:
   - 'packages/rxdb-taro/src/realm-plugin.ts#USE_STRICT_DIRECTIVE'
   - 'packages/rxdb-taro/src/realm-plugin.ts#afterDirective'
@@ -70,3 +70,16 @@ pr: null
 - 结论：合法 banner/指令序言输入被 realm 注入改成非严格执行，入口拒绝门禁同源失效。
 - 验证：在共享工作区执行 `node /Users/jimmy/Documents/aiao/rxdb/.git/ai-review/v1/runs/full-main-20261108/parallel-001/ui/repro-taro-realm-strict-banner.mjs`，退出 0，四项断言均成立；未执行 Taro 构建或真机验证。
 - 剩余事项：修复序言识别和插入位置，补回归后 verify。
+
+### EV-01a1c06465b572a681a3de9f85a3f001：修复
+
+- 时间：2026-11-09T20:59:27+08:00
+- 操作：fix
+- 执行者：ai；anthropic/claude-opus-5-5；会话 aa117580-681a-4540-85b2-3c61967b2092（Claude Code 并行子 agent G08）
+- 输入快照：`1b5fb4e43f449bace1d6f67df78e55a129863f50`（提交视图）
+- 输出快照：工作区树 `1bf4ea446ccf17e5d72ffca4b5b7cba1dc23baa7`（`ai-review snapshot --worktree`，基于 `bad25587`（外部自动提交，含各组 WIP））
+- 状态：Open → Fixed
+- 结论：成立，P2 维持。`USE_STRICT_DIRECTIVE` 只锚定开头空白后的 `use strict`：前面有版权 banner、行注释或别的指令时插入点落到指令之前，chunk 静默变成非严格；抖音入口的严格模式拒绝同样被绕过。复核另发现记录未列的一处：末条指令没写分号、靠换行结束时，旧实现把语句紧贴在字符串后面插入，得到 `"use strict"var …` 的语法错误。修法：新增内部模块 `directive-prologue.ts`，按 ECMAScript 词法跳过空白、行终结符（含 U+2028 / U+2029）、行 / 块注释与开头 hashbang，逐条读字符串指令，显式分号、文件末尾或「换行后接一条新语句」才算指令结束；拿不准（换行后接运算符、括号、`in` / `instanceof` 等可能续成表达式的记号）一律判不是指令，避免改掉表达式语义。插入点放在整段序言之后，末条指令无分号时先补分号；抖音入口改按序言里是否有逐字的 `use strict` 判定，转义写法不算。没有引入解析器依赖。
+- 改动：新增 `packages/rxdb-taro/src/directive-prologue.ts`（`scanDirectivePrologue`，不从包入口导出）；`packages/rxdb-taro/src/realm-plugin.ts`（`afterDirective` 与抖音入口判定改用扫描结果）；回归 `packages/rxdb-taro/src/__tests__/realm-plugin.spec.ts` 新增「指令序言」一组 8 条（块注释 banner、行注释、前置 `use client`、指令间夹注释、无分号换行，均在 Node vm 里按 CommonJS 函数体执行断言仍是严格模式；非严格 chunk 与续成表达式的字符串插在最前；转义写法不是严格指令；抖音入口 banner / 前置指令后的 `use strict` 照样拒绝），新增 `packages/rxdb-taro/src/__tests__/directive-prologue.spec.ts` 16 条覆盖扫描器各分支。原有「函数体内 use strict 不影响顶层」等用例保留不变。
+- 验证：修复前红：`npx vitest run --coverage.enabled=false src/__tests__/realm-plugin.spec.ts` 新增 8 条全部失败（4 条 chunk 变非严格，无分号用例得到 `"use strict"var __rxdbRealm=…`，转义用例插入点错误，抖音入口未拒绝）。修复后绿：rxdb-taro 全部 9 个文件 96 条通过；`npx tsc -p tsconfig.lib.json --noEmit` 无错误，改动文件 eslint（max-warnings 0）通过。`tsconfig.spec.json --noEmit` 对新文件报 TS6305（项目引用要求 `dist/directive-prologue.d.ts`，本轮禁止重建 dist）；改用仓库被忽略的 `tmp/` 下不带项目引用的临时配置对两个 spec 与两个源文件做类型检查，无错误，临时配置已删除。未跑真实 Taro / 真机构建。
+- 剩余事项：主会话重建 rxdb-taro dist 后复跑 `tsc -p packages/rxdb-taro/tsconfig.spec.json --noEmit`（预期 TS6305 消失）。

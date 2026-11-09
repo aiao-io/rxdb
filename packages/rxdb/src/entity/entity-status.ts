@@ -63,6 +63,15 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
   readonly #checkpoints = new Set<Map<keyof InstanceType<T>, unknown>>();
 
   /**
+   * 本地编辑序号：每次经代理改字段（{@link markChanged}）加一，并按字段记下最后一次编辑的序号。
+   * 写入回填（{@link applyWriteResult}）据此区分「提交之后才改的字段」。
+   */
+  #edit_seq = 0;
+  readonly #key_edit_seq = new Map<keyof InstanceType<T>, number>();
+  /** 每个算出来的 `patch` 缓存对象 → 算出它那一刻的编辑序号（见 {@link writeMark}） */
+  readonly #patch_edit_seq = new WeakMap<object, number>();
+
+  /**
    * reset/replace 各自递增的代数
    *
    * proxy.ts 的属性 set 拦截用 `queueMicrotask` 防抖 checkChange：多次同步赋值只排队一次。
@@ -230,6 +239,7 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
       }
     }
     this._patch_cache = cache;
+    this.#patch_edit_seq.set(cache, this.#edit_seq);
     return cache;
   }
 
@@ -351,6 +361,7 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
    */
   markChanged(key: keyof InstanceType<T>, value: unknown = this.target[key]) {
     this.#changed_keys.add(key);
+    this.#key_edit_seq.set(key, ++this.#edit_seq);
     for (const edits of this.#checkpoints) edits.set(key, value);
   }
 
@@ -516,24 +527,42 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
   }
 
   /**
+   * 写入提交那一刻的编辑序号，写入成功后连同提交值交给 {@link applyWriteResult}。
+   *
+   * @param submitted - 本次提交的字段值
+   * @returns `submitted` 正是之前从 {@link patch} 取到的对象时，返回算出它那一刻的序号；否则返回当前序号
+   *
+   * @remarks
+   * `EntityManager.update` 在调用仓储之前就取走了 patch，写入可能还要在事务队列里排一阵；
+   * 认出这份 patch 算出的时刻，排队期间的编辑同样算「提交之后」，不会被回填盖掉。
+   * 调用方自己拼的提交值（不是 `patch` 取出的对象）按调用这一刻算。
+   */
+  writeMark(submitted: object): number {
+    return this.#patch_edit_seq.get(submitted) ?? this.#edit_seq;
+  }
+
+  /**
    * 写入成功后的收尾：以数据库返回的行推进基线，提交之后才产生的本地编辑保留为未保存改动。
    *
    * @param row - 数据库返回的行（新基线）
-   * @param submitted - 本次写入实际提交的字段值：更新是提交的 patch，创建是生成 INSERT 那一刻的整行
+   * @param submitted - 本次写入提交的字段值：更新是提交的 patch，创建是生成 INSERT 那一刻的整行
+   * @param mark - 提交时的编辑序号，取自 {@link writeMark}
    *
    * @remarks
-   * 写入是异步的，等待期间用户可能继续编辑。逐字段判「当前值是否还等于提交的值」：
-   * 等于（或这个字段根本没参与本次提交且没有本地编辑）就取数据库的值；不等说明是提交之后的新编辑，
-   * 保留并按新基线重算 patch / `modified`，下一次 `save()` 会把它写出去。
+   * 写入是异步的，等待期间用户可能继续编辑。保留的是两类本地编辑，其余字段一律取数据库返回的值：
+   * - 提交之后（编辑序号大于 `mark`）才改的字段；
+   * - 不在本次提交里、仍与旧基线不同的字段（只提交了部分字段时，其余未保存编辑留到下一次保存）。
+   * 保留的字段按新基线重算 patch / `modified`，下一次 `save()` 会把它们写出去。
+   *
+   * 判据是「提交之后有没有改过」而不是「当前值是否等于提交值」：调用方可以提交实例上从未写过的值
+   * （例如按增量算出新计数直接交给仓储），那时实例上的旧值不是新编辑，不能盖回数据库刚写下的值。
    *
    * 与 {@link replace} 的区别：`replace` 整行覆盖并归零 `modified`，等待期间的新输入随之消失，
    * 下一次 `save()` 还是空操作。与 {@link mergeExternal} 的区别：后者对仍在 patch 里的键一律保留本地值，
    * 刚提交的值若被数据库改写（触发器、类型归一）会一直残留成假差异；这里以数据库为准。
-   *
-   * 没给出某个已编辑字段的提交值时，该字段按「未提交」处理（与 `mergeExternal` 同一结论），不丢编辑。
    */
-  applyWriteResult(row: Partial<InstanceType<T>>, submitted: Readonly<Partial<InstanceType<T>>>): void {
-    const pending = this.#unsubmitted_edits(submitted);
+  applyWriteResult(row: Partial<InstanceType<T>>, submitted: object, mark: number): void {
+    const pending = this.#unsubmitted_edits(submitted, mark);
     this.replace(row);
     if (pending.size === 0) return;
     const target = this.target as Record<string, unknown>;
@@ -707,12 +736,13 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
     this.#clear_cache(true);
   }
 
-  /** 提交之后才产生的本地编辑：当前值不等于本次提交的值（没提交的字段比旧基线） */
-  #unsubmitted_edits(submitted: Readonly<Partial<InstanceType<T>>>): Map<keyof InstanceType<T>, unknown> {
+  /** 写入回填要保留的本地编辑：提交之后才改的字段，以及不在本次提交里的未保存编辑 */
+  #unsubmitted_edits(submitted: object, mark: number): Map<keyof InstanceType<T>, unknown> {
     const pending = new Map<keyof InstanceType<T>, unknown>();
     for (const key of this.#changed_keys) {
-      const sent = Object.hasOwn(submitted, key) ? submitted[key] : this._origin[key];
-      if (!isEqual(this.target[key], sent)) pending.set(key, this.target[key]);
+      const editedAfter = (this.#key_edit_seq.get(key) ?? 0) > mark;
+      const unsaved = !Object.hasOwn(submitted, key) && !isEqual(this.target[key], this._origin[key]);
+      if (editedAfter || unsaved) pending.set(key, this.target[key]);
     }
     return pending;
   }

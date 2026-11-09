@@ -47,7 +47,10 @@ describe('CHECK 继承：重声明字段只摘语法糖', () => {
 
   it('继承来的属性级语法糖照旧被摘除', () => {
     const parent = optionsOf('Parent', {
-      properties: [intProp('id', { primary: true }), intProp('qty', { nullable: true, check: { operator: '>', value: 0 } })]
+      properties: [
+        intProp('id', { primary: true }),
+        intProp('qty', { nullable: true, check: { operator: '>', value: 0 } })
+      ]
     });
     const child = transitionMetadata(
       optionsOf('Child', { extends: ['Parent'], properties: [intProp('qty', { nullable: true })] }),
@@ -59,7 +62,10 @@ describe('CHECK 继承：重声明字段只摘语法糖', () => {
 
   it('三层继承：中间层显式覆盖了祖先的语法糖，孙类重声明字段后显式约束仍在', () => {
     const grandparent = optionsOf('Grandparent', {
-      properties: [intProp('id', { primary: true }), intProp('qty', { nullable: true, check: { operator: '>', value: 5 } })]
+      properties: [
+        intProp('id', { primary: true }),
+        intProp('qty', { nullable: true, check: { operator: '>', value: 5 } })
+      ]
     });
     const parent = optionsOf('Parent', {
       extends: ['Grandparent'],

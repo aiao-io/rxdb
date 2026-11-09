@@ -68,13 +68,11 @@ const hasProvider = useHasRxDBProvider(); // 只回答有没有 Provider，与�
 - `useFindByCursor`
 - `useFindAll`
 - `useCount`
-- `useFindDescendants`
-- `useCountDescendants`
-- `useFindAncestors`
-- `useCountAncestors`
 - `useGraphNeighbors`
 - `useCountNeighbors`
 - `useGraphPaths`
+
+树查询 hooks（`useFindDescendants`、`useCountDescendants`、`useFindAncestors`、`useCountAncestors`）不在本包，由 [`@aiao/rxdb-plugin-tree-react`](../rxdb-plugin-tree-react/README.md) 提供。
 
 查询失败采用 stale-while-error 语义：`value` 保留最后一次成功值，`error` 保存原始 `Error`，`hasValue` 变为 `false`，`isEmpty` 变为 `undefined`。
 

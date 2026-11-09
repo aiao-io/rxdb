@@ -8,6 +8,7 @@ import {
   isCrossTabEvent,
   RxDBEvent
 } from '../rxdb-events.js';
+import { tryGetEntityStatus } from '../rxdb-utils.js';
 import {
   GATEWAY_MESSAGE_CAPABILITY_ENABLED,
   GATEWAY_MESSAGE_ENTITY_EVENT,
@@ -77,6 +78,44 @@ const isolateBinaryViews = (value: unknown, seen = new WeakSet<object>()): unkno
 };
 
 const cloneGatewayEvent = (event: RxDBEvent): RxDBEvent => isolateBinaryViews(structuredClone(event)) as RxDBEvent;
+
+/** 值是不是核心构造的实体实例（Proxy，结构化克隆不了）。 */
+const isEntityInstance = (value: unknown): boolean =>
+  typeof value === 'object' && value !== null && tryGetEntityStatus(value) !== undefined;
+
+/** 关系对象：一个实体实例，或装着实体实例的数组。 */
+const isRelationValue = (value: unknown): boolean =>
+  isEntityInstance(value) || (Array.isArray(value) && value.some(isEntityInstance));
+
+/**
+ * 实体事件负载（patch / inversePatch）的出站快照：普通对象，不含关系对象。
+ *
+ * @remarks
+ * `notifyExternalUpdate` 的 patch 类型是 `Partial<InstanceType<T>>`，直接传实体实例是合法输入，
+ * 而实体实例是 Proxy，`postMessage` 克隆不了，会同步抛 `DataCloneError`。逐键拷成普通对象；
+ * 指向别的实体实例的属性不跨 tab——克隆不了，在另一个 tab 里也只会变成一个冒充实体的普通对象，
+ * 关系身份由外键列携带。其余值（bigint、Date、二进制视图）原样交给结构化克隆。
+ */
+const snapshotPayload = (payload: unknown): unknown => {
+  if (typeof payload !== 'object' || payload === null) return payload;
+  return Object.fromEntries(Object.entries(payload).filter(([, value]) => !isRelationValue(value)));
+};
+
+/**
+ * 出站实体事件的可结构化克隆副本（表集标签、来源标记等其余字段原样保留）。
+ *
+ * @param event - 本地产生的实体事件
+ * @returns 可以交给 `postMessage` 的副本；没有 `entities` 的事件原样返回
+ */
+const toOutboundEvent = (event: RxDBEvent): RxDBEvent => {
+  if (!('entities' in event) || !Array.isArray(event.entities)) return event;
+  const entities = event.entities.map((entity: { patch?: unknown; inversePatch?: unknown }) => ({
+    ...entity,
+    patch: snapshotPayload(entity.patch),
+    inversePatch: snapshotPayload(entity.inversePatch)
+  }));
+  return { ...event, entities } as RxDBEvent;
+};
 
 /**
  * RxDB 多 Tab 网关
@@ -248,7 +287,7 @@ export class RxDBTabsGateway {
       type: GATEWAY_MESSAGE_ENTITY_EVENT,
       messageId: this.#generateMessageId(),
       clientId: this.#clientId,
-      event
+      event: toOutboundEvent(event)
     });
   }
 

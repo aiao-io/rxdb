@@ -30,13 +30,17 @@ import { PGliteRepository } from './repository/PGliteRepository.js';
 import type { RxDBAdapterPGlite } from './RxDBAdapterPGlite.js';
 import { dispatchUnloggedRemovals } from './unlogged-removal-events.js';
 
-/** 每个实体这次实际提交的字段值：回查回填按它收尾，执行期间的新输入留作未保存改动 */
-type SubmittedValues = Map<object, Readonly<Record<string, unknown>>>;
+/** 每个实体这次的提交记录（提交值 + 提交时的编辑序号）：回查回填按它收尾，执行期间的新输入留作未保存改动 */
+type Submissions = Map<object, { submitted: object; mark: number }>;
+
+const rememberSubmission = (submissions: Submissions, entity: object, submitted: object): void => {
+  submissions.set(entity, { submitted, mark: getEntityStatus(entity).writeMark(submitted) });
+};
 
 const updateCachedEntity = <T extends EntityType>(
   repo: PGliteRepository<T>,
   data: Record<string, unknown>,
-  submitted: SubmittedValues
+  submissions: Submissions
 ): void => {
   const rawId = data['id'];
   const validNumber = typeof rawId === 'number' && Number.isFinite(rawId);
@@ -51,7 +55,8 @@ const updateCachedEntity = <T extends EntityType>(
   // 不再无条件归零 modified：applyWriteResult 按提交值收尾并按 patch 重算，执行期间的新输入留到下一次 save()。
   // 缓存里的若不是本批提交的那个实例（没有提交值），按「全部未提交」处理，等同外部合并、不丢编辑
   const state = getEntityStatus(entity);
-  state.applyWriteResult(data as Partial<InstanceType<T>>, submitted.get(entity) ?? {});
+  const { submitted, mark } = submissions.get(entity) ?? { submitted: {}, mark: state.writeMark({}) };
+  state.applyWriteResult(data as Partial<InstanceType<T>>, submitted, mark);
   state.local = true;
 };
 
@@ -112,7 +117,7 @@ export default async <T extends EntityType = EntityType>(
 ): Promise<InstanceType<T>[]> => {
   const all_entities = new Set<InstanceType<T>>();
   const now = new Date();
-  const submitted: SubmittedValues = new Map();
+  const submissions: Submissions = new Map();
 
   // ========== 处理 CREATE 操作 ==========
   const applyCreates = async (EntityType: T, entities: InstanceType<T>[]) => {
@@ -120,7 +125,7 @@ export default async <T extends EntityType = EntityType>(
     const meta = getEntityMetadata(EntityType);
 
     // 生成 INSERT SQL；生成器读的就是这一刻的字段值
-    for (const entity of entities) submitted.set(entity, { ...entity });
+    for (const entity of entities) rememberSubmission(submissions, entity, { ...entity });
     const insertSql = await generate_entity_inserts_sql(
       meta,
       adapter.tableSet,
@@ -151,7 +156,7 @@ export default async <T extends EntityType = EntityType>(
     const repo = adapter.getRepository<typeof EntityType, PGliteRepository<typeof EntityType>>(EntityType);
     for (const row of selectResult.rows) {
       const data = await getEntityObjectFromResult(meta, row, adapter.encryptionContext);
-      updateCachedEntity(repo, data, submitted);
+      updateCachedEntity(repo, data, submissions);
     }
   };
 
@@ -167,7 +172,7 @@ export default async <T extends EntityType = EntityType>(
     // updatedAt 与单条仓储同口径单调：整批时刻只是首选值，落后于实体已有的时间就取 +1ms
     for (const entity of entities) {
       const patch = getEntityStatus(entity).patch;
-      submitted.set(entity, patch);
+      rememberSubmission(submissions, entity, patch);
       if (Object.keys(normalizeUpdateEntity(meta, patch)).length === 0) continue;
       const { sql, params } = await generate_entity_update_sql(meta, adapter.tableSet, entity, patch, {
         ...adapter.rxdb.context,
@@ -192,7 +197,7 @@ export default async <T extends EntityType = EntityType>(
     // 更新实体状态
     for (const row of result.rows) {
       const data = await getEntityObjectFromResult(meta, row, adapter.encryptionContext);
-      updateCachedEntity(repo, data, submitted);
+      updateCachedEntity(repo, data, submissions);
     }
   };
 

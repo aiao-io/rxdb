@@ -621,7 +621,9 @@ const manualOrderGroupBy = (declared: unknown): readonly string[] | string => {
   const { groupBy } = declared;
   // `every` 跳过空位：不先判空位，后面逐字段校验会从空位读出 undefined 而抛 TypeError，不再是聚合违规
   const isFieldList =
-    Array.isArray(groupBy) && firstArrayHole(groupBy) === undefined && groupBy.every(field => typeof field === 'string');
+    Array.isArray(groupBy) &&
+    firstArrayHole(groupBy) === undefined &&
+    groupBy.every(field => typeof field === 'string');
   if (!isFieldList) return `groupBy 必须是字段名字符串数组，实际为 ${JSON.stringify(groupBy)}`;
   return groupBy;
 };

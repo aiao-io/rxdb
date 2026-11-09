@@ -182,7 +182,12 @@ describe('createDesktopFileBridge', () => {
       const begin = await bridge.handle(target, { kind: 'file.writeBegin', sessionId, path });
       if (begin.kind !== 'file.writeBegin') throw new Error(`writeBegin failed: ${JSON.stringify(begin)}`);
       const writeId = begin.result.writeId;
-      await bridge.handle(target, { kind: 'file.writeChunk', sessionId, writeId, chunk: new TextEncoder().encode(path) });
+      await bridge.handle(target, {
+        kind: 'file.writeChunk',
+        sessionId,
+        writeId,
+        chunk: new TextEncoder().encode(path)
+      });
       expect(await bridge.handle(target, { kind: 'file.writeCommit', sessionId, writeId })).toEqual({
         kind: 'file.writeCommit'
       });

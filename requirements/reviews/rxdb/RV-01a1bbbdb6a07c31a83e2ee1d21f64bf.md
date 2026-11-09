@@ -7,7 +7,7 @@ range: project
 base_ref: null
 review_scopes: []
 scope_id: 'project:rxdb'
-status: Open
+status: Resolved
 severity: P2
 source_view: commit
 source_snapshot: '0ffa3c419fcc59dc3e13d695ca4658116134bfa0'
@@ -16,7 +16,7 @@ found_branch: refs/heads/codex/full-review-main-20261108
 found_snapshot: '0ffa3c419fcc59dc3e13d695ca4658116134bfa0'
 found_range: project
 created: 2026-11-08
-updated: 2026-11-08
+updated: 2026-11-09
 anchors:
   - 'packages/rxdb/src/gateway/RxDBTabsGateway.ts#broadcastEntityEvent'
   - 'packages/rxdb/src/entity/entity-manager.ts#notifyExternalUpdate'
@@ -63,3 +63,28 @@ pr: null
 - 结论：公开API接受的完整实体在真实广播边界不可发送，普通对象对照成功。
 - 验证：`node <git-common-dir>/ai-review/v1/runs/full-main-20261108/parallel-001/core/repro-gateway-entity-patch.mjs`，退出 0，entityError.name=DataCloneError、plainError=null；未连接存储、未改业务或原测试。
 - 剩余事项：补正式回归并按 fix/verify 处理；PGlite正常系统表生产链另由storage组核对，不将未运行的链路计为已证实。
+
+### EV-01a1c06cd79779f3afcba21062cff31e：修复
+
+- 时间：2026-11-09T21:08:40+08:00
+- 操作：fix
+- 执行者：ai；anthropic/claude-opus-5-5；会话 aa117580-681a-4540-85b2-3c61967b2092（Claude Code 并行子 agent G03）
+- 输入快照：`1b5fb4e43f449bace1d6f67df78e55a129863f50`（提交视图，修复起点）
+- 输出快照：工作区树 `b249119de9683316045fb82ad01bf90f5ebdec7e`（`ai-review snapshot --worktree`，基于 `bad25587`（外部自动提交，含各组 WIP））
+- 状态：Open → Fixed
+- 结论：复核成立。`RxDBTabsGateway.#broadcastEntityEvent` 把本地事件原样交给 `topic.emit` → `channel.postMessage`；`notifyExternalUpdate` 的 patch 类型是 `Partial<InstanceType<T>>`，直接传实体实例（Proxy）时 `postMessage` 同步抛 `DataCloneError`，跨 tab 通知送不出去，异常还顺着本地派发抛回调用方。真实浏览器实测另核出：实体实例的展开里带关系属性（如 `author`），值若是另一个实体实例，同样克隆不了。仓库内现有生产者 `packages/rxdb-i18n/src/i18n.ts:173` / `:484` 传的是展开后的普通对象，不受影响；需要调用方直接传实体实例，维持 P2。
+- 改动：`packages/rxdb/src/gateway/RxDBTabsGateway.ts` 出站前经 `toOutboundEvent()` 生成副本：每条实体记录的 `patch` / `inversePatch` 逐键拷成普通对象，值为实体实例或实体实例数组的属性（关系对象）不跨 tab——克隆不了，在另一个 tab 里也只会变成冒充实体的普通对象，关系身份由外键列携带；其余字段（bigint、Date、二进制视图、表集标签、来源标记）原样交给结构化克隆。本地派发的事件对象不变，接收端仍按原逻辑 `cloneGatewayEvent` 隔离副本。
+- 验证：回归 `packages/rxdb/src/__tests__/gateway/gateway-entity-payload.spec.ts`（真实 RxDB 多实例网关 + 同名频道上的真实 `BroadcastChannel` 旁听）3 条：实体实例本身当 patch、patch 夹着另一个实体实例、普通 patch 的 bigint / Date / Uint8Array。修复前（换回 `1b5fb4e4` 的网关）2 failed（`DataCloneError: Failed to execute 'postMessage' on 'BroadcastChannel'`），普通 patch 对照通过；修复后 3/3，`src/__tests__/gateway/` 与 `RxDB.gateway-scope.spec.ts` 共 4 个文件 31/31 通过；本组改动文件 eslint（max-warnings 0）与 `tsc -p packages/rxdb/tsconfig.lib.json --noEmit` 通过。
+- 剩余事项：本组收尾统一跑 `rxdb:test` 整包后 verify。
+
+### EV-01a1c072b7657870837ceccdf752aee8：复核
+
+- 时间：2026-11-09T21:15:05+08:00
+- 操作：verify
+- 执行者：ai；anthropic/claude-opus-5-5；会话 aa117580-681a-4540-85b2-3c61967b2092（Claude Code 并行子 agent G03，复核角色）
+- 输入快照：工作区树 `b249119de9683316045fb82ad01bf90f5ebdec7e`（修复事件的输出快照）
+- 输出快照：工作区树 `59a948adcb0fe90699bfcf69c873e0dff61d1594`（`ai-review snapshot --worktree`，基于 `bad25587`（外部自动提交，含各组 WIP））
+- 状态：Fixed → Resolved
+- 结论：修复有效。核对：快照只发生在网关出站这一处，覆盖所有实体事件生产者（`notifyExternalUpdate`、适配器的变更派发、QueryCache 回填）；本地派发拿到的仍是原事件对象，行为不变；接收端照旧经 `cloneGatewayEvent` 隔离副本并打 `cross-tab` 标记（既有网关用例通过）。表集标签、来源标记、bigint / Date / 二进制视图都由结构化克隆原样送达（回归钉住）。改动只在核心网关内部，不改公开 API；三端绑定无端侧代码。
+- 验证：`pnpm nx run rxdb:test --exclude-task-dependencies --skip-nx-cache`（21:08:25 – 21:09:13，晚于本组全部代码改动）173 个文件，2815 通过 / 1 跳过，覆盖率 statements 95.86% / branches 92.76% / functions 96.14% / lines 96.52%；`pnpm nx run rxdb:lint --exclude-task-dependencies --skip-nx-cache`、`tsc -p packages/rxdb/tsconfig.lib.json --noEmit` 通过。
+- 剩余事项：无。原记录剩余事项里「PGlite 系统表生产链」属另一组核对范围，本条不据此计为已证实。

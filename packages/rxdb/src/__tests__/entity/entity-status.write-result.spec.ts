@@ -68,10 +68,11 @@ describe('EntityStatus.applyWriteResult：写入成功后的收尾', () => {
     const note = storedNote(createDatabase('write-result-same-field'));
     const status = getEntityStatus(note);
     note.title = 'submitted';
-    const submitted = { ...status.patch };
+    const submitted = status.patch;
+    const mark = status.writeMark(submitted);
     note.title = 'typed while saving';
 
-    status.applyWriteResult(writtenRow({ title: 'submitted' }), submitted);
+    status.applyWriteResult(writtenRow({ title: 'submitted' }), submitted, mark);
 
     expect(note.title).toBe('typed while saving');
     expect(note.updatedAt).toEqual(WRITTEN);
@@ -85,10 +86,11 @@ describe('EntityStatus.applyWriteResult：写入成功后的收尾', () => {
     const note = storedNote(createDatabase('write-result-other-field'));
     const status = getEntityStatus(note);
     note.title = 'submitted';
-    const submitted = { ...status.patch };
+    const submitted = status.patch;
+    const mark = status.writeMark(submitted);
     note.body = 'typed body';
 
-    status.applyWriteResult(writtenRow({ title: 'submitted' }), submitted);
+    status.applyWriteResult(writtenRow({ title: 'submitted' }), submitted, mark);
 
     expect(note.title).toBe('submitted');
     expect(note.body).toBe('typed body');
@@ -101,9 +103,10 @@ describe('EntityStatus.applyWriteResult：写入成功后的收尾', () => {
     const note = storedNote(createDatabase('write-result-clean'));
     const status = getEntityStatus(note);
     note.title = 'submitted';
-    const submitted = { ...status.patch };
+    const submitted = status.patch;
+    const mark = status.writeMark(submitted);
 
-    status.applyWriteResult(writtenRow({ title: 'submitted' }), submitted);
+    status.applyWriteResult(writtenRow({ title: 'submitted' }), submitted, mark);
 
     expect(note.title).toBe('submitted');
     expect(note.updatedAt).toEqual(WRITTEN);
@@ -115,9 +118,10 @@ describe('EntityStatus.applyWriteResult：写入成功后的收尾', () => {
     const note = storedNote(createDatabase('write-result-normalized'));
     const status = getEntityStatus(note);
     note.title = 'submitted';
-    const submitted = { ...status.patch };
+    const submitted = status.patch;
+    const mark = status.writeMark(submitted);
 
-    status.applyWriteResult(writtenRow({ title: 'SUBMITTED' }), submitted);
+    status.applyWriteResult(writtenRow({ title: 'SUBMITTED' }), submitted, mark);
 
     expect(note.title).toBe('SUBMITTED');
     expect(status.patch).toEqual({});
@@ -128,11 +132,12 @@ describe('EntityStatus.applyWriteResult：写入成功后的收尾', () => {
     const note = storedNote(createDatabase('write-result-reverted'));
     const status = getEntityStatus(note);
     note.title = 'submitted';
-    const submitted = { ...status.patch };
+    const submitted = status.patch;
+    const mark = status.writeMark(submitted);
     note.title = 'detour';
     note.title = 'submitted';
 
-    status.applyWriteResult(writtenRow({ title: 'submitted' }), submitted);
+    status.applyWriteResult(writtenRow({ title: 'submitted' }), submitted, mark);
 
     expect(note.title).toBe('submitted');
     expect(status.patch).toEqual({});
@@ -145,7 +150,8 @@ describe('EntityStatus.applyWriteResult：写入成功后的收尾', () => {
     note.title = 'submitted';
     note.body = 'not submitted';
 
-    status.applyWriteResult(writtenRow({ title: 'submitted' }), { title: 'submitted' });
+    const submitted = { title: 'submitted' };
+    status.applyWriteResult(writtenRow({ title: 'submitted' }), submitted, status.writeMark(submitted));
 
     expect(note.title).toBe('submitted');
     expect(note.body).toBe('not submitted');
@@ -158,9 +164,10 @@ describe('EntityStatus.applyWriteResult：写入成功后的收尾', () => {
     const draft = rxdb.entityManager.createEntityRef(WriteResultNote, { id: 'note', title: 'draft' });
     const status = getEntityStatus(draft);
     const submitted = { ...draft };
+    const mark = status.writeMark(submitted);
     draft.title = 'typed after insert';
 
-    status.applyWriteResult(writtenRow({ title: 'draft', body: null }), submitted);
+    status.applyWriteResult(writtenRow({ title: 'draft', body: null }), submitted, mark);
     status.local = true;
 
     expect(draft.title).toBe('typed after insert');
@@ -168,5 +175,35 @@ describe('EntityStatus.applyWriteResult：写入成功后的收尾', () => {
     expect(status.origin.title).toBe('draft');
     expect(status.patch).toEqual({ title: 'typed after insert' });
     expect(status.modified).toBe(true);
+  });
+it('patch 取走之后、写入开始之前（事务排队期间）的编辑同样算提交之后', () => {
+    const note = storedNote(createDatabase('write-result-queued'));
+    const status = getEntityStatus(note);
+    note.title = 'submitted';
+    const submitted = status.patch;
+    note.title = 'typed while queued';
+    const mark = status.writeMark(submitted);
+
+    status.applyWriteResult(writtenRow({ title: 'submitted' }), submitted, mark);
+
+    expect(note.title).toBe('typed while queued');
+    expect(status.patch).toEqual({ title: 'typed while queued' });
+    expect(status.modified).toBe(true);
+  });
+
+  it('调用方提交实例上从未写过的值时，实例上的旧值不算新编辑', () => {
+    const note = storedNote(createDatabase('write-result-explicit-patch'));
+    const status = getEntityStatus(note);
+    note.title = 'stale local';
+    status.mergeExternal(writtenRow({ title: 'stale local' }));
+    expect(status.modified).toBe(false);
+    const submitted = { title: 'computed elsewhere' };
+    const mark = status.writeMark(submitted);
+
+    status.applyWriteResult(writtenRow({ title: 'computed elsewhere' }), submitted, mark);
+
+    expect(note.title).toBe('computed elsewhere');
+    expect(status.patch).toEqual({});
+    expect(status.modified).toBe(false);
   });
 });

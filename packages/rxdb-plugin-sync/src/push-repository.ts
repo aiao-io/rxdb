@@ -1114,7 +1114,9 @@ async function commitPushPlans(
     const repositories = ready.map(plan => repositoryKey(plan.repository)).join(', ');
     console.error(`Error saving push state for repositories [${repositories}]:`, error);
     const normalized = error instanceof Error ? error : new Error(String(error));
-    for (const plan of ready) results.set(plan, pushRepositoryResult(plan, 0, 0, normalized));
+    // 本地回执与水位线随事务回滚、下一轮原样重推；远端已 applied 的条数是事实，与某批失败的出口同一口径照报。
+    // 被拒标记没落库，不算 rejected，算进 failed
+    for (const plan of ready) results.set(plan, pushRepositoryResult(plan, plan.pushed, 0, normalized));
   }
   return results;
 }
@@ -1134,7 +1136,8 @@ function pushRepositoryResult(
   const failed = plan.effectiveCount - pushed - rejected;
   return {
     repository,
-    success: failed === 0,
+    // 条目全拿到回执但本地提交失败时 failed 为 0，错误本身就是失败
+    success: failed === 0 && error === undefined,
     error,
     pushed,
     rejected,

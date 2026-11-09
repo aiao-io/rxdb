@@ -7,7 +7,7 @@ range: project
 base_ref: null
 review_scopes: []
 scope_id: 'project:rxdb'
-status: Open
+status: Fixed
 severity: P2
 source_view: commit
 source_snapshot: '0ffa3c419fcc59dc3e13d695ca4658116134bfa0'
@@ -16,7 +16,7 @@ found_branch: refs/heads/codex/full-review-main-20261108
 found_snapshot: '0ffa3c419fcc59dc3e13d695ca4658116134bfa0'
 found_range: project
 created: 2026-11-08
-updated: 2026-11-08
+updated: 2026-11-09
 anchors:
   - 'packages/rxdb/src/entity/metadata-transition.ts#transitionMetadata'
 affected_projects:
@@ -61,3 +61,16 @@ pr: null
 - 结论：字段重声明的语法糖清理误删显式 CHECK，注册期无提示。
 - 验证：Node + esbuild 内存打包后调用实际 transitionMetadata / validateEntityMetadata，退出 0；两组 checkNames 与违规输出见证据。静态核对两后端实际 DDL 消费；未重复数据库全套实验。
 - 剩余事项：正式红灯回归与修复交 fix/verify。
+
+### EV-01a1c0528a0572ea9e218ac1968d9d0a：修复
+
+- 时间：2026-11-09T21:01:00+08:00
+- 操作：fix
+- 执行者：ai；anthropic/claude-opus-5-5；会话 aa117580-681a-4540-85b2-3c61967b2092（Claude Code 并行子 agent G04）
+- 输入快照：`1b5fb4e43f449bace1d6f67df78e55a129863f50`（提交视图，修复起点）
+- 输出快照：工作区树 `69e635a6cc13240c82cc4f8c146507bb0f9b5a4b`（`ai-review snapshot --worktree`，基于 `bad25587`（外部自动提交，含各组 WIP））
+- 状态：Open → Fixed
+- 结论：成立。`transitionMetadata` 在子类重声明属性（不带 `check`）时无条件 `checkMap.delete(property.name)`（`packages/rxdb/src/entity/metadata-transition.ts:172`～184，`1b5fb4e4`），而 checkMap 同时装着显式实体级 CHECK，没有来源标记，父类显式声明、恰好与字段同名的约束被一并删掉，违反 AC#17「按 name 继承、只被同名约束覆盖」。修法：另记一份「当前来自属性级语法糖」的名字集合，属性带 `check` 时登记、显式 `checks` 覆盖同名时注销，重声明属性只摘仍属语法糖的那条。子类自己的属性级语法糖照旧覆盖父类同名显式约束（同名覆盖不变）。
+- 改动：`packages/rxdb/src/entity/metadata-transition.ts`（`sugarCheckNames` 集合与两处登记 / 注销）；新增 `packages/rxdb/src/__tests__/entity/check-constraint-inheritance.spec.ts`（父显式同名约束在子类重声明后仍在且编译为 `("qty" > 0)`、注册期零违规；继承来的语法糖照旧摘除；三层继承中间层显式覆盖祖先语法糖后孙类重声明仍保留；子类自身语法糖覆盖父类同名显式约束）。
+- 验证：修复前该文件 2 failed（`expected [] to deeply equal [ 'qty' ]`，父显式约束与三层继承两条）、2 passed；修复后 4 passed，`check-constraint.spec.ts` 同跑全绿。两后端 DDL 用临时探针核对（放在被忽略的 `src/__tests__/tmp/`，跑完即删）：`rxdb-adapter-pglite` 与 `rxdb-adapter-sqlite-core` 的 `create_table_sql` 对子类都生成 `CONSTRAINT "ck_G04Child_qty_…" CHECK (("qty" > 0))`（两包测试经 alias / tsconfig paths 走核心源码）。eslint 与 lib `tsc --noEmit` 通过。
+- 剩余事项：已有库若按旧元数据建过子类表（缺这条 CHECK），升级后 `connect()` 会按约束漂移报 `RxDBConstraintDriftError`，需迁移补约束——这是契约本来的要求（表上缺了声明的约束），CHANGELOG 修复条目须写明，交主会话。

@@ -32,6 +32,7 @@ import { PushInFlightRegistry } from '@aiao/rxdb-plugin-history';
 import { type Observable, of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { pushRepository, type PushRepositoryResult } from '../push-repository.js';
+import { syncRepository, type SyncRepositoryResult } from '../sync-repository.js';
 import type { SyncManager } from '../SyncManager.js';
 import { Post, User } from './fixtures/test-entities.js';
 
@@ -782,8 +783,13 @@ describe('pushRepository', () => {
       }
     });
 
-    // 本地事务失败 = 远端已收但本地没记，`pushed` 记 0，抛裸错误
-    await expect(pushRepository(harness.vm, 'public', 'User', { includeRelated: false })).rejects.toBe(localError);
+    // 本地事务失败 = 远端已收但本地没记：本地整体回滚，远端已应用的条数随 RxDBPartialSyncError 交出去
+    const thrown = await pushRepository(harness.vm, 'public', 'User', { includeRelated: false }).catch(
+      (error: unknown) => error
+    );
+    expect(thrown).toBeInstanceOf(RxDBPartialSyncError);
+    expect((thrown as RxDBPartialSyncError<PushRepositoryResult>).cause).toBe(localError);
+    expect((thrown as RxDBPartialSyncError<PushRepositoryResult>).result).toMatchObject({ success: false, pushed: 1 });
     expect(change.remoteId).toBeNull();
     expect(harness.currentSync.lastPushedChangeId).toBeNull();
 
@@ -1521,6 +1527,65 @@ describe('pushRepository 的被拒标记', () => {
 
     expect(harness.mergeChanges).toHaveBeenCalledTimes(2);
     expect(harness.mergeChanges.mock.calls[1]?.[2]?.map(change => change.id)).toEqual([4]);
+  });
+
+  /**
+   * 远端已经 applied、本地回执提交失败：回执与水位线照常整体回滚（下一轮原样重推，远端按 localId 幂等），
+   * 但远端已生效的条数是事实，与「某批失败」那条路径一样随 RxDBPartialSyncError 交出去，不能记 0 抛裸错误。
+   */
+  describe('本地回执提交失败时的远端进度', () => {
+    const commitError = new Error('disk full');
+    const failingCommit = async (): Promise<RxDBChange[]> => {
+      throw commitError;
+    };
+
+    it('单仓：抛 RxDBPartialSyncError，pushed 是远端已应用的条数，本地照常回滚', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const change = createChange({ id: 3 });
+      const harness = createHarness({ changes: [change], saveChanges: failingCommit });
+
+      const thrown = await pushRepository(harness.vm, 'public', 'User', { includeRelated: false }).catch(
+        (error: unknown) => error
+      );
+
+      expect(thrown).toBeInstanceOf(RxDBPartialSyncError);
+      const partial = thrown as RxDBPartialSyncError<PushRepositoryResult>;
+      expect(partial.cause).toBe(commitError);
+      expect(partial.result).toMatchObject({ success: false, error: commitError, pushed: 1, rejected: 0 });
+      expect(harness.mergeChanges).toHaveBeenCalledTimes(1);
+      expect(change.remoteId).toBeNull();
+      expect(harness.currentSync.lastPushedChangeId).toBeNull();
+    });
+
+    it('级联：目标仓同样带着远端进度抛出', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const harness = createHarness({ changes: [createChange({ id: 3 })], saveChanges: failingCommit });
+
+      const thrown = await pushRepository(harness.vm, 'public', 'User', { includeRelated: true }).catch(
+        (error: unknown) => error
+      );
+
+      expect(thrown).toBeInstanceOf(RxDBPartialSyncError);
+      expect((thrown as RxDBPartialSyncError<PushRepositoryResult>).result).toMatchObject({
+        success: false,
+        pushed: 1
+      });
+    });
+
+    it('仅推送的仓库同步：进度不丢，persistedProgress 为 true', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const harness = createHarness({ changes: [createChange({ id: 3 })], saveChanges: failingCommit });
+
+      const thrown = await syncRepository(harness.vm, 'public', 'User', {
+        direction: 'push',
+        push: { includeRelated: false }
+      }).catch((error: unknown) => error);
+
+      expect(thrown).toBeInstanceOf(RxDBPartialSyncError);
+      const partial = thrown as RxDBPartialSyncError<SyncRepositoryResult>;
+      expect(partial.cause).toBe(commitError);
+      expect(partial.result).toMatchObject({ persistedProgress: true, pushResult: { pushed: 1, success: false } });
+    });
   });
 
   it('本地提交事务失败：remoteId 与被拒标记都不留，水位线不动', async () => {

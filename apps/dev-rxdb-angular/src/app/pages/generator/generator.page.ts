@@ -45,9 +45,12 @@ export default class GeneratorPage {
 
   /** 当前输入的生成结果：失败或清空时没有产物，不保留上一份成功的代码冒充当前输入 */
   protected readonly $generation = computed(() => generateSourceState(this.$json_value() ?? ''));
-  readonly $sources = computed(() => this.$generation().sources);
   protected readonly $generation_error = computed(() => this.$generation().error);
-  protected readonly $can_download = computed(() => this.$generation_error() === null && this.$sources().length > 0);
+  protected readonly $can_download = computed(
+    () => this.$generation_error() === null && this.$generation().sources.length > 0
+  );
+
+  readonly $sources = computed(() => this.$generation().sources);
   $selected_source_index = signal<number>(0);
 
   $current_demo = computed(() => {

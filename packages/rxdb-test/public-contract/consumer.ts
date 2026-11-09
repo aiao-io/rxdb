@@ -6,6 +6,9 @@
  * 早先只 import 了 11 个符号，其余 41 个的类型入口从未被任何 consumer 校验过 ——
  * `.d.ts` 缺失、种类改变、子路径 types 解析失效都不会让 build 失败。
  * 运行时的名称 / 种类基线由 `scripts/verify-public-contract.mjs` 承担，二者互补。
+ *
+ * 覆盖是否完整由 `src/__tests__/public-contract-consumer.spec.ts` 按 baseline 机械对账（RV-01a1bbbcfca2：
+ * 整个 `./check-constraint` 入口与另外 6 个新增导出曾漏在这里，声明缺失时门禁照样通过）。
  */
 import {
   cleanupSqliteTestAdapter,
@@ -41,6 +44,8 @@ import {
   SYNC_OVERRIDE_REMOTE_ADAPTER,
   SYNC_OVERRIDE_SEED_TITLES,
   SYNC_OVERRIDE_WRITE_TITLE,
+  SYNC_REJECTIONS_FIXTURE,
+  SYNC_REJECTIONS_NEXT_ROUND_FIXTURE,
   version,
   withSeedLock,
   type CursorRowLike,
@@ -53,17 +58,40 @@ import {
   type SyncOverrideNoteType
 } from '@aiao/rxdb-test';
 import {
+  CheckQtyItem,
+  CheckRangeItem,
+  CheckXorItem,
+  ConditionalUniqueRevision,
+  ExclusionLine,
+  ExclusionLineSlot,
+  ExclusionOccurrence,
+  ExclusionSegment,
+  checkConstraintFixtures,
+  conditionalUniqueFixtures,
+  exclusionFixtures,
+  runCheckConstraintWriteBehaviorSuite,
+  runConditionalUniqueWriteBehaviorSuite,
+  runExclusionWriteBehaviorSuite,
+  type CheckConstraintSuiteDatabase,
+  type CheckConstraintSuiteDatabaseOptions,
+  type CheckConstraintSuiteFactory,
+  type CheckConstraintSuiteVersionManager
+} from '@aiao/rxdb-test/check-constraint';
+import {
   ENCRYPTED_SENTINELS,
+  EncryptedAuditedUser,
   EncryptedUser,
   queryCountOf,
   registerQueryCount,
   runBigIntBinaryEncryptedSuite,
+  runChangeLogSuite,
   runCrudSuite,
   runLifecycleSuite,
   runQueryValidationSuite,
   runTamperSuite,
   SENTINEL_API,
   SENTINEL_CC,
+  SENTINEL_CC_ROTATED,
   SENTINEL_JSON
 } from '@aiao/rxdb-test/encrypted';
 import {
@@ -85,6 +113,7 @@ import {
   Task,
   Todo,
   TypeDemo,
+  TypeDemoNative,
   type TaskStaticTypes,
   type TodoStaticTypes
 } from '@aiao/rxdb-test/entities';
@@ -189,6 +218,12 @@ declare const fieldValueCase: EntityFieldValueCase;
 declare const fieldsParseRejection: EntityFieldsParseRejection;
 declare const fieldsWireDraft: EntityFieldsWireDraft;
 
+// check-constraint 的四个类型导出同样要被真实消费，理由同上。
+declare const checkConstraintFactory: CheckConstraintSuiteFactory;
+declare const checkConstraintDatabaseOptions: CheckConstraintSuiteDatabaseOptions;
+declare const checkConstraintDatabase: CheckConstraintSuiteDatabase;
+declare const checkConstraintVersionManager: CheckConstraintSuiteVersionManager;
+
 // US-026 实例级同步覆盖夹具的三个类型导出，理由同上。
 declare const syncOverrideHarness: SyncOverrideHarness;
 const syncOverrideNote: SyncOverrideNoteType = defineSyncOverrideNote();
@@ -235,13 +270,37 @@ void [
   SYNC_OVERRIDE_REMOTE_ADAPTER,
   SYNC_OVERRIDE_SEED_TITLES,
   SYNC_OVERRIDE_WRITE_TITLE,
+  SYNC_REJECTIONS_FIXTURE,
+  SYNC_REJECTIONS_NEXT_ROUND_FIXTURE,
+  // check-constraint
+  CheckQtyItem,
+  CheckXorItem,
+  CheckRangeItem,
+  checkConstraintFixtures,
+  ConditionalUniqueRevision,
+  conditionalUniqueFixtures,
+  ExclusionOccurrence,
+  ExclusionSegment,
+  ExclusionLine,
+  ExclusionLineSlot,
+  exclusionFixtures,
+  runCheckConstraintWriteBehaviorSuite,
+  runConditionalUniqueWriteBehaviorSuite,
+  runExclusionWriteBehaviorSuite,
+  checkConstraintFactory.name,
+  checkConstraintDatabaseOptions.dbName,
+  checkConstraintDatabase.dispose,
+  checkConstraintVersionManager.history,
   // encrypted
   encryptedUser,
+  EncryptedAuditedUser,
   ENCRYPTED_SENTINELS,
   SENTINEL_API,
   SENTINEL_CC,
+  SENTINEL_CC_ROTATED,
   SENTINEL_JSON,
   runBigIntBinaryEncryptedSuite,
+  runChangeLogSuite,
   runCrudSuite,
   runLifecycleSuite,
   runQueryValidationSuite,
@@ -270,6 +329,7 @@ void [
   SortableMenuLarge,
   SortableMenuSimple,
   TypeDemo,
+  TypeDemoNative,
   // shop
   shopEntityTypes,
   product,

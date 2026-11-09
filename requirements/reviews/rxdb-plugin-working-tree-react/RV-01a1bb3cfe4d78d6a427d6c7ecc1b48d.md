@@ -7,7 +7,7 @@ range: project
 base_ref: null
 review_scopes: []
 scope_id: 'project:rxdb-plugin-working-tree-react'
-status: Open
+status: Fixed
 severity: P2
 source_view: commit
 source_snapshot: '0ffa3c419fcc59dc3e13d695ca4658116134bfa0'
@@ -16,7 +16,7 @@ found_branch: refs/heads/codex/full-review-main-20261108
 found_snapshot: '0ffa3c419fcc59dc3e13d695ca4658116134bfa0'
 found_range: project
 created: 2026-11-08
-updated: 2026-11-08
+updated: 2026-11-09
 anchors:
   - 'packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts#useWorkingTree'
   - 'packages/rxdb-plugin-working-tree-react/src/use-worktrees.ts#useWorktrees'
@@ -77,3 +77,16 @@ pr: null
 - 结论：逐项读取冻结源码实际行号，校准最初记录中指向相邻注释/空行的定位；问题、根因与复现结论不变，既有事件保持原样。
 - 验证：写前两次 git hash-object 一致；首次摘要 `c809f1a7cbe95d0a8ada739c18a5275ef59845d0`。证据使用实际代码行。
 - 剩余事项：原记录所列修复与正式回归。
+
+### EV-01a1c05cef347fa1b7b905941b49745e：修复
+
+- 时间：2026-11-09T20:51:18+08:00
+- 操作：fix
+- 执行者：ai；anthropic/claude-opus-5-5；会话 aa117580-681a-4540-85b2-3c61967b2092（Claude Code 并行子 agent G08）
+- 输入快照：`1b5fb4e43f449bace1d6f67df78e55a129863f50`（提交视图）
+- 输出快照：工作区树 `d60ea42302e76908ddc1302dd6c243e290ce9e26`（`ai-review snapshot --worktree`，基于 `bad25587`（外部自动提交，含各组 WIP））
+- 状态：Open → Fixed
+- 结论：成立，P2 维持。`useWorkingTree` 与 `useWorktrees` 的 slot 以库对象作归属，A→B→A 回到同一个库对象后身份重新相等，首次 A 入口的命令闭包写回能通过 `current.database === database`，覆盖第二次 A 入口已完成的查询；命令层每次重建各有一份请求代次，挡不住跨入口的旧闭包。Angular / Vue 的入口绑定创建时的库、换库重建组件，不受影响（与原记录一致）。修法：slot 增加只在建 slot 时新建一次的 `entry` 对象作入口身份，`patch` 按 `entry` 比对归属；仍用渲染期调整状态复位，不在渲染期写 ref。
+- 改动：`packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts`、`packages/rxdb-plugin-working-tree-react/src/use-worktrees.ts`（`openSlot()`、`entry`、`patch` 依赖 `[entry]`）；回归 `packages/rxdb-plugin-working-tree-react/src/__tests__/provider-switch.spec.ts` 新增两条（A→B→A 后首次 A 入口迟到的 `isEnabled` 成功与 `status` 失败都不覆盖第二次入口；StrictMode 下同样丢弃），`packages/rxdb-plugin-working-tree-react/src/__tests__/use-worktrees.spec.tsx` 新增一条（迟到的 `list()` 结果不覆盖第二次入口的空列表）。
+- 验证：修复前红：`npx vitest run --coverage.enabled=false src/__tests__/provider-switch.spec.ts src/__tests__/use-worktrees.spec.tsx` 3 条失败——`isEnabledState` 被改回 `{ phase: 'success', value: true }`、`listState.phase` 被改回 `success`。修复后绿：该包 4 个文件 70 条全部通过（含原有「一次命令都没发起过就换库，不触发多余的状态写入」与 StrictMode 用例）；`npx tsc -p tsconfig.lib.json --noEmit` / `tsconfig.spec.json --noEmit` 无错误，改动文件 eslint（max-warnings 0）通过。
+- 剩余事项：无；收尾复核。

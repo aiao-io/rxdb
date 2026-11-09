@@ -7,7 +7,7 @@ range: project
 base_ref: null
 review_scopes: []
 scope_id: 'project:rxdb'
-status: Open
+status: Fixed
 severity: P2
 source_view: commit
 source_snapshot: '0ffa3c419fcc59dc3e13d695ca4658116134bfa0'
@@ -16,7 +16,7 @@ found_branch: refs/heads/codex/full-review-main-20261108
 found_snapshot: '0ffa3c419fcc59dc3e13d695ca4658116134bfa0'
 found_range: project
 created: 2026-11-08
-updated: 2026-11-08
+updated: 2026-11-09
 anchors:
   - 'packages/rxdb/README.md'
 affected_projects: []
@@ -57,3 +57,16 @@ pr: null
 - 结论：真实公开创建入口拒绝 README 的普通对象，正确实体实例对照成功。
 - 验证：`node <git-common-dir>/ai-review/v1/runs/full-main-20261108/parallel-001/core/repro-readme-create.mjs`，退出 0，输出 plainError=RxDBError/Target has no entity metadata，entitySaved=true；未改业务或原测试。
 - 剩余事项：修正文档并补闭环校验，后续按 verify 复核；继续全仓评审。
+
+### EV-01a1c0528f02752391ff234bffe0bb85：修复
+
+- 时间：2026-11-09T21:07:00+08:00
+- 操作：fix
+- 执行者：ai；anthropic/claude-opus-5-5；会话 aa117580-681a-4540-85b2-3c61967b2092（Claude Code 并行子 agent G04）
+- 输入快照：`1b5fb4e43f449bace1d6f67df78e55a129863f50`（提交视图，修复起点）
+- 输出快照：工作区树 `69e635a6cc13240c82cc4f8c146507bb0f9b5a4b`（`ai-review snapshot --worktree`，基于 `bad25587`（外部自动提交，含各组 WIP））
+- 状态：Open → Fixed
+- 结论：成立。`IRepository.create(entity: InstanceType<T>)` 只收实体实例，普通对象没有实体元数据，在写入前被 `assertMountedTableSet` 拒绝；README 的快速开始、事务速查第 1 / 2 条与迁移示例都传普通对象。本机用 `1b5fb4e4` 构建的 `dist` + 真实 PGlite 内存库复现：普通对象报 `Target has no entity metadata: it is not decorated with @Entity`。修正为：有实例在作用域里的示例用 `rxdb.entityManager.instantiate(Todo, {...})`（与生成的 `SKILL.md` 同一写法，同一个类绑多个实例时也指得清是哪一个），迁移示例在 `init()` 之后执行、实体类已绑定，用 `new Seed({...})`；同时点明实体实例方法永远是外部调用。
+- 改动：`packages/rxdb/README.md`（快速开始的 `create`、事务速查第 1 / 2 条、迁移示例，各加一行说明）。
+- 验证：文档类，没有能把 README 片段类型检查进门禁的现成机制（`scripts/check-doc-code.mjs` 只查 `website/docs` 的 import 路径与语法）。按修正后的写法在真实 PGlite 内存库上跑闭环（`/tmp/claude-rvfix/G04/probe-readme-tx.mjs`，`dist` + `RxDBAdapterPGlite` memory）：普通对象被拒；`instantiate` 后 `create` 成功，`find` 读回 1 行（`title` = `write docs`、`done` = `false`）。
+- 剩余事项：同一错误写法还出现在 `website/docs/model-mutation/transaction.md:86`、`website/docs/adapters/pglite.md:164-165, 263`、`website/docs/adapters/sqlite.md:241`、`packages/rxdb-adapter-sqlite-core/README.md:28`（G10 / G06 范围，本条不改，已在报告列为跨组线索）。生成物 `packages/rxdb/skills/aiao-rxdb/SKILL.md` 若收录 README 片段需重新生成，交主会话。

@@ -56,12 +56,12 @@ describe('reservedName：__proto__ 不能作字段键', () => {
       onDelete: OnDeleteAction.CASCADE,
       onUpdate: OnDeleteAction.CASCADE
     };
-    expect(
-      violationsOf({ relations: [{ ...relation, name: 'parent', columnName: '__proto__' }] as never })
-    ).toEqual([{ field: 'parent', rule: 'reservedName' }]);
-    expect(violationsOf({ relations: [{ ...relation, name: '__proto__', columnName: 'parentId' }] as never })).toEqual(
-      [{ field: '__proto__', rule: 'reservedName' }]
-    );
+    expect(violationsOf({ relations: [{ ...relation, name: 'parent', columnName: '__proto__' }] as never })).toEqual([
+      { field: 'parent', rule: 'reservedName' }
+    ]);
+    expect(violationsOf({ relations: [{ ...relation, name: '__proto__', columnName: 'parentId' }] as never })).toEqual([
+      { field: '__proto__', rule: 'reservedName' }
+    ]);
   });
 
   it('constructor / toString 这类普通键照常可用，归一化后是自有数据键', () => {

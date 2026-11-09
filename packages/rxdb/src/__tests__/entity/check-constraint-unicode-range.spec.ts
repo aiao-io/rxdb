@@ -27,7 +27,11 @@ const metadata = transitionMetadata({
 } as EntityMetadataOptions);
 
 const compile = (field: string, operator: 'between' | 'notBetween', value: readonly [string, string]): string =>
-  compileCheckRuleGroup(metadata, { combinator: 'and', rules: [{ field, operator, value: [...value] }] }, 'CHECK probe');
+  compileCheckRuleGroup(
+    metadata,
+    { combinator: 'and', rules: [{ field, operator, value: [...value] }] },
+    'CHECK probe'
+  );
 
 describe('CHECK 字符串区间：端点按码点比较', () => {
   it('码点序合法的区间（BMP 高位 → 辅助平面）照常编译', () => {

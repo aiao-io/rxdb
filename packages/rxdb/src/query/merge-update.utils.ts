@@ -229,12 +229,11 @@ export const classifyUpdates = <T extends EntityType>(
   for (const e of data) {
     const id = e.id as RxDBEntityId;
     updatedIds.add(id);
+    // 先取更新后态：序列化顺带把补丁合进身份缓存，这一步不能省
     const after = cache.getSerializedUpdate(id);
     const nowEntity = after && persistedState(after);
-    const beforeEntity = (
-      nowEntity ? { ...nowEntity, ...cache.getData(id)?.inversePatch, id } : cache.getSerializedBefore(id)) as
-      | InstanceType<T>
-      | undefined;
+    // 前态 = 库里的更新后态叠加本批合并后的 inversePatch（同 getSerializedBefore 的构造，底换成库里的值）
+    const beforeEntity = { ...nowEntity, ...cache.getData(id)?.inversePatch, id } as InstanceType<T>;
     if (!where || isEntityMatchWhere(nowEntity, where)) matchNowIds.add(id);
     if (!where || isEntityMatchWhere(beforeEntity, where)) matchBeforeIds.add(id);
   }

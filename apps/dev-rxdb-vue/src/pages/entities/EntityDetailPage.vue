@@ -14,15 +14,22 @@ const namespace = computed(() => String(route.params.namespace ?? ''));
 const name = computed(() => String(route.params.name ?? ''));
 const entityId = computed(() => String(route.params.entityId ?? ''));
 
+/**
+ * 回到所在实体的列表。vue-router 的相对路径按「目录」解析：在 `/entities/public/Todo/abc` 上 push('..')
+ * 得到 `/entities/public/`，没有路由匹配、被兜底重定向到首页；改走命名路由，与壳页的重定向同一写法。
+ */
+function backToList(): void {
+  void router.push({ name: 'entity-list', params: { namespace: namespace.value, name: name.value } });
+}
+
 function onSaved(data: EntityFormData): void {
   console.info('[entity-detail] saved', data);
-  // URL 相对导航返回实体列表（Angular '..' 同款语义：扁平四段 URL 的上一段即列表页）
-  void router.push('..');
+  backToList();
 }
 
 function onCancelled(): void {
   console.info('[entity-detail] cancelled');
-  void router.push('..');
+  backToList();
 }
 </script>
 
