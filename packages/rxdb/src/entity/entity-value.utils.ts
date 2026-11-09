@@ -115,7 +115,8 @@ export function parseEntityFieldValue(type: EntityFieldTypeName, raw: unknown): 
       return isNaN(n) ? null : n;
     }
     case 'boolean':
-      return raw === true || raw === 'true' || raw === '1';
+      // 数字 1 与字符串 '1' 同口径：远端（以及 SQLite 的 INTEGER 存储）常把布尔列给成 0 / 1
+      return raw === true || raw === 1 || raw === 'true' || raw === '1';
     case 'date': {
       // 返回 Date 而不是 ISO 字符串：`PropertyType.date` 的运行时契约就是 Date
       // （见 `EntityBase.createdAt!: Date`）。返回字符串后写回实体，
@@ -170,23 +171,29 @@ export function parseEntityFieldValue(type: EntityFieldTypeName, raw: unknown): 
  * 下游按契约直接调 `.toISOString()` 就地抛错 —— 在模板渲染里这一抛会提交抛之前的绑定、
  * 跳过之后的，留下半行更新过的 DOM。
  *
- * 两条刻意的边界：
+ * 三条刻意的边界：
  *
  * - **不补键**。只映射 `raw` 自身的可枚举键，缺席的字段一个都不添。`parseEntityFieldValue`
  *   把 `undefined` 归一化成 `null`，补键等于拿 `null` 覆盖实体上本来好好的值。
  * - **元数据以外的键原样透传**。`__etag` 这类随响应捎带的东西不属于任何已声明属性，
  *   本函数无从解释它，替调用方猜一个类型比留着不动更糟。
+ * - **唯独 `__proto__` 不透传**。JSON 里它是合法的自有键，但结果的用途就是 `Object.assign`
+ *   到实体实例上：赋值形式会命中原型 setter、把结果对象的原型换成远端给的对象（远端数据借继承冒充字段）；
+ *   作为自有键交出去，`Object.assign` 又会走 [[Set]] 把实例的原型换掉、实例方法全部消失。
+ *   它不可能是已声明属性（注册期 `reservedName` 规则拒绝），丢掉它不丢任何实体数据。
+ *   结果用 `Object.fromEntries()` 构造，其余键（含 `constructor` / `toString`）一律是自有数据键。
  */
 export function parseEntityRecordValues(
   metadata: EntityMetadata,
   raw: Readonly<Record<string, unknown>>
 ): Record<string, unknown> {
-  const decoded: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(raw)) {
-    const property = metadata.propertyMap.get(key);
-    decoded[key] = property ? parseEntityFieldValue(property.type, value) : value;
-  }
-  return decoded;
+  const entries = Object.entries(raw)
+    .filter(([key]) => key !== '__proto__')
+    .map(([key, value]) => {
+      const property = metadata.propertyMap.get(key);
+      return [key, property ? parseEntityFieldValue(property.type, value) : value] as const;
+    });
+  return Object.fromEntries(entries);
 }
 
 export function formatEntityFieldValue(type: EntityFieldType | string, value: unknown): string {

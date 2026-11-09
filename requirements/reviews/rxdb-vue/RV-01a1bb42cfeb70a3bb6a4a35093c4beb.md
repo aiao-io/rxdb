@@ -7,7 +7,7 @@ range: project
 base_ref: null
 review_scopes: []
 scope_id: 'project:rxdb-vue'
-status: Open
+status: Fixed
 severity: P2
 source_view: commit
 source_snapshot: '0ffa3c419fcc59dc3e13d695ca4658116134bfa0'
@@ -16,7 +16,7 @@ found_branch: refs/heads/codex/full-review-main-20261108
 found_snapshot: '0ffa3c419fcc59dc3e13d695ca4658116134bfa0'
 found_range: project
 created: 2026-11-08
-updated: 2026-11-08
+updated: 2026-11-09
 anchors:
   - 'packages/rxdb-vue/src/useInfiniteScroll.ts#commitPage'
   - 'packages/rxdb-angular/src/InfiniteScrollingList.ts#commitPage'
@@ -75,3 +75,16 @@ pr: null
 - 结论：重锚替换在途尾页时，最新用户加载编号被丢弃，三端缺少能复位 loading 的活订阅。
 - 验证：在共享工作区执行 `node /Users/jimmy/Documents/aiao/rxdb/.git/ai-review/v1/runs/full-main-20261108/parallel-001/ui/repro-infinite-scroll-reanchor-loading.mjs`，退出 0，实际输出及断言如上。未启动重型构建或全套单测。
 - 剩余事项：三端统一修复加载完成责任并补时序回归，再按 verify 复核。
+
+### EV-01a1be40772b7c99860ce6b319746076：修复
+
+- 时间：2026-11-09T11:00:58+08:00
+- 操作：fix
+- 执行者：ai；anthropic/claude-opus-5-5；会话 aa117580-681a-4540-85b2-3c61967b2092（Claude Code 并行子 agent G08）
+- 输入快照：`1b5fb4e43f449bace1d6f67df78e55a129863f50`（提交视图）
+- 输出快照：工作区树 `d5fd4fd913ad3d439bb538504e32a6599ef5e0b8`（`ai-review snapshot --worktree`，基于 `1b5fb4e4`，含其他并行修复的未提交改动）
+- 状态：Open → Fixed
+- 结论：成立，P2 维持，三端都复现（不只是 Vue）。重锚统一传 `undefined` 编号，而原页已被退订，用户加载的结算责任就此丢失；复核中发现同一根因的第二条路径：上一页清空时丢弃尾页（`dropTrailing` / `#truncatePages`），若被丢的是在途的最新页，同样永远停在 `isLoading: true`。修法：页句柄记下「这页负责结算的用户加载编号」，重锚的替代页沿用被替换那页的编号；丢弃尾页时其中在途的最新加载由当前页代为结算。旧页正常重发（编号不是最新）仍不结束最新页 loading，原有用例不变。
+- 改动：React `packages/rxdb-react/src/useInfiniteScroll.ts`（`PageHandle.loadId`、`isLatestLoad`、重锚传 `next.loadId`、丢弃尾页时 `settles`）；Vue `packages/rxdb-vue/src/useInfiniteScroll.ts`（`PageHandle.loadId`、`finishLatestLoad` 收 `undefined`、重锚与丢弃同上）；Angular `packages/rxdb-angular/src/InfiniteScrollingList.ts`（`PageHandle.request`、`#settleRequest`、重锚传 `next.request`、`#truncatePages` 结算被丢的最新请求）。三端各新增同一组四条回归「在途页被重锚或丢弃时的加载结算」：替代页返回后结束加载且还能继续翻页、替代页失败时结束加载并报错、替代页无首值 complete 时结束加载并收敛 `hasMore`、上一页清空丢弃在途下一页时结束加载。
+- 验证：修复前红：rxdb-react `useInfiniteScroll.spec.ts` 4 条、rxdb-vue `useInfiniteScroll.spec.ts`（`--coverage.enabled=false`）4 条、rxdb-angular `InfiniteScrollingList.spec.ts` 4 条全部失败，均为 `isLoading` 停在 `true`。修复后绿：React 26 条、Vue 48 条、Angular 59 条通过；React 全部 node 单测 243 条通过；三端 `npx tsc -p tsconfig.lib.json --noEmit` / `tsconfig.spec.json --noEmit` 无错误，改动文件 eslint（max-warnings 0）通过。三端整包测试留到本组收尾统一跑。
+- 剩余事项：无（三端已同时修复）；收尾复核。

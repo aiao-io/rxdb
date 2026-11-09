@@ -147,18 +147,30 @@ function listAmbientDeclarations(srcDir) {
  *
  * 两种 AST 形状都要认：语句级 `export type { A, B } from '...'`（ExportDeclaration.isTypeOnly）
  * 与逐 specifier 的 `export { type A, b }`（ExportSpecifier.isTypeOnly）；`import type` 后
- * 再本地转出同理。
+ * 再本地 `export { A }` 时，导出符号自己的声明是普通 ExportSpecifier，type-only 在它指向的
+ * 导入别名上，所以沿别名链逐跳看，链上任何一跳仅类型，运行时就没有这个值。
  * @param {import('typescript').Symbol} symbol 入口模块上的导出符号（别名解析**之前**的那个）
+ * @param {import('typescript').TypeChecker} checker 同一 program 的类型检查器
  */
-function isTypeOnlyExport(symbol) {
-  const declarations = symbol.declarations ?? [];
-  if (declarations.length === 0) return false;
+function isTypeOnlyExport(symbol, checker) {
+  for (let alias = symbol; alias && alias.flags & ts.SymbolFlags.Alias; alias = checker.getImmediateAliasedSymbol(alias)) {
+    if (declaredTypeOnly(alias)) return true;
+  }
+  return false;
+}
+
+function declaredTypeOnly(alias) {
+  const declarations = alias.declarations ?? [];
   // 同名符号有多处声明时，只要有一处是值形式转出，运行时就有这个值。
-  return declarations.every(
-    d =>
-      (ts.isExportSpecifier(d) && (d.isTypeOnly || d.parent.parent.isTypeOnly)) ||
-      (ts.isImportSpecifier(d) && (d.isTypeOnly || d.parent.parent.isTypeOnly))
-  );
+  return declarations.length > 0 && declarations.every(isTypeOnlyAliasDeclaration);
+}
+
+function isTypeOnlyAliasDeclaration(declaration) {
+  if (ts.isExportSpecifier(declaration) || ts.isImportSpecifier(declaration)) {
+    return declaration.isTypeOnly || declaration.parent.parent.isTypeOnly;
+  }
+  if (ts.isImportClause(declaration)) return declaration.isTypeOnly;
+  return ts.isNamespaceImport(declaration) && declaration.parent.isTypeOnly;
 }
 
 /**
@@ -197,13 +209,16 @@ export function extractExports(entryFile, srcDir) {
     if (!resolved.declarations?.length) {
       throw new Error(`导出符号 ${symbol.getName()} 无法解析（re-export 目标缺失或路径未配置）`);
     }
-    const isType = Boolean(resolved.flags & (flags.Type | flags.Interface | flags.TypeAlias | flags.TypeParameter));
-    // `export type { X }` 只转类型，运行时没有这个值 —— 声明处是不是 class 都一样。
-    const isValue = Boolean(resolved.flags & flags.Value) && !isTypeOnlyExport(symbol);
+    // `export type { X }` 只转类型，运行时没有这个值 —— 声明处是不是 class 都一样；
+    // 纯值（常量、函数）这样转出后只剩 `typeof X` 可用，同样记为 type，不能因声明处没有 Type flag 退回 value。
+    const typeOnly = isTypeOnlyExport(symbol, checker);
+    const isValue = !typeOnly && Boolean(resolved.flags & flags.Value);
+    const isType =
+      typeOnly || Boolean(resolved.flags & (flags.Type | flags.Interface | flags.TypeAlias | flags.TypeParameter));
     const kind =
       isType && isValue ? 'both'
-      : isType ? 'type'
-      : 'value';
+      : isValue ? 'value'
+      : 'type';
     results.push({ name: symbol.getName(), kind });
   }
   return results.sort((a, b) => a.name.localeCompare(b.name));

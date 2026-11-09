@@ -293,7 +293,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
      - `--style=stream|static|buffer`（Nx 输出样式，默认 `stream`）；
      - `--log=<path>` 自定义日志路径（默认 `./logs/test-all/YYYY-MM-DD/HHMMSS.log`）；
      - `--parallel=<n>`、`--max-line=<n>`（日志单行字节上限）、`--no-bail`、`--all`、`--dry-run`、`-v`、`--` 后透传额外 nx 参数（如 `-- --base=develop`）。
-  2. `buildNxArgs` 拼出 `pnpm exec nx affected -t <targets> --output-style=<style> --skipRemoteCache --parallel=<n> [--nxBail] [--untracked|--uncommitted|--base=main]`；用 `git status --porcelain` 选默认 base flag（有 `??` 用 `--untracked`，否则有改动用 `--uncommitted`，干净用 `--base=main`）。
+  2. `buildNxArgs` 拼出 `pnpm exec nx affected -t <targets> --output-style=<style> --skipRemoteCache --parallel=<n> [--nxBail] --base=main`；默认范围固定为 `--base=main`，与 `pnpm test-all` 同口径：Nx 只在单给 `--base` 时合并分支上已提交的改动、未提交修改与未跟踪文件，`--untracked` / `--uncommitted` 各只看其中一类，按 `git status` 挑一个会漏测（`--` 后可显式覆盖）。
   3. `runNx`：
      - 同时 `stdout` 透传到终端 + 写到 `logPath` 流；
      - 收尾后 `formatNxLog` 清掉 ANSI / `\r`、压缩连续空行、超过 `--max-line` 截成 `前 75% ... 省略 N 字符 ... 后 20%`；
@@ -451,7 +451,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
   - `status` / `cover`：必审单元与覆盖登记。覆盖按内容寻址（评审标准摘要 + range + 路径 + 两侧 blob），上下文变了或引用的记录不见了就失效；
   - `new-id` / `find-issue`：生成 `RV-` / `EV-` 加 UUIDv7 的 ID，按完整 ID 或前缀找记录。
 - **状态**：只追加写进 `<git common dir>/ai-review/v1/coverage.jsonl`，同一仓库的所有 worktree 共享，不提交。
-- **测试**：`ai-review.spec.mjs` 在临时仓库里覆盖快照、归属、失效规则、range=branch 与 CLI。
+- **测试**：`ai-review.spec.mjs` 在临时仓库里覆盖快照、归属、失效规则、range=branch（含整个删掉与改名的项目）、日志半行封存与并发登记、`--since` 时刻比较与 CLI。
 
 ## 11. 内部依赖（不可直接执行）
 

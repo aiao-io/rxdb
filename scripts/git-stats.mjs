@@ -12,7 +12,7 @@ import { execSync } from 'node:child_process';
 import { readdirSync, statSync } from 'node:fs';
 import { availableParallelism } from 'node:os';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Worker } from 'node:worker_threads';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -90,32 +90,26 @@ function getTrackedFiles() {
   );
 }
 
+/** worker 按作者累计的四个桶：普通代码、测试、注释、文档。 */
+const STAT_BUCKETS = ['authorLines', 'authorTestLines', 'authorCommentLines', 'authorMarkdownLines'];
+
+function addAuthorCounts(target, source = {}) {
+  for (const [author, lines] of Object.entries(source)) {
+    target[author] = (target[author] || 0) + lines;
+  }
+}
+
 /**
- * 合并多个项目统计对象
+ * 合并多个 worker 交回的项目统计对象：四个桶都按作者累加。
+ * 曾漏掉 `authorLines`，项目与作者的 Code 列、总行数与占比整列归零。
  */
-function mergeProjectStats(statsArray) {
+export function mergeProjectStats(statsArray) {
   const merged = {};
 
   for (const projectStats of statsArray) {
     for (const [project, stats] of Object.entries(projectStats)) {
-      if (!merged[project]) {
-        merged[project] = {
-          authorLines: {},
-          authorTestLines: {},
-          authorCommentLines: {},
-          authorMarkdownLines: {}
-        };
-      }
-
-      for (const [author, lines] of Object.entries(stats.authorTestLines || {})) {
-        merged[project].authorTestLines[author] = (merged[project].authorTestLines[author] || 0) + lines;
-      }
-      for (const [author, lines] of Object.entries(stats.authorCommentLines || {})) {
-        merged[project].authorCommentLines[author] = (merged[project].authorCommentLines[author] || 0) + lines;
-      }
-      for (const [author, lines] of Object.entries(stats.authorMarkdownLines || {})) {
-        merged[project].authorMarkdownLines[author] = (merged[project].authorMarkdownLines[author] || 0) + lines;
-      }
+      merged[project] ??= Object.fromEntries(STAT_BUCKETS.map(bucket => [bucket, {}]));
+      for (const bucket of STAT_BUCKETS) addAuthorCounts(merged[project][bucket], stats[bucket]);
     }
   }
 
@@ -479,7 +473,9 @@ async function runGitStats() {
   console.timeEnd('use');
 }
 
-runGitStats().catch(error => {
-  console.error('Error running git stats:', error);
-  process.exit(1);
-});
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  runGitStats().catch(error => {
+    console.error('Error running git stats:', error);
+    process.exit(1);
+  });
+}

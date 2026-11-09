@@ -516,6 +516,47 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
   }
 
   /**
+   * 写入成功后的收尾：以数据库返回的行推进基线，提交之后才产生的本地编辑保留为未保存改动。
+   *
+   * @param row - 数据库返回的行（新基线）
+   * @param submitted - 本次写入实际提交的字段值：更新是提交的 patch，创建是生成 INSERT 那一刻的整行
+   *
+   * @remarks
+   * 写入是异步的，等待期间用户可能继续编辑。逐字段判「当前值是否还等于提交的值」：
+   * 等于（或这个字段根本没参与本次提交且没有本地编辑）就取数据库的值；不等说明是提交之后的新编辑，
+   * 保留并按新基线重算 patch / `modified`，下一次 `save()` 会把它写出去。
+   *
+   * 与 {@link replace} 的区别：`replace` 整行覆盖并归零 `modified`，等待期间的新输入随之消失，
+   * 下一次 `save()` 还是空操作。与 {@link mergeExternal} 的区别：后者对仍在 patch 里的键一律保留本地值，
+   * 刚提交的值若被数据库改写（触发器、类型归一）会一直残留成假差异；这里以数据库为准。
+   *
+   * 没给出某个已编辑字段的提交值时，该字段按「未提交」处理（与 `mergeExternal` 同一结论），不丢编辑。
+   */
+  applyWriteResult(row: Partial<InstanceType<T>>, submitted: Readonly<Partial<InstanceType<T>>>): void {
+    const pending = this.#unsubmitted_edits(submitted);
+    this.replace(row);
+    if (pending.size === 0) return;
+    const target = this.target as Record<string, unknown>;
+    for (const [key, value] of pending) {
+      target[key as string] = value;
+      this.#changed_keys.add(key);
+    }
+    this.#clear_cache(false);
+    this.#relations.syncObservableForeignKeys();
+    this._modified = Object.keys(this.patch).length > 0;
+  }
+
+  /** 提交之后才产生的本地编辑：当前值不等于本次提交的值（没提交的字段比旧基线） */
+  #unsubmitted_edits(submitted: Readonly<Partial<InstanceType<T>>>): Map<keyof InstanceType<T>, unknown> {
+    const pending = new Map<keyof InstanceType<T>, unknown>();
+    for (const key of this.#changed_keys) {
+      const sent = Object.hasOwn(submitted, key) ? submitted[key] : this._origin[key];
+      if (!isEqual(this.target[key], sent)) pending.set(key, this.target[key]);
+    }
+    return pending;
+  }
+
+  /**
    * 记录实体变更
    *
    * 机制：
@@ -552,6 +593,7 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
    * 1. 始终包含当前实体（this.proxyTarget）
    * 2. 遍历所有关系类型的缓存
    * 3. 筛选出 modified=true 的关联实体
+   * 4. 加上一对多集合 `remove()` 解绑、外键置空还没落库的子实体
    *
    * 注意：
    * - 此方法只查找直接关联的实体，不递归
@@ -569,6 +611,7 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
         }
       }
     });
+    for (const entity of this.#relations.takePendingDetached()) entities.add(entity as InstanceType<T>);
     return Array.from(entities);
   }
 

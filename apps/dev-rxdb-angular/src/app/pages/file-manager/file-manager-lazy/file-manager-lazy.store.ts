@@ -35,6 +35,7 @@ export class TreeFileLazyStore<C extends FileTreeEntityConstructor>
   private readonly searchService!: FileSearchService;
   private rootSubscription!: Subscription;
   private childSubscriptions = new Map<string, Subscription>();
+  private destroyed = false;
   private rootNodes = signal<FileTreeInstance<C>[]>([]);
   private childNodesMap = signal<Map<string, FileTreeInstance<C>[]>>(new Map());
 
@@ -130,6 +131,7 @@ export class TreeFileLazyStore<C extends FileTreeEntityConstructor>
   }
 
   ngOnDestroy(): void {
+    this.destroyed = true;
     this.rootSubscription?.unsubscribe();
     for (const sub of this.childSubscriptions.values()) sub.unsubscribe();
     this.childSubscriptions.clear();
@@ -223,6 +225,11 @@ export class TreeFileLazyStore<C extends FileTreeEntityConstructor>
     });
   }
 
+  /**
+   * 批量添加：写入期间退订全部查询，收尾（成败都走）按当前模式重新订阅；页面已销毁就不再重建订阅。
+   *
+   * @throws 保存失败时原样抛出，由页面的 `runWrite` 展示
+   */
   override async addBatch(count: number): Promise<void> {
     // 1. Unsubscribe everything to prevent UI updates during massive insert
     this.rootSubscription?.unsubscribe();
@@ -233,9 +240,15 @@ export class TreeFileLazyStore<C extends FileTreeEntityConstructor>
 
     // 2. Generate and save files
     const newFiles = generateBatchFiles(count, () => this.createEntity());
-    await this.rxdb.entityManager.saveMany<C>(newFiles);
+    try {
+      await this.rxdb.entityManager.saveMany<C>(newFiles);
+    } finally {
+      if (!this.destroyed) this.resubscribeAfterBatch();
+    }
+  }
 
-    // 3. Reset state and resubscribe
+  /** 批量写入收尾：页面状态回到库里已提交的状态，按当前模式重新订阅。 */
+  private resubscribeAfterBatch(): void {
     this.expandedFileIds.set(new Set());
     this.childNodesMap.set(new Map());
     this.loadingNodes.set(new Set());

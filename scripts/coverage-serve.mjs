@@ -15,7 +15,7 @@
 import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize, relative, resolve, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const coverageRoot = join(root, 'coverage');
@@ -219,7 +219,28 @@ function readMetrics(dir) {
   return null;
 }
 
+/** 报告目录正被 vitest 清理重建时，刚列出的项随时可能消失或被换成文件。 */
+const VANISHED_CODES = new Set(['ENOENT', 'ENOTDIR']);
+
 /**
+ * 读目录项；该项在列出之后消失（ENOENT / ENOTDIR）时返回 `fallback`，其余错误照常抛出。
+ *
+ * @template T
+ * @param {() => T} read
+ * @param {T} fallback
+ * @returns {T}
+ */
+function readIfPresent(read, fallback) {
+  try {
+    return read();
+  } catch (error) {
+    if (VANISHED_CODES.has(error?.code)) return fallback;
+    throw error;
+  }
+}
+
+/**
+ * @param {string} [coverageDir] 覆盖率根目录，默认仓库的 coverage/
  * @returns {{
  *   id: string,
  *   href: string | null,
@@ -227,18 +248,18 @@ function readMetrics(dir) {
  *   metrics: ReturnType<typeof emptyTotals> | null,
  * }[]}
  */
-function listReports() {
-  if (!existsSync(coverageRoot)) return [];
+export function listReports(coverageDir = coverageRoot) {
+  if (!existsSync(coverageDir)) return [];
 
   /** @type {{ id: string, href: string | null, group: string, metrics: ReturnType<typeof emptyTotals> | null }[]} */
   const reports = [];
   for (const group of ['packages', 'modules']) {
-    const groupDir = join(coverageRoot, group);
-    if (!existsSync(groupDir) || !statSync(groupDir).isDirectory()) continue;
+    const groupDir = join(coverageDir, group);
+    if (!readIfPresent(() => statSync(groupDir).isDirectory(), false)) continue;
 
-    for (const name of readdirSync(groupDir).sort()) {
+    for (const name of readIfPresent(() => readdirSync(groupDir), []).sort()) {
       const dir = join(groupDir, name);
-      if (!statSync(dir).isDirectory()) continue;
+      if (!readIfPresent(() => statSync(dir).isDirectory(), false)) continue;
 
       const hasHtml = existsSync(join(dir, 'index.html'));
       const metrics = readMetrics(dir);
@@ -791,6 +812,8 @@ function serve(port, focusHref = '/') {
   });
 }
 
-const { pkg, port } = parseArgs(process.argv.slice(2));
-const focusHref = resolveReportHref(pkg);
-serve(port, focusHref);
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const { pkg, port } = parseArgs(process.argv.slice(2));
+  const focusHref = resolveReportHref(pkg);
+  serve(port, focusHref);
+}

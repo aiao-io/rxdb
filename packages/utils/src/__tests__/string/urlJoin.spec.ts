@@ -220,6 +220,32 @@ describe('查询串不得吞掉后续路径段', () => {
     expect(urlJoin('http://x.com', 'a?x=1', 'b', '&y=2', '#top')).toEqual('http://x.com/a/b?x=1&y=2#top');
   });
 
+  // 查询片段原先和路径段一起做 `.` / `..` 归一化：参数值被改写，值里的 `..` 还会弹掉路径段（RV-01a1bbb523ad7fc1ad77f3f931699bdf）
+  it('查询值里的点路径按原值保留', () => {
+    expect(urlJoin('https://example.test', '?next=/a/../b')).toEqual('https://example.test?next=/a/../b');
+    expect(urlJoin('https://example.test', '?next=/a/./b')).toEqual('https://example.test?next=/a/./b');
+    const next = new URL(urlJoin('https://example.test', 'login', '?next=/a/../b')).searchParams.get('next');
+    expect(next).toBe('/a/../b');
+  });
+
+  it('查询值里的 `..` 不得弹掉路径段', () => {
+    expect(urlJoin('/a/b', '?next=/../../c')).toEqual('/a/b?next=/../../c');
+    expect(urlJoin('http://x.com/a', 'b?next=..', 'c')).toEqual('http://x.com/a/b/c?next=..');
+  });
+
+  it('查询值里的嵌套 URL 与已编码点路径原样保留', () => {
+    expect(urlJoin('http://x.com', 'auth', '?redirect=https://y.test/a/../b')).toEqual(
+      'http://x.com/auth?redirect=https://y.test/a/../b'
+    );
+    expect(urlJoin('http://x.com', '?u=https%3A%2F%2Fy.test%2Fa%2F..%2Fb')).toEqual(
+      'http://x.com?u=https%3A%2F%2Fy.test%2Fa%2F..%2Fb'
+    );
+  });
+
+  it('路径段照旧归一化，多段查询串照旧以 & 合并', () => {
+    expect(urlJoin('/a/b', '../c', '?x=/./1', '?y=2')).toEqual('/a/c?x=/./1&y=2');
+  });
+
   it('首段只有查询串时不得被当成前缀', () => {
     expect(urlJoin('?a=1', 'b')).toEqual('b?a=1');
     expect(urlJoin('?a=1')).toEqual('?a=1');

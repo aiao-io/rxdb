@@ -2,45 +2,95 @@
  * 合并多个 vitest JSON 报告（coverage-final.json）为一份汇总，写入 artifacts 目录。
  */
 
+import { realpathSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import { writeValidatedCoveragePair } from './coverage-artifacts.mjs';
 
 const readJson = async file => JSON.parse(await readFile(file, 'utf8'));
 
-const mergeCounters = (left, right) => {
-  if (Array.isArray(left) || Array.isArray(right)) {
-    const leftArray = Array.isArray(left) ? left : [];
-    const rightArray = Array.isArray(right) ? right : [];
-    const length = Math.max(leftArray.length, rightArray.length);
-    return Array.from({ length }, (_, index) => (leftArray[index] ?? 0) + (rightArray[index] ?? 0));
-  }
+const locationKey = ({ start, end }) => `${start.line}|${start.column}|${end.line}|${end.column}`;
 
-  const result = {};
-  const keys = new Set([...Object.keys(left ?? {}), ...Object.keys(right ?? {})]);
-  for (const key of keys) {
-    const leftValue = left?.[key];
-    const rightValue = right?.[key];
-    result[key] =
-      Array.isArray(leftValue) || Array.isArray(rightValue) ?
-        mergeCounters(leftValue, rightValue)
-      : (leftValue ?? 0) + (rightValue ?? 0);
+/**
+ * 三类计数各自的配对键与所占区间，与 istanbul-lib-coverage 合并同一口径：语句按自身区间配对，函数按 `loc`，
+ * 分支按第一个分支区间；找包含区间时函数、分支都用 `loc`。计数 ID 是各份报告自己编的号，不能跨报告配对。
+ */
+const KINDS = [
+  { map: 'statementMap', hits: 's', keyOf: item => locationKey(item), regionOf: item => item },
+  { map: 'fnMap', hits: 'f', keyOf: item => locationKey(item.loc), regionOf: item => item.loc },
+  { map: 'branchMap', hits: 'b', keyOf: item => locationKey(item.locations[0]), regionOf: item => item.loc }
+];
+
+const addHits = (left, right) =>
+  Array.isArray(left) ? left.map((hits, index) => hits + (right[index] ?? 0)) : left + right;
+
+const distanceTo = (inner, outer) => [
+  inner.start.line - outer.start.line,
+  inner.start.column - outer.start.column,
+  outer.end.line - inner.end.line,
+  outer.end.column - inner.end.column
+];
+
+const outside = ([startLine, startColumn, endLine, endColumn]) =>
+  startLine < 0 || endLine < 0 || (startLine === 0 && startColumn < 0) || (endLine === 0 && endColumn < 0);
+
+const closer = (distance, best) =>
+  distance[0] < best[0] ||
+  (distance[0] === 0 && distance[1] < best[1]) ||
+  distance[2] < best[2] ||
+  (distance[2] === 0 && distance[3] < best[3]);
+
+/** 另一份报告里包含该区间的最窄一项的 ID；没有就是 `undefined`。 */
+const nearestContainer = (region, side, regionOf) => {
+  let nearest;
+  for (const [id, item] of Object.entries(side.map)) {
+    const distance = distanceTo(region, regionOf(item));
+    if (outside(distance) || (nearest !== undefined && !closer(distance, nearest.distance))) continue;
+    nearest = { id, distance };
   }
-  return result;
+  return nearest?.id;
 };
 
-const mergeCoverageFile = (left, right) => ({
-  ...(left ?? right),
-  path: left?.path ?? right?.path,
-  statementMap: left?.statementMap ?? right?.statementMap ?? {},
-  fnMap: left?.fnMap ?? right?.fnMap ?? {},
-  branchMap: left?.branchMap ?? right?.branchMap ?? {},
-  s: mergeCounters(left?.s, right?.s),
-  f: mergeCounters(left?.f, right?.f),
-  b: mergeCounters(left?.b, right?.b),
-  meta: left?.meta ?? right?.meta
-});
+const indexByKey = (side, keyOf) =>
+  new Map(Object.entries(side.map).map(([id, item]) => [keyOf(item), { item, hits: side.hits[id] }]));
+
+/** 只在一侧出现的区间：另一侧最近的包含区间执行过，就算它也执行过（v8 报告的子区间常只出现在一侧）。 */
+const borrowHits = (entry, other, regionOf) => {
+  const id = nearestContainer(regionOf(entry.item), other, regionOf);
+  return id === undefined ? entry.hits : addHits(entry.hits, other.hits[id]);
+};
+
+const mergeKind = (left, right, { keyOf, regionOf }) => {
+  const leftItems = indexByKey(left, keyOf);
+  const rightItems = indexByKey(right, keyOf);
+  const merged = [...leftItems].map(([key, entry]) => {
+    const match = rightItems.get(key);
+    return { item: entry.item, hits: match ? addHits(entry.hits, match.hits) : borrowHits(entry, right, regionOf) };
+  });
+  for (const [key, entry] of rightItems) {
+    if (!leftItems.has(key)) merged.push({ item: entry.item, hits: borrowHits(entry, left, regionOf) });
+  }
+  return {
+    map: Object.fromEntries(merged.map(({ item }, index) => [index, item])),
+    hits: Object.fromEntries(merged.map(({ hits }, index) => [index, hits]))
+  };
+};
+
+const sideOf = (file, kind) => ({ map: file[kind.map] ?? {}, hits: file[kind.hits] ?? {} });
+
+/** 同一源码文件的两份报告按源位置合并：同一区间的计数相加，再统一重新编号。 */
+const mergeCoverageFile = (left, right) => {
+  if (left === undefined) return right;
+  const merged = { ...left };
+  for (const kind of KINDS) {
+    const { map, hits } = mergeKind(sideOf(left, kind), sideOf(right, kind), kind);
+    merged[kind.map] = map;
+    merged[kind.hits] = hits;
+  }
+  return merged;
+};
 
 const mergeCoverageMaps = (left, right) => {
   const merged = new Map();
@@ -141,7 +191,9 @@ const parseArg = (args, name, fallback) => {
   return value ? value.slice(name.length + 1) : fallback;
 };
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// 入口判定按真实路径转 file URL：路径里的空格要编码，经符号链接（如 macOS 的 /var → /private/var）启动时
+// import.meta.url 是解析后的真实路径
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   const nodeDir = parseArg(process.argv.slice(2), '--node', 'coverage/packages/rxdb-plugin-search');
   const browserDir = parseArg(process.argv.slice(2), '--browser', 'coverage/packages/rxdb-plugin-search-browser');
   const outputDir = parseArg(process.argv.slice(2), '--output', nodeDir);

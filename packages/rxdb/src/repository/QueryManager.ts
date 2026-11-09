@@ -19,6 +19,7 @@ import {
 } from '../rxdb-events.js';
 import { deterministicStringify, getEntityStatus } from '../rxdb-utils.js';
 import type { RxDB } from '../RxDB.js';
+import type { WorktreeTableSet } from '../system/worktree-table-set.js';
 import { Fingerprint } from './fingerprint.utils.js';
 import { QueryOptions } from './QueryManager.interface.js';
 import { QueryTask } from './QueryTask.js';
@@ -284,13 +285,21 @@ export class QueryManager<T extends EntityType> {
       rxdb: this.rxdb,
       depEntityTypeMap: this.#dep_entity_type_map,
       serialize: this.#serialize,
-      onClean: this.#on_clean
+      onClean: this.#detach_task,
+      onError: this.#detach_task
     });
     return task;
   }
 
-  #on_clean = (key: string) => {
-    this.#query_task_map.delete(key);
+  /**
+   * 把任务从缓存表摘下，按身份比对。
+   *
+   * @remarks
+   * 两个调用点：任务被清理，或一轮查询失败（错误会终结它的全部观察者，分发途中重订阅的
+   * 要落到新任务上重新执行）。同一键下可能已经是接替它的新任务，只按键删会把新任务一起摘掉。
+   */
+  #detach_task = (key: string, task: object): void => {
+    if (task !== undefined) this.#query_task_map.delete(key);
   };
 
   #serialize = (data: RxDBEntityLocalEventData<T>): InstanceType<T> => {
@@ -449,6 +458,62 @@ export class QueryManager<T extends EntityType> {
   }
 
   /**
+   * 过滤出与当前查询任务相关、且本实例挂着的那套表读得到的实体负载（US-314 B2.3）。
+   *
+   * @param event - 本次实体变更事件
+   * @param tableSet - 按哪一套表判定
+   * @returns 相关的实体负载
+   *
+   * @remarks
+   * 别的可写检出位写的行不在这套表里，合进来会把缓存里同 id 的实体改成另一套表上的值。
+   */
+  #relevant_entities(
+    event: EntityLocalCreatedEvent | EntityLocalUpdatedEvent | EntityLocalRemovedEvent,
+    tableSet: WorktreeTableSet
+  ): RxDBEntityLocalEventData[] {
+    return event.entities.filter(d => {
+      const entityType = this.rxdb.schemaManager.getEntityType<T>(d.entity, d.namespace);
+      return (
+        entityType &&
+        this.#dep_entity_type_map.has(entityType) &&
+        tableSet.accepts(this.rxdb.schemaManager.getEntityMetadata(d.entity, d.namespace), d.tableSetSuffix)
+      );
+    });
+  }
+
+  /**
+   * 分片的消费函数：在**执行时**而不是接收时核对任务与表集。
+   *
+   * @param event - 本次实体变更事件
+   * @param received - 接收事件时的表集与按它筛好的负载
+   * @returns 交给 `performChunk` 的消费函数
+   *
+   * @remarks
+   * 分片排在 `requestIdleCallback` 之后，接收与执行之间什么都可能发生：
+   * - 任务被 `clean()` 摘掉（最后一个订阅者退订、`destroy()`）。合进去不会有人看，却会经
+   *   `#serialize` 往身份缓存里写一个没人持有的实体，跳过；
+   * - 实例换挂了另一套表（`mountWorktreeTableSet()`）。接收时筛好的负载属于旧那一套：
+   *   合进来，主表的行就进了影子表的查询结果，还被 `createEntityRef` 打上新表集的身份。
+   *   按执行时挂着的那套重新筛：成员实体在旧表上的行被筛掉，两套表共用的主表实体照常合入。
+   *   换挂本身会让全部查询重跑，筛掉的不会丢。
+   */
+  #queued_merge(
+    event: EntityLocalCreatedEvent | EntityLocalUpdatedEvent | EntityLocalRemovedEvent,
+    received: { readonly tableSet: WorktreeTableSet; readonly entities: RxDBEntityLocalEventData[] }
+  ): (task: QueryTask<T>) => void {
+    let { tableSet, entities } = received;
+    return task => {
+      if (this.#query_task_map.get(task.cacheKey) !== task) return;
+      const current = this.rxdb.worktreeTableSet;
+      if (current !== tableSet) {
+        tableSet = current;
+        entities = this.#relevant_entities(event, current);
+      }
+      if (entities.length > 0) this.#merge_event_into_task(task, event, entities);
+    };
+  }
+
+  /**
    * 初始化数据库变更监听
    *
    * 该方法监听实体的增删改事件，并使用增量更新策略优化查询缓存：
@@ -470,17 +535,8 @@ export class QueryManager<T extends EntityType> {
         return;
       }
 
-      // 过滤出与当前查询任务相关的实体，且只收本实例挂着那套表读得到的（US-314 B2.3）：别的可写检出位写的行
-      // 不在这套表里，合进来会把缓存里同 id 的实体改成另一套表上的值
       const tableSet = this.rxdb.worktreeTableSet;
-      const entities = event.entities.filter(d => {
-        const entityType = this.rxdb.schemaManager.getEntityType<T>(d.entity, d.namespace);
-        return (
-          entityType &&
-          this.#dep_entity_type_map.has(entityType) &&
-          tableSet.accepts(this.rxdb.schemaManager.getEntityMetadata(d.entity, d.namespace), d.tableSetSuffix)
-        );
-      });
+      const entities = this.#relevant_entities(event, tableSet);
 
       // 如果有相关的实体变更，执行增量缓存更新
       if (entities.length) {
@@ -490,8 +546,9 @@ export class QueryManager<T extends EntityType> {
         // performChunk，它会 reject `done` 并**停止排后续分片** —— 同一批里排在后面的
         // 查询任务一条都不会再合并，缓存停在事件之前的样子，且没有任何人去纠正它。
         // 一个查询的合并策略出问题不该让另一个查询显示脏数据。
-        void performChunk(Array.from(this.#query_task_map.values()), task =>
-          this.#merge_event_into_task(task, event, entities)
+        void performChunk(
+          Array.from(this.#query_task_map.values()),
+          this.#queued_merge(event, { tableSet, entities })
         ).done.catch((error: unknown) => {
           // 走到这里说明是分片调度自身出错（consumer 已不会抛）。不向上抛：
           // 这是事件监听器，抛出去只会变成另一条无人接管的错误。

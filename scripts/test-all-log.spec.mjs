@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import { formatNxLog, parseArgs, parseNxLog, renderReport, resolveNxExitCode } from './test-all-log.mjs';
 
@@ -172,4 +176,39 @@ test('resolveNxExitCode 以 Failed tasks 校正错误的成功退出码', () => 
   assert.equal(resolveNxExitCode(0, failedResult), 1);
   assert.equal(resolveNxExitCode(7, failedResult), 7);
   assert.equal(resolveNxExitCode(0, { ...failedResult, failed: [], failures: [] }), 0);
+});
+
+// Nx 的 `--untracked` 只看新文件、`--uncommitted` 只看已跟踪文件的未提交修改，两者都丢掉分支上已提交的改动；
+// 只有单给 `--base` 时才合并「base...HEAD、未提交修改、未跟踪文件」三类（nx parseFiles）。曾按 git status
+// 在三者之间选一个：工作区里有新文件就只传 `--untracked`，同时改着的产品源码整个漏测。
+test('默认 affected 范围与 pnpm test-all 一致：提交差异、未提交修改与新文件同时计入', t => {
+  const repo = mkdtempSync(join(tmpdir(), 'test-all-log-scope-'));
+  t.after(() => rmSync(repo, { recursive: true, force: true }));
+  const git = (...args) => execFileSync('git', args, { cwd: repo, stdio: 'pipe' });
+  const dryRun = () =>
+    execFileSync(process.execPath, [fileURLToPath(new URL('./test-all-log.mjs', import.meta.url)), '--dry-run'], {
+      cwd: repo,
+      encoding: 'utf8',
+      env: { ...process.env, FORCE_COLOR: '0' }
+    });
+  const scopeFlags = output => output.split(/\s+/).filter(arg => /^--(base|head|untracked|uncommitted|files)\b/.test(arg));
+
+  git('init', '-q', '-b', 'main');
+  git('config', 'user.email', 'spec@example.com');
+  git('config', 'user.name', 'spec');
+  writeFileSync(join(repo, 'product.ts'), 'export const value = 1;\n');
+  git('add', '.');
+  git('commit', '-q', '-m', 'chore(aiao): init');
+  git('switch', '-q', '-c', 'feature');
+  writeFileSync(join(repo, 'committed.ts'), 'export const committed = true;\n');
+  git('add', '.');
+  git('commit', '-q', '-m', 'feat(aiao): branch change');
+
+  assert.deepEqual(scopeFlags(dryRun()), ['--base=main'], '工作区干净');
+
+  writeFileSync(join(repo, 'product.ts'), 'export const value = 2;\n');
+  assert.deepEqual(scopeFlags(dryRun()), ['--base=main'], '只有未提交修改');
+
+  writeFileSync(join(repo, 'new-spec.ts'), 'export {};\n');
+  assert.deepEqual(scopeFlags(dryRun()), ['--base=main'], '未提交修改与新文件并存');
 });

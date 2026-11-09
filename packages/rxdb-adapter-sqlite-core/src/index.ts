@@ -110,6 +110,7 @@ export type { JoinContext, RuleGroupJoinOptions } from './query/join_sql.js';
 export { buildRuleGroup, build_order_by, generate_sql } from './query/query_sql.js';
 export type { GenerateSqlResult } from './query/query_sql.js';
 export {
+  MAIN_RULE_SCOPE,
   MAIN_TABLE_ALIAS,
   build_rule,
   build_substring_condition,
@@ -123,7 +124,13 @@ export {
   handle_flatmap_contains,
   resolve_column_name
 } from './query/query_sql.utils.js';
-export type { ExistsSubquery, RelationPair } from './query/query_sql.utils.js';
+export type {
+  BuildRuleGroupFn,
+  ExistsScope,
+  ExistsSubquery,
+  RelationPair,
+  RuleScope
+} from './query/query_sql.utils.js';
 export {
   generate_entity_count_ancestors_sql,
   generate_entity_count_descendants_sql,

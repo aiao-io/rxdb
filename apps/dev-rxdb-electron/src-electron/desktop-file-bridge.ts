@@ -12,10 +12,15 @@
  * @module desktop-file-bridge
  */
 
-import { createElectronFileHost, type DesktopHostFileResponse } from '@aiao/rxdb-adapter-electron/host';
+import {
+  createElectronFileHost,
+  isDesktopHostTemporaryName,
+  type DesktopHostFileResponse
+} from '@aiao/rxdb-adapter-electron/host';
 import { mkdirSync } from 'node:fs';
 import { readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
+import { readDesktopHostRequestKind } from './desktop-host-request-guard.js';
 import { denyDestroyedTarget, denyForeignSession, readSessionId } from './desktop-session-ownership.js';
 
 /**
@@ -98,7 +103,9 @@ export interface DesktopFileBridge {
    * 启动清扫的完成信号。
    *
    * @remarks
-   * 清扫在后台跑，因此它不挡任何请求；暴露出来只为让测试与关停检查有个确定的等待点。
+   * 清扫在后台跑，只挡 `file.writeBegin`（唯一会在盘上建临时文件的请求）：本轮的临时文件
+   * 若在清扫途中出现在它还没走到的目录里，会被当成遗留删掉，随后的提交以 `file_not_found` 失败。
+   * 其余请求不等它。暴露出来是为了让测试与关停检查有个确定的等待点。
    * 失败不会 reject —— 见 {@link createDesktopFileBridge}。
    */
   readonly whenSwept: Promise<void>;
@@ -111,16 +118,17 @@ export interface DesktopFileBridge {
   closeAll(): Promise<void>;
 }
 
-/** 未提交写入在磁盘上的临时文件后缀，与 host 的 `.${writeId}.rxdb-tmp` 命名一致。 */
-const TEMPORARY_SUFFIX = '.rxdb-tmp';
-
 /**
  * 清掉上一轮进程留下的临时文件。
  *
  * @remarks
  * `closeAll` 只覆盖体面退出。进程被 SIGKILL、掉电、或渲染进程连主进程一起拖崩时，
  * 没有任何收尾代码跑得到，临时文件就永久留在磁盘上 —— 一次崩溃一份，只增不减。
- * 因此回收点放在启动：此刻还没有任何会话，根目录下带该后缀的文件必然是上一轮的遗留。
+ * 因此回收点放在启动：本轮的 `file.writeBegin` 等清扫结束才放行（见 {@link createDesktopFileBridge}），
+ * 清扫期间盘上的临时产物必然是上一轮的遗留。
+ *
+ * 判据是协议的 `isDesktopHostTemporaryName`（点 + UUID + `.rxdb-tmp`），不是后缀：
+ * 协议允许用户文件名以 `.rxdb-tmp` 结尾，按后缀删会在重启时删掉一份已经提交成功的文件。
  *
  * 前提是本应用独占这个根。这在 Electron 下成立（根在自己的 userData 下），
  * 万一有第二个实例在同时写，被删掉的临时文件会让它的 commit 以 `file_not_found` 失败 ——
@@ -132,7 +140,7 @@ const sweepTemporaryFiles = async (directory: string): Promise<void> => {
     const path = join(directory, entry.name);
     if (entry.isDirectory()) {
       await sweepTemporaryFiles(path);
-    } else if (entry.name.endsWith(TEMPORARY_SUFFIX)) {
+    } else if (isDesktopHostTemporaryName(entry.name)) {
       await rm(path, { force: true });
     }
   }
@@ -162,6 +170,8 @@ export function createDesktopFileBridge(options: DesktopFileBridgeOptions): Desk
       const denial = denyForeignSession(targets, request, target);
       if (denial) return denial;
 
+      // 本轮的临时文件等清扫结束才建，清扫看到的临时产物因此全是上一轮的遗留。
+      if (readDesktopHostRequestKind(request) === 'file.writeBegin') await whenSwept;
       const response = await host.handle(request);
       if (response.kind === 'file.open') {
         const { sessionId } = response.result;

@@ -7,7 +7,7 @@ range: project
 base_ref: null
 review_scopes: []
 scope_id: 'project:@aiao/source'
-status: Open
+status: Fixed
 severity: P2
 source_view: commit
 source_snapshot: '0ffa3c419fcc59dc3e13d695ca4658116134bfa0'
@@ -16,7 +16,7 @@ found_branch: 'refs/heads/codex/full-review-main-20261108'
 found_snapshot: '0ffa3c419fcc59dc3e13d695ca4658116134bfa0'
 found_range: project
 created: 2026-11-08
-updated: 2026-11-08
+updated: 2026-11-09
 anchors:
   - 'scripts/merge-vitest-reports.mjs'
 affected_projects: [rxdb-plugin-search, rxdb-plugin-storage]
@@ -69,3 +69,16 @@ pr: null
 - 结论：核对 nl 输出，入口判断位于第 144 行；anchor 使用文件路径。复现与缺陷结论不变；原发现事件保留。
 - 验证：两次 git hash-object 核对后写入；仅正文行号与 anchor 更正，无源码变动。
 - 剩余事项：按前述修复方向处理。
+
+### EV-01a1be3a4b3d7dd482c5f4e7c5849931：修复
+
+- 时间：2026-11-09T10:54:10+08:00
+- 操作：fix
+- 执行者：ai；anthropic/claude-opus-5-5；会话 aa117580-681a-4540-85b2-3c61967b2092（Claude Code 并行子 agent G01）
+- 输入快照：`1b5fb4e43f449bace1d6f67df78e55a129863f50`（提交视图）
+- 输出快照：工作区树 `fc1c68d7845c228e431c4e9fb69ea5c252c69bd8`（`ai-review snapshot --worktree`，基于 `1b5fb4e4`，含其他并行修复的未提交改动）
+- 状态：Open → Fixed
+- 结论：复核属实。`scripts/merge-vitest-reports.mjs:144`（`1b5fb4e4`）拿编码后的 `import.meta.url` 与手拼的 `file://${process.argv[1]}` 比，路径含空格（`%20`）时整个 CLI 分支被跳过、退出 0、不写任何产物。复核还发现第二种同样静默的情形：经符号链接启动时（macOS 的 `/var`、`/tmp` 都是链接），`import.meta.url` 是解析后的真实路径，与 `process.argv[1]` 也对不上。五个 test-browser 目标（search、storage、board、tree、replay）都经它合并报告，P2 维持，值得修。
+- 改动：`scripts/merge-vitest-reports.mjs:196` 入口判定改为 `pathToFileURL(realpathSync(process.argv[1])).href`，同时处理空格编码与符号链接；合并或读取失败照常以非零码退出（顶层 await 抛出）。仓库其余 CLI 用 `pathToFileURL(process.argv[1])`，空格没问题，只在经符号链接启动时有同样的局限，不在本记录范围。
+- 验证：修复前新用例「CLI 在带空格的路径下照常合并…」红：拷到 `repo dir/scripts/` 下启动后没有生成 `coverage-summary.json`（ENOENT）；只改成 `pathToFileURL(process.argv[1])` 时在 macOS 临时目录下仍红（符号链接），改用 `realpathSync` 后通过：成功时产出合并后的 summary 与 JUnit（`tests="2"`），输入目录不存在时非零退出、stderr 含 ENOENT。全文件 6/6 通过，`npx eslint --max-warnings=0` 通过。Windows 未验证（本机没有环境；`pathToFileURL` 本身处理盘符与反斜线）。
+- 剩余事项：收尾用 heavy.sh 跑一个 test-browser 消费者（`rxdb-plugin-replay`）端到端核对，并跑根项目 `test-scripts` / `lint` 后复核。

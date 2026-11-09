@@ -128,7 +128,7 @@ return <button onClick={() => theme.setValue('light')}>{theme.value}</button>;
 - 是**快照**语义：对象原地改字段不会重渲染也不会落盘，必须整体 `setValue`。`setValue` 的 identity 跨渲染稳定。
 - 订阅走 `useSyncExternalStore`，并发渲染与 `StrictMode` 下都不会读到撕裂的快照。
 - 写盘失败**不抛错**，内存值照常更新，失败经 `persistError` 暴露 —— 这是唯一能知道数据没落盘的途径。
-- SSR 下不读也不写 `localStorage`，退化成纯内存值；暂不监听 `storage` 事件，因此不跨标签页同步。
+- SSR 下不读也不写 `localStorage`，服务端快照恒为本次调用的 `initialValue`，连续或并发的请求之间互不可见；hydrate 用同一个快照对齐服务端 HTML，提交后再切到盘上值。暂不监听 `storage` 事件，因此不跨标签页同步。
 
 ## 实体实时变更
 

@@ -7,7 +7,7 @@
  * 真后端上的端到端判定在适配器的分支套件里（PGlite `undo_inherited_change.spec.ts`、SQLite 共享分支套件）；
  * 这里钉住纯函数的口径，以及「选候选之后才建出子分支」那个只能在写事务里判的竞态。
  */
-import { RxDBBranch, type RxDB, type RxDBChange, type UUID } from '@aiao/rxdb';
+import { RxDBBranch, type RxDB, type RxDBChange, RxDBSync, type UUID } from '@aiao/rxdb';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -21,6 +21,7 @@ import {
 import { createHistoryItem } from '../history-item-builder.js';
 import type { ActiveUndoSession } from '../history-undo-session.types.js';
 import { applyUndoRedoHistories, type UndoRedoApplyHost } from '../undo-redo-apply.js';
+import { emptyPushInFlight } from './fixtures/push-inflight.js';
 
 const firstConnectedAt = new Date('2026-10-20T08:00:00.000Z');
 
@@ -138,12 +139,16 @@ describe('重做候选', () => {
 describe('写事务里复核分叉点（选候选之后才建出子分支）', () => {
   const session: ActiveUndoSession = { generation: 1, state: 'active', boundary: { changeId: 0, createdAfter: null } };
 
-  /** switchBranch 照适配器的义务在事务里调 prepare；事务内读到的子分支由 `children` 给出。 */
+  /**
+   * switchBranch 照适配器的义务在事务里调 prepare；事务内读到的子分支由 `children` 给出。
+   * undo 另在事务里读一次推送水位线（这里没有任何仓库推过），见 `undo-push-claim-recheck.spec.ts`。
+   */
   const createHarness = (children: Array<{ id: string; fromChangeId: number | null }>, targetBranchId = 'main') => {
     const find = vi.fn().mockResolvedValue(children);
     const executor = {
       getRepository: (entity: unknown) => {
-        if (entity !== RxDBBranch) throw new Error('只该查分支表');
+        if (entity === RxDBSync) return { find: vi.fn().mockResolvedValue([]) };
+        if (entity !== RxDBBranch) throw new Error('只该查分支表与推送水位线');
         return { find };
       }
     };
@@ -153,6 +158,7 @@ describe('写事务里复核分叉点（选候选之后才建出子分支）', (
     const adapter = { getRxDBChangeSequence: vi.fn().mockResolvedValue(10), switchBranch };
     const rxdb = {
       versionManager: {
+        pushInFlight: emptyPushInFlight(),
         getLocalRepositories: vi.fn().mockResolvedValue({ adapter, branchRepository: {}, changeRepository: {} })
       }
     } as unknown as RxDB;

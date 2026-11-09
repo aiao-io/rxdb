@@ -203,7 +203,7 @@ theme.value.value = 'light'; // 立即落盘到 'my-app:theme'
 - `namespace` 与 `name` 在键里各自转义，不会互相串号；含 `:` 或 `%` 的旧键在首次读取时一次性迁移。
 - 是 `shallowRef` 语义：对象原地改字段不触发响应式也不落盘，必须整体赋新值。
 - 写盘失败**不抛错**，内存值照常更新，失败经 `persistError` 暴露 —— 这是唯一能知道数据没落盘的途径。
-- SSR 下不读也不写 `localStorage`，退化成纯内存值；暂不监听 `storage` 事件，因此不跨标签页同步。
+- SSR 下不读也不写 `localStorage`，退化成纯内存值，并按请求隔离（setup 或 `app.runWithContext` 内）：同一请求内同 key 共享，请求之间互不可见。暂不监听 `storage` 事件，因此不跨标签页同步。
 
 ## 实体实时变更
 

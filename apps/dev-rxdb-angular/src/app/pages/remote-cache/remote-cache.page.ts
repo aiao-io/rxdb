@@ -18,6 +18,7 @@ import {
   LucideWifiOff as WifiOff
 } from '@lucide/angular';
 import { I18nPipe } from '../../pipes/i18n.pipe';
+import { createObjectUrlCache } from './remote-cache-object-urls';
 
 interface RemoteResource {
   label: string;
@@ -63,11 +64,16 @@ const REMOTE_DIR = '/remote';
   templateUrl: './remote-cache.page.html'
 })
 export default class RemoteCachePage implements OnInit, OnDestroy {
-  private readonly objectUrls = new Map<string, string>();
   private onlineListener?: () => void;
   private offlineListener?: () => void;
 
   readonly rxdb = inject(RxDB);
+
+  private readonly previews = createObjectUrlCache<StorageFileMeta>({
+    list: () => this.rxdb.storage.list({ path: REMOTE_DIR }),
+    createObjectUrl: id => this.rxdb.storage.createObjectUrl(id),
+    revokeObjectUrl: url => this.rxdb.storage.revokeObjectUrl(url)
+  });
 
   readonly Cloud = Cloud;
   readonly CloudDownload = CloudDownload;
@@ -98,7 +104,7 @@ export default class RemoteCachePage implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     if (this.onlineListener) window.removeEventListener('online', this.onlineListener);
     if (this.offlineListener) window.removeEventListener('offline', this.offlineListener);
-    this.releaseObjectUrls();
+    this.previews.dispose();
   }
 
   async fetchResource(resource: RemoteResource): Promise<void> {
@@ -181,34 +187,8 @@ export default class RemoteCachePage implements OnInit, OnDestroy {
   }
 
   private async refresh(): Promise<void> {
-    const metas = await this.rxdb.storage.list({ path: REMOTE_DIR });
-    const liveIds = new Set<string>(metas.map(meta => meta.id as string));
-
-    for (const [id, url] of Array.from(this.objectUrls.entries())) {
-      if (!liveIds.has(id)) {
-        this.rxdb.storage.revokeObjectUrl(url);
-        this.objectUrls.delete(id);
-      }
-    }
-
-    const items: CachedItem[] = [];
-    for (const meta of metas) {
-      let objectUrl = this.objectUrls.get(meta.id);
-      if (!objectUrl) {
-        objectUrl = await this.rxdb.storage.createObjectUrl(meta.id);
-        this.objectUrls.set(meta.id, objectUrl);
-      }
-      items.push({ meta, objectUrl });
-    }
-
-    this.cached.set(items);
-  }
-
-  private releaseObjectUrls(): void {
-    for (const url of this.objectUrls.values()) {
-      this.rxdb.storage.revokeObjectUrl(url);
-    }
-    this.objectUrls.clear();
+    const items = await this.previews.load();
+    if (items) this.cached.set(items);
   }
 
   private pushLog(entry: Omit<LogEntry, 'timestamp'>): void {

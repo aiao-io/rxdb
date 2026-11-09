@@ -38,4 +38,5 @@ EOF
 
 echo "✅ Kong ready on 127.0.0.1:${kong_port}（状态文件：${SUPABASE_CI_STATE_FILE}）"
 
-./init-db.sh
+# 初始化发给刚起的这个隔离项目：项目名与配置文件和上面的 up 逐字一致，init-db.sh 不再自己猜。
+./init-db.sh -p "$SUPABASE_CI_PROJECT_NAME" -f docker-compose.ci.yml

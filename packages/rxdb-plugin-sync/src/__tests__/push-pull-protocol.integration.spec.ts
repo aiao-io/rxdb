@@ -77,6 +77,7 @@ function matchesRules(change: RxDBChange, rules: QueryRule[]): boolean {
     const value = change[rule.field as keyof RxDBChange];
     if (rule.operator === '=') return value === rule.value;
     if (rule.operator === '>') return typeof value === 'number' && typeof rule.value === 'number' && value > rule.value;
+    if (rule.operator === '<=') return typeof value === 'number' && typeof rule.value === 'number' && value <= rule.value;
     if (rule.operator === 'in') return Array.isArray(rule.value) && rule.value.includes(value);
     throw new Error(`Unsupported operator: ${rule.operator}`);
   });

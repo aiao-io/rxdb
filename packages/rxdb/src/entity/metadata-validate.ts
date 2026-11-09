@@ -34,7 +34,7 @@ import { EntityMetadata } from './metadata.interface.js';
  * 注册期元数据校验规则。
  *
  * @remarks
- * 全集 17 项，由 {@link validateEntityMetadata} 产出。
+ * 全集 21 项，由 {@link validateEntityMetadata} 产出。
  * `missingRelationPrimary` / `unsupportedRelationValueType` 属于 {@link RelationResolutionRule}，
  * 由字段描述 DTO 的生成阶段产出，不在本联合内。
  */
@@ -58,7 +58,8 @@ export type MetadataValidationRule =
   | 'invalidManualOrder'
   | 'invalidCheck'
   | 'invalidIndexWhere'
-  | 'invalidExclusion';
+  | 'invalidExclusion'
+  | 'reservedName';
 
 /**
  * 关系目标解析规则。
@@ -394,10 +395,30 @@ const validateEnumAndOptions = (collector: ViolationCollector, property: Record<
   }
 };
 
+/** `Object.prototype` 上的原型访问器键。 */
+const PROTOTYPE_ACCESSOR_KEY = '__proto__';
+
+/**
+ * 字段名与物理列名不能是 `__proto__`。
+ *
+ * @remarks
+ * 写入链路每一层（创建 / 更新归一化、适配器的值转换、实体实例）都按对象键读写字段：
+ * 按键赋值会命中原型 setter，字符串值被静默丢弃（INSERT 少一列、UPDATE 报空补丁），对象值改写原型。
+ */
+const validateReservedName = (collector: ViolationCollector, name: string, raw: Record<string, unknown>): void => {
+  if (name !== PROTOTYPE_ACCESSOR_KEY && raw['columnName'] !== PROTOTYPE_ACCESSOR_KEY) return;
+  collector.add(
+    name,
+    'reservedName',
+    `'${PROTOTYPE_ACCESSOR_KEY}' 不能用作字段名或物理列名：它是对象的原型访问器，按键写入会被吞掉或改写原型`
+  );
+};
+
 /** 校验单个属性/计算属性。 */
 const validateProperty = (collector: ViolationCollector, property: EntityPropertyMetadata): void => {
   const raw = property as unknown as Record<string, unknown>;
   const name = String(raw['name']);
+  validateReservedName(collector, name, raw);
   if ('format' in raw) {
     const violation = detectFormatViolation(raw['format'], String(raw['type']));
     if (violation) collector.add(name, violation.rule, violation.message);
@@ -409,6 +430,7 @@ const validateProperty = (collector: ViolationCollector, property: EntityPropert
 const validateRelation = (collector: ViolationCollector, relation: EntityRelationMetadata): void => {
   const raw = relation as unknown as Record<string, unknown>;
   const name = String(raw['name']);
+  validateReservedName(collector, name, raw);
   if ('format' in raw) {
     const violation = detectFormatViolation(raw['format'], undefined);
     if (violation) collector.add(name, violation.rule, violation.message);

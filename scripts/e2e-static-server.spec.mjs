@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import { execFile } from 'node:child_process';
-import { chmod, mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { execFile, spawn } from 'node:child_process';
+import { chmod, mkdir, mkdtemp, realpath, writeFile } from 'node:fs/promises';
 import { createServer, request as httpRequest } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -178,6 +178,60 @@ test('文件读失败返回 500，不会把进程带崩', async t => {
     await chmod(locked, 0o600);
     await closeStaticServer(server);
   }
+});
+
+// 构建进程在「已确认文件存在」之后删掉或替换它时，stat 阶段同样会抛错；那一步若不在任何 try 里，
+// 异常冒出 'request' 事件，整个 webServer 进程退出（与上一条读文件失败是同一类后果）。
+// 服务放在子进程里跑：修复前进程会直接崩，放在本进程里会把整个测试文件一起带走。
+const startFaultyStatServer = async (t, root, { target, failure }) => {
+  const script = `
+    import fs from 'node:fs';
+    import { syncBuiltinESMExports } from 'node:module';
+    import { startStaticServer } from ${JSON.stringify(scriptPath)};
+    const original = fs.statSync;
+    fs.statSync = (path, options) => {
+      if (String(path) !== ${JSON.stringify(target)}) return original(path, options);
+      if (${JSON.stringify(failure)} === 'ENOENT' && options?.throwIfNoEntry === false) return undefined;
+      throw Object.assign(new Error(${JSON.stringify(failure)} + ': injected stat failure'), { code: ${JSON.stringify(failure)} });
+    };
+    syncBuiltinESMExports();
+    const server = await startStaticServer({ root: ${JSON.stringify(root)}, port: 0, host: '127.0.0.1' });
+    process.stdout.write(String(server.address().port) + '\\n');
+  `;
+  const child = spawn(process.execPath, ['--input-type=module', '--eval', script], { stdio: ['ignore', 'pipe', 'pipe'] });
+  t.after(() => child.kill());
+  const port = await new Promise((resolve, reject) => {
+    child.stdout.once('data', chunk => resolve(Number(String(chunk).trim())));
+    child.once('exit', code => reject(new Error(`static server exited early (code ${code})`)));
+  });
+  return { port, child };
+};
+
+test('stat 阶段发现文件已被删除时按缺失路径回退 index.html，进程不退出', async t => {
+  const root = await createFixture();
+  const realRoot = await realpath(root);
+  const { port } = await startFaultyStatServer(t, root, { target: join(realRoot, 'app.js'), failure: 'ENOENT' });
+
+  const vanished = await rawGet(port, '/app.js');
+  assert.equal(vanished.status, 200);
+  assert.match(vanished.body, /<title>spa<\/title>/);
+
+  const ok = await rawGet(port, '/assets/ok.txt');
+  assert.equal(ok.status, 200);
+  assert.equal(ok.body, 'ok');
+});
+
+test('stat 阶段的其他错误返回 500，后续请求照常', async t => {
+  const root = await createFixture();
+  const realRoot = await realpath(root);
+  const { port } = await startFaultyStatServer(t, root, { target: join(realRoot, 'app.js'), failure: 'EIO' });
+
+  const failed = await rawGet(port, '/app.js');
+  assert.equal(failed.status, 500);
+
+  const ok = await rawGet(port, '/assets/ok.txt');
+  assert.equal(ok.status, 200);
+  assert.equal(ok.body, 'ok');
 });
 
 test('HEAD 只回响应头，写操作一律 405', async () => {

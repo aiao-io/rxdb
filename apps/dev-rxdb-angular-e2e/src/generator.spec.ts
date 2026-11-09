@@ -15,4 +15,17 @@ test.describe('Generator Page', () => {
     await expect(page.getByTestId('generator-download')).toBeVisible({ timeout: 15000 });
     await expect(page.getByTestId('generator-output-editor')).toBeVisible();
   });
+
+  // 三端同一场景：Menu 是 TreeRepository 实体，页面要注册树生成器才产得出代码（只断标签可见测不到）
+  test('Menu 示例生成树实体代码并可下载', async ({ page }) => {
+    // Angular 的示例标签带 aria-hidden，按角色找要连隐藏元素一起找
+    await page.getByRole('tab', { name: 'Menu', includeHidden: true }).click();
+
+    await expect(page.getByTestId('generator-output-editor')).toContainText('@aiao/rxdb-plugin-tree');
+    const download = page.getByTestId('generator-download');
+    await expect(download).toBeEnabled();
+    const downloading = page.waitForEvent('download');
+    await download.click();
+    expect((await downloading).suggestedFilename()).toMatch(/\.zip$/);
+  });
 });

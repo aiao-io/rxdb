@@ -8,6 +8,7 @@ import {
   type ParsedCombo,
   type ShortcutPlatform
 } from './combo.js';
+import { effectiveModifiers } from './modifiers.js';
 
 /** 快捷键注册中心读写偏好的最小契约，`PreferencesStore` 天然满足。 */
 export interface ShortcutPreferences extends ReadableStore<AdminPreferences> {
@@ -85,6 +86,12 @@ const isEditableTarget = (target: unknown): boolean => {
 
 const hasCommandModifier = (parsed: ParsedCombo): boolean => parsed.mod || parsed.ctrl || parsed.meta || parsed.alt;
 
+/** 组合键在本平台上实际按下的键：两条组合键签名相同，就会被同一次按键命中。 */
+const comboSignature = (parsed: ParsedCombo, platform: ShortcutPlatform): string => {
+  const { meta, ctrl } = effectiveModifiers(parsed, platform);
+  return [meta, ctrl, parsed.alt, parsed.shift, parsed.key].join('|');
+};
+
 /**
  * 快捷键注册中心：统一监听、平台差异、输入框与输入法保护、偏好开关。
  *
@@ -122,7 +129,7 @@ export class ShortcutRegistry {
    * 注册快捷键。
    * @param definition - 声明。
    * @returns 注销函数。
-   * @throws 组合键非法、id 重复或与已注册项组合键冲突时抛错。
+   * @throws 组合键非法、id 重复，或在本实例的平台上与已注册项命中同一次按键（mac 上 `Mod` 即 `Meta`，其他平台即 `Ctrl`）时抛错。
    */
   register(definition: ShortcutDefinition): () => void {
     const parsed = parseCombo(definition.combo);
@@ -130,7 +137,8 @@ export class ShortcutRegistry {
     if (existing.some(entry => entry.definition.id === definition.id)) {
       throw new Error(`Shortcut "${definition.id}" is already registered`);
     }
-    const clash = existing.find(entry => formatCombo(entry.parsed, 'other').text === formatCombo(parsed, 'other').text);
+    const signature = comboSignature(parsed, this.#platform);
+    const clash = existing.find(entry => comboSignature(entry.parsed, this.#platform) === signature);
     if (clash) {
       throw new Error(`Shortcut "${definition.id}" (${definition.combo}) conflicts with "${clash.definition.id}"`);
     }

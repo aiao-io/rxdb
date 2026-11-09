@@ -51,6 +51,10 @@ export class SchemaManager {
   #tableName_metadata_map = new Map<string, EntityMetadata>();
   #junction_relation_map = new Map<string, Set<EntityRelationMetadata>>();
   #generated = new Set<EntityType>();
+  /** 仓储生成的实体 key → 生成它的源实体 key：同一个源重入时沿用第一次登记的类 */
+  #generated_source = new Map<string, string>();
+  /** 本实例生成的多对多中间表类 */
+  #junctions = new Set<EntityType>();
 
   /**
    * 本实例 `init()` 时生成的实体类：仓储 `entityGenerator` 的产物与多对多中间表（US-313）
@@ -110,17 +114,7 @@ export class SchemaManager {
       const config = this.rxdb.getRepositoryConfig(metadata.repository);
       if (config?.entityGenerator) {
         const RepositoryClass = config.entityGenerator(metadata);
-        const cls = needArray(RepositoryClass);
-        cls.forEach(RepositoryClass => {
-          const repo_metadata = getEntityMetadata(RepositoryClass);
-          const repo_key = get_entity_cache_key(repo_metadata.name, repo_metadata.namespace);
-          if (!this.#metadata_map.has(repo_key)) {
-            this.#metadata_map.set(repo_key, repo_metadata);
-            this.#entity_map.set(repo_key, RepositoryClass);
-            this.#generated.add(RepositoryClass);
-            entities.push(RepositoryClass);
-          }
-        });
+        needArray(RepositoryClass).forEach(generated => this.#register_generated(generated, key, entities));
       }
     });
 
@@ -174,14 +168,22 @@ export class SchemaManager {
           }
           this.#junction_relation_map.set(key, relationPair);
 
-          // 检查中间表是否已经存在
-          if (this.#metadata_map.has(key) === false) {
+          // 已登记的只能是本实例早先生成的那张中间表（双向遍历、init() 重入）。接入方声明的同名实体
+          // 不是中间表：没有两端外键，拿它当 junctionEntityType 会让多对多查询与写入落到不兼容的表上
+          const existingJunction = this.#entity_map.get(key);
+          if (existingJunction !== undefined && !this.#junctions.has(existingJunction)) {
+            throw new RxDBError(
+              `中间表命名冲突：namespace '${metadataOptions.namespace}' 下已有名为 '${metadataOptions.name}' 的实体，关系 '${metadata.name}.${relationManyToMany.name}' 的多对多中间表不能复用它`
+            );
+          }
+          if (existingJunction === undefined) {
             @Entity(metadataOptions)
             class MappedClass extends EntityBase {}
             const mappedMetadata = getEntityMetadata(MappedClass);
             this.#metadata_map.set(key, mappedMetadata);
             this.#entity_map.set(key, MappedClass);
             this.#generated.add(MappedClass);
+            this.#junctions.add(MappedClass);
             entities.push(MappedClass);
           }
           const junctionEntityType = this.#entity_map.get(key);
@@ -227,6 +229,37 @@ export class SchemaManager {
       }
       setSafeObjectKey(scope, name, this.#entity_map.get(key));
     });
+  }
+
+  /**
+   * 登记仓储 `entityGenerator` 的一个产物。
+   *
+   * @remarks
+   * 同名 key 已登记时只有两种合法复用：生成器原样交回已登记的同一个类（如源实体自身），
+   * 或同一个源实体重入（断连重连时生成器再跑一遍、交回新建的同名类）沿用第一次登记的那个。
+   * 其余都是撞名：生成器要的结构与已登记的实体无关，静默复用会让仓储与关系读写不兼容的表，
+   * 而且结论随注册顺序翻转（用户实体在后时由普通实体的撞名检查拒绝）。
+   *
+   * @param generated - 生成器交回的实体类
+   * @param sourceKey - 触发生成的源实体 key
+   * @param entities - `config.entities`，新登记的产物追加进去
+   */
+  #register_generated(generated: EntityType, sourceKey: string, entities: EntityType[]): void {
+    const metadata = getEntityMetadata(generated);
+    const key = get_entity_cache_key(metadata.name, metadata.namespace);
+    const existing = this.#entity_map.get(key);
+    if (existing === undefined) {
+      this.#metadata_map.set(key, metadata);
+      this.#entity_map.set(key, generated);
+      this.#generated.add(generated);
+      this.#generated_source.set(key, sourceKey);
+      entities.push(generated);
+      return;
+    }
+    if (existing === generated || this.#generated_source.get(key) === sourceKey) return;
+    throw new RxDBError(
+      `实体命名冲突：仓储生成的实体与 namespace '${metadata.namespace}' 下已注册的 '${metadata.name}' 同名，不能复用`
+    );
   }
 
   /**

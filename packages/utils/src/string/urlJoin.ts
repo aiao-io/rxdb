@@ -67,15 +67,18 @@ const normalizeSegments = (pathStr: string, prefix: string, protectedSegments: n
 /** 查询串开始之后，以这些字符开头的片段属于查询串或锚点 */
 const QUERY_CONTINUATION = /^[?&#]/;
 
+const isNonEmpty = (part: string): boolean => part !== '';
+
 /**
- * 把查询串挪到全部路径段之后
+ * 把查询串从路径段里分出来
  *
  * 整串拼好再按第一个 `?` 切分时，查询串之后的路径段会被并进查询值
  * （`'http://x.com/a?x=1', 'b'` → `http://x.com/a?x=1/b`）。改为逐片段在首个 `?` 处切开：
- * 之前的部分留在路径里，`?` 起的部分按原顺序移到末尾；查询串开始后以 `?` / `&` / `#`
- * 开头的片段是查询串或锚点的延续，整段跟在后面。
+ * 之前的部分留在路径里，`?` 起的部分按原顺序放进查询片段；查询串开始后以 `?` / `&` / `#`
+ * 开头的片段是查询串或锚点的延续，整段归入查询片段。
+ * 查询片段不参与路径归一化：其中的 `.` / `..` / `/` 是参数值，不是路径段。
  */
-const hoistQueries = (parts: readonly string[]): string[] => {
+const splitQueries = (parts: readonly string[]): { pathParts: string[]; queryParts: string[] } => {
   const pathParts: string[] = [];
   const queryParts: string[] = [];
   for (const part of parts) {
@@ -87,7 +90,52 @@ const hoistQueries = (parts: readonly string[]): string[] => {
     pathParts.push(part.slice(0, index));
     queryParts.push(part.slice(index));
   }
-  return [...pathParts, ...queryParts].filter(part => part !== '');
+  return { pathParts: pathParts.filter(isNonEmpty), queryParts: queryParts.filter(isNonEmpty) };
+};
+
+/**
+ * 拼接路径片段：首段决定前缀（协议、协议相对、根路径），其余片段做栈式归一化
+ *
+ * @returns 前缀（非空时以 `/` 结尾）与归一化后的路径部分；没有路径片段时两者都为空
+ */
+const joinPathParts = (parts: readonly string[]): { prefix: string; pathStr: string } => {
+  if (parts.length === 0) {
+    return { prefix: '', pathStr: '' };
+  }
+
+  let prefix: string;
+  let rest = parts;
+  const firstPath = parts[0];
+  // 协议相对 URL 的 authority 留在片段列表里，它不是路径段，`..` 不得把它弹掉
+  let protectedSegments = 0;
+
+  if (firstPath.startsWith('//')) {
+    prefix = '//';
+    protectedSegments = 1;
+  } else if (firstPath.startsWith('/')) {
+    prefix = '/';
+  } else {
+    if (firstPath.startsWith('file:') && parts.length > 1 && (firstPath + parts[1]).match(/^file:\/\/\//)) {
+      prefix = firstPath.replace(regPrefix, '$1:///');
+    } else {
+      prefix = firstPath.replace(regPrefix, '$1://');
+    }
+    rest = parts.slice(1);
+  }
+
+  if (!prefix.endsWith('/')) {
+    prefix += '/';
+  }
+
+  const pathStr = normalizeSegments(
+    rest
+      .map(path => stripTrailingSlash(path.replace(/^\/+/, '').replace(/^\.\/+/, '')))
+      .filter(isNonEmpty)
+      .join('/'),
+    prefix,
+    protectedSegments
+  );
+  return { prefix, pathStr };
 };
 
 /**
@@ -97,7 +145,8 @@ const hoistQueries = (parts: readonly string[]): string[] => {
  * `.` 被跳过，`..` 弹出上一段；`..` 越过根（`/`、`//`、`scheme://host`）时丢弃，
  * 其余情况原样保留。
  *
- * 任一片段里的查询串（`?` 起）都移到全部路径段之后，多段查询串以 `&` 合并。
+ * 任一片段里的查询串（`?` 起）都移到全部路径段之后，多段查询串以 `&` 合并；
+ * 查询串不做 `.` / `..` 归一化（`'?next=/a/../b'` 原样保留）。
  *
  * @param paths - 片段，必须是 string 或 number
  * @returns 拼接后的 URL / 路径
@@ -120,44 +169,12 @@ export const urlJoin = (...paths: Array<string | number>) => {
   if (findIndex >= 0) {
     throw new Error('paths must be a string or number');
   }
-  paths = hoistQueries(paths.map(path => `${path}`));
+  const { pathParts, queryParts } = splitQueries(paths.map(path => `${path}`));
+  // 没有路径片段（只有查询串）时也就没有前缀
+  const { prefix, pathStr } = joinPathParts(pathParts);
+  const queryStr = queryParts.map(stripTrailingSlash).join('/');
 
-  let prefix: string;
-  const firstPath = `${paths[0]}`;
-  // 协议相对 URL 的 authority 留在片段列表里，它不是路径段，`..` 不得把它弹掉
-  let protectedSegments = 0;
-
-  if (firstPath.startsWith('//')) {
-    prefix = '//';
-    protectedSegments = 1;
-  } else if (firstPath.startsWith('/')) {
-    prefix = '/';
-  } else if (firstPath.startsWith('?')) {
-    // 查询串已排到最后，首段是查询串说明没有任何路径段，也就没有前缀
-    prefix = '';
-  } else {
-    if (firstPath.startsWith('file:') && paths.length > 1 && (firstPath + paths[1]).match(/^file:\/\/\//)) {
-      prefix = firstPath.replace(regPrefix, '$1:///');
-    } else {
-      prefix = firstPath.replace(regPrefix, '$1://');
-    }
-    paths.shift();
-  }
-
-  if (prefix && !prefix.endsWith('/')) {
-    prefix += '/';
-  }
-
-  const pathStr = normalizeSegments(
-    paths
-      .map(path => stripTrailingSlash(`${path}`.replace(/^\/+/, '').replace(/^\.\/+/, '')))
-      .filter(d => d !== '')
-      .join('/'),
-    prefix,
-    protectedSegments
-  );
-
-  let backStr = prefix + pathStr;
+  let backStr = prefix + [pathStr, queryStr].filter(isNonEmpty).join('/');
   if (backStr.includes('?')) {
     // `?` 前的路径部分可以为空（只有查询串），不能和查询串之间的空段一起滤掉
     const [head, ...queries] = backStr.split('?');

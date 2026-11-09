@@ -40,10 +40,15 @@ const cursorId = (entity: unknown): RxDBEntityId | undefined => (entity as { id?
  * @remarks
  * `cursor` 是这页订阅时使用的 `after` 锚点；`subscription` 为 `undefined` 表示
  * 该页的流已 complete/error（沿用原先「从集合里 delete」的语义，卸载时不再重复退订）。
+ *
+ * `loadId` 是这页负责结算的用户加载编号。活查询自愈重锚出来的替代页沿用被替换那页的编号：
+ * 用户的下一页首值未到时被重锚，结算责任随页移交，否则 `isLoading` 永远停在 true、
+ * 之后的 `loadMore` 全被拦下。React 与 Angular 侧同款。
  */
 interface PageHandle<T> {
   readonly cursor: T | undefined;
   subscription: Subscription | undefined;
+  readonly loadId: number | undefined;
 }
 
 const RXDB_NOT_PROVIDED_MESSAGE = 'RxDB not provided. Make sure to call provideRxDB() in parent component.';
@@ -193,8 +198,8 @@ export function useInfiniteScroll<T extends EntityType>(
     error.value = toError(cause);
   };
 
-  const finishLatestLoad = (loadId: number): void => {
-    if (loadId === latestLoadId) {
+  const finishLatestLoad = (loadId: number | undefined): void => {
+    if (loadId !== undefined && loadId === latestLoadId) {
       isLoading.value = false;
     }
   };
@@ -221,6 +226,8 @@ export function useInfiniteScroll<T extends EntityType>(
     if (dropTrailing) {
       for (const handle of pageHandles.splice(index + 1)) {
         handle.subscription?.unsubscribe();
+        // 被丢弃的尾页再也结算不了，其中在途的最新加载由本页代为结算
+        finishLatestLoad(handle.loadId);
       }
     }
 
@@ -235,15 +242,17 @@ export function useInfiniteScroll<T extends EntityType>(
       return;
     }
 
-    if (tail !== undefined && cursorId(pageHandles[index + 1].cursor) !== cursorId(tail)) {
-      openPage(index + 1, tail, undefined);
+    const next = pageHandles[index + 1];
+    if (tail !== undefined && cursorId(next.cursor) !== cursorId(tail)) {
+      openPage(index + 1, tail, next.loadId);
     }
   }
 
   /**
    * 订阅第 `index` 页，锚点为 `cursor`；该位置已有订阅时先退订再替换。
    *
-   * @param loadId - 用户发起的加载编号；重锚（活查询自愈）传 `undefined`，不参与 `isLoading` 结算
+   * @param loadId - 这页负责结算的用户加载编号；重锚（活查询自愈）沿用被替换那页的编号，
+   * 只有它是最新一次加载时才结算 `isLoading`
    */
   const openPage = (index: number, cursor: InstanceType<T> | undefined, loadId: number | undefined): void => {
     const rxdb = databaseRef.value;
@@ -259,15 +268,11 @@ export function useInfiniteScroll<T extends EntityType>(
     const currentGeneration = requestGeneration;
     // 本页是否收到过 next：complete 时用来判断「一次都没 emit」（RAN-007）
     let received = false;
-    const finishLoad = (): void => {
-      if (loadId !== undefined) {
-        finishLatestLoad(loadId);
-      }
-    };
+    const finishLoad = (): void => finishLatestLoad(loadId);
 
     pageHandles[index]?.subscription?.unsubscribe();
     // 先登记句柄再订阅：同步 emit 的源（如 of()）会在 subscribe() 返回前回调 commitPage
-    const handle: PageHandle<InstanceType<T>> = { cursor, subscription: undefined };
+    const handle: PageHandle<InstanceType<T>> = { cursor, subscription: undefined, loadId };
     pageHandles[index] = handle;
 
     let subscription: Subscription | undefined;

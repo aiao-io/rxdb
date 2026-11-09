@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 
 import { auditNaming, extractExports } from './api-surface.mjs';
 
@@ -36,6 +37,29 @@ test('纯类型与纯值不受影响', () => {
 
   assert.equal(kindOf(exports, 'WidgetOptions'), 'type');
   assert.equal(kindOf(exports, 'VERSION'), 'value');
+});
+
+test('纯值（常量、函数）改成 type-only 转出记为 type：语句级、逐 specifier、import type 后再转出都算', () => {
+  // 纯值的声明处没有 Type flag，type-only 转出又让 isValue 为假；两者都假时不能退回 value，
+  // 否则 `export { VERSION }` → `export type { VERSION }` 前后都是 value，基线 diff 看不见这次破坏。
+  const kinds = file => extractExports(`${fixtureSrc}${file}`, fixtureSrc).map(({ name, kind }) => [name, kind]);
+
+  assert.deepEqual(kinds('before.ts'), [
+    ['LIMIT', 'value'],
+    ['runTask', 'value'],
+    ['VERSION', 'value']
+  ]);
+  assert.deepEqual(kinds('after.ts'), [
+    ['Ceiling', 'type'],
+    ['LIMIT', 'type'],
+    ['runTask', 'type'],
+    ['VERSION', 'type']
+  ]);
+  // 与 TypeScript 发射一致：after.ts 发射后没有任何运行时导出
+  const emitted = ts.transpileModule(readFileSync(`${fixtureSrc}after.ts`, 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ESNext }
+  }).outputText;
+  assert.doesNotMatch(emitted, /Ceiling|LIMIT|runTask|VERSION/);
 });
 
 // —— SC-014 命名门禁（contracts/core-api.md §0）——————————————————————————————

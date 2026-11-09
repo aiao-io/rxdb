@@ -103,11 +103,7 @@ export function resolveBatchPrimaryAdapter(
   if (EntityTypes.length === 0) return null;
   const resolver = toEntitySyncResolver(source);
 
-  const selections = EntityTypes.map(EntityType => ({
-    EntityType,
-    selection: selectPrimaryAdapter(resolver.resolve(EntityType)),
-    kind: selectPrimaryAdapterKind(resolver.resolve(EntityType))
-  }));
+  const selections = EntityTypes.map(EntityType => entityPrimaryAdapter(EntityType, resolver));
 
   const kinds = new Set(selections.map(entry => entry.kind));
   if (kinds.size > 1) {
@@ -116,12 +112,33 @@ export function resolveBatchPrimaryAdapter(
     );
   }
 
-  const resolved = selections.find(entry => entry.selection !== null)?.selection;
-  if (!resolved) {
-    throw new RxDBMissingPrimaryAdapterError([...kinds][0], EntityTypes.map(entityLabel));
+  const resolved = selections.flatMap(({ kind, adapter }) => (adapter ? [{ kind, adapter }] : []));
+  if (resolved.length < selections.length) {
+    throw new RxDBMissingPrimaryAdapterError(
+      selections[0].kind,
+      selections.filter(entry => !entry.adapter).map(entry => entityLabel(entry.EntityType))
+    );
   }
-  return resolved;
+  return resolved[0];
 }
+
+const adapterOf = (sync: SyncOptions | undefined, kind: PrimaryAdapterKind): string | undefined =>
+  kind === 'remote' ? sync?.remote?.adapter : sync?.local?.adapter;
+
+/**
+ * 一个实体的写入落点：主端按生效配置判定，适配器名缺省时取数据库级同侧的那个。
+ *
+ * @remarks
+ * 写入实际经 `rxdb.localAdapter$` / `remoteAdapter$` 落地，这两条流只认数据库级 `sync` 里的适配器；
+ * 单条 `save()` 的 `Repository.primary$` 也是按主端选这两条流。`{ type: SyncType.None }` 这类两侧都没声明的
+ * 覆盖只是不同步，写入照样落到数据库级的那一侧——只按实体自己的配置找适配器名，纯同类批量会误报缺适配器，
+ * 混进一个继承库级配置的实体又被它放行。适配器名逐个实体判，不拿批内别的实体顶。
+ */
+const entityPrimaryAdapter = (EntityType: EntityType, resolver: EntitySyncResolver) => {
+  const sync = resolver.resolve(EntityType);
+  const kind = selectPrimaryAdapterKind(sync);
+  return { EntityType, kind, adapter: adapterOf(sync, kind) || adapterOf(resolver.databaseSync, kind) };
+};
 
 /**
  * 判定一批修改是否走 QueryCache 的写路径。

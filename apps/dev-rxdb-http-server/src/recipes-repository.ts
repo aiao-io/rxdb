@@ -125,46 +125,61 @@ export const listMetadataByOffset = async (
   }
 };
 
+/**
+ * token 翻页的排序：`(createdAt, id)` 升序。
+ *
+ * @remarks
+ * 与 offset 形态的 `RECIPE_ORDER_BY`（`updatedAt` 打头）不同是刻意的：keyset 坐标必须是建出来就不再变的列，
+ * 否则翻页途中被更新的未读行会被挪出窗口而漏掉（见 `page-token.ts`）。
+ */
+const TOKEN_ORDER_BY = [
+  { field: 'createdAt', sort: 'asc' },
+  { field: 'id', sort: 'asc' }
+] as const;
+
+/** 实体在 token 翻页里的坐标。 */
+const tokenCursorOf = (row: Recipe): RowCursor => ({ createdAt: row.createdAt.toISOString(), id: row.id });
+
 /** 取当前过滤集合内的最大坐标，作为一次 token 翻页的读取水位线。 */
 const readWatermark = async (repo: RecipeRepository, where: RuleGroup): Promise<RowCursor | undefined> => {
   const rows = await firstValueFrom(
     repo.find({
       where: where as TypedWhere,
       orderBy: [
-        { field: 'updatedAt', sort: 'desc' },
+        { field: 'createdAt', sort: 'desc' },
         { field: 'id', sort: 'desc' }
       ],
       limit: 1
     })
   );
   const last = rows[0];
-  return last === undefined ? undefined : toRecipeMetadataRow(last);
+  return last === undefined ? undefined : tokenCursorOf(last);
 };
 
-/** keyset 下界：`(updatedAt, id) > (after.updatedAt, after.id)`。 */
+/** keyset 下界：`(createdAt, id) > (after.createdAt, after.id)`。 */
 const keysetLowerBound = (after: RowCursor): RuleGroup => ({
   combinator: 'or',
   rules: [
-    { field: 'updatedAt', operator: '>', value: after.updatedAt },
+    { field: 'createdAt', operator: '>', value: after.createdAt },
     {
       combinator: 'and',
       rules: [
-        { field: 'updatedAt', operator: '=', value: after.updatedAt },
+        { field: 'createdAt', operator: '=', value: after.createdAt },
         { field: 'id', operator: '>', value: after.id }
       ]
     }
   ]
 });
 
-/** 快照上界：`(updatedAt, id) <= (watermark.updatedAt, watermark.id)`。 */
+/** 翻页上界：`(createdAt, id) <= (watermark.createdAt, watermark.id)`。 */
 const keysetUpperBound = (watermark: RowCursor): RuleGroup => ({
   combinator: 'or',
   rules: [
-    { field: 'updatedAt', operator: '<', value: watermark.updatedAt },
+    { field: 'createdAt', operator: '<', value: watermark.createdAt },
     {
       combinator: 'and',
       rules: [
-        { field: 'updatedAt', operator: '=', value: watermark.updatedAt },
+        { field: 'createdAt', operator: '=', value: watermark.createdAt },
         { field: 'id', operator: '<=', value: watermark.id }
       ]
     }
@@ -183,8 +198,8 @@ const combineWhere = (where: RuleGroup, bounds: RuleGroup[]): RuleGroup => {
  * token 形态的 `fetchMetadata`（AC#15）。
  *
  * @remarks
- * keyset 游标 + 读取水位线语义原样保留（D5）：`(updatedAt, id)` 严格大于上页末行、
- * 不超过首页水位线，翻页途中新写入的行被挡在快照外；末页用「末行 == 水位线」判定，
+ * keyset 游标 + 读取水位线（D5）：`(createdAt, id)` 严格大于上页末行、不超过首页水位线，
+ * 翻页途中新建的行被挡在外面，被更新的行留在原位、不会漏读；末页用「末行 == 水位线」判定，
  * 而不是短页判定（整除时最后一整页也是满的）。
  */
 export const listMetadataByToken = async (
@@ -208,13 +223,15 @@ export const listMetadataByToken = async (
     const combined = combineWhere(filter, bounds);
 
     const rows = await firstValueFrom(
-      store.repo.find({ where: combined as TypedWhere, orderBy: [...RECIPE_ORDER_BY], limit })
+      store.repo.find({ where: combined as TypedWhere, orderBy: [...TOKEN_ORDER_BY], limit })
     );
     const metadataRows = rows.map(toRecipeMetadataRow);
 
-    const lastRow = metadataRows.at(-1);
-    if (lastRow === undefined || reachedWatermark(lastRow, watermark)) return { rows: metadataRows };
-    return { rows: metadataRows, nextPageToken: encodePageToken({ after: lastRow, watermark }) };
+    const lastRow = rows.at(-1);
+    if (lastRow === undefined) return { rows: metadataRows };
+    const after = tokenCursorOf(lastRow);
+    if (reachedWatermark(after, watermark)) return { rows: metadataRows };
+    return { rows: metadataRows, nextPageToken: encodePageToken({ after, watermark }) };
   } catch (error) {
     if (error instanceof HttpError) throw error;
     if (error instanceof Error && error.name === 'PageTokenError') throw error;

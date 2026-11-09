@@ -114,8 +114,11 @@ describe('bigint and binary client generation', () => {
     expect(source).toContain('ownerId?: bigint');
     expect(source).toContain("BigIntRules<Artifact, 'id'");
     expect(source).toContain("BinaryRules<Artifact, 'payload'");
-    const orderBy = source.match(/type ArtifactOrderByField = ([^;]+);/)?.[1];
-    expect(orderBy).not.toContain("'payload'");
+    // 按联合成员比较且不认引号风格：只查某一种引号的子串，生成器换了引号或真把 payload 加回去都照样通过
+    const orderBy = source.match(/type ArtifactOrderByField = ([^;]+);/)?.[1] ?? '';
+    const orderByFields = orderBy.split('|').map(member => member.trim().replace(/^(['"])(.*)\1$/, '$2'));
+    expect(orderByFields).toContain('id');
+    expect(orderByFields).not.toContain('payload');
   });
 
   it('compiles get(1n), bigint rules and binary equality rules', async () => {

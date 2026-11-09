@@ -142,6 +142,41 @@ describe('ShortcutRegistry', () => {
       expect(() => registry.register({ id: 'c', combo: 'Mod+', handler: vi.fn() })).toThrow(/Invalid shortcut combo/);
     });
 
+    it('mac：冲突按 Command 计算——Mod+K 与 Meta+K 冲突，与 Ctrl+K 不冲突且两者各自可达', () => {
+      const mac = new ShortcutRegistry({ preferences, platform: 'mac' });
+      const palette = vi.fn();
+      const control = vi.fn();
+      mac.register({ id: 'palette', combo: 'Mod+K', handler: palette });
+      expect(() => mac.register({ id: 'meta', combo: 'Meta+K', handler: vi.fn() })).toThrow(
+        /conflicts with "palette"/
+      );
+      expect(() => mac.register({ id: 'control', combo: 'Ctrl+K', handler: control })).not.toThrow();
+      expect(mac.handle(key({ ctrlKey: true, metaKey: false }))).toBe(true);
+      expect(mac.handle(key({ ctrlKey: false, metaKey: true }))).toBe(true);
+      expect(control).toHaveBeenCalledOnce();
+      expect(palette).toHaveBeenCalledOnce();
+    });
+
+    it('其他平台：冲突按 Ctrl 计算——Mod+K 与 Ctrl+K 冲突，与 Meta+K 不冲突', () => {
+      registry.register({ id: 'palette', combo: 'Mod+K', handler: vi.fn() });
+      expect(() => registry.register({ id: 'control', combo: 'Ctrl+K', handler: vi.fn() })).toThrow(
+        /conflicts with "palette"/
+      );
+      expect(() => registry.register({ id: 'meta', combo: 'Meta+K', handler: vi.fn() })).not.toThrow();
+    });
+
+    it('冗余写法按实际修饰键判冲突：mac 上 Mod+Meta+K 与 Meta+K 冲突，其他平台 Mod+Ctrl+K 与 Ctrl+K 冲突', () => {
+      const mac = new ShortcutRegistry({ preferences, platform: 'mac' });
+      mac.register({ id: 'meta', combo: 'Meta+K', handler: vi.fn() });
+      expect(() => mac.register({ id: 'both', combo: 'Mod+Meta+K', handler: vi.fn() })).toThrow(
+        /conflicts with "meta"/
+      );
+      registry.register({ id: 'control', combo: 'Ctrl+K', handler: vi.fn() });
+      expect(() => registry.register({ id: 'both', combo: 'Mod+Ctrl+K', handler: vi.fn() })).toThrow(
+        /conflicts with "control"/
+      );
+    });
+
     it('注销后同一 id / 组合键可重新注册', () => {
       const unregister = registry.register({ id: 'a', combo: 'Mod+K', handler: vi.fn() });
       unregister();

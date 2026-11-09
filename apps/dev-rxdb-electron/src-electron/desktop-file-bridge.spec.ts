@@ -173,6 +173,31 @@ describe('createDesktopFileBridge', () => {
     expect(readdirSync(join(root, 'notes'))).toEqual(['keep.txt']);
   });
 
+  // 协议允许用户文件名以 `.rxdb-tmp` 结尾；临时产物是「点 + UUID + 后缀」这一个窄形状。
+  // 按后缀清扫会在下次启动时删掉一份已经提交成功的用户文件。
+  it('重启清扫不删除已提交的、恰好以 .rxdb-tmp 结尾的用户文件', async () => {
+    const target = createTarget();
+    const sessionId = await openSession(target);
+    for (const path of ['report.rxdb-tmp', '.draft.rxdb-tmp']) {
+      const begin = await bridge.handle(target, { kind: 'file.writeBegin', sessionId, path });
+      if (begin.kind !== 'file.writeBegin') throw new Error(`writeBegin failed: ${JSON.stringify(begin)}`);
+      const writeId = begin.result.writeId;
+      await bridge.handle(target, { kind: 'file.writeChunk', sessionId, writeId, chunk: new TextEncoder().encode(path) });
+      expect(await bridge.handle(target, { kind: 'file.writeCommit', sessionId, writeId })).toEqual({
+        kind: 'file.writeCommit'
+      });
+    }
+    await bridge.closeAll();
+
+    const restarted = createDesktopFileBridge({ resolveStorageRoot: createStorageRootResolver(workspace) });
+    await restarted.whenSwept;
+    await restarted.closeAll();
+
+    const root = join(workspace, DESKTOP_STORAGE_DIRECTORY);
+    expect(readdirSync(root).sort()).toEqual(['.draft.rxdb-tmp', 'report.rxdb-tmp']);
+    expect(readFileSync(join(root, 'report.rxdb-tmp'), 'utf8')).toBe('report.rxdb-tmp');
+  });
+
   it('closeAll 落地后未提交写入的临时文件已经不在磁盘上', async () => {
     const target = createTarget();
     const sessionId = await openSession(target);

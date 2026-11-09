@@ -10,12 +10,18 @@ import { useSyncExternalStore } from 'react';
  * 因此退化成**模块级单例** —— 同一个 bundle 内的多个 React 根共享同一份注册表。
  * 这与 Vue 侧一致，`localStorage` 本来也是同源共享的。
  *
+ * 服务端渲染与 hydrate 的快照不取自这份注册表（见 {@link usePersistedState} 的 `getServerSnapshot`）：
+ * 长驻 SSR 进程里它跨请求存活，从它取值会把上一个请求的值渲染进下一个请求的 HTML。
+ *
  * `onError` 走 `console.error`：模块级单例够不着 React 的 error boundary。
  * UI 侧要感知失败请读 {@link PersistedState.persistError}。
  */
 const registry = new PersistedStateRegistry({
   onError: error => console.error('[@aiao/rxdb-react] persisted state:', error)
 });
+
+/** 服务端从不写盘，服务端快照里没有持久化失败。 */
+const noPersistError = (): undefined => undefined;
 
 /**
  * 某个 `namespace + name` 的持久化状态。
@@ -76,8 +82,10 @@ export interface PersistedState<T> {
  * 含 `:` 或 `%` 的旧键在首次读取时一次性迁移到新键。
  *
  * 订阅走 `useSyncExternalStore`，因此在并发渲染与 `StrictMode` 下都不会读到撕裂的快照。
- * `getServerSnapshot` 与客户端读取共用同一个入口：非浏览器环境（SSR）下不读也不写
- * `localStorage`，状态退化成纯内存值，客户端 hydrate 后从盘上恢复。
+ * 服务端渲染（`getServerSnapshot`）恒为**本次调用**的 `initialValue`、`persistError` 恒为
+ * `undefined`：不读也不写 `localStorage`，也不读进程内注册表，连续或并发的请求之间互不可见，
+ * 同一次渲染里同 key 的调用点各自渲染自己的初值。客户端 hydrate 用同一个快照对齐服务端 HTML，
+ * 提交后再切到注册表里的当前值（盘上值或首次注册的初值），不产生 hydration mismatch。
  *
  * 暂不监听 `storage` 事件，因此**不跨标签页同步**。
  *
@@ -91,8 +99,8 @@ export const usePersistedState = <T>(namespace: string, name: string, initialVal
   // entry 门面在注册表里只建一次，get / subscribe / set 的 identity 都是稳定的 ——
   // useSyncExternalStore 正是以 subscribe 的 identity 判定要不要重新订阅
   const entry = registry.entry(namespace, name, initialValue);
-  const value = useSyncExternalStore(entry.subscribe, entry.get, entry.get);
-  const persistError = useSyncExternalStore(entry.subscribe, entry.persistError, entry.persistError);
+  const value = useSyncExternalStore(entry.subscribe, entry.get, () => initialValue);
+  const persistError = useSyncExternalStore(entry.subscribe, entry.persistError, noPersistError);
 
   return { value, setValue: entry.set, persistError };
 };

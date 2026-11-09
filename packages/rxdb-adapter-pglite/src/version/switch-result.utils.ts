@@ -43,6 +43,7 @@ import {
   getSqlWithParams,
   getSwitchUpdatedAt,
   normalizeUpdateEntity,
+  quoteIdentifier,
   transformValuePGliteToJs
 } from '../pglite.utils.js';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
@@ -93,10 +94,25 @@ const requireMetadata = (adapter: RxDBAdapterPGlite, namespace: string, entityNa
   return metadata;
 };
 
-const normalizeLegacyEntityId = (metadata: EntityMetadata, entityId: RxDBEntityId): RxDBEntityId => {
-  if (typeof entityId !== 'string') return entityId;
+const requireIdProperty = (metadata: EntityMetadata) => {
   const idProperty = metadata.propertyMap.get('id');
   if (!idProperty) throw new TypeError(`Missing id metadata for ${metadata.namespace}.${metadata.name}`);
+  return idProperty;
+};
+
+/**
+ * 主键物理列（已加引号）。
+ *
+ * @remarks
+ * 主键属性 `id` 可被 `columnName` 改写；删除的 `= ANY($1)` 与 upsert 的冲突目标都按物理列定位行，
+ * 与 `entity/inserts_sql.ts` 的冲突目标同一口径。
+ */
+const primaryKeyColumnSql = (metadata: EntityMetadata): string =>
+  quoteIdentifier(requireIdProperty(metadata).columnName);
+
+const normalizeLegacyEntityId = (metadata: EntityMetadata, entityId: RxDBEntityId): RxDBEntityId => {
+  if (typeof entityId !== 'string') return entityId;
+  const idProperty = requireIdProperty(metadata);
   if (idProperty.type === PropertyType.bigint) return BigInt(entityId);
   if (idProperty.type === PropertyType.integer) {
     const value = Number(entityId);
@@ -218,14 +234,15 @@ export const convertSwitchResultToSql = async (
   for (const [key, idSet] of needDeleteEntitiesMap) {
     const metadata = getGroupedMetadata(adapter, key);
     const tableName = getTableNameByMetadata(metadata, tableSet);
-    const idType = metadata.propertyMap.get('id')?.type;
+    const idType = requireIdProperty(metadata).type;
+    const idColumn = primaryKeyColumnSql(metadata);
 
     // PostgreSQL 使用 = ANY($1) 语法，支持参数化数组
     const ids = Array.from(idSet);
     const deleteSql =
-      idType === PropertyType.integer ? `DELETE FROM ${tableName} WHERE id = ANY($1::integer[]) RETURNING *;`
-      : idType === PropertyType.bigint ? `DELETE FROM ${tableName} WHERE id = ANY($1::bigint[]) RETURNING *;`
-      : `DELETE FROM ${tableName} WHERE id = ANY($1) RETURNING *;`;
+      idType === PropertyType.integer ? `DELETE FROM ${tableName} WHERE ${idColumn} = ANY($1::integer[]) RETURNING *;`
+      : idType === PropertyType.bigint ? `DELETE FROM ${tableName} WHERE ${idColumn} = ANY($1::bigint[]) RETURNING *;`
+      : `DELETE FROM ${tableName} WHERE ${idColumn} = ANY($1) RETURNING *;`;
 
     result.deletes.push({
       metadata,
@@ -400,8 +417,9 @@ const IMMUTABLE_ON_CONFLICT_PROPERTIES = ['id', 'createdAt', 'createdBy'] as con
  * - 两边各算各的列集合，从来没有对过账
  *
  * 没有可更新列时必须是 `DO NOTHING`：空的 `DO UPDATE SET` 是语法错误。
+ * 冲突目标是主键的物理列（{@link primaryKeyColumnSql}），不是字面量 `id`。
  *
- * @param metadata - 实体元数据，用于解析不可变属性的列名
+ * @param metadata - 实体元数据，用于解析主键与不可变属性的列名
  * @param insertedColumns - 本次 INSERT 写入的物理列名
  */
 const generateOnConflictClause = (metadata: EntityMetadata, insertedColumns: readonly string[]): string => {
@@ -412,7 +430,8 @@ const generateOnConflictClause = (metadata: EntityMetadata, insertedColumns: rea
     .filter(column => !immutableColumns.has(column))
     .map(column => `"${column}" = EXCLUDED."${column}"`)
     .join(', ');
+  const conflictTarget = `ON CONFLICT (${primaryKeyColumnSql(metadata)})`;
 
-  if (!updateColumns) return ' ON CONFLICT (id) DO NOTHING';
-  return ` ON CONFLICT (id) DO UPDATE SET ${updateColumns}`;
+  if (!updateColumns) return ` ${conflictTarget} DO NOTHING`;
+  return ` ${conflictTarget} DO UPDATE SET ${updateColumns}`;
 };

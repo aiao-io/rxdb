@@ -9,7 +9,7 @@ const OTHER = '22222222-2222-4222-8222-222222222222';
 const directoryWith = (overrides: Partial<ReportDirectory> = {}): ReportDirectory => ({
   submit: vi.fn(async () => ({ created: true })),
   listOpen: vi.fn(async () => []),
-  resolve: vi.fn(async () => true),
+  resolve: vi.fn(async () => undefined),
   hasServerCopy: vi.fn(async () => true),
   ...overrides
 });

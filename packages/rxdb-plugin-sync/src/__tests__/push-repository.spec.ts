@@ -179,6 +179,18 @@ function ruleValue(group: unknown, field: string): unknown {
   return undefined;
 }
 
+/** `id` 上的上下界：`>` 是水位线，`<=` 是认领之后复查时的认领上限 */
+function idBoundsOf(group: unknown): { after?: number; atMost?: number } {
+  if (!isRecord(group) || !Array.isArray(group['rules'])) return {};
+  const bounds: { after?: number; atMost?: number } = {};
+  for (const rule of group['rules']) {
+    if (!isRecord(rule) || rule['field'] !== 'id' || typeof rule['value'] !== 'number') continue;
+    if (rule['operator'] === '>') bounds.after = rule['value'];
+    if (rule['operator'] === '<=') bounds.atMost = rule['value'];
+  }
+  return bounds;
+}
+
 function createChange(input: ChangeInput): RxDBChange {
   const type = input.type ?? 'INSERT';
   const entityId = input.entityId ?? (`00000000-0000-0000-0000-${String(input.id).padStart(12, '0')}` as UUID);
@@ -266,9 +278,9 @@ function createHarness(options: HarnessOptions = {}) {
     const where = findOptions.where;
     const entities = ruleValue(where, 'entity');
     const entityIds = ruleValue(where, 'entityId');
-    const afterId = ruleValue(where, 'id');
+    const idBounds = idBoundsOf(where);
     // 待推口径的三个空值条件只在查询带上时才过滤，与真实适配器一致
-    const pendingOnly = (field: 'remoteId' | 'rejectedAt', change: RxDBChange): boolean =>
+    const pendingOnly = (field: 'remoteId' | 'rejectedAt' | 'revertChangeId', change: RxDBChange): boolean =>
       ruleValue(where, field) !== null || change[field] == null;
     return changes.filter(
       change =>
@@ -276,9 +288,11 @@ function createHarness(options: HarnessOptions = {}) {
         : typeof entities === 'string' ? entities === change.entity
         : true) &&
         (!Array.isArray(entityIds) || entityIds.includes(String(change.entityId))) &&
-        (typeof afterId !== 'number' || change.id > afterId) &&
+        (idBounds.after === undefined || change.id > idBounds.after) &&
+        (idBounds.atMost === undefined || change.id <= idBounds.atMost) &&
         pendingOnly('remoteId', change) &&
-        pendingOnly('rejectedAt', change)
+        pendingOnly('rejectedAt', change) &&
+        pendingOnly('revertChangeId', change)
     );
   });
   const changeRepo = { find: changeFind } as unknown as IRepository<typeof RxDBChange>;
@@ -546,11 +560,16 @@ describe('pushRepository', () => {
     await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
     await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
 
-    // 首次查询没有水位线过滤；第二次必须带上 `id > 2`，否则旧变更被无限重扫
+    // 首次选取没有水位线过滤，认领之后的复查只多一条认领上限；第二次 push 必须带上 `id > 2`，否则旧变更被无限重扫
     expect(harness.changeFind.mock.calls[0][0].where.rules).not.toContainEqual(
       expect.objectContaining({ field: 'id' })
     );
     expect(harness.changeFind.mock.calls[1][0].where.rules).toContainEqual({
+      field: 'id',
+      operator: '<=',
+      value: 2
+    });
+    expect(harness.changeFind.mock.calls.at(-1)?.[0].where.rules).toContainEqual({
       field: 'id',
       operator: '>',
       value: 2
@@ -1342,6 +1361,59 @@ describe('pushRepository 的在飞认领', () => {
     await pushed;
 
     expect([...harness.pushInFlight.snapshot()]).toEqual([]);
+  });
+
+  /**
+   * 反方向的窗口：undo 的写事务先过了认领复核（那时还没认领），提交发生在本轮选出待推之后、认领之前。
+   * 认领之后按同一口径复查一遍，复查排在那笔事务之后，读得到撤销标记，被撤销的就不再发往远端。
+   */
+  it('选出之后才被撤销的变更：认领之后的复查剔除它，不推', async () => {
+    const reverted = createChange({ id: 11 });
+    const kept = createChange({ id: 12 });
+    const harness = createHarness({ changes: [reverted, kept] });
+    const select = harness.changeFind.getMockImplementation()!;
+    harness.changeFind.mockImplementationOnce(async findOptions => {
+      const selected = await select(findOptions);
+      reverted.revertChangeId = 99;
+      return selected;
+    });
+
+    const result = await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
+
+    const sent = harness.mergeChanges.mock.calls.flatMap(([, , sourceChanges]) => (sourceChanges ?? []).map(c => c.id));
+    expect(sent).toEqual([12]);
+    expect(result).toMatchObject({ success: true, pushed: 1, originalCount: 1 });
+  });
+
+  it('选出的全部被撤销：不发远端，也不推进水位线', async () => {
+    const reverted = createChange({ id: 11 });
+    const harness = createHarness({ changes: [reverted] });
+    const select = harness.changeFind.getMockImplementation()!;
+    harness.changeFind.mockImplementationOnce(async findOptions => {
+      const selected = await select(findOptions);
+      reverted.revertChangeId = 99;
+      return selected;
+    });
+
+    const result = await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
+
+    expect(harness.mergeChanges).not.toHaveBeenCalled();
+    expect(harness.currentSync.lastPushedChangeId).toBeNull();
+    expect(result).toMatchObject({ pushed: 0, originalCount: 0 });
+  });
+
+  it('复查发生在认领之后：复查那一刻认领已经可见', async () => {
+    const harness = createHarness({ changes: [createChange({ id: 11 })] });
+    const claimsAtEachQuery: Array<Array<[string, number]>> = [];
+    const select = harness.changeFind.getMockImplementation()!;
+    harness.changeFind.mockImplementation(async findOptions => {
+      claimsAtEachQuery.push([...harness.pushInFlight.snapshot()]);
+      return await select(findOptions);
+    });
+
+    await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
+
+    expect(claimsAtEachQuery.slice(0, 2)).toEqual([[], [['public:User', 11]]]);
   });
 
   it('远端抛错时同样释放认领', async () => {

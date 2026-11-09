@@ -1,5 +1,16 @@
-import { PersistedStateRegistry, type PersistedStateEntry } from '@aiao/utils';
-import { computed, shallowRef, type ComputedRef, type Ref } from 'vue';
+import { PersistedStateRegistry, type PersistedStateEntry, type PersistedStateRegistryOptions } from '@aiao/utils';
+import { computed, hasInjectionContext, inject, shallowRef, ssrContextKey, type ComputedRef, type Ref } from 'vue';
+
+/**
+ * 注册表选项。
+ *
+ * @remarks
+ * `onError` 走 `console.error`：Vue 的 `app.config.errorHandler` 绑在应用实例上，
+ * 模块级单例够不着。UI 侧要感知失败请读 {@link PersistedState.persistError}。
+ */
+const registryOptions: PersistedStateRegistryOptions = {
+  onError: error => console.error('[@aiao/rxdb-vue] persisted state:', error)
+};
 
 /**
  * 命名空间持久化状态的进程内注册表。
@@ -10,12 +21,29 @@ import { computed, shallowRef, type ComputedRef, type Ref } from 'vue';
  * 因此退化成**模块级单例** —— 同一个 bundle 内的多个 Vue 应用共享同一份注册表。
  * 这是三端唯一的实质差异，`localStorage` 本来也是同源共享的。
  *
- * `onError` 走 `console.error`：Vue 的 `app.config.errorHandler` 绑在应用实例上，
- * 模块级单例够不着。UI 侧要感知失败请读 {@link PersistedState.persistError}。
+ * 服务端渲染不用它，见 {@link ssrRegistries}。
  */
-const registry = new PersistedStateRegistry({
-  onError: error => console.error('[@aiao/rxdb-vue] persisted state:', error)
-});
+const registry = new PersistedStateRegistry(registryOptions);
+
+/**
+ * 服务端渲染时每个请求一份注册表，以该次渲染的 SSR 上下文为键、随上下文回收。
+ *
+ * @remarks
+ * 长驻 SSR 进程里模块级单例跨请求存活：上一个请求登记或写入的值会被下一个请求读到。
+ * `renderToString` / 流式渲染每次都向应用提供一个新的 SSR 上下文（`ssrContextKey`），
+ * 按它分表，同一请求内同 key 仍共享，请求之间互不可见。
+ */
+const ssrRegistries = new WeakMap<object, PersistedStateRegistry>();
+
+/** 当前调用所属的注册表：服务端渲染的 setup 内按请求分表，其余（浏览器、setup 之外）用模块级单例。 */
+const currentRegistry = (): PersistedStateRegistry => {
+  const ssrContext = hasInjectionContext() ? inject<object | null>(ssrContextKey, null) : null;
+  if (!ssrContext) return registry;
+
+  const scoped = ssrRegistries.get(ssrContext) ?? new PersistedStateRegistry(registryOptions);
+  ssrRegistries.set(ssrContext, scoped);
+  return scoped;
+};
 
 /**
  * 某个 `namespace + name` 的持久化状态。
@@ -103,7 +131,9 @@ const bindingOf = <T>(entry: PersistedStateEntry<T>): PersistedState<T> => {
  * 含 `:` 或 `%` 的旧键在首次读取时一次性迁移到新键。
  *
  * 非浏览器环境（SSR）下不读也不写 `localStorage`，状态退化成纯内存值，不会抛错；
- * 客户端 hydrate 后从盘上恢复。
+ * 客户端 hydrate 后从盘上恢复。服务端渲染时（setup 或 `app.runWithContext` 内）状态按请求隔离：
+ * 同一请求内同 key 共享，连续或并发的请求之间互不可见；在这两种上下文之外调用拿到的是
+ * 进程级状态，服务端不要在那里放请求相关的值。
  *
  * 暂不监听 `storage` 事件，因此**不跨标签页同步**。
  *
@@ -114,4 +144,4 @@ const bindingOf = <T>(entry: PersistedStateEntry<T>): PersistedState<T> => {
  * @public
  */
 export const usePersistedState = <T>(namespace: string, name: string, initialValue: T): PersistedState<T> =>
-  bindingOf(registry.entry(namespace, name, initialValue));
+  bindingOf(currentRegistry().entry(namespace, name, initialValue));
