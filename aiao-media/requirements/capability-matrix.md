@@ -41,3 +41,5 @@ Tauri 与平台同步继续实施；Cloudflare 平台任务与计费已退出当
 | 平台 Supabase 原图同步 | ⚠️ 独立范围确认与私有 Storage 传输已接线；持久队列、真实 Storage 和 Web/Tauri 跨设备待验             | [MEDIA-US-305](stories/local-first/MEDIA-US-305-supabase-image-sync.md) |
 
 扩展实现的统一证据见[产品交付计划](plans/product-completion-20261030.md)。
+
+国内自建部署见 [MEDIA-US-006](stories/platform/MEDIA-US-006-self-hosted-deployment.md)：公网 Caddy IP HTTPS、Node 任务、真实 Supabase/Storage 与整机重启已验证，证据和公众服务边界见[国内发布记录](plans/self-hosted-release-20261109.md)。本地历史验证表不代表此次部署未启用；公众 SMTP、站外备份及桌面原图联验尚未完成。

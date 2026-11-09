@@ -1,7 +1,7 @@
 import type { RelayTaskStatus } from '@aiao-media/api-contracts';
 import { relayResultKey, relayTaskTokenHash, relayTaskTokenHeader, sealRelayResult } from '@aiao-media/api-contracts';
 import { bounded } from './product-http.ts';
-import type { RelayTaskContext, WorkerEnv, WorkerRequest } from './worker-env.ts';
+import type { RelayResultStore, RelayTaskContext, WorkerEnv, WorkerRequest } from './worker-env.ts';
 
 type RelayTaskRow = {
   task_id: string;
@@ -43,12 +43,12 @@ export const missingRelayTask = () => reply({ error: 'Task not found' }, 404);
  */
 export class RelayTask {
   ctx: RelayTaskContext;
-  env: WorkerEnv & { RELAY_RESULTS: R2Bucket };
+  env: WorkerEnv & { RELAY_RESULTS: RelayResultStore };
   request: WorkerRequest;
   waiters: Set<() => void>;
   constructor(
     ctx: RelayTaskContext,
-    env: WorkerEnv & { RELAY_RESULTS: R2Bucket },
+    env: WorkerEnv & { RELAY_RESULTS: RelayResultStore },
     request: WorkerRequest = (url, init) => fetch(url, init)
   ) {
     this.ctx = ctx;

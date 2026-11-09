@@ -18,7 +18,9 @@ export function supabaseHeaders(template, config) {
 export async function buildSupabaseConfig(env, output) {
   const url = env.AIAO_SUPABASE_URL?.trim();
   const anonKey = env.AIAO_SUPABASE_ANON_KEY?.trim();
-  const config = url || anonKey ? validateSupabaseAuthConfig({ url, anonKey }) : null;
+  const storageUrl = env.AIAO_SUPABASE_STORAGE_URL?.trim();
+  const config =
+    url || anonKey ? validateSupabaseAuthConfig({ url, anonKey, ...(storageUrl ? { storageUrl } : {}) }) : null;
   await mkdir(dirname(output), { recursive: true });
   await writeFile(output, `globalThis.__AIAO_SUPABASE_CONFIG__ = ${JSON.stringify(config)};\n`);
   return Boolean(config);

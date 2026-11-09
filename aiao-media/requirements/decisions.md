@@ -21,7 +21,7 @@
 
 ### D-13：未来功能与目录演进
 
-已确定的产品方向：继续优化 Web；提供 Tauri 本地安装程序；在 Cloudflare 运行安全代理及管理后台；同步方向统一按 D-16 使用平台 Supabase。原平台生图、额度和收费方向按 D-17 暂缓。
+已确定的产品方向：继续优化 Web；提供 Tauri 本地安装程序；在海外 Cloudflare、国内自建 Node 运行安全代理及管理 API；同步方向统一按 D-16 使用平台 Supabase。原平台生图、额度和收费方向按 D-17 暂缓。
 
 首阶段已进入实施，技术选择和证据见[产品交付计划](plans/product-completion-20261030.md)。完整范围与共同数据边界见[未来功能需求与目录规划](future-requirements.md)。方向确定不等于验收完成；平台账号与同步的实际启用见 D-16 和正式发布记录，D-06 的同步保留规则与既有故事验收状态保持不变。
 
@@ -31,7 +31,7 @@
 
 ### D-15：本站代理生图改为服务端任务
 
-代理通道的生成改为 Cloudflare 服务端任务：刷新、关闭页面或短暂断网后回到页面，可以续接并取回结果。一次一张，与现有本机生成锁一致，不做多张排队。结果暂存在独立私有 R2 bucket，取回即删，生命周期规则自动兜底删除；需要在 Cloudflare 账号开通 R2 订阅。Key 沿用不持久化边界，浏览器直连规则不变。
+代理通道的生成改为服务端任务（海外 Cloudflare，国内 Node）：刷新、关闭页面或短暂断网后回到页面，可以续接并取回结果。一次一张，与现有本机生成锁一致，不做多张排队。海外结果暂存在独立私有 R2 bucket，取回即删，生命周期规则兜底删除；国内使用独立私有密文文件与持久闹钟清理。Cloudflare 路径需要 R2 订阅，国内运行边界见 D-18。Key 沿用不持久化边界，浏览器直连规则不变。
 
 先补需求与计划再实现：[MEDIA-US-109](stories/generation/MEDIA-US-109-relay-durable-task.md) 定义授权、加密、有效期与删除，选型依据见[实施计划](plans/relay-durable-tasks.md)。本决策不表示已实现。
 
@@ -52,6 +52,12 @@
 [MEDIA-US-108](stories/generation/MEDIA-US-108-platform-generation.md) 与 [MEDIA-US-205](stories/account/MEDIA-US-205-platform-billing.md) 退回 Backlog，待未来收费需求明确后重新评审范围、实现和验收。保留后端历史实现与验收证据，存量任务、订单、流水和原图不删除；保留代码不表示服务仍对外开放。
 
 默认免费供应商、本站代理 `/api/relay` 与 `/api/relay/tasks`、平台账号、元数据和私有原图同步继续按各自故事推进，不依赖平台计费。平台免费不代表基础设施或用户自有供应商没有成本。
+
+### D-18：国内自建与海外托管两种部署
+
+2026-11-09 用户明确：国内使用 `aliyun-self` 自建 Supabase，允许清理旧业务，并部署 Caddy 公网 IP HTTPS；海外继续使用 Cloudflare 和 Supabase 托管服务。两种部署复用产品契约，国内增加 Node 入口、SQLite 任务与加密文件适配；账号与同步数据仍由对应部署的平台 Supabase 维护。
+
+本次按独立账号与数据区域实施，不增加跨区身份或图库复制。国内入口为 `https://47.103.117.118`；当前关闭公众注册，初始确认账号由可信运维创建。SMTP、站外备份、实际模型压力与桌面联验仍需分别完成。实现与真实验证见 [MEDIA-US-006](stories/platform/MEDIA-US-006-self-hosted-deployment.md)、[双部署方案](plans/dual-region-deployment.md)和[国内发布记录](plans/self-hosted-release-20261109.md)。
 
 ## 当前执行条件
 

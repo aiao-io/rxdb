@@ -3,9 +3,9 @@ export interface WorkerEnv {
   [secret: string]: unknown;
   ASSETS?: Fetcher;
   MEDIA_PLATFORM?: DurableObjectNamespace;
-  RELAY_TASKS?: DurableObjectNamespace;
+  RELAY_TASKS?: RelayTaskNamespace;
   MEDIA_RESULTS?: R2Bucket;
-  RELAY_RESULTS?: R2Bucket;
+  RELAY_RESULTS?: RelayResultStore;
   ALLOWED_PROVIDER_BASE_URLS?: string;
   MEDIA_ALLOW_DESKTOP_ORIGIN?: string;
   MEDIA_SUPABASE_URL?: string;
@@ -17,6 +17,24 @@ export interface WorkerEnv {
   MEDIA_PLATFORM_FREE_DAILY?: string;
   MEDIA_PLATFORM_DAILY_BUDGET_MICROS?: string;
   MEDIA_CREDIT_PACK?: string;
+}
+
+/** 两种部署共用的任务寻址和请求接口。 */
+export interface RelayTaskNamespace {
+  idFromName(name: string): { toString(): string };
+  get(id: { toString(): string }): { fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> };
+}
+
+/** 代理结果只需要密文写入、读取、存在检查和删除。 */
+export interface RelayResultStore {
+  put(
+    key: string,
+    value: Uint8Array<ArrayBuffer>,
+    options?: { httpMetadata: { contentType: string } }
+  ): Promise<unknown>;
+  get(key: string): Promise<{ body: ReadableStream<Uint8Array> } | null>;
+  head(key: string): Promise<unknown | null>;
+  delete(key: string): Promise<void>;
 }
 
 /** 持久对象使用的同步 SQL 接口，允许本地 SQLite 提供同一契约。 */

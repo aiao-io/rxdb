@@ -71,3 +71,7 @@
 | 套餐                     | Cloudflare 控制台显示 Workers 免费套餐 US$0 与活动 Workers Free 订阅；账户另有既有订阅，不称全账户免费或零账单                                                                                                                                                                                 | [正式交付验收](plans/public-delivery-verification.md)                                |
 
 历史 JPEG 及此前发布保持本机模式，其关闭账号配置的构建和离线证据仍见[原交付记录](plans/jpeg-delivery-verification.md)。2026-11-06 平台版本使用显式平台公开配置，生产 Supabase 已初始化并完成上述真实云 API 和完整浏览器同步样本，旧配置缓存修复已发布且正式站点表单复验通过；22:07 再发布版本的正式四路由与离线浏览器 smoke 已通过，58/58 缓存摘要匹配。自定义 SMTP、公众注册确认邮件和生产 Web/Tauri 余项仍待验，故事状态保持未关闭。
+
+## 2026-11-09 国内自建部署
+
+[国内发布记录](plans/self-hosted-release-20261109.md)记录公网 IP HTTPS、真实 Supabase、两个普通账号的 RLS/Storage 隔离、PNG/JPEG/TUS 摘要、浏览器四路由和离线启动，以及整机重启后的数据保留。原 Cloudflare 代理契约和 Worker dry-run 回归通过，未变更海外资源。公众邮件、站外备份、模型压力与 Web/Tauri 原图联验仍未完成，不扩大旧故事的验收结论。

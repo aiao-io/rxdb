@@ -4,6 +4,7 @@ MVP 首发收口与同步扩展的实施计划、真实环境验收记录和历�
 
 | 验收记录                                                                             | 回答的问题                                                                |
 | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| [self-hosted-release-20261109.md](self-hosted-release-20261109.md)                   | 国内清理重建、Caddy IP HTTPS、真实 Storage 与整机重启的发布证据           |
 | [local-first-app-verification.md](local-first-app-verification.md)                   | 默认应用已经验证什么、还缺什么                                            |
 | [local-reliability-verification.md](local-reliability-verification.md)               | 凭据、作品信息、并发草稿、文件/备份中断恢复与 schema 守卫的复验入口       |
 | [supabase-account-verification.md](supabase-account-verification.md)                 | 真实本地账号会话、开发探针授权及产品同步的边界                            |
@@ -28,6 +29,7 @@ MVP 首发收口与同步扩展的实施计划、真实环境验收记录和历�
 | [library-search-tasks.md](library-search-tasks.md)           | MEDIA-US-204 检索/稳定分页/视口预览的完成记录、样本与覆盖率边界             |
 | [local-delivery-tasks.md](local-delivery-tasks.md)           | 本地产品交付的实施清单                                                      |
 | [relay-durable-tasks.md](relay-durable-tasks.md)             | MEDIA-US-109 代理生图服务端任务的选型依据、接口与状态、安全边界和分阶段验收 |
+| [dual-region-deployment.md](dual-region-deployment.md)       | 国内 aliyun-self 自建与海外托管的服务器实测、改造方案、实施顺序和验收条件   |
 | [release-completion-tasks.md](release-completion-tasks.md)   | 剩余真实验收顺序、供应商验收入口与生产账号服务启用步骤                      |
 | [rxdb-product-incubation.md](rxdb-product-incubation.md)     | 迁入 RxDB 的目录、应用需求隔离、MVP 保全与发布交接方案                      |
 

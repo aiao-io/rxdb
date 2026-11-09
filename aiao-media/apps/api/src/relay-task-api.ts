@@ -2,7 +2,7 @@ import { isMiniMaxImageProvider, isRelayTaskToken, relayTaskTokenHeader } from '
 import { originAllowed, uuid } from './product-http.ts';
 import { json, relayInput } from './relay-input.ts';
 import { missingRelayTask, relayTaskLimits } from './relay-task.ts';
-import type { WorkerEnv } from './worker-env.ts';
+import type { RelayTaskNamespace, WorkerEnv } from './worker-env.ts';
 
 type ForwardOperation = { path: string; method: string; write?: boolean; body?: string };
 
@@ -22,7 +22,13 @@ const operations: Record<string, (url: URL, taskId: string) => ForwardOperation>
   'DELETE ': () => ({ path: '/', method: 'DELETE', write: true })
 };
 
-async function create(request: Request, env: WorkerEnv, task: DurableObjectStub, taskId: string, token: string) {
+async function create(
+  request: Request,
+  env: WorkerEnv,
+  task: ReturnType<RelayTaskNamespace['get']>,
+  taskId: string,
+  token: string
+) {
   if (!isRelayTaskToken(token)) return json(400, 'Task token required');
   let input;
   try {

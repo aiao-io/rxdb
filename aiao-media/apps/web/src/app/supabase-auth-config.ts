@@ -1,6 +1,7 @@
 export interface SupabaseAuthConfig {
   url: string;
   anonKey: string;
+  storageUrl?: string;
 }
 
 export function validateSupabaseAuthConfig(value: unknown): SupabaseAuthConfig {
@@ -29,7 +30,20 @@ export function validateSupabaseAuthConfig(value: unknown): SupabaseAuthConfig {
       throw new Error('只能使用 Supabase publishable key 或 anon key，不能使用服务端密钥。');
     }
   }
-  return { url: url.origin, anonKey };
+  if (data['storageUrl'] === undefined) return { url: url.origin, anonKey };
+  if (typeof data['storageUrl'] !== 'string') throw new Error('Storage 地址无效。');
+  const storage = new URL(data['storageUrl']);
+  const storageLoopback = ['localhost', '127.0.0.1', '[::1]'].includes(storage.hostname);
+  if (
+    !(storage.protocol === 'https:' || (storage.protocol === 'http:' && storageLoopback)) ||
+    storage.username ||
+    storage.password ||
+    storage.pathname !== '/' ||
+    storage.search ||
+    storage.hash
+  )
+    throw new Error('Storage URL 必须是 HTTPS 服务地址。');
+  return { url: url.origin, anonKey, storageUrl: storage.origin };
 }
 
 export function readSupabaseAuthConfig(scope: unknown = globalThis): SupabaseAuthConfig | null {
