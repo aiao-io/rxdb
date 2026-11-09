@@ -57,7 +57,7 @@
     "@aiao/rxdb-plugin-history": "workspace:*",
     "@aiao/rxdb-test": "workspace:*",
     "@angular/compiler": "22.2.4",
-    "vitest": "4.1.11"
+    "vitest": "5.1.0"
   },
   "publishConfig": {
     "access": "public"
