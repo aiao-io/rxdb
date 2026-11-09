@@ -7,11 +7,29 @@ import { localEnvironment, workspaceRoot } from '../supabase/supabase-local.mjs'
 export async function writeDevelopmentConfig(root, { publicEnv, env, url }) {
   const api = resolve(root, 'apps/api');
   const directory = resolve(api, '.wrangler/local-dev');
+  const assets = resolve(directory, 'assets');
   const config = JSON.parse(await readFile(resolve(api, 'wrangler.json'), 'utf8'));
-  delete config.assets;
+  config.assets = {
+    ...config.assets,
+    directory: assets,
+    html_handling: 'auto-trailing-slash',
+    not_found_handling: 'none'
+  };
   delete config.$schema;
   config.main = resolve(api, config.main);
-  await mkdir(directory, { recursive: true });
+  await mkdir(assets, { recursive: true });
+  await writeFile(
+    resolve(assets, 'index.html'),
+    `<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<title>Aiao Media API</title>
+<h1>Aiao Media API</h1>
+<p><a href="/api/templates">查看公开模板</a></p>
+<p><a href="http://localhost:4300">Web</a> · <a href="http://localhost:4302">Admin</a></p>
+</html>
+`
+  );
   await writeFile(resolve(directory, 'wrangler.json'), JSON.stringify(config, null, 2) + '\n');
   const secrets = resolve(directory, '.dev.vars');
   await writeFile(
