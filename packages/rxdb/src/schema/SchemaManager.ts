@@ -3,7 +3,6 @@ import { EntityBase } from '../entity/entity-base.js';
 import { Entity } from '../entity/entity.decorator.js';
 import { EntityType } from '../entity/entity.interface.js';
 import { setSafeObjectKey } from '../entity/entity.utils.js';
-import { isPlainRecord } from '../entity/json-safe.js';
 import generate_many_to_many_entity, { ManyToManyRelation } from '../entity/many-to-many-entity.js';
 import {
   EntityPropertyMetadata,
@@ -373,16 +372,20 @@ export class SchemaManager {
   }
 
   /**
-   * 键是不是 RxDB 实例自己的成员：原型链上的方法与访问器（含 `Object.prototype` 的 `__proto__` /
-   * `constructor`）、构造期的字段，以及之后挂上来的非普通对象（管理器、插件 API 等）。
+   * 键是不是 RxDB 自己的成员：原型链上的方法与访问器（含 `Object.prototype` 的 `__proto__` /
+   * `constructor`）、构造期就在实例上的字段，以及实例上已有的函数 / 原始值。
    *
    * @remarks
-   * 实例上已有的**普通对象**不算成员：那是本实例早先建的命名空间容器，或接入方事先挂好的容器，照旧复用。
+   * 实例上已有的**对象**不算成员，照旧当容器复用：本实例早先建的命名空间容器、接入方事先挂好的容器，
+   * 以及插件安装时挂上的同名服务——`rxdb-plugin-storage` 的 `rxdb.storage` 与 `storage` 命名空间、
+   * `rxdb-plugin-replay` 的 `rxdb.replay` 与 `replay` 命名空间都是这个约定，实体挂在服务对象上
+   * （`rxdb.storage.StorageFileMeta`）。函数与原始值当不了容器，要挂实体只能把它们换掉。
    */
   #is_instance_member(key: string): boolean {
     if (this.#instance_fields.has(key)) return true;
     if (!Object.hasOwn(this.rxdb, key)) return key in this.rxdb;
-    return !isPlainRecord(Reflect.get(this.rxdb, key));
+    const value: unknown = Reflect.get(this.rxdb, key);
+    return typeof value !== 'object' || value === null;
   }
 
   /**
@@ -406,7 +409,7 @@ export class SchemaManager {
     throw new RxDBError(`实体名 '${name}' 与 RxDB 实例成员同名：public 实体直接挂在实例上，会覆盖该成员`);
   }
 
-  /** 命名空间容器：public 是实例本身，其余是实例上同名的普通对象，没有就新建。 */
+  /** 命名空间容器：public 是实例本身，其余是实例上同名的对象（含插件挂的服务），没有就新建。 */
   #namespace_scope(namespace: string): object {
     if (namespace === 'public') return this.rxdb;
     if (Object.hasOwn(this.rxdb, namespace)) return Reflect.get(this.rxdb, namespace) as object;

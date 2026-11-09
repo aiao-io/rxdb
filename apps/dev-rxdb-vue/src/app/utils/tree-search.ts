@@ -20,7 +20,10 @@ export interface SearchPath {
  * 与 Angular 菜单树 `expandMatchedAncestors`、React `collectSearchPath` 同一口径：
  * 命中节点的祖先在搜索时打开，清空搜索后回到用户自己的折叠状态。
  */
-export function collectSearchPath<T extends SearchNode>(nodes: readonly T[], isMatch: (node: T) => boolean): SearchPath {
+export function collectSearchPath<T extends SearchNode>(
+  nodes: readonly T[],
+  isMatch: (node: T) => boolean
+): SearchPath {
   const byId = new Map(nodes.map(node => [node.id, node]));
   const visible = new Set<RxDBEntityId>();
   const ancestors = new Set<RxDBEntityId>();

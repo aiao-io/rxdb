@@ -588,7 +588,9 @@ describe('Keyring in-flight semantics (T065)', () => {
 
       await ring.unlock({ keyBytes: new Uint8Array(32).fill(3) });
 
-      await expect(ring.decrypt({ ...target, envelope })).resolves.toEqual(new TextEncoder().encode('secret-in-flight'));
+      await expect(ring.decrypt({ ...target, envelope })).resolves.toEqual(
+        new TextEncoder().encode('secret-in-flight')
+      );
     });
   });
 

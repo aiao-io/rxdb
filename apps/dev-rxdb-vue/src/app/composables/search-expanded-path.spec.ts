@@ -61,7 +61,14 @@ describe('collapsed search paths', () => {
   it('库里的扩展名不带点：完整文件名与 .扩展名都命中，搜索路径上的祖先画成展开（与 Angular / React 同口径）', () => {
     const files = ref([
       createFileNode({ id: ROOT_ID, name: 'Docs', extension: null, type: 'folder', parentId: null, sortOrder: 'a' }),
-      createFileNode({ id: TARGET_ID, name: 'notes', extension: 'txt', type: 'file', parentId: ROOT_ID, sortOrder: 'a' })
+      createFileNode({
+        id: TARGET_ID,
+        name: 'notes',
+        extension: 'txt',
+        type: 'file',
+        parentId: ROOT_ID,
+        sortOrder: 'a'
+      })
     ]);
     const store = useFileManagerStore(files, {} as RxDB);
 
@@ -77,13 +84,13 @@ describe('collapsed search paths', () => {
   });
 
   it('两种菜单树搜索时同样把命中项的祖先画成展开，展开集合不变', () => {
-    const rows = [
+    const rows: Partial<SortableMenuLarge>[] = [
       { id: ROOT_ID, title: 'Root', parentId: null, sortOrder: 'a' },
       { id: NESTED_ID, title: 'Nested', parentId: ROOT_ID, sortOrder: 'a' },
       { id: TARGET_ID, title: 'Target Menu', parentId: NESTED_ID, sortOrder: 'a' }
     ];
     const simple = useTreeMenuStore(ref(rows.map(row => Object.assign({} as SortableMenuSimple, row))), {} as RxDB);
-    const virtual = useTreeMenuVirtualStore(ref(rows.map(createMenu)), {} as RxDB);
+    const virtual = useTreeMenuVirtualStore(ref(rows.map(row => createMenu(row))), {} as RxDB);
 
     simple.setSearchKeyword('target');
     virtual.setSearchKeyword('target');

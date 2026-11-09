@@ -172,7 +172,11 @@ beforeAll(async () => {
   db = await createRealSqliteDatabase();
   const metadataList = [...ENTITIES, ...rxdb.schemaManager.generatedEntities].map(type => getEntityMetadata(type));
   for (const metadata of metadataList) {
-    db.exec(`CREATE TABLE "${tableOf(metadata)}" (${columnsOf(metadata).map(column => `"${column}"`).join(', ')})`);
+    db.exec(
+      `CREATE TABLE "${tableOf(metadata)}" (${columnsOf(metadata)
+        .map(column => `"${column}"`)
+        .join(', ')})`
+    );
   }
   const [author, profile, post, comment, tag, group, menu] = ENTITIES.map(type => getEntityMetadata(type));
   insert(author, { id: 'a1', name: 'A1' });
@@ -208,7 +212,11 @@ describe('嵌套 EXISTS：每层关联到上一层的实体，而不是顶层主
     const where = rules({
       field: 'posts',
       operator: 'exists',
-      where: rules({ field: 'comments', operator: 'exists', where: rules({ field: 'body', operator: '=', value: 'hit' }) })
+      where: rules({
+        field: 'comments',
+        operator: 'exists',
+        where: rules({ field: 'body', operator: '=', value: 'hit' })
+      })
     });
     expect(find(NeAuthor, where)).toEqual(['a1']);
   });
@@ -239,7 +247,11 @@ describe('嵌套 EXISTS：每层关联到上一层的实体，而不是顶层主
     const where = rules({
       field: 'post',
       operator: 'exists',
-      where: rules({ field: 'comments', operator: 'exists', where: rules({ field: 'body', operator: '=', value: 'miss' }) })
+      where: rules({
+        field: 'comments',
+        operator: 'exists',
+        where: rules({ field: 'body', operator: '=', value: 'miss' })
+      })
     });
     expect(find(NeComment, where)).toEqual(['c2']);
   });
@@ -251,7 +263,11 @@ describe('嵌套 EXISTS：每层关联到上一层的实体，而不是顶层主
       where: rules({
         field: 'comments',
         operator: 'exists',
-        where: rules({ field: 'post', operator: 'exists', where: rules({ field: 'title', operator: '=', value: 'P1' }) })
+        where: rules({
+          field: 'post',
+          operator: 'exists',
+          where: rules({ field: 'title', operator: '=', value: 'P1' })
+        })
       })
     });
     expect(find(NeAuthor, where)).toEqual(['a1']);
@@ -264,7 +280,11 @@ describe('嵌套 EXISTS：每层关联到上一层的实体，而不是顶层主
       where: rules({
         field: 'author',
         operator: 'exists',
-        where: rules({ field: 'profile', operator: 'exists', where: rules({ field: 'bio', operator: '=', value: 'b1' }) })
+        where: rules({
+          field: 'profile',
+          operator: 'exists',
+          where: rules({ field: 'bio', operator: '=', value: 'b1' })
+        })
       })
     });
     expect(find(NeComment, where)).toEqual(['c1']);

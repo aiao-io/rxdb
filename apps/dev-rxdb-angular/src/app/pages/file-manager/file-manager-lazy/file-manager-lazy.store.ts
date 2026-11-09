@@ -247,20 +247,6 @@ export class TreeFileLazyStore<C extends FileTreeEntityConstructor>
     }
   }
 
-  /** 批量写入收尾：页面状态回到库里已提交的状态，按当前模式重新订阅。 */
-  private resubscribeAfterBatch(): void {
-    this.expandedFileIds.set(new Set());
-    this.childNodesMap.set(new Map());
-    this.loadingNodes.set(new Set());
-    this.rootNodes.set([]);
-
-    if (this.isFullMode()) {
-      this.expandAll();
-    } else {
-      this.initRootSubscription();
-    }
-  }
-
   expandAll(): void {
     this.isFullMode.set(true);
     // 1. Unsubscribe everything
@@ -354,6 +340,20 @@ export class TreeFileLazyStore<C extends FileTreeEntityConstructor>
    */
   protected override expandDropTarget(targetId: string): void {
     this.expandNode(targetId);
+  }
+
+  /** 批量写入收尾：页面状态回到库里已提交的状态，按当前模式重新订阅。 */
+  private resubscribeAfterBatch(): void {
+    this.expandedFileIds.set(new Set());
+    this.childNodesMap.set(new Map());
+    this.loadingNodes.set(new Set());
+    this.rootNodes.set([]);
+
+    if (this.isFullMode()) {
+      this.expandAll();
+    } else {
+      this.initRootSubscription();
+    }
   }
 
   private initRootSubscription(): void {

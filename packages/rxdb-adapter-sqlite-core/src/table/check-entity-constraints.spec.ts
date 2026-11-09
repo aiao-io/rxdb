@@ -22,10 +22,10 @@ import {
   type EntityType
 } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
+import { createRealSqliteDatabase } from '../__tests__/fixtures/real-sqlite.js';
 import { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { SqliteClientLike, SqliteSuccessResult } from '../sqlite-core.interface.js';
 import { check_entity_constraints_sqlite } from '../table/check-entity-constraints.js';
-import { createRealSqliteDatabase } from '../__tests__/fixtures/real-sqlite.js';
 
 @Entity({
   name: 'Checked',
@@ -248,7 +248,10 @@ describe('check_entity_constraints_sqlite（AC#10 / #11 / #16）', () => {
   it('评审反例：注释掉的旧约束不掩盖真实缺失', async () => {
     const [qtyName, noteName] = expectedNames();
     const q = querier({
-      public$Checked: createSqlWith([`CONSTRAINT "${qtyName}" CHECK ("qty" > 0)`, `/* CONSTRAINT "${noteName}" CHECK (1) */`])
+      public$Checked: createSqlWith([
+        `CONSTRAINT "${qtyName}" CHECK ("qty" > 0)`,
+        `/* CONSTRAINT "${noteName}" CHECK (1) */`
+      ])
     });
     await expect(check_entity_constraints_sqlite(q as never, WorktreeTableSet.MAIN, [Checked])).rejects.toThrow(
       RxDBConstraintDriftError

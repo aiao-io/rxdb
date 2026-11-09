@@ -48,7 +48,9 @@ import { I18nPipe } from '../pipes/i18n.pipe';
         <span class="loading loading-spinner loading-xs pointer-events-none absolute right-6"></span>
       }
       @if ($switchError(); as switchError) {
-        <span class="text-error max-w-48 truncate text-xs" [attr.title]="switchError" role="alert">{{ switchError }}</span>
+        <span class="text-error max-w-48 truncate text-xs" [attr.title]="switchError" role="alert">{{
+          switchError
+        }}</span>
       }
 
       <!-- 创建分支按钮 -->

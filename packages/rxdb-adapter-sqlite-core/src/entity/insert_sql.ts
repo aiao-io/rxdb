@@ -1,4 +1,11 @@
-import { PropertyType, type EntityMetadata, type EntityType, type IEntity, type IMutationContext, type WorktreeTableSet } from '@aiao/rxdb';
+import {
+  PropertyType,
+  type EntityMetadata,
+  type EntityType,
+  type IEntity,
+  type IMutationContext,
+  type WorktreeTableSet
+} from '@aiao/rxdb';
 import { isFunction } from '@aiao/utils';
 import { GenerateSqlResult } from '../query/query_sql.js';
 import type { SQLiteCompatibleType } from '../sqlite-core.interface.js';

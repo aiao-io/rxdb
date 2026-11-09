@@ -98,7 +98,8 @@ export function useFileManagerStore(files: Ref<SortableFileNode[]>, rxdb: RxDB) 
       comparator ? [...fileList].sort(comparator) : fileList;
 
     // 搜索时只显示命中项及其祖先，祖先临时画成展开（不改用户的展开集合），与 Angular / React 同一口径
-    const search = searchKeyword.value ? collectSearchPath(files.value, file => matchedFileIds.value.has(file.id)) : null;
+    const search =
+      searchKeyword.value ? collectSearchPath(files.value, file => matchedFileIds.value.has(file.id)) : null;
 
     // 递归构建节点
     const buildNodes = (parentId: RxDBEntityId | null, level: number) => {

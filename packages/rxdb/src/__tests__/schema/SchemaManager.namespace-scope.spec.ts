@@ -105,4 +105,47 @@ describe('合法命名空间照常挂载', () => {
 
     expect(catalog).toMatchObject({ retained: true, CatalogScopedRow: Row });
   });
+
+  // 插件约定（`rxdb-plugin-storage` 的 `rxdb.storage` + `storage` 命名空间、`rxdb-plugin-replay` 同理）：
+  // 安装时把服务对象挂到实例上，同名命名空间的实体就挂在这个服务对象上，`rxdb.storage.StorageFileMeta` 可用
+  it('插件安装时挂在实例上的同名服务对象照旧当命名空间容器', () => {
+    class ProbeStorageService {
+      readonly kind = 'probe-storage-service';
+    }
+    const service = new ProbeStorageService();
+    const Row = entityIn('storage', 'StorageScopedRow');
+    const database = createDatabase([Row]);
+    database.use(rxdb => ({
+      name: 'namespaceServiceProbe',
+      install: () => {
+        // 与 RxDBPluginStorage.install 同一个属性描述符
+        Object.defineProperty(rxdb, 'storage', {
+          value: service,
+          enumerable: false,
+          configurable: true,
+          writable: false
+        });
+      }
+    }));
+
+    database.init();
+    database.schemaManager.init();
+
+    expect(Reflect.get(database, 'storage')).toBe(service);
+    expect(Reflect.get(service, 'StorageScopedRow')).toBe(Row);
+  });
+
+  it('实例上同名的函数或原始值不能当容器，注册期拒绝而不是覆盖它', () => {
+    const database = createDatabase([entityIn('probefn', 'FunctionScopedRow')]);
+    const member = () => 'plugin api';
+    Object.defineProperty(database, 'probefn', {
+      value: member,
+      enumerable: false,
+      configurable: true,
+      writable: false
+    });
+
+    expect(() => database.init()).toThrow(/probefn/);
+    expect(Reflect.get(database, 'probefn')).toBe(member);
+  });
 });

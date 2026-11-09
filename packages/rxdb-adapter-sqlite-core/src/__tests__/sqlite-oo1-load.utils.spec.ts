@@ -219,13 +219,19 @@ describe('sqlite-oo1-load.utils', () => {
 
     it('不同的 locateFile 回调不是同一份加载配置', () => {
       expect(
-        isSameOo1LoadConfig(toOo1LoadFingerprint({ locateFile: locateA }), toOo1LoadFingerprint({ locateFile: locateB }))
+        isSameOo1LoadConfig(
+          toOo1LoadFingerprint({ locateFile: locateA }),
+          toOo1LoadFingerprint({ locateFile: locateB })
+        )
       ).toBe(false);
     });
 
     it('同一个 locateFile 回调仍是同一份加载配置', () => {
       expect(
-        isSameOo1LoadConfig(toOo1LoadFingerprint({ locateFile: locateA }), toOo1LoadFingerprint({ locateFile: locateA }))
+        isSameOo1LoadConfig(
+          toOo1LoadFingerprint({ locateFile: locateA }),
+          toOo1LoadFingerprint({ locateFile: locateA })
+        )
       ).toBe(true);
     });
 

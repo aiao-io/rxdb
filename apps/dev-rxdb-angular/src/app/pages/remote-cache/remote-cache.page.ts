@@ -66,14 +66,14 @@ const REMOTE_DIR = '/remote';
 export default class RemoteCachePage implements OnInit, OnDestroy {
   private onlineListener?: () => void;
   private offlineListener?: () => void;
-
-  readonly rxdb = inject(RxDB);
-
+  // 回调在 ngOnInit 之后才调用，那时 rxdb 已注入
   private readonly previews = createObjectUrlCache<StorageFileMeta>({
     list: () => this.rxdb.storage.list({ path: REMOTE_DIR }),
     createObjectUrl: id => this.rxdb.storage.createObjectUrl(id),
     revokeObjectUrl: url => this.rxdb.storage.revokeObjectUrl(url)
   });
+
+  readonly rxdb = inject(RxDB);
 
   readonly Cloud = Cloud;
   readonly CloudDownload = CloudDownload;

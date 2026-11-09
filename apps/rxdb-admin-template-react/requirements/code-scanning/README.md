@@ -15,10 +15,12 @@ GitHub 上显示 `fixed` / `dismissed` 之后，**在下一次同步时删除对
 
 每次同步只处理与上次的差异，按 GitHub 告警 `number` 对齐，不重建全量：
 
-1. 拉当前清单（open + closed，靠 `state` 区分）：
+1. 拉当前清单（open + closed，靠 `state` 区分）。必须 `--paginate` 收齐全部页：单次请求最多 100 条，
+   后续页上仍 open 的告警不在结果里，第 2 步会把它们的本地文件当「清单里没有」删掉。命令非零退出
+   （某一页失败）就停在这一步，不拿部分结果做第 2 步：
 
    ```bash
-   gh api "repos/<owner>/<repo>/code-scanning/alerts?per_page=100&tool_name=CodeQL" \
+   gh api --paginate "repos/<owner>/<repo>/code-scanning/alerts?per_page=100&tool_name=CodeQL" \
      --jq '.[] | "\(.number)\t\(.state)\t\(.rule.id)\t\(.created_at)"'
    ```
 
@@ -26,7 +28,7 @@ GitHub 上显示 `fixed` / `dismissed` 之后，**在下一次同步时删除对
    - GitHub `open` 且本地无文件 → 按[模板](code-scanning.template.md)建文件。
    - GitHub `open` 且本地有文件 → 无需动作；路径 / 行号变了就更新 frontmatter。
    - GitHub `fixed` / `dismissed` 且本地有文件 → 归档表补一行，然后**删除文件**。
-   - 本地有文件但 GitHub 清单里没有该编号 → 直接删除。
+   - 本地有文件但 GitHub 清单里没有该编号 → 直接删除。只认第 1 步完整拉完的清单。
 
 **同步时机**：修复 PR 合入 `main`、GitHub 重新分析完成之后；或收到 code scanning 通知时。不用定时跑。
 

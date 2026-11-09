@@ -6,7 +6,7 @@ import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ThemeService } from '@modules/angular';
 import { AngularSplitModule } from 'angular-split';
 import { zipSync, type Zippable } from 'fflate';
-import { GENERATOR_DEMOS, generateSourceState } from './generator-state';
+import { generateSourceState, GENERATOR_DEMOS } from './generator-state';
 
 function downloadFile(filename: string, blob: Blob) {
   const url = URL.createObjectURL(blob);

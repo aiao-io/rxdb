@@ -1,10 +1,10 @@
 import { isEqual, performChunk } from '@aiao/utils';
 import { Observable } from 'rxjs';
-import type { EntityType, EntityUpdateData } from '../entity/entity.interface.js';
+import type { EntityType, EntityUpdateData, RxDBEntityId } from '../entity/entity.interface.js';
 import merge_create from '../query/merge_create.js';
 import merge_remove from '../query/merge_remove.js';
 import merge_update from '../query/merge_update.js';
-import { isStaleEventPayload } from '../query/stale-event.utils.js';
+import { isStaleEventPayload, readUpdatedAtTime } from '../query/stale-event.utils.js';
 import {
   ENTITY_LOCAL_CREATE_EVENT,
   ENTITY_LOCAL_REMOVE_EVENT,
@@ -150,6 +150,19 @@ export class QueryManager<T extends EntityType> {
   #need_change_handler!: (event: EntityLocalCreatedEvent | EntityLocalUpdatedEvent | EntityLocalRemovedEvent) => void;
 
   /**
+   * 本实体类型每一行最近见过的版本（`updatedAt` 毫秒数），只记 UPDATE 的新态与 DELETE 前的最后一版。
+   *
+   * @remarks
+   * 变更事件分批投递，不同写入路径之间不保序：撤销直接派发的 DELETE 可以先于原先那次保存的
+   * CREATE 送达。CREATE 的 JS 增量合并照单全收的话，已经删掉、改过的行就按过期负载回到结果里。
+   * 见过不早于 CREATE 负载的版本，说明这条 CREATE 已经过期，交回 SQL 重算——判多只是多查一次，
+   * 判漏是结果里多一行库里没有的数据。迟到窗口是毫秒级，只留最近 {@link QueryManager.#MAX_SEEN_VERSIONS} 行。
+   */
+  readonly #seen_versions = new Map<RxDBEntityId, number>();
+
+  static readonly #MAX_SEEN_VERSIONS = 1024;
+
+  /**
    * 构造函数
    *
    * @param rxdb RxDB 实例，用于访问数据库和事件系统
@@ -175,6 +188,7 @@ export class QueryManager<T extends EntityType> {
       task.clean();
     }
     this.#query_task_map.clear();
+    this.#seen_versions.clear();
   }
 
   /**
@@ -445,6 +459,10 @@ export class QueryManager<T extends EntityType> {
       }
       switch (event.type) {
         case ENTITY_LOCAL_CREATE_EVENT: {
+          if (target_entities.some(entity => this.#is_superseded_create(entity))) {
+            task.refresh();
+            return;
+          }
           const merge_create_fn = this.#query_task_merge_create_map.get(task.type) || merge_create;
           merge_create_fn(task, target_entities as RxDBEntityLocalCreatedEventData<T>[]);
           return;
@@ -464,6 +482,51 @@ export class QueryManager<T extends EntityType> {
       console.error('[QueryManager] 查询缓存合并失败，退回整查', error);
       task.refresh();
     }
+  }
+
+  /** 这条负载是不是本管理器的实体类型。 */
+  #is_own_entity(data: RxDBEntityLocalEventData): boolean {
+    return this.rxdb.schemaManager.getEntityType(data.entity, data.namespace) === this.EntityType;
+  }
+
+  /**
+   * 记下 UPDATE 的新态、DELETE 前最后一版的 `updatedAt`（见 {@link QueryManager.#seen_versions}）。
+   *
+   * @param event - 本次实体变更事件
+   *
+   * @remarks
+   * 没有活任务时也要记：之后才建的任务首查已在删除之后，迟到的 CREATE 一样会把行加回去。
+   */
+  #remember_versions(event: EntityLocalCreatedEvent | EntityLocalUpdatedEvent | EntityLocalRemovedEvent): void {
+    if (event.type === ENTITY_LOCAL_CREATE_EVENT) return;
+    for (const data of event.entities) {
+      const at = readUpdatedAtTime(event.type === ENTITY_LOCAL_REMOVE_EVENT ? data.inversePatch : data.patch);
+      if (at === undefined || !this.#is_own_entity(data)) continue;
+      const id = data.id as RxDBEntityId;
+      if ((this.#seen_versions.get(id) ?? -Infinity) >= at) continue;
+      this.#seen_versions.delete(id);
+      this.#seen_versions.set(id, at);
+      if (this.#seen_versions.size > QueryManager.#MAX_SEEN_VERSIONS) {
+        this.#seen_versions.delete(this.#seen_versions.keys().next().value!);
+      }
+    }
+  }
+
+  /**
+   * CREATE 负载是否已被同一行更晚（或同一版）的 UPDATE / DELETE 取代。
+   *
+   * @param data - CREATE 事件里的一条负载
+   * @returns 取代时为 `true`；没见过这一行的更新或删除时为 `false`
+   *
+   * @remarks
+   * 与被删那一版同时间戳也算过期：删除发生在那一版之后。撤销 / 重做写出的是单调递增的新时间戳，
+   * 删除之后的重建因此不会被误判。CREATE 负载缺 `updatedAt` 时证明不了它更新，同样按过期处理。
+   */
+  #is_superseded_create(data: RxDBEntityLocalEventData): boolean {
+    if (!this.#is_own_entity(data)) return false;
+    const seen = this.#seen_versions.get(data.id as RxDBEntityId);
+    if (seen === undefined) return false;
+    return (readUpdatedAtTime(data.patch) ?? -Infinity) <= seen;
   }
 
   /**
@@ -537,6 +600,7 @@ export class QueryManager<T extends EntityType> {
      * @param event 实体变更事件（创建、更新、修补或删除）
      */
     const _need_change = (event: EntityLocalCreatedEvent | EntityLocalUpdatedEvent | EntityLocalRemovedEvent) => {
+      this.#remember_versions(event);
       // 如果没有活跃的查询任务，直接返回（性能优化）。
       // 代价：身份缓存只在合并时经 `#serialize` 收到 UPDATE，没有任务时实例停在旧值。之后的查询
       // 命中这个实例，UPDATE 门控只验得出列齐不齐、验不出值已落后（登记在 roadmap 零散收尾项）。

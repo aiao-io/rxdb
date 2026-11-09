@@ -8,15 +8,12 @@ const sourceText = (json: string): string =>
     .join('\n');
 
 describe('generateSourceState', () => {
-  it.each(GENERATOR_DEMOS.map(demo => [demo.name, demo] as const))(
-    '内置示例 %s 能直接生成代码',
-    (_name, demo) => {
-      const state = generateSourceState(JSON.stringify(demo, null, 2));
+  it.each(GENERATOR_DEMOS.map(demo => [demo.name, demo] as const))('内置示例 %s 能直接生成代码', (_name, demo) => {
+    const state = generateSourceState(JSON.stringify(demo, null, 2));
 
-      expect(state.error).toBeNull();
-      expect(state.sources.length).toBeGreaterThan(0);
-    }
-  );
+    expect(state.error).toBeNull();
+    expect(state.sources.length).toBeGreaterThan(0);
+  });
 
   it('Menu 示例走树生成器，产物带树查询方法', () => {
     const menu = GENERATOR_DEMOS.find(demo => demo.repository === 'TreeRepository');

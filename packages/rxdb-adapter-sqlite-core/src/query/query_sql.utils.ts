@@ -943,7 +943,14 @@ export const handle_exists = (
 
   switch (relation.kind) {
     case RelationKind.ONE_TO_MANY:
-      existsSql = _build_one_to_many_exists(entityMetadata, relation, relationMetadata, tableSet, existsScope, subquery);
+      existsSql = _build_one_to_many_exists(
+        entityMetadata,
+        relation,
+        relationMetadata,
+        tableSet,
+        existsScope,
+        subquery
+      );
       break;
 
     case RelationKind.MANY_TO_ONE:
@@ -955,7 +962,14 @@ export const handle_exists = (
       break;
 
     case RelationKind.MANY_TO_MANY:
-      existsSql = _build_many_to_many_exists(entityMetadata, relation, relationMetadata, tableSet, existsScope, subquery);
+      existsSql = _build_many_to_many_exists(
+        entityMetadata,
+        relation,
+        relationMetadata,
+        tableSet,
+        existsScope,
+        subquery
+      );
       break;
   }
 
