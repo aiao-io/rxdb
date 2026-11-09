@@ -123,19 +123,55 @@ export async function compose(args, options) {
   );
 }
 
+export function supabaseRolePasswordSql(password) {
+  if (!/^[A-Za-z0-9._-]+$/.test(password)) throw new Error('Missing or invalid local value: POSTGRES_PASSWORD');
+  const literal = `'${password.replaceAll("'", "''")}'`;
+  return [
+    `ALTER ROLE authenticator PASSWORD ${literal};`,
+    `ALTER ROLE supabase_auth_admin PASSWORD ${literal};`,
+    `ALTER ROLE supabase_storage_admin PASSWORD ${literal};`,
+    `ALTER ROLE supabase_admin PASSWORD ${literal};`
+  ].join('\n');
+}
+
+async function syncSupabaseRolePasswords() {
+  const { env } = await localEnvironment();
+  await compose(['exec', '-T', 'db', 'psql', '-U', 'supabase_admin', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1'], {
+    input: supabaseRolePasswordSql(env.POSTGRES_PASSWORD)
+  });
+}
+
 async function main(action) {
   if (action === 'init') return initialize();
   if (['up', 'studio', 'validate'].includes(action)) await initialize();
   if (action === 'up' || action === 'studio') {
+    const profile = action === 'studio' ? ['--profile', 'studio'] : [];
     await compose([
-      ...(action === 'studio' ? ['--profile', 'studio'] : []),
+      ...profile,
       'up',
       '-d',
       '--wait',
       '--wait-timeout',
-      '180'
+      '180',
+      'db',
+      'mail'
+    ]);
+    await syncSupabaseRolePasswords();
+    await compose([
+      ...profile,
+      'up',
+      '-d',
+      '--force-recreate',
+      '--wait',
+      '--wait-timeout',
+      '180',
+      'realtime',
+      'auth',
+      'rest'
     ]);
     await compose(['up', '-d', '--no-deps', '--force-recreate', '--wait', '--wait-timeout', '60', 'kong']);
+    if (action === 'studio')
+      await compose(['--profile', 'studio', 'up', '-d', '--wait', '--wait-timeout', '180', 'meta', 'studio']);
     const { env, url, mailUrl } = await localEnvironment();
     console.log(
       `Supabase API: ${url}\nMailbox: ${mailUrl}${action === 'studio' ? `\nStudio: http://127.0.0.1:${env.STUDIO_PORT}` : ''}`
