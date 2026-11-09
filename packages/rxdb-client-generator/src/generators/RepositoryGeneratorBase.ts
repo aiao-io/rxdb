@@ -7,7 +7,7 @@
 
 import { type EntityMetadata, type EntityMetadataOptions, PropertyType } from '@aiao/rxdb';
 import { capitalizeFirst } from '@aiao/utils';
-import { addEntityBaseNamedImport } from '../core/RxDBClientGenerator.utils.js';
+import { addEntityBaseNamedImport, getKeyValueRuleTypeName, KEY_VALUE_TYPE } from '../core/RxDBClientGenerator.utils.js';
 import { generateEntityRules, RuleTypeData } from './entity-rules.js';
 import type {
   GeneratorContext,
@@ -15,8 +15,26 @@ import type {
   RepositoryGeneratorSymbols
 } from './RepositoryGenerator.interface.js';
 import { getIdType, type IdType } from './utils.js';
-/** 匹配 `Partial<XxxKeyValue>` 里的接口名——关系递归下这个接口归对端实体所有。 */
-const KEY_VALUE_INTERFACE_PATTERN = /^Partial<(\w+KeyValue)>$/;
+
+/**
+ * keyValue 规则值类型里引用的类型要能在当前声明文件里解析：核心 `KeyValue` 从 `@aiao/rxdb` 导入；
+ * 关系递归下（`key` 带 `.`）的精确接口归对端实体所有，split 模式要从对端文件导入。
+ */
+const registerKeyValueRuleType = (
+  rule: RuleTypeData,
+  rxdbNamedImports: Set<string>,
+  siblingNamedImports: Map<string, Set<string>> | undefined
+): void => {
+  const typeName = rule.valueType ? getKeyValueRuleTypeName(rule.valueType) : undefined;
+  if (typeName === KEY_VALUE_TYPE) {
+    rxdbNamedImports.add(KEY_VALUE_TYPE);
+    return;
+  }
+  if (!typeName || !rule.key.includes('.') || !siblingNamedImports) return;
+  const names = siblingNamedImports.get(rule.entity) ?? new Set<string>();
+  names.add(typeName);
+  siblingNamedImports.set(rule.entity, names);
+};
 
 /**
  * 把规则数据渲染成规则类型字面量，并顺带登记所需的命名导入。
@@ -37,7 +55,8 @@ export const buildRules = (
   rxdbNamedImports: Set<string>,
   siblingNamedImports?: Map<string, Set<string>>
 ) => {
-  return entityRules.map(({ rule, entity, key, valueType, subRuleGroup }) => {
+  return entityRules.map(ruleData => {
+    const { rule, entity, key, valueType, subRuleGroup } = ruleData;
     rxdbNamedImports.add(rule);
 
     // 处理 EXISTS 规则 (带 subRuleGroup)
@@ -47,15 +66,9 @@ export const buildRules = (
 
     // 处理普通规则
     if (valueType) {
+      registerKeyValueRuleType(ruleData, rxdbNamedImports, siblingNamedImports);
       if (key.includes('.')) {
         rxdbNamedImports.add(`Relation${rule}`);
-        // key 带 '.' 表示这条规则来自关系递归，valueType 里的精确 keyValue 接口定义在对端实体文件里
-        const keyValueInterface = KEY_VALUE_INTERFACE_PATTERN.exec(valueType)?.[1];
-        if (keyValueInterface && siblingNamedImports) {
-          const names = siblingNamedImports.get(entity) ?? new Set<string>();
-          names.add(keyValueInterface);
-          siblingNamedImports.set(entity, names);
-        }
         return `Relation${rule}<'${key}', ${valueType}>`;
       } else {
         return `${rule}<${entity}, '${key}', ${valueType}>`;

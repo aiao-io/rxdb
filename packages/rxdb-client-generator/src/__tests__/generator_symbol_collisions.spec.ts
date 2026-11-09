@@ -207,6 +207,58 @@ describe('generated symbol collisions', () => {
     });
   });
 
+  // 每个声明文件都无条件导入 `EntityBase`（基类签名）与 `ENTITY_STATIC_TYPES`；同名实体在 .d.ts 里与导入撞名
+  it.each(['EntityBase', 'ENTITY_STATIC_TYPES'] as const)(
+    'rejects entity %s colliding with an always-emitted declaration import',
+    name => {
+      const generator = new RxDBClientGenerator();
+      generator.addEntity(createEntity(name, { extends: [] }));
+
+      expectCollision(generator, {
+        entity: name,
+        symbol: name,
+        sources: [`fixed RxDB import "${name}"`, `entity declaration "${name}"`]
+      });
+    }
+  );
+
+  // 运行时模块按 `extends` 导入基类：实体与基类同名时生成 `import { EntityBase }` + `let EntityBase`，Node 直接 SyntaxError
+  it.each([false, true])('rejects an entity binding that shadows its runtime base class import (splitFiles=%s)', splitFiles => {
+    const generator = new RxDBClientGenerator({ splitFiles });
+    generator.addEntity(createEntity('EntityBase'));
+
+    expectCollision(generator, {
+      entity: 'EntityBase',
+      symbol: 'EntityBase',
+      sources: ['entity base class import "EntityBase"', 'entity class binding "EntityBase"']
+    });
+  });
+
+  it('rejects a plugin entity named after the plugin base class it extends', () => {
+    const generator = new RxDBClientGenerator();
+    generator.registerRepositoryGenerator(new GeoRepositoryGenerator());
+    generator.addEntity(createEntity(GEO_ENTITY_BASE, { repository: GEO_REPOSITORY, extends: [GEO_ENTITY_BASE] }));
+
+    expectCollision(generator, {
+      entity: GEO_ENTITY_BASE,
+      symbol: GEO_ENTITY_BASE,
+      sources: [`entity base class import "${GEO_ENTITY_BASE}"`]
+    });
+  });
+
+  it('rejects an entity named after another entity runtime base class in the shared index', () => {
+    const generator = new RxDBClientGenerator();
+    generator.registerRepositoryGenerator(new GeoRepositoryGenerator());
+    generator.addEntity(createEntity('Place', { repository: GEO_REPOSITORY, extends: [GEO_ENTITY_BASE] }));
+    generator.addEntity(createEntity(GEO_ENTITY_BASE));
+
+    expectCollision(generator, {
+      entity: GEO_ENTITY_BASE,
+      symbol: GEO_ENTITY_BASE,
+      sources: [`entity base class import "${GEO_ENTITY_BASE}"`]
+    });
+  });
+
   it('rejects a plugin entity colliding with its declared entity interface import', () => {
     const generator = new RxDBClientGenerator();
     generator.registerRepositoryGenerator(new GeoRepositoryGenerator());

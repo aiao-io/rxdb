@@ -9,7 +9,9 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 /** README 里第一个包含 `marker` 的 ts 代码块。 */
 function readmeBlock(marker: string): string {
   const readme = readFileSync(join(root, 'README.md'), 'utf8');
-  const block = [...readme.matchAll(/^```ts\n([\s\S]*?)^```$/gm)].map(match => match[1]).find(code => code.includes(marker));
+  const block = [...readme.matchAll(/^```ts\n([\s\S]*?)^```$/gm)]
+    .map(match => match[1])
+    .find(code => code.includes(marker));
   if (block === undefined) throw new Error(`README 里没有包含 ${marker} 的 ts 代码块`);
   return block;
 }
@@ -23,12 +25,16 @@ function readmeBlock(marker: string): string {
  */
 function diagnose(source: string): string[] {
   const fileName = join(root, 'src', '__readme-example__.ts');
-  const parsed = ts.getParsedCommandLineOfConfigFile(join(root, 'tsconfig.lib.json'), {}, {
-    ...ts.sys,
-    onUnRecoverableConfigFileDiagnostic: diagnostic => {
-      throw new Error(ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'));
+  const parsed = ts.getParsedCommandLineOfConfigFile(
+    join(root, 'tsconfig.lib.json'),
+    {},
+    {
+      ...ts.sys,
+      onUnRecoverableConfigFileDiagnostic: diagnostic => {
+        throw new Error(ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'));
+      }
     }
-  });
+  );
   if (!parsed) throw new Error('无法读取 tsconfig.lib.json');
   const options: ts.CompilerOptions = {
     ...parsed.options,

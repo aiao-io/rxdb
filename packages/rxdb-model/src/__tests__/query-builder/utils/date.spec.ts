@@ -64,12 +64,18 @@ describe('parseYmdToLocalDate', () => {
   });
 
   // setFullYear 会把不存在的日期归一到别的日子（2024-02-31 → 2024-03-02），筛选条件与用户输入不一致（RV-01a1bbd9c4427852b47d62c41a76fa0e）
-  it.each(['2023-02-29', '2024-02-30', '2024-02-31', '2024-04-31', '2024-13-01', '2024-00-10', '2024-01-00', '2024-01-32'])(
-    'returns null for calendar date that does not exist: %s',
-    ymd => {
-      expect(parseYmdToLocalDate(ymd)).toBeNull();
-    }
-  );
+  it.each([
+    '2023-02-29',
+    '2024-02-30',
+    '2024-02-31',
+    '2024-04-31',
+    '2024-13-01',
+    '2024-00-10',
+    '2024-01-00',
+    '2024-01-32'
+  ])('returns null for calendar date that does not exist: %s', ymd => {
+    expect(parseYmdToLocalDate(ymd)).toBeNull();
+  });
 
   it.each([
     ['2024-02-29', 2024, 1, 29],

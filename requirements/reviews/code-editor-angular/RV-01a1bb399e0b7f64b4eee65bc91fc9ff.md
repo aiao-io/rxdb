@@ -7,7 +7,7 @@ range: project
 base_ref: null
 review_scopes: []
 scope_id: 'project:code-editor-angular'
-status: Open
+status: Fixed
 severity: P2
 source_view: commit
 source_snapshot: '0ffa3c419fcc59dc3e13d695ca4658116134bfa0'
@@ -16,7 +16,7 @@ found_branch: refs/heads/codex/full-review-main-20261108
 found_snapshot: '0ffa3c419fcc59dc3e13d695ca4658116134bfa0'
 found_range: project
 created: 2026-11-08
-updated: 2026-11-08
+updated: 2026-11-10
 anchors:
   - 'packages/code-editor-angular/README.md'
 affected_projects: []
@@ -57,3 +57,16 @@ README 告诉现有消费者 setValue、setTheme 等命令式 setter 已标记 d
 - 结论：九个被承诺为弃用但仍可用的 setter 在当前完整公开类中不存在。
 - 验证：完整阅读 README、CodeEditor 类与包入口，核对实际方法清单；未运行额外构建/类型检查，未声称运行时执行过该非法调用。
 - 剩余事项：更正迁移文档并按真实版本政策确认是否需要兼容修复。
+
+### EV-01a1c15cfc77765a975c3e9d60e56b8c：修复
+
+- 时间：2026-11-10T01:30:59+08:00
+- 操作：fix
+- 执行者：ai；anthropic/claude-opus-5-5；会话 aa117580-681a-4540-85b2-3c61967b2092（Claude Code 并行子 agent G11）
+- 输入快照：`1b5fb4e43f449bace1d6f67df78e55a129863f50`（提交视图）
+- 输出快照：工作区树 `980db0185930ab864593c9c6940408b16f015434`（`ai-review snapshot --worktree`，基于 `d7a55a6d`（外部自动提交，含各组 WIP））
+- 状态：Open → Fixed
+- 结论：成立，且兼容问题不存在：已发布的 v0.0.24 / v0.0.26 / v0.0.28 三个标签上，`packages/code-editor-angular/src/code-editor.ts` 都没有 `setValue` / `setTheme` / `setReadonly` 等九个方法（逐个标签 `git show` 核对），README 的这段弃用说明自 `c47cf979`（init）起就与源码不符，没有任何版本真正提供过它们，所以无需按版本政策补兼容层，只需更正文档。按说明保留调用的用户得到 TS2339 / 运行时「不是函数」，P2 合适。
+- 改动：`packages/code-editor-angular/README.md` 删去该段，改为说明除 `setExtensions` / `setLanguage` 与 handle 外不提供别的命令式 setter，文档内容、主题、占位符、只读、缩进、换行与空白高亮经同名输入配置，可编辑状态由 `disabled` 输入或表单禁用状态控制。
+- 验证：`packages/code-editor-angular/src/__tests__/code-editor.spec.ts` 新增「README 列出的命令式 set* 方法在公开的 CodeEditor 上都真实存在」（从 README 提取反引号里的 `set*` 名字，逐个核对 `CodeEditor.prototype`，并要求 `setExtensions` / `setLanguage` 仍在文档里）。修复前在 `packages/code-editor-angular` 跑 `npx vitest run --coverage.enabled=false src/__tests__/code-editor.spec.ts -t README` → 1 failed（`expected [ 'setValue', 'setTheme', …(7) ] to deeply equal []`）；修复后该文件 74 passed；`eslint . --max-warnings=0`、`tsc -p tsconfig.lib.json --noEmit`、`tsc -p tsconfig.spec.json --noEmit` 通过，README 过 prettier。React / Vue 的 README 与网站文档没有同类说明（grep 核对）。
+- 剩余事项：本组收尾复核。

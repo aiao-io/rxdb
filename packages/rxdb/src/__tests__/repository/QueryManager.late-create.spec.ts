@@ -60,11 +60,27 @@ const row = (updatedAt: Date) => ({
 });
 const created = (updatedAt: Date) =>
   new EntityLocalCreatedEvent([
-    { type: 'INSERT', namespace: 'public', entity: 'Post', id, patch: row(updatedAt), inversePatch: null, recordAt: updatedAt }
+    {
+      type: 'INSERT',
+      namespace: 'public',
+      entity: 'Post',
+      id,
+      patch: row(updatedAt),
+      inversePatch: null,
+      recordAt: updatedAt
+    }
   ]);
 const removed = (updatedAt: Date) =>
   new EntityLocalRemovedEvent([
-    { type: 'DELETE', namespace: 'public', entity: 'Post', id, patch: null, inversePatch: row(updatedAt), recordAt: later }
+    {
+      type: 'DELETE',
+      namespace: 'public',
+      entity: 'Post',
+      id,
+      patch: null,
+      inversePatch: row(updatedAt),
+      recordAt: later
+    }
   ]);
 const updated = (published: boolean, updatedAt: Date, before: Date) =>
   new EntityLocalUpdatedEvent([

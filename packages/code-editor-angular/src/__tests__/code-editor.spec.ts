@@ -96,11 +96,12 @@ const createEditor = (inputs: Readonly<Record<string, unknown>> = {}): EditorHar
 };
 
 /**
- * 在 test 中模拟旧 `setValue()` 的行为：通过 `EditorView.dispatch()` 写入文档。
+ * 绕过组件、直接对视图写入文档：只用来准备文档内容或模拟用户编辑。
+ * 宿主外部写入（`value` 输入、CVA `writeValue()`）的契约必须经组件入口验证，见「值同步」。
  *
  * @param view CM6 视图
  * @param value 新文档内容
- * @param external 是否标记为外部写入（不进 undo 历史）
+ * @param external 是否标记为不进 undo 历史
  */
 const dispatchValue = (view: EditorView, value: string, external = false) => {
   const changes = computeMinimalDocumentChange(view.state.doc.toString(), value);
@@ -123,34 +124,55 @@ describe('CodeEditor', () => {
     // 或表单 `writeValue()` 一次，就把用户送回文档开头；
     // 且 `External` annotation 只被本组件的 update listener 用来阻止回调环路，
     // CodeMirror 的 history **不认识**它 —— 程序写入照样进 undo 栈。
-    it('外部同步保留光标位置', () => {
-      const { view } = createEditor({ language: 'plaintext', value: 'hello world' });
+    it('value 输入的外部写入保留光标位置', () => {
+      const { fixture, view } = createEditor({ language: 'plaintext', value: 'hello world' });
       view.dispatch({ selection: { anchor: 2 } });
       expect(view.state.selection.main.head).toBe(2);
 
-      dispatchValue(view, 'hello worlds', true);
+      fixture.componentRef.setInput('value', 'hello worlds');
+      fixture.detectChanges();
 
       expect(view.state.doc.toString()).toBe('hello worlds');
       expect(view.state.selection.main.head).toBe(2);
     });
 
-    it('外部同步保留范围选区', () => {
-      const { view } = createEditor({ language: 'plaintext', value: 'abcdefgh' });
+    it('value 输入的外部写入保留范围选区', () => {
+      const { fixture, view } = createEditor({ language: 'plaintext', value: 'abcdefgh' });
       view.dispatch({ selection: { anchor: 2, head: 5 } });
 
-      dispatchValue(view, 'abcdefgh-tail', true);
+      fixture.componentRef.setInput('value', 'abcdefgh-tail');
+      fixture.detectChanges();
 
+      expect(view.state.doc.toString()).toBe('abcdefgh-tail');
       expect(view.state.selection.main.anchor).toBe(2);
       expect(view.state.selection.main.head).toBe(5);
     });
 
-    it('外部同步不得进入 undo 历史', () => {
-      const { view } = createEditor({ language: 'plaintext', value: 'hello world' });
+    it('CVA writeValue 的外部写入保留范围选区，且不反向上报', () => {
+      const { component, view } = createEditor({ language: 'plaintext', value: 'abcdefgh' });
+      const onChange = vi.fn();
+      component.registerOnChange(onChange);
+      view.dispatch({ selection: { anchor: 2, head: 5 } });
+
+      component.writeValue('abcdefgh-tail');
+
+      expect(view.state.doc.toString()).toBe('abcdefgh-tail');
+      expect(view.state.selection.main.anchor).toBe(2);
+      expect(view.state.selection.main.head).toBe(5);
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it('value 输入与 CVA writeValue 的外部写入都不进入 undo 历史', () => {
+      const { component, fixture, view } = createEditor({ language: 'plaintext', value: 'hello world' });
       expect(undoDepth(view.state)).toBe(0);
 
-      dispatchValue(view, 'hello brave world', true);
-
+      fixture.componentRef.setInput('value', 'hello brave world');
+      fixture.detectChanges();
       expect(view.state.doc.toString()).toBe('hello brave world');
+      expect(undoDepth(view.state)).toBe(0);
+
+      component.writeValue('hello brave new world');
+      expect(view.state.doc.toString()).toBe('hello brave new world');
       expect(undoDepth(view.state)).toBe(0);
     });
 
@@ -162,8 +184,8 @@ describe('CodeEditor', () => {
       expect(undoDepth(view.state)).toBe(1);
     });
 
-    it('外部同步只改写变化区间', () => {
-      const { view } = createEditor({ language: 'plaintext', value: 'hello world' });
+    it('value 输入与 CVA writeValue 的外部写入都只改写变化区间', () => {
+      const { component, fixture, view } = createEditor({ language: 'plaintext', value: 'hello world' });
       const touched: Array<{ from: number; to: number; insert: string }> = [];
       const original = view.dispatch.bind(view);
       view.dispatch = ((...specs: Parameters<EditorView['dispatch']>) => {
@@ -175,9 +197,15 @@ describe('CodeEditor', () => {
         return original(...specs);
       }) as EditorView['dispatch'];
 
-      dispatchValue(view, 'hello brave world', true);
+      fixture.componentRef.setInput('value', 'hello brave world');
+      fixture.detectChanges();
+      component.writeValue('hello brave new world');
 
-      expect(touched).toEqual([{ from: 6, to: 6, insert: 'brave ' }]);
+      expect(view.state.doc.toString()).toBe('hello brave new world');
+      expect(touched).toEqual([
+        { from: 6, to: 6, insert: 'brave ' },
+        { from: 12, to: 12, insert: 'new ' }
+      ]);
     });
 
     it('保留初始化前由 CVA 写入的值', () => {
@@ -737,6 +765,15 @@ describe('CodeEditor', () => {
       expect(readme).toContain('<ao-code-editor');
       expect(readme).not.toContain('CodeEditorModule');
       expect(readme).not.toContain('<aiao-code-editor');
+    });
+
+    it('README 列出的命令式 set* 方法在公开的 CodeEditor 上都真实存在', () => {
+      const readme = readFileSync('README.md', 'utf8');
+      const mentioned = [...new Set([...readme.matchAll(/`(set[A-Z]\w*)/g)].map(match => match[1]))];
+      const methods = CodeEditor.prototype as unknown as Record<string, unknown>;
+
+      expect(mentioned).toEqual(expect.arrayContaining(['setExtensions', 'setLanguage']));
+      expect(mentioned.filter(name => typeof methods[name] !== 'function')).toEqual([]);
     });
 
     it('导出稳定的 setup 与 theme 公共类型', () => {
