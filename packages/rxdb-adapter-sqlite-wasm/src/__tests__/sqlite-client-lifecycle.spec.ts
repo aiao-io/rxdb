@@ -147,4 +147,38 @@ describe('SqliteClient 生命周期守卫', () => {
     await expect(client.init('retry', { vfs: 'memory' })).rejects.toThrow('previous disconnect failed');
     await expect(client.execute('SELECT 1')).rejects.toThrow('has been disconnected');
   });
+
+  it('关库失败时照样关 VFS，错误原样抛出', async () => {
+    const harness = createSqliteHarness();
+    harness.close.mockRejectedValueOnce(new Error('close failed'));
+    mocks.sqliteLoad.mockResolvedValueOnce({ pointer: 45, sqlite: harness.sqlite, vfs: harness.vfs });
+    const client = new SqliteClient();
+    await client.init('db', { vfs: 'memory' });
+
+    await expect(client.disconnect()).rejects.toThrow('close failed');
+
+    expect(harness.vfs.close).toHaveBeenCalledTimes(1);
+  });
+
+  it('关库与关 VFS 都失败时两个错误都抛出，重复 disconnect 不再重复释放', async () => {
+    const harness = createSqliteHarness();
+    const closeError = new Error('close failed');
+    const vfsError = new Error('vfs close failed');
+    harness.close.mockRejectedValueOnce(closeError);
+    harness.vfs.close.mockRejectedValueOnce(vfsError);
+    mocks.sqliteLoad.mockResolvedValueOnce({ pointer: 46, sqlite: harness.sqlite, vfs: harness.vfs });
+    const client = new SqliteClient();
+    await client.init('db', { vfs: 'memory' });
+
+    const failure = await client.disconnect().then(
+      () => undefined,
+      (error: unknown) => error
+    );
+
+    expect(failure).toBeInstanceOf(AggregateError);
+    expect((failure as AggregateError).errors).toEqual([closeError, vfsError]);
+    await expect(client.disconnect()).rejects.toBe(failure);
+    expect(harness.close).toHaveBeenCalledTimes(1);
+    expect(harness.vfs.close).toHaveBeenCalledTimes(1);
+  });
 });

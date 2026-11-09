@@ -55,6 +55,8 @@ export class PGliteRepository<T extends EntityType> extends PGliteRepositoryBase
   }
 
   async create(entity: InstanceType<T>): Promise<InstanceType<T>> {
+    // INSERT 读的就是这一刻的字段值：生成器在第一个 await 之前同步取值
+    const submitted = { ...entity };
     const { sql, params } = await generate_entity_insert_sql(this.metadata, this.adapter.tableSet, entity, {
       ...this.rxdb.context,
       encryption: this.adapter.encryptionContext
@@ -66,7 +68,7 @@ export class PGliteRepository<T extends EntityType> extends PGliteRepositoryBase
       // 存储约束违约归一：CHECK（23514）→ RxDBCheckViolationError、区间排他（23P01）→ RxDBExclusionViolationError
       throw toStorageConstraintViolationError(error, this.metadata, [entity as unknown as Record<string, unknown>]);
     }
-    await this.addQueryCache(result, true);
+    await this.addQueryCache(result, true, new Map([[entity, submitted]]));
     return entity;
   }
 
@@ -82,7 +84,8 @@ export class PGliteRepository<T extends EntityType> extends PGliteRepositoryBase
     } catch (error) {
       throw toStorageConstraintViolationError(error, this.metadata, [entity as unknown as Record<string, unknown>]);
     }
-    await this.addQueryCache(result, true);
+    // 等待写入期间用户可能继续编辑：按提交的 patch 收尾，新输入留作未保存改动
+    await this.addQueryCache(result, true, new Map([[entity, patch]]));
     return entity;
   }
 

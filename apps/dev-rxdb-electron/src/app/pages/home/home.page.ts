@@ -78,15 +78,6 @@ export default class HomePage implements OnInit, OnDestroy {
    */
   readonly currentBranch = signal<string | null>(null);
 
-  /**
-   * 分支切换时重读 {@link currentBranch}。
-   *
-   * @remarks
-   * 存成字段是为了销毁时能原样摘掉：RxDB 实例由根注入器持有、活得比页面长，
-   * 不摘的话每进一次首页就多挂一个，旧页面随之被它一直引用，每次切分支都替所有旧页面各查一遍。
-   */
-  private readonly onBranchSwitched = (): void => void this.refreshCurrentBranch();
-
   ngOnInit(): void {
     this.isElectron.set(this.electronService.isElectron);
 
@@ -124,6 +115,15 @@ export default class HomePage implements OnInit, OnDestroy {
       this.ipcLoading.set(false);
     }
   }
+
+  /**
+   * 分支切换时重读 {@link currentBranch}。
+   *
+   * @remarks
+   * 存成字段是为了销毁时能原样摘掉：RxDB 实例由根注入器持有、活得比页面长，
+   * 不摘的话每进一次首页就多挂一个，旧页面随之被它一直引用，每次切分支都替所有旧页面各查一遍。
+   */
+  private readonly onBranchSwitched = (): void => void this.refreshCurrentBranch();
 
   /** 从 `versionManager` 读一次当前分支，写进 {@link currentBranch}。 */
   private async refreshCurrentBranch(): Promise<void> {

@@ -19,7 +19,7 @@ import {
   missingFormatConfigKeys,
   percentageDomainOf
 } from './format-rules.js';
-import { isPlainRecord } from './json-safe.js';
+import { firstArrayHole, isPlainRecord } from './json-safe.js';
 import {
   EntityPropertyMetadata,
   EntityRelationMetadata,
@@ -168,7 +168,7 @@ const ENUM_CARRIER_TYPES: readonly string[] = [PropertyType.enum, PropertyType.s
 
 /** 校验 `schemes` 数组语法，并按 ASCII 小写判重（US-019 D1：重复即拒绝，本层不做归一化）。 */
 const invalidSchemes = (value: unknown): string | null => {
-  if (!Array.isArray(value)) return '必须是字符串数组';
+  if (!Array.isArray(value) || firstArrayHole(value) !== undefined) return '必须是字符串数组';
   const bad = value.filter(item => typeof item !== 'string' || !SCHEME_RE.test(item));
   // 判重排在语法之后：语法非法时小写化没有意义，且同一 format 只产出一条错误，先报更具体的那条
   if (bad.length > 0) return `包含非法 scheme ${JSON.stringify(bad)}`;
@@ -305,7 +305,12 @@ const validateEnumDeclaration = (
   name: string,
   declared: unknown
 ): readonly string[] | null => {
-  if (!Array.isArray(declared) || declared.some(item => typeof item !== 'string')) {
+  // `some` 跳过空位：`['draft', , 'published']` 这类笔误要在这里拒绝，否则字段描述里带着空位、无法 JSON 往返
+  const isStringList =
+    Array.isArray(declared) &&
+    firstArrayHole(declared) === undefined &&
+    declared.every(item => typeof item === 'string');
+  if (!isStringList) {
     collector.add(name, 'invalidEnumConfig', 'enum 必须是字符串数组');
     return null;
   }
@@ -614,9 +619,10 @@ const manualOrderGroupBy = (declared: unknown): readonly string[] | string => {
   const unknownKeys = Object.keys(declared).filter(key => key !== 'groupBy');
   if (unknownKeys.length > 0) return `不接受键 ${unknownKeys.join('、')}：只有 groupBy`;
   const { groupBy } = declared;
-  if (!Array.isArray(groupBy) || !groupBy.every(field => typeof field === 'string')) {
-    return `groupBy 必须是字段名字符串数组，实际为 ${JSON.stringify(groupBy)}`;
-  }
+  // `every` 跳过空位：不先判空位，后面逐字段校验会从空位读出 undefined 而抛 TypeError，不再是聚合违规
+  const isFieldList =
+    Array.isArray(groupBy) && firstArrayHole(groupBy) === undefined && groupBy.every(field => typeof field === 'string');
+  if (!isFieldList) return `groupBy 必须是字段名字符串数组，实际为 ${JSON.stringify(groupBy)}`;
   return groupBy;
 };
 

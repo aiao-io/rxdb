@@ -19,13 +19,25 @@ import {
 import generate_entity_deletes_sql from './entity/deletes_sql.js';
 import generate_entity_inserts_sql from './entity/inserts_sql.js';
 import generate_entity_update_sql from './entity/update_sql.js';
-import { getEntityObjectFromResult, RxdbAdapterPGliteError } from './pglite.utils.js';
+import {
+  getEntityObjectFromResult,
+  getMonotonicUpdatedAt,
+  normalizeUpdateEntity,
+  RxdbAdapterPGliteError
+} from './pglite.utils.js';
 import { generate_find_sql } from './query/query_sql.js';
 import { PGliteRepository } from './repository/PGliteRepository.js';
 import type { RxDBAdapterPGlite } from './RxDBAdapterPGlite.js';
 import { dispatchUnloggedRemovals } from './unlogged-removal-events.js';
 
-const updateCachedEntity = <T extends EntityType>(repo: PGliteRepository<T>, data: Record<string, unknown>): void => {
+/** 每个实体这次实际提交的字段值：回查回填按它收尾，执行期间的新输入留作未保存改动 */
+type SubmittedValues = Map<object, Readonly<Record<string, unknown>>>;
+
+const updateCachedEntity = <T extends EntityType>(
+  repo: PGliteRepository<T>,
+  data: Record<string, unknown>,
+  submitted: SubmittedValues
+): void => {
   const rawId = data['id'];
   const validNumber = typeof rawId === 'number' && Number.isFinite(rawId);
   if (typeof rawId !== 'string' && typeof rawId !== 'bigint' && !validNumber) {
@@ -36,13 +48,11 @@ const updateCachedEntity = <T extends EntityType>(repo: PGliteRepository<T>, dat
   const entity = repo.getEntityRef(id);
   if (!entity) return;
 
-  // `getEntityRef` 如实返回 `EntityInstanceType<T>`，而 `updateEntity` 收的是 `InstanceType<T>`：
-  // 两者对具体 `T` 同解，泛型体内互不可赋值。核心那边两个签名不一致是 `EntityType` 形状本身的
-  // 问题（见 `PGliteRepositoryBase` 里那条边界注释），本轮只在调用点桥接。
-  repo.updateEntity(entity as InstanceType<T>, data as unknown as InstanceType<T>);
+  // 不再无条件归零 modified：applyWriteResult 按提交值收尾并按 patch 重算，执行期间的新输入留到下一次 save()。
+  // 缓存里的若不是本批提交的那个实例（没有提交值），按「全部未提交」处理，等同外部合并、不丢编辑
   const state = getEntityStatus(entity);
+  state.applyWriteResult(data as Partial<InstanceType<T>>, submitted.get(entity) ?? {});
   state.local = true;
-  state.modified = false;
 };
 
 /**
@@ -102,13 +112,15 @@ export default async <T extends EntityType = EntityType>(
 ): Promise<InstanceType<T>[]> => {
   const all_entities = new Set<InstanceType<T>>();
   const now = new Date();
+  const submitted: SubmittedValues = new Map();
 
   // ========== 处理 CREATE 操作 ==========
   const applyCreates = async (EntityType: T, entities: InstanceType<T>[]) => {
     entities.forEach(e => all_entities.add(e));
     const meta = getEntityMetadata(EntityType);
 
-    // 生成 INSERT SQL
+    // 生成 INSERT SQL；生成器读的就是这一刻的字段值
+    for (const entity of entities) submitted.set(entity, { ...entity });
     const insertSql = await generate_entity_inserts_sql(
       meta,
       adapter.tableSet,
@@ -139,7 +151,7 @@ export default async <T extends EntityType = EntityType>(
     const repo = adapter.getRepository<typeof EntityType, PGliteRepository<typeof EntityType>>(EntityType);
     for (const row of selectResult.rows) {
       const data = await getEntityObjectFromResult(meta, row, adapter.encryptionContext);
-      updateCachedEntity(repo, data);
+      updateCachedEntity(repo, data, submitted);
     }
   };
 
@@ -150,13 +162,17 @@ export default async <T extends EntityType = EntityType>(
 
     const repo = adapter.getRepository<typeof EntityType, PGliteRepository<typeof EntityType>>(EntityType);
 
-    // 逐个实体生成 UPDATE SQL
+    // 逐个实体生成 UPDATE SQL。没有可写差异（改了又改回、只动了只读字段）的不发 UPDATE：
+    // 否则只剩 updatedAt / updatedBy 被改，凭空推进新鲜度并给变更日志追加一条空 UPDATE。
+    // updatedAt 与单条仓储同口径单调：整批时刻只是首选值，落后于实体已有的时间就取 +1ms
     for (const entity of entities) {
-      const status = getEntityStatus(entity);
-      const { sql, params } = await generate_entity_update_sql(meta, adapter.tableSet, entity, status.patch || {}, {
+      const patch = getEntityStatus(entity).patch;
+      submitted.set(entity, patch);
+      if (Object.keys(normalizeUpdateEntity(meta, patch)).length === 0) continue;
+      const { sql, params } = await generate_entity_update_sql(meta, adapter.tableSet, entity, patch, {
         ...adapter.rxdb.context,
         returning: false,
-        updatedAt: now,
+        updatedAt: getMonotonicUpdatedAt(entity, now),
         encryption: adapter.encryptionContext
       });
       try {
@@ -176,7 +192,7 @@ export default async <T extends EntityType = EntityType>(
     // 更新实体状态
     for (const row of result.rows) {
       const data = await getEntityObjectFromResult(meta, row, adapter.encryptionContext);
-      updateCachedEntity(repo, data);
+      updateCachedEntity(repo, data, submitted);
     }
   };
 

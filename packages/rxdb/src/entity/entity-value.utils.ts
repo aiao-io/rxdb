@@ -17,7 +17,7 @@ import type {
   EntityRelationFieldDescriptor
 } from './entity-field.utils.js';
 import { isOnStep, PERCENTAGE_DOMAIN } from './format-rules.js';
-import { isPlainRecord, walkJsonContainer, type JsonWalkPath } from './json-safe.js';
+import { firstArrayHole, isPlainRecord, walkJsonContainer, type JsonWalkPath } from './json-safe.js';
 import type {
   CurrencyFormat,
   DurationFormat,
@@ -370,11 +370,13 @@ const toUrl = (text: string): URL | null => {
  *
  * @remarks
  * `.every(isStrictJsonValue)` 这种点自由写法会把数组下标当第二个实参传进来，必须显式包一层箭头。
+ * `every` 跳过稀疏数组的空位，空位另行判掉（{@link firstArrayHole}）。
  */
 const isStrictJsonValue = (value: unknown, walked: JsonWalkPath = new WeakSet()): boolean => {
   if (value === null || typeof value === 'boolean' || typeof value === 'string') return true;
   if (typeof value === 'number') return Number.isFinite(value);
   const isList = Array.isArray(value);
+  if (isList && firstArrayHole(value) !== undefined) return false;
   if (!isList && !isPlainRecord(value)) return false;
 
   const items = isList ? (value as readonly unknown[]) : Object.values(value as Record<string, unknown>);
@@ -447,13 +449,17 @@ function normalizeJsonValue(value: unknown, walked: JsonWalkPath = new WeakSet()
   }
 }
 
+/** 稠密数组且每一项都满足 `isItem`：`every` 跳过空位，空位先判掉 */
+const isDenseArrayOf = (value: unknown, isItem: (item: unknown) => boolean): boolean =>
+  Array.isArray(value) && firstArrayHole(value) === undefined && value.every(item => isItem(item));
+
 function checkStringArray(displayName: string, value: unknown): ValueViolation | null {
-  const ok = Array.isArray(value) && (value as readonly unknown[]).every(item => typeof item === 'string');
+  const ok = isDenseArrayOf(value, item => typeof item === 'string');
   return ok ? null : violation('stringArray', `${displayName} 必须是字符串数组`);
 }
 
 function checkNumberArray(displayName: string, value: unknown): ValueViolation | null {
-  const ok = Array.isArray(value) && (value as readonly unknown[]).every(isFiniteNumber);
+  const ok = isDenseArrayOf(value, isFiniteNumber);
   return ok ? null : violation('numberArray', `${displayName} 必须是数字数组`);
 }
 

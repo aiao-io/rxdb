@@ -16,7 +16,7 @@
  */
 import { RxDBError } from '../RxDBError.js';
 import { formatConfigLiteralsOf, missingFormatConfigKeys } from './format-rules.js';
-import { isPlainRecord, walkJsonContainer, type JsonWalkPath } from './json-safe.js';
+import { firstArrayHole, isPlainRecord, walkJsonContainer, type JsonWalkPath } from './json-safe.js';
 import {
   PropertyType,
   RelationKind,
@@ -628,14 +628,13 @@ const parseError = (path: string, reason: string): RxDBError =>
   new RxDBError(`实体字段描述解析失败：${path} ${reason}`);
 
 /**
- * 数组不能有空位。
+ * 数组不能有空位（判据见 {@link firstArrayHole}）。
  *
  * @remarks
- * 空位不是 JSON 值：`forEach` / `map` 会跳过它，解析结果在这个下标上读出 `undefined`；
- * `JSON.stringify` 又把它写成 `null`，同一个解析器随后拒绝自己的序列化结果。
+ * 不拦的话解析结果在空位下标上读出 `undefined`，序列化成 `null` 后同一个解析器又拒绝自己的输出。
  */
 function assertDenseArray(value: readonly unknown[], path: string): void {
-  const hole = Array.from(value.keys()).find(index => !Object.hasOwn(value, index));
+  const hole = firstArrayHole(value);
   if (hole !== undefined) throw parseError(`${path}[${hole}]`, '是稀疏数组的空位，不是 JSON 值');
 }
 
