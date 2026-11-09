@@ -55,7 +55,7 @@
   },
   "devDependencies": {
     "@aiao/rxdb-admin": "workspace:*",
-    "@types/react": "^19.0.0",
+    "@types/react": "^19.3.0",
     "react": "^19.3.1"
   }
 }
