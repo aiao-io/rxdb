@@ -1,5 +1,5 @@
 import { Injectable, signal } from '@angular/core';
-import { parsePartialJson } from 'ai';
+import { parsePartialJson } from './parse-partial-json';
 import type { ModelGenerationOutput } from '../model-designer/types/ai-schemas';
 import { AiStreamError, readAiTextDeltas, type AiApiError } from './ai-event-stream';
 
