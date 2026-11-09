@@ -4,5 +4,137 @@
     <h1>后台管理</h1>
     <p>管理账号、模板、供应商策略、任务用量和操作审计。</p>
   </header>
-  <app-admin-console [client]="client" [identity]="identity" [status]="status" />
+  @if (message()) {
+    <p role="status">{{ message() }}</p>
+  }
+  @if (installation(); as state) {
+    @if (!state.initialized) {
+      <section class="access-card" aria-labelledby="setup-title">
+        <h2 id="setup-title">首次初始化</h2>
+        <p>连接账号服务，设置此站点的管理员账号。完成后首次设置入口将关闭。</p>
+        @if (!state.available) {
+          <p>请在部署环境配置至少 32 位的 MEDIA_SETUP_TOKEN 安装凭据，然后重新载入。</p>
+          <button [disabled]="busy()" (click)="load()">重新载入</button>
+        } @else {
+          <form #setupForm="ngForm" (ngSubmit)="setupForm.valid && initialize()">
+            <fieldset [disabled]="busy()">
+              <legend>1 · 验证安装身份</legend>
+              <label>
+                安装凭据
+                <input [(ngModel)]="form.token" autocomplete="off" name="token" required type="password" />
+              </label>
+            </fieldset>
+            <fieldset [disabled]="busy()">
+              <legend>2 · 账号服务</legend>
+              @if (state.managed) {
+                <p>已使用部署环境中的 Supabase 配置，提交时检查连接和数据库版本。</p>
+              } @else {
+                <p>
+                  填写专用于本站的 Supabase 项目。新项目先在 SQL 编辑器运行
+                  <a download href="/admin/new-project.sql">新项目安装 SQL</a>
+                  ；已有站点仅应用
+                  <a download href="/admin/upgrade-installation.sql">初始化功能迁移</a>
+                  。
+                </p>
+                <label>
+                  Supabase URL
+                  <input
+                    [(ngModel)]="form.supabaseUrl"
+                    name="supabaseUrl"
+                    placeholder="https://project.supabase.co"
+                    required
+                    type="url"
+                  />
+                </label>
+                <label>
+                  公开 Key
+                  <input [(ngModel)]="form.anonKey" autocomplete="off" name="anonKey" required />
+                </label>
+                <label>
+                  服务端密钥
+                  <input
+                    [(ngModel)]="form.serviceRoleKey"
+                    autocomplete="off"
+                    name="serviceRoleKey"
+                    required
+                    type="password"
+                  />
+                </label>
+                <p>服务端密钥仅用于服务器访问，不会提供给用户端。</p>
+              }
+            </fieldset>
+            <fieldset [disabled]="busy()">
+              <legend>3 · 管理员账号</legend>
+              <label>
+                管理员邮箱
+                <input [(ngModel)]="form.email" autocomplete="username" name="email" required type="email" />
+              </label>
+              <label>
+                管理员密码
+                <input
+                  [(ngModel)]="form.password"
+                  autocomplete="new-password"
+                  maxlength="128"
+                  minlength="12"
+                  name="password"
+                  required
+                  type="password"
+                />
+              </label>
+              <label>
+                确认密码
+                <input
+                  [(ngModel)]="form.confirmation"
+                  autocomplete="new-password"
+                  name="confirmation"
+                  required
+                  type="password"
+                />
+              </label>
+              <p>密码至少 12 位。已有管理员的站点请使用原管理员账号和密码。</p>
+            </fieldset>
+            <div class="actions">
+              <button [disabled]="busy() || setupForm.invalid" type="submit">
+                {{ busy() ? '正在初始化…' : '完成初始化' }}
+              </button>
+              <button class="secondary" [disabled]="busy()" (click)="load()" type="button">重新检查安装状态</button>
+            </div>
+          </form>
+        }
+      </section>
+    } @else if (session(); as account) {
+      <div class="account">
+        <span>{{ account.user.email || account.user.id }}</span>
+        <button (click)="logout()">退出登录</button>
+        <a href="/">打开用户端</a>
+      </div>
+      <app-admin-console [client]="client" [identity]="account.user.id" status="signed-in" />
+    } @else {
+      <section class="access-card" aria-labelledby="login-title">
+        <h2 id="login-title">管理员登录</h2>
+        <form #loginForm="ngForm" (ngSubmit)="loginForm.valid && login()">
+          <fieldset [disabled]="busy()">
+            <label>
+              邮箱
+              <input [(ngModel)]="form.email" autocomplete="username" name="email" required type="email" />
+            </label>
+            <label>
+              密码
+              <input
+                [(ngModel)]="form.password"
+                autocomplete="current-password"
+                name="password"
+                required
+                type="password"
+              />
+            </label>
+            <button [disabled]="loginForm.invalid" type="submit">{{ busy() ? '正在验证…' : '登录后台' }}</button>
+          </fieldset>
+        </form>
+      </section>
+    }
+  } @else {
+    <p role="status">{{ busy() ? '正在检查安装状态…' : '无法读取安装状态。' }}</p>
+    <button [disabled]="busy()" (click)="load()">重新检查</button>
+  }
 </main>

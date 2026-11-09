@@ -60,7 +60,7 @@ test('production bundle is deterministic, excludes development probe, and keeps 
     const first = await buildProductionBundle(join(directory, 'first.sql'));
     const second = await buildProductionBundle(join(directory, 'second.sql'));
     assert.equal(first.sql, second.sql);
-    assert.equal(first.sources.length, 13);
+    assert.equal(first.sources.length, 14);
     assert.deepEqual(
       first.sources.map(source => source.relativePath),
       productionSources
@@ -180,6 +180,69 @@ test('production bootstrap refuses an occupied project before writing and preser
     assert.deepEqual((await db.query('SELECT value FROM public.business_data')).rows, [{ value: 'kept' }]);
     assert.equal((await db.query("SELECT to_regnamespace('media_private') AS schema")).rows[0].schema, null);
     assert.equal((await db.query('SELECT count(*)::int AS count FROM storage.buckets')).rows[0].count, 0);
+  } finally {
+    await db.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('安装授权仅服务端可执行，原子创建首个管理员且重复请求不能提权', async () => {
+  const db = await supabaseProject();
+  const directory = await mkdtemp(join(tmpdir(), 'aiao-installation-sql-'));
+  const owner = crypto.randomUUID(),
+    other = crypto.randomUUID(),
+    requestId = crypto.randomUUID();
+  try {
+    await apply(db, (await buildProductionBundle(join(directory, 'production.sql'))).sql);
+    await db.query('INSERT INTO auth.users VALUES ($1),($2)', [owner, other]);
+    for (const role of ['anon', 'authenticated']) {
+      await db.exec(`SET ROLE ${role}`);
+      await assert.rejects(db.query('SELECT public.media_bootstrap_admin($1,$2)', [owner, requestId]), {
+        code: '42501'
+      });
+      await assert.rejects(db.query('SELECT * FROM public.media_installation_state'), { code: '42501' });
+      await db.exec('RESET ROLE');
+    }
+    await db.exec('SET ROLE service_role');
+    for (let retry = 0; retry < 2; retry++)
+      assert.equal(
+        (await db.query('SELECT public.media_bootstrap_admin($1,$2) AS owner', [owner, requestId])).rows[0].owner,
+        owner
+      );
+    await assert.rejects(db.query('SELECT public.media_bootstrap_admin($1,$2)', [other, crypto.randomUUID()]), {
+      code: 'PT409'
+    });
+    assert.deepEqual((await db.query('SELECT user_id, revision FROM public.media_admin_memberships')).rows, [
+      { user_id: owner, revision: 1 }
+    ]);
+    assert.equal((await db.query('SELECT count(*)::int AS count FROM public.media_admin_audit')).rows[0].count, 1);
+  } finally {
+    await db.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('已有站点必须由原管理员接入，不能用安装向导添加新管理员', async () => {
+  const db = await supabaseProject();
+  const directory = await mkdtemp(join(tmpdir(), 'aiao-existing-installation-sql-'));
+  const owner = crypto.randomUUID(),
+    other = crypto.randomUUID();
+  try {
+    await apply(db, (await buildProductionBundle(join(directory, 'production.sql'))).sql);
+    await db.query('INSERT INTO auth.users VALUES ($1),($2)', [owner, other]);
+    await db.query('INSERT INTO public.media_admin_memberships(user_id) VALUES ($1)', [owner]);
+    await db.exec('SET ROLE service_role');
+    await assert.rejects(db.query('SELECT public.media_bootstrap_admin($1,$2)', [other, crypto.randomUUID()]), {
+      code: '42501'
+    });
+    assert.equal(
+      (await db.query('SELECT public.media_bootstrap_admin($1,$2) AS owner', [owner, crypto.randomUUID()])).rows[0]
+        .owner,
+      owner
+    );
+    assert.deepEqual((await db.query('SELECT user_id, revision FROM public.media_admin_memberships')).rows, [
+      { user_id: owner, revision: 1 }
+    ]);
   } finally {
     await db.close();
     await rm(directory, { recursive: true, force: true });

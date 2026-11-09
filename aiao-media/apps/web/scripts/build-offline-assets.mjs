@@ -10,6 +10,7 @@ const extensions = new Set(['.js', '.css', '.wasm', '.ico', '.png', '.jpg', '.jp
 async function walk(root, path, assets) {
   for (const item of await readdir(path, { withFileTypes: true })) {
     const full = resolve(path, item.name);
+    if (full === resolve(root, 'admin')) continue;
     if (item.isDirectory()) await walk(root, full, assets);
     else if (extensions.has(extname(item.name)) && item.name !== 'offline-worker.js') {
       const bytes = await readFile(full);

@@ -22,9 +22,12 @@
 		reverse_proxy 127.0.0.1:8000
 	}
 
-	@hidden path /admin /admin/*
-	handle @hidden {
-		respond 404
+	redir /admin /admin/ 302
+	handle_path /admin/* {
+		root * /srv/web/admin
+		header Cache-Control no-store
+		try_files {path} /index.html
+		file_server
 	}
 
 	handle /api/* {

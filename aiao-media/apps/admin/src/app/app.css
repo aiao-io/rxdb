@@ -22,3 +22,58 @@ h1 {
 p {
   color: #6f665d;
 }
+.access-card {
+  max-width: 640px;
+  margin: 32px auto;
+  padding: 28px;
+  background: white;
+  border: 1px solid #dcd4ca;
+  border-radius: 16px;
+}
+fieldset {
+  border: 0;
+  padding: 12px 0;
+  margin: 0;
+}
+legend {
+  font-weight: 650;
+}
+label {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0;
+}
+input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #aaa096;
+  border-radius: 8px;
+}
+button {
+  padding: 10px 16px;
+  border: 1px solid #8c5b2f;
+  border-radius: 8px;
+  background: #8c5b2f;
+  color: white;
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.account {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin: 24px 0;
+}
+.actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.secondary {
+  background: white;
+  color: #8c5b2f;
+}

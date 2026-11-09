@@ -1,11 +1,13 @@
 import { imageGenerationRequest, isMiniMaxImageProvider } from '@aiao-media/api-contracts';
 import { handleAdmin } from './admin-api.ts';
+import { installation } from './installation.ts';
 import { publishedTemplates, runtimePolicy } from './product-content.ts';
 import { endpoint } from './product-http.ts';
 import { base, json, relayInput } from './relay-input.ts';
 import { handleRelayTask } from './relay-task-api.ts';
 import type { WorkerEnv } from './worker-env.ts';
 
+export { Installation } from './installation.ts';
 export { PlatformCoordinator } from './platform-coordinator.ts';
 export { RelayTask } from './relay-task.ts';
 // Optional relay: stateless /api/relay for installed older pages, durable /api/relay/tasks for the current app.
@@ -142,10 +144,25 @@ const jsonPayload = (payload: unknown, status = 200) =>
   });
 const encoder = new TextEncoder();
 const navigationPaths = new Set(['/', '/create', '/images', '/providers']);
-const hiddenPaths = new Set(['/admin', '/admin/']);
 async function fetchAsset(request: Request, env: WorkerEnv) {
   const pathname = new URL(request.url).pathname;
-  if (request.method === 'GET' && hiddenPaths.has(pathname)) return jsonPayload({ error: 'Not found' }, 404);
+  if (request.method === 'GET' && pathname === '/admin') return Response.redirect(new URL('/admin/', request.url), 302);
+  if (request.method === 'GET' && pathname.startsWith('/admin/')) {
+    const asset = pathname === '/admin/' ? new Request(new URL('/admin/index.html', request.url), request) : request;
+    const result = await env.ASSETS!.fetch(asset);
+    const headers = new Headers(result.headers);
+    headers.set('cache-control', 'no-store');
+    return new Response(result.body, { status: result.status, headers });
+  }
+  const setup = installation(env);
+  let authUrl: string | undefined;
+  if (setup && request.method === 'GET' && navigationPaths.has(pathname)) {
+    const result = await setup.fetch(new Request(new URL('/api/installation', request.url)));
+    if (!result.ok) return jsonPayload({ error: 'Installation unavailable' }, 503);
+    const state = await result.json<{ initialized: boolean; auth: { url: string } | null }>();
+    if (!state.initialized) return Response.redirect(new URL('/admin/', request.url), 302);
+    authUrl = state.auth?.url;
+  }
   const response = await env.ASSETS!.fetch(request);
   if (
     request.method === 'GET' &&
@@ -156,6 +173,16 @@ async function fetchAsset(request: Request, env: WorkerEnv) {
   ) {
     const headers = new Headers(response.headers);
     headers.set('cache-control', 'no-store');
+    if (authUrl) {
+      const auth = new URL(authUrl);
+      const realtime = `${auth.protocol === 'https:' ? 'wss:' : 'ws:'}//${auth.host}`;
+      const policy = headers.get('content-security-policy');
+      if (policy)
+        headers.set(
+          'content-security-policy',
+          policy.replace(/connect-src ([^;]*);/, `connect-src $1 ${auth.origin} ${realtime};`)
+        );
+    }
     return new Response(response.body, {
       status: response.status,
       statusText: response.statusText,
@@ -264,6 +291,25 @@ const worker = {
   async fetch(request: Request, env: WorkerEnv): Promise<Response> {
     const url = new URL(request.url);
     if (!url.pathname.startsWith('/api/')) return fetchAsset(request, env);
+    const setup = installation(env);
+    if (url.pathname === '/api/installation') {
+      if (setup) return setup.fetch(request);
+      return jsonPayload({
+        initialized: true,
+        available: false,
+        managed: Boolean(env.MEDIA_SUPABASE_URL),
+        auth:
+          env.MEDIA_SUPABASE_URL && env.MEDIA_SUPABASE_ANON_KEY ?
+            { url: env.MEDIA_SUPABASE_URL, anonKey: env.MEDIA_SUPABASE_ANON_KEY }
+          : null
+      });
+    }
+    if (setup) {
+      const installed = await setup.fetch('https://installation/internal/config');
+      if (!installed.ok) return json(503, 'Installation configuration unavailable');
+      const config = await installed.json<Partial<WorkerEnv> | null>();
+      if (config) env = { ...env, ...config };
+    }
     if (url.pathname.startsWith('/api/admin/')) return handleAdmin(request, env);
     if (url.pathname === '/api/templates' && request.method === 'GET') return endpoint(() => publishedTemplates(env));
     if (url.pathname === '/api/provider-policies' && request.method === 'GET')

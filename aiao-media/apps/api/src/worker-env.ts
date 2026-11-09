@@ -1,7 +1,7 @@
 /** Worker 入口使用的 Cloudflare 绑定与服务配置。 */
 export interface WorkerEnv {
   [secret: string]: unknown;
-  ASSETS?: Fetcher;
+  ASSETS?: Pick<Fetcher, 'fetch'>;
   MEDIA_PLATFORM?: DurableObjectNamespace;
   RELAY_TASKS?: RelayTaskNamespace;
   MEDIA_RESULTS?: R2Bucket;
@@ -11,6 +11,9 @@ export interface WorkerEnv {
   MEDIA_SUPABASE_URL?: string;
   MEDIA_SUPABASE_ANON_KEY?: string;
   MEDIA_SUPABASE_SERVICE_ROLE_KEY?: string;
+  MEDIA_INSTALLATION?: RelayTaskNamespace;
+  MEDIA_SETUP_TOKEN?: string;
+  MEDIA_PUBLIC_SUPABASE_URL?: string;
   MEDIA_STRIPE_SECRET_KEY?: string;
   MEDIA_STRIPE_WEBHOOK_SECRET?: string;
   MEDIA_PLATFORM_MODELS?: string;

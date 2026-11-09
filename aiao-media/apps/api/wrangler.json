@@ -5,11 +5,15 @@
     "binding": "ASSETS",
     "html_handling": "none",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/admin", "/admin/*"]
+    "run_worker_first": ["/", "/create", "/images", "/providers", "/api/*", "/admin", "/admin/*"]
   },
   "compatibility_date": "2026-10-23",
   "durable_objects": {
     "bindings": [
+      {
+        "name": "MEDIA_INSTALLATION",
+        "class_name": "Installation"
+      },
       {
         "name": "MEDIA_PLATFORM",
         "class_name": "PlatformCoordinator"
@@ -29,6 +33,10 @@
     {
       "tag": "media-relay-v1",
       "new_sqlite_classes": ["RelayTask"]
+    },
+    {
+      "tag": "media-installation-v1",
+      "new_sqlite_classes": ["Installation"]
     }
   ],
   "name": "aiao-media",

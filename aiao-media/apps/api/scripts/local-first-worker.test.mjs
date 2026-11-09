@@ -118,12 +118,16 @@ test('供应商错误不泄露响应和 Key；网络失败不重试', async () =
     globalThis.fetch = previous;
   }
 });
-test('主站不公开后台页面，后台路径不会回落到主站壳', async () => {
-  for (const pathname of ['/admin', '/admin/']) {
-    const response = await worker.fetch(new Request(`${origin}${pathname}`), env);
-    assert.equal(response.status, 404);
-    assert.deepEqual(await response.json(), { error: 'Not found' });
-  }
+test('后台路径加载独立管理产物并禁止缓存', async () => {
+  const redirect = await worker.fetch(new Request(`${origin}/admin`), env);
+  assert.equal(redirect.status, 302);
+  assert.equal(redirect.headers.get('location'), `${origin}/admin/`);
+  const response = await worker.fetch(new Request(`${origin}/admin/`), {
+    ...env,
+    ASSETS: { fetch: request => new Response(new URL(request.url).pathname) }
+  });
+  assert.equal(await response.text(), '/admin/index.html');
+  assert.equal(response.headers.get('cache-control'), 'no-store');
 });
 
 test('未知 API 返回 404，普通页面走静态资源', async () => {

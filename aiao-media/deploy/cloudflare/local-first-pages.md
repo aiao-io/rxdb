@@ -1,5 +1,7 @@
 # Local-first Cloudflare 部署
 
+首次安装流程已统一到 `/admin/`，配置 Supabase 与管理员邮箱、密码，见[首次安装](../installation.md)。新安装可在向导提交账号服务配置，不再要求构建时提供公开 Key；下文构建变量仍兼容已部署站点。部署前设置 Worker secret `MEDIA_SETUP_TOKEN`，并应用 `011-installation.sql`。已存在管理员的站点必须由原管理员接入，不能再次自助提权。
+
 更新：2026-11-06。真实 Angular 应用已经迁移到 CSR，默认运行不需要登录、业务 API 或云数据库；本站代理改为 Durable Object 任务，结果加密暂存 R2。正式发布与验收身份见[公网交付记录](../../requirements/plans/public-delivery-verification.md)。
 
 ## 部署结构

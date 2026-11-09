@@ -1,10 +1,6 @@
 {
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "implicitDependencies": [
-    "rxdb",
-    "rxdb-adapter-wa-sqlite",
-    "rxdb-plugin-storage"
-  ],
+  "implicitDependencies": ["rxdb", "rxdb-adapter-wa-sqlite", "rxdb-plugin-storage"],
   "name": "aiao-media",
   "prefix": "app",
   "projectType": "application",
@@ -306,10 +302,28 @@
     "release-check": {
       "executor": "nx:run-commands",
       "cache": false,
-      "dependsOn": ["offline-assets"],
+      "dependsOn": ["package-admin"],
       "options": {
         "command": "node ../../scripts/release/check-local-first-release.mjs",
         "cwd": "aiao-media/apps/web"
+      }
+    },
+    "package-admin": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["offline-assets", "aiao-media-admin:build", "production-bundle"],
+      "options": {
+        "cwd": "aiao-media",
+        "command": "node scripts/release/package-admin.mjs"
+      }
+    },
+    "installation-browser-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["package-admin"],
+      "options": {
+        "cwd": "aiao-media",
+        "command": "eslint scripts/release/installation-browser.test.mjs scripts/release/package-admin.mjs scripts/release/check-local-first-release.mjs --max-warnings=0 && node --test scripts/release/installation-browser.test.mjs"
       }
     },
     "auth-config": {

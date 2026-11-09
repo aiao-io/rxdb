@@ -8,10 +8,10 @@
 | -------------- | -----: | -------------------------------------------------------------------------- |
 | ✅ Done        |      8 | 工作区骨架，以及全部 AC 已验、按 [D-11](decisions.md) 在当前分支结项的七条 |
 | 🚧 In Progress |      5 | 灵感库 IME 未验，以及桌面、同步和代理任务等新增范围                        |
-| 👀 In Review   |      1 | 国内自建部署已验，等待评审与合入                                           |
+| 👀 In Review   |      2 | 国内自建部署与首次安装流程，等待评审与合入                                 |
 | ⬜ Backlog     |      3 | 移动真机按 D-04、平台生图与计费按 D-17 暂缓                                |
 | 🚫 Blocked     |      2 | 正式直连三画幅与真实跨 origin 原图 URL 缺少可用的真实供应商证据            |
-| **合计**       | **19** | 不含模板和上游故事                                                         |
+| **合计**       | **20** | 不含模板和上游故事                                                         |
 
 ## 按 Epic 索引
 
@@ -21,6 +21,7 @@
 - ✅ [MEDIA-US-004 Cloudflare 边缘代理与安全部署](stories/platform/MEDIA-US-004-cloudflare-edge-deployment.md)
 - 🚧 [MEDIA-US-005 Tauri 本地安装版](stories/platform/MEDIA-US-005-tauri-desktop.md)
 - 👀 [MEDIA-US-006 国内自建服务与 IP HTTPS 部署](stories/platform/MEDIA-US-006-self-hosted-deployment.md)
+- 👀 [MEDIA-US-007 首次访问后台初始化](stories/platform/MEDIA-US-007-installation.md)
 
 ### [图片生成](epics/MEDIA-EPIC-002.md)
 

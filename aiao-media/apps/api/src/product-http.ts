@@ -167,6 +167,8 @@ export function backend(env: WorkerEnv) {
       if (result.ok) return data as T;
       if (result.status === 401) reject(401, '账号会话已失效。');
       if (result.status === 403 || data?.code === '42501') reject(403, '没有此操作权限。');
+      if (data?.code === 'email_exists' || data?.code === 'user_already_exists')
+        reject(409, '账号已存在，请验证原密码。');
       if (data?.code === '23503') reject(404, '目标记录已不存在。');
       if (result.status === 409 || ['40001', '23505', '23514', 'PT409'].includes(data?.code ?? ''))
         reject(409, '数据版本或管理员状态已变化，请重新载入。');

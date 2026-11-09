@@ -61,6 +61,9 @@ for (const path of files) {
 }
 for (const required of [
   'browser/index.html',
+  'browser/admin/index.html',
+  'browser/admin/new-project.sql',
+  'browser/admin/upgrade-installation.sql',
   'browser/offline-shell.html',
   'browser/offline-worker.js',
   'browser/wa-sqlite/wa-sqlite-async.wasm'

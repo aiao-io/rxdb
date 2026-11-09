@@ -1,6 +1,6 @@
 import { manageContent } from './product-content.ts';
 import type { BackendClient } from './product-http.ts';
-import { administrator, body, endpoint, fields, reject, uuid } from './product-http.ts';
+import { administrator, backend, body, endpoint, fields, reject, sameOriginWrite, uuid } from './product-http.ts';
 import { reports } from './product-reports.ts';
 import type { WorkerEnv } from './worker-env.ts';
 
@@ -121,6 +121,32 @@ async function setAccount(request: Request, client: BackendClient, actorId: stri
 /** 验证管理员权限后执行产品管理接口。 */
 export function handleAdmin(request: Request, env: WorkerEnv) {
   return endpoint(async () => {
+    if (new URL(request.url).pathname === '/api/admin/login' && request.method === 'POST') {
+      sameOriginWrite(request);
+      const value = fields<{ email: string; password: string }>(await body(request, 4096), ['email', 'password']);
+      if (
+        typeof value.email !== 'string' ||
+        typeof value.password !== 'string' ||
+        value.email.length > 254 ||
+        value.password.length > 128
+      )
+        reject(400, '登录参数无效。');
+      const session = await backend(env).call<{
+        access_token: string;
+        expires_in: number;
+        user: { id: string; email?: string };
+      }>('/auth/v1/token?grant_type=password', { method: 'POST', privileged: false, payload: value });
+      if (!session.access_token || !Number.isFinite(session.expires_in) || session.expires_in <= 0)
+        reject(502, '登录会话无效。');
+      const headers = new Headers(request.headers);
+      headers.set('authorization', `Bearer ${session.access_token}`);
+      await administrator(new Request(request.url, { headers }), env);
+      return {
+        accessToken: session.access_token,
+        expiresAt: Date.now() + session.expires_in * 1000,
+        user: { id: session.user.id, email: session.user.email }
+      };
+    }
     const { client, actorId } = await administrator(request, env);
     const url = new URL(request.url),
       path = url.pathname.replace(/^\/api\/admin\//, '');

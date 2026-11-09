@@ -32,6 +32,9 @@ export async function writeDevelopmentConfig(root, local) {
   const directory = resolve(api, '.wrangler/local-dev');
   const assets = resolve(directory, 'assets');
   const config = JSON.parse(await readFile(resolve(api, 'wrangler.json'), 'utf8'));
+  config.durable_objects.bindings = config.durable_objects.bindings.filter(
+    binding => binding.name !== 'MEDIA_INSTALLATION'
+  );
   config.assets = {
     ...config.assets,
     directory: assets,
