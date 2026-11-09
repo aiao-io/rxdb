@@ -22,7 +22,6 @@ export class App implements OnInit {
   readonly message = signal('');
   readonly session = signal<Session | null>(null);
   readonly form = {
-    token: '',
     email: '',
     password: '',
     confirmation: '',
@@ -57,13 +56,13 @@ export class App implements OnInit {
       return;
     }
     await this.run(async () => {
-      const { token, email, password, supabaseUrl, anonKey, serviceRoleKey } = this.form;
-      await this.request(
-        '/api/installation',
-        { email, password, ...(this.installation()?.managed ? {} : { supabaseUrl, anonKey, serviceRoleKey }) },
-        token
-      );
-      this.form.token = this.form.password = this.form.confirmation = this.form.serviceRoleKey = '';
+      const { email, password, supabaseUrl, anonKey, serviceRoleKey } = this.form;
+      await this.request('/api/installation', {
+        email,
+        password,
+        ...(this.installation()?.managed ? {} : { supabaseUrl, anonKey, serviceRoleKey })
+      });
+      this.form.password = this.form.confirmation = this.form.serviceRoleKey = '';
       this.installation.set(await this.request('/api/installation'));
       this.message.set('初始化完成，请使用管理员账号登录。');
     });
@@ -92,7 +91,7 @@ export class App implements OnInit {
       this.busy.set(false);
     }
   }
-  private async request<T>(url: string, payload?: unknown, token?: string): Promise<T> {
+  private async request<T>(url: string, payload?: unknown): Promise<T> {
     const response = await fetch(url, {
       method: payload === undefined ? 'GET' : 'POST',
       cache: 'no-store',
@@ -100,7 +99,7 @@ export class App implements OnInit {
       redirect: 'error',
       referrerPolicy: 'no-referrer',
       signal: AbortSignal.timeout(30000),
-      headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+      headers: { 'content-type': 'application/json' },
       ...(payload === undefined ? {} : { body: JSON.stringify(payload) })
     });
     if (!response.ok) {

@@ -296,7 +296,6 @@ const worker = {
       if (setup) return setup.fetch(request);
       return jsonPayload({
         initialized: true,
-        available: false,
         managed: Boolean(env.MEDIA_SUPABASE_URL),
         auth:
           env.MEDIA_SUPABASE_URL && env.MEDIA_SUPABASE_ANON_KEY ?

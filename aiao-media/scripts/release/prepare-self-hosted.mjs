@@ -28,7 +28,6 @@ const token = role => {
 try {
   const env = {
     MEDIA_PUBLIC_HOST: origin.host,
-    MEDIA_SETUP_TOKEN: randomBytes(32).toString('hex'),
     POSTGRES_PASSWORD: randomBytes(24).toString('hex'),
     JWT_SECRET: jwtSecret,
     ANON_KEY: token('anon'),
@@ -47,13 +46,6 @@ try {
   if (error.code !== 'EEXIST') throw error;
 }
 const env = parseEnv(await readFile(resolve(directory, '.env'), 'utf8'));
-if (!env.MEDIA_SETUP_TOKEN) {
-  env.MEDIA_SETUP_TOKEN = randomBytes(32).toString('hex');
-  await writeFile(resolve(directory, '.env'), `\nMEDIA_SETUP_TOKEN=${env.MEDIA_SETUP_TOKEN}\n`, {
-    flag: 'a',
-    mode: 0o600
-  });
-}
 if (env.MEDIA_PUBLIC_HOST !== origin.host) throw new Error('Existing deployment credentials belong to another origin.');
 const kong = parse(
   (await readFile(resolve(root, 'infra/supabase/kong.template.yml'), 'utf8'))

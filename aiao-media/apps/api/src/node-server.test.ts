@@ -63,6 +63,7 @@ test('自托管首次安装持久化配置，服务重启后只能登录且公�
     const path = new URL(String(url)).pathname;
     if (path.endsWith('/settings')) return Response.json({});
     if (path.endsWith('/media_installation_state')) return Response.json([]);
+    if (path.endsWith('/media_admin_memberships')) return Response.json([]);
     if (path.endsWith('/admin/users') || path.endsWith('/user')) return Response.json({ id: actor });
     if (path.endsWith('/token'))
       return Response.json({ access_token: 'session-token', expires_in: 3600, user: { id: actor } });
@@ -74,7 +75,6 @@ test('自托管首次安装持久化配置，服务重启后只能登录且公�
     MEDIA_DATA_DIRECTORY: directory,
     MEDIA_PUBLIC_ORIGIN: origin,
     PORT: '0',
-    MEDIA_SETUP_TOKEN: 'owner-installation-credential-with-32-characters',
     MEDIA_SUPABASE_URL: 'https://supabase.example.test',
     MEDIA_SUPABASE_ANON_KEY: 'sb_publishable_fixture',
     MEDIA_SUPABASE_SERVICE_ROLE_KEY: 'private-service-key'
@@ -89,7 +89,7 @@ test('自托管首次安装持久化配置，服务重启后只能登录且公�
   const setup = (base: string) =>
     actualFetch(`${base}/api/installation`, {
       method: 'POST',
-      headers: { origin, 'content-type': 'application/json', authorization: `Bearer ${environment.MEDIA_SETUP_TOKEN}` },
+      headers: { origin, 'content-type': 'application/json' },
       body: JSON.stringify({ email: 'owner@example.test', password: 'a-long-owner-password' })
     });
   try {

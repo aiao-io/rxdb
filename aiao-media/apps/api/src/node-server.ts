@@ -29,7 +29,6 @@ export async function startNodeServer(environment: NodeJS.ProcessEnv = process.e
     MEDIA_SUPABASE_URL: environment['MEDIA_SUPABASE_URL'],
     MEDIA_SUPABASE_ANON_KEY: environment['MEDIA_SUPABASE_ANON_KEY'],
     MEDIA_SUPABASE_SERVICE_ROLE_KEY: environment['MEDIA_SUPABASE_SERVICE_ROLE_KEY'],
-    MEDIA_SETUP_TOKEN: environment['MEDIA_SETUP_TOKEN'],
     MEDIA_PUBLIC_SUPABASE_URL: origin,
     MEDIA_ALLOW_DESKTOP_ORIGIN: 'true',
     ALLOWED_PROVIDER_BASE_URLS: environment['ALLOWED_PROVIDER_BASE_URLS']

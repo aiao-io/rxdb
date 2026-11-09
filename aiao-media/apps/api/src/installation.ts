@@ -6,6 +6,7 @@ type Configuration = Required<
   Pick<WorkerEnv, 'MEDIA_SUPABASE_URL' | 'MEDIA_SUPABASE_ANON_KEY' | 'MEDIA_SUPABASE_SERVICE_ROLE_KEY'>
 >;
 type State = { config: Configuration; email: string; requestId: string; initialized: boolean };
+const originalAdministrator = '此站点已有管理员，请使用原管理员邮箱和密码完成初始化。';
 
 function publicKey(key: string) {
   if (/^sb_publishable_[A-Za-z0-9_-]+$/.test(key)) return true;
@@ -81,7 +82,6 @@ export class Installation {
       const config = state?.initialized ? state.config : null;
       return {
         initialized: state?.initialized ?? false,
-        available: (this.env.MEDIA_SETUP_TOKEN?.length ?? 0) >= 32,
         managed: managed(this.env),
         auth:
           config ?
@@ -95,13 +95,6 @@ export class Installation {
     }
     if (request.method !== 'POST') reject(405, '只支持读取或提交初始化。');
     sameOriginWrite(request);
-    if (!this.env.MEDIA_SETUP_TOKEN || this.env.MEDIA_SETUP_TOKEN.length < 32)
-      reject(503, '请先在部署环境配置安装凭据。');
-    const supplied = request.headers.get('authorization') ?? '';
-    const hash = (value: string) => crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
-    const [actual, expected] = await Promise.all([hash(supplied), hash(`Bearer ${this.env.MEDIA_SETUP_TOKEN}`)]);
-    if (!new Uint8Array(actual).every((value, index) => value === new Uint8Array(expected)[index]))
-      reject(403, '安装凭据无效。');
     if (state?.initialized) reject(409, '初始化已完成，请登录后台。');
     const value = fields<InstallationInput>(await body(request, 16384), [
       'email',
@@ -127,19 +120,26 @@ export class Installation {
       reject(400, '服务配置无效。');
     const config = configuration(value, this.env);
     const email = value.email.trim().toLowerCase();
-    if (state && (state.email !== email || JSON.stringify(state.config) !== JSON.stringify(config)))
-      reject(409, '初始化尚未完成，请使用之前的账号和服务配置继续。');
+    if (state && JSON.stringify(state.config) !== JSON.stringify(config))
+      reject(409, '上次提交的账号服务尚未确认，请使用原服务配置重试。');
     const client = backend(config);
+    let existingAdministrator: boolean;
     try {
       await client.call('/auth/v1/settings', { privileged: false });
       await client.call('/rest/v1/media_installation_state?select=id&limit=1');
+      const memberships = await client.call<{ user_id: string }[]>(
+        '/rest/v1/media_admin_memberships?select=user_id&limit=1'
+      );
+      if (!Array.isArray(memberships)) throw new Error('Invalid administrator state');
+      existingAdministrator = memberships.length > 0;
     } catch {
       reject(503, 'Supabase 连接检查失败，请核对项目密钥并完成数据库迁移后重试。');
     }
-    const pending = state ?? { config, email, requestId: crypto.randomUUID(), initialized: false };
+    const pending =
+      state?.email === email ? state : { config, email, requestId: crypto.randomUUID(), initialized: false };
     this.save(pending);
     try {
-      await this.grantAdministrator(client, pending, value.password);
+      await this.grantAdministrator(client, pending, value.password, existingAdministrator);
     } catch (error) {
       if (error instanceof ProductApiError && [400, 401, 403, 409].includes(error.status))
         this.sql.exec('DELETE FROM media_installation WHERE id=1');
@@ -148,19 +148,36 @@ export class Installation {
     this.save({ ...pending, initialized: true });
     return { initialized: true };
   }
-  private async grantAdministrator(client: ReturnType<typeof backend>, pending: State, password: string) {
+  private async grantAdministrator(
+    client: ReturnType<typeof backend>,
+    pending: State,
+    password: string,
+    existingAdministrator: boolean
+  ) {
     const { email } = pending;
-    await this.ensureUser(client, email, password);
+    if (!existingAdministrator) await this.ensureUser(client, email, password);
     const session = await client.call<{ user: { id: string } }>('/auth/v1/token?grant_type=password', {
       method: 'POST',
       privileged: false,
       payload: { email, password }
     });
     if (!uuid(session?.user?.id)) reject(502, '管理员账号验证失败。');
-    const administrator = await client.call('/rest/v1/rpc/media_bootstrap_admin', {
-      method: 'POST',
-      payload: { p_target: session.user.id, p_request_id: pending.requestId }
-    });
+    if (existingAdministrator) {
+      const authorized = await client.call('/rest/v1/rpc/media_admin_authorized', {
+        method: 'POST',
+        payload: { p_actor: session.user.id }
+      });
+      if (authorized !== true) reject(403, originalAdministrator);
+    }
+    const administrator = await client
+      .call('/rest/v1/rpc/media_bootstrap_admin', {
+        method: 'POST',
+        payload: { p_target: session.user.id, p_request_id: pending.requestId }
+      })
+      .catch((error: unknown) => {
+        if (error instanceof ProductApiError && error.status === 403) reject(403, originalAdministrator);
+        throw error;
+      });
     if (administrator !== session.user.id) reject(502, '管理员授权未确认。');
   }
   private async ensureUser(client: ReturnType<typeof backend>, email: string, password: string) {

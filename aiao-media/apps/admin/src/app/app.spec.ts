@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { afterEach, vi } from 'vitest';
 import { App } from './app';
 
-const initial = { initialized: false, available: true, managed: false, auth: null };
+const initial = { initialized: false, managed: false, auth: null };
 const ready = {
   ...initial,
   initialized: true,
@@ -39,6 +39,9 @@ describe('App', () => {
     await vi.waitFor(() => expect(fixture.componentInstance.installation()).not.toBeNull());
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('首次初始化');
+    expect(fixture.nativeElement.textContent).not.toContain('安装凭据');
+    expect(fixture.nativeElement.querySelector('input[name="token"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('input[name="email"]')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('app-admin-console')).toBeNull();
     expect(fetch).toHaveBeenCalledTimes(1);
   });
@@ -52,7 +55,6 @@ describe('App', () => {
     fixture.detectChanges();
     const app = fixture.componentInstance;
     Object.assign(app.form, {
-      token: 'private-setup-token',
       email: 'owner@example.test',
       password: 'a-long-password',
       confirmation: 'a-long-password'
@@ -65,8 +67,8 @@ describe('App', () => {
     expect(fixture.nativeElement.textContent).toContain('管理员登录');
     const options = request.mock.calls[1][1]!;
     expect(JSON.parse(String(options.body))).toEqual({ email: 'owner@example.test', password: 'a-long-password' });
-    expect(options.headers).toMatchObject({ authorization: 'Bearer private-setup-token' });
-    expect(app.form.password + app.form.token + app.form.serviceRoleKey).toBe('');
+    expect(new Headers(options.headers).has('authorization')).toBe(false);
+    expect(app.form.password + app.form.serviceRoleKey).toBe('');
   });
 
   it('初始化失败显示错误，保留输入以便继续且不显示登录成功', async () => {

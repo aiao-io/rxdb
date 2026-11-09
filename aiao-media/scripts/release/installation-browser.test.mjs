@@ -9,7 +9,6 @@ import { test } from 'node:test';
 import { startNodeServer } from '../../apps/api/src/node-server.ts';
 
 const root = resolve(import.meta.dirname, '../../apps/web/dist/browser');
-const setupToken = 'browser-owner-installation-token-with-32-characters';
 const password = 'browser-owner-password';
 const actor = '12345678-1234-4234-8234-123456789012';
 const types = {
@@ -74,7 +73,6 @@ async function fixture(managed) {
   const api = await startNodeServer({
     MEDIA_DATA_DIRECTORY: directory,
     MEDIA_PUBLIC_ORIGIN: origin,
-    MEDIA_SETUP_TOKEN: setupToken,
     PORT: '0',
     ...(managed ?
       {
@@ -105,7 +103,7 @@ for (const managed of [true, false])
       await page.goto(server.origin);
       await page.getByRole('heading', { name: '首次初始化', exact: true }).waitFor();
       assert.equal(new URL(page.url()).pathname, '/admin/');
-      await page.getByLabel('安装凭据', { exact: true }).fill(setupToken);
+      assert.equal(await page.getByLabel('安装凭据', { exact: true }).count(), 0);
       if (!managed) {
         await page.getByLabel('Supabase URL', { exact: true }).fill(server.origin);
         await page.getByLabel('公开 Key', { exact: true }).fill('sb_publishable_fixture');

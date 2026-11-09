@@ -163,16 +163,21 @@ export function backend(env: WorkerEnv) {
         referrerPolicy: 'no-referrer'
       });
       if (result.status >= 300 && result.status < 400) reject(502, '产品服务禁止重定向。');
-      const data = result.status === 204 ? null : await result.json<{ code?: string }>();
+      const data = result.status === 204 ? null : await result.json<{ code?: string | number; error_code?: string }>();
       if (result.ok) return data as T;
+      const code =
+        typeof data?.error_code === 'string' ? data.error_code
+        : typeof data?.code === 'string' ? data.code
+        : '';
+      if (code === 'invalid_credentials') reject(401, '邮箱或密码错误，请使用该账号的原密码。');
       if (result.status === 401) reject(401, '账号会话已失效。');
-      if (result.status === 403 || data?.code === '42501') reject(403, '没有此操作权限。');
-      if (data?.code === 'email_exists' || data?.code === 'user_already_exists')
+      if (result.status === 403 || code === '42501') reject(403, '没有此操作权限。');
+      if (code === 'email_exists' || code === 'user_already_exists')
         reject(409, '账号已存在，请验证原密码。');
-      if (data?.code === '23503') reject(404, '目标记录已不存在。');
-      if (result.status === 409 || ['40001', '23505', '23514', 'PT409'].includes(data?.code ?? ''))
+      if (code === '23503') reject(404, '目标记录已不存在。');
+      if (result.status === 409 || ['40001', '23505', '23514', 'PT409'].includes(code))
         reject(409, '数据版本或管理员状态已变化，请重新载入。');
-      if (String(data?.code ?? '').startsWith('22')) reject(400, '请求数据无效。');
+      if (code.startsWith('22')) reject(400, '请求数据无效。');
       reject(502, '产品服务操作失败，未确认成功。');
     }
   };

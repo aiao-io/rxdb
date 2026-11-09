@@ -12,7 +12,6 @@ export interface WorkerEnv {
   MEDIA_SUPABASE_ANON_KEY?: string;
   MEDIA_SUPABASE_SERVICE_ROLE_KEY?: string;
   MEDIA_INSTALLATION?: RelayTaskNamespace;
-  MEDIA_SETUP_TOKEN?: string;
   MEDIA_PUBLIC_SUPABASE_URL?: string;
   MEDIA_STRIPE_SECRET_KEY?: string;
   MEDIA_STRIPE_WEBHOOK_SECRET?: string;
