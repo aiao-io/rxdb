@@ -51,6 +51,11 @@
         }
       }
     },
+    "dev": {
+      "continuous": true,
+      "executor": "nx:noop",
+      "dependsOn": ["serve", "serve-api"]
+    },
     "serve": {
       "continuous": true,
       "readyWhen": {
