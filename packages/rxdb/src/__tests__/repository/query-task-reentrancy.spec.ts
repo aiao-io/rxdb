@@ -120,10 +120,11 @@ describe('结果分发期间新增的订阅者只收到一次', () => {
     const { settle } = firstCountPending(99);
     const query = database.entityManager.getRepository(ReentrancyRow).count({ where });
     const second: number[] = [];
-    let secondSubscription!: Subscription;
-    subscriptions.push(query.subscribe(() => secondSubscription.unsubscribe()));
-    secondSubscription = query.subscribe(value => second.push(value));
-    subscriptions.push(secondSubscription);
+    // 先登记的订阅者在回调里退订后登记的那个：插入序就是分发序
+    const holder: { second?: Subscription } = {};
+    subscriptions.push(query.subscribe(() => holder.second?.unsubscribe()));
+    holder.second = query.subscribe(value => second.push(value));
+    subscriptions.push(holder.second);
 
     settle.resolve(3);
     await new Promise(resolve => setTimeout(resolve, 0));

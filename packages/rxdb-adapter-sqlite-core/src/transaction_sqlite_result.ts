@@ -51,23 +51,27 @@ const decodeChangeResult = <T extends object>(adapter: RxDBAdapterSqliteBase, da
   } as T;
 };
 
-const decodeForeignKeyValues = <T extends object>(
-  adapter: RxDBAdapterSqliteBase,
-  metadata: ReturnType<typeof getEntityMetadata>,
-  data: T
-): T => {
-  const entityData = data as Record<string, unknown>;
-  for (const relation of metadata.foreignKeyRelations) {
-    const propertyName = `${relation.name}Id`;
-    if (!(propertyName in entityData)) continue;
-    const mappedMetadata = adapter.rxdb.schemaManager.getEntityMetadata(
-      relation.mappedEntity,
-      relation.mappedNamespace ?? metadata.namespace
-    );
-    const idProperty = mappedMetadata?.propertyMap.get('id');
-    if (idProperty) entityData[propertyName] = transformValueSqliteToJs(entityData[propertyName], idProperty);
-  }
-  return data;
+/**
+ * 本次写入提交的字段值，按被写的实体索引（{@link transaction_sqlite_result} 的最后一个参数）。
+ */
+export type SqliteSubmittedValues<T extends EntityType> = ReadonlyMap<
+  InstanceType<T>,
+  Readonly<Partial<InstanceType<T>>>
+>;
+
+/** 结果行落到已缓存实体：写入回执按提交值收尾，外部数据避让未保存编辑，强制刷新整行覆盖 */
+const settle_cached_entity = <T extends EntityType>(
+  entity: InstanceType<T>,
+  data: Partial<InstanceType<T>>,
+  forcedUpdate: boolean,
+  mergeExternalChanges: boolean,
+  submitted: SqliteSubmittedValues<T> | undefined
+): void => {
+  const state = getEntityStatus(entity);
+  const sent = submitted?.get(entity);
+  if (sent) return state.applyWriteResult(data, sent);
+  if (mergeExternalChanges) return state.applyExternal(data);
+  if (forcedUpdate) state.replace(data);
 };
 
 /**
@@ -78,6 +82,8 @@ const decodeForeignKeyValues = <T extends object>(
  * @param forcedUpdate
  * @param skipCreate 跳过创建新实体（仅更新已有缓存）
  * @param mergeExternalChanges 合并数据库数据，同时保留未保存字段
+ * @param submitted 本次写入提交的字段值（按被写的实体索引）：命中的已缓存实体按
+ *   `EntityStatus.applyWriteResult` 收尾，以返回行推进基线并保留提交之后的新编辑
  * @returns
  */
 export const transaction_sqlite_result = async <T extends EntityType>(
@@ -86,7 +92,8 @@ export const transaction_sqlite_result = async <T extends EntityType>(
   sqliteSuccessResult: SqliteSuccessResult,
   forcedUpdate = false,
   skipCreate = false,
-  mergeExternalChanges = false
+  mergeExternalChanges = false,
+  submitted?: SqliteSubmittedValues<T>
 ): Promise<InstanceType<T>[]> => {
   const result: InstanceType<T>[] = [];
   const metadata = getEntityMetadata(EntityType);
@@ -111,9 +118,7 @@ export const transaction_sqlite_result = async <T extends EntityType>(
           row,
           adapter.encryptionContext
         );
-        const decodedEntityObjectData = decodeForeignKeyValues(adapter, metadata, rawEntityObjectData);
-        const entityObjectData =
-          isRxDBChange ? decodeChangeResult(adapter, decodedEntityObjectData) : decodedEntityObjectData;
+        const entityObjectData = isRxDBChange ? decodeChangeResult(adapter, rawEntityObjectData) : rawEntityObjectData;
 
         // 始终更新计算属性（如 hasChildren），因为它们是从数据库动态计算的
         metadata.computedPropertyMap.forEach((prop, propName) => {
@@ -121,17 +126,7 @@ export const transaction_sqlite_result = async <T extends EntityType>(
             entity[propName as keyof InstanceType<T>] = entityObjectData[propName];
           }
         });
-        if (mergeExternalChanges) {
-          const state = getEntityStatus(entity);
-          if (state.modified) {
-            state.mergeExternal(entityObjectData);
-          } else {
-            state.replace(entityObjectData);
-          }
-        } else if (forcedUpdate) {
-          const state = getEntityStatus(entity);
-          state.replace(entityObjectData);
-        }
+        settle_cached_entity(entity, entityObjectData, forcedUpdate, mergeExternalChanges, submitted);
       } else if (!skipCreate) {
         const rawData = await getEntityObjectFromResult<InstanceType<T>>(
           metadata,
@@ -139,8 +134,7 @@ export const transaction_sqlite_result = async <T extends EntityType>(
           row,
           adapter.encryptionContext
         );
-        const decodedData = decodeForeignKeyValues(adapter, metadata, rawData);
-        const data = isRxDBChange ? decodeChangeResult(adapter, decodedData) : decodedData;
+        const data = isRxDBChange ? decodeChangeResult(adapter, rawData) : rawData;
         // 同 `rxdb_adapter_mutations`：`EntityInstanceType<T>` 与本文件通用的 `InstanceType<T>`
         // 对具体 `T` 同解，泛型体内是两个延迟条件类型，这里桥接一次。
         entity = em.createEntityRef(EntityType, data) as InstanceType<T>;
@@ -150,7 +144,8 @@ export const transaction_sqlite_result = async <T extends EntityType>(
       result.push(entity);
       const state = getEntityStatus(entity);
       state.local = true;
-      if (!mergeExternalChanges) state.modified = false;
+      // 写入回执（submitted）与外部合并都已按 patch 重算过 modified；只有整行覆盖才归零
+      if (!mergeExternalChanges && !submitted?.has(entity)) state.modified = false;
       // 能在结果集里查到这一行，说明该 id 此刻在数据库中确实存在（未被删除）——
       // 无论是否 forcedUpdate 都要清除 removed，否则撤销删除 / 分支切换复活的行会因为
       // 命中缓存里那个仍标着 removed=true 的旧引用，永远显示"已删除"（RXD-011）

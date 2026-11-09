@@ -613,6 +613,28 @@ const metadataFkCache = new WeakMap<
 >();
 
 /**
+ * 外键读出来按目标主键的类型还原；`null` / 缺席原样保留，解析不到目标实体时原样交回。
+ *
+ * @remarks
+ * 驱动把安全范围内的 INTEGER 交回成 `number`，bigint 主键的外键不还原就成了 `1` 而不是 `1n`，
+ * 再写回去会被写侧的 bigint 校验拒绝。与写侧 `transformEntityValueToSql` 的 `transformForeignKey` 同一口径。
+ */
+const decodeForeignKeyValue = (
+  metadata: EntityMetadata,
+  foreignKeyName: string,
+  value: unknown,
+  resolveEntityMetadata: EncryptionContext['resolveEntityMetadata']
+): unknown => {
+  const relation = metadata.foreignKeyRelationMap?.get(foreignKeyName);
+  if (value === null || value === undefined || !relation || !resolveEntityMetadata) return value;
+  const mappedMetadata = resolveEntityMetadata(relation.mappedEntity, relation.mappedNamespace);
+  const primaryProperty = Array.from(mappedMetadata?.propertyMap.values() ?? []).find(
+    property => Reflect.get(property, 'primary') === true
+  );
+  return primaryProperty ? transformValueSqliteToJs(value, primaryProperty) : value;
+};
+
+/**
  * 从查询结果行创建实体对象
  * @param metadata 实体元数据
  * @param columns 列名数组
@@ -658,7 +680,7 @@ export const getEntityObjectFromResult = async <T extends object = EntityData>(
 
     const fkPropName = cached.fkMap.get(columnName);
     if (fkPropName !== undefined) {
-      obj[fkPropName] = value;
+      obj[fkPropName] = decodeForeignKeyValue(metadata, fkPropName, value, opts?.resolveEntityMetadata);
       continue;
     }
 

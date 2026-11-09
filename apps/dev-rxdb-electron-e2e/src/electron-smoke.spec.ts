@@ -25,8 +25,17 @@ let app: ElectronApplication;
 let page: Page;
 let userDataDir: string;
 
-/** 首屏加载期间收集到的控制台错误（含 CSP 违规）。 */
-const consoleErrors: string[] = [];
+/** 首屏加载期间收集到的控制台错误（含 CSP 违规）；`url` 是 Chromium 报告的出处，资源加载失败时即该资源。 */
+const consoleErrors: { readonly text: string; readonly url: string }[] = [];
+
+/**
+ * 路径穿越探测故意请求的越界地址；它的 404 与对应那条「Failed to load resource」日志是预期内的。
+ *
+ * @remarks
+ * 只按这一个地址排除，不在探测后清空集合：清空会把探测之前已经收到的启动错误一起丢掉，
+ * 末尾那条「启动全程无错误」就验不到首屏阶段了。
+ */
+const ESCAPED_PROBE_URL = 'app://-/%2e%2e%2fapp.asar';
 /** 加载失败的资源。CSP 拦截与路径写错都会落在这里。 */
 const failedRequests: string[] = [];
 /** HTTP 404 响应（Playwright 不会把 4xx 算作 requestfailed）。 */
@@ -44,9 +53,9 @@ test.beforeAll(async () => {
 
   page = await app.firstWindow();
   page.on('console', message => {
-    if (message.type() === 'error') consoleErrors.push(message.text());
+    if (message.type() === 'error') consoleErrors.push({ text: message.text(), url: message.location().url });
   });
-  page.on('pageerror', error => consoleErrors.push(`pageerror: ${error.message}`));
+  page.on('pageerror', error => consoleErrors.push({ text: `pageerror: ${error.message}`, url: '' }));
   page.on('requestfailed', request => {
     failedRequests.push(`${request.failure()?.errorText ?? 'failed'} ${request.url()}`);
   });
@@ -84,18 +93,15 @@ test.describe('打包产物 smoke', () => {
   // handler 的越界判定（resolveAppAssetPath）有单测，但「注册没生效 / 根目录指错」
   // 只有真实产物能验：路径合法时必须 200，越界时必须 404 而不是读到文件。
   test('自定义协议只对外提供 browser 目录内的文件', async () => {
-    const outcome = await page.evaluate(async () => {
+    const outcome = await page.evaluate(async escapedUrl => {
       const probe = async (url: string): Promise<number> => (await fetch(url)).status;
       return {
         asset: await probe('app://-/index.html'),
-        escaped: await probe('app://-/%2e%2e%2fapp.asar')
+        escaped: await probe(escapedUrl)
       };
-    });
+    }, ESCAPED_PROBE_URL);
     expect(outcome.asset).toBe(200);
     expect(outcome.escaped).toBe(404);
-    // 清理本测试故意触发的预期 404 日志，避免污染后续的「无 CSP/404」断言
-    consoleErrors.length = 0;
-    notFoundUrls.length = 0;
   });
 
   // 修复前：PathLocationStrategy 对 `file:` 调 replaceState 抛 SecurityError，
@@ -169,12 +175,15 @@ test.describe('打包产物 smoke', () => {
   // 放在最后：前面的用例已经把首屏、导航、WASM、IPC 都走了一遍，
   // 此时的错误集合才覆盖完整启动路径。
   test('启动全程无 CSP 违规与资源加载失败', () => {
-    const cspViolations = consoleErrors.filter(text => text.includes('Content Security Policy'));
-    // 排除其他测试故意探测的路径（路径穿越探测期望 404）
-    const unexpected404s = notFoundUrls.filter(u => u !== 'app://-/%2e%2e%2fapp.asar');
+    // 只排除路径穿越探测自己那一条：它请求的越界地址必然 404，Chromium 随之记一条资源加载失败
+    const unexpectedErrors = consoleErrors
+      .filter(entry => !(entry.url === ESCAPED_PROBE_URL && entry.text.startsWith('Failed to load resource')))
+      .map(entry => (entry.url === '' ? entry.text : `${entry.text}（${entry.url}）`));
+    const cspViolations = unexpectedErrors.filter(text => text.includes('Content Security Policy'));
+    const unexpected404s = notFoundUrls.filter(url => url !== ESCAPED_PROBE_URL);
     expect(cspViolations, `CSP 违规：\n${cspViolations.join('\n')}`).toEqual([]);
     expect(failedRequests, `资源加载失败：\n${failedRequests.join('\n')}`).toEqual([]);
     expect(unexpected404s, `非预期 HTTP 404：\n${unexpected404s.join('\n')}`).toEqual([]);
-    expect(consoleErrors, `控制台错误：\n${consoleErrors.join('\n')}`).toEqual([]);
+    expect(unexpectedErrors, `控制台错误：\n${unexpectedErrors.join('\n')}`).toEqual([]);
   });
 });

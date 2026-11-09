@@ -84,7 +84,40 @@ it('normal 预览应列出源幽灵操作实际删除的目标记录', async () 
   expect(squash.merged).toBe(0);
 });
 
-it('normal 预览保留源分支删后重建再删除的终态，压缩策略照旧过滤', async () => {
+it('压缩合并：分叉前就有的行在源分支删掉、同 id 重建、再删，合回目标后同样被删掉', async () => {
+  const history = new MemoryBranchHistory();
+  history.insert('main', 'same-id', { title: 'A' });
+  history.branch('feature', 'main');
+  history.delete('feature', 'same-id');
+  history.insert('feature', 'same-id', { title: 'B' });
+  history.delete('feature', 'same-id');
+  const readers = history.readers();
+  const target = history.stateOf('main');
+  const writes: SwitchVersionActions[] = [];
+  const adapter = {
+    tableSet: WorktreeTableSet.MAIN,
+    transaction: async (fun: (executor: TransactionExecutor) => Promise<unknown>) =>
+      fun({
+        tableSet: WorktreeTableSet.MAIN,
+        getRepository: () => readers.branchRepository,
+        mergeChanges: async (actions: SwitchVersionActions) => {
+          writes.push(actions);
+          for (const key of actions.deletes.keys()) target.delete(String(parseRxDBChangeKey(key)[2]));
+          for (const [key, value] of actions.inserts) target.set(String(parseRxDBChangeKey(key)[2]), { ...value.patch });
+        }
+      } as unknown as TransactionExecutor)
+  };
+  const version = { getLocalRepositories: async () => ({ ...readers, adapter }) } as unknown as VersionManager;
+
+  const result = await merge_branch(version, 'feature', 'main');
+
+  expect(result).toMatchObject({ strategy: 'squash', merged: 1 });
+  expect(writes).toHaveLength(1);
+  expect(target.has('same-id')).toBe(false);
+});
+
+// 分叉前就存在的行不是幽灵：源分支删掉、同 id 重建、再删，两种策略落的都是对它的删除（squash 只滤本批新建又删掉的）
+it('源分支删后重建再删除：normal 与压缩预览都保留终态的删除', async () => {
   const history = new MemoryBranchHistory();
   history.insert('main', 'same-id', { title: 'base' });
   history.branch('feature', 'main');
@@ -103,7 +136,9 @@ it('normal 预览保留源分支删后重建再删除的终态，压缩策略照
       conflict: { kind: 'delete_edited', fields: ['title'] }
     })
   ]);
-  expect((await preview_merge(history.readers(), 'feature', 'main')).entries).toEqual([]);
+  const squash = await preview_merge(history.readers(), 'feature', 'main');
+  expect(squash.entries).toEqual(normal.entries);
+  expect(squash.merged).toBe(1);
 });
 
 it('检出位内的 normal 预览保留成员幽灵删除，同时排除非成员变更', async () => {

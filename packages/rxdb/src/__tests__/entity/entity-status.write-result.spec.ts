@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { EntityBase } from '../../entity/entity-base.js';
 import { Entity } from '../../entity/entity.decorator.js';
-import type { EntityUpdateData } from '../../entity/entity.interface.js';
+import { ENTITY_STATIC_TYPES } from '../../entity/entity.interface.js';
 import { PropertyType, SyncType } from '../../entity/metadata-options.interface.js';
 import { getEntityStatus } from '../../rxdb-utils.js';
 import { RxDB } from '../../RxDB.js';
@@ -17,6 +17,7 @@ const { trackRxDB } = registerRxDBTeardown();
   ]
 })
 class WriteResultNote extends EntityBase {
+  static [ENTITY_STATIC_TYPES]: { idType: string };
   title!: string;
   body!: string | null;
 }
@@ -48,7 +49,7 @@ const storedNote = (rxdb: RxDB) =>
       body: 'stored body',
       createdAt: CREATED,
       updatedAt: STORED
-    } as EntityUpdateData<typeof WriteResultNote>,
+    },
     { local: true, modified: false }
   );
 
@@ -154,9 +155,7 @@ describe('EntityStatus.applyWriteResult：写入成功后的收尾', () => {
 
   it('创建：生成 INSERT 之后的新输入保留，库里生成的字段照收', () => {
     const rxdb = createDatabase('write-result-create');
-    const draft = rxdb.entityManager.createEntityRef(WriteResultNote, { id: 'note', title: 'draft' } as EntityUpdateData<
-      typeof WriteResultNote
-    >);
+    const draft = rxdb.entityManager.createEntityRef(WriteResultNote, { id: 'note', title: 'draft' });
     const status = getEntityStatus(draft);
     const submitted = { ...draft };
     draft.title = 'typed after insert';

@@ -79,7 +79,11 @@ async function createHarness(t) {
     await writeFile(log, '');
     const childEnv = { ...process.env, PATH: `${bin}:${process.env.PATH}`, FAKE_DOCKER_LOG: log, ...env };
     for (const key of INHERITED_IDENTITY) if (!(key in env)) delete childEnv[key];
-    const result = await execFileAsync('bash', [join(dockerDir, script)], { cwd: root, env: childEnv, timeout: 60_000 });
+    const result = await execFileAsync('bash', [join(dockerDir, script)], {
+      cwd: root,
+      env: childEnv,
+      timeout: 60_000
+    });
     const calls = (await readFile(log, 'utf8'))
       .split('\n')
       .filter(Boolean)
@@ -152,11 +156,14 @@ for (const [label, missing] of [
 ]) {
   test(`隔离回归：${label}时通过且不误判默认容器`, async t => {
     const harness = await createHarness(t);
-    const { stdout, calls } = await harness.run('supabase-ci-isolation-regression.sh', { FAKE_DOCKER_MISSING: missing });
+    const { stdout, calls } = await harness.run('supabase-ci-isolation-regression.sh', {
+      FAKE_DOCKER_MISSING: missing
+    });
 
     assert.match(stdout, /isolation regression passed/);
     const reinspected = calls.filter(
-      call => call.args[0] === 'inspect' && call.args.includes('{{.Id}}') && missing.split(',').includes(call.args.at(-1))
+      call =>
+        call.args[0] === 'inspect' && call.args.includes('{{.Id}}') && missing.split(',').includes(call.args.at(-1))
     );
     assert.equal(reinspected.length, missing ? missing.split(',').length : 0, '缺席的默认容器只在快照时 inspect 一次');
   });

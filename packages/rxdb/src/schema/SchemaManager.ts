@@ -3,6 +3,7 @@ import { EntityBase } from '../entity/entity-base.js';
 import { Entity } from '../entity/entity.decorator.js';
 import { EntityType } from '../entity/entity.interface.js';
 import { setSafeObjectKey } from '../entity/entity.utils.js';
+import { isPlainRecord } from '../entity/json-safe.js';
 import generate_many_to_many_entity, { ManyToManyRelation } from '../entity/many-to-many-entity.js';
 import {
   EntityPropertyMetadata,
@@ -55,6 +56,8 @@ export class SchemaManager {
   #generated_source = new Map<string, string>();
   /** 本实例生成的多对多中间表类 */
   #junctions = new Set<EntityType>();
+  /** 构造期就在实例上的 RxDB 字段（{@link SchemaManager} 在 RxDB 构造函数里创建，此时没有接入方代码跑过） */
+  readonly #instance_fields: ReadonlySet<PropertyKey>;
 
   /**
    * 本实例 `init()` 时生成的实体类：仓储 `entityGenerator` 的产物与多对多中间表（US-313）
@@ -67,7 +70,9 @@ export class SchemaManager {
     return [...this.#generated];
   }
 
-  constructor(protected readonly rxdb: RxDB) {}
+  constructor(protected readonly rxdb: RxDB) {
+    this.#instance_fields = new Set(Reflect.ownKeys(rxdb));
+  }
 
   /**
    * 注册全部实体元数据，并把缺失的系统表补进 `config.entities`。
@@ -198,6 +203,9 @@ export class SchemaManager {
       })
     );
 
+    // 先核对全部命名空间与 public 实体名，再往实例上挂：中途抛错不能留下挂了一半、不可删除的属性
+    this.#metadata_map.forEach((metadata, key) => this.#assert_mountable(metadata, this.#entity_map.get(key)!));
+
     // 构建 tableName 反向索引 + 将实体引用添加到 rxdb
     this.#metadata_map.forEach((metadata, key) => {
       const { name, namespace, tableName } = metadata;
@@ -216,50 +224,8 @@ export class SchemaManager {
       this.#tableName_entity_map.set(tableKey, entityForKey);
       this.#tableName_metadata_map.set(tableKey, metadata);
 
-      let scope: object = this.rxdb;
-      if (namespace !== 'public') {
-        const namespaceScope = Reflect.get(scope, namespace);
-        if (!namespaceScope || typeof namespaceScope !== 'object') {
-          const nextScope = {};
-          setSafeObjectKey(scope, namespace, nextScope);
-          scope = nextScope;
-        } else {
-          scope = namespaceScope;
-        }
-      }
-      setSafeObjectKey(scope, name, this.#entity_map.get(key));
+      setSafeObjectKey(this.#namespace_scope(namespace), name, entityForKey);
     });
-  }
-
-  /**
-   * 登记仓储 `entityGenerator` 的一个产物。
-   *
-   * @remarks
-   * 同名 key 已登记时只有两种合法复用：生成器原样交回已登记的同一个类（如源实体自身），
-   * 或同一个源实体重入（断连重连时生成器再跑一遍、交回新建的同名类）沿用第一次登记的那个。
-   * 其余都是撞名：生成器要的结构与已登记的实体无关，静默复用会让仓储与关系读写不兼容的表，
-   * 而且结论随注册顺序翻转（用户实体在后时由普通实体的撞名检查拒绝）。
-   *
-   * @param generated - 生成器交回的实体类
-   * @param sourceKey - 触发生成的源实体 key
-   * @param entities - `config.entities`，新登记的产物追加进去
-   */
-  #register_generated(generated: EntityType, sourceKey: string, entities: EntityType[]): void {
-    const metadata = getEntityMetadata(generated);
-    const key = get_entity_cache_key(metadata.name, metadata.namespace);
-    const existing = this.#entity_map.get(key);
-    if (existing === undefined) {
-      this.#metadata_map.set(key, metadata);
-      this.#entity_map.set(key, generated);
-      this.#generated.add(generated);
-      this.#generated_source.set(key, sourceKey);
-      entities.push(generated);
-      return;
-    }
-    if (existing === generated || this.#generated_source.get(key) === sourceKey) return;
-    throw new RxDBError(
-      `实体命名冲突：仓储生成的实体与 namespace '${metadata.namespace}' 下已注册的 '${metadata.name}' 同名，不能复用`
-    );
   }
 
   /**
@@ -373,6 +339,80 @@ export class SchemaManager {
   getEntityMetadataByTableName(tableName: string, namespace: string): EntityMetadata | undefined {
     const key = get_entity_cache_key(tableName, namespace);
     return this.#tableName_metadata_map.get(key);
+  }
+
+  /**
+   * 登记仓储 `entityGenerator` 的一个产物。
+   *
+   * @remarks
+   * 同名 key 已登记时只有两种合法复用：生成器原样交回已登记的同一个类（如源实体自身），
+   * 或同一个源实体重入（断连重连时生成器再跑一遍、交回新建的同名类）沿用第一次登记的那个。
+   * 其余都是撞名：生成器要的结构与已登记的实体无关，静默复用会让仓储与关系读写不兼容的表，
+   * 而且结论随注册顺序翻转（用户实体在后时由普通实体的撞名检查拒绝）。
+   *
+   * @param generated - 生成器交回的实体类
+   * @param sourceKey - 触发生成的源实体 key
+   * @param entities - `config.entities`，新登记的产物追加进去
+   */
+  #register_generated(generated: EntityType, sourceKey: string, entities: EntityType[]): void {
+    const metadata = getEntityMetadata(generated);
+    const key = get_entity_cache_key(metadata.name, metadata.namespace);
+    const existing = this.#entity_map.get(key);
+    if (existing === undefined) {
+      this.#metadata_map.set(key, metadata);
+      this.#entity_map.set(key, generated);
+      this.#generated.add(generated);
+      this.#generated_source.set(key, sourceKey);
+      entities.push(generated);
+      return;
+    }
+    if (existing === generated || this.#generated_source.get(key) === sourceKey) return;
+    throw new RxDBError(
+      `实体命名冲突：仓储生成的实体与 namespace '${metadata.namespace}' 下已注册的 '${metadata.name}' 同名，不能复用`
+    );
+  }
+
+  /**
+   * 键是不是 RxDB 实例自己的成员：原型链上的方法与访问器（含 `Object.prototype` 的 `__proto__` /
+   * `constructor`）、构造期的字段，以及之后挂上来的非普通对象（管理器、插件 API 等）。
+   *
+   * @remarks
+   * 实例上已有的**普通对象**不算成员：那是本实例早先建的命名空间容器，或接入方事先挂好的容器，照旧复用。
+   */
+  #is_instance_member(key: string): boolean {
+    if (this.#instance_fields.has(key)) return true;
+    if (!Object.hasOwn(this.rxdb, key)) return key in this.rxdb;
+    return !isPlainRecord(Reflect.get(this.rxdb, key));
+  }
+
+  /**
+   * 命名空间与 public 实体名都直接成为实例上的键，不能占用 RxDB 自己的成员。
+   *
+   * @remarks
+   * 占用的后果都不可逆（{@link setSafeObjectKey} 定义的是不可删除的属性）：命名空间叫 `destroy` 会用对象盖掉
+   * 销毁方法；叫 `__proto__` 会把实体挂进所有实例共享的 `RxDB.prototype`；叫 `context` 会把实体类写进
+   * 实例上下文。public 实体与成员同名同样会盖掉成员；重入时实例上已是同一个实体类，不算占用。
+   *
+   * @throws {@link RxDBError} 命名空间或 public 实体名与实例成员同名时
+   */
+  #assert_mountable({ name, namespace }: EntityMetadata, entity: EntityType): void {
+    if (namespace !== 'public') {
+      if (!this.#is_instance_member(namespace)) return;
+      throw new RxDBError(
+        `命名空间 '${namespace}' 与 RxDB 实例成员同名：实体按命名空间挂在实例上，会覆盖该成员或写进共享原型`
+      );
+    }
+    if (!(name in this.rxdb) || Reflect.get(this.rxdb, name) === entity) return;
+    throw new RxDBError(`实体名 '${name}' 与 RxDB 实例成员同名：public 实体直接挂在实例上，会覆盖该成员`);
+  }
+
+  /** 命名空间容器：public 是实例本身，其余是实例上同名的普通对象，没有就新建。 */
+  #namespace_scope(namespace: string): object {
+    if (namespace === 'public') return this.rxdb;
+    if (Object.hasOwn(this.rxdb, namespace)) return Reflect.get(this.rxdb, namespace) as object;
+    const scope = {};
+    setSafeObjectKey(this.rxdb, namespace, scope);
+    return scope;
   }
 }
 

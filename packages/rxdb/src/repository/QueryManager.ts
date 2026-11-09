@@ -51,27 +51,38 @@ const isUpdatedAtOnlyPatch = (entity: RxDBEntityLocalEventData): boolean => {
 };
 
 /**
- * 判断一组查询规则的 `where` 是否引用了某个字段（递归穿透嵌套规则组）。
+ * 规则或排序字段读的是不是某个实体的 `updatedAt`。
+ *
+ * @remarks
+ * 主实体写成 `updatedAt`，经关系读写成以 `.updatedAt` 结尾的路径（`author.updatedAt`）。
+ * 不追究路径落在哪个实体上：判错的代价只是多合并一次，判漏则是查询停在旧答案上。
  */
-const whereReferencesField = (where: unknown, field: string): boolean => {
+const readsUpdatedAt = (field: unknown): boolean =>
+  typeof field === 'string' && (field === 'updatedAt' || field.endsWith('.updatedAt'));
+
+/**
+ * 判断 `where` 是否读了任何实体的 `updatedAt`：递归穿透嵌套规则组，以及 EXISTS / NOT EXISTS
+ * 的子查询（规则上的 `where`）。
+ */
+const whereReadsUpdatedAt = (where: unknown): boolean => {
   if (!where || typeof where !== 'object') return false;
   const rules = (where as { rules?: unknown[] }).rules;
   if (!Array.isArray(rules)) return false;
   return rules.some(rule => {
-    const item = rule as { field?: string; rules?: unknown[] };
-    if (Array.isArray(item.rules)) return whereReferencesField(item, field);
-    return item.field === field;
+    const item = rule as { field?: unknown; rules?: unknown[]; where?: unknown };
+    if (Array.isArray(item.rules)) return whereReadsUpdatedAt(item);
+    return readsUpdatedAt(item.field) || whereReadsUpdatedAt(item.where);
   });
 };
 
 /**
- * 判断一组排序规则是否引用了某个字段。
+ * 判断一组排序规则是否读了任何实体的 `updatedAt`。
  *
  * @remarks
  * 只看 `orderBy` 顶层的 `field`：排序不像 `where` 那样有嵌套规则组。
  */
-const orderByReferencesField = (orderBy: unknown, field: string): boolean =>
-  Array.isArray(orderBy) && orderBy.some(item => (item as { field?: string }).field === field);
+const orderByReadsUpdatedAt = (orderBy: unknown): boolean =>
+  Array.isArray(orderBy) && orderBy.some(item => readsUpdatedAt((item as { field?: unknown }).field));
 
 export type MergeQueryTaskCreateFn<T extends EntityType = EntityType> = (
   task: QueryTask<T>,
@@ -299,7 +310,7 @@ export class QueryManager<T extends EntityType> {
    * 要落到新任务上重新执行）。同一键下可能已经是接替它的新任务，只按键删会把新任务一起摘掉。
    */
   #detach_task = (key: string, task: object): void => {
-    if (task !== undefined) this.#query_task_map.delete(key);
+    if (this.#query_task_map.get(key) === task) this.#query_task_map.delete(key);
   };
 
   #serialize = (data: RxDBEntityLocalEventData<T>): InstanceType<T> => {
@@ -419,15 +430,13 @@ export class QueryManager<T extends EntityType> {
       // 「只有 updatedAt」的 patch 是否无意义，取决于查询本身读不读 updatedAt：
       // where 引用了 updatedAt（按时间窗过滤的 count/find）、或 orderBy 按 updatedAt 排序
       // （「最近更新」列表）都要保留，否则过滤掉，省下不会改变匹配状态的无效刷新。
+      // 关系上的也算：`author.updatedAt`、EXISTS 子查询里的 `updatedAt` 读的是关联实体的时间戳。
       // 必须在每个任务里判，不能在事件批次层一刀切 —— 一刀切会让依赖 updatedAt 的查询
       // 永远收不到单字段时间戳变更。
       let target_entities = entities;
       if (event.type === ENTITY_LOCAL_UPDATE_EVENT) {
         const options = task.options as { where?: unknown; orderBy?: unknown };
-        if (
-          !whereReferencesField(options.where, 'updatedAt') &&
-          !orderByReferencesField(options.orderBy, 'updatedAt')
-        ) {
+        if (!whereReadsUpdatedAt(options.where) && !orderByReadsUpdatedAt(options.orderBy)) {
           target_entities = entities.filter(entity => !isUpdatedAtOnlyPatch(entity));
           if (target_entities.length === 0) {
             return;

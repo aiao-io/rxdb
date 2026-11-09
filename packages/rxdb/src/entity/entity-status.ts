@@ -546,16 +546,6 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
     this._modified = Object.keys(this.patch).length > 0;
   }
 
-  /** 提交之后才产生的本地编辑：当前值不等于本次提交的值（没提交的字段比旧基线） */
-  #unsubmitted_edits(submitted: Readonly<Partial<InstanceType<T>>>): Map<keyof InstanceType<T>, unknown> {
-    const pending = new Map<keyof InstanceType<T>, unknown>();
-    for (const key of this.#changed_keys) {
-      const sent = Object.hasOwn(submitted, key) ? submitted[key] : this._origin[key];
-      if (!isEqual(this.target[key], sent)) pending.set(key, this.target[key]);
-    }
-    return pending;
-  }
-
   /**
    * 记录实体变更
    *
@@ -715,6 +705,16 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
    */
   markContentChanged(): void {
     this.#clear_cache(true);
+  }
+
+  /** 提交之后才产生的本地编辑：当前值不等于本次提交的值（没提交的字段比旧基线） */
+  #unsubmitted_edits(submitted: Readonly<Partial<InstanceType<T>>>): Map<keyof InstanceType<T>, unknown> {
+    const pending = new Map<keyof InstanceType<T>, unknown>();
+    for (const key of this.#changed_keys) {
+      const sent = Object.hasOwn(submitted, key) ? submitted[key] : this._origin[key];
+      if (!isEqual(this.target[key], sent)) pending.set(key, this.target[key]);
+    }
+    return pending;
   }
 
   /**

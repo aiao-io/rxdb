@@ -32,7 +32,7 @@ const session: ActiveUndoSession = {
 };
 
 /** 一条本地未推、未回滚的 INSERT */
-const localInsert = (id: number, entity = 'User'): RxDBChange =>
+const localInsert = (id: number, overrides: Partial<RxDBChange> = {}): RxDBChange =>
   ({
     id,
     branchId: 'main',
@@ -41,7 +41,7 @@ const localInsert = (id: number, entity = 'User'): RxDBChange =>
     rejection: null,
     transactionId: null,
     namespace: 'public',
-    entity,
+    entity: 'User',
     entityId: `00000000-0000-4000-8000-${String(id).padStart(12, '0')}` as UUID,
     type: 'INSERT',
     patch: { name: `user-${id}` },
@@ -49,7 +49,8 @@ const localInsert = (id: number, entity = 'User'): RxDBChange =>
     createdAt,
     updatedAt: createdAt,
     revertChangeId: null,
-    redoInvalidatedAt: null
+    redoInvalidatedAt: null,
+    ...overrides
   }) as RxDBChange;
 
 interface HarnessOptions {
@@ -168,8 +169,7 @@ describe('选取之后才出现的推送认领', () => {
   });
 
   it('redo 不受认领影响：被撤销的变更本来就不在待推集合里', async () => {
-    const reverted = { ...localInsert(5), revertChangeId: 42 } as RxDBChange;
-    const history = createHistoryItem([reverted]);
+    const history = createHistoryItem([localInsert(5, { revertChangeId: 42 })]);
     const { host, written } = createHarness({ lastPushedChangeId: 99 });
     host.rxdb.versionManager.pushInFlight.session().claim('public:User', 99);
 

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { EntityBase } from '../../entity/entity-base.js';
 import { Entity } from '../../entity/entity.decorator.js';
-import type {
-  EntityType,
-  EntityUpdateData,
-  RelationEntitiesObservable,
-  RelationEntityObservable
+import {
+  ENTITY_STATIC_TYPES,
+  type EntityType,
+  type RelationEntitiesObservable,
+  type RelationEntityObservable
 } from '../../entity/entity.interface.js';
 import { PropertyType, RelationKind, SyncType } from '../../entity/metadata-options.interface.js';
 import type { IRxDBAdapter, RxDBMutationsMap } from '../../rxdb-adapter.js';
@@ -18,9 +18,12 @@ const { trackRxDB } = registerRxDBTeardown();
 @Entity({
   name: 'DetachParent',
   properties: [{ name: 'label', type: PropertyType.string, nullable: true }],
-  relations: [{ name: 'children', kind: RelationKind.ONE_TO_MANY, mappedEntity: 'DetachChild', mappedProperty: 'parent' }]
+  relations: [
+    { name: 'children', kind: RelationKind.ONE_TO_MANY, mappedEntity: 'DetachChild', mappedProperty: 'parent' }
+  ]
 })
 class DetachParent extends EntityBase {
+  static [ENTITY_STATIC_TYPES]: { idType: string };
   label!: string | null;
   declare children$: RelationEntitiesObservable<typeof DetachChild>;
 }
@@ -39,6 +42,7 @@ class DetachParent extends EntityBase {
   ]
 })
 class DetachChild extends EntityBase {
+  static [ENTITY_STATIC_TYPES]: { idType: string };
   title!: string;
   parentId!: string | null;
   declare parent$: RelationEntityObservable<typeof DetachParent>;
@@ -122,14 +126,12 @@ const setup = (dbName: string) => {
   rxdb.init();
   const parent = rxdb.entityManager.createEntityRef(
     DetachParent,
-    { id: PARENT_ID, label: null, createdAt: STAMP, updatedAt: STAMP } as EntityUpdateData<typeof DetachParent>,
+    { id: PARENT_ID, label: null, createdAt: STAMP, updatedAt: STAMP },
     { local: true, modified: false }
   );
   const child = rxdb.entityManager.createEntityRef(
     DetachChild,
-    { id: CHILD_ID, title: 'child', parentId: PARENT_ID, createdAt: STAMP, updatedAt: STAMP } as EntityUpdateData<
-      typeof DetachChild
-    >,
+    { id: CHILD_ID, title: 'child', parentId: PARENT_ID, createdAt: STAMP, updatedAt: STAMP },
     { local: true, modified: false }
   );
   return { rxdb, parent, child, writes, control };
@@ -196,9 +198,7 @@ describe('一对多集合解绑后保存所属实体', () => {
 
   it('从未落库的子实体加了又移除，保存父实体时不会凭空建出来', async () => {
     const { rxdb, parent, writes } = setup('detach-new-child');
-    const draft = rxdb.entityManager.createEntityRef(DetachChild, { id: 'draft', title: 'draft' } as EntityUpdateData<
-      typeof DetachChild
-    >);
+    const draft = rxdb.entityManager.createEntityRef(DetachChild, { id: 'draft', title: 'draft' });
     parent.children$.add(draft);
     parent.children$.remove(draft);
 

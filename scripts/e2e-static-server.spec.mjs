@@ -198,7 +198,9 @@ const startFaultyStatServer = async (t, root, { target, failure }) => {
     const server = await startStaticServer({ root: ${JSON.stringify(root)}, port: 0, host: '127.0.0.1' });
     process.stdout.write(String(server.address().port) + '\\n');
   `;
-  const child = spawn(process.execPath, ['--input-type=module', '--eval', script], { stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(process.execPath, ['--input-type=module', '--eval', script], {
+    stdio: ['ignore', 'pipe', 'pipe']
+  });
   t.after(() => child.kill());
   const port = await new Promise((resolve, reject) => {
     child.stdout.once('data', chunk => resolve(Number(String(chunk).trim())));

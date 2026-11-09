@@ -191,7 +191,8 @@ test('默认 affected 范围与 pnpm test-all 一致：提交差异、未提交�
       encoding: 'utf8',
       env: { ...process.env, FORCE_COLOR: '0' }
     });
-  const scopeFlags = output => output.split(/\s+/).filter(arg => /^--(base|head|untracked|uncommitted|files)\b/.test(arg));
+  const scopeFlags = output =>
+    output.split(/\s+/).filter(arg => /^--(base|head|untracked|uncommitted|files)\b/.test(arg));
 
   git('init', '-q', '-b', 'main');
   git('config', 'user.email', 'spec@example.com');

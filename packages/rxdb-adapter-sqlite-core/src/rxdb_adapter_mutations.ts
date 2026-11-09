@@ -12,7 +12,6 @@ import { generate_entity_inserts_sql, get_insert_column_count } from './entity/i
 import { update_sql as generate_entity_update_sql } from './entity/update_sql.js';
 import { generate_sql } from './query/query_sql.js';
 import { MAIN_TABLE_ALIAS } from './query/query_sql.utils.js';
-import { SqliteRepository } from './repository/SqliteRepository.js';
 import type { RxDBAdapterSqliteBase } from './RxDBAdapterSqliteBase.js';
 import {
   chunkBySqliteBindLimit,
@@ -33,6 +32,9 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
   const now = new Date();
   const em = adapter.rxdb.entityManager;
   const all_entities = new Set<InstanceType<T>>();
+
+  // 每个实体这次实际提交的字段值：回查回填按它收尾，执行期间的新输入留作未保存改动
+  const submitted_values = new Map<InstanceType<T>, Readonly<Partial<InstanceType<T>>>>();
 
   const remember_entity_instance = (entityType: T, entity: InstanceType<T>) => {
     let inner = entity_instance_map.get(entityType);
@@ -67,7 +69,6 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
     sqliteSuccessResult: Awaited<ReturnType<typeof adapter.query>>
   ) => {
     const metadata = getEntityMetadata(entityType);
-    const repository = adapter.getRepository<T, SqliteRepository<T>>(entityType);
 
     // 结果集里的列名是物理列名，主键列可被 columnName 改写（SQLC-014）
     const primaryKeyColumn = get_primary_key_column(metadata);
@@ -102,11 +103,11 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
         }
 
         const targetEntity = entity!;
-        repository.updateEntity(targetEntity, entityObjectData);
-
+        // 不再无条件归零 modified：执行期间的新输入要留到下一次 save()（applyWriteResult 已按 patch 重算）。
+        // 回查命中的若不是本批提交的那个实例（没有提交值），按「全部未提交」处理，等同外部合并、不丢编辑
         const state = getEntityStatus(targetEntity);
+        state.applyWriteResult(entityObjectData, submitted_values.get(targetEntity) ?? {});
         state.local = true;
-        state.modified = false;
 
         if (rowIdIndex !== -1) {
           const rowId = BigInt(row[rowIdIndex] as number);
@@ -125,6 +126,7 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
     const meta = getEntityMetadata(EntityType);
 
     for (const entitiesChunk of chunkBySqliteBindLimit(entities, get_insert_column_count(meta))) {
+      for (const entity of entitiesChunk) submitted_values.set(entity, { ...entity });
       const insert_result = await generate_entity_inserts_sql(
         meta,
         adapter.tableSet,
@@ -162,6 +164,7 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
 
     for (const entity of entities) {
       const patch = getEntityStatus(entity).patch;
+      submitted_values.set(entity, patch);
       if (patch === null || Object.keys(patch).length === 0) continue;
 
       const updateResult = await generate_entity_update_sql(meta, adapter.tableSet, entity, patch, {

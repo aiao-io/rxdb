@@ -81,17 +81,30 @@ export const find_source_changes = async (
  *
  * @remarks
  * 幽灵删除（在源分支内创建后又删除的实体）对目标分支无净贡献：留着它会在目标分支上删一行本不存在的数据。
+ * 判据是该实体本批（按 change id）的第一条操作是 INSERT，即本批开始时它不存在；第一条是 DELETE / UPDATE
+ * 的实体在批前就存在，批内删掉重建再删，终态仍是对它的删除，必须保留。删后重建、终态存在的，
+ * 由同批的 INSERT（upsert）覆盖成新行，不另删。
  * 合并与合并预览共用这一份，预览的条目因此就是压缩合并真正落的那些。
  *
  * @internal
  */
 export const squash_source_changes = (sourceChanges: RxDBChange[]): SwitchVersionActions => {
   const actions = get_switch_version_actions(sourceChanges, true);
-  const createdInSource = new Set(sourceChanges.filter(c => c.type === 'INSERT').map(c => getRxDBChangeKey(c)));
-  for (const key of createdInSource) {
-    actions.deletes.delete(key);
+  const created = createdInSource(sourceChanges);
+  for (const key of [...actions.deletes.keys()]) {
+    if (created.has(key) || actions.inserts.has(key)) actions.deletes.delete(key);
   }
   return actions;
+};
+
+/** 本批第一条操作是 INSERT 的实体键：它们在本批开始时不存在 */
+const createdInSource = (sourceChanges: readonly RxDBChange[]): Set<string> => {
+  const firstTypes = new Map<string, RxDBChange['type']>();
+  for (const change of [...sourceChanges].sort((a, b) => a.id - b.id)) {
+    const key = getRxDBChangeKey(change);
+    if (!firstTypes.has(key)) firstTypes.set(key, change.type);
+  }
+  return new Set([...firstTypes].filter(([, type]) => type === 'INSERT').map(([key]) => key));
 };
 
 /**

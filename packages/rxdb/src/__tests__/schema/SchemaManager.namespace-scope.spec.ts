@@ -33,7 +33,12 @@ const createDatabase = (entities: EntityType[]): RxDB => {
 };
 
 const entityIn = (namespace: string, name: string): EntityType => {
-  @Entity({ name: name as Capitalize<string>, namespace, properties: [{ name: 'value', type: PropertyType.string }] })
+  // 刻意绕过 `Lowercase` / `Capitalize` 的类型约束：要验的正是运行时拒绝
+  @Entity({
+    name: name as Capitalize<string>,
+    namespace: namespace as Lowercase<string>,
+    properties: [{ name: 'value', type: PropertyType.string }]
+  })
   class Scoped extends EntityBase {}
   return Scoped;
 };

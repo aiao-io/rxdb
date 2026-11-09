@@ -103,9 +103,20 @@ export interface TransactionExecutor {
    * 由该仓库发出的读写一律归属本事务，**读也一样** —— 事务体内经普通 `adapter.query()`
    * 的读会排在自己这个事务后面，造成挂起（队列并发度为 1）。
    *
-   * 该仓库创建或加载出的实体会被登记到本 executor 名下，因此这些实体的
-   * `entity.save()` / `entity.remove()` 也自动走本事务；用 `new X()` 直接建的实体
-   * 不带这个身份，会走普通队列。
+   * 归属只跟着**调用入口**走，不跟着实体走：经本仓库读出或建出的实体与别处来的实体没有区别，
+   * 它们的 `entity.save()` / `entity.remove()` 一律是外部调用，会重新排队、排在本事务之后——
+   * 事务回调里等待它们会挂起（见类级说明）。要在本事务内写，用本仓库的 `create()` / `update()` /
+   * `remove()`，或本 executor 的 {@link saveMany} / {@link removeMany} / {@link mutations}。
+   *
+   * @example
+   * ```ts
+   * await adapter.transaction(async executor => {
+   *   const repository = executor.getRepository(Todo);
+   *   const [todo] = await repository.find({ where: { combinator: 'and', rules: [] } });
+   *   await repository.update(todo, { done: true }); // ✅ 属于本事务，回滚时一起撤销
+   *   // await todo.save(); // ❌ 外部调用：排在本事务之后，回调里等它会挂起
+   * });
+   * ```
    */
   getRepository<T extends EntityType>(EntityType: T): IRepository<T>;
 

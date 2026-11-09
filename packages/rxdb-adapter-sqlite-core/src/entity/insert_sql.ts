@@ -1,4 +1,5 @@
-import type { EntityMetadata, EntityType, IEntity, IMutationContext, WorktreeTableSet } from '@aiao/rxdb';
+import { PropertyType, type EntityMetadata, type EntityType, type IEntity, type IMutationContext, type WorktreeTableSet } from '@aiao/rxdb';
+import { isFunction } from '@aiao/utils';
 import { GenerateSqlResult } from '../query/query_sql.js';
 import type { SQLiteCompatibleType } from '../sqlite-core.interface.js';
 import {
@@ -26,6 +27,23 @@ export const generate_upsert_clause = (primaryKeyColumn: string, columns: readon
     .map(column => `${quote_sql_identifier(column)} = excluded.${quote_sql_identifier(column)}`)
     .join(',');
   return ` ON CONFLICT (${conflictTarget}) DO UPDATE SET ${assignments}`;
+};
+
+/**
+ * 补上缺省的加密列默认值
+ *
+ * @remarks
+ * 加密列不在 DDL 里写 DEFAULT（那是明文，见 create_table_sql），而单条 INSERT 只写定义了的列：
+ * 缺省的加密列只能在这里按元数据补上、随整行封成信封。补的正是 DDL 原先会写的那类默认值
+ * （非函数、非 binary；`'CURRENT_TIMESTAMP'` 取本次写入的时刻），与批量 INSERT 写全列时的补法同一口径。
+ */
+const fill_encrypted_defaults = (metadata: EntityMetadata, columns: Record<string, unknown>, now: Date): void => {
+  for (const property of metadata.propertyMap.values()) {
+    if (property.encrypted !== true || columns[property.columnName] !== undefined) continue;
+    const value = property.default;
+    if (value === undefined || isFunction(value) || property.type === PropertyType.binary) continue;
+    columns[property.columnName] = value === 'CURRENT_TIMESTAMP' ? now : value;
+  }
 };
 
 /**
@@ -63,6 +81,7 @@ export const generate_entity_insert_sql = async <T extends EntityType>(
   if (updatedAtColumn !== undefined && columns[updatedAtColumn] === undefined) {
     columns[updatedAtColumn] = context?.updatedAt ?? now;
   }
+  fill_encrypted_defaults(metadata, columns, now);
 
   const needSaveData = await transformEntityValueToSql(metadata, entityData, context?.encryption);
   const setColumns = Object.keys(needSaveData);
