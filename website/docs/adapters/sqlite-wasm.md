@@ -7,24 +7,27 @@
 ## 安装
 
 ```bash npm2yarn
-npm install @aiao/rxdb @aiao/rxdb-adapter-sqlite-wasm
+npm install @aiao/rxdb @aiao/rxdb-adapter-sqlite-wasm @subframe7536/sqlite-wasm@1.4.0
 ```
+
+下面的 Vite 示例直接导入底层 WASM 资源，因此安装命令显式声明与当前适配器一致的 `@subframe7536/sqlite-wasm@1.4.0`。适配器升级后，应按其 `dependencies` 中固定的版本同步更新；也可改用后文复制到 `public` 的方式。
 
 ## VFS 预设
 
-| `vfs` 取值   | 存储后端                       | 运行环境        | 说明                       |
-| ------------ | ------------------------------ | --------------- | -------------------------- |
-| `memory`     | 纯内存 `MemoryVFS`             | 主线程 / Worker | 测试 / 临时数据            |
-| `idb`        | IndexedDB `IDBBatchAtomicVFS`  | 主线程 / Worker | 通用持久化，兼容性最好     |
-| `idb-memory` | 内存 + IDB 镜像 `IDBMirrorVFS` | 主线程 / Worker | 读性能高，写异步镜像       |
-| `opfs`       | OPFS `OPFSCoopSyncVFS`         | **必须 Worker** | 最佳性能，需 SAB 支持      |
-| `fs-handle`  | 本地文件 `OPFSAnyContextVFS`   | 主线程 / Worker | OPFS FileHandle 或本地文件 |
+| `vfs` 取值   | 存储后端                       | 运行环境        | 说明                           |
+| ------------ | ------------------------------ | --------------- | ------------------------------ |
+| `memory`     | 纯内存 `MemoryVFS`             | 主线程 / Worker | 测试 / 临时数据                |
+| `idb`        | IndexedDB `IDBBatchAtomicVFS`  | 主线程 / Worker | 通用持久化，兼容性最好         |
+| `idb-memory` | 内存 + IDB 镜像 `IDBMirrorVFS` | 主线程 / Worker | 读性能高，写异步镜像           |
+| `opfs`       | OPFS `OPFSCoopSyncVFS`         | **必须 Worker** | 专用 Worker 中使用同步访问句柄 |
+| `fs-handle`  | 本地文件 `OPFSAnyContextVFS`   | 主线程 / Worker | OPFS FileHandle 或本地文件     |
 
 ## 基础使用
 
 ```typescript
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
+import wasmUrl from '@subframe7536/sqlite-wasm/wasm-async?url';
 
 const rxdb = new RxDB({
   dbName: 'demo',
@@ -37,16 +40,22 @@ rxdb.adapter(
   async db =>
     new RxDBAdapterSqlite(db, {
       vfs: 'idb',
-      wasmUrl: new URL('@subframe7536/sqlite-wasm/wasm-async', import.meta.url).href
+      wasmUrl
     })
 );
 
 await rxdb.connect('sqlite-wasm');
 ```
 
-## OPFS 模式（高性能）
+## WASM 资源
 
-OPFS 需要在 Worker 中运行，并要求服务器配置 `Cross-Origin-Opener-Policy` 和 `Cross-Origin-Embedder-Policy` 响应头。Worker 文件需要**自己编写**并用 comlink 的 `expose` 暴露客户端（comlink 是可选 peer 依赖，需自行安装）：
+`wasmUrl` 必须指向本适配器实际安装的 `@subframe7536/sqlite-wasm` 产物。主线程 IDB 示例与看板外壳使用 `dist/wa-sqlite-async.wasm`，OPFS 预设使用 `dist/wa-sqlite.wasm`。Vite 使用上面的 `?url` 导入解析包内资源；也可把对应文件复制到应用的 public 目录，再传入 `/sqlite-wasm/wa-sqlite-async.wasm` 等部署路径。
+
+仓库从 `packages/rxdb-adapter-sqlite-wasm/node_modules/@subframe7536/sqlite-wasm/dist/` 复制资源，确保取到适配器的实际依赖。不要用官方 SQLite WASM 或另一份 wa-sqlite 的同名文件替代。
+
+## OPFS 模式
+
+此处的 `OPFSCoopSyncVFS` 需要在 dedicated Worker 中运行，不要求 SharedArrayBuffer；不能把其它 VFS 的跨源隔离要求套用到这个组合。Worker 文件需要**自己编写**并用 comlink 的 `expose` 暴露客户端（comlink 是可选 peer 依赖，需自行安装）：
 
 ```typescript
 // sqlite.worker.ts
@@ -57,12 +66,14 @@ expose(new SqliteClient());
 ```
 
 ```typescript
+import wasmUrl from '@subframe7536/sqlite-wasm/wasm?url';
+
 rxdb.adapter(
   'sqlite-wasm',
   async db =>
     new RxDBAdapterSqlite(db, {
       vfs: 'opfs',
-      wasmUrl: new URL('@subframe7536/sqlite-wasm/wasm', import.meta.url).href,
+      wasmUrl,
       worker: true,
       workerInstance: new Worker(new URL('./sqlite.worker', import.meta.url), { type: 'module' })
     })
@@ -86,12 +97,14 @@ self.onconnect = (event: MessageEvent) => expose(client, event.ports[0]);
 ```
 
 ```typescript
+import wasmUrl from '@subframe7536/sqlite-wasm/wasm-async?url';
+
 rxdb.adapter(
   'sqlite-wasm',
   async db =>
     new RxDBAdapterSqlite(db, {
       vfs: 'idb',
-      wasmUrl: new URL('@subframe7536/sqlite-wasm/wasm-async', import.meta.url).href,
+      wasmUrl,
       sharedWorker: true,
       sharedWorkerInstance: new SharedWorker(new URL('./sqlite-shared.worker', import.meta.url), { type: 'module' })
     })
@@ -125,7 +138,7 @@ rxdb.adapter(
   async db =>
     new RxDBAdapterSqlite(db, {
       vfs: 'idb',
-      wasmUrl: new URL('@subframe7536/sqlite-wasm/wasm-async', import.meta.url).href
+      wasmUrl
     })
 );
 

@@ -1,11 +1,11 @@
 ---
 id: US-224
 title: Supabase 推送路径上级联删除的子行不写变更日志
-status: In Review
+status: Done
 priority: High
 epic: epic-004-future-features
 created: 2026-10-27
-updated: 2026-10-29
+updated: 2026-11-08
 tags: [adapter, supabase, sync, change-log]
 ---
 
@@ -94,7 +94,7 @@ INVEST 检查清单:
 
 ## 验证记录
 
-验证日期：2026-10-28，评审修复复验 2026-10-29。AC#1～9 全部通过，待评审；尚未合并，不标 Done。
+验证日期：2026-10-28，评审修复复验 2026-10-29。AC#1～9 全部通过，实现见 [PR #170](https://github.com/aiao-io/rxdb/pull/170)。
 
 - 先写失败回归，再实现并转绿。级联日志缺失及混合批次按 DELETE → INSERT 顺序复活子行的回归先红后绿；完整 `OLD`、显式删除去重、最终回执、幂等重试、事务设置恢复与 UUID 输入表示均有覆盖。
 - 与 US-223 共同完成完整 affected 门禁：49 项任务、4 个受影响项目、36 项依赖任务全部通过。

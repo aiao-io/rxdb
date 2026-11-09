@@ -32,8 +32,8 @@ NX_NO_CLOUD = "true"
 # 静态页面渲染限制并发，避免数千份 API 文档在 Netlify 构建机上耗尽内存。
 DOCUSAURUS_SSR_CONCURRENCY = "1"
 DOCUSAURUS_SSG_WORKER_THREAD_COUNT = "1"
-# 限制单进程堆与 Rspack 原生线程，给构建机上的其余进程留出内存。
-NODE_OPTIONS = "--max-old-space-size=4096"
+# 主进程堆限制为 3 GiB，给 Rspack 原生内存、SSG 工作线程与构建机其余进程预留空间。
+NODE_OPTIONS = "--max-old-space-size=3072"
 RAYON_NUM_THREADS = "2"
 # 关掉 rspack 持久化缓存（只作用于 Netlify，本地构建照常启用）。冷构建要额外序列化约 1.3 GB
 # 缓存，本机实测峰值内存（footprint）8.5～8.9 GB → 6.9 GB；构建机内存约 8 GiB，2026-11 的
