@@ -85,6 +85,70 @@ function remote(route: (call: Call) => Response | undefined) {
 }
 
 describe('平台 Supabase 图片同步', () => {
+  it('自建 HTTPS IP 的原图请求使用自己的 Storage 服务', async () => {
+    const uploaded = await fileRecord({ status: 'uploaded' });
+    const { calls, request } = remote(call =>
+      isRecords(call) ? Response.json([uploaded]) : new Response(new Blob([png], { type: 'image/png' }))
+    );
+    const selfHosted = { ...access, config: { ...access.config, url: 'https://47.103.117.118' } };
+    await new ImageSyncController(pngStore() as never, selfHosted, workspaceId, request).download(
+      jobId,
+      uploaded.sha256,
+      job
+    );
+    const storage = calls.find(call => call.url.includes('/storage/v1/'));
+    expect(storage?.url).toBe(
+      `https://47.103.117.118/storage/v1/object/authenticated/aiao-media-images/${uploaded.path}`
+    );
+  });
+
+  it('显式 Storage 地址优先于托管项目默认地址', async () => {
+    const uploaded = await fileRecord({ status: 'uploaded' });
+    const { calls, request } = remote(call =>
+      isRecords(call) ? Response.json([uploaded]) : new Response(new Blob([png], { type: 'image/png' }))
+    );
+    const configured = { ...access, config: { ...access.config, storageUrl: 'https://storage.example.test' } };
+    await new ImageSyncController(pngStore() as never, configured, workspaceId, request).download(
+      jobId,
+      uploaded.sha256,
+      job
+    );
+    expect(calls.find(call => call.url.includes('/storage/v1/'))?.url).toMatch(/^https:\/\/storage.example.test\//);
+  });
+
+  it.each([
+    ['/storage/v1/upload/resumable/upload-id', true],
+    ['https://evil.example/storage/v1/upload/resumable/id', false],
+    ['/auth/v1/steal-token', false],
+    ['https://user:password@47.103.117.118/storage/v1/upload/resumable/id', false]
+  ])('自建 IP 续传回执 %s 的可信检查为 %s', async (location, allowed) => {
+    const large = new Uint8Array(6 * 1024 * 1024 + 1);
+    large.set(png);
+    const digest = await digestOf(large);
+    const pending = await fileRecord({
+      version: digest,
+      sha256: digest,
+      bytes: large.byteLength,
+      path: `${userId}/${workspaceId}/${jobId}/${digest}.png`
+    });
+    const { calls, request } = remote(call => {
+      if (call.url.endsWith('/upload/resumable')) return new Response(null, { status: 201, headers: { location } });
+      if (!isRecords(call)) return undefined;
+      if (call.method === 'GET') return Response.json([]);
+      if (call.method === 'POST') return Response.json([pending], { status: 201 });
+      return Response.json([{ ...pending, status: 'uploaded', revision: 2, baseRevision: 1 }]);
+    });
+    const configured = { ...access, config: { ...access.config, url: 'https://47.103.117.118' } };
+    const upload = new ImageSyncController(pngStore(large) as never, configured, workspaceId, request).upload(jobId);
+    if (allowed) await expect(upload).resolves.toMatchObject({ status: 'uploaded' });
+    else await expect(upload).rejects.toThrow('未授权');
+    const chunks = calls.filter(call => call.method === 'PATCH' && !isRecords(call));
+    expect(chunks).toHaveLength(allowed ? 2 : 0);
+    expect(chunks.every(call => call.url === 'https://47.103.117.118/storage/v1/upload/resumable/upload-id')).toBe(
+      true
+    );
+  });
+
   it('首次上传先 INSERT 待传记录，原图写入后按 id 与修订 UPDATE 为已上传，不用 upsert', async () => {
     const pending = await fileRecord();
     const { calls, request } = remote(call => {

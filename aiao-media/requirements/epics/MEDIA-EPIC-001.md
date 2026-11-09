@@ -18,6 +18,7 @@ owner: jimmy
 - [x] Cloudflare 静态部署与可选代理、正式域名验证（[MEDIA-US-004](../stories/platform/MEDIA-US-004-cloudflare-edge-deployment.md)）
 
 - [ ] Tauri 本地安装版（[MEDIA-US-005](../stories/platform/MEDIA-US-005-tauri-desktop.md)）
+- [ ] 国内自建服务与 IP HTTPS 部署（[MEDIA-US-006](../stories/platform/MEDIA-US-006-self-hosted-deployment.md)）
 
 ## 故事
 
@@ -27,6 +28,7 @@ owner: jimmy
 - [MEDIA-US-004 Cloudflare 边缘代理与安全部署](../stories/platform/MEDIA-US-004-cloudflare-edge-deployment.md) (Medium)
 
 - [MEDIA-US-005 Tauri 本地安装版](../stories/platform/MEDIA-US-005-tauri-desktop.md) (High)
+- [MEDIA-US-006 国内自建服务与 IP HTTPS 部署](../stories/platform/MEDIA-US-006-self-hosted-deployment.md) (High)
 
 ## 非目标
 

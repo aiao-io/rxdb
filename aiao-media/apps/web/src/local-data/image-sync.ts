@@ -130,15 +130,26 @@ export class ImageSyncController {
         'upload-length': String(bytes.byteLength),
         'upload-metadata': `bucketName ${btoa('aiao-media-images')},objectName ${btoa(path)},contentType ${btoa(mimeType)}`
       },
-      signal: this.signal
+      credentials: 'omit',
+      redirect: 'error',
+      signal: this.deadline(60000)
     });
     if (created.status === 409) return;
     if (!created.ok) throw new Error('远端续传初始化失败；本机原图保留。');
     const location = created.headers.get('location');
     if (!location) throw new Error('远端续传回执缺少位置。');
+    const target = new URL(location, endpoint);
+    if (
+      target.origin !== new URL(endpoint).origin ||
+      target.username ||
+      target.password ||
+      target.hash ||
+      !target.pathname.startsWith(`${new URL(endpoint).pathname}/`)
+    )
+      throw new Error('远端续传回执指向未授权的存储服务。');
     for (let offset = 0; offset < bytes.byteLength; offset += CHUNK_BYTES) {
       const chunk = bytes.slice(offset, Math.min(bytes.byteLength, offset + CHUNK_BYTES));
-      const result = await this.request(new URL(location, endpoint), {
+      const result = await this.request(target, {
         method: 'PATCH',
         headers: {
           authorization: `Bearer ${this.access.session.access_token}`,
@@ -148,7 +159,9 @@ export class ImageSyncController {
           'content-type': 'application/offset+octet-stream'
         },
         body: chunk,
-        signal: this.signal
+        credentials: 'omit',
+        redirect: 'error',
+        signal: this.deadline(60000)
       });
       if (!result.ok) throw new Error('远端续传分片失败；本机原图保留。');
     }
@@ -250,10 +263,8 @@ export class ImageSyncController {
   }
   private storageUrl(path: string): string {
     const url = new URL(this.access.config.url);
-    const base =
-      ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname) ?
-        url.origin
-      : `https://${url.hostname.split('.')[0]}.storage.supabase.co`;
+    const hosted = /^([a-z0-9]+)\.supabase\.co$/.exec(url.hostname);
+    const base = this.access.config.storageUrl ?? (hosted ? `https://${hosted[1]}.storage.supabase.co` : url.origin);
     return `${base}/storage/v1${path}`;
   }
   private storage(path: string, options: RequestInit = {}): Promise<Response> {

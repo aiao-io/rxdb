@@ -5,6 +5,15 @@
   "sourceRoot": "aiao-media/apps/api/src",
   "tags": ["scope:aiao-media", "type:app", "runtime:worker"],
   "targets": {
+    "build-node": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build"],
+      "outputs": ["{projectRoot}/dist-node"],
+      "options": {
+        "cwd": "aiao-media/apps/api",
+        "command": "node scripts/build-node.mjs"
+      }
+    },
     "dev": {
       "executor": "nx:run-commands",
       "continuous": true,

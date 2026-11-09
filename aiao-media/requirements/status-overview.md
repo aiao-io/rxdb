@@ -2,16 +2,16 @@
 
 > **真相源**：`stories/*/MEDIA-US-*.md` 的 YAML `status`。本页按该字段派生，有冲突以 YAML 为准并修正本页。排期见[路线图](roadmap.md)，能力范围见[能力矩阵](capability-matrix.md)，证据分层见[验收记录](verification-report.md)。
 
-当前范围是桌面浏览器上的本机图片创作：灵感与提示词、单张 PNG/JPEG 生成与交付、本机作品检索与按需预览、可选账号与跨设备同步、跨用户业务后台。账号、同步和后台只在真实本地 Supabase 上验证（[D-08](decisions.md)）。旧 Bun API/PostgreSQL、SSR/BFF、音视频、Electron 桌面与通用供应商证据机不在范围内；新增方向已拆为 MEDIA-US-005/108/205/303，其中 MEDIA-US-108/205 按 [D-17](decisions.md#d-17当前平台免费暂缓独立平台图片服务与计费) 退回 Backlog：当前平台免费，独立平台图片服务、计费入口及 `/api/platform/` API 已移除，待未来收费需求明确后重新评审。其余实施状态见[产品交付计划](plans/product-completion-20261030.md)。按 [D-16](decisions.md#d-16统一使用平台-supabase)，MEDIA-US-303/305 收敛为平台注册登录后的元数据与原图同步，真实 Storage、生产服务和 Web/Tauri 跨设备验收仍未关闭。原自有项目接入需求与代码按用户决定移除。本站代理生图的服务端任务与刷新续接拆为 MEDIA-US-109，服务端与前端已实现并通过本地测试，待真实账号验证与正式发布，范围决策见 [D-15](decisions.md#d-15本站代理生图改为服务端任务)。
+当前范围是桌面浏览器上的本机图片创作：灵感与提示词、单张 PNG/JPEG 生成与交付、本机作品检索与按需预览、可选账号与跨设备同步、跨用户业务后台。海外平台发布见 [D-16](decisions.md)，国内自建 Supabase 与 IP HTTPS 已通过[发布验收](plans/self-hosted-release-20261109.md)；公众邮件与桌面联验仍待完成。旧 Bun API/PostgreSQL、SSR/BFF、音视频、Electron 桌面与通用供应商证据机不在范围内；新增方向已拆为 MEDIA-US-005/108/205/303，其中 MEDIA-US-108/205 按 [D-17](decisions.md#d-17当前平台免费暂缓独立平台图片服务与计费) 退回 Backlog：当前平台免费，独立平台图片服务、计费入口及 `/api/platform/` API 已移除，待未来收费需求明确后重新评审。其余实施状态见[产品交付计划](plans/product-completion-20261030.md)。按 [D-16](decisions.md#d-16统一使用平台-supabase)，MEDIA-US-303/305 收敛为平台注册登录后的元数据与原图同步，真实 Storage、生产服务和 Web/Tauri 跨设备验收仍未关闭。原自有项目接入需求与代码按用户决定移除。本站代理生图的服务端任务与刷新续接拆为 MEDIA-US-109，服务端与前端已实现并通过本地测试，待真实账号验证与正式发布，范围决策见 [D-15](decisions.md#d-15本站代理生图改为服务端任务)。
 
 | 状态           |   数量 | 说明                                                                       |
 | -------------- | -----: | -------------------------------------------------------------------------- |
 | ✅ Done        |      8 | 工作区骨架，以及全部 AC 已验、按 [D-11](decisions.md) 在当前分支结项的七条 |
 | 🚧 In Progress |      5 | 灵感库 IME 未验，以及桌面、同步和代理任务等新增范围                        |
-| 👀 In Review   |      0 | 无                                                                         |
+| 👀 In Review   |      1 | 国内自建部署已验，等待评审与合入                                           |
 | ⬜ Backlog     |      3 | 移动真机按 D-04、平台生图与计费按 D-17 暂缓                                |
 | 🚫 Blocked     |      2 | 正式直连三画幅与真实跨 origin 原图 URL 缺少可用的真实供应商证据            |
-| **合计**       | **18** | 不含模板和上游故事                                                         |
+| **合计**       | **19** | 不含模板和上游故事                                                         |
 
 ## 按 Epic 索引
 
@@ -20,6 +20,7 @@
 - ✅ [MEDIA-US-001 多项目开发工作区](stories/platform/MEDIA-US-001-nx-workspace.md)
 - ✅ [MEDIA-US-004 Cloudflare 边缘代理与安全部署](stories/platform/MEDIA-US-004-cloudflare-edge-deployment.md)
 - 🚧 [MEDIA-US-005 Tauri 本地安装版](stories/platform/MEDIA-US-005-tauri-desktop.md)
+- 👀 [MEDIA-US-006 国内自建服务与 IP HTTPS 部署](stories/platform/MEDIA-US-006-self-hosted-deployment.md)
 
 ### [图片生成](epics/MEDIA-EPIC-002.md)
 
@@ -47,7 +48,7 @@
 
 ## 未完成验收与关闭条件
 
-18 条故事共 129 条 AC，82 条已通过；MEDIA-US-108/205 的 9 条历史已验 AC 随暂缓退回待验，历史证据保留，逐条见各 story 的验收标准表。既有实施清单已完成：[本地交付](plans/local-delivery-tasks.md) 17/17、[作品检索](plans/library-search-tasks.md) 10/10、[分支收尾](plans/branch-completion-20261029.md)。既有范围剩余 6 条只缺真实环境证据；新增范围按[产品交付计划](plans/product-completion-20261030.md)分别验收；MEDIA-US-108/205 的 AC 保留历史证据，暂缓期间不作为当前入口或交付承诺。MEDIA-US-109 的 12 条 AC 中 5 条已有本地证据，其余等真实账号验证、R2 生命周期配置与正式发布，分阶段关闭条件见[实施计划](plans/relay-durable-tasks.md)。MEDIA-US-305 的 14 条 AC 按统一平台目标继续验收，关闭条件为真实 Storage 与 Web/Tauri 原图联验；撤销的自有项目接入需求不再计入当前故事或 AC。这些不计入下表既有缺证项：
+19 条故事共 137 条 AC，90 条已通过；MEDIA-US-108/205 的 9 条历史已验 AC 随暂缓退回待验，历史证据保留，逐条见各 story 的验收标准表。既有实施清单已完成：[本地交付](plans/local-delivery-tasks.md) 17/17、[作品检索](plans/library-search-tasks.md) 10/10、[分支收尾](plans/branch-completion-20261029.md)。既有范围剩余 6 条只缺真实环境证据；新增范围按[产品交付计划](plans/product-completion-20261030.md)分别验收；MEDIA-US-108/205 的 AC 保留历史证据，暂缓期间不作为当前入口或交付承诺。MEDIA-US-109 的 12 条 AC 中 5 条已有本地证据，其余等真实账号验证、R2 生命周期配置与正式发布，分阶段关闭条件见[实施计划](plans/relay-durable-tasks.md)。MEDIA-US-305 的 14 条 AC 按统一平台目标继续验收，关闭条件为真实 Storage 与 Web/Tauri 原图联验；撤销的自有项目接入需求不再计入当前故事或 AC。这些不计入下表既有缺证项：
 
 | 故事 / AC                                                                  | 当前进展                                                                                                                                                                                  | 关闭所需证据                                                                                                                                                                                   |
 | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

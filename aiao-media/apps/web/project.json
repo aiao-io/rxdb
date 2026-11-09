@@ -7,16 +7,33 @@
   "sourceRoot": "aiao-media/apps/web/src",
   "tags": ["product:media", "type:app"],
   "targets": {
+    "prepare-self-hosted": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-media/apps/web",
+        "command": "node ../../scripts/release/prepare-self-hosted.mjs"
+      }
+    },
     "dev": {
       "executor": "nx:run-commands",
       "continuous": true,
       "cache": false,
       "dependsOn": [
-        { "target": "dev-web", "waitFor": "ready" },
-        { "projects": ["aiao-media-admin"], "target": "dev", "waitFor": "ready" },
+        {
+          "target": "dev-web",
+          "waitFor": "ready"
+        },
+        {
+          "projects": ["aiao-media-admin"],
+          "target": "dev",
+          "waitFor": "ready"
+        },
         "supabase-dev"
       ],
-      "readyWhen": { "url": "http://127.0.0.1:8787/" },
+      "readyWhen": {
+        "url": "http://127.0.0.1:8787/"
+      },
       "options": {
         "cwd": "aiao-media",
         "command": "node scripts/dev/open-dashboard.mjs"
@@ -156,6 +173,9 @@
         },
         {
           "env": "AIAO_SUPABASE_ANON_KEY"
+        },
+        {
+          "env": "AIAO_SUPABASE_STORAGE_URL"
         }
       ]
     },
@@ -300,6 +320,9 @@
         },
         {
           "env": "AIAO_SUPABASE_ANON_KEY"
+        },
+        {
+          "env": "AIAO_SUPABASE_STORAGE_URL"
         }
       ],
       "outputs": ["{projectRoot}/public/app-config.js"],
@@ -351,7 +374,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "aiao-media/apps/web",
-        "command": "eslint . --max-warnings=0"
+        "command": "eslint src ../../scripts/release/*self-hosted*.mjs --max-warnings=0"
       }
     },
     "requirements-check": {
@@ -539,6 +562,22 @@
       "options": {
         "cwd": "aiao-media/apps/web",
         "command": "pnpm nx run aiao-media-api:typecheck"
+      }
+    },
+    "verify-self-hosted": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-media/apps/web",
+        "command": "node ../../scripts/release/verify-self-hosted.mjs"
+      }
+    },
+    "verify-self-hosted-browser": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-media/apps/web",
+        "command": "node ../../scripts/release/verify-self-hosted-browser.mjs"
       }
     }
   }

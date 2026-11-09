@@ -1,0 +1,232 @@
+name: aiao-media-cn
+
+x-service: &service
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: '3'
+
+services:
+  db:
+    <<: *service
+    image: supabase/postgres:17.6.1.136
+    environment:
+      POSTGRES_HOST: /var/run/postgresql
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?}
+      JWT_EXP: 3600
+    volumes:
+      - database:/var/lib/postgresql/data
+      - db-config:/etc/postgresql-custom
+      - ./init/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-aiao-roles.sql:ro
+      - ./init/realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql:ro
+    command: ['postgres', '-c', 'config_file=/etc/postgresql/postgresql.conf', '-c', 'shared_buffers=128MB']
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', 'postgres', '-h', 'localhost']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  auth:
+    <<: *service
+    image: supabase/gotrue:v2.189.0
+    depends_on:
+      db: {condition: service_healthy}
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: https://${MEDIA_PUBLIC_HOST}
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/postgres
+      GOTRUE_SITE_URL: https://${MEDIA_PUBLIC_HOST}
+      GOTRUE_URI_ALLOW_LIST: https://${MEDIA_PUBLIC_HOST}/**
+      GOTRUE_DISABLE_SIGNUP: 'true'
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: 'true'
+      GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: 'false'
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_EXP: 3600
+      GOTRUE_JWT_SECRET: ${JWT_SECRET}
+      GOTRUE_MAILER_AUTOCONFIRM: 'false'
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '--spider', 'http://localhost:9999/health']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  rest:
+    <<: *service
+    image: postgrest/postgrest:v14.12
+    depends_on:
+      db: {condition: service_healthy}
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@db:5432/postgres
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_DB_MAX_ROWS: 1000
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      PGRST_DB_USE_LEGACY_GUCS: 'false'
+      PGRST_ADMIN_SERVER_PORT: 3001
+      PGRST_ADMIN_SERVER_HOST: localhost
+    healthcheck:
+      test: ['CMD', 'postgrest', '--ready']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  realtime:
+    <<: *service
+    image: supabase/realtime:v2.102.3
+    depends_on:
+      db: {condition: service_healthy}
+    networks:
+      default:
+        aliases: ['realtime-dev.supabase-realtime']
+    environment:
+      PORT: 4000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: supabase_admin
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: postgres
+      DB_AFTER_CONNECT_QUERY: SET search_path TO _realtime
+      DB_ENC_KEY: ${REALTIME_DB_ENC_KEY}
+      ANON_KEY: ${ANON_KEY}
+      API_JWT_SECRET: ${JWT_SECRET}
+      METRICS_JWT_SECRET: ${JWT_SECRET}
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      ERL_AFLAGS: -proto_dist inet_tcp
+      ERL_FLAGS: +S 2:2
+      DNS_NODES: "''"
+      RLIMIT_NOFILE: '10000'
+      APP_NAME: realtime
+      SEED_SELF_HOST: 'true'
+      SELF_HOST_TENANT_NAME: realtime-dev
+      RUN_JANITOR: 'true'
+      DISABLE_HEALTHCHECK_LOGGING: 'true'
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'curl -fsS -o /dev/null -H "Authorization: Bearer $$ANON_KEY" http://localhost:4000/api/tenants/realtime-dev/health'
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  storage:
+    <<: *service
+    image: supabase/storage-api:v1.81.0
+    depends_on:
+      db: {condition: service_healthy}
+      rest: {condition: service_healthy}
+    environment:
+      ANON_KEY: ${ANON_KEY}
+      SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      POSTGREST_URL: http://rest:3000
+      AUTH_JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: postgres://supabase_storage_admin:${POSTGRES_PASSWORD}@db:5432/postgres
+      STORAGE_BACKEND: file
+      FILE_STORAGE_BACKEND_PATH: /var/lib/storage
+      FILE_SIZE_LIMIT: 16777216
+      STORAGE_PUBLIC_URL: https://${MEDIA_PUBLIC_HOST}
+      TUS_URL_PATH: /upload/resumable
+      TENANT_ID: aiao-media-cn
+      REGION: cn-local
+      GLOBAL_S3_BUCKET: aiao-media-cn
+      ENABLE_IMAGE_TRANSFORMATION: 'false'
+      REQUEST_ALLOW_X_FORWARDED_PATH: 'true'
+    volumes:
+      - originals:/var/lib/storage
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:5000/status').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  kong:
+    <<: *service
+    image: kong/kong:3.9.3
+    depends_on:
+      auth: {condition: service_healthy}
+      rest: {condition: service_healthy}
+      realtime: {condition: service_healthy}
+      storage: {condition: service_healthy}
+    ports: ['127.0.0.1:8000:8000']
+    environment:
+      KONG_DATABASE: 'off'
+      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: cors,key-auth,acl,request-transformer
+      KONG_ADMIN_LISTEN: 'off'
+      KONG_NGINX_WORKER_PROCESSES: '1'
+      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
+      KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
+    volumes: ['./kong.yml:/home/kong/kong.yml:ro']
+    healthcheck:
+      test: ['CMD', 'kong', 'health']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  api:
+    <<: *service
+    image: node:26.12.0-alpine
+    user: '1000:1000'
+    network_mode: host
+    working_dir: /app
+    command: ['node', 'scripts/start-node.mjs']
+    stop_grace_period: 240s
+    environment:
+      MEDIA_PUBLIC_ORIGIN: https://${MEDIA_PUBLIC_HOST}
+      MEDIA_DATA_DIRECTORY: /data
+      MEDIA_SUPABASE_URL: http://127.0.0.1:8000
+      MEDIA_SUPABASE_ANON_KEY: ${ANON_KEY}
+      MEDIA_SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+      ALLOWED_PROVIDER_BASE_URLS: '["https://api.pengdevs.com","https://api.minimax.cn/v1","https://api.minimax.io/v1","https://api.minimaxi.com/v1"]'
+    volumes:
+      - ./api:/app:ro
+      - ../data/relay:/data
+    depends_on:
+      kong: {condition: service_healthy}
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:8787/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  caddy:
+    <<: *service
+    image: caddy:2.11.9
+    network_mode: host
+    environment:
+      MEDIA_PUBLIC_HOST: ${MEDIA_PUBLIC_HOST}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./web:/srv/web:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  database:
+  db-config:
+  originals:
+  caddy-data:
+  caddy-config:

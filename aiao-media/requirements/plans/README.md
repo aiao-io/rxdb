@@ -4,6 +4,7 @@ MVP 首发收口与同步扩展的实施计划、真实环境验收记录和历�
 
 | 验收记录                                                                             | 回答的问题                                                                |
 | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| [self-hosted-release-20261109.md](self-hosted-release-20261109.md)                   | 国内清理重建、Caddy IP HTTPS、真实 Storage 与整机重启的发布证据           |
 | [local-first-app-verification.md](local-first-app-verification.md)                   | 默认应用已经验证什么、还缺什么                                            |
 | [local-reliability-verification.md](local-reliability-verification.md)               | 凭据、作品信息、并发草稿、文件/备份中断恢复与 schema 守卫的复验入口       |
 | [supabase-account-verification.md](supabase-account-verification.md)                 | 真实本地账号会话、开发探针授权及产品同步的边界                            |

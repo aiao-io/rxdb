@@ -47,6 +47,24 @@ test('builds only the explicitly configured public project values; default disab
   }
 });
 
+test('self-hosted public configuration preserves its explicit Storage origin and rejects credential URLs', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'aiao-auth-storage-'));
+  const output = join(root, 'app-config.js');
+  try {
+    const env = {
+      AIAO_SUPABASE_URL: 'https://47.103.117.118',
+      AIAO_SUPABASE_ANON_KEY: anon,
+      AIAO_SUPABASE_STORAGE_URL: 'https://47.103.117.118'
+    };
+    await buildSupabaseConfig(env, output);
+    assert.match(await readFile(output, 'utf8'), /"storageUrl":"https:\/\/47.103.117.118"/);
+    for (const storage of ['http://47.103.117.118', 'https://user:password@example.test', 'https://example.test/path'])
+      await assert.rejects(buildSupabaseConfig({ ...env, AIAO_SUPABASE_STORAGE_URL: storage }, output));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test('static Auth CSP permits only the configured HTTP and Realtime origins', () => {
   const template = "Content-Security-Policy: connect-src 'self' https:; object-src 'none'";
   assert.equal(supabaseHeaders(template, null), template);
