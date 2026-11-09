@@ -458,6 +458,29 @@ test(
   })
 );
 
+test(
+  'project 与 branch 两种 range 的覆盖互不冒用',
+  withRepo(repo => {
+    repo.git('checkout', '-q', '-b', 'feature');
+    repo.write('packages/core/src/a.ts', 'export const a = 10;\n');
+    repo.commit('feature');
+    const project = scopeOf(repo);
+    coverAll(repo, project);
+    assert.equal(coverageStatus(repo.dir, project).complete, true);
+    assert.equal(coverageStatus(repo.dir, scopeOf(repo, { range: 'branch', base: 'main' })).covered, 0);
+  })
+);
+
+test(
+  '提交视图与工作区视图按内容分别计账：只有未提交改动的文件要补审',
+  withRepo(repo => {
+    coverAll(repo, scopeOf(repo));
+    repo.write('packages/core/src/a.ts', 'export const a = 10;\n');
+    const worktree = scopeOf(repo, { tree: captureWorktreeTree(repo.dir) });
+    assert.deepEqual(coverageStatus(repo.dir, worktree).outstandingPaths, ['packages/core/src/a.ts']);
+  })
+);
+
 test('Claude Code 入口与 Codex skill 的 name、description 一致', () => {
   const frontmatter = file => {
     const block = readFileSync(path.join(workspaceRoot, file), 'utf8').split('---')[1];

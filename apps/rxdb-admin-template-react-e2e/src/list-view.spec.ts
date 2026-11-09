@@ -34,6 +34,13 @@ async function snapshot(page: Page) {
     });
 }
 
+async function expectSnapshot(
+  page: Page,
+  assertion: (value: Awaited<ReturnType<typeof snapshot>>) => void
+): Promise<void> {
+  await expect(async () => assertion(await snapshot(page))).toPass({ timeout: 10000 });
+}
+
 test('新增对话框拖到视口边缘后仍可取消', async ({ page }) => {
   await resetE2eState(page);
   await page.goto('/entities/assets/AssetCategory');
@@ -75,7 +82,7 @@ test('字段配置、排序和空值分组在真实表格中可操作，分组�
 
   await page.getByText('字段配置', { exact: true }).click();
   await page.getByLabel('显示说明', { exact: true }).uncheck();
-  await expect.poll(async () => (await snapshot(page)).fields.includes('description')).toBe(false);
+  await expectSnapshot(page, value => expect(value.fields.includes('description')).toBe(false));
   await page.getByLabel('显示说明', { exact: true }).check();
   const source = await page.getByRole('button', { name: '拖动分类名排序', exact: true }).boundingBox();
   const target = await page.getByRole('button', { name: '拖动ID排序', exact: true }).boundingBox();
@@ -85,17 +92,17 @@ test('字段配置、排序和空值分组在真实表格中可操作，分组�
   await page.mouse.down();
   await page.mouse.move(target!.x + target!.width / 2, target!.y + target!.height / 2, { steps: 8 });
   await page.mouse.up();
-  await expect.poll(async () => (await snapshot(page)).fields[1]).toBe('name');
+  await expectSnapshot(page, value => expect(value.fields[1]).toBe('name'));
 
   await page.getByText('排序', { exact: true }).click();
   await page.getByLabel('添加排序字段').selectOption('name');
-  await expect.poll(async () => (await snapshot(page)).names).toEqual(['alpha', 'beta']);
+  await expectSnapshot(page, value => expect(value.names).toEqual(['alpha', 'beta']));
   await page.getByLabel('分类名排序方向').selectOption('desc');
-  await expect.poll(async () => (await snapshot(page)).names).toEqual(['beta', 'alpha']);
+  await expectSnapshot(page, value => expect(value.names).toEqual(['beta', 'alpha']));
 
   await page.getByText('分组', { exact: true }).click();
   await page.getByLabel('分组字段', { exact: true }).selectOption('description');
-  await expect.poll(async () => (await snapshot(page)).groups).toEqual([{ value: null, count: 2 }]);
+  await expectSnapshot(page, value => expect(value.groups).toEqual([{ value: null, count: 2 }]));
   await page.getByText('分组 1', { exact: true }).click();
   const toggleGroup = () =>
     page
@@ -108,19 +115,19 @@ test('字段配置、排序和空值分组在真实表格中可操作，分组�
         table.toggleHierarchyState(1, 1);
       });
   await toggleGroup();
-  await expect.poll(async () => (await snapshot(page)).rowCount).toBe(2);
+  await expectSnapshot(page, value => expect(value.rowCount).toBe(2));
   await toggleGroup();
-  await expect.poll(async () => (await snapshot(page)).rowCount).toBe(4);
+  await expectSnapshot(page, value => expect(value.rowCount).toBe(4));
   const view = await expectActionIcon(page, 'view-action', 2);
   await page.mouse.click(view.x, view.y);
   await expect(page.getByRole('group', { name: '分类名' }).getByRole('textbox')).toHaveValue('beta');
   await fillField(page, '分类名', 'beta-edited');
   await page.getByRole('button', { name: '保存', exact: true }).click();
-  await expect.poll(async () => (await snapshot(page)).names).toContain('beta-edited');
+  await expectSnapshot(page, value => expect(value.names).toContain('beta-edited'));
 
   await page.getByText('分组 1', { exact: true }).click();
   await page.getByLabel('分组字段', { exact: true }).selectOption('');
-  await expect.poll(async () => (await snapshot(page)).groups).toEqual([]);
+  await expectSnapshot(page, value => expect(value.groups).toEqual([]));
   await page.getByText('分组', { exact: true }).click();
 
   await page.getByTestId('admin-sidebar-toggle').click();
@@ -129,7 +136,7 @@ test('字段配置、排序和空值分组在真实表格中可操作，分组�
   const checkbox = page.getByLabel('显示说明', { exact: true });
   await expect(checkbox).toBeInViewport();
   await checkbox.uncheck();
-  await expect.poll(async () => (await snapshot(page)).fields.includes('description')).toBe(false);
+  await expectSnapshot(page, value => expect(value.fields.includes('description')).toBe(false));
 });
 
 test('字段开关和排序分组弹层在桌面及窄屏完整可见，支持 Escape 关闭', async ({ page }) => {
