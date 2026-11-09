@@ -71,7 +71,8 @@ const updateCachedEntity = <T extends EntityType>(
  * 使用 PostgreSQL 的参数化查询（`$1`, `$2`等），避免 SQL 注入风险，提升安全性。
  *
  * ### 2. 批量查询结果
- * INSERT/UPDATE 后，使用 `WHERE id IN (...)` 批量查询更新后的数据，减少数据库往返。
+ * INSERT/UPDATE 后按主键一次回查本批的行，减少数据库往返。回查走 `generate_find_sql`：`id` 属性解析成主键物理列，
+ * 自定义主键列（`columnName`）的实体同样命中。
  *
  * ## 事务保证
  *

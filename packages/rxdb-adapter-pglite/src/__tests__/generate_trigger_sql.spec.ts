@@ -36,7 +36,7 @@ describe('generate_trigger_sql', () => {
 
     expect(sql).toContain("TG_OP = 'INSERT'");
     expect(sql).toContain("'INSERT'"); // 操作类型
-    expect(sql).toContain('NEW.id'); // 实体 ID
+    expect(sql).toContain('NEW."id"'); // 实体 ID
     expect(sql).toContain('jsonb_build_object'); // JSON patch
   });
 
@@ -56,7 +56,7 @@ describe('generate_trigger_sql', () => {
 
     expect(sql).toContain("TG_OP = 'DELETE'");
     expect(sql).toContain("'DELETE'"); // 操作类型
-    expect(sql).toContain('OLD.id'); // 已删除行的实体 ID
+    expect(sql).toContain('OLD."id"'); // 已删除行的实体 ID
     expect(sql).toContain('RETURN OLD');
   });
 
@@ -69,7 +69,7 @@ describe('generate_trigger_sql', () => {
 
     // 不应单独跟踪 id（它已记录为 entityId）。
     const idOccurrences = (sql.match(/"id"/g) || []).length;
-    // id 只能出现在 NEW.id、OLD.id 上下文中，不应出现在 jsonb_build_object 中。
+    // id 只能出现在 NEW."id"、OLD."id" 上下文中，不应出现在 jsonb_build_object 中。
     expect(idOccurrences).toBeLessThan(5);
   });
 
@@ -234,7 +234,7 @@ describe('generate_trigger_sql residual edges', () => {
 
     expect(sql).toContain(
       `'__rxdb_change_id__:{"codecVersion":1,"schemaVersion":1,"type":"bigint","value":' || ` +
-        `to_jsonb(NEW.id::text)::text || '}'`
+        `to_jsonb(NEW."id"::text)::text || '}'`
     );
     expect(sql).toContain("'type', 'bigint'");
     expect(sql).toContain("'type', 'binary'");
@@ -251,6 +251,7 @@ describe('generate_trigger_sql residual edges', () => {
     });
     const child = transitionMetadata({
       name: 'PgliteBigintTriggerChild',
+      properties: [{ name: 'id', type: PropertyType.uuid, primary: true }],
       relations: [
         {
           name: 'parent',
@@ -278,6 +279,7 @@ describe('generate_trigger_sql residual edges', () => {
     const encrypted = transitionMetadata({
       name: 'EncryptedTypedChange',
       properties: [
+        { name: 'id', type: PropertyType.uuid, primary: true },
         { name: 'secretAmount', type: PropertyType.bigint, encrypted: true },
         { name: 'secretPayload', type: PropertyType.binary, encrypted: true }
       ]
@@ -289,6 +291,47 @@ describe('generate_trigger_sql residual edges', () => {
     expect(sql).toContain('to_jsonb(NEW."secretPayload")');
     expect(sql).not.toContain('NEW."secretAmount"::text');
     expect(sql).not.toContain('encode(NEW."secretPayload", \'hex\')');
+  });
+});
+
+// 主键属性名恒为 id，物理列名可被 columnName 改写：写死 NEW.id 时这类实体第一次写就报
+// record "new" has no field "id"（sqlite-core 同一条是 SQLC-014）
+describe('generate_trigger_sql - 自定义主键列', () => {
+  const withPrimaryColumn = (columnName: string) =>
+    transitionMetadata({
+      name: 'PgliteCustomKeyTrigger',
+      properties: [
+        { name: 'id', columnName, type: PropertyType.integer, primary: true },
+        { name: 'label', type: PropertyType.string }
+      ]
+    });
+
+  it('NEW. / OLD. 按主键物理列取 entityId，不再引用字面量 id', () => {
+    const sql = generate_trigger_sql(withPrimaryColumn('row_no'), {
+      tableSet: WorktreeTableSet.MAIN,
+      branchId: 'main'
+    });
+
+    expect(sql).toContain(`"type":"number","value":' || to_jsonb(NEW."row_no"::text)::text || '}'`);
+    expect(sql).toContain(`to_jsonb(OLD."row_no"::text)::text`);
+    expect(sql).not.toMatch(/(NEW|OLD)\.("id"|id\b)/);
+  });
+
+  it('主键列名与其余列一样过标识符校验：函数体由 $$ 包裹，不能混进截断它的字符', () => {
+    expect(() =>
+      generate_trigger_sql(withPrimaryColumn('row$$no'), { tableSet: WorktreeTableSet.MAIN, branchId: 'main' })
+    ).toThrow(/Invalid identifier/);
+  });
+
+  it('元数据里没有 id 属性时直接抛，不回落到字面量 id', () => {
+    const keyless = transitionMetadata({
+      name: 'PgliteKeylessTrigger',
+      properties: [{ name: 'label', type: PropertyType.string }]
+    });
+
+    expect(() => generate_trigger_sql(keyless, { tableSet: WorktreeTableSet.MAIN, branchId: 'main' })).toThrow(
+      /Missing id metadata/
+    );
   });
 });
 

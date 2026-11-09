@@ -20,6 +20,7 @@
 - **rxdb-adapter-wa-sqlite:** 拒绝会折叠到别的 VFS 文件的库名（字面 `%20` 这类转义、`?`、`#`、`\`、制表 / 换行、开头空白、`.` 段、像 scheme 的前缀）：此前这些库名能打开，却与别的名字共用同一个物理文件。`%20` 一类可改用解码后的名字打开原数据，`?`、`#` 一类需手工迁移。
 - **rxdb-adapter-wa-sqlite / -sqlite-wasm:** 含 NUL 的字符串绑定参数改为报错，此前在 NUL 处静默截断、写成另一个值。
 - **rxdb:** `RxDBBackupCompatibility` 多了必填的 `constraintFingerprint`。自己实现备份恢复的适配器要补上，取 `getRxDBBackupConstraintFingerprint(rxdb)` 即可；内置适配器都已补。
+- **rxdb-adapter-pglite / -supabase:** QueryCache 与同步的实体标识统一为「裸名即 public」，与 sqlite-core 和 `queryCacheEntityIdentifier` 一致。PGlite 的 `getMetadataByIds` / `upsertMany` / `deleteByIds`，以及 Supabase 的 `fetchMetadata` / `findByIds` / `pullChanges` / `getChangeCount` / `pullChangesBatch`，收到裸名时只在 `public` 命名空间里找，不再在全部命名空间里找唯一匹配。直调这些方法、用裸名指只配在非 public 命名空间下的实体（如 `'Item'` 指 `shop:Item`、`'RxDBBranch'`）的，此前能解析，现在抛 `RxdbAdapterPGliteError` / `SupabaseConfigError`；改写成 `namespace:entity`（`'shop:Item'`、`'rxdb:RxDBBranch'`）即可。`PullBatchRequest` 省略 `namespace` 时同样按 public 解析。经 QueryCache 仓储和同步插件发起的调用不受影响。
 
 ### 🚀 Features
 
@@ -128,7 +129,8 @@
 - **rxdb-adapter-sqlite-core:** 批量删除不再丢掉主键中的 NUL（含 NUL 的字符串写成 `char(0)` 拼接），不会误删另一个实体；查询 SQL 不再整串压缩空白，字符串字面量里的空白保持原样；嵌套 EXISTS 按层分配别名，内层关系不再关联到顶层实体；默认事务先 `BEGIN` 再读当前分支，并发切换分支后写入不会记进旧分支；加密列的建表语句不再写入明文 `DEFAULT`（单条 INSERT 在加密前补默认值；0.0.28 及更早版本建出的表仍留着旧的明文默认值文本，升级不做自动迁移，需要自行重建该表，说明见加密适配器文档）；OO1 路径上只读查询与 DDL 返回的 `rowsAffected` 不再沿用上一条写入的计数；OO1 加载指纹纳入 `locateFile` 回调，后续客户端不再加载错误的 WASM；漂移检查不再把建表注释里的伪 `CHECK` 当成真实约束；批量写回查按目标主键类型还原外键，bigint 外键不再回填成 number；桌面客户端同步订阅失败时关闭已打开的 host 会话。
 - **rxdb-adapter-sqlite-wasm:** 共用客户端按身份校验 `init`（库名、VFS、只读、资源与锁配置），第二个逻辑库不再静默访问首库；关闭数据库失败时仍释放 VFS，两步都失败时两个错误都抛出。
 - **rxdb-adapter-encrypted:** 再次解锁清除旧密钥时取消在途解密，锁定后不再返回明文。
-- **rxdb-adapter-pglite:** QueryCache 拉取与写回执回填按外部数据合并，不再覆盖未保存的草稿；`saveMany` 的 `updatedAt` 与单条写入同样单调递增，没有可写差异的实体不发 UPDATE；版本切换的删除与 upsert 按主键物理列定位行。
+- **rxdb-adapter-pglite:** QueryCache 拉取与写回执回填按外部数据合并，不再覆盖未保存的草稿；`saveMany` 的 `updatedAt` 与单条写入同样单调递增，没有可写差异的实体不发 UPDATE；主键属性 `id` 经 `columnName` 改到别的物理列的实体可以写了：变更触发器按主键物理列记 `entityId`，仓库与批量写的 UPDATE / DELETE、`findByRowIds` 与版本切换（撤销 / 重做、切分支、拉取回填）的 UPDATE、DELETE、upsert 都按主键物理列定位行，与 sqlite-core 同口径。此前记日志的这类实体第一次写就报 `record "new" has no field "id"`，`log: false` 的只能建不能改删（`column "id" does not exist`），只在本地改了主键列名的同步实体拉到更新也失败。旧库的变更触发器在系统表迁移、切分支或拉取回填时按新代码重挂，无需另行迁移；`generate_trigger_sql` 遇到没有 `id` 属性的元数据改为直接抛 `TypeError`。
+- **rxdb-adapter-pglite / -supabase:** public 与别的命名空间注册了同名实体（如 `public:Todo` 和 `tenant:Todo`）时，public 实体的 QueryCache `find` / `count`、本地缓存读写和离线重放，不再在请求发出前报 `configured in multiple namespaces`。
 - **rxdb-plugin-history / -sync:** 撤销在写事务里按当时的推送认领与已推水位线复核，推送先认领、再按同一口径复查，认领前已被撤销的变更不再上行；压缩合并不再丢掉对分叉前已存在行的删除（删除、同 id 重建、再删除）；历史项指纹带上变更 id，同毫秒同实体的两次变更不会被一次 redo 一起出栈。
 - **rxdb-plugin-workspace:** `flush()` 跨断连重连时拒绝，不再拿新纪元的队列报成功。
 - **rxdb-react / rxdb-vue:** `usePersistedState` 在 SSR 下不再跨请求共享状态：React 服务端与 hydrate 快照恒为本次调用的 `initialValue`，hydrate 不再因盘上值产生 mismatch；Vue 按 SSR 上下文为每个请求单独建注册表。

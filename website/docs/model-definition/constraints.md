@@ -117,6 +117,7 @@ export class BomOccurrence extends EntityBase {}
 ```
 
 - 区间维只接受 `date` / `integer` / `bigint` 列，`bounds` 只能是 `'[)'` 或 `'[]'`。端点为 NULL 即该侧无界。
+- `bigint` 的 `'[]'` 维上端点可以取到最大值 `9223372036854775807n`。PGlite 上它与上方无界是同一组取值，违约时 `ranges` 里这一端报 `null`，SQLite family 报原值。
 - 起点晚于终点的倒置区间当空区间，不与任何行冲突；要拒绝倒置区间，另加一条 CHECK `from <= to`。
 - 相等列可以是实体自身的属性，也可以是关系外键（如 `parentId`）；相等列任一为 NULL 的行不参与冲突。
 - 违约抛 `RxDBExclusionViolationError`，`ranges` 逐维给出本次写入行（`incoming`）与已有冲突行（`existing`）的区间。

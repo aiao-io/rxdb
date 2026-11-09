@@ -43,9 +43,9 @@ import {
   getSqlWithParams,
   getSwitchUpdatedAt,
   normalizeUpdateEntity,
-  quoteIdentifier,
   transformValuePGliteToJs
 } from '../pglite.utils.js';
+import { primaryKeyColumnSql, requireIdProperty } from '../primary-key-column.js';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 import { unenvelopePlaintextPatches } from '../system/encrypt-patch.js';
 import { getTableNameByMetadata } from '../table-name-resolver.js';
@@ -93,22 +93,6 @@ const requireMetadata = (adapter: RxDBAdapterPGlite, namespace: string, entityNa
   if (!metadata) throw new TypeError(`Missing entity metadata for ${namespace}.${entityName}`);
   return metadata;
 };
-
-const requireIdProperty = (metadata: EntityMetadata) => {
-  const idProperty = metadata.propertyMap.get('id');
-  if (!idProperty) throw new TypeError(`Missing id metadata for ${metadata.namespace}.${metadata.name}`);
-  return idProperty;
-};
-
-/**
- * 主键物理列（已加引号）。
- *
- * @remarks
- * 主键属性 `id` 可被 `columnName` 改写；删除的 `= ANY($1)` 与 upsert 的冲突目标都按物理列定位行，
- * 与 `entity/inserts_sql.ts` 的冲突目标同一口径。
- */
-const primaryKeyColumnSql = (metadata: EntityMetadata): string =>
-  quoteIdentifier(requireIdProperty(metadata).columnName);
 
 const normalizeLegacyEntityId = (metadata: EntityMetadata, entityId: RxDBEntityId): RxDBEntityId => {
   if (typeof entityId !== 'string') return entityId;

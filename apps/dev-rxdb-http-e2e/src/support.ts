@@ -138,11 +138,18 @@ export const clearOriginStorage = async (page: Page): Promise<void> => {
  * 打开 demo 页面：先清干净本地存储，再带着 `?api=` 指向 e2e 的后端。
  *
  * @param extraQuery - 追加的查询串（不含前导 `&`）。
+ *
+ * @remarks
+ * 返回前等变更通知**真的**定下来：开着就等到「已接通」（适配器报了 `onOpen`），
+ * `?changefeed=0` 时等到「已关闭」。徽标从前只读启用意图，开页即是「已接通」，等它等于
+ * 什么都没等——用例紧接着在另一页的写入，可能赶在这一页的 SSE 连上之前。
  */
 export const openDemo = async (page: Page, extraQuery: string = ''): Promise<void> => {
   await clearOriginStorage(page);
   await page.goto(appUrl(extraQuery), { waitUntil: 'domcontentloaded' });
-  await expect(page.getByTestId('feed-status')).toHaveText(/已接通|已断开/);
+  await expect(page.getByTestId('feed-status'), '变更通知要么真的接通，要么按 ?changefeed=0 关着').toHaveText(
+    /已接通|已关闭/
+  );
 };
 
 /** 等列表稳定在指定行数。 */
