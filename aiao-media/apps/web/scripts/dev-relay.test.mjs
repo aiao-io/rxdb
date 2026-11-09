@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { test } from 'node:test';
 import { createRelayTaskToken, openRelayResult, relayResultKey } from '@aiao-media/api-contracts';
-import { startDevRelay } from './dev-relay.mjs';
+import { startDevRelay } from '../../api/scripts/dev-relay.mjs';
 
 const provider = 'https://provider.example.test/v1';
 const imageRequest = { model: 'image-test', prompt: 'test forest', n: 1, size: '1024x1024' };
@@ -101,7 +101,7 @@ test('refuses cross-origin callers, other providers and other API routes before 
 });
 test('starts from the allow-list committed for deployment and listens on loopback only', async () => {
   const [committed] = JSON.parse(
-    JSON.parse(readFileSync(new URL('../wrangler.json', import.meta.url), 'utf8')).vars
+    JSON.parse(readFileSync(new URL('../../api/wrangler.json', import.meta.url), 'utf8')).vars
       .ALLOWED_PROVIDER_BASE_URLS
   );
   await withRelay(undefined, image, async (relay, calls) => {
@@ -131,7 +131,7 @@ test('runs relay tasks on in-process stand-ins, so a reloaded page can still rea
   });
 });
 test('the Angular proxy config sends only /api/relay to a live relay', async () => {
-  const { default: proxy } = await import('../proxy.conf.mjs');
+  const { default: proxy } = await import('../../web/proxy.conf.mjs');
   assert.deepEqual(Object.keys(proxy), ['/api/relay']);
   const response = await fetch(new URL('/api/relay', proxy['/api/relay'].target));
   assert.equal(response.status, 405);

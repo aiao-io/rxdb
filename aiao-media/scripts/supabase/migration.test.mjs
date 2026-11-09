@@ -4,7 +4,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import test from 'node:test';
 import { parse } from 'yaml';
-import { auditRequirements } from '../../../scripts/check-requirements.mjs';
+import { auditRequirements } from '../check-requirements.mjs';
 
 const application = resolve(import.meta.dirname, '../..');
 const webRoot = resolve(application, 'apps/web');

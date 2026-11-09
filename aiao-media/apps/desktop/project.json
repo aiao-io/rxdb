@@ -4,26 +4,51 @@
   "projectType": "application",
   "prefix": "media",
   "sourceRoot": "aiao-media/apps/desktop/src",
-  "tags": ["product:media", "type:app", "runtime:desktop"],
+  "tags": [
+    "product:media",
+    "type:app",
+    "runtime:desktop"
+  ],
   "targets": {
     "build": {
       "executor": "@angular/build:application",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{options.outputPath}"
+      ],
       "defaultConfiguration": "desktop",
       "options": {
         "outputPath": "aiao-media/apps/desktop/desktop-dist",
         "browser": "aiao-media/apps/web/src/main.ts",
         "polyfills": [],
-        "tsConfig": "aiao-media/apps/web/tsconfig.app.json",
-        "assets": [{"glob": "**/*", "input": "aiao-media/apps/web/public"}],
-        "styles": ["aiao-media/apps/web/src/styles.css", "aiao-media/apps/web/src/image-mvp.css"],
-        "allowedCommonJsDependencies": ["@supabase/supabase-js", "ms"]
+        "tsConfig": "aiao-media/apps/desktop/tsconfig.build.json",
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "aiao-media/apps/web/public"
+          }
+        ],
+        "styles": [
+          "aiao-media/apps/web/src/styles.css",
+          "aiao-media/apps/web/src/image-mvp.css"
+        ],
+        "allowedCommonJsDependencies": [
+          "@supabase/supabase-js",
+          "ms"
+        ]
       },
       "configurations": {
         "desktop": {
           "budgets": [
-            {"type": "initial", "maximumWarning": "510kb", "maximumError": "1mb"},
-            {"type": "anyComponentStyle", "maximumWarning": "4kb", "maximumError": "8kb"}
+            {
+              "type": "initial",
+              "maximumWarning": "510kb",
+              "maximumError": "1mb"
+            },
+            {
+              "type": "anyComponentStyle",
+              "maximumWarning": "4kb",
+              "maximumError": "8kb"
+            }
           ],
           "fileReplacements": [
             {
@@ -47,20 +72,30 @@
           "sourceMap": true
         }
       },
-      "dependsOn": ["aiao-media:prompt-assets", "aiao-media:prepare-assets", "aiao-media:auth-config"]
+      "dependsOn": [
+        "aiao-media:prompt-assets",
+        "aiao-media:prepare-assets",
+        "aiao-media:auth-config"
+      ]
     },
     "serve": {
       "continuous": true,
       "executor": "@angular/build:dev-server",
       "defaultConfiguration": "development",
       "configurations": {
-        "development": {"buildTarget": "aiao-media-desktop:build:development"},
-        "desktop": {"buildTarget": "aiao-media-desktop:build:desktop"}
+        "development": {
+          "buildTarget": "aiao-media-desktop:build:development"
+        },
+        "desktop": {
+          "buildTarget": "aiao-media-desktop:build:desktop"
+        }
       }
     },
     "serve-static": {
       "continuous": true,
-      "dependsOn": ["build"],
+      "dependsOn": [
+        "build"
+      ],
       "executor": "@nx/web:file-server",
       "options": {
         "buildTarget": "aiao-media-desktop:build:desktop",

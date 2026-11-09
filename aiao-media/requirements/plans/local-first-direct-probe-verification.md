@@ -21,11 +21,7 @@ API Key 只在当前页面内存。此页没有 RxDB/持久任务，不标记“
 
 ## 历史自动化证据
 
-命令：
-
-```sh
-删除前使用 `pnpm nx run aiao-media:direct-probe-test` 完成验证。
-```
+删除前曾使用独立的 probe 测试 target 完成验证；该 target 已随实验页一起删除。
 
 六项测试通过：
 

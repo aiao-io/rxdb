@@ -1,7 +1,9 @@
 {
   "compilerOptions": {
     "outDir": "./dist/out-tsc",
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
   "exclude": [
     "jest.config.ts",
@@ -21,7 +23,9 @@
     "src/test-setup.ts"
   ],
   "extends": "./tsconfig.json",
-  "include": ["src/**/*.ts"],
+  "include": [
+    "src/**/*.ts"
+  ],
   "references": [
     {
       "path": "../api"
@@ -43,9 +47,6 @@
     },
     {
       "path": "../../../packages/rxdb-adapter-wa-sqlite/tsconfig.lib.json"
-    },
-    {
-      "path": "../../../packages/rxdb-adapter-tauri/tsconfig.lib.json"
     },
     {
       "path": "../../../packages/rxdb-adapter-supabase/tsconfig.lib.json"

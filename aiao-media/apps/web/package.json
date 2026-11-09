@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@aiao-media/api-contracts": "workspace:*",
     "@aiao/rxdb": "workspace:*",
     "@aiao/rxdb-adapter-supabase": "workspace:*",
-    "@aiao/rxdb-adapter-tauri": "workspace:*",
     "@aiao/rxdb-adapter-wa-sqlite": "workspace:*",
     "@aiao/rxdb-devtools": "workspace:*",
     "@aiao/rxdb-plugin-history": "workspace:*",
@@ -28,8 +28,7 @@
     "@tiptap/pm": "3.31.3",
     "fflate": "^0.8.3",
     "rxjs": "^7.8.2",
-    "zone.js": "0.16.2",
-    "@aiao-media/api-contracts": "workspace:*"
+    "zone.js": "0.16.2"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261108.1",
