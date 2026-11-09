@@ -69,6 +69,8 @@ CI 的 `setup` job 每轮都会执行。表格里各 spec 那一行写的 `node 
 | `audit/ai-entry-docs.mjs`                                                   | 改核心入口 TSDoc 后                          | 入口 TSDoc 按符号与重载检查；适配器 `transaction` 覆写不得自带 TSDoc                                          | 由 `ai-example.mjs` import（`ai-entry-docs.spec.mjs`）                        |
 | `audit/ai-example.mjs`                                                      | 改核心 / PGlite / history / 样例后           | 真实 pack 核心查入口说明，再严格编译并执行 `examples/ai-local` 离线样例                                       | `pnpm verify:ai-example`（CI extras job）                                     |
 | `examples/ai-local/`                                                        | 改样例后                                     | 离线 AI 样例源、安装清单与编译选项：知识生成物与 `llms.txt` 样例的唯一输入                                    | 由 `package-graph.mjs` / `ai-example.mjs` 读取                                |
+| [ai-review/ai-review.mjs](#ai-reviewai-reviewmjs)                           | 执行 ai-code-review skill 时                 | 评审快照、项目归属、必审清单与覆盖登记（按内容寻址），问题 ID 与记录查找                                      | `node scripts/ai-review/ai-review.mjs <命令>`                                 |
+| `ai-review/ai-review.spec.mjs`                                              | 改评审记账后                                 | Node test runner，临时仓库覆盖快照、归属、覆盖失效规则、range=branch 与 CLI                                   | `pnpm nx run @aiao/source:test-scripts`                                       |
 
 ---
 
@@ -438,7 +440,20 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
      CONVENTIONS 禁止进正文的过程叙述词（`已于 X 日`、删除线、`落地偏差`……）只告警。
 - **`--update` 只改数字**：状态符号、epic status、死链是判断不是派生，必须手改。
 
-## 10. 内部依赖（不可直接执行）
+## 10. AI 代码评审
+
+### `ai-review/ai-review.mjs`
+
+- **触发**：执行 [ai-code-review skill](../.agents/skills/ai-code-review/SKILL.md) 时由 AI 会话调用，人也可以直接跑来看进度；不在 CI 里跑。
+- **做什么**：评审的确定性部分，输出都是 JSON：
+  - `snapshot [--rev <ref>] [--worktree]`：冻结快照，工作区视图用临时 index 捕获树，真实 index 不动；
+  - `projects` / `affected`：按快照里的 `project.json` 列出项目与记录目录名，以及相对默认分支改到的项目；
+  - `status` / `cover`：必审单元与覆盖登记。覆盖按内容寻址（评审标准摘要 + range + 路径 + 两侧 blob），上下文变了或引用的记录不见了就失效；
+  - `new-id` / `find-issue`：生成 `RV-` / `EV-` 加 UUIDv7 的 ID，按完整 ID 或前缀找记录。
+- **状态**：只追加写进 `<git common dir>/ai-review/v1/coverage.jsonl`，同一仓库的所有 worktree 共享，不提交。
+- **测试**：`ai-review.spec.mjs` 在临时仓库里覆盖快照、归属、失效规则、range=branch 与 CLI。
+
+## 11. 内部依赖（不可直接执行）
 
 这些不是工具脚本，而是被其他脚本 `import` 的小工具。
 
@@ -457,7 +472,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 
 ---
 
-## 11. 通用调用约定
+## 12. 通用调用约定
 
 - 所有脚本统一用 **Node ESM**（`import ... from`，无构建产物），最低 Node 26（由 `preinstall.mjs` 强制）；
 - 工作目录默认是仓库根（用 `process.cwd()` 或 `import.meta.dirname` 解析相对路径），所以从根目录直接 `node scripts/<x>.mjs` 即可；
@@ -469,7 +484,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 
 ---
 
-## 12. 给新成员的一段话
+## 13. 给新成员的一段话
 
 如果你只是想 **跑起来**仓库，路径只有一条：
 
