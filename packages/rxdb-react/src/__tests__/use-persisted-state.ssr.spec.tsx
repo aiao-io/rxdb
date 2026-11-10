@@ -11,9 +11,7 @@ import { renderToReadableStream, renderToString } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { usePersistedState } from '../use-persisted-state';
 
-const Profile = ({ secret }: { secret: string }) => (
-  <span>{usePersistedState('ssr-profile', 'secret', secret).value}</span>
-);
+const Profile = ({ owner }: { owner: string }) => <span>{usePersistedState('ssr-profile', 'owner', owner).value}</span>;
 
 const Gated = ({ gate, children }: { gate: Promise<void>; children: ReactNode }) => {
   use(gate);
@@ -40,8 +38,8 @@ describe('usePersistedState（SSR）', () => {
   });
 
   it('连续两个请求用同一业务键时，各自渲染本次的 initialValue', () => {
-    expect(renderToString(<Profile secret='alice-private' />)).toBe('<span>alice-private</span>');
-    expect(renderToString(<Profile secret='bob-private' />)).toBe('<span>bob-private</span>');
+    expect(renderToString(<Profile owner='alice-private' />)).toBe('<span>alice-private</span>');
+    expect(renderToString(<Profile owner='bob-private' />)).toBe('<span>bob-private</span>');
   });
 
   it('并发请求交错渲染同一业务键时互不可见', async () => {
@@ -51,14 +49,14 @@ describe('usePersistedState（SSR）', () => {
       renderStream(
         <Suspense fallback={null}>
           <Gated gate={alice.promise}>
-            <Profile secret='alice-concurrent' />
+            <Profile owner='alice-concurrent' />
           </Gated>
         </Suspense>
       ),
       renderStream(
         <Suspense fallback={null}>
           <Gated gate={bob.promise}>
-            <Profile secret='bob-concurrent' />
+            <Profile owner='bob-concurrent' />
           </Gated>
         </Suspense>
       )
@@ -78,8 +76,8 @@ describe('usePersistedState（SSR）', () => {
   it('同一请求内同键的两个调用点各自渲染自己的 initialValue', () => {
     const html = renderToString(
       <>
-        <Profile secret='first' />
-        <Profile secret='second' />
+        <Profile owner='first' />
+        <Profile owner='second' />
       </>
     );
 

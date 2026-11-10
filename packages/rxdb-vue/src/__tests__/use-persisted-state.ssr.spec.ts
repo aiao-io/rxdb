@@ -12,9 +12,9 @@ import { renderToString } from 'vue/server-renderer';
 import { usePersistedState } from '../use-persisted-state';
 
 const Profile = defineComponent({
-  props: { secret: { type: String, required: true } },
+  props: { owner: { type: String, required: true } },
   setup(props) {
-    const state = usePersistedState('ssr-profile', 'secret', props.secret);
+    const state = usePersistedState('ssr-profile', 'owner', props.owner);
     return () => h('span', state.value.value);
   }
 });
@@ -30,9 +30,9 @@ const deferred = () => {
 /** setup 先登记状态、再等闸门：两个请求都登记完之后才开始渲染。 */
 const gatedProfile = (gate: Promise<void>) =>
   defineComponent({
-    props: { secret: { type: String, required: true } },
+    props: { owner: { type: String, required: true } },
     async setup(props) {
-      const state = usePersistedState('ssr-concurrent', 'secret', props.secret);
+      const state = usePersistedState('ssr-concurrent', 'owner', props.owner);
       await gate;
       return () => h('span', state.value.value);
     }
@@ -44,16 +44,16 @@ describe('usePersistedState（SSR）', () => {
   });
 
   it('连续两个请求用同一业务键时，各自渲染本次的 initialValue', async () => {
-    expect(await renderToString(createSSRApp(Profile, { secret: 'alice-private' }))).toBe('<span>alice-private</span>');
-    expect(await renderToString(createSSRApp(Profile, { secret: 'bob-private' }))).toBe('<span>bob-private</span>');
+    expect(await renderToString(createSSRApp(Profile, { owner: 'alice-private' }))).toBe('<span>alice-private</span>');
+    expect(await renderToString(createSSRApp(Profile, { owner: 'bob-private' }))).toBe('<span>bob-private</span>');
   });
 
   it('并发请求交错登记同一业务键时互不可见', async () => {
     const alice = deferred();
     const bob = deferred();
     const pages = Promise.all([
-      renderToString(createSSRApp(gatedProfile(alice.promise), { secret: 'alice-concurrent' })),
-      renderToString(createSSRApp(gatedProfile(bob.promise), { secret: 'bob-concurrent' }))
+      renderToString(createSSRApp(gatedProfile(alice.promise), { owner: 'alice-concurrent' })),
+      renderToString(createSSRApp(gatedProfile(bob.promise), { owner: 'bob-concurrent' }))
     ]);
 
     bob.resolve();
