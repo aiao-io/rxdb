@@ -31,7 +31,7 @@ const VENDOR_PACKS = [
     sha256: '648210d905862538b4e8eb754c29a7a1eaceeb9cd6e255957be4ace67f90ba2a'
   },
   { name: 'npm-pack.bin', bytes: 2786927, sha256: '9cc4fdc47b130b415b2587fce0e9e24980f56fc406b510af3ba9dbcc6e72b5e0' },
-  { name: 'pnpm-pack.bin', bytes: 3659772, sha256: '13a7eb4675441411f53014b9334df32533a5cef5999b517d8018d14d00f6a091' },
+  { name: 'pnpm-pack.bin', bytes: 4824787, sha256: 'bd371d4c3fead4583a34dc58805c534be0cf1f57d48ae42d96b592c804ed693c' },
   { name: 'yarn-pack.bin', bytes: 1241130, sha256: 'c435041efe63f173ef6fd80d0fcb707638cd2b8e20dca25b96d22527b7a42bb5' }
 ];
 

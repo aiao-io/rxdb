@@ -35,7 +35,7 @@ pnpm nx e2e aiao-vscode-e2e        # Playwright e2e：四模板编辑 / 运行 /
 ```
 
 开发服务器与生产构建都需要 `assets` 目标先生成自托管资源（`public/browser-workbench-assets/`），Nx 已配置依赖。
-两者还依赖 `runtime-hosts` 目标构建[运行时宿主](#运行时宿主)；首次构建会从 vivari.run 下载并校验包管理器打包件（约 7.8 MB），
+两者还依赖 `runtime-hosts` 目标构建[运行时宿主](#运行时宿主)；首次构建会从 vivari.run 下载并校验包管理器打包件（约 9 MB），
 下载失败或校验不符时构建明确失败。
 
 ## 目录结构
