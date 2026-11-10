@@ -668,11 +668,11 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     document.getElementById(`settings-tab-${next}`)?.focus();
   }
   openTemplate(template: PromptTemplate, event: Event) {
-    this.dialogTrigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
-    this.transitionTemplate(template);
+    const trigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+    this.transitionTemplate(template, trigger);
   }
   closeTemplate() {
-    if (this.detail()) this.transitionTemplate(null);
+    if (this.detail()) this.transitionTemplate(null, this.dialogTrigger);
   }
   /** 容器被隐藏时宽度为 0，保持原有分列，恢复显示后再按真实宽度重排。 */
   feedWidthChange(width: number) {
@@ -1698,17 +1698,19 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   formatDateTime(value: string | undefined) {
     return formatTime(value, dateTimeFormat);
   }
-  private transitionTemplate(template: PromptTemplate | null) {
-    const trigger = this.dialogTrigger;
+  private transitionTemplate(template: PromptTemplate | null, trigger: HTMLElement | null) {
     const detailImage = () => document.querySelector<HTMLImageElement>('.template-panel .media-stage img');
     const coverImage = () => trigger?.querySelector<HTMLImageElement>('.feed-cover img') ?? null;
     const source = template ? coverImage() : detailImage();
     void transitionImage(source, () => {
       if (!template) document.querySelector<HTMLDialogElement>('.template-panel')?.close();
+      this.dialogTrigger = trigger;
       this.detail.set(template);
       return new Promise(resolve => {
         afterNextRender({ read: () => resolve(template ? detailImage() : coverImage()) }, { injector: this.injector });
       });
+    }).then(() => {
+      if (!template && trigger?.isConnected) trigger.focus();
     });
   }
   private backupIdentity(): string | null {

@@ -911,8 +911,14 @@ test('两标签页并发点击不会重复付费请求', async ({ page, context 
   await expect
     .poll(
       async () =>
-        (await page.getByRole('link', { name: '下载图片' }).count()) +
-        (await other.getByRole('link', { name: '下载图片' }).count())
+        (await page
+          .getByRole('region', { name: '生成结果', exact: true })
+          .getByRole('link', { name: '下载图片' })
+          .count()) +
+        (await other
+          .getByRole('region', { name: '生成结果', exact: true })
+          .getByRole('link', { name: '下载图片' })
+          .count())
     )
     .toBe(1);
   await expect
