@@ -321,7 +321,7 @@ describe('host-route', () => {
 
     const connect = (route: string) => {
       vi.useFakeTimers();
-      const bus = createFakeWujieBus();
+      const bus = createFakeOrbitBus();
       const sync = new HostRouteSync({ ttlMs: 600 });
       const host = { path: route };
       subscribeSubRoute(
@@ -334,7 +334,7 @@ describe('host-route', () => {
       );
       sync.expect(route);
       const io = createAdapter();
-      bindWujieRoute(io.adapter, createSubWindow(bus, 'rxdb-demo-vue', { route }));
+      bindOrbitRoute(io.adapter, createSubWindow(bus, 'rxdb-demo-vue', { route }));
       return { host, io, sync };
     };
 
