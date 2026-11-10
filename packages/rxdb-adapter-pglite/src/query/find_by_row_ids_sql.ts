@@ -2,10 +2,11 @@
  * 生成通过 rowIds 查询实体的 SQL
  * 用于 handle_rxdb_change 中根据 NOTIFY 事件的 rowIds 查询实体
  *
- * PGlite 版本使用 id IN (...) 而不是 SQLite 的 __rowid
+ * PGlite 的行号就是主键值：按主键物理列 IN (...) 查，而不是 SQLite 的 __rowid
  */
 
 import { EntityMetadata, type WorktreeTableSet } from '@aiao/rxdb';
+import { primaryKeyColumnSql } from '../primary-key-column.js';
 import { getTableNameByMetadata } from '../table-name-resolver.js';
 
 export interface GenerateSqlResult {
@@ -30,7 +31,7 @@ export default (
   // PostgreSQL 使用 $1, $2, ... 参数占位符
   const placeholders = rowIds.map((_, index) => `$${index + 1}`).join(', ');
 
-  const sql = `SELECT * FROM ${tableName} WHERE id IN (${placeholders})`;
+  const sql = `SELECT * FROM ${tableName} WHERE ${primaryKeyColumnSql(metadata)} IN (${placeholders})`;
 
   return {
     sql,

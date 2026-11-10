@@ -108,6 +108,78 @@ describe('rxdb_adapter_mutations', () => {
     expect(getEntityStatus(changed).modified).toBe(false);
   });
 
+  it('只改了只读字段的实体归一后没有可写差异：不发 UPDATE、整批不失败，其余实体照常写入', async () => {
+    const rxdb = new RxDB({
+      dbName: 'sqlite-core-readonly-only-mutations',
+      entities: [Todo],
+      sync: { local: { adapter: 'noop' }, type: SyncType.None }
+    });
+    rxdb.schemaManager.init();
+    rxdb.entityManager.init();
+
+    const originalUpdatedAt = new Date('2026-01-02T00:00:00.000Z');
+    const readonlyOnly = rxdb.entityManager.createEntityRef(
+      Todo,
+      createTodoData('todo-readonly-only', 'same', originalUpdatedAt),
+      { local: true, modified: false }
+    );
+    const changed = rxdb.entityManager.createEntityRef(
+      Todo,
+      createTodoData('todo-changed', 'before', originalUpdatedAt),
+      { local: true, modified: false }
+    );
+
+    // createdAt 是只读属性：实例上可以赋值，持久化层按元数据把它从 patch 里滤掉
+    Object.assign(readonlyOnly, { createdAt: new Date('2030-01-01T00:00:00.000Z') });
+    changed.title = 'after';
+
+    expect(Object.keys(getEntityStatus(readonlyOnly).patch)).toEqual(['createdAt']);
+    expect(getEntityStatus(changed).patch).toEqual({ title: 'after' });
+
+    const queryCalls: Array<{ sql: string; params?: SQLiteCompatibleType[] }> = [];
+    const query = async (sql: string, params?: SQLiteCompatibleType[]): Promise<SqliteSuccessResult> => {
+      queryCalls.push({ sql, params });
+      if (!sql.startsWith('SELECT ')) {
+        return { sql, rowsAffected: 1, elapsed: 0, results: [] };
+      }
+
+      return {
+        sql,
+        rowsAffected: 0,
+        elapsed: 0,
+        results: [
+          {
+            columns: ['id', 'title', 'completed', 'createdAt', 'updatedAt'],
+            rows: [
+              [readonlyOnly.id, 'same', 0, '2026-01-01T00:00:00.000Z', originalUpdatedAt.toISOString()],
+              [changed.id, 'after', 0, '2026-01-01T00:00:00.000Z', '2026-01-03T00:00:00.000Z']
+            ]
+          }
+        ]
+      };
+    };
+
+    const adapter = new MutationTestAdapter(rxdb, query);
+    const mutations: RxDBMutationsMap<typeof Todo> = {
+      create: new Map(),
+      update: new Map([[Todo, new Set([readonlyOnly, changed])]]),
+      remove: new Map()
+    };
+
+    const result = await rxdb_adapter_mutations(adapter, mutations);
+    const updateCalls = queryCalls.filter(call => call.sql.startsWith('UPDATE '));
+
+    expect(result).toEqual([readonlyOnly, changed]);
+    expect(updateCalls).toHaveLength(1);
+    expect(updateCalls[0]?.params).toContain(changed.id);
+    expect(updateCalls[0]?.params).not.toContain(readonlyOnly.id);
+    // 提交的只读编辑被库里的值收回，实体不再残留脏标记
+    expect(readonlyOnly.createdAt).toEqual(new Date('2026-01-01T00:00:00.000Z'));
+    expect(getEntityStatus(readonlyOnly).modified).toBe(false);
+    expect(changed.title).toBe('after');
+    expect(getEntityStatus(changed).modified).toBe(false);
+  });
+
   it('创建实体走批量 INSERT 并回查同步，回查陌生行时新建实体', async () => {
     const rxdb = new RxDB({
       dbName: 'sqlite-core-create-mutations',

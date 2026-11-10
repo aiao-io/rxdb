@@ -1,5 +1,6 @@
 import { posix } from 'node:path';
 import type { Plugin } from 'vite';
+import { scanDirectivePrologue } from './directive-prologue.js';
 
 /** 产物根目录下的真实全局对象登记模块，入口写、其余 chunk 读。 */
 export const REALM_MODULE = 'rxdb-realm.js';
@@ -51,15 +52,21 @@ function realmRequestFrom(fileName: string): string {
   return request.startsWith('.') ? request : `./${request}`;
 }
 
-/** chunk 开头的 `use strict` 指令；只锚定最前面，字符串字面量或函数体里的同名文本不是这条指令。 */
-const USE_STRICT_DIRECTIVE = /^\s*(["'])use strict\1;?/;
-
-/** 插在 `use strict` 指令之后，否则指令会失效。 */
+/**
+ * 插在顶层整段指令序言之后：插在 `use strict` 前面，指令就变成普通表达式。
+ *
+ * @remarks
+ * 序言前可以有版权 banner、注释，`use strict` 前还可以有别的指令（如 `use client`），只锚定开头的
+ * 正则认不出这些写法；末条指令靠换行结束时先补分号，否则插进来的语句会与它连成一句。
+ * 字符串字面量或函数体里的同名文本不在序言里，不算。
+ */
 function afterDirective(code: string, statements: string): string {
-  const directive = USE_STRICT_DIRECTIVE.exec(code);
-  if (!directive) return statements + code;
-  return code.slice(0, directive[0].length) + statements + code.slice(directive[0].length);
+  const { end, needsSemicolon } = scanDirectivePrologue(code);
+  return code.slice(0, end) + (needsSemicolon ? ';' : '') + statements + code.slice(end);
 }
+
+/** 顶层指令序言里有没有 `use strict`（逐字匹配，转义写法不算严格指令）。 */
+const isStrictCode = (code: string): boolean => scanDirectivePrologue(code).directives.includes('use strict');
 
 /**
  * 抖音与支付宝模拟器的模块里 `globalThis` 是 `undefined`（US-211 实测），第三方库照样在模块顶层读它
@@ -84,7 +91,7 @@ export function realmVitePlugin(platform: RealmPlatform): Plugin {
         this.error('产物里没有入口 app.js，无法登记真实全局对象');
       }
       // 只有顶层指令会让插在最前面的登记语句跑在严格模式里；函数体里的指令管不到它
-      if (platform === 'tt' && USE_STRICT_DIRECTIVE.test(app.code)) {
+      if (platform === 'tt' && isStrictCode(app.code)) {
         this.error('入口 app.js 带了 use strict，非严格函数的 this 拿不到真实全局对象');
       }
       for (const chunk of Object.values(bundle)) {

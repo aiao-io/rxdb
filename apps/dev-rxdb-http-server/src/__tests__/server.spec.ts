@@ -137,6 +137,71 @@ describe('fetchMetadata —— token 形态（AC#15）', () => {
     const response = await post('recipes/metadata', { limit: 50, pageToken: 'not-a-token' });
     expect(response.status).toBe(400);
   });
+
+  // 客户端（QueryCache）把远端答复里没有的行当孤儿删掉。翻页途中被更新的行若被挪出窗口，
+  // 它就会从本地缓存里消失，而它在远端好好地在着。
+  const patchRecipe = async (id: string, body: Record<string, unknown>): Promise<void> => {
+    const response = await fetch(`${baseUrl}/recipes/${id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    expect(response.ok).toBe(true);
+  };
+
+  const readTokenPage = async (pageToken?: string): Promise<TokenPageBody> =>
+    await postJson<TokenPageBody>(
+      'recipes/metadata?pageMode=token',
+      pageToken === undefined ? { limit: 50 } : { limit: 50, pageToken }
+    );
+
+  it('翻页途中更新尚未读到的行，它仍出现且只出现一次', async () => {
+    const pages: number[] = [];
+    const ids = await drainByToken(async page => {
+      pages.push(page);
+      if (page === 1) await patchRecipe(seedIdAt(200), { title: 'Edited mid-paging' });
+    });
+
+    expect(ids).toHaveLength(SEED_ROW_COUNT);
+    expect(new Set(ids).size).toBe(SEED_ROW_COUNT);
+    expect(ids).toContain(seedIdAt(200));
+    expect(pages).toHaveLength(SEED_ROW_COUNT / 50);
+  });
+
+  it('翻页途中更新水位线那一行，末页照常结束且不漏它', async () => {
+    const pages: number[] = [];
+    const ids = await drainByToken(async page => {
+      pages.push(page);
+      if (page === 1) await patchRecipe(seedIdAt(SEED_ROW_COUNT - 1), { title: 'Edited watermark row' });
+    });
+
+    expect(new Set(ids).size).toBe(SEED_ROW_COUNT);
+    expect(ids).toContain(seedIdAt(SEED_ROW_COUNT - 1));
+    expect(pages).toHaveLength(SEED_ROW_COUNT / 50);
+  });
+
+  it('同一个 token 重放得到同一页，页内行被更新也不例外', async () => {
+    const first = await readTokenPage();
+    const token = first.nextPageToken;
+    expect(token).toBeDefined();
+    const second = await readTokenPage(token);
+    await patchRecipe(second.rows[10].id, { title: 'Edited between replays' });
+
+    const replay = await readTokenPage(token);
+
+    expect(replay.rows.map(row => row.id)).toEqual(second.rows.map(row => row.id));
+    expect(replay.nextPageToken).toBe(second.nextPageToken);
+  });
+
+  it('翻页途中删掉尚未读到的行，其余行照常读完', async () => {
+    const ids = await drainByToken(async page => {
+      if (page === 1) await postJson('recipes/delete', { ids: [seedIdAt(120)] });
+    });
+
+    expect(ids).toHaveLength(SEED_ROW_COUNT - 1);
+    expect(new Set(ids).size).toBe(SEED_ROW_COUNT - 1);
+    expect(ids).not.toContain(seedIdAt(120));
+  });
 });
 
 describe('写端点回执来自库，不是回显入参（AC#5）', () => {
@@ -467,17 +532,24 @@ describe('错误与开关', () => {
     expect(response.status).toBe(404);
   });
 
-  it('id 里含 / 时经编码后能定位到行——解码次数与客户端的编码次数对齐', async () => {
-    // 写端点不接受客户端指定 id，所以拿一个真实 id 反向验证：多解一次码的实现上，
-    // 任何含 `%` 的合法 id 都会在这里塌掉
-    const created = await postJson<Record<string, unknown>>('recipes', { title: 'Ramen', status: 'draft' });
-    const response = await fetch(`${baseUrl}/recipes/${encodeURIComponent(String(created['id']))}`, {
+  /*
+   * 客户端按协议 `encodeURIComponent` id，`/` 编成 `%2F`、`%` 编成 `%25`。服务端必须**先按 `/` 切段、
+   * 再逐段解一次码**：先解码再切段会把 `a/b` 拆成两段而 404，解两次码会把 `%25` 还原成残缺转义。
+   * id 由客户端指定（`createRecipe` 采纳入参 id），UUID 两种实现都过不出差别。
+   */
+  it.each(['shelf/a/b', '50%off', 'a%2Fb'])('id %s 经编码后能定位到行——先切段、每段只解一次码', async id => {
+    const created = await postJson<Record<string, unknown>>('recipes', { id, title: 'Ramen', status: 'draft' });
+    expect(created['id']).toBe(id);
+
+    const response = await fetch(`${baseUrl}/recipes/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ status: 'published' })
     });
 
     expect(response.status).toBe(200);
-    expect(((await response.json()) as Record<string, unknown>)['status']).toBe('published');
+    const updated = (await response.json()) as Record<string, unknown>;
+    expect(updated['id']).toBe(id);
+    expect(updated['status']).toBe('published');
   });
 });

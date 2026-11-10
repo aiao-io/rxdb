@@ -83,7 +83,8 @@ import type { TransactionExecutor } from '@aiao/rxdb';
 
 await adapter.transaction(async (executor: TransactionExecutor) => {
   const repo = executor.getRepository(Todo);
-  await repo.create({ title: 'inside tx' });
+  // 仓库只收实体实例，不收普通对象
+  await repo.create(rxdb.entityManager.instantiate(Todo, { title: 'inside tx' }));
 
   // 嵌套内层工作 —— 复用当前 executor
   await executor.run(async inner => inner.getRepository(Todo).count());

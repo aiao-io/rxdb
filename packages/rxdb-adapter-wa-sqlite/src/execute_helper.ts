@@ -165,6 +165,22 @@ async function runStatementsInOrder(
   }
 }
 
+/**
+ * 拒绝含 NUL 的字符串参数。
+ *
+ * @remarks
+ * wa-sqlite 的 `bind_text` 按 C 字符串传参（长度 -1），值在第一个 NUL 处被截断：`'id\0tail'` 会按
+ * `'id'` 写进库、按 `'id'` 去比较，存进去的与查的都成了另一个值，而且不报错。绑定层给不出无损写法，
+ * 宁可在执行前拒绝。
+ */
+const assertNoNulTextBindings = (bindings: readonly SQLiteCompatibleType[]): void => {
+  const index = bindings.findIndex(value => typeof value === 'string' && value.includes('\0'));
+  if (index === -1) return;
+  throw new RxDBAdapterSqliteError(
+    `wa-sqlite cannot bind a string containing NUL (parameter ${index + 1}): bind_text would truncate it at the NUL`
+  );
+};
+
 /** 执行 SQL 并返回结果集、影响行数和耗时。 */
 async function executeHelper(
   sqlite3: SQLiteAPI,
@@ -172,6 +188,7 @@ async function executeHelper(
   sql: string,
   bindings?: SQLiteCompatibleType[]
 ): Promise<SqliteResult> {
+  if (bindings) assertNoNulTextBindings(bindings);
   const runStart = performance.now();
   const results: SqliteData[] = [];
   let rowsAffected = 0;

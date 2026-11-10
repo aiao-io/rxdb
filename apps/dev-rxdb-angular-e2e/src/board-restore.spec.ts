@@ -43,6 +43,19 @@ const startWithSeed = async (page: Page): Promise<void> => {
 const activeDbOf = (page: Page): Promise<string | null> =>
   page.evaluate(key => localStorage.getItem(key), ACTIVE_DB_KEY);
 
+/**
+ * 轮询用的取值：整页重载会销毁执行上下文，`page.evaluate` 在那一刻抛错，而 `expect.poll` 取值抛错不重试。
+ * 读不到的这一刻活动位置还没换过去，按「未变」（`unchanged`）交回，下一轮再读；其它错误照旧抛。
+ */
+const activeDbWhileReloading = (page: Page, unchanged: string | null) => async (): Promise<string | null> => {
+  try {
+    return await activeDbOf(page);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('Execution context was destroyed')) return unchanged;
+    throw error;
+  }
+};
+
 const cardWith = (page: Page, title: string) => page.getByTestId('task-card').filter({ hasText: title });
 
 /** 看板菜单导出备份（归档完整生成后才触发下载），返回归档路径。 */
@@ -112,7 +125,7 @@ test.describe('看板备份恢复（US-539 AC#4 / #5）', () => {
     await page.getByTestId('restore-file-menu').setInputFiles(archive);
     await expect(page.getByTestId('host-confirm')).toBeVisible();
     await page.getByTestId('host-confirm-yes').click();
-    await expect.poll(() => activeDbOf(page), { timeout: 30000 }).not.toBe(original);
+    await expect.poll(activeDbWhileReloading(page, original), { timeout: 30000 }).not.toBe(original);
     await expect(page.getByTestId('task-title').getByText('写发布说明', { exact: true })).toBeVisible();
     await expect(cardWith(page, '修复登录 bug（备份版）')).toBeVisible();
     await expect(page.getByTestId('task-card')).toHaveCount(12);
@@ -222,7 +235,7 @@ test.describe('看板备份恢复（US-539 AC#4 / #5）', () => {
       await page.getByTestId('restore-file-menu').setInputFiles(archive);
       await page.getByTestId('host-confirm-yes').click();
       await expect(page.getByTestId('task-card')).toHaveCount(12, { timeout: 30000 });
-      await expect.poll(() => activeDbOf(page)).not.toBe(original);
+      await expect.poll(activeDbWhileReloading(page, original)).not.toBe(original);
       await expect(other.getByTestId('task-card')).toHaveCount(12, { timeout: 30000 });
       await expect(other.getByTestId('restoring-badge')).toHaveCount(0);
       await other.getByTestId('add-task').first().click();

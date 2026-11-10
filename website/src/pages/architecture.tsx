@@ -485,13 +485,13 @@ function ArchitectureContent(): ReactNode {
               icon: GitBranch,
               title: '2. 生成稳定接口',
               language: 'bash',
-              code: `nx run rxdb-client-generator:generate
+              code: `npx @aiao/rxdb-client-generator ./rxdb.config.ts
 
+# rxdb.config.ts 声明实体文件（entities）与输出目录（outDir），见「客户端生成」文档
 # 输出内容包括：
-# - 实体类型定义
-# - CRUD 与查询辅助代码
-# - 框架集成封装
-# - 关系映射与表单支持`
+# - 实体类型与静态类型映射
+# - Repository 查询方法签名
+# - 关系字段的规则类型（支持点语法关系查询）`
             },
             {
               icon: Zap,

@@ -37,7 +37,7 @@ FTS 已经装好；`database.searchPlugin.ready` 是「装上没有」的显式�
 
 判据由 core 的 `searchOptionsEqual` 三端共用，重建时机不会因框架而异。
 
-三框架同功能对称：Angular 用 `injectSearch`（[`@aiao/rxdb-plugin-search-angular`](../rxdb-plugin-search-angular)），React 用 `useSearch`（[`@aiao/rxdb-plugin-search-react`](../rxdb-plugin-search-react)）。
+三框架同功能对称：Angular 用 `useSearch`（[`@aiao/rxdb-plugin-search-angular`](../rxdb-plugin-search-angular)），React 用 `useSearch`（[`@aiao/rxdb-plugin-search-react`](../rxdb-plugin-search-react)）。
 
 ## 文档
 

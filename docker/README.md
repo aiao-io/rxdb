@@ -18,6 +18,11 @@ cp .env.example .env
 
 如果 `docker/.env` 已经存在，可以直接复用，不需要重复复制。
 
+> [!WARNING]
+> `.env.example` 里的 `JWT_SECRET`、`ANON_KEY`、`SERVICE_ROLE_KEY`、`POSTGRES_PASSWORD`、`DASHBOARD_PASSWORD` 等是 Supabase 官方模板的公开默认值，谁都查得到（`SERVICE_ROLE_KEY` 能绕过行级安全读写全部数据）。这套值只用于本机测试：不要用在别人能访问到的机器或部署环境上；compose 发布 `8000` / `5432` / `6543` 等端口时没有限定网卡，默认监听本机所有网卡，也别在不可信的网络里跑。
+>
+> 需要换成自己的密钥时，在 `docker/` 目录运行 `sh utils/generate-keys.sh`（需要 `openssl`）：它随机生成这些密钥与密码并打印出来，回答 `y` 或加 `--update-env` 就写回当前目录的 `.env`（旧文件备份为 `.env.old`）。要赶在第一次 `./start.sh` 之前换：数据库角色密码和 `JWT_SECRET` 只在数据库首次初始化时写进 `volumes/db/data`，启动过之后再换不会同步到已有的库，得先清空该目录重新初始化（本地测试数据会丢）。
+
 ### 启动环境
 
 ```bash
@@ -143,15 +148,17 @@ docker compose exec db pg_isready -U postgres -h localhost
 
 ### 需要彻底重来
 
-先执行：
+只重建测试表与函数：在环境运行时执行 `./reset.sh`。它要求容器正在运行，会删掉测试用的 schema / 函数，再执行一遍 `init-db.sh`。
+
+连数据库本身也要从头初始化（例如换过 `docker/.env` 里的密钥）：
 
 ```bash
 ./stop.sh
-./reset.sh
+rm -rf volumes/db/data
 ./start.sh
 ```
 
-如果你连 volume 也要删，那就不要靠 README 里的脚本，直接自己执行 `docker compose down -v`。
+库数据在绑定挂载的 `volumes/db/data` 里，`docker compose down -v` 只删命名 volume，删不掉它。本地测试数据会随之丢失。
 
 ## 目录说明
 

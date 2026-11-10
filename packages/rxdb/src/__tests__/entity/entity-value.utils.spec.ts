@@ -40,6 +40,13 @@ describe('parseEntityFieldValue', () => {
     expect(parseEntityFieldValue('boolean', false)).toBe(false);
   });
 
+  // 远端常把布尔列以数字 0 / 1 返回：数字 1 与字符串 '1' 必须同为真，否则整行解码把真值翻成 false。
+  it('数字 0 / 1 与字符串 0 / 1 同口径', () => {
+    expect(parseEntityFieldValue('boolean', 1)).toBe(true);
+    expect(parseEntityFieldValue('boolean', 0)).toBe(false);
+    expect(parseEntityFieldValue('boolean', '0')).toBe(false);
+  });
+
   // RXD-014：`PropertyType.date` 的运行时契约是 Date（见 `EntityBase.createdAt!: Date`），
   // 而这里返回 ISO 字符串。把它写回实体后，`isEqual(string, Date)` 恒为 false，
   // 每次比较都产生假 diff → 每次 save 都重复写回同一列。
@@ -249,6 +256,36 @@ describe('parseEntityRecordValues', () => {
     expect(decoded['done']).toBe(true);
     expect(decoded['servings']).toBe(4);
     expect(decoded['title']).toBe('标题');
+  });
+
+  it('远端以数字 0 / 1 返回的布尔列按真假解码', () => {
+    expect(parseEntityRecordValues(metadata, { done: 1 })).toEqual({ done: true });
+    expect(parseEntityRecordValues(metadata, { done: 0 })).toEqual({ done: false });
+  });
+
+  // JSON 里 `__proto__` 是合法的自有键。结果要能安全地 `Object.assign` 到实体实例上：
+  // 既不能让它改写结果对象的原型（远端数据借继承冒充字段），也不能作为自有键交出去
+  // （`Object.assign` 走 [[Set]]，会把实例的原型换掉，实例方法全部消失）。
+  it('原始记录自有的 __proto__ 键不改写结果原型，也不进结果', () => {
+    const raw = JSON.parse('{"__proto__":{"marker":7},"title":"ok"}') as Record<string, unknown>;
+    const decoded = parseEntityRecordValues(metadata, raw);
+
+    expect(Object.getPrototypeOf(decoded)).toBe(Object.prototype);
+    expect(Reflect.ownKeys(decoded)).toEqual(['title']);
+    expect('marker' in decoded).toBe(false);
+
+    // 实体构造要已 init 的 RxDB；这里只验「盖到实例上」这一步，直接按实体原型建对象
+    const target = Object.create(DecodeProbe.prototype) as DecodeProbe;
+    Object.assign(target, decoded);
+    expect(Object.getPrototypeOf(target)).toBe(DecodeProbe.prototype);
+    expect(target.title).toBe('ok');
+  });
+
+  it('与 Object.prototype 成员同名的普通键（constructor / toString）照常透传为自有键', () => {
+    const decoded = parseEntityRecordValues(metadata, { constructor: 'c', toString: 't' });
+
+    expect(Object.getOwnPropertyDescriptor(decoded, 'constructor')?.value).toBe('c');
+    expect(Object.getOwnPropertyDescriptor(decoded, 'toString')?.value).toBe('t');
   });
 
   // 只碰载荷里有的键：补齐缺席字段等于拿 null 覆盖实体上已有的值。

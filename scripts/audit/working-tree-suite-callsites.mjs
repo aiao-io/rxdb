@@ -343,8 +343,9 @@ const locateCalls = (code, pattern) => {
 
   for (let index = 0; index < code.length; index += 1) {
     if (starts.has(index)) {
-      if (braces === 0 && parens.length === 0) topLevel = true;
-      disabledBy ??= parens.findLast(label => label !== null) ?? null;
+      const control = braces === 0 && parens.length === 0 ? controlBefore(code, index) : null;
+      if (braces === 0 && parens.length === 0 && control === null) topLevel = true;
+      disabledBy ??= parens.findLast(label => label !== null) ?? CONTROL_LABELS.get(control) ?? null;
     }
     const char = code[index];
     if (char === '{') braces += 1;
@@ -358,6 +359,51 @@ const locateCalls = (code, pattern) => {
   // 顶层真调过就没什么可解释的：同一个文件里另有一处被 skip 包着的调用（改写调用点时留下的
   // 旧形态）不该把这一格判成禁用。
   return { topLevel, disabledBy: topLevel ? null : disabledBy };
+};
+
+/**
+ * 不带花括号的控制结构 → 报错里的叫法。`=>` 不在表里：箭头函数体里的调用不是「被关掉」，
+ * 而是导入时根本不执行，按「导入了但未调用」报。
+ */
+const CONTROL_LABELS = new Map([
+  ['if', 'if 条件'],
+  ['else', 'else 分支'],
+  ['for', 'for 循环'],
+  ['while', 'while 循环'],
+  ['do', 'do 循环'],
+  ['with', 'with 语句'],
+  ['&&', '短路运算'],
+  ['||', '短路运算'],
+  ['??', '短路运算'],
+  ['?', '三元表达式'],
+  [':', '三元表达式']
+]);
+
+const matchingOpenParen = (text, close) => {
+  let depth = 0;
+  for (let index = close; index >= 0; index -= 1) {
+    if (text[index] === ')') depth += 1;
+    else if (text[index] === '(') depth -= 1;
+    if (depth === 0) return index;
+  }
+  return 0;
+};
+
+/**
+ * 模块顶层（括号、花括号深度都是 0）的调用起点前紧挨着的控制结构：`if (…)` / `for (…)` /
+ * `while (…)` / `with (…)` 的条件括号、`else` / `do`、短路与三元运算符、箭头 `=>`。
+ * 深度判断看不出这些：不带花括号的 `if (env) suite(…)` 深度同样是 0，却不是无条件执行。
+ *
+ * @param {string} code 抹掉注释与字符串字面量之后的源码
+ * @param {number} index 调用起点
+ * @returns {string | null} 控制结构的关键字或运算符；没有时为 `null`
+ */
+const controlBefore = (code, index) => {
+  const before = code.slice(0, index).trimEnd();
+  const operator = /(=>|&&|\|\||\?\?|\?|:)$/.exec(before) ?? /\b(else|do)$/.exec(before);
+  if (operator) return operator[1];
+  if (!before.endsWith(')')) return null;
+  return /\b(if|for|while|with)\s*$/.exec(before.slice(0, matchingOpenParen(before, before.length - 1)))?.[1] ?? null;
 };
 
 /**

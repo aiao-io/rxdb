@@ -82,7 +82,12 @@ export class AdminLayoutComponent {
   protected readonly ui = injectAdminStore(this.#shell.ui);
   protected readonly prefs = injectAdminStore(this.#shell.preferences);
   protected readonly mobile = injectAdminStore(this.#shell.isMobile);
-  protected readonly pageTitle = computed(() => menuTitleOf(this.menu(), this.url()) ?? this.#shell.brandTitle);
+  protected readonly textRevision = injectAdminStore(this.#shell.text);
+  /** 品牌名可能按宿主目录翻译（`brand.titleKey`），读文案修订号使语言切换后重新计算。 */
+  protected readonly pageTitle = computed(() => {
+    this.textRevision();
+    return menuTitleOf(this.menu(), this.url()) ?? this.#shell.brandTitle;
+  });
   /** 刷新计数：变化时重建页面容器与 `*rxdbAdminPage` 模板实例。 */
   protected readonly refreshKey = computed(() => this.ui().refreshKey);
   protected readonly pageTemplate = contentChild(AdminPageDirective);

@@ -23,9 +23,9 @@
 import type { TransactionFun } from '@aiao/rxdb-adapter-sqlite-core';
 
 const fun: TransactionFun = async executor => {
-  // 持有 executor 才算「在本事务内」
+  // 持有 executor 才算「在本事务内」；仓库只收实体实例，不收普通对象
   const repo = executor.getRepository(Todo);
-  await repo.create({ title: 'inside tx' });
+  await repo.create(rxdb.entityManager.instantiate(Todo, { title: 'inside tx' }));
 
   // executor.execute(sql, bindings) 透传底层 client.execute，
   // 既有的 `transaction(async tx => tx.execute(sql))` 写法不受影响

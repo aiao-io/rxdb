@@ -207,6 +207,7 @@ indexes: [
 
 - `equal` 至少一列、`ranges` 至少一维。区间维只接受时间类与整数列，`bounds` 限 `[)` / `[]`；端点 NULL 即该侧无界，两后端一致（AC#13）。
 - **PG**：`EXCLUDE USING gist (<equal> WITH =, <range>(from, to, bounds) WITH &&, …)`，时间列（PG 侧是 `timestamptz`）取 `tstzrange`，整数取 `int8range`。
+  `bigint` 的 `[]` 维在上端点等于 int8 最大值时按上方无界构造（PG 把离散闭区间规范化成 `[from, to + 1)`，上界加一会溢出），表达式进约束名的哈希，所以这类排他的名字与 v0.0.28 不同（RV-01a1bbb3b74e）；违约时 PG 侧这一端的 `ranges` 报 `null`，SQLite 报原值，是同一组取值。
   相等列可以是关系外键，而 PGlite 的关系列在建表之后才 `ADD COLUMN`，所以排他以 `ALTER TABLE … ADD CONSTRAINT` 单列一条，与外键一起排在全部建表语句之后。
   `=` 上 GiST 要 `btree_gist`：有实体声明 `exclusions` 时，适配器从 `@electric-sql/pglite/contrib/btree_gist` 装载（OPFS worker 模式由 worker 入口装载），
   并在 `connect()` 里 `CREATE EXTENSION IF NOT EXISTS`，排在用户迁移之前。装载由实体元数据决定、不进用户的 `extensions`，备份扩展清单不变。

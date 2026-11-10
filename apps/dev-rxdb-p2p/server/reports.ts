@@ -47,7 +47,8 @@ export const SOURCE_URL_PATTERN = /^\/api\/files\/(enc\/)?[0-9a-f]{64}$/;
 export interface ReportDirectory {
   submit(input: ReportInput & { readonly reporterUser: string }): Promise<{ readonly created: boolean }>;
   listOpen(): Promise<readonly ReportRow[]>;
-  resolve(id: string, resolution: ReportResolution, resolvedBy: string): Promise<boolean>;
+  /** 写入处置结果；没写进去时 reject——举报仍留在未处置列表里，调用方必须把这次失败报出来。 */
+  resolve(id: string, resolution: ReportResolution, resolvedBy: string): Promise<void>;
   hasServerCopy(contentHash: string, sourceUrl: string, origin: string): Promise<boolean>;
 }
 

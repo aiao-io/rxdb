@@ -580,6 +580,32 @@ test('自报的文件名与真实文件不符会被指出来', () => {
   );
 });
 
+test('声明给了 executor、写却打在 adapter 上会被指出来：声明按宿主对象登记，换个宿主就拿不到', () => {
+  const source = [
+    'export const merge_branch = async (adapter, executor, actions) => {',
+    declaration({ scope: 'executor' }),
+    '  await adapter.mergeChanges(actions);',
+    '};',
+    ''
+  ].join('\n');
+  const offenders = audit(source);
+  assert.equal(offenders.length, 1, offenders.join('\n'));
+  assert.match(offenders[0], /只给 executor 声明了意图，写却打在 adapter 上/);
+});
+
+test('同一函数里两个宿主各自声明、各自写入时通过', () => {
+  const source = [
+    'export const merge_branch = async (adapter, executor, actions) => {',
+    declaration({ scope: 'executor' }),
+    '  await executor.mergeChanges(actions);',
+    declaration({ scope: 'adapter' }),
+    '  await adapter.mergeChanges(actions);',
+    '};',
+    ''
+  ].join('\n');
+  assert.deepEqual(audit(source), []);
+});
+
 test('声明挂在不是写原语宿主的变量上会被指出来', () => {
   const source = [
     'export const merge_branch = async (version) => {',

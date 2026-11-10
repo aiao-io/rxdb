@@ -133,9 +133,30 @@ export async function expectListEmpty(page: Page): Promise<void> {
   await expect(page.getByTestId('entity-empty-state')).toBeVisible();
 }
 
-/** 列表有数据：空态容器消失（计数徽标只在有筛选时渲染，行本身在 canvas 上不可 DOM 定位）。 */
-export async function expectListHasRows(page: Page): Promise<void> {
+/** 从实体列表画布上的 VTable 实例读当前记录，只取给定字段；表格还没挂上时为 `null`。 */
+async function readListRecords(page: Page, fields: readonly string[]): Promise<Array<Record<string, unknown>> | null> {
+  return page.evaluate(
+    keys => {
+      type TableCanvas = HTMLCanvasElement & { __vtable__?: { records?: Array<Record<string, unknown>> } };
+      const canvas = document.querySelector<TableCanvas>('[data-testid="entity-shell"] canvas');
+      const records = canvas?.__vtable__?.records;
+      return records ? records.map(record => Object.fromEntries(keys.map(key => [key, record[key]]))) : null;
+    },
+    [...fields]
+  );
+}
+
+/**
+ * 列表有数据：从画布上的真实表格实例读到记录。空态不在 DOM 不是正向证据——实体页还没挂载、
+ * 列表在加载或加载失败时它同样不在（行画在 canvas 上，不可 DOM 定位）。
+ * @param page - 页面。
+ * @param expected - 给出时要求某一行的这些字段与之相等，数据保留类用例用它核对原记录的身份与值。
+ */
+export async function expectListHasRows(page: Page, expected: Record<string, unknown> = {}): Promise<void> {
   await expect(page.getByTestId('entity-empty-state')).toHaveCount(0);
+  await expect
+    .poll(() => readListRecords(page, Object.keys(expected)), { timeout: 15000 })
+    .toEqual(expect.arrayContaining([expect.objectContaining(expected)]));
 }
 
 /**

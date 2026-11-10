@@ -1,10 +1,10 @@
 import { EntityType, RxDBEntityId } from '../entity/entity.interface.js';
-import { FindAllOptions } from '../repository/query-options.interface.js';
+import { FindAllOptions, OrderBy } from '../repository/query-options.interface.js';
 import { RuleGroup } from '../repository/query.interface.js';
 import { QueryTask } from '../repository/QueryTask.js';
 import { RxDBEntityLocalUpdatedEventData } from '../rxdb-events.js';
 import { tryGetEntityStatus } from '../rxdb-utils.js';
-import { isEntityMatchWhere } from './query-matching.utils.js';
+import { calculateOrderBy, isEntityMatchWhere } from './query-matching.utils.js';
 import { isStaleEventPayload } from './stale-event.utils.js';
 
 /**
@@ -14,6 +14,35 @@ export const getEntityId = (entity: Record<string, unknown> | null | undefined):
   if (!entity) return undefined;
   const id = entity['id'];
   return typeof id === 'string' || typeof id === 'number' || typeof id === 'bigint' ? id : undefined;
+};
+
+/**
+ * 实体在库里的样子：被本地编辑过的键取基线值。
+ *
+ * @param entity - 缓存里的实体实例，或任意普通对象
+ * @returns 未修改时原样返回；有未保存编辑时返回新的普通对象，不改写实体
+ *
+ * @remarks
+ * 脏实体的可见值里混着用户还没保存的编辑（外部更新经 `applyExternal` 逐字段避让它们），
+ * SQL 活查询不会按这些值算。`inversePatch` 正是被编辑的键在 `origin` 上的值，外部更新推进的
+ * 也是这份基线。增量合并判 where、分类前后态、排序都要用它，否则同一个查询走 SQL 与走 JS
+ * 会得到两份不同的成员集合（实体引用本身照样保留草稿）。
+ */
+export const persistedState = <V extends object>(entity: V): V => {
+  const status = tryGetEntityStatus(entity);
+  return status?.modified ? ({ ...entity, ...status.inversePatch } as V) : entity;
+};
+
+/**
+ * 按库里的值排序一组实体，返回实体引用本身。
+ *
+ * @param entities - 要排序的实体
+ * @param orderBy - 排序规则
+ * @returns 排好序的新数组
+ */
+export const orderByPersisted = <V extends object>(entities: V[], orderBy: OrderBy<string>[]): V[] => {
+  const byView = new Map(entities.map(entity => [persistedState(entity), entity] as const));
+  return calculateOrderBy([...byView.keys()], orderBy).map(view => byView.get(view)!);
 };
 
 export const invalidateEntityFingerprint = <T extends EntityType>(entity: InstanceType<T>): void => {
@@ -183,6 +212,9 @@ export interface UpdateClassification {
  * 缺失字段会恒判 false，导致 newlyUnmatchedIds 漏算、count 静默偏差。
  * 这里统一通过 cache 取更新前/后态再判定；where 用到的字段补不齐时，
  * UPDATE 门控已经回 SQL，走不到这里。
+ *
+ * 前后态都按库里的值（{@link persistedState}）判：与刷新门控、SQL 活查询同一口径，
+ * 实体上未保存的编辑不改变它在查询里的成员资格。
  */
 export const classifyUpdates = <T extends EntityType>(
   data: RxDBEntityLocalUpdatedEventData<T>[],
@@ -197,8 +229,11 @@ export const classifyUpdates = <T extends EntityType>(
   for (const e of data) {
     const id = e.id as RxDBEntityId;
     updatedIds.add(id);
-    const nowEntity = cache.getSerializedUpdate(id);
-    const beforeEntity = cache.getSerializedBefore(id);
+    // 先取更新后态：序列化顺带把补丁合进身份缓存，这一步不能省
+    const after = cache.getSerializedUpdate(id);
+    const nowEntity = after && persistedState(after);
+    // 前态 = 库里的更新后态叠加本批合并后的 inversePatch（同 getSerializedBefore 的构造，底换成库里的值）
+    const beforeEntity = { ...nowEntity, ...cache.getData(id)?.inversePatch, id } as InstanceType<T>;
     if (!where || isEntityMatchWhere(nowEntity, where)) matchNowIds.add(id);
     if (!where || isEntityMatchWhere(beforeEntity, where)) matchBeforeIds.add(id);
   }

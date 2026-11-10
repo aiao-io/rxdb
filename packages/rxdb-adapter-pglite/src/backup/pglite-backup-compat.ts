@@ -2,6 +2,7 @@ import type { RxDB } from '@aiao/rxdb';
 import {
   getEntityMetadata,
   getRxDBBackupAuthDomain,
+  getRxDBBackupConstraintFingerprint,
   getRxDBBackupSchemaFingerprint,
   getRxDBSystemVersionState,
   RXDB_CHANGE_CODEC_VERSION,
@@ -169,6 +170,7 @@ export const pgliteTargetCompatibility = async (
     systemSchemaVersion: RXDB_SYSTEM_SCHEMA_VERSION,
     changeCodecVersion: RXDB_CHANGE_CODEC_VERSION,
     schemaFingerprint: getRxDBBackupSchemaFingerprint(rxdb),
+    constraintFingerprint: getRxDBBackupConstraintFingerprint(rxdb),
     authDomain: getRxDBBackupAuthDomain(rxdb)
   };
 };

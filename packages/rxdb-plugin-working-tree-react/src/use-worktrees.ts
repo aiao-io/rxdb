@@ -9,11 +9,24 @@ import {
 import { useRxDB } from '@aiao/rxdb-react';
 import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 
-/** 十格状态连同产生它的库：换库后旧库的写回凭 `database` 识别并丢弃。 */
+/**
+ * 十格状态连同产生它的入口：换库后旧入口的写回凭 `entry` 识别并丢弃。
+ *
+ * @remarks
+ * `entry` 每建一次 slot 新建一个对象，不拿库本身当身份：A→B→A 回到同一个库对象时
+ * 库身份重新相等，首次 A 入口迟到的结果会混进第二次 A 入口，覆盖它已完成的查询。
+ */
 interface WorktreesSlot {
   readonly database: ReturnType<typeof useRxDB>;
+  readonly entry: object;
   readonly states: WorktreeAsyncStates;
 }
+
+const openSlot = (database: ReturnType<typeof useRxDB>): WorktreesSlot => ({
+  database,
+  entry: {},
+  states: WORKTREE_INITIAL_ASYNC_STATES
+});
 
 /** 本实例挂着的那套表，给 `useSyncExternalStore` 的外部 store。 */
 interface MountedStore {
@@ -87,16 +100,17 @@ export type WorktreesResource = Readonly<WorktreeAsyncStates> &
  */
 export const useWorktrees = (): WorktreesResource => {
   const database = useRxDB();
-  const [slot, setSlot] = useState<WorktreesSlot>(() => ({ database, states: WORKTREE_INITIAL_ASYNC_STATES }));
-  if (slot.database !== database) setSlot({ database, states: WORKTREE_INITIAL_ASYNC_STATES });
+  const [slot, setSlot] = useState<WorktreesSlot>(() => openSlot(database));
+  if (slot.database !== database) setSlot(openSlot(database));
+  const { entry } = slot;
 
   // 函数式更新：命令的闭包活得比某一次 render 长，读 `states` 会读到发起那一刻的旧值
   const patch = useCallback<Parameters<typeof createWorktreeCommands>[1]>(
     (key, state) =>
       setSlot(current =>
-        current.database === database ? { database, states: { ...current.states, [key]: state } } : current
+        current.entry === entry ? { ...current, states: { ...current.states, [key]: state } } : current
       ),
-    [database]
+    [entry]
   );
   const commands = useMemo(() => createWorktreeCommands(database, patch), [database, patch]);
   const mountedStore = useMemo(() => createMountedStore(database), [database]);

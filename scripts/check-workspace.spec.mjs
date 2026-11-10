@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import {
   copyFileSync,
   existsSync,
@@ -13,7 +14,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
 
-import { POSTINSTALL_NX_ENV, buildNeedLibs, pruneDanglingBinShims } from './check-workspace.mjs';
+import { ENV_CONFIGS, POSTINSTALL_NX_ENV, buildNeedLibs, pruneDanglingBinShims } from './check-workspace.mjs';
 
 const BUILD_ARG = 'nx run-many --target=build --projects=rxdb-test --no-cloud';
 const GRAPH_PROBE_ARG = 'nx show projects --json';
@@ -98,6 +99,19 @@ test('空项目列表不跑 nx', async () => {
     }
   });
   assert.equal(called, false);
+});
+
+// docker/README.md 的快速开始第一步就是 `cp .env.example .env`，postinstall 也从这份模板初始化 docker/.env。
+// 模板曾被根 .gitignore 的 `.env*` 一并忽略、从未入库：老检出靠残留的未跟踪文件能跑，干净检出直接 ENOENT。
+test('docker/.env.example 随仓库提供，不被 .gitignore 忽略', () => {
+  const dockerTemplate = ENV_CONFIGS.map(([, example]) => example).find(example =>
+    example.endsWith(join('docker', '.env.example'))
+  );
+  assert.ok(dockerTemplate, 'postinstall 应当从 docker/.env.example 初始化 docker/.env');
+  assert.ok(existsSync(dockerTemplate), `${dockerTemplate} 不存在：干净检出照 docker/README.md 复制会 ENOENT`);
+
+  const checkIgnore = spawnSync('git', ['check-ignore', '-q', dockerTemplate], { cwd: dirname(dockerTemplate) });
+  assert.equal(checkIgnore.status, 1, 'docker/.env.example 被 .gitignore 忽略，提交时进不了仓库');
 });
 
 /** 造一个 pnpm 风格的 sh shim：exec 行指向 `node_modules/.pnpm/<storeDir>/...` */

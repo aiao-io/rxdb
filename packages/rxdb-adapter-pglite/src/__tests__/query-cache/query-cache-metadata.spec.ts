@@ -46,6 +46,32 @@ class QcShopItem extends EntityBase {
   sku!: string;
 }
 
+/**
+ * public 与 tenant 下同名、同表名的一对实体（RV-01a1bb299b62），物理上只靠 schema 区分。
+ *
+ * @remarks
+ * QueryCache 经 `queryCacheEntityIdentifier` 给 public 实体传裸名 `QcTwin`、给 tenant 实体传
+ * `tenant:QcTwin`，在线读写与离线重放的本地缓存回填都走这三个批量方法。
+ */
+@Entity({
+  name: 'QcTwin',
+  tableName: 'qc_twins',
+  properties: [{ name: 'label', type: PropertyType.string }]
+})
+class QcPublicTwin extends EntityBase {
+  label!: string;
+}
+
+@Entity({
+  name: 'QcTwin',
+  namespace: 'tenant',
+  tableName: 'qc_twins',
+  properties: [{ name: 'label', type: PropertyType.string }]
+})
+class QcTenantTwin extends EntityBase {
+  label!: string;
+}
+
 describe('PGL-012 QueryCache 必须遵守实体 metadata', () => {
   let rxdb: RxDB;
   let adapter: RxDBAdapterPGlite;
@@ -54,7 +80,7 @@ describe('PGL-012 QueryCache 必须遵守实体 metadata', () => {
     const db = new RxDB({
       dbName: generateDbName(),
       context: { userId: 'userId' },
-      entities: [QcArticle, QcShopItem],
+      entities: [QcArticle, QcShopItem, QcPublicTwin, QcTenantTwin],
       sync: { local: { adapter: 'pglite' }, type: SyncType.None }
     });
     db.adapter('pglite', db => new RxDBAdapterPGlite(db, { store: 'memory' }));
@@ -121,7 +147,7 @@ describe('PGL-012 QueryCache 必须遵守实体 metadata', () => {
       item.sku = 'SKU-META';
       await item.save();
 
-      const result = await firstValueFrom(adapter.getMetadataByIds('QcShopItem', [item.id]));
+      const result = await firstValueFrom(adapter.getMetadataByIds('shop:QcShopItem', [item.id]));
       expect(result.size).toBe(1);
       expect(result.has(item.id)).toBe(true);
     });
@@ -129,7 +155,7 @@ describe('PGL-012 QueryCache 必须遵守实体 metadata', () => {
     it('upsertMany 必须写进实体自己的 schema', async () => {
       const id = crypto.randomUUID();
       await firstValueFrom(
-        adapter.upsertMany('QcShopItem', [{ id, sku: 'SKU-UPSERT', createdAt: now(), updatedAt: now() }])
+        adapter.upsertMany('shop:QcShopItem', [{ id, sku: 'SKU-UPSERT', createdAt: now(), updatedAt: now() }])
       );
 
       const result = await adapter.internalQuery<Record<string, unknown>>(
@@ -145,13 +171,90 @@ describe('PGL-012 QueryCache 必须遵守实体 metadata', () => {
       item.sku = 'SKU-DELETE';
       await item.save();
 
-      await firstValueFrom(adapter.deleteByIds('QcShopItem', [item.id]));
+      await firstValueFrom(adapter.deleteByIds('shop:QcShopItem', [item.id]));
 
       const result = await adapter.internalQuery<Record<string, unknown>>(
         `SELECT "sku" FROM "shop"."qc_shop_items" WHERE id = $1`,
         [item.id]
       );
       expect(result.rows).toHaveLength(0);
+    });
+
+    it('裸名只认 public：只配在 shop 下的实体写裸名即报未配置，行分毫不动（RV-01a1bb299b62）', async () => {
+      // 与 sqlite-core 同一契约：裸名不去别的命名空间里找唯一匹配，非 public 实体必须写 `namespace:entity`
+      const item = new QcShopItem();
+      item.sku = 'SKU-BARE';
+      await item.save();
+
+      await expect(firstValueFrom(adapter.getMetadataByIds('QcShopItem', [item.id]))).rejects.toThrow(
+        'QueryCache: entity "QcShopItem" is not configured in namespace "public"'
+      );
+      await expect(firstValueFrom(adapter.deleteByIds('QcShopItem', [item.id]))).rejects.toThrow('"namespace:entity"');
+
+      const result = await adapter.internalQuery<Record<string, unknown>>(
+        `SELECT "sku" FROM "shop"."qc_shop_items" WHERE id = $1`,
+        [item.id]
+      );
+      expect(result.rows).toHaveLength(1);
+    });
+  });
+
+  describe('public 与别的命名空间同名（RV-01a1bb299b62）', () => {
+    const seedTwins = async (): Promise<{ publicId: string; tenantId: string }> => {
+      const publicTwin = new QcPublicTwin();
+      publicTwin.label = 'public';
+      await publicTwin.save();
+      const tenantTwin = new QcTenantTwin();
+      tenantTwin.label = 'tenant';
+      await tenantTwin.save();
+      return { publicId: publicTwin.id, tenantId: tenantTwin.id };
+    };
+
+    const labelsIn = async (schema: 'public' | 'tenant', ids: string[]): Promise<Map<unknown, unknown>> => {
+      const result = await adapter.internalQuery<Record<string, unknown>>(
+        `SELECT id, "label" FROM "${schema}"."qc_twins" WHERE id = ANY($1)`,
+        [ids]
+      );
+      return new Map(result.rows.map(row => [row.id, row.label]));
+    };
+
+    it('getMetadataByIds 的裸名只读 public 表，tenant: 限定只读 tenant 表', async () => {
+      const { publicId, tenantId } = await seedTwins();
+
+      const bare = await firstValueFrom(adapter.getMetadataByIds('QcTwin', [publicId, tenantId]));
+      const qualified = await firstValueFrom(adapter.getMetadataByIds('tenant:QcTwin', [publicId, tenantId]));
+
+      expect([...bare.keys()]).toEqual([publicId]);
+      expect([...qualified.keys()]).toEqual([tenantId]);
+    });
+
+    it('upsertMany 的裸名写进 public 表，tenant 表分毫不动', async () => {
+      const { publicId, tenantId } = await seedTwins();
+      const freshId = crypto.randomUUID();
+
+      await firstValueFrom(
+        adapter.upsertMany('QcTwin', [
+          { id: publicId, label: 'public-updated', createdAt: now(), updatedAt: now() },
+          { id: freshId, label: 'public-fresh', createdAt: now(), updatedAt: now() }
+        ])
+      );
+
+      expect(await labelsIn('public', [publicId, freshId])).toEqual(
+        new Map([
+          [publicId, 'public-updated'],
+          [freshId, 'public-fresh']
+        ])
+      );
+      expect(await labelsIn('tenant', [publicId, tenantId, freshId])).toEqual(new Map([[tenantId, 'tenant']]));
+    });
+
+    it('deleteByIds 的裸名只删 public 表里的行', async () => {
+      const { publicId, tenantId } = await seedTwins();
+
+      await firstValueFrom(adapter.deleteByIds('QcTwin', [publicId, tenantId]));
+
+      expect(await labelsIn('public', [publicId, tenantId])).toEqual(new Map());
+      expect(await labelsIn('tenant', [tenantId])).toEqual(new Map([[tenantId, 'tenant']]));
     });
   });
 

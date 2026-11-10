@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { formatFileName, normalizeFileExtension } from '../pages/file-manager/utils/file-name';
 import { getSortComparator, loadStoredSortMode, persistSortMode, SortMode } from '../utils/file-sorters';
 import { collectSubtreePostOrder } from '../utils/tree-scope';
+import { collectSearchPath } from '../utils/tree-search';
 import { PathConflict, useFilePathValidator } from './useFilePathValidator';
 import { useTreeWriteError } from './useTreeWriteError';
 
@@ -95,33 +96,19 @@ export function useFileManagerStore(files: SortableFileNode[]) {
     const sortFiles = (fileList: SortableFileNode[]): SortableFileNode[] =>
       comparator === null ? fileList : [...fileList].sort(comparator);
 
+    // 搜索时只显示命中项及其祖先，祖先临时画成展开（不改用户的展开集合）
+    const search = searchKeyword ? collectSearchPath(files, file => matchedFileIds.has(file.id)) : null;
+
     // 递归构建节点
     const buildNodes = (parentId: string | null, level: number) => {
       const children = childrenMap.get(parentId) || [];
       const sorted = sortFiles(children);
 
       sorted.forEach(file => {
+        if (search && !search.visible.has(file.id)) return;
         const hasChildren = childrenMap.has(file.id) && childrenMap.get(file.id)!.length > 0;
-        const isExpanded = expandedIds.has(file.id);
-        const isMatched = matchedFileIds.has(file.id); // 搜索过滤
-        if (searchKeyword) {
-          const keyword = searchKeyword.toLowerCase();
-          const fileFullName = formatFileName(file.name, file.extension);
-          const matchesSearch = fileFullName.toLowerCase().includes(keyword);
-          if (!matchesSearch) {
-            // 检查是否有匹配的子节点
-            const hasMatchingChildren = (id: string): boolean => {
-              const kids = childrenMap.get(id) || [];
-              return kids.some(kid => {
-                const kidFullName = formatFileName(kid.name, kid.extension);
-                return kidFullName.toLowerCase().includes(keyword) || hasMatchingChildren(kid.id);
-              });
-            };
-            if (!hasMatchingChildren(file.id)) {
-              return;
-            }
-          }
-        }
+        const isExpanded = expandedIds.has(file.id) || (search?.ancestors.has(file.id) ?? false);
+        const isMatched = matchedFileIds.has(file.id);
 
         nodes.push({
           file,

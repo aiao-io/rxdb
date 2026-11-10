@@ -361,6 +361,36 @@ export interface HttpChangeFeedUnavailableReport {
 export type HttpChangeFeedUnavailableHook = (report: HttpChangeFeedUnavailableReport) => void;
 
 /**
+ * 变更通知通道**接通**那一刻的事实。
+ *
+ * @remarks
+ * 与 {@link HttpChangeFeedUnavailableReport} 配成一对：一个报「通道没了」，一个报「通道通了」。
+ * 少了这一半，包外判断连接死活只剩启用意图（`RxDBAdapterHttp.changeFeedEnabled`，网线断了
+ * 它照样是 `true`）与故障上报——而故障上报在重连成功之后没有任何后续，拿「报过故障」当
+ * 「此刻断着」，恢复之后也会一直显示断开。
+ *
+ * 字段只有 URL：「连上了」本身就是全部事实，`EventSource` 的 `open` 事件不带任何别的信息。
+ *
+ * @experimental 随 {@link HttpAdapterOptions.changeFeed} 一起不在 1.0 兼容承诺内。
+ */
+export interface HttpChangeFeedOpenReport {
+  /** 通知端点的绝对 URL */
+  url: string;
+}
+
+/**
+ * 诊断回调：变更通知通道接通时被调用。
+ *
+ * @remarks
+ * **同步调用、返回值忽略、抛错被丢弃**，与 {@link HttpChangeFeedUnavailableHook} 同一条口径：
+ * 诊断口失败绝不能带塌通道。它在这次接通的记账（退避判据的起点、D7 全量失效）之后才被调用，
+ * 抛错时那些都已经做完。
+ *
+ * @experimental 随 {@link HttpAdapterOptions.changeFeed} 一起不在 1.0 兼容承诺内。
+ */
+export type HttpChangeFeedOpenHook = (report: HttpChangeFeedOpenReport) => void;
+
+/**
  * 收到一条**读得懂**的变更通知时的事实（US-023 AC#24）。
  *
  * @remarks
@@ -420,6 +450,28 @@ export interface HttpChangeFeedOptions {
   reconnectBaseDelayMs?: number;
   /** 退避重连的延迟上限（毫秒）。默认 `30000`；必须是 finite 正整数且不小于起步延迟 */
   reconnectMaxDelayMs?: number;
+  /**
+   * 通道接通时的诊断回调。
+   *
+   * @remarks
+   * 与 {@link HttpChangeFeedOptions.onUnavailable} 对称：一个报「通道通了」，一个报「通道没了」，
+   * 两个合起来才答得了「此刻通没通」——`RxDBAdapterHttp.changeFeedEnabled` 答的只是「要不要跑」。
+   *
+   * 触发语义：
+   *
+   * - **`EventSource` 每派发一次 `open` 就报一次**：首次连接、本包退避接管后的重连、浏览器原生
+   *   重连一视同仁，与「连接成功 = 全量失效」（D7）是同一个时刻。`connect()` /
+   *   `startChangeFeed()` 本身不报——它们只是发起连接。
+   * - **报在这次连接的全量失效之后**：回调被调用时，每个已订阅实体的失效都已交给 core。
+   * - **它说的是「此刻连上了」，不是「这条连接稳定」**：后端接受连接后立刻关闭时，本回调与
+   *   `onUnavailable` 会交替出现；退避计数照旧要等连接活过一个退避周期才归零，不因接通而清零。
+   * - `stopChangeFeed()` / `disconnect()` 之后迟到的 `open` 不报。
+   *
+   * 不配它时通道的行为完全不变。抛出的错误被丢弃，理由见 {@link HttpChangeFeedOpenHook}。
+   *
+   * @experimental 随 {@link HttpAdapterOptions.changeFeed} 一起不在 1.0 兼容承诺内。
+   */
+  onOpen?: HttpChangeFeedOpenHook;
   /**
    * 通道不可用时的诊断回调。
    *

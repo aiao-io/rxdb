@@ -68,13 +68,11 @@ const hasProvider = useHasRxDBProvider(); // 只回答有没有 Provider，与�
 - `useFindByCursor`
 - `useFindAll`
 - `useCount`
-- `useFindDescendants`
-- `useCountDescendants`
-- `useFindAncestors`
-- `useCountAncestors`
 - `useGraphNeighbors`
 - `useCountNeighbors`
 - `useGraphPaths`
+
+树查询 hooks（`useFindDescendants`、`useCountDescendants`、`useFindAncestors`、`useCountAncestors`）不在本包，由 [`@aiao/rxdb-plugin-tree-react`](../rxdb-plugin-tree-react/README.md) 提供。
 
 查询失败采用 stale-while-error 语义：`value` 保留最后一次成功值，`error` 保存原始 `Error`，`hasValue` 变为 `false`，`isEmpty` 变为 `undefined`。
 
@@ -128,7 +126,7 @@ return <button onClick={() => theme.setValue('light')}>{theme.value}</button>;
 - 是**快照**语义：对象原地改字段不会重渲染也不会落盘，必须整体 `setValue`。`setValue` 的 identity 跨渲染稳定。
 - 订阅走 `useSyncExternalStore`，并发渲染与 `StrictMode` 下都不会读到撕裂的快照。
 - 写盘失败**不抛错**，内存值照常更新，失败经 `persistError` 暴露 —— 这是唯一能知道数据没落盘的途径。
-- SSR 下不读也不写 `localStorage`，退化成纯内存值；暂不监听 `storage` 事件，因此不跨标签页同步。
+- SSR 下不读也不写 `localStorage`，也不在进程内注册表里登记：服务端快照恒为本次调用的 `initialValue`，连续或并发的请求之间互不可见，同 key 跨请求换值类型也不抛错；hydrate 用同一个快照对齐服务端 HTML，提交后再切到盘上值。暂不监听 `storage` 事件，因此不跨标签页同步。
 
 ## 实体实时变更
 

@@ -95,7 +95,7 @@ const harness = (overrides: { config?: () => ReturnType<AdminRouteDeps['config']
   const reports = {
     listOpen: vi.fn<AdminRouteDeps['reports']['listOpen']>(async () => []),
     submit: vi.fn(async () => ({ created: true })),
-    resolve: vi.fn(async () => true),
+    resolve: vi.fn(async () => undefined),
     hasServerCopy: vi.fn(async () => true)
   } satisfies AdminRouteDeps['reports'];
   const invites = {
@@ -695,6 +695,40 @@ describe('治理路由（POOL-US-102）', () => {
     expect(h.directory.setBanned).not.toHaveBeenCalled();
     expect(h.room.evict).not.toHaveBeenCalled();
     expect(h.reports.resolve).not.toHaveBeenCalled();
+  });
+
+  // 副本删掉了、归档没写进去：管理台得看见这次失败；重试时副本已经不在，归档照样要能收尾，
+  // 否则这条举报只能永远停在未处置列表里（或被改记成 ignore）。
+  it('归档失败时处置回 502，副本已删的重试照样按 delete_copy 归档', async () => {
+    const h = harness();
+    vi.mocked(h.reports.listOpen).mockResolvedValue([
+      {
+        id: REPORT,
+        targetHash: HASH_A,
+        targetUser: null,
+        sourceUrl: `/api/files/${HASH_A}`,
+        category: 'malware',
+        reporterUser: BOB,
+        createdAt: '2026-11-05T00:00:00Z',
+        resolvedAt: null,
+        resolution: null
+      }
+    ]);
+    let stored = true;
+    h.bucket.head.mockImplementation(async key => (stored && key === `files/${HASH_A}` ? { size: 10 } : null));
+    h.bucket.delete.mockImplementation(async () => {
+      stored = false;
+    });
+    vi.mocked(h.reports.resolve).mockRejectedValueOnce(new Error('PostgREST responded 503'));
+
+    const failed = await h.call('POST', `/reports/${REPORT}/resolve?resolution=delete_copy`);
+    expect(failed.status).toBe(502);
+    expect(stored).toBe(false);
+
+    const retried = await h.call('POST', `/reports/${REPORT}/resolve?resolution=delete_copy`);
+    expect(retried.status).toBe(204);
+    expect(h.reports.resolve).toHaveBeenCalledTimes(2);
+    expect(h.reports.resolve).toHaveBeenLastCalledWith(REPORT, 'delete_copy', ROOT);
   });
 
   it('发码与作废', async () => {

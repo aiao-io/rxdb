@@ -1,11 +1,11 @@
 import { ENTITY_STATIC_TYPES, RxDB } from '@aiao/rxdb';
 import { mergeCreatedIntoCursorPage } from '@aiao/rxdb-test';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
-import { StrictMode, createElement, type PropsWithChildren, type ReactElement } from 'react';
+import { StrictMode, createElement, useLayoutEffect, type PropsWithChildren, type ReactElement } from 'react';
 import { BehaviorSubject, EMPTY, NEVER, Observable, Subject, map, of, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RxDBProvider } from '../rxdb-react';
-import { useInfiniteScroll } from '../useInfiniteScroll';
+import { useInfiniteScroll, type InfiniteScrollResource } from '../useInfiniteScroll';
 
 interface CursorOptions {
   after?: CursorEntity;
@@ -521,6 +521,157 @@ describe('useInfiniteScroll', () => {
       sequence.push(snapshot('refresh-recovered'));
 
       expect(sequence).toEqual(SHARED_STATE_SEQUENCE);
+    });
+  });
+
+  // RV-01a1bb46f579：新查询身份的首个提交与消费者 layout effect 都早于被动 effect 里的复位，
+  // 只在 waitFor 之后看最终结果会越过这一帧
+  describe('查询身份切换的首个提交', () => {
+    interface Commit {
+      readonly ids: string[];
+      readonly isLoading: boolean;
+      readonly hasMore: boolean;
+      readonly error: Error | undefined;
+      readonly isEmpty: boolean;
+    }
+
+    const PENDING: Commit = { ids: [], isLoading: true, hasMore: true, error: undefined, isEmpty: false };
+
+    const record = (commits: Commit[], resource: InfiniteScrollResource<CursorEntity>) =>
+      commits.push({
+        ids: resource.value.map(entity => entity.id),
+        isLoading: resource.isLoading,
+        hasMore: resource.hasMore,
+        error: resource.error,
+        isEmpty: resource.isEmpty
+      });
+
+    it('筛选变化后的提交不再报告旧列表与已加载完成，被动清理前旧流的迟到发射也进不来', async () => {
+      const first = new Subject<CursorEntity[]>();
+      findByCursor.mockImplementation(options => (options.key === 'a' ? first : NEVER));
+      const commits: Commit[] = [];
+      const { rerender } = renderHook(
+        ({ key }: { key: string }) => {
+          const resource = useInfiniteScroll(CursorEntity, { key, limit: 1 });
+          useLayoutEffect(() => {
+            if (key !== 'b') return;
+            record(commits, resource);
+            // 新查询已提交、被动 effect 还没退订旧流时，旧流再发射一次
+            if (commits.length === 1) first.next([new CursorEntity('a-late')]);
+          });
+          return resource;
+        },
+        { initialProps: { key: 'a' }, wrapper: createDatabaseWrapper() }
+      );
+
+      await waitFor(() => expect(findByCursor).toHaveBeenCalledTimes(1));
+      act(() => first.next([new CursorEntity('a-private')]));
+      rerender({ key: 'b' });
+      await waitFor(() => expect(findByCursor).toHaveBeenCalledTimes(2));
+
+      expect(commits.length).toBeGreaterThan(0);
+      commits.forEach(commit => expect(commit).toEqual(PENDING));
+    });
+
+    it('数据库切换后的提交不再报告旧库的列表', async () => {
+      const first = new Subject<CursorEntity[]>();
+      findByCursor.mockReturnValue(first);
+      const otherFindByCursor = vi.fn(() => NEVER);
+      const otherDatabase = {
+        entityManager: { getRepository: () => ({ findByCursor: otherFindByCursor }) }
+      } as unknown as RxDB;
+      let db = database;
+      const commits: Commit[] = [];
+      const { rerender } = renderHook(
+        () => {
+          const resource = useInfiniteScroll(CursorEntity, { key: 'same', limit: 1 });
+          useLayoutEffect(() => {
+            if (db === otherDatabase) record(commits, resource);
+          });
+          return resource;
+        },
+        { wrapper: ({ children }: PropsWithChildren) => createElement(RxDBProvider, { db }, children) }
+      );
+
+      await waitFor(() => expect(findByCursor).toHaveBeenCalledTimes(1));
+      act(() => first.next([new CursorEntity('old-database')]));
+      db = otherDatabase;
+      rerender();
+      await waitFor(() => expect(otherFindByCursor).toHaveBeenCalledTimes(1));
+
+      expect(commits.length).toBeGreaterThan(0);
+      commits.forEach(commit => expect(commit).toEqual(PENDING));
+    });
+  });
+
+  // RV-01a1bb42cfeb：用户发起的下一页首值未到时，上一页尾边界移动会重锚它；
+  // 加载编号必须随页移交给替代页，否则 isLoading 永远结不了、loadMore 被永久拦截
+  describe('在途页被重锚或丢弃时的加载结算', () => {
+    const renderStalledSecondPage = async () => {
+      const first$ = new BehaviorSubject<CursorEntity[]>([new CursorEntity('a', 1), new CursorEntity('b', 2)]);
+      const stalled$ = new Subject<CursorEntity[]>();
+      const replacement$ = new Subject<CursorEntity[]>();
+      const third$ = new Subject<CursorEntity[]>();
+      findByCursor.mockImplementation(options => {
+        if (options.after === undefined) return first$;
+        if (options.after.id === 'b') return stalled$;
+        return options.after.id === 'a' ? replacement$ : third$;
+      });
+      const { result } = renderHook(() => useInfiniteScroll(CursorEntity, { key: 'reanchor', limit: 2 }), {
+        wrapper: createDatabaseWrapper()
+      });
+
+      await waitFor(() => expect(result.current.value).toHaveLength(2));
+      act(() => result.current.loadMore());
+      expect(result.current.isLoading).toBe(true);
+
+      return { result, first$, stalled$, replacement$, third$ };
+    };
+
+    const ids = (resource: { value: CursorEntity[] }): string[] => resource.value.map(entity => entity.id);
+
+    it('替代页返回后结束加载，之后还能继续翻页', async () => {
+      const { result, first$, stalled$, replacement$, third$ } = await renderStalledSecondPage();
+
+      act(() => first$.next([new CursorEntity('x', 0), new CursorEntity('a', 1)]));
+      expect(stalled$.observed).toBe(false);
+      act(() => {
+        replacement$.next([new CursorEntity('b', 2), new CursorEntity('c', 3)]);
+        replacement$.complete();
+      });
+
+      expect(ids(result.current)).toEqual(['x', 'a', 'b', 'c']);
+      expect(result.current).toMatchObject({ isLoading: false, hasMore: true, error: undefined });
+      act(() => result.current.loadMore());
+      expect(third$.observed).toBe(true);
+    });
+
+    it('替代页失败时结束加载并报告错误', async () => {
+      const { result, first$, replacement$ } = await renderStalledSecondPage();
+
+      act(() => first$.next([new CursorEntity('x', 0), new CursorEntity('a', 1)]));
+      act(() => replacement$.error(new Error('replacement failed')));
+
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.error?.message).toBe('replacement failed');
+    });
+
+    it('替代页一次都没发射就 complete 时结束加载并收敛 hasMore', async () => {
+      const { result, first$, replacement$ } = await renderStalledSecondPage();
+
+      act(() => first$.next([new CursorEntity('x', 0), new CursorEntity('a', 1)]));
+      act(() => replacement$.complete());
+
+      expect(result.current).toMatchObject({ isLoading: false, hasMore: false });
+    });
+
+    it('上一页清空、在途的下一页被丢弃时结束加载', async () => {
+      const { result, first$, stalled$ } = await renderStalledSecondPage();
+
+      act(() => first$.next([]));
+
+      expect(stalled$.observed).toBe(false);
+      expect(result.current).toMatchObject({ value: [], isLoading: false, hasMore: false, isEmpty: true });
     });
   });
 });

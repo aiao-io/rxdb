@@ -70,6 +70,27 @@ export function buildLastPushedMap(
 }
 
 /**
+ * 变更是否视同已推：所在仓库的水位线或在飞认领越过了它。
+ *
+ * @param change - 要判定的变更
+ * @param lastPushedMap - {@link buildLastPushedMap} 的结果
+ * @returns 越过即 `true`
+ *
+ * @remarks
+ * 选候选（{@link partitionUndoableHistories}）与写事务里的复核（`undo-redo-apply.ts`）共用这一个判据，
+ * 两处一宽一严就会放行一条已经在飞的变更。
+ *
+ * @internal
+ */
+export const isChangePushed = (
+  change: { readonly id: number; readonly namespace: string; readonly entity: string },
+  lastPushedMap: ReadonlyMap<string, number>
+): boolean => {
+  const lastPushedId = lastPushedMap.get(getRepositoryKey(change));
+  return lastPushedId != null && change.id <= lastPushedId;
+};
+
+/**
  * 按作用域过滤历史记录（纯函数）
  *
  * @param histories - 原始历史记录数组
@@ -236,8 +257,7 @@ export function partitionUndoableHistories(
     if (history.reverted) continue;
     const otherwiseUndoable = history.changes.every(change => {
       const isLocal = change.remoteId == null;
-      const lastPushedId = lastPushedMap.get(getRepositoryKey(change));
-      const notPushed = lastPushedId == null || change.id > lastPushedId;
+      const notPushed = !isChangePushed(change, lastPushedMap);
       const afterUndoBoundary = change.id > undoBoundaryChangeId;
       const afterUndoTimeBoundary =
         undoBoundaryCreatedAfter === null || change.createdAt.getTime() > undoBoundaryCreatedAfter.getTime();

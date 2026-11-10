@@ -1,6 +1,7 @@
+import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
 import { describe, expect, it } from 'vitest';
 import { executeOo1Helper } from '../execute_oo1_helper.js';
-import type { Oo1Database, Oo1PreparedStatement } from '../oo1-types.js';
+import { assertOo1Static, type Oo1Database, type Oo1PreparedStatement } from '../oo1-types.js';
 import { RxDBAdapterSqliteError } from '../sqlite-core.utils.js';
 
 interface FakeStatementOptions {
@@ -53,11 +54,15 @@ interface FakeExecOpts {
 }
 
 class FakeHelperDb implements Oo1Database {
+  #totalChanges = 0;
   readonly execCalls: FakeExecOpts[] = [];
   prepare?: (sql: string) => Oo1PreparedStatement;
   execError?: unknown;
   execResult?: { columns: string[]; rows: unknown[][] };
+  /** 最近一条写语句的计数（`db.changes()`）；没有新写入时原样保留，模拟 SQLite 对 SELECT 的行为 */
   changesCount = 0;
+  /** 本次 exec 会改的行数：exec 时计入累计变更并成为新的 `changesCount` */
+  execWrites = 0;
 
   exec(opts: FakeExecOpts): this {
     if (this.execError !== undefined) throw this.execError;
@@ -66,6 +71,10 @@ class FakeHelperDb implements Oo1Database {
       opts.columnNames?.push(...this.execResult.columns);
       opts.resultRows?.push(...this.execResult.rows);
     }
+    if (this.execWrites > 0) {
+      this.#totalChanges += this.execWrites;
+      this.changesCount = this.execWrites;
+    }
     return this;
   }
 
@@ -73,8 +82,8 @@ class FakeHelperDb implements Oo1Database {
     // 无操作。
   }
 
-  changes(): number {
-    return this.changesCount;
+  changes(total = false): number {
+    return total ? this.#totalChanges : this.changesCount;
   }
 
   createFunction(): this {
@@ -190,7 +199,7 @@ describe('executeOo1Helper', () => {
   describe('exec 路径', () => {
     it('非 SELECT 语句应该走 exec 路径且无结果集', () => {
       const db = new FakeHelperDb();
-      db.changesCount = 3;
+      db.execWrites = 3;
 
       const result = executeOo1Helper('test', db, 'INSERT INTO t VALUES (1)', [7]);
 
@@ -248,5 +257,54 @@ describe('executeOo1Helper', () => {
         'test execute() failed for SQL "DELETE FROM t": plain-failure'
       );
     });
+  });
+});
+
+/**
+ * `db.changes()` 对不改行的语句返回**上一条写语句**的计数；只按 SQL 文本猜「纯读」时，
+ * 文本里的分号、`returning` 字样与 `WITH` 开头都会把真实的读当成写。用真实引擎核对。
+ */
+describe('executeOo1Helper 在真实 sqlite-wasm 上的 rowsAffected', () => {
+  const openDb = async (): Promise<Oo1Database> => {
+    const initFn = sqlite3InitModule as (options: Record<string, unknown>) => Promise<unknown>;
+    const module = await initFn({ print: () => undefined, printErr: () => undefined });
+    assertOo1Static(module);
+    const db = new module.oo1.DB(':memory:');
+    db.exec({ sql: 'CREATE TABLE t (id INTEGER PRIMARY KEY, value TEXT)' });
+    return db;
+  };
+
+  it.each([
+    ['普通 SELECT', 'SELECT id FROM t'],
+    ['字符串里有分号', `SELECT 'a;b' AS value FROM t`],
+    ['字符串里有 returning', `SELECT 'returning' AS value FROM t`],
+    ['WITH 开头的读', 'WITH data AS (SELECT id FROM t) SELECT * FROM data'],
+    ['DDL', 'CREATE TABLE u (id INTEGER)'],
+    ['没命中的 UPDATE', `UPDATE t SET value = 'z' WHERE id = 999`]
+  ])('%s：上一条写入之后返回 0', async (_title, sql) => {
+    const db = await openDb();
+    try {
+      expect(executeOo1Helper('test', db, 'INSERT INTO t (value) VALUES (?)', ['x']).rowsAffected).toBe(1);
+
+      expect(executeOo1Helper('test', db, sql).rowsAffected).toBe(0);
+    } finally {
+      db.close();
+    }
+  });
+
+  it('真实写入照旧计数：exec 路径、带 RETURNING 的 CTE DML、多语句以最后一条写为准', async () => {
+    const db = await openDb();
+    try {
+      expect(executeOo1Helper('test', db, `INSERT INTO t (value) VALUES ('a'), ('b'), ('c')`).rowsAffected).toBe(3);
+      const returning = executeOo1Helper(
+        'test',
+        db,
+        `WITH picked AS (SELECT id FROM t WHERE value <> 'c') UPDATE t SET value = 'u' WHERE id IN (SELECT id FROM picked) RETURNING id`
+      );
+      expect(returning.rowsAffected).toBe(2);
+      expect(executeOo1Helper('test', db, `DELETE FROM t WHERE value = 'c'; SELECT 1`).rowsAffected).toBe(1);
+    } finally {
+      db.close();
+    }
   });
 });

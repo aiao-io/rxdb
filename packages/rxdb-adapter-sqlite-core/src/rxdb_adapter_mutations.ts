@@ -12,13 +12,13 @@ import { generate_entity_inserts_sql, get_insert_column_count } from './entity/i
 import { update_sql as generate_entity_update_sql } from './entity/update_sql.js';
 import { generate_sql } from './query/query_sql.js';
 import { MAIN_TABLE_ALIAS } from './query/query_sql.utils.js';
-import { SqliteRepository } from './repository/SqliteRepository.js';
 import type { RxDBAdapterSqliteBase } from './RxDBAdapterSqliteBase.js';
 import {
   chunkBySqliteBindLimit,
   get_primary_key_column,
   getEntityObjectFromResult,
   getMonotonicUpdatedAt,
+  normalizeUpdateEntity,
   quote_sql_identifier,
   ROWID
 } from './sqlite-core.utils.js';
@@ -33,6 +33,11 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
   const now = new Date();
   const em = adapter.rxdb.entityManager;
   const all_entities = new Set<InstanceType<T>>();
+
+  // 每个实体这次的提交记录（提交值 + 提交时的编辑序号）：回查回填按它收尾，执行期间的新输入留作未保存改动
+  const submissions = new Map<InstanceType<T>, { submitted: object; mark: number }>();
+  const remember_submission = (entity: InstanceType<T>, submitted: object) =>
+    submissions.set(entity, { submitted, mark: getEntityStatus(entity).writeMark(submitted) });
 
   const remember_entity_instance = (entityType: T, entity: InstanceType<T>) => {
     let inner = entity_instance_map.get(entityType);
@@ -67,7 +72,6 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
     sqliteSuccessResult: Awaited<ReturnType<typeof adapter.query>>
   ) => {
     const metadata = getEntityMetadata(entityType);
-    const repository = adapter.getRepository<T, SqliteRepository<T>>(entityType);
 
     // 结果集里的列名是物理列名，主键列可被 columnName 改写（SQLC-014）
     const primaryKeyColumn = get_primary_key_column(metadata);
@@ -102,11 +106,15 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
         }
 
         const targetEntity = entity!;
-        repository.updateEntity(targetEntity, entityObjectData);
-
+        // 不再无条件归零 modified：执行期间的新输入要留到下一次 save()。
+        // 本批提交过的实例按提交记录收尾（applyWriteResult：以回查的行推进基线，提交之后的新编辑保留）；
+        // 回查命中的若不是本批提交的那个实例（例如缓存槽里是同 id 的另一个实例），没有提交值可言，
+        // 那一行对它就是外部数据，走 applyExternal——外部数据落到已缓存实体的唯一策略入口，逐字段避让未保存编辑
         const state = getEntityStatus(targetEntity);
+        const submission = submissions.get(targetEntity);
+        if (submission) state.applyWriteResult(entityObjectData, submission.submitted, submission.mark);
+        else state.applyExternal(entityObjectData);
         state.local = true;
-        state.modified = false;
 
         if (rowIdIndex !== -1) {
           const rowId = BigInt(row[rowIdIndex] as number);
@@ -125,6 +133,7 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
     const meta = getEntityMetadata(EntityType);
 
     for (const entitiesChunk of chunkBySqliteBindLimit(entities, get_insert_column_count(meta))) {
+      for (const entity of entitiesChunk) remember_submission(entity, { ...entity });
       const insert_result = await generate_entity_inserts_sql(
         meta,
         adapter.tableSet,
@@ -162,7 +171,10 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
 
     for (const entity of entities) {
       const patch = getEntityStatus(entity).patch;
-      if (patch === null || Object.keys(patch).length === 0) continue;
+      remember_submission(entity, patch);
+      // 按归一后的 patch 判空：只读属性在实例上可以赋值，normalizeUpdateEntity 会把它们滤掉，
+      // 只剩只读编辑的 patch 归一后为空，update_sql 对空 patch 直接抛错——整批就此失败
+      if (Object.keys(normalizeUpdateEntity(meta, patch)).length === 0) continue;
 
       const updateResult = await generate_entity_update_sql(meta, adapter.tableSet, entity, patch, {
         ...adapter.rxdb.context,

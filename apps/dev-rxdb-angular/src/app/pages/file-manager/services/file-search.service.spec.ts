@@ -67,6 +67,15 @@ describe('FileSearchService', () => {
       expect(matchedIds.has('3')).toBe(true);
     });
 
+    it('库里的扩展名不带点（页面新建 / 批量添加的写法）：完整文件名与 .扩展名都命中', () => {
+      const files = [
+        { id: 'n', name: 'notes', type: 'file', extension: 'txt', parentId: null }
+      ] as unknown as SortableFileNode[];
+
+      expect(service.filterTreeNodes(files, 'notes.txt')).toEqual(new Set(['n']));
+      expect(service.filterTreeNodes(files, '.txt')).toEqual(new Set(['n']));
+    });
+
     it('应该匹配文件夹名称', () => {
       const matchedIds = service.filterTreeNodes(mockFiles, 'Projects');
       expect(matchedIds.has('2')).toBe(true);

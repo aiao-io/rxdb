@@ -314,8 +314,12 @@ const addManyTodo = async (total: number) => {
     todo.title = `test-${i}`;
     newTodos.push(todo);
   }
-  await rxdb.entityManager.saveMany(newTodos);
-  addingCount.value = null;
+  // 失败也要复位，否则这一档按钮一直禁用、转圈（与 React 的 try / finally、Angular useAction 同口径，错误照常冒泡）
+  try {
+    await rxdb.entityManager.saveMany(newTodos);
+  } finally {
+    addingCount.value = null;
+  }
 };
 
 const undo = () => {

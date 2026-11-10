@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { PGlite } from '@electric-sql/pglite';
 import { readFileSync } from 'node:fs';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { generateDeviceKeyPair } from '../src/app/p2p/fallback-crypto';
 
 /**
@@ -177,6 +177,60 @@ describe('p2p-schema.sql 管理后台函数', () => {
 
   it('can be applied again without error', async () => {
     await expect(db.exec(SCHEMA)).resolves.toBeDefined();
+  });
+
+  // POOL-US-101 处置联动：设备登记没了，寄给它的信封也不能留。本人删设备、auth.users 删除级联到设备，
+  // 两条路都不经过 admin_purge_account；信封是别人（BOB）发布的，本人的 RLS 删不动它。
+  describe('信封随收件设备删除', () => {
+    const ENC_HASH = 'c'.repeat(64);
+    const seal = (recipient: string) =>
+      db.query(
+        `INSERT INTO p2p.p2p_fallback_envelope
+           (id, "contentHash", "encHash", "recipientDeviceId", kid, epk, iv, ct, tag, "publisherUserId")
+         VALUES (gen_random_uuid(), $1, $2, $3, 'p256-1', 'key', 'iv', 'ct', 'tag', $4)`,
+        [HASH_SHARED, ENC_HASH, recipient, BOB]
+      );
+    const recipients = async (): Promise<string[]> =>
+      (
+        await db.query<{ recipient: string }>('SELECT "recipientDeviceId" AS recipient FROM p2p.p2p_fallback_envelope')
+      ).rows
+        .map(row => row.recipient)
+        .sort();
+
+    beforeEach(async () => {
+      await db.exec('DELETE FROM p2p.p2p_fallback_envelope');
+      for (const device of [ALICE_LAPTOP, ALICE_PHONE, BOB_LAPTOP]) await seal(device);
+    });
+
+    afterEach(async () => {
+      await db.exec('RESET ROLE; DELETE FROM p2p.p2p_fallback_envelope');
+    });
+
+    it('drops the envelopes addressed to a device its owner deletes, and only those', async () => {
+      await db.query("SELECT set_config('request.jwt.claim.sub', $1, false)", [ALICE]);
+      expect(await as('authenticated', 'DELETE FROM p2p.devices WHERE id = $1 RETURNING id', [ALICE_LAPTOP])).toEqual([
+        { id: ALICE_LAPTOP }
+      ]);
+
+      expect(await recipients()).toEqual([ALICE_PHONE, BOB_LAPTOP].sort());
+    });
+
+    it('drops the envelopes of every device of an auth account that is deleted', async () => {
+      await db.query('DELETE FROM auth.users WHERE id = $1', [ALICE]);
+
+      expect(await recipients()).toEqual([BOB_LAPTOP]);
+    });
+
+    it('clears envelopes orphaned before the upgrade and keeps cleaning afterwards', async () => {
+      await db.exec('DROP TRIGGER IF EXISTS devices_drop_envelopes ON p2p.devices');
+      await db.query('DELETE FROM p2p.devices WHERE id = $1', [ALICE_LAPTOP]);
+
+      await db.exec(SCHEMA);
+      expect(await recipients()).toEqual([ALICE_PHONE, BOB_LAPTOP].sort());
+
+      await db.query('DELETE FROM p2p.devices WHERE id = $1', [ALICE_PHONE]);
+      expect(await recipients()).toEqual([BOB_LAPTOP]);
+    });
   });
 
   it('counts the devices and the claims of each account that has a device', async () => {

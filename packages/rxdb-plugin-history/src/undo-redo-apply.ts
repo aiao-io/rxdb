@@ -15,10 +15,18 @@ import {
   RxDBSync,
   type RxDBSyncOrderByField,
   type RxDBSyncRuleGroup,
+  type SwitchBranchPrepareContext,
+  type TransactionExecutor,
   TrustedWriteIntent
 } from '@aiao/rxdb';
 import { BehaviorSubject, firstValueFrom, Subject } from 'rxjs';
-import { buildLastPushedMap, type ChildFork, childForksOf, inheritedFloorOf } from './history-filters.js';
+import {
+  buildLastPushedMap,
+  type ChildFork,
+  childForksOf,
+  inheritedFloorOf,
+  isChangePushed
+} from './history-filters.js';
 import { convertChangesToHistories } from './history-item-builder.js';
 import type { ActiveUndoSession, UndoBoundary } from './history-undo-session.types.js';
 import { get_switch_version_actions } from './switch-branch-actions.js';
@@ -129,6 +137,60 @@ export async function fetchLatestHistories(
 }
 
 /**
+ * 写事务里复核：选取之后被 push 认领、或回执已落库的变更不能再撤销。
+ *
+ * @remarks
+ * 撤销只给原变更打 `revertChangeId`、不产生可推出的补偿；放行一条已在飞或已推的变更，远端有、本地无，
+ * 之后的 push 也不会再把这个差异送出去（见 `push-inflight.ts`）。选候选时读的认领快照到这里可能已经过期：
+ * 中间隔着 change sequence 读取、适配器解析与写队列等待。
+ *
+ * 反方向由推送一侧守：push 先认领、再按同一口径复查待推变更（`rxdb-plugin-sync` 的 `planRepositoryPush`），
+ * 那次复查排在本事务之后，读得到这里写下的撤销标记。认领早于本复核则这里中止，晚于则 push 那边剔除。
+ */
+const pushedSinceSelected = async (
+  host: UndoRedoApplyHost,
+  executor: TransactionExecutor,
+  branchId: string,
+  changes: readonly RxDBChange[]
+): Promise<boolean> => {
+  const syncRepository = executor.getRepository(RxDBSync) as unknown as LocalRxDBSyncRepository;
+  const repoSyncs = await syncRepository.find({
+    where: { combinator: 'and', rules: [{ field: 'branchId', operator: '=', value: branchId }] }
+  });
+  const lastPushedMap = buildLastPushedMap(repoSyncs, host.rxdb.versionManager.pushInFlight.snapshot());
+  return changes.some(change => isChangePushed(change, lastPushedMap));
+};
+
+/**
+ * 在切换事务里复核选取时的前提。
+ *
+ * @returns 中止原因；前提全部仍成立时为 `null`
+ */
+const staleReasonOf = async (
+  host: UndoRedoApplyHost,
+  operation: 'undo' | 'redo',
+  changes: readonly RxDBChange[],
+  undoSession: ActiveUndoSession | undefined,
+  { executor, targetBranchId }: SwitchBranchPrepareContext
+): Promise<string | null> => {
+  if (changes.some(change => change.branchId !== targetBranchId)) {
+    return 'the current branch changed since the histories were selected';
+  }
+  const branchRepository = executor.getRepository(RxDBBranch) as unknown as LocalRxDBBranchRepository;
+  const floor = inheritedFloorOf(await fetchChildForks(branchRepository, targetBranchId));
+  if (undoSession !== undefined && !host.isUndoSessionCurrent(undoSession)) {
+    return 'the undo session changed since the histories were selected';
+  }
+  if (changes.some(change => change.id <= floor)) {
+    return 'the changes were inherited by a child branch since they were selected';
+  }
+  if (operation === 'undo' && (await pushedSinceSelected(host, executor, targetBranchId, changes))) {
+    return 'the changes were claimed or pushed since they were selected';
+  }
+  return null;
+};
+
+/**
  * 应用 undo/redo：提取排序 → switchBranch actions → 元数据 → 身份检查 → 切分支 → 栈。
  *
  * undo 在 `adapter.switchBranch` 前必须做 session 对象身份检查。
@@ -204,29 +266,18 @@ export async function applyUndoRedoHistories(
     });
     // 不传 branchId：回放只作用于当前分支。在事务外采样分支 id 会让这次写入在并发切换时
     // 把 activated 与全部触发器倒回旧分支（见 SwitchBranchOptions.branchId）。
-    // 分支一动不动，前置条件：这批变更仍属于当前分支，而且此刻还没被子分支继承。`targetBranchId` 就是当前分支。
+    // 分支一动不动，前置条件：这批变更仍属于当前分支、此刻还没被子分支继承，撤销的还没被推送认领或推上去。
+    // `targetBranchId` 就是当前分支（见 staleReasonOf）。
     // 回滚靠抛错，判没判中靠标志：适配器的事务包装层可能改写异常身份，不拿错误对象做比较。
     let stale = false;
     try {
       await adapter.switchBranch({
         actions,
-        prepare: async ({ executor, targetBranchId }) => {
-          if (changes.some(change => change.branchId !== targetBranchId)) {
-            stale = true;
-            throw new RxDBError(`${operation} aborted: the current branch changed since the histories were selected`);
-          }
-          const branchRepository = executor.getRepository(RxDBBranch) as unknown as LocalRxDBBranchRepository;
-          const floor = inheritedFloorOf(await fetchChildForks(branchRepository, targetBranchId));
-          if (undoSession !== undefined && !host.isUndoSessionCurrent(undoSession)) {
-            stale = true;
-            throw new RxDBError(`${operation} aborted: the undo session changed since the histories were selected`);
-          }
-          if (changes.some(change => change.id <= floor)) {
-            stale = true;
-            throw new RxDBError(
-              `${operation} aborted: the changes were inherited by a child branch since they were selected`
-            );
-          }
+        prepare: async context => {
+          const reason = await staleReasonOf(host, operation, changes, undoSession, context);
+          if (reason === null) return;
+          stale = true;
+          throw new RxDBError(`${operation} aborted: ${reason}`);
         }
       });
     } catch (error) {

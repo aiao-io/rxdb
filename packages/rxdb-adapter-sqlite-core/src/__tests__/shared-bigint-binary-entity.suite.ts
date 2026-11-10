@@ -256,6 +256,9 @@ export function bigintBinaryEntitySuite(factory: AdapterFactory): void {
         return child;
       });
       await adapter.rxdb.entityManager.saveMany(children);
+      // 批量写入的回查回填同样按父主键类型解码外键，不能把安全范围的值回填成 number
+      expect(children.map(child => child.parentId)).toEqual(parentIds);
+      expect(children.every(child => typeof child.parentId === 'bigint')).toBe(true);
 
       adapter.rxdb.entityManager.cleanAllCache();
       adapter.cleanAllCache();

@@ -49,6 +49,12 @@ const stringListAt = (node: Json, key: string, field: string): string[] => {
   return [...value];
 };
 
+/** 可选的约束指纹：旧归档没有这一项（不写进结果），出现了就按 64 位小写十六进制严格校验。 */
+const parseConstraintFingerprint = (root: Json): Pick<RxDBBackupManifest, 'constraintFingerprint'> =>
+  'constraintFingerprint' in root ?
+    { constraintFingerprint: stringAt(root, 'constraintFingerprint', 'constraintFingerprint', HEX_64) }
+  : {};
+
 const parseEncryption = (root: Json): RxDBBackupManifest['encryption'] => {
   if (!('encryption' in root)) throw invalid('encryption');
   if (root['encryption'] === null) return null;
@@ -97,6 +103,7 @@ export const parseRxDBBackupManifest = (value: unknown): RxDBBackupManifest => {
       changeCodecVersion: integerAt(rxdb, 'changeCodecVersion', 'rxdb.changeCodecVersion')
     },
     schemaFingerprint: stringAt(value, 'schemaFingerprint', 'schemaFingerprint', HEX_64),
+    ...parseConstraintFingerprint(value),
     encryption: parseEncryption(value)
   };
 };
@@ -119,7 +126,8 @@ const assertEncryption = (manifest: RxDBBackupManifest, expected: RxDBBackupComp
  * 判定归档能否恢复到目标配置。
  *
  * @remarks
- * 相等性检查：adapter 名、引擎、引擎数据兼容键、系统表结构版本、变更编码版本、实体结构指纹。
+ * 相等性检查：adapter 名、引擎、引擎数据兼容键、系统表结构版本、变更编码版本、实体结构指纹；
+ * 归档带约束指纹时它也要相等（0.0.28 及更早的归档没有这一项，只比其余各项）。
  * 扩展只要求归档用到的全部由目标提供。RxDB 版本、引擎完整版本、源存储后端、创建时间只记录不比较。
  * 加密归档要求目标认证域完全相同（`auth_domain_mismatch`），一边加密一边不加密报 `incompatible_archive`。
  *
@@ -138,6 +146,10 @@ export const assertRxDBBackupCompatible = (manifest: RxDBBackupManifest, expecte
   ];
   for (const [field, want, got] of pairs) {
     if (want !== got) throw mismatch(field, want, got);
+  }
+  const { constraintFingerprint } = manifest;
+  if (constraintFingerprint !== undefined && constraintFingerprint !== expected.constraintFingerprint) {
+    throw mismatch('constraintFingerprint', expected.constraintFingerprint, constraintFingerprint);
   }
   const missing = manifest.adapter.extensions.filter(name => !expected.extensions.includes(name));
   if (missing.length > 0) throw mismatch('adapter.extensions', expected.extensions, manifest.adapter.extensions);

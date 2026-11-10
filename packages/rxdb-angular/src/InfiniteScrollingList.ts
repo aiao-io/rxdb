@@ -52,10 +52,19 @@ interface CursorRepository<T extends EntityType> {
   findByCursor: (options: EntityStaticType<T, 'findByCursorOptions'>) => Observable<InstanceType<T>[]>;
 }
 
-/** 一页活查询的句柄：`cursor` 是这页订阅时使用的 `after` 锚点。 */
+/**
+ * 一页活查询的句柄。
+ *
+ * @remarks
+ * `cursor` 是这页订阅时使用的 `after` 锚点；`request` 是这页负责结算的用户加载编号。
+ * 活查询自愈重锚出来的替代页沿用被替换那页的编号：用户的下一页首值未到时被重锚，
+ * 结算责任随页移交，否则 `isLoading` 永远停在 true、之后的 `loadMore` 全被拦下。
+ * React 与 Vue 侧同款。
+ */
 interface PageHandle<T extends EntityType> {
   readonly cursor: InstanceType<T> | undefined;
   readonly subscription: Subscription;
+  readonly request: number | undefined;
 }
 
 /**
@@ -201,7 +210,8 @@ export class InfiniteScrollingList<T extends EntityType> {
   /**
    * 订阅第 `index` 页，锚点为 `cursor`；该位置已有订阅时先退订再替换。
    *
-   * @param request - 用户发起的加载编号；重锚（活查询自愈）传 `undefined`，不参与 `isLoading` 结算
+   * @param request - 这页负责结算的用户加载编号；重锚（活查询自愈）沿用被替换那页的编号，
+   * 只有它是最新一次加载时才结算 `isLoading`
    *
    * @remarks
    * RAN-004：仓库查找、`findByCursor()` 与 `subscribe()` 三步都可能**同步**抛出，
@@ -214,11 +224,7 @@ export class InfiniteScrollingList<T extends EntityType> {
   #openPage(index: number, cursor: InstanceType<T> | undefined, request: number | undefined): void {
     // 本页是否收到过 next：complete 时用来判断「一次都没 emit」（RAN-007）
     let received = false;
-    const settleRequest = (): void => {
-      if (request !== undefined && request === this.#loadingRequest) {
-        this.#isLoading.set(false);
-      }
-    };
+    const settleRequest = (): void => this.#settleRequest(request);
 
     try {
       const inputOptions = isOptionsFactory(this.options) ? this.options() : this.options;
@@ -234,7 +240,7 @@ export class InfiniteScrollingList<T extends EntityType> {
       this.#pages[index]?.subscription.unsubscribe();
       // 先登记句柄再订阅：同步 emit 的源（如 of()）会在 subscribe() 返回前回调 #commitPage
       const subscription = new Subscription();
-      this.#pages[index] = { cursor, subscription };
+      this.#pages[index] = { cursor, subscription, request };
 
       const repository = this.rxdb.entityManager.getRepository(this.EntityType) as unknown as CursorRepository<T>;
       subscription.add(
@@ -301,15 +307,29 @@ export class InfiniteScrollingList<T extends EntityType> {
       return;
     }
 
-    if (cursorId(this.#pages[index + 1].cursor) !== cursorId(tail)) {
-      this.#openPage(index + 1, tail, undefined);
+    const next = this.#pages[index + 1];
+    if (cursorId(next.cursor) !== cursorId(tail)) {
+      this.#openPage(index + 1, tail, next.request);
     }
   }
 
-  /** 退订并丢弃从 `from` 开始的所有尾页。 */
+  /** 用户加载编号 `request` 是最新一次加载时结束 `isLoading`。 */
+  #settleRequest(request: number | undefined): void {
+    if (request !== undefined && request === this.#loadingRequest) {
+      this.#isLoading.set(false);
+    }
+  }
+
+  /**
+   * 退订并丢弃从 `from` 开始的所有尾页。
+   *
+   * @remarks
+   * 被丢弃的尾页再也结算不了，其中在途的最新加载在这里代为结算。
+   */
   #truncatePages(from: number): void {
     for (const page of this.#pages.splice(from)) {
       page.subscription.unsubscribe();
+      this.#settleRequest(page.request);
     }
     this.#values.update(values => values.slice(0, from));
   }

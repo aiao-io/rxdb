@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   bindWujieRoute,
   emitHostRoute,
@@ -310,6 +310,90 @@ describe('host-route', () => {
       expect(io.unsubscribe).toHaveBeenCalled();
       bus.$emit(WUJIE_ROUTE_EVENT, { name: 'rxdb-demo-vue', path: '/search' });
       expect(io.navigate).not.toHaveBeenCalled();
+    });
+  });
+
+  // 宿主（文档站）与子应用两端接在同一条 bus 上：宿主按 DemoMicroAppClient 的接线把回传过闸后写回地址栏
+  describe('宿主闸门与子应用接线的组合时序', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    const connect = (route: string) => {
+      vi.useFakeTimers();
+      const bus = createFakeWujieBus();
+      const sync = new HostRouteSync({ ttlMs: 600 });
+      const host = { path: route };
+      subscribeSubRoute(
+        'rxdb-demo-vue',
+        path =>
+          sync.receive(path, next => {
+            host.path = next;
+          }),
+        bus
+      );
+      sync.expect(route);
+      const io = createAdapter();
+      bindWujieRoute(io.adapter, createSubWindow(bus, 'rxdb-demo-vue', { route }));
+      return { host, io, sync };
+    };
+
+    it('深链进入后期望路径到位（不回传），等待期内的用户导航到期后补写回宿主', () => {
+      const { host, io } = connect('/todo');
+      io.change('/todo');
+      vi.advanceTimersByTime(100);
+      io.change('/search');
+
+      expect(host.path).toBe('/todo');
+      vi.advanceTimersByTime(600);
+      expect(host.path).toBe('/search');
+    });
+
+    it('首屏回弹之后期望路径到位：回弹作废，不会在到期后补写', () => {
+      const { host, io } = connect('/todo');
+      io.change('/home');
+      io.change('/todo');
+
+      vi.advanceTimersByTime(1000);
+      expect(host.path).toBe('/todo');
+    });
+
+    it('等待期里的连续导航只补写最后一条', () => {
+      const { host, io } = connect('/todo');
+      io.change('/todo');
+      io.change('/search');
+      io.change('/board');
+
+      vi.advanceTimersByTime(700);
+      expect(host.path).toBe('/board');
+    });
+
+    it('期望路径一直到不了（子应用停在默认页），到期后宿主跟上子应用', () => {
+      const { host, io } = connect('/not-a-route');
+      io.change('/home');
+
+      vi.advanceTimersByTime(700);
+      expect(host.path).toBe('/home');
+    });
+
+    it('宿主重新下发期望路径时作废之前挡下的回传', () => {
+      const { host, io, sync } = connect('/todo');
+      io.change('/todo');
+      io.change('/search');
+      sync.expect('/todo');
+
+      vi.advanceTimersByTime(1400);
+      expect(host.path).toBe('/todo');
+    });
+
+    it('cancel() 之后不再补写（宿主卸载）', () => {
+      const { host, io, sync } = connect('/todo');
+      io.change('/todo');
+      io.change('/search');
+      sync.cancel();
+
+      vi.advanceTimersByTime(700);
+      expect(host.path).toBe('/todo');
     });
   });
 });

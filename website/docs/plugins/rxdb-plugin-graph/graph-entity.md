@@ -81,25 +81,22 @@ export class Person extends GraphEntityBase {}
 
 `GraphEntityBase` 会提供两类静态方法：
 
-- 查询方法，返回 `Observable`：`findNeighbors`、`countNeighbors`、`findPaths`
+- 查询方法：`findNeighbors`、`countNeighbors`、`findPaths` 返回 `Promise`，直接 `await`；
+  带 `$` 的同名方法（`findNeighbors$` 等）返回 `Observable`，图结构变化时推送新结果
 - 写方法，返回 `Promise`：`addEdge`、`removeEdge`
 
 ### 查询邻居
 
 ```ts
-import { firstValueFrom } from 'rxjs';
-
-const neighbors = await firstValueFrom(
-  Person.findNeighbors({
-    entityId: alice.id,
-    direction: 'out',
-    level: 2,
-    edgeWhere: {
-      weight: { min: 5 },
-      properties: { category: 'friend' }
-    }
-  })
-);
+const neighbors = await Person.findNeighbors({
+  entityId: alice.id,
+  direction: 'out',
+  level: 2,
+  edgeWhere: {
+    weight: { min: 5 },
+    properties: { category: 'friend' }
+  }
+});
 ```
 
 结果结构是：
@@ -121,26 +118,22 @@ const neighbors = await firstValueFrom(
 ### 统计邻居数量
 
 ```ts
-const count = await firstValueFrom(
-  Person.countNeighbors({
-    entityId: alice.id,
-    direction: 'both',
-    level: 1
-  })
-);
+const count = await Person.countNeighbors({
+  entityId: alice.id,
+  direction: 'both',
+  level: 1
+});
 ```
 
 ### 查询路径
 
 ```ts
-const paths = await firstValueFrom(
-  Person.findPaths({
-    fromId: alice.id,
-    toId: bob.id,
-    direction: 'out',
-    maxDepth: 5
-  })
-);
+const paths = await Person.findPaths({
+  fromId: alice.id,
+  toId: bob.id,
+  direction: 'out',
+  maxDepth: 5
+});
 ```
 
 路径结果包含：

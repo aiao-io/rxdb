@@ -311,6 +311,29 @@ describe('InspectedPageAccessService', () => {
       expect(activateTab).toHaveBeenCalledOnce();
     });
 
+    it('回归：同源导航的权限查询比授权晚回时，授权前的 false 不能把 granted 改回 required', async () => {
+      const { service, grant, activateTab, navigations, containsImpl } = createDeferredAccess();
+      await vi.waitFor(() => expect(service.state()).toBe('required'));
+      let resolveStale!: (granted: boolean) => void;
+      containsImpl.mockImplementationOnce(
+        () =>
+          new Promise<boolean>(resolve => {
+            resolveStale = resolve;
+          })
+      );
+      const request = service.requestAccess();
+      navigations.forEach(listener => listener('https://old.example/other-page'));
+      expect(containsImpl).toHaveBeenCalledTimes(2);
+      grant.resolve(true);
+      await expect(request).resolves.toBe(true);
+      expect(service.state()).toBe('granted');
+      resolveStale(false);
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(service.state()).toBe('granted');
+      expect(activateTab).toHaveBeenCalledOnce();
+    });
+
     it('回归：request() reject 时不吞错，也不在失效后产生副作用', async () => {
       const { service, grant, activateTab, navigations } = createDeferredAccess();
       await vi.waitFor(() => expect(service.state()).toBe('required'));

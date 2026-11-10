@@ -254,9 +254,26 @@ const compileCheckLiteral = (propertyType: string, value: unknown, label: string
 };
 
 /**
+ * 按 Unicode 码点比较两个字符串，与 UTF-8 字节序一致（SQLite `BINARY` / PG `C`）。
+ *
+ * @remarks
+ * 不用 `<` / `>`：它们比 UTF-16 码元，辅助平面字符的代理对（0xD800–0xDFFF）会排在 U+E000–U+FFFF 之前，
+ * 与两后端的字节序相反。也不用 `localeCompare`：结果随运行环境的 locale 变。
+ */
+const compareCodePoints = (a: string, b: string): number => {
+  const left = Array.from(a, char => char.codePointAt(0) as number);
+  const right = Array.from(b, char => char.codePointAt(0) as number);
+  const length = Math.min(left.length, right.length);
+  for (let index = 0; index < length; index++) {
+    if (left[index] !== right[index]) return left[index] - right[index];
+  }
+  return left.length - right.length;
+};
+
+/**
  * 按列类型比较两个字面量（`between` 边界序校验用）。
  *
- * @returns 负数 / 0 / 正数，同 `Array.sort` 比较器口径；字符串按字节序（两后端 C / BINARY 一致）
+ * @returns 负数 / 0 / 正数，同 `Array.sort` 比较器口径；字符串按码点（= 字节序，两后端 C / BINARY 一致）
  */
 const compareCheckLiteralValues = (propertyType: string, a: unknown, b: unknown, label: string): number => {
   switch (propertyType) {
@@ -266,11 +283,7 @@ const compareCheckLiteralValues = (propertyType: string, a: unknown, b: unknown,
       if (typeof a !== 'string' || typeof b !== 'string') {
         throw new RxDBError(`${label} 的字面量必须是字符串`);
       }
-      return (
-        a < b ? -1
-        : a > b ? 1
-        : 0
-      );
+      return compareCodePoints(a, b);
     }
     case PropertyType.integer:
     case PropertyType.number: {

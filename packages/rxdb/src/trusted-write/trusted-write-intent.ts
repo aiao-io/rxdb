@@ -185,7 +185,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'adapter.switchBranch',
     intent: TrustedWriteIntent.undo_redo,
     entrance: 'domain_recompute',
-    verifiedAtLine: 204
+    verifiedAtLine: 262
   },
   {
     file: 'merge-branch.ts',
@@ -193,7 +193,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'executor.mergeChanges',
     intent: TrustedWriteIntent.merge_per_change,
     entrance: 'domain_recompute',
-    verifiedAtLine: 196
+    verifiedAtLine: 239
   },
   {
     file: 'merge-branch.ts',
@@ -201,7 +201,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'executor.mergeChanges',
     intent: TrustedWriteIntent.merge_squash,
     entrance: 'domain_recompute',
-    verifiedAtLine: 236
+    verifiedAtLine: 280
   },
   {
     file: 'pull-batch.ts',

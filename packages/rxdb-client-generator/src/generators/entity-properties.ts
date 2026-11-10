@@ -9,7 +9,9 @@ import { EntityMetadata, EntityPropertyMetadata, PropertyType } from '@aiao/rxdb
 import {
   getFlatMapInterfaceName,
   getKeyValueInterfaceProperties,
-  getPropertyTypeConfig
+  getKeyValuePreciseType,
+  getPropertyTypeConfig,
+  KEY_VALUE_TYPE
 } from '../core/RxDBClientGenerator.utils.js';
 import type {
   AddedInterface,
@@ -89,6 +91,10 @@ export const generateEntityProperties = ({
       case 'UUID':
         rxdbNamedImports.add('UUID');
         break;
+    }
+    // 空 schema 的 keyValue 声明成核心的 `KeyValue`（可空时是 `KeyValue | null`），要随 `@aiao/rxdb` 导入
+    if (property.type === PropertyType.keyValue && getKeyValuePreciseType(property, metadata) === KEY_VALUE_TYPE) {
+      rxdbNamedImports.add(KEY_VALUE_TYPE);
     }
 
     // 计算属性不添加到初始化接口中

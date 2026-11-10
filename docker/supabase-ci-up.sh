@@ -36,6 +36,25 @@ SUPABASE_CI_PROJECT_NAME=$SUPABASE_CI_PROJECT_NAME
 SUPABASE_CI_KONG_PORT=$kong_port
 EOF
 
-echo "✅ Kong ready on 127.0.0.1:${kong_port}（状态文件：${SUPABASE_CI_STATE_FILE}）"
+echo "📡 Kong 端口已发布 127.0.0.1:${kong_port}（状态文件：${SUPABASE_CI_STATE_FILE}）"
 
-./init-db.sh
+# 初始化发给刚起的这个隔离项目：项目名与配置文件和上面的 up 逐字一致，init-db.sh 不再自己猜。
+./init-db.sh -p "$SUPABASE_CI_PROJECT_NAME" -f docker-compose.ci.yml
+
+# 端口先于 Kong 开始监听发布出来：amd64 镜像在 Apple 芯片上靠模拟运行，Kong 要十几秒才健康，
+# 这段时间连上去只会收到连接重置。等 Kong 通过容器健康检查再退出，调用方拿到状态文件就能直接用；
+# 初始化占掉的时间与 Kong 启动重叠，通常这里不用再等。
+kong_wait_seconds="${SUPABASE_CI_KONG_WAIT_SECONDS:-180}"
+kong_poll_seconds="${SUPABASE_CI_KONG_POLL_SECONDS:-2}"
+kong_deadline=$((SECONDS + kong_wait_seconds))
+kong_health=''
+while true; do
+  kong_health="$(docker inspect -f '{{.State.Health.Status}}' "$SUPABASE_KONG_CONTAINER" 2>/dev/null || true)"
+  [ "$kong_health" = 'healthy' ] && break
+  if [ "$SECONDS" -ge "$kong_deadline" ]; then
+    echo "🔴 Kong 在 ${kong_wait_seconds} 秒内没有通过健康检查（${SUPABASE_KONG_CONTAINER} status=${kong_health:-unknown}）" >&2
+    exit 1
+  fi
+  sleep "$kong_poll_seconds"
+done
+echo "✅ Kong ready on 127.0.0.1:${kong_port}"

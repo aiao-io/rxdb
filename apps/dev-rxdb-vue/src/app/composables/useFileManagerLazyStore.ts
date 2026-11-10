@@ -2,6 +2,7 @@ import { RxDB, UUID, type RxDBEntityId } from '@aiao/rxdb';
 import { SortableFileLarge } from '@aiao/rxdb-test/entities';
 import { firstValueFrom } from 'rxjs';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { formatFileName } from '../utils/file-name';
 import { getSortComparator, loadStoredSortMode, persistSortMode, SortMode } from '../utils/file-sorters';
 import { generateBatchFiles } from '../utils/file-utils';
 import { formatErrorMessage, useToast } from './useToast';
@@ -61,6 +62,8 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
 
   // 存储活跃的订阅，用于清理
   const subscriptions = new Map<RxDBEntityId | string, { unsubscribe: () => void }>();
+  // 卸载后迟到的异步收尾（批量添加）不得再建订阅
+  let disposed = false;
 
   const subscribeToRoot = () => {
     // 2. Subscribe to ROOT
@@ -101,6 +104,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
   });
 
   onUnmounted(() => {
+    disposed = true;
     subscriptions.forEach(sub => sub.unsubscribe());
     subscriptions.clear();
   });
@@ -112,7 +116,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
 
     const keyword = searchKeyword.value.toLowerCase();
     nodesMap.value.forEach(file => {
-      const fullName = file.extension ? `${file.name}${file.extension}` : file.name;
+      const fullName = formatFileName(file.name, file.extension);
       if (fullName.toLowerCase().includes(keyword)) {
         matched.add(file.id);
       }
@@ -188,14 +192,6 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
         subscriptions.delete(id);
       }
 
-      expandedIds.value.delete(id);
-      // Trigger reactivity
-      expandedIds.value = new Set(expandedIds.value);
-
-      // 加载中折叠：订阅已退订，不会再收到 next，这里清掉 loading 状态
-      loadingIds.value.delete(id);
-      loadingIds.value = new Set(loadingIds.value);
-
       const descendantIds: RxDBEntityId[] = [];
       const collectDescendants = (parentId: RxDBEntityId): void => {
         for (const childId of childrenMap.value.get(parentId) ?? []) {
@@ -204,6 +200,12 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
         }
       };
       collectDescendants(id);
+
+      // 后代的展开 / 加载标记随子树一起清掉：重开时它们是折叠的，不会画成「已展开却没有子项」；
+      // 加载中折叠的订阅已退订、不会再收到 next，loading 也一并清掉
+      const collapsedIds = new Set<RxDBEntityId>([id, ...descendantIds]);
+      expandedIds.value = new Set([...expandedIds.value].filter(nodeId => !collapsedIds.has(nodeId)));
+      loadingIds.value = new Set([...loadingIds.value].filter(nodeId => !collapsedIds.has(nodeId)));
 
       for (const descendantId of descendantIds) {
         subscriptions.get(descendantId)?.unsubscribe();
@@ -283,6 +285,8 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     const saved = await guardWrite('批量添加', () =>
       rxdb.entityManager.saveMany(generateBatchFiles(count, SortableFileLarge))
     );
+    // 写入期间页面已卸载：不再重建订阅，否则没人退订
+    if (disposed) return saved;
 
     // 3. Reset state and resubscribe（失败时也重订阅，页面回到库里已提交的状态）
     expandedIds.value = new Set();

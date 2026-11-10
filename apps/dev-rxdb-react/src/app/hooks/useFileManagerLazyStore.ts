@@ -5,6 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import { formatFileName, normalizeFileExtension } from '../pages/file-manager/utils/file-name';
 import { getSortComparator, loadStoredSortMode, persistSortMode, SortMode } from '../utils/file-sorters';
 import { generateBatchFiles } from '../utils/file-utils';
+import { collectLoadedDescendants, withoutIds } from '../utils/lazy-tree';
 import { byParent, collectSubtreePostOrder } from '../utils/tree-scope';
 import { useTreeWriteError } from './useTreeWriteError';
 
@@ -69,6 +70,8 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
 
   // 存储活跃的订阅，用于清理
   const subscriptionsRef = useRef<Map<string, { unsubscribe: () => void }>>(new Map());
+  // 卸载后迟到的异步收尾（批量添加）不得再建订阅
+  const mountedRef = useRef(true);
 
   const subscribeToRoot = () => {
     // 2. Subscribe to ROOT
@@ -196,9 +199,10 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
       currentSubscriptions.delete(id);
     }
 
-    const newExpanded = new Set(expandedIds);
-    newExpanded.delete(id);
-    setExpandedIds(newExpanded);
+    // 后代的展开 / 加载标记随子树一起清掉：重开时它们是折叠的，不会画成「已展开却没有子项」
+    const collapsedIds = new Set([id, ...collectLoadedDescendants(childrenMap, id)]);
+    setExpandedIds(prev => withoutIds(prev, collapsedIds));
+    setLoadingIds(prev => withoutIds(prev, collapsedIds));
 
     // 递归清理所有子孙节点的数据
     const cleanupDescendants = (parentId: string) => {
@@ -317,6 +321,8 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
 
     // 2. Generate and save files：整批一次 saveMany，不读任何已有节点——排序键由引擎按父节点分组追加到各组末尾
     await runWrite('批量添加', () => rxdb.entityManager.saveMany(generateBatchFiles(count, SortableFileLarge)));
+    // 写入期间页面已卸载：不再重建订阅，否则没人退订
+    if (!mountedRef.current) return;
 
     // 3. Reset state and resubscribe（失败时同样恢复订阅：页面状态即库里已提交的状态）
     setExpandedIds(new Set());
@@ -529,10 +535,12 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     return result.ok;
   };
 
-  // 组件卸载时清理所有订阅
+  // 组件卸载时清理所有订阅；StrictMode 重挂时重新置位
   useEffect(() => {
+    mountedRef.current = true;
     const currentSubscriptions = subscriptionsRef.current;
     return () => {
+      mountedRef.current = false;
       currentSubscriptions.forEach(subscription => {
         subscription.unsubscribe();
       });
