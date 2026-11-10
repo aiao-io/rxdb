@@ -69,8 +69,6 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
    * @private
    */
   #changed_keys = new Set<keyof InstanceType<T>>();
-  #editVersion = 0;
-  readonly #fieldEditVersions = new Map<string, number>();
   readonly #updates = new WeakMap<object, UpdateSnapshot>();
   readonly #checkpoints = new Set<Map<keyof InstanceType<T>, unknown>>();
 
@@ -373,7 +371,6 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
    */
   markChanged(key: keyof InstanceType<T>, value: unknown = this.target[key]) {
     this.#changed_keys.add(key);
-    this.#fieldEditVersions.set(String(key), ++this.#editVersion);
     this.#key_edit_seq.set(key, ++this.#edit_seq);
     for (const edits of this.#checkpoints) edits.set(key, value);
   }
@@ -434,7 +431,7 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
     const origin = this.origin as Record<string, unknown>;
     const keys = new Set([...Object.keys(target), ...Object.keys(origin)]);
     for (const key of keys) {
-      if (!isEqual(target[key], origin[key])) this.#fieldEditVersions.set(key, ++this.#editVersion);
+      if (!isEqual(target[key], origin[key])) this.#key_edit_seq.set(key as keyof InstanceType<T>, ++this.#edit_seq);
     }
     for (const key of Object.keys(target)) {
       if (!(key in origin)) delete target[key];
@@ -779,8 +776,8 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
   /** 合入一轮更新的回填行，规则见 {@link prepareUpdate} */
   #applySaved(snapshot: UpdateSnapshot, data: Partial<InstanceType<T>>, submitted: object) {
     const editedKeys = new Set<string>();
-    for (const [key, version] of this.#fieldEditVersions) {
-      if (version > snapshot.version) editedKeys.add(key);
+    for (const [key, version] of this.#key_edit_seq) {
+      if (version > snapshot.version) editedKeys.add(String(key));
     }
     const protectedKeys = new Set([
       ...Array.from(this.#unsubmitted_edits(submitted, snapshot.version).keys(), String),

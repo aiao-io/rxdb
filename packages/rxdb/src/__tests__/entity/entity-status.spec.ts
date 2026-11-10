@@ -561,6 +561,23 @@ describe('EntityStatus', () => {
       expect(status.modified).toBe(false);
     });
 
+    it('reset 之前的编辑不保护之后直接补丁写入的旧值', () => {
+      const entity = rxdb.entityManager.instantiate(TestEntity, { title: 'before' });
+      const status = getEntityStatus(entity);
+      status.replace({ title: 'before' });
+      entity.title = 'discarded';
+      entity.reset();
+
+      const pending = status.prepareUpdate({ title: 'submitted' });
+      pending.apply({ title: 'SUBMITTED' });
+      pending.release();
+
+      expect(entity.title).toBe('SUBMITTED');
+      expect(status.origin.title).toBe('SUBMITTED');
+      expect(status.patch).toEqual({});
+      expect(status.modified).toBe(false);
+    });
+
     it('直接补丁写入期间编辑后回到调用值，不被当作从未编辑', () => {
       const entity = rxdb.entityManager.instantiate(TestEntity, { title: 'before' });
       const status = getEntityStatus(entity);
