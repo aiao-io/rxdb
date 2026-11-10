@@ -194,6 +194,8 @@ function startLocalServer(origin) {
       'dev',
       '--config',
       'wrangler.json',
+      '--env',
+      'local-first',
       '--local',
       '--port',
       port,

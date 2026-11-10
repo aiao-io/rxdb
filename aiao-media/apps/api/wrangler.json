@@ -24,6 +24,33 @@
       }
     ]
   },
+  "env": {
+    "local-first": {
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "MEDIA_PLATFORM",
+            "class_name": "PlatformCoordinator"
+          },
+          {
+            "name": "RELAY_TASKS",
+            "class_name": "RelayTask"
+          }
+        ]
+      },
+      "r2_buckets": [
+        {
+          "binding": "RELAY_RESULTS",
+          "bucket_name": "aiao-media-relay-results"
+        }
+      ],
+      "vars": {
+        "ALLOWED_PROVIDER_BASE_URLS": "[\"https://api.pengdevs.com\"]",
+        "MEDIA_ALLOW_DESKTOP_ORIGIN": "true"
+      },
+      "routes": []
+    }
+  },
   "main": "src/local-first-worker.ts",
   "migrations": [
     {

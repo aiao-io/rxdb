@@ -279,7 +279,7 @@
       "executor": "nx:run-commands",
       "continuous": true,
       "options": {
-        "command": "pnpm exec wrangler dev --config ../api/wrangler.json --local --port 4398 --show-interactive-dev-session false",
+        "command": "pnpm exec wrangler dev --config ../api/wrangler.json --env local-first --local --port 4398 --show-interactive-dev-session false",
         "cwd": "aiao-media/apps/web"
       }
     },
