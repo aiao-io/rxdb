@@ -1,7 +1,7 @@
 # LiveStore 竞品调研与后续决策依据
 
-> 调研日期：2026-11-10。范围：LiveStore 主仓 main（0.5.0，提交 `487b95e4`）的源码、`docs/` 文档与 `context/` 设计记录，
-> [livestore-contrib](https://github.com/livestorejs/livestore-contrib) 的包清单，与当前 RxDB main 对照。
+> 调研日期：2026-11-10。范围：LiveStore 主仓 main（提交 `487b95e4`，2026-11-09；包版本仍是 0.5.0，另含 CHANGELOG「Unreleased」段的未发布改动）的源码、
+> `docs/` 文档与 `context/` 设计记录，[livestore-contrib](https://github.com/livestorejs/livestore-contrib) 的包清单，与当前 RxDB main 对照。
 > 本文记录功能差异、可借鉴方向、最小验证和边界；不创建用户故事，不代表排期或交付承诺。
 > 「源码实证」指读过对应代码或测试，「文档声明」只来自双方文档，**推断**是未经用例验证的判断。
 > LiveStore 仍是 beta，当前状态与未完成项以其官方文档为准，后续立项时需要按当时版本重新核对。
@@ -49,6 +49,7 @@ RxDB 的同步冲突方向已经确定：依托现有的分支与工作树，冲
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
 | 事实源                 | 不可变、按顺序排列的事件日志；SQLite 是可随时重建的投影                                                                                                        | 实体数据是主模型；`RxDBChange` 是带 `transactionId` 的行级变更日志                                                                                                                                                 | LiveStore 的审计、重放和故障重现更自然                                                                    |
 | 写模型 / 读模型        | 事件定义与 SQLite 表、materializer、查询分开声明；服务端客户端可以用不同的 state schema                                                                        | `@Entity` 统一生成表、类型、Repository、关系和查询入口                                                                                                                                                             | RxDB 更适合传统业务与复杂关系                                                                             |
+| 事务                   | materializer 总在事务里执行，`store.commit` 一次提交的多个事件同一事务物化；store 之间、客户端之间都没有事务，「online transactions」要由应用自行建模          | `saveMany` / `removeMany` 的跨实体写入在适配器的一个本地事务里提交，事件缓冲到 COMMIT 后才派发；推送到 Supabase 按逐实体回执，一条被拒不拖垮同批其它变更，本地事务到远端不整体生效                                 | 两边都只有本地事务，没有跨端事务；跨端的业务不变量按 P1 在合并时由约束校验                                |
 | 读取路径               | 每个会话在主线程持有一份内存 SQLite，查询同步返回、没有加载态；持久库归 leader 线程                                                                            | 查询经适配器异步执行，hook 返回带 `isLoading` 的资源                                                                                                                                                               | LiveStore 首帧不闪烁；代价是每个标签页一份内存副本，数据要装得进内存                                      |
 | 查询                   | 内置查询构建器 + 任意 SQLite SQL；signals 式响应式图（`queryDb` / `computed` / `signal`）                                                                      | 类型化实体查询、Observable、游标、树查询、图查询、全文搜索                                                                                                                                                         | LiveStore SQL 能力更直接，RxDB 业务语义更强                                                               |
 | 本地存储               | Web 只支持 OPFS，无痕模式退为内存并经 `storageMode` 告知；Node 适配器同样用 SQLite WASM，Expo 用原生 `expo-sqlite`                                             | wa-sqlite（默认 IndexedDB，OPFS 实验性）、sqlite-wasm、官方 SQLite、SQLiteAI、PGlite、Electron、Tauri、小程序                                                                                                      | RxDB 的运行时覆盖更广；LiveStore 的 OPFS 路径更成熟                                                       |
@@ -63,7 +64,8 @@ RxDB 的同步冲突方向已经确定：依托现有的分支与工作树，冲
 | 搜索、文件、P2P        | 无内建；文件、富文本、在线状态只给集成建议；同步必须经中心后端，不能 P2P                                                                                       | FTS5 / pg-tsvector 搜索、文件存储、已认证的 P2P 文件共享                                                                                                                                                           | RxDB 领先                                                                                                 |
 | 框架                   | 主仓只有 React；Solid、Svelte 在 livestore-contrib；Vue 是社区包 `vue-livestore`（beta）；另有 Custom Elements 文档；没有 Angular                              | Angular / React / Vue 三端 API 与插件绑定，对称性有门禁                                                                                                                                                            | RxDB 的三框架对称是差异化优势                                                                             |
 | 平台                   | 主仓：Web、Cloudflare Durable Objects；contrib：Node（含 Bun / Deno）、Expo（不含 Expo Web）；Electron / Tauri 走 Web 适配器，原生适配器仍在 issue 跟踪        | Web、Electron、Tauri、PWA、小程序；Node 侧有以 RxDB 引擎实现的参考后端（US-216）                                                                                                                                   | RxDB 的宿主矩阵更完整；LiveStore 多了 React Native 与边缘运行时                                           |
-| 同步后端               | Cloudflare（主仓；DO SQLite 或 D1，WebSocket / HTTP / DO RPC）；ElectricSQL、S2（contrib）；可自定义 provider                                                  | Supabase（RLS 与逐实体回执）、HTTP（只支持 `QueryCache`）                                                                                                                                                          | LiveStore 的 Cloudflare 参考实现更完整；RxDB 能对接已有 Postgres                                          |
+| 同步后端               | Cloudflare（主仓；DO SQLite 或 D1，WebSocket / HTTP / DO RPC，可在 celld 上自托管）；ElectricSQL、S2（contrib）；可自定义 provider；官方不提供托管后端         | Supabase（RLS 与逐实体回执）、HTTP（只支持 `QueryCache`）                                                                                                                                                          | LiveStore 的 Cloudflare 参考实现更完整；RxDB 能对接已有 Postgres                                          |
+| 鉴权                   | 不内建；客户端经 `syncPayload` 按连接传凭证，后端在 `validatePayload` 里校验，官方建议 Durable Object 内再校验一次                                             | 不内建用户体系：`userId` 由应用经 `rxdb.context` 提供，Supabase 侧靠应用传入的客户端会话与 RLS，被拒的变更逐实体回执进 `lastRejections`；P2P 的认证与授权由应用实现                                                | 两边都把鉴权交给后端或应用；RxDB 借 RLS 做到行级，被拒能逐条回到客户端                                    |
 | 产品边界               | 文档列明不适合：已有数据库作事实源、高连接度社交业务、完全去中心化 P2P、数据装不进内存                                                                         | 支持已有远端数据、QueryCache 海量数据、树、图、P2P、复杂关系                                                                                                                                                       | 两者应保持不同定位                                                                                        |
 
 ### 工程与工具
@@ -73,7 +75,7 @@ RxDB 的同步冲突方向已经确定：依托现有的分支与工作树，冲
 | 同步状态      | `store.syncStatus()` 给出 localHead / upstreamHead / pendingCount / isSynced，另有 `useSyncStatus`、`networkStatus`                                                                    | 三端 `useSyncState()` 给出 online / pendingCount / syncing / lastError / lastConflict / lastRejections；`RepositorySyncStatus` 带推拉游标与可推、可拉计数 | 基本对等；RxDB 多了错误与拒绝信息，LiveStore 多了 head 位置     |
 | DevTools 内容 | 数据浏览（可编辑）、活查询检视、事件日志、同步头、导入导出、响应式图、SQLite playground、模拟离线的同步开关                                                                            | Events、Database 查询、分支、OPFS、Storage、I18n、Settings                                                                                                | RxDB 缺查询检视、同步诊断、SQL playground 与模拟离线            |
 | DevTools 协议 | 版本化消息协议，会话广播发现，版本不匹配时显式回复；面板单独发布                                                                                                                       | v2 协议有版本协商、能力档位（`none` / `readonly` / `full`）、授权与分块传输，并有 control / data plane 一致性套件；只支持一个 RxDB 实例                   | 协议层对等，RxDB 的权限控制更细；LiveStore 支持多会话发现       |
-| 调试入口      | `__debugLiveStore.<storeId>._dev` 可下载状态库与事件日志、硬重置、查看同步状态                                                                                                         | 备份恢复（US-217）是应用侧 API；没有开发态控制台入口                                                                                                      | 可补开发态入口                                                  |
+| 调试入口      | `__debugLiveStore.<storeId>._dev` 可下载状态库与事件日志、硬重置、查看同步状态；源码另有 `overrideNetworkStatus`，从控制台切换模拟离线                                                 | 备份恢复（US-217）是应用侧 API；没有开发态控制台入口                                                                                                      | 可补开发态入口                                                  |
 | 可观测性      | 内建 OpenTelemetry，默认 no-op tracer，由应用提供 provider；Cloudflare 后端可接 OTLP                                                                                                   | 没有 OpenTelemetry 接入                                                                                                                                   | LiveStore 领先                                                  |
 | 测试与验证    | 同步 provider 一致性套件（Cloudflare 三种传输 × 两种存储加 mock，共 7 个实现）；开发模式比对 session 与 leader 的物化哈希；适配器与框架一致性套件、确定性 oracle、性能阈值都登记为未建 | 跨后端共享套件（事务、QueryCache 行契约、约束、加密等）、工作树 capture / commit 一致性用例、三端 e2e golden 语义对拍                                     | RxDB 在适配器与框架层领先；LiveStore 的运行时确定性守卫值得借鉴 |
 | 性能基线      | 仿 js-framework-benchmark 的场景测交互延迟（Event Timing API，15 次取中位数与 IQR）和主线程堆内存，每次提交运行，没有阈值门禁                                                          | 浏览器多后端吞吐与延迟基准；搜索与工作树有阈值门禁；工作树 UI 有三端首帧计时                                                                              | RxDB 的门禁更硬；LiveStore 覆盖了日常读写交互                   |
@@ -136,6 +138,7 @@ LiveStore 文档同时说明了什么时候适合、什么时候不适合，并�
 - **启动可见**：启动按 loading → migrating → rehydrating → syncing → done 推送阶段；存储降级（如无痕模式没有 OPFS）作为 warning 交给应用。
 - **开发态保护**：开发模式下迁移前把旧 state 库复制进 `archive/`，保留最近三份。
 - **确定性守卫**：开发模式下比对 session 与 leader 两侧的物化结果哈希，不一致抛 `MaterializerHashMismatchError`，把「materializer 必须纯函数」从约定变成运行时检查。
+  这是 main 上的行为：0.5.0 在 leader 侧比对，web-worker 适配器里这项检查从未运行；main 改为 leader 确认时在 session 侧比对（CHANGELOG「Unreleased」，#1660）。
 
 ### 6. 设计取舍和已知差距写成可追溯的台账
 
@@ -163,7 +166,7 @@ RFC 只是提案通道，接受后并入对应节点；文档站从这棵树派�
 
 ### P0：核实现行冲突裁决的时间语义
 
-**推断**（读代码，未跑用例）：拉取冲突时，本地一侧取该实体最后一条未推送的变更，`createdAt` 是本机写入时刻；
+**源码实证**：拉取冲突时，本地一侧取该实体最后一条未推送的变更（[`resolveConflictsAndBuildActions`](../packages/rxdb-plugin-sync/src/pull-conflict-utils.ts)），`createdAt` 是本机写入时刻；
 远端一侧的 `createdAt` 来自推送方。[`build_merge_changes_payload`](../packages/rxdb-adapter-supabase/src/supabase.merge-changes.ts)
 把每条待推变更的时间改写为推送时刻：
 
@@ -171,8 +174,10 @@ RFC 只是提案通道，接受后并入对应节点；文档站从这棵树派�
 const now = new Date().toISOString();
 ```
 
-服务端 [`rxdb_insert_changes`](../docker/sql/04-rxdb-utils-functions.sql) 原样落库，[`LWWConflictResolver`](../packages/rxdb/src/sync-contract/LWWConflictResolver.ts)
-于是在比较「本机的写入时刻」与「另一台设备的推送时刻」：两个时钟、两种语义。离线较久的设备推送时，可能凭推送时间覆盖别人更晚的编辑；
+服务端 [`rxdb_insert_changes`](../docker/sql/04-rxdb-utils-functions.sql) 原样落库、拉取时原样读回，[`LWWConflictResolver`](../packages/rxdb/src/sync-contract/LWWConflictResolver.ts)
+于是在比较「本机的写入时刻」与「另一台设备的推送时刻」：两个时钟、两种语义。
+
+**推断**（未跑用例）：离线较久的设备推送时，可能凭推送时间覆盖别人更晚的编辑；
 [同步策略](../website/docs/collaboration/sync.md)里「较新的修改获胜」的说法与此不一致。
 
 LiveStore 由后端串行处理 push 并分配全局序号，冲突胜负只看总序，不看任何客户端时钟。
@@ -189,9 +194,11 @@ LiveStore 由后端串行处理 push 并分配全局序号，冲突胜负只看�
 
 ### P0：记录远端身份，处理远端重置
 
-**推断**：拉取游标是远端 change id。[`pullChanges`](../packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts) 注明「使用 id 而非 createdAt 作为游标」，
-[`RepositorySyncStatus`](../packages/rxdb-plugin-sync/src/get-repository-sync-status.ts) 保存 `lastPullRemoteChangeId`。
-远端库重建后 id 从头计数，旧客户端的游标可能大于新库的全部 id，拉取静默返回空，本地也看不到错误。
+**源码实证**：拉取游标是远端 change id。[`pullChanges`](../packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts) 注明「使用 id 而非 createdAt 作为游标」，
+[`RepositorySyncStatus`](../packages/rxdb-plugin-sync/src/get-repository-sync-status.ts) 保存 `lastPullRemoteChangeId`；
+远端 `rxdb_change.id` 是 `serial`（[系统表](../docker/sql/01-rxdb-system-tables.sql)）。
+
+**推断**（未跑用例）：远端库重建后 id 从头计数，旧客户端的游标可能大于新库的全部 id，拉取静默返回空，本地也看不到错误。
 
 借鉴 LiveStore 的 `backendId`：远端生成一个身份值，客户端与游标一起保存；不匹配时按显式策略处理（清空同步状态后全量拉取 / 停止同步 / 只读），
 并经 `SyncState.lastError` 暴露。最小验证：重建 Supabase 测试库后，旧客户端拉取与推送的行为用例。
@@ -289,7 +296,7 @@ store.commit(events.todoCreated({ id, text }));
 - 事件定义、编码、版本和未知事件策略；
 - 事件与投影写入的原子性；
 - 同一 eventlog 重放得到相同快照；
-- pending event rebase、重复提交和断线重试；
+- pending event rebase（含长时间离线后的积压上限与重放成本）、重复提交和断线重试；
 - eventlog 导出、导入、恢复和清理边界；
 - 与现有实体、历史、加密字段和 DevTools 的关系；
 - Angular / React / Vue 是否需要对称绑定，还是先提供框架无关 API。
@@ -323,6 +330,7 @@ store.commit(events.todoCreated({ id, text }));
 ## 不建议照搬的部分
 
 1. **不把事件溯源变成所有应用的唯一模型。** LiveStore 自己也把已有数据库、高连接度社交业务和完全去中心化 P2P 列为不适合场景。RxDB 的实体关系、树、图和 QueryCache 仍应作为默认优势。
+   事件日志还有增长成本：LiveStore 的 eventlog 只增不减（compaction 仍在长期路线图），同步队列没有上限，每一步 rebase 都重放整段 pending，离线越久，重连时的 rebase 越重。
 2. **不照搬自动 rebase 式的冲突处理。** LiveStore 当前同步文档明确写着 semantic merge 尚未实现，自动 rebase 只保证收敛。RxDB 的方向是 git 式冲突，由用户裁决；富文本、多人同时编辑同一字段这类无需决策的数据需要 CRDT，两边目前都不支持。
 3. **不只押注 OPFS 和中心同步。** RxDB 的 Electron、Tauri、小程序、PGlite、Supabase、HTTP 和 P2P 组合是重要差异化。
 4. **不把 client document 等同于业务实体。** UI 草稿、客户端状态、工作树和业务数据的持久化、同步、历史语义不同，必须分别定义。
@@ -381,15 +389,15 @@ LiveStore 官方项目当前为 beta，minor release 仍可能包含 API、客�
 | L03  | [When to use LiveStore](https://docs.livestore.dev/overview/when-livestore/)                                                                                                           | 适用场景、已有数据库边界、容量与并发考虑                                                          |
 | L04  | [Technology comparison](https://docs.livestore.dev/overview/technology-comparison/)                                                                                                    | 与状态管理、BaaS 和既有数据库同步方案的定位差异                                                   |
 | L05  | [Events](https://docs.livestore.dev/building-with-livestore/events/)                                                                                                                   | 事件定义、版本、client-only、事件流和事件格式                                                     |
-| L06  | [Syncing](https://docs.livestore.dev/building-with-livestore/syncing/)                                                                                                                 | 总序、cursor、head、rebase、backend reset、未完成语义合并                                         |
+| L06  | [Syncing](https://docs.livestore.dev/building-with-livestore/syncing/)                                                                                                                 | 总序、cursor、head、rebase、backend reset、未完成语义合并与 compaction                            |
 | L07  | [SQLite state schema](https://docs.livestore.dev/building-with-livestore/state/sqlite-schema/)                                                                                         | 表定义、materializer、schema migration、state rebuild                                             |
 | L08  | [SQL queries](https://docs.livestore.dev/building-with-livestore/state/sql-queries/)                                                                                                   | 查询构建器、原生 SQL、结果 schema和性能边界                                                       |
 | L09  | [DevTools](https://docs.livestore.dev/building-with-livestore/devtools/)                                                                                                               | 数据浏览、eventlog、查询检查器、SQLite playground、导入导出、Chrome 扩展                          |
 | L10  | [Cloudflare Workers](https://docs.livestore.dev/sync-providers/cloudflare/)                                                                                                            | Durable Objects、DO SQLite / D1、WebSocket / HTTP / DO RPC transport、`validatePayload`           |
 | L11  | [Web adapter](https://docs.livestore.dev/platform-adapters/web-adapter/)                                                                                                               | OPFS、Worker、SharedWorker、`storageMode`、单标签页降级、bundle 体积                              |
-| L12  | [State of the project](https://docs.livestore.dev/misc/state-of-the-project/)                                                                                                          | beta 状态、三类破坏性变化、路线图和未完成平台                                                     |
+| L12  | [State of the project](https://docs.livestore.dev/misc/state-of-the-project/)                                                                                                          | beta 状态、三类破坏性变化、路线图（eventlog compaction、Electron / Tauri 等平台）                 |
 | L13  | [Store](https://docs.livestore.dev/building-with-livestore/store/)                                                                                                                     | 同步状态 API、`_dev` 调试入口、shutdown 语义                                                      |
-| L14  | [React integration](https://docs.livestore.dev/framework-integrations/react-integration/)                                                                                              | StoreRegistry、Suspense、多 store、`useSyncStatus`                                                |
+| L14  | [React integration](https://docs.livestore.dev/framework-integrations/react-integration/)                                                                                              | StoreRegistry、Suspense、多 store、`useSyncStatus`、Next.js 尚不支持                              |
 | L15  | [Design decisions](https://docs.livestore.dev/understanding-livestore/design-decisions/)                                                                                               | 主要设计决策及决策记录链接                                                                        |
 | L16  | [`context/` 意图层](https://github.com/livestorejs/livestore/tree/487b95e45461b5865686bd2e90a68a6601ae4971/context)                                                                    | `ontology.md`、各子系统 spec 与 `.decisions/`、verification（一致性、确定性、性能）及其 `.delta/` |
 | L17  | [RFC 0002 Command Replay](https://github.com/livestorejs/livestore/blob/487b95e45461b5865686bd2e90a68a6601ae4971/contributor-docs/rfcs/0002-command-replay.md)                         | rebase「收敛不等于正确」的三个场景与提案                                                          |
@@ -399,5 +407,18 @@ LiveStore 官方项目当前为 beta，minor release 仍可能包含 API、客�
 | L21  | [性能测试说明](https://github.com/livestorejs/livestore/blob/487b95e45461b5865686bd2e90a68a6601ae4971/tests/perf/README.md)                                                            | 交互延迟与内存的测量方法                                                                          |
 | L22  | [Upgrading 0.4 → 0.5](https://docs.livestore.dev/misc/upgrading-0.4-to-0.5/)                                                                                                           | Effect 4 依赖簇整体升级、一次性状态重建                                                           |
 | L23  | [livestore-contrib](https://github.com/livestorejs/livestore-contrib)                                                                                                                  | Node、Expo、Solid、Svelte、ElectricSQL、S2、CLI 等包的归属                                        |
+| L24  | [Expo](https://docs.livestore.dev/getting-started/expo/)                                                                                                                               | 不支持 Expo Web（#130）                                                                           |
+| L25  | [Offline support](https://docs.livestore.dev/patterns/offline/)                                                                                                                        | `networkStatus`；DevTools 关闭 sync latch 模拟离线（`devtools.latchClosed`）                      |
+| L26  | [DevTools 协议目录](https://github.com/livestorejs/livestore/blob/487b95e45461b5865686bd2e90a68a6601ae4971/context/02-system/07-devtools/protocol-catalog.md)                          | `SetSyncLatch` 开关 sync latch（simulate offline）                                                |
+| L27  | [Auth](https://docs.livestore.dev/patterns/auth/)                                                                                                                                      | 不内建鉴权；`syncPayload`、`validatePayload` 与 Durable Object 内复验                             |
+| L28  | [FAQ](https://docs.livestore.dev/misc/faq/)、[Materializers](https://docs.livestore.dev/building-with-livestore/state/materializers/)                                                  | materializer 在事务内执行、没有全局事务、不提供托管同步后端                                       |
+| L29  | [Sync processors spec](https://github.com/livestorejs/livestore/blob/487b95e45461b5865686bd2e90a68a6601ae4971/context/02-system/03-sync/02-processors/spec.md)                         | Backpressure and Known Gaps：队列无上限、每步 rebase 重放整段 pending                             |
+| L30  | [Cloudflare sync provider spec](https://github.com/livestorejs/livestore/blob/487b95e45461b5865686bd2e90a68a6601ae4971/context/02-system/03-sync/03-cf/spec.md)                        | Self-Hosted Runtime (celld)：2026-10-02 本地验证 celld v0.6.1，不保证后续版本                     |
+| L31  | [CHANGELOG](https://github.com/livestorejs/livestore/blob/487b95e45461b5865686bd2e90a68a6601ae4971/CHANGELOG.md)                                                                       | 「Unreleased」段：web-worker 适配器下的物化哈希检查（#1660）                                      |
 
-后续立项前，应重新核对 LiveStore 文档版本、npm 包能力和实际运行行为；本文不以宣传页或单个 demo 推导性能、可靠性或生产适用性。
+L02 称开发者可以自定义 merge 冲突逻辑，L06 却写明 merge conflict handling 尚未实现（#253），本文以 L06 为准。
+
+docs.livestore.dev 只随稳定版部署（现为 0.5.0，2026-10-15 发布），跟随 main 的是 dev.docs.livestore.dev（别名 next.livestore.dev）。
+本文按固定提交的 `docs/` 与源码核对；表中文档页在 0.5.0 与该提交之间没有影响本文结论的差异，只在 main 上的源码行为见 L31。
+
+后续立项前，应重新核对 LiveStore 文档版本、npm 包能力和实际运行行为，继续带提交锚定并写明对照的是发布版还是 main；本文不以宣传页或单个 demo 推导性能、可靠性或生产适用性。
