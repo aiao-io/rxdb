@@ -74,6 +74,21 @@ describe('网关出站负载可结构化克隆', () => {
     expect(patch).toEqual({ title: 'with relation', authorId: author.id });
   });
 
+  // `notifyExternalUpdate` 的 TSDoc 契约：关系对象不跨 tab，关系变化要同时给出外键列；
+  // 只给关系对象时广播出去的是空 patch，对端看不到变化，也不报错。
+  it('patch 里只有关系对象、没有外键列：广播出去的是空 patch', async () => {
+    const { database: db, entityPatches } = await openWithListener();
+    const author = new User();
+    author.name = 'author';
+
+    expect(() =>
+      db.entityManager.notifyExternalUpdate(Post, '00000000-0000-7000-8000-00000000e003', { author })
+    ).not.toThrow();
+
+    await vi.waitFor(() => expect(entityPatches()).toHaveLength(1));
+    expect(entityPatches()[0]).toEqual({});
+  });
+
   it('普通 patch 的异构值（bigint、Date、二进制视图）原样送达', async () => {
     const { database: db, entityPatches } = await openWithListener();
     const at = new Date('2026-11-09T00:00:00Z');

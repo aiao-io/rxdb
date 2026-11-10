@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import fs, { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import fs, { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { syncBuiltinESMExports } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -73,4 +74,19 @@ test('读不到目录的其他错误照常抛出，不被当成「没有报告�
   vanishOn(t, 'statSync', join(coverageDir, 'packages', 'beta'), 'EACCES');
 
   assert.throws(() => listReports(coverageDir), /EACCES/);
+});
+
+// Node 启动 ESM 主模块时按真实路径解析 import.meta.url，而 process.argv[1] 不解析符号链接。
+// 入口判定不做 realpath，检出位在符号链接路径下（如 macOS 的 /tmp → /private/tmp）时脚本静默不执行、退出 0。
+test('经符号链接路径启动时 CLI 照常执行：未知选项非零退出并报错', t => {
+  const linkRoot = mkdtempSync(join(tmpdir(), 'coverage-serve-link-'));
+  t.after(() => rmSync(linkRoot, { recursive: true, force: true }));
+  symlinkSync(import.meta.dirname, join(linkRoot, 'scripts'), 'dir');
+
+  const run = spawnSync(process.execPath, [join(linkRoot, 'scripts', 'coverage-serve.mjs'), '--no-such-option'], {
+    encoding: 'utf8'
+  });
+
+  assert.equal(run.status, 1, `脚本没有执行？stdout=${run.stdout} stderr=${run.stderr}`);
+  assert.match(run.stderr, /Unknown option: --no-such-option/);
 });

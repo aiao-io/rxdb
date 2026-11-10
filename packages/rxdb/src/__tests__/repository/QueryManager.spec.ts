@@ -24,7 +24,10 @@ Object.assign(TestEntity, {
   [METADATA]: {
     name: 'TestEntity',
     namespace: 'public',
-    propertyMap: new Map([['name', { name: 'name', type: 'string' }]]),
+    propertyMap: new Map([
+      ['name', { name: 'name', type: 'string' }],
+      ['value', { name: 'value', type: 'integer' }]
+    ]),
     sync: {
       type: SyncType.None,
       local: { adapter: 'local' }
@@ -421,19 +424,16 @@ describe('QueryManager', () => {
     });
 
     describe('CREATE 载荷的完整性', () => {
-      /** 查询按 `name` 过滤；返回任务、合并策略桩与执行器桩 */
-      const watchByName = () => {
+      /** 订阅一个查询并让空闲回调同步执行；返回任务、合并策略桩与执行器桩 */
+      const watch = (type: 'find' | 'findAll', options: object) => {
         const runner = vi.fn(() => of([]));
         const task = queryManager.createTask({
-          options: {
-            type: 'find' as const,
-            options: { where: { combinator: 'and' as const, rules: [{ field: 'name', operator: '=', value: 'x' }] } }
-          } as never,
+          options: { type, options } as never,
           runner,
           getFingerprint: vi.fn(result => [result.length])
         });
         const mergeCreate = vi.fn<MergeQueryTaskCreateFn<typeof TestEntity>>();
-        queryManager.registerMergeCreateFn('find', mergeCreate);
+        queryManager.registerMergeCreateFn(type, mergeCreate);
         const subscription = task.result$.subscribe();
         vi.stubGlobal('requestIdleCallback', (callback: IdleRequestCallback) => {
           callback({ didTimeout: false, timeRemaining: () => 50 } as IdleDeadline);
@@ -442,6 +442,15 @@ describe('QueryManager', () => {
         return { runner, mergeCreate, subscription };
       };
 
+      const nameIsX = { combinator: 'and' as const, rules: [{ field: 'name', operator: '=', value: 'x' }] };
+
+      /** 查询按 `name` 过滤 */
+      const watchByName = () => watch('find', { where: nameIsX });
+
+      /** 查询按 `name` 过滤、按 `value` 排序 */
+      const watchOrderedByValue = () =>
+        watch('find', { where: nameIsX, orderBy: [{ field: 'value', sort: 'asc' as const }] });
+
       const createEvent = (patch: Record<string, unknown>) => ({
         type: ENTITY_LOCAL_CREATE_EVENT,
         entities: [
@@ -449,7 +458,7 @@ describe('QueryManager', () => {
             type: 'INSERT',
             namespace: 'public',
             entity: 'TestEntity',
-            id: 1,
+            id: patch['id'] ?? 1,
             patch,
             inversePatch: null,
             recordAt: new Date()
@@ -477,6 +486,99 @@ describe('QueryManager', () => {
 
         await vi.waitFor(() => expect(mergeCreate).toHaveBeenCalledTimes(1));
         expect(runner).toHaveBeenCalledTimes(1);
+        subscription.unsubscribe();
+        vi.unstubAllGlobals();
+      });
+
+      it('载荷缺 orderBy 读的列（where 的列齐全）：回库重查，不交给合并策略', async () => {
+        const { runner, mergeCreate, subscription } = watchOrderedByValue();
+        await vi.waitFor(() => expect(runner).toHaveBeenCalledTimes(1));
+
+        eventListeners.get(ENTITY_LOCAL_CREATE_EVENT)!(createEvent({ id: 1, name: 'x' }));
+
+        await vi.waitFor(() => expect(runner).toHaveBeenCalledTimes(2));
+        expect(mergeCreate).not.toHaveBeenCalled();
+        subscription.unsubscribe();
+        vi.unstubAllGlobals();
+      });
+
+      it('没有 where 的查询：载荷缺 orderBy 读的列同样回库重查', async () => {
+        const { runner, mergeCreate, subscription } = watch('findAll', {
+          orderBy: [{ field: 'value', sort: 'desc' as const }]
+        });
+        await vi.waitFor(() => expect(runner).toHaveBeenCalledTimes(1));
+
+        eventListeners.get(ENTITY_LOCAL_CREATE_EVENT)!(createEvent({ id: 1, name: 'x' }));
+
+        await vi.waitFor(() => expect(runner).toHaveBeenCalledTimes(2));
+        expect(mergeCreate).not.toHaveBeenCalled();
+        subscription.unsubscribe();
+        vi.unstubAllGlobals();
+      });
+
+      it('载荷带齐 orderBy 读的列：交给合并策略，不回库重查', async () => {
+        const { runner, mergeCreate, subscription } = watchOrderedByValue();
+        await vi.waitFor(() => expect(runner).toHaveBeenCalledTimes(1));
+
+        eventListeners.get(ENTITY_LOCAL_CREATE_EVENT)!(createEvent({ id: 1, name: 'x', value: 3 }));
+
+        await vi.waitFor(() => expect(mergeCreate).toHaveBeenCalledTimes(1));
+        expect(runner).toHaveBeenCalledTimes(1);
+        subscription.unsubscribe();
+        vi.unstubAllGlobals();
+      });
+
+      it('orderBy 读的是 id、跨关系路径或不在 propertyMap 里的字段：不因排序回库重查', async () => {
+        const { runner, mergeCreate, subscription } = watch('find', {
+          where: nameIsX,
+          orderBy: [
+            { field: 'id', sort: 'asc' as const },
+            { field: 'author.name', sort: 'asc' as const },
+            { field: 'virtual', sort: 'asc' as const }
+          ]
+        });
+        await vi.waitFor(() => expect(runner).toHaveBeenCalledTimes(1));
+
+        eventListeners.get(ENTITY_LOCAL_CREATE_EVENT)!(createEvent({ id: 1, name: 'x' }));
+
+        await vi.waitFor(() => expect(mergeCreate).toHaveBeenCalledTimes(1));
+        expect(runner).toHaveBeenCalledTimes(1);
+        subscription.unsubscribe();
+        vi.unstubAllGlobals();
+      });
+
+      // 排序列缺失时行按 `undefined` 参与排序：顺序错，limit 窗口里也会留错行或漏掉该进窗口的行
+      it('缺排序列的行不按 undefined 参与排序：窗口与顺序以整查的结果为准', async () => {
+        const cached = [
+          { id: 1, name: 'x', value: 1 },
+          { id: 3, name: 'x', value: 3 }
+        ];
+        const authoritative = [
+          { id: 1, name: 'x', value: 1 },
+          { id: 2, name: 'x', value: 2 }
+        ];
+        const runner = vi.fn().mockReturnValueOnce(of(cached)).mockReturnValue(of(authoritative));
+        const task = queryManager.createTask({
+          options: {
+            type: 'find' as const,
+            options: { where: nameIsX, orderBy: [{ field: 'value', sort: 'asc' as const }], limit: 2 }
+          } as never,
+          runner,
+          getFingerprint: vi.fn((result: Array<{ id: number }>) => result.map(entity => entity.id))
+        });
+        const emissions: Array<Array<{ id: number }>> = [];
+        const subscription = task.result$.subscribe(value => emissions.push(value as Array<{ id: number }>));
+        vi.stubGlobal('requestIdleCallback', (callback: IdleRequestCallback) => {
+          callback({ didTimeout: false, timeRemaining: () => 50 } as IdleDeadline);
+          return 1;
+        });
+        await vi.waitFor(() => expect(emissions).toHaveLength(1));
+
+        // 适配器只发了部分字段：id 与 name 到了，排序列 value 没到
+        eventListeners.get(ENTITY_LOCAL_CREATE_EVENT)!(createEvent({ id: 2, name: 'x' }));
+
+        await vi.waitFor(() => expect(emissions.at(-1)?.map(entity => entity.id)).toEqual([1, 2]));
+        expect(runner).toHaveBeenCalledTimes(2);
         subscription.unsubscribe();
         vi.unstubAllGlobals();
       });

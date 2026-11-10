@@ -39,7 +39,7 @@ describe('scanDirectivePrologue（RV-01a1bb4c7db9）', () => {
     expect(scanDirectivePrologue(code).directives).toEqual(['use strict']);
   });
 
-  it('文件末尾的指令不需要分号', () => {
+  it('文件末尾没写分号的指令照样成立；插语句前要补分号', () => {
     expect(scanDirectivePrologue('"use strict"')).toEqual({
       end: '"use strict"'.length,
       needsSemicolon: true,

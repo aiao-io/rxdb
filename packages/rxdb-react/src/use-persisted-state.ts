@@ -1,5 +1,5 @@
 import { PersistedStateRegistry } from '@aiao/utils';
-import { useSyncExternalStore } from 'react';
+import { useCallback, useState, useSyncExternalStore } from 'react';
 
 /**
  * 命名空间持久化状态的进程内注册表。
@@ -10,8 +10,10 @@ import { useSyncExternalStore } from 'react';
  * 因此退化成**模块级单例** —— 同一个 bundle 内的多个 React 根共享同一份注册表。
  * 这与 Vue 侧一致，`localStorage` 本来也是同源共享的。
  *
- * 服务端渲染与 hydrate 的快照不取自这份注册表（见 {@link usePersistedState} 的 `getServerSnapshot`）：
- * 长驻 SSR 进程里它跨请求存活，从它取值会把上一个请求的值渲染进下一个请求的 HTML。
+ * 服务端渲染**不碰**这份注册表：长驻 SSR 进程里它跨请求存活，在里面登记会把上一个请求的
+ * 值类型钉在键上（下一个请求换了类型整页抛错），也会让每个请求的初值一直留在进程里。
+ * 所以只在 React 仅于客户端调用的回调里取表 —— `getSnapshot`、`subscribe` 与 `setValue`；
+ * 服务端渲染只调 `getServerSnapshot`，hydrate 那一帧也是。
  *
  * `onError` 走 `console.error`：模块级单例够不着 React 的 error boundary。
  * UI 侧要感知失败请读 {@link PersistedState.persistError}。
@@ -64,7 +66,7 @@ export interface PersistedState<T> {
  * @param name - 键名；与 `namespace` 各自转义后组成持久化键
  * @param initialValue - **仅首次注册生效**的初值；盘上已有值时以盘上值为准
  * @returns 见 {@link PersistedState}
- * @throws 同 `namespace + name` 此前以不同**值类型**注册过时，在渲染期抛出
+ * @throws 同 `namespace + name` 此前以不同**值类型**注册过时，在客户端渲染期抛出（服务端渲染不登记，也就不校验）
  *
  * @example
  * ```tsx
@@ -83,9 +85,10 @@ export interface PersistedState<T> {
  *
  * 订阅走 `useSyncExternalStore`，因此在并发渲染与 `StrictMode` 下都不会读到撕裂的快照。
  * 服务端渲染（`getServerSnapshot`）恒为**本次调用**的 `initialValue`、`persistError` 恒为
- * `undefined`：不读也不写 `localStorage`，也不读进程内注册表，连续或并发的请求之间互不可见，
- * 同一次渲染里同 key 的调用点各自渲染自己的初值。客户端 hydrate 用同一个快照对齐服务端 HTML，
- * 提交后再切到注册表里的当前值（盘上值或首次注册的初值），不产生 hydration mismatch。
+ * `undefined`：不读也不写 `localStorage`，也不碰进程内注册表（不读、不登记），连续或并发的请求之间
+ * 互不可见，同 key 跨请求换值类型也不抛错；同一次渲染里同 key 的调用点各自渲染自己的初值。
+ * 客户端 hydrate 用同一个快照对齐服务端 HTML，提交后再切到注册表里的当前值（盘上值或首次注册的初值），
+ * 不产生 hydration mismatch。
  *
  * 暂不监听 `storage` 事件，因此**不跨标签页同步**。
  *
@@ -96,11 +99,28 @@ export interface PersistedState<T> {
  * @public
  */
 export const usePersistedState = <T>(namespace: string, name: string, initialValue: T): PersistedState<T> => {
-  // entry 门面在注册表里只建一次，get / subscribe / set 的 identity 都是稳定的 ——
-  // useSyncExternalStore 正是以 subscribe 的 identity 判定要不要重新订阅
-  const entry = registry.entry(namespace, name, initialValue);
-  const value = useSyncExternalStore(entry.subscribe, entry.get, () => initialValue);
-  const persistError = useSyncExternalStore(entry.subscribe, entry.persistError, noPersistError);
+  // 首次渲染的初值。hydrate 提交后，子组件的 effect 与本 hook 的订阅都早于快照核对，
+  // 键可能还没登记 —— 那时当前渲染就是首次渲染，用它登记与 getSnapshot 同值
+  const [registration] = useState(() => initialValue);
+  // 先查后建：键已由快照（或别的调用点）登记时直接取，不拿首次渲染的初值再校验一次类型
+  const entryOf = useCallback(
+    () => registry.find<T>(namespace, name) ?? registry.entry(namespace, name, registration),
+    [namespace, name, registration]
+  );
+  // useSyncExternalStore 以 subscribe 的 identity 判定要不要重新订阅；setValue 承诺跨渲染同一引用
+  const subscribe = useCallback((listener: () => void) => entryOf().subscribe(listener), [entryOf]);
+  const setValue = useCallback((next: T) => entryOf().set(next), [entryOf]);
+  // 快照按本次的 initialValue 取表：同 key 换值类型在客户端渲染期 fail-fast
+  const value = useSyncExternalStore(
+    subscribe,
+    () => registry.entry(namespace, name, initialValue).get(),
+    () => initialValue
+  );
+  const persistError = useSyncExternalStore(
+    subscribe,
+    () => registry.entry(namespace, name, initialValue).persistError(),
+    noPersistError
+  );
 
-  return { value, setValue: entry.set, persistError };
+  return { value, setValue, persistError };
 };

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -10,6 +10,11 @@ import { mergeCoverageDirectories, mergeJunitFiles } from './merge-vitest-report
 const loc = (line, startColumn, endColumn) => ({
   start: { line, column: startColumn },
   end: { line, column: endColumn }
+});
+
+const span = (startLine, startColumn, endLine, endColumn) => ({
+  start: { line: startLine, column: startColumn },
+  end: { line: endLine, column: endColumn }
 });
 
 const writeReports = async (prefix, node, browser) => {
@@ -230,5 +235,83 @@ test('CLI 在带空格的路径下照常合并；输入缺失时非零退出', a
     await rm(dirs.root, { recursive: true, force: true });
   } finally {
     await rm(root, { recursive: true, force: true });
+  }
+});
+
+// 现有的 CLI 用例只在系统临时目录本身带符号链接（macOS 的 /var → /private/var）时才会走到这条分支。
+test('CLI 经符号链接路径启动时照常合并（不依赖系统临时目录恰好带符号链接）', async () => {
+  const linkRoot = await mkdtemp(join(tmpdir(), 'vitest-merge-link-'));
+  const node = fileCoverage({ statementMap: { 0: loc(1, 0, 10) }, s: { 0: 1 } });
+  const dirs = await writeReports('vitest-merge-link-input-', node, fileCoverage({ ...node, s: { 0: 0 } }));
+  try {
+    await symlink(import.meta.dirname, join(linkRoot, 'scripts'), 'dir');
+    const junit = '<?xml version="1.0"?><testsuites tests="1" failures="0" errors="0" time="0.1"></testsuites>';
+    await Promise.all([dirs.nodeDir, dirs.browserDir].map(dir => writeFile(join(dir, 'junit.xml'), junit)));
+
+    const merged = spawnSync(
+      process.execPath,
+      [
+        join(linkRoot, 'scripts', 'merge-vitest-reports.mjs'),
+        `--node=${dirs.nodeDir}`,
+        `--browser=${dirs.browserDir}`,
+        `--output=${dirs.outputDir}`
+      ],
+      { encoding: 'utf8' }
+    );
+
+    assert.equal(merged.status, 0, merged.stderr);
+    // 入口判定落空时脚本静默退出 0，所以要看产物
+    const summary = JSON.parse(await readFile(join(dirs.outputDir, 'coverage-summary.json'), 'utf8'));
+    assert.equal(summary.total.statements.covered, 1);
+  } finally {
+    await Promise.all([linkRoot, dirs.root].map(dir => rm(dir, { recursive: true, force: true })));
+  }
+});
+
+/**
+ * 区间 3:2–3:8 只在 node 一侧出现且没执行过；browser 一侧没有它，只有给定的几个容器（按给定顺序编号）。
+ * 返回合并后这个区间的命中数：借到哪个容器的计数，就是几。
+ */
+const borrowedHits = async containers => {
+  const region = loc(3, 2, 8);
+  const node = fileCoverage({ statementMap: { 0: region }, s: { 0: 0 } });
+  const browser = fileCoverage({
+    statementMap: Object.fromEntries(containers.map(({ range }, id) => [id, range])),
+    s: Object.fromEntries(containers.map(({ hits }, id) => [id, hits]))
+  });
+  const dirs = await writeReports('vitest-merge-borrow-', node, browser);
+  try {
+    await mergeCoverageDirectories(dirs.nodeDir, dirs.browserDir, dirs.outputDir);
+    const merged = JSON.parse(await readFile(join(dirs.outputDir, 'coverage-final.json'), 'utf8'))[node.path];
+    const id = Object.keys(merged.statementMap).find(
+      key => JSON.stringify(merged.statementMap[key]) === JSON.stringify(region)
+    );
+    return merged.s[id];
+  } finally {
+    await rm(dirs.root, { recursive: true, force: true });
+  }
+};
+
+test('借命中数只认包含关系：两个容器互不嵌套时谁也不比谁近，保留先找到的', async () => {
+  // a 起点更早、终点更近；b 起点更晚、终点更远：两者都包含 3:2–3:8，但互不包含
+  const a = { range: span(2, 0, 3, 9), hits: 0 };
+  const b = { range: span(3, 0, 3, 20), hits: 7 };
+
+  assert.equal(await borrowedHits([a, b]), 0, 'a 在前：借 a，没执行');
+  assert.equal(await borrowedHits([b, a]), 7, 'b 在前：借 b');
+});
+
+test('借命中数借最窄的包含区间，与容器在报告里的先后无关：两端同行时比列', async () => {
+  const cases = [
+    ['同在较早的一行起头，起点列更晚的更窄', span(1, 0, 9, 0), span(1, 4, 9, 0)],
+    ['同在较晚的一行收尾，终点列更早的更窄', span(1, 0, 9, 20), span(1, 0, 9, 5)]
+  ];
+  for (const [label, wide, narrow] of cases) {
+    const containers = [
+      { range: wide, hits: 0 },
+      { range: narrow, hits: 6 }
+    ];
+    assert.equal(await borrowedHits(containers), 6, `${label}：宽的在前`);
+    assert.equal(await borrowedHits(containers.toReversed()), 6, `${label}：窄的在前`);
   }
 });

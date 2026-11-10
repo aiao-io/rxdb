@@ -162,6 +162,62 @@ describe('rxdb_adapter_mutations 批量写入后的回填', () => {
     expect(status.modified).toBe(true);
   });
 
+  describe('回查命中的是缓存里同 id 的另一个实例（不在本批提交记录里）', () => {
+    const TODO_ID = '00000000-0000-4000-8000-000000000001';
+
+    /** 本批要写的实例 `batch` 已被同 id 的 `cached` 顶掉缓存槽，回查按缓存槽命中 `cached` */
+    const setup = (dbName: string) => {
+      const rxdb = createDatabase(dbName, [Todo]);
+      const em = rxdb.entityManager;
+      const data = {
+        id: TODO_ID,
+        title: 'original',
+        completed: false,
+        createdAt: new Date(CREATED),
+        updatedAt: new Date(STORED)
+      } as EntityUpdateData<typeof Todo>;
+      const batch = em.createEntityRef(Todo, data, { local: true, modified: false });
+      batch.title = 'submitted';
+      em.removeEntityCache(batch);
+      const cached = em.createEntityRef(Todo, data, { local: true, modified: false });
+      expect(em.getEntityRef(Todo, TODO_ID)).toBe(cached);
+      const adapter = new MutationTestAdapter(rxdb, async sql =>
+        sql.startsWith('UPDATE ') ? written(sql) : todoRows(sql, [[TODO_ID, 'submitted', 0, CREATED, WRITTEN]])
+      );
+      return { adapter, batch, cached };
+    };
+
+    it('干净的缓存实例取库里的值，基线随之推进，modified 为 false', async () => {
+      const { adapter, batch, cached } = setup('sqlite-batch-write-back-other-instance-clean');
+
+      await rxdb_adapter_mutations(adapter, mutationsOf('update', Todo, [batch]));
+
+      const status = getEntityStatus(cached);
+      expect(cached.title).toBe('submitted');
+      expect(cached.updatedAt).toEqual(new Date(WRITTEN));
+      expect(status.origin.title).toBe('submitted');
+      expect(status.local).toBe(true);
+      expect(status.modified).toBe(false);
+    });
+
+    it('有未保存编辑的缓存实例保留编辑与编辑历史，基线推进到库里的值，modified 仍为 true', async () => {
+      const { adapter, batch, cached } = setup('sqlite-batch-write-back-other-instance-dirty');
+      cached.title = 'unsaved draft';
+      await Promise.resolve();
+      const status = getEntityStatus(cached);
+      expect(status.patches).toHaveLength(1);
+
+      await rxdb_adapter_mutations(adapter, mutationsOf('update', Todo, [batch]));
+
+      expect(cached.title).toBe('unsaved draft');
+      expect(cached.updatedAt).toEqual(new Date(WRITTEN));
+      expect(status.origin.title).toBe('submitted');
+      expect(status.patch).toEqual({ title: 'unsaved draft' });
+      expect(status.modified).toBe(true);
+      expect(status.patches).toHaveLength(1);
+    });
+  });
+
   it('回查拿到安全整数形态的 bigint 外键时按目标主键类型解码，回填后仍是 bigint', async () => {
     const rxdb = createDatabase('sqlite-batch-write-back-bigint-fk', [WriteBackBigParent, WriteBackBigChild]);
     const child = rxdb.entityManager.createEntityRef(WriteBackBigChild, {

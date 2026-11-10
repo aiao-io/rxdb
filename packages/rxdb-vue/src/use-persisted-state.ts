@@ -130,8 +130,12 @@ const bindingOf = <T>(entry: PersistedStateEntry<T>): PersistedState<T> => {
  * `namespace` 与 `name` 可以包含任意字符：两者在持久化键里各自转义，不会互相串号；
  * 含 `:` 或 `%` 的旧键在首次读取时一次性迁移到新键。
  *
- * 非浏览器环境（SSR）下不读也不写 `localStorage`，状态退化成纯内存值，不会抛错；
- * 客户端 hydrate 后从盘上恢复。服务端渲染时（setup 或 `app.runWithContext` 内）状态按请求隔离：
+ * 非浏览器环境（SSR）下不读也不写 `localStorage`，状态退化成纯内存值，不会抛错。
+ * 客户端在 setup 时就从盘上恢复，hydrate 的首帧即盘上值：与服务端渲染的 `initialValue` 不同时
+ * Vue 会报 hydration mismatch 并按客户端值修补 DOM。要首屏与服务端 HTML 一致，把依赖该值的渲染
+ * 推迟到 `onMounted` 之后，或在对应节点上加 `data-allow-mismatch`（Vue 3.5+）。React 侧借
+ * `getServerSnapshot` 先对齐再切换；这里做不到同样的事 —— 同 key 始终是同一个 `Ref`，
+ * 不能按调用点各给一份 hydrate 快照。服务端渲染时（setup 或 `app.runWithContext` 内）状态按请求隔离：
  * 同一请求内同 key 共享，连续或并发的请求之间互不可见；在这两种上下文之外调用拿到的是
  * 进程级状态，服务端不要在那里放请求相关的值。
  *

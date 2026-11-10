@@ -52,11 +52,14 @@ const updateCachedEntity = <T extends EntityType>(
   const entity = repo.getEntityRef(id);
   if (!entity) return;
 
-  // 不再无条件归零 modified：applyWriteResult 按提交值收尾并按 patch 重算，执行期间的新输入留到下一次 save()。
-  // 缓存里的若不是本批提交的那个实例（没有提交值），按「全部未提交」处理，等同外部合并、不丢编辑
+  // 不再无条件归零 modified：执行期间的新输入留到下一次 save()。
+  // 本批提交过的实例按提交记录收尾（applyWriteResult：以回查的行推进基线，提交之后的新编辑保留）；
+  // 缓存里的若不是本批提交的那个实例（例如缓存槽里是同 id 的另一个实例），没有提交值可言，
+  // 那一行对它就是外部数据，走 applyExternal——外部数据落到已缓存实体的唯一策略入口，逐字段避让未保存编辑
   const state = getEntityStatus(entity);
-  const { submitted, mark } = submissions.get(entity) ?? { submitted: {}, mark: state.writeMark({}) };
-  state.applyWriteResult(data as Partial<InstanceType<T>>, submitted, mark);
+  const submission = submissions.get(entity);
+  if (submission) state.applyWriteResult(data as Partial<InstanceType<T>>, submission.submitted, submission.mark);
+  else state.applyExternal(data as Partial<InstanceType<T>>);
   state.local = true;
 };
 

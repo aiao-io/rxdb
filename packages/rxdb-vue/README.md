@@ -204,6 +204,7 @@ theme.value.value = 'light'; // 立即落盘到 'my-app:theme'
 - 是 `shallowRef` 语义：对象原地改字段不触发响应式也不落盘，必须整体赋新值。
 - 写盘失败**不抛错**，内存值照常更新，失败经 `persistError` 暴露 —— 这是唯一能知道数据没落盘的途径。
 - SSR 下不读也不写 `localStorage`，退化成纯内存值，并按请求隔离（setup 或 `app.runWithContext` 内）：同一请求内同 key 共享，请求之间互不可见。暂不监听 `storage` 事件，因此不跨标签页同步。
+- 客户端在 setup 时就读盘，hydrate 的首帧即盘上值：与服务端渲染的 `initialValue` 不同时 Vue 会报 hydration mismatch，并按客户端值修补 DOM。要首屏与服务端 HTML 一致，把依赖该值的渲染推迟到 `onMounted` 之后，或在对应节点上加 `data-allow-mismatch`（Vue 3.5+）。
 
 ## 实体实时变更
 

@@ -200,6 +200,56 @@ describe('PGlite 写入回填', () => {
     expect(getEntityStatus(row).modified).toBe(false);
   });
 
+  describe('回查命中的是缓存里同 id 的另一个实例（不在本批提交记录里）', () => {
+    /** 本批要写的实例 `batch` 已被同 id 的 `cached` 顶掉缓存槽，回查按缓存槽命中 `cached` */
+    const setup = async () => {
+      const batch = new WriteBackRow({ title: 'original' });
+      await batch.save();
+      batch.title = 'submitted';
+      const em = rxdb.entityManager;
+      em.removeEntityCache(batch);
+      const cached = em.createEntityRef(
+        WriteBackRow,
+        { id: batch.id, title: 'original', createdAt: batch.createdAt, updatedAt: batch.updatedAt },
+        { local: true, modified: false }
+      );
+      expect(em.getEntityRef(WriteBackRow, batch.id)).toBe(cached);
+      return { batch, cached };
+    };
+
+    it('干净的缓存实例取库里的值，基线随之推进，modified 为 false', async () => {
+      const { batch, cached } = await setup();
+
+      await rxdb.entityManager.saveMany([batch]);
+
+      const status = getEntityStatus(cached);
+      expect(cached.title).toBe('submitted');
+      expect(status.origin.title).toBe('submitted');
+      expect(status.local).toBe(true);
+      expect(status.modified).toBe(false);
+      expect((await storedRow(batch.id)).title).toBe('submitted');
+    });
+
+    it('有未保存编辑的缓存实例保留编辑与编辑历史，基线推进到库里的值，modified 仍为 true', async () => {
+      const { batch, cached } = await setup();
+      cached.title = 'unsaved draft';
+      await Promise.resolve();
+      const status = getEntityStatus(cached);
+      expect(status.patches).toHaveLength(1);
+
+      await rxdb.entityManager.saveMany([batch]);
+
+      expect(cached.title).toBe('unsaved draft');
+      expect(status.origin.title).toBe('submitted');
+      expect(status.patch).toEqual({ title: 'unsaved draft' });
+      expect(status.modified).toBe(true);
+      expect(status.patches).toHaveLength(1);
+
+      await cached.save();
+      expect((await storedRow(batch.id)).title).toBe('unsaved draft');
+    });
+  });
+
   it('QueryCache 回填远端行时避让未保存的本地编辑，基线推进到远端值', async () => {
     const draft = new WriteBackRow({ title: 'cache original' });
     await draft.save();

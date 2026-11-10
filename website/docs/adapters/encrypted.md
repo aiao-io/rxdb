@@ -190,9 +190,9 @@ class Ledger extends EntityBase {
 
 ### 存量库里的明文 `DEFAULT`
 
-加密列的建表语句不再写入 `DEFAULT`：缺省值由适配器在单条 INSERT 加密前补齐，随整行一起封成信封。0.0.28 及更早版本建出的表，`sqlite_master` 里仍保留旧的明文 `DEFAULT` 文本（数据库文件里可见）；漂移检查不比较 `DEFAULT`，不会因此报错。
+加密列的建表语句不再写入 `DEFAULT`（SQLite 系与 PGlite 都是）：缺省值由适配器在加密前补齐（单条与批量 INSERT；PGlite 的 QueryCache 回填新行同样补齐），随整行一起封成信封。0.0.28 及更早版本建出的表仍保留旧的明文 `DEFAULT` 文本：SQLite 在 `sqlite_master` 里（数据库文件里可见），PGlite 在列默认值目录 `pg_attrdef` 里。两端的漂移检查都不比较 `DEFAULT`，不会因此报错。
 
-升级**不会自动迁移**这些存量表。默认值本身敏感、或不希望 schema 里留有明文时，需要自行重建该表：导出数据、删除旧表、按当前版本重新建表、再导入。
+升级**不会自动迁移**这些存量表。默认值本身敏感、或不希望 schema 里留有明文时：SQLite 需要自行重建该表（导出数据、删除旧表、按当前版本重新建表、再导入）；PGlite 对相应的列执行 `ALTER TABLE … ALTER COLUMN … DROP DEFAULT` 即可清掉。
 
 ## 错误类型
 

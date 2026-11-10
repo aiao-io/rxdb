@@ -36,11 +36,16 @@ const distanceTo = (inner, outer) => [
 const outside = ([startLine, startColumn, endLine, endColumn]) =>
   startLine < 0 || endLine < 0 || (startLine === 0 && startColumn < 0) || (endLine === 0 && endColumn < 0);
 
-const closer = (distance, best) =>
-  distance[0] < best[0] ||
-  (distance[0] === 0 && distance[1] < best[1]) ||
-  distance[2] < best[2] ||
-  (distance[2] === 0 && distance[3] < best[3]);
+/**
+ * 候选容器是否比当前最优更窄：起点不早于、终点不晚于最优（两端各按 (行, 列) 字典序比较），且两端不全相同，
+ * 即嵌在最优里面。互不嵌套的两个容器谁也不比谁近，调用方保留先找到的；只比一端会选中非嵌套的容器，
+ * 借来别处的命中数。距离是 `[起点行差, 起点列差, 终点行差, 终点列差]`，越小越贴近区间本身。
+ */
+const closer = (distance, best) => {
+  const start = distance[0] - best[0] || distance[1] - best[1];
+  const end = distance[2] - best[2] || distance[3] - best[3];
+  return start <= 0 && end <= 0 && (start < 0 || end < 0);
+};
 
 /** 另一份报告里包含该区间的最窄一项的 ID；没有就是 `undefined`。 */
 const nearestContainer = (region, side, regionOf) => {

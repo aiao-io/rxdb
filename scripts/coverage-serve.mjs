@@ -812,7 +812,9 @@ function serve(port, focusHref = '/') {
   });
 }
 
-if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+// 入口判定对 process.argv[1] 取 realpath：经符号链接（如 macOS 的 /tmp → /private/tmp）启动时，
+// import.meta.url 是解析后的真实路径，而 process.argv[1] 不解析符号链接，不取的话脚本会静默不执行、退出 0
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   const { pkg, port } = parseArgs(process.argv.slice(2));
   const focusHref = resolveReportHref(pkg);
   serve(port, focusHref);

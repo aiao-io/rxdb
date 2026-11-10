@@ -13,6 +13,10 @@ import { usePersistedState } from '../use-persisted-state';
 
 const Profile = ({ owner }: { owner: string }) => <span>{usePersistedState('ssr-profile', 'owner', owner).value}</span>;
 
+const Slot = ({ initial }: { initial: number | string }) => (
+  <span>{usePersistedState<number | string>('ssr-slot', 'slot', initial).value}</span>
+);
+
 const Gated = ({ gate, children }: { gate: Promise<void>; children: ReactNode }) => {
   use(gate);
   return children;
@@ -82,5 +86,11 @@ describe('usePersistedState（SSR）', () => {
     );
 
     expect(html).toBe('<span>first</span><span>second</span>');
+  });
+
+  // 服务端渲染若在进程内注册表里登记，第一个请求的值类型会钉住这个键：下一个请求换了类型，整页渲染抛错
+  it('同键跨请求换值类型不抛错', () => {
+    expect(renderToString(<Slot initial={42} />)).toBe('<span>42</span>');
+    expect(renderToString(<Slot initial='forty-two' />)).toBe('<span>forty-two</span>');
   });
 });

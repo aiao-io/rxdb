@@ -13,8 +13,10 @@ import { dirname, resolve } from 'node:path';
 import {
   type ClassDeclaration,
   type Decorator,
+  type ExportDeclaration,
   type GetAccessorDeclaration,
   type Identifier,
+  type ImportDeclaration,
   ModuleDeclarationKind,
   type Symbol as MorphSymbol,
   Node,
@@ -173,6 +175,70 @@ const createEvaluationError = (node: Node, reason: string): Error => {
   );
 };
 
+/** 带模块说明符的 import / export 声明。 */
+type ModuleReferenceDeclaration = ExportDeclaration | ImportDeclaration;
+
+/** 一条解析失败的 import / re-export：哪个文件里的哪个模块说明符。 */
+interface UnresolvedImport {
+  filePath: string;
+  specifier: string;
+}
+
+const isModuleReferenceDeclaration = (node: Node): node is ModuleReferenceDeclaration =>
+  Node.isImportDeclaration(node) || Node.isExportDeclaration(node);
+
+/**
+ * 沿 import / re-export 链找第一条模块解析不到的环节。
+ *
+ * @remarks
+ * 模块解析不到时，TS 把导入绑定指向一个没有声明的 `unknown` 符号；「模块在、只是没有这个导出」
+ * 得到的符号形态完全一样，所以不能看符号，只能回到别名声明：模块说明符没有对应的源文件才算解析失败。
+ * 模块在时顺着同名导出继续找（命名导入、`export { X } from`），默认导入与命名空间导入到此为止。
+ */
+const findUnresolvedImport = (
+  symbol: MorphSymbol | undefined,
+  visited = new Set<MorphSymbol>()
+): UnresolvedImport | undefined => {
+  if (!symbol || visited.has(symbol)) return undefined;
+  visited.add(symbol);
+
+  for (const declaration of symbol.getDeclarations()) {
+    const host = declaration.getFirstAncestor(isModuleReferenceDeclaration);
+    const specifier = host?.getModuleSpecifierValue();
+    if (!host || specifier === undefined) continue;
+
+    const target = host.getModuleSpecifierSourceFile();
+    if (!target) return { filePath: host.getSourceFile().getFilePath(), specifier };
+    if (!Node.isImportSpecifier(declaration) && !Node.isExportSpecifier(declaration)) continue;
+
+    const exported = target.getExportSymbols().find(candidate => candidate.getName() === declaration.getName());
+    const unresolved = findUnresolvedImport(exported, visited);
+    if (unresolved) return unresolved;
+  }
+  return undefined;
+};
+
+/**
+ * 标识符（或以它开头的属性访问链）来自一条解析失败的 import 时，返回补在报错末尾的成因说明，否则返回空串。
+ *
+ * @remarks
+ * 枚举与实体装饰器都按符号解析来源。import 解析失败时拿不到来源，只报「X must resolve to ...」
+ * 会让人以为是自己写错了，实际多半是 `@aiao/rxdb` 没装，或从出事的文件解析不到它。
+ * 模块解析相对于出事的文件，所以经 re-export 转手时点明的是失败那一环所在的文件。
+ */
+const describeUnresolvedImport = (node: Node): string => {
+  let root = node;
+  while (Node.isPropertyAccessExpression(root)) {
+    root = root.getExpression();
+  }
+  const unresolved = Node.isIdentifier(root) ? findUnresolvedImport(root.getSymbol()) : undefined;
+  if (!unresolved) return '';
+  return (
+    ` (the import from "${unresolved.specifier}" in ${unresolved.filePath} could not be resolved; ` +
+    'check that it is installed and resolvable from that file under the tsconfig.json used for analysis)'
+  );
+};
+
 /**
  * 按绑定符号找枚举：沿别名链解析到声明，只认 `@aiao/rxdb` 导出的那几个枚举。
  *
@@ -204,7 +270,7 @@ const evaluatePropertyAccess = (node: Node): StaticValue => {
   if (!constants) {
     throw createEvaluationError(
       node,
-      `${owner.getText()} must resolve to ${SAFE_CONSTANT_NAMES} exported by ${CORE_PACKAGE}`
+      `${owner.getText()} must resolve to ${SAFE_CONSTANT_NAMES} exported by ${CORE_PACKAGE}${describeUnresolvedImport(owner)}`
     );
   }
   const member = node.getName();
@@ -472,7 +538,8 @@ const resolveEntityDecoratorName = (decorator: Decorator): string | undefined =>
   if (ENTITY_DECORATOR_NAMES.has(syntaxName) || referencesEntityDecorator) {
     throw createEvaluationError(
       decorator,
-      `${syntaxName} must resolve to an entity decorator exported by ${[...ENTITY_DECORATOR_MODULES].join(' or ')}`
+      `${syntaxName} must resolve to an entity decorator exported by ${[...ENTITY_DECORATOR_MODULES].join(' or ')}` +
+        describeUnresolvedImport(callee)
     );
   }
   return undefined;

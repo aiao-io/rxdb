@@ -1,4 +1,8 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync, symlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { test } from 'node:test';
 
 import { parseBlameOutput } from './git-stats-worker.mjs';
@@ -35,4 +39,22 @@ test('mergeProjectStats 按作者累加四个桶，普通代码行不丢', () =>
       authorMarkdownLines: { Alice: 2 }
     }
   });
+});
+
+// Node 启动 ESM 主模块时按真实路径解析 import.meta.url，而 process.argv[1] 不解析符号链接。
+// 入口判定不做 realpath，检出位在符号链接路径下（如 macOS 的 /tmp → /private/tmp）时脚本静默不执行、退出 0。
+// 用「不是 git 仓库」让执行立刻失败：失败了才说明入口真的跑起来了，也不用真去统计整个仓库。
+test('经符号链接路径启动时 CLI 照常执行：不在 git 仓库里时非零退出并报错', t => {
+  const linkRoot = mkdtempSync(join(tmpdir(), 'git-stats-link-'));
+  t.after(() => rmSync(linkRoot, { recursive: true, force: true }));
+  symlinkSync(import.meta.dirname, join(linkRoot, 'scripts'), 'dir');
+
+  const run = spawnSync(process.execPath, [join(linkRoot, 'scripts', 'git-stats.mjs')], {
+    cwd: linkRoot,
+    env: { ...process.env, GIT_DIR: join(linkRoot, 'no-such-git-dir') },
+    encoding: 'utf8'
+  });
+
+  assert.equal(run.status, 1, `脚本没有执行？stdout=${run.stdout} stderr=${run.stderr}`);
+  assert.match(run.stderr, /Error running git stats/);
 });

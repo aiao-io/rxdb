@@ -94,6 +94,19 @@ const whereColumns = (where: unknown, columns = new Set<string>()): Set<string> 
 };
 
 /**
+ * 收集 `orderBy` 在主实体上直接读的字段名：只看顶层的 `field`（排序没有嵌套规则组）；
+ * 带 `.` 的跨关系路径读的是别的实体，不算。
+ */
+const orderByColumns = (orderBy: unknown, columns = new Set<string>()): Set<string> => {
+  if (!Array.isArray(orderBy)) return columns;
+  for (const item of orderBy) {
+    const field = (item as { field?: unknown }).field;
+    if (typeof field === 'string' && !field.includes('.')) columns.add(field);
+  }
+  return columns;
+};
+
+/**
  * 判断一组排序规则是否读了任何实体的 `updatedAt`。
  *
  * @remarks
@@ -471,7 +484,7 @@ export class QueryManager<T extends EntityType> {
         case ENTITY_LOCAL_CREATE_EVENT: {
           if (
             target_entities.some(
-              entity => this.#is_superseded_create(entity) || this.#lacks_where_columns(task, entity)
+              entity => this.#is_superseded_create(entity) || this.#lacks_query_columns(task, entity)
             )
           ) {
             task.refresh();
@@ -514,8 +527,10 @@ export class QueryManager<T extends EntityType> {
   #remember_versions(event: EntityLocalCreatedEvent | EntityLocalUpdatedEvent | EntityLocalRemovedEvent): void {
     if (event.type === ENTITY_LOCAL_CREATE_EVENT) return;
     for (const data of event.entities) {
+      // 先判实体类型：每个 QueryManager 都会收到全库的事件，别人的实体不必先解析时间
+      if (!this.#is_own_entity(data)) continue;
       const at = readUpdatedAtTime(event.type === ENTITY_LOCAL_REMOVE_EVENT ? data.inversePatch : data.patch);
-      if (at === undefined || !this.#is_own_entity(data)) continue;
+      if (at === undefined) continue;
       const id = data.id as RxDBEntityId;
       if ((this.#seen_versions.get(id) ?? -Infinity) >= at) continue;
       this.#seen_versions.delete(id);
@@ -544,23 +559,26 @@ export class QueryManager<T extends EntityType> {
   }
 
   /**
-   * CREATE 负载是否缺 `where` 要读的列。
+   * CREATE 负载是否缺查询要读的列（`where` 的条件列或 `orderBy` 的排序列）。
    *
    * @param task - 要合并进去的查询任务
    * @param data - CREATE 事件里的一条负载
-   * @returns 缺任何一个主实体上被 `where` 读的列时为 `true`
+   * @returns 缺任何一个主实体上被 `where` 或 `orderBy` 读的列时为 `true`
    *
    * @remarks
-   * JS 增量合并按「CREATE 负载是完整的行」判断成员资格。负载缺查询条件要读的列时（只带 `id`、
+   * JS 增量合并按「CREATE 负载是完整的行」判断成员资格与位置。负载缺 `where` 要读的列时（只带 `id`、
    * 适配器只发了部分字段），缺的列按空值判：把属于结果的行丢掉，订阅者停在旧结果上，而库里这一行已经存在。
-   * 这里证明不了成员资格，只能回库里查。主键 `id` 由事件自带，不算缺；关系名与跨关系路径不是列，不看。
+   * 缺 `orderBy` 要读的列时，行按 `undefined` 参与排序：顺序错，`limit` 窗口里也会留下不该留的行、
+   * 漏掉该进窗口的行。两种情况都证明不了成员资格或位置，只能回库里查。
+   *
+   * 主键 `id` 由事件自带，不算缺；关系名与跨关系路径（`author.name`）不是主实体的列，不看。
    */
-  #lacks_where_columns(task: QueryTask<T>, data: RxDBEntityLocalEventData): boolean {
+  #lacks_query_columns(task: QueryTask<T>, data: RxDBEntityLocalEventData): boolean {
     const metadata = tryGetEntityMetadata(this.EntityType);
-    const where = (task.options as { where?: unknown }).where;
-    if (!metadata || !where) return false;
+    if (!metadata) return false;
+    const { where, orderBy } = task.options as { where?: unknown; orderBy?: unknown };
     const patch = (data.patch ?? {}) as Record<string, unknown>;
-    for (const column of whereColumns(where)) {
+    for (const column of whereColumns(where, orderByColumns(orderBy))) {
       if (column !== 'id' && metadata.propertyMap.has(column) && !(column in patch)) return true;
     }
     return false;

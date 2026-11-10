@@ -6,6 +6,7 @@
  * 提交之后再切到盘上值。用盘上值去 hydrate 会触发 React 的 hydration mismatch。
  */
 import { act } from '@testing-library/react';
+import { useEffect } from 'react';
 import { hydrateRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { usePersistedState } from '../use-persisted-state';
@@ -50,5 +51,34 @@ describe('usePersistedState（hydrate）', () => {
 
     expect(recoverable).not.toHaveBeenCalled();
     expect(container.innerHTML).toBe('<span>light</span>');
+  });
+
+  // 子组件的 effect 先于父组件对 store 的订阅与快照核对运行：这时键可能还没登记，写入也要落到注册表里
+  it('hydrate 提交时子组件在 effect 里写入：落盘并切到新值', async () => {
+    const container = document.createElement('div');
+    container.innerHTML = '<span>dark</span>';
+    document.body.appendChild(container);
+    const recoverable = vi.fn();
+    const Writer = ({ write }: { write: (next: string) => void }) => {
+      useEffect(() => write('sepia'), [write]);
+      return null;
+    };
+    const Page = () => {
+      const theme = usePersistedState('hydrate-writer', 'theme', 'dark');
+      return (
+        <>
+          <span>{theme.value}</span>
+          <Writer write={theme.setValue} />
+        </>
+      );
+    };
+
+    await act(async () => {
+      root = hydrateRoot(container, <Page />, { onRecoverableError: recoverable });
+    });
+
+    expect(recoverable).not.toHaveBeenCalled();
+    expect(container.innerHTML).toBe('<span>sepia</span>');
+    expect(store.get('hydrate-writer:theme')).toBe(JSON.stringify('sepia'));
   });
 });

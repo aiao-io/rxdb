@@ -512,13 +512,38 @@ test(
 );
 
 test(
-  '覆盖日志中间未被封存的损坏行照旧报错，不静默跳过',
+  '覆盖日志中间未被封存的损坏行照旧报错，不静默跳过；报错写明成因与恢复办法',
   withRepo(repo => {
     const scope = scopeOf(repo);
     coverPaths(repo, scope, ['packages/core/src/a.ts']);
     appendFileSync(coverageLog(repo), 'garbage\n');
     coverPaths(repo, scope, ['packages/core/src/b.ts']);
-    assert.throws(() => coverageStatus(repo.dir, scope), /coverage\.jsonl 第 2 行损坏/);
+    assert.throws(
+      () => coverageStatus(repo.dir, scope),
+      /coverage\.jsonl 第 2 行损坏：.*并发写入被截断.*确认没有 cover 在运行.*删掉这一行再重跑/s
+    );
+  })
+);
+
+test(
+  '检查与写入之间别的进程留下半行：本批第一条粘在半行上，status 报错；按报错的办法删掉那一行，只需补登记那一条',
+  withRepo(repo => {
+    const scope = scopeOf(repo);
+    const log = coverageLog(repo);
+    coverPaths(repo, scope, ['packages/core/src/a.ts']);
+    coverPaths(repo, scope, ['packages/core/src/b.ts']);
+    // appendBatch 看到的末尾本是整行（不写封存标记），写入前别的进程留下了半行：b 那一批的第一条于是粘在半行后面
+    const lines = readFileSync(log, 'utf8').split('\n');
+    writeFileSync(log, [lines[0], `{"v":1,"key":${lines[1]}`, ...lines.slice(2)].join('\n'));
+    assert.throws(() => coverageStatus(repo.dir, scope), /coverage\.jsonl 第 2 行损坏：.*删掉这一行再重跑/s);
+
+    writeFileSync(log, [lines[0], ...lines.slice(2)].join('\n'));
+    assert.deepEqual(coverageStatus(repo.dir, scope).outstandingPaths, [
+      'packages/core/project.json',
+      'packages/core/src/b.ts'
+    ]);
+    coverPaths(repo, scope, ['packages/core/src/b.ts', 'packages/core/project.json']);
+    assert.equal(coverageStatus(repo.dir, scope).complete, true);
   })
 );
 

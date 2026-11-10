@@ -9,7 +9,7 @@
  */
 
 import { execSync } from 'node:child_process';
-import { readdirSync, statSync } from 'node:fs';
+import { readdirSync, realpathSync, statSync } from 'node:fs';
 import { availableParallelism } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -473,7 +473,9 @@ async function runGitStats() {
   console.timeEnd('use');
 }
 
-if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+// 入口判定对 process.argv[1] 取 realpath：经符号链接（如 macOS 的 /tmp → /private/tmp）启动时，
+// import.meta.url 是解析后的真实路径，而 process.argv[1] 不解析符号链接，不取的话脚本会静默不执行、退出 0
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   runGitStats().catch(error => {
     console.error('Error running git stats:', error);
     process.exit(1);
