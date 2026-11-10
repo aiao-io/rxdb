@@ -82,8 +82,21 @@ export interface QueryTaskOptions<T extends EntityType, RT> {
 
   /**
    * 清理函数
+   *
+   * @remarks
+   * 第二参是被清理的任务本身：同一 `cacheKey` 下可能已经有了接替它的新任务（见 `onError`），
+   * 按键删除之前先比对身份，旧任务的清理不能摘掉新任务。
    */
-  onClean: (cacheKey: string) => void;
+  onClean: (cacheKey: string, task: QueryTask<T, RT>) => void;
+
+  /**
+   * 一轮查询失败、错误送达观察者**之前**调用。
+   *
+   * @remarks
+   * 错误会终结这一代的全部观察者；分发途中同步重订阅的（如 `retry()`）属于下一代，
+   * 宿主据此让它们解析到一个会重新执行查询的新任务，而不是挂回这个正在分发失败的旧任务。
+   */
+  onError?: (cacheKey: string, task: QueryTask<T, RT>) => void;
 
   /**
    * 结果指纹计算方法
@@ -135,7 +148,8 @@ export class QueryTask<T extends EntityType, RT = unknown> {
   #local_result_version = 0;
 
   private readonly runner: () => Observable<RT>;
-  private readonly onClean!: (cacheKey: string) => void;
+  private readonly onClean!: (cacheKey: string, task: QueryTask<T, RT>) => void;
+  private readonly onError?: (cacheKey: string, task: QueryTask<T, RT>) => void;
   /**
    * 本任务依赖的实体类型引用计数
    *
@@ -253,6 +267,7 @@ export class QueryTask<T extends EntityType, RT = unknown> {
     this.depEntityTypeMap = opt.depEntityTypeMap;
     this.serialize = opt.serialize;
     this.onClean = opt.onClean;
+    this.onError = opt.onError;
     this.getFingerprint = opt.getFingerprint;
     this.autoCache = opt.autoCache ?? true;
     this.relationEntityTypes.add(opt.entityType);
@@ -294,7 +309,7 @@ export class QueryTask<T extends EntityType, RT = unknown> {
         }
       });
     }
-    this.onClean(this.cacheKey);
+    this.onClean(this.cacheKey, this);
   };
 
   /**
@@ -364,9 +379,14 @@ export class QueryTask<T extends EntityType, RT = unknown> {
 
   /**
    * 发送错误给所有观察者
+   *
+   * @remarks
+   * 先经 `onError` 让宿主停止复用本任务，再按快照分发：错误回调里同步重订阅的观察者
+   * 属于下一代，不收这一轮的错误。
    */
   error = (err: unknown): void => {
-    this.observers.forEach(observer => observer.error(err));
+    this.onError?.(this.cacheKey, this);
+    this.#broadcast(observer => observer.error(err));
   };
 
   /**
@@ -414,6 +434,22 @@ export class QueryTask<T extends EntityType, RT = unknown> {
       }
     }
     // 通知所有观察者
-    this.observers.forEach(observer => observer.next(result));
+    this.#broadcast(observer => observer.next(result));
   };
+
+  /**
+   * 按分发开始那一刻的观察者快照逐个通知。
+   *
+   * @param notify - 对单个观察者的通知
+   *
+   * @remarks
+   * 回调里同步订阅的观察者由热启动拿到当前结果，再被本轮广播追加一次就是重复；
+   * 回调里退订的观察者已不在集合里，跳过它。直接遍历活的 `Set` 两件事都会做错
+   * （`Set.forEach` 会访问遍历期间新增的条目）。
+   */
+  #broadcast(notify: (observer: Observer<RT>) => void): void {
+    for (const observer of Array.from(this.observers)) {
+      if (this.observers.has(observer)) notify(observer);
+    }
+  }
 }

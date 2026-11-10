@@ -2,12 +2,13 @@ import { PropertyType, RelationKind, type EntityMetadata } from '@aiao/rxdb';
 import { isGeneratedComputedProperty } from '../generators/entity-properties.js';
 import type { RepositoryGeneratorSymbols } from '../generators/RepositoryGenerator.interface.js';
 import type { RxDBClientGenerator } from './RxDBClientGenerator.js';
-import { getFlatMapInterfaceName } from './RxDBClientGenerator.utils.js';
+import { DEFAULT_ENTITY_BASE_MODULE, getFlatMapInterfaceName } from './RxDBClientGenerator.utils.js';
 import type { MethodDeclarationStructure, OptionalKind, PropertyDeclarationStructure } from './ts-morph-browser.js';
 
 const NAMESPACE_PUBLIC = 'public';
 const REPOSITORY_TYPE_REPOSITORY = 'Repository';
-const FIXED_RXDB_TYPE_IMPORTS = ['EntityType', 'IEntity', 'RuleGroupBase', 'UUID'];
+// `EntityBase`（基类签名）与 `ENTITY_STATIC_TYPES`（静态类型成员）每个声明文件都会导入
+const FIXED_RXDB_TYPE_IMPORTS = ['ENTITY_STATIC_TYPES', 'EntityBase', 'EntityType', 'IEntity', 'RuleGroupBase', 'UUID'];
 const FIXED_RXJS_TYPE_IMPORTS = ['Observable'];
 
 interface GeneratedSymbol {
@@ -161,6 +162,64 @@ const addFixedDeclarationImportSymbols = (table: GeneratedSymbolTable, generator
       )
     );
     entityInterfaces.forEach(symbol => addImport(symbol, `entity base interface import "${symbol}"`));
+    // 插件基类（`extends` 的第一项）同样按名导入；与固定导入同名同源的（核心 `EntityBase`）不重复占名
+    baseClassImports(generator, scopeMetadata)
+      .filter(
+        ({ module, symbol }) => module !== DEFAULT_ENTITY_BASE_MODULE || !FIXED_RXDB_TYPE_IMPORTS.includes(symbol)
+      )
+      .forEach(({ symbol }) => addImport(symbol, `entity base class import "${symbol}"`));
+  });
+};
+
+/** 一组实体的 `extends` 基类导入，按（名字，模块）去重。 */
+const baseClassImports = (
+  generator: RxDBClientGenerator,
+  metadataList: readonly EntityMetadata[]
+): { module: string; symbol: string }[] => {
+  const imports = new Map<string, { module: string; symbol: string }>();
+  metadataList.forEach(metadata => {
+    const symbol = metadata.extends[0];
+    if (!symbol) return;
+    const module =
+      generator.getRepositoryGenerator(metadata.repository || REPOSITORY_TYPE_REPOSITORY)?.entityBaseModuleSpecifier ??
+      DEFAULT_ENTITY_BASE_MODULE;
+    imports.set(JSON.stringify([module, symbol]), { module, symbol });
+  });
+  return [...imports.values()];
+};
+
+/**
+ * 运行时模块里的绑定：`extends` 基类的导入与 `let <实体名>`。
+ *
+ * @remarks
+ * 合并模式全部实体共用 `index.js` 一个作用域，split 模式一个实体一个文件。实体名与基类导入同名时
+ * 产物是 `import { EntityBase }` + `let EntityBase`，模块加载即 SyntaxError，必须在生成前拒绝。
+ * `Entity` / `__decorateClass` / `PropertyType` / `RelationKind` / `ENTITIES` 已由实体名保留字挡住。
+ */
+const addRuntimeSymbols = (table: GeneratedSymbolTable, generator: RxDBClientGenerator): void => {
+  const scopes: [string, EntityMetadata[]][] =
+    generator.config.splitFiles ?
+      Array.from(generator.metadataSet, metadata => [`runtime:${metadata.name}`, [metadata]])
+    : [['runtime:index', Array.from(generator.metadataSet)]];
+  scopes.forEach(([scope, scopeMetadata]) => {
+    baseClassImports(generator, scopeMetadata).forEach(({ symbol }) =>
+      table.add({
+        entity: symbol,
+        kind: 'runtime import',
+        scope,
+        source: `entity base class import "${symbol}"`,
+        symbol
+      })
+    );
+    scopeMetadata.forEach(({ name }) =>
+      table.add({
+        entity: name,
+        kind: 'runtime binding',
+        scope,
+        source: `entity class binding "${name}"`,
+        symbol: name
+      })
+    );
   });
 };
 
@@ -214,6 +273,8 @@ const addSplitFileSymbols = (table: GeneratedSymbolTable, metadataSet: ReadonlyS
 /** 在创建输出 Project 前校验能由元数据确定的全部生成符号。 */
 export const validateGeneratedOutputSymbols = (generator: RxDBClientGenerator): void => {
   const table = new GeneratedSymbolTable();
+  // 运行时撞名让模块根本加载不了，先报它
+  addRuntimeSymbols(table, generator);
   addFixedDeclarationImportSymbols(table, generator);
   generator.metadataSet.forEach(metadata => {
     addEntityMemberSymbols(table, generator, metadata);

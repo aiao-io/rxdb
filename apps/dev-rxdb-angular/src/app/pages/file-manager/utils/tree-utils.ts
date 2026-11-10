@@ -95,6 +95,24 @@ export function buildTreeNodes<T extends FileTreeEntity>(
 }
 
 /**
+ * 搜索态的展开集合：用户的展开集合，加上可见集（命中 ∪ 祖先）里各节点的父节点——即命中节点的全部祖先。
+ *
+ * @remarks
+ * 返回新集合，不改用户的展开集合：清空搜索后树回到用户自己的折叠状态。
+ */
+export function withSearchPath<T extends FileNodeData>(
+  expandedIds: ReadonlySet<string>,
+  allFiles: readonly T[],
+  visibleIds: ReadonlySet<string>
+): Set<string> {
+  const result = new Set(expandedIds);
+  for (const file of allFiles) {
+    if (file.parentId && visibleIds.has(file.id)) result.add(file.parentId);
+  }
+  return result;
+}
+
+/**
  * 计算所有后代节点数量（迭代实现避免栈溢出）
  */
 export function countDescendants<T extends FileNodeData>(fileId: string, allFiles: T[]): number {

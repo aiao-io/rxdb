@@ -1,13 +1,12 @@
 import { CodeEditor } from '@aiao/code-editor-angular';
-import { EntityMetadataOptions, PropertyType } from '@aiao/rxdb';
-import { RxDBClientGenerator, SourceFile } from '@aiao/rxdb-client-generator';
-import { TreeRepositoryGenerator } from '@aiao/rxdb-plugin-tree/generator';
+import { SourceFile } from '@aiao/rxdb-client-generator';
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ThemeService } from '@modules/angular';
 import { AngularSplitModule } from 'angular-split';
 import { zipSync, type Zippable } from 'fflate';
+import { generateSourceState, GENERATOR_DEMOS } from './generator-state';
 
 function downloadFile(filename: string, blob: Blob) {
   const url = URL.createObjectURL(blob);
@@ -34,30 +33,7 @@ export default class GeneratorPage {
 
   protected readonly theme = this.#themeService.$currentThemeLightDark;
   protected readonly $selected_demo_index = signal(0);
-  protected readonly demos: EntityMetadataOptions[] = [
-    {
-      name: 'Todo',
-      displayName: 'Todo',
-      repository: 'Repository',
-      extends: ['EntityBase'],
-      properties: [
-        { name: 'title', type: PropertyType.string },
-        { name: 'completed', type: PropertyType.boolean, default: false }
-      ]
-    },
-    {
-      name: 'Menu',
-      displayName: 'Menu',
-      repository: 'TreeRepository',
-      extends: ['TreeAdjacencyListEntityBase', 'EntityBase'],
-      properties: [
-        {
-          name: 'title',
-          type: PropertyType.string
-        }
-      ]
-    }
-  ];
+  protected readonly demos = GENERATOR_DEMOS;
   protected readonly auto_set_json = effect(() => {
     const index = this.$selected_demo_index();
     const value = JSON.stringify(this.demos[index], null, 2);
@@ -67,7 +43,14 @@ export default class GeneratorPage {
   protected readonly $json_value = toSignal(this.json.valueChanges, { initialValue: this.json.value || '' });
   protected readonly $isNarrow = signal(false);
 
-  $sources = signal<SourceFile[]>([]);
+  /** 当前输入的生成结果：失败或清空时没有产物，不保留上一份成功的代码冒充当前输入 */
+  protected readonly $generation = computed(() => generateSourceState(this.$json_value() ?? ''));
+  protected readonly $generation_error = computed(() => this.$generation().error);
+  protected readonly $can_download = computed(
+    () => this.$generation_error() === null && this.$generation().sources.length > 0
+  );
+
+  readonly $sources = computed(() => this.$generation().sources);
   $selected_source_index = signal<number>(0);
 
   $current_demo = computed(() => {
@@ -80,36 +63,14 @@ export default class GeneratorPage {
     const onNarrowChange = (event: MediaQueryListEvent) => this.$isNarrow.set(event.matches);
     this.#narrowMedia.addEventListener('change', onNarrowChange);
     inject(DestroyRef).onDestroy(() => this.#narrowMedia.removeEventListener('change', onNarrowChange));
-    // 监听 JSON 变化并更新生成结果
-    effect(() => {
-      const value = this.$json_value();
-      if (value) {
-        this.#update_json(value);
-      }
-    });
   }
 
   select_demo_tab(index: number) {
     this.$selected_demo_index.set(index);
   }
   download() {
+    if (!this.$can_download()) return;
     this.#zip(this.$sources());
-  }
-
-  #update_json(value: string) {
-    if (!value) return;
-    try {
-      const json = JSON.parse(value);
-      const generator = new RxDBClientGenerator();
-      // 树的代码生成由插件包提供，生成器包不再内置（RV-015）
-      generator.registerRepositoryGenerator(new TreeRepositoryGenerator());
-      generator.addEntity(json);
-      generator.exec();
-      const files = generator.project.getSourceFiles();
-      this.$sources.set(files);
-    } catch {
-      // console.error(error);
-    }
   }
 
   #zip(sourceFiles: SourceFile[]) {

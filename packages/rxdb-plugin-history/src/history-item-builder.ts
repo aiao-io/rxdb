@@ -45,13 +45,15 @@ export function createHistoryItem(changes: RxDBChange[]): HistoryItem {
   const namespace = first_change.namespace;
   const entity = first_change.entity;
   const type = transactionId ? 'TRANSACTION' : first_change.type;
-  const fingerprint = [type, getRxDBEntityIdentityKey(first_change.entityId), createdAt.getTime()].join(':');
+  const changeId = changes.reduce((max, c) => (c.id > max ? c.id : max), changes[0].id);
+  // createdAt 只到毫秒、不保证唯一；change id 是变更日志的序列号，带上它指纹才唯一（redo 栈按指纹出栈）
+  const fingerprint = [type, getRxDBEntityIdentityKey(first_change.entityId), createdAt.getTime(), changeId].join(':');
   const reverted = changes.some(c => isNil(c.revertChangeId) === false);
   const redoInvalidated = changes.some(c => isNil(c.redoInvalidatedAt) === false);
 
   return {
     transactionId,
-    changeId: changes.reduce((max, c) => (c.id > max ? c.id : max), changes[0].id),
+    changeId,
     fingerprint,
     changes,
     type,

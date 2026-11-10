@@ -191,6 +191,31 @@ describe.each(TRANSPORTS)('SharedWorker 上多个标签页共用一个客户端�
   });
 });
 
+describe('同一个 SharedWorker 上换了库名的标签页', () => {
+  it('连接被拒，前一个标签页的库照常读写、不被它读写', async () => {
+    const workerName = freshName('wasm-identity');
+    const [{ transport }] = TRANSPORTS;
+    const a = await openTab(freshName('logical-a'), workerName, transport);
+    await createNote(a, 'A 的笔记');
+
+    const b = new RxDB({
+      dbName: freshName('logical-b'),
+      context: { userId: WORKING_TREE_CONFORMANCE_USER_ID },
+      entities: [ConformanceNote],
+      sync: { local: { adapter: 'sqlite-wasm' }, type: SyncType.None }
+    });
+    b.adapter(
+      'sqlite-wasm',
+      async db => new RxDBAdapterSqlite(db, { ...LOAD_OPTIONS, ...transport(connectSharedWorker(workerName)) })
+    );
+
+    await expect(b.connect('sqlite-wasm')).rejects.toThrow(/conflicting initialization: dbName/);
+    await b.disconnectAll().catch(() => undefined);
+    await createNote(a, 'A 之后又写的');
+    expect(await titlesOf(a)).toEqual(['A 之后又写的', 'A 的笔记']);
+  });
+});
+
 describe('客户端按持有者计数（US-314 B2.3b）', () => {
   /** 一张进 update hook 的表：客户端只为这几张系统表派变更事件 */
   const WATCHED = '"rxdb$rxdb_change"';

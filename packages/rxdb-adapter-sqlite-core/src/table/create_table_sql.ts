@@ -85,8 +85,11 @@ const create_table_column_sql = (
     // 处理默认值（在 nullable 检查之前）
     // 注意：UUID 主键的默认值已在上面处理，这里跳过
     const hasDbDefault = property.type === PropertyType.uuid && property.primary;
+    // 加密列不写 DEFAULT：DDL 里的默认值是明文，会原样进 sqlite_master 与库文件；缺省时库端补上的
+    // 明文还解不开。单条 INSERT 在写入前按元数据补默认值、随整行封成信封（见 insert_sql）
     if (
       !hasDbDefault &&
+      property.encrypted !== true &&
       property.default !== undefined &&
       !isFunction(property.default) &&
       property.type !== PropertyType.binary

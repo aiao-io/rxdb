@@ -1,6 +1,6 @@
 import { RxDB, SWITCH_BRANCH_COMMIT } from '@aiao/rxdb';
 import { JsonPipe } from '@angular/common';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { dispatchEveryRxDBEvent } from '../../devtools-event-probe';
 import { DemoResult, ElectronService } from '../../services/electron.service';
 import { LocalDatabaseService } from '../../services/local-database.service';
@@ -13,7 +13,7 @@ import { LocalDatabaseService } from '../../services/local-database.service';
   // ELEC-19：模板只用到一处 `| json`，整个 CommonModule 是多余的。
   imports: [JsonPipe]
 })
-export default class HomePage implements OnInit {
+export default class HomePage implements OnInit, OnDestroy {
   /**
    * US-207 E8：本地数据库的状态源。
    *
@@ -89,7 +89,11 @@ export default class HomePage implements OnInit {
     void this.refreshCurrentBranch();
     // 分支可能被**应用之外**的东西切走（DevTools 面板就是一个），所以读数跟着事件走
     // 而不是只在进页面时读一次——否则页面会一直显示一个已经不成立的分支名。
-    this.rxdb.addEventListener(SWITCH_BRANCH_COMMIT, () => void this.refreshCurrentBranch());
+    this.rxdb.addEventListener(SWITCH_BRANCH_COMMIT, this.onBranchSwitched);
+  }
+
+  ngOnDestroy(): void {
+    this.rxdb.removeEventListener(SWITCH_BRANCH_COMMIT, this.onBranchSwitched);
   }
 
   /** 在应用自己的 RxDB 实例上逐类派发一遍全部事件。 */
@@ -111,6 +115,15 @@ export default class HomePage implements OnInit {
       this.ipcLoading.set(false);
     }
   }
+
+  /**
+   * 分支切换时重读 {@link currentBranch}。
+   *
+   * @remarks
+   * 存成字段是为了销毁时能原样摘掉：RxDB 实例由根注入器持有、活得比页面长，
+   * 不摘的话每进一次首页就多挂一个，旧页面随之被它一直引用，每次切分支都替所有旧页面各查一遍。
+   */
+  private readonly onBranchSwitched = (): void => void this.refreshCurrentBranch();
 
   /** 从 `versionManager` 读一次当前分支，写进 {@link currentBranch}。 */
   private async refreshCurrentBranch(): Promise<void> {

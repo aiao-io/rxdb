@@ -3,10 +3,10 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { describe, expect, it, vi } from 'vitest';
 import { resolveActiveEntity } from '../../components/table/table-view.component';
-import TableShellPage from '../../pages/table-shell.page';
 import { DEFAULT_TRANSLATIONS, MODEL_DESIGNER_TRANSLATIONS } from '../../i18n/translations';
-import { DesignerStateService } from '../../services/designer-state.service';
 import type { DesignEntity } from '../../models/index.js';
+import TableShellPage from '../../pages/table-shell.page';
+import { DesignerStateService } from '../../services/designer-state.service';
 
 describe('resolveActiveEntity', () => {
   const entities = [{ id: 'e1', name: 'User' }] as unknown as DesignEntity[];

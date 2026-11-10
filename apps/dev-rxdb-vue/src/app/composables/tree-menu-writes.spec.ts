@@ -11,7 +11,7 @@
  */
 import type { RxDB } from '@aiao/rxdb';
 import { SortableMenuLarge } from '@aiao/rxdb-test/entities';
-import { of, type Observable } from 'rxjs';
+import { BehaviorSubject, of, type Observable } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { createApp, ref, toRaw } from 'vue';
 import { useToast } from './useToast';
@@ -474,5 +474,78 @@ describe.each(harnesses)('%s 的写入契约', (_name, makeHarness) => {
       // 共享实例上不留失败的移动
       expect(child.parentId).toBe('p');
     });
+  });
+});
+
+describe('useTreeMenuLazyStore（lazy）的折叠与批量添加收尾', () => {
+  /** 按 parentId 取直接子节点；全量查询换成可观察是否还有订阅者的流。 */
+  const lazySource = (rows: FakeMenu[]) => {
+    const all$ = new BehaviorSubject<never[]>(rows as never[]);
+    const dataSource = {
+      observeRootMenus: () => of(rows.filter(row => row.parentId === null) as never[]),
+      observeChildMenus: (parentId: string) => of(rows.filter(row => row.parentId === parentId) as never[]),
+      observeAllMenus: () => all$.asObservable()
+    };
+    return { all$, dataSource };
+  };
+
+  beforeEach(() => {
+    registry.created.length = 0;
+    registry.saveError = null;
+  });
+
+  afterEach(() => {
+    mountedApps.splice(0).forEach(app => app.unmount());
+  });
+
+  it('折叠父节点同时清掉后代的展开标记：重开父节点时子节点是折叠的', async () => {
+    const p = fixture({ id: 'p', parentId: null, hasChildren: true, title: 'p' });
+    const c = fixture({ id: 'c', parentId: 'p', hasChildren: true, title: 'c' });
+    const g = fixture({ id: 'g', parentId: 'c', title: 'g' });
+    const { dataSource } = lazySource([p, c, g]);
+    const store = inApp(() => useTreeMenuLazyStore(asRxdb(makeRxdb()), dataSource));
+    await store.toggleExpand('p');
+    await store.toggleExpand('c');
+    expect(store.treeNodes.value.map(node => node.menu.id)).toEqual(['p', 'c', 'g']);
+
+    await store.toggleExpand('p');
+    await store.toggleExpand('p');
+
+    expect(store.treeNodes.value.map(node => [node.menu.id, node.isExpanded])).toEqual([
+      ['p', true],
+      ['c', false]
+    ]);
+    expect(store.expandedIds.value).toEqual(new Set(['p']));
+  });
+
+  it('展开全部之后批量添加：全量订阅保留，之后的写入继续回流', async () => {
+    const a = fixture({ id: 'a', parentId: null, hasChildren: true, title: 'a' });
+    const b = fixture({ id: 'b', parentId: 'a', title: 'b' });
+    const { all$, dataSource } = lazySource([a, b]);
+    const store = inApp(() => useTreeMenuLazyStore(asRxdb(makeRxdb()), dataSource));
+    store.expandAll();
+
+    await store.addManyMenus(1);
+
+    expect(all$.observed).toBe(true);
+    const createdMenu = fixture({ id: 'created', parentId: 'a', title: 'created' });
+    all$.next([a, b, createdMenu] as never[]);
+    expect(store.treeNodes.value.map(node => node.menu.id)).toEqual(['a', 'b', 'created']);
+  });
+
+  it('批量添加途中卸载：收尾不再重建订阅', async () => {
+    const { all$, dataSource } = lazySource([fixture({ id: 'a', parentId: null, title: 'a' })]);
+    const rxdb = makeRxdb();
+    let finishSave: () => void = () => undefined;
+    rxdb.entityManager.saveMany.mockImplementationOnce(() => new Promise<void>(resolve => (finishSave = resolve)));
+    const store = inApp(() => useTreeMenuLazyStore(asRxdb(rxdb), dataSource));
+    store.expandAll();
+
+    const adding = store.addManyMenus(1);
+    mountedApps.splice(0).forEach(app => app.unmount());
+    finishSave();
+    await adding;
+
+    expect(all$.observed).toBe(false);
   });
 });

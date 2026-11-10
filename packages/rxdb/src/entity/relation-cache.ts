@@ -119,6 +119,15 @@ export class EntityRelationCache {
   readonly #remove_junction_set = new Set<InstanceType<EntityType>>();
 
   /**
+   * 一对多集合 `remove()` 解绑、外键置空还没落库的子实体，值是它们所属的那条一对多关系。
+   *
+   * @remarks
+   * 解绑把子实体移出关系集合，`getNeedSaveEntities` 再也遍历不到它：保存父实体时外键的置空
+   * 不会写出去，数据库里仍是原关联，重新查询关系就回来了。这里单独记住它们，直到置空落库。
+   */
+  readonly #detached_map = new Map<InstanceType<EntityType>, EntityRelationMetadata>();
+
+  /**
    * 关系 Observable 记忆化缓存
    * 按关系元数据存储 relation-helper 构建好的 {observable, syncForeignKeyId}，
    * 使同一关系的 getter 重复访问时返回同一个 Observable 引用，而非每次重建
@@ -223,8 +232,9 @@ export class EntityRelationCache {
         relationCache.add(junctionEntity);
       }
     } else {
-      // 其他关系类型：直接添加到缓存
+      // 其他关系类型：直接添加到缓存；重新挂回来的子实体不再算解绑
       cache.add(entity);
+      this.#detached_map.delete(entity);
     }
   }
 
@@ -276,8 +286,9 @@ export class EntityRelationCache {
       // 移除关联实体
       cache.delete(entity);
     } else {
-      // 其他关系类型：直接移除
+      // 一对多：移出集合，并记下解绑待写外键（见 #detached_map）
       cache.delete(entity);
+      this.#detached_map.set(entity, relation);
     }
   }
 
@@ -322,6 +333,7 @@ export class EntityRelationCache {
   clear(): void {
     this.#relation_map.clear();
     this.#remove_junction_set.clear();
+    this.#detached_map.clear();
     this.#observable_map.clear();
   }
 
@@ -353,6 +365,28 @@ export class EntityRelationCache {
     for (const entities of this.#relation_map.values()) {
       callback(entities);
     }
+  }
+
+  /**
+   * 取出解绑后外键置空仍待落库的子实体（用于 getNeedSaveEntities）。
+   *
+   * @returns 已落库、且这条一对多关系的外键改动还在 patch 里的子实体
+   *
+   * @remarks
+   * 置空已经落库（外键不在 patch 里）或子实体从未落库的条目就地丢掉：前者之后的编辑与父实体无关，
+   * 后者还没建出来，跟着父实体保存会凭空建一行。保存失败时外键仍在 patch 里，下一次保存照样收集。
+   */
+  takePendingDetached(): InstanceType<EntityType>[] {
+    const pending: InstanceType<EntityType>[] = [];
+    for (const [entity, relation] of this.#detached_map) {
+      const status = getEntityStatus(entity);
+      if (status.local && Object.hasOwn(status.patch, relation.mappedProperty + 'Id')) {
+        pending.push(entity);
+        continue;
+      }
+      this.#detached_map.delete(entity);
+    }
+    return pending;
   }
 
   /**

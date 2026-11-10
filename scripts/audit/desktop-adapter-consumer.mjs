@@ -33,6 +33,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
+import { collectRendererGraph } from './lib/renderer-graph.mjs';
+
 const execFileAsync = promisify(execFile);
 const workspaceRoot = process.cwd();
 const workspacePackageJson = JSON.parse(await readFile(path.join(workspaceRoot, 'package.json'), 'utf8'));
@@ -265,7 +267,7 @@ try {
 const writeRuntime = async (root, target) => {
   const source = `
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
+import { createRequire, isBuiltin } from 'node:module';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -291,39 +293,12 @@ assert.equal(renderer.${target.adapterNameExport}, '${target.adapterName}');
 // 只走 @aiao/ 范围内的文件：外部依赖（rxjs 等）不是本仓库能改的东西，把它们扫进来
 // 只会让这条门禁报出无人能修的红。
 // ---------------------------------------------------------------------------
-const IMPORT_PATTERN = /(?:from|import)\\s*\\(?\\s*['"]([^'"]+)['"]/g;
-
-const collectGraph = async entry => {
-  const seen = new Set();
-  const builtins = new Map();
-  const queue = [entry];
-  while (queue.length > 0) {
-    const current = queue.pop();
-    if (seen.has(current)) continue;
-    seen.add(current);
-    const code = await readFile(current, 'utf8');
-    const localRequire = createRequire(pathToFileURL(current));
-    for (const [, specifier] of code.matchAll(IMPORT_PATTERN)) {
-      if (specifier.startsWith('node:')) {
-        builtins.set(specifier, current);
-        continue;
-      }
-      let resolved;
-      try {
-        resolved = localRequire.resolve(specifier);
-      } catch {
-        continue;
-      }
-      if (resolved.includes(path.join('node_modules', '@aiao')) || resolved.startsWith(path.dirname(entry))) {
-        queue.push(resolved);
-      }
-    }
-  }
-  return { files: seen, builtins };
-};
+// 图遍历是 scripts/audit/lib/renderer-graph.mjs 的 collectRendererGraph 原样嵌入（有单测）；
+// 裸名内建（fs、path）与 node: 前缀一样算。
+const collectGraph = ${collectRendererGraph};
 
 const rendererEntry = require.resolve('${target.packageName}');
-const { files, builtins } = await collectGraph(rendererEntry);
+const { files, builtins } = await collectGraph(rendererEntry, { readFile, createRequire, pathToFileURL, isBuiltin, path });
 assert.ok(files.size > 0, 'renderer graph walk visited no files; the walker is broken, not the package');
 
 // \`node:sqlite\` 单独点名：它是这条门禁最初要拦的东西，混在通用报错里不好认。

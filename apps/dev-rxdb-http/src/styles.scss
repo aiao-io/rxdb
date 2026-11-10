@@ -395,6 +395,26 @@ table {
   color: var(--accent);
 }
 
+// 变更通知徽标的四态（`app.html` 的 `data-state`）。强调色留给「连接中」——唯一一个还没有结论的
+// 状态；接通用成功色、重连中用告警色、关着用灰。颜色只是辅助，四态的文字本身就各不相同。
+.badge[data-state='open'] {
+  border-color: var(--ok-border);
+  background: var(--ok-bg);
+  color: var(--ok-fg);
+}
+
+.badge[data-state='reconnecting'] {
+  border-color: var(--warn-border);
+  background: var(--warn-bg);
+  color: var(--fg);
+}
+
+.badge[data-state='off'] {
+  border-color: var(--border);
+  background: var(--panel);
+  color: var(--muted);
+}
+
 .hint {
   margin: 0 0 0.75rem;
   font-size: 0.8rem;

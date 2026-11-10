@@ -145,4 +145,61 @@ describe('切换 provider 后工作树状态归属当前库（RV-069 回归）',
     expect(rendered.result.current.statusState).toEqual({ phase: 'idle' });
     expect(second.workingTree.status).not.toHaveBeenCalled();
   });
+
+  // RV-01a1bb3cfe4d：A→B→A 回到同一个库对象时，库身份重新相等；首次 A 入口迟到的结果
+  // 不能凭「库相同」混进第二次 A 入口，覆盖它已经完成的查询
+  it('A→B→A 往返后，首次 A 入口迟到的成功与失败都不覆盖第二次 A 入口的结果', async () => {
+    const first = createWorkingTreeHookStubs();
+    const second = createWorkingTreeHookStubs();
+    const staleEnabled = deferred<boolean>();
+    const staleStatus = deferred<ReturnType<typeof statusWith>>();
+    first.workingTree.isEnabled.mockReturnValueOnce(staleEnabled.promise).mockResolvedValue(false);
+    first.workingTree.status.mockReturnValueOnce(staleStatus.promise).mockResolvedValue(statusWith(1));
+    const rendered = renderSwitchable(first.rxdb);
+    let enabledRunning!: Promise<boolean>;
+    let statusRunning!: Promise<unknown>;
+    act(() => {
+      enabledRunning = rendered.result.current.isEnabled();
+      statusRunning = rendered.result.current.status();
+    });
+
+    rendered.replace(second.rxdb);
+    rendered.replace(first.rxdb);
+    await act(async () => {
+      await rendered.result.current.isEnabled();
+      await rendered.result.current.status();
+    });
+    expect(rendered.result.current.isEnabledState).toEqual({ phase: 'success', value: false });
+    expect(rendered.result.current.statusState).toEqual({ phase: 'success', value: statusWith(1) });
+
+    await act(async () => {
+      staleEnabled.resolve(true);
+      staleStatus.reject(new Error('stale status failed'));
+      await enabledRunning;
+      await statusRunning.catch(() => undefined);
+    });
+
+    expect(rendered.result.current.isEnabledState).toEqual({ phase: 'success', value: false });
+    expect(rendered.result.current.statusState).toEqual({ phase: 'success', value: statusWith(1) });
+  });
+
+  it('StrictMode 下 A→B→A 往返同样丢弃首次 A 入口的迟到结果', async () => {
+    const first = createWorkingTreeHookStubs();
+    const second = createWorkingTreeHookStubs();
+    const stale = deferred<boolean>();
+    first.workingTree.isEnabled.mockReturnValueOnce(stale.promise).mockResolvedValue(false);
+    const rendered = renderSwitchable(first.rxdb, { reactStrictMode: true });
+    let running!: Promise<boolean>;
+    act(() => void (running = rendered.result.current.isEnabled()));
+
+    rendered.replace(second.rxdb);
+    rendered.replace(first.rxdb);
+    await act(async () => void (await rendered.result.current.isEnabled()));
+    await act(async () => {
+      stale.resolve(true);
+      await running;
+    });
+
+    expect(rendered.result.current.isEnabledState).toEqual({ phase: 'success', value: false });
+  });
 });

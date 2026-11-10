@@ -3,7 +3,7 @@
  *
  * 每条失败都要同时断言两件事：错误码对，且目标回到「从未恢复过」（IndexedDB 为空、无标记）。
  */
-import { Entity, EntityBase, PropertyType, type RxDB } from '@aiao/rxdb';
+import { Entity, EntityBase, isRxDBBackupError, PropertyType, RelationKind, type RxDB } from '@aiao/rxdb';
 import { uuid_ossp } from '@electric-sql/pglite/contrib/uuid_ossp';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import type { PGliteRestoredDatabase } from '../../backup/pglite-restored-database.js';
@@ -31,6 +31,22 @@ import {
 })
 class BackupFailureTag extends EntityBase {
   label!: string;
+}
+
+/**
+ * 与夹具的 `BackupAuthor` 逐字同结构，只多一条实体级 CHECK：结构指纹不变、约束指纹不同。
+ * 恢复必须在写目标之前凭清单的约束指纹拒绝它，而不是等 `connect()` 报约束漂移。
+ */
+@Entity({
+  name: 'BackupAuthor',
+  properties: [{ name: 'name', type: PropertyType.string, unique: true }],
+  relations: [{ name: 'notes', kind: RelationKind.ONE_TO_MANY, mappedEntity: 'BackupNote', mappedProperty: 'author' }],
+  checks: [
+    { name: 'name_not_blank', rule: { combinator: 'and', rules: [{ field: 'name', operator: '!=', value: '' }] } }
+  ]
+})
+class CheckedBackupAuthor extends EntityBase {
+  name!: string;
 }
 
 const opened: RxDB[] = [];
@@ -83,6 +99,19 @@ describe('PGlite restore rejects incompatible archives before writing (AC#5)', (
     expect(await backupErrorCode(restorePGliteDatabase(chunkedSource(archive).stream, target))).toBe(
       'incompatible_archive'
     );
+    await expectCleanIdbTarget(target);
+  });
+
+  it('rejects an archive whose entity-level CHECK differs (same columns)', async () => {
+    const { archive } = await sharedSource();
+    const [, note] = PLAIN_ENTITIES;
+    const target = createBackupRxDB(uniqueDbName('backup-fail-dst'), [CheckedBackupAuthor, note], { store: 'idb' });
+    const error = await restorePGliteDatabase(chunkedSource(archive).stream, target).then(
+      () => undefined,
+      (reason: unknown) => reason
+    );
+    expect(isRxDBBackupError(error) && error.code).toBe('incompatible_archive');
+    expect(isRxDBBackupError(error) && error.details.field).toBe('constraintFingerprint');
     await expectCleanIdbTarget(target);
   });
 

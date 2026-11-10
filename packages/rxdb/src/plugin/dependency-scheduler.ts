@@ -133,6 +133,15 @@ export class PluginDependencyScheduler {
   /** 扫描中标记：转移里同步回调进来的 reconcile 只置脏位，不递归。 */
   #scanning = false;
   #dirty = false;
+  /**
+   * 宿主停机纪元，{@link PluginDependencyScheduler.reset} 推进它。
+   *
+   * @remarks
+   * `reset()` 就地复用激活记录与插件实例，新纪元里 provider 还是同一个对象。转移在 `await`
+   * 之后只按引用找人，就会把新纪元的依赖方当成自己要拆的对象，或把新纪元的状态写回旧值。
+   * 每件转移发起时记下纪元，每个 `await` 落地后先比对，不符就整件作废、一个字段都不碰。
+   */
+  #generation = 0;
 
   constructor(host: PluginSchedulerHost) {
     this.#host = host;
@@ -283,9 +292,11 @@ export class PluginDependencyScheduler {
    *
    * @remarks
    * 供宿主停机时调用。作用域不在这里释放——那由宿主的逆序拆卸与连接纪元总闸负责，
-   * 此处再释放一遍只会把拆卸顺序搅乱。
+   * 此处再释放一遍只会把拆卸顺序搅乱。仍在飞的旧转移随纪元推进一起作废：它们落地时
+   * 不再释放作用域、不再改写记录。
    */
   reset(): void {
+    this.#generation += 1;
     for (const activation of this.#activations.values()) {
       activation.state = 'registered';
       activation.deps = EMPTY_EPOCH;
@@ -355,6 +366,7 @@ export class PluginDependencyScheduler {
   /** 释放当前作用域并回到等待态，随后复查一次最新目标。 */
   #release(plugin: IRxDBPlugin, activation: PluginActivation): void {
     const scope = activation.scope;
+    const generation = this.#generation;
     activation.state = 'disposing';
     activation.scope = undefined;
     activation.releasing = activation.deps;
@@ -362,8 +374,11 @@ export class PluginDependencyScheduler {
     activation.installPromise = undefined;
     this.#startTransition(activation, async () => {
       // 逆拓扑：依赖本插件的那些先释放完，本插件的作用域才撤（INV-7 / AC#13）
-      await this.#releaseDependents(plugin);
+      await this.#releaseDependents(plugin, generation);
+      // 等待期间宿主停机过：旧作用域已由纪元总闸释放，记录属于新纪元
+      if (generation !== this.#generation) return;
       if (scope !== undefined) await this.#host.releaseScope(plugin, scope);
+      if (generation !== this.#generation) return;
       activation.releasing = EMPTY_EPOCH;
       activation.state = 'waiting';
       // 释放期间依赖可能已经以新实例回来了，落地后必须重新对齐（AC#8）
@@ -393,10 +408,14 @@ export class PluginDependencyScheduler {
    * 循环到「没有依赖方还在飞、也没有依赖方还活着」为止：等的那一件落地后，依赖方可能
    * 刚转成 `active`（它的安装先于本插件的 `disposing` 完成），那就轮到下一圈释放它。
    * 必然终止——本插件停在 `disposing`，宿主对 `plugin:*` 的就绪判据是提供方 `active`
-   * （US-015 D3），等待期间没有任何依赖方能重新装上来。
+   * （US-015 D3），等待期间没有任何依赖方能重新装上来。这条论证只在同一纪元内成立：
+   * `reset()` 之后本插件已以新纪元重新 `active`，依赖方拆完会立刻重装，每圈扫描都要先核对纪元。
+   *
+   * @param generation - 发起这次释放时的停机纪元
    */
-  async #releaseDependents(target: IRxDBPlugin): Promise<void> {
+  async #releaseDependents(target: IRxDBPlugin, generation: number): Promise<void> {
     for (;;) {
+      if (generation !== this.#generation) return;
       const pending: Promise<void>[] = [];
       for (const [plugin, activation] of this.#activations) {
         if (!activation.deps.includes(target) && !activation.releasing.includes(target)) continue;
@@ -427,12 +446,13 @@ export class PluginDependencyScheduler {
       () => undefined
     );
     activation.installPromise = install;
+    const generation = this.#generation;
     this.#startTransition(activation, async () => {
       const failure = await install.then(
         () => undefined,
         (error: unknown) => ({ error })
       );
-      await this.#applyInstallResult(plugin, activation, scope, failure);
+      await this.#applyInstallResult(plugin, activation, { scope, generation }, failure);
     });
   }
 
@@ -446,13 +466,16 @@ export class PluginDependencyScheduler {
    *
    * `active` 边界的通知挂在这里：只有跨越 `active` 的那一步需要唤醒依赖方，
    * `waiting → installing` 之类的中间转移不触发任何扫描。
+   *
+   * @param install - 这次安装的作用域与发起时的停机纪元
    */
   async #applyInstallResult(
     plugin: IRxDBPlugin,
     activation: PluginActivation,
-    scope: LifecycleScope,
+    install: { readonly scope: LifecycleScope; readonly generation: number },
     failure: { readonly error: unknown } | undefined
   ): Promise<void> {
+    const { scope, generation } = install;
     // 记录里已经不是手里这一个作用域 = 本次安装所属的纪元整个作废了（宿主 reset 过，
     // 而且可能已经开始了更晚的一次安装）。此时连结果都不该落地：写回去会把新纪元的
     // `active` 改成旧纪元的 `failed`。旧作用域由宿主的纪元总闸释放，不归这里。
@@ -466,6 +489,8 @@ export class PluginDependencyScheduler {
       activation.deps = EMPTY_EPOCH;
       activation.installPromise = undefined;
       await this.#host.releaseScope(plugin, scope);
+      // 释放期间宿主停机复位过：记录已属于新纪元，不能再改回等待
+      if (generation !== this.#generation) return;
       activation.releasing = EMPTY_EPOCH;
       activation.state = 'waiting';
       activation.recheck = true;

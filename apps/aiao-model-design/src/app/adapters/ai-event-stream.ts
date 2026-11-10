@@ -53,8 +53,7 @@ export class AiStreamError extends Error {
 function readDelta(data: string): string | typeof STREAM_FINISHED | undefined {
   const chunk = parseStreamChunk(data);
   if (chunk.type === 'finish') return STREAM_FINISHED;
-  if (chunk.type === 'error')
-    throw new AiStreamError(parseApiError(JSON.parse(chunk.errorText ?? '')));
+  if (chunk.type === 'error') throw new AiStreamError(parseApiError(JSON.parse(chunk.errorText ?? '')));
   if (chunk.type === 'abort') throw new DOMException('AbortError', 'AbortError');
   if (chunk.type === 'text-delta') {
     if (chunk.delta === undefined) throw new SyntaxError('Invalid AI stream event');
@@ -82,8 +81,7 @@ export async function* readAiTextDeltas(response: Response): AsyncGenerator<stri
       if (delta !== undefined) yield delta;
     }
   } catch (error) {
-    if (error instanceof SyntaxError)
-      throw new AiStreamError({ type: 'server', message: 'Invalid AI stream event' });
+    if (error instanceof SyntaxError) throw new AiStreamError({ type: 'server', message: 'Invalid AI stream event' });
     throw error;
   } finally {
     await reader.cancel().catch(() => undefined);

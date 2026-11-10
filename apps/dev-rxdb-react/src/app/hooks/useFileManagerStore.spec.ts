@@ -104,6 +104,34 @@ describe('useFileManagerStore', () => {
     expect(result.current.treeNodes).toEqual([]);
   });
 
+  it('搜索时临时展开折叠的祖先路径：命中项可见，展开集合不变，清空搜索后恢复折叠', () => {
+    const removed: string[] = [];
+    const files = [
+      makeFile('docs', null, 'folder', 'a0', removed),
+      makeFile('nested', 'docs', 'folder', 'a0', removed),
+      makeFile('notes', 'nested', 'file', 'a0', removed),
+      makeFile('other', 'docs', 'file', 'a1', removed)
+    ];
+    const { result } = renderHook(() => useFileManagerStore(files));
+
+    act(() => result.current.setSearchKeyword('notes'));
+
+    expect(result.current.treeNodes.map(node => [node.file.id, node.isExpanded])).toEqual([
+      ['docs', true],
+      ['nested', true],
+      ['notes', false]
+    ]);
+    expect(result.current.expandedIds.size).toBe(0);
+
+    // 自身命中的文件夹若还有命中的后代，同样打开
+    act(() => result.current.setSearchKeyword('n'));
+    expect(result.current.treeNodes.map(node => node.file.id)).toEqual(['docs', 'nested', 'notes']);
+
+    act(() => result.current.setSearchKeyword(''));
+
+    expect(result.current.treeNodes.map(node => node.file.id)).toEqual(['docs']);
+  });
+
   it('排序模式变化会驱动树节点顺序并持久化选择', () => {
     const removed: string[] = [];
     const first = makeFile('zeta', null, 'file', 'a0', removed);

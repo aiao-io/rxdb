@@ -138,7 +138,8 @@ describe('AiApiService SSE', () => {
     ['文本字段类型错误', 'data: {"type":"text-delta","delta":123}\n\n' + done],
     [
       '错误分类无效',
-      `data: ${JSON.stringify({ type: 'error', errorText: JSON.stringify({ type: 'unknown', message: 'bad' }) })}\n\n` + done
+      `data: ${JSON.stringify({ type: 'error', errorText: JSON.stringify({ type: 'unknown', message: 'bad' }) })}\n\n` +
+        done
     ],
     ['损坏错误事件', 'data: {"type":"error","errorText":"bad"}\n\n' + done]
   ])('%s 不冒充成功', async (_name, text) => {

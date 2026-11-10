@@ -7,6 +7,7 @@
 import {
   assertRxDBBackupCompatible,
   getRxDBBackupAuthDomain,
+  getRxDBBackupConstraintFingerprint,
   getRxDBBackupSchemaFingerprint,
   RXDB_CHANGE_CODEC_VERSION,
   RXDB_SYSTEM_SCHEMA_VERSION,
@@ -114,6 +115,7 @@ const targetCompatibility = (rxdb: RxDB, engine: DesktopPgliteEngineResult): RxD
     systemSchemaVersion: RXDB_SYSTEM_SCHEMA_VERSION,
     changeCodecVersion: RXDB_CHANGE_CODEC_VERSION,
     schemaFingerprint: getRxDBBackupSchemaFingerprint(rxdb),
+    constraintFingerprint: getRxDBBackupConstraintFingerprint(rxdb),
     authDomain: getRxDBBackupAuthDomain(rxdb)
   };
 };

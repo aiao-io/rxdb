@@ -50,8 +50,8 @@
 
       <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
         <lib-designer-toolbar
-          [entityCount]="state.entities().length"
           [compareAvailable]="state.canCompareSql()"
+          [entityCount]="state.entities().length"
           [executeAvailable]="state.canExecuteSql()"
           [executeDisabled]="executeDisabled()"
           [modelName]="state.activeDesignName()"
@@ -83,10 +83,10 @@
       <lib-code-preview
         [(isOpen)]="state.codePreviewOpen"
         [(packageName)]="state.clientPackageName"
-        [errors]="state.generatedErrors()"
-        [files]="state.generatedFiles()"
         [canArchivePackage]="state.canArchiveClientPackage()"
         [canPublishPackage]="state.canPublishClientPackage()"
+        [errors]="state.generatedErrors()"
+        [files]="state.generatedFiles()"
         [packageBusy]="state.clientPackageBusy()"
         [packageVersion]="state.clientPackageVersion()"
         (archivePackage)="state.onArchiveClientPackage()"

@@ -93,6 +93,73 @@ describe('realmVitePlugin 的公共部分', () => {
   });
 });
 
+// RV-01a1bb4c7db9：登记语句只能插在整段指令序言之后。版权 banner、行注释、前置的其他指令、
+// 无分号换行都不能让插入点落到 use strict 前面——那样指令变成普通表达式，chunk 静默变成非严格
+describe('realmVitePlugin：指令序言', () => {
+  const realmRequire = `var ${REALM_BINDING}=require("./${REALM_MODULE}").realm();`;
+
+  /** 把改写后的 chunk 当 CommonJS 模块函数体执行，返回其顶层是否仍是严格模式。 */
+  function runsStrict(code: string): boolean {
+    const run = runInContext(
+      `(function (require, exports) {${code}\n;return (function () { return this; })() === undefined; })`,
+      createContext()
+    ) as (require: () => { realm(): object }, exports: object) => boolean;
+    return run(() => ({ realm: () => ({}) }), {});
+  }
+
+  function rewrite(code: string): string {
+    const bundle: Bundle = { 'app.js': chunk('app.js', ''), 'vendor.js': chunk('vendor.js', code) };
+    generate('alipay', bundle);
+    return (bundle['vendor.js'] as FakeChunk).code;
+  }
+
+  it.each([
+    ['块注释 banner', `/*! license */\n"use strict";${REALM_BINDING}.x;`, `/*! license */\n"use strict";`],
+    ['行注释', `// generated\n'use strict';${REALM_BINDING}.x;`, `// generated\n'use strict';`],
+    ['前置的其他指令', `"use client";"use strict";${REALM_BINDING}.x;`, `"use client";"use strict";`],
+    [
+      '指令之间夹注释',
+      `'use client'; /* keep */ "use strict" ;${REALM_BINDING}.x;`,
+      `'use client'; /* keep */ "use strict" ;`
+    ]
+  ])('%s：插在指令序言之后，chunk 仍是严格模式', (_case, code, prologue) => {
+    const rewritten = rewrite(code);
+
+    expect(rewritten.startsWith(`${prologue}${realmRequire}`)).toBe(true);
+    expect(runsStrict(rewritten)).toBe(true);
+  });
+
+  it('无分号换行结束的指令：补上分号再插，chunk 仍是严格模式', () => {
+    const rewritten = rewrite(`"use strict"\nexports.a = ${REALM_BINDING};`);
+
+    expect(rewritten).toBe(`"use strict";${realmRequire}\nexports.a = ${REALM_BINDING};`);
+    expect(runsStrict(rewritten)).toBe(true);
+  });
+
+  it('非严格 chunk 插在最前面，仍是非严格；开头的字符串若接着参与表达式就不是指令', () => {
+    const sloppy = rewrite(`exports.a = ${REALM_BINDING};`);
+    const continued = rewrite(`"use strict"\n.length;${REALM_BINDING}.x;`);
+
+    expect(sloppy.startsWith(realmRequire)).toBe(true);
+    expect(runsStrict(sloppy)).toBe(false);
+    expect(continued.startsWith(realmRequire)).toBe(true);
+  });
+
+  it('转义写出来的 use strict 不是严格指令', () => {
+    const rewritten = rewrite(`"use\\x20strict";${REALM_BINDING}.x;`);
+
+    expect(rewritten.startsWith(`"use\\x20strict";${realmRequire}`)).toBe(true);
+    expect(runsStrict(rewritten)).toBe(false);
+  });
+
+  it('抖音入口：banner 或前置指令之后的 use strict 同样按严格入口拒绝', () => {
+    expect(() => generate('tt', { 'app.js': chunk('app.js', '/*! license */\n"use strict";') })).toThrow(/use strict/);
+    expect(() => generate('tt', { 'app.js': chunk('app.js', '"use client";\n"use strict"\nfoo();') })).toThrow(
+      /use strict/
+    );
+  });
+});
+
 describe('realmVitePlugin：抖音', () => {
   it('入口带 use strict 时报错：非严格函数的 this 拿不到真实全局对象', () => {
     expect(() => generate('tt', { 'app.js': chunk('app.js', '"use strict";') })).toThrow(/use strict/);

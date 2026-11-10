@@ -194,7 +194,7 @@ test.describe('模型驱动数据工作台', () => {
     await selectRelationOption(page, '所属资产', '笔记本');
     await page.getByRole('button', { name: '保存', exact: true }).click();
     await expect(page.getByRole('tab', { name: '基本信息' })).toHaveCount(0);
-    await expectListHasRows(page);
+    await expectListHasRows(page, { summary: '更换电池' });
   });
 
   test('空库下必填关联给出创建提示（评审反馈回归）', async ({ page }) => {
@@ -210,7 +210,7 @@ test.describe('模型驱动数据工作台', () => {
     await page.goto('/entities/assets/AssetCategory');
     await createCategory(page, '办公设备');
     await createCategory(page, '家具');
-    await expectListHasRows(page);
+    await expectListHasRows(page, { name: '家具' });
 
     await page.getByRole('button', { name: '筛选' }).click();
     await page.getByRole('button', { name: '添加第一个条件' }).click();
@@ -225,7 +225,7 @@ test.describe('模型驱动数据工作台', () => {
 
     // 快捷清除筛选：工具栏一键还原
     await page.getByTestId('clear-filter').click();
-    await expectListHasRows(page);
+    await expectListHasRows(page, { name: '家具' });
     await expect(page.getByText('2 条记录')).toHaveCount(0);
   });
 
@@ -258,7 +258,7 @@ test.describe('模型驱动数据工作台', () => {
   test('AC#7 刷新与关闭重开浏览器标签后数据仍在', async ({ page }) => {
     await page.goto('/entities/assets/AssetCategory');
     await createCategory(page, '办公设备');
-    await expectListHasRows(page);
+    await expectListHasRows(page, { name: '办公设备' });
     await page.reload();
     await page.waitForURL('**/entities/assets/AssetCategory');
     const view = await expectActionIcon(page, 'view-action');

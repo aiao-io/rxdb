@@ -54,6 +54,8 @@ export class AdminCommandPaletteComponent {
   }
 
   protected onKeyDown(event: KeyboardEvent): void {
+    // 输入法组合中的按键交给输入法；Safari 确认候选的回车在 compositionend 之后到达，isComposing 为 false、keyCode 为 229
+    if (event.isComposing || event.keyCode === 229) return;
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
       this.shell.palette.moveSelection(event.key === 'ArrowDown' ? 1 : -1);

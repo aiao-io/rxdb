@@ -77,6 +77,8 @@ function matchesRules(change: RxDBChange, rules: QueryRule[]): boolean {
     const value = change[rule.field as keyof RxDBChange];
     if (rule.operator === '=') return value === rule.value;
     if (rule.operator === '>') return typeof value === 'number' && typeof rule.value === 'number' && value > rule.value;
+    if (rule.operator === '<=')
+      return typeof value === 'number' && typeof rule.value === 'number' && value <= rule.value;
     if (rule.operator === 'in') return Array.isArray(rule.value) && rule.value.includes(value);
     throw new Error(`Unsupported operator: ${rule.operator}`);
   });
@@ -404,8 +406,13 @@ describe('push/pull protocol integration', () => {
     const commitError = new Error('local commit failed');
     harness.saveMany.mockRejectedValueOnce(commitError);
 
-    // 本地事务失败 = `pushed` 记 0，抛裸错误而不是 resolve 出 success:false
-    await expect(pushRepository(harness.vm, 'public', 'User', { includeRelated: false })).rejects.toBe(commitError);
+    // 本地事务失败：抛错而不是 resolve 出 success:false；远端已应用的两条随 RxDBPartialSyncError 交出去
+    const thrown = await pushRepository(harness.vm, 'public', 'User', { includeRelated: false }).catch(
+      (error: unknown) => error
+    );
+    expect(thrown).toBeInstanceOf(RxDBPartialSyncError);
+    expect((thrown as RxDBPartialSyncError<PushRepositoryResult>).cause).toBe(commitError);
+    expect((thrown as RxDBPartialSyncError<PushRepositoryResult>).result).toMatchObject({ success: false, pushed: 2 });
 
     // 远端确实写进去了——故障点在这之后
     expect(harness.remoteChanges.map(change => change.localId)).toEqual([1, 2]);

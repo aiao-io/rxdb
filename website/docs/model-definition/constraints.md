@@ -117,6 +117,7 @@ export class BomOccurrence extends EntityBase {}
 ```
 
 - 区间维只接受 `date` / `integer` / `bigint` 列，`bounds` 只能是 `'[)'` 或 `'[]'`。端点为 NULL 即该侧无界。
+- `bigint` 的 `'[]'` 维上端点可以取到最大值 `9223372036854775807n`。PGlite 上它与上方无界是同一组取值，违约时 `ranges` 里这一端报 `null`，SQLite family 报原值。
 - 起点晚于终点的倒置区间当空区间，不与任何行冲突；要拒绝倒置区间，另加一条 CHECK `from <= to`。
 - 相等列可以是实体自身的属性，也可以是关系外键（如 `parentId`）；相等列任一为 NULL 的行不参与冲突。
 - 违约抛 `RxDBExclusionViolationError`，`ranges` 逐维给出本次写入行（`incoming`）与已有冲突行（`existing`）的区间。
@@ -131,3 +132,69 @@ export class BomOccurrence extends EntityBase {}
 `connect()` 时会把库里实际的约束和声明比对。**已有表上缺了声明的约束、或多出声明外的约束，都会抛 `RxDBConstraintDriftError`**，列出缺失与多余的约束名——框架不替你补建，因为老数据可能本来就违反新约束。在 `migrations` 里补上（迁移排在比对之前执行），再 `connect()` 即可。只改规则不改 `name` 也会换名字，同样按漂移处理。
 
 SQLite 宿主版本须 ≥ 3.47.0（区间排他的触发器消息要带冲突区间）。声明了任一存储约束而宿主版本更低时，`connect()` 报错并点名实际版本；一项都没声明的应用不受影响。
+
+### 升级：`bigint` `'[]'` 区间维的排他换名
+
+`bigint` 区间维 + `bounds: '[]'` 的排他，PG 表达式在上端点取到 `9223372036854775807n` 时改为按上方无界构造：此前这样的合法行在 PGlite 上没有任何竞争行也写不进去（范围规范化把上界加一，抛 `22003 bigint out of range`）。表达式参与约束名的哈希，所以**含这类区间维的排他换了名**；`date`、`integer` 与 `bigint` 的 `'[)'` 维的排他名字不变。
+
+已有的库（包括从旧归档恢复出来的）升级后 `connect()` 会抛 `RxDBConstraintDriftError`：`extra` 里是旧名，`missing` 里是新名。在 `migrations` 里删掉旧的、按新名重建即可（迁移排在漂移比对之前执行）。把示例里的 `LEGACY` 换成漂移错误 `extra` 里的旧约束名；SQLite family 的 `extra` 里是触发器名，去掉 `_i` / `_u` 后缀得到约束名。
+
+PGlite：
+
+```typescript
+import {
+  compileExclusionConstraint,
+  exclusionRangeExpressionPG,
+  getEntityMetadata,
+  type MigrationType
+} from '@aiao/rxdb';
+
+const LEGACY = 'ex_SerialLedger_serial_no_overlap_<旧哈希>'; // 取自漂移错误的 extra
+
+export const rebuildSerialExclusion: MigrationType = {
+  name: '20261110-rebuild-serial-exclusion',
+  async up(executor) {
+    const metadata = getEntityMetadata(SerialLedger);
+    const { name, equal, ranges } = compileExclusionConstraint(
+      metadata,
+      metadata.exclusionMap.get('serial_no_overlap')!
+    );
+    const elements = [
+      ...equal.map(({ column }) => `"${column}" WITH =`),
+      ...ranges.map(range => `${exclusionRangeExpressionPG(range)} WITH &&`)
+    ].join(', ');
+    const table = executor.tableRef(SerialLedger);
+    await executor.query(`ALTER TABLE ${table} DROP CONSTRAINT "${LEGACY}"`);
+    await executor.query(`ALTER TABLE ${table} ADD CONSTRAINT "${name}" EXCLUDE USING gist (${elements})`);
+  },
+  async down() {}
+};
+```
+
+不要用 `RENAME CONSTRAINT` 代替：名字对上了，漂移检查能通过，但会溢出的旧表达式还留着。旧约束本来就写不进 `to = 最大值` 的行，所以重建时校验已有数据不会失败。
+
+SQLite family（SQLite 没有动态 SQL，触发器的 `_i` 与 `_u` 各取回原文、换掉约束名后重建）：
+
+```typescript
+import { compileExclusionConstraint, exclusionTriggerNames, getEntityMetadata, type MigrationType } from '@aiao/rxdb';
+
+const LEGACY = 'ex_SerialLedger_serial_no_overlap_<旧哈希>'; // 取自漂移错误的 extra，去掉 _i / _u 后缀
+
+export const renameSerialExclusionTriggers: MigrationType = {
+  name: '20261110-rename-serial-exclusion-triggers',
+  async up(executor) {
+    const metadata = getEntityMetadata(SerialLedger);
+    const { name } = compileExclusionConstraint(metadata, metadata.exclusionMap.get('serial_no_overlap')!);
+    for (const trigger of exclusionTriggerNames(LEGACY)) {
+      const { rows } = await executor.query(`SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = ?`, [
+        trigger
+      ]);
+      await executor.query(`DROP TRIGGER "${trigger}"`);
+      await executor.query(String(rows[0][0]).replaceAll(LEGACY, name));
+    }
+  },
+  async down() {}
+};
+```
+
+每条含 `bigint` `'[]'` 区间维的排他各做一遍。重建之后重新 `connect()`，同一迁移不会重跑。

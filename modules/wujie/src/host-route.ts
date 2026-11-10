@@ -191,7 +191,8 @@ export interface HostRouteSyncOptions {
  * 子应用挂载后必然先落到自己的默认路由（React `/` → 重定向 `/home`，Angular 同理）。
  * 深链进 `/demos/vue/todo` 时，这条首屏回传会在挂载瞬间把宿主地址栏改回 `/demos/vue`。
  *
- * 用法：宿主每次下发期望路径时 {@link expect}，收到回传时用 {@link accept} 决定是否写回 URL。
+ * 用法：宿主每次下发期望路径时 {@link expect}，收到回传时交给 {@link receive}，由它决定立刻写回 URL、
+ * 还是等期望路径到期后补写；宿主卸载时 {@link cancel}。
  *
  * TTL 是必需的兜底，不能只靠「命中即解锁」：宿主若下发了子应用不存在的路由，
  * 子应用会重定向到别处，期望路径永远命中不了，之后用户在子应用里的所有导航都写不回宿主 —— 锁死。
@@ -202,15 +203,50 @@ export class HostRouteSync {
   readonly #ttlMs: number;
   readonly #now: () => number;
   #pending: { path: string; until: number } | undefined;
+  #deferred: ReturnType<typeof setTimeout> | undefined;
 
   constructor(options: HostRouteSyncOptions = {}) {
     this.#ttlMs = options.ttlMs ?? 600;
-    this.#now = options.now ?? Date.now;
+    this.#now = options.now ?? (() => Date.now());
   }
 
-  /** 记录宿主刚下发的期望路径，在它到位（或超时）之前挡住不匹配的回传。 */
+  /** 记录宿主刚下发的期望路径，在它到位（或超时）之前挡住不匹配的回传；之前挡下待补写的回传作废。 */
   expect(path: string): void {
+    this.cancel();
     this.#pending = { path: normalizeRoutePath(path), until: this.#now() + this.#ttlMs };
+  }
+
+  /**
+   * 收下一条子应用回传：闸门放行就立刻交给 `apply`，被挡下的等期望路径到期后再补交。
+   *
+   * 被挡下的不一定是首屏回弹：宿主下发的路径到位时子应用并不回传（{@link bindWujieRoute} 只上报自身导航），
+   * 闸门因此一直等到 TTL，期间用户已完成的导航同样被挡；只靠 {@link accept} 丢掉它，之后没有新回传，
+   * 宿主地址栏就一直停在旧页。期望路径在等待期内到位、更新的回传到来、或宿主重新下发期望路径，待补写的都作废。
+   *
+   * @param path - 子应用回传的路径
+   * @param apply - 写回宿主地址栏；放行时同步调用，补交时在到期后调用
+   */
+  receive(path: string, apply: (path: string) => void): void {
+    this.cancel();
+    const pending = this.#pending;
+    if (!pending || this.accept(path)) {
+      apply(normalizeRoutePath(path));
+      return;
+    }
+    // 被挡下说明期望路径尚未到期：到期后的第一毫秒 accept 必然放行
+    this.#deferred = setTimeout(
+      () => {
+        this.#deferred = undefined;
+        if (this.accept(path)) apply(normalizeRoutePath(path));
+      },
+      pending.until - this.#now() + 1
+    );
+  }
+
+  /** 作废待补写的回传（宿主卸载、或换了期望路径时）；闸门本身不变。 */
+  cancel(): void {
+    clearTimeout(this.#deferred);
+    this.#deferred = undefined;
   }
 
   /**

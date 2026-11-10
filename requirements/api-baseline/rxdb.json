@@ -906,6 +906,10 @@
         "kind": "value"
       },
       {
+        "name": "getRxDBBackupConstraintFingerprint",
+        "kind": "value"
+      },
+      {
         "name": "getRxDBBackupSchemaFingerprint",
         "kind": "value"
       },

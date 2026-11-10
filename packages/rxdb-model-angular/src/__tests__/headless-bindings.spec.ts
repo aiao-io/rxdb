@@ -8,6 +8,7 @@ import { Component, provideZonelessChangeDetection, signal, type Type, type Writ
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it, vi } from 'vitest';
 import {
+  injectEntityDetail,
   injectEntityForm,
   injectEntityList,
   injectQueryTable,
@@ -33,6 +34,16 @@ class HostComponent {
       mode: 'edit'
     });
   readonly binding: InjectEntityFormReturn = injectEntityForm(this.options);
+}
+
+@Component({ standalone: true, template: '' })
+class OptionalModeHostComponent {
+  readonly options = signal<{ fields: FormFieldConfig[]; data: { title: string }; mode?: 'view' | 'create' }>({
+    fields,
+    data: { title: 'A' }
+  });
+  readonly form = injectEntityForm(this.options);
+  readonly detail = injectEntityDetail(this.options);
 }
 
 @Component({ standalone: true, template: '' })
@@ -62,6 +73,29 @@ describe('Angular headless bindings', () => {
     host.options.set({ fields, data: { title: 'B' }, mode: 'view' });
     fixture.detectChanges();
     expect(host.binding.snapshot().data['title']).toBe('B');
+  });
+
+  // 撤下可选的 mode 时三端都恢复共享控制器的默认 edit（RV-01a1bb54b35b79d491932d4436e84437）
+  it.each(['view', 'create'] as const)('表单与详情的 mode 从 %s 撤下后恢复默认 edit，草稿保留', initialMode => {
+    const { fixture, host } = mount(OptionalModeHostComponent);
+    host.options.set({ fields, data: { title: 'A' }, mode: initialMode });
+    fixture.detectChanges();
+    expect(host.form.snapshot().mode).toBe(initialMode);
+    host.form.controller.setField('title', 'draft');
+    host.detail.controller.form.setField('title', 'draft');
+
+    host.options.set({ fields, data: { title: 'A' } });
+    fixture.detectChanges();
+
+    expect(host.form.snapshot().mode).toBe('edit');
+    expect(host.detail.snapshot().mode).toBe('edit');
+    const kept = initialMode === 'view' ? 'A' : 'draft';
+    expect(host.form.snapshot().data['title']).toBe(kept);
+    expect(host.detail.snapshot().form.data['title']).toBe(kept);
+    host.form.controller.setField('title', 'B');
+    host.detail.controller.form.setField('title', 'B');
+    expect(host.form.snapshot().data['title']).toBe('B');
+    expect(host.detail.snapshot().form.data['title']).toBe('B');
   });
 
   it('查询表格会同步宿主能力变化', () => {

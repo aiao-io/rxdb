@@ -1,5 +1,15 @@
 import { CodeEditor } from '@aiao/code-editor-angular';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, model, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  model,
+  output,
+  signal
+} from '@angular/core';
 import { MODEL_DESIGNER_TRANSLATIONS } from '../../i18n/translations';
 import type { GeneratedFile } from '../../interfaces/designer.interface';
 

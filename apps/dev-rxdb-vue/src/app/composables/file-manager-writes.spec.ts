@@ -13,7 +13,7 @@
  */
 import type { RxDB } from '@aiao/rxdb';
 import { SortableFileLarge } from '@aiao/rxdb-test/entities';
-import { NEVER, of } from 'rxjs';
+import { BehaviorSubject, NEVER, of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { createApp, ref } from 'vue';
 import { useFileManagerLazyStore } from './useFileManagerLazyStore';
@@ -506,5 +506,53 @@ describe('useFileManagerLazyStore（lazy）的删除按库取数据', () => {
     await store.toggleExpand('folder-1');
 
     expect(store.loadingIds.value.has('folder-1')).toBe(false);
+  });
+
+  it('折叠父节点同时清掉后代的展开标记：重开父节点时子节点是折叠的，不再画成「已展开却没有子项」', async () => {
+    const p = fixture({ id: 'p', name: 'p', type: 'folder', hasChildren: true });
+    const c = fixture({ id: 'c', name: 'c', type: 'folder', hasChildren: true, parentId: 'p' });
+    const g = fixture({ id: 'g', name: 'g', type: 'file', parentId: 'c' });
+    setDbAll([p, c, g]);
+    const store = inApp(() => useFileManagerLazyStore(asRxdb(makeRxdb())));
+    await store.toggleExpand('p');
+    await store.toggleExpand('c');
+    expect(store.treeNodes.value.map(node => node.file.id)).toEqual(['p', 'c', 'g']);
+
+    await store.toggleExpand('p');
+    await store.toggleExpand('p');
+
+    expect(store.treeNodes.value.map(node => [node.file.id, node.isExpanded])).toEqual([
+      ['p', true],
+      ['c', false]
+    ]);
+    expect(store.expandedIds.value).toEqual(new Set(['p']));
+  });
+
+  it('按「名称.扩展名」搜索：库里的扩展名不带点，完整文件名与 .扩展名都命中', () => {
+    const notes = fixture({ id: 'n', name: 'notes', type: 'file', extension: 'txt' });
+    setDbAll([notes]);
+    const store = inApp(() => useFileManagerLazyStore(asRxdb(makeRxdb())));
+
+    store.searchKeyword.value = 'notes.txt';
+    expect(store.matchedFileIds.value).toEqual(new Set(['n']));
+
+    store.searchKeyword.value = '.txt';
+    expect(store.matchedFileIds.value).toEqual(new Set(['n']));
+  });
+
+  it('批量添加途中卸载：收尾不再重建订阅', async () => {
+    const roots$ = new BehaviorSubject<FakeFile[]>([]);
+    registry.findAll.mockImplementation(() => roots$.asObservable());
+    const rxdb = makeRxdb();
+    let finishSave: () => void = () => undefined;
+    rxdb.entityManager.saveMany.mockImplementationOnce(() => new Promise<void>(resolve => (finishSave = resolve)));
+    const store = inApp(() => useFileManagerLazyStore(asRxdb(rxdb)));
+
+    const adding = store.addManyFiles(1);
+    mountedApps.splice(0).forEach(app => app.unmount());
+    finishSave();
+    await adding;
+
+    expect(roots$.observed).toBe(false);
   });
 });

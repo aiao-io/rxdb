@@ -1,7 +1,7 @@
 import type { RxDB, UUID } from '@aiao/rxdb';
 import { SortableMenuLarge } from '@aiao/rxdb-test/entities';
 import { act, renderHook } from '@testing-library/react';
-import { Observable, of } from 'rxjs';
+import { BehaviorSubject, Observable, of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateBatchMenus } from '../utils/menu-utils';
 import { menuLargeTreeSource, type TreeMenuLazySource, useTreeMenuLazyStore } from './useTreeMenuLazyStore';
@@ -612,6 +612,85 @@ describe('useTreeMenuLazyStore', () => {
         call => call.method === 'findAll' && call.options.where?.rules?.[0]?.value === p.id
       );
       expect(childSubscriptions).toEqual([]);
+    });
+  });
+
+  describe('折叠与批量添加的订阅收尾', () => {
+    /** 全量查询换成可观察是否还有订阅者的流；按父节点的查询照旧走假仓储。 */
+    const liveAllQuery = (): BehaviorSubject<SortableMenuLarge[]> => {
+      const all$ = new BehaviorSubject<SortableMenuLarge[]>([...table.rows]);
+      const statics = SortableMenuLarge as unknown as Record<string, unknown>;
+      const byParent = statics.findAll as (options: QueryOptions) => Observable<SortableMenuLarge[]>;
+      statics.findAll = vi.fn((options: QueryOptions) =>
+        (options.where?.rules?.length ?? 0) === 0 ? all$.asObservable() : byParent(options)
+      );
+      return all$;
+    };
+
+    it('折叠父节点同时清掉后代的展开标记：重开父节点时子节点是折叠的', async () => {
+      const p = makeMenu('p', null, 'a0');
+      const c = makeMenu('c', 'p', 'a0');
+      (p as { hasChildren?: boolean }).hasChildren = true;
+      (c as { hasChildren?: boolean }).hasChildren = true;
+      table.rows = [p, c, makeMenu('g', 'c', 'a0')];
+      const { result } = renderHook(() => useTreeMenuLazyStore(rxdb, menuLargeTreeSource));
+      await act(async () => {
+        await result.current.toggleExpand(p.id);
+      });
+      await act(async () => {
+        await result.current.toggleExpand(c.id);
+      });
+      expect(result.current.treeNodes.map(node => node.menu.id)).toEqual([p.id, c.id, toUuid('g')]);
+
+      await act(async () => {
+        await result.current.toggleExpand(p.id);
+      });
+      await act(async () => {
+        await result.current.toggleExpand(p.id);
+      });
+
+      expect(result.current.treeNodes.map(node => [node.menu.id, node.isExpanded])).toEqual([
+        [p.id, true],
+        [c.id, false]
+      ]);
+      expect(result.current.expandedIds).toEqual(new Set([p.id]));
+    });
+
+    it('展开全部之后批量添加：全量订阅保留，之后的写入继续回流', async () => {
+      table.rows = [makeMenu('a', null, 'a0'), makeMenu('b', 'a', 'a0')];
+      const all$ = liveAllQuery();
+      const { result } = renderHook(() => useTreeMenuLazyStore(rxdb, menuLargeTreeSource));
+      act(() => result.current.expandAll());
+
+      await act(async () => {
+        await result.current.addManyMenus(1);
+      });
+
+      expect(all$.observed).toBe(true);
+      const created = makeMenu('created', 'a', 'a1');
+      act(() => all$.next([...table.rows, created]));
+      expect(result.current.treeNodes.map(node => node.menu.id)).toEqual([toUuid('a'), toUuid('b'), created.id]);
+    });
+
+    it('批量添加途中卸载：收尾不再重建订阅', async () => {
+      table.rows = [makeMenu('a', null, 'a0')];
+      const all$ = liveAllQuery();
+      let finishSave: () => void = () => undefined;
+      table.writes['saveMany'].mockImplementationOnce(() => new Promise<void>(resolve => (finishSave = resolve)));
+      const { result, unmount } = renderHook(() => useTreeMenuLazyStore(rxdb, menuLargeTreeSource));
+      act(() => result.current.expandAll());
+
+      let adding: Promise<unknown> = Promise.resolve();
+      act(() => {
+        adding = result.current.addManyMenus(1);
+      });
+      unmount();
+      await act(async () => {
+        finishSave();
+        await adding;
+      });
+
+      expect(all$.observed).toBe(false);
     });
   });
 

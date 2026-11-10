@@ -1,3 +1,5 @@
+import { effectiveModifiers } from './modifiers.js';
+
 /** 运行平台：决定 `Mod` 对应的修饰键与键帽写法。 */
 export type ShortcutPlatform = 'mac' | 'other';
 
@@ -96,11 +98,10 @@ const keyMatches = (event: KeyEventLike, combo: ParsedCombo): boolean => {
  * @returns 命中返回 `true`。
  */
 export function matchesCombo(event: KeyEventLike, combo: ParsedCombo, platform: ShortcutPlatform): boolean {
-  const wantMeta = combo.meta || (combo.mod && platform === 'mac');
-  const wantCtrl = combo.ctrl || (combo.mod && platform === 'other');
+  const want = effectiveModifiers(combo, platform);
   return (
-    event.metaKey === wantMeta &&
-    event.ctrlKey === wantCtrl &&
+    event.metaKey === want.meta &&
+    event.ctrlKey === want.ctrl &&
     event.altKey === combo.alt &&
     event.shiftKey === combo.shift &&
     keyMatches(event, combo)

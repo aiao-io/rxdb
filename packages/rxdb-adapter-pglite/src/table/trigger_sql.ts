@@ -10,6 +10,7 @@ import {
   WorktreeTableSet
 } from '@aiao/rxdb';
 import { RxdbAdapterPGliteError } from '../pglite.utils.js';
+import { requireIdProperty } from '../primary-key-column.js';
 import { getChangeTriggerFunctionName, getTableNameByMetadata } from '../table-name-resolver.js';
 
 /**
@@ -150,17 +151,20 @@ export function generate_trigger_sql(entityMetadata: EntityMetadata, options: Tr
     dbColumn: sanitizeIdentifier(p.dbColumn)
   }));
 
+  const idProperty = requireIdProperty(entityMetadata);
   const idType =
-    propertyMap.get('id')?.type === PropertyType.bigint ? 'bigint'
-    : propertyMap.get('id')?.type === PropertyType.number || propertyMap.get('id')?.type === PropertyType.integer ?
-      'number'
+    idProperty.type === PropertyType.bigint ? 'bigint'
+    : idProperty.type === PropertyType.number || idProperty.type === PropertyType.integer ? 'number'
     : 'string';
   const entityIdEnvelopePrefix =
     RXDB_CHANGE_ENTITY_ID_PREFIX +
     `{"codecVersion":${RXDB_CHANGE_CODEC_VERSION},"schemaVersion":${RXDB_CHANGE_SCHEMA_VERSION},` +
     `"type":"${idType}","value":`;
+  // 主键物理列名可被 columnName 改写，NEW. / OLD. 上的引用跟着走（与 sqlite-core 的 SQLC-014 同口径）；
+  // 与其余列一样先过标识符校验：函数体由 $$ 包裹，列名里不能混进能截断它的字符
+  const primaryKeyColumn = `"${escapeIdentifier(sanitizeIdentifier(idProperty.columnName))}"`;
   const getEntityIdExpr = (prefix: 'NEW' | 'OLD') =>
-    `'${escapeSqlString(entityIdEnvelopePrefix)}' || to_jsonb(${prefix}.id::text)::text || '}'`;
+    `'${escapeSqlString(entityIdEnvelopePrefix)}' || to_jsonb(${prefix}.${primaryKeyColumn}::text)::text || '}'`;
   const getPatchValueExpr = (pair: (typeof safePropPairs)[number], prefix: 'NEW' | 'OLD'): string => {
     const reference = `${prefix}."${escapeIdentifier(pair.dbColumn)}"`;
     if (pair.type !== PropertyType.bigint && pair.type !== PropertyType.binary) return `to_jsonb(${reference})`;

@@ -132,18 +132,19 @@ export function separateEntities<T extends EntityType, CT extends EntityChangeRe
     return hasRelationTo(relation_metadata, query_metadata);
   };
 
+  // 主查询实体总在依赖集里（依赖提取先把它放进去），这不说明它对自己有关系依赖。
+  // 只有真有自引用关系时，本表的变更才可能改变本表别的行的关系条件。
+  const selfReferencing = task.type !== 'findByCursor' && hasRelationTo(query_metadata, query_metadata);
+
   for (const e of changes) {
     const isCurrentEntityType = e.entity === query_metadata.name && e.namespace === query_metadata.namespace;
-    const isRelatedEntity = isEntityRelated(e.entity, e.namespace);
 
     if (isCurrentEntityType) {
       current_entities.push(e);
       // 自引用场景：EXISTS 自引用时，同一实体也要进入 relation_entities
       // findByCursor 不需要此逻辑
-      if (isRelatedEntity && task.type !== 'findByCursor') {
-        relation_entities.push(e);
-      }
-    } else if (isRelatedEntity) {
+      if (selfReferencing) relation_entities.push(e);
+    } else if (isEntityRelated(e.entity, e.namespace)) {
       relation_entities.push(e);
     }
   }

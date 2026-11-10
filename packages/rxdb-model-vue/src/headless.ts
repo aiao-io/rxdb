@@ -120,11 +120,10 @@ export function useEntityDetail(options: EntityDetailControllerOptions): UseEnti
     fields => result.controller.form.setFields(fields),
     { deep: true, immediate: true }
   );
+  // 撤下 mode 等于恢复未传入时的默认 edit，与共享控制器及 Angular / React 绑定一致
   watch(
     () => options.mode,
-    mode => {
-      if (mode) result.controller.form.setMode(mode);
-    },
+    mode => result.controller.form.setMode(mode ?? 'edit'),
     { immediate: true }
   );
   watch(

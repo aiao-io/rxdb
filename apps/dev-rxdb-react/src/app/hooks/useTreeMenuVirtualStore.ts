@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { firstValueFrom } from 'rxjs';
 import { promoteChildrenAndRemove } from '../utils/promote-children';
 import { byParent, collectSubtreePostOrder } from '../utils/tree-scope';
+import { collectSearchPath } from '../utils/tree-search';
 import { useTreeWriteError } from './useTreeWriteError';
 
 export interface VirtualTreeNode {
@@ -45,32 +46,20 @@ export function useTreeMenuVirtualStore(menus: SortableMenuLarge[], rxdb: RxDB) 
       childrenMap.get(parentId)!.push(menu);
     });
 
+    // 搜索时只显示命中项及其祖先，祖先临时画成展开（不改用户的展开集合）
+    const keyword = searchKeyword.toLowerCase();
+    const search = searchKeyword ? collectSearchPath(menus, menu => menu.title.toLowerCase().includes(keyword)) : null;
+
     // 递归构建节点
     const buildNodes = (parentId: string | null, level: number) => {
       // 同组的顺序即查询顺序（引擎的手动顺序），不再另排
       const children = childrenMap.get(parentId) || [];
 
       children.forEach(menu => {
+        if (search && !search.visible.has(menu.id)) return;
         // 使用实体上的 hasChildren 属性，或者回退到内存计算
         const hasChildren = menu.hasChildren ?? (childrenMap.has(menu.id) && childrenMap.get(menu.id)!.length > 0);
-        const isExpanded = expandedIds.has(menu.id);
-
-        // 搜索过滤
-        if (searchKeyword) {
-          const matchesSearch = menu.title.toLowerCase().includes(searchKeyword.toLowerCase());
-          if (!matchesSearch) {
-            // 检查是否有匹配的子节点
-            const hasMatchingChildren = (id: string): boolean => {
-              const kids = childrenMap.get(id) || [];
-              return kids.some(
-                kid => kid.title.toLowerCase().includes(searchKeyword.toLowerCase()) || hasMatchingChildren(kid.id)
-              );
-            };
-            if (!hasMatchingChildren(menu.id)) {
-              return;
-            }
-          }
-        }
+        const isExpanded = expandedIds.has(menu.id) || (search?.ancestors.has(menu.id) ?? false);
 
         nodes.push({
           menu,

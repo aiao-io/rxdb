@@ -325,10 +325,11 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
    *   或底层 IndexedDB 写入失败（整批回队列，重试即可）。
    */
   async flush() {
+    const store = this.#indexedDBStore;
     await this.ready;
-    // 安装判据必须在 await 之后复核：纪元可能恰好在本次 await 期间释放并清空队列，
-    // 若只在入口检查一次，队列被清空后下面的 #hasQueuedChanges() 会误判为「无事可做」而静默 resolve。
-    if (this.#indexedDBStore === undefined) {
+    // 纪元判据必须在 await 之后复核，且认的是入口时那个 store：纪元可能恰好在本次 await 期间释放并清空队列，
+    // 只看「此刻有没有 store」的话，释放后又重连就会拿新纪元的队列结算旧调用，把旧纪元被丢弃的草稿报成已落盘。
+    if (store === undefined || this.#indexedDBStore !== store) {
       throw new Error('workspace plugin is not installed in the current connection epoch');
     }
     await this.#settleQueue();
