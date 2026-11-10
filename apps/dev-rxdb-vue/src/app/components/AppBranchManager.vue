@@ -63,9 +63,12 @@ const switchBranch = async (event: Event) => {
           <GitBranch :size="16" />
         </span>
       </div>
+      <!-- 受控于真实当前分支：浏览器在 change 时先改了选中项，切换被拒或分支数据未回传时
+           组件重渲染（switching 复位）会按 activeBranch 写回（Vue 对 value 每次重渲染都强制比对 DOM） -->
       <select
         class="select select-xs join-item"
         :disabled="switching"
+        :value="activeBranch"
         @change="switchBranch"
         aria-label="当前分支"
         data-testid="app-branch-select"
@@ -73,7 +76,6 @@ const switchBranch = async (event: Event) => {
         <option
           v-for="branch in branches.value ?? []"
           :key="branch.id"
-          :selected="branch.id === activeBranch"
           :value="branch.id"
         >
           {{ branch.id }}

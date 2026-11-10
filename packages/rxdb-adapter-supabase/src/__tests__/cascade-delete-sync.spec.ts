@@ -127,7 +127,7 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('Supabase 级联删除同步（U
     for (const childId of childIds) {
       const child = clientA.rxdb.entityManager.instantiate(CascadeMenu, {
         id: childId,
-        title: 'cascade-child',
+        title: `cascade-child-${childId}`,
         parentId
       });
       await child.save();

@@ -1,8 +1,51 @@
-import { getEntityMetadata, getEntityStatus } from '@aiao/rxdb';
+import {
+  Entity,
+  EntityBase,
+  getEntityMetadata,
+  getEntityStatus,
+  PropertyType,
+  type RelationEntitiesObservable,
+  type RelationEntityObservable,
+  RelationKind
+} from '@aiao/rxdb';
 import { Category, ENTITIES, IdCard, Order, OrderItem, User } from '@aiao/rxdb-test/shop';
+import { firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { AdapterFactory } from './adapter-factory.js';
+
+@Entity({
+  name: 'SuiteDetachParent',
+  namespace: 'detach',
+  properties: [{ name: 'label', type: PropertyType.string }],
+  relations: [
+    { name: 'children', kind: RelationKind.ONE_TO_MANY, mappedEntity: 'SuiteDetachChild', mappedProperty: 'parent' }
+  ]
+})
+class SuiteDetachParent extends EntityBase {
+  label!: string;
+  declare children$: RelationEntitiesObservable<typeof SuiteDetachChild>;
+}
+
+@Entity({
+  name: 'SuiteDetachChild',
+  namespace: 'detach',
+  properties: [{ name: 'title', type: PropertyType.string }],
+  relations: [
+    {
+      name: 'parent',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'SuiteDetachParent',
+      mappedProperty: 'children',
+      nullable: true
+    }
+  ]
+})
+class SuiteDetachChild extends EntityBase {
+  title!: string;
+  parentId!: string | null;
+  declare parent$: RelationEntityObservable<typeof SuiteDetachParent>;
+}
 
 /** 关系集成测试：多实体间关系（one-to-many/many-to-one）的读写与查询。 */
 export function relationIntegrationSuite(factory: AdapterFactory) {
@@ -623,6 +666,38 @@ export function relationIntegrationSuite(factory: AdapterFactory) {
       await expect(
         adapter.query('UPDATE "shop$user" SET "idCardId" = ? WHERE "id" = ?', [secondCard.id, firstUser.id])
       ).rejects.toThrow();
+    });
+  });
+
+  describe(`一对多集合解绑后保存所属实体 [${factory.name}]`, () => {
+    let detachAdapter: RxDBAdapterSqliteBase;
+
+    beforeAll(async () => {
+      detachAdapter = await factory.createAdapter<RxDBAdapterSqliteBase>({
+        entities: [SuiteDetachParent, SuiteDetachChild]
+      });
+    });
+
+    afterAll(async () => {
+      await detachAdapter.rxdb.disconnectAll();
+    });
+
+    it('children$.remove(child) 后保存父实体，子实体外键置空落库，重新读取不再关联', async () => {
+      const parent = new SuiteDetachParent();
+      parent.label = 'parent';
+      await parent.save();
+      const child = new SuiteDetachChild();
+      child.title = 'child';
+      child.parent$.set(parent);
+      await child.save();
+
+      parent.children$.remove(child);
+      await parent.save();
+
+      detachAdapter.rxdb.entityManager.cleanAllCache();
+      detachAdapter.cleanAllCache();
+      const restored = await firstValueFrom(SuiteDetachChild.get(child.id));
+      expect(restored.parentId).toBeNull();
     });
   });
 }

@@ -22,7 +22,7 @@ import { generateDbName } from './test-utils.js';
  * @remarks
  * 读侧从水合后的实体取 `id`；创建路径交给加密的是 `normalizeCreateEntity` 按物理列名为键的产物，
  * 主键在 `pk_id` 下。只认 `id` 的话 AAD 落成空串，写入不报错，之后每次读都是 `EncryptedDecryptError`。
- * 实体关掉变更日志：PGlite 的变更触发器按 `id` 列取主键，自定义主键列的实体只有不记日志时才写得进去。
+ * 实体关掉变更日志，只钉 AAD 这一格；记日志时的变更行与撤销回写见 `custom-primary-key.spec.ts`。
  */
 @Entity({
   name: 'PgCpkSecret',

@@ -5,16 +5,21 @@
  * 协议的形态 B 只要求「token 相等 → 同一页」，token 对客户端**不透明**。
  * 这份实现往里塞了两组坐标：
  *
- * - **游标** `(afterUpdatedAt, afterId)`：上一页最后一行的位置，下一页从它之后开始。
+ * - **游标** `(afterCreatedAt, afterId)`：上一页最后一行的位置，下一页从它之后开始。
  *   这是 keyset 翻页——不是 `OFFSET`。`OFFSET n` 每次都要重新数过前 n 行，
  *   翻页途中前面插进来一行，整个后续窗口就整体后移一位，于是有行被跳过。
- * - **水位线** `(watermarkUpdatedAt, watermarkId)`：首页那一刻表里的最大坐标。
- *   之后每一页都额外加上「不超过水位线」的上界，翻页途中新写入的行（`updatedAt`
- *   是服务端当前时刻，必然大于水位线）就被挡在这次快照之外。
+ * - **水位线** `(watermarkCreatedAt, watermarkId)`：首页那一刻表里的最大坐标。
+ *   之后每一页都额外加上「不超过水位线」的上界，翻页途中新建的行（`createdAt`
+ *   是服务端当前时刻，必然大于水位线）就被挡在这次翻页之外。
  *
- * 这两条合起来才是协议里那句「快照一致」。**offset 形态做不到**：请求体里只有
- * `offset` / `limit`，没有任何地方能放下水位线，后端也就无从判断「这一页属于哪次快照」。
- * 故事把它列成 AC#15 的原因就在这里。
+ * 坐标取 `createdAt` 而不是 `updatedAt`：两列建出来就不再变，行被更新也留在原位。
+ * 按 `updatedAt` 排时，翻页途中被更新的未读行会被挪到水位线之外，整轮正常结束却少了它——
+ * 客户端（QueryCache）把远端答复里没有的行当孤儿删掉，远端好好在着的行就从本地消失了。
+ * 于是首页那一刻就在、读完前也没被删的行，各页拼起来恰好出现一次；翻页途中被更新的行
+ * 带的是读到它那一刻的 `updatedAt`，客户端据此判断要不要重新拉整行。
+ *
+ * **offset 形态做不到**：请求体里只有 `offset` / `limit`，没有任何地方能放下水位线，
+ * 后端也就无从判断「这一页属于哪次翻页」。故事把它列成 AC#15 的原因就在这里。
  */
 
 /** token 解不开或形状不对。固定 400——坏 token 是客户端的错。 */
@@ -27,9 +32,9 @@ export class PageTokenError extends Error {
   }
 }
 
-/** `(updatedAt, id)` 复合坐标，与所有列表查询的 `ORDER BY updatedAt, id` 同序。 */
+/** `(createdAt, id)` 复合坐标，与 token 翻页的 `ORDER BY createdAt, id` 同序。 */
 export interface RowCursor {
-  readonly updatedAt: string;
+  readonly createdAt: string;
   readonly id: string;
 }
 
@@ -41,8 +46,19 @@ export interface PageCursor {
   readonly watermark: RowCursor;
 }
 
+/**
+ * 坐标列的标记。
+ *
+ * @remarks
+ * 早先的 token 按 `(updatedAt, id)` 编码，形状与现在一样。不带标记的话，翻页途中服务端升级，
+ * 客户端手上的旧 token 会被当成 `createdAt` 坐标解读，窗口错位却不报错；有了它，旧 token 回 400，
+ * 客户端整轮重来。
+ */
+const CURSOR_KEY = 'createdAt';
+
 /** 序列化形状。字段名压到一个字母是为了 token 短一点，反正它对客户端不透明。 */
 interface SerializedCursor {
+  k: typeof CURSOR_KEY;
   a: [string, string];
   w: [string, string];
 }
@@ -53,8 +69,9 @@ const isCursorTuple = (value: unknown): value is [string, string] =>
 /** 游标 → 不透明 token。base64url 而非 base64：token 可能出现在 URL 里，`+` `/` 需要再转义。 */
 export const encodePageToken = (cursor: PageCursor): string => {
   const payload: SerializedCursor = {
-    a: [cursor.after.updatedAt, cursor.after.id],
-    w: [cursor.watermark.updatedAt, cursor.watermark.id]
+    k: CURSOR_KEY,
+    a: [cursor.after.createdAt, cursor.after.id],
+    w: [cursor.watermark.createdAt, cursor.watermark.id]
   };
   return Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
 };
@@ -74,13 +91,13 @@ export const decodePageToken = (raw: unknown): PageCursor => {
   }
 
   const parsed = parseTokenPayload(raw);
-  if (!isCursorTuple(parsed.a) || !isCursorTuple(parsed.w)) {
+  if (parsed.k !== CURSOR_KEY || !isCursorTuple(parsed.a) || !isCursorTuple(parsed.w)) {
     throw new PageTokenError('pageToken payload is malformed');
   }
 
   return {
-    after: { updatedAt: parsed.a[0], id: parsed.a[1] },
-    watermark: { updatedAt: parsed.w[0], id: parsed.w[1] }
+    after: { createdAt: parsed.a[0], id: parsed.a[1] },
+    watermark: { createdAt: parsed.w[0], id: parsed.w[1] }
   };
 };
 
@@ -106,4 +123,4 @@ const parseTokenPayload = (raw: string): Partial<SerializedCursor> => {
  * 末行等于水位线就是到底了，`nextPageToken` 直接缺省。
  */
 export const reachedWatermark = (lastRow: RowCursor, watermark: RowCursor): boolean =>
-  lastRow.updatedAt === watermark.updatedAt && lastRow.id === watermark.id;
+  lastRow.createdAt === watermark.createdAt && lastRow.id === watermark.id;

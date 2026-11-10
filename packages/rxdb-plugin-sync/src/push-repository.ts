@@ -899,32 +899,42 @@ async function planRepositoryPush(
   // 获取祖先分支列表（包含自身），查询所有祖先分支的未推送变更
   const branchIds = await getAncestorBranchIds(sm, branch.id);
 
-  const changeRepo = localAdapter.getRepository(RxDBChange);
-
-  let localChanges: RxDBChange[];
-  if (branchIds.length === 1) {
-    // 单分支（main 或无父分支），沿用原逻辑
-    localChanges = await queryUnpushedChanges(changeRepo, branchIds, lastPushedChangeId, namespace, [entity]);
-  } else {
-    // 多分支：收集每个祖先分支的水位线，用最小值查询
-    let minWatermark: number | null = lastPushedChangeId;
-    for (const ancestorBranchId of branchIds.slice(1)) {
-      const ancestorSyncId = `${namespace}:${entity}:${ancestorBranchId}`;
-      const ancestorSyncResults = await repoSyncRepo.find({
-        where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: ancestorSyncId }] },
-        limit: 1
-      });
-      const ancestorWatermark = ancestorSyncResults[0]?.lastPushedChangeId ?? null;
-      if (ancestorWatermark === null) {
-        minWatermark = null;
-        break;
-      }
-      if (minWatermark === null || ancestorWatermark < minWatermark) {
-        minWatermark = ancestorWatermark;
-      }
+  // 查询水位线：单分支（main 或无父分支）就是本分支的；多分支取各祖先分支水位线的最小值，任一缺位即从头查
+  let watermark: number | null = lastPushedChangeId;
+  for (const ancestorBranchId of branchIds.slice(1)) {
+    const ancestorSyncId = `${namespace}:${entity}:${ancestorBranchId}`;
+    const ancestorSyncResults = await repoSyncRepo.find({
+      where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: ancestorSyncId }] },
+      limit: 1
+    });
+    const ancestorWatermark = ancestorSyncResults[0]?.lastPushedChangeId ?? null;
+    if (ancestorWatermark === null) {
+      watermark = null;
+      break;
     }
-    localChanges = await queryUnpushedChanges(changeRepo, branchIds, minWatermark, namespace, [entity]);
+    if (watermark === null || ancestorWatermark < watermark) watermark = ancestorWatermark;
   }
+
+  const changeRepo = localAdapter.getRepository(RxDBChange);
+  const selected = await queryUnpushedChanges(changeRepo, branchIds, watermark, namespace, [entity]);
+  if (selected.length === 0) {
+    return { emptyResult: { ...emptyPushProgress(), repository: { namespace, entity } } };
+  }
+
+  // 先认领、再按同一口径复查，往远端发的只是复查的结果。认领之前选出、随后被撤销的变更由这次复查剔除：
+  // 本地适配器的查询与事务走同一条串行通道，认领之前已经过了认领复核的 undo 写事务排在复查前面，
+  // 复查读得到它的撤销标记；认领之后才开始的 undo 在写事务里看得到认领，自己中止
+  //（`rxdb-plugin-history` 的 `undo-redo-apply.ts`）。认领晚于复查，这一拍就重新暴露给 undo。
+  const claimedChangeId = maxChangeIdOf(selected);
+  inFlight.claim(`${namespace}:${entity}`, claimedChangeId);
+  const localChanges = await queryUnpushedChanges(
+    changeRepo,
+    branchIds,
+    watermark,
+    namespace,
+    [entity],
+    claimedChangeId
+  );
 
   const originalCount = localChanges.length;
 
@@ -947,7 +957,7 @@ async function planRepositoryPush(
   //
   // 不写 `lastPushedAt`：没有任何数据真的发到远端，那是纯展示字段，不该被伪造。
   if (effectiveCount === 0) {
-    const maxChangeId = localChanges.reduce((max, c) => (c.id > max ? c.id : max), localChanges[0].id);
+    const maxChangeId = maxChangeIdOf(localChanges);
     await repoSyncRepo.update(repoSync, { lastPushedChangeId: maxChangeId, updatedAt: new Date() });
 
     return {
@@ -962,13 +972,6 @@ async function planRepositoryPush(
 
   // 获取远端适配器
   const { adapter: remoteAdapter } = await sm.getRemoteRepositories();
-
-  // 认领必须在**返回计划之前**：调用方拿到计划的下一步就是往远端发，
-  // 认领晚一拍就等于把那一拍重新暴露给 undo。
-  inFlight.claim(
-    `${namespace}:${entity}`,
-    localChanges.reduce((max, c) => (c.id > max ? c.id : max), localChanges[0].id)
-  );
 
   return {
     invalidateHistory: sm.history.captureUndoHistory(branch.id),
@@ -1111,7 +1114,9 @@ async function commitPushPlans(
     const repositories = ready.map(plan => repositoryKey(plan.repository)).join(', ');
     console.error(`Error saving push state for repositories [${repositories}]:`, error);
     const normalized = error instanceof Error ? error : new Error(String(error));
-    for (const plan of ready) results.set(plan, pushRepositoryResult(plan, 0, 0, normalized));
+    // 本地回执与水位线随事务回滚、下一轮原样重推；远端已 applied 的条数是事实，与某批失败的出口同一口径照报。
+    // 被拒标记没落库，不算 rejected，算进 failed
+    for (const plan of ready) results.set(plan, pushRepositoryResult(plan, plan.pushed, 0, normalized));
   }
   return results;
 }
@@ -1131,7 +1136,8 @@ function pushRepositoryResult(
   const failed = plan.effectiveCount - pushed - rejected;
   return {
     repository,
-    success: failed === 0,
+    // 条目全拿到回执但本地提交失败时 failed 为 0，错误本身就是失败
+    success: failed === 0 && error === undefined,
     error,
     pushed,
     rejected,
@@ -1503,8 +1509,14 @@ async function pushSingleRepository(
   return result;
 }
 
+/** 一组变更里最大的 change id（调用方保证非空） */
+const maxChangeIdOf = (changes: readonly RxDBChange[]): number =>
+  changes.reduce((max, change) => (change.id > max ? change.id : max), changes[0].id);
+
 /**
  * 查询指定仓库的未推送变更
+ *
+ * @param atMostChangeId - 只查不超过它的变更；认领之后的复查只认认领覆盖的区间
  *
  * @internal
  */
@@ -1513,7 +1525,8 @@ async function queryUnpushedChanges(
   branchIds: string[],
   lastPushedChangeId: number | null,
   namespace: string,
-  entityFilter: string[]
+  entityFilter: string[],
+  atMostChangeId?: number
 ): Promise<RxDBChange[]> {
   const baseRules: RxDBChangeRuleGroup['rules'] = [
     { field: 'revertChangeId', operator: '=', value: null },
@@ -1541,6 +1554,9 @@ async function queryUnpushedChanges(
   // 添加变更 ID 过滤
   if (lastPushedChangeId !== null) {
     baseRules.push({ field: 'id', operator: '>', value: lastPushedChangeId });
+  }
+  if (atMostChangeId !== undefined) {
+    baseRules.push({ field: 'id', operator: '<=', value: atMostChangeId });
   }
 
   return await changeRepo.find({

@@ -32,9 +32,21 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# 先看 inspect 成没成功，再用它的输出。对象不存在时 Docker CLI 会往 stdout 先写一个换行再以非零码退出，
+# `$(docker inspect … || echo absent)` 因此拼出「换行 + absent」：比较认不出缺席，后面又去 inspect
+# 不存在的默认容器，`set -e` 让干净机器上的回归必然失败（RV-01a1bb42a92d）。
+container_id_or_absent() {
+  local id
+  if id="$(docker inspect -f '{{.Id}}' "$1" 2>/dev/null)"; then
+    printf '%s' "$id"
+  else
+    printf 'absent'
+  fi
+}
+
 echo "== 0. snapshot pre-existing default-environment containers (must stay untouched) =="
-pre_db_id="$(docker inspect -f '{{.Id}}' supabase-db 2>/dev/null || echo 'absent')"
-pre_kong_id="$(docker inspect -f '{{.Id}}' supabase-kong 2>/dev/null || echo 'absent')"
+pre_db_id="$(container_id_or_absent supabase-db)"
+pre_kong_id="$(container_id_or_absent supabase-kong)"
 echo "   supabase-db   = $pre_db_id"
 echo "   supabase-kong = $pre_kong_id"
 

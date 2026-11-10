@@ -7,8 +7,9 @@ import { runViewTransition, ViewTransitionStarter } from '../../../shared/view-t
 import { FileTreeEntityConstructor, FileTreeInstance } from '../models/file-node.interface';
 import { DropMode, FileDragDropService } from '../services/file-drag-drop.service';
 import { FilePathValidatorService, PathConflict } from '../services/file-path-validator.service';
+import { formatFileName } from './file-name';
 import { SortMode } from './file-sorters';
-import { buildTreeNodes, collectDescendants } from './tree-utils';
+import { buildTreeNodes, collectDescendants, withSearchPath } from './tree-utils';
 
 /** 删除对话框展示的影响范围（取自库，不看页面已加载的节点）。 */
 export interface DeleteImpact {
@@ -48,7 +49,7 @@ export class TreeFileStore<C extends FileTreeEntityConstructor> {
 
     // 1. Find matches
     allFiles.forEach(file => {
-      const fullName = file.extension ? `${file.name}${file.extension}` : file.name;
+      const fullName = formatFileName(file.name, file.extension);
       if (fullName.toLowerCase().includes(keyword)) {
         matched.add(file.id);
       }
@@ -69,10 +70,14 @@ export class TreeFileStore<C extends FileTreeEntityConstructor> {
     return result;
   });
 
+  /**
+   * 搜索时命中节点的祖先路径临时画成展开（与菜单树同一口径），用户自己的展开集合不动，清空搜索即恢复。
+   * `matchedFileIds` 已含全部祖先，其中成员的父节点就是要打开的路径。
+   */
   readonly treeNodes = computed(() => {
     const files = this.fileResource.value();
-    const expandedIds = this.expandedFileIds();
     const matchedIds = this.searchKeyword() ? this.matchedFileIds() : null;
+    const expandedIds = matchedIds ? withSearchPath(this.expandedFileIds(), files, matchedIds) : this.expandedFileIds();
     const sortMode = this.sortMode();
 
     return buildTreeNodes(files, expandedIds, matchedIds, null, null, null, null, sortMode);

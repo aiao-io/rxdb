@@ -1,3 +1,4 @@
+import { createAdminI18n } from '@aiao/rxdb-admin';
 import { createTestShell } from '@aiao/rxdb-admin/testing';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { useLayoutEffect, type ReactNode } from 'react';
@@ -244,6 +245,16 @@ describe('AdminLayout', () => {
       expect(screen.getByTestId('admin-page-title').textContent).toBe('资产');
       rerender({ url: '/not-in-menu' });
       expect(screen.getByTestId('admin-page-title').textContent).toBe('工作台');
+    });
+
+    it('品牌按宿主目录翻译时，没有菜单匹配的页面一级标题随语言切换', async () => {
+      const i18n = createAdminI18n();
+      i18n.registerCatalog({ locale: 'zh-Hans', namespace: 'app', messages: { brand: '数据工作台' } });
+      i18n.registerCatalog({ locale: 'en', namespace: 'app', messages: { brand: 'Data workbench' } });
+      mount({ i18n, brand: { title: '工作台', titleKey: 'brand' } }, { url: '/not-in-menu' });
+      expect(screen.getByTestId('admin-page-title').textContent).toBe('数据工作台');
+      await act(async () => i18n.setLocale('en'));
+      expect(screen.getByTestId('admin-page-title').textContent).toBe('Data workbench');
     });
 
     it('菜单项右侧可附加徽标', () => {

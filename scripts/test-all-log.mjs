@@ -8,7 +8,7 @@
  */
 
 import chalk from 'chalk';
-import { execFileSync, spawn } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { createWriteStream, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
@@ -101,7 +101,7 @@ function help() {
   --dry-run           只打印将要执行的命令，不执行
   -h, --help          显示帮助
 
-默认根据 git status 选择 --untracked、--uncommitted 或 --base=main。
+默认 --base=main：与 pnpm test-all 一致，分支上已提交的改动、未提交修改与未跟踪文件全部计入。
 使用 -- 后的参数可覆盖默认 affected 范围，例如：-- --base=develop
 `;
 }
@@ -124,20 +124,12 @@ function localTimestamp(now) {
   return `${date} ${time} ${offsetSign}${offset}`;
 }
 
-function pickDefaultBaseFlag(cwd) {
-  const status = execFileSync('git', ['status', '--porcelain'], {
-    cwd,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'ignore']
-  });
-  const entries = status.split('\n').filter(Boolean);
+// 只给 `--base` 时 Nx 才合并「base...HEAD、未提交修改、未跟踪文件」三类改动（nx parseFiles）；
+// `--untracked` 只看新文件、`--uncommitted` 只看已跟踪文件的未提交修改，都会丢掉其余两类。
+// 与 `pnpm test-all` 不带范围参数时 Nx 默认的 base 同口径。
+const defaultAffectedScope = ['--base=main'];
 
-  if (entries.some(entry => entry.startsWith('??'))) return ['--untracked'];
-  if (entries.length > 0) return ['--uncommitted'];
-  return ['--base=main'];
-}
-
-function buildNxArgs(options, cwd) {
+function buildNxArgs(options) {
   const args = [
     'exec',
     'nx',
@@ -152,7 +144,7 @@ function buildNxArgs(options, cwd) {
   if (options.bail) args.push('--nxBail');
   if (options.verbose) args.push('--verbose');
   if (options.affected && options.extras.length === 0) {
-    args.push(...pickDefaultBaseFlag(cwd));
+    args.push(...defaultAffectedScope);
   }
   args.push(...options.extras);
   return args;
@@ -503,13 +495,7 @@ async function main(argv = process.argv.slice(2)) {
   }
 
   const cwd = process.cwd();
-  let nxArgs;
-  try {
-    nxArgs = buildNxArgs(options, cwd);
-  } catch (error) {
-    console.error(chalk.red(`无法读取 git status：${error.message}`));
-    return 2;
-  }
+  const nxArgs = buildNxArgs(options);
 
   const command = 'pnpm';
   const fullCommand = formatCommand(command, nxArgs);

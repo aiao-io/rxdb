@@ -1,8 +1,7 @@
 import type { EditContext, IEditor, RectProps } from '@visactor/vtable-editors';
 import { validateEntityFieldValue } from '../../entity-value.utils.js';
+import { readCellOrigin } from './cell-origin.js';
 import { DAISY_COLORS, refocusTable, scheduleEditorSetup } from './global-overlay-editor.js';
-
-type TableLike = { getCellOriginValue(col: number, row: number): unknown } | null;
 
 /** TextFormatEditor 支持的 format 判别 */
 export type TextFormatMode = 'email' | 'phone' | 'url';
@@ -46,7 +45,7 @@ export class TextFormatEditor implements IEditor<unknown> {
       refocusTable(container);
       ctx.endEdit();
     };
-    const origin = (ctx.table as TableLike)?.getCellOriginValue(ctx.col, ctx.row) ?? ctx.value;
+    const origin = readCellOrigin(ctx);
     this.#value = origin != null && origin !== '' ? String(origin) : null;
     this.#originalValue = this.#value;
 

@@ -219,6 +219,40 @@ describe('TreeFileLazyStore.treeNodes', () => {
     expect(saved.some(file => Object.hasOwn(file, 'sortOrder'))).toBe(false);
   });
 
+  it('批量添加失败：错误原样抛给页面，根订阅照样恢复，之后的写入继续回流', async () => {
+    const root = makeFile('root', '根', null, 'folder', true);
+    roots.next([root]);
+    const store = TestBed.inject(TreeFileLazyStore<typeof SortableFileLarge>);
+    store.expandNode(root.id);
+    const entityManager = (TestBed.inject(RxDB) as unknown as { entityManager: { saveMany: ReturnType<typeof vi.fn> } })
+      .entityManager;
+    entityManager.saveMany.mockRejectedValueOnce(new Error('quota exceeded'));
+
+    await expect(store.addBatch(2)).rejects.toThrow('quota exceeded');
+
+    expect(roots.observed).toBe(true);
+    expect(store.expandedFileIds()).toEqual(new Set());
+    const created = makeFile('created', '新建的根');
+    roots.next([root, created]);
+    expect(store.visibleNodes().map(node => node.id)).toEqual(['root', 'created']);
+  });
+
+  it('批量添加途中页面销毁：收尾不再重建订阅', async () => {
+    roots.next([makeFile('root', '根', null, 'folder', true)]);
+    const store = TestBed.inject(TreeFileLazyStore<typeof SortableFileLarge>);
+    const entityManager = (TestBed.inject(RxDB) as unknown as { entityManager: { saveMany: ReturnType<typeof vi.fn> } })
+      .entityManager;
+    let finishSave!: () => void;
+    entityManager.saveMany.mockReturnValueOnce(new Promise<void>(resolve => (finishSave = resolve)));
+
+    const adding = store.addBatch(2);
+    store.ngOnDestroy();
+    finishSave();
+    await adding;
+
+    expect(roots.observed).toBe(false);
+  });
+
   it('搜索警告明确提示折叠节点仅搜索已加载数据', () => {
     const root = makeFile('root', '文档', null, 'folder', true);
     roots.next([root]);

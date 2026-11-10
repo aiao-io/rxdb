@@ -2053,26 +2053,31 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
 
       executor = new SqliteTransactionExecutor(this, client, uuid());
 
-      if (transactionLog) {
-        const transactionId = uuid();
-        // 这次读**必须**经 executor。`versionManager.getCurrentBranch()` 走
-        // `branchRepository.find()` → `adapter.query()`，而本函数已经跑在 `#queue.addTask`
-        // 的事务任务里（并发度 1）—— 翻转后 `query()` 一律重新入队，会排在自己身后永久挂起。
-        // 而 `transactionLog` 默认 true，于是**每一个默认事务**都会挂，不是边缘场景。
-        // 绊线门禁：`rxdb-adapter-sqlite-wasm/src/__tests__/transaction-log-prelude.spec.ts`。
-        //
-        // executor 此刻已建但 BEGIN 尚未发出，这次读跑在 autocommit 下 —— 与翻转前
-        // 走快路径的实际行为一致。
-        const currentBranchId = await read_current_branch_id(executor, this.tableSet);
-        log_begin = generate_table_set_trigger_sql(this, this.tableSet, currentBranchId, transactionId);
-        log_commit = generate_table_set_trigger_sql(this, this.tableSet, currentBranchId);
-      }
-
       // 封成只读之后（只读检出位，US-313）开延迟事务：`BEGIN IMMEDIATE` 要拿写锁，`query_only` 下连读事务都开不了
       const beginSql = this.#read_only_sealed ? 'BEGIN;' : ((await client.beginTransactionSql?.()) ?? 'BEGIN;');
       await client.execute(beginSql);
       transactionMayBeActive = true;
       await client.execute('PRAGMA defer_foreign_keys = ON;');
+
+      if (transactionLog) {
+        const transactionId = uuid();
+        // 当前分支必须在 BEGIN 之后、在本事务里读（readCurrentBranchId 的契约）。先读后 BEGIN 时，
+        // 同一个库文件的另一条连接可以在两步之间切走分支并提交：这次写入被永久记进旧分支，
+        // 收尾还把旧分支的触发器装回去；BEGIN IMMEDIATE 的写锁护不到锁前的那次读。
+        // 回退成延迟 `BEGIN;` 的客户端同样成立：事务内这次读开启读事务——回滚日志模式下持 SHARED 锁，
+        // 别的连接提交不了；WAL 模式下别的连接若在本事务快照之后提交，本事务第一次写会以 `SQLITE_BUSY`
+        // （快照过期）失败，不会写进旧分支。
+        //
+        // 这次读**必须**经 executor。`versionManager.getCurrentBranch()` 走
+        // `branchRepository.find()` → `adapter.query()`，而本函数已经跑在 `#queue.addTask`
+        // 的事务任务里（并发度 1）—— 翻转后 `query()` 一律重新入队，会排在自己身后永久挂起。
+        // 而 `transactionLog` 默认 true，于是**每一个默认事务**都会挂，不是边缘场景。
+        // 绊线门禁：`rxdb-adapter-sqlite-wasm/src/__tests__/transaction-log-prelude.spec.ts`。
+        // 读失败走下面的回滚：事务此刻已开。
+        const currentBranchId = await read_current_branch_id(executor, this.tableSet);
+        log_begin = generate_table_set_trigger_sql(this, this.tableSet, currentBranchId, transactionId);
+        log_commit = generate_table_set_trigger_sql(this, this.tableSet, currentBranchId);
+      }
       if (log_begin) await client.execute(log_begin);
 
       // 传 executor 而非裸 client：持有它才算「在本事务内」。executor 保留 execute() 透传，

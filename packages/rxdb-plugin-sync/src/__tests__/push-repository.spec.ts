@@ -32,6 +32,7 @@ import { PushInFlightRegistry } from '@aiao/rxdb-plugin-history';
 import { type Observable, of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { pushRepository, type PushRepositoryResult } from '../push-repository.js';
+import { syncRepository, type SyncRepositoryResult } from '../sync-repository.js';
 import type { SyncManager } from '../SyncManager.js';
 import { Post, User } from './fixtures/test-entities.js';
 
@@ -179,6 +180,18 @@ function ruleValue(group: unknown, field: string): unknown {
   return undefined;
 }
 
+/** `id` 上的上下界：`>` 是水位线，`<=` 是认领之后复查时的认领上限 */
+function idBoundsOf(group: unknown): { after?: number; atMost?: number } {
+  if (!isRecord(group) || !Array.isArray(group['rules'])) return {};
+  const bounds: { after?: number; atMost?: number } = {};
+  for (const rule of group['rules']) {
+    if (!isRecord(rule) || rule['field'] !== 'id' || typeof rule['value'] !== 'number') continue;
+    if (rule['operator'] === '>') bounds.after = rule['value'];
+    if (rule['operator'] === '<=') bounds.atMost = rule['value'];
+  }
+  return bounds;
+}
+
 function createChange(input: ChangeInput): RxDBChange {
   const type = input.type ?? 'INSERT';
   const entityId = input.entityId ?? (`00000000-0000-0000-0000-${String(input.id).padStart(12, '0')}` as UUID);
@@ -266,9 +279,9 @@ function createHarness(options: HarnessOptions = {}) {
     const where = findOptions.where;
     const entities = ruleValue(where, 'entity');
     const entityIds = ruleValue(where, 'entityId');
-    const afterId = ruleValue(where, 'id');
+    const idBounds = idBoundsOf(where);
     // 待推口径的三个空值条件只在查询带上时才过滤，与真实适配器一致
-    const pendingOnly = (field: 'remoteId' | 'rejectedAt', change: RxDBChange): boolean =>
+    const pendingOnly = (field: 'remoteId' | 'rejectedAt' | 'revertChangeId', change: RxDBChange): boolean =>
       ruleValue(where, field) !== null || change[field] == null;
     return changes.filter(
       change =>
@@ -276,9 +289,11 @@ function createHarness(options: HarnessOptions = {}) {
         : typeof entities === 'string' ? entities === change.entity
         : true) &&
         (!Array.isArray(entityIds) || entityIds.includes(String(change.entityId))) &&
-        (typeof afterId !== 'number' || change.id > afterId) &&
+        (idBounds.after === undefined || change.id > idBounds.after) &&
+        (idBounds.atMost === undefined || change.id <= idBounds.atMost) &&
         pendingOnly('remoteId', change) &&
-        pendingOnly('rejectedAt', change)
+        pendingOnly('rejectedAt', change) &&
+        pendingOnly('revertChangeId', change)
     );
   });
   const changeRepo = { find: changeFind } as unknown as IRepository<typeof RxDBChange>;
@@ -546,11 +561,16 @@ describe('pushRepository', () => {
     await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
     await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
 
-    // 首次查询没有水位线过滤；第二次必须带上 `id > 2`，否则旧变更被无限重扫
+    // 首次选取没有水位线过滤，认领之后的复查只多一条认领上限；第二次 push 必须带上 `id > 2`，否则旧变更被无限重扫
     expect(harness.changeFind.mock.calls[0][0].where.rules).not.toContainEqual(
       expect.objectContaining({ field: 'id' })
     );
     expect(harness.changeFind.mock.calls[1][0].where.rules).toContainEqual({
+      field: 'id',
+      operator: '<=',
+      value: 2
+    });
+    expect(harness.changeFind.mock.calls.at(-1)?.[0].where.rules).toContainEqual({
       field: 'id',
       operator: '>',
       value: 2
@@ -763,8 +783,13 @@ describe('pushRepository', () => {
       }
     });
 
-    // 本地事务失败 = 远端已收但本地没记，`pushed` 记 0，抛裸错误
-    await expect(pushRepository(harness.vm, 'public', 'User', { includeRelated: false })).rejects.toBe(localError);
+    // 本地事务失败 = 远端已收但本地没记：本地整体回滚，远端已应用的条数随 RxDBPartialSyncError 交出去
+    const thrown = await pushRepository(harness.vm, 'public', 'User', { includeRelated: false }).catch(
+      (error: unknown) => error
+    );
+    expect(thrown).toBeInstanceOf(RxDBPartialSyncError);
+    expect((thrown as RxDBPartialSyncError<PushRepositoryResult>).cause).toBe(localError);
+    expect((thrown as RxDBPartialSyncError<PushRepositoryResult>).result).toMatchObject({ success: false, pushed: 1 });
     expect(change.remoteId).toBeNull();
     expect(harness.currentSync.lastPushedChangeId).toBeNull();
 
@@ -1344,6 +1369,59 @@ describe('pushRepository 的在飞认领', () => {
     expect([...harness.pushInFlight.snapshot()]).toEqual([]);
   });
 
+  /**
+   * 反方向的窗口：undo 的写事务先过了认领复核（那时还没认领），提交发生在本轮选出待推之后、认领之前。
+   * 认领之后按同一口径复查一遍，复查排在那笔事务之后，读得到撤销标记，被撤销的就不再发往远端。
+   */
+  it('选出之后才被撤销的变更：认领之后的复查剔除它，不推', async () => {
+    const reverted = createChange({ id: 11 });
+    const kept = createChange({ id: 12 });
+    const harness = createHarness({ changes: [reverted, kept] });
+    const select = harness.changeFind.getMockImplementation()!;
+    harness.changeFind.mockImplementationOnce(async findOptions => {
+      const selected = await select(findOptions);
+      reverted.revertChangeId = 99;
+      return selected;
+    });
+
+    const result = await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
+
+    const sent = harness.mergeChanges.mock.calls.flatMap(([, , sourceChanges]) => (sourceChanges ?? []).map(c => c.id));
+    expect(sent).toEqual([12]);
+    expect(result).toMatchObject({ success: true, pushed: 1, originalCount: 1 });
+  });
+
+  it('选出的全部被撤销：不发远端，也不推进水位线', async () => {
+    const reverted = createChange({ id: 11 });
+    const harness = createHarness({ changes: [reverted] });
+    const select = harness.changeFind.getMockImplementation()!;
+    harness.changeFind.mockImplementationOnce(async findOptions => {
+      const selected = await select(findOptions);
+      reverted.revertChangeId = 99;
+      return selected;
+    });
+
+    const result = await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
+
+    expect(harness.mergeChanges).not.toHaveBeenCalled();
+    expect(harness.currentSync.lastPushedChangeId).toBeNull();
+    expect(result).toMatchObject({ pushed: 0, originalCount: 0 });
+  });
+
+  it('复查发生在认领之后：复查那一刻认领已经可见', async () => {
+    const harness = createHarness({ changes: [createChange({ id: 11 })] });
+    const claimsAtEachQuery: Array<Array<[string, number]>> = [];
+    const select = harness.changeFind.getMockImplementation()!;
+    harness.changeFind.mockImplementation(async findOptions => {
+      claimsAtEachQuery.push([...harness.pushInFlight.snapshot()]);
+      return await select(findOptions);
+    });
+
+    await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
+
+    expect(claimsAtEachQuery.slice(0, 2)).toEqual([[], [['public:User', 11]]]);
+  });
+
   it('远端抛错时同样释放认领', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const harness = createHarness({
@@ -1449,6 +1527,65 @@ describe('pushRepository 的被拒标记', () => {
 
     expect(harness.mergeChanges).toHaveBeenCalledTimes(2);
     expect(harness.mergeChanges.mock.calls[1]?.[2]?.map(change => change.id)).toEqual([4]);
+  });
+
+  /**
+   * 远端已经 applied、本地回执提交失败：回执与水位线照常整体回滚（下一轮原样重推，远端按 localId 幂等），
+   * 但远端已生效的条数是事实，与「某批失败」那条路径一样随 RxDBPartialSyncError 交出去，不能记 0 抛裸错误。
+   */
+  describe('本地回执提交失败时的远端进度', () => {
+    const commitError = new Error('disk full');
+    const failingCommit = async (): Promise<RxDBChange[]> => {
+      throw commitError;
+    };
+
+    it('单仓：抛 RxDBPartialSyncError，pushed 是远端已应用的条数，本地照常回滚', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const change = createChange({ id: 3 });
+      const harness = createHarness({ changes: [change], saveChanges: failingCommit });
+
+      const thrown = await pushRepository(harness.vm, 'public', 'User', { includeRelated: false }).catch(
+        (error: unknown) => error
+      );
+
+      expect(thrown).toBeInstanceOf(RxDBPartialSyncError);
+      const partial = thrown as RxDBPartialSyncError<PushRepositoryResult>;
+      expect(partial.cause).toBe(commitError);
+      expect(partial.result).toMatchObject({ success: false, error: commitError, pushed: 1, rejected: 0 });
+      expect(harness.mergeChanges).toHaveBeenCalledTimes(1);
+      expect(change.remoteId).toBeNull();
+      expect(harness.currentSync.lastPushedChangeId).toBeNull();
+    });
+
+    it('级联：目标仓同样带着远端进度抛出', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const harness = createHarness({ changes: [createChange({ id: 3 })], saveChanges: failingCommit });
+
+      const thrown = await pushRepository(harness.vm, 'public', 'User', { includeRelated: true }).catch(
+        (error: unknown) => error
+      );
+
+      expect(thrown).toBeInstanceOf(RxDBPartialSyncError);
+      expect((thrown as RxDBPartialSyncError<PushRepositoryResult>).result).toMatchObject({
+        success: false,
+        pushed: 1
+      });
+    });
+
+    it('仅推送的仓库同步：进度不丢，persistedProgress 为 true', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const harness = createHarness({ changes: [createChange({ id: 3 })], saveChanges: failingCommit });
+
+      const thrown = await syncRepository(harness.vm, 'public', 'User', {
+        direction: 'push',
+        push: { includeRelated: false }
+      }).catch((error: unknown) => error);
+
+      expect(thrown).toBeInstanceOf(RxDBPartialSyncError);
+      const partial = thrown as RxDBPartialSyncError<SyncRepositoryResult>;
+      expect(partial.cause).toBe(commitError);
+      expect(partial.result).toMatchObject({ persistedProgress: true, pushResult: { pushed: 1, success: false } });
+    });
   });
 
   it('本地提交事务失败：remoteId 与被拒标记都不留，水位线不动', async () => {

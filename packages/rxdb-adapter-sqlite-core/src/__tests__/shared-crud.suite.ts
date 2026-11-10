@@ -27,6 +27,7 @@ import { firstValueFrom } from 'rxjs';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   create_table_sql,
+  get_table_name_by_metadata,
   getEntityObjectFromResult,
   normalizeCreateEntity,
   normalizeUpdateEntity,
@@ -405,6 +406,31 @@ export function crudIntegrationSuite(factory: AdapterFactory) {
       const saved = await testTodo.save();
       expect(saved.id).toEqual(testTodo.id);
       expect(saved.title).toEqual('Jim');
+    });
+
+    it('save() 等待写入期间的新输入在保存完成后保留，再次 save() 写进库里', async () => {
+      const todo = new Todo();
+      todo.title = 'before';
+      await todo.save();
+      const storedTitle = async () => {
+        const table = get_table_name_by_metadata(getEntityMetadata(Todo), WorktreeTableSet.MAIN);
+        const result = await adapter.query(`SELECT "title" FROM "${table}" WHERE "id" = ?`, [todo.id]);
+        return result.results[0].rows[0][0];
+      };
+
+      todo.title = 'submitted';
+      const saving = todo.save();
+      todo.title = 'typed while saving';
+      await saving;
+
+      expect(todo.title).toBe('typed while saving');
+      expect(getEntityStatus(todo).modified).toBe(true);
+      expect(await storedTitle()).toBe('submitted');
+
+      await todo.save();
+
+      expect(getEntityStatus(todo).modified).toBe(false);
+      expect(await storedTitle()).toBe('typed while saving');
     });
 
     it('remove() 会标记 Todo 为已删除', async () => {

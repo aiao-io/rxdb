@@ -43,6 +43,7 @@ export {
   DESKTOP_HOST_MAX_SQL_LENGTH,
   DESKTOP_HOST_PROTOCOL_VERSION,
   isDesktopHostFileRequestKind,
+  isDesktopHostTemporaryName,
   parseDesktopHostFileRequest,
   parseDesktopHostRequest,
   type DesktopHostChangeEventMessage,

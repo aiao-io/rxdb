@@ -57,6 +57,8 @@ export function useTreeMenuLazyStore(rxdb: RxDB, dataSource: TreeMenuLazyDataSou
   // 存储活跃的订阅，用于清理
   const subscriptions = new Map<RxDBEntityId | string, { unsubscribe: () => void }>();
   let searchSubscription: Subscription | null = null;
+  // 卸载后迟到的异步收尾（批量添加）不得再建订阅
+  let disposed = false;
 
   const subscribeToRoot = () => {
     const rootQuery$ = dataSource.observeRootMenus();
@@ -155,10 +157,6 @@ export function useTreeMenuLazyStore(rxdb: RxDB, dataSource: TreeMenuLazyDataSou
         subscriptions.delete(id);
       }
 
-      const newExpanded = new Set(expandedIds.value);
-      newExpanded.delete(id);
-      expandedIds.value = newExpanded;
-
       const descendantIds: RxDBEntityId[] = [];
       const collectDescendants = (parentId: RxDBEntityId): void => {
         for (const childId of childrenMap.value.get(parentId) ?? []) {
@@ -167,6 +165,11 @@ export function useTreeMenuLazyStore(rxdb: RxDB, dataSource: TreeMenuLazyDataSou
         }
       };
       collectDescendants(id);
+
+      // 后代的展开 / 加载标记随子树一起清掉：重开时它们是折叠的，不会画成「已展开却没有子项」
+      const collapsedIds = new Set<RxDBEntityId>([id, ...descendantIds]);
+      expandedIds.value = new Set([...expandedIds.value].filter(nodeId => !collapsedIds.has(nodeId)));
+      loadingIds.value = new Set([...loadingIds.value].filter(nodeId => !collapsedIds.has(nodeId)));
 
       for (const descendantId of descendantIds) {
         subscriptions.get(descendantId)?.unsubscribe();
@@ -391,6 +394,7 @@ export function useTreeMenuLazyStore(rxdb: RxDB, dataSource: TreeMenuLazyDataSou
 
   // 组件卸载时清理所有订阅
   onScopeDispose(() => {
+    disposed = true;
     searchSubscription?.unsubscribe();
     subscriptions.forEach(subscription => {
       subscription.unsubscribe();
@@ -428,6 +432,14 @@ export function useTreeMenuLazyStore(rxdb: RxDB, dataSource: TreeMenuLazyDataSou
   const addManyMenus = (count: number) =>
     guardWrite('批量添加', async () => {
       await rxdb.entityManager.saveMany(generateBatchMenus(count, SortableMenuLarge));
+      // 写入期间页面已卸载：不再重建订阅，否则没人退订
+      if (disposed) return;
+
+      // 展开全部时唯一的数据源是 ALL 订阅（没有 ROOT）：重新全量订阅，整棵树按库里的新数据重建
+      if (subscriptions.has('ALL')) {
+        expandAll();
+        return;
+      }
 
       // 保存后清理展开节点的订阅和缓存，避免新旧数据混淆；保留 ROOT 订阅。
       subscriptions.forEach((sub, key) => {

@@ -220,9 +220,93 @@ describe('查询串不得吞掉后续路径段', () => {
     expect(urlJoin('http://x.com', 'a?x=1', 'b', '&y=2', '#top')).toEqual('http://x.com/a/b?x=1&y=2#top');
   });
 
+  // 查询片段原先和路径段一起做 `.` / `..` 归一化：参数值被改写，值里的 `..` 还会弹掉路径段（RV-01a1bbb523ad7fc1ad77f3f931699bdf）
+  it('查询值里的点路径按原值保留', () => {
+    expect(urlJoin('https://example.test', '?next=/a/../b')).toEqual('https://example.test?next=/a/../b');
+    expect(urlJoin('https://example.test', '?next=/a/./b')).toEqual('https://example.test?next=/a/./b');
+    const next = new URL(urlJoin('https://example.test', 'login', '?next=/a/../b')).searchParams.get('next');
+    expect(next).toBe('/a/../b');
+  });
+
+  it('查询值里的 `..` 不得弹掉路径段', () => {
+    expect(urlJoin('/a/b', '?next=/../../c')).toEqual('/a/b?next=/../../c');
+    expect(urlJoin('http://x.com/a', 'b?next=..', 'c')).toEqual('http://x.com/a/b/c?next=..');
+  });
+
+  it('查询值里的嵌套 URL 与已编码点路径原样保留', () => {
+    expect(urlJoin('http://x.com', 'auth', '?redirect=https://y.test/a/../b')).toEqual(
+      'http://x.com/auth?redirect=https://y.test/a/../b'
+    );
+    expect(urlJoin('http://x.com', '?u=https%3A%2F%2Fy.test%2Fa%2F..%2Fb')).toEqual(
+      'http://x.com?u=https%3A%2F%2Fy.test%2Fa%2F..%2Fb'
+    );
+  });
+
+  it('路径段照旧归一化，多段查询串照旧以 & 合并', () => {
+    expect(urlJoin('/a/b', '../c', '?x=/./1', '?y=2')).toEqual('/a/c?x=/./1&y=2');
+  });
+
   it('首段只有查询串时不得被当成前缀', () => {
     expect(urlJoin('?a=1', 'b')).toEqual('b?a=1');
     expect(urlJoin('?a=1')).toEqual('?a=1');
     expect(urlJoin('?a=1', '?b=2')).toEqual('?a=1&b=2');
+  });
+});
+
+// 收尾的斜杠折叠原先对整串生效：`/?` / `/&` / `/#` 在查询值里也被吃掉，
+// 末尾的 `/` 被逐段剥掉，`?` 被统一改成 `&`（评审「核心引擎组」建议 2）。
+describe('查询片段内部原样保留', () => {
+  it('查询值末尾的 `/` 不被剥掉', () => {
+    expect(urlJoin('http://x.com', '?next=/a/')).toEqual('http://x.com?next=/a/');
+    expect(urlJoin('http://x.com', '?next=/a/&b')).toEqual('http://x.com?next=/a/&b');
+    expect(urlJoin('http://x.com/api/', '?next=/a/', '&b=/c/')).toEqual('http://x.com/api?next=/a/&b=/c/');
+  });
+
+  it('URL 解析出的查询参数与传入的一致', () => {
+    const url = urlJoin('https://example.test', 'login', '?next=/a/&b=1&r=/s?q=1');
+
+    expect([...new URL(url).searchParams.entries()]).toEqual([
+      ['next', '/a/'],
+      ['b', '1'],
+      ['r', '/s?q=1']
+    ]);
+  });
+
+  it('查询值里字面的 `?` 不被改成 `&`', () => {
+    expect(urlJoin('http://x.com', '?r=/s?q=1')).toEqual('http://x.com?r=/s?q=1');
+    expect(urlJoin('http://x.com/a', 'b?r=/s?q=1', 'c')).toEqual('http://x.com/a/b/c?r=/s?q=1');
+    expect(new URL(urlJoin('http://x.com', '?r=/s?q=1')).searchParams.get('r')).toBe('/s?q=1');
+  });
+
+  it('查询值里的 `/#`、`/&`、`/?` 不被吃掉斜杠', () => {
+    expect(urlJoin('http://x.com', '?back=/#/home')).toEqual('http://x.com?back=/#/home');
+    expect(urlJoin('http://x.com', '?a=/&b=/?c=1')).toEqual('http://x.com?a=/&b=/?c=1');
+  });
+
+  it('锚点里的 `/` 同样原样保留', () => {
+    expect(urlJoin('http://x.com', 'app', '?x=1', '#/route/')).toEqual('http://x.com/app?x=1#/route/');
+    expect(urlJoin('http://x.com', 'app', '?x=1#/a/')).toEqual('http://x.com/app?x=1#/a/');
+  });
+
+  it('查询串之后的 `#!` 前不带出连接用的 `/`', () => {
+    // 原先片段之间用 `/` 连接，`#!` 被收尾正则排除后这个 `/` 留在最后一个参数值末尾
+    expect(urlJoin('http://x.com', 'a', '?x=1', '#!')).toEqual('http://x.com/a?x=1#!');
+  });
+
+  it('多段合并只把各片段开头的 `?` 改成 `&`，片段内部不动', () => {
+    expect(urlJoin('http://x.com', '?a=1/', '?r=/s?q=1')).toEqual('http://x.com?a=1/&r=/s?q=1');
+    expect(urlJoin('http://x.com/p', '?a=/x/', '&b=/y/', '#/z/')).toEqual('http://x.com/p?a=/x/&b=/y/#/z/');
+  });
+
+  it('只有一个 `?` 的空段在后续位置不贡献内容', () => {
+    expect(urlJoin('http://x.com', '?a=1', '?')).toEqual('http://x.com?a=1');
+    expect(urlJoin('http://x.com', '?a=1', '?', '?b=2')).toEqual('http://x.com?a=1&b=2');
+    expect(urlJoin('http://x.com', '?', '?')).toEqual('http://x.com?');
+  });
+
+  it('路径部分的斜杠折叠与前缀处理不受影响', () => {
+    expect(urlJoin('http://x.com/', '#top', 'a')).toEqual('http://x.com#top/a');
+    expect(urlJoin('http://x.com/', '#!', 'a', '?x=1')).toEqual('http://x.com/#!/a?x=1');
+    expect(urlJoin('/a//', '?x=1')).toEqual('/a?x=1');
   });
 });

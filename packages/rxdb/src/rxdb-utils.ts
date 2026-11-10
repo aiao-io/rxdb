@@ -136,12 +136,66 @@ export const tryGetEntityStatus = <T extends EntityType>(target: unknown): Entit
  */
 type DecoratorFunction = (...args: never[]) => unknown;
 
-export const __decorateClass = <TTarget extends object>(
+/**
+ * 按装饰器语义依次（从后往前）应用装饰器，返回最终结果。
+ *
+ * @remarks
+ * 返回类型按 `kind` 分支，与运行时一致；客户端生成器产出的实体代码只用类装饰器分支。
+ *
+ * @param decorators - 装饰器列表；某个装饰器返回假值时沿用上一步的结果
+ * @param target - 被装饰的类（类装饰器）或成员所在的对象
+ * @param key - 成员名；类装饰器分支不用
+ * @param kind - 省略或 0：类装饰器，返回装饰后的类
+ * @returns 装饰后的类
+ *
+ * @example
+ * ```typescript
+ * let Todo = class extends EntityBase {};
+ * Todo = __decorateClass([Entity({ name: 'Todo', properties: [] })], Todo);
+ * ```
+ */
+export function __decorateClass<TTarget extends object>(
   decorators: readonly DecoratorFunction[],
   target: TTarget,
+  key?: PropertyKey,
+  kind?: 0
+): TTarget;
+/**
+ * 成员装饰器分支：初值是 `target` 上 `key` 的自有属性描述符。
+ *
+ * @param decorators - 装饰器列表
+ * @param target - 成员所在的对象
+ * @param key - 成员名
+ * @param kind - 1
+ * @returns 装饰后的属性描述符；`target` 上没有该成员、且装饰器都没给出新值时为 `undefined`
+ */
+export function __decorateClass(
+  decorators: readonly DecoratorFunction[],
+  target: object,
+  key: PropertyKey,
+  kind: 1
+): PropertyDescriptor | undefined;
+/**
+ * 字段装饰器分支（`kind` 大于 1）：没有初值。
+ *
+ * @param decorators - 装饰器列表
+ * @param target - 字段所在的对象
+ * @param key - 字段名
+ * @param kind - 大于 1 的装饰器种类
+ * @returns 最后一个给出值的装饰器的返回值；装饰器都没给出值时为 `undefined`
+ */
+export function __decorateClass(
+  decorators: readonly DecoratorFunction[],
+  target: object,
+  key: PropertyKey,
+  kind: number
+): unknown;
+export function __decorateClass(
+  decorators: readonly DecoratorFunction[],
+  target: object,
   key: PropertyKey = '',
   kind = 0
-): TTarget => {
+): unknown {
   let result: unknown =
     kind > 1 ? undefined
     : kind ? Object.getOwnPropertyDescriptor(target, key)
@@ -152,8 +206,8 @@ export const __decorateClass = <TTarget extends object>(
     result = decorator(result) || result;
   }
 
-  return result as TTarget;
-};
+  return result;
+}
 
 export const uuid = () => v7_uuid() as UUID;
 

@@ -128,7 +128,8 @@ export function parseEntityFieldValue(type: EntityFieldType | string, raw: unkno
       return isNaN(n) ? null : n;
     }
     case 'boolean':
-      return raw === true || raw === 'true' || raw === '1';
+      // 数字 1 与字符串 '1' 同口径：SQLite 的 INTEGER 存储与远端常把布尔列给成 0 / 1（与核心解析器一致）
+      return raw === true || raw === 1 || raw === 'true' || raw === '1';
     case 'date':
       return parseDate(raw);
     case 'bigint':
@@ -378,10 +379,13 @@ export function validateEntityFieldValue(
       break;
     case 'number':
     case 'integer':
-      if (isNaN(Number(value)))
+      // 与严格解析同一边界：宿主 data / setData 不经严格解析，±Infinity 与超出安全范围的整数在这里拦下
+      if (!Number.isFinite(Number(value)))
         return { field: field.field, message: modelText('text.dcf021380e', { p0: field.displayName }, i18n) };
       if (field.type === 'integer' && !Number.isInteger(Number(value)))
         return { field: field.field, message: modelText('text.40a57d561d', { p0: field.displayName }, i18n) };
+      if (field.type === 'integer' && !Number.isSafeInteger(Number(value)))
+        return { field: field.field, message: `${field.displayName} ${modelText('text.7e57926e87', undefined, i18n)}` };
       break;
     case 'bigint':
       if (parseBigint(value) === null)

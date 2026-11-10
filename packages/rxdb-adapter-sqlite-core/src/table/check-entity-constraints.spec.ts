@@ -22,6 +22,7 @@ import {
   type EntityType
 } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
+import { createRealSqliteDatabase } from '../__tests__/fixtures/real-sqlite.js';
 import { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { SqliteClientLike, SqliteSuccessResult } from '../sqlite-core.interface.js';
 import { check_entity_constraints_sqlite } from '../table/check-entity-constraints.js';
@@ -208,6 +209,79 @@ describe('check_entity_constraints_sqlite（AC#10 / #11 / #16）', () => {
     await expect(
       check_entity_constraints_sqlite(q as never, WorktreeTableSet.MAIN, [Checked])
     ).resolves.toBeUndefined();
+  });
+
+  it.each([
+    ['块注释', `/* CONSTRAINT "ck_Checked_fake_12345678" CHECK (1) */`],
+    ['行注释', `-- CONSTRAINT "ck_Checked_fake_12345678" CHECK (1)\n"extra" TEXT`],
+    ['注释里带单引号', `/* it's CONSTRAINT "ck_Checked_fake_12345678" CHECK (1) */`],
+    ['未闭合的块注释（SQLite 允许到文本末尾）', `"extra" TEXT /* CONSTRAINT "ck_Checked_fake_12345678" CHECK (1)`]
+  ])('评审反例：%s里的 CONSTRAINT "ck_..." 片段不算约束名', async (_title, fragment) => {
+    const [qtyName, noteName] = expectedNames();
+    const q = querier({
+      public$Checked: createSqlWith([
+        `CONSTRAINT "${qtyName}" CHECK ("qty" > 0)`,
+        `CONSTRAINT "${noteName}" CHECK ("note" <= 10)`,
+        fragment
+      ])
+    });
+    await expect(
+      check_entity_constraints_sqlite(q as never, WorktreeTableSet.MAIN, [Checked])
+    ).resolves.toBeUndefined();
+  });
+
+  it('评审反例：标识符里的 -- 与 /* 不是注释开头，后面真正的约束照常识别', async () => {
+    const [qtyName, noteName] = expectedNames();
+    const q = querier({
+      public$Checked: createSqlWith([
+        `"a--b" TEXT`,
+        `"c/*d" TEXT`,
+        `CONSTRAINT "${qtyName}" CHECK ("qty" > 0)`,
+        `CONSTRAINT "${noteName}" CHECK ("note" <= 10)`
+      ])
+    });
+    await expect(
+      check_entity_constraints_sqlite(q as never, WorktreeTableSet.MAIN, [Checked])
+    ).resolves.toBeUndefined();
+  });
+
+  it('评审反例：注释掉的旧约束不掩盖真实缺失', async () => {
+    const [qtyName, noteName] = expectedNames();
+    const q = querier({
+      public$Checked: createSqlWith([
+        `CONSTRAINT "${qtyName}" CHECK ("qty" > 0)`,
+        `/* CONSTRAINT "${noteName}" CHECK (1) */`
+      ])
+    });
+    await expect(check_entity_constraints_sqlite(q as never, WorktreeTableSet.MAIN, [Checked])).rejects.toThrow(
+      RxDBConstraintDriftError
+    );
+  });
+
+  it('真实 SQLite：sqlite_master 保留建表注释，注释里的伪约束不算、真约束照常比对', async () => {
+    const [qtyName, noteName] = expectedNames();
+    const db = await createRealSqliteDatabase();
+    try {
+      db.exec(
+        `CREATE TABLE "public$Checked" ("id" TEXT PRIMARY KEY, "qty" INTEGER, ` +
+          `"note" TEXT /* CONSTRAINT "ck_Checked_fake_12345678" CHECK (1) */, ` +
+          `CONSTRAINT "${qtyName}" CHECK ("qty" > 0), ` +
+          `CONSTRAINT "${noteName}" CHECK ("note" <= 'z') -- it's CONSTRAINT "ck_Checked_fake_87654321" CHECK (1)\n)`
+      );
+      const [[stored]] = db.all(`SELECT sql FROM sqlite_master WHERE name = 'public$Checked'`);
+      expect(stored).toContain('ck_Checked_fake_12345678');
+      const real = {
+        execute: async (sql: string, bindings?: unknown[]) => ({
+          sql,
+          rowsAffected: 0,
+          elapsed: 0,
+          results: [{ columns: [], rows: db.all(sql, bindings) }]
+        })
+      };
+      await expect(check_entity_constraints_sqlite(real, WorktreeTableSet.MAIN, [Checked])).resolves.toBeUndefined();
+    } finally {
+      db.close();
+    }
   });
 
   it('评审反例：小写 constraint 关键字与无引号 / 反引号标识符同样被识别', async () => {

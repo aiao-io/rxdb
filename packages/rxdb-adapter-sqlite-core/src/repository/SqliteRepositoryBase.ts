@@ -3,7 +3,7 @@ import { find_by_row_ids_sql } from '../query/find_by_row_ids_sql.js';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { RowId, SqliteSuccessResult } from '../sqlite-core.interface.js';
 import { chunkBySqliteBindLimit, ROWID } from '../sqlite-core.utils.js';
-import { transaction_sqlite_result } from '../transaction_sqlite_result.js';
+import { type SqliteWriteSubmissions, transaction_sqlite_result } from '../transaction_sqlite_result.js';
 
 const get_result_row_ids = (sqliteResult: SqliteSuccessResult): RowId[] =>
   sqliteResult.results.flatMap(({ columns, rows }) => {
@@ -65,9 +65,22 @@ export class SqliteRepositoryBase<T extends EntityType> extends RepositoryBase<T
    * 添加缓存
    * @param sqliteSuccessResult
    * @param forcedUpdate 强制刷新，在数据有的情况下也会更新数据，在修改数据的情况下需要
+   * @param submissions 写入回执专用：本次写入的提交记录（按被写的实体索引），回填时保留提交之后的新编辑
    */
-  addQueryCache(sqliteSuccessResult: SqliteSuccessResult, forcedUpdate = false): Promise<InstanceType<T>[]> {
-    return transaction_sqlite_result<T>(this.adapter, this.EntityType, sqliteSuccessResult, forcedUpdate);
+  addQueryCache(
+    sqliteSuccessResult: SqliteSuccessResult,
+    forcedUpdate = false,
+    submissions?: SqliteWriteSubmissions<T>
+  ): Promise<InstanceType<T>[]> {
+    return transaction_sqlite_result<T>(
+      this.adapter,
+      this.EntityType,
+      sqliteSuccessResult,
+      forcedUpdate,
+      false,
+      false,
+      submissions
+    );
   }
 
   /**

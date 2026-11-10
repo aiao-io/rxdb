@@ -544,6 +544,56 @@ describe('Keyring in-flight semantics (T065)', () => {
     expect(ring.isLocked).toBe(true);
   });
 
+  // 重新 unlock 开头会清掉旧密钥；凭据无效或 provider 失败时 keyring 保持锁定。
+  // 用旧密钥起步的在途 encrypt / decrypt 同样必须失效，不能在 isLocked === true 之后交出明文或信封。
+  describe('重新 unlock 清掉旧密钥时取消在途操作', () => {
+    const target = { entityNamespace: 'public', tableName: 't', columnName: 'c', primaryKey: 'pk-1' };
+
+    const unlockedWithEnvelope = async () => {
+      const { ring } = make();
+      await ring.unlock({ keyBytes: new Uint8Array(32).fill(3) });
+      const envelope = await ring.encrypt({ ...target, plaintext: new TextEncoder().encode('secret-in-flight') });
+      return { ring, envelope };
+    };
+
+    it.each([
+      ['无效 keyBytes', { keyBytes: new Uint8Array(1) }],
+      ['provider 拒绝', { keyProvider: () => Promise.reject(new Error('provider down')) }]
+    ])('%s：在途 decrypt 拒绝而不返回明文', async (_title, opts) => {
+      const { ring, envelope } = await unlockedWithEnvelope();
+
+      const pending = ring.decrypt({ ...target, envelope });
+      await expect(ring.unlock(opts)).rejects.toBeDefined();
+
+      expect(ring.isLocked).toBe(true);
+      await expect(pending).rejects.toBeInstanceOf(EncryptedLockedError);
+    });
+
+    it('慢 provider 期间：在途 encrypt 不产出旧密钥的信封', async () => {
+      const { ring } = await unlockedWithEnvelope();
+      let release!: (key: Uint8Array) => void;
+      const provided = new Promise<Uint8Array>(resolve => (release = resolve));
+
+      const pending = ring.encrypt({ ...target, plaintext: new TextEncoder().encode('late') });
+      const unlocking = ring.unlock({ keyProvider: () => provided });
+      await expect(pending).rejects.toBeInstanceOf(EncryptedLockedError);
+
+      release(new Uint8Array(32).fill(3));
+      await unlocking;
+      expect(ring.isLocked).toBe(false);
+    });
+
+    it('重新 unlock 成功后，本次 unlock 自己不被取消，新操作照常', async () => {
+      const { ring, envelope } = await unlockedWithEnvelope();
+
+      await ring.unlock({ keyBytes: new Uint8Array(32).fill(3) });
+
+      await expect(ring.decrypt({ ...target, envelope })).resolves.toEqual(
+        new TextEncoder().encode('secret-in-flight')
+      );
+    });
+  });
+
   it('lock() during an in-flight unlock wins: the keyring stays locked', async () => {
     const { ring } = make();
     const pending = ring.unlock({ passphrase: PASSPHRASE });

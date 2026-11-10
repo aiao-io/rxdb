@@ -19,13 +19,29 @@ import {
 import generate_entity_deletes_sql from './entity/deletes_sql.js';
 import generate_entity_inserts_sql from './entity/inserts_sql.js';
 import generate_entity_update_sql from './entity/update_sql.js';
-import { getEntityObjectFromResult, RxdbAdapterPGliteError } from './pglite.utils.js';
+import {
+  getEntityObjectFromResult,
+  getMonotonicUpdatedAt,
+  normalizeUpdateEntity,
+  RxdbAdapterPGliteError
+} from './pglite.utils.js';
 import { generate_find_sql } from './query/query_sql.js';
 import { PGliteRepository } from './repository/PGliteRepository.js';
 import type { RxDBAdapterPGlite } from './RxDBAdapterPGlite.js';
 import { dispatchUnloggedRemovals } from './unlogged-removal-events.js';
 
-const updateCachedEntity = <T extends EntityType>(repo: PGliteRepository<T>, data: Record<string, unknown>): void => {
+/** 每个实体这次的提交记录（提交值 + 提交时的编辑序号）：回查回填按它收尾，执行期间的新输入留作未保存改动 */
+type Submissions = Map<object, { submitted: object; mark: number }>;
+
+const rememberSubmission = (submissions: Submissions, entity: object, submitted: object): void => {
+  submissions.set(entity, { submitted, mark: getEntityStatus(entity).writeMark(submitted) });
+};
+
+const updateCachedEntity = <T extends EntityType>(
+  repo: PGliteRepository<T>,
+  data: Record<string, unknown>,
+  submissions: Submissions
+): void => {
   const rawId = data['id'];
   const validNumber = typeof rawId === 'number' && Number.isFinite(rawId);
   if (typeof rawId !== 'string' && typeof rawId !== 'bigint' && !validNumber) {
@@ -36,13 +52,15 @@ const updateCachedEntity = <T extends EntityType>(repo: PGliteRepository<T>, dat
   const entity = repo.getEntityRef(id);
   if (!entity) return;
 
-  // `getEntityRef` 如实返回 `EntityInstanceType<T>`，而 `updateEntity` 收的是 `InstanceType<T>`：
-  // 两者对具体 `T` 同解，泛型体内互不可赋值。核心那边两个签名不一致是 `EntityType` 形状本身的
-  // 问题（见 `PGliteRepositoryBase` 里那条边界注释），本轮只在调用点桥接。
-  repo.updateEntity(entity as InstanceType<T>, data as unknown as InstanceType<T>);
+  // 不再无条件归零 modified：执行期间的新输入留到下一次 save()。
+  // 本批提交过的实例按提交记录收尾（applyWriteResult：以回查的行推进基线，提交之后的新编辑保留）；
+  // 缓存里的若不是本批提交的那个实例（例如缓存槽里是同 id 的另一个实例），没有提交值可言，
+  // 那一行对它就是外部数据，走 applyExternal——外部数据落到已缓存实体的唯一策略入口，逐字段避让未保存编辑
   const state = getEntityStatus(entity);
+  const submission = submissions.get(entity);
+  if (submission) state.applyWriteResult(data as Partial<InstanceType<T>>, submission.submitted, submission.mark);
+  else state.applyExternal(data as Partial<InstanceType<T>>);
   state.local = true;
-  state.modified = false;
 };
 
 /**
@@ -56,7 +74,8 @@ const updateCachedEntity = <T extends EntityType>(repo: PGliteRepository<T>, dat
  * 使用 PostgreSQL 的参数化查询（`$1`, `$2`等），避免 SQL 注入风险，提升安全性。
  *
  * ### 2. 批量查询结果
- * INSERT/UPDATE 后，使用 `WHERE id IN (...)` 批量查询更新后的数据，减少数据库往返。
+ * INSERT/UPDATE 后按主键一次回查本批的行，减少数据库往返。回查走 `generate_find_sql`：`id` 属性解析成主键物理列，
+ * 自定义主键列（`columnName`）的实体同样命中。
  *
  * ## 事务保证
  *
@@ -102,13 +121,15 @@ export default async <T extends EntityType = EntityType>(
 ): Promise<InstanceType<T>[]> => {
   const all_entities = new Set<InstanceType<T>>();
   const now = new Date();
+  const submissions: Submissions = new Map();
 
   // ========== 处理 CREATE 操作 ==========
   const applyCreates = async (EntityType: T, entities: InstanceType<T>[]) => {
     entities.forEach(e => all_entities.add(e));
     const meta = getEntityStorageMetadata(adapter.rxdb, EntityType);
 
-    // 生成 INSERT SQL
+    // 生成 INSERT SQL；生成器读的就是这一刻的字段值
+    for (const entity of entities) rememberSubmission(submissions, entity, { ...entity });
     const insertSql = await generate_entity_inserts_sql(
       meta,
       adapter.tableSet,
@@ -139,7 +160,7 @@ export default async <T extends EntityType = EntityType>(
     const repo = adapter.getRepository<typeof EntityType, PGliteRepository<typeof EntityType>>(EntityType);
     for (const row of selectResult.rows) {
       const data = await getEntityObjectFromResult(meta, row, adapter.encryptionContext);
-      updateCachedEntity(repo, data);
+      updateCachedEntity(repo, data, submissions);
     }
   };
 
@@ -150,13 +171,17 @@ export default async <T extends EntityType = EntityType>(
 
     const repo = adapter.getRepository<typeof EntityType, PGliteRepository<typeof EntityType>>(EntityType);
 
-    // 逐个实体生成 UPDATE SQL
+    // 逐个实体生成 UPDATE SQL。没有可写差异（改了又改回、只动了只读字段）的不发 UPDATE：
+    // 否则只剩 updatedAt / updatedBy 被改，凭空推进新鲜度并给变更日志追加一条空 UPDATE。
+    // updatedAt 与单条仓储同口径单调：整批时刻只是首选值，落后于实体已有的时间就取 +1ms
     for (const entity of entities) {
-      const status = getEntityStatus(entity);
-      const { sql, params } = await generate_entity_update_sql(meta, adapter.tableSet, entity, status.patch || {}, {
+      const patch = getEntityStatus(entity).patch;
+      rememberSubmission(submissions, entity, patch);
+      if (Object.keys(normalizeUpdateEntity(meta, patch)).length === 0) continue;
+      const { sql, params } = await generate_entity_update_sql(meta, adapter.tableSet, entity, patch, {
         ...adapter.rxdb.context,
         returning: false,
-        updatedAt: now,
+        updatedAt: getMonotonicUpdatedAt(entity, now),
         encryption: adapter.encryptionContext
       });
       try {
@@ -176,7 +201,7 @@ export default async <T extends EntityType = EntityType>(
     // 更新实体状态
     for (const row of result.rows) {
       const data = await getEntityObjectFromResult(meta, row, adapter.encryptionContext);
-      updateCachedEntity(repo, data);
+      updateCachedEntity(repo, data, submissions);
     }
   };
 

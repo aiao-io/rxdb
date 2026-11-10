@@ -66,6 +66,12 @@ CREATE TABLE IF NOT EXISTS public.menu_large (
 
 CREATE INDEX IF NOT EXISTS idx_menu_large_parent_id ON public.menu_large("parentId");
 CREATE INDEX IF NOT EXISTS idx_menu_large_sort_order ON public.menu_large("sortOrder");
+-- MenuLarge 声明的 `parent_title`（unique + normalized，RXT-016）：同级重名由数据库拦，与本地适配器按元数据
+-- 建的同名索引同一口径 —— `COALESCE` 让根节点（"parentId" IS NULL）也可比，`lower()` 对齐树形 UI 不分大小写的
+-- 同级重名判定。缺这条时远端写得进重复的同级菜单，拉回本地却被本地唯一约束拒绝（RV-01a1bbd2927b）。
+-- 已有库里若残留重复的同级菜单，这条会建不出来：先清掉重复行或 ./reset.sh 后再初始化。
+CREATE UNIQUE INDEX IF NOT EXISTS idx_menu_large_parent_title
+  ON public.menu_large (lower(COALESCE(CAST("parentId" AS TEXT), '')), lower(COALESCE(CAST(title AS TEXT), '')));
 
 -- ============================================
 -- 4. Shop schema 业务表

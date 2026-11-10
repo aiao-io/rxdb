@@ -249,8 +249,16 @@ describe('applySystemText', () => {
   it.each([
     ['uuid', 'aaaaa'],
     ['number', 'aaaaa'],
+    // 非有限数与表单严格解析同样被拒（RV-01a1bbd59862721fbe6b4d34c5eb3b68）
+    ['number', 'Infinity'],
+    ['number', '-Infinity'],
+    ['number', '1e309'],
+    ['number', 'NaN'],
     ['integer', 'aaaaa'],
     ['integer', '3.14'],
+    // 超出安全整数范围会被 parseInt 舍入成用户没粘贴过的数
+    ['integer', '9007199254740993'],
+    ['integer', '-9007199254740993'],
     ['date', 'aaaaa'],
     ['json', 'TypeDemo'],
     ['keyValue', 'aaaaa'],
@@ -279,6 +287,22 @@ describe('applySystemText', () => {
     const writes = applySystemText(table, '3.14', columns);
     expect(writes).toHaveLength(1);
     expect(writes[0].value).toBe(3.14);
+  });
+
+  it.each([
+    ['number', '-2.5e3', -2500],
+    ['number', '1.7976931348623157e308', Number.MAX_VALUE],
+    ['integer', '9007199254740991', Number.MAX_SAFE_INTEGER],
+    ['integer', '-9007199254740991', Number.MIN_SAFE_INTEGER]
+  ])('keeps finite "%s" value "%s" from system clipboard', (propertyType, pasteText, expected) => {
+    const record = { id: '1', val: 0 };
+    const table = makeTable([[{ col: 1, row: 1, field: 'val', cellType: 'text' }]], [record], {
+      '1,1': { cellType: 'text', field: 'val' }
+    });
+    const columns = [{ field: 'val', _propertyType: propertyType }];
+    const writes = applySystemText(table, pasteText, columns);
+    expect(writes).toHaveLength(1);
+    expect(writes[0].value).toBe(expected);
   });
 
   it('converts valid integer string to integer type', () => {

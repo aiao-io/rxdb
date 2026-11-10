@@ -20,14 +20,22 @@ const connectBeforeEnter: CanActivateFn = async () => {
   return true;
 };
 
+/**
+ * 路由器解析 URL 时已把每段解码过一次（页面按段 `encodeURIComponent` 拼 URL），这里直接取段值。
+ * 再解码一次会让含字面 `%` 的目录名抛 `URIError`、字面 `%2F` 变成两层目录。
+ */
+const joinSegments = (segments: UrlSegment[]): string => {
+  const rest = segments
+    .slice(1)
+    .map(s => s.path)
+    .join('/');
+  return rest ? `/${rest}/` : '/';
+};
+
 const opfsMatcher: UrlMatcher = (segments: UrlSegment[]) => {
   if (!segments.length || segments[0].path !== 'opfs') return null;
 
-  const rest = segments
-    .slice(1)
-    .map(s => decodeURIComponent(s.path))
-    .join('/');
-  const opfsPath = rest ? `/${rest}/` : '/';
+  const opfsPath = joinSegments(segments);
 
   return {
     consumed: segments,
@@ -38,11 +46,7 @@ const opfsMatcher: UrlMatcher = (segments: UrlSegment[]) => {
 const storageMatcher: UrlMatcher = (segments: UrlSegment[]) => {
   if (!segments.length || segments[0].path !== 'storage') return null;
 
-  const rest = segments
-    .slice(1)
-    .map(s => decodeURIComponent(s.path))
-    .join('/');
-  const storagePath = rest ? `/${rest}/` : '/';
+  const storagePath = joinSegments(segments);
 
   return {
     consumed: segments,

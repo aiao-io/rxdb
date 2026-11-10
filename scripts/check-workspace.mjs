@@ -35,7 +35,7 @@ export const POSTINSTALL_NX_ENV = {
  * 需要初始化的 .env 配置
  * [目标 .env 路径, 源 .env.example 路径]
  */
-const ENV_CONFIGS = [
+export const ENV_CONFIGS = [
   [join(ROOT_DIR, '.env'), join(ROOT_DIR, '.env.example')],
   [join(ROOT_DIR, 'docker', '.env'), join(ROOT_DIR, 'docker', '.env.example')]
 ];

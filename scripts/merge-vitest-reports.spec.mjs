@@ -1,10 +1,42 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import { copyFile, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
 import { mergeCoverageDirectories, mergeJunitFiles } from './merge-vitest-reports.mjs';
+
+const loc = (line, startColumn, endColumn) => ({
+  start: { line, column: startColumn },
+  end: { line, column: endColumn }
+});
+
+const span = (startLine, startColumn, endLine, endColumn) => ({
+  start: { line: startLine, column: startColumn },
+  end: { line: endLine, column: endColumn }
+});
+
+const writeReports = async (prefix, node, browser) => {
+  const root = await mkdtemp(join(tmpdir(), prefix));
+  const nodeDir = join(root, 'node');
+  const browserDir = join(root, 'browser');
+  await Promise.all([mkdir(nodeDir), mkdir(browserDir)]);
+  await writeFile(join(nodeDir, 'coverage-final.json'), JSON.stringify({ [node.path]: node }));
+  await writeFile(join(browserDir, 'coverage-final.json'), JSON.stringify({ [browser.path]: browser }));
+  return { root, nodeDir, browserDir, outputDir: join(root, 'merged') };
+};
+
+const fileCoverage = parts => ({
+  path: '/workspace/src/shared.ts',
+  statementMap: {},
+  fnMap: {},
+  branchMap: {},
+  s: {},
+  f: {},
+  b: {},
+  ...parts
+});
 
 const coverageFile = (path, statementCount) => ({
   path,
@@ -61,8 +93,9 @@ test('合并 branch coverage 时逐槽累加数组，不把数组强转成字符
   await Promise.all([mkdir(nodeDir), mkdir(browserDir)]);
   const node = coverageFile('/workspace/src/shared.ts', 1);
   const browser = coverageFile('/workspace/src/shared.ts', 0);
-  node.branchMap = { 0: { locations: [] } };
-  browser.branchMap = { 0: { locations: [] } };
+  const branch = { type: 'if', loc: loc(1, 0, 1), locations: [loc(1, 0, 1), loc(1, 0, 1)], line: 1 };
+  node.branchMap = { 0: branch };
+  browser.branchMap = { 0: branch };
   node.b = { 0: [1, 0] };
   browser.b = { 0: [0, 2] };
   await writeFile(join(nodeDir, 'coverage-final.json'), JSON.stringify({ [node.path]: node }));
@@ -96,4 +129,189 @@ test('合并 JUnit 时保留两份 testsuite 并汇总根统计', async () => {
   assert.match(merged, /errors="1"/);
   assert.match(merged, /<testsuite name="node"/);
   assert.match(merged, /<testsuite name="browser"/);
+});
+
+test('同一文件两份报告的计数 ID 指向不同位置时，按源位置合并、重新编号', async () => {
+  const fn = (name, line) => ({ name, decl: loc(line, 9, 12), loc: loc(line, 0, 20), line });
+  const branch = line => ({ type: 'if', loc: loc(line, 2, 30), locations: [loc(line, 2, 30), loc(line, 2, 30)], line });
+  const node = fileCoverage({
+    statementMap: { 0: loc(1, 0, 10), 1: loc(2, 0, 10) },
+    s: { 0: 1, 1: 0 },
+    fnMap: { 0: fn('one', 1), 1: fn('two', 2) },
+    f: { 0: 1, 1: 0 },
+    branchMap: { 0: branch(1), 1: branch(2) },
+    b: { 0: [1, 0], 1: [0, 0] }
+  });
+  const browser = fileCoverage({
+    statementMap: { 0: loc(2, 0, 10), 1: loc(1, 0, 10) },
+    s: { 0: 1, 1: 0 },
+    fnMap: { 0: fn('two', 2), 1: fn('one', 1) },
+    f: { 0: 1, 1: 0 },
+    branchMap: { 0: branch(2), 1: branch(1) },
+    b: { 0: [0, 3], 1: [0, 0] }
+  });
+  const dirs = await writeReports('vitest-merge-ids-', node, browser);
+  try {
+    const summary = await mergeCoverageDirectories(dirs.nodeDir, dirs.browserDir, dirs.outputDir);
+    assert.deepEqual(
+      ['lines', 'statements', 'functions', 'branches'].map(key => [
+        summary.total[key].covered,
+        summary.total[key].total
+      ]),
+      [
+        [2, 2],
+        [2, 2],
+        [2, 2],
+        [2, 4]
+      ]
+    );
+    const merged = JSON.parse(await readFile(join(dirs.outputDir, 'coverage-final.json'), 'utf8'))[node.path];
+    const hitsAt = (map, hits, key, line) => hits[Object.keys(map).find(id => key(map[id]).start.line === line)];
+    assert.equal(
+      hitsAt(merged.statementMap, merged.s, item => item, 2),
+      1
+    );
+    assert.equal(
+      hitsAt(merged.fnMap, merged.f, item => item.loc, 2),
+      1
+    );
+    assert.deepEqual(
+      hitsAt(merged.branchMap, merged.b, item => item.loc, 2),
+      [0, 3]
+    );
+    assert.deepEqual(Object.keys(merged.statementMap), ['0', '1']);
+  } finally {
+    await rm(dirs.root, { recursive: true, force: true });
+  }
+});
+
+test('一侧多出一条语句（后续 ID 整体错位）时，同位置相加，多出的语句借另一侧最近包含它的语句计数', async () => {
+  const node = fileCoverage({ statementMap: { 0: loc(1, 0, 40), 1: loc(2, 0, 10) }, s: { 0: 2, 1: 0 } });
+  const browser = fileCoverage({
+    statementMap: { 0: loc(1, 0, 40), 1: loc(1, 20, 30), 2: loc(2, 0, 10) },
+    s: { 0: 0, 1: 0, 2: 1 }
+  });
+  const dirs = await writeReports('vitest-merge-shift-', node, browser);
+  try {
+    const summary = await mergeCoverageDirectories(dirs.nodeDir, dirs.browserDir, dirs.outputDir);
+    assert.equal(summary.total.statements.total, 3);
+    assert.equal(summary.total.statements.covered, 3);
+    const merged = JSON.parse(await readFile(join(dirs.outputDir, 'coverage-final.json'), 'utf8'))[node.path];
+    const byLocation = Object.fromEntries(
+      Object.entries(merged.statementMap).map(([id, item]) => [`${item.start.line}:${item.start.column}`, merged.s[id]])
+    );
+    assert.deepEqual(byLocation, { '1:0': 2, '1:20': 2, '2:0': 1 });
+  } finally {
+    await rm(dirs.root, { recursive: true, force: true });
+  }
+});
+
+test('CLI 在带空格的路径下照常合并；输入缺失时非零退出', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'vitest-merge-cli-'));
+  const scripts = join(root, 'repo dir', 'scripts');
+  try {
+    await mkdir(scripts, { recursive: true });
+    await Promise.all(
+      ['merge-vitest-reports.mjs', 'coverage-artifacts.mjs'].map(file =>
+        copyFile(join(import.meta.dirname, file), join(scripts, file))
+      )
+    );
+    const node = fileCoverage({ statementMap: { 0: loc(1, 0, 10) }, s: { 0: 1 } });
+    const dirs = await writeReports('vitest-merge-cli-input-', node, fileCoverage({ ...node, s: { 0: 0 } }));
+    const junit = '<?xml version="1.0"?><testsuites tests="1" failures="0" errors="0" time="0.1"></testsuites>';
+    await Promise.all([dirs.nodeDir, dirs.browserDir].map(dir => writeFile(join(dir, 'junit.xml'), junit)));
+    const run = (...args) =>
+      spawnSync(process.execPath, [join(scripts, 'merge-vitest-reports.mjs'), ...args], { encoding: 'utf8' });
+
+    const merged = run(`--node=${dirs.nodeDir}`, `--browser=${dirs.browserDir}`, `--output=${dirs.outputDir}`);
+    assert.equal(merged.status, 0, merged.stderr);
+    const summary = JSON.parse(await readFile(join(dirs.outputDir, 'coverage-summary.json'), 'utf8'));
+    assert.equal(summary.total.statements.covered, 1);
+    assert.match(await readFile(join(dirs.outputDir, 'junit.xml'), 'utf8'), /tests="2"/);
+
+    const missing = run(`--node=${join(root, 'nope')}`, `--browser=${dirs.browserDir}`, `--output=${dirs.outputDir}`);
+    assert.notEqual(missing.status, 0);
+    assert.match(missing.stderr, /ENOENT/);
+    await rm(dirs.root, { recursive: true, force: true });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+// 现有的 CLI 用例只在系统临时目录本身带符号链接（macOS 的 /var → /private/var）时才会走到这条分支。
+test('CLI 经符号链接路径启动时照常合并（不依赖系统临时目录恰好带符号链接）', async () => {
+  const linkRoot = await mkdtemp(join(tmpdir(), 'vitest-merge-link-'));
+  const node = fileCoverage({ statementMap: { 0: loc(1, 0, 10) }, s: { 0: 1 } });
+  const dirs = await writeReports('vitest-merge-link-input-', node, fileCoverage({ ...node, s: { 0: 0 } }));
+  try {
+    await symlink(import.meta.dirname, join(linkRoot, 'scripts'), 'dir');
+    const junit = '<?xml version="1.0"?><testsuites tests="1" failures="0" errors="0" time="0.1"></testsuites>';
+    await Promise.all([dirs.nodeDir, dirs.browserDir].map(dir => writeFile(join(dir, 'junit.xml'), junit)));
+
+    const merged = spawnSync(
+      process.execPath,
+      [
+        join(linkRoot, 'scripts', 'merge-vitest-reports.mjs'),
+        `--node=${dirs.nodeDir}`,
+        `--browser=${dirs.browserDir}`,
+        `--output=${dirs.outputDir}`
+      ],
+      { encoding: 'utf8' }
+    );
+
+    assert.equal(merged.status, 0, merged.stderr);
+    // 入口判定落空时脚本静默退出 0，所以要看产物
+    const summary = JSON.parse(await readFile(join(dirs.outputDir, 'coverage-summary.json'), 'utf8'));
+    assert.equal(summary.total.statements.covered, 1);
+  } finally {
+    await Promise.all([linkRoot, dirs.root].map(dir => rm(dir, { recursive: true, force: true })));
+  }
+});
+
+/**
+ * 区间 3:2–3:8 只在 node 一侧出现且没执行过；browser 一侧没有它，只有给定的几个容器（按给定顺序编号）。
+ * 返回合并后这个区间的命中数：借到哪个容器的计数，就是几。
+ */
+const borrowedHits = async containers => {
+  const region = loc(3, 2, 8);
+  const node = fileCoverage({ statementMap: { 0: region }, s: { 0: 0 } });
+  const browser = fileCoverage({
+    statementMap: Object.fromEntries(containers.map(({ range }, id) => [id, range])),
+    s: Object.fromEntries(containers.map(({ hits }, id) => [id, hits]))
+  });
+  const dirs = await writeReports('vitest-merge-borrow-', node, browser);
+  try {
+    await mergeCoverageDirectories(dirs.nodeDir, dirs.browserDir, dirs.outputDir);
+    const merged = JSON.parse(await readFile(join(dirs.outputDir, 'coverage-final.json'), 'utf8'))[node.path];
+    const id = Object.keys(merged.statementMap).find(
+      key => JSON.stringify(merged.statementMap[key]) === JSON.stringify(region)
+    );
+    return merged.s[id];
+  } finally {
+    await rm(dirs.root, { recursive: true, force: true });
+  }
+};
+
+test('借命中数只认包含关系：两个容器互不嵌套时谁也不比谁近，保留先找到的', async () => {
+  // a 起点更早、终点更近；b 起点更晚、终点更远：两者都包含 3:2–3:8，但互不包含
+  const a = { range: span(2, 0, 3, 9), hits: 0 };
+  const b = { range: span(3, 0, 3, 20), hits: 7 };
+
+  assert.equal(await borrowedHits([a, b]), 0, 'a 在前：借 a，没执行');
+  assert.equal(await borrowedHits([b, a]), 7, 'b 在前：借 b');
+});
+
+test('借命中数借最窄的包含区间，与容器在报告里的先后无关：两端同行时比列', async () => {
+  const cases = [
+    ['同在较早的一行起头，起点列更晚的更窄', span(1, 0, 9, 0), span(1, 4, 9, 0)],
+    ['同在较晚的一行收尾，终点列更早的更窄', span(1, 0, 9, 20), span(1, 0, 9, 5)]
+  ];
+  for (const [label, wide, narrow] of cases) {
+    const containers = [
+      { range: wide, hits: 0 },
+      { range: narrow, hits: 6 }
+    ];
+    assert.equal(await borrowedHits(containers), 6, `${label}：宽的在前`);
+    assert.equal(await borrowedHits(containers.toReversed()), 6, `${label}：窄的在前`);
+  }
 });

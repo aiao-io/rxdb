@@ -1,3 +1,4 @@
+import { readCellOrigin } from './cell-origin.js';
 import { DAISY_COLORS, GlobalOverlayEditor } from './global-overlay-editor.js';
 import { lucideToSvgElement, type IconData } from './lucide-svg.js';
 
@@ -67,7 +68,7 @@ export class EnumEditor extends GlobalOverlayEditor {
   /** 初始化编辑：解析原始值并加载可选项（预设选项优先，其次列定义 menuList） */
   override onStart(ctx: Parameters<GlobalOverlayEditor['onStart']>[0]): void {
     const table = ctx.table as VTableWithColumnDef | null;
-    const origin = table?.getCellOriginValue(ctx.col, ctx.row) ?? ctx.value;
+    const origin = readCellOrigin(ctx);
     this.#currentValue = origin != null ? String(origin) : '';
 
     // 优先使用构造时注入的预设选项，否则从列定义读取

@@ -90,6 +90,61 @@ test('别名绑的是 syncManager 就不算 —— 那正是迁移之后的写�
   assert.deepEqual(auditDoc('docs/sync.md', text), []);
 });
 
+test('同名变量在两个独立代码块里分别绑两个槽位：每块按自己的绑定判', () => {
+  const text = [
+    '装 @aiao/rxdb-plugin-history 与 @aiao/rxdb-plugin-sync。',
+    '',
+    '```ts',
+    'const manager = db.versionManager;',
+    'await manager.createBranch("f1");',
+    '```',
+    '',
+    '```ts',
+    'const manager = db.syncManager;',
+    'await manager.push();',
+    '```'
+  ].join('\n');
+
+  assert.deepEqual(auditDoc('docs/guide.md', text), []);
+});
+
+test('先给调用、后给完整示例：调用所在块没有绑定时按全文唯一的绑定判', () => {
+  const text = [
+    '装 @aiao/rxdb-plugin-history。',
+    '',
+    '```ts',
+    'await vm.push();',
+    '```',
+    '',
+    '完整示例：',
+    '',
+    '```ts',
+    'const vm = rxdb.versionManager;',
+    '```'
+  ].join('\n');
+
+  assert.deepEqual(auditDoc('docs/guide.md', text), [
+    'docs/guide.md:4 -> vm.push() 走的是 versionManager，已移到 syncManager'
+  ]);
+});
+
+test('调用所在块没有绑定、全文又把同名变量绑到两个槽位时不猜', () => {
+  const text = [
+    '装 @aiao/rxdb-plugin-history 与 @aiao/rxdb-plugin-sync。',
+    '```ts',
+    'const manager = db.versionManager;',
+    '```',
+    '```ts',
+    'const manager = db.syncManager;',
+    '```',
+    '```ts',
+    'await manager.push();',
+    '```'
+  ].join('\n');
+
+  assert.deepEqual(auditDoc('docs/guide.md', text), []);
+});
+
 test('```diff 删除行里的别名绑定不登记 —— 那是「旧写法长这样」', () => {
   const text = [
     '```diff',

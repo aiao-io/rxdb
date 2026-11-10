@@ -1,5 +1,6 @@
 import { EntityMetadata, EntityType, IEntity, IMutationContext, type WorktreeTableSet } from '@aiao/rxdb';
 import { EncryptionContext, normalizeUpdateEntity, transformEntityValueToSql } from '../pglite.utils.js';
+import { primaryKeyColumnSql } from '../primary-key-column.js';
 import { getTableNameByMetadata } from '../table-name-resolver.js';
 
 export interface UpdateSqlOptions extends IMutationContext {
@@ -57,7 +58,8 @@ const generate_entity_update_sql = async <T extends EntityType>(
   const tableName = getTableNameByMetadata(metadata, tableSet);
   const entities = Array.isArray(entityOrEntities) ? entityOrEntities : [entityOrEntities];
 
-  let sql = `UPDATE ${tableName} SET ${setPlaceholders} WHERE id `;
+  // 按主键物理列定位：主键属性 `id` 可被 columnName 改写（版本切换的 UPDATE 一腿也走这里）
+  let sql = `UPDATE ${tableName} SET ${setPlaceholders} WHERE ${primaryKeyColumnSql(metadata)} `;
 
   if (Array.isArray(entityOrEntities)) {
     // 多实体：用 = ANY($N) 配合数组参数

@@ -1,8 +1,7 @@
 import type { EditContext, IEditor, RectProps } from '@visactor/vtable-editors';
 import { ModelEditorI18n } from '../../i18n.js';
+import { readCellOrigin } from './cell-origin.js';
 import { DAISY_COLORS, refocusTable, scheduleEditorSetup } from './global-overlay-editor.js';
-
-type TableLike = { getCellOriginValue(col: number, row: number): unknown } | null;
 
 /** 数字编辑器的可选行为配置 */
 export interface NumberEditorOptions {
@@ -74,7 +73,7 @@ export class NumberEditor implements IEditor<unknown> {
       refocusTable(container);
       ctx.endEdit();
     };
-    const origin = (ctx.table as TableLike)?.getCellOriginValue(ctx.col, ctx.row) ?? ctx.value;
+    const origin = readCellOrigin(ctx);
 
     if (origin != null && origin !== '') {
       const text = String(origin);

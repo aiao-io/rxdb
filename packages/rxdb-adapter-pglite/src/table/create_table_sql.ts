@@ -19,7 +19,7 @@ import {
   WorktreeTableSet
 } from '@aiao/rxdb';
 import { isFunction, isString } from '@aiao/utils';
-import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
+import { isCurrentTimestampDefault } from '../entity/encrypted-defaults.js';
 import {
   getSqlValue,
   getTableColumnIndexName,
@@ -30,13 +30,14 @@ import {
   rxDBColumnTypeToPGliteTypeIndexName,
   transformValueJsToPGlite
 } from '../pglite.utils.js';
+import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 import { getTableNameByMetadata } from '../table-name-resolver.js';
 
 const getPropertyDefaultSql = (property: EntityPropertyMetadata): string | undefined => {
   const defaultValue = property.default;
   if (isFunction(defaultValue) || property.type === PropertyType.binary) return undefined;
 
-  if (isString(defaultValue) && ['CURRENT_TIMESTAMP', 'now()'].includes(defaultValue)) return ' DEFAULT now()';
+  if (isCurrentTimestampDefault(defaultValue)) return ' DEFAULT now()';
 
   const transformed = transformValueJsToPGlite(defaultValue, property);
   if (transformed === null) return ' DEFAULT NULL';
@@ -76,7 +77,11 @@ const _create_table_column_sql = (metadata: EntityMetadata, tableSet: WorktreeTa
       columnSQL += ` ${pgType}`;
     }
 
-    if (Reflect.get(property, 'default') !== undefined) columnSQL += getPropertyDefaultSql(property) ?? '';
+    // 加密列不写 DEFAULT：DDL 里的默认值是明文，会原样进 pg catalog；缺省时库端补上的明文还解不开。
+    // 缺省的加密列由写入侧在加密前按元数据补默认值、随整行封成信封（见 entity/encrypted-defaults 的 fillEncryptedDefaults）
+    if (property.encrypted !== true && Reflect.get(property, 'default') !== undefined) {
+      columnSQL += getPropertyDefaultSql(property) ?? '';
+    }
 
     // 处理 NOT NULL 约束
     if (!property.nullable) {

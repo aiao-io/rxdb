@@ -9,9 +9,13 @@ describe('executeOo1Helper (sqliteai)', () => {
   function createMockDb(opts: { resultRows?: unknown[][]; columnNames?: string[]; changes?: number }) {
     const { resultRows = [], columnNames = [], changes = 0 } = opts;
     let rowIndex = 0;
+    // 连接的累计变更数：像真实连接一样，经 exec 执行的写语句让它增加 `changes`；
+    // prepared 路径（SELECT）不动它。`changes()` 是最近一条写语句的计数，没有新写入时原样保留
+    let totalChanges = 0;
     const execSpy = vi.fn((execOpts: { resultRows?: unknown[][]; columnNames?: string[] }) => {
       if (execOpts.resultRows) for (const row of resultRows) execOpts.resultRows.push(row);
       if (execOpts.columnNames) for (const col of columnNames) execOpts.columnNames.push(col);
+      totalChanges += changes;
       return db;
     });
     const bindSpy = vi.fn().mockReturnThis();
@@ -36,7 +40,7 @@ describe('executeOo1Helper (sqliteai)', () => {
       prepare: prepareSpy,
       exec: execSpy,
       close: vi.fn(),
-      changes: vi.fn().mockReturnValue(changes),
+      changes: vi.fn((total = false) => (total ? totalChanges : changes)),
       createFunction: vi.fn().mockReturnThis()
     } as unknown as Oo1Database;
 

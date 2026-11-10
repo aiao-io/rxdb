@@ -1,8 +1,7 @@
 import type { EditContext, IEditor } from '@visactor/vtable-editors';
 import { ModelEditorI18n } from '../../i18n.js';
+import { readCellOrigin } from './cell-origin.js';
 import { DAISY_COLORS, positionOverlayPanel, refocusTable, scheduleEditorSetup } from './global-overlay-editor.js';
-
-type TableLike = { getCellOriginValue(col: number, row: number): unknown } | null;
 
 /**
  * JSON / KeyValue 编辑器
@@ -34,7 +33,7 @@ export class JsonEditor implements IEditor<unknown> {
       refocusTable(container);
       ctx.endEdit();
     };
-    const origin = (ctx.table as TableLike)?.getCellOriginValue(ctx.col, ctx.row) ?? ctx.value;
+    const origin = readCellOrigin(ctx);
     this.#value = origin ?? null;
     this.#originalValue = this.#value;
 

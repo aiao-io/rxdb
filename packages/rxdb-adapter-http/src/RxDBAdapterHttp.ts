@@ -153,9 +153,9 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
    *
    * @remarks
    * 这是**意图**，不是连接状态：通道正在退避重连、或所在运行时压根没有 `EventSource` 时，
-   * 它照样是 `true`。想知道连接本身的死活，看 `changeFeed.onUnavailable` 的诊断上报——
-   * `EventSource` 不暴露状态码，一个从这里返回的布尔值答不了「为什么没连上」，
-   * 只会把两种问题混成一种。
+   * 它照样是 `true`。想知道连接本身的死活，看 `changeFeed.onOpen`（报接通）与 `changeFeed.onUnavailable`
+   * （报故障；`malformed-message` 除外，连接还在）两个诊断回调——`EventSource` 不暴露状态码，
+   * 一个从这里返回的布尔值答不了「为什么没连上」，只会把两种问题混成一种。
    *
    * （夹在写 duck 与构造函数之间是 lint `member-ordering` 的要求：访问器排在字段之后、
    * 构造函数之前。语义上它属于下面那组运行时开关。）

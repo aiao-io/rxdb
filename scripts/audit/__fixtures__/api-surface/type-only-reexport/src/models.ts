@@ -20,3 +20,9 @@ export interface WidgetOptions {
 
 /** 纯值。 */
 export const VERSION = '1.0.0';
+
+/** 纯值：函数。 */
+export function runTask(): void {}
+
+/** 纯值：另一个常量。 */
+export const LIMIT = 3;

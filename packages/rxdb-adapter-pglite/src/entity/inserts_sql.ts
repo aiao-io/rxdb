@@ -7,6 +7,7 @@ import {
   transformEntityValueToSql
 } from '../pglite.utils.js';
 import { getTableNameByMetadata } from '../table-name-resolver.js';
+import { fillEncryptedDefaults } from './encrypted-defaults.js';
 import { isSequenceAssignedPrimaryColumn } from './insert_sql.js';
 
 const IMMUTABLE_ON_CONFLICT_PROPERTIES = ['id', 'createdAt', 'createdBy'] as const;
@@ -38,11 +39,14 @@ const generateEntityInsertsSql = async <T extends EntityType>(
   const updatedBy = Boolean(context?.userId && metadata.propertyMap.has('updatedBy'));
   const rows: Record<string, unknown>[] = [];
   const columns = new Set<string>();
+  const now = new Date();
 
   for (const entity of entities) {
     const entityData: Record<string, unknown> = normalizeCreateEntity(metadata, entity);
     if (createdBy) entityData['createdBy'] = context?.userId;
     if (updatedBy) entityData['updatedBy'] = context?.userId;
+    // 加密列的 DDL 不带 DEFAULT：缺省的逐行补上再封信封，不能留给 `DEFAULT` 关键字（那会写成 NULL）
+    fillEncryptedDefaults(metadata, entityData, now);
     // 主键交给 transformEntityValueToSql 取：entityData 按物理列名为键，自定义主键列下没有 `id`
     const transformed = await transformEntityValueToSql(metadata, entityData as Partial<IEntity>, encryption);
     rows.push(transformed);

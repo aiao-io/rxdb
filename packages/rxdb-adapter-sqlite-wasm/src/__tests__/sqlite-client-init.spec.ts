@@ -54,6 +54,26 @@ describe('SqliteClient 初始化失败清理', () => {
     expect(close).toHaveBeenCalledWith(7);
   });
 
+  it('初始化失败后关库失败时照样关 VFS', async () => {
+    const vfs = { close: vi.fn().mockResolvedValue(undefined) };
+    sqliteLoadMock.mockResolvedValue({
+      pointer: 8,
+      sqlite: {
+        close: vi.fn().mockRejectedValue(new Error('close failed')),
+        create_function: vi.fn(() => {
+          throw new Error('init failed');
+        })
+      },
+      vfs
+    });
+
+    const client = new SqliteClient();
+    await expect(client.init('db', { vfs: 'memory' })).rejects.toThrow(
+      'sqlite-wasm initialization failed and connection cleanup failed'
+    );
+    expect(vfs.close).toHaveBeenCalledTimes(1);
+  });
+
   it('失败后第二次 init 是干净重试', async () => {
     const close = vi.fn().mockResolvedValue(undefined);
     sqliteLoadMock.mockResolvedValueOnce({

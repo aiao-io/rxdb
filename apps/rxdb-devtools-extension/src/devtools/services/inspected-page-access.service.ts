@@ -80,6 +80,9 @@ export class InspectedPageAccessService implements DevToolsHostAccess, OnDestroy
     // 会推进 revision 并改写 permissionPattern，此时旧结果一律作废，不更新 state 也不 activate。
     // 同源导航（pattern 不变）revision 虽然也会推进，但旧请求对当前页面仍然有效，照常生效。
     if (this.destroyed || this.permissionPattern !== pattern) return false;
+    // 授权结果比此前发起、尚未返回的 contains() 新：同源导航的那次查询可能在授权前就得出了 false，
+    // 推进 revision 让它作废，否则它晚回时会把刚生效的 granted 改回 required。
+    this.revision++;
     this.state.set(granted ? 'granted' : 'required');
     if (!granted) {
       this.error.set('未授予当前站点访问权限');

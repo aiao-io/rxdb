@@ -16,10 +16,14 @@ export const NPM_SCOPE = 'aiao';
 export const NEED_BUILDS = ['rxdb-test'];
 
 /**
- * 需要执行 commit 校验的分支名列表；`'*'` 表示全部分支。
+ * 本地 commit 钩子（`commit-msg` / `pre-push`）要校验的分支名列表，按分支名**精确匹配**，不支持通配符。
  *
- * 曾经只校验 `main`：理由是 PR 一律 squash，特性分支上的中间提交不进主线。代价是特性分支上
- * 58% 的提交信息是 `123` 这类占位，`git bisect` / `git blame` 在分支上完全不可用。现在改为全部分支：
- * 真的只是存档用 `wip: ...` 前缀（`ALLOWED_PREFIXES` 放行），不要写 `123`。
+ * 当前为空：本地钩子不校验任何分支。落进 main 的文案由 CI 校验 PR 标题（`commit-lint.mjs --message`），
+ * PR 一律 squash，特性分支上的中间提交不进主线。
+ *
+ * 历史：这里曾写成 `['*']` 并声称「全部分支」，但 `shouldCheckCurrentBranch` 只做 `includes`，
+ * 没有哪个分支叫 `*`，两个钩子在所有分支上都是空操作（RV-01a1bb68e74e）。要启用某个分支的本地校验，
+ * 把它的名字写进来；要对全部分支生效，得先放宽 commitizen 的 type / scope 白名单，并让自动提交改用
+ * `wip: ...` 前缀（`ALLOWED_PREFIXES` 放行），否则占位提交会被挡下。
  */
-export const NEED_CHECK_COMMIT_BRANCH_NAMES = ['*'];
+export const NEED_CHECK_COMMIT_BRANCH_NAMES = [];

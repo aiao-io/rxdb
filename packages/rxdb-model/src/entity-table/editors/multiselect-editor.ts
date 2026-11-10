@@ -1,3 +1,4 @@
+import { readCellOrigin } from './cell-origin.js';
 import { DAISY_COLORS, GlobalOverlayEditor } from './global-overlay-editor.js';
 
 /** 多选选项：id + 显示名 + 可选色点 / 禁用 */
@@ -69,9 +70,7 @@ export class MultiSelectEditor extends GlobalOverlayEditor {
   override onStart(ctx: Parameters<GlobalOverlayEditor['onStart']>[0]): void {
     if (this.#readOrigin) {
       // 基类的 table/editCol/editRow 在 super.onStart 里才赋值，这里直接用 ctx
-      const table = ctx.table as { getCellOriginValue(col: number, row: number): unknown } | null;
-      const origin = table?.getCellOriginValue(ctx.col, ctx.row) ?? ctx.value;
-      this.#selectedIds = new Set(parseSelectedIds(origin));
+      this.#selectedIds = new Set(parseSelectedIds(readCellOrigin(ctx)));
     }
     super.onStart(ctx);
   }

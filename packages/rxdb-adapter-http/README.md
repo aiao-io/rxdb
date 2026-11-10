@@ -206,6 +206,26 @@ new RxDBAdapterHttp(db, {
 六个数值都必须是 finite 正整数（`maxEmptyPages` 可为 `0`），否则**构造期**抛 `HttpConfigError` 并带上字段名与实际值。
 
 `changeFeed`（SSE 变更通知）缺省不存在、配了即开；它是**实验性**能力，不在 1.0 兼容承诺内，协议目前只有参考后端一个实现。
+连接的死活靠三个诊断回调报事实：`onOpen`（每次接通，含每一次重连，报在这次接通的全量失效之后）、
+`onUnavailable`（连不上、断开或一条消息读不懂）、`onNotification`（收到一条读得懂的通知）；三者都是同步调用，
+回调抛错一律丢弃、不影响通道。`changeFeedEnabled` 只是启停意图，网断了它照样是 `true`——「此刻通没通」
+看 `onOpen` 与 `onUnavailable` 谁最后到（`malformed-message` 除外，连接还在）。
+
+```typescript
+new RxDBAdapterHttp(db, {
+  baseUrl,
+  handlers,
+  changeFeed: {
+    url: 'changes',
+    onOpen: () => showFeedStatus('已接通'),
+    onUnavailable: report => {
+      // 读不懂的是那一条消息，连接还在
+      if (report.reason !== 'malformed-message') showFeedStatus('重连中', report.message);
+    }
+  }
+});
+```
+
 `auth` 在每次请求发出前调用，与 `headers` 冲突时以 `auth` 为准；`auth` 抛错则请求不发出。
 
 ### 条件请求（`conditionalRequests`，缺省关闭）

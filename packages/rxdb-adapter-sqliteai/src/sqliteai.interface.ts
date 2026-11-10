@@ -13,6 +13,14 @@ interface SqliteaiOptionsBase extends IRxDBAdapterOptions {
   opfs?: boolean;
   wasmPath?: string;
   opfsProxyPath?: string;
+  /**
+   * 自定义 Emscripten 资源定位函数；不能传给 worker。
+   *
+   * @remarks
+   * 函数身份参与模块缓存判定：`sqliteaiLoad` 的模块级 WASM 缓存按引用比较 `locateFile`，
+   * 传同一个引用才复用已加载的模块。请传模块级的稳定引用；每次新建内联闭包（哪怕源码相同）
+   * 都会被当成另一份配置，重新初始化一遍 WASM。
+   */
   locateFile?: (name: string) => string;
   print?: (msg: string) => void;
   printErr?: (msg: string) => void;

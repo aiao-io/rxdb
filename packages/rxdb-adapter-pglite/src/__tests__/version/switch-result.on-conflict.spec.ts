@@ -93,7 +93,7 @@ describe('PGL-010 ON CONFLICT 列集合', () => {
       ownerId: '4e1f6f7c-0000-4000-8000-000000000001'
     });
 
-    expect(sql).toContain('ON CONFLICT (id) DO UPDATE SET');
+    expect(sql).toContain('ON CONFLICT ("id") DO UPDATE SET');
     expect(sql).toContain('"ownerId" = EXCLUDED."ownerId"');
   });
 

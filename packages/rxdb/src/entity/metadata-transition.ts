@@ -154,6 +154,8 @@ export const transitionMetadata = (
   const generatedColumnMap = new Map<string, EntityGeneratedColumnMetadataOptions>();
   const foreignKeyMap = new Map<string, EntityForeignKeyMetadata>();
   const checkMap = new Map<string, EntityCheckMetadata>(); // 约束 name 到 CHECK 元数据的映射
+  // checkMap 里哪些条目当前来自属性级语法糖：重声明属性只摘这些，显式声明的同名 CHECK 不动
+  const sugarCheckNames = new Set<string>();
   const exclusionMap = new Map<string, EntityExclusionMetadata>(); // 约束 name 到区间排他元数据的映射
 
   // 创建基础元数据对象，继承元数据选项的所有属性
@@ -212,12 +214,15 @@ export const transitionMetadata = (
       // 排在实体级 checks 之前：同一层里作者显式写的 checks 覆盖语法糖。
       // 子实体重声明同一属性（不带 check）即摘除继承的语法糖——属性声明是「该属性的约束域」
       // 的完整重定义，保留父约束会让子类被迫继承一条自己已改列的 CHECK。
+      // 只摘语法糖：父类显式声明、恰好与字段同名的实体级 CHECK 不是这个属性声明的一部分，
+      // 按 name 继承、只被同名约束覆盖。
       if (property.check) {
         checkMap.set(property.name, {
           name: property.name,
           rule: { combinator: 'and', rules: [{ field: property.name, ...property.check }] }
         });
-      } else {
+        sugarCheckNames.add(property.name);
+      } else if (sugarCheckNames.delete(property.name)) {
         checkMap.delete(property.name);
       }
     });
@@ -290,6 +295,7 @@ export const transitionMetadata = (
     // 模块加载阶段崩掉，而不是给出可定位的违规条目。
     meta.checks?.forEach(check => {
       checkMap.set(check.name, check);
+      sugarCheckNames.delete(check.name);
     });
     // 处理区间排他：与 checks 同一套按 name 的 Map 覆盖、同样不克隆（畸形条目由注册期校验以
     // invalidExclusion 聚合上报）。

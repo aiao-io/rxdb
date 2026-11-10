@@ -88,6 +88,46 @@ describe('analyzeFile metadata safety', () => {
     expect(() => analyze(filePath)).toThrow(/CallExpression/);
   });
 
+  it('rejects a local object that shadows an approved enum instead of substituting the core value', async () => {
+    const filePath = await createEntityFile(`
+      import { Entity } from '@aiao/rxdb';
+
+      const PropertyType = { integer: 'string' } as const;
+
+      @Entity({ name: 'Shadow', properties: [{ name: 'value', type: PropertyType.integer }] })
+      class Shadow {}
+    `);
+
+    expect(() => analyze(filePath)).toThrow(filePath);
+    expect(() => analyze(filePath)).toThrow(/PropertyType must resolve to .*@aiao\/rxdb/);
+  });
+
+  it('rejects a same-named enum exported by another module', async () => {
+    const filePath = await createEntityFile(`
+      import { Entity } from '@aiao/rxdb';
+      import { PropertyType } from './enums.js';
+
+      @Entity({ name: 'Foreign', properties: [{ name: 'value', type: PropertyType.integer }] })
+      class Foreign {}
+    `);
+    await writeFile(path.join(path.dirname(filePath), 'enums.ts'), "export enum PropertyType { integer = 'string' }");
+
+    expect(() => analyze(filePath)).toThrow(/PropertyType must resolve to .*@aiao\/rxdb/);
+  });
+
+  it('accepts approved enums imported from @aiao/rxdb under an alias', async () => {
+    const filePath = await createEntityFile(`
+      import { Entity, PropertyType as Kind } from '@aiao/rxdb';
+
+      @Entity({ name: 'Aliased', properties: [{ name: 'value', type: Kind.integer }] })
+      class Aliased {}
+    `);
+
+    const [result] = analyze(filePath);
+
+    expect(result.metadataOptions.properties).toEqual([{ name: 'value', type: 'integer' }]);
+  });
+
   it('statically evaluates literal metadata and approved enum members', async () => {
     const filePath = await createEntityFile(`
       import { Entity, OnDeleteAction, PropertyType, RelationKind } from '@aiao/rxdb';
