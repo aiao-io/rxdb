@@ -111,6 +111,10 @@ class ScriptedRemote extends RxDBAdapterRemoteBase implements IRxDBAdapter {
     return Promise.resolve(true);
   }
 
+  backendId(): Promise<string> {
+    return Promise.resolve(REMOTE_ADAPTER);
+  }
+
   pullChanges(): Promise<RemoteChange[]> {
     return Promise.resolve([]);
   }

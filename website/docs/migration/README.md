@@ -8,6 +8,7 @@
 - [Supabase 传输失败错误类型迁移](./supabase-network-errors.md)：连不上远端时改抛 core 的 `NetworkOfflineError`，请用 `isNetworkError` 判离线
 - [Supabase 修改推送语义迁移](./supabase-update-push.md)：本地修改改走普通 `UPDATE`（`rxdb_mutations` 新参数 `p_updates`），须先执行新版 SQL 再升级客户端
 - [Supabase 变更日志提交顺序修复](./supabase-change-log-order.md)：`rxdb_change` 加触发器让日志 `id` 顺序等于提交顺序，拉取不再漏掉晚提交的变更；重跑一次新版 02 SQL，客户端无需升级
+- [Supabase 远端身份与远端重置](./supabase-remote-backend.md)：远端新增身份值 `rxdb_backend_id()`，客户端把它和拉取游标存在一起，远端重建后停止同步并报 `RemoteBackendMismatchError`，由应用显式改绑；须先执行新版 SQL 再升级客户端，自定义远端适配器须实现 `backendId()`
 - [Supabase 推送回执迁移](./supabase-push-receipts.md)：`mergeChanges` 返回值从 `changeIdMapping` 改为必填的 `results`，自定义远端适配器须跟着改；被拒变更不再拖垮整批，须先执行新版 SQL 再升级客户端
 - [HTTP 适配器翻页键改名](./http-page-token.md)：`ctx.cursor` → `ctx.pageToken`、`nextCursor` → `nextPageToken`，与 core 的 keyset 游标区分开
 - [桌面适配器拆包](./desktop-split.md)：`rxdb-adapter-desktop` 拆成 `-electron` / `-tauri` 两个包

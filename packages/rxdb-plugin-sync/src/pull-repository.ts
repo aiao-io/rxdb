@@ -35,7 +35,6 @@ import {
   type SyncOptions,
   TrustedWriteIntent
 } from '@aiao/rxdb';
-import type { SyncManager } from './SyncManager.js';
 import { getAncestorBranchIds } from './branch-utils.js';
 import { findBlockingDependency } from './cascade-blocking.js';
 import { buildDependencyGraph, type DependencyGraph } from './dependency-graph.js';
@@ -49,7 +48,9 @@ import {
   resolveConflictsAndBuildActions
 } from './pull-conflict-utils.js';
 import { backfillOwnChangeRemoteIds, splitRemoteChangesByOrigin } from './pull-round.js';
+import { instantiateSyncRecord } from './remote-backend.js';
 import { assertSyncOnMainCheckout } from './sync-manager.utils.js';
+import type { SyncManager } from './SyncManager.js';
 import { topologicalSortForPull } from './topological-sort.js';
 
 /**
@@ -521,7 +522,7 @@ async function pullSingleRepository(
       branchId: branch.id,
       syncType
     },
-    () => rxdb.entityManager.instantiate(RxDBSync)
+    () => instantiateSyncRecord(sm)
   );
 
   const lastPullRemoteChangeId: number | null = repoSync.lastPullRemoteChangeId;

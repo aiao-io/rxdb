@@ -27,9 +27,11 @@ LiveStore 的优势是事件日志、投影重建和同步协议高度统一，�
 RxDB 的同步冲突方向已经确定：依托现有的分支与工作树，冲突处理与 git 一致。远端相当于一条分支，拉取相当于 fetch 加 merge：
 不重叠的改动自动合并，重叠的改动与删改冲突停在工作树的合并状态，由用户裁决后提交。无需决策、可自动合并的 CRDT 类数据暂不支持。
 
-| 日期       | 事项         | 结论性质 | 记录                                                                                                                                       |
-| ---------- | ------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| 2026-11-10 | 同步冲突方向 | 用户决定 | 依托分支与工作树，冲突处理与 git 一致，由用户裁决；CRDT 类数据暂不支持。与[愿景](vision.md)阶段 3 的「冲突中心、字段级差异、人工解决」一致 |
+| 日期       | 事项         | 结论性质 | 记录                                                                                                                                                      |
+| ---------- | ------------ | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-10 | 同步冲突方向 | 用户决定 | 依托分支与工作树，冲突处理与 git 一致，由用户裁决；CRDT 类数据暂不支持。与[愿景](vision.md)阶段 3 的「冲突中心、字段级差异、人工解决」一致                |
+| 2026-11-11 | 冲突时间语义 | 用户决定 | P0 双客户端用例证实推断后，选「推送时保留原始 `createdAt`」：Supabase 推送不再把日志的 `createdAt` 改写成推送时刻，推送时刻记在 `updatedAt`；LWW 规则不动 |
+| 2026-11-11 | 远端重置     | 用户决定 | 远端身份与游标存在同一条 `RxDBSync` 记录（系统 schema 9）；对不上就停止同步、错误进 `SyncState.lastError`，由应用显式改绑，不自动改绑                     |
 
 在这个方向下，最值得学的不是事件溯源本身，而是四件能直接落在现有实体模型与同步插件上的事：
 
@@ -55,7 +57,7 @@ RxDB 的同步冲突方向已经确定：依托现有的分支与工作树，冲
 | 本地存储               | Web 只支持 OPFS，无痕模式退为内存并经 `storageMode` 告知；Node 适配器同样用 SQLite WASM，Expo 用原生 `expo-sqlite`                                             | wa-sqlite（默认 IndexedDB，OPFS 实验性）、sqlite-wasm、官方 SQLite、SQLiteAI、PGlite、Electron、Tauri、小程序                                                                                                      | RxDB 的运行时覆盖更广；LiveStore 的 OPFS 路径更成熟                                                       |
 | 多标签页               | SharedWorker 代理 + 单个 leader worker 写入；Android Chrome 没有 SharedWorker 时自动退为单标签页                                                               | Web Locks 选 leader + BroadcastChannel 事件网关；wa-sqlite 可选把一条连接放进 SharedWorker 共用                                                                                                                    | 思路接近；LiveStore 的降级是默认行为                                                                      |
 | 同步                   | 事件 push/pull：先 pull 后 push，后端串行处理 push 并维持全局总序，客户端对 pending events 做 rebase                                                           | `Full`、`Filter`、`QueryCache`；`syncManager` 连接 Supabase、HTTP 等适配器，拉取以远端 change id 为游标                                                                                                            | LiveStore 协议更统一；RxDB 更适合远端行模型                                                               |
-| 冲突                   | 无字段级合并，也不交给用户；按后端裁定的总序自动重放，「后写者胜」指总序靠后，与客户端时钟无关                                                                 | 现状：同一实体有未推送变更即判冲突，LWW 比较两侧 `createdAt`、相等时按 `clientId` 字典序决胜，resolver 只能落在 `KEEP_LOCAL` / `KEEP_REMOTE`；方向：与 git 一致，依托分支与工作树由用户裁决                        | 方向不同：RxDB 走 git 式合并、由用户裁决，LiveStore 走自动 rebase；现行 LWW 的时间语义需要核实，见 P0     |
+| 冲突                   | 无字段级合并，也不交给用户；按后端裁定的总序自动重放，「后写者胜」指总序靠后，与客户端时钟无关                                                                 | 现状：同一实体有未推送变更即判冲突，LWW 比较两侧 `createdAt`、相等时按 `clientId` 字典序决胜，resolver 只能落在 `KEEP_LOCAL` / `KEEP_REMOTE`；方向：与 git 一致，依托分支与工作树由用户裁决                        | 方向不同：RxDB 走 git 式合并、由用户裁决，LiveStore 走自动 rebase；现行 LWW 比较两侧的编辑时刻，见 P0     |
 | 语义合并               | 文档写明 merge conflict handling 尚未实现；command replay 仍是 RFC                                                                                             | `MERGE` / `DEFER` 让整轮拉取抛错回滚、水位不推进，并派发 `ConflictPendingEvent`；`Conflict.base`（三方合并用的共同基线）已在类型里声明，同步拉取不填；远端同步与分支合并的结果都以未提交变更进工作树，没有合并状态 | 两边都没有持久化的待处理冲突；RxDB 按 git 的方式用工作树的合并状态补齐，见 P1；不应把 rebase 当成领域合并 |
 | 无需决策的数据（CRDT） | 不内建；文档建议与 Yjs / Automerge / Loro 并行同步，结构化数据里只存文档引用                                                                                   | 暂不支持；代码编辑器是单人编辑，P2P 不做无中心的多方收敛                                                                                                                                                           | 两边都没有；LiveStore 的并行同步模式可作过渡                                                              |
 | 历史与版本             | Undo/Redo 与版本控制只有方向说明，示例仍是 TODO                                                                                                                | 历史、Undo/Redo、分支、对比与合并预览（按字段标出四类冲突，合并本身单向覆盖）、只读检出、带 CAS 的工作树提交、会话回放                                                                                             | RxDB 明显领先                                                                                             |
@@ -192,6 +194,12 @@ LiveStore 由后端串行处理 push 并分配全局序号，冲突胜负只看�
 | 推送时保留原始 `createdAt` | 让 LWW 比较同一语义的时间（编辑时刻），时钟漂移仍在                                         | 远端日志的时间含义改变，需核对依赖 `createdAt` 的历史与审计 |
 | 冲突即进入合并状态         | 同一字段的并发修改不再自动裁决，直接停在工作树的合并状态                                    | 依赖下文 git 式合并的前置，等于提前交付冲突中心             |
 
+**结果**：推断成立。真栈用例里 A 编辑、B 编辑、A 推送依次相隔约 50 毫秒，远端日志的 `createdAt` 记的是 A 的推送时刻，
+B 拉取后被判负，title 变成 A 那条更早的编辑。owner 选第二项：[`build_merge_changes_payload`](../packages/rxdb-adapter-supabase/src/supabase.merge-changes.ts)
+改为沿用变更自己的 `createdAt`，推送时刻记在 `updatedAt`。已核实除 LWW 外没有代码读远端日志的 `createdAt`。
+同一用例改为断言两端收敛到 B（`conflict-time-semantics.spec.ts`），[同步策略](../website/docs/collaboration/sync.md)同步改写，
+相等时按 `clientId` 字典序决胜的说法也一并更正。跨设备时钟漂移仍在，已写进文档。
+
 ### P0：记录远端身份，处理远端重置
 
 **源码实证**：拉取游标是远端 change id。[`pullChanges`](../packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts) 注明「使用 id 而非 createdAt 作为游标」，
@@ -202,6 +210,16 @@ LiveStore 由后端串行处理 push 并分配全局序号，冲突胜负只看�
 
 借鉴 LiveStore 的 `backendId`：远端生成一个身份值，客户端与游标一起保存；不匹配时按显式策略处理（清空同步状态后全量拉取 / 停止同步 / 只读），
 并经 `SyncState.lastError` 暴露。最小验证：重建 Supabase 测试库后，旧客户端拉取与推送的行为用例。
+
+**结果**：推断成立。旧客户端的游标越过远端全部 id 后，拉取返回 `pulled: 0`、推送照常执行，没有任何错误。按 owner 的选择实现：
+
+- 远端：单行表 `rxdb_backend` 与 `rxdb_backend_id()`；库重建时随表重建换新值，`TRUNCATE rxdb_change` 时由触发器换新值；生产权限收回客户端写权限；
+- 本地：`RxDBSync.remoteBackendId`，系统 schema 8 → 9；交换数据的入口先比对，旧记录就地绑定，新记录创建时带上已核实的身份；
+- 不匹配：停止同步，抛 `RemoteBackendMismatchError` 并写进 `SyncState.lastError`，本地数据不动；应用显式调 `syncManager.rebindRemoteBackend()`，
+  清空不属于新远端的拉取游标后全量拉取，推送水位不动。不自动改绑，远端地址配错到另一个项目时同样停下。
+
+真栈用例 `remote-reset.spec.ts` 以 service_role 换掉远端身份、并把旧客户端游标抬到新库 id 之上来拼出重建后的处境；
+升级步骤见[迁移说明](../website/docs/migration/supabase-remote-backend.md)。升级之前已经发生的重置认不出来，迁移说明写了处理方式。
 
 ### P1：同步诊断进 DevTools
 
@@ -349,6 +367,8 @@ store.commit(events.todoCreated({ id, text }));
 | 4    | DevTools 诊断    | 能定位一条变更从写入到被拒绝或被覆盖的完整链路                                                                                   | 不扩大公共 API         |
 | 5    | 启动与持久化状态 | 三端能读到连接阶段与实际持久化方式                                                                                               | 先提供框架无关 API     |
 
+顺序 1、2 的结果见两节 P0。
+
 事件原生模式（若立项）：
 
 | 顺序 | 验证项           | 最小结果                                                       | 未通过时的处理           |
@@ -373,7 +393,7 @@ LiveStore 官方项目当前为 beta，minor release 仍可能包含 API、客�
 
 ## 后续决策入口
 
-1. 先补 P0 的两组用例（现行冲突时间语义、远端重置），owner 依据结果在时间语义的三个选项中拍板。
+1. P0 的两组用例（现行冲突时间语义、远端重置）都证实了推断，owner 的选择记在结论表，修复见两节 P0 的结果。
 2. P1 各项按 [CONVENTIONS](CONVENTIONS.md) 分别建 story。git 式同步冲突（远端分支、共同基线与字段级三方合并、工作树合并状态、合并提交、三端冲突视图）单独一条，
    立项前先评审「同步即工作树变脏」与「无冲突合并是否自动提交」两项语义；DevTools 与启动状态涉及三端绑定时按对称要求验收。
 3. 事件原生模式没有具名场景前不开公共包；若确认，story 写清事件格式、迁移策略、同步后端和三框架边界，

@@ -2,6 +2,11 @@
 
 ### ⚠️ Breaking Changes
 
+- **rxdb / rxdb-adapter-sqlite-core / -pglite:** 系统表结构升至 9，`RxDBSync` 新增可空的 `remoteBackendId`：拉取游标所属的远端身份。旧库连接时自动补列，旧行为空、首次同步时绑定；升级后旧客户端会拒绝打开该库，需一起升级。
+- **rxdb:** `RxDBAdapterRemoteBase` 新增抽象方法 `backendId()`：远端身份，远端重建或变更日志清空并重新计数之后必须换新值。自定义远端适配器须实现；不支持变更日志同步的直接抛不支持错误，`RxDBAdapterHttp` 抛 `HttpChangelogUnsupportedError`。→ [supabase-remote-backend](https://rxdb.aiao.io/docs/migration/supabase-remote-backend)（RV-01a1c69f412774fdb9f96a5ea8b44419）
+- **rxdb-adapter-supabase:** 参考 SQL 新增远端身份：单行表 `rxdb_backend`、读取函数 `rxdb_backend_id()`，以及 `TRUNCATE rxdb_change` 时换新值的触发器 `rxdb_change_rotate_backend_id`；生产权限脚本收回客户端对 `rxdb_backend` 的写权限。已有部署先建表，再重跑新版 `docker/sql/02-rxdb-sync-functions.sql` 与 `docker/sql/production/rxdb-change-grants.sql`，最后升级客户端；新客户端连旧版 SQL 时，同步入口报 `Could not find the function public.rxdb_backend_id`。→ [supabase-remote-backend](https://rxdb.aiao.io/docs/migration/supabase-remote-backend)（RV-01a1c69f412774fdb9f96a5ea8b44419）
+- **rxdb-adapter-supabase:** 推送写入的 `rxdb_change.createdAt` 改为变更的编辑时刻，推送时刻记在 `updatedAt`（此前两列都是推送时刻）。拉取方的 LWW 由此比较两侧的编辑时刻：A 离线编辑后晚推送时，B 在两者之间做的、更晚的未推送编辑不再被判负。把远端 `createdAt` 当推送时刻用的，改读 `updatedAt`；新旧客户端混用期间，旧客户端推送的日志仍是推送时刻（RV-01a1c69f40f3733580461be6cd60d9af）
+
 - **rxdb-adapter-supabase:** 直写事务的 UPDATE 与级联删除日志修复需要配套参考 SQL：先在同一数据库事务中按 02 → 04 更新 `docker/sql/02-rxdb-sync-functions.sql`、`docker/sql/04-rxdb-utils-functions.sql` 并一起提交，再升级客户端；本次不改 `01-rxdb-system-tables.sql`。不能原子更新时须在维护窗口禁止写入，避免新触发器与旧 RPC 的中间状态。推送与原 `rxdb_batch_update` 继续使用无 RETURNING 的计数模式，保留原有权限与可见性语义。→ [supabase-update-push](https://rxdb.aiao.io/docs/migration/supabase-update-push)（US-223 / US-224）
 
 - **rxdb / rxdb-adapter-sqlite-core / -pglite:** 系统表结构升至 8，`RxDBChange` 新增可空的 `tableSetSuffix`，固定变更写入时的表集来源，避免迟到事件污染其他检出位。旧库自动补列并重建触发器；升级后旧客户端会拒绝打开该库，需一起升级。
@@ -24,6 +29,8 @@
 - **rxdb / rxdb-adapter-pglite / rxdb-adapter-sqlite-core:** `bigint` 区间维 + `bounds: '[]'` 的区间排他，上端点等于 int8 最大值（`9223372036854775807n`）时，PG 表达式改为按上方无界构造。此前这样的合法行在 PGlite 上，没有任何竞争行也写不进去（规范化时上界加一，抛 `22003 bigint out of range`）。表达式参与约束名的哈希，所以**含这类区间维的排他换了名**：PGlite 的 `EXCLUDE` 约束和 SQLite family 的 `_i` / `_u` 两个触发器都按新名查找。已有的库（包括从旧归档恢复出来的）在 `connect()` 时抛 `RxDBConstraintDriftError`，`extra` 里是旧名，`missing` 里是新名，需要在 `migrations` 里删掉旧的、按新名重建（步骤与两个后端的示例见文档「存储约束」的「升级：`bigint` `'[]'` 区间维的排他换名」一节）。其余排他（`date`、`integer`、`bigint` 的 `'[)'` 维）名字不变。PGlite 的冲突键里，「上端点 = 最大值」和上方无界显示成一样，违约时 `ranges` 这一端报 `null`；SQLite 报原值，两者是同一组取值。
 
 ### 🚀 Features
+
+- **rxdb-plugin-sync:** 远端重置不再静默拉空：与远端交换数据的入口（`pull` / `push` / `sync`、按仓库的三个入口、`bulkSync`、`syncBranches`、分支物化）与待拉计数先比对远端身份，对不上时抛 `RemoteBackendMismatchError`（带 `backendId` 与 `boundBackendIds`），同一个错误写进 `SyncState.lastError`，本地数据不动。新增 `syncManager.rebindRemoteBackend()`：确认新远端之后显式改绑，在一个事务里清空不属于它的拉取游标，下一次拉取从头全量拉；推送水位不动，已推到旧远端的变更不重推。不会自动改绑。新增导出 `RemoteBackendMismatchError`、`RebindRemoteBackendResult`。→ [supabase-remote-backend](https://rxdb.aiao.io/docs/migration/supabase-remote-backend)（RV-01a1c69f412774fdb9f96a5ea8b44419）
 
 - **rxdb:** `QueryTaskOptions` 新增可选 `onError(cacheKey, task)`，`onClean` 多了第二参数 `task`（按任务身份摘除缓存项；只收一个参数的旧回调仍可赋值）。
 - **rxdb:** `EntityStatus` 新增 `writeMark()` / `applyWriteResult()`：写入开始时记下提交的值与编辑序号，成功后只把基线推进到提交值，提交之后才改的字段保留为未保存改动。

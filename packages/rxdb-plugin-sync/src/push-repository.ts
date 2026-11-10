@@ -43,6 +43,7 @@ import { firstValueFrom } from 'rxjs';
 import { getAncestorBranchIds } from './branch-utils.js';
 import { findBlockingDependency } from './cascade-blocking.js';
 import { buildDependencyGraph, type DependencyGraph, type RepositoryIdentifier } from './dependency-graph.js';
+import { instantiateSyncRecord } from './remote-backend.js';
 import { assertSyncOnMainCheckout } from './sync-manager.utils.js';
 import type { SyncManager } from './SyncManager.js';
 import { dependencyEdgeForAction, type SortActionKind, topologicalSortForAction } from './topological-sort.js';
@@ -891,7 +892,7 @@ async function planRepositoryPush(
       branchId: branch.id,
       syncType
     },
-    () => rxdb.entityManager.instantiate(RxDBSync)
+    () => instantiateSyncRecord(sm)
   );
 
   const lastPushedChangeId: number | null = repoSync.lastPushedChangeId;

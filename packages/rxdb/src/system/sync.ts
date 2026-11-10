@@ -25,6 +25,7 @@ import { RxDBSyncOrderByField, RxDBSyncRuleGroup } from './types.js';
  * - 同步类型（full/remote/local/none）
  * - 最后推送/拉取时间
  * - 最后推送/拉取的 changeId
+ * - 游标所属的远端身份
  * - 是否启用同步
  */
 @Entity({
@@ -70,6 +71,11 @@ import { RxDBSyncOrderByField, RxDBSyncRuleGroup } from './types.js';
     {
       name: 'lastPullRemoteChangeId',
       type: PropertyType.integer,
+      nullable: true
+    },
+    {
+      name: 'remoteBackendId',
+      type: PropertyType.string,
       nullable: true
     },
     {
@@ -172,6 +178,16 @@ export class RxDBSync {
    * 最后拉取的远程 changeId
    */
   lastPullRemoteChangeId!: number | null;
+
+  /**
+   * 本行游标所属的远端身份（`RxDBAdapterRemoteBase.backendId()` 的返回值）
+   *
+   * @remarks
+   * 远端 change id 只在同一个远端库里单调：远端重建后 id 从头计数，旧游标会越过新库的全部 id，
+   * 拉取静默拉空。游标只在本列记下的远端上有效，同步入口发现远端身份变了就拒绝继续。
+   * `null` 表示还没绑定（系统 schema 9 之前写下的行，或从未与远端交换过数据），首次同步时绑定。
+   */
+  remoteBackendId!: string | null;
 
   /**
    * 是否启用同步（手动禁用开关）

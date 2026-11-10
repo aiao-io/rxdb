@@ -30,7 +30,6 @@ import {
   RxDBSync,
   TrustedWriteIntent
 } from '@aiao/rxdb';
-import type { SyncManager } from './SyncManager.js';
 import { getAncestorBranchIds } from './branch-utils.js';
 import { buildDependencyGraph } from './dependency-graph.js';
 import { pullAncestorBranchChanges } from './pull-ancestor-changes.js';
@@ -42,7 +41,9 @@ import {
   resolveConflictsAndBuildActions
 } from './pull-conflict-utils.js';
 import { backfillOwnChangeRemoteIds, splitRemoteChangesByOrigin } from './pull-round.js';
+import { instantiateSyncRecord } from './remote-backend.js';
 import { assertSyncOnMainCheckout } from './sync-manager.utils.js';
+import type { SyncManager } from './SyncManager.js';
 import { topologicalSortForPull } from './topological-sort.js';
 
 interface RepoSyncInfo {
@@ -190,7 +191,7 @@ async function pullBatchOnce(
         branchId,
         syncType
       },
-      () => rxdb.entityManager.instantiate(RxDBSync)
+      () => instantiateSyncRecord(sm)
     );
 
     // 批量是枚举路径 —— 被关掉的仓库跳过而不是让整批失败

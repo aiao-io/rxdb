@@ -183,6 +183,10 @@ class MemoryChangelogRemote extends RxDBAdapterRemoteBase implements IRxDBAdapte
     return Promise.resolve(true);
   }
 
+  backendId(): Promise<string> {
+    return Promise.resolve(REMOTE_ADAPTER);
+  }
+
   async pullChanges(
     sinceId: number,
     limit?: number,

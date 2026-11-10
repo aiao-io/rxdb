@@ -27,6 +27,8 @@ npm install @aiao/rxdb @aiao/rxdb-adapter-supabase @supabase/supabase-js
 - `type` — `INSERT` / `UPDATE` / `DELETE`
 - `patch` / `inversePatch` — 正向和反向补丁（用于撤销）
 - `clientId` — 发起变更的客户端标识（用于过滤自身变更）
+- `createdAt` / `updatedAt` — 推送写入的日志里，`createdAt` 是这条变更在本地的编辑时刻，`updatedAt` 是推送时刻。
+  拉取方的 LWW 冲突裁决拿 `createdAt` 去比本机待推变更的编辑时刻，两侧必须是同一种时间
 
 ### 同步游标
 
@@ -41,6 +43,11 @@ npm install @aiao/rxdb @aiao/rxdb-adapter-supabase @supabase/supabase-js
 - 推送在业务写完成之后才写日志，排队的只是尾段；
 - 直写业务表的长事务会一直挡住推送，超过调用角色的 `statement_timeout` 时推送失败，下一轮同步重发；
 - 直写的多语句事务与推送改到同一行时可能互锁，PostgreSQL 中止其中一个（SQLSTATE `40P01`），适配器的写入重试会重发被中止的推送。
+
+游标只在同一个库里有效：库被推倒重建、或 `rxdb_change` 被 `TRUNCATE` 之后 `id` 从头计数，旧游标会越过新库的全部 `id`。
+所以远端还有一个身份值：单行表 `rxdb_backend` 的 `id`，经 `rxdb_backend_id()` 读出（适配器的 `backendId()`）。
+库重建时这张表跟着重建、生成新值，`TRUNCATE rxdb_change` 时触发器 `rxdb_change_rotate_backend_id` 换新值。
+同步插件 `@aiao/rxdb-plugin-sync` 把它和游标存在一起，对不上就停止同步并报 `RemoteBackendMismatchError`，见[同步策略](../collaboration/sync.md#远端重置)。
 
 ### QueryCache 模式
 
@@ -356,6 +363,14 @@ local-only 并使用 SQLite family 或 PGlite；不要用 string/base64 fallback
 已有部署重新执行一次 `docker/sql/02-rxdb-sync-functions.sql` 即可装上 `rxdb_change_serialize_append` 触发器，
 客户端无需升级，`01-rxdb-system-tables.sql` 不用重跑。升级前已经漏掉的变更不会自动补回，见[迁移说明](../migration/supabase-change-log-order.md)。
 
+### 装上远端身份
+
+已有部署先建 `rxdb_backend` 表，再重新执行新版 `docker/sql/02-rxdb-sync-functions.sql` 与生产权限脚本，最后升级客户端。
+新客户端连到没有 `rxdb_backend_id()` 的库时，同步入口报 `Could not find the function public.rxdb_backend_id`。完整步骤见[迁移说明](../migration/supabase-remote-backend.md)。
+
+有意重置远端时，推倒重建或 `TRUNCATE public.rxdb_change` 都会自动换身份，已有客户端停下来等应用改绑。
+只 `DELETE` 日志、不重置序列时游标仍然有效，身份不变；手工 `ALTER SEQUENCE ... RESTART` 认不出来，要同时换一个身份。
+
 ### 更新 UPDATE 与级联删除函数
 
 已有系统表与幂等索引的数据库，先在同一数据库事务中按 02 → 04 执行新版 `docker/sql/02-rxdb-sync-functions.sql`、`docker/sql/04-rxdb-utils-functions.sql` 并一起提交，再升级客户端。前者更新 DELETE 捕获，后者更新 UPDATE 返回行与删除日志统一写入；两者必须配套，不能在写入流量下分别提交。
@@ -370,11 +385,12 @@ local-only 并使用 SQLite family 或 PGlite；不要用 string/base64 fallback
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f docker/sql/production/rxdb-change-grants.sql
 ```
 
-脚本做三件事：
+脚本做四件事：
 
 - 收回 `anon` / `authenticated` 对 `rxdb_change` 的 `INSERT` / `UPDATE` / `DELETE` / `TRUNCATE`；
 - 收回序列 `rxdb_change_id_seq` 的 `USAGE` / `UPDATE`；
-- 保留 `SELECT`。拉取函数 `rxdb_pull_changes` 是 `SECURITY INVOKER`，以调用方身份读日志；Realtime 也按调用方身份投递日志的 `INSERT` 事件。收回 `SELECT` 会让拉取和实时同步一起失效。
+- 保留 `SELECT`。拉取函数 `rxdb_pull_changes` 是 `SECURITY INVOKER`，以调用方身份读日志；Realtime 也按调用方身份投递日志的 `INSERT` 事件。收回 `SELECT` 会让拉取和实时同步一起失效；
+- 收回远端身份表 `rxdb_backend` 的 `INSERT` / `UPDATE` / `DELETE` / `TRUNCATE`，保留 `SELECT`。客户端能改这一行，就能让所有客户端误判远端已重置而停止同步；读取经 `rxdb_backend_id()`，轮换只经 `TRUNCATE rxdb_change` 的触发器，两者都是 `SECURITY DEFINER`。
 
 脚本可以重复执行。任何含 `GRANT ALL ON ALL TABLES IN SCHEMA public` 的脚本（如 `docker/sql/01-rxdb-system-tables.sql`）重跑后会把权限放宽回去，之后要再执行一次本脚本，所以它总是最后执行。仓库的开发初始化脚本（`docker/init-db.sh`）与 CI 的 Supabase 环境都在 01～04 之后加载它，开发库与生产同口径；仓库的 Supabase 测试对 `rxdb_change` 的预置与清理经 `service_role` 身份，`anon` 只读。
 
@@ -441,6 +457,13 @@ ERROR: function rxdb_mutations does not exist
 确保已在 Supabase 数据库中创建所需的 RPC 函数（`rxdb_mutations`、`get_descendants` 等）。
 
 新客户端连旧版 SQL 时，推送报 `Could not find the function public.rxdb_mutations(p_changes, p_deletes, p_skip_sync, p_updates, p_upserts)`：按[迁移说明](../migration/supabase-update-push.md)在同一事务中更新新版 02 与 04，再重试。
+
+同步入口报 `Could not find the function public.rxdb_backend_id`：库里还没有远端身份，按[远端身份迁移说明](../migration/supabase-remote-backend.md)建表并重跑 02。
+
+### 同步报 RemoteBackendMismatchError
+
+本地游标属于另一个远端：远端被推倒重建、`rxdb_change` 被 `TRUNCATE`，或者 `supabaseUrl` 被改到了另一个项目。同步停在原地，本地数据没有被改动。
+确认新远端就是要同步的那一个之后，调 `rxdb.syncManager.rebindRemoteBackend()` 再 `pull({ fetchAll: true })`；地址配错时改回原地址即可，不要改绑。
 
 ### Realtime 未收到变更
 

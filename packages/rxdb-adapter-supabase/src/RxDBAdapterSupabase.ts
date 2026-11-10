@@ -173,6 +173,24 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     return this.#databaseVersion;
   }
 
+  /**
+   * 远端身份：`rxdb_backend` 单行表里的 id
+   *
+   * @returns 远端库的身份值；库重建或 `TRUNCATE rxdb_change` 后换新值
+   * @throws {SupabaseDataError} 远端没有身份行（参考 SQL 未执行，或那一行被删）
+   *
+   * @remarks
+   * 不缓存：远端可能在连接期间被重建，同步插件每次与远端交换数据之前都要读到当前值。
+   */
+  async backendId(): Promise<string> {
+    const { data, error, status } = await this.#client.rpc('rxdb_backend_id');
+    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to get backend id');
+    if (typeof data !== 'string' || data.length === 0) {
+      throw new SupabaseDataError('Failed to get backend id: public.rxdb_backend has no row');
+    }
+    return data;
+  }
+
   // ============================================
   // 批量操作
   // ============================================

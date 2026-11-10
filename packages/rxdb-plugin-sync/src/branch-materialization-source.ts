@@ -39,11 +39,12 @@ import {
   type SwitchVersionActions,
   type TransactionExecutor
 } from '@aiao/rxdb';
-import type { SyncManager } from './SyncManager.js';
 import { ancestorBranchIdsFrom, type BranchLineageReader } from './branch-utils.js';
 import { buildDependencyGraph } from './dependency-graph.js';
 import { pullAncestorBranchChanges } from './pull-ancestor-changes.js';
 import { resolveCascadeFilter } from './pull-repository.js';
+import { instantiateSyncRecord } from './remote-backend.js';
+import type { SyncManager } from './SyncManager.js';
 import { topologicalSortForPull } from './topological-sort.js';
 
 /** 每页最多向远端要多少条；与 `pullRepository` 的默认批量同值 */
@@ -234,12 +235,15 @@ const executorReaders = (executor: TransactionExecutor): ScopeReaders => ({
 });
 
 /**
- * 取远端适配器。
+ * 核对远端身份后取远端适配器。
  *
  * @throws {@link RxDBError} 没配远端时——`remoteAdapter$` 在那种库上永远不发值，等下去就是挂死
+ * @throws `RemoteBackendMismatchError` 本地同步记录属于另一个远端时：续拉可能跨会话，
+ *   冻结与续拉之间远端被重建过，就不能拿冻结时的截止 id 去新库上拉
  */
 const remoteAdapterOf = async (sm: SyncManager): Promise<RxDBAdapterRemoteBase> => {
   if (!sm.rxdb.config.sync?.remote?.adapter) throw new RxDBError('Remote adapter not configured.');
+  await sm.verifyRemoteBackend();
   const { adapter } = await sm.getRemoteRepositories();
   return adapter;
 };
@@ -431,7 +435,7 @@ export const createSyncBranchMaterializationSource = (sm: SyncManager): BranchMa
             branchId: context.targetBranchId,
             syncType: getSyncType(metadata, rxdb.entitySync)
           },
-          () => rxdb.entityManager.instantiate(RxDBSync)
+          () => instantiateSyncRecord(sm)
         );
         // 水位结算到冻结的截止 id：物化交出的正是 `<= cutoff` 的全部变更，之后的交给普通 pull。
         await syncRepository.update(record, {

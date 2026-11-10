@@ -110,8 +110,9 @@ await sync.syncRepository('public', 'Todo', { direction: 'push' });
 
 当 pull 或 sync 过程中检测到本地未推送变更与远程变更命中同一实体时，系统会先进入冲突检测，再默认使用 **Last Write Wins (LWW)** 策略：
 
-- 比较 `createdAt` 时间戳，较新的修改获胜
-- 时间戳相等时，本地修改优先
+- 比较两侧的编辑时刻（变更的 `createdAt`），较晚的修改获胜。本地一侧取该实体最后一条未推送的变更；远端一侧取推送方写入时的编辑时刻，Supabase 适配器把它原样存进 `rxdb_change.createdAt`，推送时刻另存在 `updatedAt`，所以离线很久才推送的一方不会凭推送时刻压过别人更晚的编辑
+- 编辑时刻相等时按两侧 `clientId` 的字典序决胜，各端独立裁决也会收敛到同一个结果
+- 两侧时刻来自不同设备的时钟：时钟偏快的设备在冲突中占优，这是 LWW 本身的限制
 
 当前运行时会自动执行两种结果：
 
@@ -121,23 +122,51 @@ await sync.syncRepository('public', 'Todo', { direction: 'push' });
 如果自定义 resolver 返回 `MERGE` 或 `DEFER`，运行时会抛出错误并发出冲突待处理事件，避免在没有持久化冲突状态的情况下静默丢失远端变更。
 
 ```ts
-import type { ConflictResolver, Conflict, ConflictResolution } from '@aiao/rxdb';
+import { LWWConflictResolver, type Conflict, type ConflictResolution, type ConflictResolver } from '@aiao/rxdb';
 
-class MyConflictResolver implements ConflictResolver {
-  async resolve(context: Conflict): Promise<ConflictResolution> {
-    // 自定义冲突解决逻辑：本地修改时间更新则保留本地
-    const localTime = context.local?.updatedAt?.getTime() ?? 0;
-    const remoteTime = context.remote?.updatedAt?.getTime() ?? 0;
-    return localTime >= remoteTime ? { type: 'KEEP_LOCAL' } : { type: 'KEEP_REMOTE' };
+// 设置类数据以远端为准，其余照常按 LWW
+class SettingsFollowRemote implements ConflictResolver {
+  readonly #lww = new LWWConflictResolver();
+
+  async resolve(conflict: Conflict): Promise<ConflictResolution> {
+    if (conflict.entityKey.startsWith('public:Settings:')) return { type: 'KEEP_REMOTE' };
+    return this.#lww.resolve(conflict);
   }
 }
 
 const result = await rxdb.syncManager.syncRepository('public', 'Todo', {
   pull: {
-    conflictResolver: new MyConflictResolver()
+    conflictResolver: new SettingsFollowRemote()
   }
 });
 ```
+
+### 远端重置
+
+拉取游标是远端变更日志的自增 id，只在同一个远端库里有效。远端重建、或变更日志被清空并重新计数之后，旧游标会越过新库的全部 id。
+为此远端适配器提供一个身份值（`backendId()`），同步插件把它和游标存在同一条 `RxDBSync` 记录里，每次与远端交换数据之前先比对：
+
+- 对不上时，`pull` / `push` / `sync`、各个按仓库的入口、`bulkSync`、`syncBranches` 与待拉计数一律抛 `RemoteBackendMismatchError`，
+  同一个错误写进 `rxdb.syncState` 的 `lastError`，本地数据不动；
+- 不会自动改绑：远端地址被改到另一个项目时报的也是这个错。确认新远端就是要同步的那一个之后，应用调
+  `rxdb.syncManager.rebindRemoteBackend()`，所有不属于新远端的拉取游标被清空，下一次拉取从头全量拉；推送水位不动，
+  已经推到旧远端的本地变更不会重推。
+
+```ts
+import { RemoteBackendMismatchError } from '@aiao/rxdb-plugin-sync';
+
+try {
+  await rxdb.syncManager.sync();
+} catch (error) {
+  if (!(error instanceof RemoteBackendMismatchError)) throw error;
+  if (await confirm('远端已重建，改为从新远端重新拉取？')) {
+    await rxdb.syncManager.rebindRemoteBackend();
+    await rxdb.syncManager.pull({ fetchAll: true });
+  }
+}
+```
+
+Supabase 的服务端配置与已有部署的升级步骤见[远端身份迁移说明](../migration/supabase-remote-backend.md)。
 
 ### 监听同步事件
 

@@ -20,7 +20,7 @@ import {
   type SyncOptions,
   type TransactionExecutor
 } from '@aiao/rxdb';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { SyncManager } from '../SyncManager.js';
 import { createSyncBranchMaterializationSource } from '../branch-materialization-source.js';
 import { Tag, User } from './fixtures/test-entities.js';
@@ -86,11 +86,13 @@ const range = (from: number, to: number): number[] => Array.from({ length: to - 
 
 const createSource = (changes: RemoteChange[]) => {
   const { remote, calls } = createRemote(changes);
+  const verifyRemoteBackend = vi.fn(async () => undefined);
   const sm = {
     rxdb: { config: { entities: [User, Tag], sync: { remote: { adapter: 'remote' } } } },
+    verifyRemoteBackend,
     getRemoteRepositories: async () => ({ adapter: remote })
   } as unknown as SyncManager;
-  return { source: createSyncBranchMaterializationSource(sm), calls };
+  return { source: createSyncBranchMaterializationSource(sm), calls, verifyRemoteBackend };
 };
 
 const intentOf = (cutoffs: Record<string, number>, lineage = ['main']): BranchMaterializationIntent => ({
@@ -117,6 +119,42 @@ const asPage = (page: BranchMaterializationPagePayload, pageIndex: number): Bran
 });
 
 describe('同步插件的分支物化来源', () => {
+  describe('远端身份', () => {
+    it('续拉之前先核对远端身份：冻结与续拉之间远端可能被重建', async () => {
+      const { source, calls, verifyRemoteBackend } = createSource([changeOf(User, 1)]);
+
+      await collect(
+        source.pages({
+          targetBranchId: 'feature',
+          intent: intentOf({ [USER]: 1 }),
+          fromPageIndex: 0,
+          previousPage: null
+        })
+      );
+
+      expect(verifyRemoteBackend).toHaveBeenCalledTimes(1);
+      expect(calls.length).toBeGreaterThan(0);
+    });
+
+    it('远端身份对不上时一次远端请求都不发', async () => {
+      const { source, calls, verifyRemoteBackend } = createSource([changeOf(User, 1)]);
+      const mismatch = new Error('remote backend changed');
+      verifyRemoteBackend.mockRejectedValue(mismatch);
+
+      await expect(
+        collect(
+          source.pages({
+            targetBranchId: 'feature',
+            intent: intentOf({ [USER]: 1 }),
+            fromPageIndex: 0,
+            previousPage: null
+          })
+        )
+      ).rejects.toBe(mismatch);
+      expect(calls).toEqual([]);
+    });
+  });
+
   describe('分页', () => {
     it('按 1000 条一页跨页拉，截到冻结的 cutoff 为止，最后一页收口', async () => {
       const { source } = createSource(range(1, 2500).map(id => changeOf(User, id)));
@@ -299,6 +337,7 @@ describe('同步插件的分支物化来源', () => {
           config: { entities: [User, Tag], sync: databaseSync },
           entitySync: createEntitySyncResolver(databaseSync, new Map([[getEntityMetadata(User), override]]))
         },
+        verifyRemoteBackend: async () => undefined,
         getLocalRepositories: async () => ({ adapter: { getRepository: () => reader } }),
         getRemoteRepositories: async () => ({ adapter: remote })
       } as unknown as SyncManager;

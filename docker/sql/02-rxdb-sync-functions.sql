@@ -165,6 +165,43 @@ BEFORE INSERT ON public.rxdb_change
 FOR EACH STATEMENT EXECUTE FUNCTION public.rxdb_change_serialize_append();
 
 -- ============================================
+-- 远端身份（rxdb_backend，表在 01）
+-- ============================================
+-- 客户端把 rxdb_backend_id() 的返回值与拉取游标存在一起，同步前比对，对不上就停止同步。
+-- 清空变更日志等于重建：id 可能从头计数（TRUNCATE ... RESTART IDENTITY），旧游标随之失效，
+-- 所以语句级 AFTER TRUNCATE 触发器换一个新身份。只 DELETE 不重置序列时游标仍然有效，不换。
+-- 两个函数都是 SECURITY DEFINER：生产权限撤销了客户端对 rxdb_backend 的写权限。
+CREATE OR REPLACE FUNCTION public.rxdb_rotate_backend_id()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+BEGIN
+    UPDATE public.rxdb_backend
+    SET id = pg_catalog.gen_random_uuid(), "createdAt" = pg_catalog.now()
+    WHERE singleton;
+    RETURN NULL;
+END;
+$$;
+
+CREATE OR REPLACE TRIGGER rxdb_change_rotate_backend_id
+AFTER TRUNCATE ON public.rxdb_change
+FOR EACH STATEMENT EXECUTE FUNCTION public.rxdb_rotate_backend_id();
+
+CREATE OR REPLACE FUNCTION public.rxdb_backend_id()
+RETURNS uuid
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+    SELECT id FROM public.rxdb_backend WHERE singleton
+$$;
+
+GRANT EXECUTE ON FUNCTION public.rxdb_backend_id() TO anon, authenticated;
+
+-- ============================================
 -- 基于持久变更快照的 Filter Sync
 -- ============================================
 CREATE OR REPLACE FUNCTION public.rxdb_jsonb_matches_rule(
