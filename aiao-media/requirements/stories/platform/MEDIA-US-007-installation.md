@@ -51,7 +51,7 @@ tags: [installation, admin, auth, self-hosted, cloudflare]
 
 ## 技术笔记
 
-本地验证覆盖 Node SQLite、Worker 的持久对象寻址、PGlite 中的真实 PostgreSQL 授权函数和 Angular 界面；上游 Auth 请求使用 fixture，真实两地部署不在本次验收范围内。安装状态保存于单个 Installation Durable Object 或受保护的 `installation.sqlite`；SQL 初始化授权与管理员变更共用数据库事务锁。管理员会话只存内存，过期后重新登录。
+本地验证覆盖 Node SQLite、Worker 的持久对象寻址、PGlite 中的真实 PostgreSQL 授权函数和 Angular 界面；上游 Auth 请求使用 fixture，真实两地部署不在本次验收范围内。安装状态保存于单个 Installation Durable Object 或受保护的 `installation.sqlite`；SQL 初始化授权与管理员变更共用数据库事务锁。管理员访问令牌保存在当前标签页的 `sessionStorage`，刷新后可恢复，关闭标签页或过期后重新登录。
 
 国内故障修复另在隔离数据库连接真实 GoTrue v2.189.0 与 PostgREST v14.12，验证重复邮箱、原密码错误、授权前中断、授权成功但响应丢失后的重试、管理员登录、受保护接口、重启保留状态及已有站点接入。对应发布记录见[国内部署记录](../../plans/self-hosted-release-20261109.md)。
 

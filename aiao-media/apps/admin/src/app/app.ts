@@ -10,6 +10,63 @@ interface Session {
   user: { id: string; email?: string };
 }
 
+const sessionStorageKey = 'aiao-media-admin-session-v1';
+
+function storage(): Storage | null {
+  try {
+    return globalThis.sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+function clearStoredSession(): void {
+  try {
+    storage()?.removeItem(sessionStorageKey);
+  } catch {
+    return;
+  }
+}
+
+function readSession(): Session | null {
+  let value: string | null;
+  try {
+    value = storage()?.getItem(sessionStorageKey) ?? null;
+  } catch {
+    return null;
+  }
+  if (!value) return null;
+  try {
+    const candidate = JSON.parse(value) as Partial<Session>;
+    if (
+      typeof candidate.accessToken !== 'string' ||
+      !candidate.accessToken ||
+      typeof candidate.expiresAt !== 'number' ||
+      !Number.isFinite(candidate.expiresAt) ||
+      candidate.expiresAt <= Date.now() ||
+      !candidate.user ||
+      typeof candidate.user.id !== 'string' ||
+      !candidate.user.id
+    )
+      throw new Error('Invalid session');
+    return candidate as Session;
+  } catch {
+    clearStoredSession();
+    return null;
+  }
+}
+
+function writeSession(value: Session | null): void {
+  const target = storage();
+  if (!target) return;
+  try {
+    if (value) target.setItem(sessionStorageKey, JSON.stringify(value));
+    else target.removeItem(sessionStorageKey);
+  } catch {
+    return;
+  }
+}
+
 @Component({
   imports: [AdminConsole, FormsModule],
   selector: 'aiao-media-admin-root',
@@ -43,6 +100,8 @@ export class App implements OnInit {
     };
   });
   ngOnInit(): void {
+    const saved = readSession();
+    if (saved) this.session.set(saved);
     void this.load();
   }
   async load(): Promise<void> {
@@ -69,14 +128,18 @@ export class App implements OnInit {
   }
   async login(): Promise<void> {
     await this.run(async () => {
-      this.session.set(
-        await this.request('/api/admin/login', { email: this.form.email, password: this.form.password })
-      );
+      const session = await this.request<Session>('/api/admin/login', {
+        email: this.form.email,
+        password: this.form.password
+      });
+      this.session.set(session);
+      writeSession(session);
       this.form.password = '';
     });
   }
   logout(): void {
     this.session.set(null);
+    writeSession(null);
     this.form.password = '';
   }
   private async run(operation: () => Promise<void>): Promise<void> {

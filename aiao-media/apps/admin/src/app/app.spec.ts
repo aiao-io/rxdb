@@ -9,6 +9,7 @@ const ready = {
   auth: { url: 'https://project.supabase.co', anonKey: 'sb_publishable_fixture' }
 };
 afterEach(() => {
+  sessionStorage.clear();
   vi.unstubAllGlobals();
   TestBed.resetTestingModule();
 });
@@ -96,8 +97,22 @@ describe('App', () => {
     );
     await app.login();
     expect((await app.client.authorization()).session.access_token).toBe('fixture-session');
+    expect(JSON.parse(sessionStorage.getItem('aiao-media-admin-session-v1')!)).toMatchObject({
+      accessToken: 'fixture-session'
+    });
     app.logout();
     await expect(app.client.authorization()).rejects.toThrow('登录已过期');
     expect(app.session()).toBeNull();
+    expect(sessionStorage.getItem('aiao-media-admin-session-v1')).toBeNull();
+  });
+
+  it('刷新后恢复当前标签页的管理员会话', async () => {
+    const saved = { accessToken: 'stored-session', expiresAt: Date.now() + 60000, user: { id: 'owner' } };
+    sessionStorage.setItem('aiao-media-admin-session-v1', JSON.stringify(saved));
+    vi.mocked(fetch).mockResolvedValueOnce(Response.json(ready));
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    await vi.waitFor(() => expect(fixture.componentInstance.installation()).not.toBeNull());
+    expect(fixture.componentInstance.session()).toEqual(saved);
   });
 });
