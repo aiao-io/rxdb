@@ -372,8 +372,8 @@ describe('switch-result.utils', () => {
 
       expect(result.inserts).toHaveLength(1);
       const sql = result.inserts[0].sql;
-      // PostgreSQL upsert 使用 ON CONFLICT (id) DO UPDATE SET
-      expect(sql).toContain('ON CONFLICT (id) DO UPDATE SET');
+      // PostgreSQL upsert 使用 ON CONFLICT ("<主键物理列>") DO UPDATE SET
+      expect(sql).toContain('ON CONFLICT ("id") DO UPDATE SET');
     });
   });
 });

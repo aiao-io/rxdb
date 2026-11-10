@@ -127,7 +127,11 @@ export const generate_tree_sql = (
       fieldAliasMap: build_tree_field_alias_map(metadata)
     });
     children_join = joinSQL;
-    children_rule_sql = buildRuleGroup(rule_group, fieldAliasMap, metadata, adapter, ruleParams);
+    // 递归成员里没有 `_`：EXISTS 的关联条件、keyValue / 数组列都要挂在 `children` 上
+    children_rule_sql = buildRuleGroup(rule_group, fieldAliasMap, metadata, adapter, ruleParams, {
+      alias: TREE_RECURSIVE_ALIAS,
+      reservedAliases: TREE_RESERVED_ALIASES
+    });
   }
   const children_where_query = [level_sql, children_rule_sql].filter(Boolean).join(' AND ');
   if (children_where_query) children_where = `WHERE ${children_where_query}`;

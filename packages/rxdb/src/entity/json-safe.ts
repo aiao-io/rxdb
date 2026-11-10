@@ -16,6 +16,17 @@ export const isPlainRecord = (value: unknown): value is Record<string, unknown> 
 };
 
 /**
+ * 稀疏数组的第一个空位下标；没有空位为 `undefined`。
+ *
+ * @remarks
+ * 空位不是 JSON 值：`every` / `forEach` / `map` / `filter` 都跳过它，按这些方法写的「逐项校验」
+ * 会把空位放过去，之后按下标读出来的是 `undefined`；`JSON.stringify` 又把它写成 `null`。
+ * 字段描述解析、值校验与注册期校验共用这一个判据。
+ */
+export const firstArrayHole = (items: readonly unknown[]): number | undefined =>
+  Array.from(items.keys()).find(index => !Object.hasOwn(items, index));
+
+/**
  * 递归路径上的祖先容器集合，用于识别循环引用。
  *
  * @remarks

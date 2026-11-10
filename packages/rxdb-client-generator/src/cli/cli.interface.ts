@@ -26,7 +26,8 @@ export interface RxDBClientCLIentGeneratorOptions extends RxDBClientGeneratorOpt
    * 额外装载的 Repository 生成器，每项形如 `<模块>#<导出名>`。
    *
    * @remarks
-   * 内置的 `Repository` / `TreeRepository` 自动注册，这里只声明插件带来的生成器。
+   * 只内置普通实体的 `Repository`；树、图等扩展生成器由插件包提供，用到 `@TreeEntity` / `@GraphEntity`
+   * 就必须在这里显式装载，否则生成时报缺少生成器（错误信息会给出该写的规格）。
    * 模块可以是包名、包子路径导出、Node `#imports` 或相对路径；导出必须是一个可 `new` 的生成器类。
    * 重名会被拒绝而不是顶替已注册的同名生成器。
    *
@@ -53,7 +54,12 @@ export interface RxDBClientCLIentGeneratorOptions extends RxDBClientGeneratorOpt
    *
    * @example
    * ```jsonc
-   * { "repositoryGenerators": ["@aiao/rxdb-plugin-graph/generator#GraphRepositoryGenerator"] }
+   * {
+   *   "repositoryGenerators": [
+   *     "@aiao/rxdb-plugin-tree/generator#TreeRepositoryGenerator",
+   *     "@aiao/rxdb-plugin-graph/generator#GraphRepositoryGenerator"
+   *   ]
+   * }
    * ```
    */
   repositoryGenerators?: string[];

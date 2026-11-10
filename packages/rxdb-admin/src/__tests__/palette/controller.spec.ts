@@ -438,6 +438,65 @@ describe('PaletteController', () => {
       controller.registerSource(menuSource([item('a', '资产')]));
       expect(controller.value.total).toBe(1);
     });
+
+    it('注销正在搜索的异步源：它的请求被中止，迟到结果不会进入随后注册的同名来源', async () => {
+      const { controller } = setup();
+      const old = deferred<PaletteItem[]>();
+      const signals: AbortSignal[] = [];
+      const unregister = controller.registerSource({
+        id: 'records',
+        search: (_query, signal) => {
+          signals.push(signal);
+          return old.promise;
+        }
+      });
+      controller.open();
+      controller.setQuery('a');
+      await vi.advanceTimersByTimeAsync(100);
+      unregister();
+      expect(signals[0].aborted).toBe(true);
+      controller.registerSource({ id: 'records', search: async () => [] });
+      old.resolve([item('old', 'a 旧来源')]);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(controller.value.groups.flatMap(group => group.entries.map(entry => entry.item.id))).toEqual([]);
+      expect(controller.value.loading).toBe(false);
+    });
+
+    it('被替换的旧来源迟到失败，或注销前已失败，都不记到同名新来源上', async () => {
+      const { controller } = setup();
+      const old = deferred<PaletteItem[]>();
+      const unregister = controller.registerSource({ id: 'records', search: () => old.promise });
+      controller.open();
+      controller.setQuery('a');
+      await vi.advanceTimersByTimeAsync(100);
+      unregister();
+      controller.registerSource({ id: 'records', search: async () => [] });
+      old.reject(new Error('旧来源已下线'));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(controller.value.failed).toEqual([]);
+
+      const broken = controller.registerSource({
+        id: 'other',
+        search: async () => {
+          throw new Error('fts down');
+        }
+      });
+      controller.setQuery('ab');
+      await vi.advanceTimersByTimeAsync(100);
+      expect(controller.value.failed).toEqual(['other']);
+      broken();
+      expect(controller.value.failed).toEqual([]);
+    });
+
+    it('旧的注销函数不会删掉随后注册的同名来源，重复调用没有副作用', () => {
+      const { controller } = setup();
+      const unregisterOld = controller.registerSource(menuSource([item('a', '旧菜单')]));
+      unregisterOld();
+      controller.registerSource(menuSource([item('b', '新菜单')]));
+      unregisterOld();
+      controller.open();
+      expect(controller.value.groups.flatMap(group => group.entries.map(entry => entry.item.id))).toEqual(['b']);
+    });
   });
 
   it('subscribe / changes$ 暴露状态变化', () => {

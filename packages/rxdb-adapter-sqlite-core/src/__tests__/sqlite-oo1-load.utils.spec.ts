@@ -3,9 +3,11 @@ import {
   buildOo1InitOptions,
   defaultPrintErr,
   defaultWarn,
+  isSameOo1LoadConfig,
   resolveLocateFile,
   rewriteOpfsProxyWorkerUrl,
   shouldIgnoreSqliteMessage,
+  toOo1LoadFingerprint,
   withGlobalOo1LoadLock,
   withPatchedOpfsProxyWorker,
   withSqliteApiConfig
@@ -207,6 +209,40 @@ describe('sqlite-oo1-load.utils', () => {
     it('未提供任何选项时应该返回 undefined', () => {
       expect(resolveLocateFile()).toBeUndefined();
       expect(resolveLocateFile({})).toBeUndefined();
+    });
+  });
+
+  // 两个回调各自指向自己的 WASM：只比「有没有提供」时 A → B 命中 A 的缓存，B 一次都不被调用
+  describe('locateFile 参与加载指纹', () => {
+    const locateA = (name: string) => `/a/${name}`;
+    const locateB = (name: string) => `/b/${name}`;
+
+    it('不同的 locateFile 回调不是同一份加载配置', () => {
+      expect(
+        isSameOo1LoadConfig(
+          toOo1LoadFingerprint({ locateFile: locateA }),
+          toOo1LoadFingerprint({ locateFile: locateB })
+        )
+      ).toBe(false);
+    });
+
+    it('同一个 locateFile 回调仍是同一份加载配置', () => {
+      expect(
+        isSameOo1LoadConfig(
+          toOo1LoadFingerprint({ locateFile: locateA }),
+          toOo1LoadFingerprint({ locateFile: locateA })
+        )
+      ).toBe(true);
+    });
+
+    it('源码相同的两个闭包也按不同配置处理（不拿 toString 判相等）', () => {
+      const make = (root: string) => (name: string) => `${root}/${name}`;
+      expect(
+        isSameOo1LoadConfig(
+          toOo1LoadFingerprint({ locateFile: make('/x') }),
+          toOo1LoadFingerprint({ locateFile: make('/y') })
+        )
+      ).toBe(false);
     });
   });
 

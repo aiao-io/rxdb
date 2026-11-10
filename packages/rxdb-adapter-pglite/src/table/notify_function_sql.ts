@@ -13,6 +13,11 @@
  * 2. 批量发送 NOTIFY 消息（包含 operation 和 id 数组）
  * 3. 使用 JSON 格式传递 payload
  *
+ * @remarks
+ * 函数体按字面量 `id` 取行号，只适用于主键列就叫 `id` 的表。适配器只把它挂在 `rxdb_change` / `rxdb_branch` /
+ * `rxdb_migration` 三张系统表上（`PGliteClient` 也只监听这三个频道）；业务表的变更由变更触发器写进 `rxdb_change`，
+ * 主键列经 `columnName` 改了名的业务表不会走到这里。
+ *
  * @returns SQL 语句，创建 notify_change() 函数
  */
 export function generateNotifyFunctionSQL(): string {

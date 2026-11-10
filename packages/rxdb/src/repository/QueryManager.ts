@@ -1,10 +1,10 @@
 import { isEqual, performChunk } from '@aiao/utils';
 import { Observable } from 'rxjs';
-import type { EntityType, EntityUpdateData } from '../entity/entity.interface.js';
+import type { EntityType, EntityUpdateData, RxDBEntityId } from '../entity/entity.interface.js';
 import merge_create from '../query/merge_create.js';
 import merge_remove from '../query/merge_remove.js';
 import merge_update from '../query/merge_update.js';
-import { isStaleEventPayload } from '../query/stale-event.utils.js';
+import { isStaleEventPayload, readUpdatedAtTime } from '../query/stale-event.utils.js';
 import {
   ENTITY_LOCAL_CREATE_EVENT,
   ENTITY_LOCAL_REMOVE_EVENT,
@@ -17,8 +17,10 @@ import {
   RxDBEntityLocalRemovedEventData,
   RxDBEntityLocalUpdatedEventData
 } from '../rxdb-events.js';
-import { deterministicStringify, getEntityStatus } from '../rxdb-utils.js';
+import { deterministicStringify, getEntityStatus, tryGetEntityMetadata } from '../rxdb-utils.js';
 import type { RxDB } from '../RxDB.js';
+import type { WorktreeTableSet } from '../system/worktree-table-set.js';
+import { restoreEventDates } from './event-date-payload.utils.js';
 import { Fingerprint } from './fingerprint.utils.js';
 import { QueryOptions } from './QueryManager.interface.js';
 import { QueryTask } from './QueryTask.js';
@@ -50,27 +52,68 @@ const isUpdatedAtOnlyPatch = (entity: RxDBEntityLocalEventData): boolean => {
 };
 
 /**
- * 判断一组查询规则的 `where` 是否引用了某个字段（递归穿透嵌套规则组）。
+ * 规则或排序字段读的是不是某个实体的 `updatedAt`。
+ *
+ * @remarks
+ * 主实体写成 `updatedAt`，经关系读写成以 `.updatedAt` 结尾的路径（`author.updatedAt`）。
+ * 不追究路径落在哪个实体上：判错的代价只是多合并一次，判漏则是查询停在旧答案上。
  */
-const whereReferencesField = (where: unknown, field: string): boolean => {
+const readsUpdatedAt = (field: unknown): boolean =>
+  typeof field === 'string' && (field === 'updatedAt' || field.endsWith('.updatedAt'));
+
+/**
+ * 判断 `where` 是否读了任何实体的 `updatedAt`：递归穿透嵌套规则组，以及 EXISTS / NOT EXISTS
+ * 的子查询（规则上的 `where`）。
+ */
+const whereReadsUpdatedAt = (where: unknown): boolean => {
   if (!where || typeof where !== 'object') return false;
   const rules = (where as { rules?: unknown[] }).rules;
   if (!Array.isArray(rules)) return false;
   return rules.some(rule => {
-    const item = rule as { field?: string; rules?: unknown[] };
-    if (Array.isArray(item.rules)) return whereReferencesField(item, field);
-    return item.field === field;
+    const item = rule as { field?: unknown; rules?: unknown[]; where?: unknown };
+    if (Array.isArray(item.rules)) return whereReadsUpdatedAt(item);
+    return readsUpdatedAt(item.field) || whereReadsUpdatedAt(item.where);
   });
 };
 
 /**
- * 判断一组排序规则是否引用了某个字段。
+ * 收集 `where` 在主实体上直接读的字段名：穿透嵌套规则组；跨关系的路径（`author.name`）与
+ * EXISTS 子查询（规则上的 `where`）读的是别的实体，不算。
+ */
+const whereColumns = (where: unknown, columns = new Set<string>()): Set<string> => {
+  const rules = (where as { rules?: unknown[] } | undefined)?.rules;
+  if (!Array.isArray(rules)) return columns;
+  for (const rule of rules) {
+    const item = rule as { field?: unknown; rules?: unknown[]; where?: unknown };
+    if (Array.isArray(item.rules)) whereColumns(item, columns);
+    else if (item.where === undefined && typeof item.field === 'string' && !item.field.includes('.')) {
+      columns.add(item.field);
+    }
+  }
+  return columns;
+};
+
+/**
+ * 收集 `orderBy` 在主实体上直接读的字段名：只看顶层的 `field`（排序没有嵌套规则组）；
+ * 带 `.` 的跨关系路径读的是别的实体，不算。
+ */
+const orderByColumns = (orderBy: unknown, columns = new Set<string>()): Set<string> => {
+  if (!Array.isArray(orderBy)) return columns;
+  for (const item of orderBy) {
+    const field = (item as { field?: unknown }).field;
+    if (typeof field === 'string' && !field.includes('.')) columns.add(field);
+  }
+  return columns;
+};
+
+/**
+ * 判断一组排序规则是否读了任何实体的 `updatedAt`。
  *
  * @remarks
  * 只看 `orderBy` 顶层的 `field`：排序不像 `where` 那样有嵌套规则组。
  */
-const orderByReferencesField = (orderBy: unknown, field: string): boolean =>
-  Array.isArray(orderBy) && orderBy.some(item => (item as { field?: string }).field === field);
+const orderByReadsUpdatedAt = (orderBy: unknown): boolean =>
+  Array.isArray(orderBy) && orderBy.some(item => readsUpdatedAt((item as { field?: unknown }).field));
 
 export type MergeQueryTaskCreateFn<T extends EntityType = EntityType> = (
   task: QueryTask<T>,
@@ -138,6 +181,19 @@ export class QueryManager<T extends EntityType> {
   #need_change_handler!: (event: EntityLocalCreatedEvent | EntityLocalUpdatedEvent | EntityLocalRemovedEvent) => void;
 
   /**
+   * 本实体类型每一行最近见过的版本（`updatedAt` 毫秒数），只记 UPDATE 的新态与 DELETE 前的最后一版。
+   *
+   * @remarks
+   * 变更事件分批投递，不同写入路径之间不保序：撤销直接派发的 DELETE 可以先于原先那次保存的
+   * CREATE 送达。CREATE 的 JS 增量合并照单全收的话，已经删掉、改过的行就按过期负载回到结果里。
+   * 见过不早于 CREATE 负载的版本，说明这条 CREATE 已经过期，交回 SQL 重算——判多只是多查一次，
+   * 判漏是结果里多一行库里没有的数据。迟到窗口是毫秒级，只留最近 {@link QueryManager.#MAX_SEEN_VERSIONS} 行。
+   */
+  readonly #seen_versions = new Map<RxDBEntityId, number>();
+
+  static readonly #MAX_SEEN_VERSIONS = 1024;
+
+  /**
    * 构造函数
    *
    * @param rxdb RxDB 实例，用于访问数据库和事件系统
@@ -163,6 +219,7 @@ export class QueryManager<T extends EntityType> {
       task.clean();
     }
     this.#query_task_map.clear();
+    this.#seen_versions.clear();
   }
 
   /**
@@ -284,35 +341,35 @@ export class QueryManager<T extends EntityType> {
       rxdb: this.rxdb,
       depEntityTypeMap: this.#dep_entity_type_map,
       serialize: this.#serialize,
-      onClean: this.#on_clean
+      onClean: this.#detach_task,
+      onError: this.#detach_task
     });
     return task;
   }
 
-  #on_clean = (key: string) => {
-    this.#query_task_map.delete(key);
+  /**
+   * 把任务从缓存表摘下，按身份比对。
+   *
+   * @remarks
+   * 两个调用点：任务被清理，或一轮查询失败（错误会终结它的全部观察者，分发途中重订阅的
+   * 要落到新任务上重新执行）。同一键下可能已经是接替它的新任务，只按键删会把新任务一起摘掉。
+   */
+  #detach_task = (key: string, task: object): void => {
+    if (this.#query_task_map.get(key) === task) this.#query_task_map.delete(key);
   };
 
   #serialize = (data: RxDBEntityLocalEventData<T>): InstanceType<T> => {
     const entityType = data.entityType || this.rxdb.schemaManager.getEntityType(data.entity, data.namespace)!;
-    let entityData: EntityUpdateData<T> = { id: data.id } as EntityUpdateData<T>;
-    switch (data.type) {
-      case 'INSERT':
-      case 'UPDATE':
-        entityData = {
-          ...entityData,
-          ...data.patch
-        };
-        break;
-      case 'DELETE':
-        entityData = {
-          ...entityData,
-          ...data.inversePatch
-        };
-        break;
-      default:
-        break;
-    }
+    // 按负载形态取值，不按负载里的 `type`：CREATE / UPDATE 的 `patch` 非空，DELETE 的 `patch` 为 `null`、
+    // 字段在 `inversePatch` 里（见各事件载荷的契约）。`RxDBChange` 元事件的 `type` 写的是那条变更行记录的
+    // 业务操作——记录一次删除的变更行，CREATE 元事件的 `type` 是 `'DELETE'`、整行却在 `patch` 里，
+    // 按 `type` 取值会合出一个只有 id 的实体
+    const payload = { id: data.id, ...(data.patch ?? data.inversePatch) };
+    // 载荷可能来自变更记录的原始 JSON（合并 / 拉取路径），日期是字符串；先还原成 `Date`，
+    // 下面的单调性守卫与可见值比较、以及造出的实体才有统一的类型。
+    // 探测元数据而不是直取：未装饰 `@Entity` 的类型（查询管线单测里的替身）没有元数据，也就没有日期属性可还原
+    const metadata = tryGetEntityMetadata(entityType);
+    const entityData = (metadata ? restoreEventDates(metadata, payload) : payload) as EntityUpdateData<T>;
     // P0-004 单调性守卫：命中缓存时 `createEntityRef` 会走 `EntityStatus.replace`，
     // 而 `replace` 的 `Object.assign(this.target, data)` **绕过 Proxy**，同时把 `_origin`
     // 重设为新 target、`_modified` 归零。事件迟到时这会把用户尚未保存的编辑连同 origin
@@ -410,15 +467,13 @@ export class QueryManager<T extends EntityType> {
       // 「只有 updatedAt」的 patch 是否无意义，取决于查询本身读不读 updatedAt：
       // where 引用了 updatedAt（按时间窗过滤的 count/find）、或 orderBy 按 updatedAt 排序
       // （「最近更新」列表）都要保留，否则过滤掉，省下不会改变匹配状态的无效刷新。
+      // 关系上的也算：`author.updatedAt`、EXISTS 子查询里的 `updatedAt` 读的是关联实体的时间戳。
       // 必须在每个任务里判，不能在事件批次层一刀切 —— 一刀切会让依赖 updatedAt 的查询
       // 永远收不到单字段时间戳变更。
       let target_entities = entities;
       if (event.type === ENTITY_LOCAL_UPDATE_EVENT) {
         const options = task.options as { where?: unknown; orderBy?: unknown };
-        if (
-          !whereReferencesField(options.where, 'updatedAt') &&
-          !orderByReferencesField(options.orderBy, 'updatedAt')
-        ) {
+        if (!whereReadsUpdatedAt(options.where) && !orderByReadsUpdatedAt(options.orderBy)) {
           target_entities = entities.filter(entity => !isUpdatedAtOnlyPatch(entity));
           if (target_entities.length === 0) {
             return;
@@ -427,6 +482,14 @@ export class QueryManager<T extends EntityType> {
       }
       switch (event.type) {
         case ENTITY_LOCAL_CREATE_EVENT: {
+          if (
+            target_entities.some(
+              entity => this.#is_superseded_create(entity) || this.#lacks_query_columns(task, entity)
+            )
+          ) {
+            task.refresh();
+            return;
+          }
           const merge_create_fn = this.#query_task_merge_create_map.get(task.type) || merge_create;
           merge_create_fn(task, target_entities as RxDBEntityLocalCreatedEventData<T>[]);
           return;
@@ -448,6 +511,135 @@ export class QueryManager<T extends EntityType> {
     }
   }
 
+  /** 这条负载是不是本管理器的实体类型。 */
+  #is_own_entity(data: RxDBEntityLocalEventData): boolean {
+    return this.rxdb.schemaManager.getEntityType(data.entity, data.namespace) === this.EntityType;
+  }
+
+  /**
+   * 记下 UPDATE 的新态、DELETE 前最后一版的 `updatedAt`（见 {@link QueryManager.#seen_versions}）。
+   *
+   * @param event - 本次实体变更事件
+   *
+   * @remarks
+   * 没有活任务时也要记：之后才建的任务首查已在删除之后，迟到的 CREATE 一样会把行加回去。
+   */
+  #remember_versions(event: EntityLocalCreatedEvent | EntityLocalUpdatedEvent | EntityLocalRemovedEvent): void {
+    if (event.type === ENTITY_LOCAL_CREATE_EVENT) return;
+    for (const data of event.entities) {
+      // 先判实体类型：每个 QueryManager 都会收到全库的事件，别人的实体不必先解析时间
+      if (!this.#is_own_entity(data)) continue;
+      const at = readUpdatedAtTime(event.type === ENTITY_LOCAL_REMOVE_EVENT ? data.inversePatch : data.patch);
+      if (at === undefined) continue;
+      const id = data.id as RxDBEntityId;
+      if ((this.#seen_versions.get(id) ?? -Infinity) >= at) continue;
+      this.#seen_versions.delete(id);
+      this.#seen_versions.set(id, at);
+      if (this.#seen_versions.size > QueryManager.#MAX_SEEN_VERSIONS) {
+        this.#seen_versions.delete(this.#seen_versions.keys().next().value!);
+      }
+    }
+  }
+
+  /**
+   * CREATE 负载是否已被同一行更晚（或同一版）的 UPDATE / DELETE 取代。
+   *
+   * @param data - CREATE 事件里的一条负载
+   * @returns 取代时为 `true`；没见过这一行的更新或删除时为 `false`
+   *
+   * @remarks
+   * 与被删那一版同时间戳也算过期：删除发生在那一版之后。撤销 / 重做写出的是单调递增的新时间戳，
+   * 删除之后的重建因此不会被误判。CREATE 负载缺 `updatedAt` 时证明不了它更新，同样按过期处理。
+   */
+  #is_superseded_create(data: RxDBEntityLocalEventData): boolean {
+    if (!this.#is_own_entity(data)) return false;
+    const seen = this.#seen_versions.get(data.id as RxDBEntityId);
+    if (seen === undefined) return false;
+    return (readUpdatedAtTime(data.patch) ?? -Infinity) <= seen;
+  }
+
+  /**
+   * CREATE 负载是否缺查询要读的列（`where` 的条件列或 `orderBy` 的排序列）。
+   *
+   * @param task - 要合并进去的查询任务
+   * @param data - CREATE 事件里的一条负载
+   * @returns 缺任何一个主实体上被 `where` 或 `orderBy` 读的列时为 `true`
+   *
+   * @remarks
+   * JS 增量合并按「CREATE 负载是完整的行」判断成员资格与位置。负载缺 `where` 要读的列时（只带 `id`、
+   * 适配器只发了部分字段），缺的列按空值判：把属于结果的行丢掉，订阅者停在旧结果上，而库里这一行已经存在。
+   * 缺 `orderBy` 要读的列时，行按 `undefined` 参与排序：顺序错，`limit` 窗口里也会留下不该留的行、
+   * 漏掉该进窗口的行。两种情况都证明不了成员资格或位置，只能回库里查。
+   *
+   * 主键 `id` 由事件自带，不算缺；关系名与跨关系路径（`author.name`）不是主实体的列，不看。
+   */
+  #lacks_query_columns(task: QueryTask<T>, data: RxDBEntityLocalEventData): boolean {
+    const metadata = tryGetEntityMetadata(this.EntityType);
+    if (!metadata) return false;
+    const { where, orderBy } = task.options as { where?: unknown; orderBy?: unknown };
+    const patch = (data.patch ?? {}) as Record<string, unknown>;
+    for (const column of whereColumns(where, orderByColumns(orderBy))) {
+      if (column !== 'id' && metadata.propertyMap.has(column) && !(column in patch)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * 过滤出与当前查询任务相关、且本实例挂着的那套表读得到的实体负载（US-314 B2.3）。
+   *
+   * @param event - 本次实体变更事件
+   * @param tableSet - 按哪一套表判定
+   * @returns 相关的实体负载
+   *
+   * @remarks
+   * 别的可写检出位写的行不在这套表里，合进来会把缓存里同 id 的实体改成另一套表上的值。
+   */
+  #relevant_entities(
+    event: EntityLocalCreatedEvent | EntityLocalUpdatedEvent | EntityLocalRemovedEvent,
+    tableSet: WorktreeTableSet
+  ): RxDBEntityLocalEventData[] {
+    return event.entities.filter(d => {
+      const entityType = this.rxdb.schemaManager.getEntityType<T>(d.entity, d.namespace);
+      return (
+        entityType &&
+        this.#dep_entity_type_map.has(entityType) &&
+        tableSet.accepts(this.rxdb.schemaManager.getEntityMetadata(d.entity, d.namespace), d.tableSetSuffix)
+      );
+    });
+  }
+
+  /**
+   * 分片的消费函数：在**执行时**而不是接收时核对任务与表集。
+   *
+   * @param event - 本次实体变更事件
+   * @param received - 接收事件时的表集与按它筛好的负载
+   * @returns 交给 `performChunk` 的消费函数
+   *
+   * @remarks
+   * 分片排在 `requestIdleCallback` 之后，接收与执行之间什么都可能发生：
+   * - 任务被 `clean()` 摘掉（最后一个订阅者退订、`destroy()`）。合进去不会有人看，却会经
+   *   `#serialize` 往身份缓存里写一个没人持有的实体，跳过；
+   * - 实例换挂了另一套表（`mountWorktreeTableSet()`）。接收时筛好的负载属于旧那一套：
+   *   合进来，主表的行就进了影子表的查询结果，还被 `createEntityRef` 打上新表集的身份。
+   *   按执行时挂着的那套重新筛：成员实体在旧表上的行被筛掉，两套表共用的主表实体照常合入。
+   *   换挂本身会让全部查询重跑，筛掉的不会丢。
+   */
+  #queued_merge(
+    event: EntityLocalCreatedEvent | EntityLocalUpdatedEvent | EntityLocalRemovedEvent,
+    received: { readonly tableSet: WorktreeTableSet; readonly entities: RxDBEntityLocalEventData[] }
+  ): (task: QueryTask<T>) => void {
+    let { tableSet, entities } = received;
+    return task => {
+      if (this.#query_task_map.get(task.cacheKey) !== task) return;
+      const current = this.rxdb.worktreeTableSet;
+      if (current !== tableSet) {
+        tableSet = current;
+        entities = this.#relevant_entities(event, current);
+      }
+      if (entities.length > 0) this.#merge_event_into_task(task, event, entities);
+    };
+  }
+
   /**
    * 初始化数据库变更监听
    *
@@ -463,6 +655,7 @@ export class QueryManager<T extends EntityType> {
      * @param event 实体变更事件（创建、更新、修补或删除）
      */
     const _need_change = (event: EntityLocalCreatedEvent | EntityLocalUpdatedEvent | EntityLocalRemovedEvent) => {
+      this.#remember_versions(event);
       // 如果没有活跃的查询任务，直接返回（性能优化）。
       // 代价：身份缓存只在合并时经 `#serialize` 收到 UPDATE，没有任务时实例停在旧值。之后的查询
       // 命中这个实例，UPDATE 门控只验得出列齐不齐、验不出值已落后（登记在 roadmap 零散收尾项）。
@@ -470,17 +663,8 @@ export class QueryManager<T extends EntityType> {
         return;
       }
 
-      // 过滤出与当前查询任务相关的实体，且只收本实例挂着那套表读得到的（US-314 B2.3）：别的可写检出位写的行
-      // 不在这套表里，合进来会把缓存里同 id 的实体改成另一套表上的值
       const tableSet = this.rxdb.worktreeTableSet;
-      const entities = event.entities.filter(d => {
-        const entityType = this.rxdb.schemaManager.getEntityType<T>(d.entity, d.namespace);
-        return (
-          entityType &&
-          this.#dep_entity_type_map.has(entityType) &&
-          tableSet.accepts(this.rxdb.schemaManager.getEntityMetadata(d.entity, d.namespace), d.tableSetSuffix)
-        );
-      });
+      const entities = this.#relevant_entities(event, tableSet);
 
       // 如果有相关的实体变更，执行增量缓存更新
       if (entities.length) {
@@ -490,8 +674,9 @@ export class QueryManager<T extends EntityType> {
         // performChunk，它会 reject `done` 并**停止排后续分片** —— 同一批里排在后面的
         // 查询任务一条都不会再合并，缓存停在事件之前的样子，且没有任何人去纠正它。
         // 一个查询的合并策略出问题不该让另一个查询显示脏数据。
-        void performChunk(Array.from(this.#query_task_map.values()), task =>
-          this.#merge_event_into_task(task, event, entities)
+        void performChunk(
+          Array.from(this.#query_task_map.values()),
+          this.#queued_merge(event, { tableSet, entities })
         ).done.catch((error: unknown) => {
           // 走到这里说明是分片调度自身出错（consumer 已不会抛）。不向上抛：
           // 这是事件监听器，抛出去只会变成另一条无人接管的错误。

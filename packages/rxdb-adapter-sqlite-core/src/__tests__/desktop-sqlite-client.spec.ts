@@ -331,6 +331,28 @@ describe('DesktopSqliteClient 的会话回滚', () => {
     expect(host.kinds).toEqual(['handshake', 'open', 'close']);
   });
 
+  // subscribe 是同步方法、DesktopOptions 允许注入自定义传输层：同步抛错与异步就绪失败是同一个连接阶段
+  it('rolls the session back when transport.subscribe throws synchronously', async () => {
+    const host = createFakeHost();
+    const refused = new Error('subscribe refused');
+
+    const reason: unknown = await DesktopSqliteClient.connect(
+      {
+        ...host.transport,
+        subscribe: () => {
+          throw refused;
+        }
+      },
+      sqliteStorage
+    ).then(
+      () => undefined,
+      (error: unknown) => error
+    );
+
+    expect(reason).toMatchObject({ code: 'host_unavailable', cause: refused });
+    expect(host.kinds).toEqual(['handshake', 'open', 'close']);
+  });
+
   // 回滚也失败时两件事都要说出来：只报订阅失败的话，那条泄漏的会话就无声无息了
   it('reports both failures when the rollback close is rejected as well', async () => {
     const host = createFakeHost({ close: () => ({ kind: 'error', code: 'host_internal_error', message: 'stuck' }) });

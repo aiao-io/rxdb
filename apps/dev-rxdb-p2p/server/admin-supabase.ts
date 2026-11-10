@@ -256,7 +256,7 @@ export const createReportDirectory = (config: AdminSupabaseConfig): import('./re
         // reports() 拼的是固定路径；带过滤条件的 PATCH 走完整 URL（无 WHERE 的 PATCH 会被 PostgREST 拒绝）
         url: `${config.url}/rest/v1/reports?${query}`
       });
-      return response.ok;
+      if (!response.ok) throw new Error(`PostgREST responded ${response.status}`);
     }
   };
 };

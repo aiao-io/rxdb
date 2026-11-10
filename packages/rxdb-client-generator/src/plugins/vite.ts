@@ -1,8 +1,8 @@
-import { normalize, resolve, sep } from 'node:path';
+import { normalize, resolve } from 'node:path';
 import type { Plugin } from 'vite';
 import buildClientLibrary from '../cli/build-client-lib.js';
 import type { RxDBClientCLIentGeneratorOptions } from '../cli/cli.interface.js';
-import findFiles, { GLOB_MAGIC } from '../cli/find-files.js';
+import findFiles, { getGlobWatchRoot } from '../cli/find-files.js';
 import { resolvePhysicalPath, validateUniqueConfigOutDirs } from '../cli/out-dir.js';
 
 /**
@@ -13,15 +13,7 @@ export type RxDBClientGeneratorVitePluginOptions =
 
 const WATCH_EVENTS = new Set(['add', 'change', 'unlink']);
 
-const getWatchRoot = (pattern: string): string => {
-  const absolute = normalize(resolve(pattern));
-  const magicIndex = absolute.search(GLOB_MAGIC);
-  if (magicIndex === -1) return resolvePhysicalPath(absolute);
-  const prefix = absolute.slice(0, magicIndex);
-  const separatorIndex = prefix.lastIndexOf(sep);
-  const watchRoot = separatorIndex === -1 ? normalize(resolve('.')) : prefix.slice(0, separatorIndex) || sep;
-  return resolvePhysicalPath(watchRoot);
-};
+const getWatchRoot = (pattern: string): string => resolvePhysicalPath(getGlobWatchRoot(normalize(resolve(pattern))));
 
 const resolveEntityFiles = async (config: RxDBClientCLIentGeneratorOptions): Promise<Set<string>> =>
   new Set((await findFiles(config.entities, { allowEmpty: true })).map(file => resolvePhysicalPath(file)));

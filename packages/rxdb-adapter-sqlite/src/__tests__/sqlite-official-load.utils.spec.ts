@@ -215,6 +215,21 @@ describe('sqliteLoad', () => {
     expect(first).not.toBe(second);
   });
 
+  // 两个回调各自指向自己的 WASM：只比「有没有提供」时第二个回调一次都不被调用
+  it('换一个 locateFile 回调必须重新加载，同一个回调继续命中缓存', async () => {
+    const { sqliteLoad } = await import('../sqlite-official-load.utils.js');
+    const locateA = (name: string) => `/a/${name}`;
+    const locateB = (name: string) => `/b/${name}`;
+
+    const first = await sqliteLoad({ locateFile: locateA });
+    const second = await sqliteLoad({ locateFile: locateB });
+    const third = await sqliteLoad({ locateFile: locateB });
+
+    expect(mockState.initCalls).toBe(2);
+    expect(first).not.toBe(second);
+    expect(second).toBe(third);
+  });
+
   // 反向守卫：完全相同的配置仍然必须命中缓存，否则 fail-fast 会退化成「永不复用」
   it('相同配置仍然命中缓存', async () => {
     const { sqliteLoad } = await import('../sqlite-official-load.utils.js');

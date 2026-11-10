@@ -48,7 +48,7 @@ describe('vivari 预览容器页', () => {
     startPreviewFrame(view);
     const frame = document.querySelector('iframe');
     if (!frame) throw new Error('预览 iframe 未创建');
-    expect(frame.getAttribute('src')).toBe('/preview/5173/?__vv_kernel=k');
+    expect(frame.getAttribute('src')).toBe(`${HOST}/preview/5173/?__vv_kernel=k`);
     expect(kernel.aiaoVivariHost.attachPreview).toHaveBeenCalledExactlyOnceWith(frame);
     const preview = {} as Window;
     Object.defineProperty(frame, 'contentWindow', { value: preview, configurable: true });
@@ -62,7 +62,14 @@ describe('vivari 预览容器页', () => {
 
   it('只加载 vivari 预览路径，其他地址不嵌入', () => {
     const { kernel } = kernelWindow();
-    for (const src of ['/assets/kernel.js', '//evil.example/preview/5173/', 'https://evil.example/preview/1/']) {
+    for (const src of [
+      '/assets/kernel.js',
+      '//evil.example/preview/5173/',
+      'https://evil.example/preview/1/',
+      '/preview/5173/../../assets/kernel.js',
+      '/preview/5173/%2e%2e/%2e%2e/assets/kernel.js',
+      '/preview/5173/..\\..\\assets/kernel.js'
+    ]) {
       startPreviewFrame(containerWindow(query(src), { [KERNEL]: kernel }).view);
       expect(document.querySelector('iframe')).toBeNull();
       expect(document.body.textContent).toContain('预览地址无效');

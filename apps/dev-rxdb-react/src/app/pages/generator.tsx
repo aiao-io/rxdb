@@ -1,35 +1,9 @@
 import { CodeEditor } from '@aiao/code-editor-react';
-import { EntityMetadataOptions, PropertyType } from '@aiao/rxdb';
-import { RxDBClientGenerator } from '@aiao/rxdb-client-generator';
 import { zipSync } from 'fflate';
 import { Download } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTheme } from '../hooks/useTheme';
-
-const DEMOS: EntityMetadataOptions[] = [
-  {
-    name: 'Todo',
-    displayName: 'Todo',
-    repository: 'Repository',
-    extends: ['EntityBase'],
-    properties: [
-      { name: 'title', type: PropertyType.string },
-      { name: 'completed', type: PropertyType.boolean, default: false }
-    ]
-  },
-  {
-    name: 'Menu',
-    displayName: 'Menu',
-    repository: 'TreeRepository',
-    extends: ['TreeAdjacencyListEntityBase', 'EntityBase'],
-    properties: [
-      {
-        name: 'title',
-        type: PropertyType.string
-      }
-    ]
-  }
-];
+import { GENERATOR_DEMOS as DEMOS, generateSourceState } from './generator-state';
 
 export function getActiveGeneratedFileIndex(selectedIndex: number, fileCount: number): number {
   return selectedIndex >= 0 && selectedIndex < fileCount ? selectedIndex : 0;
@@ -42,18 +16,12 @@ export function GeneratorPage() {
   const [selectedFileIndex, setSelectedFileIndex] = useState(0);
 
   // 使用 useMemo 替代 useEffect 来生成文件，避免级联渲染
-  const generatedFiles = useMemo(() => {
-    if (!jsonValue) return [];
-    try {
-      const json = JSON.parse(jsonValue);
-      const generator = new RxDBClientGenerator();
-      generator.addEntity(json);
-      generator.exec();
-      return generator.project.getSourceFiles();
-    } catch {
-      return [];
-    }
-  }, [jsonValue]);
+  const { sources: generatedFiles, error: generationError } = useMemo(
+    () => generateSourceState(jsonValue),
+    [jsonValue]
+  );
+  // 失败或空输入没有当前产物：不能把空包或旧结果当成这份输入的下载
+  const canDownload = generationError === null && generatedFiles.length > 0;
 
   const activeFileIndex = getActiveGeneratedFileIndex(selectedFileIndex, generatedFiles.length);
 
@@ -69,6 +37,7 @@ export function GeneratorPage() {
   };
 
   const handleDownload = () => {
+    if (!canDownload) return;
     const files: Record<string, Uint8Array> = {};
     const encoder = new TextEncoder();
     generatedFiles.forEach(sourceFile => {
@@ -134,6 +103,7 @@ export function GeneratorPage() {
         <button
           className='btn btn-primary btn-sm absolute top-2 right-2 z-10'
           data-testid='generator-download'
+          disabled={!canDownload}
           onClick={handleDownload}
         >
           <Download size={16} />
@@ -162,13 +132,18 @@ export function GeneratorPage() {
           className='bg-base-100 border-base-300 flex-1 overflow-hidden border-t'
           data-testid='generator-output-editor'
         >
-          <CodeEditor
-            theme={currentThemeLightDark}
-            language={currentFileLanguage}
-            value={currentFileContent}
-            readonly
-            lineWrapping
-          />
+          {generationError ?
+            <div className='alert alert-error m-4' role='alert'>
+              {generationError.message}
+            </div>
+          : <CodeEditor
+              theme={currentThemeLightDark}
+              language={currentFileLanguage}
+              value={currentFileContent}
+              readonly
+              lineWrapping
+            />
+          }
         </div>
       </div>
     </div>

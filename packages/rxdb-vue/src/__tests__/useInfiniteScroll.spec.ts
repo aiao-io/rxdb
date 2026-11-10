@@ -932,4 +932,80 @@ describe('useInfiniteScroll', () => {
       expect(sequence).toEqual(SHARED_STATE_SEQUENCE);
     });
   });
+
+  // RV-01a1bb42cfeb：用户发起的下一页首值未到时，上一页尾边界移动会重锚它；
+  // 加载编号必须随页移交给替代页，否则 isLoading 永远结不了、loadMore 被永久拦截。React / Angular 同款用例
+  describe('在途页被重锚或丢弃时的加载结算', () => {
+    const openStalledSecondPage = () => {
+      const database = createDatabase();
+      const first$ = new BehaviorSubject<ScrollEntity[]>([
+        new ScrollEntity('a', 'A', 1),
+        new ScrollEntity('b', 'B', 2)
+      ]);
+      const stalled$ = new Subject<ScrollEntity[]>();
+      const replacement$ = new Subject<ScrollEntity[]>();
+      const third$ = new Subject<ScrollEntity[]>();
+      database.findByCursor.mockImplementation(options => {
+        if (options.after === undefined) return first$;
+        if (options.after.id === 'b') return stalled$;
+        return options.after.id === 'a' ? replacement$ : third$;
+      });
+      const { resource } = mountResource(database.database, createOptions('reanchor', 2));
+      resource.loadMore();
+      expect(resource.isLoading.value).toBe(true);
+
+      return { resource, first$, stalled$, replacement$, third$ };
+    };
+
+    const shiftFirstPageTail = (first$: BehaviorSubject<ScrollEntity[]>): void =>
+      first$.next([new ScrollEntity('x', 'X', 0), new ScrollEntity('a', 'A', 1)]);
+
+    it('替代页返回后结束加载，之后还能继续翻页', () => {
+      const { resource, first$, stalled$, replacement$, third$ } = openStalledSecondPage();
+
+      shiftFirstPageTail(first$);
+      expect(stalled$.observed).toBe(false);
+      replacement$.next([new ScrollEntity('b', 'B', 2), new ScrollEntity('c', 'C', 3)]);
+      replacement$.complete();
+
+      expect(resource.value.value.map(entity => entity.id)).toEqual(['x', 'a', 'b', 'c']);
+      expect(resource.isLoading.value).toBe(false);
+      expect(resource.hasMore.value).toBe(true);
+      expect(resource.error.value).toBeUndefined();
+      resource.loadMore();
+      expect(third$.observed).toBe(true);
+    });
+
+    it('替代页失败时结束加载并报告错误', () => {
+      const { resource, first$, replacement$ } = openStalledSecondPage();
+
+      shiftFirstPageTail(first$);
+      replacement$.error(new Error('replacement failed'));
+
+      expect(resource.isLoading.value).toBe(false);
+      expect(resource.error.value?.message).toBe('replacement failed');
+    });
+
+    it('替代页一次都没发射就 complete 时结束加载并收敛 hasMore', () => {
+      const { resource, first$, replacement$ } = openStalledSecondPage();
+
+      shiftFirstPageTail(first$);
+      replacement$.complete();
+
+      expect(resource.isLoading.value).toBe(false);
+      expect(resource.hasMore.value).toBe(false);
+    });
+
+    it('上一页清空、在途的下一页被丢弃时结束加载', () => {
+      const { resource, first$, stalled$ } = openStalledSecondPage();
+
+      first$.next([]);
+
+      expect(stalled$.observed).toBe(false);
+      expect(resource.value.value).toEqual([]);
+      expect(resource.isLoading.value).toBe(false);
+      expect(resource.hasMore.value).toBe(false);
+      expect(resource.isEmpty.value).toBe(true);
+    });
+  });
 });

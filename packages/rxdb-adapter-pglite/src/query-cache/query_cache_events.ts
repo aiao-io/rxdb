@@ -13,6 +13,7 @@ import {
   EntityLocalCreatedEvent,
   EntityLocalRemovedEvent,
   EntityLocalUpdatedEvent,
+  getEntityStatus,
   type EntityStaticType,
   type EntityType,
   type RxDBEntityLocalCreatedEventData,
@@ -22,11 +23,7 @@ import {
 import { getEntityObjectFromResult, quoteIdentifier } from '../pglite.utils.js';
 import type { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 import type { PGliteTransactionExecutor } from '../transaction/PGliteTransactionExecutor.js';
-import {
-  remove_entity_ids_from_cache,
-  transaction_pglite_result,
-  type PGliteExecuteResult
-} from '../transaction_pglite_result.js';
+import { remove_entity_ids_from_cache, type PGliteExecuteResult } from '../transaction_pglite_result.js';
 import type { QueryCacheTarget } from './query_cache_target.js';
 
 type EntityRow = Record<string, unknown>;
@@ -100,6 +97,10 @@ const entityTypeOf = (adapter: RxDBAdapterPGlite, target: QueryCacheTarget): Ent
  * 只刷**已在缓存里**的：没进过缓存的行下次查询时按新数据建实例，这里替它建只会白占缓存。
  * `patch` 用落地后回读、解码过的行，不拿远端原样的 JSON 顶：命中缓存时 `createEntityRef` 走 `Object.assign`，
  * 一次类型转换都不做，日期会从 `Date` 变成字符串。
+ *
+ * 远端行是外部数据：按 `EntityStatus.applyExternal` 落到实例上，基线推进到远端值、逐字段避让未保存的本地编辑，
+ * 与 sqlite-core 的 `#refreshQueryCacheEntities`（`mergeExternalChanges`）同口径。强制覆盖会把用户正在编辑的草稿
+ * 换成远端值并清空 patch，全程没有保存动作、也没有冲突提示。
  */
 export const settleQueryCacheUpsert = async (
   adapter: RxDBAdapterPGlite,
@@ -110,11 +111,13 @@ export const settleQueryCacheUpsert = async (
   const written = await decode(adapter, target, after.rows);
   const EntityType = entityTypeOf(adapter, target);
   if (EntityType) {
-    const cachedRows = written
-      .filter(({ image }) => adapter.rxdb.entityManager.hasEntityRef(EntityType, image.id))
-      .map(({ row }) => row);
-    if (cachedRows.length > 0)
-      await transaction_pglite_result(adapter, EntityType, { ...after, rows: cachedRows }, true);
+    for (const { image } of written) {
+      const entity = adapter.rxdb.entityManager.getEntityRef(EntityType, image.id);
+      if (!entity) continue;
+      const status = getEntityStatus(entity);
+      status.applyExternal(image as Partial<InstanceType<EntityType>>);
+      status.local = true;
+    }
   }
 
   const previous = new Map((await decode(adapter, target, before.rows)).map(({ image }) => [String(image.id), image]));

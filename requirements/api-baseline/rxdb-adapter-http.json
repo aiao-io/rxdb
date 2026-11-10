@@ -70,6 +70,14 @@
         "kind": "type"
       },
       {
+        "name": "HttpChangeFeedOpenHook",
+        "kind": "type"
+      },
+      {
+        "name": "HttpChangeFeedOpenReport",
+        "kind": "type"
+      },
+      {
         "name": "HttpChangeFeedOptions",
         "kind": "type"
       },

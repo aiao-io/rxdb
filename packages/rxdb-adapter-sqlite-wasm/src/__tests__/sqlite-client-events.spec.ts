@@ -74,7 +74,11 @@ describe('SqliteClient 初始化与变更事件', () => {
   it('初始化成功后重复 init 不会再次打开连接', async () => {
     const { client } = await createClient();
 
-    await client.init('ignored-db', { vfs: 'opfs', worker: true });
+    await client.init('events-db', { vfs: 'memory', batchTimeout: 10 });
+    // 换了库与 VFS 的调用不能被当成「重复 init」悄悄放行：那样第二个逻辑库读写的是这个库
+    await expect(client.init('ignored-db', { vfs: 'opfs', worker: true })).rejects.toThrow(
+      /conflicting initialization: dbName, vfs, worker, batchTimeout/
+    );
 
     expect(mocks.sqliteLoad).toHaveBeenCalledTimes(1);
   });

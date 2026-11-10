@@ -47,6 +47,11 @@ import { I18nPipe } from '../pipes/i18n.pipe';
       @if ($switching()) {
         <span class="loading loading-spinner loading-xs pointer-events-none absolute right-6"></span>
       }
+      @if ($switchError(); as switchError) {
+        <span class="text-error max-w-48 truncate text-xs" [attr.title]="switchError" role="alert">{{
+          switchError
+        }}</span>
+      }
 
       <!-- 创建分支按钮 -->
       <button
@@ -107,6 +112,8 @@ export class BranchManager {
   $switching = model<boolean>(false);
   $branchName = model<string>('');
   $showPopover = signal(false);
+  /** 最近一次切换失败的原因；下一次切换开始时清掉 */
+  $switchError = signal<string | null>(null);
 
   popoverInput = viewChild<ElementRef<HTMLInputElement>>('popoverInput');
   GitBranch = GitBranch;
@@ -184,14 +191,18 @@ export class BranchManager {
   }
 
   async switchBranch(event: Event) {
-    const branch = (event.target as HTMLSelectElement).value;
+    const select = event.target as HTMLSelectElement;
     this.$switching.set(true);
+    this.$switchError.set(null);
     try {
-      await this.#rxdb.versionManager.switchBranch(branch);
+      await this.#rxdb.versionManager.switchBranch(select.value);
     } catch (error) {
-      console.error(error);
+      this.$switchError.set(error instanceof Error ? error.message : String(error));
     } finally {
       this.$switching.set(false);
+      // 浏览器在 change 之前就改了选中项；切换被拒时当前分支数据不变，option 的 [selected] 绑定也不会重写 DOM，
+      // 只能显式写回。切换成功而分支数据还没回来时同样先显示真实分支，数据到了再由绑定切过去（与 React 受控 value 同口径）
+      select.value = this.activeBranch();
     }
   }
 }

@@ -23,10 +23,12 @@
 
 每次同步只处理与上次的差异，按 GitHub 告警 `number` 对齐，不重建全量：
 
-1. **拉当前清单**（open + closed，靠 `state` 区分）：
+1. **拉当前清单**（open + closed，靠 `state` 区分）。必须 `--paginate` 收齐全部页：单次请求最多 100 条，
+   后续页上仍 open 的告警不在结果里，第 2 步会把它们的本地文件当「清单里没有」删掉。命令非零退出
+   （某一页失败）就停在这一步，不拿部分结果做第 2 步：
 
    ```bash
-   gh api "repos/aiao-io/rxdb/code-scanning/alerts?per_page=100&tool_name=CodeQL" \
+   gh api --paginate "repos/aiao-io/rxdb/code-scanning/alerts?per_page=100&tool_name=CodeQL" \
      --jq '.[] | "\(.number)\t\(.state)\t\(.rule.id)\t\(.created_at)"'
    ```
 
@@ -40,7 +42,7 @@
 
    - GitHub `open` 且本地有文件 → 无需动作；路径 / 行号变了就更新 frontmatter。
    - GitHub `fixed` / `dismissed` 且本地有文件 → 在下方归档表补一行，然后**删除文件**。
-   - 本地有文件但 GitHub 清单里没有该编号 → 直接删除（编号滚动后 GitHub 只保留新编号）。
+   - 本地有文件但 GitHub 清单里没有该编号 → 直接删除（编号滚动后 GitHub 只保留新编号）。只认第 1 步完整拉完的清单。
 3. **更新本文件头部**的「最近分析」commit 与时间：
 
    ```bash

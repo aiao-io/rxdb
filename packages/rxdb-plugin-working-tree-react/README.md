@@ -67,7 +67,8 @@ export function CommitBar() {
 ```tsx
 const worktrees = useWorktrees();
 const tree = useWorkingTree();
-useEffect(() => void tree.status(), [tree, worktrees.mounted]);
+// 依赖稳定的方法引用：tree 本身随每次相位变化换新对象，放进依赖会让 status() 自己触发下一轮
+useEffect(() => void tree.status(), [tree.status, worktrees.mounted]);
 
 const row = await worktrees.add('feature');
 await worktrees.mount(row.id);

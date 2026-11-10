@@ -211,6 +211,23 @@ export class PersistedStateRegistry {
     return registered.facade;
   }
 
+  /**
+   * 查已登记的状态入口，没有就返回 `undefined`。
+   *
+   * @typeParam T - 状态值类型
+   * @param namespace - 命名空间
+   * @param name - 键名
+   * @returns 已登记时是 {@link PersistedStateRegistry.entry} 交出的**同一个**对象，否则 `undefined`
+   *
+   * @remarks
+   * 只查不建：不读盘、不登记，也不做类型标签校验 —— 类型在登记时由 `entry()` 把关。
+   * 给「拿不到初值、又不能在这里新建」的调用方用：React 绑定层在 hydrate 提交后订阅时，
+   * 键可能已由别处登记，这时不能拿陈旧的初值重新校验一次类型。
+   */
+  find<T>(namespace: string, name: string): PersistedStateEntry<T> | undefined {
+    return (this.#entries.get(namespace)?.get(name) as RegisteredEntry<T> | undefined)?.facade;
+  }
+
   /** 建立一个新键的状态与门面，并把初值落盘一次。 */
   #register<T>(namespace: string, name: string, initialValue: T, typeTag: string): RegisteredEntry<T> {
     const storageKey = storageKeyOf(namespace, name);

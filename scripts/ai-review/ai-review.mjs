@@ -9,12 +9,25 @@
  * 与提交历史无关：rebase、base 前移之后只有内容真正变了的单元要重审；中断后再跑 status，得到的就是续跑清单。
  *
  * 状态只追加写进 `<git common dir>/ai-review/v1/coverage.jsonl`（同一仓库的所有 worktree 共享），
- * 每批一次写入，不需要锁。问题记录 Markdown 是问题状态的事实源，本脚本只检查它们在不在。
+ * 每批一次写入，不需要锁；写入时发现末尾是写断的半行，就另起一行封存，不会把之后的覆盖连带读坏。
+ * 发现与写入之间别的进程恰好留下半行，是已知的极窄窗口：读取时报错并给出恢复办法（见 `appendBatch`）。
+ * 问题记录 Markdown 是问题状态的事实源，本脚本只检查它们在不在。
  */
 
 import { execFileSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
-import { appendFileSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import {
+  closeSync,
+  fstatSync,
+  mkdirSync,
+  mkdtempSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  readSync,
+  rmSync,
+  writeFileSync
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -332,7 +345,8 @@ const unitKey = (scope, unit) =>
     .update(JSON.stringify([scope.policy, scope.range, unit.path, unit.base, unit.blob]))
     .digest('hex');
 
-function projectFiles(cwd, scope, head, projects, selected) {
+function projectFiles(cwd, scope, head, projects) {
+  const selected = selectProjects(projects, scope.projects);
   const roots = projects.filter(project => selected.has(project.name)).map(project => project.root);
   const stats = lineStats(cwd, emptyTree(cwd), scope.tree, roots.includes('.') ? [] : roots);
   const changes = [...head]
@@ -342,10 +356,12 @@ function projectFiles(cwd, scope, head, projects, selected) {
   return { changes, mergeBase: null };
 }
 
-function branchChanges(cwd, scope, projects, selected) {
+function branchChanges(cwd, scope, projects) {
   const mergeBase = uniqueMergeBase(cwd, scope.base, scope.commit);
   const baseTree = treeOf(cwd, mergeBase);
   const baseProjects = listProjects(cwd, baseTree);
+  // 整个删掉或改了名的项目，原名只在 base 侧；它名下的删除单元也要选得到
+  const selected = selectProjects([...baseProjects, ...projects], scope.projects);
   const stats = lineStats(cwd, baseTree, scope.tree, []);
   const changes = rawDiff(cwd, baseTree, scope.tree)
     .map(change => ({ ...change, project: ownerOf(change.path, change.blob === null ? baseProjects : projects) }))
@@ -358,7 +374,8 @@ function branchChanges(cwd, scope, projects, selected) {
  * 本次范围的必审单元。
  *
  * - `range=project`：所选项目在快照里的全部文件；
- * - `range=branch`：`merge-base(base, commit)` 到快照的改动，删除的文件按 base 侧归属。
+ * - `range=branch`：`merge-base(base, commit)` 到快照的改动，删除的文件按 base 侧归属；项目名按 base 与快照
+ *   两侧的并集认，整个删掉或改了名的项目用原名照样选得到。
  *
  * 评审记录（`requirements/reviews/`）、锁文件与二进制文件排除，原因列在 `excluded`。
  *
@@ -370,11 +387,8 @@ export function requiredUnits(cwd, scope) {
   if (!['project', 'branch'].includes(scope.range)) throw new Error(`range 只能是 project 或 branch：${scope.range}`);
   const head = listTree(cwd, scope.tree);
   const projects = projectsOf(cwd, scope.tree, head);
-  const selected = selectProjects(projects, scope.projects);
   const { changes, mergeBase } =
-    scope.range === 'branch' ?
-      branchChanges(cwd, scope, projects, selected)
-    : projectFiles(cwd, scope, head, projects, selected);
+    scope.range === 'branch' ? branchChanges(cwd, scope, projects) : projectFiles(cwd, scope, head, projects);
   const units = [];
   const excluded = [];
   for (const change of changes) {
@@ -455,14 +469,32 @@ function stateFile(cwd) {
   return path.join(common, 'ai-review', 'v1', 'coverage.jsonl');
 }
 
-function parseLine(line, file, index) {
+/** 封存标记的 `sealed` 值：日志末尾写断的半行由下一批写入另起一行封存。 */
+const SEALED = 'torn-tail';
+
+function parseOrUndefined(line) {
   try {
     return JSON.parse(line);
   } catch {
-    throw new Error(`${file} 第 ${index + 1} 行损坏`);
+    return undefined;
   }
 }
 
+/**
+ * 中间损坏行的报错。状态文件在 `.git` 里，使用者没有别处可查，成因与恢复办法都写在报错里。
+ * 前缀「第 N 行损坏」是稳定的，调用方与测试按它识别。
+ */
+const damagedLine = (file, line) =>
+  new Error(
+    `${file} 第 ${line} 行损坏：可能是并发写入被截断（别的进程写断的半行与随后一批的第一条登记粘在了一起），` +
+      '也可能是日志被改坏；确认没有 cover 在运行后，删掉这一行再重跑，该行登记的单元会回到待审，重新 cover 即可'
+  );
+
+/**
+ * 读覆盖日志。最后一段不以换行结尾（另一个进程尚未写完，或写到一半中断）不算数；
+ * 紧挨在封存标记之前的损坏行是写断后被封存的半行，跳过；其余损坏行报错，不静默跳过：
+ * 完整的坏行，与 `appendBatch` 窗口里被粘上半行的那一条，从内容上分不出来。
+ */
 function readCoverage(file) {
   let text;
   try {
@@ -474,7 +506,46 @@ function readCoverage(file) {
   const lines = text.split('\n');
   // 最后一段是空串，或另一个进程尚未写完的半行
   lines.pop();
-  return lines.map((line, index) => parseLine(line, file, index));
+  const entries = [];
+  let sealed = false;
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    if (lines[index] === '') continue;
+    const entry = parseOrUndefined(lines[index]);
+    if (entry === undefined && !sealed) throw damagedLine(file, index + 1);
+    if (entry === undefined) continue;
+    sealed = entry.sealed === SEALED;
+    if (!sealed) entries.push(entry);
+  }
+  return entries.reverse();
+}
+
+function endsWithNewline(fd) {
+  const { size } = fstatSync(fd);
+  if (size === 0) return true;
+  const last = Buffer.alloc(1);
+  readSync(fd, last, 0, 1, size - 1);
+  return last[0] === 0x0a;
+}
+
+/**
+ * 整批一次追加。检查时日志末尾已是写断的半行，就先另起一行写封存标记，新条目不会粘到半行上。
+ *
+ * `endsWithNewline` 与 `writeFileSync` 是两次系统调用，中间没有锁，这里有一个已知的窗口：
+ * - 检查之后、写入之前，别的进程追加了完整的一批：只会多出空行与一条多余的标记，读取时都跳过。
+ * - 检查之后、写入之前，别的进程恰好留下写断的半行：本批第一条会粘在半行后面，成为中间的一条损坏行。
+ *   它没有封存标记，`readCoverage` 会报错（报错里写了成因与恢复办法），此后 `status` 一直失败，直到删掉这一行。
+ *
+ * 不改成「每批无条件先写封存标记」：那样完整的损坏行也会被当成半行静默跳过，真实损坏无从发现。
+ * 触发要写入被打断（进程被杀、磁盘满）与另一个 cover 同时落在这个窗口里，代价是手工删一行，所以只如实说明、不加锁。
+ */
+function appendBatch(file, text, at) {
+  const fd = openSync(file, 'a+');
+  try {
+    const seal = endsWithNewline(fd) ? '' : `\n${JSON.stringify({ v: 1, sealed: SEALED, at })}\n`;
+    writeFileSync(fd, `${seal}${text}`);
+  } finally {
+    closeSync(fd);
+  }
 }
 
 function skipReason(item) {
@@ -554,7 +625,7 @@ export function recordCoverage(cwd, scope, input, { now = new Date() } = {}) {
   });
   const file = stateFile(cwd);
   mkdirSync(path.dirname(file), { recursive: true });
-  appendFileSync(file, lines.join(''));
+  appendBatch(file, lines.join(''), meta.at);
   return lines.length;
 }
 
@@ -575,9 +646,17 @@ function judge(unit, entries, current) {
   return { unit, entry: null, reason: reasons[0] ?? null };
 }
 
-function accepts(entry, independent, since) {
+/** `--since` 换成毫秒时刻；按时刻比较，不按字符串（同一秒内带毫秒的覆盖时间字典序反而在不带毫秒的开始时间之前）。 */
+function startOf(since) {
+  if (since === undefined) return undefined;
+  const start = Date.parse(since);
+  if (Number.isNaN(start)) throw new Error(`--since 不是合法的时间：${since}（用 ISO 8601，如 2026-11-08T08:10:30Z）`);
+  return start;
+}
+
+function accepts(entry, independent, start) {
   if (independent !== undefined && entry.reviewer !== independent) return false;
-  return since === undefined || entry.at >= since;
+  return start === undefined || Date.parse(entry.at) >= start;
 }
 
 function countBy(items, keyOf) {
@@ -637,8 +716,9 @@ function summarize(scope, { verdicts, excluded, mergeBase, limit }) {
  */
 export function coverageStatus(cwd, scope, { independent, since, limit = 50 } = {}) {
   if (independent === 'unknown') throw new Error('身份未知不能做独立复审：去掉 --independent，按默认接续');
+  const start = startOf(since);
   const { units, excluded, mergeBase } = requiredUnits(cwd, scope);
-  const accepted = readCoverage(stateFile(cwd)).filter(entry => accepts(entry, independent, since));
+  const accepted = readCoverage(stateFile(cwd)).filter(entry => accepts(entry, independent, start));
   const entries = Map.groupBy(accepted, entry => entry.key);
   const current = { blobs: listTree(cwd, scope.tree), records: recordIndex(topLevel(cwd)) };
   const verdicts = units.map(unit => judge(unit, entries.get(unit.key) ?? [], current));

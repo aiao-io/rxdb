@@ -1,6 +1,6 @@
 import { _electron as electron, ElectronApplication, expect, test } from '@playwright/test';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -284,6 +284,36 @@ async function waitForPath(path: string, shouldExist: boolean, budgetMs = 30000)
   return existsSync(path) === shouldExist;
 }
 
+/**
+ * 在整个观察窗口内持续确认这些路径都不出现；返回第一个出现的路径，始终没出现为 `undefined`。
+ *
+ * @remarks
+ * 只读负对照不能用 {@link waitForPath} 等「不存在」：目标一开始就不存在，第一次取样即成立——
+ * 写入还在 IPC 与异步落盘的路上，迟到的那一下就漏过去了，随后的 `app.close()` 还可能把它掐断。
+ */
+async function firstToAppear(paths: readonly string[], windowMs = 30000): Promise<string | undefined> {
+  const deadline = Date.now() + windowMs;
+  for (;;) {
+    const appeared = paths.find(path => existsSync(path));
+    if (appeared !== undefined || Date.now() >= deadline) return appeared;
+    await new Promise(resolve => setTimeout(resolve, 300));
+  }
+}
+
+// 只读负对照判据本身的门禁（不起 Electron）：写入晚到也要让负对照失败，
+// 不能因为第一次取样时还没落盘就判「没有写」。
+test('只读负对照的判据抓得住迟到的写入', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ac47-late-write-'));
+  const late = join(dir, FILE_NAME);
+  const timer = setTimeout(() => writeFileSync(late, 'late'), 600);
+  try {
+    expect(await firstToAppear([join(dir, DIR_NAME), late], 3000), '迟到的写入被判成了「没有写」').toBe(late);
+  } finally {
+    clearTimeout(timer);
+    rmSync(dir, { force: true, recursive: true });
+  }
+});
+
 test.describe('面板对原生文件后端的写操作逐字节落盘（US-904 阶段 D AC#47）', () => {
   test.describe.configure({ timeout: 420000 });
 
@@ -425,9 +455,12 @@ test.describe('面板对原生文件后端的写操作逐字节落盘（US-904 �
       await createDirectory(app, DIR_NAME);
       await uploadThroughPanel(app, FILE_NAME, deterministicBytes(FILE_BYTES));
 
-      // 给足与 allow 档同样的落盘预算再判「没有」——短预算下的「还没出现」不是「被拒绝」。
-      expect(await waitForPath(join(root, DIR_NAME), false), '只读档下面板仍然建出了目录').toBe(true);
-      expect(await waitForPath(join(root, FILE_NAME), false), '只读档下面板仍然写出了文件').toBe(true);
+      // 给足与 allow 档同样的落盘预算再判「没有」——短预算下的「还没出现」不是「被拒绝」，
+      // 所以要整个窗口里都没出现才算过，而不是第一次取样没看见就收工。
+      expect(
+        await firstToAppear([join(root, DIR_NAME), join(root, FILE_NAME)]),
+        '只读档下面板仍然写到了盘上'
+      ).toBeUndefined();
     } finally {
       await app.close();
       await renderer.close();

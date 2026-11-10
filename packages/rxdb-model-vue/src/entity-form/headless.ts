@@ -25,11 +25,10 @@ export function useEntityForm(options: EntityFormControllerOptions): UseEntityFo
     fields => controller.setFields(fields),
     { deep: true, immediate: true }
   );
+  // 撤下 mode 等于恢复未传入时的默认 edit，与共享控制器及 Angular / React 绑定一致
   watch(
     () => options.mode,
-    mode => {
-      if (mode) controller.setMode(mode);
-    },
+    mode => controller.setMode(mode ?? 'edit'),
     { immediate: true }
   );
   watch(

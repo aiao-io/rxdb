@@ -53,6 +53,16 @@ class ShopScopedRecord extends EntityBase {}
 })
 class TenantScopedRecord extends EntityBase {}
 
+/**
+ * public 与 tenant 下同名、同表名的一对实体（RV-01a1bb299b62），远端只靠 schema 区分。
+ * QueryCache 经 `queryCacheEntityIdentifier` 给 public 实体传裸名 `Twin`、给 tenant 实体传 `tenant:Twin`。
+ */
+@Entity({ name: 'Twin', tableName: 'twins', properties: [] })
+class PublicTwin extends EntityBase {}
+
+@Entity({ name: 'Twin', namespace: 'tenant', tableName: 'twins', properties: [] })
+class TenantTwin extends EntityBase {}
+
 /** 主键 `id` 映射到自定义物理列的实体：查询路径按 columnName 解析，批量写只支持默认 `id` 列 */
 @Entity({
   name: 'KeyedRecord',
@@ -304,8 +314,8 @@ describe('supabase review regressions', () => {
     const from = vi.fn().mockReturnValueOnce(pullQuery.proxy).mockReturnValueOnce(countQuery.proxy);
     const adapter = createAdapter({ from }, {}, [ShopScopedRecord]);
 
-    await adapter.pullChanges(0, 10, ['ScopedRecord']);
-    await adapter.getChangeCount(0, ['ScopedRecord']);
+    await adapter.pullChanges(0, 10, ['shop:ScopedRecord']);
+    await adapter.getChangeCount(0, ['shop:ScopedRecord']);
 
     for (const calls of [pullQuery.calls, countQuery.calls]) {
       expect(calls).toContainEqual({ method: 'eq', args: ['namespace', 'shop'] });
@@ -326,7 +336,7 @@ describe('supabase review regressions', () => {
       rules: [{ field: 'ownerId', operator: '=', value: 'u1' }]
     } as RuleGroup<Record<string, unknown>> as RuleGroup<unknown>;
 
-    await expect(adapter.pullChanges(0, 10, ['Todo', 'ScopedRecord'], filter)).rejects.toThrow(
+    await expect(adapter.pullChanges(0, 10, ['Todo', 'shop:ScopedRecord'], filter)).rejects.toThrow(
       /exactly one repository scope/i
     );
     expect(from).not.toHaveBeenCalled();
@@ -423,7 +433,7 @@ describe('supabase review regressions', () => {
       rules: [{ field: 'status', operator: '=', value: 'active' }]
     } as const;
 
-    await expect(adapter.pullChanges(0, 10, ['ScopedRecord'], filter)).resolves.toEqual([]);
+    await expect(adapter.pullChanges(0, 10, ['shop:ScopedRecord'], filter)).resolves.toEqual([]);
 
     expect(rpc).toHaveBeenCalledWith('rxdb_pull_changes', {
       p_since_id: 0,
@@ -700,14 +710,87 @@ describe('supabase review regressions', () => {
     expect(query.calls).toContainEqual({ method: 'eq', args: ['entity', 'ScopedRecord'] });
   });
 
-  it('fails fast when an entity name is ambiguous across namespaces', async () => {
+  /**
+   * RV-01a1bb299b62：裸实体名一律指 public，与 sqlite-core、PGlite 的 QueryCache 解析以及
+   * `queryCacheEntityIdentifier`（public 写裸名）同一契约。旧实现在全部命名空间里找、重名即抛，
+   * 于是 public 与 tenant 同名时，QueryCache 的读、计数与离线重放的远端探测全部报歧义。
+   */
+  it('does not search other namespaces for a bare name (RV-01a1bb299b62)', async () => {
     const from = vi.fn();
-    const adapter = createAdapter({ from }, {}, [ShopScopedRecord, TenantScopedRecord]);
+    const unique = createAdapter({ from }, {}, [ShopScopedRecord]);
+    const duplicated = createAdapter({ from }, {}, [ShopScopedRecord, TenantScopedRecord]);
 
-    await expect(adapter.getChangeCount(0, ['ScopedRecord'])).rejects.toThrow(
-      'Entity "ScopedRecord" is configured in multiple namespaces'
+    // 旧实现把只配在 shop 下的那一个当成裸名的目标、两个命名空间都有才报歧义；现在两种情况都只在 public 下找
+    await expect(unique.getChangeCount(0, ['ScopedRecord'])).rejects.toThrow(
+      'Entity "ScopedRecord" is not configured in namespace "public"'
     );
+    await expect(duplicated.pullChanges(0, 10, ['ScopedRecord'])).rejects.toThrow('"namespace:entity"');
     expect(from).not.toHaveBeenCalled();
+  });
+
+  it('resolves a bare name to public when tenant has the same entity (RV-01a1bb299b62)', async () => {
+    const metadataQuery = resolvedRecordingQuery({
+      data: [{ id: 'one', updatedAt: '2026-07-11T00:00:00.000Z' }],
+      error: null
+    });
+    const entitiesQuery = resolvedRecordingQuery({ data: [{ id: 'one' }], error: null });
+    const from = vi.fn().mockReturnValueOnce(metadataQuery.proxy).mockReturnValueOnce(entitiesQuery.proxy);
+    const schema = vi.fn(() => ({ from }));
+    const adapter = createAdapter({ schema }, {}, [PublicTwin, TenantTwin]);
+
+    // QueryCache 的 `count()` 就是这次 `fetchMetadata` 的行数；离线重放的远端探测与缓存修复走的也是这两个方法
+    const metadata = await firstValueFrom(adapter.fetchMetadata('Twin', { combinator: 'and', rules: [] }));
+    const rows = await firstValueFrom(adapter.findByIds('Twin', ['one']));
+
+    expect(metadata).toEqual([{ id: 'one', updatedAt: '2026-07-11T00:00:00.000Z' }]);
+    expect(rows).toEqual([{ id: 'one' }]);
+    expect(schema.mock.calls).toEqual([['public'], ['public']]);
+    expect(from.mock.calls).toEqual([['twins'], ['twins']]);
+  });
+
+  it('keeps tenant:Twin on the tenant schema next to a public Twin (RV-01a1bb299b62)', async () => {
+    const metadataQuery = resolvedRecordingQuery({ data: [], error: null });
+    const entitiesQuery = resolvedRecordingQuery({ data: [], error: null });
+    const from = vi.fn().mockReturnValueOnce(metadataQuery.proxy).mockReturnValueOnce(entitiesQuery.proxy);
+    const schema = vi.fn(() => ({ from }));
+    const adapter = createAdapter({ schema }, {}, [PublicTwin, TenantTwin]);
+
+    await firstValueFrom(adapter.fetchMetadata('tenant:Twin', { combinator: 'and', rules: [] }));
+    await firstValueFrom(adapter.findByIds('tenant:Twin', ['one']));
+
+    expect(schema.mock.calls).toEqual([['tenant'], ['tenant']]);
+  });
+
+  it('scopes bare-name pulls, counts and namespace-less batch requests to public (RV-01a1bb299b62)', async () => {
+    const pullQuery = resolvedRecordingQuery({ data: [], error: null });
+    const countQuery = resolvedRecordingQuery({ data: [], count: 0, error: null });
+    const batchQuery = resolvedRecordingQuery({ data: [], error: null });
+    const from = vi
+      .fn()
+      .mockReturnValueOnce(pullQuery.proxy)
+      .mockReturnValueOnce(countQuery.proxy)
+      .mockReturnValueOnce(batchQuery.proxy);
+    const adapter = createAdapter({ from }, {}, [PublicTwin, TenantTwin]);
+
+    await adapter.pullChanges(0, 10, ['Twin']);
+    await adapter.getChangeCount(0, ['Twin']);
+    // `PullBatchRequest.namespace` 省略时按默认命名空间解析，也就是 public
+    await adapter.pullChangesBatch(
+      [
+        { entity: 'Twin', sinceId: 3 },
+        { namespace: 'tenant', entity: 'Twin', sinceId: 5 }
+      ],
+      50
+    );
+
+    for (const calls of [pullQuery.calls, countQuery.calls]) {
+      expect(calls).toContainEqual({ method: 'eq', args: ['namespace', 'public'] });
+      expect(calls).toContainEqual({ method: 'eq', args: ['entity', 'Twin'] });
+    }
+    expect(batchQuery.calls).toContainEqual({
+      method: 'or',
+      args: ['and(namespace.eq.public,entity.eq.Twin,id.gt.3),and(namespace.eq.tenant,entity.eq.Twin,id.gt.5)']
+    });
   });
 
   it('uses configured schema and table for query-cache operations', async () => {
@@ -722,12 +805,12 @@ describe('supabase review regressions', () => {
     const adapter = createAdapter({ schema, from: rootFrom }, {}, [ShopScopedRecord]);
 
     await firstValueFrom(
-      adapter.fetchMetadata('ScopedRecord', {
+      adapter.fetchMetadata('shop:ScopedRecord', {
         combinator: 'and',
         rules: []
       })
     );
-    await firstValueFrom(adapter.findByIds('ScopedRecord', ['one']));
+    await firstValueFrom(adapter.findByIds('shop:ScopedRecord', ['one']));
 
     expect(schema).toHaveBeenCalledTimes(2);
     expect(schema).toHaveBeenNthCalledWith(1, 'shop');
@@ -792,7 +875,7 @@ describe('supabase review regressions', () => {
     const rpc = vi.fn(async () => ({ data: rows, error: null }));
     const adapter = createAdapter({ rpc }, {}, [ShopScopedRecord]);
 
-    const changes = await adapter.pullChanges(0, 50, ['ScopedRecord'], {
+    const changes = await adapter.pullChanges(0, 50, ['shop:ScopedRecord'], {
       combinator: 'and',
       rules: [{ field: 'status', operator: '=', value: 'active' }]
     });

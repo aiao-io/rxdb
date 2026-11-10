@@ -1,10 +1,4 @@
 {
-  "format": "aiao.dockview-paneview.research",
-  "date": "2026-11-09",
-  "dependency": "dockview-core@8.8.3",
-  "scope": "isolated-prototype",
-  "method": "Observed browser mouse interactions; results transcribed from tool outputs",
-  "productionIntegrated": false,
   "checks": [
     {
       "name": "pane-sash-resize",
@@ -78,6 +72,12 @@
       "finding": "SerializedPaneview omits the cached size before collapse; persist lastExpandedSize separately"
     }
   ],
+  "date": "2026-11-09",
+  "dependency": "dockview-core@8.8.3",
+  "format": "aiao.dockview-paneview.research",
+  "method": "Observed browser mouse interactions; results transcribed from tool outputs",
+  "productionIntegrated": false,
+  "scope": "isolated-prototype",
   "unverified": [
     "application integration and application test suite",
     "touch and pen input",

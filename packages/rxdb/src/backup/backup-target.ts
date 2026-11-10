@@ -1,6 +1,6 @@
 import type { RxDB } from '../RxDB.js';
 import { getEntityMetadata } from '../rxdb-utils.js';
-import { computeRxDBSchemaFingerprint } from './schema-fingerprint.js';
+import { computeRxDBConstraintFingerprint, computeRxDBSchemaFingerprint } from './schema-fingerprint.js';
 
 /**
  * 加密认证域：有实体声明加密列时为库名（与 keyring 的 namespace 同源），否则 `null`。
@@ -30,3 +30,16 @@ export const getRxDBBackupAuthDomain = (rxdb: RxDB): string | null => {
  */
 export const getRxDBBackupSchemaFingerprint = (rxdb: RxDB): string =>
   computeRxDBSchemaFingerprint(rxdb.config.entities);
+
+/**
+ * 实体级存储约束指纹（CHECK / 条件唯一索引 / 区间排他），写进清单的 `constraintFingerprint`。
+ *
+ * @remarks
+ * 与 {@link getRxDBBackupSchemaFingerprint} 同样取 `init()` 之后的实体集合。备份端写进清单、恢复端算出期望，
+ * 两端共用这一份算法；结构指纹看不见只差这些约束的两份配置，靠它在写目标之前拒绝。
+ *
+ * @param rxdb - 已 `init()` 的实例
+ * @returns 64 位十六进制 SHA-256
+ */
+export const getRxDBBackupConstraintFingerprint = (rxdb: RxDB): string =>
+  computeRxDBConstraintFingerprint(rxdb.config.entities);

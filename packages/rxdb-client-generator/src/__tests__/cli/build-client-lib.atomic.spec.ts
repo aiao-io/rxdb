@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import buildClientLibrary from '../../cli/build-client-lib.js';
+import buildClientLibrary, { STAGING_DIR_PREFIX } from '../../cli/build-client-lib.js';
 
 const snapshotDir = async (dir: string): Promise<Record<string, string>> => {
   const snapshot: Record<string, string> = {};
@@ -109,23 +109,41 @@ describe('RCG-005 输出写入必须是全有或全无', () => {
     expect(after).toEqual(before);
   });
 
-  it('失败后不残留 staging 目录', async () => {
-    const { entityFile, outDir } = await setup(COLLIDING_ENTITIES);
+  it('staging 建好之后的提交段失败，也不残留 staging 目录', async () => {
+    const { entityFile, outDir } = await setup(GOOD_ENTITY);
+    await buildClientLibrary({ entities: [entityFile], outDir, splitFiles: true });
+
+    // 换个实体名，上一轮的 Widget.* 成为陈旧文件；把其中一个换成非空目录，
+    // 提交段删陈旧文件时必然失败——此时 staging 早已建好并写满，校验段拦不住它。
+    await writeFile(
+      entityFile,
+      `
+        import { Entity, EntityBase } from '@aiao/rxdb';
+        @Entity({ name: 'Gadget', properties: [] })
+        class Gadget extends EntityBase {}
+      `,
+      'utf8'
+    );
+    await rm(path.join(outDir, 'Widget.d.ts'), { force: true });
+    await mkdir(path.join(outDir, 'Widget.d.ts'), { recursive: true });
+    await writeFile(path.join(outDir, 'Widget.d.ts', 'keep.txt'), 'keep', 'utf8');
 
     await expect(buildClientLibrary({ entities: [entityFile], outDir, splitFiles: true })).rejects.toThrow();
 
-    const entries = await readdir(outDir).catch(() => [] as string[]);
-    expect(entries.filter(entry => entry.includes('tmp'))).toEqual([]);
+    const entries = await readdir(outDir);
+    // 新文件已从 staging 改名落盘：失败确实发生在 staging 之后
+    expect(entries).toContain('Gadget.js');
+    expect(entries.filter(entry => entry.startsWith(STAGING_DIR_PREFIX))).toEqual([]);
   });
 
   it('成功构建后不残留 staging 目录，manifest 也不含它', async () => {
     const { entityFile, outDir } = await setup(GOOD_ENTITY);
     await buildClientLibrary({ entities: [entityFile], outDir, splitFiles: true });
 
-    const entries = await readdir(outDir);
-    expect(entries.filter(entry => entry.includes('tmp'))).toEqual([]);
+    const generatedFiles = ['Widget.d.ts', 'Widget.js', 'index.d.ts', 'index.js'];
+    expect((await readdir(outDir)).sort()).toEqual(['.rxdb-client-generator-manifest.json', ...generatedFiles].sort());
 
     const manifest = JSON.parse(await readFile(path.join(outDir, '.rxdb-client-generator-manifest.json'), 'utf8'));
-    expect(manifest.files.every((file: string) => !file.includes('tmp'))).toBe(true);
+    expect(manifest.files).toEqual(generatedFiles);
   });
 });

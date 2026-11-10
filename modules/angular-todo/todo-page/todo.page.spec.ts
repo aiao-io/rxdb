@@ -91,6 +91,8 @@ function renderTodoPage(todos: Task[] = [], isLoading = false) {
     undo: vi.fn(),
     undoCount$: of(0)
   };
+  // 无参 history() 是整库作用域：与 Task 作用域分开记账，断言按钮到底动了哪一份
+  const databaseHistory = { redo: vi.fn(), undo: vi.fn() };
   const rxdb = {
     entityManager: {
       getRepository: vi.fn(() => ({ reorder })),
@@ -99,7 +101,7 @@ function renderTodoPage(todos: Task[] = [], isLoading = false) {
       saveMany: vi.fn<(entities: Task[]) => Promise<void>>(() => Promise.resolve())
     },
     versionManager: {
-      history: vi.fn(() => history)
+      history: vi.fn((scope?: unknown) => (scope === undefined ? databaseHistory : history))
     }
   };
   const resource = createResource(todos);
@@ -123,7 +125,7 @@ function renderTodoPage(todos: Task[] = [], isLoading = false) {
   });
   const fixture = TestBed.createComponent(TodoPage);
   fixture.detectChanges();
-  return { fixture, history, page: fixture.componentInstance, reorder, resource, rxdb, scrolled$ };
+  return { databaseHistory, fixture, history, page: fixture.componentInstance, reorder, resource, rxdb, scrolled$ };
 }
 
 describe('TodoPage', () => {
@@ -270,6 +272,19 @@ describe('TodoPage', () => {
     expect(history.undo).toHaveBeenCalledOnce();
     expect(history.redo).toHaveBeenCalledOnce();
     expect(page.trackByFn(0, stubTodo())).toBe(getEntityStatus(stubTodo()).fingerprint);
+  });
+
+  it('撤销 / 重做走页面展示的 Task 作用域历史，不回滚页面外的实体', () => {
+    const { databaseHistory, history, page, rxdb } = renderTodoPage();
+
+    page.undo();
+    page.redo();
+
+    expect(rxdb.versionManager.history).toHaveBeenCalledWith(Task);
+    expect(history.undo).toHaveBeenCalledOnce();
+    expect(history.redo).toHaveBeenCalledOnce();
+    expect(databaseHistory.undo).not.toHaveBeenCalled();
+    expect(databaseHistory.redo).not.toHaveBeenCalled();
   });
 
   it('scrolls to top before switching a sticky tab and load_more is a no-op stub', () => {

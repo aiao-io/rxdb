@@ -118,23 +118,30 @@ describe('VM 内监听脚本', () => {
     await Promise.all(directories.splice(0).map(directory => rm(directory, { recursive: true, force: true })));
   });
 
-  it('序列化成 node -e 脚本后可独立运行：只靠参数，按前缀逐行输出事件', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'aiao-watch-'));
-    directories.push(root);
-    await mkdir(join(root, 'src'));
-    await mkdir(join(root, 'node_modules'));
-    const child = spawn(process.execPath, ['-e', watchScript(root, IGNORED)], { stdio: ['ignore', 'pipe', 'pipe'] });
-    let output = '';
-    child.stdout.on('data', chunk => (output += String(chunk)));
-    try {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      await writeFile(join(root, 'src', 'main.ts'), 'one');
-      await writeFile(join(root, 'node_modules', 'ignored.js'), 'x');
-      await vi.waitFor(() => expect(output).toContain(`${WATCH_EVENT}["rename","src/main.ts"]`), { timeout: 5000 });
-      expect(output).not.toContain('node_modules/ignored.js');
-      for (const line of output.trim().split('\n')) expect(line.startsWith(WATCH_EVENT)).toBe(true);
-    } finally {
-      child.kill();
+  it.each(['aiao-watch-', 'aiao-watch-\"\');process.exit(72);(\"\n'])(
+    '序列化成 node -e 脚本后独立运行，路径 %j 不改变脚本语义',
+    async prefix => {
+      const root = await mkdtemp(join(tmpdir(), prefix));
+      directories.push(root);
+      await mkdir(join(root, 'src'));
+      await mkdir(join(root, 'node_modules'));
+      const child = spawn(process.execPath, ['-e', watchScript(root, IGNORED)], { stdio: ['ignore', 'pipe', 'pipe'] });
+      let output = '';
+      let diagnostic = '';
+      child.stderr.on('data', chunk => (diagnostic += String(chunk)));
+      child.stdout.on('data', chunk => (output += String(chunk)));
+      try {
+        await new Promise(resolve => setTimeout(resolve, 300));
+        await writeFile(join(root, 'src', 'main.ts'), 'one');
+        await writeFile(join(root, 'node_modules', 'ignored.js'), 'x');
+        await vi.waitFor(() => expect(output, diagnostic).toContain(`${WATCH_EVENT}["rename","src/main.ts"]`), {
+          timeout: 5000
+        });
+        expect(output).not.toContain('node_modules/ignored.js');
+        for (const line of output.trim().split('\n')) expect(line.startsWith(WATCH_EVENT)).toBe(true);
+      } finally {
+        child.kill();
+      }
     }
-  });
+  );
 });

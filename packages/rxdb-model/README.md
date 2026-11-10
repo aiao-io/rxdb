@@ -35,11 +35,12 @@ const tabs = buildDetailTabs(metadata);
 查询构建器（框架无关服务层）：
 
 ```ts
-import { createQueryBuilderService } from '@aiao/rxdb-model';
+import { createQueryBuilderService, createSchemaFromEntity } from '@aiao/rxdb-model';
 
-const qb = createQueryBuilderService<MyEntity>({ schema: { fields } });
+const qb = createQueryBuilderService<MyEntity>({ fields: createSchemaFromEntity(metadata) });
 qb.state$.subscribe(state => console.log(state));
-qb.addRule({ field: 'title', operator: 'contains', value: 'a' });
+// 第一个参数是目标分组 ID，null 表示根组
+qb.addRule(null, { field: 'title', operator: 'contains', value: 'a' });
 const rxdbQuery = qb.toRxDBQuery();
 ```
 

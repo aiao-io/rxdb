@@ -62,4 +62,36 @@ describe('parseYmdToLocalDate', () => {
   it('returns null for incomplete date', () => {
     expect(parseYmdToLocalDate('2026-03')).toBeNull();
   });
+
+  // setFullYear 会把不存在的日期归一到别的日子（2024-02-31 → 2024-03-02），筛选条件与用户输入不一致（RV-01a1bbd9c4427852b47d62c41a76fa0e）
+  it.each([
+    '2023-02-29',
+    '2024-02-30',
+    '2024-02-31',
+    '2024-04-31',
+    '2024-13-01',
+    '2024-00-10',
+    '2024-01-00',
+    '2024-01-32'
+  ])('returns null for calendar date that does not exist: %s', ymd => {
+    expect(parseYmdToLocalDate(ymd)).toBeNull();
+  });
+
+  it.each([
+    ['2024-02-29', 2024, 1, 29],
+    ['2000-02-29', 2000, 1, 29],
+    ['2023-02-28', 2023, 1, 28],
+    ['2024-04-30', 2024, 3, 30],
+    ['2024-12-31', 2024, 11, 31],
+    ['0099-01-01', 99, 0, 1]
+  ])('keeps the exact local calendar day for %s', (ymd, year, monthIndex, day) => {
+    const date = parseYmdToLocalDate(ymd);
+    expect(date).not.toBeNull();
+    expect([date!.getFullYear(), date!.getMonth(), date!.getDate(), date!.getHours()]).toEqual([
+      year,
+      monthIndex,
+      day,
+      0
+    ]);
+  });
 });

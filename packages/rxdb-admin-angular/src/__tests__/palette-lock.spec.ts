@@ -38,6 +38,23 @@ describe('CommandPalette', () => {
     expect(shell.palette.value.open).toBe(false);
   });
 
+  it('输入法组合中的回车与方向键交给输入法：不执行、不移动选中项、不阻止默认行为；组合结束后回车照常执行', async () => {
+    const { shell, navigated } = await mount();
+    await act(() => shell.palette.open());
+    await fire.change(input(), '资产');
+    expect(options().length).toBeGreaterThan(1);
+    expect(await fire.keyDown(input(), { key: 'ArrowDown', isComposing: true })).toBe(true);
+    expect(options()[0].getAttribute('aria-selected')).toBe('true');
+    expect(await fire.keyDown(input(), { key: 'Enter', isComposing: true })).toBe(true);
+    // Safari 确认候选的回车在 compositionend 之后到达，isComposing 为 false、keyCode 为 229
+    expect(await fire.keyDown(input(), { key: 'Enter', keyCode: 229 })).toBe(true);
+    expect(navigated).toEqual([]);
+    expect(shell.palette.value.open).toBe(true);
+    await fire.keyDown(input(), { key: 'Enter' });
+    expect(navigated).toHaveLength(1);
+    expect(shell.palette.value.open).toBe(false);
+  });
+
   it('鼠标移动选中、点击执行命令', async () => {
     const { shell } = await mount();
     await act(() => shell.palette.open());

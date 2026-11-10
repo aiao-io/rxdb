@@ -20,10 +20,18 @@
     </div>
   </as-split-area>
   <as-split-area [size]="60">
-    <button class="btn btn-sm btn-primary absolute top-2 right-2" (click)="download()" data-testid="generator-download">
+    <button
+      class="btn btn-sm btn-primary absolute top-2 right-2"
+      [disabled]="!$can_download()"
+      (click)="download()"
+      data-testid="generator-download"
+    >
       生成并下载
     </button>
     <div class="tabs tabs-lift h-full overflow-hidden p-2" data-testid="generator-output-editor">
+      @if ($generation_error(); as error) {
+        <div class="alert alert-error m-4" role="alert">{{ error.message }}</div>
+      }
       @for (source of $sources(); track $index) {
         @let path = source.getFilePath();
         @let text = source.getText();

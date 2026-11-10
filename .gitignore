@@ -13,6 +13,9 @@ tmp/
 *.log
 /logs/
 .env*
+# docker/README.md 快速开始第一步复制的模板，只含上游 supabase/docker 的示例值（.sync-meta.json 的 fullCopy）。
+# 被上一行一起忽略时从未入库，干净检出按文档复制直接 ENOENT（RV-01a1bb58f239）。
+!docker/.env.example
 .DS_Store
 Thumbs.db
 *.tmp

@@ -13,6 +13,11 @@ import { dirname, resolve } from 'node:path';
 import {
   type ClassDeclaration,
   type Decorator,
+  type ExportDeclaration,
+  type GetAccessorDeclaration,
+  type Identifier,
+  type ImportDeclaration,
+  ModuleDeclarationKind,
   type Symbol as MorphSymbol,
   Node,
   Project,
@@ -78,11 +83,13 @@ const createConstantMap = (value: object): ReadonlyMap<string, string> => {
   return result;
 };
 
+const CORE_PACKAGE = '@aiao/rxdb';
 const SAFE_CONSTANTS = new Map<string, ReadonlyMap<string, string>>([
   ['OnDeleteAction', createConstantMap(OnDeleteAction)],
   ['PropertyType', createConstantMap(PropertyType)],
   ['RelationKind', createConstantMap(RelationKind)]
 ]);
+const SAFE_CONSTANT_NAMES = [...SAFE_CONSTANTS.keys()].join(' / ');
 
 let globalProject: Project | undefined;
 
@@ -168,6 +175,87 @@ const createEvaluationError = (node: Node, reason: string): Error => {
   );
 };
 
+/** 带模块说明符的 import / export 声明。 */
+type ModuleReferenceDeclaration = ExportDeclaration | ImportDeclaration;
+
+/** 一条解析失败的 import / re-export：哪个文件里的哪个模块说明符。 */
+interface UnresolvedImport {
+  filePath: string;
+  specifier: string;
+}
+
+const isModuleReferenceDeclaration = (node: Node): node is ModuleReferenceDeclaration =>
+  Node.isImportDeclaration(node) || Node.isExportDeclaration(node);
+
+/**
+ * 沿 import / re-export 链找第一条模块解析不到的环节。
+ *
+ * @remarks
+ * 模块解析不到时，TS 把导入绑定指向一个没有声明的 `unknown` 符号；「模块在、只是没有这个导出」
+ * 得到的符号形态完全一样，所以不能看符号，只能回到别名声明：模块说明符没有对应的源文件才算解析失败。
+ * 模块在时顺着同名导出继续找（命名导入、`export { X } from`），默认导入与命名空间导入到此为止。
+ */
+const findUnresolvedImport = (
+  symbol: MorphSymbol | undefined,
+  visited = new Set<MorphSymbol>()
+): UnresolvedImport | undefined => {
+  if (!symbol || visited.has(symbol)) return undefined;
+  visited.add(symbol);
+
+  for (const declaration of symbol.getDeclarations()) {
+    const host = declaration.getFirstAncestor(isModuleReferenceDeclaration);
+    const specifier = host?.getModuleSpecifierValue();
+    if (!host || specifier === undefined) continue;
+
+    const target = host.getModuleSpecifierSourceFile();
+    if (!target) return { filePath: host.getSourceFile().getFilePath(), specifier };
+    if (!Node.isImportSpecifier(declaration) && !Node.isExportSpecifier(declaration)) continue;
+
+    const exported = target.getExportSymbols().find(candidate => candidate.getName() === declaration.getName());
+    const unresolved = findUnresolvedImport(exported, visited);
+    if (unresolved) return unresolved;
+  }
+  return undefined;
+};
+
+/**
+ * 标识符（或以它开头的属性访问链）来自一条解析失败的 import 时，返回补在报错末尾的成因说明，否则返回空串。
+ *
+ * @remarks
+ * 枚举与实体装饰器都按符号解析来源。import 解析失败时拿不到来源，只报「X must resolve to ...」
+ * 会让人以为是自己写错了，实际多半是 `@aiao/rxdb` 没装，或从出事的文件解析不到它。
+ * 模块解析相对于出事的文件，所以经 re-export 转手时点明的是失败那一环所在的文件。
+ */
+const describeUnresolvedImport = (node: Node): string => {
+  let root = node;
+  while (Node.isPropertyAccessExpression(root)) {
+    root = root.getExpression();
+  }
+  const unresolved = Node.isIdentifier(root) ? findUnresolvedImport(root.getSymbol()) : undefined;
+  if (!unresolved) return '';
+  return (
+    ` (the import from "${unresolved.specifier}" in ${unresolved.filePath} could not be resolved; ` +
+    'check that it is installed and resolvable from that file under the tsconfig.json used for analysis)'
+  );
+};
+
+/**
+ * 按绑定符号找枚举：沿别名链解析到声明，只认 `@aiao/rxdb` 导出的那几个枚举。
+ *
+ * @remarks
+ * 只按名字查表会把同名的局部对象（`const PropertyType = {...}`）或别的模块的同名枚举
+ * 静默换成核心枚举的值，生成的字段类型与源码不一致；按符号解析同时让别名导入
+ * （`import { PropertyType as Kind }`）与实体装饰器一样可用。
+ */
+const resolveSafeConstants = (owner: Node): ReadonlyMap<string, string> | undefined => {
+  const symbol = resolveAliasedSymbol(owner.getSymbol());
+  const constants = symbol ? SAFE_CONSTANTS.get(symbol.getName()) : undefined;
+  const fromCore = symbol
+    ?.getDeclarations()
+    .some(declaration => getPackageName(declaration.getSourceFile().getFilePath()) === CORE_PACKAGE);
+  return fromCore ? constants : undefined;
+};
+
 const evaluatePropertyAccess = (node: Node): StaticValue => {
   if (!Node.isPropertyAccessExpression(node)) {
     throw createEvaluationError(node, 'Expected an approved enum member');
@@ -178,9 +266,15 @@ const evaluatePropertyAccess = (node: Node): StaticValue => {
     throw createEvaluationError(node, 'Only direct enum property access is allowed');
   }
 
-  const constants = SAFE_CONSTANTS.get(owner.getText());
+  const constants = resolveSafeConstants(owner);
+  if (!constants) {
+    throw createEvaluationError(
+      node,
+      `${owner.getText()} must resolve to ${SAFE_CONSTANT_NAMES} exported by ${CORE_PACKAGE}${describeUnresolvedImport(owner)}`
+    );
+  }
   const member = node.getName();
-  const value = constants?.get(member);
+  const value = constants.get(member);
   if (value === undefined) {
     throw createEvaluationError(node, `Unsupported constant ${owner.getText()}.${member}`);
   }
@@ -444,7 +538,8 @@ const resolveEntityDecoratorName = (decorator: Decorator): string | undefined =>
   if (ENTITY_DECORATOR_NAMES.has(syntaxName) || referencesEntityDecorator) {
     throw createEvaluationError(
       decorator,
-      `${syntaxName} must resolve to an entity decorator exported by ${[...ENTITY_DECORATOR_MODULES].join(' or ')}`
+      `${syntaxName} must resolve to an entity decorator exported by ${[...ENTITY_DECORATOR_MODULES].join(' or ')}` +
+        describeUnresolvedImport(callee)
     );
   }
   return undefined;
@@ -496,6 +591,78 @@ const transpileGetter = (source: string): string => {
     throw new Error('Failed to transpile entity getter');
   }
   return output.slice(bodyStart + 1, bodyEnd).trim();
+};
+
+/** 全局作用域里的声明：lib 等脚本文件的顶层，或模块里的 `declare global`。 */
+const isGlobalDeclaration = (declaration: Node): boolean =>
+  !ts.isExternalModule(declaration.getSourceFile().compilerNode) ||
+  declaration
+    .getAncestors()
+    .some(
+      ancestor => Node.isModuleDeclaration(ancestor) && ancestor.getDeclarationKind() === ModuleDeclarationKind.Global
+    );
+
+const isInside = (node: Node, container: Node): boolean =>
+  node === container || node.getFirstAncestor(ancestor => ancestor === container) !== undefined;
+
+/** 类型位置的标识符转译后就不存在了，不构成运行时引用。 */
+const isTypePosition = (identifier: Node, getter: Node): boolean => {
+  for (let current = identifier.getParent(); current && current !== getter; current = current.getParent()) {
+    if (Node.isTypeNode(current)) return true;
+  }
+  return false;
+};
+
+const isRuntimeReference = (identifier: Identifier, getter: GetAccessorDeclaration): boolean => {
+  if (identifier === getter.getNameNode()) return false;
+  const parent = identifier.getParent();
+  if (Node.isPropertyAccessExpression(parent) && parent.getNameNode() === identifier) return false;
+  return !isTypePosition(identifier, getter);
+};
+
+const referencedSymbol = (identifier: Identifier): MorphSymbol | undefined => {
+  const parent = identifier.getParent();
+  return Node.isShorthandPropertyAssignment(parent) ? parent.getValueSymbol() : identifier.getSymbol();
+};
+
+/**
+ * 生成器只把 getter 自身的代码搬进生成的实体类，模块里的其他绑定（同文件的 helper、
+ * import 进来的值，包括恰好也被生成物导入的核心导出）不会跟过去——生成能成功，
+ * 读取 getter 时才抛 ReferenceError。这里找出 getter 里第一个这样的引用。
+ *
+ * @remarks
+ * 可携带的只有 `this`、getter 自己的局部变量、全局对象与实体类自身；
+ * 只在类型位置出现的模块类型转译后即消失，不算引用。
+ */
+const findForeignBinding = (getter: GetAccessorDeclaration, entity: ClassDeclaration): Identifier | undefined =>
+  getter.getDescendantsOfKind(SyntaxKind.Identifier).find(identifier => {
+    if (!isRuntimeReference(identifier, getter)) return false;
+    const declarations = referencedSymbol(identifier)?.getDeclarations() ?? [];
+    return declarations.some(
+      declaration => declaration !== entity && !isInside(declaration, getter) && !isGlobalDeclaration(declaration)
+    );
+  });
+
+const toSourceGetter = (getter: GetAccessorDeclaration, entity: ClassDeclaration): EntitySourceGetter => {
+  const foreign = findForeignBinding(getter, entity);
+  if (foreign) {
+    const sourceFile = foreign.getSourceFile();
+    const { column, line } = sourceFile.getLineAndColumnAtPos(foreign.getStart());
+    throw new Error(
+      `Cannot preserve entity getter at ${sourceFile.getFilePath()}:${line}:${column}: ` +
+        `${entity.getName() ?? '<anonymous>'}.${getter.getName()} references "${foreign.getText()}", which is declared ` +
+        'outside the getter. Generated getters only keep their own code: use this, local variables and globals.'
+    );
+  }
+  return {
+    name: getter.getName(),
+    returnType: getter.getReturnTypeNode()?.getText() ?? getter.getReturnType().getText(getter),
+    runtime: transpileGetter(getter.getText()),
+    docs: getter
+      .getJsDocs()
+      .map(doc => doc.getDescription().trim())
+      .filter(Boolean)
+  };
 };
 
 /** 分析实体文件并返回可生成的静态元数据。 */
@@ -562,15 +729,7 @@ export default (filePath: string, project?: Project, options?: AnalyzeFileOption
       metadataOptions: entityDecorator.metadataOptions,
       implements: declaration.getImplements().map(implemented => implemented.getText()),
       extendMetadataOptions: baseClass ? collectClassMetadata(baseClass) : [],
-      sourceGetters: declaration.getGetAccessors().map(getter => ({
-        name: getter.getName(),
-        returnType: getter.getReturnTypeNode()?.getText() ?? getter.getReturnType().getText(getter),
-        runtime: transpileGetter(getter.getText()),
-        docs: getter
-          .getJsDocs()
-          .map(doc => doc.getDescription().trim())
-          .filter(Boolean)
-      }))
+      sourceGetters: declaration.getGetAccessors().map(getter => toSourceGetter(getter, declaration))
     });
   }
   return result;

@@ -56,6 +56,37 @@ describe('parseChineseNumber', () => {
     });
   });
 
+  // 段级单位用 `section || 1` 取系数：显式的 0 与「没写数量」都变成 1，零万解析成 10000（RV-01a1bbb523567bc1b61d7728e99cea4c）
+  describe('显式零系数照算，只有完全省略数量时才按 1 计', () => {
+    it.each([
+      ['0万', 0],
+      ['零万', 0],
+      ['〇万', 0],
+      ['00万', 0],
+      ['0亿', 0],
+      ['零亿', 0],
+      ['零万亿', 0],
+      ['一亿零万', 100_000_000],
+      ['零十万', 0]
+    ])('%s -> %i', (input, expected) => {
+      expect(parseChineseNumber(input)).toBe(expected);
+    });
+
+    it('负零与段级单位组合仍为零', () => {
+      expect(parseChineseNumber('负零万') === 0).toBe(true);
+      expect(parseChineseNumber('-0亿') === 0).toBe(true);
+    });
+
+    it.each([
+      ['万', 10_000],
+      ['亿', 100_000_000],
+      ['万亿', 1_000_000_000_000],
+      ['一亿万', 100_010_000]
+    ])('省略数量 %s -> %i', (input, expected) => {
+      expect(parseChineseNumber(input)).toBe(expected);
+    });
+  });
+
   describe('UTL-015 非法/歧义输入确定抛错', () => {
     it.each([['❤️'], [''], ['   '], ['十十'], ['一百千'], ['一万二万'], ['负'], ['一--百']])('%s 抛错', input => {
       expect(() => parseChineseNumber(input)).toThrowError();

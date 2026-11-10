@@ -264,13 +264,16 @@ export function startPreviewFrame(view: Window): void {
   const params = new URLSearchParams(view.location.search);
   const src = params.get('src') ?? '';
   const { document } = view;
-  if (!PREVIEW_PATH.test(src)) return showNotice(document, '预览地址无效');
+  if (!URL.canParse(src, view.location.origin)) return showNotice(document, '预览地址无效');
+  const target = new URL(src, view.location.origin);
+  if (target.origin !== view.location.origin || !PREVIEW_PATH.test(target.pathname))
+    return showNotice(document, '预览地址无效');
   const host = kernelHost(view, params.get('host') ?? '');
   if (!host) return showNotice(document, '运行时已停止，请重新运行项目后再打开预览');
   const frame = document.createElement('iframe');
   frame.title = '项目服务预览';
   frame.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;border:0';
-  frame.src = src;
+  frame.src = target.href;
   document.body.replaceChildren(frame);
   const detach = host.preview.attachPreview(frame);
   view.addEventListener('message', event => {

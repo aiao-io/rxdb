@@ -202,6 +202,15 @@ export class Keyring {
    * 从而保证后续显式 `lock()` 不会被启动在它之前的 unlock 撤销。
    */
   private lockEpoch = 0;
+  /**
+   * 内存密钥每被清掉一次就自增：`lock()`、空闲自动锁、重新 `unlock()` 开头的重置都算。
+   * `encrypt` / `decrypt` 在 await 之前捕获它，完成后不一致说明手里那把密钥已经失效。
+   *
+   * @remarks
+   * 与 `lockEpoch` 分开：后者只记调用方的 `lock()` 意图，供在途 unlock 判断是否被取消；
+   * 重新 unlock 自己的重置若也计入它，每次 unlock 都会把自己取消掉。
+   */
+  private keyGeneration = 0;
 
   /** 参与所有 v2 AAD 的数据库认证域。 */
   readonly namespace: string;
@@ -257,11 +266,12 @@ export class Keyring {
   /**
    * 用随机 96 位 IV 和绑定数据库、实体、表、列、类型化主键及 kid 的 v2 AAD 加密。
    *
-   * @throws {@link EncryptedLockedError} 调用时已锁定，或操作完成前发生 `lock()`
+   * @throws {@link EncryptedLockedError} 调用时已锁定，或操作完成前密钥被清掉（`lock()` 或重新 `unlock()`）
    */
   async encrypt(args: EncryptArgs): Promise<string> {
     const key = this.key;
     const kid = this.kidValue;
+    const generation = this.keyGeneration;
     if (key == null || kid == null) {
       throw new EncryptedLockedError({ message: 'keyring is locked' });
     }
@@ -274,9 +284,8 @@ export class Keyring {
       primaryKey: args.primaryKey,
       kid
     });
-    const epoch = this.lockEpoch;
     const { ct, tag } = await aesGcmEncrypt({ key, iv, plaintext: args.plaintext, aad });
-    this.assertNotLockedSince(epoch);
+    this.assertKeyStillCurrent(generation);
     this.touch();
     return encodeEnvelope({ v: ENVELOPE_VERSION, alg: ENVELOPE_ALG, kid, iv, ct, tag });
   }
@@ -284,12 +293,13 @@ export class Keyring {
   /**
    * 校验信封、kid 与 AAD 后返回明文字节。
    *
-   * @throws {@link EncryptedLockedError} 调用时已锁定，或操作完成前发生 `lock()`
+   * @throws {@link EncryptedLockedError} 调用时已锁定，或操作完成前密钥被清掉（`lock()` 或重新 `unlock()`）
    * @throws {@link EncryptedDecryptError} 信封损坏、kid/AAD 不匹配、鉴权失败或旧版读取未获授权
    */
   async decrypt(args: DecryptArgs): Promise<Uint8Array> {
     const key = this.key;
     const kid = this.kidValue;
+    const generation = this.keyGeneration;
     if (key == null || kid == null) {
       throw new EncryptedLockedError({ message: 'keyring is locked' });
     }
@@ -323,7 +333,6 @@ export class Keyring {
           primaryKey: args.primaryKey,
           kid
         });
-    const epoch = this.lockEpoch;
     let plain: Uint8Array;
     try {
       plain = await aesGcmDecrypt({
@@ -341,11 +350,11 @@ export class Keyring {
       });
     }
 
-    // RAE-003：明文已解出，但本次操作可能已被在途的 lock() 取消。
+    // RAE-003：明文已解出，但本次操作可能已被在途的 lock() 或重新 unlock() 取消。
     // 先清零再拒绝 —— 被取消的解密不得把明文交给调用方。
-    if (this.lockEpoch !== epoch) {
+    if (this.keyGeneration !== generation) {
       plain.fill(0);
-      this.assertNotLockedSince(epoch);
+      this.assertKeyStillCurrent(generation);
     }
     this.touch();
     return plain;
@@ -362,24 +371,28 @@ export class Keyring {
   }
 
   /**
-   * 复核本次操作开始后是否发生过 `lock()`（含空闲自动锁 —— 它内部也调 `lock()`）。
+   * 复核本次操作开始后手里那把密钥是否已被清掉：`lock()`（含空闲自动锁 —— 它内部也调 `lock()`）
+   * 与重新 `unlock()` 开头的重置都算。
    *
-   * @throws {@link EncryptedLockedError} epoch 已变，说明操作在途期间被取消
+   * @throws {@link EncryptedLockedError} 密钥代次已变，说明操作在途期间被取消
    *
    * @remarks
    * RAE-003：`encrypt` / `decrypt` 在 await 之前同步捕获 `CryptoKey`，WebCrypto 完成后
    * 早先不再复核 —— 调用 `decrypt()` 后同一 tick `lock()`，Promise 仍会成功返回**完整明文**，
    * 而此时 `isLocked === true`。`lock()` 必须是完成屏障，不能只影响「下一次」调用。
+   * 重新 `unlock()` 同样先清掉旧密钥：凭据无效、provider 失败时 keyring 保持锁定，用旧密钥起步的
+   * 在途操作也不能再交出明文或信封（RV-01a1bb29b3e17701944ef043b8c14bf5）。
    */
-  private assertNotLockedSince(epoch: number): void {
-    if (this.lockEpoch === epoch) return;
+  private assertKeyStillCurrent(generation: number): void {
+    if (this.keyGeneration === generation) return;
     throw new EncryptedLockedError({
-      message: 'keyring was locked while the operation was in flight'
+      message: 'keyring key was cleared (lock or re-unlock) while the operation was in flight'
     });
   }
 
-  /** 清除内存中的密钥，不登记调用方 lock 意图。 */
+  /** 清除内存中的密钥，不登记调用方 lock 意图；在途 encrypt / decrypt 随之失效。 */
   private resetKeyState(): void {
+    this.keyGeneration++;
     this.disarmTimer();
     if (this.key == null && this.kidValue == null) return;
     this.key = null;

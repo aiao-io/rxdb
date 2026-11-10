@@ -13,11 +13,24 @@ import {
 import { useRxDB } from '@aiao/rxdb-react';
 import { useCallback, useMemo, useState } from 'react';
 
-/** 十四格状态连同产生它的库：换库后旧库的写回凭 `database` 识别并丢弃。 */
+/**
+ * 十四格状态连同产生它的入口：换库后旧入口的写回凭 `entry` 识别并丢弃。
+ *
+ * @remarks
+ * `entry` 每建一次 slot 新建一个对象，不拿库本身当身份：A→B→A 回到同一个库对象时
+ * 库身份重新相等，首次 A 入口迟到的结果会混进第二次 A 入口，覆盖它已完成的查询。
+ */
 interface WorkingTreeSlot {
   readonly database: ReturnType<typeof useRxDB>;
+  readonly entry: object;
   readonly states: WorkingTreeAsyncStates;
 }
+
+const openSlot = (database: ReturnType<typeof useRxDB>): WorkingTreeSlot => ({
+  database,
+  entry: {},
+  states: WORKING_TREE_INITIAL_ASYNC_STATES
+});
 
 /**
  * {@link useWorkingTree} 在当前 render 返回的工作树入口。
@@ -93,17 +106,18 @@ export const useWorkingTree = (): WorkingTreeResource => {
   // （React 认可的「渲染期调整状态」写法，不会闪一帧旧库状态）；旧库命令晚到的写回在
   // updater 里比对归属，不是当前库就原样丢弃。不用 ref 记「最新库」：渲染期写 ref 在
   // 并发渲染被丢弃时会与已提交的库错位，旧库命令的结果从此全被吞掉。
-  const [slot, setSlot] = useState<WorkingTreeSlot>(() => ({ database, states: WORKING_TREE_INITIAL_ASYNC_STATES }));
-  if (slot.database !== database) setSlot({ database, states: WORKING_TREE_INITIAL_ASYNC_STATES });
+  const [slot, setSlot] = useState<WorkingTreeSlot>(() => openSlot(database));
+  if (slot.database !== database) setSlot(openSlot(database));
+  const { entry } = slot;
 
   // 函数式更新：命令的闭包活得比某一次 render 长，读 `states` 会读到发起那一刻的旧值，
   // 于是两个并发的命令里后写的那个会把先写的那格覆盖回去。
   const patch = useCallback<Parameters<typeof createWorkingTreeCommands>[1]>(
     (key, state) =>
       setSlot(current =>
-        current.database === database ? { database, states: { ...current.states, [key]: state } } : current
+        current.entry === entry ? { ...current, states: { ...current.states, [key]: state } } : current
       ),
-    [database]
+    [entry]
   );
   const commands = useMemo(() => createWorkingTreeCommands(database, patch), [database, patch]);
 

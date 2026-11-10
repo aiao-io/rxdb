@@ -189,6 +189,18 @@ function send(res, status, body, type = 'text/plain; charset=utf-8') {
   res.end(body);
 }
 
+/** 单次 stat：路径此刻不存在（含刚被并发构建删掉）返回 undefined，其余错误照常抛给调用方。 */
+const statIfPresent = path => statSync(path, { throwIfNoEntry: false });
+
+/**
+ * 请求路径对应要发的文件：目录取它的 index.html，不存在或不是普通文件时退回 SPA 入口。
+ * 不再先 existsSync 再 statSync：两步之间文件被换掉时第二步抛 ENOENT。
+ */
+function locateServedFile(filePath, indexFile) {
+  const candidate = statIfPresent(filePath)?.isDirectory() ? join(filePath, 'index.html') : filePath;
+  return statIfPresent(candidate)?.isFile() ? candidate : indexFile;
+}
+
 export function createStaticServer(rootPath, { coopCoep = false } = {}) {
   const realRoot = realpathSync(rootPath);
   const indexFile = join(realRoot, 'index.html');
@@ -211,23 +223,14 @@ export function createStaticServer(rootPath, { coopCoep = false } = {}) {
     let filePath = safeJoin(realRoot, rawPath);
     if (!filePath) return send(res, 403, 'Forbidden');
 
-    if (existsSync(filePath) && statSync(filePath).isDirectory()) {
-      const nestedIndex = join(filePath, 'index.html');
-      filePath = existsSync(nestedIndex) ? nestedIndex : indexFile;
-    }
-
-    if (!existsSync(filePath) || !statSync(filePath).isFile()) {
-      filePath = indexFile;
-    }
-
-    if (!isWithinRoot(realRoot, filePath)) return send(res, 403, 'Forbidden');
-
-    // 同步读没问题（e2e 里就一个浏览器在拉），但**必须**兜住异常：
+    // 同步定位 + 读没问题（e2e 里就一个浏览器在拉），但**必须**兜住异常：
     // 请求处理器里抛出的错会冒到 'request' 之外直接终结进程，Playwright 的 webServer
     // 就此消失，后面所有用例集体报连接失败——排查时完全看不出根因在这一行。
-    // stat 与 read 之间文件被并发构建换掉（ENOENT）、权限位变了（EACCES）都会走到这。
+    // 定位与读之间文件被并发构建换掉（ENOENT）、权限位变了（EACCES）、stat 本身出错都会走到这。
     let body;
     try {
+      filePath = locateServedFile(filePath, indexFile);
+      if (!isWithinRoot(realRoot, filePath)) return send(res, 403, 'Forbidden');
       body = readFileSync(filePath);
     } catch (error) {
       // filePath 来自 req.url：既不能插进 console 的 format string（%s 会被当占位符），

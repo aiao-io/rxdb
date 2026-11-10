@@ -52,26 +52,24 @@ export function builtinCommands<T>(shell: AdminShell<T>): ShellCommand[] {
 }
 
 /**
- * 菜单来源：每个带路由的菜单项一条，副标题是它所在的分组。
+ * 菜单来源：每个带路由的菜单项一条（带路由的节点也照常收录它的后代），副标题是它所在的父级路径。
  * @param shell - 外壳。
  * @returns 同步来源。
  */
 export function menuSource<T>(shell: AdminShell<T>): PaletteSource {
+  const itemOf = (node: MenuNode<T>, route: string, trail: string[]): PaletteItem => ({
+    id: `menu:${node.id}`,
+    label: node.label,
+    ...(trail.length > 0 ? { sublabel: trail.join(' / ') } : {}),
+    keywords: [route],
+    ...(node.icon !== undefined ? { icon: node.icon } : {}),
+    run: () => shell.navigate(route)
+  });
   const toItems = (nodes: readonly MenuNode<T>[], trail: string[] = []): PaletteItem[] =>
-    nodes.flatMap(node =>
-      node.route ?
-        [
-          {
-            id: `menu:${node.id}`,
-            label: node.label,
-            ...(trail.length > 0 ? { sublabel: trail.join(' / ') } : {}),
-            keywords: [node.route],
-            ...(node.icon !== undefined ? { icon: node.icon } : {}),
-            run: () => shell.navigate(node.route as string)
-          }
-        ]
-      : toItems(node.children ?? [], [...trail, node.label])
-    );
+    nodes.flatMap(node => [
+      ...(node.route ? [itemOf(node, node.route, trail)] : []),
+      ...toItems(node.children ?? [], [...trail, node.label])
+    ]);
   return {
     id: 'menu',
     groupLabelKey: 'palette.group.menu',

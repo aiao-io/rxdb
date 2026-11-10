@@ -60,6 +60,40 @@ describe('TreeFileStore.treeNodes', () => {
     expect(store.treeNodes().map(item => item.node.id)).toEqual(['root', 'matched']);
   });
 
+  it('按「名称.扩展名」搜索：库里的扩展名不带点，完整文件名与 .扩展名都命中', () => {
+    const notes = { ...makeFile('notes', 'root', 'notes', 'file'), extension: 'txt' } as SortableFileNode;
+    const store = makeStore([makeFile('root', null, 'Docs'), notes]);
+    store.expandedFileIds.set(new Set(['root']));
+
+    store.setSearchKeyword('notes.txt');
+    expect(store.treeNodes().map(item => item.node.id)).toEqual(['root', 'notes']);
+
+    store.setSearchKeyword('.txt');
+    expect(store.treeNodes().map(item => item.node.id)).toEqual(['root', 'notes']);
+  });
+
+  it('搜索时临时展开折叠的祖先路径，用户的展开集合不变，清空搜索后恢复折叠', () => {
+    const store = makeStore([
+      makeFile('root', null, 'Docs'),
+      makeFile('nested', 'root', 'Nested'),
+      makeFile('notes', 'nested', 'notes', 'file'),
+      makeFile('other', 'root', 'other', 'file')
+    ]);
+
+    store.setSearchKeyword('notes');
+
+    expect(store.treeNodes().map(item => [item.node.id, item.isExpanded])).toEqual([
+      ['root', true],
+      ['nested', true],
+      ['notes', false]
+    ]);
+    expect(store.expandedFileIds().size).toBe(0);
+
+    store.setSearchKeyword('');
+
+    expect(store.treeNodes().map(item => item.node.id)).toEqual(['root']);
+  });
+
   it('建树顺序 = 查询顺序', () => {
     // 键的字典序（a < b < z）与查询给出的顺序相反：手动模式不得再按 sortOrder 排序
     const rootB = { ...makeFile('rb', null, 'B'), sortOrder: 'b' } as SortableFileNode;

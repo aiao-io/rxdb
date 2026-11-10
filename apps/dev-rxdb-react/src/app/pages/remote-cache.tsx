@@ -8,6 +8,7 @@ import { useRxDB } from '@aiao/rxdb-react';
 import { formatFileSize } from '@aiao/utils';
 import { Cloud, CloudDownload, File, RefreshCw, Trash2, Wifi, WifiOff } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createObjectUrlCache, type ObjectUrlCache } from './remote-cache-object-urls';
 import { isImageMimeType } from './remote-cache-preview';
 
 interface RemoteResource {
@@ -68,39 +69,17 @@ export default function RemoteCachePage() {
   const [cached, setCached] = useState<CachedItem[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
-  const objectUrlsRef = useRef<Map<string, string>>(new Map());
+  // 每次挂载一份预览地址缓存：卸载即回收，StrictMode 重挂与换库都换新的一份
+  const previewsRef = useRef<ObjectUrlCache<StorageFileMeta> | null>(null);
 
   const pushLog = useCallback((entry: Omit<LogEntry, 'timestamp'>) => {
     setLogs(previous => [{ ...entry, timestamp: Date.now() }, ...previous].slice(0, 20));
   }, []);
 
-  const loadCachedItems = useCallback(async (): Promise<CachedItem[]> => {
-    const metas = await rxdb.storage.list({ path: REMOTE_DIR });
-    const liveIds = new Set<string>(metas.map(meta => meta.id as string));
-
-    for (const [id, url] of Array.from(objectUrlsRef.current.entries())) {
-      if (!liveIds.has(id)) {
-        rxdb.storage.revokeObjectUrl(url);
-        objectUrlsRef.current.delete(id);
-      }
-    }
-
-    const items: CachedItem[] = [];
-    for (const meta of metas) {
-      let objectUrl = objectUrlsRef.current.get(meta.id);
-      if (!objectUrl) {
-        objectUrl = await rxdb.storage.createObjectUrl(meta.id);
-        objectUrlsRef.current.set(meta.id, objectUrl);
-      }
-      items.push({ meta, objectUrl });
-    }
-
-    return items;
-  }, [rxdb]);
-
   const refresh = useCallback(async () => {
-    setCached(await loadCachedItems());
-  }, [loadCachedItems]);
+    const items = await previewsRef.current?.load();
+    if (items) setCached(items);
+  }, []);
 
   useEffect(() => {
     const onOnline = () => setOnline(true);
@@ -108,18 +87,22 @@ export default function RemoteCachePage() {
     window.addEventListener('online', onOnline);
     window.addEventListener('offline', onOffline);
 
-    const objectUrls = objectUrlsRef.current;
-    void loadCachedItems().then(setCached);
+    const previews = createObjectUrlCache<StorageFileMeta>({
+      list: () => rxdb.storage.list({ path: REMOTE_DIR }),
+      createObjectUrl: id => rxdb.storage.createObjectUrl(id),
+      revokeObjectUrl: url => rxdb.storage.revokeObjectUrl(url)
+    });
+    previewsRef.current = previews;
+    void previews.load().then(items => {
+      if (items) setCached(items);
+    });
 
     return () => {
       window.removeEventListener('online', onOnline);
       window.removeEventListener('offline', onOffline);
-      for (const url of objectUrls.values()) {
-        rxdb.storage.revokeObjectUrl(url);
-      }
-      objectUrls.clear();
+      previews.dispose();
     };
-  }, [loadCachedItems, rxdb]);
+  }, [rxdb]);
 
   const describeError = (error: unknown, resource: RemoteResource): string => {
     if (error instanceof StorageOfflineError) {

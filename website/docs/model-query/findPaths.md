@@ -1,6 +1,6 @@
 # findPaths
 
-`findPaths` 用于图结构中的路径搜索。文档这里讨论的是实体静态方法，所以返回的是 `Observable<GraphPath<T>[]>`。
+`findPaths` 用于图结构中的路径搜索。实体静态方法 `findPaths` 返回 `Promise`，直接 `await`；`findPaths$` 返回 `Observable`，图结构变化时推送新结果。
 
 ## 图关系图
 
@@ -13,7 +13,8 @@ erDiagram
 ## 签名
 
 ```ts
-findPaths(options: FindPathsOptions<T>): Observable<GraphPath<T>[]>
+findPaths(options: FindPathsOptions<T>): Promise<GraphQueryResult<GraphPath<T>>>
+findPaths$(options: FindPathsOptions<T>): Observable<GraphQueryResult<GraphPath<T>>>
 ```
 
 ## 查询选项
@@ -42,31 +43,25 @@ findPaths(options: FindPathsOptions<T>): Observable<GraphPath<T>[]>
 ## 基础用法
 
 ```ts
-import { firstValueFrom } from 'rxjs';
-
-const paths = await firstValueFrom(
-  Person.findPaths({
-    fromId: alice.id,
-    toId: bob.id,
-    direction: 'out',
-    maxDepth: 5
-  })
-);
+const paths = await Person.findPaths({
+  fromId: alice.id,
+  toId: bob.id,
+  direction: 'out',
+  maxDepth: 5
+});
 ```
 
 ## 边过滤
 
 ```ts
-const paths = await firstValueFrom(
-  Person.findPaths({
-    fromId: alice.id,
-    toId: bob.id,
-    edgeWhere: {
-      weight: { max: 10 },
-      properties: { category: 'road' }
-    }
-  })
-);
+const paths = await Person.findPaths({
+  fromId: alice.id,
+  toId: bob.id,
+  edgeWhere: {
+    weight: { max: 10 },
+    properties: { category: 'road' }
+  }
+});
 ```
 
 ## 参考
