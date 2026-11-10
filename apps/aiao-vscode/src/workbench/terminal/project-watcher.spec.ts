@@ -118,7 +118,7 @@ describe('VM 内监听脚本', () => {
     await Promise.all(directories.splice(0).map(directory => rm(directory, { recursive: true, force: true })));
   });
 
-  it.each(['aiao-watch-', 'aiao-watch-\"\');process.exit(72);(\"\n'])(
+  it.each(['aiao-watch-', 'aiao-watch-"\');process.exit(72);("\n'])(
     '序列化成 node -e 脚本后独立运行，路径 %j 不改变脚本语义',
     async prefix => {
       const root = await mkdtemp(join(tmpdir(), prefix));
