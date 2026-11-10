@@ -21,6 +21,7 @@
 - **rxdb-adapter-wa-sqlite / -sqlite-wasm:** 含 NUL 的字符串绑定参数改为报错，此前在 NUL 处静默截断、写成另一个值。
 - **rxdb:** `RxDBBackupCompatibility` 多了必填的 `constraintFingerprint`。自己实现备份恢复的适配器要补上，取 `getRxDBBackupConstraintFingerprint(rxdb)` 即可；内置适配器都已补。
 - **rxdb-adapter-pglite / -supabase:** QueryCache 与同步的实体标识统一为「裸名即 public」，与 sqlite-core 和 `queryCacheEntityIdentifier` 一致。PGlite 的 `getMetadataByIds` / `upsertMany` / `deleteByIds`，以及 Supabase 的 `fetchMetadata` / `findByIds` / `pullChanges` / `getChangeCount` / `pullChangesBatch`，收到裸名时只在 `public` 命名空间里找，不再在全部命名空间里找唯一匹配。直调这些方法、用裸名指只配在非 public 命名空间下的实体（如 `'Item'` 指 `shop:Item`、`'RxDBBranch'`）的，此前能解析，现在抛 `RxdbAdapterPGliteError` / `SupabaseConfigError`；改写成 `namespace:entity`（`'shop:Item'`、`'rxdb:RxDBBranch'`）即可。`PullBatchRequest` 省略 `namespace` 时同样按 public 解析。经 QueryCache 仓储和同步插件发起的调用不受影响。
+- **rxdb / rxdb-adapter-pglite / rxdb-adapter-sqlite-core:** `bigint` 区间维 + `bounds: '[]'` 的区间排他，上端点等于 int8 最大值（`9223372036854775807n`）时，PG 表达式改为按上方无界构造。此前这样的合法行在 PGlite 上，没有任何竞争行也写不进去（规范化时上界加一，抛 `22003 bigint out of range`）。表达式参与约束名的哈希，所以**含这类区间维的排他换了名**：PGlite 的 `EXCLUDE` 约束和 SQLite family 的 `_i` / `_u` 两个触发器都按新名查找。已有的库（包括从旧归档恢复出来的）在 `connect()` 时抛 `RxDBConstraintDriftError`，`extra` 里是旧名，`missing` 里是新名，需要在 `migrations` 里删掉旧的、按新名重建（步骤与两个后端的示例见文档「存储约束」的「升级：`bigint` `'[]'` 区间维的排他换名」一节）。其余排他（`date`、`integer`、`bigint` 的 `'[)'` 维）名字不变。PGlite 的冲突键里，「上端点 = 最大值」和上方无界显示成一样，违约时 `ranges` 这一端报 `null`；SQLite 报原值，两者是同一组取值。
 
 ### 🚀 Features
 
@@ -61,6 +62,7 @@
 - **rxdb:** 建分支上下文 `RxDBBranchCreationContext` 新增可选的 `fromCommitId`，原样转交给系统贡献方（US-314）
 - **rxdb-model / -angular / -react / -vue:** 实体列表的撤销 / 重做按钮因子分支分叉点停用时，`title` 说明是哪条分支继承了下一步；文案在 `describeHistoryBarrier()`（US-315）
 - **rxdb-react:** 新增 `useHasRxDBProvider()`（`makeRxDBProvider()` 返回的每一套也带一份）：只回答组件树里有没有同一套 context 的 Provider，与数据库是否就绪、是否创建失败无关；配合 `useRxDBOptional()` 区分「没有 Provider」与「有 Provider 但还在解析」。只加在 React 端：Vue 已有 `injectRxDBRef(true)`，Angular 注入时库已就绪（RV-084）
+- **rxdb-adapter-http:** 实验性 `changeFeed` 新增诊断回调 `onOpen`（新导出 `HttpChangeFeedOpenHook` / `HttpChangeFeedOpenReport`）：每次接通（首次连接与每一次重连）报一次，排在该次接通的全量失效之后；与 `onUnavailable` 同一口径，同步调用、抛错丢弃、不影响通道。两者合起来才答得了「此刻通没通」，`changeFeedEnabled` 仍只是启停意图。
 
 ### 🩹 Fixes
 
@@ -151,6 +153,7 @@
 - **P2P demo:** 举报归档失败回 502 并可重试收尾，举报提交失败不再标「已举报」；删设备登记或删账号时一并清掉寄给该设备的信封（线上需重放 `p2p-schema.sql`）。
 - **aiao:** `docker/init-db.sh` 不再把本地 `start.sh` / `reset.sh` 起的默认栈初始化发给 `supabase-ci` 项目，隔离 CI 栈由 `supabase-ci-up.sh` 显式传 `-p/-f`，并等 Kong 通过健康检查才结束（Apple 芯片上 amd64 镜像靠模拟运行，端口先于 Kong 监听发布，原先紧接着连上去会被重置），隔离回归脚本在没有默认栈容器的机器上不再误判失败；入库 `docker/.env.example`，干净检出可照 `docker/README.md` 的快速开始操作；Supabase 参考 SQL 给 `menu_large` 补上 `(parentId, title)` 的 normalized 唯一索引，与本地适配器一致（已有开发库里若残留重复的同级菜单，需先清理或 `./reset.sh`）；`test-all:log` 的默认范围改为 `--base=main`，与 `pnpm test-all` 一致；e2e 静态服务与覆盖率首页在文件或目录被并发删换时不再崩溃；git-stats 合并时不再丢掉普通代码行；affected-ci 的 full 模式直接调用 `pnpm test-all`；评审脚本与审计门禁的判据修正：覆盖日志截断续写、`range=branch` 遇到被删项目、`--since` 同秒覆盖、覆盖率按源位置合并、API 基线的 type-only 转出、文档别名按代码块、惰性后端门禁的不可达 chunk、需求清单与 AC 继承。
 - **文档:** README 与网站的 `create` 示例改为先建实体实例；rxdb-react / -vue 的树查询 hook 改为指向 tree 插件包；Vue `useEntityChange` 的示例改为解构写法；working-tree-react 示例的 effect 依赖改为稳定的方法引用；search 的 React / Vue README 改为 `useSearch`；history 快速示例改为先切回 `main` 再合并；`bulkSync` 的仅 pull 示例改为 `operation: 'pull'`；rxdb-model 的查询构建器示例对齐 `addRule` 签名；图查询文档按 Promise 静态 API 修正；Angular 编辑器 README 删去已不存在的命令式 setter；架构页的客户端生成命令改为 `npx @aiao/rxdb-client-generator`；`getRepository` 的 TSDoc 订正为不自动归属当前事务。
+- **HTTP demo:** 顶栏变更通知徽标不再把启用意图当连接状态：连不上或断线退避时不再显示「已接通」，改为 已关闭 / 连接中 / 已接通 / 重连中 四态，只认适配器报来的接通与故障，重连成功即回到「已接通」；新增通道故障计数与最近一次故障说明。
 
 ## 0.0.28 (2026-10-24)
 
