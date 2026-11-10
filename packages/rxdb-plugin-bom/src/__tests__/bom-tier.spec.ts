@@ -132,6 +132,7 @@ for (const backend of BACKENDS) {
         await header.save();
         return header;
       };
+      let nextLineNo = 10;
       const addTier = async (
         header: BomHeader,
         tierGroupNo: string,
@@ -143,7 +144,8 @@ for (const backend of BACKENDS) {
         const child = await makeItem('pub-child');
         const line = new BomLine();
         line.headerId = header.id;
-        line.lineNo = 10 + Math.floor(Math.random() * 1000);
+        line.lineNo = nextLineNo;
+        nextLineNo += 10;
         await line.save();
         const occurrence = new BomLineOccurrence();
         occurrence.lineId = line.id;
