@@ -7,6 +7,7 @@ import {
   transformEntityValueToSql
 } from '../pglite.utils.js';
 import { getTableNameByMetadata } from '../table-name-resolver.js';
+import { fillEncryptedDefaults } from './encrypted-defaults.js';
 
 export interface InsertSqlOptions extends IMutationContext {
   encryption?: EncryptionContext;
@@ -42,6 +43,8 @@ export default async (
     if (metadata.propertyMap.has('createdBy')) entityData['createdBy'] = context.userId;
     if (metadata.propertyMap.has('updatedBy')) entityData['updatedBy'] = context.userId;
   }
+  // 加密列的 DDL 不带 DEFAULT：缺省的在这里补上，随整行封成信封（见 encrypted-defaults）
+  fillEncryptedDefaults(metadata, entityData, new Date());
 
   // 主键不在这里取：entityData 按物理列名为键，自定义主键列下没有 `id`，由 transformEntityValueToSql 两种键都认
   const transformed = await transformEntityValueToSql(metadata, entityData as Partial<IEntity>, context?.encryption);

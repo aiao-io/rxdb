@@ -7,7 +7,9 @@ const { globMock } = vi.hoisted(() => ({
   globMock: vi.fn()
 }));
 
-vi.mock('glob', () => ({
+// 只替换展开函数：「是否当 glob 处理」仍走真实的 hasMagic 解析
+vi.mock('glob', async importOriginal => ({
+  ...(await importOriginal<typeof import('glob')>()),
   glob: globMock
 }));
 

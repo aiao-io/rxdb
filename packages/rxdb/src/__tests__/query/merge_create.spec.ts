@@ -1755,23 +1755,24 @@ describe('query_merge_create_cache', () => {
         parentId: string | null = null;
         active = false;
       }
+      const childrenRelation = {
+        name: 'children',
+        propertyName: 'children',
+        kind: 'ONE_TO_MANY',
+        mappedEntity: 'Menu',
+        mappedNamespace: 'test',
+        mappedProperty: 'parent'
+      };
+      // relationMap 是含继承的合并视图，真实元数据里它总包含 relations 声明的关系；
+      // 自引用判定读的就是它，留空等于声明「没有自引用」
       const menuMetadata = {
         name: 'Menu',
         namespace: 'test',
         target: Menu,
         properties: [],
         primary: { name: 'id', type: 'string' },
-        relations: [
-          {
-            name: 'children',
-            propertyName: 'children',
-            kind: 'ONE_TO_MANY',
-            mappedEntity: 'Menu',
-            mappedNamespace: 'test',
-            mappedProperty: 'parent'
-          }
-        ],
-        relationMap: new Map(),
+        relations: [childrenRelation],
+        relationMap: new Map([['children', childrenRelation]]),
         propertyMap: new Map(),
         indexes: []
       };

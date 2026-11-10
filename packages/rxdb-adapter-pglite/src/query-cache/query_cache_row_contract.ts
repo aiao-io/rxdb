@@ -99,6 +99,8 @@ const hasUsableDefault = (defaultValue: unknown, type: EntityPropertyMetadata['t
  *   `"id" uuid PRIMARY KEY`，不像 sqlite 那样补 `DEFAULT (lower(hex(randomblob(16))))`；
  *   照 sqlite 豁免会让缺 id 的行走到 PostgreSQL 才报错。**这是两个后端的第一处分歧。**
  * - 字面量 `default` → 进 DDL 的 `DEFAULT` 子句（三条例外见 {@link hasUsableDefault}）。
+ *   **加密列是第四处例外，但照样算可缺省**：它的默认值是明文，不进 DDL（见 `create_table_sql`），
+ *   改由落地路径在加密前补上、封成信封（`upsert_many_sql.ts` 的 `omittedEncryptedDefaults`）。
  *
  * 关系列（只有 `ONE_TO_ONE` / `MANY_TO_ONE` 才占一个物理列）：
  *

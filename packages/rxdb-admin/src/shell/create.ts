@@ -297,6 +297,7 @@ export function createAdminShell<TIcon = unknown>(options: AdminShellOptions<TIc
   function destroy(): void {
     detach?.();
     unregisterShortcuts();
+    palette.close();
     preferences.destroy();
     tabs.destroy();
     lock.destroy();

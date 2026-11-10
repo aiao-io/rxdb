@@ -41,7 +41,7 @@ import { pathToFileURL } from 'node:url';
 import commitizen from './commitizen.mjs';
 import { NEED_CHECK_COMMIT_BRANCH_NAMES } from './workspace.mjs';
 
-/** 本地模式（含 commit-msg 文件）才校验的分支；其余分支放行。CI 的 --message / --range 不受此限制。 */
+/** 本地模式（含 commit-msg 文件）才校验的分支，按名字精确匹配；其余分支放行。CI 的 --message / --range 不受此限制。 */
 export const NEED_CHECK_BRANCHES = NEED_CHECK_COMMIT_BRANCH_NAMES;
 
 /** 允许绕过 `type(scope):` 的首行前缀（大小写不敏感，但必须在开头，且必须是完整的词）。 */
@@ -106,10 +106,10 @@ export function validateCommitMessage(message, config) {
 
 /**
  * 当前分支是否需要做 commit 文案校验。
- * detached HEAD（拿不到分支名）视为不校验。
+ * 按分支名精确匹配，不支持通配符；detached HEAD（拿不到分支名）视为不校验。
  *
  * @param {string} branchName `git symbolic-ref --short HEAD` 的结果；失败时传空串
- * @param {string[]} [branches] 白名单，默认 NEED_CHECK_BRANCHES
+ * @param {string[]} [branches] 白名单（分支名原文），默认 NEED_CHECK_BRANCHES
  * @returns {boolean}
  */
 export function shouldCheckCurrentBranch(branchName, branches = NEED_CHECK_BRANCHES) {

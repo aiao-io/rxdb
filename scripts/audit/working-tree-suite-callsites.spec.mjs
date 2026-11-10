@@ -233,6 +233,46 @@ test('文件里别处的 describe.skip 不牵连顶层调用点', () => {
   assert.equal(describeRejection(inspection), null);
 });
 
+test('模块顶层不带花括号的条件控制同样不合格：if / else / 循环 / 短路 / 三元', () => {
+  // 括号与花括号深度都是 0，却不是无条件执行：环境变量没设时这一格一条用例都不注册。
+  const head = `import { ${COMMIT_SUITE} } from '${SUITE_ENTRY}';\n\n`;
+  const cases = [
+    [`if (process.env.RUN_CONFORMANCE) ${COMMIT_SUITE}({ name: 'x' });`, 'if 条件'],
+    [`if (process.env.RUN_CONFORMANCE)\n  ${COMMIT_SUITE}({ name: 'x' });`, 'if 条件'],
+    [`if (process.env.SKIP) {}\nelse ${COMMIT_SUITE}({ name: 'x' });`, 'else 分支'],
+    [`for (const name of names) ${COMMIT_SUITE}({ name });`, 'for 循环'],
+    [`while (pending()) ${COMMIT_SUITE}({ name: 'x' });`, 'while 循环'],
+    [`process.env.RUN_CONFORMANCE && ${COMMIT_SUITE}({ name: 'x' });`, '短路运算'],
+    [`process.env.RUN_CONFORMANCE ? ${COMMIT_SUITE}({ name: 'x' }) : null;`, '三元表达式']
+  ];
+  for (const [body, label] of cases) {
+    const inspection = inspectSource(head + body, COMMIT_SUITE);
+    assert.deepEqual([inspection.called, inspection.disabledBy], [false, label], body);
+    assert.match(describeRejection(inspection), new RegExp(`被 ${label} 关掉了`), body);
+  }
+});
+
+test('写在不带花括号的箭头函数体里 = 没人调用，不合格', () => {
+  const source = `import { ${COMMIT_SUITE} } from '${SUITE_ENTRY}';\n\nexport const run = () => ${COMMIT_SUITE}({ name: 'x' });\n`;
+  const inspection = inspectSource(source, COMMIT_SUITE);
+
+  assert.deepEqual([inspection.called, inspection.disabledBy], [false, null]);
+  assert.match(describeRejection(inspection), /导入了但未调用/);
+});
+
+test('条件语句结束之后的顶层调用照常合格', () => {
+  const head = `import { ${COMMIT_SUITE} } from '${SUITE_ENTRY}';\n\n`;
+  for (const body of [
+    `if (process.env.CI) {}\n${COMMIT_SUITE}({ name: 'x' });`,
+    `if (process.env.CI) setup()\n${COMMIT_SUITE}({ name: 'x' });`,
+    `const ready = await prepare();\n${COMMIT_SUITE}({ name: 'x' });`,
+    `void ${COMMIT_SUITE}({ name: 'x' });`
+  ]) {
+    const inspection = inspectSource(head + body, COMMIT_SUITE);
+    assert.deepEqual([inspection.called, inspection.disabledBy], [true, null], body);
+  }
+});
+
 // ---------------------------------------------------------------------------
 // 单包扫描
 // ---------------------------------------------------------------------------

@@ -1,20 +1,14 @@
 {
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "name": "aiao-media-desktop",
-  "projectType": "application",
   "prefix": "media",
+  "projectType": "application",
   "sourceRoot": "aiao-media/apps/desktop/src",
-  "tags": [
-    "product:media",
-    "type:app",
-    "runtime:desktop"
-  ],
+  "tags": ["product:media", "type:app", "runtime:desktop"],
   "targets": {
     "build": {
       "executor": "@angular/build:application",
-      "outputs": [
-        "{options.outputPath}"
-      ],
+      "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "desktop",
       "options": {
         "outputPath": "aiao-media/apps/desktop/desktop-dist",
@@ -27,14 +21,8 @@
             "input": "aiao-media/apps/web/public"
           }
         ],
-        "styles": [
-          "aiao-media/apps/web/src/styles.css",
-          "aiao-media/apps/web/src/image-mvp.css"
-        ],
-        "allowedCommonJsDependencies": [
-          "@supabase/supabase-js",
-          "ms"
-        ]
+        "styles": ["aiao-media/apps/web/src/styles.css", "aiao-media/apps/web/src/image-mvp.css"],
+        "allowedCommonJsDependencies": ["@supabase/supabase-js", "ms"]
       },
       "configurations": {
         "desktop": {
@@ -72,11 +60,7 @@
           "sourceMap": true
         }
       },
-      "dependsOn": [
-        "aiao-media:prompt-assets",
-        "aiao-media:prepare-assets",
-        "aiao-media:auth-config"
-      ]
+      "dependsOn": ["aiao-media:prompt-assets", "aiao-media:prepare-assets", "aiao-media:auth-config"]
     },
     "serve": {
       "continuous": true,
@@ -93,9 +77,7 @@
     },
     "serve-static": {
       "continuous": true,
-      "dependsOn": [
-        "build"
-      ],
+      "dependsOn": ["build"],
       "executor": "@nx/web:file-server",
       "options": {
         "buildTarget": "aiao-media-desktop:build:desktop",

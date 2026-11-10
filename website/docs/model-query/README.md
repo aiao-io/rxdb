@@ -4,8 +4,8 @@
 
 ## 先记住两条
 
-- 普通查询、树查询、图查询的静态方法都返回 `Observable`
-- 只拿当前快照时,配套写法是 `firstValueFrom()`
+- 普通查询、树查询的静态方法返回 `Observable`;只拿当前快照时,配套写法是 `firstValueFrom()`
+- 图查询的静态方法分两套:无 `$` 的(`findNeighbors` / `countNeighbors` / `findPaths`)返回 `Promise`,直接 `await`;带 `$` 的(`findNeighbors$` 等)返回 `Observable`,用于订阅
 
 如果直接拿 `Repository` / `GraphRepository` 实例调用,底层方法可能返回 `Promise`。
 

@@ -151,6 +151,28 @@ describe('useTreeMenuVirtualStore', () => {
     expect(result.current.treeNodes).toEqual([]);
   });
 
+  it('搜索时临时展开折叠的祖先路径：命中项可见，展开集合不变，清空搜索后恢复折叠', () => {
+    const root = makeMenu('root', null);
+    const nested = makeMenu('nested', 'root');
+    const target = makeMenu('target', 'nested');
+    target.title = 'Target Menu';
+    const menus = [root, nested, target];
+    const { result } = renderHook(() => useTreeMenuVirtualStore(menus, rxdb));
+
+    act(() => result.current.setSearchKeyword('target'));
+
+    expect(result.current.treeNodes.map(node => [node.menu.id, node.isExpanded])).toEqual([
+      ['root', true],
+      ['nested', true],
+      ['target', false]
+    ]);
+    expect(result.current.expandedIds.size).toBe(0);
+
+    act(() => result.current.setSearchKeyword(''));
+
+    expect(result.current.treeNodes.map(node => node.menu.id)).toEqual(['root']);
+  });
+
   it('展开全部和折叠全部只改变父节点展开状态', () => {
     const root = makeMenu('root', null);
     const child = makeMenu('child', 'root');

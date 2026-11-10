@@ -364,7 +364,10 @@ test('已有管理员先验证原账号，普通账号不能接管且不会额�
     assert.equal(denied.status, 403);
     assert.match(await denied.text(), /原管理员/);
     assert.equal(calls.mock.calls.filter(call => String(call.arguments[0]).endsWith('/auth/v1/admin/users')).length, 0);
-    assert.equal(calls.mock.calls.filter(call => String(call.arguments[0]).endsWith('/rpc/media_bootstrap_admin')).length, 0);
+    assert.equal(
+      calls.mock.calls.filter(call => String(call.arguments[0]).endsWith('/rpc/media_bootstrap_admin')).length,
+      0
+    );
     authorized = true;
     assert.equal((await r.send('POST', { ...input, email: 'original-admin@example.test' })).status, 200);
   } finally {

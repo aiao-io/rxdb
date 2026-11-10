@@ -178,11 +178,26 @@ export const getPropertyTypeConfig = (property: EntityPropertyMetadata, metadata
 export const getFlatMapInterfaceName = (property: EntityPropertyMetadata, metadata: EntityMetadata) =>
   `${metadata.name}${property.name.charAt(0).toUpperCase() + property.name.slice(1)}KeyValue`;
 
+/** 核心 `@aiao/rxdb` 的通用 keyValue 类型名；空 schema 的属性与规则都用它。 */
+export const KEY_VALUE_TYPE = 'KeyValue';
+
 export const getKeyValuePreciseType = (property: EntityPropertyMetadata, metadata: EntityMetadata): string => {
   if (property.type !== PropertyType.keyValue || property.properties.length === 0) {
-    return 'KeyValue';
+    return KEY_VALUE_TYPE;
   }
   return getFlatMapInterfaceName(property, metadata);
+};
+
+/**
+ * 从 keyValue 规则的值类型 `Partial<X>` 里取出 `X`。
+ *
+ * @remarks
+ * `X` 是核心的 {@link KEY_VALUE_TYPE} 或某个实体的精确接口名。按生成标识符的同一套契约判定，
+ * 不另写一个更窄的正则：实体名允许 `$` 与 Unicode，`\w` 认不出来，对端接口就漏了导入。
+ */
+export const getKeyValueRuleTypeName = (valueType: string): string | undefined => {
+  const name = /^Partial<(.+)>$/u.exec(valueType)?.[1];
+  return name !== undefined && isGeneratedIdentifier(name) ? name : undefined;
 };
 
 export const getKeyValueInterfaceProperties = (property: EntityPropertyMetadata, metadata: EntityMetadata) => {

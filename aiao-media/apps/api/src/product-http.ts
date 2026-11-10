@@ -172,8 +172,7 @@ export function backend(env: WorkerEnv) {
       if (code === 'invalid_credentials') reject(401, '邮箱或密码错误，请使用该账号的原密码。');
       if (result.status === 401) reject(401, '账号会话已失效。');
       if (result.status === 403 || code === '42501') reject(403, '没有此操作权限。');
-      if (code === 'email_exists' || code === 'user_already_exists')
-        reject(409, '账号已存在，请验证原密码。');
+      if (code === 'email_exists' || code === 'user_already_exists') reject(409, '账号已存在，请验证原密码。');
       if (code === '23503') reject(404, '目标记录已不存在。');
       if (result.status === 409 || ['40001', '23505', '23514', 'PT409'].includes(code))
         reject(409, '数据版本或管理员状态已变化，请重新载入。');

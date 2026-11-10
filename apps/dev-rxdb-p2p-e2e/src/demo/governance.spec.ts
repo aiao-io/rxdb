@@ -31,6 +31,16 @@ const putBytes = (page: Page, encHash: string, payload: number[]): Promise<numbe
     [encHash, payload] as const
   );
 
+/** 在管理后台再发一个码，等「新码」换成与上一个不同的值后读出来。 */
+const issueCode = async (admin: Page, previous: string): Promise<string> => {
+  await admin.getByTestId('invite-issue').click();
+  const issued = admin.getByTestId('invite-issued');
+  await expect(issued).not.toContainText(previous);
+  const code = ((await issued.textContent()) ?? '').replace('新码：', '').trim();
+  expect(code).toHaveLength(20);
+  return code;
+};
+
 /** 直接调 Worker 接口（带登录身份），不经页面。 */
 const api = async (
   page: Page,
@@ -201,15 +211,22 @@ test.describe('滥用治理（POOL-US-102）', () => {
     const reused = await api(second.page, 'POST', '/api/invite', { code });
     expect(reused.status).toBe(409);
 
-    // 作废后即时失效
-    await admin.page
-      .getByTestId('admin-invite-row')
-      .filter({ hasText: code })
-      .getByRole('button', { name: '作废' })
-      .click();
+    // 作废后即时失效。作废的必须是一个从没用过的新码：拿上面那个已用掉的码去作废，
+    // 一次性约束本身就保证了后面的 409，作废是不是空操作都看不出来。
+    const revocable = await issueCode(admin.page, code);
+    const revocableRow = admin.page.getByTestId('admin-invite-row').filter({ hasText: revocable });
+    await revocableRow.getByRole('button', { name: '作废' }).click();
+    // 作废请求成功后该行才从列表里移除
+    await expect(revocableRow).toHaveCount(0);
     const third = await openDevice(browser, newAccount('invite3'), 'sign-up');
-    const revoked = await api(third.page, 'POST', '/api/invite', { code });
+    const revoked = await api(third.page, 'POST', '/api/invite', { code: revocable });
     expect(revoked.status).toBe(409);
+
+    // 对照：同一个账号拿一个没作废的新码照常激活——上面那次 409 来自作废，不是这个账号本身激活不了
+    const control = await issueCode(admin.page, revocable);
+    const activated = await api(third.page, 'POST', '/api/invite', { code: control });
+    expect(activated.status).toBe(200);
+    expect(activated.body).toEqual({ activated: true });
   });
 });
 

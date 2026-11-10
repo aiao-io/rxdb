@@ -138,6 +138,13 @@ describe('FilePathValidatorService', () => {
       expect(path).toBe('/Documents/Photos/vacation.jpg');
     });
 
+    it('库里的扩展名不带点（页面新建的写法）时同样补一个点', () => {
+      const notes = createTestFile('notes', 'notes', 'txt', 'doc');
+      const path = service.buildPath(notes, [...testFiles, notes]);
+
+      expect(path).toBe('/Documents/notes.txt');
+    });
+
     it('应该处理孤立节点（找不到父节点）', () => {
       const orphanNode = createTestFile('orphan', 'orphan', '.txt', 'non-existent');
       const path = service.buildPath(orphanNode, testFiles);

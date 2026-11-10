@@ -309,8 +309,7 @@ export class DesktopSqliteClient implements SqliteClientLike {
       opened.beginTransactionSql,
       opened.beginSystemMigrationTransactionSql
     );
-    client.#unsubscribe = transport.subscribe(message => client.#onMessage(message));
-    await client.#awaitSubscription();
+    await client.#subscribe();
     return client;
   }
 
@@ -454,20 +453,22 @@ export class DesktopSqliteClient implements SqliteClientLike {
   }
 
   /**
-   * 等变更事件通道真正建好，失败就回滚刚打开的会话。
+   * 注册变更事件订阅并等通道真正建好，任一步失败就回滚刚打开的会话。
    *
    * @remarks
    * 订阅建不起来意味着响应式查询永远不刷新。返回一个「能查、但永不刷新」的客户端是所有
    * 故障形态里最难查的一种，所以这里让 `connect()` 直接失败，把问题摆在连接这一步。
    *
    * 回滚是必须的：`open` 已经在 host 上开了会话、占了文件锁，调用方却拿不到客户端，
-   * 再没有第二个人能关掉它。
+   * 再没有第二个人能关掉它。同步的 `subscribe()` 抛错与异步的 `subscriptionReady()` 拒绝是同一个
+   * 连接阶段：自定义传输层的 `subscribe` 同样可能当场失败，漏掉它就是一条无人认领的 host 会话。
    *
    * @throws {@link RxDBAdapterDesktopError} 通道注册失败时抛 `host_unavailable`，
    *   原始原因挂在 `cause` 上
    */
-  async #awaitSubscription(): Promise<void> {
+  async #subscribe(): Promise<void> {
     try {
+      this.#unsubscribe = this.#transport.subscribe(message => this.#onMessage(message));
       await this.#transport.subscriptionReady?.();
       return;
     } catch (error) {

@@ -59,8 +59,9 @@ test('自托管首次安装持久化配置，服务重启后只能登录且公�
   const actor = crypto.randomUUID();
   const actualFetch = globalThis.fetch;
   t.mock.method(globalThis, 'fetch', async (url: string | URL | Request, init?: RequestInit) => {
-    if (!String(url).startsWith('https://supabase.example.test')) return actualFetch(url, init);
-    const path = new URL(String(url)).pathname;
+    const target = new URL(url instanceof Request ? url.url : url);
+    if (target.origin !== 'https://supabase.example.test') return actualFetch(url, init);
+    const path = target.pathname;
     if (path.endsWith('/settings')) return Response.json({});
     if (path.endsWith('/media_installation_state')) return Response.json([]);
     if (path.endsWith('/media_admin_memberships')) return Response.json([]);

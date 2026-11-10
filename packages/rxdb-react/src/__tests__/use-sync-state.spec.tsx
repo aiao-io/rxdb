@@ -123,6 +123,33 @@ describe('useSyncState', () => {
     expect(result.current.lastRejections).toBe(SYNC_REJECTIONS_NEXT_ROUND_FIXTURE);
   });
 
+  // RV-01a1bb2cb3a0 的三端对照：Provider 换库后跟随新库，旧库订阅当场释放
+  it('Provider 换库后跟随新库，旧库后续变化不再影响面板', () => {
+    const first = createFixture();
+    const second = createFixture();
+    first.hub.reportOutboxCount(1);
+    second.hub.reportOutboxCount(20);
+    let db = first.rxdb;
+    const { result, rerender, unmount } = renderHook(() => useSyncState(), {
+      wrapper: ({ children }) => <RxDBProvider db={db}>{children}</RxDBProvider>
+    });
+    expect(result.current.pendingCount).toBe(1);
+
+    db = second.rxdb;
+    rerender();
+
+    expect(result.current.pendingCount).toBe(20);
+    expect(first.teardown).toHaveBeenCalledTimes(1);
+    act(() => {
+      first.hub.reportOutboxCount(7);
+      second.hub.reportOutboxCount(21);
+    });
+    expect(result.current.pendingCount).toBe(21);
+
+    unmount();
+    expect(second.teardown).toHaveBeenCalledTimes(1);
+  });
+
   it('卸载时退订上游', () => {
     const { rxdb, teardown } = createFixture();
     const { unmount } = renderWithProvider(rxdb);

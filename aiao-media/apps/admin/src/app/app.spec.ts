@@ -1,10 +1,10 @@
-import { TestBed } from '@angular/core/testing';
 import { provideAdminShell } from '@aiao/rxdb-admin-angular';
+import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { afterEach, vi } from 'vitest';
+import { adminShell } from './admin-shell';
 import { App } from './app';
 import { appRoutes } from './app.routes';
-import { adminShell } from './admin-shell';
 
 const initial = { initialized: false, managed: false, auth: null };
 const ready = {

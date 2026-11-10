@@ -53,7 +53,7 @@ describe('history-item-builder', () => {
     expect(item).toMatchObject({
       transactionId: null,
       changeId: 8,
-      fingerprint: `INSERT:${getRxDBEntityIdentityKey('todo-3')}:${createdAt.getTime()}`,
+      fingerprint: `INSERT:${getRxDBEntityIdentityKey('todo-3')}:${createdAt.getTime()}:8`,
       type: 'INSERT',
       count: 2,
       createdAt,
@@ -62,6 +62,30 @@ describe('history-item-builder', () => {
       reverted: false,
       redoInvalidated: false
     });
+  });
+
+  // createdAt 不保证唯一：同一实体两次独立 UPDATE 落在同一毫秒时，指纹仍要分得开（HistoryItem.fingerprint 的契约是唯一）
+  it('同实体同毫秒的两次独立变更指纹不同', () => {
+    const createdAt = new Date('2026-07-10T02:00:00.000Z');
+    const first = createHistoryItem([createChange({ id: 1, type: 'UPDATE', createdAt })]);
+    const second = createHistoryItem([createChange({ id: 2, type: 'UPDATE', createdAt })]);
+
+    expect(first.fingerprint).not.toBe(second.fingerprint);
+  });
+
+  it('跨命名空间同 id 同毫秒的变更指纹不同', () => {
+    const createdAt = new Date('2026-07-10T03:00:00.000Z');
+    const publicItem = createHistoryItem([createChange({ id: 4, createdAt })]);
+    const tenantItem = createHistoryItem([createChange({ id: 5, namespace: 'tenant', createdAt })]);
+
+    expect(publicItem.fingerprint).not.toBe(tenantItem.fingerprint);
+  });
+
+  it('同一批变更重读出来的指纹不变', () => {
+    const createdAt = new Date('2026-07-10T04:00:00.000Z');
+    const changes = [createChange({ id: 7, createdAt }), createChange({ id: 6, createdAt })];
+
+    expect(createHistoryItem([...changes]).fingerprint).toBe(createHistoryItem([...changes]).fingerprint);
   });
 
   it('marks a transaction reverted and redo-invalidated when any change is marked', () => {

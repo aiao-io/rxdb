@@ -103,8 +103,8 @@
           [client]="client"
           [identity]="account.user.id"
           [routeTab]="routeTab()"
-          status="signed-in"
           (tabChange)="navigateToTab($event)"
+          status="signed-in"
         />
       </rxdb-admin-layout>
     } @else {

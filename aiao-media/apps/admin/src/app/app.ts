@@ -1,20 +1,14 @@
 import type { InstallationStatus } from '@aiao-media/api-contracts';
 import { AdminLayoutComponent, AdminPageDirective } from '@aiao/rxdb-admin-angular';
-import { LucideClapperboard as Clapperboard, LucideDynamicIcon } from '@lucide/angular';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import {
-  NavigationCancel,
-  NavigationEnd,
-  NavigationError,
-  NavigationStart,
-  Router
-} from '@angular/router';
+import { NavigationCancel, NavigationEnd, NavigationError, NavigationStart, Router } from '@angular/router';
+import { LucideClapperboard as Clapperboard, LucideDynamicIcon } from '@lucide/angular';
 import { filter, map } from 'rxjs';
 import { AdminConsole } from './admin-console';
-import { ProductClient } from './product-client';
 import { ADMIN_MENU, bindAdminNavigator, tabFromUrl } from './admin-shell';
+import { ProductClient } from './product-client';
 
 interface Session {
   accessToken: string;

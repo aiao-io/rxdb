@@ -1,7 +1,7 @@
 import { WorktreeTableSet } from '@aiao/rxdb';
-import { mount, type VueWrapper } from '@vue/test-utils';
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { shallowRef } from 'vue';
+import { reactive, shallowRef } from 'vue';
 import AppBranchManager from './AppBranchManager.vue';
 
 /**
@@ -13,17 +13,34 @@ const shadow = WorktreeTableSet.of('wt_x', []);
 
 const mocks = vi.hoisted(() => ({
   branches: undefined as unknown,
-  mounted: undefined as unknown
+  mounted: undefined as unknown,
+  switchBranch: vi.fn(),
+  toastError: vi.fn()
 }));
 
 vi.mock('@aiao/rxdb-vue', () => ({
   useFindAll: () => mocks.branches,
-  useRxDB: () => ({ versionManager: { switchBranch: vi.fn(), createBranch: vi.fn() } })
+  useRxDB: () => ({ versionManager: { switchBranch: mocks.switchBranch, createBranch: vi.fn() } })
 }));
 
 vi.mock('@aiao/rxdb-plugin-working-tree-vue', () => ({
   useWorktrees: () => ({ mounted: mocks.mounted })
 }));
+
+vi.mock('../composables/useToast', async importOriginal => ({
+  ...(await importOriginal<typeof import('../composables/useToast')>()),
+  useToast: () => ({ error: mocks.toastError })
+}));
+
+/** 主检出位停在 `active` 上：那一条持有主检出位的哨兵、`activated` 为真 */
+const mainCheckoutOn = (active: 'main' | 'feature') => [
+  { id: 'main', activated: active === 'main', activeKey: active === 'main' ? WorktreeTableSet.MAIN.holderKey : null },
+  {
+    id: 'feature',
+    activated: active === 'feature',
+    activeKey: active === 'feature' ? WorktreeTableSet.MAIN.holderKey : null
+  }
+];
 
 const mountedWrappers: VueWrapper[] = [];
 
@@ -55,5 +72,51 @@ describe('AppBranchManager：当前分支（US-314 C2.1）', () => {
     await wrapper.vm.$nextTick();
 
     expect(select.element.value).toBe('main');
+  });
+});
+
+// 与 React 端「rolls back the selection and exposes switch failures」「switches branches and waits for the
+// active branch source」同一场景
+describe('AppBranchManager：切换分支', () => {
+  beforeEach(() => {
+    mocks.switchBranch.mockReset();
+    mocks.toastError.mockReset();
+    // 活查询资源：响应式对象，改 value 就像分支数据回传
+    mocks.branches = reactive({ value: mainCheckoutOn('main') });
+    mocks.mounted = shallowRef<WorktreeTableSet>(WorktreeTableSet.MAIN);
+  });
+
+  const renderOnMain = () => {
+    const wrapper = mount(AppBranchManager);
+    mountedWrappers.push(wrapper);
+    const select = wrapper.get<HTMLSelectElement>('[data-testid="app-branch-select"]');
+    expect(select.element.value).toBe('main');
+    return { select, wrapper };
+  };
+
+  it('切换失败后选择器回到真实分支，并提示失败原因', async () => {
+    mocks.switchBranch.mockRejectedValue(new Error('switch failed'));
+    const { select } = renderOnMain();
+
+    await select.setValue('feature');
+    await flushPromises();
+
+    expect(mocks.switchBranch).toHaveBeenCalledWith('feature');
+    expect(mocks.toastError).toHaveBeenCalledWith(expect.stringContaining('switch failed'));
+    expect(select.element.value).toBe('main');
+  });
+
+  it('切换成功后等分支数据回传再改选中项', async () => {
+    mocks.switchBranch.mockResolvedValue(undefined);
+    const { select, wrapper } = renderOnMain();
+
+    await select.setValue('feature');
+    await flushPromises();
+
+    expect(mocks.switchBranch).toHaveBeenCalledWith('feature');
+    expect(select.element.value).toBe('main');
+    (mocks.branches as { value: unknown }).value = mainCheckoutOn('feature');
+    await wrapper.vm.$nextTick();
+    expect(select.element.value).toBe('feature');
   });
 });

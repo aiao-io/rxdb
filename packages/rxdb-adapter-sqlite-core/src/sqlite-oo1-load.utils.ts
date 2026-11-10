@@ -262,15 +262,16 @@ export function buildOo1InitOptions(options?: Oo1LoadOptions): Record<string, un
  *
  * 这里只纳入**真正决定加载什么**的字段。`print` / `printErr` 是模块级日志通道，
  * 不影响加载哪个二进制，故不参与指纹（首次加载生效，后续调用传的会被忽略）。
- * `locateFile` 是函数、无法按值比较，只比较「有没有提供」——
- * 两个**不同实现**的 `locateFile` 无法区分，这是模块级缓存的固有限制，
- * 不做假装能测的兜底。
+ * `locateFile` 按**函数身份**比较：同一个回调复用，换一个回调（哪怕源码相同的另一个闭包）就重载——
+ * 函数没法按值比，但引用相等是可靠的，只比「有没有提供」会让第二个回调一次都不被调用。
  */
 export interface Oo1LoadFingerprint {
   readonly opfs: boolean;
   readonly wasmPath: string | undefined;
   readonly opfsProxyPath: string | undefined;
   readonly hasLocateFile: boolean;
+  /** 调用方给的 `locateFile` 回调本身，按引用比较；没给时为 `undefined` */
+  readonly locateFile?: (name: string) => string;
 }
 
 /** 从加载选项算出 {@link Oo1LoadFingerprint}。 */
@@ -279,7 +280,8 @@ export function toOo1LoadFingerprint(options?: Oo1LoadOptions): Oo1LoadFingerpri
     opfs: options?.opfs === true,
     wasmPath: options?.wasmPath,
     opfsProxyPath: options?.opfsProxyPath,
-    hasLocateFile: options?.locateFile !== undefined
+    hasLocateFile: options?.locateFile !== undefined,
+    locateFile: options?.locateFile
   };
 }
 
@@ -301,6 +303,7 @@ export function isSameOo1LoadConfig(cached: Oo1LoadFingerprint, requested: Oo1Lo
     cached.opfs === requested.opfs &&
     cached.wasmPath === requested.wasmPath &&
     cached.opfsProxyPath === requested.opfsProxyPath &&
-    cached.hasLocateFile === requested.hasLocateFile
+    cached.hasLocateFile === requested.hasLocateFile &&
+    cached.locateFile === requested.locateFile
   );
 }

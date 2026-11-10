@@ -409,7 +409,8 @@ async function relay(request: Request, env: WorkerEnv): Promise<Response> {
 
 app.options('/api/*', c => {
   const origin = c.req.header('origin');
-  if (origin !== 'tauri://localhost' || c.env.MEDIA_ALLOW_DESKTOP_ORIGIN !== 'true') return json(403, 'Origin is not enabled');
+  if (origin !== 'tauri://localhost' || c.env.MEDIA_ALLOW_DESKTOP_ORIGIN !== 'true')
+    return json(403, 'Origin is not enabled');
   return new Response(null, {
     status: 204,
     headers: {

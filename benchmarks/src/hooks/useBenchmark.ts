@@ -1,4 +1,3 @@
-import { RxDB } from '@aiao/rxdb';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { clearDB } from '../clear-db';
 import type { BenchmarkResult } from '../constants';
@@ -6,7 +5,7 @@ import { runConcurrencyTests } from '../scenarios/concurrency';
 import { runLatencyTests } from '../scenarios/latency';
 import { runScalabilityTests } from '../scenarios/scalability';
 import { runThroughputTests } from '../scenarios/throughput';
-import { createRxDB, type BenchmarkSqliteAdapter } from '../utils/rxdb-factory';
+import { createRxDB, type BenchmarkDatabase, type BenchmarkSqliteAdapter } from '../utils/rxdb-factory';
 
 export type BenchmarkState = 'idle' | 'running' | 'completed' | 'error';
 
@@ -27,17 +26,17 @@ export function useBenchmark(sqliteAdapter: BenchmarkSqliteAdapter) {
   const [state, setState] = useState<BenchmarkState>('idle');
   const [sections, setSections] = useState<BenchmarkSection[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const rxdbRef = useRef<RxDB | null>(null);
+  const databaseRef = useRef<BenchmarkDatabase | null>(null);
   const sqliteAdapterRef = useRef(sqliteAdapter);
   const benchmarkRunRef = useRef(0);
 
   const disconnectCurrentDatabase = useCallback(async () => {
-    const current = rxdbRef.current;
-    rxdbRef.current = null;
+    const current = databaseRef.current;
+    databaseRef.current = null;
 
     if (!current) return;
 
-    await current.disconnectAll();
+    await current.dispose();
   }, []);
 
   const clearBenchmarkStorage = useCallback(async (reason: string) => {
@@ -52,10 +51,10 @@ export function useBenchmark(sqliteAdapter: BenchmarkSqliteAdapter) {
     async (adapter: BenchmarkSqliteAdapter, dbName: string) => {
       await disconnectCurrentDatabase();
 
-      const nextRxdb = await createRxDB(dbName, adapter);
-      rxdbRef.current = nextRxdb;
+      const next = await createRxDB(dbName, adapter);
+      databaseRef.current = next;
 
-      return nextRxdb;
+      return next.rxdb;
     },
     [disconnectCurrentDatabase]
   );

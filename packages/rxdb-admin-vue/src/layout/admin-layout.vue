@@ -38,7 +38,12 @@ const layout = useAdminStore(shell.layout);
 const ui = useAdminStore(shell.ui);
 const prefs = useAdminStore(shell.preferences);
 const mobile = useAdminStore(shell.isMobile);
-const pageTitle = computed(() => menuTitleOf(props.menu, props.url) ?? shell.brandTitle);
+const textRevision = useAdminStore(shell.text);
+// 品牌名可能按宿主目录翻译（brand.titleKey），读文案修订号使语言切换后重新计算
+const pageTitle = computed(() => {
+  void textRevision.value;
+  return menuTitleOf(props.menu, props.url) ?? shell.brandTitle;
+});
 const page = useTemplateRef<HTMLDivElement>('page');
 
 const pathOf = (url: string): string => url.split(/[?#]/, 1)[0];

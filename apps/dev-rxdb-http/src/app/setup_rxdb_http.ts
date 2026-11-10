@@ -6,7 +6,11 @@ import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginQueryCache } from '@aiao/rxdb-plugin-querycache';
 import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { checkOPFSAvailable } from '@aiao/utils';
-import { recordChangeFeedNotification, recordChangeFeedUnavailable } from './change-feed-diagnostics';
+import {
+  recordChangeFeedNotification,
+  recordChangeFeedOpen,
+  recordChangeFeedUnavailable
+} from './change-feed-diagnostics';
 import {
   CHANGE_FEED_PATH,
   CLIENT_ID_HEADER,
@@ -102,8 +106,12 @@ export default (): RxDB => {
         // 通道**无条件配上**，开关交给运行时（下面那个 stopChangeFeed 与面板上的
         // checkbox）。配置项在这里缺席的话，「开关」就只能靠重建适配器实现，
         // 也就是 location.reload()——那不是开关，那是刷新。
+        //
+        // 顶栏徽标的「已接通 / 重连中」只认 onOpen 与 onUnavailable 这两个事实；
+        // `changeFeedEnabled` 只是意图，连不上时它照样是 true。
         changeFeed: {
           url: CHANGE_FEED_PATH,
+          onOpen: recordChangeFeedOpen,
           onNotification: recordChangeFeedNotification,
           onUnavailable: recordChangeFeedUnavailable
         },

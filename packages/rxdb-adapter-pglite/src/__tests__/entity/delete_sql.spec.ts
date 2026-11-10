@@ -1,4 +1,4 @@
-import { EntityMetadata, transitionMetadata, WorktreeTableSet } from '@aiao/rxdb';
+import { EntityMetadata, PropertyType, transitionMetadata, WorktreeTableSet } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import generate_entity_delete_sql from '../../entity/delete_sql.js';
 import generate_entity_deletes_sql from '../../entity/deletes_sql.js';
@@ -6,15 +6,30 @@ import generate_entity_deletes_sql from '../../entity/deletes_sql.js';
 describe('delete_sql (PGlite)', () => {
   const createMetadata = (
     name: Capitalize<string> = 'TestEntity',
-    namespace: Lowercase<string> = 'test'
-  ): EntityMetadata => transitionMetadata({ name, namespace, tableName: name });
+    namespace: Lowercase<string> = 'test',
+    primaryColumn = 'id'
+  ): EntityMetadata =>
+    transitionMetadata({
+      name,
+      namespace,
+      tableName: name,
+      properties: [{ name: 'id', columnName: primaryColumn, type: PropertyType.uuid, primary: true }]
+    });
 
   it('应该生成基本的 DELETE SQL', () => {
     const metadata = createMetadata();
     const entity = { id: 'test-id' };
     const result = generate_entity_delete_sql(metadata, WorktreeTableSet.MAIN, entity);
 
-    expect(result.sql).toBe('DELETE FROM "test"."TestEntity" WHERE id = $1;');
+    expect(result.sql).toBe('DELETE FROM "test"."TestEntity" WHERE "id" = $1;');
+    expect(result.params).toEqual(['test-id']);
+  });
+
+  it('按主键物理列删：主键属性 id 可被 columnName 改写', () => {
+    const metadata = createMetadata('TestEntity', 'test', 'row_key');
+    const result = generate_entity_delete_sql(metadata, WorktreeTableSet.MAIN, { id: 'test-id' });
+
+    expect(result.sql).toBe('DELETE FROM "test"."TestEntity" WHERE "row_key" = $1;');
     expect(result.params).toEqual(['test-id']);
   });
 
@@ -23,7 +38,7 @@ describe('delete_sql (PGlite)', () => {
     const entity = { id: 'user-123' };
     const result = generate_entity_delete_sql(metadata, WorktreeTableSet.MAIN, entity);
 
-    expect(result.sql).toBe('DELETE FROM "app"."User" WHERE id = $1;');
+    expect(result.sql).toBe('DELETE FROM "app"."User" WHERE "id" = $1;');
     expect(result.params).toEqual(['user-123']);
   });
 
@@ -91,7 +106,7 @@ describe('delete_sql (PGlite)', () => {
     const entity = { id: "'; DROP TABLE users; --" };
     const result = generate_entity_delete_sql(metadata, WorktreeTableSet.MAIN, entity);
 
-    expect(result.sql).toContain('WHERE id = $1');
+    expect(result.sql).toContain('WHERE "id" = $1');
     expect(result.sql).not.toContain("'; DROP TABLE");
     expect(result.params[0]).toBe("'; DROP TABLE users; --");
   });

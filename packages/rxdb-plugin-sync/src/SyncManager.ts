@@ -615,11 +615,11 @@ export class SyncManager {
    *   ]
    * });
    *
-   * // 并发模式仅 pull
+   * // 并发模式仅 pull：方向由 operation 选，push 只是推送选项对象
    * const result = await rxdb.syncManager.bulkSync({
    *   concurrent: true,
    *   concurrency: 3,
-   *   push: false
+   *   operation: 'pull'
    * });
    *
    * // 检查每项结果

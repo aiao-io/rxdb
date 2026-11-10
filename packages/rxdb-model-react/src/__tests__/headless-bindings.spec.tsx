@@ -66,6 +66,37 @@ describe('React headless bindings', () => {
     expect(result.current.snapshot.form.data.title).toBe('draft');
   });
 
+  // 撤下可选的 mode 时三端都恢复共享控制器的默认 edit（RV-01a1bb54b35b79d491932d4436e84437）
+  it.each(['view', 'create'] as const)('表单与详情的 mode 从 %s 撤下后恢复默认 edit，草稿保留', initialMode => {
+    type Props = { mode?: 'view' | 'create' };
+    const { result, rerender } = renderHook(
+      ({ mode }: Props) => ({
+        form: useEntityForm({ fields, data: { title: 'A' }, mode }),
+        detail: useEntityDetail({ fields, data: { title: 'A' }, mode })
+      }),
+      { initialProps: { mode: initialMode } as Props }
+    );
+    expect(result.current.form.snapshot.mode).toBe(initialMode);
+    act(() => {
+      result.current.form.controller.setField('title', 'draft');
+      result.current.detail.controller.form.setField('title', 'draft');
+    });
+
+    rerender({});
+
+    expect(result.current.form.snapshot.mode).toBe('edit');
+    expect(result.current.detail.snapshot.mode).toBe('edit');
+    const kept = initialMode === 'view' ? 'A' : 'draft';
+    expect(result.current.form.snapshot.data.title).toBe(kept);
+    expect(result.current.detail.snapshot.form.data.title).toBe(kept);
+    act(() => {
+      result.current.form.controller.setField('title', 'B');
+      result.current.detail.controller.form.setField('title', 'B');
+    });
+    expect(result.current.form.snapshot.data.title).toBe('B');
+    expect(result.current.detail.snapshot.form.data.title).toBe('B');
+  });
+
   it('宿主更新 data 会重置表单，字段和 mode 更新不会重置', () => {
     const { result, rerender } = renderHook(
       ({ data, mode }: { data: { title: string }; mode: 'edit' | 'view' }) => useEntityForm({ fields, data, mode }),

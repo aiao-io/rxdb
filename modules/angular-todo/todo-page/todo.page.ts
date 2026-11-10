@@ -366,12 +366,13 @@ export class TodoPage implements OnInit, AfterViewInit {
     console.timeEnd('saveMany');
   }
 
+  // 与计数、侧栏同一份 Task 作用域：无参 history() 是整库作用域，会撤销页面外的实体
   undo() {
-    void this.#rxdb.versionManager.history().undo();
+    void this.history.undo();
   }
 
   redo() {
-    void this.#rxdb.versionManager.history().redo();
+    void this.history.redo();
   }
 
   #required(ref: ElementRef<HTMLElement> | undefined, name: string): HTMLElement {

@@ -144,6 +144,78 @@ describe('headless 表单状态回归', () => {
     expect(structuralEqual(circular, copy)).toBe(true);
   });
 
+  // `copy[key] = …` 遇到 JSON 的自有 `__proto__` 键会走继承的 setter：键丢了、副本原型还被换掉（RV-01a1bb7340ab78b793a5f7fb7afdca71）
+  it('JSON 自有 __proto__ 键在克隆、快照、编辑与提交中按数据键保留', () => {
+    const source = '{"__proto__":{"label":"kept"},"nested":{"__proto__":{"deep":true}},"normal":1}';
+    const payload = JSON.parse(source) as Record<string, unknown>;
+    const copy = cloneStructured(payload);
+    expect(Object.hasOwn(copy, '__proto__')).toBe(true);
+    expect(Object.getPrototypeOf(copy)).toBe(Object.prototype);
+    expect(JSON.stringify(copy)).toBe(source);
+    expect(structuralEqual(payload, copy)).toBe(true);
+
+    const jsonFields: FormFieldConfig[] = [{ field: 'payload', displayName: '载荷', type: 'json' }];
+    const constructed = createEntityFormController({ fields: jsonFields, data: { payload } });
+    expect(JSON.stringify(constructed.snapshot.data.payload)).toBe(source);
+
+    const form = createEntityFormController({ fields: jsonFields, data: { payload: {} } });
+    form.setData({ payload });
+    expect(JSON.stringify(form.snapshot.data.payload)).toBe(source);
+    expect(JSON.stringify(form.snapshot.initialData.payload)).toBe(source);
+
+    const edited = '{"__proto__":{"label":"edited"},"constructor":{"prototype":1},"normal":2}';
+    expect(form.setField('payload', edited).ok).toBe(true);
+    expect(JSON.stringify(form.snapshot.data.payload)).toBe(edited);
+    const submitted = form.submit();
+    expect(submitted.valid).toBe(true);
+    if (!submitted.valid) return;
+    expect(JSON.stringify(submitted.data.payload)).toBe(edited);
+    expect(JSON.stringify(submitted.changes.payload)).toBe(edited);
+    expect(Object.getPrototypeOf(submitted.data.payload)).toBe(Object.prototype);
+  });
+
+  // 宿主 data / setData 不经严格解析，原先只用 isNaN / isInteger 校验：±Infinity 与 2^53 被标成合法并允许提交（RV-01a1bb7b3a887ed3b58dd227d86954a9）
+  it.each([
+    ['amount', Infinity],
+    ['amount', -Infinity],
+    ['count', Infinity],
+    ['count', 2 ** 53],
+    ['count', -(2 ** 53)]
+  ])('宿主数据 %s=%d 与 setField 输入同样被拒', (field, value) => {
+    const fields: FormFieldConfig[] = [
+      { field: 'amount', displayName: '金额', type: 'number' },
+      { field: 'count', displayName: '数量', type: 'integer' }
+    ];
+    const valid = { amount: 1, count: 1 };
+    const typed = createEntityFormController({ fields, data: valid });
+    expect(typed.setField(field, value).ok).toBe(false);
+
+    const constructed = createEntityFormController({ fields, data: { ...valid, [field]: value } });
+    expect(constructed.snapshot.valid).toBe(false);
+    expect(constructed.snapshot.errors.map(error => error.field)).toEqual([field]);
+    expect(constructed.submit().valid).toBe(false);
+
+    const replaced = createEntityFormController({ fields, data: valid });
+    replaced.setData({ ...valid, [field]: value });
+    expect(replaced.snapshot.valid).toBe(false);
+    expect(replaced.validate().valid).toBe(false);
+    expect(replaced.submit().valid).toBe(false);
+  });
+
+  it('有限数与安全整数照常通过，字符串数值的转换语义不变', () => {
+    const fields: FormFieldConfig[] = [
+      { field: 'amount', displayName: '金额', type: 'number' },
+      { field: 'count', displayName: '数量', type: 'integer' }
+    ];
+    const form = createEntityFormController({
+      fields,
+      data: { amount: '-3.5', count: String(Number.MAX_SAFE_INTEGER) }
+    });
+    expect(form.snapshot.valid).toBe(true);
+    form.setData({ amount: Number.MAX_VALUE, count: Number.MIN_SAFE_INTEGER });
+    expect(form.snapshot.valid).toBe(true);
+  });
+
   it('字段变更返回值和监听事件不会泄漏内部旧值', () => {
     const form = createEntityFormController({
       fields: [{ field: 'json', displayName: '结构', type: 'json' }],

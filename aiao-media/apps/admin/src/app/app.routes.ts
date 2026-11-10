@@ -1,5 +1,5 @@
-import type { Routes } from '@angular/router';
 import { Component } from '@angular/core';
+import type { Routes } from '@angular/router';
 
 @Component({ selector: 'aiao-media-admin-route', template: '' })
 class AdminRoutePlaceholder {}

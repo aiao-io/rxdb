@@ -15,6 +15,7 @@ import {
   indexTextForFts,
   MAX_BATCH_WAIT_MS,
   releaseComlinkProxy,
+  RxDBAdapterSqliteError,
   SQLiteChangeType,
   validateSqliteNumericOption,
   WATCH_TABLES
@@ -56,6 +57,108 @@ interface SqliteConnection {
 /** 持有者带键登记的监听；三类变更的事件数据同形 */
 type OwnedListener = EventListener<SqliteChangeEvent>;
 
+/**
+ * 一次 `init` 打开的是哪个库、用什么资源与锁配置打开
+ *
+ * @remarks
+ * SharedWorker 上每个标签页的适配器都对同一个客户端调一次 `init`：只有身份等价的调用能共享
+ * 这条连接。身份不同还「成功」时，第二个逻辑库读写的是第一个库，适配器按各自库名算的跨标签页
+ * 锁也互不相干（RV-01a1bb467e017517894b50101207f734）。
+ */
+interface ClientIdentity {
+  readonly dbName: string;
+  readonly vfs: LoadModuleOptions['vfs'];
+  readonly wasmUrl: string | undefined;
+  readonly readonly: boolean;
+  readonly idbLockPolicy: LoadModuleOptions['idbLockPolicy'];
+  readonly idbLockTimeout: number | undefined;
+  readonly worker: boolean;
+  readonly sharedWorker: boolean;
+  readonly cacheSizeKb: number;
+  readonly batchTimeout: number;
+  /** `fs-handle` 的根目录：句柄经 postMessage 传来时每次都是新对象，按 `isSameEntry` 比 */
+  readonly fsRoot: FileSystemDirectoryHandle | undefined;
+}
+
+const IDENTITY_FIELDS = [
+  'dbName',
+  'vfs',
+  'wasmUrl',
+  'readonly',
+  'idbLockPolicy',
+  'idbLockTimeout',
+  'worker',
+  'sharedWorker',
+  'cacheSizeKb',
+  'batchTimeout'
+] as const satisfies readonly (keyof ClientIdentity)[];
+
+const identityOf = (dbName: string, options: LoadModuleOptions): ClientIdentity => ({
+  dbName,
+  vfs: options.vfs,
+  wasmUrl: options.wasmUrl,
+  readonly: options.readonly === true,
+  idbLockPolicy: options.idbLockPolicy,
+  idbLockTimeout: options.idbLockTimeout,
+  worker: options.worker === true,
+  sharedWorker: options.sharedWorker === true,
+  cacheSizeKb: validateSqliteNumericOption('cacheSizeKb', options.cacheSizeKb, DEFAULT_CACHE_SIZE_KB),
+  batchTimeout: validateSqliteNumericOption('batchTimeout', options.batchTimeout, DEFAULT_BATCH_TIMEOUT, {
+    allowZero: true
+  }),
+  fsRoot: options.fsRoot
+});
+
+const sameFsRoot = async (
+  current: FileSystemDirectoryHandle | undefined,
+  requested: FileSystemDirectoryHandle | undefined
+): Promise<boolean> => {
+  if (current === requested) return true;
+  if (current === undefined || requested === undefined) return false;
+  return current.isSameEntry(requested);
+};
+
+/**
+ * 只放行与已打开（或正在打开）的连接身份等价的 `init`。
+ *
+ * @throws {@link RxDBAdapterSqliteError} 任一字段不同，消息列出全部冲突字段
+ */
+const assertSameIdentity = async (current: ClientIdentity, requested: ClientIdentity): Promise<void> => {
+  const conflicts: string[] = IDENTITY_FIELDS.filter(field => current[field] !== requested[field]);
+  if (!(await sameFsRoot(current.fsRoot, requested.fsRoot))) conflicts.push('fsRoot');
+  if (conflicts.length === 0) return;
+  throw new RxDBAdapterSqliteError(`rxdb-adapter-sqlite-wasm conflicting initialization: ${conflicts.join(', ')}`);
+};
+
+/**
+ * 关掉一条连接：数据库与打开它的 VFS 分别尝试，一个失败不跳过另一个。
+ *
+ * @remarks
+ * IndexedDB 系 VFS 的连接只在 `vfs.close()` 里关；关库一失败就跳过它，句柄留着，之后的
+ * `deleteDatabase` 一直 `blocked`，而客户端已经交出了连接、再也没有补关的入口。
+ *
+ * @throws 只有一步失败时原样抛出；两步都失败时抛 `AggregateError`（先库后 VFS）
+ */
+const closeConnection = async (
+  sqlite: SQLiteAPI,
+  db: number,
+  vfs: { close(): void | Promise<void> }
+): Promise<void> => {
+  const errors: unknown[] = [];
+  try {
+    await sqlite.close(db);
+  } catch (error) {
+    errors.push(error);
+  }
+  try {
+    await vfs.close();
+  } catch (error) {
+    errors.push(error);
+  }
+  if (errors.length === 1) throw errors[0];
+  if (errors.length > 1) throw new AggregateError(errors, 'sqlite-wasm failed to close the database and its VFS');
+};
+
 export class SqliteClient extends EventDispatcher<SqliteClientEvents> {
   // SQLite 后端
   #connection?: SqliteConnection;
@@ -66,6 +169,8 @@ export class SqliteClient extends EventDispatcher<SqliteClientEvents> {
   /** 唯一的 disconnect 结果；并发调用共享它（SWM-001）。 */
   #disconnect_promise: Promise<void> | undefined;
   #init_promise?: Promise<void>;
+  /** 已打开或正在打开的连接的身份；断开、初始化失败时清掉 */
+  #identity?: ClientIdentity;
   readonly #queue = new AsyncQueueExecutor(1);
   #pending_events: ChangeRecordEvent[] = [];
   #change_events_muted = false;
@@ -84,6 +189,8 @@ export class SqliteClient extends EventDispatcher<SqliteClientEvents> {
    * @param options - 加载选项
    * @param owner - 持有者键：SharedWorker 上每个标签页的适配器各给一个，交还时凭它（{@link SqliteClient.release}）
    * @throws disconnect 进行中的客户端不可初始化
+   * @throws {@link RxDBAdapterSqliteError} 客户端已打开（或正在打开）另一个身份的库：库名、VFS、只读、资源与锁配置
+   *   任一不同都拒绝，不登记持有者；断开之后才能换库
    */
   async init(dbName: string, options: LoadModuleOptions, owner?: string): Promise<void> {
     if (this.#is_disconnecting) {
@@ -94,30 +201,29 @@ export class SqliteClient extends EventDispatcher<SqliteClientEvents> {
         cause: this.#disconnect_error
       });
     }
-    if (this.#is_init) {
-      this.#hold(owner);
-      return;
-    }
-    if (this.#init_promise) {
-      await this.#init_promise;
+    const identity = identityOf(dbName, options);
+    const opened = this.#is_init ? Promise.resolve() : this.#init_promise;
+    if (opened && this.#identity) {
+      await assertSameIdentity(this.#identity, identity);
+      await opened;
       this.#hold(owner);
       return;
     }
 
-    // 失败时 #is_init 保持 false，允许重试；并发调用复用同一 promise
+    // 失败时 #is_init 保持 false、身份清掉，允许换配置重试；并发的等价调用复用同一 promise
+    this.#identity = identity;
     this.#init_promise = (async () => {
-      this.#batch_timeout = validateSqliteNumericOption('batchTimeout', options?.batchTimeout, DEFAULT_BATCH_TIMEOUT, {
-        allowZero: true
-      });
-      const cacheSize = validateSqliteNumericOption('cacheSizeKb', options?.cacheSizeKb, DEFAULT_CACHE_SIZE_KB);
-
-      await this.#init_sqlite(dbName, options, cacheSize);
+      this.#batch_timeout = identity.batchTimeout;
+      await this.#init_sqlite(dbName, options, identity.cacheSizeKb);
       this.#is_init = true;
       this.#is_disconnected = false;
     })();
 
     try {
       await this.#init_promise;
+    } catch (error) {
+      this.#identity = undefined;
+      throw error;
     } finally {
       this.#init_promise = undefined;
     }
@@ -301,8 +407,7 @@ export class SqliteClient extends EventDispatcher<SqliteClientEvents> {
         connection.sqlite.update_hook(connection.db, () => undefined);
         this.#clear_batch_timers();
         this.#flush_pending_events();
-        await connection.sqlite.close(connection.db);
-        await connection.vfs.close();
+        await closeConnection(connection.sqlite, connection.db, connection.vfs);
       }
       this.#is_init = false;
     } catch (error) {
@@ -310,6 +415,7 @@ export class SqliteClient extends EventDispatcher<SqliteClientEvents> {
       this.#disconnect_error = error;
       throw error;
     } finally {
+      this.#identity = undefined;
       this.removeAllEventListeners();
       this.#owners.clear();
       this.#owner_listeners.clear();
@@ -345,8 +451,7 @@ export class SqliteClient extends EventDispatcher<SqliteClientEvents> {
       this.#connection = { sqlite, db, vfs };
     } catch (initializationError) {
       try {
-        await sqlite.close(db);
-        await vfs.close();
+        await closeConnection(sqlite, db, vfs);
       } catch (cleanupError) {
         throw new AggregateError(
           [initializationError, cleanupError],

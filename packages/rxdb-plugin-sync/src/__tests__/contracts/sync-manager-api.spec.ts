@@ -174,6 +174,8 @@ describe('SyncManager 仓库级同步 API 公开契约', () => {
         syncManager.getAllRepositorySyncStatus({ namespace: 'public' });
         // @ts-expect-error operation 只有 pull | push | sync
         syncManager.bulkSync({ operation: 'merge' });
+        // @ts-expect-error push 是推送选项对象，不是开关；只拉取写 operation: 'pull'
+        syncManager.bulkSync({ push: false });
         // @ts-expect-error repositories 元素是 { namespace, entity }，不是字符串
         syncManager.bulkSync({ repositories: ['public:User'] });
       };

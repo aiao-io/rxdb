@@ -146,16 +146,7 @@ async function main(action) {
   if (['up', 'studio', 'validate'].includes(action)) await initialize();
   if (action === 'up' || action === 'studio') {
     const profile = action === 'studio' ? ['--profile', 'studio'] : [];
-    await compose([
-      ...profile,
-      'up',
-      '-d',
-      '--wait',
-      '--wait-timeout',
-      '180',
-      'db',
-      'mail'
-    ]);
+    await compose([...profile, 'up', '-d', '--wait', '--wait-timeout', '180', 'db', 'mail']);
     await syncSupabaseRolePasswords();
     await compose([
       ...profile,

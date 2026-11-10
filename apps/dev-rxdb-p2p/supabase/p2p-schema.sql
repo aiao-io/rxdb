@@ -300,6 +300,33 @@ DROP TRIGGER IF EXISTS rxdb_sync_trigger ON p2p.p2p_fallback_envelope;
 
 GRANT SELECT, DELETE ON p2p.p2p_fallback_envelope TO service_role;
 
+-- 设备登记删掉时连同寄给它的信封一起删（POOL-US-101 处置联动）：本人删自己的设备、auth.users 删除
+-- 级联到设备，都不经过下面的 admin_purge_account。信封多半是别人发布的，本人的 RLS 删不动，所以
+-- SECURITY DEFINER。用触发器而不是外键：上传先列设备封信封、写完 R2 再写信封，其间某台设备被删时，
+-- 外键会让整次团队上传失败（单台设备不阻断团队上传）；那条晚到的信封由下面的升级清理收走。
+CREATE OR REPLACE FUNCTION p2p.drop_device_envelopes()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+BEGIN
+  DELETE FROM p2p.p2p_fallback_envelope WHERE "recipientDeviceId" = OLD.id;
+  RETURN OLD;
+END
+$$;
+
+REVOKE ALL ON FUNCTION p2p.drop_device_envelopes() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS devices_drop_envelopes ON p2p.devices;
+CREATE TRIGGER devices_drop_envelopes
+  AFTER DELETE ON p2p.devices
+  FOR EACH ROW EXECUTE FUNCTION p2p.drop_device_envelopes();
+
+-- 升级前已经留下的孤儿信封：收件设备早就不在了。
+DELETE FROM p2p.p2p_fallback_envelope AS envelope
+WHERE NOT EXISTS (SELECT 1 FROM p2p.devices AS device WHERE device.id = envelope."recipientDeviceId");
+
 -- 清账号时连同该账号设备的信封一起清（AC#9：不留孤儿信封）。
 CREATE OR REPLACE FUNCTION p2p.admin_purge_account(target uuid)
 RETURNS bigint

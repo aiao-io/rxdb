@@ -48,8 +48,9 @@ export interface EntityChangeResource<T> {
    * @remarks
    * 用 `triggerRef` 而不是换引用：实体是原地可变的类实例，patch 前后引用不变，
    * 任何基于值比较的响应式原语（`ref` / `computed`）都会判定「没变化」而跳过重渲染。
-   * 因此模板必须经由这个 ref 读实体（`change.value?.title`），
-   * 直接读原始实例的字段不会重渲染。
+   * 因此模板必须经由这个 ref 读实体，直接读原始实例的字段不会重渲染。返回值本身是普通对象，
+   * 模板只自动解包顶层 `Ref`：先解构成顶层绑定（`const { value: todo } = useEntityChange(…)`，
+   * 模板里写 `todo?.title`），不解构时要写 `change.value.value?.title`。
    */
   readonly value: Readonly<ShallowRef<T | undefined>>;
   /** patch 流的错误；实体切换时复位。 */
@@ -73,12 +74,12 @@ export interface EntityChangeResource<T> {
  * import { useEntityChange } from '@aiao/rxdb-vue';
  *
  * const props = defineProps<{ todo: Todo }>();
- * // 输入停止 200ms 后才重渲染
- * const live = useEntityChange(() => props.todo, { debounceTime: 200 });
+ * // 输入停止 200ms 后才重渲染；把 value 解构成顶层 Ref，模板才会自动解包
+ * const { value: todo } = useEntityChange(() => props.todo, { debounceTime: 200 });
  * </script>
  *
  * <template>
- *   <div>{{ live.value?.title }}</div>
+ *   <div>{{ todo?.title }}</div>
  * </template>
  * ```
  *

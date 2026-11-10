@@ -646,7 +646,9 @@ export function checkAcSymbols(stories) {
 
 /**
  * inherited_acs 是接收方声明的机器可读真相：`from` 必须指向存在的 story，
- * 纯数字 `ac` 不得超过源故事 AC 表的编号行数。`US1-AC4` 这类复合编号留人工核对。
+ * 纯数字 `ac` 不得超过源故事 AC 表里的最大编号。不按行数判：表里有空洞、不按编号排序时
+ * 行数小于最大编号，表里还在的高编号会被误拒；也不要求编号在表里——移出的 AC 按约定从源表删除。
+ * `US1-AC4` 这类复合编号留人工核对。
  *
  * @param {Array<{id: string, rel: string, fm: Record<string, string>, text: string}>} stories
  */
@@ -664,10 +666,9 @@ export function checkInheritedAcs(stories) {
         continue;
       }
       const ac = /ac:\s*(\d+)/.exec(entry);
-      if (ac && Number(ac[1]) > acIdsOf(source.text).length)
-        offenders.push(
-          `${rel}: inherited_acs 的 ac ${ac[1]} 超出 ${from[1]} 的 AC 编号行数 ${acIdsOf(source.text).length}`
-        );
+      const maxId = Math.max(0, ...acIdsOf(source.text));
+      if (ac && Number(ac[1]) > maxId)
+        offenders.push(`${rel}: inherited_acs 的 ac ${ac[1]} 超出 ${from[1]} 验收标准表的最大编号 ${maxId}`);
     }
   }
   return offenders;
@@ -681,19 +682,24 @@ export function checkInheritedAcs(stories) {
  * @param {Array<{id: string, text: string}>} stories
  */
 export function checkBigStoryList(readmeText, stories) {
-  const offenders = [];
   const actual = stories
     .filter(s => s.text.includes('交付阶段'))
     .map(s => s.id)
     .sort();
   const count = /现有\s*(\d+)\s*条：/.exec(readmeText);
-  const paragraph = readmeText.split(/现有\s*\d+\s*条：/)[1]?.split('\n\n')[0] ?? '';
+  // 清单整段缺失（或引导语被改掉）同样是派生视图失真；只有确实没有大故事时才不要求清单
+  if (!count) {
+    if (actual.length === 0) return [];
+    return [`requirements/README.md: 缺少大故事清单「现有 N 条：」，实际 ${actual.length} 条：${actual.join(' ')}`];
+  }
+  const paragraph = readmeText.slice(count.index + count[0].length).split('\n\n')[0];
   const listed = [...paragraph.matchAll(/\((stories\/[^)]+)\)/g)].map(m => path.basename(m[1]).slice(0, 6)).sort();
-  if (count && Number(count[1]) !== actual.length)
+  const offenders = [];
+  if (Number(count[1]) !== actual.length)
     offenders.push(`requirements/README.md: 大故事清单写「现有 ${count[1]} 条」，实际 ${actual.length} 条`);
-  if (listed.length && (listed.length !== actual.length || listed.some((id, i) => id !== actual[i])))
+  if (listed.length !== actual.length || listed.some((id, i) => id !== actual[i]))
     offenders.push(
-      `requirements/README.md: 大故事清单与「正文含交付阶段」的故事不一致（清单 ${listed.join(' ')}，实际 ${actual.join(' ')}）`
+      `requirements/README.md: 大故事清单与「正文含交付阶段」的故事不一致（清单 ${listed.join(' ') || '（空）'}，实际 ${actual.join(' ') || '（空）'}）`
     );
   return offenders;
 }

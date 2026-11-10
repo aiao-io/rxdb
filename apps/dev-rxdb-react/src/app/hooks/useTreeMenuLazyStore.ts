@@ -2,6 +2,7 @@ import { RxDB, type RxDBEntityId, UUID } from '@aiao/rxdb';
 import { SortableMenuLarge } from '@aiao/rxdb-test/entities';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { firstValueFrom, type Observable } from 'rxjs';
+import { collectLoadedDescendants, withoutIds } from '../utils/lazy-tree';
 import { generateBatchMenus } from '../utils/menu-utils';
 import { promoteChildrenAndRemove } from '../utils/promote-children';
 import { byParent, collectSubtreePostOrder } from '../utils/tree-scope';
@@ -58,6 +59,8 @@ export function useTreeMenuLazyStore(rxdb: RxDB, source: TreeMenuLazySource) {
 
   // 存储活跃的订阅，用于清理
   const subscriptionsRef = useRef<Map<string, { unsubscribe: () => void }>>(new Map());
+  // 卸载后迟到的异步收尾（批量添加）不得再建订阅
+  const mountedRef = useRef(true);
 
   const subscribeToRoot = useCallback(() => {
     const rootQuery$ = source.findRoots();
@@ -148,9 +151,10 @@ export function useTreeMenuLazyStore(rxdb: RxDB, source: TreeMenuLazySource) {
       currentSubscriptions.delete(id);
     }
 
-    const newExpanded = new Set(expandedIds);
-    newExpanded.delete(id);
-    setExpandedIds(newExpanded);
+    // 后代的展开 / 加载标记随子树一起清掉：重开时它们是折叠的，不会画成「已展开却没有子项」
+    const collapsedIds = new Set([id, ...collectLoadedDescendants(childrenMap, id)]);
+    setExpandedIds(prev => withoutIds(prev, collapsedIds));
+    setLoadingIds(prev => withoutIds(prev, collapsedIds));
 
     // 递归清理所有子孙节点的数据
     const cleanupDescendants = (parentId: string) => {
@@ -419,10 +423,12 @@ export function useTreeMenuLazyStore(rxdb: RxDB, source: TreeMenuLazySource) {
     return childrenMap.has(menuId);
   };
 
-  // 组件卸载时清理所有订阅
+  // 组件卸载时清理所有订阅；StrictMode 重挂时重新置位
   useEffect(() => {
+    mountedRef.current = true;
     const currentSubscriptions = subscriptionsRef.current;
     return () => {
+      mountedRef.current = false;
       currentSubscriptions.forEach(subscription => {
         subscription.unsubscribe();
       });
@@ -461,11 +467,18 @@ export function useTreeMenuLazyStore(rxdb: RxDB, source: TreeMenuLazySource) {
     const result = await runWrite('批量添加', () =>
       rxdb.entityManager.saveMany(generateBatchMenus(count, SortableMenuLarge))
     );
-    if (!result.ok) return;
+    // 写入期间页面已卸载：不再重建订阅，否则没人退订
+    if (!result.ok || !mountedRef.current) return;
+
+    const currentSubscriptions = subscriptionsRef.current;
+    // 展开全部时唯一的数据源是 ALL 订阅（没有 ROOT）：重新全量订阅，整棵树按库里的新数据重建
+    if (currentSubscriptions.has('ALL')) {
+      expandAll();
+      return;
+    }
 
     // 保存后清理展开节点的订阅和缓存，避免新旧数据混淆
     // 只清理子节点订阅，保留 ROOT 订阅（会自动更新根节点）
-    const currentSubscriptions = subscriptionsRef.current;
     currentSubscriptions.forEach((sub, key) => {
       if (key !== 'ROOT') {
         sub.unsubscribe();

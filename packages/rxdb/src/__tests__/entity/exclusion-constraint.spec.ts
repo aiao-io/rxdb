@@ -3,9 +3,10 @@
  *
  * 覆盖：
  * - 编译：相等列 + 区间维，时间维取 `tstzrange`、整数维取 `int8range`，倒置区间以 `CASE` 映射成空区间；
+ *   bigint 的 `[]` 维上端点取到 int8 最大值时按上方无界构造（RV-01a1bbb3b74e）；
  * - AC#15：相等列 / 区间维为空、列不存在或类型不符、bounds 非法、同列重复、name 形状与 63 字节上限；
  * - 确定性命名：`ex_` + 表名 + name + 规范化定义哈希，定义含 namespace（SQLite 触发器名是库级的）；
- *   SQLite 侧两个触发器名 `_i` / `_u`；
+ *   SQLite 侧两个触发器名 `_i` / `_u`；约束名钉死：只有含 bigint `[]` 维的声明换名；
  * - AC#17：继承合并——同名子覆盖父、异名全生效；
  * - 按约束名反查（违约归一化用）。
  */
@@ -19,6 +20,7 @@ import {
   type EntityExclusionMetadataOptions
 } from '../../entity/exclusion-constraint.js';
 import {
+  BigIntProperty,
   DateProperty,
   EntityMetadataOptions,
   IntegerProperty,
@@ -37,6 +39,9 @@ const intProp = (name: string, extra: Partial<IntegerProperty> = {}): IntegerPro
 const dateProp = (name: string, extra: Partial<DateProperty> = {}): DateProperty =>
   ({ name: name as Uncapitalize<string>, type: PropertyType.date, ...extra }) as DateProperty;
 
+const bigintProp = (name: string, extra: Partial<BigIntProperty> = {}): BigIntProperty =>
+  ({ name: name as Uncapitalize<string>, type: PropertyType.bigint, ...extra }) as BigIntProperty;
+
 const occurrenceProperties = () => [
   stringProp('id', { primary: true }),
   stringProp('lineId'),
@@ -45,7 +50,9 @@ const occurrenceProperties = () => [
   dateProp('effectiveFrom', { nullable: true }),
   dateProp('effectiveTo', { nullable: true }),
   intProp('unitFrom', { nullable: true }),
-  intProp('unitTo', { nullable: true })
+  intProp('unitTo', { nullable: true }),
+  bigintProp('serialFrom', { nullable: true }),
+  bigintProp('serialTo', { nullable: true })
 ];
 
 const twoDimensional: EntityExclusionMetadataOptions = {
@@ -54,6 +61,33 @@ const twoDimensional: EntityExclusionMetadataOptions = {
   ranges: [
     { from: 'effectiveFrom', to: 'effectiveTo', bounds: '[)' },
     { from: 'unitFrom', to: 'unitTo', bounds: '[]' }
+  ]
+};
+
+const unitsOnly: EntityExclusionMetadataOptions = {
+  name: 'units_only',
+  equal: ['lineId'],
+  ranges: [{ from: 'unitFrom', to: 'unitTo', bounds: '[]' }]
+};
+
+const serialClosed: EntityExclusionMetadataOptions = {
+  name: 'serial_no_overlap',
+  equal: ['lineId'],
+  ranges: [{ from: 'serialFrom', to: 'serialTo', bounds: '[]' }]
+};
+
+const serialHalfOpen: EntityExclusionMetadataOptions = {
+  name: 'serial_half_open',
+  equal: ['lineId'],
+  ranges: [{ from: 'serialFrom', to: 'serialTo', bounds: '[)' }]
+};
+
+const serialDated: EntityExclusionMetadataOptions = {
+  name: 'serial_dated',
+  equal: ['lineId'],
+  ranges: [
+    { from: 'effectiveFrom', to: 'effectiveTo', bounds: '[)' },
+    { from: 'serialFrom', to: 'serialTo', bounds: '[]' }
   ]
 };
 
@@ -92,6 +126,34 @@ describe('compileExclusionConstraint', () => {
     expect(exclusionRangeExpressionPG(units)).toBe(
       `(CASE WHEN "unitFrom" > "unitTo" THEN 'empty'::int8range ELSE int8range("unitFrom", "unitTo", '[]') END)`
     );
+  });
+
+  it('PG 区间表达式：bigint 的 [] 维上端点等于 int8 最大值时按上方无界构造，[) 维不变（RV-01a1bbb3b74e）', () => {
+    const metadata = metadataOf([serialClosed, serialHalfOpen]);
+    const [closed] = compileExclusionConstraint(metadata, metadata.exclusionMap.get('serial_no_overlap')!).ranges;
+    const [halfOpen] = compileExclusionConstraint(metadata, metadata.exclusionMap.get('serial_half_open')!).ranges;
+    // `[a, MAX]` 规范化成 `[a, MAX + 1)` 会抛 22003；离散值域里「≤ MAX」与「上方无界」是同一组取值
+    expect(exclusionRangeExpressionPG(closed)).toBe(
+      `(CASE WHEN "serialFrom" > "serialTo" THEN 'empty'::int8range` +
+        ` WHEN "serialTo" = 9223372036854775807 THEN int8range("serialFrom", NULL, '[)')` +
+        ` ELSE int8range("serialFrom", "serialTo", '[]') END)`
+    );
+    expect(exclusionRangeExpressionPG(halfOpen)).toBe(
+      `(CASE WHEN "serialFrom" > "serialTo" THEN 'empty'::int8range ELSE int8range("serialFrom", "serialTo", '[)') END)`
+    );
+  });
+
+  // 约束名进了既有库的目录：换名即漂移，既有库要写迁移重建（见 CHANGELOG 的 Breaking）。
+  // 不变的三条是 0.0.28 起已发布的名字；换名的两条是 RV-01a1bbb3b74e 的新名。
+  it.each([
+    ['date [) + integer []', 'ex_Occurrence_occurrence_no_overlap_cbad370c', twoDimensional],
+    ['integer []', 'ex_Occurrence_units_only_b2759018', unitsOnly],
+    ['bigint [)', 'ex_Occurrence_serial_half_open_f3e2cfdc', serialHalfOpen],
+    ['bigint []（换名）', 'ex_Occurrence_serial_no_overlap_aad71097', serialClosed],
+    ['date [) + bigint []（换名）', 'ex_Occurrence_serial_dated_4b32cb5b', serialDated]
+  ])('约束名钉死：%s → %s', (_label, expected, exclusion) => {
+    const metadata = metadataOf([exclusion]);
+    expect(compileExclusionConstraint(metadata, metadata.exclusionMap.get(exclusion.name)!).name).toBe(expected);
   });
 
   it('SQLite 侧两个触发器名：约束名加 _i / _u，仍以 ex_ 起头', () => {

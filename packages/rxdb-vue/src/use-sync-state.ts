@@ -1,7 +1,7 @@
-import type { SyncConflict, SyncRejection, SyncState } from '@aiao/rxdb';
+import type { SyncConflict, SyncRejection, SyncState, SyncStateHub } from '@aiao/rxdb';
 import type { Subscription } from 'rxjs';
-import { computed, onScopeDispose, shallowRef, type ComputedRef } from 'vue';
-import { useRxDB } from './rxdb-vue';
+import { computed, onScopeDispose, shallowRef, watch, type ComputedRef } from 'vue';
+import { useRxDB, useRxDBRef } from './rxdb-vue';
 
 /**
  * {@link useSyncState} 的返回值。
@@ -60,15 +60,35 @@ export interface SyncStateResource {
  * 上游是 `BehaviorSubject` 支撑的流，订阅当场就会覆盖初值，因此这里给的
  * `snapshot` 初值实际上观察不到 —— 它仍取自同一份快照，不引入第二个初值口径。
  *
+ * `provideRxDB()` 收调用方持有的 `Ref` 时，换成另一个已就绪的库会当场退掉旧库的订阅、
+ * 从新库的快照起步并跟随它（与 React 随 provider 重新取 hub 同语义）；`Ref` 暂时变成
+ * `undefined` 时保持上一个库的状态，直到下一个库就绪。
+ *
  * @public
  */
 export const useSyncState = (): SyncStateResource => {
   const { syncState } = useRxDB();
+  const databaseRef = useRxDBRef();
   const state = shallowRef<SyncState>(syncState.snapshot);
 
-  const subscription: Subscription = syncState.state$.subscribe(next => {
-    state.value = next;
-  });
+  const follow = (hub: SyncStateHub): Subscription => {
+    state.value = hub.snapshot;
+    return hub.state$.subscribe(next => {
+      state.value = next;
+    });
+  };
+  let subscription = follow(syncState);
+
+  // 同步 flush：换库那一刻起读到的就是新库，旧库在调度前的发射也进不来
+  watch(
+    databaseRef,
+    database => {
+      if (!database) return;
+      subscription.unsubscribe();
+      subscription = follow(database.syncState);
+    },
+    { flush: 'sync' }
+  );
   onScopeDispose(() => subscription.unsubscribe());
 
   return {

@@ -15,7 +15,7 @@ import {
   type EntityRelationOneToOneMetadata
 } from '@aiao/rxdb';
 import { RxDBClientGenerator } from '../core/RxDBClientGenerator.js';
-import { getEntityPropertyTsType, getFlatMapInterfaceName } from '../core/RxDBClientGenerator.utils.js';
+import { getEntityPropertyTsType, getKeyValuePreciseType } from '../core/RxDBClientGenerator.utils.js';
 
 /**
  * 单条查询规则的类型描述。
@@ -88,7 +88,8 @@ const getPropertyValueType = (
       valueType = 'number';
       break;
     case PropertyType.keyValue:
-      valueType = `Partial<${getFlatMapInterfaceName(property, metadata)}>`;
+      // 与属性声明同口径：空 schema 没有精确接口，落到核心的 `KeyValue`
+      valueType = `Partial<${getKeyValuePreciseType(property, metadata)}>`;
       break;
     default:
       if (patch.length > 0) {

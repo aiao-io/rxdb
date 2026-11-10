@@ -215,6 +215,6 @@ export interface AdminShell<TIcon = unknown> {
    * @returns 解除绑定函数。
    */
   attach(): () => void;
-  /** 解除绑定并释放监听、落盘待定写入。 */
+  /** 解除绑定并释放监听、落盘待定写入；关闭命令面板，取消其防抖与进行中的搜索。 */
   destroy(): void;
 }

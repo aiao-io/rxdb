@@ -1,5 +1,6 @@
-import type { HistoryItem } from '@aiao/rxdb';
+import type { HistoryItem, RxDBChange, UUID } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
+import { createHistoryItem } from '../history-item-builder.js';
 import { RedoStack } from '../redo-stack.js';
 
 const createItem = (fingerprint: string, entity: string): HistoryItem =>
@@ -36,6 +37,38 @@ describe('RedoStack', () => {
     expect(removed).toEqual([b1]);
     // 未被 redo 的 A 项必须原样留下，且保持原顺序
     expect(stack.value.map(item => item.fingerprint)).toEqual(['a1', 'a2']);
+  });
+
+  it('同实体同毫秒的两次 UPDATE 先后撤销：redo 一步只出栈实际重做的那一项', () => {
+    const createdAt = new Date('2026-07-10T00:00:00.000Z');
+    const update = (id: number, value: number): RxDBChange =>
+      ({
+        id,
+        namespace: 'public',
+        entity: 'Counter',
+        entityId: 'counter-1' as UUID,
+        branchId: 'main',
+        transactionId: null,
+        type: 'UPDATE',
+        patch: { value },
+        inversePatch: { value: value - 1 },
+        remoteId: null,
+        revertChangeId: 100 + id,
+        redoInvalidatedAt: null,
+        createdAt,
+        updatedAt: createdAt
+      }) as unknown as RxDBChange;
+    const firstUpdate = createHistoryItem([update(1, 1)]);
+    const secondUpdate = createHistoryItem([update(2, 2)]);
+    const stack = new RedoStack();
+    // 先撤第二次、再撤第一次：栈顶是第一次 UPDATE
+    stack.push([secondUpdate]);
+    stack.push([firstUpdate]);
+
+    const removed = stack.remove([firstUpdate]);
+
+    expect(removed).toEqual([firstUpdate]);
+    expect(stack.value).toEqual([secondUpdate]);
   });
 
   it('移除多项时按身份匹配，忽略不在栈中的项', () => {

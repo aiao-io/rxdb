@@ -83,6 +83,37 @@ describe('PersistedStateRegistry', () => {
     });
   });
 
+  // React 服务端渲染不能经渲染期登记把状态留在进程里：绑定层要能「有就取、没有不建」
+  describe('只查不建（find）', () => {
+    it('没登记过的键返回 undefined，也不读盘、不登记', () => {
+      mockLocalStorage.setItem('ns:key', JSON.stringify(100));
+      mockLocalStorage.getItem.mockClear();
+
+      expect(registry.find('ns', 'key')).toBeUndefined();
+      expect(mockLocalStorage.getItem).not.toHaveBeenCalled();
+      expect(registry.find('ns', 'key')).toBeUndefined();
+    });
+
+    it('登记过的键返回同一个 entry', () => {
+      const entry = registry.entry('ns', 'key', 42);
+
+      expect(registry.find('ns', 'key')).toBe(entry);
+    });
+
+    it('不做类型标签校验：登记时的类型由 entry() 把关', () => {
+      registry.entry('typed', 'slot', 42);
+
+      expect(() => registry.find<string>('typed', 'slot')).not.toThrow();
+    });
+
+    it('只按两级键查：同一 namespace 的别的 name 不算', () => {
+      registry.entry('ns', 'theme', 'dark');
+
+      expect(registry.find('ns', 'locale')).toBeUndefined();
+      expect(registry.find('other', 'theme')).toBeUndefined();
+    });
+  });
+
   // RAN-010：`cached as WritableSignal<T>` 是一次无校验断言 —— 同 key 换个泛型 strict TS 两边都过
   describe('类型标签校验', () => {
     it('同 key 换值类型时 fail-fast', () => {

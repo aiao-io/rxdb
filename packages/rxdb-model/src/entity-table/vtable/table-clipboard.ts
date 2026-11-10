@@ -24,12 +24,15 @@ function parseSystemValue(value: string, propertyType: string | undefined): unkn
     case 'number': {
       if (trimmed === '') return null;
       const n = Number(trimmed);
-      return isNaN(n) ? INVALID : n;
+      // 与表单严格解析同一边界：Infinity / 1e309 这类非有限数不是合法的 number 值
+      return Number.isFinite(n) ? n : INVALID;
     }
     case 'integer': {
       if (trimmed === '') return null;
       if (!/^-?\d+$/.test(trimmed)) return INVALID;
-      return parseInt(trimmed, 10);
+      const n = parseInt(trimmed, 10);
+      // 超出安全范围的整数会被舍入成用户没粘贴过的数（更大的整数用 bigint 列）
+      return Number.isSafeInteger(n) ? n : INVALID;
     }
     case 'bigint': {
       if (trimmed === '') return null;

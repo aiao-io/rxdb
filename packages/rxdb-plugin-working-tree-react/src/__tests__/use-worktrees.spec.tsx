@@ -154,6 +154,34 @@ describe('useWorktrees', () => {
     expect(second.checkouts.list).not.toHaveBeenCalled();
   });
 
+  // RV-01a1bb3cfe4d：A→B→A 回到同一个库对象，首次 A 入口迟到的列表不能覆盖第二次 A 入口已完成的列表
+  it('A→B→A 往返后，首次 A 入口迟到的结果不覆盖第二次 A 入口的结果', async () => {
+    const first = createWorktreeHookStubs();
+    const second = createWorktreeHookStubs();
+    let current = first.rxdb;
+    const rendered = renderHook(() => useWorktrees(), {
+      wrapper: ({ children }) => <RxDBProvider db={current}>{children}</RxDBProvider>
+    });
+    let resolveStale: (rows: Awaited<ReturnType<typeof first.checkouts.list>>) => void = () => undefined;
+    first.checkouts.list.mockReturnValueOnce(new Promise(done => (resolveStale = done))).mockResolvedValue([]);
+    let running!: Promise<unknown>;
+    act(() => void (running = rendered.result.current.list()));
+
+    current = second.rxdb;
+    rendered.rerender();
+    current = first.rxdb;
+    rendered.rerender();
+    await act(async () => void (await rendered.result.current.list()));
+    expect(rendered.result.current.listState.phase).toBe('empty');
+
+    await act(async () => {
+      resolveStale([{ id: 'stale-old-request' }] as unknown as Awaited<ReturnType<typeof first.checkouts.list>>);
+      await running;
+    });
+
+    expect(rendered.result.current.listState.phase).toBe('empty');
+  });
+
   it('挂载流没在订阅当下交出当前的表集：抛错', () => {
     const { checkouts } = createWorktreeHookStubs();
     const rxdb = { workingTree: { checkouts }, worktreeTableSet$: new Subject() } as unknown as RxDB;

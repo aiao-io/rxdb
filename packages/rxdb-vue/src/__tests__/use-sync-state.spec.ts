@@ -16,6 +16,8 @@ import { SYNC_REJECTIONS_FIXTURE, SYNC_REJECTIONS_NEXT_ROUND_FIXTURE } from '@ai
 import { mount } from '@vue/test-utils';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
+import { shallowRef } from 'vue';
+import { type RxDBInput } from '../rxdb-vue';
 import { useSyncState, type SyncStateResource } from '../use-sync-state';
 import { createRxDBProviderHarness } from './rxdb-provider-harness';
 import { createSetupHarness } from './setup-harness';
@@ -43,7 +45,7 @@ const createFixture = () => {
 };
 
 /** 在 provider 子树的 setup 里调用 hook，把返回值取出来供断言 */
-const mountWithProvider = (rxdb: RxDB) => {
+const mountWithProvider = (rxdb: RxDBInput<RxDB>) => {
   let state!: SyncStateResource;
   const wrapper = mount(
     createRxDBProviderHarness(
@@ -127,6 +129,45 @@ describe('useSyncState', () => {
 
     hub.reportRejections(SYNC_REJECTIONS_NEXT_ROUND_FIXTURE);
     expect(state.lastRejections.value).toBe(SYNC_REJECTIONS_NEXT_ROUND_FIXTURE);
+  });
+
+  // RV-01a1bb2cb3a0：provideRxDB 收调用方持有的 Ref，换库后面板必须跟随新库，
+  // 旧库的后续变化不能再改面板，旧订阅当场释放而不是拖到卸载。React 侧随 provider 重新取 hub
+  it('provider 的数据库 Ref 换库后跟随新库，旧库后续变化不再影响面板', () => {
+    const first = createFixture();
+    const second = createFixture();
+    first.hub.reportOutboxCount(1);
+    second.hub.reportOutboxCount(20);
+    const databaseRef = shallowRef<RxDB | undefined>(first.rxdb);
+    const { state, wrapper } = mountWithProvider(databaseRef);
+    expect(state().pendingCount.value).toBe(1);
+
+    databaseRef.value = second.rxdb;
+
+    expect(state().pendingCount.value).toBe(20);
+    expect(first.teardown).toHaveBeenCalledTimes(1);
+    first.hub.reportOutboxCount(7);
+    second.hub.reportOutboxCount(21);
+    expect(state().pendingCount.value).toBe(21);
+
+    wrapper.unmount();
+    expect(second.teardown).toHaveBeenCalledTimes(1);
+  });
+
+  it('provider 的数据库 Ref 经过 undefined 再换成新库时同样跟随新库', () => {
+    const first = createFixture();
+    const second = createFixture();
+    second.hub.reportOutboxCount(3);
+    const databaseRef = shallowRef<RxDB | undefined>(first.rxdb);
+    const { state } = mountWithProvider(databaseRef);
+
+    databaseRef.value = undefined;
+    databaseRef.value = second.rxdb;
+
+    expect(state().pendingCount.value).toBe(3);
+    expect(first.teardown).toHaveBeenCalledTimes(1);
+    first.hub.reportOutboxCount(9);
+    expect(state().pendingCount.value).toBe(3);
   });
 
   it('作用域销毁时退订上游', () => {

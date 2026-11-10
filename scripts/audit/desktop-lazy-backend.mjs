@@ -133,6 +133,37 @@ export async function walkEagerGraph(distDir, seeds) {
   return eager;
 }
 
+const escapeRegExp = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** `source` 里是否以一段完整文件名的形式提到了 `name`（前面不能紧挨文件名字符）。 */
+const mentions = (source, name) => new RegExp(`(?:^|[^\\w.-])${escapeRegExp(name)}`).test(source);
+
+/**
+ * 从种子出发，沿产物里对其他 js 文件名的**任何**引用走出整张可达图。
+ *
+ * @remarks
+ * 静态 / 动态 import、worker 的 `new URL("x.js", import.meta.url)`、预载表都以文件名字面量出现在
+ * 引用方里，所以「已可达的 chunk 提到了某个文件名」就算一条边。宁可多算可达，也不能把 worker 这类
+ * 合法加载方式判成孤岛；没有任何可达 chunk 提到的文件才是真正加载不到的孤立产物。
+ *
+ * @param sources - 文件名 → 源码
+ * @param seeds - `index.html` 给出的入口
+ * @returns 可达的文件名集合
+ */
+export function reachableChunks(sources, seeds) {
+  const names = [...sources.keys()];
+  const reachable = new Set();
+  const queue = [...seeds];
+  while (queue.length > 0) {
+    const file = queue.pop();
+    if (reachable.has(file) || !sources.has(file)) continue;
+    reachable.add(file);
+    const source = sources.get(file);
+    queue.push(...names.filter(name => !reachable.has(name) && mentions(source, name)));
+  }
+  return reachable;
+}
+
 /** 列出产物目录下的所有 js（含 worker 产物）。 */
 export async function listChunks(distDir) {
   const entries = await readdir(distDir, { withFileTypes: true });
@@ -208,8 +239,36 @@ export async function auditDemo({ project, dist }) {
     }
   }
   assert.ok(dynamicTargets.size > 0, `${project}：首屏图里一个动态 import() 都没有 —— 两条后端分支不可能是按需加载的`);
+  const missingTargets = [...dynamicTargets].filter(target => !sources.has(target));
+  assert.equal(
+    missingTargets.length,
+    0,
+    `${project}：首屏图里的动态 import() 指向不存在的 chunk：${missingTargets.join('、')}`
+  );
 
-  return `✓ ${project}：首屏 ${eager.size} 个 chunk，惰性 ${lazyChunks.length} 个；${LAZY_MARKERS.length} 个标记全部只出现在惰性 chunk 里`;
+  // 标记不在首屏还不够：它所在的 chunk 必须能从入口加载到。只有一个无关的动态路由、
+  // 后端实现却躺在没人引用的孤立 chunk 里时，上面两道检查都会放行。
+  const reachable = reachableChunks(sources, seeds);
+  const orphans = LAZY_MARKERS.map(marker => [
+    marker,
+    chunks.filter(chunk => sources.get(chunk).includes(marker))
+  ]).filter(([, carriers]) => !carriers.some(chunk => reachable.has(chunk)));
+  if (orphans.length > 0) {
+    throw new Error(
+      [
+        `${project} 的本地后端分支不可达：`,
+        ...orphans.map(
+          ([marker, carriers]) => `  ${marker}：只出现在没有入口能加载到的 chunk ${carriers.join('、')} 里`
+        ),
+        '',
+        `可达图（${reachable.size} 个 chunk）：${[...reachable].sort().join('、')}`,
+        '',
+        '常见成因：加载后端的动态 import() 被改错目标或被摇掉，产物里只剩孤立的实现 chunk。'
+      ].join('\n')
+    );
+  }
+
+  return `✓ ${project}：首屏 ${eager.size} 个 chunk，惰性 ${lazyChunks.length} 个；${LAZY_MARKERS.length} 个标记全部只出现在可达的惰性 chunk 里`;
 }
 
 /**

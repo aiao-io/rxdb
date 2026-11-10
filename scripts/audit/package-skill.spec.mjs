@@ -13,6 +13,7 @@ import {
   buildKnowledge,
   readKnowledgeInput,
   renderKnowledge,
+  renderSkillFromSnapshot,
   scanPackages
 } from './package-graph.mjs';
 
@@ -396,6 +397,25 @@ test('快照构造的发布对象：manifest 版本取快照、tag 不一致或�
   assert.throws(
     () => releaseFromSnapshot(facts, records, { ...snapshot, packages: [{ name: '@aiao/removed', version: '1.2.3' }] }),
     /@aiao\/removed/
+  );
+});
+
+test('已发布包按退役流程删目录、事实源标 retired 后，快照渲染 Skill 照常并标出已退役', () => {
+  const retiredFacts = structuredClone(facts);
+  retiredFacts.packages.find(pkg => pkg.name === '@aiao/rxdb-test').retired = true;
+  const remaining = records.filter(record => record.name !== '@aiao/rxdb-test');
+  const graph = analyzePackageGraph(retiredFacts, remaining);
+  assert.deepEqual(graph.errors, []);
+  const snapshotJson = JSON.parse(renderKnowledge(buildKnowledge(graph, release, input), input.template).json);
+  assert.ok(snapshotJson.delivery.packages.some(pkg => pkg.name === '@aiao/rxdb-test' && pkg.retired));
+
+  const skill = renderSkillFromSnapshot(null, graph, retiredFacts, input, snapshotJson);
+  assert.match(skill, /\|rxdb-test（已退役）\|/);
+  const fromSnapshot = releaseFromSnapshot(retiredFacts, remaining, snapshotFromKnowledgeJson(snapshotJson));
+  assert.equal(fromSnapshot.packages.find(pkg => pkg.name === '@aiao/rxdb-test').manifest.version, '1.2.3');
+  assert.throws(
+    () => releaseFromSnapshot(facts, remaining, snapshotFromKnowledgeJson(snapshotJson)),
+    /@aiao\/rxdb-test/
   );
 });
 

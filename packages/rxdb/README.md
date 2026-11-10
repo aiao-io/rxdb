@@ -31,17 +31,17 @@ pnpm add @aiao/rxdb-adapter-wa-sqlite
 ```typescript
 import { TransactionExecutor, MigrationType } from '@aiao/rxdb';
 
-// 1. 事务 —— 持有 executor 才算「在本事务内」
+// 1. 事务 —— 持有 executor 才算「在本事务内」；仓库只收实体实例，不收普通对象
 await adapter.transaction(async executor => {
   const repo = executor.getRepository(Todo);
-  await repo.create({ title: 'inside tx' });
-  // await todo.save()  // ❌ 落回队列并永久挂起
+  await repo.create(rxdb.entityManager.instantiate(Todo, { title: 'inside tx' }));
+  // await todo.save()  // ❌ 实体方法永远是外部调用：落回队列并永久挂起
 });
 
 // 2. 嵌套内层工作 —— 复用当前 executor，不开新事务
 await adapter.transaction(async executor => {
   await executor.run(async inner => {
-    await inner.getRepository(Todo).create({ title: 'nested' });
+    await inner.getRepository(Todo).create(rxdb.entityManager.instantiate(Todo, { title: 'nested' }));
   });
 });
 
@@ -54,7 +54,8 @@ await adapter.transaction(async executor => {
 const migration: MigrationType = {
   name: '001-init',
   async up(executor) {
-    await executor.getRepository(Seed).create({ ... });
+    // 迁移在 init() 之后执行，实体类已绑定到实例，可以直接 new
+    await executor.getRepository(Seed).create(new Seed({ ... }));
   },
   async down() {}
 };
@@ -100,7 +101,8 @@ rxdb.adapter('sqlite', db => createYourSqliteAdapter(db));
 await rxdb.connect('sqlite');
 
 const repository = rxdb.entityManager.getRepository(Todo);
-await repository.create({ title: 'write docs', done: false });
+// 仓库只收实体实例：先按本实例建实体，再交给仓库。普通对象没有实体元数据，会在写入前被拒绝
+await repository.create(rxdb.entityManager.instantiate(Todo, { title: 'write docs', done: false }));
 
 // find() 返回活查询 Observable，数据变更会自动重新发射
 const todos = await firstValueFrom(repository.find({ where: { combinator: 'and', rules: [] } }));
