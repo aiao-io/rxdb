@@ -56,6 +56,7 @@ export default function DemoMicroAppClient({ name, url, title, allow, basePath }
   const expectRoute = useCallback((route: string) => {
     if (route !== '/') routeSync.current.expect(route);
   }, []);
+  const armRouteSync = useCallback(() => expectRoute(agreedRoute.current), [expectRoute]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -75,7 +76,7 @@ export default function DemoMicroAppClient({ name, url, title, allow, basePath }
     void app
       .mount(container)
       .then(() => {
-        if (active) expectRoute(agreedRoute.current);
+        if (active) armRouteSync();
       })
       .catch(failure => {
         if (active) setError(failure instanceof Error ? failure.message : '演示启动失败');
@@ -85,7 +86,7 @@ export default function DemoMicroAppClient({ name, url, title, allow, basePath }
       app.destroy();
       instance.current = undefined;
     };
-  }, [runtime, name, url, title, allow, attempt, expectRoute]);
+  }, [runtime, name, url, title, allow, attempt, armRouteSync]);
 
   useEffect(() => {
     const sync = () => {
