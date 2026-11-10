@@ -135,6 +135,36 @@ END;
 $$;
 
 -- ============================================
+-- 日志 id 顺序 = 提交顺序（RV-01a1c49dee517814adf2e68788ad084e）
+-- ============================================
+-- 拉取以 id 为游标（`id > 上次拉到的 id`），而 serial 在写入时分配、提交时才可见：
+-- 先拿到 id 却晚提交的事务，会被已经越过它的拉取方永久漏掉，而且不报错。
+--
+-- 语句级 BEFORE INSERT 触发器先于 serial 默认值求值。在这里取一把全库共用的事务级咨询锁、
+-- 持有到事务结束，写日志的事务就逐个提交，后提交的一定拿到更大的 id。推送（rxdb_insert_changes）、
+-- 直写业务表时的同步触发器、以及任何直接写本表的路径都经过它，不靠调用方各自加锁。
+--
+-- 代价：从写第一条日志到提交这一段，所有写日志的事务排队。推送在业务写之后才写日志，排队的只是尾段；
+-- 直写业务表的长事务会一直挡住推送。直写的多语句事务与推送改到同一行时可能互锁，
+-- PostgreSQL 检测到后中止其中一个（40P01），适配器的写入重试会重发被中止的推送。
+--
+-- 用 `CREATE OR REPLACE TRIGGER` 而不是先 DROP 再 CREATE，原因见 01-rxdb-system-tables.sql 的触发器一节。
+CREATE OR REPLACE FUNCTION public.rxdb_change_serialize_append()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = pg_catalog, pg_temp
+AS $$
+BEGIN
+    PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('rxdb'), pg_catalog.hashtext('rxdb_change:append'));
+    RETURN NULL;
+END;
+$$;
+
+CREATE OR REPLACE TRIGGER rxdb_change_serialize_append
+BEFORE INSERT ON public.rxdb_change
+FOR EACH STATEMENT EXECUTE FUNCTION public.rxdb_change_serialize_append();
+
+-- ============================================
 -- 基于持久变更快照的 Filter Sync
 -- ============================================
 CREATE OR REPLACE FUNCTION public.rxdb_jsonb_matches_rule(

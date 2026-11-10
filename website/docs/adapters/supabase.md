@@ -32,6 +32,16 @@ npm install @aiao/rxdb @aiao/rxdb-adapter-supabase @supabase/supabase-js
 
 使用 `RxDBChange` 表的自增 `id` 作为同步游标（而非时间戳），避免同毫秒内多条变更导致的重复问题。
 
+自增 `id` 在写入时分配、提交时才对其他会话可见。为了让游标不漏行，参考 SQL 给 `rxdb_change` 挂了语句级触发器
+`rxdb_change_serialize_append`：每个写日志的事务先取同一把事务级咨询锁，持有到提交，于是后提交的变更一定拿到更大的 `id`。
+没有这把锁时，先拿到 `id` 却晚提交的事务，会被已经越过它的拉取方永久漏掉，而且不报错。
+
+代价是写日志的事务从写第一条日志到提交这一段要排队：
+
+- 推送在业务写完成之后才写日志，排队的只是尾段；
+- 直写业务表的长事务会一直挡住推送，超过调用角色的 `statement_timeout` 时推送失败，下一轮同步重发；
+- 直写的多语句事务与推送改到同一行时可能互锁，PostgreSQL 中止其中一个（SQLSTATE `40P01`），适配器的写入重试会重发被中止的推送。
+
 ### QueryCache 模式
 
 `fetchMetadata` 只拉取 `{id, updatedAt}` 做新鲜度比较，脏数据再通过 `findByIds` 拉取完整内容，减少 90%+ 的数据传输量。
@@ -340,6 +350,11 @@ local-only 并使用 SQLite family 或 PGlite；不要用 string/base64 fallback
 4. **游标同步**：基于自增 ID 而非时间戳，避免重复拉取
 
 ## 生产部署
+
+### 让日志 id 顺序等于提交顺序
+
+已有部署重新执行一次 `docker/sql/02-rxdb-sync-functions.sql` 即可装上 `rxdb_change_serialize_append` 触发器，
+客户端无需升级，`01-rxdb-system-tables.sql` 不用重跑。升级前已经漏掉的变更不会自动补回，见[迁移说明](../migration/supabase-change-log-order.md)。
 
 ### 更新 UPDATE 与级联删除函数
 
