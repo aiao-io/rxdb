@@ -711,7 +711,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       lastError = { ...error, message };
       lastStatus = status;
 
-      if (!isRetryableSupabaseWriteError(message) || attempt === RETRYABLE_SUPABASE_WRITE_MAX_ATTEMPTS) {
+      if (!isRetryableSupabaseWriteError(message, error.code) || attempt === RETRYABLE_SUPABASE_WRITE_MAX_ATTEMPTS) {
         break;
       }
 
