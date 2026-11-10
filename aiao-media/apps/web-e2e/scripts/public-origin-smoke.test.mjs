@@ -45,6 +45,16 @@ test('网络边界拒绝生成、探针、远程写入和外站，不制造成�
   assert.equal(allowedPublicRequest(origin, 'https://other.example.test/image.png', 'GET'), false);
 });
 
+test('安装状态只允许同源读取，不允许初始化写入或扩大到管理接口', () => {
+  for (const method of ['GET', 'HEAD'])
+    assert.equal(allowedPublicRequest(origin, `${origin}/api/installation`, method), true);
+  for (const method of ['POST', 'PUT', 'PATCH', 'DELETE'])
+    assert.equal(allowedPublicRequest(origin, `${origin}/api/installation`, method), false);
+  for (const path of ['/api/installation/reset', '/api/admin/session'])
+    assert.equal(allowedPublicRequest(origin, `${origin}${path}`, 'GET'), false);
+  assert.equal(allowedPublicRequest(origin, 'https://other.example.test/api/installation', 'GET'), false);
+});
+
 test('公开产物支持本机模式和有效平台配置，配置必须匹配审核过的清单摘要', async () => {
   const hash = bytes => createHash('sha256').update(bytes).digest('hex');
   const files = new Map();
