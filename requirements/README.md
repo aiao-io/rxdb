@@ -48,6 +48,7 @@ Aiao Pool 的桌面端、跨网中继、扩展渠道与商业化的产品方向�
 | [vision.md](vision.md)                                         | 1.0 之后的长期方向（不是排期、不是承诺）                                   |
 | [teable-research.md](teable-research.md)                       | Teable 功能借鉴：价值排序、最小范围、验收场景与后续待决事项                |
 | [livestore-research.md](livestore-research.md)                 | LiveStore 竞品对比：事件模型、同步协议、可借鉴方向与验证边界               |
+| [sqlite-sync-research.md](sqlite-sync-research.md)             | sqlite-sync 对照：为什么不接入、拉取游标修复与可借鉴方向                   |
 | [incremental-ai-code-review.md](incremental-ai-code-review.md) | 全量/增量、分支/项目评审与单问题处理，多模型交接和持久记录                 |
 | [versioning-policy.md](versioning-policy.md)                   | 什么算公开 API、什么改动算破坏性                                           |
 | [zh-glossary.md](zh-glossary.md)                               | 中文注释 / TSDoc 词汇规约（哪些词保留、哪些要改）                          |
