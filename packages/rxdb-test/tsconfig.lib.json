@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "rootDir": "src",
-    "outDir": "dist",
+    "outDir": "out-tsc/lib",
     "tsBuildInfoFile": "out-tsc/tsconfig.lib.tsbuildinfo",
     "emitDeclarationOnly": true,
     "forceConsistentCasingInFileNames": true,

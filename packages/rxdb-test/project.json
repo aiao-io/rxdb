@@ -5,12 +5,18 @@
   "targets": {
     "typecheck": {
       "executor": "nx:run-commands",
-      "dependsOn": ["build"],
+      "dependsOn": ["build", "^typecheck"],
       "syncGenerators": [],
       "cache": true,
+      "outputs": [
+        "{projectRoot}/out-tsc/lib",
+        "{projectRoot}/out-tsc/shop",
+        "{projectRoot}/out-tsc/tsconfig.lib.tsbuildinfo",
+        "{projectRoot}/out-tsc/tsconfig.shop.tsbuildinfo"
+      ],
       "options": {
         "cwd": "packages/rxdb-test",
-        "command": "tsc --project tsconfig.check.json"
+        "command": "tsc --build tsconfig.lib.json && tsc --project tsconfig.check.json"
       }
     },
     "build": {
