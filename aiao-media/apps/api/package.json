@@ -5,7 +5,8 @@
   "type": "module",
   "dependencies": {
     "@aiao-media/api-contracts": "workspace:*",
-    "@aiao-media/domain": "workspace:*"
+    "@aiao-media/domain": "workspace:*",
+    "hono": "^4.13.17"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261108.1",

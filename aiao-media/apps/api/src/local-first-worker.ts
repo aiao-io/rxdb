@@ -1,4 +1,5 @@
 import { imageGenerationRequest, isMiniMaxImageProvider } from '@aiao-media/api-contracts';
+import { Hono } from 'hono';
 import { handleAdmin } from './admin-api.ts';
 import { installation } from './installation.ts';
 import { publishedTemplates, runtimePolicy } from './product-content.ts';
@@ -287,135 +288,168 @@ function lateRelayResponse(
     }
   );
 }
-const worker = {
-  async fetch(request: Request, env: WorkerEnv): Promise<Response> {
-    const url = new URL(request.url);
-    if (!url.pathname.startsWith('/api/')) return fetchAsset(request, env);
-    const setup = installation(env);
-    if (url.pathname === '/api/installation') {
-      if (setup) return setup.fetch(request);
-      return jsonPayload({
-        initialized: true,
-        managed: Boolean(env.MEDIA_SUPABASE_URL),
-        auth:
-          env.MEDIA_SUPABASE_URL && env.MEDIA_SUPABASE_ANON_KEY ?
-            { url: env.MEDIA_SUPABASE_URL, anonKey: env.MEDIA_SUPABASE_ANON_KEY }
-          : null
-      });
-    }
-    if (setup) {
-      const installed = await setup.fetch('https://installation/internal/config');
-      if (!installed.ok) return json(503, 'Installation configuration unavailable');
-      const config = await installed.json<Partial<WorkerEnv> | null>();
-      if (config) env = { ...env, ...config };
-    }
-    if (url.pathname.startsWith('/api/admin/')) return handleAdmin(request, env);
-    if (url.pathname === '/api/templates' && request.method === 'GET') return endpoint(() => publishedTemplates(env));
-    if (url.pathname === '/api/provider-policies' && request.method === 'GET')
-      return endpoint(async () => ({ policy: await runtimePolicy(env) }));
-    if (url.pathname === '/api/provider-probe') {
-      if (request.method !== 'GET') return json(405, 'GET required');
-      return jsonPayload(await providerProbe(env, url.origin));
-    }
-    if (url.pathname.startsWith('/api/relay/tasks/')) return handleRelayTask(request, env);
-    if (url.pathname !== '/api/relay') return json(404, 'Unknown API');
-    if (request.method !== 'POST') return json(405, 'POST required');
-    let input;
-    try {
-      input = await relayInput(request, env);
-    } catch {
-      return json(502, 'Provider connection interrupted; review provider history before retrying');
-    }
-    if (input instanceof Response) return input;
-    const { authorization, imageRequest, policy } = input;
-    const controller = new AbortController();
-    const stop = () => controller.abort();
-    request.signal.addEventListener('abort', stop, { once: true });
-    const timer = setTimeout(stop, 180000);
-    const cleanup = () => {
-      clearTimeout(timer);
-      request.signal.removeEventListener('abort', stop);
-    };
-    try {
-      if (request.signal.aborted) throw new Error('Aborted');
-      const responsePromise = fetch(imageRequest.url, {
-        method: 'POST',
-        // Do not follow redirects with the Key. Non-2xx responses are rejected
-        // below in both the immediate and delayed response paths.
-        redirect: 'manual',
-        signal: controller.signal,
-        headers: { authorization, 'content-type': 'application/json' },
-        body: JSON.stringify(imageRequest.body)
-      });
-      const early = await Promise.race([
-        responsePromise
-          .then(response => ({ kind: 'response' as const, response }))
-          .catch(error => ({ kind: 'error' as const, error })),
-        new Promise<{ kind: 'pending' }>(resolve => setTimeout(() => resolve({ kind: 'pending' }), 250))
-      ]);
-      if (early.kind === 'pending') {
-        const response = lateRelayResponse(responsePromise, controller, cleanup);
-        response.headers.set('x-aiao-policy-version', String(policy?.revision ?? 'deployment'));
-        return response;
-      }
-      if (early.kind === 'error') throw early.error;
-      const response = early.response;
-      if (!response.ok) {
-        await response.body?.cancel();
-        cleanup();
-        return json(
-          [400, 401, 403, 404, 413, 422, 429].includes(response.status) ? response.status : 502,
-          'Provider rejected or failed; review provider history'
-        );
-      }
-      if (!response.body || !response.headers.get('content-type')?.includes('application/json')) {
-        await response.body?.cancel();
-        cleanup();
-        return json(502, 'Invalid provider response');
-      }
-      const source = response.body.getReader();
-      let total = 0;
-      // Stream the image JSON without retaining the result in Worker memory or storage.
-      const body = new ReadableStream({
-        async pull(target) {
-          try {
-            const { done, value } = await source.read();
-            if (done) {
-              cleanup();
-              target.close();
-              return;
-            }
-            total += value.length;
-            if (total > 24 * 1024 * 1024) throw new Error('Response too large');
-            target.enqueue(value);
-          } catch {
-            controller.abort();
-            await source.cancel().catch(() => undefined);
-            cleanup();
-            target.error(new Error('Provider stream interrupted'));
-          }
-        },
-        async cancel() {
-          controller.abort();
-          cleanup();
-          await source.cancel().catch(() => undefined);
-        }
-      });
-      return new Response(body, {
-        headers: {
-          'content-type': 'application/json',
-          'cache-control': 'no-store',
-          'referrer-policy': 'no-referrer',
-          'x-content-type-options': 'nosniff',
-          'x-aiao-policy-version': String(policy?.revision ?? 'deployment')
-        }
-      });
-    } catch {
-      cleanup();
-      return json(502, 'Provider connection interrupted; review provider history before retrying');
-    }
+type ApiEnv = { Bindings: WorkerEnv };
+const app = new Hono<ApiEnv>();
+
+async function configuredEnvironment(env: WorkerEnv): Promise<WorkerEnv> {
+  const setup = installation(env);
+  if (!setup) return env;
+  const installed = await setup.fetch('https://installation/internal/config');
+  if (!installed.ok) throw new Error('Installation configuration unavailable');
+  const config = await installed.json<Partial<WorkerEnv> | null>();
+  return config ? { ...env, ...config } : env;
+}
+
+async function withConfiguredEnvironment(
+  env: WorkerEnv,
+  handler: (configured: WorkerEnv) => Promise<Response>
+): Promise<Response> {
+  try {
+    return await handler(await configuredEnvironment(env));
+  } catch {
+    return json(503, 'Installation configuration unavailable');
   }
-};
+}
+
+async function relay(request: Request, env: WorkerEnv): Promise<Response> {
+  if (request.method !== 'POST') return json(405, 'POST required');
+  let input;
+  try {
+    input = await relayInput(request, env);
+  } catch {
+    return json(502, 'Provider connection interrupted; review provider history before retrying');
+  }
+  if (input instanceof Response) return input;
+  const { authorization, imageRequest, policy } = input;
+  const controller = new AbortController();
+  const stop = () => controller.abort();
+  request.signal.addEventListener('abort', stop, { once: true });
+  const timer = setTimeout(stop, 180000);
+  const cleanup = () => {
+    clearTimeout(timer);
+    request.signal.removeEventListener('abort', stop);
+  };
+  try {
+    if (request.signal.aborted) throw new Error('Aborted');
+    const responsePromise = fetch(imageRequest.url, {
+      method: 'POST',
+      // 不跟随重定向携带 Key；即时和延迟响应路径都统一拒绝非 2xx。
+      redirect: 'manual',
+      signal: controller.signal,
+      headers: { authorization, 'content-type': 'application/json' },
+      body: JSON.stringify(imageRequest.body)
+    });
+    const early = await Promise.race([
+      responsePromise
+        .then(response => ({ kind: 'response' as const, response }))
+        .catch(error => ({ kind: 'error' as const, error })),
+      new Promise<{ kind: 'pending' }>(resolve => setTimeout(() => resolve({ kind: 'pending' }), 250))
+    ]);
+    if (early.kind === 'pending') {
+      const response = lateRelayResponse(responsePromise, controller, cleanup);
+      response.headers.set('x-aiao-policy-version', String(policy?.revision ?? 'deployment'));
+      return response;
+    }
+    if (early.kind === 'error') throw early.error;
+    const response = early.response;
+    if (!response.ok) {
+      await response.body?.cancel();
+      cleanup();
+      return json(
+        [400, 401, 403, 404, 413, 422, 429].includes(response.status) ? response.status : 502,
+        'Provider rejected or failed; review provider history'
+      );
+    }
+    if (!response.body || !response.headers.get('content-type')?.includes('application/json')) {
+      await response.body?.cancel();
+      cleanup();
+      return json(502, 'Invalid provider response');
+    }
+    const source = response.body.getReader();
+    let total = 0;
+    const body = new ReadableStream({
+      async pull(target) {
+        try {
+          const { done, value } = await source.read();
+          if (done) {
+            cleanup();
+            target.close();
+            return;
+          }
+          total += value.length;
+          if (total > 24 * 1024 * 1024) throw new Error('Response too large');
+          target.enqueue(value);
+        } catch {
+          controller.abort();
+          await source.cancel().catch(() => undefined);
+          cleanup();
+          target.error(new Error('Provider stream interrupted'));
+        }
+      },
+      async cancel() {
+        controller.abort();
+        cleanup();
+        await source.cancel().catch(() => undefined);
+      }
+    });
+    return new Response(body, {
+      headers: {
+        'content-type': 'application/json',
+        'cache-control': 'no-store',
+        'referrer-policy': 'no-referrer',
+        'x-content-type-options': 'nosniff',
+        'x-aiao-policy-version': String(policy?.revision ?? 'deployment')
+      }
+    });
+  } catch {
+    cleanup();
+    return json(502, 'Provider connection interrupted; review provider history before retrying');
+  }
+}
+
+app.options('/api/*', c => {
+  const origin = c.req.header('origin');
+  if (origin !== 'tauri://localhost' || c.env.MEDIA_ALLOW_DESKTOP_ORIGIN !== 'true') return json(403, 'Origin is not enabled');
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'access-control-allow-origin': origin,
+      'access-control-allow-methods': 'GET,POST,PUT,DELETE',
+      'access-control-allow-headers': 'authorization,content-type,x-provider-base,x-relay-task-token',
+      'access-control-max-age': '600',
+      vary: 'Origin'
+    }
+  });
+});
+
+app.all('/api/installation', async c => {
+  const setup = installation(c.env);
+  if (setup) return setup.fetch(c.req.raw);
+  return jsonPayload({
+    initialized: true,
+    managed: Boolean(c.env.MEDIA_SUPABASE_URL),
+    auth:
+      c.env.MEDIA_SUPABASE_URL && c.env.MEDIA_SUPABASE_ANON_KEY ?
+        { url: c.env.MEDIA_SUPABASE_URL, anonKey: c.env.MEDIA_SUPABASE_ANON_KEY }
+      : null
+  });
+});
+
+app.all('/api/admin/*', c => withConfiguredEnvironment(c.env, env => handleAdmin(c.req.raw, env)));
+app.get('/api/templates', c => withConfiguredEnvironment(c.env, env => endpoint(() => publishedTemplates(env))));
+app.get('/api/provider-policies', c =>
+  withConfiguredEnvironment(c.env, env => endpoint(async () => ({ policy: await runtimePolicy(env) })))
+);
+app.all('/api/provider-probe', async c => {
+  if (c.req.method !== 'GET') return json(405, 'GET required');
+  const env = await configuredEnvironment(c.env).catch(() => null);
+  if (!env) return json(503, 'Installation configuration unavailable');
+  return jsonPayload(await providerProbe(env, new URL(c.req.url).origin));
+});
+app.all('/api/relay/tasks/*', c => withConfiguredEnvironment(c.env, env => handleRelayTask(c.req.raw, env)));
+app.all('/api/relay', c => withConfiguredEnvironment(c.env, env => relay(c.req.raw, env)));
+app.all('/api/*', () => json(404, 'Unknown API'));
+app.all('*', c => fetchAsset(c.req.raw, c.env));
 
 export default {
   async fetch(request: Request, env: WorkerEnv): Promise<Response> {
@@ -434,7 +468,7 @@ export default {
         }
       });
     }
-    const result = await worker.fetch(request, env);
+    const result = await app.fetch(request, env);
     if (!desktop || !new URL(request.url).pathname.startsWith('/api/')) return result;
     const headers = new Headers(result.headers);
     headers.set('access-control-allow-origin', origin!);
