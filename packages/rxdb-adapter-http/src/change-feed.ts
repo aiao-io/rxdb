@@ -96,7 +96,8 @@ export interface ChangeFeedHost {
  *
  * @remarks
  * **连接成功 = 全量失效。** `onopen` 不区分首次连接与重连（D7）：两者对客户端的含义完全一样
- * ——「从这一刻起我能收到变更了，而这一刻之前的事我一无所知」。
+ * ——「从这一刻起我能收到变更了，而这一刻之前的事我一无所知」。失效报完，再经
+ * {@link HttpChangeFeedOptions.onOpen} 告诉包外「接通了」。
  *
  * **失败绝不外泄到查询路径。** 本类不抛错、不产生 `NetworkOfflineError`：一条断掉的通知连接
  * 不代表离线（可能只是后端没实现该端点），把它算进 `offlineFallback` 的判定，会让一次
@@ -313,10 +314,25 @@ export class HttpChangeFeed {
     }
   }
 
+  #reportOpen(): void {
+    const hook = this.#host.options.onOpen;
+    if (!hook) {
+      return;
+    }
+    try {
+      hook({ url: this.#host.url });
+    } catch {
+      /* 与 #report 同一条口径：接通的记账已经做完，诊断口失败不该冒到 EventSource 的回调外面 */
+    }
+  }
+
   readonly #handleOpen = (): void => {
     // 只记时刻，不动退避计数：这条连接能不能算「连上过」，要等它断的时候才知道（见 #fail）
     this.#openedAt = Date.now();
     this.#invalidateAll();
+    // 诊断放在最后：回调被调用时这次接通的记账已经完成，回调里同步停掉通道
+    // 也不会在一条刚关掉的连接上再补一轮全量失效
+    this.#reportOpen();
   };
 
   readonly #handleMessage = (event: { data: unknown }): void => {

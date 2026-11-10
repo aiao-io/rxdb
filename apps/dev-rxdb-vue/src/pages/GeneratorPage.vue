@@ -1,37 +1,11 @@
 <script lang="ts" setup>
 import { CodeEditor } from '@aiao/code-editor-vue';
-import { EntityMetadataOptions, PropertyType } from '@aiao/rxdb';
 import { zipSync } from 'fflate';
 import { computed, ref, watch } from 'vue';
 import { useTheme } from '../app/composables/useTheme';
-import { generateSourceState } from './generator-state';
+import { GENERATOR_DEMOS as demos, generateSourceState } from './generator-state';
 
 const { currentThemeLightDark: editorTheme } = useTheme();
-
-const demos: EntityMetadataOptions[] = [
-  {
-    name: 'Todo',
-    displayName: 'Todo',
-    repository: 'Repository',
-    extends: ['EntityBase'],
-    properties: [
-      { name: 'title', type: PropertyType.string },
-      { name: 'completed', type: PropertyType.boolean, default: false }
-    ]
-  },
-  {
-    name: 'Menu',
-    displayName: 'Menu',
-    repository: 'TreeRepository',
-    extends: ['TreeAdjacencyListEntityBase', 'EntityBase'],
-    properties: [
-      {
-        name: 'title',
-        type: PropertyType.string
-      }
-    ]
-  }
-];
 
 const selectedDemoIndex = ref(0);
 const json = ref(JSON.stringify(demos[0], null, 2));

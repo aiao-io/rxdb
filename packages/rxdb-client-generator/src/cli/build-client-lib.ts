@@ -24,7 +24,8 @@ import { resolvePhysicalPath } from './out-dir.js';
 import { loadRepositoryGenerators, registerRepositoryGenerators } from './repository-generators.js';
 
 const MANIFEST_FILE_NAME = '.rxdb-client-generator-manifest.json';
-const STAGING_DIR_PREFIX = '.rxdb-client-generator-staging-';
+/** 写入阶段在 outDir 内建的 staging 目录名前缀；测试按它断言构建结束后没有残留。 */
+export const STAGING_DIR_PREFIX = '.rxdb-client-generator-staging-';
 
 interface OutputManifest {
   version: 1;

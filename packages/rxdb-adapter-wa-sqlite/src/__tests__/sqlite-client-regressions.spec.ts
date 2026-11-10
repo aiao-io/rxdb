@@ -52,6 +52,23 @@ describe('WaSqliteClient regressions', () => {
     expect(result.results[0]?.rows[0]?.[0]).toBe(0);
   });
 
+  it('含 NUL 的字符串参数直接拒绝，不在 NUL 处截断成另一个值写进库', async () => {
+    await client.execute('CREATE TABLE nul_rows (id TEXT PRIMARY KEY)');
+
+    await expect(client.execute('INSERT INTO nul_rows (id) VALUES (?)', ['id\0tail'])).rejects.toThrow(/NUL/);
+
+    const result = await client.execute('SELECT count(*) FROM nul_rows');
+    expect(result.results[0]?.rows[0]?.[0]).toBe(0);
+  });
+
+  it('内联字面量里的 NUL 经 char(0) 原样落库', async () => {
+    await client.execute('CREATE TABLE nul_literals (id TEXT PRIMARY KEY)');
+    await client.execute(`INSERT INTO nul_literals (id) VALUES (('id' || char(0) || 'tail'))`);
+
+    const result = await client.execute('SELECT hex(id) FROM nul_literals');
+    expect(result.results[0]?.rows).toEqual([['6964007461696C']]);
+  });
+
   it('识别 WITH 开头的 DML 并累计真实影响行数', async () => {
     await client.execute('CREATE TABLE cte_rows (id INTEGER PRIMARY KEY, active INTEGER NOT NULL)');
     await client.execute('INSERT INTO cte_rows (id, active) VALUES (1, 0), (2, 0)');

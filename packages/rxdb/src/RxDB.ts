@@ -289,6 +289,21 @@ export class RxDB {
   #connect_promise_map = new Map<string, Promise<IRxDBAdapter>>();
 
   /**
+   * 适配器名 → 正在进行的拆卸：拆的是哪一份缓存实例，以及拆完的信号。
+   *
+   * @remarks
+   * `disconnect()` / `disconnectAll()` 同步登记、拆完按身份摘除。用途有二：
+   * - `connect()` 先查它再查连接缓存：拆卸已经摘掉连接状态、还在等底层 `adapter.disconnect()` 时，
+   *   {@link RxDB.#connect_promise_map} 里留着的是上一次早已 resolve 的 Promise，命中它就把一个
+   *   正在关闭的实例交了出去。拆卸中的同名 `connect()` 改为等它结束再重新引导；
+   * - 同一份实例的并发 `disconnect()` 共用一次拆卸，不把同一个连接关两次。
+   *
+   * `disconnectAll()` 覆盖它开始时缓存着的每个名字：卡在插件释放上的单点 `disconnect()` 由它接管，
+   * 拆完即摘，重连不必等那条可能永远等不到的旧释放。
+   */
+  #teardown_map = new Map<string, { readonly adapter: Promise<IRxDBAdapter>; readonly done: Promise<void> }>();
+
+  /**
    * 适配器名 → 连接纪元。
    *
    * @remarks
@@ -1056,6 +1071,9 @@ export class RxDB {
    * 首次 `connect()` 会在异步引导前同步调用 `init()`，先安装已登记的插件再初始化实体。
    * 贡献仓储或带系统贡献的插件必须先 `use()` 再连接；普通插件仍允许连接后安装。
    *
+   * 同名适配器正在拆卸（`disconnect()` / `disconnectAll()` 已开始、尚未拆完）时，等这次拆卸结束再
+   * 重新引导一条新连接，不交出正在关闭的旧实例。
+   *
    * @param adapterName - 适配器名称
    * @returns 返回连接的适配器实例
    * @throws 引导期间被 `disconnect()` / `disconnectAll()` 中止时抛出（见 {@link RxDB.#connect_epochs}）
@@ -1069,6 +1087,13 @@ export class RxDB {
     // 适配器会被交出去，而这个实例已经没有第二次 init() 了。
     if (this.#destroyed) {
       return Promise.reject(new Error('[RxDB] connect() rejected: instance is destroyed'));
+    }
+    // 拆卸仲裁同样排在缓存之前，理由相同：拆卸窗口里缓存交出去的是正在关闭的那一份（见 #teardown_map）。
+    // 拆卸成败都要重来一遍，失败的拆卸也已经把缓存清掉了。
+    const teardown = this.#teardown_map.get(adapterName);
+    if (teardown !== undefined) {
+      const retry = () => this.connect(adapterName);
+      return teardown.done.then(retry, retry);
     }
     // 防重入：如果已经在连接中，直接返回缓存的 Promise
     const pending = this.#connect_promise_map.get(adapterName);
@@ -1298,40 +1323,18 @@ export class RxDB {
    * 中止错误 reject，而不是在拆完之后把适配器标回已连接。作废是同步的，不等它落地
    * （理由见 {@link RxDB.#invalidate_connect}）。
    *
+   * 同一份实例的并发 `disconnect()` 共用一次拆卸；拆卸途中被 `disconnectAll()` 接管时，
+   * 本次调用不再关第二次，也不清理之后新建的连接。
+   *
    * @param adapterName - 适配器名称
    */
   async disconnect(adapterName: RxDBAdapterName): Promise<void> {
     this.#invalidate_connect(adapterName);
     const cached = this.#adapter_map.get(adapterName);
     if (!cached) return; // 未实例化，无需断开
-    const adapter = await cached;
-    // 断开最后一个**已连接**适配器前先执行全局拆卸（插件须在适配器断开前销毁）。
-    // 判定依据是 #connected_adapters 而非 #adapter_map.size，理由见前者的 @remarks。
-    const wasConnected = this.#set_adapter_connected(adapterName, undefined);
-    if (wasConnected) {
-      if (this.#connected_adapters.size === 0) await this.#shutdown();
-      // 还有别的适配器连着：只把靠**这一个**适配器活着的插件释放掉，其余不受影响（AC#4）。
-      // 释放必须早于下面的 adapter.disconnect()（INV-7）——插件的撤销条目多半还要用这条连接
-      // （删触发器、drop 影子表），适配器先断开会让它们在一个已关闭的连接上执行。
-      else {
-        this.#scheduler.reconcile();
-        await this.#scheduler.settle();
-      }
-    }
-    try {
-      await adapter.disconnect();
-    } finally {
-      // 无论 adapter.disconnect() 成功与否都要清掉缓存条目——否则失败时死实例会一直
-      // 留在 #adapter_map 里，重试 getAdapter() 复用同一个已失败的实例而不是走工厂
-      // 重建，disconnect 重试也会对同一个（可能已部分拆卸的）实例重复调用。
-      this.#adapter_map.delete(adapterName);
-      this.#connect_promise_map.delete(adapterName);
-      // 解绑名字。#shutdown() 里那两行只覆盖「最后一个适配器也断了」的情形；还有别的
-      // 适配器连着时它根本不跑，名字原样留在 subject 里，去重环节于是看不到任何变化——
-      // 重连建出的新实例永远推不到仍在订阅的调用方手上（它们还指着已断开的旧实例）。
-      this.#retract_adapter_name(adapterName);
-      if (isLocalAdapter(adapterName, this.#config)) this.#reset_worktree_table_set();
-    }
+    const running = this.#teardown_map.get(adapterName);
+    if (running?.adapter === cached) return running.done;
+    return this.#track_teardown([adapterName], cached, this.#disconnect_adapter(adapterName, cached));
   }
 
   /**
@@ -1414,41 +1417,13 @@ export class RxDB {
    *
    * @throws 在飞的适配器工厂、全局拆卸或某个适配器的 `disconnect()` 失败时抛出最先出现的那个错误；
    * 抛出时拆卸已经全部走完，不会因为其中一处失败而留下没断开的适配器
+   *
+   * @remarks
+   * 拆卸期间对同名适配器的 `connect()` 等这次拆卸结束再重新引导（见 {@link RxDB.connect}）。
    */
-  async disconnectAll(): Promise<void> {
-    for (const adapterName of this.#connect_promise_map.keys()) this.#invalidate_connect(adapterName);
-    // 在飞的工厂要等它结算，否则它建出的实例没人关；但只能 allSettled：一个工厂拒绝只说明那一个
-    // 实例没建出来，其余已建好的照样要拆。Promise.all 会在首个拒绝处整体退出，下面的插件销毁、
-    // 适配器断连与缓存清理一步都走不到——destroy() 此时已置终态，重试它也补不回来。
-    // 工厂错误与后两段同口径：保留首个，全部拆完再统一抛出。
-    let firstError: unknown;
-    const adapters: IRxDBAdapter[] = [];
-    for (const result of await Promise.allSettled(this.#adapter_map.values())) {
-      if (result.status === 'fulfilled') adapters.push(result.value);
-      else firstError ??= result.reason;
-    }
-    // 插件须在适配器断开前销毁。#shutdown() 抛错（例如仓储销毁失败）不能让下面的
-    // 适配器断连被跳过——两段互相独立，保留首个错误，两段都跑完再统一抛出。
-    try {
-      await this.#shutdown();
-    } catch (error) {
-      firstError ??= error;
-    }
-    try {
-      const results = await Promise.allSettled(adapters.map(adapter => adapter.disconnect()));
-      for (const result of results) {
-        if (result.status === 'rejected') firstError ??= result.reason;
-      }
-    } catch (error) {
-      firstError ??= error;
-    } finally {
-      // 同 disconnect：部分适配器 disconnect 失败也不能让全部缓存条目悬空。
-      this.#adapter_map.clear();
-      this.#connect_promise_map.clear();
-      this.#clear_adapter_connected();
-      this.#reset_worktree_table_set();
-    }
-    if (firstError !== undefined) throw firstError;
+  disconnectAll(): Promise<void> {
+    const adapterNames = [...new Set([...this.#adapter_map.keys(), ...this.#connect_promise_map.keys()])];
+    return this.#track_teardown(adapterNames, undefined, this.#disconnect_all());
   }
 
   /**
@@ -1688,6 +1663,119 @@ export class RxDB {
     this.#connected_adapters.clear();
     this.#adapter_connected_sub.next(new Set<string>());
     this.#connected_sub.next(false);
+  }
+
+  /**
+   * 拆掉一份缓存的适配器实例（{@link RxDB.disconnect} 的拆卸本体）。
+   *
+   * @param adapterName - 适配器名称
+   * @param cached - 发起拆卸时缓存里的那一份
+   *
+   * @remarks
+   * 每个 `await` 落地后核对缓存里还是不是自己这一份：等待期间 `disconnectAll()` 可能已经把它断开、
+   * 清掉缓存，新的 `connect()` 甚至已经建起下一条连接。按名字删条目、撤名字、复位表集只能属于
+   * 自己这一代，否则抹掉的是新连接，`destroy()` 也就再关不到它。
+   */
+  async #disconnect_adapter(adapterName: string, cached: Promise<IRxDBAdapter>): Promise<void> {
+    const adapter = await cached;
+    if (this.#adapter_map.get(adapterName) !== cached) return;
+    // 断开最后一个**已连接**适配器前先执行全局拆卸（插件须在适配器断开前销毁）。
+    // 判定依据是 #connected_adapters 而非 #adapter_map.size，理由见前者的 @remarks。
+    const wasConnected = this.#set_adapter_connected(adapterName, undefined);
+    if (wasConnected) {
+      if (this.#connected_adapters.size === 0) await this.#shutdown();
+      // 还有别的适配器连着：只把靠**这一个**适配器活着的插件释放掉，其余不受影响（AC#4）。
+      // 释放必须早于下面的 adapter.disconnect()（INV-7）——插件的撤销条目多半还要用这条连接
+      // （删触发器、drop 影子表），适配器先断开会让它们在一个已关闭的连接上执行。
+      else {
+        this.#scheduler.reconcile();
+        await this.#scheduler.settle();
+      }
+    }
+    // 释放等待期间被 disconnectAll() 接管：这一份已经由它断开并清理
+    if (this.#adapter_map.get(adapterName) !== cached) return;
+    try {
+      await adapter.disconnect();
+    } finally {
+      // 无论 adapter.disconnect() 成功与否都要清掉缓存条目——否则失败时死实例会一直
+      // 留在 #adapter_map 里，重试 getAdapter() 复用同一个已失败的实例而不是走工厂
+      // 重建，disconnect 重试也会对同一个（可能已部分拆卸的）实例重复调用。
+      if (this.#adapter_map.get(adapterName) === cached) this.#release_adapter_entry(adapterName);
+    }
+  }
+
+  /** 清掉一个适配器名的缓存条目并撤回名字（{@link RxDB.disconnect} 的收尾）。 */
+  #release_adapter_entry(adapterName: string): void {
+    this.#adapter_map.delete(adapterName);
+    this.#connect_promise_map.delete(adapterName);
+    // 解绑名字。#shutdown() 里那两行只覆盖「最后一个适配器也断了」的情形；还有别的
+    // 适配器连着时它根本不跑，名字原样留在 subject 里，去重环节于是看不到任何变化——
+    // 重连建出的新实例永远推不到仍在订阅的调用方手上（它们还指着已断开的旧实例）。
+    this.#retract_adapter_name(adapterName);
+    if (isLocalAdapter(adapterName, this.#config)) this.#reset_worktree_table_set();
+  }
+
+  /** {@link RxDB.disconnectAll} 的拆卸本体。 */
+  async #disconnect_all(): Promise<void> {
+    for (const adapterName of this.#connect_promise_map.keys()) this.#invalidate_connect(adapterName);
+    // 在飞的工厂要等它结算，否则它建出的实例没人关；但只能 allSettled：一个工厂拒绝只说明那一个
+    // 实例没建出来，其余已建好的照样要拆。Promise.all 会在首个拒绝处整体退出，下面的插件销毁、
+    // 适配器断连与缓存清理一步都走不到——destroy() 此时已置终态，重试它也补不回来。
+    // 工厂错误与后两段同口径：保留首个，全部拆完再统一抛出。
+    let firstError: unknown;
+    const adapters: IRxDBAdapter[] = [];
+    for (const result of await Promise.allSettled(this.#adapter_map.values())) {
+      if (result.status === 'fulfilled') adapters.push(result.value);
+      else firstError ??= result.reason;
+    }
+    // 插件须在适配器断开前销毁。#shutdown() 抛错（例如仓储销毁失败）不能让下面的
+    // 适配器断连被跳过——两段互相独立，保留首个错误，两段都跑完再统一抛出。
+    try {
+      await this.#shutdown();
+    } catch (error) {
+      firstError ??= error;
+    }
+    try {
+      const results = await Promise.allSettled(adapters.map(adapter => adapter.disconnect()));
+      for (const result of results) {
+        if (result.status === 'rejected') firstError ??= result.reason;
+      }
+    } catch (error) {
+      firstError ??= error;
+    } finally {
+      // 同 disconnect：部分适配器 disconnect 失败也不能让全部缓存条目悬空。
+      this.#adapter_map.clear();
+      this.#connect_promise_map.clear();
+      this.#clear_adapter_connected();
+      this.#reset_worktree_table_set();
+    }
+    if (firstError !== undefined) throw firstError;
+  }
+
+  /**
+   * 登记一次拆卸，拆完按身份摘除（见 {@link RxDB.#teardown_map}）。
+   *
+   * @param adapterNames - 这次拆卸覆盖的适配器名
+   * @param adapter - 单点拆卸时拆的那一份缓存实例；全局拆卸按名字各取当时缓存的那一份
+   * @param done - 拆卸本身
+   * @returns `done` 原样返回
+   */
+  #track_teardown(
+    adapterNames: readonly string[],
+    adapter: Promise<IRxDBAdapter> | undefined,
+    done: Promise<void>
+  ): Promise<void> {
+    for (const adapterName of adapterNames) {
+      const cached = adapter ?? this.#adapter_map.get(adapterName) ?? this.#connect_promise_map.get(adapterName);
+      if (cached !== undefined) this.#teardown_map.set(adapterName, { adapter: cached, done });
+    }
+    const forget = () => {
+      for (const adapterName of adapterNames) {
+        if (this.#teardown_map.get(adapterName)?.done === done) this.#teardown_map.delete(adapterName);
+      }
+    };
+    done.then(forget, forget);
+    return done;
   }
 
   /**

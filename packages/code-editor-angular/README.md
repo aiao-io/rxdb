@@ -155,7 +155,6 @@ export class HostComponent {
 `setLanguage(name)` 是**无条件重载**入口，供宿主换掉了同名描述背后的 loader 实现时使用；
 日常切换语言请改 `language` 输入（它会跳过等价的重复加载）。
 
-其余命令式 setter（`setValue` / `setTheme` / `setReadonly` / `setEditable` /
-`setPlaceholder` / `setIndentUnit` / `setIndentWithTab` / `setLineWrapping` /
-`setHighlightWhitespace`）均已标记 `@deprecated`：它们与同名输入是双轨，
-直接调用会在下一次输入同步时被覆盖。请改用对应输入，这些方法将在下一个主版本移除。
+除这两个方法与上表的 handle 外，组件不提供别的命令式 setter：文档内容、主题、占位符、只读、
+缩进、换行与空白高亮一律经 [Inputs](#inputs) 里的同名输入配置，可编辑状态由 `disabled` 输入或
+表单控件的禁用状态控制。

@@ -1,6 +1,7 @@
 import { I18n } from '@aiao/rxdb-i18n';
 import { describe, expect, it, vi } from 'vitest';
 import type { MenuNode } from '../../layout/menu.js';
+import type { PaletteItem } from '../../palette/controller.js';
 import { createTestShell } from '../../testing.js';
 import { pickThemes } from '../../theme/themes.js';
 
@@ -283,6 +284,36 @@ describe('createAdminShell', () => {
       expect(shell.palette.value.total).toBe(0);
     });
 
+    it('菜单来源：带路由的父节点与它的各层后代都能搜到，后代的副标题是父级路径', async () => {
+      const nested: MenuNode<string>[] = [
+        {
+          id: 'overview',
+          label: '总览',
+          route: '/overview',
+          children: [
+            {
+              id: 'detail',
+              label: '明细',
+              route: '/overview/detail',
+              children: [{ id: 'leaf', label: '子项', route: '/overview/detail/leaf' }]
+            }
+          ]
+        }
+      ];
+      const { shell, navigated } = create({ menu: nested });
+      shell.palette.open();
+      const suggestions = shell.palette.value.groups.find(group => group.id === 'menu')?.entries ?? [];
+      expect(suggestions.map(({ item }) => [item.id, item.sublabel])).toEqual([
+        ['menu:overview', undefined],
+        ['menu:detail', '总览'],
+        ['menu:leaf', '总览 / 明细']
+      ]);
+      shell.palette.setQuery('子项');
+      expect(shell.palette.value.groups[0].entries[0].item.id).toBe('menu:leaf');
+      await shell.palette.select();
+      expect(navigated).toEqual(['/overview/detail/leaf']);
+    });
+
     it('没有菜单时菜单来源为空', () => {
       const { shell } = create({ menu: [] });
       shell.palette.open();
@@ -507,6 +538,16 @@ describe('createAdminShell', () => {
       expect(shell.theme.options.map(theme => theme.name)).toEqual(['light', 'dark', 'cupcake']);
     });
 
+    it('可选主题是 light + aqua 时，系统深色解析到已启用的 aqua，isDark 与 data-theme 一致', () => {
+      const { shell, fakeDocument } = create({ themes: pickThemes(['light', 'aqua']) }, { systemDark: true });
+      shell.attach();
+      expect(shell.theme.resolved.value).toBe('aqua');
+      expect(shell.theme.isDark.value).toBe(true);
+      expect(shell.theme.darkName).toBe('aqua');
+      expect(fakeDocument.attributes.get('data-theme')).toBe('aqua');
+      shell.destroy();
+    });
+
     it('偏好里不在可选主题内的名字被清洗回 system', () => {
       const { shell } = create();
       shell.preferences.setPath('theme.name', 'cupcake');
@@ -545,6 +586,58 @@ describe('createAdminShell', () => {
       expect(fakeWindow.listenerCount('keydown')).toBe(0);
       expect(fakeWindow.listenerCount('storage')).toBe(0);
       expect(fakeWindow.listenerCount('pagehide')).toBe(0);
+    });
+
+    it('destroy 取消命令面板的防抖与进行中的搜索，迟到结果不再写回', async () => {
+      vi.useFakeTimers();
+      try {
+        const { shell } = create();
+        const pending: Array<{ signal: AbortSignal; resolve: (items: PaletteItem[]) => void }> = [];
+        const search = vi.fn(
+          (_query: string, signal: AbortSignal) =>
+            new Promise<PaletteItem[]>(resolve => void pending.push({ signal, resolve }))
+        );
+        shell.palette.registerSource({ id: 'records', search });
+        shell.palette.open();
+        shell.palette.setQuery('a');
+        await vi.advanceTimersByTimeAsync(200);
+        expect(search).toHaveBeenCalledOnce();
+        shell.palette.setQuery('ab');
+        shell.destroy();
+        expect(pending[0].signal.aborted).toBe(true);
+        await vi.advanceTimersByTimeAsync(200);
+        expect(search).toHaveBeenCalledOnce();
+        pending[0].resolve([{ id: 'late', label: '迟到', run: vi.fn() }]);
+        await vi.advanceTimersByTimeAsync(0);
+        expect(shell.palette.value.open).toBe(false);
+        expect(shell.palette.value.groups).toEqual([]);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('destroy 中止已经发出的搜索请求', async () => {
+      vi.useFakeTimers();
+      try {
+        const { shell } = create();
+        const signals: AbortSignal[] = [];
+        shell.palette.registerSource({
+          id: 'records',
+          search: (_query, signal) => {
+            signals.push(signal);
+            return new Promise<PaletteItem[]>(() => undefined);
+          }
+        });
+        shell.palette.open();
+        shell.palette.setQuery('a');
+        await vi.advanceTimersByTimeAsync(200);
+        shell.destroy();
+        expect(signals).toHaveLength(1);
+        expect(signals[0].aborted).toBe(true);
+        expect(shell.palette.value.open).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('初始地址：显式传入优先，其次窗口地址', () => {

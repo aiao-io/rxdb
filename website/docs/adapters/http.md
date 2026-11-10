@@ -270,20 +270,22 @@ new RxDBAdapterHttp(db, {
     withCredentials: true, // 跨源时带 cookie（EventSource 带不了 auth header）
     reconnectBaseDelayMs: 1000,
     reconnectMaxDelayMs: 30000,
+    onOpen: report => console.info('[change feed] open', report.url),
     onUnavailable: report => console.warn('[change feed]', report.reason, report.message),
     onNotification: report => console.debug('[change feed]', report.entity, report.suppressed)
   }
 });
 ```
 
-| 字段                   | 默认    | 含义                                          |
-| :--------------------- | :------ | :-------------------------------------------- |
-| `url`                  | —       | 通知端点，相对 `baseUrl` 或绝对 URL；**必填** |
-| `withCredentials`      | `false` | 透传给 `EventSource`，跨源带 cookie           |
-| `reconnectBaseDelayMs` | `1000`  | 指数退避起步延迟                              |
-| `reconnectMaxDelayMs`  | `30000` | 退避上限，必须 `>=` 起步值                    |
-| `onUnavailable`        | （无）  | 通道不可用时的诊断回调，见下                  |
-| `onNotification`       | （无）  | 每收到一条**读得懂**的通知回调一次，见下      |
+| 字段                   | 默认    | 含义                                                                                 |
+| :--------------------- | :------ | :----------------------------------------------------------------------------------- |
+| `url`                  | —       | 通知端点，相对 `baseUrl` 或绝对 URL；**必填**                                        |
+| `withCredentials`      | `false` | 透传给 `EventSource`，跨源带 cookie                                                  |
+| `reconnectBaseDelayMs` | `1000`  | 指数退避起步延迟                                                                     |
+| `reconnectMaxDelayMs`  | `30000` | 退避上限，必须 `>=` 起步值                                                           |
+| `onOpen`               | （无）  | 每次接通（含每一次重连）回调一次 `{ url }`，排在该次全量失效之后；同步调用、抛错丢弃 |
+| `onUnavailable`        | （无）  | 通道不可用时的诊断回调，见下                                                         |
+| `onNotification`       | （无）  | 每收到一条**读得懂**的通知回调一次，见下                                             |
 
 **整个 `changeFeed` 不写就等于关闭**，不发任何连接、不产生任何行为差异。参数嵌在 `changeFeed`
 里而不是平铺，是为了让「配了 `onUnavailable` 却没开通道」这种永不触发的死配置在类型上就不合法。
@@ -355,7 +357,7 @@ adapter.changeFeedEnabled; // boolean
 ```
 
 **`changeFeedEnabled` 是「要不要跑」的意图，不是「此刻通没通」。** 网线断了它仍是 `true`，
-重连由适配器自己退避重试。要看连接的实际死活，用 `onUnavailable`。
+重连由适配器自己退避重试。要看连接的实际死活，用 `onOpen`（报接通）与 `onUnavailable`（报故障；`malformed-message` 除外，连接还在）。
 
 **没配 `changeFeed` 时两个方法都抛 `HttpUnsupportedOperationError`**，而不是静默什么都不做——
 与 `version()` 未配 `onVersion` 同一条口径。没有通道可开关时调它，是配置漏了，不是一次空操作。

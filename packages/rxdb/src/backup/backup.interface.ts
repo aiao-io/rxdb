@@ -61,6 +61,14 @@ export interface RxDBBackupManifest {
   };
   /** {@link computeRxDBSchemaFingerprint} 的结果。 */
   readonly schemaFingerprint: string;
+  /**
+   * 实体级存储约束指纹（{@link getRxDBBackupConstraintFingerprint} 的结果）。
+   *
+   * @remarks
+   * 0.0.28 及更早写的归档没有这一项：恢复时只比其余各项（这类归档能核对的上限），只差约束的配置要等
+   * `connect()` 的约束漂移检查才发现。旧版本读到带这一项的归档会忽略它，格式版本不变。
+   */
+  readonly constraintFingerprint?: string;
   /** 加密认证域；无加密列时为 `null`。 */
   readonly encryption: { readonly authDomain: string } | null;
 }
@@ -77,6 +85,8 @@ export interface RxDBBackupCompatibility {
   readonly systemSchemaVersion: number;
   readonly changeCodecVersion: number;
   readonly schemaFingerprint: string;
+  /** 目标的实体级存储约束指纹（{@link getRxDBBackupConstraintFingerprint}）。 */
+  readonly constraintFingerprint: string;
   /** 目标的加密认证域；目标实体没有加密列时为 `null`。 */
   readonly authDomain: string | null;
 }

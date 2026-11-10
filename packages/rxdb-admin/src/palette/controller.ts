@@ -132,9 +132,10 @@ export class PaletteController implements ReadableStore<PaletteState> {
   readonly #state = new Store<PaletteState>(CLOSED);
   readonly #sources = new Map<string, PaletteSource>();
   readonly #asyncResults = new Map<string, readonly PaletteItem[]>();
+  /** 本轮搜索里每个来源各自的中止器：注销来源时只中止它自己的请求。 */
+  readonly #searches = new Map<PaletteSource, AbortController>();
   readonly #options: PaletteControllerOptions;
   #sequence = 0;
-  #abort: AbortController | undefined;
   #timer: ReturnType<typeof setTimeout> | undefined;
 
   get #recentsKey(): string {
@@ -171,7 +172,8 @@ export class PaletteController implements ReadableStore<PaletteState> {
   /**
    * 注册结果来源。
    * @param source - 来源。
-   * @returns 注销函数。
+   * @returns 注销函数：中止该来源进行中的搜索并移除它的结果与失败提示；
+   *   同一标识已换成别的来源后再调用，或重复调用，都不做任何事。
    * @throws 标识重复，或既不是同步源也不是异步源时抛错。
    */
   registerSource(source: PaletteSource): () => void {
@@ -180,8 +182,13 @@ export class PaletteController implements ReadableStore<PaletteState> {
     this.#sources.set(source.id, source);
     this.#refresh();
     return () => {
+      if (this.#sources.get(source.id) !== source) return;
       this.#sources.delete(source.id);
       this.#asyncResults.delete(source.id);
+      this.#searches.get(source)?.abort();
+      this.#searches.delete(source);
+      const failed = this.value.failed.filter(id => id !== source.id);
+      if (failed.length !== this.value.failed.length) this.#state.set({ ...this.value, failed });
       this.#refresh();
     };
   }
@@ -249,8 +256,8 @@ export class PaletteController implements ReadableStore<PaletteState> {
   #cancelSearch(): void {
     clearTimeout(this.#timer);
     this.#timer = undefined;
-    this.#abort?.abort();
-    this.#abort = undefined;
+    for (const controller of this.#searches.values()) controller.abort();
+    this.#searches.clear();
     this.#sequence += 1;
     this.#asyncResults.clear();
   }
@@ -269,21 +276,22 @@ export class PaletteController implements ReadableStore<PaletteState> {
 
   async #runSearch(query: string, targets: readonly PaletteSource[]): Promise<void> {
     const sequence = ++this.#sequence;
-    const controller = new AbortController();
-    this.#abort = controller;
-    await Promise.all(
-      targets.map(async source => {
-        try {
-          const items = await source.search?.(query, controller.signal);
-          if (sequence === this.#sequence) this.#asyncResults.set(source.id, items ?? []);
-        } catch {
-          if (sequence === this.#sequence)
-            this.#state.set({ ...this.value, failed: [...this.value.failed, source.id] });
-        }
-        if (sequence === this.#sequence) this.#refresh();
-      })
-    );
+    await Promise.all(targets.map(source => this.#searchSource(source, query, sequence)));
     if (sequence === this.#sequence) this.#state.set({ ...this.value, loading: false });
+  }
+
+  /** 只有查询仍是这一轮、且该标识下仍是发起搜索的那个来源时，结果与失败才写回。 */
+  async #searchSource(source: PaletteSource, query: string, sequence: number): Promise<void> {
+    const controller = new AbortController();
+    this.#searches.set(source, controller);
+    const current = (): boolean => sequence === this.#sequence && this.#sources.get(source.id) === source;
+    try {
+      const items = await source.search?.(query, controller.signal);
+      if (current()) this.#asyncResults.set(source.id, items ?? []);
+    } catch {
+      if (current()) this.#state.set({ ...this.value, failed: [...this.value.failed, source.id] });
+    }
+    if (current()) this.#refresh();
   }
 
   #remember(id: string): void {

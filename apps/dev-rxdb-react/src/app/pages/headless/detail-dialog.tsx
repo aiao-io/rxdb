@@ -29,6 +29,8 @@ export function DetailDialog({
   onClose(result: DetailResult): void;
 }): React.JSX.Element {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  /** 本弹窗还挂着且没被取消：页面的弹窗控制器长期存在，旧弹窗迟到的保存不能关掉随后打开的新弹窗 */
+  const activeRef = useRef(false);
   const creating = data.mode === 'create';
   const i18n = useI18nRuntime();
   const rxdb = useRxDB();
@@ -48,8 +50,10 @@ export function DetailDialog({
     if (!dialog) return;
     // 弹窗随组件卸载，浏览器不会替我们把焦点还给打开它的元素：自己记下并在关闭时恢复
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    activeRef.current = true;
     dialog.showModal();
     return () => {
+      activeRef.current = false;
       dialog.close();
       opener?.focus();
     };
@@ -60,13 +64,15 @@ export function DetailDialog({
     inputs.markAttempted();
     try {
       const result = await controller.save(onSave);
-      if (result.valid) onClose('saved');
+      // 与 Angular output / Vue emit 在组件销毁后不再派发同一口径
+      if (result.valid && activeRef.current) onClose('saved');
     } catch {
       // 失败原因已在 snapshot.error 暴露，弹窗保持打开让用户修正
     }
   };
 
   const cancel = (): void => {
+    activeRef.current = false;
     controller.cancel();
     onClose('cancelled');
   };

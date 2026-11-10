@@ -1,8 +1,6 @@
 # findNeighbors
 
-`findNeighbors` 用于图结构的邻居查询。文档这里讨论的是实体静态方法，所以返回值是 `Observable`。
-
-如果你直接拿 `GraphRepository` 实例调用同名方法，底层返回的是 `Promise`。
+`findNeighbors` 用于图结构的邻居查询。实体静态方法分两套：`findNeighbors` 返回 `Promise`，直接 `await` 拿一次结果；`findNeighbors$` 返回 `Observable`，图结构变化时推送新结果。
 
 ## 图关系图
 
@@ -15,7 +13,8 @@ erDiagram
 ## 签名
 
 ```ts
-findNeighbors(options: FindNeighborsOptions<T>): Observable<NeighborResult<T>[]>
+findNeighbors(options: FindNeighborsOptions<T>): Promise<GraphQueryResult<NeighborResult<T>>>
+findNeighbors$(options: FindNeighborsOptions<T>): Observable<GraphQueryResult<NeighborResult<T>>>
 ```
 
 ## 查询选项
@@ -44,30 +43,32 @@ findNeighbors(options: FindNeighborsOptions<T>): Observable<NeighborResult<T>[]>
 ## 基础用法
 
 ```ts
-import { firstValueFrom } from 'rxjs';
+const neighbors = await Person.findNeighbors({
+  entityId: alice.id,
+  direction: 'out',
+  level: 2
+});
+```
 
-const neighbors = await firstValueFrom(
-  Person.findNeighbors({
-    entityId: alice.id,
-    direction: 'out',
-    level: 2
-  })
-);
+## 持续订阅
+
+```ts
+const subscription = Person.findNeighbors$({ entityId: alice.id, level: 1 }).subscribe(neighbors => {
+  console.log(neighbors.length);
+});
 ```
 
 ## 权重和属性过滤
 
 ```ts
-const importantNeighbors = await firstValueFrom(
-  Person.findNeighbors({
-    entityId: alice.id,
-    level: 1,
-    edgeWhere: {
-      weight: { min: 5 },
-      properties: { category: 'friend' }
-    }
-  })
-);
+const importantNeighbors = await Person.findNeighbors({
+  entityId: alice.id,
+  level: 1,
+  edgeWhere: {
+    weight: { min: 5 },
+    properties: { category: 'friend' }
+  }
+});
 ```
 
 ## 参考

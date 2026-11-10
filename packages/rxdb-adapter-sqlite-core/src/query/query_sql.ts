@@ -3,7 +3,7 @@ import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { SQLiteCompatibleType } from '../sqlite-core.interface.js';
 import { get_primary_key_column, quote_sql_identifier, ROWID, RxDBAdapterSqliteError } from '../sqlite-core.utils.js';
 import { build_rule, resolve_column_name, resolve_query_property } from './query_sql.utils.js';
-import { MAIN_TABLE_ALIAS } from './sql_alias.utils.js';
+import { MAIN_RULE_SCOPE, MAIN_TABLE_ALIAS, type RuleScope } from './sql_alias.utils.js';
 
 interface GenerateSqlOptions {
   tableName: string;
@@ -96,6 +96,7 @@ export const build_order_by = (
  * @param entityMetadata 实体元数据（可选）
  * @param adapter SQLite 适配器实例（可选，用于 EXISTS 查询）
  * @param params bigint/binary 查询参数收集器
+ * @param scope 规则所在的查询层，缺省是顶层主表 `_`（树查询的递归成员、EXISTS 子查询各传自己的别名）
  * @returns SQL 条件字符串
  */
 export const buildRuleGroup = <RG extends RuleGroup>(
@@ -103,15 +104,16 @@ export const buildRuleGroup = <RG extends RuleGroup>(
   fieldAliasMap: Map<string, string> = new Map(),
   entityMetadata?: EntityMetadata,
   adapter?: RxDBAdapterSqliteBase,
-  params?: SQLiteCompatibleType[]
+  params?: SQLiteCompatibleType[],
+  scope: RuleScope = MAIN_RULE_SCOPE
 ): string => {
   if (!ruleGroup?.rules) return '';
   const processedRules = ruleGroup.rules
     .map(ruleOrRuleGroup => {
       if ('combinator' in ruleOrRuleGroup) {
-        return buildRuleGroup(ruleOrRuleGroup, fieldAliasMap, entityMetadata, adapter, params);
+        return buildRuleGroup(ruleOrRuleGroup, fieldAliasMap, entityMetadata, adapter, params, scope);
       }
-      return build_rule(ruleOrRuleGroup, fieldAliasMap, entityMetadata, adapter, buildRuleGroup, params);
+      return build_rule(ruleOrRuleGroup, fieldAliasMap, entityMetadata, adapter, buildRuleGroup, params, scope);
     })
     .filter(Boolean);
 

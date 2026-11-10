@@ -16,6 +16,7 @@ import { HttpConfigError, HttpDisconnectedError, HttpUnsupportedOperationError }
 import type {
   HttpAdapterOptions,
   HttpChangeFeedNotificationReport,
+  HttpChangeFeedOpenReport,
   HttpChangeFeedUnavailableReport,
   HttpHandlers
 } from '../http.interface.js';
@@ -179,13 +180,16 @@ const createConnectedFeed = async (
   invalidate: ReturnType<typeof vi.fn>;
   reports: HttpChangeFeedUnavailableReport[];
   notifications: HttpChangeFeedNotificationReport[];
+  opens: HttpChangeFeedOpenReport[];
 }> => {
   const reports: HttpChangeFeedUnavailableReport[] = [];
   const notifications: HttpChangeFeedNotificationReport[] = [];
+  const opens: HttpChangeFeedOpenReport[] = [];
   const { adapter } = createAdapter(
     {
       changeFeed: {
         url: 'changes',
+        onOpen: report => opens.push(report),
         onUnavailable: report => reports.push(report),
         onNotification: report => notifications.push(report),
         ...options
@@ -196,7 +200,7 @@ const createConnectedFeed = async (
   const invalidate = vi.fn();
   vi.spyOn(rxdb, 'invalidateRemoteEntity').mockImplementation(invalidate);
   await adapter.connect();
-  return { adapter, rxdb, invalidate, reports, notifications };
+  return { adapter, rxdb, invalidate, reports, notifications, opens };
 };
 
 beforeEach(() => {
@@ -543,6 +547,155 @@ describe('通知诊断出口（AC#24 / D8）', () => {
     invalidate.mockClear();
     expect(() => lastSource().push({ entity: 'FeedRecipe' })).not.toThrow();
     expect(invalidate).toHaveBeenCalledWith('FeedRecipe', 'public');
+  });
+});
+
+/**
+ * 接通的诊断出口（RV-01a1bb52dedb）。
+ *
+ * @remarks
+ * `onUnavailable` 报「通道没了」、`onNotification` 报「通道来货了」，缺的是「通道通了」。
+ * 少了这一半，包外判断连接死活只剩两样东西：启用意图（`changeFeedEnabled`，网线断了仍是
+ * `true`）与故障上报——而故障上报在重连成功之后没有任何后续，拿「报过故障」当「此刻断着」的
+ * 面板会在恢复之后一直显示断开。
+ */
+describe('接通诊断出口（onOpen）', () => {
+  it('连接建立才报，一次一报、带通道 URL；connect() 本身不算接通', async () => {
+    const { opens } = await createConnectedFeed();
+    expect(opens).toEqual([]);
+
+    lastSource().open();
+
+    expect(opens).toEqual([{ url: FEED_URL }]);
+  });
+
+  it('断线后重连成功再报——本包退避接管与浏览器原生重连都算', async () => {
+    vi.useFakeTimers();
+    const { opens } = await createConnectedFeed({ reconnectBaseDelayMs: 1000 });
+    lastSource().open();
+
+    // 浏览器放弃（CLOSED）：本包按退避换一条新连接
+    lastSource().fail();
+    await vi.advanceTimersByTimeAsync(1000);
+    lastSource().open();
+    // 原生重连（CONNECTING）：还是同一条连接，浏览器自己接回来
+    lastSource().fail(0);
+    lastSource().open();
+
+    expect(opens).toHaveLength(3);
+    expect(FakeEventSource.instances).toHaveLength(2);
+  });
+
+  it('报在本次连接的全量失效（D7）之后：回调被调用时每个已订阅实体都已失效过', async () => {
+    const order: string[] = [];
+    const { adapter, rxdb } = createAdapter({ changeFeed: { url: 'changes', onOpen: () => order.push('open') } });
+    vi.spyOn(rxdb, 'invalidateRemoteEntity').mockImplementation(entity => {
+      order.push(`invalidate:${entity}`);
+    });
+    await adapter.connect();
+
+    lastSource().open();
+
+    expect(order).toEqual(['invalidate:FeedRecipe', 'invalidate:FeedTag', 'open']);
+  });
+
+  it('回调抛错被丢弃：不影响全量失效、后续通知与下一次接通', async () => {
+    vi.useFakeTimers();
+    let calls = 0;
+    const { adapter, rxdb } = createAdapter({
+      changeFeed: {
+        url: 'changes',
+        reconnectBaseDelayMs: 1000,
+        onOpen: () => {
+          calls++;
+          throw new Error('诊断面板炸了');
+        }
+      }
+    });
+    const invalidate = vi.spyOn(rxdb, 'invalidateRemoteEntity').mockImplementation(() => undefined);
+    await adapter.connect();
+
+    expect(() => lastSource().open()).not.toThrow();
+    expect(invalidate.mock.calls).toEqual([
+      ['FeedRecipe', 'public'],
+      ['FeedTag', 'public']
+    ]);
+
+    invalidate.mockClear();
+    lastSource().push({ entity: 'FeedRecipe' });
+    expect(invalidate).toHaveBeenCalledWith('FeedRecipe', 'public');
+
+    lastSource().fail();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(() => lastSource().open()).not.toThrow();
+    expect(calls).toBe(2);
+  });
+
+  it('与 onUnavailable 按发生顺序交替：首次连不上只有故障，接通后掉线再恢复各报各的', async () => {
+    vi.useFakeTimers();
+    const events: string[] = [];
+    await createConnectedFeed({
+      reconnectBaseDelayMs: 1000,
+      onOpen: () => events.push('open'),
+      onUnavailable: report => events.push(`unavailable:${report.reason}`)
+    });
+
+    // 后端还没起来：首次连接就失败，此时没有任何「接通」可报
+    lastSource().fail();
+    await vi.advanceTimersByTimeAsync(1000);
+    lastSource().open();
+    // 读不懂的一条不是断线，连接还在
+    lastSource().pushRaw('not json');
+    // 掉线，浏览器原生重连接回来
+    lastSource().fail(0);
+    lastSource().open();
+
+    expect(events).toEqual([
+      'unavailable:connection-error',
+      'open',
+      'unavailable:malformed-message',
+      'unavailable:connection-error',
+      'open'
+    ]);
+  });
+
+  it('「开了就断」时每轮都报，退避照常增长——它说的是此刻连上了，不是这条连接稳定', async () => {
+    vi.useFakeTimers();
+    const events: string[] = [];
+    await createConnectedFeed({
+      reconnectBaseDelayMs: 1000,
+      onOpen: () => events.push('open'),
+      onUnavailable: report => events.push(`fail#${report.attempt}`)
+    });
+
+    for (let round = 0; round < 3; round++) {
+      lastSource().open();
+      lastSource().fail(0);
+    }
+
+    expect(events).toEqual(['open', 'fail#1', 'open', 'fail#2', 'open', 'fail#3']);
+  });
+
+  it('停掉通道之后迟到的 open 不报', async () => {
+    const { adapter, opens } = await createConnectedFeed();
+    const source = lastSource();
+    adapter.stopChangeFeed();
+
+    source.open();
+
+    expect(opens).toEqual([]);
+  });
+
+  it('不配 onOpen 时接通照常全量失效，不抛', async () => {
+    const { adapter, rxdb } = createAdapter({ changeFeed: { url: 'changes' } });
+    const invalidate = vi.spyOn(rxdb, 'invalidateRemoteEntity').mockImplementation(() => undefined);
+    await adapter.connect();
+
+    expect(() => lastSource().open()).not.toThrow();
+    expect(invalidate.mock.calls).toEqual([
+      ['FeedRecipe', 'public'],
+      ['FeedTag', 'public']
+    ]);
   });
 });
 

@@ -11,6 +11,8 @@ const rxdb = injectRxDB()!;
 
 let encFacade: AdapterEncryptionFacade | null = null;
 let lockSub: Subscription | null = null;
+/** 页面已卸载：连接与加密元数据查询都可能晚于卸载才回来，回来后不再建订阅、不再写页面状态 */
+let disposed = false;
 
 const isLocked = ref(true);
 const users = ref<EncryptedUser[]>([]);
@@ -44,7 +46,9 @@ async function bindEncryption(adapter: RxDBAdapterSqlite): Promise<AdapterEncryp
   const facade = adapter.encryption;
   encFacade = facade;
   isLocked.value = facade.isLocked;
-  isFirstTime.value = !(await facade.isInitialized());
+  const initialized = await facade.isInitialized();
+  if (disposed) return facade;
+  isFirstTime.value = !initialized;
   lockSub?.unsubscribe();
   lockSub = facade.lockChange$.subscribe(locked => {
     isLocked.value = locked;
@@ -60,14 +64,17 @@ async function bindEncryption(adapter: RxDBAdapterSqlite): Promise<AdapterEncryp
 onMounted(async () => {
   try {
     const adapter = (await rxdb.connect('sqlite-wasm')) as RxDBAdapterSqlite;
+    if (disposed) return;
     await bindEncryption(adapter);
   } catch (err) {
-    error.value = err instanceof Error ? err.message : String(err);
+    if (!disposed) error.value = err instanceof Error ? err.message : String(err);
   }
 });
 
 onUnmounted(() => {
+  disposed = true;
   lockSub?.unsubscribe();
+  lockSub = null;
 });
 
 async function handleUnlock() {

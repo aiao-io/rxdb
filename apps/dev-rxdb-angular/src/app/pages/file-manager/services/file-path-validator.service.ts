@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { formatFileName } from '../utils/file-name';
 
 export interface FilePathNode {
   id: string;
@@ -89,7 +90,7 @@ export class FilePathValidatorService {
 
     // 从当前节点向上遍历到根节点
     while (current) {
-      const nodeName = current.extension ? `${current.name}${current.extension}` : current.name;
+      const nodeName = formatFileName(current.name, current.extension);
       parts.unshift(nodeName);
 
       // 查找父节点

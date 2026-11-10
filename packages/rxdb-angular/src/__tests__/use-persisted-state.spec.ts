@@ -92,6 +92,22 @@ describe('usePersistedState（RVU-010）', () => {
     });
   });
 
+  // SSR 每个请求引导一个新应用：注册表随 root injector，前一个应用的内存值不能进入下一个（RV-01a1ba4b4adf）
+  it('应用实例之间不共享内存状态', () => {
+    TestBed.runInInjectionContext(() => {
+      expect(usePersistedState('ssr-profile', 'secret', 'alice-private').value()).toBe('alice-private');
+    });
+    TestBed.resetTestingModule();
+    mockLocalStorage.clear();
+    TestBed.configureTestingModule({
+      providers: [provideZonelessChangeDetection(), { provide: ErrorHandler, useValue: errorHandler }]
+    });
+
+    TestBed.runInInjectionContext(() => {
+      expect(usePersistedState('ssr-profile', 'secret', 'bob-private').value()).toBe('bob-private');
+    });
+  });
+
   it('同 key 换值类型时 fail-fast', () => {
     TestBed.runInInjectionContext(() => {
       usePersistedState('app', 'slot', 42);

@@ -23,17 +23,23 @@
  * getConfig();
  * **注意：** 该实现仅支持无参数函数，如需处理带参数的函数，请使用其他实现
  * **注意：** 第一次执行的结果会被缓存，后续调用返回相同结果
+ * **注意：** 函数执行期间被同步重入时不会再执行，重入调用返回 `undefined`（结果尚未产生）；
+ * 函数同步抛错时不缓存，下一次调用重新执行
  */
 export function once<F extends () => unknown>(func: F): F {
-  let called = false; // 标记是否已执行
+  let called = false; // 进入函数前就占位，同步重入看到的是「已执行」
   let cache: ReturnType<F> | undefined; // 缓存第一次执行的结果
   return function () {
     if (called) {
       return cache;
     }
-    const result = func() as ReturnType<F>;
     called = true;
-    cache = result;
-    return result;
+    try {
+      cache = func() as ReturnType<F>;
+    } catch (error) {
+      called = false;
+      throw error;
+    }
+    return cache;
   } as F;
 }

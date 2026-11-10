@@ -1,14 +1,24 @@
 import { EntityType } from '../entity/entity.interface.js';
 import { FindAllOptions, FindOneOptions } from '../repository/query-options.interface.js';
 import { QueryTask } from '../repository/QueryTask.js';
-import { UpdateClassification, UpdateDataCache, applyExternalEntityUpdate, getEntityId } from './merge-update.utils.js';
-import { calculateOrderBy, isEntityMatchWhere } from './query-matching.utils.js';
+import {
+  UpdateClassification,
+  UpdateDataCache,
+  applyExternalEntityUpdate,
+  getEntityId,
+  orderByPersisted,
+  persistedState
+} from './merge-update.utils.js';
+import { isEntityMatchWhere } from './query-matching.utils.js';
 
 /**
  * 处理 findAll 查询更新
  *
  * 注意：patch 可能是增量数据（跨 Tab 场景），不是完整实体
  * 因此对于结果集中已有的实体，需要合并 patch 而不是替换
+ *
+ * 成员资格与排序都按库里的值（{@link persistedState}）算，与刷新门控、SQL 同一口径；
+ * 实体引用本身保留用户未保存的编辑。
  */
 export const handleFindAllUpdate = <T extends EntityType>(
   task: QueryTask<T>,
@@ -33,8 +43,8 @@ export const handleFindAllUpdate = <T extends EntityType>(
     if (data?.patch) {
       // 外部事件同步到缓存实体时，不能记成用户本地修改。
       applyExternalEntityUpdate(entity, data.patch);
-      // 重新检查合并后的实体是否仍然匹配 where 条件
-      if (!where || isEntityMatchWhere(entity, where)) {
+      // 重新检查合并后的实体是否仍然匹配 where 条件（按库里的值）
+      if (!where || isEntityMatchWhere(persistedState(entity), where)) {
         afterMerge.push(entity);
       }
       // 不匹配则从结果集中移除
@@ -55,7 +65,7 @@ export const handleFindAllUpdate = <T extends EntityType>(
 
   // 如果有排序,重新排序
   if (options.orderBy?.length) {
-    newResult = calculateOrderBy(newResult, options.orderBy);
+    newResult = orderByPersisted(newResult, options.orderBy);
   }
 
   task.next(newResult, true);
@@ -93,8 +103,8 @@ export const handleFindOneUpdate = <T extends EntityType>(
   const data = cache.getData(currentId);
   if (data?.patch) {
     applyExternalEntityUpdate(currentResult, data.patch);
-    // 重新检查合并后的实体是否仍然匹配 where 条件
-    if (where && !isEntityMatchWhere(currentResult, where)) {
+    // 重新检查合并后的实体是否仍然匹配 where 条件（按库里的值）
+    if (where && !isEntityMatchWhere(persistedState(currentResult), where)) {
       // 不再匹配，需要刷新找新的结果
       task.refresh();
       return;

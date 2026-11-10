@@ -1,8 +1,7 @@
 import type { EditContext, IEditor } from '@visactor/vtable-editors';
 import { ModelEditorI18n } from '../../i18n.js';
+import { readCellOrigin } from './cell-origin.js';
 import { DAISY_COLORS, positionOverlayPanel, refocusTable, scheduleEditorSetup } from './global-overlay-editor.js';
-
-type TableLike = { getCellOriginValue(col: number, row: number): unknown } | null;
 
 /** 标签编辑器模式：'string' 字符串标签 / 'number' 数字标签 */
 export type TagsMode = 'string' | 'number';
@@ -51,7 +50,7 @@ export class TagsEditor implements IEditor<unknown> {
       refocusTable(container);
       ctx.endEdit();
     };
-    const origin = (ctx.table as TableLike)?.getCellOriginValue(ctx.col, ctx.row) ?? ctx.value;
+    const origin = readCellOrigin(ctx);
 
     if (Array.isArray(origin)) {
       this.#tags = (origin as unknown[]).map(String).filter(Boolean);

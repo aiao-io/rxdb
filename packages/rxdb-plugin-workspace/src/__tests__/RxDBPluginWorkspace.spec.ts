@@ -735,6 +735,40 @@ describe('installation and lifecycle boundaries', () => {
     }
   });
 
+  // flush() 挂在旧纪元还没装完的 ready 上，期间断连重连：旧调用醒来时看到的是新纪元的 store，
+  // 不能拿新纪元的队列冒充自己那一批已经落盘——旧纪元没落盘的草稿在释放时已经丢了。
+  it('挂在旧纪元 ready 上的 flush() 跨过断连重连后拒绝，不结算新纪元的队列', async () => {
+    let finishRestore: (() => void) | undefined;
+    entriesMock.mockImplementationOnce(async () => {
+      await new Promise<void>(resolve => {
+        finishRestore = resolve;
+      });
+      return [];
+    });
+    const rxdb = createMockRxDB();
+    const { plugin, scope } = createScoped(rxdb);
+    const nextScope = new LifecycleScope('workspace-spec-epoch-2');
+
+    try {
+      void plugin.install(scope).catch(() => undefined);
+      dispatch(rxdb, ENTITY_LOCAL_NEW_EVENT, newEventData(TODO_ID_1, { title: 'Epoch 1' }));
+      const staleFlush = plugin.flush();
+      const settled = staleFlush.then(
+        () => 'resolved',
+        (error: unknown) => (error instanceof Error ? error.message : String(error))
+      );
+
+      await scope.dispose();
+      await plugin.install(nextScope);
+      finishRestore?.();
+
+      await expect(settled).resolves.toBe('workspace plugin is not installed in the current connection epoch');
+      expect(idbState.store.has(cacheId('Todo', TODO_ID_1))).toBe(false);
+    } finally {
+      await nextScope.dispose();
+    }
+  });
+
   it('首次 IndexedDB 读取失败后保留 rejected ready，并允许显式重试 install', async () => {
     entriesMock.mockRejectedValueOnce(new Error('indexeddb open failed'));
     const rxdb = createMockRxDB();

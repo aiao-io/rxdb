@@ -72,7 +72,7 @@ US-012 的 format 契约对同一行为给了两种互斥说法（契约原文�
 ### D2：判重口径是 ASCII 小写，与值校验同源
 
 `validateFieldValue()` 比对协议时两侧都走 `toLowerCase()`
-（[entity-value.utils.ts:523-524](../../../packages/rxdb/src/entity/entity-value.utils.ts#L523-L524)）：
+（[entity-value.utils.ts:536-537](../../../packages/rxdb/src/entity/entity-value.utils.ts#L536-L537)）：
 
 ```ts
 const scheme = url.protocol.slice(0, -1).toLowerCase();

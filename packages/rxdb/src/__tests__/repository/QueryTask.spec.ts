@@ -135,7 +135,7 @@ describe('QueryTask - 实体依赖计数', () => {
   });
 
   it('重复 clean() 只应清理一次缓存条目', () => {
-    const onClean = vi.fn<(cacheKey: string) => void>();
+    const onClean = vi.fn<(cacheKey: string, task: unknown) => void>();
     const task = createTask(new Map(), 'same-key', onClean);
 
     task.run();
@@ -143,7 +143,8 @@ describe('QueryTask - 实体依赖计数', () => {
     task.clean();
 
     expect(onClean).toHaveBeenCalledOnce();
-    expect(onClean).toHaveBeenCalledWith('same-key');
+    // 第二参是任务本身：宿主按身份摘除，同键下接替它的新任务不受影响
+    expect(onClean).toHaveBeenCalledWith('same-key', task);
   });
 
   it('clean() 未 run() 时不应该改动计数', () => {

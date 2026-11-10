@@ -127,14 +127,15 @@ export const auditDoc = (file, text, queryCache) => {
  * @returns 问题说明
  */
 const movedMethodCalls = (file, lines) => {
-  const aliases = versionManagerAliases(lines);
+  const bindings = slotBindings(lines);
+  const aliases = new Set(bindings.map(binding => binding.alias));
   const offenders = [];
-  for (const { line, no } of lines) {
+  for (const { line, no, block } of lines) {
     const direct = MOVED_SYNC_METHODS.find(name => line.includes(`versionManager.${name}(`));
     if (direct !== undefined) offenders.push(`${file}:${no} -> versionManager.${direct}() 已移到 syncManager`);
     for (const alias of aliases) {
       const called = MOVED_SYNC_METHODS.find(name => line.includes(`${alias}.${name}(`));
-      if (called !== undefined) {
+      if (called !== undefined && slotOf(bindings, { alias, block, no }) === 'versionManager') {
         offenders.push(`${file}:${no} -> ${alias}.${called}() 走的是 versionManager，已移到 syncManager`);
       }
     }
@@ -149,7 +150,8 @@ const SLOT_ALIAS = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:rxdb|db)\.(v
  * 摘出该参与判定的行。
  *
  * @param text - 文档全文
- * @returns `{ line, no }`，`no` 为 1 起的行号
+ * @returns `{ line, no, block }`，`no` 为 1 起的行号，`block` 是所在段落的序号（每遇到一条围栏线加一，
+ * 同一个代码块里的行序号相同）
  *
  * @remarks
  * ` ```diff ` 里的删除行就是「旧写法长这样」，迁移指南少不了它。别名绑定同样按这个口径
@@ -159,36 +161,49 @@ const SLOT_ALIAS = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:rxdb|db)\.(v
 const scannableLines = text => {
   const lines = [];
   let diffFence = false;
+  let block = 0;
   text.split('\n').forEach((line, i) => {
     if (line.startsWith('```')) {
       diffFence = line.startsWith('```diff');
+      block += 1;
       return;
     }
     if (diffFence && line.startsWith('-')) return;
-    lines.push({ line, no: i + 1 });
+    lines.push({ line, no: i + 1, block });
   });
   return lines;
 };
 
 /**
- * 收集绑到 `versionManager` 的别名。
+ * 收集 `versionManager` / `syncManager` 两个槽位的别名绑定。
  *
  * @param lines - {@link scannableLines} 的结果
- * @returns 别名标识符集合
+ * @returns `{ alias, slot, block, no }` 列表
+ */
+const slotBindings = lines =>
+  lines.flatMap(({ line, block, no }) =>
+    [...line.matchAll(SLOT_ALIAS)].map(match => ({ alias: match[1], slot: match[2], block, no }))
+  );
+
+/**
+ * 一次别名调用实际走的是哪个槽位。
+ *
+ * @param bindings - {@link slotBindings} 的结果
+ * @param call - 别名、调用所在段落与行号
+ * @returns 槽位名；判不出时为 `null`
  *
  * @remarks
- * 先收满再判调用，不按出现序边收边判：代码块的排布不保证「绑定一定写在调用之前」，
- * 单趟扫描会漏掉先给调用、后给完整示例的那种写法。
- * 绑到 `syncManager` 的别名**不收**——那正是迁移之后的正确写法。
+ * 绑定按代码块划界：同一块里有这个别名的绑定，就用块内调用之前最近的那次（没有就用块内第一次）——
+ * 两个独立示例都叫 `manager`、一个绑历史槽位一个绑同步槽位时，不能互相串。
+ * 调用所在块里没有绑定时才看全文：代码块的排布不保证「绑定写在调用之前」，先给调用、后给完整示例
+ * 的写法要靠全文的绑定判；全文把同名变量绑到两个槽位时判不出，不猜。
  */
-const versionManagerAliases = lines => {
-  const aliases = new Set();
-  for (const { line } of lines) {
-    for (const match of line.matchAll(SLOT_ALIAS)) {
-      if (match[2] === 'versionManager') aliases.add(match[1]);
-    }
-  }
-  return aliases;
+const slotOf = (bindings, { alias, block, no }) => {
+  const named = bindings.filter(binding => binding.alias === alias);
+  const local = named.filter(binding => binding.block === block);
+  if (local.length > 0) return (local.findLast(binding => binding.no <= no) ?? local[0]).slot;
+  const slots = new Set(named.map(binding => binding.slot));
+  return slots.size === 1 ? [...slots][0] : null;
 };
 
 /** 递归收集 `.md`，跳过 typedoc 生成的 `api/`。 */

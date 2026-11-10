@@ -1,23 +1,30 @@
 #!/bin/bash
 # Supabase 测试数据库初始化脚本
+#
+# 用法：
+#   ./init-db.sh                                          # 初始化 start.sh 起的默认栈
+#   ./init-db.sh -p <compose 项目> -f docker-compose.ci.yml # 初始化隔离 CI 栈（supabase-ci-up.sh 传）
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SQL_DIR="$SCRIPT_DIR/sql"
-# 未显式隔离时退回 docker-compose.ci.yml 的默认 project 名，和它的
-# `name: ${SUPABASE_CI_PROJECT_NAME:-supabase-ci}` 保持一致。
-PROJECT_NAME="${SUPABASE_CI_PROJECT_NAME:-supabase-ci}"
+# 初始化哪套栈由调用者说了算：参数原样交给 `docker compose`，与调用者起栈时的项目和配置文件一致。
+# 不带参数就是 start.sh / reset.sh / README 单独初始化面对的默认栈 —— 和 start.sh 一样在 docker/
+# 下直接跑 `docker compose`，由同一份 docker-compose.yml 与 .env 解析出同一个项目（supabase）。
+# 不能再按 SUPABASE_CI_PROJECT_NAME 退回一个固定项目名：默认栈不叫 supabase-ci，退回去就把初始化
+# 发给了根本没起的项目，start.sh / reset.sh 每次都在这一步失败（RV-01a1bb42a8df）。
+COMPOSE_ARGS=("$@")
+cd "$SCRIPT_DIR"
 
 echo "📦 Initializing Supabase test database..."
 echo ""
 
-# RV-036：改用 `docker compose -p "$PROJECT_NAME" exec` + 服务名 `db`，而不是
-# 固定 `docker exec supabase-db`——后者是宿主机全局名字，多个 checkout 并行跑
-# 会直接撞车或初始化到别的 checkout 的库。compose exec 按 project 隔离，天然
-# 不会越界。
+# RV-036：用 `docker compose exec` + 服务名 `db`，而不是固定 `docker exec supabase-db`——
+# 后者是宿主机全局名字，多个 checkout 并行跑会直接撞车或初始化到别的 checkout 的库。
+# compose exec 按调用者给的项目解析，天然不会越界。
 compose() {
-  docker compose -p "$PROJECT_NAME" -f "$SCRIPT_DIR/docker-compose.ci.yml" "$@"
+  docker compose "${COMPOSE_ARGS[@]}" "$@"
 }
 
 # `-v ON_ERROR_STOP=1` 不能省：psql 非交互读脚本时，默认遇到 SQL 错误只打一行到

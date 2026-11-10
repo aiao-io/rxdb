@@ -12,8 +12,9 @@
  *
  * @remarks
  * 在线读写（`@aiao/rxdb-plugin-querycache` 的主仓储）与离线重放（本包的 `flushQueryCacheOutbox`）必须用同一个标识：
- * 各适配器按它定位远端资源与本地缓存表（HTTP 的 `resources` 映射按传入名查，SQLite / PGlite / Supabase 按
- * `namespace:entity` 解析）。两边各拼一份，非 public 实体的离线写迟早会被送到同名的公共实体上 ——
+ * 各适配器按它定位远端资源与本地缓存表。HTTP 的 `resources` 映射按传入名查；SQLite / PGlite / Supabase
+ * 把裸名一律当 `public`、`namespace:entity` 按所写命名空间解析，public 与别的命名空间同名时裸名也不歧义。
+ * 两边各拼一份，非 public 实体的离线写迟早会被送到同名的公共实体上 ——
  * 写进了别人的资源，调用却算成功、水位照推。
  *
  * 放在本包而不是读引擎包：读引擎包已经依赖本包（出站队列由本包提供），反过来引用会成环。

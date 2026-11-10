@@ -211,7 +211,12 @@ export function snapshotFromKnowledgeJson(knowledgeJson) {
  * @param records - 门禁范围的包记录（工作区 manifest）
  * @param snapshot - {@link snapshotFromKnowledgeJson} 的结果
  * @returns `{ tag, version, packages }`，manifest 的版本取快照（即发布版本，不是工作区版本）
- * @throws 快照 tag 与事实源 release 不一致、快照包含工作区不存在的包时
+ * @throws 快照 tag 与事实源 release 不一致、快照包含工作区不存在且未在事实源登记为退役的包时
+ *
+ * @remarks
+ * 退役流程删掉工作区目录、事实源标 `retired: true`，发布标签里的包照样投递。这类包没有工作区记录，
+ * 按快照里的名字与版本补一条只含 manifest 名字的记录：Skill 渲染的角色、槽位、宿主取自事实源，
+ * 版本取快照，不需要工作区里已经不存在的 manifest。
  */
 export function releaseFromSnapshot(facts, records, snapshot) {
   if (snapshot.tag !== facts.release)
@@ -219,9 +224,10 @@ export function releaseFromSnapshot(facts, records, snapshot) {
       `投递快照 ${snapshot.tag} 与事实源 release ${facts.release} 不一致，请运行 pnpm audit:package-graph --update`
     );
   const byName = new Map(records.map(record => [record.name, record]));
+  const retired = new Set(facts.packages.filter(fact => fact.retired === true).map(fact => fact.name));
   const packages = snapshot.packages.map(({ name, version }) => {
-    const record = byName.get(name);
-    if (!record) throw new Error(`投递快照包含工作区不存在的包 ${name}`);
+    const record = byName.get(name) ?? (retired.has(name) ? { name, manifest: { name } } : undefined);
+    if (!record) throw new Error(`投递快照包含工作区不存在、也未登记为退役的包 ${name}`);
     return { ...record, manifest: { ...record.manifest, version } };
   });
   return { tag: snapshot.tag, version: snapshot.tag.slice(1), packages };

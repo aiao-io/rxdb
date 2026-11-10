@@ -1,7 +1,7 @@
 import type { RxDB, UUID } from '@aiao/rxdb';
 import { SortableFileLarge } from '@aiao/rxdb-test/entities';
 import { act, renderHook } from '@testing-library/react';
-import { of, throwError } from 'rxjs';
+import { BehaviorSubject, of, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SortMode } from '../utils/file-sorters';
 import { useFileManagerLazyStore } from './useFileManagerLazyStore';
@@ -614,6 +614,55 @@ describe('useFileManagerLazyStore', () => {
         call => call.method === 'findAll' && call.options.where?.rules?.[0]?.value === p.id
       );
       expect(childSubscriptions).toEqual([]);
+    });
+  });
+
+  describe('折叠与订阅收尾', () => {
+    it('折叠父节点同时清掉后代的展开标记：重开父节点时子节点是折叠的，不再画成「已展开却没有子项」', async () => {
+      const p = makeFile('p', null, 'a0', 'folder');
+      const c = makeFile('c', 'p', 'a0', 'folder');
+      table.rows = [p, c, makeFile('g', 'c', 'a0', 'file')];
+      const { result } = renderHook(() => useFileManagerLazyStore(rxdb));
+      await act(async () => {
+        await result.current.toggleExpand(p.id);
+      });
+      await act(async () => {
+        await result.current.toggleExpand(c.id);
+      });
+      expect(result.current.treeNodes.map(node => node.file.id)).toEqual([p.id, c.id, toUuid('g')]);
+
+      await act(async () => {
+        await result.current.toggleExpand(p.id);
+      });
+      await act(async () => {
+        await result.current.toggleExpand(p.id);
+      });
+
+      expect(result.current.treeNodes.map(node => [node.file.id, node.isExpanded])).toEqual([
+        [p.id, true],
+        [c.id, false]
+      ]);
+      expect(result.current.expandedIds).toEqual(new Set([p.id]));
+    });
+
+    it('批量添加途中卸载：收尾不再重建订阅', async () => {
+      const roots$ = new BehaviorSubject<SortableFileLarge[]>([]);
+      (SortableFileLarge as unknown as Record<string, unknown>).findAll = vi.fn(() => roots$.asObservable());
+      let finishSave: () => void = () => undefined;
+      table.writes['saveMany'].mockImplementationOnce(() => new Promise<void>(resolve => (finishSave = resolve)));
+      const { result, unmount } = renderHook(() => useFileManagerLazyStore(rxdb));
+
+      let adding: Promise<unknown> = Promise.resolve();
+      act(() => {
+        adding = result.current.addManyFiles(1);
+      });
+      unmount();
+      await act(async () => {
+        finishSave();
+        await adding;
+      });
+
+      expect(roots$.observed).toBe(false);
     });
   });
 

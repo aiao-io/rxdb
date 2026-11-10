@@ -265,8 +265,9 @@ describe('RxDBAdapterSupabase Pull/Push', () => {
 
     it('repositoryFilter 支持多个实体', async () => {
       const sinceId = 0;
-      // 如果有其他实体（如 User），可以测试多实体过滤
-      const result = await adapter.pullChanges(sinceId, 100, ['Todo', 'RxDBBranch']);
+      // 如果有其他实体（如 User），可以测试多实体过滤。
+      // 裸名只指 public（RV-01a1bb299b62），系统实体 `RxDBBranch` 在 `rxdb` 命名空间下，必须写限定名
+      const result = await adapter.pullChanges(sinceId, 100, ['Todo', 'rxdb:RxDBBranch']);
 
       // 所有返回的变更必须在过滤列表中
       result.forEach(change => {

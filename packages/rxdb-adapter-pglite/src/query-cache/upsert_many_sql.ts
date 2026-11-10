@@ -1,4 +1,5 @@
 import type { EntityMetadata } from '@aiao/rxdb';
+import { fillEncryptedDefaults } from '../entity/encrypted-defaults.js';
 import {
   chunkByPgParamLimit,
   quoteIdentifier,
@@ -32,6 +33,7 @@ export interface QueryCacheStatement {
  *    契约放行了哪三种，这里就得认哪三种，共用 `queryCacheForeignKeyColumns` 那张表；
  * 3. 校验键名白名单，未知键 **fail-fast**，不进入 SQL 结构；
  * 4. 每行各自过 `transformEntityValueToSql`（属性名/列名双向识别 + 类型转换 + 加密）；
+ *    缺省的加密列（DDL 不带 DEFAULT）在加密前补上默认值，只进 INSERT、不进 DO UPDATE（见 {@link omittedEncryptedDefaults}）；
  * 5. 按**规范化后的列集合**分组，每组一条语句 —— 异构行不再互相截断；
  * 6. 值一律参数化，并按 PG 参数上限分片。
  *
@@ -54,25 +56,31 @@ export const buildQueryCacheUpsertStatements = async (
   assertQueryCacheRowContract(target.entityName, rows, target.metadata);
 
   const foreignKeyColumns = queryCacheForeignKeyColumns(target.metadata);
-  const normalizedRows: Record<string, unknown>[] = [];
+  // 带默认值的加密列（物理列名 → 默认值）：DDL 不为它们写 DEFAULT，行里缺省的要在加密前补上
+  const encryptedDefaults: Record<string, unknown> = {};
+  fillEncryptedDefaults(target.metadata, encryptedDefaults, new Date());
+  const defaultEntries = Object.entries(encryptedDefaults);
+  const preparedRows: PreparedRow[] = [];
   for (const row of rows) {
     assertSingleSpellingPerColumn(target.entityName, target.metadata, foreignKeyColumns, row);
     const keyed = withForeignKeyColumns(foreignKeyColumns, row);
     assertKnownKeys(target.entityName, target.metadata, keyed);
+    const omitted = omittedEncryptedDefaults(target.metadata, foreignKeyColumns, keyed, defaultEntries);
     // primaryKey 刻意不显式传入：`transformEntityValueToSql` 按 `id` 或主键物理列取，
     // 与常规写入路径（entity/inserts_sql.ts）取的是同一个值。
     // 传一个不同的值会让加密 AAD 与常规路径分叉，密文将无法被读路径解开。
-    normalizedRows.push(await transformEntityValueToSql(target.metadata, keyed, encryption));
+    const values = await transformEntityValueToSql(target.metadata, { ...keyed, ...omitted }, encryption);
+    preparedRows.push({ values, insertOnly: Object.keys(omitted) });
   }
 
-  const groups = groupByColumnSet(normalizedRows);
+  const groups = groupByColumnSet(preparedRows);
   const statements: QueryCacheStatement[] = [];
 
   for (const group of groups) {
     const { columns } = group;
     if (columns.length === 0) continue;
     const quotedColumns = columns.map(quoteIdentifier).join(', ');
-    const conflictClause = buildOnConflictClause(target.idColumn, columns);
+    const conflictClause = buildOnConflictClause(target.idColumn, columns, group.insertOnly);
 
     for (const chunk of chunkByPgParamLimit(group.rows, columns.length)) {
       const params: unknown[] = [];
@@ -98,14 +106,18 @@ export const buildQueryCacheUpsertStatements = async (
 /**
  * 生成 ON CONFLICT 子句。
  *
+ * @param idColumn - 主键物理列名
+ * @param columns - 本组 INSERT 写的物理列
+ * @param insertOnly - 只为新行补上的列（见 {@link omittedEncryptedDefaults}），命中冲突时不更新
+ *
  * @remarks
  * 无可更新列时发 `DO NOTHING` —— 旧实现在这里会拼出空的 `DO UPDATE SET `，
- * 只带 id 的行必然语法错误。排除集合只有主键列，与 sqlite-core 的
+ * 只带 id 的行必然语法错误。排除集合是主键列与只进 INSERT 的列，其余与 sqlite-core 的
  * `generate_upsert_clause` 同口径。
  */
-const buildOnConflictClause = (idColumn: string, columns: readonly string[]): string => {
+const buildOnConflictClause = (idColumn: string, columns: readonly string[], insertOnly: readonly string[]): string => {
   const conflictTarget = quoteIdentifier(idColumn);
-  const updateColumns = columns.filter(column => column !== idColumn);
+  const updateColumns = columns.filter(column => column !== idColumn && !insertOnly.includes(column));
   if (updateColumns.length === 0) return ` ON CONFLICT (${conflictTarget}) DO NOTHING`;
   const assignments = updateColumns
     .map(column => `${quoteIdentifier(column)} = EXCLUDED.${quoteIdentifier(column)}`)
@@ -113,23 +125,70 @@ const buildOnConflictClause = (idColumn: string, columns: readonly string[]): st
   return ` ON CONFLICT (${conflictTarget}) DO UPDATE SET ${assignments}`;
 };
 
-/** 按列集合把规范化后的行分组，组内列顺序稳定（字典序）。 */
-const groupByColumnSet = (
-  rows: readonly Record<string, unknown>[]
-): { columns: string[]; rows: Record<string, unknown>[] }[] => {
-  const groups = new Map<string, { columns: string[]; rows: Record<string, unknown>[] }>();
-  for (const row of rows) {
-    const columns = Object.keys(row)
-      .filter(column => row[column] !== undefined)
+/** 规范化后的一行：待写的物理列值，以及其中只为新行补上、命中冲突时不更新的列。 */
+interface PreparedRow {
+  values: Record<string, unknown>;
+  insertOnly: readonly string[];
+}
+
+/** 列集合与「只进 INSERT 的列」都相同的一组行，共用一条语句。 */
+interface ColumnSetGroup {
+  columns: string[];
+  insertOnly: readonly string[];
+  rows: Record<string, unknown>[];
+}
+
+/**
+ * 按列集合把规范化后的行分组，组内列顺序稳定（字典序）。
+ *
+ * @remarks
+ * 「只进 INSERT 的列」也进分组签名：同一个列集合里，有的行自己带了某个加密列、有的行是补的默认值，
+ * 前者命中冲突要更新、后者不能，两种行不能共用一条 `DO UPDATE SET`。
+ */
+const groupByColumnSet = (rows: readonly PreparedRow[]): ColumnSetGroup[] => {
+  const groups = new Map<string, ColumnSetGroup>();
+  for (const { values, insertOnly } of rows) {
+    const columns = Object.keys(values)
+      .filter(column => values[column] !== undefined)
       .sort();
-    // 用 NUL 作分隔符：列名不可能含 NUL，拼出来的签名与列集合一一对应。
-    // 必须写成转义 `\u0000`，直接写裸字节会让整个文件被 git 判为二进制。
-    const signature = columns.join('\u0000');
+    const insertOnlySorted = [...insertOnly].sort();
+    // 用 NUL 作分隔符：列名不可能含 NUL，拼出来的签名与列集合一一对应；两段之间用 SOH 隔开。
+    // 必须写成转义 `\u0000` / `\u0001`，直接写裸字节会让整个文件被 git 判为二进制。
+    const signature = `${columns.join('\u0000')}\u0001${insertOnlySorted.join('\u0000')}`;
     const group = groups.get(signature);
-    if (group) group.rows.push(row);
-    else groups.set(signature, { columns, rows: [row] });
+    if (group) group.rows.push(values);
+    else groups.set(signature, { columns, insertOnly: insertOnlySorted, rows: [values] });
   }
   return [...groups.values()];
+};
+
+/**
+ * 行里缺省的加密列默认值（物理列名 → 默认值）。
+ *
+ * @param metadata - 实体元数据
+ * @param foreignKeyColumns - 写法 → 物理列名（{@link queryCacheForeignKeyColumns}）
+ * @param row - 已归一外键键名的远端行
+ * @param defaultEntries - 实体全部带默认值的加密列（物理列名 → 默认值）
+ * @returns 本行没带（或带了 `undefined`）的那些加密列及其默认值
+ *
+ * @remarks
+ * 加密列的 DDL 不带 DEFAULT（见 `create_table_sql`），新行缺省这一列只能由写入侧补上、随整行封成信封；
+ * 否则契约（{@link assertQueryCacheRowContract} 把「有字面量默认值」的列当作可缺省）放行的行，
+ * 会在 INSERT 时撞上 NOT NULL。补的值只进 INSERT、不进 DO UPDATE：远端行没带这一列，
+ * 不代表要把本地已有的值重置成默认值——普通列的 DDL 默认值同样只在新行上生效。
+ */
+const omittedEncryptedDefaults = (
+  metadata: EntityMetadata,
+  foreignKeyColumns: ReadonlyMap<string, string>,
+  row: Readonly<Record<string, unknown>>,
+  defaultEntries: ReadonlyArray<readonly [string, unknown]>
+): Record<string, unknown> => {
+  if (defaultEntries.length === 0) return {};
+  const provided = new Set<string>();
+  for (const [key, value] of Object.entries(row)) {
+    if (value !== undefined) provided.add(resolveColumn(metadata, foreignKeyColumns, key));
+  }
+  return Object.fromEntries(defaultEntries.filter(([column]) => !provided.has(column)));
 };
 
 /**

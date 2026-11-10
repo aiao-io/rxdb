@@ -611,7 +611,7 @@ export class EntityManager {
    *
    * @param EntityType 实体类型
    * @param id 实体 ID
-   * @param patch 变更的字段
+   * @param patch 变更的字段；跨 tab 广播只带其中的普通字段（见 remarks 的「跨 tab 契约」）
    * @throws {@link RxDBReadOnlyError} 只读实例（同步抛出，一个事件都不派发）
    * @throws 已启用提交能力的库上、目标是版本化业务实体时，由捕获钩子抛出写拒绝错误；
    *   此时一条事件都不会派发
@@ -628,6 +628,15 @@ export class EntityManager {
    * 取钩子走 {@link RxDB.workingTreeCaptureHook} 而不是 `localAdapterSync`：后者在「没配本地
    * 适配器」与「还没连上」两种情形下抛错，而本方法今天在这两种库上都能调（它只派发事件）。
    * 给它们凭空加一个「未连接」异常，就违反了 FR-046 的零行为差异。
+   *
+   * **跨 tab 契约。** 这条事件也会经 `RxDBTabsGateway` 广播给别的 tab。广播前 `patch` 被拷成
+   * 只含普通字段的快照（本 tab 里的订阅者收到的仍是原 `patch`）：
+   * - 值是实体实例（或装着实体实例的数组）的关系属性**不随事件跨 tab** —— 实体实例是 Proxy，
+   *   结构化克隆不了，到了另一个 tab 也只会是个冒充实体的普通对象。关系变化请**同时给出外键列**
+   *   （如 `authorId`），对端靠外键列还原关系；`patch` 里只有关系对象、没有外键列时，
+   *   广播出去的是 `{}`，对端看不到这次变化，也不会有任何报错；
+   * - 只过滤顶层键：嵌在 json 值里的实体实例不支持，`postMessage` 会因结构化克隆不了而抛
+   *   `DataCloneError`。
    */
   notifyExternalUpdate<T extends EntityType>(
     EntityType: T,

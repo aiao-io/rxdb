@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick, reactive } from 'vue';
 import { useEntityForm } from '../entity-form/headless';
-import { useEntityList, useQueryBuilder, useQueryTable } from '../headless';
+import { useEntityDetail, useEntityList, useQueryBuilder, useQueryTable } from '../headless';
 
 const fields = [{ field: 'title', displayName: '标题', type: 'string' as const }];
 const record = (id: string) => ({ id, title: id, save: async () => undefined, remove: async () => undefined });
@@ -50,6 +50,45 @@ describe('Vue headless bindings', () => {
     vm.binding.controller.setField('title', 'draft');
     await wrapper.setProps({ data: { title: 'B' } });
     expect(vm.binding.snapshot.value.data.title).toBe('B');
+  });
+
+  // 撤下可选的 mode 时恢复共享控制器的默认 edit，与 Angular / React 绑定一致（RV-01a1bb54b35b79d491932d4436e84437）
+  it.each(['view', 'create'] as const)('表单与详情的 mode 从 %s 撤下后恢复默认 edit，草稿保留', async initialMode => {
+    const host = defineComponent({
+      props: {
+        data: { type: Object, required: true },
+        fields: { type: Array, default: () => fields },
+        mode: { type: String, default: undefined }
+      },
+      setup(props) {
+        const options = props as unknown as Parameters<typeof useEntityForm>[0];
+        return { form: useEntityForm(options), detail: useEntityDetail(options) };
+      },
+      render() {
+        return h('div');
+      }
+    });
+    const wrapper = mount(host, { props: { data: { title: 'A' }, fields, mode: initialMode } });
+    const vm = wrapper.vm as unknown as {
+      form: ReturnType<typeof useEntityForm>;
+      detail: ReturnType<typeof useEntityDetail>;
+    };
+    expect(vm.form.snapshot.value.mode).toBe(initialMode);
+    vm.form.controller.setField('title', 'draft');
+    vm.detail.controller.form.setField('title', 'draft');
+
+    await wrapper.setProps({ mode: undefined });
+
+    expect(vm.form.snapshot.value.mode).toBe('edit');
+    expect(vm.detail.snapshot.value.mode).toBe('edit');
+    const kept = initialMode === 'view' ? 'A' : 'draft';
+    expect(vm.form.snapshot.value.data.title).toBe(kept);
+    expect(vm.detail.snapshot.value.form.data.title).toBe(kept);
+    vm.form.controller.setField('title', 'B');
+    vm.detail.controller.form.setField('title', 'B');
+    expect(vm.form.snapshot.value.data.title).toBe('B');
+    expect(vm.detail.snapshot.value.form.data.title).toBe('B');
+    expect(vm.form.controller.submit().valid).toBe(true);
   });
 
   it('查询构建器深度监听原地修改的字段元数据', async () => {

@@ -230,10 +230,19 @@ if (isRemoteE2E) {
         });
         const pull = secondPage.getByRole('button', { name: 'Pull' });
         await expect(pull).toBeEnabled({ timeout: 60_000 });
+        // 先等这次 Pull 真的结算再断言「没拉到」：点击之前目标行与错误提示本来就都不存在，
+        // 不等结算的话，迟到的失败、迟到带回来的行都看不见，用例靠初态就绿了。
+        // Pull 期间按钮禁用（$syncPending），读到变更日志的应答之后再等它恢复，即这次 Pull 已经走完。
+        const changeLog = secondPage.waitForResponse(
+          response => /\/rest\/v1\/(rxdb_change\b|rpc\/rxdb_pull_changes)/.test(response.url()),
+          { timeout: 30_000 }
+        );
         await pull.click();
+        expect((await changeLog).ok(), '拉取远端变更日志的请求失败').toBe(true);
+        await expect(pull).toBeEnabled({ timeout: 30_000 });
 
-        await expect(secondPage.getByTestId('todo-item').filter({ hasText: title })).toHaveCount(0);
         await expect(secondPage.locator('.alert-error')).toHaveCount(0);
+        await expect(secondPage.getByTestId('todo-item').filter({ hasText: title })).toHaveCount(0);
       } finally {
         await secondContext.close();
       }

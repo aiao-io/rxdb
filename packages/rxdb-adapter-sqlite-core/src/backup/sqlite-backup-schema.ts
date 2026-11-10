@@ -2,6 +2,7 @@ import type { RxDB, RxDBBackupCompatibility, RxDBBackupErrorCode, RxDBSystemVers
 import {
   getEntityMetadata,
   getRxDBBackupAuthDomain,
+  getRxDBBackupConstraintFingerprint,
   getRxDBBackupSchemaFingerprint,
   getRxDBSystemVersionState,
   isRxDBBackupError,
@@ -300,6 +301,7 @@ export const sqliteTargetCompatibility = async (
     systemSchemaVersion: RXDB_SYSTEM_SCHEMA_VERSION,
     changeCodecVersion: RXDB_CHANGE_CODEC_VERSION,
     schemaFingerprint: getRxDBBackupSchemaFingerprint(rxdb),
+    constraintFingerprint: getRxDBBackupConstraintFingerprint(rxdb),
     authDomain: getRxDBBackupAuthDomain(rxdb)
   };
 };
