@@ -5,7 +5,7 @@ import {
   type ProviderPolicyEntry,
   type TaskReport
 } from '@aiao-media/api-contracts';
-import { ChangeDetectionStrategy, Component, effect, input, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, input, output, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { defaultAdminTemplate } from './admin-defaults';
 import type { ProductClient } from './product-client';
@@ -57,7 +57,7 @@ interface AuditEntry {
   target_id: string;
   created_at: string;
 }
-type AdminTab = 'users' | 'templates' | 'policies' | 'tasks' | 'audit';
+export type AdminTab = 'users' | 'templates' | 'policies' | 'tasks' | 'audit';
 
 @Component({
   selector: 'app-admin-console',
@@ -71,6 +71,8 @@ export class AdminConsole {
   readonly client = input.required<ProductClient>();
   readonly identity = input.required<string>();
   readonly status = input.required<string>();
+  readonly routeTab = input<AdminTab>();
+  readonly tabChange = output<AdminTab>();
   readonly allowed = signal(false);
   readonly busy = signal(false);
   readonly message = signal('');
@@ -103,6 +105,14 @@ export class AdminConsole {
         else this.message.set(status === 'checking' ? '正在验证账号…' : '请使用有效管理员账号登录。');
       });
     });
+    effect(() => {
+      const routeTab = this.routeTab();
+      if (!routeTab || routeTab === this.tab()) return;
+      untracked(() => {
+        this.tab.set(routeTab);
+        if (this.status() === 'signed-in') void this.load();
+      });
+    });
   }
   async load(): Promise<void> {
     await this.run(async () => {
@@ -113,6 +123,7 @@ export class AdminConsole {
   async selectTab(tab: AdminTab): Promise<void> {
     if (this.busy()) return;
     this.tab.set(tab);
+    this.tabChange.emit(tab);
     await this.load();
   }
   async changePage(direction: number): Promise<void> {
@@ -293,7 +304,7 @@ export class AdminConsole {
     if (this.tab() === 'users') {
       const data = (await this.client().admin(`users?page=${this.page()}&perPage=25`)) as { users: AdminUser[] };
       return () => {
-        this.users.set(data.users);
+        this.users.set(Array.isArray(data.users) ? data.users : []);
         this.userDetail.set(null);
       };
     }

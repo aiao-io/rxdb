@@ -1,9 +1,26 @@
+@import 'tailwindcss';
+@import '@aiao/rxdb-admin-angular/tailwind.css';
+@import '@aiao/rxdb-admin/admin.css';
+
+@plugin 'daisyui/index.js' {
+  themes:
+    light --default,
+    dark --prefersdark,
+    corporate,
+    business,
+    dracula,
+    nord,
+    emerald;
+  root: ':is(:host, :root)';
+}
+
 * {
   box-sizing: border-box;
 }
 html,
 body {
   margin: 0;
+  min-height: 100%;
   min-width: 320px;
   font-family:
     Inter,
@@ -13,6 +30,12 @@ body {
     BlinkMacSystemFont,
     'Segoe UI',
     sans-serif;
+}
+
+html,
+body,
+aiao-media-admin-root {
+  height: 100%;
 }
 button,
 input,

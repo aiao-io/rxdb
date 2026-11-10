@@ -1,6 +1,10 @@
 import { TestBed } from '@angular/core/testing';
+import { provideAdminShell } from '@aiao/rxdb-admin-angular';
+import { provideRouter } from '@angular/router';
 import { afterEach, vi } from 'vitest';
 import { App } from './app';
+import { appRoutes } from './app.routes';
+import { adminShell } from './admin-shell';
 
 const initial = { initialized: false, managed: false, auth: null };
 const ready = {
@@ -21,7 +25,8 @@ describe('App', () => {
       vi.fn(async () => Response.json(initial))
     );
     await TestBed.configureTestingModule({
-      imports: [App]
+      imports: [App],
+      providers: [provideRouter(appRoutes), provideAdminShell(adminShell)]
     }).compileComponents();
   });
 

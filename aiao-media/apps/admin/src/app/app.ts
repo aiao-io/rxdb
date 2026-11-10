@@ -1,8 +1,20 @@
 import type { InstallationStatus } from '@aiao-media/api-contracts';
-import { Component, OnInit, signal } from '@angular/core';
+import { AdminLayoutComponent, AdminPageDirective } from '@aiao/rxdb-admin-angular';
+import { LucideClapperboard as Clapperboard, LucideDynamicIcon } from '@lucide/angular';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import {
+  NavigationCancel,
+  NavigationEnd,
+  NavigationError,
+  NavigationStart,
+  Router
+} from '@angular/router';
+import { filter, map } from 'rxjs';
 import { AdminConsole } from './admin-console';
 import { ProductClient } from './product-client';
+import { ADMIN_MENU, bindAdminNavigator, tabFromUrl } from './admin-shell';
 
 interface Session {
   accessToken: string;
@@ -68,16 +80,40 @@ function writeSession(value: Session | null): void {
 }
 
 @Component({
-  imports: [AdminConsole, FormsModule],
+  imports: [AdminConsole, AdminLayoutComponent, AdminPageDirective, FormsModule, LucideDynamicIcon],
   selector: 'aiao-media-admin-root',
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
 export class App implements OnInit {
+  private readonly router = inject(Router);
   readonly installation = signal<InstallationStatus | null>(null);
   readonly busy = signal(false);
   readonly message = signal('');
   readonly session = signal<Session | null>(null);
+  readonly menu = ADMIN_MENU;
+  readonly Clapperboard = Clapperboard;
+  readonly url = toSignal(
+    this.router.events.pipe(
+      filter(event => event instanceof NavigationEnd),
+      map(event => event.urlAfterRedirects)
+    ),
+    { initialValue: this.router.url }
+  );
+  readonly routeTab = computed(() => tabFromUrl(this.url()));
+  readonly navigating = toSignal(
+    this.router.events.pipe(
+      filter(
+        event =>
+          event instanceof NavigationStart ||
+          event instanceof NavigationEnd ||
+          event instanceof NavigationCancel ||
+          event instanceof NavigationError
+      ),
+      map(event => event instanceof NavigationStart)
+    ),
+    { initialValue: false }
+  );
   readonly form = {
     email: '',
     password: '',
@@ -100,6 +136,7 @@ export class App implements OnInit {
     };
   });
   ngOnInit(): void {
+    bindAdminNavigator(url => void this.router.navigateByUrl(url));
     const saved = readSession();
     if (saved) this.session.set(saved);
     void this.load();
@@ -135,7 +172,11 @@ export class App implements OnInit {
       this.session.set(session);
       writeSession(session);
       this.form.password = '';
+      await this.router.navigateByUrl('/users');
     });
+  }
+  navigateToTab(tab: string): void {
+    void this.router.navigateByUrl(`/${tab}`);
   }
   logout(): void {
     this.session.set(null);

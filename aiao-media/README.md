@@ -12,6 +12,8 @@ pnpm nx dev aiao-media
 
 Web、Admin 和 API 就绪后自动打开[开发导航](http://127.0.0.1:8787/)，集中展示服务用途、入口、测试账号与密码、数据库连接信息，支持一键复制。测试账号在启动时自动创建并确认邮箱；再次启动保留账号 ID 和已有数据，恢复默认测试密码。管理员账号可登录独立 Admin，开发环境沿用预置账号，不执行生产安装向导。
 
+Admin 使用 `rxdb-admin-template-angular` 的后台外壳：认证和首次安装仍由 Aiao Media API 负责，登录后通过模板的侧栏、主题、页签、偏好设置和命令面板管理用户、模板、供应商策略、任务用量与操作审计。
+
 无需自动打开浏览器时使用 `AIAO_DEV_OPEN=false pnpm nx dev aiao-media`。
 
 | 服务              | 地址                                |

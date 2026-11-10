@@ -32,15 +32,16 @@
             "input": "aiao-media/apps/admin/public"
           }
         ],
-        "styles": ["aiao-media/apps/admin/src/styles.css"]
+        "styles": ["aiao-media/apps/admin/src/styles.css"],
+        "allowedCommonJsDependencies": ["ms"]
       },
       "configurations": {
         "production": {
           "budgets": [
             {
               "type": "initial",
-              "maximumWarning": "500kb",
-              "maximumError": "1mb"
+              "maximumWarning": "2mb",
+              "maximumError": "3mb"
             },
             {
               "type": "anyComponentStyle",
@@ -78,9 +79,11 @@
       }
     },
     "test": {
-      "executor": "@angular/build:unit-test",
+      "executor": "nx:run-commands",
       "options": {
-        "watch": false
+        "cwd": "aiao-media/apps/admin",
+        "command": "vitest run --config vitest.config.mts",
+        "forwardAllArgs": true
       }
     },
     "serve-static": {

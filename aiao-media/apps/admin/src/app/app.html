@@ -91,12 +91,22 @@
         </form>
       </section>
     } @else if (session(); as account) {
-      <div class="account">
-        <span>{{ account.user.email || account.user.id }}</span>
-        <button (click)="logout()">退出登录</button>
-        <a href="/">打开用户端</a>
-      </div>
-      <app-admin-console [client]="client" [identity]="account.user.id" status="signed-in" />
+      <rxdb-admin-layout [menu]="menu" [navigating]="navigating()" [url]="url()">
+        <svg [lucideIcon]="Clapperboard" [size]="18" aria-hidden="true" brandIcon></svg>
+        <span class="admin-account" headerEnd>
+          <span>{{ account.user.email || account.user.id }}</span>
+          <button class="btn btn-ghost btn-sm" (click)="logout()" type="button">退出登录</button>
+          <a class="btn btn-ghost btn-sm" href="/">打开用户端</a>
+        </span>
+        <app-admin-console
+          *rxdbAdminPage
+          [client]="client"
+          [identity]="account.user.id"
+          [routeTab]="routeTab()"
+          status="signed-in"
+          (tabChange)="navigateToTab($event)"
+        />
+      </rxdb-admin-layout>
     } @else {
       <section class="access-card" aria-labelledby="login-title">
         <h2 id="login-title">管理员登录</h2>

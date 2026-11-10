@@ -780,6 +780,18 @@ importers:
       '@aiao-media/api-contracts':
         specifier: workspace:*
         version: link:../../packages/api-contracts
+      '@aiao/rxdb-admin':
+        specifier: workspace:*
+        version: link:../../../packages/rxdb-admin
+      '@aiao/rxdb-admin-angular':
+        specifier: workspace:*
+        version: link:../../../packages/rxdb-admin-angular
+      '@aiao/rxdb-i18n':
+        specifier: workspace:*
+        version: link:../../../packages/rxdb-i18n
+      '@aiao/rxdb-i18n-angular':
+        specifier: workspace:*
+        version: link:../../../packages/rxdb-i18n-angular
       '@angular/common':
         specifier: 22.2.4
         version: 22.2.4(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2)(zone.js@0.16.2))(rxjs@7.8.2)
@@ -798,10 +810,28 @@ importers:
       '@angular/router':
         specifier: 22.2.4
         version: 22.2.4(@angular/common@22.2.4(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2)(zone.js@0.16.2))(rxjs@7.8.2))(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2)(zone.js@0.16.2))(@angular/platform-browser@22.2.4(@angular/common@22.2.4(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2)(zone.js@0.16.2))(rxjs@7.8.2))(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2)(zone.js@0.16.2)))(rxjs@7.8.2)
+      '@lucide/angular':
+        specifier: 1.70.0
+        version: 1.70.0(@angular/common@22.2.4(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2)(zone.js@0.16.2))(rxjs@7.8.2))(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2)(zone.js@0.16.2))
+      intl-messageformat:
+        specifier: ^12.1.4
+        version: 12.1.4
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
       zone.js:
         specifier: 0.16.2
         version: 0.16.2
     devDependencies:
+      '@tailwindcss/postcss':
+        specifier: ^4.3.4
+        version: 4.3.4
+      daisyui:
+        specifier: ^5.7.50
+        version: 5.7.50
+      tailwindcss:
+        specifier: ^4.3.4
+        version: 4.3.4
       vitest:
         specifier: 4.1.11
         version: 4.1.11(@types/node@26.6.6)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-istanbul@4.1.11)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(happy-dom@21.0.4)(jsdom@22.1.0(supports-color@8.1.1))(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1(supports-color@8.1.1))(sass-embedded@1.104.1)(sass@1.108.0)(terser@5.51.2)(yaml@2.9.1))

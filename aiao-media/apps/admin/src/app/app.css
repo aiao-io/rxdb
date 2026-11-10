@@ -68,6 +68,11 @@ button:disabled {
   flex-wrap: wrap;
   margin: 24px 0;
 }
+.admin-account {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
 .actions {
   display: flex;
   gap: 12px;
