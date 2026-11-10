@@ -26,15 +26,22 @@ import { AnyFunction } from '../types/index.js';
  * logger.log('World'); // 200ms内只会执行一次
  * **注意：** 节流函数会忽略在时间间隔内的调用，不累积执行
  * **注意：** 首次调用会立即执行，之后按时间间隔限制
+ * **注意：** 函数执行期间同步重入的调用同样被节流；函数同步抛错时不占用时间窗，下一次调用照常执行
  * **警告：** 确保timeFrame为正整数，否则可能导致意外行为
  */
 export const throttle = <Func extends AnyFunction>(func: Func, timeFrame: number) => {
   let lastTime = 0;
   return function (this: ThisParameterType<Func>, ...args: Parameters<Func>) {
     const now = new Date().getTime();
-    if (now - lastTime >= timeFrame) {
+    if (now - lastTime < timeFrame) return;
+    // 调用前先占住时间窗，回调同步重入时看到的是本窗已执行
+    const previousTime = lastTime;
+    lastTime = now;
+    try {
       func.apply(this, args);
-      lastTime = now;
+    } catch (error) {
+      lastTime = previousTime;
+      throw error;
     }
   };
 };

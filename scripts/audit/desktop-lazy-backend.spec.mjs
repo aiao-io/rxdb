@@ -192,6 +192,54 @@ test('首屏图里没有任何动态 import() 时失败', async () => {
   await assert.rejects(() => auditDemo({ project: 'fixture', dist }), /一个动态 import\(\) 都没有/);
 });
 
+const ALL_MARKERS_SOURCE = [
+  'class RxDBAdapterDesktopError extends Error{}',
+  'const codes=["host_unavailable","protocol_violation","session_closed","unsupported_runtime_engine"];',
+  'const ops=["file.writeBegin","file.writeChunk","file.lockAcquire"];',
+  'const wasm="wa-sqlite-async.wasm";'
+].join('\n');
+
+test('首屏另有无关的动态路由、后端标记只在没人引用的孤立 chunk 里时失败', async () => {
+  const dist = await makeDist({
+    'index.html': INDEX_HTML,
+    'main.js': 'import{boot}from"./framework.js";\nconst route=()=>import(`./route.js`);',
+    'framework.js': 'export const boot=1;',
+    'route.js': 'export const unrelatedRoute=1;',
+    'orphan-backend.js': ALL_MARKERS_SOURCE
+  });
+
+  await assert.rejects(
+    () => auditDemo({ project: 'fixture', dist }),
+    error => {
+      assert.match(error.message, /fixture 的本地后端分支不可达/);
+      assert.match(error.message, /RxDBAdapterDesktopError：只出现在没有入口能加载到的 chunk orphan-backend\.js 里/);
+      return true;
+    }
+  );
+});
+
+test('惰性分支经 worker 的 new URL(...) 加载的 chunk 算可达', async () => {
+  const files = healthyDist();
+  files['chunk-wasqlite.js'] =
+    'export const open=()=>new Worker(new URL("worker-sqlite.js",import.meta.url),{type:"module"});';
+  files['worker-sqlite.js'] = 'const wasm="wa-sqlite-async.wasm";self.onmessage=()=>import("./chunk-engine.js");';
+  files['chunk-engine.js'] = 'export const engine=1;';
+  const dist = await makeDist(files);
+
+  assert.match(await auditDemo({ project: 'fixture', dist }), /^✓ fixture/);
+});
+
+test('首屏图里的动态 import() 指向不存在的 chunk 时失败', async () => {
+  const files = healthyDist();
+  files['main.js'] = `${files['main.js']}\nconst gone=()=>import(\`./chunk-gone.js\`);`;
+  const dist = await makeDist(files);
+
+  await assert.rejects(
+    () => auditDemo({ project: 'fixture', dist }),
+    /动态 import\(\) 指向不存在的 chunk：chunk-gone\.js/
+  );
+});
+
 test('产物不存在时报错并给出 build 命令，而不是跳过', async () => {
   await assert.rejects(
     () => auditDemo({ project: 'dev-rxdb-electron', dist: 'dist/apps/does-not-exist' }),

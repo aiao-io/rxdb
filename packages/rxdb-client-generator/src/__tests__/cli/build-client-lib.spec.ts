@@ -119,6 +119,38 @@ describe('buildClientLibrary output lifecycle', () => {
     );
   });
 
+  it('rejects handwritten getters that depend on module bindings instead of emitting a getter that throws', async () => {
+    const tempDir = await mkdtemp(path.join(tmpdir(), 'rxdb-client-generator-getter-binding-'));
+    tempDirs.push(tempDir);
+    const entityDir = path.join(tempDir, 'entities');
+    const outDir = path.join(tempDir, 'generated');
+    const entityFile = path.join(entityDir, 'Measure.ts');
+    await mkdir(entityDir, { recursive: true });
+    await writeFile(
+      entityFile,
+      `
+        import { Entity, EntityBase, PropertyType } from '@aiao/rxdb';
+
+        const double = (value: number): number => value * 2;
+
+        @Entity({ name: 'Measure', properties: [{ name: 'value', type: PropertyType.number }] })
+        class Measure extends EntityBase {
+          value!: number;
+
+          get doubled(): number {
+            return double(this.value);
+          }
+        }
+      `,
+      'utf8'
+    );
+
+    await expect(buildClientLibrary({ entities: [entityFile], outDir, splitFiles: true })).rejects.toThrow(
+      'Measure.doubled references "double"'
+    );
+    expect(await pathExists(outDir)).toBe(false);
+  });
+
   it('preserves cross-file inheritance metadata regardless of entity input order', async () => {
     const tempDir = await mkdtemp(path.join(tmpdir(), 'rxdb-client-generator-inheritance-build-'));
     tempDirs.push(tempDir);

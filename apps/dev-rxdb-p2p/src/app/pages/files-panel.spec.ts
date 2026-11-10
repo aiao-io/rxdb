@@ -59,6 +59,26 @@ describe('FilesPanel', () => {
     expect(workspace.report).toHaveBeenCalledExactlyOnceWith({ contentHash: file.contentHash, sourceUrl }, 'malware');
   });
 
+  // 没进后台的举报不能显示成「已举报」：用户会以为治理流程已经接手，也就不会再报一次。
+  it('keeps a failed report retryable instead of marking the file as reported', async () => {
+    const file = sharedFile('report.bin');
+    panel.startReport(file);
+    workspace.report.mockRejectedValueOnce(new Error('举报服务暂不可用（502）'));
+
+    await panel.submitReport(file, 'malware');
+
+    expect(panel.error()).toBe('举报服务暂不可用（502）');
+    expect(panel.notice()).toBeNull();
+    expect(panel.reported()).not.toBe(file.contentHash);
+    expect(panel.reporting()).toBe(file.contentHash);
+
+    await panel.submitReport(file, 'malware');
+
+    expect(panel.error()).toBeNull();
+    expect(panel.reported()).toBe(file.contentHash);
+    expect(panel.reporting()).toBeNull();
+  });
+
   it('combines case-insensitive filename search with download availability and local filters', () => {
     workspace.files.set([sharedFile('Photo.jpg'), sharedFile('Notes.txt', true), sharedFile('Offline.pdf', false, 0)]);
     panel.query.set('PHOTO');

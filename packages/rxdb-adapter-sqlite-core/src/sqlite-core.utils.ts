@@ -543,16 +543,27 @@ export const build_set_sequence_statements = (
   { sql: 'INSERT INTO sqlite_sequence(name, seq) VALUES(?, ?)', params: [table, seq] }
 ];
 
+const quote_sql_text = (text: string): string => `'${text.replaceAll("'", "''")}'`;
+
+/**
+ * 把字符串写成可以内联进 SQL 文本的值表达式。
+ *
+ * @remarks
+ * SQLite 的词法分析在 NUL 处结束，文本字面量里放不下 NUL。原先直接删掉 NUL：`'id\0tail'`
+ * 成了 `'idtail'`，拼出来的是一条语法正确、打在另一个值上的语句（批量删除删掉旁观行、
+ * 等值筛选命中别的行）。含 NUL 时按 SQLite 文档的写法拆成 `('id' || char(0) || 'tail')`：
+ * 与绑定参数写入的值逐字节相等；带括号的常量表达式能放在字面量能放的位置（含 `DEFAULT (...)`）。
+ */
+const sql_text_value = (text: string): string =>
+  text.includes('\0') ? `(${text.split('\0').map(quote_sql_text).join(' || char(0) || ')})` : quote_sql_text(text);
+
 /**
  * 获取 SQL 值表示
  * @param value 要转换的值
- * @returns SQL 字面量字符串
+ * @returns SQL 字面量字符串；含 NUL 的字符串返回等值的 `char(0)` 拼接表达式
  */
 export const get_sql_value = (value: unknown): string | number | Uint8Array | number[] | bigint | boolean | Date => {
-  if (isString(value)) {
-    const escaped = value.replaceAll('\0', '').replaceAll("'", "''");
-    return `'${escaped}'`;
-  }
+  if (isString(value)) return sql_text_value(value);
   if (isNil(value)) return 'NULL';
   if (typeof value === 'number' || typeof value === 'bigint' || typeof value === 'boolean') return value;
   if (value instanceof Uint8Array || value instanceof Date) return value;
@@ -602,6 +613,28 @@ const metadataFkCache = new WeakMap<
 >();
 
 /**
+ * 外键读出来按目标主键的类型还原；`null` / 缺席原样保留，解析不到目标实体时原样交回。
+ *
+ * @remarks
+ * 驱动把安全范围内的 INTEGER 交回成 `number`，bigint 主键的外键不还原就成了 `1` 而不是 `1n`，
+ * 再写回去会被写侧的 bigint 校验拒绝。与写侧 `transformEntityValueToSql` 的 `transformForeignKey` 同一口径。
+ */
+const decodeForeignKeyValue = (
+  metadata: EntityMetadata,
+  foreignKeyName: string,
+  value: unknown,
+  resolveEntityMetadata: EncryptionContext['resolveEntityMetadata']
+): unknown => {
+  const relation = metadata.foreignKeyRelationMap?.get(foreignKeyName);
+  if (value === null || value === undefined || !relation || !resolveEntityMetadata) return value;
+  const mappedMetadata = resolveEntityMetadata(relation.mappedEntity, relation.mappedNamespace);
+  const primaryProperty = Array.from(mappedMetadata?.propertyMap.values() ?? []).find(
+    property => Reflect.get(property, 'primary') === true
+  );
+  return primaryProperty ? transformValueSqliteToJs(value, primaryProperty) : value;
+};
+
+/**
  * 从查询结果行创建实体对象
  * @param metadata 实体元数据
  * @param columns 列名数组
@@ -647,7 +680,7 @@ export const getEntityObjectFromResult = async <T extends object = EntityData>(
 
     const fkPropName = cached.fkMap.get(columnName);
     if (fkPropName !== undefined) {
-      obj[fkPropName] = value;
+      obj[fkPropName] = decodeForeignKeyValue(metadata, fkPropName, value, opts?.resolveEntityMetadata);
       continue;
     }
 

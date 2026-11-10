@@ -115,19 +115,33 @@ export default function DemoMicroAppClient({ name, url, title, allow, basePath }
     emitHostRoute(bus, name, subRoute);
   }, [basePath, bus, expectRoute, name, subRoute]);
 
+  // 子 → 宿主：子应用内部导航回写地址栏。
+  //
+  // 走 Docusaurus 的 history 而不是裸 `replaceState`：后者不更新 react-router 的内部 location，
+  // `useLocation()` 会一直停在旧路径，之后宿主侧的路由判断全部基于陈旧值。
+  // 用 replace 不用 push：子应用的返回栈由无界代理的 iframe history 维护，宿主再 push 会双份。
+  //
+  // 回传一律交给闸门的 receive：等待期里被挡下的不一定是首屏回弹，也可能是用户已经完成的导航，
+  // 由闸门在期望路径到期后补写，否则地址栏会一直停在旧页。卸载时作废待补写的回传。
   useEffect(() => {
     if (!basePath) return;
-    return subscribeSubRoute(
+    const sync = routeSync.current;
+    armRouteSync();
+    const stop = subscribeSubRoute(
       name,
-      route => {
-        if (!routeSync.current.accept(route)) return;
-        agreedRoute.current = route;
-        const next = toHostPath(basePath, route);
-        if (next !== history.location.pathname) history.replace(next);
-      },
+      route =>
+        sync.receive(route, path => {
+          agreedRoute.current = path;
+          const next = toHostPath(basePath, path);
+          if (next !== window.location.pathname) history.replace(next);
+        }),
       bus
     );
-  }, [basePath, bus, history, name]);
+    return () => {
+      stop();
+      sync.cancel();
+    };
+  }, [armRouteSync, basePath, bus, history, name]);
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>

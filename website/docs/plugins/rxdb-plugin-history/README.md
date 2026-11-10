@@ -35,9 +35,11 @@ await rxdb.connect('wa-sqlite');
 await rxdb.versionManager.history().undo();
 await rxdb.versionManager.history(Note).redo(2);
 
-// 分支
+// 分支：在 feature-a 上改完，切回 main，再把 feature-a 合进当前分支
 await rxdb.versionManager.createBranch('feature-a');
 await rxdb.versionManager.switchBranch('feature-a');
+// …在 feature-a 上的改动…
+await rxdb.versionManager.switchBranch('main');
 await rxdb.versionManager.mergeBranch('feature-a');
 ```
 

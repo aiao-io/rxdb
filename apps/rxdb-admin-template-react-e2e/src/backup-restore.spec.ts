@@ -107,7 +107,7 @@ test.describe('工作台备份与恢复', () => {
       await expect(fresh.getByTestId('restore-result')).toContainText('恢复成功');
       await fresh.getByRole('link', { name: /去实体列表继续编辑/ }).click();
       await fresh.waitForURL('**/entities/assets/Asset');
-      await expectListHasRows(fresh);
+      await expectListHasRows(fresh, { name: '笔记本' });
       // 恢复后继续编辑：查看即编辑模式，改名保存，刷新重开仍在
       const edit = await expectActionIcon(fresh, 'view-action', 1);
       await fresh.mouse.click(edit.x, edit.y);
@@ -208,6 +208,6 @@ test.describe('工作台备份与恢复', () => {
     await expect(page.getByTestId('restore-result')).toContainText('已初始化');
     await expect(page.getByTestId('restore-result')).toContainText('新浏览器');
     await page.goto('/entities/assets/AssetCategory');
-    await expectListHasRows(page);
+    await expectListHasRows(page, { name: '办公设备' });
   });
 });

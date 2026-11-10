@@ -1,6 +1,13 @@
-import { type EntityType, getRxDBEntityIdentityKey, RxDBBranch, RxDBError, WorktreeTableSet } from '@aiao/rxdb';
+import {
+  type EntityType,
+  getRxDBEntityIdentityKey,
+  RxDBBranch,
+  type RxDBChange,
+  RxDBError,
+  WorktreeTableSet
+} from '@aiao/rxdb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { merge_branch } from '../merge-branch.js';
+import { merge_branch, squash_source_changes } from '../merge-branch.js';
 import { VersionManager } from '../VersionManager.js';
 import { createTransactionExecutorStub } from './fixtures/transaction-executor-stub.js';
 
@@ -769,5 +776,73 @@ describe('merge_branch', () => {
       patch: null,
       inversePatch: { title: 'Old todo' }
     });
+  });
+});
+
+/**
+ * 幽灵删除只能是「本批从不存在开始」的实体：本批第一条有效操作是 INSERT。
+ * 批次开始前就存在的实体（第一条是 DELETE / UPDATE），批内删掉重建再删，终态仍是对它的删除。
+ */
+describe('squash_source_changes 的幽灵删除判定', () => {
+  const sourceChange = (
+    id: number,
+    type: 'INSERT' | 'UPDATE' | 'DELETE',
+    patch: Record<string, unknown> | null,
+    inversePatch: Record<string, unknown> | null
+  ): RxDBChange =>
+    ({
+      id,
+      branchId: 'feature',
+      type,
+      namespace: 'public',
+      entity: 'Todo',
+      entityId: 'todo-x',
+      patch,
+      inversePatch,
+      revertChangeId: null
+    }) as RxDBChange;
+  const key = changeKey('Todo', 'todo-x');
+
+  it('批前已存在：删旧行、同 id 重建、再删，压缩结果保留对它的删除', () => {
+    const actions = squash_source_changes([
+      sourceChange(6, 'DELETE', null, { title: 'A' }),
+      sourceChange(7, 'INSERT', { title: 'B' }, null),
+      sourceChange(8, 'DELETE', null, { title: 'B' })
+    ]);
+
+    expect([...actions.deletes.keys()]).toEqual([key]);
+    expect(actions.inserts.size).toBe(0);
+    expect(actions.updates.size).toBe(0);
+  });
+
+  it('批前已存在：先改再删也保留删除', () => {
+    const actions = squash_source_changes([
+      sourceChange(6, 'UPDATE', { title: 'A2' }, { title: 'A' }),
+      sourceChange(7, 'DELETE', null, { title: 'A2' })
+    ]);
+
+    expect([...actions.deletes.keys()]).toEqual([key]);
+  });
+
+  it('删旧行后同 id 重建（替换）：终态是重建的行，不留删除', () => {
+    const actions = squash_source_changes([
+      sourceChange(6, 'DELETE', null, { title: 'A' }),
+      sourceChange(7, 'INSERT', { title: 'B' }, null)
+    ]);
+
+    expect(actions.deletes.size).toBe(0);
+    expect(actions.inserts.get(key)?.patch).toEqual({ title: 'B' });
+  });
+
+  it('本批新建后删除仍是幽灵：不落任何操作；乱序传入同样按 change id 判先后', () => {
+    const actions = squash_source_changes([
+      sourceChange(8, 'DELETE', null, { title: 'B' }),
+      sourceChange(7, 'UPDATE', { title: 'B' }, { title: 'A' }),
+      sourceChange(6, 'INSERT', { title: 'A' }, null)
+    ]);
+
+    expect(actions.deletes.size).toBe(0);
+    expect(actions.inserts.size).toBe(0);
+    expect(actions.updates.size).toBe(0);
   });
 });

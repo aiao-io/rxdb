@@ -32,8 +32,29 @@ describe('update_sql (PGlite)', () => {
     const result = await generate_entity_update_sql(metadata, WorktreeTableSet.MAIN, new TestEntity('e-1'), {
       name: 'new'
     });
-    expect(result.sql).toContain('UPDATE "test"."TestEntity" SET "name" = $1 WHERE id = $2 RETURNING *');
+    expect(result.sql).toContain('UPDATE "test"."TestEntity" SET "name" = $1 WHERE "id" = $2 RETURNING *');
     expect(result.params).toEqual(['new', 'e-1']);
+  });
+
+  it('按主键物理列定位：主键属性 id 可被 columnName 改写，单条与批量都一样', async () => {
+    const metadata = createMetadata([
+      { name: 'id', columnName: 'row_key', type: PropertyType.uuid },
+      { name: 'name', type: PropertyType.string }
+    ]);
+    const single = await generate_entity_update_sql(metadata, WorktreeTableSet.MAIN, new TestEntity('e-1'), {
+      name: 'new'
+    });
+    const batch = await generate_entity_update_sql(
+      metadata,
+      WorktreeTableSet.MAIN,
+      [new TestEntity('e-1'), new TestEntity('e-2')],
+      { name: 'batch' },
+      { returning: false }
+    );
+
+    expect(single.sql).toBe('UPDATE "test"."TestEntity" SET "name" = $1 WHERE "row_key" = $2 RETURNING *;');
+    expect(batch.sql).toBe('UPDATE "test"."TestEntity" SET "name" = $1 WHERE "row_key" = ANY($2);');
+    expect(batch.params).toEqual(['batch', ['e-1', 'e-2']]);
   });
 
   it('sets updatedAt and updatedBy from context', async () => {
@@ -70,7 +91,7 @@ describe('update_sql (PGlite)', () => {
       { name: 'batch' },
       { returning: false }
     );
-    expect(result.sql).toContain('WHERE id = ANY($2)');
+    expect(result.sql).toContain('WHERE "id" = ANY($2)');
     expect(result.sql).not.toContain('RETURNING');
     expect(result.params).toEqual(['batch', ['e-1', 'e-2']]);
   });
@@ -106,7 +127,7 @@ describe('update_sql (PGlite)', () => {
     const result = await generate_entity_update_sql(metadata, WorktreeTableSet.MAIN, new TestEntity('e-9'), {
       name: 'plain'
     });
-    expect(result.sql).toContain('WHERE id = $2');
+    expect(result.sql).toContain('WHERE "id" = $2');
     expect(result.params).toEqual(['plain', 'e-9']);
   });
 });

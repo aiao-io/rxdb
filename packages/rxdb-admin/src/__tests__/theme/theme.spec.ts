@@ -1,3 +1,4 @@
+import daisyThemes from 'daisyui/theme/object';
 import { describe, expect, it, vi } from 'vitest';
 import { defaultPreferences } from '../../preferences/defaults.js';
 import { applyPatch } from '../../preferences/merge.js';
@@ -46,6 +47,22 @@ describe('主题目录', () => {
   it('目录里的主题名唯一', () => {
     const names = ADMIN_THEMES.map(theme => theme.name);
     expect(new Set(names).size).toBe(names.length);
+  });
+
+  it('daisyUI 目录与已安装的 daisyUI 逐项一致：主题齐全，明暗取主题自身的 color-scheme', () => {
+    const byName = (a: { name: string }, b: { name: string }): number => a.name.localeCompare(b.name);
+    const installed = Object.entries(daisyThemes).map(([name, theme]) => ({
+      name,
+      dark: theme['color-scheme'] === 'dark'
+    }));
+    expect([...DAISYUI_THEMES].sort(byName)).toEqual(installed.sort(byName));
+  });
+
+  it('resolveThemeName / nextThemeName：目录里唯一的深色主题是 aqua 时，系统深色解析到 aqua', () => {
+    const themes = pickThemes(['light', 'aqua']);
+    expect(resolveThemeName('system', true, themes)).toBe('aqua');
+    expect(nextThemeName('light', themes)).toBe('aqua');
+    expect(nextThemeName('aqua', themes)).toBe('system');
   });
 
   it('resolveThemeName：system 跟随系统明暗，其余原样', () => {

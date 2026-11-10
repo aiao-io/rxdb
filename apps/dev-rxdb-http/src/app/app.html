@@ -9,8 +9,9 @@
       两个窗口对照着看的时候，一次实验要翻两三回。压在页面最底下的面板里时，
       翻一次要滚到底、翻回来再滚上来，而顶栏本来就是常驻的。
 
-      样式上是滑块而不是方块勾：这一格表达的是「通道通着没有」这个状态，
+      样式上是滑块而不是方块勾：这一格表达的是「通道开着没有」这个状态，
       不是「勾选了这一项」这个选择。语义仍是 checkbox，只是补一个 `role="switch"`。
+      它只是意图：开着不等于连上了，连没连上看下面的徽标。
     -->
     <label class="feed-switch inline">
       <input
@@ -26,9 +27,18 @@
   <dl class="facts">
     <div>
       <dt>变更通知</dt>
+      <!--
+        四态：「已关闭」看开关（意图），「连接中 / 已接通 / 重连中」只看适配器报来的事实
+        （onOpen / onUnavailable）。从前它只读开关，连不上、断线退避时照样写着「已接通」。
+      -->
       <dd data-testid="feed-status">
-        <span class="badge">{{ $changeFeedOn() ? '已接通' : '已断开' }}</span>
+        <span class="badge" [attr.data-state]="$feedBadge()">{{ feedBadgeLabels[$feedBadge()] }}</span>
       </dd>
+    </div>
+    <div>
+      <!-- 只是计数，不参与徽标的判定：报过故障不等于此刻断着，重连成功后徽标照样回到「已接通」。 -->
+      <dt>通道故障</dt>
+      <dd data-testid="feed-unavailable">{{ $changeFeedStats().unavailable }}</dd>
     </div>
     <div>
       <dt>收到通知</dt>
@@ -116,6 +126,13 @@
       <p class="banner warn" data-testid="sync-conflict">
         冲突：{{ conflict.entity }} {{ conflict.entityId }} 判 {{ conflict.winner === 'local' ? '本地' : '远端' }} 胜
       </p>
+    }
+    <!--
+      最近一次通道故障的原话（适配器给的现成说明，不替它猜成因）。与冲突横幅同一条理由，
+      恢复之后**不消失**：徽标说的是此刻的状况，这一条说的是上一次出过什么事；「清空日志」才清掉它。
+    -->
+    @if ($changeFeedStats().lastUnavailableMessage; as message) {
+      <p class="banner warn" data-testid="feed-fault">变更通知最近一次故障：{{ message }}</p>
     }
   </div>
 </header>

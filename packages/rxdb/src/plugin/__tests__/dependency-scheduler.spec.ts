@@ -668,4 +668,83 @@ describe('复位', () => {
     await scheduler.settle();
     expect(scheduler.activationState(plugin)).toBe('active');
   });
+
+  it('跨 reset 的旧释放任务作废：旧纪元的依赖方安装迟到结算，不拆装新纪元的插件', async () => {
+    host.instances.set(LOCAL, { id: 'local-1' });
+    const gate = deferred();
+    const provider = provide(new TestPlugin('provider', [LOCAL]));
+    let consumerInstalls = 0;
+    const consumer = new TestPlugin('consumer', ['plugin:provider'], () => {
+      consumerInstalls += 1;
+      if (consumerInstalls === 1) return gate.promise;
+      // 有界：拆装循环全在微任务里，计时器打断不了它；超过上限就让安装挂起，循环停住、断言报红
+      if (consumerInstalls > 4) return new Promise<void>(() => undefined);
+      return undefined;
+    });
+    scheduler.register(provider);
+    scheduler.register(consumer);
+    scheduler.reconcile();
+    await flush();
+    expect(scheduler.activationState(consumer)).toBe('installing');
+
+    // 依赖断开：provider 进入释放，等着仍在安装的 consumer
+    host.instances.delete(LOCAL);
+    scheduler.reconcile();
+    await flush();
+    expect(scheduler.activationState(provider)).toBe('disposing');
+
+    // 宿主停机：纪元总闸释放全部作用域，再复位调度记录；随后同一批插件实例以新适配器装上
+    await Promise.all(host.scopes.map(scope => scope.dispose()));
+    scheduler.reset();
+    host.instances.set(LOCAL, { id: 'local-2' });
+    scheduler.reconcile();
+    await scheduler.settle();
+    expect(scheduler.activationState(provider)).toBe('active');
+    expect(scheduler.activationState(consumer)).toBe('active');
+    const logAfterReconnect = [...host.log];
+
+    gate.resolve();
+    for (let round = 0; round < 5; round += 1) await flush();
+
+    expect(consumerInstalls).toBe(2);
+    expect(host.log).toEqual(logAfterReconnect);
+    expect(scheduler.activationState(provider)).toBe('active');
+    expect(scheduler.activationState(consumer)).toBe('active');
+  });
+
+  it('跨 reset 的旧安装作废纪元后释放作用域期间，不把新纪元的状态改回等待', async () => {
+    host.instances.set(LOCAL, { id: 'local-1' });
+    const installGate = deferred();
+    const disposeGate = deferred();
+    let installs = 0;
+    const plugin = new TestPlugin('lateRelease', [LOCAL], scope => {
+      installs += 1;
+      if (installs > 1) return undefined;
+      scope.acquire(() => () => disposeGate.promise, 'gate');
+      return installGate.promise;
+    });
+    scheduler.register(plugin);
+    scheduler.reconcile();
+    await flush();
+    expect(scheduler.activationState(plugin)).toBe('installing');
+
+    // 安装挂起期间依赖换了实例：这次安装作废，作用域由纪元校验释放，卡在 disposeGate 上
+    host.instances.set(LOCAL, { id: 'local-2' });
+    installGate.resolve();
+    await flush();
+    expect(scheduler.activationState(plugin)).toBe('disposing');
+
+    // 释放还没落地，宿主就停机复位、以新适配器装上了新纪元
+    scheduler.reset();
+    host.instances.set(LOCAL, { id: 'local-3' });
+    scheduler.reconcile();
+    await scheduler.settle();
+    expect(scheduler.activationState(plugin)).toBe('active');
+
+    disposeGate.resolve();
+    for (let round = 0; round < 5; round += 1) await flush();
+
+    expect(installs).toBe(2);
+    expect(scheduler.activationState(plugin)).toBe('active');
+  });
 });

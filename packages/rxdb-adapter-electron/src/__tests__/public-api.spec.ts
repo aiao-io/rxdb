@@ -6,6 +6,7 @@ import {
   createElectronFileHost,
   createElectronSqliteHost,
   isDesktopHostFileRequestKind,
+  isDesktopHostTemporaryName,
   NodeSqliteEngine,
   parseDesktopHostFileRequest,
   parseDesktopHostRequest
@@ -107,6 +108,12 @@ describe('host entry', () => {
     expect(typeof parseDesktopHostFileRequest).toBe('function');
     expect(isDesktopHostFileRequestKind('file.open')).toBe(true);
     expect(isDesktopHostFileRequestKind('execute')).toBe(false);
+  });
+
+  // 宿主应用按它清扫上一轮进程留下的临时产物；只认后缀会把同后缀的用户文件当垃圾删掉。
+  it('exposes the temporary-name predicate that host apps sweep with', () => {
+    expect(isDesktopHostTemporaryName('.11111111-2222-4333-8444-555555555555.rxdb-tmp')).toBe(true);
+    expect(isDesktopHostTemporaryName('report.rxdb-tmp')).toBe(false);
   });
 
   // 特权侧的东西泄漏到 renderer 入口，隔离就只剩文档上的一句话

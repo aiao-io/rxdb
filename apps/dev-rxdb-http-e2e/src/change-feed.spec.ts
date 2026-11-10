@@ -17,12 +17,24 @@
  *
  * 另有一条只看**一个**页面的用例，守的是接通那一刻的开销上限（D7），
  * 见「接通一次，重跑次数正好等于已注册的远端实体数」。
+ *
+ * 末尾一组换用进程内的假后端，守顶栏徽标只认真实连接（RV-01a1bb52dedb）：
+ * 首次连不上、接通后掉线再恢复，这两种时序真后端造不出来。
  */
 
 import { expect, test, type APIRequestContext, type Browser, type Page } from '@playwright/test';
 
-import { API_BASE_URL } from './env';
-import { DEFAULT_PAGE_SIZE, expectRowCount, openDemo, readRowIds, resetDemo, SEED_ROW_COUNT } from './support';
+import { API_BASE_URL, APP_BASE_URL } from './env';
+import { startFakeChangeFeed } from './fake-change-feed';
+import {
+  clearOriginStorage,
+  DEFAULT_PAGE_SIZE,
+  expectRowCount,
+  openDemo,
+  readRowIds,
+  resetDemo,
+  SEED_ROW_COUNT
+} from './support';
 
 /** 筛选用的标题标记。种子标题里不会出现，因此筛出来只有本用例自己造的那一行。 */
 const MARKER = 'US023-FEED';
@@ -32,6 +44,15 @@ const CONVERGE_TIMEOUT_MS = 2000;
 
 /** 对照用例里「等够久」的静默窗口，取收敛窗口的一倍多一点。 */
 const SILENCE_WINDOW_MS = 2500;
+
+/**
+ * 后端恢复之后，徽标翻回「已接通」的等待上限。
+ *
+ * @remarks
+ * 首次连接就失败时浏览器按自己的缺省间隔（3 秒）重连；掉线时浏览器连败三次之后由适配器
+ * 接管退避，最坏要等一个 8 秒的退避周期。取 10 秒，恢复动作晚于接管时也等得到。
+ */
+const RECOVER_TIMEOUT_MS = 10_000;
 
 /**
  * 这个 demo 注册了几个**远端**实体。
@@ -96,6 +117,17 @@ const counter = async (page: Page, testId: string): Promise<number> => {
   return Number.parseInt(text.trim(), 10);
 };
 
+/**
+ * 打开指向假后端的 demo 页面。
+ *
+ * @remarks
+ * 与 {@link openDemo} 不同，这里**不等**「已接通」：连不连得上正是这组用例要看的东西。
+ */
+const openDemoAgainst = async (page: Page, apiBaseUrl: string): Promise<void> => {
+  await clearOriginStorage(page);
+  await page.goto(`${APP_BASE_URL}/?api=${encodeURIComponent(apiBaseUrl)}`, { waitUntil: 'domcontentloaded' });
+};
+
 test.beforeEach(async ({ request }) => {
   await resetDemo(request);
 });
@@ -116,9 +148,10 @@ test('接通一次，重跑次数正好等于已注册的远端实体数——�
    * 差值就是接通本身的开销。
    */
   await page.getByTestId('feed-toggle').uncheck();
-  await expect(page.getByTestId('feed-status')).toHaveText('已断开');
+  await expect(page.getByTestId('feed-status')).toHaveText('已关闭');
   const invalidationsBefore = await counter(page, 'feed-invalidations');
 
+  // 「已接通」现在等的是适配器报来的 onOpen，而 onOpen 排在这次接通的全量失效之后
   await page.getByTestId('feed-toggle').check();
   await expect(page.getByTestId('feed-status')).toHaveText('已接通');
 
@@ -201,7 +234,7 @@ test('两个页面都带 ?changefeed=0：同样的操作，B 一直是旧值（A
   // eslint-disable-next-line playwright/no-wait-for-timeout -- 断言的是「一段时间内无事发生」
   await pageB.waitForTimeout(SILENCE_WINDOW_MS);
   await expect(pageB.locator('[data-row-id] td').first()).toHaveText(before);
-  await expect(pageB.getByTestId('feed-status')).toHaveText('已断开');
+  await expect(pageB.getByTestId('feed-status')).toHaveText('已关闭');
 
   // 手动重查一次就能拿到新值——证明 B 的旧值来自「没人告诉它」，
   // 而不是它的查询链路本身坏了。
@@ -286,7 +319,7 @@ test('面板上的开关是真的运行时开关：同一个页面里关掉、�
 
   // ---- 关掉 ----------------------------------------------------------------
   await pageB.getByTestId('feed-toggle').uncheck();
-  await expect(pageB.getByTestId('feed-status')).toHaveText('已断开');
+  await expect(pageB.getByTestId('feed-status')).toHaveText('已关闭');
 
   await renameRow(pageA, before, middle);
 
@@ -302,6 +335,7 @@ test('面板上的开关是真的运行时开关：同一个页面里关掉、�
   await expect(pageB.locator('[data-row-id] td').first(), '重新接通即补一次全量失效').toHaveText(middle, {
     timeout: CONVERGE_TIMEOUT_MS
   });
+  await expect(pageB.getByTestId('feed-status'), '徽标跟着真的接通翻回来').toHaveText('已接通');
 
   // 通道确实活着，而不是「刚好那一次失效蒙对了」：再改一次，B 照样自己跟上。
   await renameRow(pageA, middle, after);
@@ -312,4 +346,51 @@ test('面板上的开关是真的运行时开关：同一个页面里关掉、�
 
   await pageA.context().close();
   await pageB.context().close();
+});
+
+/**
+ * 徽标只认真实连接（RV-01a1bb52dedb）。
+ *
+ * @remarks
+ * 徽标从前只读启用意图：连不上、断线退避期间照样写着「已接通」。现在开着时的三态全凭适配器
+ * 报来的 `onOpen` / `onUnavailable`。页面的其余请求打到假后端上一律 404，与这组断言无关。
+ */
+test.describe('徽标只认真实连接（RV-01a1bb52dedb）', () => {
+  test('首次连接就失败：徽标是「重连中」并给出故障说明，后端起来之后自己接通', async ({ page }) => {
+    const feed = await startFakeChangeFeed(false);
+    try {
+      await openDemoAgainst(page, feed.apiBaseUrl);
+
+      await expect(page.getByTestId('feed-toggle'), '开关记的是意图，照旧开着').toBeChecked();
+      await expect(page.getByTestId('feed-status')).toHaveText('重连中');
+      await expect(page.getByTestId('feed-fault')).toContainText(feed.feedUrl);
+
+      feed.accept(true);
+      await expect(page.getByTestId('feed-status')).toHaveText('已接通', { timeout: RECOVER_TIMEOUT_MS });
+    } finally {
+      await feed.close();
+    }
+  });
+
+  test('接通后掉线再恢复：已接通 → 重连中 → 已接通，报过故障不会把徽标永久判成断开', async ({ page }) => {
+    const feed = await startFakeChangeFeed(true);
+    try {
+      await openDemoAgainst(page, feed.apiBaseUrl);
+      await expect(page.getByTestId('feed-status')).toHaveText('已接通');
+      await expect(page.getByTestId('feed-fault'), '接通之前没出过故障').toHaveCount(0);
+
+      feed.accept(false);
+      feed.dropAll();
+      await expect(page.getByTestId('feed-status')).toHaveText('重连中');
+      await expect(page.getByTestId('feed-fault')).toContainText(feed.feedUrl);
+
+      feed.accept(true);
+      await expect(page.getByTestId('feed-status')).toHaveText('已接通', { timeout: RECOVER_TIMEOUT_MS });
+      expect(await counter(page, 'feed-unavailable'), '故障照样记着，只是不再左右徽标').toBeGreaterThanOrEqual(1);
+      // 故障说明记的是「上一次出过什么事」，恢复之后照样留着
+      await expect(page.getByTestId('feed-fault')).toBeVisible();
+    } finally {
+      await feed.close();
+    }
+  });
 });

@@ -134,24 +134,27 @@ export const TagFixture = {
  */
 export const SyncScenarioFixture = {
   /**
-   * 创建冲突场景
+   * 创建冲突场景：同一实体、同一字段在本地与远端的两个版本（两侧共用一个 `entityId`）。
    */
-  createConflict: () => ({
-    local: {
-      entityId: uuid(),
-      field: 'name',
-      value: 'Alice (Local)',
-      changeId: 100,
-      timestamp: new Date('2025-01-01T10:00:00Z')
-    },
-    remote: {
-      entityId: uuid(),
-      field: 'name',
-      value: 'Alice (Remote)',
-      changeId: 101,
-      timestamp: new Date('2025-01-01T10:01:00Z')
-    }
-  }),
+  createConflict: () => {
+    const entityId = uuid();
+    return {
+      local: {
+        entityId,
+        field: 'name',
+        value: 'Alice (Local)',
+        changeId: 100,
+        timestamp: new Date('2025-01-01T10:00:00Z')
+      },
+      remote: {
+        entityId,
+        field: 'name',
+        value: 'Alice (Remote)',
+        changeId: 101,
+        timestamp: new Date('2025-01-01T10:01:00Z')
+      }
+    };
+  },
 
   /**
    * 创建分支场景

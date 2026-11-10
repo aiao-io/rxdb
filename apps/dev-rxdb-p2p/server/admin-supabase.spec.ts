@@ -326,7 +326,15 @@ describe('createReportDirectory', () => {
     const directory = createReportDirectory({ url: 'http://supabase.test', serviceRoleKey: 'service-key', fetch });
 
     await expect(directory.listOpen()).rejects.toThrow('PostgREST responded 503');
-    await expect(directory.resolve('report-1', 'ignore', USER_ID)).resolves.toBe(true);
+    await expect(directory.resolve('report-1', 'ignore', USER_ID)).resolves.toBeUndefined();
+  });
+
+  // 归档没写进去，举报还挂在未处置列表里：这必须是一次报出来的失败，而不是一个没人读的 false。
+  it('rejects a report archive that PostgREST did not accept', async () => {
+    const { fetch } = directoryWith(() => json(503, {}));
+    const directory = createReportDirectory({ url: 'http://supabase.test', serviceRoleKey: 'service-key', fetch });
+
+    await expect(directory.resolve('report-1', 'delete_copy', USER_ID)).rejects.toThrow('PostgREST responded 503');
   });
 });
 

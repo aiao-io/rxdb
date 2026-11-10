@@ -36,6 +36,20 @@ describe('PreferencesDrawer', () => {
     expect(drawer.open).toBe(true);
   });
 
+  it('Esc 的 cancel 与再次打开之间没有渲染：晚到的 close 事件不吃掉打开请求，对话框重新打开', () => {
+    const { shell } = mount();
+    const drawer = openDrawer(shell) as HTMLDialogElement;
+    // 浏览器的 Esc 顺序：同步 cancel → 原生关闭对话框 → 同一轮里再次请求打开 → close 事件晚到
+    act(() => {
+      drawer.dispatchEvent(new Event('cancel'));
+      drawer.removeAttribute('open');
+      shell.ui.setPreferencesOpen(true);
+      drawer.dispatchEvent(new Event('close'));
+    });
+    expect(shell.ui.value.preferencesOpen).toBe(true);
+    expect(drawer.open).toBe(true);
+  });
+
   it('点击对话框自身（背景）关闭，点击内容不关闭', () => {
     const { shell } = mount();
     const drawer = openDrawer(shell);

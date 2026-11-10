@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { formatFileName } from '../utils/file-name';
 
 interface SearchableFile {
   id: string;
@@ -29,7 +30,7 @@ export class FileSearchService {
 
     files.forEach(file => {
       // 搜索完整文件名（含扩展名）
-      const fullName = file.extension ? `${file.name}${file.extension}` : file.name;
+      const fullName = formatFileName(file.name, file.extension);
       if (fullName.toLowerCase().includes(trimmedKeyword)) {
         matchedIds.add(file.id);
       }

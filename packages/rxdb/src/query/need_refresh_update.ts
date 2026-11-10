@@ -10,8 +10,9 @@ import { FindOptions, OrderBy } from '../repository/query-options.interface.js';
 import { RefreshMatchRules } from '../repository/QueryManager.interface.js';
 import { QueryTask } from '../repository/QueryTask.js';
 import { RxDBEntityLocalUpdatedEventData } from '../rxdb-events.js';
-import { tryGetEntityMetadata, tryGetEntityStatus } from '../rxdb-utils.js';
-import { UpdateDataCache } from './merge-update.utils.js';
+import { tryGetEntityMetadata } from '../rxdb-utils.js';
+// 门控按库里的值判定：与增量合并、SQL 活查询同一口径（见 persistedState）
+import { persistedState, UpdateDataCache } from './merge-update.utils.js';
 import { isEntityMatchWhere, runMatches } from './query-matching.utils.js';
 import { fieldProperty, separateEntities, whereRules, whereUsesRelations } from './query-relation.utils.js';
 import { QueryRulesBuilder } from './query-rules-builder.js';
@@ -89,19 +90,6 @@ const touchesProperties = (event: RxDBEntityLocalUpdatedEventData, properties: R
     if (present && !isEqual(patch[property], inversePatch[property])) return true;
   }
   return false;
-};
-
-/**
- * 门控按库里的值判定。
- *
- * @remarks
- * 脏实体的可见值里混着用户还没保存的编辑（外部更新经 `mergeExternal` 逐字段避让它们），
- * SQL 活查询不会按这些值算。被编辑的键改取基线：`inversePatch` 正是这些键在 `origin`
- * 上的值，外部更新推进的也是这份基线。
- */
-const persistedState = (entity: object): object => {
-  const status = tryGetEntityStatus(entity);
-  return status?.modified ? { ...entity, ...status.inversePatch } : entity;
 };
 
 /** 一个实体在本批更新前后的样子，交给门控与规则层判定。 */

@@ -40,6 +40,23 @@ describe('CommandPalette', () => {
     expect(shell.palette.value.open).toBe(false);
   });
 
+  it('输入法组合中的回车与方向键交给输入法：不执行、不移动选中项、不阻止默认行为；组合结束后回车照常执行', () => {
+    const { shell, navigated } = mount();
+    act(() => shell.palette.open());
+    fireEvent.change(input(), { target: { value: '资产' } });
+    expect(options().length).toBeGreaterThan(1);
+    expect(fireEvent.keyDown(input(), { key: 'ArrowDown', isComposing: true })).toBe(true);
+    expect(options()[0].getAttribute('aria-selected')).toBe('true');
+    expect(fireEvent.keyDown(input(), { key: 'Enter', isComposing: true })).toBe(true);
+    // Safari 确认候选的回车在 compositionend 之后到达，isComposing 为 false、keyCode 为 229
+    expect(fireEvent.keyDown(input(), { key: 'Enter', keyCode: 229 })).toBe(true);
+    expect(navigated).toEqual([]);
+    expect(shell.palette.value.open).toBe(true);
+    fireEvent.keyDown(input(), { key: 'Enter' });
+    expect(navigated).toHaveLength(1);
+    expect(shell.palette.value.open).toBe(false);
+  });
+
   it('鼠标移动选中、点击执行命令', () => {
     const { shell } = mount();
     act(() => shell.palette.open());
@@ -67,6 +84,36 @@ describe('CommandPalette', () => {
     act(() => shell.palette.open());
     fireEvent.click(screen.getByTestId('admin-palette'));
     expect(shell.palette.value.open).toBe(false);
+  });
+
+  it('Esc 之后同一轮立刻按 Mod+K（两者之间没有渲染）：面板重新打开，晚到的 close 事件不会再把它关掉', () => {
+    const { shell, fakeWindow } = mount();
+    act(() => shell.palette.open());
+    const dialog = screen.getByTestId('admin-palette') as HTMLDialogElement;
+    // 浏览器的 Esc 顺序：同步 cancel → 原生关闭对话框 → 同一轮里再次请求打开 → close 事件晚到
+    act(() => {
+      dialog.dispatchEvent(new Event('cancel'));
+      dialog.removeAttribute('open');
+      fakeWindow.press({ key: 'k', ctrlKey: true });
+      dialog.dispatchEvent(new Event('close'));
+    });
+    expect(shell.palette.value.open).toBe(true);
+    expect(dialog.open).toBe(true);
+  });
+
+  it('同一轮里 cancel 关闭再重开，随后的原生 close 事件只是 cancel 的尾声：模型与原生状态都保持打开', () => {
+    const { shell } = mount();
+    act(() => shell.palette.open());
+    const dialog = screen.getByTestId('admin-palette') as HTMLDialogElement;
+    act(() => {
+      dialog.dispatchEvent(new Event('cancel'));
+      dialog.removeAttribute('open');
+      shell.palette.open();
+    });
+    expect(dialog.open).toBe(true);
+    act(() => void dialog.dispatchEvent(new Event('close')));
+    expect(shell.palette.value.open).toBe(true);
+    expect(dialog.open).toBe(true);
   });
 
   it('异步来源：加载中提示、结果合并为独立分组、失败提示', async () => {

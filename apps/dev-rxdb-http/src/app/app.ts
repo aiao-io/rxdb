@@ -17,9 +17,12 @@ import {
 import { FormsModule } from '@angular/forms';
 import { buildRecipePageQuery } from '@modules/recipes-domain';
 import {
+  CHANGE_FEED_BADGE_LABELS,
+  changeFeedBadge,
   changeFeedStats,
   clearChangeFeedStats,
   onChangeFeedStats,
+  recordChangeFeedStart,
   type ChangeFeedStats
 } from './change-feed-diagnostics';
 import { resolveApiBaseUrl, resolveChangeFeedEnabled, resolveDiagnosticsEnabled } from './demo-config';
@@ -300,17 +303,30 @@ export class App implements OnInit {
   // ---- 变更通知面板（US-023 AC#24）------------------------------------------
 
   /**
-   * 通知通道此刻开着没有。
+   * 通知通道此刻**要不要**跑（启用意图），不是「此刻通没通」。
    *
    * @remarks
    * 初值取自 `?changefeed=`（见 `demo-config.ts`：**默认开**），但它只是初值——
    * 面板上的 checkbox 之后可以随时翻，不刷页。真正的状态在适配器那边
    * （`RxDBAdapterHttp.changeFeedEnabled`），这个 signal 只是它给模板用的镜像，
-   * 每次翻转都从适配器回读，不自己算。
+   * 每次翻转都从适配器回读，不自己算。连接本身通没通看 {@link $feedBadge}。
    */
   readonly $changeFeedOn = signal(resolveChangeFeedEnabled(typeof location === 'undefined' ? '' : location.search));
 
   readonly $changeFeedStats = signal<ChangeFeedStats>(changeFeedStats());
+
+  /** 徽标四态的文案，给模板查表。 */
+  readonly feedBadgeLabels = CHANGE_FEED_BADGE_LABELS;
+
+  /**
+   * 顶栏徽标：已关闭 / 连接中 / 已接通 / 重连中。
+   *
+   * @remarks
+   * 意图只决定「已关闭」；开着时的三态全凭适配器报来的事实（`onOpen` / `onUnavailable`，
+   * 由 `setup_rxdb_http.ts` 收进诊断模块）。两者分开，才不会在连不上、断线退避时
+   * 仍挂着「已接通」，也不会因为报过一次故障就在恢复之后一直显示断开。
+   */
+  readonly $feedBadge = computed(() => changeFeedBadge(this.$changeFeedOn(), this.$changeFeedStats().connection));
 
   /**
    * 通道触发过几次重跑。
@@ -431,6 +447,9 @@ export class App implements OnInit {
    * 翻完从适配器回读而不是直接把 `on` 写进 signal：这两个值本该一致，而「本该一致」
    * 正是它们分叉的方式。回读的话，万一哪天 `startChangeFeed()` 拒绝了这次请求
    * （比如适配器已经断开），面板上的勾会自己弹回去，而不是显示一个不存在的状态。
+   *
+   * 打开前先把连接状况放回「连接中」：上一条连接的接通或故障不属于这一条，
+   * 留着它，新连接接通之前徽标会显示一个过期的状态。
    */
   toggleChangeFeed(on: boolean): void {
     const adapter = this.#httpAdapter;
@@ -438,6 +457,7 @@ export class App implements OnInit {
       return;
     }
     if (on) {
+      recordChangeFeedStart();
       adapter.startChangeFeed();
     } else {
       adapter.stopChangeFeed();

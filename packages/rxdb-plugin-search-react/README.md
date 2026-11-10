@@ -67,7 +67,7 @@ reject `destroyed`。它一个连接纪元一格，重连之后要重新读一�
 
 判据由 core 的 `searchOptionsEqual` 三端共用，重建时机不会因框架而异。
 
-三框架同功能对称：Angular 用 `injectSearch`（[`@aiao/rxdb-plugin-search-angular`](../rxdb-plugin-search-angular)），Vue 用 `useSearch`（[`@aiao/rxdb-plugin-search-vue`](../rxdb-plugin-search-vue)）。
+三框架同功能对称：Angular 用 `useSearch`（[`@aiao/rxdb-plugin-search-angular`](../rxdb-plugin-search-angular)），Vue 用 `useSearch`（[`@aiao/rxdb-plugin-search-vue`](../rxdb-plugin-search-vue)）。
 
 ## 文档
 

@@ -312,6 +312,10 @@
         "kind": "value"
       },
       {
+        "name": "isDesktopHostTemporaryName",
+        "kind": "value"
+      },
+      {
         "name": "isDesktopPgliteDirectoryStorage",
         "kind": "value"
       },

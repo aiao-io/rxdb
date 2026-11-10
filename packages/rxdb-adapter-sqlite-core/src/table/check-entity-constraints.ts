@@ -34,38 +34,67 @@ type ConstraintCatalogQuerier = Pick<RxDBAdapterSqliteBase, never> & {
   execute(sql: string, bindings?: unknown[]): Promise<SqliteResult>;
 };
 
-/**
- * 剥离 SQL 字符串字面量（`'...'`，`''` 是转义），返回只含代码的文本。
- *
- * @remarks
- * 字面量里可以伪造 `CONSTRAINT "ck_..."` 片段（默认值 / CHECK 文本），
- * 不剥离就会解析出假约束名，让每次 connect 永久抛「多余」。SQLite 没有其他
- * 字面量形态需要处理（双引号是标识符、反引号也是标识符、注释不出现于
- * `sqlite_master.sql` 的回显形态之外——原始建表文本就是本文件输入）。
- */
-const stripSqlStringLiterals = (sql: string): string => {
-  let result = '';
-  let index = 0;
+/** 引号成对的片段结束在哪：`quote` 连写两个是转义；没闭合就到文本末尾 */
+const endOfQuoted = (sql: string, start: number, quote: string): number => {
+  let index = start + 1;
   while (index < sql.length) {
-    const quote = sql[index];
-    if (quote !== "'") {
-      result += quote;
+    if (sql[index] !== quote) {
       index += 1;
       continue;
     }
-    index += 1; // 跳过开引号
-    while (index < sql.length) {
-      if (sql[index] === "'") {
-        if (sql[index + 1] === "'") {
-          index += 2; // '' 转义
-          continue;
-        }
-        index += 1; // 闭引号
-        break;
-      }
+    if (sql[index + 1] !== quote) return index + 1;
+    index += 2;
+  }
+  return sql.length;
+};
+
+/** 从 `start` 起的片段在哪结束、留下什么；不是字面量、标识符或注释时返回 `undefined` */
+const scanToken = (sql: string, start: number): { end: number; kept: string } | undefined => {
+  const char = sql[start];
+  const pair = sql.slice(start, start + 2);
+  if (char === "'") return { end: endOfQuoted(sql, start, "'"), kept: "''" };
+  if (char === '"' || char === '`') {
+    const end = endOfQuoted(sql, start, char);
+    return { end, kept: sql.slice(start, end) };
+  }
+  if (char === '[') {
+    const end = sql.indexOf(']', start + 1);
+    const stop = end === -1 ? sql.length : end + 1;
+    return { end: stop, kept: sql.slice(start, stop) };
+  }
+  if (pair === '--') {
+    const end = sql.indexOf('\n', start);
+    return { end: end === -1 ? sql.length : end, kept: ' ' };
+  }
+  if (pair === '/*') {
+    const end = sql.indexOf('*/', start + 2);
+    return { end: end === -1 ? sql.length : end + 2, kept: ' ' };
+  }
+  return undefined;
+};
+
+/**
+ * 剥离 SQL 字符串字面量与注释，返回只含代码的文本（标识符原样保留）。
+ *
+ * @remarks
+ * 字面量与注释里都能写出 `CONSTRAINT "ck_..." CHECK (...)` 片段（默认值 / CHECK 文本、迁移说明、
+ * 注释掉的旧约束）：SQLite 存进 `sqlite_master.sql` 的就是原始建表文本，注释照样在里面。不剥离就会
+ * 解析出假约束名，让每次 connect 永久抛「多余」；注释掉的约束还会顶替一条真正缺失的约束。按词法扫描：
+ * 双引号 / 反引号 / 方括号标识符原样保留（里面的 `--` 与 `/*` 不是注释开头），单引号字面量换成 `''`，
+ * `--` 到行尾与 `/* … *\/`（没闭合时到文本末尾，与 SQLite 一致）换成一个空格。
+ */
+const stripSqlLiteralsAndComments = (sql: string): string => {
+  let result = '';
+  let index = 0;
+  while (index < sql.length) {
+    const token = scanToken(sql, index);
+    if (token === undefined) {
+      result += sql[index];
       index += 1;
+      continue;
     }
-    result += "''"; // 占位保持两侧长度稳定（对解析无影响）
+    result += token.kept;
+    index = token.end;
   }
   return result;
 };
@@ -77,14 +106,14 @@ const stripSqlStringLiterals = (sql: string): string => {
  *   （`foreignKeys` 的约束名就是作者给的 name），只看前缀会把它们判成「多余」的 CHECK；
  * - 关键字大小写不敏感（用户迁移手写的合法小写形态同样要认）；
  * - 标识符接受双引号 / 反引号 / 无引号三种形态（SQLite 都合法，无引号也可以含非 ASCII 字母）；
- * - 调用前必须先 {@link stripSqlStringLiterals}，字符串字面量里的伪片段不算数。
+ * - 调用前必须先 {@link stripSqlLiteralsAndComments}，字符串字面量与注释里的伪片段不算数。
  */
 const NAMED_CHECK_PATTERN = /CONSTRAINT\s+(?:"([^"]+)"\s*|`([^`]+)`\s*|([\p{L}_][\p{L}\p{N}_$]*)\s+)CHECK\b/giu;
 
 /** 从建表 SQL 文本里解析 `ck_` 起头的 CHECK 约束名集合。 */
 const actualCheckNames = (createSql: string): Set<string> => {
   const names = new Set<string>();
-  for (const match of stripSqlStringLiterals(createSql).matchAll(NAMED_CHECK_PATTERN)) {
+  for (const match of stripSqlLiteralsAndComments(createSql).matchAll(NAMED_CHECK_PATTERN)) {
     const name = match[1] ?? match[2] ?? match[3];
     if (name.startsWith(CHECK_NAME_PREFIX)) names.add(name);
   }

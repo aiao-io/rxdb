@@ -1,10 +1,4 @@
-import {
-  getEntityMetadata,
-  WorktreeTableSet,
-  type EntityMetadata,
-  type EntityPropertyMetadata,
-  type RxDB
-} from '@aiao/rxdb';
+import { WorktreeTableSet, type EntityMetadata, type EntityPropertyMetadata, type RxDB } from '@aiao/rxdb';
 import { RxdbAdapterPGliteError } from '../pglite.utils.js';
 import { getTableNameByMetadata } from '../table-name-resolver.js';
 
@@ -34,47 +28,34 @@ export interface QueryCacheTarget {
 }
 
 /**
- * 把逻辑实体名解析为唯一的物理定位。
+ * 把 QueryCache 的实体标识解析为唯一的物理定位。
  *
  * @remarks
- * 旧实现写死 `getEntityMetadata(entityName, 'public')` 再 `?? entityName` 回退：
- * 非 public namespace 的实体永远查不到 metadata，于是降级成不带 schema 的裸表名，
- * 真机执行必然找错表。这里改为在**全部已配置实体**里按名字查找，
- * 与 `RxDBAdapterSupabase` 的 `resolveEntityScope` 同口径（支持 `namespace:entity`
- * 显式限定；裸实体名只有在配置中唯一时才允许）。
+ * 标识契约与 `@aiao/rxdb-plugin-sync` 的 `queryCacheEntityIdentifier`、sqlite-core 的同名解析一致：
+ * `namespace:entity` 按所写命名空间查，**裸实体名一律按 `public` 查**，不去别的命名空间里找唯一匹配。
+ * 旧实现在全部命名空间里找裸名、重名即抛：public 与别的命名空间同名时，QueryCache 给 public 实体
+ * 传的裸名（在线读写与离线重放共用这一个标识）全部报歧义（RV-01a1bb299b62）。
+ * 以冒号开头的名字整体当裸名，不拆出一个空命名空间。
  *
  * metadata 查不到时 **fail-fast** 而不是回退裸表名 —— 回退只会把「实体没配」
  * 这一配置错误推迟到 PG 报 `relation does not exist`，且错误里不再有实体名。
  *
  * @param rxdb - 当前 RxDB 实例
- * @param entityName - 逻辑实体名，或 `namespace:entity` 形式的显式限定名
- * @returns 唯一命中的 {@link QueryCacheTarget}
- * @throws {RxdbAdapterPGliteError} 实体未配置、在多个 namespace 下重名，或缺少主键属性
+ * @param entityName - public 实体的裸名，或 `namespace:entity` 形式的限定名
+ * @returns 命中的 {@link QueryCacheTarget}
+ * @throws {RxdbAdapterPGliteError} 对应命名空间下没有这个实体（含用裸名指非 public 实体），或缺少主键属性
  */
 export const resolveQueryCacheTarget = (rxdb: RxDB, entityName: string): QueryCacheTarget => {
   const separatorIndex = entityName.indexOf(':');
-  const wantedNamespace = separatorIndex > 0 ? entityName.slice(0, separatorIndex) : undefined;
-  const wantedName = separatorIndex > 0 ? entityName.slice(separatorIndex + 1) : entityName;
-
-  const matches = new Map<string, EntityMetadata>();
-  for (const EntityClass of rxdb.config.entities ?? []) {
-    const metadata = getEntityMetadata(EntityClass);
-    const namespace = metadata.namespace || 'public';
-    if (metadata.name !== wantedName) continue;
-    if (wantedNamespace !== undefined && namespace !== wantedNamespace) continue;
-    matches.set(`${namespace}:${metadata.name}`, metadata);
-  }
-
-  if (matches.size === 0) {
-    throw new RxdbAdapterPGliteError(`QueryCache: entity "${entityName}" is not configured`);
-  }
-  if (matches.size > 1) {
+  const namespace = separatorIndex > 0 ? entityName.slice(0, separatorIndex) : 'public';
+  const name = separatorIndex > 0 ? entityName.slice(separatorIndex + 1) : entityName;
+  const metadata = rxdb.schemaManager.getEntityMetadata(name, namespace);
+  if (!metadata) {
     throw new RxdbAdapterPGliteError(
-      `QueryCache: entity "${entityName}" is configured in multiple namespaces (${[...matches.keys()].join(', ')}); use "namespace:entity"`
+      `QueryCache: entity "${entityName}" is not configured in namespace "${namespace}"; bare names resolve to "public", write other namespaces as "namespace:entity"`
     );
   }
 
-  const metadata = [...matches.values()][0];
   return {
     entityName,
     metadata,

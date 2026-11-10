@@ -54,6 +54,10 @@
         "kind": "value"
       },
       {
+        "name": "BuildRuleGroupFn",
+        "kind": "type"
+      },
+      {
         "name": "ChangeRecordEvent",
         "kind": "type"
       },
@@ -132,6 +136,10 @@
       {
         "name": "executeOo1Helper",
         "kind": "value"
+      },
+      {
+        "name": "ExistsScope",
+        "kind": "type"
       },
       {
         "name": "ExistsSubquery",
@@ -350,6 +358,10 @@
         "kind": "type"
       },
       {
+        "name": "MAIN_RULE_SCOPE",
+        "kind": "value"
+      },
+      {
         "name": "MAIN_TABLE_ALIAS",
         "kind": "value"
       },
@@ -483,6 +495,10 @@
       },
       {
         "name": "RuleGroupJoinOptions",
+        "kind": "type"
+      },
+      {
+        "name": "RuleScope",
         "kind": "type"
       },
       {

@@ -233,9 +233,10 @@ const resolveReport: Handler = async (context, [id = '']) => {
     ) {
       return json(409, { error: 'the reported copy is no longer published for this content' });
     }
+    // 副本已经不在（多半是上一次处置删掉了、归档却没写进去）就直接归档：要的结果「这份副本没了」已经成立，
+    // 回 404 会让这条举报再也按 delete_copy 收不了尾。
     const key = source.encHash ? encFileKey(source.encHash) : fileKey(report.targetHash);
-    if (!(await context.deps.bucket.head(key))) return json(404, { error: 'reported server copy not found' });
-    await context.deps.bucket.delete(key);
+    if (await context.deps.bucket.head(key)) await context.deps.bucket.delete(key);
   }
   if (kind === 'ban' && report.targetUser) {
     const refusal = refuseTarget(context, report.targetUser);

@@ -1,4 +1,4 @@
-import { EntityStaticType, EntityType, RxDBEntityId } from '@aiao/rxdb';
+import { EntityStaticType, EntityType, RxDB, RxDBEntityId } from '@aiao/rxdb';
 import { cloneDeep } from '@aiao/utils';
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { type Observable, Subscription } from 'rxjs';
@@ -38,13 +38,32 @@ interface CursorRepository<T extends EntityType> {
   findByCursor(options: EntityStaticType<T, 'findByCursorOptions'>): Observable<InstanceType<T>[]>;
 }
 
-/** 一页活查询的句柄：`cursor` 是这页订阅时使用的 `after` 锚点。 */
+/**
+ * 一页活查询的句柄。
+ *
+ * @remarks
+ * `cursor` 是这页订阅时使用的 `after` 锚点；`loadId` 是这页负责结算的用户加载编号。
+ * 活查询自愈重锚出来的替代页沿用被替换那页的编号：用户的下一页首值未到时被重锚，
+ * 结算责任随页移交，否则 `isLoading` 永远停在 true、之后的 `loadMore` 全被拦下。
+ */
 interface PageHandle<T> {
   readonly cursor: T | undefined;
   readonly subscription: Subscription;
+  readonly loadId: number | undefined;
 }
 
+/** 查询身份：状态只属于产生它的数据库、实体与选项。 */
+interface QueryIdentity {
+  readonly rxdb: RxDB;
+  readonly EntityType: EntityType;
+  readonly optionsKey: string;
+}
+
+const isSameQuery = (left: QueryIdentity, right: QueryIdentity): boolean =>
+  left.rxdb === right.rxdb && left.EntityType === right.EntityType && left.optionsKey === right.optionsKey;
+
 interface InfiniteScrollState<T> {
+  query: QueryIdentity;
   pages: T[][];
   isLoading: boolean;
   error: Error | undefined;
@@ -54,13 +73,17 @@ interface InfiniteScrollState<T> {
 
 type StateUpdate<T> = InfiniteScrollState<T> | ((current: InfiniteScrollState<T>) => InfiniteScrollState<T>);
 
-const createInitialState = <T>(isInitialized: boolean): InfiniteScrollState<T> => ({
+const createInitialState = <T>(query: QueryIdentity, isInitialized: boolean): InfiniteScrollState<T> => ({
+  query,
   pages: [],
   isLoading: false,
   error: undefined,
   hasMore: true,
   isInitialized
 });
+
+/** 新查询身份尚未复位时的页面：同一个引用，`value` 在这段窗口里保持稳定。 */
+const NO_PAGES: never[][] = [];
 
 export interface InfiniteScrollResource<T> {
   /** 已加载页面合并后的实体。 */
@@ -87,7 +110,8 @@ export function useInfiniteScroll<T extends EntityType>(
   const rxdb = useRxDB();
   const { value: resolvedOptions, key: optionsKey } = resolveOptionsWithKey(options);
   const readOptions = useEffectEvent(() => resolvedOptions);
-  const [state, setState] = useState<InfiniteScrollState<InstanceType<T>>>(() => createInitialState(false));
+  const query: QueryIdentity = { rxdb, EntityType, optionsKey };
+  const [state, setState] = useState<InfiniteScrollState<InstanceType<T>>>(() => createInitialState(query, false));
   const stateRef = useRef(state);
   const optionsRef = useRef(resolvedOptions);
   const mountedRef = useRef(false);
@@ -109,10 +133,18 @@ export function useInfiniteScroll<T extends EntityType>(
     pagesRef.current = [];
   }, []);
 
-  const resetState = useCallback((): void => {
-    clearSubscriptions();
-    commitState(createInitialState<InstanceType<T>>(true));
-  }, [clearSubscriptions, commitState]);
+  const resetState = useCallback(
+    (next: QueryIdentity): void => {
+      clearSubscriptions();
+      commitState(createInitialState<InstanceType<T>>(next, true));
+    },
+    [clearSubscriptions, commitState]
+  );
+
+  const isLatestLoad = useCallback(
+    (loadId: number | undefined): boolean => loadId !== undefined && loadId === latestLoadIdRef.current,
+    []
+  );
 
   /**
    * 订阅第 `pageIndex` 页，锚点为 `cursor`；该位置已有订阅时先退订再替换。
@@ -126,7 +158,8 @@ export function useInfiniteScroll<T extends EntityType>(
    * 不一致就用新尾条目重开下一页；重开后的下一页 emit 会继续比对第 N+2 页，
    * 因而级联只向后传播、必然在页数内收敛。Angular 与 Vue 侧同款修复。
    *
-   * @param loadId - 用户发起的加载编号；重锚（活查询自愈）传 `undefined`，不参与 `isLoading` 结算
+   * @param loadId - 这页负责结算的用户加载编号；重锚（活查询自愈）沿用被替换那页的编号，
+   * 只有它是最新一次加载时才结算 `isLoading`
    */
   const openPage = useCallback(
     function openPage(pageIndex: number, cursor: InstanceType<T> | undefined, loadId: number | undefined): void {
@@ -135,7 +168,7 @@ export function useInfiniteScroll<T extends EntityType>(
 
       const generation = generationRef.current;
       const isCurrent = (): boolean => mountedRef.current && generation === generationRef.current;
-      const isLatest = (): boolean => loadId !== undefined && loadId === latestLoadIdRef.current;
+      const isLatest = (): boolean => isLatestLoad(loadId);
       // 本页是否收到过 next：complete 时用来判断「一次都没 emit」（RRE/RAN-007）
       let received = false;
       /**
@@ -180,11 +213,10 @@ export function useInfiniteScroll<T extends EntityType>(
         const tail = result.at(-1);
         // 本页空了：其后各页的锚点已无源可依，直接丢弃，由本页接管 hasMore
         const dropTrailing = tail === undefined && pageIndex < pagesRef.current.length - 1;
-        if (dropTrailing) {
-          for (const page of pagesRef.current.splice(pageIndex + 1)) {
-            page.subscription.unsubscribe();
-          }
-        }
+        const dropped = dropTrailing ? pagesRef.current.splice(pageIndex + 1) : [];
+        dropped.forEach(page => page.subscription.unsubscribe());
+        // 被丢弃的尾页里若有在途的最新加载，它再也结算不了，由本页代为结算
+        const settles = isLatest() || dropped.some(page => isLatestLoad(page.loadId));
 
         // hasMore 由**最后一页**决定；活查询会对同一页重新 emit，
         // 该页被补满时必须能把 hasMore 翻回 true，否则用户再也翻不动页
@@ -196,21 +228,22 @@ export function useInfiniteScroll<T extends EntityType>(
             ...previous,
             pages: dropTrailing ? pages.slice(0, pageIndex + 1) : pages,
             error: undefined,
-            isLoading: isLatest() ? false : previous.isLoading,
+            isLoading: settles ? false : previous.isLoading,
             hasMore: isLastPage ? hasFullPage(result.length, queryOptions.limit) : previous.hasMore
           };
         });
 
         if (isLastPage || tail === undefined) return;
-        if (cursorId(pagesRef.current[pageIndex + 1].cursor) !== cursorId(tail)) {
-          openPage(pageIndex + 1, tail, undefined);
+        const next = pagesRef.current[pageIndex + 1];
+        if (cursorId(next.cursor) !== cursorId(tail)) {
+          openPage(pageIndex + 1, tail, next.loadId);
         }
       };
 
       pagesRef.current[pageIndex]?.subscription.unsubscribe();
       // 先登记句柄再订阅：同步 emit 的源（如 of()）会在 subscribe() 返回前回调 commitPage
       const container = new Subscription();
-      pagesRef.current[pageIndex] = { cursor, subscription: container };
+      pagesRef.current[pageIndex] = { cursor, subscription: container, loadId };
 
       try {
         const repository = rxdb.entityManager.getRepository(EntityType) as unknown as CursorRepository<T>;
@@ -229,7 +262,7 @@ export function useInfiniteScroll<T extends EntityType>(
         fail(cause);
       }
     },
-    [EntityType, commitState, rxdb]
+    [EntityType, commitState, isLatestLoad, rxdb]
   );
 
   const loadMore = useCallback((): void => {
@@ -242,31 +275,41 @@ export function useInfiniteScroll<T extends EntityType>(
 
   const refresh = useCallback((): void => {
     if (!mountedRef.current) return;
-    resetState();
+    resetState(stateRef.current.query);
     loadMore();
   }, [loadMore, resetState]);
 
   useEffect(() => {
     mountedRef.current = true;
     optionsRef.current = readOptions();
-    resetState();
+    resetState({ rxdb, EntityType, optionsKey });
     loadMore();
 
     return () => {
       mountedRef.current = false;
       clearSubscriptions();
     };
-  }, [clearSubscriptions, loadMore, optionsKey, resetState]);
+  }, [EntityType, clearSubscriptions, loadMore, optionsKey, resetState, rxdb]);
 
-  const value = useMemo(() => state.pages.flat(), [state.pages]);
-  const isEmpty = state.isInitialized && state.error === undefined && value.length === 0 && !state.isLoading;
+  // 查询身份变了（换筛选 / 换库 / 换实体）的那次提交与消费者的 layout effect 都早于上面的复位：
+  // 状态仍是旧查询的，按身份对齐后给出复位并发起首页之后的样子，旧列表与结算态不能冒充新查询。
+  // 被动清理之前旧流的迟到发射只会写进旧查询的状态，同样进不了快照。
+  const settled = isSameQuery(state.query, query) ? state : undefined;
+  const pages = settled?.pages ?? NO_PAGES;
+  const value = useMemo(() => pages.flat(), [pages]);
+  const isEmpty =
+    settled !== undefined &&
+    settled.isInitialized &&
+    settled.error === undefined &&
+    value.length === 0 &&
+    !settled.isLoading;
 
   return {
     value,
     isEmpty,
-    isLoading: state.isLoading,
-    error: state.error,
-    hasMore: state.hasMore,
+    isLoading: settled?.isLoading ?? true,
+    error: settled?.error,
+    hasMore: settled?.hasMore ?? true,
     loadMore,
     refresh
   };

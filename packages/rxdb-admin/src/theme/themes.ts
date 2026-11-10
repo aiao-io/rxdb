@@ -24,7 +24,7 @@ export const DAISYUI_THEMES: readonly ThemeOption[] = [
   dark('halloween'),
   light('garden'),
   dark('forest'),
-  light('aqua'),
+  dark('aqua'),
   light('lofi'),
   light('pastel'),
   light('fantasy'),

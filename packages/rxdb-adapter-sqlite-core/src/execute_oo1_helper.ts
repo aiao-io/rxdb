@@ -1,8 +1,20 @@
-import { isReadOnlyStatement, shouldUsePreparedStatementPath } from './execute-sql.utils.js';
+import { shouldUsePreparedStatementPath } from './execute-sql.utils.js';
 import type { Oo1Database, Oo1PreparedStatement } from './oo1-types.js';
 import type { SqliteData } from './sqlite-backend.interface.js';
 import type { SQLiteCompatibleType, SqliteResult } from './sqlite-core.interface.js';
 import { RxDBAdapterSqliteError } from './sqlite-core.utils.js';
+
+/**
+ * 本次执行改了多少行。
+ *
+ * @remarks
+ * `db.changes()` 只在 INSERT / UPDATE / DELETE 之后有意义；SELECT、DDL 之后它原样留着**上一条写语句**的计数
+ * （SQLC-030）。按 SQL 文本猜「纯读」会被字面量里的分号、`returning` 字样与 `WITH` 开头的读骗过，这里改看连接的
+ * 累计变更数：执行前后没变，本次就没改任何行；变了才取 `db.changes()`——最近一条写语句的计数，多语句时以最后一条写
+ * 为准，与原契约一致。累计数含触发器改的行，只拿它判「改没改」，不当计数用（Electron 的 node:sqlite 引擎同一判法）。
+ */
+const rowsAffectedSince = (db: Oo1Database, totalChangesBefore: number): number =>
+  db.changes(true) === totalChangesBefore ? 0 : db.changes();
 
 function wrapExecutionError(clientName: string, sql: string, stage: string, error: unknown): never {
   const message = error instanceof Error ? error.message : String(error);
@@ -78,6 +90,7 @@ export function executeOo1Helper(
   const runStart = performance.now();
 
   try {
+    const totalChangesBefore = db.changes(true);
     if (shouldUsePreparedStatementPath(sql) && typeof db.prepare === 'function') {
       const { columns, rows } = getPreparedColumns(clientName, db, sql, bindings);
       const results: SqliteData[] = [];
@@ -88,9 +101,7 @@ export function executeOo1Helper(
       return {
         sql,
         results,
-        // SELECT / EXPLAIN 不产生行变更，`db.changes()` 此时返回的是上一条写语句的遗留计数 ——
-        // 当成本次查询的 rowsAffected 返回会误导调用方（SQLC-030）
-        rowsAffected: isReadOnlyStatement(sql) ? 0 : db.changes(),
+        rowsAffected: rowsAffectedSince(db, totalChangesBefore),
         elapsed: performance.now() - runStart
       };
     }
@@ -106,7 +117,7 @@ export function executeOo1Helper(
       rowMode: 'array'
     });
 
-    const rowsAffected = db.changes();
+    const rowsAffected = rowsAffectedSince(db, totalChangesBefore);
 
     const results: SqliteData[] = [];
     if (columnNames.length) {

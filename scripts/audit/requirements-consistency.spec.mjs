@@ -617,8 +617,31 @@ test('inherited_acs：from 指向不存在的故事、纯数字 ac 超出源 AC 
   );
   const offenders = checkInheritedAcs(await collectStories(dir));
   assert.match(offenders.join('\n'), /US-001-x\.md: inherited_acs 的 from US-999 没有对应的故事文件/);
-  assert.match(offenders.join('\n'), /ac 9 超出 US-002 的 AC 编号行数 1/);
+  assert.match(offenders.join('\n'), /ac 9 超出 US-002 验收标准表的最大编号 1/);
   assert.doesNotMatch(offenders.join('\n'), /US1-AC3/);
+});
+
+// 源故事 AC 表有空洞、不按编号排序时（US-212 的形状：1～26、31～34、27、28，共 32 行；29 / 30 已移出），
+// 表里还在的高编号不能因为「超出行数」被拒；移出的 AC 按约定从源表删除，编号不在表里但在编号范围内照常放行。
+test('inherited_acs：按源 AC 表的最大编号判越界，不按行数', async () => {
+  await scaffold(dir);
+  const rows = [...Array.from({ length: 26 }, (_, i) => i + 1), 31, 32, 33, 34, 27, 28]
+    .map(id => `| ${id} | a | b | c | ✅ |`)
+    .join('\n');
+  await writeFile(
+    path.join(dir, 'requirements/stories/core/US-002-x.md'),
+    story('US-002', 'Done') +
+      `\n## 验收标准\n\n| # | 前置 | 操作 | 预期 | 状态 |\n| --- | --- | --- | --- | --- |\n${rows}\n`
+  );
+  const inherit = ac => `  - from: US-002\n    ac: ${ac}\n    note: x\n`;
+  await writeFile(
+    path.join(dir, 'requirements/stories/core/US-001-x.md'),
+    story('US-001', 'Done', `inherited_acs:\n${inherit(33)}${inherit(34)}${inherit(29)}${inherit(35)}`)
+  );
+  const offenders = checkInheritedAcs(await collectStories(dir));
+  assert.deepEqual(offenders, [
+    'requirements/stories/core/US-001-x.md: inherited_acs 的 ac 35 超出 US-002 验收标准表的最大编号 34'
+  ]);
 });
 
 test('README 大故事清单与「正文含交付阶段」的集合不一致时被抓出', async () => {
@@ -634,6 +657,26 @@ test('README 大故事清单与「正文含交付阶段」的集合不一致时�
   assert.match(offenders.join('\n'), /大故事清单写「现有 2 条」，实际 1 条/);
   assert.match(offenders.join('\n'), /清单 US-001 US-002，实际 US-001/);
   void stories;
+});
+
+test('README 大故事清单整段缺失、为空或格式损坏时同样被抓出；实际没有大故事时不要求清单', async () => {
+  await scaffold(dir);
+  const withoutBigStories = await collectStories(dir);
+  assert.deepEqual(checkBigStoryList('# x\n\n没有清单。\n', withoutBigStories), []);
+  assert.deepEqual(checkBigStoryList('# x\n\n现有 0 条：\n', withoutBigStories), []);
+
+  await writeFile(
+    path.join(dir, 'requirements/stories/core/US-001-x.md'),
+    story('US-001', 'Done') + '\n## 交付阶段\n\n| 阶段 | 范围 | 关闭判据 |\n| --- | --- | --- |\n| A | x | AC#1 |\n'
+  );
+  const stories = await collectStories(dir);
+  assert.match(
+    checkBigStoryList('# x\n\n没有清单。\n', stories).join('\n'),
+    /缺少大故事清单「现有 N 条：」，实际 1 条：US-001/
+  );
+  assert.match(checkBigStoryList('# x\n\n现有 1 条：\n', stories).join('\n'), /清单 （空），实际 US-001/);
+  assert.match(checkBigStoryList('# x\n\n现有 1 条：US-001\n', stories).join('\n'), /清单 （空），实际 US-001/);
+  assert.deepEqual(checkBigStoryList('# x\n\n现有 1 条：[US-001](stories/core/US-001-x.md)\n', stories), []);
 });
 
 // 大故事清单写在 requirements/README.md；run() 曾把仓库根 README.md 传给这道检查，

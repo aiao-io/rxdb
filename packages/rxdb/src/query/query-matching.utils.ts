@@ -118,6 +118,19 @@ const toEpochMs = (field: string, value: unknown): number => {
 /** 两侧任一为 `Date` 即按时间点比较（另一侧可能是 ISO 字符串或毫秒数，见 {@link toEpochMs}）。 */
 const isDateComparison = (left: unknown, right: unknown): boolean => left instanceof Date || right instanceof Date;
 
+/**
+ * `in` / `notIn` 的单个候选是否与实体值相同。
+ *
+ * @remarks
+ * 与 `=` 的日期分支同口径：两侧都非空且任一为 `Date` 时按时间点比——实体水合出来的 `Date`
+ * 与规则里的 `Date` 永远不是同一个对象，引用相等会让 SQL 已命中的行在增量合并里被判出局。
+ * 其余标量保持 `Array.includes` 的 SameValueZero 语义。
+ */
+const isSameMember = (field: string, candidate: unknown, entityValue: unknown): boolean =>
+  candidate !== null && candidate !== undefined && isDateComparison(candidate, entityValue) ?
+    toEpochMs(field, candidate) === toEpochMs(field, entityValue)
+  : [candidate].includes(entityValue);
+
 const compareOrderValues = (left: unknown, right: unknown): number => {
   if (left == null && right == null) return 0;
   if (left == null) return -1;
@@ -216,12 +229,12 @@ const get_entity_match_rule = (rule: RuntimeRule, entity: object): boolean => {
     case 'in':
     case 'notIn': {
       // 类型守卫：这些操作符的规则一定有 value 属性，且上面已经排除了空集合
-      const value = rule.value as unknown[] & { includes: (candidate: unknown) => boolean };
+      const value = rule.value as readonly unknown[];
+      const isMember = (item: unknown) => value.some(candidate => isSameMember(rule.field, candidate, item));
       // entityValue 本身是数组时（stringArray/numberArray 属性），SQL 侧用 json_each 做逐元素
       // IN 匹配（数组与候选列表有交集即命中）；不能把整个数组当一个候选值做 includes——
       // 那是拿数组引用去跟候选值做严格相等比较，结构相同的数组几乎不可能命中。
-      const matches =
-        Array.isArray(entityValue) ? entityValue.some(item => value.includes(item)) : value.includes(entityValue);
+      const matches = Array.isArray(entityValue) ? entityValue.some(isMember) : isMember(entityValue);
       return operator === 'in' ? matches : !matches;
     }
     case 'between':

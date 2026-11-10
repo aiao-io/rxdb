@@ -1,7 +1,8 @@
 import { getOrbitHost, parseResolvedTheme, requestHostTheme, subscribeHostTheme } from '@modules/orbit';
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 
 const THEME_KEY = 'theme';
+const SYSTEM_DARK_QUERY = '(prefers-color-scheme: dark)';
 
 export type ThemeValue = 'light' | 'dark' | 'auto';
 
@@ -26,53 +27,73 @@ interface UseThemeReturn {
   systemIsDark: boolean;
 }
 
+interface ThemeState {
+  readonly currentTheme: ThemeValue;
+  readonly systemIsDark: boolean;
+}
+
+const SERVER_STATE: ThemeState = { currentTheme: 'auto', systemIsDark: false };
+
+// 同页所有 useTheme 共享一份主题（与 Vue 的模块级 ref、Angular 的单例 ThemeService 同口径）：
+// 各自持有状态时一处切换通知不到别处，系统配色一变各份状态还会轮流改写 data-theme
+const listeners = new Set<() => void>();
+let state: ThemeState | undefined;
+let disconnect: (() => void) | undefined;
+
+function readState(): ThemeState {
+  state ??= { currentTheme: readInitialTheme(), systemIsDark: window.matchMedia(SYSTEM_DARK_QUERY).matches };
+  return state;
+}
+
+function resolveTheme({ currentTheme, systemIsDark }: ThemeState): 'light' | 'dark' {
+  if (currentTheme === 'auto') return systemIsDark ? 'dark' : 'light';
+  return currentTheme;
+}
+
+function updateState(patch: Partial<ThemeState>): void {
+  state = { ...readState(), ...patch };
+  document.documentElement.setAttribute('data-theme', resolveTheme(state));
+  for (const listener of listeners) listener();
+}
+
+/** 第一个消费者挂载时接上系统配色与宿主主题；全程只有这一份监听。 */
+function connect(): () => void {
+  const media = window.matchMedia(SYSTEM_DARK_QUERY);
+  const onSystemChange = (event: MediaQueryListEvent) => updateState({ systemIsDark: event.matches });
+  media.addEventListener('change', onSystemChange);
+  const stopHostTheme = subscribeHostTheme(theme => updateState({ currentTheme: theme }));
+  updateState({ systemIsDark: media.matches });
+  return () => {
+    media.removeEventListener('change', onSystemChange);
+    stopHostTheme();
+  };
+}
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+  disconnect ??= connect();
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size > 0) return;
+    disconnect?.();
+    disconnect = undefined;
+    // 全部卸载后，下次挂载按当时的宿主 / localStorage 重新读初值
+    state = undefined;
+  };
+}
+
 export function useTheme(): UseThemeReturn {
-  const [currentTheme, setCurrentTheme] = useState<ThemeValue>(readInitialTheme);
-
-  const [systemIsDark, setSystemIsDark] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
-  });
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = (e: MediaQueryListEvent) => {
-      setSystemIsDark(e.matches);
-    };
-
-    mediaQuery.addEventListener('change', handler);
-    return () => mediaQuery.removeEventListener('change', handler);
-  }, []);
-
-  useEffect(() => subscribeHostTheme(theme => setCurrentTheme(theme)), []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    let effectiveTheme = currentTheme;
-    if (currentTheme === 'auto') {
-      effectiveTheme = systemIsDark ? 'dark' : 'light';
-    }
-
-    document.documentElement.setAttribute('data-theme', effectiveTheme);
-  }, [currentTheme, systemIsDark]);
+  const { currentTheme, systemIsDark } = useSyncExternalStore(subscribe, readState, () => SERVER_STATE);
 
   // 只有用户主动切换才回推宿主；subscribeHostTheme 收到的下发不回推，否则两端互相触发
   const setTheme = (theme: ThemeValue) => {
-    setCurrentTheme(theme);
+    updateState({ currentTheme: theme });
     localStorage.setItem(THEME_KEY, theme);
-    requestHostTheme(
-      theme === 'auto' ?
-        systemIsDark ? 'dark'
-        : 'light'
-      : theme
-    );
+    requestHostTheme(resolveTheme(readState()));
   };
 
-  const currentThemeIsDark = currentTheme === 'auto' ? systemIsDark : currentTheme === 'dark';
-  const currentThemeLightDark: 'light' | 'dark' = currentThemeIsDark ? 'dark' : 'light';
+  const currentThemeLightDark = resolveTheme({ currentTheme, systemIsDark });
+  const currentThemeIsDark = currentThemeLightDark === 'dark';
 
   return {
     currentTheme,

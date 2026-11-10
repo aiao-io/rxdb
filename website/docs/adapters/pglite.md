@@ -161,8 +161,9 @@ const adapter = await rxdb.getAdapter('pglite');
 await adapter.transaction(async (executor: TransactionExecutor) => {
   // 持有 executor 才算「在本事务内」
   const todoRepo = executor.getRepository(Todo);
-  await todoRepo.create({ title: '任务 1' });
-  await todoRepo.create({ title: '任务 2' });
+  // 仓库只收实体实例，不收普通对象
+  await todoRepo.create(rxdb.entityManager.instantiate(Todo, { title: '任务 1' }));
+  await todoRepo.create(rxdb.entityManager.instantiate(Todo, { title: '任务 2' }));
 
   // await new Todo().save(); // ❌ 落回适配器队列并永久挂起
 });
@@ -260,7 +261,7 @@ const adapter = await rxdb.getAdapter('pglite');
 await adapter.transaction(async (executor: TransactionExecutor) => {
   const todoRepo = executor.getRepository(Todo);
   for (const item of largeDataSet) {
-    await todoRepo.create({ title: item.title });
+    await todoRepo.create(rxdb.entityManager.instantiate(Todo, { title: item.title }));
   }
 });
 ```

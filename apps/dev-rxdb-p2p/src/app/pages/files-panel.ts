@@ -401,16 +401,17 @@ export class FilesPanel {
   }
 
   submitReport(file: SharedFileView, category: ReportCategory): Promise<void> {
+    // 标「已举报」放在 action 里、report 成功之后：#run 吞掉失败并正常 resolve，
+    // 挂在它后面的回调在失败时照样会跑，没进后台的举报就成了「已举报」。
     return this.#run(
       async () => {
         await this.workspace.report({ contentHash: file.contentHash, sourceUrl: file.manifest.sourceUrl }, category);
+        this.reporting.set(null);
+        this.reported.set(file.contentHash);
       },
       '举报已提交，管理员会在后台处置。',
       false
-    ).then(() => {
-      this.reporting.set(null);
-      this.reported.set(file.contentHash);
-    });
+    );
   }
 
   async confirmRemoval(): Promise<void> {

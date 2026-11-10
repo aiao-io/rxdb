@@ -12,7 +12,8 @@
  *
  * 空区间与倒置区间（`from > to`）不与任何行冲突：PG 的 `[)` 空区间天然如此，倒置区间在 PG 侧以
  * `CASE` 映射成 `'empty'`——否则范围构造函数先抛 `22000`，与 SQLite 侧的错误类分叉。要拒绝倒置
- * 区间请另加 CHECK（`from <= to`），与「要拒 NULL 须显式 `notNull`」同口径。
+ * 区间请另加 CHECK（`from <= to`），与「要拒 NULL 须显式 `notNull`」同口径。bigint 的 `[]` 维上端点
+ * 取到 int8 最大值时，PG 侧按上方无界构造（离散值域里是同一组取值），不在规范化时溢出。
  *
  * 命名：`ex_` + 表名 + `name` + 规范化定义 8 位哈希；定义含 namespace——SQLite 触发器名是库级的。
  */
@@ -204,18 +205,34 @@ const PG_RANGE_TYPE: Readonly<Record<ExclusionRangeKind, string>> = {
   bigint: 'int8range'
 };
 
+/** int8 的最大值：bigint `[]` 维的上端点取到它时，PG 的范围规范化会溢出。 */
+const INT8_MAX = '9223372036854775807';
+
+/** 只有 bigint 的 `[]` 维有这一分支：上端点等于 int8 最大值时按上方无界构造。 */
+const upperBoundClausePG = (range: CompiledExclusionRange, from: string, to: string): string =>
+  range.kind === 'bigint' && range.bounds === '[]' ?
+    ` WHEN ${to} = ${INT8_MAX} THEN int8range(${from}, NULL, '[)')`
+  : '';
+
 /**
  * PG 侧一维区间的 `EXCLUDE` 元素表达式。
  *
  * @remarks
  * 倒置区间以 `CASE` 映射成 `'empty'`：范围构造函数遇 `from > to` 抛 `22000`，
  * 而 SQLite 触发器把它当空区间放行——两后端都按空区间处理，错误类才不分叉。
+ *
+ * bigint 的 `[]` 维多一个分支：PG 把离散闭区间规范化成 `[from, to + 1)`，`to` 取 int8 最大值时
+ * 抛 `22003`，合法的一行没有任何竞争行也写不进去。离散值域里「≤ 最大值」与「上方无界」是同一组取值，
+ * 这一行按 `int8range(from, NULL, '[)')` 构造，相交判定与 SQLite 触发器一致；冲突键里这一端于是与无界
+ * 同形，PG 上违约归一后的 `ranges` 报 `null`（SQLite 报原值）。表达式进约束名的哈希，这一分支让
+ * bigint `[]` 维的排他换了名，既有库须按迁移说明重建；其余值域与 `[)` 维的表达式逐字不变。
  */
 export const exclusionRangeExpressionPG = (range: CompiledExclusionRange): string => {
   const rangeType = PG_RANGE_TYPE[range.kind];
   const from = quoteSqlIdentifier(range.from.column);
   const to = quoteSqlIdentifier(range.to.column);
-  return `(CASE WHEN ${from} > ${to} THEN 'empty'::${rangeType} ELSE ${rangeType}(${from}, ${to}, '${range.bounds}') END)`;
+  const upperBound = upperBoundClausePG(range, from, to);
+  return `(CASE WHEN ${from} > ${to} THEN 'empty'::${rangeType}${upperBound} ELSE ${rangeType}(${from}, ${to}, '${range.bounds}') END)`;
 };
 
 /**

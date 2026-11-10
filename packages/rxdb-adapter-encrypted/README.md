@@ -168,6 +168,7 @@ the migration flow. A failed v2 authentication is never retried with v1 AAD.
 - No searchable encryption — `where` / `order` / `group` / FTS on encrypted columns is rejected.
 - No key rotation — single `kid` per database for the MVP.
 - No audit log — decrypt failures throw, not persisted.
+- No automatic migration of existing tables — tables created by releases up to 0.0.28 keep the old plaintext column `DEFAULT` text (in `sqlite_master` on SQLite, in the column-default catalog `pg_attrdef` on PGlite); the current version no longer writes it on either backend. On SQLite, rebuild the table (export, drop, recreate, import) to remove it; on PGlite, `ALTER TABLE … ALTER COLUMN … DROP DEFAULT` removes it.
 - No automatic relock on tab visibility — subscribe to `document.visibilitychange` yourself.
 
 ---

@@ -1208,6 +1208,85 @@ describe('InfiniteScrollingList', () => {
       expect(sequence).toEqual(SHARED_STATE_SEQUENCE);
     });
   });
+
+  // RV-01a1bb42cfeb：用户发起的下一页首值未到时，上一页尾边界移动会重锚它；
+  // 加载编号必须随页移交给替代页，否则 isLoading 永远结不了、loadMore 被永久拦截。React / Vue 同款用例
+  describe('在途页被重锚或丢弃时的加载结算', () => {
+    const entity = (id: string) => new MockEntity({ id, name: id.toUpperCase() });
+
+    const openStalledSecondPage = async () => {
+      const first$ = new BehaviorSubject<MockEntity[]>([entity('a'), entity('b')]);
+      const stalled$ = new Subject<MockEntity[]>();
+      const replacement$ = new Subject<MockEntity[]>();
+      const third$ = new Subject<MockEntity[]>();
+      mockRxDB._mockFindByCursor.mockImplementation((options: FindByCursorOptions<typeof TestEntity>) => {
+        const after = options.after as MockEntity | undefined;
+        if (after === undefined) return first$;
+        if (after.id === 'b') return stalled$;
+        return after.id === 'a' ? replacement$ : third$;
+      });
+      const list = TestBed.runInInjectionContext(
+        () => new InfiniteScrollingList(mockRxDB, TestEntity, cursorOptions({ limit: 2 }))
+      );
+      TestBed.flushEffects();
+      await settle();
+      list.loadMore();
+      expect(list.isLoading()).toBe(true);
+
+      return { list, first$, stalled$, replacement$, third$ };
+    };
+
+    const ids = (list: InfiniteScrollingList<typeof TestEntity>) =>
+      list.value().map(item => (item as unknown as MockEntity).id);
+
+    it('替代页返回后结束加载，之后还能继续翻页', async () => {
+      const { list, first$, stalled$, replacement$, third$ } = await openStalledSecondPage();
+
+      first$.next([entity('x'), entity('a')]);
+      expect(stalled$.observed).toBe(false);
+      replacement$.next([entity('b'), entity('c')]);
+      replacement$.complete();
+
+      expect(ids(list)).toEqual(['x', 'a', 'b', 'c']);
+      expect(list.isLoading()).toBe(false);
+      expect(list.hasMore()).toBe(true);
+      expect(list.error()).toBeUndefined();
+      list.loadMore();
+      expect(third$.observed).toBe(true);
+    });
+
+    it('替代页失败时结束加载并报告错误', async () => {
+      const { list, first$, replacement$ } = await openStalledSecondPage();
+
+      first$.next([entity('x'), entity('a')]);
+      replacement$.error(new Error('replacement failed'));
+
+      expect(list.isLoading()).toBe(false);
+      expect(list.error()?.message).toBe('replacement failed');
+    });
+
+    it('替代页一次都没发射就 complete 时结束加载并收敛 hasMore', async () => {
+      const { list, first$, replacement$ } = await openStalledSecondPage();
+
+      first$.next([entity('x'), entity('a')]);
+      replacement$.complete();
+
+      expect(list.isLoading()).toBe(false);
+      expect(list.hasMore()).toBe(false);
+    });
+
+    it('上一页清空、在途的下一页被丢弃时结束加载', async () => {
+      const { list, first$, stalled$ } = await openStalledSecondPage();
+
+      first$.next([]);
+
+      expect(stalled$.observed).toBe(false);
+      expect(list.value()).toEqual([]);
+      expect(list.isLoading()).toBe(false);
+      expect(list.hasMore()).toBe(false);
+      expect(list.isEmpty()).toBe(true);
+    });
+  });
 });
 
 // RAN-012：类在字段初始化器里 `inject(DestroyRef)`，构造器体内还建 effect ——

@@ -16,7 +16,7 @@
  */
 import { RxDBError } from '../RxDBError.js';
 import { formatConfigLiteralsOf, missingFormatConfigKeys } from './format-rules.js';
-import { isPlainRecord, walkJsonContainer, type JsonWalkPath } from './json-safe.js';
+import { firstArrayHole, isPlainRecord, walkJsonContainer, type JsonWalkPath } from './json-safe.js';
 import {
   PropertyType,
   RelationKind,
@@ -628,13 +628,24 @@ const parseError = (path: string, reason: string): RxDBError =>
   new RxDBError(`实体字段描述解析失败：${path} ${reason}`);
 
 /**
+ * 数组不能有空位（判据见 {@link firstArrayHole}）。
+ *
+ * @remarks
+ * 不拦的话解析结果在空位下标上读出 `undefined`，序列化成 `null` 后同一个解析器又拒绝自己的输出。
+ */
+function assertDenseArray(value: readonly unknown[], path: string): void {
+  const hole = firstArrayHole(value);
+  if (hole !== undefined) throw parseError(`${path}[${hole}]`, '是稀疏数组的空位，不是 JSON 值');
+}
+
+/**
  * 递归判定输入是否严格 JSON-safe；不安全值直接失败，不做静默丢弃。
  *
  * @remarks
  * 循环引用也算不安全：不拦就是 `RangeError: Maximum call stack size exceeded`，
  * 会漏过调用方 `catch (e) { if (e instanceof RxDBError) }` 的分支，破坏本函数
  * 「解析失败抛 {@link RxDBError}」的契约。进出场纪律与 `entity-value.utils.ts`
- * 的两个遍历器共用 {@link walkJsonContainer}。
+ * 的两个遍历器共用 {@link walkJsonContainer}。稀疏数组的空位同样不安全（{@link assertDenseArray}）。
  */
 function assertJsonSafe(value: unknown, path: string, walked: JsonWalkPath = new WeakSet()): void {
   if (value === null || typeof value === 'boolean' || typeof value === 'string') return;
@@ -646,6 +657,7 @@ function assertJsonSafe(value: unknown, path: string, walked: JsonWalkPath = new
     throw parseError(path, '存在循环引用');
   };
   if (Array.isArray(value)) {
+    assertDenseArray(value, path);
     const visit = (): void => value.forEach((item, index) => assertJsonSafe(item, `${path}[${index}]`, walked));
     walkJsonContainer(value as object, walked, visit, onCycle);
     return;

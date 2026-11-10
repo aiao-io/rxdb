@@ -68,7 +68,7 @@ const NEGATIVE_PREFIXES = ['负', '-'];
  * - 段内单位必须严格递减（`一百千`、`十十` 抛错）
  * - 同一个段级单位不得连续复用（`一万二万` 抛错；`一万亿`、`一亿二千万` 合法）
  * - 末尾的裸数字落在个位（`一万一` → 10001，`一万一百一` → 10101）
- * - 单位前无数字时数量为 1（`十` → 10，`万` → 10000）
+ * - 单位前无数字时数量为 1（`十` → 10，`万` → 10000）；显式写出的零照算（`零万`、`0亿` → 0）
  *
  * @param s - 待解析字符串，允许首尾空白
  * @returns 解析出的数字
@@ -93,9 +93,9 @@ export function parseChineseNumber(s: string): number {
     throw new Error('无法解析的数字: 负号后没有数字');
   }
 
-  // total 收敛已结算的段，section 是当前段，digits 是当前连续数字串
+  // total 收敛已结算的段，section 是当前段已写出的数量（null 表示本段还没写），digits 是当前连续数字串
   let total = 0;
-  let section = 0;
+  let section: number | null = null;
   let digits: number | null = null;
   let lastSectionUnit = Number.POSITIVE_INFINITY;
   let lastSegmentUnit: number | null = null;
@@ -113,7 +113,7 @@ export function parseChineseNumber(s: string): number {
         throw new Error(`单位顺序非法: ${char} 不能出现在更小的单位之后`);
       }
       lastSectionUnit = sectionUnit;
-      section += (digits ?? 1) * sectionUnit;
+      section = (section ?? 0) + (digits ?? 1) * sectionUnit;
       digits = null;
       continue;
     }
@@ -126,19 +126,20 @@ export function parseChineseNumber(s: string): number {
       throw new Error(`单位顺序非法: ${char} 不能连续复用`);
     }
 
-    section += digits ?? 0;
+    // 只有本段完全没写数量才按 1 计；`|| 1` 会把显式的零（`零万`）也当成没写
+    const quantity = section === null && digits === null ? null : (section ?? 0) + (digits ?? 0);
     digits = null;
     // 「亿」结算它之前的全部内容（`一万亿`），「万」只结算当前段
     total =
       segmentUnit === SEGMENT_UNIT_MAP['亿'] ?
-        (total + section || 1) * segmentUnit
-      : total + (section || 1) * segmentUnit;
-    section = 0;
+        (quantity === null && lastSegmentUnit === null ? 1 : total + (quantity ?? 0)) * segmentUnit
+      : total + (quantity ?? 1) * segmentUnit;
+    section = null;
     lastSectionUnit = Number.POSITIVE_INFINITY;
     lastSegmentUnit = segmentUnit;
   }
 
-  const result = (total + section + (digits ?? 0)) * (negative ? -1 : 1);
+  const result = (total + (section ?? 0) + (digits ?? 0)) * (negative ? -1 : 1);
   if (!Number.isSafeInteger(result)) {
     throw new Error(`无法解析的数字: 结果 ${result} 超出安全整数范围`);
   }

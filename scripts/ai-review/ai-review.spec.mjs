@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
+import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
@@ -478,6 +478,162 @@ test(
     repo.write('packages/core/src/a.ts', 'export const a = 10;\n');
     const worktree = scopeOf(repo, { tree: captureWorktreeTree(repo.dir) });
     assert.deepEqual(coverageStatus(repo.dir, worktree).outstandingPaths, ['packages/core/src/a.ts']);
+  })
+);
+
+const coverageLog = repo =>
+  path.resolve(repo.dir, repo.git('rev-parse', '--git-common-dir'), 'ai-review', 'v1', 'coverage.jsonl');
+
+const coverPaths = (repo, scope, paths, options) =>
+  recordCoverage(
+    repo.dir,
+    scope,
+    { reviewer: REVIEWER, units: paths.map(file => ({ path: file, context: [], findings: [] })) },
+    options
+  );
+
+test(
+  '覆盖日志末尾写断的半行：status 照常；下一批 cover 另起一行封存半行，此前与此后的覆盖都算数',
+  withRepo(repo => {
+    const scope = scopeOf(repo);
+    coverPaths(repo, scope, ['packages/core/src/a.ts']);
+    appendFileSync(coverageLog(repo), '{"v":1,"key":');
+    assert.equal(coverageStatus(repo.dir, scope).covered, 1);
+
+    coverPaths(repo, scope, ['packages/core/src/b.ts']);
+    assert.deepEqual(coverageStatus(repo.dir, scope).outstandingPaths, ['packages/core/project.json']);
+    coverPaths(repo, scope, ['packages/core/project.json']);
+    assert.equal(coverageStatus(repo.dir, scope).complete, true);
+
+    const lines = readFileSync(coverageLog(repo), 'utf8').split('\n');
+    assert.equal(lines[1], '{"v":1,"key":');
+    assert.equal(JSON.parse(lines[2]).sealed, 'torn-tail');
+  })
+);
+
+test(
+  '覆盖日志中间未被封存的损坏行照旧报错，不静默跳过；报错写明成因与恢复办法',
+  withRepo(repo => {
+    const scope = scopeOf(repo);
+    coverPaths(repo, scope, ['packages/core/src/a.ts']);
+    appendFileSync(coverageLog(repo), 'garbage\n');
+    coverPaths(repo, scope, ['packages/core/src/b.ts']);
+    assert.throws(
+      () => coverageStatus(repo.dir, scope),
+      /coverage\.jsonl 第 2 行损坏：.*并发写入被截断.*确认没有 cover 在运行.*删掉这一行再重跑/s
+    );
+  })
+);
+
+test(
+  '检查与写入之间别的进程留下半行：本批第一条粘在半行上，status 报错；按报错的办法删掉那一行，只需补登记那一条',
+  withRepo(repo => {
+    const scope = scopeOf(repo);
+    const log = coverageLog(repo);
+    coverPaths(repo, scope, ['packages/core/src/a.ts']);
+    coverPaths(repo, scope, ['packages/core/src/b.ts']);
+    // appendBatch 看到的末尾本是整行（不写封存标记），写入前别的进程留下了半行：b 那一批的第一条于是粘在半行后面
+    const lines = readFileSync(log, 'utf8').split('\n');
+    writeFileSync(log, [lines[0], `{"v":1,"key":${lines[1]}`, ...lines.slice(2)].join('\n'));
+    assert.throws(() => coverageStatus(repo.dir, scope), /coverage\.jsonl 第 2 行损坏：.*删掉这一行再重跑/s);
+
+    writeFileSync(log, [lines[0], ...lines.slice(2)].join('\n'));
+    assert.deepEqual(coverageStatus(repo.dir, scope).outstandingPaths, [
+      'packages/core/project.json',
+      'packages/core/src/b.ts'
+    ]);
+    coverPaths(repo, scope, ['packages/core/src/b.ts', 'packages/core/project.json']);
+    assert.equal(coverageStatus(repo.dir, scope).complete, true);
+  })
+);
+
+const policyOfCli = repo => JSON.parse(cli(repo.dir, 'status', '--project', 'core').stdout).policy;
+
+test('多个进程同时 cover：各批都完整落盘', async () => {
+  const repo = makeRepo();
+  try {
+    const run = file =>
+      new Promise((resolve, reject) => {
+        const input = path.join(repo.dir, `${path.posix.basename(file)}.json`);
+        writeFileSync(
+          input,
+          JSON.stringify({ reviewer: REVIEWER, units: [{ path: file, context: [], findings: [] }] })
+        );
+        const child = spawn(process.execPath, [SCRIPT, 'cover', '--project', 'core', '--input', input], {
+          cwd: repo.dir
+        });
+        child.on('error', reject);
+        child.on('close', code => (code === 0 ? resolve() : reject(new Error(`cover 退出码 ${code}`))));
+      });
+    await Promise.all(['packages/core/src/a.ts', 'packages/core/src/b.ts', 'packages/core/project.json'].map(run));
+    assert.equal(coverageStatus(repo.dir, scopeOf(repo, { policy: policyOfCli(repo) })).complete, true);
+  } finally {
+    rmSync(repo.dir, { recursive: true, force: true });
+  }
+});
+
+test(
+  'range=branch：整个项目被删除时，删除单元按 base 侧项目归属，原项目名与 all 都选得到',
+  withRepo(repo => {
+    repo.git('checkout', '-q', '-b', 'feature');
+    repo.git('rm', '-q', '-r', 'packages/core');
+    repo.commit('drop core');
+    const scope = scopeOf(repo, { range: 'branch', base: 'main' });
+
+    const dropped = requiredUnits(repo.dir, scope);
+    assert.deepEqual(
+      dropped.units.map(unit => [unit.path, unit.project, unit.blob]),
+      [
+        ['packages/core/project.json', 'core', null],
+        ['packages/core/src/a.ts', 'core', null],
+        ['packages/core/src/b.ts', 'core', null]
+      ]
+    );
+    assert.deepEqual(dropped.excluded, [{ path: 'packages/core/logo.png', reason: 'binary' }]);
+
+    const all = { ...scope, projects: 'all' };
+    assert.deepEqual([coverageStatus(repo.dir, all).required, coverageStatus(repo.dir, all).complete], [3, false]);
+    coverAll(repo, scope);
+    assert.equal(coverageStatus(repo.dir, all).complete, true);
+    assert.throws(() => requiredUnits(repo.dir, scopeOf(repo)), /未知项目 core/);
+  })
+);
+
+test(
+  'range=branch：项目改名后，删掉的文件记在原名下，保留与改动的文件记在新名下',
+  withRepo(repo => {
+    repo.git('checkout', '-q', '-b', 'feature');
+    repo.write('packages/core/project.json', JSON.stringify({ name: 'core-next' }));
+    repo.remove('packages/core/src/b.ts');
+    repo.commit('rename core');
+    const scope = projects => scopeOf(repo, { range: 'branch', base: 'main', projects });
+
+    assert.deepEqual(
+      requiredUnits(repo.dir, scope(['core'])).units.map(unit => unit.path),
+      ['packages/core/src/b.ts']
+    );
+    assert.deepEqual(
+      requiredUnits(repo.dir, scope(['core-next'])).units.map(unit => unit.path),
+      ['packages/core/project.json']
+    );
+  })
+);
+
+test(
+  'since 按时刻比较：同一秒内毫秒在后的覆盖算开始之后，带时区与不带毫秒的写法等价；非法时间报错',
+  withRepo(repo => {
+    const scope = scopeOf(repo);
+    const units = requiredUnits(repo.dir, scope).units.map(unit => unit.path);
+    coverPaths(repo, scope, units, { now: new Date('2026-11-08T08:10:30.500Z') });
+    const covered = since => coverageStatus(repo.dir, scope, { since }).covered;
+
+    assert.equal(covered('2026-11-08T08:10:30Z'), 3);
+    assert.equal(covered('2026-11-08T08:10:30.000Z'), 3);
+    assert.equal(covered('2026-11-08T16:10:30+08:00'), 3);
+    assert.equal(covered('2026-11-08T08:10:30.500Z'), 3);
+    assert.equal(covered('2026-11-08T08:10:30.501Z'), 0);
+    assert.equal(covered('2026-11-08T08:10:31Z'), 0);
+    assert.throws(() => covered('yesterday'), /--since 不是合法的时间：yesterday/);
   })
 );
 

@@ -18,7 +18,8 @@ export function formatDateToYmd(date: Date | string | null | undefined): string 
  * 将 YYYY-MM-DD 字符串解析为本地时区的 Date。
  *
  * @param ymd YYYY-MM-DD 格式的日期字符串
- * @returns 本地时区当天 00:00:00 的 Date 对象；输入为空、段数不为 3 或任一段 parseInt 结果为 NaN 时返回 null
+ * @returns 本地时区当天 00:00:00 的 Date 对象；输入为空、段数不为 3、任一段 parseInt 结果为 NaN，
+ * 或不是存在的日历日期（`2023-02-29`、`2024-04-31`、`2024-13-01`）时返回 null
  */
 export function parseYmdToLocalDate(ymd: string | null | undefined): Date | null {
   if (!ymd) return null;
@@ -31,5 +32,7 @@ export function parseYmdToLocalDate(ymd: string | null | undefined): Date | null
   const date = new Date();
   date.setFullYear(year, month - 1, day);
   date.setHours(0, 0, 0, 0);
-  return date;
+  // setFullYear 会把越界的月 / 日进位到别的日子，回读不一致说明输入的日期不存在
+  const exists = date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+  return exists ? date : null;
 }

@@ -359,6 +359,29 @@ describe('useTreeMenuStore', () => {
     expect(result.current.writeError).toBeNull();
   });
 
+  it('搜索时临时展开用户折叠的祖先路径：命中项可见，展开集合不变，清空搜索后恢复折叠', () => {
+    const root = makeMenu('root', null, 'a0');
+    const nested = makeMenu('nested', 'root', 'a0');
+    const target = makeMenu('target', 'nested', 'a0');
+    target.title = 'Target Menu';
+    const menus = [root, nested, target];
+    const { result } = renderHook(() => useTreeMenuStore(menus, rxdb));
+    act(() => result.current.collapseAll());
+
+    act(() => result.current.setSearchKeyword('target'));
+
+    expect(result.current.treeNodes.map(node => [node.menu.id, node.isExpanded])).toEqual([
+      ['root', true],
+      ['nested', true],
+      ['target', false]
+    ]);
+    expect(result.current.expandedIds.size).toBe(0);
+
+    act(() => result.current.setSearchKeyword(''));
+
+    expect(result.current.treeNodes.map(node => node.menu.id)).toEqual(['root']);
+  });
+
   describe('expandedIds 与异步数据', () => {
     it('menus 异步到达后应补齐父节点展开状态', () => {
       const parent = makeMenu('p', null, 'a0');
