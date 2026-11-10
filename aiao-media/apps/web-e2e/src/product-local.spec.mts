@@ -206,9 +206,11 @@ test('主站不公开后台入口，后台路径不回落到主站页面', async
 
   for (const pathname of ['/admin', '/admin/']) {
     const response = await page.request.get(pathname);
-    expect(response.status()).toBe(404);
+    expect(response.status()).toBe(200);
     await expect(page.goto(pathname)).resolves.toBeTruthy();
-    await expect(page.getByText('后台已迁移', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: '后台管理', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '管理员登录', exact: true })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: '主导航', exact: true })).toHaveCount(0);
   }
 });
 

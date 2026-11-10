@@ -212,7 +212,7 @@ async function main(action) {
     const env = { ...process.env, ...publicEnv };
     // Build with the local public Auth settings before starting the production worker.
     // Keep service-role credentials in this Node process and out of the client build.
-    await run('pnpm', ['exec', 'nx', 'run', 'aiao-media:offline-assets'], {
+    await run('pnpm', ['exec', 'nx', 'run', 'aiao-media:package-admin'], {
       env
     });
     await run(
@@ -225,6 +225,8 @@ async function main(action) {
         'dev',
         '--config',
         'wrangler.json',
+        '--env',
+        'local-first',
         '--local',
         '--port',
         '4399',
