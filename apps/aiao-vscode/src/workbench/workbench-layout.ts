@@ -1,10 +1,12 @@
 import { iconMarkup } from './workbench-icons.js';
 import { workbenchStyle } from './workbench-style.js';
+import { getWorkbenchDisplayMode } from './display-mode.js';
 
 /** 创建 VS Code 风格工作台外壳，内容面板随后交给 Dockview 管理。 */
 export function createWorkbenchLayout(host: HTMLElement, assetBaseURL: string): HTMLElement {
   const root = document.createElement('section');
   root.className = 'ao-workbench';
+  root.dataset['displayMode'] = getWorkbenchDisplayMode(host.ownerDocument.defaultView);
   root.tabIndex = -1;
   root.setAttribute('aria-label', '浏览器开发工作台');
   const shortcutKey = /mac/i.test(host.ownerDocument.defaultView?.navigator.platform ?? '') ? '⌘' : 'Ctrl';
