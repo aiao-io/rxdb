@@ -1,4 +1,4 @@
-import { createDeepSeek } from '@ai-sdk/deepseek';
+import { createOpenAI } from '@ai-sdk/openai';
 import { APICallError, Output, streamText } from 'ai';
 import { z } from 'zod';
 import { ModelGenerationOutputSchema } from './prompts/model-schema';
@@ -52,6 +52,36 @@ function aiError(error: unknown): AiErrorBody {
   return { type: 'server', message: 'AI service is unavailable', status: 502 };
 }
 
+function aiErrorDetails(error: unknown): Record<string, unknown> {
+  if (APICallError.isInstance(error)) {
+    let endpoint = 'unknown';
+    try {
+      const url = new URL(error.url);
+      endpoint = `${url.origin}${url.pathname}`;
+    } catch {
+      endpoint = 'invalid-url';
+    }
+    const cause = error.cause;
+    return {
+      kind: 'api-call',
+      endpoint,
+      statusCode: error.statusCode,
+      isRetryable: error.isRetryable,
+      causeName: cause instanceof Error ? cause.name : undefined,
+      causeCode: cause && typeof cause === 'object' && 'code' in cause ? cause.code : undefined
+    };
+  }
+  return {
+    kind: error instanceof Error ? error.name : typeof error,
+    causeCode: error && typeof error === 'object' && 'code' in error ? error.code : undefined
+  };
+}
+
+function reportAiError(error: unknown): string {
+  console.error('[aiao-model-design] AI upstream request failed', aiErrorDetails(error));
+  return JSON.stringify(aiError(error));
+}
+
 function existingContext(existing: z.infer<typeof GenerateBody>['existingModel']): string | undefined {
   if (!existing) return undefined;
   const lines = [`已有实体名称：${existing.entityNames.join(', ')}`];
@@ -60,11 +90,11 @@ function existingContext(existing: z.infer<typeof GenerateBody>['existingModel']
 }
 
 function model(env: AiEnvironment) {
-  const provider = createDeepSeek({
+  const provider = createOpenAI({
     apiKey: env.DEEPSEEK_API_KEY,
     baseURL: (env.DEEPSEEK_BASE_URL ?? 'https://api.deepseek.com/v1').replace(/\/$/, '')
   });
-  return provider(env.DEEPSEEK_MODEL ?? 'deepseek-flash');
+  return provider.responses(env.DEEPSEEK_MODEL ?? 'deepseek-flash');
 }
 
 /** 模型生成和迭代统一输出 AI SDK UI Message SSE。 */
@@ -91,7 +121,7 @@ export async function createAiResponse(request: Request, env: AiEnvironment): Pr
         maxRetries: 0
       }).toUIMessageStreamResponse({
         headers: { 'cache-control': 'no-store, no-transform' },
-        onError: error => JSON.stringify(aiError(error))
+        onError: reportAiError
       });
     }
     const input = ChatBody.parse(parsed.data);
@@ -104,9 +134,10 @@ export async function createAiResponse(request: Request, env: AiEnvironment): Pr
     });
     return result.toUIMessageStreamResponse({
       headers: { 'cache-control': 'no-store, no-transform' },
-      onError: error => JSON.stringify(aiError(error))
+      onError: reportAiError
     });
   } catch (error) {
+    reportAiError(error);
     const body = aiError(error);
     return Response.json(body, { status: body.status });
   }

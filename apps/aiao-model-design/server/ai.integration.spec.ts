@@ -9,17 +9,17 @@ const env: EdgeEnvironment = {
   ASSETS: { fetch: async () => new Response('frontend') }
 };
 
-function completion(content: string): Response {
-  const base = { id: 'completion-id', object: 'chat.completion.chunk', created: 1, model: 'deepseek-chat' };
+function responsesStream(content: string): Response {
   const chunks = [
-    { ...base, choices: [{ index: 0, delta: { role: 'assistant', content }, finish_reason: null }] },
     {
-      ...base,
-      choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
-      usage: { prompt_tokens: 5, completion_tokens: 5, total_tokens: 10 }
-    }
+      type: 'response.output_text.delta',
+      item_id: 'message-id',
+      output_index: 0,
+      delta: content
+    },
+    { type: 'response.completed', response: {} }
   ];
-  return new Response(chunks.map(chunk => `data: ${JSON.stringify(chunk)}\n\n`).join('') + 'data: [DONE]\n\n', {
+  return new Response(chunks.map(chunk => `event: ${chunk.type}\ndata: ${JSON.stringify(chunk)}\n\n`).join(''), {
     headers: { 'content-type': 'text/event-stream' }
   });
 }
@@ -36,7 +36,7 @@ it.each([
   const upstream = vi.fn<typeof fetch>().mockImplementation(async input => {
     const url = String(input);
     if (url.endsWith('/auth/v1/user')) return Response.json(user);
-    if (url.endsWith('/chat/completions')) return completion(content);
+    if (url.endsWith('/responses')) return responsesStream(content);
     throw new Error(`Unexpected upstream: ${url}`);
   });
   vi.stubGlobal('fetch', upstream);
@@ -61,12 +61,12 @@ it.each([
       .join('')
   ).toBe(content);
   expect(text).toMatch(/data: \[DONE\]\n\n$/);
-  const call = upstream.mock.calls.find(([url]) => String(url).endsWith('/chat/completions'));
+  const call = upstream.mock.calls.find(([url]) => String(url).endsWith('/responses'));
   expect(call).toBeDefined();
   expect(new Headers(call?.[1]?.headers).get('authorization')).toBe('Bearer test-server-key');
   const payload = JSON.parse(String(call?.[1]?.body));
   expect(payload.model).toBe('deepseek-flash');
-  expect(payload.messages[0].role).toBe('system');
+  expect(payload.input[0].role).toBe('system');
   expect(text).not.toContain('test-server-key');
 });
 

@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAiResponse } from './ai';
 
-const { runStream, createProvider, model, toSseResponse } = vi.hoisted(() => {
-  const model = vi.fn(() => 'deepseek-model');
-  return { runStream: vi.fn(), createProvider: vi.fn(() => model), model, toSseResponse: vi.fn() };
+const { runStream, createProvider, responses, toSseResponse } = vi.hoisted(() => {
+  const responses = vi.fn(() => 'responses-model');
+  return { runStream: vi.fn(), createProvider: vi.fn(() => ({ responses })), responses, toSseResponse: vi.fn() };
 });
 vi.mock('ai', async importOriginal => ({ ...(await importOriginal<typeof import('ai')>()), streamText: runStream }));
-vi.mock('@ai-sdk/deepseek', () => ({ createDeepSeek: createProvider }));
+vi.mock('@ai-sdk/openai', () => ({ createOpenAI: createProvider }));
 const env = { DEEPSEEK_API_KEY: 'server-only-key' };
 const post = (path: string, body: unknown, signal?: AbortSignal) =>
   new Request(`https://designer.example/api/ai/model/${path}`, {
@@ -35,13 +35,14 @@ describe('模型生成协议', () => {
     expect(response.headers.get('cache-control')).toContain('no-transform');
     expect(await response.text()).toBe('data: [DONE]\n\n');
     expect(runStream.mock.calls[0][0]).toMatchObject({
-      model: 'deepseek-model',
+      model: 'responses-model',
       prompt: '生成订单模型',
       maxRetries: 0
     });
     expect(runStream.mock.calls[0][0].system).toContain('双向关系');
     expect(runStream.mock.calls[0][0].output).toBeDefined();
     expect(createProvider).toHaveBeenCalledWith({ apiKey: 'server-only-key', baseURL: 'https://api.deepseek.com/v1' });
+    expect(responses).toHaveBeenCalledWith('deepseek-flash');
   });
   it('现有实体和 UUID 加入增量生成上下文', async () => {
     await createAiResponse(
@@ -65,7 +66,7 @@ describe('模型生成协议', () => {
       DEEPSEEK_MODEL: 'deepseek-v4-pro'
     });
     expect(createProvider).toHaveBeenCalledWith({ apiKey: 'server-only-key', baseURL: 'https://proxy.example/v1' });
-    expect(model).toHaveBeenCalledWith('deepseek-v4-pro');
+    expect(responses).toHaveBeenCalledWith('deepseek-v4-pro');
   });
   it('缺少密钥时返回 503', async () => {
     expect((await createAiResponse(post('generate', { prompt: '订单' }), {})).status).toBe(503);
