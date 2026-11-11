@@ -41,6 +41,7 @@ describe('模型生成协议', () => {
     });
     expect(runStream.mock.calls[0][0].system).toContain('双向关系');
     expect(runStream.mock.calls[0][0].output).toBeDefined();
+    expect(runStream.mock.calls[0][0].providerOptions).toEqual({ openai: { strictJsonSchema: false } });
     expect(createProvider).toHaveBeenCalledWith({ apiKey: 'server-only-key', baseURL: 'https://api.deepseek.com/v1' });
     expect(responses).toHaveBeenCalledWith('deepseek-flash');
   });

@@ -62,13 +62,20 @@ function aiErrorDetails(error: unknown): Record<string, unknown> {
       endpoint = 'invalid-url';
     }
     const cause = error.cause;
+    const errorData = error.data;
+    const upstreamError =
+      errorData && typeof errorData === 'object' && 'error' in errorData && errorData.error && typeof errorData.error === 'object'
+        ? errorData.error
+        : undefined;
     return {
       kind: 'api-call',
       endpoint,
       statusCode: error.statusCode,
       isRetryable: error.isRetryable,
       causeName: cause instanceof Error ? cause.name : undefined,
-      causeCode: cause && typeof cause === 'object' && 'code' in cause ? cause.code : undefined
+      causeCode: cause && typeof cause === 'object' && 'code' in cause ? cause.code : undefined,
+      upstreamCode: upstreamError && 'code' in upstreamError ? upstreamError.code : undefined,
+      upstreamMessage: upstreamError && 'message' in upstreamError ? upstreamError.message : undefined
     };
   }
   return {
@@ -115,6 +122,7 @@ export async function createAiResponse(request: Request, env: AiEnvironment): Pr
       return streamText({
         model: model(env),
         output: Output.object({ schema: ModelGenerationOutputSchema }),
+        providerOptions: { openai: { strictJsonSchema: false } },
         system: buildSystemGeneratePrompt(existingContext(input.existingModel)),
         prompt: input.prompt,
         abortSignal,
