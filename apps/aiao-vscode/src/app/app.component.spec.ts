@@ -127,6 +127,15 @@ describe('AppComponent workbench mount', () => {
     fixture.destroy();
   });
 
+  it('does not mount after the component is destroyed while waiting for the database', async () => {
+    const fixture = createComponentFixture();
+    fixture.detectChanges();
+    fixture.destroy();
+    connected.next(true);
+    await Promise.resolve();
+    expect(mocks.mount).not.toHaveBeenCalled();
+  });
+
   it('Tab 缩进源码，Mod+Enter 保留 CodeMirror 的插入行行为', async () => {
     const fixture = createComponentFixture();
     fixture.detectChanges();

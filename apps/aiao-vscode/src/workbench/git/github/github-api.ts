@@ -365,8 +365,9 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
       }
       while (subtrees.length) {
         const subtree = subtrees.pop()!;
-        if (seenTrees.has(subtree.sha)) continue;
-        seenTrees.add(subtree.sha);
+        const treeKey = `${subtree.path}\0${subtree.sha}`;
+        if (seenTrees.has(treeKey)) continue;
+        seenTrees.add(treeKey);
         const json = asRecord(await requestJson(`${base}/${subtree.sha}`, {}, true));
         const raw = json['tree'];
         if (!Array.isArray(raw)) throw new GitHubApiError('invalid_response', '子树响应缺少 tree');

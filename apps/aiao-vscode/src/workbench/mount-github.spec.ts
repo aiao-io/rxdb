@@ -30,6 +30,8 @@ function fixture(withGithub = true): {
   catalog: WorkbenchCatalog & Record<string, ReturnType<typeof vi.fn>>;
   githubApi: GitHubApi;
   githubAuth: GitHubAuth;
+  compiler: { compile: ReturnType<typeof vi.fn> };
+  releaseGitHubAuth: ReturnType<typeof vi.fn>;
 } {
   const backend = {
     open: vi.fn(async (projectId: string) => ({ projectId, revision: 'head-1', files: {} })),
@@ -74,9 +76,10 @@ function fixture(withGithub = true): {
   const mountEditor = vi.fn<WorkbenchEditorMount>(() => editorHandle);
   const compiler = { compile: vi.fn(async () => ({ js: '', css: '' })), dispose: vi.fn() };
   const githubApi = {} as GitHubApi;
+  const releaseGitHubAuth = vi.fn();
   const githubAuth = {
     getSession: vi.fn(async () => null),
-    subscribe: vi.fn(() => () => undefined),
+    subscribe: vi.fn(() => releaseGitHubAuth),
     logout: vi.fn(async () => undefined)
   } as unknown as GitHubAuth;
   const host = document.createElement('div');
@@ -92,7 +95,7 @@ function fixture(withGithub = true): {
     mountEditor
   );
   instances.push(handle);
-  return { host, backend, catalog, githubApi, githubAuth };
+  return { host, backend, catalog, githubApi, githubAuth, compiler, releaseGitHubAuth };
 }
 
 describe('GitHub welcome view entry', () => {
@@ -153,5 +156,26 @@ describe('GitHub welcome view entry', () => {
     const onLogin = (mocks.requestRepository.mock.calls[0][2] as { onLogin: () => void }).onLogin;
     onLogin();
     expect(mocks.requestLogin).toHaveBeenCalledWith(host.querySelector('.ao-workbench'), { auth: githubAuth });
+  });
+
+  it('does not compile a GitHub project whose catalog entry has no preview entry point', async () => {
+    const { host, backend, compiler, githubApi } = fixture();
+    await vi.waitFor(() => expect(host.querySelector('[data-welcome-action="open-github"]')).not.toBeNull());
+    mocks.requestRepository.mockResolvedValue({ owner: 'octo', repo: 'repo', branch: 'main' });
+    host.querySelector<HTMLButtonElement>('[data-welcome-action="open-github"]')!.click();
+
+    await vi.waitFor(() => expect(backend.open).toHaveBeenCalledWith('github:octo/repo@main'));
+    expect(compiler.compile).not.toHaveBeenCalled();
+    expect(mocks.requestRepository).toHaveBeenCalledWith(
+      host.querySelector('.ao-workbench'),
+      githubApi,
+      expect.any(Object)
+    );
+  });
+
+  it('releases the GitHub auth subscription when the workbench is disposed', () => {
+    const { releaseGitHubAuth } = fixture();
+    instances.at(-1)!.dispose();
+    expect(releaseGitHubAuth).toHaveBeenCalledOnce();
   });
 });

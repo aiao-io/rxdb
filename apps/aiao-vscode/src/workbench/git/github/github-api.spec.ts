@@ -218,6 +218,30 @@ describe('GitHub API client', () => {
     expect(calledUrl(1).url).toContain('/git/trees/tree-sub');
   });
 
+  it('keeps identical subtree SHAs under each directory path', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        truncated: true,
+        tree: [
+          { path: 'src', type: 'tree', sha: 'tree-shared' },
+          { path: 'lib', type: 'tree', sha: 'tree-shared' }
+        ]
+      })
+    );
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        { tree: [{ path: 'a.ts', type: 'blob', sha: 'blob-a', mode: '100644' }] },
+        { headers: { ETag: '"tree-shared"' } }
+      )
+    );
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 304 }));
+
+    await expect(api.getTreeFiles('octo', 'one', 'root-sha')).resolves.toEqual([
+      { path: 'lib/a.ts', sha: 'blob-a', mode: '100644' },
+      { path: 'src/a.ts', sha: 'blob-a', mode: '100644' }
+    ]);
+  });
+
   it('uses a complete recursive tree without refetching subtrees', async () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse({

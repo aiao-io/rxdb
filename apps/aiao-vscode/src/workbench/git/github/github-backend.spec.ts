@@ -434,7 +434,7 @@ describe('GitHub virtual repository backend', () => {
         })
     );
     const pulling = backend.pull!(id);
-    await vi.waitFor(() => expect(api.getBlobContents).toHaveBeenCalledWith('octo', 'repo', 'sha-src/a.ts'));
+    await vi.waitFor(() => expect(api.getBlobContents).toHaveBeenCalledTimes(4));
     await backend.save(id, { 'src/a.ts': 'saved during pull' }, 'head-1');
     finish(text('remote a'));
 
@@ -455,7 +455,7 @@ describe('GitHub virtual repository backend', () => {
         })
     );
     const pulling = backend.pull!(id);
-    await vi.waitFor(() => expect(api.getBlobContents).toHaveBeenCalledWith('octo', 'repo', 'sha-src/a.ts'));
+    await vi.waitFor(() => expect(api.getBlobContents).toHaveBeenCalledTimes(4));
     await backend.stage(id, ['src/a.ts']);
     finish(text('hello a'));
 

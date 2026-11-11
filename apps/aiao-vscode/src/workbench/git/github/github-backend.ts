@@ -200,15 +200,19 @@ export function createGitHubBackend(options: GitHubBackendOptions): WorkbenchBac
     const files = new Map<string, Uint8Array>();
     const queue = [...entries];
     let totalBytes = 0;
+    let aborted = false;
     const workers = Array.from({ length: Math.min(fetchConcurrency, queue.length || 1) }, async () => {
-      while (queue.length) {
+      while (queue.length && !aborted) {
         const entry = queue.shift()!;
         const bytes = await api.getBlobContents(owner, repo, entry.sha);
+        if (aborted) return;
         if (bytes.byteLength > maxFileBytes) {
+          aborted = true;
           throw new GitWorkbenchError('resource_limit', `文件超过工作台上限（${maxFileBytes} 字节）：${entry.path}`);
         }
         totalBytes += bytes.byteLength;
         if (totalBytes > GIT_WORKBENCH_LIMITS.totalBytes) {
+          aborted = true;
           throw new GitWorkbenchError(
             'resource_limit',
             `项目内容超过工作台上限（${GIT_WORKBENCH_LIMITS.totalBytes} 字节）`
@@ -348,19 +352,27 @@ export function createGitHubBackend(options: GitHubBackendOptions): WorkbenchBac
       assertGitPath(from);
       assertGitPath(to);
       const project = state(projectId);
-      if (to === from || to.startsWith(`${from}/`)) {
+      const normalizedFrom = from.toLocaleLowerCase('en-US');
+      const normalizedTo = to.toLocaleLowerCase('en-US');
+      if (normalizedTo === normalizedFrom || normalizedTo.startsWith(`${normalizedFrom}/`)) {
         throw new GitWorkbenchError('path_collision', `目标位于源路径内部：${to}`);
       }
       const moved = [...project.buffer.keys()].filter(path => path === from || path.startsWith(`${from}/`));
       if (!moved.length) {
         throw new GitWorkbenchError('invalid_path', `文件不存在：${from}`);
       }
-      const next = new Map(project.buffer);
+      const movedSet = new Set(moved);
+      const remaining = [...project.buffer.keys()].filter(path => !movedSet.has(path));
+      const relocated = moved.map(path => `${to}${path.slice(from.length)}`);
+      if (relocated.some(path => project.buffer.has(path) && !movedSet.has(path))) {
+        throw new GitWorkbenchError('path_collision', `目标已存在：${to}`);
+      }
+      assertNoPathCollisions([...remaining, ...relocated]);
+      const next = new Map<string, FileValue>();
+      for (const path of remaining) next.set(path, project.buffer.get(path)!);
       for (const path of moved) {
-        next.delete(path);
         next.set(`${to}${path.slice(from.length)}`, project.buffer.get(path)!);
       }
-      assertNoPathCollisions([...next.keys()]);
       project.buffer = next;
       project.mutation++;
     },
