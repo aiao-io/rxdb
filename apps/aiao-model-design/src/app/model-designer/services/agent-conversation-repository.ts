@@ -4,7 +4,7 @@ import type { ChatSessionPersistedState } from '@trigger.dev/sdk/chat';
 import type { UIMessage } from 'ai';
 import { firstValueFrom } from 'rxjs';
 import type { ModelOp, ModelSnapshot } from '../../../../shared/model-ops/types';
-import { AgentConversation } from '../models/index.js';
+import { AgentBranch, AgentConversation } from '../models/index.js';
 import { writeModelOps } from './model-ops-writer';
 import { loadModelSnapshot } from './model-snapshot';
 
@@ -21,6 +21,15 @@ export interface ConversationRecord {
   /** 上一轮结束时的会话流游标，刷新后从这里续流 */
   cursor: ChatSessionPersistedState | null;
   lastUsedAt: Date;
+}
+
+/** 正在预览的 AI 分支：刷新页面后据此恢复合并、丢弃入口与差异预览。 */
+export interface AiBranchRecord {
+  branchId: string;
+  parentBranchId: string;
+  modelDesignId: string;
+  /** fork 前的模型快照，差异预览以它为起点 */
+  forkBase: ModelSnapshot;
 }
 
 function toRecord(row: AgentConversation): ConversationRecord {
@@ -83,6 +92,38 @@ export class AgentConversationRepository {
 
   async remove(id: string): Promise<void> {
     await (await firstValueFrom(AgentConversation.get(id as UUID))).remove();
+  }
+
+  async findBranch(branchId: string): Promise<AiBranchRecord | null> {
+    const row = await this.#branchRow(branchId);
+    if (!row) return null;
+    return {
+      branchId: row.branchId,
+      parentBranchId: row.parentBranchId,
+      modelDesignId: row.modelDesignId,
+      forkBase: row.forkBase as unknown as ModelSnapshot
+    };
+  }
+
+  async saveBranch(record: AiBranchRecord): Promise<void> {
+    const row = this.#rxdb.entityManager.instantiate(AgentBranch, {
+      ...record,
+      forkBase: record.forkBase as unknown as Record<string, unknown>
+    });
+    await row.save();
+  }
+
+  /** 合并或丢弃之后调用；记录已不存在时什么也不做。 */
+  async removeBranch(branchId: string): Promise<void> {
+    await (await this.#branchRow(branchId))?.remove();
+  }
+
+  async #branchRow(branchId: string): Promise<AgentBranch | undefined> {
+    const where = {
+      combinator: 'and' as const,
+      rules: [{ field: 'branchId' as const, operator: '=' as const, value: branchId }]
+    };
+    return (await firstValueFrom(AgentBranch.find({ where })))[0];
   }
 }
 

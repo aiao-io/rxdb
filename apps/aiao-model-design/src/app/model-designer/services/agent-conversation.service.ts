@@ -26,7 +26,10 @@ import type { AiOperationState } from './ai-state.types';
 import { ModelDesignService } from './model-design.service';
 
 /** AI 写入只进 AI 分支；合并或丢弃由用户决定。 */
-export type AgentBranchControl = Pick<AiBranchService, 'forkAiBranch' | 'mergeAiBranch' | 'discardAiBranch'>;
+export type AgentBranchControl = Pick<
+  AiBranchService,
+  'forkAiBranch' | 'mergeAiBranch' | 'discardAiBranch' | 'activeAiBranchId'
+>;
 
 /** 分支控制注入令牌，默认绑定 RxDB 的版本管理。 */
 export const AGENT_BRANCH_CONTROL = new InjectionToken<AgentBranchControl>('AGENT_BRANCH_CONTROL', {
@@ -91,6 +94,8 @@ export class AgentConversationService {
   readonly #error = signal<string | null>(null);
   #queue: Promise<void> = Promise.resolve();
   #loading: Promise<void> = Promise.resolve();
+  /** 启动时恢复上次没处理完的 AI 分支；首次写入前要等它，免得在 AI 分支上再 fork 一层 */
+  readonly #restoring: Promise<void>;
   readonly #record = computed(() => this.#records().find(record => record.id === this.activeSessionId()));
 
   /** 当前活跃会话 ID */
@@ -156,8 +161,9 @@ export class AgentConversationService {
   constructor() {
     effect(() => {
       const designId = this.#modelDesign.activeDesign()?.id;
-      untracked(() => (this.#loading = this.#loadRecords(designId)));
+      untracked(() => (this.#loading = this.#background(this.#loadRecords(designId))));
     });
+    this.#restoring = this.#background(this.#restoreBranch());
     void this.refreshAvailability();
   }
 
@@ -172,9 +178,11 @@ export class AgentConversationService {
     await this.#loading;
     const designId = this.#modelDesign.activeDesign()?.id;
     if (!designId) return;
-    const record = await this.#repository.create(designId, NEW_SESSION_NAME);
-    this.#records.update(list => [record, ...list]);
-    this.selectSession(record.id);
+    await this.#guarded(async () => {
+      const record = await this.#repository.create(designId, NEW_SESSION_NAME);
+      this.#records.update(list => [record, ...list]);
+      this.selectSession(record.id);
+    });
   }
 
   selectSession(id: string): void {
@@ -191,12 +199,14 @@ export class AgentConversationService {
 
   async deleteSession(id: string): Promise<void> {
     if (this.activeSessionId() === id) this.backToList();
-    if (!this.#records().some(record => record.id === id)) return this.#legacy.deleteSession(id);
-    const open = this.#opened.get(id);
-    this.#opened.delete(id);
-    if (open?.chat.status === 'streaming' || open?.chat.status === 'submitted') await open.chat.stop();
-    await this.#repository.remove(id);
-    this.#records.update(list => list.filter(record => record.id !== id));
+    await this.#guarded(async () => {
+      if (!this.#records().some(record => record.id === id)) return this.#legacy.deleteSession(id);
+      const open = this.#opened.get(id);
+      this.#opened.delete(id);
+      if (open?.chat.status === 'streaming' || open?.chat.status === 'submitted') await open.chat.stop();
+      await this.#repository.remove(id);
+      this.#records.update(list => list.filter(record => record.id !== id));
+    });
   }
 
   async send(text: string): Promise<void> {
@@ -229,8 +239,10 @@ export class AgentConversationService {
   async stop(): Promise<void> {
     const active = this.#active();
     if (!active) return;
-    await active.transport.stopGeneration(active.chatId);
-    await active.chat.stop();
+    await this.#guarded(async () => {
+      await active.transport.stopGeneration(active.chatId);
+      await active.chat.stop();
+    });
   }
 
   async retry(): Promise<void> {
@@ -246,17 +258,23 @@ export class AgentConversationService {
   async confirmMerge(): Promise<void> {
     const branch = this.#aiBranch();
     if (!branch) return;
-    await this.#queue;
-    await this.#branch.mergeAiBranch(branch.branchId, branch.parentBranchId);
-    this.#clearBranch();
+    await this.#guarded(async () => {
+      await this.#queue;
+      await this.#branch.mergeAiBranch(branch.branchId, branch.parentBranchId);
+      this.#clearBranch();
+      await this.#repository.removeBranch(branch.branchId);
+    });
   }
 
   async discard(): Promise<void> {
     const branch = this.#aiBranch();
     if (!branch) return;
-    await this.#queue;
-    await this.#branch.discardAiBranch(branch.branchId, branch.parentBranchId);
-    this.#clearBranch();
+    await this.#guarded(async () => {
+      await this.#queue;
+      await this.#branch.discardAiBranch(branch.branchId, branch.parentBranchId);
+      this.#clearBranch();
+      await this.#repository.removeBranch(branch.branchId);
+    });
   }
 
   async #resolveAvailability(): Promise<AgentAvailability> {
@@ -273,7 +291,8 @@ export class AgentConversationService {
 
   async #loadRecords(designId: string | undefined): Promise<void> {
     this.backToList();
-    this.#records.set(designId ? await this.#repository.list(designId) : []);
+    this.#records.set([]);
+    if (designId) this.#records.set(await this.#repository.list(designId));
   }
 
   #open(record: ConversationRecord): void {
@@ -294,7 +313,7 @@ export class AgentConversationService {
     open.transport = watchTransport(base, {
       sent: messages => {
         open.record.messages = messages;
-        void this.#persist(open);
+        void this.#background(this.#persist(open));
       },
       toolOutput: (toolCallId, output) => {
         if (hasModelOps(output)) this.#enqueue(open, [{ toolCallId, ops: output.ops }]);
@@ -304,8 +323,8 @@ export class AgentConversationService {
       id: chatId,
       messages: record.messages,
       transport: open.transport,
-      onFinish: () => void this.#afterTurn(open),
-      onError: () => void this.#afterTurn(open)
+      onFinish: () => void this.#background(this.#afterTurn(open)),
+      onError: () => void this.#background(this.#afterTurn(open))
     });
     this.#opened.set(record.id, open);
     this.#active.set(open);
@@ -322,7 +341,7 @@ export class AgentConversationService {
   #firstCursor(open: OpenConversation, state: ChatSessionPersistedState | null): void {
     if (open.record.cursor || !state) return;
     open.record.cursor = cursorOf(state);
-    void this.#persist(open);
+    void this.#background(this.#persist(open));
   }
 
   async #prepareTurn(open: OpenConversation): Promise<void> {
@@ -334,7 +353,7 @@ export class AgentConversationService {
 
   #enqueue(open: OpenConversation, outputs: PendingToolOutput[]): void {
     if (!outputs.length) return;
-    this.#queue = this.#queue.then(() => this.#apply(open, outputs)).catch(error => this.#error.set(messageOf(error)));
+    this.#queue = this.#background(this.#queue.then(() => this.#apply(open, outputs)));
   }
 
   async #apply(open: OpenConversation, outputs: PendingToolOutput[]): Promise<void> {
@@ -349,31 +368,59 @@ export class AgentConversationService {
     }
     open.record.appliedToolCallIds = [...applied];
     await this.#persist(open);
+    await this.#refreshDiff(designId);
+  }
+
+  async #refreshDiff(designId: string): Promise<void> {
     const base = this.#forkBase();
     if (base) this.#sessionDiff.set(toBranchDiff(diffSnapshots(base, await this.#store.snapshot(designId))));
   }
 
+  /** 首次写入时 fork，并把分支与 fork 前的模型记下来，刷新页面后据此恢复。 */
   async #ensureBranch(designId: string): Promise<void> {
+    await this.#restoring;
     if (this.#aiBranch()) return;
-    const base = await this.#store.snapshot(designId);
-    this.#aiBranch.set(await this.#branch.forkAiBranch(designId));
-    this.#forkBase.set(base);
+    const forkBase = await this.#store.snapshot(designId);
+    const branch = await this.#branch.forkAiBranch(designId);
+    this.#aiBranch.set(branch);
+    this.#forkBase.set(forkBase);
     this.#guard.setPendingBranch(designId);
+    await this.#repository.saveBranch({ ...branch, modelDesignId: designId, forkBase });
   }
 
+  /** 刷新页面后数据库仍停在 AI 分支上：按 fork 记录恢复预览，后续写入接着这条分支。 */
+  async #restoreBranch(): Promise<void> {
+    const branchId = await this.#branch.activeAiBranchId();
+    if (!branchId) return;
+    const record = await this.#repository.findBranch(branchId);
+    if (!record)
+      throw new Error(`当前停在 AI 分支 ${branchId} 上，但找不到它的 fork 记录，请在版本管理里合并或删除这条分支`);
+    this.#aiBranch.set({ branchId, parentBranchId: record.parentBranchId });
+    this.#forkBase.set(record.forkBase);
+    this.#guard.setPendingBranch(record.modelDesignId);
+    await this.#refreshDiff(record.modelDesignId);
+  }
+
+  /** 先保存本轮对话与续流位置，再记下轮末的模型作为下一轮的基线；读模型失败不会丢掉本轮对话。 */
   async #afterTurn(open: OpenConversation): Promise<void> {
     await this.#queue;
     open.record.messages = open.chat.messages;
     open.record.cursor = cursorOf(open.transport.getSession(open.chatId)) ?? open.record.cursor;
-    open.record.baseline = await this.#store.snapshot(open.record.modelDesignId);
     open.record.lastUsedAt = new Date();
+    await this.#persist(open);
+    open.record.baseline = await this.#store.snapshot(open.record.modelDesignId);
     await this.#persist(open);
   }
 
   /** 用户发起的操作：开始前清掉上一次的错误，失败时把原因显示在面板上。 */
   async #guarded(task: () => Promise<void>): Promise<void> {
     this.#error.set(null);
-    await task().catch(error => this.#error.set(messageOf(error)));
+    await this.#background(task());
+  }
+
+  /** 后台收尾（保存会话、写入工具输出、加载会话列表）失败时，同样把原因显示在面板上。 */
+  #background(task: Promise<void>): Promise<void> {
+    return task.catch(error => this.#error.set(messageOf(error)));
   }
 
   /** 会话被删除后，后台仍在收尾的那一轮不再写回。 */

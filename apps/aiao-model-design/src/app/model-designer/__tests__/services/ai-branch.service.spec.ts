@@ -60,17 +60,15 @@ describe('AiBranchService', () => {
     });
   });
 
-  describe('detectOrphanBranches', () => {
-    it('should detect ai- prefixed branches', () => {
-      const service = createService();
-      const branches = [
-        { id: 'main', parentId: null },
-        { id: 'ai-model1-123', parentId: 'main' },
-        { id: 'feature-branch', parentId: 'main' }
-      ];
-      const orphans = service.filterOrphanBranches(branches);
-      expect(orphans).toHaveLength(1);
-      expect(orphans[0].id).toBe('ai-model1-123');
+  describe('activeAiBranchId', () => {
+    it('当前检出的是 AI 分支时返回它的 ID', async () => {
+      const vm = createMockVersionManager();
+      vm.getCurrentBranch.mockResolvedValue({ id: 'ai-model1-123', parentId: 'main' });
+      expect(await createService(vm).activeAiBranchId()).toBe('ai-model1-123');
+    });
+
+    it('当前在普通分支上时返回 null', async () => {
+      expect(await createService().activeAiBranchId()).toBeNull();
     });
   });
 

@@ -1,8 +1,11 @@
 /**
  * AI 子分支生命周期管理服务
  *
- * 管理 AI 操作的分支创建、合并、丢弃和孤立分支检测。
+ * 管理 AI 操作的分支创建、合并、丢弃，以及刷新页面后识别仍检出着的 AI 分支。
  */
+
+/** AI 子分支的 ID 前缀 */
+const AI_BRANCH_PREFIX = 'ai-';
 
 /** 版本管理器接口 */
 interface VersionManagerLike {
@@ -33,7 +36,7 @@ export class AiBranchService {
     void modelDesignId;
     const parent = await this.#versionManager.getCurrentBranch();
     const parentBranchId = parent?.id ?? 'main';
-    const branchId = `ai-${Date.now().toString(36)}`;
+    const branchId = `${AI_BRANCH_PREFIX}${Date.now().toString(36)}`;
     await this.#versionManager.createBranch(branchId);
     await this.#versionManager.switchBranch(branchId);
     return { branchId, parentBranchId };
@@ -56,10 +59,13 @@ export class AiBranchService {
   }
 
   /**
-   * 过滤出孤立的 AI 分支（ai- 前缀）
+   * 当前检出的是 AI 分支时返回它的 ID
+   *
+   * 检出的分支保存在数据库里：fork 之后既没合并也没丢弃就刷新页面，重新打开时仍停在这条分支上。
    */
-  filterOrphanBranches(branches: { id: string; parentId: string | null }[]): { id: string; parentId: string | null }[] {
-    return branches.filter(b => b.id.startsWith('ai-'));
+  async activeAiBranchId(): Promise<string | null> {
+    const current = await this.#versionManager.getCurrentBranch();
+    return current.id.startsWith(AI_BRANCH_PREFIX) ? current.id : null;
   }
 
   /**

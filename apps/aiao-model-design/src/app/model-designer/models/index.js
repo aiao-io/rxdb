@@ -683,5 +683,54 @@ AgentConversation = __decorateClass(
 ],
 AgentConversation
 );
-const ENTITIES = [ AgentConversation, ChatMessage, ChatSession, DesignEntity, DesignIndex, DesignProperty, DesignRelation, ModelDesign ];
-export { ENTITIES, AgentConversation, ChatMessage, ChatSession, DesignEntity, DesignIndex, DesignProperty, DesignRelation, ModelDesign };
+let AgentBranch = class extends EntityBase {};
+AgentBranch = __decorateClass(
+[
+  Entity({
+  name: "AgentBranch",
+  displayName: "AI 智能体分支",
+  log: false,
+  properties: [
+    {
+      name: "branchId",
+      type: PropertyType.string,
+      displayName: "AI 分支",
+      columnName: "branchId"
+    },
+    {
+      name: "parentBranchId",
+      type: PropertyType.string,
+      displayName: "父分支",
+      columnName: "parentBranchId"
+    },
+    {
+      name: "modelDesignId",
+      type: PropertyType.string,
+      displayName: "所属模型设计",
+      columnName: "modelDesignId"
+    },
+    {
+      name: "forkBase",
+      type: PropertyType.json,
+      displayName: "fork 前的模型快照",
+      columnName: "forkBase"
+    }
+  ],
+  repository: "Repository",
+  namespace: "public",
+  relations: [],
+  indexes: [],
+  foreignKeys: [],
+  checks: [],
+  exclusions: [],
+  computedProperties: [],
+  extends: [
+    "EntityBase"
+  ],
+  tableName: "AgentBranch"
+})
+],
+AgentBranch
+);
+const ENTITIES = [ AgentBranch, AgentConversation, ChatMessage, ChatSession, DesignEntity, DesignIndex, DesignProperty, DesignRelation, ModelDesign ];
+export { ENTITIES, AgentBranch, AgentConversation, ChatMessage, ChatSession, DesignEntity, DesignIndex, DesignProperty, DesignRelation, ModelDesign };

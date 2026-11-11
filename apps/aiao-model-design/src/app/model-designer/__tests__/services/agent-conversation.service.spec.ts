@@ -1,4 +1,4 @@
-import { signal } from '@angular/core';
+import { signal, type WritableSignal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { ChatSessionPersistedState } from '@trigger.dev/sdk/chat';
 import type { UIMessage, UIMessageChunk } from 'ai';
@@ -9,6 +9,7 @@ import { AGENT_GATEWAY, type AgentGateway } from '../../interfaces/designer.inte
 import {
   AgentConversationRepository,
   AgentModelStore,
+  type AiBranchRecord,
   type ConversationRecord
 } from '../../services/agent-conversation-repository';
 import {
@@ -125,6 +126,21 @@ class MemoryRepository {
   async remove(id: string) {
     this.rows.delete(id);
   }
+
+  readonly branches = new Map<string, AiBranchRecord>();
+
+  async findBranch(branchId: string) {
+    const record = this.branches.get(branchId);
+    return record ? structuredClone(record) : null;
+  }
+
+  async saveBranch(record: AiBranchRecord) {
+    this.branches.set(record.branchId, structuredClone(record));
+  }
+
+  async removeBranch(branchId: string) {
+    this.branches.delete(branchId);
+  }
 }
 
 describe('AgentConversationService', () => {
@@ -137,9 +153,11 @@ describe('AgentConversationService', () => {
     forkAiBranch: ReturnType<typeof vi.fn>;
     mergeAiBranch: ReturnType<typeof vi.fn>;
     discardAiBranch: ReturnType<typeof vi.fn>;
+    activeAiBranchId: ReturnType<typeof vi.fn>;
   };
   let gateway: AgentGateway;
   let legacyDelete: ReturnType<typeof vi.fn>;
+  let activeDesign: WritableSignal<{ id: string }>;
 
   function setup(overrides: { gateway?: AgentGateway | null } = {}) {
     TestBed.configureTestingModule({
@@ -168,7 +186,7 @@ describe('AgentConversationService', () => {
           provide: AGENT_TRANSPORT_FACTORY,
           useValue: (options: AgentTransportOptions) => transports[transports.push(new FakeTransport(options)) - 1]
         },
-        { provide: ModelDesignService, useValue: { activeDesign: signal({ id: 'design-1' }) } },
+        { provide: ModelDesignService, useValue: { activeDesign } },
         {
           provide: AiChatSessionService,
           useValue: {
@@ -195,10 +213,12 @@ describe('AgentConversationService', () => {
     writes = [];
     failWrite = null;
     legacyDelete = vi.fn(async () => undefined);
+    activeDesign = signal({ id: 'design-1' });
     branch = {
       forkAiBranch: vi.fn(async () => ({ branchId: 'ai-1', parentBranchId: 'main' })),
       mergeAiBranch: vi.fn(async () => undefined),
-      discardAiBranch: vi.fn(async () => undefined)
+      discardAiBranch: vi.fn(async () => undefined),
+      activeAiBranchId: vi.fn(async (): Promise<string | null> => null)
     };
     gateway = {
       config: async () => ({ enabled: true, apiUrl: 'https://trigger.example.com', task: 'model-designer' }),
@@ -480,6 +500,129 @@ describe('AgentConversationService', () => {
     transports[0].options.onSession({ publicAccessToken: 'late', lastEventId: 'evt-9' });
     await Promise.resolve();
     expect(repository.rows.size).toBe(0);
+  });
+
+  it('轮末读不出快照时显示原因，本轮对话与续流位置照样保存', async () => {
+    const service = setup();
+    await ready(service);
+    await service.createSession();
+    const store = TestBed.inject(AgentModelStore);
+    const read = store.snapshot.bind(store);
+    let reads = 0;
+    store.snapshot = async designId => {
+      if (++reads > 1) throw new Error('读不出模型');
+      return read(designId);
+    };
+    transports[0].responses.push(turn('a1', text('好的')));
+    await service.send('你好');
+    await vi.waitFor(() => expect(service.error()).toBe('读不出模型'));
+    const saved = repository.rows.get('conversation-1');
+    expect(saved?.messages.map(message => message.role)).toEqual(['user', 'assistant']);
+    expect(saved?.cursor).toEqual({ publicAccessToken: 'pat', lastEventId: 'evt-1' });
+  });
+
+  it('保存会话失败时显示原因', async () => {
+    const service = setup();
+    await ready(service);
+    await service.createSession();
+    repository.save = async () => {
+      throw new Error('磁盘已满');
+    };
+    await service.send('你好');
+    await vi.waitFor(() => expect(service.error()).toBe('磁盘已满'));
+  });
+
+  it('读不出会话列表时显示原因，不留着上一个设计的会话', async () => {
+    await repository.create('design-1', '上一个设计的会话');
+    const service = setup();
+    await ready(service);
+    await vi.waitFor(() => expect(service.sessions().map(item => item.name)).toContain('上一个设计的会话'));
+    repository.list = async () => {
+      throw new Error('数据库未就绪');
+    };
+    activeDesign.set({ id: 'design-2' });
+    TestBed.tick();
+    await vi.waitFor(() => expect(service.error()).toBe('数据库未就绪'));
+    expect(service.sessions().map(item => item.name)).not.toContain('上一个设计的会话');
+  });
+
+  it('停止失败时显示原因', async () => {
+    const service = setup();
+    await ready(service);
+    await service.createSession();
+    transports[0].stopGeneration = async () => {
+      throw new Error('网络断开');
+    };
+    await service.stop();
+    expect(service.error()).toBe('网络断开');
+  });
+
+  it('合并失败时显示原因，AI 分支保留以便重试', async () => {
+    branch.mergeAiBranch = vi.fn(async () => {
+      throw new Error('分支已不存在');
+    });
+    const service = setup();
+    await ready(service);
+    await service.createSession();
+    transports[0].responses.push(
+      turn('a1', toolOutput('c1', 'remove_entities', { ok: true, ops: removeOrder, summary: 'x' }))
+    );
+    await service.send('删');
+    await vi.waitFor(() => expect(service.currentBranchId()).toBe('ai-1'));
+    await service.confirmMerge();
+    expect(service.error()).toBe('分支已不存在');
+    expect(service.currentBranchId()).toBe('ai-1');
+  });
+
+  it('fork 时记下 AI 分支与 fork 前的模型，合并后删掉这条记录', async () => {
+    const service = setup();
+    await ready(service);
+    await service.createSession();
+    transports[0].responses.push(
+      turn('a1', toolOutput('c1', 'remove_entities', { ok: true, ops: removeOrder, summary: 'x' }))
+    );
+    await service.send('删');
+    await vi.waitFor(() => expect(repository.branches.get('ai-1')).toBeDefined());
+    expect(repository.branches.get('ai-1')).toEqual({
+      branchId: 'ai-1',
+      parentBranchId: 'main',
+      modelDesignId: 'design-1',
+      forkBase: sampleShop()
+    });
+    await service.confirmMerge();
+    expect(repository.branches.size).toBe(0);
+  });
+
+  it('刷新后数据库仍停在 AI 分支上时恢复预览，后续写入接着这条分支', async () => {
+    const forkBase = sampleShop();
+    model = { entities: forkBase.entities.filter(entity => entity.id !== 'e-order') };
+    branch.activeAiBranchId.mockResolvedValue('ai-7');
+    await repository.saveBranch({ branchId: 'ai-7', parentBranchId: 'main', modelDesignId: 'design-1', forkBase });
+    const service = setup();
+    await ready(service);
+    await vi.waitFor(() => expect(service.currentBranchId()).toBe('ai-7'));
+    expect(service.operationState()).toBe('previewing');
+    expect(service.sessionDiff().deleted).toEqual([{ type: 'entity', name: 'Order' }]);
+    expect(TestBed.inject(AiOperationGuardService).pendingBranchId()).toBe('design-1');
+    await service.createSession();
+    const addTag: ModelOp[] = [
+      { op: 'addEntity', entity: { id: 'e-tag', name: 'Tag', displayName: null, entityNamespace: null } }
+    ];
+    transports[0].responses.push(turn('a1', toolOutput('c1', 'add_entities', { ok: true, ops: addTag, summary: 'x' })));
+    await service.send('加标签');
+    await vi.waitFor(() => expect(writes).toEqual([addTag]));
+    expect(branch.forkAiBranch).not.toHaveBeenCalled();
+    await service.confirmMerge();
+    expect(branch.mergeAiBranch).toHaveBeenCalledWith('ai-7', 'main');
+    expect(repository.branches.size).toBe(0);
+  });
+
+  it('停在 AI 分支上却找不到 fork 记录时说明原因，不恢复预览', async () => {
+    branch.activeAiBranchId.mockResolvedValue('ai-9');
+    const service = setup();
+    await ready(service);
+    await vi.waitFor(() => expect(service.error()).toContain('ai-9'));
+    expect(service.currentBranchId()).toBeNull();
   });
 
   it('旧会话只读展示，删除走旧会话服务', async () => {

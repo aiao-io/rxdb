@@ -1,6 +1,7 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import {
+  AgentBranch,
   AgentConversation,
   ChatMessage,
   ChatSession,
@@ -28,7 +29,8 @@ export async function createDesignerDatabase(): Promise<RxDB> {
       DesignIndex,
       ChatSession,
       ChatMessage,
-      AgentConversation
+      AgentConversation,
+      AgentBranch
     ],
     sync: { type: SyncType.None, local: { adapter: 'sqlite-wasm' } }
   });

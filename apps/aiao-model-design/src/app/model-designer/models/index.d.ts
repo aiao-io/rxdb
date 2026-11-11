@@ -2046,6 +2046,37 @@ AgentConversationRule>;
 declare type AgentConversationOrderByField = "id" | "createdAt" | "updatedAt" | "createdBy" | "updatedBy" | "name" | "modelDesignId" | "transcript" | "appliedToolCallIds" | "baseline" | "cursor" | "lastUsedAt";
 
 /**
+ * rule
+ */
+declare type AgentBranchRule = UUIDRules<AgentBranch, 'id'>
+| DateRules<AgentBranch, 'createdAt'>
+| DateRules<AgentBranch, 'updatedAt'>
+| StringRules<AgentBranch, 'createdBy'>
+| StringRules<AgentBranch, 'updatedBy'>
+| StringRules<AgentBranch, 'branchId'>
+| StringRules<AgentBranch, 'parentBranchId'>
+| StringRules<AgentBranch, 'modelDesignId'>;
+
+/**
+ * RuleGroupBase
+ */
+export declare type AgentBranchRuleGroup = RuleGroupBase<typeof AgentBranch,
+  |'id'
+  |'createdAt'
+  |'updatedAt'
+  |'createdBy'
+  |'updatedBy'
+  |'branchId'
+  |'parentBranchId'
+  |'modelDesignId',
+AgentBranchRule>;
+
+/**
+ * OrderByField
+ */
+declare type AgentBranchOrderByField = "id" | "createdAt" | "updatedAt" | "createdBy" | "updatedBy" | "branchId" | "parentBranchId" | "modelDesignId" | "forkBase";
+
+/**
  * rxdb
  */
 declare module "@aiao/rxdb" {
@@ -2085,6 +2116,10 @@ declare module "@aiao/rxdb" {
      * AI 智能体会话
      */
     AgentConversation: typeof AgentConversation;
+    /**
+     * AI 智能体分支
+     */
+    AgentBranch: typeof AgentBranch;
   }
 }
 
@@ -2706,6 +2741,66 @@ export interface AgentConversationInitData {
    * 最近使用时间
    */
   lastUsedAt?: Date;
+}
+
+/**
+ * 静态类型
+ */
+export interface AgentBranchStaticTypes {
+  /**
+   * id 类型
+   */
+  idType: UUID;
+  /**
+   * 查询选项
+   */
+  getOptions: UUID;
+  /**
+   * 查询选项
+   */
+  findOneOrFailOptions: FindOneOrFailOptions<typeof AgentBranch,AgentBranchRuleGroup,AgentBranchOrderByField>;
+  /**
+   * 查询选项
+   */
+  findOptions: FindOptions<typeof AgentBranch,AgentBranchRuleGroup,AgentBranchOrderByField>;
+  /**
+   * 查询选项
+   */
+  findOneOptions: FindOneOptions<typeof AgentBranch,AgentBranchRuleGroup,AgentBranchOrderByField>;
+  /**
+   * 查询选项
+   */
+  findAllOptions: FindAllOptions<typeof AgentBranch,AgentBranchRuleGroup,AgentBranchOrderByField>;
+  /**
+   * 查询选项
+   */
+  findByCursorOptions: FindByCursorOptions<typeof AgentBranch,AgentBranchRuleGroup,AgentBranchOrderByField>;
+  /**
+   * 查询选项
+   */
+  countOptions: CountOptions<typeof AgentBranch,AgentBranchRuleGroup>;
+}
+
+/**
+ * 初始化数据
+ */
+export interface AgentBranchInitData {
+  /**
+   * AI 分支
+   */
+  branchId?: string;
+  /**
+   * 父分支
+   */
+  parentBranchId?: string;
+  /**
+   * 所属模型设计
+   */
+  modelDesignId?: string;
+  /**
+   * fork 前的模型快照
+   */
+  forkBase?: Record<string, unknown>;
 }
 
 /**
@@ -3695,6 +3790,102 @@ export declare class AgentConversation extends EntityBase implements IEntity {
    * AgentConversation.get('123').subscribe(entity => console.log(entity));
    */
   static get(options: UUID): Observable<AgentConversation>;
+  static get<T extends EntityBase>(this: new () => T, id: UUID): Observable<T>;
+}
+
+/**
+ * AI 智能体分支
+ */
+export declare class AgentBranch extends EntityBase implements IEntity {
+  static [ENTITY_STATIC_TYPES]: AgentBranchStaticTypes;
+  /**
+   * AI 分支
+   */
+  branchId: string;
+  /**
+   * fork 前的模型快照
+   */
+  forkBase: Record<string, unknown>;
+  /**
+   * 所属模型设计
+   */
+  modelDesignId: string;
+  /**
+   * 父分支
+   */
+  parentBranchId: string;
+  /**
+   * 删除
+   */
+  remove: () => Promise<this>;
+  /**
+   * 重置数据
+   */
+  reset: () => void;
+  /**
+   * 保存
+   */
+  save: () => Promise<this>;
+  /**
+   * 初始化数据
+   * @param initData 初始化数据
+   */
+  constructor(initData?: AgentBranchInitData);
+  /**
+   * 统计实体数量
+   * @param options 查询选项
+   * @example
+   * AgentBranch.count({ where: { combinator: 'and', rules: [] } }).subscribe(total => console.log(total));
+   */
+  static count(options: CountOptions<typeof AgentBranch,AgentBranchRuleGroup>): Observable<number>;
+  static count<T extends EntityBase>(this: new () => T, options: CountOptions<new () => T>): Observable<number>;
+  /**
+   * 查询多个实体
+   * @param options 查询选项
+   * @example
+   * AgentBranch.find({ where: { combinator: 'and', rules: [] } }).subscribe(list => console.log(list));
+   */
+  static find(options: FindOptions<typeof AgentBranch,AgentBranchRuleGroup,AgentBranchOrderByField>): Observable<AgentBranch[]>;
+  static find<T extends EntityBase>(this: new () => T, options: FindOptions<new () => T>): Observable<T[]>;
+  /**
+   * 查询所有实体
+   * @param options 查询选项
+   * @example
+   * AgentBranch.findAll({ where: { combinator: 'and', rules: [] } }).subscribe(list => console.log(list));
+   */
+  static findAll(options: FindAllOptions<typeof AgentBranch,AgentBranchRuleGroup,AgentBranchOrderByField>): Observable<AgentBranch[]>;
+  static findAll<T extends EntityBase>(this: new () => T, options: FindAllOptions<new () => T>): Observable<T[]>;
+  /**
+   * 游标分页查询
+   * @param options 查询选项
+   * @example
+   * AgentBranch.findByCursor({ where: { combinator: 'and', rules: [] } }).subscribe(list => console.log(list));
+   */
+  static findByCursor(options: FindByCursorOptions<typeof AgentBranch,AgentBranchRuleGroup,AgentBranchOrderByField>): Observable<AgentBranch[]>;
+  static findByCursor<T extends EntityBase>(this: new () => T, options: FindByCursorOptions<new () => T>): Observable<T[]>;
+  /**
+   * 查询单个实体,未找到时返回 null
+   * @param options 查询选项
+   * @example
+   * AgentBranch.findOne({ where: { combinator: 'and', rules: [] } }).subscribe(entity => console.log(entity));
+   */
+  static findOne(options: FindOneOptions<typeof AgentBranch,AgentBranchRuleGroup,AgentBranchOrderByField>): Observable<AgentBranch | null>;
+  static findOne<T extends EntityBase>(this: new () => T, options: FindOneOptions<new () => T>): Observable<T | null>;
+  /**
+   * 查询单个实体,未找到时抛出错误
+   * @param options 查询选项
+   * @example
+   * AgentBranch.findOneOrFail({ where: { combinator: 'and', rules: [] } }).subscribe(entity => console.log(entity));
+   */
+  static findOneOrFail(options: FindOneOrFailOptions<typeof AgentBranch,AgentBranchRuleGroup,AgentBranchOrderByField>): Observable<AgentBranch>;
+  static findOneOrFail<T extends EntityBase>(this: new () => T, options: FindOneOrFailOptions<new () => T>): Observable<T>;
+  /**
+   * 根据 ID 获取单个实体
+   * @param options 查询选项
+   * @example
+   * AgentBranch.get('123').subscribe(entity => console.log(entity));
+   */
+  static get(options: UUID): Observable<AgentBranch>;
   static get<T extends EntityBase>(this: new () => T, id: UUID): Observable<T>;
 }
 
