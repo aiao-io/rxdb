@@ -1373,36 +1373,25 @@ svg {
    ========================================================================== */
 .term{display:flex;flex-direction:column;flex:1;min-height:0;background:#1b1b1d}
 .win[data-app="terminal"]{background:#1b1b1d}
+.xterm-host{display:flex;flex-direction:column;flex:1;min-height:0;background:#1b1b1d}
 .tm-tabs{flex:none;display:flex;align-items:flex-end;gap:0;height:29px;padding:0 8px;background:#2a2a2c;border-bottom:.5px solid rgba(0,0,0,.5)}
 .tm-tab{
-  display:flex;align-items:center;gap:6px;height:23px;padding:0 12px;border-radius:6px 6px 0 0;
-  font-size:11.5px;color:rgba(255,255,255,.5);max-width:180px;
+  display:flex;align-items:center;gap:6px;height:23px;padding:0 12px;border:0;border-radius:6px 6px 0 0;
+  background:transparent;color:rgba(255,255,255,.5);font:inherit;font-size:11.5px;cursor:var(--cur-hand);max-width:180px;
 }
 .tm-tab.on{background:#1b1b1d;color:rgba(255,255,255,.92)}
+.tm-tab:hover{background:rgba(255,255,255,.08);color:rgba(255,255,255,.92)}
 .tm-tab .x{width:13px;height:13px;border-radius:50%;display:grid;place-items:center;opacity:0}
 .tm-tab:hover .x{opacity:.6}
 .tm-tab .x:hover{background:rgba(255,255,255,.14);opacity:1}
-.tm-tab .x svg{width:7px;height:7px}
-.tm-body{
-  flex:1;min-height:0;overflow:auto;padding:8px 12px 14px;
-  font-family:var(--font-mono);font-size:12.5px;line-height:1.45;
-  color:#e6e6e6;cursor:var(--cur-text);-webkit-user-select:text;user-select:text;
-  scrollbar-color:rgba(255,255,255,.25) transparent;
-}
-.tm-body::-webkit-scrollbar{width:11px}
-.tm-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.22);border-radius:6px;border:3px solid transparent;background-clip:padding-box}
-.tm-line{white-space:pre-wrap;word-break:break-word}
-.tm-in{display:flex;flex-wrap:wrap}
-.tm-in .tp{flex:none}
-.tm-in .ed{flex:1;min-width:20px;outline:none;white-space:pre-wrap;word-break:break-word;caret-color:transparent}
-.tm-cur{
-  display:inline-block;width:7px;height:15px;vertical-align:-3px;background:#e6e6e6;
-  animation:blink 1.06s steps(1,end) infinite;margin-left:-1px;
-}
-.tm-body.blur .tm-cur{background:transparent;box-shadow:inset 0 0 0 1px #e6e6e6;animation:none}
-@keyframes blink{0%,50%{opacity:1}50.01%,100%{opacity:0}}
-.tg{color:#4fe07f}.tb2{color:#5fb2ff}.tw2{color:#e6e6e6}.ty{color:#ffd866}.tr{color:#ff6b6b}
-.tc{color:#5fe1e6}.tm2{color:#d68cff}.tdim{color:#8a8a8f}.to{color:#ff9f4a}
+.tm-new-tab{width:24px;padding:0;justify-content:center;font-size:16px;line-height:1}
+.xterm-panels{flex:1;min-height:0}
+.xterm-panel{height:100%;min-height:0;padding:8px 12px 14px}
+.xterm-panel[hidden]{display:none}
+.xterm{height:100%;font-family:var(--font-mono)}
+.xterm .xterm-viewport{overflow-y:auto!important;scrollbar-color:rgba(255,255,255,.25) transparent}
+.xterm .xterm-viewport::-webkit-scrollbar{width:11px}
+.xterm .xterm-viewport::-webkit-scrollbar-thumb{background:rgba(255,255,255,.22);border-radius:6px;border:3px solid transparent;background-clip:padding-box}
 
 /* ==========================================================================
    12. CALCULATOR

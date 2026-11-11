@@ -20,7 +20,11 @@ const server = createServer((request, response) => {
     response.end('Not found');
     return;
   }
-  response.writeHead(200, { 'Content-Type': contentTypes[extname(filePath)] ?? 'application/octet-stream' });
+  response.writeHead(200, {
+    'Content-Type': contentTypes[extname(filePath)] ?? 'application/octet-stream',
+    'Cross-Origin-Opener-Policy': 'same-origin',
+    'Cross-Origin-Embedder-Policy': 'require-corp'
+  });
   createReadStream(filePath).pipe(response);
 });
 
@@ -67,6 +71,38 @@ try {
     return { shell, calculatorWorks };
   });
 
+  await page.evaluate(() => {
+    WM.list.slice().forEach(windowItem => WM.close(windowItem.id));
+    WM.open('terminal', { force: true });
+  });
+  await page.waitForSelector('.win[data-app="terminal"] .xterm', { timeout: 15_000 });
+  await page.waitForTimeout(1_500);
+  await page.locator('.win[data-app="terminal"] .xterm-helper-textarea').focus();
+  await page.keyboard.type('echo VIVARI_SMOKE');
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(
+    () => {
+      const windowItem = WM.list.find(item => item.app === 'terminal');
+      const terminal = windowItem?.terminal?.tabs?.[0]?.terminal;
+      if (!terminal) return false;
+      return Array.from({ length: terminal.rows }, (_, index) => terminal.buffer.active.getLine(index)?.translateToString())
+        .some(line => line?.includes('VIVARI_SMOKE'));
+    },
+    undefined,
+    { timeout: 15_000 }
+  );
+  const terminalState = {
+    crossOriginIsolated: await page.evaluate(() => window.crossOriginIsolated),
+    xterm: await page.locator('.win[data-app="terminal"] .xterm').count() === 1,
+    helperInput: await page.locator('.win[data-app="terminal"] .xterm-helper-textarea').count() === 1,
+    vivariShell: await page.evaluate(() => {
+      const windowItem = WM.list.find(item => item.app === 'terminal');
+      const terminal = windowItem?.terminal?.tabs?.[0]?.terminal;
+      return Boolean(terminal && Array.from({ length: terminal.rows }, (_, index) => terminal.buffer.active.getLine(index)?.translateToString())
+        .some(line => line?.includes('VIVARI_SMOKE')));
+    })
+  };
+
   const launchpad = page.locator('#dock .di[data-app="launchpad"]');
   await launchpad.click();
   await page.waitForSelector('#lpad');
@@ -78,10 +114,10 @@ try {
   await page.evaluate(() => WM.open('notes', { force: true }));
   await page.waitForTimeout(250);
   const notesWorks = await page.locator('.win.front input').count() > 0;
-  const finalChecks = { ...checks, launchpadOpens, launchpadCloses, notesWorks };
+  const finalChecks = { ...checks, terminalState, launchpadOpens, launchpadCloses, notesWorks };
 
   if (errors.length > 0) throw new Error(`Browser errors: ${errors.join(' | ')}`);
-  if (Object.values(finalChecks.shell).some(check => !check) || Object.values(finalChecks).some(check => check === false)) {
+  if (Object.values(finalChecks.shell).some(check => !check) || Object.values(finalChecks.terminalState).some(check => !check) || Object.values(finalChecks).some(check => check === false)) {
     throw new Error(`Smoke checks failed: ${JSON.stringify(finalChecks)}`);
   }
   console.log(JSON.stringify(finalChecks));

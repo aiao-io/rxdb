@@ -19,9 +19,14 @@
           {
             "glob": "**/*",
             "input": "apps/aiao-desktop/public"
+          },
+          {
+            "glob": "**/*",
+            "input": "node_modules/@vivari/core/dist/assets",
+            "output": "assets"
           }
         ],
-        "styles": ["apps/aiao-desktop/src/styles.scss"]
+        "styles": ["apps/aiao-desktop/src/styles.scss", "node_modules/@xterm/xterm/css/xterm.css"]
       },
       "configurations": {
         "production": {
@@ -66,21 +71,22 @@
           "buildTarget": "aiao-desktop:build:production"
         },
         "development": {
-          "buildTarget": "aiao-desktop:build:development"
+          "buildTarget": "aiao-desktop:build:development",
+          "headers": {
+            "Cross-Origin-Opener-Policy": "same-origin",
+            "Cross-Origin-Embedder-Policy": "require-corp"
+          }
         }
       }
     },
     "serve-static": {
       "continuous": true,
-      "readyWhen": {
-        "signal": true
-      },
+      "executor": "nx:run-commands",
       "dependsOn": ["build"],
-      "executor": "@nx/web:file-server",
       "options": {
-        "buildTarget": "aiao-desktop:build",
-        "staticFilePath": "dist/apps/aiao-desktop/browser",
-        "spa": true
+        "command": "node apps/aiao-desktop/tools/serve-static.mjs",
+        "readyWhen": "AIAO_DESKTOP_STATIC_SERVER_READY",
+        "parallel": false
       }
     },
     "lint": {

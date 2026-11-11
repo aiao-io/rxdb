@@ -34,6 +34,6 @@ export class DesktopShell {
   private readonly runtime = inject(DesktopRuntimeService);
 
   constructor() {
-    afterNextRender(() => this.runtime.start());
+    afterNextRender({ write: () => this.runtime.start() });
   }
 }
