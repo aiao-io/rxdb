@@ -8,6 +8,8 @@ anchors:
   [
     'packages/rxdb-plugin-sync/src/pull-repository.ts#pullSingleRepository',
     'packages/rxdb-plugin-sync/src/pull-batch.ts#pullBatchOnce',
+    'packages/rxdb-plugin-sync/src/push-repository.ts#persistPushReceipts',
+    'packages/rxdb-plugin-sync/src/branch-materialization-source.ts#createSyncBranchMaterializationSource',
     'packages/rxdb/src/system/sync.ts#RxDBSync',
     'docker/sql/01-rxdb-system-tables.sql#rxdb_change'
   ]
@@ -102,3 +104,54 @@ pr: null
   - 已有部署按迁移说明先建表、重跑 02 与生产权限脚本，再升级客户端；
   - 升级之前已经发生的重置认不出来，迁移说明给了处理方式；
   - 手工 `ALTER SEQUENCE ... RESTART` 不会换身份，迁移说明要求同时手工换身份。
+
+### EV-01a1c93d75c87d42ba83a4e82bc938b4：复核（修复不完整）
+
+- 时间：2026-11-11T13:21:53+08:00
+- 操作：review/independent
+- 执行者：unknown（仓库根 `CODE_REVIEW.md`，随提交 `e0fea72e726b022777b082dd905bac67b41319e3` 登记，文档未写评审者与模型）；
+  本事件由下一个修复事件的会话按原文转录，原文件随修复删除
+- 输入快照：`2ec740002ad8b63d69f9164c25b3b291f822c2d9`（分支相对 `origin/main`：66 个文件，+2732/−85）
+- 输出快照：同输入（只写了评审文档）
+- 状态：Fixed → Open
+- 结论：远端身份只在同步入口核对一次，两处窗口仍成立，都定 P1：
+  - 复合同步与多轮拉取：`sync()`、`syncRepository()`、`bulkSync()` 与 `fetchAll` 拉取只在入口调 `verifyRemoteBackend()`，
+    途中远端被重建，后续拉取与推送打在新库上，游标与 `lastPushedChangeId` 照样推进（`packages/rxdb-plugin-sync/src/sync-repository.ts:270`、`:291`）；
+  - 分支物化：`freezeIntent()` 冻结的截止 id 没有记下远端身份，`pages()` 的核对只靠已有的 `RxDBSync` 记录，首次物化本地一条记录都没有时，
+    冻结之后的重建认不出来，续拉拿旧库的截止 id 与游标去新库上拉（`packages/rxdb-plugin-sync/src/branch-materialization-source.ts:384`、`:394`）。
+- 验证：静态阅读；typecheck、lint、受影响包的测试与构建通过；`website:build` 在 `api-docs` 处挂起，未计入。
+- 剩余事项：入口之外的核对点与冻结意图的身份绑定；补远端在分页拉取、pull→push 边界、首次物化期间被重建的回归。
+
+### EV-01a1c93d75fd7537bb097c10042552db：修复（复核跟进）
+
+- 时间：2026-11-11T14:26:55+08:00
+- 操作：fix
+- 执行者：ai；anthropic/claude-opus-5-5；会话 ccb89d16-0db5-4eba-a539-cff657e68711（按 `CODE_REVIEW.md` 修上一事件的两处窗口）
+- 输入快照：`e0fea72e726b022777b082dd905bac67b41319e3`（提交视图）
+- 输出快照：工作区树 `dd2d51ccc1d79551f0f615be446b5a0af11d7895`（`ai-review snapshot --worktree`，基于 `8cb62c5b`：会话中途外部以「123」提交了大部分改动）；
+  本记录与 `CODE_REVIEW.md` 的删除不在该树内。
+- 状态：Open → Fixed
+- 结论：两处都成立，第一处的描述要修正：`sync()` 的实体推送经 `sm.bulkSync()` 的入口会再核对一次，「push 照常推进 `lastPushedChangeId`」对它不成立；
+  `syncRepository()`、`bulkSync()` 的先拉后推与多轮拉取成立。在请求之前核对挡不住核对与请求之间的重建，改为在**落库之前**核对：
+  进门那次与这一次夹住的往返才算这个远端上的进度，对不上就停，游标与水位都不推进。
+- 改动：
+  - 拉取：`pullSingleRepository` 每一轮有变更时、`pullBatchOnce` 远端交回变更时，落库事务之前再调 `verifyRemoteBackend()`；空的一轮不核对，不多打远端；
+  - 推送：`persistPushReceipts` 在远端往返（含被拒行回读）全部结束之后、回执事务之前核对，对不上回执与水位都不落，下一次按原水位重推，
+    远端 `(clientId, localId)` 唯一索引保证不重复。复合同步的 pull→push 边界没有另加请求前核对：落库前那一次省不掉，它只会给每个仓库多一趟远端；
+  - 分支物化：冻结水位新增 `backendId`，先于截止 id 读取；`pages()` 开拉之前、每一页交出之前用新增的 `assertRemoteBackendIs()` 比对；
+    `settle()` 把身份随截止 id 一起写进同步记录；`resolveIntentDrift()` 遇到本实例核实过的身份与冻结时不同即报漂移，改绑之后重试按新远端重冻；
+    不带身份的旧意图按形状不符报漂移；
+  - 顺手：`SyncManager.getRepositoryDependencyGraph()` 的 TSDoc 被上一轮插进来的两个方法隔开，挪回原处；
+  - 文档：`sync.md` 远端重置一节、迁移说明、`CHANGELOG.md`、`livestore-research.md` 补途中重建与物化的行为，示例改为从 `RxDBPartialSyncError.cause` 取远端身份错误。
+- 验证：
+  - 修复前红：新增 20 条用例，其中 15 条在旧实现上失败：同步插件 12 条（物化 6、拉取 2、批量拉取 2、推送 2）在 `e0fea72e` 的实现上失败；
+    仓库同步 pull→push 边界那条把 `push-repository.ts` 换回 `e0fea72e` 的版本后失败；sqlite-wasm 两条端到端用例在旧 dist 上切换直接成功，物化出两个库拼起来的数据。
+    其余 5 条是守卫（空轮与无待推不核对、未核实时不判漂移）与 `assertRemoteBackendIs()` 的直接用例；
+  - 修复后（Node 26，均 `--skip-nx-cache`）：`pnpm nx test rxdb-plugin-sync` 558 条通过，覆盖率 95.28 / 88.34 / 97.58 / 96.54；
+    `rxdb-adapter-sqlite-wasm` 1025 条通过、13 条跳过（前两轮全量各有一条 Worker 时序用例超时，`worker-lifecycle` 与 `shared-client`，不涉及同步，单跑通过）；
+    `rxdb-adapter-pglite` 1674 条通过；`rxdb-adapter-supabase` 真栈 664 条通过；两个改动包的 lint 与 typecheck、prettier、
+    `package-graph --check`、`api-surface --check`、`requirements-consistency --check`、`check-doc-code` 通过。
+- 剩余事项：
+  - 复核（verify）；
+  - 远端在某一批写入之前被重建时，这一批仍会先写进新库、到落库前才被发现：本地不记账，之后幂等重推，新库多出的正是改绑之后本来也会推过去的那批。
+    要在写入之前就拦住，得由服务端在推送 RPC 里原子比对身份。
