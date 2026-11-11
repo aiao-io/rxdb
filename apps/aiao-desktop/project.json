@@ -1,0 +1,108 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "aiao-desktop",
+  "prefix": "app",
+  "projectType": "application",
+  "sourceRoot": "apps/aiao-desktop/src",
+  "tags": ["angular-app"],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "dist/apps/aiao-desktop",
+        "browser": "apps/aiao-desktop/src/main.ts",
+        "tsConfig": "apps/aiao-desktop/tsconfig.app.json",
+        "inlineStyleLanguage": "scss",
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "apps/aiao-desktop/public"
+          }
+        ],
+        "styles": ["apps/aiao-desktop/src/styles.scss"]
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "maximumWarning": "1.8mb",
+              "maximumError": "2.1mb",
+              "type": "initial"
+            },
+            {
+              "type": "anyComponentStyle",
+              "maximumWarning": "4kb",
+              "maximumError": "8kb"
+            }
+          ],
+          "outputHashing": "all",
+          "optimization": {
+            "fonts": {
+              "inline": false
+            },
+            "styles": {
+              "inlineCritical": false
+            }
+          }
+        },
+        "development": {
+          "optimization": false,
+          "extractLicenses": false,
+          "sourceMap": true
+        }
+      }
+    },
+    "serve": {
+      "continuous": true,
+      "readyWhen": {
+        "signal": true
+      },
+      "executor": "@angular/build:dev-server",
+      "defaultConfiguration": "development",
+      "configurations": {
+        "production": {
+          "buildTarget": "aiao-desktop:build:production"
+        },
+        "development": {
+          "buildTarget": "aiao-desktop:build:development"
+        }
+      }
+    },
+    "serve-static": {
+      "continuous": true,
+      "readyWhen": {
+        "signal": true
+      },
+      "dependsOn": ["build"],
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "aiao-desktop:build",
+        "staticFilePath": "dist/apps/aiao-desktop/browser",
+        "spa": true
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/aiao-desktop",
+        "command": "eslint . --max-warnings=0"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc -p apps/aiao-desktop/tsconfig.app.json --noEmit --pretty false"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "apps/aiao-desktop",
+        "command": "node tests/smoke.mjs"
+      }
+    }
+  }
+}
