@@ -1541,3 +1541,19 @@
     }
   }
 }
+
+@layer polish {
+  .mode-macos .network-status {
+    display: none;
+  }
+
+  .mode-macos .system-bar .system-tray {
+    gap: 2px;
+  }
+
+  .mode-macos .system-bar .system-tray .tray-clock {
+    width: auto;
+    min-width: 0;
+    padding: 3px 6px;
+  }
+}
