@@ -69,15 +69,8 @@ describe('administrative access and identity', () => {
     const { fixture } = await rig('signed-in', true);
     fixture.detectChanges();
     const element: HTMLElement = fixture.nativeElement;
-    const navigation = element.querySelector('nav[aria-label="后台导航"]');
-    expect([...navigation!.querySelectorAll('button')].map(button => button.textContent?.trim())).toEqual([
-      '用户',
-      '模板',
-      '供应商策略',
-      '任务与用量',
-      '操作审计',
-      '重新载入后台'
-    ]);
+    expect(element.querySelector('nav[aria-label="后台导航"]')).toBeNull();
+    expect(element.querySelector('[data-testid="console-refresh"]')?.textContent).toContain('重新载入');
     expect(element.querySelector('h2')?.textContent).toBe('用户列表');
   });
 

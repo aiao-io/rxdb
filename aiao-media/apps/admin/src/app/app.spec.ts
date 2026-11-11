@@ -139,4 +139,19 @@ describe('App', () => {
     await vi.waitFor(() => expect(fixture.componentInstance.installation()).not.toBeNull());
     expect(fixture.componentInstance.session()).toEqual(session);
   });
+
+  it('刷新时清除已过期的管理员会话', async () => {
+    localStorage.setItem(
+      ADMIN_SESSION_STORAGE_KEY,
+      JSON.stringify({ accessToken: 'expired-session', expiresAt: Date.now() - 1, user: { id: 'owner' } })
+    );
+    vi.mocked(fetch).mockResolvedValueOnce(Response.json(ready));
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    await vi.waitFor(() => expect(fixture.componentInstance.installation()).not.toBeNull());
+    fixture.detectChanges();
+    expect(fixture.componentInstance.session()).toBeNull();
+    expect(localStorage.getItem(ADMIN_SESSION_STORAGE_KEY)).toBeNull();
+    expect(fixture.nativeElement.querySelector('.access-shell')).not.toBeNull();
+  });
 });

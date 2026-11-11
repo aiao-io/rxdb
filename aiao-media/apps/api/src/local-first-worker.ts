@@ -1,10 +1,12 @@
-import { Hono } from 'hono';
+import { swaggerUI } from '@hono/swagger-ui';
+import { OpenAPIHono } from '@hono/zod-openapi';
 import { handleAdmin } from './admin-api.ts';
 import { installation } from './installation.ts';
 import { publishedTemplates, runtimePolicy } from './product-content.ts';
 import { endpoint } from './product-http.ts';
 import { json, providerAllowlist, relayInput } from './relay-input.ts';
 import { handleRelayTask } from './relay-task-api.ts';
+import { apiRoutes, openApiDocument } from './openapi.ts';
 import type { WorkerEnv } from './worker-env.ts';
 
 export { Installation } from './installation.ts';
@@ -270,7 +272,10 @@ function lateRelayResponse(
   );
 }
 type ApiEnv = { Bindings: WorkerEnv };
-const app = new Hono<ApiEnv>();
+const app = new OpenAPIHono<ApiEnv>();
+for (const route of Object.values(apiRoutes)) app.openAPIRegistry.registerPath(route);
+app.doc31('/api/openapi.json', openApiDocument);
+app.get('/api/docs', swaggerUI({ url: '/api/openapi.json' }));
 
 async function configuredEnvironment(env: WorkerEnv): Promise<WorkerEnv> {
   const setup = installation(env);
