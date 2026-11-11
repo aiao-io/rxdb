@@ -31,6 +31,7 @@ export class DockMotion {
     root.addEventListener('pointerdown', this.point, options);
     root.addEventListener('pointerleave', this.leave, options);
     root.addEventListener('pointercancel', this.leave, options);
+    root.addEventListener('click', this.click, options);
     root.addEventListener('focusin', this.focus, options);
     root.addEventListener('focusout', this.unfocus, options);
     root.addEventListener('toggle', this.menu, { ...options, capture: true });
@@ -112,6 +113,14 @@ export class DockMotion {
     this.pointer = null;
     this.focused = -1;
     this.kick();
+  };
+
+  private readonly click = (event: MouseEvent) => {
+    if (!this.enabled || !(event.target instanceof Element)) return;
+    const item = event.target.closest<HTMLElement>('[data-dock-item]');
+    if (!item || item.classList.contains('running')) return;
+    const id = item.dataset['dockId'];
+    if (id) this.bounce(id);
   };
 
   private readonly keyboard = (event: KeyboardEvent) => {

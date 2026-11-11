@@ -51,7 +51,12 @@ export function openWindow(
     '实例或窗口身份已存在'
   );
   const offset = (model.windows.length % 6) * 28;
-  const bounds = constrainBounds({ x: 90 + offset, y: 48 + offset, width: 800, height: 520 }, area);
+  const bounds = constrainBounds(
+    model.mode === 'macos' ?
+      { x: 40 + offset, y: 25 + offset, width: 940, height: 600 }
+    : { x: 90 + offset, y: 48 + offset, width: 800, height: 520 },
+    area
+  );
   const win: WindowRecord = {
     id,
     instanceId,

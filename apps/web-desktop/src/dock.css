@@ -4,14 +4,14 @@
   justify-content: center;
 }
 .mode-macos .app-bar {
-  --dock-size: 54px;
+  --dock-size: 58px;
   --dock-brightness: 1.12;
   --dock-sheen: 0.85;
   --dock-highlight: #ffffff8c;
   --dock-near-shadow: #0000001a;
   --dock-far-shadow: #00000047;
   --dock-deep-shadow: #00000038;
-  --dock-width: 322px;
+  --dock-width: 914px;
   width: var(--dock-width);
   height: calc(var(--dock-size) + 14px);
   bottom: 6px;

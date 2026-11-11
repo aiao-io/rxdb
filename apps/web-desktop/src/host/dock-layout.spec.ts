@@ -4,7 +4,7 @@ import { dockTargets, measureDock, placeDock, smoothDock } from './dock-layout.j
 const kinds = ['icon', 'icon', 'icon', 'icon', 'divider', 'icon'] as const;
 
 describe('macOS Dock 距离动画', () => {
-  it('静止图标采用 54px 基准，光标中心最大放大 1.42 倍且邻居连续衰减', () => {
+  it('静止图标采用 58px 基准，光标中心最大放大 1.42 倍且邻居连续衰减', () => {
     const geometry = measureDock(kinds, 1200);
     const scales = dockTargets(geometry, geometry.slots[2].center);
     expect(scales[2]).toBeCloseTo(1.42);

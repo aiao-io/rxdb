@@ -23,20 +23,20 @@ export function measureDock(kinds: readonly DockSlotKind[], availableWidth: numb
     16 +
     kinds.reduce(
       (width, kind, index) =>
-        width + (kind === 'icon' ? 54 : 16) + (kind === 'icon' && index < kinds.length - 1 ? 5 : 0),
+        width + (kind === 'icon' ? 58 : 16) + (kind === 'icon' && index < kinds.length - 1 ? 6 : 0),
       0
     );
   const ratio = Math.min(1, availableWidth / baseWidth);
   const padding = 8 * ratio;
   let x = padding;
   const slots = kinds.map((kind, index) => {
-    const width = (kind === 'icon' ? 54 : 16) * ratio;
-    const gap = kind === 'icon' && index < kinds.length - 1 ? 5 * ratio : 0;
+    const width = (kind === 'icon' ? 58 : 16) * ratio;
+    const gap = kind === 'icon' && index < kinds.length - 1 ? 6 * ratio : 0;
     const slot = { kind, width, gap, center: x + width / 2 };
     x += width + gap;
     return slot;
   });
-  return { size: 54 * ratio, padding, width: baseWidth * ratio, availableWidth, slots };
+  return { size: 58 * ratio, padding, width: baseWidth * ratio, availableWidth, slots };
 }
 
 /** 余弦钟形衰减驱动邻近图标，并按视口剩余空间限制整体扩展。 */

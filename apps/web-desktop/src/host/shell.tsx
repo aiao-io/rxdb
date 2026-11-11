@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from 'react';
 import { builtins } from '../core/catalog.js';
 import type { Mode, WindowRecord } from '../core/types.js';
-import { AppIcon, SymbolIcon, SystemMark } from '../ui/icons.js';
+import { AppIcon, FileIcon, MacGlyph, SymbolIcon, SystemMark } from '../ui/icons.js';
+import { MacosSprite } from '../ui/macos-sprite.js';
 import { AppBar } from './app-bar.js';
 import { HOST_VERSION } from './diagnostics.js';
 import { WindowGesture } from './gesture.js';
@@ -40,6 +41,97 @@ const prefetchNames = {
   cancelled: '已取消',
   error: '准备失败'
 };
+
+const macDesktopItems = [
+  { id: 'macintosh-hd', label: 'Macintosh HD', kind: 'directory', symbol: 'f-hd', column: 2, row: 1, appId: 'files' },
+  { id: 'projects', label: 'Projects', kind: 'directory', symbol: 'f-folder', column: 2, row: 2, appId: 'files' },
+  { id: 'prasenx', label: 'prasenx.txt', kind: 'file', symbol: 'f-txt', column: 2, row: 3, appId: 'editor' },
+  {
+    id: 'screenshot',
+    label: 'Screenshot 2026‑07‑27 at 4.34.11 PM.png',
+    kind: 'file',
+    symbol: 'f-img',
+    column: 2,
+    row: 4,
+    appId: 'files'
+  },
+  { id: 'guidelines', label: 'Interface Guidelines.pdf', kind: 'file', symbol: 'f-pdf', column: 1, row: 1, appId: 'files' }
+] as const;
+
+function MacWidgets({ clock }: { clock: Date }) {
+  const weekday = clock.toLocaleDateString('en-US', { weekday: 'long' });
+  const day = clock.getDate();
+  const hours = [
+    ['Now', '53°'],
+    ['3AM', '52°'],
+    ['4AM', '52°'],
+    ['5AM', '50°'],
+    ['6AM', '47°']
+  ];
+  const stocks = [
+    ['AAPL', 'Apple Inc.', '232.40', '+12.03%', 'up', '12 20 30 15 46 8 58 4 88 2'],
+    ['MSFT', 'Microsoft Corp.', '505.80', '-3.12%', 'down', '4 5 24 10 40 17 56 11 73 24 88 18'],
+    ['NVDA', 'NVIDIA Corp.', '168.25', '-6.22%', 'down', '5 7 22 3 38 15 55 8 72 22 88 16']
+  ] as const;
+  return (
+    <aside className='mac-widgets' aria-label='桌面小组件'>
+      <section className='wgt calw mac-widget'>
+        <div className='dow'>{weekday}</div>
+        <div className='dnum'>{day}</div>
+        <div className='none'>No more events today.</div>
+      </section>
+      <section className='wgt mac-widget'>
+        <div className='wx'>
+          <div className='loc'>Cupertino</div>
+          <div className='now'>
+            <span className='deg'>53°</span>
+            <span className='ico' aria-hidden='true'>
+              ☀
+            </span>
+          </div>
+          <div className='cond'>Clear</div>
+          <div className='hi'>H:73° L:47°</div>
+          <div className='hours'>
+            {hours.map(([label, value]) => (
+              <div key={label}>
+                <span>{label}</span>
+                <span className='hour-icon' aria-hidden='true'>
+                  ☀
+                </span>
+                <b>{value}</b>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+      <section className='wgt mac-widget'>
+        <div className='wh'>
+          <span className='t'>Stocks</span>
+          <span className='s'>{clock.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
+        </div>
+        <div className='stk'>
+          {stocks.map(([symbol, company, value, change, trend, points]) => (
+            <div className={`row ${trend}`} key={symbol}>
+              <span className='sym'>
+                <b>{symbol}</b>
+                <span>{company}</span>
+              </span>
+              <span className='spark' aria-hidden='true'>
+                <svg viewBox='0 0 90 26' preserveAspectRatio='none'>
+                  <polyline points={points} fill='none' stroke='currentColor' strokeWidth='2.4' strokeLinecap='round' />
+                </svg>
+              </span>
+              <span className='num'>
+                <b>{value}</b>
+                <span>{change}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+    </aside>
+  );
+}
 
 function ResourcePanel({ host }: { host: DesktopHost }) {
   return (
@@ -573,7 +665,7 @@ function InstanceWindow({ host, app }: { host: DesktopHost; app: RunningApp }) {
 
 function DesktopMenu({ host }: { host: DesktopHost }) {
   return (
-    <details className='desktop-menu'>
+    <details className='desktop-menu desktop-menu-apple'>
       <summary aria-label='桌面菜单'>
         {host.model.mode === 'macos' ?
           <SystemMark mode='macos' />
@@ -604,8 +696,96 @@ function DesktopMenu({ host }: { host: DesktopHost }) {
   );
 }
 
+function MacSystemTray({ host }: { host: DesktopHost }) {
+  const date = host.clock
+    .toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+    .replace(',', '');
+  const time = host.clock.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return (
+    <div className='system-tray mac-system-tray'>
+      <button className='mac-status-glyph' aria-label='Bluetooth' title='Bluetooth'>
+        <MacGlyph symbol='g-bt' />
+      </button>
+      <button className='mac-status-glyph' aria-label='Sound' title='Sound'>
+        <MacGlyph symbol='g-vol' />
+      </button>
+      <button className='mac-battery' aria-label='Battery 84%' title='Battery'>
+        <span>84%</span>
+        <i aria-hidden='true' />
+      </button>
+      <button
+        className='mac-status-glyph mode-toggle'
+        title={host.offline ? 'Wi-Fi · Offline' : 'Wi-Fi'}
+        aria-label='切换交互模式，当前 macOS'
+        onClick={() => run(host, () => host.updateProfile({ mode: 'windows' }))}
+      >
+        <MacGlyph symbol='g-wifi' />
+      </button>
+      <button className='mac-status-glyph' aria-label='Spotlight' title='Spotlight'>
+        <MacGlyph symbol='g-search' />
+      </button>
+      <button
+        className='mac-status-glyph mac-control-center'
+        aria-label='运行与资源'
+        title='Control Center'
+        aria-expanded={host.resourcesOpen}
+        onClick={() => host.toggleResources()}
+      >
+        <MacGlyph symbol='g-cc' />
+      </button>
+      <button
+        className='tray-clock'
+        title='通知中心'
+        aria-expanded={host.notificationsOpen}
+        onClick={() => host.setPanel('notifications')}
+      >
+        <time>
+          {date} {time}
+        </time>
+        <span className='sr-only'>通知中心</span>
+        {host.notifications.length > 0 && <span className='notification-dot' />}
+      </button>
+      {host.recovery.size > 0 && (
+        <button
+          className='mac-recovery-button'
+          aria-label='恢复待办'
+          aria-expanded={host.recoveryOpen}
+          onClick={() => host.setPanel('recovery')}
+        >
+          恢复待办 {host.recovery.size}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function MacDesktopShortcuts({ host }: { host: DesktopHost }) {
+  return (
+    <div className='desktop-shortcuts mac-desktop-shortcuts'>
+      {macDesktopItems.map(item => (
+        <button
+          key={item.id}
+          style={{ gridColumn: item.column, gridRow: item.row }}
+          aria-label={`桌面项目 ${item.label}`}
+          onDoubleClick={() => run(host, () => host.launch(item.appId))}
+          onKeyDown={event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              run(host, () => host.launch(item.appId));
+            }
+          }}
+        >
+          <FileIcon kind={item.kind} symbol={item.symbol} />
+          <span>{item.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function SystemTray({ host }: { host: DesktopHost }) {
   const windows = host.model.mode === 'windows';
+  if (!windows) return <MacSystemTray host={host} />;
   return (
     <div className='system-tray'>
       {windows && <DesktopMenu host={host} />}
@@ -763,6 +943,7 @@ export function DesktopApp({ host }: { host: DesktopHost }) {
       data-reduced-motion={host.state.profile.reducedMotion}
       style={{ '--desktop-scale': host.state.profile.scale / 100 } as React.CSSProperties}
     >
+      <MacosSprite />
       {host.model.mode === 'macos' && (
         <header className='system-bar glass'>
           <DesktopMenu host={host} />
@@ -770,7 +951,7 @@ export function DesktopApp({ host }: { host: DesktopHost }) {
             {activeApp?.definition.id === 'files' ? 'Finder' : (activeApp?.definition.name ?? 'Finder')}
           </strong>
           <details className='desktop-menu app-command-menu'>
-            <summary>文件</summary>
+            <summary>File</summary>
             <div className='menu-popover'>
               <button onClick={() => run(host, () => host.launch(activeApp?.definition.id ?? 'files', true))}>
                 新建窗口
@@ -789,8 +970,17 @@ export function DesktopApp({ host }: { host: DesktopHost }) {
               )}
             </div>
           </details>
+          <button className='mac-menu-item' type='button'>
+            Edit
+          </button>
+          <button className='mac-menu-item' type='button'>
+            View
+          </button>
+          <button className='mac-menu-item' type='button'>
+            Go
+          </button>
           <details className='desktop-menu app-command-menu'>
-            <summary>窗口</summary>
+            <summary>Window</summary>
             <div className='menu-popover'>
               <button onClick={() => host.setPanel('overview')}>窗口概览</button>
               <button onClick={() => host.showDesktop()}>显示桌面</button>
@@ -799,6 +989,9 @@ export function DesktopApp({ host }: { host: DesktopHost }) {
               )}
             </div>
           </details>
+          <button className='mac-menu-item' type='button'>
+            Help
+          </button>
           <div className='system-spacer' />
           <SystemTray host={host} />
         </header>
@@ -813,24 +1006,28 @@ export function DesktopApp({ host }: { host: DesktopHost }) {
           }
         }}
       >
-        <div className='desktop-shortcuts'>
-          {host.state.profile.shortcuts.map(id => (
-            <button
-              key={id}
-              aria-label={`桌面快捷方式 ${id === 'files' ? '文件' : '文本编辑器'}`}
-              onDoubleClick={() => run(host, () => host.launch(id))}
-              onKeyDown={event => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault();
-                  run(host, () => host.launch(id));
-                }
-              }}
-            >
-              <AppIcon id={id} />
-              <span>{id === 'files' ? '文件' : '文本编辑器'}</span>
-            </button>
-          ))}
-        </div>
+        {host.model.mode === 'macos' && <MacWidgets clock={host.clock} />}
+        {host.model.mode === 'macos' ?
+          <MacDesktopShortcuts host={host} />
+        : <div className='desktop-shortcuts'>
+            {host.state.profile.shortcuts.map(id => (
+              <button
+                key={id}
+                aria-label={`桌面快捷方式 ${id === 'files' ? '文件' : '文本编辑器'}`}
+                onDoubleClick={() => run(host, () => host.launch(id))}
+                onKeyDown={event => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    run(host, () => host.launch(id));
+                  }
+                }}
+              >
+                <AppIcon id={id} />
+                <span>{id === 'files' ? '文件' : '文本编辑器'}</span>
+              </button>
+            ))}
+          </div>
+        }
         <div className='workspace-switcher' aria-label='工作区' hidden={host.state.workspaces.length < 2}>
           {host.state.workspaces.map(workspace => (
             <button

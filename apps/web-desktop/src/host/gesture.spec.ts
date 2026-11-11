@@ -25,7 +25,7 @@ describe('DESKTOP-US-102/103 标题拖动与缩放', () => {
     gesture.begin(100, 100, 'move');
     gesture.move(120, 120);
     gesture.end(120);
-    expect(reopened.bounds.x).toBe(110);
+    expect(reopened.bounds.x).toBe(60);
   });
   it('缩放遵守边界，取消后结束捕获；Windows 边缘贴靠', () => {
     const model = createWindowModel('windows');
