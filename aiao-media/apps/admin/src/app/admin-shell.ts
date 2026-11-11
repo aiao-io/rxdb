@@ -18,18 +18,11 @@ export function bindAdminNavigator(value: (url: string) => void): void {
 
 /** Aiao Media 管理后台的主导航，菜单身份与 AdminConsole 的页签保持一致。 */
 export const ADMIN_MENU: readonly MenuNode<AdminIcon>[] = [
-  {
-    id: 'media-management',
-    label: '业务管理',
-    expanded: true,
-    children: [
-      { id: 'users', label: '用户', icon: Users, route: '/users' },
-      { id: 'templates', label: '模板', icon: FileText, route: '/templates' },
-      { id: 'policies', label: '供应商策略', icon: Settings, route: '/policies' },
-      { id: 'tasks', label: '任务与用量', icon: ClipboardList, route: '/tasks' },
-      { id: 'audit', label: '操作审计', icon: History, route: '/audit' }
-    ]
-  }
+  { id: 'users', label: '用户', icon: Users, route: '/users' },
+  { id: 'templates', label: '模板', icon: FileText, route: '/templates' },
+  { id: 'policies', label: '供应商策略', icon: Settings, route: '/policies' },
+  { id: 'tasks', label: '任务与用量', icon: ClipboardList, route: '/tasks' },
+  { id: 'audit', label: '操作审计', icon: History, route: '/audit' }
 ];
 
 /** 管理后台使用模板外壳的默认主题与中文文案。 */
@@ -45,5 +38,5 @@ export const adminShell = createAdminShell<AdminIcon>({
 /** 从外壳地址得到当前业务页签。 */
 export function tabFromUrl(url: string): AdminTab {
   const path = url.split(/[?#]/, 1)[0].replace(/^\/+/, '');
-  return ADMIN_MENU[0]?.children?.some(item => item.id === path) ? (path as AdminTab) : 'users';
+  return ADMIN_MENU.some(item => item.id === path && item.route !== undefined) ? (path as AdminTab) : 'users';
 }

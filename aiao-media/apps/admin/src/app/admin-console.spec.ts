@@ -70,6 +70,7 @@ describe('administrative access and identity', () => {
     fixture.detectChanges();
     const element: HTMLElement = fixture.nativeElement;
     expect(element.querySelector('nav[aria-label="后台导航"]')).toBeNull();
+    expect(element.textContent).not.toContain('业务管理');
     expect(element.querySelector('[data-testid="console-refresh"]')?.textContent).toContain('重新载入');
     expect(element.querySelector('h2')?.textContent).toBe('用户列表');
   });

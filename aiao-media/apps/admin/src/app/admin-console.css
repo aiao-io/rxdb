@@ -28,11 +28,10 @@
 }
 
 .console-header {
-  align-items: flex-start;
-  padding-bottom: 1.75rem;
+  justify-content: flex-end;
+  padding-bottom: 1.25rem;
 }
 
-.console-eyebrow,
 .section-kicker {
   margin: 0 0 0.45rem;
   color: var(--color-primary);
@@ -43,18 +42,10 @@
   text-transform: uppercase;
 }
 
-.console h1,
 .console h2,
 .console h3,
 .console p {
   margin-top: 0;
-}
-
-.console h1 {
-  margin-bottom: 0.5rem;
-  font-size: clamp(1.75rem, 3vw, 2.5rem);
-  font-weight: 750;
-  letter-spacing: -0.035em;
 }
 
 .console h2 {
@@ -70,7 +61,6 @@
   font-weight: 700;
 }
 
-.console-description,
 .section-heading p,
 .filter-card p,
 .resource-card p,
@@ -84,7 +74,6 @@
   opacity: 0.62;
 }
 
-.console-description,
 .section-heading p,
 .filter-card p {
   margin-bottom: 0;
@@ -537,7 +526,6 @@
     padding: 1rem;
   }
 
-  .console-header,
   .section-heading,
   .resource-card,
   .filter-card-header,

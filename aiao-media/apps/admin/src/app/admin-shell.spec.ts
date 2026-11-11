@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { ADMIN_MENU, tabFromUrl } from './admin-shell';
 
 describe('Aiao Media 管理后台外壳', () => {
-  it('菜单与业务管理页签保持同一组路由', () => {
-    expect(ADMIN_MENU[0]?.children?.map(item => item.route)).toEqual([
+  it('菜单直接展示功能页并保持路由一致', () => {
+    expect(ADMIN_MENU.map(item => item.route)).toEqual([
       '/users',
       '/templates',
       '/policies',
