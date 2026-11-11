@@ -1,17 +1,4 @@
 <section class="console" aria-label="管理后台" data-testid="admin-console">
-  <header class="console-header">
-    <button
-      class="btn btn-outline btn-sm console-refresh"
-      data-testid="console-refresh"
-      [disabled]="busy()"
-      (click)="load()"
-      type="button"
-    >
-      <svg [lucideIcon]="RefreshCw" [size]="15" aria-hidden="true"></svg>
-      重新载入
-    </button>
-  </header>
-
   @if (busy()) {
     <div class="alert alert-info console-status" role="status">
       <span class="loading loading-spinner loading-xs" aria-hidden="true"></span>

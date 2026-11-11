@@ -7,7 +7,6 @@ import {
 } from '@aiao-media/api-contracts';
 import { ChangeDetectionStrategy, Component, effect, input, output, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { LucideDynamicIcon, LucideRefreshCw as RefreshCw } from '@lucide/angular';
 import { defaultAdminTemplate } from './admin-defaults';
 import type { ProductClient } from './product-client';
 
@@ -62,7 +61,7 @@ export type AdminTab = 'users' | 'templates' | 'policies' | 'tasks' | 'audit';
 
 @Component({
   selector: 'app-admin-console',
-  imports: [FormsModule, LucideDynamicIcon],
+  imports: [FormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './admin-console.html',
   styleUrl: './admin-console.css'
@@ -73,7 +72,6 @@ export class AdminConsole {
   readonly identity = input.required<string>();
   readonly status = input.required<string>();
   readonly routeTab = input<AdminTab>();
-  readonly RefreshCw = RefreshCw;
   readonly tabChange = output<AdminTab>();
   readonly allowed = signal(false);
   readonly busy = signal(false);

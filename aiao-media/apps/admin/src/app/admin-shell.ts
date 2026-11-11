@@ -32,6 +32,7 @@ export const adminShell = createAdminShell<AdminIcon>({
   navigate: url => navigate(url),
   storagePrefix: 'aiao.media.admin',
   themes: pickThemes(['light', 'dark', 'corporate', 'business', 'dracula', 'nord', 'emerald']),
+  defaults: { widget: { hidden: ['refresh'] } },
   menu: ADMIN_MENU
 });
 

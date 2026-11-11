@@ -10,7 +10,6 @@
   color: var(--color-base-content);
 }
 
-.console-header,
 .section-heading,
 .detail-card-header,
 .provider-card-header,
@@ -25,11 +24,6 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-}
-
-.console-header {
-  justify-content: flex-end;
-  padding-bottom: 1.25rem;
 }
 
 .section-kicker {
@@ -534,8 +528,7 @@
     flex-direction: column;
   }
 
-  .console-refresh,
-  .resource-actions,
+    .resource-actions,
   .toolbar-actions,
   .resource-actions .btn,
   .toolbar-actions .btn {
