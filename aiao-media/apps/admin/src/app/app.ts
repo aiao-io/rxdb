@@ -16,6 +16,40 @@ interface Session {
   user: { id: string; email?: string };
 }
 
+export const ADMIN_SESSION_STORAGE_KEY = 'aiao-media-admin-session-v1';
+
+function isSession(value: unknown): value is Session {
+  if (!value || typeof value !== 'object') return false;
+  const session = value as Partial<Session>;
+  return (
+    typeof session.accessToken === 'string' &&
+    session.accessToken.length > 0 &&
+    typeof session.expiresAt === 'number' &&
+    Number.isFinite(session.expiresAt) &&
+    typeof session.user === 'object' &&
+    session.user !== null &&
+    typeof session.user.id === 'string' &&
+    session.user.id.length > 0 &&
+    (session.user.email === undefined || typeof session.user.email === 'string')
+  );
+}
+
+function readStoredSession(): Session | null {
+  const raw = localStorage.getItem(ADMIN_SESSION_STORAGE_KEY);
+  if (!raw) return null;
+  try {
+    const value: unknown = JSON.parse(raw);
+    if (!isSession(value) || value.expiresAt <= Date.now()) {
+      localStorage.removeItem(ADMIN_SESSION_STORAGE_KEY);
+      return null;
+    }
+    return value;
+  } catch {
+    localStorage.removeItem(ADMIN_SESSION_STORAGE_KEY);
+    return null;
+  }
+}
+
 @Component({
   imports: [AdminConsole, AdminLayoutComponent, AdminPageDirective, FormsModule, LucideDynamicIcon],
   selector: 'aiao-media-admin-root',
@@ -79,7 +113,10 @@ export class App implements OnInit {
   }
   async load(): Promise<void> {
     await this.run(async () => {
-      this.installation.set(await this.request('/api/installation'));
+      const installation = await this.request<InstallationStatus>('/api/installation');
+      this.installation.set(installation);
+      if (installation.initialized) this.session.set(readStoredSession());
+      else this.logout();
     });
   }
   async initialize(): Promise<void> {
@@ -107,6 +144,7 @@ export class App implements OnInit {
         password: this.form.password
       });
       this.session.set(session);
+      localStorage.setItem(ADMIN_SESSION_STORAGE_KEY, JSON.stringify(session));
       this.form.password = '';
       await this.router.navigateByUrl('/users');
     });
@@ -116,6 +154,7 @@ export class App implements OnInit {
   }
   logout(): void {
     this.session.set(null);
+    localStorage.removeItem(ADMIN_SESSION_STORAGE_KEY);
     this.form.password = '';
   }
   private async run(operation: () => Promise<void>): Promise<void> {

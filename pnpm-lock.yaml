@@ -847,9 +847,18 @@ importers:
       '@aiao-media/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@hono/swagger-ui':
+        specifier: ^0.6.2
+        version: 0.6.2(hono@4.13.17)
+      '@hono/zod-openapi':
+        specifier: ^1.6.3
+        version: 1.6.3(hono@4.13.17)(zod@4.6.7)
       hono:
         specifier: ^4.13.17
         version: 4.13.17
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@cloudflare/workers-types':
         specifier: ^5.20261108.1
@@ -3837,6 +3846,11 @@ packages:
     peerDependencies:
       '@types/json-schema': ^7.0.15
 
+  '@asteasolutions/zod-to-openapi@9.1.0':
+    resolution: {integrity: sha512-pLMeRgRYS7/vZIgAAkOe2P6+XGTifR1MT9pqDoxZ11EmcJJ+DPmdPqLN8ZZF4U8R9KHCCQCS9c2wtuE8wSrfkw==}
+    peerDependencies:
+      zod: ^4.0.0
+
   '@axe-core/playwright@4.14.0':
     resolution: {integrity: sha512-SGUhG5PIHd2eMdpgBF2PyQLOhX+qyDR2PT4cmoS4Qk2ak+jX/rrSvst9l0PGv5WTHolKpUMvVmoHpr4cZgf1RQ==}
     engines: {node: '>=22.12.0'}
@@ -5947,6 +5961,24 @@ packages:
 
   '@harperfast/extended-iterable@1.0.5':
     resolution: {integrity: sha512-4ScXlphaKEa49RpHmqwATq9QI9aUTdWVYDlJkzxhsD7ShJP+pHCYLznMO9n/wREY8jPjRZ59wLJY6HM5yB5Gkw==}
+
+  '@hono/swagger-ui@0.6.2':
+    resolution: {integrity: sha512-EDLlBS+LwpAhhh5K45YH85Yyk9GJuD2E7rKdjTZsBObksXaBz+8jPsen5XZqOS9unw6H1CDq0LKzp0c51K6lsA==}
+    peerDependencies:
+      hono: '>=4.0.0'
+
+  '@hono/zod-openapi@1.6.3':
+    resolution: {integrity: sha512-VYR82Y60plu8g3pN60OUXMVKpmxh3R04Qs++3DY9vtwZ9/sA/BRY0PcRIR+Z37/3itWtM7pYwT9bKiH9JhqV6Q==}
+    engines: {node: '>=16.0.0'}
+    peerDependencies:
+      hono: '>=4.10.0'
+      zod: ^4.0.0
+
+  '@hono/zod-validator@0.9.1':
+    resolution: {integrity: sha512-iiv6w0qrIc0arfvCtUqBWsvl4fXjzaTcQcCJTTtCnkawF9HHGE+KjEl0ox3gQJ6rKZEgE3mLExlQCF72M+mNuw==}
+    peerDependencies:
+      hono: '>=4.11.2'
+      zod: ^3.25.0 || ^4.0.0
 
   '@hookform/error-message@2.0.1':
     resolution: {integrity: sha512-U410sAr92xgxT1idlu9WWOVjndxLdgPUHEB8Schr27C9eh7/xUnITWpCMF93s+lGiG++D4JnbSnrb5A21AdSNg==}
@@ -16578,6 +16610,9 @@ packages:
   openapi-types@12.1.3:
     resolution: {integrity: sha512-N4YtSYJqghVu4iek2ZUvcN/0aqH1kRDuNqzcycDxhOUpg7GdvLa2F3DgS6yBNhInhv2r/6I0Flkn7CqL8+nIcw==}
 
+  openapi3-ts@4.6.2:
+    resolution: {integrity: sha512-gyyil3DweqhXiEhTqtAs9wwRLfWHmetwhI4kmM5Rn0d6gtmK863Ki7qqbQnp9+Wwlqoe3B1LFWj7kMp5ctE4rQ==}
+
   opener@1.5.2:
     resolution: {integrity: sha512-ur5UIdyw5Y7yEj9wLzhqXiy6GZ3Mwx0yGI+5sMn2r0N0v3cKJvUmFH5yPP+WXh9e0xfyzyJX95D8l088DNFj7A==}
     hasBin: true
@@ -21453,6 +21488,11 @@ snapshots:
       js-yaml: 5.5.0
       undici: 6.29.1
 
+  '@asteasolutions/zod-to-openapi@9.1.0(zod@4.6.7)':
+    dependencies:
+      openapi3-ts: 4.6.2
+      zod: 4.6.7
+
   '@axe-core/playwright@4.14.0(playwright-core@1.65.0)':
     dependencies:
       axe-core: 4.14.0
@@ -24886,6 +24926,23 @@ snapshots:
   '@harperfast/extended-iterable@1.0.5':
     optional: true
 
+  '@hono/swagger-ui@0.6.2(hono@4.13.17)':
+    dependencies:
+      hono: 4.13.17
+
+  '@hono/zod-openapi@1.6.3(hono@4.13.17)(zod@4.6.7)':
+    dependencies:
+      '@asteasolutions/zod-to-openapi': 9.1.0(zod@4.6.7)
+      '@hono/zod-validator': 0.9.1(hono@4.13.17)(zod@4.6.7)
+      hono: 4.13.17
+      openapi3-ts: 4.6.2
+      zod: 4.6.7
+
+  '@hono/zod-validator@0.9.1(hono@4.13.17)(zod@4.6.7)':
+    dependencies:
+      hono: 4.13.17
+      zod: 4.6.7
+
   '@hookform/error-message@2.0.1(react-dom@19.3.1(react@19.3.1))(react-hook-form@7.91.0(@types/react@19.3.0)(react@19.3.1))(react@19.3.1)':
     dependencies:
       react: 19.3.1
@@ -25900,12 +25957,12 @@ snapshots:
 
   '@modelcontextprotocol/core@2.3.1':
     dependencies:
-      zod: 4.6.6
+      zod: 4.6.7
 
   '@modelcontextprotocol/server@2.3.1':
     dependencies:
       '@modelcontextprotocol/core': 2.3.1
-      zod: 4.6.6
+      zod: 4.6.7
 
   '@module-federation/error-codes@0.22.0': {}
 
@@ -37163,6 +37220,10 @@ snapshots:
       - encoding
 
   openapi-types@12.1.3: {}
+
+  openapi3-ts@4.6.2:
+    dependencies:
+      yaml: 2.9.1
 
   opener@1.5.2: {}
 

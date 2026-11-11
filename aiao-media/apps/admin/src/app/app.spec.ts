@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { afterEach, vi } from 'vitest';
 import { adminShell } from './admin-shell';
-import { App } from './app';
+import { ADMIN_SESSION_STORAGE_KEY, App } from './app';
 import { appRoutes } from './app.routes';
 
 const initial = { initialized: false, managed: false, auth: null };
@@ -13,6 +13,7 @@ const ready = {
   auth: { url: 'https://project.supabase.co', anonKey: 'sb_publishable_fixture' }
 };
 afterEach(() => {
+  localStorage.removeItem(ADMIN_SESSION_STORAGE_KEY);
   vi.unstubAllGlobals();
   TestBed.resetTestingModule();
 });
@@ -109,13 +110,33 @@ describe('App', () => {
     app.logout();
     await expect(app.client.authorization()).rejects.toThrow('登录已过期');
     expect(app.session()).toBeNull();
+    expect(localStorage.getItem(ADMIN_SESSION_STORAGE_KEY)).toBeNull();
   });
 
-  it('刷新后不会恢复内存中的管理员会话', async () => {
+  it('登录后保存会话并切换到全屏后台外壳', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(Response.json(ready));
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     await vi.waitFor(() => expect(fixture.componentInstance.installation()).not.toBeNull());
-    expect(fixture.componentInstance.session()).toBeNull();
+    const session = { accessToken: 'fixture-session', expiresAt: Date.now() + 60000, user: { id: 'owner' } };
+    vi.mocked(fetch).mockImplementation(async input =>
+      String(input).endsWith('/api/admin/login') ? Response.json(session) : Response.json({ actorId: 'owner' })
+    );
+    await fixture.componentInstance.login();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(JSON.parse(localStorage.getItem(ADMIN_SESSION_STORAGE_KEY)!)).toEqual(session);
+    expect(fixture.nativeElement.querySelector('.access-shell')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="admin-shell"]')).not.toBeNull();
+  });
+
+  it('刷新后恢复未过期的管理员会话', async () => {
+    const session = { accessToken: 'stored-session', expiresAt: Date.now() + 60000, user: { id: 'owner' } };
+    localStorage.setItem(ADMIN_SESSION_STORAGE_KEY, JSON.stringify(session));
+    vi.mocked(fetch).mockResolvedValueOnce(Response.json(ready));
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    await vi.waitFor(() => expect(fixture.componentInstance.installation()).not.toBeNull());
+    expect(fixture.componentInstance.session()).toEqual(session);
   });
 });
