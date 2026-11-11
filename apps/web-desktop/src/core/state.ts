@@ -8,7 +8,7 @@ export function defaultProfile(mode: Mode): Profile {
     scale: 100,
     reducedMotion: false,
     guided: false,
-    pinned: ['files', 'editor', 'settings'],
+    pinned: ['files', 'editor', 'settings', 'vscode'],
     shortcuts: ['files', 'editor'],
     doNotDisturb: false
   };
@@ -21,7 +21,7 @@ export function createState(mode: Mode): DesktopState {
     profile: defaultProfile(mode),
     workspaces: [{ id: 'first', name: '工作区 1' }],
     files: [],
-    installations: ['files', 'editor', 'settings', 'catalog'].map(appId => ({
+    installations: ['files', 'editor', 'settings', 'catalog', 'vscode'].map(appId => ({
       appId,
       version: '1.0.0',
       previousVersion: null,

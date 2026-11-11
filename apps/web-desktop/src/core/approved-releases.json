@@ -44,6 +44,17 @@
     }
   },
   {
+    "appId": "vscode",
+    "version": "1.0.0",
+    "changes": ["新增嵌入式 Aiao VSCode 浏览器开发工作台。"],
+    "required": [],
+    "data": {
+      "reads": [1],
+      "writes": 1,
+      "migration": "none"
+    }
+  },
+  {
     "appId": "notes",
     "version": "1.0.0",
     "changes": ["首个完整版本。"],

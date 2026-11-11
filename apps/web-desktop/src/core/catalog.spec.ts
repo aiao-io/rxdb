@@ -11,7 +11,13 @@ describe('DESKTOP-US-201/202/205 受控目录', () => {
     expect(() => validateManifest({ ...builtins[0], suspension: 2 })).toThrow('INVALID');
   });
   it('包含真实文件、编辑器、设置，严格校验必填字段', () => {
-    expect(builtins.map(app => app.id)).toEqual(expect.arrayContaining(['files', 'editor', 'settings']));
+    expect(builtins.map(app => app.id)).toEqual(expect.arrayContaining(['files', 'editor', 'settings', 'vscode']));
+    expect(builtins.find(app => app.id === 'vscode')).toMatchObject({
+      entry: 'vscode.html',
+      name: 'VS Code',
+      system: true,
+      capabilities: []
+    });
     const manifest = builtins[0];
     expect(validateManifest(manifest)).toEqual(manifest);
     expect(() => validateManifest({ ...manifest, protocol: 2 })).toThrow('INVALID');

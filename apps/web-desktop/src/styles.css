@@ -213,6 +213,9 @@ input::placeholder {
 .icon-catalog {
   background: linear-gradient(150deg, #6d9ab2, #375a80);
 }
+.icon-vscode {
+  background: linear-gradient(150deg, #35b7ff, #1267b2);
+}
 .desktop-greeting {
   position: absolute;
   right: 11%;

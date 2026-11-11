@@ -8,6 +8,7 @@ import { EditorView } from './editor-view.js';
 import { FilesView } from './files-view.js';
 import { AppSession } from './session.js';
 import { SettingsView } from './settings-view.js';
+import { VscodeView } from './vscode-view.js';
 
 function AppFrame({ session }: { session: AppSession }) {
   useSyncExternalStore(session.subscribe, () => session.revision);
@@ -40,7 +41,8 @@ function AppFrame({ session }: { session: AppSession }) {
     files: FilesView,
     settings: SettingsView,
     catalog: CatalogView,
-    notes: EditorView
+    notes: EditorView,
+    vscode: VscodeView
   };
   const id = session.client.context.appId;
   const View = views[id as keyof typeof views];

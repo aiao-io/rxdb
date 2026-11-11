@@ -59,6 +59,12 @@ export function AppIcon({ id }: { id: string }) {
             <rect x='38' y='21' width='10' height='20' rx='2' fill='#ffffff40' stroke='white' strokeWidth='1.5' />
             <path d='M23 56h18' stroke='#c7ccd6' strokeWidth='4' strokeLinecap='round' />
           </>
+        : id === 'vscode' ?
+          <>
+            <rect x='5' y='5' width='54' height='54' rx='12' fill='#1678c8' />
+            <path d='m17 20 12 10 15-13 6 4v26l-6 4-15-13-12 10-6-4 12-13-12-11Z' fill='#fff' />
+            <path d='m44 17 6 4v26l-6 4Z' fill='#74bfff' />
+          </>
         : id === 'catalog' ?
           <>
             <rect x='5' y='5' width='54' height='54' rx='12' fill='#1288f9' />

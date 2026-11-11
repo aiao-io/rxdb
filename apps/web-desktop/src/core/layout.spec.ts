@@ -4,6 +4,18 @@ import { validateState } from './session.js';
 import { createState } from './state.js';
 
 describe('DESKTOP-US-501 v3 窗口还原状态升级', () => {
+  it('现有桌面会补齐 VS Code 内置应用和 Dock 入口', () => {
+    const state = createState('windows');
+    const legacy = {
+      ...state,
+      installations: state.installations.filter(item => item.appId !== 'vscode'),
+      profile: { ...state.profile, pinned: state.profile.pinned.filter(appId => appId !== 'vscode') }
+    };
+    const migrated = migrateState(legacy);
+    expect(migrated.installations.some(item => item.appId === 'vscode')).toBe(true);
+    expect(migrated.profile.pinned).toContain('vscode');
+  });
+
   function legacySession(state: string) {
     return {
       ...createState('windows'),

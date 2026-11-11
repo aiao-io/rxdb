@@ -43,6 +43,7 @@ export const builtins: AppDefinition[] = [
   definition('editor', '文本编辑器', '独立文档、中文输入、纯文本和 Markdown 源文。', ['files', 'storage'], true, false),
   definition('settings', '设置', '交互模式、显示、权限、工作区、备份和本地诊断。', ['settings', 'storage']),
   definition('catalog', '应用目录', '只运行经过批准的 Web 应用。', ['apps', 'storage']),
+  definition('vscode', 'VS Code', '嵌入 Aiao VSCode 浏览器开发工作台。', []),
   definition('notes', '速记本', '轻量文本笔记，可单独安装并选择为文件打开方式。', ['files', 'storage'], true, false),
   ...(['Angular', 'React', 'Vue'] as const).map(framework =>
     definition(

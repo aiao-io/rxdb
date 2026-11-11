@@ -31,6 +31,7 @@ export default defineConfig({
           'editor',
           'settings',
           'catalog',
+          'vscode',
           'notes',
           'sample-angular',
           'sample-react',

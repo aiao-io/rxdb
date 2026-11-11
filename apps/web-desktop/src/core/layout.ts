@@ -1,4 +1,4 @@
-import { isRecord } from './catalog.js';
+import { installApp, isRecord } from './catalog.js';
 import { requireCondition } from './errors.js';
 import { validateState } from './session.js';
 import type { DesktopState } from './types.js';
@@ -8,7 +8,7 @@ export function migrateState(value: unknown): DesktopState {
   if (value['schemaVersion'] === 4) return migrateWindowIds(value);
   if (value['schemaVersion'] === 3) return migrateWindowStates(value);
   if (value['schemaVersion'] === 2) return migrateResources(value);
-  if (value['schemaVersion'] !== 1) return validateState(value);
+  if (value['schemaVersion'] !== 1) return ensureBuiltinApplications(validateState(value));
   requireCondition(!('navigation' in value), 'INVALID', '旧数据包含未知导航字段');
   const workspaces = value['workspaces'];
   const session = value['session'];
@@ -54,11 +54,19 @@ function migrateWindowStates(value: Record<string, unknown>): DesktopState {
 function migrateWindowIds(value: Record<string, unknown>): DesktopState {
   const session = value['session'];
   requireCondition(Array.isArray(session) && session.every(isRecord), 'INVALID', '旧会话格式错误');
-  return validateState({
-    ...value,
-    schemaVersion: 5,
-    session: session.map(win => ({ ...win, id: crypto.randomUUID() }))
-  });
+  return ensureBuiltinApplications(
+    validateState({
+      ...value,
+      schemaVersion: 5,
+      session: session.map(win => ({ ...win, id: crypto.randomUUID() }))
+    })
+  );
+}
+
+function ensureBuiltinApplications(state: DesktopState): DesktopState {
+  if (!state.installations.some(item => item.appId === 'vscode')) installApp(state, 'vscode');
+  if (!state.profile.pinned.includes('vscode')) state.profile.pinned.push('vscode');
+  return state;
 }
 
 export function removeSavedWindow(state: DesktopState, id: string): void {
