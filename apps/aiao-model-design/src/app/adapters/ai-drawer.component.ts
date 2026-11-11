@@ -32,7 +32,7 @@ import { AiDrawerService } from './ai-drawer.service';
 
       <!-- 抽屉面板 -->
       <div
-        class="bg-base-100 border-base-300 fixed top-0 right-0 z-9 flex h-full flex-col border-l shadow-xl max-md:top-0 max-md:z-50 max-md:h-full"
+        class="bg-base-100 border-base-300 fixed top-0 right-0 z-9 flex h-full flex-col border-l shadow-xl max-md:top-0 max-md:z-50 max-md:h-full max-md:w-full"
         [style.width.px]="isDesktop() ? drawer.drawerWidth() : undefined"
       >
         <!-- 拖拽手柄 -->
@@ -48,7 +48,12 @@ import { AiDrawerService } from './ai-drawer.service';
             <span class="text-sm font-medium">{{ translations.aiDrawer_title() }}</span>
           </div>
           <a class="btn btn-ghost btn-xs mr-2 ml-auto" href="/login.html">账号</a>
-          <button class="btn btn-ghost btn-xs btn-circle" (click)="drawer.close()">
+          <button
+            class="btn btn-ghost btn-xs btn-circle"
+            [attr.aria-label]="translations.aiDrawer_close()"
+            (click)="drawer.close()"
+            type="button"
+          >
             <lucide-icon [img]="X" size="14"></lucide-icon>
           </button>
         </div>
@@ -79,7 +84,12 @@ export class AiDrawerComponent {
   readonly isDesktop = this.#isDesktop.asReadonly();
 
   constructor() {
+    if (typeof window === 'undefined') return;
+
+    const onResize = () => this.#isDesktop.set(window.innerWidth > 768);
+    window.addEventListener('resize', onResize);
     this.#destroyRef.onDestroy(() => {
+      window.removeEventListener('resize', onResize);
       this.#activeResizeCleanup?.();
     });
   }

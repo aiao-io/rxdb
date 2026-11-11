@@ -33,6 +33,13 @@ describe('AiSessionListComponent', () => {
     expect(comp.activeSessionId()).toBe('s1');
   });
 
+  it('should filter sessions by name', () => {
+    const comp = createComponent(SESSIONS);
+    comp['searchTerm'].set('二');
+
+    expect(comp['filteredSessions']()).toEqual([SESSIONS[1]]);
+  });
+
   it('should emit selectSession on selection', () => {
     const comp = createComponent(SESSIONS);
     const spy = vi.fn();

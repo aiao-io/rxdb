@@ -17,6 +17,7 @@ function createComponent(overrides?: {
   canStartOperation?: boolean;
   isOffline?: boolean;
   activeSessionId?: string;
+  chatMode?: boolean;
 }) {
   return TestBed.runInInjectionContext(() => {
     const c = new AiChatPanelComponent();
@@ -24,11 +25,13 @@ function createComponent(overrides?: {
     const canStart = signal(overrides?.canStartOperation ?? true);
     const offline = signal(overrides?.isOffline ?? false);
     const activeSession = signal<string | undefined>(overrides?.activeSessionId);
+    const chatMode = signal(overrides?.chatMode ?? false);
     Object.defineProperty(c, 'operationState', { value: opState, writable: false });
     Object.defineProperty(c, 'canStartOperation', { value: canStart, writable: false });
     Object.defineProperty(c, 'isOffline', { value: offline, writable: false });
     Object.defineProperty(c, 'activeSessionId', { value: activeSession, writable: false });
-    return { component: c, opState, canStart, offline, activeSession };
+    Object.defineProperty(c, 'chatMode', { value: chatMode, writable: false });
+    return { component: c, opState, canStart, offline, activeSession, chatMode };
   });
 }
 
@@ -138,6 +141,41 @@ describe('AiChatPanelComponent', () => {
       component['onSend']();
 
       expect(emitted).toBe(false);
+    });
+  });
+
+  describe('composition and suggestions', () => {
+    it('should not submit while a Chinese input method is composing', () => {
+      const { component } = createComponent();
+      let emitted = false;
+      component.sendMessage.subscribe(() => (emitted = true));
+      component['inputValue'].set('模型');
+      component['onCompositionStart']();
+      component['onEnterKey'](new KeyboardEvent('keydown', { key: 'Enter' }));
+
+      expect(emitted).toBe(false);
+    });
+
+    it('should expose mode-specific empty-state suggestions', () => {
+      const { component, chatMode } = createComponent();
+
+      expect(component['promptSuggestions']()).toEqual([
+        DEFAULT_TRANSLATIONS.ai.suggestionGenerateModel,
+        DEFAULT_TRANSLATIONS.ai.suggestionRefineEntity
+      ]);
+
+      chatMode.set(true);
+      expect(component['promptSuggestions']()).toEqual([
+        DEFAULT_TRANSLATIONS.ai.suggestionExplainModel,
+        DEFAULT_TRANSLATIONS.ai.suggestionRefineEntity
+      ]);
+    });
+
+    it('should fill the input when a suggestion is selected', () => {
+      const { component } = createComponent();
+      component['onSuggestion']('解释当前模型');
+
+      expect(component['inputValue']()).toBe('解释当前模型');
     });
   });
 
