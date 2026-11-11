@@ -1,4 +1,4 @@
-import { RxDB, UUID } from '@aiao/rxdb';
+import { RxDB } from '@aiao/rxdb';
 import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import type { ChatMessageItem } from '../components/ai/ai-message.component';
 import type { BranchItem } from '../components/ai/branch-manager.component';
@@ -68,6 +68,11 @@ export class AiGenerateOrchestratorService {
 
   /** 当前流式传输已接收字符数（generating 期间递增，结束后归零） */
   readonly #streamingCharCount = signal(0);
+
+  /** 当前对话请求，用于丢弃切换会话后的迟到回调 */
+  #activeChatRequestId: number | null = null;
+  #chatRequestSequence = 0;
+  #sendInFlight = false;
 
   /** 当前 AI 子分支 ID（只读，供模板绑定） */
   readonly currentBranchId = this.#currentBranchId.asReadonly();
@@ -145,13 +150,20 @@ export class AiGenerateOrchestratorService {
    * 统一发送入口——自动创建会话，根据 chatMode 分发到 generate 或对话式 chat
    */
   async send(prompt: string): Promise<void> {
-    if (!this.activeSessionId()) {
-      await this.createSession();
-    }
-    if (this.chatMode()) {
-      await this.#chatSend(prompt);
-    } else {
-      await this.generate(prompt);
+    const value = prompt.trim();
+    if (!value || this.#sendInFlight || this.operationState() === 'generating') return;
+
+    this.#sendInFlight = true;
+    try {
+      if (!this.activeSessionId()) await this.createSession();
+      if (!this.activeSessionId()) return;
+      if (this.chatMode()) {
+        await this.#chatSend(value);
+      } else {
+        await this.generate(value);
+      }
+    } finally {
+      this.#sendInFlight = false;
     }
   }
 
@@ -161,6 +173,7 @@ export class AiGenerateOrchestratorService {
   async generate(prompt: string): Promise<void> {
     if (!this.#guard.canStartAiOperation()) return;
     if (!this.#apiAdapter) return;
+    if (this.operationState() === 'generating') return;
 
     const design = this.#modelDesign.activeDesign();
     if (!design) return;
@@ -168,14 +181,18 @@ export class AiGenerateOrchestratorService {
     const sessionId = this.activeSessionId();
     if (!sessionId) return;
 
+    this.operationState.set('generating');
     this.messages.update(msgs => [...msgs, { id: crypto.randomUUID(), role: 'user' as const, content: prompt }]);
     this.#lastPrompt.set(prompt);
     this.hasError.set(false);
     await this.#updateSessionName(prompt);
-    await this.#chatSession.addMessage(sessionId, 'user', prompt);
+    await Promise.all([
+      this.#chatSession.addMessage(sessionId, 'user', prompt),
+      this.#chatSession.touchSession(sessionId)
+    ]);
 
     const contextEntities = this.#buildFullEntityContext();
-    const ctx = new AiContextService(contextEntities).buildGenerateContext();
+    const ctx = new AiContextService(contextEntities, this.#selectedEntityId()).buildGenerateContext();
     await this.#executeGenerate(ctx.entities ? ctx : undefined, design.id);
   }
 
@@ -232,6 +249,7 @@ export class AiGenerateOrchestratorService {
   }
 
   selectSession(sessionId: string): void {
+    this.#cancelChatRequest();
     this.activeSessionId.set(sessionId);
   }
 
@@ -244,6 +262,7 @@ export class AiGenerateOrchestratorService {
   }
 
   async deleteSession(sessionId: string): Promise<void> {
+    if (this.activeSessionId() === sessionId) this.#cancelChatRequest();
     await this.#chatSession.deleteSession(sessionId);
     if (this.activeSessionId() === sessionId) {
       this.activeSessionId.set(undefined);
@@ -253,6 +272,7 @@ export class AiGenerateOrchestratorService {
 
   /** 返回会话列表 */
   backToList(): void {
+    this.#cancelChatRequest();
     this.activeSessionId.set(undefined);
     this.messages.set([]);
   }
@@ -272,7 +292,7 @@ export class AiGenerateOrchestratorService {
 
   /** 中止当前 AI 请求 */
   abort(): void {
-    this.#apiAdapter?.abort();
+    if (!this.#cancelChatRequest()) this.#apiAdapter?.abort();
   }
 
   /** 重试上次请求 */
@@ -446,38 +466,50 @@ export class AiGenerateOrchestratorService {
   async #chatSend(prompt: string): Promise<void> {
     if (!this.#guard.canStartAiOperation()) return;
     if (!this.#apiAdapter) return;
+    if (this.#activeChatRequestId !== null || this.operationState() === 'generating') return;
 
     const sessionId = this.activeSessionId();
     if (!sessionId) return;
 
+    const requestId = ++this.#chatRequestSequence;
+    this.#activeChatRequestId = requestId;
     this.#streamingCharCount.set(0);
-    this.messages.update(msgs => [...msgs, { id: crypto.randomUUID(), role: 'user' as const, content: prompt }]);
-    await this.#updateSessionName(prompt);
-    await this.#chatSession.addMessage(sessionId, 'user', prompt);
-
+    this.hasError.set(false);
+    this.activeProposal.set(undefined);
     this.operationState.set('generating');
-
-    const entities = this.#entityService.entities();
-    const modelContext = entities.length > 0 ? { entityNames: entities.map(e => e.name).slice(0, 200) } : undefined;
-
-    // 构建滑动窗口消息（最近 30 条）
-    const historyMessages = this.messages()
-      .slice(-30)
-      .map(m => ({ role: m.role, content: m.content }));
+    this.messages.update(msgs => [...msgs, { id: crypto.randomUUID(), role: 'user' as const, content: prompt }]);
 
     try {
+      await this.#updateSessionName(prompt);
+      await Promise.all([
+        this.#chatSession.addMessage(sessionId, 'user', prompt),
+        this.#chatSession.touchSession(sessionId)
+      ]);
+      if (this.#activeChatRequestId !== requestId) return;
+
+      const contextEntities = this.#buildFullEntityContext();
+      const modelContext = new AiContextService(contextEntities, this.#selectedEntityId()).buildChatContext();
+
+      // 构建滑动窗口消息（最近 30 条）
+      const historyMessages = this.messages()
+        .slice(-30)
+        .map(m => ({ role: m.role, content: m.content }));
+
       await this.#apiAdapter.chat(historyMessages, modelContext, {
         onPartial: (text: string) => {
+          if (this.#activeChatRequestId !== requestId) return;
           this.#streamingCharCount.set(text.length);
           this.#upsertAssistantMessage(text);
         },
-        onComplete: (fullText: string) => {
+        onComplete: async (fullText: string) => {
+          if (this.#activeChatRequestId !== requestId) return;
           this.#upsertAssistantMessage(fullText);
-          this.operationState.set('idle');
-          Promise.all([
+          await Promise.all([
             this.#chatSession.addMessage(sessionId, 'assistant', fullText),
             this.#chatSession.touchSession(sessionId)
-          ]).catch(console.error);
+          ]);
+          if (this.#activeChatRequestId !== requestId) return;
+          this.operationState.set('idle');
 
           // 检测变更提案
           const proposals = parseChatChangeProposals(fullText);
@@ -485,7 +517,8 @@ export class AiGenerateOrchestratorService {
             this.activeProposal.set(proposals[0]);
           }
         },
-        onError: (error: Error) => {
+        onError: async error => {
+          if (this.#activeChatRequestId !== requestId) return;
           if (error.message === 'AbortError') {
             this.operationState.set('idle');
             return;
@@ -494,13 +527,20 @@ export class AiGenerateOrchestratorService {
           this.hasError.set(true);
           this.operationState.set('idle');
           const errorMsg = this.messages().at(-1);
-          if (errorMsg) {
-            this.#chatSession.addMessage(sessionId as UUID, 'assistant', errorMsg.content).catch(console.error);
-          }
+          if (errorMsg) await this.#chatSession.addMessage(sessionId, 'assistant', errorMsg.content);
         }
       });
     } catch {
-      this.operationState.set('idle');
+      if (this.#activeChatRequestId === requestId) {
+        this.#upsertAssistantMessage('Error: AI request failed');
+        this.hasError.set(true);
+        this.operationState.set('idle');
+      }
+    } finally {
+      if (this.#activeChatRequestId === requestId) {
+        this.#activeChatRequestId = null;
+        this.#streamingCharCount.set(0);
+      }
     }
   }
 
@@ -630,6 +670,21 @@ export class AiGenerateOrchestratorService {
         }))
       };
     });
+  }
+
+  #selectedEntityId(): string | undefined {
+    const selected = this.#entityService.selectedEntityIds();
+    if (selected.size !== 1) return undefined;
+    return [...selected][0];
+  }
+
+  #cancelChatRequest(): boolean {
+    if (this.#activeChatRequestId === null) return false;
+    this.#activeChatRequestId = null;
+    this.#apiAdapter?.abort();
+    this.operationState.set('idle');
+    this.#streamingCharCount.set(0);
+    return true;
   }
 
   #upsertAssistantMessage(content: string): void {

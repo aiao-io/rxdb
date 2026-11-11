@@ -9,19 +9,41 @@ export type { AiApiError } from './ai-event-stream';
 export interface AiStreamCallbacks<T> {
   onPartial?: (partial: T) => void;
   onComplete?: (result: T) => void | Promise<void>;
-  onError?: (error: AiApiError) => void;
+  onError?: (error: AiApiError) => void | Promise<void>;
+}
+
+export interface AiChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface AiChatModelContext {
+  entityNames: string[];
+  selectedEntity?: unknown;
+  relatedEntities?: unknown[];
+}
+
+export interface AiChatCallbacks {
+  onPartial?: (text: string) => void;
+  onChunk?: (text: string) => void;
+  onComplete?: (fullText: string) => void | Promise<void>;
+  onError?: (error: AiApiError) => void | Promise<void>;
 }
 
 interface TextStreamCallbacks {
   onDelta?: (delta: string, fullText: string) => void | Promise<void>;
   onComplete?: (fullText: string) => void | Promise<void>;
-  onError?: (error: AiApiError) => void;
+  onError?: (error: AiApiError) => void | Promise<void>;
+}
+
+interface ActiveRequest {
+  controller: AbortController;
 }
 
 /** 通过 POST SSE 消费模型生成和迭代接口。 */
 @Injectable({ providedIn: 'root' })
 export class AiApiService {
-  #activeAbortController: AbortController | null = null;
+  #activeRequest: ActiveRequest | null = null;
 
   /** 当前是否有进行中的 AI 请求。 */
   readonly isStreaming = signal(false);
@@ -53,14 +75,9 @@ export class AiApiService {
 
   /** 增量输出对话片段和累计文本。 */
   async chat(
-    messages: Array<{ role: 'user' | 'assistant'; content: string }>,
-    modelContext: { entityNames: string[]; selectedEntity?: unknown; relatedEntities?: unknown[] },
-    callbacks?: {
-      onPartial?: (text: string) => void;
-      onChunk?: (text: string) => void;
-      onComplete?: (fullText: string) => void;
-      onError?: (error: AiApiError | Error) => void;
-    }
+    messages: AiChatMessage[],
+    modelContext?: AiChatModelContext,
+    callbacks?: AiChatCallbacks
   ): Promise<void> {
     await this.#streamText(
       '/api/ai/model/chat',
@@ -78,36 +95,53 @@ export class AiApiService {
 
   /** 取消正在读取的 SSE 请求。 */
   abort(): void {
-    this.#activeAbortController?.abort();
+    this.#activeRequest?.controller.abort();
   }
 
   async #streamText(url: string, body: unknown, callbacks: TextStreamCallbacks): Promise<void> {
+    const previousRequest = this.#activeRequest;
+    const activeRequest: ActiveRequest = { controller: new AbortController() };
+    this.#activeRequest = activeRequest;
     this.isStreaming.set(true);
-    const abortController = new AbortController();
-    this.#activeAbortController = abortController;
+
+    // 新请求接管取消句柄；旧请求的 finally 不能再覆盖新请求状态。
+    previousRequest?.controller.abort();
+
     try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
-        body: JSON.stringify(body),
-        signal: abortController.signal,
-        credentials: 'include'
-      });
-      if (!response.ok) {
-        callbacks.onError?.(this.#classifyError(response.status));
+      let response: Response;
+      try {
+        response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+          body: JSON.stringify(body),
+          signal: activeRequest.controller.signal,
+          credentials: 'include'
+        });
+      } catch (error) {
+        await callbacks.onError?.(this.#classifyStreamError(error));
         return;
       }
-      let fullText = '';
-      for await (const chunk of readAiTextDeltas(response)) {
-        fullText += chunk;
-        await callbacks.onDelta?.(chunk, fullText);
+
+      if (!response.ok) {
+        await callbacks.onError?.(this.#classifyError(response.status));
+        return;
       }
-      await callbacks.onComplete?.(fullText);
-    } catch (error) {
-      callbacks.onError?.(this.#classifyStreamError(error));
+
+      try {
+        let fullText = '';
+        for await (const chunk of readAiTextDeltas(response)) {
+          fullText += chunk;
+          await callbacks.onDelta?.(chunk, fullText);
+        }
+        await callbacks.onComplete?.(fullText);
+      } catch (error) {
+        await callbacks.onError?.(this.#classifyStreamError(error));
+      }
     } finally {
-      this.#activeAbortController = null;
-      this.isStreaming.set(false);
+      if (this.#activeRequest === activeRequest) {
+        this.#activeRequest = null;
+        this.isStreaming.set(false);
+      }
     }
   }
 

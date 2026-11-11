@@ -6,6 +6,7 @@ import {
   type Signal,
   type TemplateRef
 } from '@angular/core';
+import type { AiApiError, AiChatCallbacks, AiChatMessage, AiChatModelContext } from '../../adapters/ai-api.service';
 import type { CascadeAction, PropertyType } from '../constants/options';
 import type { RelationKind } from '../constants/relation';
 
@@ -215,17 +216,13 @@ export interface AiApiAdapter {
       /** 原始文本块回调（用于 StreamingEntityParser 逐步解析） */
       onTextChunk?: (chunk: string) => void;
       onComplete?: (result: unknown) => void | Promise<void>;
-      onError?: (error: { type: string; message: string }) => void | Promise<void>;
+      onError?: (error: AiApiError) => void | Promise<void>;
     }
   ): Promise<void>;
   chat(
-    messages: { role: string; content: string }[],
-    modelContext?: { entityNames: string[] },
-    callbacks?: {
-      onPartial?: (text: string) => void;
-      onComplete?: (fullText: string) => void;
-      onError?: (error: Error) => void;
-    }
+    messages: AiChatMessage[],
+    modelContext?: AiChatModelContext,
+    callbacks?: AiChatCallbacks
   ): Promise<void>;
   abort(): void;
 }

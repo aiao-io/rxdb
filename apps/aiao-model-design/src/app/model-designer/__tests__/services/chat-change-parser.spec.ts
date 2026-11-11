@@ -9,7 +9,7 @@ describe('ChatChangeParser', () => {
 {
   "description": "添加软删除",
   "changes": [
-    { "action": "addProperty", "entityName": "Order", "details": { "name": "deletedAt", "propertyType": "date" } }
+    { "action": "addProperty", "entityId": "order-id", "entityName": "Order", "details": { "name": "deletedAt", "propertyType": "date" } }
   ]
 }
 \`\`\`
@@ -27,13 +27,13 @@ describe('ChatChangeParser', () => {
     const text = `第一个变更：
 
 \`\`\`json:model-change
-{ "description": "变更1", "changes": [{ "action": "addEntity", "entityName": "Audit", "details": {} }] }
+{ "description": "变更1", "changes": [{ "action": "addEntity", "entityId": "audit-id", "entityName": "Audit", "details": {} }] }
 \`\`\`
 
 第二个变更：
 
 \`\`\`json:model-change
-{ "description": "变更2", "changes": [{ "action": "removeProperty", "entityName": "User", "details": { "name": "temp" } }] }
+{ "description": "变更2", "changes": [{ "action": "removeProperty", "entityId": "user-id", "entityName": "User", "details": { "name": "temp" } }] }
 \`\`\``;
 
     const proposals = parseChatChangeProposals(text);
@@ -103,7 +103,7 @@ ${JSON.stringify(proposal)}
     expect(parseChatChangeProposals(text)).toEqual([]);
   });
 
-  it('should keep compatibility with proposals that omit entityId', () => {
+  it('should reject proposals that omit entityId', () => {
     const text = `\`\`\`json:model-change
 ${JSON.stringify({
   description: '兼容旧格式',
@@ -111,9 +111,6 @@ ${JSON.stringify({
 })}
 \`\`\``;
 
-    expect(parseChatChangeProposals(text)[0]).toMatchObject({
-      description: '兼容旧格式',
-      changes: [{ action: 'addEntity', entityName: 'Audit', details: {} }]
-    });
+    expect(parseChatChangeProposals(text)).toEqual([]);
   });
 });

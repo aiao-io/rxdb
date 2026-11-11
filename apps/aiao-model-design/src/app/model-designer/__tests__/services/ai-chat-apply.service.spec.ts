@@ -92,6 +92,115 @@ describe('AiChatApplyService', () => {
       expect(entityService.create).toHaveBeenCalledWith('Audit');
     });
 
+    it('should apply the display name from an addEntity change', async () => {
+      const { service, entityService } = createService();
+      const proposal: ChatChangeProposal = {
+        description: 'Add audit entity',
+        changes: [
+          {
+            action: 'addEntity',
+            entityId: 'ai-audit',
+            entityName: 'Audit',
+            details: { displayName: '审计日志' }
+          }
+        ]
+      };
+
+      await service.applyProposal(proposal);
+
+      expect(entityService.update).toHaveBeenCalledWith('new-entity', { displayName: '审计日志' });
+    });
+
+    it('should preserve proposal ids through later changes', async () => {
+      const { service, entityService, propertyService, indexService } = createService();
+      const proposal: ChatChangeProposal = {
+        description: 'Add indexed property',
+        changes: [
+          {
+            action: 'addProperty',
+            entityId: 'e1',
+            entityName: 'User',
+            details: { id: 'ai-property', name: 'email', propertyType: 'string' }
+          },
+          {
+            action: 'addIndex',
+            entityId: 'e1',
+            entityName: 'User',
+            details: { id: 'ai-index', propertyIds: ['ai-property'], isUnique: true }
+          }
+        ]
+      };
+
+      await service.applyProposal(proposal);
+
+      expect(propertyService.create).toHaveBeenCalledWith('e1', 'email', 'string');
+      expect(indexService.create).toHaveBeenCalledWith('e1', ['new-prop'], true);
+      expect(entityService.update).not.toHaveBeenCalled();
+    });
+
+    it('should apply later changes to an entity created in the same proposal', async () => {
+      const { service, propertyService } = createService();
+      const proposal: ChatChangeProposal = {
+        description: 'Add entity with property',
+        changes: [
+          { action: 'addEntity', entityId: 'ai-audit', entityName: 'Audit', details: {} },
+          {
+            action: 'addProperty',
+            entityId: 'ai-audit',
+            entityName: 'Audit',
+            details: { id: 'ai-created-at', name: 'createdAt', propertyType: 'date' }
+          }
+        ]
+      };
+
+      await service.applyProposal(proposal);
+
+      expect(propertyService.create).toHaveBeenCalledWith('new-entity', 'createdAt', 'date');
+    });
+
+    it('should resolve generated ids for both sides of a relation pair', async () => {
+      const { service, relationService } = createService();
+      relationService.create
+        .mockResolvedValueOnce({ id: 'source-relation' })
+        .mockResolvedValueOnce({ id: 'inverse-relation' });
+      const proposal: ChatChangeProposal = {
+        description: 'Add relation pair',
+        changes: [
+          {
+            action: 'addRelation',
+            entityId: 'e1',
+            entityName: 'User',
+            details: {
+              id: 'ai-source-relation',
+              relationKind: 'ONE_TO_MANY',
+              mappedEntityId: 'e2',
+              mappedPropertyId: 'ai-inverse-relation'
+            }
+          },
+          {
+            action: 'addRelation',
+            entityId: 'e2',
+            entityName: 'Order',
+            details: {
+              id: 'ai-inverse-relation',
+              relationKind: 'MANY_TO_ONE',
+              mappedEntityId: 'e1',
+              mappedPropertyId: 'ai-source-relation'
+            }
+          }
+        ]
+      };
+
+      await service.applyProposal(proposal);
+
+      expect(relationService.update).toHaveBeenCalledWith('source-relation', {
+        mappedPropertyId: 'inverse-relation'
+      });
+      expect(relationService.update).toHaveBeenCalledWith('inverse-relation', {
+        mappedPropertyId: 'source-relation'
+      });
+    });
+
     it('should apply modifyEntity change', async () => {
       const { service, entityService } = createService();
       const proposal: ChatChangeProposal = {

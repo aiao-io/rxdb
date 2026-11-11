@@ -26,7 +26,7 @@ function isChatChange(value: unknown): value is ChatChange {
   return (
     typeof action === 'string' &&
     (CHAT_CHANGE_ACTIONS as readonly string[]).includes(action) &&
-    (entityId === undefined || typeof entityId === 'string') &&
+    typeof entityId === 'string' &&
     typeof entityName === 'string' &&
     isRecord(value['details'])
   );

@@ -252,4 +252,66 @@ describe('AiApiService SSE', () => {
     expect(service.isStreaming()).toBe(false);
     expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: 'AbortError' }));
   });
+
+  it('新请求接管取消句柄，旧请求结束不覆盖流状态', async () => {
+    const encoder = new TextEncoder();
+    let firstSignal!: AbortSignal;
+    let secondWriter!: ReadableStreamDefaultController<Uint8Array>;
+    fetchMock.mockImplementation((_url, init) => {
+      if (!firstSignal) {
+        return Promise.resolve(
+          new Response(
+            new ReadableStream<Uint8Array>({
+              start(controller) {
+                firstSignal = init!.signal!;
+                controller.enqueue(encoder.encode(delta('第一')));
+                firstSignal.addEventListener(
+                  'abort',
+                  () => controller.error(new DOMException('Aborted', 'AbortError')),
+                  { once: true }
+                );
+              }
+            }),
+            { headers: { 'content-type': 'text/event-stream' } }
+          )
+        );
+      }
+      return Promise.resolve(
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              secondWriter = controller;
+            }
+          }),
+          { headers: { 'content-type': 'text/event-stream' } }
+        )
+      );
+    });
+
+    const firstError = vi.fn();
+    const first = service.chat(
+      [{ role: 'user', content: '第一' }],
+      { entityNames: [] },
+      { onError: firstError, onPartial: vi.fn() }
+    );
+    await vi.waitFor(() => expect(firstSignal).toBeDefined());
+
+    const secondComplete = vi.fn();
+    const second = service.chat(
+      [{ role: 'user', content: '第二' }],
+      { entityNames: [] },
+      { onComplete: secondComplete }
+    );
+    expect(firstSignal.aborted).toBe(true);
+    expect(service.isStreaming()).toBe(true);
+
+    secondWriter.enqueue(encoder.encode(delta('第二') + done));
+    secondWriter.close();
+    await second;
+    await first;
+
+    expect(secondComplete).toHaveBeenCalledExactlyOnceWith('第二');
+    expect(firstError).toHaveBeenCalledWith(expect.objectContaining({ message: 'AbortError' }));
+    expect(service.isStreaming()).toBe(false);
+  });
 });

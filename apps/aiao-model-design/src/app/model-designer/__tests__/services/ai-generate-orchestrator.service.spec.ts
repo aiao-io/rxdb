@@ -53,10 +53,18 @@ function createProposal(overrides: Partial<ChatChangeProposal> = {}): ChatChange
 }
 
 type GenerateCallback = NonNullable<Parameters<AiApiAdapter['generate']>[2]>;
+type ChatCallback = NonNullable<Parameters<AiApiAdapter['chat']>[2]>;
 
 function createHarness(options?: {
   applyImpl?: () => Promise<void>;
   generateImpl?: (callbacks?: GenerateCallback) => Promise<void>;
+  chatImpl?: (
+    messages: Parameters<AiApiAdapter['chat']>[0],
+    context: Parameters<AiApiAdapter['chat']>[1],
+    callbacks?: ChatCallback
+  ) => Promise<void>;
+  entities?: Array<{ id: string; name: string; displayName?: string }>;
+  selectedEntityIds?: string[];
 }) {
   const applyProposal = vi.fn(options?.applyImpl ?? (async () => undefined));
   const generate = vi.fn(
@@ -65,6 +73,13 @@ function createHarness(options?: {
       _existingModel?: { entityNames: string[]; entities?: unknown[] },
       callbacks?: GenerateCallback
     ) => options?.generateImpl?.(callbacks)
+  );
+  const chat = vi.fn(
+    async (
+      messages: Parameters<AiApiAdapter['chat']>[0],
+      context: Parameters<AiApiAdapter['chat']>[1],
+      callbacks?: ChatCallback
+    ) => options?.chatImpl?.(messages, context, callbacks)
   );
   const createBranch = vi.fn().mockResolvedValue({ id: 'ai-test' });
   const switchBranch = vi.fn().mockResolvedValue(undefined);
@@ -87,7 +102,13 @@ function createHarness(options?: {
       { provide: AiChatApplyService, useValue: { applyProposal } },
       { provide: AiChatSessionService, useValue: chatSession },
       { provide: ModelDesignService, useValue: { activeDesign } },
-      { provide: DesignEntityService, useValue: { entities: signal([]) } },
+      {
+        provide: DesignEntityService,
+        useValue: {
+          entities: signal(options?.entities ?? []),
+          selectedEntityIds: signal(new Set(options?.selectedEntityIds ?? []))
+        }
+      },
       { provide: DesignPropertyService, useValue: { propertiesOf: () => signal([]) } },
       { provide: DesignRelationService, useValue: { relationsOf: () => signal([]) } },
       { provide: DesignIndexService, useValue: { indexesOf: () => signal([]) } },
@@ -104,7 +125,7 @@ function createHarness(options?: {
           }
         }
       },
-      { provide: AI_API_ADAPTER, useValue: { generate, chat: vi.fn(), abort: vi.fn() } }
+      { provide: AI_API_ADAPTER, useValue: { generate, chat, abort: vi.fn() } }
     ]
   });
 
@@ -113,7 +134,8 @@ function createHarness(options?: {
     applyProposal,
     createBranch,
     switchBranch,
-    removeBranch
+    removeBranch,
+    chat
   };
 }
 
@@ -204,6 +226,31 @@ describe('AiGenerateOrchestratorService', () => {
       expect(removeBranch).toHaveBeenCalledWith(expect.stringMatching(/^ai-/));
       expect(service.currentBranchId()).toBeNull();
       expect(service.operationState()).toBe('idle');
+    });
+  });
+
+  it('should send UUID-rich selected model context to chat', async () => {
+    let receivedContext: Parameters<AiApiAdapter['chat']>[1];
+    const { service, chat } = createHarness({
+      entities: [
+        { id: 'entity-user', name: 'User', displayName: '用户' },
+        { id: 'entity-order', name: 'Order', displayName: '订单' }
+      ],
+      selectedEntityIds: ['entity-user'],
+      chatImpl: async (_messages, context, callbacks) => {
+        receivedContext = context;
+        await callbacks?.onComplete?.('可以继续。');
+      }
+    });
+    service.activeSessionId.set('session-1');
+    service.chatMode.set(true);
+
+    await service.send('请说明 User 的职责');
+
+    expect(chat).toHaveBeenCalledOnce();
+    expect(receivedContext).toMatchObject({
+      entityNames: ['User', 'Order'],
+      selectedEntity: { id: 'entity-user', name: 'User' }
     });
   });
 });
