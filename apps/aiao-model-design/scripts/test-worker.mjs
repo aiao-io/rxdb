@@ -1,5 +1,4 @@
 import { chromium } from '@playwright/test';
-import { EventSourceParserStream } from 'eventsource-parser/stream';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
@@ -19,8 +18,8 @@ await writeFile(
   [
     'SUPABASE_URL="http://supabase.invalid"',
     'SUPABASE_ANON_KEY="test-anon"',
-    'DEEPSEEK_API_KEY="test-ai-key"',
-    'DEEPSEEK_BASE_URL="http://provider.invalid/v1"'
+    'TRIGGER_API_URL="http://trigger.invalid"',
+    'TRIGGER_SECRET_KEY="test-trigger-secret"'
   ].join('\n')
 );
 const configFile = join(temporary, 'wrangler.json');
@@ -29,44 +28,35 @@ workerConfig.name = 'aiao-model-design-network-test';
 workerConfig.main = new URL('../server/index.ts', import.meta.url).pathname;
 workerConfig.assets.directory = new URL('../../../dist/apps/aiao-model-design/browser', import.meta.url).pathname;
 await writeFile(configFile, JSON.stringify(workerConfig));
+
 const authRequests = [];
-function rejectCredentials(request, response) {
-  const url = new URL(request.url, 'http://supabase.invalid');
-  authRequests.push({ path: url.pathname + url.search, apikey: request.headers.apikey });
-  response.writeHead(400, { 'content-type': 'application/json' });
-  response.end(JSON.stringify({ error_code: 'invalid_credentials' }));
+const sessionRequests = [];
+
+function reply(response, status, body) {
+  response.writeHead(status, { 'content-type': 'application/json' });
+  response.end(JSON.stringify(body));
 }
-const completions = [];
-const firstDelta = '{"thinking":"逐步';
-const lastDelta = '生成","entities":[]}';
-function sendCompletion(response, content, finishReason = null) {
-  response.write(
-    `data: ${JSON.stringify({
-      id: 'worker-completion',
-      object: 'chat.completion.chunk',
-      created: 1,
-      model: 'deepseek-chat',
-      choices: [{ index: 0, delta: { content }, finish_reason: finishReason }]
-    })}\n\n`
-  );
+
+async function readBody(request) {
+  const chunks = [];
+  for await (const chunk of request) chunks.push(chunk);
+  return Buffer.concat(chunks).toString('utf8');
 }
-function upstreamRequest(request, response) {
+
+async function upstreamRequest(request, response) {
   const url = new URL(request.url, 'http://supabase.invalid');
-  if (url.pathname === '/auth/v1/user') {
-    response.writeHead(200, { 'content-type': 'application/json' });
-    return response.end(JSON.stringify({ id: 'worker-user', email: 'designer@example.com' }));
+  if (url.pathname === '/auth/v1/user')
+    return reply(response, 200, { id: 'worker-user', email: 'designer@example.com' });
+  if (url.pathname === '/api/v1/sessions') {
+    sessionRequests.push({ authorization: request.headers.authorization, body: JSON.parse(await readBody(request)) });
+    return reply(response, 201, { id: 'session_worker', publicAccessToken: 'worker-pat', isCached: false });
   }
-  if (url.pathname !== '/v1/chat/completions') return rejectCredentials(request, response);
-  response.writeHead(200, { 'content-type': 'text/event-stream' });
-  sendCompletion(response, firstDelta);
-  completions.push(() => {
-    sendCompletion(response, lastDelta);
-    sendCompletion(response, '', 'stop');
-    response.end('data: [DONE]\n\n');
-  });
+  authRequests.push({ path: url.pathname + url.search, apikey: request.headers.apikey });
+  return reply(response, 400, { error_code: 'invalid_credentials' });
 }
-const auth = createHttpServer(upstreamRequest);
-await new Promise(resolve => auth.listen(0, '127.0.0.1', resolve));
+
+const upstream = createHttpServer(upstreamRequest);
+await new Promise(resolve => upstream.listen(0, '127.0.0.1', resolve));
 const sockets = new Set();
 function trackSocket(socket) {
   sockets.add(socket);
@@ -74,16 +64,16 @@ function trackSocket(socket) {
 }
 const outboundProxy = createHttpServer(upstreamRequest);
 outboundProxy.on('connect', (request, socket, head) => {
-  if (!['supabase.invalid:80', 'provider.invalid:80'].includes(request.url)) return socket.destroy();
-  const upstream = connect(auth.address().port, '127.0.0.1', () => {
+  if (!['supabase.invalid:80', 'trigger.invalid:80'].includes(request.url)) return socket.destroy();
+  const tunnel = connect(upstream.address().port, '127.0.0.1', () => {
     socket.write('HTTP/1.1 200 Connection Established\r\n\r\n');
-    upstream.write(head);
-    socket.pipe(upstream).pipe(socket);
+    tunnel.write(head);
+    socket.pipe(tunnel).pipe(socket);
   });
   trackSocket(socket);
-  trackSocket(upstream);
-  socket.on('error', () => upstream.destroy());
-  upstream.on('error', () => socket.destroy());
+  trackSocket(tunnel);
+  socket.on('error', () => tunnel.destroy());
+  tunnel.on('error', () => socket.destroy());
 });
 await new Promise(resolve => outboundProxy.listen(0, '127.0.0.1', resolve));
 const proxyUrl = `http://127.0.0.1:${outboundProxy.address().port}`;
@@ -130,17 +120,22 @@ async function waitForWorker() {
   throw new Error(`Worker startup timed out: ${logs}`);
 }
 
+function sessionPost(chatId, headers = {}) {
+  return {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...headers },
+    body: JSON.stringify({ chatId })
+  };
+}
+
 let browser;
 let proxy;
 try {
   await waitForWorker();
   for (const [path, init, status] of [
     ['/health', {}, 200],
-    [
-      '/api/ai/model/generate',
-      { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"prompt":"test"}' },
-      401
-    ],
+    ['/api/agent/session', sessionPost('md-worker-user-a'), 401],
+    ['/api/ai/model/generate', { method: 'POST', body: '{"prompt":"test"}' }, 404],
     ['/api/model-designer/sql/execute', { method: 'POST', body: '{}' }, 404],
     ['/bff/auth/session', {}, 200]
   ]) {
@@ -148,6 +143,11 @@ try {
     assert.equal(response.status, status, path);
     console.log(`${path}: ${status}`);
   }
+  assert.deepEqual(await (await fetch(`${origin}/api/agent/config`)).json(), {
+    enabled: true,
+    apiUrl: 'http://trigger.invalid',
+    task: 'model-designer'
+  });
   const signin = await fetch(`${origin}/bff/auth/signin`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -156,41 +156,20 @@ try {
   assert.equal(signin.status, 401, 'Worker 应经过 HTTP_PROXY 访问 Supabase');
   assert.deepEqual(authRequests, [{ path: '/auth/v1/token?grant_type=password', apikey: 'test-anon' }]);
   console.log('Worker 出站代理连接 Supabase，通过真实运行时验证');
-  for (const action of ['generate', 'chat']) {
-    const body = action === 'generate' ? { prompt: '用户模型' } : { messages: [{ role: 'user', content: '用户模型' }] };
-    const response = await fetch(`${origin}/api/ai/model/${action}`, {
-      method: 'POST',
-      headers: { cookie: 'access_token=worker-test', 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(15000)
-    });
-    assert.equal(response.status, 200);
-    assert.match(response.headers.get('content-type'), /text\/event-stream/);
-    assert.match(response.headers.get('cache-control'), /no-transform/);
-    const reader = response.body
-      .pipeThrough(new TextDecoderStream())
-      .pipeThrough(new EventSourceParserStream())
-      .getReader();
-    let text = '';
-    let finished = false;
-    while (!finished) {
-      const next = await reader.read();
-      assert.equal(next.done, false, `${action}: 必须有结束标志`);
-      if (next.value.data === '[DONE]') {
-        finished = true;
-        continue;
-      }
-      const event = JSON.parse(next.value.data);
-      assert.notEqual(event.type, 'error', `${action}: ${event.errorText}`);
-      if (event.type !== 'text-delta') continue;
-      text += event.delta;
-      if (text === firstDelta) completions.shift()();
-    }
-    assert.equal(text, firstDelta + lastDelta);
-    await reader.cancel();
-    reader.releaseLock();
-    console.log(`${action}: 真实 Worker 在上游结束前发出 SSE 文本事件`);
-  }
+
+  const cookie = { cookie: 'access_token=worker-test' };
+  const issued = await fetch(`${origin}/api/agent/session`, sessionPost('md-worker-user-chat-1', cookie));
+  assert.equal(issued.status, 200);
+  assert.deepEqual(await issued.json(), { publicAccessToken: 'worker-pat' });
+  assert.equal(sessionRequests.length, 1);
+  assert.equal(sessionRequests[0].authorization, 'Bearer test-trigger-secret');
+  assert.equal(sessionRequests[0].body.externalId, 'md-worker-user-chat-1');
+  assert.equal(sessionRequests[0].body.taskIdentifier, 'model-designer');
+  const foreign = await fetch(`${origin}/api/agent/session`, sessionPost('md-another-user-chat-1', cookie));
+  assert.equal(foreign.status, 403);
+  assert.equal(sessionRequests.length, 1);
+  console.log('真实 Worker 经出站代理为本人签发会话令牌，拒绝他人的 chatId');
+
   const config = createRequire(import.meta.url)('../proxy.conf.cjs');
   proxy = await createServer({
     configFile: false,
@@ -203,11 +182,10 @@ try {
     [proxyOrigin, 401],
     ['https://evil.example', 403]
   ]) {
-    const response = await fetch(`${proxyOrigin}/api/ai/model/generate`, {
-      method: 'POST',
-      headers: { origin: requestOrigin, 'content-type': 'application/json' },
-      body: '{"prompt":"test"}'
-    });
+    const response = await fetch(
+      `${proxyOrigin}/api/agent/session`,
+      sessionPost('md-worker-user-chat-1', { origin: requestOrigin })
+    );
     assert.equal(response.status, status, `开发代理: ${requestOrigin}`);
   }
   console.log('开发代理放行同源请求，拒绝跨站请求');
@@ -242,10 +220,10 @@ try {
   if (server.pid && server.exitCode === null) process.kill(-server.pid, 'SIGTERM');
   for (const socket of sockets) socket.destroy();
   outboundProxy.closeAllConnections();
-  auth.closeAllConnections();
+  upstream.closeAllConnections();
   await Promise.all([
     new Promise(resolve => outboundProxy.close(resolve)),
-    new Promise(resolve => auth.close(resolve)),
+    new Promise(resolve => upstream.close(resolve)),
     rm(temporary, { recursive: true, force: true })
   ]);
 }

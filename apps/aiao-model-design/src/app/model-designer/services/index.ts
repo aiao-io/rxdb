@@ -1,6 +1,12 @@
-export { AiChatApplyService } from './ai-chat-apply.service';
+export { AgentConversationRepository, AgentModelStore, type ConversationRecord } from './agent-conversation-repository';
+export {
+  AGENT_BRANCH_CONTROL,
+  AgentConversationService,
+  type AgentAvailability,
+  type AgentNotice
+} from './agent-conversation.service';
+export { AGENT_TRANSPORT_FACTORY, type AgentTransport, type AgentTransportFactory } from './agent-transport';
 export { AiChatSessionService } from './ai-chat-session.service';
-export { AiGenerateOrchestratorService } from './ai-generate-orchestrator.service';
 export {
   CLIENT_PACKAGE_ADAPTER,
   type ClientDesignContract,
@@ -28,8 +34,3 @@ export {
   type SqlExecutionResult
 } from './sql-execution-adapter';
 export { SqlExecutionService, type SqlExecutionState } from './sql-execution.service';
-export {
-  StreamingEntityParser,
-  type StreamingEntityCallbacks,
-  type StreamingParseResult
-} from './streaming-entity-parser';

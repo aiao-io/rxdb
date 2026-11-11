@@ -23,14 +23,21 @@ import {
   Square
 } from 'lucide-angular';
 import { MODEL_DESIGNER_TRANSLATIONS } from '../../i18n/translations';
+import type { AgentNotice } from '../../services/agent-conversation.service';
 import type { BranchDiff } from '../../services/ai-branch.service';
 import type { AiOperationState } from '../../services/ai-state.types';
-import type { ChatChangeProposal } from '../../types/ai-schemas';
-import { AiDiffPreviewComponent } from './ai-diff-preview.component';
 import { AiMessageListComponent } from './ai-message-list.component';
-import { type ChatMessageItem } from './ai-message.component';
+import { type ChatAnswer, type ChatMessageItem } from './ai-message.component';
 import { AiSessionListComponent, type ChatSessionItem } from './ai-session-list.component';
 import { BranchManagerComponent, type BranchItem } from './branch-manager.component';
+
+const NOTICE_KEYS = {
+  loading: 'noticeLoading',
+  unconfigured: 'noticeUnconfigured',
+  'signed-out': 'noticeSignedOut',
+  unavailable: 'noticeUnavailable',
+  'read-only': 'noticeReadOnly'
+} as const;
 
 /**
  * AI 对话面板组件
@@ -40,13 +47,7 @@ import { BranchManagerComponent, type BranchItem } from './branch-manager.compon
  */
 @Component({
   selector: 'lib-ai-chat-panel',
-  imports: [
-    LucideAngularModule,
-    AiMessageListComponent,
-    AiSessionListComponent,
-    AiDiffPreviewComponent,
-    BranchManagerComponent
-  ],
+  imports: [LucideAngularModule, AiMessageListComponent, AiSessionListComponent, BranchManagerComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (currentView() === 'list') {
@@ -109,7 +110,7 @@ import { BranchManagerComponent, type BranchItem } from './branch-manager.compon
               <h2 class="truncate text-sm font-semibold">{{ currentSessionName() }}</h2>
               <span class="badge badge-ghost badge-sm hidden shrink-0 gap-1 sm:inline-flex">
                 <lucide-icon [img]="SparklesIcon" aria-hidden="true" size="11" />
-                {{ chatMode() ? t().ai.chatModeLabel : t().ai.generateModeLabel }}
+                {{ t().ai.agentLabel }}
               </span>
             </div>
             @if (selectedEntityName()) {
@@ -129,25 +130,16 @@ import { BranchManagerComponent, type BranchItem } from './branch-manager.compon
           </button>
         </header>
 
-        @if (activeProposal()) {
-          <div class="border-base-300 max-h-72 overflow-y-auto border-b">
-            <lib-ai-diff-preview
-              [proposal]="activeProposal()"
-              (cancelPreview)="cancelProposal.emit()"
-              (confirm)="confirmProposal.emit()"
-            />
-          </div>
-        }
-
         <lib-ai-message-list
           class="min-h-0 flex-1"
+          [answerDisabled]="operationState() === 'generating'"
           [emptyDescription]="t().ai.emptyDescription"
           [emptyTitle]="t().ai.emptyTitle"
           [isAborting]="isAborting()"
           [messages]="messages()"
           [operationState]="operationState()"
           [promptSuggestions]="promptSuggestions()"
-          [streamingCharCount]="streamingCharCount()"
+          (answer)="answerQuestion.emit($event)"
           (selectSuggestion)="onSuggestion($event)"
         />
 
@@ -165,31 +157,25 @@ import { BranchManagerComponent, type BranchItem } from './branch-manager.compon
           </div>
         }
 
-        @if (operationState() === 'interrupted') {
-          <div class="border-base-300 bg-warning/10 flex flex-col gap-2 border-t p-3">
-            <div class="text-warning flex items-center gap-2 text-sm">
-              <lucide-icon [img]="AlertCircleIcon" aria-hidden="true" size="14" />
-              <span>{{ t().ai.interrupted }} — {{ retainedEntityCount() }} {{ t().ai.retainedEntities }}</span>
-            </div>
-            <div class="grid grid-cols-3 gap-2">
-              <button class="btn btn-primary btn-sm" (click)="continueGeneration.emit()" type="button">
-                {{ t().ai.continueGenerating }}
-              </button>
-              <button class="btn btn-ghost btn-sm" (click)="acceptPartial.emit()" type="button">
-                {{ t().ai.acceptPartial }}
-              </button>
-              <button class="btn btn-error btn-sm" (click)="discardChanges.emit()" type="button">
-                {{ t().ai.discard }}
-              </button>
-            </div>
-          </div>
-        }
-
         <footer class="border-base-300 bg-base-100 border-t p-3">
           @if (blockingMessage(); as message) {
-            <div class="text-warning mb-2 flex items-center gap-2 text-xs" role="status">
+            <div class="text-warning mb-2 flex flex-wrap items-center gap-2 text-xs" role="status">
               <lucide-icon [img]="AlertCircleIcon" aria-hidden="true" size="14" />
               <span>{{ message }}</span>
+              @if (notice() === 'signed-out') {
+                <a class="link link-primary" href="/login.html">{{ t().ai.signIn }}</a>
+              }
+              @if (notice() === 'unavailable') {
+                <button class="btn btn-ghost btn-xs" (click)="refreshAgent.emit()" type="button">
+                  {{ t().ai.retry }}
+                </button>
+              }
+            </div>
+          }
+          @if (agentError(); as error) {
+            <div class="text-error mb-2 flex items-start gap-2 text-xs" role="alert">
+              <lucide-icon class="mt-0.5 shrink-0" [img]="AlertCircleIcon" aria-hidden="true" size="14" />
+              <span class="break-words">{{ t().ai.agentError }}{{ error }}</span>
             </div>
           }
           @if (hasError() && operationState() === 'idle') {
@@ -203,7 +189,7 @@ import { BranchManagerComponent, type BranchItem } from './branch-manager.compon
             <div class="text-base-content/50 flex items-center gap-2 px-3 pt-2 text-[11px]">
               <span class="badge badge-ghost badge-xs gap-1">
                 <lucide-icon [img]="SparklesIcon" aria-hidden="true" size="11" />
-                {{ chatMode() ? t().ai.chatModeLabel : t().ai.generateModeLabel }}
+                {{ t().ai.agentLabel }}
               </span>
               @if (selectedEntityName()) {
                 <span class="truncate">{{ t().ai.currentEntity }}: {{ selectedEntityName() }}</span>
@@ -214,9 +200,9 @@ import { BranchManagerComponent, type BranchItem } from './branch-manager.compon
             <textarea
               class="max-h-48 min-h-20 w-full resize-none bg-transparent px-3 py-2 text-sm leading-6 outline-none"
               #chatInput
-              [attr.aria-label]="chatMode() ? t().ai.chatPlaceholder : t().ai.inputPlaceholder"
+              [attr.aria-label]="t().ai.inputPlaceholder"
               [disabled]="!canInput()"
-              [placeholder]="chatMode() ? t().ai.chatPlaceholder : t().ai.inputPlaceholder"
+              [placeholder]="t().ai.inputPlaceholder"
               [value]="inputValue()"
               (compositionend)="onCompositionEnd()"
               (compositionstart)="onCompositionStart()"
@@ -304,24 +290,21 @@ export class AiChatPanelComponent {
   /** 空会话快捷提示 */
   protected readonly promptSuggestions = computed(() => {
     const ai = this.t().ai;
-    return this.chatMode() ?
-        [ai.suggestionExplainModel, ai.suggestionRefineEntity]
-      : [ai.suggestionGenerateModel, ai.suggestionRefineEntity];
+    return [ai.suggestionGenerateModel, ai.suggestionRefineEntity, ai.suggestionExplainModel];
   });
 
   /** 是否可以输入 */
   protected readonly canInput = computed(() => {
-    if (this.isOffline()) return false;
-    if (!this.canStartOperation()) return false;
+    if (this.notice() || this.awaitingAnswer()) return false;
     const state = this.operationState();
     return state === 'idle' || state === 'previewing' || this.isAborting();
   });
 
   /** 阻塞消息 */
   protected readonly blockingMessage = computed(() => {
-    if (this.isOffline()) return this.t().ai.offline;
-    if (!this.canStartOperation()) return this.t().ai.pendingChanges;
-    return '';
+    const notice = this.notice();
+    if (notice) return this.t().ai[NOTICE_KEYS[notice]];
+    return this.awaitingAnswer() ? this.t().ai.awaitingAnswer : '';
   });
 
   /** 是否可以发送（停止中不允许发送） */
@@ -335,14 +318,14 @@ export class AiChatPanelComponent {
   /** AI 操作状态 */
   readonly operationState = input<AiOperationState>('idle');
 
-  /** 是否可以启动 AI 操作 */
-  readonly canStartOperation = input(true);
+  /** AI 入口不可用的原因；为空时可以发送 */
+  readonly notice = input<AgentNotice>(null);
 
-  /** 是否离线 */
-  readonly isOffline = input(false);
+  /** 当前轮在等用户回答提问 */
+  readonly awaitingAnswer = input(false);
 
-  /** 是否为对话模式（区别于生成模式） */
-  readonly chatMode = input(false);
+  /** 最近一次 AI 操作失败的原因 */
+  readonly agentError = input<string | null>(null);
 
   /** 会话列表 */
   readonly sessions = input<ChatSessionItem[]>([]);
@@ -353,17 +336,8 @@ export class AiChatPanelComponent {
   /** 选中实体名称（注入上下文） */
   readonly selectedEntityName = input<string>();
 
-  /** 当前待确认的变更提案 */
-  readonly activeProposal = input<ChatChangeProposal>();
-
-  /** 中断后保留的实体数量 */
-  readonly retainedEntityCount = input(0);
-
   /** 是否有最近的错误（显示重试按钮） */
   readonly hasError = input(false);
-
-  /** 流式传输已接收字符数 */
-  readonly streamingCharCount = input(0);
 
   /** 分支列表（由编排器提供） */
   readonly branches = input<BranchItem[]>([{ id: 'main', parentId: null }]);
@@ -383,12 +357,6 @@ export class AiChatPanelComponent {
   /** 丢弃变更 */
   readonly discardChanges = output<void>();
 
-  /** 续传生成 */
-  readonly continueGeneration = output<void>();
-
-  /** 接受部分结果 */
-  readonly acceptPartial = output<void>();
-
   /** 重试上次请求 */
   readonly retryRequest = output<void>();
 
@@ -401,11 +369,11 @@ export class AiChatPanelComponent {
   /** 删除会话 */
   readonly deleteSessionEvent = output<string>();
 
-  /** 确认变更提案 */
-  readonly confirmProposal = output<void>();
+  /** 回答智能体的提问 */
+  readonly answerQuestion = output<ChatAnswer>();
 
-  /** 取消变更提案 */
-  readonly cancelProposal = output<void>();
+  /** 重新确认 AI 服务是否可用 */
+  readonly refreshAgent = output<void>();
 
   /** 中止生成 */
   readonly abortGeneration = output<void>();

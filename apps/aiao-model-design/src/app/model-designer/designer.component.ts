@@ -37,9 +37,9 @@ import {
   type GeneratedFile,
   type ViewMode
 } from './interfaces/designer.interface';
-import { AiChatApplyService } from './services/ai-chat-apply.service';
+import { AgentConversationRepository, AgentModelStore } from './services/agent-conversation-repository';
+import { AgentConversationService } from './services/agent-conversation.service';
 import { AiChatSessionService } from './services/ai-chat-session.service';
-import { AiGenerateOrchestratorService } from './services/ai-generate-orchestrator.service';
 import { AiOperationGuardService } from './services/ai-operation-guard.service';
 import { CodeGeneratorService } from './services/code-generator.service';
 import { ConfirmDialogService } from './services/confirm-dialog.service';
@@ -110,9 +110,10 @@ export function executableSqlPreview(files: readonly GeneratedFile[]): string | 
     CodeGeneratorService,
     ConfirmDialogService,
     DesignerStateService,
-    AiChatApplyService,
     AiChatSessionService,
-    AiGenerateOrchestratorService,
+    AgentConversationRepository,
+    AgentConversationService,
+    AgentModelStore,
     AiOperationGuardService,
     SqlExecutionService
   ],
@@ -134,7 +135,7 @@ export default class DesignerComponent {
   readonly #executionDialogOpen = signal(false);
   protected readonly t = inject(MODEL_DESIGNER_TRANSLATIONS);
   protected readonly state = inject(DesignerStateService);
-  protected readonly aiOrchestrator = inject(AiGenerateOrchestratorService);
+  protected readonly agent = inject(AgentConversationService);
   protected readonly modelDesign = this.state.modelDesign;
   protected readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
   protected readonly aiChatPanelTpl = viewChild<TemplateRef<unknown>>('aiChatPanelTpl');
@@ -233,14 +234,13 @@ export default class DesignerComponent {
   onRecoverOrphanBranch() {
     this.orphanBranchDetected.set(false);
     this.#aiDrawer?.open();
-    this.aiOrchestrator.operationState.set('previewing');
   }
 
   /** 处理孤立分支——丢弃 */
   onDiscardOrphanBranch() {
     const branchId = this.orphanBranchId();
     if (branchId) {
-      this.aiOrchestrator.discard();
+      void this.agent.discard();
     }
     this.orphanBranchDetected.set(false);
     this.orphanBranchId.set(null);

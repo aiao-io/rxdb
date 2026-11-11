@@ -1,6 +1,7 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import {
+  AgentConversation,
   ChatMessage,
   ChatSession,
   DesignEntity,
@@ -19,7 +20,16 @@ export async function createDesignerDatabase(): Promise<RxDB> {
   const database = new RxDB({
     dbName: 'aiao-model-design',
     context: { userId: 'local-designer' },
-    entities: [ModelDesign, DesignEntity, DesignProperty, DesignRelation, DesignIndex, ChatSession, ChatMessage],
+    entities: [
+      ModelDesign,
+      DesignEntity,
+      DesignProperty,
+      DesignRelation,
+      DesignIndex,
+      ChatSession,
+      ChatMessage,
+      AgentConversation
+    ],
     sync: { type: SyncType.None, local: { adapter: 'sqlite-wasm' } }
   });
   database

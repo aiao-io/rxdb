@@ -2013,6 +2013,39 @@ ChatMessageRule>;
 declare type ChatMessageOrderByField = "id" | "createdAt" | "updatedAt" | "createdBy" | "updatedBy" | "role" | "content";
 
 /**
+ * rule
+ */
+declare type AgentConversationRule = UUIDRules<AgentConversation, 'id'>
+| DateRules<AgentConversation, 'createdAt'>
+| DateRules<AgentConversation, 'updatedAt'>
+| StringRules<AgentConversation, 'createdBy'>
+| StringRules<AgentConversation, 'updatedBy'>
+| StringRules<AgentConversation, 'name'>
+| StringRules<AgentConversation, 'modelDesignId'>
+| StringArrayRules<AgentConversation, 'appliedToolCallIds', string>
+| DateRules<AgentConversation, 'lastUsedAt'>;
+
+/**
+ * RuleGroupBase
+ */
+export declare type AgentConversationRuleGroup = RuleGroupBase<typeof AgentConversation,
+  |'id'
+  |'createdAt'
+  |'updatedAt'
+  |'createdBy'
+  |'updatedBy'
+  |'name'
+  |'modelDesignId'
+  |'appliedToolCallIds'
+  |'lastUsedAt',
+AgentConversationRule>;
+
+/**
+ * OrderByField
+ */
+declare type AgentConversationOrderByField = "id" | "createdAt" | "updatedAt" | "createdBy" | "updatedBy" | "name" | "modelDesignId" | "transcript" | "appliedToolCallIds" | "baseline" | "cursor" | "lastUsedAt";
+
+/**
  * rxdb
  */
 declare module "@aiao/rxdb" {
@@ -2048,6 +2081,10 @@ declare module "@aiao/rxdb" {
      * AI 消息
      */
     ChatMessage: typeof ChatMessage;
+    /**
+     * AI 智能体会话
+     */
+    AgentConversation: typeof AgentConversation;
   }
 }
 
@@ -2597,6 +2634,78 @@ export interface ChatMessageInitData {
    * chatSession id
    */
   chatSessionId?: UUID;
+}
+
+/**
+ * 静态类型
+ */
+export interface AgentConversationStaticTypes {
+  /**
+   * id 类型
+   */
+  idType: UUID;
+  /**
+   * 查询选项
+   */
+  getOptions: UUID;
+  /**
+   * 查询选项
+   */
+  findOneOrFailOptions: FindOneOrFailOptions<typeof AgentConversation,AgentConversationRuleGroup,AgentConversationOrderByField>;
+  /**
+   * 查询选项
+   */
+  findOptions: FindOptions<typeof AgentConversation,AgentConversationRuleGroup,AgentConversationOrderByField>;
+  /**
+   * 查询选项
+   */
+  findOneOptions: FindOneOptions<typeof AgentConversation,AgentConversationRuleGroup,AgentConversationOrderByField>;
+  /**
+   * 查询选项
+   */
+  findAllOptions: FindAllOptions<typeof AgentConversation,AgentConversationRuleGroup,AgentConversationOrderByField>;
+  /**
+   * 查询选项
+   */
+  findByCursorOptions: FindByCursorOptions<typeof AgentConversation,AgentConversationRuleGroup,AgentConversationOrderByField>;
+  /**
+   * 查询选项
+   */
+  countOptions: CountOptions<typeof AgentConversation,AgentConversationRuleGroup>;
+}
+
+/**
+ * 初始化数据
+ */
+export interface AgentConversationInitData {
+  /**
+   * 会话名称
+   */
+  name?: string;
+  /**
+   * 所属模型设计
+   */
+  modelDesignId?: string;
+  /**
+   * UI 消息记录
+   */
+  transcript?: Record<string, unknown>;
+  /**
+   * 已写入的工具调用
+   */
+  appliedToolCallIds?: string[];
+  /**
+   * 回读基线快照
+   */
+  baseline?: Record<string, unknown> | null;
+  /**
+   * 会话流游标
+   */
+  cursor?: Record<string, unknown> | null;
+  /**
+   * 最近使用时间
+   */
+  lastUsedAt?: Date;
 }
 
 /**
@@ -3481,4 +3590,113 @@ export declare class ChatMessage extends EntityBase implements IEntity {
   static get<T extends EntityBase>(this: new () => T, id: UUID): Observable<T>;
 }
 
+/**
+ * AI 智能体会话
+ */
+export declare class AgentConversation extends EntityBase implements IEntity {
+  static [ENTITY_STATIC_TYPES]: AgentConversationStaticTypes;
+  /**
+   * 已写入的工具调用
+   */
+  appliedToolCallIds: string[];
+  /**
+   * 回读基线快照
+   */
+  baseline?: Record<string, unknown> | null;
+  /**
+   * 会话流游标
+   */
+  cursor?: Record<string, unknown> | null;
+  /**
+   * 最近使用时间
+   */
+  lastUsedAt: Date;
+  /**
+   * 所属模型设计
+   */
+  modelDesignId: string;
+  /**
+   * 会话名称
+   */
+  name: string;
+  /**
+   * 删除
+   */
+  remove: () => Promise<this>;
+  /**
+   * 重置数据
+   */
+  reset: () => void;
+  /**
+   * 保存
+   */
+  save: () => Promise<this>;
+  /**
+   * UI 消息记录
+   */
+  transcript: Record<string, unknown>;
+  /**
+   * 初始化数据
+   * @param initData 初始化数据
+   */
+  constructor(initData?: AgentConversationInitData);
+  /**
+   * 统计实体数量
+   * @param options 查询选项
+   * @example
+   * AgentConversation.count({ where: { combinator: 'and', rules: [] } }).subscribe(total => console.log(total));
+   */
+  static count(options: CountOptions<typeof AgentConversation,AgentConversationRuleGroup>): Observable<number>;
+  static count<T extends EntityBase>(this: new () => T, options: CountOptions<new () => T>): Observable<number>;
+  /**
+   * 查询多个实体
+   * @param options 查询选项
+   * @example
+   * AgentConversation.find({ where: { combinator: 'and', rules: [] } }).subscribe(list => console.log(list));
+   */
+  static find(options: FindOptions<typeof AgentConversation,AgentConversationRuleGroup,AgentConversationOrderByField>): Observable<AgentConversation[]>;
+  static find<T extends EntityBase>(this: new () => T, options: FindOptions<new () => T>): Observable<T[]>;
+  /**
+   * 查询所有实体
+   * @param options 查询选项
+   * @example
+   * AgentConversation.findAll({ where: { combinator: 'and', rules: [] } }).subscribe(list => console.log(list));
+   */
+  static findAll(options: FindAllOptions<typeof AgentConversation,AgentConversationRuleGroup,AgentConversationOrderByField>): Observable<AgentConversation[]>;
+  static findAll<T extends EntityBase>(this: new () => T, options: FindAllOptions<new () => T>): Observable<T[]>;
+  /**
+   * 游标分页查询
+   * @param options 查询选项
+   * @example
+   * AgentConversation.findByCursor({ where: { combinator: 'and', rules: [] } }).subscribe(list => console.log(list));
+   */
+  static findByCursor(options: FindByCursorOptions<typeof AgentConversation,AgentConversationRuleGroup,AgentConversationOrderByField>): Observable<AgentConversation[]>;
+  static findByCursor<T extends EntityBase>(this: new () => T, options: FindByCursorOptions<new () => T>): Observable<T[]>;
+  /**
+   * 查询单个实体,未找到时返回 null
+   * @param options 查询选项
+   * @example
+   * AgentConversation.findOne({ where: { combinator: 'and', rules: [] } }).subscribe(entity => console.log(entity));
+   */
+  static findOne(options: FindOneOptions<typeof AgentConversation,AgentConversationRuleGroup,AgentConversationOrderByField>): Observable<AgentConversation | null>;
+  static findOne<T extends EntityBase>(this: new () => T, options: FindOneOptions<new () => T>): Observable<T | null>;
+  /**
+   * 查询单个实体,未找到时抛出错误
+   * @param options 查询选项
+   * @example
+   * AgentConversation.findOneOrFail({ where: { combinator: 'and', rules: [] } }).subscribe(entity => console.log(entity));
+   */
+  static findOneOrFail(options: FindOneOrFailOptions<typeof AgentConversation,AgentConversationRuleGroup,AgentConversationOrderByField>): Observable<AgentConversation>;
+  static findOneOrFail<T extends EntityBase>(this: new () => T, options: FindOneOrFailOptions<new () => T>): Observable<T>;
+  /**
+   * 根据 ID 获取单个实体
+   * @param options 查询选项
+   * @example
+   * AgentConversation.get('123').subscribe(entity => console.log(entity));
+   */
+  static get(options: UUID): Observable<AgentConversation>;
+  static get<T extends EntityBase>(this: new () => T, id: UUID): Observable<T>;
+}
+
 export declare const ENTITIES: EntityType[];
+

@@ -257,26 +257,13 @@ export interface ModelDesignerTranslations {
     offline: string;
     pendingChanges: string;
     confirmMerge: string;
-    continueEditing: string;
     discard: string;
-    onAiBranch: string;
-    noSupport: string;
     retry: string;
-    validate: string;
     validating: string;
-    adopt: string;
-    ignore: string;
-    adopted: string;
-    ignored: string;
-    tooManyEntities: string;
-    applyChanges: string;
-    cancelChanges: string;
     added: string;
     modified: string;
-    removed: string;
     deleted: string;
     noChanges: string;
-    chatPlaceholder: string;
     newSession: string;
     deleteSession: string;
     sessionList: string;
@@ -292,21 +279,27 @@ export interface ModelDesignerTranslations {
     suggestionExplainModel: string;
     suggestionGenerateModel: string;
     suggestionRefineEntity: string;
-    chatModeLabel: string;
-    generateModeLabel: string;
     inputHint: string;
     copyMessage: string;
     copiedMessage: string;
     assistantRole: string;
     userRole: string;
     scrollToBottom: string;
-    retainedEntities: string;
-    continueGenerating: string;
-    acceptPartial: string;
     stopGenerating: string;
     stopping: string;
-    chars: string;
-    diffDetails: string;
+    agentLabel: string;
+    noticeLoading: string;
+    noticeUnconfigured: string;
+    noticeSignedOut: string;
+    noticeUnavailable: string;
+    noticeReadOnly: string;
+    signIn: string;
+    agentError: string;
+    awaitingAnswer: string;
+    legacySession: string;
+    toolCalls: string;
+    /** 智能体工具名到显示名，键与 agent/tools 注册表一致 */
+    tools: Record<string, string>;
   };
   /** 属性类型本地化标签 */
   propertyTypes: Record<string, string>;
@@ -568,26 +561,13 @@ export const DEFAULT_TRANSLATIONS: ModelDesignerTranslations = {
     offline: 'AI features require network connection',
     pendingChanges: 'Please handle current changes first',
     confirmMerge: 'Confirm Merge',
-    continueEditing: 'Continue Editing',
     discard: 'Discard',
-    onAiBranch: 'On AI branch',
-    noSupport: 'AI features not supported on this page',
     retry: 'Retry',
-    validate: 'Validate',
     validating: 'Validating...',
-    adopt: 'Adopt',
-    ignore: 'Ignore',
-    adopted: 'Adopted',
-    ignored: 'Ignored',
-    tooManyEntities: 'Too many entities (>100), please simplify before validating',
-    applyChanges: 'Apply Changes',
-    cancelChanges: 'Cancel',
     added: 'Added',
     modified: 'Modified',
-    removed: 'Removed',
     deleted: 'Deleted',
     noChanges: 'No changes proposed',
-    chatPlaceholder: 'Ask about your data model...',
     newSession: 'New Session',
     deleteSession: 'Delete',
     sessionList: 'Sessions',
@@ -603,21 +583,39 @@ export const DEFAULT_TRANSLATIONS: ModelDesignerTranslations = {
     suggestionExplainModel: 'Explain the current model structure',
     suggestionGenerateModel: 'Generate a model for a blog system',
     suggestionRefineEntity: 'Refine the selected entity and its relations',
-    chatModeLabel: 'Model Q&A',
-    generateModeLabel: 'Generate model',
     inputHint: 'Enter to send · Shift+Enter for a new line',
     copyMessage: 'Copy',
     copiedMessage: 'Copied',
     assistantRole: 'AI',
     userRole: 'You',
     scrollToBottom: 'Scroll to bottom',
-    retainedEntities: 'entities retained',
-    continueGenerating: 'Continue Generating',
-    acceptPartial: 'Accept Partial',
     stopGenerating: 'Stop',
     stopping: 'Stopping...',
-    chars: 'chars',
-    diffDetails: 'Changes'
+    agentLabel: 'Modeling agent',
+    noticeLoading: 'Connecting to the AI service...',
+    noticeUnconfigured: 'AI modeling is not configured',
+    noticeSignedOut: 'Sign in to use AI modeling',
+    noticeUnavailable: 'The AI service is unavailable',
+    noticeReadOnly: 'This conversation predates the modeling agent and is read-only',
+    signIn: 'Sign in',
+    agentError: 'AI operation did not complete: ',
+    awaitingAnswer: 'Answer the question above first',
+    legacySession: 'Legacy',
+    toolCalls: 'Tool calls',
+    tools: {
+      inspect_model: 'Inspect model',
+      add_entities: 'Add entities',
+      update_entity: 'Update entity',
+      remove_entities: 'Remove entities',
+      add_properties: 'Add properties',
+      update_properties: 'Update properties',
+      remove_properties: 'Remove properties',
+      link_entities: 'Link entities',
+      unlink_entities: 'Unlink entities',
+      add_index: 'Add index',
+      remove_index: 'Remove index',
+      validate_model: 'Validate model'
+    }
   },
   propertyTypes: {
     uuid: 'UUID',

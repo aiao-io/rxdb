@@ -85,7 +85,9 @@ const removeEntity: Step<'removeEntity'> = (draft, { entityId }) =>
   withEntity(draft, entityId, entity => {
     const inbound = draft.entities
       .filter(other => other.id !== entity.id)
-      .flatMap(other => other.relations.filter(rel => rel.mappedEntityId === entity.id).map(rel => `${other.name}.${rel.name}`));
+      .flatMap(other =>
+        other.relations.filter(rel => rel.mappedEntityId === entity.id).map(rel => `${other.name}.${rel.name}`)
+      );
     const problems = inbound.map(source => `实体 ${entity.name} 仍被 ${source} 关联，先删除对端关系`);
     return commit(problems, () => draft.entities.splice(draft.entities.indexOf(entity), 1));
   });
@@ -197,13 +199,17 @@ function addedRelationProblem(after: Map<string, LocatedRelation>, { entity, rel
   if (!pointsBack) return [`关系 ${label} 的逆关系 ${relation.mappedPropertyId ?? '（未指定）'} 不存在或没有指回`];
   const expected = INVERSE_KIND[relation.relationKind];
   if (inverse.relation.relationKind === expected) return [];
-  return [`关系 ${label} 为 ${relation.relationKind}，逆关系 ${inverse.entity.name}.${inverse.relation.name} 应为 ${expected}`];
+  return [
+    `关系 ${label} 为 ${relation.relationKind}，逆关系 ${inverse.entity.name}.${inverse.relation.name} 应为 ${expected}`
+  ];
 }
 
 function removedRelationProblem(after: Map<string, LocatedRelation>, { entity, relation }: LocatedRelation): string[] {
   const inverse = relation.mappedPropertyId ? after.get(relation.mappedPropertyId) : undefined;
   if (inverse?.relation.mappedPropertyId !== relation.id) return [];
-  return [`删除了 ${entity.name}.${relation.name}，其逆关系 ${inverse.entity.name}.${inverse.relation.name} 需要一起删除`];
+  return [
+    `删除了 ${entity.name}.${relation.name}，其逆关系 ${inverse.entity.name}.${inverse.relation.name} 需要一起删除`
+  ];
 }
 
 /** 本批新增的关系必须与逆关系互相指向且种类互逆；本批删除的关系，其仍指回它的逆关系也必须删除。 */
@@ -226,7 +232,9 @@ function pairingProblems(before: ModelSnapshot, after: ModelSnapshot): string[] 
  */
 export function applyOps(snapshot: ModelSnapshot, ops: readonly ModelOp[]): ApplyOpsResult {
   const draft = structuredClone(snapshot);
-  const errors: ModelOpError[] = ops.flatMap((op, index) => runStep(draft, op).map(message => ({ op: index, message })));
+  const errors: ModelOpError[] = ops.flatMap((op, index) =>
+    runStep(draft, op).map(message => ({ op: index, message }))
+  );
   errors.push(...pairingProblems(snapshot, draft).map(message => ({ op: -1, message })));
   return errors.length ? { ok: false, errors } : { ok: true, snapshot: draft };
 }

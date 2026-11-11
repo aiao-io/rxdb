@@ -1,11 +1,11 @@
 ---
 id: MODEL-US-102
 title: 设计器接入持久会话
-status: Backlog
+status: In Progress
 priority: High
 epic: MODEL-EPIC-001
 created: 2026-11-11
-updated: 2026-11-11
+updated: 2026-11-12
 tags: [agent, designer, angular, branch]
 dependsOn: [MODEL-US-002, MODEL-US-101]
 capabilities: [rxdb:US-301]
@@ -36,30 +36,34 @@ capabilities: [rxdb:US-301]
 
 ## 验收标准
 
-| #   | 前置条件                          | 操作                                     | 预期结果                                                                                   | 状态 |
-| --- | --------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------ | ---- |
-| 1   | 已登录，AI 可用                   | 在 AI 面板发送建模需求                   | 首个写入工具的输出到达时 fork AI 分支，画布按工具输出顺序逐步出现实体与关系                | ⬜   |
-| 2   | 同一工具输出因重连或重放再次到达  | 处理消息                                 | 同一 `toolCallId` 只写入一次                                                               | ⬜   |
-| 3   | 一轮进行中                        | 刷新页面后重新打开该会话                 | 消息与流游标恢复，流从游标继续；已写入的 ops 不重复，漏写的补写                            | ⬜   |
-| 4   | AI 分支已有写入                   | 合并或丢弃                               | 合并后父分支包含 AI 写入；丢弃后模型回到 fork 前，对话记录保留                             | ⬜   |
-| 5   | 一轮进行中                        | 点击停止                                 | 本轮中止，已写入的 ops 留在 AI 分支                                                        | ⬜   |
-| 6   | 存在迁移前的本地会话              | 打开该会话                               | 历史消息只读展示，不能继续发送                                                             | ⬜   |
-| 7   | 未登录或 Worker 返回不可用        | 打开 AI 面板                             | 入口禁用并说明原因，不发请求                                                               | ⬜   |
-| 8   | 代码仓库                          | 检索旧链路模块                           | 旧的增量 JSON 解析、变更块解析与旧接口适配器全部删除，无残留引用                           | ⬜   |
-| 9   | 本地                              | 运行应用 lint、类型检查、单测与构建      | 全部通过                                                                                   | ⬜   |
-| 10  | 自建实例 + 真实 DeepSeek          | 真实浏览器生成一个模型并合并             | 画布逐步出现实体，合并后模型与 AI 分支一致（真实环境）                                     | ⬜   |
+| #   | 前置条件                         | 操作                                | 预期结果                                                                                 | 状态 |
+| --- | -------------------------------- | ----------------------------------- | ---------------------------------------------------------------------------------------- | ---- |
+| 1   | 已登录，AI 可用                  | 在 AI 面板发送建模需求              | 首个写入工具的输出到达时 fork AI 分支，每个工具输出的 ops 按到达顺序各自作为一个事务写入 | ✅   |
+| 2   | 同一工具输出因重连或重放再次到达 | 处理消息                            | 同一 `toolCallId` 只写入一次                                                             | ✅   |
+| 3   | 一轮进行中                       | 刷新页面后重新打开该会话            | 消息与流游标恢复，流从游标继续；已写入的 ops 不重复，漏写的补写                          | ⚠️   |
+| 4   | AI 分支已有写入                  | 合并或丢弃                          | 合并后父分支包含 AI 写入；丢弃后模型回到 fork 前，对话记录保留                           | ✅   |
+| 5   | 一轮进行中                       | 点击停止                            | 本轮中止，已写入的 ops 留在 AI 分支                                                      | ✅   |
+| 6   | 存在迁移前的本地会话             | 打开该会话                          | 历史消息只读展示，不能继续发送                                                           | ✅   |
+| 7   | 未登录或 Worker 返回不可用       | 打开 AI 面板                        | 入口禁用并说明原因，不发请求                                                             | ✅   |
+| 8   | 代码仓库                         | 检索旧链路模块                      | 旧的增量 JSON 解析、变更块解析与旧接口适配器全部删除，无残留引用                         | ✅   |
+| 9   | 本地                             | 运行应用 lint、类型检查、单测与构建 | 全部通过                                                                                 | ✅   |
+| 10  | 自建实例 + 真实 DeepSeek         | 真实浏览器生成一个模型并合并        | 画布逐步出现实体，合并后模型与 AI 分支一致（真实环境）                                   | ⬜   |
 
-验收证据入口：[验收台账](../../verification-report.md)。
+验收证据入口：`__tests__/services/agent-conversation.service.spec.ts`（假传输按脚本回放片段）、`__tests__/integration/agent-model-store.spec.ts`（真实 SQLite）、`services/agent-messages.spec.ts`。#3 只有客户端证据：重开时用保存的游标续流、补写漏掉的输出已覆盖，实例从游标重放这一半要在真实环境验证。画布的实时呈现由 #10 在真实浏览器验收。汇总见[验收台账](../../verification-report.md)。
 
 ## 技术笔记
 
-`chatId` 为 `md-<用户 ID>-<ChatSession.id>`，Worker 据此判定归属（D-06）。每次发送前先等写入队列排空，再用当前分支构建快照，经 `transport.setClientData` 随本轮元数据发出。写入器复用现有 `DesignEntityService` / `DesignPropertyService` / `DesignRelationService` / `DesignIndexService`，新实体的画布位置沿用现有的自动布局。
+`chatId` 为 `md-<用户 ID>-<AgentConversation.id>`，Worker 据此判定归属（D-06）。每次发送前先等写入队列排空，再直接查库构建当前分支的快照，经 `transport.setClientData` 随本轮元数据发出。工具输出在传输层被观察到（`watchTransport`），新发送与刷新后的续流都经过这里。写入器用 `entityManager.instantiate` 按操作里的 ID 建行，修改与删除按 ID 直接读库，整批一个 `mutations` 事务，不读可能滞后的界面信号；新实体的画布位置沿用 `calculateLayout`。每轮结束时把消息、只含 `publicAccessToken` 与 `lastEventId` 的游标和回读基线一起保存，刷新后由服务端判断这一轮是否仍在进行。
 
 ## 实现文件
 
 - `apps/aiao-model-design/entities/agent-conversation.entity.ts` — 会话状态实体（`log: false`）。
 - `apps/aiao-model-design/src/app/adapters/agent-gateway.ts` — Worker 配置与会话签发客户端。
-- `apps/aiao-model-design/src/app/model-designer/services/` — 会话服务、快照构建与 ops 写入器。
+- `apps/aiao-model-design/src/app/model-designer/services/agent-conversation.service.ts` — 会话编排：可用状态、发送、回答、续流、写入队列、分支、保存。
+- `apps/aiao-model-design/src/app/model-designer/services/agent-transport.ts` — 传输工厂（`TriggerChatTransport`）与观察包装。
+- `apps/aiao-model-design/src/app/model-designer/services/agent-conversation-repository.ts` — 会话状态存储与模型存取。
+- `apps/aiao-model-design/src/app/model-designer/services/model-snapshot.ts` / `model-ops-writer.ts` — 快照读取与事务写入。
+- `apps/aiao-model-design/src/app/model-designer/services/agent-messages.ts` / `agent-branch-diff.ts` — 消息映射与分支差异。
 - `apps/aiao-model-design/src/app/model-designer/components/ai/` — 消息与工具卡片展示。
 
 ## References

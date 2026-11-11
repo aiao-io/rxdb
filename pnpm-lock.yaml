@@ -801,18 +801,12 @@ importers:
       '@ai-sdk/deepseek':
         specifier: 3.0.28
         version: 3.0.28(zod@4.6.7)
-      '@ai-sdk/openai':
-        specifier: 4.0.40
-        version: 4.0.40(zod@4.6.7)
       '@trigger.dev/sdk':
         specifier: 4.8.3
         version: 4.8.3(ai@7.0.64(zod@4.6.7))(react@19.3.1)(supports-color@10.2.2)(zod@4.6.7)
       ai:
         specifier: 7.0.64
         version: 7.0.64(zod@4.6.7)
-      eventsource-parser:
-        specifier: 3.1.1
-        version: 3.1.1
       zod:
         specifier: ^4.6.7
         version: 4.6.7
@@ -3341,12 +3335,6 @@ packages:
 
   '@ai-sdk/gateway@4.0.51':
     resolution: {integrity: sha512-tQxWGUbg/O3A5EgekJo/C2byLVQ1r+vL6QdEVWmxUSnPhdCupcOeDbQO1tv9Um40VrdwYuSWlYzcbWvtlG5bOA==}
-    engines: {node: '>=22'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
-
-  '@ai-sdk/openai@4.0.40':
-    resolution: {integrity: sha512-efidMH4glnomQM8XtAAmL7tn06D1YvBeqXRE0qCEcDamvpEGrROJePxCq+31L5BnuglngWW2ZapddCoshJ0kMA==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -21540,12 +21528,6 @@ snapshots:
       '@ai-sdk/provider': 4.0.7
       '@ai-sdk/provider-utils': 5.0.27(zod@4.6.7)
       '@vercel/oidc': 3.2.0
-      zod: 4.6.7
-
-  '@ai-sdk/openai@4.0.40(zod@4.6.7)':
-    dependencies:
-      '@ai-sdk/provider': 4.0.7
-      '@ai-sdk/provider-utils': 5.0.27(zod@4.6.7)
       zod: 4.6.7
 
   '@ai-sdk/provider-utils@5.0.27(zod@4.6.7)':

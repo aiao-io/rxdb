@@ -7,6 +7,8 @@ export interface ChatSessionItem {
   id: string;
   name: string;
   lastUsedAt: string;
+  /** 迁移前的旧会话，只能查看 */
+  readOnly?: boolean;
 }
 
 /**
@@ -51,8 +53,11 @@ export interface ChatSessionItem {
               </span>
               <span class="flex min-w-0 flex-1 flex-col gap-1">
                 <span class="truncate text-sm font-medium">{{ session.name }}</span>
-                <span class="text-base-content/45 truncate text-xs">
-                  {{ session.lastUsedAt | date: 'M/d HH:mm' }}
+                <span class="text-base-content/45 flex min-w-0 items-center gap-1.5 text-xs">
+                  <span class="truncate">{{ session.lastUsedAt | date: 'M/d HH:mm' }}</span>
+                  @if (session.readOnly) {
+                    <span class="badge badge-ghost badge-xs shrink-0">{{ t().ai.legacySession }}</span>
+                  }
                 </span>
               </span>
             </button>

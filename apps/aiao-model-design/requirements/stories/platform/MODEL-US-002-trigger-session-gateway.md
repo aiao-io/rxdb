@@ -1,11 +1,11 @@
 ---
 id: MODEL-US-002
 title: Trigger.dev 会话签发与自建部署
-status: Backlog
+status: In Progress
 priority: High
 epic: MODEL-EPIC-001
 created: 2026-11-11
-updated: 2026-11-11
+updated: 2026-11-12
 tags: [worker, trigger-dev, deploy, auth]
 dependsOn: []
 capabilities: []
@@ -35,20 +35,20 @@ capabilities: []
 
 ## 验收标准
 
-| #   | 前置条件                                   | 操作                                         | 预期结果                                                                                                  | 状态 |
-| --- | ------------------------------------------ | -------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | Worker 未配置 `TRIGGER_SECRET_KEY` 或实例地址 | 请求 `GET /api/agent/config`               | 返回 `{ enabled: false }`，不暴露任何密钥                                                                 | ⬜   |
-| 2   | 已配置                                     | 请求 `GET /api/agent/config`                 | 返回实例地址与任务 ID `model-designer`                                                                    | ⬜   |
-| 3   | 未登录                                     | `POST /api/agent/session`                    | 401，不调用 Trigger.dev                                                                                   | ⬜   |
-| 4   | 已登录，`chatId` 属于本人                  | `POST /api/agent/session`                    | Worker 以密钥调用实例的 `POST /api/v1/sessions`（externalId 为 `chatId`、`trigger: preload`），只返回会话令牌 | ⬜   |
-| 5   | 已登录，`chatId` 前缀不是本人用户 ID       | `POST /api/agent/session`                    | 403，不调用 Trigger.dev                                                                                   | ⬜   |
-| 6   | 实例不可达或返回错误                       | `POST /api/agent/session`                    | 502，错误信息不含密钥                                                                                     | ⬜   |
-| 7   | 跨站页面                                   | 向 `/api/agent/session` 发写请求             | 403，沿用同源检查                                                                                         | ⬜   |
-| 8   | 旧客户端                                   | 请求 `/api/ai/model/generate` 或 `/chat`     | 404，Worker 环境不再声明模型密钥                                                                          | ⬜   |
-| 9   | 本地                                       | 运行 Worker 的类型检查、测试（覆盖率 ≥ 80%）与打包 | 全部通过                                                                                           | ⬜   |
-| 10  | 自建实例已部署智能体                       | 真实浏览器登录后发送第一条消息               | 会话创建成功，回复从实例的会话流到达（真实环境）                                                          | ⬜   |
+| #   | 前置条件                                      | 操作                                               | 预期结果                                                                                                      | 状态 |
+| --- | --------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ---- |
+| 1   | Worker 未配置 `TRIGGER_SECRET_KEY` 或实例地址 | 请求 `GET /api/agent/config`                       | 返回 `{ enabled: false }`，不暴露任何密钥                                                                     | ✅   |
+| 2   | 已配置                                        | 请求 `GET /api/agent/config`                       | 返回实例地址与任务 ID `model-designer`                                                                        | ✅   |
+| 3   | 未登录                                        | `POST /api/agent/session`                          | 401，不调用 Trigger.dev                                                                                       | ✅   |
+| 4   | 已登录，`chatId` 属于本人                     | `POST /api/agent/session`                          | Worker 以密钥调用实例的 `POST /api/v1/sessions`（externalId 为 `chatId`、`trigger: preload`），只返回会话令牌 | ✅   |
+| 5   | 已登录，`chatId` 前缀不是本人用户 ID          | `POST /api/agent/session`                          | 403，不调用 Trigger.dev                                                                                       | ✅   |
+| 6   | 实例不可达或返回错误                          | `POST /api/agent/session`                          | 502，错误信息不含密钥                                                                                         | ✅   |
+| 7   | 跨站页面                                      | 向 `/api/agent/session` 发写请求                   | 403，沿用同源检查                                                                                             | ✅   |
+| 8   | 旧客户端                                      | 请求 `/api/ai/model/generate` 或 `/chat`           | 404，Worker 环境不再声明模型密钥                                                                              | ✅   |
+| 9   | 本地                                          | 运行 Worker 的类型检查、测试（覆盖率 ≥ 80%）与打包 | 全部通过                                                                                                      | ✅   |
+| 10  | 自建实例已部署智能体                          | 真实浏览器登录后发送第一条消息                     | 会话创建成功，回复从实例的会话流到达（真实环境）                                                              | ⬜   |
 
-验收证据入口：[验收台账](../../verification-report.md)。
+验收证据入口：`server/agent-session.spec.ts`、`server/edge/router.spec.ts`（模拟 fetch）、`scripts/test-worker.mjs`（wrangler 本地运行时 + 出站代理 + Chromium）、`build-server`；汇总见[验收台账](../../verification-report.md)。
 
 ## 技术笔记
 
@@ -61,6 +61,8 @@ capabilities: []
 - `apps/aiao-model-design/trigger.config.ts` — Trigger.dev 项目配置。
 - `apps/aiao-model-design/project.json` — 智能体的开发、部署与测试目标。
 - `apps/aiao-model-design/README.md` — 自建实例部署说明。
+- `apps/aiao-model-design/.dev.vars.example` / `.env.agent.example` — Worker 与智能体的环境变量示例。
+- `apps/aiao-model-design/scripts/test-worker.mjs` — 真实 Worker 运行时的网络测试。
 
 ## References
 

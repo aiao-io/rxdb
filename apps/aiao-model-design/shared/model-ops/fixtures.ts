@@ -31,7 +31,16 @@ export function sampleRelation(id: string, name: string, overrides: Partial<Snap
 
 /** 测试与示例用：带默认值的实体。 */
 export function sampleEntity(id: string, name: string, overrides: Partial<SnapshotEntity> = {}): SnapshotEntity {
-  return { id, name, displayName: null, entityNamespace: null, properties: [], relations: [], indexes: [], ...overrides };
+  return {
+    id,
+    name,
+    displayName: null,
+    entityNamespace: null,
+    properties: [],
+    relations: [],
+    indexes: [],
+    ...overrides
+  };
 }
 
 /** Customer 1:N Order 两端成对，Order.total 上有索引，Order.status 是枚举。 */
@@ -42,9 +51,7 @@ export function sampleShop(): ModelSnapshot {
         displayName: '客户',
         entityNamespace: 'crm',
         properties: [sampleProperty('p-name', 'name', { isRequired: true, displayName: '姓名' })],
-        relations: [
-          sampleRelation('r-orders', 'orders', { mappedEntityId: 'e-order', mappedPropertyId: 'r-customer' })
-        ]
+        relations: [sampleRelation('r-orders', 'orders', { mappedEntityId: 'e-order', mappedPropertyId: 'r-customer' })]
       }),
       sampleEntity('e-order', 'Order', {
         displayName: '订单',

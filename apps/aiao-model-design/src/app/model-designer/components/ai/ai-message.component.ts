@@ -1,7 +1,33 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
-import { Bot, Check, Copy, LucideAngularModule, User } from 'lucide-angular';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
+import { AlertCircle, Bot, Check, Copy, Loader2, LucideAngularModule, User } from 'lucide-angular';
 import { MODEL_DESIGNER_TRANSLATIONS } from '../../i18n/translations';
 import { renderAiMarkdown } from './ai-markdown';
+
+/** 一次工具调用在消息里的卡片 */
+export interface ChatToolCard {
+  id: string;
+  /** 工具名，界面按翻译表显示 */
+  name: string;
+  state: 'running' | 'done' | 'failed';
+  /** 成功时的摘要或失败原因 */
+  summary: string;
+}
+
+/** 智能体向用户提出的问题 */
+export interface ChatQuestion {
+  toolCallId: string;
+  question: string;
+  options: { id: string; label: string; description?: string }[];
+  /** 已选择的选项文字；未回答时为空 */
+  answer?: string;
+}
+
+/** 用户对提问的回答 */
+export interface ChatAnswer {
+  toolCallId: string;
+  optionId: string;
+  label: string;
+}
 
 /** 消息数据结构 */
 export interface ChatMessageItem {
@@ -10,6 +36,8 @@ export interface ChatMessageItem {
   content: string;
   createdAt?: string;
   isStreaming?: boolean;
+  tools?: ChatToolCard[];
+  question?: ChatQuestion;
 }
 
 /**
@@ -49,28 +77,84 @@ export interface ChatMessageItem {
           }
         </div>
 
-        <div
-          class="min-w-0 rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm"
-          [attr.aria-live]="message().isStreaming ? 'polite' : null"
-          [class.bg-base-200]="!isUser()"
-          [class.bg-primary]="isUser()"
-          [class.rounded-tl-md]="!isUser()"
-          [class.rounded-tr-md]="isUser()"
-          [class.text-primary-content]="isUser()"
-        >
-          @if (message().content) {
-            <div class="ai-message-content" [innerHTML]="renderedContent()"></div>
-          } @else if (message().isStreaming) {
-            <span class="inline-flex items-center gap-1" aria-label="{{ t().ai.generating }}">
-              <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.2s]"></span>
-              <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.1s]"></span>
-              <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-current"></span>
-            </span>
-          }
-          @if (message().isStreaming && message().content) {
-            <span class="ml-1 inline-block animate-pulse align-baseline">▍</span>
-          }
-        </div>
+        @if (message().content || message().isStreaming) {
+          <div
+            class="min-w-0 rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm"
+            [attr.aria-live]="message().isStreaming ? 'polite' : null"
+            [class.bg-base-200]="!isUser()"
+            [class.bg-primary]="isUser()"
+            [class.rounded-tl-md]="!isUser()"
+            [class.rounded-tr-md]="isUser()"
+            [class.text-primary-content]="isUser()"
+          >
+            @if (message().content) {
+              <div class="ai-message-content" [innerHTML]="renderedContent()"></div>
+            } @else {
+              <span class="inline-flex items-center gap-1" aria-label="{{ t().ai.generating }}">
+                <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.2s]"></span>
+                <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.1s]"></span>
+                <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-current"></span>
+              </span>
+            }
+            @if (message().isStreaming && message().content) {
+              <span class="ml-1 inline-block animate-pulse align-baseline">▍</span>
+            }
+          </div>
+        }
+
+        @if (message().tools?.length) {
+          <ul class="mt-2 flex w-full flex-col gap-1" [attr.aria-label]="t().ai.toolCalls">
+            @for (tool of message().tools; track tool.id) {
+              <li
+                class="border-base-300 bg-base-100 flex items-start gap-2 rounded-lg border px-2.5 py-1.5 text-xs"
+                [attr.data-state]="tool.state"
+              >
+                @switch (tool.state) {
+                  @case ('running') {
+                    <lucide-icon class="mt-0.5 shrink-0 animate-spin" [img]="LoaderIcon" aria-hidden="true" size="13" />
+                  }
+                  @case ('done') {
+                    <lucide-icon class="text-success mt-0.5 shrink-0" [img]="CheckIcon" aria-hidden="true" size="13" />
+                  }
+                  @case ('failed') {
+                    <lucide-icon class="text-error mt-0.5 shrink-0" [img]="AlertIcon" aria-hidden="true" size="13" />
+                  }
+                }
+                <div class="min-w-0">
+                  <span class="font-medium">{{ t().ai.tools[tool.name] ?? tool.name }}</span>
+                  @if (tool.summary) {
+                    <p class="text-base-content/65 break-words whitespace-pre-line">{{ tool.summary }}</p>
+                  }
+                </div>
+              </li>
+            }
+          </ul>
+        }
+
+        @if (message().question; as question) {
+          <fieldset
+            class="border-primary/30 bg-primary/5 mt-2 w-full rounded-xl border p-3"
+            [disabled]="!!question.answer || answerDisabled()"
+          >
+            <legend class="px-1 text-sm font-medium">{{ question.question }}</legend>
+            <div class="flex flex-col gap-2">
+              @for (option of question.options; track option.id) {
+                <button
+                  class="btn btn-sm h-auto min-h-9 flex-col items-start gap-0 py-1.5 text-left"
+                  [class.btn-outline]="question.answer !== option.label"
+                  [class.btn-primary]="question.answer === option.label"
+                  (click)="answer.emit({ toolCallId: question.toolCallId, optionId: option.id, label: option.label })"
+                  type="button"
+                >
+                  <span>{{ option.label }}</span>
+                  @if (option.description) {
+                    <span class="text-xs font-normal opacity-70">{{ option.description }}</span>
+                  }
+                </button>
+              }
+            </div>
+          </fieldset>
+        }
 
         @if (message().content && !message().isStreaming) {
           <div
@@ -178,6 +262,8 @@ export class AiMessageComponent {
   protected readonly BotIcon = Bot;
   protected readonly CopyIcon = Copy;
   protected readonly CheckIcon = Check;
+  protected readonly LoaderIcon = Loader2;
+  protected readonly AlertIcon = AlertCircle;
   protected readonly copied = signal(false);
 
   protected readonly isUser = computed(() => this.message().role === 'user');
@@ -190,6 +276,12 @@ export class AiMessageComponent {
   });
 
   readonly message = input.required<ChatMessageItem>();
+
+  /** 生成中或已提交时禁用提问的选项 */
+  readonly answerDisabled = input(false);
+
+  /** 用户选择了提问的一个选项 */
+  readonly answer = output<ChatAnswer>();
 
   protected onCopy(): void {
     void this.#copyMessage();

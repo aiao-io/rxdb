@@ -12,10 +12,19 @@ import {
   type DesignPropertySnapshot,
   type DesignRelationSnapshot
 } from '../utils/design-clone';
-import type { PopulateEntityManager } from './ai-model-populate.service';
 import { ConfirmDialogService } from './confirm-dialog.service';
 import { optimisticUpdate } from './entity-utils';
 import { createQueryGate, firstQueryError } from './lazy-query';
+
+/** 克隆设计时用到的 EntityManager 子集：按指定 ID 构造实体并批量写入。 */
+interface CloneEntityManager {
+  createEntityRef<T extends object>(EntityType: new (...args: never[]) => T, data: Record<string, unknown>): T;
+  mutations(options: {
+    create: Map<unknown, Set<unknown>>;
+    update: Map<unknown, Set<unknown>>;
+    remove: Map<unknown, Set<unknown>>;
+  }): Promise<unknown>;
+}
 
 function toEntitySnapshot(e: DesignEntity): DesignEntitySnapshot {
   return {
@@ -248,7 +257,7 @@ export class ModelDesignService {
 
   /** 将克隆快照转换为按实体类型分组的 create Map，克隆实体额外写入所属 modelDesignId */
   #buildCreateMap(cloned: ClonedSnapshot, modelDesignId: string): Map<unknown, Set<unknown>> {
-    const em: PopulateEntityManager = this.#rxdb.entityManager;
+    const em: CloneEntityManager = this.#rxdb.entityManager;
     const createMap = new Map<unknown, Set<unknown>>();
 
     if (cloned.entities.length) {

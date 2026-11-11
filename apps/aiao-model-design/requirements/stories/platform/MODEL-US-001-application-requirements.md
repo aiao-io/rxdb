@@ -1,11 +1,11 @@
 ---
 id: MODEL-US-001
 title: 应用需求管理与结构门禁
-status: In Progress
+status: Done
 priority: High
 epic: MODEL-EPIC-001
 created: 2026-11-11
-updated: 2026-11-11
+updated: 2026-11-12
 tags: [requirements, tooling]
 dependsOn: []
 capabilities: []
@@ -35,12 +35,12 @@ capabilities: []
 
 ## 验收标准
 
-| #   | 前置条件                    | 操作                                                  | 预期结果                                                             | 状态 |
-| --- | --------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------- | ---- |
-| 1   | 阅读需求入口                | 查看目录、编号段、故事、决策与派生视图                | 应用范围与平台引用清楚，具有 app-template 要求的管理入口与模板       | ⬜   |
-| 2   | 有合法与错误的夹具          | 执行 `aiao-model-design:requirements-test`            | `MODEL` 前缀的需求树通过；其他应用前缀的故事与史诗编号被拒绝         | ⬜   |
-| 3   | 当前需求目录可用            | 执行 `aiao-model-design:requirements-check`           | 本应用文档一致，没有失效的本地链接或标题锚点                         | ⬜   |
-| 4   | 共享门禁脚本已从 Admin 抽出 | 执行 Admin 的 `requirements-test` 与 `requirements-check` | 原有负例全部仍被拒绝，Admin 当前需求目录仍通过                     | ⬜   |
+| #   | 前置条件                    | 操作                                                      | 预期结果                                                       | 状态 |
+| --- | --------------------------- | --------------------------------------------------------- | -------------------------------------------------------------- | ---- |
+| 1   | 阅读需求入口                | 查看目录、编号段、故事、决策与派生视图                    | 应用范围与平台引用清楚，具有 app-template 要求的管理入口与模板 | ✅   |
+| 2   | 有合法与错误的夹具          | 执行 `aiao-model-design:requirements-test`                | `MODEL` 前缀的需求树通过；其他应用前缀的故事与史诗编号被拒绝   | ✅   |
+| 3   | 当前需求目录可用            | 执行 `aiao-model-design:requirements-check`               | 本应用文档一致，没有失效的本地链接或标题锚点                   | ✅   |
+| 4   | 共享门禁脚本已从 Admin 抽出 | 执行 Admin 的 `requirements-test` 与 `requirements-check` | 原有负例全部仍被拒绝，Admin 当前需求目录仍通过                 | ✅   |
 
 验收证据入口：[门禁测试](../../../scripts/check-requirements.spec.mjs)、[验收台账](../../verification-report.md)。
 

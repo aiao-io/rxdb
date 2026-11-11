@@ -9,7 +9,7 @@ import { VersionManagerDialogComponent } from '../components/version-manager/ver
 import DesignerComponent from '../designer.component';
 import { DEFAULT_TRANSLATIONS, MODEL_DESIGNER_TRANSLATIONS } from '../i18n/translations';
 import type { GeneratedFile } from '../interfaces/designer.interface';
-import { AiGenerateOrchestratorService } from '../services/ai-generate-orchestrator.service';
+import { AgentConversationService } from '../services/agent-conversation.service';
 import { ConfirmDialogService } from '../services/confirm-dialog.service';
 import { DesignerStateService } from '../services/designer-state.service';
 
@@ -47,7 +47,7 @@ function createDesigner(generatedFiles: readonly GeneratedFile[], executeAvailab
       { provide: ConfirmDialogService, useValue: { confirm: vi.fn() } },
       { provide: DesignerStateService, useValue: state },
       {
-        provide: AiGenerateOrchestratorService,
+        provide: AgentConversationService,
         useValue: { operationState: signal('idle'), discard: vi.fn() }
       },
       { provide: MODEL_DESIGNER_TRANSLATIONS, useValue: signal(DEFAULT_TRANSLATIONS) }

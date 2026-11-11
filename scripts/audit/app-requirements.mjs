@@ -245,9 +245,7 @@ function checkOverview(text, stories, counts, ids, errors) {
     const actual = new RegExp(`^## ${heading}（(\\d+) 条）`, 'm').exec(text)?.[1];
     if (actual !== String(counts[status])) errors.push(`status-overview.md: ${heading}标题条数应为 ${counts[status]}`);
   }
-  const indexed = new Map(
-    [...text.matchAll(ids.overviewEntry)].map(match => [match[2], match[1]])
-  );
+  const indexed = new Map([...text.matchAll(ids.overviewEntry)].map(match => [match[2], match[1]]));
   for (const story of stories) {
     if (indexed.get(story.fm.id) !== STATUS_EMOJI[story.fm.status])
       errors.push(`status-overview.md: ${story.fm.id} 状态索引应为 ${STATUS_EMOJI[story.fm.status]}`);

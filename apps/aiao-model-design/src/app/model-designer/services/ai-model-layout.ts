@@ -9,29 +9,6 @@ export const LAYOUT = {
 } as const;
 
 /**
- * 解决实体名冲突（已有 + 批次内）
- *
- * 冲突时追加数字后缀，已占用时递增。
- */
-export function resolveEntityNameConflicts(newNames: string[], existingNames: string[]): string[] {
-  const taken = new Set(existingNames);
-  const resolved: string[] = [];
-
-  for (const name of newNames) {
-    let candidate = name;
-    if (taken.has(candidate)) {
-      let suffix = 2;
-      while (taken.has(`${name}${suffix}`)) suffix++;
-      candidate = `${name}${suffix}`;
-    }
-    taken.add(candidate);
-    resolved.push(candidate);
-  }
-
-  return resolved;
-}
-
-/**
  * 计算新实体画布布局位置
  *
  * 网格排布：每行 3 个，从现有实体右侧或 (100, 100) 开始。

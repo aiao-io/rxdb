@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { AiChatPanelComponent } from '../../../components/ai/ai-chat-panel.component';
 import { DEFAULT_TRANSLATIONS, MODEL_DESIGNER_TRANSLATIONS } from '../../../i18n/translations';
+import type { AgentNotice } from '../../../services/agent-conversation.service';
 import type { AiOperationState } from '../../../services/ai-state.types';
 
 /**
@@ -14,24 +15,21 @@ import type { AiOperationState } from '../../../services/ai-state.types';
 
 function createComponent(overrides?: {
   operationState?: AiOperationState;
-  canStartOperation?: boolean;
-  isOffline?: boolean;
+  notice?: AgentNotice;
+  awaitingAnswer?: boolean;
   activeSessionId?: string;
-  chatMode?: boolean;
 }) {
   return TestBed.runInInjectionContext(() => {
     const c = new AiChatPanelComponent();
     const opState = signal<AiOperationState>(overrides?.operationState ?? 'idle');
-    const canStart = signal(overrides?.canStartOperation ?? true);
-    const offline = signal(overrides?.isOffline ?? false);
+    const notice = signal<AgentNotice>(overrides?.notice ?? null);
+    const awaitingAnswer = signal(overrides?.awaitingAnswer ?? false);
     const activeSession = signal<string | undefined>(overrides?.activeSessionId);
-    const chatMode = signal(overrides?.chatMode ?? false);
     Object.defineProperty(c, 'operationState', { value: opState, writable: false });
-    Object.defineProperty(c, 'canStartOperation', { value: canStart, writable: false });
-    Object.defineProperty(c, 'isOffline', { value: offline, writable: false });
+    Object.defineProperty(c, 'notice', { value: notice, writable: false });
+    Object.defineProperty(c, 'awaitingAnswer', { value: awaitingAnswer, writable: false });
     Object.defineProperty(c, 'activeSessionId', { value: activeSession, writable: false });
-    Object.defineProperty(c, 'chatMode', { value: chatMode, writable: false });
-    return { component: c, opState, canStart, offline, activeSession, chatMode };
+    return { component: c, opState, notice, awaitingAnswer, activeSession };
   });
 }
 
@@ -58,26 +56,35 @@ describe('AiChatPanelComponent', () => {
       expect(component['canInput']()).toBe(false);
     });
 
-    it('should return false when offline', () => {
-      const { component } = createComponent({ isOffline: true });
-      expect(component['canInput']()).toBe(false);
-    });
+    it.each(['loading', 'unconfigured', 'signed-out', 'unavailable', 'read-only'] as const)(
+      'should return false when notice is %s',
+      notice => {
+        const { component } = createComponent({ notice });
+        expect(component['canInput']()).toBe(false);
+      }
+    );
 
-    it('should return false when canStartOperation is false', () => {
-      const { component } = createComponent({ canStartOperation: false });
+    it('should return false while a question awaits an answer', () => {
+      const { component } = createComponent({ awaitingAnswer: true });
       expect(component['canInput']()).toBe(false);
     });
   });
 
   describe('blockingMessage computed', () => {
-    it('should return offline message when offline', () => {
-      const { component } = createComponent({ isOffline: true });
-      expect(component['blockingMessage']()).toBe(DEFAULT_TRANSLATIONS.ai.offline);
+    it.each([
+      ['loading', DEFAULT_TRANSLATIONS.ai.noticeLoading],
+      ['unconfigured', DEFAULT_TRANSLATIONS.ai.noticeUnconfigured],
+      ['signed-out', DEFAULT_TRANSLATIONS.ai.noticeSignedOut],
+      ['unavailable', DEFAULT_TRANSLATIONS.ai.noticeUnavailable],
+      ['read-only', DEFAULT_TRANSLATIONS.ai.noticeReadOnly]
+    ] as const)('should explain the %s notice', (notice, message) => {
+      const { component } = createComponent({ notice });
+      expect(component['blockingMessage']()).toBe(message);
     });
 
-    it('should return pendingChanges message when canStartOperation is false', () => {
-      const { component } = createComponent({ canStartOperation: false });
-      expect(component['blockingMessage']()).toBe(DEFAULT_TRANSLATIONS.ai.pendingChanges);
+    it('should ask to answer the pending question first', () => {
+      const { component } = createComponent({ awaitingAnswer: true });
+      expect(component['blockingMessage']()).toBe(DEFAULT_TRANSLATIONS.ai.awaitingAnswer);
     });
 
     it('should return empty string when no blocking condition', () => {
@@ -104,8 +111,8 @@ describe('AiChatPanelComponent', () => {
       expect(component['canSend']()).toBe(true);
     });
 
-    it('should return false when input has content but offline', () => {
-      const { component } = createComponent({ isOffline: true });
+    it('should return false when input has content but the agent is unavailable', () => {
+      const { component } = createComponent({ notice: 'signed-out' });
       component['inputValue'].set('Create a blog');
       expect(component['canSend']()).toBe(false);
     });
@@ -156,18 +163,13 @@ describe('AiChatPanelComponent', () => {
       expect(emitted).toBe(false);
     });
 
-    it('should expose mode-specific empty-state suggestions', () => {
-      const { component, chatMode } = createComponent();
+    it('should expose empty-state suggestions for the single conversation entry', () => {
+      const { component } = createComponent();
 
       expect(component['promptSuggestions']()).toEqual([
         DEFAULT_TRANSLATIONS.ai.suggestionGenerateModel,
-        DEFAULT_TRANSLATIONS.ai.suggestionRefineEntity
-      ]);
-
-      chatMode.set(true);
-      expect(component['promptSuggestions']()).toEqual([
-        DEFAULT_TRANSLATIONS.ai.suggestionExplainModel,
-        DEFAULT_TRANSLATIONS.ai.suggestionRefineEntity
+        DEFAULT_TRANSLATIONS.ai.suggestionRefineEntity,
+        DEFAULT_TRANSLATIONS.ai.suggestionExplainModel
       ]);
     });
 

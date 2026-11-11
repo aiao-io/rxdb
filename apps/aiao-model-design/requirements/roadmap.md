@@ -2,22 +2,19 @@
 
 状态见 [status-overview](status-overview.md)，本页不维护第二份状态。整个史诗在同一个分支、同一个 PR 里推进。
 
-## 当前批次：持久建模智能体
+## 当前批次：真实环境验收
 
-| 顺序 | 故事                                                                                       | 交付条件                                                         |
-| ---- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
-| 1    | [MODEL-US-001](stories/platform/MODEL-US-001-application-requirements.md) 需求管理与门禁    | 本应用与 Admin 两道门禁都通过                                    |
-| 2    | [MODEL-US-101](stories/agent/MODEL-US-101-modeling-tools-agent.md) 建模工具与智能体定义    | 离线测试驱动多步工具调用；共享模块覆盖率 ≥ 80%                   |
-| 3    | [MODEL-US-002](stories/platform/MODEL-US-002-trigger-session-gateway.md) 会话签发与部署     | Worker 只签发会话；旧接口删除；部署说明可照做                    |
-| 4    | [MODEL-US-102](stories/agent/MODEL-US-102-designer-durable-session.md) 设计器接入持久会话   | ops 幂等写入 AI 分支，刷新可续；旧解析链路删除                   |
-| 5    | [MODEL-US-103](stories/agent/MODEL-US-103-manual-edit-readback.md) 手动修改回读             | 回读块只插在最新消息前，历史前缀不变                             |
-| 6    | [MODEL-US-104](stories/agent/MODEL-US-104-clarifying-questions.md) 需求澄清提问             | 提问暂停本轮，选择后自动续轮                                     |
+代码与离线验收已完成，剩下的都要在真实环境执行：
 
-MODEL-US-101 与 MODEL-US-002 互不依赖，可以并行；MODEL-US-103、MODEL-US-104 都排在 MODEL-US-102 之后。
+| 顺序 | 故事                                                                                      | 关闭条件                                                        |
+| ---- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| 1    | [MODEL-US-002](stories/platform/MODEL-US-002-trigger-session-gateway.md) 会话签发与部署   | 部署智能体到自建实例，真实浏览器登录后创建会话并收到回复（#10） |
+| 2    | [MODEL-US-101](stories/agent/MODEL-US-101-modeling-tools-agent.md) 建模工具与智能体定义   | 真实 DeepSeek 建电商订单模型，关系成对、整体校验无问题（#11）   |
+| 3    | [MODEL-US-102](stories/agent/MODEL-US-102-designer-durable-session.md) 设计器接入持久会话 | 刷新后从游标续流（#3）；真实浏览器生成并合并（#10）             |
+| 4    | [MODEL-US-104](stories/agent/MODEL-US-104-clarifying-questions.md) 需求澄清提问           | 浏览器里确认选项卡片的显示与禁用（#1、#4）                      |
+| 5    | [MODEL-US-103](stories/agent/MODEL-US-103-manual-edit-readback.md) 手动修改回读           | AC 已全部通过，随 MODEL-US-102 一起关闭                         |
 
-## 真实环境验收
-
-MODEL-US-002、MODEL-US-101、MODEL-US-102 各有一条真实环境 AC（自建 Trigger.dev 实例 + 真实 DeepSeek + 真实浏览器），需要实例地址、项目 ref 与密钥到位后执行，记在[验收台账](verification-report.md)。拿到证据前，这三条故事不标 `Done`。
+前置：自建 Trigger.dev 实例地址、项目 ref、Worker 用的 `TRIGGER_SECRET_KEY`，以及实例环境变量里的 `DEEPSEEK_API_KEY`。步骤见[应用 README](../README.md#部署)，记录写进[验收台账](verification-report.md)。
 
 ## 不排期目标
 

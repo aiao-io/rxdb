@@ -15,12 +15,18 @@
         "browser": "apps/aiao-model-design/src/main.ts",
         "tsConfig": "apps/aiao-model-design/tsconfig.app.json",
         "inlineStyleLanguage": "scss",
+        "externalDependencies": ["node:http2"],
         "allowedCommonJsDependencies": [
+          "@google-cloud/precise-date",
+          "@jsonhero/path",
+          "@vercel/oidc",
           "cssfontparser",
+          "debug",
           "eventemitter3",
           "geobuf",
           "geojson-dissolve",
           "gifuct-js",
+          "humanize-duration",
           "lodash/get",
           "lottie-web",
           "mousetrap",
@@ -97,7 +103,7 @@
       "options": {
         "command": "vitest run --config apps/aiao-model-design/vite.config.mts"
       },
-      "dependsOn": ["^build", "test-server", "requirements-check", "requirements-test"]
+      "dependsOn": ["^build", "test-node", "requirements-check", "requirements-test"]
     },
     "requirements-check": {
       "executor": "nx:run-commands",
@@ -140,12 +146,12 @@
         "command": "node packages/rxdb-client-generator/dist/cli.js apps/aiao-model-design/rxdb-models.config.ts"
       }
     },
-    "test-server": {
+    "test-node": {
       "cache": true,
       "executor": "nx:run-commands",
-      "outputs": ["{workspaceRoot}/coverage/apps/aiao-model-design-server"],
+      "outputs": ["{workspaceRoot}/coverage/apps/aiao-model-design-node"],
       "options": {
-        "command": "vitest run --config apps/aiao-model-design/vitest.server.config.mts"
+        "command": "vitest run --config apps/aiao-model-design/vitest.node.config.mts"
       }
     },
     "typecheck-server": {
@@ -153,6 +159,29 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "tsc --project apps/aiao-model-design/tsconfig.server.json --noEmit"
+      }
+    },
+    "typecheck-agent": {
+      "cache": true,
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --project apps/aiao-model-design/tsconfig.agent.json --noEmit"
+      }
+    },
+    "agent-dev": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/aiao-model-design",
+        "command": "trigger dev start --env-file .env.agent"
+      }
+    },
+    "agent-deploy": {
+      "dependsOn": ["test-node", "typecheck-agent"],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/aiao-model-design",
+        "command": "trigger deploy"
       }
     },
     "deploy-cloudflare": {
@@ -183,7 +212,7 @@
       "dependsOn": ["build"]
     },
     "typecheck": {
-      "dependsOn": ["^typecheck", "typecheck-server"]
+      "dependsOn": ["^typecheck", "typecheck-server", "typecheck-agent"]
     },
     "test-worker": {
       "executor": "nx:run-commands",

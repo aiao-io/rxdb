@@ -1,4 +1,3 @@
-import { DecimalPipe } from '@angular/common';
 import {
   afterRenderEffect,
   ChangeDetectionStrategy,
@@ -13,7 +12,7 @@ import {
 import { ArrowDown, Bot, Loader2, LucideAngularModule } from 'lucide-angular';
 import { MODEL_DESIGNER_TRANSLATIONS } from '../../i18n/translations';
 import type { AiOperationState } from '../../services/ai-state.types';
-import { AiMessageComponent, type ChatMessageItem } from './ai-message.component';
+import { AiMessageComponent, type ChatAnswer, type ChatMessageItem } from './ai-message.component';
 
 /**
  * AI 消息列表组件
@@ -23,7 +22,7 @@ import { AiMessageComponent, type ChatMessageItem } from './ai-message.component
  */
 @Component({
   selector: 'lib-ai-message-list',
-  imports: [DecimalPipe, LucideAngularModule, AiMessageComponent],
+  imports: [LucideAngularModule, AiMessageComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="relative flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -52,23 +51,13 @@ import { AiMessageComponent, type ChatMessageItem } from './ai-message.component
         }
 
         @for (msg of messages(); track msg.id) {
-          <lib-ai-message [message]="msg" />
+          <lib-ai-message [answerDisabled]="answerDisabled()" [message]="msg" (answer)="answer.emit($event)" />
         }
 
         @if (operationState() === 'generating') {
           <div class="text-base-content/60 flex items-center gap-2 px-1 text-sm" aria-live="polite" role="status">
             <lucide-icon class="animate-spin" [img]="Loader2" aria-hidden="true" size="16" />
             <span>{{ isAborting() ? t().ai.stopping : t().ai.generating }}</span>
-            @if (streamingCharCount() > 0 && !isAborting()) {
-              <span class="badge badge-ghost badge-xs text-base-content/80 font-mono">
-                {{
-                  streamingCharCount() >= 1000 ?
-                    (streamingCharCount() / 1000 | number: '1.1-2') + ' K'
-                  : streamingCharCount()
-                }}
-                {{ t().ai.chars }}
-              </span>
-            }
           </div>
         }
       </div>
@@ -105,9 +94,6 @@ export class AiMessageListComponent {
   /** AI 操作状态 */
   readonly operationState = input<AiOperationState>('idle');
 
-  /** 流式传输已接收字符数 */
-  readonly streamingCharCount = input(0);
-
   /** 是否正在中止（由父组件传入） */
   readonly isAborting = input(false);
 
@@ -123,10 +109,15 @@ export class AiMessageListComponent {
   /** 用户选择快捷提示 */
   readonly selectSuggestion = output<string>();
 
+  /** 生成中时禁用提问的选项 */
+  readonly answerDisabled = input(false);
+
+  /** 用户回答了智能体的提问 */
+  readonly answer = output<ChatAnswer>();
+
   constructor() {
     afterRenderEffect(() => {
       this.messages();
-      this.streamingCharCount();
       this.operationState();
       this.#autoScroll();
 

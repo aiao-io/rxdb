@@ -1,5 +1,11 @@
 import { entityNameProblem, fieldNameProblem } from './naming';
-import { INVERSE_KIND, type ModelSnapshot, type SnapshotEntity, type SnapshotProperty, type SnapshotRelation } from './types';
+import {
+  INVERSE_KIND,
+  type ModelSnapshot,
+  type SnapshotEntity,
+  type SnapshotProperty,
+  type SnapshotRelation
+} from './types';
 
 function propertyIssues(entity: SnapshotEntity, property: SnapshotProperty): string[] {
   const label = `${entity.name}.${property.name}`;

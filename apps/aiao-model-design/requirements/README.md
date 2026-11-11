@@ -1,6 +1,6 @@
 # 模型设计器应用需求
 
-当前交付：[0/6 已交付]。状态真相源为 `stories/<domain>/MODEL-US-*.md` 的 YAML `status`，其余视图由故事派生。
+当前交付：[1/6 已交付]。状态真相源为 `stories/<domain>/MODEL-US-*.md` 的 YAML `status`，其余视图由故事派生。
 
 ## 当前范围
 
@@ -16,20 +16,20 @@
 
 ## 导航
 
-| 文档                                                   | 用途                         |
-| ------------------------------------------------------ | ---------------------------- |
-| [CONVENTIONS.md](CONVENTIONS.md)                       | 编号段、引用规则与应用门禁   |
-| [status-overview.md](status-overview.md)               | 故事状态与统计               |
-| [roadmap.md](roadmap.md)                               | 当前批次、后续顺序与前置     |
-| [decisions.md](decisions.md)                           | 生效决策与执行条件           |
-| [capability-matrix.md](capability-matrix.md)           | 当前能力与未验证的边界       |
-| [verification-report.md](verification-report.md)       | 分层验收证据与待验项         |
-| [future-requirements.md](future-requirements.md)       | 长期方向与准入条件           |
-| [epics/MODEL-EPIC-001.md](epics/MODEL-EPIC-001.md)     | 持久建模智能体               |
-| [stories/story.template.md](stories/story.template.md) | 新故事模板                   |
-| [plans/README.md](plans/README.md)                     | 调研、实施计划与验收记录     |
-| [reviews/README.md](reviews/README.md)                 | 应用旧 review 记录入口       |
-| [code-scanning/README.md](code-scanning/README.md)     | CodeQL 告警工作集            |
+| 文档                                                   | 用途                       |
+| ------------------------------------------------------ | -------------------------- |
+| [CONVENTIONS.md](CONVENTIONS.md)                       | 编号段、引用规则与应用门禁 |
+| [status-overview.md](status-overview.md)               | 故事状态与统计             |
+| [roadmap.md](roadmap.md)                               | 当前批次、后续顺序与前置   |
+| [decisions.md](decisions.md)                           | 生效决策与执行条件         |
+| [capability-matrix.md](capability-matrix.md)           | 当前能力与未验证的边界     |
+| [verification-report.md](verification-report.md)       | 分层验收证据与待验项       |
+| [future-requirements.md](future-requirements.md)       | 长期方向与准入条件         |
+| [epics/MODEL-EPIC-001.md](epics/MODEL-EPIC-001.md)     | 持久建模智能体             |
+| [stories/story.template.md](stories/story.template.md) | 新故事模板                 |
+| [plans/README.md](plans/README.md)                     | 调研、实施计划与验收记录   |
+| [reviews/README.md](reviews/README.md)                 | 应用旧 review 记录入口     |
+| [code-scanning/README.md](code-scanning/README.md)     | CodeQL 告警工作集          |
 
 ## 平台与应用
 
@@ -39,12 +39,12 @@
 
 ## 术语
 
-| 术语     | 含义                                                                                 |
-| -------- | ------------------------------------------------------------------------------------ |
-| 智能体   | `agent/model-designer.md` 定义、在 Trigger.dev 上运行的 `chat.agent` 任务             |
-| 会话     | 一个持久的 Trigger.dev Session，以 `chatId` 为键，跨 run 存活                         |
-| 快照     | 浏览器每轮随消息发送的当前模型（实体、属性、关系、索引），智能体据此建立草稿         |
-| 草稿     | 智能体在服务端对快照做工具修改后的模型，只活在当前轮                                 |
-| 操作日志 | 工具输出里的 `ops`，浏览器按 `toolCallId` 幂等写入 AI 分支                            |
-| AI 分支  | 智能体写入的 RxDB 分支（平台版本控制能力），由用户合并或丢弃                         |
-| 回读     | 上一轮结束后用户手动做的修改，在下一轮注入给智能体                                   |
+| 术语     | 含义                                                                         |
+| -------- | ---------------------------------------------------------------------------- |
+| 智能体   | `agent/model-designer.md` 定义、在 Trigger.dev 上运行的 `chat.agent` 任务    |
+| 会话     | 一个持久的 Trigger.dev Session，以 `chatId` 为键，跨 run 存活                |
+| 快照     | 浏览器每轮随消息发送的当前模型（实体、属性、关系、索引），智能体据此建立草稿 |
+| 草稿     | 智能体在服务端对快照做工具修改后的模型，只活在当前轮                         |
+| 操作日志 | 工具输出里的 `ops`，浏览器按 `toolCallId` 幂等写入 AI 分支                   |
+| AI 分支  | 智能体写入的 RxDB 分支（平台版本控制能力），由用户合并或丢弃                 |
+| 回读     | 上一轮结束后用户手动做的修改，在下一轮注入给智能体                           |

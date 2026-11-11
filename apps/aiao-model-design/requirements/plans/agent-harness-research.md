@@ -4,15 +4,15 @@
 
 ## rendi 的 harness 形状
 
-| 机制                 | rendi 的做法（复验入口）                                                                                       | 对本应用                                       |
-| -------------------- | -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| 机制                  | rendi 的做法（复验入口）                                                                                             | 对本应用                                       |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
 | 智能体是一份 Markdown | `trigger/rendi/agent.md` 的 frontmatter 写 `name` / `model` / `tools`，正文是系统提示词；`parseAgentDefinition` 解析 | 采用：`agent/model-designer.md`                |
-| 一工具一文件         | `trigger/tools/*.ts`，注册表 `toolRegistry`；`resolveTools` 遇到未注册名称直接抛错                              | 采用：`agent/tools/`                           |
-| 持久会话             | `trigger/chat.ts` 用 `chat.agent`，`stopWhen: () => false` 不限步数                                            | 采用 `chat.agent`；步数设上限，防止工具死循环  |
-| 回读用户操作         | `lib/rendi/harness/readback.ts`：用户对图表的操作记成带操作者的日志，下一轮注入在最新用户消息之前，前缀不变    | 采用：快照差异代替操作日志（模型数据在浏览器） |
-| 后台任务唤醒         | `trigger/ingest.ts` 完成后经 `sessions.open(id).in.send` 写一条 `[dataset … ready]` 消息唤醒智能体               | 暂不需要，列入后续方向                         |
-| 安全靠结构           | 下单需「两把钥匙」：审批码发到邮箱、只能在卡片里输入，与提示词无关                                             | 对应：AI 只写 AI 分支，合并由用户决定          |
-| 定时心跳、邮件、截图 | `pulse-ops`、`send-email`、`screenshot-canvas`                                                                 | 与建模无关，不采用                             |
+| 一工具一文件          | `trigger/tools/*.ts`，注册表 `toolRegistry`；`resolveTools` 遇到未注册名称直接抛错                                   | 采用：`agent/tools/`                           |
+| 持久会话              | `trigger/chat.ts` 用 `chat.agent`，`stopWhen: () => false` 不限步数                                                  | 采用 `chat.agent`；步数设上限，防止工具死循环  |
+| 回读用户操作          | `lib/rendi/harness/readback.ts`：用户对图表的操作记成带操作者的日志，下一轮注入在最新用户消息之前，前缀不变          | 采用：快照差异代替操作日志（模型数据在浏览器） |
+| 后台任务唤醒          | `trigger/ingest.ts` 完成后经 `sessions.open(id).in.send` 写一条 `[dataset … ready]` 消息唤醒智能体                   | 暂不需要，列入后续方向                         |
+| 安全靠结构            | 下单需「两把钥匙」：审批码发到邮箱、只能在卡片里输入，与提示词无关                                                   | 对应：AI 只写 AI 分支，合并由用户决定          |
+| 定时心跳、邮件、截图  | `pulse-ops`、`send-email`、`screenshot-canvas`                                                                       | 与建模无关，不采用                             |
 
 ## Trigger.dev `chat.agent` 能力
 

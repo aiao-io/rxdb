@@ -1,11 +1,11 @@
 ---
 id: MODEL-US-104
 title: 需求澄清提问
-status: Backlog
+status: In Progress
 priority: Medium
 epic: MODEL-EPIC-001
 created: 2026-11-11
-updated: 2026-11-11
+updated: 2026-11-12
 tags: [agent, human-in-the-loop]
 dependsOn: [MODEL-US-102]
 capabilities: []
@@ -26,7 +26,7 @@ capabilities: []
 ### In Scope
 
 - `ask_user` 工具不带 `execute`，调用后本轮暂停；面板展示问题与选项。
-- 用户选择后用 `addToolOutput` 回填，自动开始下一轮，智能体按选择继续建模。
+- 用户选择后用 `addToolOutput` 回填，并立即开始下一轮，智能体按选择继续建模。
 - 等待回答期间刷新页面，问题与选项仍可作答。
 
 ### Out of Scope
@@ -35,18 +35,18 @@ capabilities: []
 
 ## 验收标准
 
-| #   | 前置条件                  | 操作                     | 预期结果                                                               | 状态 |
-| --- | ------------------------- | ------------------------ | ---------------------------------------------------------------------- | ---- |
-| 1   | 智能体调用 `ask_user`     | 本轮结束                 | 面板显示问题与 2～4 个选项，本轮没有写入 ops                           | ⬜   |
-| 2   | 问题待回答                | 选择一个选项             | 工具结果回填，下一轮自动开始，智能体收到所选项                         | ⬜   |
-| 3   | 问题待回答                | 刷新页面后打开会话       | 问题与选项仍在且可作答                                                 | ⬜   |
-| 4   | 回答已提交或流正在进行    | 再次点击选项             | 选项禁用，不重复提交                                                   | ⬜   |
+| #   | 前置条件               | 操作               | 预期结果                                       | 状态 |
+| --- | ---------------------- | ------------------ | ---------------------------------------------- | ---- |
+| 1   | 智能体调用 `ask_user`  | 本轮结束           | 面板显示问题与 2～4 个选项，本轮没有写入 ops   | ⚠️   |
+| 2   | 问题待回答             | 选择一个选项       | 工具结果回填，下一轮自动开始，智能体收到所选项 | ✅   |
+| 3   | 问题待回答             | 刷新页面后打开会话 | 问题与选项仍在且可作答                         | ✅   |
+| 4   | 回答已提交或流正在进行 | 再次点击选项       | 选项禁用，不重复提交                           | ⚠️   |
 
-验收证据入口：[验收台账](../../verification-report.md)。
+验收证据入口：`agent/chat.spec.ts`（提问让本轮以待回答的工具调用结束）、`services/agent-messages.spec.ts`（问题与选项的映射）、`__tests__/services/agent-conversation.service.spec.ts`（回填续轮、刷新后作答、生成中拒绝重复提交）。#1、#4 的数据与状态逻辑已覆盖，选项卡片的渲染与禁用效果还没有在浏览器里验证。汇总见[验收台账](../../verification-report.md)。
 
 ## 技术笔记
 
-做法对应 Trigger.dev 的 human-in-the-loop 模式：省略 `execute` 的工具会让 `streamText` 以待处理的工具调用结束，前端 `addToolOutput` 后由 `sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls` 发起续轮，续轮同样携带最新快照。
+做法对应 Trigger.dev 的 human-in-the-loop 模式：省略 `execute` 的工具会让 `streamText` 以待处理的工具调用结束。前端 `addToolOutput` 后显式调用一次不带消息的 `sendMessage()` 续轮，续轮同样先带上最新快照。不用 AI SDK 的 `lastAssistantMessageIsCompleteWithToolCalls` 自动续轮：它只排除 `providerExecuted` 的工具，对服务端执行的建模工具同样成立，一轮恰好以工具调用收尾时会反复重发。等待回答期间禁止自由输入，避免把带未完成工具调用的消息发给智能体。
 
 ## 实现文件
 

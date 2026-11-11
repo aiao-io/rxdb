@@ -6,7 +6,6 @@ import {
   type Signal,
   type TemplateRef
 } from '@angular/core';
-import type { AiApiError, AiChatCallbacks, AiChatMessage, AiChatModelContext } from '../../adapters/ai-api.service';
 import type { CascadeAction, PropertyType } from '../constants/options';
 import type { RelationKind } from '../constants/relation';
 
@@ -206,26 +205,21 @@ export interface AiDrawerAdapter {
 /** AI 抽屉适配器注入令牌 */
 export const AI_DRAWER_ADAPTER = new InjectionToken<AiDrawerAdapter>('AI_DRAWER_ADAPTER');
 
-/** AI API 适配器接口 */
-export interface AiApiAdapter {
-  generate(
-    prompt: string,
-    existingModel?: { entityNames: string[]; entities?: unknown[] },
-    callbacks?: {
-      onPartial?: (partial: unknown) => void;
-      /** 原始文本块回调（用于 StreamingEntityParser 逐步解析） */
-      onTextChunk?: (chunk: string) => void;
-      onComplete?: (result: unknown) => void | Promise<void>;
-      onError?: (error: AiApiError) => void | Promise<void>;
-    }
-  ): Promise<void>;
-  chat(
-    messages: AiChatMessage[],
-    modelContext?: AiChatModelContext,
-    callbacks?: AiChatCallbacks
-  ): Promise<void>;
-  abort(): void;
+/** 宿主提供的智能体配置：不可用时设计器禁用 AI 入口。 */
+export type AgentConfig = { enabled: true; apiUrl: string; task: string } | { enabled: false };
+
+/**
+ * 智能体网关：查询配置、当前用户，为会话签发 Trigger.dev 令牌。
+ *
+ * 独立部署时由 Worker 的 `/api/agent/*` 与 `/bff/auth/session` 实现；未注入时设计器禁用 AI 入口。
+ */
+export interface AgentGateway {
+  config(): Promise<AgentConfig>;
+  /** 当前登录用户的 ID，未登录时为 `null`。 */
+  currentUserId(): Promise<string | null>;
+  /** 为本人的会话创建或刷新令牌。 */
+  session(chatId: string): Promise<{ publicAccessToken: string }>;
 }
 
-/** AI API 适配器注入令牌 */
-export const AI_API_ADAPTER = new InjectionToken<AiApiAdapter>('AI_API_ADAPTER');
+/** 智能体网关注入令牌 */
+export const AGENT_GATEWAY = new InjectionToken<AgentGateway>('AGENT_GATEWAY');

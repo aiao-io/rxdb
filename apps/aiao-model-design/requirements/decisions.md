@@ -33,7 +33,7 @@
 自建 Trigger.dev 不支持 checkpoint，空闲的会话 run 不会挂起释放资源，而是占着 worker 等到 `turnTimeout` 再退出；下一条消息由会话触发续跑 run，从实例对象存储里的会话快照恢复对话历史。因此：
 
 - `turnTimeout` 设为 15 分钟，限制空闲占用；更长的停顿由续跑 run 接上。
-- 不依赖跨 run 的内存状态。`chat.local` 里的草稿每轮由浏览器快照重建（D-03）。
+- 不依赖跨 run 的内存状态。草稿不放 `chat.local`：`tools` 选项每轮以本轮快照新建草稿并绑定工具（D-03）。
 - 会话流使用实例自带的 s2-lite（realtime streams v2），无需额外配置。
 
 会话归属由 Worker 判定：`chatId` 必须以 `md-<Supabase 用户 ID>-` 开头，Worker 只为本人的 `chatId` 签发令牌。令牌按会话授权，读写仅限该会话。
