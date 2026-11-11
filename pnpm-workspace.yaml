@@ -9,6 +9,8 @@ packages:
   - 'website'
   - 'benchmarks'
 allowBuilds:
+  # trigger.dev CLI 的 depot：安装脚本下载云端远程构建器，自建实例在本机 Docker 构建，用不到
+  '@depot/cli': false
   '@parcel/watcher': true
   '@swc/core': true
   '@tarojs/binding': false

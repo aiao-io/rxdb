@@ -97,7 +97,23 @@
       "options": {
         "command": "vitest run --config apps/aiao-model-design/vite.config.mts"
       },
-      "dependsOn": ["^build", "test-server"]
+      "dependsOn": ["^build", "test-server", "requirements-check", "requirements-test"]
+    },
+    "requirements-check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "apps/aiao-model-design",
+        "command": "node scripts/check-requirements.mjs"
+      }
+    },
+    "requirements-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "apps/aiao-model-design",
+        "command": "node --test scripts/check-requirements.spec.mjs"
+      }
     },
     "serve-static": {
       "continuous": true,
