@@ -1170,6 +1170,11 @@ async function persistPushReceipts(sm: SyncManager, plans: readonly RepositoryPu
   const prepared: { plan: RepositoryPushPlan; remoteRows: Map<string, Record<string, unknown>> }[] = [];
   for (const plan of plans) prepared.push({ plan, remoteRows: await fetchRejectedRemoteRows(plan) });
 
+  // 回执与水位记的是「这些变更已经在这个远端上」。入口那次核对之后可能隔着整趟拉取与前面的批次，
+  // 远端在这期间被重建，这一批就写进了新库：此时记账，这些变更就再也不会推给用户最终认定的那个远端。
+  // 远端往返全部结束之后再核对一次，对不上就整轮不落，水位不动，下一次同步按同一水位重推。
+  await sm.verifyRemoteBackend();
+
   const pushedAt = new Date();
   const restorers = plans.map(snapshotPushState);
 

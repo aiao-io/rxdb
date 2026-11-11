@@ -676,25 +676,6 @@ export class SyncManager {
   }
 
   /**
-   * 获取所有 Repository 的依赖图
-   *
-   * 分析实体关系（MANY_TO_ONE、ONE_TO_ONE）以构建依赖图，
-   * 展示各 Repository 之间的依赖关系。
-   *
-   * @returns 包含依赖关系的依赖图
-   *
-   * @example
-   * ```typescript
-   * const graph = rxdb.syncManager.getRepositoryDependencyGraph();
-   *
-   * // 遍历依赖关系
-   * for (const [key, dep] of graph) {
-   *   console.log(`${key} 依赖:`, dep.dependsOn);
-   *   console.log(`${key} 被依赖:`, dep.requiredBy);
-   * }
-   * ```
-   */
-  /**
    * 核对远端身份，并把还没绑定的同步记录绑到它上面
    *
    * @throws `RemoteBackendMismatchError` 有同步记录绑在别的远端身份上：远端被重建、
@@ -702,6 +683,10 @@ export class SyncManager {
    *
    * @remarks
    * 每个与远端交换数据的入口一进门就调，物化来源也在碰远端之前调。没配远端时没有可核对的，直接返回。
+   *
+   * 进门核对一次不够：一次同步可能跑很久，远端在途中被重建，后面的往返就打在新库上。
+   * 所以拉回的每一轮（有变更时）、推送的回执在落库之前再调一次——进门那次与这一次夹住的往返
+   * 才算这个远端上的进度，对不上就停，游标与水位都不推进。
    *
    * @internal
    */
@@ -744,6 +729,25 @@ export class SyncManager {
     return result;
   }
 
+  /**
+   * 获取所有 Repository 的依赖图
+   *
+   * 分析实体关系（MANY_TO_ONE、ONE_TO_ONE）以构建依赖图，
+   * 展示各 Repository 之间的依赖关系。
+   *
+   * @returns 包含依赖关系的依赖图
+   *
+   * @example
+   * ```typescript
+   * const graph = rxdb.syncManager.getRepositoryDependencyGraph();
+   *
+   * // 遍历依赖关系
+   * for (const [key, dep] of graph) {
+   *   console.log(`${key} 依赖:`, dep.dependsOn);
+   *   console.log(`${key} 被依赖:`, dep.requiredBy);
+   * }
+   * ```
+   */
   getRepositoryDependencyGraph(): DependencyGraph {
     const entities = this.rxdb.config.entities.map(EntityClass => getEntityMetadata(EntityClass));
     return buildDependencyGraph(entities);

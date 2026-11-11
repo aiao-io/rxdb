@@ -225,7 +225,9 @@ function createSyncManager(remoteChanges: RemoteChange[], localChanges: RxDBChan
     },
     getRemoteRepositories: vi.fn(async () => ({ adapter: remoteAdapter })),
     getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
-    getCurrentBranch: vi.fn(async () => ({ id: 'main' }))
+    getCurrentBranch: vi.fn(async () => ({ id: 'main' })),
+    // 每一轮落库之前的远端身份核对；本文件只测冲突裁决，按记录比对的本体在 remote-backend.spec.ts
+    verifyRemoteBackend: vi.fn(async () => undefined)
   } as unknown as SyncManager;
 
   return {

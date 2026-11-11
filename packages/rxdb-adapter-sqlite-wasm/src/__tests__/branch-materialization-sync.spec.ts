@@ -28,11 +28,12 @@ import {
   PropertyType,
   RxDB,
   RxDBAdapterRemoteBase,
+  RxDBSync,
   SyncType,
   uuid
 } from '@aiao/rxdb';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
-import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
+import { RemoteBackendMismatchError, rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { BranchNotMaterializedError, rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
 import sqliteWasmAsyncUrl from '@subframe7536/sqlite-wasm/wasm-async?url&inline';
 import sqliteWasmUrl from '@subframe7536/sqlite-wasm/wasm?url&inline';
@@ -120,6 +121,8 @@ interface RemoteState {
   readonly branches: RemoteBranchInfo[];
   readonly pullCalls: PullCall[];
   getChangeCountCalls: number;
+  /** 远端身份；远端重建用例在中途把它换掉 */
+  backendId: string;
   /** 每次 `pullChanges` 进来时先调它；抛出即模拟这一次请求失败 */
   beforePull?: (call: PullCall) => void;
 }
@@ -184,7 +187,7 @@ class MemoryChangelogRemote extends RxDBAdapterRemoteBase implements IRxDBAdapte
   }
 
   backendId(): Promise<string> {
-    return Promise.resolve(REMOTE_ADAPTER);
+    return Promise.resolve(this.#state.backendId);
   }
 
   async pullChanges(
@@ -294,8 +297,28 @@ const createRemoteState = (): RemoteState => ({
     { id: FEATURE_BRANCH_ID, parentId: MAIN_BRANCH_ID, fromChangeId: null }
   ],
   pullCalls: [],
-  getChangeCountCalls: 0
+  getChangeCountCalls: 0,
+  backendId: 'backend-a'
 });
+
+/**
+ * 把远端换成一个重建过的库：身份换新，变更日志换成新库自己的、id 从头计数
+ *
+ * @remarks
+ * 新库的 id 与旧库重叠，内容不同：拿旧库冻结的截止 id 或续拉游标去新库上拉，
+ * 物化出来的就是两个库拼起来的数据，断言能直接看出来。
+ */
+const rebuildRemote = (state: RemoteState): void => {
+  state.backendId = 'backend-b';
+  state.changes.splice(
+    0,
+    state.changes.length,
+    remoteInsert(1, MAIN_BRANCH_ID, MaterializedNote, { title: 'rebuilt-main' }),
+    remoteInsert(2, FEATURE_BRANCH_ID, MaterializedNote, { title: 'rebuilt-feature' }),
+    remoteInsert(3, FEATURE_BRANCH_ID, MaterializedTag, { label: 'rebuilt-tag' }),
+    remoteInsert(4, FEATURE_BRANCH_ID, FilteredMemo, { body: 'visible' })
+  );
+};
 
 const openDatabases = new Set<RxDB>();
 
@@ -444,6 +467,21 @@ const syncMetadataOnlyFeature = async (rxdb: RxDB): Promise<void> => {
   expect(result.created, 'syncBranches 没有落下远端分支').toBe(1);
   const feature = (await readBranches(rxdb)).find(branch => branch.id === FEATURE_BRANCH_ID);
   expect(feature, 'feature 分支没有落库').toMatchObject({ local: false, remote: true, activated: false });
+};
+
+/** 断言物化以「远端身份变了」拒绝：`source_failed`，`cause` 是同步插件的远端身份错误 */
+const expectRemoteBackendChanged = (rxdb: RxDB, error: BranchNotMaterializedError): void => {
+  expect(error.reason).toBe('source_failed');
+  expect(error.cause).toBeInstanceOf(RemoteBackendMismatchError);
+  expect(error.cause).toMatchObject({ backendId: 'backend-b', boundBackendIds: ['backend-a'] });
+  expect(rxdb.syncState.snapshot.lastError).toBe(error.cause);
+};
+
+/** 目标分支上的同步记录各自绑在哪个远端身份上 */
+const featureSyncBackendIdsOf = async (rxdb: RxDB): Promise<(string | null)[]> => {
+  const { adapter } = await rxdb.syncManager.getLocalRepositories();
+  const records = await adapter.getRepository(RxDBSync).find({ where: ALL_ROWS });
+  return records.filter(record => record.branchId === FEATURE_BRANCH_ID).map(record => record.remoteBackendId);
 };
 
 describe('metadata-only 远端分支的首次物化（官方 sync + working-tree 装配）', () => {
@@ -609,4 +647,72 @@ describe('metadata-only 远端分支的首次物化（官方 sync + working-tree
     },
     CASE_TIMEOUT
   );
+
+  // 首次物化时本地一条同步记录都没有，只能靠冻结在意图里的远端身份认出远端换了库：
+  // 认不出来的话，后几页是新库按旧库截止 id 截出来的一段，与前几页拼成一份两个库都没有过的快照。
+  describe('远端在物化途中被重建', () => {
+    it(
+      '分页途中：重建之后拉到的页不落盘，切换以 source_failed 拒绝；改绑之后重试按新远端重新冻结',
+      async () => {
+        const state = createRemoteState();
+        const rxdb = await openDatabase({ dbName: uniqueDbName(), state });
+        await syncMetadataOnlyFeature(rxdb);
+        const seen = new Set<string>();
+        state.beforePull = call => {
+          seen.add(call.repository);
+          if (seen.size === 2 && state.backendId === 'backend-a') rebuildRemote(state);
+        };
+
+        const error = await expectNotMaterialized(rxdb.versionManager.switchBranch(FEATURE_BRANCH_ID));
+
+        expectRemoteBackendChanged(rxdb, error);
+        expect(await activeBranchIdOf(rxdb)).toBe(MAIN_BRANCH_ID);
+        expect(await noteTitlesOf(rxdb)).toEqual([]);
+
+        state.beforePull = undefined;
+        const freezesBeforeRetry = state.getChangeCountCalls;
+        await rxdb.syncManager.rebindRemoteBackend();
+        await rxdb.versionManager.switchBranch(FEATURE_BRANCH_ID);
+
+        expect(await activeBranchIdOf(rxdb)).toBe(FEATURE_BRANCH_ID);
+        expect(state.getChangeCountCalls, '改绑之后续用了旧远端冻结的意图').toBeGreaterThan(freezesBeforeRetry);
+        expect(await noteTitlesOf(rxdb)).toEqual(['rebuilt-feature', 'rebuilt-main']);
+        expect(await tagLabelsOf(rxdb)).toEqual(['rebuilt-tag']);
+        expect(await memoBodiesOf(rxdb)).toEqual(['visible']);
+        expect(new Set(await featureSyncBackendIdsOf(rxdb))).toEqual(new Set(['backend-b']));
+      },
+      CASE_TIMEOUT
+    );
+
+    it(
+      '冻结之后、续拉之前：一页都不向新库要，切换以 source_failed 拒绝；改绑之后重试按新远端重新冻结',
+      async () => {
+        const state = createRemoteState();
+        const rxdb = await openDatabase({ dbName: uniqueDbName(), state });
+        await syncMetadataOnlyFeature(rxdb);
+        failFirstPullOfSecondRepository(state);
+        const interrupted = await expectNotMaterialized(rxdb.versionManager.switchBranch(FEATURE_BRANCH_ID));
+        expect(interrupted.reason).toBe('source_failed');
+        state.beforePull = undefined;
+        rebuildRemote(state);
+        const pullsBeforeResume = state.pullCalls.length;
+
+        const error = await expectNotMaterialized(rxdb.versionManager.switchBranch(FEATURE_BRANCH_ID));
+
+        expectRemoteBackendChanged(rxdb, error);
+        expect(state.pullCalls.length, '拿旧远端的续拉游标去新库上拉了').toBe(pullsBeforeResume);
+        expect(await activeBranchIdOf(rxdb)).toBe(MAIN_BRANCH_ID);
+
+        await rxdb.syncManager.rebindRemoteBackend();
+        await rxdb.versionManager.switchBranch(FEATURE_BRANCH_ID);
+
+        expect(await activeBranchIdOf(rxdb)).toBe(FEATURE_BRANCH_ID);
+        expect(await noteTitlesOf(rxdb)).toEqual(['rebuilt-feature', 'rebuilt-main']);
+        expect(await tagLabelsOf(rxdb)).toEqual(['rebuilt-tag']);
+        expect(await memoBodiesOf(rxdb)).toEqual(['visible']);
+        expect(new Set(await featureSyncBackendIdsOf(rxdb))).toEqual(new Set(['backend-b']));
+      },
+      CASE_TIMEOUT
+    );
+  });
 });

@@ -3,8 +3,8 @@
  *
  * `syncBranches()` 只把远端分支的**元数据**拉到本地（`local: false, remote: true`），一条变更都不带。
  * 工作树插件把这样的分支判成 metadata-only，第一次切过去之前要先按本来源交出的分页快照物化。
- * 本文件回答四件事：远端「到哪为止」（冻结水位）、「哪些表」（冻结 scope）、「怎么分页续拉」
- * （游标写在 payload 里）、「屏障里怎么落」（投影 + 结算水位）。
+ * 本文件回答四件事：远端「到哪为止」（冻结水位，连同它所属的远端身份）、「哪些表」（冻结 scope）、
+ * 「怎么分页续拉」（游标写在 payload 里）、「屏障里怎么落」（投影 + 结算水位）。
  *
  * 口径与 {@link pullSingleRepository} 对齐——同一套仓库枚举、同一条祖先链、同一份行级 filter。
  * 物化出来的数据与「先切过去再 pull」必须是同一份，否则切换之后第一次 pull 会把差异当成新变更。
@@ -43,7 +43,7 @@ import { ancestorBranchIdsFrom, type BranchLineageReader } from './branch-utils.
 import { buildDependencyGraph } from './dependency-graph.js';
 import { pullAncestorBranchChanges } from './pull-ancestor-changes.js';
 import { resolveCascadeFilter } from './pull-repository.js';
-import { instantiateSyncRecord } from './remote-backend.js';
+import { assertRemoteBackendIs, instantiateSyncRecord } from './remote-backend.js';
 import type { SyncManager } from './SyncManager.js';
 import { topologicalSortForPull } from './topological-sort.js';
 
@@ -84,6 +84,16 @@ interface LocalScope {
 
 /** 冻结在 staging 行上的水位；`frozenRemoteWatermark` 的实际形状 */
 interface FrozenWatermark {
+  /**
+   * 截止 id 所属的远端身份
+   *
+   * @remarks
+   * 截止 id 与续拉游标只在读出它们的那个远端上有意义。首次物化时本地还没有同步记录，
+   * 按记录比对认不出冻结之后的远端重建，这里记下的身份是唯一的凭据：续拉之前、每一页之后都拿它比对，
+   * 结算时随截止 id 一起写进同步记录。
+   */
+  readonly backendId: string;
+
   /** 冻结时的血缘 */
   readonly lineage: string[];
 
@@ -141,8 +151,9 @@ const isStringArray = (value: unknown): value is string[] =>
  */
 const readFrozenIntent = (intent: BranchMaterializationIntent): FrozenIntent => {
   const watermark = intent.frozenRemoteWatermark;
-  const { lineage, cutoffs, filters } = watermark;
+  const { backendId, lineage, cutoffs, filters } = watermark;
   const wellFormed =
+    typeof backendId === 'string' &&
     isStringArray(lineage) &&
     isRecord(cutoffs) &&
     isRecord(filters) &&
@@ -152,6 +163,7 @@ const readFrozenIntent = (intent: BranchMaterializationIntent): FrozenIntent => 
   }
   return {
     syncScope: intent.syncScope,
+    backendId,
     lineage,
     cutoffs: cutoffs as Record<string, number>,
     filters: filters as Record<string, RuleGroup | null>
@@ -235,11 +247,11 @@ const executorReaders = (executor: TransactionExecutor): ScopeReaders => ({
 });
 
 /**
- * 核对远端身份后取远端适配器。
+ * 按本地同步记录核对远端身份后取远端适配器。
  *
  * @throws {@link RxDBError} 没配远端时——`remoteAdapter$` 在那种库上永远不发值，等下去就是挂死
- * @throws `RemoteBackendMismatchError` 本地同步记录属于另一个远端时：续拉可能跨会话，
- *   冻结与续拉之间远端被重建过，就不能拿冻结时的截止 id 去新库上拉
+ * @throws `RemoteBackendMismatchError` 本地同步记录属于另一个远端时。
+ *   本地还没有同步记录时这一关放行，冻结与续拉之间的远端重建由意图里冻结的身份把关
  */
 const remoteAdapterOf = async (sm: SyncManager): Promise<RxDBAdapterRemoteBase> => {
   if (!sm.rxdb.config.sync?.remote?.adapter) throw new RxDBError('Remote adapter not configured.');
@@ -334,6 +346,22 @@ const toPageChange = (change: RemoteChange): RemoteChange => ({
 });
 
 /**
+ * 比对冻结时的远端身份与本实例最近一次核实的身份；不一致时给出原因。
+ *
+ * @param frozen - 冻结的意图
+ * @param verifiedBackendId - `SyncManager.remoteBackendId`；本实例还没核实过远端时为 `null`
+ *
+ * @remarks
+ * 屏障里不能问远端，只能读本实例记下的那一个。改绑（或首次核实）之后本实例认的是另一个远端，
+ * 旧意图的截止 id 在它上面没有意义：报漂移，工作树作废它、按当前远端重冻。
+ * 还没核实过时答不出来，交给 `pages()` 开拉之前那一次比对。
+ */
+const describeRemoteDrift = (frozen: FrozenIntent, verifiedBackendId: string | null): string | undefined =>
+  verifiedBackendId === null || verifiedBackendId === frozen.backendId ?
+    undefined
+  : `远端身份变了：冻结时 ${frozen.backendId}，现在 ${verifiedBackendId}`;
+
+/**
  * 比对冻结值与此刻本地的范围；不一致时给出原因。
  *
  * @remarks
@@ -382,9 +410,17 @@ export const createSyncBranchMaterializationSource = (sm: SyncManager): BranchMa
         targetBranchId
       );
       const remote = await remoteAdapterOf(sm);
+      // 身份先于截止 id 读：之后远端被重建，后面每一次比对都会对不上；倒过来读，
+      // 截止 id 可能来自旧库，却被盖上新库的身份。
+      const backendId = await remote.backendId();
       const cutoffs: Record<string, number> = {};
       for (const key of scope.syncScope) cutoffs[key] = await freezeCutoff(remote, key, scope.lineage);
-      const frozenRemoteWatermark: FrozenWatermark = { lineage: scope.lineage, cutoffs, filters: scope.filters };
+      const frozenRemoteWatermark: FrozenWatermark = {
+        backendId,
+        lineage: scope.lineage,
+        cutoffs,
+        filters: scope.filters
+      };
       return { syncScope: scope.syncScope, frozenRemoteWatermark: { ...frozenRemoteWatermark } };
     },
 
@@ -392,12 +428,16 @@ export const createSyncBranchMaterializationSource = (sm: SyncManager): BranchMa
       const intent = readFrozenIntent(request.intent);
       const start = resumePointOf(intent, request.previousPage);
       const remote = await remoteAdapterOf(sm);
+      // 续拉可能跨会话：冻结之后远端被重建，截止 id 与续拉游标就都是旧库的 id，一页都不能向新库要。
+      await assertRemoteBackendIs(sm, remote, intent.backendId);
       let sinceId = start.sinceId;
       for (let index = start.index; index < intent.syncScope.length; index++, sinceId = 0) {
         const key = intent.syncScope[index];
         let done = sinceId >= intent.cutoffs[key];
         while (!done) {
           const page = await pullPage(rxdb, remote, intent, key, sinceId);
+          // 拉这一页的时候远端可能正被重建：交出去之前再比一次，前后两次都对得上，这一页才出自冻结时的远端
+          await assertRemoteBackendIs(sm, remote, intent.backendId);
           yield page;
           done = page.payload['done'] === true;
           sinceId = page.payload['lastId'] as number;
@@ -413,6 +453,8 @@ export const createSyncBranchMaterializationSource = (sm: SyncManager): BranchMa
         // 形状不对的意图接不下去，唯一的出路是作废重冻；报成漂移正是让工作树这么做。
         return error instanceof Error ? error.message : String(error);
       }
+      const remoteDrift = describeRemoteDrift(frozen, sm.remoteBackendId);
+      if (remoteDrift !== undefined) return remoteDrift;
       const current = await readLocalScope(rxdb, executorReaders(context.executor), context.targetBranchId);
       return describeDrift(frozen, current);
     },
@@ -438,8 +480,11 @@ export const createSyncBranchMaterializationSource = (sm: SyncManager): BranchMa
           () => instantiateSyncRecord(sm)
         );
         // 水位结算到冻结的截止 id：物化交出的正是 `<= cutoff` 的全部变更，之后的交给普通 pull。
+        // 身份随截止 id 一起写：新行盖的是本实例此刻认的身份，可能已经不是冻结时的那一个；
+        // 截止 id 只在冻结时的远端上有效，远端被重建过的话，下一次同步就在入口停下。
         await syncRepository.update(record, {
           lastPullRemoteChangeId: intent.cutoffs[key],
+          remoteBackendId: intent.backendId,
           lastPulledAt: now,
           updatedAt: now
         });

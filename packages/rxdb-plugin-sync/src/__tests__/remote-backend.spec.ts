@@ -1,6 +1,7 @@
-import { RxDBError, RxDBSync } from '@aiao/rxdb';
+import { type RxDBAdapterRemoteBase, RxDBError, RxDBSync } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import {
+  assertRemoteBackendIs,
   bindRemoteBackend,
   instantiateSyncRecord,
   rebindRemoteBackend,
@@ -135,6 +136,31 @@ describe('远端身份', () => {
       await rebindRemoteBackend(harness.sm);
 
       expect(harness.reportSuccess).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('assertRemoteBackendIs', () => {
+    const remoteOf = (backendId: string) => ({ backendId: async () => backendId }) as unknown as RxDBAdapterRemoteBase;
+
+    it('远端此刻就是给定的身份：放行，不碰面板', async () => {
+      const harness = createHarness({ backendId: 'backend-a', records: [] });
+
+      await expect(assertRemoteBackendIs(harness.sm, remoteOf('backend-a'), 'backend-a')).resolves.toBeUndefined();
+
+      expect(harness.reportError).not.toHaveBeenCalled();
+    });
+
+    // 不读同步记录：分支物化把身份冻在意图里，首次物化时本地一条记录都没有
+    it('对不上：抛错并写进 lastError，旧身份就是给定的那一个', async () => {
+      const harness = createHarness({ backendId: 'backend-b', records: [] });
+
+      const error = await assertRemoteBackendIs(harness.sm, remoteOf('backend-b'), 'backend-a').catch(
+        (rejection: unknown) => rejection
+      );
+
+      expect(error).toBeInstanceOf(RemoteBackendMismatchError);
+      expect(error).toMatchObject({ backendId: 'backend-b', boundBackendIds: ['backend-a'] });
+      expect(harness.reportError).toHaveBeenCalledWith(error);
     });
   });
 

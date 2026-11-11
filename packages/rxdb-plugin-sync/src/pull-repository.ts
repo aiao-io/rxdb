@@ -569,6 +569,10 @@ async function pullSingleRepository(
         break;
       }
 
+      // 入口那次核对之后可能已经隔了好几轮、好几个仓库：远端在这期间被重建，这一轮拉到的就是新库的一段，
+      // 游标却按旧库的 id 往前推。落库之前再核对一次，对不上就停，这一轮一行不写、游标不动。
+      await sm.verifyRemoteBackend();
+
       // 记录最后一个远端变更
       lastRemoteChange = remoteChanges[remoteChanges.length - 1];
       sinceId = lastRemoteChange.id;

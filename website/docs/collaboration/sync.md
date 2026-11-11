@@ -148,17 +148,24 @@ const result = await rxdb.syncManager.syncRepository('public', 'Todo', {
 
 - 对不上时，`pull` / `push` / `sync`、各个按仓库的入口、`bulkSync`、`syncBranches` 与待拉计数一律抛 `RemoteBackendMismatchError`，
   同一个错误写进 `rxdb.syncState` 的 `lastError`，本地数据不动；
+- 同步途中被重建也会停下：拉回的每一轮、推送的回执在落库之前再比对一次，对不上就停，游标与推送水位都不推进，
+  已经发到新库的那一批下次照原水位重推。前面已经落库的轮次照常算进度，这时抛的是 `RxDBPartialSyncError`，
+  `cause` 才是 `RemoteBackendMismatchError`；
+- 切到只有元数据的远端分支时，物化把远端身份和截止 id 一起冻结，续拉之前、每一页之后都比对。对不上时切换以
+  `BranchNotMaterializedError`（`reason` 为 `source_failed`，`cause` 为 `RemoteBackendMismatchError`）失败，改绑之后重试会按新远端重新冻结；
 - 不会自动改绑：远端地址被改到另一个项目时报的也是这个错。确认新远端就是要同步的那一个之后，应用调
   `rxdb.syncManager.rebindRemoteBackend()`，所有不属于新远端的拉取游标被清空，下一次拉取从头全量拉；推送水位不动，
   已经推到旧远端的本地变更不会重推。
 
 ```ts
+import { RxDBPartialSyncError } from '@aiao/rxdb';
 import { RemoteBackendMismatchError } from '@aiao/rxdb-plugin-sync';
 
 try {
   await rxdb.syncManager.sync();
 } catch (error) {
-  if (!(error instanceof RemoteBackendMismatchError)) throw error;
+  const cause = error instanceof RxDBPartialSyncError ? error.cause : error;
+  if (!(cause instanceof RemoteBackendMismatchError)) throw error;
   if (await confirm('远端已重建，改为从新远端重新拉取？')) {
     await rxdb.syncManager.rebindRemoteBackend();
     await rxdb.syncManager.pull({ fetchAll: true });

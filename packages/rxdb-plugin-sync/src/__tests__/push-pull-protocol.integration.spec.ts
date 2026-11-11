@@ -239,7 +239,9 @@ function createProtocolHarness() {
     getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
     history: { captureUndoHistory: () => () => undefined },
     getCurrentBranch: vi.fn(async () => ({ id: 'main', activated: true })),
-    pushInFlight: emptyPushInFlight()
+    pushInFlight: emptyPushInFlight(),
+    // 落库之前的远端身份核对；本文件只测推拉协议，按记录比对的本体在 remote-backend.spec.ts
+    verifyRemoteBackend: vi.fn(async () => undefined)
   } as unknown as SyncManager;
 
   const localCreate = (name: string): RxDBChange => {

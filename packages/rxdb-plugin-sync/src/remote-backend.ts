@@ -12,9 +12,13 @@
  * - 还没绑定的记录（系统 schema 9 之前写下的）：交换数据的入口把它们就地绑到当前身份，
  *   只读的状态查询只比对、不写。
  *
+ * 入口比对一次不够：一次同步可能跑很久（多轮 fetchAll、逐仓先拉后推），远端在途中被重建，
+ * 后面的往返就打在新库上。所以拉回的每一轮、推送的回执在落库之前再比对一次——
+ * 前后两次都是同一个身份，夹在中间的那次往返才算这个远端上的进度，游标与水位才往前推。
+ *
  * 不自动改绑：远端地址配错到另一个项目时，自动改绑会把别人的数据拉进来、把本地待推变更推过去。
  */
-import { type IRepository, RxDBError, RxDBSync } from '@aiao/rxdb';
+import { type IRepository, type RxDBAdapterRemoteBase, RxDBError, RxDBSync } from '@aiao/rxdb';
 import type { SyncManager } from './SyncManager.js';
 
 /**
@@ -79,6 +83,13 @@ const foreignBackendIds = (records: readonly RxDBSync[], backendId: string): str
   )
 ];
 
+/** 停止同步：错误先写进 `SyncState.lastError` 再抛，面板上看得见 */
+const stopOnMismatch = (sm: SyncManager, backendId: string, boundBackendIds: readonly string[]): never => {
+  const error = new RemoteBackendMismatchError(backendId, boundBackendIds);
+  sm.rxdb.syncState.reportError(error);
+  throw error;
+};
+
 /**
  * 比对远端身份，只读不写
  *
@@ -91,12 +102,31 @@ const foreignBackendIds = (records: readonly RxDBSync[], backendId: string): str
 export async function assertRemoteBackend(sm: SyncManager): Promise<RemoteBackendCheck> {
   const check = await readRemoteBackend(sm);
   const foreign = foreignBackendIds(check.records, check.backendId);
-  if (foreign.length > 0) {
-    const error = new RemoteBackendMismatchError(check.backendId, foreign);
-    sm.rxdb.syncState.reportError(error);
-    throw error;
-  }
+  if (foreign.length > 0) stopOnMismatch(sm, check.backendId, foreign);
   return check;
+}
+
+/**
+ * 远端此刻的身份必须就是 `expected`
+ *
+ * @param sm - 同步管理器
+ * @param remote - 远端适配器
+ * @param expected - 调用方手上那份游标或截止 id 所属的远端身份
+ * @throws {@link RemoteBackendMismatchError} 对不上时；同时写进 `SyncState.lastError`
+ *
+ * @remarks
+ * 给不靠同步记录认远端的调用方用：分支物化把身份冻在意图里，首次物化时本地一条同步记录都没有，
+ * 按记录比对拦不住冻结之后的远端重建。
+ *
+ * @internal
+ */
+export async function assertRemoteBackendIs(
+  sm: SyncManager,
+  remote: RxDBAdapterRemoteBase,
+  expected: string
+): Promise<void> {
+  const backendId = await remote.backendId();
+  if (backendId !== expected) stopOnMismatch(sm, backendId, [expected]);
 }
 
 /**

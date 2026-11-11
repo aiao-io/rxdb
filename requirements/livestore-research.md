@@ -215,6 +215,7 @@ B 拉取后被判负，title 变成 A 那条更早的编辑。owner 选第二项
 
 - 远端：单行表 `rxdb_backend` 与 `rxdb_backend_id()`；库重建时随表重建换新值，`TRUNCATE rxdb_change` 时由触发器换新值；生产权限收回客户端写权限；
 - 本地：`RxDBSync.remoteBackendId`，系统 schema 8 → 9；交换数据的入口先比对，旧记录就地绑定，新记录创建时带上已核实的身份；
+  拉回的每一轮与推送回执落库之前再比对一次，分支物化把身份与截止 id 一起冻进意图（首次物化时本地还没有同步记录）；
 - 不匹配：停止同步，抛 `RemoteBackendMismatchError` 并写进 `SyncState.lastError`，本地数据不动；应用显式调 `syncManager.rebindRemoteBackend()`，
   清空不属于新远端的拉取游标后全量拉取，推送水位不动。不自动改绑，远端地址配错到另一个项目时同样停下。
 

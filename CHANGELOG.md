@@ -30,7 +30,7 @@
 
 ### 🚀 Features
 
-- **rxdb-plugin-sync:** 远端重置不再静默拉空：与远端交换数据的入口（`pull` / `push` / `sync`、按仓库的三个入口、`bulkSync`、`syncBranches`、分支物化）与待拉计数先比对远端身份，对不上时抛 `RemoteBackendMismatchError`（带 `backendId` 与 `boundBackendIds`），同一个错误写进 `SyncState.lastError`，本地数据不动。新增 `syncManager.rebindRemoteBackend()`：确认新远端之后显式改绑，在一个事务里清空不属于它的拉取游标，下一次拉取从头全量拉；推送水位不动，已推到旧远端的变更不重推。不会自动改绑。新增导出 `RemoteBackendMismatchError`、`RebindRemoteBackendResult`。→ [supabase-remote-backend](https://rxdb.aiao.io/docs/migration/supabase-remote-backend)（RV-01a1c69f412774fdb9f96a5ea8b44419）
+- **rxdb-plugin-sync:** 远端重置不再静默拉空：与远端交换数据的入口（`pull` / `push` / `sync`、按仓库的三个入口、`bulkSync`、`syncBranches`、分支物化）与待拉计数先比对远端身份，对不上时抛 `RemoteBackendMismatchError`（带 `backendId` 与 `boundBackendIds`），同一个错误写进 `SyncState.lastError`，本地数据不动。同步途中被重建同样停下：拉回的每一轮与推送回执在落库之前再比对一次，游标与推送水位都不推进（已落库的轮次照常计入，抛 `RxDBPartialSyncError`，`cause` 为 `RemoteBackendMismatchError`）；分支物化把远端身份与截止 id 一起冻结，首次物化（本地还没有同步记录）也认得出冻结之后的重建。新增 `syncManager.rebindRemoteBackend()`：确认新远端之后显式改绑，在一个事务里清空不属于它的拉取游标，下一次拉取从头全量拉；推送水位不动，已推到旧远端的变更不重推。不会自动改绑。新增导出 `RemoteBackendMismatchError`、`RebindRemoteBackendResult`。→ [supabase-remote-backend](https://rxdb.aiao.io/docs/migration/supabase-remote-backend)（RV-01a1c69f412774fdb9f96a5ea8b44419）
 
 - **rxdb:** `QueryTaskOptions` 新增可选 `onError(cacheKey, task)`，`onClean` 多了第二参数 `task`（按任务身份摘除缓存项；只收一个参数的旧回调仍可赋值）。
 - **rxdb:** `EntityStatus` 新增 `writeMark()` / `applyWriteResult()`：写入开始时记下提交的值与编辑序号，成功后只把基线推进到提交值，提交之后才改的字段保留为未保存改动。

@@ -17,6 +17,9 @@
 - `@aiao/rxdb-plugin-sync` 每次与远端交换数据之前先比对。只要有记录绑在别的身份上，同步就停下，本地数据一行不动：
   拉取、推送、待拉计数等入口抛 `RemoteBackendMismatchError`，错误同时写进 `rxdb.syncState` 的 `lastError`，
   三端的 `useSyncState()` 都能读到。
+- 同步途中被重建同样停下：拉回的每一轮、推送的回执在落库之前再比对一次，游标与推送水位都不推进。
+  前面已经落库的轮次照常算进度，抛出的是 `RxDBPartialSyncError`，`cause` 是 `RemoteBackendMismatchError`。
+  分支物化把远端身份与截止 id 一起冻结，首次物化（本地还没有同步记录）也认得出冻结之后的重建。
 
 插件不会自动改绑。远端地址被改到另一个项目时，报的也是这个错误；这时自动改绑，会把别人的数据拉进本地，还会把本地待推变更推过去。
 
@@ -25,14 +28,17 @@
 确认新远端就是要同步的那一个之后，显式改绑，再从头拉一遍：
 
 ```ts
+import { RxDBPartialSyncError } from '@aiao/rxdb';
 import { RemoteBackendMismatchError } from '@aiao/rxdb-plugin-sync';
 
 try {
   await rxdb.syncManager.sync();
 } catch (error) {
-  if (!(error instanceof RemoteBackendMismatchError)) throw error;
-  // error.boundBackendIds：本地游标所属的旧身份；error.backendId：远端此刻的身份
-  if (await confirmRemoteReset(error)) {
+  // 同步途中被重建时，已落库的轮次照常算进度，远端身份错误挂在 RxDBPartialSyncError 的 cause 上
+  const cause = error instanceof RxDBPartialSyncError ? error.cause : error;
+  if (!(cause instanceof RemoteBackendMismatchError)) throw error;
+  // cause.boundBackendIds：本地游标所属的旧身份；cause.backendId：远端此刻的身份
+  if (await confirmRemoteReset(cause)) {
     await rxdb.syncManager.rebindRemoteBackend();
     await rxdb.syncManager.pull({ fetchAll: true });
   }
