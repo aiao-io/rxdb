@@ -107,6 +107,19 @@ describe('GitHub API client', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it('does not reuse an ETag cache entry across GitHub identities', async () => {
+    let token: string | null = 'token-a';
+    const tokenApi = createGitHubApi({ getToken: async () => token, fetchFn: fetchMock });
+    fetchMock.mockResolvedValueOnce(jsonResponse({ login: 'account-a' }, { headers: { ETag: '"etag-a"' } }));
+    await expect(tokenApi.getAuthenticatedUser()).resolves.toMatchObject({ login: 'account-a' });
+
+    token = 'token-b';
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 304 }));
+    await expect(tokenApi.getAuthenticatedUser()).rejects.toMatchObject({ code: 'invalid_response' });
+    expect(calledUrl(1).init.headers).not.toHaveProperty('If-None-Match');
+    expect(calledUrl(1).init.headers).toMatchObject({ Authorization: 'Bearer token-b' });
+  });
+
   it('searches repositories with fork:true and parses summaries', async () => {
     fetchMock.mockResolvedValue(
       jsonResponse({
@@ -205,11 +218,43 @@ describe('GitHub API client', () => {
     expect(calledUrl(1).url).toContain('/git/trees/tree-sub');
   });
 
+  it('uses a complete recursive tree without refetching subtrees', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        sha: 'root-sha',
+        truncated: false,
+        tree: [
+          { path: 'src/a.ts', mode: '100644', type: 'blob', sha: 'blob-a' },
+          { path: 'src', mode: '040000', type: 'tree', sha: 'tree-src' }
+        ]
+      })
+    );
+    await expect(api.getTreeFiles('octo', 'one', 'root-sha')).resolves.toEqual([
+      { path: 'src/a.ts', sha: 'blob-a', mode: '100644' }
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it('decodes base64 file contents including embedded newlines', async () => {
     fetchMock.mockResolvedValue(jsonResponse({ content: 'aGVs\nbG8=\n', encoding: 'base64', type: 'file' }));
     await expect(api.getFileContents('octo', 'one', 'src/a.ts', 'main')).resolves.toEqual(
       new Uint8Array([104, 101, 108, 108, 111])
     );
+  });
+
+  it('reads blob contents through the Git database API', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ content: 'aGVsbG8=', encoding: 'base64', sha: 'blob-a' }));
+    await expect(api.getBlobContents('octo', 'one', 'blob-a')).resolves.toEqual(
+      new Uint8Array([104, 101, 108, 108, 111])
+    );
+    expect(calledUrl().url).toBe('https://api.github.com/repos/octo/one/git/blobs/blob-a');
+  });
+
+  it('rejects Contents responses without inline content instead of returning an empty file', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ content: '', encoding: 'none', type: 'file' }));
+    await expect(api.getFileContents('octo', 'one', 'large.bin', 'main')).rejects.toMatchObject({
+      code: 'invalid_response'
+    });
   });
 
   it('builds git database requests with inline content, blob sha and deletion entries', async () => {
@@ -263,6 +308,12 @@ describe('GitHub API client', () => {
     ]);
   });
 
+  it('encodes every ref path segment when updating a branch with URL characters', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ ref: 'refs/heads/feature#hash' }));
+    await api.updateRef('octo', 'one', 'heads/feature#hash', 'new-sha');
+    expect(calledUrl().url).toContain('/git/refs/heads/feature%23hash');
+  });
+
   it('creates a repository for the authenticated user', async () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse({ full_name: 'octo/new-repo', clone_url: 'https://github.com/octo/new-repo.git', private: true })
@@ -283,6 +334,11 @@ describe('GitHub API client', () => {
     expect(new TextDecoder().decode(bytes)).toBe('zip-bytes');
     const { init } = calledUrl();
     expect(init.headers).toMatchObject({ Accept: 'application/vnd.github+raw' });
+  });
+
+  it('stops reading a zipball when the response exceeds the requested limit', async () => {
+    fetchMock.mockResolvedValue(textResponse('zip-bytes'));
+    await expect(api.getZipball('octo', 'one', 'main', 4)).rejects.toMatchObject({ code: 'resource_limit' });
   });
 
   it('rejects malformed responses with invalid_response', async () => {

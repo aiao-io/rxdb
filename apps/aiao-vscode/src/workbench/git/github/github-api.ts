@@ -36,6 +36,7 @@ export interface GitHubApi {
   getBranchSha(owner: string, repo: string, branch: string): Promise<string>;
   getTreeFiles(owner: string, repo: string, treeSha: string): Promise<readonly GitHubTreeEntry[]>;
   getFileContents(owner: string, repo: string, path: string, ref: string): Promise<Uint8Array>;
+  getBlobContents(owner: string, repo: string, sha: string): Promise<Uint8Array>;
   listCommits(
     owner: string,
     repo: string,
@@ -49,7 +50,7 @@ export interface GitHubApi {
   createCommit(owner: string, repo: string, message: string, tree: string, parents: readonly string[]): Promise<string>;
   updateRef(owner: string, repo: string, ref: string, sha: string, force?: boolean): Promise<void>;
   createRepository(name: string, isPrivate: boolean): Promise<GitHubRepoSummary>;
-  getZipball(owner: string, repo: string, ref: string): Promise<Uint8Array>;
+  getZipball(owner: string, repo: string, ref: string, maxBytes?: number): Promise<Uint8Array>;
   quota(): GitHubQuota;
   clearCache(): void;
 }
@@ -68,7 +69,9 @@ function nextPage(link: string | null): string | null {
 function toBytes(json: JsonRecord): Uint8Array {
   const content = json['content'];
   const encoding = json['encoding'];
-  if (encoding === 'none' || content === null) return new Uint8Array(0);
+  if (encoding === 'none') {
+    throw new GitHubApiError('invalid_response', '文件内容响应未内联 base64 数据');
+  }
   if (encoding !== 'base64' || typeof content !== 'string') {
     throw new GitHubApiError('invalid_response', '文件内容响应缺少 base64 数据');
   }
@@ -86,6 +89,46 @@ function toBase64(bytes: Uint8Array): string {
     chunks.push(String.fromCharCode(...bytes.subarray(offset, offset + 0x8000)));
   }
   return btoa(chunks.join(''));
+}
+
+async function tokenFingerprint(token: string | null): Promise<string> {
+  if (!token) return 'anonymous';
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
+  return [...new Uint8Array(digest)].map(value => value.toString(16).padStart(2, '0')).join('');
+}
+
+async function readResponseBytes(response: Response, maxBytes = Number.POSITIVE_INFINITY): Promise<Uint8Array> {
+  if (!response.body) {
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.byteLength > maxBytes) {
+      throw new GitHubApiError('resource_limit', `响应超过 ${maxBytes} 字节上限`);
+    }
+    return bytes;
+  }
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel();
+        throw new GitHubApiError('resource_limit', `响应超过 ${maxBytes} 字节上限`);
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
 }
 
 function parseRepoSummary(json: JsonRecord): GitHubRepoSummary {
@@ -153,8 +196,13 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
   }
 
   /** 发起带统一头、token、限额记账与错误映射的请求；返回原始响应。 */
-  async function requestRaw(url: string, init: RequestInit = {}, cacheable = false): Promise<Response> {
+  async function requestRaw(
+    url: string,
+    init: RequestInit = {},
+    cacheable = false
+  ): Promise<{ response: Response; cacheKey: string | null }> {
     const token = await getToken();
+    const cacheKey = cacheable ? `${await tokenFingerprint(token)}\n${url}` : null;
     const headers: Record<string, string> = {
       Accept: 'application/vnd.github+json',
       'X-GitHub-Api-Version': '2022-11-28',
@@ -163,7 +211,7 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
     };
     if (token) headers['Authorization'] = `Bearer ${token}`;
     if (cacheable) {
-      const hit = cache.get(url);
+      const hit = cache.get(cacheKey!);
       if (hit) headers['If-None-Match'] = hit.etag;
     }
     let response: Response;
@@ -174,7 +222,7 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
     }
     trackQuota(response);
     if (!response.ok && !(cacheable && response.status === 304)) throw await httpError(response);
-    return response;
+    return { response, cacheKey };
   }
 
   async function readJson(response: Response): Promise<unknown> {
@@ -195,16 +243,17 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
   /** JSON 请求；cacheable 时按 ETag 复用缓存并接受 304。 */
   async function requestJson(path: string, init: RequestInit = {}, cacheable = false): Promise<unknown> {
     const url = path.startsWith('http') ? path : apiBase + path;
-    const response = await requestRaw(url, init, cacheable);
+    const { response, cacheKey } = await requestRaw(url, init, cacheable);
     if (response.status === 204) return null;
     if (response.status === 304) {
-      const hit = cache.get(url);
+      const hit = cacheKey ? cache.get(cacheKey) : undefined;
       if (hit) return hit.json;
+      throw new GitHubApiError('invalid_response', 'GitHub API 返回了没有对应缓存的 304');
     }
     const json = await readJson(response);
     if (cacheable) {
       const etag = response.headers.get('etag');
-      if (etag) cache.set(url, { etag, json });
+      if (etag && cacheKey) cache.set(cacheKey, { etag, json });
     }
     return json;
   }
@@ -224,7 +273,7 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
     const result: T[] = [];
     let next: string | null = `${apiBase}${path}?${query(params)}`;
     while (next) {
-      const response = await requestRaw(next);
+      const { response } = await requestRaw(next);
       if (response.status === 204) break;
       const value = await readJson(response);
       if (!Array.isArray(value)) throw new GitHubApiError('invalid_response', 'GitHub API 分页响应不是数组');
@@ -295,18 +344,29 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
       const root = asRecord(await requestJson(`${base}/${treeSha}?recursive=1`, {}, true));
       const rawTree = root['tree'];
       if (!Array.isArray(rawTree)) throw new GitHubApiError('invalid_response', '树响应缺少 tree');
-      const entries: GitHubTreeEntry[] = [];
+      const entries = new Map<string, GitHubTreeEntry>();
       const subtrees: { path: string; sha: string }[] = [];
+      const seenTrees = new Set<string>();
+      const truncated = root['truncated'] === true;
+      const addBlob = (path: string, sha: string, mode: string): void => {
+        const existing = entries.get(path);
+        if (existing && existing.sha !== sha) {
+          throw new GitHubApiError('invalid_response', `树响应包含重复路径：${path}`);
+        }
+        entries.set(path, existing ?? { path, sha, mode });
+      };
       for (const item of rawTree) {
         const json = asRecord(item);
         if (json['type'] === 'tree' && typeof json['sha'] === 'string') {
-          subtrees.push({ path: String(json['path']), sha: json['sha'] });
+          if (truncated) subtrees.push({ path: String(json['path']), sha: json['sha'] });
         } else if (json['type'] === 'blob' && typeof json['sha'] === 'string') {
-          entries.push({ path: String(json['path']), sha: json['sha'], mode: String(json['mode'] ?? '100644') });
+          addBlob(String(json['path']), json['sha'], String(json['mode'] ?? '100644'));
         }
       }
       while (subtrees.length) {
         const subtree = subtrees.pop()!;
+        if (seenTrees.has(subtree.sha)) continue;
+        seenTrees.add(subtree.sha);
         const json = asRecord(await requestJson(`${base}/${subtree.sha}`, {}, true));
         const raw = json['tree'];
         if (!Array.isArray(raw)) throw new GitHubApiError('invalid_response', '子树响应缺少 tree');
@@ -316,17 +376,22 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
           if (child['type'] === 'tree' && typeof child['sha'] === 'string') {
             subtrees.push({ path: childPath, sha: child['sha'] });
           } else if (child['type'] === 'blob' && typeof child['sha'] === 'string') {
-            entries.push({ path: childPath, sha: child['sha'], mode: String(child['mode'] ?? '100644') });
+            addBlob(childPath, child['sha'], String(child['mode'] ?? '100644'));
           }
         }
       }
-      return entries;
+      return [...entries.values()];
     },
 
     async getFileContents(owner: string, repo: string, path: string, ref: string): Promise<Uint8Array> {
       const json = asRecord(
         await requestJson(`${repoPath(owner, repo)}/contents/${filePath(path)}?${query({ ref })}`, {}, true)
       );
+      return toBytes(json);
+    },
+
+    async getBlobContents(owner: string, repo: string, sha: string): Promise<Uint8Array> {
+      const json = asRecord(await requestJson(`${repoPath(owner, repo)}/git/blobs/${encodeURIComponent(sha)}`, {}, true));
       return toBytes(json);
     },
 
@@ -413,7 +478,8 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
     },
 
     async updateRef(owner: string, repo: string, ref: string, sha: string, force = false): Promise<void> {
-      await requestJson(`${repoPath(owner, repo)}/git/refs/${ref}`, {
+      const encodedRef = ref.split('/').map(encodeURIComponent).join('/');
+      await requestJson(`${repoPath(owner, repo)}/git/refs/${encodedRef}`, {
         method: 'PATCH',
         body: JSON.stringify(force ? { sha, force } : { sha })
       });
@@ -426,7 +492,7 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
       return parseRepoSummary(json);
     },
 
-    async getZipball(owner: string, repo: string, ref: string): Promise<Uint8Array> {
+    async getZipball(owner: string, repo: string, ref: string, maxBytes = Number.POSITIVE_INFINITY): Promise<Uint8Array> {
       const url = `${apiBase}${repoPath(owner, repo)}/zipball/${encodeURIComponent(ref)}`;
       const token = await getToken();
       const headers: Record<string, string> = {
@@ -442,7 +508,7 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
       }
       trackQuota(response);
       if (!response.ok) throw await httpError(response);
-      return new Uint8Array(await response.arrayBuffer());
+      return readResponseBytes(response, maxBytes);
     },
 
     quota(): GitHubQuota {

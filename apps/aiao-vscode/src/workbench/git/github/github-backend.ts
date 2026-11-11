@@ -83,6 +83,8 @@ function mapError(cause: unknown, context: string): GitWorkbenchError {
       });
     case 'network_failed':
       return new GitWorkbenchError('network_failed', '无法连接 GitHub API', { cause });
+    case 'resource_limit':
+      return new GitWorkbenchError('resource_limit', cause.message, { cause });
     default:
       return new GitWorkbenchError('git_failed', cause.message, { cause });
   }
@@ -190,17 +192,27 @@ export function createGitHubBackend(options: GitHubBackendOptions): WorkbenchBac
   async function fetchContents(
     owner: string,
     repo: string,
-    ref: string,
     entries: readonly GitHubTreeEntry[]
   ): Promise<Map<string, Uint8Array>> {
+    if (entries.length > GIT_WORKBENCH_LIMITS.files) {
+      throw new GitWorkbenchError('resource_limit', `项目文件数超过工作台上限（${GIT_WORKBENCH_LIMITS.files}）`);
+    }
     const files = new Map<string, Uint8Array>();
     const queue = [...entries];
+    let totalBytes = 0;
     const workers = Array.from({ length: Math.min(fetchConcurrency, queue.length || 1) }, async () => {
       while (queue.length) {
         const entry = queue.shift()!;
-        const bytes = await api.getFileContents(owner, repo, entry.path, ref);
+        const bytes = await api.getBlobContents(owner, repo, entry.sha);
         if (bytes.byteLength > maxFileBytes) {
           throw new GitWorkbenchError('resource_limit', `文件超过工作台上限（${maxFileBytes} 字节）：${entry.path}`);
+        }
+        totalBytes += bytes.byteLength;
+        if (totalBytes > GIT_WORKBENCH_LIMITS.totalBytes) {
+          throw new GitWorkbenchError(
+            'resource_limit',
+            `项目内容超过工作台上限（${GIT_WORKBENCH_LIMITS.totalBytes} 字节）`
+          );
         }
         files.set(entry.path, bytes);
       }
@@ -212,7 +224,7 @@ export function createGitHubBackend(options: GitHubBackendOptions): WorkbenchBac
   async function readRemote(owner: string, repo: string, headSha: string): Promise<RemoteSnapshot> {
     const head = await api.getCommit(owner, repo, headSha);
     const entries = await api.getTreeFiles(owner, repo, head.treeSha);
-    const contents = await fetchContents(owner, repo, headSha, entries);
+    const contents = await fetchContents(owner, repo, entries);
     const saved = new Map<string, FileValue>();
     const modes = new Map<string, string>();
     for (const entry of entries) {
@@ -317,32 +329,40 @@ export function createGitHubBackend(options: GitHubBackendOptions): WorkbenchBac
     },
 
     async rename(projectId: string, from: string, to: string): Promise<void> {
+      assertGitPath(from);
+      assertGitPath(to);
       const project = state(projectId);
       if (!project.buffer.has(from)) {
         throw new GitWorkbenchError('invalid_path', `文件不存在：${from}`);
       }
-      project.buffer.set(to, project.buffer.get(from)!);
-      project.buffer.delete(from);
+      if (project.buffer.has(to)) throw new GitWorkbenchError('path_collision', `目标已存在：${to}`);
+      const next = new Map(project.buffer);
+      next.set(to, next.get(from)!);
+      next.delete(from);
+      assertNoPathCollisions([...next.keys()]);
+      project.buffer = next;
       project.mutation++;
     },
 
     async move(projectId: string, from: string, to: string): Promise<void> {
+      assertGitPath(from);
+      assertGitPath(to);
       const project = state(projectId);
-      const prefix = `${from}/`;
-      const children = [...project.buffer.keys()].filter(path => path.startsWith(prefix));
-      project.mutation++;
-      if (children.length) {
-        for (const path of children) {
-          project.buffer.set(`${to}/${path.slice(prefix.length)}`, project.buffer.get(path)!);
-          project.buffer.delete(path);
-        }
-        return;
+      if (to === from || to.startsWith(`${from}/`)) {
+        throw new GitWorkbenchError('path_collision', `目标位于源路径内部：${to}`);
       }
-      if (!project.buffer.has(from)) {
+      const moved = [...project.buffer.keys()].filter(path => path === from || path.startsWith(`${from}/`));
+      if (!moved.length) {
         throw new GitWorkbenchError('invalid_path', `文件不存在：${from}`);
       }
-      project.buffer.set(to, project.buffer.get(from)!);
-      project.buffer.delete(from);
+      const next = new Map(project.buffer);
+      for (const path of moved) {
+        next.delete(path);
+        next.set(`${to}${path.slice(from.length)}`, project.buffer.get(path)!);
+      }
+      assertNoPathCollisions([...next.keys()]);
+      project.buffer = next;
+      project.mutation++;
     },
 
     async status(projectId: string): Promise<WorkbenchStatus> {
@@ -498,7 +518,7 @@ export function createGitHubBackend(options: GitHubBackendOptions): WorkbenchBac
       try {
         const commitInfo = await api.getCommit(project.owner, project.repo, oid);
         const entries = await api.getTreeFiles(project.owner, project.repo, commitInfo.treeSha);
-        const contents = await fetchContents(project.owner, project.repo, commitInfo.sha, entries);
+        const contents = await fetchContents(project.owner, project.repo, entries);
         const buffer = new Map<string, FileValue>();
         for (const entry of entries) {
           buffer.set(entry.path, decodeFileBytes(entry.path, contents.get(entry.path)!));
@@ -516,7 +536,16 @@ export function createGitHubBackend(options: GitHubBackendOptions): WorkbenchBac
     async exportArchive(projectId: string): Promise<Uint8Array> {
       const project = state(projectId);
       try {
-        return await api.getZipball(project.owner, project.repo, project.headSha);
+        const archive = await api.getZipball(
+          project.owner,
+          project.repo,
+          project.headSha,
+          GIT_WORKBENCH_LIMITS.archiveBytes
+        );
+        if (archive.byteLength > GIT_WORKBENCH_LIMITS.archiveBytes) {
+          throw new GitWorkbenchError('resource_limit', '归档超过工作台大小上限');
+        }
+        return archive;
       } catch (cause) {
         throw mapError(cause, projectId);
       }

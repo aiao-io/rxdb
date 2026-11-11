@@ -15,6 +15,7 @@ function makeApi(): { [K in keyof GitHubApi]: ReturnType<typeof vi.fn> } {
     getBranchSha: vi.fn(),
     getTreeFiles: vi.fn(),
     getFileContents: vi.fn(),
+    getBlobContents: vi.fn(),
     listCommits: vi.fn(),
     getCommit: vi.fn(),
     createBlob: vi.fn(),
@@ -51,7 +52,7 @@ describe('GitHub virtual repository backend', () => {
     api.getTreeFiles.mockResolvedValue(
       treeWith([{ path: 'src/a.ts' }, { path: 'src/b.ts', mode: '100755' }, { path: 'logo.png' }])
     );
-    api.getFileContents
+    api.getBlobContents
       .mockResolvedValueOnce(text('hello a'))
       .mockResolvedValueOnce(text('hello b'))
       .mockResolvedValueOnce(new Uint8Array([0, 255, 1]));
@@ -67,7 +68,8 @@ describe('GitHub virtual repository backend', () => {
       message: 'remote'
     });
     api.getTreeFiles.mockResolvedValue(treeWith(Object.keys(files).map(path => ({ path, mode: modes[path] }))));
-    api.getFileContents.mockImplementation(async (_owner: string, _repo: string, path: string) => {
+    api.getBlobContents.mockImplementation(async (_owner: string, _repo: string, sha: string) => {
+      const path = sha.slice('sha-'.length);
       const value = files[path];
       return typeof value === 'string' ? text(value) : value;
     });
@@ -77,7 +79,7 @@ describe('GitHub virtual repository backend', () => {
     await openMain();
     expect(api.getBranchSha).toHaveBeenCalledWith('octo', 'repo', 'main');
     expect(api.getTreeFiles).toHaveBeenCalledWith('octo', 'repo', 'tree-1');
-    expect(api.getFileContents).toHaveBeenCalledTimes(3);
+    expect(api.getBlobContents).toHaveBeenCalledTimes(3);
     expect(await backend.status('github:octo/repo@main')).toMatchObject({
       head: 'head-1',
       branch: 'main',
@@ -88,7 +90,7 @@ describe('GitHub virtual repository backend', () => {
     api.getBranchSha.mockResolvedValue('head-2');
     api.getCommit.mockResolvedValue({ sha: 'head-2', treeSha: 'tree-2', parents: ['head-1'], message: 'x' });
     api.getTreeFiles.mockResolvedValue(treeWith([{ path: 'a.ts' }]));
-    api.getFileContents.mockResolvedValueOnce(text('v2'));
+    api.getBlobContents.mockResolvedValueOnce(text('v2'));
     const snapshot = await backend.open('github:octo/repo@feature%2Fx');
     expect(api.getBranchSha).toHaveBeenCalledWith('octo', 'repo', 'feature/x');
     expect(snapshot).toMatchObject({ projectId: 'github:octo/repo@feature%2Fx', revision: 'head-2' });
@@ -110,7 +112,7 @@ describe('GitHub virtual repository backend', () => {
     api.getBranchSha.mockResolvedValue('head-1');
     api.getCommit.mockResolvedValue({ sha: 'head-1', treeSha: 'tree-1', parents: [], message: 'x' });
     api.getTreeFiles.mockResolvedValue([{ path: 'huge.bin', sha: 'sha-huge', mode: '100644' }]);
-    api.getFileContents.mockResolvedValueOnce(new Uint8Array(2 * 1024 * 1024 + 1));
+    api.getBlobContents.mockResolvedValueOnce(new Uint8Array(2 * 1024 * 1024 + 1));
     await expect(backend.open('github:octo/repo@main')).rejects.toMatchObject({
       code: 'resource_limit',
       message: expect.stringContaining('huge.bin')
@@ -178,7 +180,7 @@ describe('GitHub virtual repository backend', () => {
     expect(snapshot.files).toEqual(files);
     expect(snapshot.revision).not.toBe('head-1');
     expect(await backend.status('github:octo/repo@main')).toMatchObject({ head: 'remote-head', entries: [] });
-    expect(api.getFileContents).toHaveBeenCalledWith('octo', 'repo', 'src/a.ts', 'remote-head');
+    expect(api.getBlobContents).toHaveBeenCalledWith('octo', 'repo', 'sha-src/a.ts');
     expect(api.getTreeFiles).toHaveBeenLastCalledWith('octo', 'repo', 'remote-tree');
   });
 
@@ -187,7 +189,7 @@ describe('GitHub virtual repository backend', () => {
     const snapshot = await backend.pull!('github:octo/repo@main');
     expect(snapshot.revision).toBe('head-1');
     expect(snapshot.files['src/a.ts']).toBe('hello a');
-    expect(api.getFileContents).toHaveBeenCalledTimes(3);
+    expect(api.getBlobContents).toHaveBeenCalledTimes(3);
     expect(api.getCommit).toHaveBeenCalledTimes(1);
   });
 
@@ -387,7 +389,7 @@ describe('GitHub virtual repository backend', () => {
     await backend.stage(id, ['src/a.ts']);
     const before = await backend.status(id);
     remoteFiles({ 'src/a.ts': 'remote a' });
-    api.getFileContents.mockRejectedValue(new GitHubApiError('network_failed', 'offline'));
+    api.getBlobContents.mockRejectedValue(new GitHubApiError('network_failed', 'offline'));
     await expect(backend.pull!(id)).rejects.toMatchObject({ code: 'network_failed' });
     expect(await backend.status(id)).toEqual(before);
     expect(await backend.readDiff(id, 'src/a.ts', 'staged')).toMatchObject({
@@ -401,14 +403,14 @@ describe('GitHub virtual repository backend', () => {
     const id = 'github:octo/repo@main';
     remoteFiles({ 'src/a.ts': 'remote a' });
     let finish!: (bytes: Uint8Array) => void;
-    api.getFileContents.mockImplementation(
+    api.getBlobContents.mockImplementation(
       () =>
         new Promise<Uint8Array>(resolve => {
           finish = resolve;
         })
     );
     const pulling = backend.pull!(id);
-    await vi.waitFor(() => expect(api.getFileContents).toHaveBeenCalledWith('octo', 'repo', 'src/a.ts', 'remote-head'));
+    await vi.waitFor(() => expect(api.getBlobContents).toHaveBeenCalledWith('octo', 'repo', 'sha-src/a.ts'));
     await backend.save(id, { 'src/a.ts': 'saved during pull' }, 'head-1');
     finish(text('remote a'));
 
@@ -422,14 +424,14 @@ describe('GitHub virtual repository backend', () => {
     const id = 'github:octo/repo@main';
     remoteFiles({ 'src/a.ts': 'hello a' });
     let finish!: (bytes: Uint8Array) => void;
-    api.getFileContents.mockImplementation(
+    api.getBlobContents.mockImplementation(
       () =>
         new Promise<Uint8Array>(resolve => {
           finish = resolve;
         })
     );
     const pulling = backend.pull!(id);
-    await vi.waitFor(() => expect(api.getFileContents).toHaveBeenCalledWith('octo', 'repo', 'src/a.ts', 'remote-head'));
+    await vi.waitFor(() => expect(api.getBlobContents).toHaveBeenCalledWith('octo', 'repo', 'sha-src/a.ts'));
     await backend.stage(id, ['src/a.ts']);
     finish(text('hello a'));
 
@@ -546,7 +548,7 @@ describe('GitHub virtual repository backend', () => {
   it('allows the same workbench session to save again after committing and pushing', async () => {
     await openMain();
     const id = 'github:octo/repo@main';
-    api.getFileContents.mockResolvedValue(text('initial'));
+    api.getBlobContents.mockResolvedValue(text('initial'));
     const session = new WorkbenchSession(backend);
     await session.open(id);
     session.edit('src/a.ts', 'first edit');
@@ -677,7 +679,7 @@ describe('GitHub virtual repository backend', () => {
 
     api.getCommit.mockResolvedValue({ sha: 'parent-1', treeSha: 'tree-0', parents: [], message: 'root' });
     api.getTreeFiles.mockResolvedValue(treeWith([{ path: 'src/a.ts' }]));
-    api.getFileContents.mockResolvedValueOnce(text('old a'));
+    api.getBlobContents.mockResolvedValueOnce(text('old a'));
     const snapshot = await backend.restore(id, 'parent-1');
     expect(snapshot.files).toEqual({ 'src/a.ts': 'old a' });
     expect((await backend.status(id)).head).toBe('head-1');
@@ -690,7 +692,7 @@ describe('GitHub virtual repository backend', () => {
     const id = 'github:octo/repo@main';
     api.getZipball.mockResolvedValue(new Uint8Array([80, 75]));
     await expect(backend.exportArchive(id)).resolves.toEqual(new Uint8Array([80, 75]));
-    expect(api.getZipball).toHaveBeenCalledWith('octo', 'repo', 'head-1');
+    expect(api.getZipball).toHaveBeenCalledWith('octo', 'repo', 'head-1', 24 * 1024 * 1024);
 
     await expect(backend.create('github:octo/new@main', {})).rejects.toBeInstanceOf(GitWorkbenchError);
     await expect(backend.importArchive(id, new Uint8Array())).rejects.toMatchObject({ code: 'unsupported_operation' });

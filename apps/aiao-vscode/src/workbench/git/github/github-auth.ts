@@ -99,6 +99,7 @@ export function createGitHubAuth(options: GitHubAuthOptions): GitHubAuth {
   }
 
   async function setSession(next: GitHubSession | null): Promise<void> {
+    api.clearCache();
     session = next;
     if (next) {
       await options.sessionStore.save({ ...next, createdAt: Date.now() });
@@ -110,6 +111,7 @@ export function createGitHubAuth(options: GitHubAuthOptions): GitHubAuth {
 
   /** 用指定 token 校验并读取用户；期间覆盖 API 的默认 token 来源。 */
   async function fetchUser(token: string): Promise<GitHubUser> {
+    api.clearCache();
     overrideToken = token;
     try {
       return await api.getAuthenticatedUser();
@@ -183,6 +185,7 @@ export function createGitHubAuth(options: GitHubAuthOptions): GitHubAuth {
     },
 
     async refresh(): Promise<GitHubSession | null> {
+      api.clearCache();
       session = null;
       restoring = null;
       return restoreSession();

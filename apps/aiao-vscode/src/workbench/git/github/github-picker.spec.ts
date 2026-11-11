@@ -23,6 +23,7 @@ function makeApi(): { [K in keyof GitHubApi]: ReturnType<typeof vi.fn> } {
     getBranchSha: vi.fn(),
     getTreeFiles: vi.fn(),
     getFileContents: vi.fn(),
+    getBlobContents: vi.fn(),
     listCommits: vi.fn(),
     getCommit: vi.fn(),
     createBlob: vi.fn(),

@@ -51,7 +51,14 @@ export interface GitHubCommitSummary {
 }
 
 export type GitHubApiErrorCode =
-  'auth_required' | 'not_found' | 'forbidden' | 'conflict' | 'rate_limited' | 'network_failed' | 'invalid_response';
+  | 'auth_required'
+  | 'not_found'
+  | 'forbidden'
+  | 'conflict'
+  | 'rate_limited'
+  | 'network_failed'
+  | 'invalid_response'
+  | 'resource_limit';
 
 export class GitHubApiError extends Error {
   constructor(

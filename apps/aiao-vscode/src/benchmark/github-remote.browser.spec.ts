@@ -76,8 +76,9 @@ const api = {
   async getTreeFiles(_owner, _repo, treeSha) {
     return Object.keys(trees.get(treeSha)).sort().map(path => ({ path, sha: treeSha + ':' + path, mode: '100644' }));
   },
-  async getFileContents(_owner, _repo, path, ref) {
-    return encoder.encode(trees.get(commits.get(ref).treeSha)[path]);
+  async getBlobContents(_owner, _repo, sha) {
+    const [treeSha, path] = sha.split(':');
+    return encoder.encode(trees.get(treeSha)[path]);
   },
   async createTree(_owner, _repo, baseTree, items) {
     const files = { ...trees.get(baseTree) };

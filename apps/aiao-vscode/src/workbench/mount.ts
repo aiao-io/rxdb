@@ -378,12 +378,12 @@ export function mountWorkbench(
     }
   }
   renderAccountState();
+  const releaseGitHubAuth = options.githubAuth ? options.githubAuth.subscribe(session => {
+    if (disposed) return;
+    githubSession = session;
+    renderAccountState();
+  }) : undefined;
   if (options.githubAuth) {
-    options.githubAuth.subscribe(session => {
-      if (disposed) return;
-      githubSession = session;
-      renderAccountState();
-    });
     void options.githubAuth.getSession().then(session => {
       if (disposed) return;
       githubSession = session;
@@ -1066,7 +1066,7 @@ export function mountWorkbench(
     projects = [opened, ...projects.filter(item => item.id !== id)];
     renderProjects();
     focusEditor(session.state.activePath);
-    void savePreview.runSaved().catch(report);
+    if (!next.remote) void savePreview.runSaved().catch(report);
     await catalog.put(opened).catch(report);
     void refreshGit().catch(report);
     log('output', `已打开 ${next.name}`);
@@ -2742,6 +2742,7 @@ export function mountWorkbench(
     dispose() {
       if (disposed) return;
       disposed = true;
+      releaseGitHubAuth?.();
       closeContextMenu();
       releaseState();
       extensionManagement.dispose();

@@ -82,6 +82,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   private readonly platform = inject(PLATFORM_ID);
   private readonly rxdb = inject(RxDB);
   private workbench?: WorkbenchHandle;
+  private destroyed = false;
   readonly ready = signal(false);
   readonly error = signal<string | null>(null);
 
@@ -91,6 +92,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.destroyed = true;
     this.workbench?.dispose();
   }
 
@@ -236,6 +238,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     } catch (error) {
       console.warn('RxDB adapter failed to connect; project catalog will not persist', error);
     }
+    if (this.destroyed) return;
     const github = createGitHubService();
     if (location.pathname === '/github-callback') {
       const params = new URLSearchParams(location.search);
@@ -253,6 +256,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
         }
       })();
     }
+    if (this.destroyed) return;
     this.workbench = mountWorkbench(
       this.host.nativeElement,
       {
