@@ -15,7 +15,7 @@
   "targets": {
     "typecheck": {
       "executor": "nx:run-commands",
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build", { "target": "typecheck", "projects": ["rxdb-test"] }],
       "options": {
         "cwd": "packages/rxdb-angular",
         "command": "tsc -p tsconfig.spec.json --noEmit --pretty false"
