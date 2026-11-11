@@ -25,8 +25,8 @@ function CalendarAppIcon() {
       <span className='calendar-sprite'>
         <MacosIcon symbol='app-calendar' />
       </span>
-      <span className='calendar-day-name'>{weekday}</span>
-      <span className='calendar-day-number'>{now.getDate()}</span>
+      <span className='calendar-day-name' data-label={weekday} />
+      <span className='calendar-day-number' data-label={now.getDate()} />
     </span>
   );
 }
