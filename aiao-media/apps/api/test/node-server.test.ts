@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { test } from 'node:test';
-import { startNodeServer } from './node-server.ts';
+import { startNodeServer } from '../src/node-server.ts';
 
 test('HTTP 桥接保留任务响应，优雅退出等待长轮询后才关闭数据库', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'aiao-node-http-'));

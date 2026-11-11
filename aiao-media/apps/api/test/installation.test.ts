@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { afterEach, mock, test } from 'node:test';
-import { handleAdmin } from './admin-api.ts';
-import { Installation } from './installation.ts';
-import worker from './local-first-worker.ts';
-import type { WorkerSql } from './worker-env.ts';
+import { handleAdmin } from '../src/admin-api.ts';
+import { Installation } from '../src/installation.ts';
+import worker from '../src/local-first-worker.ts';
+import type { WorkerSql } from '../src/worker-env.ts';
 
 const origin = 'https://media.example.test';
 const actor = '12345678-1234-4234-8234-123456789012';

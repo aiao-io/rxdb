@@ -5,9 +5,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { test } from 'node:test';
-import worker from './local-first-worker.ts';
-import { NodeRelayRuntime } from './node-runtime.ts';
-import type { WorkerRequest } from './worker-env.ts';
+import worker from '../src/local-first-worker.ts';
+import { NodeRelayRuntime } from '../src/node-runtime.ts';
+import type { WorkerRequest } from '../src/worker-env.ts';
 
 const origin = 'https://47.103.117.118';
 const provider = 'https://provider.example.test/v1';
