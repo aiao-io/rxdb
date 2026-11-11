@@ -64,7 +64,7 @@ function model(env: AiEnvironment) {
     apiKey: env.DEEPSEEK_API_KEY,
     baseURL: (env.DEEPSEEK_BASE_URL ?? 'https://api.deepseek.com/v1').replace(/\/$/, '')
   });
-  return provider(env.DEEPSEEK_MODEL ?? 'deepseek-chat');
+  return provider(env.DEEPSEEK_MODEL ?? 'deepseek-flash');
 }
 
 /** 模型生成和迭代统一输出 AI SDK UI Message SSE。 */

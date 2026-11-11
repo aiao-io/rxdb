@@ -280,8 +280,26 @@ export interface ModelDesignerTranslations {
     newSession: string;
     deleteSession: string;
     sessionList: string;
+    sessionListHint: string;
     backToSessions: string;
     noSessions: string;
+    noMatchingSessions: string;
+    searchSessions: string;
+    modelContext: string;
+    currentEntity: string;
+    emptyTitle: string;
+    emptyDescription: string;
+    suggestionExplainModel: string;
+    suggestionGenerateModel: string;
+    suggestionRefineEntity: string;
+    chatModeLabel: string;
+    generateModeLabel: string;
+    inputHint: string;
+    copyMessage: string;
+    copiedMessage: string;
+    assistantRole: string;
+    userRole: string;
+    scrollToBottom: string;
     retainedEntities: string;
     continueGenerating: string;
     acceptPartial: string;
@@ -573,8 +591,26 @@ export const DEFAULT_TRANSLATIONS: ModelDesignerTranslations = {
     newSession: 'New Session',
     deleteSession: 'Delete',
     sessionList: 'Sessions',
+    sessionListHint: 'Your model design conversations',
     backToSessions: 'Back',
     noSessions: 'No conversations yet',
+    noMatchingSessions: 'No matching conversations',
+    searchSessions: 'Search conversations',
+    modelContext: 'Model design context',
+    currentEntity: 'Selected entity',
+    emptyTitle: 'Start designing with AI',
+    emptyDescription: 'Ask a question about the current model or describe the change you want to make.',
+    suggestionExplainModel: 'Explain the current model structure',
+    suggestionGenerateModel: 'Generate a model for a blog system',
+    suggestionRefineEntity: 'Refine the selected entity and its relations',
+    chatModeLabel: 'Model Q&A',
+    generateModeLabel: 'Generate model',
+    inputHint: 'Enter to send · Shift+Enter for a new line',
+    copyMessage: 'Copy',
+    copiedMessage: 'Copied',
+    assistantRole: 'AI',
+    userRole: 'You',
+    scrollToBottom: 'Scroll to bottom',
     retainedEntities: 'entities retained',
     continueGenerating: 'Continue Generating',
     acceptPartial: 'Accept Partial',

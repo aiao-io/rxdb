@@ -1,5 +1,27 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
-import { AlertCircle, ArrowLeft, Loader2, LucideAngularModule, Plus, RotateCcw, Send, Square } from 'lucide-angular';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  ElementRef,
+  inject,
+  input,
+  output,
+  signal,
+  viewChild
+} from '@angular/core';
+import {
+  AlertCircle,
+  ArrowLeft,
+  Database,
+  Loader2,
+  LucideAngularModule,
+  MessageSquare,
+  Plus,
+  RotateCcw,
+  Send,
+  Sparkles,
+  Square
+} from 'lucide-angular';
 import { MODEL_DESIGNER_TRANSLATIONS } from '../../i18n/translations';
 import type { BranchDiff } from '../../services/ai-branch.service';
 import type { AiOperationState } from '../../services/ai-state.types';
@@ -13,7 +35,8 @@ import { BranchManagerComponent, type BranchItem } from './branch-manager.compon
 /**
  * AI 对话面板组件
  *
- * Copilot 风格：列表视图展示历史会话，点击进入对话详情，可返回列表。
+ * 参考 NextChat 的工作流组织聊天：会话列表、上下文标题栏、消息工作区、
+ * 快捷提示和多行输入工具栏，同时承接模型生成与变更预览的专属能力。
  */
 @Component({
   selector: 'lib-ai-chat-panel',
@@ -27,135 +50,241 @@ import { BranchManagerComponent, type BranchItem } from './branch-manager.compon
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (currentView() === 'list') {
-      <!-- 会话列表视图 -->
-      <div class="border-base-300 flex items-center justify-between border-b px-3 py-2">
-        <span class="text-sm font-medium">{{ t().ai.sessionList }}</span>
-        <button class="btn btn-ghost btn-xs gap-1" (click)="createSessionEvent.emit()">
-          <lucide-icon [img]="PlusIcon" size="14" />
-          {{ t().ai.newSession }}
-        </button>
-      </div>
-      <lib-ai-session-list
-        [sessions]="sessions()"
-        (createSession)="createSessionEvent.emit()"
-        (deleteSession)="deleteSessionEvent.emit($event)"
-        (selectSession)="selectSessionEvent.emit($event)"
-      />
-    } @else {
-      <!-- 对话详情视图 -->
-      <div class="border-base-300 flex items-center gap-2 border-b px-3 py-1.5">
-        <button class="btn btn-ghost btn-xs gap-1" (click)="backToList.emit()">
-          <lucide-icon [img]="ArrowLeftIcon" size="14" />
-          {{ t().ai.backToSessions }}
-        </button>
-        @if (selectedEntityName()) {
-          <span class="badge badge-outline badge-sm">{{ selectedEntityName() }}</span>
-        }
-      </div>
-
-      <!-- Diff 预览 -->
-      @if (activeProposal()) {
-        <lib-ai-diff-preview
-          [proposal]="activeProposal()"
-          (cancelPreview)="cancelProposal.emit()"
-          (confirm)="confirmProposal.emit()"
-        />
-      }
-
-      <!-- 消息列表 -->
-      <lib-ai-message-list
-        [isAborting]="isAborting()"
-        [messages]="messages()"
-        [operationState]="operationState()"
-        [streamingCharCount]="streamingCharCount()"
-      />
-
-      <!-- 确认操作栏：钉在底部，有最大高度 -->
-      @if (operationState() === 'previewing') {
-        <div class="border-base-300 bg-base-200 max-h-2xl overflow-hidden border-t">
-          <lib-branch-manager
-            [branchDiff]="branchDiff()"
-            [branches]="branches()"
-            [currentBranchId]="currentBranchId()"
-            (compareBranch)="compareBranch.emit($event)"
-            (confirmMerge)="confirmMerge.emit()"
-            (discardChanges)="discardChanges.emit()"
-            (switchBranch)="onBranchSwitch($event)"
-          />
-        </div>
-      }
-
-      <!-- 中断操作栏 -->
-      @if (operationState() === 'interrupted') {
-        <div class="border-base-300 bg-warning/10 flex flex-col gap-2 border-t p-3">
-          <div class="text-warning flex items-center gap-2 text-sm">
-            <lucide-icon [img]="AlertCircle" size="14" />
-            <span>{{ t().ai.interrupted }} — {{ retainedEntityCount() }} {{ t().ai.retainedEntities }}</span>
+      <section class="bg-base-100 flex min-h-0 flex-1 flex-col">
+        <header class="border-base-300 flex items-center justify-between gap-3 border-b px-4 py-3">
+          <div class="flex min-w-0 items-center gap-3">
+            <div class="bg-primary/10 text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">
+              <lucide-icon [img]="SparklesIcon" aria-hidden="true" size="18" />
+            </div>
+            <div class="min-w-0">
+              <h2 class="truncate text-sm font-semibold">{{ t().ai.sessionList }}</h2>
+              <p class="text-base-content/50 truncate text-xs">{{ t().ai.sessionListHint }}</p>
+            </div>
           </div>
-          <div class="flex gap-2">
-            <button class="btn btn-primary btn-sm flex-1" (click)="continueGeneration.emit()">
-              {{ t().ai.continueGenerating }}
-            </button>
-            <button class="btn btn-ghost btn-sm flex-1" (click)="acceptPartial.emit()">
-              {{ t().ai.acceptPartial }}
-            </button>
-            <button class="btn btn-error btn-sm flex-1" (click)="discardChanges.emit()">
-              {{ t().ai.discard }}
-            </button>
-          </div>
-        </div>
-      }
-
-      <!-- 输入区 -->
-      <div class="border-base-300 border-t p-3">
-        @if (hasError() && operationState() === 'idle') {
-          <button class="btn btn-outline btn-sm mb-2 w-full gap-2" (click)="retryRequest.emit()">
-            <lucide-icon [img]="RotateCcw" size="14" />
-            {{ t().ai.retry }}
+          <button
+            class="btn btn-primary btn-sm shrink-0 gap-1"
+            [attr.aria-label]="t().ai.newSession"
+            (click)="createSessionEvent.emit()"
+            type="button"
+          >
+            <lucide-icon [img]="PlusIcon" aria-hidden="true" size="15" />
+            <span class="hidden sm:inline">{{ t().ai.newSession }}</span>
           </button>
+        </header>
+
+        <div class="border-base-300 bg-base-200/35 border-b px-4 py-3">
+          <div class="text-base-content/65 flex items-center gap-2 text-xs">
+            <lucide-icon [img]="DatabaseIcon" aria-hidden="true" size="14" />
+            <span>{{ t().ai.modelContext }}</span>
+            @if (selectedEntityName()) {
+              <span class="text-base-content/35">·</span>
+              <span class="text-primary truncate font-medium">{{ selectedEntityName() }}</span>
+            }
+          </div>
+        </div>
+
+        <lib-ai-session-list
+          class="min-h-0 flex-1"
+          [activeSessionId]="activeSessionId()"
+          [sessions]="sessions()"
+          (createSession)="createSessionEvent.emit()"
+          (deleteSession)="deleteSessionEvent.emit($event)"
+          (selectSession)="selectSessionEvent.emit($event)"
+        />
+      </section>
+    } @else {
+      <section class="bg-base-100 flex min-h-0 flex-1 flex-col">
+        <header class="border-base-300 flex min-w-0 items-center gap-2 border-b px-3 py-2.5">
+          <button
+            class="btn btn-ghost btn-sm btn-square shrink-0"
+            [attr.aria-label]="t().ai.backToSessions"
+            [title]="t().ai.backToSessions"
+            (click)="backToList.emit()"
+            type="button"
+          >
+            <lucide-icon [img]="ArrowLeftIcon" aria-hidden="true" size="16" />
+          </button>
+          <div class="min-w-0 flex-1">
+            <div class="flex min-w-0 items-center gap-2">
+              <h2 class="truncate text-sm font-semibold">{{ currentSessionName() }}</h2>
+              <span class="badge badge-ghost badge-sm hidden shrink-0 gap-1 sm:inline-flex">
+                <lucide-icon [img]="SparklesIcon" aria-hidden="true" size="11" />
+                {{ chatMode() ? t().ai.chatModeLabel : t().ai.generateModeLabel }}
+              </span>
+            </div>
+            @if (selectedEntityName()) {
+              <p class="text-base-content/50 truncate text-xs">
+                {{ t().ai.currentEntity }} · {{ selectedEntityName() }}
+              </p>
+            }
+          </div>
+          <button
+            class="btn btn-ghost btn-sm btn-square shrink-0"
+            [attr.aria-label]="t().ai.newSession"
+            [title]="t().ai.newSession"
+            (click)="createSessionEvent.emit()"
+            type="button"
+          >
+            <lucide-icon [img]="PlusIcon" aria-hidden="true" size="16" />
+          </button>
+        </header>
+
+        @if (activeProposal()) {
+          <div class="border-base-300 max-h-72 overflow-y-auto border-b">
+            <lib-ai-diff-preview
+              [proposal]="activeProposal()"
+              (cancelPreview)="cancelProposal.emit()"
+              (confirm)="confirmProposal.emit()"
+            />
+          </div>
         }
-        <div class="flex items-end gap-2">
-          <textarea
-            class="textarea max-h-40 min-h-[32px] flex-1 resize-none text-sm"
-            [disabled]="!canInput()"
-            [placeholder]="chatMode() ? t().ai.chatPlaceholder : t().ai.inputPlaceholder"
-            [value]="inputValue()"
-            (input)="onInput($event)"
-            (keydown.enter)="onEnterKey($event)"
-            rows="1"
-          ></textarea>
-          @if (operationState() === 'generating') {
-            <button class="btn btn-error btn-sm" [disabled]="isAborting()" (click)="onAbort()">
-              @if (isAborting()) {
-                <lucide-icon class="animate-spin" [img]="Loader2" size="16" />
-              } @else {
-                <lucide-icon [img]="StopIcon" size="16" />
-              }
-            </button>
-          } @else {
-            <button class="btn btn-primary btn-sm" [disabled]="!canSend()" (click)="onSend()">
-              <lucide-icon [img]="Send" size="16" />
+
+        <lib-ai-message-list
+          class="min-h-0 flex-1"
+          [emptyDescription]="t().ai.emptyDescription"
+          [emptyTitle]="t().ai.emptyTitle"
+          [isAborting]="isAborting()"
+          [messages]="messages()"
+          [operationState]="operationState()"
+          [promptSuggestions]="promptSuggestions()"
+          [streamingCharCount]="streamingCharCount()"
+          (selectSuggestion)="onSuggestion($event)"
+        />
+
+        @if (operationState() === 'previewing') {
+          <div class="border-base-300 bg-base-200/70 max-h-64 overflow-hidden border-t px-3 py-2">
+            <lib-branch-manager
+              [branchDiff]="branchDiff()"
+              [branches]="branches()"
+              [currentBranchId]="currentBranchId()"
+              (compareBranch)="compareBranch.emit($event)"
+              (confirmMerge)="confirmMerge.emit()"
+              (discardChanges)="discardChanges.emit()"
+              (switchBranch)="onBranchSwitch($event)"
+            />
+          </div>
+        }
+
+        @if (operationState() === 'interrupted') {
+          <div class="border-base-300 bg-warning/10 flex flex-col gap-2 border-t p-3">
+            <div class="text-warning flex items-center gap-2 text-sm">
+              <lucide-icon [img]="AlertCircleIcon" aria-hidden="true" size="14" />
+              <span>{{ t().ai.interrupted }} — {{ retainedEntityCount() }} {{ t().ai.retainedEntities }}</span>
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+              <button class="btn btn-primary btn-sm" (click)="continueGeneration.emit()" type="button">
+                {{ t().ai.continueGenerating }}
+              </button>
+              <button class="btn btn-ghost btn-sm" (click)="acceptPartial.emit()" type="button">
+                {{ t().ai.acceptPartial }}
+              </button>
+              <button class="btn btn-error btn-sm" (click)="discardChanges.emit()" type="button">
+                {{ t().ai.discard }}
+              </button>
+            </div>
+          </div>
+        }
+
+        <footer class="border-base-300 bg-base-100 border-t p-3">
+          @if (blockingMessage(); as message) {
+            <div class="text-warning mb-2 flex items-center gap-2 text-xs" role="status">
+              <lucide-icon [img]="AlertCircleIcon" aria-hidden="true" size="14" />
+              <span>{{ message }}</span>
+            </div>
+          }
+          @if (hasError() && operationState() === 'idle') {
+            <button class="btn btn-outline btn-sm mb-2 w-full gap-2" (click)="retryRequest.emit()" type="button">
+              <lucide-icon [img]="RotateCcwIcon" aria-hidden="true" size="14" />
+              {{ t().ai.retry }}
             </button>
           }
-        </div>
-      </div>
+
+          <div class="border-base-300 focus-within:border-primary rounded-2xl border shadow-sm transition-colors">
+            <div class="text-base-content/50 flex items-center gap-2 px-3 pt-2 text-[11px]">
+              <span class="badge badge-ghost badge-xs gap-1">
+                <lucide-icon [img]="SparklesIcon" aria-hidden="true" size="11" />
+                {{ chatMode() ? t().ai.chatModeLabel : t().ai.generateModeLabel }}
+              </span>
+              @if (selectedEntityName()) {
+                <span class="truncate">{{ t().ai.currentEntity }}: {{ selectedEntityName() }}</span>
+              }
+              <span class="ml-auto hidden shrink-0 sm:inline">{{ t().ai.inputHint }}</span>
+            </div>
+
+            <textarea
+              class="max-h-48 min-h-20 w-full resize-none bg-transparent px-3 py-2 text-sm leading-6 outline-none"
+              #chatInput
+              [attr.aria-label]="chatMode() ? t().ai.chatPlaceholder : t().ai.inputPlaceholder"
+              [disabled]="!canInput()"
+              [placeholder]="chatMode() ? t().ai.chatPlaceholder : t().ai.inputPlaceholder"
+              [value]="inputValue()"
+              (compositionend)="onCompositionEnd()"
+              (compositionstart)="onCompositionStart()"
+              (input)="onInput($event)"
+              (keydown.enter)="onEnterKey($event)"
+              rows="3"
+            ></textarea>
+
+            <div class="text-base-content/50 flex items-center justify-between gap-2 px-3 pb-2">
+              <span class="truncate text-[11px]">
+                @if (operationState() === 'generating') {
+                  {{ isAborting() ? t().ai.stopping : t().ai.generating }}
+                } @else {
+                  {{ t().ai.inputHint }}
+                }
+              </span>
+              @if (operationState() === 'generating') {
+                <button
+                  class="btn btn-error btn-sm btn-circle shrink-0"
+                  [attr.aria-label]="t().ai.stopGenerating"
+                  [disabled]="isAborting()"
+                  [title]="t().ai.stopGenerating"
+                  (click)="onAbort()"
+                  type="button"
+                >
+                  @if (isAborting()) {
+                    <lucide-icon class="animate-spin" [img]="Loader2Icon" aria-hidden="true" size="16" />
+                  } @else {
+                    <lucide-icon [img]="StopIcon" aria-hidden="true" size="16" />
+                  }
+                </button>
+              } @else {
+                <button
+                  class="btn btn-primary btn-sm btn-circle shrink-0"
+                  [attr.aria-label]="t().ai.send"
+                  [disabled]="!canSend()"
+                  [title]="t().ai.send"
+                  (click)="onSend()"
+                  type="button"
+                >
+                  <lucide-icon [img]="SendIcon" aria-hidden="true" size="16" />
+                </button>
+              }
+            </div>
+          </div>
+        </footer>
+      </section>
     }
   `,
-  styles: [':host { display: flex; flex-direction: column; height: 100%; }']
+  styles: [':host { display: flex; min-height: 0; height: 100%; flex: 1; flex-direction: column; }']
 })
 export class AiChatPanelComponent {
   /** 中止请求进行中（本地乐观状态，直到 operationState 离开 generating） */
   readonly #isAborting = signal(false);
-
+  readonly #isComposing = signal(false);
   readonly #textareaEl = signal<HTMLTextAreaElement | null>(null);
+  protected readonly textareaRef = viewChild<ElementRef<HTMLTextAreaElement>>('chatInput');
 
-  protected readonly Send = Send;
-  protected readonly Loader2 = Loader2;
-  protected readonly AlertCircle = AlertCircle;
+  protected readonly SendIcon = Send;
+  protected readonly Loader2Icon = Loader2;
+  protected readonly AlertCircleIcon = AlertCircle;
   protected readonly ArrowLeftIcon = ArrowLeft;
   protected readonly PlusIcon = Plus;
-  protected readonly RotateCcw = RotateCcw;
+  protected readonly RotateCcwIcon = RotateCcw;
   protected readonly StopIcon = Square;
+  protected readonly SparklesIcon = Sparkles;
+  protected readonly DatabaseIcon = Database;
+  protected readonly MessageSquareIcon = MessageSquare;
   protected readonly t = inject(MODEL_DESIGNER_TRANSLATIONS);
 
   /** 输入值 */
@@ -167,12 +296,24 @@ export class AiChatPanelComponent {
   /** 当前视图：列表 or 对话详情（由 activeSessionId 推导） */
   protected readonly currentView = computed(() => (this.activeSessionId() ? 'chat' : 'list'));
 
+  /** 当前会话标题 */
+  protected readonly currentSessionName = computed(
+    () => this.sessions().find(session => session.id === this.activeSessionId())?.name ?? this.t().ai.newSession
+  );
+
+  /** 空会话快捷提示 */
+  protected readonly promptSuggestions = computed(() => {
+    const ai = this.t().ai;
+    return this.chatMode() ?
+        [ai.suggestionExplainModel, ai.suggestionRefineEntity]
+      : [ai.suggestionGenerateModel, ai.suggestionRefineEntity];
+  });
+
   /** 是否可以输入 */
   protected readonly canInput = computed(() => {
     if (this.isOffline()) return false;
     if (!this.canStartOperation()) return false;
     const state = this.operationState();
-    // 停止请求进行中时允许提前输入下一条消息；previewing 时继续输入即为继续在当前分支编辑
     return state === 'idle' || state === 'previewing' || this.isAborting();
   });
 
@@ -223,14 +364,16 @@ export class AiChatPanelComponent {
 
   /** 流式传输已接收字符数 */
   readonly streamingCharCount = input(0);
+
   /** 分支列表（由编排器提供） */
   readonly branches = input<BranchItem[]>([{ id: 'main', parentId: null }]);
 
   /** 当前分支 ID */
   readonly currentBranchId = input('main');
 
-  /** 当前分支对比结果（有偈则展示 BranchDiffView） */
+  /** 当前分支对比结果（有则展示 BranchDiffView） */
   readonly branchDiff = input<BranchDiff | undefined>(undefined);
+
   /** 用户发送消息 */
   readonly sendMessage = output<string>();
 
@@ -269,43 +412,77 @@ export class AiChatPanelComponent {
 
   /** 返回会话列表 */
   readonly backToList = output<void>();
+
   /** 展示分支对比（含分支 ID） */
   readonly compareBranch = output<string>();
-  protected onInput(event: Event) {
-    const el = event.target as HTMLTextAreaElement;
-    this.#textareaEl.set(el);
-    this.inputValue.set(el.value);
-    el.style.height = 'auto';
-    el.style.height = `${el.scrollHeight}px`;
+
+  protected onInput(event: Event): void {
+    const element = event.target as HTMLTextAreaElement;
+    this.#textareaEl.set(element);
+    this.inputValue.set(element.value);
+    this.#resizeTextarea(element);
   }
 
-  protected onEnterKey(event: Event) {
-    const ke = event as KeyboardEvent;
-    if (!ke.shiftKey && this.canSend()) {
-      event.preventDefault();
-      this.onSend();
+  protected onCompositionStart(): void {
+    this.#isComposing.set(true);
+  }
+
+  protected onCompositionEnd(): void {
+    this.#isComposing.set(false);
+  }
+
+  protected onEnterKey(event: Event): void {
+    const keyboardEvent = event as KeyboardEvent;
+    if (
+      keyboardEvent.isComposing ||
+      keyboardEvent.keyCode === 229 ||
+      this.#isComposing() ||
+      keyboardEvent.shiftKey ||
+      keyboardEvent.altKey ||
+      keyboardEvent.ctrlKey ||
+      keyboardEvent.metaKey
+    ) {
+      return;
     }
+    if (!this.canSend()) return;
+    event.preventDefault();
+    this.onSend();
   }
 
-  protected onSend() {
+  protected onSend(): void {
     const value = this.inputValue().trim();
     if (!value) return;
     this.#isAborting.set(false);
     this.sendMessage.emit(value);
     this.inputValue.set('');
-    const el = this.#textareaEl();
-    if (el) el.style.height = 'auto';
+    const element = this.#textareaEl() ?? this.textareaRef()?.nativeElement;
+    if (element) {
+      element.value = '';
+      this.#resizeTextarea(element);
+    }
   }
 
-  protected onAbort() {
+  protected onSuggestion(value: string): void {
+    this.inputValue.set(value);
+    const element = this.#textareaEl() ?? this.textareaRef()?.nativeElement;
+    if (!element) return;
+    element.value = value;
+    this.#resizeTextarea(element);
+    element.focus();
+  }
+
+  protected onAbort(): void {
     this.#isAborting.set(true);
     this.abortGeneration.emit();
   }
 
   /** 切换到 main 分支 = 丢弃 AI 变更 */
-  protected onBranchSwitch(branchId: string) {
-    if (branchId === 'main') {
-      this.discardChanges.emit();
-    }
+  protected onBranchSwitch(branchId: string): void {
+    if (branchId === 'main') this.discardChanges.emit();
+  }
+
+  #resizeTextarea(element: HTMLTextAreaElement): void {
+    element.style.height = 'auto';
+    element.style.height = `${Math.min(element.scrollHeight, 192)}px`;
   }
 }

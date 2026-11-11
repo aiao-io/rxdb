@@ -1,6 +1,6 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
-import { LucideAngularModule, MessageSquare, Plus, Trash2 } from 'lucide-angular';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
+import { LucideAngularModule, MessageSquare, Plus, Search, Trash2 } from 'lucide-angular';
 import { MODEL_DESIGNER_TRANSLATIONS } from '../../i18n/translations';
 
 export interface ChatSessionItem {
@@ -12,62 +12,101 @@ export interface ChatSessionItem {
 /**
  * AI 会话列表组件
  *
- * 全高列表视图，展示 ChatSession 列表，支持新建/删除/切换会话。
+ * 参考 NextChat 的会话工作流：快速搜索、当前会话高亮、明确的新建和删除入口。
  */
 @Component({
   selector: 'lib-ai-session-list',
   imports: [DatePipe, LucideAngularModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="flex flex-1 flex-col overflow-y-auto">
-      @for (session of sessions(); track session.id) {
-        <div
-          class="group border-base-200 hover:bg-base-200 flex cursor-pointer items-center justify-between border-b px-3 py-3 transition-colors"
-          (click)="selectSession.emit(session.id)"
-          (keydown.enter)="selectSession.emit(session.id)"
-          (keydown.space)="selectSession.emit(session.id)"
-          role="button"
-          tabindex="0"
-        >
-          <div class="flex items-center gap-2 overflow-hidden">
-            <lucide-icon class="text-base-content/40 shrink-0" [img]="MessageSquareIcon" size="14" />
-            <div class="flex flex-col gap-0.5 overflow-hidden">
-              <span class="truncate text-sm">{{ session.name }}</span>
-              <span class="text-base-content/40 text-xs">{{ session.lastUsedAt | date }}</span>
-            </div>
+    <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <label class="border-base-300 bg-base-100 flex items-center gap-2 border-b px-4 py-3">
+        <lucide-icon class="text-base-content/45" [img]="SearchIcon" aria-hidden="true" size="15" />
+        <input
+          class="w-full bg-transparent text-sm outline-none"
+          [attr.aria-label]="t().ai.searchSessions"
+          [placeholder]="t().ai.searchSessions"
+          [value]="searchTerm()"
+          (input)="onSearch($event)"
+        />
+      </label>
+
+      <div class="min-h-0 flex-1 overflow-y-auto py-2">
+        @for (session of filteredSessions(); track session.id) {
+          <div class="group flex items-stretch gap-1 px-2">
+            <button
+              class="hover:bg-base-200 flex min-w-0 flex-1 items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors"
+              [attr.aria-current]="activeSessionId() === session.id ? 'page' : null"
+              [class.bg-primary/10]="activeSessionId() === session.id"
+              [class.text-primary]="activeSessionId() === session.id"
+              (click)="selectSession.emit(session.id)"
+              type="button"
+            >
+              <span
+                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+                [class.bg-base-200]="activeSessionId() !== session.id"
+                [class.bg-primary/15]="activeSessionId() === session.id"
+              >
+                <lucide-icon [img]="MessageSquareIcon" aria-hidden="true" size="15" />
+              </span>
+              <span class="flex min-w-0 flex-1 flex-col gap-1">
+                <span class="truncate text-sm font-medium">{{ session.name }}</span>
+                <span class="text-base-content/45 truncate text-xs">
+                  {{ session.lastUsedAt | date: 'M/d HH:mm' }}
+                </span>
+              </span>
+            </button>
+            <button
+              class="btn btn-ghost btn-square btn-xs text-error mt-2 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
+              [attr.aria-label]="t().ai.deleteSession + ' ' + session.name"
+              [title]="t().ai.deleteSession"
+              (click)="onDelete($event, session.id)"
+              type="button"
+            >
+              <lucide-icon [img]="Trash2Icon" aria-hidden="true" size="14" />
+            </button>
           </div>
-          <button
-            class="btn btn-ghost btn-xs text-error opacity-0 transition-opacity group-hover:opacity-100"
-            (click)="onDelete($event, session.id)"
-          >
-            <lucide-icon [img]="Trash2Icon" size="12" />
-          </button>
-        </div>
-      } @empty {
-        <div class="flex flex-1 flex-col items-center justify-center gap-3 p-8">
-          <lucide-icon class="text-base-content/20" [img]="MessageSquareIcon" size="32" />
-          <p class="text-base-content/50 text-sm">{{ t().ai.noSessions }}</p>
-          <button class="btn btn-primary btn-sm gap-1" (click)="createSession.emit()">
-            <lucide-icon [img]="PlusIcon" size="14" />
-            {{ t().ai.newSession }}
-          </button>
-        </div>
-      }
+        } @empty {
+          <div class="flex flex-col items-center justify-center gap-3 px-8 py-16 text-center">
+            <lucide-icon class="text-base-content/20" [img]="MessageSquareIcon" aria-hidden="true" size="34" />
+            <p class="text-base-content/55 text-sm">
+              {{ sessions().length > 0 ? t().ai.noMatchingSessions : t().ai.noSessions }}
+            </p>
+            @if (sessions().length === 0) {
+              <button class="btn btn-primary btn-sm gap-1" (click)="createSession.emit()" type="button">
+                <lucide-icon [img]="PlusIcon" aria-hidden="true" size="14" />
+                {{ t().ai.newSession }}
+              </button>
+            }
+          </div>
+        }
+      </div>
     </div>
   `,
-  styles: [':host { display: flex; flex-direction: column; flex: 1; min-height: 0; }']
+  styles: [':host { display: flex; min-height: 0; flex: 1; flex-direction: column; }']
 })
 export class AiSessionListComponent {
   protected readonly t = inject(MODEL_DESIGNER_TRANSLATIONS);
   protected readonly MessageSquareIcon = MessageSquare;
   protected readonly PlusIcon = Plus;
   protected readonly Trash2Icon = Trash2;
+  protected readonly SearchIcon = Search;
+  protected readonly searchTerm = signal('');
+  protected readonly filteredSessions = computed(() => {
+    const term = this.searchTerm().trim().toLocaleLowerCase();
+    if (!term) return this.sessions();
+    return this.sessions().filter(session => session.name.toLocaleLowerCase().includes(term));
+  });
 
   readonly sessions = input<ChatSessionItem[]>([]);
   readonly activeSessionId = input<string>();
   readonly selectSession = output<string>();
   readonly deleteSession = output<string>();
   readonly createSession = output<void>();
+
+  protected onSearch(event: Event): void {
+    this.searchTerm.set((event.target as HTMLInputElement).value);
+  }
 
   protected onDelete(event: Event, sessionId: string): void {
     event.stopPropagation();

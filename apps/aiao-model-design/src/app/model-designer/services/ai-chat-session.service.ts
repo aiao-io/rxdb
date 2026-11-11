@@ -44,7 +44,7 @@ export class AiChatSessionService {
       this.#allMessages()
         .filter(m => m.chatSessionId === sessionId)
         .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
-        .map(m => ({ id: m.id, role: m.role, content: m.content }))
+        .map(m => ({ id: m.id, role: m.role, content: m.content, createdAt: m.createdAt.toISOString() }))
     );
     this.#messagesCache.set(sessionId, messages);
     return messages;

@@ -182,7 +182,10 @@ export class AiGenerateOrchestratorService {
     if (!sessionId) return;
 
     this.operationState.set('generating');
-    this.messages.update(msgs => [...msgs, { id: crypto.randomUUID(), role: 'user' as const, content: prompt }]);
+    this.messages.update(msgs => [
+      ...msgs,
+      { id: crypto.randomUUID(), role: 'user' as const, content: prompt, createdAt: new Date().toISOString() }
+    ]);
     this.#lastPrompt.set(prompt);
     this.hasError.set(false);
     await this.#updateSessionName(prompt);
@@ -477,7 +480,10 @@ export class AiGenerateOrchestratorService {
     this.hasError.set(false);
     this.activeProposal.set(undefined);
     this.operationState.set('generating');
-    this.messages.update(msgs => [...msgs, { id: crypto.randomUUID(), role: 'user' as const, content: prompt }]);
+    this.messages.update(msgs => [
+      ...msgs,
+      { id: crypto.randomUUID(), role: 'user' as const, content: prompt, createdAt: new Date().toISOString() }
+    ]);
 
     try {
       await this.#updateSessionName(prompt);
@@ -503,7 +509,7 @@ export class AiGenerateOrchestratorService {
         },
         onComplete: async (fullText: string) => {
           if (this.#activeChatRequestId !== requestId) return;
-          this.#upsertAssistantMessage(fullText);
+          this.#upsertAssistantMessage(fullText, false);
           await Promise.all([
             this.#chatSession.addMessage(sessionId, 'assistant', fullText),
             this.#chatSession.touchSession(sessionId)
@@ -523,7 +529,7 @@ export class AiGenerateOrchestratorService {
             this.operationState.set('idle');
             return;
           }
-          this.#upsertAssistantMessage(`Error: ${error.message}`);
+          this.#upsertAssistantMessage(`Error: ${error.message}`, false);
           this.hasError.set(true);
           this.operationState.set('idle');
           const errorMsg = this.messages().at(-1);
@@ -532,7 +538,7 @@ export class AiGenerateOrchestratorService {
       });
     } catch {
       if (this.#activeChatRequestId === requestId) {
-        this.#upsertAssistantMessage('Error: AI request failed');
+        this.#upsertAssistantMessage('Error: AI request failed', false);
         this.hasError.set(true);
         this.operationState.set('idle');
       }
@@ -548,7 +554,8 @@ export class AiGenerateOrchestratorService {
     const { parser, populateService, populateChain, result, resolvedDesignId, designId, sessionId } = context;
     parser.end();
     const parsed = parser.getResult();
-    if (parsed.thinking) this.#upsertAssistantMessage(parsed.thinking);
+    if (parsed.thinking) this.#upsertAssistantMessage(parsed.thinking, false);
+    this.#markAssistantMessageComplete();
     this.#partialEntities.set([]);
     this.#retainedEntities.set([]);
     this.retainedEntityCount.set(0);
@@ -585,6 +592,7 @@ export class AiGenerateOrchestratorService {
     sessionId?: string
   ): Promise<void> {
     parser.end();
+    this.#markAssistantMessageComplete();
     this.streamingEntities.set([]);
     if (errorMessage === 'AbortError') {
       await this.#discardGenerationBranch();
@@ -602,10 +610,10 @@ export class AiGenerateOrchestratorService {
     this.hasError.set(true);
 
     if (retained.length > 0) {
-      this.#upsertAssistantMessage(`Interrupted — ${retained.length} entities retained`);
+      this.#upsertAssistantMessage(`Interrupted — ${retained.length} entities retained`, false);
       this.operationState.set('interrupted');
     } else {
-      this.#upsertAssistantMessage(`Error: ${errorMessage}`);
+      this.#upsertAssistantMessage(`Error: ${errorMessage}`, false);
     }
     this.#partialEntities.set([]);
     const lastMsg = this.messages().at(-1);
@@ -682,18 +690,36 @@ export class AiGenerateOrchestratorService {
     if (this.#activeChatRequestId === null) return false;
     this.#activeChatRequestId = null;
     this.#apiAdapter?.abort();
+    this.#markAssistantMessageComplete();
     this.operationState.set('idle');
     this.#streamingCharCount.set(0);
     return true;
   }
 
-  #upsertAssistantMessage(content: string): void {
+  #markAssistantMessageComplete(): void {
+    this.messages.update(msgs => {
+      const last = msgs[msgs.length - 1];
+      if (last?.role !== 'assistant' || !last.isStreaming) return msgs;
+      return [...msgs.slice(0, -1), { ...last, isStreaming: false }];
+    });
+  }
+
+  #upsertAssistantMessage(content: string, isStreaming = true): void {
     this.messages.update(msgs => {
       const last = msgs[msgs.length - 1];
       if (last?.role === 'assistant') {
-        return [...msgs.slice(0, -1), { ...last, content }];
+        return [...msgs.slice(0, -1), { ...last, content, isStreaming }];
       }
-      return [...msgs, { id: crypto.randomUUID(), role: 'assistant' as const, content }];
+      return [
+        ...msgs,
+        {
+          id: crypto.randomUUID(),
+          role: 'assistant' as const,
+          content,
+          createdAt: new Date().toISOString(),
+          isStreaming
+        }
+      ];
     });
   }
 
