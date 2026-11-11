@@ -24,10 +24,10 @@ import {
   createBackupRxDB,
   makeNote,
   PLAIN_ENTITIES,
-  readNotes,
   restoreInto,
   rowsOf,
-  uniqueDbName
+  uniqueDbName,
+  type BackupNote
 } from './backup/sqlite-backup-fixture.js';
 
 const MIB = 1024 * 1024;
@@ -105,8 +105,10 @@ const measure = (
       const meter = backupMemoryTools.rendererMeter();
       await restoreInto(target, backupMemoryTools.fileSource(archive, meter));
       restore = { host: (await restoreHost.peakRss()) - baseline, renderer: meter.delta() };
-      const restored = await readNotes(await target.connect(), target.entities);
-      expect(restored).toHaveLength((mib * MIB) / backupMemoryTools.payloadBytes);
+      const targetAdapter = await target.connect();
+      const Note = target.entities[1] as typeof BackupNote;
+      const count = await targetAdapter.getRepository(Note).count({ where: { combinator: 'and', rules: [] } });
+      expect(count).toBe((mib * MIB) / backupMemoryTools.payloadBytes);
       await target.close();
       await db.close();
     } finally {

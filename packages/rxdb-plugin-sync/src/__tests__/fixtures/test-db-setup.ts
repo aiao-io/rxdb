@@ -109,6 +109,14 @@ export class MockLocalAdapter extends RxDBAdapterLocalBase implements IRxDBAdapt
 
   version = vi.fn<() => Promise<string>>(async () => 'mock');
 
+  /**
+   * 远端身份：`createTestDBWithRemote()` 拿本替身兼任远端，同步入口会先核对它。
+   *
+   * @remarks
+   * 本地基类没有这个成员，是远端基类的抽象成员；替身两头都要演，所以在这里补上。
+   */
+  backendId = vi.fn<() => Promise<string>>(async () => 'mock-backend');
+
   isTableExisted = vi.fn<(EntityType: EntityType) => Promise<boolean>>(async () => false);
 
   createTables = vi.fn<(EntityTypes: EntityType[], entities?: InstanceType<EntityType>[]) => Promise<boolean>>(

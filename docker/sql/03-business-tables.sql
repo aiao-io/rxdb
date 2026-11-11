@@ -697,6 +697,39 @@ BEGIN
   END IF;
 END $$;
 
+-- ============================================
+-- 12. 拉取游标提交顺序复现夹具（RV-01a1c49dee517814adf2e68788ad084e）
+-- ============================================
+-- 仅供 pull-commit-order.spec.ts 走真实链路。PostgREST 一个 RPC 一个事务，测试没法把事务挂着不提交，
+-- 只能让函数自己拖住提交：rxdb_test_slow_todo_insert 直写 todos（同步触发器记日志），
+-- 睡 p_hold_seconds 秒才返回，模拟「先拿到日志 id、晚提交」的直写事务。
+-- rxdb_test_change_id_seq_last_value 读日志序列的当前值：序列不受事务可见性约束，
+-- 慢事务一拿到 id 测试就读得到，据此确认它已写下日志，不靠猜等待时长。序列从没取过值时返回 0。
+CREATE OR REPLACE FUNCTION public.rxdb_test_slow_todo_insert(
+    p_id uuid,
+    p_title text,
+    p_hold_seconds double precision
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $$
+BEGIN
+  INSERT INTO public.todos (id, title) VALUES (p_id, p_title);
+  PERFORM pg_catalog.pg_sleep(p_hold_seconds);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.rxdb_test_change_id_seq_last_value()
+RETURNS bigint
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+  SELECT CASE WHEN is_called THEN last_value ELSE 0 END FROM public.rxdb_change_id_seq;
+$$;
+
 GRANT USAGE ON SCHEMA public TO anon;
 GRANT USAGE ON SCHEMA public TO authenticated;
 GRANT USAGE ON SCHEMA shop TO anon;

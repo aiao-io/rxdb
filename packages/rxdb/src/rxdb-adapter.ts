@@ -943,6 +943,21 @@ export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
  */
 export abstract class RxDBAdapterRemoteBase extends RxDBAdapterBase {
   /**
+   * 远端身份：远端库建立时生成、重建后改变的标识
+   *
+   * @returns 当前远端库的身份值；同一个远端库上反复调用必须返回同一个值
+   *
+   * @remarks
+   * 拉取游标是远端 change id，只在同一个远端库里单调。远端重建或变更日志被清空重新计数之后，
+   * 旧客户端的游标会越过新库的全部 id，拉取静默拉空。同步插件把这个值和游标存在同一行
+   * （`RxDBSync.remoteBackendId`），与远端交换数据之前先比对，对不上就停止同步。
+   *
+   * 远端重建与变更日志清空都必须换一个新值，不能拿连接地址、项目名这类重建后不变的东西代替。
+   * 不支持变更日志同步的适配器直接抛不支持错误，不要返回占位值。
+   */
+  abstract backendId(): Promise<string>;
+
+  /**
    * 从远程拉取变更记录
    *
    * @param sinceId - 拉取此 ID 之后的变更（不包含该 ID）

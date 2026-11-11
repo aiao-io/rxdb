@@ -570,7 +570,8 @@ describe('supabase review regressions', () => {
         type,
         branchId: 'main',
         patch: type === 'DELETE' ? null : { title: `v${id}` },
-        inversePatch
+        inversePatch,
+        createdAt: new Date(Date.UTC(2026, 0, 1, 0, 0, id))
       }) as IRxDBChange;
     const changes = [
       change(1, 'UPDATE', x, { title: 'remote-x' }),
@@ -580,10 +581,16 @@ describe('supabase review regressions', () => {
       change(5, 'UPDATE', z, { title: 'v3' })
     ];
 
+    const pushStartedAt = Date.now();
     await adapter.mergeChanges(compactChanges(changes), undefined, changes);
 
     const payload = rpc.mock.calls[0]?.[1];
     if (!payload) throw new Error('rxdb_mutations was not called');
+    // 日志的 createdAt 是每条变更的编辑时刻（拉取方 LWW 比的就是它），推送时刻记在 updatedAt
+    expect(payload.p_changes.map(log => log['createdAt'])).toEqual(changes.map(item => item.createdAt.toISOString()));
+    for (const log of payload.p_changes) {
+      expect(new Date(String(log['updatedAt'])).getTime()).toBeGreaterThanOrEqual(pushStartedAt);
+    }
     const keyOf = (schema: unknown, table: unknown, id: unknown) => `${String(schema)}.${String(table)}.${String(id)}`;
     const rowKeys = (groups: MergeChangesUpsertPayload[]) =>
       groups.flatMap(group => group.data.map(row => keyOf(group.schema, group.table, row['id'])));

@@ -32,6 +32,7 @@ import { PushInFlightRegistry } from '@aiao/rxdb-plugin-history';
 import { type Observable, of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { pushRepository, type PushRepositoryResult } from '../push-repository.js';
+import { RemoteBackendMismatchError } from '../remote-backend.js';
 import { syncRepository, type SyncRepositoryResult } from '../sync-repository.js';
 import type { SyncManager } from '../SyncManager.js';
 import { Post, User } from './fixtures/test-entities.js';
@@ -351,6 +352,8 @@ function createHarness(options: HarnessOptions = {}) {
   // 真的登记处，不是替身：`pushRepository` 会在这上面认领/释放在飞区间，
   // 用替身就等于把要验的东西验掉了
   const pushInFlight = new PushInFlightRegistry();
+  // 回执落库之前的远端身份核对；按记录比对的本体在 remote-backend.spec.ts
+  const verifyRemoteBackend = vi.fn<() => Promise<void>>(async () => undefined);
 
   const vm = {
     rxdb: {
@@ -373,11 +376,13 @@ function createHarness(options: HarnessOptions = {}) {
     getRemoteRepositories: vi.fn(async () => ({ adapter: remoteAdapter })),
     history: { captureUndoHistory: () => () => undefined },
     getCurrentBranch: vi.fn(async () => currentBranch),
-    pushInFlight
+    pushInFlight,
+    verifyRemoteBackend
   } as unknown as SyncManager;
 
   return {
     vm,
+    verifyRemoteBackend,
     pushInFlight,
     ancestorLookups,
     branchFind,
@@ -754,6 +759,51 @@ describe('pushRepository', () => {
     expect(harness.dispatchEvent.mock.calls[1][0]).toEqual(
       expect.objectContaining({ error: new Error('remote offline') })
     );
+  });
+
+  describe('回执落库之前再核对远端身份', () => {
+    // 复合同步先 pull 再 push，入口那次核对之后可能隔着整趟拉取：远端在这期间被重建，
+    // 这一批就写进了新库。水位一推进，这些变更就再也不会推给用户最终认定的那个远端。
+    it('推送途中远端被重建：回执与水位都不落，错误带着远端已应用的条数', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const change = createChange({ id: 9 });
+      const harness = createHarness({ changes: [change], currentWatermark: 4 });
+      const mismatch = new RemoteBackendMismatchError('backend-b', ['backend-a']);
+      harness.verifyRemoteBackend.mockRejectedValue(mismatch);
+
+      const thrown = await pushRepository(harness.vm, 'public', 'User', { includeRelated: false }).catch(
+        (error: unknown) => error
+      );
+
+      expect(thrown).toBeInstanceOf(RxDBPartialSyncError);
+      const partial = thrown as RxDBPartialSyncError<PushRepositoryResult>;
+      expect(partial.cause).toBe(mismatch);
+      expect(partial.result).toMatchObject({ success: false, pushed: 1 });
+      expect(change.remoteId).toBeNull();
+      expect(harness.currentSync.lastPushedChangeId).toBe(4);
+      expect(harness.transaction).not.toHaveBeenCalled();
+    });
+
+    it('核对排在远端写入之后、本地落库之前', async () => {
+      const harness = createHarness({ changes: [createChange({ id: 9 })] });
+
+      await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
+
+      const [mergedAt] = harness.mergeChanges.mock.invocationCallOrder;
+      const [verifiedAt] = harness.verifyRemoteBackend.mock.invocationCallOrder;
+      const [committedAt] = harness.transaction.mock.invocationCallOrder;
+      expect(mergedAt).toBeLessThan(verifiedAt);
+      expect(verifiedAt).toBeLessThan(committedAt);
+    });
+
+    // 没有东西发到远端，就没有回执要证明出处，不为它多打一次远端。
+    it('没有待推送变更时不核对', async () => {
+      const harness = createHarness({ currentWatermark: 41 });
+
+      await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
+
+      expect(harness.verifyRemoteBackend).not.toHaveBeenCalled();
+    });
   });
 
   it('远端成功后本地提交失败可幂等重试，且失败状态不泄漏映射', async () => {

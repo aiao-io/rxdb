@@ -249,6 +249,44 @@ describe('SQLite system schema migration', () => {
     expect(state.sql.filter(sql => sql.includes('ADD COLUMN "tableSetSuffix"'))).toHaveLength(1);
   });
 
+  it('模式 8 的库升级后给 RxDBSync 补上可空的 remoteBackendId', async () => {
+    const { client, state } = createMigrationClient(
+      [`${RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX}8`, RXDB_CHANGE_CODEC_WATERMARK],
+      ['rxdb$rxdb_change.rejectedAt', 'rxdb$rxdb_change.rejection', 'rxdb$rxdb_change.tableSetSuffix']
+    );
+    const adapter = trackAdapter(new MigrationTestAdapter(createRxdb(), client));
+    await adapter.connect();
+
+    await adapter.migrateSystemSchema();
+
+    const additions = state.sql.filter(sql => /^ALTER TABLE "rxdb\$rxdb_sync" ADD COLUMN "remoteBackendId"/.test(sql));
+    expect(additions).toHaveLength(1);
+    expect(additions[0]).not.toMatch(/NOT NULL|DEFAULT/i);
+    expect(state.sql.some(sql => /ADD COLUMN "(rejectedAt|rejection|tableSetSuffix)"/.test(sql))).toBe(false);
+    expect(state.committedWatermarks).toContain(RXDB_SYSTEM_SCHEMA_WATERMARK);
+  });
+
+  it('remoteBackendId 已在、水位线仍停在模式 8 时不重复加列', async () => {
+    const { client, state } = createMigrationClient(
+      [`${RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX}8`, RXDB_CHANGE_CODEC_WATERMARK],
+      [
+        'rxdb$rxdb_change.rejectedAt',
+        'rxdb$rxdb_change.rejection',
+        'rxdb$rxdb_change.tableSetSuffix',
+        'rxdb$rxdb_sync.remoteBackendId'
+      ]
+    );
+    const adapter = trackAdapter(new MigrationTestAdapter(createRxdb(), client));
+    await adapter.connect();
+
+    await expect(adapter.migrateSystemSchema()).resolves.toBeUndefined();
+
+    expect(state.sql.some(sql => /ADD COLUMN "(remoteBackendId|rejectedAt|rejection|tableSetSuffix)"/.test(sql))).toBe(
+      false
+    );
+    expect(state.committedWatermarks).toContain(RXDB_SYSTEM_SCHEMA_WATERMARK);
+  });
+
   it('两列已在、水位线仍停在模式 6 时重复迁移不报错也不重复加列', async () => {
     const { client, state } = createMigrationClient(
       [`${RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX}6`, RXDB_CHANGE_CODEC_WATERMARK],

@@ -51,6 +51,9 @@ export {
   type QueryCacheOutboxFailure,
   type QueryCacheOutboxResult
 } from './query-cache-outbox.js';
+// 远端身份不匹配时同步入口抛出的错误，以及 `SyncManager.rebindRemoteBackend()` 的返回值。
+// 核对与绑定的函数是内部实现：转出去等于多一个能绕开入口前置校验的写入口。
+export { RemoteBackendMismatchError, type RebindRemoteBackendResult } from './remote-backend.js';
 // QueryCache 远端 / 本地缓存的实体标识。读引擎包（`@aiao/rxdb-plugin-querycache`）的在线读写与本包的
 // 离线重放共用这一个函数 —— 读引擎包本就依赖本包，标识只能从这一侧出。
 export { queryCacheEntityIdentifier } from './query-cache-entity-identifier.js';

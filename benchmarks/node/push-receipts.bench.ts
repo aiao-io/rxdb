@@ -90,8 +90,9 @@ const PushBenchItem = Entity({
  * 推送路径基准专用的远端替身。
  *
  * @remarks
- * 只实现 `pushRepository` 实际会调到的两个方法：
+ * 为 `pushRepository` 提供以下实现：
  *
+ * - `backendId` —— 返回固定的远端身份，供同步状态关联游标。
  * - `mergeChanges` —— 按构造时给定的 `rejectCount`，把本批 `changes` 中**前
  *   `rejectCount` 条**判 `rejected`（RLS 拒绝口径，`code: '42501'`），其余判
  *   `applied`，形状见 `contracts/remote-merge-result.md` §1。
@@ -122,6 +123,10 @@ class BenchRemoteAdapter extends RxDBAdapterRemoteBase implements IRxDBAdapter {
   }
 
   version(): Promise<string> {
+    return Promise.resolve(REMOTE_ADAPTER);
+  }
+
+  backendId(): Promise<string> {
     return Promise.resolve(REMOTE_ADAPTER);
   }
 
