@@ -3,6 +3,9 @@
   "name": "aiao-model-design",
   "main": "server/index.ts",
   "compatibility_date": "2026-11-07",
+  "limits": {
+    "cpu_ms": 30000
+  },
   "workers_dev": true,
   "assets": {
     "directory": "../../dist/apps/aiao-model-design/browser",
