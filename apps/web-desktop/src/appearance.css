@@ -1082,3 +1082,462 @@
     outline: none;
   }
 }
+
+@layer polish {
+  .desktop {
+    isolation: isolate;
+    background-color: #101827;
+  }
+
+  .desktop.wallpaper {
+    background-position: center top;
+  }
+
+  .glass {
+    -webkit-backdrop-filter: blur(24px) saturate(1.45);
+    backdrop-filter: blur(24px) saturate(1.45);
+  }
+
+  .mode-macos {
+    --accent: #0a84ff;
+    --surface: rgb(248 248 250 / 78%);
+    --panel: rgb(248 248 250 / 92%);
+    --text: #1d1d1f;
+    --muted: #6e6e73;
+    --border: rgb(60 60 67 / 18%);
+    --control: rgb(255 255 255 / 72%);
+    --control-hover: rgb(0 0 0 / 8%);
+    --input: rgb(255 255 255 / 68%);
+    --sidebar: rgb(235 235 240 / 76%);
+    --card: rgb(246 246 248 / 82%);
+    --selected: rgb(10 132 255 / 18%);
+    --chrome: rgb(245 245 247 / 78%);
+    --dock: rgb(241 243 248 / 62%);
+    --dock-border: rgb(255 255 255 / 70%);
+    --selection-ink: #005ecb;
+    --shadow-window: 0 0 0 0.5px rgb(0 0 0 / 24%), 0 8px 22px rgb(0 0 0 / 12%), 0 26px 60px rgb(0 0 0 / 28%);
+  }
+
+  .mode-macos[data-theme='dark'] {
+    --surface: rgb(42 42 45 / 86%);
+    --panel: rgb(30 30 32 / 94%);
+    --text: #f5f5f7;
+    --muted: #b3b3bd;
+    --border: rgb(255 255 255 / 16%);
+    --control: rgb(255 255 255 / 11%);
+    --control-hover: rgb(255 255 255 / 14%);
+    --input: rgb(255 255 255 / 10%);
+    --sidebar: rgb(45 45 48 / 84%);
+    --card: rgb(50 50 54 / 86%);
+    --selected: rgb(10 132 255 / 38%);
+    --chrome: rgb(48 48 52 / 84%);
+    --dock: rgb(35 35 39 / 76%);
+    --dock-border: rgb(255 255 255 / 24%);
+    --selection-ink: #b5d9ff;
+    --shadow-window: 0 0 0 0.5px rgb(255 255 255 / 12%), 0 12px 30px rgb(0 0 0 / 32%), 0 30px 70px rgb(0 0 0 / 52%);
+  }
+
+  .mode-macos .system-bar {
+    height: 26px;
+    padding: 0 14px;
+    gap: 15px;
+    color: rgb(255 255 255 / 94%);
+    background: rgb(29 24 48 / 28%);
+    -webkit-backdrop-filter: blur(20px) saturate(1.45);
+    backdrop-filter: blur(20px) saturate(1.45);
+    border-bottom: 0.5px solid rgb(255 255 255 / 16%);
+    box-shadow: 0 1px 0 rgb(0 0 0 / 12%);
+  }
+
+  .mode-macos .system-bar button,
+  .mode-macos .system-bar .app-command-menu summary {
+    min-height: 24px;
+    border-radius: 6px;
+  }
+
+  .mode-macos .system-bar button:hover,
+  .mode-macos .system-bar .app-command-menu summary:hover {
+    background: rgb(255 255 255 / 14%);
+  }
+
+  .mode-macos .system-bar .system-tray {
+    gap: 5px;
+  }
+
+  .mode-macos .system-bar .system-tray button {
+    width: 24px;
+    min-width: 24px;
+    height: 24px;
+    padding: 3px;
+  }
+
+  .mode-macos .system-bar .tray-clock {
+    width: auto;
+    min-width: 0;
+    padding: 3px 6px;
+  }
+
+  .mode-macos .desktop-surface {
+    height: calc(100dvh - 26px);
+  }
+
+  .mode-macos .desktop-shortcuts {
+    top: 18px;
+    right: 18px;
+    gap: 12px;
+  }
+
+  .mode-macos .desktop-shortcuts button {
+    width: 90px;
+    padding: 7px 4px;
+    gap: 6px;
+    border-radius: 10px;
+    text-shadow: 0 1px 4px rgb(0 0 0 / 62%);
+  }
+
+  .mode-macos .desktop-shortcuts button:hover {
+    background: rgb(255 255 255 / 16%);
+    border-color: rgb(255 255 255 / 22%);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+
+  .mode-macos .desktop-window {
+    border: 0.5px solid rgb(255 255 255 / 58%);
+    border-radius: 12px;
+    background: var(--panel);
+    box-shadow: 0 0 0 0.5px rgb(0 0 0 / 20%), 0 8px 22px rgb(0 0 0 / 15%), 0 28px 58px rgb(0 0 0 / 26%);
+  }
+
+  .mode-macos .desktop-window.active {
+    box-shadow: var(--shadow-window);
+  }
+
+  .mode-macos .titlebar {
+    height: 46px;
+    min-height: 46px;
+    padding: 0 14px;
+    gap: 10px;
+    background: var(--chrome);
+    -webkit-backdrop-filter: blur(20px) saturate(1.35);
+    backdrop-filter: blur(20px) saturate(1.35);
+    border-bottom: 0.5px solid var(--border);
+  }
+
+  .mode-macos .window-controls {
+    gap: 7px;
+  }
+
+  .mode-macos .window-controls button {
+    width: 13px;
+    height: 13px;
+    min-width: 13px;
+    border: 0.5px solid rgb(0 0 0 / 22%);
+    box-shadow: inset 0 0.5px rgb(255 255 255 / 48%);
+  }
+
+  .mode-macos .window-navigation {
+    display: flex;
+    gap: 2px;
+    margin-left: 4px;
+  }
+
+  .mode-macos .window-navigation button {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 7px;
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  .mode-macos .window-navigation button:hover:not(:disabled),
+  .mode-macos .window-menu summary:hover {
+    background: var(--control-hover);
+  }
+
+  .mode-macos .window-title {
+    font-size: calc(13px * var(--desktop-scale, 1));
+    font-weight: 600;
+  }
+
+  .mode-macos .window-menu summary {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border-radius: 7px;
+    color: var(--muted);
+    font-size: 17px;
+  }
+
+  .mode-macos .window-overlay {
+    inset: 46px 0 0;
+    background: var(--panel);
+  }
+
+  .mode-macos .app-bar {
+    bottom: 9px;
+    height: 70px;
+    border: 0.5px solid var(--dock-border);
+    border-radius: 22px;
+    background: var(--dock);
+    -webkit-backdrop-filter: blur(28px) saturate(1.8);
+    backdrop-filter: blur(28px) saturate(1.8);
+    box-shadow:
+      inset 0 0.5px rgb(255 255 255 / 78%),
+      inset 0 0 0 0.5px rgb(255 255 255 / 24%),
+      inset 0 -1px 1px rgb(0 0 0 / 8%),
+      0 1px 2px rgb(0 0 0 / 12%),
+      0 12px 28px -8px rgb(0 0 0 / 34%),
+      0 24px 52px -16px rgb(0 0 0 / 42%);
+  }
+
+  .mode-macos .app-bar::before {
+    background: linear-gradient(rgb(255 255 255 / 54%), rgb(255 255 255 / 10%) 44%, transparent 62%, rgb(255 255 255 / 12%));
+  }
+
+  .mode-macos [data-dock-item] {
+    bottom: 8px;
+  }
+
+  .mode-macos .dock-art .app-icon {
+    filter: drop-shadow(0 3px 5px rgb(0 0 0 / 20%));
+  }
+
+  .mode-macos .bar-app.running::after {
+    bottom: -6px;
+    width: 4px;
+    height: 4px;
+    background: currentColor;
+  }
+
+  .mode-macos .dock-tooltip {
+    border: 0.5px solid rgb(255 255 255 / 58%);
+    border-radius: 8px;
+    background: var(--surface);
+    -webkit-backdrop-filter: blur(20px) saturate(1.35);
+    backdrop-filter: blur(20px) saturate(1.35);
+    box-shadow: 0 5px 18px rgb(0 0 0 / 20%);
+  }
+
+  .mode-windows {
+    --accent: #0067c0;
+    --surface: rgb(245 247 251 / 82%);
+    --panel: rgb(255 255 255 / 94%);
+    --text: #1f1f1f;
+    --muted: #5f6368;
+    --border: rgb(0 0 0 / 12%);
+    --control: rgb(255 255 255 / 72%);
+    --control-hover: rgb(0 0 0 / 7%);
+    --input: rgb(255 255 255 / 80%);
+    --sidebar: rgb(240 243 248 / 88%);
+    --card: rgb(248 249 252 / 88%);
+    --selected: rgb(0 103 192 / 14%);
+    --chrome: rgb(247 248 251 / 82%);
+    --dock: rgb(239 243 250 / 78%);
+    --dock-border: rgb(255 255 255 / 68%);
+    --selection-ink: #005fb8;
+  }
+
+  .mode-windows[data-theme='dark'] {
+    --surface: rgb(39 43 51 / 88%);
+    --panel: rgb(32 35 41 / 94%);
+    --text: #f5f5f5;
+    --muted: #c3c8d0;
+    --border: rgb(255 255 255 / 16%);
+    --control: rgb(255 255 255 / 10%);
+    --control-hover: rgb(255 255 255 / 14%);
+    --input: rgb(255 255 255 / 10%);
+    --sidebar: rgb(43 47 55 / 88%);
+    --card: rgb(48 52 60 / 88%);
+    --selected: rgb(96 165 250 / 25%);
+    --chrome: rgb(45 49 57 / 86%);
+    --dock: rgb(28 34 46 / 80%);
+    --dock-border: rgb(255 255 255 / 18%);
+    --selection-ink: #b9ddff;
+  }
+
+  .mode-windows .desktop-surface {
+    height: calc(100dvh - 52px);
+  }
+
+  .mode-windows .app-bar {
+    height: 52px;
+    padding: 0 10px;
+    border-top: 1px solid rgb(255 255 255 / 46%);
+    background: var(--dock);
+    -webkit-backdrop-filter: blur(24px) saturate(1.5);
+    backdrop-filter: blur(24px) saturate(1.5);
+    box-shadow: 0 -1px 10px rgb(0 0 0 / 8%);
+  }
+
+  .mode-windows .taskbar-apps {
+    gap: 2px;
+  }
+
+  .mode-windows .taskbar-apps > button,
+  .mode-windows .bar-app {
+    width: 44px;
+    height: 42px;
+    border-radius: 6px;
+  }
+
+  .mode-windows .taskbar-apps > button:hover,
+  .mode-windows .bar-app:hover,
+  .mode-windows .bar-app.current {
+    background: rgb(255 255 255 / 52%);
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 28%), 0 1px 2px rgb(0 0 0 / 8%);
+  }
+
+  .mode-windows .start-button {
+    color: #087ce5;
+  }
+
+  .mode-windows .app-bar .app-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .mode-windows .system-tray {
+    right: 8px;
+    gap: 1px;
+  }
+
+  .mode-windows .system-tray button {
+    min-width: 30px;
+    height: 36px;
+    padding: 7px 6px;
+    border-radius: 5px;
+  }
+
+  .mode-windows .system-tray button:hover {
+    background: rgb(255 255 255 / 42%);
+  }
+
+  .mode-windows .system-tray .symbol-icon {
+    width: 15px;
+    height: 15px;
+  }
+
+  .mode-windows .network-status {
+    display: none;
+  }
+
+  .mode-windows .tray-clock {
+    min-width: 82px;
+    padding: 0 6px;
+    border-radius: 6px;
+  }
+
+  .mode-windows .tray-clock time {
+    font-size: calc(11px * var(--desktop-scale, 1));
+  }
+
+  .mode-windows .desktop-window {
+    border: 1px solid rgb(0 0 0 / 16%);
+    border-radius: 9px;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 10%), 0 16px 36px rgb(0 0 0 / 20%);
+  }
+
+  .mode-windows .desktop-window.active {
+    box-shadow: 0 0 0 1px rgb(0 103 192 / 22%), 0 4px 12px rgb(0 0 0 / 14%), 0 18px 42px rgb(0 0 0 / 25%);
+  }
+
+  .mode-windows .titlebar {
+    height: 44px;
+    min-height: 44px;
+    padding-left: 12px;
+    gap: 8px;
+    background: var(--chrome);
+    -webkit-backdrop-filter: blur(18px) saturate(1.35);
+    backdrop-filter: blur(18px) saturate(1.35);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .mode-windows .titlebar-app-icon .app-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .mode-windows .window-title {
+    font-size: calc(12px * var(--desktop-scale, 1));
+    font-weight: 500;
+  }
+
+  .mode-windows .window-navigation button,
+  .mode-windows .window-menu summary {
+    height: 28px;
+    border-radius: 5px;
+  }
+
+  .mode-windows .window-overlay {
+    inset: 44px 0 0;
+    background: var(--panel);
+  }
+
+  .mode-windows .launcher,
+  .mode-windows .overview,
+  .mode-windows .notification-center,
+  .mode-windows .resource-panel {
+    border: 1px solid rgb(255 255 255 / 55%);
+    background: var(--surface);
+    -webkit-backdrop-filter: blur(30px) saturate(1.4);
+    backdrop-filter: blur(30px) saturate(1.4);
+    box-shadow: 0 18px 50px rgb(0 0 0 / 22%), 0 2px 8px rgb(0 0 0 / 10%);
+  }
+
+  .mode-macos .launcher,
+  .mode-macos .overview,
+  .mode-macos .notification-center,
+  .mode-macos .resource-panel {
+    border: 0.5px solid rgb(255 255 255 / 58%);
+    background: var(--surface);
+    -webkit-backdrop-filter: blur(30px) saturate(1.45);
+    backdrop-filter: blur(30px) saturate(1.45);
+    box-shadow: 0 18px 50px rgb(0 0 0 / 20%), 0 2px 8px rgb(0 0 0 / 10%);
+  }
+
+  .menu-popover {
+    border: 0.5px solid var(--border);
+    -webkit-backdrop-filter: blur(24px) saturate(1.35);
+    backdrop-filter: blur(24px) saturate(1.35);
+    box-shadow: 0 10px 30px rgb(0 0 0 / 20%), 0 1px 2px rgb(0 0 0 / 8%);
+  }
+
+  .desktop-message,
+  .update-banner {
+    border: 0.5px solid rgb(255 255 255 / 55%);
+    background: var(--surface);
+    -webkit-backdrop-filter: blur(22px) saturate(1.35);
+    backdrop-filter: blur(22px) saturate(1.35);
+    box-shadow: 0 12px 34px rgb(0 0 0 / 22%), 0 2px 8px rgb(0 0 0 / 9%);
+  }
+
+  .session-notice {
+    bottom: 94px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .mode-macos[data-theme='system'],
+    .mode-windows[data-theme='system'] {
+      --surface: rgb(42 42 45 / 86%);
+      --panel: rgb(30 30 32 / 94%);
+      --text: #f5f5f7;
+      --muted: #b3b3bd;
+      --border: rgb(255 255 255 / 16%);
+      --control: rgb(255 255 255 / 11%);
+      --control-hover: rgb(255 255 255 / 14%);
+      --input: rgb(255 255 255 / 10%);
+      --sidebar: rgb(45 45 48 / 84%);
+      --card: rgb(50 50 54 / 86%);
+      --selected: rgb(10 132 255 / 38%);
+      --chrome: rgb(48 48 52 / 84%);
+      --dock: rgb(35 35 39 / 76%);
+      --dock-border: rgb(255 255 255 / 24%);
+      --selection-ink: #b5d9ff;
+    }
+  }
+}
