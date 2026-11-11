@@ -101,7 +101,7 @@ export class ProductClient {
     if (!result.ok)
       throw new Error(
         result.status === 401 || result.status === 403 ? '账号或权限已失效，远程操作已暂停。'
-        : result.status === 409 ? '数据版本已变化，请重新载入。'
+        : result.status === 409 ? '数据版本已变化，请重试。'
         : '产品服务暂不可用，原数据保留。'
       );
     return result.json() as Promise<unknown>;

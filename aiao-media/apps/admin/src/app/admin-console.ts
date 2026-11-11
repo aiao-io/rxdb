@@ -146,7 +146,7 @@ export class AdminConsole {
         this.message.set(
           result.account.auth_state === 'applied' ?
             '账号状态已确认。'
-          : '产品状态已提交，登录限制待确认；请重新载入后核对。'
+          : '产品状态已提交，登录限制待确认；请稍后重试核对。'
         );
       };
     });
@@ -295,7 +295,7 @@ export class AdminConsole {
       if (generation !== this.generation) return;
       this.allowed.set(false);
       this.clear();
-      this.message.set(error instanceof Error ? error.message : '后台请求未确认，请重新载入。');
+      this.message.set(error instanceof Error ? error.message : '后台请求未确认，请重试。');
     } finally {
       if (generation === this.generation) this.busy.set(false);
     }
