@@ -69,7 +69,7 @@ MiniMax 当前只适配 `image-01`，官方 API 前缀为 `https://api.minimax.c
 
 返回 base64 时浏览器可直接校验并保存。返回 HTTPS 图片 URL 时，浏览器单独下载，绝不带上供应商 Key；该图片地址仍需允许 CORS。本代理首版只转发生成 API，不是任意图片 URL 下载代理。
 
-`/api/provider-probe` 是无凭据诊断端点：对每个允许列表供应商做根路径 GET 与无 Key POST（任何 HTTP 响应都证明服务端可达，401 也视为可达），并把 OPTIONS 预检仅作为浏览器直连 CORS 的参考。`reachable` 仅表示 Worker 能收到供应商的 HTTP 响应，认证和图片生成仍需单独验证；`browserDirect` 表示该供应商支持浏览器直连。同时探测 example.com、cloudflare.com、api.openai.com 三个对照站点：若对照站点也全部失败，应先检查 fetch 错误信息，区分运行时参数错误与 Worker 出口网络问题，不能直接归因于供应商。错误会附上截断的 fetch 错误信息（不含凭据）。
+`/api/provider-probe` 是受短时来源限速的无凭据诊断端点：每次最多检查 5 个允许列表供应商的根路径 GET 和 OPTIONS 预检，不向图片生成接口发送 POST，也不探测固定外站。`reachable` 仅表示 Worker 能收到供应商的 HTTP 响应，认证和图片生成仍需单独验证；`browserDirect` 表示该供应商支持浏览器直连。错误会附上截断的 fetch 错误信息（不含凭据）。
 
 Worker 出站请求必须使用 `redirect: 'manual'` 并检查非 2xx 响应，禁止跟随重定向携带 Key。Cloudflare Workers 不支持 `redirect: 'error'`，使用它会在发出网络请求前抛出 TypeError，导致所有供应商与公共对照站点均失败。
 
@@ -79,7 +79,7 @@ Worker 出站请求必须使用 `redirect: 'manual'` 并检查非 2xx 响应，�
 
 当前按 [D-16](../../requirements/decisions.md#d-16统一使用平台-supabase) 发布统一平台 Supabase：用户在应用内注册或登录平台账号，再确认同步范围。部署前先完成独立平台项目的初始化或已审阅的前向迁移、Auth 站点/邮件配置、表 RLS、Realtime 与私有 `aiao-media-images` Storage；空项目初始化使用 `aiao-media:production-bundle`，已有项目不能重复执行空库包。步骤见[平台服务配置](platform-services.md)和[账号服务运维边界](../../requirements/plans/release-completion-tasks.md#后续正式账号服务的运维边界)。
 
-浏览器的 `AIAO_SUPABASE_URL`、`AIAO_SUPABASE_ANON_KEY` 必须预先导出到构建进程，Worker secrets `MEDIA_SUPABASE_URL`、`MEDIA_SUPABASE_ANON_KEY`、`MEDIA_SUPABASE_SERVICE_ROLE_KEY` 必须指向同一平台项目。只把 URL 和公开 publishable/anon Key 提供给前端；服务端凭据通过 Worker secrets 单独配置，不进入构建产物。当前流程保留公开账号配置，不再清空这两个变量。
+浏览器的 `AIAO_SUPABASE_URL`、`AIAO_SUPABASE_ANON_KEY` 必须预先导出到构建进程，Worker secrets `MEDIA_SUPABASE_URL`、`MEDIA_SUPABASE_ANON_KEY`、`MEDIA_SUPABASE_SERVICE_ROLE_KEY` 和一次性 `MEDIA_INSTALLATION_BOOTSTRAP_SECRET` 必须配置；账号服务密钥必须指向同一平台项目。只把 URL 和公开 publishable/anon Key 提供给前端；服务端凭据通过 Worker secrets 单独配置，不进入构建产物。当前流程保留公开账号配置，不再清空这两个变量。
 
 ```sh
 # 仅首次或凭据失效时进行 Cloudflare 官方授权

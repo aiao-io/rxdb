@@ -6,6 +6,13 @@ import { listen } from '@tauri-apps/api/event';
 
 export const nativeBackend = true;
 export const localAdapterName = 'sqlite-tauri';
+const productionApiOrigin = 'https://media.aiao.io';
+function apiOrigin(): string {
+  const candidate =
+    (globalThis as { __AIAO_MEDIA_API_ORIGIN__?: string }).__AIAO_MEDIA_API_ORIGIN__ ?? productionApiOrigin;
+  if (candidate !== productionApiOrigin) throw new Error('桌面发行 API 地址无效。');
+  return candidate;
+}
 let transport: Promise<DesktopHostTransport> | null = null;
 async function sharedTransport(): Promise<DesktopHostTransport> {
   transport ??= import('@aiao/rxdb-adapter-tauri').then(({ createTauriHostTransport }) =>
@@ -15,9 +22,7 @@ async function sharedTransport(): Promise<DesktopHostTransport> {
 }
 /** 安装版业务请求使用固定产品域名，不在特权窗口加载远程页面。 */
 export function apiEndpoint(path: string): string {
-  const origin =
-    (globalThis as { __AIAO_MEDIA_API_ORIGIN__?: string }).__AIAO_MEDIA_API_ORIGIN__ || 'https://media.aiao.io';
-  return `${origin}${path}`;
+  return `${apiOrigin()}${path}`;
 }
 /** 支付页交给系统浏览器，原生窗口保持本机来源。 */
 export async function openPayment(url: string): Promise<void> {

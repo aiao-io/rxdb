@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { createHmac, randomBytes } from 'node:crypto';
-import { chmod, readdir, readFile, writeFile } from 'node:fs/promises';
+import { chmod, readdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseEnv } from 'node:util';
@@ -78,15 +78,12 @@ async function initialize() {
     if (error.code !== 'EEXIST') throw error;
     console.log('Kept existing local Supabase credentials; ports are fixed by infra/supabase/ports.env.');
   }
-  const { env } = await localEnvironment();
-  const template = await readFile(resolve(directory, 'kong.template.yml'), 'utf8');
-  await writeFile(
-    resolve(directory, 'kong.yml'),
-    template.replaceAll('${ANON_KEY}', env.ANON_KEY).replaceAll('${SERVICE_ROLE_KEY}', env.SERVICE_ROLE_KEY),
-    { mode: 0o600 }
-  );
-  // Kong runs as a non-root container user; its mounted config must be readable there.
-  await chmod(resolve(directory, 'kong.yml'), 0o644);
+  await localEnvironment();
+  try {
+    await unlink(resolve(directory, 'kong.yml'));
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
 }
 
 export function run(command, args, { input, env = process.env } = {}) {
@@ -160,6 +157,7 @@ async function main(action) {
       'auth',
       'rest'
     ]);
+    await compose(['run', '--rm', 'kong-config']);
     await compose(['up', '-d', '--no-deps', '--force-recreate', '--wait', '--wait-timeout', '60', 'kong']);
     if (action === 'studio')
       await compose(['--profile', 'studio', 'up', '-d', '--wait', '--wait-timeout', '180', 'meta', 'studio']);

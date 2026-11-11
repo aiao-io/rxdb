@@ -6,7 +6,8 @@ const userId = '00000000-0000-4000-8000-000000000001';
 const env = {
   MEDIA_SUPABASE_URL: 'http://127.0.0.1:54321',
   MEDIA_SUPABASE_ANON_KEY: 'fixture-public',
-  MEDIA_SUPABASE_SERVICE_ROLE_KEY: 'fixture-server-private'
+  MEDIA_SUPABASE_SERVICE_ROLE_KEY: 'fixture-server-private',
+  ALLOWED_PROVIDER_BASE_URLS: '["https://provider.example.test/v1"]'
 };
 const request = (path, init = {}) =>
   new Request(`https://app.example.test/api/admin/${path}`, {

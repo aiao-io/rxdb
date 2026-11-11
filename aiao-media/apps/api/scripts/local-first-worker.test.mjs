@@ -200,7 +200,7 @@ test('平台统一同步不提供用户项目授权与初始化接口', async t 
   assert.equal(requested, false);
 });
 
-test('provider probe checks server-to-server reachability without a Key', async () => {
+test('provider probe only checks provider reachability and CORS preflight', async () => {
   const previous = globalThis.fetch;
   const calls = [];
   globalThis.fetch = async (url, init) => {
@@ -218,25 +218,13 @@ test('provider probe checks server-to-server reachability without a Key', async 
     assert.equal(result.providers.length, 1);
     assert.equal(result.providers[0].reachable, true);
     assert.equal(result.providers[0].browserDirect, false);
-    assert.equal(result.controls.length, 3);
-    assert.equal(calls.length, 6);
+    assert.equal(result.controls, undefined);
+    assert.equal(calls.length, 2);
     const providerCalls = calls.filter(({ url }) => new URL(url).origin === 'https://provider.example.test');
-    assert.deepEqual(providerCalls.map(({ method }) => method).sort(), ['GET', 'OPTIONS', 'POST']);
-    const keylessPost = providerCalls.find(({ method }) => method === 'POST');
-    assert.deepEqual(JSON.parse(keylessPost.body), {
-      model: 'reachability-probe',
-      prompt: 'reachability-probe',
-      n: 1,
-      size: '1024x1024'
-    });
-    assert.ok(!keylessPost.body.includes('fixture-only'));
-    assert.deepEqual(calls.map(({ url }) => url).sort(), [
-      'https://api.openai.com/v1/models',
-      'https://example.com/',
+    assert.deepEqual(providerCalls.map(({ method }) => method).sort(), ['GET', 'OPTIONS']);
+    assert.deepEqual(providerCalls.map(({ url }) => url), [
       'https://provider.example.test/v1/',
-      'https://provider.example.test/v1/images/generations',
-      'https://provider.example.test/v1/images/generations',
-      'https://www.cloudflare.com/'
+      'https://provider.example.test/v1/'
     ]);
   } finally {
     globalThis.fetch = previous;
@@ -382,7 +370,7 @@ test('MiniMax 业务错误按原样交给浏览器分类，代理不重试', asy
   }
 });
 
-test('MiniMax 无 Key 连通性探针使用原生路径和固定参数', async () => {
+test('MiniMax 连通性探针不调用图片生成接口', async () => {
   const previous = globalThis.fetch;
   const calls = [];
   globalThis.fetch = async (url, init) => {
@@ -391,18 +379,9 @@ test('MiniMax 无 Key 连通性探针使用原生路径和固定参数', async (
   };
   try {
     await worker.fetch(new Request(`${origin}/api/provider-probe`), miniMaxEnv);
-    const post = calls.find(call => call.init.method === 'POST');
-    assert.equal(post.url, `${miniMaxBase}/image_generation`);
-    assert.equal(post.init.headers.authorization, undefined);
-    assert.deepEqual(JSON.parse(post.init.body), {
-      model: 'image-01',
-      prompt: 'reachability-probe',
-      n: 1,
-      width: 1024,
-      height: 1024,
-      response_format: 'url',
-      prompt_optimizer: false
-    });
+    assert.equal(calls.length, 2);
+    assert.ok(calls.every(call => call.url === `${miniMaxBase}/`));
+    assert.deepEqual(calls.map(call => call.init.method ?? 'GET').sort(), ['GET', 'OPTIONS']);
   } finally {
     globalThis.fetch = previous;
   }

@@ -98,6 +98,7 @@ export class NodeRelayRuntime implements RelayTaskNamespace {
       const row = entry.db.prepare('SELECT at FROM relay_alarm WHERE id=1').get();
       if (row && Number(row.at) <= Date.now()) await this.alarm(id);
       else if (row) this.schedule(id, Number(row.at));
+      else await entry.task.ensureWatchdog();
     }
   }
   bindings(): { RELAY_TASKS: RelayTaskNamespace; RELAY_RESULTS: RelayResultStore } {
@@ -113,7 +114,7 @@ export class NodeRelayRuntime implements RelayTaskNamespace {
   async fetch(id: string, request: Request) {
     const known = this.entries.has(id) || existsSync(this.databasePath(id));
     const creating = request.method === 'PUT' && !known;
-    if (!known && request.method !== 'PUT' && new URL(request.url).pathname !== '/abandon') return missingRelayTask();
+    if (!known && request.method !== 'PUT') return missingRelayTask();
     if (creating && !this.hasCapacity())
       return Response.json(
         { error: 'Relay capacity reached' },
@@ -176,6 +177,10 @@ export class NodeRelayRuntime implements RelayTaskNamespace {
           const at = Number(time);
           db.prepare('INSERT INTO relay_alarm VALUES (1,?) ON CONFLICT(id) DO UPDATE SET at=excluded.at').run(at);
           this.schedule(id, at);
+        },
+        getAlarm: async () => {
+          const row = db.prepare('SELECT at FROM relay_alarm WHERE id=1').get() as { at?: number } | undefined;
+          return row?.at === undefined ? null : Number(row.at);
         },
         deleteAlarm: async () => {
           clearTimeout(entry.timer);

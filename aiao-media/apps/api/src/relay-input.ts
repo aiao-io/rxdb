@@ -26,6 +26,13 @@ export function base(value: string) {
   return url.href.replace(/\/+$/, '');
 }
 
+/** 读取部署级供应商边界，发布策略只能缩小这个集合。 */
+export function providerAllowlist(env: WorkerEnv) {
+  const values = JSON.parse(env.ALLOWED_PROVIDER_BASE_URLS || '[]');
+  if (!Array.isArray(values) || values.some(value => typeof value !== 'string')) throw new Error('Invalid allowlist');
+  return new Set(values.map(base));
+}
+
 // Bound reads before JSON parsing; null means the body exceeded the limit.
 async function readBody(reader: ReadableStreamDefaultReader<Uint8Array>, limit: number) {
   const chunks = [];
@@ -70,10 +77,13 @@ export async function relayInput(request: Request, env: WorkerEnv) {
   try {
     upstream = base(request.headers.get('x-provider-base') ?? '');
     policy = await runtimePolicy(env);
+    const deploymentAllowed = providerAllowlist(env);
     const allowed =
       policy ?
-        policy.providers.filter(provider => provider.enabled && provider.proxy).map(provider => provider.baseUrl)
-      : (JSON.parse(env.ALLOWED_PROVIDER_BASE_URLS || '[]') as string[]).map(base);
+        policy.providers
+          .filter(provider => provider.enabled && provider.proxy && deploymentAllowed.has(provider.baseUrl))
+          .map(provider => provider.baseUrl)
+      : [...deploymentAllowed];
     if (!allowed.includes(upstream)) return json(403, 'Provider is not enabled for this relay');
   } catch {
     return json(400, 'Invalid provider configuration');

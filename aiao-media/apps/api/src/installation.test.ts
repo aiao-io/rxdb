@@ -11,6 +11,7 @@ const actor = '12345678-1234-4234-8234-123456789012';
 const input = {
   email: 'owner@example.test',
   password: 'a-long-owner-password',
+  bootstrapSecret: 'deployment-bootstrap-secret-1234567890',
   supabaseUrl: 'https://project.supabase.co',
   anonKey: 'sb_publishable_fixture',
   serviceRoleKey: 'sb_secret_fixture'
@@ -23,7 +24,7 @@ function rig() {
         .prepare(query)
         .all(...values.map(value => (value instanceof ArrayBuffer ? new Uint8Array(value) : value))) as unknown as Row[]
   };
-  const env = {};
+  const env = { MEDIA_INSTALLATION_BOOTSTRAP_SECRET: input.bootstrapSecret };
   let instance = new Installation({ storage: { sql } }, env);
   const send = (method = 'GET', payload: unknown = input, source = origin) =>
     instance.fetch(
@@ -69,7 +70,7 @@ test('跨站初始化在任何外部请求或持久写入之前被拒绝', async
     r.db.close();
   }
 });
-test('无需安装凭据即可初始化，重启后关闭安装且不保存密码', async () => {
+test('需要部署初始化密钥，重启后关闭安装且不保存密码', async () => {
   const r = rig();
   upstream();
   try {

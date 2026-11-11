@@ -14,6 +14,20 @@
         <p>连接账号服务，设置此站点的管理员账号。完成后首次设置入口将关闭。</p>
         <form #setupForm="ngForm" (ngSubmit)="setupForm.valid && initialize()">
           <fieldset [disabled]="busy()">
+            <legend>0 · 部署授权</legend>
+            <label>
+              部署初始化密钥
+              <input
+                [(ngModel)]="form.bootstrapSecret"
+                autocomplete="off"
+                name="bootstrapSecret"
+                required
+                type="password"
+              />
+            </label>
+            <p>该密钥由部署者配置，只使用一次，不会保存到应用数据库。</p>
+          </fieldset>
+          <fieldset [disabled]="busy()">
             <legend>1 · 账号服务</legend>
             @if (state.managed) {
               <p>已使用部署环境中的 Supabase 配置，提交时检查连接和数据库版本。</p>

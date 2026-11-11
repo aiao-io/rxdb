@@ -16,63 +16,6 @@ interface Session {
   user: { id: string; email?: string };
 }
 
-const sessionStorageKey = 'aiao-media-admin-session-v1';
-
-function storage(): Storage | null {
-  try {
-    return globalThis.sessionStorage;
-  } catch {
-    return null;
-  }
-}
-
-function clearStoredSession(): void {
-  try {
-    storage()?.removeItem(sessionStorageKey);
-  } catch {
-    return;
-  }
-}
-
-function readSession(): Session | null {
-  let value: string | null;
-  try {
-    value = storage()?.getItem(sessionStorageKey) ?? null;
-  } catch {
-    return null;
-  }
-  if (!value) return null;
-  try {
-    const candidate = JSON.parse(value) as Partial<Session>;
-    if (
-      typeof candidate.accessToken !== 'string' ||
-      !candidate.accessToken ||
-      typeof candidate.expiresAt !== 'number' ||
-      !Number.isFinite(candidate.expiresAt) ||
-      candidate.expiresAt <= Date.now() ||
-      !candidate.user ||
-      typeof candidate.user.id !== 'string' ||
-      !candidate.user.id
-    )
-      throw new Error('Invalid session');
-    return candidate as Session;
-  } catch {
-    clearStoredSession();
-    return null;
-  }
-}
-
-function writeSession(value: Session | null): void {
-  const target = storage();
-  if (!target) return;
-  try {
-    if (value) target.setItem(sessionStorageKey, JSON.stringify(value));
-    else target.removeItem(sessionStorageKey);
-  } catch {
-    return;
-  }
-}
-
 @Component({
   imports: [AdminConsole, AdminLayoutComponent, AdminPageDirective, FormsModule, LucideDynamicIcon],
   selector: 'aiao-media-admin-root',
@@ -112,6 +55,7 @@ export class App implements OnInit {
     email: '',
     password: '',
     confirmation: '',
+    bootstrapSecret: '',
     supabaseUrl: '',
     anonKey: '',
     serviceRoleKey: ''
@@ -131,8 +75,6 @@ export class App implements OnInit {
   });
   ngOnInit(): void {
     bindAdminNavigator(url => void this.router.navigateByUrl(url));
-    const saved = readSession();
-    if (saved) this.session.set(saved);
     void this.load();
   }
   async load(): Promise<void> {
@@ -146,13 +88,14 @@ export class App implements OnInit {
       return;
     }
     await this.run(async () => {
-      const { email, password, supabaseUrl, anonKey, serviceRoleKey } = this.form;
+      const { email, password, bootstrapSecret, supabaseUrl, anonKey, serviceRoleKey } = this.form;
       await this.request('/api/installation', {
         email,
         password,
+        bootstrapSecret,
         ...(this.installation()?.managed ? {} : { supabaseUrl, anonKey, serviceRoleKey })
       });
-      this.form.password = this.form.confirmation = this.form.serviceRoleKey = '';
+      this.form.password = this.form.confirmation = this.form.bootstrapSecret = this.form.serviceRoleKey = '';
       this.installation.set(await this.request('/api/installation'));
       this.message.set('初始化完成，请使用管理员账号登录。');
     });
@@ -164,7 +107,6 @@ export class App implements OnInit {
         password: this.form.password
       });
       this.session.set(session);
-      writeSession(session);
       this.form.password = '';
       await this.router.navigateByUrl('/users');
     });
@@ -174,7 +116,6 @@ export class App implements OnInit {
   }
   logout(): void {
     this.session.set(null);
-    writeSession(null);
     this.form.password = '';
   }
   private async run(operation: () => Promise<void>): Promise<void> {

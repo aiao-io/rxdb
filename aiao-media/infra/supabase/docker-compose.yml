@@ -135,10 +135,30 @@ services:
       retries: 15
       start_period: 20s
 
+  kong-config:
+    image: alpine:3.22
+    restart: 'no'
+    environment:
+      ANON_KEY: ${ANON_KEY:?Run supabase:init first}
+      SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY:?Run supabase:init first}
+    volumes:
+      - ./kong.template.yml:/template/kong.yml:ro
+      - kong-config:/config
+    command:
+      - sh
+      - -ec
+      - |
+        sed \
+          -e 's|$${ANON_KEY}|'"$${ANON_KEY}"'|g' \
+          -e 's|$${SERVICE_ROLE_KEY}|'"$${SERVICE_ROLE_KEY}"'|g' \
+          /template/kong.yml > /config/kong.yml
+
   kong:
     image: kong/kong:3.9.3
     restart: unless-stopped
     depends_on:
+      kong-config:
+        condition: service_completed_successfully
       auth:
         condition: service_healthy
       rest:
@@ -149,14 +169,14 @@ services:
       - '127.0.0.1:${API_PORT:-54321}:8000'
     environment:
       KONG_DATABASE: 'off'
-      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
+      KONG_DECLARATIVE_CONFIG: /run/aiao-media/kong.yml
       KONG_DNS_ORDER: LAST,A,CNAME
       KONG_PLUGINS: cors,key-auth,acl,request-transformer
       KONG_ADMIN_LISTEN: 'off'
       KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
       KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
     volumes:
-      - ./kong.yml:/home/kong/kong.yml:ro
+      - kong-config:/run/aiao-media:ro
     healthcheck:
       test: ['CMD', 'kong', 'health']
       interval: 5s
@@ -232,5 +252,6 @@ services:
       start_period: 20s
 
 volumes:
+  kong-config:
   db-data:
   db-config:

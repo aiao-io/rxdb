@@ -33,7 +33,7 @@ const publicAuthKey =
 const secrets = Object.entries({ ...env, ...process.env })
   .filter(
     ([name, value]) =>
-      /KEY|TOKEN|PASSWORD|DATABASE_URL/.test(name) &&
+      /KEY|TOKEN|PASSWORD|PASS|SECRET|PRIVATE|CREDENTIAL|DATABASE_URL/.test(name) &&
       typeof value === 'string' &&
       value.length >= 8 &&
       !(name === 'AIAO_SUPABASE_ANON_KEY' && value === publicAuthKey)

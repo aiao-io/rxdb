@@ -21,6 +21,12 @@ impl Drop for SaveSession {
 #[derive(Default)]
 pub struct Saves(Mutex<HashMap<String, SaveSession>>);
 
+fn valid_save_name(name: &str) -> bool {
+    name.len() <= 160
+        && !name.contains(['/', '\\'])
+        && [".png", ".jpg", ".json", ".zip"].iter().any(|ext| name.ends_with(ext))
+}
+
 #[tauri::command]
 pub fn media_open_payment(window: WebviewWindow, url: String) -> Result<(), String> {
     owner(&window)?;
@@ -159,12 +165,7 @@ pub async fn media_begin_save(
     saves: State<'_, Saves>,
 ) -> Result<Option<String>, String> {
     owner(&window)?;
-    if name.len() > 160
-        || name.contains(['/', '\\'])
-        || ![".png", ".jpg", ".json"]
-            .iter()
-            .any(|ext| name.ends_with(ext))
-    {
+    if !valid_save_name(&name) {
         return Err("文件名无效".into());
     }
     let destination = tauri::async_runtime::spawn_blocking(move || {
@@ -277,5 +278,12 @@ mod tests {
         fs::write(root.join("media-profile-v1"), "broken").unwrap();
         assert!(profile(&root, &first, false).is_err());
         fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn save_names_allow_backup_archives_and_reject_paths() {
+        assert!(valid_save_name("aiao-backup.zip"));
+        assert!(valid_save_name("aiao-sync-metadata.json"));
+        assert!(!valid_save_name("../aiao-backup.zip"));
+        assert!(!valid_save_name("aiao-backup.exe"));
     }
 }

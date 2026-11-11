@@ -78,7 +78,8 @@ test('自托管首次安装持久化配置，服务重启后只能登录且公�
     PORT: '0',
     MEDIA_SUPABASE_URL: 'https://supabase.example.test',
     MEDIA_SUPABASE_ANON_KEY: 'sb_publishable_fixture',
-    MEDIA_SUPABASE_SERVICE_ROLE_KEY: 'private-service-key'
+    MEDIA_SUPABASE_SERVICE_ROLE_KEY: 'private-service-key',
+    MEDIA_INSTALLATION_BOOTSTRAP_SECRET: 'bootstrap-secret-fixture-32-chars!!'
   };
   let app = await startNodeServer(environment);
   const address = async () => {
@@ -91,7 +92,11 @@ test('自托管首次安装持久化配置，服务重启后只能登录且公�
     actualFetch(`${base}/api/installation`, {
       method: 'POST',
       headers: { origin, 'content-type': 'application/json' },
-      body: JSON.stringify({ email: 'owner@example.test', password: 'a-long-owner-password' })
+      body: JSON.stringify({
+        email: 'owner@example.test',
+        password: 'a-long-owner-password',
+        bootstrapSecret: environment.MEDIA_INSTALLATION_BOOTSTRAP_SECRET
+      })
     });
   try {
     assert.equal(

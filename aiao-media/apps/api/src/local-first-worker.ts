@@ -1,10 +1,9 @@
-import { imageGenerationRequest, isMiniMaxImageProvider } from '@aiao-media/api-contracts';
 import { Hono } from 'hono';
 import { handleAdmin } from './admin-api.ts';
 import { installation } from './installation.ts';
 import { publishedTemplates, runtimePolicy } from './product-content.ts';
 import { endpoint } from './product-http.ts';
-import { base, json, relayInput } from './relay-input.ts';
+import { json, providerAllowlist, relayInput } from './relay-input.ts';
 import { handleRelayTask } from './relay-task-api.ts';
 import type { WorkerEnv } from './worker-env.ts';
 
@@ -53,40 +52,16 @@ async function probeProvider(url: string, init: RequestInit = {}): Promise<Provi
 async function providerProbe(env: WorkerEnv, origin: string) {
   let targets;
   try {
-    targets = (JSON.parse(env.ALLOWED_PROVIDER_BASE_URLS || '[]') as string[]).map(base);
+    targets = [...providerAllowlist(env)].slice(0, 5);
   } catch {
     return { error: 'Invalid provider configuration' };
   }
   if (!targets.length) return { error: 'No provider is enabled for this relay' };
   const checks = await Promise.all(
     targets.map(async target => {
-      const imageRequest = imageGenerationRequest(target, {
-        model: 'image-01',
-        prompt: 'reachability-probe',
-        size: '1024x1024'
-      })!;
-      const endpoint = imageRequest.url;
-      // Server-to-server reachability is what the relay needs. A keyless POST
-      // costs nothing: providers answer 401 and prove the path works. The
-      // OPTIONS preflight only matters for browser-direct mode, which needs
-      // provider CORS support that the relay never uses.
-      const [root, api, preflight] = await Promise.all([
+      const [root, preflight] = await Promise.all([
         probeProvider(`${target}/`),
-        probeProvider(endpoint, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(
-            isMiniMaxImageProvider(target) ?
-              imageRequest.body
-            : {
-                model: 'reachability-probe',
-                prompt: 'reachability-probe',
-                n: 1,
-                size: '1024x1024'
-              }
-          )
-        }),
-        probeProvider(endpoint, {
+        probeProvider(`${target}/`, {
           method: 'OPTIONS',
           headers: {
             Origin: origin,
@@ -98,9 +73,8 @@ async function providerProbe(env: WorkerEnv, origin: string) {
       return {
         target,
         root,
-        api,
         preflight,
-        reachable: root.ok && api.ok,
+        reachable: root.ok,
         browserDirect:
           preflight.ok &&
           preflight.status >= 200 &&
@@ -109,18 +83,9 @@ async function providerProbe(env: WorkerEnv, origin: string) {
       };
     })
   );
-  const controls = await Promise.all(
-    ['https://example.com/', 'https://www.cloudflare.com/', 'https://api.openai.com/v1/models'].map(target =>
-      probeProvider(target)
-    )
-  );
   const interpretation = [];
-  if (!controls.every(check => check.ok))
-    interpretation.push('Cloudflare could not reach every public control site; Worker egress may be degraded.');
   if (checks.every(check => check.reachable))
-    interpretation.push(
-      'Every enabled provider is reachable from Cloudflare; authenticated relay generation still needs verification.'
-    );
+    interpretation.push('Every enabled provider is reachable from Cloudflare; authenticated relay generation still needs verification.');
   else interpretation.push('At least one provider is unreachable from Cloudflare; compare the per-provider checks.');
   const direct = checks.filter(check => check.browserDirect).length;
   interpretation.push(
@@ -130,7 +95,6 @@ async function providerProbe(env: WorkerEnv, origin: string) {
   );
   return {
     checkedAt: new Date().toISOString(),
-    controls,
     providers: checks,
     interpretation: interpretation.join(' ')
   };
@@ -143,6 +107,22 @@ const jsonPayload = (payload: unknown, status = 200) =>
       'referrer-policy': 'no-referrer'
     }
   });
+const adminContentSecurityPolicy =
+  "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https:; connect-src 'self' https: wss:; font-src 'self' data:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'";
+const providerProbeLastRequest = new Map<string, number>();
+function providerProbeAllowed(request: Request) {
+  const identity =
+    request.headers.get('cf-connecting-ip') ??
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    request.headers.get('x-real-ip');
+  if (!identity) return true;
+  const now = Date.now();
+  for (const [key, time] of providerProbeLastRequest) if (now - time >= 30_000) providerProbeLastRequest.delete(key);
+  const previous = providerProbeLastRequest.get(identity);
+  if (previous !== undefined && now - previous < 30_000) return false;
+  providerProbeLastRequest.set(identity, now);
+  return true;
+}
 const encoder = new TextEncoder();
 const navigationPaths = new Set(['/', '/create', '/images', '/providers']);
 async function fetchAsset(request: Request, env: WorkerEnv) {
@@ -153,6 +133,7 @@ async function fetchAsset(request: Request, env: WorkerEnv) {
     const result = await env.ASSETS!.fetch(asset);
     const headers = new Headers(result.headers);
     headers.set('cache-control', 'no-store');
+    headers.set('content-security-policy', adminContentSecurityPolicy);
     return new Response(result.body, { status: result.status, headers });
   }
   const setup = installation(env);
@@ -429,6 +410,7 @@ app.all('/api/installation', async c => {
   return jsonPayload({
     initialized: true,
     managed: Boolean(c.env.MEDIA_SUPABASE_URL),
+    bootstrapRequired: false,
     auth:
       c.env.MEDIA_SUPABASE_URL && c.env.MEDIA_SUPABASE_ANON_KEY ?
         { url: c.env.MEDIA_SUPABASE_URL, anonKey: c.env.MEDIA_SUPABASE_ANON_KEY }
@@ -443,6 +425,7 @@ app.get('/api/provider-policies', c =>
 );
 app.all('/api/provider-probe', async c => {
   if (c.req.method !== 'GET') return json(405, 'GET required');
+  if (!providerProbeAllowed(c.req.raw)) return json(429, 'Provider probe is temporarily limited');
   const env = await configuredEnvironment(c.env).catch(() => null);
   if (!env) return json(503, 'Installation configuration unavailable');
   return jsonPayload(await providerProbe(env, new URL(c.req.url).origin));

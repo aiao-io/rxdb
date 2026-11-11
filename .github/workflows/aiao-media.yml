@@ -9,8 +9,7 @@ on:
         default: false
   pull_request:
     paths:
-      - 'aiao-media/apps/web/**'
-      - 'aiao-media/apps/web-e2e/**'
+      - 'aiao-media/**'
       - 'packages/rxdb/**'
       - 'packages/rxdb-adapter-wa-sqlite/**'
       - 'packages/rxdb-adapter-supabase/**'
@@ -42,12 +41,27 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      AIAO_RELAY_PROVIDER_BASE_URLS: ${{ vars.AIAO_RELAY_PROVIDER_BASE_URLS }}
+      AIAO_SUPABASE_URL: ${{ vars.AIAO_SUPABASE_URL }}
+      AIAO_SUPABASE_ANON_KEY: ${{ vars.AIAO_SUPABASE_ANON_KEY }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-workspace
       - uses: ./.github/actions/playwright-chromium
-      - name: Check application and e2e
-        run: pnpm nx run-many -t lint typecheck -p aiao-media aiao-media-e2e --parallel=2 --output-style=static
+      - name: Check application, API, admin and e2e
+        run: |
+          pnpm nx run-many -t lint -p aiao-media aiao-media-e2e aiao-media-api aiao-media-admin aiao-media-desktop --parallel=2 --output-style=static
+          pnpm nx run aiao-media-api:typecheck --output-style=static
+          pnpm nx run aiao-media:server-typecheck --output-style=static
+      - name: Check API and desktop native targets
+        run: |
+          pnpm nx run aiao-media-api:test --output-style=static
+          pnpm nx run aiao-media-api:relay-test --output-style=static
+          pnpm nx run aiao-media-api:script-test --output-style=static
+          pnpm nx run aiao-media-api:deploy-check --output-style=static
+          pnpm nx run aiao-media-desktop:desktop-check --output-style=static
+          pnpm nx run aiao-media-desktop:desktop-test --output-style=static
       - name: Verify unit and real browser data coverage
         run: pnpm nx run aiao-media:coverage --output-style=static
       - name: Verify browser behavior

@@ -10,6 +10,7 @@
     "prepare-self-hosted": {
       "executor": "nx:run-commands",
       "cache": false,
+      "dependsOn": ["aiao-media-api:build-node"],
       "options": {
         "cwd": "aiao-media/apps/web",
         "command": "node ../../scripts/release/prepare-self-hosted.mjs"
@@ -572,7 +573,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "aiao-media/apps/web",
-        "command": "node --test --experimental-test-coverage --test-coverage-include='**/../../api/src/*.ts' --test-coverage-exclude='**/*.test.ts' --test-coverage-lines=80 ../../api/src/*.test.ts ../api/scripts/local-first-worker.test.mjs ../api/scripts/relay-task.test.mjs ../api/scripts/dev-relay.test.mjs ../api/scripts/product-api.test.mjs"
+        "command": "node --test --experimental-test-coverage --test-coverage-include='../api/src/*.ts' --test-coverage-exclude='**/*.test.ts' --test-coverage-lines=80 ../api/src/*.test.ts ../api/scripts/local-first-worker.test.mjs ../api/scripts/relay-task.test.mjs ../api/scripts/dev-relay.test.mjs ../api/scripts/product-api.test.mjs"
       }
     },
     "server-typecheck": {

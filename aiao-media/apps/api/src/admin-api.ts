@@ -1,6 +1,16 @@
 import { manageContent } from './product-content.ts';
 import type { BackendClient } from './product-http.ts';
-import { administrator, backend, body, endpoint, fields, reject, sameOriginWrite, uuid } from './product-http.ts';
+import {
+  administrator,
+  backend,
+  body,
+  endpoint,
+  fields,
+  ProductApiError,
+  reject,
+  sameOriginWrite,
+  uuid
+} from './product-http.ts';
 import { reports } from './product-reports.ts';
 import type { WorkerEnv } from './worker-env.ts';
 
@@ -14,6 +24,36 @@ type AuthUser = {
 type AccountState = { user_id: string; disabled: boolean; revision: number; auth_state: string };
 
 const accountQueues = new Map<string, Promise<unknown>>();
+const loginFailures = new Map<string, { count: number; resetAt: number; blockedUntil: number }>();
+const loginWindowMs = 60_000;
+const loginFailureLimit = 5;
+const loginBlockMs = 60_000;
+
+function loginKey(request: Request, email: string) {
+  const source =
+    request.headers.get('cf-connecting-ip') ??
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    request.headers.get('x-real-ip') ??
+    'unknown';
+  return `${source}:${email.trim().toLowerCase()}`;
+}
+function checkLogin(key: string) {
+  const now = Date.now();
+  for (const [candidate, state] of loginFailures) if (state.resetAt <= now && state.blockedUntil <= now) loginFailures.delete(candidate);
+  const state = loginFailures.get(key);
+  if (state?.blockedUntil && state.blockedUntil > now) reject(429, '登录尝试过多，请稍后重试。');
+}
+function recordLoginFailure(key: string) {
+  const now = Date.now();
+  const state = loginFailures.get(key);
+  const next = !state || state.resetAt <= now ? { count: 1, resetAt: now + loginWindowMs, blockedUntil: 0 } : { ...state, count: state.count + 1 };
+  if (next.count >= loginFailureLimit) next.blockedUntil = now + loginBlockMs;
+  loginFailures.set(key, next);
+}
+function clearLoginFailures(key: string) {
+  loginFailures.delete(key);
+}
+
 function accountLock<T>(targetId: string, operation: () => Promise<T>) {
   const previous = accountQueues.get(targetId) ?? Promise.resolve();
   const current = previous.catch(() => undefined).then(operation);
@@ -131,21 +171,29 @@ export function handleAdmin(request: Request, env: WorkerEnv) {
         value.password.length > 128
       )
         reject(400, '登录参数无效。');
-      const session = await backend(env).call<{
-        access_token: string;
-        expires_in: number;
-        user: { id: string; email?: string };
-      }>('/auth/v1/token?grant_type=password', { method: 'POST', privileged: false, payload: value });
-      if (!session.access_token || !Number.isFinite(session.expires_in) || session.expires_in <= 0)
-        reject(502, '登录会话无效。');
-      const headers = new Headers(request.headers);
-      headers.set('authorization', `Bearer ${session.access_token}`);
-      await administrator(new Request(request.url, { headers }), env);
-      return {
-        accessToken: session.access_token,
-        expiresAt: Date.now() + session.expires_in * 1000,
-        user: { id: session.user.id, email: session.user.email }
-      };
+      const key = loginKey(request, value.email);
+      checkLogin(key);
+      try {
+        const session = await backend(env).call<{
+          access_token: string;
+          expires_in: number;
+          user: { id: string; email?: string };
+        }>('/auth/v1/token?grant_type=password', { method: 'POST', privileged: false, payload: value });
+        if (!session.access_token || !Number.isFinite(session.expires_in) || session.expires_in <= 0)
+          reject(502, '登录会话无效。');
+        const headers = new Headers(request.headers);
+        headers.set('authorization', `Bearer ${session.access_token}`);
+        await administrator(new Request(request.url, { headers }), env);
+        clearLoginFailures(key);
+        return {
+          accessToken: session.access_token,
+          expiresAt: Date.now() + session.expires_in * 1000,
+          user: { id: session.user.id, email: session.user.email }
+        };
+      } catch (error) {
+        if (error instanceof ProductApiError && [401, 403].includes(error.status)) recordLoginFailure(key);
+        throw error;
+      }
     }
     const { client, actorId } = await administrator(request, env);
     const url = new URL(request.url),

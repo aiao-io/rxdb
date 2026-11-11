@@ -1,10 +1,12 @@
 import { spawnSync } from 'node:child_process';
-import { mkdir, readFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 const root = resolve(import.meta.dirname, '..');
 if (process.platform !== 'darwin' || process.arch !== 'arm64')
   throw new Error('当前发行目标仅验收 macOS Apple Silicon。');
+const apiOrigin = process.env.AIAO_MEDIA_API_ORIGIN ?? 'https://media.aiao.io';
+if (apiOrigin !== 'https://media.aiao.io') throw new Error('正式桌面发行只允许使用 https://media.aiao.io。');
 const config = JSON.parse(await readFile(resolve(root, 'src-tauri/tauri.conf.json'), 'utf8'));
 function run(command, args) {
   const result = spawnSync(command, args, {
@@ -26,9 +28,12 @@ function run(command, args) {
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error(`${command} exited ${result.status}`);
 }
-run('pnpm', ['exec', 'tauri', 'build', '--bundles', 'app']);
+run('pnpm', ['exec', 'tauri', 'build', '--bundles', 'app,dmg']);
 const directory = resolve(root, 'tmp/desktop-release');
 await mkdir(directory, { recursive: true });
+const dmgDirectory = resolve(root, 'src-tauri/target/release/bundle/dmg');
+const dmgFiles = (await readdir(dmgDirectory)).filter(name => name.endsWith('.dmg'));
+if (!dmgFiles.length) throw new Error('Tauri 未生成 DMG 发行产物。');
 const archive = resolve(directory, `Aiao-Media-${config.version}-macos-arm64.zip`);
 run('/usr/bin/ditto', [
   '-c',
@@ -39,4 +44,5 @@ run('/usr/bin/ditto', [
   archive
 ]);
 console.log(`Local desktop archive: ${archive}`);
+console.log(`Local desktop DMG: ${dmgFiles.map(name => resolve(dmgDirectory, name)).join(', ')}`);
 console.log('本地产物；正式发行仍需签名、公证及安装升级验收。');

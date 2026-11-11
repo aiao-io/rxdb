@@ -83,6 +83,7 @@ export class Installation {
       return {
         initialized: state?.initialized ?? false,
         managed: managed(this.env),
+        bootstrapRequired: !state?.initialized,
         auth:
           config ?
             {
@@ -99,10 +100,17 @@ export class Installation {
     const value = fields<InstallationInput>(await body(request, 16384), [
       'email',
       'password',
+      'bootstrapSecret',
       'supabaseUrl',
       'anonKey',
       'serviceRoleKey'
     ]);
+    if (
+      typeof value.bootstrapSecret !== 'string' ||
+      value.bootstrapSecret.length < 32 ||
+      value.bootstrapSecret !== this.env.MEDIA_INSTALLATION_BOOTSTRAP_SECRET
+    )
+      reject(403, '需要有效的部署初始化密钥。');
     if (
       typeof value.email !== 'string' ||
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.email) ||

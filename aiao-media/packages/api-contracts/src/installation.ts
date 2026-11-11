@@ -9,6 +9,7 @@ export interface InstallationAuth {
 export interface InstallationStatus {
   initialized: boolean;
   managed: boolean;
+  bootstrapRequired: boolean;
   auth: InstallationAuth | null;
 }
 
@@ -16,6 +17,7 @@ export interface InstallationStatus {
 export interface InstallationInput {
   email: string;
   password: string;
+  bootstrapSecret: string;
   supabaseUrl?: string;
   anonKey?: string;
   serviceRoleKey?: string;

@@ -25,7 +25,10 @@
 	redir /admin /admin/ 302
 	handle_path /admin/* {
 		root * /srv/web/admin
-		header Cache-Control no-store
+		header {
+			Cache-Control no-store
+			Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https:; connect-src 'self' https: wss:; font-src 'self' data:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+		}
 		try_files {path} /index.html
 		file_server
 	}

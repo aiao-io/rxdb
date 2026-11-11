@@ -70,18 +70,17 @@ export class RelayTask {
       updatedAt: new Date(row.updated_at).toISOString()
     };
   }
-  insert(taskId: string, hash: string, fingerprint: string, status: RelayTaskRow['status']) {
-    const now = Date.now();
+  insert(taskId: string, hash: string, fingerprint: string, status: RelayTaskRow['status'], createdAt = Date.now()) {
     this.ctx.storage.sql.exec(
       'INSERT INTO relay_task VALUES (?,?,?,?,NULL,?,?)',
       taskId,
       hash,
       fingerprint,
       status,
-      now,
-      now
+      createdAt,
+      createdAt
     );
-    return now;
+    return createdAt;
   }
   async fetch(request: Request) {
     const url = new URL(request.url);
@@ -90,6 +89,7 @@ export class RelayTask {
     if (url.pathname === '/abandon') return this.abandon(request, hash);
     const row = this.row();
     if (!row || row.token_hash !== hash || closed(row)) return missingRelayTask();
+    await this.ensureWatchdog(row);
     if (request.method === 'DELETE') return this.remove(row);
     if (url.pathname === '/result') return this.result(row);
     return this.status(row, Number(url.searchParams.get('wait') ?? 0));
@@ -100,8 +100,9 @@ export class RelayTask {
     const key = await relayResultKey(request.headers.get(relayTaskTokenHeader)!, taskId, 'encrypt');
     const existing = this.row();
     if (existing) return this.replay(existing, hash, fingerprint);
-    const created = this.insert(taskId, hash, fingerprint, 'dispatched');
+    const created = Date.now();
     await this.ctx.storage.setAlarm(created + relayTaskLimits.watchdogMs);
+    this.insert(taskId, hash, fingerprint, 'dispatched', created);
     const pending = this.request(url, {
       method: 'POST',
       // Never follow a redirect with the Key; non-2xx answers are classified in finish().
@@ -113,10 +114,11 @@ export class RelayTask {
     this.ctx.waitUntil(this.finish(pending, key, taskId));
     return reply(this.view(this.row()!), 202);
   }
-  replay(existing: RelayTaskRow, hash: string, fingerprint: string) {
+  async replay(existing: RelayTaskRow, hash: string, fingerprint: string) {
     if (existing.token_hash !== hash) return missingRelayTask();
     if (closed(existing)) return reply({ error: 'Task is closed' }, 409);
     if (existing.fingerprint !== fingerprint) return reply({ error: 'Task id was used for a different request' }, 409);
+    await this.ensureWatchdog(existing);
     return reply(this.view(existing));
   }
   async answer(pending: Promise<Response>, key: CryptoKey, taskId: string): Promise<[RelayTaskStatus, number | null]> {
@@ -190,13 +192,17 @@ export class RelayTask {
     return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } });
   }
   async abandon(request: Request, hash: string) {
-    const { taskId } = await request.json<{ taskId: string; url: string; body: unknown }>();
+    await request.json<{ taskId: string; url: string; body: unknown }>();
     const existing = this.row();
-    if (existing)
-      return existing.token_hash === hash && !closed(existing) ? reply(this.view(existing)) : missingRelayTask();
-    const created = this.insert(taskId, hash, '', 'abandoned');
-    await this.ctx.storage.setAlarm(created + relayTaskLimits.retentionMs);
-    return missingRelayTask();
+    if (!existing) return missingRelayTask();
+    if (existing.token_hash !== hash || closed(existing)) return missingRelayTask();
+    await this.ensureWatchdog(existing);
+    return reply(this.view(existing));
+  }
+  async ensureWatchdog(row: RelayTaskRow | null = this.row()) {
+    if (!row || row.status !== 'dispatched') return;
+    const alarm = await this.ctx.storage.getAlarm?.();
+    if (alarm == null) await this.ctx.storage.setAlarm(row.created_at + relayTaskLimits.watchdogMs);
   }
   async alarm() {
     const row = this.row();

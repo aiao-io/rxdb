@@ -109,14 +109,13 @@ test('同一任务重复接单只调用一次上游；同一标识改参数被�
   assert.equal(t.calls.length, 1);
 });
 
-test('接单前声明放弃会封存标识，迟到的接单被拒绝且不调用上游', async () => {
+test('未知任务声明放弃不会封存标识，后续接单仍可正常创建任务', async () => {
   const t = setup();
   const abandoned = await t.abandon();
   assert.equal(abandoned.status, 404);
   assert.deepEqual(await abandoned.json(), { error: 'Task not found' });
-  assert.equal((await t.create()).status, 409);
-  assert.equal((await t.status()).status, 404);
-  assert.equal(t.calls.length, 0);
+  assert.equal((await t.create()).status, 202);
+  assert.equal(t.calls.length, 1);
 });
 
 test('已接单后声明放弃只返回当前状态', async () => {

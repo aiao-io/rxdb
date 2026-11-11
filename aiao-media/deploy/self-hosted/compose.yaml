@@ -53,6 +53,12 @@ services:
       GOTRUE_JWT_EXP: 3600
       GOTRUE_JWT_SECRET: ${JWT_SECRET}
       GOTRUE_MAILER_AUTOCONFIRM: 'false'
+      GOTRUE_SMTP_HOST: ${SMTP_HOST:?}
+      GOTRUE_SMTP_PORT: ${SMTP_PORT:-587}
+      GOTRUE_SMTP_USER: ${SMTP_USER:?}
+      GOTRUE_SMTP_PASS: ${SMTP_PASS:?}
+      GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL:?}
+      GOTRUE_SMTP_SENDER_NAME: ${SMTP_SENDER_NAME:-Aiao Media}
     healthcheck:
       test: ['CMD', 'wget', '-q', '--spider', 'http://localhost:9999/health']
       interval: 5s
@@ -155,10 +161,29 @@ services:
       timeout: 5s
       retries: 20
 
+  kong-config:
+    image: alpine:3.22
+    restart: 'no'
+    environment:
+      ANON_KEY: ${ANON_KEY:?}
+      SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY:?}
+    volumes:
+      - ./kong.yml:/template/kong.yml:ro
+      - kong-config:/config
+    command:
+      - sh
+      - -ec
+      - |
+        sed \
+          -e 's|$${ANON_KEY}|'"$${ANON_KEY}"'|g' \
+          -e 's|$${SERVICE_ROLE_KEY}|'"$${SERVICE_ROLE_KEY}"'|g' \
+          /template/kong.yml > /config/kong.yml
+
   kong:
     <<: *service
     image: kong/kong:3.9.3
     depends_on:
+      kong-config: {condition: service_completed_successfully}
       auth: {condition: service_healthy}
       rest: {condition: service_healthy}
       realtime: {condition: service_healthy}
@@ -166,14 +191,14 @@ services:
     ports: ['127.0.0.1:8000:8000']
     environment:
       KONG_DATABASE: 'off'
-      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
+      KONG_DECLARATIVE_CONFIG: /run/aiao-media/kong.yml
       KONG_DNS_ORDER: LAST,A,CNAME
       KONG_PLUGINS: cors,key-auth,acl,request-transformer
       KONG_ADMIN_LISTEN: 'off'
       KONG_NGINX_WORKER_PROCESSES: '1'
       KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
       KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
-    volumes: ['./kong.yml:/home/kong/kong.yml:ro']
+    volumes: ['kong-config:/run/aiao-media:ro']
     healthcheck:
       test: ['CMD', 'kong', 'health']
       interval: 10s
@@ -183,7 +208,7 @@ services:
   api:
     <<: *service
     image: node:26.12.0-alpine
-    user: '1000:1000'
+    user: '${MEDIA_API_UID:?}:${MEDIA_API_GID:?}'
     network_mode: host
     working_dir: /app
     command: ['node', 'scripts/start-node.mjs']
@@ -194,6 +219,7 @@ services:
       MEDIA_SUPABASE_URL: http://127.0.0.1:8000
       MEDIA_SUPABASE_ANON_KEY: ${ANON_KEY}
       MEDIA_SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+      MEDIA_INSTALLATION_BOOTSTRAP_SECRET: ${MEDIA_INSTALLATION_BOOTSTRAP_SECRET:?}
       ALLOWED_PROVIDER_BASE_URLS: '["https://api.pengdevs.com","https://api.minimax.cn/v1","https://api.minimax.io/v1","https://api.minimaxi.com/v1"]'
     volumes:
       - ./api:/app:ro
@@ -228,5 +254,6 @@ volumes:
   database:
   db-config:
   originals:
+  kong-config:
   caddy-data:
   caddy-config:

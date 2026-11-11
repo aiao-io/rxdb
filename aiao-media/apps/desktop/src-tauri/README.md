@@ -5,7 +5,7 @@
 通过 Nx 运行：
 
 ```sh
-pnpm nx run aiao-media:build:desktop
+pnpm nx run aiao-media-desktop:build:desktop
 pnpm nx run aiao-media-desktop:desktop-test
 pnpm nx run aiao-media-desktop:desktop-package
 ```

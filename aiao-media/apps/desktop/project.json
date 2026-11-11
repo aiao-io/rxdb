@@ -102,6 +102,7 @@
     "desktop-check": {
       "executor": "nx:run-commands",
       "cache": false,
+      "dependsOn": ["build"],
       "options": {
         "cwd": "aiao-media/apps/desktop",
         "command": "cargo check --manifest-path src-tauri/Cargo.toml"
@@ -110,6 +111,7 @@
     "desktop-test": {
       "executor": "nx:run-commands",
       "cache": false,
+      "dependsOn": ["build"],
       "options": {
         "cwd": "aiao-media/apps/desktop",
         "command": "cargo test --manifest-path src-tauri/Cargo.toml"
