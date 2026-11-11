@@ -65,7 +65,7 @@ it.each([
   expect(call).toBeDefined();
   expect(new Headers(call?.[1]?.headers).get('authorization')).toBe('Bearer test-server-key');
   const payload = JSON.parse(String(call?.[1]?.body));
-  expect(payload.model).toBe('deepseek-chat');
+  expect(payload.model).toBe('deepseek-flash');
   expect(payload.messages[0].role).toBe('system');
   expect(text).not.toContain('test-server-key');
 });

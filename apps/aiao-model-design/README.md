@@ -70,7 +70,7 @@ HTTPS_PROXY=http://127.0.0.1:7897 pnpm nx run aiao-model-design:serve-api
 
 代理配置只用于本地开发，Cloudflare 部署继续使用原生 Worker 网络。登录返回 `Authentication service is unavailable` 表示认证服务连接失败；账号密码错误会返回 401。
 
-`.dev.vars` 和 `.wrangler/` 不提交。`DEEPSEEK_BASE_URL` 是完整 API 前缀，默认 `https://api.deepseek.com/v1`；`DEEPSEEK_MODEL` 默认 `deepseek-chat`。
+`.dev.vars` 和 `.wrangler/` 不提交。`DEEPSEEK_BASE_URL` 是完整 API 前缀，默认 `https://api.deepseek.com/v1`；`DEEPSEEK_MODEL` 默认 `deepseek-flash`。
 
 ## 部署到 Cloudflare
 
