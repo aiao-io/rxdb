@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorkbenchSession, type WorkbenchFiles } from '../../session.js';
-import { GitWorkbenchError } from '../git-protocol.js';
+import { GIT_WORKBENCH_LIMITS, GitWorkbenchError } from '../git-protocol.js';
 import type { GitHubApi } from './github-api.js';
 import { GitHubApiError } from './github-api.js';
 import { createGitHubBackend } from './github-backend.js';
@@ -117,6 +117,30 @@ describe('GitHub virtual repository backend', () => {
       code: 'resource_limit',
       message: expect.stringContaining('huge.bin')
     });
+  });
+
+  it('refuses repositories with too many files before downloading blobs', async () => {
+    api.getBranchSha.mockResolvedValue('head-1');
+    api.getCommit.mockResolvedValue({ sha: 'head-1', treeSha: 'tree-1', parents: [], message: 'x' });
+    api.getTreeFiles.mockResolvedValue(
+      Array.from({ length: GIT_WORKBENCH_LIMITS.files + 1 }, (_, index) => ({
+        path: `file-${index}.txt`,
+        sha: `sha-${index}`,
+        mode: '100644'
+      }))
+    );
+    await expect(backend.open('github:octo/repo@main')).rejects.toMatchObject({ code: 'resource_limit' });
+    expect(api.getBlobContents).not.toHaveBeenCalled();
+  });
+
+  it('refuses repositories whose downloaded blobs exceed the total byte limit', async () => {
+    api.getBranchSha.mockResolvedValue('head-1');
+    api.getCommit.mockResolvedValue({ sha: 'head-1', treeSha: 'tree-1', parents: [], message: 'x' });
+    api.getTreeFiles.mockResolvedValue(
+      Array.from({ length: 11 }, (_, index) => ({ path: `file-${index}.bin`, sha: `sha-${index}`, mode: '100644' }))
+    );
+    api.getBlobContents.mockResolvedValue(new Uint8Array(2 * 1024 * 1024));
+    await expect(backend.open('github:octo/repo@main')).rejects.toMatchObject({ code: 'resource_limit' });
   });
 
   it('reports working tree changes, untracked files and deletions with porcelain codes', async () => {
@@ -698,6 +722,12 @@ describe('GitHub virtual repository backend', () => {
     await expect(backend.importArchive(id, new Uint8Array())).rejects.toMatchObject({ code: 'unsupported_operation' });
   });
 
+  it('rejects zipballs over the workbench archive limit', async () => {
+    await openMain();
+    api.getZipball.mockResolvedValue(new Uint8Array(GIT_WORKBENCH_LIMITS.archiveBytes + 1));
+    await expect(backend.exportArchive('github:octo/repo@main')).rejects.toMatchObject({ code: 'resource_limit' });
+  });
+
   it('renames a working file as delete plus add', async () => {
     await openMain();
     const id = 'github:octo/repo@main';
@@ -705,5 +735,31 @@ describe('GitHub virtual repository backend', () => {
     const status = await backend.status(id);
     expect(status.entries).toContainEqual({ path: 'src/a.ts', index: ' ', worktree: 'D' });
     expect(status.entries).toContainEqual({ path: 'src/c.ts', index: '?', worktree: '?' });
+  });
+
+  it('rejects remote rename and move path collisions without changing the buffer', async () => {
+    await openMain();
+    const id = 'github:octo/repo@main';
+
+    await expect(backend.rename(id, 'src/a.ts', 'src/b.ts')).rejects.toMatchObject({ code: 'path_collision' });
+    await expect(backend.rename(id, 'src/a.ts', '../a.ts')).rejects.toMatchObject({ code: 'invalid_path' });
+    await expect(backend.move(id, 'src', 'src/nested')).rejects.toMatchObject({ code: 'path_collision' });
+    await expect(backend.move(id, 'src/a.ts', 'logo.png')).rejects.toMatchObject({ code: 'path_collision' });
+
+    expect((await backend.status(id)).entries).toEqual([]);
+  });
+
+  it('moves a remote directory as one validated buffer update', async () => {
+    await openMain();
+    const id = 'github:octo/repo@main';
+    await backend.move(id, 'src', 'lib');
+
+    expect((await backend.status(id)).entries).toEqual([
+      { path: 'lib/a.ts', index: '?', worktree: '?' },
+      { path: 'lib/b.ts', index: '?', worktree: '?' },
+      { path: 'logo.png', index: ' ', worktree: ' ' },
+      { path: 'src/a.ts', index: ' ', worktree: 'D' },
+      { path: 'src/b.ts', index: ' ', worktree: 'D' }
+    ].filter(entry => entry.index !== ' ' || entry.worktree !== ' '));
   });
 });
