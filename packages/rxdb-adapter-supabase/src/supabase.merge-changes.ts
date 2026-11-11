@@ -52,6 +52,12 @@ function to_table_payloads<T>(grouped: Map<string, T>): Array<{ table: string; s
  * 新增实体进 `p_upserts`（带 `createdBy` / `updatedBy`），修改进 `p_updates`（只含 id + 修改的列 +
  * `updatedBy`，不带 `createdBy`），删除进 `p_deletes`；非 main 分支三个写数组都为空。
  *
+ * @remarks
+ * 传了 `changes` 时，每条日志的 `createdAt` 沿用变更自己的编辑时刻，`updatedAt` 记推送时刻。
+ * 拉取方的 LWW 拿远端 `createdAt` 去比本机待推变更的编辑时刻，两侧必须是同一种时间：
+ * 改写成推送时刻的话，离线很久才推送的一方会凭推送时刻压过别人更晚的编辑。
+ * 只传 `actions` 时没有逐条的编辑时刻，两列都记推送时刻。
+ *
  * @param actions 待合并的版本切换动作（inserts / updates / deletes）
  * @param branchId 目标分支 ID，缺省为 `main`
  * @param changes 原始变更记录（优先于 actions 保留完整历史）
@@ -92,7 +98,7 @@ export function build_merge_changes_payload(
         clientId: change.clientId ?? clientId,
         localId: change.id,
         ...table,
-        createdAt: now,
+        createdAt: change.createdAt.toISOString(),
         updatedAt: now
       });
     }

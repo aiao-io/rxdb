@@ -89,6 +89,16 @@ describe('RxDBSync', () => {
       expect(prop?.nullable).toBe(true);
     });
 
+    // 可空且无默认值：系统 schema 9 之前的旧行补列后为空，首次同步时绑定到远端当前身份
+    it('应当有可空的 remoteBackendId 属性', () => {
+      const meta = getEntityMetadata(RxDBSync);
+      const prop = meta.properties.find(p => p.name === 'remoteBackendId');
+      expect(prop).toBeDefined();
+      expect(prop?.type).toBe(PropertyType.string);
+      expect(prop?.nullable).toBe(true);
+      expect(prop?.default).toBeUndefined();
+    });
+
     it('应当有 enabled 属性', () => {
       const meta = getEntityMetadata(RxDBSync);
       const prop = meta.properties.find(p => p.name === 'enabled');

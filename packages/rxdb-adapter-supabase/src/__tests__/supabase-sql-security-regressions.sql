@@ -1628,6 +1628,43 @@ BEGIN
 END;
 $$;
 
+-- 远端身份：同一个库上稳定；TRUNCATE rxdb_change 换新值。TRUNCATE 放在子事务里再回滚，
+-- 不清掉共享测试库的日志，也不把表锁留到外层事务结束。
+CREATE FUNCTION rxdb_sql_regression.test_backend_identity()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, pg_temp
+AS $$
+DECLARE
+  original_id uuid;
+  rotated_id uuid;
+BEGIN
+  original_id := public.rxdb_backend_id();
+  PERFORM rxdb_sql_regression.assert_true(original_id IS NOT NULL, 'backend-identity: rxdb_backend_id() must return the singleton id');
+  PERFORM rxdb_sql_regression.assert_true(
+    public.rxdb_backend_id() = original_id,
+    'backend-identity: rxdb_backend_id() must be stable on the same database'
+  );
+
+  BEGIN
+    TRUNCATE public.rxdb_change;
+    rotated_id := public.rxdb_backend_id();
+    RAISE EXCEPTION USING ERRCODE = 'RXT01', MESSAGE = 'backend-identity: undo truncate';
+  EXCEPTION
+    WHEN SQLSTATE 'RXT01' THEN
+      NULL;
+  END;
+  PERFORM rxdb_sql_regression.assert_true(
+    rotated_id IS NOT NULL AND rotated_id <> original_id,
+    pg_catalog.format('backend-identity: TRUNCATE rxdb_change must rotate the id: %s -> %s', original_id, rotated_id)
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    public.rxdb_backend_id() = original_id,
+    'backend-identity: rolling back the TRUNCATE must restore the id'
+  );
+END;
+$$;
+
 CREATE FUNCTION rxdb_sql_regression.test_trigger_schema()
 RETURNS void
 LANGUAGE plpgsql
@@ -3257,6 +3294,7 @@ DECLARE
   trigger_definer boolean;
   helper_definer boolean;
   helper_search_path_pinned boolean;
+  backend_update_denied boolean := false;
 BEGIN
   -- 1. 客户端直接 INSERT 日志表 → 42501（AC#17）
   BEGIN
@@ -3327,6 +3365,19 @@ BEGIN
   PERFORM rxdb_sql_regression.assert_true(
     (SELECT pg_catalog.count(*) FROM public.rxdb_change WHERE "clientId" = 'sql-prod-grants-client') = 2,
     'production-change-grants: SELECT on rxdb_change must remain granted'
+  );
+
+  -- 7. 客户端改不了远端身份（否则能让所有客户端误判远端已重置），读仍经 rxdb_backend_id()
+  BEGIN
+    UPDATE public.rxdb_backend SET id = pg_catalog.gen_random_uuid() WHERE singleton;
+  EXCEPTION
+    WHEN insufficient_privilege THEN
+      backend_update_denied := true;
+  END;
+  PERFORM rxdb_sql_regression.assert_true(backend_update_denied, 'production-change-grants: UPDATE on rxdb_backend must raise 42501');
+  PERFORM rxdb_sql_regression.assert_true(
+    public.rxdb_backend_id() IS NOT NULL,
+    'production-change-grants: rxdb_backend_id() must stay callable'
   );
 
   -- 函数属性：两个写日志的函数都是 DEFINER，helper 固定 search_path
@@ -3432,6 +3483,9 @@ WHERE :'test_case' IN ('all', 'delete-hidden-row');
 
 SELECT rxdb_sql_regression.test_trigger_schema()
 WHERE :'test_case' IN ('all', 'trigger-schema');
+
+SELECT rxdb_sql_regression.test_backend_identity()
+WHERE :'test_case' IN ('all', 'backend-identity');
 
 -- US-218 阶段 C：以属主身份执行生产权限脚本（随外层 ROLLBACK 撤销），再以 authenticated 验证写路径。
 -- 必须放在最后：REVOKE 之后前面以 anon 跑的用例会失去日志表写权限。

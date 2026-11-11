@@ -132,6 +132,8 @@ function getStringRuleValue(options: QueryOptions, field: string): string {
 function createStatusHarness(options: StatusHarnessOptions) {
   const branchId = options.branchId ?? 'main';
   const syncFind = vi.fn<SyncFind>(async query => {
+    // 远端身份核对按全表读同步记录（不带任何规则）
+    if (query.where?.rules.length === 0) return [...(options.syncRecords?.values() ?? [])];
     const record = options.syncRecords?.get(getStringRuleValue(query, 'id'));
     return record ? [record] : [];
   });
@@ -169,7 +171,8 @@ function createStatusHarness(options: StatusHarnessOptions) {
     }
     return result;
   });
-  const remoteAdapter = options.remoteConfigured === false ? undefined : { getChangeCount };
+  const remoteAdapter =
+    options.remoteConfigured === false ? undefined : { getChangeCount, backendId: async () => 'backend-a' };
   const getCurrentBranch = vi.fn(async () => ({ id: branchId }));
   const getLocalRepositories = vi.fn(async () => ({ adapter: localAdapter }));
   const getRemoteRepositories = vi.fn(async () => ({ adapter: remoteAdapter }));

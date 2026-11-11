@@ -14,6 +14,7 @@ import {
   RxDBBranch,
   RxDBChange,
   RxDBMigration,
+  RxDBSync,
   RxDBSystemMigrationLockError,
   WorktreeBranchHeldError,
   WorktreeTableSet
@@ -46,29 +47,33 @@ export interface SystemSchemaMigrationHost {
 /** 系统模式 7、8 新增的可空日志列；旧行保持为空。 */
 const CHANGE_ADDITIONAL_PROPERTY_NAMES = ['rejectedAt', 'rejection', 'tableSetSuffix'] as const;
 
-/** 给既有日志表幂等补列，必须先于变更触发器重建。 */
-const ensureChangeColumns = async (
+/** 系统模式 9 新增的可空同步记录列；旧行保持为空，首次同步时绑定。 */
+const SYNC_ADDITIONAL_PROPERTY_NAMES = ['remoteBackendId'] as const;
+
+/** 给既有系统表幂等补可空列；日志表的列必须先于变更触发器重建。 */
+const ensureAdditionalColumns = async (
   tx: Pick<IPGliteClient, 'query'>,
-  changeMetadata: EntityMetadata,
+  metadata: EntityMetadata,
+  propertyNames: readonly string[],
   existingTables: ReadonlySet<string>
 ): Promise<void> => {
-  if (!existingTables.has(`${getSchemaName(changeMetadata, WorktreeTableSet.MAIN)}\u0000${changeMetadata.tableName}`))
-    return;
+  const schemaName = getSchemaName(metadata, WorktreeTableSet.MAIN);
+  if (!existingTables.has(`${schemaName}\u0000${metadata.tableName}`)) return;
 
-  const changeTable = getTableNameByMetadata(changeMetadata, WorktreeTableSet.MAIN);
-  for (const propertyName of CHANGE_ADDITIONAL_PROPERTY_NAMES) {
-    const property = changeMetadata.properties.find(candidate => candidate.name === propertyName);
+  const table = getTableNameByMetadata(metadata, WorktreeTableSet.MAIN);
+  for (const propertyName of propertyNames) {
+    const property = metadata.properties.find(candidate => candidate.name === propertyName);
     if (!property) {
-      throw new RxdbAdapterPGliteError(`RxDBChange metadata is missing the "${propertyName}" property.`);
+      throw new RxdbAdapterPGliteError(`${metadata.name} metadata is missing the "${propertyName}" property.`);
     }
     const columnResult = await tx.query<{ column_name: string }>(
       `SELECT column_name FROM information_schema.columns
        WHERE table_schema = $1::text AND table_name = $2::text AND column_name = $3::text`,
-      [getSchemaName(changeMetadata, WorktreeTableSet.MAIN), changeMetadata.tableName, property.columnName]
+      [schemaName, metadata.tableName, property.columnName]
     );
     if (columnResult.rows.length > 0) continue;
     await tx.query(
-      `ALTER TABLE ${changeTable} ADD COLUMN ${quoteIdentifier(property.columnName)} ${rxDBColumnTypeToPGliteType(property)}`
+      `ALTER TABLE ${table} ADD COLUMN ${quoteIdentifier(property.columnName)} ${rxDBColumnTypeToPGliteType(property)}`
     );
   }
 };
@@ -329,7 +334,8 @@ export async function migrateSystemSchema(host: SystemSchemaMigrationHost): Prom
         }
 
         const changeMetadata = getEntityMetadata(RxDBChange);
-        await ensureChangeColumns(tx, changeMetadata, existingTables);
+        await ensureAdditionalColumns(tx, changeMetadata, CHANGE_ADDITIONAL_PROPERTY_NAMES, existingTables);
+        await ensureAdditionalColumns(tx, getEntityMetadata(RxDBSync), SYNC_ADDITIONAL_PROPERTY_NAMES, existingTables);
         const branchMetadata = getEntityMetadata(RxDBBranch);
         let activeBranchId: string = MAIN_BRANCH_ID;
         if (

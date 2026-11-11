@@ -41,6 +41,9 @@ import { RxDBMigrationOrderByField, RxDBMigrationRuleGroup, RxDBMigrationStaticT
  * 8：`RxDBChange.tableSetSuffix` 固定写入时的物理表集来源；主表集与旧日志为 `null`。
  * 两个适配器先补列再重建主表与影子表触发器，事件不再依赖分支此刻的持有关系。
  *
+ * 9：`RxDBSync` 补可空列 `remoteBackendId`，记下游标所属的远端身份。8 尚未发布也照样 bump：
+ * 开发机上已经标成 8 的库不会再走升级路径，复用 8 会让它们缺这一列。旧行为 `null`，首次同步时绑定。
+ *
  * 有一种库它**接不住**，要写进发布说明：抽包**之前**就启用过提交能力的库停在 4/5，十张表
  * 带着真实数据物理还在，却没有能力水位行（那是抽包之后才有的形态）。于是新客户端即便不装插件
  * 也照常打开它，写入不再经过捕获——`capability-watermark.ts` 的守卫只认得水位行，够不到这一种。
@@ -55,7 +58,7 @@ import { RxDBMigrationOrderByField, RxDBMigrationRuleGroup, RxDBMigrationStaticT
  * 与水位行停在当前值」把它钉死就是为了这个——那是同一节里唯一写死版本号的一条，
  * 不要顺手改成取常量。
  */
-export const RXDB_SYSTEM_SCHEMA_VERSION = 8 as const;
+export const RXDB_SYSTEM_SCHEMA_VERSION = 9 as const;
 
 /**
  * 系统表结构水位行的名字前缀

@@ -23,6 +23,7 @@ import {
 } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import { pullBatch } from '../pull-batch.js';
+import { RemoteBackendMismatchError } from '../remote-backend.js';
 import type { SyncManager } from '../SyncManager.js';
 import { createTransactionExecutorStub } from './fixtures/transaction-executor-stub.js';
 
@@ -333,6 +334,8 @@ function createHarness(options: HarnessOptions) {
   const pullChangesBatch = vi.fn<PullChangesBatch>(async () => options.batchChanges ?? []);
   const remoteAdapter = options.useBatch === false ? { pullChanges } : { pullChanges, pullChangesBatch };
   const dispatchEvent = vi.fn<(event: RxDBEvent) => void>();
+  // 落库之前的远端身份核对；按记录比对的本体在 remote-backend.spec.ts
+  const verifyRemoteBackend = vi.fn<() => Promise<void>>(async () => undefined);
   const branchId = options.branchId ?? 'main';
   const vm = {
     rxdb: {
@@ -346,7 +349,8 @@ function createHarness(options: HarnessOptions) {
     },
     getRemoteRepositories: vi.fn(async () => ({ adapter: remoteAdapter })),
     getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
-    getCurrentBranch: vi.fn(async () => ({ id: branchId }))
+    getCurrentBranch: vi.fn(async () => ({ id: branchId })),
+    verifyRemoteBackend
   } as unknown as SyncManager;
 
   return {
@@ -361,7 +365,8 @@ function createHarness(options: HarnessOptions) {
     pullChanges,
     pullChangesBatch,
     mergeChanges,
-    dispatchEvent
+    dispatchEvent,
+    verifyRemoteBackend
   };
 }
 
@@ -772,6 +777,34 @@ describe('pullBatch 生产路径', () => {
       harness.mergeChanges.mockRejectedValue(boom);
 
       await expect(pullBatch(harness.vm, { limit: 1, fetchAll: true })).rejects.toBe(boom);
+    });
+
+    // 入口只核对一次：远端在第一轮之后被重建，第二轮拉到的是新库的一段，水位线却按旧库的 id 推进。
+    it('每一轮落库之前再核对远端身份：核对不过的那一轮不落库，水位线停在上一轮', async () => {
+      const harness = createPagedHarness(3);
+      const mismatch = new RemoteBackendMismatchError('backend-b', ['backend-a']);
+      harness.verifyRemoteBackend.mockResolvedValueOnce(undefined).mockRejectedValueOnce(mismatch);
+
+      const error = await pullBatch(harness.vm, { limit: 1, fetchAll: true }).catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(RxDBPartialSyncError);
+      expect((error as RxDBPartialSyncError<PullResult>).cause).toBe(mismatch);
+      expect((error as RxDBPartialSyncError<PullResult>).result).toMatchObject({ applied: 1 });
+      expect(harness.syncRecords[0]?.lastPullRemoteChangeId).toBe(1);
+      expect(harness.mergeChanges).toHaveBeenCalledTimes(1);
+      const [, secondFetchAt] = harness.pullChangesBatch.mock.invocationCallOrder;
+      const [, secondVerifyAt] = harness.verifyRemoteBackend.mock.invocationCallOrder;
+      expect(secondFetchAt).toBeLessThan(secondVerifyAt);
+    });
+
+    // 确认排空的那一轮什么都没交回：没有要证明出处的数据，不为它多打一次远端。
+    it('远端什么都没交回的那一轮不核对', async () => {
+      const harness = createPagedHarness(2);
+
+      await pullBatch(harness.vm, { limit: 1, fetchAll: true });
+
+      expect(harness.pullChangesBatch).toHaveBeenCalledTimes(3);
+      expect(harness.verifyRemoteBackend).toHaveBeenCalledTimes(2);
     });
 
     /**

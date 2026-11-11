@@ -216,7 +216,9 @@ CREATE TABLE public.rxdb_branch (
 - **同步协议绑定业务表的 `id` 列**：变更日志触发器记录 `NEW.id`，`mergeChanges` 推送也以 `id` 键定位行，都不读实体主键的 `columnName`。参与同步的远端表主键列必须叫 `id`；只做同步、不经本适配器直接读写的实体，可以只在本地改主键列名——本地适配器（SQLite 系与 PGlite）的变更日志、拉取回填与版本切换都按本地的主键物理列定位行。
 
 > Realtime 需把 `rxdb_change` 加入 `supabase_realtime` publication；系统表初始化脚本已处理。
-> 同步事务依赖 RPC：`rxdb_mutations`（内部调用 `rxdb_batch_upsert`、`rxdb_batch_update_rows`、`rxdb_batch_delete`、`rxdb_existing_ids`）、`rxdb_check_rls`、`rxdb_enable_sync_for_branch`。`rxdb_batch_update` 保留原有整数计数返回值。
+> 同步事务依赖 RPC：`rxdb_mutations`（内部调用 `rxdb_batch_upsert`、`rxdb_batch_update_rows`、`rxdb_batch_delete`、`rxdb_existing_ids`）、`rxdb_check_rls`、`rxdb_enable_sync_for_branch`、`rxdb_backend_id`。`rxdb_batch_update` 保留原有整数计数返回值。
+>
+> `rxdb_backend_id` 读单行表 `rxdb_backend` 里的远端身份：库重建或 `TRUNCATE rxdb_change` 后换新值，同步插件发现它变了就停止同步并报 `RemoteBackendMismatchError`。已有部署的升级步骤见[迁移说明](https://rxdb.aiao.io/docs/migration/supabase-remote-backend)。
 > 树查询**不依赖任何数据库函数**：`SupabaseTreeRepository` 按层发 `select`（每层一次 `in('parentId', ...)`）逐级展开，
 > 因此深树会产生与深度成正比的往返次数。
 
