@@ -1,24 +1,24 @@
 {
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "name": "aiao-desktop",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "name": "aiao-desktop-web",
   "prefix": "app",
   "projectType": "application",
-  "sourceRoot": "apps/aiao-desktop/src",
-  "tags": ["angular-app"],
+  "sourceRoot": "aiao-desktop/apps/web/src",
+  "tags": ["scope:aiao-desktop", "type:app", "layer:ui", "angular-app"],
   "targets": {
     "build": {
       "executor": "@angular/build:application",
       "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/apps/aiao-desktop",
-        "browser": "apps/aiao-desktop/src/main.ts",
-        "tsConfig": "apps/aiao-desktop/tsconfig.app.json",
+        "outputPath": "dist/aiao-desktop/apps/web",
+        "browser": "aiao-desktop/apps/web/src/main.ts",
+        "tsConfig": "aiao-desktop/apps/web/tsconfig.app.json",
         "inlineStyleLanguage": "scss",
         "assets": [
           {
             "glob": "**/*",
-            "input": "apps/aiao-desktop/public"
+            "input": "aiao-desktop/apps/web/public"
           },
           {
             "glob": "**/*",
@@ -26,7 +26,7 @@
             "output": "assets"
           }
         ],
-        "styles": ["apps/aiao-desktop/src/styles.scss", "node_modules/@xterm/xterm/css/xterm.css"]
+        "styles": ["aiao-desktop/apps/web/src/styles.scss", "node_modules/@xterm/xterm/css/xterm.css"]
       },
       "configurations": {
         "production": {
@@ -68,10 +68,10 @@
       "defaultConfiguration": "development",
       "configurations": {
         "production": {
-          "buildTarget": "aiao-desktop:build:production"
+          "buildTarget": "aiao-desktop-web:build:production"
         },
         "development": {
-          "buildTarget": "aiao-desktop:build:development",
+          "buildTarget": "aiao-desktop-web:build:development",
           "headers": {
             "Cross-Origin-Opener-Policy": "same-origin",
             "Cross-Origin-Embedder-Policy": "require-corp"
@@ -84,7 +84,7 @@
       "executor": "nx:run-commands",
       "dependsOn": ["build"],
       "options": {
-        "command": "node apps/aiao-desktop/tools/serve-static.mjs",
+        "command": "node aiao-desktop/apps/web/tools/serve-static.mjs",
         "readyWhen": "AIAO_DESKTOP_STATIC_SERVER_READY",
         "parallel": false
       }
@@ -92,22 +92,14 @@
     "lint": {
       "executor": "nx:run-commands",
       "options": {
-        "cwd": "apps/aiao-desktop",
+        "cwd": "aiao-desktop/apps/web",
         "command": "eslint . --max-warnings=0"
       }
     },
     "typecheck": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "tsc -p apps/aiao-desktop/tsconfig.app.json --noEmit --pretty false"
-      }
-    },
-    "test": {
-      "executor": "nx:run-commands",
-      "dependsOn": ["build"],
-      "options": {
-        "cwd": "apps/aiao-desktop",
-        "command": "node tests/smoke.mjs"
+        "command": "tsc -p aiao-desktop/apps/web/tsconfig.app.json --noEmit --pretty false"
       }
     }
   }

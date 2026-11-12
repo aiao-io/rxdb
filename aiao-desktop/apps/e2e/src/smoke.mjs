@@ -3,7 +3,7 @@ import { createServer } from 'node:http';
 import { extname, join, normalize, resolve } from 'node:path';
 import { chromium } from 'playwright';
 
-const outputRoot = resolve(process.cwd(), '../../dist/apps/aiao-desktop/browser');
+const outputRoot = resolve(process.cwd(), '../../../dist/aiao-desktop/apps/web/browser');
 const contentTypes = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',

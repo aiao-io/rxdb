@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "outDir": "../../dist/out-tsc",
+    "outDir": "../../../dist/out-tsc",
     "types": []
   },
   "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
