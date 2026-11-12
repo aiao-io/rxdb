@@ -52,7 +52,7 @@
     </div>
     <div class="wb" style="flex: 1; min-height: 0">
       <div class="msg-list scroll" data-mlist style="width: 344px">
-        @for (mail of list(); track mail; let i = $index) {
+        @for (mail of list(); track mail.id; let i = $index) {
           <div
             class="msg-c"
             [attr.data-mi]="i"

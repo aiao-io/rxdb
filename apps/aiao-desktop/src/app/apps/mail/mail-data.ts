@@ -1,5 +1,6 @@
 /** 一封邮件；未读与旗标可变，所以状态放在窗口的信号里，种子本身不动。 */
 export interface MailMessage {
+  readonly id: number;
   readonly from: string;
   readonly subject: string;
   readonly preview: string;
@@ -28,6 +29,7 @@ export const MAILBOXES: readonly Mailbox[] = [
 
 export const MAIL_SEED: readonly MailMessage[] = [
   {
+    id: 0,
     from: 'Figma',
     subject: 'Daniel left 3 comments on Desktop v4',
     preview: 'Tray blur reads heavy at 62px — can we try 44 and put them side by side?',
@@ -37,6 +39,7 @@ export const MAIL_SEED: readonly MailMessage[] = [
     flag: true
   },
   {
+    id: 1,
     from: 'Vercel',
     subject: 'Your deployment is live',
     preview: 'desktop-web is ready. Build finished in 0s — there was nothing to build.',
@@ -45,6 +48,7 @@ export const MAIL_SEED: readonly MailMessage[] = [
     unread: true
   },
   {
+    id: 2,
     from: 'Linear',
     subject: 'ENG-412 moved to In Review',
     preview: 'Shadow repaint during minimise: 12 dropped frames down to 0. Needs your sign-off.',
@@ -52,6 +56,7 @@ export const MAIL_SEED: readonly MailMessage[] = [
     color: '#5e6ad2'
   },
   {
+    id: 3,
     from: 'GitHub',
     subject: '[workspace/desktop] PR #142 review requested',
     preview: 'Column view: preview pane sizing. 4 files changed, +218 −31.',
@@ -59,6 +64,7 @@ export const MAIL_SEED: readonly MailMessage[] = [
     color: '#24292f'
   },
   {
+    id: 4,
     from: 'Anna Haro',
     subject: 'Re: dock easing',
     preview: 'The cosine falloff is right, but shorten the settle. Under 300ms or it reads as lag.',
@@ -66,6 +72,7 @@ export const MAIL_SEED: readonly MailMessage[] = [
     color: '#bf5af2'
   },
   {
+    id: 5,
     from: 'Apple Developer',
     subject: 'macOS Tahoe 26 beta 4 is available',
     preview: 'Liquid Glass refinements, Spotlight actions, and 42 resolved issues.',
@@ -73,6 +80,7 @@ export const MAIL_SEED: readonly MailMessage[] = [
     color: '#1d1d1f'
   },
   {
+    id: 6,
     from: 'Mom',
     subject: 'call me when free',
     preview: 'and eat something that is not coffee',
