@@ -12,14 +12,19 @@ import {
   viewChild
 } from '@angular/core';
 
+import { DesktopData } from '../../data/desktop-data';
+import { ALL_ROWS, liveQuery } from '../../data/live-query';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
+import { MenuEntry } from '../../services/menu';
 import { SystemState } from '../../services/system-state';
 import { Toast } from '../../services/toast';
 import { clamp } from '../../shared/format';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
-import { TILE, latAt, lonAt, tileUrl, worldX, worldY, zoomForBox } from './maps-geo';
+import { CUPERTINO, TILE, latAt, lonAt, tileUrl, worldX, worldY, zoomForBox } from './maps-geo';
+import { PlaceSpot, samePlace } from './maps-places';
+import { MapPlace } from './maps.entities';
 
 /** Nominatim 返回的一个地点。 */
 interface Place {
@@ -61,19 +66,20 @@ interface Drag {
 
 const MIN_ZOOM = 2;
 const MAX_ZOOM = 19;
-const CUPERTINO = {
-  lat: 37.3349,
-  lon: -122.009,
-  zoom: 15,
-  title: 'Apple Park',
-  sub: '1 Apple Park Way · Cupertino, CA'
-};
 /** 点在这些浮层上不拖动也不双击缩放。 */
 const OVERLAYS = '.zoom,.card,.results';
 
 const placeName = (place: Place): string => place.name || place.display_name.split(',')[0];
 
-/** 地图：Web Mercator 的 256px 瓦片放在一个整体平移的图层里，支持拖动、滚轮与双击缩放、搜索和落针。 */
+const titleIs = (title: string) => ({
+  combinator: 'and' as const,
+  rules: [{ field: 'title' as const, operator: '=' as const, value: title }]
+});
+
+/**
+ * 地图：Web Mercator 的 256px 瓦片放在一个整体平移的图层里，支持拖动、滚轮与双击缩放、搜索和落针。
+ * 「Save」把当前地点收藏进本地库，收藏出现在菜单栏的 Favourites 菜单里。
+ */
 @Component({
   selector: 'app-maps',
   imports: [Icon, TrafficLights],
@@ -85,6 +91,12 @@ export class MapsApp {
   private readonly system = inject(SystemState);
   private readonly toast = inject(Toast);
   private readonly renderer = inject(Renderer2);
+  private readonly data = inject(DesktopData);
+  /** 收藏的地点，按收藏先后。 */
+  private readonly places = liveQuery(
+    () => MapPlace.findAll({ where: ALL_ROWS, orderBy: [{ field: 'createdAt', sort: 'asc' }] }),
+    []
+  );
   private readonly mapBox = viewChild.required<ElementRef<HTMLElement>>('mapBox');
   private readonly pane = viewChild.required<ElementRef<HTMLElement>>('pane');
   private readonly pin = viewChild.required<ElementRef<SVGElement>>('pin');
@@ -120,9 +132,10 @@ export class MapsApp {
                 label: 'Go to Cupertino',
                 run: () => this.goto(CUPERTINO.lat, CUPERTINO.lon, CUPERTINO.zoom, CUPERTINO.title, CUPERTINO.sub)
               }
-            ]
+            ],
+            Favourites: this.favouriteEntries()
           },
-          ['File', 'Edit', 'View', 'Window', 'Help']
+          ['File', 'Edit', 'View', 'Favourites', 'Window', 'Help']
         )
       )
     );
@@ -188,7 +201,9 @@ export class MapsApp {
   }
 
   protected save(): void {
-    this.toast.show(`${this.card().title} added to Favourites`);
+    const { title, sub } = this.card();
+    void this.keep({ title, subtitle: sub, latitude: this.lat, longitude: this.lon, zoom: this.z });
+    this.toast.show(`${title} added to Favourites`);
   }
 
   protected find(event: Event, field: HTMLInputElement): void {
@@ -211,6 +226,27 @@ export class MapsApp {
       place.display_name.split(',').slice(1, 4).join(',').trim()
     );
     this.clearResults();
+  }
+
+  /** 收藏一处地点；库里已经有同一处就不重复添加。 */
+  private async keep(spot: PlaceSpot): Promise<void> {
+    await this.data.transaction(async executor => {
+      const places = executor.getRepository(MapPlace);
+      const sameTitle = await places.find({ where: titleIs(spot.title) });
+      if (sameTitle.some(place => samePlace(place, spot))) return;
+      await places.create(this.data.instantiate(MapPlace, spot));
+    });
+  }
+
+  /** 菜单栏 Favourites 菜单：每处收藏一项，点了回到那里。 */
+  private favouriteEntries(): MenuEntry[] {
+    const places = this.places();
+    if (!places.length) return [{ id: 'none', label: 'No favourites yet', disabled: true }];
+    return places.map(place => ({
+      id: place.id,
+      label: place.title,
+      run: () => this.goto(place.latitude, place.longitude, place.zoom, place.title, place.subtitle)
+    }));
   }
 
   private zoomAt(event: MouseEvent, dir: number): void {

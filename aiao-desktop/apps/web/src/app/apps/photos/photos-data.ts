@@ -1,8 +1,7 @@
 import { DAYS, MONS } from '../../shared/format';
 
-/** 图库里的一张照片。`thumb` 是维基共享资源上的缩略图地址，任意宽度都能由它换算。 */
-export interface Photo {
-  readonly id: number;
+/** 图库里一张初始照片的记录。`thumb` 是维基共享资源上的缩略图地址，任意宽度都能由它换算。 */
+export interface PhotoSeed {
   readonly title: string;
   readonly place: string;
   readonly credit: string;
@@ -17,9 +16,8 @@ export interface Photo {
  * 图库的初始照片：真实的维基共享资源特色图片，带着它们本来的标题、地点、日期和摄影师。
  * 缩略图地址是 500px 版本，共享资源能按宽度渲染，所以格子按需要的尺寸去取。
  */
-export const PHOTO_SEED: readonly Photo[] = [
+export const PHOTO_SEED_DATA: readonly PhotoSeed[] = [
   {
-    id: 1,
     title: 'Sydney (AU), Coast, Australian Fur Seals',
     place: 'Sydney, Australia',
     credit: 'Dietmar Rabich',
@@ -30,7 +28,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 2,
     title: 'New York City at night',
     place: 'New York City',
     credit: 'Paulo Barcellos Jr.',
@@ -41,7 +38,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: true
   },
   {
-    id: 3,
     title: 'Northern lights over Mývatn (Iceland)',
     place: 'Iceland',
     credit: 'Giles Laurent',
@@ -52,7 +48,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 4,
     title: 'Human looking at the stars during Perseids with th',
     place: 'Under the Perseids',
     credit: 'Giles Laurent',
@@ -63,7 +58,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 5,
     title: 'Étang de Thau and Sète',
     place: 'Sète, France',
     credit: 'Christian Ferrer',
@@ -74,7 +68,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: true
   },
   {
-    id: 6,
     title: 'Peterborough (AU), Port Campbell National Park, Worm B',
     place: 'Victoria, Australia',
     credit: 'Dietmar Rabich',
@@ -85,7 +78,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 7,
     title: 'Lac de Montriond',
     place: 'Haute-Savoie, France',
     credit: 'Krzysztof Golik',
@@ -96,7 +88,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 8,
     title: 'Gaztelugache, Bermeo',
     place: 'Bermeo, Basque Country',
     credit: 'Diego Delso',
@@ -107,7 +98,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 9,
     title: 'Water reflection of Kinkaku-ji Temple a sunny day, Kyo',
     place: 'Kyoto, Japan',
     credit: 'Basile Morin',
@@ -118,7 +108,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 10,
     title: 'Sunlight through clouds and view of Ginkaku-ji Temple',
     place: 'Kyoto, Japan',
     credit: 'Basile Morin',
@@ -129,7 +118,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: true
   },
   {
-    id: 11,
     title: 'Bontecou Lake Milky Way panorama',
     place: 'Hudson Valley, New York',
     credit: 'Juliancolton',
@@ -140,7 +128,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 12,
     title: 'Lo sbadiglio',
     place: '',
     credit: 'Alberto Peracchio',
@@ -150,7 +137,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 13,
     title: 'Dülmen, Börnste, Waldweg',
     place: 'Dülmen, Germany',
     credit: 'Dietmar Rabich',
@@ -161,7 +147,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: true
   },
   {
-    id: 14,
     title: 'Québec city at night, view from Lévis city',
     place: 'Québec City, Canada',
     credit: 'Wilfredor',
@@ -172,7 +157,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 15,
     title: 'Vulpes lagopus in Iceland',
     place: 'Iceland',
     credit: 'Jonathen Pie https://unsplash.com/@r3dmax',
@@ -183,7 +167,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 16,
     title: 'Larus occidentalis in flight',
     place: '',
     credit: 'Frank Schulenburg',
@@ -194,7 +177,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 17,
     title: 'Afternoon at Tennfjorden, Raftsundet',
     place: 'Lofoten, Norway',
     credit: 'Ximonic (Simo Räsänen)',
@@ -205,7 +187,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 18,
     title: 'Hyacinth macaw (Anodorhynchus hyacinthinus) in flight',
     place: '',
     credit: 'Charles J. Sharp',
@@ -216,7 +197,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 19,
     title: 'Piazzetta San Marco Venice',
     place: 'Venice, Italy',
     credit: 'Benh LIEU SONG',
@@ -227,7 +207,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 20,
     title: 'Mountain lake, Mylgval mountain cirque, Western Caucas',
     place: 'Western Caucasus',
     credit: 'Vyacheslav Argenberg',
@@ -238,7 +217,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: true
   },
   {
-    id: 21,
     title: 'Larus californicus Palo Alto May 2011',
     place: 'Palo Alto, California',
     credit: 'King of Hearts',
@@ -249,7 +227,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 22,
     title: 'The Bridge',
     place: '',
     credit: 'Frank Schulenburg',
@@ -260,7 +237,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 23,
     title: 'Panorama Piazza San Marco and Venice on Easter 2013',
     place: 'Venice, Italy',
     credit: 'This Photo was taken by Wolfgang Moroder. ',
@@ -271,7 +247,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 24,
     title: 'Namib-Naukluft Sand Dunes',
     place: 'Sossusvlei, Namibia',
     credit: 'Yathin S Krishnappa',
@@ -282,7 +257,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 25,
     title: 'Canal Grande Chiesa della Salute e Dogana dal ponte de',
     place: 'Venice, Italy',
     credit: 'This Photo was taken by Wolfgang Moroder. ',
@@ -293,7 +267,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 26,
     title: 'Aurora borealis above Storfjorden and the Lyngen Alps',
     place: 'Troms, Norway',
     credit: 'Ximonic (Simo Räsänen)',
@@ -304,7 +277,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 27,
     title: 'Tilisunahütte Panorama',
     place: 'Montafon, Austria',
     credit: 'böhringer friedrich',
@@ -315,7 +287,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: true
   },
   {
-    id: 28,
     title: 'Sossusvlei sand dunes',
     place: 'Sossusvlei, Namibia',
     credit: 'Winfried Bruenken (Amrum)',
@@ -326,7 +297,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 29,
     title: 'Havelock Island, Sandy lagoon, Andaman Islands',
     place: 'Havelock Island, Andamans',
     credit: 'Vyacheslav Argenberg',
@@ -337,7 +307,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 30,
     title: 'Havelock Island, Mangrove tree on the beach, Andaman I',
     place: 'Havelock Island, Andamans',
     credit: 'Vyacheslav Argenberg',
@@ -348,7 +317,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 31,
     title: 'Chola Mountain Lake, Nepal',
     place: 'Solukhumbu, Nepal',
     credit: 'Vyacheslav Argenberg',
@@ -359,7 +327,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 32,
     title: 'Mountains in snow, Mountain lake',
     place: 'Solukhumbu, Nepal',
     credit: 'Vyacheslav Argenberg',
@@ -370,7 +337,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 33,
     title: 'San Francisco with two bridges and the low fog',
     place: 'San Francisco, California',
     credit: 'Brocken Inaglory',
@@ -381,7 +347,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 34,
     title: 'Golden Gate Bridge at sunset',
     place: 'San Francisco, California',
     credit: 'Brocken Inaglory',
@@ -392,7 +357,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 35,
     title: 'Boletus in Finnish forest',
     place: 'Finland',
     credit: 'Petritap',
@@ -403,7 +367,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 36,
     title: 'Sunflower macro wide',
     place: '',
     credit: 'Muhammad Mahdi Karim',
@@ -414,7 +377,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 37,
     title: 'New York Midtown Skyline at night',
     place: 'New York City',
     credit: 'Diliff',
@@ -425,7 +387,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 38,
     title: "Lily Lilium 'Citronella' Flower",
     place: '',
     credit: 'Photo by and (c)2007 Derek Ramsey (Ram-Man',
@@ -436,7 +397,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 39,
     title: 'Lienz',
     place: 'Lienz, Austria',
     credit: 'böhringer friedrich',
@@ -446,7 +406,6 @@ export const PHOTO_SEED: readonly Photo[] = [
     fav: false
   },
   {
-    id: 40,
     title: 'Sossusvlei Dune Namib Desert Namibia Luca Galuzzi 2004',
     place: 'Sossusvlei, Namibia',
     credit: 'Luca Galuzzi (Lucag)',

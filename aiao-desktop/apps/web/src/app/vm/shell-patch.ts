@@ -53,7 +53,8 @@ const PATCHES: readonly Patch[] = [
   {
     name: 'prompt shows ~ at home',
     find: "return parts.length ? parts[parts.length - 1] : '/';",
-    replace: "if (process.env.HOME && process.cwd() === process.env.HOME) return '~';\n    return parts.length ? parts[parts.length - 1] : '/';"
+    replace:
+      "if (process.env.HOME && process.cwd() === process.env.HOME) return '~';\n    return parts.length ? parts[parts.length - 1] : '/';"
   }
 ];
 

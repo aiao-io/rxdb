@@ -1,11 +1,12 @@
-/** 一条笔记；`body` 是可编辑区里的 HTML。 */
-export interface Note {
-  readonly id: number;
+import { NOTES_FOLDER, TRASH_FOLDER } from './notes-model';
+
+/** 一条初始笔记；`body` 是可编辑区里的 HTML。 */
+export interface NoteSeed {
   readonly folder: string;
   readonly title: string;
   readonly date: Date;
   readonly body: string;
-  readonly pin?: boolean;
+  readonly pinned?: boolean;
 }
 
 const dt = (month: number, day: number, hour = 10, minute = 24): Date => new Date(2026, month - 1, day, hour, minute);
@@ -16,13 +17,13 @@ export const CHECK_ICON = '<svg class="" aria-hidden="true"><use href="#g-check"
 const todo = (text: string, done = false): string =>
   `<div class="todo${done ? ' done' : ''}"><i>${CHECK_ICON}</i><span>${text}</span></div>`;
 
-export const NOTE_SEED: readonly Note[] = [
+/** 初始笔记，顺序与原界面一致。 */
+export const SEED_NOTES: readonly NoteSeed[] = [
   {
-    id: 1,
-    folder: 'Notes',
+    folder: NOTES_FOLDER,
     title: 'Interface rules',
     date: dt(7, 27, 16, 12),
-    pin: true,
+    pinned: true,
     body: `<h1>Interface rules</h1><div class="date">27 July 2026 at 4:12 PM</div>
 <p>Collected from things that felt wrong and then didn't.</p>
 <h2>Motion</h2>
@@ -33,8 +34,7 @@ ${todo('Easing out beats easing in — arrivals matter more than departures.')}
 <h2>Depth</h2><ul><li>One shadow reads as a sticker. Stack them.</li><li>Blur is not translucency. You need both.</li><li>An unfocused window should look asleep, not disabled.</li></ul>`
   },
   {
-    id: 2,
-    folder: 'Notes',
+    folder: NOTES_FOLDER,
     title: 'Window shadow recipe',
     date: dt(7, 26, 21, 40),
     body: `<h1>Window shadow recipe</h1><div class="date">26 July 2026 at 9:40 PM</div>
@@ -47,8 +47,7 @@ ${todo('Easing out beats easing in — arrivals matter more than departures.')}
 <p>Unfocused windows drop the last two and lighten the rest. That difference is why a stack of windows reads as a stack.</p>`
   },
   {
-    id: 3,
-    folder: 'Notes',
+    folder: NOTES_FOLDER,
     title: 'Dock falloff',
     date: dt(7, 25, 11, 8),
     body: `<h1>Dock falloff</h1><div class="date">25 July 2026 at 11:08 AM</div>
@@ -58,8 +57,7 @@ ${todo('Easing out beats easing in — arrivals matter more than departures.')}
 <p>The 0.86 exponent narrows the peak slightly. Without it the whole row lifts and it feels mushy.</p>`
   },
   {
-    id: 4,
-    folder: 'Notes',
+    folder: NOTES_FOLDER,
     title: 'Grocery',
     date: dt(7, 24, 19, 2),
     body: `<h1>Grocery</h1><div class="date">24 July 2026 at 7:02 PM</div>
@@ -70,8 +68,7 @@ ${todo('Tomatoes, ginger, green chilli')}
 ${todo('Dark chocolate (85%)')}`
   },
   {
-    id: 5,
-    folder: 'Notes',
+    folder: NOTES_FOLDER,
     title: 'Sprint planning',
     date: dt(7, 20, 9, 30),
     body: `<h1>Sprint planning</h1><div class="date">20 July 2026 at 9:30 AM</div>
@@ -80,8 +77,7 @@ ${todo('Dark chocolate (85%)')}`
 <p>Review PR #142 before Thursday.</p>`
   },
   {
-    id: 6,
-    folder: 'Recently Deleted',
+    folder: TRASH_FOLDER,
     title: 'Old draft',
     date: dt(7, 12, 8, 0),
     body: `<h1>Old draft</h1><div class="date">12 July 2026 at 8:00 AM</div><p>Scrapped. The framing was wrong.</p>`

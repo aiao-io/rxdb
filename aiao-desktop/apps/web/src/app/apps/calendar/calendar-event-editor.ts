@@ -93,6 +93,8 @@ export class CalendarEventEditor {
   private readonly fromField = viewChild.required<ElementRef<HTMLInputElement>>('from');
   private readonly toField = viewChild.required<ElementRef<HTMLInputElement>>('to');
   private readonly notesField = viewChild.required<ElementRef<HTMLTextAreaElement>>('notes');
+  /** 写库期间为 `true`：连按回车或连点按钮不会写两次。 */
+  private saving = false;
 
   protected readonly store = inject(CalendarStore);
   protected readonly allDay = linkedSignal(() => this.draft().s === null);
@@ -115,16 +117,22 @@ export class CalendarEventEditor {
     this.popover.close();
   }
 
-  protected remove(): void {
+  protected async remove(): Promise<void> {
     const event = this.event();
-    if (!event) return;
-    this.store.remove(event.id);
+    if (!event || this.saving) return;
+    this.saving = true;
+    try {
+      await this.store.remove(event.id);
+    } finally {
+      this.saving = false;
+    }
     this.popover.close();
     this.done()(null);
     this.toast.show('Event deleted');
   }
 
-  protected save(): void {
+  protected async save(): Promise<void> {
+    if (this.saving) return;
     const draft = this.draft();
     const event = this.event();
     const d = parseDate(this.dateField().nativeElement.value, draft.d);
@@ -141,8 +149,13 @@ export class CalendarEventEditor {
       loc: this.locationField().nativeElement.value.trim(),
       notes: this.notesField().nativeElement.value
     };
-    if (event) this.store.update(event.id, fields);
-    else this.store.add(fields);
+    this.saving = true;
+    try {
+      if (event) await this.store.update(event.id, fields);
+      else await this.store.add(fields);
+    } finally {
+      this.saving = false;
+    }
     this.popover.close();
     this.done()(d);
     this.toast.show(event ? 'Event updated' : `Added “${t}” on ${MONS3[d[1]]} ${d[2]}`);

@@ -164,9 +164,16 @@ export class FileSystem {
   /** 在目录里新建「untitled folder」，重名时追加序号；返回新名字。 */
   async newFolder(dir: DiskPath): Promise<string> {
     if (isLocked(dir))
-      throw new DiskError('EACCES', dir, 'The folder “untitled folder” can’t be created because you don’t have permission.');
+      throw new DiskError(
+        'EACCES',
+        dir,
+        'The folder “untitled folder” can’t be created because you don’t have permission.'
+      );
     const name = await this.exclusive(async store => {
-      const folder = uniqueName((await store.list(dir)).map(entry => entry.name), 'untitled folder');
+      const folder = uniqueName(
+        (await store.list(dir)).map(entry => entry.name),
+        'untitled folder'
+      );
       await store.mkdir([...dir, folder]);
       return folder;
     });
@@ -178,11 +185,21 @@ export class FileSystem {
   async moveToTrash(path: DiskPath): Promise<void> {
     const name = path.at(-1) ?? VOLUME_NAME;
     if (isRequired(path))
-      throw new DiskError('EACCES', path, `The item “${name}” can’t be moved to the Trash because it’s required by macOS.`);
+      throw new DiskError(
+        'EACCES',
+        path,
+        `The item “${name}” can’t be moved to the Trash because it’s required by macOS.`
+      );
     if (isWithin(path, TRASH)) throw new DiskError('EEXIST', path, `“${name}” is already in the Trash.`);
     const target = await this.exclusive(async store => {
       await store.mkdir(TRASH);
-      const to = [...TRASH, uniqueName((await store.list(TRASH)).map(entry => entry.name), name)];
+      const to = [
+        ...TRASH,
+        uniqueName(
+          (await store.list(TRASH)).map(entry => entry.name),
+          name
+        )
+      ];
       await store.move(path, to);
       return to;
     });

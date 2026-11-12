@@ -94,16 +94,14 @@ export class DesktopItems {
         node: this.fs.root(),
         open: () => this.wm.open('finder', { path: [VOLUME_NAME] })
       },
-      ...this.entries().map(
-        (node): DesktopItem => ({
-          id: itemId(node.name),
-          name: label(node.name),
-          icon: node.icon,
-          cell: cellOf(itemId(node.name)),
-          node,
-          open: () => this.openNode(node)
-        })
-      )
+      ...this.entries().map((node): DesktopItem => ({
+        id: itemId(node.name),
+        name: label(node.name),
+        icon: node.icon,
+        cell: cellOf(itemId(node.name)),
+        node,
+        open: () => this.openNode(node)
+      }))
     ];
   });
 

@@ -28,10 +28,11 @@ import { TreeAdjacencyListEntityBase, TreeEntity } from '@aiao/rxdb-plugin-tree'
   ]
 })
 export class DesktopFile extends TreeAdjacencyListEntityBase {
-  name!: string;
-  type!: 'file' | 'folder';
-  size!: number;
-  mimeType!: string | null;
-  contentId!: string | null;
-  modifiedAt!: Date;
+  /* 一律用 declare：字段读写由 RxDB 的实体代理接管，写成 `x!: T` 会在类字段语义下盖掉代理。 */
+  declare name: string;
+  declare type: 'file' | 'folder';
+  declare size: number;
+  declare mimeType: string | null;
+  declare contentId: string | null;
+  declare modifiedAt: Date;
 }

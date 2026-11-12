@@ -42,7 +42,10 @@ export function vivariFs(vivari: Vivari): VmFs {
     list: async path =>
       (await vivari.fs.readdir(path, { withFileTypes: true })).map(entry => ({
         name: entry.name,
-        kind: entry.isDirectory() ? 'directory' : entry.isFile() ? 'file' : 'other'
+        kind:
+          entry.isDirectory() ? 'directory'
+          : entry.isFile() ? 'file'
+          : 'other'
       })),
     stat: async path => {
       try {

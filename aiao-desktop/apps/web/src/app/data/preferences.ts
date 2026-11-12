@@ -46,8 +46,9 @@ export class Preferences {
     await this.ready;
     const repository = await this.data.repository(SystemPreference);
     const existing = this.rows().get(key);
-    const saved = existing
-      ? await repository.update(existing, { value })
+    const saved =
+      existing ?
+        await repository.update(existing, { value })
       : await repository.create(this.data.instantiate(SystemPreference, { key, value }));
     this.rows.update(rows => new Map(rows).set(key, saved));
   }

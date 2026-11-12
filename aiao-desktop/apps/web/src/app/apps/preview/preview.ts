@@ -1,9 +1,9 @@
 import { Component, DestroyRef, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
 
-import { DesktopMenus } from '../../services/desktop-menus';
-import { DesktopWindow } from '../../services/desktop-window';
 import { extensionOf, fileKind } from '../../disk/disk-kinds';
 import { PdfDocument, readPdfText } from '../../disk/formats/pdf';
+import { DesktopMenus } from '../../services/desktop-menus';
+import { DesktopWindow } from '../../services/desktop-window';
 import { FileSystem, FsNode, describeDiskError } from '../../services/file-system';
 import { PopoverService } from '../../services/popover';
 import { Toast } from '../../services/toast';
@@ -126,5 +126,4 @@ export class PreviewApp {
     if (type) return { kind: 'image', url: URL.createObjectURL(new Blob([bytes.slice()], { type })) };
     return { kind: 'failed', reason: `Preview can’t open ${fileKind(this.name).kind} files.` };
   }
-
 }

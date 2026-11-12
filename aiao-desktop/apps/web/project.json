@@ -4,23 +4,14 @@
   "prefix": "app",
   "projectType": "application",
   "sourceRoot": "aiao-desktop/apps/web/src",
-  "tags": [
-    "scope:aiao-desktop",
-    "type:app",
-    "layer:ui",
-    "angular-app"
-  ],
+  "tags": ["scope:aiao-desktop", "type:app", "layer:ui", "angular-app"],
   "targets": {
     "build": {
       "executor": "@angular/build:application",
-      "outputs": [
-        "{options.outputPath}"
-      ],
+      "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",
       "options": {
-        "allowedCommonJsDependencies": [
-          "ms"
-        ],
+        "allowedCommonJsDependencies": ["ms"],
         "assets": [
           {
             "glob": "**/*",
@@ -40,10 +31,7 @@
         "browser": "aiao-desktop/apps/web/src/main.ts",
         "inlineStyleLanguage": "scss",
         "outputPath": "dist/aiao-desktop/apps/web",
-        "styles": [
-          "aiao-desktop/apps/web/src/styles.scss",
-          "node_modules/@xterm/xterm/css/xterm.css"
-        ],
+        "styles": ["aiao-desktop/apps/web/src/styles.scss", "node_modules/@xterm/xterm/css/xterm.css"],
         "tsConfig": "aiao-desktop/apps/web/tsconfig.app.json"
       },
       "configurations": {
@@ -105,9 +93,7 @@
       },
       "dependsOn": [
         {
-          "projects": [
-            "aiao-desktop"
-          ],
+          "projects": ["aiao-desktop"],
           "target": "dev-ports"
         }
       ],
@@ -118,9 +104,7 @@
     "serve-static": {
       "continuous": true,
       "executor": "nx:run-commands",
-      "dependsOn": [
-        "build"
-      ],
+      "dependsOn": ["build"],
       "options": {
         "command": "node aiao-desktop/apps/web/tools/serve-static.mjs",
         "parallel": false,

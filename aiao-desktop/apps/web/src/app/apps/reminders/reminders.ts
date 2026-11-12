@@ -4,15 +4,30 @@ import {
   Injector,
   afterNextRender,
   computed,
+  effect,
   inject,
   signal,
+  untracked,
   viewChildren
 } from '@angular/core';
 
+import { DesktopData } from '../../data/desktop-data';
+import { ALL_ROWS, liveQuery } from '../../data/live-query';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
+import {
+  DONE_TINT,
+  NEW_REMINDER_DUE,
+  ReminderDraft,
+  ReminderRow,
+  draftRow,
+  nextPosition,
+  rowOf,
+  togglePatch
+} from './reminders-model';
+import { Reminder } from './reminders.entities';
 
 /** 侧栏清单：[名称, 颜色, 数量]。数量是写死的，勾选提醒不会改它。 */
 const LISTS = [
@@ -23,33 +38,10 @@ const LISTS = [
   ['Completed', '#8e8e93', 24]
 ] as const;
 
-/** 点圆圈勾选时统一染成强调蓝，与提醒原来的颜色无关。 */
-const DONE_TINT = '#0a84ff';
-
-/** [标题, 时间, 已完成, 完成色] */
-const SEED = [
-  ['Send design review feedback', 'Today 5:00 PM', false, '#ff375f'],
-  ['Review PR #142 — column view sizing', 'Today 6:30 PM', false, '#0a84ff'],
-  ['Pick up dry cleaning', 'Today', false, '#ff9f0a'],
-  ['Book the car for Saturday', 'Tomorrow', false, '#0a84ff'],
-  ['Reply to Anna about the tray blur', 'Tomorrow 9:00 AM', false, '#30d158'],
-  ['Fix unfocused window shadows', 'Done', true, '#8e8e93'],
-  ['Write the neofetch ASCII by hand', 'Done', true, '#8e8e93']
-] as const;
-
-interface Reminder {
-  readonly id: number;
-  readonly title: string;
-  readonly when: string;
-  readonly done: boolean;
-  /** 完成后圆圈的颜色。 */
-  readonly tint: string;
-  /** 「+」新建的行：标题直接写在 contenteditable 里，Angular 不接管它的文字。 */
-  readonly fresh: boolean;
-  readonly editing: boolean;
-}
-
-/** 提醒事项：「+」插入一行可直接输入的空白提醒，点一行切换完成。 */
+/**
+ * 提醒事项：提醒存在桌面库里，所有窗口共用；「+」插入一行可直接输入的空白草稿，
+ * 输入完成（失焦且有内容）才写进库，点一行切换完成。
+ */
 @Component({
   selector: 'app-reminders',
   imports: [Icon, TrafficLights],
@@ -58,50 +50,83 @@ interface Reminder {
 })
 export class RemindersApp {
   private readonly injector = inject(Injector);
-  private readonly drafts = viewChildren<ElementRef<HTMLElement>>('draft');
-  private seq = SEED.length;
+  private readonly data = inject(DesktopData);
+  private readonly fields = viewChildren<ElementRef<HTMLElement>>('draft');
+  private readonly reminders = liveQuery(
+    () =>
+      Reminder.findAll({
+        where: ALL_ROWS,
+        orderBy: [
+          { field: 'position', sort: 'asc' },
+          { field: 'createdAt', sort: 'desc' }
+        ]
+      }),
+    []
+  );
+  private readonly drafts = signal<readonly ReminderDraft[]>([]);
+  private seq = 0;
 
   protected readonly lists = LISTS;
-  protected readonly items = signal<readonly Reminder[]>(
-    SEED.map(([title, when, done, tint], id): Reminder => ({
-      id,
-      title,
-      when,
-      done,
-      tint,
-      fresh: false,
-      editing: false
-    }))
-  );
+  /** 草稿排在最前（新建的总在最上），其后是库里的提醒；已经写进库的草稿不再显示。 */
+  protected readonly items = computed<readonly ReminderRow[]>(() => {
+    const known = new Set<string>(this.reminders().map(reminder => reminder.id));
+    const open = this.drafts().filter(draft => draft.createdId === null || !known.has(draft.createdId));
+    return [...open.map(draftRow), ...this.reminders().map(rowOf)];
+  });
 
   constructor() {
     const menus = inject(DesktopMenus);
     inject(DesktopWindow).setMenus(computed(() => menus.standard('reminders')));
+    /* 活查询已经带回来的草稿不必再留着。 */
+    effect(() => {
+      const known = new Set<string>(this.reminders().map(reminder => reminder.id));
+      const settled = this.drafts().filter(draft => draft.createdId !== null && known.has(draft.createdId));
+      if (settled.length) untracked(() => this.drafts.update(list => list.filter(draft => !settled.includes(draft))));
+    });
   }
 
   protected add(): void {
-    const item: Reminder = {
-      id: this.seq++,
-      title: '',
-      when: 'Today',
-      done: false,
-      tint: DONE_TINT,
-      fresh: true,
-      editing: true
-    };
-    this.items.update(list => [item, ...list]);
+    const draft: ReminderDraft = { id: `draft-${++this.seq}`, done: false, editing: true, title: '', createdId: null };
+    this.drafts.update(list => [draft, ...list]);
     /* 新行总是排在最前，等它渲染出来再聚焦。 */
-    afterNextRender(() => this.drafts().at(0)?.nativeElement.focus(), { injector: this.injector });
+    afterNextRender(() => this.fields().at(0)?.nativeElement.focus(), { injector: this.injector });
   }
 
-  protected toggle(item: Reminder): void {
-    this.patch(item, entry => (entry.done ? { ...entry, done: false } : { ...entry, done: true, tint: DONE_TINT }));
+  /** 草稿行只在输入时可以勾（和原来一样）；库里的提醒写回 `done`（以及完成色）。 */
+  protected async toggle(item: ReminderRow): Promise<void> {
+    if (item.fresh) {
+      if (item.editing) this.patchDraft(item.id, draft => ({ ...draft, done: !draft.done }));
+      return;
+    }
+    const repository = await this.data.repository(Reminder);
+    await repository.update(this.reminder(item.id), togglePatch(item));
   }
 
-  /** 失焦：空行直接丢掉，有内容就锁定成普通提醒。 */
-  protected commit(item: Reminder, text: string | null): void {
-    if (text?.trim()) this.patch(item, entry => ({ ...entry, editing: false }));
-    else this.items.update(list => list.filter(entry => entry.id !== item.id));
+  /** 失焦：空行直接丢掉，有内容就锁定成普通提醒并写进库。 */
+  protected async commit(item: ReminderRow, text: string | null): Promise<void> {
+    const draft = this.drafts().find(entry => entry.id === item.id);
+    if (!draft?.editing) return;
+    const title = text?.trim() ?? '';
+    if (!title) {
+      this.drafts.update(list => list.filter(entry => entry !== draft));
+      return;
+    }
+    const reminder = this.data.instantiate(Reminder, {
+      title,
+      due: NEW_REMINDER_DUE,
+      done: draft.done,
+      tint: DONE_TINT,
+      position: nextPosition(this.reminders().map(entry => entry.position))
+    });
+    /* 先锁定草稿并记下新行的 id：写入期间草稿行继续显示打下的字，活查询把这一行带回来的同一刻再让位。 */
+    this.patchDraft(draft.id, entry => ({ ...entry, editing: false, title, createdId: reminder.id }));
+    try {
+      await (await this.data.repository(Reminder)).create(reminder);
+    } catch (error) {
+      /* 没写成：撤掉这行草稿，别让界面上留一条库里没有的提醒；错误照常抛出。 */
+      this.drafts.update(list => list.filter(entry => entry.id !== draft.id));
+      throw error;
+    }
   }
 
   /** 回车即提交，不插入换行。 */
@@ -111,7 +136,13 @@ export class RemindersApp {
     field.blur();
   }
 
-  private patch(item: Reminder, change: (entry: Reminder) => Reminder): void {
-    this.items.update(list => list.map(entry => (entry.id === item.id ? change(entry) : entry)));
+  private reminder(id: string): Reminder {
+    const reminder = this.reminders().find(entry => entry.id === id);
+    if (!reminder) throw new Error(`Reminder not found: ${id}`);
+    return reminder;
+  }
+
+  private patchDraft(id: string, change: (draft: ReminderDraft) => ReminderDraft): void {
+    this.drafts.update(list => list.map(draft => (draft.id === id ? change(draft) : draft)));
   }
 }

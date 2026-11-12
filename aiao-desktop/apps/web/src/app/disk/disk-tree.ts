@@ -144,7 +144,14 @@ export async function scanDisk(store: DiskStore, emptyDate: Date): Promise<FsNod
       const id = path.join('/');
       const folder = entry.kind === 'directory';
       const info = folder ? null : await store.info(path);
-      rows.push({ id, parentId, name: entry.name, folder, size: info?.size ?? 0, modified: info ? new Date(info.modified) : null });
+      rows.push({
+        id,
+        parentId,
+        name: entry.name,
+        folder,
+        size: info?.size ?? 0,
+        modified: info ? new Date(info.modified) : null
+      });
       if (folder) await walk(path, id);
     }
   };

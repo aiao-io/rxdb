@@ -1,5 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
 
+import { dueToday } from '../../apps/reminders/reminders-model';
+import { Reminder } from '../../apps/reminders/reminders.entities';
 import { toTicker } from '../../apps/stocks/stocks-data';
 import { WatchlistSymbol } from '../../apps/stocks/stocks.entities';
 import { ALL_ROWS, liveQuery } from '../../data/live-query';
@@ -171,30 +173,34 @@ export class BatterySquareWidget {
   });
 }
 
-/** 今天的提醒事项。 */
+/** 今天的提醒事项：提醒事项里还没完成、时间写着 Today 的提醒，最多列三条，右上角是总数。 */
 @Component({
   selector: 'app-reminders-widget',
   host: { class: 'wgt', '(dblclick)': "wm.open('reminders')" },
   template: `
-    <div class="wh"><span class="t">Today</span><span class="s">3 remaining</span></div>
-    @for (item of items; track item[0]) {
+    <div class="wh">
+      <span class="t">Today</span><span class="s">{{ remaining().length }} remaining</span>
+    </div>
+    @for (item of shown(); track item.id) {
       <div style="display: flex; gap: 9px; align-items: center; padding: 5px 0; border-top: 0.5px solid var(--line)">
         <span
-          [style.border]="'1.6px solid ' + item[1]"
+          [style.border]="'1.6px solid ' + item.tint"
           style="width: 15px; height: 15px; border-radius: 50%; flex: none"
         ></span>
         <span style="font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{
-          item[0]
+          item.title
         }}</span>
       </div>
     }
   `
 })
 export class RemindersWidget {
+  private readonly reminders = liveQuery(
+    () => Reminder.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
+    []
+  );
+
   protected readonly wm = inject(WindowManager);
-  protected readonly items = [
-    ['Send brand review feedback', '#ff375f'],
-    ['Review PR #142', '#0a84ff'],
-    ['Pick up dry cleaning', '#ff9f0a']
-  ] as const;
+  protected readonly remaining = computed(() => this.reminders().filter(dueToday));
+  protected readonly shown = computed(() => this.remaining().slice(0, 3));
 }

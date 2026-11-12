@@ -85,7 +85,7 @@
     </div>
     <div class="sf-fav" data-favbar data-nodrag>
       @if (system.safariFavs()) {
-        @for (fav of favourites; track fav.name) {
+        @for (fav of favourites(); track fav.name) {
           <a [attr.data-fav]="fav.name" (click)="go(fav.url)" (keydown.enter)="go(fav.url)" tabindex="-1">
             <i [style.background]="fav.color"></i>
             {{ fav.name }}
@@ -100,7 +100,7 @@
         <div class="in">
           <div class="grp">
             <div class="gh">Favourites</div>
-            @for (fav of favourites; track fav.name) {
+            @for (fav of favourites(); track fav.name) {
               <div
                 class="si"
                 [attr.data-goto]="fav.url"
@@ -119,17 +119,17 @@
           </div>
           <div class="grp">
             <div class="gh">Reading List</div>
-            @for (item of reading; track item[0]) {
+            @for (item of reading(); track item.id) {
               <div
                 class="si"
-                [attr.data-goto]="item[0]"
-                [class.on]="item[0] === tab().url"
-                (click)="go(item[0])"
-                (keydown.enter)="go(item[0])"
+                [attr.data-goto]="item.url"
+                [class.on]="item.url === tab().url"
+                (click)="go(item.url)"
+                (keydown.enter)="go(item.url)"
                 tabindex="-1"
               >
                 <svg class="ico" appIcon="g-glasses"></svg>
-                <span class="nm">{{ item[1] }}</span>
+                <span class="nm">{{ item.title }}</span>
               </div>
             }
           </div>
@@ -147,14 +147,14 @@
             <div class="sf-start">
               <h2>Favourites</h2>
               <div class="sf-grid">
-                @for (tile of favouriteTiles; track tile.url) {
+                @for (tile of favouriteTiles(); track tile.url) {
                   <ng-container [ngTemplateOutlet]="tileTemplate" [ngTemplateOutletContext]="{ $implicit: tile }" />
                 }
               </div>
-              @if (page.recent.length) {
+              @if (recentTiles().length) {
                 <h2>Frequently Visited</h2>
                 <div class="sf-grid">
-                  @for (tile of page.recent; track tile.url) {
+                  @for (tile of recentTiles(); track tile.url) {
                     <ng-container [ngTemplateOutlet]="tileTemplate" [ngTemplateOutletContext]="{ $implicit: tile }" />
                   }
                 </div>
@@ -163,7 +163,7 @@
                 <svg appIcon="g-shield"></svg>
                 <div>
                   <b>Privacy Report</b>
-                  · {{ page.trackers }} trackers prevented from profiling you
+                  · {{ trackers() }} trackers prevented from profiling you
                 </div>
               </div>
             </div>

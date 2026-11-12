@@ -1,7 +1,8 @@
 import { Component, ElementRef, afterNextRender, afterRenderEffect, inject, signal, viewChild } from '@angular/core';
 
-import { NOTE_SEED } from '../../apps/notes/notes-data';
+import { Note } from '../../apps/notes/notes.entities';
 import { SafariBrowsers } from '../../apps/safari/safari-browsers';
+import { ALL_ROWS, liveQuery } from '../../data/live-query';
 import { AppLauncher } from '../../services/app-launcher';
 import { DESKTOP_APPS, LAUNCH_ORDER } from '../../services/desktop-apps';
 import { FileOpener } from '../../services/file-opener';
@@ -78,6 +79,10 @@ export class Spotlight {
   private readonly toast = inject(Toast);
   private readonly session = inject(Session);
   private readonly safari = inject(SafariBrowsers);
+  private readonly notes = liveQuery(
+    () => Note.findAll({ where: ALL_ROWS, orderBy: [{ field: 'date', sort: 'desc' }] }),
+    []
+  );
   private readonly queryInput = viewChild.required<ElementRef<HTMLInputElement>>('query');
   private readonly resultsBox = viewChild.required<ElementRef<HTMLElement>>('results');
   private hits: SpotlightHit[] = [];
@@ -160,7 +165,8 @@ export class Spotlight {
       .deepSearch(this.fs.root(), lq)
       .slice(0, 12)
       .map(node => this.fileHit(node));
-    const notes = NOTE_SEED.filter(note => note.title.toLowerCase().includes(lq))
+    const notes = this.notes()
+      .filter(note => note.title.toLowerCase().includes(lq))
       .slice(0, 3)
       .map((note): SpotlightHit => ({
         name: note.title,

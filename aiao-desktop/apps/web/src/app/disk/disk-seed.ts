@@ -84,7 +84,12 @@ const pdf = (path: DiskPath, document: PdfDocument): SeedFile => ({ path, conten
 const stub = (path: DiskPath, format: StubFormat): SeedFile => ({ path, content: { type: 'stub', format } });
 
 /** 图片用文件名定构图，和 Finder 缩略图同一套，所以缩略图就是文件本身的样子。 */
-function image(path: DiskPath, format: SeedImage['format'], size: readonly [number, number], screenshot = false): SeedFile {
+function image(
+  path: DiskPath,
+  format: SeedImage['format'],
+  size: readonly [number, number],
+  screenshot = false
+): SeedFile {
   const name = path.at(-1) ?? '';
   return {
     path,

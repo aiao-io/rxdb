@@ -1,6 +1,11 @@
-import { Service, computed, signal } from '@angular/core';
+import { Service, computed, inject } from '@angular/core';
 
-/** 日历既是筛选器也是颜色来源：事件自身没有颜色，继承所属日历。 */
+import { DesktopData } from '../data/desktop-data';
+import { ALL_ROWS, liveQuery } from '../data/live-query';
+import { eventOf, fieldsOf, listOf, patchOf } from './calendar-records';
+import { CalendarEventRow, CalendarListRow } from './calendar.entities';
+
+/** 日历既是筛选器也是颜色来源：事件自身没有颜色，继承所属日历。`id` 是库里日历行的稳定 `key`。 */
 export interface CalendarList {
   readonly id: string;
   readonly name: string;
@@ -8,9 +13,9 @@ export interface CalendarList {
   readonly on: boolean;
 }
 
-/** 日历事件。`s` 是午夜起的分钟数，`null` 表示全天；`dur` 为时长分钟。 */
+/** 日历事件。`id` 是库里事件行的 id；`s` 是午夜起的分钟数，`null` 表示全天；`dur` 为时长分钟。 */
 export interface CalendarEvent {
-  readonly id: number;
+  readonly id: string;
   readonly d: readonly [number, number, number];
   readonly t: string;
   readonly s: number | null;
@@ -31,50 +36,55 @@ export function clockLabel(minutes: number): string {
 /** 事件在列表里显示的时间：全天或开始时刻。 */
 export const eventTime = (event: CalendarEvent): string => (event.s === null ? 'all-day' : clockLabel(event.s));
 
-type EventSeed = Pick<CalendarEventDraft, 'd' | 't' | 's' | 'cal'> & Partial<Pick<CalendarEventDraft, 'dur' | 'loc'>>;
-
-const SEED: readonly EventSeed[] = [
-  { d: [2026, 6, 27], t: 'Sprint planning', s: 570, dur: 45, cal: 'work' },
-  { d: [2026, 6, 27], t: 'Dentist', s: 930, dur: 40, cal: 'home', loc: 'Dr. Reed · Stevens Creek' },
-  { d: [2026, 6, 27], t: 'Dinner — Kate', s: 1200, dur: 120, cal: 'home', loc: 'Bar Aldo' },
-  { d: [2026, 6, 28], t: 'One-on-one with Daniel', s: 630, dur: 30, cal: 'work' },
-  { d: [2026, 6, 28], t: 'Deploy window', s: 1020, dur: 90, cal: 'work' },
-  { d: [2026, 6, 29], t: 'Review PR #142', s: 660, dur: 60, cal: 'work' },
-  { d: [2026, 6, 29], t: 'David — coffee', s: 1050, dur: 45, cal: 'home', loc: 'Third Wave' },
-  { d: [2026, 6, 30], t: 'Podcast recording', s: 1020, dur: 90, cal: 'work', loc: 'Studio B' },
-  { d: [2026, 7, 3], t: 'Flight to SFO', s: 375, dur: 210, cal: 'home', loc: 'BLR T2' },
-  { d: [2026, 6, 21], t: 'Design review', s: 840, dur: 60, cal: 'work' },
-  { d: [2026, 6, 15], t: 'Beta cutoff', s: null, cal: 'work' },
-  { d: [2026, 6, 31], t: "John's birthday", s: null, cal: 'bday' },
-  { d: [2026, 7, 15], t: 'Independence Day', s: null, cal: 'hol' }
-];
-
 const dayIndex = (d: readonly [number, number, number]): number => new Date(d[0], d[1], d[2]).getTime();
 
-/** 日历与事件；日历应用、桌面和通知中心的小组件共用一份。 */
+/**
+ * 日历与事件：存在桌面库里，日历应用、桌面和通知中心的小组件共用一份（活查询，谁改了大家都跟着变）。
+ * 读是同步的 signal；写是异步的，写进库、活查询回读之后界面才变。
+ */
 @Service({ autoProvided: false })
 export class CalendarStore {
-  private seq = 0;
-
-  readonly calendars = signal<readonly CalendarList[]>([
-    { id: 'home', name: 'Home', c: '#ff375f', on: true },
-    { id: 'work', name: 'Work', c: '#0a84ff', on: true },
-    { id: 'bday', name: 'Birthdays', c: '#30d158', on: true },
-    { id: 'hol', name: 'Holidays', c: '#bf5af2', on: true }
-  ]);
-
-  readonly events = signal<readonly CalendarEvent[]>(
-    SEED.map(seed => this.create({ dur: 60, loc: '', notes: '', ...seed }))
+  private readonly data = inject(DesktopData);
+  private readonly listRows = liveQuery(
+    () => CalendarListRow.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
+    []
+  );
+  private readonly eventRows = liveQuery(
+    () =>
+      CalendarEventRow.findAll({
+        where: ALL_ROWS,
+        orderBy: [
+          { field: 'day', sort: 'asc' },
+          { field: 'createdAt', sort: 'asc' }
+        ]
+      }),
+    []
   );
 
-  /** 可见日历上的事件，供侧栏「即将到来」使用。 */
-  readonly visibleEvents = computed(() => this.events().filter(event => this.calendarOf(event.cal).on));
+  /** 全部日历（侧栏顺序），库还没就绪时为空。 */
+  readonly calendars = computed(() => this.listRows().map(listOf));
 
+  /** 全部事件（含被隐藏日历上的），库还没就绪时为空。 */
+  readonly events = computed(() => this.eventRows().map(eventOf));
+
+  /** 可见日历上的事件，供侧栏「即将到来」使用；所属日历还没加载好的事件先不显示。 */
+  readonly visibleEvents = computed(() => {
+    const visible = new Set(
+      this.calendars()
+        .filter(calendar => calendar.on)
+        .map(calendar => calendar.id)
+    );
+    return this.events().filter(event => visible.has(event.cal));
+  });
+
+  /** 按 `key` 取日历；不认识的 `key` 抛错，不悄悄换成别的日历。 */
   calendarOf(id: string): CalendarList {
-    const calendars = this.calendars();
-    return calendars.find(calendar => calendar.id === id) ?? calendars[0];
+    const calendar = this.calendars().find(item => item.id === id);
+    if (!calendar) throw new Error(`Unknown calendar: ${id}`);
+    return calendar;
   }
 
+  /** 事件的颜色：继承所属日历。 */
   colorOf(event: CalendarEvent): string {
     return this.calendarOf(event.cal).c;
   }
@@ -99,27 +109,34 @@ export class CalendarStore {
       .slice(0, count);
   }
 
-  toggleCalendar(id: string): void {
-    this.calendars.update(list =>
-      list.map(calendar => (calendar.id === id ? { ...calendar, on: !calendar.on } : calendar))
-    );
+  /** 勾选或取消勾选一个日历（`id` 是日历的 `key`）。 */
+  async toggleCalendar(id: string): Promise<void> {
+    const row = this.listRows().find(item => item.key === id);
+    if (!row) throw new Error(`Unknown calendar: ${id}`);
+    await (await this.data.repository(CalendarListRow)).update(row, { visible: !row.visible });
   }
 
-  add(draft: CalendarEventDraft): CalendarEvent {
-    const event = this.create(draft);
-    this.events.update(list => [...list, event]);
-    return event;
+  /** 新建一个事件，写进库。 */
+  async add(draft: CalendarEventDraft): Promise<void> {
+    const repository = await this.data.repository(CalendarEventRow);
+    await repository.create(this.data.instantiate(CalendarEventRow, fieldsOf(draft)));
   }
 
-  update(id: number, patch: Partial<CalendarEventDraft>): void {
-    this.events.update(list => list.map(event => (event.id === id ? { ...event, ...patch } : event)));
+  /** 改一个事件的部分字段；找不到这个 id 就抛错。 */
+  async update(id: string, patch: Partial<CalendarEventDraft>): Promise<void> {
+    const row = this.eventRow(id);
+    await (await this.data.repository(CalendarEventRow)).update(row, patchOf(patch));
   }
 
-  remove(id: number): void {
-    this.events.update(list => list.filter(event => event.id !== id));
+  /** 删掉一个事件；找不到这个 id 就抛错。 */
+  async remove(id: string): Promise<void> {
+    const row = this.eventRow(id);
+    await (await this.data.repository(CalendarEventRow)).remove(row);
   }
 
-  private create(draft: CalendarEventDraft): CalendarEvent {
-    return { ...draft, id: ++this.seq };
+  private eventRow(id: string): CalendarEventRow {
+    const row = this.eventRows().find(item => item.id === id);
+    if (!row) throw new Error(`Calendar event not found: ${id}`);
+    return row;
   }
 }

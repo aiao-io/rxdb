@@ -1,5 +1,38 @@
 import { DAYS, MONS, time12Plain } from '../../shared/format';
 
+/** 侧栏里的虚拟文件夹：除 Recently Deleted 以外的全部笔记。 */
+export const ALL_NOTES = 'All iCloud';
+/** 默认文件夹：新建的笔记放在这里。 */
+export const NOTES_FOLDER = 'Notes';
+/** 删除的笔记先放进这里；已经在里面的再删才是真删除。 */
+export const TRASH_FOLDER = 'Recently Deleted';
+
+/** 过滤、排序与计数用到的笔记字段：库里的 `Note` 实体和测试里的普通对象都满足。 */
+export interface NoteLike {
+  readonly folder: string;
+  readonly title: string;
+  readonly body: string;
+  readonly date: Date;
+  readonly pinned: boolean;
+}
+
+/** 笔记是否属于侧栏里的某个文件夹（`ALL_NOTES` 是除废纸篓以外的全部）。 */
+export const inFolder = (note: Pick<NoteLike, 'folder'>, folder: string): boolean =>
+  folder === ALL_NOTES ? note.folder !== TRASH_FOLDER : note.folder === folder;
+
+/** 侧栏文件夹右侧的笔记数量。 */
+export const folderCount = (notes: readonly Pick<NoteLike, 'folder'>[], folder: string): number =>
+  notes.filter(note => inFolder(note, folder)).length;
+
+/** 列表里显示的笔记：按文件夹与搜索词（标题或正文，不分大小写）过滤，置顶优先、其余按日期新到旧。 */
+export function visibleNotes<T extends NoteLike>(notes: readonly T[], folder: string, query: string): T[] {
+  const needle = query.toLowerCase();
+  return notes
+    .filter(note => inFolder(note, folder))
+    .filter(note => !needle || `${note.title} ${note.body}`.toLowerCase().includes(needle))
+    .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.date.getTime() - a.date.getTime());
+}
+
 /** 列表里的时间标签：今天显示时刻，一周内显示星期，更早的显示 dd/mm/yy。 */
 export function noteWhen(date: Date, now: Date): string {
   if (date.toDateString() === now.toDateString()) return time12Plain(date);

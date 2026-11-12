@@ -3,6 +3,15 @@ import { clamp } from '../../shared/format';
 /** 瓦片边长（像素）。 */
 export const TILE = 256;
 
+/** 地图打开时的位置与卡片，也是「Go to Cupertino」的去处：苹果总部。 */
+export const CUPERTINO = {
+  lat: 37.3349,
+  lon: -122.009,
+  zoom: 15,
+  title: 'Apple Park',
+  sub: '1 Apple Park Way · Cupertino, CA'
+};
+
 /** 经度换算成当前缩放级别下的世界像素 x（Web Mercator）。 */
 export const worldX = (lon: number, z: number): number => ((lon + 180) / 360) * TILE * (1 << z);
 

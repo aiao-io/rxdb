@@ -24,14 +24,7 @@ export interface MailDraft {
     <div class="fx-tb" style="height: 46px; padding: 0 12px; gap: 8px; border-bottom: 0.5px solid var(--line)">
       <div class="fx-title" style="position: static; flex: 1; text-align: left">New Message</div>
       <button class="btn" (click)="popover.close()" data-cancel style="height: 22px">Cancel</button>
-      <button
-        class="btn pri"
-        (click)="send(toField.value, subjectField.value, body.innerText)"
-        data-send
-        style="height: 22px"
-      >
-        Send
-      </button>
+      <button class="btn pri" (click)="send()" data-send style="height: 22px">Send</button>
     </div>
     <div style="padding: 0 14px">
       <div style="display: flex; align-items: center; gap: 8px; height: 34px; border-bottom: 0.5px solid var(--line)">
@@ -65,6 +58,7 @@ export class MailCompose {
   private readonly toast = inject(Toast);
   private readonly composer = inject(MailComposer);
   private readonly toInput = viewChild.required<ElementRef<HTMLInputElement>>('toField');
+  private readonly subjectInput = viewChild.required<ElementRef<HTMLInputElement>>('subjectField');
   private readonly bodyField = viewChild.required<ElementRef<HTMLElement>>('body');
   private sending = false;
 
@@ -78,12 +72,18 @@ export class MailCompose {
     );
   }
 
-  /** 先存进 Sent 邮箱再关面板；正在存的时候再点发送不会重复。 */
-  protected async send(to: string, subject: string, body: string): Promise<void> {
+  /** 先存进 Sent 邮箱再关面板；正在存的时候再点发送不会重复，存失败了可以再点。 */
+  protected async send(): Promise<void> {
     if (this.sending) return;
     this.sending = true;
-    const recipient = to.trim();
-    await this.composer.send({ to: recipient, subject: subject.trim(), body: body.trim() });
+    const recipient = this.toInput().nativeElement.value.trim();
+    const subject = this.subjectInput().nativeElement.value.trim();
+    const body = this.bodyField().nativeElement.innerText.trim();
+    try {
+      await this.composer.send({ to: recipient, subject, body });
+    } finally {
+      this.sending = false;
+    }
     this.popover.close();
     this.toast.show(recipient ? `Message sent to ${recipient}` : 'Message sent');
   }

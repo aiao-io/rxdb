@@ -12,7 +12,11 @@ describe('openVolume', () => {
   it('首次打开时复制内置内容，最后写完成标记', async () => {
     const store = new MemoryDiskStore();
     const volume = memoryVolume(store);
-    const marker = await openVolume(volume, () => seedNote(store), () => 42);
+    const marker = await openVolume(
+      volume,
+      () => seedNote(store),
+      () => 42
+    );
     expect(marker).toEqual({ version: SEED_VERSION, seededAt: 42 });
     expect(await volume.readMarker()).toEqual(marker);
     expect(new TextDecoder().decode(await store.read(['Users', 'note.txt']))).toBe('seed');
@@ -21,7 +25,11 @@ describe('openVolume', () => {
   it('已有完成标记时保留磁盘上的改动，不再复制', async () => {
     const store = new MemoryDiskStore();
     const volume = memoryVolume(store);
-    await openVolume(volume, () => seedNote(store), () => 1);
+    await openVolume(
+      volume,
+      () => seedNote(store),
+      () => 1
+    );
     await store.write(['Users', 'note.txt'], text('edited'));
     const seed = vi.fn(() => seedNote(store));
     await openVolume(volume, seed, () => 2);
@@ -43,7 +51,11 @@ describe('openVolume', () => {
       )
     ).rejects.toThrow('quota exceeded');
     expect(await volume.readMarker()).toBeNull();
-    await openVolume(volume, () => seedNote(store), () => 2);
+    await openVolume(
+      volume,
+      () => seedNote(store),
+      () => 2
+    );
     expect(await store.kindOf(['Users', 'partial.txt'])).toBeNull();
     expect(await store.kindOf(['Users', 'note.txt'])).toBe('file');
   });
@@ -67,9 +79,17 @@ describe('eraseVolume', () => {
   it('抹掉全部内容后恢复内置内容并刷新完成标记', async () => {
     const store = new MemoryDiskStore();
     const volume = memoryVolume(store);
-    await openVolume(volume, () => seedNote(store), () => 1);
+    await openVolume(
+      volume,
+      () => seedNote(store),
+      () => 1
+    );
     await store.write(['Users', 'mine.txt'], text('mine'));
-    const marker = await eraseVolume(volume, () => seedNote(store), () => 7);
+    const marker = await eraseVolume(
+      volume,
+      () => seedNote(store),
+      () => 7
+    );
     expect(marker).toEqual({ version: SEED_VERSION, seededAt: 7 });
     expect(await store.kindOf(['Users', 'mine.txt'])).toBeNull();
     expect(await store.kindOf(['Users', 'note.txt'])).toBe('file');

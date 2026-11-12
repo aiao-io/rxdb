@@ -1,15 +1,10 @@
 {
   "compilerOptions": {
     "outDir": "../../../dist/out-tsc/aiao-desktop-web/spec",
-    "types": [
-      "node"
-    ]
+    "types": ["node"]
   },
   "extends": "./tsconfig.json",
-  "include": [
-    "vitest.config.mts",
-    "src/**/*.ts"
-  ],
+  "include": ["vitest.config.mts", "src/**/*.ts"],
   "references": [
     {
       "path": "../../../packages/utils/tsconfig.lib.json"

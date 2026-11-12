@@ -11,7 +11,7 @@
     </div>
     <div class="grp">
       <div class="gh">iCloud</div>
-      @for (item of folders; track item.name) {
+      @for (item of folders(); track item.name) {
         <div
           class="si"
           [attr.data-folder]="item.name"

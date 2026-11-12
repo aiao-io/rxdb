@@ -6,12 +6,12 @@
 
 | 状态           | 数量 |
 | -------------- | ---- |
-| ✅ Done        | 3    |
+| ✅ Done        | 4    |
 | 🚧 In Progress | 0    |
 | 👀 In Review   | 0    |
 | 📝 Backlog     | 0    |
 | 🚫 Blocked     | 0    |
-| **合计**       | 3    |
+| **合计**       | 4    |
 
 ## 进行中（0 条）
 
@@ -31,3 +31,4 @@
 ### ADESK-EPIC-002 macOS 风格桌面
 
 - ✅ [ADESK-US-101 桌面外壳与内置应用基线](stories/desktop/ADESK-US-101-desktop-shell-baseline.md)
+- ✅ [ADESK-US-102 本地数据与真实磁盘](stories/desktop/ADESK-US-102-local-data-and-real-disk.md)

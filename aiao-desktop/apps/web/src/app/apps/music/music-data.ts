@@ -23,15 +23,15 @@ export const ART: readonly AlbumArtSpec[] = [
   { gradient: ['#ee0979', '#ff6a00'], shape: 'diag' }
 ];
 
-/** 一张专辑。 */
-export interface Album {
+/** 一张初始专辑；在列表里的序号也是它的封面号（`ART` 对 12 取余）和曲风号。 */
+export interface AlbumSeed {
   readonly title: string;
   readonly artist: string;
   readonly year: number;
 }
 
 /** 曲库里的专辑。 */
-export const ALBUMS: readonly Album[] = [
+export const ALBUM_SEED_DATA: readonly AlbumSeed[] = [
   { title: 'Neon Interiors', artist: 'Kaida', year: 2026 },
   { title: 'Deep Field', artist: 'Orbital Fold', year: 2025 },
   { title: 'Golden Hour', artist: 'The Vireo', year: 2024 },
@@ -40,8 +40,8 @@ export const ALBUMS: readonly Album[] = [
   { title: 'Soft Static', artist: 'Lantern Bay', year: 2025 }
 ];
 
-/** 一首歌；`album` 是 `ALBUMS` 里的序号，`duration` 以秒计。 */
-export interface Song {
+/** 一首初始歌曲；`album` 是 `ALBUM_SEED_DATA` 里的序号，`duration` 以秒计。 */
+export interface SongSeed {
   readonly title: string;
   readonly artist: string;
   readonly album: number;
@@ -49,7 +49,7 @@ export interface Song {
 }
 
 /** 曲库里的歌，顺序即播放顺序；每首歌的音乐参数由它的序号推出。 */
-export const SONGS: readonly Song[] = [
+export const SONG_SEED_DATA: readonly SongSeed[] = [
   { title: 'Aurora Drift', artist: 'Kaida', album: 0, duration: 224 },
   { title: 'Glass Cathedral', artist: 'Kaida', album: 0, duration: 191 },
   { title: 'Low Orbit', artist: 'Orbital Fold', album: 1, duration: 268 },
@@ -62,16 +62,5 @@ export const SONGS: readonly Song[] = [
   { title: 'Soft Static', artist: 'Lantern Bay', album: 5, duration: 231 }
 ];
 
-/** 「歌手」页的一格：封面沿用 `art` 号（序号 + 2，错开专辑页的配色）。 */
-export interface Artist {
-  readonly name: string;
-  readonly album: number;
-  readonly art: number;
-}
-
-/** 按专辑出现顺序去重后的歌手。 */
-export const ARTISTS: readonly Artist[] = [...new Set(ALBUMS.map(album => album.artist))].map((name, index) => ({
-  name,
-  album: ALBUMS.findIndex(album => album.artist === name),
-  art: index + 2
-}));
+/** 侧栏 Playlists 下的歌单；每个歌单目前都直接列出整个曲库。 */
+export const PLAYLIST_SEED_DATA: readonly string[] = ['Focus', 'Late Night', 'Shipping Music'];

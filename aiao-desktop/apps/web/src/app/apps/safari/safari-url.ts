@@ -4,36 +4,11 @@ export interface LocalSite {
   readonly fav: string;
 }
 
-/** 收藏夹条目：名称、色块和地址。 */
-export interface Favourite {
-  readonly name: string;
-  readonly color: string;
-  readonly url: string;
-}
-
 /** 地址栏输入的归类，决定页面怎么画。 */
 export type PageKind = 'start' | 'local' | 'wiki' | 'video' | 'web' | 'search';
 
 /** 文件内自带的页面，其余地址一律走网络。 */
 export const LOCAL_SITES: ReadonlyMap<string, LocalSite> = new Map([['apple.com', { title: 'Apple', fav: '#111' }]]);
-
-/** 收藏夹：起始页、收藏栏、侧栏与「书签」菜单共用。 */
-export const FAVOURITES: readonly Favourite[] = [
-  { name: 'Apple', color: '#1d1d1f', url: 'apple.com' },
-  { name: 'Wikipedia', color: '#636466', url: 'en.wikipedia.org/wiki/MacOS' },
-  { name: 'YouTube', color: '#ff0033', url: 'youtube.com' },
-  { name: 'Hacker News', color: '#ff6600', url: 'news.ycombinator.com' },
-  { name: 'MDN', color: '#000', url: 'developer.mozilla.org/en-US/docs/Web/CSS/backdrop-filter' },
-  { name: 'Can I use', color: '#1d78c1', url: 'caniuse.com' },
-  { name: 'Internet Archive', color: '#000', url: 'archive.org' },
-  { name: 'JSFiddle', color: '#0084ff', url: 'jsfiddle.net' }
-];
-
-/** 阅读列表：地址与显示名。 */
-export const READING_LIST: readonly (readonly [string, string])[] = [
-  ['en.wikipedia.org/wiki/Bézier_curve', 'Bézier curve'],
-  ['en.wikipedia.org/wiki/Subpixel_rendering', 'Subpixel rendering']
-];
 
 const stripScheme = (url: string): string => url.replace(/^https?:\/\//, '');
 

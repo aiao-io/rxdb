@@ -3,7 +3,7 @@ import { Component, WritableSignal, inject, input } from '@angular/core';
 import { PopoverService } from '../../services/popover';
 import { Toast } from '../../services/toast';
 import { WindowManager } from '../../services/window-manager';
-import { Chat } from './messages-data';
+import { Chat } from './messages-model';
 
 /** 详情面板里的两个开关；状态存在窗口里，面板关了再开也记得。 */
 export interface MessagesSwitches {

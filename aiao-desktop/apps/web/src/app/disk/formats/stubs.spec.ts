@@ -42,6 +42,8 @@ describe('infoPlist', () => {
   });
 
   it('名字里的 XML 特殊字符被转义', () => {
-    expect(infoPlist({ name: 'A & <B>', identifier: 'x', version: '1' })).toContain('<string>A &amp; &lt;B&gt;</string>');
+    expect(infoPlist({ name: 'A & <B>', identifier: 'x', version: '1' })).toContain(
+      '<string>A &amp; &lt;B&gt;</string>'
+    );
   });
 });

@@ -92,7 +92,8 @@ export class FirstAidPanel {
     <div style="width: 52px; height: 52px; margin: 0 auto 10px"><svg appIcon="f-hd"></svg></div>
     <div style="font-size: 13px; font-weight: 600">Erase “Macintosh HD”?</div>
     <div style="font-size: 12px; color: var(--txt-2); margin: 6px 0 14px">
-      Everything you added or changed on this disk is deleted and the original files are restored. Your Mac restarts afterwards.
+      Everything you added or changed on this disk is deleted and the original files are restored. Your Mac restarts
+      afterwards.
     </div>
     <div style="display: flex; gap: 8px">
       <button class="btn" (click)="popover.close()" data-x style="flex: 1; height: 26px">Cancel</button>

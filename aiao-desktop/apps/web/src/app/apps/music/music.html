@@ -3,7 +3,7 @@
     <div class="mu-top">
       <div class="sbar" data-drag style="width: 206px">
         <div class="sb-top"><app-traffic-lights /></div>
-        @for (group of sidebar; track group.head) {
+        @for (group of sidebar(); track group.head) {
           <div class="grp">
             <div class="gh">{{ group.head }}</div>
             @for (item of group.items; track item[0]) {
@@ -84,7 +84,7 @@
             </div>
           } @else if (body() === 'artists') {
             <div class="mu-grid scroll">
-              @for (artist of artists; track artist.name) {
+              @for (artist of artists(); track artist.name) {
                 <div
                   class="alb"
                   [attr.data-al]="artist.album"
@@ -103,17 +103,17 @@
             </div>
           } @else {
             <div class="mu-grid scroll">
-              @for (album of albums; track album.title; let n = $index) {
+              @for (album of albums(); track album.title) {
                 <div
                   class="alb"
-                  [attr.data-al]="n"
-                  [class.on]="song().album === n"
-                  (click)="playAlbum(n)"
-                  (keydown.enter)="playAlbum(n)"
+                  [attr.data-al]="album.position"
+                  [class.on]="song()?.album === album.position"
+                  (click)="playAlbum(album.position)"
+                  (keydown.enter)="playAlbum(album.position)"
                   tabindex="-1"
                 >
                   <div class="cv">
-                    <app-album-art [index]="n" />
+                    <app-album-art [index]="album.position" />
                     <span class="pl"><svg appIcon="g-play"></svg></span>
                   </div>
                   <b>{{ album.title }}</b>
@@ -133,11 +133,13 @@
         </button>
         <button (click)="skip(1)" data-c="next"><svg appIcon="g-fwd"></svg></button>
       </div>
-      <div class="cv" data-npcv><app-album-art [index]="song().album" /></div>
-      <div class="meta">
-        <b data-npt>{{ song().title }}</b>
-        <span data-npa>{{ detail() }}</span>
-      </div>
+      @if (song(); as current) {
+        <div class="cv" data-npcv><app-album-art [index]="current.album" /></div>
+        <div class="meta">
+          <b data-npt>{{ current.title }}</b>
+          <span data-npa>{{ current.detail }}</span>
+        </div>
+      }
       <div class="prog">
         <span class="t" data-cur>{{ elapsed() }}</span>
         <app-slider

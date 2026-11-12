@@ -10,10 +10,10 @@ const decode = (value: Uint8Array): string => new TextDecoder().decode(value);
 
 /** 内存里的「虚拟机文件系统」：路径 → 文件或目录，写入时 mtime 递增。 */
 class FakeVm implements VmFs {
-  readonly files = new Map<string, Uint8Array>();
-  readonly dirs = new Set<string>(['/']);
   private readonly times = new Map<string, number>();
   private clock = 1;
+  readonly files = new Map<string, Uint8Array>();
+  readonly dirs = new Set<string>(['/']);
 
   async list(path: string): Promise<VmEntry[]> {
     const prefix = path === '/' ? '/' : `${path}/`;
@@ -47,7 +47,8 @@ class FakeVm implements VmFs {
   }
 
   async remove(path: string): Promise<void> {
-    for (const file of [...this.files.keys()]) if (file === path || file.startsWith(`${path}/`)) this.files.delete(file);
+    for (const file of [...this.files.keys()])
+      if (file === path || file.startsWith(`${path}/`)) this.files.delete(file);
     for (const dir of [...this.dirs]) if (dir === path || dir.startsWith(`${path}/`)) this.dirs.delete(dir);
   }
 
@@ -75,7 +76,10 @@ async function setup() {
   const vm = new FakeVm();
   await vm.write('/Users/stale.txt', text('left over from a previous VM session'));
   await vm.write('/home/user/.cache/npm/x', text('cache'));
-  const sync = new DiskVmSync(access(store), vm, { roots: ['Applications', 'Users'], ignore: name => name === 'node_modules' });
+  const sync = new DiskVmSync(access(store), vm, {
+    roots: ['Applications', 'Users'],
+    ignore: name => name === 'node_modules'
+  });
   await sync.attach();
   return { store, vm, sync };
 }

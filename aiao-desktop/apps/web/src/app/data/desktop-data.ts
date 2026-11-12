@@ -33,6 +33,10 @@ export class DesktopData {
   /** 库可用时完成；连不上或初始数据写入失败时拒绝，`state()` 变为 `failed`。 */
   readonly ready: Promise<RxDB>;
 
+  get database(): RxDB {
+    return this.rxdb;
+  }
+
   constructor() {
     this.ready = this.start();
     this.ready.then(
@@ -42,10 +46,6 @@ export class DesktopData {
         this.stateValue.set('failed');
       }
     );
-  }
-
-  get database(): RxDB {
-    return this.rxdb;
   }
 
   async repository<T extends EntityType>(type: T): Promise<IRepository<T>> {

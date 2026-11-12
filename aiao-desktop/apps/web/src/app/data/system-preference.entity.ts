@@ -15,6 +15,7 @@ import { Entity, EntityBase, PropertyType } from '@aiao/rxdb';
   indexes: [{ name: 'preference_key', properties: ['key'], unique: true }]
 })
 export class SystemPreference extends EntityBase {
-  key!: string;
-  value!: unknown;
+  /* 一律用 declare：字段读写由 RxDB 的实体代理接管，写成 `x!: T` 会在类字段语义下盖掉代理。 */
+  declare key: string;
+  declare value: unknown;
 }

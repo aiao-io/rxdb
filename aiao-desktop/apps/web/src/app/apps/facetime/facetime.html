@@ -43,100 +43,101 @@
         padding-bottom: 20px;
       "
     >
-      @let active = current();
-      @if (live()) {
-        <div
-          [style.background]="
-            camera() ? 'linear-gradient(150deg,#1d4b6e,#0d2436)' : 'linear-gradient(150deg,#3a3a45,#1a1a20)'
-          "
-          style="
-            width: 150px;
-            height: 150px;
-            border-radius: 50%;
-            position: relative;
-            display: grid;
-            place-items: center;
-            font-size: 52px;
-            color: #fff;
-            font-weight: 600;
-          "
-        >
-          @if (camera()) {
-            <svg appIcon="g-display" style="width: 60px; height: 60px; opacity: 0.5" viewBox="0 0 40 40"></svg>
-          } @else {
-            {{ initials() }}
-          }
-        </div>
-        <div style="font-size: 19px; color: #fff; font-weight: 500">{{ active.name }}</div>
-        <div data-fttimer style="font-size: 12.5px; font-variant-numeric: tabular-nums">{{ elapsed() }}</div>
-        <div style="display: flex; gap: 12px; margin-top: 6px">
-          <button
-            class="btn"
-            [style.background]="muted() ? '#fff' : '#2c2c30'"
-            [style.color]="muted() ? '#111' : '#fff'"
-            [title]="muted() ? 'Unmute' : 'Mute'"
-            (click)="toggleMute()"
-            data-ftmute
-            style="box-shadow: none; height: 38px; width: 38px; border-radius: 50%; padding: 0"
-          >
-            <svg [appIcon]="muted() ? 'g-vol-mute' : 'g-vol-hi'"></svg>
-          </button>
-          <button
-            class="btn"
-            (click)="end()"
-            data-ftend
+      @if (current(); as active) {
+        @if (live()) {
+          <div
+            [style.background]="
+              camera() ? 'linear-gradient(150deg,#1d4b6e,#0d2436)' : 'linear-gradient(150deg,#3a3a45,#1a1a20)'
+            "
             style="
-              background: #ff453a;
+              width: 150px;
+              height: 150px;
+              border-radius: 50%;
+              position: relative;
+              display: grid;
+              place-items: center;
+              font-size: 52px;
               color: #fff;
-              box-shadow: none;
-              height: 38px;
-              padding: 0 20px;
-              border-radius: 19px;
+              font-weight: 600;
             "
           >
-            End
-          </button>
-          <button
-            class="btn"
-            [style.background]="camera() ? '#fff' : '#2c2c30'"
-            [style.color]="camera() ? '#111' : '#fff'"
-            [title]="camera() ? 'Turn Off Video' : 'Turn On Video'"
-            (click)="toggleCamera()"
-            data-ftcam
-            style="box-shadow: none; height: 38px; width: 38px; border-radius: 50%; padding: 0"
+            @if (camera()) {
+              <svg appIcon="g-display" style="width: 60px; height: 60px; opacity: 0.5" viewBox="0 0 40 40"></svg>
+            } @else {
+              {{ initials() }}
+            }
+          </div>
+          <div style="font-size: 19px; color: #fff; font-weight: 500">{{ active.name }}</div>
+          <div data-fttimer style="font-size: 12.5px; font-variant-numeric: tabular-nums">{{ elapsed() }}</div>
+          <div style="display: flex; gap: 12px; margin-top: 6px">
+            <button
+              class="btn"
+              [style.background]="muted() ? '#fff' : '#2c2c30'"
+              [style.color]="muted() ? '#111' : '#fff'"
+              [title]="muted() ? 'Unmute' : 'Mute'"
+              (click)="toggleMute()"
+              data-ftmute
+              style="box-shadow: none; height: 38px; width: 38px; border-radius: 50%; padding: 0"
+            >
+              <svg [appIcon]="muted() ? 'g-vol-mute' : 'g-vol-hi'"></svg>
+            </button>
+            <button
+              class="btn"
+              (click)="end()"
+              data-ftend
+              style="
+                background: #ff453a;
+                color: #fff;
+                box-shadow: none;
+                height: 38px;
+                padding: 0 20px;
+                border-radius: 19px;
+              "
+            >
+              End
+            </button>
+            <button
+              class="btn"
+              [style.background]="camera() ? '#fff' : '#2c2c30'"
+              [style.color]="camera() ? '#111' : '#fff'"
+              [title]="camera() ? 'Turn Off Video' : 'Turn On Video'"
+              (click)="toggleCamera()"
+              data-ftcam
+              style="box-shadow: none; height: 38px; width: 38px; border-radius: 50%; padding: 0"
+            >
+              <svg appIcon="g-display"></svg>
+            </button>
+          </div>
+        } @else {
+          <div
+            style="
+              width: 120px;
+              height: 120px;
+              border-radius: 50%;
+              background: linear-gradient(150deg, #3a3a45, #1a1a20);
+              display: grid;
+              place-items: center;
+              font-size: 42px;
+              color: #fff;
+              font-weight: 600;
+            "
           >
-            <svg appIcon="g-display"></svg>
+            {{ initials() }}
+          </div>
+          <div style="font-size: 19px; color: #fff; font-weight: 500">{{ active.name }}</div>
+          <div style="font-size: 12.5px">
+            {{ active.kind }}{{ active.length ? ' · ' + active.length : '' }} — {{ active.when }}
+          </div>
+          <button
+            class="btn pri"
+            (click)="start()"
+            data-ftcall
+            style="height: 34px; padding: 0 22px; border-radius: 17px; margin-top: 4px"
+          >
+            <svg appIcon="g-facetime"></svg>
+            <span style="margin-left: 6px">FaceTime</span>
           </button>
-        </div>
-      } @else {
-        <div
-          style="
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            background: linear-gradient(150deg, #3a3a45, #1a1a20);
-            display: grid;
-            place-items: center;
-            font-size: 42px;
-            color: #fff;
-            font-weight: 600;
-          "
-        >
-          {{ initials() }}
-        </div>
-        <div style="font-size: 19px; color: #fff; font-weight: 500">{{ active.name }}</div>
-        <div style="font-size: 12.5px">
-          {{ active.kind }}{{ active.length ? ' · ' + active.length : '' }} — {{ active.when }}
-        </div>
-        <button
-          class="btn pri"
-          (click)="start()"
-          data-ftcall
-          style="height: 34px; padding: 0 22px; border-radius: 17px; margin-top: 4px"
-        >
-          <svg appIcon="g-facetime"></svg>
-          <span style="margin-left: 6px">FaceTime</span>
-        </button>
+        }
       }
     </div>
   </div>

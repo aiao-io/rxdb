@@ -19,7 +19,7 @@ export interface SafariHit {
 /** 页面区当前显示的内容，每次导航产生一个新对象，模板据此整块重建。 */
 export type SafariPage =
   | { readonly type: 'blank' }
-  | { readonly type: 'start'; readonly recent: readonly SafariTile[]; readonly trackers: number }
+  | { readonly type: 'start' }
   | { readonly type: 'local'; readonly site: string }
   | { readonly type: 'frame'; readonly src: SafeResourceUrl }
   | { readonly type: 'player'; readonly src: SafeResourceUrl }

@@ -67,6 +67,10 @@
         },
         {
           "projects": ["aiao-desktop-web"],
+          "target": "test"
+        },
+        {
+          "projects": ["aiao-desktop-web"],
           "target": "build"
         },
         {

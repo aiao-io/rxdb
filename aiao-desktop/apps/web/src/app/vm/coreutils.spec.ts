@@ -4,7 +4,16 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { OPEN_OSC, Program, cpProgram, mvProgram, openProgram, parseOpenRequest, programSource, touchProgram } from './coreutils';
+import {
+  OPEN_OSC,
+  Program,
+  cpProgram,
+  mvProgram,
+  openProgram,
+  parseOpenRequest,
+  programSource,
+  touchProgram
+} from './coreutils';
 
 const nodeRequire = createRequire(import.meta.url);
 /** 桌面安装命令时传进去的内置应用名单。 */
@@ -94,7 +103,10 @@ describe('cp', () => {
     writeFileSync(join(dir, 'src', 'deep', 'x.md'), 'x');
     expect(run(cpProgram, ['a.txt', 'b.txt'], dir).code).toBe(0);
     expect(readFileSync(join(dir, 'b.txt'), 'utf8')).toBe('a');
-    expect(run(cpProgram, ['src', 'dst'], dir)).toMatchObject({ code: 1, err: 'cp: src is a directory (not copied).\n' });
+    expect(run(cpProgram, ['src', 'dst'], dir)).toMatchObject({
+      code: 1,
+      err: 'cp: src is a directory (not copied).\n'
+    });
     expect(run(cpProgram, ['-R', 'src', 'dst'], dir).code).toBe(0);
     expect(readFileSync(join(dir, 'dst', 'deep', 'x.md'), 'utf8')).toBe('x');
   });
@@ -105,7 +117,10 @@ describe('cp', () => {
     mkdirSync(join(dir, 'box'));
     run(cpProgram, ['a.txt', 'box'], dir);
     expect(readFileSync(join(dir, 'box', 'a.txt'), 'utf8')).toBe('a');
-    expect(run(cpProgram, ['a.txt', 'a.txt'], dir)).toMatchObject({ code: 1, err: 'cp: a.txt and a.txt are identical (not copied).\n' });
+    expect(run(cpProgram, ['a.txt', 'a.txt'], dir)).toMatchObject({
+      code: 1,
+      err: 'cp: a.txt and a.txt are identical (not copied).\n'
+    });
   });
 });
 
@@ -126,7 +141,11 @@ describe('open', () => {
   it('-a 按内置应用名单找应用（不区分大小写），-e 用 TextEdit，-R 在 Finder 里显示', () => {
     const dir = workspace();
     writeFileSync(join(dir, 'a.txt'), 'a');
-    expect(payload(run(openProgram, ['-a', 'calculator'], dir).out)).toEqual({ app: 'Calculator', reveal: false, paths: [] });
+    expect(payload(run(openProgram, ['-a', 'calculator'], dir).out)).toEqual({
+      app: 'Calculator',
+      reveal: false,
+      paths: []
+    });
     expect(payload(run(openProgram, ['-e', 'a.txt'], dir).out)).toEqual({
       app: 'TextEdit',
       reveal: false,

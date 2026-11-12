@@ -28,9 +28,7 @@ import { WikiHit, fetchReader, fetchWikiArticle, fetchWikiSearch } from './safar
 import { SafariOverview } from './safari-overview';
 import { SafariHit, SafariPage, SafariProgress, SafariTile } from './safari-page';
 import {
-  FAVOURITES,
   LOCAL_SITES,
-  READING_LIST,
   externalUrl,
   favColor,
   faviconOf,
@@ -64,13 +62,6 @@ interface SafariView {
 
 const MENU_ORDER = ['File', 'Edit', 'View', 'History', 'Bookmarks', 'Window', 'Help'];
 
-/** 起始页的收藏夹格子；只有内置站点用色块，其余取站点图标。 */
-const FAVOURITE_TILES: readonly SafariTile[] = FAVOURITES.map(fav => ({
-  url: fav.url,
-  label: fav.name,
-  dot: LOCAL_SITES.has(fav.url) ? fav.color : null
-}));
-
 /** 搜索接口不可用时显示的本地结果。 */
 const OFFLINE_HITS: readonly SafariHit[] = [
   {
@@ -95,7 +86,10 @@ const OFFLINE_HITS: readonly SafariHit[] = [
   }
 ].map(hit => ({ ...hit, goto: hit.url, html: null }));
 
-/** Safari：多标签、前进后退、阅读器、侧栏、收藏栏，内容按地址在本地页、iframe、阅读器与维基之间切换。 */
+/**
+ * Safari：多标签、前进后退、阅读器、侧栏、收藏栏，内容按地址在本地页、iframe、阅读器与维基之间切换。
+ * 收藏夹、阅读列表与浏览历史来自本地库，所有 Safari 窗口共用。
+ */
 @Component({
   selector: 'app-safari',
   imports: [Icon, NgTemplateOutlet, TrafficLights],
@@ -125,9 +119,8 @@ export class SafariApp {
   private closed = false;
 
   protected readonly system = inject(SystemState);
-  protected readonly favourites = FAVOURITES;
-  protected readonly favouriteTiles = FAVOURITE_TILES;
-  protected readonly reading = READING_LIST;
+  protected readonly favourites = this.browsers.favourites;
+  protected readonly reading = this.browsers.readingList;
   protected readonly titleFor = titleFor;
   protected readonly favColor = favColor;
   protected readonly faviconOf = faviconOf;
@@ -141,6 +134,23 @@ export class SafariApp {
   /** 起始页图标加载失败的地址，改画首字母；缩略图失败则整块撤掉。 */
   protected readonly failed = signal<ReadonlySet<string>>(new Set());
 
+  /** 起始页的收藏夹格子；只有内置站点用色块，其余取站点图标。 */
+  protected readonly favouriteTiles = computed((): readonly SafariTile[] =>
+    this.favourites().map(fav => ({
+      url: fav.url,
+      label: fav.name,
+      dot: LOCAL_SITES.has(fav.url) ? fav.color : null
+    }))
+  );
+  /** 起始页的「常去的网站」：最近访问的前 8 个地址。 */
+  protected readonly recentTiles = computed((): readonly SafariTile[] =>
+    this.browsers
+      .history()
+      .filter(url => kindOf(url) !== 'start')
+      .slice(0, 8)
+      .map(url => ({ url, label: titleFor(url).split(' — ')[0], dot: favColor(url) }))
+  );
+  protected readonly trackers = computed(() => 9 + (this.browsers.history().length % 7));
   protected readonly tab = computed(() => this.tabs()[this.current()]);
   protected readonly kind = computed(() => kindOf(this.tab().url));
   protected readonly address = computed(() => (this.kind() === 'start' ? '' : this.tab().url));
@@ -336,7 +346,7 @@ export class SafariApp {
           '-',
           ...this.historyItems()
         ],
-        Bookmarks: FAVOURITES.map(fav => ({ id: fav.name, label: fav.name, run: () => this.go(fav.url) }))
+        Bookmarks: this.favourites().map(fav => ({ id: fav.name, label: fav.name, run: () => this.go(fav.url) }))
       },
       MENU_ORDER
     );
@@ -403,21 +413,12 @@ export class SafariApp {
     const kind = kindOf(url);
     const site = localKey(url);
     const video = kind === 'video' ? videoId(url) : undefined;
-    if (kind === 'start') this.show(token, this.startPage());
+    if (kind === 'start') this.show(token, { type: 'start' });
     else if (site) this.show(token, { type: 'local', site });
     else if (kind === 'wiki') await this.paintWiki(wikiTitle(url) || 'MacOS', token);
     else if (kind === 'search') await this.paintSearch(url, token);
     else if (video) this.paintVideo(video, token);
     else await this.paintWeb(url, token);
-  }
-
-  private startPage(): SafariPage {
-    const history = this.browsers.history();
-    const recent = history
-      .filter(url => kindOf(url) !== 'start')
-      .slice(0, 8)
-      .map(url => ({ url, label: titleFor(url).split(' — ')[0], dot: favColor(url) }));
-    return { type: 'start', recent, trackers: 9 + (history.length % 7) };
   }
 
   /** YouTube 拒绝没有来源的嵌入方，而从磁盘直接打开的页面就是没有来源，所以如实说明处境。 */

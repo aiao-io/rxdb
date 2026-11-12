@@ -97,7 +97,12 @@ export class SystemSettingsStore {
       ),
       plain('sidebarIcons', system.sidebarIcons, oneOf('small', 'medium', 'large')),
       plain('scrollbars', system.scrollbars, oneOf('auto', 'scrolling', 'always')),
-      { key: 'volume', read: () => system.volume(), valid: isNumber, apply: value => system.setVolume(value as number) },
+      {
+        key: 'volume',
+        read: () => system.volume(),
+        valid: isNumber,
+        apply: value => system.setVolume(value as number)
+      },
       plain('muted', system.muted, isBoolean),
       {
         key: 'brightness',

@@ -1,18 +1,12 @@
 import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 
+import { ALL_ROWS, liveQuery } from '../../data/live-query';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
 import { clamp, mmss } from '../../shared/format';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
-
-/** [标题, 日期, 时长 m:ss] */
-const MEMOS = [
-  ['Standup notes', 'Today 4:02 PM', '1:12'],
-  ['Dock easing idea', 'Today 11:40 AM', '0:38'],
-  ['Call with Daniel', 'Yesterday', '14:26'],
-  ['Guitar riff', 'Saturday', '2:04']
-] as const;
+import { VoiceMemo } from './voice-memos.entities';
 
 /** 波形条的高度（百分比），两个正弦叠出一段看起来像人声的起伏。 */
 const BARS = Array.from({ length: 78 }, (_, i) =>
@@ -21,12 +15,7 @@ const BARS = Array.from({ length: 78 }, (_, i) =>
 
 const TICK_MS = 250;
 
-const secondsOf = (length: string): number => {
-  const [minutes, seconds] = length.split(':').map(Number);
-  return minutes * 60 + seconds;
-};
-
-/** 语音备忘录：波形在播放头之后变暗，可播放/暂停、快进快退 5 秒，拖动进度条定位。 */
+/** 语音备忘录：备忘录列表存在本地库里；波形在播放头之后变暗，可播放/暂停、快进快退 5 秒，拖动进度条定位。 */
 @Component({
   selector: 'app-voice-memos',
   imports: [Icon, TrafficLights],
@@ -36,14 +25,19 @@ const secondsOf = (length: string): number => {
 export class VoiceMemosApp {
   private scrubbing: AbortController | null = null;
 
-  protected readonly memos = MEMOS;
+  protected readonly memos = liveQuery(
+    () => VoiceMemo.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
+    []
+  );
   protected readonly bars = BARS;
+  protected readonly clock = mmss;
   protected readonly index = signal(0);
   protected readonly position = signal(0);
   protected readonly playing = signal(false);
-  protected readonly memo = computed(() => MEMOS[this.index()]);
-  protected readonly duration = computed(() => secondsOf(this.memo()[2]));
-  protected readonly fraction = computed(() => clamp(this.position() / this.duration(), 0, 1));
+  /** 选中的备忘录；列表还没读到时没有。 */
+  protected readonly memo = computed<VoiceMemo | undefined>(() => this.memos()[this.index()]);
+  protected readonly duration = computed(() => this.memo()?.duration ?? 0);
+  protected readonly fraction = computed(() => (this.duration() ? clamp(this.position() / this.duration(), 0, 1) : 0));
   protected readonly elapsed = computed(() => mmss(Math.round(this.position())));
 
   constructor() {

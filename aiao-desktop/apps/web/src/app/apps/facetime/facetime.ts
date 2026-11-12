@@ -1,5 +1,8 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 
+import { DesktopData } from '../../data/desktop-data';
+import { ALL_ROWS, liveQuery } from '../../data/live-query';
+import { Clock } from '../../services/clock';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
 import { PopoverService } from '../../services/popover';
@@ -7,21 +10,18 @@ import { Toast } from '../../services/toast';
 import { mmss } from '../../shared/format';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
+import { lengthLabel, whenLabel } from './facetime-log';
+import { FaceTimeCall } from './facetime.entities';
 import { NewFaceTime } from './new-facetime';
 
+/** 通话列表里的一行：库里的记录，加上界面用的时长与时间文字。 */
 interface Call {
+  readonly id: string;
   readonly name: string;
   readonly kind: string;
   readonly length: string;
   readonly when: string;
 }
-
-const CALLS: readonly Call[] = [
-  { name: 'Anna Haro', kind: 'Outgoing', length: '24:12', when: 'Today 3:40 PM' },
-  { name: 'Design Crew', kind: 'Missed', length: '', when: 'Today 11:02 AM' },
-  { name: 'John Appleseed', kind: 'Incoming', length: '8:31', when: 'Yesterday' },
-  { name: 'Mom', kind: 'Outgoing', length: '41:07', when: 'Saturday' }
-];
 
 const initialsOf = (name: string): string =>
   name
@@ -31,7 +31,10 @@ const initialsOf = (name: string): string =>
     .slice(0, 2)
     .toUpperCase();
 
-/** FaceTime：通话记录、通话中的计时与静音/摄像头开关，「New FaceTime」弹出面板里选人拨号。 */
+/**
+ * FaceTime：通话记录、通话中的计时与静音/摄像头开关，「New FaceTime」弹出面板里选人拨号。
+ * 通话记录存在本地库里，所有 FaceTime 窗口共用，刷新后仍在。
+ */
 @Component({
   selector: 'app-facetime',
   imports: [Icon, TrafficLights],
@@ -41,17 +44,44 @@ const initialsOf = (name: string): string =>
 export class FaceTimeApp {
   private readonly popover = inject(PopoverService);
   private readonly toast = inject(Toast);
+  private readonly clock = inject(Clock);
+  private readonly data = inject(DesktopData);
+  private readonly rows = liveQuery(
+    () => FaceTimeCall.findAll({ where: ALL_ROWS, orderBy: [{ field: 'startedAt', sort: 'desc' }] }),
+    []
+  );
   /** 每次拨出加一，让通话中再拨号也能重置计时器。 */
   private readonly session = signal(0);
+  /** 点选的那条记录的 id；还没点过时显示列表里的第一条。 */
+  private readonly pickedId = signal<string | null>(null);
+  /** 刚拨出、已经落库但还没出现在通话记录里的那条的 id：出现之后才选中它并开始通话，界面不会空一下。 */
+  private readonly dialing = signal<string | null>(null);
 
-  protected readonly calls = signal<readonly Call[]>(CALLS);
-  protected readonly selected = signal(0);
+  /** 新的在前；时间文字随桌面时钟更新（`Just now` 过一分钟就变成钟点）。 */
+  protected readonly calls = computed((): readonly Call[] => {
+    const now = this.clock.now();
+    return this.rows().map(row => ({
+      id: row.id,
+      name: row.name,
+      kind: row.kind,
+      length: lengthLabel(row.kind, row.duration),
+      when: whenLabel(row.startedAt, now)
+    }));
+  });
+  protected readonly selected = computed(() => {
+    const id = this.pickedId();
+    return id === null ? 0 : this.calls().findIndex(call => call.id === id);
+  });
   protected readonly live = signal(false);
   protected readonly seconds = signal(0);
   protected readonly muted = signal(false);
   protected readonly camera = signal(false);
-  protected readonly current = computed(() => this.calls()[this.selected()]);
-  protected readonly initials = computed(() => initialsOf(this.current().name));
+  /** 选中的那条；列表还没读到，或刚拨出的通话还没出现在列表里时为 `undefined`。 */
+  protected readonly current = computed((): Call | undefined => {
+    const index = this.selected();
+    return index < 0 ? undefined : this.calls()[index];
+  });
+  protected readonly initials = computed(() => initialsOf(this.current()?.name ?? ''));
   protected readonly elapsed = computed(() => mmss(this.seconds()));
 
   constructor() {
@@ -64,11 +94,20 @@ export class FaceTimeApp {
       const timer = setInterval(() => this.seconds.update(seconds => seconds + 1), 1000);
       onCleanup(() => clearInterval(timer));
     });
+    effect(() => {
+      const id = this.dialing();
+      if (id === null || !this.rows().some(row => row.id === id)) return;
+      untracked(() => {
+        this.dialing.set(null);
+        this.pickedId.set(id);
+        this.start();
+      });
+    });
   }
 
   /** 点另一条记录会悄悄结束当前通话，不记入通话记录。 */
   protected select(index: number): void {
-    this.selected.set(index);
+    this.pickedId.set(this.calls()[index].id);
     this.live.set(false);
   }
 
@@ -80,12 +119,9 @@ export class FaceTimeApp {
 
   protected end(): void {
     this.live.set(false);
-    const length = mmss(this.seconds());
-    const selected = this.selected();
-    this.calls.update(list =>
-      list.map((call, i) => (i === selected ? { name: call.name, kind: 'Outgoing', length, when: 'Just now' } : call))
-    );
-    this.toast.show(`Call ended · ${length}`);
+    const seconds = this.seconds();
+    void this.record(seconds);
+    this.toast.show(`Call ended · ${mmss(seconds)}`);
   }
 
   protected toggleMute(): void {
@@ -102,18 +138,27 @@ export class FaceTimeApp {
     this.popover.openComponent(
       NewFaceTime,
       { x: rect.left, y: rect.bottom + 6, origin: 'top left' },
-      { dial: (name: string) => this.dial(name) }
+      { dial: (name: string) => void this.dial(name) }
     );
   }
 
-  private dial(name: string): void {
+  /** 通话结束：选中的那条记成一次打出的、通了这么久的通话。 */
+  private async record(seconds: number): Promise<void> {
+    const id = this.current()?.id;
+    const call = this.rows().find(row => row.id === id);
+    if (!call) throw new Error('通话结束时没有选中的通话记录');
+    const startedAt = new Date(Date.now() - seconds * 1000);
+    await (await this.data.repository(FaceTimeCall)).update(call, { kind: 'Outgoing', duration: seconds, startedAt });
+  }
+
+  private async dial(name: string): Promise<void> {
     if (!name) {
       this.toast.show('Enter a name to call');
       return;
     }
     this.popover.close();
-    this.calls.update(list => [{ name, kind: 'Outgoing', length: '', when: 'Just now' }, ...list]);
-    this.selected.set(0);
-    this.start();
+    const call = this.data.instantiate(FaceTimeCall, { name, kind: 'Outgoing', duration: 0, startedAt: new Date() });
+    const saved = await (await this.data.repository(FaceTimeCall)).create(call);
+    this.dialing.set(saved.id);
   }
 }

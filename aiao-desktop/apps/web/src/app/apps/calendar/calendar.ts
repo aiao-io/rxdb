@@ -36,7 +36,7 @@ import {
 
 /** 月视图与全天横条里的事件条。 */
 interface ChipView {
-  readonly id: number;
+  readonly id: string;
   readonly title: string;
   readonly color: string;
   readonly allDay: boolean;
@@ -51,7 +51,7 @@ interface CellView extends MonthCell {
 }
 
 interface PlacedView {
-  readonly id: number;
+  readonly id: string;
   readonly title: string;
   readonly sub: string;
   readonly color: string;
@@ -84,7 +84,7 @@ interface EditorSeed {
 }
 
 interface PointerDrag {
-  readonly id: number;
+  readonly id: string;
   readonly x: number;
   readonly y: number;
   live: boolean;
@@ -135,7 +135,7 @@ export class CalendarApp {
   protected readonly day = signal(this.start.getDate());
   /** 点过的格子；样式上没有区别，只是和原版一样留个标记。 */
   protected readonly picked = signal<string | null>(null);
-  protected readonly dragging = signal<number | null>(null);
+  protected readonly dragging = signal<string | null>(null);
   protected readonly dropKey = signal<string | null>(null);
 
   protected readonly heading = computed(() => viewTitle(this.view(), this.year(), this.month(), this.day()));
@@ -268,8 +268,8 @@ export class CalendarApp {
     this.setView('month');
   }
 
-  protected toggle(id: string): void {
-    this.store.toggleCalendar(id);
+  protected async toggle(id: string): Promise<void> {
+    await this.store.toggleCalendar(id);
     this.render();
   }
 
@@ -283,7 +283,7 @@ export class CalendarApp {
     this.openEditor(null, { y: this.year(), m: this.month(), d: this.day() || 1 });
   }
 
-  protected edit(id: number): void {
+  protected edit(id: string): void {
     const event = this.store.events().find(item => item.id === id);
     if (event) this.openEditor(event, {});
   }
@@ -303,7 +303,7 @@ export class CalendarApp {
   }
 
   /** 把事件条拖到另一天就是改期；窗口级的指针监听只在拖动期间挂着。 */
-  protected dragStart(event: PointerEvent, id: number): void {
+  protected dragStart(event: PointerEvent, id: string): void {
     if (event.button) return;
     this.stopDrag();
     this.drag = { id, x: event.clientX, y: event.clientY, live: false };
@@ -395,14 +395,14 @@ export class CalendarApp {
     this.dropKey.set(target ? target.join('-') : null);
   }
 
-  private dragEnd(event: PointerEvent): void {
+  private async dragEnd(event: PointerEvent): Promise<void> {
     const drag = this.drag;
     this.stopDrag();
     if (!drag?.live) return;
     const target = this.cellAt(event.clientX, event.clientY);
     const moved = this.store.events().find(item => item.id === drag.id);
     if (!target || !moved || target.join() === moved.d.join()) return;
-    this.store.update(drag.id, { d: target });
+    await this.store.update(drag.id, { d: target });
     this.render();
     this.toast.show(`Moved to ${MONS3[target[1]]} ${target[2]}`);
   }

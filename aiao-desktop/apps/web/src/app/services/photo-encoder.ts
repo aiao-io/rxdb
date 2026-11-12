@@ -17,16 +17,42 @@ function desktopChrome(width: number): SVGElement[] {
   const dockWidth = width * 0.38;
   return [
     shape('rect', { x: 0, y: 0, width, height: 3.2, fill: '#ffffff', opacity: 0.45 }),
-    ...[2.4, 7, 11.4, 15.2].map(x => shape('rect', { x, y: 1.1, width: 3, height: 1, rx: 0.5, fill: '#1c1c1e', opacity: 0.6 })),
+    ...[2.4, 7, 11.4, 15.2].map(x =>
+      shape('rect', { x, y: 1.1, width: 3, height: 1, rx: 0.5, fill: '#1c1c1e', opacity: 0.6 })
+    ),
     shape('rect', { x: win.x, y: win.y, width: win.w, height: win.h, rx: 1.4, fill: '#f6f6f8', opacity: 0.95 }),
     shape('rect', { x: win.x, y: win.y, width: win.w * 0.24, height: win.h, rx: 1.4, fill: '#e3e3e8', opacity: 0.9 }),
-    ...['#ff5f57', '#febc2e', '#28c840'].map((fill, i) => shape('circle', { cx: win.x + 2.6 + i * 2.4, cy: win.y + 2.6, r: 0.8, fill })),
-    ...[0, 1, 2, 3, 4].map(i =>
-      shape('rect', { x: win.x + win.w * 0.3, y: win.y + 9 + i * 6, width: win.w * (0.6 - i * 0.07), height: 1.6, rx: 0.8, fill: '#c7c7cc' })
+    ...['#ff5f57', '#febc2e', '#28c840'].map((fill, i) =>
+      shape('circle', { cx: win.x + 2.6 + i * 2.4, cy: win.y + 2.6, r: 0.8, fill })
     ),
-    shape('rect', { x: (width - dockWidth) / 2, y: 91, width: dockWidth, height: 7, rx: 2.2, fill: '#ffffff', opacity: 0.35 }),
+    ...[0, 1, 2, 3, 4].map(i =>
+      shape('rect', {
+        x: win.x + win.w * 0.3,
+        y: win.y + 9 + i * 6,
+        width: win.w * (0.6 - i * 0.07),
+        height: 1.6,
+        rx: 0.8,
+        fill: '#c7c7cc'
+      })
+    ),
+    shape('rect', {
+      x: (width - dockWidth) / 2,
+      y: 91,
+      width: dockWidth,
+      height: 7,
+      rx: 2.2,
+      fill: '#ffffff',
+      opacity: 0.35
+    }),
     ...Array.from({ length: 9 }, (_, i) =>
-      shape('rect', { x: (width - dockWidth) / 2 + 1.4 + i * (dockWidth / 9), y: 92.2, width: 4.6, height: 4.6, rx: 1.2, fill: ['#0a84ff', '#30d158', '#ff9f0a', '#bf5af2', '#ff375f'][i % 5] })
+      shape('rect', {
+        x: (width - dockWidth) / 2 + 1.4 + i * (dockWidth / 9),
+        y: 92.2,
+        width: 4.6,
+        height: 4.6,
+        rx: 1.2,
+        fill: ['#0a84ff', '#30d158', '#ff9f0a', '#bf5af2', '#ff375f'][i % 5]
+      })
     )
   ];
 }

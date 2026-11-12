@@ -106,7 +106,7 @@ const shows = locator =>
 const xtermText = () =>
   page.evaluate(() => document.querySelector('.win[data-app="terminal"] .xterm-rows')?.textContent ?? '');
 /** 在终端里输入一条命令；给了 `expect` 就等输出里出现它。 */
-const shell = async (command, expect) => {
+const runInShell = async (command, expect) => {
   await page.locator('.win[data-app="terminal"] .xterm-helper-textarea').focus();
   await page.keyboard.type(command);
   await page.keyboard.press('Enter');
@@ -207,10 +207,8 @@ try {
     const root = await navigator.storage.getDirectory();
     const names = [];
     for await (const [name] of root.entries()) names.push(name);
-    let blobs = 0;
-    for await (const _ of (await (await root.getDirectoryHandle('aiao-desktop-files')).getDirectoryHandle('blobs')).keys())
-      blobs++;
-    return { names, blobs };
+    const blobDir = await (await root.getDirectoryHandle('aiao-desktop-files')).getDirectoryHandle('blobs');
+    return { names, blobs: (await Array.fromAsync(blobDir.keys())).length };
   });
   const diskState = {
     sqliteInOpfs: storage.names.some(name => /^aiao-desktop@.*\.sqlite$/.test(name)),
@@ -222,20 +220,20 @@ try {
         )
       )
     ).every(Boolean),
-    shellStartsAtHome: await shell('pwd', /\/Users\/prasenjit/),
-    shellReadsFile: await shell('cat Desktop/prasenx.txt', /Scratchpad\. Everything on this Mac/),
-    shellListsDesktop: await shell('ls ~/Desktop', /Interface Guidelines\.pdf/)
+    shellStartsAtHome: await runInShell('pwd', /\/Users\/prasenjit/),
+    shellReadsFile: await runInShell('cat Desktop/prasenx.txt', /Scratchpad\. Everything on this Mac/),
+    shellListsDesktop: await runInShell('ls ~/Desktop', /Interface Guidelines\.pdf/)
   };
-  await shell('echo smoke-from-terminal > ~/Desktop/terminal-note.txt');
+  await runInShell('echo smoke-from-terminal > ~/Desktop/terminal-note.txt');
   diskState.shellWritesDisk = await appears(desktopIcon('terminal-note.txt'));
-  await shell(
+  await runInShell(
     'touch ~/Desktop/touched.txt && mv ~/Desktop/touched.txt ~/Desktop/moved.txt && cp ~/Desktop/moved.txt ~/Desktop/copied.txt'
   );
   diskState.shellCommandsWork =
     (await appears(desktopIcon('moved.txt'))) &&
     (await appears(desktopIcon('copied.txt'))) &&
     (await desktopIcon('touched.txt').count()) === 0;
-  await shell('open ~/Desktop/terminal-note.txt');
+  await runInShell('open ~/Desktop/terminal-note.txt');
   diskState.openCommandOpensTextEdit = await page
     .waitForFunction(
       () =>
@@ -256,8 +254,7 @@ try {
   await win('finder').last().locator('[data-more]').click();
   await page.locator('#layer-menu .pop .mi', { hasText: 'New Folder' }).click();
   diskState.finderFolderOnDesktop = await appears(desktopIcon('untitled folder'));
-  await win('terminal').locator('.xterm').click();
-  diskState.shellSeesFinderChange = await shell('ls ~/Desktop', /untitled folder/);
+  diskState.shellSeesFinderChange = await runInShell('ls ~/Desktop', /untitled folder/);
 
   /* 打开真文件：TextEdit 显示文本内容，预览显示图片本身。 */
   await closeAll();
@@ -325,13 +322,65 @@ try {
   await closeAll();
   const everyAppOpens = unopened.length === 0;
 
+  /* 内置应用的数据也在库里：新建一条备忘录、一条提醒事项，刷新后还在。 */
+  await closeAll();
+  await page.locator('#dock .di[data-app="notes"]').click();
+  await win('notes').waitFor();
+  await win('notes').locator('[data-new]').click();
+  await page.waitForTimeout(300);
+  await win('notes').locator('[data-doc]').click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' smoke-note-body');
+  await page.waitForTimeout(1_000);
+  await closeAll();
+  await launch('Reminders');
+  await win('reminders').waitFor();
+  await win('reminders').locator('[data-radd]').click();
+  await win('reminders').locator('[data-rnew]').click();
+  await page.keyboard.type('smoke-reminder');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(600);
+  await closeAll();
+
+  /* 系统设置也在库里：用聚焦搜索切到深色外观，设置在停手 0.4 秒后写回。 */
+  await page.keyboard.press('Meta+Space');
+  await page.waitForFunction(() => document.activeElement?.matches('#spot [data-sq]'));
+  await page.keyboard.type('dark mode');
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark', undefined, { timeout: 3_000 });
+  await page.waitForTimeout(1_000);
+
   /* 刷新后改动还在（数据在本地 SQLite 与 OPFS 里）；磁盘工具抹掉后回到内置内容。 */
   await page.reload({ waitUntil: 'load' });
   await win('finder').waitFor();
   const persistence = {
     fileSurvivesReload: await appears(desktopIcon('terminal-note.txt')),
-    folderSurvivesReload: await appears(desktopIcon('untitled folder'))
+    folderSurvivesReload: await appears(desktopIcon('untitled folder')),
+    settingsSurviveReload: await page
+      .waitForFunction(() => document.documentElement.dataset.theme === 'dark', undefined, { timeout: 10_000 })
+      .then(
+        () => true,
+        () => false
+      )
   };
+  const windowShowsText = (app, selector, text) =>
+    page
+      .waitForFunction(
+        ([app, selector, text]) =>
+          document.querySelector(`.win[data-app="${app}"] ${selector}`)?.textContent?.includes(text) ?? false,
+        [app, selector, text],
+        { timeout: 10_000 }
+      )
+      .then(
+        () => true,
+        () => false
+      );
+  await closeAll();
+  await page.locator('#dock .di[data-app="notes"]').click();
+  persistence.noteSurvivesReload = await windowShowsText('notes', '[data-items]', 'smoke-note-body');
+  await closeAll();
+  await launch('Reminders');
+  persistence.reminderSurvivesReload = await windowShowsText('reminders', '[data-rlist]', 'smoke-reminder');
   await closeAll();
   await launch('Disk Utility');
   await win('diskutil').waitFor();

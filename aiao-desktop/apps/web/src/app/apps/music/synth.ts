@@ -1,5 +1,3 @@
-import { SONGS } from './music-data';
-
 /* 音乐是真的在响：单个 HTML 里没有可授权的音频可放，所以每首歌都由序号推出调式、
    速度和和弦进行，再用 pad、bass、pluck 和鼓合成。同一首歌每次都是同样的音符，
    走带读的是音频时钟，进度条跟着耳朵听到的走。 */
@@ -45,8 +43,7 @@ interface Recipe {
   readonly cutoff: number;
 }
 
-const recipeFor = (index: number): Recipe => {
-  const album = SONGS[index].album;
+const recipeFor = (index: number, album: number): Recipe => {
   const warm = WARM_ALBUMS.includes(album);
   return {
     root: ROOTS[index % ROOTS.length],
@@ -213,14 +210,14 @@ export class Synth {
     this.applyLevel();
   }
 
-  /** 从 `from` 秒附近的小节线开始播；浏览器没有 AudioContext 时返回 false。 */
-  start(songIndex: number, from = 0): boolean {
+  /** 从 `from` 秒附近的小节线开始播（`album` 是这首歌所属专辑的次序）；浏览器没有 AudioContext 时返回 false。 */
+  start(songIndex: number, album: number, from = 0): boolean {
     const graph = this.ensure();
     if (!graph) return false;
     const { ctx } = graph;
     if (ctx.state === 'suspended') void ctx.resume();
     this.clearTimer();
-    const rec = recipeFor(songIndex);
+    const rec = recipeFor(songIndex, album);
     this.rec = rec;
     this.voices = new Voices(graph, rec);
     graph.wet.gain.value = rec.verb;

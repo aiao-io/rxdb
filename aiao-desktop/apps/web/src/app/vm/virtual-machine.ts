@@ -120,7 +120,9 @@ export class VirtualMachine {
   private async pull(): Promise<void> {
     const machine = await this.machine?.catch(() => null);
     if (!machine) return;
-    await machine.sync.pull().catch((error: unknown) => this.toast.show(`Terminal sync failed: ${describeDiskError(error)}`));
+    await machine.sync
+      .pull()
+      .catch((error: unknown) => this.toast.show(`Terminal sync failed: ${describeDiskError(error)}`));
   }
 
   private async boot(): Promise<Machine> {

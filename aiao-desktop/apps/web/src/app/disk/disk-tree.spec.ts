@@ -5,7 +5,14 @@ import { FileRow, buildTree, nodeAt, scanDisk, searchNodes, visibleChildren } fr
 import { MemoryDiskStore } from './memory-disk-store';
 
 describe('buildTree', () => {
-  const row = (id: string, parentId: string | null, name: string, folder: boolean, modified: number, size = 0): FileRow => ({
+  const row = (
+    id: string,
+    parentId: string | null,
+    name: string,
+    folder: boolean,
+    modified: number,
+    size = 0
+  ): FileRow => ({
     id,
     parentId,
     name,
@@ -16,7 +23,11 @@ describe('buildTree', () => {
 
   it('按 parentId 组装，路径由各级名字拼成', () => {
     const root = buildTree(
-      [row('u', null, 'Users', true, 1_000), row('p', 'u', 'prasenjit', true, 1_000), row('n', 'p', 'a.txt', false, 3_000, 12)],
+      [
+        row('u', null, 'Users', true, 1_000),
+        row('p', 'u', 'prasenjit', true, 1_000),
+        row('n', 'p', 'a.txt', false, 3_000, 12)
+      ],
       new Date(0)
     );
     expect(nodeAt(root, ['Users', 'prasenjit', 'a.txt'])).toMatchObject({
@@ -30,7 +41,11 @@ describe('buildTree', () => {
 
   it('文件夹日期取自身与子项里最新的一个', () => {
     const root = buildTree(
-      [row('u', null, 'Users', true, 1_000), row('p', 'u', 'prasenjit', true, 5_000), row('e', 'u', 'Empty', true, 2_000)],
+      [
+        row('u', null, 'Users', true, 1_000),
+        row('p', 'u', 'prasenjit', true, 5_000),
+        row('e', 'u', 'Empty', true, 2_000)
+      ],
       new Date(0)
     );
     expect(nodeAt(root, ['Users'])?.date).toEqual(new Date(5_000));

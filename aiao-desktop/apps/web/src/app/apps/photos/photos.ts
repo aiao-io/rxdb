@@ -21,7 +21,8 @@ import { MailComposer } from '../mail/mail-composer';
 import { searchCommons } from './commons-search';
 import { ImportedPhoto, PhotoLibrary } from './photo-library';
 import { PhotoSrc } from './photo-loader';
-import { Photo, longDate, photoDate, thumbAt } from './photos-data';
+import { longDate, photoDate, thumbAt } from './photos-data';
+import { PhotoAsset } from './photos.entities';
 
 type PhotoGroup = 'Years' | 'Months' | 'Days' | 'All';
 
@@ -38,7 +39,7 @@ interface Bucket {
   readonly key: string;
   readonly head: string;
   readonly sub: string;
-  readonly items: readonly Photo[];
+  readonly items: readonly PhotoAsset[];
 }
 
 const LIBRARY_VIEWS = [
@@ -65,7 +66,7 @@ const COLUMNS: Readonly<Record<PhotoGroup, string>> = {
   All: 'repeat(auto-fill,minmax(126px,1fr))'
 };
 
-const groupKey = (photo: Photo, group: PhotoGroup): string => {
+const groupKey = (photo: PhotoAsset, group: PhotoGroup): string => {
   if (group === 'Years') return photo.date.slice(0, 4);
   return group === 'Months' ? photo.date.slice(0, 7) : photo.date;
 };
@@ -77,13 +78,13 @@ const headingOf = (key: string, date: string, group: PhotoGroup): string => {
 };
 
 /** 照片按分组归段；「照片」App 给每段配上其中出现的地点，这里也一样。 */
-const bucketOf = (key: string, items: readonly Photo[], group: PhotoGroup): Bucket => {
+const bucketOf = (key: string, items: readonly PhotoAsset[], group: PhotoGroup): Bucket => {
   const places = [...new Set(items.map(photo => photo.place).filter(Boolean))];
   const more = places.length > 3 ? ` & ${places.length - 3} more` : '';
   return { key, head: headingOf(key, items[0].date, group), sub: places.slice(0, 3).join(' · ') + more, items };
 };
 
-/** 照片：图库、相簿、按年月日分组、详情查看、收藏、删除，以及从维基共享资源搜图导入。 */
+/** 照片：图库、相簿、按年月日分组、详情查看、收藏、删除，以及从维基共享资源搜图导入；图库与相簿存在本地库里。 */
 @Component({
   selector: 'app-photos',
   imports: [Icon, PhotoSrc, TrafficLights],
@@ -104,27 +105,26 @@ export class PhotosApp {
   protected readonly libraryViews = LIBRARY_VIEWS;
   protected readonly groups = GROUPS;
   protected readonly skeletons = Array.from({ length: 8 }, (_, n) => n);
+  protected readonly loaded = this.library.loaded;
   protected readonly longDate = longDate;
   protected readonly thumbAt = thumbAt;
   protected readonly view = signal('Library');
   protected readonly group = signal<PhotoGroup>('All');
   /** 正在查看的照片（详情页）。 */
-  protected readonly opened = signal<number | null>(null);
+  protected readonly opened = signal<string | null>(null);
   /** 网格里选中的格子；点一下只换选中，不重绘，双击才打开。 */
-  protected readonly picked = signal<number | null>(null);
+  protected readonly picked = signal<string | null>(null);
   protected readonly query = signal('');
   protected readonly web = signal<WebState | null>(null);
   protected readonly info = signal(true);
   /** 侧栏相簿；第一次导入时再多出「Imported」。 */
-  protected readonly albums = signal<readonly string[]>(
-    [...new Set(this.library.photos().map(photo => photo.album))].sort()
-  );
+  protected readonly albums = computed(() => this.library.albums().map(album => album.name));
 
   /** 当前侧栏选择与搜索词对应的照片。 */
   protected readonly list = computed(() => {
     const view = this.view();
     let photos = this.library.photos();
-    if (view === 'Favourites') photos = photos.filter(photo => photo.fav);
+    if (view === 'Favourites') photos = photos.filter(photo => photo.favourite);
     else if (view === 'Recents') photos = photos.slice(0, 18);
     else if (view === 'Memories') photos = photos.filter(photo => MEMORY_ALBUMS.includes(photo.album));
     else if (view !== 'Library') photos = photos.filter(photo => photo.album === view);
@@ -147,7 +147,7 @@ export class PhotosApp {
     const list = this.list();
     const group = this.group();
     if (group === 'All') return [{ key: '', head: '', sub: '', items: list }];
-    const buckets = new Map<string, Photo[]>();
+    const buckets = new Map<string, PhotoAsset[]>();
     for (const photo of list) {
       const key = groupKey(photo, group);
       const bucket = buckets.get(key);
@@ -166,7 +166,7 @@ export class PhotosApp {
     if (this.detail() && photo)
       return [photo.place || photo.album, photo.date, photo.credit].filter(Boolean).join(' · ');
     const count = this.list().length;
-    const favourites = this.library.photos().filter(item => item.fav).length;
+    const favourites = this.library.photos().filter(item => item.favourite).length;
     const web = this.web();
     const found = web ? `${web.items.length} from Wikimedia Commons` : '';
     const tail = this.query() ? found : `${favourites} Favourite${favourites === 1 ? '' : 's'}`;
@@ -229,11 +229,11 @@ export class PhotosApp {
     this.opened.set(null);
   }
 
-  protected select(id: number): void {
+  protected select(id: string): void {
     this.picked.set(id);
   }
 
-  protected open(id: number): void {
+  protected open(id: string): void {
     this.opened.set(id);
     this.picked.set(id);
   }
@@ -249,26 +249,28 @@ export class PhotosApp {
     this.open(list[(at + delta + list.length) % list.length].id);
   }
 
-  protected toggleFavourite(): void {
+  protected async toggleFavourite(): Promise<void> {
     const photo = this.current();
     if (!photo) {
       this.toast.show('Select a photo first');
       return;
     }
-    const fav = this.library.toggleFavourite(photo.id);
-    this.toast.show(fav ? 'Added to Favourites' : 'Removed from Favourites');
+    const favourite = await this.library.toggleFavourite(photo);
+    this.toast.show(favourite ? 'Added to Favourites' : 'Removed from Favourites');
   }
 
-  protected remove(): void {
+  protected async remove(): Promise<void> {
     const photo = this.current();
     if (!photo) {
       this.toast.show('Select a photo first');
       return;
     }
-    this.library.remove(photo.id);
+    /* 仓储约定删除后实体的字段会被清空，提示里要用的标题先取出来。 */
+    const title = photo.title;
+    await this.library.remove(photo);
     this.opened.set(null);
     this.picked.set(null);
-    this.toast.show(`Deleted “${photo.title}”`);
+    this.toast.show(`Deleted “${title}”`);
   }
 
   protected toggleInfo(): void {
@@ -288,11 +290,10 @@ export class PhotosApp {
   }
 
   /** 导入一张网上的照片：加进图库，侧栏第一次会多出「Imported」。 */
-  protected add(index: number): void {
+  protected async add(index: number): Promise<void> {
     const item = this.web()?.items[index];
     if (!item) return;
-    const photo = this.library.add(item);
-    this.albums.update(albums => (albums.includes(photo.album) ? albums : [...albums, photo.album]));
+    const photo = await this.library.add(item);
     this.picked.set(photo.id);
     this.toast.show(`Added “${photo.title}” to your library`);
   }

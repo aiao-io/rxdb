@@ -80,7 +80,9 @@ export class RxdbDiskStore implements DiskStore {
   async list(dir: DiskPath): Promise<DiskEntry[]> {
     const index = await this.loaded();
     const parentId = await this.directoryId(dir);
-    return index.children(parentId).map(row => ({ name: row.name, kind: row.type === 'folder' ? 'directory' : 'file' }));
+    return index
+      .children(parentId)
+      .map(row => ({ name: row.name, kind: row.type === 'folder' ? 'directory' : 'file' }));
   }
 
   async kindOf(path: DiskPath): Promise<DiskEntryKind | null> {
@@ -114,8 +116,9 @@ export class RxdbDiskStore implements DiskStore {
     const fields = { size: data.length, mimeType, contentId: blob.id, modifiedAt: new Date(this.deps.now()) };
     const repository = await this.deps.repository();
     try {
-      const row = existing
-        ? await repository.update(existing, fields)
+      const row =
+        existing ?
+          await repository.update(existing, fields)
         : await repository.create(this.deps.instantiate({ name, type: 'file', parentId, ...fields }));
       index.add(row);
     } catch (error) {

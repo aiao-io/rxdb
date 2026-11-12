@@ -20,7 +20,10 @@ function installedShell(): string {
 }
 
 const run = (shell: string, script: string, home: string): string =>
-  execFileSync(process.execPath, [shell, '-c', script], { cwd: tmpdir(), env: { ...process.env, HOME: home } }).toString();
+  execFileSync(process.execPath, [shell, '-c', script], {
+    cwd: tmpdir(),
+    env: { ...process.env, HOME: home }
+  }).toString();
 
 describe('patchShell', () => {
   const patched = patchShell(installedShell());

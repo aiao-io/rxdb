@@ -64,7 +64,7 @@
         </div>
         <button
           class="tbtn"
-          [class.on]="!!current()?.fav"
+          [class.on]="!!current()?.favourite"
           (click)="toggleFavourite()"
           data-nodrag
           data-pfav
@@ -133,8 +133,8 @@
                     <span>{{ photo.album }}</span>
                   </div>
                   <div class="acts">
-                    <button class="btn" [class.pri]="photo.fav" (click)="toggleFavourite()" data-pfav>
-                      {{ photo.fav ? 'Favourited' : 'Favourite' }}
+                    <button class="btn" [class.pri]="photo.favourite" (click)="toggleFavourite()" data-pfav>
+                      {{ photo.favourite ? 'Favourited' : 'Favourite' }}
                     </button>
                     <button class="btn" (click)="remove()" data-pdel>Delete</button>
                   </div>
@@ -157,7 +157,7 @@
               <div class="ph-count">{{ position() }} of {{ list().length }}</div>
             </div>
           }
-        } @else if (!list().length && !web()) {
+        } @else if (loaded() && !list().length && !web()) {
           <div class="ph-empty">
             <div class="ico"><svg appIcon="g-gallery"></svg></div>
             <b>{{ query() ? 'No photos match “' + query() + '”' : 'Nothing here yet' }}</b>
@@ -193,7 +193,7 @@
                     tabindex="-1"
                   >
                     <img [alt]="photo.title" [appPhotoSrc]="thumbAt(photo.thumb, big() ? 500 : 250)" decoding="async" />
-                    @if (photo.fav) {
+                    @if (photo.favourite) {
                       <span class="fav"><svg appIcon="g-star"></svg></span>
                     }
                   </figure>

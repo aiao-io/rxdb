@@ -27,3 +27,23 @@ Aiao Desktop 使用 `ADESK-US-*` / `ADESK-EPIC-*` 编号，在本目录独立统
 本地开发统一用 `pnpm nx dev aiao-desktop` 启动，做法参考 aiao-media 的开发入口（2026-11-12 用户要求）。端口固定：Web 开发服务器 4410、正式构建预览 4411、开发导航 4412，统一登记在 `scripts/dev/services.mjs`，与仓库里多数 Angular 应用的 4200、Web Desktop 与 aiao-media 的 4300 段、aiao-model-design 的 4400 段错开。端口被占用时直接失败，不自动换号，因为导航页上的链接依赖固定地址。
 
 产品没有服务端，开发导航由产品根的本地 Node 服务提供：只监听 `127.0.0.1`，只接受指向本机的 Host，不进入 web 的构建产物，页面里也不放任何密钥（[D-03](#d-03只有前端不带任何密钥)）。正式构建预览不随代码热更新，不随 `nx dev` 启动，需要时单独运行。
+
+## D-07：系统数据存在本地 SQLite
+
+系统数据都存在浏览器本地的一个 RxDB 库里：磁盘的目录树与元数据、系统设置、桌面图标位置、最近使用，以及各内置应用的数据。技术栈是 `@aiao/rxdb` 加 `@aiao/rxdb-adapter-sqlite-wasm`，接法与 dev-rxdb-angular 相同：OPFS 可用时，库文件在专用 Worker 里以 OPFSCoopSyncVFS 落在 OPFS，否则用 IndexedDB。用户于 2026-11-12 拍板：用仓库自己的 RxDB 与现成插件管理全部数据，不另造存储；适配器在 sqlite-wasm 与 wa-sqlite 之间选了前者，因为它带 FTS5。
+
+首次打开时写入内置内容，之后保留所有改动，这取代了 [ADESK-US-101](stories/desktop/ADESK-US-101-desktop-shell-baseline.md) 范围里的「不保存状态」。初始数据按数据域各写一次：每个域在一个事务里写入数据和 `seed:<domain>` 标记，要么完整写入，要么什么都没写。改了内置内容只影响新库与抹掉后的磁盘，已有的库不会被覆盖。外网内容（壁纸、地图、天气、网页）不进库（[D-04](#d-04外网内容可缺失)）。
+
+## D-08：文件体由 storage 插件放在 OPFS
+
+磁盘的目录树是 `@aiao/rxdb-plugin-tree` 的邻接表实体 `DesktopFile`，记录父子关系、名字、种类、大小、MIME 与修改时间。文件体交给 `@aiao/rxdb-plugin-storage`，按随机名平铺在 OPFS 的 `aiao-desktop-files/blobs/` 下，所以改名与移动只改目录树，不搬文件体。用户于 2026-11-12 在「内容也存 SQLite」和「交给 storage 插件」之间选了后者。
+
+二进制文件能生成的做成真格式：插画渲染的 PNG / JPEG、文本 PDF、合成的 WAV；其余（视频、mp3、heic、xip、dmg、key、numbers、ttf）是带正确文件头的小占位文件。Finder 与终端显示的大小、日期都是真实值，日期是首次复制进去的时刻。磁盘工具的「抹掉」会删光文件行与文件体，再写入内置内容。
+
+## D-09：终端按需复制磁盘
+
+终端打开时才把磁盘复制进 Vivari（Vivari 自己的文件系统镜像也在 OPFS）。所有终端窗口与标签共用一台虚拟机，最后一个标签关掉时先把改动写回库，再拆掉虚拟机。磁盘挂在虚拟机的根目录下，主目录是 `/Users/prasenjit`，与 Vivari 自己的 `/bin`、`/tmp` 等并列。
+
+Vivari 1.3.0 的 fs-change 事件不报虚拟机里进程自己的写入，所以终端这边的改动靠扫描发现：终端输出停下 0.3 秒后扫描一次，另外每 3 秒扫描一次，发现的改动写回库。桌面这边的改动按路径推进虚拟机，并刷新扫描基线，不会被当成终端的改动再写回来。`node_modules` 不同步，与 Vivari 自己的持久化规则一致（用户于 2026-11-12 拍板）。
+
+自带的 `sh` 打了最小补丁：展开 `~` 与 `$NAME`，`cd` 不带参数时回主目录，在主目录时提示符显示 `~`。另外补了 `touch`、`mv`、`cp`、`open` 四个命令，`open` 把文件交给桌面上对应的应用打开。补丁对不上新版 `@vivari/core` 时直接报错，单测对仓库里安装的版本做断言。

@@ -47,7 +47,9 @@ export function diffSnapshots(before: VmSnapshot, after: VmSnapshot): VmDiff {
       .filter(([path, stat]) => stat.kind === 'directory' && before.get(path)?.kind !== 'directory')
       .map(([path]) => path)
       .sort((a, b) => depth(a) - depth(b)),
-    files: [...after].filter(([path, stat]) => stat.kind === 'file' && changed(before.get(path), stat)).map(([path]) => path)
+    files: [...after]
+      .filter(([path, stat]) => stat.kind === 'file' && changed(before.get(path), stat))
+      .map(([path]) => path)
   };
 }
 
