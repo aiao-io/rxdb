@@ -180,6 +180,18 @@ describe('Supabase transient write retry', () => {
     expect(rpc).toHaveBeenCalledTimes(1);
   });
 
+  it('mergeChanges retries a push aborted as a deadlock victim (40P01)', async () => {
+    const { adapter, rpc } = createRpcAdapter([
+      { data: null, error: { message: 'deadlock detected', code: '40P01' }, status: 500 },
+      { data: { max_change_id: 5, change_id_mapping: [], entity_results: [] }, error: null }
+    ]);
+
+    const result = await adapter.mergeChanges(emptyActions());
+
+    expect(rpc).toHaveBeenCalledTimes(2);
+    expect(result).toMatchObject({ maxChangeId: 5 });
+  });
+
   it.each([null, {}, { max_change_id: 5 }, { change_id_mapping: [] }])(
     'mergeChanges rejects an invalid successful response: %s',
     async data => {

@@ -3,8 +3,14 @@ import { Conflict, ConflictResolution, ConflictResolver } from './conflict.js';
 /**
  * Last-Write-Wins 冲突解决器
  *
- * 基于 createdAt 时间戳，更晚的变更胜出
+ * 比较两侧变更的 `createdAt`（编辑时刻），更晚的变更胜出。
  * 这是默认的冲突解决策略
+ *
+ * @remarks
+ * 两侧必须是同一种时间：本地一侧是本机待推变更的编辑时刻，远端一侧是推送方写入时的编辑时刻，
+ * 远端适配器推送时要原样保留 `createdAt`（Supabase 把推送时刻另记在 `updatedAt`）。
+ * 改写成推送时刻的话，离线很久才推送的一方会凭推送时刻压过别人更晚的编辑。
+ * 两侧时刻来自不同设备的时钟，时钟偏快的设备在冲突中占优，这是 LWW 本身的限制。
  *
  * @example
  * ```typescript

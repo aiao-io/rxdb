@@ -37,6 +37,10 @@ const doubles = vi.hoisted(() => ({
     push: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
     syncBranches: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
     syncRepository: vi.fn<(...args: unknown[]) => Promise<unknown>>()
+  },
+  remoteBackend: {
+    bind: vi.fn<(manager: unknown) => Promise<string>>(),
+    rebind: vi.fn<(manager: unknown) => Promise<unknown>>()
   }
 }));
 
@@ -58,6 +62,10 @@ vi.mock('../push-repository.js', () => ({ pushRepository: doubles.delegates.push
 vi.mock('../push.js', () => ({ push: doubles.delegates.push }));
 vi.mock('../sync-branches.js', () => ({ syncBranches: doubles.delegates.syncBranches }));
 vi.mock('../sync-repository.js', () => ({ syncRepository: doubles.delegates.syncRepository }));
+vi.mock('../remote-backend.js', () => ({
+  bindRemoteBackend: doubles.remoteBackend.bind,
+  rebindRemoteBackend: doubles.remoteBackend.rebind
+}));
 
 type RepositoryStub = {
   find: ReturnType<typeof vi.fn>;
@@ -697,6 +705,109 @@ describe('SyncManager 对协作模块的编排契约', () => {
  * 会和远端交换数据、或替同步收拾本地副本的入口，在实例挂在可写检出位上时一进门就拒绝：
  * 不进 syncing 守卫、不碰下游实现、不动 undo 边界。只读的状态查询不在此列。
  */
+describe('远端身份', () => {
+  type Delegate = keyof typeof doubles.delegates;
+  const EXCHANGES: ReadonlyArray<{
+    operation: string;
+    delegate: Delegate;
+    call: (manager: SyncManager) => Promise<unknown>;
+  }> = [
+    { operation: 'syncBranches', delegate: 'syncBranches', call: manager => manager.syncBranches() },
+    { operation: 'pull', delegate: 'pull', call: manager => manager.pull() },
+    { operation: 'push', delegate: 'push', call: manager => manager.push() },
+    { operation: 'sync', delegate: 'pull', call: manager => manager.sync() },
+    {
+      operation: 'pullRepository',
+      delegate: 'pullRepository',
+      call: manager => manager.pullRepository('public', 'Todo')
+    },
+    {
+      operation: 'pushRepository',
+      delegate: 'pushRepository',
+      call: manager => manager.pushRepository('public', 'Todo')
+    },
+    {
+      operation: 'syncRepository',
+      delegate: 'syncRepository',
+      call: manager => manager.syncRepository('public', 'Todo')
+    },
+    { operation: 'bulkSync', delegate: 'bulkSync', call: manager => manager.bulkSync() }
+  ];
+
+  it.each(EXCHANGES)('$operation 先核对远端身份，再交给下游', async ({ delegate, call }) => {
+    const harness = createHarness();
+    doubles.remoteBackend.bind.mockResolvedValue('backend-a');
+    doubles.delegates[delegate].mockRejectedValue(new Error('stop after delegate'));
+
+    await call(harness.manager).catch(() => undefined);
+
+    expect(doubles.remoteBackend.bind).toHaveBeenCalledWith(harness.manager);
+    expect(doubles.delegates[delegate]).toHaveBeenCalled();
+    expect(doubles.remoteBackend.bind.mock.invocationCallOrder[0]).toBeLessThan(
+      doubles.delegates[delegate].mock.invocationCallOrder[0]
+    );
+    expect(harness.manager.remoteBackendId).toBe('backend-a');
+  });
+
+  it.each(EXCHANGES)('$operation 远端身份对不上时停在门口，下游一步都不跑', async ({ delegate, call }) => {
+    const harness = createHarness();
+    const mismatch = new RxDBError('remote backend changed');
+    doubles.remoteBackend.bind.mockRejectedValue(mismatch);
+
+    await expect(call(harness.manager)).rejects.toBe(mismatch);
+
+    expect(doubles.delegates[delegate]).not.toHaveBeenCalled();
+    expect(harness.history.syncing).not.toHaveBeenCalled();
+    expect(harness.history.clearUndoHistory).not.toHaveBeenCalled();
+    expect(harness.manager.remoteBackendId).toBeNull();
+  });
+
+  it('没配远端时不核对', async () => {
+    const harness = createHarness();
+    Object.assign(harness.rxdb.config, { sync: { local: { adapter: 'local' } } });
+    doubles.delegates.bulkSync.mockResolvedValue({ results: [] });
+
+    await harness.manager.bulkSync();
+
+    expect(doubles.remoteBackend.bind).not.toHaveBeenCalled();
+  });
+
+  it('状态查询与本地清理不在入口核对：只读的那几条在真正碰远端处比对', async () => {
+    const harness = createHarness();
+    doubles.delegates.checkRepositoryUpdates.mockResolvedValue({});
+    doubles.delegates.getRepositorySyncStatus.mockResolvedValue({});
+    doubles.delegates.getAllRepositorySyncStatus.mockResolvedValue([]);
+    doubles.delegates.cleanupExpired.mockResolvedValue({});
+
+    await harness.manager.checkRepositoryUpdates('public', 'Todo');
+    await harness.manager.getRepositorySyncStatus('public', 'Todo');
+    await harness.manager.getAllRepositorySyncStatus();
+    await harness.manager.cleanupExpired('public', 'Todo');
+
+    expect(doubles.remoteBackend.bind).not.toHaveBeenCalled();
+  });
+
+  it('rebindRemoteBackend 交给改绑实现，并记下新身份', async () => {
+    const harness = createHarness();
+    const result = { backendId: 'backend-b', previousBackendIds: ['backend-a'], rebound: 2 };
+    doubles.remoteBackend.rebind.mockResolvedValue(result);
+
+    await expect(harness.manager.rebindRemoteBackend()).resolves.toBe(result);
+
+    expect(doubles.remoteBackend.rebind).toHaveBeenCalledWith(harness.manager);
+    expect(harness.manager.remoteBackendId).toBe('backend-b');
+  });
+
+  it('rebindRemoteBackend 在可写检出位上一进门就拒绝', async () => {
+    const harness = createHarness();
+    Object.assign(harness.rxdb, { worktreeTableSet: WorktreeTableSet.of('wt_a1', []) });
+
+    await expect(harness.manager.rebindRemoteBackend()).rejects.toThrow(/^rebindRemoteBackend: .*可写检出位/);
+
+    expect(doubles.remoteBackend.rebind).not.toHaveBeenCalled();
+  });
+});
+
 describe('挂在可写检出位上的实例不同步（US-314 B1.4）', () => {
   const SHADOW = WorktreeTableSet.of('wt_a1', []);
 

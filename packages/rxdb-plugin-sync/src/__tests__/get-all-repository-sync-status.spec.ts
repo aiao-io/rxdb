@@ -145,7 +145,7 @@ function createAllStatusHarness() {
     syncManager: {
       getCurrentBranch: vi.fn(async () => ({ id: 'main' })),
       getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
-      getRemoteRepositories: vi.fn(async () => ({ adapter: { getChangeCount } }))
+      getRemoteRepositories: vi.fn(async () => ({ adapter: { getChangeCount, backendId: async () => 'backend-a' } }))
     }
   } as unknown as RxDB;
 
