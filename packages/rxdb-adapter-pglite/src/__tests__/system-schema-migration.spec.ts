@@ -883,6 +883,43 @@ describe('PGlite system schema migration', () => {
     expect(await getWatermarks(adapter)).toEqual(watermarks);
   });
 
+  it('模式 8 的库升级后 RxDBSync 多出可空的 remoteBackendId，旧行为空，重复迁移不报错', async () => {
+    const adapter = await createLegacyDatabase();
+    await adapter.internalQuery(`
+      CREATE TABLE "rxdb"."rxdb_sync" (
+        "id" varchar PRIMARY KEY,
+        "lastPullRemoteChangeId" integer
+      )
+    `);
+    await adapter.internalQuery(
+      `INSERT INTO "rxdb"."rxdb_sync" ("id", "lastPullRemoteChangeId") VALUES ('public:Todo:main', 42)`
+    );
+    await adapter.internalQuery(
+      `INSERT INTO "rxdb"."rxdb_migration" ("name", "executedAt") VALUES ($1, now()), ($2, now())`,
+      [`${RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX}8`, RXDB_CHANGE_CODEC_WATERMARK]
+    );
+
+    await adapter.migrateSystemSchema();
+
+    const readBackendIdColumn = () =>
+      adapter.internalQuery<{ is_nullable: string; column_default: string | null }>(
+        `SELECT is_nullable, column_default FROM information_schema.columns
+         WHERE table_schema = 'rxdb' AND table_name = 'rxdb_sync' AND column_name = 'remoteBackendId'`
+      );
+    expect((await readBackendIdColumn()).rows).toEqual([{ is_nullable: 'YES', column_default: null }]);
+    const rows = await adapter.internalQuery<{ lastPullRemoteChangeId: number; remoteBackendId: string | null }>(
+      `SELECT "lastPullRemoteChangeId", "remoteBackendId" FROM "rxdb"."rxdb_sync"`
+    );
+    expect(rows.rows).toEqual([{ lastPullRemoteChangeId: 42, remoteBackendId: null }]);
+    expect((await getWatermarks(adapter)).map(row => row.name)).toContain(RXDB_SYSTEM_SCHEMA_WATERMARK);
+
+    await adapter.internalQuery(`DELETE FROM "rxdb"."rxdb_migration" WHERE "name" = $1::text`, [
+      RXDB_SYSTEM_SCHEMA_WATERMARK
+    ]);
+    await expect(adapter.migrateSystemSchema()).resolves.toBeUndefined();
+    expect((await readBackendIdColumn()).rows).toHaveLength(1);
+  });
+
   it('模式 6 的库升级后 RxDBChange 多出可空的 rejectedAt、rejection，旧行两列为空', async () => {
     const adapter = await createLegacyDatabase();
     await markSystemSchemaVersion6(adapter);

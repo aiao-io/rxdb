@@ -30,7 +30,6 @@ import {
   RxDBSync,
   TrustedWriteIntent
 } from '@aiao/rxdb';
-import type { SyncManager } from './SyncManager.js';
 import { getAncestorBranchIds } from './branch-utils.js';
 import { buildDependencyGraph } from './dependency-graph.js';
 import { pullAncestorBranchChanges } from './pull-ancestor-changes.js';
@@ -42,7 +41,9 @@ import {
   resolveConflictsAndBuildActions
 } from './pull-conflict-utils.js';
 import { backfillOwnChangeRemoteIds, splitRemoteChangesByOrigin } from './pull-round.js';
+import { instantiateSyncRecord } from './remote-backend.js';
 import { assertSyncOnMainCheckout } from './sync-manager.utils.js';
+import type { SyncManager } from './SyncManager.js';
 import { topologicalSortForPull } from './topological-sort.js';
 
 interface RepoSyncInfo {
@@ -190,7 +191,7 @@ async function pullBatchOnce(
         branchId,
         syncType
       },
-      () => rxdb.entityManager.instantiate(RxDBSync)
+      () => instantiateSyncRecord(sm)
     );
 
     // 批量是枚举路径 —— 被关掉的仓库跳过而不是让整批失败
@@ -258,6 +259,10 @@ async function pullBatchOnce(
     );
     allRemoteChanges = perRepo.flat();
   }
+
+  // 远端交回了变更：落库之前确认远端还是入口核对过的那一个（fetchAll 跑到这一轮时远端可能已被重建），
+  // 对不上就停，这一轮一行不写、水位线不动。什么都没交回时没有要证明出处的数据，不多打这一次远端。
+  if (allRemoteChanges.length > 0) await sm.verifyRemoteBackend();
 
   // 4. 按实体分组
   const changesByEntity = new Map<string, RemoteChange[]>();

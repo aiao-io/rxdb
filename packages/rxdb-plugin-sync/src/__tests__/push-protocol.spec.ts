@@ -155,7 +155,9 @@ function createSyncManager(localChanges: RxDBChange[], remoteAdapter: RemoteAdap
     getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
     history: { captureUndoHistory: () => () => undefined },
     getCurrentBranch: vi.fn(async () => ({ id: 'main', activated: true })),
-    pushInFlight: emptyPushInFlight()
+    pushInFlight: emptyPushInFlight(),
+    // 回执落库之前的远端身份核对；本文件只测推送协议，按记录比对的本体在 remote-backend.spec.ts
+    verifyRemoteBackend: vi.fn(async () => undefined)
   } as unknown as SyncManager;
 
   return { vm, saveMany, syncRecord };

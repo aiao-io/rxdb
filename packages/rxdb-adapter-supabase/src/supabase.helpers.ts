@@ -33,6 +33,16 @@ const RETRYABLE_SUPABASE_WRITE_ERROR_PATTERNS = [
   /temporarily unavailable/i
 ];
 
+/**
+ * 数据库中止了整个事务、原样重发即可的 SQLSTATE。
+ *
+ * @remarks
+ * 40P01：写日志的事务经 `rxdb_change_serialize_append` 排队提交（RV-01a1c49dee517814adf2e68788ad084e），
+ * 直写业务表的多语句事务与推送改到同一行时会互锁，PostgreSQL 中止其中一个。被中止的事务整体回滚，
+ * 推送按 `(clientId, localId)` 幂等，重发安全。
+ */
+const RETRYABLE_SUPABASE_WRITE_SQLSTATES: ReadonlySet<string> = new Set(['40P01']);
+
 export const RETRYABLE_SUPABASE_WRITE_MAX_ATTEMPTS = 3;
 export const RETRYABLE_SUPABASE_WRITE_RETRY_DELAY_MS = 150;
 export const DEFAULT_RLS_CHECK_RPC_NAME = 'rxdb_check_rls';
@@ -432,6 +442,14 @@ export function wait(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-export function isRetryableSupabaseWriteError(message: string): boolean {
+/**
+ * 判断一次写入失败是否值得原样重发。
+ *
+ * @param message - 错误消息，用来认出网关与网络层的瞬时故障
+ * @param code - PostgREST 转来的 SQLSTATE；数据库中止整个事务的那几种可以重发
+ * @returns 可以重发时为 `true`
+ */
+export function isRetryableSupabaseWriteError(message: string, code?: string | null): boolean {
+  if (code && RETRYABLE_SUPABASE_WRITE_SQLSTATES.has(code)) return true;
   return RETRYABLE_SUPABASE_WRITE_ERROR_PATTERNS.some(pattern => pattern.test(message));
 }

@@ -25,6 +25,7 @@ import { pullRepository, type PullRepositoryOptions, type PullRepositoryResult }
 import { pull } from './pull.js';
 import { pushRepository, type PushRepositoryOptions, type PushRepositoryResult } from './push-repository.js';
 import { push } from './push.js';
+import { bindRemoteBackend, rebindRemoteBackend, type RebindRemoteBackendResult } from './remote-backend.js';
 import { syncBranches, type SyncBranchesResult } from './sync-branches.js';
 import { setupSyncListeners } from './sync-listeners.js';
 import {
@@ -62,6 +63,7 @@ export class SyncManager {
   #event_removers: Array<() => void> = [];
   #subscriptions: Subscription[] = [];
   #branch_switch_generation = 0;
+  #remote_backend_id: string | null = null;
 
   /**
    * 「哪些变更此刻正在飞往远端」的登记处。
@@ -92,6 +94,18 @@ export class SyncManager {
    */
   get branchSwitchGeneration(): number {
     return this.#branch_switch_generation;
+  }
+
+  /**
+   * 本实例最近一次核实的远端身份；还没核实过时为 `null`
+   *
+   * @remarks
+   * 新建的同步记录盖上它，游标从诞生起就带着所属的远端，见 `instantiateSyncRecord`。
+   *
+   * @internal
+   */
+  get remoteBackendId(): string | null {
+    return this.#remote_backend_id;
   }
 
   /**
@@ -169,6 +183,7 @@ export class SyncManager {
    */
   async syncBranches(): Promise<SyncBranchesResult> {
     assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'syncBranches');
+    await this.verifyRemoteBackend();
     return syncBranches(this);
   }
 
@@ -193,6 +208,7 @@ export class SyncManager {
    */
   async pull(options?: PullOptions): Promise<PullResult> {
     assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'pull');
+    await this.verifyRemoteBackend();
     const clearSyncedHistory = await this.#captureSyncedHistory('pull');
     let result: PullResult;
     try {
@@ -244,6 +260,7 @@ export class SyncManager {
    */
   async push(options?: PushOptions): Promise<PushResult> {
     assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'push');
+    await this.verifyRemoteBackend();
     const clearSyncedHistory = await this.#captureSyncedHistory('push');
     let result: PushResult;
     try {
@@ -282,6 +299,7 @@ export class SyncManager {
    */
   async sync(options?: { pull?: PullOptions; push?: PushOptions }): Promise<SyncResult> {
     assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'sync');
+    await this.verifyRemoteBackend();
     const clearSyncedHistory = await this.#captureSyncedHistory('sync');
     // pull 成功、push 才抛错时，这段进度不随返回值出来 —— 提到闭包外，catch 里才看得见
     // 「已经合并进来的那部分」。否则远端变更已落库，undo 边界却原地不动。
@@ -344,6 +362,7 @@ export class SyncManager {
     options?: PullRepositoryOptions
   ): Promise<PullRepositoryResult> {
     assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'pullRepository');
+    await this.verifyRemoteBackend();
     const clearSyncedHistory = await this.#captureSyncedHistory('pullRepository');
     let result: PullRepositoryResult;
     try {
@@ -396,6 +415,7 @@ export class SyncManager {
     options?: PushRepositoryOptions
   ): Promise<PushRepositoryResult> {
     assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'pushRepository');
+    await this.verifyRemoteBackend();
     const clearSyncedHistory = await this.#captureSyncedHistory('pushRepository');
     let result: PushRepositoryResult;
     try {
@@ -444,6 +464,7 @@ export class SyncManager {
     options?: SyncRepositoryOptions
   ): Promise<SyncRepositoryResult> {
     assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'syncRepository');
+    await this.verifyRemoteBackend();
     const clearSyncedHistory = await this.#captureSyncedHistory('syncRepository');
     let result: SyncRepositoryResult;
     try {
@@ -634,6 +655,7 @@ export class SyncManager {
    */
   async bulkSync(options?: BulkSyncOptions): Promise<BulkSyncResult> {
     assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'bulkSync');
+    await this.verifyRemoteBackend();
     const clearSyncedHistory = await this.#captureSyncedHistory('bulkSync');
     const result = await this.history.syncing(() => bulkSync(this.rxdb, options));
 
@@ -650,6 +672,60 @@ export class SyncManager {
       clearSyncedHistory();
     }
 
+    return result;
+  }
+
+  /**
+   * 核对远端身份，并把还没绑定的同步记录绑到它上面
+   *
+   * @throws `RemoteBackendMismatchError` 有同步记录绑在别的远端身份上：远端被重建、
+   *   变更日志被清空或远端地址换了库。错误同时写进 `rxdb.syncState` 的 `lastError`，一行都不写
+   *
+   * @remarks
+   * 每个与远端交换数据的入口一进门就调，物化来源也在碰远端之前调。没配远端时没有可核对的，直接返回。
+   *
+   * 进门核对一次不够：一次同步可能跑很久，远端在途中被重建，后面的往返就打在新库上。
+   * 所以拉回的每一轮（有变更时）、推送的回执在落库之前再调一次——进门那次与这一次夹住的往返
+   * 才算这个远端上的进度，对不上就停，游标与水位都不推进。
+   *
+   * @internal
+   */
+  async verifyRemoteBackend(): Promise<void> {
+    if (!this.rxdb.config.sync?.remote?.adapter) return;
+    this.#remote_backend_id = await bindRemoteBackend(this);
+  }
+
+  /**
+   * 远端被重建之后，把本地同步记录改绑到远端当前的身份
+   *
+   * 同步入口抛出 `RemoteBackendMismatchError` 之后，确认新远端就是要同步的那一个，再调它。
+   * 所有不属于新远端的拉取游标被清空，下一次拉取从头全量拉；推送水位不动，
+   * 已经推到旧远端的本地变更不会重推。
+   *
+   * @returns 改绑到的身份、被换掉的旧身份与改绑的记录数
+   * @throws RxDBError 实例挂在可写检出位上时（US-314：只有主检出位同步）
+   *
+   * @remarks
+   * 不会自动发生：远端地址配错到另一个项目时，自动改绑会把别人的数据拉进来、把本地待推变更推过去。
+   * 改绑成功后，`syncState` 里那条远端身份错误随之清掉。
+   *
+   * @example
+   * ```typescript
+   * try {
+   *   await rxdb.syncManager.sync();
+   * } catch (error) {
+   *   if (!(error instanceof RemoteBackendMismatchError)) throw error;
+   *   if (await confirm('远端已重建，改为从新远端重新拉取？')) {
+   *     await rxdb.syncManager.rebindRemoteBackend();
+   *     await rxdb.syncManager.pull({ fetchAll: true });
+   *   }
+   * }
+   * ```
+   */
+  async rebindRemoteBackend(): Promise<RebindRemoteBackendResult> {
+    assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'rebindRemoteBackend');
+    const result = await rebindRemoteBackend(this);
+    this.#remote_backend_id = result.backendId;
     return result;
   }
 

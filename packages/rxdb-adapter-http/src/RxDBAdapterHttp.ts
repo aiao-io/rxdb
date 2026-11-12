@@ -472,6 +472,17 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
    * @throws HttpChangelogUnsupportedError 总是
    *
    * @remarks
+   * 远端身份只用来校验变更日志游标，v1 没有 changelog 就没有游标可校验；返回占位值会让
+   * 同步插件以为远端身份已核实。
+   */
+  async backendId(): Promise<string> {
+    throw new HttpChangelogUnsupportedError('backendId');
+  }
+
+  /**
+   * @throws HttpChangelogUnsupportedError 总是
+   *
+   * @remarks
    * 返回空数组**算失败**：Full-sync 会把它读成「远端无变更」并覆盖本地认知。
    * v1 没有 changelog，unsupported throw 是唯一诚实行为。
    */

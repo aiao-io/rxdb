@@ -49,6 +49,7 @@ declare type RxDBSyncRule =
   | DateRules<RxDBSync, 'lastPushedAt'>
   | DateRules<RxDBSync, 'lastPulledAt'>
   | NumberRules<RxDBSync, 'lastPullRemoteChangeId'>
+  | StringRules<RxDBSync, 'remoteBackendId'>
   | BooleanRules<RxDBSync, 'enabled'>
   | DateRules<RxDBSync, 'createdAt'>
   | DateRules<RxDBSync, 'updatedAt'>
@@ -106,6 +107,7 @@ export declare type RxDBSyncRuleGroup = RuleGroupBase<
   | 'lastPushedAt'
   | 'lastPulledAt'
   | 'lastPullRemoteChangeId'
+  | 'remoteBackendId'
   | 'enabled'
   | 'createdAt'
   | 'updatedAt'
@@ -164,6 +166,7 @@ export declare type RxDBSyncOrderByField =
   | 'lastPushedAt'
   | 'lastPulledAt'
   | 'lastPullRemoteChangeId'
+  | 'remoteBackendId'
   | 'enabled'
   | 'createdAt'
   | 'updatedAt';
@@ -225,6 +228,7 @@ declare type RxDBChangeRule =
   | RelationDateRules<'branch.syncs.lastPushedAt', Date | null>
   | RelationDateRules<'branch.syncs.lastPulledAt', Date | null>
   | RelationNumberRules<'branch.syncs.lastPullRemoteChangeId', number | null>
+  | RelationStringRules<'branch.syncs.remoteBackendId', string | null>
   | RelationBooleanRules<'branch.syncs.enabled', boolean>
   | RelationDateRules<'branch.syncs.createdAt', Date | null>
   | RelationDateRules<'branch.syncs.updatedAt', Date | null>
@@ -283,6 +287,7 @@ export declare type RxDBChangeRuleGroup = RuleGroupBase<
   | 'branch.syncs.lastPushedAt'
   | 'branch.syncs.lastPulledAt'
   | 'branch.syncs.lastPullRemoteChangeId'
+  | 'branch.syncs.remoteBackendId'
   | 'branch.syncs.enabled'
   | 'branch.syncs.createdAt'
   | 'branch.syncs.updatedAt'
@@ -364,6 +369,7 @@ declare type RxDBBranchRule =
   | RelationDateRules<'syncs.lastPushedAt', Date | null>
   | RelationDateRules<'syncs.lastPulledAt', Date | null>
   | RelationNumberRules<'syncs.lastPullRemoteChangeId', number | null>
+  | RelationStringRules<'syncs.remoteBackendId', string | null>
   | RelationBooleanRules<'syncs.enabled', boolean>
   | RelationDateRules<'syncs.createdAt', Date | null>
   | RelationDateRules<'syncs.updatedAt', Date | null>
@@ -425,6 +431,7 @@ export declare type RxDBBranchRuleGroup = RuleGroupBase<
   | 'syncs.lastPushedAt'
   | 'syncs.lastPulledAt'
   | 'syncs.lastPullRemoteChangeId'
+  | 'syncs.remoteBackendId'
   | 'syncs.enabled'
   | 'syncs.createdAt'
   | 'syncs.updatedAt'

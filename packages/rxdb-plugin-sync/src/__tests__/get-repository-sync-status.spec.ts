@@ -134,7 +134,8 @@ function createStatusHarness(options: StatusHarnessOptions) {
     if (queriedBranchId !== branchId) return { count: 0, latestChangeId: 0 };
     return options.remoteResult ?? { count: 0, latestChangeId: 0 };
   });
-  const remoteAdapter = options.remoteConfigured === false ? undefined : { getChangeCount };
+  const remoteAdapter =
+    options.remoteConfigured === false ? undefined : { getChangeCount, backendId: async () => 'backend-a' };
   const getCurrentBranch = vi.fn(async () => ({ id: branchId }));
   const getLocalRepositories = vi.fn(async () => ({ adapter: localAdapter }));
   const getRemoteRepositories = vi.fn(async () => ({ adapter: remoteAdapter }));
@@ -208,7 +209,8 @@ describe('getRepositorySyncStatus', () => {
       pushableCount: 2,
       pullableCount: 3
     });
-    expect(harness.syncFind).toHaveBeenCalledTimes(2);
+    // 第三次是待拉数碰远端之前的远端身份核对：按全表读同步记录
+    expect(harness.syncFind).toHaveBeenCalledTimes(3);
     expect(harness.syncFind).toHaveBeenNthCalledWith(1, {
       where: {
         combinator: 'and',
@@ -216,6 +218,7 @@ describe('getRepositorySyncStatus', () => {
       },
       limit: 1
     });
+    expect(harness.syncFind).toHaveBeenNthCalledWith(3, { where: { combinator: 'and', rules: [] } });
     expect(harness.changeFind).toHaveBeenCalledWith({
       where: {
         combinator: 'and',

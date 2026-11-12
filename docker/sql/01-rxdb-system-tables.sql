@@ -100,6 +100,22 @@ VALUES ('main', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================
+-- rxdb_backend 表（远端身份，单行）
+-- ============================================
+-- 拉取游标是 rxdb_change.id，只在同一个库里单调：库重建或变更日志被清空重新计数后，
+-- 旧客户端的游标会越过新库的全部 id，拉取静默拉空。客户端经 rxdb_backend_id() 读这里的 id，
+-- 与游标存在一起，每次同步前比对，对不上就停止同步。
+-- 库重建时本表跟着重建、生成新 id；TRUNCATE rxdb_change 时由触发器换新 id（见 02）。
+CREATE TABLE IF NOT EXISTS public.rxdb_backend (
+  singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  "createdAt" timestamptz(3) NOT NULL DEFAULT now()
+);
+
+INSERT INTO public.rxdb_backend DEFAULT VALUES
+ON CONFLICT (singleton) DO NOTHING;
+
+-- ============================================
 -- 自动更新 updatedAt 触发器
 -- ============================================
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -156,6 +172,7 @@ END $$;
 -- ============================================
 ALTER TABLE IF EXISTS public.rxdb_change DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.rxdb_branch DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.rxdb_backend DISABLE ROW LEVEL SECURITY;
 
 GRANT ALL ON ALL TABLES IN SCHEMA public TO anon;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;
