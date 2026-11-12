@@ -28,6 +28,7 @@ import { Toast } from '../services/toast';
 import { WallpaperService } from '../services/wallpaper';
 import { WeatherStore } from '../services/weather-store';
 import { WindowManager } from '../services/window-manager';
+import { VirtualMachine } from '../vm/virtual-machine';
 
 /** 输入框、可编辑区与终端保留浏览器自己的右键菜单。 */
 const NATIVE_MENU = 'input,textarea,[contenteditable="true"],.tm-body';
@@ -65,7 +66,8 @@ const NATIVE_MENU = 'input,textarea,[contenteditable="true"],.tm-body';
     MailComposer,
     NowPlaying,
     PhotoLibrary,
-    PhotoLoadQueue
+    PhotoLoadQueue,
+    VirtualMachine
   ],
   host: {
     '[style.display]': '"block"',

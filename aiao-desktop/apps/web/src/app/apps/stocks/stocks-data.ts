@@ -7,7 +7,8 @@ export interface Ticker {
   readonly up: boolean;
 }
 
-export const TICKERS: readonly Ticker[] = [
+/** 自选股的初始内容（首次打开时写进库），之后以库里的 `WatchlistSymbol` 为准。 */
+export const TICKER_SEEDS: readonly Ticker[] = [
   { s: 'AAPL', n: 'Apple Inc.', p: 232.4, d: 12.03, up: true },
   { s: 'MSFT', n: 'Microsoft Corp.', p: 505.8, d: -3.12, up: false },
   { s: 'NVDA', n: 'NVIDIA Corp.', p: 168.25, d: -6.22, up: false },
@@ -15,3 +16,11 @@ export const TICKERS: readonly Ticker[] = [
   { s: 'TSLA', n: 'Tesla, Inc.', p: 318.94, d: 9.41, up: true },
   { s: 'AMZN', n: 'Amazon.com', p: 241.62, d: 1.08, up: true }
 ];
+
+/** 库里一行自选股转成界面用的行情；涨跌由涨跌幅的正负决定。 */
+export const toTicker = (row: {
+  readonly symbol: string;
+  readonly name: string;
+  readonly price: number;
+  readonly changePercent: number;
+}): Ticker => ({ s: row.symbol, n: row.name, p: row.price, d: row.changePercent, up: row.changePercent >= 0 });

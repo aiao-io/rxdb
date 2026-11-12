@@ -1,5 +1,8 @@
-import { Service, signal } from '@angular/core';
+import { Service, computed, inject, signal } from '@angular/core';
 
+import { WeatherCity } from '../apps/weather/weather.entities';
+import { DesktopData } from '../data/desktop-data';
+import { ALL_ROWS, liveQuery } from '../data/live-query';
 import { DAYS3 } from '../shared/format';
 
 interface ForecastPayload {
@@ -93,38 +96,46 @@ export function weatherCode(code: number, day: boolean | number = true): readonl
   return [entry[0], !day && entry[2] ? entry[2] : entry[1]];
 }
 
+/** Open-Meteo 的预报请求地址：某个坐标的当前读数、逐小时与七天预报（华氏度）。 */
+function forecastUrl(latitude: number, longitude: number): string {
+  return (
+    `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}` +
+    '&current=temperature_2m,weather_code,is_day&hourly=temperature_2m,weather_code' +
+    '&daily=weather_code,temperature_2m_max,temperature_2m_min' +
+    '&temperature_unit=fahrenheit&timezone=auto&forecast_days=7'
+  );
+}
+
 /**
  * Open-Meteo 实况：无需密钥且带 CORS，天气应用与小组件共用一份读数。
+ * 城市来自本地库的城市列表（排第一的是主城市），实时读数只放内存。
  * 离线时返回一组合理的固定读数，界面不会空着。
  */
 @Service({ autoProvided: false })
 export class WeatherStore {
-  private readonly lat = 37.323;
-  private readonly lon = -122.0322;
-  private readonly data = signal<ForecastPayload | null>(null);
+  private readonly desktop = inject(DesktopData);
+  private readonly cities = liveQuery(
+    () => WeatherCity.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
+    []
+  );
+  private readonly forecast = signal<ForecastPayload | null>(null);
   private pending: Promise<ForecastPayload | null> | null = null;
 
-  readonly place = 'Cupertino';
-  /** 每个会话只请求一次，所有调用方共享。 */
+  /** 主城市的名字；城市列表还没读到时为空串。 */
+  readonly place = computed(() => this.cities().at(0)?.name ?? '');
+
+  /** 每个会话只请求一次，所有调用方共享；失败后下一次调用会重试。 */
   load(): Promise<ForecastPayload | null> {
-    const ready = this.data();
+    const ready = this.forecast();
     if (ready) return Promise.resolve(ready);
-    this.pending ??= fetch(this.url())
-      .then(response => response.json() as Promise<ForecastPayload>)
-      .then(payload => {
-        if (!payload.current) throw new Error('bad payload');
-        this.data.set(payload);
-        return payload;
-      })
-      .catch(() => {
-        this.pending = null;
-        return null;
-      });
+    this.pending ??= this.fetchForecast().finally(() => {
+      this.pending = null;
+    });
     return this.pending;
   }
 
   now(): WeatherNow {
-    const d = this.data();
+    const d = this.forecast();
     if (!d) return { t: 55, code: 0, day: 1, hi: 83, lo: 53, live: false };
     return {
       t: Math.round(d.current.temperature_2m),
@@ -138,7 +149,7 @@ export class WeatherStore {
 
   /** 接下来几个小时；Open-Meteo 从午夜开始返回，所以先找到当前小时。 */
   hours(count = 6): readonly WeatherHour[] {
-    const d = this.data();
+    const d = this.forecast();
     if (!d) return OFFLINE_HOURS.slice(0, count);
     const now = new Date(d.current.time);
     const start = Math.max(
@@ -157,7 +168,7 @@ export class WeatherStore {
   }
 
   days(): readonly WeatherDay[] {
-    const d = this.data();
+    const d = this.forecast();
     if (!d) return OFFLINE_DAYS;
     return d.daily.time.map((time, i): WeatherDay => [
       i === 0 ? 'Today' : DAYS3[new Date(`${time}T12:00`).getDay()],
@@ -167,12 +178,23 @@ export class WeatherStore {
     ]);
   }
 
-  private url(): string {
-    return (
-      `https://api.open-meteo.com/v1/forecast?latitude=${this.lat}&longitude=${this.lon}` +
-      '&current=temperature_2m,weather_code,is_day&hourly=temperature_2m,weather_code' +
-      '&daily=weather_code,temperature_2m_max,temperature_2m_min' +
-      '&temperature_unit=fahrenheit&timezone=auto&forecast_days=7'
-    );
+  /** 从库里取主城市的坐标再请求实况；没有城市就没有实况可取。 */
+  private async fetchForecast(): Promise<ForecastPayload | null> {
+    const cities = await this.desktop.repository(WeatherCity);
+    const [city] = await cities.find({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }], limit: 1 });
+    return city ? this.request(city.latitude, city.longitude) : null;
+  }
+
+  /** 网络不通或返回异常时得到 `null`，界面退回离线读数。 */
+  private async request(latitude: number, longitude: number): Promise<ForecastPayload | null> {
+    try {
+      const response = await fetch(forecastUrl(latitude, longitude));
+      const payload = (await response.json()) as ForecastPayload;
+      if (!payload.current) throw new Error('bad payload');
+      this.forecast.set(payload);
+      return payload;
+    } catch {
+      return null;
+    }
   }
 }

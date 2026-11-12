@@ -1,6 +1,8 @@
 import { Component, computed, inject } from '@angular/core';
 
-import { TICKERS } from '../../apps/stocks/stocks-data';
+import { toTicker } from '../../apps/stocks/stocks-data';
+import { WatchlistSymbol } from '../../apps/stocks/stocks.entities';
+import { ALL_ROWS, liveQuery } from '../../data/live-query';
 import { CalendarStore, eventTime } from '../../services/calendar-store';
 import { Clock } from '../../services/clock';
 import { SystemState } from '../../services/system-state';
@@ -51,7 +53,7 @@ export class CalendarWidget {
     <div class="wx" data-wxw>
       @let now = weather.now();
       @let code = condition();
-      <div class="loc">{{ weather.place }}</div>
+      <div class="loc">{{ weather.place() }}</div>
       <div class="now">
         <span class="deg">{{ now.t }}°</span><span class="ico"><svg [appIcon]="code[1]"></svg></span>
       </div>
@@ -81,7 +83,7 @@ export class WeatherWidget {
   }
 }
 
-/** 前三支股票的迷你行情。 */
+/** 自选列表前三支股票的迷你行情。 */
 @Component({
   selector: 'app-stocks-widget',
   imports: [Sparkline],
@@ -91,7 +93,7 @@ export class WeatherWidget {
       <span class="t">Stocks</span><span class="s">{{ stamp }}</span>
     </div>
     <div class="stk">
-      @for (ticker of tickers; track ticker.s; let i = $index) {
+      @for (ticker of tickers(); track ticker.s; let i = $index) {
         <div class="row" [class.dn]="!ticker.up" [class.up]="ticker.up">
           <span class="sym"
             ><b>{{ ticker.s }}</b
@@ -108,8 +110,13 @@ export class WeatherWidget {
   `
 })
 export class StocksWidget {
+  private readonly watchlist = liveQuery(
+    () => WatchlistSymbol.find({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }], limit: 3 }),
+    []
+  );
+
   protected readonly wm = inject(WindowManager);
-  protected readonly tickers = TICKERS.slice(0, 3);
+  protected readonly tickers = computed(() => this.watchlist().map(toTicker));
   protected readonly stamp = time12(new Date());
 }
 

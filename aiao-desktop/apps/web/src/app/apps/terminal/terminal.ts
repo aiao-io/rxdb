@@ -14,13 +14,12 @@ import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
 import { WindowManager } from '../../services/window-manager';
 import { TrafficLights } from '../../shared/traffic-lights';
-import { TerminalSession, TerminalTab } from './terminal-tab';
+import { TerminalTab } from './terminal-tab';
 
-/** 终端：xterm 接到浏览器内 Vivari 的真实 shell，支持多标签。 */
+/** 终端：xterm 接到浏览器内 Vivari 的真实 shell，看到的是同一块 Macintosh HD；支持多标签。 */
 @Component({
   selector: 'app-terminal',
   imports: [TrafficLights, TerminalTab],
-  providers: [TerminalSession],
   host: { style: 'display: contents' },
   template: `
     <div class="tb dark" data-drag>

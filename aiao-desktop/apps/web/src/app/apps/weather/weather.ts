@@ -20,7 +20,7 @@ interface WeekRow {
   readonly right: string;
 }
 
-/** 天气：库比蒂诺的实况（Open-Meteo），离线时显示上一次的读数。 */
+/** 天气：主城市（城市列表里排第一的，默认库比蒂诺）的实况（Open-Meteo），离线时显示上一次的读数。 */
 @Component({
   selector: 'app-weather',
   imports: [Icon, TrafficLights],

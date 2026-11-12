@@ -7,7 +7,7 @@
 <div class="wx-app" data-wx>
   <div [style.background]="sky()" style="flex: 1; min-height: 0; overflow: auto; color: #fff; padding: 22px 20px 26px">
     <div style="text-align: center">
-      <div style="font-size: 15px; font-weight: 500; letter-spacing: 0.01em">{{ place }}</div>
+      <div style="font-size: 15px; font-weight: 500; letter-spacing: 0.01em">{{ place() }}</div>
       <div style="font-size: 74px; font-weight: 200; letter-spacing: -0.05em; line-height: 1.05">{{ now().t }}°</div>
       <div style="font-size: 14px; opacity: 0.9">{{ label() }}</div>
       <div style="font-size: 13px; opacity: 0.8; margin-top: 2px">H:{{ now().hi }}° L:{{ now().lo }}°</div>

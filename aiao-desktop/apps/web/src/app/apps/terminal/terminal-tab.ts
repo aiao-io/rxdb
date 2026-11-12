@@ -1,7 +1,6 @@
 import {
   Component,
   ElementRef,
-  Injectable,
   OnDestroy,
   afterNextRender,
   afterRenderEffect,
@@ -9,35 +8,23 @@ import {
   input,
   viewChild
 } from '@angular/core';
-import { Vivari, type VivariProcess } from '@vivari/core';
+import { type VivariProcess } from '@vivari/core';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 
-/** 一个终端窗口里所有标签共用的 Vivari 运行时，窗口销毁时一并拆除。 */
-@Injectable()
-export class TerminalSession implements OnDestroy {
-  private runtime: Promise<Vivari> | null = null;
-
-  boot(): Promise<Vivari> {
-    this.runtime ??= Vivari.boot({ serviceWorkerUrl: false });
-    return this.runtime;
-  }
-
-  ngOnDestroy(): void {
-    void this.runtime?.then(runtime => runtime.teardown()).catch(() => undefined);
-  }
-}
+import { OPEN_OSC } from '../../vm/coreutils';
+import { SHELL_ENV, SHELL_HOME, VirtualMachine } from '../../vm/virtual-machine';
 
 const describe = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
-/** 一个终端标签：xterm 接到 Vivari 里真实的 `sh` 进程。 */
+/** 一个终端标签：xterm 接到页面共用的 Vivari 虚拟机里真实的 `sh` 进程，从 Macintosh HD 的主目录开始。 */
 @Component({
   selector: 'app-terminal-tab',
   host: { style: 'display: contents' },
   template: `<div class="xterm-panel" #panel [hidden]="!active()"></div>`
 })
 export class TerminalTab implements OnDestroy {
-  private readonly session = inject(TerminalSession);
+  private readonly vm = inject(VirtualMachine);
   private readonly panel = viewChild.required<ElementRef<HTMLElement>>('panel');
 
   private readonly terminal = new Terminal({
@@ -59,6 +46,7 @@ export class TerminalTab implements OnDestroy {
   private pendingInput = '';
   private inputQueue = Promise.resolve();
   private disposed = false;
+  private acquired = false;
 
   readonly active = input(false);
 
@@ -66,6 +54,11 @@ export class TerminalTab implements OnDestroy {
     this.terminal.loadAddon(this.fitAddon);
     this.terminal.onData(data => this.queueInput(data));
     this.terminal.onResize(size => this.process?.resize({ cols: size.cols, rows: size.rows }));
+    /* `open` 命令把要打开的路径写成 OSC 序列，这里截下来交给桌面，不显示在终端里。 */
+    this.terminal.parser.registerOscHandler(OPEN_OSC, data => {
+      void this.vm.open(data);
+      return true;
+    });
     afterNextRender(() => {
       this.terminal.open(this.panel().nativeElement);
       void this.start();
@@ -94,17 +87,19 @@ export class TerminalTab implements OnDestroy {
     this.writer = null;
     this.fitAddon.dispose();
     this.terminal.dispose();
+    if (this.acquired) this.vm.release();
   }
 
   private async start(): Promise<void> {
     this.terminal.writeln('\x1b[2mStarting local shell with Vivari…\x1b[0m');
+    this.acquired = true;
     try {
-      const runtime = await this.session.boot();
+      const runtime = await this.vm.acquire();
       if (this.disposed) return;
       this.fit();
       const process = await runtime.spawn('sh', [], {
-        cwd: '/',
-        env: { TERM: 'xterm-256color', COLORTERM: 'truecolor' },
+        cwd: SHELL_HOME,
+        env: { ...SHELL_ENV },
         terminal: { cols: Math.max(2, this.terminal.cols), rows: Math.max(2, this.terminal.rows) }
       });
       if (this.disposed) {
@@ -139,6 +134,7 @@ export class TerminalTab implements OnDestroy {
       for await (const chunk of process.output) {
         if (this.disposed) return;
         this.terminal.write(chunk);
+        this.vm.noteActivity();
       }
     } catch (error) {
       if (!this.disposed) this.terminal.writeln(`\r\n\x1b[31mterminal output failed: ${describe(error)}\x1b[0m`);

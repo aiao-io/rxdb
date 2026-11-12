@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -44,7 +44,7 @@ describe('patchShell', () => {
   });
 
   it('不带参数的 cd 回到 HOME', () => {
-    expect(run(shell, 'cd; pwd', dir)).toBe(`${dir}\n`);
+    expect(run(shell, 'cd; pwd', dir)).toBe(`${realpathSync(dir)}\n`);
   });
 
   it('重定向的目标也展开 ~', () => {

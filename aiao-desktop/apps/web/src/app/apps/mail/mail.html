@@ -3,7 +3,7 @@
     <div class="sb-top"><app-traffic-lights /></div>
     <div class="grp">
       <div class="gh">Mailboxes</div>
-      @for (item of boxes; track item.name) {
+      @for (item of boxes(); track item.name) {
         <div
           class="si"
           [attr.data-box]="item.name"
@@ -14,8 +14,8 @@
         >
           <svg class="ico" [appIcon]="item.icon"></svg>
           <span class="nm">{{ item.name }}</span>
-          @if (item.count) {
-            <span class="tail">{{ item.count }}</span>
+          @if (item.badge) {
+            <span class="tail">{{ item.badge }}</span>
           }
         </div>
       }
@@ -61,18 +61,18 @@
             (keydown.enter)="select(i)"
             tabindex="-1"
           >
-            <span class="av" [style.background]="mail.color">{{ mail.from[0] }}</span>
+            <span class="av" [style.background]="mail.color">{{ party(mail)[0] }}</span>
             <span class="bd">
               <b>
                 @if (mail.unread) {
                   <span style="color: var(--blue)">●</span>
                 }
-                {{ mail.from }}
+                {{ party(mail) }}
               </b>
               <b style="font-weight: 500; font-size: 12px">{{ mail.subject }}</b>
-              <p>{{ mail.preview }}</p>
+              <p>{{ mail.body }}</p>
             </span>
-            <span class="tm">{{ mail.time }}</span>
+            <span class="tm">{{ mail.timeLabel }}</span>
           </div>
         }
       </div>
@@ -94,17 +94,17 @@
                   font-size: 16px;
                 "
               >
-                {{ mail.from[0] }}
+                {{ mail.sender[0] }}
               </span>
               <div>
-                <div style="font-size: 14px; font-weight: 600">{{ mail.from }}</div>
-                <div style="font-size: 11.5px; color: var(--txt-2)">To: Prasenjit · {{ mail.time }}</div>
+                <div style="font-size: 14px; font-weight: 600">{{ mail.sender }}</div>
+                <div style="font-size: 11.5px; color: var(--txt-2)">To: {{ mail.recipient }} · {{ mail.timeLabel }}</div>
               </div>
             </div>
             <h2 style="margin: 0 0 14px; font-size: 19px; font-weight: 600; letter-spacing: -0.02em">
               {{ mail.subject }}
             </h2>
-            <p style="font-size: 13.5px; line-height: 1.6; color: var(--txt)">{{ mail.preview }}</p>
+            <p style="font-size: 13.5px; line-height: 1.6; color: var(--txt)">{{ mail.body }}</p>
             <p style="font-size: 13.5px; line-height: 1.6; color: var(--txt-2)">
               Sent from a Mac that only exists as markup.
             </p>

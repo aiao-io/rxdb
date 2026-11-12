@@ -99,6 +99,7 @@ export class FinderApp implements FinderCommands {
     const start = this.win.options.path ?? HOME_PATH;
     this.path.set(start);
     this.history.set({ entries: [start], index: 0 });
+    this.selected.set(this.win.options.select ?? null);
     if (start.length === 1 && start[0] === 'Trash') this.view.set('list');
     this.win.setMenus(computed(() => menus.finder(this)));
 

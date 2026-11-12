@@ -105,6 +105,36 @@ const shows = locator =>
   );
 const xtermText = () =>
   page.evaluate(() => document.querySelector('.win[data-app="terminal"] .xterm-rows')?.textContent ?? '');
+/** 在终端里输入一条命令；给了 `expect` 就等输出里出现它。 */
+const shell = async (command, expect) => {
+  await page.locator('.win[data-app="terminal"] .xterm-helper-textarea').focus();
+  await page.keyboard.type(command);
+  await page.keyboard.press('Enter');
+  if (!expect) return true;
+  return page
+    .waitForFunction(
+      source =>
+        new RegExp(source).test(document.querySelector('.win[data-app="terminal"] .xterm-rows')?.textContent ?? ''),
+      expect.source,
+      { timeout: 15_000 }
+    )
+    .then(
+      () => true,
+      () => false
+    );
+};
+/** 桌面图标来自 ~/Desktop：id 是 `file:<文件名>`。 */
+const desktopIcon = name => page.locator(`.dicon[data-id="file:${name}"]`);
+const appears = (locator, timeout = 10_000) =>
+  locator.waitFor({ state: 'attached', timeout }).then(
+    () => true,
+    () => false
+  );
+const disappears = (locator, timeout = 10_000) =>
+  locator.waitFor({ state: 'detached', timeout }).then(
+    () => true,
+    () => false
+  );
 
 try {
   await page.goto(`${origin}/?boot=0`, { waitUntil: 'load' });
@@ -172,6 +202,89 @@ try {
     vivariShell: (await xtermText()).includes('VIVARI_SMOKE')
   };
 
+  /* 磁盘：目录树与元数据在本地 SQLite（库文件在 OPFS），文件体由 storage 插件放在 OPFS；终端看到同一块磁盘。 */
+  const storage = await page.evaluate(async () => {
+    const root = await navigator.storage.getDirectory();
+    const names = [];
+    for await (const [name] of root.entries()) names.push(name);
+    let blobs = 0;
+    for await (const _ of (await (await root.getDirectoryHandle('aiao-desktop-files')).getDirectoryHandle('blobs')).keys())
+      blobs++;
+    return { names, blobs };
+  });
+  const diskState = {
+    sqliteInOpfs: storage.names.some(name => /^aiao-desktop@.*\.sqlite$/.test(name)),
+    fileBodiesInOpfs: storage.blobs > 30,
+    desktopFromFolder: (
+      await Promise.all(
+        ['Projects', 'prasenx.txt', 'Interface Guidelines.pdf', 'Screenshot 2026-07-27 at 4.34.11 PM.png'].map(name =>
+          appears(desktopIcon(name))
+        )
+      )
+    ).every(Boolean),
+    shellStartsAtHome: await shell('pwd', /\/Users\/prasenjit/),
+    shellReadsFile: await shell('cat Desktop/prasenx.txt', /Scratchpad\. Everything on this Mac/),
+    shellListsDesktop: await shell('ls ~/Desktop', /Interface Guidelines\.pdf/)
+  };
+  await shell('echo smoke-from-terminal > ~/Desktop/terminal-note.txt');
+  diskState.shellWritesDisk = await appears(desktopIcon('terminal-note.txt'));
+  await shell(
+    'touch ~/Desktop/touched.txt && mv ~/Desktop/touched.txt ~/Desktop/moved.txt && cp ~/Desktop/moved.txt ~/Desktop/copied.txt'
+  );
+  diskState.shellCommandsWork =
+    (await appears(desktopIcon('moved.txt'))) &&
+    (await appears(desktopIcon('copied.txt'))) &&
+    (await desktopIcon('touched.txt').count()) === 0;
+  await shell('open ~/Desktop/terminal-note.txt');
+  diskState.openCommandOpensTextEdit = await page
+    .waitForFunction(
+      () =>
+        [...document.querySelectorAll('.win[data-app="textedit"] [data-te-doc]')].some(doc =>
+          doc.textContent.includes('smoke-from-terminal')
+        ),
+      undefined,
+      { timeout: 10_000 }
+    )
+    .then(
+      () => true,
+      () => false
+    );
+
+  /* 桌面这边的改动推进终端：Finder 在桌面目录新建文件夹，终端里马上 ls 得到。 */
+  await page.locator('#dock .di[data-app="finder"]').click();
+  await win('finder').last().locator('[data-place="Desktop"]').click();
+  await win('finder').last().locator('[data-more]').click();
+  await page.locator('#layer-menu .pop .mi', { hasText: 'New Folder' }).click();
+  diskState.finderFolderOnDesktop = await appears(desktopIcon('untitled folder'));
+  await win('terminal').locator('.xterm').click();
+  diskState.shellSeesFinderChange = await shell('ls ~/Desktop', /untitled folder/);
+
+  /* 打开真文件：TextEdit 显示文本内容，预览显示图片本身。 */
+  await closeAll();
+  await desktopIcon('prasenx.txt').dblclick();
+  diskState.textEditShowsFile = await page
+    .waitForFunction(
+      () => document.querySelector('.win[data-app="textedit"] [data-te-doc]')?.textContent?.includes('cat prasenx.txt'),
+      undefined,
+      { timeout: 10_000 }
+    )
+    .then(
+      () => true,
+      () => false
+    );
+  await desktopIcon('Screenshot 2026-07-27 at 4.34.11 PM.png').dblclick();
+  diskState.previewShowsImage = await page
+    .waitForFunction(
+      () => document.querySelector('.win[data-app="preview"] img[data-pv-image]')?.naturalWidth === 1440,
+      undefined,
+      { timeout: 10_000 }
+    )
+    .then(
+      () => true,
+      () => false
+    );
+  await closeAll();
+
   await page.locator('#dock .di[data-app="launchpad"]').click();
   await page.waitForSelector('#lpad');
   const launchpadOpens = (await page.locator('#lpad').count()) === 1;
@@ -212,6 +325,21 @@ try {
   await closeAll();
   const everyAppOpens = unopened.length === 0;
 
+  /* 刷新后改动还在（数据在本地 SQLite 与 OPFS 里）；磁盘工具抹掉后回到内置内容。 */
+  await page.reload({ waitUntil: 'load' });
+  await win('finder').waitFor();
+  const persistence = {
+    fileSurvivesReload: await appears(desktopIcon('terminal-note.txt')),
+    folderSurvivesReload: await appears(desktopIcon('untitled folder'))
+  };
+  await closeAll();
+  await launch('Disk Utility');
+  await win('diskutil').waitFor();
+  await win('diskutil').locator('[data-duerase]').click();
+  await page.locator('.pop [data-e]').click();
+  persistence.eraseRestoresDisk =
+    (await disappears(desktopIcon('terminal-note.txt'), 30_000)) && (await appears(desktopIcon('prasenx.txt'), 30_000));
+
   const finalChecks = {
     shell,
     finderNavigates,
@@ -221,6 +349,7 @@ try {
     minimized,
     restored,
     terminalState,
+    diskState,
     launchpadOpens,
     launchpadCloses,
     spotlightFinds,
@@ -228,13 +357,16 @@ try {
     notificationsClose,
     notesWorks,
     everyAppOpens,
-    unopened
+    unopened,
+    persistence
   };
 
   if (errors.length > 0) throw new Error(`Browser errors: ${errors.join(' | ')}`);
   const failed =
     Object.values(finalChecks.shell).some(check => !check) ||
     Object.values(finalChecks.terminalState).some(check => !check) ||
+    Object.values(finalChecks.diskState).some(check => !check) ||
+    Object.values(finalChecks.persistence).some(check => !check) ||
     Object.values(finalChecks).some(check => check === false);
   if (failed) throw new Error(`Smoke checks failed: ${JSON.stringify(finalChecks)}`);
   console.log(JSON.stringify(finalChecks));

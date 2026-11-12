@@ -30,6 +30,12 @@ const within = (path: string, dir: string): boolean => path === dir || path.star
 
 const depth = (path: string): number => path.split('/').length;
 
+/** `/a/b/c` → `['/a', '/a/b']`。 */
+const ancestorsOf = (path: string): string[] => {
+  const parts = path.split('/').filter(Boolean);
+  return parts.slice(0, -1).map((_, i) => `/${parts.slice(0, i + 1).join('/')}`);
+};
+
 const changed = (before: VmStat | undefined, after: VmStat): boolean =>
   !before || before.kind !== 'file' || before.size !== after.size || before.mtimeMs !== after.mtimeMs;
 
@@ -149,6 +155,9 @@ export class DiskVmSync {
     }
     const next = new Map([...this.snapshot].filter(([key]) => !within(key, vmPath)));
     if (kind !== null) for (const [key, stat] of await this.scan([vmPath])) next.set(key, stat);
+    /* 写文件会顺带建出父目录（例如第一次移进废纸篓时的 .Trash），基线里也要有它们。 */
+    for (const ancestor of ancestorsOf(vmPath))
+      if (!next.has(ancestor) && (await this.vm.stat(ancestor))?.kind === 'directory') next.set(ancestor, DIRECTORY);
     this.snapshot = next;
   }
 

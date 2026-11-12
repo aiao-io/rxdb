@@ -1,6 +1,12 @@
-/** 一封邮件；未读与旗标可变，所以状态放在窗口的信号里，种子本身不动。 */
-export interface MailMessage {
-  readonly id: number;
+/** 侧栏里一个邮箱的初始记录；`count` 是徽标上的固定数字。 */
+export interface MailboxSeed {
+  readonly name: string;
+  readonly icon: string;
+  readonly count: number | null;
+}
+
+/** 收件箱里一封邮件的初始记录；`time` 是列表右侧写死的时间文字。 */
+export interface MailSeed {
   readonly from: string;
   readonly subject: string;
   readonly preview: string;
@@ -10,15 +16,11 @@ export interface MailMessage {
   readonly flag?: boolean;
 }
 
-/** 侧栏里的一个邮箱；`count` 是徽标上的固定数字。 */
-export interface Mailbox {
-  readonly name: string;
-  readonly icon: string;
-  readonly count: number | null;
-}
+/** 初始邮件的收件人：桌面的用户。 */
+export const MAIL_OWNER = 'Prasenjit';
 
 /** 侧栏的邮箱列表；徽标数字是写死的，不随已读变化。 */
-export const MAILBOXES: readonly Mailbox[] = [
+export const MAILBOX_SEED_DATA: readonly MailboxSeed[] = [
   { name: 'Inbox', icon: 'g-download', count: 2 },
   { name: 'VIP', icon: 'g-star', count: null },
   { name: 'Flagged', icon: 'g-tag', count: 2 },
@@ -29,9 +31,8 @@ export const MAILBOXES: readonly Mailbox[] = [
 ];
 
 /** 收件箱里的七封邮件。 */
-export const MAIL_SEED: readonly MailMessage[] = [
+export const INBOX_SEED_DATA: readonly MailSeed[] = [
   {
-    id: 0,
     from: 'Figma',
     subject: 'Daniel left 3 comments on Desktop v4',
     preview: 'Tray blur reads heavy at 62px — can we try 44 and put them side by side?',
@@ -41,7 +42,6 @@ export const MAIL_SEED: readonly MailMessage[] = [
     flag: true
   },
   {
-    id: 1,
     from: 'Vercel',
     subject: 'Your deployment is live',
     preview: 'desktop-web is ready. Build finished in 0s — there was nothing to build.',
@@ -50,7 +50,6 @@ export const MAIL_SEED: readonly MailMessage[] = [
     unread: true
   },
   {
-    id: 2,
     from: 'Linear',
     subject: 'ENG-412 moved to In Review',
     preview: 'Shadow repaint during minimise: 12 dropped frames down to 0. Needs your sign-off.',
@@ -58,7 +57,6 @@ export const MAIL_SEED: readonly MailMessage[] = [
     color: '#5e6ad2'
   },
   {
-    id: 3,
     from: 'GitHub',
     subject: '[workspace/desktop] PR #142 review requested',
     preview: 'Column view: preview pane sizing. 4 files changed, +218 −31.',
@@ -66,7 +64,6 @@ export const MAIL_SEED: readonly MailMessage[] = [
     color: '#24292f'
   },
   {
-    id: 4,
     from: 'Anna Haro',
     subject: 'Re: dock easing',
     preview: 'The cosine falloff is right, but shorten the settle. Under 300ms or it reads as lag.',
@@ -74,7 +71,6 @@ export const MAIL_SEED: readonly MailMessage[] = [
     color: '#bf5af2'
   },
   {
-    id: 5,
     from: 'Apple Developer',
     subject: 'macOS Tahoe 26 beta 4 is available',
     preview: 'Liquid Glass refinements, Spotlight actions, and 42 resolved issues.',
@@ -82,7 +78,6 @@ export const MAIL_SEED: readonly MailMessage[] = [
     color: '#1d1d1f'
   },
   {
-    id: 6,
     from: 'Mom',
     subject: 'call me when free',
     preview: 'and eat something that is not coffee',

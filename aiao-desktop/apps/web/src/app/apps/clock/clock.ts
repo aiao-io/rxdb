@@ -1,23 +1,17 @@
 import { Component, computed, inject } from '@angular/core';
 
+import { ALL_ROWS, liveQuery } from '../../data/live-query';
 import { Clock } from '../../services/clock';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
 import { AnalogClock } from '../../shared/analog-clock';
 import { time12Plain } from '../../shared/format';
 import { TrafficLights } from '../../shared/traffic-lights';
-
-/** [城市, 与本机的时差（小时）] */
-const ZONES = [
-  ['Cupertino', -12.5],
-  ['Kolkata', 0],
-  ['London', -4.5],
-  ['Tokyo', 3.5]
-] as const;
+import { WorldClock } from './clock.entities';
 
 const HOUR = 3600e3;
 
-/** 世界时钟：四座城市的表盘与时间，随桌面时钟每秒跳动。 */
+/** 世界时钟：本地库里的城市各一个表盘与时间，随桌面时钟每秒跳动。 */
 @Component({
   selector: 'app-clock',
   imports: [AnalogClock, TrafficLights],
@@ -32,7 +26,7 @@ const HOUR = 3600e3;
     <div
       style="flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); min-height: 0"
     >
-      @for (zone of zones(); track zone.city) {
+      @for (zone of zones(); track zone.id) {
         <div
           style="
             background: var(--win);
@@ -56,11 +50,15 @@ const HOUR = 3600e3;
 })
 export class ClockApp {
   private readonly clock = inject(Clock);
+  private readonly worldClocks = liveQuery(
+    () => WorldClock.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
+    []
+  );
 
   protected readonly zones = computed(() =>
-    ZONES.map(([city, offset]) => {
-      const time = new Date(this.clock.now().getTime() + offset * HOUR);
-      return { city, offset, time, label: time12Plain(time) };
+    this.worldClocks().map(({ id, city, offsetHours }) => {
+      const time = new Date(this.clock.now().getTime() + offsetHours * HOUR);
+      return { id, city, offset: offsetHours, time, label: time12Plain(time) };
     })
   );
 
