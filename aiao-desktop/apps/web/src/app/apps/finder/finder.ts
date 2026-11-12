@@ -1,10 +1,10 @@
 import { Component, DestroyRef, ElementRef, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
 
+import { diskPathOf } from '../../disk/disk-path';
 import { DesktopMenus, FinderCommands, FinderView } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
-import { DockState } from '../../services/dock-state';
 import { FileOpener } from '../../services/file-opener';
-import { FileSystem, FsNode, HOME_PATH, PLACES } from '../../services/file-system';
+import { FileSystem, FsNode, HOME_PATH, PLACES, describeDiskError } from '../../services/file-system';
 import { MenuEntry } from '../../services/menu';
 import { PopoverService } from '../../services/popover';
 import { Toast } from '../../services/toast';
@@ -40,7 +40,6 @@ export class FinderApp implements FinderCommands {
   private readonly opener = inject(FileOpener);
   private readonly popover = inject(PopoverService);
   private readonly toast = inject(Toast);
-  private readonly dock = inject(DockState);
   private readonly body = viewChild.required<ElementRef<HTMLElement>>('body');
   private readonly history = signal<{ readonly entries: readonly (readonly string[])[]; readonly index: number }>({
     entries: [],
@@ -61,14 +60,14 @@ export class FinderApp implements FinderCommands {
   protected readonly seed = nameSeed;
   protected readonly shotKind = shotKind;
 
-  protected readonly items = computed(() => {
-    this.fs.version();
-    return folderContents(this.fs, this.path(), this.query(), this.sort());
-  });
+  protected readonly items = computed(() => folderContents(this.fs, this.path(), this.query(), this.sort()));
   protected readonly title = computed(() => (this.query() ? `Searching “${this.query()}”` : this.path().at(-1)));
   protected readonly canGoBack = computed(() => this.history().index > 0);
   protected readonly canGoForward = computed(() => this.history().index < this.history().entries.length - 1);
   protected readonly emptyText = computed(() => {
+    const disk = this.fs.state();
+    if (disk === 'mounting') return 'Mounting Macintosh HD…';
+    if (disk === 'failed') return `Macintosh HD is unavailable: ${this.fs.error()}`;
     if (this.query()) return 'No results';
     return this.path()[0] === 'AirDrop' ? 'No one nearby' : 'Empty folder';
   });
@@ -136,8 +135,15 @@ export class FinderApp implements FinderCommands {
   }
 
   newFolder(): void {
-    const name = this.fs.newFolder(this.path());
-    if (name) this.selected.set(name);
+    const dir = diskPathOf(this.path());
+    if (!dir || this.query()) {
+      this.toast.show('New folders can only be made on Macintosh HD');
+      return;
+    }
+    this.fs.newFolder(dir).then(
+      name => this.selected.set(name),
+      (error: unknown) => this.toast.show(describeDiskError(error))
+    );
   }
 
   openSelected(): void {
@@ -146,10 +152,10 @@ export class FinderApp implements FinderCommands {
   }
 
   trashSelected(): void {
-    const name = this.selected();
-    if (!name) return;
-    if (this.fs.moveToTrash(this.path(), name)) this.dock.trashFull.set(true);
+    const node = this.items().find(item => item.name === this.selected());
+    if (!node?.path) return;
     this.selected.set(null);
+    this.fs.moveToTrash(node.path).catch((error: unknown) => this.toast.show(describeDiskError(error)));
   }
 
   protected placeOn(place: string): boolean {
@@ -270,7 +276,7 @@ export class FinderApp implements FinderCommands {
 
   private info(name: string): void {
     const node = this.items().find(item => item.name === name);
-    if (node) this.toast.show(`${node.name} — ${node.k || 'Folder'}${node.size ? `, ${node.size}` : ''}`);
+    if (node) this.toast.show(`${node.name} — ${node.k}${node.size ? `, ${node.size}` : ''}`);
   }
 
   private nav(path: readonly string[]): void {

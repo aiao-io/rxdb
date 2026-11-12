@@ -103,7 +103,7 @@ export class DesktopSurface {
       { id: 'o', label: 'Open', run: () => item.open() },
       { id: 'w', label: 'Open With', key: '▸' },
       '-',
-      { id: 'i', label: 'Get Info', key: '⌘I', run: () => this.toast.show(`${item.name} — 0 bytes`) },
+      { id: 'i', label: 'Get Info', key: '⌘I', run: () => this.toast.show(this.info(item)) },
       { id: 'r', label: 'Rename', run: () => this.toast.show('Renaming is left as an exercise.') },
       { id: 'd', label: 'Duplicate', key: '⌘D', run: () => this.toast.show('Duplicated') },
       '-',
@@ -178,9 +178,19 @@ export class DesktopSurface {
     this.selected.set(new Set(hit.map(icon => icon.dataset['id'] ?? '')));
   }
 
+  private info(item: DesktopItem): string {
+    const node = item.node;
+    if (!node) return item.name;
+    return node.kind === 'folder' ? `${node.name} — Folder` : `${node.name} — ${node.k}, ${node.size}`;
+  }
+
+  /** 缩小淡出后真正移进废纸篓；移不走时图标恢复原样。 */
   private trash(item: DesktopItem): void {
     this.trashing.update(ids => new Set([...ids, item.id]));
-    setTimeout(() => this.desktop.remove(item.id), 230);
+    setTimeout(async () => {
+      await this.desktop.remove(item.id);
+      this.trashing.update(ids => new Set([...ids].filter(id => id !== item.id)));
+    }, 230);
   }
 
   private settle(id: string): void {

@@ -12,6 +12,7 @@ import {
 import { AppLauncher } from '../services/app-launcher';
 import { DESKTOP_APPS, DesktopAppDefinition, DesktopAppId } from '../services/desktop-apps';
 import { DockRect, DockState, DockView } from '../services/dock-state';
+import { FileSystem, describeDiskError } from '../services/file-system';
 import { MenuEntry } from '../services/menu';
 import { PopoverService } from '../services/popover';
 import { SystemState } from '../services/system-state';
@@ -82,6 +83,7 @@ export class Dock implements DockView {
   private pressed: HTMLElement | null = null;
   protected readonly launcher = inject(AppLauncher);
   protected readonly dockState = inject(DockState);
+  protected readonly fs = inject(FileSystem);
 
   protected readonly slots: DockSlot[] = DOCK_ITEMS.map((id, index) => ({
     key: `${id}-${index}`,
@@ -187,11 +189,12 @@ export class Dock implements DockView {
       {
         id: 'e',
         label: 'Empty Trash',
-        disabled: !this.dockState.trashFull(),
-        run: () => {
-          this.dockState.trashFull.set(false);
-          this.toast.show('Trash emptied');
-        }
+        disabled: !this.fs.trashFull(),
+        run: () =>
+          this.fs.emptyTrash().then(
+            () => this.toast.show('Trash emptied'),
+            (error: unknown) => this.toast.show(describeDiskError(error))
+          )
       }
     ];
   }

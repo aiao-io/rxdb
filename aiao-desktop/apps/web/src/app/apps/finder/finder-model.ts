@@ -1,4 +1,8 @@
-import { FileSystem, FsNode, file, folder } from '../../services/file-system';
+import { FOLDER_KIND } from '../../disk/disk-kinds';
+import { FsNode, visibleChildren } from '../../disk/disk-tree';
+import { FileSystem } from '../../services/file-system';
+
+export { nameSeed, shotKind } from '../../disk/thumbnails';
 
 export type FinderSort = 'name' | 'date' | 'size' | 'kind';
 
@@ -39,15 +43,32 @@ export const SIDEBAR: readonly { readonly head: string; readonly items: readonly
 export const VIRTUAL_PLACES = ['iCloud Drive', 'AirDrop', 'Recents', 'Network'];
 export const TAG_PLACES = ['Red', 'Orange', 'Green', 'Blue'];
 
-/** 文件名的稳定种子：同一个文件生成的预览图永远一样。 */
-export function nameSeed(name: string): number {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 997;
-  return h;
-}
+/** iCloud Drive 与网络里的条目不在本机磁盘上，只是 Finder 画出来的。 */
+const virtualFolder = (name: string, icon = FOLDER_KIND.icon): FsNode => ({
+  name,
+  path: null,
+  kind: 'folder',
+  icon,
+  k: FOLDER_KIND.kind,
+  date: new Date(2026, 6, 12, 9, 41),
+  hidden: false,
+  children: []
+});
 
-/** 图片缩略图用到的构图：只取原图生成器的 0、1、3 三种。 */
-export const shotKind = (name: string): number => [0, 1, 3][nameSeed(name) % 3];
+const ICLOUD: readonly FsNode[] = [
+  virtualFolder('Desktop'),
+  virtualFolder('Documents'),
+  {
+    name: 'Keynote.key',
+    path: null,
+    kind: 'file',
+    icon: 'f-app',
+    k: 'Keynote',
+    size: '18 MB',
+    date: new Date(2026, 5, 2, 10, 24),
+    hidden: false
+  }
+];
 
 const byName = (a: FsNode, b: FsNode): number => a.name.localeCompare(b.name, undefined, { numeric: true });
 
@@ -55,7 +76,7 @@ const SORTS: Readonly<Record<FinderSort, (a: FsNode, b: FsNode) => number>> = {
   name: byName,
   date: (a, b) => (b.date?.getTime() ?? 0) - (a.date?.getTime() ?? 0),
   kind: (a, b) => String(a.k).localeCompare(b.k),
-  size: (a, b) => String(b.size ?? '').localeCompare(a.size ?? '')
+  size: (a, b) => (b.bytes ?? -1) - (a.bytes ?? -1)
 };
 
 /** 文件夹在前，其余按所选方式排序。 */
@@ -70,16 +91,10 @@ export function folderContents(fs: FileSystem, path: readonly string[], query: s
   const place = path[0];
   if (place === 'Recents') return fs.recents();
   if (place === 'AirDrop') return [];
-  if (place === 'iCloud Drive') {
-    return [
-      folder('Desktop', []),
-      folder('Documents', []),
-      file('Keynote.key', 'f-app', '18 MB', 'Keynote', new Date(2026, 5, 2, 10, 24))
-    ];
-  }
-  if (place === 'Network') return [folder('prasen-nas', [], 'f-hd')];
+  if (place === 'iCloud Drive') return [...ICLOUD];
+  if (place === 'Network') return [virtualFolder('prasen-nas', 'f-hd')];
   const node = fs.get(path);
-  const list = query ? fs.deepSearch(node, query.toLowerCase()).slice(0, 200) : [...(node?.children ?? [])];
+  const list = query ? fs.deepSearch(node, query).slice(0, 200) : [...visibleChildren(node)];
   return sortNodes(list, sort);
 }
 
@@ -97,13 +112,13 @@ export function columnChain(
   first: readonly FsNode[],
   selection: readonly string[]
 ): { readonly chain: readonly FinderColumn[]; readonly selection: readonly string[] } {
-  const root = fs.get(path) ?? fs.root;
+  const root = fs.get(path) ?? fs.root();
   const chain: FinderColumn[] = [{ node: root, items: first, file: false }];
   let current = root;
   for (let i = 0; i < selection.length; i++) {
-    const next = current.children?.find(child => child.name === selection[i]);
+    const next = visibleChildren(current).find(child => child.name === selection[i]);
     if (!next) return { chain, selection: selection.slice(0, i) };
-    const items = next.children ? [...next.children].sort(columnOrder) : null;
+    const items = next.children ? [...visibleChildren(next)].sort(columnOrder) : null;
     chain.push({ node: next, items, file: next.kind === 'file' });
     current = next;
     if (next.kind === 'file') return { chain, selection: selection.slice(0, i + 1) };

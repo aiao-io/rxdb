@@ -4,9 +4,8 @@ import { NOTE_SEED } from '../../apps/notes/notes-data';
 import { SafariBrowsers } from '../../apps/safari/safari-browsers';
 import { AppLauncher } from '../../services/app-launcher';
 import { DESKTOP_APPS, LAUNCH_ORDER } from '../../services/desktop-apps';
-import { DockState } from '../../services/dock-state';
 import { FileOpener } from '../../services/file-opener';
-import { FileSystem, FsNode, HOME_PATH } from '../../services/file-system';
+import { FileSystem, FsNode, HOME_PATH, describeDiskError } from '../../services/file-system';
 import { Overlays } from '../../services/overlays';
 import { Session } from '../../services/session';
 import { ThemeService } from '../../services/theme';
@@ -76,7 +75,6 @@ export class Spotlight {
   private readonly opener = inject(FileOpener);
   private readonly wm = inject(WindowManager);
   private readonly theme = inject(ThemeService);
-  private readonly dock = inject(DockState);
   private readonly toast = inject(Toast);
   private readonly session = inject(Session);
   private readonly safari = inject(SafariBrowsers);
@@ -91,10 +89,11 @@ export class Spotlight {
       name: 'Empty Trash',
       kind: 'Action',
       icon: 'app-trash',
-      run: () => {
-        this.dock.trashFull.set(false);
-        this.toast.show('Trash emptied');
-      }
+      run: () =>
+        this.fs.emptyTrash().then(
+          () => this.toast.show('Trash emptied'),
+          (error: unknown) => this.toast.show(describeDiskError(error))
+        )
     },
     {
       name: 'Change Wallpaper',
@@ -158,7 +157,7 @@ export class Spotlight {
     }));
     const actions = this.actions.filter(action => action.name.toLowerCase().includes(lq));
     const found = this.fs
-      .deepSearch(this.fs.root, lq)
+      .deepSearch(this.fs.root(), lq)
       .slice(0, 12)
       .map(node => this.fileHit(node));
     const notes = NOTE_SEED.filter(note => note.title.toLowerCase().includes(lq))

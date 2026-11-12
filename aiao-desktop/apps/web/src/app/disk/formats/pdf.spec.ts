@@ -47,6 +47,11 @@ describe('readPdfText', () => {
     expect(readPdfText(textPdf(DOC))).toEqual(DOC);
   });
 
+  it('副标题单独读回', () => {
+    const withSubtitle = { ...DOC, subtitle: 'Revision 4 · July 2026' };
+    expect(readPdfText(textPdf(withSubtitle))).toEqual(withSubtitle);
+  });
+
   it('不是本应用生成的 PDF 时返回 null', () => {
     expect(readPdfText(new TextEncoder().encode('%PDF-1.7\n%%EOF'))).toBeNull();
     expect(readPdfText(new TextEncoder().encode('hello'))).toBeNull();

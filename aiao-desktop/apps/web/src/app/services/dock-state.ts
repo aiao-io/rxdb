@@ -1,4 +1,4 @@
-import { Service, signal } from '@angular/core';
+import { Service } from '@angular/core';
 
 /** Dock 图标在屏幕上的中心与尺寸，最小化动画以它为终点。 */
 export interface DockRect {
@@ -15,11 +15,10 @@ export interface DockView {
   rectFor(appId: string): DockRect;
 }
 
-/** 页面级的 Dock 协调者：废纸篓状态，以及转交给 Dock 组件的弹跳与定位。 */
+/** 页面级的 Dock 协调者：转交给 Dock 组件的弹跳与定位（废纸篓满不满看 `FileSystem.trashFull`）。 */
 @Service({ autoProvided: false })
 export class DockState {
   private view: DockView | null = null;
-  readonly trashFull = signal(false);
 
   attach(view: DockView): void {
     this.view = view;
