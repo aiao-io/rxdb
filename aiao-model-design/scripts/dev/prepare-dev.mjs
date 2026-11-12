@@ -26,7 +26,6 @@ function dashboardValues({ local, agent }) {
     LOGIN_URL: `${webUrl}/login.html`,
     WEB_ADDRESS: `${services.web.host}:${services.web.port}`,
     WEB_PORT: services.web.port,
-    WORKER_ADDRESS: `${services.worker.host}:${services.worker.port}`,
     WORKER_PORT: services.worker.port,
     SUPABASE_URL: local.url,
     SUPABASE_PORT: local.env.API_PORT,
@@ -66,14 +65,20 @@ export async function writeDevelopmentConfig(root, { local, agent }) {
   const config = JSON.parse(await readFile(resolve(api, 'wrangler.jsonc'), 'utf8'));
   delete config.$schema;
   config.main = resolve(api, config.main);
-  config.assets = { ...config.assets, directory: assets, html_handling: 'auto-trailing-slash', not_found_handling: 'none' };
+  config.assets = {
+    ...config.assets,
+    directory: assets,
+    html_handling: 'auto-trailing-slash',
+    not_found_handling: 'none'
+  };
   await mkdir(assets, { recursive: true });
   const template = await readFile(new URL('./dashboard.html', import.meta.url), 'utf8');
   await writePrivate(resolve(assets, 'index.html'), renderDashboard(template, dashboardValues({ local, agent })));
   await writeFile(resolve(assets, '_headers'), '/*\n  Cache-Control: no-store\n  Referrer-Policy: no-referrer\n');
   await writeFile(resolve(directory, 'wrangler.json'), `${JSON.stringify(config, null, 2)}\n`);
   const secrets = { SUPABASE_URL: local.url, SUPABASE_ANON_KEY: local.env.ANON_KEY };
-  if (agent.mode !== 'disabled') Object.assign(secrets, { TRIGGER_API_URL: agent.apiUrl, TRIGGER_SECRET_KEY: agent.secretKey });
+  if (agent.mode !== 'disabled')
+    Object.assign(secrets, { TRIGGER_API_URL: agent.apiUrl, TRIGGER_SECRET_KEY: agent.secretKey });
   const lines = Object.entries(secrets).map(([name, value]) => `${name}=${JSON.stringify(value)}`);
   await writePrivate(resolve(directory, '.dev.vars'), `${lines.join('\n')}\n`);
 }

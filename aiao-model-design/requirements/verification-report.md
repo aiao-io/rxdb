@@ -47,8 +47,34 @@
 
 本机搭实例时的几处绕法只因为实例跑在本机 Docker Desktop 上，部署到有公网域名的服务器时不需要：`API_ORIGIN` 设为 `http://host.docker.internal:8030`，让 run 容器与宿主机上的 CLI 用同一个地址（CLI 进程靠一个只改 DNS 解析的预加载模块）；本地构建时让 CLI 把 `host.docker.internal` 指向 127.0.0.1，并加 `--local-build --network host`；buildx 构建器经 Docker Desktop 的代理拉镜像。
 
+## 本地开发环境
+
+2026-11-12 在本机执行（Node 26、Docker Desktop）。离线部分是 `aiao-model-design:dev-test`（8 个文件 30 例）；真实运行用 `pnpm nx dev aiao-model-design --output-style=stream`，浏览器是 Chromium。三种 AI 接入方式各跑一轮：临时往 `apps/api/.dev.vars` 写入本机自建实例的生产或开发环境密钥，验证后原样还原。
+
+| 故事与 AC        | 验证层级             | 入口                                                                                                                             | 当前结论                                                                                                                                                                                                                                                                   |
+| ---------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| MODEL-US-004 #1  | Node 测试            | [check-ports.spec.mjs](../scripts/dev/check-ports.spec.mjs)                                                                      | 通过：占用端口时报出服务名与地址，占用者仍在监听                                                                                                                                                                                                                           |
+| MODEL-US-004 #2  | Node 测试 / 真实运行 | [supabase-local.spec.mjs](../scripts/supabase/supabase-local.spec.mjs)；`supabase-up`                                            | 通过：凭据权限 600、JWT 签名可验、端口只认 `ports.env`、Kong 配置折成一行；首次 34 s 拉起三个容器；Kong 对缺 apikey 与错误 apikey 返回 401，带 apikey 转到 GoTrue；注册返回 `signup_disabled`                                                                              |
+| MODEL-US-004 #3  | Node 测试 / 真实运行 | [seed-accounts.spec.mjs](../scripts/dev/seed-accounts.spec.mjs)                                                                  | 通过：两个账号经 GoTrue 密码登录成功且邮箱已确认，错误密码返回 `invalid_credentials`                                                                                                                                                                                       |
+| MODEL-US-004 #4  | Node 测试 / 真实运行 | [prepare-dev.spec.mjs](../scripts/dev/prepare-dev.spec.mjs)；浏览器读导航页                                                      | 通过：生成的密钥与导航页权限 600、被 git 忽略；导航页不含 JWT secret、service role key、anon key 与 Trigger.dev 密钥                                                                                                                                                       |
+| MODEL-US-004 #5  | Node 测试 / 真实运行 | [agent-environment.spec.mjs](../scripts/dev/agent-environment.spec.mjs)、[agent-dev.spec.mjs](../scripts/dev/agent-dev.spec.mjs) | 通过；开发环境密钥缺 `TRIGGER_PROJECT_REF` 时 `nx dev` 在 `dev-config` 报错，2.5 s 退出，Worker、Web 与智能体都没启动                                                                                                                                                      |
+| MODEL-US-004 #6  | Node 测试            | [open-dashboard.spec.mjs](../scripts/dev/open-dashboard.spec.mjs)                                                                | 通过；真实运行时设了 `AIAO_DEV_OPEN=false`，没有打开浏览器                                                                                                                                                                                                                 |
+| MODEL-US-004 #7  | 真实运行 + Chromium  | `nx dev`：Supabase 已在运行时 15 s 全部就绪                                                                                      | 通过：五个入口可达（Supabase 根路径 404 与说明一致），复制写入剪贴板，390 px 无横向滚动；设计器渲染，新建模型后出现 AI 入口；`designer@aiao.test` 登录后 `/bff/auth/session` 返回本地 GoTrue 的用户，错误密码提示无效；改 `app.routes.ts` 后页面自动重新加载、仍是登录状态 |
+| MODEL-US-004 #8  | 真实运行 + 本机实例  | 生产环境密钥                                                                                                                     | 通过：导航页显示「已部署版本 · 生产环境」与实例地址，Worker 为本人的 `md-<用户 ID>-…` 签发会话令牌                                                                                                                                                                         |
+| MODEL-US-004 #9  | 真实运行 + 本机实例  | 开发环境密钥，CLI 用 `TRIGGER_ACCESS_TOKEN` 认证                                                                                 | 通过：`dev-agent` 里的 `trigger dev` 报 Local worker ready（任务 `model-designer`）；签发会话后实例触发的预热 run 由这个开发会话执行                                                                                                                                       |
+| MODEL-US-004 #10 | 真实运行             | 停止 `nx dev`                                                                                                                    | 通过：Web、Worker、`trigger dev` 与日志进程全部退出，4400、8788 端口释放，Supabase 三个容器保留                                                                                                                                                                            |
+
+验证中修掉的问题：
+
+1. Kong 的声明式配置原本写成多行的环境变量，Kong 落到按行读取的 `.kong_env` 时只剩第一行，启动后没有任何路由。改成折叠为一行的 JSON，并加了回归测试。
+2. web 开发服务器（包括原来的 `serve`）一打开设计器就报 `Failed to resolve import "@trigger.dev/sdk/chat"`：Vite 预打包从仓库根解析依赖，而这个包只装在 web 自己的 `node_modules` 里。改为关闭预打包，依赖由 Angular 的 esbuild 从源码位置解析，与生产构建一致。之前的验收用的是 Worker 托管的生产构建，所以没暴露。
+3. 停止时日志跟随任务被 SIGINT 结束，报出「docker compose 退出：130」。改为把信号结束与 130、143 退出码当作正常结束。
+
+本机这套实例的 `API_ORIGIN` 是 `http://host.docker.internal:8030`，宿主机解析不了，开发会话那一轮在环境里预加载了只改 DNS 解析的模块，与[真实环境验收](#真实环境验收)里部署时的绕法相同；实例有可直接访问的地址时不需要。
+
 ## 尚未证明
 
 - 用真实 Supabase 账号登录后走完 MODEL-US-002 #10。
+- `nx dev` 在交互终端默认的 Nx TUI 下的窗格显示与 Ctrl-C：本机验证用的是 `--output-style=stream`，TUI 需要人工看一遍。
 - 自建实例没有 checkpoint 时的空闲占用与续跑恢复耗时（`turnTimeout` 15 分钟）。
 - 迁入时前端覆盖率基线（语句 61.75%、行 63.64%）低于仓库 80% 门槛；本史诗新增与改动的代码都有测试，存量代码的覆盖率不在范围内。

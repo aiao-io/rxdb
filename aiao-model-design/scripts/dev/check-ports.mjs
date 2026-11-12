@@ -9,7 +9,9 @@ export function assertPortAvailable(name, port, host) {
   return new Promise((resolveCheck, reject) => {
     const server = createServer();
     server.once('error', cause =>
-      reject(new Error(`${name} 的固定端口 ${host}:${port} 已被占用：先停掉占用它的服务再启动，不会自动换端口。`, { cause }))
+      reject(
+        new Error(`${name} 的固定端口 ${host}:${port} 已被占用：先停掉占用它的服务再启动，不会自动换端口。`, { cause })
+      )
     );
     server.listen(port, host, () => server.close(error => (error ? reject(error) : resolveCheck())));
   });

@@ -215,6 +215,12 @@
         font-size: 12px;
         overflow-wrap: anywhere;
       }
+      .card-bottom code {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
       .arrow {
         color: #a2a9e6;
       }
@@ -437,9 +443,12 @@
               <span class="port">:{{ WORKER_PORT }}</span>
             </div>
             <h3>Worker API</h3>
-            <p>登录会话 /bff/auth/* 与智能体会话签发 /api/agent/*。点开查看当前的 AI 配置；Web 的这两类请求经开发代理转到这里。</p>
+            <p>
+              登录会话 /bff/auth/* 与智能体会话签发 /api/agent/*。点开查看当前的 AI 配置；Web
+              的这两类请求经开发代理转到这里。
+            </p>
             <div class="card-bottom">
-              <code>{{ WORKER_ADDRESS }}/api/agent/config</code>
+              <code>/api/agent/config</code>
               <span class="arrow" aria-hidden="true">↗</span>
             </div>
           </a>
@@ -451,7 +460,7 @@
             <h3>Supabase Auth</h3>
             <p>本地 GoTrue，经 Kong 网关校验 apikey，Worker 用它校验账号密码。根路径返回 404 属于正常行为。</p>
             <div class="card-bottom">
-              <code>{{ SUPABASE_URL }}/auth/v1</code>
+              <code>127.0.0.1:{{ SUPABASE_PORT }}</code>
               <span class="arrow" aria-hidden="true">↗</span>
             </div>
           </a>
@@ -511,7 +520,8 @@
             </div>
           </div>
           <p class="note">
-            账号只在本机 Supabase 里，邮箱已确认。重复启动保留账号与已有数据，密码恢复为上方默认值。换第二个账号可以验证 AI 会话按用户隔离。
+            账号只在本机 Supabase 里，邮箱已确认。重复启动保留账号与已有数据，密码恢复为上方默认值。换第二个账号可以验证
+            AI 会话按用户隔离。
           </p>
         </section>
 
@@ -536,7 +546,8 @@
             <p class="note">{{ AGENT_NOTE }}</p>
           </div>
           <p class="note">
-            登录后 Worker 只为本人的会话签发令牌，浏览器直连实例的会话流。模型密钥只在实例的环境变量或 apps/agent/.env.agent 里，这页不显示任何 Trigger.dev 密钥。
+            登录后 Worker 只为本人的会话签发令牌，浏览器直连实例的会话流。模型密钥只在实例的环境变量或
+            apps/agent/.env.agent 里，这页不显示任何 Trigger.dev 密钥。
           </p>
         </section>
 
@@ -545,7 +556,7 @@
             <h2 id="database-title">数据库连接</h2>
             <span class="caption">PostgreSQL</span>
           </div>
-          <div class="panel block database">
+          <div class="panel database block">
             <div class="field">
               <span class="field-label">地址</span>
               <code>{{ DB_ADDRESS }}</code>
@@ -570,13 +581,17 @@
               <button aria-label="复制数据库连接串" data-copy="{{ DB_URL }}" type="button">复制连接串</button>
             </details>
           </div>
-          <p class="note">账号数据在 auth schema，可用 psql、TablePlus 或 DBeaver 连接。此页含本地凭据，只由绑定 127.0.0.1 的本地 Worker 提供。</p>
+          <p class="note">
+            账号数据在 auth schema，可用 psql、TablePlus 或 DBeaver 连接。此页含本地凭据，只由绑定 127.0.0.1 的本地
+            Worker 提供。
+          </p>
         </section>
       </div>
       <footer>
         <p>
-          在 Nx TUI 中切换查看 Web、Worker、智能体与 Supabase 日志。Ctrl-C 停止应用；Supabase 容器继续运行并保留数据，停止它用
-          <code>pnpm nx run aiao-model-design:supabase-down</code>。
+          在 Nx TUI 中切换查看 Web、Worker、智能体与 Supabase 日志。Ctrl-C 停止应用；Supabase
+          容器继续运行并保留数据，停止容器用
+          <code>pnpm nx run aiao-model-design:supabase-down</code>
         </p>
         <p id="copy-status" aria-live="polite" role="status"></p>
       </footer>

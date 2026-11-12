@@ -53,3 +53,12 @@ TDD 的主力是离线测试：共享纯函数单测，`mockChatAgent` 配合模
 按[应用级需求与项目治理办法](../../requirements/application-governance.md)，模型设计器是多个 Nx 应用组成的一个产品，产品根放在仓库根的 `aiao-model-design/`（2026-11-12 用户拍板，三个选项是原地、仓库根与新建 `products/`）。按运行时拆成三个应用：`apps/web`（浏览器）、`apps/api`（Cloudflare Worker）、`apps/agent`（Trigger.dev）；web 与 agent 共用的模型操作抽成私有包 `@aiao-model-design/model-ops`。三者共用需求前缀 `MODEL` 与本目录。
 
 产品根保留 `aiao-model-design` 这个 Nx 项目，承载需求门禁、安全门禁与聚合验证 `verify`；子项目名加后缀。应用之间不互相 import 源码，api 部署时只读取 web 的构建产物。私有包只放纯函数，经 tsconfig paths 按源码消费，不进公开 API 基线与发布流程。
+
+## D-10：本地开发环境
+
+2026-11-12 用户拍板（AskUserQuestion），参照 aiao-media 的 `nx dev`：
+
+- **登录走本地 Supabase（Docker）**，不用模拟认证，也不沿用 `.dev.vars` 里的远端项目。只起登录需要的 Postgres、GoTrue 与 Kong（与 Supabase 一样校验 apikey、剥掉 `/auth/v1/` 前缀），放在产品根 `infra/supabase/`。端口固定为 54421、54422，与 aiao-media 的 543xx 错开；凭据首次运行时随机生成。设计器只用已有账号登录，所以关闭注册，两个测试账号经管理接口创建并确认。
+- **智能体按密钥类型自动接入**：`apps/api/.dev.vars` 两项都没配时禁用 AI 入口；开发环境密钥（`tr_dev_`）顺带启动 `trigger dev`（用 README 约定的 `self-hosted` 登录配置或 `TRIGGER_ACCESS_TOKEN`，需要 `TRIGGER_PROJECT_REF` 与 `.env.agent`）；其他环境密钥使用实例上已部署的版本。配置不完整或无效时在启动服务前报错，不当作未配置。自建 Trigger.dev 实例不纳入 `nx dev`：它有十来个容器，首次建项目与取 PAT 难以自动化。
+
+开发导航由本地 Worker 在根路径提供：`dev-config` 把 Worker 的静态资源目录换成生成的导航页，Web 走 Angular 开发服务器，把 `/api/**`、`/bff/**` 代理给 Worker，所以 `nx dev` 不需要先构建 web。Web 4400、Worker 8788 两个端口固定，被占用时报错退出，不自动换端口。导航页含测试账号与本地数据库密码，只由绑定 127.0.0.1 的 Worker 提供，不进 web 构建产物，也不含任何服务端密钥。

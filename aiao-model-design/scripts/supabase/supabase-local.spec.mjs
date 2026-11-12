@@ -100,7 +100,10 @@ test('Kong 的声明式配置折成一行 JSON：/auth/v1/ 转给 GoTrue，并�
     block.push(line.slice(indent.length));
   }
   // `>-` 只把缩进相同的行折成空格；更深的缩进会保留换行，Kong 落到 .kong_env 时只剩第一行。
-  assert.ok(block.every(line => !/^\s/.test(line)), block.join('\n'));
+  assert.ok(
+    block.every(line => !/^\s/.test(line)),
+    block.join('\n')
+  );
   const config = JSON.parse(block.join(' ').replace(/\$\{(\w+)(?::\?[^}]*)?\}/g, (_, name) => `<${name}>`));
   assert.deepEqual(
     config.consumers.map(consumer => [consumer.username, consumer.keyauth_credentials.map(item => item.key)]),

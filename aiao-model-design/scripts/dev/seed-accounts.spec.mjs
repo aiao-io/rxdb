@@ -20,7 +20,12 @@ function gotrue(users = []) {
       return Response.json({ users: accounts.slice((page - 1) * perPage, page * perPage), aud: 'authenticated' });
     }
     if (pathname === '/auth/v1/admin/users' && method === 'POST') {
-      const user = { id: `user-${accounts.length}`, email: body.email, password: body.password, confirmed: body.email_confirm };
+      const user = {
+        id: `user-${accounts.length}`,
+        email: body.email,
+        password: body.password,
+        confirmed: body.email_confirm
+      };
       accounts.push(user);
       return Response.json(user);
     }
@@ -60,7 +65,10 @@ test('测试账号已确认、可重复准备：再次启动保留账号 ID，�
 });
 
 test('已有用户超过一页时不重复创建测试账号', async () => {
-  const users = Array.from({ length: 1000 }, (_, index) => ({ id: `existing-${index}`, email: `user-${index}@example.test` }));
+  const users = Array.from({ length: 1000 }, (_, index) => ({
+    id: `existing-${index}`,
+    email: `user-${index}@example.test`
+  }));
   users.push({ id: 'existing-designer', email: developmentAccounts[0].email });
   const { accounts, calls, request } = gotrue(users);
   await seedDevelopmentAccounts(local, request);

@@ -6,12 +6,12 @@
 
 | 状态           | 数量 |
 | -------------- | ---- |
-| ✅ Done        | 3    |
+| ✅ Done        | 4    |
 | 🚧 In Progress | 4    |
 | 👀 In Review   | 0    |
 | 📝 Backlog     | 0    |
 | 🚫 Blocked     | 0    |
-| **合计**       | 7    |
+| **合计**       | 8    |
 
 ## 进行中（4 条）
 
@@ -35,3 +35,4 @@
 ### MODEL-EPIC-002 产品工程结构
 
 - ✅ [MODEL-US-003 产品根目录与多应用拆分](stories/platform/MODEL-US-003-product-root.md)
+- ✅ [MODEL-US-004 本地开发环境与开发导航](stories/platform/MODEL-US-004-local-dev-environment.md)

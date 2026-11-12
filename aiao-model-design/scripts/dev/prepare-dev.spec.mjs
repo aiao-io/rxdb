@@ -106,7 +106,10 @@ test('Worker 的本地配置与密钥只写进忽略的 local-dev 目录，导�
   assert.equal(await readFile(path.join(api, '.dev.vars'), 'utf8'), 'SUPABASE_URL="https://remote.supabase.co"\n');
   assert.deepEqual(JSON.parse(await readFile(path.join(api, 'wrangler.jsonc'), 'utf8')), config);
 
-  await writeDevelopmentConfig(root, { local: { ...local, env: { ...local.env, ANON_KEY: 'rotated-anon-key' } }, agent: deployed });
+  await writeDevelopmentConfig(root, {
+    local: { ...local, env: { ...local.env, ANON_KEY: 'rotated-anon-key' } },
+    agent: deployed
+  });
   assert.equal(parseEnv(await readFile(secrets, 'utf8')).SUPABASE_ANON_KEY, 'rotated-anon-key');
   assert.equal((await stat(secrets)).mode & 0o777, 0o600);
 });
@@ -114,7 +117,10 @@ test('Worker 的本地配置与密钥只写进忽略的 local-dev 目录，导�
 test('AI 未启用时 Worker 拿不到 Trigger.dev 配置，导航页说明怎么开启', async t => {
   const { root, localDev, secrets } = await product(t);
   await writeDevelopmentConfig(root, { local, agent: { mode: 'disabled' } });
-  assert.deepEqual(Object.keys(parseEnv(await readFile(secrets, 'utf8'))).sort(), ['SUPABASE_ANON_KEY', 'SUPABASE_URL']);
+  assert.deepEqual(Object.keys(parseEnv(await readFile(secrets, 'utf8'))).sort(), [
+    'SUPABASE_ANON_KEY',
+    'SUPABASE_URL'
+  ]);
   const homepage = await readFile(path.join(localDev, 'assets/index.html'), 'utf8');
   assert.ok(homepage.includes('data-agent="disabled"'));
   assert.ok(homepage.includes('apps/api/.dev.vars'));

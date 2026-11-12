@@ -22,11 +22,12 @@ function instanceUrl(value) {
   return value.replace(/\/+$/, '');
 }
 
+const MISSING_AGENT_ENV =
+  '开发环境密钥要启动智能体开发会话：先把 apps/agent/.env.agent.example 复制为 .env.agent，填写模型密钥。';
+
 async function requireAgentEnvFile(file) {
   await access(file).catch(cause => {
-    throw new Error('开发环境密钥要启动智能体开发会话：先把 apps/agent/.env.agent.example 复制为 .env.agent，填写模型密钥。', {
-      cause
-    });
+    throw new Error(MISSING_AGENT_ENV, { cause });
   });
 }
 
@@ -55,11 +56,18 @@ export async function agentEnvironment({
     throw new Error(
       'apps/api/.dev.vars 的 TRIGGER_SECRET_KEY 不是 Trigger.dev 环境密钥：应以 tr_dev_、tr_prod_、tr_stg_ 或 tr_preview_ 开头。'
     );
-  const agent = { mode: environment === 'dev' ? 'dev' : 'deployed', environment, apiUrl: instanceUrl(apiUrl), secretKey };
+  const agent = {
+    mode: environment === 'dev' ? 'dev' : 'deployed',
+    environment,
+    apiUrl: instanceUrl(apiUrl),
+    secretKey
+  };
   if (agent.mode === 'deployed') return agent;
   const projectRef = env.TRIGGER_PROJECT_REF?.trim() ?? '';
   if (!PROJECT_REF.test(projectRef))
-    throw new Error('开发环境密钥要启动智能体开发会话：先 export TRIGGER_PROJECT_REF=proj_…（实例控制台里的项目 ref）。');
+    throw new Error(
+      '开发环境密钥要启动智能体开发会话：先 export TRIGGER_PROJECT_REF=proj_…（实例控制台里的项目 ref）。'
+    );
   await requireAgentEnvFile(agentEnvFile);
   return { ...agent, projectRef };
 }

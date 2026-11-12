@@ -72,8 +72,7 @@ export async function localEnvironment({ envFile = files.envFile, portsFile = fi
     if (!/^\d+$/.test(env[name] ?? '') || port < 1024 || port > 65535) throw new Error(`本地端口无效：${name}`);
   }
   if (new Set(PORTS.map(name => env[name])).size !== PORTS.length) throw new Error('本地 Supabase 的端口不能重复。');
-  for (const name of SECRETS)
-    if (!SAFE_VALUE.test(env[name] ?? '')) throw new Error(`本地凭据缺失或格式无效：${name}`);
+  for (const name of SECRETS) if (!SAFE_VALUE.test(env[name] ?? '')) throw new Error(`本地凭据缺失或格式无效：${name}`);
   return {
     env,
     url: `http://127.0.0.1:${env.API_PORT}`,
@@ -102,9 +101,10 @@ export function run(command, args, { input, env = process.env } = {}) {
     });
     if (input) child.stdin.end(input);
     child.on('error', reject);
-    child.on('exit', (code, signal) =>
-      code === 0 ? resolveRun() : reject(new Error(`${command} ${args[0]} 退出：${code ?? signal}`))
-    );
+    child.on('exit', (code, signal) => {
+      if (code === 0) return resolveRun();
+      reject(Object.assign(new Error(`${command} ${args[0]} 退出：${code ?? signal}`), { code, signal }));
+    });
   });
 }
 
@@ -136,7 +136,11 @@ const ACTIONS = {
   },
   status: () => compose(['ps']),
   logs: () => compose(['logs', '--tail', '60']),
-  'logs-follow': () => compose(['logs', '--tail', '60', '--follow'])
+  // nx dev 收尾时用 SIGINT/SIGTERM 停掉日志跟随，这是正常结束：docker compose 会以 130/143 退出，或直接被信号结束。
+  'logs-follow': () =>
+    compose(['logs', '--tail', '60', '--follow']).catch(error => {
+      if (!error.signal && ![130, 143].includes(error.code)) throw error;
+    })
 };
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

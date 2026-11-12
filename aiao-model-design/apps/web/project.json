@@ -79,6 +79,7 @@
       "options": {
         "buildTarget": "aiao-model-design-web:build:development",
         "port": 4400,
+        "prebundle": false,
         "proxyConfig": "aiao-model-design/apps/web/proxy.conf.cjs"
       }
     },
@@ -102,6 +103,7 @@
         }
       },
       "options": {
+        "prebundle": false,
         "proxyConfig": "aiao-model-design/apps/web/proxy.conf.cjs"
       }
     },

@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
+import { access } from 'node:fs/promises';
+import path from 'node:path';
 import { test } from 'node:test';
-import { agentDevPlan, agentDirectory, runAgentSession } from './agent-dev.mjs';
+import { agentDevPlan, agentDirectory, runAgentSession, triggerCli } from './agent-dev.mjs';
 
 const devAgent = {
   mode: 'dev',
@@ -34,6 +36,13 @@ test('开发环境密钥启动 trigger dev：连 Worker 用的同一个实例，
     TRIGGER_API_URL: devAgent.apiUrl,
     TRIGGER_PROJECT_REF: devAgent.projectRef
   });
+});
+
+test('trigger CLI 按 agent 包自己的依赖解析到入口脚本', async () => {
+  const cli = triggerCli();
+  assert.ok(path.isAbsolute(cli));
+  assert.match(cli, /trigger\.dev[\\/]dist[\\/]/);
+  await access(cli);
 });
 
 test('未启用与已部署时不启动开发会话', () => {

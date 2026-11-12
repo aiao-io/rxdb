@@ -47,7 +47,10 @@ test('生产、预发与预览环境的密钥使用实例上已部署的智能�
 });
 
 test('开发环境密钥要启动智能体开发会话，需要项目 ref 与 .env.agent', async t => {
-  const ready = await fixture(t, { devVars: trigger('https://trigger.example.com', DEV_KEY), agentEnv: 'AGENT_MODEL=x' });
+  const ready = await fixture(t, {
+    devVars: trigger('https://trigger.example.com', DEV_KEY),
+    agentEnv: 'AGENT_MODEL=x'
+  });
   assert.deepEqual(await agentEnvironment({ ...ready, env: { TRIGGER_PROJECT_REF: PROJECT_REF } }), {
     mode: 'dev',
     environment: 'dev',
@@ -56,7 +59,10 @@ test('开发环境密钥要启动智能体开发会话，需要项目 ref 与 .e
     projectRef: PROJECT_REF
   });
   await assert.rejects(agentEnvironment({ ...ready, env: {} }), /TRIGGER_PROJECT_REF/);
-  await assert.rejects(agentEnvironment({ ...ready, env: { TRIGGER_PROJECT_REF: 'my-project' } }), /TRIGGER_PROJECT_REF/);
+  await assert.rejects(
+    agentEnvironment({ ...ready, env: { TRIGGER_PROJECT_REF: 'my-project' } }),
+    /TRIGGER_PROJECT_REF/
+  );
   const withoutAgentEnv = await fixture(t, { devVars: trigger('https://trigger.example.com', DEV_KEY) });
   await assert.rejects(
     agentEnvironment({ ...withoutAgentEnv, env: { TRIGGER_PROJECT_REF: PROJECT_REF } }),

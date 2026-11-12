@@ -8,13 +8,13 @@
 
 建模 AI 是运行在自建 Trigger.dev 上的持久智能体，做法参考 [rendi](https://github.com/mcheemaa/rendi)。
 
-| 目录                                     | Nx 项目                       | 运行时              | 职责                                                                                            |
-| ---------------------------------------- | ----------------------------- | ------------------- | ----------------------------------------------------------------------------------------------- |
-| [apps/web](apps/web)                     | `aiao-model-design-web`       | 浏览器（Angular）   | 模型的真相源（本地 RxDB）；每轮把模型快照发给智能体，把工具产出按 `toolCallId` 幂等写进 AI 分支 |
-| [apps/api](apps/api)                     | `aiao-model-design-api`       | Cloudflare Worker   | 静态资源、Supabase 登录会话、为本人的会话签发 Trigger.dev 令牌；不持有模型密钥                  |
-| [apps/agent](apps/agent)                 | `aiao-model-design-agent`     | Trigger.dev（Node） | `chat.agent` 持久会话；在草稿上执行建模工具，校验失败把原因还给模型                             |
-| [packages/model-ops](packages/model-ops) | `aiao-model-design-model-ops` | 无（纯函数）        | `@aiao-model-design/model-ops`：web 与 agent 共用的快照类型、操作、校验、差异与概要             |
-| 产品根（本目录）                         | `aiao-model-design`           | —                   | 需求门禁、安全门禁与一次跑完全部门禁的 `verify`                                                 |
+| 目录                                     | Nx 项目                       | 运行时              | 职责                                                                                                         |
+| ---------------------------------------- | ----------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------ |
+| [apps/web](apps/web)                     | `aiao-model-design-web`       | 浏览器（Angular）   | 模型的真相源（本地 RxDB）；每轮把模型快照发给智能体，把工具产出按 `toolCallId` 幂等写进 AI 分支              |
+| [apps/api](apps/api)                     | `aiao-model-design-api`       | Cloudflare Worker   | 静态资源、Supabase 登录会话、为本人的会话签发 Trigger.dev 令牌；不持有模型密钥                               |
+| [apps/agent](apps/agent)                 | `aiao-model-design-agent`     | Trigger.dev（Node） | `chat.agent` 持久会话；在草稿上执行建模工具，校验失败把原因还给模型                                          |
+| [packages/model-ops](packages/model-ops) | `aiao-model-design-model-ops` | 无（纯函数）        | `@aiao-model-design/model-ops`：web 与 agent 共用的快照类型、操作、校验、差异与概要                          |
+| 产品根（本目录）                         | `aiao-model-design`           | —                   | 需求门禁、安全门禁、一次跑完全部门禁的 `verify`，以及本地开发环境 `dev`（`scripts/dev/`、`infra/supabase/`） |
 
 Worker 接口：
 
@@ -38,39 +38,85 @@ Worker 接口：
 
 ## 本地运行
 
-只编辑本地模型不需要登录，也不需要 Trigger.dev。要用 AI 时：
+切到 Node 26、启动 Docker，然后在仓库根执行：
 
-1. 复制 Worker 环境变量模板，填写 Supabase 与自建实例的地址、环境密钥：
+```bash
+pnpm nx dev aiao-model-design
+```
 
-   ```bash
-   cp aiao-model-design/apps/api/.dev.vars.example aiao-model-design/apps/api/.dev.vars
-   pnpm nx run aiao-model-design-api:serve
-   ```
+它依次检查固定端口，拉起只服务登录的本地 Supabase（Postgres、GoTrue 与 Kong 网关；首次运行在 `infra/supabase/.env` 生成随机凭据），准备测试账号与本地 Worker 配置，再启动 Worker 与支持热更新的 Web，并按 `apps/api/.dev.vars` 的配置接入智能体。全部就绪后自动打开[开发导航](http://127.0.0.1:8788/)：服务入口、测试账号、AI 接入状态与数据库连接都在这一页，可一键复制。不想自动打开浏览器时用 `AIAO_DEV_OPEN=false pnpm nx dev aiao-model-design`。
 
-   该任务先构建 web，再在 `http://localhost:8788` 启动本地 Worker；AI 面板中的「登录」链接打开 `/login.html`。
+| 服务                     | 地址                                          |
+| ------------------------ | --------------------------------------------- |
+| 设计器（Web）            | <http://localhost:4400/model-designer/canvas> |
+| 登录页                   | <http://localhost:4400/login.html>            |
+| 开发导航 / Worker        | <http://127.0.0.1:8788/>                      |
+| Supabase Auth（经 Kong） | <http://127.0.0.1:54421/auth/v1>              |
+| PostgreSQL               | `127.0.0.1:54422`，用户 `postgres`            |
 
-2. 在自建实例上登录 CLI，并启动智能体的开发会话（项目 ref 在实例控制台里创建项目后获得）：
+| 测试账号             | 密码             | 用途                   |
+| -------------------- | ---------------- | ---------------------- |
+| `designer@aiao.test` | `AiaoDesign123!` | 主账号                 |
+| `reviewer@aiao.test` | `AiaoReview123!` | 验证 AI 会话按用户隔离 |
 
-   ```bash
-   pnpm --dir aiao-model-design/apps/agent exec trigger login --api-url https://trigger.example.com --profile self-hosted
-   cp aiao-model-design/apps/agent/.env.agent.example aiao-model-design/apps/agent/.env.agent
-   export TRIGGER_PROJECT_REF=proj_xxx
-   pnpm nx run aiao-model-design-agent:dev -- --profile self-hosted
-   ```
+测试账号已确认邮箱；再次启动保留账号 ID 与数据，密码恢复为默认值。本地 Supabase 关闭了注册，新账号只能经管理接口创建。`nx dev` 下登录只走本地 Supabase，`.dev.vars` 里的 `SUPABASE_*` 不生效。
 
-   `.env.agent` 填模型密钥，由 `trigger dev` 注入开发会话。项目 ref 由 CLI 从环境变量 `TRIGGER_PROJECT_REF` 读取，覆盖 `trigger.config.ts` 里的占位值；配置文件本身不读环境变量，因为部署镜像里的索引与运行进程也会加载它。Worker 的 `TRIGGER_SECRET_KEY` 用该项目开发环境的密钥。
+端口固定：被占用时先停掉占用的服务再启动，不会自动换端口。Supabase 的端口在已提交的 `infra/supabase/ports.env`，与 aiao-media 的 543xx 错开。多个检出目录用同一套端口，不能同时启动；可用 `COMPOSE_PROJECT_NAME` 隔离数据卷。
 
-从旧版升级时，`.dev.vars` 里的 `DEEPSEEK_API_KEY`、`DEEPSEEK_BASE_URL`、`DEEPSEEK_MODEL` 已不被 Worker 读取，可以删除：前两项原样移到 `.env.agent`（部署后配置到实例的环境变量），`DEEPSEEK_MODEL="x"` 改写为 `AGENT_MODEL="deepseek:x"`。旧版经 OpenAI 兼容的 Responses 接口（`<DEEPSEEK_BASE_URL>/responses`）调用模型，新版调用 Chat Completions 接口（`<DEEPSEEK_BASE_URL>/chat/completions`）；`DEEPSEEK_BASE_URL` 指向中转服务时，要确认它提供后者。旧目录 `apps/aiao-model-design/` 下的 `.dev.vars` 要移到 `aiao-model-design/apps/api/`。
+### 接入智能体
 
-前端需要热更新时，保留 Worker 进程，在另一个终端运行 `pnpm nx serve aiao-model-design-web`；开发代理默认把 `/api/**` 和 `/bff/**` 交给 `http://localhost:8788`，可用 `MODEL_DESIGN_API_URL` 指定其他 Worker 地址。`pnpm nx run aiao-model-design-web:dev` 同时启动两者。迁移预览配置仍使用 4201 端口：`pnpm nx run aiao-model-design-web:serve:migration`。
+`nx dev` 按 `apps/api/.dev.vars` 里的 `TRIGGER_API_URL` 与 `TRIGGER_SECRET_KEY` 决定怎么接智能体：
 
-本地 Worker 的出站请求支持 `HTTPS_PROXY`、`HTTP_PROXY` 和 `NO_PROXY`，代理只用于本地开发：
+| `.dev.vars` 的配置                                   | 接入方式                                                    |
+| ---------------------------------------------------- | ----------------------------------------------------------- |
+| 两项都没填                                           | 不启用，设计器的 AI 入口禁用并说明原因                      |
+| 开发环境密钥（`tr_dev_`）                            | 同时启动 `trigger dev` 智能体开发会话，改智能体代码即时生效 |
+| 其他环境密钥（`tr_prod_`、`tr_stg_`、`tr_preview_`） | 使用实例上已部署的智能体                                    |
+
+只填一项、地址不是 http(s) 或密钥不是环境密钥时，启动前直接报错。开发会话还需要下面三样，缺项目 ref 或 `.env.agent` 时也在启动前报错：
+
+```bash
+# 1. 在自建实例上登录 CLI，--api-url 与 TRIGGER_API_URL 一致（也可以在环境里提供 TRIGGER_ACCESS_TOKEN）
+pnpm --dir aiao-model-design/apps/agent exec trigger login --api-url https://trigger.example.com --profile self-hosted
+# 2. 项目 ref：在实例控制台里创建项目后获得
+export TRIGGER_PROJECT_REF=proj_xxx
+# 3. 模型密钥：复制后填写，由 trigger dev 注入开发会话
+cp aiao-model-design/apps/agent/.env.agent.example aiao-model-design/apps/agent/.env.agent
+```
+
+项目 ref 由 CLI 从环境变量 `TRIGGER_PROJECT_REF` 读取，覆盖 `trigger.config.ts` 里的占位值；配置文件本身不读环境变量，因为部署镜像里的索引与运行进程也会加载它。只跑智能体开发会话时用 `pnpm nx run aiao-model-design-agent:dev -- --profile self-hosted`。
+
+### 停止与日志
+
+交互终端默认用 Nx TUI，可切换查看 Web、Worker、智能体与 Supabase 日志；加 `--output-style=stream` 输出普通日志。Ctrl-C 停止应用与日志进程，Supabase 容器继续运行并保留数据：
+
+```bash
+pnpm nx run aiao-model-design:supabase-status   # 查看容器状态
+pnpm nx run aiao-model-design:supabase-down     # 停止容器，保留数据卷
+```
+
+本地 Worker 的配置、密钥与导航页生成在忽略的 `apps/api/.wrangler/local-dev/`，不改 `.dev.vars` 与 `wrangler.jsonc`。Web 走 Angular 开发服务器，把 `/api/**`、`/bff/**` 代理给 Worker，不需要先构建。导航页只由绑定 127.0.0.1 的本地 Worker 提供，含测试账号与数据库密码，不进 web 构建产物；JWT secret、service role key 与 Trigger.dev 密钥都不写进页面。
+
+### 其他运行方式
+
+只改前端、不需要登录时用 `pnpm nx serve aiao-model-design-web`（<http://localhost:4200>，不需要 Docker）；开发代理默认把 `/api/**` 和 `/bff/**` 交给 `http://127.0.0.1:8788`，可用 `MODEL_DESIGN_API_URL` 指定其他 Worker 地址。迁移预览配置使用 4201 端口：`pnpm nx run aiao-model-design-web:serve:migration`。
+
+按生产形态在本地预览（Worker 托管 web 的构建产物，登录走 `.dev.vars` 里配置的 Supabase 项目）：
+
+```bash
+cp aiao-model-design/apps/api/.dev.vars.example aiao-model-design/apps/api/.dev.vars
+pnpm nx run aiao-model-design-api:serve
+```
+
+该任务先构建 web，再在 `http://localhost:8788` 启动本地 Worker，与 `nx dev` 用同一个端口，不能同时运行。本地 Worker（`nx dev` 与 `serve` 都是）的出站请求支持 `HTTPS_PROXY`、`HTTP_PROXY` 和 `NO_PROXY`，代理只用于本地开发；`NO_PROXY` 默认含 localhost 与 127.0.0.1，本地 Supabase 不走代理：
 
 ```bash
 HTTPS_PROXY=http://127.0.0.1:7897 pnpm nx run aiao-model-design-api:serve
 ```
 
-登录返回 `Authentication service is unavailable` 表示认证服务连接失败；账号密码错误会返回 401。`.dev.vars`、`.env.agent`、`.wrangler/` 与 `.trigger/` 不提交。
+登录返回 `Authentication service is unavailable` 表示认证服务连接失败；账号密码错误会返回 401。`.dev.vars`、`.env.agent`、`infra/supabase/.env`、`.wrangler/` 与 `.trigger/` 不提交。
+
+从旧版升级时，`.dev.vars` 里的 `DEEPSEEK_API_KEY`、`DEEPSEEK_BASE_URL`、`DEEPSEEK_MODEL` 已不被 Worker 读取，可以删除：前两项原样移到 `.env.agent`（部署后配置到实例的环境变量），`DEEPSEEK_MODEL="x"` 改写为 `AGENT_MODEL="deepseek:x"`。旧版经 OpenAI 兼容的 Responses 接口（`<DEEPSEEK_BASE_URL>/responses`）调用模型，新版调用 Chat Completions 接口（`<DEEPSEEK_BASE_URL>/chat/completions`）；`DEEPSEEK_BASE_URL` 指向中转服务时，要确认它提供后者。旧目录 `apps/aiao-model-design/` 下的 `.dev.vars` 要移到 `aiao-model-design/apps/api/`。
 
 ## 部署
 

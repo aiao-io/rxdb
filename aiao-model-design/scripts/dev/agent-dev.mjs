@@ -75,7 +75,7 @@ async function main() {
   const code = await runAgentSession(plan);
   if (code !== 0)
     console.error(
-      `trigger dev 退出（${code}）。没登录这个实例时先运行 pnpm --dir aiao-model-design/apps/agent exec trigger login --api-url ${agent.apiUrl} --profile self-hosted，或在环境里提供 TRIGGER_ACCESS_TOKEN。`
+      `trigger dev 退出（${code}），原因见上方 CLI 的输出。如果是没登录这个实例：先运行 pnpm --dir aiao-model-design/apps/agent exec trigger login --api-url ${agent.apiUrl} --profile self-hosted，或在环境里提供 TRIGGER_ACCESS_TOKEN。`
     );
   process.exitCode = code;
 }

@@ -43,10 +43,12 @@ export async function seedDevelopmentAccounts(local, request = fetch) {
   for (const account of developmentAccounts) {
     const existing = users.find(user => user.email === account.email);
     const attributes = { password: account.password, email_confirm: true };
-    const init =
-      existing ?
-        { path: `users/${existing.id}`, method: 'PUT', body: attributes }
-      : { path: 'users', method: 'POST', body: { email: account.email, ...attributes } };
-    await admin(local, request, init.path, { method: init.method, body: JSON.stringify(init.body) });
+    if (existing)
+      await admin(local, request, `users/${existing.id}`, { method: 'PUT', body: JSON.stringify(attributes) });
+    else
+      await admin(local, request, 'users', {
+        method: 'POST',
+        body: JSON.stringify({ email: account.email, ...attributes })
+      });
   }
 }
