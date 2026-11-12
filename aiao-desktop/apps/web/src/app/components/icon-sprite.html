@@ -1,592 +1,1471 @@
-<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs id="defs">
-<clipPath id="sqc"><path [attr.d]="squircle100"/></clipPath>
-<clipPath id="sqr" clipPathUnits="objectBoundingBox"><path [attr.d]="squircle1"/></clipPath>
+<svg aria-hidden="true" height="0" style="position: absolute" width="0">
+  <defs id="defs">
+    <clipPath id="sqc"><path [attr.d]="squircle100" /></clipPath>
+    <clipPath id="sqr" clipPathUnits="objectBoundingBox"><path [attr.d]="squircle1" /></clipPath>
 
-<!-- ============================ FINDER ============================ -->
-<symbol id="app-finder" viewBox="0 0 100 100">
-  <linearGradient id="fiL" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fdfefe"/><stop offset="1" stop-color="#dae2ec"/></linearGradient>
-  <linearGradient id="fiR" x1=".1" y1="0" x2=".7" y2="1"><stop offset="0" stop-color="#41a7fb"/><stop offset=".55" stop-color="#2287f2"/><stop offset="1" stop-color="#0e64d8"/></linearGradient>
-  <clipPath id="fiClipL"><rect x="0" y="0" width="42.5" height="100"/></clipPath>
-  <clipPath id="fiClipR"><rect x="42.5" y="0" width="57.5" height="100"/></clipPath>
-  <g clip-path="url(#sqc)">
-    <rect width="100" height="100" fill="url(#fiL)"/>
-    <rect x="42.5" width="57.5" height="100" fill="url(#fiR)"/>
-    <g clip-path="url(#fiClipL)" fill="none" stroke="#1c6fd0" stroke-width="5.4" stroke-linecap="round">
-      <path d="M29.5 30.5v13.5"/>
-      <path d="M23 60.5c5.5 8.2 15 12.6 27 12.6s21.5-4.4 27-12.6"/>
-    </g>
-    <g clip-path="url(#fiClipR)" fill="none" stroke="#fff" stroke-width="5.4" stroke-linecap="round">
-      <path d="M63.5 30.5v13.5"/>
-      <path d="M23 60.5c5.5 8.2 15 12.6 27 12.6s21.5-4.4 27-12.6"/>
-    </g>
-    <rect width="100" height="100" fill="none" stroke="rgba(0,0,0,.09)" stroke-width="1.4"/>
-    <path d="M0 0h100v34H0z" fill="url(#fiGl)" opacity=".22"/>
-    <linearGradient id="fiGl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
-  </g>
-</symbol>
+    <!-- ============================ FINDER ============================ -->
+    <symbol id="app-finder" viewBox="0 0 100 100">
+      <linearGradient id="fiL" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0" stop-color="#fdfefe" />
+        <stop offset="1" stop-color="#dae2ec" />
+      </linearGradient>
+      <linearGradient id="fiR" x1=".1" x2=".7" y1="0" y2="1">
+        <stop offset="0" stop-color="#41a7fb" />
+        <stop offset=".55" stop-color="#2287f2" />
+        <stop offset="1" stop-color="#0e64d8" />
+      </linearGradient>
+      <clipPath id="fiClipL"><rect height="100" width="42.5" x="0" y="0" /></clipPath>
+      <clipPath id="fiClipR"><rect height="100" width="57.5" x="42.5" y="0" /></clipPath>
+      <g clip-path="url(#sqc)">
+        <rect fill="url(#fiL)" height="100" width="100" />
+        <rect fill="url(#fiR)" height="100" width="57.5" x="42.5" />
+        <g clip-path="url(#fiClipL)" fill="none" stroke="#1c6fd0" stroke-linecap="round" stroke-width="5.4">
+          <path d="M29.5 30.5v13.5" />
+          <path d="M23 60.5c5.5 8.2 15 12.6 27 12.6s21.5-4.4 27-12.6" />
+        </g>
+        <g clip-path="url(#fiClipR)" fill="none" stroke="#fff" stroke-linecap="round" stroke-width="5.4">
+          <path d="M63.5 30.5v13.5" />
+          <path d="M23 60.5c5.5 8.2 15 12.6 27 12.6s21.5-4.4 27-12.6" />
+        </g>
+        <rect fill="none" height="100" stroke="rgba(0,0,0,.09)" stroke-width="1.4" width="100" />
+        <path d="M0 0h100v34H0z" fill="url(#fiGl)" opacity=".22" />
+        <linearGradient id="fiGl" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0" stop-color="#fff" />
+          <stop offset="1" stop-color="#fff" stop-opacity="0" />
+        </linearGradient>
+      </g>
+    </symbol>
 
-<!-- ============================ LAUNCHPAD ========================== -->
-<symbol id="app-launchpad" viewBox="0 0 100 100">
-  <linearGradient id="lpB" x1="0" y1="0" x2=".3" y2="1"><stop offset="0" stop-color="#fbfbfd"/><stop offset="1" stop-color="#dcdce1"/></linearGradient>
-  <g clip-path="url(#sqc)">
-    <rect width="100" height="100" fill="url(#lpB)"/>
-    <g fill="#6f7076">
-      <rect x="20" y="20" width="17" height="17" rx="5"/><rect x="41.5" y="20" width="17" height="17" rx="5"/><rect x="63" y="20" width="17" height="17" rx="5"/>
-      <rect x="20" y="41.5" width="17" height="17" rx="5"/><rect x="41.5" y="41.5" width="17" height="17" rx="5"/><rect x="63" y="41.5" width="17" height="17" rx="5"/>
-      <rect x="20" y="63" width="17" height="17" rx="5"/><rect x="41.5" y="63" width="17" height="17" rx="5"/><rect x="63" y="63" width="17" height="17" rx="5"/>
-    </g>
-    <rect width="100" height="100" fill="none" stroke="rgba(0,0,0,.10)" stroke-width="1.4"/>
-  </g>
-</symbol>
+    <!-- ============================ LAUNCHPAD ========================== -->
+    <symbol id="app-launchpad" viewBox="0 0 100 100">
+      <linearGradient id="lpB" x1="0" x2=".3" y1="0" y2="1">
+        <stop offset="0" stop-color="#fbfbfd" />
+        <stop offset="1" stop-color="#dcdce1" />
+      </linearGradient>
+      <g clip-path="url(#sqc)">
+        <rect fill="url(#lpB)" height="100" width="100" />
+        <g fill="#6f7076">
+          <rect height="17" rx="5" width="17" x="20" y="20" />
+          <rect height="17" rx="5" width="17" x="41.5" y="20" />
+          <rect height="17" rx="5" width="17" x="63" y="20" />
+          <rect height="17" rx="5" width="17" x="20" y="41.5" />
+          <rect height="17" rx="5" width="17" x="41.5" y="41.5" />
+          <rect height="17" rx="5" width="17" x="63" y="41.5" />
+          <rect height="17" rx="5" width="17" x="20" y="63" />
+          <rect height="17" rx="5" width="17" x="41.5" y="63" />
+          <rect height="17" rx="5" width="17" x="63" y="63" />
+        </g>
+        <rect fill="none" height="100" stroke="rgba(0,0,0,.10)" stroke-width="1.4" width="100" />
+      </g>
+    </symbol>
 
-<!-- ============================ SAFARI ============================ -->
-<symbol id="app-safari" viewBox="0 0 100 100">
-  <linearGradient id="sfB" x1="0" y1="0" x2=".2" y2="1"><stop offset="0" stop-color="#fcfdfe"/><stop offset="1" stop-color="#d5dae1"/></linearGradient>
-  <linearGradient id="sfD" x1=".15" y1="0" x2=".85" y2="1"><stop offset="0" stop-color="#2ec7fb"/><stop offset=".5" stop-color="#1a8ef0"/><stop offset="1" stop-color="#0e5fd8"/></linearGradient>
-  <g clip-path="url(#sqc)">
-    <rect width="100" height="100" fill="url(#sfB)"/>
-    <circle cx="50" cy="50" r="42.5" fill="url(#sfD)"/>
-    <circle cx="50" cy="50" r="42.5" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="1.6"/>
-    <!-- 60 minor ticks, then 12 majors laid over them -->
-    <circle cx="50" cy="50" r="38.2" fill="none" stroke="rgba(255,255,255,.52)" stroke-width="3.6"
-            stroke-dasharray="1.05 2.95" stroke-dashoffset="0.52"/>
-    <circle cx="50" cy="50" r="37.2" fill="none" stroke="rgba(255,255,255,.92)" stroke-width="5.6"
-            stroke-dasharray="1.7 17.78" stroke-dashoffset="0.85"/>
-    <g font-family="Inter,-apple-system,sans-serif" font-size="8.4" font-weight="700" fill="#fff" text-anchor="middle" opacity=".96">
-      <text x="50" y="21">N</text><text x="50" y="85.6">S</text>
-      <text x="83" y="53.1">E</text><text x="17" y="53.1">W</text>
-    </g>
-    <!-- needle: a rhombus split along its short diagonal -->
-    <g transform="translate(.8 .8)" opacity=".22">
-      <path d="M75 25 54.4 54.4 45.6 45.6z" fill="#000"/><path d="M25 75 45.6 45.6 54.4 54.4z" fill="#000"/>
-    </g>
-    <path d="M75 25 54.4 54.4 45.6 45.6z" fill="#ee453b"/>
-    <path d="M25 75 45.6 45.6 54.4 54.4z" fill="#fbfcfd"/>
-    <path d="M24 76 48.8 51.2 51.2 48.8z" fill="#fbfcfd"/>
-    <rect width="100" height="100" fill="none" stroke="rgba(0,0,0,.10)" stroke-width="1.4"/>
-  </g>
-</symbol>
+    <!-- ============================ SAFARI ============================ -->
+    <symbol id="app-safari" viewBox="0 0 100 100">
+      <linearGradient id="sfB" x1="0" x2=".2" y1="0" y2="1">
+        <stop offset="0" stop-color="#fcfdfe" />
+        <stop offset="1" stop-color="#d5dae1" />
+      </linearGradient>
+      <linearGradient id="sfD" x1=".15" x2=".85" y1="0" y2="1">
+        <stop offset="0" stop-color="#2ec7fb" />
+        <stop offset=".5" stop-color="#1a8ef0" />
+        <stop offset="1" stop-color="#0e5fd8" />
+      </linearGradient>
+      <g clip-path="url(#sqc)">
+        <rect fill="url(#sfB)" height="100" width="100" />
+        <circle cx="50" cy="50" fill="url(#sfD)" r="42.5" />
+        <circle cx="50" cy="50" fill="none" r="42.5" stroke="rgba(255,255,255,.5)" stroke-width="1.6" />
+        <!-- 60 minor ticks, then 12 majors laid over them -->
+        <circle
+          cx="50"
+          cy="50"
+          fill="none"
+          r="38.2"
+          stroke="rgba(255,255,255,.52)"
+          stroke-dasharray="1.05 2.95"
+          stroke-dashoffset="0.52"
+          stroke-width="3.6"
+        />
+        <circle
+          cx="50"
+          cy="50"
+          fill="none"
+          r="37.2"
+          stroke="rgba(255,255,255,.92)"
+          stroke-dasharray="1.7 17.78"
+          stroke-dashoffset="0.85"
+          stroke-width="5.6"
+        />
+        <g
+          fill="#fff"
+          font-family="Inter,-apple-system,sans-serif"
+          font-size="8.4"
+          font-weight="700"
+          opacity=".96"
+          text-anchor="middle"
+        >
+          <text x="50" y="21">N</text>
+          <text x="50" y="85.6">S</text>
+          <text x="83" y="53.1">E</text>
+          <text x="17" y="53.1">W</text>
+        </g>
+        <!-- needle: a rhombus split along its short diagonal -->
+        <g opacity=".22" transform="translate(.8 .8)">
+          <path d="M75 25 54.4 54.4 45.6 45.6z" fill="#000" />
+          <path d="M25 75 45.6 45.6 54.4 54.4z" fill="#000" />
+        </g>
+        <path d="M75 25 54.4 54.4 45.6 45.6z" fill="#ee453b" />
+        <path d="M25 75 45.6 45.6 54.4 54.4z" fill="#fbfcfd" />
+        <path d="M24 76 48.8 51.2 51.2 48.8z" fill="#fbfcfd" />
+        <rect fill="none" height="100" stroke="rgba(0,0,0,.10)" stroke-width="1.4" width="100" />
+      </g>
+    </symbol>
 
-<!-- ============================ MAIL ============================== -->
-<symbol id="app-mail" viewBox="0 0 100 100">
-  <linearGradient id="mlB" x1=".1" y1="0" x2=".7" y2="1"><stop offset="0" stop-color="#3ec1fd"/><stop offset=".55" stop-color="#1d8bf5"/><stop offset="1" stop-color="#0a5fdb"/></linearGradient>
-  <g clip-path="url(#sqc)">
-    <rect width="100" height="100" fill="url(#mlB)"/>
-    <path d="M22 34.5h56a5.5 5.5 0 0 1 5.5 5.5v20a5.5 5.5 0 0 1-5.5 5.5H22a5.5 5.5 0 0 1-5.5-5.5V40a5.5 5.5 0 0 1 5.5-5.5z" fill="#fff"/>
-    <path d="M18.5 38 50 58.5 81.5 38" fill="none" stroke="#1d8bf5" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
-    <rect width="100" height="100" fill="none" stroke="rgba(0,0,0,.10)" stroke-width="1.4"/>
-  </g>
-</symbol>
+    <!-- ============================ MAIL ============================== -->
+    <symbol id="app-mail" viewBox="0 0 100 100">
+      <linearGradient id="mlB" x1=".1" x2=".7" y1="0" y2="1">
+        <stop offset="0" stop-color="#3ec1fd" />
+        <stop offset=".55" stop-color="#1d8bf5" />
+        <stop offset="1" stop-color="#0a5fdb" />
+      </linearGradient>
+      <g clip-path="url(#sqc)">
+        <rect fill="url(#mlB)" height="100" width="100" />
+        <path
+          d="M22 34.5h56a5.5 5.5 0 0 1 5.5 5.5v20a5.5 5.5 0 0 1-5.5 5.5H22a5.5 5.5 0 0 1-5.5-5.5V40a5.5 5.5 0 0 1 5.5-5.5z"
+          fill="#fff"
+        />
+        <path
+          d="M18.5 38 50 58.5 81.5 38"
+          fill="none"
+          stroke="#1d8bf5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="4.6"
+        />
+        <rect fill="none" height="100" stroke="rgba(0,0,0,.10)" stroke-width="1.4" width="100" />
+      </g>
+    </symbol>
 
-<!-- ============================ MESSAGES ========================== -->
-<symbol id="app-messages" viewBox="0 0 100 100">
-  <linearGradient id="msB" x1=".1" y1="0" x2=".6" y2="1"><stop offset="0" stop-color="#6ff26b"/><stop offset=".5" stop-color="#33dd4a"/><stop offset="1" stop-color="#08bd2e"/></linearGradient>
-  <g clip-path="url(#sqc)">
-    <rect width="100" height="100" fill="url(#msB)"/>
-    <path d="M50 21c-18.2 0-33 11.6-33 26 0 8.2 4.8 15.5 12.3 20.3.5 4.4-1.4 8.7-4.6 11.6-.9.8-.3 2.3.9 2.1 7-1 12.4-3.8 16-6.4 2.7.6 5.5.9 8.4.9 18.2 0 33-11.6 33-26S68.2 21 50 21z" fill="#fff"/>
-    <rect width="100" height="100" fill="none" stroke="rgba(0,0,0,.10)" stroke-width="1.4"/>
-  </g>
-</symbol>
+    <!-- ============================ MESSAGES ========================== -->
+    <symbol id="app-messages" viewBox="0 0 100 100">
+      <linearGradient id="msB" x1=".1" x2=".6" y1="0" y2="1">
+        <stop offset="0" stop-color="#6ff26b" />
+        <stop offset=".5" stop-color="#33dd4a" />
+        <stop offset="1" stop-color="#08bd2e" />
+      </linearGradient>
+      <g clip-path="url(#sqc)">
+        <rect fill="url(#msB)" height="100" width="100" />
+        <path
+          d="M50 21c-18.2 0-33 11.6-33 26 0 8.2 4.8 15.5 12.3 20.3.5 4.4-1.4 8.7-4.6 11.6-.9.8-.3 2.3.9 2.1 7-1 12.4-3.8 16-6.4 2.7.6 5.5.9 8.4.9 18.2 0 33-11.6 33-26S68.2 21 50 21z"
+          fill="#fff"
+        />
+        <rect fill="none" height="100" stroke="rgba(0,0,0,.10)" stroke-width="1.4" width="100" />
+      </g>
+    </symbol>
 
-<!-- ============================ NOTES ============================= -->
-<symbol id="app-notes" viewBox="0 0 100 100">
-  <linearGradient id="ntY" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd84d"/><stop offset="1" stop-color="#f9bd20"/></linearGradient>
-  <linearGradient id="ntP" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fffefb"/><stop offset="1" stop-color="#f4f2ea"/></linearGradient>
-  <g clip-path="url(#sqc)">
-    <rect width="100" height="100" fill="url(#ntP)"/>
-    <rect width="100" height="24" fill="url(#ntY)"/>
-    <g stroke="#dcd8cb" stroke-width="1.7" stroke-linecap="round">
-      <path d="M17 38h66"/><path d="M17 50h66"/><path d="M17 62h66"/><path d="M17 74h48"/>
-    </g>
-    <rect y="24" width="100" height="1.6" fill="rgba(0,0,0,.07)"/>
-    <rect width="100" height="100" fill="none" stroke="rgba(0,0,0,.10)" stroke-width="1.4"/>
-  </g>
-</symbol>
+    <!-- ============================ NOTES ============================= -->
+    <symbol id="app-notes" viewBox="0 0 100 100">
+      <linearGradient id="ntY" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0" stop-color="#ffd84d" />
+        <stop offset="1" stop-color="#f9bd20" />
+      </linearGradient>
+      <linearGradient id="ntP" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0" stop-color="#fffefb" />
+        <stop offset="1" stop-color="#f4f2ea" />
+      </linearGradient>
+      <g clip-path="url(#sqc)">
+        <rect fill="url(#ntP)" height="100" width="100" />
+        <rect fill="url(#ntY)" height="24" width="100" />
+        <g stroke="#dcd8cb" stroke-linecap="round" stroke-width="1.7">
+          <path d="M17 38h66" />
+          <path d="M17 50h66" />
+          <path d="M17 62h66" />
+          <path d="M17 74h48" />
+        </g>
+        <rect fill="rgba(0,0,0,.07)" height="1.6" width="100" y="24" />
+        <rect fill="none" height="100" stroke="rgba(0,0,0,.10)" stroke-width="1.4" width="100" />
+      </g>
+    </symbol>
 
-<!-- ============================ TERMINAL ========================== -->
-<symbol id="app-terminal" viewBox="0 0 100 100">
-  <linearGradient id="tmB" x1="0" y1="0" x2=".2" y2="1"><stop offset="0" stop-color="#3a3a3d"/><stop offset=".45" stop-color="#1e1e21"/><stop offset="1" stop-color="#0b0b0d"/></linearGradient>
-  <g clip-path="url(#sqc)">
-    <rect width="100" height="100" fill="url(#tmB)"/>
-    <path d="M0 0h100v30H0z" fill="#fff" opacity=".05"/>
-    <path d="M24 34 38 46 24 58" fill="none" stroke="#fff" stroke-width="6.4" stroke-linecap="round" stroke-linejoin="round"/>
-    <rect x="46" y="55" width="30" height="6.4" rx="3.2" fill="#fff"/>
-    <rect width="100" height="100" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="1.6"/>
-  </g>
-</symbol>
+    <!-- ============================ TERMINAL ========================== -->
+    <symbol id="app-terminal" viewBox="0 0 100 100">
+      <linearGradient id="tmB" x1="0" x2=".2" y1="0" y2="1">
+        <stop offset="0" stop-color="#3a3a3d" />
+        <stop offset=".45" stop-color="#1e1e21" />
+        <stop offset="1" stop-color="#0b0b0d" />
+      </linearGradient>
+      <g clip-path="url(#sqc)">
+        <rect fill="url(#tmB)" height="100" width="100" />
+        <path d="M0 0h100v30H0z" fill="#fff" opacity=".05" />
+        <path
+          d="M24 34 38 46 24 58"
+          fill="none"
+          stroke="#fff"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="6.4"
+        />
+        <rect fill="#fff" height="6.4" rx="3.2" width="30" x="46" y="55" />
+        <rect fill="none" height="100" stroke="rgba(255,255,255,.14)" stroke-width="1.6" width="100" />
+      </g>
+    </symbol>
 
-<!-- ============================ CALCULATOR ======================== -->
-<symbol id="app-calculator" viewBox="0 0 100 100">
-  <linearGradient id="ccB" x1="0" y1="0" x2=".2" y2="1"><stop offset="0" stop-color="#4a4a4e"/><stop offset="1" stop-color="#2a2a2d"/></linearGradient>
-  <linearGradient id="ccO" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffb03a"/><stop offset="1" stop-color="#f7921e"/></linearGradient>
-  <g clip-path="url(#sqc)">
-    <rect width="100" height="100" fill="url(#ccB)"/>
-    <rect x="13" y="13" width="74" height="18" rx="4" fill="#111113"/>
-    <rect x="66" y="19" width="16" height="5.5" rx="2.7" fill="#5a5a5f"/>
-    <g fill="#e9e9ec">
-      <rect x="13" y="37" width="15.5" height="12" rx="3.4"/><rect x="32.5" y="37" width="15.5" height="12" rx="3.4"/><rect x="52" y="37" width="15.5" height="12" rx="3.4"/>
-      <rect x="13" y="53" width="15.5" height="12" rx="3.4"/><rect x="32.5" y="53" width="15.5" height="12" rx="3.4"/><rect x="52" y="53" width="15.5" height="12" rx="3.4"/>
-      <rect x="13" y="69" width="15.5" height="12" rx="3.4"/><rect x="32.5" y="69" width="35" height="12" rx="3.4"/>
-    </g>
-    <g fill="url(#ccO)">
-      <rect x="71.5" y="37" width="15.5" height="12" rx="3.4"/>
-      <rect x="71.5" y="53" width="15.5" height="12" rx="3.4"/>
-      <rect x="71.5" y="69" width="15.5" height="12" rx="3.4"/>
-    </g>
-    <rect width="100" height="100" fill="none" stroke="rgba(255,255,255,.13)" stroke-width="1.6"/>
-  </g>
-</symbol>
+    <!-- ============================ CALCULATOR ======================== -->
+    <symbol id="app-calculator" viewBox="0 0 100 100">
+      <linearGradient id="ccB" x1="0" x2=".2" y1="0" y2="1">
+        <stop offset="0" stop-color="#4a4a4e" />
+        <stop offset="1" stop-color="#2a2a2d" />
+      </linearGradient>
+      <linearGradient id="ccO" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0" stop-color="#ffb03a" />
+        <stop offset="1" stop-color="#f7921e" />
+      </linearGradient>
+      <g clip-path="url(#sqc)">
+        <rect fill="url(#ccB)" height="100" width="100" />
+        <rect fill="#111113" height="18" rx="4" width="74" x="13" y="13" />
+        <rect fill="#5a5a5f" height="5.5" rx="2.7" width="16" x="66" y="19" />
+        <g fill="#e9e9ec">
+          <rect height="12" rx="3.4" width="15.5" x="13" y="37" />
+          <rect height="12" rx="3.4" width="15.5" x="32.5" y="37" />
+          <rect height="12" rx="3.4" width="15.5" x="52" y="37" />
+          <rect height="12" rx="3.4" width="15.5" x="13" y="53" />
+          <rect height="12" rx="3.4" width="15.5" x="32.5" y="53" />
+          <rect height="12" rx="3.4" width="15.5" x="52" y="53" />
+          <rect height="12" rx="3.4" width="15.5" x="13" y="69" />
+          <rect height="12" rx="3.4" width="35" x="32.5" y="69" />
+        </g>
+        <g fill="url(#ccO)">
+          <rect height="12" rx="3.4" width="15.5" x="71.5" y="37" />
+          <rect height="12" rx="3.4" width="15.5" x="71.5" y="53" />
+          <rect height="12" rx="3.4" width="15.5" x="71.5" y="69" />
+        </g>
+        <rect fill="none" height="100" stroke="rgba(255,255,255,.13)" stroke-width="1.6" width="100" />
+      </g>
+    </symbol>
 
-<!-- ============================ CALENDAR ========================== -->
-<symbol id="app-calendar" viewBox="0 0 100 100">
-  <g clip-path="url(#sqc)">
-    <rect width="100" height="100" fill="#fff"/>
-    <text id="cal-dow" x="50" y="27" font-family="Inter,-apple-system,sans-serif" font-size="14" font-weight="600" letter-spacing="0.4" fill="#ff3b30" text-anchor="middle">{{ calendarWeekday }}</text>
-    <text id="cal-day" x="50" y="82" font-family="Inter,-apple-system,sans-serif" font-size="62" font-weight="300" letter-spacing="-3" fill="#1d1d1f" text-anchor="middle">{{ calendarDay }}</text>
-    <rect width="100" height="100" fill="none" stroke="rgba(0,0,0,.10)" stroke-width="1.4"/>
-  </g>
-</symbol>
+    <!-- ============================ CALENDAR ========================== -->
+    <symbol id="app-calendar" viewBox="0 0 100 100">
+      <g clip-path="url(#sqc)">
+        <rect fill="#fff" height="100" width="100" />
+        <text
+          id="cal-dow"
+          fill="#ff3b30"
+          font-family="Inter,-apple-system,sans-serif"
+          font-size="14"
+          font-weight="600"
+          letter-spacing="0.4"
+          text-anchor="middle"
+          x="50"
+          y="27"
+        >
+          {{ calendarWeekday }}
+        </text>
+        <text
+          id="cal-day"
+          fill="#1d1d1f"
+          font-family="Inter,-apple-system,sans-serif"
+          font-size="62"
+          font-weight="300"
+          letter-spacing="-3"
+          text-anchor="middle"
+          x="50"
+          y="82"
+        >
+          {{ calendarDay }}
+        </text>
+        <rect fill="none" height="100" stroke="rgba(0,0,0,.10)" stroke-width="1.4" width="100" />
+      </g>
+    </symbol>
 
-<!-- ============================ SETTINGS ========================== -->
-<symbol id="app-settings" viewBox="0 0 100 100">
-  <linearGradient id="stB" x1=".1" y1="0" x2=".6" y2="1"><stop offset="0" stop-color="#b2b2b8"/><stop offset=".5" stop-color="#8d8d93"/><stop offset="1" stop-color="#65656b"/></linearGradient>
-  <radialGradient id="stG" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e2e2e6"/></radialGradient>
-  <g clip-path="url(#sqc)">
-    <rect width="100" height="100" fill="url(#stB)"/>
-    <path fill="url(#stG)" d="M50 16.5c-2.6 0-4.8 1.9-5.2 4.4l-.9 5.6a25 25 0 0 0-5.3 2.2l-4.5-3.5a5.3 5.3 0 0 0-6.9.4l-2.6 2.6a5.3 5.3 0 0 0-.4 6.9l3.5 4.5a25 25 0 0 0-2.2 5.3l-5.6.9a5.3 5.3 0 0 0-4.4 5.2v3.8c0 2.6 1.9 4.8 4.4 5.2l5.6.9a25 25 0 0 0 2.2 5.3l-3.5 4.5a5.3 5.3 0 0 0 .4 6.9l2.6 2.6a5.3 5.3 0 0 0 6.9.4l4.5-3.5a25 25 0 0 0 5.3 2.2l.9 5.6a5.3 5.3 0 0 0 5.2 4.4h3.8c2.6 0 4.8-1.9 5.2-4.4l.9-5.6a25 25 0 0 0 5.3-2.2l4.5 3.5a5.3 5.3 0 0 0 6.9-.4l2.6-2.6a5.3 5.3 0 0 0 .4-6.9l-3.5-4.5a25 25 0 0 0 2.2-5.3l5.6-.9a5.3 5.3 0 0 0 4.4-5.2v-3.8c0-2.6-1.9-4.8-4.4-5.2l-5.6-.9a25 25 0 0 0-2.2-5.3l3.5-4.5a5.3 5.3 0 0 0-.4-6.9l-2.6-2.6a5.3 5.3 0 0 0-6.9-.4l-4.5 3.5a25 25 0 0 0-5.3-2.2l-.9-5.6a5.3 5.3 0 0 0-5.2-4.4zM50 37.8A12.2 12.2 0 1 1 37.8 50 12.2 12.2 0 0 1 50 37.8z"/>
-    <rect width="100" height="100" fill="none" stroke="rgba(0,0,0,.10)" stroke-width="1.4"/>
-  </g>
-</symbol>
+    <!-- ============================ SETTINGS ========================== -->
+    <symbol id="app-settings" viewBox="0 0 100 100">
+      <linearGradient id="stB" x1=".1" x2=".6" y1="0" y2="1">
+        <stop offset="0" stop-color="#b2b2b8" />
+        <stop offset=".5" stop-color="#8d8d93" />
+        <stop offset="1" stop-color="#65656b" />
+      </linearGradient>
+      <radialGradient id="stG" cx=".35" cy=".3" r=".8">
+        <stop offset="0" stop-color="#ffffff" />
+        <stop offset="1" stop-color="#e2e2e6" />
+      </radialGradient>
+      <g clip-path="url(#sqc)">
+        <rect fill="url(#stB)" height="100" width="100" />
+        <path
+          d="M50 16.5c-2.6 0-4.8 1.9-5.2 4.4l-.9 5.6a25 25 0 0 0-5.3 2.2l-4.5-3.5a5.3 5.3 0 0 0-6.9.4l-2.6 2.6a5.3 5.3 0 0 0-.4 6.9l3.5 4.5a25 25 0 0 0-2.2 5.3l-5.6.9a5.3 5.3 0 0 0-4.4 5.2v3.8c0 2.6 1.9 4.8 4.4 5.2l5.6.9a25 25 0 0 0 2.2 5.3l-3.5 4.5a5.3 5.3 0 0 0 .4 6.9l2.6 2.6a5.3 5.3 0 0 0 6.9.4l4.5-3.5a25 25 0 0 0 5.3 2.2l.9 5.6a5.3 5.3 0 0 0 5.2 4.4h3.8c2.6 0 4.8-1.9 5.2-4.4l.9-5.6a25 25 0 0 0 5.3-2.2l4.5 3.5a5.3 5.3 0 0 0 6.9-.4l2.6-2.6a5.3 5.3 0 0 0 .4-6.9l-3.5-4.5a25 25 0 0 0 2.2-5.3l5.6-.9a5.3 5.3 0 0 0 4.4-5.2v-3.8c0-2.6-1.9-4.8-4.4-5.2l-5.6-.9a25 25 0 0 0-2.2-5.3l3.5-4.5a5.3 5.3 0 0 0-.4-6.9l-2.6-2.6a5.3 5.3 0 0 0-6.9-.4l-4.5 3.5a25 25 0 0 0-5.3-2.2l-.9-5.6a5.3 5.3 0 0 0-5.2-4.4zM50 37.8A12.2 12.2 0 1 1 37.8 50 12.2 12.2 0 0 1 50 37.8z"
+          fill="url(#stG)"
+        />
+        <rect fill="none" height="100" stroke="rgba(0,0,0,.10)" stroke-width="1.4" width="100" />
+      </g>
+    </symbol>
 
-<!-- ============================ MUSIC ============================= -->
-<symbol id="app-music" viewBox="0 0 100 100">
-  <linearGradient id="muB" x1=".1" y1="0" x2=".7" y2="1"><stop offset="0" stop-color="#fd6d7f"/><stop offset=".5" stop-color="#fb3f5e"/><stop offset="1" stop-color="#e51c40"/></linearGradient>
-  <g clip-path="url(#sqc)">
-    <rect width="100" height="100" fill="url(#muB)"/>
-    <path fill="#fff" d="M70.5 20.3 42.8 26a3.4 3.4 0 0 0-2.7 3.3v31.9a10.4 10.4 0 0 0-4.6-1c-6 0-11 4.1-11 9.3s5 9.3 11 9.3 11-4.1 11-9.3V38.6l24.4-5v20.2a10.4 10.4 0 0 0-4.6-1c-6 0-11 4.1-11 9.3s5 9.3 11 9.3 11-4.1 11-9.3V23.6a3.4 3.4 0 0 0-4.2-3.3z"/>
-    <rect width="100" height="100" fill="none" stroke="rgba(0,0,0,.10)" stroke-width="1.4"/>
-  </g>
-</symbol>
+    <!-- ============================ MUSIC ============================= -->
+    <symbol id="app-music" viewBox="0 0 100 100">
+      <linearGradient id="muB" x1=".1" x2=".7" y1="0" y2="1">
+        <stop offset="0" stop-color="#fd6d7f" />
+        <stop offset=".5" stop-color="#fb3f5e" />
+        <stop offset="1" stop-color="#e51c40" />
+      </linearGradient>
+      <g clip-path="url(#sqc)">
+        <rect fill="url(#muB)" height="100" width="100" />
+        <path
+          d="M70.5 20.3 42.8 26a3.4 3.4 0 0 0-2.7 3.3v31.9a10.4 10.4 0 0 0-4.6-1c-6 0-11 4.1-11 9.3s5 9.3 11 9.3 11-4.1 11-9.3V38.6l24.4-5v20.2a10.4 10.4 0 0 0-4.6-1c-6 0-11 4.1-11 9.3s5 9.3 11 9.3 11-4.1 11-9.3V23.6a3.4 3.4 0 0 0-4.2-3.3z"
+          fill="#fff"
+        />
+        <rect fill="none" height="100" stroke="rgba(0,0,0,.10)" stroke-width="1.4" width="100" />
+      </g>
+    </symbol>
 
-<!-- ============================ PHOTOS ============================ -->
-<symbol id="app-photos" viewBox="0 0 100 100">
-  <g clip-path="url(#sqc)">
-    <rect width="100" height="100" fill="#fdfdfd"/>
-    <g style="mix-blend-mode:multiply" opacity=".92">
-      <ellipse cx="50" cy="34.5" rx="10.4" ry="17.5" fill="#ffd400"/>
-      <ellipse cx="50" cy="34.5" rx="10.4" ry="17.5" fill="#ff9500" transform="rotate(45 50 50)"/>
-      <ellipse cx="50" cy="34.5" rx="10.4" ry="17.5" fill="#ff3b30" transform="rotate(90 50 50)"/>
-      <ellipse cx="50" cy="34.5" rx="10.4" ry="17.5" fill="#ff2d95" transform="rotate(135 50 50)"/>
-      <ellipse cx="50" cy="34.5" rx="10.4" ry="17.5" fill="#af52de" transform="rotate(180 50 50)"/>
-      <ellipse cx="50" cy="34.5" rx="10.4" ry="17.5" fill="#0a84ff" transform="rotate(225 50 50)"/>
-      <ellipse cx="50" cy="34.5" rx="10.4" ry="17.5" fill="#00c7be" transform="rotate(270 50 50)"/>
-      <ellipse cx="50" cy="34.5" rx="10.4" ry="17.5" fill="#34c759" transform="rotate(315 50 50)"/>
-    </g>
-    <rect width="100" height="100" fill="none" stroke="rgba(0,0,0,.10)" stroke-width="1.4"/>
-  </g>
-</symbol>
+    <!-- ============================ PHOTOS ============================ -->
+    <symbol id="app-photos" viewBox="0 0 100 100">
+      <g clip-path="url(#sqc)">
+        <rect fill="#fdfdfd" height="100" width="100" />
+        <g opacity=".92" style="mix-blend-mode: multiply">
+          <ellipse cx="50" cy="34.5" fill="#ffd400" rx="10.4" ry="17.5" />
+          <ellipse cx="50" cy="34.5" fill="#ff9500" rx="10.4" ry="17.5" transform="rotate(45 50 50)" />
+          <ellipse cx="50" cy="34.5" fill="#ff3b30" rx="10.4" ry="17.5" transform="rotate(90 50 50)" />
+          <ellipse cx="50" cy="34.5" fill="#ff2d95" rx="10.4" ry="17.5" transform="rotate(135 50 50)" />
+          <ellipse cx="50" cy="34.5" fill="#af52de" rx="10.4" ry="17.5" transform="rotate(180 50 50)" />
+          <ellipse cx="50" cy="34.5" fill="#0a84ff" rx="10.4" ry="17.5" transform="rotate(225 50 50)" />
+          <ellipse cx="50" cy="34.5" fill="#00c7be" rx="10.4" ry="17.5" transform="rotate(270 50 50)" />
+          <ellipse cx="50" cy="34.5" fill="#34c759" rx="10.4" ry="17.5" transform="rotate(315 50 50)" />
+        </g>
+        <rect fill="none" height="100" stroke="rgba(0,0,0,.10)" stroke-width="1.4" width="100" />
+      </g>
+    </symbol>
 
-<!-- ============================ MAPS ============================== -->
-<symbol id="app-maps" viewBox="0 0 100 100">
-  <linearGradient id="mpB" x1="0" y1="0" x2=".3" y2="1"><stop offset="0" stop-color="#eaf6e4"/><stop offset="1" stop-color="#d3ecd8"/></linearGradient>
-  <g clip-path="url(#sqc)">
-    <rect width="100" height="100" fill="url(#mpB)"/>
-    <path d="M0 0h34L0 44z" fill="#8fd3f4"/>
-    <path d="M62 0h38v30z" fill="#a8dfa0" opacity=".7"/>
-    <g stroke="#fff" stroke-width="7" fill="none" stroke-linecap="round"><path d="M-4 62 46 74l58-8"/></g>
-    <g stroke="#ffd45e" stroke-width="6.5" fill="none" stroke-linecap="round"><path d="M18 -4 30 40l-6 60"/></g>
-    <g stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round"><path d="M104 26 60 34 44 96"/><path d="M-4 34h30"/></g>
-    <path d="M68 24a11.4 11.4 0 0 0-11.4 11.4c0 8.4 11.4 21 11.4 21s11.4-12.6 11.4-21A11.4 11.4 0 0 0 68 24z" fill="#f43f3f"/>
-    <circle cx="68" cy="35.4" r="4.2" fill="#fff"/>
-    <rect width="100" height="100" fill="none" stroke="rgba(0,0,0,.10)" stroke-width="1.4"/>
-  </g>
-</symbol>
+    <!-- ============================ MAPS ============================== -->
+    <symbol id="app-maps" viewBox="0 0 100 100">
+      <linearGradient id="mpB" x1="0" x2=".3" y1="0" y2="1">
+        <stop offset="0" stop-color="#eaf6e4" />
+        <stop offset="1" stop-color="#d3ecd8" />
+      </linearGradient>
+      <g clip-path="url(#sqc)">
+        <rect fill="url(#mpB)" height="100" width="100" />
+        <path d="M0 0h34L0 44z" fill="#8fd3f4" />
+        <path d="M62 0h38v30z" fill="#a8dfa0" opacity=".7" />
+        <g fill="none" stroke="#fff" stroke-linecap="round" stroke-width="7"><path d="M-4 62 46 74l58-8" /></g>
+        <g fill="none" stroke="#ffd45e" stroke-linecap="round" stroke-width="6.5"><path d="M18 -4 30 40l-6 60" /></g>
+        <g fill="none" stroke="#fff" stroke-linecap="round" stroke-width="4">
+          <path d="M104 26 60 34 44 96" />
+          <path d="M-4 34h30" />
+        </g>
+        <path
+          d="M68 24a11.4 11.4 0 0 0-11.4 11.4c0 8.4 11.4 21 11.4 21s11.4-12.6 11.4-21A11.4 11.4 0 0 0 68 24z"
+          fill="#f43f3f"
+        />
+        <circle cx="68" cy="35.4" fill="#fff" r="4.2" />
+        <rect fill="none" height="100" stroke="rgba(0,0,0,.10)" stroke-width="1.4" width="100" />
+      </g>
+    </symbol>
 
-<!-- ============================ REMINDERS ========================= -->
-<symbol id="app-reminders" viewBox="0 0 100 100">
-  <g clip-path="url(#sqc)">
-    <rect width="100" height="100" fill="#fdfdfd"/>
-    <rect width="100" height="20" fill="#fafafa"/>
-    <g><circle cx="26" cy="28" r="5.6" fill="#ff9500"/><circle cx="26" cy="46" r="5.6" fill="#ff375f"/><circle cx="26" cy="64" r="5.6" fill="#0a84ff"/><circle cx="26" cy="82" r="5.6" fill="#30d158"/></g>
-    <g stroke="#d8d8dc" stroke-width="4.6" stroke-linecap="round"><path d="M40 28h38"/><path d="M40 46h38"/><path d="M40 64h30"/><path d="M40 82h22"/></g>
-    <rect width="100" height="100" fill="none" stroke="rgba(0,0,0,.10)" stroke-width="1.4"/>
-  </g>
-</symbol>
+    <!-- ============================ REMINDERS ========================= -->
+    <symbol id="app-reminders" viewBox="0 0 100 100">
+      <g clip-path="url(#sqc)">
+        <rect fill="#fdfdfd" height="100" width="100" />
+        <rect fill="#fafafa" height="20" width="100" />
+        <g>
+          <circle cx="26" cy="28" fill="#ff9500" r="5.6" />
+          <circle cx="26" cy="46" fill="#ff375f" r="5.6" />
+          <circle cx="26" cy="64" fill="#0a84ff" r="5.6" />
+          <circle cx="26" cy="82" fill="#30d158" r="5.6" />
+        </g>
+        <g stroke="#d8d8dc" stroke-linecap="round" stroke-width="4.6">
+          <path d="M40 28h38" />
+          <path d="M40 46h38" />
+          <path d="M40 64h30" />
+          <path d="M40 82h22" />
+        </g>
+        <rect fill="none" height="100" stroke="rgba(0,0,0,.10)" stroke-width="1.4" width="100" />
+      </g>
+    </symbol>
 
-<!-- ============================ FACETIME ========================== -->
-<symbol id="app-facetime" viewBox="0 0 100 100">
-  <linearGradient id="ftB" x1=".1" y1="0" x2=".6" y2="1"><stop offset="0" stop-color="#6ff26b"/><stop offset=".5" stop-color="#33dd4a"/><stop offset="1" stop-color="#08bd2e"/></linearGradient>
-  <g clip-path="url(#sqc)">
-    <rect width="100" height="100" fill="url(#ftB)"/>
-    <path fill="#fff" d="M25 34h30a7 7 0 0 1 7 7v18a7 7 0 0 1-7 7H25a7 7 0 0 1-7-7V41a7 7 0 0 1 7-7zm45.6 5.7L66 43.6v12.8l4.6 3.9a3.4 3.4 0 0 0 5.6-2.6V42.3a3.4 3.4 0 0 0-5.6-2.6z"/>
-    <rect width="100" height="100" fill="none" stroke="rgba(0,0,0,.10)" stroke-width="1.4"/>
-  </g>
-</symbol>
+    <!-- ============================ FACETIME ========================== -->
+    <symbol id="app-facetime" viewBox="0 0 100 100">
+      <linearGradient id="ftB" x1=".1" x2=".6" y1="0" y2="1">
+        <stop offset="0" stop-color="#6ff26b" />
+        <stop offset=".5" stop-color="#33dd4a" />
+        <stop offset="1" stop-color="#08bd2e" />
+      </linearGradient>
+      <g clip-path="url(#sqc)">
+        <rect fill="url(#ftB)" height="100" width="100" />
+        <path
+          d="M25 34h30a7 7 0 0 1 7 7v18a7 7 0 0 1-7 7H25a7 7 0 0 1-7-7V41a7 7 0 0 1 7-7zm45.6 5.7L66 43.6v12.8l4.6 3.9a3.4 3.4 0 0 0 5.6-2.6V42.3a3.4 3.4 0 0 0-5.6-2.6z"
+          fill="#fff"
+        />
+        <rect fill="none" height="100" stroke="rgba(0,0,0,.10)" stroke-width="1.4" width="100" />
+      </g>
+    </symbol>
 
-<!-- ============================ APP STORE ========================= -->
-<symbol id="app-appstore" viewBox="0 0 100 100">
-  <linearGradient id="asB" x1=".1" y1="0" x2=".6" y2="1"><stop offset="0" stop-color="#2fd0ff"/><stop offset=".5" stop-color="#1a9df7"/><stop offset="1" stop-color="#0a63e0"/></linearGradient>
-  <g clip-path="url(#sqc)">
-    <rect width="100" height="100" fill="url(#asB)"/>
-    <g stroke="#fff" stroke-width="6.4" stroke-linecap="round" fill="none">
-      <path d="M35.4 66.5 50.6 40"/><path d="M64.6 66.5 49.4 40"/><path d="M28 66.5h44"/><path d="M42.2 30.5 44 33.6"/>
-    </g>
-    <rect width="100" height="100" fill="none" stroke="rgba(0,0,0,.10)" stroke-width="1.4"/>
-  </g>
-</symbol>
+    <!-- ============================ APP STORE ========================= -->
+    <symbol id="app-appstore" viewBox="0 0 100 100">
+      <linearGradient id="asB" x1=".1" x2=".6" y1="0" y2="1">
+        <stop offset="0" stop-color="#2fd0ff" />
+        <stop offset=".5" stop-color="#1a9df7" />
+        <stop offset="1" stop-color="#0a63e0" />
+      </linearGradient>
+      <g clip-path="url(#sqc)">
+        <rect fill="url(#asB)" height="100" width="100" />
+        <g fill="none" stroke="#fff" stroke-linecap="round" stroke-width="6.4">
+          <path d="M35.4 66.5 50.6 40" />
+          <path d="M64.6 66.5 49.4 40" />
+          <path d="M28 66.5h44" />
+          <path d="M42.2 30.5 44 33.6" />
+        </g>
+        <rect fill="none" height="100" stroke="rgba(0,0,0,.10)" stroke-width="1.4" width="100" />
+      </g>
+    </symbol>
 
-<!-- ============================ PODCASTS ========================== -->
-<symbol id="app-podcasts" viewBox="0 0 100 100">
-  <linearGradient id="pdB" x1=".1" y1="0" x2=".6" y2="1"><stop offset="0" stop-color="#d67bff"/><stop offset=".5" stop-color="#a855f7"/><stop offset="1" stop-color="#7c2ae8"/></linearGradient>
-  <g clip-path="url(#sqc)">
-    <rect width="100" height="100" fill="url(#pdB)"/>
-    <g fill="#fff">
-      <circle cx="50" cy="38" r="9"/>
-      <path d="M50 51.5c-4.5 0-8 3.2-7.6 7.2l1.9 19.4a5.8 5.8 0 0 0 11.4 0l1.9-19.4c.4-4-3.1-7.2-7.6-7.2z"/>
-    </g>
-    <g fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".92">
-      <path d="M31.5 51a22 22 0 0 1 0-26"/><path d="M68.5 25a22 22 0 0 1 0 26"/>
-    </g>
-    <g fill="none" stroke="#fff" stroke-width="4.6" stroke-linecap="round" opacity=".6">
-      <path d="M21 58a33 33 0 0 1 0-40"/><path d="M79 18a33 33 0 0 1 0 40"/>
-    </g>
-    <rect width="100" height="100" fill="none" stroke="rgba(0,0,0,.10)" stroke-width="1.4"/>
-  </g>
-</symbol>
+    <!-- ============================ PODCASTS ========================== -->
+    <symbol id="app-podcasts" viewBox="0 0 100 100">
+      <linearGradient id="pdB" x1=".1" x2=".6" y1="0" y2="1">
+        <stop offset="0" stop-color="#d67bff" />
+        <stop offset=".5" stop-color="#a855f7" />
+        <stop offset="1" stop-color="#7c2ae8" />
+      </linearGradient>
+      <g clip-path="url(#sqc)">
+        <rect fill="url(#pdB)" height="100" width="100" />
+        <g fill="#fff">
+          <circle cx="50" cy="38" r="9" />
+          <path d="M50 51.5c-4.5 0-8 3.2-7.6 7.2l1.9 19.4a5.8 5.8 0 0 0 11.4 0l1.9-19.4c.4-4-3.1-7.2-7.6-7.2z" />
+        </g>
+        <g fill="none" opacity=".92" stroke="#fff" stroke-linecap="round" stroke-width="5">
+          <path d="M31.5 51a22 22 0 0 1 0-26" />
+          <path d="M68.5 25a22 22 0 0 1 0 26" />
+        </g>
+        <g fill="none" opacity=".6" stroke="#fff" stroke-linecap="round" stroke-width="4.6">
+          <path d="M21 58a33 33 0 0 1 0-40" />
+          <path d="M79 18a33 33 0 0 1 0 40" />
+        </g>
+        <rect fill="none" height="100" stroke="rgba(0,0,0,.10)" stroke-width="1.4" width="100" />
+      </g>
+    </symbol>
 
-<!-- ============================ TV ================================ -->
-<symbol id="app-tv" viewBox="0 0 100 100">
-  <g clip-path="url(#sqc)">
-    <rect width="100" height="100" fill="#0a0a0c"/>
-    <g fill="#fff">
-      <path d="M18 40h30v7.6H36.6V70h-8.4V47.6H18z"/>
-      <path d="M52 40h9.2l7.4 20.6L76 40h9.2L72.6 70h-8z"/>
-    </g>
-    <rect width="100" height="100" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="1.6"/>
-  </g>
-</symbol>
+    <!-- ============================ TV ================================ -->
+    <symbol id="app-tv" viewBox="0 0 100 100">
+      <g clip-path="url(#sqc)">
+        <rect fill="#0a0a0c" height="100" width="100" />
+        <g fill="#fff">
+          <path d="M18 40h30v7.6H36.6V70h-8.4V47.6H18z" />
+          <path d="M52 40h9.2l7.4 20.6L76 40h9.2L72.6 70h-8z" />
+        </g>
+        <rect fill="none" height="100" stroke="rgba(255,255,255,.14)" stroke-width="1.6" width="100" />
+      </g>
+    </symbol>
 
-<!-- ============================ WEATHER =========================== -->
-<symbol id="app-weather" viewBox="0 0 100 100">
-  <linearGradient id="wtB" x1=".1" y1="0" x2=".6" y2="1"><stop offset="0" stop-color="#39b8ff"/><stop offset=".55" stop-color="#1a7fef"/><stop offset="1" stop-color="#0d55cf"/></linearGradient>
-  <g clip-path="url(#sqc)">
-    <rect width="100" height="100" fill="url(#wtB)"/>
-    <circle cx="38" cy="35" r="12.5" fill="#ffd84d"/>
-    <g stroke="#ffd84d" stroke-width="4" stroke-linecap="round"><path d="M38 12v6"/><path d="M15 35h6"/><path d="M21.7 18.7l4.3 4.3"/><path d="M54.3 18.7l-4.3 4.3"/></g>
-    <path d="M43 78a13.5 13.5 0 0 1-.6-27 19 19 0 0 1 35.5 4.3A11.4 11.4 0 0 1 74.5 78z" fill="#fff"/>
-    <rect width="100" height="100" fill="none" stroke="rgba(0,0,0,.10)" stroke-width="1.4"/>
-  </g>
-</symbol>
+    <!-- ============================ WEATHER =========================== -->
+    <symbol id="app-weather" viewBox="0 0 100 100">
+      <linearGradient id="wtB" x1=".1" x2=".6" y1="0" y2="1">
+        <stop offset="0" stop-color="#39b8ff" />
+        <stop offset=".55" stop-color="#1a7fef" />
+        <stop offset="1" stop-color="#0d55cf" />
+      </linearGradient>
+      <g clip-path="url(#sqc)">
+        <rect fill="url(#wtB)" height="100" width="100" />
+        <circle cx="38" cy="35" fill="#ffd84d" r="12.5" />
+        <g stroke="#ffd84d" stroke-linecap="round" stroke-width="4">
+          <path d="M38 12v6" />
+          <path d="M15 35h6" />
+          <path d="M21.7 18.7l4.3 4.3" />
+          <path d="M54.3 18.7l-4.3 4.3" />
+        </g>
+        <path d="M43 78a13.5 13.5 0 0 1-.6-27 19 19 0 0 1 35.5 4.3A11.4 11.4 0 0 1 74.5 78z" fill="#fff" />
+        <rect fill="none" height="100" stroke="rgba(0,0,0,.10)" stroke-width="1.4" width="100" />
+      </g>
+    </symbol>
 
-<!-- ============================ STOCKS ============================ -->
-<symbol id="app-stocks" viewBox="0 0 100 100">
-  <g clip-path="url(#sqc)">
-    <rect width="100" height="100" fill="#101012"/>
-    <path d="M14 74 34 52l14 12 16-24 22-18" fill="none" stroke="#30d158" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M76 22h14v14" fill="none" stroke="#30d158" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-    <rect width="100" height="100" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="1.6"/>
-  </g>
-</symbol>
+    <!-- ============================ STOCKS ============================ -->
+    <symbol id="app-stocks" viewBox="0 0 100 100">
+      <g clip-path="url(#sqc)">
+        <rect fill="#101012" height="100" width="100" />
+        <path
+          d="M14 74 34 52l14 12 16-24 22-18"
+          fill="none"
+          stroke="#30d158"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="6"
+        />
+        <path
+          d="M76 22h14v14"
+          fill="none"
+          stroke="#30d158"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="6"
+        />
+        <rect fill="none" height="100" stroke="rgba(255,255,255,.14)" stroke-width="1.6" width="100" />
+      </g>
+    </symbol>
 
-<!-- ============================ BOOKS ============================= -->
-<symbol id="app-books" viewBox="0 0 100 100">
-  <linearGradient id="bkB" x1=".1" y1="0" x2=".6" y2="1"><stop offset="0" stop-color="#ffb648"/><stop offset=".55" stop-color="#ff8e1f"/><stop offset="1" stop-color="#f26a0a"/></linearGradient>
-  <g clip-path="url(#sqc)">
-    <rect width="100" height="100" fill="url(#bkB)"/>
-    <path fill="#fff" d="M50 33c-6-4.6-14-6.8-22.6-6.6A4.4 4.4 0 0 0 23 30.8v33.8a4.4 4.4 0 0 0 4.6 4.4C35 68.8 42.6 70.6 47.6 74a4.4 4.4 0 0 0 4.8 0c5-3.4 12.6-5.2 20-4.9a4.4 4.4 0 0 0 4.6-4.4V30.8a4.4 4.4 0 0 0-4.4-4.4C64 26.2 56 28.4 50 33z"/>
-    <path d="M50 33v41" fill="none" stroke="#ff8e1f" stroke-width="4"/>
-    <rect width="100" height="100" fill="none" stroke="rgba(0,0,0,.10)" stroke-width="1.4"/>
-  </g>
-</symbol>
+    <!-- ============================ BOOKS ============================= -->
+    <symbol id="app-books" viewBox="0 0 100 100">
+      <linearGradient id="bkB" x1=".1" x2=".6" y1="0" y2="1">
+        <stop offset="0" stop-color="#ffb648" />
+        <stop offset=".55" stop-color="#ff8e1f" />
+        <stop offset="1" stop-color="#f26a0a" />
+      </linearGradient>
+      <g clip-path="url(#sqc)">
+        <rect fill="url(#bkB)" height="100" width="100" />
+        <path
+          d="M50 33c-6-4.6-14-6.8-22.6-6.6A4.4 4.4 0 0 0 23 30.8v33.8a4.4 4.4 0 0 0 4.6 4.4C35 68.8 42.6 70.6 47.6 74a4.4 4.4 0 0 0 4.8 0c5-3.4 12.6-5.2 20-4.9a4.4 4.4 0 0 0 4.6-4.4V30.8a4.4 4.4 0 0 0-4.4-4.4C64 26.2 56 28.4 50 33z"
+          fill="#fff"
+        />
+        <path d="M50 33v41" fill="none" stroke="#ff8e1f" stroke-width="4" />
+        <rect fill="none" height="100" stroke="rgba(0,0,0,.10)" stroke-width="1.4" width="100" />
+      </g>
+    </symbol>
 
-<!-- ============================ CONTACTS ========================== -->
-<symbol id="app-contacts" viewBox="0 0 100 100">
-  <linearGradient id="ctB" x1="0" y1="0" x2=".3" y2="1"><stop offset="0" stop-color="#fbfbfd"/><stop offset="1" stop-color="#e0e0e5"/></linearGradient>
-  <g clip-path="url(#sqc)">
-    <rect width="100" height="100" fill="url(#ctB)"/>
-    <rect x="18" y="14" width="10" height="72" fill="#c98a4b"/>
-    <rect x="28" y="14" width="4" height="72" fill="#a86f36"/>
-    <g fill="#8e8e93"><circle cx="58" cy="40" r="12"/><path d="M58 56c-11 0-20 7.4-20 16.6a2 2 0 0 0 2 2h36a2 2 0 0 0 2-2C78 63.4 69 56 58 56z"/></g>
-    <rect width="100" height="100" fill="none" stroke="rgba(0,0,0,.10)" stroke-width="1.4"/>
-  </g>
-</symbol>
+    <!-- ============================ CONTACTS ========================== -->
+    <symbol id="app-contacts" viewBox="0 0 100 100">
+      <linearGradient id="ctB" x1="0" x2=".3" y1="0" y2="1">
+        <stop offset="0" stop-color="#fbfbfd" />
+        <stop offset="1" stop-color="#e0e0e5" />
+      </linearGradient>
+      <g clip-path="url(#sqc)">
+        <rect fill="url(#ctB)" height="100" width="100" />
+        <rect fill="#c98a4b" height="72" width="10" x="18" y="14" />
+        <rect fill="#a86f36" height="72" width="4" x="28" y="14" />
+        <g fill="#8e8e93">
+          <circle cx="58" cy="40" r="12" />
+          <path d="M58 56c-11 0-20 7.4-20 16.6a2 2 0 0 0 2 2h36a2 2 0 0 0 2-2C78 63.4 69 56 58 56z" />
+        </g>
+        <rect fill="none" height="100" stroke="rgba(0,0,0,.10)" stroke-width="1.4" width="100" />
+      </g>
+    </symbol>
 
-<!-- ============================ PREVIEW =========================== -->
-<symbol id="app-preview" viewBox="0 0 100 100">
-  <g clip-path="url(#sqc)">
-    <rect width="100" height="100" fill="#fcfcfd"/>
-    <rect x="16" y="20" width="52" height="44" rx="4" fill="#e8eef6"/>
-    <path d="M20 60 34 42l10 12 10-14 10 20z" fill="#8fc7f0"/>
-    <circle cx="30" cy="32" r="5" fill="#ffd84d"/>
-    <g><circle cx="62" cy="60" r="17" fill="rgba(255,255,255,.55)" stroke="#5aa9e6" stroke-width="5"/><path d="M74 72 86 84" stroke="#5aa9e6" stroke-width="7" stroke-linecap="round"/></g>
-    <rect width="100" height="100" fill="none" stroke="rgba(0,0,0,.10)" stroke-width="1.4"/>
-  </g>
-</symbol>
+    <!-- ============================ PREVIEW =========================== -->
+    <symbol id="app-preview" viewBox="0 0 100 100">
+      <g clip-path="url(#sqc)">
+        <rect fill="#fcfcfd" height="100" width="100" />
+        <rect fill="#e8eef6" height="44" rx="4" width="52" x="16" y="20" />
+        <path d="M20 60 34 42l10 12 10-14 10 20z" fill="#8fc7f0" />
+        <circle cx="30" cy="32" fill="#ffd84d" r="5" />
+        <g>
+          <circle cx="62" cy="60" fill="rgba(255,255,255,.55)" r="17" stroke="#5aa9e6" stroke-width="5" />
+          <path d="M74 72 86 84" stroke="#5aa9e6" stroke-linecap="round" stroke-width="7" />
+        </g>
+        <rect fill="none" height="100" stroke="rgba(0,0,0,.10)" stroke-width="1.4" width="100" />
+      </g>
+    </symbol>
 
-<!-- ============================ FREEFORM ========================== -->
-<symbol id="app-freeform" viewBox="0 0 100 100">
-  <g clip-path="url(#sqc)">
-    <rect width="100" height="100" fill="#fdfdfd"/>
-    <path d="M22 68c6-26 20-38 30-30s-6 34 4 38 20-14 22-30" fill="none" stroke="#0a84ff" stroke-width="6" stroke-linecap="round"/>
-    <circle cx="30" cy="26" r="6" fill="#ff9500"/><circle cx="74" cy="72" r="6" fill="#ff3b30"/>
-    <rect width="100" height="100" fill="none" stroke="rgba(0,0,0,.10)" stroke-width="1.4"/>
-  </g>
-</symbol>
+    <!-- ============================ FREEFORM ========================== -->
+    <symbol id="app-freeform" viewBox="0 0 100 100">
+      <g clip-path="url(#sqc)">
+        <rect fill="#fdfdfd" height="100" width="100" />
+        <path
+          d="M22 68c6-26 20-38 30-30s-6 34 4 38 20-14 22-30"
+          fill="none"
+          stroke="#0a84ff"
+          stroke-linecap="round"
+          stroke-width="6"
+        />
+        <circle cx="30" cy="26" fill="#ff9500" r="6" />
+        <circle cx="74" cy="72" fill="#ff3b30" r="6" />
+        <rect fill="none" height="100" stroke="rgba(0,0,0,.10)" stroke-width="1.4" width="100" />
+      </g>
+    </symbol>
 
-<!-- ============================ CLOCK ============================= -->
-<symbol id="app-clock" viewBox="0 0 100 100">
-  <g clip-path="url(#sqc)">
-    <rect width="100" height="100" fill="#111114"/>
-    <circle cx="50" cy="50" r="34" fill="#fbfbfd"/>
-    <g stroke="#111114" stroke-width="4" stroke-linecap="round"><path d="M50 50V30"/><path d="M50 50h14"/></g>
-    <circle cx="50" cy="50" r="3" fill="#ff9500"/>
-    <rect width="100" height="100" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="1.6"/>
-  </g>
-</symbol>
+    <!-- ============================ CLOCK ============================= -->
+    <symbol id="app-clock" viewBox="0 0 100 100">
+      <g clip-path="url(#sqc)">
+        <rect fill="#111114" height="100" width="100" />
+        <circle cx="50" cy="50" fill="#fbfbfd" r="34" />
+        <g stroke="#111114" stroke-linecap="round" stroke-width="4">
+          <path d="M50 50V30" />
+          <path d="M50 50h14" />
+        </g>
+        <circle cx="50" cy="50" fill="#ff9500" r="3" />
+        <rect fill="none" height="100" stroke="rgba(255,255,255,.14)" stroke-width="1.6" width="100" />
+      </g>
+    </symbol>
 
-<!-- ========================== UTILITIES =========================== -->
-<symbol id="app-activity" viewBox="0 0 100 100">
-  <linearGradient id="acB" x1="0" y1="0" x2=".3" y2="1"><stop offset="0" stop-color="#3a3a40"/><stop offset="1" stop-color="#17171a"/></linearGradient>
-  <g clip-path="url(#sqc)">
-    <rect width="100" height="100" fill="url(#acB)"/>
-    <g stroke="rgba(255,255,255,.10)" stroke-width="1"><path d="M0 34h100M0 50h100M0 66h100M25 0v100M50 0v100M75 0v100"/></g>
-    <polygon points="8,78 20,58 30,66 42,34 54,52 66,24 78,44 92,30 92,86 8,86" fill="rgba(48,209,88,.28)"/>
-    <polyline points="8,78 20,58 30,66 42,34 54,52 66,24 78,44 92,30" fill="none" stroke="#30d158" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/>
-    <rect width="100" height="100" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="1.6"/>
-  </g>
-</symbol>
-<symbol id="app-diskutil" viewBox="0 0 100 100">
-  <linearGradient id="duB" x1="0" y1="0" x2=".3" y2="1"><stop offset="0" stop-color="#fbfcfe"/><stop offset="1" stop-color="#d9dee6"/></linearGradient>
-  <g clip-path="url(#sqc)">
-    <rect width="100" height="100" fill="url(#duB)"/>
-    <circle cx="50" cy="50" r="30" fill="#8a94a3"/>
-    <circle cx="50" cy="50" r="30" fill="none" stroke="rgba(0,0,0,.14)" stroke-width="1.4"/>
-    <circle cx="50" cy="50" r="21" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="2"/>
-    <circle cx="50" cy="50" r="7.5" fill="#fbfcfe"/>
-    <path d="M64 34a20 20 0 0 1 3 22l6 4a27 27 0 0 0-4-30z" fill="#0a84ff"/>
-    <rect width="100" height="100" fill="none" stroke="rgba(0,0,0,.10)" stroke-width="1.4"/>
-  </g>
-</symbol>
-<symbol id="app-fontbook" viewBox="0 0 100 100">
-  <g clip-path="url(#sqc)">
-    <rect width="100" height="100" fill="#fbfbfd"/>
-    <rect x="0" y="0" width="13" height="100" fill="#d9534f"/>
-    <text x="58" y="76" font-family="Georgia,serif" font-size="66" font-weight="700" fill="#1d1d1f" text-anchor="middle">A</text>
-    <rect width="100" height="100" fill="none" stroke="rgba(0,0,0,.10)" stroke-width="1.4"/>
-  </g>
-</symbol>
-<symbol id="app-voice" viewBox="0 0 100 100">
-  <linearGradient id="vmB" x1="0" y1="0" x2=".3" y2="1"><stop offset="0" stop-color="#2b2b2f"/><stop offset="1" stop-color="#141416"/></linearGradient>
-  <g clip-path="url(#sqc)">
-    <rect width="100" height="100" fill="url(#vmB)"/>
-    <g fill="#ff453a">
-      <rect x="11" y="41" width="6" height="18" rx="3"/><rect x="21" y="33" width="6" height="34" rx="3"/>
-      <rect x="31" y="24" width="6" height="52" rx="3"/><rect x="41" y="16" width="6" height="68" rx="3"/>
-      <rect x="51" y="22" width="6" height="56" rx="3"/><rect x="61" y="31" width="6" height="38" rx="3"/>
-      <rect x="71" y="37" width="6" height="26" rx="3"/><rect x="81" y="43" width="6" height="14" rx="3"/>
-    </g>
-    <rect width="100" height="100" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="1.6"/>
-  </g>
-</symbol>
+    <!-- ========================== UTILITIES =========================== -->
+    <symbol id="app-activity" viewBox="0 0 100 100">
+      <linearGradient id="acB" x1="0" x2=".3" y1="0" y2="1">
+        <stop offset="0" stop-color="#3a3a40" />
+        <stop offset="1" stop-color="#17171a" />
+      </linearGradient>
+      <g clip-path="url(#sqc)">
+        <rect fill="url(#acB)" height="100" width="100" />
+        <g stroke="rgba(255,255,255,.10)" stroke-width="1">
+          <path d="M0 34h100M0 50h100M0 66h100M25 0v100M50 0v100M75 0v100" />
+        </g>
+        <polygon fill="rgba(48,209,88,.28)" points="8,78 20,58 30,66 42,34 54,52 66,24 78,44 92,30 92,86 8,86" />
+        <polyline
+          fill="none"
+          points="8,78 20,58 30,66 42,34 54,52 66,24 78,44 92,30"
+          stroke="#30d158"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="3.4"
+        />
+        <rect fill="none" height="100" stroke="rgba(255,255,255,.14)" stroke-width="1.6" width="100" />
+      </g>
+    </symbol>
+    <symbol id="app-diskutil" viewBox="0 0 100 100">
+      <linearGradient id="duB" x1="0" x2=".3" y1="0" y2="1">
+        <stop offset="0" stop-color="#fbfcfe" />
+        <stop offset="1" stop-color="#d9dee6" />
+      </linearGradient>
+      <g clip-path="url(#sqc)">
+        <rect fill="url(#duB)" height="100" width="100" />
+        <circle cx="50" cy="50" fill="#8a94a3" r="30" />
+        <circle cx="50" cy="50" fill="none" r="30" stroke="rgba(0,0,0,.14)" stroke-width="1.4" />
+        <circle cx="50" cy="50" fill="none" r="21" stroke="rgba(255,255,255,.35)" stroke-width="2" />
+        <circle cx="50" cy="50" fill="#fbfcfe" r="7.5" />
+        <path d="M64 34a20 20 0 0 1 3 22l6 4a27 27 0 0 0-4-30z" fill="#0a84ff" />
+        <rect fill="none" height="100" stroke="rgba(0,0,0,.10)" stroke-width="1.4" width="100" />
+      </g>
+    </symbol>
+    <symbol id="app-fontbook" viewBox="0 0 100 100">
+      <g clip-path="url(#sqc)">
+        <rect fill="#fbfbfd" height="100" width="100" />
+        <rect fill="#d9534f" height="100" width="13" x="0" y="0" />
+        <text
+          fill="#1d1d1f"
+          font-family="Georgia,serif"
+          font-size="66"
+          font-weight="700"
+          text-anchor="middle"
+          x="58"
+          y="76"
+        >
+          A
+        </text>
+        <rect fill="none" height="100" stroke="rgba(0,0,0,.10)" stroke-width="1.4" width="100" />
+      </g>
+    </symbol>
+    <symbol id="app-voice" viewBox="0 0 100 100">
+      <linearGradient id="vmB" x1="0" x2=".3" y1="0" y2="1">
+        <stop offset="0" stop-color="#2b2b2f" />
+        <stop offset="1" stop-color="#141416" />
+      </linearGradient>
+      <g clip-path="url(#sqc)">
+        <rect fill="url(#vmB)" height="100" width="100" />
+        <g fill="#ff453a">
+          <rect height="18" rx="3" width="6" x="11" y="41" />
+          <rect height="34" rx="3" width="6" x="21" y="33" />
+          <rect height="52" rx="3" width="6" x="31" y="24" />
+          <rect height="68" rx="3" width="6" x="41" y="16" />
+          <rect height="56" rx="3" width="6" x="51" y="22" />
+          <rect height="38" rx="3" width="6" x="61" y="31" />
+          <rect height="26" rx="3" width="6" x="71" y="37" />
+          <rect height="14" rx="3" width="6" x="81" y="43" />
+        </g>
+        <rect fill="none" height="100" stroke="rgba(255,255,255,.14)" stroke-width="1.6" width="100" />
+      </g>
+    </symbol>
 
-<!-- ============================ TRASH ============================= -->
-<symbol id="app-trash" viewBox="0 0 100 100">
-  <linearGradient id="trB" x1="0" y1="0" x2="1" y2="0">
-    <stop offset="0" stop-color="#e3e8ee" stop-opacity=".82"/><stop offset=".26" stop-color="#fdfefe" stop-opacity=".95"/>
-    <stop offset=".68" stop-color="#d7dde5" stop-opacity=".86"/><stop offset="1" stop-color="#b4bcc7" stop-opacity=".8"/>
-  </linearGradient>
-  <g>
-    <path d="M27 33h46l-4.4 51.5a5 5 0 0 1-5 4.5H36.4a5 5 0 0 1-5-4.5z" fill="url(#trB)" stroke="rgba(92,104,122,.82)" stroke-width="1.8"/>
-    <g stroke="rgba(88,100,118,.62)" stroke-width="1.5" fill="none">
-      <path d="M38 34.5 36.6 88"/><path d="M46 34.5 45.6 88"/><path d="M54 34.5 54.4 88"/><path d="M62 34.5 63.4 88"/>
-      <path d="M29.6 50h40.8"/><path d="M30.6 62.5h38.8"/><path d="M31.6 75h36.8"/>
-    </g>
-    <ellipse cx="50" cy="32" rx="25" ry="6.4" fill="#eef1f6" opacity=".97"/>
-    <ellipse cx="50" cy="32" rx="25" ry="6.4" fill="none" stroke="rgba(88,100,118,.85)" stroke-width="2"/>
-    <ellipse cx="50" cy="31.6" rx="19.4" ry="4.1" fill="rgba(76,88,106,.32)"/>
-  </g>
-</symbol>
-<symbol id="app-trash-full" viewBox="0 0 100 100">
-  <use href="#app-trash"/>
-  <g><path d="M36 30c4-6 9-9 14-7s3 6 8 5 8-4 8-4" fill="none" stroke="#cfd6de" stroke-width="4" stroke-linecap="round"/>
-  <path d="M40 25 44 18l6 4 5-6 4 7" fill="none" stroke="#e5e9ee" stroke-width="3" stroke-linecap="round"/></g>
-</symbol>
+    <!-- ============================ TRASH ============================= -->
+    <symbol id="app-trash" viewBox="0 0 100 100">
+      <linearGradient id="trB" x1="0" x2="1" y1="0" y2="0">
+        <stop offset="0" stop-color="#e3e8ee" stop-opacity=".82" />
+        <stop offset=".26" stop-color="#fdfefe" stop-opacity=".95" />
+        <stop offset=".68" stop-color="#d7dde5" stop-opacity=".86" />
+        <stop offset="1" stop-color="#b4bcc7" stop-opacity=".8" />
+      </linearGradient>
+      <g>
+        <path
+          d="M27 33h46l-4.4 51.5a5 5 0 0 1-5 4.5H36.4a5 5 0 0 1-5-4.5z"
+          fill="url(#trB)"
+          stroke="rgba(92,104,122,.82)"
+          stroke-width="1.8"
+        />
+        <g fill="none" stroke="rgba(88,100,118,.62)" stroke-width="1.5">
+          <path d="M38 34.5 36.6 88" />
+          <path d="M46 34.5 45.6 88" />
+          <path d="M54 34.5 54.4 88" />
+          <path d="M62 34.5 63.4 88" />
+          <path d="M29.6 50h40.8" />
+          <path d="M30.6 62.5h38.8" />
+          <path d="M31.6 75h36.8" />
+        </g>
+        <ellipse cx="50" cy="32" fill="#eef1f6" opacity=".97" rx="25" ry="6.4" />
+        <ellipse cx="50" cy="32" fill="none" rx="25" ry="6.4" stroke="rgba(88,100,118,.85)" stroke-width="2" />
+        <ellipse cx="50" cy="31.6" fill="rgba(76,88,106,.32)" rx="19.4" ry="4.1" />
+      </g>
+    </symbol>
+    <symbol id="app-trash-full" viewBox="0 0 100 100">
+      <use href="#app-trash" />
+      <g>
+        <path
+          d="M36 30c4-6 9-9 14-7s3 6 8 5 8-4 8-4"
+          fill="none"
+          stroke="#cfd6de"
+          stroke-linecap="round"
+          stroke-width="4"
+        />
+        <path d="M40 25 44 18l6 4 5-6 4 7" fill="none" stroke="#e5e9ee" stroke-linecap="round" stroke-width="3" />
+      </g>
+    </symbol>
 
-<!-- ==================================================================
+    <!-- ==================================================================
      UI GLYPHS  (SF-Symbols-flavoured, 16x16, inherit currentColor)
      ================================================================== -->
-<symbol id="g-apple" viewBox="0 0 15 18"><path fill="currentColor" d="M12.38 9.57c.02-2.28 1.86-3.38 1.94-3.43-1.06-1.55-2.7-1.76-3.29-1.79-1.4-.11-2.73.82-3.44.82-.71 0-1.81-.8-2.98-.78-1.53.02-2.95.89-3.74 2.26-1.6 2.77-.41 6.88 1.15 9.13.76 1.1 1.67 2.28 2.87 2.24 1.15-.05 1.59-.75 2.98-.75 1.39 0 1.78.74 2.99.72 1.24-.02 2.03-1.13 2.79-2.24.87-1.27 1.23-2.5 1.25-2.56-.03-.01-2.4-.93-2.42-3.62zM10.25 3.03c.63-.77 1.06-1.83.94-2.9-.94.04-2.07.63-2.74 1.4-.6.68-1.12 1.77-.98 2.81 1.05.08 2.13-.53 2.78-1.31z"/></symbol>
-<symbol id="g-wifi" viewBox="0 0 18 14"><path fill="currentColor" d="M9 11.02a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2zm0-3.7c-1.3 0-2.5.5-3.4 1.35a.72.72 0 0 0-.02 1.03l.5.5c.27.27.7.28.99.03A3.5 3.5 0 0 1 9 9.32c.72 0 1.4.24 1.93.65.29.25.72.24.99-.03l.5-.5a.72.72 0 0 0-.02-1.03A4.94 4.94 0 0 0 9 7.32zm0-3.72a8.6 8.6 0 0 0-5.99 2.4.72.72 0 0 0-.01 1.03l.5.5c.28.27.71.28.99.02A7.1 7.1 0 0 1 9 5.6c1.72 0 3.36.6 4.6 1.72.28.25.71.24.99-.03l.5-.5a.72.72 0 0 0-.01-1.02A8.6 8.6 0 0 0 9 3.6zm0-3.6C6.02 0 3.19 1.1 1.06 3.08a.72.72 0 0 0-.02 1.03l.49.5c.28.27.71.28.99.03A9.9 9.9 0 0 1 9 2c2.47 0 4.79.94 6.48 2.63.28.26.71.25.99-.02l.49-.5a.72.72 0 0 0-.02-1.03A11.53 11.53 0 0 0 9 0z"/></symbol>
-<symbol id="g-bt" viewBox="0 0 12 18"><path fill="currentColor" d="M5.2 8.36 1.63 4.9a.85.85 0 1 1 1.18-1.22L7.6 8.34a.85.85 0 0 1 0 1.23l-4.79 4.66a.85.85 0 1 1-1.18-1.22zM6.02 0c.24 0 .47.1.63.28l3.6 3.86a.9.9 0 0 1-.03 1.25L5.9 9.6l4.32 4.2a.9.9 0 0 1 .03 1.26l-3.6 3.86A.86.86 0 0 1 5.16 18V0z"/></symbol>
-<symbol id="g-vol" viewBox="0 0 18 14"><path fill="currentColor" d="M8.2.6a.8.8 0 0 0-.86.1L3.6 4H1.4A1.4 1.4 0 0 0 0 5.4v3.2A1.4 1.4 0 0 0 1.4 10h2.2l3.74 3.3a.8.8 0 0 0 1.32-.6V1.32a.8.8 0 0 0-.46-.72z"/><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" class="vw"><path d="M11.4 4.9a3.6 3.6 0 0 1 0 4.2"/><path d="M13.9 2.8a7 7 0 0 1 0 8.4"/></g></symbol>
-<symbol id="g-vol-mute" viewBox="0 0 18 14"><path fill="currentColor" d="M8.2.6a.8.8 0 0 0-.86.1L3.6 4H1.4A1.4 1.4 0 0 0 0 5.4v3.2A1.4 1.4 0 0 0 1.4 10h2.2l3.74 3.3a.8.8 0 0 0 1.32-.6V1.32a.8.8 0 0 0-.46-.72z"/><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M11.6 5.2 15.8 9.4"/><path d="M15.8 5.2 11.6 9.4"/></g></symbol>
-<symbol id="g-cc" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="1.4" y="2.6" width="13.2" height="4.2" rx="2.1"/><rect x="1.4" y="9.2" width="13.2" height="4.2" rx="2.1"/><path d="M10.6 2.6v4.2"/><path d="M5.4 9.2v4.2"/></g></symbol>
-<symbol id="g-search" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round"><circle cx="6.9" cy="6.9" r="4.9"/><path d="M10.6 10.6 14.4 14.4"/></g></symbol>
-<symbol id="g-spot" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="7" cy="7" r="5"/><path d="M10.7 10.7 14.6 14.6"/></g></symbol>
-<symbol id="g-siri" viewBox="0 0 16 16"><radialGradient id="siG" cx=".4" cy=".3" r=".8"><stop offset="0" stop-color="#ff5edf"/><stop offset=".5" stop-color="#a75cff"/><stop offset="1" stop-color="#3d7bff"/></radialGradient><circle cx="8" cy="8" r="6.6" fill="url(#siG)"/><circle cx="8" cy="8" r="6.6" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="1"/></symbol>
+    <symbol id="g-apple" viewBox="0 0 15 18">
+      <path
+        d="M12.38 9.57c.02-2.28 1.86-3.38 1.94-3.43-1.06-1.55-2.7-1.76-3.29-1.79-1.4-.11-2.73.82-3.44.82-.71 0-1.81-.8-2.98-.78-1.53.02-2.95.89-3.74 2.26-1.6 2.77-.41 6.88 1.15 9.13.76 1.1 1.67 2.28 2.87 2.24 1.15-.05 1.59-.75 2.98-.75 1.39 0 1.78.74 2.99.72 1.24-.02 2.03-1.13 2.79-2.24.87-1.27 1.23-2.5 1.25-2.56-.03-.01-2.4-.93-2.42-3.62zM10.25 3.03c.63-.77 1.06-1.83.94-2.9-.94.04-2.07.63-2.74 1.4-.6.68-1.12 1.77-.98 2.81 1.05.08 2.13-.53 2.78-1.31z"
+        fill="currentColor"
+      />
+    </symbol>
+    <symbol id="g-wifi" viewBox="0 0 18 14">
+      <path
+        d="M9 11.02a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2zm0-3.7c-1.3 0-2.5.5-3.4 1.35a.72.72 0 0 0-.02 1.03l.5.5c.27.27.7.28.99.03A3.5 3.5 0 0 1 9 9.32c.72 0 1.4.24 1.93.65.29.25.72.24.99-.03l.5-.5a.72.72 0 0 0-.02-1.03A4.94 4.94 0 0 0 9 7.32zm0-3.72a8.6 8.6 0 0 0-5.99 2.4.72.72 0 0 0-.01 1.03l.5.5c.28.27.71.28.99.02A7.1 7.1 0 0 1 9 5.6c1.72 0 3.36.6 4.6 1.72.28.25.71.24.99-.03l.5-.5a.72.72 0 0 0-.01-1.02A8.6 8.6 0 0 0 9 3.6zm0-3.6C6.02 0 3.19 1.1 1.06 3.08a.72.72 0 0 0-.02 1.03l.49.5c.28.27.71.28.99.03A9.9 9.9 0 0 1 9 2c2.47 0 4.79.94 6.48 2.63.28.26.71.25.99-.02l.49-.5a.72.72 0 0 0-.02-1.03A11.53 11.53 0 0 0 9 0z"
+        fill="currentColor"
+      />
+    </symbol>
+    <symbol id="g-bt" viewBox="0 0 12 18">
+      <path
+        d="M5.2 8.36 1.63 4.9a.85.85 0 1 1 1.18-1.22L7.6 8.34a.85.85 0 0 1 0 1.23l-4.79 4.66a.85.85 0 1 1-1.18-1.22zM6.02 0c.24 0 .47.1.63.28l3.6 3.86a.9.9 0 0 1-.03 1.25L5.9 9.6l4.32 4.2a.9.9 0 0 1 .03 1.26l-3.6 3.86A.86.86 0 0 1 5.16 18V0z"
+        fill="currentColor"
+      />
+    </symbol>
+    <symbol id="g-vol" viewBox="0 0 18 14">
+      <path
+        d="M8.2.6a.8.8 0 0 0-.86.1L3.6 4H1.4A1.4 1.4 0 0 0 0 5.4v3.2A1.4 1.4 0 0 0 1.4 10h2.2l3.74 3.3a.8.8 0 0 0 1.32-.6V1.32a.8.8 0 0 0-.46-.72z"
+        fill="currentColor"
+      />
+      <g class="vw" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.5">
+        <path d="M11.4 4.9a3.6 3.6 0 0 1 0 4.2" />
+        <path d="M13.9 2.8a7 7 0 0 1 0 8.4" />
+      </g>
+    </symbol>
+    <symbol id="g-vol-mute" viewBox="0 0 18 14">
+      <path
+        d="M8.2.6a.8.8 0 0 0-.86.1L3.6 4H1.4A1.4 1.4 0 0 0 0 5.4v3.2A1.4 1.4 0 0 0 1.4 10h2.2l3.74 3.3a.8.8 0 0 0 1.32-.6V1.32a.8.8 0 0 0-.46-.72z"
+        fill="currentColor"
+      />
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.6">
+        <path d="M11.6 5.2 15.8 9.4" />
+        <path d="M15.8 5.2 11.6 9.4" />
+      </g>
+    </symbol>
+    <symbol id="g-cc" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.5">
+        <rect height="4.2" rx="2.1" width="13.2" x="1.4" y="2.6" />
+        <rect height="4.2" rx="2.1" width="13.2" x="1.4" y="9.2" />
+        <path d="M10.6 2.6v4.2" />
+        <path d="M5.4 9.2v4.2" />
+      </g>
+    </symbol>
+    <symbol id="g-search" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.55">
+        <circle cx="6.9" cy="6.9" r="4.9" />
+        <path d="M10.6 10.6 14.4 14.4" />
+      </g>
+    </symbol>
+    <symbol id="g-spot" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.7">
+        <circle cx="7" cy="7" r="5" />
+        <path d="M10.7 10.7 14.6 14.6" />
+      </g>
+    </symbol>
+    <symbol id="g-siri" viewBox="0 0 16 16">
+      <radialGradient id="siG" cx=".4" cy=".3" r=".8">
+        <stop offset="0" stop-color="#ff5edf" />
+        <stop offset=".5" stop-color="#a75cff" />
+        <stop offset="1" stop-color="#3d7bff" />
+      </radialGradient>
+      <circle cx="8" cy="8" fill="url(#siG)" r="6.6" />
+      <circle cx="8" cy="8" fill="none" r="6.6" stroke="rgba(255,255,255,.5)" stroke-width="1" />
+    </symbol>
 
-<symbol id="g-chev-l" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M10 3 5 8l5 5"/></symbol>
-<symbol id="g-chev-r" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M6 3l5 5-5 5"/></symbol>
-<symbol id="g-chev-u" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M3 10l5-5 5 5"/></symbol>
-<symbol id="g-chev-d" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M3 6l5 5 5-5"/></symbol>
-<symbol id="g-chev-ud" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M4.4 6.6 8 3l3.6 3.6M4.4 9.4 8 13l3.6-3.6"/></symbol>
-<symbol id="g-x" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M4 4l8 8M12 4l-8 8"/></symbol>
-<symbol id="g-plus" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" d="M8 3v10M3 8h10"/></symbol>
-<symbol id="g-minus" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" d="M3 8h10"/></symbol>
-<symbol id="g-check" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M3 8.6 6.2 12 13 4.6"/></symbol>
-<symbol id="g-lock" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3.3" y="7" width="9.4" height="7" rx="2.2"/><path d="M5.6 7V5.4a2.4 2.4 0 0 1 4.8 0V7" stroke-linecap="round"/></g></symbol>
-<symbol id="g-reload" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round"><path d="M13.4 8a5.4 5.4 0 1 1-1.7-3.94"/><path d="M13.6 2.4v3.4h-3.4"/></g></symbol>
-<symbol id="g-share" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 10.4V1.9"/><path d="M5.2 4.6 8 1.8l2.8 2.8"/><path d="M4 7H3.2A1.2 1.2 0 0 0 2 8.2v4.6A1.2 1.2 0 0 0 3.2 14h9.6a1.2 1.2 0 0 0 1.2-1.2V8.2A1.2 1.2 0 0 0 12.8 7H12"/></g></symbol>
-<symbol id="g-sidebar" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.6" y="3" width="12.8" height="10" rx="2.2"/><path d="M6.2 3v10"/></g></symbol>
-<symbol id="g-shield" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" d="M8 1.8 13.2 3.4v4.2c0 3.2-2.1 5.6-5.2 6.6-3.1-1-5.2-3.4-5.2-6.6V3.4z"/></symbol>
-<symbol id="g-glasses" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.35"><circle cx="4" cy="9.4" r="2.5"/><circle cx="12" cy="9.4" r="2.5"/><path d="M6.5 9.4h3M1.5 8.4 3.4 4.6h2M14.5 8.4 12.6 4.6h-2" stroke-linecap="round"/></g></symbol>
-<symbol id="g-compose" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"><path d="M13.4 7.6v4.6a1.8 1.8 0 0 1-1.8 1.8H3.8A1.8 1.8 0 0 1 2 12.2V4.4a1.8 1.8 0 0 1 1.8-1.8h4.5"/><path d="M11.1 1.9 14 4.8 8.1 10.7l-3 .7.7-3z"/></g></symbol>
-<symbol id="g-facetime" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.45" stroke-linejoin="round"><rect x="1.5" y="4" width="9" height="8" rx="2.2"/><path d="M10.5 7.3 14.4 5v6l-3.9-2.3z"/></g></symbol>
-<symbol id="g-info" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round"><circle cx="8" cy="8" r="6.3"/><path d="M8 7.2v4"/><path d="M8 4.7h.01" stroke-width="1.8"/></g></symbol>
-<symbol id="g-grid" viewBox="0 0 16 16"><g fill="currentColor"><rect x="2.2" y="2.2" width="4.6" height="4.6" rx="1.2"/><rect x="9.2" y="2.2" width="4.6" height="4.6" rx="1.2"/><rect x="2.2" y="9.2" width="4.6" height="4.6" rx="1.2"/><rect x="9.2" y="9.2" width="4.6" height="4.6" rx="1.2"/></g></symbol>
-<symbol id="g-list" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2.2 4h11.6M2.2 8h11.6M2.2 12h11.6"/></g></symbol>
-<symbol id="g-columns" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.6" y="2.6" width="12.8" height="10.8" rx="1.8"/><path d="M5.9 2.6v10.8M10.1 2.6v10.8"/></g></symbol>
-<symbol id="g-pin" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M8 14.2s4.4-4.3 4.4-7.6A4.4 4.4 0 0 0 3.6 6.6c0 3.3 4.4 7.6 4.4 7.6Z"/><circle cx="8" cy="6.5" r="1.7"/></g></symbol>
-<symbol id="g-camera" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M1.9 5.6h2.3l1-1.6h5.6l1 1.6h2.3a.9.9 0 0 1 .9.9v5.6a.9.9 0 0 1-.9.9H1.9a.9.9 0 0 1-.9-.9V6.5a.9.9 0 0 1 .9-.9Z"/><circle cx="8" cy="9.3" r="2.5"/></g></symbol>
-<symbol id="g-gallery" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3.6" y="2.4" width="8.8" height="7.6" rx="1.5"/><path d="M1.6 11.6h12.8" stroke-linecap="round"/><path d="M3.6 13.8h8.8" stroke-linecap="round"/></g></symbol>
-<symbol id="g-sort" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2.4 4h7M2.4 8h5M2.4 12h3"/><path d="M11.6 5.6v7.2M9.4 10.6l2.2 2.2 2.2-2.2"/></g></symbol>
-<symbol id="g-tag" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M7.6 1.8H13a1.2 1.2 0 0 1 1.2 1.2v5.4a1.2 1.2 0 0 1-.35.85l-5 5a1.2 1.2 0 0 1-1.7 0L2.3 9.55a1.2 1.2 0 0 1 0-1.7l5-5a1.2 1.2 0 0 1 .3-.05z"/><circle cx="10.6" cy="5.4" r="1.2" fill="currentColor" stroke="none"/></g></symbol>
-<symbol id="g-ellipsis" viewBox="0 0 16 16"><g fill="currentColor"><circle cx="3.4" cy="8" r="1.35"/><circle cx="8" cy="8" r="1.35"/><circle cx="12.6" cy="8" r="1.35"/></g></symbol>
-<symbol id="g-star" viewBox="0 0 16 16"><path fill="currentColor" d="M8 1.6l1.86 3.86 4.24.58-3.1 2.96.76 4.2L8 11.2l-3.76 2 .76-4.2L1.9 6.04l4.24-.58z"/></symbol>
-<symbol id="g-globe" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6.2"/><path d="M1.9 8h12.2"/><ellipse cx="8" cy="8" rx="2.9" ry="6.2"/></g></symbol>
-<symbol id="g-power" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 1.8v5.4"/><path d="M4.3 4.1a5.2 5.2 0 1 0 7.4 0"/></g></symbol>
-<symbol id="g-moon" viewBox="0 0 16 16"><path fill="currentColor" d="M13.3 10.2A5.9 5.9 0 0 1 6 2.9 6.3 6.3 0 1 0 13.3 10.2z"/></symbol>
-<symbol id="g-sun" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="3.2"/><path d="M8 1.4v1.6M8 13v1.6M1.4 8h1.6M13 8h1.6M3.3 3.3l1.15 1.15M11.55 11.55l1.15 1.15M12.7 3.3l-1.15 1.15M4.45 11.55 3.3 12.7"/></g></symbol>
-<symbol id="g-cloud" viewBox="0 0 16 16"><path fill="#9aa3af" d="M4.6 12.8a3.3 3.3 0 0 1-.36-6.58A4.15 4.15 0 0 1 12.1 6.9a2.96 2.96 0 0 1-.5 5.9z"/></symbol>
-<symbol id="g-suncloud" viewBox="0 0 16 16"><g fill="none" stroke="#ff9f0a" stroke-width="1.4" stroke-linecap="round"><path d="M5.6 4.35V3.1M2.9 5.6 2.1 4.8M8.3 5.6l.8-.8M3.05 8.5H1.9"/><circle cx="5.6" cy="7.5" r="2.05"/></g><path fill="#9aa3af" d="M7.2 14.1a2.85 2.85 0 0 1-.3-5.68 3.6 3.6 0 0 1 6.8.6 2.55 2.55 0 0 1-.42 5.08z"/></symbol>
-<!-- The rest of the WMO code range needs its own glyphs: drizzle, rain, snow,
+    <symbol id="g-chev-l" viewBox="0 0 16 16">
+      <path
+        d="M10 3 5 8l5 5"
+        fill="none"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="1.7"
+      />
+    </symbol>
+    <symbol id="g-chev-r" viewBox="0 0 16 16">
+      <path
+        d="M6 3l5 5-5 5"
+        fill="none"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="1.7"
+      />
+    </symbol>
+    <symbol id="g-chev-u" viewBox="0 0 16 16">
+      <path
+        d="M3 10l5-5 5 5"
+        fill="none"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="1.7"
+      />
+    </symbol>
+    <symbol id="g-chev-d" viewBox="0 0 16 16">
+      <path
+        d="M3 6l5 5 5-5"
+        fill="none"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="1.7"
+      />
+    </symbol>
+    <symbol id="g-chev-ud" viewBox="0 0 16 16">
+      <path
+        d="M4.4 6.6 8 3l3.6 3.6M4.4 9.4 8 13l3.6-3.6"
+        fill="none"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="1.6"
+      />
+    </symbol>
+    <symbol id="g-x" viewBox="0 0 16 16">
+      <path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.8" />
+    </symbol>
+    <symbol id="g-plus" viewBox="0 0 16 16">
+      <path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.7" />
+    </symbol>
+    <symbol id="g-minus" viewBox="0 0 16 16">
+      <path d="M3 8h10" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.7" />
+    </symbol>
+    <symbol id="g-check" viewBox="0 0 16 16">
+      <path
+        d="M3 8.6 6.2 12 13 4.6"
+        fill="none"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="1.9"
+      />
+    </symbol>
+    <symbol id="g-lock" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-width="1.4">
+        <rect height="7" rx="2.2" width="9.4" x="3.3" y="7" />
+        <path d="M5.6 7V5.4a2.4 2.4 0 0 1 4.8 0V7" stroke-linecap="round" />
+      </g>
+    </symbol>
+    <symbol id="g-reload" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.55">
+        <path d="M13.4 8a5.4 5.4 0 1 1-1.7-3.94" />
+        <path d="M13.6 2.4v3.4h-3.4" />
+      </g>
+    </symbol>
+    <symbol id="g-share" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5">
+        <path d="M8 10.4V1.9" />
+        <path d="M5.2 4.6 8 1.8l2.8 2.8" />
+        <path
+          d="M4 7H3.2A1.2 1.2 0 0 0 2 8.2v4.6A1.2 1.2 0 0 0 3.2 14h9.6a1.2 1.2 0 0 0 1.2-1.2V8.2A1.2 1.2 0 0 0 12.8 7H12"
+        />
+      </g>
+    </symbol>
+    <symbol id="g-sidebar" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-width="1.4">
+        <rect height="10" rx="2.2" width="12.8" x="1.6" y="3" />
+        <path d="M6.2 3v10" />
+      </g>
+    </symbol>
+    <symbol id="g-shield" viewBox="0 0 16 16">
+      <path
+        d="M8 1.8 13.2 3.4v4.2c0 3.2-2.1 5.6-5.2 6.6-3.1-1-5.2-3.4-5.2-6.6V3.4z"
+        fill="none"
+        stroke="currentColor"
+        stroke-linejoin="round"
+        stroke-width="1.4"
+      />
+    </symbol>
+    <symbol id="g-glasses" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-width="1.35">
+        <circle cx="4" cy="9.4" r="2.5" />
+        <circle cx="12" cy="9.4" r="2.5" />
+        <path d="M6.5 9.4h3M1.5 8.4 3.4 4.6h2M14.5 8.4 12.6 4.6h-2" stroke-linecap="round" />
+      </g>
+    </symbol>
+    <symbol id="g-compose" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.45">
+        <path d="M13.4 7.6v4.6a1.8 1.8 0 0 1-1.8 1.8H3.8A1.8 1.8 0 0 1 2 12.2V4.4a1.8 1.8 0 0 1 1.8-1.8h4.5" />
+        <path d="M11.1 1.9 14 4.8 8.1 10.7l-3 .7.7-3z" />
+      </g>
+    </symbol>
+    <symbol id="g-facetime" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.45">
+        <rect height="8" rx="2.2" width="9" x="1.5" y="4" />
+        <path d="M10.5 7.3 14.4 5v6l-3.9-2.3z" />
+      </g>
+    </symbol>
+    <symbol id="g-info" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.45">
+        <circle cx="8" cy="8" r="6.3" />
+        <path d="M8 7.2v4" />
+        <path d="M8 4.7h.01" stroke-width="1.8" />
+      </g>
+    </symbol>
+    <symbol id="g-grid" viewBox="0 0 16 16">
+      <g fill="currentColor">
+        <rect height="4.6" rx="1.2" width="4.6" x="2.2" y="2.2" />
+        <rect height="4.6" rx="1.2" width="4.6" x="9.2" y="2.2" />
+        <rect height="4.6" rx="1.2" width="4.6" x="2.2" y="9.2" />
+        <rect height="4.6" rx="1.2" width="4.6" x="9.2" y="9.2" />
+      </g>
+    </symbol>
+    <symbol id="g-list" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.5">
+        <path d="M2.2 4h11.6M2.2 8h11.6M2.2 12h11.6" />
+      </g>
+    </symbol>
+    <symbol id="g-columns" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-width="1.4">
+        <rect height="10.8" rx="1.8" width="12.8" x="1.6" y="2.6" />
+        <path d="M5.9 2.6v10.8M10.1 2.6v10.8" />
+      </g>
+    </symbol>
+    <symbol id="g-pin" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.4">
+        <path d="M8 14.2s4.4-4.3 4.4-7.6A4.4 4.4 0 0 0 3.6 6.6c0 3.3 4.4 7.6 4.4 7.6Z" />
+        <circle cx="8" cy="6.5" r="1.7" />
+      </g>
+    </symbol>
+    <symbol id="g-camera" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.4">
+        <path
+          d="M1.9 5.6h2.3l1-1.6h5.6l1 1.6h2.3a.9.9 0 0 1 .9.9v5.6a.9.9 0 0 1-.9.9H1.9a.9.9 0 0 1-.9-.9V6.5a.9.9 0 0 1 .9-.9Z"
+        />
+        <circle cx="8" cy="9.3" r="2.5" />
+      </g>
+    </symbol>
+    <symbol id="g-gallery" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-width="1.4">
+        <rect height="7.6" rx="1.5" width="8.8" x="3.6" y="2.4" />
+        <path d="M1.6 11.6h12.8" stroke-linecap="round" />
+        <path d="M3.6 13.8h8.8" stroke-linecap="round" />
+      </g>
+    </symbol>
+    <symbol id="g-sort" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.5">
+        <path d="M2.4 4h7M2.4 8h5M2.4 12h3" />
+        <path d="M11.6 5.6v7.2M9.4 10.6l2.2 2.2 2.2-2.2" />
+      </g>
+    </symbol>
+    <symbol id="g-tag" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.4">
+        <path
+          d="M7.6 1.8H13a1.2 1.2 0 0 1 1.2 1.2v5.4a1.2 1.2 0 0 1-.35.85l-5 5a1.2 1.2 0 0 1-1.7 0L2.3 9.55a1.2 1.2 0 0 1 0-1.7l5-5a1.2 1.2 0 0 1 .3-.05z"
+        />
+        <circle cx="10.6" cy="5.4" fill="currentColor" r="1.2" stroke="none" />
+      </g>
+    </symbol>
+    <symbol id="g-ellipsis" viewBox="0 0 16 16">
+      <g fill="currentColor">
+        <circle cx="3.4" cy="8" r="1.35" />
+        <circle cx="8" cy="8" r="1.35" />
+        <circle cx="12.6" cy="8" r="1.35" />
+      </g>
+    </symbol>
+    <symbol id="g-star" viewBox="0 0 16 16">
+      <path
+        d="M8 1.6l1.86 3.86 4.24.58-3.1 2.96.76 4.2L8 11.2l-3.76 2 .76-4.2L1.9 6.04l4.24-.58z"
+        fill="currentColor"
+      />
+    </symbol>
+    <symbol id="g-globe" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-width="1.4">
+        <circle cx="8" cy="8" r="6.2" />
+        <path d="M1.9 8h12.2" />
+        <ellipse cx="8" cy="8" rx="2.9" ry="6.2" />
+      </g>
+    </symbol>
+    <symbol id="g-power" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.6">
+        <path d="M8 1.8v5.4" />
+        <path d="M4.3 4.1a5.2 5.2 0 1 0 7.4 0" />
+      </g>
+    </symbol>
+    <symbol id="g-moon" viewBox="0 0 16 16">
+      <path d="M13.3 10.2A5.9 5.9 0 0 1 6 2.9 6.3 6.3 0 1 0 13.3 10.2z" fill="currentColor" />
+    </symbol>
+    <symbol id="g-sun" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.5">
+        <circle cx="8" cy="8" r="3.2" />
+        <path
+          d="M8 1.4v1.6M8 13v1.6M1.4 8h1.6M13 8h1.6M3.3 3.3l1.15 1.15M11.55 11.55l1.15 1.15M12.7 3.3l-1.15 1.15M4.45 11.55 3.3 12.7"
+        />
+      </g>
+    </symbol>
+    <symbol id="g-cloud" viewBox="0 0 16 16">
+      <path d="M4.6 12.8a3.3 3.3 0 0 1-.36-6.58A4.15 4.15 0 0 1 12.1 6.9a2.96 2.96 0 0 1-.5 5.9z" fill="#9aa3af" />
+    </symbol>
+    <symbol id="g-suncloud" viewBox="0 0 16 16">
+      <g fill="none" stroke="#ff9f0a" stroke-linecap="round" stroke-width="1.4">
+        <path d="M5.6 4.35V3.1M2.9 5.6 2.1 4.8M8.3 5.6l.8-.8M3.05 8.5H1.9" />
+        <circle cx="5.6" cy="7.5" r="2.05" />
+      </g>
+      <path d="M7.2 14.1a2.85 2.85 0 0 1-.3-5.68 3.6 3.6 0 0 1 6.8.6 2.55 2.55 0 0 1-.42 5.08z" fill="#9aa3af" />
+    </symbol>
+    <!-- The rest of the WMO code range needs its own glyphs: drizzle, rain, snow,
      storm, fog and a night-with-cloud, drawn to match g-suncloud's weight. -->
-<symbol id="g-mooncloud" viewBox="0 0 16 16"><path fill="#c7cdd6" d="M9.7 7.4A4.1 4.1 0 0 1 5.9 2a4.4 4.4 0 1 0 3.8 5.4z"/><path fill="#9aa3af" d="M7.2 14.4a2.85 2.85 0 0 1-.3-5.68 3.6 3.6 0 0 1 6.8.6 2.55 2.55 0 0 1-.42 5.08z"/></symbol>
-<symbol id="g-drizzle" viewBox="0 0 16 16"><path fill="#9aa3af" d="M4.7 10.5a2.95 2.95 0 0 1-.32-5.88A3.72 3.72 0 0 1 11.8 5.2a2.65 2.65 0 0 1-.45 5.3z"/><g fill="none" stroke="#5ac8fa" stroke-width="1.4" stroke-linecap="round"><path d="M5.7 12.4v1.2M8 12.8v1.5M10.3 12.4v1.2"/></g></symbol>
-<symbol id="g-rain" viewBox="0 0 16 16"><path fill="#8d96a3" d="M4.7 10.2a2.95 2.95 0 0 1-.32-5.88A3.72 3.72 0 0 1 11.8 4.9a2.65 2.65 0 0 1-.45 5.3z"/><g fill="none" stroke="#0a84ff" stroke-width="1.5" stroke-linecap="round"><path d="M5.4 11.8 4.6 14.2M8 11.8 7.2 14.2M10.6 11.8 9.8 14.2"/></g></symbol>
-<symbol id="g-snow" viewBox="0 0 16 16"><path fill="#9aa3af" d="M4.7 10.2a2.95 2.95 0 0 1-.32-5.88A3.72 3.72 0 0 1 11.8 4.9a2.65 2.65 0 0 1-.45 5.3z"/><g fill="none" stroke="#7fd7ff" stroke-width="1.3" stroke-linecap="round"><path d="M5 12.1v2M4.15 12.6l1.7 1M5.85 12.6l-1.7 1M11 12.1v2M10.15 12.6l1.7 1M11.85 12.6l-1.7 1M8 12.6v1.9"/></g></symbol>
-<symbol id="g-storm" viewBox="0 0 16 16"><path fill="#7d868f" d="M4.7 9.9a2.95 2.95 0 0 1-.32-5.88A3.72 3.72 0 0 1 11.8 4.6a2.65 2.65 0 0 1-.45 5.3z"/><path fill="#ffcc00" d="M8.9 10.4 5.9 15h2.05l-.55 3 3.2-4.8H8.5z"/></symbol>
-<symbol id="g-fog" viewBox="0 0 16 16"><path fill="#9aa3af" d="M4.9 9a2.85 2.85 0 0 1-.3-5.68 3.6 3.6 0 0 1 6.98.34A2.6 2.6 0 0 1 11.2 9z"/><g fill="none" stroke="#9aa3af" stroke-width="1.5" stroke-linecap="round"><path d="M3.2 11.4h9.6M4.6 13.8h6.8"/></g></symbol>
-<symbol id="g-display" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.4" y="2.6" width="13.2" height="8.8" rx="1.8"/><path d="M5.6 14h4.8" stroke-linecap="round"/><path d="M8 11.4V14"/></g></symbol>
-<symbol id="g-hand" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5.4 8V3.6a1.2 1.2 0 0 1 2.4 0V7M7.8 7V2.9a1.2 1.2 0 0 1 2.4 0V7.4M10.2 7.6V4.4a1.2 1.2 0 0 1 2.4 0v5c0 2.6-1.8 4.6-4.4 4.6-2.4 0-4.2-1.4-4.8-3.6L3 8.4a1.2 1.2 0 0 1 2.2-1z"/></g></symbol>
-<symbol id="g-network" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="8" cy="8" r="6.2"/><path d="M8 1.8v12.4M1.8 8h12.4"/><path d="M3.4 4.2c1.3.9 2.9 1.4 4.6 1.4s3.3-.5 4.6-1.4M3.4 11.8c1.3-.9 2.9-1.4 4.6-1.4s3.3.5 4.6 1.4"/></g></symbol>
-<symbol id="g-gear" viewBox="0 0 16 16"><path fill="currentColor" d="M8 1.2c-.5 0-.94.37-1.02.87l-.16 1a6.6 6.6 0 0 0-1.16.48l-.8-.62a1.04 1.04 0 0 0-1.35.08l-.72.72a1.04 1.04 0 0 0-.08 1.35l.62.8a6.6 6.6 0 0 0-.48 1.16l-1 .16A1.04 1.04 0 0 0 1.2 8.8v.4c0 .5.37.94.87 1.02l1 .16c.13.4.29.79.48 1.16l-.62.8a1.04 1.04 0 0 0 .08 1.35l.72.72c.36.36.93.4 1.35.08l.8-.62c.37.2.76.35 1.16.48l.16 1c.08.5.52.87 1.02.87h.4c.5 0 .94-.37 1.02-.87l.16-1a6.6 6.6 0 0 0 1.16-.48l.8.62c.42.32.99.28 1.35-.08l.72-.72a1.04 1.04 0 0 0 .08-1.35l-.62-.8c.2-.37.35-.76.48-1.16l1-.16c.5-.08.87-.52.87-1.02v-.4c0-.5-.37-.94-.87-1.02l-1-.16a6.6 6.6 0 0 0-.48-1.16l.62-.8a1.04 1.04 0 0 0-.08-1.35l-.72-.72a1.04 1.04 0 0 0-1.35-.08l-.8.62a6.6 6.6 0 0 0-1.16-.48l-.16-1A1.04 1.04 0 0 0 8.4 1.2zM8 5.6A2.4 2.4 0 1 1 5.6 8 2.4 2.4 0 0 1 8 5.6z"/></symbol>
+    <symbol id="g-mooncloud" viewBox="0 0 16 16">
+      <path d="M9.7 7.4A4.1 4.1 0 0 1 5.9 2a4.4 4.4 0 1 0 3.8 5.4z" fill="#c7cdd6" />
+      <path d="M7.2 14.4a2.85 2.85 0 0 1-.3-5.68 3.6 3.6 0 0 1 6.8.6 2.55 2.55 0 0 1-.42 5.08z" fill="#9aa3af" />
+    </symbol>
+    <symbol id="g-drizzle" viewBox="0 0 16 16">
+      <path d="M4.7 10.5a2.95 2.95 0 0 1-.32-5.88A3.72 3.72 0 0 1 11.8 5.2a2.65 2.65 0 0 1-.45 5.3z" fill="#9aa3af" />
+      <g fill="none" stroke="#5ac8fa" stroke-linecap="round" stroke-width="1.4">
+        <path d="M5.7 12.4v1.2M8 12.8v1.5M10.3 12.4v1.2" />
+      </g>
+    </symbol>
+    <symbol id="g-rain" viewBox="0 0 16 16">
+      <path d="M4.7 10.2a2.95 2.95 0 0 1-.32-5.88A3.72 3.72 0 0 1 11.8 4.9a2.65 2.65 0 0 1-.45 5.3z" fill="#8d96a3" />
+      <g fill="none" stroke="#0a84ff" stroke-linecap="round" stroke-width="1.5">
+        <path d="M5.4 11.8 4.6 14.2M8 11.8 7.2 14.2M10.6 11.8 9.8 14.2" />
+      </g>
+    </symbol>
+    <symbol id="g-snow" viewBox="0 0 16 16">
+      <path d="M4.7 10.2a2.95 2.95 0 0 1-.32-5.88A3.72 3.72 0 0 1 11.8 4.9a2.65 2.65 0 0 1-.45 5.3z" fill="#9aa3af" />
+      <g fill="none" stroke="#7fd7ff" stroke-linecap="round" stroke-width="1.3">
+        <path d="M5 12.1v2M4.15 12.6l1.7 1M5.85 12.6l-1.7 1M11 12.1v2M10.15 12.6l1.7 1M11.85 12.6l-1.7 1M8 12.6v1.9" />
+      </g>
+    </symbol>
+    <symbol id="g-storm" viewBox="0 0 16 16">
+      <path d="M4.7 9.9a2.95 2.95 0 0 1-.32-5.88A3.72 3.72 0 0 1 11.8 4.6a2.65 2.65 0 0 1-.45 5.3z" fill="#7d868f" />
+      <path d="M8.9 10.4 5.9 15h2.05l-.55 3 3.2-4.8H8.5z" fill="#ffcc00" />
+    </symbol>
+    <symbol id="g-fog" viewBox="0 0 16 16">
+      <path d="M4.9 9a2.85 2.85 0 0 1-.3-5.68 3.6 3.6 0 0 1 6.98.34A2.6 2.6 0 0 1 11.2 9z" fill="#9aa3af" />
+      <g fill="none" stroke="#9aa3af" stroke-linecap="round" stroke-width="1.5">
+        <path d="M3.2 11.4h9.6M4.6 13.8h6.8" />
+      </g>
+    </symbol>
+    <symbol id="g-display" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-width="1.4">
+        <rect height="8.8" rx="1.8" width="13.2" x="1.4" y="2.6" />
+        <path d="M5.6 14h4.8" stroke-linecap="round" />
+        <path d="M8 11.4V14" />
+      </g>
+    </symbol>
+    <symbol id="g-hand" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.4">
+        <path
+          d="M5.4 8V3.6a1.2 1.2 0 0 1 2.4 0V7M7.8 7V2.9a1.2 1.2 0 0 1 2.4 0V7.4M10.2 7.6V4.4a1.2 1.2 0 0 1 2.4 0v5c0 2.6-1.8 4.6-4.4 4.6-2.4 0-4.2-1.4-4.8-3.6L3 8.4a1.2 1.2 0 0 1 2.2-1z"
+        />
+      </g>
+    </symbol>
+    <symbol id="g-network" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.4">
+        <circle cx="8" cy="8" r="6.2" />
+        <path d="M8 1.8v12.4M1.8 8h12.4" />
+        <path d="M3.4 4.2c1.3.9 2.9 1.4 4.6 1.4s3.3-.5 4.6-1.4M3.4 11.8c1.3-.9 2.9-1.4 4.6-1.4s3.3.5 4.6 1.4" />
+      </g>
+    </symbol>
+    <symbol id="g-gear" viewBox="0 0 16 16">
+      <path
+        d="M8 1.2c-.5 0-.94.37-1.02.87l-.16 1a6.6 6.6 0 0 0-1.16.48l-.8-.62a1.04 1.04 0 0 0-1.35.08l-.72.72a1.04 1.04 0 0 0-.08 1.35l.62.8a6.6 6.6 0 0 0-.48 1.16l-1 .16A1.04 1.04 0 0 0 1.2 8.8v.4c0 .5.37.94.87 1.02l1 .16c.13.4.29.79.48 1.16l-.62.8a1.04 1.04 0 0 0 .08 1.35l.72.72c.36.36.93.4 1.35.08l.8-.62c.37.2.76.35 1.16.48l.16 1c.08.5.52.87 1.02.87h.4c.5 0 .94-.37 1.02-.87l.16-1a6.6 6.6 0 0 0 1.16-.48l.8.62c.42.32.99.28 1.35-.08l.72-.72a1.04 1.04 0 0 0 .08-1.35l-.62-.8c.2-.37.35-.76.48-1.16l1-.16c.5-.08.87-.52.87-1.02v-.4c0-.5-.37-.94-.87-1.02l-1-.16a6.6 6.6 0 0 0-.48-1.16l.62-.8a1.04 1.04 0 0 0-.08-1.35l-.72-.72a1.04 1.04 0 0 0-1.35-.08l-.8.62a6.6 6.6 0 0 0-1.16-.48l-.16-1A1.04 1.04 0 0 0 8.4 1.2zM8 5.6A2.4 2.4 0 1 1 5.6 8 2.4 2.4 0 0 1 8 5.6z"
+        fill="currentColor"
+      />
+    </symbol>
 
-<symbol id="g-play" viewBox="0 0 16 16"><path fill="currentColor" d="M4.4 2.6c0-.6.66-.97 1.17-.65l8 5.05a.77.77 0 0 1 0 1.3l-8 5.05A.77.77 0 0 1 4.4 12.7z"/></symbol>
-<symbol id="g-pause" viewBox="0 0 16 16"><g fill="currentColor"><rect x="3.6" y="2.4" width="3.4" height="11.2" rx="1.1"/><rect x="9" y="2.4" width="3.4" height="11.2" rx="1.1"/></g></symbol>
-<symbol id="g-fwd" viewBox="0 0 16 16"><path fill="currentColor" d="M1.6 3.3c0-.6.66-.96 1.16-.64l6 3.85a.77.77 0 0 1 0 1.3l-6 3.85A.77.77 0 0 1 1.6 11zM8.6 3.3c0-.6.66-.96 1.16-.64l6 3.85a.77.77 0 0 1 0 1.3l-6 3.85A.77.77 0 0 1 8.6 11z"/></symbol>
-<symbol id="g-bwd" viewBox="0 0 16 16"><path fill="currentColor" d="M14.4 3.3c0-.6-.66-.96-1.16-.64l-6 3.85a.77.77 0 0 0 0 1.3l6 3.85a.77.77 0 0 0 1.16-.66zM7.4 3.3c0-.6-.66-.96-1.16-.64l-6 3.85a.77.77 0 0 0 0 1.3l6 3.85A.77.77 0 0 0 7.4 11z"/></symbol>
-<symbol id="g-shuffle" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1.8 3.6h2.6c.9 0 1.7.44 2.2 1.18l3.4 5.44a2.6 2.6 0 0 0 2.2 1.18h1.6"/><path d="M1.8 12.4h2.6c.9 0 1.7-.44 2.2-1.18l.7-1.1M10.4 5.2l.2-.42A2.6 2.6 0 0 1 12.8 3.6h1.4"/><path d="M12.4 1.8l2 1.8-2 1.8M12.4 9.6l2 1.8-2 1.8"/></g></symbol>
-<symbol id="g-repeat" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.6 2.6h6.8a2.6 2.6 0 0 1 2.6 2.6v3"/><path d="M11.4 13.4H4.6A2.6 2.6 0 0 1 2 10.8v-3"/><path d="M12.2 10.4 14 8.2M11.4 6.2 13.2 8M3.8 5.6 2 7.8M4.6 9.8 2.8 8"/></g></symbol>
-<symbol id="g-airplay" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 11H2.6A1.2 1.2 0 0 1 1.4 9.8V3.6a1.2 1.2 0 0 1 1.2-1.2h10.8a1.2 1.2 0 0 1 1.2 1.2v6.2a1.2 1.2 0 0 1-1.2 1.2h-1"/><path d="M8 9.6 12 14.2H4z" fill="currentColor"/></g></symbol>
-<symbol id="g-vol-lo" viewBox="0 0 16 16"><path fill="currentColor" d="M7.2 2.4a.7.7 0 0 0-.75.09L3.5 5H2.1A1.1 1.1 0 0 0 1 6.1v3.8A1.1 1.1 0 0 0 2.1 11h1.4l2.95 2.51A.7.7 0 0 0 7.6 13V3a.7.7 0 0 0-.4-.6z"/></symbol>
-<symbol id="g-vol-hi" viewBox="0 0 16 16"><path fill="currentColor" d="M7.2 2.4a.7.7 0 0 0-.75.09L3.5 5H2.1A1.1 1.1 0 0 0 1 6.1v3.8A1.1 1.1 0 0 0 2.1 11h1.4l2.95 2.51A.7.7 0 0 0 7.6 13V3a.7.7 0 0 0-.4-.6z"/><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M10.2 5.8a3.2 3.2 0 0 1 0 4.4"/><path d="M12.5 3.8a6.3 6.3 0 0 1 0 8.4"/></g></symbol>
+    <symbol id="g-play" viewBox="0 0 16 16">
+      <path
+        d="M4.4 2.6c0-.6.66-.97 1.17-.65l8 5.05a.77.77 0 0 1 0 1.3l-8 5.05A.77.77 0 0 1 4.4 12.7z"
+        fill="currentColor"
+      />
+    </symbol>
+    <symbol id="g-pause" viewBox="0 0 16 16">
+      <g fill="currentColor">
+        <rect height="11.2" rx="1.1" width="3.4" x="3.6" y="2.4" />
+        <rect height="11.2" rx="1.1" width="3.4" x="9" y="2.4" />
+      </g>
+    </symbol>
+    <symbol id="g-fwd" viewBox="0 0 16 16">
+      <path
+        d="M1.6 3.3c0-.6.66-.96 1.16-.64l6 3.85a.77.77 0 0 1 0 1.3l-6 3.85A.77.77 0 0 1 1.6 11zM8.6 3.3c0-.6.66-.96 1.16-.64l6 3.85a.77.77 0 0 1 0 1.3l-6 3.85A.77.77 0 0 1 8.6 11z"
+        fill="currentColor"
+      />
+    </symbol>
+    <symbol id="g-bwd" viewBox="0 0 16 16">
+      <path
+        d="M14.4 3.3c0-.6-.66-.96-1.16-.64l-6 3.85a.77.77 0 0 0 0 1.3l6 3.85a.77.77 0 0 0 1.16-.66zM7.4 3.3c0-.6-.66-.96-1.16-.64l-6 3.85a.77.77 0 0 0 0 1.3l6 3.85A.77.77 0 0 0 7.4 11z"
+        fill="currentColor"
+      />
+    </symbol>
+    <symbol id="g-shuffle" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5">
+        <path d="M1.8 3.6h2.6c.9 0 1.7.44 2.2 1.18l3.4 5.44a2.6 2.6 0 0 0 2.2 1.18h1.6" />
+        <path d="M1.8 12.4h2.6c.9 0 1.7-.44 2.2-1.18l.7-1.1M10.4 5.2l.2-.42A2.6 2.6 0 0 1 12.8 3.6h1.4" />
+        <path d="M12.4 1.8l2 1.8-2 1.8M12.4 9.6l2 1.8-2 1.8" />
+      </g>
+    </symbol>
+    <symbol id="g-repeat" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5">
+        <path d="M4.6 2.6h6.8a2.6 2.6 0 0 1 2.6 2.6v3" />
+        <path d="M11.4 13.4H4.6A2.6 2.6 0 0 1 2 10.8v-3" />
+        <path d="M12.2 10.4 14 8.2M11.4 6.2 13.2 8M3.8 5.6 2 7.8M4.6 9.8 2.8 8" />
+      </g>
+    </symbol>
+    <symbol id="g-airplay" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.4">
+        <path
+          d="M3.6 11H2.6A1.2 1.2 0 0 1 1.4 9.8V3.6a1.2 1.2 0 0 1 1.2-1.2h10.8a1.2 1.2 0 0 1 1.2 1.2v6.2a1.2 1.2 0 0 1-1.2 1.2h-1"
+        />
+        <path d="M8 9.6 12 14.2H4z" fill="currentColor" />
+      </g>
+    </symbol>
+    <symbol id="g-vol-lo" viewBox="0 0 16 16">
+      <path
+        d="M7.2 2.4a.7.7 0 0 0-.75.09L3.5 5H2.1A1.1 1.1 0 0 0 1 6.1v3.8A1.1 1.1 0 0 0 2.1 11h1.4l2.95 2.51A.7.7 0 0 0 7.6 13V3a.7.7 0 0 0-.4-.6z"
+        fill="currentColor"
+      />
+    </symbol>
+    <symbol id="g-vol-hi" viewBox="0 0 16 16">
+      <path
+        d="M7.2 2.4a.7.7 0 0 0-.75.09L3.5 5H2.1A1.1 1.1 0 0 0 1 6.1v3.8A1.1 1.1 0 0 0 2.1 11h1.4l2.95 2.51A.7.7 0 0 0 7.6 13V3a.7.7 0 0 0-.4-.6z"
+        fill="currentColor"
+      />
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.4">
+        <path d="M10.2 5.8a3.2 3.2 0 0 1 0 4.4" />
+        <path d="M12.5 3.8a6.3 6.3 0 0 1 0 8.4" />
+      </g>
+    </symbol>
 
-<symbol id="g-bold" viewBox="0 0 16 16"><path fill="currentColor" d="M4.2 2.4h4.2c2.2 0 3.7 1.2 3.7 3.1 0 1.2-.6 2.1-1.6 2.5 1.3.4 2.1 1.4 2.1 2.8 0 2-1.6 3.3-4 3.3H4.2a.8.8 0 0 1-.8-.8V3.2a.8.8 0 0 1 .8-.8zm1.8 2v2.9h2.2c1 0 1.7-.6 1.7-1.5s-.6-1.4-1.7-1.4zm0 4.8v3.1h2.5c1.2 0 1.9-.6 1.9-1.6s-.7-1.5-2-1.5z"/></symbol>
-<symbol id="g-italic" viewBox="0 0 16 16"><path fill="currentColor" d="M6.4 2.4h6.2a.85.85 0 0 1 0 1.7h-2.2L7.9 11.9h2a.85.85 0 0 1 0 1.7H3.6a.85.85 0 0 1 0-1.7h2.2l2.5-7.8H6.4a.85.85 0 0 1 0-1.7z"/></symbol>
-<symbol id="g-underline" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4.2 2.6v5.2a3.8 3.8 0 0 0 7.6 0V2.6"/><path d="M3.4 13.6h9.2"/></g></symbol>
-<symbol id="g-strike" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2.6 8h10.8"/><path d="M11.6 4.4C11.1 3.2 9.8 2.4 8 2.4c-1.9 0-3.3 1-3.3 2.4 0 1.1.8 1.8 2.1 2.3M4.4 11.6c.5 1.2 1.8 2 3.6 2 2 0 3.4-1 3.4-2.4 0-1.1-.7-1.8-2-2.3"/></g></symbol>
-<symbol id="g-checklist" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M1.6 4.2 3 5.6l2.4-2.6M1.6 11.2 3 12.6l2.4-2.6"/><path d="M7.6 4.4h6.8M7.6 11.4h6.8"/></g></symbol>
-<symbol id="g-bullets" viewBox="0 0 16 16"><g stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M6 4.2h8.4M6 8h8.4M6 11.8h8.4"/></g><g fill="currentColor"><circle cx="2.6" cy="4.2" r="1.3"/><circle cx="2.6" cy="8" r="1.3"/><circle cx="2.6" cy="11.8" r="1.3"/></g></symbol>
-<symbol id="g-table" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.35"><rect x="1.6" y="2.8" width="12.8" height="10.4" rx="1.6"/><path d="M1.6 6.4h12.8M1.6 9.8h12.8M6.4 2.8v10.4M10.2 2.8v10.4"/></g></symbol>
-<symbol id="g-title" viewBox="0 0 16 16"><path fill="currentColor" d="M2.4 2.6h11.2a.9.9 0 0 1 0 1.8H8.9v9a.9.9 0 0 1-1.8 0v-9H2.4a.9.9 0 0 1 0-1.8z"/></symbol>
-<symbol id="g-link" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6.6 9.4 9.4 6.6"/><path d="M7.6 4.4 9.2 2.8a2.9 2.9 0 0 1 4.1 4.1L11.7 8.5"/><path d="M8.4 11.6 6.8 13.2a2.9 2.9 0 0 1-4.1-4.1L4.3 7.5"/></g></symbol>
+    <symbol id="g-bold" viewBox="0 0 16 16">
+      <path
+        d="M4.2 2.4h4.2c2.2 0 3.7 1.2 3.7 3.1 0 1.2-.6 2.1-1.6 2.5 1.3.4 2.1 1.4 2.1 2.8 0 2-1.6 3.3-4 3.3H4.2a.8.8 0 0 1-.8-.8V3.2a.8.8 0 0 1 .8-.8zm1.8 2v2.9h2.2c1 0 1.7-.6 1.7-1.5s-.6-1.4-1.7-1.4zm0 4.8v3.1h2.5c1.2 0 1.9-.6 1.9-1.6s-.7-1.5-2-1.5z"
+        fill="currentColor"
+      />
+    </symbol>
+    <symbol id="g-italic" viewBox="0 0 16 16">
+      <path
+        d="M6.4 2.4h6.2a.85.85 0 0 1 0 1.7h-2.2L7.9 11.9h2a.85.85 0 0 1 0 1.7H3.6a.85.85 0 0 1 0-1.7h2.2l2.5-7.8H6.4a.85.85 0 0 1 0-1.7z"
+        fill="currentColor"
+      />
+    </symbol>
+    <symbol id="g-underline" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.7">
+        <path d="M4.2 2.6v5.2a3.8 3.8 0 0 0 7.6 0V2.6" />
+        <path d="M3.4 13.6h9.2" />
+      </g>
+    </symbol>
+    <symbol id="g-strike" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.6">
+        <path d="M2.6 8h10.8" />
+        <path
+          d="M11.6 4.4C11.1 3.2 9.8 2.4 8 2.4c-1.9 0-3.3 1-3.3 2.4 0 1.1.8 1.8 2.1 2.3M4.4 11.6c.5 1.2 1.8 2 3.6 2 2 0 3.4-1 3.4-2.4 0-1.1-.7-1.8-2-2.3"
+        />
+      </g>
+    </symbol>
+    <symbol id="g-checklist" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.4">
+        <path d="M1.6 4.2 3 5.6l2.4-2.6M1.6 11.2 3 12.6l2.4-2.6" />
+        <path d="M7.6 4.4h6.8M7.6 11.4h6.8" />
+      </g>
+    </symbol>
+    <symbol id="g-bullets" viewBox="0 0 16 16">
+      <g stroke="currentColor" stroke-linecap="round" stroke-width="1.4"><path d="M6 4.2h8.4M6 8h8.4M6 11.8h8.4" /></g>
+      <g fill="currentColor">
+        <circle cx="2.6" cy="4.2" r="1.3" />
+        <circle cx="2.6" cy="8" r="1.3" />
+        <circle cx="2.6" cy="11.8" r="1.3" />
+      </g>
+    </symbol>
+    <symbol id="g-table" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-width="1.35">
+        <rect height="10.4" rx="1.6" width="12.8" x="1.6" y="2.8" />
+        <path d="M1.6 6.4h12.8M1.6 9.8h12.8M6.4 2.8v10.4M10.2 2.8v10.4" />
+      </g>
+    </symbol>
+    <symbol id="g-title" viewBox="0 0 16 16">
+      <path d="M2.4 2.6h11.2a.9.9 0 0 1 0 1.8H8.9v9a.9.9 0 0 1-1.8 0v-9H2.4a.9.9 0 0 1 0-1.8z" fill="currentColor" />
+    </symbol>
+    <symbol id="g-link" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.5">
+        <path d="M6.6 9.4 9.4 6.6" />
+        <path d="M7.6 4.4 9.2 2.8a2.9 2.9 0 0 1 4.1 4.1L11.7 8.5" />
+        <path d="M8.4 11.6 6.8 13.2a2.9 2.9 0 0 1-4.1-4.1L4.3 7.5" />
+      </g>
+    </symbol>
 
-<!-- sidebar / file glyphs -->
-<symbol id="g-airdrop" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M5.1 12.4a5.6 5.6 0 0 1 0-8.8M10.9 3.6a5.6 5.6 0 0 1 0 8.8"/><path d="M2.6 14.4a8.6 8.6 0 0 1 0-12.8M13.4 1.6a8.6 8.6 0 0 1 0 12.8"/><circle cx="8" cy="8" r="1.6" fill="currentColor"/></g></symbol>
-<symbol id="g-icloud" viewBox="0 0 16 16"><path fill="currentColor" d="M4.6 12.6a3.3 3.3 0 0 1-.3-6.58 4.6 4.6 0 0 1 8.6 1.02A2.85 2.85 0 0 1 12.4 12.6z"/></symbol>
-<symbol id="g-icloud-o" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" d="M4.8 12.2a3 3 0 0 1-.28-5.98 4.3 4.3 0 0 1 8.04.95A2.6 2.6 0 0 1 12.2 12.2z"/></symbol>
-<symbol id="g-hd" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.6" y="3.4" width="12.8" height="9.2" rx="2"/><path d="M1.6 9.4h12.8"/><circle cx="4.4" cy="11" r=".9" fill="currentColor" stroke="none"/><path d="M7.4 11h5" stroke-linecap="round"/></g></symbol>
-<symbol id="g-desktop" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.4" y="2.8" width="13.2" height="8.4" rx="1.7"/><path d="M5.6 14h4.8M8 11.2V14" stroke-linecap="round"/></g></symbol>
-<symbol id="g-docs" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M3.4 1.8h5l4.2 4.2v8.2H3.4z"/><path d="M8.4 1.8V6h4.2"/></g></symbol>
-<symbol id="g-download" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v7.6"/><path d="M5.1 6.8 8 9.7l2.9-2.9"/><path d="M2.4 12.6h11.2"/></g></symbol>
-<symbol id="g-apps" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4.6 1.9a3.1 3.1 0 1 0 0 6.2 3.1 3.1 0 0 0 0-6.2z"/><rect x="8.9" y="8.5" width="5.6" height="5.6" rx="1.3"/><path d="M11.7 1.9 14.5 7H8.9z" stroke-linejoin="round"/><rect x="1.5" y="8.5" width="5.6" height="5.6" rx="1.3"/></g></symbol>
-<symbol id="g-clock-a" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2 8a6 6 0 1 1 2 4.5"/><path d="M1.6 9.4 2 12.8l3.4-.5"/><path d="M8 5v3.2l2.4 1.4"/></g></symbol>
-<symbol id="g-folder-g" viewBox="0 0 16 16"><path fill="currentColor" d="M2.2 4.2A1.6 1.6 0 0 1 3.8 2.6h2.5c.5 0 .96.23 1.27.62l.66.84h4.97a1.6 1.6 0 0 1 1.6 1.6v6.14a1.6 1.6 0 0 1-1.6 1.6H3.8a1.6 1.6 0 0 1-1.6-1.6z"/></symbol>
-<symbol id="g-doc-g" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M3.6 1.9h5.2l3.6 3.6v8.6H3.6z"/><path d="M8.6 1.9v3.8h3.8"/></g></symbol>
-<symbol id="g-newtab" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 3.4v9.2M3.4 8h9.2"/></g></symbol>
-<symbol id="g-shield" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M8 1.6 13.4 3.4v4.4c0 3.4-2.3 5.8-5.4 6.6-3.1-.8-5.4-3.2-5.4-6.6V3.4z"/><path d="M5.8 8 7.4 9.6 10.4 6.4" stroke-linecap="round"/></g></symbol>
-<symbol id="g-slider-h" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2 4.6h12M2 11.4h12"/></g><g fill="currentColor"><circle cx="10.4" cy="4.6" r="2"/><circle cx="5.6" cy="11.4" r="2"/></g></symbol>
-<symbol id="g-batt-glyph" viewBox="0 0 16 16"><g fill="none" stroke="currentColor" stroke-width="1.3"><rect x="1.4" y="4.6" width="11.4" height="6.8" rx="2"/><path d="M14.2 7.2v1.6" stroke-linecap="round" stroke-width="2"/></g><rect x="3" y="6.2" width="6" height="3.6" rx="1" fill="currentColor"/></symbol>
+    <!-- sidebar / file glyphs -->
+    <symbol id="g-airdrop" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.4">
+        <path d="M5.1 12.4a5.6 5.6 0 0 1 0-8.8M10.9 3.6a5.6 5.6 0 0 1 0 8.8" />
+        <path d="M2.6 14.4a8.6 8.6 0 0 1 0-12.8M13.4 1.6a8.6 8.6 0 0 1 0 12.8" />
+        <circle cx="8" cy="8" fill="currentColor" r="1.6" />
+      </g>
+    </symbol>
+    <symbol id="g-icloud" viewBox="0 0 16 16">
+      <path d="M4.6 12.6a3.3 3.3 0 0 1-.3-6.58 4.6 4.6 0 0 1 8.6 1.02A2.85 2.85 0 0 1 12.4 12.6z" fill="currentColor" />
+    </symbol>
+    <symbol id="g-icloud-o" viewBox="0 0 16 16">
+      <path
+        d="M4.8 12.2a3 3 0 0 1-.28-5.98 4.3 4.3 0 0 1 8.04.95A2.6 2.6 0 0 1 12.2 12.2z"
+        fill="none"
+        stroke="currentColor"
+        stroke-linejoin="round"
+        stroke-width="1.4"
+      />
+    </symbol>
+    <symbol id="g-hd" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-width="1.4">
+        <rect height="9.2" rx="2" width="12.8" x="1.6" y="3.4" />
+        <path d="M1.6 9.4h12.8" />
+        <circle cx="4.4" cy="11" fill="currentColor" r=".9" stroke="none" />
+        <path d="M7.4 11h5" stroke-linecap="round" />
+      </g>
+    </symbol>
+    <symbol id="g-desktop" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-width="1.4">
+        <rect height="8.4" rx="1.7" width="13.2" x="1.4" y="2.8" />
+        <path d="M5.6 14h4.8M8 11.2V14" stroke-linecap="round" />
+      </g>
+    </symbol>
+    <symbol id="g-docs" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.4">
+        <path d="M3.4 1.8h5l4.2 4.2v8.2H3.4z" />
+        <path d="M8.4 1.8V6h4.2" />
+      </g>
+    </symbol>
+    <symbol id="g-download" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.45">
+        <path d="M8 2v7.6" />
+        <path d="M5.1 6.8 8 9.7l2.9-2.9" />
+        <path d="M2.4 12.6h11.2" />
+      </g>
+    </symbol>
+    <symbol id="g-apps" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-width="1.4">
+        <path d="M4.6 1.9a3.1 3.1 0 1 0 0 6.2 3.1 3.1 0 0 0 0-6.2z" />
+        <rect height="5.6" rx="1.3" width="5.6" x="8.9" y="8.5" />
+        <path d="M11.7 1.9 14.5 7H8.9z" stroke-linejoin="round" />
+        <rect height="5.6" rx="1.3" width="5.6" x="1.5" y="8.5" />
+      </g>
+    </symbol>
+    <symbol id="g-clock-a" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.4">
+        <path d="M2 8a6 6 0 1 1 2 4.5" />
+        <path d="M1.6 9.4 2 12.8l3.4-.5" />
+        <path d="M8 5v3.2l2.4 1.4" />
+      </g>
+    </symbol>
+    <symbol id="g-folder-g" viewBox="0 0 16 16">
+      <path
+        d="M2.2 4.2A1.6 1.6 0 0 1 3.8 2.6h2.5c.5 0 .96.23 1.27.62l.66.84h4.97a1.6 1.6 0 0 1 1.6 1.6v6.14a1.6 1.6 0 0 1-1.6 1.6H3.8a1.6 1.6 0 0 1-1.6-1.6z"
+        fill="currentColor"
+      />
+    </symbol>
+    <symbol id="g-doc-g" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.4">
+        <path d="M3.6 1.9h5.2l3.6 3.6v8.6H3.6z" />
+        <path d="M8.6 1.9v3.8h3.8" />
+      </g>
+    </symbol>
+    <symbol id="g-newtab" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.6">
+        <path d="M8 3.4v9.2M3.4 8h9.2" />
+      </g>
+    </symbol>
+    <symbol id="g-shield" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.4">
+        <path d="M8 1.6 13.4 3.4v4.4c0 3.4-2.3 5.8-5.4 6.6-3.1-.8-5.4-3.2-5.4-6.6V3.4z" />
+        <path d="M5.8 8 7.4 9.6 10.4 6.4" stroke-linecap="round" />
+      </g>
+    </symbol>
+    <symbol id="g-slider-h" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.4">
+        <path d="M2 4.6h12M2 11.4h12" />
+      </g>
+      <g fill="currentColor">
+        <circle cx="10.4" cy="4.6" r="2" />
+        <circle cx="5.6" cy="11.4" r="2" />
+      </g>
+    </symbol>
+    <symbol id="g-batt-glyph" viewBox="0 0 16 16">
+      <g fill="none" stroke="currentColor" stroke-width="1.3">
+        <rect height="6.8" rx="2" width="11.4" x="1.4" y="4.6" />
+        <path d="M14.2 7.2v1.6" stroke-linecap="round" stroke-width="2" />
+      </g>
+      <rect fill="currentColor" height="3.6" rx="1" width="6" x="3" y="6.2" />
+    </symbol>
 
-<!-- ==================================================================
+    <!-- ==================================================================
      FILE / VOLUME ICONS (colour, 64x64)
      ================================================================== -->
-<symbol id="f-folder" viewBox="0 0 64 64">
-  <linearGradient id="fdA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fd3fb"/><stop offset="1" stop-color="#4eb5f2"/></linearGradient>
-  <linearGradient id="fdB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a6dcfc"/><stop offset="1" stop-color="#59b9f4"/></linearGradient>
-  <path d="M4 17.5A4.5 4.5 0 0 1 8.5 13h13.2c1.4 0 2.7.65 3.55 1.76L28 18h27.5A4.5 4.5 0 0 1 60 22.5V25H4z" fill="url(#fdA)"/>
-  <path d="M4 24h56v27.5A4.5 4.5 0 0 1 55.5 56h-47A4.5 4.5 0 0 1 4 51.5z" fill="url(#fdB)"/>
-  <path d="M4 24h56v1.6H4z" fill="rgba(255,255,255,.5)"/>
-</symbol>
-<symbol id="f-folder-blue" viewBox="0 0 64 64"><use href="#f-folder"/></symbol>
-<!-- Internal drive, drawn in the same 3/4 projection Apple uses -->
-<symbol id="f-hd" viewBox="0 0 64 64">
-  <linearGradient id="hdF" x1="0" y1="0" x2=".25" y2="1"><stop offset="0" stop-color="#f2f4f7"/><stop offset=".5" stop-color="#dadee5"/><stop offset="1" stop-color="#b0b7c2"/></linearGradient>
-  <linearGradient id="hdT" x1="0" y1="0" x2=".7" y2="1"><stop offset="0" stop-color="#fdfdfe"/><stop offset="1" stop-color="#dfe3ea"/></linearGradient>
-  <linearGradient id="hdS" x1="0" y1="0" x2="1" y2=".4"><stop offset="0" stop-color="#b7bec9"/><stop offset="1" stop-color="#959daa"/></linearGradient>
-  <ellipse cx="31" cy="51.4" rx="21" ry="2.9" fill="rgba(20,28,42,.16)"/>
-  <path d="M13 25.5 20.5 18h36L49 25.5z" fill="url(#hdT)"/>
-  <path d="M49 25.5 56.5 18v21.5L49 47z" fill="url(#hdS)"/>
-  <path d="M13 25.5h36V47a2 2 0 0 1-2 2H15a2 2 0 0 1-2-2z" fill="url(#hdF)"/>
-  <path d="M13 25.5h36v1.5H13z" fill="rgba(255,255,255,.75)"/>
-  <path d="M13 25.5 20.5 18h36L49 25.5V47a2 2 0 0 1-2 2H15a2 2 0 0 1-2-2z" fill="none" stroke="rgba(88,98,116,.34)" stroke-width=".9"/>
-  <g fill="rgba(120,130,148,.5)">
-    <path d="M34.1 33.6c-.9 0-2.2.5-3 .5s-1.9-.5-3.1-.5c-2.2 0-4.3 1.8-4.3 5.2 0 2.1.8 4.3 1.8 5.7.8 1.2 1.5 2.1 2.6 2.1s1.4-.6 2.6-.6 1.5.6 2.6.6 1.8-1 2.6-2.2c.6-.9 1-1.9 1.1-2.1-1.4-.6-2.4-2-2.4-3.7s1-3 1.6-3.4c-.7-1-1.8-1.6-2.1-1.6z"/>
-    <path d="M33.4 31.9c.6-.7 1-1.7.9-2.7-.9.1-1.9.6-2.5 1.3s-1 1.7-.9 2.6c1 .1 2-.5 2.5-1.2z"/>
-  </g>
-</symbol>
-<!-- Plain-text document -->
-<symbol id="f-txt" viewBox="0 0 64 64">
-  <linearGradient id="txP" x1="0" y1="0" x2=".3" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#f2f3f6"/></linearGradient>
-  <path d="M13 8h26l12 12v36a4 4 0 0 1-4 4H17a4 4 0 0 1-4-4V12a4 4 0 0 1 4-4z" fill="url(#txP)" stroke="rgba(60,70,86,.24)" stroke-width="1"/>
-  <path d="M39 8l12 12H41a2 2 0 0 1-2-2z" fill="#d8dce3"/>
-  <path d="M39 8l12 12H41a2 2 0 0 1-2-2z" fill="none" stroke="rgba(60,70,86,.2)" stroke-width=".9"/>
-  <g fill="#9aa2ae"><rect x="19" y="26" width="26" height="1.9" rx=".95"/><rect x="19" y="30.6" width="21" height="1.9" rx=".95"/>
-    <rect x="19" y="35.2" width="26" height="1.9" rx=".95"/><rect x="19" y="39.8" width="24" height="1.9" rx=".95"/>
-    <rect x="19" y="44.4" width="14" height="1.9" rx=".95"/></g>
-  <rect x="13" y="49" width="25" height="11" rx="3" fill="#8a919d"/>
-  <text x="25.5" y="57.4" font-family="Inter,sans-serif" font-size="8.6" font-weight="700" fill="#fff" text-anchor="middle" letter-spacing=".3">TXT</text>
-</symbol>
-<symbol id="f-pdf" viewBox="0 0 64 64">
-  <path d="M13 8h26l12 12v36a4 4 0 0 1-4 4H17a4 4 0 0 1-4-4V12a4 4 0 0 1 4-4z" fill="#fff" stroke="rgba(0,0,0,.14)" stroke-width="1"/>
-  <path d="M39 8l12 12H41a2 2 0 0 1-2-2z" fill="#e6e9ee"/>
-  <g stroke="#b9bfc8" stroke-width="2" stroke-linecap="round"><path d="M20 30h24"/><path d="M20 37h18"/></g>
-  <rect x="13" y="46" width="26" height="14" rx="3" fill="#e0403a"/>
-  <text x="26" y="56" font-family="Inter,sans-serif" font-size="9.5" font-weight="700" fill="#fff" text-anchor="middle">PDF</text>
-</symbol>
-<symbol id="f-img" viewBox="0 0 64 64">
-  <rect x="8" y="12" width="48" height="40" rx="4" fill="#fff" stroke="rgba(0,0,0,.14)"/>
-  <linearGradient id="imS" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7ec8f5"/><stop offset="1" stop-color="#cfeafa"/></linearGradient>
-  <rect x="11" y="15" width="42" height="34" rx="2.5" fill="url(#imS)"/>
-  <circle cx="22" cy="25" r="4.5" fill="#ffd84d"/>
-  <path d="M11 49 26 32l9 11 8-9 10 15z" fill="#4ba463"/>
-</symbol>
-<symbol id="f-code" viewBox="0 0 64 64">
-  <path d="M13 8h26l12 12v36a4 4 0 0 1-4 4H17a4 4 0 0 1-4-4V12a4 4 0 0 1 4-4z" fill="#2b2b2e" stroke="rgba(0,0,0,.2)"/>
-  <path d="M39 8l12 12H41a2 2 0 0 1-2-2z" fill="#45454a"/>
-  <g fill="none" stroke="#6fe58f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M25 30 19 37l6 7"/><path d="M39 30l6 7-6 7"/><path d="M34 28l-4 18"/></g>
-</symbol>
-<symbol id="f-zip" viewBox="0 0 64 64">
-  <path d="M13 8h26l12 12v36a4 4 0 0 1-4 4H17a4 4 0 0 1-4-4V12a4 4 0 0 1 4-4z" fill="#fff" stroke="rgba(0,0,0,.14)"/>
-  <path d="M39 8l12 12H41a2 2 0 0 1-2-2z" fill="#e6e9ee"/>
-  <rect x="28" y="8" width="8" height="30" fill="#c9cfd8"/>
-  <g fill="#8e96a2"><rect x="28" y="12" width="8" height="3"/><rect x="28" y="19" width="8" height="3"/><rect x="28" y="26" width="8" height="3"/></g>
-  <rect x="27" y="38" width="10" height="12" rx="2" fill="#f0b429"/>
-</symbol>
-<symbol id="f-app" viewBox="0 0 64 64">
-  <linearGradient id="apG" x1=".1" y1="0" x2=".6" y2="1"><stop offset="0" stop-color="#c8ccd4"/><stop offset="1" stop-color="#8f95a1"/></linearGradient>
-  <rect x="8" y="8" width="48" height="48" rx="12" fill="url(#apG)"/>
-  <path d="M32 20 42 44H22z" fill="#fff" opacity=".9"/>
-</symbol>
-<symbol id="f-movie" viewBox="0 0 64 64">
-  <rect x="8" y="14" width="48" height="36" rx="4" fill="#1c1c1e"/>
-  <g fill="#fff" opacity=".85"><rect x="11" y="17" width="6" height="5" rx="1"/><rect x="11" y="27" width="6" height="5" rx="1"/><rect x="11" y="37" width="6" height="5" rx="1"/><rect x="47" y="17" width="6" height="5" rx="1"/><rect x="47" y="27" width="6" height="5" rx="1"/><rect x="47" y="37" width="6" height="5" rx="1"/></g>
-  <path d="M28 25l12 7-12 7z" fill="#fff"/>
-</symbol>
-<symbol id="f-music" viewBox="0 0 64 64">
-  <linearGradient id="msG" x1=".1" y1="0" x2=".7" y2="1"><stop offset="0" stop-color="#fd6d7f"/><stop offset="1" stop-color="#e51c40"/></linearGradient>
-  <rect x="8" y="8" width="48" height="48" rx="11" fill="url(#msG)"/>
-  <path fill="#fff" d="M43 18.5 28 21.6a1.9 1.9 0 0 0-1.5 1.85v17.3a5.7 5.7 0 0 0-2.5-.55c-3.3 0-6 2.25-6 5.05s2.7 5.05 6 5.05 6-2.25 6-5.05V28.4l13-2.7v10.9a5.7 5.7 0 0 0-2.5-.55c-3.3 0-6 2.25-6 5.05s2.7 5.05 6 5.05 6-2.25 6-5.05V20.35A1.9 1.9 0 0 0 43 18.5z"/>
-</symbol>
-</defs></svg>
+    <symbol id="f-folder" viewBox="0 0 64 64">
+      <linearGradient id="fdA" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0" stop-color="#8fd3fb" />
+        <stop offset="1" stop-color="#4eb5f2" />
+      </linearGradient>
+      <linearGradient id="fdB" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0" stop-color="#a6dcfc" />
+        <stop offset="1" stop-color="#59b9f4" />
+      </linearGradient>
+      <path
+        d="M4 17.5A4.5 4.5 0 0 1 8.5 13h13.2c1.4 0 2.7.65 3.55 1.76L28 18h27.5A4.5 4.5 0 0 1 60 22.5V25H4z"
+        fill="url(#fdA)"
+      />
+      <path d="M4 24h56v27.5A4.5 4.5 0 0 1 55.5 56h-47A4.5 4.5 0 0 1 4 51.5z" fill="url(#fdB)" />
+      <path d="M4 24h56v1.6H4z" fill="rgba(255,255,255,.5)" />
+    </symbol>
+    <symbol id="f-folder-blue" viewBox="0 0 64 64"><use href="#f-folder" /></symbol>
+    <!-- Internal drive, drawn in the same 3/4 projection Apple uses -->
+    <symbol id="f-hd" viewBox="0 0 64 64">
+      <linearGradient id="hdF" x1="0" x2=".25" y1="0" y2="1">
+        <stop offset="0" stop-color="#f2f4f7" />
+        <stop offset=".5" stop-color="#dadee5" />
+        <stop offset="1" stop-color="#b0b7c2" />
+      </linearGradient>
+      <linearGradient id="hdT" x1="0" x2=".7" y1="0" y2="1">
+        <stop offset="0" stop-color="#fdfdfe" />
+        <stop offset="1" stop-color="#dfe3ea" />
+      </linearGradient>
+      <linearGradient id="hdS" x1="0" x2="1" y1="0" y2=".4">
+        <stop offset="0" stop-color="#b7bec9" />
+        <stop offset="1" stop-color="#959daa" />
+      </linearGradient>
+      <ellipse cx="31" cy="51.4" fill="rgba(20,28,42,.16)" rx="21" ry="2.9" />
+      <path d="M13 25.5 20.5 18h36L49 25.5z" fill="url(#hdT)" />
+      <path d="M49 25.5 56.5 18v21.5L49 47z" fill="url(#hdS)" />
+      <path d="M13 25.5h36V47a2 2 0 0 1-2 2H15a2 2 0 0 1-2-2z" fill="url(#hdF)" />
+      <path d="M13 25.5h36v1.5H13z" fill="rgba(255,255,255,.75)" />
+      <path
+        d="M13 25.5 20.5 18h36L49 25.5V47a2 2 0 0 1-2 2H15a2 2 0 0 1-2-2z"
+        fill="none"
+        stroke="rgba(88,98,116,.34)"
+        stroke-width=".9"
+      />
+      <g fill="rgba(120,130,148,.5)">
+        <path
+          d="M34.1 33.6c-.9 0-2.2.5-3 .5s-1.9-.5-3.1-.5c-2.2 0-4.3 1.8-4.3 5.2 0 2.1.8 4.3 1.8 5.7.8 1.2 1.5 2.1 2.6 2.1s1.4-.6 2.6-.6 1.5.6 2.6.6 1.8-1 2.6-2.2c.6-.9 1-1.9 1.1-2.1-1.4-.6-2.4-2-2.4-3.7s1-3 1.6-3.4c-.7-1-1.8-1.6-2.1-1.6z"
+        />
+        <path d="M33.4 31.9c.6-.7 1-1.7.9-2.7-.9.1-1.9.6-2.5 1.3s-1 1.7-.9 2.6c1 .1 2-.5 2.5-1.2z" />
+      </g>
+    </symbol>
+    <!-- Plain-text document -->
+    <symbol id="f-txt" viewBox="0 0 64 64">
+      <linearGradient id="txP" x1="0" x2=".3" y1="0" y2="1">
+        <stop offset="0" stop-color="#ffffff" />
+        <stop offset="1" stop-color="#f2f3f6" />
+      </linearGradient>
+      <path
+        d="M13 8h26l12 12v36a4 4 0 0 1-4 4H17a4 4 0 0 1-4-4V12a4 4 0 0 1 4-4z"
+        fill="url(#txP)"
+        stroke="rgba(60,70,86,.24)"
+        stroke-width="1"
+      />
+      <path d="M39 8l12 12H41a2 2 0 0 1-2-2z" fill="#d8dce3" />
+      <path d="M39 8l12 12H41a2 2 0 0 1-2-2z" fill="none" stroke="rgba(60,70,86,.2)" stroke-width=".9" />
+      <g fill="#9aa2ae">
+        <rect height="1.9" rx=".95" width="26" x="19" y="26" />
+        <rect height="1.9" rx=".95" width="21" x="19" y="30.6" />
+        <rect height="1.9" rx=".95" width="26" x="19" y="35.2" />
+        <rect height="1.9" rx=".95" width="24" x="19" y="39.8" />
+        <rect height="1.9" rx=".95" width="14" x="19" y="44.4" />
+      </g>
+      <rect fill="#8a919d" height="11" rx="3" width="25" x="13" y="49" />
+      <text
+        fill="#fff"
+        font-family="Inter,sans-serif"
+        font-size="8.6"
+        font-weight="700"
+        letter-spacing=".3"
+        text-anchor="middle"
+        x="25.5"
+        y="57.4"
+      >
+        TXT
+      </text>
+    </symbol>
+    <symbol id="f-pdf" viewBox="0 0 64 64">
+      <path
+        d="M13 8h26l12 12v36a4 4 0 0 1-4 4H17a4 4 0 0 1-4-4V12a4 4 0 0 1 4-4z"
+        fill="#fff"
+        stroke="rgba(0,0,0,.14)"
+        stroke-width="1"
+      />
+      <path d="M39 8l12 12H41a2 2 0 0 1-2-2z" fill="#e6e9ee" />
+      <g stroke="#b9bfc8" stroke-linecap="round" stroke-width="2">
+        <path d="M20 30h24" />
+        <path d="M20 37h18" />
+      </g>
+      <rect fill="#e0403a" height="14" rx="3" width="26" x="13" y="46" />
+      <text
+        fill="#fff"
+        font-family="Inter,sans-serif"
+        font-size="9.5"
+        font-weight="700"
+        text-anchor="middle"
+        x="26"
+        y="56"
+      >
+        PDF
+      </text>
+    </symbol>
+    <symbol id="f-img" viewBox="0 0 64 64">
+      <rect fill="#fff" height="40" rx="4" stroke="rgba(0,0,0,.14)" width="48" x="8" y="12" />
+      <linearGradient id="imS" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0" stop-color="#7ec8f5" />
+        <stop offset="1" stop-color="#cfeafa" />
+      </linearGradient>
+      <rect fill="url(#imS)" height="34" rx="2.5" width="42" x="11" y="15" />
+      <circle cx="22" cy="25" fill="#ffd84d" r="4.5" />
+      <path d="M11 49 26 32l9 11 8-9 10 15z" fill="#4ba463" />
+    </symbol>
+    <symbol id="f-code" viewBox="0 0 64 64">
+      <path
+        d="M13 8h26l12 12v36a4 4 0 0 1-4 4H17a4 4 0 0 1-4-4V12a4 4 0 0 1 4-4z"
+        fill="#2b2b2e"
+        stroke="rgba(0,0,0,.2)"
+      />
+      <path d="M39 8l12 12H41a2 2 0 0 1-2-2z" fill="#45454a" />
+      <g fill="none" stroke="#6fe58f" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4">
+        <path d="M25 30 19 37l6 7" />
+        <path d="M39 30l6 7-6 7" />
+        <path d="M34 28l-4 18" />
+      </g>
+    </symbol>
+    <symbol id="f-zip" viewBox="0 0 64 64">
+      <path
+        d="M13 8h26l12 12v36a4 4 0 0 1-4 4H17a4 4 0 0 1-4-4V12a4 4 0 0 1 4-4z"
+        fill="#fff"
+        stroke="rgba(0,0,0,.14)"
+      />
+      <path d="M39 8l12 12H41a2 2 0 0 1-2-2z" fill="#e6e9ee" />
+      <rect fill="#c9cfd8" height="30" width="8" x="28" y="8" />
+      <g fill="#8e96a2">
+        <rect height="3" width="8" x="28" y="12" />
+        <rect height="3" width="8" x="28" y="19" />
+        <rect height="3" width="8" x="28" y="26" />
+      </g>
+      <rect fill="#f0b429" height="12" rx="2" width="10" x="27" y="38" />
+    </symbol>
+    <symbol id="f-app" viewBox="0 0 64 64">
+      <linearGradient id="apG" x1=".1" x2=".6" y1="0" y2="1">
+        <stop offset="0" stop-color="#c8ccd4" />
+        <stop offset="1" stop-color="#8f95a1" />
+      </linearGradient>
+      <rect fill="url(#apG)" height="48" rx="12" width="48" x="8" y="8" />
+      <path d="M32 20 42 44H22z" fill="#fff" opacity=".9" />
+    </symbol>
+    <symbol id="f-movie" viewBox="0 0 64 64">
+      <rect fill="#1c1c1e" height="36" rx="4" width="48" x="8" y="14" />
+      <g fill="#fff" opacity=".85">
+        <rect height="5" rx="1" width="6" x="11" y="17" />
+        <rect height="5" rx="1" width="6" x="11" y="27" />
+        <rect height="5" rx="1" width="6" x="11" y="37" />
+        <rect height="5" rx="1" width="6" x="47" y="17" />
+        <rect height="5" rx="1" width="6" x="47" y="27" />
+        <rect height="5" rx="1" width="6" x="47" y="37" />
+      </g>
+      <path d="M28 25l12 7-12 7z" fill="#fff" />
+    </symbol>
+    <symbol id="f-music" viewBox="0 0 64 64">
+      <linearGradient id="msG" x1=".1" x2=".7" y1="0" y2="1">
+        <stop offset="0" stop-color="#fd6d7f" />
+        <stop offset="1" stop-color="#e51c40" />
+      </linearGradient>
+      <rect fill="url(#msG)" height="48" rx="11" width="48" x="8" y="8" />
+      <path
+        d="M43 18.5 28 21.6a1.9 1.9 0 0 0-1.5 1.85v17.3a5.7 5.7 0 0 0-2.5-.55c-3.3 0-6 2.25-6 5.05s2.7 5.05 6 5.05 6-2.25 6-5.05V28.4l13-2.7v10.9a5.7 5.7 0 0 0-2.5-.55c-3.3 0-6 2.25-6 5.05s2.7 5.05 6 5.05 6-2.25 6-5.05V20.35A1.9 1.9 0 0 0 43 18.5z"
+        fill="#fff"
+      />
+    </symbol>
+  </defs>
+</svg>

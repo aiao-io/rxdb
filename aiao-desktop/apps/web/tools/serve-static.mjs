@@ -36,7 +36,10 @@ const server = createServer((request, response) => {
 
   const fallback = join(outputRoot, 'index.html');
   const hasFile = existsSync(candidate) && statSync(candidate).isFile();
-  const filePath = hasFile ? candidate : extname(requestPath) ? null : fallback;
+  const filePath =
+    hasFile ? candidate
+    : extname(requestPath) ? null
+    : fallback;
   if (!filePath || !existsSync(filePath)) {
     response.writeHead(404, headers);
     response.end('Not found');

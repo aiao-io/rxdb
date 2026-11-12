@@ -311,6 +311,9 @@
     },
     {
       "path": "./apps/rxdb-admin-template-vue-e2e"
+    },
+    {
+      "path": "./aiao-desktop/apps/web"
     }
   ]
 }

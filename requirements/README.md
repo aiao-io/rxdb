@@ -10,6 +10,7 @@ Aiao Pool 的桌面端、跨网中继、扩展渠道与商业化的产品方向�
 
 - [Web Desktop](../apps/web-desktop/requirements/README.md)（双交互模式桌面、Web 应用与仓内 Orbit 运行内核；独立编号与验收，不计入本目录平台故事统计）。
 - [Admin 应用模板孵化](../apps/rxdb-admin-template-react/requirements/README.md)（`ADMIN-US-*`）：在当前仓库推进应用配置与业务扩展，公共后台框架能力继续由 epic-010 管理。
+- [Aiao Desktop](../aiao-desktop/requirements/README.md)（`ADESK-US-*`）：Angular 实现的 macOS 风格浏览器桌面，产品根目录下由 web 与 e2e 两个 Nx 应用组成；与 Web Desktop 是两个独立产品。
 
 ## 术语
 

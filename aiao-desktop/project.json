@@ -1,0 +1,61 @@
+{
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "implicitDependencies": ["aiao-desktop-web", "aiao-desktop-e2e"],
+  "name": "aiao-desktop",
+  "projectType": "application",
+  "sourceRoot": "aiao-desktop",
+  "tags": ["scope:aiao-desktop"],
+  "targets": {
+    "requirements-check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-desktop",
+        "command": "node scripts/check-requirements.mjs"
+      }
+    },
+    "requirements-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-desktop",
+        "command": "node --test scripts/check-requirements.spec.mjs"
+      }
+    },
+    "security-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-desktop",
+        "command": "node --test scripts/check-web-secrets.spec.mjs"
+      }
+    },
+    "audit-secrets": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [{ "projects": ["aiao-desktop-web"], "target": "build" }],
+      "options": {
+        "cwd": "aiao-desktop",
+        "command": "node scripts/check-web-secrets.mjs"
+      }
+    },
+    "test": {
+      "executor": "nx:noop",
+      "dependsOn": ["requirements-check", "requirements-test", "security-test"]
+    },
+    "verify": {
+      "executor": "nx:noop",
+      "dependsOn": [
+        "lint",
+        "requirements-check",
+        "requirements-test",
+        "security-test",
+        "audit-secrets",
+        { "projects": ["aiao-desktop-web", "aiao-desktop-e2e"], "target": "lint" },
+        { "projects": ["aiao-desktop-web"], "target": "typecheck" },
+        { "projects": ["aiao-desktop-web"], "target": "build" },
+        { "projects": ["aiao-desktop-e2e"], "target": "e2e" }
+      ]
+    }
+  }
+}
