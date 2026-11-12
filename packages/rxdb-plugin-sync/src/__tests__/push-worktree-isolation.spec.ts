@@ -56,6 +56,7 @@ const createHarness = (changeCount = 1) => {
       lastPushedAt: null,
       lastPulledAt: null,
       lastPullRemoteChangeId: null,
+      remoteBackendId: null,
       createdAt: new Date(),
       updatedAt: new Date(),
       remove: async () => record,
@@ -79,8 +80,9 @@ const createHarness = (changeCount = 1) => {
     })
   };
   const syncRepository = {
+    // 不带规则的那一次是远端身份核对：按全表读同步记录
     find: vi.fn(async (options: { where: { rules: Array<{ value: unknown }> } }) =>
-      records.filter(item => item.id === options.where.rules[0].value)
+      options.where.rules.length === 0 ? records : records.filter(item => item.id === options.where.rules[0].value)
     ),
     update: vi.fn(async (item: RxDBSync, patch: Partial<RxDBSync>) => Object.assign(item, patch))
   };
@@ -107,7 +109,7 @@ const createHarness = (changeCount = 1) => {
       results: changes.map(item => ({ localId: item.id, status: 'applied', remoteId: item.id + 100 }))
     })
   );
-  const remote = { mergeChanges, getRepository };
+  const remote = { mergeChanges, getRepository, backendId: async () => 'review-backend' };
   const rxdb = {
     config: { entities: [User], sync },
     context: { clientId: 'review' },

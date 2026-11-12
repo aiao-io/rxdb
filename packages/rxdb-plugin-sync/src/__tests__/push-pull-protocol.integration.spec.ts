@@ -19,6 +19,8 @@ import { of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { pullRepository } from '../pull-repository.js';
 import { pushRepository, type PushRepositoryResult } from '../push-repository.js';
+import { RemoteBackendMismatchError } from '../remote-backend.js';
+import { syncRepository, type SyncRepositoryResult } from '../sync-repository.js';
 import type { SyncManager } from '../SyncManager.js';
 import { createBranchRepositoryStub } from './fixtures/branch-repository-stub.js';
 import { emptyPushInFlight } from './fixtures/push-inflight.js';
@@ -212,6 +214,8 @@ function createProtocolHarness() {
   );
   const remoteAdapter = { mergeChanges, pullChanges };
   const dispatchEvent = vi.fn<(event: RxDBEvent) => void>();
+  // 落库之前的远端身份核对；本文件只测推拉协议，按记录比对的本体在 remote-backend.spec.ts
+  const verifyRemoteBackend = vi.fn<() => Promise<void>>(async () => undefined);
 
   const vm = {
     rxdb: {
@@ -239,7 +243,8 @@ function createProtocolHarness() {
     getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
     history: { captureUndoHistory: () => () => undefined },
     getCurrentBranch: vi.fn(async () => ({ id: 'main', activated: true })),
-    pushInFlight: emptyPushInFlight()
+    pushInFlight: emptyPushInFlight(),
+    verifyRemoteBackend
   } as unknown as SyncManager;
 
   const localCreate = (name: string): RxDBChange => {
@@ -297,7 +302,8 @@ function createProtocolHarness() {
     },
     localMergeChanges,
     changeUpdate,
-    saveMany
+    saveMany,
+    verifyRemoteBackend
   };
 }
 
@@ -429,5 +435,37 @@ describe('push/pull protocol integration', () => {
     expect(harness.remoteChanges.map(change => change.localId)).toEqual([1, 2]);
     expect(changes.map(change => change.remoteId)).toEqual([101, 102]);
     expect(harness.syncRecord.lastPushedChangeId).toBe(2);
+  });
+
+  /**
+   * 仓库同步先拉后推，入口那次核对之后隔着整趟拉取：远端重建之后旧游标越过新库全部 id，拉取静默拉空，
+   * 推送接着把这一批写进新库。回执与水位此时一概不能落——落了，这批变更就再也不会推给用户最终认定的远端。
+   * 下一次（改绑之后）按原水位重推，远端按 localId 幂等。
+   */
+  it('仓库同步：拉完之后远端被重建，推送的回执与水位都不落，之后重推不在远端产生重复记录', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const harness = createProtocolHarness();
+    const change = harness.localCreate('Alice');
+    const mismatch = new RemoteBackendMismatchError('backend-b', ['backend-a']);
+    harness.verifyRemoteBackend.mockRejectedValueOnce(mismatch);
+
+    const thrown = await syncRepository(harness.vm, 'public', 'User', {
+      pull: { includeRelated: false },
+      push: { includeRelated: false }
+    }).catch((error: unknown) => error);
+
+    expect(thrown).toBeInstanceOf(RxDBPartialSyncError);
+    const partial = thrown as RxDBPartialSyncError<SyncRepositoryResult>;
+    expect(partial.cause).toBe(mismatch);
+    expect(partial.result.pushResult).toMatchObject({ success: false, pushed: 1 });
+    expect(harness.remoteChanges.map(remote => remote.localId)).toEqual([change.id]);
+    expect(change.remoteId).toBeNull();
+    expect(harness.syncRecord.lastPushedChangeId).toBeNull();
+
+    const retry = await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
+
+    expect(retry).toMatchObject({ success: true, pushed: 1 });
+    expect(harness.remoteChanges).toHaveLength(1);
+    expect(harness.syncRecord.lastPushedChangeId).toBe(change.id);
   });
 });

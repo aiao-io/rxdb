@@ -39,6 +39,7 @@ import {
   RxDBChange,
   RxDBMigration,
   RxDBMutationsMap,
+  RxDBSync,
   RxDBSystemMigrationLockError,
   SwitchBranchOptions,
   SwitchVersionActions,
@@ -191,28 +192,35 @@ const readActiveBranchIdOrMain = async (tx: SqlExecutor): Promise<string> => {
 /** 系统模式 7、8 新增的可空日志列；旧行保持为空。 */
 const CHANGE_ADDITIONAL_PROPERTY_NAMES = ['rejectedAt', 'rejection', 'tableSetSuffix'] as const;
 
-/** 给既有日志表幂等补列，必须先于变更触发器重建。 */
-const ensureChangeColumns = async (client: SqliteClientLike): Promise<void> => {
-  const changeMetadata = getEntityMetadata(RxDBChange);
-  const changeTableName = get_table_name_by_metadata(changeMetadata, WorktreeTableSet.MAIN);
+/** 系统模式 9 新增的可空同步记录列；旧行保持为空，首次同步时绑定。 */
+const SYNC_ADDITIONAL_PROPERTY_NAMES = ['remoteBackendId'] as const;
+
+/** 给既有系统表幂等补可空列；日志表的列必须先于变更触发器重建。 */
+const ensureAdditionalColumns = async (
+  client: SqliteClientLike,
+  EntityClass: EntityType,
+  propertyNames: readonly string[]
+): Promise<void> => {
+  const metadata = getEntityMetadata(EntityClass);
+  const tableName = get_table_name_by_metadata(metadata, WorktreeTableSet.MAIN);
   const tableResult = await client.execute(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`, [
-    changeTableName
+    tableName
   ]);
   if (!tableResult.results.some(result => result.rows.length > 0)) return;
 
-  const changeTable = quote_sql_identifier(changeTableName);
-  for (const propertyName of CHANGE_ADDITIONAL_PROPERTY_NAMES) {
-    const property = changeMetadata.properties.find(candidate => candidate.name === propertyName);
+  const table = quote_sql_identifier(tableName);
+  for (const propertyName of propertyNames) {
+    const property = metadata.properties.find(candidate => candidate.name === propertyName);
     if (!property) {
-      throw new RxDBAdapterSqliteError(`RxDBChange metadata is missing the "${propertyName}" property.`);
+      throw new RxDBAdapterSqliteError(`${metadata.name} metadata is missing the "${propertyName}" property.`);
     }
     const columnResult = await client.execute(`SELECT 1 FROM pragma_table_info(?) WHERE "name" = ? LIMIT 1`, [
-      changeTableName,
+      tableName,
       property.columnName
     ]);
     if (columnResult.results.some(result => result.rows.length > 0)) continue;
     await client.execute(
-      `ALTER TABLE ${changeTable} ADD COLUMN ${quote_sql_identifier(property.columnName)} ${rxDBColumnTypeToSqliteType(property)}`
+      `ALTER TABLE ${table} ADD COLUMN ${quote_sql_identifier(property.columnName)} ${rxDBColumnTypeToSqliteType(property)}`
     );
   }
 };
@@ -1089,7 +1097,8 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
         assertSupportedRxDBSystemVersions(state);
 
         if (!isCurrentRxDBSystemVersion(state)) {
-          await ensureChangeColumns(client);
+          await ensureAdditionalColumns(client, RxDBChange, CHANGE_ADDITIONAL_PROPERTY_NAMES);
+          await ensureAdditionalColumns(client, RxDBSync, SYNC_ADDITIONAL_PROPERTY_NAMES);
           const existingLoggedMetadata: EntityMetadata[] = [];
           for (const EntityType of this.rxdb.config.entities) {
             const metadata = getEntityMetadata(EntityType);

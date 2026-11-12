@@ -11,6 +11,7 @@ import {
 } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import { checkRepositoryUpdates } from '../check-repository-updates.js';
+import { RemoteBackendMismatchError } from '../remote-backend.js';
 import { METADATA } from './fixtures/private-symbols.js';
 
 interface QueryRule {
@@ -107,6 +108,8 @@ interface CheckHarnessOptions {
   remoteResult?: RemoteCount;
   remoteConfigured?: boolean;
   globalSync?: SyncOptions;
+  /** 远端此刻报告的身份，缺省 `backend-a` */
+  backendId?: string;
 
   /** 分支 id → 父分支 id，`getAncestorBranchIds` 沿它向上走 */
   branchParents?: Readonly<Record<string, string | null>>;
@@ -117,7 +120,8 @@ interface CheckHarnessOptions {
 
 function createCheckHarness(options: CheckHarnessOptions) {
   const syncFind = vi.fn<SyncFind>(async () => options.syncRecords ?? []);
-  const syncRepository = { find: syncFind } as unknown as IRepository<typeof RxDBSync>;
+  const syncUpdate = vi.fn();
+  const syncRepository = { find: syncFind, update: syncUpdate } as unknown as IRepository<typeof RxDBSync>;
   // `getAncestorBranchIds` 沿 parentId 逐级向上查，非 main 分支才会走到这里
   const branchParents = options.branchParents ?? {};
   const branchFind = vi.fn(async (query: QueryOptions): Promise<RxDBBranch[]> => {
@@ -142,26 +146,33 @@ function createCheckHarness(options: CheckHarnessOptions) {
     if (!found) throw new Error(`Unexpected branch in getChangeCount: ${String(branchId)}`);
     return found;
   });
-  const remoteAdapter = options.remoteConfigured === false ? undefined : { getChangeCount };
+  const backendId = vi.fn(async () => options.backendId ?? 'backend-a');
+  const remoteAdapter = options.remoteConfigured === false ? undefined : { getChangeCount, backendId };
   const getCurrentBranch = vi.fn(async () => ({ id: options.branchId ?? 'main' }));
   const getLocalRepositories = vi.fn(async () => ({ adapter: localAdapter }));
   const getRemoteRepositories = vi.fn(async () => ({ adapter: remoteAdapter }));
+  const reportError = vi.fn();
+  const syncManager = {
+    getCurrentBranch,
+    getLocalRepositories,
+    getRemoteRepositories
+  };
   const rxdb = {
     entitySync: createEntitySyncResolver(options.globalSync ?? FULL_SYNC),
     config: {
       entities: options.entities,
       sync: options.globalSync ?? FULL_SYNC
     },
-    syncManager: {
-      getCurrentBranch,
-      getLocalRepositories,
-      getRemoteRepositories
-    }
+    syncState: { reportError },
+    syncManager
   } as unknown as RxDB;
+  Object.assign(syncManager, { rxdb });
 
   return {
     rxdb,
     syncFind,
+    syncUpdate,
+    reportError,
     getChangeCount,
     getCurrentBranch,
     getLocalRepositories,
@@ -316,6 +327,51 @@ describe('checkRepositoryUpdates', () => {
         pendingCount: 5,
         hasUpdates: true
       });
+    });
+  });
+
+  describe('远端身份', () => {
+    const boundTo = (remoteBackendId: string | null): RxDBSync =>
+      Object.assign(createSyncRecord('CheckPull', 500), { remoteBackendId });
+
+    it('游标属于另一个远端时拒绝去数：拿它数出来的 0 看着可信，其实是拉空', async () => {
+      const harness = createCheckHarness({
+        entities: [PullEntity],
+        syncRecords: [boundTo('backend-old')],
+        backendId: 'backend-new'
+      });
+
+      const error = await checkRepositoryUpdates(harness.rxdb, 'public', 'CheckPull').catch(
+        (rejection: unknown) => rejection
+      );
+
+      expect(error).toBeInstanceOf(RemoteBackendMismatchError);
+      expect(error).toMatchObject({ backendId: 'backend-new', boundBackendIds: ['backend-old'] });
+      expect(harness.reportError).toHaveBeenCalledWith(error);
+      expect(harness.getChangeCount).not.toHaveBeenCalled();
+    });
+
+    it('游标属于当前远端时照常计数', async () => {
+      const harness = createCheckHarness({
+        entities: [PullEntity],
+        syncRecords: [boundTo('backend-a')],
+        remoteResult: { count: 2, latestChangeId: 502 }
+      });
+
+      await expect(checkRepositoryUpdates(harness.rxdb, 'public', 'CheckPull')).resolves.toMatchObject({
+        pendingCount: 2,
+        hasUpdates: true
+      });
+      expect(harness.reportError).not.toHaveBeenCalled();
+    });
+
+    it('状态查询只比对不绑定：未绑定的旧记录原样留着', async () => {
+      const harness = createCheckHarness({ entities: [PullEntity], syncRecords: [boundTo(null)] });
+
+      await checkRepositoryUpdates(harness.rxdb, 'public', 'CheckPull');
+
+      expect(harness.syncUpdate).not.toHaveBeenCalled();
+      expect(harness.getChangeCount).toHaveBeenCalled();
     });
   });
 });

@@ -6,7 +6,7 @@ Aiao Pool 的桌面端、跨网中继、扩展渠道与商业化的产品方向�
 
 ## 应用需求入口
 
-本目录维护平台与可复用领域能力。应用级产品需求由各应用在 `apps/<app>/requirements/` 独立管理，使用 `<APP>-US-XXX` 编号，独立统计和验收；怎么管沿用本目录的约定，应用目录结构、编号与门禁见[应用级需求管理办法](app-template/README.md)。底层能力通过带作用域的引用关联，不复制故事状态。
+本目录维护平台与可复用领域能力。应用级产品需求由各应用或产品组独立管理，使用 `<APP>-US-XXX` 编号，独立统计和验收；通用治理规则见[应用级需求与项目治理办法](application-governance.md)，初始化模板见[应用级需求模板](app-template/README.md)。底层能力通过带作用域的引用关联，不复制故事状态。
 
 - [Admin 应用模板孵化](../apps/rxdb-admin-template-react/requirements/README.md)（`ADMIN-US-*`）：在当前仓库推进应用配置与业务扩展，公共后台框架能力继续由 epic-010 管理。
 
@@ -51,6 +51,8 @@ Aiao Pool 的桌面端、跨网中继、扩展渠道与商业化的产品方向�
 | [release-plan.md](release-plan.md)                             | **下一次发布**要做什么、桥接版本卡在哪                                     |
 | [vision.md](vision.md)                                         | 1.0 之后的长期方向（不是排期、不是承诺）                                   |
 | [teable-research.md](teable-research.md)                       | Teable 功能借鉴：价值排序、最小范围、验收场景与后续待决事项                |
+| [livestore-research.md](livestore-research.md)                 | LiveStore 竞品对比：事件模型、同步协议、可借鉴方向与验证边界               |
+| [sqlite-sync-research.md](sqlite-sync-research.md)             | sqlite-sync 对照：为什么不接入、拉取游标修复与可借鉴方向                   |
 | [incremental-ai-code-review.md](incremental-ai-code-review.md) | 全量/增量、分支/项目评审与单问题处理，多模型交接和持久记录                 |
 | [versioning-policy.md](versioning-policy.md)                   | 什么算公开 API、什么改动算破坏性                                           |
 | [zh-glossary.md](zh-glossary.md)                               | 中文注释 / TSDoc 词汇规约（哪些词保留、哪些要改）                          |

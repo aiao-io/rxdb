@@ -27,6 +27,6 @@
 
 ## 平台与应用
 
-根 [requirements](../../../requirements/README.md) 管可复用平台能力，本目录管应用级集成与产品体验，管理规则沿用 [app-template](../../../requirements/app-template/README.md)。故事使用 `capabilities: [rxdb:US-526]` 引用平台能力，应用内前置写 `dependsOn`，不复制平台故事或继承其完成状态。
+根 [requirements](../../../requirements/README.md) 管可复用平台能力，本目录管应用级集成与产品体验；通用治理规则见[应用级需求与项目治理办法](../../../requirements/application-governance.md)，目录结构和文件模板见[应用级需求模板](../../../requirements/app-template/README.md)。故事使用 `capabilities: [rxdb:US-526]` 引用平台能力，应用内前置写 `dependsOn`，不复制平台故事或继承其完成状态。
 
 应用入口与启动命令见 [应用 README](../README.md)。结构门禁只证明文档一致性，不能替代浏览器操作、持久化或备份恢复验收。

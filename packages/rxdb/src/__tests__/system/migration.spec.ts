@@ -33,11 +33,11 @@ describe('RxDBMigration', () => {
     // 编译失败，而停住的后果是既有库永远不进升级路径，且没有任何报错。
     //
     // 它钉的是**当前值**，不是某一次 bump：改了常量就该来改这一行，这一行存在的意义就是
-    // 强迫那次改动被人看见一次。上一次是 5 → 6：epic-006 的十张表随
-    // `@aiao/rxdb-plugin-working-tree` 抽走，语义「activeKey 就位，且那十张表不再归核心管」。
+    // 强迫那次改动被人看见一次。上一次是 8 → 9：`RxDBSync` 补 `remoteBackendId`，
+    // 游标与它所属的远端身份同行存放。
     it('系统 schema 版本常量与水位行停在当前值', () => {
-      expect(RXDB_SYSTEM_SCHEMA_VERSION).toBe(8);
-      expect(RXDB_SYSTEM_SCHEMA_WATERMARK).toBe(`${RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX}8`);
+      expect(RXDB_SYSTEM_SCHEMA_VERSION).toBe(9);
+      expect(RXDB_SYSTEM_SCHEMA_WATERMARK).toBe(`${RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX}9`);
     });
 
     // 版本号取自常量而非写死：写死会在下一次 bump 时把「当前版本」测成「历史版本」，

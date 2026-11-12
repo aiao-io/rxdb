@@ -127,6 +127,10 @@ class MemoryRemoteAdapter extends RxDBAdapterRemoteBase implements IRxDBAdapter 
     return Promise.resolve(true);
   }
 
+  backendId(): Promise<string> {
+    return Promise.reject(new Error('memory-remote: 本用例不做版本化同步'));
+  }
+
   pullChanges(): Promise<RemoteChange[]> {
     return Promise.reject(new Error('memory-remote: 本用例不做版本化同步'));
   }

@@ -1,7 +1,7 @@
 -- ============================================
--- RxDB 生产权限：收口 rxdb_change 写入（US-218 阶段 C）
+-- RxDB 生产权限：收口 rxdb_change 与 rxdb_backend 写入（US-218 阶段 C）
 -- ============================================
--- 用途: 撤销客户端角色（anon / authenticated）对变更日志表的直接写权限，
+-- 用途: 撤销客户端角色（anon / authenticated）对变更日志表与远端身份表的直接写权限，
 --       日志只能经 rxdb_mutations → rxdb_insert_changes 与同步触发器（均为 SECURITY DEFINER）写入
 -- 依赖: 必须在 docker/sql/01～04 全部执行之后执行
 -- 加载: init-db.sh 与 CI 的 .github/actions/supabase 都会在 01～04 之后自动加载（开发默认与生产一致，
@@ -15,3 +15,8 @@ REVOKE USAGE, UPDATE ON SEQUENCE public.rxdb_change_id_seq FROM anon, authentica
 
 -- 保留 SELECT：rxdb_pull_changes（SECURITY INVOKER）与 realtime 以调用方身份读日志
 GRANT SELECT ON public.rxdb_change TO anon, authenticated;
+
+-- 远端身份同样只读：客户端能改它，就能让所有客户端误判远端已重置而停止同步。
+-- 读经 rxdb_backend_id()，轮换只经 TRUNCATE rxdb_change 的触发器（均为 SECURITY DEFINER）。
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.rxdb_backend FROM anon, authenticated;
+GRANT SELECT ON public.rxdb_backend TO anon, authenticated;
