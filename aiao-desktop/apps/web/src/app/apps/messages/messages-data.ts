@@ -1,26 +1,24 @@
-/** 一条消息：谁说的，说了什么。 */
-export interface ChatMessage {
+/** 一条初始消息：谁说的，说了什么。 */
+export interface ChatLineSeed {
   readonly from: 'me' | 'them';
   readonly text: string;
 }
 
-/** 一段会话；`id` 稳定，新建会话插到最前面时下标会变，延迟回复靠它找到原会话。 */
-export interface Chat {
-  readonly id: number;
+/** 一段初始会话；`time` 是列表右侧写死的时间文字。 */
+export interface ChatSeed {
   readonly name: string;
   readonly color: string;
   readonly time: string;
   readonly group?: boolean;
-  readonly messages: readonly ChatMessage[];
+  readonly messages: readonly ChatLineSeed[];
 }
 
-const me = (text: string): ChatMessage => ({ from: 'me', text });
-const them = (text: string): ChatMessage => ({ from: 'them', text });
+const me = (text: string): ChatLineSeed => ({ from: 'me', text });
+const them = (text: string): ChatLineSeed => ({ from: 'them', text });
 
-/** 十段种子会话，按最近活跃排序。 */
-export const CHAT_SEED: readonly Chat[] = [
+/** 十段初始会话，按最近活跃排序。 */
+export const CHAT_SEED_DATA: readonly ChatSeed[] = [
   {
-    id: 0,
     name: 'Kate',
     color: '#64d2ff',
     time: '4:28 PM',
@@ -34,7 +32,6 @@ export const CHAT_SEED: readonly Chat[] = [
     ]
   },
   {
-    id: 1,
     name: 'John',
     color: '#30d158',
     time: '2:14 PM',
@@ -47,7 +44,6 @@ export const CHAT_SEED: readonly Chat[] = [
     ]
   },
   {
-    id: 2,
     name: 'Design Crew',
     color: '#bf5af2',
     time: '11:40 AM',
@@ -62,7 +58,6 @@ export const CHAT_SEED: readonly Chat[] = [
     ]
   },
   {
-    id: 3,
     name: 'David',
     color: '#ff9f0a',
     time: '10:02 AM',
@@ -76,7 +71,6 @@ export const CHAT_SEED: readonly Chat[] = [
     ]
   },
   {
-    id: 4,
     name: 'Anna',
     color: '#0a84ff',
     time: '9:15 AM',
@@ -87,7 +81,6 @@ export const CHAT_SEED: readonly Chat[] = [
     ]
   },
   {
-    id: 5,
     name: 'Chris',
     color: '#ff2d55',
     time: 'Yesterday',
@@ -99,7 +92,6 @@ export const CHAT_SEED: readonly Chat[] = [
     ]
   },
   {
-    id: 6,
     name: 'Hank',
     color: '#5e5ce6',
     time: 'Yesterday',
@@ -111,14 +103,12 @@ export const CHAT_SEED: readonly Chat[] = [
     ]
   },
   {
-    id: 7,
     name: 'Daniel',
     color: '#ffd60a',
     time: 'Sunday',
     messages: [them('sent you the moodboard'), me('the third row is the one'), them('knew you would say that')]
   },
   {
-    id: 8,
     name: 'Freda',
     color: '#a2845e',
     time: 'Saturday',
@@ -129,7 +119,6 @@ export const CHAT_SEED: readonly Chat[] = [
     ]
   },
   {
-    id: 9,
     name: 'Mom',
     color: '#ff375f',
     time: 'Friday',
