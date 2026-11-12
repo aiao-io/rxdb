@@ -1,1 +1,5 @@
-<div id="layer-win"></div>
+<div id="layer-win">
+  @for (win of wm.windows(); track win.id) {
+    <app-window-frame [win]="win" />
+  }
+</div>

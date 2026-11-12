@@ -1,3 +1,49 @@
-<div id="layer-overlay"></div>
-<div id="layer-menu"><div id="menu-shield"></div></div>
-<div id="dimmer"></div>
+<div id="layer-overlay">
+  @if (overlays.launchpad() !== 'closed') {
+    <app-launchpad />
+  }
+  @if (overlays.spotlight() !== 'closed') {
+    <app-spotlight />
+  }
+  @if (overlays.notifications() !== 'closed') {
+    <app-notification-centre />
+  }
+  @if (warmPanels()) {
+    <div class="nosel" id="lpad" style="opacity: 0.002; animation: none; pointer-events: none">
+      <div class="grid">
+        @for (id of warmApps; track id) {
+          <div class="app">
+            <div class="art"><svg [appIcon]="apps[id].icon"></svg></div>
+            <div class="nm">{{ apps[id].name }}</div>
+          </div>
+        }
+      </div>
+    </div>
+    <div class="nosel" id="nc" style="opacity: 0.002; transform: none; animation: none; pointer-events: none"></div>
+  }
+  @if (warmGenie()) {
+    <div
+      class="win mini"
+      #genie
+      style="
+        left: 40px;
+        top: 40px;
+        width: 360px;
+        height: 260px;
+        opacity: 0.002;
+        pointer-events: none;
+        visibility: visible;
+      "
+    >
+      <div class="tb"></div>
+      <div class="wb"></div>
+    </div>
+  }
+</div>
+<div id="layer-menu">
+  <div id="menu-shield" [class.on]="popover.isOpen()" (contextmenu)="shield($event)" (mousedown)="shield($event)"></div>
+  @for (entry of popover.entries(); track entry.id) {
+    <app-popover-entry [entry]="entry" />
+  }
+</div>
+<div id="dimmer" [style.opacity]="dim()"></div>

@@ -1,0 +1,88 @@
+<div class="wb">
+  <div class="st">
+    <div class="st-side" data-drag>
+      <div style="display: flex; align-items: center; height: 38px; padding: 0 12px"><app-traffic-lights /></div>
+      <div class="top">
+        <div class="sfield" data-nodrag>
+          <span><svg appIcon="g-search"></svg></span>
+          <input data-stq placeholder="Search" />
+        </div>
+      </div>
+      <div class="st-scroll">
+        <div class="st-row" style="height: 44px; margin-bottom: 8px">
+          <span
+            class="bg"
+            [style.background-image]="avatar"
+            style="width: 34px; height: 34px; border-radius: 50%; background-size: cover; background-position: center"
+          ></span>
+          <span style="display: flex; flex-direction: column">
+            <b style="font-size: 13px; font-weight: 600">{{ system.user }}</b>
+            <span style="font-size: 11px; color: var(--txt-2)">Apple Account</span>
+          </span>
+        </div>
+        @for (group of groups; track $index) {
+          @if ($index > 0) {
+            <div class="msep" style="margin: 8px 8px"></div>
+          }
+          @for (item of group; track item.id) {
+            <div
+              class="st-row"
+              [attr.data-sec]="item.id"
+              [class.on]="section().id === item.id"
+              (click)="select(item.id)"
+              (keydown.enter)="select(item.id)"
+              tabindex="-1"
+            >
+              <span class="bg" [style.background]="item.bg"><svg [appIcon]="item.icon"></svg></span>
+              <span>{{ item.name }}</span>
+            </div>
+          }
+        }
+      </div>
+    </div>
+    <div class="st-main scroll">
+      <div class="st-head" data-drag>
+        <h2 data-sttitle>{{ section().name }}</h2>
+      </div>
+      <div class="st-body" data-stbody>
+        @for (render of renders(); track render) {
+          @switch (section().id) {
+            @case ('wifi') {
+              <app-wifi-pane (rerender)="refresh()" />
+            }
+            @case ('bluetooth') {
+              <app-bluetooth-pane />
+            }
+            @case ('network') {
+              <app-network-pane />
+            }
+            @case ('general') {
+              <app-general-pane />
+            }
+            @case ('appearance') {
+              <app-appearance-pane (rerender)="refresh()" />
+            }
+            @case ('wallpaper') {
+              <app-wallpaper-pane />
+            }
+            @case ('dock') {
+              <app-dock-pane />
+            }
+            @case ('displays') {
+              <app-displays-pane />
+            }
+            @case ('sound') {
+              <app-sound-pane />
+            }
+            @case ('battery') {
+              <app-battery-pane />
+            }
+            @case ('privacy') {
+              <app-privacy-pane />
+            }
+          }
+        }
+      </div>
+    </div>
+  </div>
+</div>

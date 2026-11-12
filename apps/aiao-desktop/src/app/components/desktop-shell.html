@@ -7,5 +7,9 @@
   <app-overlay-layer></app-overlay-layer>
   <app-lock-screen></app-lock-screen>
   <app-boot-screen></app-boot-screen>
+  <div id="toast" [class.on]="toast.visible()">{{ toast.message() }}</div>
 </div>
+@if (session.sleep() !== 'awake') {
+  <div id="sleeper" [class.wake]="session.sleep() === 'waking'"></div>
+}
 <app-icon-sprite></app-icon-sprite>

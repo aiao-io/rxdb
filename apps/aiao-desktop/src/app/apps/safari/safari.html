@@ -1,0 +1,327 @@
+<div class="sf" [class.sb]="sidebar()" data-sf>
+  <div class="sf-top" data-drag>
+    <div class="sf-r1">
+      <div class="sf-l">
+        <app-traffic-lights />
+        <div style="width: 8px"></div>
+        <button class="tbtn" [class.on]="sidebar()" (click)="toggleSidebar()" data-nodrag data-sb title="Sidebar">
+          <svg appIcon="g-sidebar"></svg>
+        </button>
+        <div class="sf-sep"></div>
+        <button class="tbtn" [class.dis]="!canBack()" (click)="back()" data-back data-nodrag title="Back">
+          <svg appIcon="g-chev-l"></svg>
+        </button>
+        <button class="tbtn" [class.dis]="!canForward()" (click)="forward()" data-fwd data-nodrag title="Forward">
+          <svg appIcon="g-chev-r"></svg>
+        </button>
+      </div>
+      <div class="sf-url" data-nodrag>
+        <button
+          class="tbtn rd"
+          [class.on]="readerOn()"
+          [class.show]="kind() === 'web'"
+          (click)="toggleReader()"
+          data-reader
+          title="Show Reader"
+        >
+          <svg appIcon="g-glasses"></svg>
+        </button>
+        <span data-urlico><svg [appIcon]="urlIcon()"></svg></span>
+        <input
+          #urlField
+          (focus)="urlField.select()"
+          (keydown.enter)="submit($event, urlField)"
+          (keydown.escape)="cancel(urlField)"
+          autocomplete="off"
+          data-url
+          placeholder="Search or enter website name"
+          spellcheck="false"
+        />
+        <button class="tbtn" (click)="reload()" data-reload style="min-width: 20px; height: 20px" title="Reload">
+          <svg appIcon="g-reload"></svg>
+        </button>
+      </div>
+      <div class="sf-r">
+        <button class="tbtn" (click)="share()" data-nodrag data-share title="Share">
+          <svg appIcon="g-share"></svg>
+        </button>
+        <button class="tbtn" (click)="overview()" data-nodrag data-overview title="Show Tab Overview">
+          <svg appIcon="g-grid"></svg>
+        </button>
+        <button class="tbtn" (click)="newTab()" data-newtab data-nodrag title="New Tab">
+          <svg appIcon="g-plus"></svg>
+        </button>
+      </div>
+    </div>
+    <div class="sf-tabs" data-tabs>
+      @if (tabs().length > 1) {
+        @for (item of tabs(); track item; let i = $index) {
+          <div
+            class="sf-tab"
+            [attr.data-i]="i"
+            [class.on]="i === current()"
+            (click)="selectTab(i)"
+            (keydown.enter)="selectTab(i)"
+            tabindex="-1"
+          >
+            <span
+              class="x"
+              (click)="closeTabButton($event, i)"
+              (keydown.enter)="closeTabButton($event, i)"
+              tabindex="-1"
+            >
+              <svg appIcon="g-x"></svg>
+            </span>
+            <span class="mid">
+              <ng-container
+                [ngTemplateOutlet]="favicon"
+                [ngTemplateOutletContext]="{ $implicit: item.url, size: 14 }"
+              />
+              <span class="nm">{{ titleFor(item.url) }}</span>
+            </span>
+          </div>
+        }
+      }
+    </div>
+    <div class="sf-fav" data-favbar data-nodrag>
+      @if (system.safariFavs()) {
+        @for (fav of favourites; track fav.name) {
+          <a [attr.data-fav]="fav.name" (click)="go(fav.url)" (keydown.enter)="go(fav.url)" tabindex="-1">
+            <i [style.background]="fav.color"></i>
+            {{ fav.name }}
+          </a>
+        }
+      }
+    </div>
+  </div>
+  <div class="sf-body">
+    <div class="sf-side" data-side>
+      @if (sidebar()) {
+        <div class="in">
+          <div class="grp">
+            <div class="gh">Favourites</div>
+            @for (fav of favourites; track fav.name) {
+              <div
+                class="si"
+                [attr.data-goto]="fav.url"
+                [class.on]="fav.url === tab().url"
+                (click)="go(fav.url)"
+                (keydown.enter)="go(fav.url)"
+                tabindex="-1"
+              >
+                <ng-container
+                  [ngTemplateOutlet]="favicon"
+                  [ngTemplateOutletContext]="{ $implicit: fav.url, size: 16 }"
+                />
+                <span class="nm">{{ fav.name }}</span>
+              </div>
+            }
+          </div>
+          <div class="grp">
+            <div class="gh">Reading List</div>
+            @for (item of reading; track item[0]) {
+              <div
+                class="si"
+                [attr.data-goto]="item[0]"
+                [class.on]="item[0] === tab().url"
+                (click)="go(item[0])"
+                (keydown.enter)="go(item[0])"
+                tabindex="-1"
+              >
+                <svg class="ico" appIcon="g-glasses"></svg>
+                <span class="nm">{{ item[1] }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+    <div class="sf-page scroll" #pageBox [attr.data-kind]="kind()" data-page>
+      @for (progress of bars(); track progress.id) {
+        <div class="sf-prog" [class.on]="progress.on" [style.width]="progress.width" data-prog></div>
+      }
+      @for (view of views(); track view.id) {
+        @let page = view.page;
+        @switch (page.type) {
+          @case ('start') {
+            <div class="sf-start">
+              <h2>Favourites</h2>
+              <div class="sf-grid">
+                @for (tile of favouriteTiles; track tile.url) {
+                  <ng-container [ngTemplateOutlet]="tileTemplate" [ngTemplateOutletContext]="{ $implicit: tile }" />
+                }
+              </div>
+              @if (page.recent.length) {
+                <h2>Frequently Visited</h2>
+                <div class="sf-grid">
+                  @for (tile of page.recent; track tile.url) {
+                    <ng-container [ngTemplateOutlet]="tileTemplate" [ngTemplateOutletContext]="{ $implicit: tile }" />
+                  }
+                </div>
+              }
+              <div class="sf-priv">
+                <svg appIcon="g-shield"></svg>
+                <div>
+                  <b>Privacy Report</b>
+                  · {{ page.trackers }} trackers prevented from profiling you
+                </div>
+              </div>
+            </div>
+          }
+          @case ('local') {
+            <div class="site light">
+              <div class="avatar" style="background: #1d1d1f"><svg appIcon="g-apple"></svg></div>
+              <h1 style="font-size: 34px">macOS Tahoe 26</h1>
+              <p class="role">Liquid Glass. Everywhere.</p>
+              <div class="links">
+                <a data-goto="en.wikipedia.org/wiki/MacOS">Learn more</a>
+                <a data-openext="https://www.apple.com/macos/">Open apple.com</a>
+              </div>
+              <div class="foot">Copyright © 2026 Apple Inc. All rights reserved.</div>
+            </div>
+          }
+          @case ('frame') {
+            <iframe
+              class="sf-frame"
+              [src]="page.src"
+              referrerpolicy="no-referrer"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+            ></iframe>
+          }
+          @case ('player') {
+            <iframe
+              class="sf-frame"
+              [src]="page.src"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen
+              referrerpolicy="strict-origin-when-cross-origin"
+            ></iframe>
+          }
+          @case ('embed-blocked') {
+            <div class="sf-blocked">
+              <div class="ico"><img [src]="faviconOf('youtube.com')" (error)="hideBox($event)" alt="" /></div>
+              <h3>Embeds need a real origin</h3>
+              <p>YouTube won't embed into a page opened from the filesystem. Served over http it plays here.</p>
+              <div style="display: flex; gap: 9px; margin-top: 6px">
+                <button class="btn pri" [attr.data-openext]="'https://www.youtube.com/watch?v=' + page.id">
+                  Watch on YouTube
+                </button>
+                <button class="btn" [attr.data-tryframe]="'youtube.com/embed/' + page.id">Try Anyway</button>
+              </div>
+            </div>
+          }
+          @case ('loading') {
+            <div class="sf-load"><div class="sf-spin"></div></div>
+          }
+          @case ('reader') {
+            <div class="rdr">
+              <h1>{{ page.title }}</h1>
+              <div class="meta">
+                <ng-container
+                  [ngTemplateOutlet]="favicon"
+                  [ngTemplateOutletContext]="{ $implicit: page.url, size: 15 }"
+                />
+                <span>{{ page.host }}</span>
+              </div>
+              <div class="body" [innerHTML]="page.html"></div>
+              <div class="foot">
+                <button class="btn" [attr.data-tryframe]="page.url">Load the live page</button>
+                <button class="btn" [attr.data-openext]="resolveUrl(page.url)">Open in New Window</button>
+              </div>
+            </div>
+          }
+          @case ('blocked') {
+            <div class="sf-blocked">
+              <div class="ico"><img [src]="faviconOf(page.host)" (error)="hideBox($event)" alt="" /></div>
+              <h3>Can't open {{ page.host }}</h3>
+              <p>This site refuses to be embedded and couldn't be read as text either.</p>
+              <div style="display: flex; gap: 9px; margin-top: 6px">
+                <button class="btn pri" [attr.data-tryframe]="page.url">Load Anyway</button>
+                <button class="btn" [attr.data-openext]="externalUrl(page.url)">Open in New Window</button>
+              </div>
+            </div>
+          }
+          @case ('search') {
+            <div class="srch">
+              <h2>{{ page.query }}</h2>
+              <div class="q">{{ page.note }}</div>
+              <div class="res">
+                @for (hit of page.hits; track hit.goto) {
+                  <a [attr.data-goto]="hit.goto">
+                    <div class="u">{{ hit.url }}</div>
+                    <div class="t">{{ hit.title }}</div>
+                    @if (hit.html !== null) {
+                      <div class="d" [innerHTML]="hit.html"></div>
+                    } @else {
+                      <div class="d">{{ hit.text }}</div>
+                    }
+                  </a>
+                }
+              </div>
+            </div>
+          }
+          @case ('wiki') {
+            <div class="wiki">
+              <h1>{{ page.title }}</h1>
+              @if (page.description) {
+                <p class="desc">{{ page.description }}</p>
+              }
+              <div class="lead">
+                @if (page.lead) {
+                  <div class="body" [innerHTML]="page.lead"></div>
+                } @else {
+                  <div class="body">
+                    <p>{{ page.extract }}</p>
+                  </div>
+                }
+                @if (page.thumbnail && !failed().has(page.thumbnail)) {
+                  <div class="thumb"><img [src]="page.thumbnail" (error)="markFailed(page.thumbnail)" alt="" /></div>
+                }
+              </div>
+              <div class="foot">Text is available under CC BY-SA 4.0.</div>
+            </div>
+          }
+          @case ('wiki-error') {
+            <div class="sf-blocked">
+              <div class="ico"><svg appIcon="g-globe"></svg></div>
+              <h3>Couldn't reach Wikipedia</h3>
+              <p>No network, or that article doesn't exist.</p>
+              <button class="btn pri" data-goto="">Start Page</button>
+            </div>
+          }
+        }
+      }
+    </div>
+  </div>
+</div>
+
+<ng-template #favicon let-size="size" let-url>
+  @if (favColor(url); as color) {
+    <span class="fav" [style.background]="color" [style.height.px]="size" [style.width.px]="size"></span>
+  } @else {
+    <img
+      class="fav"
+      [src]="faviconOf(hostOf(url))"
+      [style.height.px]="size"
+      [style.width.px]="size"
+      (error)="hideIcon($event)"
+      alt=""
+      style="border-radius: 3px"
+    />
+  }
+</ng-template>
+
+<ng-template #tileTemplate let-tile>
+  <a class="sf-tile" [attr.data-goto]="tile.url">
+    <span class="sq">
+      @if (tile.dot) {
+        <i [style.background]="tile.dot">{{ (tile.label[0] || '?').toUpperCase() }}</i>
+      } @else if (failed().has(tile.url)) {
+        <i style="background: #8e8e93">{{ (tile.label[0] || '?').toUpperCase() }}</i>
+      } @else {
+        <img [src]="faviconOf(hostOf(tile.url))" (error)="markFailed(tile.url)" alt="" />
+      }
+    </span>
+    <span>{{ tile.label }}</span>
+  </a>
+</ng-template>

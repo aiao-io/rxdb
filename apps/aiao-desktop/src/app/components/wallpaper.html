@@ -1,1 +1,12 @@
-<div id="wall"><div class="layer proc"></div></div>
+<div id="wall">
+  <div class="layer proc"></div>
+  @for (layer of wallpaper.layers(); track layer.id) {
+    <div
+      class="layer photo"
+      [attr.data-full]="layer.full ? '' : null"
+      [attr.data-key]="layer.key"
+      [class.on]="layer.on()"
+      [style.background-image]="'url(&quot;' + layer.src + '&quot;)'"
+    ></div>
+  }
+</div>

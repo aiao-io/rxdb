@@ -1,0 +1,103 @@
+<div class="tb" data-drag>
+  <div class="title">Activity Monitor</div>
+  <div class="tbz"><app-traffic-lights /></div>
+  <div class="grow"></div>
+  <div class="tbz">
+    <div class="seg" data-nodrag>
+      @for (name of tabs; track name) {
+        <button
+          [attr.data-am]="name"
+          [class.on]="name === tab()"
+          (click)="select(name)"
+          style="width: auto; padding: 0 9px; font-size: 11.5px"
+        >
+          {{ name }}
+        </button>
+      }
+    </div>
+  </div>
+</div>
+<div class="wb col" style="background: var(--win)">
+  @let current = view();
+  <div class="fv-list scroll" style="flex: 1">
+    <div class="hd" data-head>
+      @for (col of current.cols; track col; let first = $first) {
+        <span [style]="first ? 'flex: 1' : 'width: 104px; text-align: right'">{{ col }}</span>
+      }
+    </div>
+    <div data-proc>
+      @for (row of current.rows; track row.name; let odd = $odd) {
+        <div class="r" [class.alt]="odd">
+          <span class="nm" style="flex: 1">{{ row.name }}</span>
+          @for (cell of row.cells; track $index) {
+            <span
+              [style.color]="
+                cell.hot ? 'var(--red)'
+                : cell.dim ? 'var(--txt-2)'
+                : null
+              "
+              [style.font-weight]="cell.hot ? '600' : null"
+              style="width: 104px; text-align: right; font-variant-numeric: tabular-nums"
+            >
+              {{ cell.text }}
+            </span>
+          }
+        </div>
+      }
+    </div>
+  </div>
+  <div
+    style="
+      flex: none;
+      display: flex;
+      gap: 26px;
+      align-items: center;
+      height: 70px;
+      padding: 0 20px;
+      border-top: 0.5px solid var(--line);
+      background: var(--win-2);
+    "
+  >
+    <div data-cpuring>
+      <svg style="width: 52px; height: 52px" viewBox="0 0 52 52">
+        <circle cx="26" cy="26" fill="none" r="22" stroke="var(--fill-2)" stroke-width="6" />
+        <circle
+          [attr.stroke-dasharray]="ring"
+          [attr.stroke-dashoffset]="current.dashOffset"
+          [attr.stroke]="current.hue"
+          cx="26"
+          cy="26"
+          fill="none"
+          r="22"
+          stroke-linecap="round"
+          stroke-width="6"
+          transform="rotate(-90 26 26)"
+        />
+        <text fill="currentColor" font-size="11" font-weight="600" text-anchor="middle" x="26" y="29.5">
+          {{ current.percent }}%
+        </text>
+      </svg>
+    </div>
+    <div data-legend style="display: grid; grid-template-columns: auto auto; gap: 2px 14px; font-size: 11.5px">
+      @for (entry of current.legend; track entry[0]) {
+        <span style="color: var(--txt-2)">{{ entry[0] }}:</span>
+        <b style="font-variant-numeric: tabular-nums">{{ entry[1] }}</b>
+      }
+    </div>
+    <div
+      data-graph
+      style="flex: 1; height: 44px; position: relative; overflow: hidden; border-radius: 6px; background: var(--win-3)"
+    >
+      <svg preserveAspectRatio="none" style="width: 100%; height: 100%" viewBox="0 0 100 100">
+        <polygon [attr.fill]="current.hue + '30'" [attr.points]="'0,100 ' + current.points + ' 100,100'" />
+        <polyline
+          [attr.points]="current.points"
+          [attr.stroke]="current.hue"
+          fill="none"
+          stroke-width="1.2"
+          vector-effect="non-scaling-stroke"
+        />
+      </svg>
+    </div>
+  </div>
+</div>

@@ -1,4 +1,27 @@
-<div id="boot" class="nosel">
-    <svg viewBox="0 0 15 18" class="bl"><use href="#g-apple"/></svg>
-    <div class="bar"><i></i></div>
-  </div>
+@if (session.boot(); as run) {
+  @if (run.mode === 'off') {
+    <div
+      id="boot"
+      (click)="session.restart()"
+      (keydown.enter)="session.restart()"
+      style="cursor: var(--cur-hand)"
+      tabindex="-1"
+    >
+      <div style="font-size: 13px; color: rgba(255, 255, 255, 0.5); position: absolute; bottom: 16%">
+        Click anywhere to start up
+      </div>
+    </div>
+  } @else {
+    <div
+      id="boot"
+      [class.nosel]="run.mode === 'startup'"
+      [class.out]="leaving()"
+      (click)="skip(run)"
+      (keydown.enter)="skip(run)"
+      tabindex="-1"
+    >
+      <svg class="bl" viewBox="0 0 15 18"><use href="#g-apple" /></svg>
+      <div class="bar"><i [style.width.%]="progress()"></i></div>
+    </div>
+  }
+}
