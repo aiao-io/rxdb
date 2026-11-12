@@ -110,9 +110,7 @@ export class AgentConversationService {
   /** 当前会话是迁移前的旧会话（只读） */
   readonly readOnly = computed(() => this.activeSessionId() !== undefined && this.#record() === undefined);
   readonly status = computed(() => this.#active()?.chat.status ?? 'ready');
-  readonly busy = computed(
-    () => this.#preparing() || this.status() === 'submitted' || this.status() === 'streaming'
-  );
+  readonly busy = computed(() => this.#preparing() || this.status() === 'submitted' || this.status() === 'streaming');
   readonly hasError = computed(() => this.#active()?.chat.error !== undefined);
   /** 当前轮在等用户回答提问 */
   readonly awaitingAnswer = computed(() => pendingQuestion(this.#active()?.chat.messages ?? []) !== undefined);

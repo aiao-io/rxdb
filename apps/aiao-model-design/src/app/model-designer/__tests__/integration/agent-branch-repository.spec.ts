@@ -1,5 +1,5 @@
-import '@angular/compiler';
 import { RxDB } from '@aiao/rxdb';
+import '@angular/compiler';
 import { Injector } from '@angular/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { sampleShop } from '../../../../../shared/model-ops/fixtures';

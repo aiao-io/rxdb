@@ -1,6 +1,6 @@
 # 模型设计器应用需求
 
-当前交付：[1/6 已交付]。状态真相源为 `stories/<domain>/MODEL-US-*.md` 的 YAML `status`，其余视图由故事派生。
+当前交付：[2/6 已交付]。状态真相源为 `stories/<domain>/MODEL-US-*.md` 的 YAML `status`，其余视图由故事派生。
 
 ## 当前范围
 

@@ -16,7 +16,7 @@ owner: jimmy
 
 - [x] 应用需求独立管理，门禁约束状态、引用与派生视图（[MODEL-US-001](../stories/platform/MODEL-US-001-application-requirements.md)）。
 - [ ] Worker 只负责登录与会话签发，智能体部署到自建 Trigger.dev，旧接口删除（[MODEL-US-002](../stories/platform/MODEL-US-002-trigger-session-gateway.md)）。
-- [ ] 建模通过自带校验的工具完成，关系成对、引用按名称、错误回到模型（[MODEL-US-101](../stories/agent/MODEL-US-101-modeling-tools-agent.md)）。
+- [x] 建模通过自带校验的工具完成，关系成对、引用按名称、错误回到模型（[MODEL-US-101](../stories/agent/MODEL-US-101-modeling-tools-agent.md)）。
 - [ ] 设计器接入持久会话，工具产出幂等写入 AI 分支，刷新可续（[MODEL-US-102](../stories/agent/MODEL-US-102-designer-durable-session.md)）。
 - [ ] 两轮之间的手动修改回读给智能体（[MODEL-US-103](../stories/agent/MODEL-US-103-manual-edit-readback.md)）。
 - [ ] 需求不清时先提问再建模（[MODEL-US-104](../stories/agent/MODEL-US-104-clarifying-questions.md)）。
