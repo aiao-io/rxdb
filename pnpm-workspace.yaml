@@ -103,6 +103,12 @@ overrides:
   typescript: 6.0.3
   undici@7: ^7.29.1
   vitest: 4.1.11
+  # aiao-model-design 的 Trigger.dev SDK 把 @opentelemetry/api 带进依赖图后，根上 vitest 与
+  # supabase-js 的可选 peer 会解析到它，vitest 分裂成两份：根目录的 @vitest/browser-playwright
+  # 等工具链接带 otel 的那份，各包自己的 vitest 是另一份，vite.config 里 defineConfig 与
+  # playwright() 的类型对不上（TS2769）。两者都不用 OTel，去掉这条可选 peer，保持一份 vitest。
+  vitest>@opentelemetry/api: '-'
+  '@supabase/supabase-js>@opentelemetry/api': '-'
   vue: ^3.5.43
   yaml@1: ^1.10.3
 patchedDependencies:

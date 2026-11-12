@@ -99,6 +99,7 @@ class FakeTransport implements AgentTransport {
 class MemoryRepository {
   #count = 0;
   readonly rows = new Map<string, ConversationRecord>();
+  readonly branches = new Map<string, AiBranchRecord>();
 
   async list(designId: string) {
     return [...this.rows.values()].filter(row => row.modelDesignId === designId).map(row => structuredClone(row));
@@ -126,8 +127,6 @@ class MemoryRepository {
   async remove(id: string) {
     this.rows.delete(id);
   }
-
-  readonly branches = new Map<string, AiBranchRecord>();
 
   async findBranch(branchId: string) {
     const record = this.branches.get(branchId);
