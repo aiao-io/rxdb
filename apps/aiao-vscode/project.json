@@ -1,0 +1,315 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "implicitDependencies": [
+    "rxdb",
+    "rxdb-adapter-sqlite-wasm",
+    "rxdb-angular",
+    "rxdb-devtools",
+    "code-editor",
+    "code-editor-angular"
+  ],
+  "name": "aiao-vscode",
+  "prefix": "app",
+  "projectType": "application",
+  "sourceRoot": "apps/aiao-vscode/src",
+  "tags": ["product:vscode", "type:app"],
+  "targets": {
+    "assets": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/scripts/build-assets.mjs",
+        "{projectRoot}/vendor/seti/*",
+        "{projectRoot}/src/workbench/**/*.ts",
+        "{workspaceRoot}/pnpm-lock.yaml",
+        "{projectRoot}/scripts/build-extension-host.mjs",
+        "{projectRoot}/extension-host/**/*.ts",
+        "{projectRoot}/vendor/markdown-preview-enhanced.lock.json",
+        "{projectRoot}/vendor/monaco-vscode-api-LICENSE.txt"
+      ],
+      "outputs": ["{projectRoot}/public/browser-workbench-assets"],
+      "options": {
+        "command": "node scripts/build-assets.mjs",
+        "cwd": "apps/aiao-vscode"
+      }
+    },
+    "runtime-hosts": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/scripts/build-runtime-hosts.mjs",
+        "{projectRoot}/src/runtime-hosts/**/*.ts",
+        "{projectRoot}/src/workbench/terminal/nodepod-host.ts",
+        "{projectRoot}/src/workbench/terminal/project-watcher.ts",
+        "{projectRoot}/src/workbench/terminal/runtime-host-page.ts",
+        "{projectRoot}/src/workbench/terminal/runtime-host-pages.ts",
+        "{projectRoot}/src/workbench/terminal/runtime-host-protocol.ts",
+        "{projectRoot}/src/workbench/terminal/sync-ignore.ts",
+        "{projectRoot}/src/workbench/terminal/vivari-host.ts",
+        "{projectRoot}/src/workbench/terminal/vivari-service-worker.ts",
+        "{workspaceRoot}/pnpm-lock.yaml"
+      ],
+      "outputs": ["{projectRoot}/runtime-hosts/dist"],
+      "options": {
+        "command": "node scripts/build-runtime-hosts.mjs",
+        "cwd": "apps/aiao-vscode"
+      }
+    },
+    "serve-runtime-hosts": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "dependsOn": ["runtime-hosts"],
+      "options": {
+        "command": "node scripts/serve-runtime-hosts.mjs",
+        "cwd": "apps/aiao-vscode"
+      }
+    },
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "dependsOn": ["assets", "runtime-hosts", "^build"],
+      "options": {
+        "outputPath": "apps/aiao-vscode/dist",
+        "browser": "apps/aiao-vscode/src/main.ts",
+        "polyfills": [],
+        "tsConfig": "apps/aiao-vscode/tsconfig.app.json",
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "apps/aiao-vscode/public"
+          },
+          {
+            "glob": "wa-sqlite.wasm",
+            "input": "./packages/rxdb-adapter-sqlite-wasm/node_modules/@subframe7536/sqlite-wasm/dist",
+            "output": "./sqlite-wasm/",
+            "followSymlinks": true
+          },
+          {
+            "glob": "wa-sqlite-async.wasm",
+            "input": "./packages/rxdb-adapter-sqlite-wasm/node_modules/@subframe7536/sqlite-wasm/dist",
+            "output": "./sqlite-wasm/",
+            "followSymlinks": true
+          }
+        ],
+        "styles": ["apps/aiao-vscode/src/styles.css"]
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "1.5mb",
+              "maximumError": "2.5mb"
+            },
+            {
+              "type": "anyComponentStyle",
+              "maximumWarning": "4kb",
+              "maximumError": "8kb"
+            }
+          ],
+          "define": {
+            "import.meta.env": "{\"MODE\":\"production\",\"BASE_URL\":\"/\",\"DEV\":false,\"PROD\":true,\"SSR\":false}",
+            "import.meta.env.DEV": "false"
+          },
+          "outputHashing": "all",
+          "optimization": {
+            "scripts": true,
+            "styles": {
+              "minify": true,
+              "inlineCritical": false
+            },
+            "fonts": false
+          },
+          "serviceWorker": "apps/aiao-vscode/ngsw-config.json"
+        },
+        "development": {
+          "optimization": false,
+          "extractLicenses": false,
+          "sourceMap": true
+        }
+      },
+      "defaultConfiguration": "production"
+    },
+    "serve": {
+      "continuous": true,
+      "dependsOn": ["assets", "serve-runtime-hosts", "^build"],
+      "executor": "@angular/build:dev-server",
+      "configurations": {
+        "production": {
+          "buildTarget": "aiao-vscode:build:production"
+        },
+        "development": {
+          "buildTarget": "aiao-vscode:build:development"
+        }
+      },
+      "defaultConfiguration": "development",
+      "options": {
+        "port": 4320,
+        "prebundle": false,
+        "headers": {
+          "Cross-Origin-Opener-Policy": "same-origin",
+          "Cross-Origin-Embedder-Policy": "require-corp",
+          "Access-Control-Allow-Origin": "*"
+        }
+      }
+    },
+    "serve-static": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "aiao-vscode:build",
+        "port": 4321,
+        "staticFilePath": "apps/aiao-vscode/dist/browser",
+        "spa": true
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build"],
+      "options": {
+        "cwd": "apps/aiao-vscode",
+        "command": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.spec.json && tsc --noEmit -p tsconfig.extension-host.json"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build"],
+      "outputs": ["{workspaceRoot}/coverage/apps/aiao-vscode"],
+      "options": {
+        "cwd": "apps/aiao-vscode",
+        "command": "vitest run --config vite.config.mts --project=aiao-vscode-ui --project=aiao-vscode-workbench"
+      }
+    },
+    "test-browser": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build", "assets"],
+      "options": {
+        "cwd": "apps/aiao-vscode",
+        "command": "vitest run --config vite.config.mts --project=aiao-vscode-browser"
+      }
+    },
+    "coverage": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build"],
+      "outputs": ["{workspaceRoot}/coverage/apps/aiao-vscode"],
+      "options": {
+        "cwd": "apps/aiao-vscode",
+        "command": "vitest run --config vite.config.mts --project=aiao-vscode-ui --project=aiao-vscode-workbench --coverage"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/aiao-vscode",
+        "command": "eslint . --max-warnings=0"
+      }
+    },
+    "verify-export": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "apps/aiao-vscode",
+        "command": "node scripts/verify-export.mjs"
+      }
+    },
+    "verify-offline": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "apps/aiao-vscode",
+        "command": "node scripts/verify-offline.mjs"
+      }
+    },
+    "verify-docking": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "apps/aiao-vscode",
+        "command": "node scripts/verify-docking.mjs"
+      }
+    },
+    "verify-commands": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "apps/aiao-vscode",
+        "command": "node scripts/verify-commands.mjs"
+      }
+    },
+    "verify-save-preview": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "apps/aiao-vscode",
+        "command": "node scripts/verify-save-preview.mjs"
+      }
+    },
+    "verify-scm": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "apps/aiao-vscode",
+        "command": "node scripts/verify-scm.mjs"
+      }
+    },
+    "verify-functions": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "apps/aiao-vscode",
+        "command": "node deploy/verify-functions.mjs"
+      }
+    },
+    "verify-pages-routing": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "apps/aiao-vscode",
+        "command": "node deploy/verify-pages-routing.mjs"
+      }
+    },
+    "verify-github-auth": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "apps/aiao-vscode",
+        "command": "node scripts/verify-github-auth.mjs"
+      }
+    },
+    "verify-github-oauth": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "apps/aiao-vscode",
+        "command": "node scripts/verify-github-oauth.mjs"
+      }
+    },
+    "verify-terminal": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "apps/aiao-vscode",
+        "command": "node scripts/verify-terminal.mjs"
+      }
+    },
+    "verify-runtimes": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "apps/aiao-vscode",
+        "command": "node scripts/verify-runtimes.mjs"
+      }
+    },
+    "verify-markdown-extension": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "apps/aiao-vscode",
+        "command": "node scripts/verify-markdown-extension.mjs"
+      }
+    }
+  }
+}

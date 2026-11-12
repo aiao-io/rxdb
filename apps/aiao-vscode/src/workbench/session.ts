@@ -1,0 +1,591 @@
+import { assertGitPath, assertNoPathCollisions } from './git/git-paths.js';
+import { GitWorkbenchError } from './git/git-protocol.js';
+
+/** 工作区的普通文件；二进制内容不会被编辑器隐式转码。 */
+export type WorkbenchFiles = Readonly<Record<string, string | Uint8Array>>;
+
+/** 一次已持久化的项目快照。 */
+export interface WorkbenchSnapshot {
+  readonly projectId: string;
+  readonly revision: string;
+  readonly files: WorkbenchFiles;
+}
+
+/** Git 的 index 与工作区状态。 */
+export interface WorkbenchStatus {
+  readonly branch: string;
+  readonly head: string | null;
+  readonly remote?: {
+    readonly name: string;
+    readonly url: string;
+  };
+  readonly entries: readonly {
+    readonly path: string;
+    readonly originalPath?: string;
+    readonly index: string;
+    readonly worktree: string;
+  }[];
+}
+
+/** 差异一侧的精确文本或二进制说明。 */
+export interface WorkbenchFileVersion {
+  readonly exists: boolean;
+  readonly binary: boolean;
+  readonly text: string | null;
+  readonly byteLength: number;
+}
+
+/** Git 暂存区或工作区的双侧差异。 */
+export interface WorkbenchDiff {
+  readonly projectId: string;
+  readonly path: string;
+  readonly kind: 'working' | 'staged';
+  readonly base: WorkbenchFileVersion;
+  readonly modified: WorkbenchFileVersion;
+}
+
+/** 一个可达 Git 提交。 */
+export interface WorkbenchCommit {
+  readonly oid: string;
+  readonly message: string;
+}
+
+/** Git Worker 对工作台暴露的文件与版本管理入口。 */
+export interface WorkbenchBackend {
+  open(projectId: string): Promise<WorkbenchSnapshot>;
+  create(projectId: string, files: WorkbenchFiles): Promise<WorkbenchSnapshot>;
+  save(
+    projectId: string,
+    files: WorkbenchFiles,
+    expectedRevision: string,
+    removedPaths?: readonly string[]
+  ): Promise<WorkbenchSnapshot>;
+  remove(projectId: string, path: string): Promise<void>;
+  rename(projectId: string, from: string, to: string): Promise<void>;
+  /** 移动文件或整个文件夹前缀（单次事务）。 */
+  move(projectId: string, from: string, to: string): Promise<void>;
+  status(projectId: string): Promise<WorkbenchStatus>;
+  stage(projectId: string, paths: readonly string[]): Promise<void>;
+  unstage(projectId: string, paths: readonly string[]): Promise<void>;
+  readDiff(projectId: string, path: string, kind: 'working' | 'staged'): Promise<WorkbenchDiff>;
+  discardWorking(projectId: string, path: string): Promise<WorkbenchSnapshot>;
+  commit(projectId: string, message: string): Promise<string>;
+  /** 拉取远端快照并保留不冲突的工作区与暂存更改。 */
+  pull?(projectId: string): Promise<WorkbenchSnapshot>;
+  history(projectId: string): Promise<readonly WorkbenchCommit[]>;
+  restore(projectId: string, oid: string): Promise<WorkbenchSnapshot>;
+  exportArchive(projectId: string): Promise<Uint8Array>;
+  importArchive(projectId: string, bytes: Uint8Array): Promise<void>;
+  dispose(): void;
+}
+
+/** 可注入的编译输出。 */
+export interface WorkbenchCompilation {
+  readonly js: string;
+  readonly css: string;
+  readonly html?: string;
+}
+
+/** 已编译预览对应的项目与文件版本。 */
+export interface WorkbenchPreview extends WorkbenchCompilation {
+  readonly projectId: string;
+  readonly revision: string;
+  readonly runId: number;
+}
+
+/** 未保存文本与其编辑基线；源码保存和 Git 暂存不包含此恢复记录。 */
+export type WorkbenchDrafts = Readonly<Record<string, { readonly base: string | null; readonly content: string }>>;
+
+/** 文件选择时的预览策略；替换目标由当前编辑器组确定。 */
+export interface WorkbenchFileSelection {
+  readonly preview?: boolean;
+  readonly replacePreview?: string;
+}
+
+/** 工作台的可订阅状态。 */
+export interface WorkbenchState {
+  readonly projectId: string | null;
+  readonly revision: string | null;
+  readonly files: WorkbenchFiles;
+  readonly activePath: string | null;
+  readonly tabs: readonly string[];
+  readonly previewTabs: readonly string[];
+  readonly dirty: boolean;
+  readonly busy: boolean;
+  readonly error: string | null;
+  readonly preview: WorkbenchPreview | null;
+}
+
+const initialState: WorkbenchState = {
+  projectId: null,
+  revision: null,
+  files: {},
+  activePath: null,
+  tabs: [],
+  previewTabs: [],
+  dirty: false,
+  busy: false,
+  error: null,
+  preview: null
+};
+
+const errorMessage = (cause: unknown): string => (cause instanceof Error ? cause.message : String(cause));
+const fileEncoder = new TextEncoder();
+const equalFile = (left: string | Uint8Array | undefined, right: string | Uint8Array | undefined): boolean => {
+  if (left === right) return true;
+  if (left === undefined || right === undefined) return false;
+  if (typeof left === 'string' && typeof right === 'string') return false;
+  const leftBytes = typeof left === 'string' ? fileEncoder.encode(left) : left;
+  const rightBytes = typeof right === 'string' ? fileEncoder.encode(right) : right;
+  return leftBytes.length === rightBytes.length && leftBytes.every((byte, index) => byte === rightBytes[index]);
+};
+const equalFiles = (left: WorkbenchFiles, right: WorkbenchFiles): boolean =>
+  Object.keys(left).length === Object.keys(right).length &&
+  Object.keys(left).every(path => equalFile(left[path], right[path]));
+
+/** 管理编辑缓冲、真实保存回执和编译代次，三端共用。 */
+export class WorkbenchSession {
+  #state: WorkbenchState = initialState;
+  #saved: WorkbenchFiles = {};
+  #listeners = new Set<(state: WorkbenchState) => void>();
+  #generation = 0;
+  #runId = 0;
+  #closed = false;
+  #savePending: Promise<void> | null = null;
+  #saveTarget = '*';
+  #pendingWork = new Map<symbol, number>();
+
+  get state(): WorkbenchState {
+    return this.#state;
+  }
+
+  constructor(readonly backend: WorkbenchBackend) {}
+
+  subscribe(listener: (state: WorkbenchState) => void): () => void {
+    this.#assertOpen();
+    this.#listeners.add(listener);
+    listener(this.#state);
+    return () => this.#listeners.delete(listener);
+  }
+
+  /** 某个文件的编辑缓冲是否包含未保存修改。 */
+  isModified(path: string): boolean {
+    return !equalFile(this.#state.files[path], this.#saved[path]);
+  }
+
+  /** 返回独立的已保存快照，未保存缓冲不会进入外部运行环境。 */
+  getSavedSnapshot(): WorkbenchSnapshot {
+    const projectId = this.#project();
+    const revision = this.#state.revision;
+    if (!revision) throw new Error('项目尚未保存');
+    const files = Object.fromEntries(
+      Object.entries(this.#saved).map(([path, value]) => [path, typeof value === 'string' ? value : value.slice()])
+    );
+    return Object.freeze({ projectId, revision, files: Object.freeze(files) });
+  }
+
+  /** 获取独立于源码文件的未保存文本快照。 */
+  getDrafts(): WorkbenchDrafts {
+    return Object.fromEntries(
+      Object.entries(this.#state.files)
+        .filter(([path, value]) => typeof value === 'string' && this.isModified(path))
+        .map(([path, content]) => [
+          path,
+          {
+            base: typeof this.#saved[path] === 'string' ? this.#saved[path] : null,
+            content: content as string
+          }
+        ])
+    );
+  }
+
+  /** 原子恢复草稿并返回编辑基线已变化的文件，保留当前已保存版本。 */
+  restoreDrafts(drafts: WorkbenchDrafts): readonly string[] {
+    this.#project();
+    const entries = Object.entries(drafts);
+    for (const [path] of entries) assertGitPath(path);
+    const files = {
+      ...this.#state.files,
+      ...Object.fromEntries(entries.map(([path, draft]) => [path, draft.content]))
+    };
+    assertNoPathCollisions(Object.keys(files));
+    const conflicts = entries
+      .filter(([path, draft]) => draft.base !== (this.#saved[path] ?? null))
+      .map(([path]) => path);
+    this.#update({ files, dirty: !equalFiles(files, this.#saved) });
+    return conflicts;
+  }
+
+  async open(projectId: string): Promise<void> {
+    return this.#transition(() => this.backend.open(projectId));
+  }
+
+  async create(projectId: string, files: WorkbenchFiles): Promise<void> {
+    return this.#transition(() => this.backend.create(projectId, files));
+  }
+
+  select(path: string, options: WorkbenchFileSelection = {}): void {
+    this.#assertOpen();
+    if (!Object.hasOwn(this.#state.files, path)) throw new Error('文件不存在');
+    const opened = this.#state.tabs.includes(path);
+    const temporary = options.preview && !this.isModified(path);
+    const replaced =
+      (
+        !opened &&
+        temporary &&
+        options.replacePreview &&
+        this.#state.previewTabs.includes(options.replacePreview) &&
+        !this.isModified(options.replacePreview)
+      ) ?
+        options.replacePreview
+      : null;
+    const tabs = this.#state.tabs.filter(tab => tab !== replaced);
+    if (!opened) tabs.push(path);
+    const previewTabs = this.#state.previewTabs.filter(tab => tab !== replaced && (temporary || tab !== path));
+    if (!opened && temporary) previewTabs.push(path);
+    this.#update({ activePath: path, tabs, previewTabs });
+  }
+
+  closeTab(path: string): void {
+    this.#assertOpen();
+    const tabs = this.#state.tabs.filter(item => item !== path);
+    this.#update({
+      tabs,
+      activePath: this.#state.activePath === path ? (tabs.at(-1) ?? null) : this.#state.activePath
+    });
+  }
+
+  /** 重开项目时恢复上次的标签与活动文件，不存在的路径被过滤。 */
+  restoreTabs(paths: readonly string[], activePath: string | null, previews: readonly string[] = []): void {
+    this.#assertOpen();
+    const tabs = [...new Set(paths)].filter(path => Object.hasOwn(this.#state.files, path));
+    const active = tabs.length && activePath && tabs.includes(activePath) ? activePath : (tabs.at(-1) ?? null);
+    this.#update({
+      tabs,
+      activePath: active,
+      previewTabs: previews.filter(path => tabs.includes(path) && !this.isModified(path))
+    });
+  }
+
+  edit(path: string, content: string): void {
+    this.#assertOpen();
+    assertGitPath(path);
+    const files = { ...this.#state.files, [path]: content };
+    assertNoPathCollisions(Object.keys(files));
+    this.#update({ files, dirty: !equalFiles(files, this.#saved), error: null });
+  }
+
+  discard(): void {
+    this.#assertOpen();
+    this.#update({ files: { ...this.#saved }, dirty: false, error: null });
+  }
+
+  save(paths?: readonly string[]): Promise<void> {
+    this.#assertOpen();
+    const selected = paths ? [...new Set(paths)] : undefined;
+    const target = selected ? JSON.stringify([...selected].sort()) : '*';
+    if (this.#savePending) {
+      const generation = this.#generation;
+      const projectId = this.#state.projectId;
+      return target === this.#saveTarget ?
+          this.#savePending
+        : this.#savePending.then(() => {
+            if (!this.#current(generation) || this.#state.projectId !== projectId) return;
+            return this.save(selected);
+          });
+    }
+    const pending = this.#performSave(selected);
+    this.#saveTarget = target;
+    this.#savePending = pending;
+    void pending
+      .finally(() => {
+        if (this.#savePending === pending) this.#savePending = null;
+      })
+      .catch(() => undefined);
+    return pending;
+  }
+
+  /** 串行持久化外部文件变更，保留编辑器中尚未保存的缓冲。 */
+  applyExternalFiles(files: WorkbenchFiles, removedPaths: readonly string[]): Promise<void> {
+    const projectId = this.#project();
+    const generation = this.#generation;
+    const changes = Object.fromEntries(
+      Object.entries(files).map(([path, value]) => [path, typeof value === 'string' ? value : value.slice()])
+    );
+    const removed = [...removedPaths];
+    const pending = (this.#savePending ?? Promise.resolve()).then(() =>
+      this.#performExternalSave(projectId, generation, changes, removed)
+    );
+    this.#saveTarget = '';
+    this.#savePending = pending;
+    void pending
+      .finally(() => {
+        if (this.#savePending === pending) this.#savePending = null;
+      })
+      .catch(() => undefined);
+    return pending;
+  }
+
+  /** 让在途编译失效，保留上次成功的预览。 */
+  cancelRun(): void {
+    this.#assertOpen();
+    this.#runId++;
+  }
+
+  /** 合并磁盘操作的回执，指定路径接受丢弃，其余未保存缓冲继续保留。 */
+  applySavedSnapshot(snapshot: WorkbenchSnapshot, overwrittenPaths: readonly string[]): void {
+    this.#assertOpen();
+    if (snapshot.projectId !== this.#state.projectId) throw new Error('不能应用其他项目的文件回执');
+    this.#generation++;
+    this.#runId++;
+    this.#savePending = null;
+    this.#mergeSavedSnapshot(snapshot, overwrittenPaths, false);
+  }
+
+  async run(compile: (snapshot: WorkbenchSnapshot) => Promise<WorkbenchCompilation>): Promise<void> {
+    this.#project();
+    const generation = this.#generation;
+    const runId = ++this.#runId;
+    await this.save();
+    if (!this.#current(generation) || runId !== this.#runId) return;
+    if (this.#state.dirty) throw new Error('保存期间内容发生变化，请重新运行');
+    return this.#publishSaved(compile, generation, runId);
+  }
+
+  /** 仅运行已保存的文件，不顺带持久化其它编辑缓冲。 */
+  runSaved(compile: (snapshot: WorkbenchSnapshot) => Promise<WorkbenchCompilation>): Promise<void> {
+    this.#project();
+    return this.#publishSaved(compile, this.#generation, ++this.#runId);
+  }
+
+  async restore(oid: string): Promise<void> {
+    const projectId = this.#project();
+    return this.#transition(() => this.backend.restore(projectId, oid));
+  }
+
+  async remove(path: string): Promise<void> {
+    const projectId = this.#project();
+    return this.#transition(async () => {
+      await this.backend.remove(projectId, path);
+      return this.backend.open(projectId);
+    });
+  }
+
+  async rename(from: string, to: string): Promise<void> {
+    const projectId = this.#project();
+    return this.#transition(async () => {
+      await this.backend.rename(projectId, from, to);
+      return this.backend.open(projectId);
+    });
+  }
+
+  async move(from: string, to: string): Promise<void> {
+    const projectId = this.#project();
+    return this.#transition(async () => {
+      await this.backend.move(projectId, from, to);
+      return this.backend.open(projectId);
+    });
+  }
+
+  dispose(): void {
+    if (this.#closed) return;
+    this.#closed = true;
+    this.#generation++;
+    this.#runId++;
+    this.#pendingWork.clear();
+    this.#listeners.clear();
+    this.backend.dispose();
+  }
+
+  #mergeSavedSnapshot(snapshot: WorkbenchSnapshot, overwrittenPaths: readonly string[], busy = this.#state.busy): void {
+    if (snapshot.projectId !== this.#state.projectId) throw new Error('不能应用其他项目的文件回执');
+    const overwritten = new Set(overwrittenPaths);
+    const files: Record<string, string | Uint8Array> = { ...snapshot.files };
+    for (const [path, value] of Object.entries(this.#state.files)) {
+      if (!overwritten.has(path) && !equalFile(value, this.#saved[path])) files[path] = value;
+    }
+    this.#saved = snapshot.files;
+    const tabs = this.#state.tabs.filter(path => Object.hasOwn(files, path));
+    const activePath =
+      this.#state.activePath && Object.hasOwn(files, this.#state.activePath) ?
+        this.#state.activePath
+      : (tabs.at(-1) ?? null);
+    this.#update({
+      revision: snapshot.revision,
+      files,
+      tabs,
+      activePath,
+      dirty: !equalFiles(files, snapshot.files),
+      busy,
+      error: null
+    });
+  }
+
+  async #publishSaved(
+    compile: (snapshot: WorkbenchSnapshot) => Promise<WorkbenchCompilation>,
+    generation: number,
+    runId: number
+  ): Promise<void> {
+    const projectId = this.#project();
+    const revision = this.#state.revision;
+    if (!revision) throw new Error('项目尚未保存');
+    const release = this.#beginWork(generation);
+    this.#update({ error: null });
+    try {
+      const result = await compile({ projectId, revision, files: { ...this.#saved } });
+      if (!this.#current(generation) || runId !== this.#runId) return;
+      this.#update({ preview: { ...result, projectId, revision, runId } });
+    } catch (cause) {
+      if (this.#current(generation) && runId === this.#runId) this.#update({ error: errorMessage(cause) });
+      throw cause;
+    } finally {
+      release();
+    }
+  }
+
+  async #performSave(paths?: readonly string[]): Promise<void> {
+    const projectId = this.#project();
+    const revision = this.#state.revision;
+    if (!this.#state.dirty || !revision) return;
+    if (paths && !paths.some(path => this.isModified(path))) return;
+    const files: Record<string, string | Uint8Array> = paths ? { ...this.#saved } : { ...this.#state.files };
+    for (const path of paths ?? []) {
+      if (!Object.hasOwn(this.#state.files, path)) throw new Error(`文件不存在：${path}`);
+      files[path] = this.#state.files[path];
+    }
+    const generation = this.#generation;
+    const release = this.#beginWork(generation);
+    this.#update({ error: null });
+    try {
+      const result = await this.backend.save(projectId, files, revision);
+      if (!this.#current(generation)) return;
+      this.#saved = result.files;
+      this.#update({ revision: result.revision, dirty: !equalFiles(this.#state.files, result.files) });
+    } catch (cause) {
+      if (this.#current(generation)) this.#update({ error: errorMessage(cause) });
+      throw cause;
+    } finally {
+      release();
+    }
+  }
+
+  async #performExternalSave(
+    projectId: string,
+    generation: number,
+    changes: WorkbenchFiles,
+    removedPaths: readonly string[]
+  ): Promise<void> {
+    if (!this.#current(generation) || this.#state.projectId !== projectId) return;
+    const revision = this.#state.revision;
+    if (!revision) throw new Error('项目尚未保存');
+    const release = this.#beginWork(generation);
+    this.#update({ error: null });
+    try {
+      this.#assertExternalPaths(changes, removedPaths);
+      const snapshot = await this.backend.save(projectId, changes, revision, removedPaths);
+      if (!this.#current(generation)) return;
+      this.#runId++;
+      this.#mergeSavedSnapshot(snapshot, []);
+    } catch (cause) {
+      if (this.#current(generation)) this.#update({ error: errorMessage(cause) });
+      throw cause;
+    } finally {
+      release();
+    }
+  }
+
+  #assertExternalPaths(changes: WorkbenchFiles, removedPaths: readonly string[]): void {
+    const paths = new Set(Object.keys(this.#saved));
+    for (const path of removedPaths) paths.delete(path);
+    for (const path of Object.keys(changes)) paths.add(path);
+    for (const path of Object.keys(this.#state.files)) {
+      if (this.isModified(path)) paths.add(path);
+    }
+    try {
+      assertNoPathCollisions([...paths]);
+    } catch (cause) {
+      throw new GitWorkbenchError(
+        'path_collision',
+        `终端文件与未保存草稿存在路径冲突，请先保存或丢弃草稿后重试：${errorMessage(cause)}`,
+        { cause }
+      );
+    }
+  }
+
+  async #transition(operation: () => Promise<WorkbenchSnapshot>): Promise<void> {
+    this.#assertClean();
+    const generation = ++this.#generation;
+    this.#runId++;
+    this.#savePending = null;
+    const release = this.#beginWork(generation);
+    this.#update({ error: null });
+    try {
+      const snapshot = await operation();
+      if (!this.#current(generation)) return;
+      if (this.#state.dirty) throw new Error('操作期间内容发生变化，请先保存或显式丢弃编辑缓冲');
+      this.#replace(snapshot);
+    } catch (cause) {
+      if (this.#current(generation)) this.#update({ error: errorMessage(cause) });
+      throw cause;
+    } finally {
+      release();
+    }
+  }
+
+  #beginWork(generation: number): () => void {
+    const token = Symbol();
+    this.#pendingWork.set(token, generation);
+    this.#update({ busy: true });
+    return () => {
+      this.#pendingWork.delete(token);
+      if (this.#current(generation)) this.#update({ busy: [...this.#pendingWork.values()].includes(generation) });
+    };
+  }
+
+  #project(): string {
+    this.#assertOpen();
+    if (!this.#state.projectId) throw new Error('请先打开项目');
+    return this.#state.projectId;
+  }
+
+  #assertOpen(): void {
+    if (this.#closed) throw new Error('工作台已关闭');
+  }
+
+  #assertClean(): void {
+    this.#assertOpen();
+    if (this.#state.dirty) throw new Error('存在未保存内容，请先保存或显式丢弃');
+  }
+
+  #current(generation: number): boolean {
+    return !this.#closed && generation === this.#generation;
+  }
+
+  #replace(snapshot: WorkbenchSnapshot): void {
+    this.#saved = snapshot.files;
+    const activePath =
+      Object.keys(snapshot.files).find(path => /^(src\/)?(main|App)\./.test(path)) ??
+      Object.keys(snapshot.files)[0] ??
+      null;
+    this.#update({
+      ...snapshot,
+      activePath,
+      tabs: activePath ? [activePath] : [],
+      previewTabs: [],
+      dirty: false,
+      error: null,
+      preview: null
+    });
+  }
+
+  #update(update: Partial<WorkbenchState>): void {
+    const next = { ...this.#state, ...update };
+    this.#state = {
+      ...next,
+      previewTabs: next.previewTabs.filter(
+        path => next.tabs.includes(path) && equalFile(next.files[path], this.#saved[path])
+      )
+    };
+    this.#listeners.forEach(listener => listener(this.#state));
+  }
+}

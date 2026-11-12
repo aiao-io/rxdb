@@ -1,0 +1,122 @@
+{
+  "browser": "156.0.8078.80",
+  "cells": [
+    {
+      "runtime": "vivari",
+      "template": "angular",
+      "round": 1,
+      "loadavg": 7.50048828125,
+      "steps": {
+        "localPreviewMs": 3380,
+        "runToPageMs": 40672,
+        "installStartMs": 242,
+        "serverStartMs": 27567,
+        "installSummary": "Done in 25.8s",
+        "devServerSummary": "bundle generation complete. [5.382 seconds]",
+        "editToUpdateMs": 1650,
+        "stopMs": 35,
+        "rerunToPageMs": 10680,
+        "pageMemoryBytes": 6239190071,
+        "browserRssBytes": 3623665664
+      },
+      "errors": [],
+      "rssBeforeBytes": 429948928,
+      "appLoadBytes": 30764331,
+      "pageMemoryByScope": {
+        "cross-origin-aggregated": 6169948061,
+        "DedicatedWorkerGlobalScope": 32128499,
+        "Window": 28901938
+      },
+      "runDownloadedBytes": 76640247
+    },
+    {
+      "runtime": "vivari",
+      "template": "angular",
+      "round": 2,
+      "loadavg": 9.04833984375,
+      "steps": {
+        "localPreviewMs": 3951,
+        "runToPageMs": 45312,
+        "installStartMs": 271,
+        "serverStartMs": 30371,
+        "installSummary": "Done in 28.5s",
+        "devServerSummary": "bundle generation complete. [6.527 seconds]",
+        "editToUpdateMs": 1766,
+        "stopMs": 30,
+        "rerunToPageMs": 13096,
+        "pageMemoryBytes": 6235686847,
+        "browserRssBytes": 3684974592
+      },
+      "errors": [],
+      "rssBeforeBytes": 568262656,
+      "appLoadBytes": 30685713,
+      "pageMemoryByScope": {
+        "DedicatedWorkerGlobalScope": 32130430,
+        "cross-origin-aggregated": 6166366245,
+        "Window": 28979497
+      },
+      "runDownloadedBytes": 76642403
+    },
+    {
+      "runtime": "vivari",
+      "template": "angular",
+      "round": 3,
+      "loadavg": 9.41015625,
+      "steps": {
+        "localPreviewMs": 3399,
+        "runToPageMs": 41249,
+        "installStartMs": 249,
+        "serverStartMs": 26877,
+        "installSummary": "Done in 25s",
+        "devServerSummary": "bundle generation complete. [6.044 seconds]",
+        "editToUpdateMs": 1689,
+        "stopMs": 26,
+        "rerunToPageMs": 12815,
+        "pageMemoryBytes": 6235653822,
+        "browserRssBytes": 3934502912
+      },
+      "errors": [],
+      "rssBeforeBytes": 733888512,
+      "appLoadBytes": 30685713,
+      "pageMemoryByScope": {
+        "cross-origin-aggregated": 6166377961,
+        "DedicatedWorkerGlobalScope": 32132538,
+        "Window": 28890178
+      },
+      "runDownloadedBytes": 76640047
+    }
+  ],
+  "environment": {
+    "platform": "darwin",
+    "cpus": 10,
+    "model": "Apple M1 Max"
+  },
+  "finishedAt": "2026-11-07T06:52:42.502Z",
+  "format": "aiao.workbench.runtimes",
+  "repeat": 3,
+  "runtimes": ["vivari"],
+  "startedAt": "2026-11-07T06:49:34.582Z",
+  "summary": [
+    {
+      "runtime": "vivari",
+      "template": "angular",
+      "passed": 3,
+      "total": 3,
+      "localPreviewMs": 3399,
+      "runToPageMs": 41249,
+      "installStartMs": 249,
+      "serverStartMs": 27567,
+      "editToUpdateMs": 1689,
+      "stopMs": 30,
+      "rerunToPageMs": 12815,
+      "pageMemoryBytes": 6235686847,
+      "browserRssBytes": 3684974592,
+      "appLoadBytes": 30685713,
+      "runDownloadedBytes": 76640247,
+      "loadavg": 9.04833984375
+    }
+  ],
+  "templates": ["angular"],
+  "url": "http://localhost:4330/",
+  "version": 1
+}

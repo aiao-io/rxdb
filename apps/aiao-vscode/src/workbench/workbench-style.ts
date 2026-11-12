@@ -1,0 +1,98 @@
+import { terminalViewStyle } from './terminal/terminal-view.style.js';
+import { workbenchExplorerStyle } from './workbench-explorer-style.js';
+import { workbenchProjectDialogStyle } from './workbench-project-dialog-style.js';
+import { workbenchScmStyle } from './workbench-scm-style.js';
+import { workbenchSettingsStyle } from './workbench-settings-style.js';
+
+export const workbenchStyle = `
+${terminalViewStyle}
+.wb-terminal-content{flex:1;min-height:0;min-width:0}.wb-terminal-message{padding:8px 16px;color:#9d9d9d;font-size:12px;white-space:pre-wrap}.wb-terminal-message[hidden]{display:none}.wb-terminal [data-terminal-servers]{display:flex;gap:6px}.wb-terminal [data-terminal-servers] button{color:#75beff}.wb-server-preview{height:100%;width:100%;border:0;background:white}
+.ao-workbench{--wb-bg:#181818;--wb-editor:#1f1f1f;--wb-line:#2b2b2b;--wb-text:#ccc;--wb-muted:#9d9d9d;--wb-blue:#0078d4;--wb-blue-hover:#026ec1;--wb-button-border:#ffffff1a;--wb-hover:#2a2d2e;--wb-list-active:#04395e;--wb-list-inactive:#37373d;--wb-focus:#0078d4;--wb-drop:#383b3d;--wb-toolbar-hover:#5a5d5e50;--wb-guide:#585858;--wb-guide-inactive:#58585866;--wb-badge:#616161;--wb-input:#313131;--wb-input-border:#3c3c3c;--wb-error:#be1100;--wb-menu:#1f1f1f;--wb-menu-border:#454545;--wb-git-modified:#e2c08d;--wb-git-added:#81b88b;--wb-git-untracked:#73c991;--wb-git-deleted:#c74e39;--wb-title-height:36px;display:flex;flex-direction:column;height:100%;min-height:360px;min-width:320px;position:relative;background:var(--wb-bg);color:var(--wb-text);font:13px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-sizing:border-box;overflow:hidden;color-scheme:dark}
+.ao-workbench *{box-sizing:border-box}.ao-workbench [hidden]{display:none!important}.ao-workbench .codicon{flex:none;font-size:16px;line-height:1}.ao-workbench button,.ao-workbench input,.ao-workbench select{font:inherit;color:inherit}.ao-workbench button{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;background:transparent;padding:5px 7px;cursor:pointer;border-radius:3px}.ao-workbench button:hover{background:#ffffff12}.ao-workbench button:focus-visible{outline:1px solid #007fd4;outline-offset:-1px}.ao-workbench button:disabled{opacity:.4;cursor:default}.ao-workbench input,.ao-workbench select{background:#313131;border:1px solid #454545;border-radius:3px;padding:5px 8px;min-width:0}.ao-workbench input:focus{outline:1px solid #007acc}.ao-workbench h2,.ao-workbench h3{font-size:11px;font-weight:500;margin:0;text-transform:uppercase}.ao-workbench pre{white-space:pre-wrap;overflow-wrap:anywhere;margin:0;font:12px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace}.wb-spacer{flex:1}.wb-primary{background:#0078d4!important;color:white!important}
+.wb-title{height:calc(var(--wb-title-height) + env(safe-area-inset-top));padding:env(safe-area-inset-top) max(10px,env(safe-area-inset-right)) 0 max(10px,env(safe-area-inset-left));display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--wb-line);flex:none;position:relative}.wb-brand{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:500;white-space:nowrap}.wb-brand>.codicon{color:#58a6df;font-size:21px}.wb-title-menu{display:flex;gap:16px;font-size:12px;color:#b8b8b8}.wb-command-center{display:flex;align-items:center;gap:8px;position:absolute;left:50%;transform:translateX(-50%);width:min(42%,600px);min-width:0;height:26px;color:#ccc}.wb-navigation{display:flex;gap:2px;flex:none}.wb-navigation button{width:26px;height:26px;padding:0}.wb-command-search{display:flex;align-items:center;flex:1;min-width:0;height:26px;background:#242424;border:1px solid #ffffff26;border-radius:6px;overflow:hidden}.wb-command-search:hover{background:#2a2a2a;border-color:#ffffff40}.ao-workbench .wb-command-search-main{flex:1;min-width:0;height:100%;padding:0 12px;font-size:12px;gap:7px;border-radius:0}.wb-command-search-main [data-slot=workspace-label]{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ao-workbench .wb-workspace{flex:none;width:25px;height:100%;padding:0;border-radius:0;border-left:1px solid #ffffff12}.wb-workspace .codicon{font-size:12px}.ao-workbench .wb-command-search-main:hover{background:transparent}.ao-workbench .wb-workspace:hover,.ao-workbench .wb-navigation button:not(:disabled):hover{background:var(--wb-toolbar-hover)}.wb-title-actions{margin-left:auto;display:flex;align-items:center;gap:2px}.wb-title-actions button{height:26px;min-width:26px;font-size:11px;padding:0 5px;border-radius:4px}.wb-title-actions button:hover,.ao-workbench .wb-menu-button:hover{background:rgba(90,93,94,.31)}.ao-workbench .wb-menu-button{width:32px;height:32px;padding:0;border-radius:4px;flex:none}.wb-title-divider{width:1px;height:16px;margin:0 2px;background:var(--wb-line);flex:none}.wb-run-button .codicon{color:#73c991}.wb-body{display:flex;flex:1;min-height:0}.wb-activity{width:48px;flex:none;background:#181818;border-right:1px solid var(--wb-line);display:flex;flex-direction:column;align-items:stretch;padding-top:2px}.wb-activity button{border-radius:0;height:48px;color:#868686;position:relative}.wb-activity button>.codicon{font-size:24px}.ao-workbench .wb-activity button:hover{background:transparent;color:#d7d7d7}.wb-activity button[aria-pressed=true]{color:#d7d7d7}.wb-activity button[aria-pressed=true]:before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:#0078d4}.wb-account-badge{position:absolute;right:7px;bottom:7px;min-width:15px;height:15px;padding:0 4px;border-radius:8px;background:#0078d4;color:#fff;font:700 9px/15px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-align:center;pointer-events:none}.wb-main{flex:1;min-width:0;min-height:0;position:relative}
+.ao-workbench[data-display-mode=window-controls-overlay]{--wb-title-height:env(titlebar-area-height,36px)}.ao-workbench[data-display-mode=window-controls-overlay] .wb-title{height:env(titlebar-area-height,var(--wb-title-height));min-height:env(titlebar-area-height,var(--wb-title-height));padding-top:0;padding-left:max(10px,env(titlebar-area-x,0px));padding-right:max(10px,calc(100% - env(titlebar-area-x,0px) - env(titlebar-area-width,100%)));app-region:drag;-webkit-app-region:drag}.ao-workbench[data-display-mode=window-controls-overlay] .wb-title button,.ao-workbench[data-display-mode=window-controls-overlay] .wb-title input,.ao-workbench[data-display-mode=window-controls-overlay] .wb-title select{app-region:no-drag;-webkit-app-region:no-drag}
+/* Dockview 8.8.3 的浮层变量自引用无效，改用暗色主题默认层级。 */
+.ao-workbench .dv-render-overlay,.ao-workbench .dv-resize-container{--dv-overlay-z-index:999}
+/* 编辑区没有任何内容时空组只展示欢迎背景（水印），不留一条空标签栏，对齐 VS Code。 */
+.ao-workbench .dv-groupview:has(>.dv-content-container>.wb-welcome)>.dv-tabs-and-actions-container{display:none}
+${workbenchExplorerStyle}
+.ao-workbench .dockview-theme-dark{--dv-background-color:#1f1f1f;--dv-group-view-background-color:#1f1f1f;--dv-tabs-and-actions-container-background-color:#181818;--dv-activegroup-visiblepanel-tab-background-color:#1f1f1f;--dv-activegroup-hiddenpanel-tab-background-color:#181818;--dv-inactivegroup-visiblepanel-tab-background-color:#1f1f1f;--dv-inactivegroup-hiddenpanel-tab-background-color:#181818;--dv-activegroup-visiblepanel-tab-color:#fff;--dv-activegroup-hiddenpanel-tab-color:#9d9d9d;--dv-inactivegroup-visiblepanel-tab-color:#ccc;--dv-inactivegroup-hiddenpanel-tab-color:#9d9d9d;--dv-tab-divider-color:#2b2b2b;--dv-separator-border:#2b2b2b;--dv-active-sash-color:#0078d4;--dv-tab-height:35px;--dv-font-size:12px;--dv-drag-over-background-color:#0078d430;--dv-tabs-and-actions-container-height:35px}
+.wb-dock-group-actions{display:flex;align-items:center;height:100%;gap:2px;padding:0 6px}.wb-dock-group-actions button{padding:3px;width:24px;height:24px;color:#aaa}.wb-dock-tab{position:relative;display:flex;align-items:center;gap:7px;height:100%;min-width:100px;padding:0 8px 0 12px;font-size:12px;white-space:nowrap}.wb-preview-tab .wb-dock-tab-title{font-style:italic}.wb-dock-tab>.codicon{color:#75beff}.wb-dock-tab .wb-dock-tab-title{overflow:hidden;text-overflow:ellipsis;max-width:220px}.wb-dock-tab button{padding:2px;margin-left:7px;width:20px;height:20px;opacity:0}.dv-active-tab .wb-dock-tab button,.wb-dock-tab:hover button,.wb-dock-tab button:focus-visible{opacity:1}.wb-dock-tab .wb-dirty-marker{position:absolute;right:13px;font-size:9px;color:#ccc;pointer-events:none}.ao-workbench .wb-dock-tab-dirty>.wb-dock-tab-close{opacity:0}.ao-workbench .wb-dock-tab-dirty:hover>.wb-dock-tab-close{opacity:1}.wb-dock-tab-dirty:hover>.wb-dirty-marker{opacity:0}.wb-editor-host{height:100%;width:100%;overflow:hidden;background:#1f1f1f}.wb-editor-host .cm-editor{height:100%;background:#1f1f1f;color:#ccc}.ao-workbench .wb-editor-host .cm-editor.cm-focused{outline:none}.wb-editor-host .cm-gutters{background:#1f1f1f;color:#858585}.wb-editor-host .cm-activeLine,.wb-editor-host .cm-activeLineGutter{background:#ffffff05}.wb-editor-host .cm-selectionBackground{background:#264f78!important}.wb-welcome{height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#747474;gap:12px;background:#1f1f1f}.wb-welcome-mark>.codicon{font-size:110px;color:#2b2b2b}.wb-welcome h2{font-size:22px;font-weight:400;color:#666;text-transform:none}.wb-welcome p{margin:8px 0 18px}.wb-welcome>div{display:flex;gap:30px;font-size:12px}.wb-welcome kbd{font:11px ui-monospace,monospace;background:#292929;padding:2px 6px;border:1px solid #414141;border-radius:3px;color:#999}
+/* 底部工具面板对齐 VS Code：标签栏更矮，标签只有小号大写文字，激活项用底部细线标出。 */
+.ao-workbench .wb-tool-group{--dv-tabs-and-actions-container-height:28px}
+.ao-workbench .dv-groupview.wb-tool-group>.dv-tabs-and-actions-container .dv-tabs-container>.dv-tab{padding:0 6px}
+.ao-workbench .dv-groupview.wb-tool-group>.dv-tabs-and-actions-container .dv-tabs-container>.dv-tab.dv-inactive-tab{background:transparent;color:var(--wb-muted)}
+.ao-workbench .dv-groupview.wb-tool-group>.dv-tabs-and-actions-container .dv-tabs-container>.dv-tab.dv-active-tab,.ao-workbench .dv-groupview.wb-tool-group>.dv-tabs-and-actions-container .dv-tabs-container>.dv-tab.dv-inactive-tab:hover{background:transparent;color:var(--wb-text)}
+.ao-workbench .dv-groupview.wb-tool-group .dv-tabs-container .dv-tab::before{display:none}
+.wb-dock-tab.wb-dock-tab-tool{gap:0;min-width:0;padding:0 4px;font-size:11px;text-transform:uppercase;box-shadow:inset 0 -1px 0 transparent}
+.dv-tab.dv-active-tab .wb-dock-tab-tool{box-shadow:inset 0 -1px 0 var(--wb-focus)}
+.wb-preview{height:100%;display:flex;flex-direction:column;background:white;overflow:hidden}.wb-preview-toolbar{height:30px;display:flex;align-items:center;gap:7px;padding:0 8px;background:#1f1f1f;border-bottom:1px solid #2b2b2b;font-size:11px;color:#aaa;flex:none}.wb-preview-toolbar button{padding:3px}.wb-preview-version{margin-left:auto;font:10px ui-monospace,monospace;color:#8c8c8c}.wb-preview-content{flex:1;min-height:0;background:white}.wb-preview-content iframe{width:100%;height:100%;border:0;display:block}.ao-workbench.wb-dragging iframe{pointer-events:none}.wb-panel{height:100%;display:flex;flex-direction:column;background:#181818;overflow:hidden}.wb-panel-toolbar{height:27px;display:flex;align-items:center;gap:8px;padding:0 12px;color:#888;font-size:11px;flex:none}.wb-panel-toolbar button{padding:2px 4px}.wb-panel-content{padding:4px 16px 12px;overflow:auto;flex:1;min-height:0}.wb-log-empty{padding:12px 0;color:#6e6e6e;font-size:12px}.wb-log-problem{display:block;width:100%;padding:2px 6px;text-align:left;font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;border-radius:3px;color:#f48771}.wb-log-problem:hover{background:#ffffff12}.wb-log-error{color:#f48771}.wb-log-warn{color:#cca700}.wb-log-info{color:#75beff}.wb-binary{padding:24px;color:#aaa;font:12px ui-monospace,monospace}
+.wb-status{height:22px;display:flex;align-items:center;gap:12px;padding:0 9px 0 0;background:#181818;border-top:1px solid #2b2b2b;color:#b6b6b6;font-size:11px;flex:none}.wb-status>span,.wb-status button{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}.wb-status button{height:21px;padding:0 4px;font-size:11px;border-radius:0}.wb-status .codicon{font-size:13px}.wb-remote-indicator{height:21px;padding:0 9px;background:#0078d4;color:#fff}.wb-status [data-slot=save-status]{color:#999}.wb-dialog::backdrop{background:#0007}.wb-dialog{border:1px solid #454545;background:#252526;color:#ddd;border-radius:5px;padding:24px;min-width:350px;box-shadow:0 12px 40px #0009}.wb-dialog form{display:grid;gap:14px}.wb-dialog h3{margin:0;font-size:16px}.wb-dialog label{display:grid;gap:7px}.wb-dialog-actions{display:flex;justify-content:flex-end;gap:8px}.wb-dialog select,.wb-dialog input{background:#333;border:1px solid #555;color:#eee;padding:8px}.wb-dialog button{background:#37373d;color:#fff;border:0;padding:8px 15px;border-radius:3px;cursor:pointer}
+${workbenchSettingsStyle}
+${workbenchScmStyle}
+@media(max-width:1200px){.wb-title-menu{display:none}.wb-command-center{width:38%;left:43%}.wb-title-actions button>span:not(.codicon){display:none}.wb-title-actions button{width:27px}}
+.ao-workbench.wb-side-overlay .wb-side{position:absolute;top:var(--wb-title-height);bottom:0;left:0;width:min(85vw,340px);z-index:40;box-shadow:8px 0 24px #0009;transform:translateX(-105%);transition:transform .18s ease}
+.ao-workbench.wb-side-overlay .wb-side.wb-side-open{transform:none}
+.wb-side-scrim{position:absolute;left:0;right:0;top:var(--wb-title-height);bottom:0;background:#000a;opacity:0;pointer-events:none;transition:opacity .18s ease;z-index:35}
+.ao-workbench.wb-side-overlay .wb-side-scrim.wb-side-scrim-open{opacity:1;pointer-events:auto}
+.ao-workbench.wb-side-overlay .wb-side-scrim.wb-side-scrim-open{opacity:1}
+.ao-workbench.wb-side-overlay .wb-title,.ao-workbench.wb-side-overlay .wb-activity{position:relative;z-index:42}
+@media(max-width:900px){.wb-status [data-slot=cursor],.wb-status [data-slot=indent]{display:none}}
+@media(max-width:768px){
+.wb-title{gap:8px;padding-left:max(6px,env(safe-area-inset-left));padding-right:max(6px,env(safe-area-inset-right))}
+.wb-brand span{display:none}
+.wb-command-center{position:static;transform:none;flex:1;width:auto;max-width:240px;height:32px;margin-left:auto}
+.wb-navigation{display:none}
+.wb-command-search{height:30px}
+.ao-workbench .wb-command-search-main{padding:0 6px}
+.ao-workbench .wb-workspace{width:25px}
+.wb-body{flex-direction:column}
+.wb-main{order:1}
+.wb-activity{order:2;width:auto;height:48px;flex-direction:row;align-items:stretch;border-right:none;border-top:1px solid var(--wb-line);padding:0 0 env(safe-area-inset-bottom)}
+.wb-activity .wb-spacer{display:none}
+.wb-activity button{flex:1;height:48px;border-radius:0}
+.wb-activity button[aria-pressed=true]:before{left:0;right:0;top:0;bottom:auto;width:auto;height:2px}
+.wb-status{height:30px;gap:6px;overflow-x:auto;scrollbar-width:none}
+.wb-status::-webkit-scrollbar{display:none}
+.wb-status [data-slot=language],.wb-status [data-slot=encoding]{display:none}
+.wb-status [data-slot=save-status]{overflow:hidden;text-overflow:ellipsis}
+.wb-welcome>div{flex-direction:column;align-items:center;gap:8px}
+.wb-welcome-mark>.codicon{font-size:80px}
+.wb-dialog{min-width:0;width:min(92vw,350px);padding:18px}
+.wb-dock-tab{min-width:80px;padding:0 6px 0 10px}
+.wb-dock-tab .wb-dock-tab-title{max-width:120px}}
+@media(max-width:480px){
+.wb-title{gap:4px}
+.wb-command-center{min-width:64px}
+.wb-title-actions{flex-shrink:0}
+.wb-title-actions [data-action=commands],.wb-title-actions [data-action=reset-layout]{display:none}}
+@media(pointer:coarse){
+.ao-workbench{--wb-title-height:44px}
+.ao-workbench .dockview-theme-dark{--dv-tab-height:40px}
+.wb-title-actions button,.wb-menu-button{width:38px;height:38px}
+.wb-title-actions button>span:not(.codicon){display:none}
+.wb-command-center,.wb-command-search{height:36px}
+.wb-navigation button{width:36px;height:36px}
+.wb-status{height:32px}
+.wb-status button{height:30px}
+.wb-side-actions button{width:36px;height:36px}
+.wb-side-header{height:42px}
+.wb-file{height:34px}
+.ao-workbench .wb-editor-open{height:34px}
+.wb-tree-section-row{height:38px}
+.wb-editor-row{height:34px}
+.wb-editor-row-close{opacity:1;width:26px;height:26px}
+.wb-tree-section-actions{opacity:1}
+.wb-tree-section-actions button{width:26px;height:26px}
+.wb-context-menu button{min-height:42px}
+.wb-empty-view-action{height:40px}
+.wb-empty-view-recent-item{height:38px}
+.wb-dock-tab button{opacity:1;width:26px;height:26px}
+.ao-workbench .wb-tool-group{--dv-tabs-and-actions-container-height:34px}
+.wb-log-problem{padding:8px 6px;min-height:34px}
+.wb-dialog button{padding:10px 16px}
+.wb-panel-toolbar button,.wb-preview-toolbar button{padding:6px}}
+
+.ao-workbench .wb-extensions{font-size:12px;overflow:auto}.ao-workbench .wb-extension-search{display:flex;gap:4px;margin:8px}.ao-workbench .wb-extension-search input{width:0;flex:1;min-width:0;padding:5px 6px;background:var(--wb-input);border:1px solid var(--wb-input-border);outline:none}.ao-workbench .wb-extension-search input:focus{border-color:var(--wb-focus)}.ao-workbench .wb-extension-search button{border:0;background:transparent;cursor:pointer}.ao-workbench .wb-extension-filters{display:flex;gap:4px;flex-wrap:wrap;padding:0 8px 8px}.ao-workbench .wb-extension-filters button{padding:2px 6px;border:1px solid transparent;background:transparent;color:var(--wb-muted);cursor:pointer}.ao-workbench .wb-extension-filters button[aria-pressed="true"]{border-color:var(--wb-focus);color:var(--wb-text)}.ao-workbench .wb-extension-group{padding:5px 12px;margin:0;font-size:11px;background:var(--wb-hover)}.ao-workbench .wb-extension-empty{padding:0 12px;color:var(--wb-muted)}
+.ao-workbench .wb-extension-details{padding:12px;font-size:12px;line-height:1.6;overflow-wrap:anywhere}.ao-workbench .wb-extension-heading{display:flex;align-items:center;gap:8px}.ao-workbench .wb-extension-heading h3{font-size:14px;margin:0}.ao-workbench .wb-extension-heading>.codicon{font-size:28px}.ao-workbench .wb-extension-publisher{color:var(--wb-muted)}.ao-workbench .wb-extension-actions{display:flex;gap:8px;flex-wrap:wrap}.ao-workbench .wb-extension-actions button{padding:4px 10px;background:var(--wb-blue);color:white;border:1px solid var(--wb-button-border);cursor:pointer}.ao-workbench .wb-extension-actions button:hover{background:var(--wb-blue-hover)}.ao-workbench .wb-extension-actions button:disabled{opacity:.5;cursor:default}.ao-workbench [data-extension-error]{color:#f48771;white-space:pre-wrap}
+${workbenchProjectDialogStyle}`;

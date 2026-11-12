@@ -313,6 +313,18 @@
       "path": "./apps/rxdb-admin-template-vue-e2e"
     },
     {
+      "path": "./apps/aiao-vscode"
+    },
+    {
+      "path": "./apps/aiao-vscode-e2e"
+    },
+    {
+      "path": "./apps/dev-rxdb-miniprogram"
+    },
+    {
+      "path": "./website"
+    },
+    {
       "path": "./aiao-desktop/apps/web"
     }
   ]

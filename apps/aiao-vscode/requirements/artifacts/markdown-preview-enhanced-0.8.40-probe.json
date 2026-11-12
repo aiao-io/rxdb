@@ -1,0 +1,51 @@
+{
+  "activationVerified": false,
+  "activePath": "README.md",
+  "artifact": {
+    "name": "markdown-preview-enhanced-0.8.40.vsix",
+    "source": "https://github.com/shd101wyy/vscode-markdown-preview-enhanced/releases/download/0.8.40/markdown-preview-enhanced-0.8.40.vsix",
+    "bytes": 23619315,
+    "sha256": "1d7973cd154b9b90b5361f7e2d611ad9c7da931756b5301188ca084050f43409"
+  },
+  "browserVersion": "156.0.8078.81",
+  "checkedAt": "2026-11-07T03:30:06.415Z",
+  "commandProbe": {
+    "command": "markdown-preview-enhanced.openPreviewToTheSide",
+    "optionCount": 0,
+    "text": "没有匹配的命令"
+  },
+  "consoleErrors": [],
+  "editor": "monaco",
+  "entryProbe": {
+    "status": "entry-load-failed",
+    "message": "Uncaught ReferenceError: module is not defined",
+    "line": 2773,
+    "column": 8087,
+    "eventType": "error",
+    "error": "null",
+    "activationVerified": false,
+    "mode": "bare-worker-without-extension-host",
+    "limitation": "此探针未提供扩展宿主，仅观察原始浏览器入口的加载结果，不代表完成安装或插件激活测试。"
+  },
+  "extension": {
+    "id": "shd101wyy.markdown-preview-enhanced",
+    "version": "0.8.40",
+    "main": "./out/native/extension.js",
+    "browser": "./out/web/extension.js",
+    "engines": {
+      "vscode": "^1.82.0"
+    }
+  },
+  "failedRequests": [],
+  "format": "aiao.vscode-extension-probe",
+  "previewVerified": false,
+  "result": "blocked-before-activation",
+  "url": "http://localhost:4320/?workbench-verify",
+  "version": 1,
+  "workerRequests": [
+    {
+      "url": "http://localhost:4320/__mpe_probe__/extension.js",
+      "status": 200
+    }
+  ]
+}
