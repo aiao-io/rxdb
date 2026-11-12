@@ -55,6 +55,6 @@ story YAML 是状态真相源，`dependsOn` 只表示应用内硬依赖；`capab
 
 ## References
 
-- [应用级需求管理办法](../../../../../requirements/app-template/README.md)
+- [应用级需求与项目治理办法](../../../../../requirements/application-governance.md)
 - [ADMIN-EPIC-001](../../epics/ADMIN-EPIC-001.md)
 - [PR #199](https://github.com/aiao-io/rxdb/pull/199)
