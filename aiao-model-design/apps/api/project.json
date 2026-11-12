@@ -29,6 +29,17 @@
         "command": "wrangler deploy --dry-run --outdir ../../../dist/aiao-model-design/apps/api"
       }
     },
+    "dev": {
+      "executor": "nx:run-commands",
+      "continuous": true,
+      "cache": false,
+      "dependsOn": [{ "projects": ["aiao-model-design"], "target": "dev-config" }],
+      "readyWhen": { "url": "http://127.0.0.1:8788/health" },
+      "options": {
+        "cwd": "aiao-model-design/apps/api",
+        "command": "node scripts/serve-api.mjs --port 8788 --config .wrangler/local-dev/wrangler.json"
+      }
+    },
     "serve": {
       "continuous": true,
       "executor": "nx:run-commands",

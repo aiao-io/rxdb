@@ -1,4 +1,4 @@
-const target = process.env.MODEL_DESIGN_API_URL || 'http://localhost:8788';
+const target = process.env.MODEL_DESIGN_API_URL || 'http://127.0.0.1:8788';
 
 function configure(proxy, options) {
   proxy.on('proxyReq', (outgoing, incoming) => {

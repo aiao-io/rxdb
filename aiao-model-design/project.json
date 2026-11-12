@@ -5,6 +5,98 @@
   "sourceRoot": "aiao-model-design",
   "tags": ["scope:model-design"],
   "targets": {
+    "dev": {
+      "executor": "nx:run-commands",
+      "continuous": true,
+      "cache": false,
+      "dependsOn": [
+        { "projects": ["aiao-model-design-web"], "target": "dev", "waitFor": "ready" },
+        "dev-agent",
+        "dev-supabase"
+      ],
+      "readyWhen": { "url": "http://127.0.0.1:8788/" },
+      "options": {
+        "cwd": "aiao-model-design",
+        "command": "node scripts/dev/open-dashboard.mjs"
+      }
+    },
+    "dev-ports": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-model-design",
+        "command": "node scripts/dev/check-ports.mjs"
+      }
+    },
+    "dev-config": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["dev-ports", "supabase-up"],
+      "options": {
+        "cwd": "aiao-model-design",
+        "command": "node scripts/dev/prepare-dev.mjs"
+      }
+    },
+    "dev-agent": {
+      "executor": "nx:run-commands",
+      "continuous": true,
+      "cache": false,
+      "dependsOn": ["dev-config"],
+      "options": {
+        "cwd": "aiao-model-design",
+        "command": "node scripts/dev/agent-dev.mjs"
+      }
+    },
+    "dev-supabase": {
+      "executor": "nx:run-commands",
+      "continuous": true,
+      "cache": false,
+      "dependsOn": ["supabase-up"],
+      "options": {
+        "cwd": "aiao-model-design",
+        "command": "node scripts/supabase/supabase-local.mjs logs-follow"
+      }
+    },
+    "dev-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-model-design",
+        "command": "node --test 'scripts/dev/*.spec.mjs' 'scripts/supabase/*.spec.mjs'"
+      }
+    },
+    "supabase-up": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-model-design",
+        "command": "node scripts/supabase/supabase-local.mjs up"
+      }
+    },
+    "supabase-down": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-model-design",
+        "command": "node scripts/supabase/supabase-local.mjs down"
+      }
+    },
+    "supabase-status": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-model-design",
+        "command": "node scripts/supabase/supabase-local.mjs status"
+      }
+    },
+    "supabase-logs": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-model-design",
+        "command": "node scripts/supabase/supabase-local.mjs logs"
+      }
+    },
     "requirements-check": {
       "executor": "nx:run-commands",
       "cache": false,
@@ -45,6 +137,8 @@
         "requirements-test",
         "security-test",
         "security-check",
+        "lint",
+        "dev-test",
         {
           "projects": [
             "aiao-model-design-web",

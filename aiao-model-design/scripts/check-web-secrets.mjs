@@ -1,5 +1,6 @@
 // 安全边界门禁：web 的构建产物里不能出现服务端密钥。
-// 查两类：Trigger.dev 与模型供应商密钥的形状；本机环境文件（api 的 .dev.vars、agent 的 .env.agent）里密钥变量的取值。
+// 查两类：Trigger.dev 与模型供应商密钥的形状；本机环境文件（api 的 .dev.vars、agent 的 .env.agent、
+// 本地 Supabase 的 infra/supabase/.env）里密钥变量的取值。
 // 报告只给文件与类型，不回显密钥本身。
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -56,7 +57,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const distDir = path.resolve(product, '../dist/aiao-model-design/apps/web/browser');
   const findings = await findSecrets({
     distDir,
-    envFiles: [path.join(product, 'apps/api/.dev.vars'), path.join(product, 'apps/agent/.env.agent')]
+    envFiles: [
+      path.join(product, 'apps/api/.dev.vars'),
+      path.join(product, 'apps/agent/.env.agent'),
+      path.join(product, 'infra/supabase/.env')
+    ]
   });
   for (const { file, kind } of findings) console.error(`❌ ${file}: ${kind}`);
   if (findings.length) process.exit(1);

@@ -71,9 +71,16 @@
       }
     },
     "dev": {
+      "executor": "@angular/build:dev-server",
       "continuous": true,
-      "executor": "nx:noop",
-      "dependsOn": ["serve", { "projects": ["aiao-model-design-api"], "target": "serve" }]
+      "cache": false,
+      "dependsOn": [{ "projects": ["aiao-model-design-api"], "target": "dev", "waitFor": "ready" }],
+      "readyWhen": { "url": "http://localhost:4400" },
+      "options": {
+        "buildTarget": "aiao-model-design-web:build:development",
+        "port": 4400,
+        "proxyConfig": "aiao-model-design/apps/web/proxy.conf.cjs"
+      }
     },
     "serve": {
       "continuous": true,

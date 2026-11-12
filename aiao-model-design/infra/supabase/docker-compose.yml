@@ -1,0 +1,96 @@
+# 本地开发专用，由 scripts/supabase/supabase-local.mjs 驱动：pnpm nx run aiao-model-design:supabase-up。
+# 只起登录需要的三项：Postgres、GoTrue（Supabase Auth）与 Kong 网关；端口只绑 127.0.0.1。
+# 端口来自已提交的 ports.env，凭据来自首次运行时生成的私有 .env。
+name: aiao-model-design-supabase
+
+services:
+  db:
+    image: supabase/postgres:17.6.1.136
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:${DB_PORT:?缺少 ports.env}:5432'
+    environment:
+      POSTGRES_HOST: /var/run/postgresql
+      PGPORT: 5432
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: postgres
+      PGDATABASE: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?先运行 pnpm nx run aiao-model-design:supabase-up}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?先运行 pnpm nx run aiao-model-design:supabase-up}
+      JWT_EXP: 3600
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - db-config:/etc/postgresql-custom
+      - ./init/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-model-design-roles.sql:ro
+    command: ['postgres', '-c', 'config_file=/etc/postgresql/postgresql.conf', '-c', 'log_min_messages=warning']
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', 'postgres', '-h', 'localhost']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  auth:
+    image: supabase/gotrue:v2.189.0
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: http://127.0.0.1:${API_PORT:?缺少 ports.env}
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/postgres
+      GOTRUE_SITE_URL: http://localhost:4400
+      GOTRUE_URI_ALLOW_LIST: http://localhost:4400/**
+      # 设计器只用已有账号登录；测试账号由 scripts/dev/seed-accounts.mjs 经管理接口创建。
+      GOTRUE_DISABLE_SIGNUP: 'true'
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: 'true'
+      GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: 'false'
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_EXP: 3600
+      GOTRUE_JWT_SECRET: ${JWT_SECRET}
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:9999/health']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  kong:
+    image: kong/kong:3.9.3
+    restart: unless-stopped
+    depends_on:
+      auth:
+        condition: service_healthy
+    ports:
+      - '127.0.0.1:${API_PORT}:8000'
+    environment:
+      KONG_DATABASE: 'off'
+      # 与 Supabase 一样：/auth/v1/ 剥掉前缀转给 GoTrue，请求必须带 anon 或 service role 的 apikey。
+      # 声明式配置随密钥一起作为环境变量传入，密钥变了 compose 会重建容器。
+      # 必须是一行：Kong 把配置落到按行读取的 .kong_env，多行取值只剩第一行。下面各行缩进相同，`>-` 会折成一行。
+      KONG_DECLARATIVE_CONFIG_STRING: >-
+        {"_format_version": "3.0",
+        "consumers": [
+        {"username": "anon", "keyauth_credentials": [{"key": "${ANON_KEY:?先运行 pnpm nx run aiao-model-design:supabase-up}"}]},
+        {"username": "service_role", "keyauth_credentials": [{"key": "${SERVICE_ROLE_KEY:?先运行 pnpm nx run aiao-model-design:supabase-up}"}]}],
+        "services": [{"name": "auth", "url": "http://auth:9999/",
+        "routes": [{"name": "auth", "paths": ["/auth/v1/"], "strip_path": true}],
+        "plugins": [{"name": "key-auth", "config": {"hide_credentials": false}}]}]}
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: key-auth
+      KONG_ADMIN_LISTEN: 'off'
+    healthcheck:
+      test: ['CMD', 'kong', 'health']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  db-data:
+  db-config:
