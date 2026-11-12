@@ -1,8 +1,47 @@
 import { describe, expect, it } from 'vitest';
 
 import { TRASH } from './disk-path';
-import { nodeAt, scanDisk, searchNodes, visibleChildren } from './disk-tree';
+import { FileRow, buildTree, nodeAt, scanDisk, searchNodes, visibleChildren } from './disk-tree';
 import { MemoryDiskStore } from './memory-disk-store';
+
+describe('buildTree', () => {
+  const row = (id: string, parentId: string | null, name: string, folder: boolean, modified: number, size = 0): FileRow => ({
+    id,
+    parentId,
+    name,
+    folder,
+    size,
+    modified: new Date(modified)
+  });
+
+  it('按 parentId 组装，路径由各级名字拼成', () => {
+    const root = buildTree(
+      [row('u', null, 'Users', true, 1_000), row('p', 'u', 'prasenjit', true, 1_000), row('n', 'p', 'a.txt', false, 3_000, 12)],
+      new Date(0)
+    );
+    expect(nodeAt(root, ['Users', 'prasenjit', 'a.txt'])).toMatchObject({
+      kind: 'file',
+      path: ['Users', 'prasenjit', 'a.txt'],
+      bytes: 12,
+      size: '12 bytes',
+      date: new Date(3_000)
+    });
+  });
+
+  it('文件夹日期取自身与子项里最新的一个', () => {
+    const root = buildTree(
+      [row('u', null, 'Users', true, 1_000), row('p', 'u', 'prasenjit', true, 5_000), row('e', 'u', 'Empty', true, 2_000)],
+      new Date(0)
+    );
+    expect(nodeAt(root, ['Users'])?.date).toEqual(new Date(5_000));
+    expect(nodeAt(root, ['Users', 'Empty'])?.date).toEqual(new Date(2_000));
+  });
+
+  it('父节点不存在的行不出现在树里', () => {
+    const root = buildTree([row('x', 'missing', 'orphan.txt', false, 1)], new Date(0));
+    expect(root.children).toEqual([]);
+  });
+});
 
 const bytes = (length: number): Uint8Array => new Uint8Array(length);
 const EMPTY_DATE = new Date(2026, 10, 1, 9, 0);

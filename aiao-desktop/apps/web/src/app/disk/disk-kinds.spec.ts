@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
-import { extensionOf, fileKind, formatSize, isPackageName, isTextName } from './disk-kinds';
+import { extensionOf, fileKind, formatSize, isPackageName, isTextName, mimeTypeOf } from './disk-kinds';
+
+describe('mimeTypeOf', () => {
+  it('按扩展名给出存进 storage 插件的 MIME，认不出的是 octet-stream', () => {
+    expect(mimeTypeOf('night-sky.JPG')).toBe('image/jpeg');
+    expect(mimeTypeOf('Interface Guidelines.pdf')).toBe('application/pdf');
+    expect(mimeTypeOf('todo.md')).toBe('text/markdown');
+    expect(mimeTypeOf('aurora-synth-demo.wav')).toBe('audio/wav');
+    expect(mimeTypeOf('notes')).toBe('text/plain');
+    expect(mimeTypeOf('Xcode_26.xip')).toBe('application/x-xar');
+    expect(mimeTypeOf('data.bin')).toBe('application/octet-stream');
+  });
+});
 
 describe('formatSize', () => {
   it('用 Finder 的十进制单位与写法', () => {

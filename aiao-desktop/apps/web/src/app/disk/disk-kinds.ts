@@ -77,6 +77,43 @@ export const isPackageName = (name: string): boolean => extensionOf(name) === 'a
 
 export const isTextName = (name: string): boolean => TEXT_EXTENSIONS.has(extensionOf(name));
 
+const MIME_TYPES: Readonly<Record<string, string>> = {
+  '': 'text/plain',
+  css: 'text/css',
+  csv: 'text/csv',
+  dmg: 'application/x-apple-diskimage',
+  heic: 'image/heic',
+  html: 'text/html',
+  jpeg: 'image/jpeg',
+  jpg: 'image/jpeg',
+  js: 'text/javascript',
+  json: 'application/json',
+  key: 'application/zip',
+  md: 'text/markdown',
+  mov: 'video/quicktime',
+  mp3: 'audio/mpeg',
+  mp4: 'video/mp4',
+  numbers: 'application/zip',
+  pdf: 'application/pdf',
+  plist: 'application/x-plist',
+  png: 'image/png',
+  py: 'text/x-python',
+  sh: 'text/x-shellscript',
+  swift: 'text/x-swift',
+  ts: 'text/typescript',
+  ttf: 'font/ttf',
+  txt: 'text/plain',
+  wav: 'audio/wav',
+  xip: 'application/x-xar',
+  xml: 'application/xml',
+  yaml: 'application/yaml',
+  yml: 'application/yaml',
+  zip: 'application/zip'
+};
+
+/** 写进 storage 插件的 MIME；认不出的扩展名按二进制处理。 */
+export const mimeTypeOf = (name: string): string => MIME_TYPES[extensionOf(name)] ?? 'application/octet-stream';
+
 const trimmed = (value: number, digits: number): string => String(Number(value.toFixed(digits)));
 
 /** Finder 的大小写法：十进制单位，KB 取整、MB 一位小数、GB 两位小数。 */

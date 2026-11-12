@@ -7,6 +7,8 @@ import { PhotoLoadQueue } from '../apps/photos/photo-loader';
 import { DESKTOP_APP_REGISTRY } from '../apps/registry';
 import { SafariBrowsers } from '../apps/safari/safari-browsers';
 import { DesktopShell } from '../components/desktop-shell';
+import { DesktopData } from '../data/desktop-data';
+import { Preferences } from '../data/preferences';
 import { AppLauncher } from '../services/app-launcher';
 import { CalendarStore } from '../services/calendar-store';
 import { Clock } from '../services/clock';
@@ -38,6 +40,8 @@ const NATIVE_MENU = 'input,textarea,[contenteditable="true"],.tm-body';
   encapsulation: ViewEncapsulation.None,
   providers: [
     { provide: DESKTOP_APPS, useValue: DESKTOP_APP_REGISTRY },
+    DesktopData,
+    Preferences,
     SystemState,
     ThemeService,
     Toast,

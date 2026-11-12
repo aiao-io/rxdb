@@ -2,7 +2,7 @@ import { FOLDER_KIND, fileKind, formatSize, isPackageName } from './disk-kinds';
 import { DiskPath, TRASH, VOLUME_NAME, samePath } from './disk-path';
 import { DiskStore } from './disk-store';
 
-/** 磁盘上的一个条目，Finder、桌面与聚焦搜索都读它。整棵树不可变，磁盘一变就重新扫描。 */
+/** 磁盘上的一个条目，Finder、桌面与聚焦搜索都读它。整棵树不可变，磁盘一变就重新组装。 */
 export interface FsNode {
   readonly name: string;
   /** 卷内路径；Finder 自己生成的虚拟条目（iCloud Drive、网络）为 `null`。 */
@@ -20,86 +20,139 @@ export interface FsNode {
   readonly children?: readonly FsNode[];
 }
 
+/** 组装目录树用的一行：库里的 `DesktopFile`，或单测里从存储后端列出来的条目。 */
+export interface FileRow {
+  readonly id: string;
+  /** 卷根下的条目为 `null`。 */
+  readonly parentId: string | null;
+  readonly name: string;
+  readonly folder: boolean;
+  readonly size: number;
+  /** 文件夹没有记录修改时间时为 `null`。 */
+  readonly modified: Date | null;
+}
+
+/** 防御损坏的数据：父子链成环时最多展开这么多层。 */
+const MAX_DEPTH = 64;
+
 const byName = (a: FsNode, b: FsNode): number => a.name.localeCompare(b.name, undefined, { numeric: true });
 
-const newest = (nodes: readonly FsNode[]): Date | undefined => {
-  const times = nodes.map(node => node.date?.getTime() ?? 0).filter(time => time > 0);
+const newest = (dates: readonly (Date | null | undefined)[]): Date | undefined => {
+  const times = dates.map(date => date?.getTime() ?? 0).filter(time => time > 0);
   return times.length ? new Date(Math.max(...times)) : undefined;
 };
 
-const folderIcon = (path: DiskPath): string => {
-  if (!path.length) return 'f-hd';
-  return samePath(path, TRASH) ? 'app-trash' : FOLDER_KIND.icon;
-};
+const folderIcon = (path: DiskPath): string => (samePath(path, TRASH) ? 'app-trash' : FOLDER_KIND.icon);
 
-async function scanFile(store: DiskStore, path: DiskPath, name: string): Promise<FsNode> {
-  const info = await store.info(path);
-  const { kind, icon } = fileKind(name);
-  return {
-    name,
-    path,
-    kind: 'file',
-    icon,
-    k: kind,
-    date: new Date(info.modified),
-    bytes: info.size,
-    size: formatSize(info.size),
-    hidden: name.startsWith('.')
+const flatten = (node: FsNode): FsNode[] => [node, ...(node.children ?? []).flatMap(flatten)];
+
+class TreeBuilder {
+  private readonly children = new Map<string | null, FileRow[]>();
+
+  constructor(
+    rows: readonly FileRow[],
+    private readonly emptyDate: Date
+  ) {
+    for (const row of rows) {
+      const siblings = this.children.get(row.parentId) ?? [];
+      siblings.push(row);
+      this.children.set(row.parentId, siblings);
+    }
+  }
+
+  root(): FsNode {
+    const children = this.childrenOf(null, []);
+    return {
+      name: VOLUME_NAME,
+      path: [],
+      kind: 'folder',
+      icon: 'f-hd',
+      k: FOLDER_KIND.kind,
+      date: newest(children.map(child => child.date)) ?? this.emptyDate,
+      hidden: false,
+      children
+    };
+  }
+
+  private childrenOf(id: string | null, path: DiskPath): FsNode[] {
+    if (path.length > MAX_DEPTH) return [];
+    return (this.children.get(id) ?? []).map(row => this.node(row, [...path, row.name])).sort(byName);
+  }
+
+  private node(row: FileRow, path: DiskPath): FsNode {
+    if (!row.folder) return this.file(row, path);
+    const children = this.childrenOf(row.id, path);
+    const date = newest([row.modified, ...children.map(child => child.date)]) ?? this.emptyDate;
+    if (isPackageName(row.name)) return this.package(row, path, children, date);
+    return {
+      name: row.name,
+      path,
+      kind: 'folder',
+      icon: folderIcon(path),
+      k: FOLDER_KIND.kind,
+      date,
+      hidden: row.name.startsWith('.'),
+      children
+    };
+  }
+
+  private file(row: FileRow, path: DiskPath): FsNode {
+    const { kind, icon } = fileKind(row.name);
+    return {
+      name: row.name,
+      path,
+      kind: 'file',
+      icon,
+      k: kind,
+      date: row.modified ?? this.emptyDate,
+      bytes: row.size,
+      size: formatSize(row.size),
+      hidden: row.name.startsWith('.')
+    };
+  }
+
+  /** 程序包：按文件显示，大小汇总包内的全部文件。 */
+  private package(row: FileRow, path: DiskPath, contents: readonly FsNode[], date: Date): FsNode {
+    const bytes = contents
+      .flatMap(flatten)
+      .filter(node => node.kind === 'file')
+      .reduce((sum, node) => sum + (node.bytes ?? 0), 0);
+    const { kind, icon } = fileKind(row.name);
+    return {
+      name: row.name,
+      path,
+      kind: 'file',
+      icon,
+      k: kind,
+      date,
+      bytes,
+      size: formatSize(bytes),
+      hidden: row.name.startsWith('.')
+    };
+  }
+}
+
+/** 由扁平的行组装整棵树。`emptyDate` 用于既没有自身时间、也没有子项的文件夹。 */
+export const buildTree = (rows: readonly FileRow[], emptyDate: Date): FsNode => new TreeBuilder(rows, emptyDate).root();
+
+/** 逐层列出存储后端里的条目（单测与内存后端用）。目录没有修改时间，由 `emptyDate` 兜底显示。 */
+export async function scanDisk(store: DiskStore, emptyDate: Date): Promise<FsNode> {
+  const rows: FileRow[] = [];
+  const walk = async (dir: DiskPath, parentId: string | null): Promise<void> => {
+    for (const entry of await store.list(dir)) {
+      const path = [...dir, entry.name];
+      const id = path.join('/');
+      const folder = entry.kind === 'directory';
+      const info = folder ? null : await store.info(path);
+      rows.push({ id, parentId, name: entry.name, folder, size: info?.size ?? 0, modified: info ? new Date(info.modified) : null });
+      if (folder) await walk(path, id);
+    }
   };
+  await walk([], null);
+  return buildTree(rows, emptyDate);
 }
 
-/** 程序包：按文件显示，大小与日期汇总包内的全部文件。 */
-async function scanPackage(store: DiskStore, path: DiskPath, name: string, emptyDate: Date): Promise<FsNode> {
-  const contents = await scanFolder(store, path, name, emptyDate);
-  const files = flatten(contents).filter(node => node.kind === 'file');
-  const bytes = files.reduce((sum, node) => sum + (node.bytes ?? 0), 0);
-  const { kind, icon } = fileKind(name);
-  return {
-    name,
-    path,
-    kind: 'file',
-    icon,
-    k: kind,
-    date: contents.date,
-    bytes,
-    size: formatSize(bytes),
-    hidden: name.startsWith('.')
-  };
-}
-
-async function scanFolder(store: DiskStore, path: DiskPath, name: string, emptyDate: Date): Promise<FsNode> {
-  const entries = await store.list(path);
-  const children = await Promise.all(
-    entries.map(entry => scanEntry(store, [...path, entry.name], entry.kind === 'directory', emptyDate))
-  );
-  children.sort(byName);
-  return {
-    name,
-    path,
-    kind: 'folder',
-    icon: folderIcon(path),
-    k: FOLDER_KIND.kind,
-    date: newest(children) ?? emptyDate,
-    hidden: name.startsWith('.'),
-    children
-  };
-}
-
-function scanEntry(store: DiskStore, path: DiskPath, directory: boolean, emptyDate: Date): Promise<FsNode> {
-  const name = path.at(-1) ?? VOLUME_NAME;
-  if (!directory) return scanFile(store, path, name);
-  return isPackageName(name) ? scanPackage(store, path, name, emptyDate) : scanFolder(store, path, name, emptyDate);
-}
-
-function flatten(node: FsNode): FsNode[] {
-  return [node, ...(node.children ?? []).flatMap(flatten)];
-}
-
-/** 读出整块磁盘。`emptyDate` 是空文件夹的日期：OPFS 不记录目录的修改时间。 */
-export const scanDisk = (store: DiskStore, emptyDate: Date): Promise<FsNode> =>
-  scanFolder(store, [], VOLUME_NAME, emptyDate);
-
-/** 还没扫描完时的空卷。 */
+/** 还没读到库时的空卷。 */
 export const emptyVolume = (): FsNode => ({
   name: VOLUME_NAME,
   path: [],

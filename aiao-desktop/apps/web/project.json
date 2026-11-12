@@ -4,17 +4,23 @@
   "prefix": "app",
   "projectType": "application",
   "sourceRoot": "aiao-desktop/apps/web/src",
-  "tags": ["scope:aiao-desktop", "type:app", "layer:ui", "angular-app"],
+  "tags": [
+    "scope:aiao-desktop",
+    "type:app",
+    "layer:ui",
+    "angular-app"
+  ],
   "targets": {
     "build": {
       "executor": "@angular/build:application",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{options.outputPath}"
+      ],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/aiao-desktop/apps/web",
-        "browser": "aiao-desktop/apps/web/src/main.ts",
-        "tsConfig": "aiao-desktop/apps/web/tsconfig.app.json",
-        "inlineStyleLanguage": "scss",
+        "allowedCommonJsDependencies": [
+          "ms"
+        ],
         "assets": [
           {
             "glob": "**/*",
@@ -24,9 +30,21 @@
             "glob": "**/*",
             "input": "node_modules/@vivari/core/dist/assets",
             "output": "assets"
+          },
+          {
+            "glob": "wa-sqlite*.wasm",
+            "input": "node_modules/@subframe7536/sqlite-wasm/dist",
+            "output": "sqlite-wasm"
           }
         ],
-        "styles": ["aiao-desktop/apps/web/src/styles.scss", "node_modules/@xterm/xterm/css/xterm.css"]
+        "browser": "aiao-desktop/apps/web/src/main.ts",
+        "inlineStyleLanguage": "scss",
+        "outputPath": "dist/aiao-desktop/apps/web",
+        "styles": [
+          "aiao-desktop/apps/web/src/styles.scss",
+          "node_modules/@xterm/xterm/css/xterm.css"
+        ],
+        "tsConfig": "aiao-desktop/apps/web/tsconfig.app.json"
       },
       "configurations": {
         "production": {
@@ -59,6 +77,13 @@
         }
       }
     },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "aiao-desktop/apps/web",
+        "command": "eslint . --max-warnings=0"
+      }
+    },
     "serve": {
       "continuous": true,
       "readyWhen": {
@@ -80,7 +105,9 @@
       },
       "dependsOn": [
         {
-          "projects": ["aiao-desktop"],
+          "projects": [
+            "aiao-desktop"
+          ],
           "target": "dev-ports"
         }
       ],
@@ -91,7 +118,9 @@
     "serve-static": {
       "continuous": true,
       "executor": "nx:run-commands",
-      "dependsOn": ["build"],
+      "dependsOn": [
+        "build"
+      ],
       "options": {
         "command": "node aiao-desktop/apps/web/tools/serve-static.mjs",
         "parallel": false,
@@ -101,19 +130,6 @@
       },
       "readyWhen": {
         "url": "http://127.0.0.1:4411"
-      }
-    },
-    "lint": {
-      "executor": "nx:run-commands",
-      "options": {
-        "cwd": "aiao-desktop/apps/web",
-        "command": "eslint . --max-warnings=0"
-      }
-    },
-    "typecheck": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "tsc -p aiao-desktop/apps/web/tsconfig.app.json --noEmit --pretty false"
       }
     }
   }

@@ -1,6 +1,10 @@
-import { EnvironmentInjector, Service, computed, inject, signal } from '@angular/core';
-import { Subject } from 'rxjs';
+import { DestroyRef, EnvironmentInjector, Service, computed, inject, signal } from '@angular/core';
+import { Subject, auditTime } from 'rxjs';
 
+import { DesktopData, keyIs } from '../data/desktop-data';
+import { Preferences } from '../data/preferences';
+import { SystemPreference } from '../data/system-preference.entity';
+import { DesktopFile } from '../disk/desktop-file.entity';
 import {
   DESKTOP,
   DISK_ROOTS,
@@ -15,9 +19,9 @@ import {
 } from '../disk/disk-path';
 import { buildSeed, writeSeed } from '../disk/disk-seed';
 import { DiskError, DiskStore } from '../disk/disk-store';
-import { FsNode, emptyVolume, nodeAt as findNode, scanDisk, searchNodes } from '../disk/disk-tree';
+import { FileRow, FsNode, buildTree, emptyVolume, nodeAt as findNode, searchNodes } from '../disk/disk-tree';
 import { DiskMarker, DiskSeeder, DiskVolume, eraseVolume, openVolume } from '../disk/disk-volume';
-import { openOpfsVolume } from '../disk/opfs-disk-store';
+import { BLOB_DIR, RxdbDiskStore } from '../disk/rxdb-disk-store';
 import { photoEncoder } from './photo-encoder';
 
 export type { FsNode } from '../disk/disk-tree';
@@ -43,7 +47,7 @@ export const PLACES: Readonly<Record<string, readonly string[] | null>> = {
 /** 用户主目录，桌面启动时 Finder 默认打开这里。 */
 export const HOME_PATH: readonly string[] = finderPathOf(HOME);
 
-/** 「最近使用」的初始内容；之后打开过的文件排到最前面。 */
+/** 「最近使用」的初始内容；之后打开过的文件排到最前面，存在系统偏好里。 */
 const RECENT_SEED: readonly DiskPath[] = [
   [...DESKTOP, 'Projects', 'desktop-web', 'index.html'],
   [...DESKTOP, 'prasenx.txt'],
@@ -51,6 +55,9 @@ const RECENT_SEED: readonly DiskPath[] = [
   [...HOME, 'Downloads', 'render-final.mp4'],
   [...DESKTOP, 'Interface Guidelines.pdf']
 ];
+const RECENTS_KEY = 'finder:recents';
+const DISK_MARKER_KEY = 'seed:disk';
+const DISK_LOCK = 'aiao-desktop-disk';
 
 /** 主目录里 macOS 不允许移走的文件夹。 */
 const HOME_FOLDERS = ['Desktop', 'Documents', 'Downloads', 'Movies', 'Music', 'Pictures', 'Public', '.Trash'];
@@ -64,22 +71,43 @@ const isRequired = (path: DiskPath): boolean =>
 
 const isLocked = (dir: DiskPath): boolean => dir.length === 0 || dir[0] === 'System';
 
+const ALL = { combinator: 'and' as const, rules: [] };
+
+const isPathList = (value: unknown): value is string[][] =>
+  Array.isArray(value) && value.every(path => Array.isArray(path) && path.every(part => typeof part === 'string'));
+
+const isMarker = (value: unknown): value is DiskMarker =>
+  typeof (value as DiskMarker | null)?.version === 'number' && typeof (value as DiskMarker).seededAt === 'number';
+
+const toRow = (file: DesktopFile): FileRow => ({
+  id: file.id,
+  parentId: file.parentId ?? null,
+  name: file.name,
+  folder: file.type === 'folder',
+  size: file.size,
+  modified: file.modifiedAt
+});
+
 const encoder = new TextEncoder();
 
 /** 给界面用的错误文字：磁盘错误自带 Finder 风格的说明。 */
 export const describeDiskError = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
 /**
- * Macintosh HD：OPFS 里的一块真磁盘（`aiao-desktop/disk`）。首次打开时复制内置内容，之后保留所有改动。
- * 读写都经过一条串行队列，写完重新扫描出一棵不可变的索引树，Finder、桌面与聚焦搜索同步地读它。
+ * Macintosh HD：目录树与元数据是本地 SQLite 里的 `DesktopFile` 行，文件体由 storage 插件放在 OPFS。
+ * 首次打开时复制内置内容，之后保留所有改动。写操作经过一条串行队列；界面读的那棵树由活查询组装，
+ * 谁改了文件行（Finder、TextEdit 或终端同步），Finder、桌面与 Dock 都跟着更新。
  */
 @Service({ autoProvided: false })
 export class FileSystem {
+  private readonly data = inject(DesktopData);
+  private readonly preferences = inject(Preferences);
   private readonly injector = inject(EnvironmentInjector);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly rootState = signal<FsNode>(emptyVolume());
   private readonly stateValue = signal<DiskState>('mounting');
   private readonly errorValue = signal<string | null>(null);
-  private readonly recentPaths = signal<readonly DiskPath[]>(RECENT_SEED);
+  private store: RxdbDiskStore | null = null;
   private volume: DiskVolume | null = null;
   private marker: DiskMarker | null = null;
   private queue: Promise<unknown> = Promise.resolve();
@@ -114,7 +142,7 @@ export class FileSystem {
   }
 
   recents(): FsNode[] {
-    return this.recentPaths()
+    return (this.preferences.get(RECENTS_KEY, isPathList) ?? RECENT_SEED)
       .map(path => this.nodeAt(path))
       .filter((node): node is FsNode => node?.kind === 'file');
   }
@@ -128,7 +156,9 @@ export class FileSystem {
   }
 
   noteOpened(path: DiskPath): void {
-    this.recentPaths.update(paths => [path, ...paths.filter(other => !samePath(other, path))].slice(0, 20));
+    const recent = this.preferences.get(RECENTS_KEY, isPathList) ?? RECENT_SEED;
+    const next = [path, ...recent.filter(other => !samePath(other, path))].slice(0, 20);
+    this.preferences.set(RECENTS_KEY, next).catch(() => undefined);
   }
 
   /** 在目录里新建「untitled folder」，重名时追加序号；返回新名字。 */
@@ -139,7 +169,7 @@ export class FileSystem {
       const folder = uniqueName((await store.list(dir)).map(entry => entry.name), 'untitled folder');
       await store.mkdir([...dir, folder]);
       return folder;
-    }, true);
+    });
     this.changes.next([[...dir, name]]);
     return name;
   }
@@ -155,7 +185,7 @@ export class FileSystem {
       const to = [...TRASH, uniqueName((await store.list(TRASH)).map(entry => entry.name), name)];
       await store.move(path, to);
       return to;
-    }, true);
+    });
     this.changes.next([path, target]);
   }
 
@@ -164,12 +194,12 @@ export class FileSystem {
       const entries = (await store.kindOf(TRASH)) === 'directory' ? await store.list(TRASH) : [];
       for (const entry of entries) await store.remove([...TRASH, entry.name]);
       return entries.map(entry => [...TRASH, entry.name]);
-    }, true);
+    });
     this.changes.next(removed);
   }
 
   read(path: DiskPath): Promise<Uint8Array> {
-    return this.exclusive(store => store.read(path), false);
+    return this.exclusive(store => store.read(path));
   }
 
   async readText(path: DiskPath): Promise<string> {
@@ -177,7 +207,7 @@ export class FileSystem {
   }
 
   async writeText(path: DiskPath, text: string): Promise<void> {
-    await this.exclusive(store => store.write(path, encoder.encode(text)), true);
+    await this.exclusive(store => store.write(path, encoder.encode(text)));
     this.changes.next([path]);
   }
 
@@ -185,26 +215,85 @@ export class FileSystem {
   async erase(): Promise<void> {
     await this.exclusive(async () => {
       this.marker = await eraseVolume(this.mountedVolume(), this.seeder(), Date.now);
-    }, true);
+    });
     this.changes.next(DISK_ROOTS.map(root => [root]));
   }
 
-  /** 给终端的虚拟机同步用：在同一条队列里读写；`changed` 为真时之后重新扫描（不再通知虚拟机，改动本来就来自它）。 */
-  run<T>(task: (store: DiskStore) => Promise<T>, changed: boolean): Promise<T> {
-    return this.exclusive(task, changed);
+  /** 给终端的虚拟机同步用：在同一条串行队列里直接读写存储后端。 */
+  run<T>(task: (store: DiskStore) => Promise<T>): Promise<T> {
+    return this.exclusive(task);
   }
 
   private async mount(): Promise<void> {
     try {
-      const volume = await openOpfsVolume();
+      const database = await this.data.ready;
+      const store = new RxdbDiskStore({
+        repository: () => this.data.repository(DesktopFile),
+        instantiate: data => this.data.instantiate(DesktopFile, data),
+        storage: () => database.storage,
+        now: Date.now
+      });
+      const volume = this.diskVolume(store);
       this.marker = await openVolume(volume, this.seeder(), Date.now);
+      this.store = store;
       this.volume = volume;
-      await this.rescan();
+      await this.watch();
       this.stateValue.set('ready');
     } catch (error) {
       this.errorValue.set(describeDiskError(error));
       this.stateValue.set('failed');
     }
+  }
+
+  /** 订阅全部文件行，组装成树；同一批写入（复制、删除整个文件夹）合并成一次刷新。首个结果到达时完成。 */
+  private watch(): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      const subscription = DesktopFile.findAll({ where: ALL })
+        .pipe(auditTime(30))
+        .subscribe({
+          next: files => {
+            const emptyDate = new Date(this.marker?.seededAt ?? Date.now());
+            this.rootState.set(buildTree(files.map(toRow), emptyDate));
+            resolve();
+          },
+          error: (error: unknown) => {
+            this.errorValue.set(describeDiskError(error));
+            this.stateValue.set('failed');
+            reject(error);
+          }
+        });
+      this.destroyRef.onDestroy(() => subscription.unsubscribe());
+    });
+  }
+
+  /** 卷的完成标记存在系统偏好表里；抹掉时删光文件行，再清空 storage 插件里的文件体。 */
+  private diskVolume(store: RxdbDiskStore): DiskVolume {
+    const markers = () => this.data.repository(SystemPreference);
+    const markerRow = async (): Promise<SystemPreference | undefined> =>
+      (await (await markers()).find({ where: keyIs(DISK_MARKER_KEY), limit: 1 }))[0];
+    return {
+      store,
+      readMarker: async () => {
+        const value = (await markerRow())?.value;
+        return isMarker(value) ? value : null;
+      },
+      writeMarker: async marker => {
+        const row = await markerRow();
+        const repository = await markers();
+        if (row) await repository.update(row, { value: marker });
+        else await repository.create(this.data.instantiate(SystemPreference, { key: DISK_MARKER_KEY, value: marker }));
+      },
+      clearMarker: async () => {
+        const row = await markerRow();
+        if (row) await (await markers()).remove(row);
+      },
+      wipe: async () => {
+        for (const entry of await store.list([])) await store.remove([entry.name]);
+        await this.data.database.storage.clear(BLOB_DIR);
+        store.invalidate();
+      },
+      exclusive: task => navigator.locks.request(DISK_LOCK, task)
+    };
   }
 
   private seeder(): DiskSeeder {
@@ -217,21 +306,16 @@ export class FileSystem {
     return this.volume;
   }
 
-  private async rescan(): Promise<void> {
-    const emptyDate = new Date(this.marker?.seededAt ?? Date.now());
-    this.rootState.set(await scanDisk(this.mountedVolume().store, emptyDate));
+  private mountedStore(): RxdbDiskStore {
+    if (!this.store) throw new Error(`Macintosh HD is unavailable: ${this.errorValue() ?? 'not mounted'}`);
+    return this.store;
   }
 
-  /** 串行执行一次磁盘任务；`rescan` 为真时任务结束后（无论成败）重新扫描索引。 */
-  private exclusive<T>(task: (store: DiskStore) => Promise<T>, rescan: boolean): Promise<T> {
+  /** 串行执行一次磁盘任务：同一路径上的读写不会交错。 */
+  private exclusive<T>(task: (store: DiskStore) => Promise<T>): Promise<T> {
     const run = this.queue.then(async () => {
       await this.mounted;
-      const store = this.mountedVolume().store;
-      try {
-        return await task(store);
-      } finally {
-        if (rescan) await this.rescan();
-      }
+      return task(this.mountedStore());
     });
     this.queue = run.catch(() => undefined);
     return run;
