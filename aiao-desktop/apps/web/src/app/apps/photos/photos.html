@@ -1,0 +1,244 @@
+<div class="wb">
+  <div class="ph">
+    <div class="sbar" data-drag style="width: 206px">
+      <div class="sb-top"><app-traffic-lights /></div>
+      <div class="grp">
+        <div class="gh">Photos</div>
+        @for (item of libraryViews; track item[0]) {
+          <div
+            class="si"
+            [attr.data-pv]="item[0]"
+            [class.on]="view() === item[0]"
+            (click)="show(item[0])"
+            (keydown.enter)="show(item[0])"
+            tabindex="-1"
+          >
+            <svg class="ico" [appIcon]="item[1]"></svg>
+            <span class="nm">{{ item[0] }}</span>
+          </div>
+        }
+      </div>
+      <div class="grp">
+        <div class="gh">Albums</div>
+        @for (album of albums(); track album) {
+          <div
+            class="si"
+            [attr.data-pv]="album"
+            [class.on]="view() === album"
+            (click)="show(album)"
+            (keydown.enter)="show(album)"
+            tabindex="-1"
+          >
+            <svg class="ico" appIcon="g-folder-g"></svg>
+            <span class="nm">{{ album }}</span>
+          </div>
+        }
+      </div>
+    </div>
+    <div class="ph-main">
+      <div class="tbar" data-drag style="height: 52px">
+        <button
+          class="tbtn"
+          [style.display]="detail() ? null : 'none'"
+          (click)="back()"
+          data-nodrag
+          data-pback
+          title="Back"
+        >
+          <svg appIcon="g-chev-l"></svg>
+        </button>
+        <div class="fx-title" data-ptitle style="position: static; text-align: left">{{ title() }}</div>
+        <div class="grow" style="flex: 1"></div>
+        <div class="seg" [style.display]="detail() ? 'none' : null" data-nodrag data-pseg>
+          @for (item of groups; track item.name) {
+            <button
+              [attr.data-pgroup]="item.name"
+              [class.on]="group() === item.name"
+              [style.width.px]="item.width"
+              (click)="setGroup(item.name)"
+              style="font-size: 11px"
+            >
+              {{ item.name }}
+            </button>
+          }
+        </div>
+        <button
+          class="tbtn"
+          [class.on]="!!current()?.fav"
+          (click)="toggleFavourite()"
+          data-nodrag
+          data-pfav
+          title="Favourite"
+        >
+          <svg appIcon="g-star"></svg>
+        </button>
+        <button
+          class="tbtn"
+          [class.on]="detail() && info()"
+          [style.display]="detail() ? null : 'none'"
+          (click)="toggleInfo()"
+          data-nodrag
+          data-pinfo
+          title="Info"
+        >
+          <svg appIcon="g-info"></svg>
+        </button>
+        <button class="tbtn" #shareButton (click)="share(shareButton)" data-nodrag data-pshare title="Share">
+          <svg appIcon="g-share"></svg>
+        </button>
+        <div class="sfield" data-nodrag style="width: 172px">
+          <span><svg appIcon="g-search"></svg></span>
+          <input
+            #search
+            (input)="find(search.value)"
+            (keydown.enter)="searchWeb()"
+            data-psearch
+            placeholder="Search"
+            spellcheck="false"
+          />
+        </div>
+      </div>
+      <div class="ph-body" data-pbody>
+        @if (detail()) {
+          @if (selected(); as photo) {
+            <div class="ph-det">
+              <div class="stage">
+                <button class="nav l" (click)="step(-1)" data-pnudge="-1" title="Previous">
+                  <svg appIcon="g-chev-l"></svg>
+                </button>
+                <!-- 每换一张照片重建一次 img，新图才会从透明淡入。 -->
+                @for (stage of [photo]; track stage.id) {
+                  <img [alt]="stage.title" [appPhotoSrc]="thumbAt(stage.thumb, 1280)" data-first decoding="async" />
+                }
+                <button class="nav r" (click)="step(1)" data-pnudge="1" title="Next">
+                  <svg appIcon="g-chev-r"></svg>
+                </button>
+              </div>
+              @if (info()) {
+                <aside class="ph-info">
+                  <h4>{{ photo.title }}</h4>
+                  <div class="when">{{ longDate(photo.date) }}</div>
+                  @if (photo.place) {
+                    <div class="row">
+                      <svg appIcon="g-pin"></svg>
+                      <span>{{ photo.place }}</span>
+                    </div>
+                  }
+                  <div class="row">
+                    <svg appIcon="g-camera"></svg>
+                    <span>{{ photo.credit }}</span>
+                  </div>
+                  <div class="row">
+                    <svg appIcon="g-folder-g"></svg>
+                    <span>{{ photo.album }}</span>
+                  </div>
+                  <div class="acts">
+                    <button class="btn" [class.pri]="photo.fav" (click)="toggleFavourite()" data-pfav>
+                      {{ photo.fav ? 'Favourited' : 'Favourite' }}
+                    </button>
+                    <button class="btn" (click)="remove()" data-pdel>Delete</button>
+                  </div>
+                  <p class="lic">A featured picture from Wikimedia Commons, shown with the credit it carries.</p>
+                </aside>
+              }
+              <div class="ph-strip" #strip data-pstripbox>
+                @for (item of list(); track item.id) {
+                  <img
+                    [alt]="item.title"
+                    [appPhotoSrc]="thumbAt(item.thumb, 250)"
+                    [attr.data-pstrip]="item.id"
+                    [class.on]="item.id === photo.id"
+                    (click)="open(item.id)"
+                    (keydown.enter)="open(item.id)"
+                    tabindex="-1"
+                  />
+                }
+              </div>
+              <div class="ph-count">{{ position() }} of {{ list().length }}</div>
+            </div>
+          }
+        } @else if (!list().length && !web()) {
+          <div class="ph-empty">
+            <div class="ico"><svg appIcon="g-gallery"></svg></div>
+            <b>{{ query() ? 'No photos match “' + query() + '”' : 'Nothing here yet' }}</b>
+            @if (query()) {
+              <p>Look on Wikimedia Commons instead — whatever you pick joins your library.</p>
+              <button class="btn pri" [attr.data-pweb]="query()" (click)="searchWeb()">
+                Search the web for “{{ query() }}”
+              </button>
+            }
+          </div>
+        } @else {
+          <div class="ph-scroll scroll">
+            @for (bucket of buckets(); track bucket.key) {
+              @if (bucket.head) {
+                <div class="ph-head">
+                  <b>{{ bucket.head }}</b>
+                  @if (bucket.sub) {
+                    <span>{{ bucket.sub }}</span>
+                  }
+                </div>
+              }
+              <div class="ph-grid" [class.big]="big()" [style.grid-template-columns]="columns()">
+                @for (photo of bucket.items; track photo.id) {
+                  <figure
+                    class="ph-cell"
+                    [attr.data-pi]="photo.id"
+                    [class.on]="photo.id === picked()"
+                    [style.grid-column]="big() && bucket.items.length < 3 ? 'span 2' : null"
+                    [title]="photo.title"
+                    (click)="select(photo.id)"
+                    (dblclick)="open(photo.id)"
+                    (keydown.enter)="select(photo.id)"
+                    tabindex="-1"
+                  >
+                    <img [alt]="photo.title" [appPhotoSrc]="thumbAt(photo.thumb, big() ? 500 : 250)" decoding="async" />
+                    @if (photo.fav) {
+                      <span class="fav"><svg appIcon="g-star"></svg></span>
+                    }
+                  </figure>
+                }
+              </div>
+            }
+            @if (web(); as results) {
+              <div class="ph-head">
+                <b>Wikimedia Commons</b>
+                <span>{{ webHeading() }}</span>
+              </div>
+              @if (results.loading) {
+                <div class="ph-grid" style="grid-template-columns: repeat(auto-fill, minmax(126px, 1fr))">
+                  @for (n of skeletons; track n) {
+                    <div class="ph-cell skel"></div>
+                  }
+                </div>
+              } @else if (results.items.length) {
+                <div class="ph-grid" style="grid-template-columns: repeat(auto-fill, minmax(126px, 1fr))">
+                  @for (item of results.items; track $index) {
+                    <figure
+                      class="ph-cell web"
+                      [attr.data-padd]="$index"
+                      [title]="item.title"
+                      (click)="add($index)"
+                      (keydown.enter)="add($index)"
+                      tabindex="-1"
+                    >
+                      <img [alt]="item.title" [appPhotoSrc]="item.thumb" decoding="async" />
+                      <span class="plus"><svg appIcon="g-plus"></svg></span>
+                    </figure>
+                  }
+                </div>
+              }
+            } @else if (query()) {
+              <div class="ph-more">
+                <button class="btn" [attr.data-pweb]="query()" (click)="searchWeb()">
+                  Search the web for “{{ query() }}”
+                </button>
+              </div>
+            }
+          </div>
+        }
+      </div>
+      <div class="ph-foot" data-pstat>{{ status() }}</div>
+    </div>
+  </div>
+</div>

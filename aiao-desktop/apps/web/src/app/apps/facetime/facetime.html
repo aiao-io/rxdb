@@ -1,0 +1,143 @@
+<div class="wb">
+  <div class="sbar" data-drag style="width: 270px; padding-top: 0">
+    <div class="sb-top"><app-traffic-lights /></div>
+    <div style="padding: 0 10px 10px">
+      <button class="btn pri" #newButton (click)="openNew(newButton)" data-ftnew style="width: 100%; height: 28px">
+        New FaceTime
+      </button>
+    </div>
+    <div data-ftlist style="overflow: auto; padding: 0 8px">
+      @for (call of calls(); track $index; let i = $index) {
+        <div
+          class="si"
+          [attr.data-fti]="i"
+          [class.on]="i === selected()"
+          (click)="select(i)"
+          (keydown.enter)="select(i)"
+          style="height: 46px; align-items: center"
+          tabindex="-1"
+        >
+          <span style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+            <b style="font-size: 13px; font-weight: 600">{{ call.name }}</b>
+            <span [style.color]="call.kind === 'Missed' ? 'var(--red)' : 'var(--txt-2)'" style="font-size: 11px">
+              {{ call.kind }}{{ call.length ? ' · ' + call.length : '' }}
+            </span>
+          </span>
+          <span style="font-size: 10.5px; color: var(--txt-3)">{{ call.when }}</span>
+        </div>
+      }
+    </div>
+  </div>
+  <div class="wmain" style="background: #111114">
+    <div class="tbar" data-drag style="height: 52px; background: transparent; border: 0"></div>
+    <div
+      data-ftstage
+      style="
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #8a8a92;
+        gap: 12px;
+        padding-bottom: 20px;
+      "
+    >
+      @let active = current();
+      @if (live()) {
+        <div
+          [style.background]="
+            camera() ? 'linear-gradient(150deg,#1d4b6e,#0d2436)' : 'linear-gradient(150deg,#3a3a45,#1a1a20)'
+          "
+          style="
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            position: relative;
+            display: grid;
+            place-items: center;
+            font-size: 52px;
+            color: #fff;
+            font-weight: 600;
+          "
+        >
+          @if (camera()) {
+            <svg appIcon="g-display" style="width: 60px; height: 60px; opacity: 0.5" viewBox="0 0 40 40"></svg>
+          } @else {
+            {{ initials() }}
+          }
+        </div>
+        <div style="font-size: 19px; color: #fff; font-weight: 500">{{ active.name }}</div>
+        <div data-fttimer style="font-size: 12.5px; font-variant-numeric: tabular-nums">{{ elapsed() }}</div>
+        <div style="display: flex; gap: 12px; margin-top: 6px">
+          <button
+            class="btn"
+            [style.background]="muted() ? '#fff' : '#2c2c30'"
+            [style.color]="muted() ? '#111' : '#fff'"
+            [title]="muted() ? 'Unmute' : 'Mute'"
+            (click)="toggleMute()"
+            data-ftmute
+            style="box-shadow: none; height: 38px; width: 38px; border-radius: 50%; padding: 0"
+          >
+            <svg [appIcon]="muted() ? 'g-vol-mute' : 'g-vol-hi'"></svg>
+          </button>
+          <button
+            class="btn"
+            (click)="end()"
+            data-ftend
+            style="
+              background: #ff453a;
+              color: #fff;
+              box-shadow: none;
+              height: 38px;
+              padding: 0 20px;
+              border-radius: 19px;
+            "
+          >
+            End
+          </button>
+          <button
+            class="btn"
+            [style.background]="camera() ? '#fff' : '#2c2c30'"
+            [style.color]="camera() ? '#111' : '#fff'"
+            [title]="camera() ? 'Turn Off Video' : 'Turn On Video'"
+            (click)="toggleCamera()"
+            data-ftcam
+            style="box-shadow: none; height: 38px; width: 38px; border-radius: 50%; padding: 0"
+          >
+            <svg appIcon="g-display"></svg>
+          </button>
+        </div>
+      } @else {
+        <div
+          style="
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(150deg, #3a3a45, #1a1a20);
+            display: grid;
+            place-items: center;
+            font-size: 42px;
+            color: #fff;
+            font-weight: 600;
+          "
+        >
+          {{ initials() }}
+        </div>
+        <div style="font-size: 19px; color: #fff; font-weight: 500">{{ active.name }}</div>
+        <div style="font-size: 12.5px">
+          {{ active.kind }}{{ active.length ? ' · ' + active.length : '' }} — {{ active.when }}
+        </div>
+        <button
+          class="btn pri"
+          (click)="start()"
+          data-ftcall
+          style="height: 34px; padding: 0 22px; border-radius: 17px; margin-top: 4px"
+        >
+          <svg appIcon="g-facetime"></svg>
+          <span style="margin-left: 6px">FaceTime</span>
+        </button>
+      }
+    </div>
+  </div>
+</div>

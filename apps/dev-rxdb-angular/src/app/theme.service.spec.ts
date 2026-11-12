@@ -3,8 +3,8 @@ import { Platform } from '@angular/cdk/platform';
 import { DOCUMENT, provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ThemeService } from '@modules/angular';
-import { WUJIE_THEME_EVENT, WUJIE_THEME_REQUEST_EVENT } from '@modules/wujie';
-import { createFakeWujieBus } from '@modules/wujie/testing';
+import { ORBIT_THEME_EVENT, ORBIT_THEME_REQUEST_EVENT } from '@modules/orbit';
+import { createFakeOrbitBus } from '@modules/orbit/testing';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -27,7 +27,7 @@ function createStorage(): Storage {
 }
 
 describe('ThemeService', () => {
-  const originalWujie = window.$wujie;
+  const originalOrbit = window.$orbit;
 
   beforeEach(() => {
     Object.defineProperty(globalThis, 'localStorage', {
@@ -37,7 +37,7 @@ describe('ThemeService', () => {
     });
     localStorage.clear();
     document.documentElement.removeAttribute('data-theme');
-    delete window.$wujie;
+    delete window.$orbit;
     TestBed.configureTestingModule({
       providers: [
         provideZonelessChangeDetection(),
@@ -53,13 +53,13 @@ describe('ThemeService', () => {
     TestBed.resetTestingModule();
     localStorage.clear();
     document.documentElement.removeAttribute('data-theme');
-    if (originalWujie) window.$wujie = originalWujie;
-    else delete window.$wujie;
+    if (originalOrbit) window.$orbit = originalOrbit;
+    else delete window.$orbit;
   });
 
   it('applies the initial host theme without writing localStorage', () => {
-    const bus = createFakeWujieBus();
-    window.$wujie = { bus, props: { theme: 'dark' } };
+    const bus = createFakeOrbitBus();
+    window.$orbit = { bus, props: { theme: 'dark' } };
 
     const service = TestBed.inject(ThemeService);
 
@@ -69,11 +69,11 @@ describe('ThemeService', () => {
   });
 
   it('updates from later host bus events without persisting', () => {
-    const bus = createFakeWujieBus();
-    window.$wujie = { bus, props: { theme: 'light' } };
+    const bus = createFakeOrbitBus();
+    window.$orbit = { bus, props: { theme: 'light' } };
 
     const service = TestBed.inject(ThemeService);
-    bus.$emit(WUJIE_THEME_EVENT, { theme: 'dark' });
+    bus.$emit(ORBIT_THEME_EVENT, { theme: 'dark' });
 
     expect(service.$currentTheme()).toBe('dark');
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
@@ -89,10 +89,10 @@ describe('ThemeService', () => {
   });
 
   it('用户切换主题时把请求推给宿主', () => {
-    const bus = createFakeWujieBus();
+    const bus = createFakeOrbitBus();
     const onRequest = vi.fn();
-    window.$wujie = { bus, props: { theme: 'light' } };
-    bus.$on(WUJIE_THEME_REQUEST_EVENT, onRequest);
+    window.$orbit = { bus, props: { theme: 'light' } };
+    bus.$on(ORBIT_THEME_REQUEST_EVENT, onRequest);
 
     const service = TestBed.inject(ThemeService);
     service.setTheme('dark');
@@ -101,10 +101,10 @@ describe('ThemeService', () => {
   });
 
   it('切到 auto 时推的是解析后的主题', () => {
-    const bus = createFakeWujieBus();
+    const bus = createFakeOrbitBus();
     const onRequest = vi.fn();
-    window.$wujie = { bus, props: { theme: 'dark' } };
-    bus.$on(WUJIE_THEME_REQUEST_EVENT, onRequest);
+    window.$orbit = { bus, props: { theme: 'dark' } };
+    bus.$on(ORBIT_THEME_REQUEST_EVENT, onRequest);
 
     const service = TestBed.inject(ThemeService);
     service.setTheme('auto');
@@ -113,13 +113,13 @@ describe('ThemeService', () => {
   });
 
   it('宿主下发的主题不回推，避免两端互相触发', () => {
-    const bus = createFakeWujieBus();
+    const bus = createFakeOrbitBus();
     const onRequest = vi.fn();
-    window.$wujie = { bus, props: { theme: 'light' } };
-    bus.$on(WUJIE_THEME_REQUEST_EVENT, onRequest);
+    window.$orbit = { bus, props: { theme: 'light' } };
+    bus.$on(ORBIT_THEME_REQUEST_EVENT, onRequest);
 
     TestBed.inject(ThemeService);
-    bus.$emit(WUJIE_THEME_EVENT, { theme: 'dark' });
+    bus.$emit(ORBIT_THEME_EVENT, { theme: 'dark' });
 
     expect(onRequest).not.toHaveBeenCalled();
   });

@@ -1,0 +1,655 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
+    <meta content="no-referrer" name="referrer" />
+    <link href="data:," rel="icon" />
+    <title>Aiao Desktop 开发导航</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        color: #e9edf6;
+        background: #0b1019;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: radial-gradient(ellipse at 80% 0, #1b2747 0, transparent 46%);
+      }
+      main {
+        max-width: 1180px;
+        margin: auto;
+        padding: 32px 32px 48px;
+      }
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+      a:focus-visible,
+      button:focus-visible {
+        outline: 2px solid #a9c4ff;
+        outline-offset: 5px;
+      }
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 650;
+        letter-spacing: -0.3px;
+      }
+      .mark {
+        display: grid;
+        place-items: center;
+        width: 35px;
+        height: 35px;
+        border: 1px solid #5f6f99;
+        border-radius: 10px;
+        color: #bcd0ff;
+        font:
+          600 13px ui-monospace,
+          monospace;
+      }
+      .local {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font:
+          11px ui-monospace,
+          monospace;
+        letter-spacing: 1.5px;
+        color: #9eaac6;
+      }
+      .local::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #a9c4ff;
+      }
+      header {
+        padding: 42px 0 30px;
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 24px;
+      }
+      .eyebrow {
+        margin: 0 0 12px;
+        color: #8d9bbd;
+        font:
+          11px ui-monospace,
+          monospace;
+        letter-spacing: 2px;
+      }
+      h1 {
+        margin: 0 0 12px;
+        font-size: clamp(28px, 4vw, 40px);
+        font-weight: 600;
+        letter-spacing: -1px;
+      }
+      header p {
+        margin: 0;
+        color: #97a5b7;
+        font-size: 14px;
+        line-height: 1.7;
+      }
+      .primary {
+        flex-shrink: 0;
+        background: #bcd0ff;
+        color: #141d33;
+        border-radius: 8px;
+        padding: 12px 18px;
+        font-size: 13px;
+        font-weight: 650;
+      }
+      .primary:hover {
+        background: #d3e0ff;
+      }
+      .section-heading {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        margin: 0 0 14px;
+      }
+      h2 {
+        font-size: 14px;
+        font-weight: 600;
+        margin: 0;
+      }
+      .caption {
+        color: #7f8c9f;
+        font-size: 12px;
+      }
+      .services {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .card {
+        display: flex;
+        flex-direction: column;
+        border: 1px solid #26313e;
+        border-radius: 12px;
+        background: #111923;
+        padding: 19px;
+        transition:
+          border-color 0.15s,
+          transform 0.15s;
+      }
+      .card:hover {
+        border-color: #6c7fae;
+        transform: translateY(-2px);
+      }
+      .card-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+      }
+      .icon {
+        display: grid;
+        place-items: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: #1e2a45;
+        color: #bcd0ff;
+        font:
+          13px ui-monospace,
+          monospace;
+      }
+      .green {
+        background: #22342e;
+        color: #a7efcb;
+      }
+      .amber {
+        background: #3a3021;
+        color: #f3ce8c;
+      }
+      .port {
+        color: #9aa7b7;
+        font:
+          11px ui-monospace,
+          monospace;
+      }
+      h3 {
+        font-size: 15px;
+        margin: 15px 0 8px;
+        font-weight: 600;
+      }
+      .card p {
+        color: #9ca8ba;
+        font-size: 12px;
+        line-height: 1.8;
+        margin: 0 0 12px;
+        flex: 1;
+      }
+      .states {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 14px;
+      }
+      .state {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid #394455;
+        border-radius: 999px;
+        padding: 3px 9px;
+        color: #9baabd;
+        font-size: 11px;
+      }
+      .state[hidden] {
+        display: none;
+      }
+      .state::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #6b778a;
+      }
+      .state[data-state='up'] {
+        border-color: #3f6b58;
+        color: #a7efcb;
+      }
+      .state[data-state='up']::before {
+        background: #a7efcb;
+      }
+      .state[data-state='warn'] {
+        border-color: #6b5732;
+        color: #f3ce8c;
+      }
+      .state[data-state='warn']::before {
+        background: #f3ce8c;
+      }
+      .card-bottom {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding-top: 12px;
+        border-top: 1px solid #26313e;
+        color: #b6c4d4;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 12px;
+        overflow-wrap: anywhere;
+      }
+      .arrow {
+        color: #9fb4e6;
+      }
+      .details-grid {
+        display: grid;
+        grid-template-columns: 1.15fr 1fr;
+        gap: 20px;
+        margin-top: 30px;
+      }
+      .panel {
+        border: 1px solid #26313e;
+        border-radius: 12px;
+        background: #111923;
+        padding: 8px 19px;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 44px;
+        padding: 6px 0;
+      }
+      .row + .row {
+        border-top: 1px solid #1f2935;
+      }
+      .row-label {
+        color: #8998ac;
+        font-size: 12px;
+        width: 84px;
+        flex-shrink: 0;
+      }
+      .row code {
+        flex: 1;
+        color: #d9e1ee;
+      }
+      .row a {
+        flex: 1;
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        color: #d9e1ee;
+      }
+      .row a:hover code {
+        color: #bcd0ff;
+      }
+      button {
+        border: 1px solid #344153;
+        background: #182431;
+        border-radius: 5px;
+        color: #aebfd0;
+        cursor: pointer;
+        padding: 4px 8px;
+        font-size: 11px;
+        flex-shrink: 0;
+      }
+      button:hover {
+        border-color: #7b8fbf;
+        color: #d3e0ff;
+      }
+      .note {
+        margin: 6px 0 10px;
+        color: #8c9aae;
+        font-size: 11px;
+        line-height: 1.8;
+      }
+      .tips {
+        margin: 30px 0 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .tips li {
+        border: 1px solid #26313e;
+        border-radius: 12px;
+        padding: 14px 16px;
+        color: #9ca8ba;
+        font-size: 12px;
+        line-height: 1.8;
+      }
+      .tips strong {
+        display: block;
+        color: #d9e1ee;
+        font-weight: 600;
+        margin-bottom: 4px;
+      }
+      footer {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        border-top: 1px solid #26313e;
+        margin-top: 30px;
+        padding-top: 18px;
+        font-size: 11px;
+        line-height: 1.8;
+        color: #8291a5;
+      }
+      footer p {
+        margin: 0;
+      }
+      #copy-status {
+        color: #bcd0ff;
+      }
+      @media (max-width: 850px) {
+        .services,
+        .tips {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .details-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media (max-width: 520px) {
+        main {
+          padding: 24px 18px;
+        }
+        header {
+          display: block;
+          padding-top: 34px;
+        }
+        .primary {
+          display: inline-block;
+          margin-top: 20px;
+        }
+        .services,
+        .tips {
+          grid-template-columns: 1fr;
+        }
+        .row {
+          flex-wrap: wrap;
+        }
+        .row-label {
+          width: 100%;
+        }
+        .local {
+          font-size: 9px;
+          letter-spacing: 0.6px;
+        }
+        footer {
+          display: block;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .card {
+          transition: none;
+        }
+        .card:hover {
+          transform: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="topbar">
+        <div class="brand">
+          <span class="mark">AD</span>
+          Aiao Desktop
+        </div>
+        <span class="local">LOCAL DEVELOPMENT</span>
+      </div>
+      <header>
+        <div>
+          <p class="eyebrow">DEVELOPER WORKSPACE / 本地开发</p>
+          <h1>开始开发，一页直达。</h1>
+          <p>服务入口、调试参数、常用命令与文档都在这里。所有服务使用固定端口，在终端按 Ctrl-C 一起停止。</p>
+        </div>
+        <a class="primary" href="{{ WEB_URL }}" rel="noreferrer" target="_blank">
+          打开桌面
+          <span aria-hidden="true">↗</span>
+        </a>
+      </header>
+
+      <section aria-labelledby="services-title">
+        <div class="section-heading">
+          <h2 id="services-title">服务导航</h2>
+          <span class="caption">03 个入口 · 状态每 3 秒刷新</span>
+        </div>
+        <div class="services">
+          <a class="card" href="{{ WEB_URL }}" rel="noreferrer" target="_blank">
+            <div class="card-top">
+              <span class="icon" aria-hidden="true">D</span>
+              <span class="port">:{{ WEB_PORT }}</span>
+            </div>
+            <h3>Web · 桌面</h3>
+            <p>Angular 开发服务器，改代码自动刷新。带跨源隔离响应头，终端里的 Vivari 才能启动。</p>
+            <div class="states">
+              <span class="state" data-down="未响应" data-status="web">检测中</span>
+              <span class="state" data-isolation="web" hidden></span>
+            </div>
+            <div class="card-bottom">
+              <code>{{ WEB_ADDRESS }}</code>
+              <span class="arrow" aria-hidden="true">↗</span>
+            </div>
+          </a>
+          <a class="card" href="{{ WEB_NOBOOT_URL }}" rel="noreferrer" target="_blank">
+            <div class="card-top">
+              <span class="icon green" aria-hidden="true">»</span>
+              <span class="port">?boot=0</span>
+            </div>
+            <h3>跳过开机动画</h3>
+            <p>
+              直接进入桌面，冒烟测试也用这个参数；地址带
+              <code>#noboot</code>
+              效果相同。状态只在内存中，刷新即回到初始状态。
+            </p>
+            <div class="states">
+              <span class="state" data-down="未响应" data-status="web">检测中</span>
+            </div>
+            <div class="card-bottom">
+              <code>{{ WEB_ADDRESS }}/?boot=0</code>
+              <span class="arrow" aria-hidden="true">↗</span>
+            </div>
+          </a>
+          <a class="card" href="{{ PREVIEW_URL }}" rel="noreferrer" target="_blank">
+            <div class="card-top">
+              <span class="icon amber" aria-hidden="true">P</span>
+              <span class="port">:{{ PREVIEW_PORT }}</span>
+            </div>
+            <h3>正式构建预览</h3>
+            <p>
+              正式构建加本地静态服务器，与冒烟测试看到的产物一致；不随代码热更新。按需用下方「正式构建预览」命令启动。
+            </p>
+            <div class="states">
+              <span class="state" data-down="未启动" data-status="preview">检测中</span>
+              <span class="state" data-isolation="preview" hidden></span>
+            </div>
+            <div class="card-bottom">
+              <code>{{ PREVIEW_ADDRESS }}</code>
+              <span class="arrow" aria-hidden="true">↗</span>
+            </div>
+          </a>
+        </div>
+      </section>
+
+      <div class="details-grid">
+        <section aria-labelledby="commands-title">
+          <div class="section-heading">
+            <h2 id="commands-title">常用命令</h2>
+            <span class="caption">在仓库根执行，先切 Node 26</span>
+          </div>
+          <div class="panel">
+            <div class="row">
+              <span class="row-label">全部门禁</span>
+              <code>pnpm nx run aiao-desktop:verify</code>
+              <button aria-label="复制全部门禁命令" data-copy="pnpm nx run aiao-desktop:verify">复制</button>
+            </div>
+            <div class="row">
+              <span class="row-label">浏览器冒烟</span>
+              <code>pnpm nx run aiao-desktop-e2e:e2e</code>
+              <button aria-label="复制浏览器冒烟命令" data-copy="pnpm nx run aiao-desktop-e2e:e2e">复制</button>
+            </div>
+            <div class="row">
+              <span class="row-label">正式构建预览</span>
+              <code>pnpm nx run aiao-desktop-web:serve-static</code>
+              <button aria-label="复制正式构建预览命令" data-copy="pnpm nx run aiao-desktop-web:serve-static">
+                复制
+              </button>
+            </div>
+            <div class="row">
+              <span class="row-label">需求门禁</span>
+              <code>pnpm nx run aiao-desktop:requirements-check</code>
+              <button aria-label="复制需求门禁命令" data-copy="pnpm nx run aiao-desktop:requirements-check">
+                复制
+              </button>
+            </div>
+            <div class="row">
+              <span class="row-label">普通日志</span>
+              <code>pnpm nx dev aiao-desktop --tui=false</code>
+              <button aria-label="复制普通日志模式命令" data-copy="pnpm nx dev aiao-desktop --tui=false">复制</button>
+            </div>
+            <div class="row">
+              <span class="row-label">不开浏览器</span>
+              <code>AIAO_DEV_OPEN=false pnpm nx dev aiao-desktop</code>
+              <button aria-label="复制不打开浏览器的启动命令" data-copy="AIAO_DEV_OPEN=false pnpm nx dev aiao-desktop">
+                复制
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section aria-labelledby="docs-title">
+          <div class="section-heading">
+            <h2 id="docs-title">文档与源码</h2>
+            <span class="caption">点击在 VS Code 中打开</span>
+          </div>
+          <div class="panel">
+            <div class="row">
+              <span class="row-label">产品说明</span>
+              <a href="{{ EDITOR_ROOT }}aiao-desktop/README.md">
+                <code>aiao-desktop/README.md</code>
+                <span aria-hidden="true">↗</span>
+              </a>
+            </div>
+            <div class="row">
+              <span class="row-label">目录边界</span>
+              <a href="{{ EDITOR_ROOT }}aiao-desktop/AGENTS.md">
+                <code>aiao-desktop/AGENTS.md</code>
+                <span aria-hidden="true">↗</span>
+              </a>
+            </div>
+            <div class="row">
+              <span class="row-label">产品需求</span>
+              <a href="{{ EDITOR_ROOT }}aiao-desktop/requirements/README.md">
+                <code>aiao-desktop/requirements/README.md</code>
+                <span aria-hidden="true">↗</span>
+              </a>
+            </div>
+            <div class="row">
+              <span class="row-label">验收台账</span>
+              <a href="{{ EDITOR_ROOT }}aiao-desktop/requirements/verification-report.md">
+                <code>aiao-desktop/requirements/verification-report.md</code>
+                <span aria-hidden="true">↗</span>
+              </a>
+            </div>
+            <div class="row">
+              <span class="row-label">冒烟脚本</span>
+              <a href="{{ EDITOR_ROOT }}aiao-desktop/apps/e2e/src/smoke.mjs">
+                <code>aiao-desktop/apps/e2e/src/smoke.mjs</code>
+                <span aria-hidden="true">↗</span>
+              </a>
+            </div>
+            <div class="row">
+              <span class="row-label">应用登记表</span>
+              <a href="{{ EDITOR_ROOT }}aiao-desktop/apps/web/src/app/apps/registry.ts">
+                <code>aiao-desktop/apps/web/src/app/apps/registry.ts</code>
+                <span aria-hidden="true">↗</span>
+              </a>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <ul class="tips" aria-label="开发提示">
+        <li>
+          <strong>终端依赖跨源隔离</strong>
+          状态显示「缺少 COOP / COEP」时 Vivari 无法启动；开发服务器与正式构建预览都应返回这两个响应头。
+        </li>
+        <li>
+          <strong>外网内容可以缺失</strong>
+          壁纸、地图瓦片、天气与 Safari 阅读模式来自外网，拿不到时应用照常打开，页面不应报错。
+        </li>
+        <li>
+          <strong>改可见行为要补冒烟</strong>
+          冒烟检查项与需求 ADESK-US-101 的验收标准一一对应，改动时两边一起改。
+        </li>
+      </ul>
+
+      <footer>
+        <p>
+          检出位
+          <code>{{ WORKSPACE }}</code>
+          · 分支
+          <code>{{ BRANCH }}</code>
+        </p>
+        <p>
+          开发导航只监听
+          <code>{{ DASHBOARD_ADDRESS }}</code>
+          ，不进入 web 的构建产物。
+        </p>
+        <p id="copy-status" aria-live="polite" role="status"></p>
+      </footer>
+    </main>
+    <script>
+      document.addEventListener('click', async event => {
+        const button = event.target.closest('button[data-copy]');
+        if (!button) return;
+        const status = document.getElementById('copy-status');
+        try {
+          await navigator.clipboard.writeText(button.dataset.copy);
+          status.textContent = '已复制到剪贴板';
+        } catch {
+          status.textContent = '无法访问剪贴板，请选中文字复制';
+        }
+      });
+
+      async function refresh() {
+        let status;
+        try {
+          status = await (await fetch('/status.json', { cache: 'no-store' })).json();
+        } catch {
+          for (const badge of document.querySelectorAll('[data-status]')) {
+            badge.textContent = '导航已停止';
+            badge.dataset.state = 'down';
+          }
+          return;
+        }
+        for (const [id, service] of Object.entries(status)) {
+          for (const badge of document.querySelectorAll(`[data-status="${id}"]`)) {
+            badge.textContent = service.up ? '运行中' : badge.dataset.down;
+            badge.dataset.state = service.up ? 'up' : 'down';
+          }
+          for (const badge of document.querySelectorAll(`[data-isolation="${id}"]`)) {
+            badge.hidden = !service.up;
+            badge.textContent = service.isolated ? '跨源隔离 ✓' : '缺少 COOP / COEP';
+            badge.dataset.state = service.isolated ? 'up' : 'warn';
+          }
+        }
+      }
+      refresh();
+      setInterval(refresh, 3000);
+    </script>
+  </body>
+</html>

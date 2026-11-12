@@ -1,0 +1,97 @@
+.sample-page {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+}
+
+.framework-sample {
+  --sample-accent: #225fa8;
+  --sample-surface: #f7f9fc;
+  --sample-ink: #14263c;
+  --sample-field: #ffffff;
+  box-sizing: border-box;
+  min-height: 100dvh;
+  padding: 20px;
+  color: var(--sample-ink);
+  background: var(--sample-surface);
+  font-size: calc(14px * var(--desktop-scale));
+  border-top: 5px solid var(--sample-accent);
+}
+
+.framework-sample[data-accent='violet'] {
+  --sample-accent: #8043b8;
+}
+.framework-sample[data-theme='dark'] {
+  --sample-surface: #152238;
+  --sample-ink: #f4f7fc;
+  --sample-field: #1e304b;
+}
+
+@media (prefers-color-scheme: dark) {
+  .framework-sample[data-theme='system'] [role='alert'] {
+    color: #ffb3bb;
+  }
+  .framework-sample[data-theme='system'] {
+    --sample-surface: #152238;
+    --sample-ink: #f4f7fc;
+    --sample-field: #1e304b;
+  }
+}
+
+.framework-sample h1 {
+  margin: 0 0 16px;
+  font-size: 1.4em;
+}
+.framework-sample label {
+  display: block;
+  margin: 10px 0;
+}
+.framework-sample input,
+.framework-sample textarea,
+.framework-sample button {
+  box-sizing: border-box;
+  font: inherit;
+  color: inherit;
+  background: var(--sample-field);
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  padding: 8px;
+}
+.framework-sample input {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+}
+.framework-sample textarea {
+  width: 100%;
+  min-height: 150px;
+  resize: vertical;
+}
+.framework-sample button {
+  cursor: pointer;
+}
+.framework-sample button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.framework-sample :focus-visible {
+  outline: 3px solid var(--sample-accent);
+  outline-offset: 3px;
+}
+.framework-sample [role='alert'] {
+  color: #a52c35;
+}
+.framework-sample[data-theme='dark'] [role='alert'] {
+  color: #ffb3bb;
+}
+.sample-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+.sample-boundary {
+  line-height: 1.6;
+}
+.sample-route {
+  margin-top: 18px;
+}

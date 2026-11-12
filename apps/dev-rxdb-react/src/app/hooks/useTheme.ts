@@ -1,4 +1,4 @@
-import { getWujieHost, parseResolvedTheme, requestHostTheme, subscribeHostTheme } from '@modules/wujie';
+import { getOrbitHost, parseResolvedTheme, requestHostTheme, subscribeHostTheme } from '@modules/orbit';
 import { useSyncExternalStore } from 'react';
 
 const THEME_KEY = 'theme';
@@ -11,7 +11,7 @@ export function parseThemeValue(value: string | null): ThemeValue {
 }
 
 function readInitialTheme(): ThemeValue {
-  const host = getWujieHost();
+  const host = getOrbitHost();
   if (host?.props && Object.hasOwn(host.props, 'theme')) {
     return parseResolvedTheme(host.props.theme);
   }

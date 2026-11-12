@@ -6,7 +6,7 @@
   themes:
     light --default,
     dark --prefersdark;
-  /* 无界 Shadow DOM 用 :host；独立打开仍要 :root。必须用 :is()，daisyUI 会把 root 当前缀拼接 */
+  /* 原生 iframe 与独立页面均使用 :root；保留 :host 支持直接嵌入 Shadow DOM。daisyUI 的 root 使用 :is() */
   root: ':is(:host, :root)';
 }
 
@@ -77,7 +77,7 @@ app-header,
 
 /* Mobile sidebar overlay
    absolute 锚定 #layout-main（移动端 position:relative 的应用区）而不是视口：
-   无界嵌入（website）里 fixed inset-0 会盖到宿主导航栏上、遮罩也从视口顶起算。 */
+   Orbit嵌入（website）里 fixed inset-0 会盖到宿主导航栏上、遮罩也从视口顶起算。 */
 .sidebar-overlay {
   position: absolute;
   top: 0;
@@ -106,7 +106,7 @@ app-header,
 
   /* 只作用于应用壳的侧栏（#layout-main 的直接子级）：页面内容里的 aside
      （历史侧栏、working-tree 面板等）不受这条移动端覆盖影响。
-     absolute 锚定 #layout-main 应用区而不是视口：无界嵌入里 fixed top:0 会被宿主导航栏压住 */
+     absolute 锚定 #layout-main 应用区而不是视口：Orbit嵌入里 fixed top:0 会被宿主导航栏压住 */
   #layout-main > aside {
     position: absolute !important;
     top: 0;

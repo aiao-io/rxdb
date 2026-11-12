@@ -1,0 +1,38 @@
+<div id="dockwrap">
+  <div
+    class="nosel"
+    id="dock"
+    #dock
+    (contextmenu)="glassMenu($event)"
+    (pointerenter)="hover($event.clientX)"
+    (pointerleave)="leave()"
+    (pointermove)="hover($event.clientX)"
+  >
+    @for (slot of slots; track slot.key) {
+      @if (slot.app; as app) {
+        <div
+          class="di"
+          #slotEl
+          [attr.aria-label]="app.name"
+          [attr.data-app]="app.id"
+          [class.run]="running().has(app.id)"
+          (click)="launcher.activate(app.id)"
+          (contextmenu)="iconMenu($event, app.id)"
+          (keydown.enter)="launcher.activate(app.id)"
+          (pointerdown)="press($event, slot)"
+          role="button"
+          tabindex="-1"
+        >
+          <div class="art">
+            <svg [appIcon]="app.id === 'trash' && fs.trashFull() ? 'app-trash-full' : app.icon"></svg>
+          </div>
+          <span class="dot"></span>
+          <span class="hit"></span>
+        </div>
+      } @else {
+        <div class="divider" #slotEl></div>
+      }
+    }
+    <div id="docktip" #tip></div>
+  </div>
+</div>

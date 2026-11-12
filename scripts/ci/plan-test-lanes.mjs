@@ -142,7 +142,7 @@ export const WEIGHTS = {
   'dev-rxdb-miniprogram': 2,
   'rxdb-plugin-replay-react': 2,
   'rxdb-plugin-replay-vue': 2,
-  wujie: 2,
+  'orbit-protocol': 2,
   'e2e-parity': 1,
   website: 1
 };

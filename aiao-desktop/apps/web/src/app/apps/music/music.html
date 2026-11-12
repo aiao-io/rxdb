@@ -1,0 +1,164 @@
+<div class="wb col">
+  <div class="mu">
+    <div class="mu-top">
+      <div class="sbar" data-drag style="width: 206px">
+        <div class="sb-top"><app-traffic-lights /></div>
+        @for (group of sidebar; track group.head) {
+          <div class="grp">
+            <div class="gh">{{ group.head }}</div>
+            @for (item of group.items; track item[0]) {
+              <div
+                class="si"
+                [attr.data-mv]="item[0]"
+                [class.on]="view() === item[0]"
+                (click)="open(item[0])"
+                (keydown.enter)="open(item[0])"
+                tabindex="-1"
+              >
+                <svg class="ico" [appIcon]="item[1]"></svg>
+                <span class="nm">{{ item[0] }}</span>
+              </div>
+            }
+          </div>
+        }
+      </div>
+      <div class="mu-main">
+        <div class="tbar" data-drag style="height: 52px; border-bottom: 0.5px solid var(--line)">
+          <button
+            class="tbtn"
+            [class.dis]="!canGoBack()"
+            (click)="navigate(-1)"
+            data-mnav="-1"
+            data-nodrag
+            title="Back"
+          >
+            <svg appIcon="g-chev-l"></svg>
+          </button>
+          <button
+            class="tbtn"
+            [class.dis]="!canGoForward()"
+            (click)="navigate(1)"
+            data-mnav="1"
+            data-nodrag
+            title="Forward"
+          >
+            <svg appIcon="g-chev-r"></svg>
+          </button>
+          <div class="grow" style="flex: 1"></div>
+          <div class="sfield" data-nodrag style="width: 180px">
+            <span><svg appIcon="g-search"></svg></span>
+            <input #search (input)="find(search.value)" data-msearch placeholder="Search" />
+          </div>
+        </div>
+        <div class="mu-hd">
+          <h2 data-mtitle>{{ title() }}</h2>
+          <span data-mcount>{{ count() }}</span>
+        </div>
+        <div data-mbody style="flex: 1; display: flex; flex-direction: column; min-height: 0">
+          @if (body() === 'search' && !rows().length) {
+            <div style="flex: 1; display: grid; place-items: center; color: var(--txt-3); font-size: 13px">
+              No results for “{{ query() }}”
+            </div>
+          } @else if (body() === 'search' || body() === 'songs') {
+            <div class="mu-songs scroll">
+              @for (row of rows(); track row.index; let n = $index) {
+                <div
+                  class="mu-song"
+                  [attr.data-si]="row.index"
+                  [class.on]="row.index === index()"
+                  [class.pick]="row.index === picked()"
+                  (click)="picked.set(row.index)"
+                  (dblclick)="play(row.index)"
+                  (keydown.enter)="picked.set(row.index)"
+                  tabindex="-1"
+                >
+                  <span class="n">{{ n + 1 }}</span>
+                  <span class="cv"><app-album-art [index]="row.album" /></span>
+                  <span class="ti">
+                    <b>{{ row.title }}</b>
+                    <span>{{ row.detail }}</span>
+                  </span>
+                  <span class="du">{{ row.time }}</span>
+                </div>
+              }
+            </div>
+          } @else if (body() === 'artists') {
+            <div class="mu-grid scroll">
+              @for (artist of artists; track artist.name) {
+                <div
+                  class="alb"
+                  [attr.data-al]="artist.album"
+                  (click)="playAlbum(artist.album)"
+                  (keydown.enter)="playAlbum(artist.album)"
+                  tabindex="-1"
+                >
+                  <div class="cv" style="border-radius: 50%">
+                    <app-album-art [index]="artist.art" />
+                    <span class="pl"><svg appIcon="g-play"></svg></span>
+                  </div>
+                  <b>{{ artist.name }}</b>
+                  <span>Artist</span>
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="mu-grid scroll">
+              @for (album of albums; track album.title; let n = $index) {
+                <div
+                  class="alb"
+                  [attr.data-al]="n"
+                  [class.on]="song().album === n"
+                  (click)="playAlbum(n)"
+                  (keydown.enter)="playAlbum(n)"
+                  tabindex="-1"
+                >
+                  <div class="cv">
+                    <app-album-art [index]="n" />
+                    <span class="pl"><svg appIcon="g-play"></svg></span>
+                  </div>
+                  <b>{{ album.title }}</b>
+                  <span>{{ album.artist }} · {{ album.year }}</span>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+    <div class="mu-bar">
+      <div class="ctl">
+        <button (click)="skip(-1)" data-c="prev"><svg appIcon="g-bwd"></svg></button>
+        <button class="big" (click)="toggle()" data-c="play">
+          <svg [appIcon]="playing() ? 'g-pause' : 'g-play'"></svg>
+        </button>
+        <button (click)="skip(1)" data-c="next"><svg appIcon="g-fwd"></svg></button>
+      </div>
+      <div class="cv" data-npcv><app-album-art [index]="song().album" /></div>
+      <div class="meta">
+        <b data-npt>{{ song().title }}</b>
+        <span data-npa>{{ detail() }}</span>
+      </div>
+      <div class="prog">
+        <span class="t" data-cur>{{ elapsed() }}</span>
+        <app-slider
+          class="plain"
+          [value]="seekValue()"
+          (release)="seekTo($event)"
+          (valueChange)="scrub($event)"
+          data-slider="seek"
+        />
+        <span class="t r" data-dur>{{ remaining() }}</span>
+      </div>
+      <div class="vol">
+        <svg appIcon="g-vol-lo"></svg>
+        <app-slider [value]="system.volume()" (valueChange)="system.setVolume($event)" data-slider="mvol" />
+      </div>
+      <button class="tbtn" [class.on]="shuffle()" (click)="shuffle.set(!shuffle())" data-c="shuffle">
+        <svg appIcon="g-shuffle"></svg>
+      </button>
+      <button class="tbtn" [class.on]="repeat()" (click)="repeat.set(!repeat())" data-c="repeat">
+        <svg appIcon="g-repeat"></svg>
+      </button>
+    </div>
+  </div>
+</div>

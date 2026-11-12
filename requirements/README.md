@@ -8,7 +8,9 @@ Aiao Pool 的桌面端、跨网中继、扩展渠道与商业化的产品方向�
 
 本目录维护平台与可复用领域能力。应用级产品需求由各应用或产品组独立管理，使用 `<APP>-US-XXX` 编号，独立统计和验收；通用治理规则见[应用级需求与项目治理办法](application-governance.md)，初始化模板见[应用级需求模板](app-template/README.md)。底层能力通过带作用域的引用关联，不复制故事状态。
 
+- [Web Desktop](../apps/web-desktop/requirements/README.md)（双交互模式桌面、Web 应用与仓内 Orbit 运行内核；独立编号与验收，不计入本目录平台故事统计）。
 - [Admin 应用模板孵化](../apps/rxdb-admin-template-react/requirements/README.md)（`ADMIN-US-*`）：在当前仓库推进应用配置与业务扩展，公共后台框架能力继续由 epic-010 管理。
+- [Aiao Desktop](../aiao-desktop/requirements/README.md)（`ADESK-US-*`）：Angular 实现的 macOS 风格浏览器桌面，产品根目录下由 web 与 e2e 两个 Nx 应用组成；与 Web Desktop 是两个独立产品。
 
 ## 术语
 

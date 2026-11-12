@@ -1,0 +1,111 @@
+<div class="wb">
+  <div class="sbar" data-drag style="width: 270px; padding-top: 0">
+    <div class="sb-top"><app-traffic-lights /></div>
+    <div style="padding: 0 10px 8px">
+      <div class="sfield" data-nodrag>
+        <span><svg appIcon="g-search"></svg></span>
+        <input placeholder="Search" />
+      </div>
+    </div>
+    <div style="overflow: auto; padding: 0 8px">
+      @for (ticker of tickers; track ticker.s; let i = $index) {
+        <div
+          class="si"
+          [attr.data-ti]="i"
+          [class.on]="i === selected()"
+          (click)="selected.set(i)"
+          (keydown.enter)="selected.set(i)"
+          style="height: 52px; align-items: center"
+          tabindex="-1"
+        >
+          <span style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+            <b style="font-size: 14px; font-weight: 650; letter-spacing: -0.01em">{{ ticker.s }}</b>
+            <span
+              style="
+                font-size: 11px;
+                color: var(--txt-2);
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+              "
+            >
+              {{ ticker.n }}
+            </span>
+          </span>
+          <span style="width: 56px; height: 26px; flex: none">
+            <app-sparkline [height]="26" [seed]="i" [up]="ticker.up" [width]="90" />
+          </span>
+          <span style="display: flex; flex-direction: column; align-items: flex-end; width: 74px; flex: none">
+            <b style="font-size: 13px; font-variant-numeric: tabular-nums">{{ ticker.p.toFixed(2) }}</b>
+            <span
+              [style.background]="ticker.up ? '#28c840' : '#ff453a'"
+              style="font-size: 10.5px; font-weight: 600; color: #fff; padding: 1px 5px; border-radius: 4px"
+            >
+              {{ ticker.up ? '+' : '' }}{{ ticker.d.toFixed(2) }}%
+            </span>
+          </span>
+        </div>
+      }
+    </div>
+  </div>
+  <div class="wmain">
+    <div class="tbar" data-drag style="height: 52px">
+      <div class="fx-title" data-stt>{{ current().s }}</div>
+    </div>
+    <div class="scroll" data-stbody style="flex: 1; padding: 18px 22px">
+      @let quote = current();
+      <div style="font-size: 26px; font-weight: 650; letter-spacing: -0.03em">{{ quote.n }}</div>
+      <div style="display: flex; align-items: baseline; gap: 10px; margin-top: 2px">
+        <span style="font-size: 36px; font-weight: 300; letter-spacing: -0.03em; font-variant-numeric: tabular-nums">
+          {{ quote.p.toFixed(2) }}
+        </span>
+        <span [style.color]="quote.up ? '#28c840' : '#ff453a'" style="font-size: 15px; font-weight: 600">
+          {{ quote.up ? '▲' : '▼' }} {{ change() }}%
+        </span>
+      </div>
+      <div style="display: flex; gap: 4px; margin: 16px 0 10px">
+        @for (item of ranges; track item[0]) {
+          <button
+            class="btn"
+            [attr.data-range]="item[0]"
+            [style.background]="item[0] === range() ? 'var(--blue)' : null"
+            [style.color]="item[0] === range() ? '#fff' : null"
+            (click)="range.set(item[0])"
+            style="height: 22px; padding: 0 9px; font-size: 11px"
+          >
+            {{ item[0] }}
+          </button>
+        }
+      </div>
+      <div
+        style="
+          height: 190px;
+          background: var(--win-2);
+          border-radius: 10px;
+          padding: 12px;
+          box-shadow: 0 0 0 0.5px var(--line);
+        "
+      >
+        <app-sparkline [height]="165" [seed]="seed()" [steps]="steps()" [up]="quote.up" [width]="600" />
+      </div>
+      <div
+        style="
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 1px;
+          margin-top: 16px;
+          background: var(--line);
+          border-radius: 10px;
+          overflow: hidden;
+        "
+      >
+        @for (stat of stats(); track stat[0]) {
+          <div style="background: var(--win-2); padding: 9px 12px">
+            <div style="font-size: 10.5px; color: var(--txt-2)">{{ stat[0] }}</div>
+            <div style="font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums">{{ stat[1] }}</div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>

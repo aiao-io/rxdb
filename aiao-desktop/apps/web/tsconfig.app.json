@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "outDir": "../../../dist/out-tsc/aiao-desktop-web/app",
+    "types": []
+  },
+  "exclude": [
+    "src/**/*.spec.ts",
+    "src/**/*.test.ts"
+  ],
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/**/*.ts"
+  ],
+  "references": [
+    {
+      "path": "../../../packages/utils/tsconfig.lib.json"
+    },
+    {
+      "path": "../../../packages/rxdb-plugin-tree/tsconfig.lib.json"
+    },
+    {
+      "path": "../../../packages/rxdb-plugin-storage/tsconfig.lib.json"
+    },
+    {
+      "path": "../../../packages/rxdb-adapter-sqlite-wasm/tsconfig.lib.json"
+    },
+    {
+      "path": "../../../packages/rxdb/tsconfig.lib.json"
+    },
+    {
+      "path": "../../../packages/rxdb-angular/tsconfig.lib.json"
+    }
+  ]
+}

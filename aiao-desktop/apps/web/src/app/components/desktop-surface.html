@@ -1,0 +1,31 @@
+<div id="desktop" #surface (contextmenu)="surfaceMenu($event)" (pointerdown)="pressSurface($event)">
+  <div id="dwidgets">
+    <app-calendar-widget />
+    <app-weather-widget />
+    <app-stocks-widget />
+  </div>
+  <div id="marquee" #marquee></div>
+  @for (item of desktop.items(); track item.id) {
+    @let at = position(item);
+    @let leaving = trashing().has(item.id);
+    <div
+      class="dicon"
+      [attr.data-id]="item.id"
+      [class.drag]="dragging()?.id === item.id"
+      [class.sel]="selected().has(item.id)"
+      [class.settle]="settling() === item.id"
+      [style.left.px]="at.left"
+      [style.opacity]="leaving ? '0' : null"
+      [style.top.px]="at.top"
+      [style.transform]="leaving ? 'scale(.4)' : null"
+      [style.transition]="leaving ? 'transform .22s var(--e-io),opacity .22s ease' : null"
+      (contextmenu)="iconMenu($event, item)"
+      (dblclick)="item.open()"
+      (pointerdown)="grab($event, item)"
+      tabindex="-1"
+    >
+      <div class="art"><svg [appIcon]="item.icon"></svg></div>
+      <div class="lbl">{{ item.name }}</div>
+    </div>
+  }
+</div>

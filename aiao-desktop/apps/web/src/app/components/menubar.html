@@ -1,0 +1,97 @@
+<div
+  class="nosel"
+  id="menubar"
+  [class.opaque]="wm.opaqueMenubar()"
+  (contextmenu)="barMenu($event)"
+  (mousedown)="deadSpace($event)"
+>
+  <div class="mb-left">
+    <div
+      class="mb-item apple"
+      [class.open]="openMenu() === 'apple'"
+      (mousedown)="toggleMenu($event, 'apple')"
+      (mouseenter)="hoverMenu($event, 'apple')"
+      data-menu="apple"
+    >
+      <svg appIcon="g-apple" style="width: 13px; height: 16px"></svg>
+    </div>
+    <div id="mb-titles" style="display: flex; align-items: stretch">
+      @for (title of titles(); track $index) {
+        <div
+          class="mb-item"
+          [attr.data-menu]="$index"
+          [class.app]="$first"
+          [class.open]="openMenu() === '' + $index"
+          (mousedown)="toggleMenu($event, '' + $index)"
+          (mouseenter)="hoverMenu($event, '' + $index)"
+        >
+          {{ title }}
+        </div>
+      }
+    </div>
+  </div>
+  <div class="mb-right">
+    <div id="mb-status">
+      <div
+        class="mb-st"
+        [class.open]="openStatus() === 'bt'"
+        [style.opacity]="system.bluetooth() ? '1' : '.45'"
+        (mousedown)="status($event, 'bt')"
+        data-st="bt"
+        title="Bluetooth"
+      >
+        <svg appIcon="g-bt" style="width: 11px; height: 16px"></svg>
+      </div>
+      <div
+        class="mb-st"
+        [class.open]="openStatus() === 'vol'"
+        (mousedown)="status($event, 'vol')"
+        data-st="vol"
+        title="Sound"
+      >
+        <span id="mb-volico"><svg [appIcon]="volumeIcon()" style="width: 16px; height: 13px"></svg></span>
+      </div>
+      <div
+        class="mb-st"
+        [class.open]="openStatus() === 'batt'"
+        (mousedown)="status($event, 'batt')"
+        data-st="batt"
+        title="Battery"
+      >
+        <span class="batt-pct" id="mb-battpct">{{ system.battery() }}%</span>
+        <span id="mb-batt"><app-battery-icon [charging]="system.charging()" [percent]="system.battery()" /></span>
+      </div>
+      <div
+        class="mb-st"
+        [class.open]="openStatus() === 'wifi'"
+        [style.opacity]="system.wifi() ? '1' : '.45'"
+        (mousedown)="status($event, 'wifi')"
+        data-st="wifi"
+        title="Wi-Fi"
+      >
+        <svg appIcon="g-wifi" style="width: 16px; height: 13px"></svg>
+      </div>
+      <div class="mb-st" (mousedown)="status($event, 'spot')" data-st="spot" title="Spotlight">
+        <svg appIcon="g-spot" style="width: 14px; height: 14px"></svg>
+      </div>
+      <div
+        class="mb-st"
+        [class.open]="openStatus() === 'cc'"
+        (mousedown)="status($event, 'cc')"
+        data-st="cc"
+        title="Control Center"
+      >
+        <svg appIcon="g-cc" style="width: 15px; height: 15px"></svg>
+      </div>
+      <div
+        class="mb-st"
+        id="mb-clock"
+        [class.open]="overlays.notifications() === 'open'"
+        (mousedown)="status($event, 'clock')"
+        data-st="clock"
+      >
+        {{ clockText() }}
+      </div>
+    </div>
+  </div>
+</div>

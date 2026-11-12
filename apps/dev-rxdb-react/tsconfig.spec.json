@@ -26,7 +26,7 @@
   ],
   "references": [
     {
-      "path": "../../modules/wujie/tsconfig.lib.json"
+      "path": "../../modules/orbit/tsconfig.lib.json"
     },
     {
       "path": "../../packages/code-editor-react/tsconfig.lib.json"

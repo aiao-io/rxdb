@@ -1,0 +1,119 @@
+<div class="wb">
+  <div class="sbar" [style.display]="sidebar() ? null : 'none'" data-drag style="width: 196px">
+    <div style="display: flex; align-items: center; height: 38px; padding: 0 10px 0 12px">
+      @if (sidebar()) {
+        <app-traffic-lights />
+      }
+      <div style="flex: 1"></div>
+      <button class="tbtn" (click)="toggleSidebar()" data-nodrag data-sbtoggle title="Hide Folders">
+        <svg appIcon="g-sidebar"></svg>
+      </button>
+    </div>
+    <div class="grp">
+      <div class="gh">iCloud</div>
+      @for (item of folders; track item.name) {
+        <div
+          class="si"
+          [attr.data-folder]="item.name"
+          [class.on]="folder() === item.name"
+          (click)="pickFolder(item.name)"
+          (keydown.enter)="pickFolder(item.name)"
+          tabindex="-1"
+        >
+          <svg class="ico" [appIcon]="item.icon"></svg>
+          <span class="nm">{{ item.name }}</span>
+          <span class="tail">{{ item.count }}</span>
+        </div>
+      }
+    </div>
+  </div>
+  <div class="nt">
+    <div class="nt-list">
+      <div class="nt-search" data-drag style="display: flex; gap: 8px; align-items: center; padding-top: 9px">
+        @if (!sidebar()) {
+          <app-traffic-lights />
+        }
+        <div class="sfield" data-nodrag style="flex: 1">
+          <span><svg appIcon="g-search"></svg></span>
+          <input [value]="query()" (input)="search($event)" data-q placeholder="Search" />
+        </div>
+        <button class="tbtn" (click)="create()" data-new2 data-nodrag title="New Note">
+          <svg appIcon="g-compose"></svg>
+        </button>
+      </div>
+      <div class="nt-items scroll" data-items>
+        @for (row of rows(); track row.id) {
+          <div
+            class="nt-i"
+            [attr.data-id]="row.id"
+            [class.on]="row.id === selected()"
+            (click)="pick(row.id)"
+            (contextmenu)="menu($event, row.id)"
+            (keydown.enter)="pick(row.id)"
+            tabindex="-1"
+          >
+            <b>{{ row.title }}</b>
+            <div class="mt">
+              <span>{{ row.when }}</span>
+              <span class="sn">{{ row.snippet }}</span>
+            </div>
+          </div>
+        } @empty {
+          <div style="padding: 22px; text-align: center; color: var(--txt-3); font-size: 12.5px">No notes</div>
+        }
+      </div>
+    </div>
+    <div class="nt-ed">
+      <div class="nt-fmt" data-drag>
+        <div style="flex: 1"></div>
+        @for (item of textFormats; track item.command) {
+          <button
+            class="tbtn"
+            [attr.data-f]="item.command"
+            [class.on]="active().includes(item.command)"
+            [title]="item.title"
+            (click)="format(item.command)"
+            data-nodrag
+          >
+            <svg [appIcon]="item.icon"></svg>
+          </button>
+        }
+        <div class="sep"></div>
+        <button
+          class="tbtn"
+          [class.on]="active().includes('insertUnorderedList')"
+          (click)="format('insertUnorderedList')"
+          data-f="insertUnorderedList"
+          data-nodrag
+          title="Bulleted list"
+        >
+          <svg appIcon="g-bullets"></svg>
+        </button>
+        <button class="tbtn" (click)="checklist()" data-check data-nodrag title="Checklist">
+          <svg appIcon="g-checklist"></svg>
+        </button>
+        <button class="tbtn" (click)="table()" data-nodrag data-table title="Table">
+          <svg appIcon="g-table"></svg>
+        </button>
+        <div class="sep"></div>
+        <button class="tbtn" (click)="create()" data-new data-nodrag title="New note">
+          <svg appIcon="g-plus"></svg>
+        </button>
+        <div style="flex: 1"></div>
+      </div>
+      <div
+        class="nt-doc selectable"
+        #doc
+        (click)="docClick($event)"
+        (focus)="focused()"
+        (input)="saveSoon()"
+        (keydown)="docKey($event)"
+        (keyup)="syncFormats()"
+        (mouseup)="syncFormats()"
+        contenteditable="true"
+        data-doc
+        spellcheck="false"
+      ></div>
+    </div>
+  </div>
+</div>
