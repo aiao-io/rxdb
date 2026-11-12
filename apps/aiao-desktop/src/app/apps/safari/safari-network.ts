@@ -47,6 +47,16 @@ interface WikiSearch {
   readonly query?: { readonly search?: readonly WikiHit[] };
 }
 
+/** 摘掉事件处理属性：清理后的 HTML 会绕过 Angular 的消毒器，不能再带脚本入口。 */
+function stripHandlers(box: Element): void {
+  box.querySelectorAll('*').forEach(node => {
+    node
+      .getAttributeNames()
+      .filter(name => name.startsWith('on'))
+      .forEach(name => node.removeAttribute(name));
+  });
+}
+
 /**
  * 只取导语里的正文：去掉表格、脚注等噪音，站内链接改成 `data-goto` 在本浏览器里导航，
  * 协议相对的图片地址钉成 https。用 DOMParser 解析，图片和脚本在清理完之前都不会动。
@@ -66,6 +76,7 @@ function cleanLead(html: string): string {
     if (src.startsWith('//')) image.setAttribute('src', `https:${src}`);
     image.removeAttribute('srcset');
   });
+  stripHandlers(box);
   return box.innerHTML;
 }
 

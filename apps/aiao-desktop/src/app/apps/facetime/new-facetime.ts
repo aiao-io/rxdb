@@ -52,7 +52,10 @@ export class NewFaceTime {
   readonly dial = input.required<(name: string) => void>();
 
   constructor() {
-    afterNextRender(() => setTimeout(() => this.field().nativeElement.focus(), 50));
+    afterNextRender(() => {
+      const field = this.field().nativeElement;
+      setTimeout(() => field.focus(), 50);
+    });
   }
 
   protected go(name: string): void {

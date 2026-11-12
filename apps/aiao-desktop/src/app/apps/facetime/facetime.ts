@@ -1,4 +1,4 @@
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
@@ -41,7 +41,8 @@ const initialsOf = (name: string): string =>
 export class FaceTimeApp {
   private readonly popover = inject(PopoverService);
   private readonly toast = inject(Toast);
-  private timer: ReturnType<typeof setInterval> | undefined;
+  /** 每次拨出加一，让通话中再拨号也能重置计时器。 */
+  private readonly session = signal(0);
 
   protected readonly calls = signal<readonly Call[]>(CALLS);
   protected readonly selected = signal(0);
@@ -56,24 +57,29 @@ export class FaceTimeApp {
   constructor() {
     const menus = inject(DesktopMenus);
     inject(DesktopWindow).setMenus(computed(() => menus.standard('facetime')));
-    inject(DestroyRef).onDestroy(() => clearInterval(this.timer));
+    /* 计时器只在通话中存在；挂在 effect 上，窗口关闭后再拨号也不会漏掉清理。 */
+    effect(onCleanup => {
+      this.session();
+      if (!this.live()) return;
+      const timer = setInterval(() => this.seconds.update(seconds => seconds + 1), 1000);
+      onCleanup(() => clearInterval(timer));
+    });
   }
 
   /** 点另一条记录会悄悄结束当前通话，不记入通话记录。 */
   protected select(index: number): void {
     this.selected.set(index);
-    this.stop();
+    this.live.set(false);
   }
 
   protected start(): void {
     this.live.set(true);
     this.seconds.set(0);
-    clearInterval(this.timer);
-    this.timer = setInterval(() => this.seconds.update(seconds => seconds + 1), 1000);
+    this.session.update(session => session + 1);
   }
 
   protected end(): void {
-    this.stop();
+    this.live.set(false);
     const length = mmss(this.seconds());
     const selected = this.selected();
     this.calls.update(list =>
@@ -109,10 +115,5 @@ export class FaceTimeApp {
     this.calls.update(list => [{ name, kind: 'Outgoing', length: '', when: 'Just now' }, ...list]);
     this.selected.set(0);
     this.start();
-  }
-
-  private stop(): void {
-    this.live.set(false);
-    clearInterval(this.timer);
   }
 }

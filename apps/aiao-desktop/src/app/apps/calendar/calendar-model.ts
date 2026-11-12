@@ -4,11 +4,15 @@ import { DAYS, MONS, MONS3 } from '../../shared/format';
 /** `[年, 月(0 起), 日]`，和日历存储里的事件日期同形。 */
 export type EventDate = readonly [number, number, number];
 
+/** 日历窗口的四种视图。 */
 export type CalendarView = 'day' | 'week' | 'month' | 'year';
 
-/* 整天都画出来，和 Calendar.app 一样：只画 7 点到 9 点的话，凌晨的航班会被压在格子顶端，
-   好像凌晨不存在。 */
+/**
+ * 时间轴的起止整点：整天都画出来，和 Calendar.app 一样。
+ * 只画 7 点到 9 点的话，凌晨的航班会被压在格子顶端，好像凌晨不存在。
+ */
 export const FIRST_HOUR = 0;
+/** 时间轴画到的最后一个整点。 */
 export const LAST_HOUR = 23;
 /** 时间轴上每个小时行的像素高度。 */
 export const HOUR_ROW = 42;

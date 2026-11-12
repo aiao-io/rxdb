@@ -49,8 +49,8 @@ export class SettingsApp {
   protected readonly groups = SETTINGS_GROUPS;
   protected readonly avatar = `url('${AVATAR}')`;
   protected readonly section = computed(() => findSection(this.selected()));
-  /** 面板重绘的次数：每重绘一次，面板的元素整块重建，只改外观的开关回到初始值。 */
-  protected readonly renders = computed(() => [this.generation()]);
+  /** 面板重绘：编号一变，面板的元素整块重建，只改外观的开关回到初始值。 */
+  protected readonly renders = computed(() => [{ id: this.generation() }]);
 
   constructor() {
     const menus = inject(DesktopMenus);

@@ -217,8 +217,18 @@ export class FinderApp implements FinderCommands {
     const rect = anchor.getBoundingClientRect();
     this.popover.openMenu(
       [
-        { id: 'sb', label: this.sidebar() ? 'Hide Sidebar' : 'Show Sidebar', key: '⌥⌘S', run: () => this.toggleSidebar() },
-        { id: 'pb', label: this.pathbar() ? 'Hide Path Bar' : 'Show Path Bar', key: '⌥⌘P', run: () => this.togglePathBar() },
+        {
+          id: 'sb',
+          label: this.sidebar() ? 'Hide Sidebar' : 'Show Sidebar',
+          key: '⌥⌘S',
+          run: () => this.toggleSidebar()
+        },
+        {
+          id: 'pb',
+          label: this.pathbar() ? 'Hide Path Bar' : 'Show Path Bar',
+          key: '⌥⌘P',
+          run: () => this.togglePathBar()
+        },
         '-',
         { id: 'nf', label: 'New Folder', key: '⇧⌘N', run: () => this.newFolder() }
       ],

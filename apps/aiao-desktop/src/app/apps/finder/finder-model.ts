@@ -71,7 +71,11 @@ export function folderContents(fs: FileSystem, path: readonly string[], query: s
   if (place === 'Recents') return fs.recents();
   if (place === 'AirDrop') return [];
   if (place === 'iCloud Drive') {
-    return [folder('Desktop', []), folder('Documents', []), file('Keynote.key', 'f-app', '18 MB', 'Keynote', new Date(2026, 5, 2, 10, 24))];
+    return [
+      folder('Desktop', []),
+      folder('Documents', []),
+      file('Keynote.key', 'f-app', '18 MB', 'Keynote', new Date(2026, 5, 2, 10, 24))
+    ];
   }
   if (place === 'Network') return [folder('prasen-nas', [], 'f-hd')];
   const node = fs.get(path);

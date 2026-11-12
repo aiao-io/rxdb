@@ -45,7 +45,7 @@
         <h2 data-sttitle>{{ section().name }}</h2>
       </div>
       <div class="st-body" data-stbody>
-        @for (render of renders(); track render) {
+        @for (render of renders(); track render.id) {
           @switch (section().id) {
             @case ('wifi') {
               <app-wifi-pane (rerender)="refresh()" />

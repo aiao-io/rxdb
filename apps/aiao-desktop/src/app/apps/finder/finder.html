@@ -1,5 +1,5 @@
 <div class="wb">
-  <div class="sbar" data-drag data-fsb [style.display]="sidebar() ? '' : 'none'">
+  <div class="sbar" [style.display]="sidebar() ? '' : 'none'" data-drag data-fsb>
     <div class="sb-top"><app-traffic-lights /></div>
     @for (group of sidebarGroups; track group.head) {
       <div class="grp">
@@ -16,8 +16,8 @@
             @if (place[1].startsWith('dot#')) {
               <span
                 class="ico"
-                style="width: 11px; height: 11px; margin: 0 2px; border-radius: 50%"
                 [style.background]="place[1].slice(3)"
+                style="width: 11px; height: 11px; margin: 0 2px; border-radius: 50%"
               ></span>
             } @else {
               <svg class="ico" [appIcon]="place[1]"></svg>
@@ -52,12 +52,14 @@
           <svg appIcon="g-gallery"></svg>
         </button>
       </div>
-      <button class="tbtn" #sortButton (click)="sortMenu(sortButton)" data-sort title="Sort"><svg appIcon="g-sort"></svg></button>
+      <button class="tbtn" #sortButton (click)="sortMenu(sortButton)" data-sort title="Sort">
+        <svg appIcon="g-sort"></svg>
+      </button>
       <button class="tbtn" (click)="share()" data-share title="Share"><svg appIcon="g-share"></svg></button>
       <button class="tbtn" #moreButton (click)="moreMenu(moreButton)" data-more title="More">
         <svg appIcon="g-ellipsis"></svg>
       </button>
-      <div class="sfield" style="width: 150px" data-nodrag>
+      <div class="sfield" data-nodrag style="width: 150px">
         <span><svg appIcon="g-search"></svg></span>
         <input #queryInput [value]="query()" (input)="search(queryInput.value)" data-q placeholder="Search" />
       </div>
@@ -198,7 +200,9 @@
             <div class="stage">
               @if (current) {
                 @if (current.icon === 'f-img') {
-                  <div class="shot big"><app-photo-art [index]="seed(current.name)" [kind]="shotKind(current.name)" /></div>
+                  <div class="shot big">
+                    <app-photo-art [index]="seed(current.name)" [kind]="shotKind(current.name)" />
+                  </div>
                 } @else {
                   <div class="art"><svg [appIcon]="current.icon"></svg></div>
                 }
@@ -209,10 +213,11 @@
             @if (current) {
               <div class="cap">
                 <b>{{ current.name }}</b>
-                <span
-                  >{{ current.k || (current.kind === 'folder' ? 'Folder' : 'Document')
-                  }}{{ current.size ? ' · ' + current.size : '' }}{{ current.date ? ' · ' + finderDate(current.date) : '' }}</span
-                >
+                <span>
+                  {{ current.k || (current.kind === 'folder' ? 'Folder' : 'Document')
+                  }}{{ current.size ? ' · ' + current.size : ''
+                  }}{{ current.date ? ' · ' + finderDate(current.date) : '' }}
+                </span>
               </div>
             }
             <div class="strip">
@@ -243,7 +248,8 @@
           <svg appIcon="g-chev-r" style="width: 11px; height: 11px"></svg>
         }
         <span class="seg" [attr.data-i]="i" (click)="jump(i)" (keydown.enter)="jump(i)" tabindex="-1">
-          <svg [appIcon]="i === 0 ? 'g-hd' : 'g-folder-g'" style="width: 11px; height: 11px"></svg>{{ segment }}
+          <svg [appIcon]="i === 0 ? 'g-hd' : 'g-folder-g'" style="width: 11px; height: 11px"></svg>
+          {{ segment }}
         </span>
       }
       @if (pathTail(); as tail) {

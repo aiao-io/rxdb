@@ -13,8 +13,8 @@ export interface Photo {
   readonly fav: boolean;
 }
 
-/*
- * 图库是真实照片：维基共享资源的特色图片，带着它们本来的标题、地点、日期和摄影师。
+/**
+ * 图库的初始照片：真实的维基共享资源特色图片，带着它们本来的标题、地点、日期和摄影师。
  * 缩略图地址是 500px 版本，共享资源能按宽度渲染，所以格子按需要的尺寸去取。
  */
 export const PHOTO_SEED: readonly Photo[] = [

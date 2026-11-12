@@ -15,8 +15,10 @@ export interface Process {
 
 type Metric = 'cpu' | 'mem' | 'energy' | 'disk' | 'net';
 
+/** 活动监视器的五个标签页。 */
 export type ActivityTab = 'CPU' | 'Memory' | 'Energy' | 'Disk' | 'Network';
 
+/** 标签页的显示顺序。 */
 export const ACTIVITY_TABS: readonly ActivityTab[] = ['CPU', 'Memory', 'Energy', 'Disk', 'Network'];
 
 /** 每个标签页：列头、排序键、色调，以及单元格、热点、圆环与图例的算法。 */
@@ -33,7 +35,8 @@ export interface TabSpec {
   legend(rows: readonly Process[], battery: number): readonly (readonly [string, string])[];
 }
 
-const p = (
+/** 按列顺序写进程，省得每行都重复字段名。 */
+const proc = (
   name: string,
   pid: number,
   cpu: number,
@@ -45,19 +48,20 @@ const p = (
   net: number
 ): Process => ({ name, pid, cpu, threads, mem, user, energy, disk, net });
 
+/** 进程基线读数；刷新时在它上面叠加随机抖动。 */
 export const PROCESSES: readonly Process[] = [
-  p('WindowServer', 214, 9.4, 24, 412.6, 'root', 8.2, 0.4, 12),
-  p('kernel_task', 0, 6.1, 512, 1864, 'root', 3.1, 2.8, 6),
-  p('Safari', 1841, 4.2, 31, 996.4, 'prasenjit', 21.4, 1.2, 486),
-  p('Cursor Helper (Renderer)', 2290, 3.8, 42, 1240, 'prasenjit', 16.8, 0.9, 74),
-  p('Terminal', 2461, 1.2, 8, 84.2, 'prasenjit', 1.1, 0.1, 0),
-  p('Music', 1902, 0.9, 26, 288.1, 'prasenjit', 4.6, 0.6, 128),
-  p('Finder', 620, 0.4, 12, 142.8, 'prasenjit', 0.8, 0.2, 2),
-  p('Dock', 618, 0.3, 9, 96.4, 'prasenjit', 0.6, 0, 0),
-  p('mds_stores', 340, 0.2, 7, 58.9, 'root', 0.4, 3.4, 0),
-  p('bluetoothd', 188, 0.1, 5, 18.2, 'root', 0.2, 0, 1),
-  p('loginwindow', 174, 0, 4, 22.6, 'prasenjit', 0.1, 0, 0),
-  p('cfprefsd', 121, 0, 3, 9.4, 'root', 0.1, 0.1, 0)
+  proc('WindowServer', 214, 9.4, 24, 412.6, 'root', 8.2, 0.4, 12),
+  proc('kernel_task', 0, 6.1, 512, 1864, 'root', 3.1, 2.8, 6),
+  proc('Safari', 1841, 4.2, 31, 996.4, 'prasenjit', 21.4, 1.2, 486),
+  proc('Cursor Helper (Renderer)', 2290, 3.8, 42, 1240, 'prasenjit', 16.8, 0.9, 74),
+  proc('Terminal', 2461, 1.2, 8, 84.2, 'prasenjit', 1.1, 0.1, 0),
+  proc('Music', 1902, 0.9, 26, 288.1, 'prasenjit', 4.6, 0.6, 128),
+  proc('Finder', 620, 0.4, 12, 142.8, 'prasenjit', 0.8, 0.2, 2),
+  proc('Dock', 618, 0.3, 9, 96.4, 'prasenjit', 0.6, 0, 0),
+  proc('mds_stores', 340, 0.2, 7, 58.9, 'root', 0.4, 3.4, 0),
+  proc('bluetoothd', 188, 0.1, 5, 18.2, 'root', 0.2, 0, 1),
+  proc('loginwindow', 174, 0, 4, 22.6, 'prasenjit', 0.1, 0, 0),
+  proc('cfprefsd', 121, 0, 3, 9.4, 'root', 0.1, 0.1, 0)
 ];
 
 const mb = (value: number): string => (value >= 1024 ? `${(value / 1024).toFixed(2)} GB` : `${value.toFixed(1)} MB`);

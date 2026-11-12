@@ -111,6 +111,7 @@ export class CalendarApp {
   private readonly popover = inject(PopoverService);
   private readonly toast = inject(Toast);
   private readonly injector = inject(Injector);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly frame = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly scroller = viewChild<ElementRef<HTMLElement>>('scroller');
   private readonly days = computed(() =>
@@ -118,6 +119,7 @@ export class CalendarApp {
       weekOf(this.year(), this.month(), this.day())
     : [new Date(this.year(), this.month(), this.day() || 1)]
   );
+  private readonly start = new Date();
   private drag: PointerDrag | null = null;
   private dragAbort: AbortController | null = null;
 
@@ -126,11 +128,11 @@ export class CalendarApp {
   protected readonly letters = LETTERS;
   protected readonly days3 = DAYS3;
   protected readonly hours = HOURS.map(hour => ({ hour, label: hourLabel(hour) }));
-  protected readonly row = HOUR_ROW;
+  protected readonly rowHeight = HOUR_ROW;
   protected readonly view = signal<CalendarView>('month');
-  protected readonly year = signal(new Date().getFullYear());
-  protected readonly month = signal(new Date().getMonth());
-  protected readonly day = signal(new Date().getDate());
+  protected readonly year = signal(this.start.getFullYear());
+  protected readonly month = signal(this.start.getMonth());
+  protected readonly day = signal(this.start.getDate());
   /** 点过的格子；样式上没有区别，只是和原版一样留个标记。 */
   protected readonly picked = signal<string | null>(null);
   protected readonly dragging = signal<number | null>(null);
@@ -226,7 +228,7 @@ export class CalendarApp {
         })
       )
     );
-    inject(DestroyRef).onDestroy(() => this.stopDrag());
+    this.destroyRef.onDestroy(() => this.stopDrag());
   }
 
   /** 箭头按当前视图的跨度翻页。 */
@@ -311,11 +313,12 @@ export class CalendarApp {
     addEventListener('pointerup', (up: PointerEvent) => this.dragEnd(up), { signal });
   }
 
+  /** 原版每次重绘都会把时间轴滚回起始小时；这里等新的 DOM 渲染出来再对齐。 */
   private render(): void {
     afterNextRender(() => this.scrollToHour(), { injector: this.injector });
   }
 
-  /** 打开在工作日：今天按时钟跟随，但不早于 7 点、不晚于 16 点，免得凌晨来访停在一片空白里。 */
+  /** 时间轴默认停在 7 点；看今天时跟着时钟走（当前时刻前两小时，夹在 7 点到 16 点之间），半夜来访也不会落在一片空白里。 */
   private scrollToHour(): void {
     const scroller = this.scroller()?.nativeElement;
     if (!scroller) return;
@@ -369,6 +372,8 @@ export class CalendarApp {
   }
 
   private afterEdit(saved: EventDate | null): void {
+    /* 编辑器是全局弹出层，不随窗口一起关闭；窗口已经没了就只保存事件，不再动视图。 */
+    if (this.destroyRef.destroyed) return;
     if (saved) {
       this.year.set(saved[0]);
       this.month.set(saved[1]);

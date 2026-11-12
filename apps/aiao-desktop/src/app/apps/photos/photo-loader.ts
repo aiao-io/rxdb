@@ -17,7 +17,7 @@ const MAX_RETRIES = 3;
 
 /** 排队中的一张图：轮到它时开始下载。 */
 export interface QueuedImage {
-  readonly element: Element;
+  readonly element: HTMLImageElement;
   /** 已经有结果（成功或彻底失败）的图不再进队。 */
   readonly settled: boolean;
   begin(): void;
@@ -27,7 +27,7 @@ export interface QueuedImage {
  * 缩略图下载队列。四十张格子同时向维基共享资源要缩略图，换来的是一墙 429，Chromium
  * 再把它们统统拦掉，格子全是灰的。所以一次只下几张，只下接近视口的，被拒绝的请求稍后重试。
  */
-@Service()
+@Service({ autoProvided: false })
 export class PhotoLoadQueue {
   private readonly line: QueuedImage[] = [];
   private readonly watching = new Map<Element, QueuedImage>();
@@ -90,6 +90,7 @@ export class PhotoLoadQueue {
 /**
  * `<img [appPhotoSrc]="url">`：地址交给下载队列，轮到才设 `src`。加载成功加 `in`（淡入），
  * 重试三次仍失败加 `failed`。带 `data-first` 的图（打开的那张）插队。
+ * 地址在元素存活期间不变；要换图就重建元素。
  */
 @Directive({
   selector: 'img[appPhotoSrc]',
@@ -98,7 +99,6 @@ export class PhotoLoadQueue {
     '[attr.data-src]': 'appPhotoSrc()',
     '[attr.data-try]': 'attempts() || null',
     '[attr.data-done]': 'settled ? "1" : null',
-    '[attr.src]': 'src()',
     '[class.in]': 'shown()',
     '[class.failed]': 'broken()',
     '(load)': 'loaded()',
@@ -111,12 +111,11 @@ export class PhotoSrc implements QueuedImage {
   private retry: ReturnType<typeof setTimeout> | undefined;
   private loading = false;
 
-  protected readonly src = signal<string | null>(null);
   protected readonly attempts = signal(0);
   protected readonly shown = signal(false);
   protected readonly broken = signal(false);
 
-  readonly element = inject<ElementRef<Element>>(ElementRef).nativeElement;
+  readonly element = inject<ElementRef<HTMLImageElement>>(ElementRef).nativeElement;
   readonly appPhotoSrc = input.required<string>();
 
   get settled(): boolean {
@@ -132,11 +131,12 @@ export class PhotoSrc implements QueuedImage {
     });
   }
 
+  /** 直接写元素的 `src`：用 `[attr.src]` 绑 null 会被净化成 `src=""`，每张图都先报一次错。 */
   begin(): void {
     this.loading = true;
     /* 重试要换一个缓存里没有登记为损坏的地址；共享资源会忽略缩略图上的未知查询参数，所以这是免费的破缓存。 */
     const tries = this.attempts();
-    this.src.set(this.appPhotoSrc() + (tries > 0 ? `?r=${tries}` : ''));
+    this.element.src = this.appPhotoSrc() + (tries > 0 ? `?r=${tries}` : '');
   }
 
   protected loaded(): void {

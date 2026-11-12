@@ -17,6 +17,7 @@ export interface Mailbox {
   readonly count: number | null;
 }
 
+/** 侧栏的邮箱列表；徽标数字是写死的，不随已读变化。 */
 export const MAILBOXES: readonly Mailbox[] = [
   { name: 'Inbox', icon: 'g-download', count: 2 },
   { name: 'VIP', icon: 'g-star', count: null },
@@ -27,6 +28,7 @@ export const MAILBOXES: readonly Mailbox[] = [
   { name: 'Trash', icon: 'g-tag', count: null }
 ];
 
+/** 收件箱里的七封邮件。 */
 export const MAIL_SEED: readonly MailMessage[] = [
   {
     id: 0,

@@ -44,6 +44,7 @@ export class StocksApp {
   protected readonly seed = computed(() => this.selected() + 3 + this.rangeIndex() * 5);
   protected readonly stats = computed(() => {
     const { p, d } = this.current();
+    /* 「Open」沿用旧实现：现价减去涨跌幅百分比，并不是真正的开盘价。 */
     return [
       ['Open', (p - d).toFixed(2)],
       ['High', (p * 1.014).toFixed(2)],

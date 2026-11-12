@@ -17,6 +17,7 @@ export type PageKind = 'start' | 'local' | 'wiki' | 'video' | 'web' | 'search';
 /** 文件内自带的页面，其余地址一律走网络。 */
 export const LOCAL_SITES: ReadonlyMap<string, LocalSite> = new Map([['apple.com', { title: 'Apple', fav: '#111' }]]);
 
+/** 收藏夹：起始页、收藏栏、侧栏与「书签」菜单共用。 */
 export const FAVOURITES: readonly Favourite[] = [
   { name: 'Apple', color: '#1d1d1f', url: 'apple.com' },
   { name: 'Wikipedia', color: '#636466', url: 'en.wikipedia.org/wiki/MacOS' },
@@ -48,6 +49,7 @@ const decode = (text: string): string => {
   }
 };
 
+/** 取主机名，不含协议和路径。 */
 export const hostOf = (url: string): string => stripScheme(url).split('/')[0];
 
 /** DuckDuckGo 对没有图标的主机也回 200，缺图标表现为解码失败，样式可以绕开它。 */

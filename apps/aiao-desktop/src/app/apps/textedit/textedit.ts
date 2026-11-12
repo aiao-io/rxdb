@@ -7,29 +7,12 @@ import { PopoverService } from '../../services/popover';
 import { Toast } from '../../services/toast';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
-
-const ESCAPES: Readonly<Record<string, string>> = {
-  '&': '&amp;',
-  '<': '&lt;',
-  '>': '&gt;',
-  '"': '&quot;',
-  "'": '&#39;'
-};
+import { autolink } from './textedit-text';
 
 const RICH_FONT = '14px/1.65 -apple-system,Inter,sans-serif';
 
-const escapeHtml = (text: string): string => text.replace(/[&<>"']/g, char => ESCAPES[char]);
-
 const fileName = (file: string | FsNode | undefined): string =>
   (typeof file === 'string' ? file : file?.name) || 'Untitled.txt';
-
-/** 转义后把裸网址变成可点的链接，和 TextEdit 一样。 */
-export function autolink(text: string): string {
-  return escapeHtml(text).replace(
-    /https?:\/\/[^\s<]+[^\s<.,)]/g,
-    url => `<a href="${url}" data-openext="${url}">${url}</a>`
-  );
-}
 
 /** 文本编辑：标题栏显示文件名，正文是可编辑的纯文本，网址自动成链接。 */
 @Component({
@@ -77,7 +60,7 @@ export class TextEditApp {
     });
   }
 
-  /** 正文里的网址是注入的 HTML，只能在窗口上做事件委托；这是桌面唯一交给真实浏览器的出口。 */
+  /** 正文里的网址是注入的 HTML，只能在窗口上做事件委托；原版由文档级的 `data-openext` 处理器统一交给真实浏览器，这里只管本窗口。 */
   protected openLink(event: MouseEvent): void {
     const link = (event.target as Element).closest<HTMLElement>('[data-openext]');
     if (!link) return;

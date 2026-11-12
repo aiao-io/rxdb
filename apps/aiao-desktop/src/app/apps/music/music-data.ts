@@ -7,6 +7,7 @@ export interface AlbumArtSpec {
   readonly shape: ArtShape;
 }
 
+/** 十二款封面，序号对 12 取余循环使用。 */
 export const ART: readonly AlbumArtSpec[] = [
   { gradient: ['#ff6b8b', '#7c3aed'], shape: 'circles' },
   { gradient: ['#12c2e9', '#0b4f8a'], shape: 'waves' },
@@ -22,12 +23,14 @@ export const ART: readonly AlbumArtSpec[] = [
   { gradient: ['#ee0979', '#ff6a00'], shape: 'diag' }
 ];
 
+/** 一张专辑。 */
 export interface Album {
   readonly title: string;
   readonly artist: string;
   readonly year: number;
 }
 
+/** 曲库里的专辑。 */
 export const ALBUMS: readonly Album[] = [
   { title: 'Neon Interiors', artist: 'Kaida', year: 2026 },
   { title: 'Deep Field', artist: 'Orbital Fold', year: 2025 },
@@ -45,6 +48,7 @@ export interface Song {
   readonly duration: number;
 }
 
+/** 曲库里的歌，顺序即播放顺序；每首歌的音乐参数由它的序号推出。 */
 export const SONGS: readonly Song[] = [
   { title: 'Aurora Drift', artist: 'Kaida', album: 0, duration: 224 },
   { title: 'Glass Cathedral', artist: 'Kaida', album: 0, duration: 191 },
@@ -65,6 +69,7 @@ export interface Artist {
   readonly art: number;
 }
 
+/** 按专辑出现顺序去重后的歌手。 */
 export const ARTISTS: readonly Artist[] = [...new Set(ALBUMS.map(album => album.artist))].map((name, index) => ({
   name,
   album: ALBUMS.findIndex(album => album.artist === name),

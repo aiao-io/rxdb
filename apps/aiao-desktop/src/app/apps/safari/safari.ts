@@ -71,7 +71,7 @@ const FAVOURITE_TILES: readonly SafariTile[] = FAVOURITES.map(fav => ({
   dot: LOCAL_SITES.has(fav.url) ? fav.color : null
 }));
 
-/** 搜索接口连不上时本地兜底的几条结果。 */
+/** 搜索接口不可用时显示的本地结果。 */
 const OFFLINE_HITS: readonly SafariHit[] = [
   {
     url: 'en.wikipedia.org/wiki/MacOS',

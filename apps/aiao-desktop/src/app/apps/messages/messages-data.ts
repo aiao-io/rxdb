@@ -17,6 +17,7 @@ export interface Chat {
 const me = (text: string): ChatMessage => ({ from: 'me', text });
 const them = (text: string): ChatMessage => ({ from: 'them', text });
 
+/** 十段种子会话，按最近活跃排序。 */
 export const CHAT_SEED: readonly Chat[] = [
   {
     id: 0,

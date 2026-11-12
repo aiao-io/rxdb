@@ -7,6 +7,7 @@ import { PhotoArt } from '../../shared/photo-art';
 import { TrafficLights } from '../../shared/traffic-lights';
 import { SHELVES, Shelf } from './shelf-data';
 
+/** 取出窗口对应的书架内容；不是书架应用就直接报错。 */
 function shelfOf(win: DesktopWindow): Shelf {
   const shelf = SHELVES[win.appId];
   if (!shelf) throw new Error(`${win.appId} 不是媒体书架应用`);

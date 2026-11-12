@@ -190,7 +190,7 @@
           <div class="cal-time">
             <div class="gut">
               @for (item of hours; track item.hour) {
-                <div [style.height.px]="row">{{ item.label }}</div>
+                <div [style.height.px]="rowHeight">{{ item.label }}</div>
               }
             </div>
             @for (column of columns(); track column.key) {
@@ -203,7 +203,7 @@
                 (dblclick)="createAt($event, column)"
               >
                 @for (item of hours; track item.hour) {
-                  <div class="hr" [style.height.px]="row"></div>
+                  <div class="hr" [style.height.px]="rowHeight"></div>
                 }
                 @for (item of column.placed; track item.id) {
                   <div

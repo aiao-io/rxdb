@@ -9,6 +9,7 @@ import { Slider } from '../../shared/slider';
 import { TrafficLights } from '../../shared/traffic-lights';
 import { AlbumArt } from './album-art';
 import { ALBUMS, ARTISTS, SONGS } from './music-data';
+import { NowPlaying } from './now-playing';
 import { Synth } from './synth';
 
 interface SidebarGroup {
@@ -80,6 +81,7 @@ const ROWS: readonly SongRow[] = SONGS.map((song, index) => ({
 })
 export class MusicApp {
   private readonly win = inject(DesktopWindow);
+  private readonly nowPlaying = inject(NowPlaying);
   private readonly synth = new Synth();
   /** 侧栏点选压入历史，前进后退才有意义。 */
   private readonly history = signal<readonly string[]>(['Recently Added']);
@@ -92,8 +94,8 @@ export class MusicApp {
   protected readonly artists = ARTISTS;
   protected readonly cursor = signal(0);
   protected readonly query = signal('');
-  protected readonly index = signal(0);
-  protected readonly pos = signal(0);
+  protected readonly index = this.nowPlaying.index;
+  protected readonly pos = this.nowPlaying.pos;
   protected readonly playing = signal(false);
   protected readonly shuffle = signal(false);
   protected readonly repeat = signal(false);

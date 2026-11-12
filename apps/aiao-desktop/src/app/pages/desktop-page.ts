@@ -1,6 +1,9 @@
 import { Component, DestroyRef, ViewEncapsulation, afterNextRender, inject } from '@angular/core';
 
 import { MailComposer } from '../apps/mail/mail-composer';
+import { NowPlaying } from '../apps/music/now-playing';
+import { PhotoLibrary } from '../apps/photos/photo-library';
+import { PhotoLoadQueue } from '../apps/photos/photo-loader';
 import { DESKTOP_APP_REGISTRY } from '../apps/registry';
 import { SafariBrowsers } from '../apps/safari/safari-browsers';
 import { DesktopShell } from '../components/desktop-shell';
@@ -53,7 +56,10 @@ const NATIVE_MENU = 'input,textarea,[contenteditable="true"],.tm-body';
     WeatherStore,
     DesktopMenus,
     SafariBrowsers,
-    MailComposer
+    MailComposer,
+    NowPlaying,
+    PhotoLibrary,
+    PhotoLoadQueue
   ],
   host: {
     '[style.display]': '"block"',

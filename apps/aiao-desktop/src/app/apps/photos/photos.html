@@ -107,8 +107,8 @@
                   <svg appIcon="g-chev-l"></svg>
                 </button>
                 <!-- 每换一张照片重建一次 img，新图才会从透明淡入。 -->
-                @for (key of [photo.id]; track key) {
-                  <img [alt]="photo.title" [appPhotoSrc]="thumbAt(photo.thumb, 1280)" data-first decoding="async" />
+                @for (stage of [photo]; track stage.id) {
+                  <img [alt]="stage.title" [appPhotoSrc]="thumbAt(stage.thumb, 1280)" data-first decoding="async" />
                 }
                 <button class="nav r" (click)="step(1)" data-pnudge="1" title="Next">
                   <svg appIcon="g-chev-r"></svg>

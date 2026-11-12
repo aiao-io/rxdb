@@ -70,12 +70,16 @@ const origin = `http://127.0.0.1:${address.port}`;
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 /* 只验证本地行为：外网资源（壁纸、地图瓦片、天气）一律拦掉，结果稳定。 */
-await context.route(url => !url.href.startsWith(origin), route => route.abort());
+await context.route(
+  url => !url.href.startsWith(origin),
+  route => route.abort()
+);
 const page = await context.newPage();
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
 page.on('console', message => {
-  if (message.type() === 'error' && !/Failed to load resource|ERR_FAILED/.test(message.text())) errors.push(message.text());
+  if (message.type() === 'error' && !/Failed to load resource|ERR_FAILED/.test(message.text()))
+    errors.push(message.text());
 });
 
 const win = id => page.locator(`.win[data-app="${id}"]:not(.closing)`);
@@ -111,7 +115,9 @@ try {
     menubar: Boolean(document.querySelector('#menubar')),
     dock: document.querySelectorAll('#dock .di').length === 14,
     /* 运行时已全部变成 Angular 组件：不再有全局入口，也不再往页面注入脚本。 */
-    noRuntimeGlobals: ['WM', 'APPS', 'Pop', 'SYS', 'Bus', '__aiaoRuntimeBridge', '__aiaoTerminalBridge'].every(name => !(name in window)),
+    noRuntimeGlobals: ['WM', 'APPS', 'Pop', 'SYS', 'Bus', '__aiaoRuntimeBridge', '__aiaoTerminalBridge'].every(
+      name => !(name in window)
+    ),
     noInlineScripts: [...document.scripts].every(script => script.src !== '')
   }));
 
@@ -123,7 +129,8 @@ try {
   await closeAll();
   await page.locator('#dock .di[data-app="calculator"]').click();
   await win('calculator').waitFor();
-  for (const key of ['ac', 'n1', 'n2', 'add', 'n3', 'eq']) await win('calculator').locator(`.ck[data-k="${key}"]`).click();
+  for (const key of ['ac', 'n1', 'n2', 'add', 'n3', 'eq'])
+    await win('calculator').locator(`.ck[data-k="${key}"]`).click();
   await page.waitForTimeout(80);
   const calculatorWorks = (await win('calculator').locator('.calc-out').textContent())?.replace(/\s/g, '') === '15';
 
@@ -139,7 +146,9 @@ try {
   const minimized = await win('calculator').evaluate(node => node.style.visibility === 'hidden');
   await page.locator('#dock .di[data-app="calculator"]').click();
   await page.waitForTimeout(700);
-  const restored = await win('calculator').evaluate(node => node.style.visibility === '' && !node.classList.contains('mini'));
+  const restored = await win('calculator').evaluate(
+    node => node.style.visibility === '' && !node.classList.contains('mini')
+  );
 
   await closeAll();
   await page.locator('#dock .di[data-app="terminal"]').click();
@@ -149,7 +158,10 @@ try {
   await page.keyboard.type('echo VIVARI_SMOKE');
   await page.keyboard.press('Enter');
   await page.waitForFunction(
-    () => /VIVARI_SMOKE[\s\S]*VIVARI_SMOKE/.test(document.querySelector('.win[data-app="terminal"] .xterm-rows')?.textContent ?? ''),
+    () =>
+      /VIVARI_SMOKE[\s\S]*VIVARI_SMOKE/.test(
+        document.querySelector('.win[data-app="terminal"] .xterm-rows')?.textContent ?? ''
+      ),
     undefined,
     { timeout: 15_000 }
   );

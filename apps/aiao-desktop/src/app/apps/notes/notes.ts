@@ -49,7 +49,7 @@ export class NotesApp {
   private readonly win = inject(DesktopWindow);
   private readonly popover = inject(PopoverService);
   private readonly doc = viewChild.required<ElementRef<HTMLElement>>('doc');
-  private readonly notes = signal<readonly Note[]>(NOTE_SEED);
+  private readonly notes = signal<readonly Note[]>(NOTE_SEED.map(note => ({ ...note })));
   private readonly current = computed(() => this.notes().find(note => note.id === this.selected()));
   private readonly list = computed(() => {
     const folder = this.folder();
@@ -173,8 +173,11 @@ export class NotesApp {
   protected remove(): void {
     const note = this.current();
     if (!note) return;
-    if (note.folder === 'Recently Deleted') this.notes.update(list => list.filter(item => item !== note));
-    else this.notes.update(list => list.map(item => (item === note ? { ...item, folder: 'Recently Deleted' } : item)));
+    if (note.folder === 'Recently Deleted') this.notes.update(list => list.filter(item => item.id !== note.id));
+    else
+      this.notes.update(list =>
+        list.map(item => (item.id === note.id ? { ...item, folder: 'Recently Deleted' } : item))
+      );
     this.show();
   }
 
@@ -249,7 +252,7 @@ export class NotesApp {
     const doc = this.doc().nativeElement;
     const title = noteTitle(doc);
     this.notes.update(list =>
-      list.map(item => (item === note ? { ...item, body: doc.innerHTML, title: title || item.title } : item))
+      list.map(item => (item.id === note.id ? { ...item, body: doc.innerHTML, title: title || item.title } : item))
     );
   }
 

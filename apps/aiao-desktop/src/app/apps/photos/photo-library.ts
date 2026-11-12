@@ -13,7 +13,7 @@ export interface ImportedPhoto {
  * 照片库：可变的应用数据，整个桌面共用一份（关掉再打开照片，删掉的和导入的都还在）。
  * 列表是信号，每次修改都换一个新数组，网格按编号跟踪，所以改一张不会让别的格子重载。
  */
-@Service()
+@Service({ autoProvided: false })
 export class PhotoLibrary {
   private nextId = PHOTO_SEED.length;
 
