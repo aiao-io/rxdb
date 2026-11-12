@@ -21,6 +21,7 @@ import { FileSystem, HOME_PATH } from '../services/file-system';
 import { Overlays } from '../services/overlays';
 import { PopoverService } from '../services/popover';
 import { Session } from '../services/session';
+import { SystemSettingsStore } from '../services/system-settings';
 import { SystemState } from '../services/system-state';
 import { ThemeService } from '../services/theme';
 import { Toast } from '../services/toast';
@@ -43,6 +44,7 @@ const NATIVE_MENU = 'input,textarea,[contenteditable="true"],.tm-body';
     DesktopData,
     Preferences,
     SystemState,
+    SystemSettingsStore,
     ThemeService,
     Toast,
     PopoverService,
@@ -87,6 +89,8 @@ export class DesktopPage {
   constructor() {
     this.theme.setAppearance(this.system.appearance());
     this.wallpaper.set(this.system.wallpaper());
+    /* 设置存在本地库里：库就绪后恢复上次的外观、壁纸、Dock 等，之后的改动自动写回。 */
+    inject(SystemSettingsStore);
     afterNextRender(() => setTimeout(() => this.wm.open('finder', { path: HOME_PATH }), 340));
     /* 电量缓慢下降，桌面永远不会完全静止。 */
     const drift = setInterval(() => this.driftBattery(), 42000);

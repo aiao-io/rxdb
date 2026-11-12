@@ -1,5 +1,6 @@
 import { Service, computed, inject, linkedSignal, signal } from '@angular/core';
 
+import { Preferences } from '../data/preferences';
 import { DESKTOP, VOLUME_NAME, finderPathOf } from '../disk/disk-path';
 import { FsNode, visibleChildren } from '../disk/disk-tree';
 import { FileOpener } from './file-opener';
@@ -20,7 +21,15 @@ export interface DesktopItem {
 }
 
 const DRIVE_ID = 'hd';
+/** 拖过的图标位置存在系统偏好里，刷新后图标还在原处。 */
+const CELLS_KEY = 'desktop:cells';
 const itemId = (name: string): string => `file:${name}`;
+
+const isCell = (value: unknown): value is DesktopCell =>
+  Array.isArray(value) && value.length === 2 && value.every(part => Number.isInteger(part) && part >= 0);
+
+const isCellMap = (value: unknown): value is Record<string, DesktopCell> =>
+  typeof value === 'object' && value !== null && Object.values(value).every(isCell);
 
 /** 内置桌面原来的排布；其余条目按列向下找第一个空格，一列放六个。 */
 const INITIAL_CELLS: ReadonlyMap<string, DesktopCell> = new Map([
@@ -65,6 +74,7 @@ export class DesktopItems {
   private readonly fs = inject(FileSystem);
   private readonly opener = inject(FileOpener);
   private readonly toast = inject(Toast);
+  private readonly preferences = inject(Preferences);
   private readonly entries = computed(() => visibleChildren(this.fs.nodeAt(DESKTOP)));
   private readonly cells = linkedSignal<readonly FsNode[], ReadonlyMap<string, DesktopCell>>({
     source: this.entries,
@@ -100,6 +110,16 @@ export class DesktopItems {
   /** 新建的文件夹被选中，由桌面组件读取后高亮。 */
   readonly created = signal<string | null>(null);
 
+  constructor() {
+    this.preferences.ready.then(
+      () => {
+        const saved = this.preferences.get(CELLS_KEY, isCellMap);
+        if (saved) this.cells.update(cells => new Map([...cells, ...Object.entries(saved)]));
+      },
+      () => undefined
+    );
+  }
+
   /** 在 ~/Desktop 里新建文件夹；成功后选中它。 */
   newFolder(): void {
     this.fs.newFolder(DESKTOP).then(
@@ -110,6 +130,7 @@ export class DesktopItems {
 
   move(id: string, cell: DesktopCell): void {
     this.cells.update(cells => new Map(cells).set(id, cell));
+    this.preferences.set(CELLS_KEY, Object.fromEntries(this.cells())).catch(() => undefined);
   }
 
   /** 把图标对应的条目移进废纸篓；Macintosh HD 不能移走。失败时提示原因并返回 `false`。 */

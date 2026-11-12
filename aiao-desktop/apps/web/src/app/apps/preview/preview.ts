@@ -1,50 +1,34 @@
-import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
 
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
-import { FsNode } from '../../services/file-system';
+import { extensionOf, fileKind } from '../../disk/disk-kinds';
+import { PdfDocument, readPdfText } from '../../disk/formats/pdf';
+import { FileSystem, FsNode, describeDiskError } from '../../services/file-system';
 import { PopoverService } from '../../services/popover';
 import { Toast } from '../../services/toast';
-import { WALLPAPERS } from '../../services/wallpaper';
 import { WindowManager } from '../../services/window-manager';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
 import { MailComposer } from '../mail/mail-composer';
 import { markMatches } from './preview-find';
 
-type PreviewKind = 'sheet' | 'video' | 'image';
-
-/** 界面指南那一页的各节标题与正文。 */
-const SHEET = [
-  {
-    title: '1 · Materials',
-    text: 'Chrome is a material, not a colour. Every bar, sidebar and tray samples what sits behind it — blur, then saturate, then tint. Opacity alone always reads as a sticker pasted on the window.'
-  },
-  {
-    title: '2 · Depth',
-    text: "Four shadow layers: a hairline for the edge, a contact shadow so it doesn't float, a body, and an ambient spill. Unfocused windows drop the outer two and lighten the rest."
-  },
-  {
-    title: '3 · Motion',
-    text: 'Menus in 130ms, panels in 300ms, nothing past 350ms. Ease out harder than you ease in — the arrival is what the eye judges.'
-  },
-  {
-    title: '4 · Pointer',
-    text: 'The arrow is the default state and it stays the arrow over buttons. A hand means "this navigates". A hand on everything means nothing.'
-  },
-  {
-    title: '5 · Restraint',
-    text: 'If an effect cannot hold sixty frames, remove the effect. A dropped frame is more visible than any gradient you were trying to render.'
-  }
-] as const;
+/** 预览窗口里显示什么：读取中、文本 PDF、图片、视频占位，或打不开的原因。 */
+type PreviewView =
+  | { readonly kind: 'loading' }
+  | { readonly kind: 'sheet'; readonly doc: PdfDocument }
+  | { readonly kind: 'image'; readonly url: string }
+  | { readonly kind: 'video' }
+  | { readonly kind: 'failed'; readonly reason: string };
 
 const fileName = (file: string | FsNode | undefined): string =>
   (typeof file === 'string' ? file : file?.name) || 'Untitled';
 
-/** 按文件名挑内容：指南、视频占位或图片。 */
-const kindOf = (name: string): PreviewKind => {
-  if (/guidelines|spec/i.test(name)) return 'sheet';
-  return /\.(mp4|mov)$/i.test(name) ? 'video' : 'image';
+const IMAGE_TYPES: Readonly<Record<string, string>> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  heic: 'image/heic'
 };
 
 /** 预览：按文件类型显示指南页、视频占位或图片，标题栏带分享菜单和会高亮匹配的查找框。 */
@@ -56,6 +40,7 @@ const kindOf = (name: string): PreviewKind => {
 })
 export class PreviewApp {
   private readonly win = inject(DesktopWindow);
+  private readonly fs = inject(FileSystem);
   private readonly popover = inject(PopoverService);
   private readonly toast = inject(Toast);
   private readonly wm = inject(WindowManager);
@@ -64,14 +49,17 @@ export class PreviewApp {
   private readonly field = viewChild.required<ElementRef<HTMLInputElement>>('field');
 
   protected readonly name = fileName(this.win.options.file);
-  protected readonly kind = kindOf(this.name);
-  protected readonly image = WALLPAPERS[/screenshot/i.test(this.name) ? 'tahoe' : 'ridges'].url;
-  protected readonly sheet = SHEET;
+  protected readonly view = signal<PreviewView>({ kind: 'loading' });
   protected readonly finding = signal(false);
 
   constructor() {
     const menus = inject(DesktopMenus);
     this.win.setMenus(computed(() => menus.standard('preview')));
+    inject(DestroyRef).onDestroy(() => {
+      const view = this.view();
+      if (view.kind === 'image') URL.revokeObjectURL(view.url);
+    });
+    void this.load();
   }
 
   protected openShare(anchor: HTMLElement): void {
@@ -102,4 +90,41 @@ export class PreviewApp {
     const count = markMatches(this.body().nativeElement, text.toLowerCase());
     if (text.length > 1) this.toast.show(count ? `${count} ${count === 1 ? 'match' : 'matches'}` : 'Not found');
   }
+
+  /** 解码不了的图片（例如占位的 HEIC）改为说明打不开。 */
+  protected imageFailed(): void {
+    const view = this.view();
+    if (view.kind === 'image') URL.revokeObjectURL(view.url);
+    this.view.set({ kind: 'failed', reason: 'The image data could not be decoded.' });
+  }
+
+  /** 图片显示文件本身（由 storage 插件读出的字节），文本 PDF 读回标题与各节；读不了的说明原因。 */
+  private async load(): Promise<void> {
+    const extension = extensionOf(this.name);
+    if (extension === 'mp4' || extension === 'mov') {
+      this.view.set({ kind: 'video' });
+      return;
+    }
+    const path = this.win.options.node?.path;
+    if (!path) {
+      this.view.set({ kind: 'failed', reason: 'The file is not on Macintosh HD.' });
+      return;
+    }
+    try {
+      this.view.set(this.describe(extension, await this.fs.read(path)));
+    } catch (error) {
+      this.view.set({ kind: 'failed', reason: describeDiskError(error) });
+    }
+  }
+
+  private describe(extension: string, bytes: Uint8Array): PreviewView {
+    if (extension === 'pdf') {
+      const doc = readPdfText(bytes);
+      return doc ? { kind: 'sheet', doc } : { kind: 'failed', reason: 'Preview can only show text PDFs.' };
+    }
+    const type = IMAGE_TYPES[extension];
+    if (type) return { kind: 'image', url: URL.createObjectURL(new Blob([bytes.slice()], { type })) };
+    return { kind: 'failed', reason: `Preview can’t open ${fileKind(this.name).kind} files.` };
+  }
+
 }

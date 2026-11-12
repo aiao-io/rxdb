@@ -30,16 +30,21 @@
   </div>
 </div>
 <div class="pv" #body style="flex-direction: column">
-  @switch (kind) {
+  @let current = view();
+  @switch (current.kind) {
     @case ('sheet') {
-      <div class="sheet">
-        <h1>Interface Guidelines</h1>
-        <p style="margin: 0 0 2px; font-size: 12.5px">Revision 4 · July 2026</p>
-        @for (section of sheet; track section.title) {
-          <h3>{{ section.title }}</h3>
-          <p>{{ section.text }}</p>
-        }
-      </div>
+      @if (current.kind === 'sheet') {
+        <div class="sheet" data-pv-sheet>
+          <h1>{{ current.doc.title }}</h1>
+          @if (current.doc.subtitle) {
+            <p style="margin: 0 0 2px; font-size: 12.5px">{{ current.doc.subtitle }}</p>
+          }
+          @for (section of current.doc.sections; track $index) {
+            <h3>{{ section.title }}</h3>
+            <p>{{ section.text }}</p>
+          }
+        </div>
+      }
     }
     @case ('video') {
       <div
@@ -59,9 +64,19 @@
       </div>
       <div style="margin-top: 14px; font-size: 12px; color: var(--txt-2)">{{ name }} — 1920×1080 · H.264</div>
     }
-    @default {
-      <img [alt]="name" [src]="image" style="max-height: 78%" />
-      <div style="margin-top: 14px; font-size: 12px; color: var(--txt-2)">{{ name }}</div>
+    @case ('image') {
+      @if (current.kind === 'image') {
+        <img [alt]="name" [src]="current.url" (error)="imageFailed()" data-pv-image style="max-height: 78%" />
+        <div style="margin-top: 14px; font-size: 12px; color: var(--txt-2)">{{ name }}</div>
+      }
+    }
+    @case ('failed') {
+      @if (current.kind === 'failed') {
+        <div data-pv-failed style="text-align: center; color: var(--txt-2); font-size: 13px">
+          <div style="font-weight: 600; color: var(--txt); margin-bottom: 6px">“{{ name }}” could not be opened.</div>
+          {{ current.reason }}
+        </div>
+      }
     }
   }
 </div>

@@ -9,7 +9,9 @@ import {
   viewChild
 } from '@angular/core';
 
+import { FileSystem, describeDiskError } from '../../services/file-system';
 import { PopoverService } from '../../services/popover';
+import { Session } from '../../services/session';
 import { Toast } from '../../services/toast';
 import { Icon } from '../../shared/icon';
 
@@ -81,7 +83,7 @@ export class FirstAidPanel {
   }
 }
 
-/** 「Erase」确认面板：启动盘不可抹掉，点 Erase 只会弹出提示。 */
+/** 「Erase」确认面板：抹掉 Macintosh HD 上的全部改动、恢复内置内容，然后重启。 */
 @Component({
   selector: 'app-erase-panel',
   imports: [Icon],
@@ -90,23 +92,39 @@ export class FirstAidPanel {
     <div style="width: 52px; height: 52px; margin: 0 auto 10px"><svg appIcon="f-hd"></svg></div>
     <div style="font-size: 13px; font-weight: 600">Erase “Macintosh HD”?</div>
     <div style="font-size: 12px; color: var(--txt-2); margin: 6px 0 14px">
-      This is the startup disk. Erasing it would take the whole desktop with it — including this window.
+      Everything you added or changed on this disk is deleted and the original files are restored. Your Mac restarts afterwards.
     </div>
     <div style="display: flex; gap: 8px">
       <button class="btn" (click)="popover.close()" data-x style="flex: 1; height: 26px">Cancel</button>
-      <button class="btn" (click)="erase()" data-e style="flex: 1; height: 26px; background: var(--red); color: #fff">
-        Erase
+      <button
+        class="btn"
+        [disabled]="erasing()"
+        (click)="erase()"
+        data-e
+        style="flex: 1; height: 26px; background: var(--red); color: #fff"
+      >
+        {{ erasing() ? 'Erasing…' : 'Erase' }}
       </button>
     </div>
   `
 })
 export class ErasePanel {
   private readonly toast = inject(Toast);
+  private readonly fs = inject(FileSystem);
+  private readonly session = inject(Session);
 
   protected readonly popover = inject(PopoverService);
+  protected readonly erasing = signal(false);
 
-  protected erase(): void {
-    this.popover.close();
-    this.toast.show('Erase blocked — cannot erase the startup disk');
+  protected async erase(): Promise<void> {
+    this.erasing.set(true);
+    try {
+      await this.fs.erase();
+      this.popover.close();
+      this.session.restart();
+    } catch (error) {
+      this.erasing.set(false);
+      this.toast.show(`Erase failed: ${describeDiskError(error)}`);
+    }
   }
 }

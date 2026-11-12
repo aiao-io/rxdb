@@ -1,5 +1,6 @@
 import { Component, DestroyRef, ViewEncapsulation, effect, inject, signal, untracked } from '@angular/core';
 
+import { FileSystem } from '../services/file-system';
 import { BootRun, Session } from '../services/session';
 
 /** 进度条分段推进：匀速的条像加载动画，Apple 的会停顿、跳跃再走完。 */
@@ -39,6 +40,7 @@ export class BootScreen {
   private timers: ReturnType<typeof setTimeout>[] = [];
   /** 开机阶段的第一次按键允许跳过，之后不再响应。 */
   private keyArmed = false;
+  private readonly fs = inject(FileSystem);
   protected readonly session = inject(Session);
   protected readonly progress = signal<number | null>(null);
   protected readonly leaving = signal(false);
@@ -76,11 +78,14 @@ export class BootScreen {
     this.timers.push(setTimeout(() => this.finish(run), DONE_AT[run.mode]));
   }
 
+  /** 进度走完还要等 Macintosh HD 挂好（首次打开时要复制内置内容），和真机一样。 */
   private finish(run: BootRun): void {
-    if (this.session.boot() !== run) return;
-    this.leaving.set(true);
-    this.session.bootFinished(run);
-    setTimeout(() => this.session.bootDismissed(run), 480);
+    void this.fs.whenReady().then(() => {
+      if (this.session.boot() !== run) return;
+      this.leaving.set(true);
+      this.session.bootFinished(run);
+      setTimeout(() => this.session.bootDismissed(run), 480);
+    });
   }
 
   private clear(): void {
