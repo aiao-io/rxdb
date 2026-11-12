@@ -14,7 +14,7 @@ const contentTypes = {
   '.wasm': 'application/wasm'
 };
 const portArgument = process.argv.find(argument => argument.startsWith('--port='));
-const port = Number(portArgument?.slice('--port='.length) ?? process.env.PORT ?? 4200);
+const port = Number(portArgument?.slice('--port='.length) ?? process.env.PORT ?? 4411);
 
 if (!Number.isInteger(port) || port < 0 || port > 65_535) {
   throw new Error(`Invalid port: ${port}`);

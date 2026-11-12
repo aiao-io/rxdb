@@ -15,6 +15,14 @@
 | ADESK-US-001 #7 | 聚合门禁    | `pnpm nx run aiao-desktop:verify --skip-nx-cache`                                                                                          | 通过：连同依赖共 11 个任务                                                                                                          |
 | ADESK-US-001 #8 | CI 接入     | `pnpm nx show projects --withTarget=e2e`（以及 `test`、`audit-secrets`、`lint`、`typecheck`、`build`）；按 CI 测试 lane 的步骤本地复跑     | 通过：e2e 在 `e2e`；产品根在 `test` 与 `audit-secrets`；web 在 `lint`、`typecheck`、`build`；带覆盖率参数跑产品根的 `test` 照常通过 |
 
+## 本地开发入口
+
+| 故事与 AC               | 验证层级                            | 入口                                                                                                                 | 当前结论                                                                                                                                                              |
+| ----------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ADESK-US-002 #1、#2、#9 | 本机实跑                            | `AIAO_DEV_OPEN=false pnpm nx dev aiao-desktop --output-style=stream`；运行中再跑 `dev-ports`；停止后用 `lsof` 查端口 | 通过：四个任务按序就绪，4410 返回 200，导航页可用；端口检查报出 Web 开发服务器与开发导航两处占用后失败；停止后三个端口全部释放                                        |
+| ADESK-US-002 #3～#8     | 浏览器（Chromium 驱动导航页）/ HTTP | 导航页、`/status.json` 与 `serve-static`                                                                             | 通过：两种状态（预览未启动 / 已启动）的徽标正确；复制按钮写入剪贴板；开发服务器上 `crossOriginIsolated` 为 true；403 / 405 / 404 与响应头符合预期；390 宽没有横向滚动 |
+| ADESK-US-002 #10        | Node 测试                           | `aiao-desktop:dev-test`（[services.spec.mjs](../scripts/dev/services.spec.mjs) 等 4 个文件）                         | 通过                                                                                                                                                                  |
+
 ## 浏览器冒烟
 
 | 故事与 AC           | 验证层级                                                         | 入口                                                             | 当前结论                                                                        |

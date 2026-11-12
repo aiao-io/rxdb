@@ -21,3 +21,9 @@ Aiao Desktop 使用 `ADESK-US-*` / `ADESK-EPIC-*` 编号，在本目录独立统
 ## D-05：终端依赖跨源隔离
 
 终端用 `@vivari/core` 在页面里运行 Node、npm 与 Python，要求页面处于 `crossOriginIsolated`：托管 web 产物的服务必须返回 `Cross-Origin-Opener-Policy: same-origin` 与 `Cross-Origin-Embedder-Policy: require-corp`。开发服务器的 development 配置、`serve-static` 与冒烟里的静态服务器都带这两个响应头；production 配置的开发服务器不带。Vivari 的 worker 与运行时资源由构建从 `node_modules/@vivari/core/dist/assets` 复制到产物的 `assets/`。
+
+## D-06：本地开发用固定端口与开发导航
+
+本地开发统一用 `pnpm nx dev aiao-desktop` 启动，做法参考 aiao-media 的开发入口（2026-11-12 用户要求）。端口固定：Web 开发服务器 4410、正式构建预览 4411、开发导航 4412，统一登记在 `scripts/dev/services.mjs`，与仓库里多数 Angular 应用的 4200、Web Desktop 与 aiao-media 的 4300 段、aiao-model-design 的 4400 段错开。端口被占用时直接失败，不自动换号，因为导航页上的链接依赖固定地址。
+
+产品没有服务端，开发导航由产品根的本地 Node 服务提供：只监听 `127.0.0.1`，只接受指向本机的 Host，不进入 web 的构建产物，页面里也不放任何密钥（[D-03](#d-03只有前端不带任何密钥)）。正式构建预览不随代码热更新，不随 `nx dev` 启动，需要时单独运行。

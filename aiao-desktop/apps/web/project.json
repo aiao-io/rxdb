@@ -77,6 +77,15 @@
             "Cross-Origin-Embedder-Policy": "require-corp"
           }
         }
+      },
+      "dependsOn": [
+        {
+          "projects": ["aiao-desktop"],
+          "target": "dev-ports"
+        }
+      ],
+      "options": {
+        "port": 4410
       }
     },
     "serve-static": {
@@ -85,8 +94,13 @@
       "dependsOn": ["build"],
       "options": {
         "command": "node aiao-desktop/apps/web/tools/serve-static.mjs",
-        "readyWhen": "AIAO_DESKTOP_STATIC_SERVER_READY",
-        "parallel": false
+        "parallel": false,
+        "env": {
+          "PORT": "4411"
+        }
+      },
+      "readyWhen": {
+        "url": "http://127.0.0.1:4411"
       }
     },
     "lint": {

@@ -6,11 +6,11 @@
 
 本目录是产品根：两个 Nx 应用服务同一个产品目标，共用需求前缀 `ADESK` 与 [requirements/](requirements/README.md)（产品级需求唯一真相源）。
 
-| 目录       | Nx 项目            | tags                                                     | 说明                                  |
-| ---------- | ------------------ | -------------------------------------------------------- | ------------------------------------- |
-| `.`        | `aiao-desktop`     | `scope:aiao-desktop`                                     | 需求门禁、密钥扫描、聚合验证 `verify` |
-| `apps/web` | `aiao-desktop-web` | `scope:aiao-desktop` `type:app` `layer:ui` `angular-app` | Angular 桌面（浏览器）                |
-| `apps/e2e` | `aiao-desktop-e2e` | `scope:aiao-desktop` `type:e2e`                          | 对 web 正式构建跑的 Chromium 冒烟     |
+| 目录       | Nx 项目            | tags                                                     | 说明                                                                 |
+| ---------- | ------------------ | -------------------------------------------------------- | -------------------------------------------------------------------- |
+| `.`        | `aiao-desktop`     | `scope:aiao-desktop`                                     | 本地开发入口 `dev` 与开发导航、需求门禁、密钥扫描、聚合验证 `verify` |
+| `apps/web` | `aiao-desktop-web` | `scope:aiao-desktop` `type:app` `layer:ui` `angular-app` | Angular 桌面（浏览器）                                               |
+| `apps/e2e` | `aiao-desktop-e2e` | `scope:aiao-desktop` `type:e2e`                          | 对 web 正式构建跑的 Chromium 冒烟                                    |
 
 ## 依赖方向
 
@@ -24,6 +24,8 @@ apps/web ──> 第三方库（@angular/*、rxjs、@xterm/*、@vivari/core）
 - 目前没有产品私有包，也不依赖根平台包（`@aiao/*`）。出现跨应用共用的代码时，建 `packages/<name>`（`@aiao-desktop/<name>`，`private: true`），同时把 `aiao-desktop/packages/*` 加进 `pnpm-workspace.yaml`、在 `tsconfig.base.json` 加 paths，并按治理办法给 `layer:domain` 补依赖约束。
 - 产品只有前端，不带任何密钥（[D-03](requirements/decisions.md#d-03只有前端不带任何密钥)）。`aiao-desktop:audit-secrets` 扫描 web 的构建产物，CI 的 extras job 会跑它。
 - 终端依赖跨源隔离：托管 web 产物时必须返回 COOP `same-origin` 与 COEP `require-corp`（[D-05](requirements/decisions.md#d-05终端依赖跨源隔离)）。
+- 本地开发的端口固定，统一登记在 [scripts/dev/services.mjs](scripts/dev/services.mjs)（[D-06](requirements/decisions.md#d-06本地开发用固定端口与开发导航)）。改端口时同步改 web 的 `serve`、`serve-static` 与产品根的 `dev`、`dev-dashboard`，`dev-test` 会校验它们一致。web 的 `serve` 先跑产品根的 `dev-ports`，这是唯一一条从子项目指向产品根的任务依赖，只用于开发时的端口检查。
+- 开发导航（`scripts/dev/dashboard.mjs`）只在本地开发时运行、只监听 `127.0.0.1`，不进入 web 的构建产物，页面里不放任何密钥。
 
 ## 需求
 
@@ -36,8 +38,9 @@ apps/web ──> 第三方库（@angular/*、rxjs、@xterm/*、@vivari/core）
 在仓库根执行，先切 Node 26：
 
 ```bash
-pnpm nx run aiao-desktop:verify             # 全部门禁：需求、门禁脚本测试、lint、typecheck、build、冒烟、密钥扫描
-pnpm nx serve aiao-desktop-web              # 开发服务器 http://localhost:4200（带跨源隔离响应头）
-pnpm nx run aiao-desktop-web:serve-static   # 正式构建后用本地静态服务器预览
+pnpm nx dev aiao-desktop                    # 本地开发：开发服务器 http://localhost:4410 + 开发导航 http://127.0.0.1:4412/
+pnpm nx run aiao-desktop:verify             # 全部门禁：需求、门禁与开发脚本测试、lint、typecheck、build、冒烟、密钥扫描
+pnpm nx serve aiao-desktop-web              # 只起开发服务器 http://localhost:4410（带跨源隔离响应头）
+pnpm nx run aiao-desktop-web:serve-static   # 正式构建后在 http://127.0.0.1:4411 预览
 pnpm nx run aiao-desktop-e2e:e2e            # 正式构建上的 Chromium 冒烟
 ```

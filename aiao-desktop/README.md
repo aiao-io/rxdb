@@ -6,29 +6,35 @@
 
 ## 结构
 
-| 目录                 | Nx 项目            | 运行时                        | 职责                                                                  |
-| -------------------- | ------------------ | ----------------------------- | --------------------------------------------------------------------- |
-| [apps/web](apps/web) | `aiao-desktop-web` | 浏览器（Angular）             | 桌面外壳、窗口管理与内置应用；构建输出到 `dist/aiao-desktop/apps/web` |
-| [apps/e2e](apps/e2e) | `aiao-desktop-e2e` | Node + Chromium（Playwright） | 对 web 的正式构建跑冒烟，外网请求全部拦截                             |
-| 产品根（本目录）     | `aiao-desktop`     | —                             | 需求门禁、密钥扫描，以及一次跑完全部门禁的 `verify`                   |
+| 目录                 | Nx 项目            | 运行时                        | 职责                                                                        |
+| -------------------- | ------------------ | ----------------------------- | --------------------------------------------------------------------------- |
+| [apps/web](apps/web) | `aiao-desktop-web` | 浏览器（Angular）             | 桌面外壳、窗口管理与内置应用；构建输出到 `dist/aiao-desktop/apps/web`       |
+| [apps/e2e](apps/e2e) | `aiao-desktop-e2e` | Node + Chromium（Playwright） | 对 web 的正式构建跑冒烟，外网请求全部拦截                                   |
+| 产品根（本目录）     | `aiao-desktop`     | —                             | 本地开发入口与开发导航、需求门禁、密钥扫描，以及一次跑完全部门禁的 `verify` |
 
-## 本地运行
+## 本地开发
 
-在仓库根执行，先切 Node 26：
-
-```bash
-pnpm nx serve aiao-desktop-web
-```
-
-打开 <http://localhost:4200>，地址带 `?boot=0`（或 `#noboot`）可跳过开机动画。开发服务器的 development 配置返回跨源隔离所需的响应头，终端才能启动 Vivari；production 配置不带这两个头。
-
-预览正式构建：
+在仓库根启动本地开发环境，先切 Node 26：
 
 ```bash
-pnpm nx run aiao-desktop-web:serve-static
+pnpm nx dev aiao-desktop
 ```
 
-它先做正式构建，再在 <http://127.0.0.1:4200> 起静态服务器，同样带跨源隔离响应头；端口可以用 `PORT` 环境变量或 `--port=` 参数修改。
+它先检查固定端口，再启动支持热更新的开发服务器，就绪后自动打开[开发导航](http://127.0.0.1:4412/)。导航页集中展示服务入口与实时状态（是否运行、跨源隔离响应头是否齐全）、常用命令（一键复制）、在 VS Code 中打开的文档与源码，以及当前检出位和分支。
+
+| 服务           | 地址                   | 说明                                                                                |
+| -------------- | ---------------------- | ----------------------------------------------------------------------------------- |
+| 开发导航       | http://127.0.0.1:4412/ | 随 `nx dev` 启动                                                                    |
+| Web 开发服务器 | http://localhost:4410  | 随 `nx dev` 启动，也可单独 `pnpm nx serve aiao-desktop-web`；`?boot=0` 跳过开机动画 |
+| 正式构建预览   | http://127.0.0.1:4411  | 按需 `pnpm nx run aiao-desktop-web:serve-static`，先正式构建，不随代码热更新        |
+
+端口固定，与仓库里其他应用错开；被占用时报出占用的服务与地址后失败，不自动换号，也不停止占用者。端口统一登记在 [scripts/dev/services.mjs](scripts/dev/services.mjs)，由测试校验与各 Nx 目标一致。
+
+- 无需自动打开浏览器：`AIAO_DEV_OPEN=false pnpm nx dev aiao-desktop`。
+- 交互终端默认使用 Nx TUI，可切换查看各服务日志；`pnpm nx dev aiao-desktop --tui=false` 输出普通日志。
+- Ctrl-C 停止全部服务。
+
+开发服务器与正式构建预览都返回跨源隔离所需的响应头，终端才能启动 Vivari；开发服务器的 production 配置不带这两个头。开发导航只监听 `127.0.0.1`、只接受指向本机的 Host，不进入 web 的构建产物，页面里也没有任何密钥。
 
 ## 验证
 
