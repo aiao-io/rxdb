@@ -255,7 +255,6 @@ export interface ModelDesignerTranslations {
     previewing: string;
     interrupted: string;
     offline: string;
-    pendingChanges: string;
     confirmMerge: string;
     discard: string;
     retry: string;
@@ -559,7 +558,6 @@ export const DEFAULT_TRANSLATIONS: ModelDesignerTranslations = {
     previewing: 'Preview',
     interrupted: 'Interrupted',
     offline: 'AI features require network connection',
-    pendingChanges: 'Please handle current changes first',
     confirmMerge: 'Confirm Merge',
     discard: 'Discard',
     retry: 'Retry',

@@ -253,7 +253,6 @@ export const ZH_TRANSLATIONS: ModelDesignerTranslations = {
     previewing: '预览',
     interrupted: '已中断',
     offline: 'AI 功能需要网络连接',
-    pendingChanges: '请先处理当前变更',
     confirmMerge: '确认合并',
     discard: '丢弃',
     retry: '重试',

@@ -108,20 +108,6 @@
 
 <!-- AI Chat Panel template for drawer content injection -->
 <ng-template #aiChatPanelTpl>
-  <!-- 孤立分支恢复对话框 -->
-  @if (orphanBranchDetected()) {
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div class="modal-box">
-        <h3 class="text-lg font-bold">{{ t().ai.pendingChanges }}</h3>
-        <p class="py-4">发现上次未完成的 AI 变更，是否继续预览或丢弃？</p>
-        <div class="modal-action">
-          <button class="btn btn-primary" (click)="onRecoverOrphanBranch()">继续预览</button>
-          <button class="btn btn-error" (click)="onDiscardOrphanBranch()">丢弃</button>
-        </div>
-      </div>
-    </div>
-  }
-
   <lib-ai-chat-panel
     [activeSessionId]="agent.activeSessionId()"
     [agentError]="agent.error()"

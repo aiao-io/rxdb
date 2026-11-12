@@ -368,6 +368,38 @@ describe('AgentConversationService', () => {
     expect(service.awaitingAnswer()).toBe(false);
   });
 
+  it('连点选项时只提交一次：准备这一轮期间就算忙', async () => {
+    const service = setup();
+    await ready(service);
+    await service.createSession();
+    transports[0].responses.push([
+      { type: 'start', messageId: 'a1' },
+      { type: 'start-step' },
+      {
+        type: 'tool-input-available',
+        toolCallId: 'q1',
+        toolName: 'ask_user',
+        input: { question: '怎么关联？', options: [{ id: 'a', label: '直接' }] }
+      },
+      { type: 'finish-step' },
+      { type: 'finish' }
+    ]);
+    await service.send('加商品');
+    const first = service.answer('q1', { optionId: 'a', label: '直接' });
+    expect(service.busy()).toBe(true);
+    await Promise.all([first, service.answer('q1', { optionId: 'a', label: '直接' })]);
+    expect(transports[0].sends).toHaveLength(2);
+    expect(service.busy()).toBe(false);
+  });
+
+  it('连按两次发送只发出一条', async () => {
+    const service = setup();
+    await ready(service);
+    await service.createSession();
+    await Promise.all([service.send('加商品'), service.send('加商品')]);
+    expect(transports[0].sends).toHaveLength(1);
+  });
+
   it('回答提问后回填工具结果并开始下一轮', async () => {
     const service = setup();
     await ready(service);

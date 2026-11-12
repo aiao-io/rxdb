@@ -78,6 +78,15 @@ afterEach(async () => {
   await Promise.all(harnesses.splice(0).map(harness => harness.close()));
 });
 
+describe('会话预热', () => {
+  it('Worker 建会话触发的预热不带 clientData 也能启动；缺快照的那一轮不调用模型', async () => {
+    const model = new MockLanguageModelV4();
+    const turn = await start(model, undefined).sendMessage(userMessage('u1', '你好'));
+    expect(model.doStreamCalls).toHaveLength(0);
+    expect(turn.chunks.some(chunk => chunk.type === 'error')).toBe(true);
+  });
+});
+
 describe('modelDesignerAgent', () => {
   it('一轮里依次调用建实体、连接、校验工具，草稿在步骤之间推进', async () => {
     const model = new MockLanguageModelV4({

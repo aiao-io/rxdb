@@ -92,6 +92,8 @@ export class AgentConversationService {
   readonly #forkBase = signal<ModelSnapshot | null>(null);
   readonly #sessionDiff = signal<BranchDiff>({ added: [], modified: [], deleted: [] });
   readonly #error = signal<string | null>(null);
+  /** 发送、回答、重试从点下去就算忙：准备这一轮（等写入队列、读快照）时连点也不会重复提交 */
+  readonly #preparing = signal(false);
   #queue: Promise<void> = Promise.resolve();
   #loading: Promise<void> = Promise.resolve();
   /** 启动时恢复上次没处理完的 AI 分支；首次写入前要等它，免得在 AI 分支上再 fork 一层 */
@@ -108,7 +110,9 @@ export class AgentConversationService {
   /** 当前会话是迁移前的旧会话（只读） */
   readonly readOnly = computed(() => this.activeSessionId() !== undefined && this.#record() === undefined);
   readonly status = computed(() => this.#active()?.chat.status ?? 'ready');
-  readonly busy = computed(() => this.status() === 'submitted' || this.status() === 'streaming');
+  readonly busy = computed(
+    () => this.#preparing() || this.status() === 'submitted' || this.status() === 'streaming'
+  );
   readonly hasError = computed(() => this.#active()?.chat.error !== undefined);
   /** 当前轮在等用户回答提问 */
   readonly awaitingAnswer = computed(() => pendingQuestion(this.#active()?.chat.messages ?? []) !== undefined);
@@ -213,7 +217,7 @@ export class AgentConversationService {
     const active = this.#active();
     const value = text.trim();
     if (!active || !value || this.busy() || this.awaitingAnswer()) return;
-    await this.#guarded(async () => {
+    await this.#startTurn(async () => {
       await this.#prepareTurn(active);
       if (active.record.name === NEW_SESSION_NAME)
         active.record.name = value.length > 30 ? `${value.slice(0, 30)}…` : value;
@@ -229,7 +233,7 @@ export class AgentConversationService {
   async answer(toolCallId: string, option: { optionId: string; label: string }): Promise<void> {
     const active = this.#active();
     if (!active || this.busy()) return;
-    await this.#guarded(async () => {
+    await this.#startTurn(async () => {
       await this.#prepareTurn(active);
       await active.chat.addToolOutput({ tool: ASK_USER_TOOL, toolCallId, output: option });
       await active.chat.sendMessage();
@@ -248,7 +252,7 @@ export class AgentConversationService {
   async retry(): Promise<void> {
     const active = this.#active();
     if (!active || this.busy()) return;
-    await this.#guarded(async () => {
+    await this.#startTurn(async () => {
       await this.#prepareTurn(active);
       active.chat.clearError();
       await active.chat.regenerate();
@@ -416,6 +420,13 @@ export class AgentConversationService {
   async #guarded(task: () => Promise<void>): Promise<void> {
     this.#error.set(null);
     await this.#background(task());
+  }
+
+  /** 开始一轮的操作（发送、回答、重试）：从调用起就算忙，结束（含失败）后才放开。 */
+  async #startTurn(task: () => Promise<void>): Promise<void> {
+    this.#preparing.set(true);
+    await this.#guarded(task);
+    this.#preparing.set(false);
   }
 
   /** 后台收尾（保存会话、写入工具输出、加载会话列表）失败时，同样把原因显示在面板上。 */

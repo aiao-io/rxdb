@@ -153,10 +153,6 @@ export default class DesignerComponent {
   /** 从当前路由 URL 推导 viewMode */
   readonly viewMode = signal<ViewMode>('canvas');
 
-  /** 孤立分支恢复对话框状态 */
-  readonly orphanBranchDetected = signal(false);
-  readonly orphanBranchId = signal<string | null>(null);
-
   /** 用户是否显式请求返回模型列表 */
   readonly listRequested = signal(false);
 
@@ -228,22 +224,6 @@ export default class DesignerComponent {
 
   onToggleAi() {
     this.#aiDrawer?.toggle();
-  }
-
-  /** 处理孤立分支——继续预览 */
-  onRecoverOrphanBranch() {
-    this.orphanBranchDetected.set(false);
-    this.#aiDrawer?.open();
-  }
-
-  /** 处理孤立分支——丢弃 */
-  onDiscardOrphanBranch() {
-    const branchId = this.orphanBranchId();
-    if (branchId) {
-      void this.agent.discard();
-    }
-    this.orphanBranchDetected.set(false);
-    this.orphanBranchId.set(null);
   }
 
   /** 展示分支 Diff：打开 AI 抽屉 */

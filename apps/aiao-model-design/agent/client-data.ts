@@ -40,15 +40,19 @@ const entitySchema: z.ZodType<SnapshotEntity> = z.object({
 
 const snapshotSchema: z.ZodType<ModelSnapshot> = z.object({ entities: z.array(entitySchema) });
 
+const clientDataSchema = z.object({ model: snapshotSchema, edits: z.array(z.string()) });
+
 /**
  * 浏览器每轮随消息元数据发送的数据：当前模型快照，以及上一轮之后用户手动修改的逐行说明。
  *
+ * Worker 创建会话时触发的预热 run 不带它（SDK 在预热时也会按 schema 解析），所以整体可缺省；
+ * 真正开始一轮时由 {@link requireClientData} 要求必须有。
  * 这是浏览器提供的输入，只用于建模上下文；会话归属由 Worker 判定，不从这里读取。
  */
-export const agentClientData = z.object({ model: snapshotSchema, edits: z.array(z.string()) });
+export const agentClientData = clientDataSchema.optional();
 
 /** 浏览器每轮发送的数据。 */
-export type AgentClientData = z.infer<typeof agentClientData>;
+export type AgentClientData = z.infer<typeof clientDataSchema>;
 
 /** 每一轮都必须带快照；缺少时说明浏览器端出了错，直接中止本轮。 */
 export function requireClientData(value: AgentClientData | undefined): AgentClientData {

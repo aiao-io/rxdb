@@ -55,7 +55,7 @@ Worker 接口：
    pnpm nx run aiao-model-design:agent-dev -- --profile self-hosted
    ```
 
-   `.env.agent` 填模型密钥，由 `trigger dev` 注入开发会话；项目 ref 要在 shell 里导出，`trigger.config.ts` 在 CLI 求值时读取。Worker 的 `TRIGGER_SECRET_KEY` 用该项目开发环境的密钥。
+   `.env.agent` 填模型密钥，由 `trigger dev` 注入开发会话。项目 ref 由 CLI 从环境变量 `TRIGGER_PROJECT_REF` 读取，覆盖 `trigger.config.ts` 里的占位值；配置文件本身不读环境变量，因为部署镜像里的索引与运行进程也会加载它。Worker 的 `TRIGGER_SECRET_KEY` 用该项目开发环境的密钥。
 
 从旧版升级时，`.dev.vars` 里的 `DEEPSEEK_API_KEY`、`DEEPSEEK_BASE_URL`、`DEEPSEEK_MODEL` 已不被 Worker 读取，可以删除：前两项原样移到 `.env.agent`（部署后配置到实例的环境变量），`DEEPSEEK_MODEL="x"` 改写为 `AGENT_MODEL="deepseek:x"`。旧版经 OpenAI 兼容的 Responses 接口（`<DEEPSEEK_BASE_URL>/responses`）调用模型，新版调用 Chat Completions 接口（`<DEEPSEEK_BASE_URL>/chat/completions`）；`DEEPSEEK_BASE_URL` 指向中转服务时，要确认它提供后者。
 
