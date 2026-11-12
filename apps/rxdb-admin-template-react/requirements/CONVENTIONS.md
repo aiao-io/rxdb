@@ -1,6 +1,6 @@
 # 应用级约定（Conventions）
 
-沿用根 [CONVENTIONS](../../../requirements/CONVENTIONS.md) 与[需求管理说明](../../../requirements/README.md)，本文件只定义 Admin 应用增量。目录结构来自 [app-template](../../../requirements/app-template/README.md)。
+沿用根 [CONVENTIONS](../../../requirements/CONVENTIONS.md) 与[需求管理说明](../../../requirements/README.md)，本文件只定义 Admin 应用增量。通用治理规则见[应用级需求与项目治理办法](../../../requirements/application-governance.md)，目录结构来自[应用级需求模板](../../../requirements/app-template/README.md)。
 
 ## 文档类型与编号段
 
