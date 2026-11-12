@@ -15,7 +15,9 @@ export interface IRxDBChange {
   transactionId?: UUID | null;
   localId?: number | null;
   clientId?: string;
+  /** 编辑时刻：变更在发起端写入本地的时刻。远端适配器推送时原样保留，`LWWConflictResolver` 比的就是它 */
   createdAt: Date;
+  /** 最后写入时刻；远端日志里是推送时刻 */
   updatedAt: Date;
 }
 

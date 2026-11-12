@@ -54,6 +54,14 @@
         "kind": "type"
       },
       {
+        "name": "RebindRemoteBackendResult",
+        "kind": "type"
+      },
+      {
+        "name": "RemoteBackendMismatchError",
+        "kind": "both"
+      },
+      {
         "name": "RepositorySyncStatus",
         "kind": "type"
       },

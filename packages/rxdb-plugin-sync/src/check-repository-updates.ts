@@ -8,6 +8,7 @@
 
 import { getEntityMetadata, needsPull, type RepositoryIdentifier, type RxDB, RxDBSync } from '@aiao/rxdb';
 import { getAncestorBranchIds } from './branch-utils.js';
+import { assertRemoteBackend } from './remote-backend.js';
 // `RepositoryIdentifier` 此前在 4 个文件里各写了一份同形状定义，
 // 统一收敛到 `VersionManager.interface.ts`（那份才是 `index.ts` 真正导出的）。
 export type { RepositoryIdentifier };
@@ -117,6 +118,8 @@ export async function checkRepositoryUpdates(
   if (!remoteAdapter) {
     throw new Error('Remote adapter not configured');
   }
+  // 游标属于另一个远端时，拿它去数只会数出一个看似可信的 0。状态查询只读，只比对、不绑定。
+  await assertRemoteBackend(sm);
 
   const sinceId = localLastPullRemoteChangeId ?? 0;
   // 计数范围必须和 pull 的拉取范围一致，否则这个函数就是在回答另一个问题：

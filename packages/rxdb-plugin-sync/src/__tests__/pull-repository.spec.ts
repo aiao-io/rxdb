@@ -27,6 +27,7 @@ import {
 import { of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { pullRepository, type PullRepositoryResult } from '../pull-repository.js';
+import { RemoteBackendMismatchError } from '../remote-backend.js';
 import type { SyncManager } from '../SyncManager.js';
 import { createTransactionExecutorStub } from './fixtures/transaction-executor-stub.js';
 
@@ -345,6 +346,8 @@ function createHarness(options: HarnessOptions = {}) {
   );
   const remoteAdapter = { pullChanges };
   const dispatchEvent = vi.fn<(event: RxDBEvent) => void>();
+  // 每一轮落库之前的远端身份核对；按记录比对的本体在 remote-backend.spec.ts
+  const verifyRemoteBackend = vi.fn<() => Promise<void>>(async () => undefined);
 
   const vm = {
     rxdb: {
@@ -361,7 +364,8 @@ function createHarness(options: HarnessOptions = {}) {
     },
     getRemoteRepositories: vi.fn(async () => ({ adapter: remoteAdapter })),
     getLocalRepositories: vi.fn(async () => ({ adapter: localAdapter })),
-    getCurrentBranch: vi.fn(async () => ({ id: options.currentBranchId ?? 'main' }))
+    getCurrentBranch: vi.fn(async () => ({ id: options.currentBranchId ?? 'main' })),
+    verifyRemoteBackend
   } as unknown as SyncManager;
 
   return {
@@ -374,7 +378,8 @@ function createHarness(options: HarnessOptions = {}) {
     syncUpdate,
     changeFind,
     changeUpdate,
-    dispatchEvent
+    dispatchEvent,
+    verifyRemoteBackend
   };
 }
 
@@ -424,6 +429,59 @@ describe('pullRepository', () => {
     expect(syncRecord.lastPullRemoteChangeId).toBe(12);
     expect(harness.syncUpdate).toHaveBeenCalledTimes(2);
     expect(harness.mergeChanges).toHaveBeenCalledTimes(2);
+  });
+
+  describe('每一轮落库之前再核对远端身份', () => {
+    // 入口只核对一次：fetchAll 跑到第二轮时远端可能已被重建，那一轮拉到的是新库的一段，
+    // 游标却按旧库的 id 往前推。核对不过的那一轮一行不写，游标停在上一轮。
+    it('第二轮核对不过：那一轮不落库，游标停在第一轮，错误带着第一轮的进度', async () => {
+      const syncRecord = createSyncRecord('PullSliceItem', 4);
+      const harness = createHarness({
+        syncRecords: [syncRecord],
+        remoteChanges: [createRemoteChange(5), createRemoteChange(9), createRemoteChange(12)]
+      });
+      const mismatch = new RemoteBackendMismatchError('backend-b', ['backend-a']);
+      harness.verifyRemoteBackend.mockResolvedValueOnce(undefined).mockRejectedValueOnce(mismatch);
+
+      const error = await pullRepository(harness.vm, 'public', 'PullSliceItem', {
+        includeRelated: false,
+        limit: 2,
+        fetchAll: true
+      }).catch((rejection: unknown) => rejection);
+
+      expect(error).toBeInstanceOf(RxDBPartialSyncError);
+      expect((error as RxDBPartialSyncError<PullRepositoryResult>).cause).toBe(mismatch);
+      expect((error as RxDBPartialSyncError<PullRepositoryResult>).result).toMatchObject({
+        applied: 2,
+        persistedProgress: true
+      });
+      expect(syncRecord.lastPullRemoteChangeId).toBe(9);
+      expect(harness.mergeChanges).toHaveBeenCalledTimes(1);
+    });
+
+    it('核对排在远端拉取之后、本地落库之前', async () => {
+      const harness = createHarness({
+        syncRecords: [createSyncRecord('PullSliceItem', 0)],
+        remoteChanges: [createRemoteChange(1)]
+      });
+
+      await pullRepository(harness.vm, 'public', 'PullSliceItem', { includeRelated: false });
+
+      const [pulledAt] = harness.pullChanges.mock.invocationCallOrder;
+      const [verifiedAt] = harness.verifyRemoteBackend.mock.invocationCallOrder;
+      const committedAt = harness.transaction.mock.invocationCallOrder.at(-1);
+      expect(pulledAt).toBeLessThan(verifiedAt);
+      expect(verifiedAt).toBeLessThan(committedAt ?? 0);
+    });
+
+    // 空的一轮只写 lastPulledAt，不动游标：没有要证明出处的数据，不为它多打一次远端。
+    it('这一轮什么都没拉到：不核对', async () => {
+      const harness = createHarness({ syncRecords: [createSyncRecord('PullSliceItem', 17)] });
+
+      await pullRepository(harness.vm, 'public', 'PullSliceItem', { includeRelated: false });
+
+      expect(harness.verifyRemoteBackend).not.toHaveBeenCalled();
+    });
   });
 
   it('fetchAll=false 在满批次边界停止并报告 hasMore', async () => {

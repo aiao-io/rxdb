@@ -35,17 +35,18 @@ const nodeProcess = (): NodeJS.Process => {
   return process;
 };
 
-/** 强制一次完整 GC；Node 默认不暴露 `gc`，按需打开这个开关。 */
-const collectGarbage = (): void => {
+/** Node 默认不暴露 `gc`，首次采样时创建一次并在后续采样中复用。 */
+const createGarbageCollector = (): (() => void) => {
   const node = nodeProcess();
   node.getBuiltinModule('node:v8').setFlagsFromString('--expose_gc');
-  const gc = node.getBuiltinModule('node:vm').runInNewContext('gc') as () => void;
-  gc();
+  return node.getBuiltinModule('node:vm').runInNewContext('gc') as () => void;
 };
 
-/** GC 之后仍然存活的内存：JS 堆加上堆外的 ArrayBuffer 等外部内存。 */
+let collectGarbage: (() => void) | undefined;
+
+/** 完整 GC 之后仍然存活的内存：JS 堆加上堆外的 ArrayBuffer 等外部内存。 */
 const liveBytes = (): number => {
-  collectGarbage();
+  (collectGarbage ??= createGarbageCollector())();
   const usage = nodeProcess().memoryUsage();
   return usage.heapUsed + usage.external;
 };

@@ -11,6 +11,7 @@ import {
   branchMaterializationPageFingerprint,
   createEntitySyncResolver,
   getEntityMetadata,
+  RxDBSync,
   SyncType,
   type BranchMaterializationIntent,
   type BranchMaterializationPage,
@@ -20,10 +21,17 @@ import {
   type SyncOptions,
   type TransactionExecutor
 } from '@aiao/rxdb';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { SyncManager } from '../SyncManager.js';
 import { createSyncBranchMaterializationSource } from '../branch-materialization-source.js';
+import { RemoteBackendMismatchError } from '../remote-backend.js';
 import { Tag, User } from './fixtures/test-entities.js';
+
+/** 冻结时远端的身份 */
+const BACKEND = 'backend-a';
+
+/** 远端被重建之后的身份 */
+const REBUILT_BACKEND = 'backend-b';
 
 const keyOf = (EntityClass: typeof User | typeof Tag): string => {
   const { namespace, name } = getEntityMetadata(EntityClass);
@@ -40,10 +48,17 @@ interface PullCall {
   readonly branchId: string | undefined;
 }
 
-/** 只实现 `pullChanges` 的远端替身：分支精确匹配、id 升序、截到 limit */
+/**
+ * 只实现 `pullChanges` 与 `backendId` 的远端替身：分支精确匹配、id 升序、截到 limit
+ *
+ * @remarks
+ * 身份放在可变的 `identity` 上：用例在某一次拉取里把它换掉，模拟分页途中远端被重建。
+ */
 const createRemote = (changes: RemoteChange[]) => {
   const calls: PullCall[] = [];
+  const identity = { backendId: BACKEND };
   const remote = {
+    backendId: vi.fn(async (): Promise<string> => identity.backendId),
     async pullChanges(
       sinceId: number,
       limit: number,
@@ -63,7 +78,7 @@ const createRemote = (changes: RemoteChange[]) => {
         .slice(0, limit);
     }
   };
-  return { remote, calls };
+  return { remote, calls, identity };
 };
 
 const changeOf = (EntityClass: typeof User | typeof Tag, id: number, branchId = 'main'): RemoteChange => {
@@ -85,22 +100,101 @@ const changeOf = (EntityClass: typeof User | typeof Tag, id: number, branchId = 
 const range = (from: number, to: number): number[] => Array.from({ length: to - from + 1 }, (_, i) => from + i);
 
 const createSource = (changes: RemoteChange[]) => {
-  const { remote, calls } = createRemote(changes);
+  const { remote, calls, identity } = createRemote(changes);
+  const verifyRemoteBackend = vi.fn(async () => undefined);
+  const reportError = vi.fn();
   const sm = {
-    rxdb: { config: { entities: [User, Tag], sync: { remote: { adapter: 'remote' } } } },
+    rxdb: {
+      config: { entities: [User, Tag], sync: { remote: { adapter: 'remote' } } },
+      syncState: { reportError }
+    },
+    verifyRemoteBackend,
     getRemoteRepositories: async () => ({ adapter: remote })
   } as unknown as SyncManager;
-  return { source: createSyncBranchMaterializationSource(sm), calls };
+  return {
+    source: createSyncBranchMaterializationSource(sm),
+    calls,
+    identity,
+    remote,
+    reportError,
+    verifyRemoteBackend
+  };
 };
 
-const intentOf = (cutoffs: Record<string, number>, lineage = ['main']): BranchMaterializationIntent => ({
+const intentOf = (
+  cutoffs: Record<string, number>,
+  lineage = ['main'],
+  backendId = BACKEND
+): BranchMaterializationIntent => ({
   syncScope: Object.keys(cutoffs),
   frozenRemoteWatermark: {
+    backendId,
     lineage,
     cutoffs,
     filters: Object.fromEntries(Object.keys(cutoffs).map(key => [key, null]))
   }
 });
+
+/** 把一次 `pages()` 拉到抛错为止，交出抛错之前已经交出的页与那个错误 */
+const collectUntilError = async (pages: AsyncIterable<BranchMaterializationPagePayload>) => {
+  const out: BranchMaterializationPagePayload[] = [];
+  try {
+    for await (const page of pages) out.push(page);
+  } catch (error) {
+    return { pages: out, error };
+  }
+  return { pages: out, error: undefined };
+};
+
+const FULL_SYNC: SyncOptions = { type: SyncType.Full, local: { adapter: 'local' }, remote: { adapter: 'remote' } };
+
+/**
+ * 冻结与屏障两头都走得通的来源：本地读者、远端替身、同步记录表都是同一份
+ *
+ * @remarks
+ * 目标分支取 `main`：血缘不必回读分支表，用例只关心冻结下来的远端身份怎么被后面几步使用。
+ * 同步记录表按 id 存取，`settle` 新建与更新的行都留在 `records` 里供断言。
+ */
+const createFreezingSource = (remoteBackendId: string | null) => {
+  const records = new Map<string, RxDBSync>();
+  const syncReader = {
+    find: vi.fn(async (options: { where: { rules: Array<{ field: string; value: unknown }> } }) => {
+      const id = options.where.rules.find(rule => rule.field === 'id')?.value;
+      const record = typeof id === 'string' ? records.get(id) : undefined;
+      return record ? [record] : [];
+    }),
+    create: vi.fn(async (record: RxDBSync) => {
+      records.set(record.id, record);
+      return record;
+    }),
+    update: vi.fn(async (record: RxDBSync, patch: Partial<RxDBSync>) => Object.assign(record, patch))
+  };
+  const readers = {
+    getRepository: (EntityClass: unknown) => (EntityClass === RxDBSync ? syncReader : { find: async () => [] })
+  };
+  const remote = {
+    backendId: vi.fn(async (): Promise<string> => BACKEND),
+    getChangeCount: vi.fn(async () => ({ count: 1, latestChangeId: 7 }))
+  };
+  const sm = {
+    remoteBackendId,
+    rxdb: {
+      config: { entities: [User, Tag], sync: FULL_SYNC },
+      entitySync: createEntitySyncResolver(FULL_SYNC),
+      entityManager: { instantiate: () => Object.create(RxDBSync.prototype) as RxDBSync }
+    },
+    verifyRemoteBackend: vi.fn(async () => undefined),
+    getLocalRepositories: async () => ({ adapter: readers }),
+    getRemoteRepositories: async () => ({ adapter: remote })
+  } as unknown as SyncManager;
+  return {
+    sm,
+    records,
+    remote,
+    source: createSyncBranchMaterializationSource(sm),
+    executor: readers as unknown as TransactionExecutor
+  };
+};
 
 const collect = async (pages: AsyncIterable<BranchMaterializationPagePayload>) => {
   const out: BranchMaterializationPagePayload[] = [];
@@ -117,6 +211,143 @@ const asPage = (page: BranchMaterializationPagePayload, pageIndex: number): Bran
 });
 
 describe('同步插件的分支物化来源', () => {
+  describe('远端身份', () => {
+    it('续拉之前先核对远端身份：冻结与续拉之间远端可能被重建', async () => {
+      const { source, calls, verifyRemoteBackend } = createSource([changeOf(User, 1)]);
+
+      await collect(
+        source.pages({
+          targetBranchId: 'feature',
+          intent: intentOf({ [USER]: 1 }),
+          fromPageIndex: 0,
+          previousPage: null
+        })
+      );
+
+      expect(verifyRemoteBackend).toHaveBeenCalledTimes(1);
+      expect(calls.length).toBeGreaterThan(0);
+    });
+
+    it('远端身份对不上时一次远端请求都不发', async () => {
+      const { source, calls, verifyRemoteBackend } = createSource([changeOf(User, 1)]);
+      const mismatch = new Error('remote backend changed');
+      verifyRemoteBackend.mockRejectedValue(mismatch);
+
+      await expect(
+        collect(
+          source.pages({
+            targetBranchId: 'feature',
+            intent: intentOf({ [USER]: 1 }),
+            fromPageIndex: 0,
+            previousPage: null
+          })
+        )
+      ).rejects.toBe(mismatch);
+      expect(calls).toEqual([]);
+    });
+
+    // 首次物化时本地一条同步记录都没有，按记录核对的那一关拦不住：冻结在意图里的身份是唯一的凭据。
+    it('远端已不是冻结时的那一个：一页都不拉，抛 RemoteBackendMismatchError 并写进 lastError', async () => {
+      const { source, calls, identity, reportError } = createSource([changeOf(User, 1)]);
+      identity.backendId = REBUILT_BACKEND;
+
+      const { pages, error } = await collectUntilError(
+        source.pages({
+          targetBranchId: 'feature',
+          intent: intentOf({ [USER]: 1 }),
+          fromPageIndex: 0,
+          previousPage: null
+        })
+      );
+
+      expect(error).toBeInstanceOf(RemoteBackendMismatchError);
+      expect(error).toMatchObject({ backendId: REBUILT_BACKEND, boundBackendIds: [BACKEND] });
+      expect(reportError).toHaveBeenCalledWith(error);
+      expect(pages).toEqual([]);
+      expect(calls).toEqual([]);
+    });
+
+    // 冻结的截止 id 只在 A 的 id 空间里有意义：拿它去 B 上拉，交出来的是 B 的一段，续拉还会跳过 B 的另一段。
+    it('分页途中远端被重建：重建之后拉到的那一页不交出去', async () => {
+      const { source, remote, identity } = createSource(range(1, 1500).map(id => changeOf(User, id)));
+      const pullChanges = remote.pullChanges.bind(remote);
+      remote.pullChanges = async (sinceId, ...rest) => {
+        if (sinceId >= 1000) identity.backendId = REBUILT_BACKEND;
+        return pullChanges(sinceId, ...rest);
+      };
+
+      const { pages, error } = await collectUntilError(
+        source.pages({
+          targetBranchId: 'feature',
+          intent: intentOf({ [USER]: 1500 }),
+          fromPageIndex: 0,
+          previousPage: null
+        })
+      );
+
+      expect(pages.map(page => page.payload['lastId'])).toEqual([1000]);
+      expect(error).toBeInstanceOf(RemoteBackendMismatchError);
+      expect(error).toMatchObject({ backendId: REBUILT_BACKEND, boundBackendIds: [BACKEND] });
+    });
+
+    it('冻结时把远端身份与截止 id 一起冻进水位，身份先于截止 id 读取', async () => {
+      const { source, remote } = createFreezingSource(BACKEND);
+
+      const intent = await source.freezeIntent('main');
+
+      expect(intent.frozenRemoteWatermark).toMatchObject({ backendId: BACKEND, cutoffs: { [USER]: 7, [TAG]: 7 } });
+      expect(remote.backendId.mock.invocationCallOrder[0]).toBeLessThan(
+        remote.getChangeCount.mock.invocationCallOrder[0]
+      );
+    });
+
+    // 截止 id 写进游标，身份就得一起写：只写游标的话，新行盖的是本实例此刻认的身份，
+    // 冻结之后远端被重建过，A 的截止 id 就会被当成 B 的游标，B 上那一段永远拉不到。
+    it('settle 把截止 id 与冻结时的远端身份一起落进同步记录', async () => {
+      const { source, records, executor } = createFreezingSource(REBUILT_BACKEND);
+      const intent = intentOf({ [USER]: 7, [TAG]: 3 });
+
+      await source.settle({ targetBranchId: 'feature', intent, executor });
+
+      expect(records.get(`${USER}:feature`)).toMatchObject({ lastPullRemoteChangeId: 7, remoteBackendId: BACKEND });
+      expect(records.get(`${TAG}:feature`)).toMatchObject({ lastPullRemoteChangeId: 3, remoteBackendId: BACKEND });
+    });
+
+    // 改绑（或首次核实）之后本实例认的是另一个远端：旧意图续不下去，报漂移让工作树作废它、按新远端重冻。
+    it('本实例核实过的远端身份与冻结时不同：报漂移', async () => {
+      const { sm, source, executor } = createFreezingSource(BACKEND);
+      const intent = await source.freezeIntent('main');
+      Object.assign(sm, { remoteBackendId: REBUILT_BACKEND });
+
+      const drift = await source.resolveIntentDrift({ targetBranchId: 'main', intent, executor });
+
+      expect(drift).toBe(`远端身份变了：冻结时 ${BACKEND}，现在 ${REBUILT_BACKEND}`);
+    });
+
+    // 新会话里还没跟远端打过照面，答不出远端变没变；交给 pages() 开拉之前那一次比对。
+    it('本实例还没核实过远端身份：不凭它判漂移', async () => {
+      const { sm, source, executor } = createFreezingSource(BACKEND);
+      const intent = await source.freezeIntent('main');
+      Object.assign(sm, { remoteBackendId: null });
+
+      await expect(source.resolveIntentDrift({ targetBranchId: 'main', intent, executor })).resolves.toBeUndefined();
+    });
+
+    // 升级之前冻结、还没物化完的意图不带身份，认不出它属于哪个远端：按形状不符报漂移，作废重冻。
+    it('不带远端身份的旧意图：报形状不符的漂移', async () => {
+      const { source } = createSource([]);
+      const legacy = { lineage: ['main'], cutoffs: { [USER]: 1 }, filters: { [USER]: null } };
+
+      const drift = await source.resolveIntentDrift({
+        targetBranchId: 'feature',
+        intent: { syncScope: [USER], frozenRemoteWatermark: legacy },
+        executor: {} as TransactionExecutor
+      });
+
+      expect(drift).toMatch(/不是同步插件冻结的形状/);
+    });
+  });
+
   describe('分页', () => {
     it('按 1000 条一页跨页拉，截到冻结的 cutoff 为止，最后一页收口', async () => {
       const { source } = createSource(range(1, 2500).map(id => changeOf(User, id)));
@@ -293,12 +524,13 @@ describe('同步插件的分支物化来源', () => {
         remote: { adapter: 'remote', filter: () => rule }
       };
       const reader = { find: async () => [] };
-      const remote = { getChangeCount: async () => ({ latestChangeId: 0 }) };
+      const remote = { backendId: async () => BACKEND, getChangeCount: async () => ({ latestChangeId: 0 }) };
       const sm = {
         rxdb: {
           config: { entities: [User, Tag], sync: databaseSync },
           entitySync: createEntitySyncResolver(databaseSync, new Map([[getEntityMetadata(User), override]]))
         },
+        verifyRemoteBackend: async () => undefined,
         getLocalRepositories: async () => ({ adapter: { getRepository: () => reader } }),
         getRemoteRepositories: async () => ({ adapter: remote })
       } as unknown as SyncManager;
