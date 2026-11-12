@@ -1,0 +1,20 @@
+{
+  "name": "@aiao-model-design/model-ops",
+  "version": "0.0.1",
+  "private": true,
+  "description": "模型设计器的模型快照、建模操作、校验与差异：设计器与建模智能体共用的纯函数",
+  "type": "module",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@aiao/source": "./src/index.ts",
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./testing": {
+      "@aiao/source": "./src/testing.ts",
+      "types": "./src/testing.ts",
+      "default": "./src/testing.ts"
+    }
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "name": "aiao-model-design",
+  "projectType": "application",
+  "sourceRoot": "aiao-model-design",
+  "tags": ["scope:model-design"],
+  "targets": {
+    "requirements-check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-model-design",
+        "command": "node scripts/check-requirements.mjs"
+      }
+    },
+    "requirements-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-model-design",
+        "command": "node --test scripts/check-requirements.spec.mjs"
+      }
+    },
+    "security-check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [{ "projects": ["aiao-model-design-web"], "target": "build" }],
+      "options": {
+        "cwd": "aiao-model-design",
+        "command": "node scripts/check-web-secrets.mjs"
+      }
+    },
+    "security-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-model-design",
+        "command": "node --test scripts/check-web-secrets.spec.mjs"
+      }
+    },
+    "verify": {
+      "executor": "nx:noop",
+      "dependsOn": [
+        "requirements-check",
+        "requirements-test",
+        "security-test",
+        "security-check",
+        {
+          "projects": [
+            "aiao-model-design-web",
+            "aiao-model-design-api",
+            "aiao-model-design-agent",
+            "aiao-model-design-model-ops"
+          ],
+          "target": "lint"
+        },
+        {
+          "projects": [
+            "aiao-model-design-web",
+            "aiao-model-design-api",
+            "aiao-model-design-agent",
+            "aiao-model-design-model-ops"
+          ],
+          "target": "typecheck"
+        },
+        {
+          "projects": [
+            "aiao-model-design-web",
+            "aiao-model-design-api",
+            "aiao-model-design-agent",
+            "aiao-model-design-model-ops"
+          ],
+          "target": "test"
+        },
+        { "projects": ["aiao-model-design-web", "aiao-model-design-api"], "target": "build" },
+        { "projects": ["aiao-model-design-api"], "target": "test-worker" }
+      ]
+    }
+  }
+}

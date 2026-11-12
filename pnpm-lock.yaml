@@ -792,17 +792,17 @@ importers:
         specifier: ^9.5.1
         version: 9.5.1(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
 
-  apps/aiao-model-design:
+  aiao-model-design/apps/agent:
     dependencies:
-      '@ai-sdk/angular':
-        specifier: 3.0.64
-        version: 3.0.64(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2))(zod@4.6.7)
       '@ai-sdk/anthropic':
         specifier: 4.0.39
         version: 4.0.39(zod@4.6.7)
       '@ai-sdk/deepseek':
         specifier: 3.0.28
         version: 3.0.28(zod@4.6.7)
+      '@aiao-model-design/model-ops':
+        specifier: workspace:*
+        version: link:../../packages/model-ops
       '@trigger.dev/sdk':
         specifier: 4.8.3
         version: 4.8.3(ai@7.0.64(zod@4.6.7))(react@19.3.1)(supports-color@10.2.2)(zod@4.6.7)
@@ -816,18 +816,38 @@ importers:
       '@ai-sdk/provider':
         specifier: 4.0.7
         version: 4.0.7
-      '@cloudflare/workers-types':
-        specifier: ^5.20261107.1
-        version: 5.20261107.1
       '@trigger.dev/build':
         specifier: 4.8.3
         version: 4.8.3(magicast@0.3.5)(supports-color@10.2.2)(typescript@6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb))(zod@4.6.7)
       trigger.dev:
         specifier: 4.8.3
         version: 4.8.3(@sinclair/typebox@0.34.52)(rxjs@7.8.2)(typescript@6.0.3(patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb))
+
+  aiao-model-design/apps/api:
+    devDependencies:
+      '@cloudflare/workers-types':
+        specifier: ^5.20261107.1
+        version: 5.20261107.1
       wrangler:
         specifier: ^4.156.2
         version: 4.156.2(@cloudflare/workers-types@5.20261107.1)(@types/node@26.6.6)
+
+  aiao-model-design/apps/web:
+    dependencies:
+      '@ai-sdk/angular':
+        specifier: 3.0.64
+        version: 3.0.64(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2))(zod@4.6.7)
+      '@aiao-model-design/model-ops':
+        specifier: workspace:*
+        version: link:../../packages/model-ops
+      '@trigger.dev/sdk':
+        specifier: 4.8.3
+        version: 4.8.3(ai@7.0.64(zod@4.6.7))(react@19.3.1)(supports-color@10.2.2)(zod@4.6.7)
+      ai:
+        specifier: 7.0.64
+        version: 7.0.64(zod@4.6.7)
+
+  aiao-model-design/packages/model-ops: {}
 
   apps/dev-rxdb-angular-e2e: {}
 

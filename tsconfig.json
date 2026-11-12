@@ -307,7 +307,10 @@
       "path": "./apps/rxdb-admin-template-vue-e2e"
     },
     {
-      "path": "./apps/aiao-model-design"
+      "path": "./aiao-model-design/apps/web"
+    },
+    {
+      "path": "./aiao-model-design/packages/model-ops"
     }
   ]
 }

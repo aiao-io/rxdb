@@ -9,7 +9,7 @@ Aiao Pool 的桌面端、跨网中继、扩展渠道与商业化的产品方向�
 本目录维护平台与可复用领域能力。应用级产品需求由各应用或产品组独立管理，使用 `<APP>-US-XXX` 编号，独立统计和验收；通用治理规则见[应用级需求与项目治理办法](application-governance.md)，初始化模板见[应用级需求模板](app-template/README.md)。底层能力通过带作用域的引用关联，不复制故事状态。
 
 - [Admin 应用模板孵化](../apps/rxdb-admin-template-react/requirements/README.md)（`ADMIN-US-*`）：在当前仓库推进应用配置与业务扩展，公共后台框架能力继续由 epic-010 管理。
-- [模型设计器持久建模智能体](../apps/aiao-model-design/requirements/README.md)（`MODEL-US-*`）：建模 AI 改为运行在自建 Trigger.dev 上的持久智能体，版本控制等底层能力继续由平台故事管理。
+- [模型设计器持久建模智能体](../aiao-model-design/requirements/README.md)（`MODEL-US-*`）：建模 AI 改为运行在自建 Trigger.dev 上的持久智能体，版本控制等底层能力继续由平台故事管理。
 
 ## 术语
 

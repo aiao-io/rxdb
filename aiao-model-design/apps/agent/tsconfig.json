@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2023"],
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "types": ["node"],
+    "paths": {
+      "@aiao-model-design/model-ops": ["../../packages/model-ops/src/index.ts"],
+      "@aiao-model-design/model-ops/testing": ["../../packages/model-ops/src/testing.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "trigger.config.ts", "vitest.config.mts"],
+  "references": [
+    {
+      "path": "../../packages/model-ops"
+    }
+  ]
+}
