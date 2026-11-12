@@ -1618,10 +1618,10 @@ importers:
         version: 22.2.4
       '@angular/core':
         specifier: 22.2.4
-        version: 22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2)
+        version: 22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2)(zone.js@0.16.2)
       '@angular/platform-browser':
         specifier: 22.2.4
-        version: 22.2.4(@angular/common@22.2.4(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2))
+        version: 22.2.4(@angular/common@22.2.4(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2)(zone.js@0.16.2))(rxjs@7.8.2))(@angular/core@22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2)(zone.js@0.16.2))
       react:
         specifier: ^19.3.0
         version: 19.3.1
@@ -1889,7 +1889,7 @@ importers:
     devDependencies:
       '@angular/core':
         specifier: 22.2.4
-        version: 22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2)
+        version: 22.2.4(@angular/compiler@22.2.4)(rxjs@7.8.2)(zone.js@0.16.2)
       react:
         specifier: ^19.3.0
         version: 19.3.1
@@ -9606,7 +9606,7 @@ packages:
     engines: {node: '>= 18'}
     peerDependencies:
       '@types/react': '*'
-      vue: ^3.5.43
+      vue: '*'
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -16192,7 +16192,7 @@ packages:
       imagemin: '*'
       lightningcss: '*'
       postcss: '*'
-      sharp: ^0.35.5
+      sharp: '*'
       svgo: '*'
       uglify-js: '*'
       webpack: ^5.1.0
