@@ -34,6 +34,12 @@ export interface ImageDeleteReview {
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const sha256 = /^[0-9a-f]{64}$/;
 const maxBytes = 16 * 1024 * 1024;
+const integer = (value: unknown, min = 0, max = Number.MAX_SAFE_INTEGER): value is number =>
+  typeof value === 'number' && Number.isSafeInteger(value) && value >= min && value <= max;
+const fields = (value: unknown): Record<string, unknown> => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('远端图片身份或回执格式无效。');
+  return value as Record<string, unknown>;
+};
 const windowFetch: Request = (input, init) => fetch(input, init);
 
 /** 远端原图的显式物理删除控制器，删除前后都以远端不可变身份和设备日志恢复。 */
@@ -65,11 +71,14 @@ export class ImageDeleteController {
     await this.capabilities();
     this.assertActive();
     const checked = this.review(review);
-    this.assertFile(checked.file, checked.file);
-    if (!checked.allowed || this.blocked(checked))
+    if (
+      !checked.deletion &&
+      (!checked.allowed || checked.file.deleted || checked.file.status !== 'uploaded' || this.blocked(checked))
+    )
       throw new Error('此原图仍有保留引用、冲突引用、待核对传输或未知历史，不能物理删除。');
 
-    const key = this.journalKey(checked.file.id);
+    const key = await this.journalKey(checked.file.id);
+    this.assertActive();
     const candidate = JSON.stringify({
       version: 1,
       scope: this.scope(),
@@ -87,20 +96,20 @@ export class ImageDeleteController {
     });
     this.assertActive();
     const receipt = this.receipt(began);
-    this.assertReceipt(receipt, checked.file, journal.requestId);
-    if (receipt.state === 'complete') return receipt;
-
+    this.assertReceipt(receipt, checked.file);
+    if (checked.deletion && checked.deletion.id !== receipt.id) throw new Error('远端删除回执已变化，请重新预览。');
     if (staged) {
       await staged();
       this.assertActive();
     }
-    const beforeStorage = await this.complete(receipt.id);
-    if (beforeStorage.state === 'complete') return beforeStorage;
+    if (receipt.state === 'complete') return receipt;
+    const beforeStorage = await this.complete(receipt, checked.file);
+    if (beforeStorage.state === 'complete' || this.blocked(checked)) return beforeStorage;
 
     const response = await this.storageDelete(receipt.path);
     this.assertActive();
     if (!response.ok) throw new Error('远端原图对象删除失败；文件删标和恢复回执已保留。');
-    const completed = await this.complete(receipt.id);
+    const completed = await this.complete(receipt, checked.file);
     this.assertActive();
     return completed;
   }
@@ -114,9 +123,10 @@ export class ImageDeleteController {
   }
 
   private async records(sourceId: string, digest: string, deleted: boolean): Promise<RemoteFileRecord[]> {
-    const query = `/media_file_records?select=*&workspaceId=eq.${encodeURIComponent(this.workspaceId)}` +
+    const query =
+      `/media_file_records?select=*&workspaceId=eq.${encodeURIComponent(this.workspaceId)}` +
       `&sourceId=eq.${encodeURIComponent(sourceId)}&sha256=eq.${encodeURIComponent(digest)}` +
-      `&deleted=eq.${deleted ? 'true' : 'false'}&order=createdAt.desc`;
+      `&deleted=eq.${deleted ? 'true' : 'false'}&order=createdAt.desc,id.desc&limit=1`;
     const raw = await this.rest(query);
     if (!Array.isArray(raw)) throw new Error('远端图片记录无效。');
     return raw.map(row => this.file(row, sourceId, digest));
@@ -139,60 +149,55 @@ export class ImageDeleteController {
       throw new Error('平台图片删除协议或私有存储不兼容，未执行删除。');
   }
 
-  private async rpc(name: string, body: Record<string, unknown>): Promise<unknown> {
-    const response = await this.request(`${this.access.config.url}/rest/v1/rpc/${name}`, {
-      method: 'POST',
-      headers: {
-        apikey: this.access.config.anonKey,
-        authorization: `Bearer ${this.access.session.access_token}`,
-        'content-type': 'application/json'
-      },
-      body: JSON.stringify(body),
-      credentials: 'omit',
-      cache: 'no-store',
-      redirect: 'error',
-      signal: this.deadline(30000)
-    });
-    if (!response.ok) throw new Error('平台图片删除操作失败，原图已保留。');
-    return response.status === 204 ? null : response.json();
+  private rpc(name: string, body: Record<string, unknown>): Promise<unknown> {
+    return this.rest(`/rpc/${name}`, { method: 'POST', body: JSON.stringify(body) });
   }
 
-  private async rest(path: string): Promise<unknown> {
-    const response = await this.request(`${this.access.config.url}/rest/v1${path}`, {
-      headers: {
-        apikey: this.access.config.anonKey,
-        authorization: `Bearer ${this.access.session.access_token}`,
-        'content-type': 'application/json'
-      },
-      credentials: 'omit',
-      cache: 'no-store',
-      redirect: 'error',
-      signal: this.deadline(30000)
-    });
-    if (!response.ok) throw new Error('远端图片记录读取失败，未执行删除。');
-    return response.status === 204 ? null : response.json();
-  }
-
-  private async complete(requestId: string): Promise<ImageDeletionReceipt> {
-    const raw = await this.rpc('media_complete_image_delete', { p_request_id: requestId });
+  private async rest(path: string, options: RequestInit = {}): Promise<unknown> {
+    const response = await this.send(`${this.access.config.url}/rest/v1${path}`, options, 30000);
+    if (!response.ok) throw new Error('平台图片删除请求失败，删除回执和本机原图保留。');
+    const result: unknown = response.status === 204 ? null : await response.json();
     this.assertActive();
-    return this.receipt(raw);
+    return result;
   }
 
-  private async storageDelete(path: string): Promise<Response> {
-    return this.request(`${this.storageUrl()}/storage/v1/object/aiao-media-images`, {
-      method: 'DELETE',
+  private async complete(expected: ImageDeletionReceipt, file: RemoteFileRecord): Promise<ImageDeletionReceipt> {
+    const raw = await this.rpc('media_complete_image_delete', { p_request_id: expected.id });
+    const receipt = this.receipt(raw);
+    this.assertReceipt(receipt, file);
+    if (receipt.id !== expected.id) throw new Error('远端删除回执身份不一致。');
+    return receipt;
+  }
+
+  private async send(url: string, options: RequestInit, milliseconds: number): Promise<Response> {
+    this.assertActive();
+    const signal = this.deadline(milliseconds);
+    const response = await this.request(url, {
+      ...options,
       headers: {
         apikey: this.access.config.anonKey,
         authorization: `Bearer ${this.access.session.access_token}`,
         'content-type': 'application/json'
       },
-      body: JSON.stringify({ prefixes: [path] }),
       credentials: 'omit',
       cache: 'no-store',
       redirect: 'error',
-      signal: this.deadline(60000)
+      referrerPolicy: 'no-referrer',
+      signal
     });
+    signal.throwIfAborted();
+    return response;
+  }
+
+  private storageDelete(path: string): Promise<Response> {
+    return this.send(
+      `${this.storageUrl()}/storage/v1/object/aiao-media-images`,
+      {
+        method: 'DELETE',
+        body: JSON.stringify({ prefixes: [path] })
+      },
+      60000
+    );
   }
 
   private storageUrl(): string {
@@ -204,37 +209,47 @@ export class ImageDeleteController {
   }
 
   private file(value: unknown, sourceId: string, digest: string): RemoteFileRecord {
-    if (!value || typeof value !== 'object') throw new Error('远端图片记录无效。');
-    const row = value as Record<string, unknown>;
+    this.assertSource(sourceId, digest);
+    const row = fields(value);
     if (
-      typeof row['id'] !== 'string' || !uuid.test(row['id']) ||
-      row['workspaceId'] !== this.workspaceId || row['sourceId'] !== sourceId ||
-      row['version'] !== digest || row['sha256'] !== digest ||
-      !this.mime(row['mimeType']) || typeof row['path'] !== 'string' ||
+      typeof row['id'] !== 'string' ||
+      !uuid.test(row['id']) ||
+      row['workspaceId'] !== this.workspaceId ||
+      row['sourceId'] !== sourceId ||
+      row['version'] !== digest ||
+      row['sha256'] !== digest ||
+      !this.mime(row['mimeType']) ||
+      typeof row['path'] !== 'string' ||
       !this.path(row['path'], sourceId, digest, row['mimeType']) ||
-      !Number.isSafeInteger(row['width']) || row['width'] < 1 || row['width'] > 4096 ||
-      !Number.isSafeInteger(row['height']) || row['height'] < 1 || row['height'] > 4096 ||
-      !Number.isSafeInteger(row['bytes']) || row['bytes'] < 1 || row['bytes'] > maxBytes ||
+      !integer(row['width'], 1, 4096) ||
+      !integer(row['height'], 1, 4096) ||
+      !integer(row['bytes'], 1, maxBytes) ||
       !['pending', 'uploaded', 'deleted', 'needs_review'].includes(String(row['status'])) ||
-      typeof row['deleted'] !== 'boolean' || !Number.isSafeInteger(row['revision']) || row['revision'] < 1 ||
-      !Number.isSafeInteger(row['baseRevision']) || row['baseRevision'] < 0
+      typeof row['deleted'] !== 'boolean' ||
+      !integer(row['revision'], 1) ||
+      !integer(row['baseRevision']) ||
+      Number(row['baseRevision']) >= Number(row['revision'])
     )
       throw new Error('远端图片记录身份或完整性字段无效。');
     return row as unknown as RemoteFileRecord;
   }
 
   private review(value: unknown): ImageDeleteReview {
-    if (!value || typeof value !== 'object') throw new Error('远端图片删除预览无效。');
-    const row = value as Record<string, unknown>;
-    const file = row['file'];
-    const parsedFile = file && typeof file === 'object' ? this.file(file, String((file as Record<string, unknown>)['sourceId']), String((file as Record<string, unknown>)['version'])) : null;
-    if (!parsedFile) throw new Error('远端图片删除预览缺少文件身份。');
-    const counters = ['workRevision', 'retainedReferences', 'conflictReferences', 'pendingTransfers', 'unknownHistory', 'retainedVersions'];
-    if (
-      counters.some(key => !Number.isSafeInteger(row[key]) || Number(row[key]) < 0) ||
-      typeof row['allowed'] !== 'boolean'
-    ) throw new Error('远端图片删除预览计数无效。');
+    const row = fields(value);
+    const file = fields(row['file']);
+    const parsedFile = this.file(file, String(file['sourceId']), String(file['sha256']));
+    const counters = [
+      'workRevision',
+      'retainedReferences',
+      'conflictReferences',
+      'pendingTransfers',
+      'unknownHistory',
+      'retainedVersions'
+    ];
+    if (counters.some(key => !integer(row[key])) || typeof row['allowed'] !== 'boolean')
+      throw new Error('远端图片删除预览计数无效。');
     const deletion = row['deletion'] === null || row['deletion'] === undefined ? null : this.receipt(row['deletion']);
+    if (deletion) this.assertReceipt(deletion, parsedFile);
     return {
       file: parsedFile,
       workRevision: Number(row['workRevision']),
@@ -249,62 +264,112 @@ export class ImageDeleteController {
   }
 
   private receipt(value: unknown): ImageDeletionReceipt {
-    if (!value || typeof value !== 'object') throw new Error('远端删除回执无效。');
-    const row = value as Record<string, unknown>;
+    const row = fields(value);
     if (
-      typeof row['id'] !== 'string' || !uuid.test(row['id']) ||
-      row['workspaceId'] !== this.workspaceId || typeof row['fileId'] !== 'string' || !uuid.test(row['fileId']) ||
-      typeof row['sourceId'] !== 'string' || !uuid.test(row['sourceId']) || !sha256.test(String(row['version'])) ||
-      typeof row['path'] !== 'string' || !['pending', 'complete'].includes(String(row['state'])) ||
-      row['createdBy'] !== this.access.userId || typeof row['createdAt'] !== 'string' ||
+      typeof row['id'] !== 'string' ||
+      !uuid.test(row['id']) ||
+      row['workspaceId'] !== this.workspaceId ||
+      typeof row['fileId'] !== 'string' ||
+      !uuid.test(row['fileId']) ||
+      typeof row['sourceId'] !== 'string' ||
+      !uuid.test(row['sourceId']) ||
+      !sha256.test(String(row['version'])) ||
+      typeof row['path'] !== 'string' ||
+      !['pending', 'complete'].includes(String(row['state'])) ||
+      row['createdBy'] !== this.access.userId ||
+      typeof row['createdAt'] !== 'string' ||
       !(row['completedAt'] === null || typeof row['completedAt'] === 'string')
-    ) throw new Error('远端删除回执字段无效。');
+    )
+      throw new Error('远端删除回执字段无效。');
     return row as unknown as ImageDeletionReceipt;
   }
 
-  private assertReceipt(receipt: ImageDeletionReceipt, file: RemoteFileRecord, requestId: string): void {
+  private assertReceipt(receipt: ImageDeletionReceipt, file: RemoteFileRecord): void {
     if (
-      receipt.id !== requestId || receipt.fileId !== file.id || receipt.sourceId !== file.sourceId ||
-      receipt.version !== file.version || receipt.path !== file.path
-    ) throw new Error('远端删除回执身份不一致，原图保留。');
+      receipt.fileId !== file.id ||
+      receipt.sourceId !== file.sourceId ||
+      receipt.version !== file.version ||
+      receipt.path !== file.path
+    )
+      throw new Error('远端删除回执身份不一致，原图保留。');
   }
 
   private assertFile(actual: RemoteFileRecord, expected: RemoteFileRecord): void {
     if (
-      actual.id !== expected.id || actual.workspaceId !== expected.workspaceId || actual.sourceId !== expected.sourceId ||
-      actual.version !== expected.version || actual.sha256 !== expected.sha256 || actual.path !== expected.path ||
-      actual.mimeType !== expected.mimeType || actual.width !== expected.width || actual.height !== expected.height ||
-      actual.bytes !== expected.bytes || actual.revision !== expected.revision || actual.deleted !== expected.deleted
-    ) throw new Error('远端图片文件身份在预览期间发生变化，原图保留。');
+      actual.id !== expected.id ||
+      actual.workspaceId !== expected.workspaceId ||
+      actual.sourceId !== expected.sourceId ||
+      actual.version !== expected.version ||
+      actual.sha256 !== expected.sha256 ||
+      actual.path !== expected.path ||
+      actual.mimeType !== expected.mimeType ||
+      actual.width !== expected.width ||
+      actual.height !== expected.height ||
+      actual.bytes !== expected.bytes ||
+      actual.revision !== expected.revision ||
+      actual.deleted !== expected.deleted ||
+      actual.status !== expected.status ||
+      actual.baseRevision !== expected.baseRevision
+    )
+      throw new Error('远端图片文件身份在预览期间发生变化，原图保留。');
   }
 
   private blocked(review: ImageDeleteReview): boolean {
-    return [review.retainedReferences, review.conflictReferences, review.pendingTransfers, review.unknownHistory].some(value => value > 0);
+    return [review.retainedReferences, review.conflictReferences, review.pendingTransfers, review.unknownHistory].some(
+      value => value > 0
+    );
   }
 
-  private parseJournal(payload: string, fileId: string): { version: 1; scope: string; fileId: string; requestId: string } {
+  private parseJournal(
+    payload: string,
+    fileId: string
+  ): { version: 1; scope: string; fileId: string; requestId: string } {
     let value: unknown;
-    try { value = JSON.parse(payload); } catch { throw new Error('图片删除设备日志损坏，原图保留。'); }
+    try {
+      value = JSON.parse(payload);
+    } catch {
+      throw new Error('图片删除设备日志损坏，原图保留。');
+    }
     if (!value || typeof value !== 'object') throw new Error('图片删除设备日志无效，原图保留。');
     const row = value as Record<string, unknown>;
-    if (row['version'] !== 1 || row['scope'] !== this.scope() || row['fileId'] !== fileId || typeof row['requestId'] !== 'string' || !uuid.test(row['requestId']))
+    if (
+      row['version'] !== 1 ||
+      row['scope'] !== this.scope() ||
+      row['fileId'] !== fileId ||
+      typeof row['requestId'] !== 'string' ||
+      !uuid.test(row['requestId'])
+    )
       throw new Error('未知图片删除设备日志版本，原图保留。');
     return row as { version: 1; scope: string; fileId: string; requestId: string };
   }
 
-  private journalKey(fileId: string): string {
-    return `id-${this.workspaceId.replaceAll('-', '')}-${fileId.replaceAll('-', '')}`.slice(0, 80);
+  private async journalKey(fileId: string): Promise<string> {
+    const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(this.scope()));
+    const prefix = [...new Uint8Array(hash)]
+      .map(byte => byte.toString(16).padStart(2, '0'))
+      .join('')
+      .slice(0, 32);
+    return `id-${prefix}-${fileId.replaceAll('-', '')}`;
   }
 
-  private scope(): string { return `${this.access.userId}:${this.workspaceId}`; }
+  private scope(): string {
+    return `${this.access.config.url}:${this.access.userId}:${this.workspaceId}`;
+  }
   private assertSource(sourceId: string, digest: string): void {
     if (!uuid.test(sourceId) || !sha256.test(digest)) throw new Error('图片作品或版本摘要无效。');
   }
-  private mime(value: unknown): value is ImageMimeType { return value === 'image/png' || value === 'image/jpeg'; }
-  private path(value: string, sourceId: string, digest: string, mime: unknown): boolean {
-    return value === `${this.access.userId}/${this.workspaceId}/${sourceId}/${digest}.${imageExtension(mime as ImageMimeType)}`;
+  private mime(value: unknown): value is ImageMimeType {
+    return value === 'image/png' || value === 'image/jpeg';
   }
-  private assertActive(): void { this.signal?.throwIfAborted(); }
+  private path(value: string, sourceId: string, digest: string, mime: unknown): boolean {
+    return (
+      value ===
+      `${this.access.userId}/${this.workspaceId}/${sourceId}/${digest}.${imageExtension(mime as ImageMimeType)}`
+    );
+  }
+  private assertActive(): void {
+    this.signal?.throwIfAborted();
+  }
   private deadline(milliseconds: number): AbortSignal {
     const timeout = AbortSignal.timeout(milliseconds);
     return this.signal ? AbortSignal.any([this.signal, timeout]) : timeout;

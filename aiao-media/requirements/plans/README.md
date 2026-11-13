@@ -4,7 +4,7 @@ MVP 首发收口与同步扩展的实施计划、真实环境验收记录和历�
 
 | 验收记录                                                                             | 回答的问题                                                                              |
 | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
-| [image-sync-resume-20261114.md](image-sync-resume-20261114.md)                       | 原图范围与队列、TUS 续传/分片进度、仅删本机与图库移除及 PostgreSQL 竞态；正式两端仍待验 |
+| [image-sync-resume-20261114.md](image-sync-resume-20261114.md)                       | 原图范围/队列、TUS 续传、三种删除范围与引用/回执保护及 PostgreSQL 竞态；新版本与正式两端待验 |
 | [credits-delivery-20261113.md](credits-delivery-20261113.md)                         | 平台积分账本、后台调整、本人余额与真实本地并发验收                                      |
 | [platform-relay-credits-20261113.md](platform-relay-credits-20261113.md)             | 平台模型与积分任务前后端、本地三画幅及续接验收；正式双部署待验                          |
 | [self-hosted-release-20261109.md](self-hosted-release-20261109.md)                   | 国内清理重建、Caddy IP HTTPS、真实 Storage 与整机重启的发布证据                         |

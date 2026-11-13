@@ -29,6 +29,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { concatMap, EMPTY, Subscription } from 'rxjs';
+import type { ImageDeleteController, ImageDeleteReview } from '../local-data/image-delete';
 import type { ImageSyncController } from '../local-data/image-sync';
 import type { ImageSyncSelection } from '../local-data/image-sync-selection';
 import { ImageTransferError } from '../local-data/image-transfer-error';
@@ -210,6 +211,9 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private imageQueueRun: { signal: AbortSignal; promise: Promise<void> } | null = null;
   private imageQueueRequested = false;
   private imageSelectionScope: AbortController | null = null;
+  private imageDeleteScope: AbortController | null = null;
+  private imageDeletion: { controller: ImageDeleteController; review: ImageDeleteReview; signal: AbortSignal } | null =
+    null;
   private imageQueueTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly imageDownloads = signal<ReadonlyMap<string, ImageDownloadState>>(new Map());
   private registryState?: WorkspaceRegistryState;
@@ -426,6 +430,11 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   readonly syncPaused = signal(false);
   readonly lastSyncedAt = signal('');
   readonly remoteQuota = signal('');
+  readonly imageDeleteReview = signal<ImageDeleteReview | null>(null);
+  readonly imageDeletePrompt = signal('');
+  readonly imageDeleteBusy = signal(false);
+  readonly imageDeleteMessage = signal('');
+  readonly imageDeleteStates = signal<ReadonlyMap<string, 'pending' | 'complete'>>(new Map());
   readonly imageSyncEnabled = signal(false);
   readonly imageSyncBusy = signal(false);
   readonly imageUploads = signal(0);
@@ -468,6 +477,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   );
   readonly settingsBusy = computed(
     () =>
+      this.imageDeleteBusy() ||
       this.sending() ||
       this.modelBusy() ||
       this.dataBusy() ||
@@ -537,7 +547,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
 
   constructor() {
     afterRenderEffect(() => {
-      if (!this.detail() && !this.feedbackOpen() && !this.authOpen() && !this.viewer()) {
+      if (!this.detail() && !this.feedbackOpen() && !this.authOpen() && !this.viewer() && !this.imageDeleteReview()) {
         const trigger = this.dialogTrigger;
         this.dialogTrigger = null;
         if (trigger?.isConnected) trigger.focus();
@@ -616,6 +626,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.feedbackOpen.set(false);
     this.closeAuth();
     this.closeViewer();
+    this.cancelImageDelete();
   }
   @HostListener('document:visibilitychange') onVisibility() {
     if (document.visibilityState === 'hidden') void this.studio?.flush();
@@ -1563,6 +1574,81 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.imageSyncMessage.set(product.state.message || '已从同步图库移除，各设备原图和云端对象均保留。');
     this.notify(this.imageSyncMessage());
   }
+  async prepareImageDelete(sourceId: string, prompt: string, digest?: string): Promise<void> {
+    if (this.settingsBusy() || this.targetKind() !== 'platform' || !this.syncInitialized()) return;
+    this.cancelImageDelete();
+    const scope = new AbortController();
+    this.imageDeleteScope = scope;
+    this.imageDeleteBusy.set(true);
+    this.imageDeleteMessage.set('正在核对远端原图与保留引用…');
+    try {
+      const hash = digest ?? (await this.requireStore().imageInfo(sourceId)).sha256;
+      scope.signal.throwIfAborted();
+      const controller = await this.imageDeleteController(scope.signal);
+      const review = await controller.preview(sourceId, hash);
+      scope.signal.throwIfAborted();
+      this.imageDeletion = { controller, review, signal: scope.signal };
+      this.imageDeleteReview.set(review);
+      this.imageDeletePrompt.set(prompt);
+      this.imageDeleteMessage.set('');
+    } catch (error) {
+      if (!scope.signal.aborted)
+        this.imageDeleteMessage.set(error instanceof Error ? error.message : '远端原图核对失败，未执行删除。');
+    } finally {
+      if (this.imageDeleteScope === scope) this.imageDeleteBusy.set(false);
+    }
+  }
+  cancelImageDelete(): void {
+    this.imageDeleteScope?.abort();
+    this.imageDeleteScope = null;
+    this.imageDeletion = null;
+    this.imageDeleteReview.set(null);
+    this.imageDeletePrompt.set('');
+    this.imageDeleteBusy.set(false);
+  }
+  async confirmImageDelete(): Promise<void> {
+    const plan = this.imageDeletion;
+    if (!plan || this.settingsBusy() || plan.signal.aborted) return;
+    this.imageDeleteBusy.set(true);
+    this.imageDeleteMessage.set('正在提交删除并核对远端对象…');
+    try {
+      const receipt = await plan.controller.confirm(plan.review, async () => {
+        plan.signal.throwIfAborted();
+        this.stopImageTransfers();
+        await (
+          await this.imageUploadQueue(this.imageSyncScope.signal)
+        ).removeSources(new Set([plan.review.file.sourceId]));
+        plan.signal.throwIfAborted();
+      });
+      plan.signal.throwIfAborted();
+      if (this.imageDeletion !== plan) return;
+      const file = plan.review.file;
+      this.imageDeleteStates.update(states => new Map(states).set(`${file.sourceId}:${file.sha256}`, receipt.state));
+      const message =
+        receipt.state === 'complete' ?
+          '远端原图已删除；本机原图和同步图库信息保留。'
+        : '远端删除待核对，尚未确认对象已消失；本机原图和恢复回执保留，可再次核对。';
+      this.imageDeleteMessage.set(message);
+      if (receipt.state === 'complete') {
+        this.cancelImageDelete();
+        if (this.imageSyncEnabled()) void this.resumeImageQueue();
+      }
+      this.notify(message);
+    } catch (error) {
+      if (!plan.signal.aborted && this.imageDeletion === plan)
+        this.imageDeleteMessage.set(
+          error instanceof Error ? error.message : '远端删除尚未确认，本机原图和恢复回执保留。'
+        );
+    } finally {
+      if (this.imageDeletion === plan) {
+        this.imageDeleteBusy.set(false);
+        if (this.imageSyncEnabled()) void this.resumeImageQueue();
+      }
+    }
+  }
+  remoteImageDeleteState(sourceId: string, digest: string): 'pending' | 'complete' | null {
+    return this.imageDeleteStates().get(`${sourceId}:${digest}`) ?? null;
+  }
   isSyncedWork(sourceId: string): boolean {
     return this.syncedWorks().some(work => work.jobId === sourceId);
   }
@@ -1774,7 +1860,19 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     return `aiao-media-image-sync-v1:${encodeURIComponent(this.auth?.config.url ?? '')}:${this.authUser()?.id ?? ''}:${this.profileId}`;
   }
   /** 每次传输按当前目标、项目账号和工作区新建控制器，不跨目标复用；作用域中止时在途请求一并取消。 */
+  private async imageDeleteController(signal: AbortSignal): Promise<ImageDeleteController> {
+    const { store, access, workspaceId } = await this.imageTransferAccess(signal);
+    const { ImageDeleteController } = await import('../local-data/image-delete');
+    signal.throwIfAborted();
+    return new ImageDeleteController(store, access, workspaceId, undefined, signal);
+  }
   private async imageSyncController(signal = this.imageSyncScope.signal): Promise<ImageSyncController> {
+    const { store, access, workspaceId } = await this.imageTransferAccess(signal);
+    const { ImageSyncController } = await import('../local-data/image-sync');
+    signal.throwIfAborted();
+    return new ImageSyncController(store, access, workspaceId, undefined, signal);
+  }
+  private async imageTransferAccess(signal: AbortSignal) {
     const store = this.requireStore(),
       profile = this.currentProfile(),
       access = await this.auth?.authorizeProduct().catch(() => {
@@ -1792,11 +1890,12 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.targetKind() !== 'platform'
     )
       throw new ImageTransferError(401, '请先登录平台账号并开启工作区同步。');
-    const { ImageSyncController } = await import('../local-data/image-sync');
-    signal.throwIfAborted();
-    return new ImageSyncController(store, access, profile.binding.remoteWorkspaceId, undefined, signal);
+    return { store, access, workspaceId: profile.binding.remoteWorkspaceId };
   }
   private resetImageSync() {
+    this.cancelImageDelete();
+    this.imageDeleteStates.set(new Map());
+    this.imageDeleteMessage.set('');
     this.removedImageSources.clear();
     this.stopImageTransfers();
   }

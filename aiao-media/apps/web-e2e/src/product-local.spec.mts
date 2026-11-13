@@ -3,9 +3,11 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { localEnvironment } from '../../../scripts/supabase/supabase-local.mjs';
 import { endpoint, importBackup, key, pngFixture, provider, verifyImageDownload } from './local-first.helpers';
+import { storageObjectFixture } from './storage-object.fixture.mts';
 
 let admin: SupabaseClient;
 const ids = new Set<string>();
+const storageFixtures = new Set<Awaited<ReturnType<typeof storageObjectFixture>>>();
 test.beforeAll(async () => {
   const local = await localEnvironment();
   admin = createClient(local.url, local.env['SERVICE_ROLE_KEY'], {
@@ -13,6 +15,8 @@ test.beforeAll(async () => {
   });
 });
 test.afterEach(async () => {
+  for (const fixture of storageFixtures) await fixture.close();
+  storageFixtures.clear();
   for (const id of ids) {
     const files = await admin.from('media_file_records').delete().eq('createdBy', id);
     expect(files.error).toBeNull();
@@ -371,7 +375,9 @@ test('供应商和作品信息跨副本同步但凭据原图留在本机，任�
 test('无任务历史的本机原图可以补传，第二设备先看到缺图原因再重试取回', async ({ page, browser, baseURL }) => {
   const user = await account(),
     png = await pngFixture();
-  const files = new Map<string, Buffer>();
+  const storage = await storageObjectFixture(admin);
+  storageFixtures.add(storage);
+  const files = storage.files;
   let releaseVerification!: () => void;
   const verification = new Promise<void>(resolve => {
     releaseVerification = resolve;
@@ -381,7 +387,11 @@ test('无任务历史的本机原图可以补传，第二设备先看到缺图�
     expect(request.method()).toBe('POST');
     const bytes = request.postDataBuffer()!;
     expect(bytes).toEqual(png);
-    files.set(new URL(request.url()).pathname.replace('/storage/v1/object/', ''), bytes);
+    await storage.put(
+      new URL(request.url()).pathname.replace('/storage/v1/object/', ''),
+      bytes,
+      request.headers()['authorization']
+    );
     await route.fulfill({ status: 200, json: {} });
   });
   await page.route('**/storage/v1/object/authenticated/aiao-media-images/**', async route => {
@@ -549,10 +559,62 @@ test('无任务历史的本机原图可以补传，第二设备先看到缺图�
     await second.getByRole('button', { name: '关闭账号窗口' }).click();
     await expect(card.getByText('仅本机', { exact: true })).toBeVisible();
     await verifyImageDownload(second, card, png);
+    await page.getByRole('button', { name: '关闭账号窗口' }).click();
+    expect(await storage.count()).toBe(1);
+    let deleteCalls = 0;
+    let loseDeletionReply = true;
+    await page.route('**/storage/v1/object/aiao-media-images', async route => {
+      expect(route.request().method()).toBe('DELETE');
+      deleteCalls++;
+      const payload = route.request().postDataJSON() as { prefixes: string[] };
+      const rows = await storage.remove(payload.prefixes, route.request().headers()['authorization']);
+      expect(rows).toHaveLength(1);
+      if (loseDeletionReply) {
+        loseDeletionReply = false;
+        await route.abort('connectionfailed');
+        return;
+      }
+      await route.fulfill({ json: rows });
+    });
+    const deleting = original.getByRole('button', { name: `删除远端原图：${job.request.prompt}`, exact: true });
+    await deleting.click();
+    const deletion = page.getByRole('dialog', { name: '删除远端原图确认' });
+    await expect(deletion).toContainText(createHash('sha256').update(png).digest('hex'));
+    await expect(deletion).toContainText('保留引用：0');
+    expect((await admin.from('media_file_records').select('status').eq('createdBy', user.id)).data).toEqual([
+      { status: 'uploaded' }
+    ]);
+    await deletion.getByRole('button', { name: '取消远端删除', exact: true }).click();
+    expect(files.size).toBe(1);
+    await deleting.click();
+    await deletion.getByRole('button', { name: '确认删除此远端原图', exact: true }).click();
+    await expect(deletion).toContainText('fetch');
+    expect(files.size).toBe(0);
+    expect(await storage.count()).toBe(0);
+    expect((await admin.from('media_image_deletions').select('state').eq('createdBy', user.id)).data).toEqual([
+      { state: 'pending' }
+    ]);
+    await deletion.getByRole('button', { name: '取消远端删除', exact: true }).click();
+    await page.reload();
+    await deleting.click();
+    await expect(deletion).toContainText('已有删除回执');
+    await deletion.getByRole('button', { name: '继续核对远端删除', exact: true }).click();
+    await expect(page.locator('#toast')).toContainText('远端原图已删除');
+    expect(deleteCalls).toBe(1);
+    expect((await admin.from('media_image_deletions').select('state').eq('createdBy', user.id)).data).toEqual([
+      { state: 'complete' }
+    ]);
+    expect((await admin.from('media_file_records').select('status,deleted').eq('createdBy', user.id)).data).toEqual([
+      { status: 'deleted', deleted: true }
+    ]);
+    await verifyImageDownload(page, original, png);
+    await verifyImageDownload(second, card, png);
   } finally {
-    await page.context().setOffline(false);
+    if (!page.isClosed()) await page.context().setOffline(false);
     releaseVerification();
     await context.close();
+    await storage.close();
+    storageFixtures.delete(storage);
   }
 });
 

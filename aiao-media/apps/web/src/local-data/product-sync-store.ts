@@ -167,6 +167,7 @@ const emptyWhere = { combinator: 'and' as const, rules: [] };
 /** 私有工作区之外的 DTO 副本；推拉、水位和出站变更由 RxDB 插件维护。 */
 export class ProductSyncStore {
   private closed = false;
+  private imageReferences = false;
   private closing?: Promise<void>;
   private constructor(
     private readonly db: RxDB,
@@ -237,6 +238,7 @@ export class ProductSyncStore {
       if (result.error || result.data.user?.id !== authorization.userId) throw new Error('当前同步账号未验证。');
       const allowed = await client.from('media_workspaces').select('id').eq('id', workspaceId).single();
       if (allowed.error || allowed.data?.id !== workspaceId) throw new Error('同步工作区授权已失效，本机数据保留。');
+      await store.negotiateImageReferences();
       await db.connect(localAdapterName);
       await db.connect('supabase');
       return store;
@@ -383,6 +385,7 @@ export class ProductSyncStore {
     apply?: ApplyProductSync
   ): Promise<ProductSyncResult> {
     return this.exclusive(async () => {
+      await this.negotiateImageReferences();
       await this.pull();
       const conflict = (await this.conflicts()).find(item => item.id === conflictId);
       if (!conflict) return this.syncRound(apply);
@@ -392,6 +395,7 @@ export class ProductSyncStore {
         await this.persistConflict(conflict.local, latest, conflict.reason);
         throw new Error('远程修订已变化，请重新载入冲突。');
       }
+      await this.retainConflictImages(conflict);
       const adapter = await firstValueFrom(this.db.localAdapter$);
       await adapter.transaction(async executor => {
         const recordRepo = executor.getRepository(this.types.Record),
@@ -451,6 +455,7 @@ export class ProductSyncStore {
   }
 
   private async syncRound(apply?: ApplyProductSync, options: ProductSyncOptions = {}): Promise<ProductSyncResult> {
+    await this.negotiateImageReferences();
     const allowed = await this.client.from('media_workspaces').select('id').eq('id', this.workspaceId).single();
     if (allowed.error || allowed.data?.id !== this.workspaceId) throw new Error('同步工作区授权已失效，本机数据保留。');
     if (options.rescan) await this.resetPullCheckpoint();
@@ -459,6 +464,7 @@ export class ProductSyncStore {
       const latest = await this.remote(conflict.recordId);
       if (latest?.revision !== conflict.latestRemote?.revision)
         await this.persistConflict(conflict.local, latest, conflict.reason);
+      else await this.retainConflictImages(conflict);
     }
     this.assertActive();
     const pushed = await this.db.syncManager.push({
@@ -471,6 +477,7 @@ export class ProductSyncStore {
     const status = await this.db.syncManager.getRepositorySyncStatus('public', 'MediaSyncRecord');
     const result = { records: await this.records(), conflicts: await this.conflicts(), pending: status.pushableCount };
     if (!result.pending) {
+      await this.releaseResolvedImages(result);
       const blocked = new Set(result.conflicts.map(conflict => conflict.recordId));
       const adapter = await firstValueFrom(this.db.localAdapter$);
       await adapter.transaction(async executor => {
@@ -656,15 +663,93 @@ export class ProductSyncStore {
       old ?
         { ...(JSON.parse(old.payload) as Omit<ProductConflict, 'id'>), latestRemote: remote }
       : { recordId, local: record, remote, latestRemote: remote, reason };
-    if (old) await repo.update(old, { payload: JSON.stringify(snapshot) });
-    else
-      await repo.create(
-        this.db.entityManager.instantiate(this.types.ConflictRow, {
-          recordId,
-          status: 'pending',
-          payload: JSON.stringify(snapshot)
-        })
-      );
+    const saved =
+      old ?
+        await repo.update(old, { payload: JSON.stringify(snapshot) })
+      : await repo.create(
+          this.db.entityManager.instantiate(this.types.ConflictRow, {
+            recordId,
+            status: 'pending',
+            payload: JSON.stringify(snapshot)
+          })
+        );
+    await this.retainConflictImages({ ...snapshot, id: saved.id });
+  }
+
+  private async negotiateImageReferences(): Promise<void> {
+    const { data, error } = await this.client.rpc('media_sync_capabilities');
+    this.assertActive();
+    if (error || !data || typeof data !== 'object') throw new Error('平台同步引用能力暂不可读，本机副本保留。');
+    const capabilities = data as Record<string, unknown>;
+    if (
+      capabilities['protocol'] !== 1 ||
+      capabilities['rls'] !== true ||
+      capabilities['metadataOnly'] !== true ||
+      (capabilities['imageReferences'] !== undefined && capabilities['imageReferences'] !== 1)
+    )
+      throw new Error('平台同步引用协议不兼容，本机副本保留。');
+    this.imageReferences = capabilities['imageReferences'] === 1;
+  }
+
+  private async retainConflictImages(conflict: ProductConflict): Promise<void> {
+    if (!this.imageReferences || conflict.local.kind !== 'work') return;
+    const snapshots = [conflict.local, conflict.remote, conflict.latestRemote].filter(record => record !== null);
+    if (
+      snapshots.some(
+        record =>
+          record.kind !== 'work' ||
+          record.workspaceId !== this.workspaceId ||
+          record.sourceId !== conflict.local.sourceId
+      )
+    )
+      throw new Error('图片冲突引用身份不一致，本机副本保留。');
+    const hashes = [...new Set(snapshots.map(record => validateSyncPayload('work', record.payload).sha256))];
+    const { error } = await this.client.rpc('media_retain_image_conflict', {
+      p_workspace_id: this.workspaceId,
+      p_conflict_id: conflict.id,
+      p_source_id: conflict.local.sourceId,
+      p_hashes: hashes
+    });
+    this.assertActive();
+    if (error) throw new Error('图片冲突引用尚未确认，本机双方副本保留，联网后可重试。');
+  }
+
+  private async releaseResolvedImages(result: ProductSyncResult): Promise<void> {
+    if (!this.imageReferences) return;
+    const adapter = await firstValueFrom(this.db.localAdapter$),
+      repo = adapter.getRepository(this.types.ConflictRow);
+    const records = new Map(result.records.map(record => [record.id, record]));
+    const blocked = new Set(result.conflicts.map(conflict => conflict.recordId));
+    for (const choice of ['local', 'remote']) {
+      const rows = await repo.find({
+        where: { combinator: 'and', rules: [{ field: 'status', operator: '=', value: `resolved-${choice}` }] }
+      });
+      for (const row of rows) {
+        const current = records.get(row.recordId);
+        if (!current || current.kind !== 'work' || blocked.has(row.recordId)) continue;
+        if (await this.releaseConflictImages(row.id, current)) await repo.update(row, { status: `released-${choice}` });
+      }
+    }
+  }
+
+  private async releaseConflictImages(conflictId: string, current: ProductRecord): Promise<boolean> {
+    const remote = await this.remote(current.id);
+    if (
+      !remote ||
+      remote.revision !== current.revision ||
+      remote.deleted !== current.deleted ||
+      productPayloadText(remote.kind, remote.payload) !== productPayloadText(current.kind, current.payload)
+    )
+      return false;
+    const { error } = await this.client.rpc('media_release_image_conflict', {
+      p_workspace_id: this.workspaceId,
+      p_conflict_id: conflictId,
+      p_source_id: current.sourceId,
+      p_work_revision: remote.revision
+    });
+    this.assertActive();
+    if (error) throw new Error('图片冲突已解决，远端引用释放尚待确认；持久意图已保留，可重试。');
+    return true;
   }
 
   private async preserveRejections(): Promise<void> {

@@ -42,7 +42,7 @@ try {
   }
   const [a, b] = users;
   const capabilities = ok(await a.client.rpc('media_sync_capabilities'));
-  assert.deepEqual(capabilities, { protocol: 1, rls: true, metadataOnly: true });
+  assert.deepEqual(capabilities, { protocol: 1, rls: true, metadataOnly: true, imageReferences: 1 });
   assert.ok((await anonymous.rpc('media_sync_capabilities')).error);
   const quota = ok(await a.client.rpc('media_sync_status'));
   assert.equal(quota.records, 1);

@@ -53,17 +53,10 @@ CREATE OR REPLACE FUNCTION media_private.image_payload_hash(p_payload text)
 RETURNS text LANGUAGE plpgsql IMMUTABLE SET search_path = '' AS $$
 DECLARE v_payload jsonb;
 BEGIN
-  BEGIN
-    v_payload := p_payload::jsonb;
-  EXCEPTION WHEN OTHERS THEN
-    RETURN NULL;
-  END;
-  BEGIN
-    IF NOT media_private.valid_record_payload('work',p_payload) THEN RETURN NULL; END IF;
-  EXCEPTION WHEN OTHERS THEN
-    RETURN NULL;
-  END;
+  v_payload := p_payload::jsonb;
+  IF media_private.valid_record_payload('work',p_payload) IS NOT TRUE THEN RETURN NULL; END IF;
   RETURN v_payload->>'sha256';
+EXCEPTION WHEN invalid_text_representation OR numeric_value_out_of_range OR datetime_field_overflow THEN RETURN NULL;
 END;
 $$;
 REVOKE ALL ON FUNCTION media_private.image_payload_hash(text) FROM PUBLIC,anon,authenticated;
@@ -153,12 +146,13 @@ BEGIN
     AND "sourceId"=v_file."sourceId" AND status IN ('pending','needs_review') AND NOT deleted;
   SELECT count(*) INTO v_history FROM public.rxdb_change WHERE namespace='public' AND entity='MediaSyncRecord' AND "branchId"='main'
     AND "entityId"=v_work.id::text AND (NOT "snapshotComplete" OR
-      ("beforeData" IS NULL AND "afterData" IS NULL) OR
-      ("beforeData" IS NOT NULL AND media_private.image_payload_hash("beforeData"->>'payload') IS NULL) OR
-      ("afterData" IS NOT NULL AND media_private.image_payload_hash("afterData"->>'payload') IS NULL));
+      (NULLIF("beforeData",'null'::jsonb) IS NULL AND NULLIF("afterData",'null'::jsonb) IS NULL) OR
+      (NULLIF("beforeData",'null'::jsonb) IS NOT NULL AND media_private.image_payload_hash("beforeData"->>'payload') IS NULL) OR
+      (NULLIF("afterData",'null'::jsonb) IS NOT NULL AND media_private.image_payload_hash("afterData"->>'payload') IS NULL));
   RETURN pg_catalog.jsonb_build_object('file',pg_catalog.to_jsonb(v_file),'workRevision',COALESCE(v_work.revision,0),
     'retainedReferences',v_retained,'conflictReferences',v_conflicts,'pendingTransfers',v_transfers,'unknownHistory',v_history,
     'retainedVersions',(SELECT count(*) FROM public.media_file_records WHERE "workspaceId"=v_file."workspaceId" AND "sourceId"=v_file."sourceId" AND id<>v_file.id AND NOT deleted),
+    'deletion',(SELECT pg_catalog.to_jsonb(d) FROM public.media_image_deletions d WHERE d."fileId"=v_file.id),
     'allowed',NOT v_file.deleted AND v_file.status='uploaded' AND v_retained=0 AND v_conflicts=0 AND v_transfers=0 AND v_history=0);
 END;
 $$;

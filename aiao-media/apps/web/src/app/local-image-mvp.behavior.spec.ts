@@ -2673,3 +2673,116 @@ describe('interface interactions', () => {
     expect(component.formatDateTime(undefined)).toBe('');
   });
 });
+
+describe('远端原图独立删除确认', () => {
+  const remoteFile = {
+    id: provider.id,
+    workspaceId: nextProfileId,
+    sourceId: job.id,
+    version: 'a'.repeat(64),
+    path: `${profileId}/${nextProfileId}/${job.id}/${'a'.repeat(64)}.png`,
+    mimeType: 'image/png' as const,
+    width: 1,
+    height: 1,
+    bytes: 10,
+    sha256: 'a'.repeat(64),
+    status: 'uploaded' as const,
+    deleted: false,
+    revision: 1,
+    baseRevision: 0
+  };
+  const review = {
+    file: remoteFile,
+    workRevision: 1,
+    retainedReferences: 0,
+    conflictReferences: 0,
+    pendingTransfers: 0,
+    unknownHistory: 0,
+    retainedVersions: 2,
+    allowed: true,
+    deletion: null
+  };
+  function setup() {
+    const r = rig();
+    r.component.targetKind.set('platform');
+    r.component.syncInitialized.set(true);
+    const preview = vi.fn(async () => review);
+    const confirm = vi.fn<
+      (
+        selection: typeof review,
+        staged: () => Promise<void>
+      ) => Promise<{ state: 'pending' | 'complete'; fileId: string }>
+    >(async (_review, staged) => {
+      await staged();
+      return { state: 'complete' as const, fileId: remoteFile.id };
+    });
+    const controller = vi.fn(async () => ({ preview, confirm }));
+    Object.assign(r.component, { imageDeleteController: controller });
+    return { ...r, preview, confirm, controller };
+  }
+  it('先只读预览准确原图，取消不删标、不停上传、不删本机', async () => {
+    const r = setup();
+    r.component.imageSyncEnabled.set(true);
+    await r.component.prepareImageDelete(job.id, job.request.prompt, remoteFile.sha256);
+    expect(r.preview).toHaveBeenCalledExactlyOnceWith(job.id, remoteFile.sha256);
+    expect(r.component.imageDeleteReview()).toEqual(review);
+    expect(r.confirm).not.toHaveBeenCalled();
+    r.component.cancelImageDelete();
+    expect(r.component.imageDeleteReview()).toBeNull();
+    expect(r.component.imageSyncEnabled()).toBe(true);
+    expect(r.store.delete).not.toHaveBeenCalled();
+  });
+  it('明确确认后才停止该源旧队列；完成只报告远端删除，两端作品和本机原图保留', async () => {
+    const r = setup();
+    await r.component.prepareImageDelete(job.id, job.request.prompt, remoteFile.sha256);
+    await r.component.confirmImageDelete();
+    expect(r.confirm).toHaveBeenCalledOnce();
+    expect(r.component.imageDeleteMessage()).toContain('远端原图已删除');
+    expect(r.component.imageDeleteReview()).toBeNull();
+    expect(r.store.delete).not.toHaveBeenCalled();
+    expect([...r.preferences.keys()].some(key => key.startsWith('ix-'))).toBe(true);
+  });
+  it('拒绝确认保持队列和原图，待核对回执不能显示已删除', async () => {
+    const r = setup();
+    r.confirm.mockRejectedValueOnce(new Error('远端引用已变化'));
+    await r.component.prepareImageDelete(job.id, job.request.prompt, remoteFile.sha256);
+    await r.component.confirmImageDelete();
+    expect(r.component.imageDeleteMessage()).toContain('引用已变化');
+    expect([...r.preferences.keys()].some(key => key.startsWith('ix-'))).toBe(false);
+    expect(r.store.delete).not.toHaveBeenCalled();
+    r.confirm.mockImplementationOnce(async () => ({ state: 'pending', fileId: remoteFile.id }));
+    await r.component.confirmImageDelete();
+    expect(r.component.imageDeleteMessage()).toContain('待核对');
+    expect(r.component.imageDeleteReview()).not.toBeNull();
+  });
+  it('旧删除确认迟到后不调度新工作区队列，不覆盖新账号状态', async () => {
+    const r = setup();
+    const pending = deferred<{ state: 'pending' | 'complete'; fileId: string }>();
+    r.confirm.mockReturnValueOnce(pending.promise);
+    const resume = vi.fn(async () => undefined);
+    Object.assign(r.component, { resumeImageQueue: resume });
+    await r.component.prepareImageDelete(job.id, job.request.prompt, remoteFile.sha256);
+    const deleting = r.component.confirmImageDelete();
+    await vi.waitFor(() => expect(r.confirm).toHaveBeenCalledOnce());
+    r.component.cancelImageDelete();
+    r.component.imageDeleteMessage.set('新账号的状态');
+    r.component.imageSyncEnabled.set(true);
+    pending.resolve({ state: 'complete', fileId: remoteFile.id });
+    await deleting;
+    expect(resume).not.toHaveBeenCalled();
+    expect(r.component.imageDeleteStates().size).toBe(0);
+    expect(r.component.imageDeleteMessage()).toBe('新账号的状态');
+  });
+  it('取消预览或切换工作区后忽略迟到结果，不打开旧确认或通知新账号', async () => {
+    const r = setup(),
+      pending = deferred<typeof review>();
+    r.preview.mockReturnValueOnce(pending.promise);
+    const preparing = r.component.prepareImageDelete(job.id, job.request.prompt, remoteFile.sha256);
+    await vi.waitFor(() => expect(r.preview).toHaveBeenCalledOnce());
+    r.component.cancelImageDelete();
+    pending.resolve(review);
+    await preparing;
+    expect(r.component.imageDeleteReview()).toBeNull();
+    expect(r.confirm).not.toHaveBeenCalled();
+  });
+});

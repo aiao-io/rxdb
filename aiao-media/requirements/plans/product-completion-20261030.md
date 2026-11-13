@@ -40,13 +40,14 @@
 | 服务状态机   | `aiao-media:platform-test`                        | 历史 SQLite 事务、重复提交、额度、取消、未知不重发、验签、越权和支付退款回执；D-17 后不表示对外开放                                                                                |
 | 真实本地服务 | `aiao-media:product-test`                         | 独立 Compose 项目 aiao-media-f68a，账号/RLS、修订、tombstone、管理员撤权与审计通过                                                                                                 |
 | 图库移除保护 | `aiao-media:image-lifecycle-test` / `product-e2e` | 真实 PostgreSQL 双连接验证两种提交顺序；单独原图双设备用例验证离线移除重开与两端原字节保留（Storage 字节 fixture），见[记录](image-sync-resume-20261114.md#显式图库移除与并发保护) |
+| 远端删除保护 | `aiao-media:image-lifecycle-test` / `product-e2e` | 精确文件引用/修订预览、设备请求日志、文件删标与待核对回执、冲突引用登记/释放、真实本地 Storage RLS 及应答丢失重开恢复；本机两端原字节保留，Storage 字节仍为 fixture，见[记录](image-sync-resume-20261114.md#远端原图删除与引用保护) |
 | 原生逻辑     | `aiao-media:desktop-test`                         | 3 项 Rust 测试通过：保存目标校验、版本不降级、清除 WebView 后保留原生工作区指针；`cargo check` 通过                                                                                |
 | 产物         | `aiao-media:build:desktop` / `offline-assets`     | 两种前端均已构建；最终代码变更后需复跑并确认首屏预算                                                                                                                               |
 | 浏览器       | `aiao-media-e2e:local-first-e2e`                  | 最终独立串行 59/59 通过（约 3 分钟）；覆盖平台生图、刷新续接、三画幅、双标签页和账号流程，仍不替代正式环境验收                                                                     |
 
 ## Web 体积
 
-原生选型入口按需加载数据库和文件依赖，图片传输模块改为按需加载后，补齐范围确认、分片进度及显式图库移除后的浏览器当前初始包为 605.59 kB。预算提醒为 510 kB，错误上限仍为 1 MB；本次构建保留超预算警告，没有将原生特权模块放入 Web 产物。两种产物目录分开，避免 Web 构建清理桌面文件。
+原生选型入口按需加载数据库和文件依赖，图片传输模块改为按需加载后，补齐范围确认、分片进度及三种独立删除范围后的浏览器当前初始包为 612.33 kB。预算提醒为 510 kB，错误上限仍为 1 MB；本次构建保留超预算警告，没有将原生特权模块放入 Web 产物。两种产物目录分开，避免 Web 构建清理桌面文件。
 
 ## 运行与发行条件
 

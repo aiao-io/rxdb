@@ -671,6 +671,16 @@
                   从同步图库移除
                 </button>
               }
+              @if (targetKind() === 'platform' && syncInitialized()) {
+                <button
+                  class="danger"
+                  [attr.aria-label]="'删除远端原图：' + w.prompt"
+                  [disabled]="settingsBusy()"
+                  (click)="prepareImageDelete(w.jobId, w.prompt, w.info?.sha256)"
+                >
+                  删除远端原图
+                </button>
+              }
               <button
                 class="danger"
                 [attr.aria-label]="'删除本机图片：' + w.prompt"
@@ -749,7 +759,9 @@
               @if (targetKind() === 'platform' && syncInitialized() && authUser()) {
                 <button
                   class="secondary sm"
-                  [disabled]="imageSyncBusy() || settingsBusy()"
+                  [disabled]="
+                    imageSyncBusy() || settingsBusy() || remoteImageDeleteState(work.jobId, work.sha256) !== null
+                  "
                   (click)="restoreRemoteWork(work)"
                 >
                   {{
@@ -767,6 +779,23 @@
                 >
                   从同步图库移除
                 </button>
+                <button
+                  class="danger"
+                  [attr.aria-label]="'删除远端原图：' + work.prompt"
+                  [disabled]="settingsBusy()"
+                  (click)="prepareImageDelete(work.jobId, work.prompt, work.sha256)"
+                >
+                  删除远端原图
+                </button>
+                @if (remoteImageDeleteState(work.jobId, work.sha256); as deletionState) {
+                  <p role="status">
+                    {{
+                      deletionState === 'complete' ? '远端原图已删除，本机已有副本保留。' : (
+                        '远端删除待核对，尚未确认对象已消失。'
+                      )
+                    }}
+                  </p>
+                }
               }
               @if (download) {
                 <p class="notice" [attr.role]="download.status === 'failed' ? 'alert' : 'status'">
@@ -1058,12 +1087,63 @@
       </section>
     </section>
   }
+  @if (imageDeleteMessage()) {
+    <p class="notice" role="status">{{ imageDeleteMessage() }}</p>
+  }
 </main>
 <footer>
   <span>© 2026 Aiao Images</span>
   <button class="footer-feedback" (click)="openFeedback()">反馈建议</button>
   <span>重要作品请下载保存</span>
 </footer>
+@if (imageDeleteReview(); as review) {
+  <dialog
+    class="modal-panel"
+    (cancel)="$event.preventDefault(); cancelImageDelete()"
+    aria-label="删除远端原图确认"
+    aria-modal="true"
+    tabindex="-1"
+  >
+    <h2>删除远端原图</h2>
+    <p>{{ imageDeletePrompt() }}</p>
+    <p>只删除下面这一份远端原图。本机已有副本和同步图库信息保留，其他远端版本保留。</p>
+    <p>
+      {{ review.file.mimeType }} · {{ review.file.width }} × {{ review.file.height }} · {{ review.file.bytes }} bytes
+    </p>
+    <p class="provider-url">SHA-256：{{ review.file.sha256 }}</p>
+    <p class="provider-url">远端文件：{{ review.file.path }}</p>
+    <p>其他有效版本：{{ review.retainedVersions }}</p>
+    <p>
+      保留引用：{{ review.retainedReferences }} · 冲突引用：{{ review.conflictReferences }} · 待核对传输：{{
+        review.pendingTransfers
+      }}
+      · 未知历史：{{ review.unknownHistory }}
+    </p>
+    @if (!review.allowed && !review.deletion) {
+      <p role="alert">此原图仍有引用或待核对记录，不能物理删除。原对象保留。</p>
+    }
+    @if (review.deletion) {
+      <p role="status">已有删除回执，将先核对对象是否已消失。有新引用时保留对象。</p>
+    }
+    @if (imageDeleteMessage()) {
+      <p role="status">{{ imageDeleteMessage() }}</p>
+    }
+    <div class="work-actions">
+      <button class="secondary" (click)="cancelImageDelete()">取消远端删除</button>
+      <button
+        class="danger"
+        [disabled]="imageDeleteBusy() || (!review.allowed && !review.deletion)"
+        (click)="confirmImageDelete()"
+      >
+        {{
+          imageDeleteBusy() ? '正在核对…'
+          : review.deletion ? '继续核对远端删除'
+          : '确认删除此远端原图'
+        }}
+      </button>
+    </div>
+  </dialog>
+}
 @if (detail(); as t) {
   <dialog
     class="modal-panel template-panel"
