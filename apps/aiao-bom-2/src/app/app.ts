@@ -46,8 +46,8 @@ export class App implements OnInit, OnDestroy {
   mode(value: ViewMode): void { this.ws.updateQuery({ mode: value }); }
   issue(value: string): void { this.ws.updateQuery({ issue: value as QuerySpec['issue'] }); }
   sort(value: string): void { this.ws.updateQuery({ sort: value as QuerySpec['sort'] }); }
-  checked(event: { key: string; checked: boolean }): void {
-    this.ws.selectedKeys.update(keys => { const next = new Set(keys); if (event.checked) next.add(event.key); else next.delete(event.key); return next; });
+  checked(event: { key: string; checked: boolean; members?: string[] }): void {
+    this.ws.selectedKeys.update(keys => { const next = new Set(keys); for (const key of event.members ?? [event.key]) { if (event.checked) next.add(key); else next.delete(key); } return next; });
   }
   toggleColumn(field: string): void {
     this.columns.update(columns => columns.map(c => c.field === field ? { ...c, visible: !c.visible } : c));

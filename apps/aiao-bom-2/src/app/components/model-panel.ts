@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, OnDestroy, effect, untracked, input, output, signal, viewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, OnDestroy, effect, computed, untracked, input, output, signal, viewChild } from '@angular/core';
 import type { ModelViewport } from '../core/model-viewport';
 import type { BomDataset, BomRow, Part, Market } from '../core/types';
 import { Icon } from './icon';
@@ -18,6 +18,10 @@ export class ModelPanel implements AfterViewInit, OnDestroy {
   readonly maximize = output<void>();
   readonly assetId = signal('');
   readonly mode = signal<'vehicle' | 'part'>('vehicle');
+  readonly activeAsset = computed(() => {
+    const assets = this.part()?.assets ?? [];
+    return assets.find(item => item.id === this.assetId()) ?? assets.find(item => item.variants.includes(this.selected()?.compId ?? '')) ?? assets[0];
+  });
   readonly loading = signal(true);
   readonly progress = signal('准备模型…');
   readonly error = signal('');
@@ -27,16 +31,14 @@ export class ModelPanel implements AfterViewInit, OnDestroy {
   readonly nodes = signal(0);
 
   constructor() {
-    effect(() => { this.dataset(); this.mode(); this.assetId(); if (this.mode() === 'part') this.part(); if (this.ready) untracked(() => { void this.load(); }); });
-    effect(() => { const row = this.selected(); if (this.viewport && !this.loading()) this.applySelection(row); });
+    effect(() => { this.dataset(); if (this.mode() === 'part') this.activeAsset(); if (this.ready) untracked(() => { void this.load(); }); });
+    effect(() => { const row = this.selected(); if (this.mode() === 'vehicle' && this.viewport && !this.loading()) this.applySelection(row); });
   }
   ngAfterViewInit(): void { this.ready = true; void this.load(); }
   ngOnDestroy(): void { this.destroyed = true; this.loadId++; this.viewport?.dispose(); }
   async load(): Promise<void> {
     const id = ++this.loadId;
-    const assets = this.part()?.assets ?? [];
-    const asset = assets.find(item => item.id === this.assetId()) ?? assets.find(item => item.variants.includes(this.selected()?.compId ?? '')) ?? assets[0];
-    const url = this.mode() === 'part' ? asset?.url : this.dataset().vehicle.url;
+    const url = this.mode() === 'part' ? this.activeAsset()?.url : this.dataset().vehicle.url;
     this.loading.set(true); this.error.set(''); this.nodes.set(0); this.progress.set('正在读取模型…');
     if (!url) { this.loading.set(false); this.error.set(this.mode() === 'part' ? '当前零件没有独立模型，可切换整车查看关联节点。' : '此数据集未关联整车模型。'); return; }
     try {

@@ -8,17 +8,17 @@ vi.mock('three', async original => {
   const actual = await original<typeof import('three')>();
   return { ...actual, WebGLRenderer: class {
     readonly domElement = document.createElement('canvas');
-    setPixelRatio() {} setClearColor() {} setSize() {}
+    readonly setPixelRatio = vi.fn(); readonly setClearColor = vi.fn(); readonly setSize = vi.fn();
     render = mocks.rendererRender;
     dispose = mocks.rendererDispose;
     forceContextLoss = mocks.contextLoss;
   } };
 });
-vi.mock('three/addons/loaders/GLTFLoader.js', () => ({ GLTFLoader: class { setDRACOLoader() {} setMeshoptDecoder() {} parseAsync = mocks.parse; } }));
-vi.mock('three/addons/loaders/DRACOLoader.js', () => ({ DRACOLoader: class { setDecoderPath() {} setWorkerLimit() {} dispose = mocks.decoderDispose; } }));
+vi.mock('three/addons/loaders/GLTFLoader.js', () => ({ GLTFLoader: class { readonly setDRACOLoader = vi.fn(); readonly setMeshoptDecoder = vi.fn(); parseAsync = mocks.parse; } }));
+vi.mock('three/addons/loaders/DRACOLoader.js', () => ({ DRACOLoader: class { readonly setDecoderPath = vi.fn(); readonly setWorkerLimit = vi.fn(); dispose = mocks.decoderDispose; } }));
 vi.mock('three/addons/controls/OrbitControls.js', async () => {
   const three = await import('three');
-  return { OrbitControls: class { readonly target = new three.Vector3(); enableDamping = false; addEventListener() {} update() {} dispose() {} } };
+  return { OrbitControls: class { readonly target = new three.Vector3(); enableDamping = false; readonly addEventListener = vi.fn(); readonly update = vi.fn(); readonly dispose = vi.fn(); } };
 });
 function scene() {
   const root = new THREE.Group(); const geometry = new THREE.BoxGeometry(1, 1, 1); const material = new THREE.MeshStandardMaterial({ color: 0x777777 });
@@ -32,7 +32,7 @@ function row() { return { ...new BomIndex(makeStressDataset(1), 'catalog').rows.
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => new Response(new Uint8Array([1, 2, 3]), { headers: { 'content-length': '3' } })));
-  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+  vi.stubGlobal('ResizeObserver', class { readonly observe = vi.fn(); readonly disconnect = vi.fn(); });
 });
 afterEach(() => vi.unstubAllGlobals());
 describe('模型生命周期与精确位置语义', () => {
@@ -68,5 +68,31 @@ describe('模型生命周期与精确位置语义', () => {
     expect(viewport.select(null).count).toBe(0);
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 404 })));
     await expect(viewport.load('/missing.glb')).rejects.toThrow('HTTP 404'); viewport.dispose();
+  });
+});
+
+describe('拾取与重复加载资源边界', () => {
+  it('拖动不误触拾取，点击沿几何父链返回具体发生位置', async () => {
+    const asset = scene(); const geometry = new THREE.Mesh(new THREE.BoxGeometry(), asset.material); asset.a.add(geometry);
+    mocks.parse.mockResolvedValue(asset); const selected = vi.fn(); const host = document.createElement('div');
+    const viewport = new ModelViewport(host, { ready: vi.fn(), progress: vi.fn(), selected }); await viewport.load('/model.glb');
+    const canvas = host.querySelector('canvas')!; canvas.getBoundingClientRect = () => ({ x: 0, y: 0, left: 0, top: 0, width: 600, height: 400 } as DOMRect);
+    const hits = vi.spyOn(THREE.Raycaster.prototype, 'intersectObjects').mockReturnValue([{ distance: 1, point: new THREE.Vector3(), object: geometry }]);
+    canvas.dispatchEvent(new PointerEvent('pointerdown', { clientX: 300, clientY: 200 }));
+    canvas.dispatchEvent(new PointerEvent('pointerup', { clientX: 310, clientY: 200 })); expect(selected).not.toHaveBeenCalled();
+    canvas.dispatchEvent(new PointerEvent('pointerdown', { clientX: 300, clientY: 200 })); canvas.dispatchEvent(new PointerEvent('pointerup', { clientX: 300, clientY: 200 }));
+    expect(selected).toHaveBeenCalledWith(expect.objectContaining({ index: 0, partId: '1321315' })); expect(hits.mock.calls[0][0]).not.toContain(asset.hidden);
+    hits.mockReturnValue([]); canvas.dispatchEvent(new PointerEvent('pointerup', { clientX: 300, clientY: 200 })); expect(selected).toHaveBeenCalledTimes(1);
+    hits.mockRestore(); viewport.dispose();
+  });
+  it('连续切换二十个模型时每份几何、材质和纹理只释放一次', async () => {
+    const viewport = new ModelViewport(document.createElement('div'), { ready: vi.fn(), progress: vi.fn(), selected: vi.fn() });
+    const released: Array<{ geometry: ReturnType<typeof vi.spyOn>; material: ReturnType<typeof vi.spyOn>; texture: ReturnType<typeof vi.spyOn> }> = [];
+    for (let index = 0; index < 20; index++) {
+      const asset = scene(); const texture = new THREE.Texture(); asset.material.map = texture;
+      released.push({ geometry: vi.spyOn(asset.geometry, 'dispose'), material: vi.spyOn(asset.material, 'dispose'), texture: vi.spyOn(texture, 'dispose') });
+      mocks.parse.mockResolvedValueOnce(asset); await viewport.load(`/model-${index}.glb`); viewport.select(row()); viewport.ghost(true); viewport.reset();
+    }
+    viewport.dispose(); for (const asset of released) { expect(asset.geometry).toHaveBeenCalledTimes(1); expect(asset.material).toHaveBeenCalledTimes(1); expect(asset.texture).toHaveBeenCalledTimes(1); }
   });
 });

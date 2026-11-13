@@ -29,6 +29,8 @@ export class BomGrid implements AfterViewInit, OnDestroy {
   private readonly positions = new Map<string, number>();
   private windows: RowWindows<BomRow, GridRecord> | null = null;
   private previousResult: QueryResult | null = null;
+  private renderedMode: ViewMode | null = null;
+  private updating = false;
   readonly result = input.required<QueryResult>();
   readonly queryKey = input('');
   readonly mode = input<ViewMode>('tree');
@@ -39,7 +41,7 @@ export class BomGrid implements AfterViewInit, OnDestroy {
   readonly checkedKeys = input<Set<string>>(new Set());
   readonly rowSelect = output<{ row: BomRow; additive: boolean }>();
   readonly enter = output<string>();
-  readonly checked = output<{ key: string; checked: boolean }>();
+  readonly checked = output<{ key: string; checked: boolean; members?: string[] }>();
   readonly expandedChange = output<string[]>();
   readonly columnWidths = output<{ field: string; width: number }[]>();
 
@@ -79,9 +81,13 @@ export class BomGrid implements AfterViewInit, OnDestroy {
       theme: { underlayBackgroundColor: '#fff', defaultStyle: { fontSize: 12, color: '#344054', borderColor: '#edf0f3', borderLineWidth: [0, 0, 1, 0], bgColor: '#fff' }, headerStyle: { color: '#647084', fontSize: 11, fontWeight: 'normal', bgColor: '#f8f9fb', borderColor: '#e8ecf1', padding: [0, 12, 0, 12] }, bodyStyle: { hover: { cellBgColor: '#edf5f1', inlineRowBgColor: '#f6faf8' } }, selectionStyle: { cellBorderColor: '#27846c', cellBorderLineWidth: 1, cellBgColor: 'rgba(8,123,105,0.06)' }, scrollStyle: { visible: 'always', width: 7, scrollSliderColor: '#c7cbd3', scrollRailColor: '#f8f9fb' }, frozenColumnLine: { shadow: { width: 5, startColor: 'rgba(20,30,50,0.035)', endColor: 'rgba(20,30,50,0)' } } }
     };
   }
-  private refresh(): void {
+  private refresh(preserveScroll = false): void {
     if (!this.table || !this.factory) return;
+    const scroll = preserveScroll ? { top: this.table.scrollTop, left: this.table.scrollLeft } : null;
     const generation = ++this.generation;
+    this.updating = true;
+    this.host().nativeElement.setAttribute('aria-busy', 'true');
+    this.renderedMode = this.mode();
     if (this.previousResult !== this.result()) { this.pageLimits.clear(); this.previousResult = this.result(); }
     this.positions.clear();
     this.result().roots.forEach((row, index) => this.positions.set(row.key, index));
@@ -89,18 +95,23 @@ export class BomGrid implements AfterViewInit, OnDestroy {
     if (this.mode() === 'tree') {
       this.windows = null; options.records = this.build(this.result().roots, null);
     } else {
-      this.windows = new RowWindows(this.result().roots, row => this.project(row));
+      const windows = new RowWindows(this.result().roots, row => this.project(row));
+      this.windows = windows;
       delete options.records;
-      options.dataSource = new this.factory.data.DataSource({ length: this.result().roots.length, get: index => this.windows?.get(index) });
+      options.dataSource = new this.factory.data.DataSource({ length: this.result().roots.length, get: index => windows.get(index) });
     }
     void this.table.updateOption(options).then(() => {
       if (this.released || generation !== this.generation) return;
       const selected = this.selection(); if (selected) this.locate(selected);
+      if (scroll) { this.table!.scrollTop = scroll.top; this.table!.scrollLeft = scroll.left; }
+      this.updating = false; this.host().nativeElement.setAttribute('aria-busy', 'false');
+      this.host().nativeElement.dataset['renderedMode'] = this.renderedMode!;
+      this.host().nativeElement.dataset['renderedQuery'] = this.queryKey();
       this.reportWindows();
     });
   }
   private project(row: BomRow): GridRecord {
-    return { ...row, selected: this.checkedKeys().has(row.key), quantityText: row.quantity ?? '—', modelText: row.has3d ? '◈ 可用' : '—', statusText: row.conflict ? `冲突 ${row.conflict}` : row.quantityState === 'confirmed' ? '已确认' : row.quantityState === 'reference' ? '参考用量' : row.kind === 'system' ? '分类' : '用量待补' };
+    return { ...row, selected: row.members ? row.members.every(key => this.checkedKeys().has(key)) : this.checkedKeys().has(row.key), quantityText: row.quantity ?? '—', modelText: row.has3d ? '◈ 可用' : '—', statusText: row.conflict ? `冲突 ${row.conflict}` : row.quantityState === 'confirmed' ? '已确认' : row.quantityState === 'reference' ? '参考用量' : row.kind === 'system' ? '分类' : '用量待补' };
   }
   private build(rows: BomRow[], parent: string | null): GridRecord[] {
     const limit = this.pageLimits.get(parent) ?? 500;
@@ -123,7 +134,7 @@ export class BomGrid implements AfterViewInit, OnDestroy {
       this.rowSelect.emit({ row: record, additive: Boolean(event.event && 'ctrlKey' in event.event && (event.event.ctrlKey || event.event.metaKey)) });
     });
     this.table.on('dblclick_cell', event => { const row = this.raw(event.col, event.row); if (row?.hasChildren && row.pageParent === undefined) this.enter.emit(row.key); });
-    this.table.on('checkbox_state_change', event => { const row = this.raw(event.col, event.row); if (row && row.pageParent === undefined) this.checked.emit({ key: row.key, checked: Boolean(event.checked) }); });
+    this.table.on('checkbox_state_change', event => { const row = this.raw(event.col, event.row); if (row && row.pageParent === undefined) this.checked.emit({ key: row.key, members: row.members, checked: Boolean(event.checked) }); });
     this.table.on('tree_hierarchy_state_change', event => {
       const record = this.raw(event.col, event.row); if (!record || !this.table) return;
       if (event.hierarchyState === 'expand') this.expandedKeys.add(record.key); else this.expandedKeys.delete(record.key);
@@ -145,14 +156,13 @@ export class BomGrid implements AfterViewInit, OnDestroy {
     this.host().nativeElement.querySelector('input,textarea')?.setAttribute('aria-label', 'BOM 表格，方向键移动，双击进入装配');
   }
   private raw(col: number, row: number): GridRecord | null {
+    if (this.updating || this.previousResult !== this.result() || this.renderedMode !== this.mode()) return null;
     const value: unknown = this.table?.getCellOriginRecord(col, row);
     return value && typeof value === 'object' && 'key' in value ? value as GridRecord : null;
   }
   private more(parent: string | null): void {
     this.pageLimits.set(parent, (this.pageLimits.get(parent) ?? 500) + 500);
-    if (parent === null) { this.refresh(); return; }
-    const address = this.address(parent); if (!address || !this.table) return;
-    this.table.setRecordChildren(this.build(this.result().byParent.get(parent) ?? [], parent), address.col, address.row, false);
+    this.refresh(true);
   }
   private address(key: string): { col: number; row: number } | null {
     if (!this.table) return null;
@@ -162,13 +172,14 @@ export class BomGrid implements AfterViewInit, OnDestroy {
   private locate(key: string): void {
     if (!this.table) return;
     const address = this.address(key); if (!address || address.row < 1) return;
-    this.suppressSelection = true; this.table.selectCell(address.col, address.row, false, false, true); this.suppressSelection = false;
+    this.suppressSelection = true;
+    try { this.table.selectCell(address.col, address.row, false, false, true); } finally { this.suppressSelection = false; }
   }
   private syncChecks(keys: Set<string>): void {
-    this.windows?.forEach(record => { record.selected = keys.has(record.key); });
+    this.windows?.forEach(record => { record.selected = record.members ? record.members.every(key => keys.has(key)) : keys.has(record.key); });
     if (!this.table) return;
     const range = this.table.getBodyVisibleCellRange();
-    for (let row = range.rowStart; row <= range.rowEnd; row++) { const record = this.raw(0, row); if (record) this.table.setCellCheckboxState(0, row, keys.has(record.key)); }
+    for (let row = range.rowStart; row <= range.rowEnd; row++) { const record = this.raw(0, row); if (record) this.table.setCellCheckboxState(0, row, record.members ? record.members.every(key => keys.has(key)) : keys.has(record.key)); }
   }
   private reportWindows(): void { this.host().nativeElement.dataset['windowRecords'] = String(this.windows?.size ?? this.table?.rowCount ?? 0); }
 }

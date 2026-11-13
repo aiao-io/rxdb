@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { readFile } from 'node:fs/promises';
+import { readFile, mkdir } from 'node:fs/promises';
 
 async function open(page: Page, url = '/'): Promise<void> {
   await page.goto(url);
@@ -8,6 +8,7 @@ async function open(page: Page, url = '/'): Promise<void> {
 async function dialog(page: Page, name: string) { await page.getByRole('button', { name, exact: true }).first().click(); return page.locator('dialog[open]'); }
 async function hideModel(page: Page) { const close = page.getByRole('button', { name: '关闭模型与详情' }); if (await close.count()) await close.click(); }
 async function clickRow(page: Page, row: number) {
+  await expect(page.getByTestId('bom-grid')).toHaveAttribute('aria-busy', 'false');
   const box = await page.getByTestId('bom-grid').boundingBox();
   if (!box) throw new Error('表格未渲染');
   await page.mouse.click(box.x + 155, box.y + 40 + row * 35 + 17);
@@ -78,6 +79,7 @@ test('非法导入与模型失败可见，表格仍可操作', async ({ page }) 
 });
 
 test('真实整车模型完成解码，表格与模型双向定位', async ({ page }) => {
+  let vehicleRequests = 0; page.on('request', request => { if (request.url().endsWith('/models/eu-x9d13.glb')) vehicleRequests++; });
   await open(page, '/?structure=cad&pn=1321315X9D01A');
   await expect(page.locator('.mapping-state')).toContainText('具体模型位置', { timeout: 90000 });
   await expect(page.locator('.mapping-state')).toContainText('几何节点');
@@ -85,8 +87,13 @@ test('真实整车模型完成解码，表格与模型双向定位', async ({ pa
   await page.getByRole('button', { name: '还原', exact: true }).click();
   const canvas = page.getByTestId('model-viewport').locator('canvas'); await expect(canvas).toBeVisible();
   const box = await canvas.boundingBox(); if (!box) throw new Error('模型画布缺失');
+  const occurrence = new URL(page.url()).searchParams.get('occurrence');
   for (const x of [0.5, 0.4, 0.6]) await page.mouse.click(box.x + box.width * x, box.y + box.height * 0.5);
-  await expect(page.getByTestId('selected-summary')).not.toBeEmpty();
+  await expect.poll(() => new URL(page.url()).searchParams.get('occurrence')).not.toBe(occurrence);
+  await expect(page.getByTestId('selected-summary')).not.toContainText('1321315X9D01A');
+  await expect(page.locator('.mapping-state')).toContainText('具体模型位置');
+  expect(vehicleRequests).toBe(1);
+  await mkdir('test-output/evidence', { recursive: true }); await page.screenshot({ path: 'test-output/evidence/workbench-3d.png' });
   const response = await page.request.get('/'); expect(response.headers()['cross-origin-embedder-policy']).toBe('require-corp');
   expect(await page.evaluate(() => window.crossOriginIsolated)).toBe(true);
 });

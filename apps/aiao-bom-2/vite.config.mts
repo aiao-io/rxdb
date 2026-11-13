@@ -8,6 +8,6 @@ export default defineConfig(() => ({
   test: {
     name: 'aiao-bom-2', watch: false, globals: true, environment: 'happy-dom', pool: 'forks', maxWorkers: 1,
     include: ['src/**/*.spec.ts'], setupFiles: ['src/test-setup.ts'], reporters: ['default'],
-    coverage: { provider: 'v8' as const, reportsDirectory: '../../coverage/apps/aiao-bom-2', include: ['src/app/core/**/*.ts'], exclude: ['src/app/core/types.ts', 'src/app/core/*.worker.ts'] }
+    coverage: { provider: 'v8' as const, reportsDirectory: '../../coverage/apps/aiao-bom-2', include: ['src/app/**/*.ts'], exclude: ['src/app/core/types.ts', 'src/app/core/*.worker.ts'], thresholds: { statements: 80, branches: 80, functions: 80, lines: 80 } }
   }
 }));

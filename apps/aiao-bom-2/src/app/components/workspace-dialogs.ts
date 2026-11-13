@@ -34,7 +34,7 @@ export class WorkspaceDialogs {
         case 'fork': this.ws.fork(); this.close(); break;
         case 'edit': this.ws.edit([...this.ws.selectedKeys()], text('quantity'), text('uom'), text('cost') || null); this.close(); break;
         case 'add': this.ws.add(text('parent') || null, text('partId'), text('quantity'), text('uom')); this.close(); break;
-        case 'move': this.ws.move(this.ws.selection()!, text('parent') || null); this.close(); break;
+        case 'move': this.ws.move([...this.ws.selectedKeys()][0], text('parent') || null); this.close(); break;
         case 'remove': this.ws.remove([...this.ws.selectedKeys()]); this.close(); break;
         case 'import': if (this.preview()) { this.ws.acceptImport(this.preview()!); this.close(); } else this.preview.set(this.ws.importDraft(text('json')).draft); break;
         case 'analysis': if (!this.ws.draft()) throw new Error('请先从来源结构建立工作草稿'); this.analysis.set(analyzeDraft(this.ws.draft()!, text('planned'))); break;

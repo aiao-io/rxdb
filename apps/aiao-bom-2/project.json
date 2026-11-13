@@ -61,7 +61,11 @@
       "executor": "@angular/build:dev-server",
       "defaultConfiguration": "development",
       "options": {
-        "port": 4313
+        "port": 4313,
+        "headers": {
+          "Cross-Origin-Opener-Policy": "same-origin",
+          "Cross-Origin-Embedder-Policy": "require-corp"
+        }
       },
       "configurations": {
         "production": {
@@ -100,6 +104,29 @@
       "cache": false,
       "options": {
         "command": "node apps/aiao-bom-2/scripts/snapshot.mjs"
+      }
+    },
+    "preview": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [
+        "build"
+      ],
+      "options": {
+        "cwd": "apps/aiao-bom-2",
+        "command": "pnpm exec wrangler dev --config wrangler.json --ip 127.0.0.1 --port 4315"
+      },
+      "continuous": true
+    },
+    "deploy-check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [
+        "build"
+      ],
+      "options": {
+        "cwd": "apps/aiao-bom-2",
+        "command": "pnpm exec wrangler deploy --config wrangler.json --dry-run"
       }
     }
   }

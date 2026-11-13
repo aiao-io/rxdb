@@ -25,6 +25,7 @@ export class WorkspaceRepository {
       transaction.objectStore('documents').delete(key);
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error ?? new Error('删除事务已取消'));
     });
   }
   private open(): Promise<IDBDatabase> {
