@@ -10,6 +10,9 @@ export const PROPERTY_NAME_PATTERN = /^[a-z][a-zA-Z0-9_]*$/;
 /** 属性列名验证：小写字母开头，只允许 a-z A-Z 0-9 _ */
 export const PROPERTY_COLUMN_NAME_PATTERN = /^[a-z][a-zA-Z0-9_]*$/;
 
+/** 首次进入模型设计页时自动创建的默认设计名称 */
+export const DEFAULT_MODEL_NAME = 'schema';
+
 /**
  * 验证表名是否合法
  * @param value 要验证的表名

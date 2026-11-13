@@ -64,7 +64,7 @@ vi.mock('@aiao/rxdb-angular', () => ({
       } as const
     )[EntityClass.name as 'ModelDesign' | 'DesignEntity' | 'DesignProperty' | 'DesignRelation' | 'DesignIndex'];
     // ⚠️ 必须同时提供 hasValue：真实 useFindAll 返回的 value 是 lazy signal，
-    // 首读拿的是 initialValue: []。copy/rollback 靠 hasValue 判断首帧是否到达，
+    // 首读拿的是 initialValue: []。copy 靠 hasValue 判断首帧是否到达，
     // 只 mock value 会让「复制出空设计」这类缺陷在单测里根本不可能暴露。
     return { value: () => mockState[stateKey ?? 'designs'], hasValue: () => true };
   }
@@ -72,14 +72,12 @@ vi.mock('@aiao/rxdb-angular', () => ({
 
 import { RxDB } from '@aiao/rxdb';
 import { DesignEntity, DesignIndex, DesignProperty, DesignRelation } from '../../models/index.js';
-import { ConfirmDialogService } from '../../services/confirm-dialog.service';
 import { ModelDesignService } from '../../services/model-design.service';
 
 describe('ModelDesignService', () => {
   let service: ModelDesignService;
   let mockCreateEntityRef: ReturnType<typeof vi.fn>;
   let mockMutations: ReturnType<typeof vi.fn>;
-  let mockConfirm: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     mockState.designs.length = 0;
@@ -90,7 +88,6 @@ describe('ModelDesignService', () => {
 
     mockCreateEntityRef = vi.fn((_EntityType: unknown, data: Record<string, unknown>) => data);
     mockMutations = vi.fn().mockResolvedValue([]);
-    mockConfirm = vi.fn().mockResolvedValue(true);
 
     TestBed.configureTestingModule({
       providers: [
@@ -98,8 +95,7 @@ describe('ModelDesignService', () => {
         {
           provide: RxDB,
           useValue: { entityManager: { createEntityRef: mockCreateEntityRef, mutations: mockMutations } }
-        },
-        { provide: ConfirmDialogService, useValue: { confirm: mockConfirm } }
+        }
       ]
     });
     service = TestBed.inject(ModelDesignService);
@@ -261,60 +257,31 @@ describe('ModelDesignService', () => {
     });
   });
 
-  describe('rollback', () => {
-    beforeEach(() => {
-      mockState.designs.push(
-        { id: 'target', name: 'Target', namespace: 'public', description: null },
-        { id: 'snap', name: 'Snapshot', namespace: 'public', description: null }
-      );
+  describe('ensureDefaultDesign', () => {
+    it('creates a default design named "schema" and activates it when none exists', async () => {
+      const design = await service.ensureDefaultDesign();
+
+      expect(design?.name).toBe('schema');
+      expect(mockState.designs).toHaveLength(1);
+      expect(service.activeDesignId()).toBe(design?.id);
     });
 
-    it('MUST prompt confirmation before rolling back', async () => {
-      await service.rollback('target', 'snap');
-      expect(mockConfirm).toHaveBeenCalledOnce();
+    it('does nothing when designs already exist', async () => {
+      mockState.designs.push({ id: 'existing', name: 'Blog' });
+
+      const design = await service.ensureDefaultDesign();
+
+      expect(design).toBeNull();
+      expect(mockState.designs).toHaveLength(1);
+      expect(service.activeDesignId()).toBeNull();
     });
 
-    it('MUST do nothing and return false when the user cancels the confirmation', async () => {
-      mockConfirm.mockResolvedValue(false);
-      mockState.entities.push({ id: 'e-old', name: 'Old', modelDesignId: 'target', sortOrder: 'a0' });
+    it('dedupes concurrent calls into a single create', async () => {
+      const [a, b] = await Promise.all([service.ensureDefaultDesign(), service.ensureDefaultDesign()]);
 
-      const result = await service.rollback('target', 'snap');
-      expect(result).toBe(false);
-      expect(mockMutations).not.toHaveBeenCalled();
-      expect(mockState.entities).toHaveLength(1);
-    });
-
-    it('MUST remove target design existing entities, re-create snapshot entities under target and return true', async () => {
-      mockState.entities.push(
-        { id: 'e-old', name: 'Old', modelDesignId: 'target', sortOrder: 'a0' },
-        { id: 'e-snap', name: 'FromSnapshot', modelDesignId: 'snap', sortOrder: 'a0' }
-      );
-
-      const result = await service.rollback('target', 'snap');
-      expect(result).toBe(true);
-
-      expect(mockMutations).toHaveBeenCalledOnce();
-      const arg = mockMutations.mock.calls[0][0] as {
-        create: Map<unknown, Set<Record<string, unknown>>>;
-        remove: Map<unknown, Set<Record<string, unknown>>>;
-      };
-
-      const removedEntities = [...(arg.remove.get(DesignEntity) ?? [])];
-      expect(removedEntities.some(e => e['id'] === 'e-old')).toBe(true);
-
-      const createdEntities = [...(arg.create.get(DesignEntity) ?? [])];
-      const clonedEntity = createdEntities.find(e => e['name'] === 'FromSnapshot');
-      expect(clonedEntity).toBeDefined();
-      expect(clonedEntity?.['id']).not.toBe('e-snap');
-      expect(clonedEntity?.['modelDesignId']).toBe('target');
-    });
-
-    it('MUST throw for non-existent target design', async () => {
-      await expect(service.rollback('missing', 'snap')).rejects.toThrow('ModelDesign not found');
-    });
-
-    it('MUST throw for non-existent snapshot design', async () => {
-      await expect(service.rollback('target', 'missing')).rejects.toThrow('ModelDesign not found');
+      expect(mockState.designs).toHaveLength(1);
+      expect(a?.name).toBe('schema');
+      expect(a?.id).toBe(b?.id);
     });
   });
 });
@@ -328,8 +295,7 @@ describe('ModelDesignService providedIn root singleton (AC6: /model-designer 与
         {
           provide: RxDB,
           useValue: { entityManager: { createEntityRef: vi.fn(), mutations: vi.fn().mockResolvedValue([]) } }
-        },
-        { provide: ConfirmDialogService, useValue: { confirm: vi.fn().mockResolvedValue(true) } }
+        }
       ]
     });
   });

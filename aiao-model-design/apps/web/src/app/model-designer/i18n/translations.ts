@@ -3,8 +3,6 @@ import { InjectionToken, Signal, signal } from '@angular/core';
 export interface ModelDesignerTranslations {
   toolbar: {
     untitled: string;
-    /** 模型名按钮的说明：点它返回模型列表（切换/复制/删除/新建的入口） */
-    switchModel: string;
     canvas: string;
     table: string;
     addEntity: string;
@@ -12,16 +10,20 @@ export interface ModelDesignerTranslations {
     redo: string;
     generate: string;
     generateSql: string;
-    compareSql: string;
-    executeSql: string;
     ariaViewMode: string;
     openNavigator: string;
     closeNavigator: string;
     moreActions: string;
     singleSelectMode: string;
     rubberSelectMode: string;
-    versionManager: string;
-    hostCapabilityUnavailable: string;
+  };
+  modelSwitcher: {
+    untitled: string;
+    renameTitle: string;
+    switchModel: string;
+    closeMenu: string;
+    newPlaceholder: string;
+    create: string;
   };
   entityPanel: {
     deleteEntity: string;
@@ -108,39 +110,6 @@ export interface ModelDesignerTranslations {
   errorBanner: {
     ariaDismiss: string;
   };
-  sql: {
-    remoteUnavailable: string;
-    remoteFetchFailed: string;
-    remoteStale: string;
-    noDifferences: string;
-  };
-  sqlExecution: {
-    title: string;
-    preflighting: string;
-    rollbackOnly: string;
-    ready: string;
-    safeConfirmation: string;
-    statementCount: string;
-    affectedTables: string;
-    noAffectedTables: string;
-    execute: string;
-    executing: string;
-    preflightFailed: string;
-    executionFailed: string;
-    outcomeUnknown: string;
-    compareBeforeContinuing: string;
-    sqlRetained: string;
-    retry: string;
-    cancel: string;
-    close: string;
-    successTitle: string;
-    successMessage: string;
-    destructiveTitle: string;
-    destructiveWarning: string;
-    backupWarning: string;
-    confirmDestructive: string;
-    retryDestructive: string;
-  };
   modelList: {
     title: string;
     noModels: string;
@@ -225,28 +194,9 @@ export interface ModelDesignerTranslations {
     deleteIndexMessage: string;
     deleteModelTitle: string;
     deleteModelMessage: string;
-    rollbackTitle: string;
-    rollbackMessage: string;
     sqlImpactTitle: string;
     sqlImpactMessage: string;
     sqlImpactConfirmButton: string;
-  };
-  versionManager: {
-    title: string;
-    targetLabel: string;
-    snapshotLabel: string;
-    selectPlaceholder: string;
-    addedEntities: string;
-    removedEntities: string;
-    commonEntities: string;
-    fieldChanges: string;
-    fieldAdded: string;
-    fieldRemoved: string;
-    fieldChanged: string;
-    noFieldChange: string;
-    noDiff: string;
-    rollbackButton: string;
-    closeButton: string;
   };
   ai: {
     send: string;
@@ -307,7 +257,6 @@ export interface ModelDesignerTranslations {
 export const DEFAULT_TRANSLATIONS: ModelDesignerTranslations = {
   toolbar: {
     untitled: 'Untitled',
-    switchModel: 'Switch model (back to list)',
     canvas: 'Canvas',
     table: 'Table',
     addEntity: '+ Entity',
@@ -315,16 +264,20 @@ export const DEFAULT_TRANSLATIONS: ModelDesignerTranslations = {
     redo: 'Redo',
     generate: 'Generate',
     generateSql: 'Generate SQL',
-    compareSql: 'Compare SQL',
-    executeSql: 'Execute SQL',
     ariaViewMode: 'View mode',
     openNavigator: 'Open entity navigator',
     closeNavigator: 'Close entity navigator',
     moreActions: 'More actions',
     singleSelectMode: 'Single Select',
-    rubberSelectMode: 'Rubber Band Select',
-    versionManager: 'Version Manager',
-    hostCapabilityUnavailable: 'This action requires a host application capability'
+    rubberSelectMode: 'Rubber Band Select'
+  },
+  modelSwitcher: {
+    untitled: 'Untitled',
+    renameTitle: 'Click to rename model',
+    switchModel: 'Switch model',
+    closeMenu: 'Close model menu',
+    newPlaceholder: 'New model name',
+    create: 'Create'
   },
   entityPanel: {
     deleteEntity: 'Delete',
@@ -410,39 +363,6 @@ export const DEFAULT_TRANSLATIONS: ModelDesignerTranslations = {
   errorBanner: {
     ariaDismiss: 'Dismiss error'
   },
-  sql: {
-    remoteUnavailable: 'No remote schema source configured — unable to generate a diff.',
-    remoteFetchFailed: 'Failed to read the remote schema',
-    remoteStale: 'Failed to read the remote schema; using the last cached snapshot',
-    noDifferences: 'no differences'
-  },
-  sqlExecution: {
-    title: 'Execute SQL',
-    preflighting: 'Checking SQL impact...',
-    rollbackOnly: 'This check runs in a transaction and will not change the remote schema.',
-    ready: 'Preflight passed',
-    safeConfirmation: 'Review the impact before committing this SQL snapshot.',
-    statementCount: 'Statements',
-    affectedTables: 'Affected tables',
-    noAffectedTables: 'No affected tables reported',
-    execute: 'Execute',
-    executing: 'Executing SQL...',
-    preflightFailed: 'Preflight failed',
-    executionFailed: 'Execution failed',
-    outcomeUnknown: 'Execution outcome unknown',
-    compareBeforeContinuing: 'Compare the remote schema before continuing. Do not execute this SQL again yet.',
-    sqlRetained: 'The SQL snapshot is retained and can be retried.',
-    retry: 'Retry',
-    cancel: 'Cancel',
-    close: 'Close',
-    successTitle: 'SQL committed',
-    successMessage: '{count} tables affected. Use Compare SQL to verify the remote schema.',
-    destructiveTitle: 'Destructive changes detected',
-    destructiveWarning: 'This SQL removes remote schema objects and cannot be undone automatically.',
-    backupWarning: 'Create and verify a database backup before continuing.',
-    confirmDestructive: 'Confirm destructive execution',
-    retryDestructive: 'Retry destructive execution'
-  },
   modelList: {
     title: 'Model Designs',
     noModels: 'No models yet',
@@ -527,29 +447,10 @@ export const DEFAULT_TRANSLATIONS: ModelDesignerTranslations = {
     deleteIndexMessage: 'Delete this index? This action cannot be undone.',
     deleteModelTitle: 'Delete Model Design',
     deleteModelMessage: 'Delete this model design and all its entities? This action cannot be undone.',
-    rollbackTitle: 'Rollback Model Design',
-    rollbackMessage: 'Roll back this model design to the selected version? Current changes cannot be recovered.',
     sqlImpactTitle: 'SQL impact check',
     sqlImpactMessage:
       'Changing the property type may affect generated SQL and existing data. Continue? (Detailed impact analysis will be provided by SQL sync.)',
     sqlImpactConfirmButton: 'Continue'
-  },
-  versionManager: {
-    title: 'Version Manager',
-    targetLabel: 'Target (will be overwritten)',
-    snapshotLabel: 'Snapshot (rollback source)',
-    selectPlaceholder: 'Select a model design...',
-    addedEntities: 'Added',
-    removedEntities: 'Removed',
-    commonEntities: 'Common entities',
-    fieldChanges: 'Field changes',
-    fieldAdded: 'Added fields',
-    fieldRemoved: 'Removed fields',
-    fieldChanged: 'Changed fields',
-    noFieldChange: 'No field differences',
-    noDiff: 'Select two different model designs to compare.',
-    rollbackButton: 'Rollback',
-    closeButton: 'Close'
   },
   ai: {
     send: 'Send',

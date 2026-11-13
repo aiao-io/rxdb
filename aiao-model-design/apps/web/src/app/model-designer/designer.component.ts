@@ -1,4 +1,3 @@
-import { Dialog } from '@angular/cdk/dialog';
 import { isPlatformBrowser } from '@angular/common';
 import {
   afterNextRender,
@@ -8,7 +7,6 @@ import {
   DestroyRef,
   effect,
   inject,
-  Injector,
   PLATFORM_ID,
   signal,
   TemplateRef,
@@ -23,18 +21,12 @@ import { AiChatPanelComponent } from './components/ai/ai-chat-panel.component';
 import { CodePreviewComponent } from './components/code-preview/code-preview.component';
 import { ModelListComponent } from './components/model-list/model-list.component';
 import { SchemaNavigatorComponent } from './components/navigator/schema-navigator.component';
-import {
-  SqlExecutionDialogComponent,
-  type SqlExecutionDialogData
-} from './components/sql-execution/sql-execution-dialog.component';
 import { DesignerToolbarComponent } from './components/toolbar/designer-toolbar.component';
-import { VersionManagerDialogComponent } from './components/version-manager/version-manager-dialog.component';
 import { handleKeydown, handleKeyup, type KeyboardContext, type SpaceHoldState } from './designer-keyboard';
 import { MODEL_DESIGNER_TRANSLATIONS } from './i18n';
 import {
   AI_DRAWER_ADAPTER,
   MODEL_DESIGNER_CONFIG,
-  type GeneratedFile,
   type ViewMode
 } from './interfaces/designer.interface';
 import { AgentConversationRepository, AgentModelStore } from './services/agent-conversation-repository';
@@ -43,51 +35,12 @@ import { AiChatSessionService } from './services/ai-chat-session.service';
 import { AiOperationGuardService } from './services/ai-operation-guard.service';
 import { CodeGeneratorService } from './services/code-generator.service';
 import { ConfirmDialogService } from './services/confirm-dialog.service';
-import { DesignDiffService } from './services/design-diff.service';
 import { DesignEntityService } from './services/design-entity.service';
 import { DesignIndexService } from './services/design-index.service';
 import { DesignPropertyService } from './services/design-property.service';
 import { DesignRelationService } from './services/design-relation.service';
 import { DesignerStateService } from './services/designer-state.service';
 import { ModelValidatorService } from './services/model-validator.service';
-import { SqlExecutionService } from './services/sql-execution.service';
-
-function hasExecutableSql(sql: string): boolean {
-  let index = 0;
-  let blockCommentDepth = 0;
-
-  while (index < sql.length) {
-    const pair = sql.slice(index, index + 2);
-    if (pair === '/*') {
-      blockCommentDepth += 1;
-      index += 2;
-      continue;
-    }
-    if (blockCommentDepth > 0) {
-      if (pair === '*/') {
-        blockCommentDepth -= 1;
-        index += 2;
-        continue;
-      }
-      index += 1;
-      continue;
-    }
-    if (pair === '--') {
-      const lineEnd = sql.indexOf('\n', index + 2);
-      index = lineEnd === -1 ? sql.length : lineEnd + 1;
-      continue;
-    }
-    if (sql[index]?.trim()) return true;
-    index += 1;
-  }
-
-  return false;
-}
-
-/** Returns an immutable snapshot of the first generated SQL preview containing executable content. */
-export function executableSqlPreview(files: readonly GeneratedFile[]): string | null {
-  return files.find(file => file.path.endsWith('.sql') && hasExecutableSql(file.content))?.content ?? null;
-}
 
 @Component({
   selector: 'lib-model-designer',
@@ -101,7 +54,6 @@ export function executableSqlPreview(files: readonly GeneratedFile[]): string | 
     LucideAngularModule
   ],
   providers: [
-    DesignDiffService,
     DesignEntityService,
     DesignPropertyService,
     DesignRelationService,
@@ -114,8 +66,7 @@ export function executableSqlPreview(files: readonly GeneratedFile[]): string | 
     AgentConversationRepository,
     AgentConversationService,
     AgentModelStore,
-    AiOperationGuardService,
-    SqlExecutionService
+    AiOperationGuardService
   ],
   templateUrl: './designer.component.html',
   styleUrl: './designer.component.scss',
@@ -130,21 +81,12 @@ export default class DesignerComponent {
   readonly #aiDrawer = inject(AI_DRAWER_ADAPTER, { optional: true });
   readonly #routeEntityId = signal<string | null>(null);
   readonly #confirmDialog = inject(ConfirmDialogService);
-  readonly #dialog = inject(Dialog);
-  readonly #injector = inject(Injector);
-  readonly #executionDialogOpen = signal(false);
   protected readonly t = inject(MODEL_DESIGNER_TRANSLATIONS);
   protected readonly state = inject(DesignerStateService);
   protected readonly agent = inject(AgentConversationService);
   protected readonly modelDesign = this.state.modelDesign;
   protected readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
   protected readonly aiChatPanelTpl = viewChild<TemplateRef<unknown>>('aiChatPanelTpl');
-  protected readonly executeDisabled = computed(
-    () =>
-      this.#executionDialogOpen() ||
-      !this.state.canExecuteSql() ||
-      executableSqlPreview(this.state.generatedFiles()) === null
-  );
   protected readonly X = X;
   protected readonly navigatorOpen = signal(false);
 
@@ -152,9 +94,6 @@ export default class DesignerComponent {
 
   /** 从当前路由 URL 推导 viewMode */
   readonly viewMode = signal<ViewMode>('canvas');
-
-  /** 用户是否显式请求返回模型列表 */
-  readonly listRequested = signal(false);
 
   constructor() {
     const destroyRef = this.#destroyRef;
@@ -183,13 +122,19 @@ export default class DesignerComponent {
         this.#routeEntityId.set(match?.[2] ?? null);
       });
 
-    // 自动加载第一个设计
+    // 首次进入自动落进设计页：有设计则加载第一个，没有则创建默认设计 'schema'
+    let defaultDesignEnsured = false;
     effect(() => {
       if (this.modelDesign.activeDesign()) return;
+      if (!this.modelDesign.designsReady()) return;
       const designs = this.modelDesign.designs();
       if (designs.length > 0) {
         this.modelDesign.load(designs[0].id);
+        return;
       }
+      if (defaultDesignEnsured) return;
+      defaultDesignEnsured = true;
+      void this.state.run('Create default model', () => this.modelDesign.ensureDefaultDesign());
     });
 
     // isDarkMode 变化时重绘主题
@@ -258,48 +203,24 @@ export default class DesignerComponent {
     }
   }
 
-  onSwitchModel(): void {
-    this.listRequested.set(true);
-  }
-
   async onModelSelected(id: string) {
     this.modelDesign.load(id);
-    this.listRequested.set(false);
   }
 
   async onModelCreated(name: string) {
-    if (await this.state.run('Create model', () => this.state.modelDesign.create(name))) {
-      this.listRequested.set(false);
-    }
+    await this.state.run('Create model', () => this.state.modelDesign.create(name));
+  }
+
+  /** 左侧切换器重命名当前模型 */
+  async onModelRenamed(name: string) {
+    const id = this.modelDesign.activeDesignId();
+    if (!id) return;
+    await this.state.run('Rename model', () => this.modelDesign.update(id, { name }));
   }
 
   async onModelCopied(id: string) {
     // 留在列表：复制的用途通常是「基于副本继续改」，用户需要先看到两份再选
     await this.state.run('Copy model', () => this.state.modelDesign.copy(id));
-  }
-
-  /** 打开版本管理弹窗，需传入组件级 injector 以携带 {@link ModelDesignService}/DesignDiffService */
-  onOpenVersionManager() {
-    this.#dialog.open(VersionManagerDialogComponent, {
-      ariaLabel: this.t().versionManager.title,
-      injector: this.#injector
-    });
-  }
-
-  /** Opens rollback-only preflight for the current generated SQL snapshot. */
-  onExecuteSql(): void {
-    const sql = executableSqlPreview(this.state.generatedFiles());
-    if (!this.state.canExecuteSql() || !sql || this.#executionDialogOpen()) return;
-
-    this.#executionDialogOpen.set(true);
-    const ref = this.#dialog.open<void, SqlExecutionDialogData>(SqlExecutionDialogComponent, {
-      ariaLabel: this.t().sqlExecution.title,
-      closeOnNavigation: false,
-      data: { sql },
-      disableClose: true,
-      injector: this.#injector
-    });
-    ref.closed.pipe(takeUntilDestroyed(this.#destroyRef)).subscribe(() => this.#executionDialogOpen.set(false));
   }
 
   async onModelDeleted(id: string) {

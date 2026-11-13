@@ -7,7 +7,7 @@
 /** AI 子分支的 ID 前缀 */
 const AI_BRANCH_PREFIX = 'ai-';
 
-/** 版本管理器接口 */
+/** RxDB 版本管理器接口 */
 interface VersionManagerLike {
   createBranch: (name: string) => Promise<{ id: string }>;
   switchBranch: (branchId: string) => Promise<void>;

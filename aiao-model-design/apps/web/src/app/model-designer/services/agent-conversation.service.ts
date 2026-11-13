@@ -29,7 +29,7 @@ export type AgentBranchControl = Pick<
   'forkAiBranch' | 'mergeAiBranch' | 'discardAiBranch' | 'activeAiBranchId'
 >;
 
-/** 分支控制注入令牌，默认绑定 RxDB 的版本管理。 */
+/** 分支控制注入令牌，默认绑定 RxDB 的版本管理器插件。 */
 export const AGENT_BRANCH_CONTROL = new InjectionToken<AgentBranchControl>('AGENT_BRANCH_CONTROL', {
   providedIn: 'root',
   factory: () => new AiBranchService(inject(RxDB).versionManager)
@@ -394,7 +394,7 @@ export class AgentConversationService {
     if (!branchId) return;
     const record = await this.#repository.findBranch(branchId);
     if (!record)
-      throw new Error(`当前停在 AI 分支 ${branchId} 上，但找不到它的 fork 记录，请在版本管理里合并或删除这条分支`);
+      throw new Error(`当前停在 AI 分支 ${branchId} 上，但找不到它的 fork 记录，请在分支管理里合并或丢弃这条分支`);
     this.#aiBranch.set({ branchId, parentBranchId: record.parentBranchId });
     this.#forkBase.set(record.forkBase);
     this.#guard.setPendingBranch(record.modelDesignId);

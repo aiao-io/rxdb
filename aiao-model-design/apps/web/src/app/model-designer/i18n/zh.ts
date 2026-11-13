@@ -3,7 +3,6 @@ import type { ModelDesignerTranslations } from './translations';
 export const ZH_TRANSLATIONS: ModelDesignerTranslations = {
   toolbar: {
     untitled: '未命名',
-    switchModel: '切换模型（返回模型列表）',
     canvas: '画布',
     table: '表格',
     addEntity: '+ 实体',
@@ -11,16 +10,20 @@ export const ZH_TRANSLATIONS: ModelDesignerTranslations = {
     redo: '重做',
     generate: '生成代码',
     generateSql: '生成 SQL',
-    compareSql: '对比 SQL',
-    executeSql: '执行 SQL',
     ariaViewMode: '视图模式',
     openNavigator: '打开实体导航',
     closeNavigator: '关闭实体导航',
     moreActions: '更多操作',
     singleSelectMode: '单选模式',
-    rubberSelectMode: '框选模式',
-    versionManager: '版本管理',
-    hostCapabilityUnavailable: '此操作需要宿主应用提供对应能力'
+    rubberSelectMode: '框选模式'
+  },
+  modelSwitcher: {
+    untitled: '未命名',
+    renameTitle: '点击修改模型名称',
+    switchModel: '切换模型',
+    closeMenu: '关闭模型菜单',
+    newPlaceholder: '新模型名称',
+    create: '新建'
   },
   entityPanel: {
     deleteEntity: '删除',
@@ -106,39 +109,6 @@ export const ZH_TRANSLATIONS: ModelDesignerTranslations = {
   errorBanner: {
     ariaDismiss: '关闭错误提示'
   },
-  sql: {
-    remoteUnavailable: '未配置远程 schema 数据源，无法生成对比',
-    remoteFetchFailed: '读取远程 schema 失败',
-    remoteStale: '读取远程 schema 失败，已使用上次缓存快照',
-    noDifferences: '无差异'
-  },
-  sqlExecution: {
-    title: '执行 SQL',
-    preflighting: '正在检查 SQL 影响...',
-    rollbackOnly: '本次检查在事务中运行，不会修改远程 schema。',
-    ready: '预检通过',
-    safeConfirmation: '提交前请核对本次 SQL 快照的影响。',
-    statementCount: '语句数',
-    affectedTables: '影响表',
-    noAffectedTables: '服务端未报告影响表',
-    execute: '执行',
-    executing: '正在执行 SQL...',
-    preflightFailed: '预检失败',
-    executionFailed: '执行失败',
-    outcomeUnknown: '执行结果未知',
-    compareBeforeContinuing: '继续前请对比远程 schema，暂时不要再次执行此 SQL。',
-    sqlRetained: 'SQL 快照已保留，可以重试。',
-    retry: '重试',
-    cancel: '取消',
-    close: '关闭',
-    successTitle: 'SQL 已提交',
-    successMessage: '已影响 {count} 个表。请使用“对比 SQL”核验远程 schema。',
-    destructiveTitle: '检测到破坏性变更',
-    destructiveWarning: '此 SQL 会删除远程 schema 对象，无法自动撤销。',
-    backupWarning: '继续前请创建并验证数据库备份。',
-    confirmDestructive: '确认执行破坏性变更',
-    retryDestructive: '重试破坏性执行'
-  },
   modelList: {
     title: '模型设计',
     noModels: '暂无模型',
@@ -223,28 +193,9 @@ export const ZH_TRANSLATIONS: ModelDesignerTranslations = {
     deleteIndexMessage: '确定要删除该索引吗？此操作不可撤销',
     deleteModelTitle: '删除模型设计',
     deleteModelMessage: '确定要删除该模型设计及其所有实体吗？此操作不可撤销',
-    rollbackTitle: '回滚模型设计',
-    rollbackMessage: '确定要将该模型设计回滚到所选版本吗？当前的改动将无法恢复',
     sqlImpactTitle: 'SQL 影响检查',
     sqlImpactMessage: '修改属性类型可能影响生成的 SQL 与既有数据。是否继续？（详细影响分析将由 SQL 同步提供）',
     sqlImpactConfirmButton: '继续'
-  },
-  versionManager: {
-    title: '版本管理',
-    targetLabel: '目标（将被覆盖）',
-    snapshotLabel: '快照（回滚来源）',
-    selectPlaceholder: '请选择模型设计...',
-    addedEntities: '新增',
-    removedEntities: '删除',
-    commonEntities: '共有实体',
-    fieldChanges: '字段变化',
-    fieldAdded: '新增字段',
-    fieldRemoved: '删除字段',
-    fieldChanged: '字段变更',
-    noFieldChange: '字段无差异',
-    noDiff: '请选择两个不同的模型设计进行对比',
-    rollbackButton: '回滚',
-    closeButton: '关闭'
   },
   ai: {
     send: '发送',

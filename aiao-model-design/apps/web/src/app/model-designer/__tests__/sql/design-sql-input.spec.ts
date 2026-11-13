@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { designToSqlSchema, diffSqlSchema, generateCreateSql } from '../../sql';
+import { designToSqlSchema, generateCreateSql } from '../../sql';
 import type { DesignSqlInput } from '../../sql/types';
 
 /**
  * 覆盖 designer-state `#toDesignSqlInput` 同一形状的端到端线索：
- * design snapshot → schema → .sql / .diff.sql 文件内容
+ * design snapshot → schema → .sql 文件内容
  */
 describe('design SQL snapshot pipeline', () => {
   const input: DesignSqlInput = {
@@ -29,18 +29,5 @@ describe('design SQL snapshot pipeline', () => {
     expect(sql).toContain('CREATE TABLE items');
     expect(sql).toContain('title text NOT NULL');
     expect(sql).toContain('id uuid PRIMARY KEY');
-  });
-
-  it('compare against an explicitly empty remote yields a CREATE-heavy diff', () => {
-    const desired = designToSqlSchema(input);
-    const { sql } = diffSqlSchema(desired, { tables: [] });
-    expect(sql).toContain('CREATE TABLE items');
-    expect(sql).toContain('title text NOT NULL');
-  });
-
-  it('compare against matching remote yields empty sql', () => {
-    const desired = designToSqlSchema(input);
-    const { sql } = diffSqlSchema(desired, desired);
-    expect(sql).toBe('');
   });
 });

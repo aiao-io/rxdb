@@ -1,8 +1,7 @@
 import { RxDB } from '@aiao/rxdb';
 import { useFindAll } from '@aiao/rxdb-angular';
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { generateCopyName } from '../constants/naming';
-import { MODEL_DESIGNER_TRANSLATIONS } from '../i18n';
+import { DEFAULT_MODEL_NAME, generateCopyName } from '../constants/naming';
 import { DesignEntity, DesignIndex, DesignProperty, DesignRelation, ModelDesign } from '../models/index.js';
 import {
   cloneDesignSnapshot,
@@ -12,7 +11,6 @@ import {
   type DesignPropertySnapshot,
   type DesignRelationSnapshot
 } from '../utils/design-clone';
-import { ConfirmDialogService } from './confirm-dialog.service';
 import { optimisticUpdate } from './entity-utils';
 import { createQueryGate, firstQueryError } from './lazy-query';
 
@@ -99,8 +97,6 @@ function toIndexSnapshot(idx: DesignIndex): DesignIndexSnapshot {
 @Injectable({ providedIn: 'root' })
 export class ModelDesignService {
   readonly #rxdb = inject(RxDB);
-  readonly #confirmDialog = inject(ConfirmDialogService);
-  readonly #t = inject(MODEL_DESIGNER_TRANSLATIONS);
   readonly #entitiesQuery = useFindAll(DesignEntity, { where: { combinator: 'and', rules: [] } });
   readonly #propertiesQuery = useFindAll(DesignProperty, { where: { combinator: 'and', rules: [] } });
   readonly #relationsQuery = useFindAll(DesignRelation, { where: { combinator: 'and', rules: [] } });
@@ -111,7 +107,7 @@ export class ModelDesignService {
   readonly #allIndexes = this.#indexesQuery.value;
 
   /**
-   * 快照类操作（copy / rollback）的就绪闸门。
+   * 快照类操作（copy）的就绪闸门。
    *
    * ⚠️ 这些查询是 lazy signal：不读不订阅、首读拿 `initialValue: []`。
    * `#snapshotOf` 直接读它们做「有哪些实体要克隆」的判断，若在首帧到达前调用
@@ -131,6 +127,12 @@ export class ModelDesignService {
   /** 全部模型设计列表 */
   readonly designs = this.#designsQuery.value;
 
+  /** 设计列表活查询首帧是否已到达（首帧前 designs 恒为 initialValue []） */
+  readonly designsReady = this.#designsQuery.hasValue;
+
+  /** 等待设计列表首帧的闸门（ensureDefaultDesign 用） */
+  readonly #designsGate = createQueryGate([this.#designsQuery]);
+
   /**
    * 活查询失败时的消息（[缺陷台账 #21](../../../../requirements/known-defects.md)）。
    *
@@ -147,6 +149,9 @@ export class ModelDesignService {
 
   /** 当前激活的设计 ID */
   readonly activeDesignId = signal<string | null>(null);
+
+  /** 默认设计创建的在飞 Promise（并发去重） */
+  #defaultDesignPromise: Promise<ModelDesign | null> | null = null;
 
   /** 当前激活的设计实例 */
   readonly activeDesign = computed(() => {
@@ -166,6 +171,27 @@ export class ModelDesignService {
   /** 加载指定设计（切换激活状态） */
   load(id: string): void {
     this.activeDesignId.set(id);
+  }
+
+  /**
+   * 确保至少存在一个模型设计：等设计列表首帧到达后，若列表为空则创建
+   * 默认设计 `schema` 并激活；已有设计时不做任何事。
+   *
+   * 供设计页「首次进入自动落进设计页」使用。并发调用共享同一在飞 Promise，
+   * 不会重复创建。
+   */
+  ensureDefaultDesign(): Promise<ModelDesign | null> {
+    this.#defaultDesignPromise ??= this.#createDefaultDesignIfNeeded();
+    return this.#defaultDesignPromise;
+  }
+
+  async #createDefaultDesignIfNeeded(): Promise<ModelDesign | null> {
+    try {
+      await this.#designsGate();
+      return this.designs().length === 0 ? await this.create(DEFAULT_MODEL_NAME) : null;
+    } finally {
+      this.#defaultDesignPromise = null;
+    }
   }
 
   /** 更新模型设计字段 */
@@ -205,37 +231,6 @@ export class ModelDesignService {
     }
 
     return design;
-  }
-
-  /**
-   * 将目标设计回滚为快照设计的内容，需二次确认（危险操作，替换目标设计现有全部实体）
-   * @returns 是否实际执行了回滚；用户取消确认时返回 `false`
-   */
-  async rollback(targetId: string, snapshotId: string): Promise<boolean> {
-    await this.#snapshotReady();
-    const target = this.designs().find(d => d.id === targetId);
-    if (!target) throw new Error(`ModelDesign not found: ${targetId}`);
-    const snapshot = this.designs().find(d => d.id === snapshotId);
-    if (!snapshot) throw new Error(`ModelDesign not found: ${snapshotId}`);
-
-    const confirmed = await this.#confirmDialog.confirm({
-      title: this.#t().confirmDialog.rollbackTitle,
-      message: this.#t().confirmDialog.rollbackMessage,
-      danger: true
-    });
-    if (!confirmed) return false;
-
-    const existingEntities = this.#allEntities().filter(e => e.modelDesignId === targetId);
-    const removeMap = new Map<unknown, Set<unknown>>();
-    if (existingEntities.length) removeMap.set(DesignEntity, new Set(existingEntities));
-
-    const cloned = cloneDesignSnapshot(...this.#snapshotOf(snapshotId));
-    const createMap = this.#buildCreateMap(cloned, targetId);
-
-    if (createMap.size || removeMap.size) {
-      await this.#rxdb.entityManager.mutations({ create: createMap, update: new Map(), remove: removeMap });
-    }
-    return true;
   }
 
   /** 读取指定设计的实体/属性/关系/索引全量数据，供 {@link cloneDesignSnapshot} 消费 */

@@ -16,9 +16,8 @@ import type {
   RelationFieldErrors
 } from '../interfaces/designer.interface';
 import type { DesignProperty } from '../models/index.js';
-import { designToSqlSchema, diffSqlSchema, generateCreateSql } from '../sql';
-import { REMOTE_SCHEMA_SOURCE, resolveCompareRemoteSchema } from '../sql/compare-remote';
-import type { DesignSqlInput, SqlSchema } from '../sql/types';
+import { designToSqlSchema, generateCreateSql } from '../sql';
+import type { DesignSqlInput } from '../sql/types';
 import { collectAffectedRelations, formatDeleteEntityMessage } from '../utils/delete-entity-message';
 import { AiOperationGuardService } from './ai-operation-guard.service';
 import { CLIENT_PACKAGE_ADAPTER, type ClientPackageRequest } from './client-package-adapter';
@@ -31,7 +30,6 @@ import { DesignRelationService } from './design-relation.service';
 import { createValidationSignals } from './designer-validation';
 import { ModelDesignService } from './model-design.service';
 import { ModelValidatorService } from './model-validator.service';
-import { SQL_EXECUTION_ADAPTER } from './sql-execution-adapter';
 
 /**
  * 设计器共享状态服务
@@ -43,9 +41,7 @@ import { SQL_EXECUTION_ADAPTER } from './sql-execution-adapter';
 export class DesignerStateService {
   readonly #t = inject(MODEL_DESIGNER_TRANSLATIONS);
   readonly #confirmDialog = inject(ConfirmDialogService);
-  readonly #remoteSchemaSource = inject(REMOTE_SCHEMA_SOURCE, { optional: true });
   readonly #clientPackageAdapter = inject(CLIENT_PACKAGE_ADAPTER, { optional: true });
-  readonly #sqlExecutionAdapter = inject(SQL_EXECUTION_ADAPTER, { optional: true });
 
   readonly modelValidation: Signal<ModelValidationResult>;
   readonly invalidRelationIds: Signal<Set<string>>;
@@ -73,8 +69,6 @@ export class DesignerStateService {
   readonly generatedFiles = signal<GeneratedFile[]>([]);
   readonly generatedErrors = signal<string[]>([]);
   readonly lastError = signal<string | null>(null);
-  /** 对比用远程 schema 快照（API remote-schema / 外部注入） */
-  readonly remoteSqlSchema = signal<SqlSchema | null>(null);
 
   /**
    * 任一活查询失败时的消息（[缺陷台账 #21](../../../../requirements/known-defects.md)）。
@@ -122,10 +116,6 @@ export class DesignerStateService {
       this.generatedFiles().some(file => file.path.endsWith('.d.ts'))
   );
   readonly canPublishClientPackage = this.canArchiveClientPackage;
-  /** 远程 schema 对比能力由宿主应用注入；独立 Worker 不提供此接口。 */
-  readonly canCompareSql = computed(() => Boolean(this.#remoteSchemaSource));
-  /** SQL 执行能力由宿主应用注入；独立 Worker 不提供此接口。 */
-  readonly canExecuteSql = computed(() => Boolean(this.#sqlExecutionAdapter));
   readonly entities = computed(() => this.entityService.entities());
   readonly entityPairs = computed(() => this.entities().map(e => ({ id: e.id, name: e.name })));
   readonly selectedEntityIds = computed(() => this.entityService.selectedEntityIds());
@@ -406,54 +396,6 @@ export class DesignerStateService {
     this.generatedFiles.set([{ path: `${base}.sql`, content: result.sql }]);
     this.generatedErrors.set([]);
     this.codePreviewOpen.set(true);
-  }
-
-  /**
-   * 对比当前设计 vs 远程 schema，生成 diff SQL 预览。
-   *
-   * 远程 schema 优先级：`remoteOverride` → `REMOTE_SCHEMA_SOURCE` 拉取 → 上次缓存。
-   * 拉取失败且无缓存时只报错，不退化成与空 schema 对比（否则会把远端已有的表误报成全量 CREATE）。
-   */
-  async onCompareSql(remoteOverride?: SqlSchema | null) {
-    if (!this.#remoteSchemaSource && remoteOverride === undefined && !this.remoteSqlSchema()) {
-      this.generatedFiles.set([]);
-      this.generatedErrors.set([this.#t().sql.remoteUnavailable]);
-      this.codePreviewOpen.set(true);
-      return;
-    }
-    if (!this.#canGenerateSql()) return;
-    const source = this.#remoteSchemaSource;
-    const resolution = await resolveCompareRemoteSchema({
-      override: remoteOverride,
-      fetchRemoteSchema: source ? () => source.fetchRemoteSchema() : undefined,
-      cached: this.remoteSqlSchema()
-    });
-
-    const t = this.#t().sql;
-    if (resolution.status === 'error') {
-      this.generatedFiles.set([]);
-      this.generatedErrors.set([`${t.remoteFetchFailed}: ${resolution.message}`]);
-      this.codePreviewOpen.set(true);
-      return;
-    }
-
-    if (resolution.status === 'ok') this.remoteSqlSchema.set(resolution.remote);
-
-    const desired = designToSqlSchema(this.#toDesignSqlInput());
-    const result = diffSqlSchema(desired, resolution.remote);
-    const base = this.activeDesignName() || 'model';
-    const content = result.sql.length > 0 ? result.sql : `-- ${t.noDifferences}\n`;
-    this.generatedFiles.set([{ path: `${base}.diff.sql`, content }]);
-    this.generatedErrors.set(
-      resolution.status === 'stale' ? [`${t.remoteStale}: ${resolution.message}`]
-      : resolution.status === 'unavailable' ? [t.remoteUnavailable]
-      : []
-    );
-    this.codePreviewOpen.set(true);
-  }
-
-  setRemoteSqlSchema(schema: SqlSchema | null) {
-    this.remoteSqlSchema.set(schema);
   }
 
   onDownloadZip() {

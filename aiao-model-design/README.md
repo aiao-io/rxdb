@@ -166,6 +166,6 @@ api、agent 与 model-ops 的测试门槛为语句、分支、函数、行均至
 
 ## 代码来源
 
-- `packages/rxdb-model-designer/src` → `apps/web/src/app/model-designer`：画布、实体编辑、代码与 SQL 预览、版本管理、AI 会话面板。
+- `packages/rxdb-model-designer/src` → `apps/web/src/app/model-designer`：画布、实体编辑、代码与 SQL 预览、AI 会话面板。
 - `packages/rxdb-models/entities` → `apps/web/entities`，生成文件位于 `apps/web/src/app/model-designer/models`；`AgentConversation`、`AgentBranch` 为本产品新增。
 - `apps/dashboard` → `apps/web/src/app/adapters` 中的 AI 抽屉与网关适配器。

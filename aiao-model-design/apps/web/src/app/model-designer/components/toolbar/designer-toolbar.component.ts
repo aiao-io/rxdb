@@ -1,11 +1,8 @@
-import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import {
   BotMessageSquare,
   Code2,
-  DatabaseZap,
   FileCode2,
-  GitCompareArrows,
-  History,
   LucideAngularModule,
   MoreHorizontal,
   PanelLeft,
@@ -19,7 +16,8 @@ import type { ViewMode } from '../../interfaces/designer.interface';
 /**
  * 设计器工具栏组件
  *
- * 提供模型名称显示、视图切换、添加实体、代码生成、撤销/重做、AI 触发等功能。
+ * 提供当前实体名显示（未选中实体时回退为模型名）、视图切换、添加实体、
+ * 代码生成、撤销/重做、AI 触发等功能。
  */
 @Component({
   selector: 'lib-designer-toolbar',
@@ -32,16 +30,15 @@ export class DesignerToolbarComponent {
   protected readonly Redo2 = Redo2;
   protected readonly BotMessageSquare = BotMessageSquare;
   protected readonly Code2 = Code2;
-  protected readonly DatabaseZap = DatabaseZap;
   protected readonly FileCode2 = FileCode2;
-  protected readonly GitCompareArrows = GitCompareArrows;
-  protected readonly History = History;
   protected readonly MoreHorizontal = MoreHorizontal;
   protected readonly PanelLeft = PanelLeft;
   protected readonly Plus = Plus;
   protected readonly t = inject(MODEL_DESIGNER_TRANSLATIONS);
 
   readonly modelName = input<string>();
+  /** 当前选中实体名（只读展示，不再承担切换入口） */
+  readonly entityName = input<string>();
   readonly viewMode = input<ViewMode>('canvas');
   readonly undoCount = input(0);
   readonly redoCount = input(0);
@@ -53,18 +50,14 @@ export class DesignerToolbarComponent {
   readonly addEntity = output<void>();
   readonly generateCode = output<void>();
   readonly generateSql = output<void>();
-  readonly compareSql = output<void>();
-  readonly executeDisabled = input(true);
-  readonly compareAvailable = input(true);
-  readonly executeAvailable = input(true);
-  readonly executeSql = output<void>();
   readonly undo = output<void>();
   readonly redo = output<void>();
   readonly toggleAi = output<void>();
   readonly openNavigator = output<void>();
-  readonly openVersionManager = output<void>();
-  /** 返回模型列表（切换 / 复制 / 删除 / 新建设计的唯一入口） */
-  readonly switchModel = output<void>();
+  /** 工具栏主标题：优先当前实体名，未选中实体时回退为模型名 */
+  protected readonly displayName = computed(
+    () => this.entityName() ?? this.modelName() ?? this.t().toolbar.untitled
+  );
 
   protected closeMobileActions(details: HTMLDetailsElement): void {
     details.open = false;

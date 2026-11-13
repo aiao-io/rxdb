@@ -12,15 +12,13 @@
     <lucide-icon class="h-5 w-5" [img]="PanelLeft" aria-hidden="true" />
   </button>
 
-  <button
-    class="btn btn-ghost min-h-11 min-w-0 flex-1 justify-start truncate px-2 text-sm font-semibold"
-    [attr.aria-label]="t().toolbar.switchModel"
-    [title]="t().toolbar.switchModel"
-    (click)="switchModel.emit()"
-    type="button"
+  <span
+    class="min-w-0 flex-1 truncate px-2 text-sm font-semibold"
+    data-testid="toolbar-entity-name"
+    [title]="displayName()"
   >
-    <span class="truncate">{{ modelName() ?? t().toolbar.untitled }}</span>
-  </button>
+    {{ displayName() }}
+  </span>
 
   <div class="join shrink-0" [attr.aria-label]="t().toolbar.ariaViewMode" role="group">
     <button
@@ -85,34 +83,6 @@
         </button>
       </li>
       <li>
-        <button
-          [disabled]="!compareAvailable()"
-          [title]="compareAvailable() ? t().toolbar.compareSql : t().toolbar.hostCapabilityUnavailable"
-          (click)="compareSql.emit(); closeMobileActions(mobileActions)"
-          type="button"
-        >
-          <lucide-icon class="h-4 w-4" [img]="GitCompareArrows" aria-hidden="true" />
-          {{ t().toolbar.compareSql }}
-        </button>
-      </li>
-      <li>
-        <button
-          [disabled]="executeDisabled() || !executeAvailable()"
-          [title]="executeAvailable() ? t().toolbar.executeSql : t().toolbar.hostCapabilityUnavailable"
-          (click)="executeSql.emit(); closeMobileActions(mobileActions)"
-          type="button"
-        >
-          <lucide-icon class="h-4 w-4" [img]="DatabaseZap" aria-hidden="true" />
-          {{ t().toolbar.executeSql }}
-        </button>
-      </li>
-      <li>
-        <button (click)="openVersionManager.emit(); closeMobileActions(mobileActions)" type="button">
-          <lucide-icon class="h-4 w-4" [img]="History" aria-hidden="true" />
-          {{ t().toolbar.versionManager }}
-        </button>
-      </li>
-      <li>
         <button (click)="toggleAi.emit(); closeMobileActions(mobileActions)" type="button">
           <lucide-icon class="h-4 w-4" [img]="BotMessageSquare" aria-hidden="true" />
           AI
@@ -127,15 +97,9 @@
   [attr.aria-label]="t().toolbar.ariaViewMode"
   role="toolbar"
 >
-  <button
-    class="btn btn-ghost btn-xs max-w-48 truncate text-sm font-semibold"
-    [attr.aria-label]="t().toolbar.switchModel"
-    [title]="t().toolbar.switchModel"
-    (click)="switchModel.emit()"
-    type="button"
-  >
-    {{ modelName() ?? t().toolbar.untitled }}
-  </button>
+  <span class="max-w-48 truncate px-1 text-sm font-semibold" data-testid="toolbar-entity-name" [title]="displayName()">
+    {{ displayName() }}
+  </span>
 
   <div class="flex-1"></div>
 
@@ -198,36 +162,6 @@
   <button class="btn btn-ghost btn-xs" (click)="generateSql.emit()" type="button">
     {{ t().toolbar.generateSql }}
   </button>
-  <button
-    class="btn btn-ghost btn-xs"
-    [disabled]="!compareAvailable()"
-    [title]="compareAvailable() ? t().toolbar.compareSql : t().toolbar.hostCapabilityUnavailable"
-    (click)="compareSql.emit()"
-    type="button"
-  >
-    {{ t().toolbar.compareSql }}
-  </button>
-  <button
-    class="btn btn-ghost btn-xs"
-    [attr.aria-label]="t().toolbar.executeSql"
-    [disabled]="executeDisabled() || !executeAvailable()"
-    [title]="executeAvailable() ? t().toolbar.executeSql : t().toolbar.hostCapabilityUnavailable"
-    (click)="executeSql.emit()"
-    type="button"
-  >
-    <lucide-icon class="h-3.5 w-3.5" [img]="DatabaseZap" aria-hidden="true" />
-    {{ t().toolbar.executeSql }}
-  </button>
-  <button
-    class="btn btn-ghost btn-xs"
-    [attr.aria-label]="t().toolbar.versionManager"
-    (click)="openVersionManager.emit()"
-    type="button"
-  >
-    <lucide-icon class="h-3.5 w-3.5" [img]="History" aria-hidden="true" />
-    {{ t().toolbar.versionManager }}
-  </button>
-
   <div class="divider divider-horizontal mx-0.5 h-5 self-center"></div>
   <button class="btn btn-accent btn-xs" (click)="toggleAi.emit()" type="button">
     <lucide-icon class="h-3.5 w-3.5" [img]="BotMessageSquare" aria-hidden="true" />
