@@ -8,7 +8,7 @@
 
 [MEDIA-US-001](../stories/platform/MEDIA-US-001-nx-workspace.md) → MEDIA-US-002 → MEDIA-US-003 的骨架可以运行、构建和测试。工作台为三类入口、图片表单、声音/视频未开放提示；MiniMax 本地 Demo 是开发演示，不是正式生成。
 
-[MEDIA-US-201](../stories/account/MEDIA-US-201-sessions.md) 已开工，具备 PostgreSQL 会话底座、显式账号初始化、角色 guard 与 Web 登录/退出入口。[MEDIA-US-105](../stories/generation/MEDIA-US-105-provider-management.md) 的真实管理员配置、密钥加密、CAS/事务审计与 Web 管理入口已实现；配置 API/BFF 权限在隔离 PostgreSQL 验证，浏览器为模拟响应。任务 A/B 资源所有权已在真实隔离 PostgreSQL 验证；Web 实际 SQLite/OPFS 与跨标签锁已验，24h 显式本地访问/离线壳已通过 production 浏览器测试；服务端参考图资源隔离 PostgreSQL 已验，公网部署尚未验收。正式生成：**匿名 401；已登录且来源合法但无供应商 503**。能力声明仍全 false。
+[MEDIA-US-201](../stories/account/MEDIA-US-201-sessions.md) 已开工，具备 PostgreSQL 会话底座、显式账号初始化、角色 guard 与 Web 登录/退出入口。`MEDIA-US-105` 的真实管理员配置、密钥加密、CAS/事务审计与 Web 管理入口已实现；配置 API/BFF 权限在隔离 PostgreSQL 验证，浏览器为模拟响应。任务 A/B 资源所有权已在真实隔离 PostgreSQL 验证；Web 实际 SQLite/OPFS 与跨标签锁已验，24h 显式本地访问/离线壳已通过 production 浏览器测试；服务端参考图资源隔离 PostgreSQL 已验，公网部署尚未验收。正式生成：**匿名 401；已登录且来源合法但无供应商 503**。能力声明仍全 false。
 
 ## 首阶段实施选择与待定边界
 
@@ -25,7 +25,7 @@
 ## 交付顺序与当前工作
 
 1. **登录会话与权限底座（当前）**：[MEDIA-US-201](../stories/account/MEDIA-US-201-sessions.md) 第一阶段已实现并继续验收。先固定可信身份和管理员角色；所有权随具体端点逐一接线，story 保持 In Progress。
-2. **供应商管理 + 本地存储底座**：[MEDIA-US-105](../stories/generation/MEDIA-US-105-provider-management.md) 配置管理、只读连接测试、OpenAI 文生图/单参考图编辑协议适配器和受限 POST 已实现并离线验证，继续真实密钥联通、具体实例/模型/操作核验和正式任务安全接线；[MEDIA-US-301](../stories/local-first/MEDIA-US-301-browser-persistence.md) 已接真实持久适配器及 OPFS，参考图/重开/中断/跨标签/账号隔离与 production 离线冷启动已验（API fixture）；本地 AC 通过仍受 MEDIA-US-201 关闭硬依赖约束。MEDIA-US-303 已通过 5 项 native host / 9 项 Electron 测试，覆盖原生文件、IPC/多窗口、重启/SIGKILL、整域备份和已加载窗口显式离线授权（API fixture；关闭依赖 MEDIA-US-201），不以远程 URL 代替本地文件。
+2. **供应商管理 + 本地存储底座**：`MEDIA-US-105` 配置管理、只读连接测试、OpenAI 文生图/单参考图编辑协议适配器和受限 POST 已实现并离线验证，继续真实密钥联通、具体实例/模型/操作核验和正式任务安全接线；[MEDIA-US-301](../stories/local-first/MEDIA-US-301-browser-persistence.md) 已接真实持久适配器及 OPFS，参考图/重开/中断/跨标签/账号隔离与 production 离线冷启动已验（API fixture）；本地 AC 通过仍受 MEDIA-US-201 关闭硬依赖约束。MEDIA-US-303 已通过 5 项 native host / 9 项 Electron 测试，覆盖原生文件、IPC/多窗口、重启/SIGKILL、整域备份和已加载窗口显式离线授权（API fixture；关闭依赖 MEDIA-US-201），不以远程 URL 代替本地文件。
 3. **持久任务与本地作品闭环**：MEDIA-US-101 已实现可重启恢复的接受/消费/幂等/单位额度；人工核查已实现并经隔离测试；继续真实供应商及账单/结果对账。[MEDIA-US-202](../stories/account/MEDIA-US-202-library.md) 已接 Web 交付、保存确认与本地作品；Web 参考图、离线壳和 24h 本地访问已验；继续真实生成与桌面发行。仅在本地文件和关联记录可恢复后标“已保存”；任务完成不能提前清理仍在有效期的结果。
 4. **逐一开放媒体与同步**：先 [MEDIA-US-102 图片](../stories/generation/MEDIA-US-102-image-generation.md)，再按供应商与存储能力完成 MEDIA-US-103 声音、MEDIA-US-104 视频。[MEDIA-US-302 草稿同步](../stories/local-first/MEDIA-US-302-draft-sync.md) 验收 tombstone、冲突保留和缺失本地参考图语义，不同步图片文件体或可解引用的本地文件标识。
 5. **桌面发行**：MEDIA-US-304 验收无开发服务器启动、升级/失败回退、参考图/结果/关联记录与卸载数据保留边界。

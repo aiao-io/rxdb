@@ -4,7 +4,7 @@
 
 本目录管理 Aiao Media 的独立产品需求，编号为 `MEDIA-US-XXX`。仓库根 `requirements/` 管理平台与领域能力，两者分别统计；通过带作用域的能力引用关联，底层故事 Done 不代表应用已接线或验收。
 
-后续产品方向见[未来功能需求与目录规划](future-requirements.md)：Web 持续优化、Tauri 安装版、Cloudflare 后端与管理页面、安全代理及统一的平台账号同步。当前平台免费，独立平台图片服务及计费按 [D-17](decisions.md#d-17当前平台免费暂缓独立平台图片服务与计费) 暂缓，待未来收费需求明确后重新评审。新增故事和历史本地实现见[产品交付计划](plans/product-completion-20261030.md)；生产服务与正式桌面发行分别验收。
+后续产品方向见[未来功能需求与目录规划](future-requirements.md)：Web 持续优化、Tauri 安装版、Cloudflare 后端与管理页面、安全代理及统一的平台账号同步。平台生图按 [D-19](decisions.md#d-19登录用户经平台积分生图移除用户自配供应商) 改为登录+积分（模型由平台托管，积分后台发放）；充值、退款与价格体系仍按 [D-17](decisions.md) 暂缓。新增故事和历史本地实现见[产品交付计划](plans/product-completion-20261030.md)；生产服务与正式桌面发行分别验收。
 
 按 [D-16](decisions.md#d-16统一使用平台-supabase) 统一使用平台 Supabase：用户只需注册或登录平台账号，确认同步范围后即可使用，无需提供自己的项目、Key 或 SQL。[MEDIA-US-303](stories/local-first/MEDIA-US-303-sync-targets.md) 跟踪平台账号与元数据管理，[MEDIA-US-305](stories/local-first/MEDIA-US-305-supabase-image-sync.md) 跟踪平台私有 Storage 原图同步；真实 Storage、生产服务与 Web/Tauri 跨设备验收仍未关闭。已撤销的用户自有项目接入需求和入口一并移除。
 

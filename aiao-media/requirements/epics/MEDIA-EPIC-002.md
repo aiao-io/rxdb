@@ -10,36 +10,33 @@ owner: TBD
 
 ## 愿景
 
-让用户用自己配置的图片供应商（浏览器直连或主动选择代理）在本地生成单张 PNG/JPEG，结果原样保存到本机 RxDB/OPFS，无需本站后端。
+让登录用户以平台积分生成单张 PNG/JPEG（模型与凭据由平台统一托管），结果原样保存到本机 RxDB/OPFS；未登录保留本地草稿、灵感浏览与本机作品。
 
 ## 目标
 
-- [ ] 图片供应商配置与直连/代理适配器（[MEDIA-US-105](../stories/generation/MEDIA-US-105-provider-management.md)）
+- [ ] 平台积分生图与额度（[MEDIA-US-108](../stories/generation/MEDIA-US-108-platform-generation.md)）
+- [ ] 平台生图服务端任务与刷新续接（[MEDIA-US-109](../stories/generation/MEDIA-US-109-relay-durable-task.md)）
 - [ ] 图片生成与本机交付：提示词 → 单张 PNG/JPEG → 本地保存与下载（[MEDIA-US-102](../stories/generation/MEDIA-US-102-image-generation.md)）
 - [ ] 图片提示词灵感库与一键套用（[MEDIA-US-106](../stories/generation/MEDIA-US-106-prompt-gallery.md)）
-- [ ] 移动设备验收（暂缓，不阻断当前桌面工作，[MEDIA-US-107](../stories/generation/MEDIA-US-107-mobile-verification.md)）
 
-- [ ] 平台生图、额度与持久任务（D-17 暂缓，[MEDIA-US-108](../stories/generation/MEDIA-US-108-platform-generation.md)）
-- [ ] 本站代理生图的服务端任务与刷新续接（[MEDIA-US-109](../stories/generation/MEDIA-US-109-relay-durable-task.md)）
+- [ ] 移动设备验收（暂缓，不阻断当前桌面工作，[MEDIA-US-107](../stories/generation/MEDIA-US-107-mobile-verification.md)）
 
 ## 故事
 
 > 只列范围；状态以 story YAML 为准，汇总见 [状态概览](../status-overview.md)。
 
-- [MEDIA-US-105 图片供应商配置与适配器](../stories/generation/MEDIA-US-105-provider-management.md) (High)
+- [MEDIA-US-108 平台积分生图与额度](../stories/generation/MEDIA-US-108-platform-generation.md) (High)
+- [MEDIA-US-109 平台生图服务端任务与刷新续接](../stories/generation/MEDIA-US-109-relay-durable-task.md) (High)
 - [MEDIA-US-102 图片生成与本机交付](../stories/generation/MEDIA-US-102-image-generation.md) (High)
 - [MEDIA-US-106 图片提示词灵感库与一键套用](../stories/generation/MEDIA-US-106-prompt-gallery.md) (Medium)
 - [MEDIA-US-107 移动设备能力验收](../stories/generation/MEDIA-US-107-mobile-verification.md) (Low，暂缓)
 
-- [MEDIA-US-108 平台生图、额度与持久任务](../stories/generation/MEDIA-US-108-platform-generation.md) (High，D-17 暂缓)
-- [MEDIA-US-109 本站代理生图的服务端任务与刷新续接](../stories/generation/MEDIA-US-109-relay-durable-task.md) (High)
-
 ## 非目标
 
-- 通用供应商证据机与用户自有 Key 的托管；[MEDIA-US-109](../stories/generation/MEDIA-US-109-relay-durable-task.md) 的代理任务只在接单请求内用 Key 发起上游调用，不保存 Key。
+- 用户自配供应商、浏览器直连与用户自有 Key（[D-19](../decisions.md#d-19登录用户经平台积分生图移除用户自配供应商) 已移除；模型由平台统一托管）。
 - 声音与视频生成。
 - 图生图/参考图（本轮仍暂停）。
 
 ## 进展
 
-既有四条故事仍有未过的真实环境 AC，平台故事 MEDIA-US-108 按 D-17 暂缓；代理任务故事 MEDIA-US-109 已完成本地实现，待真实账号验证与正式发布；逐条进展与关闭条件见[状态概览](../status-overview.md#未完成验收与关闭条件)，正式环境证据见[验收记录](../verification-report.md#正式环境证据)。
+按 [D-19](../decisions.md#d-19登录用户经平台积分生图移除用户自配供应商)，平台积分生图重新纳入当前范围：MEDIA-US-108/206 需求已重新设计、实现尚未开始；109 已实现本地闭环，上游 Key 改由平台凭据后进行真实账号验证与正式发布；102 收缩为本机交付、全部 AC 已验（In Review）；106 的 AC7 桌面 IME 仍未验，107 移动验收继续暂缓。逐条进展与关闭条件见[状态概览](../status-overview.md#未完成验收与关闭条件)。
