@@ -94,8 +94,9 @@ export async function createSession({
     },
     /**
      * 刷新桌面，回到干净的起点。刷新会把开着的窗口恢复出来（ADESK-US-104）——上一轮的窗口会盖在这一轮要点的东西上，
-     * 或者把要计数的窗口算多了。这里刷新后等恢复结束（等条件，不是固定延时），关掉恢复出来的全部窗口，
-     * 再开一个全新的 Finder（`finder: false` 就不开），起点与刷新前「默认只有一个 Finder」一致。
+     * 或者把要计数的窗口算多了。这里先关光窗口（关窗立即写回布局，所以布局里没有窗口，刷新时也没有开着的 iframe 拖着页面卸载），
+     * 刷新后等启动结束（等条件：有窗口、窗口数稳定、没有窗口还在「Opening…」，不是固定延时）；
+     * 万一还是恢复出了窗口就再关光，最后留一个全新的 Finder（`finder: false` 就不留），起点与刷新前「默认只有一个 Finder」一致。
      * 要验窗口恢复本身的检查组不用它，直接 `page.reload()`。
      *
      * @param {import('playwright').Page} [target] 要刷新的页面，默认是检查组的主页面
@@ -103,8 +104,14 @@ export async function createSession({
      */
     async reloadDesktop(target = page, { finder = true } = {}) {
       const targetHelpers = target === page ? helpers : createHelpers(target);
+      await targetHelpers.closeAll();
       await target.reload({ waitUntil: 'load' });
       await targetHelpers.restored();
+      const apps = await target.evaluate(() =>
+        [...document.querySelectorAll('.win:not(.closing)')].map(node => node.getAttribute('data-app'))
+      );
+      const onlyDefaultFinder = apps.length === 1 && apps[0] === 'finder';
+      if (finder && onlyDefaultFinder) return;
       await targetHelpers.closeAll();
       if (!finder) return;
       await target.locator('#dock .di[data-app="finder"]').click();

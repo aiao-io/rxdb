@@ -310,11 +310,12 @@ export const appLifecycle = {
     /* ───── AC#10：应用声明的协议版本高于桌面支持的版本 ───── */
     await closeAll();
     await page.waitForTimeout(300);
-    const notices = [];
-    page.on('console', message => {
-      if (message.text().startsWith('[standin] incompatible')) notices.push(message.text());
-    });
     await page.evaluate(() => {
+      /* 替身收到宿主的不兼容通知后会转告桌面页（各引擎都收得到；Firefox 不把跨源 iframe 的控制台消息交给 Playwright）。 */
+      window.__notices = [];
+      addEventListener('message', event => {
+        if (event.data?.standinNotice) window.__notices.push(event.data.standinNotice);
+      });
       window.__states = [];
       new MutationObserver(() => {
         for (const node of document.querySelectorAll('.win[data-app="vscode"] .webapp[data-webapp-state]')) {
@@ -334,17 +335,22 @@ export const appLifecycle = {
     const incompatibleReason = incompatible ? await reasonText() : '';
     await page.waitForTimeout(300);
     const states = await page.evaluate(() => window.__states);
-    if (process.env.HOSTCAP_DEBUG) console.error('HOSTCAP_DEBUG', JSON.stringify({ incompatible, incompatibleReason, states, notices }));
     appLifecycle.incompatibleProtocolShowsReason =
       incompatible &&
       incompatibleReason.includes('needs a newer Aiao Desktop') &&
       incompatibleReason.includes('v99') &&
       incompatibleReason.includes('v1');
     appLifecycle.incompatibleNeverReady = states.length > 0 && !states.includes('ready') && states.at(-1) === 'failed';
+    const notices =
+      (await settled(async () => (await page.evaluate(() => window.__notices)).length === 1)) ?
+        await page.evaluate(() => window.__notices)
+      : [];
     appLifecycle.incompatibleAppReceivesNotice =
-      (await settled(async () => notices.length === 1)) === true &&
-      notices[0].includes('"supported":1') &&
-      notices[0].includes('"requested":99');
+      notices.length === 1 &&
+      notices[0].type === 'incompatible' &&
+      notices[0].supported === 1 &&
+      notices[0].requested === 99 &&
+      notices[0].message.includes('aiao.orbit:99');
     appLifecycle.incompatibleLeavesNoFrame = (await page.locator('aiao-orbit').count()) === 0;
 
     return { appLifecycle };

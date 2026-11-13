@@ -2,7 +2,6 @@ import { openPages } from '../fixtures/multi-page.mjs';
 import { componentScripts, scriptNameOf, scriptsDeclaring } from '../harness/chunks.mjs';
 import { PREFERENCES, surgery } from '../harness/database.mjs';
 import { createHelpers } from '../harness/helpers.mjs';
-import { standinProbe } from '../harness/standin.mjs';
 
 /*
  * 会话标识与布局行的约定。e2e 不 import web 的源码（D-02），所以这里重复写一遍；
@@ -499,14 +498,17 @@ async function twoFindersAndZoom({ session, result }) {
  * AC#3：集成应用恢复 = 重新开窗并重新握手就绪（D-11），透明窗口恢复后由应用收起桌面的标题栏（D-14）。
  * 两种窗口外观各验一次，替身应用顶替线上的 Aiao Code。
  */
-async function integratedApp({ session, result }, mode) {
+async function integratedApp({ session, result, requests }, mode) {
   const label = mode === 'standard' ? 'Standard' : 'Transparent';
   session.aiaoCode.mode = mode;
   const { page, helpers } = await session.openDesktopPage();
   const { win, appears, disappears } = helpers;
   const vscodeWin = win('vscode');
   const ready = vscodeWin.locator('.webapp[data-webapp-state="ready"]');
-  const { state: standin } = standinProbe(page);
+  /** 应用入口文档的请求（替身自己的脚本不算）：刷新后重新握手意味着入口被重新请求。 */
+  const entryRequestsSince = start =>
+    requests.slice(start).filter(url => url.startsWith('https://vscode.aiao.io/') && !url.includes('/__standin/'))
+      .length;
 
   await page.locator('#dock .di[data-app="vscode"]').click();
   await appears(ready, 20_000);
@@ -520,20 +522,18 @@ async function integratedApp({ session, result }, mode) {
   }
   await resizeBy(page, vscodeWin, -120, -80);
   const expected = await boxOf(vscodeWin);
-  const opened = await standin();
   const layout = await savedLayout(session, page, saved =>
     saved.windows.some(item => item.appId === 'vscode' && sameBox(item.box, expected))
   );
 
+  const mark = requests.length;
   await page.reload({ waitUntil: 'load' });
   await vscodeWin.waitFor({ state: 'attached' });
   const handshook = await appears(ready, 25_000);
-  const restored = await standin();
   const geometry = layout !== null && sameBox(await boxOf(vscodeWin), expected);
   const again =
     handshook &&
-    typeof restored.id === 'string' &&
-    restored.id !== opened.id &&
+    entryRequestsSince(mark) >= 1 &&
     (await vscodeWin.locator('.webapp[data-webapp-state="failed"]').count()) === 0 &&
     (await vscodeWin.locator('[data-webapp-retry]').count()) === 0;
   result[`integrated${label}RestoresGeometry`] = geometry;

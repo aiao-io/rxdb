@@ -17,7 +17,7 @@ export const STANDIN_ORIGIN = 'https://vscode.aiao.io';
  * - `offline` 入口请求失败；
  * - `hold` 握手后不报告就绪，等测试经 `window.standin.release()` 放行（ADESK-US-206 AC#3、#14、#18：控制 ready 的时机）；
  * - `future` 声明比桌面支持的更高的协议版本（`aiao.orbit:99`，模拟用更新的 SDK 构建的应用，AC#10），不经本仓的 SDK 握手，
- *   收到宿主的不兼容通知后记进 `window.standin.notices` 并打到控制台。
+ *   收到宿主的不兼容通知后记进 `window.standin.notices`、转告桌面页（`postMessage({ standinNotice })`）并打到控制台。
  *
  * 每个模式的页面里，`window.standin` 给测试用：`call(路径, 参数)` 经 `getDesktop` 调桌面能力并把成功值或稳定错误码当结果返回，
  * `raw(方法, 请求体)` 直接发一条 Orbit 请求（绕过 SDK，测宿主侧校验与实例绑定），`desktop` 记录宿主推来的能力事件，
@@ -78,6 +78,8 @@ const futureScript = ordinal => `
       addEventListener('message', event => {
         if (event.source !== parent || event.data?.type !== 'incompatible') return;
         window.standin.notices.push(event.data);
+        /* 转告桌面页：Firefox 不把跨源 iframe 的控制台消息交给 Playwright，经 postMessage 在各引擎上都收得到。 */
+        parent.postMessage({ standinNotice: event.data }, '*');
         console.log('[standin] incompatible ' + JSON.stringify({ supported: event.data.supported, requested: event.data.requested }));
       });
       parent.postMessage({ protocol: 'aiao.orbit:99', type: 'hello', channel }, '*');`;
@@ -237,12 +239,13 @@ function proxyFrame(page, token) {
         const box = await boxOf(selector);
         await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
       },
+      /* 与 Playwright 的 `fill` 一样：直接设值并触发 input，不经键盘（键盘事件进不进跨源 iframe 是另一回事，由 `page.keyboard` 单独测）。 */
       async fill(text) {
         await run('evaluate', {
-          source: "selector => { const node = document.querySelector(selector); node.value = ''; node.focus(); }",
-          arg: selector
+          source:
+            "({ selector, text }) => { const node = document.querySelector(selector); node.focus(); node.value = text; node.dispatchEvent(new Event('input', { bubbles: true })); }",
+          arg: { selector, text }
         });
-        await page.keyboard.type(text);
       }
     })
   };

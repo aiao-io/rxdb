@@ -170,8 +170,8 @@ async function newFolderOnDesktop(page, helpers) {
  * 那一刻写入已经提交。每项实测耗时写在 stderr（`[multi-tab]` 开头），不进检查项。
  *
  * 在检查组登记表里是独占运行（`exclusive`）：时限只在「正常负载」下才有意义，不和别的检查组抢 CPU。
- * 库的完整性与文件体内容经 `surgery` 的夹具（同一个库上的另一条连接）取证，只在 Chromium 上验证过；
- * WebKit 的 OPFS 对第二条连接不安全（见 ADESK-US-105 的验收记录），这个检查组还没有为 WebKit 重新设计。
+ * 库的完整性与文件体内容经 `surgery` 的夹具（同一个库上的另一条连接）取证。后台标签页：Chromium 用 CDP 冻结页面，
+ * 别的引擎只能模拟页面可见性（见 `hideTab`），那一项在非 Chromium 上只证明恢复时的重读接线。
  */
 export const multiTab = {
   name: 'multi-tab',
