@@ -1,4 +1,4 @@
-import { standinProbe } from '../harness/standin.mjs';
+import { prepareOfflineFailure, standinProbe } from '../harness/standin.mjs';
 
 /** 集成应用（ADESK-US-201、ADESK-US-202）：替身应用顶替 vscode.aiao.io，外网照样全部拦截。 */
 export const integratedApp = {
@@ -66,7 +66,7 @@ export const integratedApp = {
     });
 
     /* 最小化与还原：应用收到隐藏与显示，iframe 不重载，输入还在。 */
-    await standinFrame().locator('[data-standin-input]').fill('typed-before-minimize');
+    await (await standinFrame()).locator('[data-standin-input]').fill('typed-before-minimize');
     await vscodeWin.locator('.tl .m').click();
     await page.waitForTimeout(700);
     integratedApp.minimizeHides = (await standin()).visibility === 'false';
@@ -121,10 +121,12 @@ export const integratedApp = {
     /* 离线：入口请求失败，窗口给出原因，桌面照常；恢复后重试即就绪。 */
     await closeAll();
     standinControl.mode = 'offline';
+    const offline = await prepareOfflineFailure(session);
     await page.locator('#dock .di[data-app="vscode"]').click();
+    await offline.trigger();
     integratedApp.offlineShowsReason =
       (await appears(webappIn('failed'), 10_000)) &&
-      ((await vscodeWin.locator('[data-webapp-reason]').textContent()) ?? '').includes('vscode.aiao.io didn’t connect');
+      ((await vscodeWin.locator('[data-webapp-reason]').textContent()) ?? '').includes(offline.reason);
     await page.locator('#dock .di[data-app="calculator"]').click();
     integratedApp.desktopUnaffected = await shows(win('calculator'));
     await win('calculator').locator('.tl .c').click();

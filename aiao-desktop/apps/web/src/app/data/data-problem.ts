@@ -64,6 +64,7 @@ export function describeProblem(problem: DataProblem): DataProblemView {
         advice: [
           RELOAD,
           'Close other tabs of this site, and make sure the browser allows this site to store data.',
+          'If this is a private or incognito window, open the site in a normal window: some browsers don’t provide local storage in private windows.',
           ERASE
         ],
         details: [],

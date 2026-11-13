@@ -64,7 +64,8 @@ export const apps = {
       await closeAll();
       await launch(entry.name);
       try {
-        await win(entry.id).waitFor({ timeout: 3_000 });
+        /* 应用按需加载：第一次打开要先下载它的 chunk，负载高（并行跑多个检查组）时 3 秒不够。 */
+        await win(entry.id).waitFor({ timeout: 10_000 });
       } catch {
         unopened.push(entry.id);
       }

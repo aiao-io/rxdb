@@ -506,13 +506,16 @@ async function integratedApp({ session, result }, mode) {
   const { win, appears, disappears } = helpers;
   const vscodeWin = win('vscode');
   const ready = vscodeWin.locator('.webapp[data-webapp-state="ready"]');
-  const { frame: standinFrame, state: standin } = standinProbe(page);
+  const { state: standin } = standinProbe(page);
 
   await page.locator('#dock .di[data-app="vscode"]').click();
   await appears(ready, 20_000);
   if (mode === 'standard') await dragBy(page, await grabPoint(vscodeWin), 70, 40);
   else {
-    const bar = await standinFrame().locator('[data-standin-bar]').boundingBox();
+    /* 透明窗口的拖动区：桌面在应用标题栏上方盖的 [data-webapp-drag]，是主页面里的元素；
+     * 不进跨源 iframe 取坐标（Firefox 取不到跨源 iframe 的节点）。 */
+    await appears(vscodeWin.locator('[data-webapp-drag]').first(), 10_000);
+    const bar = await vscodeWin.locator('[data-webapp-drag]').first().boundingBox();
     await dragBy(page, { x: bar.x + bar.width - 80, y: bar.y + bar.height / 2 }, 70, 40);
   }
   await resizeBy(page, vscodeWin, -120, -80);

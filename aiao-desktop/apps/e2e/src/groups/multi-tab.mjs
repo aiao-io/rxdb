@@ -130,6 +130,14 @@ const integrityOk = async session =>
 async function reloadDesktop(page) {
   await page.reload({ waitUntil: 'load' });
   await page.locator('.dicon[data-id="file:prasenx.txt"]').waitFor({ timeout: 60_000 });
+  await watchToasts(page); // 刷新把页面里的提示记录器也清掉了
+}
+
+/** 磁盘工具抹掉之后这个标签页会重启：走完开机进度进入锁屏，点一下登录，Finder 随后自动打开。 */
+async function logInAfterRestart(page) {
+  await page.locator('#lock:not([hidden]) .lk-user').waitFor({ state: 'visible', timeout: 30_000 });
+  await page.locator('#lock').click();
+  await page.locator('#lock').waitFor({ state: 'hidden', timeout: 10_000 });
 }
 
 /** 终端里的一条命令：等输出里出现标记（命令回显一次、输出一次）。 */
@@ -160,6 +168,10 @@ async function newFolderOnDesktop(page, helpers) {
  *
  * 时限类检查以 `SYNC_LIMIT` 为界（终端里的改动再加一个扫描周期 `SCAN_CYCLE`），从「写入的页面已经看到结果」起算——
  * 那一刻写入已经提交。每项实测耗时写在 stderr（`[multi-tab]` 开头），不进检查项。
+ *
+ * 在检查组登记表里是独占运行（`exclusive`）：时限只在「正常负载」下才有意义，不和别的检查组抢 CPU。
+ * 库的完整性与文件体内容经 `surgery` 的夹具（同一个库上的另一条连接）取证，只在 Chromium 上验证过；
+ * WebKit 的 OPFS 对第二条连接不安全（见 ADESK-US-105 的验收记录），这个检查组还没有为 WebKit 重新设计。
  */
 export const multiTab = {
   name: 'multi-tab',
@@ -454,6 +466,7 @@ export const multiTab = {
     checks.failedSaveKeepsWindowContent = keepsContent.length === 3 && keepsContent.every(Boolean);
     checks.failedSaveCreatesNothing = createsNothing.length === 3 && createsNothing.every(Boolean);
     checks.databaseIntactAfterFailedSaves = await integrityOk(session);
+    await logInAfterRestart(A);
     await Promise.all(pages.map(([, helpers]) => helpers.closeAll()));
 
     /* AC#10：B 已打开备忘录，在 A 的备忘录新建一条并输入文字，B 的列表在同步时限内出现（应用数据与磁盘走同一条互通路径）。 */

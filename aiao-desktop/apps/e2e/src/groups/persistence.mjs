@@ -67,8 +67,7 @@ export const persistence = {
     await page.waitForTimeout(1_000);
 
     /* 刷新后改动还在（数据在本地 SQLite 与 OPFS 里）；磁盘工具抹掉后回到内置内容。 */
-    await page.reload({ waitUntil: 'load' });
-    await win('finder').waitFor();
+    await session.reloadDesktop();
     const persistence = {
       fileSurvivesReload: await appears(desktopIcon('terminal-note.txt')),
       folderSurvivesReload: await appears(desktopIcon('untitled folder')),

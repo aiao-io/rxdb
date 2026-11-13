@@ -720,6 +720,17 @@ function readCapabilities(value: unknown): DesktopCapability[] {
   return names;
 }
 
+/**
+ * 应用读宿主给的能力列表：必须是数组；不认识的能力名忽略（新版宿主可能授予旧 SDK 还不认识的能力，
+ * 应用本来也用不了它们，宿主一侧才是授权的依据），重复的合并。
+ */
+function readGranted(value: unknown): DesktopCapability[] {
+  const known: readonly string[] = DESKTOP_CAPABILITIES;
+  if (!Array.isArray(value)) throw invalid('能力列表必须是数组');
+  const names = value.filter((item): item is DesktopCapability => typeof item === 'string' && known.includes(item));
+  return [...new Set(names)];
+}
+
 /** 宿主创建实例时放进启动属性的桌面能力信息：清单授予这个应用的能力。 */
 export function desktopProps(capabilities: readonly DesktopCapability[]): OrbitObject {
   return { [DESKTOP_PROP]: { capabilities: readCapabilities(capabilities) } };
@@ -868,7 +879,7 @@ export function getDesktop(client: OrbitClient): OrbitDesktop | undefined {
   const initial = client.context.props[DESKTOP_PROP];
   if (initial === undefined) return undefined;
   if (!isRecord(initial)) throw invalid('桌面能力信息必须是对象');
-  const capabilities = Object.freeze(readCapabilities(initial['capabilities']));
+  const capabilities = Object.freeze(readGranted(initial['capabilities']));
   const call = async <M extends DesktopMethod>(method: M, args: DesktopArguments[M]): Promise<DesktopResults[M]> => {
     const payload = { instanceId: client.context.instanceId, args } as unknown as OrbitValue;
     let reply: OrbitValue;

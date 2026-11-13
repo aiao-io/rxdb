@@ -92,6 +92,24 @@ export async function createSession({
       if (waitForFinder) await pageHelpers.win('finder').waitFor();
       return { page: opened, helpers: pageHelpers };
     },
+    /**
+     * 刷新桌面，回到干净的起点。刷新会把开着的窗口恢复出来（ADESK-US-104）——上一轮的窗口会盖在这一轮要点的东西上，
+     * 或者把要计数的窗口算多了。这里刷新后等恢复结束（等条件，不是固定延时），关掉恢复出来的全部窗口，
+     * 再开一个全新的 Finder（`finder: false` 就不开），起点与刷新前「默认只有一个 Finder」一致。
+     * 要验窗口恢复本身的检查组不用它，直接 `page.reload()`。
+     *
+     * @param {import('playwright').Page} [target] 要刷新的页面，默认是检查组的主页面
+     * @param {{ finder?: boolean }} [options]
+     */
+    async reloadDesktop(target = page, { finder = true } = {}) {
+      const targetHelpers = target === page ? helpers : createHelpers(target);
+      await target.reload({ waitUntil: 'load' });
+      await targetHelpers.restored();
+      await targetHelpers.closeAll();
+      if (!finder) return;
+      await target.locator('#dock .di[data-app="finder"]').click();
+      await targetHelpers.win('finder').waitFor();
+    },
     /** 打开桌面并等默认的 Finder 窗口出现；默认跳过开机动画。 */
     async openDesktop({ boot = false } = {}) {
       await page.goto(`${origin}/${boot ? '' : '?boot=0'}`, { waitUntil: 'load' });

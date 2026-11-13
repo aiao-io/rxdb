@@ -55,7 +55,7 @@ export const appLifecycle = {
   async run(session) {
     const { page, aiaoCode: standin } = session;
     const { win, closeAll, shows, appears, disappears } = session.helpers;
-    const { frame: standinFrame } = standinProbe(page);
+    const { frame: standinFrame, frameHandle: probeFrame, waitInFrame } = standinProbe(page);
     await session.openDesktop();
     await closeAll();
     /* 时间照常流逝，需要时用 fastForward 跳过 Orbit 的 60 秒就绪时限，不真等。 */
@@ -80,10 +80,10 @@ export const appLifecycle = {
       return undefined;
     };
     /** 替身页拿到的实例 ID（握手之后才有）。 */
-    const instanceId = () => settled(() => standinFrame()?.evaluate(() => window.standin?.instance));
+    const instanceId = () => settled(async () => (await probeFrame())?.evaluate(() => window.standin?.instance));
     /** 经统一的能力接口在替身里发起一次调用，返回成功值或稳定错误码。 */
-    const call = (path, args = null) =>
-      standinFrame().evaluate(([name, value]) => window.standin.call(name, value), [path, args]);
+    const call = async (path, args = null) =>
+      (await standinFrame()).evaluate(([name, value]) => window.standin.call(name, value), [path, args]);
     /** 对一个已分离的旧 frame 求值：浏览器里它已经没有执行上下文，迟到的消息物理上发不出去。 */
     const lateCall = (frame, action) =>
       frame.evaluate(action).then(
@@ -98,7 +98,7 @@ export const appLifecycle = {
     await open();
     await appears(webappIn('loading'), 10_000);
     const firstInstance = await instanceId();
-    const firstFrame = standinFrame();
+    const firstFrame = await standinFrame();
     const firstOrdinal = await firstFrame.evaluate(() => window.standin.ordinal);
     /* 第一个实例在加载中改了标题：失败与重试之后，窗口标题不能留着它。 */
     await call('window.setTitle', 'Stale title from the first instance');
@@ -122,7 +122,7 @@ export const appLifecycle = {
     await vscodeWin.locator('[data-webapp-retry]').click();
     const loadingAgain = await appears(webappIn('loading'), 10_000);
     const secondInstance = await instanceId();
-    const secondFrame = standinFrame();
+    const secondFrame = await standinFrame();
     appLifecycle.retryCreatesNewInstance =
       loadingAgain &&
       Boolean(firstInstance) &&
@@ -130,8 +130,8 @@ export const appLifecycle = {
       firstInstance !== secondInstance &&
       standin.documents === documentsBefore + 1 &&
       (await secondFrame.evaluate(() => window.standin.ordinal)) === firstOrdinal + 1 &&
-      firstFrame.isDetached() &&
-      !secondFrame.isDetached();
+      (await firstFrame.isDetached()) &&
+      !(await secondFrame.isDetached());
 
     /* 旧实例的 ready 与 setTitle 再也发不出来：它的 frame 已分离。时间线上，新实例在放行前一直是加载中，标题没被旧实例动过。 */
     const lateReady = await lateCall(firstFrame, () => window.standin.release());
@@ -156,7 +156,7 @@ export const appLifecycle = {
     await open();
     await appears(webappIn('loading'), 10_000);
     await instanceId();
-    const closingFrame = standinFrame();
+    const closingFrame = await standinFrame();
     await vscodeWin.locator('.tl .c').click();
     /* 关闭动画的 200 毫秒里实例还活着：它迟到的 ready 到得了宿主，但窗口已在关闭，ready 被丢弃，窗口不会重新出现。 */
     await lateCall(closingFrame, () => window.standin.release());
@@ -219,7 +219,9 @@ export const appLifecycle = {
       (await titleText()) === 'Report.md — Aiao Code';
 
     /* 不能经 parent DOM、任意 postMessage 或绕开 SDK 的原始请求越权。 */
-    const attempts = await standinFrame().evaluate(async () => {
+    const attempts = await (
+      await standinFrame()
+    ).evaluate(async () => {
       const result = {};
       try {
         void window.parent.document.title;
@@ -282,19 +284,15 @@ export const appLifecycle = {
     await call('window.toggleMaximize');
     await page.waitForTimeout(500);
     const zoomed = await vscodeWin.evaluate(node => node.classList.contains('zoomed'));
-    const viaEnvelope = await settled(() =>
-      standinFrame().evaluate(() =>
-        window.standin.desktop.some(item => item.event === 'window' && item.state.maximized === true)
-      )
+    const viaEnvelope = await waitInFrame(() =>
+      window.standin.desktop.some(item => item.event === 'window' && item.state.maximized === true)
     );
-    const viaLegacy = await settled(() =>
-      standinFrame().evaluate(() => window.standin.window.at(-1)?.maximized === true)
-    );
-    appLifecycle.maximizeReachesLegacyEvents = zoomed && Boolean(viaEnvelope) && Boolean(viaLegacy);
+    const viaLegacy = await waitInFrame(() => window.standin.window.at(-1)?.maximized === true);
+    appLifecycle.maximizeReachesLegacyEvents = zoomed && viaEnvelope && viaLegacy;
     await call('window.toggleMaximize');
     await page.waitForTimeout(500);
 
-    const closing = standinFrame();
+    const closing = await standinFrame();
     const closed = await call('window.close');
     /* 窗口开始关闭后，能力上下文就解绑了：关闭动画里实例还活着，调用得到 WINDOW_CLOSED。 */
     const during = await closing

@@ -243,8 +243,7 @@ export const lazyLoading = {
     /* 已有数据的库：刷新后再开通知中心，小组件照样显示，种子不重写。 */
     const markersBefore = await markers();
     mark = requests.length;
-    await page.reload({ waitUntil: 'load' });
-    await win('finder').waitFor();
+    await session.reloadDesktop();
     await page.locator('#menubar #mb-clock').dispatchEvent('mousedown');
     await page.locator('#nc .wgt').first().waitFor();
     lazyLoading.widgetsOnExistingLibrary =

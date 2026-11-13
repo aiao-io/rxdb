@@ -206,8 +206,7 @@ export const shellInteraction = {
         () => false
       );
     await page.waitForTimeout(1_000);
-    await page.reload({ waitUntil: 'load' });
-    await win('finder').waitFor();
+    await session.reloadDesktop();
     controlCentre.settingsSurviveReload = await page
       .waitForFunction(() => document.documentElement.dataset['theme'] === 'dark', undefined, { timeout: 10_000 })
       .then(

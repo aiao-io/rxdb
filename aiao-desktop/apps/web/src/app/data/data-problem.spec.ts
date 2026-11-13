@@ -50,4 +50,10 @@ describe('describeProblem：本地数据的阻断界面文字', () => {
     expect(describeProblem(problems[3]).message).toContain('5');
     expect(describeProblem(problems[4]).message).toContain('disk full');
   });
+
+  it('存储不可用时提示隐私浏览窗口：Safari 与 Firefox 的隐私窗口没有可用的本地存储，要换普通窗口（ADESK-US-005 的「不支持」档）', () => {
+    const advice = describeProblem(problems[4]).advice.join(' ');
+    expect(advice).toContain('private');
+    expect(advice).toContain('normal window');
+  });
 });

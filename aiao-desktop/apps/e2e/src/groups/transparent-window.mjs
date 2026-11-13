@@ -20,7 +20,7 @@ export const transparentWindow = {
   async run(session) {
     const { page, aiaoCode: standinControl } = session;
     const { win, closeAll, shows, appears, disappears } = session.helpers;
-    const { frame: standinFrame, windowState: standinWindow } = standinProbe(page);
+    const { frame: standinFrame, windowState: standinWindow, waitInFrame } = standinProbe(page);
     await session.openDesktop();
 
     await closeAll();
@@ -29,7 +29,7 @@ export const transparentWindow = {
     const webappIn = state => vscodeWin.locator(`.webapp[data-webapp-state="${state}"]`);
     const zoomed = () => vscodeWin.evaluate(node => node.classList.contains('zoomed'));
     const barPoint = async () => {
-      const bar = await standinFrame().locator('[data-standin-bar]').boundingBox();
+      const bar = await (await standinFrame()).locator('[data-standin-bar]').boundingBox();
       return { x: bar.x + bar.width - 80, y: bar.y + bar.height / 2 };
     };
     await page.locator('#dock .di[data-app="vscode"]').click();
@@ -38,13 +38,11 @@ export const transparentWindow = {
     transparentWindow.chromeHiddenWhenReady =
       (await disappears(vscodeWin.locator('.tb'), 3_000)) &&
       (await appears(vscodeWin.locator('[data-webapp-drag]'), 3_000)) &&
-      (await standinFrame().locator('[data-standin-bar]').boundingBox()).y - (await vscodeWin.boundingBox()).y < 2;
-    transparentWindow.appKnowsDecorations = await standinFrame()
-      .waitForFunction(() => window.standin?.window.at(-1)?.decorations === false, undefined, { timeout: 3_000 })
-      .then(
-        () => true,
-        () => false
-      );
+      (await (await standinFrame()).locator('[data-standin-bar]').boundingBox()).y - (await vscodeWin.boundingBox()).y <
+        2;
+    transparentWindow.appKnowsDecorations = await waitInFrame(
+      () => window.standin?.window.at(-1)?.decorations === false
+    );
 
     /* 按住替身标题栏空白处拖动（往右下，窗口留在屏幕内，后面的按钮才点得到）：窗口跟着走；最后一步放慢，松手不滑行。 */
     const beforeDrag = await vscodeWin.boundingBox();
@@ -61,7 +59,7 @@ export const transparentWindow = {
       Math.abs(beforeDrag.x + 119 - afterDrag.x) <= 3 && Math.abs(beforeDrag.y + 80 - afterDrag.y) <= 3;
 
     /* 按住标题栏里的按钮拖：挖空处归应用，窗口不动。 */
-    const noop = await standinFrame().locator('[data-standin-noop]').boundingBox();
+    const noop = await (await standinFrame()).locator('[data-standin-noop]').boundingBox();
     await page.mouse.move(noop.x + noop.width / 2, noop.y + noop.height / 2);
     await page.mouse.down();
     await page.mouse.move(noop.x - 100, noop.y + 60, { steps: 6 });
@@ -75,7 +73,7 @@ export const transparentWindow = {
     await page.mouse.dblclick(doubleClickAt.x, doubleClickAt.y);
     await page.waitForTimeout(500);
     transparentWindow.doubleClickZooms = await zoomed();
-    await standinFrame().locator('[data-standin-window="maximize"]').click();
+    await (await standinFrame()).locator('[data-standin-window="maximize"]').click();
     await page.waitForTimeout(500);
     transparentWindow.maximizeButtonToggles = !(await zoomed()) && (await standinWindow()).maximized === false;
 
@@ -92,12 +90,12 @@ export const transparentWindow = {
     await page.waitForTimeout(300);
 
     /* 替身的黄色按钮最小化，从 Dock 还原；红色按钮关闭。 */
-    await standinFrame().locator('[data-standin-window="minimize"]').click();
+    await (await standinFrame()).locator('[data-standin-window="minimize"]').click();
     await page.waitForTimeout(700);
     transparentWindow.minimizeButtonMinimizes = await vscodeWin.evaluate(node => node.style.visibility === 'hidden');
     await page.locator('#dock .di[data-app="vscode"]').click();
     await page.waitForTimeout(900);
-    await standinFrame().locator('[data-standin-window="close"]').click();
+    await (await standinFrame()).locator('[data-standin-window="close"]').click();
     transparentWindow.closeButtonCloses = await disappears(vscodeWin, 3_000);
 
     return { transparentWindow };

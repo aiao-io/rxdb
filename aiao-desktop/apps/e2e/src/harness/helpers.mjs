@@ -23,6 +23,24 @@ export function createHelpers(page) {
     }
   };
 
+  /**
+   * 等桌面启动时的窗口恢复结束（ADESK-US-104）：至少有一个窗口、窗口数连续 `stable` 毫秒不变、没有窗口还在「Opening…」。
+   * 刷新（或在同一个标签页里重开）桌面后，上一轮开着的窗口会被恢复出来，一个一个地建；等的是这个条件，不是固定的延时。
+   * 启动之后总会有窗口：恢复出来的，或者没有可恢复的窗口时打开的默认 Finder。
+   */
+  const restored = ({ stable = 600, timeout = 30_000 } = {}) =>
+    page.waitForFunction(
+      holdFor => {
+        const windows = document.querySelectorAll('.win:not(.closing)').length;
+        const loading = document.querySelectorAll('.win:not(.closing) [data-window-loading]').length;
+        const probe = (window['__restoreProbe'] ??= { count: -1, since: performance.now() });
+        if (probe.count !== windows) Object.assign(probe, { count: windows, since: performance.now() });
+        return windows > 0 && loading === 0 && performance.now() - probe.since >= holdFor;
+      },
+      stable,
+      { timeout, polling: 100 }
+    );
+
   /** 从启动台搜索并打开应用。 */
   const launch = async name => {
     await page.locator('#dock .di[data-app="launchpad"]').click();
@@ -86,6 +104,7 @@ export function createHelpers(page) {
   return {
     win,
     closeAll,
+    restored,
     launch,
     spotlight,
     shows,

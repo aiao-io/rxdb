@@ -437,12 +437,17 @@ describe('desktopProps 与 getDesktop', () => {
     ]);
   });
 
+  it('应用读到不认识的能力名时忽略它、重复的合并：新版宿主可能授予旧 SDK 还不认识的能力，应用照常启动', () => {
+    const props = { [DESKTOP_PROP]: { capabilities: ['window', 'teleport', 'window', 42, 'menu'] } };
+    expect(getDesktop(connect(props).client)?.capabilities).toEqual(['window', 'menu']);
+  });
+
   it('能力列表不合法就拒绝，不带着错误的能力启动', () => {
     expect(() => desktopProps(['window', 'window'])).toThrow(OrbitError);
     expect(() => desktopProps(['teleport' as never])).toThrow(OrbitError);
     expect(() => getDesktop(connect({ [DESKTOP_PROP]: 'window' }).client)).toThrow(OrbitError);
-    expect(() => getDesktop(connect({ [DESKTOP_PROP]: { capabilities: ['teleport'] } }).client)).toThrow(OrbitError);
     expect(() => getDesktop(connect({ [DESKTOP_PROP]: { capabilities: 'window' } }).client)).toThrow(OrbitError);
+    expect(() => getDesktop(connect({ [DESKTOP_PROP]: {} }).client)).toThrow(OrbitError);
   });
 });
 

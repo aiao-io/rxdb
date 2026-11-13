@@ -1,4 +1,5 @@
 import { readLaunchpadEntries } from '../harness/apps.mjs';
+import { prepareOfflineFailure } from '../harness/standin.mjs';
 
 const sorted = names => [...names].sort((a, b) => a.localeCompare(b));
 
@@ -84,6 +85,7 @@ export const applications = {
     /* Aiao Code 的包按远程应用运行：网络不通时窗口显示失败原因并可重试；子框架只请求登记的入口。 */
     await closeAll();
     aiaoCode.mode = 'offline';
+    const offline = await prepareOfflineFailure(session);
     const frameRequests = [];
     page.on('request', request => {
       if (request.frame() !== page.mainFrame()) frameRequests.push(request.url());
@@ -92,6 +94,7 @@ export const applications = {
     const fresh = win('finder').last();
     await fresh.locator('[data-place="Applications"]').click();
     await fresh.locator('.fitem[data-name="Aiao Code.app"]').dblclick();
+    await offline.trigger();
     const failed = win('vscode').locator('.webapp[data-webapp-state="failed"]');
     result.aiaoCodePackageShowsFailure =
       (await appears(failed, 15_000)) && (await win('vscode').locator('[data-webapp-retry]').isVisible());
@@ -101,11 +104,9 @@ export const applications = {
     await win('vscode').locator('[data-webapp-retry]').click();
     result.aiaoCodePackageRetries = await appears(win('vscode').locator('.webapp[data-webapp-state="ready"]'), 15_000);
 
-    /* 刷新后每个应用仍只有一个包（对账幂等，不重复补写）。刷新会把开着的窗口恢复出来（ADESK-US-104），
-     * 先全关掉，刷新后就是一个默认的 Finder，不会有恢复出来的 Aiao Code 窗口盖在它上面。 */
-    await closeAll();
-    await page.reload({ waitUntil: 'load' });
-    await win('finder').waitFor();
+    /* 刷新后每个应用仍只有一个包（对账幂等，不重复补写）。刷新会把开着的窗口恢复出来（ADESK-US-104）：
+     * 用 reloadDesktop 回到「只有一个新 Finder」的起点，不会有恢复出来的 Aiao Code 窗口盖在它上面。 */
+    await session.reloadDesktop();
     const again = win('finder').last();
     await again.locator('[data-place="Applications"]').click();
     await again.locator('.fitem[data-name$=".app"]').first().waitFor();
