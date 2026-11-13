@@ -7,6 +7,9 @@ epic: ADESK-EPIC-XXX # 填写本应用 epics/*.md 中已存在的 id
 created: 2026-02-08
 updated: 2026-02-08
 tags: []
+# dependsOn 写产品内的硬依赖（如 [ADESK-US-101]），capabilities 写平台能力（如 [rxdb:US-301]），没有就留空数组
+dependsOn: []
+capabilities: []
 # 仅登记已明确移出当前承诺范围的候选数字 AC：
 # candidate_acs: [5]
 # 仅当本 story 承接来自其他 story 的延期 AC 时使用：
@@ -73,5 +76,6 @@ INVEST 检查清单:
 
 ---
 
-> 写作规范（证据锚点 / 结论复验 / 大故事分阶段 / 价值待证）、命名与状态约定见
+> 写作规范（证据锚点 / 结论复验 / 大故事分阶段 / 价值待证）见仓库根
+> [CONVENTIONS.md](../../../requirements/CONVENTIONS.md)；命名、状态与验收证据的写法见本产品的
 > [CONVENTIONS.md](../CONVENTIONS.md)。新建 story 时先读一遍，然后删除本提示。

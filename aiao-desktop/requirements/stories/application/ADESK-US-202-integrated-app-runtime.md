@@ -33,7 +33,7 @@ capabilities: []
 
 ### Out of Scope
 
-- 宿主服务：桌面经 Orbit 向应用提供磁盘文件、通知、主题联动等（[future-requirements](../../future-requirements.md)）。
+- 宿主服务：桌面经 Orbit 向应用提供窗口、菜单、通知、剪贴板、文件等能力，由 [ADESK-US-206](ADESK-US-206-lazy-app-runtime-and-host-capabilities.md) 承接；OAuth 弹窗等扩展能力见 [future-requirements](../../future-requirements.md)。
 - 应用拿到键盘焦点后，桌面的全局快捷键（⌘Space 等）由应用收到，桌面不响应。
 - 弹出窗口（`window.open`）、`alert` / `confirm` 与顶层导航：sandbox 不放行；跨源 iframe 里的文件选择器由浏览器禁止。
 - 窗口与运行实例跨刷新恢复：刷新后集成应用的窗口不恢复，与内置应用一致。

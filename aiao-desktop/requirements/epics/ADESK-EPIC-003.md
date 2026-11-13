@@ -24,7 +24,6 @@ Aiao Desktop 除了随桌面构建的内置应用，还能把独立部署的 B/S
 - [x] 透明窗口：应用自己画标题栏与红黄绿，经窗口接口调用桌面的关闭、最小化与缩放，拖动区由桌面接管（参考 Tauri，[ADESK-US-204](../stories/application/ADESK-US-204-transparent-window.md)）。
 - [ ] 应用清单是唯一真相源，Applications 是系统投影，预装应用受保护，Dock 布局可拖放并持久化（[ADESK-US-205](../stories/application/ADESK-US-205-application-management.md)）。
 - [ ] 应用懒加载与统一宿主能力：shell-first 启动，窗口、菜单、通知、剪贴板与文件能力经统一接口授予（[ADESK-US-206](../stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md)）。
-- [ ] 受管应用目录：运营批准的目录支持安装、更新、卸载与回退（[ADESK-US-207](../stories/application/ADESK-US-207-managed-app-catalog.md)）。
 
 ## 故事
 
@@ -36,14 +35,13 @@ Aiao Desktop 除了随桌面构建的内置应用，还能把独立部署的 B/S
 - [ADESK-US-204 透明窗口与窗口接口](../stories/application/ADESK-US-204-transparent-window.md) (High)
 - [ADESK-US-205 Applications 目录、预装应用与 Dock 管理](../stories/application/ADESK-US-205-application-management.md) (High)
 - [ADESK-US-206 应用懒加载与统一系统能力](../stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md) (High)
-- [ADESK-US-207 受管应用目录：安装、更新与回退](../stories/application/ADESK-US-207-managed-app-catalog.md) (Low)
 
 ## 下一阶段
 
-- [ADESK-US-205](../stories/application/ADESK-US-205-application-management.md) 把清单投影到 Applications，补预装应用保护、受管远程应用包、Dock 固定/运行态/拖放与持久化。
+- [ADESK-US-205](../stories/application/ADESK-US-205-application-management.md) 把清单投影到 Applications，补预装应用保护、预装的远程应用包、Dock 固定/运行态/拖放与持久化。
 - [ADESK-US-206](../stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md) 把应用实现拆成按需载荷，并定义窗口、菜单、通知、剪贴板和文件等宿主能力的统一契约。
 
 ## 非目标
 
-- 用户自己填网址添加任意应用、商店评分与付费、代码签名：批准边界仍是 [D-10](../decisions.md#d-10应用分三类登记在同一张表里)，受管目录的安装、更新与回退见 [ADESK-US-207](../stories/application/ADESK-US-207-managed-app-catalog.md)。
+- 用户自己填网址添加任意应用、商店评分与付费、代码签名：批准边界仍是 [D-10](../decisions.md#d-10应用分三类登记在同一张表里)；运营批准的目录安装、更新与回退还没有立项，见 [future-requirements](../future-requirements.md)。
 - 恶意第三方代码的安全隔离、浏览器进程级沙箱和桌面级 root 能力。

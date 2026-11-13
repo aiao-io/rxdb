@@ -1,6 +1,6 @@
 # aiao-desktop
 
-浏览器里的 macOS 风格桌面，用 Angular 实现：开机与锁屏、菜单栏、Dock、窗口管理、启动台、聚焦搜索、通知中心，以及启动台里的 30 个内置应用，其中「几猫3A大作」是随桌面发布的单文件 3D 游戏。独立部署的 B/S 应用以微前端方式接入，经 `@aiao/orbit` 运行在桌面的窗口里，第一个是 Aiao Code（<https://vscode.aiao.io>）。终端用 [Vivari](https://vivari.run) 在页面里运行 Node、npm 与 Python。产品没有服务端：系统数据（磁盘目录树、系统设置与各内置应用的数据）存在浏览器本地的 SQLite 里（`@aiao/rxdb`），文件体由 storage 插件放在 OPFS，刷新后都还在，磁盘工具的「抹掉」恢复初始内容。终端打开时把磁盘复制进 Vivari，Finder 与终端看到并修改的是同一块磁盘。
+浏览器里的 macOS 风格桌面，用 Angular 实现：开机与锁屏、菜单栏、Dock、窗口管理、启动台、聚焦搜索、通知中心，以及启动台里的内置应用，其中「几猫3A大作」是随桌面发布的单文件 3D 游戏。独立部署的 B/S 应用以微前端方式接入，经 `@aiao/orbit` 运行在桌面的窗口里，第一个是 Aiao Code（<https://vscode.aiao.io>）。终端用 [Vivari](https://vivari.run) 在页面里运行 Node、npm 与 Python。产品没有服务端：系统数据（磁盘目录树、系统设置与各内置应用的数据）存在浏览器本地的 SQLite 里（`@aiao/rxdb`），文件体由 storage 插件放在 OPFS，刷新后都还在，磁盘工具的「抹掉」恢复初始内容。终端打开时把磁盘复制进 Vivari，Finder 与终端看到并修改的是同一块磁盘。
 
 这是一个产品根目录：两个 Nx 应用共同组成同一个产品，按[应用级需求与项目治理办法](../requirements/application-governance.md)管理。产品需求、决策与验收台账见 [requirements](requirements/README.md)，目录边界与依赖规则见 [AGENTS.md](AGENTS.md)。仓库里的 [Web Desktop](../apps/web-desktop/README.md)（React 宿主与 Orbit 运行内核）是另一个产品。
 

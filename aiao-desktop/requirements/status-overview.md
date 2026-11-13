@@ -9,9 +9,9 @@
 | ✅ Done        | 10   |
 | 🚧 In Progress | 0    |
 | 👀 In Review   | 0    |
-| 📝 Backlog     | 11   |
+| 📝 Backlog     | 12   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 21   |
+| **合计**       | 22   |
 
 ## 进行中（0 条）
 
@@ -31,6 +31,8 @@
 - ⬜ [ADESK-US-004 绑定自定义域名与同站托管](stories/platform/ADESK-US-004-custom-domain.md)
 - ⬜ [ADESK-US-005 跨浏览器与窄屏验收](stories/platform/ADESK-US-005-cross-browser-smoke.md)
 - ⬜ [ADESK-US-006 web 单测覆盖率门槛](stories/platform/ADESK-US-006-web-test-coverage-gate.md)
+- ⬜ [ADESK-US-007 外网内容来源与隐私说明](stories/platform/ADESK-US-007-external-content-disclosure.md)
+- ⬜ [ADESK-US-008 冒烟套件化](stories/platform/ADESK-US-008-smoke-suite.md)
 
 ### ADESK-EPIC-002 macOS 风格桌面
 
@@ -51,4 +53,3 @@
 - ✅ [ADESK-US-204 透明窗口与窗口接口](stories/application/ADESK-US-204-transparent-window.md)
 - ⬜ [ADESK-US-205 Applications 目录、预装应用与 Dock 管理](stories/application/ADESK-US-205-application-management.md)
 - ⬜ [ADESK-US-206 应用懒加载与统一系统能力](stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md)
-- ⬜ [ADESK-US-207 受管应用目录：安装、更新与回退](stories/application/ADESK-US-207-managed-app-catalog.md)

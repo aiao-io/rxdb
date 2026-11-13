@@ -60,6 +60,7 @@ capabilities: []
 
 - 命令分工：Nx 的 `deploy` 目标依赖 `aiao-desktop-web:build` 与 `audit-secrets`（两者命中缓存时几乎不花时间），然后跑 `scripts/deploy/deploy.mjs`。脚本的外部依赖（wrangler、产物检查、线上对账、Git、日志）都从 `runDeploy(options, deps)` 注入，测试用替身走完整流程。
 - wrangler 的用法（4.158.0，经 `pnpm dlx`）：`pages project list --json` 判断项目是否存在，不存在时 `pages project create … --force`（这个版本不带 `--force` 会转给 Workers 版 Pages 并失败）；`pages deployment list --environment production --json` 取上一版；`pages deploy <产物目录> --project-name … --branch … --commit-dirty=…`，部署地址与编号从 `WRANGLER_OUTPUT_FILE_PATH` 的结构化输出里取（`pages-deploy-detailed` 记录），不解析人读日志。提交哈希与说明由 wrangler 从工作目录的 Git 读取，所以 wrangler 的工作目录选在仓库内（`aiao-desktop/`，那里没有 wrangler 配置文件）。
+- 命令给 wrangler 子进程补上 `--dns-result-order=ipv6first`（`deploy.mjs` 的 `wranglerEnv`）：本机直连 Cloudflare 的 IPv4 地址时 OAuth 刷新会超时并误报未登录。
 - 首次发布实测到的两点：新项目的部署地址 `<编号>.aiao-desktop.pages.dev` 在证书签发前是 TLS 握手失败（`ERR_SSL_SSL/TLS_ALERT_HANDSHAKE_FAILURE`），而 `aiao-desktop.pages.dev` 立即可用，所以对账前先等地址连得上；Pages 对不存在的路径回 `index.html` 且 200，所以对账比字节而不是看状态码。
 - 对账请求用 `redirect: 'manual'`：`index.html` 对应站点根（`/index.html` 会被 308 到 `/`），其余文件必须直接 200，所以 `_redirects` 的改写失效也会被发现。`_headers` 与 `_redirects` 由 Pages 自己消费，不作为站点内容请求。
 

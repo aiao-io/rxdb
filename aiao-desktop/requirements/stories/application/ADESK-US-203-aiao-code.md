@@ -30,10 +30,10 @@ capabilities: []
 
 ### Out of Scope
 
-- 「导入文件夹（副本）」：浏览器禁止跨源 iframe 弹出文件选择器。
-- 「登录 GitHub」：OAuth 弹窗被 sandbox 拦下；桌面与 vscode.aiao.io 不同站点时存储分区，登录状态也不共享。
+- 「导入文件夹（副本）」：浏览器禁止跨源 iframe 弹出文件选择器。目录选择不在 [ADESK-US-206](ADESK-US-206-lazy-app-runtime-and-host-capabilities.md) 第一批的 `filesystem` 能力里，见 [future-requirements](../../future-requirements.md)。
+- 「登录 GitHub」：OAuth 弹窗被 sandbox 拦下；桌面与 vscode.aiao.io 不同站点时存储分区，登录状态也不共享。在桌面里完成登录需要「OAuth 弹窗」这类扩展宿主能力（见 [future-requirements](../../future-requirements.md)）；与直接访问共用已有的登录状态由 [ADESK-US-004](../platform/ADESK-US-004-custom-domain.md) 验收。
 - 与直接访问 vscode.aiao.io 共用项目：桌面部署在 aiao.io 之外（包括本地开发）时，浏览器按顶层站点分区存储，桌面里的 Aiao Code 是另一份项目数据。
-- 桌面的浅色 / 深色外观与 Aiao Code 主题联动、窗口标题跟随项目名。
+- 桌面的浅色 / 深色外观与 Aiao Code 主题联动、窗口标题跟随项目名。外观联动可在 [ADESK-US-206](ADESK-US-206-lazy-app-runtime-and-host-capabilities.md) 的 `appearance` 能力交付后重新评估。
 - Aiao Code 窗口跨刷新恢复。
 
 ## 验收标准

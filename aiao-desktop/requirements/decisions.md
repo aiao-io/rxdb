@@ -16,7 +16,9 @@ Aiao Desktop 使用 `ADESK-US-*` / `ADESK-EPIC-*` 编号，在本目录独立统
 
 ## D-04：外网内容可缺失
 
-壁纸（Unsplash、Wikimedia）、地图瓦片（CARTO）、地名搜索（Nominatim）、天气（Open-Meteo）、Safari 阅读模式（r.jina.ai）、网站图标（DuckDuckGo）与网页字体（Google Fonts）都来自外网，且都不需要密钥。它们加载失败时应用照常打开，页面不出现错误；冒烟拦截全部外网请求来守住这一点，只放过资源加载失败的控制台信息。外网内容本身的显示效果不在当前验收范围内。
+壁纸与照片（Unsplash、Wikimedia）、地图瓦片（CARTO）、地名搜索（Nominatim）、天气（Open-Meteo）、Safari 阅读模式（r.jina.ai）、网站图标（DuckDuckGo）、Safari 里的视频嵌入（YouTube）与网页字体（Google Fonts）都来自外网，且都不需要密钥。它们加载失败时应用照常打开，页面不出现错误；冒烟拦截全部外网请求来守住这一点，只放过资源加载失败的控制台信息。外网内容本身的显示效果不在当前验收范围内。
+
+这些请求会让第三方看到用户的 IP；Safari 阅读模式还会把用户输入的网址、地名搜索会把搜索词发给对应的第三方。来源、用途与会发送的数据的说明由 [ADESK-US-007](stories/platform/ADESK-US-007-external-content-disclosure.md) 交付，交付后这份主机列表以代码里的清单为准。
 
 ## D-05：终端依赖跨源隔离
 
@@ -32,7 +34,7 @@ Aiao Desktop 使用 `ADESK-US-*` / `ADESK-EPIC-*` 编号，在本目录独立统
 
 系统数据都存在浏览器本地的一个 RxDB 库里：磁盘的目录树与元数据、系统设置、桌面图标位置、最近使用，以及各内置应用的数据。技术栈是 `@aiao/rxdb` 加 `@aiao/rxdb-adapter-sqlite-wasm`，接法与 dev-rxdb-angular 相同：OPFS 可用时，库文件在专用 Worker 里以 OPFSCoopSyncVFS 落在 OPFS，否则用 IndexedDB。用户于 2026-11-12 拍板：用仓库自己的 RxDB 与现成插件管理全部数据，不另造存储；适配器在 sqlite-wasm 与 wa-sqlite 之间选了前者，因为它带 FTS5。
 
-首次打开时写入内置内容，之后保留所有改动，这取代了 [ADESK-US-101](stories/desktop/ADESK-US-101-desktop-shell-baseline.md) 范围里的「不保存状态」。初始数据按数据域各写一次：每个域在一个事务里写入数据和 `seed:<domain>` 标记，要么完整写入，要么什么都没写。改了内置内容只影响新库与抹掉后的磁盘，已有的库不会被覆盖。外网内容（壁纸、地图、天气、网页）不进库（[D-04](#d-04外网内容可缺失)）。
+首次打开时写入内置内容，之后保留所有改动，这取代了 [ADESK-US-101](stories/desktop/ADESK-US-101-desktop-shell-baseline.md) 范围里的「不保存状态」。初始数据按数据域各写一次：每个域在一个事务里写入数据和 `seed:<domain>` 标记，要么完整写入，要么什么都没写。改了内置内容只影响新库与抹掉后的磁盘，已有的库不会被覆盖；`/Applications` 下的 `.app` 包元数据是例外，它由应用清单投影，清单升级时补齐，见 [D-17](#d-17应用清单是唯一真相源applications-是系统投影)。外网内容（壁纸、地图、天气、网页）不进库（[D-04](#d-04外网内容可缺失)）。
 
 ## D-08：文件体由 storage 插件放在 OPFS
 
@@ -42,7 +44,7 @@ Aiao Desktop 使用 `ADESK-US-*` / `ADESK-EPIC-*` 编号，在本目录独立统
 
 ## D-09：终端按需复制磁盘
 
-终端打开时才把磁盘复制进 Vivari（Vivari 自己的文件系统镜像也在 OPFS）。所有终端窗口与标签共用一台虚拟机，最后一个标签关掉时先把改动写回库，再拆掉虚拟机。磁盘挂在虚拟机的根目录下，主目录是 `/Users/prasenjit`，与 Vivari 自己的 `/bin`、`/tmp` 等并列。
+终端打开时才把磁盘复制进 Vivari（Vivari 自己的文件系统镜像也在 OPFS）。所有终端窗口与终端标签共用一台虚拟机（每个浏览器标签页各有自己的一台，见 [ADESK-US-105](stories/desktop/ADESK-US-105-multi-tab-sync.md)），最后一个终端标签关掉时先把改动写回库，再拆掉虚拟机。磁盘挂在虚拟机的根目录下，主目录是 `/Users/prasenjit`，与 Vivari 自己的 `/bin`、`/tmp` 等并列。
 
 Vivari 1.3.0 的 fs-change 事件不报虚拟机里进程自己的写入，所以终端这边的改动靠扫描发现：终端输出停下 0.3 秒后扫描一次，另外每 3 秒扫描一次，发现的改动写回库。桌面这边的改动按路径推进虚拟机，并刷新扫描基线，不会被当成终端的改动再写回来。`node_modules` 不同步，与 Vivari 自己的持久化规则一致（用户于 2026-11-12 拍板）。
 
@@ -58,7 +60,9 @@ Vivari 1.3.0 的 fs-change 事件不报虚拟机里进程自己的写入，所�
 | 内置应用 | `builtin` | 随桌面构建的 Angular 组件                 | 在窗口里直接渲染，可以用桌面的服务与本地库（D-07）             |
 | 集成应用 | `web`     | 独立开发、独立部署的 Web 应用（B/S 应用） | 经 Orbit 在窗口里的 iframe 中运行（D-11），只经 Orbit 协议往来 |
 
-三类共用 id、名称、图标、窗口尺寸与单 / 多窗口这些字段，启动台、聚焦搜索、Dock 与菜单栏对它们一视同仁。登记表随桌面构建发布，是运营方批准的清单：集成应用只能指向登记过的入口，不能在运行时添加任意网址；以后要做运行时应用分发（安装、卸载、更新、回退）时另立故事。登记表在桌面页启动时校验，不合规直接报错，不跳过也不降级。
+三类共用 id、名称、图标、窗口尺寸与单 / 多窗口这些字段，启动台、聚焦搜索、Dock 与菜单栏对它们一视同仁。登记表随桌面构建发布，是运营方批准的清单：集成应用只能指向登记过的入口，不能在运行时添加任意网址；运行时应用分发（安装、卸载、更新、回退）还没有立项，见 [future-requirements](future-requirements.md)。登记表在桌面页启动时校验，不合规直接报错，不跳过也不降级。
+
+运行来源（`builtin-component` / `bundled-html` / `remote-web`）与安装来源（`preinstalled` 等）是另外两个维度，由 [D-17](#d-17应用清单是唯一真相源applications-是系统投影) 补充；本条的分类、登记表规则与校验仍然有效，对应关系见[术语表](README.md#术语)。
 
 ## D-11：集成应用经 Orbit 隔离运行
 
@@ -67,6 +71,8 @@ Vivari 1.3.0 的 fs-change 事件不报虚拟机里进程自己的写入，所�
 窗口与实例一一对应：打开即装载，应用显式报告就绪后才算打开成功；最小化动画结束后通知应用隐藏，还原前通知显示，iframe 始终不移动、不重载；关闭即销毁。失败（加载失败、超时、应用自报失败、整页导航）只影响所在窗口，窗口给出原因与重试，重试新建实例。父页面无法感知焦点在两个跨源 iframe 之间移动，所以后台的集成应用窗口盖激活层，点一下只激活窗口，再把键盘焦点交给应用。
 
 隔离边界沿用 Orbit 的说明：sandbox 放行脚本、同源存储、表单与下载，不放行弹窗、模态框与顶层导航；它隔离文档与样式，不是防恶意代码的安全边界，所以只接运营方批准的应用。浏览器权限按登记表逐项授予，跨源隔离经 `cross-origin-isolated` 委派。
+
+Orbit 是两个产品共用的包：Aiao Desktop 与 Web Desktop 各自接线、各自验收。本产品为它新增的公开接口（`@aiao/orbit/window`、实例的 `focus()`、文档加载后未握手即失败）保持向后兼容；确需破坏性变更时，先评估 Web Desktop 的接线。验收证据（`packages/orbit` 的单测与浏览器测试）随 Orbit 的测试一起跑，不在本产品里重复。
 
 ## D-12：集成应用的接入契约
 
@@ -111,6 +117,8 @@ Aiao Code 为接入补了 `Cross-Origin-Resource-Policy: cross-origin`，带 COE
 - 跨源隔离：带 COEP 的桌面只能嵌入同样带 COEP 的文档。托管方本来就要对所有响应返回 COOP 与 COEP（D-05），同源文档自然满足；游戏不能引用外部资源，否则会被 COEP 拦下，单测检查这一条。
 - 代价：同源 iframe 与桌面共用渲染主线程，游戏卡顿会拖慢整个桌面。有 GPU 时游戏约每秒 60 帧，桌面照常响应；CI 的无头 Chromium 只有软件 WebGL（约每秒 1 帧），所以冒烟用替身页验证窗口这一侧，只单独启动一次真游戏。桌面最小化窗口时不通知游戏：游戏在退出指针锁定与页面隐藏时自己暂停，隐藏的窗口里游戏循环照常运行。
 
+运行来源在 [D-17](#d-17应用清单是唯一真相源applications-是系统投影) 里记为 `bundled-html`；登记表里它的 `kind` 仍是 `builtin`。
+
 ## D-16：发布到 Cloudflare Pages，一键发布命令
 
 用户于 2026-11-13 要求把 Aiao Desktop 发布到 Cloudflare，并建立一键发布命令（[ADESK-US-003](stories/platform/ADESK-US-003-cloudflare-pages-deploy.md)）。这是产品第一次对外托管，边界随之改变：
@@ -122,7 +130,7 @@ Aiao Code 为接入补了 `Cross-Origin-Resource-Policy: cross-origin`，带 COE
 几个有意的选择：
 
 1. **分支显式传 `--branch main`**：wrangler 省略它时取当前 Git 分支，只会更新 Preview，在功能分支上发布时尤其容易误以为发到了线上。
-2. **wrangler 固定为 4.158.0，经 `pnpm dlx` 取用，不进依赖**。这个版本新建 Pages 项目必须带 `--force`（不带会转给 Workers 版 Pages，在没有静态目录时失败）；项目建好后不再需要。wrangler 子进程默认 DNS 结果 IPv6 优先：本机直连 Cloudflare 的 IPv4 地址时 OAuth 刷新会超时并误报未登录。
+2. **wrangler 固定版本（4.158.0），经 `pnpm dlx` 取用，不进依赖**：发布工具只在发布者本机用，不让依赖图和锁文件跟着它变。新建项目的 `--force`、子进程的 DNS 顺序这类踩坑细节见 [ADESK-US-003](stories/platform/ADESK-US-003-cloudflare-pages-deploy.md) 的技术笔记。
 3. **线上核对逐文件比字节**：Pages 对不存在的路径回 `index.html` 且状态码 200，只看状态码会假绿。本次部署独有的地址逐文件核对，并要求每个响应都带 COOP 与 COEP；生产地址与自定义域名只核对入口页（入口页引用带哈希的脚本文件名，指向旧部署时一定不一致），免得在慢网络上把同样的 13 MB 反复下载。
 4. **先等地址连得上**：新建项目的 `*.<项目>.pages.dev` 证书要几分钟才签发，这段时间部署地址与分支别名都是 TLS 握手失败（首次发布实测），生产地址 `<项目>.pages.dev` 不受影响。命令会提示并等待，超时才算失败。
 5. **不重复跑冒烟**：发布前的完整门禁是 `aiao-desktop:verify`（与 CI 同款），发布命令只守住托管相关的失败（响应头、文件内容、域名）。发布后的浏览器级验收是 `aiao-desktop-e2e:verify-aiao-code --desktop-url=<线上地址>`：线上桌面加线上 Aiao Code 的真实组合。
@@ -131,22 +139,39 @@ Aiao Code 为接入补了 `Cross-Origin-Resource-Policy: cross-origin`，带 COE
 
 ## D-17：应用清单是唯一真相源，Applications 是系统投影
 
+**状态：已接受，尚未实现**（[ADESK-US-205](stories/application/ADESK-US-205-application-management.md)）。
+
 应用的身份、来源、运行类型、展示位置、Dock 默认固定状态和是否可移除，都登记在应用清单中。`/Applications` 里的 `.app` 是清单的系统投影：首次建库或清单升级时幂等生成包元数据，不能再维护一份独立的应用名称数组。包通过稳定的 `appId` / `bundleId` 回到清单，显示名只用于界面，不参与启动匹配。
 
-应用按运行来源分为 `builtin-component`、`bundled-html` 与 `remote-web`。`bundled-html` 用随构建发布的相对入口运行，例如 `apps/web/public/saltline.html`；它进入 Applications、Launchpad、Spotlight 与 Dock 的方式和 Angular 内置应用一致，但只有打开窗口时才创建同源 iframe。`remote-web` 也进入 Applications，表示受管的 Web 应用包；它仍只能加载清单里的精确 HTTPS 入口并经 Orbit 运行。Launchpad、Trash 等系统入口可以登记在同一清单里，但用展示策略明确不出现在 Applications。
+应用按运行来源分为 `builtin-component`、`bundled-html` 与 `remote-web`。`bundled-html` 用随构建发布的相对入口运行，例如 `apps/web/public/saltline.html`；它进入 Applications、Launchpad、Spotlight 与 Dock 的方式和 Angular 内置应用一致，但只有打开窗口时才创建同源 iframe。`remote-web` 也进入 Applications，表示由清单管理的 Web 应用包（安装来源仍是预装）；它仍只能加载清单里的精确 HTTPS 入口并经 Orbit 运行。Launchpad、Trash 等系统入口可以登记在同一清单里，但用展示策略明确不出现在 Applications。
 
-当前版本只有预装和受管应用，没有用户输入网址安装应用。预装应用的完整 `.app` 包路径由系统保护：Finder、终端同步、文件系统 API、移动、改名、覆盖、移入废纸篓和清空废纸篓都不能移除它；抹掉磁盘后由清单重新生成。保护判断由应用目录服务提供，所有入口共用，不能只在某个 UI 菜单里禁用。
+与 [D-10](#d-10应用分三类登记在同一张表里) 的登记类别对应如下：
+
+| 登记表 `kind` | 运行来源            | 例子                  | 安装来源       |
+| ------------- | ------------------- | --------------------- | -------------- |
+| `builtin`     | `builtin-component` | Finder、Calculator 等 | `preinstalled` |
+| `builtin`     | `bundled-html`      | 几猫3A大作            | `preinstalled` |
+| `web`         | `remote-web`        | Aiao Code             | `preinstalled` |
+| `system`      | —（不开窗口）       | 启动台、废纸篓        | —              |
+
+当前版本只有预装应用（安装来源 `preinstalled`），没有目录安装（`managed`）和用户输入网址安装（`user`），后两者见 [future-requirements](future-requirements.md)。预装应用的完整 `.app` 包路径由系统保护：Finder、终端同步、文件系统 API、移动、改名、覆盖、移入废纸篓和清空废纸篓都不能移除它；抹掉磁盘后由清单重新生成。保护判断由应用目录服务提供，所有入口共用，不能只在某个 UI 菜单里禁用。
+
+已有的本地库里，`/Applications` 的 `.app` 包由旧的手写列表种子生成，没有稳定标识。清单升级与首次建库走同一条幂等路径：补齐缺的预装包、补上稳定标识，不覆盖用户自己的文件，同名的非包条目保留。这是 [D-07](#d-07系统数据存在本地-sqlite)「已有的库不会被覆盖」对 `.app` 包的例外。
+
+备选（实现前评估）：把 Applications 做成不落库的只读虚拟挂载，由清单实时投影。它没有清单漂移、没有已有库迁移，也没有「绕过保护」的写路径；代价是终端复制进虚拟机的磁盘镜像要单独投影这棵子树，Finder 的包内容查看要单独支持。本条按落库方案写；改用虚拟挂载时，保护与升级的机制随之改写，结果不变。
 
 Applications、Launchpad、Spotlight、Dock 和菜单栏都从同一个清单投影。这样新增应用只需要增加清单和对应运行 loader，不会因为忘记修改磁盘种子或 Dock 常量而出现“能搜索但不能打开”“能打开但 Applications 没有”的分叉状态。详细范围与验收见 [ADESK-US-205](stories/application/ADESK-US-205-application-management.md)。
 
 ## D-18：应用懒加载与宿主系统能力统一
 
-桌面启动优先保证 shell 轻量：菜单栏、窗口管理、Dock、清单元数据、应用目录和系统服务急切加载；任何应用实现、应用 seed、bundled HTML 入口和 remote-web iframe 都在真正打开时加载。预装描述的是安装与保护状态，不是加载策略。`registry.ts` 不再静态 import 所有内置组件，应用实现通过 dynamic import 拆成按应用加载的 chunk；应用数据初始化也按功能域延迟。
+**状态：已接受，尚未实现**（[ADESK-US-206](stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md)）。
 
-组件、同源 HTML iframe 和 Orbit iframe 由同一个应用运行时管理生命周期：`registered → loading → ready → minimized → focused → closing → closed / failed`。打开失败只影响当前窗口；重试创建新实例；关闭销毁组件、iframe、订阅和能力上下文。`WindowManager` 管窗口，运行适配器管具体应用载荷，不能让窗口管理器知道每种应用的内部实现。
+桌面启动优先保证 shell 轻量：菜单栏、窗口管理、Dock、清单元数据、应用目录和系统服务急切加载，Finder 也按壳层处理——桌面启动后会自动打开一个 Finder 窗口，它的组件与磁盘服务随启动加载；其余任何应用实现、应用 seed、bundled HTML 入口和 remote-web iframe 都在真正打开时加载。预装描述的是安装与保护状态，不是加载策略。`registry.ts` 不再静态 import 所有内置组件，应用实现通过 dynamic import 拆成按应用加载的 chunk；应用数据初始化也按功能域延迟，触发点是该数据域第一次被读取，而不是第一次打开该应用：通知中心的小组件（日历、天气、股票、提醒事项）在壳层里读这些域，读取时触发对应域的种子。
 
-应用通过绑定到 `appId` 与窗口实例的 `DesktopAppContext` 使用系统能力。第一批统一能力为 `window`、`menu`、`app`、`appearance`、`notification`、`clipboard` 与 `filesystem`。清单逐项声明权限，默认拒绝；内置应用通过 facade 接现有服务，bundled HTML 通过受信 bridge，remote-web 通过 Orbit RPC。remote-web 永远拿不到父页面 DOM、RxDB repository、OPFS 原始句柄或未登记的任意 URL；调用失败返回稳定错误码，涵盖能力拒绝、参数错误、用户取消、浏览器权限拒绝、超时和窗口已关闭。
+组件、同源 HTML iframe 和 Orbit iframe 由同一个应用运行时管理生命周期：应用实例是 `registered → loading → ready → closing → closed`，失败走 `failed`；最小化、前台 / 后台、缩放是窗口的呈现状态，与实例生命周期正交，由 `WindowManager` 管。打开失败只影响当前窗口；重试创建新实例；关闭销毁组件、iframe、订阅和能力上下文。`WindowManager` 管窗口，运行适配器管具体应用载荷，不能让窗口管理器知道每种应用的内部实现。
 
-`bundled-html` 的同源 iframe 是受信构建资产，不是安全隔离边界；它可以继续满足 `saltline.html` 的 pointer lock 与 fullscreen 需求。它使用统一 bridge 的目的是生命周期和能力语义一致，不能把 bridge 描述成能防御恶意同源代码的 sandbox。非受信任的远程内容必须使用 `remote-web` 和 Orbit。
+应用通过绑定到 `appId` 与窗口实例的 `DesktopAppContext` 使用系统能力。第一批统一能力为 `window`、`menu`、`app`、`appearance`、`notification`、`clipboard` 与 `filesystem`。清单逐项声明权限，默认拒绝；内置应用通过 facade 接现有服务，remote-web 通过 Orbit RPC；bundled HTML 本阶段只统一生命周期、不提供能力 bridge——唯一的 bundled-html 应用 `saltline.html` 原样发布、不调用桌面接口（[D-15](#d-15随桌面发布的单文件游戏在同源-iframe-里运行)），出现第一个需要能力的 bundled-html 应用时再做。remote-web 永远拿不到父页面 DOM、RxDB repository、OPFS 原始句柄或未登记的任意 URL；调用失败返回稳定错误码，涵盖能力拒绝、参数错误、用户取消、浏览器权限拒绝、超时和窗口已关闭。`filesystem` 指桌面的虚拟磁盘，不是用户机器上的文件：sandbox 里的 iframe 弹不出浏览器的文件选择器，所以打开 / 保存由桌面自己的面板提供，应用只拿到用户选定的文件内容或保存位置；目录选择、多选与拖放数据通道不在第一批内。
 
-性能验收以正式构建为准：启动桌面、Finder、Launchpad 和 Spotlight 时不能请求应用实现 chunk、应用 seed、`saltline.html` 或任何 remote-web URL；打开一个应用只加载它需要的载荷；打开应用 A 不执行应用 B 的构造函数、订阅或数据种子。详细范围与验收见 [ADESK-US-206](stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md)。
+`bundled-html` 的同源 iframe 是受信构建资产，不是安全隔离边界；它可以继续满足 `saltline.html` 的 pointer lock 与 fullscreen 需求。它纳入统一运行时的目的是生命周期一致；以后若提供 bridge，也不能把它描述成能防御恶意同源代码的 sandbox。非受信任的远程内容必须使用 `remote-web` 和 Orbit。
+
+性能验收以正式构建为准：启动桌面（含自动打开的 Finder 窗口）、打开 Launchpad 和 Spotlight 时不能请求 Finder 以外的应用实现 chunk、应用独有的 seed、`saltline.html` 或任何 remote-web URL；打开一个应用只加载它需要的载荷；打开应用 A 不执行应用 B 的构造函数、订阅或独有的数据种子；首屏 initial 体积不超过实现前的实测值。详细范围与验收见 [ADESK-US-206](stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md)。
