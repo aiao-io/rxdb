@@ -6,6 +6,7 @@
   "dependencies": {
     "@aiao/code-editor": "workspace:*",
     "@aiao/code-editor-angular": "workspace:*",
+    "@aiao/orbit": "workspace:*",
     "@aiao/rxdb": "workspace:*",
     "@aiao/rxdb-adapter-sqlite-wasm": "workspace:*",
     "@aiao/rxdb-angular": "workspace:*",

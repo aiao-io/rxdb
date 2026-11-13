@@ -1,13 +1,14 @@
 # Cloudflare Pages 响应头（生产托管必需）：
 # COOP / COEP 让工作台获得跨源隔离（OPFS Git、JSPI WASM、credentialless 预览依赖）。
 # 与 nx serve 的 headers 配置、e2e 静态服务器 --coop-coep 保持一致。
+# CORP 让带 COEP 的宿主页（Aiao Desktop，US-410）能把工作台当集成应用嵌入；同一响应头写两次会被 Pages
+# 用逗号拼成无效值，所以只写在这里，下面的资产规则不再重复。
 /*
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Embedder-Policy: require-corp
+  Cross-Origin-Resource-Policy: cross-origin
 # 自托管工作台资产允许跨源 no-cors 加载（README「部署静态资源」一节）
 /browser-workbench-assets/*
   Access-Control-Allow-Origin: *
-  Cross-Origin-Resource-Policy: cross-origin
 /sqlite-wasm/*
   Access-Control-Allow-Origin: *
-  Cross-Origin-Resource-Policy: cross-origin

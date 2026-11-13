@@ -40,6 +40,9 @@
     },
     {
       "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/orbit/tsconfig.lib.json"
     }
   ]
 }

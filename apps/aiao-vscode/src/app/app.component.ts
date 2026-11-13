@@ -31,6 +31,7 @@ import { createGitHubService } from '../workbench/git/github/github-service.js';
 import { loadMonacoEditor } from '../workbench/monaco-loader.js';
 import { mountWorkbench, type WorkbenchHandle } from '../workbench/mount.js';
 import { createRxDBWorkbenchCatalog } from '../workbench/rxdb-catalog.js';
+import { ORBIT_CLIENT } from './orbit-embedding';
 
 const CATALOG_TIMEOUT_MS = 10000;
 
@@ -81,6 +82,8 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   private readonly application = inject(ApplicationRef);
   private readonly platform = inject(PLATFORM_ID);
   private readonly rxdb = inject(RxDB);
+  /** 被 Aiao Desktop 嵌入时与桌面的连接（US-410），直接访问时为空。 */
+  private readonly orbit = inject(ORBIT_CLIENT);
   private workbench?: WorkbenchHandle;
   private destroyed = false;
   readonly ready = signal(false);
@@ -88,7 +91,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     if (!isPlatformBrowser(this.platform)) return;
-    void this.mountWhenReady();
+    this.mountWhenReady().catch((error: unknown) => this.reportStartupFailure(error));
   }
 
   ngOnDestroy(): void {
@@ -226,6 +229,13 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   };
 
   /** 数据库连不上时退回内存目录：项目仍可编辑 / 预览 / 导出，只是重开不恢复目录列表。 */
+  /** 工作台没能挂载：页面显示原因；被桌面嵌入时同一句话报告给桌面，不必等桌面超时。 */
+  private reportStartupFailure(error: unknown): void {
+    const message = error instanceof Error ? error.message : String(error);
+    this.error.set(message);
+    this.orbit?.fail(message);
+  }
+
   private async mountWhenReady(): Promise<void> {
     let connected = false;
     try {
@@ -276,6 +286,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
         })
     );
     this.ready.set(true);
+    this.orbit?.ready();
     if (new URLSearchParams(location.search).has('workbench-verify')) {
       const target = window as unknown as { workbench?: WorkbenchHandle; ready?: boolean; github?: GitHubService };
       target.workbench = this.workbench;

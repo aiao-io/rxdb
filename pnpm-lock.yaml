@@ -783,6 +783,9 @@ importers:
       '@aiao/code-editor-angular':
         specifier: workspace:*
         version: link:../../packages/code-editor-angular
+      '@aiao/orbit':
+        specifier: workspace:*
+        version: link:../../packages/orbit
       '@aiao/rxdb':
         specifier: workspace:*
         version: link:../../packages/rxdb

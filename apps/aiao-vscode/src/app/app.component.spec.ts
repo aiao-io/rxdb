@@ -5,6 +5,7 @@ import { of, Subject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { savePendingOAuth } from '../workbench/git/github/github-oauth-bridge.js';
 import { AppComponent } from './app.component';
+import { ORBIT_CLIENT } from './orbit-embedding';
 
 const mocks = vi.hoisted(() => ({
   mount: vi.fn(),
@@ -88,6 +89,59 @@ afterEach(() => {
   vi.unstubAllGlobals();
   localStorage.clear();
   history.replaceState({}, '', '/');
+});
+
+describe('被 Aiao Desktop 嵌入时向桌面报告（US-410）', () => {
+  const desktop = () => ({ ready: vi.fn(), fail: vi.fn() });
+
+  function embeddedFixture(client: ReturnType<typeof desktop>) {
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: RxDB, useValue: mockRxDB() },
+        { provide: ORBIT_CLIENT, useValue: client }
+      ]
+    });
+    return TestBed.createComponent(AppComponent);
+  }
+
+  it('工作台挂载之后才报告就绪，连库期间不报告', async () => {
+    const client = desktop();
+    const fixture = embeddedFixture(client);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(client.ready).not.toHaveBeenCalled();
+    connected.next(true);
+    await vi.waitFor(() => expect(client.ready).toHaveBeenCalledOnce());
+    expect(mocks.mount.mock.invocationCallOrder[0]).toBeLessThan(client.ready.mock.invocationCallOrder[0]);
+    expect(client.fail).not.toHaveBeenCalled();
+    fixture.destroy();
+  });
+
+  it('工作台挂载失败：向桌面报告原因，页面显示同一句话', async () => {
+    mocks.mount.mockImplementation(() => {
+      throw new Error('工作台挂载失败');
+    });
+    const client = desktop();
+    const fixture = embeddedFixture(client);
+    fixture.detectChanges();
+    connected.next(true);
+    await vi.waitFor(() => expect(client.fail).toHaveBeenCalledWith('工作台挂载失败'));
+    expect(client.ready).not.toHaveBeenCalled();
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('工作台挂载失败');
+    fixture.destroy();
+  });
+
+  it('连库期间组件被销毁：不挂载，也不报告就绪', async () => {
+    const client = desktop();
+    const fixture = embeddedFixture(client);
+    fixture.detectChanges();
+    fixture.destroy();
+    connected.next(true);
+    await Promise.resolve();
+    expect(client.ready).not.toHaveBeenCalled();
+    expect(client.fail).not.toHaveBeenCalled();
+  });
 });
 
 describe('AppComponent workbench mount', () => {

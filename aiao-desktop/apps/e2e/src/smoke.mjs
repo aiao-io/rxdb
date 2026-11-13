@@ -491,7 +491,14 @@ try {
   await page.locator('#layer-menu .pop .mi', { hasText: 'Quit Aiao Code' }).click();
   integratedApp.quitCloses =
     (await disappears(vscodeWin, 3_000)) &&
-    !(await page.locator('#dock .di[data-app="vscode"]').evaluate(node => node.classList.contains('run')));
+    (await page
+      .waitForFunction(() => !document.querySelector('#dock .di[data-app="vscode"]')?.classList.contains('run'), undefined, {
+        timeout: 3_000
+      })
+      .then(
+        () => true,
+        () => false
+      ));
 
   /* 每个应用都能从启动台打开，且不产生错误。 */
   const unopened = [];
