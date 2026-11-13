@@ -39,9 +39,10 @@ function parseNode(raw: unknown, index: number): Occurrence {
   if (n['quantity'] !== null && typeof n['quantity'] !== 'string') throw new Error('quantity 必须是十进制字符串或 null');
   if (!['part', 'system', 'assembly'].includes(String(n['kind'])) || !states.has(String(n['quantityState']))) throw new Error('节点类型或数量状态非法');
   if (!Array.isArray(n['markets']) || n['markets'].some(m => !['EU', 'CN', 'US', 'AU'].includes(m))) throw new Error('市场列表非法');
+  if (n['nodeIndex'] !== undefined && (!Number.isSafeInteger(n['nodeIndex']) || Number(n['nodeIndex']) < 0)) throw new Error('模型节点索引非法');
   if (n['label'] !== undefined && typeof n['label'] !== 'string') throw new Error('label 必须是字符串');
   if (n['unitCost'] != null && !validQuantity(n['unitCost'])) throw new Error('单位成本必须是非负十进制字符串');
-  return { key: String(n['key']), parentKey: n['parentKey'] as string | null, partId: String(n['partId']), compId: String(n['compId']), uom: String(n['uom']), sourceRef: String(n['sourceRef']), source: 'draft', quantity: n['quantity'] as string | null, quantityState: n['quantityState'] as Occurrence['quantityState'], kind: n['kind'] as Occurrence['kind'], markets: n['markets'] as Occurrence['markets'], label: n['label'] as string | undefined, unitCost: n['unitCost'] as string | null | undefined };
+  return { key: String(n['key']), parentKey: n['parentKey'] as string | null, partId: String(n['partId']), compId: String(n['compId']), uom: String(n['uom']), sourceRef: String(n['sourceRef']), source: 'draft', quantity: n['quantity'] as string | null, quantityState: n['quantityState'] as Occurrence['quantityState'], kind: n['kind'] as Occurrence['kind'], markets: n['markets'] as Occurrence['markets'], label: n['label'] as string | undefined, unitCost: n['unitCost'] as string | null | undefined, nodeIndex: n['nodeIndex'] as number | undefined };
 }
 export function parseImport(text: string): DraftState {
   const raw: unknown = JSON.parse(text);
@@ -49,7 +50,7 @@ export function parseImport(text: string): DraftState {
   const value = raw as Record<string, unknown>;
   if (value['schema'] !== 'aiao-bom-2-draft/1' || !Array.isArray(value['nodes']) || typeof value['datasetId'] !== 'string' || typeof value['name'] !== 'string') throw new Error('文件不是 aiao-bom-2/1 草稿格式');
   if (value['nodes'].length > 100000) throw new Error('单次导入最多 100000 个发生位置');
-  const draft: DraftState = { schema: 'aiao-bom-2-draft/1', datasetId: value['datasetId'], name: value['name'], revision: 0, savedAt: new Date().toISOString(), nodes: value['nodes'].map(parseNode) };
+  const draft: DraftState = { schema: 'aiao-bom-2-draft/1', datasetId: value['datasetId'], name: value['name'], revision: typeof value['revision'] === 'number' && Number.isSafeInteger(value['revision']) && value['revision'] >= 0 ? value['revision'] : 0, savedAt: new Date().toISOString(), nodes: value['nodes'].map(parseNode) };
   const invalid = validateDraft(draft).filter(i => i.field === 'parentKey' || i.field === 'key' || i.message.includes('规范'));
   if (invalid.length) throw new Error(invalid.slice(0, 5).map(i => `${i.key}：${i.message}`).join('\n'));
   return draft;
@@ -59,9 +60,9 @@ export class DraftHistory {
   private redoStack: DraftState[] = [];
   current: DraftState;
 
-  constructor(initial: DraftState) { this.current = initial; }
   get canUndo(): boolean { return this.undoStack.length > 0; }
   get canRedo(): boolean { return this.redoStack.length > 0; }
+  constructor(initial: DraftState) { this.current = initial; }
   patch(keys: string[], patch: Partial<Pick<Occurrence, 'quantity' | 'uom' | 'quantityState' | 'unitCost' | 'label'>>): void {
     if (patch.quantity !== undefined && patch.quantity !== null && !validQuantity(patch.quantity)) throw new Error('用量必须是非负规范十进制字符串');
     if (patch.unitCost !== undefined && patch.unitCost !== null && !validQuantity(patch.unitCost)) throw new Error('单位成本格式非法');
@@ -77,7 +78,10 @@ export class DraftHistory {
   remove(keys: string[]): void {
     const removed = new Set(keys);
     const children = new Map<string, string[]>();
-    for (const node of this.current.nodes) if (node.parentKey) children.set(node.parentKey, [...(children.get(node.parentKey) ?? []), node.key]);
+    for (const node of this.current.nodes) {
+      if (!node.parentKey) continue;
+      const siblings = children.get(node.parentKey) ?? []; siblings.push(node.key); children.set(node.parentKey, siblings);
+    }
     const queue = [...keys];
     while (queue.length) for (const child of children.get(queue.pop()!) ?? []) { removed.add(child); queue.push(child); }
     this.commit(this.current.nodes.filter(n => !removed.has(n.key)));
@@ -104,7 +108,7 @@ function csvCell(value: unknown): string {
   const safe = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
   return `"${safe.replaceAll('"', '""')}"`;
 }
-export function exportCsv(nodes: Occurrence[]): string {
+export function exportCsv(nodes: Pick<Occurrence, 'key' | 'parentKey' | 'partId' | 'label' | 'compId' | 'quantity' | 'quantityState' | 'uom' | 'sourceRef'>[]): string {
   const fields = ['key', 'parentKey', 'partId', 'label', 'compId', 'quantity', 'quantityState', 'uom', 'sourceRef'] as const;
   return '\uFEFF' + [fields.join(','), ...nodes.map(n => fields.map(f => csvCell(n[f])).join(','))].join('\r\n');
 }

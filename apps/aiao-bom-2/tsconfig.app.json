@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
     "outDir": "../../dist/out-tsc",
-    "types": []
+    "types": [],
+    "emitDeclarationOnly": false
   },
   "exclude": [
     "src/**/*.spec.ts",
@@ -19,7 +20,9 @@
     "src/test-setup.ts"
   ],
   "extends": "./tsconfig.json",
-  "include": ["src/**/*.ts"],
+  "include": [
+    "src/**/*.ts"
+  ],
   "references": [
     {
       "path": "../../packages/rxdb-plugin-bom/tsconfig.lib.json"

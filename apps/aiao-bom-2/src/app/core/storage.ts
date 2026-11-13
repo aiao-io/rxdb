@@ -1,15 +1,5 @@
 export class WorkspaceRepository {
   private database: Promise<IDBDatabase> | null = null;
-  private open(): Promise<IDBDatabase> {
-    this.database ??= new Promise((resolve, reject) => {
-      const request = indexedDB.open('aiao-bom-2-workspace-v1', 1);
-      request.onupgradeneeded = () => request.result.createObjectStore('documents');
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-      request.onblocked = () => reject(new Error('工作区升级被其他标签页阻塞'));
-    });
-    return this.database;
-  }
   async read<T>(key: string): Promise<T | undefined> {
     const db = await this.open();
     return new Promise((resolve, reject) => {
@@ -36,5 +26,15 @@ export class WorkspaceRepository {
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error);
     });
+  }
+  private open(): Promise<IDBDatabase> {
+    this.database ??= new Promise((resolve, reject) => {
+      const request = indexedDB.open('aiao-bom-2-workspace-v1', 1);
+      request.onupgradeneeded = () => request.result.createObjectStore('documents');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+      request.onblocked = () => reject(new Error('工作区升级被其他标签页阻塞'));
+    });
+    return this.database;
   }
 }

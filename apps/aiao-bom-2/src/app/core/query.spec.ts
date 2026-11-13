@@ -58,3 +58,44 @@ describe('BOM 按发生位置查询', () => {
     expect(row.members).toHaveLength(2);
   });
 });
+
+describe('查询预算与范围边界', () => {
+  it('在所选范围搜索时不会把上层父项重新混入结果', () => {
+    const index = new BomIndex(makeStressDataset(100), 'catalog');
+    const result = index.query({ ...DEFAULT_QUERY, scope: 'stress:1', search: 'ST-000001' });
+    expect(result.roots.map(r => r.key)).toEqual(['stress:1']);
+    expect(result.rows.map(r => r.key)).not.toContain('stress:0');
+  });
+  it('深链树视图明确截断，进入边界后可以继续浏览', () => {
+    const index = new BomIndex(makeStressDataset(1000, 'deep'), 'catalog');
+    const result = index.query(DEFAULT_QUERY);
+    expect(result.truncated).toBe(true);
+    expect(result.rows.length).toBeLessThanOrEqual(128);
+    const next = index.query({ ...DEFAULT_QUERY, scope: result.rows.at(-1)!.key });
+    expect(next.rows.at(-1)!.depth).toBeGreaterThan(result.rows.at(-1)!.depth);
+    expect(index.query({ ...DEFAULT_QUERY, mode: 'flat' }).rows).toHaveLength(1000);
+    expect(index.rows.get('stress:999')!.path.length).toBeLessThan(1500);
+  });
+});
+
+describe('Worker 索引恢复', () => {
+  it('恢复投影后的关键词与完整查询结果一致', () => {
+    const data = makeStressDataset(100);
+    const original = new BomIndex(data, 'catalog');
+    const restored = new BomIndex(data, 'catalog', [...original.rows.values()]);
+    const query = { ...DEFAULT_QUERY, mode: 'flat' as const, search: 'ST-000099' };
+    expect(restored.query(query)).toEqual(original.query(query));
+  });
+});
+
+it('规范数量排序保留未知，汇总相同物料时做精确直接数量加法', () => {
+  const data = makeStressDataset(4, 'wide');
+  data.structures.catalog[2].partId = data.structures.catalog[1].partId;
+  data.structures.catalog[2].compId = data.structures.catalog[1].compId;
+  data.structures.catalog[1].quantity = '0.1'; data.structures.catalog[2].quantity = '0.2'; data.structures.catalog[3].quantity = null;
+  const index = new BomIndex(data, 'catalog');
+  const result = index.query({ ...DEFAULT_QUERY, mode: 'summary', sort: 'quantity', descending: true });
+  expect(result.rows.find(r => r.count === 2)?.quantity).toBe('0.3');
+  expect(result.rows.at(-1)?.quantity).toBeNull();
+  expect(index.query({ ...DEFAULT_QUERY, scope: 'stress:1' }).roots[0].key).toBe('stress:1');
+});

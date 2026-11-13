@@ -1,76 +1,11 @@
 import { defineConfig, devices } from '@playwright/test';
 import { nxE2EPreset } from '@nx/playwright/preset';
-import { getReadyUrl, workspaceRoot } from '@nx/devkit';
-
-const isCI = !!process.env['CI'];
-// For CI, you may want to set BASE_URL to the deployed application.
-// getReadyUrl moves the address to the port the dev server task reported.
-const baseURL = process.env['BASE_URL'] || getReadyUrl('http://localhost:4313');
-
-/**
- * Read environment variables from file.
- * https://github.com/motdotla/dotenv
- */
-// import 'dotenv/config';
-
-/**
- * See https://playwright.dev/docs/test-configuration.
- *
- * Generated as a .mts file so Node forces ESM regardless of workspace
- * `type`. Playwright routes `.mts` through its ESM loader (dynamic import,
- * bypassing the pirates CJS-compile path), and Nx's native TS strip loads
- * `.mts` directly. Playwright's configLoader auto-discovers
- * `playwright.config.mts` via its extension list
- * (.ts/.js/.mts/.mjs/.cts/.cjs).
- */
+import { workspaceRoot } from '@nx/devkit';
 export default defineConfig({
-  ...nxE2EPreset(import.meta.dirname, { testDir: './src' }),
-  /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
-  use: {
-    baseURL,
-    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: 'on-first-retry',
-  },
-  webServer: {
-    command: isCI ? 'pnpm exec nx run aiao-bom-2:serve-static' : 'pnpm exec nx run aiao-bom-2:serve',
-    url: getReadyUrl('http://localhost:4313'),
-    reuseExistingServer: true,
-    cwd: workspaceRoot
-  },
-  projects: [
-    {
-      name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
-    },
-
-    {
-      name: "firefox",
-      use: { ...devices["Desktop Firefox"] },
-    },
-
-    {
-      name: "webkit",
-      use: { ...devices["Desktop Safari"] },
-    },
-
-    // Uncomment for mobile browsers support
-    /* {
-      name: 'Mobile Chrome',
-      use: { ...devices['Pixel 5'] },
-    },
-    {
-      name: 'Mobile Safari',
-      use: { ...devices['iPhone 12'] },
-    }, */
-
-    // Uncomment for branded browsers
-    /* {
-      name: 'Microsoft Edge',
-      use: { ...devices['Desktop Edge'], channel: 'msedge' },
-    },
-    {
-      name: 'Google Chrome',
-      use: { ...devices['Desktop Chrome'], channel: 'chrome' },
-    } */
-  ],
+  ...nxE2EPreset(import.meta.dirname, { testDir: './src', openHtmlReport: 'never' }),
+  fullyParallel: false, workers: 1, retries: 0, timeout: 120000,
+  expect: { timeout: 15000 },
+  use: { baseURL: 'http://localhost:4314', trace: 'retain-on-failure', screenshot: 'only-on-failure', viewport: { width: 1440, height: 1000 }, launchOptions: { args: ['--enable-webgl', '--enable-unsafe-swiftshader'] } },
+  webServer: { command: 'node apps/aiao-bom-2/scripts/preview.mjs --root dist/apps/aiao-bom-2/browser --port 4314', url: 'http://localhost:4314', reuseExistingServer: false, cwd: workspaceRoot },
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }]
 });

@@ -2,7 +2,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 const app = path.resolve(import.meta.dirname, '..');
-const sourceDir = process.env.BOM_SOURCE_DIR;
+const sourceDir = process.env.BOM_SOURCE_DIR || path.join(app, 'fixtures/windrose-2026-11-13');
 const origin = 'https://www.windrose.ai';
 const sources = {
   bom: ['BOM-inline-data.json', '/bom?lang=zh'],
@@ -16,7 +16,7 @@ const hashes = [];
 async function readSource(key) {
   const [name, url] = sources[key];
   const raw = sourceDir ? await readFile(path.join(sourceDir, name), 'utf8') : await (await fetch(origin + url)).text();
-  hashes.push({ url: origin + url, sha256: createHash('sha256').update(raw).digest('hex') });
+  hashes.push({ url: origin + url, file: name, hashScope: key === 'bom' ? 'extracted inline DATA JSON' : 'complete source response', sha256: createHash('sha256').update(raw).digest('hex') });
   if (key === 'hierarchy') return JSON.parse(raw.split('export const SHARED =')[1].trim().replace(/;\s*$/, ''));
   if (key === 'spares') return JSON.parse(raw.replace(/^window.SP_DATA\s*=\s*/, '').trim().replace(/;\s*$/, ''));
   if (key === 'bom' && !sourceDir) return JSON.parse(raw.split('\n').find(x => x.includes('const DATA = ')).split('const DATA = ')[1].trim().replace(/;$/, ''));
@@ -72,6 +72,7 @@ const cad = gltf.nodes.map((node, index) => {
   const extra = node.extras || {}; const id = gid(extra.item_id || extra.gid || node.name || `node-${index}`); const p = partMap.get(id);
   return { key: `cad:${index}`, parentKey: parents.has(index) ? `cad:${parents.get(index)}` : null, partId: id, label: p?.name || node.name || id, compId: extra.item_id || extra.gid || node.name || id, kind: node.children?.length ? 'assembly' : 'part', source: 'cad', markets: ['EU'], quantity: null, quantityState: 'missing', uom: '件', sourceRef: `glTF node ${index} · ${extra.system_id || ''}`, nodeIndex: index };
 });
+hashes.sort((a, b) => a.url.localeCompare(b.url));
 const data = { schema: 'aiao-bom-2/1', id: 'windrose-2026-11-13', title: 'Windrose R700', version: 'Gen 2 · 来源标签 2026-12', observedOn: '2026-11-13', parts, structures: { catalog: catalogNodes, purchase, cad, draft: [] }, vehicle: { url: '/models/eu-x9d13.glb', bytes: glb.length, label: 'EU · X9D13C · 参考模型', units: 'mm' }, sourceUrls: hashes.map(s => s.url) };
 await mkdir(path.join(app, 'public/data'), { recursive: true });
 await writeFile(path.join(app, 'public/data/windrose.json'), JSON.stringify(data));

@@ -21,7 +21,10 @@ export class ModelViewport {
   private readonly raycaster = new THREE.Raycaster();
   private readonly objects = new Map<number, THREE.Object3D>();
   private readonly identities: ModelNodeIdentity[] = [];
+  private readonly sourceHidden = new Set<THREE.Mesh>();
   private readonly originalMaterials = new Map<THREE.Mesh, THREE.Material | THREE.Material[]>();
+  private readonly highlightCache = new Map<THREE.Material, THREE.Material>();
+  private readonly ghostMaterial = new THREE.MeshStandardMaterial({ color: 0xa7bdb9, transparent: true, opacity: 0.09, depthWrite: false });
   private readonly highlightMaterials = new Set<THREE.Material>();
   private root: THREE.Group | null = null;
   private meshes: THREE.Mesh[] = [];
@@ -85,12 +88,18 @@ export class ModelViewport {
     this.clear(); this.root = gltf.scene;
     this.root.scale.setScalar(0.001);
     this.scene.add(this.root);
-    gltf.parser.associations.forEach((reference, object) => { if (reference.nodes !== undefined && object instanceof THREE.Object3D) this.objects.set(reference.nodes, object); });
+    gltf.parser.associations.forEach((reference, object) => { if (reference?.nodes !== undefined && object instanceof THREE.Object3D) this.objects.set(reference.nodes, object); });
     this.objects.forEach((object, index) => {
       const compId = String(object.userData['item_id'] ?? object.userData['gid'] ?? object.name);
       this.identities.push({ index, partId: partGroup(compId), compId, systemId: String(object.userData['system_id'] ?? '') });
     });
-    this.root.traverse(object => { if (object instanceof THREE.Mesh) { this.meshes.push(object); this.originalMaterials.set(object, object.material); } });
+    this.root.traverse(object => {
+      if (!(object instanceof THREE.Mesh)) return;
+      let parent: THREE.Object3D | null = object;
+      while (parent) { if (parent.userData['removed_by_pose_fix'] || parent.userData['_gen2Superseded']) this.sourceHidden.add(object); parent = parent.parent; }
+      this.meshes.push(object); this.originalMaterials.set(object, object.material);
+      object.visible = !this.sourceHidden.has(object);
+    });
     if (standalone) this.pendingSelection = null;
     this.fit();
     if (this.pendingSelection) this.select(this.pendingSelection);
@@ -104,7 +113,7 @@ export class ModelViewport {
     const selected = selectModelNodes(this.identities, row);
     const system = row.kind === 'system' ? this.identities.filter(n => n.partId.startsWith(row.compId)) : this.identities.filter(n => n.systemId === row.compId);
     const indices = system.length && !selected.indices.length ? system.map(n => n.index) : selected.indices;
-    for (const index of indices) this.objects.get(index)?.traverse(object => { if (object instanceof THREE.Mesh) this.selectedMeshes.add(object); });
+    for (const index of indices) this.objects.get(index)?.traverse(object => { if (object instanceof THREE.Mesh && !this.sourceHidden.has(object)) this.selectedMeshes.add(object); });
     for (const mesh of this.selectedMeshes) this.highlight(mesh);
     this.applyVisibility(); this.render();
     return { count: this.selectedMeshes.size, level: system.length && !selected.indices.length ? 'system' : selected.level };
@@ -125,7 +134,7 @@ export class ModelViewport {
     this.disposed = true; this.cancel(); cancelAnimationFrame(this.frame); this.observer.disconnect(); this.controls.dispose(); this.draco.dispose();
     this.renderer.domElement.removeEventListener('pointerdown', this.pointerDown);
     this.renderer.domElement.removeEventListener('pointerup', this.pointerUp);
-    this.clear(); this.renderer.dispose(); this.renderer.forceContextLoss(); this.renderer.domElement.remove();
+    this.clear(); this.ghostMaterial.dispose(); this.renderer.dispose(); this.renderer.forceContextLoss(); this.renderer.domElement.remove();
   }
 
   private readonly render = (): void => {
@@ -146,6 +155,7 @@ export class ModelViewport {
       object = object.parent;
     }
   };
+
   private resize(): void {
     const { width, height } = this.host.getBoundingClientRect();
     if (!width || !height) return;
@@ -162,33 +172,31 @@ export class ModelViewport {
   private highlight(mesh: THREE.Mesh): void {
     const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
     const clones = materials.map(material => {
+      const cached = this.highlightCache.get(material);
+      if (cached) return cached;
       const clone = material.clone();
-      if (clone instanceof THREE.MeshStandardMaterial) { clone.color.set(0x8070e6); clone.emissive.set(0x48369a); clone.emissiveIntensity = 0.25; }
-      this.highlightMaterials.add(clone); return clone;
+      if (clone instanceof THREE.MeshStandardMaterial) { clone.color.set(0x21a07c); clone.emissive.set(0x137357); clone.emissiveIntensity = 0.25; }
+      this.highlightCache.set(material, clone); this.highlightMaterials.add(clone); return clone;
     });
     mesh.material = Array.isArray(mesh.material) ? clones : clones[0];
   }
   private resetSelection(): void {
-    this.originalMaterials.forEach((material, mesh) => { mesh.material = material; mesh.visible = true; });
+    this.originalMaterials.forEach((material, mesh) => { mesh.material = material; mesh.visible = !this.sourceHidden.has(mesh); });
     for (const material of this.highlightMaterials) material.dispose();
-    this.highlightMaterials.clear(); this.selectedMeshes.clear();
+    this.highlightMaterials.clear(); this.highlightCache.clear(); this.selectedMeshes.clear();
   }
   private applyVisibility(): void {
     for (const mesh of this.meshes) {
       const selected = this.selectedMeshes.has(mesh);
-      mesh.visible = !this.isolated || !this.selectedMeshes.size || selected;
+      mesh.visible = !this.sourceHidden.has(mesh) && (!this.isolated || !this.selectedMeshes.size || selected);
       if (this.ghosted && this.selectedMeshes.size && !selected) this.makeGhost(mesh);
     }
   }
-  private makeGhost(mesh: THREE.Mesh): void {
-    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    const ghosts = materials.map(material => { const copy = material.clone(); copy.transparent = true; copy.opacity = 0.09; copy.depthWrite = false; this.highlightMaterials.add(copy); return copy; });
-    mesh.material = Array.isArray(mesh.material) ? ghosts : ghosts[0];
-  }
+  private makeGhost(mesh: THREE.Mesh): void { mesh.material = this.ghostMaterial; }
   private clear(): void {
     this.resetSelection();
     if (this.root) { this.scene.remove(this.root); this.releaseRoot(this.root); }
-    this.root = null; this.meshes = []; this.objects.clear(); this.identities.length = 0; this.originalMaterials.clear();
+    this.root = null; this.meshes = []; this.objects.clear(); this.identities.length = 0; this.originalMaterials.clear(); this.sourceHidden.clear();
   }
   private releaseRoot(root: THREE.Object3D): void {
     const geometries = new Set<THREE.BufferGeometry>(); const materials = new Set<THREE.Material>(); const textures = new Set<THREE.Texture>();

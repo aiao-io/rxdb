@@ -54,3 +54,22 @@ describe('BOM 草稿与导入导出', () => {
     expect(compareDrafts(draft, changed)).toEqual(expect.arrayContaining([expect.objectContaining({ key: draft.nodes[1].key, field: 'quantity' })]));
   });
 });
+
+describe('身份和导入边界', () => {
+  it('JSON 往返保留 CAD 节点与修订，不能伪造不合法索引', () => {
+    const data = makeStressDataset(3);
+    const draft = createDraft(data, data.structures.catalog);
+    draft.revision = 8; draft.nodes[1].nodeIndex = 17;
+    expect(parseImport(JSON.stringify(draft)).nodes[1].nodeIndex).toBe(17);
+    expect(parseImport(JSON.stringify(draft)).revision).toBe(8);
+    draft.nodes[1].nodeIndex = -1;
+    expect(() => parseImport(JSON.stringify(draft))).toThrow('索引');
+  });
+  it('追加数量不允许伪造已确认空值，导入拒绝未知市场', () => {
+    const data = makeStressDataset(3);
+    const draft = createDraft(data, data.structures.catalog);
+    const raw = JSON.parse(JSON.stringify(draft)) as { nodes: Array<{ markets: unknown }> };
+    raw.nodes[0].markets = ['UNKNOWN'];
+    expect(() => parseImport(JSON.stringify(raw))).toThrow('市场');
+  });
+});
