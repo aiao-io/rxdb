@@ -48,6 +48,23 @@ export default [
             {
               sourceTag: '*',
               onlyDependOnLibsWithTags: ['*']
+            },
+            {
+              // 产品私有的领域包只放纯函数：不依赖界面、服务端入口或 AI SDK（requirements/application-governance.md）
+              sourceTag: 'layer:domain',
+              notDependOnLibsWithTags: ['layer:ui', 'layer:server', 'type:app'],
+              bannedExternalImports: [
+                '@angular/*',
+                'react',
+                'react-dom',
+                'vue',
+                '@trigger.dev/*',
+                'trigger.dev',
+                'ai',
+                '@ai-sdk/*',
+                'wrangler',
+                '@cloudflare/*'
+              ]
             }
           ]
         }

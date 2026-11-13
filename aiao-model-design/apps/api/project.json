@@ -1,0 +1,85 @@
+{
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "name": "aiao-model-design-api",
+  "projectType": "application",
+  "sourceRoot": "aiao-model-design/apps/api/src",
+  "tags": ["scope:model-design", "type:app", "layer:server"],
+  "targets": {
+    "typecheck": {
+      "cache": true,
+      "executor": "nx:run-commands",
+      "inputs": ["default", "^default"],
+      "options": {
+        "command": "tsc --project aiao-model-design/apps/api/tsconfig.json --noEmit"
+      },
+      "dependsOn": ["^typecheck"]
+    },
+    "build": {
+      "cache": true,
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/dist/aiao-model-design/apps/api"],
+      "dependsOn": [
+        {
+          "projects": ["aiao-model-design-web"],
+          "target": "build"
+        }
+      ],
+      "options": {
+        "cwd": "aiao-model-design/apps/api",
+        "command": "wrangler deploy --dry-run --outdir ../../../dist/aiao-model-design/apps/api"
+      }
+    },
+    "dev": {
+      "executor": "nx:run-commands",
+      "continuous": true,
+      "cache": false,
+      "dependsOn": [{ "projects": ["aiao-model-design"], "target": "dev-config" }],
+      "readyWhen": { "url": "http://127.0.0.1:8788/health" },
+      "options": {
+        "cwd": "aiao-model-design/apps/api",
+        "command": "node scripts/serve-api.mjs --port 8788 --config .wrangler/local-dev/wrangler.json"
+      }
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        {
+          "projects": ["aiao-model-design-web"],
+          "target": "build"
+        }
+      ],
+      "options": {
+        "cwd": "aiao-model-design/apps/api",
+        "command": "node scripts/serve-api.mjs"
+      }
+    },
+    "test-worker": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        {
+          "projects": ["aiao-model-design-web"],
+          "target": "build"
+        }
+      ],
+      "options": {
+        "command": "node aiao-model-design/apps/api/scripts/test-worker.mjs"
+      }
+    },
+    "deploy": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "test",
+        "typecheck",
+        {
+          "projects": ["aiao-model-design-web"],
+          "target": "build"
+        }
+      ],
+      "options": {
+        "cwd": "aiao-model-design/apps/api",
+        "command": "wrangler deploy"
+      }
+    }
+  }
+}

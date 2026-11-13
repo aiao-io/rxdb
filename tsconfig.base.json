@@ -21,6 +21,8 @@
     "noImplicitReturns": true,
     "noUnusedLocals": true,
     "paths": {
+      "@aiao-model-design/model-ops": ["./aiao-model-design/packages/model-ops/src/index.ts"],
+      "@aiao-model-design/model-ops/testing": ["./aiao-model-design/packages/model-ops/src/testing.ts"],
       "@aiao/code-editor": ["./packages/code-editor/src/index.ts"],
       "@aiao/code-editor-angular": ["./packages/code-editor-angular/src/index.ts"],
       "@aiao/code-editor-react": ["./packages/code-editor-react/src/index.ts"],

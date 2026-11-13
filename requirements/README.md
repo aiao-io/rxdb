@@ -13,6 +13,7 @@ Aiao Media 的产品需求位于 [aiao-media/requirements](../aiao-media/require
 Aiao Media 的 Web、Tauri、Cloudflare 后端与管理页面、免费/收费生图和队列、自有 Supabase/平台同步及目录演进，统一见[未来功能需求与目录规划](../aiao-media/requirements/future-requirements.md)。
 
 - [Admin 应用模板孵化](../apps/rxdb-admin-template-react/requirements/README.md)（`ADMIN-US-*`）：在当前仓库推进应用配置与业务扩展，公共后台框架能力继续由 epic-010 管理。
+- [模型设计器持久建模智能体](../aiao-model-design/requirements/README.md)（`MODEL-US-*`）：建模 AI 改为运行在自建 Trigger.dev 上的持久智能体，版本控制等底层能力继续由平台故事管理。
 
 ## 术语
 

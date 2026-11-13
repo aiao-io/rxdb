@@ -1,0 +1,343 @@
+@if (entity(); as ent) {
+  <div
+    class="bg-base-100 border-base-300 flex h-full w-80 flex-col border-l"
+    (keydown.escape)="onPanelEscape()"
+    tabindex="-1"
+  >
+    <!-- Sticky header -->
+    <div class="border-base-300 flex shrink-0 items-center justify-between border-b px-3 py-2">
+      <div class="min-w-0 flex-1 pr-2">
+        <div class="truncate text-sm font-semibold">{{ ent.name }}</div>
+        <div class="text-base-content/50 truncate text-[11px]" [attr.title]="metaSummary()">
+          {{ metaSummary() }}
+        </div>
+      </div>
+      <div class="flex shrink-0 items-center gap-1">
+        <button class="btn btn-outline btn-error btn-xs" (click)="entityDeleted.emit(ent.id)" type="button">
+          {{ t().entityPanel.deleteEntity }}
+        </button>
+        <button
+          class="btn btn-ghost btn-xs btn-square"
+          [attr.aria-label]="t().entityPanel.ariaClose"
+          (click)="closed.emit()"
+          type="button"
+        >
+          <lucide-icon class="h-3.5 w-3.5" [img]="X" />
+        </button>
+      </div>
+    </div>
+
+    <!-- Sticky meta (collapsed by default) -->
+    <div class="border-base-300 shrink-0 border-b">
+      <button
+        class="text-base-content/70 hover:bg-base-200 flex w-full items-center gap-1.5 px-3 py-1.5 text-left text-xs"
+        [attr.aria-expanded]="metaExpanded()"
+        (click)="toggleMeta()"
+        type="button"
+      >
+        <lucide-icon
+          class="h-3 w-3 shrink-0 transition-transform duration-150"
+          [class.rotate-90]="metaExpanded()"
+          [img]="ChevronRight"
+        />
+        <span class="font-medium">
+          {{ t().entityPanel.entityMeta }}
+        </span>
+      </button>
+      @if (metaExpanded()) {
+        <div class="space-y-2 px-3 pb-3">
+          <div>
+            <label class="text-base-content/60 text-xs" [attr.for]="'entity-name-' + ent.id">
+              {{ t().entityPanel.name }}
+            </label>
+            <input
+              class="input input-sm input-bordered w-full"
+              [attr.aria-label]="t().entityPanel.name"
+              [attr.id]="'entity-name-' + ent.id"
+              [class.input-error]="entityForm.name().invalid()"
+              [formField]="entityForm.name"
+              (blur)="emitEntityChangesDebounced()"
+              (input)="emitEntityChangesDebounced()"
+              (keydown.enter)="emitEntityChanges()"
+              autocomplete="off"
+            />
+            @if (entityForm.name().invalid()) {
+              <span class="text-error text-xs">{{ t().validation.entityNameHint }}</span>
+            }
+          </div>
+          <div>
+            <label class="text-base-content/60 text-xs" [attr.for]="'entity-display-' + ent.id">
+              {{ t().entityPanel.displayName }}
+            </label>
+            <input
+              class="input input-sm input-bordered w-full"
+              [attr.aria-label]="t().entityPanel.displayName"
+              [attr.id]="'entity-display-' + ent.id"
+              [formField]="entityForm.displayName"
+              (blur)="emitEntityChangesDebounced()"
+              (input)="emitEntityChangesDebounced()"
+              (keydown.enter)="emitEntityChanges()"
+              autocomplete="off"
+            />
+          </div>
+          <div>
+            <label class="text-base-content/60 text-xs" [attr.for]="'entity-table-' + ent.id">
+              {{ t().entityPanel.tableName }}
+            </label>
+            <input
+              class="input input-sm input-bordered w-full"
+              [attr.aria-label]="t().entityPanel.tableName"
+              [attr.id]="'entity-table-' + ent.id"
+              [class.input-error]="entityForm.tableName().dirty() && entityForm.tableName().invalid()"
+              [formField]="entityForm.tableName"
+              [placeholder]="t().entityPanel.tableNamePlaceholder"
+              (blur)="emitEntityChangesDebounced()"
+              (input)="emitEntityChangesDebounced()"
+              (keydown.enter)="emitEntityChanges()"
+              autocomplete="off"
+            />
+            @if (entityForm.tableName().dirty() && entityForm.tableName().invalid()) {
+              <span class="text-error text-xs">{{ t().validation.tableNameHint }}</span>
+            }
+          </div>
+          <div>
+            <label class="text-base-content/60 text-xs" [attr.for]="'entity-extends-' + ent.id">
+              {{ t().entityPanel.extends }}
+            </label>
+            <select
+              class="select select-sm select-bordered w-full"
+              [attr.id]="'entity-extends-' + ent.id"
+              [formField]="entityForm.extendsBase"
+              (change)="emitEntityChanges()"
+            >
+              @for (opt of extendsOptions; track opt) {
+                <option [value]="opt">{{ opt }}</option>
+              }
+            </select>
+          </div>
+          <div>
+            <label class="text-base-content/60 text-xs" [attr.for]="'entity-ns-' + ent.id">
+              {{ t().entityPanel.namespace }}
+            </label>
+            <input
+              class="input input-sm input-bordered w-full"
+              [attr.aria-label]="t().entityPanel.namespace"
+              [attr.id]="'entity-ns-' + ent.id"
+              [formField]="entityForm.entityNamespace"
+              (blur)="emitEntityChangesDebounced()"
+              (input)="emitEntityChangesDebounced()"
+              (keydown.enter)="emitEntityChanges()"
+              autocomplete="off"
+            />
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Sticky tabs -->
+    <div class="tabs tabs-bordered bg-base-200 shrink-0" role="tablist">
+      <button
+        class="tab tab-sm min-w-0 flex-1 gap-1 px-1"
+        [attr.aria-label]="t().entityPanel.properties"
+        [attr.aria-selected]="activeTab() === 'properties'"
+        [attr.title]="t().entityPanel.properties"
+        [class.tab-active]="activeTab() === 'properties'"
+        (click)="activeTab.set('properties')"
+        role="tab"
+        type="button"
+      >
+        <lucide-icon class="h-3.5 w-3.5 shrink-0" [img]="List" />
+        <span class="truncate">{{ t().entityPanel.properties }}</span>
+        <span class="badge badge-ghost badge-xs">{{ propertyCount() }}</span>
+      </button>
+      <button
+        class="tab tab-sm min-w-0 flex-1 gap-1 px-1"
+        [attr.aria-label]="t().entityPanel.relations"
+        [attr.aria-selected]="activeTab() === 'relations'"
+        [attr.title]="t().entityPanel.relations"
+        [class.tab-active]="activeTab() === 'relations'"
+        (click)="activeTab.set('relations')"
+        role="tab"
+        type="button"
+      >
+        <lucide-icon class="h-3.5 w-3.5 shrink-0" [img]="Link2" />
+        <span class="truncate">{{ t().entityPanel.relations }}</span>
+        <span class="badge badge-ghost badge-xs">{{ relationCount() }}</span>
+      </button>
+      <button
+        class="tab tab-sm min-w-0 flex-1 gap-1 px-1"
+        [attr.aria-label]="t().entityPanel.indexes"
+        [attr.aria-selected]="activeTab() === 'indexes'"
+        [attr.title]="t().entityPanel.indexes"
+        [class.tab-active]="activeTab() === 'indexes'"
+        (click)="activeTab.set('indexes')"
+        role="tab"
+        type="button"
+      >
+        <lucide-icon class="h-3.5 w-3.5 shrink-0" [img]="KeyRound" />
+        <span class="truncate">{{ t().entityPanel.indexes }}</span>
+        <span class="badge badge-ghost badge-xs">{{ indexes().length }}</span>
+      </button>
+    </div>
+
+    <!-- Single scroll body -->
+    <div class="min-h-0 flex-1 overflow-y-auto" #tabBody role="tabpanel">
+      @switch (activeTab()) {
+        @case ('properties') {
+          <div class="space-y-2 p-2">
+            @if (inheritedPropertyGroups().length > 0) {
+              <div class="flex items-center justify-end gap-1">
+                <button
+                  class="btn btn-ghost btn-xs"
+                  (click)="toggleAllGroups(true)"
+                  data-testid="expand-all-groups"
+                  type="button"
+                >
+                  {{ t().entityPanel.expandAllGroups }}
+                </button>
+                <button
+                  class="btn btn-ghost btn-xs"
+                  (click)="toggleAllGroups(false)"
+                  data-testid="collapse-all-groups"
+                  type="button"
+                >
+                  {{ t().entityPanel.collapseAllGroups }}
+                </button>
+              </div>
+            }
+            @for (group of inheritedPropertyGroups(); track group.source) {
+              <div class="border-base-300 border-warning/30 rounded border">
+                <button
+                  class="flex w-full items-center gap-1 px-2 py-1.5"
+                  [attr.aria-expanded]="expandedGroups().has(group.source)"
+                  (click)="toggleGroup(group.source)"
+                  type="button"
+                >
+                  <lucide-icon
+                    class="text-warning h-3 w-3 shrink-0 transition-transform duration-150"
+                    [class.rotate-90]="expandedGroups().has(group.source)"
+                    [img]="ChevronRight"
+                  />
+                  <span class="text-warning text-xs font-medium">
+                    {{ t().entityPanel.inheritedFrom.replace('{source}', group.source) }}
+                  </span>
+                  <span class="badge badge-warning badge-xs">{{ t().entityPanel.readonlyBadge }}</span>
+                </button>
+                @if (expandedGroups().has(group.source)) {
+                  <div class="bg-warning/10 px-2 py-1.5">
+                    @for (prop of group.properties; track prop.name) {
+                      <div class="bg-base-100/50 mt-1 flex items-center gap-2 rounded px-2 py-1 text-xs opacity-60">
+                        <span class="font-mono font-medium">{{ prop.name }}</span>
+                        <span class="badge badge-ghost badge-xs">{{ prop.type }}</span>
+                        @if (prop.category !== 'property') {
+                          <span class="badge badge-outline badge-xs">{{ prop.category }}</span>
+                        }
+                        <span class="text-base-content/40 ml-auto text-xs">{{ prop.displayName }}</span>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            }
+
+            <div class="flex flex-col space-y-2" (cdkDropListDropped)="onPropertyDrop($event)" cdkDropList>
+              @if (customProperties().length === 0) {
+                <div class="text-base-content/50 rounded border border-dashed px-3 py-6 text-center text-xs">
+                  {{ t().entityPanel.emptyProperties }}
+                </div>
+              }
+              @for (prop of customProperties(); track prop.id) {
+                <div cdkDrag>
+                  <lib-property-item
+                    [autoFocus]="focusPropertyId() === prop.id"
+                    [childProperties]="childPropertiesMap().get(prop.id) ?? []"
+                    [expanded]="expandedItemId() === prop.id"
+                    [focusChildId]="focusChildPropertyId()"
+                    [property]="prop"
+                    [siblingNames]="propertyNamesList()"
+                    (childAdded)="addChildProperty(prop.id)"
+                    (childDeleted)="childPropertyDeleted.emit($event)"
+                    (childDropped)="onChildPropertyDrop(prop.id, $event)"
+                    (childUpdated)="childPropertyUpdated.emit($event)"
+                    (deleted)="propertyDeleted.emit(prop.id)"
+                    (expandToggled)="toggleItemExpand(prop.id)"
+                    (focusChildHandled)="focusChildPropertyId.set(null)"
+                    (focusHandled)="focusPropertyId.set(null)"
+                    (updated)="propertyUpdated.emit({ id: prop.id, changes: $event })"
+                  />
+                </div>
+              }
+            </div>
+
+            <div class="entity-panel-add-action border-base-300 bg-base-100 -mx-2 border-t px-2">
+              <button class="btn btn-primary btn-xs btn-block" (click)="addProperty()" type="button">
+                {{ t().entityPanel.addProperty }}
+              </button>
+            </div>
+          </div>
+        }
+        @case ('relations') {
+          <lib-relation-panel
+            [allRelations]="allRelations()"
+            [autoFocusId]="focusRelationId()"
+            [currentEntityName]="ent.name"
+            [entities]="entities()"
+            [expandedGroups]="expandedGroups()"
+            [expandedItemId]="expandedItemId()"
+            [inheritedRelations]="inheritedRelations()"
+            [invalidRelationIds]="invalidRelationIds()"
+            [relationErrors]="relationErrors()"
+            [relations]="relations()"
+            (focusHandled)="focusRelationId.set(null)"
+            (groupBulkToggled)="toggleAllGroups($event)"
+            (groupToggled)="toggleGroup($event)"
+            (itemExpandToggled)="toggleItemExpand($event)"
+            (relationDeleted)="relationDeleted.emit($event)"
+            (relationUpdated)="relationUpdated.emit($event)"
+          />
+
+          <div class="entity-panel-add-action border-base-300 bg-base-100 border-t px-2">
+            <button class="btn btn-primary btn-xs btn-block" (click)="addRelationFromFooter()" type="button">
+              {{ t().relationPanel.addRelation }}
+            </button>
+          </div>
+        }
+        @case ('indexes') {
+          <div class="flex flex-col space-y-2 p-2" (cdkDropListDropped)="onIndexDrop($event)" cdkDropList>
+            @if (indexSnapshots().length === 0) {
+              <div class="text-base-content/50 rounded border border-dashed px-3 py-6 text-center text-xs">
+                {{ t().entityPanel.emptyIndexes }}
+              </div>
+            }
+            @for (idx of indexSnapshots(); track idx.id) {
+              <div cdkDrag>
+                <lib-index-item
+                  [availableProperties]="allPropertiesForIndex()"
+                  [expanded]="expandedItemId() === idx.id"
+                  [index]="idx"
+                  [isDuplicate]="duplicateIndexIds().has(idx.id)"
+                  [isEmpty]="emptyIndexIds().has(idx.id)"
+                  (deleted)="indexDeleted.emit(idx.id)"
+                  (expandToggled)="toggleItemExpand(idx.id)"
+                  (updated)="indexUpdated.emit({ id: idx.id, changes: $event })"
+                />
+              </div>
+            }
+
+            <div class="entity-panel-add-action border-base-300 bg-base-100 -mx-2 border-t px-2">
+              <button
+                class="btn btn-primary btn-xs btn-block"
+                [attr.title]="canAddIndex() ? null : t().entityPanel.addIndexDisabled"
+                [disabled]="!canAddIndex()"
+                (click)="addIndex()"
+                type="button"
+              >
+                {{ t().indexPanel.addIndex }}
+              </button>
+            </div>
+          </div>
+        }
+      }
+    </div>
+  </div>
+}

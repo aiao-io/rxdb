@@ -1,0 +1,19 @@
+{
+  "name": "@aiao-model-design/agent",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@ai-sdk/anthropic": "4.0.39",
+    "@ai-sdk/deepseek": "3.0.28",
+    "@aiao-model-design/model-ops": "workspace:*",
+    "@trigger.dev/sdk": "4.8.3",
+    "ai": "7.0.64",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@ai-sdk/provider": "4.0.7",
+    "@trigger.dev/build": "4.8.3",
+    "trigger.dev": "4.8.3"
+  }
+}

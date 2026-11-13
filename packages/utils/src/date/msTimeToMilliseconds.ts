@@ -1,4 +1,3 @@
-import ms from 'ms';
 import { MS_TIME_PATTERN } from './ms-time-pattern.js';
 
 /**
@@ -6,8 +5,42 @@ import { MS_TIME_PATTERN } from './ms-time-pattern.js';
  */
 export type Milliseconds = number;
 
+const UNIT_MULTIPLIERS: Record<string, number> = {
+  milliseconds: 1,
+  millisecond: 1,
+  msecs: 1,
+  msec: 1,
+  ms: 1,
+  seconds: 1000,
+  second: 1000,
+  secs: 1000,
+  sec: 1000,
+  s: 1000,
+  minutes: 60000,
+  minute: 60000,
+  mins: 60000,
+  min: 60000,
+  m: 60000,
+  hours: 3600000,
+  hour: 3600000,
+  hrs: 3600000,
+  hr: 3600000,
+  h: 3600000,
+  days: 86400000,
+  day: 86400000,
+  d: 86400000,
+  weeks: 604800000,
+  week: 604800000,
+  w: 604800000,
+  years: 31557600000,
+  year: 31557600000,
+  yrs: 31557600000,
+  yr: 31557600000,
+  y: 31557600000
+};
+
 /**
- * `ms`（ms@2.1.3）单位片段，大小写不敏感，与 {@link MS_TIME_PATTERN} 接受的单位同一张表。
+ * `ms` 兼容单位片段，大小写不敏感，与 {@link MS_TIME_PATTERN} 接受的单位同一张表。
  */
 type MSUnit =
   | 'Years'
@@ -88,7 +121,13 @@ export const msTimeToMilliseconds = (value: MSTime | Milliseconds): Milliseconds
     throw new TypeError(`msTimeToMilliseconds: 无法解析为毫秒: ${JSON.stringify(value)}`);
   }
 
-  const result = ms(value);
+  const match = MS_TIME_PATTERN.exec(value);
+  if (!match?.groups) {
+    throw new TypeError(`msTimeToMilliseconds: 无法解析为毫秒: ${JSON.stringify(value)}`);
+  }
+
+  const unit = match.groups['type']?.toLowerCase() ?? 'ms';
+  const result = Number(match.groups['value']) * UNIT_MULTIPLIERS[unit];
   if (!Number.isFinite(result)) {
     throw new TypeError(`msTimeToMilliseconds: 无法解析为毫秒: ${JSON.stringify(value)}`);
   }

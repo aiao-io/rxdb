@@ -1,0 +1,52 @@
+<div class="text-base-content relative flex h-full w-full" #wrapper>
+  <div class="flex-1" #container></div>
+
+  <div
+    class="border-base-300/60 bg-base-100/80 absolute bottom-4 z-1 flex flex-col items-end overflow-hidden rounded-lg border shadow-lg backdrop-blur-sm"
+    [style.right.px]="panelWidth() + 16"
+  >
+    <!-- 小地图 -->
+    <div
+      #minimap
+      [class.bg-base-200/80]="!isDarkMode()"
+      [class.bg-slate-800/80]="isDarkMode()"
+      [class.border-base-300]="!isDarkMode()"
+      [class.border-slate-600]="isDarkMode()"
+    ></div>
+
+    <!-- 精准缩放控制条 -->
+    <div
+      class="flex items-center gap-1 rounded-lg border px-1 shadow-lg backdrop-blur"
+      [class.bg-base-200/80]="!isDarkMode()"
+      [class.bg-slate-800/80]="isDarkMode()"
+      [class.border-base-300]="!isDarkMode()"
+      [class.border-slate-600]="isDarkMode()"
+    >
+      <button
+        class="btn btn-ghost btn-xs h-6 min-h-0 w-6 p-0 text-base leading-none select-none"
+        (click)="zoomOut()"
+        aria-label="缩小"
+      >
+        −
+      </button>
+      <input
+        class="range range-xs w-24"
+        [value]="zoomPercent()"
+        (input)="onZoomRange($event)"
+        aria-label="缩放"
+        max="300"
+        min="30"
+        step="1"
+        type="range"
+      />
+      <button
+        class="btn btn-ghost btn-xs h-6 min-h-0 w-6 p-0 text-base leading-none select-none"
+        (click)="zoomIn()"
+        aria-label="放大"
+      >
+        +
+      </button>
+      <span class="w-9 text-center font-mono text-xs tabular-nums select-none">{{ zoomPercent() }}%</span>
+    </div>
+  </div>
+</div>
