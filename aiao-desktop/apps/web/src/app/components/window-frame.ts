@@ -1,6 +1,17 @@
 import { NgComponentOutlet } from '@angular/common';
-import { Component, ElementRef, Injector, OnInit, Renderer2, computed, inject, input } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  Injector,
+  OnInit,
+  Renderer2,
+  afterNextRender,
+  computed,
+  inject,
+  input
+} from '@angular/core';
 
+import { windowHidden } from '../services/aria';
 import { DesktopWindow, WindowBox, WindowFrameHandle } from '../services/desktop-window';
 import { DockState } from '../services/dock-state';
 import { placeOnScreen } from '../services/window-layout-model';
@@ -40,18 +51,28 @@ const NO_DRAG = 'button,input,.tl,.seg,.sfield,[data-nodrag]';
 /**
  * 一个窗口的外框：宿主元素即 `.win`。拖动、缩放把手、缩放到全屏的补间与
  * 「神灯」最小化动画都在这里；内容由应用组件提供。
+ *
+ * 无障碍（ADESK-US-108）：窗口是 `role="dialog"`（非模态），名称是窗口标题、标题变了名称跟着变；
+ * 只有前台窗口暴露给读屏，后台、最小化、关闭中的窗口 `aria-hidden`（不用 `inert`：它会让鼠标点后台窗口无法把它调到前台）。
+ * 窗口自己有 `tabindex="-1"`：打开、从 Dock 还原、⌘` 切换到它时，键盘焦点回到它里面上次的元素，没有就落在窗口本身，
+ * 读屏念出「标题，对话框」。用 Tab 走进后台窗口的内容时窗口随之成为前台，焦点与前台窗口始终同步。
  */
 @Component({
   selector: 'app-window-frame',
   imports: [NgComponentOutlet],
   host: {
     class: 'win',
+    role: 'dialog',
+    tabindex: '-1',
+    '[attr.aria-hidden]': 'hidden() ? "true" : null',
+    '[attr.aria-label]': 'win().title()',
     '[attr.id]': 'win().id',
     '[attr.data-app]': 'win().appId',
     '[class.opening]': 'win().opening()',
     '[class.closing]': 'win().closing()',
     '[class.front]': 'focused()',
     '[style.z-index]': 'win().zIndex() || 1',
+    '(focusin)': 'focusEntered($event)',
     '(pointerdown)': 'startDrag($event)',
     '(dblclick)': 'titleDoubleClick($event)'
   },
@@ -62,7 +83,12 @@ const NO_DRAG = 'button,input,.tl,.seg,.sfield,[data-nodrag]';
       <ng-container *ngComponentOutlet="status; injector: contentInjector()" />
     }
     @for (edge of edges; track edge) {
-      <div class="rz rz-{{ edge }}" [attr.data-rz]="edge" (pointerdown)="startResize($event, edge)"></div>
+      <div
+        class="rz rz-{{ edge }}"
+        [attr.data-rz]="edge"
+        (pointerdown)="startResize($event, edge)"
+        aria-hidden="true"
+      ></div>
     }
   `
 })
@@ -75,9 +101,14 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
 
   private prev: WindowBox | null = null;
   private genie: Animation | null = null;
+  /** 窗口里上次拿过键盘焦点的元素：回到这个窗口时焦点交还给它。 */
+  private lastFocus: HTMLElement | null = null;
   protected readonly edges = EDGES;
   protected readonly status = WindowStatus;
   protected readonly focused = computed(() => this.wm.focused() === this.win());
+  protected readonly hidden = computed(() =>
+    windowHidden({ focused: this.focused(), minimized: this.win().minimized(), closing: this.win().closing() })
+  );
   protected readonly contentInjector = computed(() =>
     Injector.create({ providers: [{ provide: DesktopWindow, useValue: this.win() }], parent: this.injector })
   );
@@ -87,6 +118,11 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
   constructor() {
     /* 捕获阶段聚焦：内部按钮弹出的菜单要落在已经抬到最前的窗口上。 */
     this.host.addEventListener('pointerdown', event => this.focusOnPress(event), true);
+    /* 用户新开的前台窗口：键盘焦点进到窗口里（应用组件随后自己要焦点，比如终端，则由它覆盖）；
+       桌面启动期间建出的窗口是 quiet 的，不抢焦点。 */
+    afterNextRender(() => {
+      if (this.focused() && !this.win().quiet) this.focusContent();
+    });
   }
 
   ngOnInit(): void {
@@ -98,9 +134,22 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
     if (win.minimized()) this.applyRestoredMinimize();
   }
 
+  focusContent(): void {
+    const last = this.lastFocus;
+    const target = last?.isConnected && this.host.contains(last) && last.getClientRects().length > 0 ? last : this.host;
+    target.focus({ preventScroll: true });
+  }
+
+  holdsFocus(): boolean {
+    const active = this.host.ownerDocument.activeElement;
+    if (active && this.host.contains(active)) return true;
+    return this.focused() && (!active || active === this.host.ownerDocument.body);
+  }
+
   minimize(): void {
     const win = this.win();
     if (win.minimized() || win.busy) return;
+    const hadFocus = this.holdsFocus();
     win.busy = true;
     win.minimized.set(true);
     const rect = this.host.getBoundingClientRect();
@@ -138,7 +187,7 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
       this.host.style.visibility = 'hidden';
       win.hidden.set(true);
       win.busy = false;
-      this.wm.focusFront();
+      this.wm.handOffFocus(win, hadFocus);
     };
     this.genie = animation;
   }
@@ -196,6 +245,12 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
     this.host.style.left = `${placed.left}px`;
     this.host.style.top = `${placed.top}px`;
     this.commitBox();
+  }
+
+  /** 记住窗口里最近拿到焦点的元素；用 Tab 走进后台窗口时，窗口随之成为前台（鼠标按下已在捕获阶段处理）。 */
+  protected focusEntered(event: FocusEvent): void {
+    if (event.target !== this.host) this.lastFocus = event.target as HTMLElement;
+    if (this.wm.tabbing && !this.focused()) this.wm.focus(this.win().id, { dom: false });
   }
 
   protected startDrag(event: PointerEvent): void {
@@ -257,7 +312,7 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
   }
 
   private focusOnPress(event: PointerEvent): void {
-    if (!(event.target as Element).closest('.tl')) this.wm.focus(this.win().id);
+    if (!(event.target as Element).closest('.tl')) this.wm.focus(this.win().id, { dom: false });
   }
 
   private finishRestore(): void {

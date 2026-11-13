@@ -19,7 +19,11 @@ interface Harness {
   readonly wm: WindowManager;
   readonly toast: Toast;
   readonly dom: FakeDom;
-  readonly dock: { bounce: ReturnType<typeof vi.fn>; stopBounce: ReturnType<typeof vi.fn> };
+  readonly dock: {
+    bounce: ReturnType<typeof vi.fn>;
+    stopBounce: ReturnType<typeof vi.fn>;
+    focusApp: ReturnType<typeof vi.fn>;
+  };
 }
 
 function setup(width = 1440, height = 900, apps: DesktopAppRegistry = testApps()): Harness {
@@ -31,17 +35,22 @@ function setup(width = 1440, height = 900, apps: DesktopAppRegistry = testApps()
     ApplicationRuntime,
     { provide: DESKTOP_APPS, useValue: apps }
   ]);
-  const dock = { bounce: vi.fn(), stopBounce: vi.fn() };
+  const dock = { bounce: vi.fn(), stopBounce: vi.fn(), focusApp: vi.fn() };
   TestBed.inject(DockState).attach({ ...dock, rectFor: () => ({ x: 0, y: 0, w: 48, h: 48 }) });
   return { wm: TestBed.inject(WindowManager), toast: TestBed.inject(Toast), dom, dock };
 }
 
-/** 模拟窗口框架组件：最小化、还原与缩放的状态变化与真实框架一致，只是不等动画。 */
+/**
+ * 模拟窗口框架组件：最小化、还原与缩放的状态变化与真实框架一致，只是不等动画；
+ * 键盘焦点用 `holdsFocus` 的返回值控制（默认不在窗口里），`focusContent` 记录被叫了几次。
+ */
 function attachFrame(wm: WindowManager, win: DesktopWindow) {
+  const holdsFocus = vi.fn(() => false);
   const frame = {
     minimize: vi.fn(() => {
+      const hadFocus = holdsFocus();
       win.minimized.set(true);
-      wm.focusFront();
+      wm.handOffFocus(win, hadFocus);
     }),
     restore: vi.fn(() => {
       win.minimized.set(false);
@@ -49,7 +58,9 @@ function attachFrame(wm: WindowManager, win: DesktopWindow) {
       wm.focus(win.id);
     }),
     toggleZoom: vi.fn(() => win.zoomed.update(zoomed => !zoomed)),
-    keepOnScreen: vi.fn()
+    keepOnScreen: vi.fn(),
+    focusContent: vi.fn(),
+    holdsFocus
   };
   win.frame = frame;
   return frame;
@@ -731,5 +742,122 @@ describe('WindowManager 应用实例的生命周期（经应用运行时）', ()
     expect(toast.message()).toBe('Unknown app: notes');
     expect(wm.windows()).toEqual([]);
     expect(dock.bounce).not.toHaveBeenCalled();
+  });
+});
+
+describe('WindowManager 键盘焦点（ADESK-US-108）', () => {
+  it('focus 默认把键盘焦点交给窗口框架；dom: false（鼠标按下）只改前台状态与层叠', () => {
+    const { wm } = setup();
+    const { win, frame } = openFramed(wm, 'notes');
+    const { win: other, frame: otherFrame } = openFramed(wm, 'calculator');
+
+    wm.focus(win.id);
+    expect(frame.focusContent).toHaveBeenCalledTimes(1);
+    expect(otherFrame.focusContent).not.toHaveBeenCalled();
+    expect(wm.focused()).toBe(win);
+
+    wm.focus(other.id, { dom: false });
+    expect(otherFrame.focusContent).not.toHaveBeenCalled();
+    expect(wm.focused()).toBe(other);
+  });
+
+  it('关闭中或不存在的窗口：既不抢前台，也不动键盘焦点', () => {
+    const { wm } = setup();
+    const { win, frame } = openFramed(wm, 'notes');
+    wm.close(win.id);
+    wm.focus(win.id);
+    wm.focus('nope');
+    expect(frame.focusContent).not.toHaveBeenCalled();
+  });
+
+  it('再次打开已经开着的单实例应用：键盘焦点跟着进到那个窗口', () => {
+    const { wm } = setup();
+    const { frame } = openFramed(wm, 'notes');
+    open(wm, 'calculator');
+    open(wm, 'notes');
+    expect(frame.focusContent).toHaveBeenCalledTimes(1);
+  });
+
+  it('⌘` 循环到的窗口拿到键盘焦点，焦点与前台窗口同步', () => {
+    const { wm } = setup();
+    const { win: bottom, frame: bottomFrame } = openFramed(wm, 'notes');
+    open(wm, 'calculator');
+    wm.cycle();
+    expect(wm.focused()).toBe(bottom);
+    expect(bottomFrame.focusContent).toHaveBeenCalledTimes(1);
+  });
+
+  it('关闭窗口时键盘焦点在里面：窗口移除后焦点交给新的前台窗口', () => {
+    const { wm, dock } = setup();
+    const { win: back, frame: backFrame } = openFramed(wm, 'notes');
+    const { win: top, frame: topFrame } = openFramed(wm, 'calculator');
+    topFrame.holdsFocus.mockReturnValue(true);
+
+    wm.close(top.id);
+    expect(backFrame.focusContent).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(CLOSE_MS);
+    expect(wm.focused()).toBe(back);
+    expect(backFrame.focusContent).toHaveBeenCalledTimes(1);
+    expect(dock.focusApp).not.toHaveBeenCalled();
+  });
+
+  it('关闭窗口时键盘焦点在别处（比如用鼠标关了一个后台窗口）：新的前台窗口只改状态，不抢焦点', () => {
+    const { wm, dock } = setup();
+    const { win: back, frame: backFrame } = openFramed(wm, 'notes');
+    const { win: top } = openFramed(wm, 'calculator');
+    wm.close(top.id);
+    vi.advanceTimersByTime(CLOSE_MS);
+    expect(wm.focused()).toBe(back);
+    expect(backFrame.focusContent).not.toHaveBeenCalled();
+    expect(dock.focusApp).not.toHaveBeenCalled();
+  });
+
+  it('关掉最后一个窗口且键盘焦点在里面：焦点落到它的 Dock 图标，用 Enter 就能再打开', () => {
+    const { wm, dock } = setup();
+    const { win, frame } = openFramed(wm, 'notes');
+    frame.holdsFocus.mockReturnValue(true);
+    wm.close(win.id);
+    vi.advanceTimersByTime(CLOSE_MS);
+    expect(dock.focusApp).toHaveBeenCalledExactlyOnceWith('notes');
+  });
+
+  it('最小化走完之后同样交接焦点：有别的窗口去那个窗口，没有就落到 Dock 图标；焦点在别处不动', () => {
+    const { wm, dock } = setup();
+    const { win: back, frame: backFrame } = openFramed(wm, 'notes');
+    const { win: top, frame: topFrame } = openFramed(wm, 'calculator');
+    topFrame.holdsFocus.mockReturnValue(true);
+    wm.minimize(top.id);
+    expect(wm.focused()).toBe(back);
+    expect(backFrame.focusContent).toHaveBeenCalledTimes(1);
+
+    backFrame.holdsFocus.mockReturnValue(true);
+    wm.minimize(back.id);
+    expect(dock.focusApp).toHaveBeenCalledExactlyOnceWith('notes');
+    expect(backFrame.focusContent).toHaveBeenCalledTimes(1);
+  });
+
+  it('handOffFocus 没有前台窗口也不要求焦点时什么也不做', () => {
+    const { wm, dock } = setup();
+    const win = open(wm, 'notes');
+    win.minimized.set(true);
+    wm.handOffFocus(win, false);
+    expect(wm.front()).toBeUndefined();
+    expect(dock.focusApp).not.toHaveBeenCalled();
+  });
+
+  it('tabbing 默认是 false：只有桌面页在按住 Tab 的那一刻才置位', () => {
+    const { wm } = setup();
+    expect(wm.tabbing).toBe(false);
+  });
+
+  it('桌面启动完成之前建出的窗口是 quiet 的（不抢键盘焦点），之后用户打开的不是', () => {
+    const { wm } = setup();
+    expect(wm.started).toBe(false);
+    const early = open(wm, 'notes');
+    expect(early.quiet).toBe(true);
+
+    wm.started = true;
+    const later = open(wm, 'calculator');
+    expect(later.quiet).toBe(false);
   });
 });

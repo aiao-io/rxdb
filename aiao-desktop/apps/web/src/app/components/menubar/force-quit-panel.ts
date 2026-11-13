@@ -5,26 +5,24 @@ import { PopoverService } from '../../services/popover';
 import { WindowManager } from '../../services/window-manager';
 import { Icon } from '../../shared/icon';
 
-/** 「强制退出应用程序」面板。 */
+/** 「强制退出应用程序」面板（`dialog`）：每个运行中的应用是一个按钮，Enter 或空格退出它。 */
 @Component({
   selector: 'app-force-quit-panel',
   imports: [Icon],
-  host: { class: 'pop wide', style: 'width: 280px; padding: 0' },
+  host: {
+    class: 'pop wide',
+    role: 'dialog',
+    'aria-label': 'Force Quit Applications',
+    style: 'width: 280px; padding: 0'
+  },
   template: `
-    <div style="padding: 12px 14px 8px; font-weight: 600">Force Quit Applications</div>
+    <div aria-hidden="true" style="padding: 12px 14px 8px; font-weight: 600">Force Quit Applications</div>
     <div style="max-height: 220px; overflow: auto; padding: 0 6px 6px">
       @for (id of running(); track id) {
-        <div
-          class="mi"
-          [attr.data-q]="id"
-          (click)="quit(id)"
-          (keydown.enter)="quit(id)"
-          style="height: 30px"
-          tabindex="-1"
-        >
+        <button class="mi" [attr.data-q]="id" (click)="quit(id)" style="height: 30px" tabindex="0" type="button">
           <svg class="ico" [appIcon]="apps[id].icon" style="width: 19px; height: 19px"></svg
           ><span>{{ apps[id].name }}</span>
-        </div>
+        </button>
       } @empty {
         <div style="padding: 14px; color: var(--txt-2); font-size: 12.5px">No applications are open.</div>
       }

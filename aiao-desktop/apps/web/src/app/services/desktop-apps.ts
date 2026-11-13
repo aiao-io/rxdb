@@ -310,7 +310,7 @@ const CAPABILITY_NAMES: Readonly<Record<DesktopCapability, true>> = {
   'filesystem:write': true
 };
 
-/** 清单里可声明的全部能力名（阶段 D 的 notification、clipboard、filesystem 先登记，能力在阶段 D 实现）。 */
+/** 清单里可声明的全部能力名。 */
 export const APP_CAPABILITIES = Object.keys(CAPABILITY_NAMES) as readonly DesktopCapability[];
 
 /** 清单授予应用的系统能力；没声明就是没授予（系统入口不开窗口，也没有）。 */

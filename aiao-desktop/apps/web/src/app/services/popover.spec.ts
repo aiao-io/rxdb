@@ -112,3 +112,79 @@ describe('PopoverService', () => {
     expect(popover.active()?.options).toEqual({ x: 30, y: 84, origin: 'top left' });
   });
 });
+
+describe('PopoverService 关闭原因（ADESK-US-108）', () => {
+  it('onClose 带着关闭原因，没有指明时是 dismiss', () => {
+    const popover = setup();
+    const closed = vi.fn();
+    popover.openMenu(items, { x: 0, y: 0, onClose: closed });
+    popover.close();
+    expect(closed).toHaveBeenLastCalledWith('dismiss');
+
+    popover.openMenu(items, { x: 0, y: 0, onClose: closed });
+    popover.close(false, 'escape');
+    expect(closed).toHaveBeenLastCalledWith('escape');
+
+    popover.openMenu(items, { x: 0, y: 0, onClose: closed });
+    popover.close(true, 'command');
+    expect(closed).toHaveBeenLastCalledWith('command');
+    vi.advanceTimersByTime(110);
+    expect(popover.entries()).toEqual([]);
+  });
+
+  it('被新的弹出层顶掉时，旧的收到 replaced：它不该把焦点抢回来', () => {
+    const popover = setup();
+    const closed = vi.fn();
+    popover.openMenu(items, { x: 0, y: 0, onClose: closed });
+    popover.openMenu(items, { x: 5, y: 5 });
+    expect(closed).toHaveBeenCalledExactlyOnceWith('replaced');
+  });
+
+  it('菜单的无障碍名称与左右切换回调随选项一起保存', () => {
+    const popover = setup();
+    const step = vi.fn();
+    popover.openMenu(items, { x: 0, y: 0, label: 'File', step });
+    expect(popover.active()?.options.label).toBe('File');
+    popover.active()?.options.step?.(1);
+    expect(step).toHaveBeenCalledExactlyOnceWith(1);
+  });
+
+  it('contextMenu 可以带菜单名称', () => {
+    const popover = setup();
+    const event = {
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn(),
+      clientX: 1,
+      clientY: 2
+    } as unknown as MouseEvent;
+    popover.contextMenu(event, items, 'Finder');
+    expect(popover.active()?.options).toEqual({ x: 2, y: 3, origin: 'top left', label: 'Finder' });
+  });
+
+  it('menuUnder 由键盘触发时：焦点交给第一项，Esc / Tab / 执行命令后焦点回到锚点；鼠标点开的不动焦点', () => {
+    const popover = setup();
+    const focus = vi.fn();
+    const anchor = {
+      getBoundingClientRect: () => ({ left: 30, bottom: 80 }),
+      focus
+    } as unknown as HTMLElement;
+    popover.menuUnder(anchor, items, { keyboard: true, label: 'Sort By' });
+    const options = popover.active()?.options;
+    expect(options).toMatchObject({ x: 30, y: 84, origin: 'top left', focus: true, label: 'Sort By' });
+
+    for (const reason of ['escape', 'tab', 'command'] as const) {
+      focus.mockClear();
+      options?.onClose?.(reason);
+      expect(focus, reason).toHaveBeenCalledTimes(1);
+    }
+    for (const reason of ['dismiss', 'outside', 'replaced'] as const) {
+      focus.mockClear();
+      options?.onClose?.(reason);
+      expect(focus, reason).not.toHaveBeenCalled();
+    }
+
+    popover.menuUnder(anchor, items, { keyboard: false });
+    expect(popover.active()?.options.focus).toBeUndefined();
+    expect(popover.active()?.options.onClose).toBeUndefined();
+  });
+});

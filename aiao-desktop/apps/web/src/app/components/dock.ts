@@ -17,6 +17,7 @@ import { DockLayoutStore } from '../services/dock-layout';
 import { DockSlotItem, dockSlots, slotIndexAt, temporaryApps } from '../services/dock-layout-model';
 import { DockRect, DockState, DockView } from '../services/dock-state';
 import { FileSystem, describeDiskError } from '../services/file-system';
+import { barIndex } from '../services/focus-order';
 import { MenuEntry } from '../services/menu';
 import { PopoverService } from '../services/popover';
 import { SystemState } from '../services/system-state';
@@ -133,6 +134,18 @@ export class Dock implements DockView, DockDropTarget {
     });
   }
 
+  focusApp(appId: string): void {
+    const id = appId as DesktopAppId;
+    /* 固定的图标，或还有别的窗口开着的未固定应用：图标留着，直接聚焦。否则图标这一帧还在、渲染后会消失，
+       等渲染完把焦点交给相邻的图标（与键盘取消固定同一个机制）。 */
+    const stays = this.layout.pinned(id) || this.wm.byApp(id).length > 0;
+    const key = stays ? appId : this.neighborOf(id);
+    if (key === null) return;
+    const node = this.nodeFor(key);
+    if (stays && node) node.focus();
+    else this.refocus = key;
+  }
+
   rectFor(appId: string): DockRect {
     const size = this.size;
     const rect = this.dock().nativeElement.getBoundingClientRect();
@@ -220,12 +233,18 @@ export class Dock implements DockView, DockDropTarget {
   }
 
   protected iconMenu(event: MouseEvent, appId: DesktopAppId): void {
-    this.popover.contextMenu(event, this.menuFor(appId, false));
+    this.popover.contextMenu(event, this.menuFor(appId, false), this.apps[appId].name);
   }
 
-  /** 聚焦在图标上按 Menu 键或 Shift+F10：弹出同一份菜单，焦点交给第一项，关闭后回到图标。 */
+  /**
+   * 聚焦在图标上：左右方向键、Home、End 在图标之间移动（Dock 是工具栏）；Menu 键或 Shift+F10 弹出同一份菜单，
+   * 焦点交给第一项，关闭后回到图标。
+   */
   protected iconKey(event: KeyboardEvent, appId: DesktopAppId): void {
-    if (!isMenuKey(event)) return;
+    if (!isMenuKey(event)) {
+      this.moveFocus(event, appId);
+      return;
+    }
     event.preventDefault();
     const anchor = event.currentTarget as HTMLElement;
     const rect = anchor.getBoundingClientRect();
@@ -234,8 +253,14 @@ export class Dock implements DockView, DockDropTarget {
       y: rect.top,
       origin: 'bottom left',
       focus: true,
+      label: this.apps[appId].name,
       onClose: () => anchor.focus()
     });
+  }
+
+  /** 图标的无障碍名称：应用名；废纸篓里有东西时说明它是满的（图标画的是满的废纸篓）。 */
+  protected labelOf(app: DesktopAppDefinition): string {
+    return app.id === 'trash' && this.fs.trashFull() ? 'Trash, full' : app.name;
   }
 
   /** Dock 空白玻璃上的右键菜单。 */
@@ -364,6 +389,21 @@ export class Dock implements DockView, DockDropTarget {
       '-',
       toggle
     ];
+  }
+
+  /** 左右方向键、Home、End：焦点在图标之间移动（分隔线不是图标，跳过），到头绕回另一头。 */
+  private moveFocus(event: KeyboardEvent, appId: DesktopAppId): void {
+    const icons = this.slotElements()
+      .map(ref => ref.nativeElement)
+      .filter(node => node.dataset['app'] !== undefined);
+    const next = barIndex(
+      event.key,
+      icons.findIndex(node => node.dataset['app'] === appId),
+      icons.length
+    );
+    if (next === null) return;
+    event.preventDefault();
+    icons[next].focus();
   }
 
   /** 键盘改动 Dock 之后，焦点留在这个图标上；取消固定后图标不复存在（没在运行）就交给相邻的图标。 */

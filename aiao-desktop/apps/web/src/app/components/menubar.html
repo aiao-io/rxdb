@@ -5,93 +5,164 @@
   (contextmenu)="barMenu($event)"
   (mousedown)="deadSpace($event)"
 >
-  <div class="mb-left">
-    <div
+  <div class="mb-left" aria-label="Menu bar" role="menubar">
+    <button
       class="mb-item apple"
+      #menuItem
+      [attr.aria-expanded]="openMenu() === 'apple'"
       [class.open]="openMenu() === 'apple'"
+      (click)="pressMenu($event, 'apple')"
+      (keydown)="barKey($event, 'apple')"
       (mousedown)="toggleMenu($event, 'apple')"
       (mouseenter)="hoverMenu($event, 'apple')"
+      aria-haspopup="menu"
+      aria-label="Apple"
       data-menu="apple"
+      role="menuitem"
+      tabindex="0"
+      type="button"
     >
       <svg appIcon="g-apple" style="width: 13px; height: 16px"></svg>
-    </div>
-    <div id="mb-titles" style="display: flex; align-items: stretch">
+    </button>
+    <div id="mb-titles" role="none" style="display: flex; align-items: stretch">
       @for (title of titles(); track $index) {
-        <div
+        <button
           class="mb-item"
+          #menuItem
+          [attr.aria-expanded]="openMenu() === '' + $index"
           [attr.data-menu]="$index"
           [class.app]="$first"
           [class.open]="openMenu() === '' + $index"
+          (click)="pressMenu($event, '' + $index)"
+          (keydown)="barKey($event, '' + $index)"
           (mousedown)="toggleMenu($event, '' + $index)"
           (mouseenter)="hoverMenu($event, '' + $index)"
+          aria-haspopup="menu"
+          role="menuitem"
+          tabindex="0"
+          type="button"
         >
           {{ title }}
-        </div>
+        </button>
       }
     </div>
   </div>
   <div class="mb-right">
-    <div id="mb-status">
-      <div
+    <div id="mb-status" aria-label="Status menus" role="toolbar">
+      <button
         class="mb-st"
+        #statusItem
+        [attr.aria-expanded]="openStatus() === 'bt'"
+        [attr.aria-label]="labels().bt"
         [class.open]="openStatus() === 'bt'"
         [style.opacity]="system.bluetooth() ? '1' : '.45'"
-        (mousedown)="status($event, 'bt')"
+        (click)="pressStatus($event, 'bt')"
+        (keydown)="statusKey($event, 'bt')"
+        (mousedown)="toggleStatus($event, 'bt')"
+        aria-haspopup="dialog"
         data-st="bt"
-        title="Bluetooth"
+        tabindex="0"
+        type="button"
       >
         <svg appIcon="g-bt" style="width: 11px; height: 16px"></svg>
-      </div>
-      <div
+      </button>
+      <button
         class="mb-st"
+        #statusItem
+        [attr.aria-expanded]="openStatus() === 'vol'"
+        [attr.aria-label]="labels().vol"
         [class.open]="openStatus() === 'vol'"
-        (mousedown)="status($event, 'vol')"
+        (click)="pressStatus($event, 'vol')"
+        (keydown)="statusKey($event, 'vol')"
+        (mousedown)="toggleStatus($event, 'vol')"
+        aria-haspopup="dialog"
         data-st="vol"
-        title="Sound"
+        tabindex="0"
+        type="button"
       >
         <span id="mb-volico"><svg [appIcon]="volumeIcon()" style="width: 16px; height: 13px"></svg></span>
-      </div>
-      <div
+      </button>
+      <button
         class="mb-st"
+        #statusItem
+        [attr.aria-expanded]="openStatus() === 'batt'"
+        [attr.aria-label]="labels().batt"
         [class.open]="openStatus() === 'batt'"
-        (mousedown)="status($event, 'batt')"
+        (click)="pressStatus($event, 'batt')"
+        (keydown)="statusKey($event, 'batt')"
+        (mousedown)="toggleStatus($event, 'batt')"
+        aria-haspopup="dialog"
         data-st="batt"
-        title="Battery"
+        tabindex="0"
+        type="button"
       >
         <span class="batt-pct" id="mb-battpct">{{ system.battery() }}%</span>
         <span id="mb-batt"><app-battery-icon [charging]="system.charging()" [percent]="system.battery()" /></span>
-      </div>
-      <div
+      </button>
+      <button
         class="mb-st"
+        #statusItem
+        [attr.aria-expanded]="openStatus() === 'wifi'"
+        [attr.aria-label]="labels().wifi"
         [class.open]="openStatus() === 'wifi'"
         [style.opacity]="system.wifi() ? '1' : '.45'"
-        (mousedown)="status($event, 'wifi')"
+        (click)="pressStatus($event, 'wifi')"
+        (keydown)="statusKey($event, 'wifi')"
+        (mousedown)="toggleStatus($event, 'wifi')"
+        aria-haspopup="dialog"
         data-st="wifi"
-        title="Wi-Fi"
+        tabindex="0"
+        type="button"
       >
         <svg appIcon="g-wifi" style="width: 16px; height: 13px"></svg>
-      </div>
-      <div class="mb-st" (mousedown)="status($event, 'spot')" data-st="spot" title="Spotlight">
-        <svg appIcon="g-spot" style="width: 14px; height: 14px"></svg>
-      </div>
-      <div
+      </button>
+      <button
         class="mb-st"
+        #statusItem
+        [attr.aria-expanded]="overlays.spotlight() === 'open'"
+        [attr.aria-label]="labels().spot"
+        (click)="pressStatus($event, 'spot')"
+        (keydown)="statusKey($event, 'spot')"
+        (mousedown)="toggleStatus($event, 'spot')"
+        aria-haspopup="dialog"
+        data-st="spot"
+        tabindex="0"
+        type="button"
+      >
+        <svg appIcon="g-spot" style="width: 14px; height: 14px"></svg>
+      </button>
+      <button
+        class="mb-st"
+        #statusItem
+        [attr.aria-expanded]="openStatus() === 'cc'"
+        [attr.aria-label]="labels().cc"
         [class.open]="openStatus() === 'cc'"
-        (mousedown)="status($event, 'cc')"
+        (click)="pressStatus($event, 'cc')"
+        (keydown)="statusKey($event, 'cc')"
+        (mousedown)="toggleStatus($event, 'cc')"
+        aria-haspopup="dialog"
         data-st="cc"
-        title="Control Center"
+        tabindex="0"
+        type="button"
       >
         <svg appIcon="g-cc" style="width: 15px; height: 15px"></svg>
-      </div>
-      <div
+      </button>
+      <button
         class="mb-st"
         id="mb-clock"
+        #statusItem
+        [attr.aria-expanded]="overlays.notifications() === 'open'"
         [class.open]="overlays.notifications() === 'open'"
-        (mousedown)="status($event, 'clock')"
+        (click)="pressStatus($event, 'clock')"
+        (keydown)="statusKey($event, 'clock')"
+        (mousedown)="toggleStatus($event, 'clock')"
+        aria-haspopup="dialog"
         data-st="clock"
+        tabindex="0"
+        type="button"
       >
         {{ clockText() }}
-      </div>
+      </button>
     </div>
   </div>
 </div>

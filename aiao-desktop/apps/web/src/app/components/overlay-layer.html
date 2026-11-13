@@ -1,15 +1,15 @@
 <div id="layer-overlay">
   @if (overlays.launchpad() !== 'closed') {
-    <app-launchpad />
+    <app-launchpad [appFocusTrap]="overlays.launchpad() === 'open'" [trapInitialFocus]="false" />
   }
   @if (overlays.spotlight() !== 'closed') {
-    <app-spotlight />
+    <app-spotlight [appFocusTrap]="overlays.spotlight() === 'open'" [trapInitialFocus]="false" />
   }
   @if (overlays.notifications() !== 'closed') {
-    <app-notification-centre />
+    <app-notification-centre [appFocusTrap]="overlays.notifications() === 'open'" />
   }
   @if (warmPanels()) {
-    <div class="nosel" id="lpad" style="opacity: 0.002; animation: none; pointer-events: none">
+    <div class="nosel" id="lpad" aria-hidden="true" style="opacity: 0.002; animation: none; pointer-events: none">
       <div class="grid">
         @for (id of warmApps; track id) {
           <div class="app">
@@ -19,12 +19,18 @@
         }
       </div>
     </div>
-    <div class="nosel" id="nc" style="opacity: 0.002; transform: none; animation: none; pointer-events: none"></div>
+    <div
+      class="nosel"
+      id="nc"
+      aria-hidden="true"
+      style="opacity: 0.002; transform: none; animation: none; pointer-events: none"
+    ></div>
   }
   @if (warmGenie()) {
     <div
       class="win mini"
       #genie
+      aria-hidden="true"
       style="
         left: 40px;
         top: 40px;
@@ -46,4 +52,4 @@
     <app-popover-entry [entry]="entry" />
   }
 </div>
-<div id="dimmer" [style.opacity]="dim()"></div>
+<div id="dimmer" [style.opacity]="dim()" aria-hidden="true"></div>

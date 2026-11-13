@@ -2,10 +2,14 @@
   @if (run.mode === 'off') {
     <div
       id="boot"
+      #off
       (click)="session.restart()"
       (keydown.enter)="session.restart()"
+      (keydown.space)="restartByKey($event)"
+      aria-label="Start up"
+      role="button"
       style="cursor: var(--cur-hand)"
-      tabindex="-1"
+      tabindex="0"
     >
       <div style="font-size: 13px; color: rgba(255, 255, 255, 0.5); position: absolute; bottom: 16%">
         Click anywhere to start up
@@ -14,13 +18,17 @@
   } @else {
     <div
       id="boot"
+      [attr.aria-valuenow]="progress()"
       [class.nosel]="run.mode === 'startup'"
       [class.out]="leaving()"
       (click)="skip(run)"
       (keydown.enter)="skip(run)"
-      tabindex="-1"
+      aria-label="Starting up"
+      aria-valuemax="100"
+      aria-valuemin="0"
+      role="progressbar"
     >
-      <svg class="bl" viewBox="0 0 15 18"><use href="#g-apple" /></svg>
+      <svg class="bl" aria-hidden="true" viewBox="0 0 15 18"><use href="#g-apple" /></svg>
       <div class="bar"><i [style.width.%]="progress()"></i></div>
     </div>
   }

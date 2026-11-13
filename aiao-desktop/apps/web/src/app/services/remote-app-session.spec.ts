@@ -6,6 +6,7 @@ import { WINDOW_PROP } from '@aiao/orbit/window';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { StubApp, testApps } from '../testing/desktop-apps';
+import { fakeHostServices } from '../testing/fake-host-services';
 import { FakeOrbitRuntime } from '../testing/fake-orbit';
 import { fakeWindows } from '../testing/fake-windows';
 import { BindOptions, DesktopAppContext } from './app-context';
@@ -49,9 +50,12 @@ function setup({ capabilities = CODE, frame = 'transparent' }: Setup = {}) {
   const { windows, focused } = fakeWindows();
   const system = new SystemState();
   const theme = { setAppearance: vi.fn(), setAccent: vi.fn() };
+  const services = fakeHostServices();
+  const bound: BindOptions[] = [];
   const contexts: { bind: (win: DesktopWindow, options?: BindOptions) => DesktopAppContext } = {
-    bind: (target, options) =>
-      new DesktopAppContext({
+    bind: (target, options) => {
+      bound.push(options ?? {});
+      return new DesktopAppContext({
         win: target,
         capabilities: (target.app as WebAppManifest).capabilities ?? [],
         apps: registry,
@@ -59,12 +63,19 @@ function setup({ capabilities = CODE, frame = 'transparent' }: Setup = {}) {
         system,
         theme,
         chrome: options?.chrome,
-        notify: options?.notify ?? vi.fn()
-      })
+        notify: options?.notify ?? vi.fn(),
+        notifications: services.notifications,
+        clipboard: services.clipboard,
+        panels: services.panels,
+        files: services.files,
+        refocus: options?.refocus,
+        newHandle: services.newHandle
+      });
+    }
   };
   const session = new RemoteAppSession({ win, app: win.app as WebAppManifest, orbit, runtime, contexts });
   const container = {} as HTMLElement;
-  return { session, win, orbit, runtime, windows, focused, system, container };
+  return { session, win, orbit, runtime, windows, focused, system, container, services, bound };
 }
 
 /** 模拟线上请求：调用实例上登记的处理函数。 */
@@ -392,5 +403,220 @@ describe('RemoteAppSession：关闭（AC#14）', () => {
     await started;
     expect(win.state()).toBe('loading');
     expect(win.failure()).toBeNull();
+  });
+});
+
+describe('RemoteAppSession：文件与剪贴板能力经 Orbit（AC#11、#12、#16、#17）', () => {
+  const FILES = ['window', 'filesystem:read', 'filesystem:write', 'clipboard:read', 'clipboard:write'] as const;
+  const DOC = ['Users', 'prasenjit', 'Documents', 'note.md'];
+  /** 线上请求：带请求 ID 的需要用户操作的请求，应答「已受理」，最终结果经完成事件送达。 */
+  const settled = (orbit: FakeOrbitRuntime) =>
+    orbit.last.emitted.filter(([event]) => event === 'desktop.request.settled').map(([, payload]) => payload);
+  const idle = () => vi.advanceTimersByTimeAsync(0);
+
+  async function ready(capabilities: readonly DesktopCapability[] = FILES) {
+    const context = setup({ capabilities });
+    const started = context.session.start(context.container);
+    context.orbit.last.becomeReady();
+    await started;
+    return context;
+  }
+
+  it('打开：应答「已受理」，用户在桌面面板里选定之后，内容与凭证经完成事件到达应用（字节是 base64）', async () => {
+    const { win, orbit, services } = await ready();
+    const reply = await call(orbit.last.handlers, 'desktop.filesystem.open', {
+      instanceId: win.instanceId,
+      args: { accept: ['.md'] },
+      requestId: 'r1'
+    });
+    expect(reply).toEqual({ ok: true, value: null });
+    await idle();
+    expect(services.panels.top?.request).toMatchObject({ mode: 'open', accept: ['.md'], app: { name: 'Aiao Code' } });
+    expect(settled(orbit)).toEqual([]);
+    services.panels.top!.submit({ kind: 'open', path: DOC });
+    await idle();
+    expect(settled(orbit)).toEqual([
+      {
+        requestId: 'r1',
+        envelope: {
+          ok: true,
+          value: { name: 'note.md', mime: 'text/markdown', size: 5, bytes: 'aGVsbG8=', handle: 'h1', version: '1000:5' }
+        }
+      }
+    ]);
+  });
+
+  it('用户在面板里停留很久也不超时：面板开着时过了宿主的处理时限（5 秒）与应用的兜底时限（7 秒），选定后仍然成功', async () => {
+    const { win, orbit, services } = await ready();
+    await call(orbit.last.handlers, 'desktop.filesystem.open', {
+      instanceId: win.instanceId,
+      args: {},
+      requestId: 'r1'
+    });
+    await idle();
+    await vi.advanceTimersByTimeAsync(10 * 60_000);
+    expect(settled(orbit)).toEqual([]);
+    services.panels.top!.submit({ kind: 'open', path: DOC });
+    await idle();
+    expect(settled(orbit)).toMatchObject([{ requestId: 'r1', envelope: { ok: true } }]);
+  });
+
+  it('用户取消：完成事件里是 USER_CANCELLED，窗口里没有错误提示，磁盘没碰', async () => {
+    const { win, orbit, services, session } = await ready();
+    await call(orbit.last.handlers, 'desktop.filesystem.open', {
+      instanceId: win.instanceId,
+      args: {},
+      requestId: 'r1'
+    });
+    await idle();
+    services.panels.top!.cancel();
+    await idle();
+    expect(settled(orbit)).toMatchObject([{ envelope: { ok: false, code: 'USER_CANCELLED' } }]);
+    expect(session.notice()).toBeNull();
+    expect(services.files.snapshot).not.toHaveBeenCalled();
+  });
+
+  it('面板还开着时关闭窗口（AC#17）：面板随窗口关闭，请求以 WINDOW_CLOSED 结束（关闭动画里实例还活着，应用收得到），磁盘不变', async () => {
+    const { win, orbit, services, runtime } = await ready();
+    await call(orbit.last.handlers, 'desktop.filesystem.save', {
+      instanceId: win.instanceId,
+      args: { suggestedName: 'a.txt', bytes: 'aGk=' },
+      requestId: 'r1'
+    });
+    await idle();
+    const panel = services.panels.top!;
+    runtime.closing(win);
+    win.beforeClose.next();
+    await idle();
+    expect(panel.closed).toBe(true);
+    expect(settled(orbit)).toMatchObject([{ requestId: 'r1', envelope: { ok: false, code: 'WINDOW_CLOSED' } }]);
+    /* 面板已经收回：用户在关闭的同一刻再选也不会提交任何写入。 */
+    panel.submit({ kind: 'save', dir: ['Users'], name: 'a.txt', replace: true });
+    await idle();
+    expect(services.files.create).not.toHaveBeenCalled();
+    expect(services.files.replace).not.toHaveBeenCalled();
+  });
+
+  it('旧实例迟到的 filesystem.save 被丢弃（AC#17）：窗口关闭、实例销毁之后，带凭证与不带凭证的迟到保存都是 WINDOW_CLOSED，没有写盘', async () => {
+    const { win, orbit, services, session, runtime } = await ready();
+    const first = orbit.last;
+    await call(first.handlers, 'desktop.filesystem.open', { instanceId: win.instanceId, args: {}, requestId: 'r1' });
+    await idle();
+    services.panels.top!.submit({ kind: 'open', path: DOC });
+    await idle();
+    const instanceId = win.instanceId;
+    runtime.closing(win);
+    win.beforeClose.next();
+    session.dispose();
+    runtime.closed(win);
+    const late = (args: unknown, requestId?: string) =>
+      call(first.registered, 'desktop.filesystem.save', { instanceId, args, ...(requestId ? { requestId } : {}) });
+    expect(
+      await late({ handle: 'h1', suggestedName: 'late', bytes: 'bGF0ZQ==', expectedVersion: '1000:5' })
+    ).toMatchObject({
+      ok: false,
+      code: 'WINDOW_CLOSED'
+    });
+    expect(await late({ suggestedName: 'late.txt', bytes: 'bGF0ZQ==' }, 'late-1')).toMatchObject({
+      ok: false,
+      code: 'WINDOW_CLOSED'
+    });
+    expect(services.files.replace).not.toHaveBeenCalled();
+    expect(services.files.create).not.toHaveBeenCalled();
+    expect(services.panels.shown).toHaveLength(1);
+  });
+
+  it('重试出了新实例（AC#16④）：旧实例迟到的保存按实例 ID 丢弃；新实例用旧凭证是 HANDLE_INVALID，磁盘不变', async () => {
+    const { win, orbit, services, session } = await ready();
+    const first = orbit.last;
+    await call(first.handlers, 'desktop.filesystem.open', { instanceId: win.instanceId, args: {}, requestId: 'r1' });
+    await idle();
+    services.panels.top!.submit({ kind: 'open', path: DOC });
+    await idle();
+    const oldInstance = win.instanceId;
+    first.failWith(new OrbitError('APP_ERROR', 'boom'));
+    await idle();
+    const retrying = session.retry();
+    await idle();
+    const second = orbit.last;
+    second.becomeReady();
+    await retrying;
+    expect(win.instanceId).not.toBe(oldInstance);
+    const save = { handle: 'h1', suggestedName: 'x', bytes: 'eA==', expectedVersion: '1000:5' };
+    expect(
+      await call(first.registered, 'desktop.filesystem.save', { instanceId: oldInstance, args: save })
+    ).toMatchObject({
+      ok: false,
+      code: 'WINDOW_CLOSED'
+    });
+    expect(
+      await call(second.handlers, 'desktop.filesystem.save', { instanceId: oldInstance, args: save })
+    ).toMatchObject({
+      ok: false,
+      code: 'WINDOW_CLOSED'
+    });
+    expect(
+      await call(second.handlers, 'desktop.filesystem.save', { instanceId: win.instanceId, args: save })
+    ).toMatchObject({
+      ok: false,
+      code: 'HANDLE_INVALID'
+    });
+    expect(services.files.replace).not.toHaveBeenCalled();
+    expect(win.state()).toBe('ready');
+  });
+
+  it('文件面板关闭后把键盘焦点还给应用的文档：实例就绪才还，已失败或已销毁的不动', async () => {
+    const { session, orbit, bound, container } = setup();
+    const started = session.start(container);
+    const refocus = bound[0]!.refocus!;
+    refocus();
+    expect(orbit.last.calls).not.toContain('focus');
+    orbit.last.becomeReady();
+    await started;
+    refocus();
+    expect(orbit.last.calls.filter(call => call === 'focus')).toHaveLength(1);
+    session.dispose();
+    refocus();
+    expect(orbit.last.calls.filter(call => call === 'focus')).toHaveLength(1);
+  });
+
+  it('剪贴板：写入经应用的用户手势有效期；没有手势是 BROWSER_PERMISSION_DENIED，只回给应用，窗口里没有提示条', async () => {
+    const { win, orbit, services, session } = await ready();
+    const write = (text: string) =>
+      call(orbit.last.handlers, 'desktop.clipboard.writeText', { instanceId: win.instanceId, args: text });
+    expect(await write('with gesture')).toEqual({ ok: true, value: null });
+    services.clipboard.userActive.mockReturnValue(false);
+    expect(await write('without gesture')).toMatchObject({ ok: false, code: 'BROWSER_PERMISSION_DENIED' });
+    expect(services.clipboard.writeText).toHaveBeenCalledExactlyOnceWith('with gesture');
+    expect(session.notice()).toBeNull();
+    expect(
+      await call(orbit.last.handlers, 'desktop.clipboard.readText', { instanceId: win.instanceId, args: null })
+    ).toEqual({ ok: true, value: 'clipboard text' });
+  });
+
+  it('未声明的文件、通知能力（Aiao Code 的最小清单）：稳定的 CAPABILITY_DENIED 与窗口里的可见原因，宿主服务一个也没被碰', async () => {
+    const { win, orbit, services, session } = await ready(['window', 'clipboard:read', 'clipboard:write']);
+    const ask = (method: string, args: unknown) =>
+      call(orbit.last.handlers, `desktop.${method}`, { instanceId: win.instanceId, args });
+    expect(await ask('notification.post', { title: 'T', body: 'B' })).toMatchObject({
+      ok: false,
+      code: 'CAPABILITY_DENIED'
+    });
+    expect(await ask('appearance.set', { appearance: 'dark' })).toMatchObject({ ok: false, code: 'CAPABILITY_DENIED' });
+    expect(
+      await call(orbit.last.handlers, 'desktop.filesystem.open', {
+        instanceId: win.instanceId,
+        args: {},
+        requestId: 'r1'
+      })
+    ).toMatchObject({ ok: false, code: 'CAPABILITY_DENIED' });
+    expect(await ask('filesystem.save', { handle: 'h1', suggestedName: 'a', bytes: '' })).toMatchObject({
+      ok: false,
+      code: 'CAPABILITY_DENIED'
+    });
+    expect(session.notice()?.code).toBe('CAPABILITY_DENIED');
+    expect(services.notifications.post).not.toHaveBeenCalled();
+    expect(services.panels.show).not.toHaveBeenCalled();
+    expect(services.files.replace).not.toHaveBeenCalled();
   });
 });

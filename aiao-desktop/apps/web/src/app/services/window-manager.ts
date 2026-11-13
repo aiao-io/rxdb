@@ -51,6 +51,18 @@ export class WindowManager {
   readonly windows = this.windowsState.asReadonly();
   readonly focused = this.focusedState.asReadonly();
 
+  /**
+   * 正按着 Tab（桌面页在 keydown 到 keyup 之间置位）。窗口据此区分「用 Tab 走进了后台窗口」（该窗口随之成为前台）
+   * 与「脚本给后台窗口里的元素设了焦点」（应用自己初始化，不该打乱前台）。
+   */
+  tabbing = false;
+
+  /**
+   * 桌面启动完成（窗口恢复结束、默认的 Finder 已打开）。在它之前建出的窗口标记为 `quiet`，不抢键盘焦点，
+   * 页面刚打开时第一次 Tab 因此从菜单栏开始；由桌面页在启动流程结束时置位。
+   */
+  started = false;
+
   /** 菜单栏跟随最后获得焦点、且尚未移除的窗口；没有时回到 Finder。 */
   readonly menubarOwner = computed(() => {
     const focused = this.focusedState();
@@ -114,6 +126,7 @@ export class WindowManager {
     const left = Math.round(clamp((innerWidth - width) / 2 - 90 + step, 14, innerWidth - width - 14));
     const top = Math.round(clamp(mb + 26 + step, mb + 6, innerHeight - height - 90));
     const win = new DesktopWindow(`w${++this.seq}`, app, options, { left, top, width, height });
+    win.quiet = !this.started;
 
     this.windowsState.update(list => [...list, win]);
     this.runtime.start(win);
@@ -147,6 +160,7 @@ export class WindowManager {
     const min = { width: app.minW ?? DEFAULT_MIN_WIDTH, height: app.minH ?? DEFAULT_MIN_HEIGHT };
     const box = fitBox(spec.box, { width: innerWidth, height: innerHeight }, this.menubarHeight(), min);
     const win = new DesktopWindow(`w${++this.seq}`, app, spec.options, box);
+    win.quiet = !this.started;
     win.opening.set(false);
     win.zIndex.set(spec.layer);
     win.zoomed.set(spec.zoomed);
@@ -165,11 +179,16 @@ export class WindowManager {
     if (win) this.runtime.activate(win);
   }
 
-  focus(id: string): void {
+  /**
+   * 把窗口调到前台。键盘焦点默认跟着进去（⌘`、再次打开、从 Dock 菜单选窗口）；
+   * 鼠标按下已经决定了焦点落在哪个元素，调用方传 `dom: false` 只改前台状态与层叠。
+   */
+  focus(id: string, { dom = true }: { readonly dom?: boolean } = {}): void {
     const win = this.get(id);
     if (!win || win.closing()) return;
     this.raise(win);
     this.focusedState.set(win);
+    if (dom) win.frame?.focusContent();
   }
 
   /** 只抬高层级而不改焦点：还原动画期间避免重绘其他窗口的阴影。 */
@@ -182,9 +201,21 @@ export class WindowManager {
     if (front) this.focus(front.id);
   }
 
+  /**
+   * 窗口离开前台之后（关闭完成、最小化动画结束）：前台交给下一个窗口。`hadFocus` 为真（键盘焦点原本在这个窗口里）时
+   * 焦点跟着去，没有别的窗口就落在它的 Dock 图标上；焦点原本在别处就只改前台状态，不抢用户当前的位置。
+   */
+  handOffFocus(win: DesktopWindow, hadFocus: boolean): void {
+    const front = this.front();
+    if (front) this.focus(front.id, { dom: hadFocus });
+    else if (hadFocus) this.dock.focusApp(win.appId);
+  }
+
   close(id: string): void {
     const win = this.get(id);
     if (!win || win.closing()) return;
+    /* 关窗口的瞬间记下焦点在不在里面：窗口移除之后焦点就丢了。 */
+    const hadFocus = win.frame?.holdsFocus() ?? false;
     win.closing.set(true);
     this.runtime.closing(win);
     win.beforeClose.next();
@@ -192,7 +223,7 @@ export class WindowManager {
     setTimeout(() => {
       this.windowsState.update(list => list.filter(item => item !== win));
       this.runtime.closed(win);
-      this.focusFront();
+      this.handOffFocus(win, hadFocus);
     }, 200);
   }
 

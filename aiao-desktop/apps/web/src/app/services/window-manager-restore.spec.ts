@@ -38,7 +38,7 @@ function setup(width = 1440, height = 900) {
     ApplicationRuntime,
     { provide: DESKTOP_APPS, useValue: apps }
   ]);
-  const dock = { bounce: vi.fn(), stopBounce: vi.fn() };
+  const dock = { bounce: vi.fn(), stopBounce: vi.fn(), focusApp: vi.fn() };
   TestBed.inject(DockState).attach({ ...dock, rectFor: () => ({ x: 0, y: 0, w: 48, h: 48 }) });
   return { wm: TestBed.inject(WindowManager), calls, dock, dom };
 }
@@ -71,7 +71,9 @@ function attachFrame(wm: WindowManager, win: DesktopWindow) {
       wm.focus(win.id);
     }),
     toggleZoom: vi.fn(),
-    keepOnScreen: vi.fn()
+    keepOnScreen: vi.fn(),
+    focusContent: vi.fn(),
+    holdsFocus: vi.fn(() => false)
   };
   win.frame = frame;
   return frame;
@@ -116,6 +118,13 @@ describe('WindowManager 按布局记录重建窗口', () => {
     expect(win.closing()).toBe(false);
     expect(dock.bounce).not.toHaveBeenCalled();
     expect(wm.runningApps()).toEqual(new Set(['finder']));
+  });
+
+  it('桌面启动期间恢复出来的窗口是 quiet 的：不抢键盘焦点，页面刚打开时第一次 Tab 仍从菜单栏开始（ADESK-US-108）', () => {
+    const { wm } = setup();
+    expect(restore(wm, spec('notes')).quiet).toBe(true);
+    wm.started = true;
+    expect(restore(wm, spec('calculator')).quiet).toBe(false);
   });
 
   it('同一个应用可以恢复多个窗口，单实例应用的两个窗口也各自重建（不走“已打开就复用”）', () => {
@@ -281,7 +290,14 @@ describe('WindowManager 激活延后的窗口', () => {
   it('窗口框架还在做别的动画（restore 没生效）时，最小化的窗口仍保持未装载', async () => {
     const { wm, calls } = setup();
     const win = restore(wm, spec('notes', { minimized: true }));
-    win.frame = { minimize: vi.fn(), restore: vi.fn(), toggleZoom: vi.fn(), keepOnScreen: vi.fn() };
+    win.frame = {
+      minimize: vi.fn(),
+      restore: vi.fn(),
+      toggleZoom: vi.fn(),
+      keepOnScreen: vi.fn(),
+      focusContent: vi.fn(),
+      holdsFocus: vi.fn(() => false)
+    };
     wm.unminimize(win.id);
     await settle();
     expect(win.state()).toBe('registered');

@@ -1,5 +1,5 @@
 @if (view(); as problem) {
-  <div class="dp-scrim" data-data-problem>
+  <div class="dp-scrim" appFocusTrap data-data-problem>
     <div class="dp-card" aria-describedby="dp-message" aria-labelledby="dp-title" aria-modal="true" role="alertdialog">
       <h1 id="dp-title" data-dp-title>{{ problem.title }}</h1>
       <p id="dp-message" data-dp-message>{{ problem.message }}</p>
@@ -33,7 +33,7 @@
           @if (problem.canErase) {
             <button class="btn" (click)="ask()" data-dp-ask-erase type="button">Erase Local Data…</button>
           }
-          <button class="btn pri" (click)="reload()" data-dp-reload type="button">Reload</button>
+          <button class="btn pri" (click)="reload()" data-autofocus data-dp-reload type="button">Reload</button>
         </div>
       }
     </div>

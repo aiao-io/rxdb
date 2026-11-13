@@ -236,7 +236,13 @@ export const appLifecycle = {
       );
       parent.postMessage({ protocol: 'aiao.orbit:1', type: 'hello', channel: 'guess' }, '*');
       result.raw = await window.standin.raw('desktop.app.open', { instanceId: instance, args: 'calculator' });
-      result.unknownMethod = await window.standin.raw('desktop.filesystem.open', { instanceId: instance, args: null });
+      /* 方法表里没有的操作（桌面不提供列目录）是 UNKNOWN_METHOD；表里有、但清单没声明的文件能力是 CAPABILITY_DENIED（ADESK-US-206 阶段 D）。 */
+      result.unknownMethod = await window.standin.raw('desktop.filesystem.list', { instanceId: instance, args: null });
+      result.undeclaredFilesystem = await window.standin.raw('desktop.filesystem.open', {
+        instanceId: instance,
+        args: {},
+        requestId: 'bypass-1'
+      });
       result.legacyMenu = await window.standin.raw('menu.set', []);
       return result;
     });
@@ -246,6 +252,8 @@ export const appLifecycle = {
       attempts.raw.ok === true &&
       attempts.raw.value.code === 'CAPABILITY_DENIED' &&
       attempts.unknownMethod.code === 'UNKNOWN_METHOD' &&
+      attempts.undeclaredFilesystem.ok === true &&
+      attempts.undeclaredFilesystem.value.code === 'CAPABILITY_DENIED' &&
       attempts.legacyMenu.code === 'UNKNOWN_METHOD' &&
       (await win('calculator').count()) === 0 &&
       (await webappIn('ready').count()) === 1;

@@ -21,6 +21,7 @@ import { ToggleSwitch } from '../toggle-switch';
             [value]="system.volume()"
             (valueChange)="system.setVolume($event)"
             data-slider="svol"
+            label="Output volume"
             style="max-width: 220px"
           />
           <svg appIcon="g-vol-hi"></svg>

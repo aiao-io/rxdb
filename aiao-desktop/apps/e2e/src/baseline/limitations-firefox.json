@@ -1,0 +1,25 @@
+{
+  "browser": "Playwright Firefox（playwright 1.65，firefox-1572）",
+  "engine": "firefox",
+  "limitations": [
+    {
+      "kind": "check",
+      "key": "integratedApp.keyboardReachesApp",
+      "tier": "有限支持",
+      "reason": "Playwright 的 Firefox 对被 route.fulfill 的跨源 iframe 送不进键盘事件（页面内监听到的事件数为 0，WebKit 全部收到），所以「键盘焦点交给 iframe 里的应用」这一步无法验证；Orbit 握手、就绪、失败重试、最小化与还原在 Firefox 上都通过（integrated-app 其余 25 项、app-lifecycle 27 项）。未验证不等于不可用，也不能声明为已支持。"
+    },
+    {
+      "kind": "group",
+      "group": "transparent-window",
+      "tier": "有限支持",
+      "reason": "透明窗口的检查要点击 iframe 里应用自绘的按钮、在 iframe 内拖动挖空区域，需要把真实输入送进跨源 iframe，Playwright 的 Firefox 做不到（同 integratedApp.keyboardReachesApp）；这一组在 Chromium 与 WebKit 上通过。"
+    },
+    {
+      "kind": "group",
+      "group": "window-layout",
+      "tier": "有限支持",
+      "reason": "AC#3（集成应用窗口刷新后恢复并重新握手）要刷新一个带替身 iframe 的页面，而 Playwright 的 Firefox 无法刷新或导航带有 route.fulfill 跨源 iframe 的页面（最小复现：node src/fixtures/limitation-firefox-iframe.mjs，一个静态页面加一个 iframe 就超时），整组在这一步之前的检查也随之丢失；这一组在 Chromium 与 WebKit 上通过。"
+    }
+  ],
+  "reviewedAt": "2026-11-14"
+}

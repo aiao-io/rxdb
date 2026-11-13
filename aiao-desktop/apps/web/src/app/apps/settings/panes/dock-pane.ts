@@ -23,7 +23,13 @@ const MAG_SPAN = 0.9;
         <div class="lb">Size</div>
         <div class="rt">
           <span style="font-size: 11px; color: var(--txt-2)">Small</span>
-          <app-slider [value]="size()" (valueChange)="resize($event)" data-slider="dsize" style="max-width: 220px" />
+          <app-slider
+            [value]="size()"
+            (valueChange)="resize($event)"
+            data-slider="dsize"
+            label="Dock size"
+            style="max-width: 220px"
+          />
           <span style="font-size: 11px; color: var(--txt-2)">Large</span>
         </div>
       </div>
@@ -35,6 +41,7 @@ const MAG_SPAN = 0.9;
             [value]="(system.dockMag() - 1) / magSpan"
             (valueChange)="magnify($event)"
             data-slider="dmag"
+            label="Magnification"
             style="max-width: 220px"
           />
           <span style="font-size: 11px; color: var(--txt-2)">Large</span>

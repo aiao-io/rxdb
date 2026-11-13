@@ -1,3 +1,4 @@
+import { a11y } from './a11y.mjs';
 import { appLifecycle } from './app-lifecycle.mjs';
 import { applicationsProtection } from './applications-protection.mjs';
 import { applicationsUpgrade } from './applications-upgrade.mjs';
@@ -8,6 +9,8 @@ import { dock } from './dock.mjs';
 import { externalContent } from './external-content.mjs';
 import { fixtures } from './fixtures.mjs';
 import { game } from './game.mjs';
+import { hostCapabilities } from './host-capabilities.mjs';
+import { hostFilesystem } from './host-filesystem.mjs';
 import { integratedApp } from './integrated-app.mjs';
 import { lazyLoading } from './lazy-loading.mjs';
 import { multiTabStartup } from './multi-tab-startup.mjs';
@@ -48,7 +51,10 @@ export const GROUPS = [
   { ...externalContent, weight: 8 },
   { ...lazyLoading, weight: 25 },
   { ...appLifecycle, weight: 30 },
+  { ...hostCapabilities, weight: 45 },
+  { ...hostFilesystem, weight: 60 },
   { ...windowLayout, weight: 70 },
+  { ...a11y, weight: 60 },
   { ...upgradeLegacy, weight: 35 },
   { ...upgradeProtection, weight: 30 },
   { ...upgradePrevious, weight: 20 },

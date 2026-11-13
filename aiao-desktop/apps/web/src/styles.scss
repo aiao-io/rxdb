@@ -228,7 +228,7 @@ a,
 .mb-item,
 .mi,
 .dicon,
-.tl b,
+.tl button,
 .sb-i,
 .tbtn,
 .btn,
@@ -299,6 +299,39 @@ input:focus,
 textarea:focus,
 [contenteditable]:focus {
   outline: none;
+}
+
+/* ==========================================================================
+   键盘焦点环（ADESK-US-108）
+   只在键盘操作时出现（:focus-visible），鼠标点击不出现。:where() 把优先级压到 0：Dock、启动台、菜单项、
+   Finder 条目这些自己画了焦点样式的地方，直接写更具体的规则就能覆盖它。约定见 aiao-desktop/AGENTS.md「前端约定」。
+   ========================================================================== */
+:where(
+  button,
+  [role='button'],
+  [role='switch'],
+  [role='slider'],
+  [role='menuitem'],
+  [role='option'],
+  [tabindex='0']
+):focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+/* 脚本聚焦的锚点（窗口、浮层容器、roving 的非停靠项）不画焦点环：它们有自己的选中 / 前台样式。 */
+:where([tabindex='-1']):focus-visible {
+  outline: none;
+}
+/* 原生按钮充当一整行时：撑满、文字靠左（按钮默认收缩到内容宽度、文字居中）。 */
+button.cc-row,
+button.si,
+button.mi {
+  width: 100%;
+  text-align: left;
+}
+.panel button.row {
+  width: calc(100% + 12px);
+  text-align: left;
 }
 /* --sel defaults to the accent; Appearance can pin it to its own colour. */
 ::selection {
@@ -515,6 +548,14 @@ svg {
   color: #fff;
   text-shadow: none;
 }
+.dicon:focus-visible {
+  outline: none;
+}
+.dicon:focus-visible .art {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+  border-radius: 11px;
+}
 .dicon.drag {
   opacity: 0.72;
   z-index: 60;
@@ -633,6 +674,17 @@ svg {
 }
 .mb-item.open svg {
   color: #fff;
+}
+/* 菜单栏标题与状态图标的键盘焦点：描边用菜单栏自己的墨色（压在壁纸上，蓝色不一定看得清），向内收。 */
+.mb-item:focus-visible,
+.mb-st:focus-visible {
+  outline: 2px solid var(--mb-ink);
+  outline-offset: -2px;
+  background: var(--mb-hover);
+}
+#menubar.opaque .mb-item:focus-visible,
+#menubar.opaque .mb-st:focus-visible {
+  outline-color: var(--blue);
 }
 
 #mb-status {
@@ -950,6 +1002,15 @@ svg {
 .sl.plain .fil {
   background: var(--txt-2);
 }
+/* 滑块的键盘焦点画在旋钮上（整条滑轨外面画框会盖住旁边的图标）。 */
+.sl:focus-visible {
+  outline: none;
+}
+.sl:focus-visible .kn {
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--blue) 60%, transparent),
+    0 1px 3px rgba(0, 0, 0, 0.26);
+}
 
 /* macos-web CSS blocks omitted from the initial Angular extraction. */
 /* ==========================================================================
@@ -1190,6 +1251,9 @@ svg {
   box-shadow: var(--shadow-win);
   z-index: 10;
 }
+.win:focus-visible {
+  outline: none;
+}
 /* hairline lip on top of the content, the way the compositor draws it */
 .win::after {
   content: '';
@@ -1298,7 +1362,7 @@ svg {
   top: 13px;
   z-index: 30;
 }
-.tl b {
+.tl button {
   position: relative;
   width: 12px;
   height: 12px;
@@ -1310,29 +1374,29 @@ svg {
     background 0.18s ease,
     box-shadow 0.18s ease;
 }
-[data-theme='dark'] .tl b {
+[data-theme='dark'] .tl button {
   background: #4a4a4c;
   box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.05);
 }
-.win.front .tl b.c {
+.win.front .tl button.c {
   background: linear-gradient(180deg, #ff6a5f, #ee4a3f);
   box-shadow:
     inset 0 0 0 0.5px rgba(0, 0, 0, 0.13),
     inset 0 0.5px 0 rgba(255, 255, 255, 0.32);
 }
-.win.front .tl b.m {
+.win.front .tl button.m {
   background: linear-gradient(180deg, #ffc02f, #f0a51a);
   box-shadow:
     inset 0 0 0 0.5px rgba(0, 0, 0, 0.13),
     inset 0 0.5px 0 rgba(255, 255, 255, 0.32);
 }
-.win.front .tl b.f {
+.win.front .tl button.f {
   background: linear-gradient(180deg, #31cf46, #1fb52f);
   box-shadow:
     inset 0 0 0 0.5px rgba(0, 0, 0, 0.13),
     inset 0 0.5px 0 rgba(255, 255, 255, 0.32);
 }
-.tl b svg {
+.tl button svg {
   position: absolute;
   inset: 0;
   width: 12px;
@@ -1344,8 +1408,16 @@ svg {
 .tl:hover b svg {
   opacity: 1;
 }
-.tl b:active {
+.tl button:active {
   filter: brightness(0.86);
+}
+/* 键盘焦点：圆点加一圈蓝环，红黄绿的符号一并显出来（鼠标悬停才显符号是给鼠标用的）。 */
+.tl button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+.tl button:focus-visible svg {
+  opacity: 1;
 }
 
 /* --- window body --------------------------------------------------------- */
@@ -1962,6 +2034,22 @@ svg {
 .fitem.sel .nm {
   background: var(--blue);
   color: #fff;
+}
+/* Finder 条目与侧栏的键盘焦点：图标视图框住图标，其余视图在行内描边。 */
+.fitem:focus-visible {
+  outline: none;
+}
+.fitem:focus-visible .art {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+  border-radius: 9px;
+}
+.fv-list .r:focus-visible,
+.fv-col .ci:focus-visible,
+.fv-gal .strip .t:focus-visible,
+.si:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
 }
 
 /* list view */

@@ -18,12 +18,21 @@ export const DEFAULT_MIN_HEIGHT = 240;
 /** 内容相同就视为没变：几何、开窗参数这类每次都新建对象的值，用它免得没变化也通知依赖者。 */
 const sameJson = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
 
-/** 窗口框架组件交给窗口管理器的操作面：几何与动画都留在组件里。 */
+/** 窗口框架组件交给窗口管理器的操作面：几何、动画与键盘焦点都留在组件里。 */
 export interface WindowFrameHandle {
   minimize(): void;
   restore(): void;
   toggleZoom(): void;
   keepOnScreen(): void;
+  /**
+   * 把键盘焦点交给这个窗口：窗口里上次有焦点的元素（还在的话），否则是窗口本身（`role="dialog"`，读屏念出标题）。
+   */
+  focusContent(): void;
+  /**
+   * 键盘焦点是否「属于」这个窗口：焦点在窗口里；或者这是前台窗口、焦点没有落在任何元素上（键盘操作前台窗口时，
+   * 焦点不会凭空消失）。关闭、最小化之后据此决定要不要把焦点交给下一个窗口。
+   */
+  holdsFocus(): boolean;
 }
 
 /**
@@ -77,6 +86,11 @@ export class DesktopWindow {
   frame: WindowFrameHandle | null = null;
   /** 最小化与还原动画进行中。 */
   busy = false;
+  /**
+   * 桌面启动期间（窗口恢复、默认的 Finder）建出来的窗口：不抢键盘焦点。刚打开页面时第一次 Tab 要从菜单栏开始，
+   * 不能被一个自动打开的窗口截走；用户之后打开的窗口才把焦点带进去。
+   */
+  quiet = false;
 
   /** 当前实例的标识：窗口 id 加实例序号。重试创建的是新实例，旧实例的迟到消息按它丢弃。 */
   get instanceId(): string {

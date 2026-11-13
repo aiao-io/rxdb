@@ -2,66 +2,145 @@
   <div class="sbar" [style.display]="sidebar() ? '' : 'none'" data-drag data-fsb>
     <div class="sb-top"><app-traffic-lights /></div>
     @for (group of sidebarGroups; track group.head) {
-      <div class="grp">
-        <div class="gh">{{ group.head }}</div>
+      <div class="grp" [attr.aria-label]="group.head" role="group">
+        <div class="gh" aria-hidden="true">{{ group.head }}</div>
         @for (place of group.items; track place[0]) {
-          <div
+          <button
             class="si"
+            [attr.aria-current]="placeOn(place[0]) ? 'true' : null"
             [attr.data-place]="place[0]"
             [class.on]="placeOn(place[0])"
             (click)="goto(place[0])"
-            (keydown.enter)="goto(place[0])"
-            tabindex="-1"
+            tabindex="0"
+            type="button"
           >
             @if (place[1].startsWith('dot#')) {
               <span
                 class="ico"
                 [style.background]="place[1].slice(3)"
+                aria-hidden="true"
                 style="width: 11px; height: 11px; margin: 0 2px; border-radius: 50%"
               ></span>
             } @else {
               <svg class="ico" [appIcon]="place[1]"></svg>
             }
             <span class="nm">{{ place[0] }}</span>
-          </div>
+          </button>
         }
       </div>
     }
   </div>
   <div class="fx">
-    <div class="fx-tb" data-drag>
-      <button class="tbtn" [class.dis]="!canGoBack()" (click)="back()" data-nav="back" title="Back">
+    <div class="fx-tb" aria-label="Toolbar" data-drag role="toolbar">
+      <button
+        class="tbtn"
+        [attr.aria-disabled]="canGoBack() ? null : 'true'"
+        [class.dis]="!canGoBack()"
+        (click)="back()"
+        aria-label="Back"
+        data-nav="back"
+        tabindex="0"
+        type="button"
+      >
         <svg appIcon="g-chev-l"></svg>
       </button>
-      <button class="tbtn" [class.dis]="!canGoForward()" (click)="forward()" data-nav="fwd" title="Forward">
+      <button
+        class="tbtn"
+        [attr.aria-disabled]="canGoForward() ? null : 'true'"
+        [class.dis]="!canGoForward()"
+        (click)="forward()"
+        aria-label="Forward"
+        data-nav="fwd"
+        tabindex="0"
+        type="button"
+      >
         <svg appIcon="g-chev-r"></svg>
       </button>
-      <div class="fx-title" data-title>{{ title() }}</div>
+      <div class="fx-title" aria-hidden="true" data-title>{{ title() }}</div>
       <div class="grow" style="flex: 1"></div>
-      <div class="seg" data-nodrag>
-        <button [class.on]="view() === 'icon'" (click)="setView('icon')" data-view="icon" title="Icons">
+      <div class="seg" aria-label="View" data-nodrag role="group">
+        <button
+          [attr.aria-pressed]="view() === 'icon'"
+          [class.on]="view() === 'icon'"
+          (click)="setView('icon')"
+          aria-label="Icons"
+          data-view="icon"
+          tabindex="0"
+          type="button"
+        >
           <svg appIcon="g-grid"></svg>
         </button>
-        <button [class.on]="view() === 'list'" (click)="setView('list')" data-view="list" title="List">
+        <button
+          [attr.aria-pressed]="view() === 'list'"
+          [class.on]="view() === 'list'"
+          (click)="setView('list')"
+          aria-label="List"
+          data-view="list"
+          tabindex="0"
+          type="button"
+        >
           <svg appIcon="g-list"></svg>
         </button>
-        <button [class.on]="view() === 'column'" (click)="setView('column')" data-view="column" title="Columns">
+        <button
+          [attr.aria-pressed]="view() === 'column'"
+          [class.on]="view() === 'column'"
+          (click)="setView('column')"
+          aria-label="Columns"
+          data-view="column"
+          tabindex="0"
+          type="button"
+        >
           <svg appIcon="g-columns"></svg>
         </button>
-        <button [class.on]="view() === 'gallery'" (click)="setView('gallery')" data-view="gallery" title="Gallery">
+        <button
+          [attr.aria-pressed]="view() === 'gallery'"
+          [class.on]="view() === 'gallery'"
+          (click)="setView('gallery')"
+          aria-label="Gallery"
+          data-view="gallery"
+          tabindex="0"
+          type="button"
+        >
           <svg appIcon="g-gallery"></svg>
         </button>
       </div>
-      <button class="tbtn" #sortButton (click)="sortMenu(sortButton)" data-sort title="Sort">
+      <button
+        class="tbtn"
+        #sortButton
+        (click)="sortMenu(sortButton, $event)"
+        aria-haspopup="menu"
+        aria-label="Sort"
+        data-sort
+        tabindex="0"
+        type="button"
+      >
         <svg appIcon="g-sort"></svg>
       </button>
-      <button class="tbtn" (click)="share()" data-share title="Share"><svg appIcon="g-share"></svg></button>
-      <button class="tbtn" #moreButton (click)="moreMenu(moreButton)" data-more title="More">
+      <button class="tbtn" (click)="share()" aria-label="Share" data-share tabindex="0" type="button">
+        <svg appIcon="g-share"></svg>
+      </button>
+      <button
+        class="tbtn"
+        #moreButton
+        (click)="moreMenu(moreButton, $event)"
+        aria-haspopup="menu"
+        aria-label="More"
+        data-more
+        tabindex="0"
+        type="button"
+      >
         <svg appIcon="g-ellipsis"></svg>
       </button>
       <div class="sfield" data-nodrag style="width: 150px">
-        <span><svg appIcon="g-search"></svg></span>
-        <input #queryInput [value]="query()" (input)="search(queryInput.value)" data-q placeholder="Search" />
+        <span aria-hidden="true"><svg appIcon="g-search"></svg></span>
+        <input
+          #queryInput
+          [value]="query()"
+          (input)="search(queryInput.value)"
+          aria-label="Search"
+          data-q
+          placeholder="Search"
+        />
       </div>
     </div>
     <div
@@ -77,18 +156,23 @@
       }
       @switch (view()) {
         @case ('icon') {
-          <div class="fv-icon">
+          <div class="fv-icon" aria-label="Items" role="listbox">
             @for (item of items(); track item.name) {
               <div
                 class="fitem"
+                [attr.aria-label]="label(item)"
+                [attr.aria-selected]="item.name === selected()"
+                [attr.data-autofocus]="item.name === tabStop() ? '' : null"
                 [attr.data-name]="item.name"
+                [attr.tabindex]="item.name === tabStop() ? 0 : -1"
                 [class.sel]="item.name === selected()"
                 (click)="select(item.name)"
                 (contextmenu)="itemMenu($event, item.name)"
                 (dblclick)="enter(item.name)"
-                (keydown.enter)="enter(item.name)"
+                (focus)="select(item.name)"
+                (keydown)="itemKey($event, item.name)"
                 (pointerdown)="dragApp($event, item)"
-                tabindex="-1"
+                role="option"
               >
                 <div class="art">
                   @if (item.icon === 'f-img') {
@@ -102,12 +186,14 @@
             }
           </div>
           @if (!items().length) {
-            <div style="padding: 40px; text-align: center; color: var(--txt-3); font-size: 13px">{{ emptyText() }}</div>
+            <div role="status" style="padding: 40px; text-align: center; color: var(--txt-3); font-size: 13px">
+              {{ emptyText() }}
+            </div>
           }
         }
         @case ('list') {
-          <div class="fv-list">
-            <div class="hd">
+          <div class="fv-list" aria-label="Items" role="listbox">
+            <div class="hd" aria-hidden="true">
               <div class="c1" style="padding-left: 26px">Name</div>
               <div class="c2">Date Modified</div>
               <div class="c3">Size</div>
@@ -116,14 +202,19 @@
             @for (item of items(); track item.name) {
               <div
                 class="r"
+                [attr.aria-label]="label(item)"
+                [attr.aria-selected]="item.name === selected()"
+                [attr.data-autofocus]="item.name === tabStop() ? '' : null"
                 [attr.data-name]="item.name"
+                [attr.tabindex]="item.name === tabStop() ? 0 : -1"
                 [class.sel]="item.name === selected()"
                 (click)="select(item.name)"
                 (contextmenu)="itemMenu($event, item.name)"
                 (dblclick)="enter(item.name)"
-                (keydown.enter)="enter(item.name)"
+                (focus)="select(item.name)"
+                (keydown)="itemKey($event, item.name)"
                 (pointerdown)="dragApp($event, item)"
-                tabindex="-1"
+                role="option"
               >
                 <div class="c1">
                   <span class="tw">
@@ -153,21 +244,26 @@
           <div class="fv-col">
             @for (column of chain; track $index; let ci = $index) {
               @if (!column.file && ci >= firstColumn()) {
-                <div class="col" [attr.data-ci]="ci">
+                <div class="col" [attr.aria-label]="column.node.name" [attr.data-ci]="ci" role="listbox">
                   @for (item of column.items ?? []; track item.name) {
                     <div
                       class="ci"
+                      [attr.aria-label]="label(item)"
+                      [attr.aria-selected]="item.name === picked[ci]"
+                      [attr.data-autofocus]="columnStop().ci === ci && columnStop().name === item.name ? '' : null"
                       [attr.data-ci]="ci"
                       [attr.data-kind]="item.kind"
                       [attr.data-name]="item.name"
+                      [attr.tabindex]="columnStop().ci === ci && columnStop().name === item.name ? 0 : -1"
                       [class.dim]="item.name === picked[ci] && ci !== picked.length - 1"
                       [class.sel]="item.name === picked[ci] && ci === picked.length - 1"
                       (click)="pickColumn(ci, item.name)"
                       (contextmenu)="itemMenu($event, item.name)"
                       (dblclick)="openColumnFile(item)"
-                      (keydown.enter)="pickColumn(ci, item.name)"
+                      (focus)="pickColumn(ci, item.name)"
+                      (keydown)="itemKey($event, item.name, ci)"
                       (pointerdown)="dragApp($event, item)"
-                      tabindex="-1"
+                      role="option"
                     >
                       <span class="art"><svg [appIcon]="item.icon"></svg></span>
                       <span class="nm">{{ item.name }}</span>
@@ -176,13 +272,15 @@
                       }
                     </div>
                   } @empty {
-                    <div style="padding: 14px; color: var(--txt-3); font-size: 12px; text-align: center">Empty</div>
+                    <div role="status" style="padding: 14px; color: var(--txt-3); font-size: 12px; text-align: center">
+                      Empty
+                    </div>
                   }
                 </div>
               }
             }
             @if (previewFile(); as preview) {
-              <div class="fv-prev">
+              <div class="fv-prev" [attr.aria-label]="'Preview of ' + preview.name" role="group">
                 <div class="big"><svg [appIcon]="preview.icon"></svg></div>
                 <div class="nm">{{ preview.name }}</div>
                 <dl>
@@ -195,7 +293,15 @@
                   <dt>Modified</dt>
                   <dd>{{ finderDate(preview.date) }}</dd>
                 </dl>
-                <button class="btn pri" [attr.data-openfile]="preview.name" (click)="enter(preview.name)">Open</button>
+                <button
+                  class="btn pri"
+                  [attr.data-openfile]="preview.name"
+                  (click)="enter(preview.name)"
+                  tabindex="0"
+                  type="button"
+                >
+                  Open
+                </button>
               </div>
             }
           </div>
@@ -203,7 +309,7 @@
         @default {
           @let current = gallerySelection();
           <div class="fv-gal">
-            <div class="stage">
+            <div class="stage" aria-hidden="true">
               @if (current) {
                 @if (current.icon === 'f-img') {
                   <div class="shot big">
@@ -217,7 +323,7 @@
               }
             </div>
             @if (current) {
-              <div class="cap">
+              <div class="cap" role="status">
                 <b>{{ current.name }}</b>
                 <span>
                   {{ current.k || (current.kind === 'folder' ? 'Folder' : 'Document')
@@ -226,15 +332,20 @@
                 </span>
               </div>
             }
-            <div class="strip">
+            <div class="strip" aria-label="Items" aria-orientation="horizontal" role="listbox">
               @for (item of items(); track item.name) {
                 <div
                   class="t"
+                  [attr.aria-label]="label(item)"
+                  [attr.aria-selected]="item === current"
+                  [attr.data-autofocus]="item.name === tabStop() ? '' : null"
                   [attr.data-name]="item.name"
+                  [attr.tabindex]="item.name === tabStop() ? 0 : -1"
                   [class.sel]="item === current"
                   (click)="select(item.name)"
-                  (keydown.enter)="select(item.name)"
-                  tabindex="-1"
+                  (focus)="select(item.name)"
+                  (keydown)="itemKey($event, item.name)"
+                  role="option"
                 >
                   @if (item.icon === 'f-img') {
                     <div class="shot"><app-photo-art [index]="seed(item.name)" [kind]="shotKind(item.name)" /></div>
@@ -248,19 +359,19 @@
         }
       }
     </div>
-    <div class="fx-path" [style.display]="pathbar() ? '' : 'none'" data-path>
+    <div class="fx-path" [style.display]="pathbar() ? '' : 'none'" aria-label="Path" data-path role="navigation">
       @for (segment of pathSegments(); track $index; let i = $index) {
         @if (i) {
           <svg appIcon="g-chev-r" style="width: 11px; height: 11px"></svg>
         }
-        <span class="seg" [attr.data-i]="i" (click)="jump(i)" (keydown.enter)="jump(i)" tabindex="-1">
+        <button class="seg" [attr.data-i]="i" (click)="jump(i)" tabindex="0" type="button">
           <svg [appIcon]="i === 0 ? 'g-hd' : 'g-folder-g'" style="width: 11px; height: 11px"></svg>
           {{ segment }}
-        </span>
+        </button>
       }
       @if (pathTail(); as tail) {
         <svg appIcon="g-chev-r" style="width: 11px; height: 11px"></svg>
-        <span class="seg" (click)="jump(null)" (keydown.enter)="jump(null)" tabindex="-1">{{ tail }}</span>
+        <button class="seg" (click)="jump(null)" tabindex="0" type="button">{{ tail }}</button>
       }
     </div>
   </div>

@@ -29,9 +29,7 @@ export type FileSnapshot =
 
 /** 写回一个已存在的文件的结果：已被改动与已被删除或改名都不写盘。 */
 export type FileReplaced =
-  | { readonly kind: 'ok'; readonly stamp: FileStamp }
-  | { readonly kind: 'missing' }
-  | { readonly kind: 'changed' };
+  { readonly kind: 'ok'; readonly stamp: FileStamp } | { readonly kind: 'missing' } | { readonly kind: 'changed' };
 
 /** 另存的结果：目标位置已经有别的东西（没确认覆盖的文件、同名文件夹），或目标文件夹已经不在了，都不写盘。 */
 export type FileCreated =

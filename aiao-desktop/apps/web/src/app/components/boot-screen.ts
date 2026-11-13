@@ -1,4 +1,15 @@
-import { Component, DestroyRef, ViewEncapsulation, effect, inject, signal, untracked } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  ElementRef,
+  ViewEncapsulation,
+  afterRenderEffect,
+  effect,
+  inject,
+  signal,
+  untracked,
+  viewChild
+} from '@angular/core';
 
 import { FileSystem } from '../services/file-system';
 import { BootRun, Session } from '../services/session';
@@ -25,7 +36,10 @@ const STEPS: Readonly<Record<'startup' | 'restart', readonly (readonly [number, 
 };
 const DONE_AT = { startup: 1980, restart: 1700 } as const;
 
-/** 开机画面：开机与重启的进度条，或关机后的「点击启动」。 */
+/**
+ * 开机画面：开机与重启的进度条，或关机后的「点击启动」。
+ * 无障碍（ADESK-US-108）：开机中是 `progressbar`（按任意键跳过）；关机后是一个按钮，出现时拿到焦点，Enter 或空格启动。
+ */
 @Component({
   selector: 'app-boot-screen',
   templateUrl: './boot-screen.html',
@@ -41,11 +55,14 @@ export class BootScreen {
   /** 开机阶段的第一次按键允许跳过，之后不再响应。 */
   private keyArmed = false;
   private readonly fs = inject(FileSystem);
+  private readonly off = viewChild<ElementRef<HTMLElement>>('off');
   protected readonly session = inject(Session);
   protected readonly progress = signal<number | null>(null);
   protected readonly leaving = signal(false);
 
   constructor() {
+    /* 关机后的「点击启动」是一个按钮：出现时把焦点交给它。 */
+    afterRenderEffect(() => this.off()?.nativeElement.focus());
     effect(() => {
       const run = this.session.boot();
       untracked(() => this.start(run));
@@ -59,6 +76,11 @@ export class BootScreen {
     this.clear();
     this.progress.set(100);
     this.finish(run);
+  }
+
+  protected restartByKey(event: Event): void {
+    event.preventDefault();
+    this.session.restart();
   }
 
   protected keySkip(): void {

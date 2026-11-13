@@ -10,6 +10,7 @@ import { DesktopShell } from '../components/desktop-shell';
 import { DesktopData } from '../data/desktop-data';
 import { Preferences } from '../data/preferences';
 import { AppLauncher } from '../services/app-launcher';
+import { AppNotifications } from '../services/app-notifications';
 import { ApplicationCatalog } from '../services/application-catalog';
 import { ApplicationRuntime } from '../services/application-runtime';
 import { CalendarStore } from '../services/calendar-store';
@@ -21,6 +22,7 @@ import { DockDragController } from '../services/dock-drag';
 import { DockLayoutStore } from '../services/dock-layout';
 import { DockState } from '../services/dock-state';
 import { FileOpener } from '../services/file-opener';
+import { FilePanels } from '../services/file-panels';
 import { FileSystem, HOME_PATH } from '../services/file-system';
 import { OrbitHost } from '../services/orbit-host';
 import { Overlays } from '../services/overlays';
@@ -69,6 +71,8 @@ const NATIVE_MENU = 'input,textarea,[contenteditable="true"],.tm-body';
     ApplicationRuntime,
     FileSystem,
     FileOpener,
+    FilePanels,
+    AppNotifications,
     DesktopItems,
     CalendarStore,
     WeatherStore,
@@ -86,6 +90,8 @@ const NATIVE_MENU = 'input,textarea,[contenteditable="true"],.tm-body';
     '[style.width]': '"100%"',
     '[style.height]': '"100%"',
     '(document:keydown)': 'shortcut($event)',
+    '(document:keyup)': 'releaseTab()',
+    '(window:blur)': 'releaseTab()',
     '(document:contextmenu)': 'nativeMenu($event)',
     '(document:dragstart)': '$event.preventDefault()',
     '(window:pointerup)': 'resetCursor()',
@@ -116,6 +122,8 @@ export class DesktopPage {
   }
 
   protected shortcut(event: KeyboardEvent): void {
+    /* Tab 按下期间焦点落进后台窗口，说明用户用 Tab 走进了它：窗口随之成为前台（见 WindowFrame）。 */
+    this.wm.tabbing = event.key === 'Tab';
     const meta = event.metaKey || event.ctrlKey;
     if (event.key === 'Escape' && this.dismissOverlay()) return;
     if (meta && (event.key === 'k' || event.key === 'K' || event.code === 'Space')) {
@@ -132,6 +140,14 @@ export class DesktopPage {
     this.windowShortcut(event);
   }
 
+  /**
+   * Tab 抬起（或窗口失去焦点）：不再算「正按着 Tab」。必须是返回 void 的方法——Angular 的事件绑定在表达式
+   * 求值为 `false` 时会 `preventDefault()`，写成赋值表达式 `wm.tabbing = false` 会连带吃掉空格键 keyup 触发的按钮点击。
+   */
+  protected releaseTab(): void {
+    this.wm.tabbing = false;
+  }
+
   protected nativeMenu(event: MouseEvent): void {
     if ((event.target as Element).closest(NATIVE_MENU)) return;
     if (!event.defaultPrevented) event.preventDefault();
@@ -143,7 +159,7 @@ export class DesktopPage {
 
   /** Esc 依次关闭弹出菜单、聚焦搜索、启动台、通知中心。 */
   private dismissOverlay(): boolean {
-    if (this.popover.isOpen()) this.popover.close();
+    if (this.popover.isOpen()) this.popover.close(false, 'escape');
     else if (this.overlays.spotlight() !== 'closed') this.overlays.closeSpotlight();
     else if (this.overlays.launchpad() !== 'closed') this.overlays.closeLaunchpad();
     else if (this.overlays.notifications() === 'open') this.overlays.closeNotifications();
@@ -178,6 +194,7 @@ export class DesktopPage {
    */
   private async startWindows(): Promise<void> {
     if ((await this.layout.restore()) === 0) this.wm.open('finder', { path: HOME_PATH });
+    this.wm.started = true;
   }
 
   private typing(): boolean {

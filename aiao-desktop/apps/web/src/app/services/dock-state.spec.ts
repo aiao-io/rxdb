@@ -7,6 +7,7 @@ import { DockState, DockView } from './dock-state';
 const view = (): DockView => ({
   bounce: vi.fn(),
   stopBounce: vi.fn(),
+  focusApp: vi.fn(),
   rectFor: vi.fn(appId => ({ x: appId.length, y: 2, w: 48, h: 48 }))
 });
 
@@ -21,6 +22,7 @@ describe('DockState', () => {
     expect(() => dock.bounce('notes')).toThrow('Dock view is not attached');
     expect(() => dock.stopBounce('notes')).toThrow('Dock view is not attached');
     expect(() => dock.rectFor('notes')).toThrow('Dock view is not attached');
+    expect(() => dock.focusApp('notes')).toThrow('Dock view is not attached');
   });
 
   it('挂上之后，弹跳、停止弹跳与图标位置都转交给 Dock 组件', () => {
@@ -33,6 +35,14 @@ describe('DockState', () => {
     expect(current.bounce).toHaveBeenCalledExactlyOnceWith('notes');
     expect(current.stopBounce).toHaveBeenCalledExactlyOnceWith('notes');
     expect(dock.rectFor('notes')).toEqual({ x: 5, y: 2, w: 48, h: 48 });
+  });
+
+  it('键盘焦点交给某个应用的 Dock 图标，也转交给 Dock 组件（ADESK-US-108）', () => {
+    const dock = setup();
+    const current = view();
+    dock.attach(current);
+    dock.focusApp('notes');
+    expect(current.focusApp).toHaveBeenCalledExactlyOnceWith('notes');
   });
 
   it('重新挂载（比如 Dock 重建）后以最新的视图为准', () => {

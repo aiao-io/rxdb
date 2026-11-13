@@ -71,7 +71,8 @@ const isRequired = (path: DiskPath): boolean =>
   samePath(path, HOME) ||
   (path.length === HOME.length + 1 && isWithin(path, HOME) && HOME_FOLDERS.includes(path[HOME.length]));
 
-const isLocked = (dir: DiskPath): boolean => dir.length === 0 || dir[0] === 'System';
+/** 卷根与 System 里不能新建东西；保存面板也据此禁用这些位置。 */
+export const isLocked = (dir: DiskPath): boolean => dir.length === 0 || dir[0] === 'System';
 
 const ALL = { combinator: 'and' as const, rules: [] };
 

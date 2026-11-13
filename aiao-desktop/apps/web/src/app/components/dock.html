@@ -9,13 +9,16 @@
     (pointerenter)="hover($event.clientX)"
     (pointerleave)="leave()"
     (pointermove)="hover($event.clientX)"
+    aria-label="Dock"
+    role="toolbar"
   >
     @for (slot of slots(); track slot.key) {
       @if (slot.app; as app) {
         <div
           class="di"
           #slotEl
-          [attr.aria-label]="app.name"
+          [attr.aria-describedby]="running().has(app.id) ? 'dock-running' : null"
+          [attr.aria-label]="labelOf(app)"
           [attr.data-app]="app.id"
           [attr.data-key]="slot.key"
           [class.lifted]="drag.lifted() === app.id"
@@ -33,15 +36,16 @@
           <div class="art">
             <svg [appIcon]="app.id === 'trash' && fs.trashFull() ? 'app-trash-full' : app.icon"></svg>
           </div>
-          <span class="dot"></span>
-          <span class="hit"></span>
+          <span class="dot" aria-hidden="true"></span>
+          <span class="hit" aria-hidden="true"></span>
         </div>
       } @else {
-        <div class="divider" #slotEl [attr.data-key]="slot.key"></div>
+        <div class="divider" #slotEl [attr.data-key]="slot.key" aria-orientation="vertical" role="separator"></div>
       }
     }
-    <div id="docktip" #tip></div>
+    <div id="docktip" #tip aria-hidden="true"></div>
   </div>
+  <span id="dock-running" hidden>Running</span>
   @if (drag.state(); as dragging) {
     <div
       class="dock-ghost"

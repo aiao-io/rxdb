@@ -83,7 +83,9 @@ describe('DesktopWindow', () => {
       minimize: vi.fn(),
       restore: vi.fn(),
       toggleZoom: vi.fn(),
-      keepOnScreen: vi.fn()
+      keepOnScreen: vi.fn(),
+      focusContent: vi.fn(),
+      holdsFocus: vi.fn(() => false)
     };
     win.frame = frame;
     win.frame.minimize();

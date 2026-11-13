@@ -22,6 +22,12 @@ export const STANDIN_ORIGIN = 'https://vscode.aiao.io';
  * 每个模式的页面里，`window.standin` 给测试用：`call(路径, 参数)` 经 `getDesktop` 调桌面能力并把成功值或稳定错误码当结果返回，
  * `raw(方法, 请求体)` 直接发一条 Orbit 请求（绕过 SDK，测宿主侧校验与实例绑定），`desktop` 记录宿主推来的能力事件，
  * `instance` 是桌面给这个实例的实例 ID，`ordinal` 是这是替身的第几次文档加载。
+ *
+ * 文件内容在测试与替身之间用文字传：`call('filesystem.save', { text: '…' })` 里的 `text` 在替身里编成字节数组再调，
+ * `filesystem.open` 结果里的字节数组换成 `text`（UTF-8 解码）与 `bytesLength`。
+ * `start(编号, 路径, 参数)` 发起调用但不等结果（用户还在桌面面板里操作时调用不会返回），结果落定后记进 `results[编号]`，
+ * 并用 `postMessage({ standinResult })` 转告桌面页——窗口关闭时 iframe 随即销毁，只有转告出去的结果才看得到
+ * （桌面页上的 `window.__standinResults`，见 {@link installAiaoCodeStandin}）。
  */
 const standinPage = (mode, ordinal) => `<!doctype html>
 <html lang="en">
@@ -106,15 +112,35 @@ const mainScript = (mode, ordinal) => `
       desktop.window.onStateChange(next => state.desktop.push({ event: 'window', state: next }));
       desktop.menu.onCommand(commandId => state.desktop.push({ event: 'command', commandId }));
       desktop.appearance.onChange(next => state.desktop.push({ event: 'appearance', appearance: next }));
+      /* 文件内容在测试里是文字：保存的 text 编成字节数组，打开结果里的字节数组解成 text。 */
+      const withBytes = args => {
+        if (!args || typeof args !== 'object' || typeof args.text !== 'string') return args;
+        const { text, ...rest } = args;
+        return { ...rest, bytes: new TextEncoder().encode(text) };
+      };
+      const withText = value => {
+        if (!value || typeof value !== 'object' || !(value.bytes instanceof Uint8Array)) return value;
+        const { bytes, ...rest } = value;
+        return { ...rest, text: new TextDecoder().decode(bytes), bytesLength: bytes.length };
+      };
       /* 经统一的能力接口调用，把成功值或稳定错误码当结果交给测试。 */
       state.call = async (path, args) => {
         const [area, name] = path.split('.');
         try {
-          const value = await desktop[area][name](args);
-          return { ok: true, value: value ?? null };
+          const value = await desktop[area][name](withBytes(args));
+          return { ok: true, value: withText(value) ?? null };
         } catch (error) {
           return { ok: false, name: error?.name, code: error?.code, message: String(error?.message ?? error) };
         }
+      };
+      /* 发起调用但不等结果；落定后记下并转告桌面页（窗口关闭时 iframe 马上销毁，只有转告出去的才看得到）。 */
+      state.results = {};
+      state.start = (id, path, args) => {
+        state.call(path, args).then(outcome => {
+          state.results[id] = outcome;
+          parent.postMessage({ standinResult: { id, outcome } }, '*');
+        });
+        return id;
       };
       /* 直接发一条 Orbit 请求，不经 SDK 的参数整理。 */
       state.raw = (method, body) =>
@@ -143,6 +169,15 @@ const mainScript = (mode, ordinal) => `
  */
 export async function installAiaoCodeStandin(context) {
   const standin = { mode: 'standard', documents: 0 };
+  /* 桌面页（只有顶层文档）收替身转告的调用结果：`window.__standinResults[编号]`。刷新后清空，由新页面的脚本重新收。 */
+  await context.addInitScript(() => {
+    if (window.top !== window) return;
+    window.__standinResults = {};
+    window.addEventListener('message', event => {
+      const result = event.data?.standinResult;
+      if (result) window.__standinResults[result.id] = result.outcome;
+    });
+  });
   await context.route(`${STANDIN_ORIGIN}/**`, route => {
     const url = new URL(route.request().url());
     if (url.pathname.startsWith('/__standin/orbit/')) {

@@ -4,21 +4,24 @@ import { DesktopWindow } from '../services/desktop-window';
 import { WindowManager } from '../services/window-manager';
 import { Icon } from './icon';
 
-/** 窗口左上角的关闭、最小化、缩放按钮；应用把它放在自己标题栏或侧栏顶部。 */
+/**
+ * 窗口左上角的关闭、最小化、缩放按钮；应用把它放在自己标题栏或侧栏顶部。
+ * 三个都是原生按钮（Enter、空格触发，Tab 能到，名称是 Close / Minimize / Zoom），符号是装饰。
+ */
 @Component({
   selector: 'app-traffic-lights',
   imports: [Icon],
   host: { class: 'tl' },
   template: `
-    <b class="c" (click)="close($event)" (keydown.enter)="close($event)" data-w="close" tabindex="-1"
-      ><svg appIcon="g-x"></svg
-    ></b>
-    <b class="m" (click)="minimize($event)" (keydown.enter)="minimize($event)" data-w="min" tabindex="-1"
-      ><svg appIcon="g-minus"></svg
-    ></b>
-    <b class="f" (click)="zoom($event)" (keydown.enter)="zoom($event)" data-w="zoom" tabindex="-1"
-      ><svg appIcon="g-chev-ud"></svg
-    ></b>
+    <button class="c" (click)="close($event)" aria-label="Close" data-w="close" tabindex="0" type="button">
+      <svg appIcon="g-x"></svg>
+    </button>
+    <button class="m" (click)="minimize($event)" aria-label="Minimize" data-w="min" tabindex="0" type="button">
+      <svg appIcon="g-minus"></svg>
+    </button>
+    <button class="f" (click)="zoom($event)" aria-label="Zoom" data-w="zoom" tabindex="0" type="button">
+      <svg appIcon="g-chev-ud"></svg>
+    </button>
   `
 })
 export class TrafficLights {

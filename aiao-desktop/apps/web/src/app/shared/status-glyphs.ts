@@ -7,7 +7,7 @@ import { clamp } from './format';
   selector: 'app-battery-icon',
   host: { style: 'display: contents' },
   template: `
-    <svg style="width: 26px; height: 12px" viewBox="0 0 28 13">
+    <svg aria-hidden="true" style="width: 26px; height: 12px" viewBox="0 0 28 13">
       <rect
         fill="none"
         height="11.8"
@@ -51,7 +51,7 @@ export class BatteryIcon {
   selector: 'app-wifi-bars',
   host: { style: 'display: contents' },
   template: `
-    <svg style="width: 15px; height: 12px" viewBox="0 0 16 13">
+    <svg aria-hidden="true" style="width: 15px; height: 12px" viewBox="0 0 16 13">
       @for (dot of dots; track $index) {
         <path d="M2 9.4a1.4 1.4 0 1 1 0 2.8 1.4 1.4 0 0 1 0-2.8" />
       }
@@ -81,6 +81,7 @@ export class WifiBars {
   template: `
     <svg
       [attr.viewBox]="'0 0 ' + width() + ' ' + height()"
+      aria-hidden="true"
       preserveAspectRatio="none"
       style="width: 100%; height: 100%"
     >

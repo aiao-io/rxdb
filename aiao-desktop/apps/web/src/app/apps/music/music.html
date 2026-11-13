@@ -148,12 +148,18 @@
           (release)="seekTo($event)"
           (valueChange)="scrub($event)"
           data-slider="seek"
+          label="Playback position"
         />
         <span class="t r" data-dur>{{ remaining() }}</span>
       </div>
       <div class="vol">
         <svg appIcon="g-vol-lo"></svg>
-        <app-slider [value]="system.volume()" (valueChange)="system.setVolume($event)" data-slider="mvol" />
+        <app-slider
+          [value]="system.volume()"
+          (valueChange)="system.setVolume($event)"
+          data-slider="mvol"
+          label="Volume"
+        />
       </div>
       <button class="tbtn" [class.on]="shuffle()" (click)="shuffle.set(!shuffle())" data-c="shuffle">
         <svg appIcon="g-shuffle"></svg>

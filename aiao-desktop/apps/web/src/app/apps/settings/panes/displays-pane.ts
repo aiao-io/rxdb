@@ -21,6 +21,7 @@ import { ToggleSwitch } from '../toggle-switch';
             [value]="system.brightness()"
             (valueChange)="system.setBrightness($event)"
             data-slider="sbri"
+            label="Brightness"
             style="max-width: 220px"
           />
         </div>

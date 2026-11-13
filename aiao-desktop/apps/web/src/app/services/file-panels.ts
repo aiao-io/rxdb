@@ -19,8 +19,10 @@ export interface FilePanelRequest {
   readonly suggestedName: string;
   /** 文件名的字符数上限。 */
   readonly nameLength: number;
-  /** 面板关闭之后把焦点还给发起它的窗口。 */
-  readonly restoreFocus: () => void;
+  /**
+   * 面板关闭之后把焦点还给发起它的窗口（远程应用要交回它的文档）；没有它的窗口（内置应用）由面板记住打开前的焦点元素、关闭后还回去。
+   */
+  readonly restoreFocus?: () => void;
 }
 
 /** 用户在面板里选定的结果。取消不是结果，面板用 `null` 表示取消。 */

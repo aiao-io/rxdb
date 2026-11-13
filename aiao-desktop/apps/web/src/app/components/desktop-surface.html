@@ -1,10 +1,17 @@
-<div id="desktop" #surface (contextmenu)="surfaceMenu($event)" (pointerdown)="pressSurface($event)">
+<div
+  id="desktop"
+  #surface
+  (contextmenu)="surfaceMenu($event)"
+  (pointerdown)="pressSurface($event)"
+  aria-label="Desktop"
+  role="group"
+>
   <div id="dwidgets">
     <app-calendar-widget />
     <app-weather-widget />
     <app-stocks-widget />
   </div>
-  <div id="marquee" #marquee></div>
+  <div id="marquee" #marquee aria-hidden="true"></div>
   @for (item of desktop.items(); track item.id) {
     @let at = position(item);
     @let leaving = trashing().has(item.id);
@@ -21,8 +28,13 @@
       [style.transition]="leaving ? 'transform .22s var(--e-io),opacity .22s ease' : null"
       (contextmenu)="iconMenu($event, item)"
       (dblclick)="item.open()"
+      (focus)="select(item.id)"
+      (keydown.enter)="item.open()"
+      (keydown.space)="openByKey($event, item)"
+      (keydown)="iconKey($event, item)"
       (pointerdown)="grab($event, item)"
-      tabindex="-1"
+      role="button"
+      tabindex="0"
     >
       <div class="art"><svg [appIcon]="item.icon"></svg></div>
       <div class="lbl">{{ item.name }}</div>

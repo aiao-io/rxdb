@@ -2,11 +2,13 @@ import { DOCUMENT } from '@angular/common';
 import { Component, ElementRef, ViewEncapsulation, effect, inject, signal, viewChild } from '@angular/core';
 
 import { DesktopItem, DesktopItems } from '../services/desktop-items';
+import { MenuEntry } from '../services/menu';
 import { PopoverService } from '../services/popover';
 import { Toast } from '../services/toast';
 import { WindowManager } from '../services/window-manager';
 import { clamp } from '../shared/format';
 import { Icon } from '../shared/icon';
+import { isMenuKey } from '../shared/menu-list';
 import { CalendarWidget, StocksWidget, WeatherWidget } from './widgets/widgets';
 
 const GRID = { w: 92, h: 98, padTop: 8, padRight: 12 } as const;
@@ -16,7 +18,11 @@ interface Point {
   readonly top: number;
 }
 
-/** 桌面：右上角起排的图标网格、拖动吸附、框选、右键菜单与左侧小组件。 */
+/**
+ * 桌面：右上角起排的图标网格、拖动吸附、框选、右键菜单与左侧小组件。
+ * 无障碍（ADESK-US-108）：每个图标是能 Tab 到的按钮（名称是文件名），Enter 或空格打开，Menu 键 / Shift+F10 弹出右键菜单；
+ * 获得焦点就是选中它。桌面在 Tab 顺序里排在 Dock 之后。
+ */
 @Component({
   selector: 'app-desktop-surface',
   imports: [Icon, CalendarWidget, WeatherWidget, StocksWidget],
@@ -99,18 +105,33 @@ export class DesktopSurface {
 
   protected iconMenu(event: MouseEvent, item: DesktopItem): void {
     this.select(item.id);
-    this.popover.contextMenu(event, [
-      { id: 'o', label: 'Open', run: () => item.open() },
-      { id: 'w', label: 'Open With', key: '▸' },
-      '-',
-      { id: 'i', label: 'Get Info', key: '⌘I', run: () => this.toast.show(this.info(item)) },
-      { id: 'r', label: 'Rename', run: () => this.toast.show('Renaming is left as an exercise.') },
-      { id: 'd', label: 'Duplicate', key: '⌘D', run: () => this.toast.show('Duplicated') },
-      '-',
-      { id: 't', label: 'Move to Trash', key: '⌘⌫', run: () => this.trash(item) },
-      '-',
-      { id: 'q', label: 'Quick Look', key: '␣', run: () => item.open() }
-    ]);
+    this.popover.contextMenu(event, this.iconItems(item), item.name);
+  }
+
+  /** 聚焦在图标上按 Menu 键或 Shift+F10：弹出同一份菜单，焦点交给第一项，关闭后回到图标。 */
+  protected iconKey(event: KeyboardEvent, item: DesktopItem): void {
+    if (!isMenuKey(event)) return;
+    event.preventDefault();
+    const anchor = event.currentTarget as HTMLElement;
+    const rect = anchor.getBoundingClientRect();
+    this.popover.openMenu(this.iconItems(item), {
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+      origin: 'top left',
+      focus: true,
+      label: item.name,
+      onClose: () => anchor.focus()
+    });
+  }
+
+  /** 空格也能打开图标（`role="button"` 的约定）。 */
+  protected openByKey(event: Event, item: DesktopItem): void {
+    event.preventDefault();
+    item.open();
+  }
+
+  protected select(id: string | null): void {
+    this.selected.set(new Set(id ? [id] : []));
   }
 
   /** 空白处按下：取消选择并开始框选。 */
@@ -135,8 +156,19 @@ export class DesktopSurface {
     ]);
   }
 
-  private select(id: string | null): void {
-    this.selected.set(new Set(id ? [id] : []));
+  private iconItems(item: DesktopItem): MenuEntry[] {
+    return [
+      { id: 'o', label: 'Open', run: () => item.open() },
+      { id: 'w', label: 'Open With', key: '▸' },
+      '-',
+      { id: 'i', label: 'Get Info', key: '⌘I', run: () => this.toast.show(this.info(item)) },
+      { id: 'r', label: 'Rename', run: () => this.toast.show('Renaming is left as an exercise.') },
+      { id: 'd', label: 'Duplicate', key: '⌘D', run: () => this.toast.show('Duplicated') },
+      '-',
+      { id: 't', label: 'Move to Trash', key: '⌘⌫', run: () => this.trash(item) },
+      '-',
+      { id: 'q', label: 'Quick Look', key: '␣', run: () => item.open() }
+    ];
   }
 
   private marquee(event: PointerEvent): void {

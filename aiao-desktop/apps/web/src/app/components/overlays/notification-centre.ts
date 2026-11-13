@@ -1,6 +1,8 @@
 import { Component, ElementRef, afterNextRender, effect, inject, viewChild } from '@angular/core';
 
+import { AppNotification, AppNotifications } from '../../services/app-notifications';
 import { Overlays } from '../../services/overlays';
+import { time12Plain } from '../../shared/format';
 import { Icon } from '../../shared/icon';
 import {
   BatterySquareWidget,
@@ -19,12 +21,15 @@ const NOTIFICATIONS = [
 ] as const;
 
 /**
- * 通知中心：小组件加上「今天早些时候」的通知。
+ * 通知中心：小组件、应用经 `notification` 能力提交的通知（ADESK-US-206 阶段 D），再加「今天早些时候」的通知。
+ * 应用通知显示来源应用的名称与图标（取自登记表，应用不能冒名）、标题、正文与时间，单条清除或全部清除，
+ * 清除按钮都是原生按钮，Tab 可达；已提交的通知留在这里由用户清除，不随应用窗口关闭撤回。
  * 滑入滑出用 WAAPI 且不留 transform，否则面板的背景模糊会失效。
  */
 @Component({
   selector: 'app-notification-centre',
   imports: [Icon, ClockSquareWidget, BatterySquareWidget, WeatherWidget, CalendarWidget, StocksWidget, RemindersWidget],
+  styleUrl: './notification-centre.scss',
   host: { style: 'display: contents' },
   template: `
     @if (overlays.notifications() === 'open') {
@@ -37,6 +42,48 @@ const NOTIFICATIONS = [
         <app-calendar-widget />
         <app-stocks-widget />
         <app-reminders-widget />
+        @if (appNotes.entries().length > 0) {
+          <div class="nc-head">
+            <div class="nc-title" id="nc-apps-title">Notifications</div>
+            <button class="nc-clear" (click)="appNotes.clearAll()" data-nc-clear-all tabindex="0" type="button">
+              Clear All
+            </button>
+          </div>
+          <ul class="nc-apps" aria-labelledby="nc-apps-title" data-nc-apps>
+            @for (note of appNotes.entries(); track note.id) {
+              <li
+                class="note"
+                [attr.data-app]="note.app.id"
+                [attr.data-dedupe]="note.dedupeKey"
+                [attr.data-note-id]="note.id"
+                data-nc-note
+              >
+                <span class="art"><svg [appIcon]="note.app.icon"></svg></span>
+                <span class="bd">
+                  <span class="from" data-nc-app>{{ note.app.name }}</span>
+                  <b data-nc-title>{{ note.title }}</b>
+                  <p data-nc-body>{{ note.body }}</p>
+                </span>
+                @if (note.image) {
+                  <img class="pic" [src]="note.image" alt="" data-nc-image />
+                } @else if (note.symbol) {
+                  <svg class="pic" [appIcon]="note.symbol"></svg>
+                }
+                <span class="tm" data-nc-time>{{ time(note) }}</span>
+                <button
+                  class="x"
+                  [attr.aria-label]="'Clear notification from ' + note.app.name + ': ' + note.title"
+                  (click)="appNotes.clear(note.id)"
+                  data-nc-clear
+                  tabindex="0"
+                  type="button"
+                >
+                  ×
+                </button>
+              </li>
+            }
+          </ul>
+        }
         <div class="nc-title">Earlier Today</div>
         @for (note of notifications; track note[1]) {
           <div class="note">
@@ -56,6 +103,7 @@ export class NotificationCentre {
   private readonly panel = viewChild.required<ElementRef<HTMLElement>>('panel');
   private animation: Animation | null = null;
   protected readonly overlays = inject(Overlays);
+  protected readonly appNotes = inject(AppNotifications);
   protected readonly notifications = NOTIFICATIONS;
 
   constructor() {
@@ -73,6 +121,10 @@ export class NotificationCentre {
       else if (phase === 'open' && closing) this.slide('in');
       closing = phase === 'closing';
     });
+  }
+
+  protected time(note: AppNotification): string {
+    return time12Plain(note.postedAt);
   }
 
   private slide(direction: 'in' | 'out'): void {

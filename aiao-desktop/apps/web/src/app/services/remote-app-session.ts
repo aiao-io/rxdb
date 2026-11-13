@@ -118,7 +118,11 @@ export class RemoteAppSession {
     if (this.disposed || win.state() === 'closing' || win.state() === 'closed') return;
     const instanceId = win.instanceId;
     this.teardown(true);
-    const context = contexts.bind(win, { chrome: this.chromeHooks, notify: notice => this.show(notice) });
+    const context = contexts.bind(win, {
+      chrome: this.chromeHooks,
+      notify: notice => this.show(notice),
+      refocus: () => this.refocus()
+    });
     this.current = context;
     const capabilities = grantedCapabilities(app);
     const binding = createOrbitBinding(orbit, {
@@ -206,6 +210,12 @@ export class RemoteAppSession {
     this.dragRegions.set([]);
     this.options.win.title.set(this.options.app.name);
     this.hideNotice();
+  }
+
+  /** 文件面板关闭之后把键盘焦点还给应用的文档；实例不在就绪、可见的状态（已关闭、已失败、已最小化）时不动。 */
+  private refocus(): void {
+    const instance = this.binding?.instance;
+    if (instance?.snapshot.state === 'ready') instance.focus();
   }
 
   private show(notice: DesktopNotice): void {

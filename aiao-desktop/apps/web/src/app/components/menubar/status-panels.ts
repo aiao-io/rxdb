@@ -21,44 +21,56 @@ abstract class StatusPanel {
   }
 }
 
+/** Wi-Fi 面板（`dialog`）：开关是 `role="switch"` 的按钮，每个网络是一个按钮，已连接的名称里说明 connected。 */
 @Component({
   selector: 'app-wifi-panel',
   imports: [Icon, WifiBars],
-  host: { class: 'panel', style: 'min-width: 290px' },
+  host: { class: 'panel', role: 'dialog', 'aria-label': 'Wi-Fi', style: 'min-width: 290px' },
   template: `
     <div class="row" style="height: 32px">
       <h4 style="margin: 0">Wi-Fi</h4>
       <div class="tail">
-        <div
+        <button
           class="sw"
+          [attr.aria-checked]="system.wifi()"
           [class.on]="system.wifi()"
           (click)="system.wifi.set(!system.wifi())"
-          (keydown.enter)="system.wifi.set(!system.wifi())"
+          aria-label="Wi-Fi"
           data-t="wifi"
-          tabindex="-1"
-        ></div>
+          role="switch"
+          tabindex="0"
+          type="button"
+        ></button>
       </div>
     </div>
     <div class="sep"></div>
     <div class="mhead" style="padding-left: 0">Known Network</div>
-    <div
+    <button
       class="row"
+      [attr.aria-label]="system.wifiName() + ', connected'"
       [attr.data-net]="system.wifiName()"
       (click)="join(system.wifiName())"
-      (keydown.enter)="join(system.wifiName())"
-      tabindex="-1"
+      tabindex="0"
+      type="button"
     >
       <span style="width: 16px; color: var(--blue)"><svg appIcon="g-check"></svg></span>
       <span class="nm">{{ system.wifiName() }}</span>
       <span class="tail"
         ><svg appIcon="g-lock" style="width: 12px; height: 12px"></svg><app-wifi-bars [strength]="3"
       /></span>
-    </div>
+    </button>
     <div class="sep"></div>
     <div class="mhead" style="padding-left: 0">Other Networks</div>
     <div id="netlist">
       @for (net of others(); track net.n) {
-        <div class="row" [attr.data-net]="net.n" (click)="join(net.n)" (keydown.enter)="join(net.n)" tabindex="-1">
+        <button
+          class="row"
+          [attr.aria-label]="net.lock ? net.n + ', secured' : net.n"
+          [attr.data-net]="net.n"
+          (click)="join(net.n)"
+          tabindex="0"
+          type="button"
+        >
           <span style="width: 16px"></span><span class="nm">{{ net.n }}</span>
           <span class="tail">
             @if (net.lock) {
@@ -66,19 +78,13 @@ abstract class StatusPanel {
             }
             <app-wifi-bars [strength]="net.s" />
           </span>
-        </div>
+        </button>
       }
     </div>
     <div class="sep"></div>
-    <div
-      class="row"
-      (click)="openSettings('wifi')"
-      (keydown.enter)="openSettings('wifi')"
-      data-open-net-settings
-      tabindex="-1"
-    >
+    <button class="row" (click)="openSettings('wifi')" data-open-net-settings tabindex="0" type="button">
       <span class="nm">Wi-Fi Settings…</span>
-    </div>
+    </button>
   `
 })
 export class WifiPanel extends StatusPanel {
@@ -93,21 +99,25 @@ export class WifiPanel extends StatusPanel {
   }
 }
 
+/** 蓝牙面板（`dialog`）：开关是 `role="switch"` 的按钮。 */
 @Component({
   selector: 'app-bluetooth-panel',
-  host: { class: 'panel', style: 'min-width: 280px' },
+  host: { class: 'panel', role: 'dialog', 'aria-label': 'Bluetooth', style: 'min-width: 280px' },
   template: `
     <div class="row" style="height: 32px">
       <h4 style="margin: 0">Bluetooth</h4>
       <div class="tail">
-        <div
+        <button
           class="sw"
+          [attr.aria-checked]="system.bluetooth()"
           [class.on]="system.bluetooth()"
           (click)="system.bluetooth.set(!system.bluetooth())"
-          (keydown.enter)="system.bluetooth.set(!system.bluetooth())"
+          aria-label="Bluetooth"
           data-t="bt"
-          tabindex="-1"
-        ></div>
+          role="switch"
+          tabindex="0"
+          type="button"
+        ></button>
       </div>
     </div>
     <div class="sep"></div>
@@ -119,15 +129,9 @@ export class WifiPanel extends StatusPanel {
       </div>
     }
     <div class="sep"></div>
-    <div
-      class="row"
-      (click)="openSettings('bluetooth')"
-      (keydown.enter)="openSettings('bluetooth')"
-      data-bts
-      tabindex="-1"
-    >
+    <button class="row" (click)="openSettings('bluetooth')" data-bts tabindex="0" type="button">
       <span class="nm">Bluetooth Settings…</span>
-    </div>
+    </button>
   `
 })
 export class BluetoothPanel extends StatusPanel {
@@ -139,10 +143,11 @@ export class BluetoothPanel extends StatusPanel {
   ] as const;
 }
 
+/** 电池面板（`dialog`）。 */
 @Component({
   selector: 'app-battery-panel',
   imports: [BatteryIcon],
-  host: { class: 'panel', style: 'min-width: 250px' },
+  host: { class: 'panel', role: 'dialog', 'aria-label': 'Battery', style: 'min-width: 250px' },
   template: `
     <h4>Battery</h4>
     <div class="row" style="height: auto; padding: 2px 6px 8px">
@@ -159,12 +164,12 @@ export class BluetoothPanel extends StatusPanel {
     <div class="row"><span class="nm">Safari</span><span class="tail sub">Low</span></div>
     <div class="row"><span class="nm">Music</span><span class="tail sub">Low</span></div>
     <div class="sep"></div>
-    <div class="row" (click)="toggleCharging()" (keydown.enter)="toggleCharging()" data-t="chg" tabindex="-1">
+    <button class="row" (click)="toggleCharging()" data-t="chg" tabindex="0" type="button">
       <span class="nm">{{ system.charging() ? 'Unplug Power Adapter' : 'Simulate Charging' }}</span>
-    </div>
-    <div class="row" (click)="openSettings('battery')" (keydown.enter)="openSettings('battery')" data-bs tabindex="-1">
+    </button>
+    <button class="row" (click)="openSettings('battery')" data-bs tabindex="0" type="button">
       <span class="nm">Battery Settings…</span>
-    </div>
+    </button>
   `
 })
 export class BatteryPanel extends StatusPanel {
@@ -180,15 +185,16 @@ export class BatteryPanel extends StatusPanel {
   }
 }
 
+/** 声音面板（`dialog`）：音量滑块能用方向键调节。 */
 @Component({
   selector: 'app-sound-panel',
   imports: [Icon, Slider],
-  host: { class: 'panel', style: 'min-width: 270px' },
+  host: { class: 'panel', role: 'dialog', 'aria-label': 'Sound', style: 'min-width: 270px' },
   template: `
     <h4>Sound</h4>
     <div class="row" style="height: 30px; gap: 11px">
       <span style="color: var(--txt-2)"><svg appIcon="g-vol-lo" style="width: 15px; height: 15px"></svg></span>
-      <app-slider [value]="system.volume()" (valueChange)="system.setVolume($event)" data-slider="vol" />
+      <app-slider [value]="system.volume()" (valueChange)="system.setVolume($event)" data-slider="vol" label="Volume" />
       <span style="color: var(--txt-2)"><svg appIcon="g-vol-hi" style="width: 15px; height: 15px"></svg></span>
     </div>
     <div class="sep"></div>
@@ -201,9 +207,9 @@ export class BatteryPanel extends StatusPanel {
     </div>
     <div class="row"><span style="width: 15px"></span><span class="nm">AirPods Pro</span></div>
     <div class="sep"></div>
-    <div class="row" (click)="openSettings('sound')" (keydown.enter)="openSettings('sound')" data-ss tabindex="-1">
+    <button class="row" (click)="openSettings('sound')" data-ss tabindex="0" type="button">
       <span class="nm">Sound Settings…</span>
-    </div>
+    </button>
   `
 })
 export class SoundPanel extends StatusPanel {}

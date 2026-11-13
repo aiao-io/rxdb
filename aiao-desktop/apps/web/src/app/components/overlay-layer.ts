@@ -13,6 +13,7 @@ import { DESKTOP_APPS, LAUNCH_ORDER } from '../services/desktop-apps';
 import { Overlays } from '../services/overlays';
 import { PopoverService } from '../services/popover';
 import { SystemState } from '../services/system-state';
+import { FocusTrap } from '../shared/focus-trap';
 import { Icon } from '../shared/icon';
 import { whenIdle } from '../shared/idle';
 import { LAUNCHPAD_PER_PAGE, Launchpad } from './overlays/launchpad';
@@ -20,10 +21,14 @@ import { NotificationCentre } from './overlays/notification-centre';
 import { PopoverEntryView } from './overlays/popover-entry';
 import { Spotlight } from './overlays/spotlight';
 
-/** 浮层：启动台、聚焦搜索、通知中心、菜单弹出层，以及屏幕亮度遮罩。 */
+/**
+ * 浮层：启动台、聚焦搜索、通知中心、菜单弹出层，以及屏幕亮度遮罩。
+ * 三个全屏浮层各挂一个焦点陷阱（{@link FocusTrap}）：Tab 只在浮层里循环，关闭时焦点回到打开它之前的元素；
+ * 预热用的看不见的节点与亮度遮罩对读屏隐藏。
+ */
 @Component({
   selector: 'app-overlay-layer',
-  imports: [Icon, Launchpad, Spotlight, NotificationCentre, PopoverEntryView],
+  imports: [FocusTrap, Icon, Launchpad, Spotlight, NotificationCentre, PopoverEntryView],
   templateUrl: './overlay-layer.html',
   styleUrl: './overlay-layer.scss',
   encapsulation: ViewEncapsulation.None,
@@ -85,6 +90,6 @@ export class OverlayLayer {
 
   protected shield(event: MouseEvent): void {
     event.preventDefault();
-    this.popover.close();
+    this.popover.close(false, 'outside');
   }
 }

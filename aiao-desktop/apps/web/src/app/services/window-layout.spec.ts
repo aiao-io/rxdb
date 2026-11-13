@@ -128,6 +128,7 @@ function setup(options: Options = {}) {
   TestBed.inject(DockState).attach({
     bounce: vi.fn(),
     stopBounce: vi.fn(),
+    focusApp: vi.fn(),
     rectFor: () => ({ x: 0, y: 0, w: 48, h: 48 })
   });
   const wm = TestBed.inject(WindowManager);
@@ -404,7 +405,9 @@ describe('WindowLayoutStore 恢复', () => {
         ctx.wm.focus(notes.id);
       }),
       toggleZoom: vi.fn(),
-      keepOnScreen: vi.fn()
+      keepOnScreen: vi.fn(),
+      focusContent: vi.fn(),
+      holdsFocus: vi.fn(() => false)
     };
     ctx.wm.unminimize(notes.id);
     await settle();

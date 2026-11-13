@@ -55,7 +55,8 @@ describe('snapshot：读用户选定的那一个文件', () => {
     const snapshot = await files.snapshot(NOTE, 100);
     expect(snapshot).toMatchObject({ kind: 'ok', stamp: await stampOf(NOTE) });
     expect(snapshot.kind === 'ok' && text(snapshot.bytes)).toBe('hello');
-    expect(tasks).toHaveLength(2);
+    /* 量版本与读内容在同一个独占任务里，两次读之间别的标签页插不进来。 */
+    expect(tasks).toHaveLength(1);
   });
 
   it('文件刚好等于上限可以读，超过上限不读内容（FILE_TOO_LARGE 的磁盘侧依据）', async () => {

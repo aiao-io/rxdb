@@ -7,21 +7,26 @@
   [hidden]="phase() === 'hidden'"
   (click)="session.unlock()"
   (keydown.enter)="session.unlock()"
+  aria-label="Login"
+  aria-modal="true"
+  role="dialog"
   tabindex="-1"
 >
-  <div class="lk-wall" [style.background-image]="wall()"></div>
+  <div class="lk-wall" [style.background-image]="wall()" aria-hidden="true"></div>
   <div class="lk-top">
     <div class="lk-date">{{ date() }}</div>
     <div class="lk-time">{{ time() }}</div>
   </div>
   <div class="lk-user">
-    <div class="lk-av" [style.background-image]="avatar" data-av></div>
+    <div class="lk-av" [style.background-image]="avatar" aria-hidden="true" data-av></div>
     <div class="lk-name">{{ system.user }}</div>
-    <div class="lk-pw">
+    <div class="lk-pw" aria-hidden="true">
       <span>Enter Password</span>
       <i></i>
     </div>
-    <div class="lk-hint">Click to log in</div>
+    <div class="lk-hint" aria-hidden="true">Click to log in</div>
+    <!-- 读屏与键盘的登录入口：屏幕上没有可见的按钮（整屏点一下就登录），这个按钮只在键盘焦点到它时才显出一圈焦点环。 -->
+    <button class="lk-login sr" #login tabindex="0" type="button">Log in as {{ system.user }}</button>
   </div>
   <div class="lk-foot"></div>
 </div>

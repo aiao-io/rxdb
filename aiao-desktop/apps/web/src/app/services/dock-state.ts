@@ -13,6 +13,8 @@ export interface DockView {
   bounce(appId: string): void;
   stopBounce(appId: string): void;
   rectFor(appId: string): DockRect;
+  /** 把键盘焦点交给应用的 Dock 图标；图标不在（未固定的应用退出后）时交给相邻的图标。 */
+  focusApp(appId: string): void;
 }
 
 /** 页面级的 Dock 协调者：转交给 Dock 组件的弹跳与定位（废纸篓满不满看 `FileSystem.trashFull`）。 */
@@ -34,6 +36,11 @@ export class DockState {
 
   rectFor(appId: string): DockRect {
     return this.dock().rectFor(appId);
+  }
+
+  /** 键盘焦点交给应用的 Dock 图标：窗口全部关闭或最小化之后，焦点有处可去，按 Enter 就能再打开。 */
+  focusApp(appId: string): void {
+    this.dock().focusApp(appId);
   }
 
   private dock(): DockView {

@@ -5,6 +5,7 @@ import {
   Signal,
   afterNextRender,
   afterRenderEffect,
+  computed,
   effect,
   inject,
   runInInjectionContext,
@@ -40,43 +41,67 @@ interface SpotlightGroup {
   readonly hits: readonly { readonly hit: SpotlightHit; readonly index: number }[];
 }
 
-/** 聚焦搜索：应用、动作、磁盘文件、笔记与网页建议。 */
+/**
+ * 聚焦搜索：应用、动作、磁盘文件、笔记与网页建议。
+ * 无障碍（ADESK-US-108）：模态 `dialog`；输入框是 `combobox`，焦点始终留在输入框里，结果是 `listbox` 里的 `option`
+ * （按分类分 `group`），方向键移动的「当前项」由 `aria-activedescendant` 指出，Enter 打开，Esc 关闭。
+ * 结果行的 `tabindex="-1"` 只是让鼠标点击能聚焦它：Tab 停靠点只有输入框。
+ */
 @Component({
   selector: 'app-spotlight',
   imports: [Icon],
-  host: { id: 'spot', class: 'nosel', '[class.out]': "overlays.spotlight() === 'closing'" },
+  host: {
+    id: 'spot',
+    class: 'nosel',
+    role: 'dialog',
+    'aria-label': 'Spotlight',
+    'aria-modal': 'true',
+    '[class.out]': "overlays.spotlight() === 'closing'"
+  },
   template: `
-    <div class="scrim" (pointerdown)="overlays.closeSpotlight()"></div>
+    <div class="scrim" (pointerdown)="overlays.closeSpotlight()" aria-hidden="true"></div>
     <div class="box">
       <div class="qrow">
         <svg appIcon="g-spot"></svg>
         <input
           #query
+          [attr.aria-activedescendant]="activeId()"
+          [attr.aria-expanded]="hasResults()"
           (input)="search(query.value)"
           (keydown)="key($event)"
+          aria-autocomplete="list"
+          aria-controls="spot-results"
+          aria-label="Spotlight Search"
           autocomplete="off"
           data-sq
           placeholder="Spotlight Search"
+          role="combobox"
           spellcheck="false"
         />
       </div>
-      <div class="res scroll" #results data-sres>
+      <div class="res scroll" id="spot-results" #results aria-label="Results" data-sres role="listbox">
         @for (group of groups(); track group.title) {
-          <div class="cat">{{ group.title }}</div>
-          @for (row of group.hits; track row.index) {
-            <div
-              class="r"
-              [attr.data-i]="row.index"
-              [class.on]="row.index === selected()"
-              (click)="fire(row.index)"
-              (keydown.enter)="fire(row.index)"
-              (mousemove)="selected.set(row.index)"
-              tabindex="-1"
-            >
-              <span class="art"><svg [appIcon]="row.hit.icon"></svg></span><span class="nm">{{ row.hit.name }}</span
-              ><span class="kind">{{ row.hit.kind }}</span>
-            </div>
-          }
+          <div [attr.aria-label]="group.title" role="group">
+            <div class="cat" aria-hidden="true">{{ group.title }}</div>
+            @for (row of group.hits; track row.index) {
+              <div
+                class="r"
+                [attr.aria-label]="row.hit.name + ', ' + row.hit.kind"
+                [attr.aria-selected]="row.index === selected()"
+                [attr.data-i]="row.index"
+                [attr.id]="'spot-opt-' + row.index"
+                [class.on]="row.index === selected()"
+                (click)="fire(row.index)"
+                (keydown.enter)="fire(row.index)"
+                (mousemove)="selected.set(row.index)"
+                role="option"
+                tabindex="-1"
+              >
+                <span class="art"><svg [appIcon]="row.hit.icon"></svg></span><span class="nm">{{ row.hit.name }}</span
+                ><span class="kind">{{ row.hit.kind }}</span>
+              </div>
+            }
+          </div>
         }
       </div>
     </div>
@@ -126,6 +151,9 @@ export class Spotlight {
 
   protected readonly groups = signal<readonly SpotlightGroup[]>([]);
   protected readonly selected = signal(0);
+  protected readonly hasResults = computed(() => this.groups().length > 0);
+  /** `aria-activedescendant`：方向键选中的结果行；没有结果时没有。 */
+  protected readonly activeId = computed(() => (this.hasResults() ? `spot-opt-${this.selected()}` : null));
 
   constructor() {
     afterNextRender(() => setTimeout(() => this.queryInput().nativeElement.focus(), 30));

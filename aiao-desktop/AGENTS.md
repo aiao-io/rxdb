@@ -33,6 +33,17 @@ apps/web ──> 第三方库（@angular/*、rxjs、comlink、@xterm/*、@vivari
 - 开发导航（`scripts/dev/dashboard.mjs`）只在本地开发时运行、只监听 `127.0.0.1`，不进入 web 的构建产物，页面里不放任何密钥。
 - 发布（[D-16](requirements/decisions.md#d-16发布到-cloudflare-pages一键发布命令)）：`scripts/deploy/` 只读 web 的构建产物，经 wrangler 发布到 Cloudflare Pages 项目 `aiao-desktop`；凭据只在发布者本机（wrangler 登录），不进仓库与产物。托管配置 `_headers`、`_redirects` 放在 `apps/web/public/` 随构建发布，响应头要与 `scripts/deploy/config.mjs` 的 `requiredHeaders` 一致（`deploy-test` 校验）。新增要被 iframe 直接加载的 `.html` 时，在 `_redirects` 补一条 200 改写，否则 Pages 会把它 308 到无扩展名地址。
 
+## 前端约定（可访问性）
+
+规则来自 [ADESK-US-108](requirements/stories/desktop/ADESK-US-108-accessibility.md)；新代码照着写，否则会写回「看得见点不到」的老样子。
+
+- **可聚焦**：可点击的元素必须能用 Tab 键到、用 Enter / 空格触发。优先用原生 `<button>`；自绘元素写 `role` 加 `tabindex="0"`，并同时处理 Enter 与空格。**显式写出 `tabindex="0"`**：WebKit（Safari）在 macOS 默认设置下，Tab 只会停在带显式 tabindex 的元素和输入框上，没写 tabindex 的原生按钮也会被跳过。
+- **不要再写 `tabindex="-1"` 来绕 lint。** `interactive-supports-focus` 只检查「有没有 tabindex」，写 `-1` 能过 lint，元素却不在 Tab 顺序里，键盘用户到不了它。`-1` 只有三种正当用途，用的地方要在旁边写明：脚本聚焦的容器（窗口、浮层容器）；roving tabindex 的非停靠项（整组只有一个 `tabindex="0"`，方向键移动选择，如 Finder 的条目）；由 `aria-activedescendant` 管理的选项与弹出菜单里的项（聚焦搜索的结果、`MenuList`）。
+- **焦点环**用 `:focus-visible`：只在键盘操作时出现，鼠标点击不出现。全局默认样式在 `styles.scss` 的「键盘焦点环」一节（优先级为 0，组件自己写的焦点样式直接覆盖它）；不要用 `:focus` 画环，也不要写 `outline: none` 去掉它而不补替代样式。
+- **名称与角色**：图标按钮必须有 `aria-label`；装饰性 SVG 必须 `aria-hidden="true"`（`appIcon` 指令已自带）；自绘部件按 WAI-ARIA 给角色与状态（菜单 `menu` / `menuitem`、开关 `switch` + `aria-checked`、列表 `listbox` / `option`、滑块 `slider`）。窗口是 `role="dialog"`、名称是窗口标题，后台窗口 `aria-hidden`（不用 `inert`：它会让鼠标点后台窗口无法把它调到前台）。
+- **浮层**（启动台、聚焦搜索、通知中心、阻断界面）打开时焦点进入浮层、Tab 不漏到下面的桌面、关闭时焦点回到打开它的元素：加 `FocusTrap` 指令（`src/app/shared/focus-trap.ts`）。弹出菜单与面板走 `PopoverService`：键盘打开的传 `focus: true`，`onClose` 带着关闭原因（Esc、Tab、执行命令、点外面……）决定焦点去哪里。盖住整个桌面的东西（锁屏、开机画面、阻断界面）出现时，桌面层整体 `inert`。
+- 新增交互界面时，在冒烟的 `a11y` 检查组里补无障碍树（role / name）与纯键盘路径的检查项；本机读屏实测的清单与结论记录表见 [apps/e2e/VOICEOVER.md](apps/e2e/VOICEOVER.md)。
+
 ## 需求
 
 - 故事编号 `ADESK-US-XXX`、史诗 `ADESK-EPIC-XXX`，约定见 [requirements/CONVENTIONS.md](requirements/CONVENTIONS.md)。

@@ -14,13 +14,20 @@ import { isMenuKey } from '../../shared/menu-list';
 /** 7 × 4，与真实启动台在这个高度下的网格一致。 */
 export const LAUNCHPAD_PER_PAGE = 28;
 
-/** 启动台：分页网格、搜索、方向键与横向滚轮翻页。 */
+/**
+ * 启动台：分页网格、搜索、方向键与横向滚轮翻页。
+ * 无障碍（ADESK-US-108）：整个启动台是模态 `dialog`（焦点陷阱在 `OverlayLayer` 里加），搜索框有名称，应用图标是按钮
+ * （名称是应用名）；打开动画走完焦点进搜索框，Esc 关闭后焦点回到打开它的元素。
+ */
 @Component({
   selector: 'app-launchpad',
   imports: [Icon],
   host: {
     id: 'lpad',
     class: 'nosel',
+    role: 'dialog',
+    'aria-label': 'Launchpad',
+    'aria-modal': 'true',
     '[class.out]': "overlays.launchpad() === 'closing'",
     '(pointerdown)': 'backdrop($event)',
     '(wheel)': 'wheel($event)'
@@ -32,12 +39,13 @@ export const LAUNCHPAD_PER_PAGE = 28;
         #query
         (input)="search(query.value)"
         (keydown)="key($event)"
+        aria-label="Search Launchpad"
         data-lq
         placeholder="Search"
         spellcheck="false"
       />
     </div>
-    <div class="grid" data-lgrid>
+    <div class="grid" aria-label="Applications" data-lgrid role="group">
       @for (id of visible(); track id) {
         <div
           class="app"
@@ -56,13 +64,14 @@ export const LAUNCHPAD_PER_PAGE = 28;
         </div>
       } @empty {
         <div
+          role="status"
           style="grid-column: 1/-1; text-align: center; color: rgba(255, 255, 255, 0.75); font-size: 14px; padding-top: 40px; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4)"
         >
           No results
         </div>
       }
     </div>
-    <div class="dots" data-ldots>
+    <div class="dots" aria-hidden="true" data-ldots>
       @if (pages() > 1) {
         @for (dot of dots(); track dot) {
           <i [class.on]="dot === page()"></i>
@@ -128,7 +137,7 @@ export class Launchpad {
   }
 
   protected menu(event: MouseEvent, id: DesktopAppId): void {
-    this.popover.contextMenu(event, this.menuItems(id));
+    this.popover.contextMenu(event, this.menuItems(id), this.apps[id].name);
   }
 
   /** 聚焦在图标上按 Menu 键或 Shift+F10：弹出同一份菜单，焦点交给第一项，关闭后回到图标。 */
@@ -142,6 +151,7 @@ export class Launchpad {
       y: rect.top + rect.height / 2,
       origin: 'top left',
       focus: true,
+      label: this.apps[id].name,
       onClose: () => anchor.focus()
     });
   }
