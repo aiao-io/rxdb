@@ -1,0 +1,9 @@
+<div class="model-heading"><span><bom2-icon name="cube" /> 三维视图</span><button class="icon-button" aria-label="扩大三维视图" title="扩大三维视图" (click)="maximize.emit()"><bom2-icon name="focus" /></button></div>
+<div class="model-switch"><button [class.active]="mode() === 'vehicle'" (click)="mode.set('vehicle')">整车模型</button><button [class.active]="mode() === 'part'" (click)="mode.set('part')">独立零件</button><span>{{ mode() === 'vehicle' ? 'EU · X9D13C' : 'Part' }}</span></div>
+<div class="viewport" data-testid="model-viewport"><div #canvasHost class="canvas-host"></div>
+  @if (loading()) { <div class="model-overlay"><span class="spinner"></span><strong>{{ progress() }}</strong><span>模型准备好后可直接点击零件</span><button (click)="cancel()">取消加载</button></div> }
+  @if (error()) { <div class="model-overlay error" role="status"><bom2-icon name="cube" /><p>{{ error() }}</p><button (click)="load()">重新加载</button></div> }
+  @if (!loading() && !error()) { <div class="view-label">{{ dataset().vehicle.label }}</div><div class="view-presets"><button (click)="view('front')">前</button><button (click)="view('side')">侧</button><button (click)="view('top')">顶</button><button (click)="view('iso')">等轴</button></div> }
+</div>
+<div class="model-tools"><button (click)="focus()" title="聚焦所选零件"><bom2-icon name="focus" />聚焦</button><button [class.active]="isolated()" (click)="toggleIsolate()"><bom2-icon name="cube" />隔离</button><button [class.active]="ghosted()" (click)="toggleGhost()"><bom2-icon name="eye" />透明</button><button (click)="reset()"><bom2-icon name="reset" />还原</button></div>
+<div class="mapping-state" aria-live="polite"><span class="status-dot"></span>{{ mapping() }}</div>

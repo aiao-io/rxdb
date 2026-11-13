@@ -1,0 +1,89 @@
+{
+  "name": "aiao-bom-2",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "bom2",
+  "sourceRoot": "apps/aiao-bom-2/src",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": [
+        "{options.outputPath}"
+      ],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "dist/apps/aiao-bom-2",
+        "browser": "apps/aiao-bom-2/src/main.ts",
+        "tsConfig": "apps/aiao-bom-2/tsconfig.app.json",
+        "inlineStyleLanguage": "scss",
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "apps/aiao-bom-2/public"
+          }
+        ],
+        "styles": [
+          "apps/aiao-bom-2/src/styles.scss"
+        ]
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "500kb",
+              "maximumError": "1mb"
+            },
+            {
+              "type": "anyComponentStyle",
+              "maximumWarning": "4kb",
+              "maximumError": "8kb"
+            }
+          ],
+          "outputHashing": "all"
+        },
+        "development": {
+          "optimization": false,
+          "extractLicenses": false,
+          "sourceMap": true
+        }
+      }
+    },
+    "serve": {
+      "continuous": true,
+      "readyWhen": {
+        "signal": true
+      },
+      "executor": "@angular/build:dev-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "port": 4313
+      },
+      "configurations": {
+        "production": {
+          "buildTarget": "aiao-bom-2:build:production"
+        },
+        "development": {
+          "buildTarget": "aiao-bom-2:build:development"
+        }
+      }
+    },
+    "serve-static": {
+      "continuous": true,
+      "readyWhen": {
+        "signal": true
+      },
+      "dependsOn": [
+        "build"
+      ],
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "aiao-bom-2:build",
+        "port": 4313,
+        "staticFilePath": "dist/apps/aiao-bom-2/browser",
+        "spa": true
+      }
+    }
+  }
+}
