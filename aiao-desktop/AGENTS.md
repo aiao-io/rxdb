@@ -48,6 +48,10 @@ pnpm nx dev aiao-desktop                    # 本地开发：开发服务器 htt
 pnpm nx run aiao-desktop:verify             # 全部门禁：需求、门禁与开发脚本测试、lint、typecheck、build、冒烟、密钥扫描
 pnpm nx serve aiao-desktop-web              # 只起开发服务器 http://localhost:4410（带跨源隔离响应头）
 pnpm nx run aiao-desktop-web:serve-static   # 正式构建后在 http://127.0.0.1:4411 预览
-pnpm nx run aiao-desktop-e2e:e2e            # 正式构建上的 Chromium 冒烟
+pnpm nx run aiao-desktop-e2e:e2e            # 正式构建上的 Chromium 冒烟（按检查组拆分，只跑一组：`node src/smoke.mjs --group=<组名>`，列出组名：`--list`）
+pnpm nx run aiao-desktop-e2e:e2e-firefox    # Firefox / WebKit 上的冒烟；确实不能通过的项登记在 apps/e2e/src/baseline/limitations-<引擎>.json（写明档位与原因，通过了的限制算过期）
+pnpm nx run aiao-desktop-e2e:e2e-webkit
+pnpm nx run aiao-desktop-e2e:verify-saltline   # 本机 Chrome（有 GPU）里的游戏实测，不进 CI
+pnpm nx run aiao-desktop-e2e:verify-keyboard   # 本机真实键盘实测（要有人按键），不进 CI
 pnpm nx run aiao-desktop:deploy             # 一键发布到 Cloudflare Pages（--dry-run 只检查，--preview 发到 Preview 分支）
 ```
