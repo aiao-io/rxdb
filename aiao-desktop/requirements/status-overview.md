@@ -9,9 +9,9 @@
 | ✅ Done        | 10   |
 | 🚧 In Progress | 0    |
 | 👀 In Review   | 0    |
-| 📝 Backlog     | 9    |
+| 📝 Backlog     | 11   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 19   |
+| **合计**       | 21   |
 
 ## 进行中（0 条）
 
@@ -40,6 +40,8 @@
 - ⬜ [ADESK-US-104 窗口布局跨刷新保留](stories/desktop/ADESK-US-104-window-layout-persistence.md)
 - ⬜ [ADESK-US-105 多标签页实时互通](stories/desktop/ADESK-US-105-multi-tab-sync.md)
 - ⬜ [ADESK-US-106 旧库升级路径](stories/desktop/ADESK-US-106-database-upgrade-path.md)
+- ⬜ [ADESK-US-107 外壳交互验收补齐](stories/desktop/ADESK-US-107-shell-interaction-coverage.md)
+- ⬜ [ADESK-US-108 无障碍：读屏与纯键盘路径](stories/desktop/ADESK-US-108-accessibility.md)
 
 ### ADESK-EPIC-003 应用体系与集成应用
 

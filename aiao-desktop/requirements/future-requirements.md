@@ -24,3 +24,4 @@
 - **运行时应用分发**：在受管目录之外，用户安装任意 Web 应用、应用商店、代码签名和批准流程。
 - **扩展宿主能力**：在 [ADESK-US-206](stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md) 的最小能力集之外，继续增加 OAuth 弹窗、复杂文件选择、拖放数据通道等；每项先定 Orbit 请求名、权限与失败语义（[D-12](decisions.md#d-12集成应用的接入契约)）。
 - **外网内容本地化**：壁纸随构建分发；地图与天气在无网时给出明确的占位说明。
+- **各内置应用的内部功能逐项验收**：30 个内置应用目前只验「能打开」，各应用的内部功能没有逐项验收（[US-107](stories/desktop/ADESK-US-107-shell-interaction-coverage.md) 只补外壳交互）。

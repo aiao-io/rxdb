@@ -20,6 +20,8 @@
 - [ADESK-US-104](stories/desktop/ADESK-US-104-window-layout-persistence.md) 窗口布局跨刷新保留：打开的窗口在刷新后恢复位置、大小与状态。
 - [ADESK-US-105](stories/desktop/ADESK-US-105-multi-tab-sync.md) 多标签页实时互通：一个标签页的改动在另一个标签页即时可见。
 - [ADESK-US-106](stories/desktop/ADESK-US-106-database-upgrade-path.md) 旧库升级路径：升级后数据保留、新数据域补写、不兼容时明确报错。
+- [ADESK-US-107](stories/desktop/ADESK-US-107-shell-interaction-coverage.md) 外壳交互验收补齐：开机、锁屏、睡眠、状态栏面板、控制中心与窗口拖动/缩放/全屏进冒烟。
+- [ADESK-US-108](stories/desktop/ADESK-US-108-accessibility.md) 无障碍：读屏与纯键盘路径，无障碍树断言进冒烟。
 - [ADESK-US-004](stories/platform/ADESK-US-004-custom-domain.md) 绑定自定义域名与同站托管：绑定 aiao.io 下域名后发布命令纳入核对，桌面里的 Aiao Code 与直接访问同站。
 - [ADESK-US-005](stories/platform/ADESK-US-005-cross-browser-smoke.md) 跨浏览器与窄屏验收：Safari、Firefox 与窄屏触屏的冒烟与支持矩阵。
 - [ADESK-US-006](stories/platform/ADESK-US-006-web-test-coverage-gate.md) web 单测覆盖率门槛：覆盖率接入门禁与 CI，补齐高风险服务单测。
