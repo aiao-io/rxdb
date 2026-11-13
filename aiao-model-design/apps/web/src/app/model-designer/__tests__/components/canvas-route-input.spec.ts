@@ -21,7 +21,7 @@ vi.mock('@antv/x6', () => ({
 }));
 vi.mock('@antv/x6-angular-shape', () => ({
   AngularShapeView: class {},
-  register: () => {}
+  register: () => undefined
 }));
 
 @Component({ imports: [RouterOutlet], template: '<router-outlet />' })

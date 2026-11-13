@@ -35,6 +35,10 @@ export class DesignerToolbarComponent {
   protected readonly PanelLeft = PanelLeft;
   protected readonly Plus = Plus;
   protected readonly t = inject(MODEL_DESIGNER_TRANSLATIONS);
+  /** 工具栏主标题：优先当前实体名，未选中实体时回退为模型名 */
+  protected readonly displayName = computed(
+    () => this.entityName() ?? this.modelName() ?? this.t().toolbar.untitled
+  );
 
   readonly modelName = input<string>();
   /** 当前选中实体名（只读展示，不再承担切换入口） */
@@ -54,10 +58,6 @@ export class DesignerToolbarComponent {
   readonly redo = output<void>();
   readonly toggleAi = output<void>();
   readonly openNavigator = output<void>();
-  /** 工具栏主标题：优先当前实体名，未选中实体时回退为模型名 */
-  protected readonly displayName = computed(
-    () => this.entityName() ?? this.modelName() ?? this.t().toolbar.untitled
-  );
 
   protected closeMobileActions(details: HTMLDetailsElement): void {
     details.open = false;

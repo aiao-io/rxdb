@@ -4,6 +4,7 @@
 
     @if (editing()) {
       <input
+        #renameInput
         class="input input-bordered input-xs min-h-11 min-w-0 flex-1 lg:min-h-7"
         data-testid="model-switcher-rename-input"
         [value]="editValue()"
@@ -11,7 +12,6 @@
         (keydown.enter)="commitRename()"
         (keydown.escape)="cancelRename()"
         (blur)="commitRename()"
-        autofocus
       />
     } @else {
       <button

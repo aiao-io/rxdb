@@ -123,15 +123,16 @@ export class ModelDesignService {
   ]);
 
   readonly #designsQuery = useFindAll(ModelDesign, { where: { combinator: 'and', rules: [] } });
+  /** 等待设计列表首帧的闸门（ensureDefaultDesign 用） */
+  readonly #designsGate = createQueryGate([this.#designsQuery]);
+  /** 默认设计创建的在飞 Promise（并发去重） */
+  #defaultDesignPromise: Promise<ModelDesign | null> | null = null;
 
   /** 全部模型设计列表 */
   readonly designs = this.#designsQuery.value;
 
   /** 设计列表活查询首帧是否已到达（首帧前 designs 恒为 initialValue []） */
   readonly designsReady = this.#designsQuery.hasValue;
-
-  /** 等待设计列表首帧的闸门（ensureDefaultDesign 用） */
-  readonly #designsGate = createQueryGate([this.#designsQuery]);
 
   /**
    * 活查询失败时的消息（[缺陷台账 #21](../../../../requirements/known-defects.md)）。
@@ -149,9 +150,6 @@ export class ModelDesignService {
 
   /** 当前激活的设计 ID */
   readonly activeDesignId = signal<string | null>(null);
-
-  /** 默认设计创建的在飞 Promise（并发去重） */
-  #defaultDesignPromise: Promise<ModelDesign | null> | null = null;
 
   /** 当前激活的设计实例 */
   readonly activeDesign = computed(() => {
@@ -183,15 +181,6 @@ export class ModelDesignService {
   ensureDefaultDesign(): Promise<ModelDesign | null> {
     this.#defaultDesignPromise ??= this.#createDefaultDesignIfNeeded();
     return this.#defaultDesignPromise;
-  }
-
-  async #createDefaultDesignIfNeeded(): Promise<ModelDesign | null> {
-    try {
-      await this.#designsGate();
-      return this.designs().length === 0 ? await this.create(DEFAULT_MODEL_NAME) : null;
-    } finally {
-      this.#defaultDesignPromise = null;
-    }
   }
 
   /** 更新模型设计字段 */
@@ -231,6 +220,15 @@ export class ModelDesignService {
     }
 
     return design;
+  }
+
+  async #createDefaultDesignIfNeeded(): Promise<ModelDesign | null> {
+    try {
+      await this.#designsGate();
+      return this.designs().length === 0 ? await this.create(DEFAULT_MODEL_NAME) : null;
+    } finally {
+      this.#defaultDesignPromise = null;
+    }
   }
 
   /** 读取指定设计的实体/属性/关系/索引全量数据，供 {@link cloneDesignSnapshot} 消费 */

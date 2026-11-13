@@ -9,15 +9,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 /**
  * 只替掉「让实体装饰器在导入期能跑完」所需的那几个符号。
  *
- * 本文件的断言全部围绕 `lastError` 的渲染，一条实体都不建——同包其他 spec 里那份
- * 带 `EntityBase.save()` 假实现的 mock 在这里是死代码，不抄。
+ * 本文件的断言全部围绕 `lastError` 的渲染。`save()` 的 no-op 假实现不是死代码：
+ * DesignerComponent 挂载时会自动创建默认设计 `schema`（无设计时），没有它
+ * 默认创建会失败并把 `lastError` 弄脏。
  */
 vi.mock('@aiao/rxdb', () => ({
   __decorateClass: (_d: unknown[], target: unknown) => target,
   RxDB: class {},
   Entity: () => (target: unknown) => target,
   TreeEntity: () => (target: unknown) => target,
-  EntityBase: class {},
+  EntityBase: class {
+    async save() {}
+  },
   TreeAdjacencyListEntityBase: class {},
   PropertyType: { string: 'string', number: 'number', integer: 'integer', boolean: 'boolean' },
   RelationKind: { ONE_TO_MANY: 'ONE_TO_MANY', MANY_TO_ONE: 'MANY_TO_ONE' },

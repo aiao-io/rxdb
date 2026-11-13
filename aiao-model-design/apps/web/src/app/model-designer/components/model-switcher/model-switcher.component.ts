@@ -1,4 +1,15 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  ElementRef,
+  inject,
+  input,
+  output,
+  signal,
+  viewChild
+} from '@angular/core';
 import { Box, Boxes, Check, ChevronsUpDown, LucideAngularModule } from 'lucide-angular';
 import { MODEL_DESIGNER_TRANSLATIONS } from '../../i18n/translations';
 import type { ModelDesign } from '../../models/index.js';
@@ -42,6 +53,19 @@ export class ModelSwitcherComponent {
   readonly newName = signal('');
 
   readonly activeModel = computed(() => this.models().find(m => m.id === this.activeId()) ?? null);
+
+  readonly renameInput = viewChild<ElementRef<HTMLInputElement>>('renameInput');
+
+  constructor() {
+    // 进入重命名编辑态后自动聚焦并全选
+    effect(() => {
+      if (!this.editing()) return;
+      const input = this.renameInput();
+      if (!input) return;
+      input.nativeElement.focus();
+      input.nativeElement.select();
+    });
+  }
 
   asInputValue(event: Event): string {
     return (event.target as HTMLInputElement).value;
