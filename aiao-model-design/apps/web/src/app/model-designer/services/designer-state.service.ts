@@ -192,8 +192,20 @@ export class DesignerStateService {
     }
   }
 
-  async onAddEntity() {
-    await this.run('Create entity', () => this.entityService.create());
+  async onAddEntity(namespace?: string) {
+    await this.run('Create entity', () => this.entityService.create(undefined, namespace));
+  }
+
+  /** 左侧导航重命名实体 */
+  async onEntityRenamed(id: string, name: string) {
+    await this.run('Rename entity', () => this.entityService.update(id, { name }));
+  }
+
+  /** 左侧导航把实体拖到指定命名空间 */
+  async onEntityMovedToNamespace(id: string, namespace: string) {
+    const entity = this.entities().find(e => e.id === id);
+    if (!entity || (entity.entityNamespace || 'public') === namespace) return;
+    await this.run('Move entity', () => this.entityService.update(id, { entityNamespace: namespace }));
   }
 
   onEntitySelected(id: string): boolean {

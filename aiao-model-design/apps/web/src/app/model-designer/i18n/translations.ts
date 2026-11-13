@@ -120,7 +120,6 @@ export interface ModelDesignerTranslations {
     ariaCopyModel: string;
   };
   tableView: {
-    newTab: string;
     colName: string;
     colType: string;
     colNullable: string;
@@ -173,6 +172,9 @@ export interface ModelDesignerTranslations {
   navigator: {
     empty: string;
     entityCount: string;
+    addEntityToNamespace: string;
+    renameEntity: string;
+    deleteEntity: string;
   };
   selectionSummary: {
     selectedCount: string;
@@ -373,7 +375,6 @@ export const DEFAULT_TRANSLATIONS: ModelDesignerTranslations = {
     ariaCopyModel: 'Copy model'
   },
   tableView: {
-    newTab: '+ New',
     colName: 'Name',
     colType: 'Type',
     colNullable: 'Nullable',
@@ -425,7 +426,10 @@ export const DEFAULT_TRANSLATIONS: ModelDesignerTranslations = {
   },
   navigator: {
     empty: 'No entities yet. Click + to add one.',
-    entityCount: '{count} entities'
+    entityCount: '{count} entities',
+    addEntityToNamespace: 'Add entity to {namespace}',
+    renameEntity: 'Rename entity',
+    deleteEntity: 'Delete entity'
   },
   selectionSummary: {
     selectedCount: '{count} entities selected',

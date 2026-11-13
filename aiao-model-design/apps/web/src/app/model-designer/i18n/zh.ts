@@ -119,7 +119,6 @@ export const ZH_TRANSLATIONS: ModelDesignerTranslations = {
     ariaCopyModel: '复制模型'
   },
   tableView: {
-    newTab: '+ 新建',
     colName: '名称',
     colType: '类型',
     colNullable: '可空',
@@ -171,7 +170,10 @@ export const ZH_TRANSLATIONS: ModelDesignerTranslations = {
   },
   navigator: {
     empty: '无实体，点击右上角添加',
-    entityCount: '{count} 个实体'
+    entityCount: '{count} 个实体',
+    addEntityToNamespace: '在 {namespace} 命名空间新建实体',
+    renameEntity: '重命名实体',
+    deleteEntity: '删除实体'
   },
   selectionSummary: {
     selectedCount: '已选中 {count} 个实体',

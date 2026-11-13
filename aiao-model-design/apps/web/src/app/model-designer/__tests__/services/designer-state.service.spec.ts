@@ -65,6 +65,8 @@ describe('DesignerStateService — 删除二次确认 / 关系 / 类型变更', 
   let service: DesignerStateService;
   let confirmDialog: { confirm: ReturnType<typeof vi.fn> };
   let removeManySpy: ReturnType<typeof vi.fn>;
+  let entityCreateSpy: ReturnType<typeof vi.fn>;
+  let entityUpdateSpy: ReturnType<typeof vi.fn>;
   let relationRemoveSpy: ReturnType<typeof vi.fn>;
   let createLinkedPairSpy: ReturnType<typeof vi.fn>;
   let propertyUpdateSpy: ReturnType<typeof vi.fn>;
@@ -84,6 +86,8 @@ describe('DesignerStateService — 删除二次确认 / 关系 / 类型变更', 
   beforeEach(() => {
     confirmDialog = { confirm: vi.fn().mockResolvedValue(true) };
     removeManySpy = vi.fn().mockResolvedValue(undefined);
+    entityCreateSpy = vi.fn().mockResolvedValue({ id: 'new-entity' });
+    entityUpdateSpy = vi.fn().mockResolvedValue(undefined);
     relationRemoveSpy = vi.fn().mockResolvedValue(undefined);
     createLinkedPairSpy = vi.fn().mockResolvedValue({ source: { id: 'r1' }, inverse: { id: 'r2' } });
     propertyUpdateSpy = vi.fn().mockResolvedValue(undefined);
@@ -125,6 +129,8 @@ describe('DesignerStateService — 删除二次确认 / 关系 / 类型变更', 
           useValue: {
             entities: entitiesSignal,
             selectedEntityIds: signal(new Set<string>()),
+            create: entityCreateSpy,
+            update: entityUpdateSpy,
             removeMany: removeManySpy
           }
         },
@@ -431,6 +437,40 @@ describe('DesignerStateService — 删除二次确认 / 关系 / 类型变更', 
         expect.objectContaining({ packageName: '@acme/blog-rxdb', generatedFiles: service.generatedFiles() })
       );
       expect(service.clientPackageVersion()).toBe('1.1.0');
+    });
+  });
+
+  describe('左侧导航实体操作', () => {
+    it('onAddEntity(namespace) 在指定命名空间创建实体', async () => {
+      await service.onAddEntity('shop');
+      expect(entityCreateSpy).toHaveBeenCalledWith(undefined, 'shop');
+    });
+
+    it('onAddEntity() 不带命名空间创建实体', async () => {
+      await service.onAddEntity();
+      expect(entityCreateSpy).toHaveBeenCalledWith(undefined, undefined);
+    });
+
+    it('onEntityRenamed 走 entityService.update', async () => {
+      await service.onEntityRenamed('e1', 'Post');
+      expect(entityUpdateSpy).toHaveBeenCalledWith('e1', { name: 'Post' });
+    });
+
+    it('onEntityMovedToNamespace 把实体更新到目标命名空间', async () => {
+      entitiesSignal.set([{ id: 'e1', name: 'Post', entityNamespace: 'public' }]);
+      await service.onEntityMovedToNamespace('e1', 'shop');
+      expect(entityUpdateSpy).toHaveBeenCalledWith('e1', { entityNamespace: 'shop' });
+    });
+
+    it('onEntityMovedToNamespace 目标与当前命名空间相同时跳过', async () => {
+      entitiesSignal.set([{ id: 'e1', name: 'Post', entityNamespace: null }]);
+      await service.onEntityMovedToNamespace('e1', 'public');
+      expect(entityUpdateSpy).not.toHaveBeenCalled();
+    });
+
+    it('onEntityMovedToNamespace 实体不存在时跳过', async () => {
+      await service.onEntityMovedToNamespace('missing', 'shop');
+      expect(entityUpdateSpy).not.toHaveBeenCalled();
     });
   });
 });

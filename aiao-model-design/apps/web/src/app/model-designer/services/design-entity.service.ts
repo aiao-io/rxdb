@@ -106,8 +106,8 @@ export class DesignEntityService {
     this.selectedEntityIds.set(new Set());
   }
 
-  /** 创建新实体，自动生成唯一名称和画布位置 */
-  async create(name?: string): Promise<DesignEntity> {
+  /** 创建新实体，自动生成唯一名称和画布位置；可指定命名空间 */
+  async create(name?: string, namespace?: string): Promise<DesignEntity> {
     const design = this.#modelDesignService.activeDesign();
     if (!design) throw new Error('No active model design');
     const existingNames = this.entityNames();
@@ -117,6 +117,7 @@ export class DesignEntityService {
 
     const entity = new DesignEntity({
       name: finalName,
+      entityNamespace: namespace ?? undefined,
       sortOrder: nextSortOrder(entities),
       nodeX,
       nodeY

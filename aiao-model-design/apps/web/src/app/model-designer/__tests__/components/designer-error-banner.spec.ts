@@ -19,7 +19,9 @@ vi.mock('@aiao/rxdb', () => ({
   Entity: () => (target: unknown) => target,
   TreeEntity: () => (target: unknown) => target,
   EntityBase: class {
-    async save() {}
+    async save() {
+      // 默认设计的自动创建需要 no-op save，本套件不建真实实体
+    }
   },
   TreeAdjacencyListEntityBase: class {},
   PropertyType: { string: 'string', number: 'number', integer: 'integer', boolean: 'boolean' },
