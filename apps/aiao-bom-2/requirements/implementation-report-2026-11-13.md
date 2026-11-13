@@ -41,7 +41,7 @@ Three.js 保留原始节点、世界变换和拾取身份。静态且材质 / �
 | 覆盖率 statements / branches / functions / lines | 93.16% / 85.39% / 94.31% / 97.71%，四项均 ≥ 80% |
 | 新应用浏览器验收 | 2026-11-14 最终全套 7 项通过；单 worker、零重试，覆盖 50k 同屏、100k 宽树与业务流程 |
 | 旧应用回归 | lint / typecheck / spec-typecheck / build 通过；230 个单元测试、16 个需求脚本测试、40 项业务 E2E 通过 |
-| 独立构建与部署打包 | 生产构建及 Wrangler dry-run 通过，无上传；61 个静态文件 |
+| 独立构建与部署打包 | 生产构建及 Wrangler dry-run 通过，无上传；Wrangler 读取 61 项资产，58 个实际产物文件的哈希单独留存 |
 | Cloudflare 本地运行 | 首页、SPA 深链接、JSON、Draco WASM 均 200；COOP / COEP 生效，浏览器 `crossOriginIsolated=true`，真实整车完成解码与精确位置选择 |
 
 Wrangler 独立依赖固定为 `4.158.0`，本地运行时支持的兼容日期为 `2026-11-11`，配置据此固定；采集日期仍为 `2026-11-13`。构建保留 VTable 等第三方 CommonJS 提示，不视为 ESLint 警告，也未通过允许列表隐藏。
