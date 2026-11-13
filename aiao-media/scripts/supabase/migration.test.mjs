@@ -33,6 +33,14 @@ test('all original application stories retain their independent identity and all
   const importedIds = new Set(manifest.stories.map(original => `MEDIA-${original.legacyId.split(':')[1]}`));
   for (const original of manifest.stories) {
     const current = stories.find(story => story.legacyId === original.legacyId);
+    const retired = manifest.retiredStories.find(story => story.legacyId === original.legacyId);
+    if (retired) {
+      assert.equal(current, undefined);
+      const decisions = await readFile(resolve(application, 'requirements/decisions.md'), 'utf8');
+      assert.match(decisions, new RegExp(`### ${retired.decision}：`));
+      assert.ok(retired.reason.trim());
+      continue;
+    }
     assert.ok(current, original.legacyId);
     assert.equal(current.id, `MEDIA-${original.legacyId.split(':')[1]}`);
     assert.ok(['Done', 'In Progress', 'In Review', 'Backlog', 'Blocked'].includes(current.status));

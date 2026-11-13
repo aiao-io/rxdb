@@ -1,4 +1,4 @@
-import { validateTaskReport, type TaskReport } from '@aiao-media/api-contracts';
+import { validateTaskReport, type CreditSnapshot, type TaskReport } from '@aiao-media/api-contracts';
 import { apiEndpoint } from '../platform/local-backend';
 import type { ProductAuthorization } from './supabase-auth';
 
@@ -52,6 +52,15 @@ export class ProductClient {
     return this.remote(access, `/rpc/${path}`, operation === 'delete' ? { p_request_id: requestId } : {});
   }
 
+  /** 查询当前登录账号的同源积分账本。 */
+  async credits(before?: number): Promise<CreditSnapshot> {
+    const access = await this.authorize();
+    return this.request(apiEndpoint(`/api/credits${before === undefined ? '' : `?before=${before}`}`), {
+      method: 'GET',
+      headers: { authorization: `Bearer ${access.session.access_token}` }
+    }) as Promise<CreditSnapshot>;
+  }
+
   async admin(path: string, method = 'GET', payload?: unknown): Promise<unknown> {
     if (!/^[a-z0-9/?=&,._%:-]+$/i.test(path) || path.startsWith('/')) throw new Error('管理请求路径无效。');
     const access = await this.authorize();
@@ -98,6 +107,7 @@ export class ProductClient {
     if (!result.ok)
       throw new Error(
         result.status === 401 || result.status === 403 ? '账号或权限已失效，远程操作已暂停。'
+        : result.status === 402 ? '可用积分不足，请查看当前余额。'
         : result.status === 409 ? '数据版本已变化，请重新载入。'
         : '产品服务暂不可用，原数据保留。'
       );

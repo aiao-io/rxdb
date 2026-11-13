@@ -1,4 +1,4 @@
-import type { PromptTemplate } from '@aiao-media/api-contracts';
+import type { CreditSnapshot, PromptTemplate } from '@aiao-media/api-contracts';
 import {
   validatePublishedTemplate,
   type ProviderPolicy,
@@ -68,6 +68,7 @@ export type AdminTab = 'users' | 'templates' | 'policies' | 'tasks' | 'audit';
 })
 export class AdminConsole {
   private generation = 0;
+  private creditPending: { target: string; delta: number; reason: string; requestId: string } | null = null;
   readonly client = input.required<ProductClient>();
   readonly identity = input.required<string>();
   readonly status = input.required<string>();
@@ -83,6 +84,7 @@ export class AdminConsole {
   readonly usage = signal<AdminUsage | null>(null);
   readonly audit = signal<AuditEntry[]>([]);
   readonly page = signal(1);
+  userSearch = '';
   readonly taskPage = signal(1);
   readonly template = signal<PromptTemplate | null>(null);
   readonly templateRevision = signal(0);
@@ -90,6 +92,8 @@ export class AdminConsole {
   readonly policyRevision = signal(0);
   readonly policyActiveRevision = signal<number | null>(null);
   readonly userDetail = signal<AdminUser | null>(null);
+  readonly credits = signal<CreditSnapshot | null>(null);
+  readonly creditForm = { delta: 0, reason: '' };
   readonly filter = { userId: '', model: '', channel: '', status: '', from: '', to: '' };
 
   constructor() {
@@ -131,6 +135,58 @@ export class AdminConsole {
     if (this.tab() === 'tasks') this.taskPage.update(page => Math.max(1, page + direction));
     else this.page.update(page => Math.max(1, page + direction));
     await this.load();
+  }
+  async searchUsers(): Promise<void> {
+    this.page.set(1);
+    await this.load();
+  }
+  async openUser(user: AdminUser): Promise<void> {
+    if (this.busy()) return;
+    this.userDetail.set(user);
+    this.credits.set(null);
+    this.creditForm.delta = 0;
+    this.creditForm.reason = '';
+    await this.run(async () => {
+      const value = (await this.client().admin(`users/${user.id}/credits`)) as CreditSnapshot;
+      return () => this.credits.set(value);
+    }, true);
+  }
+  async olderCredits(): Promise<void> {
+    const user = this.userDetail(), entries = this.credits()?.entries;
+    if (!user || !entries?.length) return;
+    await this.run(async () => {
+      const value = await this.client().admin(`users/${user.id}/credits?before=${entries[entries.length - 1].id}`) as CreditSnapshot;
+      return () => this.credits.set(value);
+    }, true);
+  }
+  async adjustCredits(): Promise<void> {
+    const user = this.userDetail(),
+      delta = this.creditForm.delta,
+      reason = this.creditForm.reason.trim();
+    if (!user || this.busy()) return;
+    if (!Number.isInteger(delta) || delta === 0 || Math.abs(delta) > 2147483647 || !reason || reason.length > 500) {
+      this.message.set('请填写非零整数积分和调整原因。');
+      return;
+    }
+    if (
+      !this.creditPending ||
+      this.creditPending.target !== user.id ||
+      this.creditPending.delta !== delta ||
+      this.creditPending.reason !== reason
+    )
+      this.creditPending = { target: user.id, delta, reason, requestId: crypto.randomUUID() };
+    const pending = this.creditPending;
+    await this.run(async () => {
+      await this.client().admin(`users/${user.id}/credits`, 'POST', { delta, reason, requestId: pending.requestId });
+      const value = (await this.client().admin(`users/${user.id}/credits`)) as CreditSnapshot;
+      return () => {
+        this.credits.set(value);
+        this.creditPending = null;
+        this.creditForm.delta = 0;
+        this.creditForm.reason = '';
+        this.message.set('积分调整已确认。');
+      };
+    }, true);
   }
   async setAccount(user: AdminUser): Promise<void> {
     if (!window.confirm(`${user.disabled ? '解除封禁' : '封禁'}此账号？本机文件不会被删除。`)) return;
@@ -281,7 +337,7 @@ export class AdminConsole {
     );
   }
 
-  private async run(operation: () => Promise<() => void>): Promise<void> {
+  private async run(operation: () => Promise<() => void>, preserve = false): Promise<void> {
     if (this.busy() || this.status() !== 'signed-in') return;
     const generation = this.generation;
     this.busy.set(true);
@@ -293,8 +349,10 @@ export class AdminConsole {
       apply();
     } catch (error) {
       if (generation !== this.generation) return;
-      this.allowed.set(false);
-      this.clear();
+      if (!preserve) {
+        this.allowed.set(false);
+        this.clear();
+      }
       this.message.set(error instanceof Error ? error.message : '后台请求未确认，请重试。');
     } finally {
       if (generation === this.generation) this.busy.set(false);
@@ -302,10 +360,13 @@ export class AdminConsole {
   }
   private async readTab(): Promise<() => void> {
     if (this.tab() === 'users') {
-      const data = (await this.client().admin(`users?page=${this.page()}&perPage=25`)) as { users: AdminUser[] };
+      const data = (await this.client().admin(
+        `users?page=${this.page()}&perPage=25${this.userSearch.trim() ? `&search=${encodeURIComponent(this.userSearch.trim())}` : ''}`
+      )) as { users: AdminUser[] };
       return () => {
         this.users.set(Array.isArray(data.users) ? data.users : []);
         this.userDetail.set(null);
+        this.credits.set(null);
       };
     }
     if (['templates', 'policies'].includes(this.tab())) {
@@ -341,6 +402,8 @@ export class AdminConsole {
     this.audit.set([]);
     this.template.set(null);
     this.userDetail.set(null);
+    this.credits.set(null);
+    this.creditPending = null;
     this.policy.set({ version: 1, providers: [] });
     this.policyRevision.set(0);
     this.policyActiveRevision.set(null);

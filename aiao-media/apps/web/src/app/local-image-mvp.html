@@ -1389,6 +1389,7 @@
         <span class="eyebrow">可选账号</span>
         <h2>已登录</h2>
         <p>{{ user.email || user.id }}</p>
+        <app-credits-panel [client]="adminApi" [identity]="user.id" />
         <p class="notice">
           登录不会自动上传本机内容。启用同步后，草稿、供应商公开配置和作品信息可同步；原图只有在单独确认图片同步后才上传，API
           Key 始终留在本机。

@@ -280,3 +280,53 @@ describe('administrative content and state changes', () => {
     expect(component.audit()).toEqual([{ id: 1, action: 'publish' }]);
   });
 });
+
+describe('积分管理', () => {
+  it('读取所选用户积分，调整失败后用原标识重试，成功后刷新余额', async () => {
+    const { component, admin } = await rig();
+    const snapshot = { account: { balance: 12, reserved: 2, available: 10 }, entries: [] };
+    let failed = false;
+    admin.mockImplementation(async (path, method = 'GET') => {
+      if (path.endsWith('/credits') && method === 'GET') return snapshot;
+      if (path.endsWith('/credits') && method === 'POST') {
+        if (!failed) {
+          failed = true;
+          throw new Error('请求未确认');
+        }
+        return { entry: {} };
+      }
+      return {};
+    });
+    await component.openUser(user);
+    expect(component.credits()).toEqual(snapshot);
+    component.creditForm.delta = 4;
+    component.creditForm.reason = '发放测试';
+    await component.adjustCredits();
+    expect(component.message()).toContain('未确认');
+    expect(component.userDetail()).toEqual(user);
+    await component.adjustCredits();
+    const writes = admin.mock.calls.filter(call => call[1] === 'POST');
+    expect(writes).toHaveLength(2);
+    expect(writes[0][2]).toEqual(writes[1][2]);
+    expect(component.credits()).toEqual(snapshot);
+    expect(component.message()).toContain('已确认');
+  });
+  it('切换账号后丢弃迟到的积分结果，空原因不发请求', async () => {
+    const { component, fixture, admin } = await rig();
+    let resolve: (value: unknown) => void = () => undefined;
+    admin.mockImplementation(
+      () =>
+        new Promise(value => {
+          resolve = value;
+        })
+    );
+    const pending = component.openUser(user);
+    fixture.componentRef.setInput('identity', 'other-admin');
+    fixture.componentRef.setInput('status', 'signed-out');
+    fixture.detectChanges();
+    resolve({ account: { balance: 9, reserved: 0, available: 9 }, entries: [] });
+    await pending;
+    expect(component.credits()).toBeNull();
+    expect(component.userDetail()).toBeNull();
+  });
+});

@@ -408,7 +408,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "aiao-media/apps/web",
-        "command": "node --test scripts/*.test.mjs ../../scripts/supabase/build-production-supabase-bundle.test.mjs ../../scripts/product/product-sync-contract.test.mjs ../../scripts/supabase/migration.test.mjs ../../scripts/supabase/supabase-local.test.mjs"
+        "command": "node --test scripts/*.test.mjs ../../scripts/supabase/build-production-supabase-bundle.test.mjs ../../scripts/product/*.test.mjs ../../scripts/supabase/migration.test.mjs ../../scripts/supabase/supabase-local.test.mjs"
       },
       "dependsOn": ["aiao-media-api:script-test", "dev-test"]
     },
@@ -597,6 +597,23 @@
       "options": {
         "cwd": "aiao-media/apps/web",
         "command": "node ../../scripts/release/verify-self-hosted-browser.mjs"
+      }
+    },
+    "credits-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-media",
+        "command": "node --test scripts/product/credits-contract.test.mjs"
+      }
+    },
+    "credits-local-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["supabase-migrate"],
+      "options": {
+        "cwd": "aiao-media",
+        "command": "node scripts/product/test-credits-local.mjs"
       }
     }
   }

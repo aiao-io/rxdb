@@ -1,3 +1,4 @@
+import { manageCredits } from './credits-api.ts';
 import { manageContent } from './product-content.ts';
 import type { BackendClient } from './product-http.ts';
 import {
@@ -39,14 +40,18 @@ function loginKey(request: Request, email: string) {
 }
 function checkLogin(key: string) {
   const now = Date.now();
-  for (const [candidate, state] of loginFailures) if (state.resetAt <= now && state.blockedUntil <= now) loginFailures.delete(candidate);
+  for (const [candidate, state] of loginFailures)
+    if (state.resetAt <= now && state.blockedUntil <= now) loginFailures.delete(candidate);
   const state = loginFailures.get(key);
   if (state?.blockedUntil && state.blockedUntil > now) reject(429, '登录尝试过多，请稍后重试。');
 }
 function recordLoginFailure(key: string) {
   const now = Date.now();
   const state = loginFailures.get(key);
-  const next = !state || state.resetAt <= now ? { count: 1, resetAt: now + loginWindowMs, blockedUntil: 0 } : { ...state, count: state.count + 1 };
+  const next =
+    !state || state.resetAt <= now ?
+      { count: 1, resetAt: now + loginWindowMs, blockedUntil: 0 }
+    : { ...state, count: state.count + 1 };
   if (next.count >= loginFailureLimit) next.blockedUntil = now + loginBlockMs;
   loginFailures.set(key, next);
 }
@@ -68,12 +73,18 @@ function pageNumber(value: string | null, fallback: number, max: number) {
   if (!Number.isSafeInteger(number) || number < 1 || number > max) reject(400, '分页参数无效。');
   return number;
 }
-async function users(client: BackendClient, url: URL) {
+async function users(client: BackendClient, url: URL, actorId: string) {
   const page = pageNumber(url.searchParams.get('page'), 1, 1000000);
   const perPage = pageNumber(url.searchParams.get('perPage'), 25, 100);
-  const result = await client.call<{ users: AuthUser[]; total?: number }>(
-    `/auth/v1/admin/users?page=${page}&per_page=${perPage}`
-  );
+  const search = url.searchParams.get('search')?.trim();
+  if (search && search.length > 254) reject(400, '搜索内容过长。');
+  const result =
+    search ?
+      await client.call<{ users: AuthUser[]; total?: number }>('/rest/v1/rpc/media_admin_search_users', {
+        method: 'POST',
+        payload: { p_actor: actorId, p_query: search, p_page: page, p_limit: perPage }
+      })
+    : await client.call<{ users: AuthUser[]; total?: number }>(`/auth/v1/admin/users?page=${page}&per_page=${perPage}`);
   if (!Array.isArray(result.users)) reject(502, '用户列表暂不可读。');
   const ids = result.users.map(user => user.id);
   if (!ids.every(uuid)) reject(502, '用户标识无效。');
@@ -208,7 +219,9 @@ export function handleAdmin(request: Request, env: WorkerEnv) {
       };
     if (['tasks', 'usage'].includes(path) && request.method === 'GET') return reports(client, url, path === 'usage');
     if (path === 'session' && request.method === 'GET') return { actorId };
-    if (path === 'users' && request.method === 'GET') return users(client, url);
+    if (path === 'users' && request.method === 'GET') return users(client, url, actorId);
+    const creditTarget = /^users\/([0-9a-f-]+)\/credits$/.exec(path)?.[1];
+    if (creditTarget && uuid(creditTarget)) return manageCredits(request, client, actorId, creditTarget);
     const target = /^users\/([0-9a-f-]+)$/.exec(path)?.[1];
     if (target && uuid(target) && request.method === 'PATCH') return setAccount(request, client, actorId, target);
     if (path === 'audit' && request.method === 'GET')

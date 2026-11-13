@@ -1,8 +1,6 @@
 import { createRoute, z } from '@hono/zod-openapi';
 
-const ApiErrorSchema = z
-  .object({ error: z.string().openapi({ example: '请求数据无效。' }) })
-  .openapi('ApiError');
+const ApiErrorSchema = z.object({ error: z.string().openapi({ example: '请求数据无效。' }) }).openapi('ApiError');
 
 const InstallationAuthSchema = z
   .object({
@@ -102,9 +100,7 @@ const ProviderPolicySchema = z
   .object({ version: z.literal(1), providers: z.array(ProviderPolicyEntrySchema) })
   .openapi('ProviderPolicy');
 
-const ProviderPoliciesSchema = z
-  .object({ policy: ProviderPolicySchema.nullable() })
-  .openapi('ProviderPolicies');
+const ProviderPoliciesSchema = z.object({ policy: ProviderPolicySchema.nullable() }).openapi('ProviderPolicies');
 
 const ProviderProbeCheckSchema = z
   .object({
@@ -139,10 +135,13 @@ const RelayHeadersSchema = z
       param: { name: 'authorization', in: 'header' },
       example: 'Bearer provider-api-key'
     }),
-    'x-provider-base': z.string().url().openapi({
-      param: { name: 'x-provider-base', in: 'header' },
-      example: 'https://provider.example.test/v1'
-    })
+    'x-provider-base': z
+      .string()
+      .url()
+      .openapi({
+        param: { name: 'x-provider-base', in: 'header' },
+        example: 'https://provider.example.test/v1'
+      })
   })
   .openapi('RelayHeaders');
 
@@ -155,17 +154,118 @@ const RelayTaskHeadersSchema = RelayHeadersSchema.extend({
 
 const TaskIdParamsSchema = z
   .object({
-    taskId: z.string().uuid().openapi({
-      param: { name: 'taskId', in: 'path' },
-      example: '00000000-0000-4000-8000-000000000000'
-    })
+    taskId: z
+      .string()
+      .uuid()
+      .openapi({
+        param: { name: 'taskId', in: 'path' },
+        example: '00000000-0000-4000-8000-000000000000'
+      })
   })
   .openapi('RelayTaskParams');
 
 const RelayResponseSchema = z.record(z.string(), z.unknown()).openapi('RelayResponse');
 const RelayBinaryResponseSchema = z.string().openapi({ format: 'binary' });
 
+const CreditSnapshotSchema = z
+  .object({
+    account: z.object({
+      balance: z.number().int().nonnegative(),
+      reserved: z.number().int().nonnegative(),
+      available: z.number().int().nonnegative()
+    }),
+    entries: z.array(
+      z.object({
+        id: z.number().int(),
+        user_id: z.string().uuid(),
+        actor_id: z.string().uuid(),
+        delta: z.number().int(),
+        balance_after: z.number().int().nonnegative(),
+        reason: z.string(),
+        source: z.enum(['admin', 'generation']),
+        request_id: z.string().uuid(),
+        created_at: z.string()
+      })
+    )
+  })
+  .openapi('CreditSnapshot');
+const CreditQuerySchema = z.object({
+  before: z
+    .string()
+    .regex(/^[1-9][0-9]{0,15}$/)
+    .optional()
+});
+const SessionHeadersSchema = z.object({ authorization: z.string().regex(/^Bearer [A-Za-z0-9._~-]+$/) });
+
 export const apiRoutes = {
+  credits: createRoute({
+    method: 'get',
+    path: '/api/credits',
+    tags: ['Credits'],
+    request: { headers: SessionHeadersSchema, query: CreditQuerySchema },
+    responses: {
+      200: {
+        description: '本人余额与最近五十条流水',
+        content: { 'application/json': { schema: CreditSnapshotSchema } }
+      },
+      401: { description: '账号未登录', content: { 'application/json': { schema: ApiErrorSchema } } }
+    }
+  }),
+  adminCredits: createRoute({
+    method: 'get',
+    path: '/api/admin/users/{userId}/credits',
+    tags: ['Credits'],
+    request: {
+      headers: SessionHeadersSchema,
+      params: z.object({ userId: z.string().uuid() }),
+      query: CreditQuerySchema
+    },
+    responses: {
+      200: {
+        description: '管理员查询用户余额与流水',
+        content: { 'application/json': { schema: CreditSnapshotSchema } }
+      },
+      403: { description: '需要有效管理员', content: { 'application/json': { schema: ApiErrorSchema } } }
+    }
+  }),
+  adjustCredits: createRoute({
+    method: 'post',
+    path: '/api/admin/users/{userId}/credits',
+    tags: ['Credits'],
+    request: {
+      headers: SessionHeadersSchema,
+      params: z.object({ userId: z.string().uuid() }),
+      body: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: z
+              .object({
+                delta: z
+                  .number()
+                  .int()
+                  .min(-2147483647)
+                  .max(2147483647)
+                  .refine(value => value !== 0),
+                reason: z.string().trim().min(1).max(500),
+                requestId: z.string().uuid()
+              })
+              .strict()
+          }
+        }
+      }
+    },
+    responses: {
+      200: {
+        description: '积分调整的不可变回执',
+        content: { 'application/json': { schema: z.object({ entry: CreditSnapshotSchema.shape.entries.element }) } }
+      },
+      400: { description: '调整参数无效', content: { 'application/json': { schema: ApiErrorSchema } } },
+      402: { description: '可用积分不足', content: { 'application/json': { schema: ApiErrorSchema } } },
+      403: { description: '需要有效管理员与同源请求', content: { 'application/json': { schema: ApiErrorSchema } } },
+      409: { description: '操作标识冲突', content: { 'application/json': { schema: ApiErrorSchema } } }
+    }
+  }),
   installationGet: createRoute({
     method: 'get',
     path: '/api/installation',
@@ -420,6 +520,7 @@ export const openApiDocument = {
   tags: [
     { name: 'Installation', description: '安装与配置' },
     { name: 'Content', description: '公开内容' },
+    { name: 'Credits', description: '平台积分与不可变流水' },
     { name: 'Diagnostics', description: '供应商诊断' },
     { name: 'Relay', description: '图像生成代理与异步任务' }
   ]

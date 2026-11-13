@@ -1273,6 +1273,13 @@
       "disposition": "imported"
     }
   ],
+  "retiredStories": [
+    {
+      "legacyId": "aiao-media:US-105",
+      "decision": "D-19",
+      "reason": "移除用户自配供应商，统一平台凭据和积分生图。"
+    }
+  ],
   "retiredTools": {
     "scripts/link-rxdb.mjs": "工作区依赖替代跨仓 node_modules 软链。",
     "scripts/link-rxdb.test.mjs": "原软链脚本专用测试随工具退出；产品业务测试全部保留。"

@@ -25,6 +25,8 @@ test('公开 OpenAPI 文档包含稳定的产品接口', async () => {
   assert.equal(document.info.version, '1.0.0');
   for (const path of [
     '/api/installation',
+    '/api/credits',
+    '/api/admin/users/{userId}/credits',
     '/api/templates',
     '/api/provider-policies',
     '/api/provider-probe',

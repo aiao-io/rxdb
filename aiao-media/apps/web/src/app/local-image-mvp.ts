@@ -56,6 +56,7 @@ import {
   rememberBackupWorkspace,
   type BackupWorkspace
 } from './backup-workspaces';
+import { CreditsPanel } from './credits-panel';
 import { DEFAULT_FREE_PROVIDER, DEFAULT_FREE_PROVIDER_ID, defaultFreeProvider } from './default-provider';
 import {
   cardSizeOptions,
@@ -178,7 +179,8 @@ const emptyLibrary = (): LibraryState => ({
     PromptInput,
     WorkVisibleDirective,
     ElementWidthDirective,
-    SyncTargetSettings
+    SyncTargetSettings,
+    CreditsPanel
   ],
   templateUrl: './local-image-mvp.html',
   host: {

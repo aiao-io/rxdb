@@ -1,12 +1,13 @@
 import { swaggerUI } from '@hono/swagger-ui';
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { handleAdmin } from './admin-api.ts';
+import { handleCredits } from './credits-api.ts';
 import { installation } from './installation.ts';
+import { apiRoutes, openApiDocument } from './openapi.ts';
 import { publishedTemplates, runtimePolicy } from './product-content.ts';
 import { endpoint } from './product-http.ts';
 import { json, providerAllowlist, relayInput } from './relay-input.ts';
 import { handleRelayTask } from './relay-task-api.ts';
-import { apiRoutes, openApiDocument } from './openapi.ts';
 import type { WorkerEnv } from './worker-env.ts';
 
 export { Installation } from './installation.ts';
@@ -87,7 +88,9 @@ async function providerProbe(env: WorkerEnv, origin: string) {
   );
   const interpretation = [];
   if (checks.every(check => check.reachable))
-    interpretation.push('Every enabled provider is reachable from Cloudflare; authenticated relay generation still needs verification.');
+    interpretation.push(
+      'Every enabled provider is reachable from Cloudflare; authenticated relay generation still needs verification.'
+    );
   else interpretation.push('At least one provider is unreachable from Cloudflare; compare the per-provider checks.');
   const direct = checks.filter(check => check.browserDirect).length;
   interpretation.push(
@@ -423,6 +426,7 @@ app.all('/api/installation', async c => {
   });
 });
 
+app.all('/api/credits', c => withConfiguredEnvironment(c.env, env => handleCredits(c.req.raw, env)));
 app.all('/api/admin/*', c => withConfiguredEnvironment(c.env, env => handleAdmin(c.req.raw, env)));
 app.get('/api/templates', c => withConfiguredEnvironment(c.env, env => endpoint(() => publishedTemplates(env))));
 app.get('/api/provider-policies', c =>

@@ -173,6 +173,8 @@ export function backend(env: WorkerEnv) {
       if (result.status === 401) reject(401, '账号会话已失效。');
       if (result.status === 403 || code === '42501') reject(403, '没有此操作权限。');
       if (code === 'email_exists' || code === 'user_already_exists') reject(409, '账号已存在，请验证原密码。');
+      if (code === 'PT402') reject(402, '可用积分不足，请查看当前余额。');
+      if (code === 'PT404') reject(404, '任务不存在。');
       if (code === '23503') reject(404, '目标记录已不存在。');
       if (result.status === 409 || ['40001', '23505', '23514', 'PT409'].includes(code))
         reject(409, '数据版本或管理员状态已变化，请重新载入。');
@@ -195,4 +197,19 @@ export async function administrator(request: Request, env: WorkerEnv) {
   });
   if (authorized !== true) reject(403, '需要有效的管理员权限。');
   return { client, actorId: user.id };
+}
+
+/** 验证平台会话与当前账号状态。 */
+export async function member(request: Request, env: WorkerEnv) {
+  sameOriginWrite(request, env);
+  const token = /^Bearer ([A-Za-z0-9._~-]+)$/.exec(request.headers.get('authorization') ?? '')?.[1];
+  if (!token) reject(401, '请先登录平台账号。');
+  const client = backend(env);
+  const user = await client.call<{ id: string }>('/auth/v1/user', { token, privileged: false });
+  if (!uuid(user?.id)) reject(401, '账号无效。');
+  const accounts = await client.call<{ disabled: boolean }[]>(
+    `/rest/v1/media_accounts?select=disabled&user_id=eq.${user.id}`
+  );
+  if (!Array.isArray(accounts) || accounts.some(account => account.disabled)) reject(403, '账号已禁用。');
+  return { client, userId: user.id };
 }

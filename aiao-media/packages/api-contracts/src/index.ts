@@ -3,6 +3,7 @@ export * from './contracts/image-provider-protocol.ts';
 export * from './contracts/index.ts';
 export * from './contracts/product-data.mjs';
 export * from './contracts/relay-task.ts';
+export type { CreditAccount, CreditEntry, CreditSnapshot } from './credits';
 export type { InstallationAuth, InstallationInput, InstallationStatus } from './installation';
 export * from './prompt-state.ts';
 export * from './prompt-template.ts';
