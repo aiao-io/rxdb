@@ -1,6 +1,6 @@
 # Aiao Desktop 验收台账
 
-结构门禁只检查文档契约；门禁脚本测试、构建与浏览器冒烟分别验收。下表的结论来自 2026-11-12 执行的命令（Node 26.12.0，在仓库根执行）；ADESK-US-102、ADESK-US-103、应用体系与集成应用（ADESK-US-201～204）、发布（ADESK-US-003）以及重跑的聚合门禁来自 2026-11-13。新增的证据行写明执行时的提交与日期（见 [CONVENTIONS](CONVENTIONS.md#验收证据的写法)）。
+结构门禁只检查文档契约；门禁脚本测试、构建与浏览器冒烟分别验收。下表的结论来自 2026-11-12 执行的命令（Node 26.12.0，在仓库根执行）；ADESK-US-102、ADESK-US-103、应用体系与集成应用（ADESK-US-201～204）、发布（ADESK-US-003）以及重跑的聚合门禁来自 2026-11-13。新增的证据行写明执行时的提交与日期（见 [CONVENTIONS](CONVENTIONS.md#验收证据的写法)）。现有各行是这条约定之前登记的历史记录，多数没有执行时的桌面提交（有的只有应用部署编号或日期），无法补证，按历史记录保留，不当作可复验的证据引用；新增的行按约定写短 SHA、日期、环境、命令与产物位置。
 
 ## 结构门禁与构建
 
@@ -72,11 +72,15 @@
 - 开机、锁屏与睡眠流程，窗口拖动、缩放与全屏，状态栏面板与控制中心，各应用的内部功能。
 - 覆盖率：web 的单测没有接入覆盖率门槛（门槛只管 `packages/` 下的公开包），界面组件只由冒烟覆盖。
 - 已有库的升级路径：冒烟每次都从空的 OPFS 开始；在旧版本建的库上补建新表、补写新数据域的种子，没有在浏览器里实跑过；只做过一次性的 Node 探针，没有留下可复现的夹具（[ADESK-US-106](stories/desktop/ADESK-US-106-database-upgrade-path.md)）。
-- 多个标签页同时打开：同一个库在两个标签页里各有一份内存索引与一台虚拟机，彼此的改动刷新后才看得到。
-- 自定义域名：生产地址是 `aiao-desktop.pages.dev`，还没有绑定自定义域名，也没有验证绑定后发布命令对它的核对；线上只在 Chromium 上验收过。
+- 多个标签页同时打开：同一个库在两个标签页里各有一份内存索引与一台虚拟机，彼此的改动刷新后才看得到；两个标签页同时写同一个库或同一个文件的行为（是否出现 `SQLITE_BUSY`、写丢失、库损坏）没有实测，不能当作已损坏，也不能当作安全（[ADESK-US-105](stories/desktop/ADESK-US-105-multi-tab-sync.md) 阶段 A 先实测）。
+- 自定义域名：生产地址是 `aiao-desktop.pages.dev`，还没有绑定自定义域名，也没有验证绑定后发布命令对它的核对；线上只在 Chromium 上验收过。换域名后桌面本站数据（库、文件体、设置）按浏览器的存储规则不会随 Origin 迁移，这是依据规则作出的推断，没有在真实域名上对比实测（[ADESK-US-004](stories/platform/ADESK-US-004-custom-domain.md)）。
+- 失败路径与存储边界：保存失败、存储配额不足、存储不可用、Worker 初始化失败都没有验收；没有 OPFS 的浏览器上库有 IndexedDB 后备，文件体与 Vivari 镜像仍放在 OPFS，整块磁盘能否用没有验收；写文件体与写目录行是两步（行写失败会回收刚写的文件体），页面在两步之间被关闭会不会留下孤儿文件体、「抹掉」中途被打断后的结果也没有验收；备忘录输入后 0.42 秒内刷新或关闭标签页会不会丢最后一次输入没有验收。
+- 文件输入：集成应用自己的 `<input type="file">` 在 Orbit 的 sandbox 与桌面界面里能否弹出并读到文件，没有验收；文件句柄 API 的限制只对 Aiao Code 的 `showDirectoryPicker()` 实测过（报 `SecurityError`，[ADESK-US-203](stories/application/ADESK-US-203-aiao-code.md)）。
+- 离线：冒烟拦截外网请求，只证明外网内容拿不到时页面不报错；用户断网后重新加载整个站点、应用载荷缺失、更新过程中新旧版本的一致性都没有验收。
+- 性能基线：首屏可交互时间、首次打开应用的耗时、最小化后的资源占用都没有按统一口径记录过基线（[ADESK-US-206](stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md) 阶段 B 先记基线，口径见 [CONVENTIONS](CONVENTIONS.md#测量口径)）。
 - 集成应用在 aiao.io 之外的站点下的存储分区：桌面里的 Aiao Code 与直接访问看到的是两份项目，只按浏览器规则推断，没有对比实测。
 - 无障碍：读屏与只用键盘的完整路径。
 - 真实键盘下的快捷键：冒烟用 Playwright 派发的按键事件；⌘Space、⌘W、⌘Q 等在普通标签页里能否到达页面没有实测（[ADESK-US-107](stories/desktop/ADESK-US-107-shell-interaction-coverage.md)）。
 - 几猫3A大作的真实 GPU 实测（ADESK-US-103 #9）只有 2026-11-13 一次本机记录，仓库里没有可重跑的脚本（[ADESK-US-008](stories/platform/ADESK-US-008-smoke-suite.md)）。
 - 外网内容的来源与隐私说明：桌面里还没有（[ADESK-US-007](stories/platform/ADESK-US-007-external-content-disclosure.md)）。
-- 回滚到旧部署后，旧构建打开新库的行为（降级保护）：没有实测（[ADESK-US-106](stories/desktop/ADESK-US-106-database-upgrade-path.md)）。
+- 回滚到旧部署后，旧构建打开新库的行为（降级保护）：没有实测，桌面代码里目前也没有 schema 版本检查（引擎层的行为同样没有实测），所以不能假定已经发布的构建具备降级保护（[ADESK-US-106](stories/desktop/ADESK-US-106-database-upgrade-path.md)）。

@@ -1,6 +1,6 @@
 # aiao-desktop
 
-浏览器里的 macOS 风格桌面，用 Angular 实现：开机与锁屏、菜单栏、Dock、窗口管理、启动台、聚焦搜索、通知中心，以及启动台里的内置应用，其中「几猫3A大作」是随桌面发布的单文件 3D 游戏。独立部署的 B/S 应用以微前端方式接入，经 `@aiao/orbit` 运行在桌面的窗口里，第一个是 Aiao Code（<https://vscode.aiao.io>）。终端用 [Vivari](https://vivari.run) 在页面里运行 Node、npm 与 Python。产品没有服务端：系统数据（磁盘目录树、系统设置与各内置应用的数据）存在浏览器本地的 SQLite 里（`@aiao/rxdb`），文件体由 storage 插件放在 OPFS，刷新后都还在，磁盘工具的「抹掉」恢复初始内容。终端打开时把磁盘复制进 Vivari，Finder 与终端看到并修改的是同一块磁盘。
+浏览器里的 macOS 风格桌面，用 Angular 实现：开机与锁屏、菜单栏、Dock、窗口管理、启动台、聚焦搜索、通知中心，以及启动台里的内置应用，其中「几猫3A大作」是随桌面发布的单文件 3D 游戏。独立部署的 B/S 应用以微前端方式接入，经 `@aiao/orbit` 运行在桌面的窗口里，第一个是 Aiao Code（<https://vscode.aiao.io>）。终端用 [Vivari](https://vivari.run) 在页面里运行 Node、npm 与 Python。产品没有服务端：系统数据（磁盘目录树、系统设置与各内置应用的数据）存在浏览器本地的 SQLite 里（`@aiao/rxdb`），文件体由 storage 插件放在 OPFS，刷新后都还在，磁盘工具的「抹掉」把磁盘卷恢复成初始内容。数据只在当前浏览器的这个站点（Origin）下：清除站点数据、换浏览器或换域名都看不到原来的数据，目前没有备份与导出。终端打开时把磁盘复制进 Vivari，Finder 与终端看到并修改的是同一块磁盘。
 
 这是一个产品根目录：两个 Nx 应用共同组成同一个产品，按[应用级需求与项目治理办法](../requirements/application-governance.md)管理。产品需求、决策与验收台账见 [requirements](requirements/README.md)，目录边界与依赖规则见 [AGENTS.md](AGENTS.md)。仓库里的 [Web Desktop](../apps/web-desktop/README.md)（React 宿主与 Orbit 运行内核）是另一个产品。
 
@@ -63,7 +63,7 @@ pnpm nx run aiao-desktop:verify
    orbit?.ready(); // 启动失败时改为 orbit?.fail(原因)
    ```
 
-3. **能力边界**：不做整页导航（Orbit 视为失败，要用 history 路由）；不依赖弹窗、`alert` / `confirm` 与文件选择器（sandbox 与浏览器都不放行）；数据留在应用自己的来源里。
+3. **能力边界**：不做整页导航（Orbit 视为失败，要用 history 路由）；不依赖弹窗、`alert` / `confirm`（sandbox 不放行），也不依赖 `showOpenFilePicker()`、`showDirectoryPicker()` 这类文件句柄 API（跨源 iframe 里浏览器拒绝，抛 `SecurityError`）；数据留在应用自己的来源里。普通 `<input type="file">` 不在这条限制里，但它在 Orbit 的 sandbox 与桌面界面里能否使用没有验收，先在桌面里实测再依赖。
 
 自带标题栏的应用可以用**透明窗口**（[D-14](requirements/decisions.md#d-14透明窗口与窗口接口参考-tauri)，参考 Tauri）：登记表写 `frame: 'transparent'`，应用自己画标题栏与红黄绿，用 `@aiao/orbit/window` 调用桌面的窗口操作：
 
@@ -122,5 +122,5 @@ pnpm nx run aiao-desktop-e2e:verify-aiao-code --desktop-url=https://aiao-desktop
 ```
 
 - **回滚**：在 Cloudflare 面板 Workers & Pages → aiao-desktop → Deployments 里选命令结尾打印的回滚点，Rollback to this deployment。
-- **自定义域名**：在同一个项目的 Custom domains 里添加（Pages 没有对应的 CLI），绑定后下一次发布会自动核对它。建议用 aiao.io 下的域名（如 `desktop.aiao.io`）：与 Aiao Code 同站后，桌面里的 Aiao Code 与直接访问不再按站点分区存储。
+- **自定义域名**：在同一个项目的 Custom domains 里添加（Pages 没有对应的 CLI），绑定后下一次发布会自动核对它的入口页。建议用 aiao.io 下的域名（如 `desktop.aiao.io`）：与 Aiao Code 同站后，桌面里的 Aiao Code 与直接访问不再按站点分区存储。换域名也换了桌面自己的 Origin：本地库、文件体与设置不会自动出现在新地址，旧地址上的数据原样留在旧地址（[ADESK-US-004](requirements/stories/platform/ADESK-US-004-custom-domain.md)）。
 - **发布前**：命令不重跑浏览器冒烟，完整门禁用 `pnpm nx run aiao-desktop:verify`。

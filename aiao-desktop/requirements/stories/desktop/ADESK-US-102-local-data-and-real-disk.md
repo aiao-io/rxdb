@@ -32,7 +32,8 @@ capabilities: []
 
 - `node_modules` 同步回磁盘、glob（`*`）展开、`ls -l` 等 Vivari shell 本身没有的能力。
 - 多个标签页同时打开时的实时互通：每个标签页各有一台虚拟机与一份内存索引，写入落在同一个库，刷新后才看到另一个标签页的改动。
-- 视频、音频、HEIC 等占位文件的真实播放与解码；库与文件体的备份、导出与跨设备同步。
+- 视频、音频、HEIC 等占位文件的真实播放与解码；库与文件体的备份、导出与跨设备同步（候选见 [future-requirements](../../future-requirements.md) 的「本地数据保障」）。
+- 保存失败、存储配额不足、存储不可用与写入被打断后的恢复：本故事只验收成功路径，失败路径没有验收，见[验收台账](../../verification-report.md#尚未证明)。
 - 非 Chromium 浏览器。
 
 ## 验收标准
@@ -51,7 +52,7 @@ capabilities: []
 | 10  | 完成 #6 与 #9            | 刷新页面                                                       | `terminal-note.txt` 与 `untitled folder` 仍在桌面上                                            | ✅   |
 | 11  | 桌面已打开               | 用聚焦搜索切到深色外观，再刷新页面                             | 仍是深色外观（系统设置在库里）                                                                 | ✅   |
 | 12  | 桌面已打开               | 在备忘录里新建一条并输入文字、在提醒事项里新建一条，再刷新页面 | 两条都还在（内置应用的数据在库里）                                                             | ✅   |
-| 13  | 磁盘上有改动             | 在磁盘工具里抹掉 Macintosh HD                                  | 改动全部消失，内置内容恢复                                                                     | ✅   |
+| 13  | 磁盘上有改动             | 在磁盘工具里抹掉 Macintosh HD                                  | 磁盘上的改动全部消失，内置内容恢复（「抹掉」只重置磁盘卷，系统设置与各应用的记录不在其中）     | ✅   |
 | 14  | 外网请求全部拦截         | 依次完成 #1～#13                                               | 没有页面错误；控制台错误只有资源加载失败                                                       | ✅   |
 
 验收证据：[smoke.mjs](../../../apps/e2e/src/smoke.mjs)（`aiao-desktop-e2e:e2e`）。各 AC 对应输出 JSON 里的检查项：#1 `diskState.sqliteInOpfs` 与 `diskState.fileBodiesInOpfs`，#2 `diskState.desktopFromFolder`，#3 `diskState.textEditShowsFile`，#4 `diskState.previewShowsImage`，#5 `diskState.shellStartsAtHome`、`shellReadsFile` 与 `shellListsDesktop`，#6 `diskState.shellWritesDisk`，#7 `diskState.shellCommandsWork`，#8 `diskState.openCommandOpensTextEdit`，#9 `diskState.finderFolderOnDesktop` 与 `shellSeesFinderChange`，#10 `persistence.fileSurvivesReload` 与 `folderSurvivesReload`，#11 `persistence.settingsSurviveReload`，#12 `persistence.noteSurvivesReload` 与 `reminderSurvivesReload`，#13 `persistence.eraseRestoresDisk`，#14 脚本收集的页面错误与控制台错误；#10～#13 都在同一次运行里刷新页面后检查。磁盘、终端同步、shell 补丁、补充命令与各应用的数据转换另有 web 的单测（`aiao-desktop-web:test`）。结论见[验收台账](../../verification-report.md#浏览器冒烟)。

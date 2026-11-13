@@ -4,6 +4,8 @@
 
 这份记录把 [ADESK-US-205](../stories/application/ADESK-US-205-application-management.md) 和 [ADESK-US-206](../stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md) 映射到当前 `aiao-desktop` 代码，作为实现前的范围评审材料。它不替代两个 story 的验收标准。两个 story 按交付阶段（A～D）组织，实施切片与阶段的对应写在切片列表末尾。
 
+修订（2026-11-13，需求评审后）：切片 5 去掉 bundled HTML 的 bridge，与 D-18、US-206 一致；「必须先定下来的实现约束」补了清单生命周期与保护范围两条。与 story 或决策冲突时以 story、决策为准。
+
 ## 目标模型
 
 把应用看成一个由清单描述、由运行时装载、由系统目录投影的对象：
@@ -63,7 +65,7 @@ DockLayoutStore
 2. **Applications 投影和保护**：让 `.app` 元数据从清单派生，新增应用目录服务；把 Finder、终端同步和文件系统删除/移动的保护判断接到同一个服务。先覆盖预装应用，用户安装应用留作后续故事。
 3. **Dock 布局和拖放**：把默认硬编码数组迁移为种子布局，增加持久化、固定/取消固定、运行中临时项和内部指针拖放协议。再接 Finder 与 Launchpad 的入口。
 4. **运行时抽象**：引入 `ApplicationRuntime`，让 `WindowManager` 只持有窗口和生命周期；组件、同源 HTML iframe、Orbit iframe 分别实现 adapter，确保打开才装载、关闭必销毁。
-5. **宿主能力**：定义 `DesktopAppContext` 的能力名、版本、权限和错误码；内置应用先用 facade 接现有服务，Orbit 应用通过 RPC 接同一协议，bundled HTML 通过受信 bridge 接入。
+5. **宿主能力**：定义 `DesktopAppContext` 的能力名、版本、权限和错误码；内置应用先用 facade 接现有服务，Orbit 应用通过 RPC 接同一协议。bundled HTML 本阶段只统一生命周期、不提供能力 bridge（[D-18](../decisions.md#d-18应用懒加载与宿主系统能力统一)、[ADESK-US-206](../stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md) 的范围外），出现第一个需要能力的 bundled-html 应用时再做；各能力的请求、授权、取消与关闭后行为以 US-206 的「能力契约」为准。
 6. **数据和性能门禁**：拆分静态应用 seed，构建后检查 shell chunk 不包含应用实现；浏览器网络记录检查启动阶段没有 remote URL、bundled HTML 和非当前应用 chunk；再补完整冒烟与回归。
 
 切片与故事阶段的对应：切片 1 → ADESK-US-205 阶段 A；切片 2 → 205 阶段 A、B；切片 3 → 205 阶段 C、D；切片 4 → ADESK-US-206 阶段 A；切片 6 → 206 阶段 B；切片 5 → 206 阶段 C、D。
@@ -79,6 +81,8 @@ DockLayoutStore
 - 所有用户偏好读取都要经过 schema 校验；缺失、重复、未知 appId 只能被清理，不能让 Dock 生成重复图标或阻止桌面启动。
 - 已有库里的 `/Applications` 是旧的手写种子：升级要补齐缺的预装包、补上 appId，不覆盖用户自己的文件；这是 D-07「已有的库不会被覆盖」对 `.app` 包的例外（D-17）。
 - 终端里的删除发生在 Vivari 虚拟机的文件系统副本里，终端侧保护要选定机制（只读挂载 / shell 补丁 / 回写时撤销），AC 只约束结果。
+- 清单生命周期（改名、元数据更新、运行类型变更、应用下线）只处理系统拥有的投影，应用下线只移除系统写入的投影文件，用户复制出去的包、同名的非包条目和包里的用户文件不因清单变化被改动；旧库里没有标识的包只在升级时按冻结的旧种子名单认领一次（D-17）。
+- 保护规则同时覆盖包内的子项，以及对 `/Applications` 或其祖先目录的递归操作（删除、移动、覆盖整个目录），不能只拦包本身。
 
 ## 评审结论
 

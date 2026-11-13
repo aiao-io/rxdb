@@ -50,7 +50,7 @@ capabilities: []
 | 7   | 新项目首次发布，`*.aiao-desktop.pages.dev` 的证书还没签发               | 运行 `aiao-desktop:deploy`                                   | 提示正在等待并重试，连上后继续核对；超过时限则把该地址记为失败，其余地址照常核对                                                         | ✅   |
 | 8   | 项目已存在                                                              | `pnpm nx run aiao-desktop:deploy --preview`                  | 发布到 Preview 分支，别名 `https://preview.aiao-desktop.pages.dev` 通过核对；生产部署不变                                                | ✅   |
 | 9   | 命令行里有未知参数                                                      | 例如 `aiao-desktop:deploy --prod`                            | 立即失败并给出用法，不发布（拼错 `--preview` 时不会悄悄发到生产）                                                                        | ✅   |
-| 10  | 已发布，本机能访问外网                                                  | `aiao-desktop-e2e:verify-aiao-code --desktop-url=<线上地址>` | 线上桌面加线上 Aiao Code 的 9 项验收全过（跨源隔离、终端、透明窗口拖动与缩放、最小化还原、关闭重开），桌面没有页面错误                   | ✅   |
+| 10  | 已发布，本机能访问外网                                                  | `aiao-desktop-e2e:verify-aiao-code --desktop-url=<线上地址>` | 线上桌面加线上 Aiao Code 的验收项全过（跨源隔离、终端、透明窗口拖动与缩放、最小化还原、关闭重开；项数以脚本输出为准），桌面没有页面错误  | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 

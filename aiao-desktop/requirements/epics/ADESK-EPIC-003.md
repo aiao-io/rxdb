@@ -10,7 +10,7 @@ owner: jimmy
 
 ## 愿景
 
-Aiao Desktop 除了随桌面构建的内置应用，还能把独立部署的 B/S 应用当作桌面应用来用：所有应用登记在同一张表里，从同样的入口打开、在同样的窗口里运行。外部应用经仓库自己的 `@aiao/orbit` 以微前端方式隔离运行，不并进桌面的构建，也拖不垮桌面。第一个集成应用是 Aiao Code（[apps/aiao-vscode](../../../apps/aiao-vscode/README.md) 的线上发布版本 <https://vscode.aiao.io>）。
+Aiao Desktop 除了随桌面构建的内置应用，还能把独立部署的 B/S 应用当作桌面应用来用：所有应用登记在同一张表里，从同样的入口打开、在同样的窗口里运行。外部应用经仓库自己的 `@aiao/orbit` 以微前端方式隔离运行，不并进桌面的构建；加载失败、超时与协议失败只影响所在的窗口，桌面和其他窗口照常（资源耗尽或运行卡死不在这条保证内）。第一个集成应用是 Aiao Code（[apps/aiao-vscode](../../../apps/aiao-vscode/README.md) 的线上发布版本 <https://vscode.aiao.io>）。
 
 ## 为什么单列一个 Epic
 

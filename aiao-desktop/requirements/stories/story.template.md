@@ -4,19 +4,14 @@ title: [简短标题]
 status: Backlog
 priority: Medium
 epic: ADESK-EPIC-XXX # 填写本应用 epics/*.md 中已存在的 id
-created: 2026-02-08
-updated: 2026-02-08
+created: YYYY-MM-DD # 创建当天的日期；不改会被需求门禁拒绝
+updated: YYYY-MM-DD # 每次修改故事时更新
 tags: []
 # dependsOn 写产品内的硬依赖（如 [ADESK-US-101]），capabilities 写平台能力（如 [rxdb:US-301]），没有就留空数组
 dependsOn: []
 capabilities: []
-# 仅登记已明确移出当前承诺范围的候选数字 AC：
-# candidate_acs: [5]
-# 仅当本 story 承接来自其他 story 的延期 AC 时使用：
-# inherited_acs:
-#   - from: ADESK-US-XXX
-#     ac: N
-#     note: AC 推迟到本故事
+# 门禁只认扁平 YAML 值与行内数组；候选 AC（candidate_acs）与继承 AC（inherited_acs）本产品暂不支持，
+# 要用先补齐门禁解析与回归夹具，见 requirements/CONVENTIONS.md。
 ---
 
 <!--

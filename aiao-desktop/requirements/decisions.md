@@ -32,7 +32,7 @@ Aiao Desktop 使用 `ADESK-US-*` / `ADESK-EPIC-*` 编号，在本目录独立统
 
 ## D-07：系统数据存在本地 SQLite
 
-系统数据都存在浏览器本地的一个 RxDB 库里：磁盘的目录树与元数据、系统设置、桌面图标位置、最近使用，以及各内置应用的数据。技术栈是 `@aiao/rxdb` 加 `@aiao/rxdb-adapter-sqlite-wasm`，接法与 dev-rxdb-angular 相同：OPFS 可用时，库文件在专用 Worker 里以 OPFSCoopSyncVFS 落在 OPFS，否则用 IndexedDB。用户于 2026-11-12 拍板：用仓库自己的 RxDB 与现成插件管理全部数据，不另造存储；适配器在 sqlite-wasm 与 wa-sqlite 之间选了前者，因为它带 FTS5。
+系统数据都存在浏览器本地的一个 RxDB 库里：磁盘的目录树与元数据、系统设置、桌面图标位置、最近使用，以及各内置应用的数据。技术栈是 `@aiao/rxdb` 加 `@aiao/rxdb-adapter-sqlite-wasm`，接法与 dev-rxdb-angular 相同：OPFS 可用时，库文件在专用 Worker 里以 OPFSCoopSyncVFS 落在 OPFS，否则用 IndexedDB——这只是库文件的后备：文件体（[D-08](#d-08文件体由-storage-插件放在-opfs)）与 Vivari 镜像（[D-09](#d-09终端按需复制磁盘)）仍放在 OPFS，没有 OPFS 的浏览器上整块磁盘是否可用没有验收（见[验收台账](verification-report.md#尚未证明)）。用户于 2026-11-12 拍板：用仓库自己的 RxDB 与现成插件管理全部数据，不另造存储；适配器在 sqlite-wasm 与 wa-sqlite 之间选了前者，因为它带 FTS5。
 
 首次打开时写入内置内容，之后保留所有改动，这取代了 [ADESK-US-101](stories/desktop/ADESK-US-101-desktop-shell-baseline.md) 范围里的「不保存状态」。初始数据按数据域各写一次：每个域在一个事务里写入数据和 `seed:<domain>` 标记，要么完整写入，要么什么都没写。改了内置内容只影响新库与抹掉后的磁盘，已有的库不会被覆盖；`/Applications` 下的 `.app` 包元数据是例外，它由应用清单投影，清单升级时补齐，见 [D-17](#d-17应用清单是唯一真相源applications-是系统投影)。外网内容（壁纸、地图、天气、网页）不进库（[D-04](#d-04外网内容可缺失)）。
 
@@ -80,7 +80,9 @@ Orbit 是两个产品共用的包：Aiao Desktop 与 Web Desktop 各自接线、
 
 1. 入口是 HTTPS 地址，文档响应带 `Cross-Origin-Embedder-Policy: require-corp`（或 `credentialless`）与 `Cross-Origin-Resource-Policy: cross-origin`。缺了 CORP，浏览器直接拦下 iframe（`ERR_BLOCKED_BY_RESPONSE`）。
 2. 接入 `@aiao/orbit/client`：在路由与业务初始化之前调用 `connectOrbitClient()`；真实渲染完成后调用 `ready()`；启动失败调用 `fail(原因)`。独立打开（不在桌面里）时 `connectOrbitClient()` 返回空，应用照常启动。
-3. 不做整页导航（Orbit 视为失败）；不依赖弹窗、模态框与文件选择器；数据留在应用自己的来源里。
+3. 不做整页导航（Orbit 视为失败）；不依赖弹窗与模态框；不依赖 `showOpenFilePicker()`、`showDirectoryPicker()` 这类文件句柄 API——它们在跨源 iframe 里被浏览器拒绝并抛 `SecurityError`（Aiao Code 的 `showDirectoryPicker` 已实测）；数据留在应用自己的来源里。
+
+普通 `<input type="file">` 不在第 3 条的限制里：HTML 标准给 `showPicker()` 保留了对 file / color 类型的跨源例外。它在 Orbit 的 sandbox 与桌面界面里能否使用没有验收，应用要依赖它之前先在桌面里实测；桌面不替应用代办浏览器的文件选择。
 
 接入说明写在[产品 README](../README.md#接入集成应用)。契约以后要放宽（例如放行弹窗、由桌面代办文件选择）时，先改 Orbit 与本条，再立故事。
 
@@ -135,7 +137,9 @@ Aiao Code 为接入补了 `Cross-Origin-Resource-Policy: cross-origin`，带 COE
 4. **先等地址连得上**：新建项目的 `*.<项目>.pages.dev` 证书要几分钟才签发，这段时间部署地址与分支别名都是 TLS 握手失败（首次发布实测），生产地址 `<项目>.pages.dev` 不受影响。命令会提示并等待，超时才算失败。
 5. **不重复跑冒烟**：发布前的完整门禁是 `aiao-desktop:verify`（与 CI 同款），发布命令只守住托管相关的失败（响应头、文件内容、域名）。发布后的浏览器级验收是 `aiao-desktop-e2e:verify-aiao-code --desktop-url=<线上地址>`：线上桌面加线上 Aiao Code 的真实组合。
 
-回滚：命令在发布前读出当前的生产部署并在结尾打印，在 Pages 面板的部署页回滚到它。Pages 没有绑定自定义域名的 CLI，域名由用户在面板 Custom domains 里绑定；绑定后下一次发布自动把它加入核对。建议绑定 aiao.io 下的域名（如 `desktop.aiao.io`）：与 `vscode.aiao.io` 同站，桌面里的 Aiao Code 不再按顶层站点分区存储（见[后续方向](future-requirements.md)）。
+回滚：命令在发布前读出当前的生产部署并在结尾打印，在 Pages 面板的部署页回滚到它。回滚只换静态产物，浏览器里已升级的数据不会跟着回滚：回滚目标早于具备降级保护的构建时，旧构建会直接打开新结构的库，所以数据升级过之后，回滚目标要先对照 [ADESK-US-106](stories/desktop/ADESK-US-106-database-upgrade-path.md) 的「回滚目标」表。
+
+Pages 没有绑定自定义域名的 CLI，域名由用户在面板 Custom domains 里绑定；绑定后下一次发布自动把它加入核对（与生产地址一样只核对入口页）。建议绑定 aiao.io 下的域名（如 `desktop.aiao.io`）：与 `vscode.aiao.io` 同站，桌面里的 Aiao Code 不再按顶层站点分区存储（见[后续方向](future-requirements.md)）。换域名也换了桌面自己的 Origin：桌面的本地库、文件体与设置按来源隔离，不会自动出现在新地址，旧地址上的数据留在旧地址；在有导出 / 导入路径之前，旧地址不下线也不重定向到新地址（[ADESK-US-004](stories/platform/ADESK-US-004-custom-domain.md)）。
 
 ## D-17：应用清单是唯一真相源，Applications 是系统投影
 
@@ -158,6 +162,8 @@ Aiao Code 为接入补了 `Cross-Origin-Resource-Policy: cross-origin`，带 COE
 
 已有的本地库里，`/Applications` 的 `.app` 包由旧的手写列表种子生成，没有稳定标识。清单升级与首次建库走同一条幂等路径：补齐缺的预装包、补上稳定标识，不覆盖用户自己的文件，同名的非包条目保留。这是 [D-07](#d-07系统数据存在本地-sqlite)「已有的库不会被覆盖」对 `.app` 包的例外。
 
+清单的生命周期变化（改名、图标与元数据更新、运行类型变更、应用下线）只处理**系统拥有的投影**，即位于 `/Applications` 顶层、带清单标识（`appId` / `bundleId`）的 `.app` 包：显示名变了，同一 `appId` 的包随之改名；元数据或运行类型变了，就地更新 `Info.plist`；应用下线，只移除系统写入的投影文件（`Contents/Info.plist` 等），并清掉 Dock 与窗口恢复里指向它的引用；包目录里还有用户放进去的文件时，目录保留为普通文件夹，不再是应用包，否则整个目录一并移除。用户复制到别处的包、同名的非包条目、包里用户放进去的文件都是用户文件，不因清单变化被改名或删除；复制出来的包再被打开而清单里已没有它时，提示「应用已下线」，不去猜显示名。旧库里没有标识的包是唯一的例外：升级时按冻结的旧种子名单一次性认领并写入标识，之后一律按标识，不再按显示名匹配。因此 Applications 不保证清单里每个应用都有一个包——同名非包条目占着位置时，投影让位，对应应用仍可从启动台、聚焦搜索和 Dock 打开，Finder 要把这种情况说清楚。
+
 备选（实现前评估）：把 Applications 做成不落库的只读虚拟挂载，由清单实时投影。它没有清单漂移、没有已有库迁移，也没有「绕过保护」的写路径；代价是终端复制进虚拟机的磁盘镜像要单独投影这棵子树，Finder 的包内容查看要单独支持。本条按落库方案写；改用虚拟挂载时，保护与升级的机制随之改写，结果不变。
 
 Applications、Launchpad、Spotlight、Dock 和菜单栏都从同一个清单投影。这样新增应用只需要增加清单和对应运行 loader，不会因为忘记修改磁盘种子或 Dock 常量而出现“能搜索但不能打开”“能打开但 Applications 没有”的分叉状态。详细范围与验收见 [ADESK-US-205](stories/application/ADESK-US-205-application-management.md)。
@@ -170,7 +176,9 @@ Applications、Launchpad、Spotlight、Dock 和菜单栏都从同一个清单投
 
 组件、同源 HTML iframe 和 Orbit iframe 由同一个应用运行时管理生命周期：应用实例是 `registered → loading → ready → closing → closed`，失败走 `failed`；最小化、前台 / 后台、缩放是窗口的呈现状态，与实例生命周期正交，由 `WindowManager` 管。打开失败只影响当前窗口；重试创建新实例；关闭销毁组件、iframe、订阅和能力上下文。`WindowManager` 管窗口，运行适配器管具体应用载荷，不能让窗口管理器知道每种应用的内部实现。
 
-应用通过绑定到 `appId` 与窗口实例的 `DesktopAppContext` 使用系统能力。第一批统一能力为 `window`、`menu`、`app`、`appearance`、`notification`、`clipboard` 与 `filesystem`。清单逐项声明权限，默认拒绝；内置应用通过 facade 接现有服务，remote-web 通过 Orbit RPC；bundled HTML 本阶段只统一生命周期、不提供能力 bridge——唯一的 bundled-html 应用 `saltline.html` 原样发布、不调用桌面接口（[D-15](#d-15随桌面发布的单文件游戏在同源-iframe-里运行)），出现第一个需要能力的 bundled-html 应用时再做。remote-web 永远拿不到父页面 DOM、RxDB repository、OPFS 原始句柄或未登记的任意 URL；调用失败返回稳定错误码，涵盖能力拒绝、参数错误、用户取消、浏览器权限拒绝、超时和窗口已关闭。`filesystem` 指桌面的虚拟磁盘，不是用户机器上的文件：sandbox 里的 iframe 弹不出浏览器的文件选择器，所以打开 / 保存由桌面自己的面板提供，应用只拿到用户选定的文件内容或保存位置；目录选择、多选与拖放数据通道不在第一批内。
+应用通过绑定到 `appId` 与窗口实例的 `DesktopAppContext` 使用系统能力。第一批统一能力为 `window`、`menu`、`app`、`appearance`、`notification`、`clipboard` 与 `filesystem`。清单逐项声明权限，默认拒绝；内置应用通过 facade 接现有服务，remote-web 通过 Orbit RPC；bundled HTML 本阶段只统一生命周期、不提供能力 bridge——唯一的 bundled-html 应用 `saltline.html` 原样发布、不调用桌面接口（[D-15](#d-15随桌面发布的单文件游戏在同源-iframe-里运行)），出现第一个需要能力的 bundled-html 应用时再做。remote-web 永远拿不到父页面 DOM、RxDB repository、OPFS 原始句柄或未登记的任意 URL；调用失败返回稳定错误码，涵盖能力拒绝、参数错误、用户取消、浏览器权限拒绝、超时和窗口已关闭。`filesystem` 指桌面的虚拟磁盘，不是用户机器上的文件：打开 / 保存由桌面自己的面板提供，这是产品给出的文件授权与交互，不是浏览器的文件选择器，也不依赖它——`showOpenFilePicker()` 这类句柄 API 在跨源 sandbox iframe 里被浏览器拒绝，应用自己的 `<input type="file">` 不属于该能力（[D-12](#d-12集成应用的接入契约)）。应用只拿到用户选定的文件内容，以及只能写回该文件的实例绑定凭证；目录选择、多选与拖放数据通道不在第一批内。
+
+权限分两层，各管各的：登记表的浏览器权限（iframe 的 `allow`）决定应用能否直接调用浏览器 API，清单的 `capabilities` 决定应用能否经 Orbit 请求宿主。宿主接口的默认拒绝只约束第二层，不是对浏览器所有访问路径的保证；`clipboard` 这类两层都存在的能力，两层声明必须一致。每项能力的请求、授权、取消与关闭后行为见 [ADESK-US-206 的能力契约](stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md#能力契约)。
 
 `bundled-html` 的同源 iframe 是受信构建资产，不是安全隔离边界；它可以继续满足 `saltline.html` 的 pointer lock 与 fullscreen 需求。它纳入统一运行时的目的是生命周期一致；以后若提供 bridge，也不能把它描述成能防御恶意同源代码的 sandbox。非受信任的远程内容必须使用 `remote-web` 和 Orbit。
 

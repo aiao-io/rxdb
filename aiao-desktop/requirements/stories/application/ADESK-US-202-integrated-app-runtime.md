@@ -17,7 +17,7 @@ capabilities: []
 
 **作为** 在桌面里使用集成应用的人
 **我想要** 集成应用像内置应用一样开窗口、最小化、还原、关闭和切换，加载慢或打不开时有明确的状态和重试
-**以便** 用独立部署的 B/S 应用时不必离开桌面，也不用担心它拖垮桌面或别的窗口。
+**以便** 用独立部署的 B/S 应用时不必离开桌面，它加载失败或启动出错时只影响自己的窗口。
 
 ## 范围边界
 
@@ -35,7 +35,8 @@ capabilities: []
 
 - 宿主服务：桌面经 Orbit 向应用提供窗口、菜单、通知、剪贴板、文件等能力，由 [ADESK-US-206](ADESK-US-206-lazy-app-runtime-and-host-capabilities.md) 承接；OAuth 弹窗等扩展能力见 [future-requirements](../../future-requirements.md)。
 - 应用拿到键盘焦点后，桌面的全局快捷键（⌘Space 等）由应用收到，桌面不响应。
-- 弹出窗口（`window.open`）、`alert` / `confirm` 与顶层导航：sandbox 不放行；跨源 iframe 里的文件选择器由浏览器禁止。
+- 弹出窗口（`window.open`）、`alert` / `confirm` 与顶层导航：sandbox 不放行；`showOpenFilePicker()`、`showDirectoryPicker()` 这类文件句柄 API 在跨源 iframe 里被浏览器拒绝（`SecurityError`）。应用自己的 `<input type="file">` 不在本故事验收范围，能否使用没有验收（[D-12](../../decisions.md#d-12集成应用的接入契约)）。
+- 资源耗尽与运行卡死：失败隔离只覆盖加载失败、超时、应用自报失败和整页导航；应用把主线程占满或耗尽内存时，桌面没有进程级的隔离或限额（见 [ADESK-US-206](ADESK-US-206-lazy-app-runtime-and-host-capabilities.md) 的后台冻结范围外）。
 - 窗口与运行实例跨刷新恢复：刷新后集成应用的窗口不恢复，与内置应用一致。
 - 应用的数据：留在应用自己的来源里，桌面不读。桌面与应用不同站点时，浏览器按顶层站点分区存储，桌面里看到的与直接访问该应用的不是同一份数据。
 - 非 Chromium 浏览器。
