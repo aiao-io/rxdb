@@ -3,8 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { FakeDom, configureServices } from '../testing/angular';
 import { stubViewport } from '../testing/browser';
-import { testApps } from '../testing/desktop-apps';
-import { DESKTOP_APPS, DesktopAppId, DesktopOpenOptions } from './desktop-apps';
+import { StubApp, testApps } from '../testing/desktop-apps';
+import { ApplicationRuntime } from './application-runtime';
+import { AppLoader, DESKTOP_APPS, DesktopAppId, DesktopAppRegistry, DesktopOpenOptions } from './desktop-apps';
 import { DesktopWindow } from './desktop-window';
 import { DockState } from './dock-state';
 import { Toast } from './toast';
@@ -21,9 +22,15 @@ interface Harness {
   readonly dock: { bounce: ReturnType<typeof vi.fn>; stopBounce: ReturnType<typeof vi.fn> };
 }
 
-function setup(width = 1440, height = 900): Harness {
+function setup(width = 1440, height = 900, apps: DesktopAppRegistry = testApps()): Harness {
   stubViewport(width, height);
-  const dom = configureServices([WindowManager, DockState, Toast, { provide: DESKTOP_APPS, useValue: testApps() }]);
+  const dom = configureServices([
+    WindowManager,
+    DockState,
+    Toast,
+    ApplicationRuntime,
+    { provide: DESKTOP_APPS, useValue: apps }
+  ]);
   const dock = { bounce: vi.fn(), stopBounce: vi.fn() };
   TestBed.inject(DockState).attach({ ...dock, rectFor: () => ({ x: 0, y: 0, w: 48, h: 48 }) });
   return { wm: TestBed.inject(WindowManager), toast: TestBed.inject(Toast), dom, dock };
@@ -545,5 +552,184 @@ describe('WindowManager 切换窗口', () => {
     wm.cycle();
     expect(b.win.zIndex()).toBe(zBefore);
     expect(wm.front()).toBe(b.win);
+  });
+});
+
+describe('WindowManager 应用实例的生命周期（经应用运行时）', () => {
+  /** 让装载的 Promise 回调跑完（假时钟下 await 链要靠它推进）。 */
+  const settle = async (): Promise<void> => {
+    await vi.advanceTimersByTimeAsync(0);
+  };
+
+  /** 把 notes 的载荷换成指定的装载函数。 */
+  const withLoader = (load: AppLoader): DesktopAppRegistry => testApps({ notes: { load } });
+
+  it('打开应用即开始装载：窗口先是 loading，载荷到了变 ready 并带上应用组件', async () => {
+    const { wm } = setup();
+    const win = open(wm, 'notes');
+    expect(win.state()).toBe('loading');
+    expect(win.content()).toBeNull();
+
+    await settle();
+    expect(win.state()).toBe('ready');
+    expect(win.content()).toBe(StubApp);
+    expect(win.failure()).toBeNull();
+    expect(win.instanceId).toBe(`${win.id}#1`);
+  });
+
+  it('同一应用的多个窗口各自装载、各是一个实例', async () => {
+    const load = vi.fn<AppLoader>(async () => StubApp);
+    const { wm } = setup(1440, 900, testApps({ finder: { load } }));
+    const [first, second] = openMany(wm, 'finder', 2);
+    await settle();
+
+    expect(load).toHaveBeenCalledTimes(2);
+    expect([first.state(), second.state()]).toEqual(['ready', 'ready']);
+    expect(first.instanceId).not.toBe(second.instanceId);
+  });
+
+  it('一个应用装载失败只影响它自己的窗口：带原因，窗口留在列表里等重试或关闭，其他应用照常打开', async () => {
+    const { wm } = setup(
+      1440,
+      900,
+      withLoader(() => Promise.reject(new Error('chunk 404')))
+    );
+    const broken = open(wm, 'notes');
+    const fine = open(wm, 'calculator');
+    await settle();
+
+    expect(broken.state()).toBe('failed');
+    expect(broken.failure()).toBe('chunk 404');
+    expect(broken.content()).toBeNull();
+    expect(fine.state()).toBe('ready');
+    expect(wm.windows()).toEqual([broken, fine]);
+    expect(wm.focused()).toBe(fine);
+  });
+
+  it('retry 重试装载失败的窗口：同一个窗口创建新实例，回到 loading 并清掉失败原因，成功后 ready', async () => {
+    const load = vi.fn<AppLoader>().mockRejectedValueOnce(new Error('offline')).mockResolvedValue(StubApp);
+    const { wm } = setup(1440, 900, withLoader(load));
+    const win = open(wm, 'notes');
+    await settle();
+    expect(win.state()).toBe('failed');
+    const instance = win.instanceId;
+    const zIndex = win.zIndex();
+
+    wm.retry(win.id);
+    expect(win.state()).toBe('loading');
+    expect(win.failure()).toBeNull();
+    expect(win.instanceId).not.toBe(instance);
+    await settle();
+    expect(win.state()).toBe('ready');
+    expect(win.content()).toBe(StubApp);
+    expect(load).toHaveBeenCalledTimes(2);
+    expect(wm.windows()).toEqual([win]);
+    expect(win.zIndex()).toBe(zIndex);
+  });
+
+  it('重试再次失败：仍是 failed，带最新的原因，可以接着重试', async () => {
+    const load = vi
+      .fn<AppLoader>()
+      .mockRejectedValueOnce(new Error('first'))
+      .mockRejectedValueOnce(new Error('second'))
+      .mockResolvedValue(StubApp);
+    const { wm } = setup(1440, 900, withLoader(load));
+    const win = open(wm, 'notes');
+    await settle();
+    wm.retry(win.id);
+    await settle();
+    expect(win.state()).toBe('failed');
+    expect(win.failure()).toBe('second');
+
+    wm.retry(win.id);
+    await settle();
+    expect(win.state()).toBe('ready');
+  });
+
+  it('retry 只对失败的窗口生效：装载中、已就绪的窗口，以及不存在的窗口，都不会再装载一次', async () => {
+    const load = vi.fn<AppLoader>().mockResolvedValue(StubApp);
+    const { wm } = setup(1440, 900, withLoader(load));
+    const win = open(wm, 'notes');
+    wm.retry(win.id);
+    await settle();
+    wm.retry(win.id);
+    wm.retry('nope');
+
+    expect(win.state()).toBe('ready');
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it('关闭窗口：运行时先标记 closing（动画期间窗口还在列表里），动画结束、窗口移除之后才是 closed，并释放组件', async () => {
+    const { wm } = setup();
+    const win = open(wm, 'notes');
+    await settle();
+    expect(win.content()).toBe(StubApp);
+
+    wm.close(win.id);
+    expect(win.state()).toBe('closing');
+    expect(win.content()).toBe(StubApp);
+    expect(wm.windows()).toEqual([win]);
+    vi.advanceTimersByTime(CLOSE_MS - 1);
+    expect(win.state()).toBe('closing');
+
+    vi.advanceTimersByTime(1);
+    expect(win.state()).toBe('closed');
+    expect(win.content()).toBeNull();
+    expect(wm.windows()).toEqual([]);
+  });
+
+  it('装载还在路上就关闭窗口：迟到的载荷被丢弃，已关闭的窗口不会重新出现', async () => {
+    let arrive: (component: typeof StubApp) => void = () => undefined;
+    const load = vi.fn<AppLoader>(() => new Promise(resolve => (arrive = resolve)));
+    const { wm } = setup(1440, 900, withLoader(load));
+    const win = open(wm, 'notes');
+    wm.close(win.id);
+    expect(win.state()).toBe('closing');
+    vi.advanceTimersByTime(CLOSE_MS);
+    expect(win.state()).toBe('closed');
+
+    arrive(StubApp);
+    await settle();
+    expect(win.state()).toBe('closed');
+    expect(win.content()).toBeNull();
+    expect(wm.windows()).toEqual([]);
+  });
+
+  it('装载失败的窗口也能关闭：closing → closed，之后重试不起作用', async () => {
+    const load = vi.fn<AppLoader>().mockRejectedValue(new Error('offline'));
+    const { wm } = setup(1440, 900, withLoader(load));
+    const win = open(wm, 'notes');
+    await settle();
+    wm.close(win.id);
+    expect(win.state()).toBe('closing');
+    vi.advanceTimersByTime(CLOSE_MS);
+    expect(win.state()).toBe('closed');
+
+    wm.retry(win.id);
+    expect(win.state()).toBe('closed');
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it('closeAll 与 quitApp 关掉的窗口都走完 closing → closed', async () => {
+    const { wm } = setup();
+    const [first, second] = openMany(wm, 'finder', 2);
+    const notes = open(wm, 'notes');
+    await settle();
+
+    wm.quitApp('finder');
+    expect([first.state(), second.state(), notes.state()]).toEqual(['closing', 'closing', 'ready']);
+    wm.closeAll();
+    expect(notes.state()).toBe('closing');
+    vi.advanceTimersByTime(CLOSE_MS);
+    expect([first.state(), second.state(), notes.state()]).toEqual(['closed', 'closed', 'closed']);
+    expect(wm.windows()).toEqual([]);
+  });
+
+  it('登记表里没有载荷的应用打不开：不创建窗口，不让 Dock 弹跳，也不启动装载', () => {
+    const { wm, toast, dock } = setup(1440, 900, testApps({ notes: { load: undefined } }));
+    expect(wm.open('notes')).toBeNull();
+    expect(toast.message()).toBe('Unknown app: notes');
+    expect(wm.windows()).toEqual([]);
+    expect(dock.bounce).not.toHaveBeenCalled();
   });
 });

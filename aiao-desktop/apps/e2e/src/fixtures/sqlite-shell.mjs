@@ -3,17 +3,30 @@ import { join } from 'node:path';
 
 import { isolationHeaders } from './artifact-server.mjs';
 
+/** 产物根目录下的全部脚本（主包与各个 chunk；应用按需加载后，代码分散在多个文件里）。 */
+export function scriptsOf(distRoot) {
+  return readdirSync(distRoot)
+    .filter(name => name.endsWith('.js'))
+    .map(name => ({ name, source: readFileSync(join(distRoot, name), 'utf8') }));
+}
+
 /**
- * 桌面构建里 sqlite 工作线程脚本的文件名。从主包里读它引用的名字，不去猜带哈希的文件名。
+ * 桌面构建里 sqlite 工作线程脚本的文件名。从脚本里读它被引用的名字，不去猜带哈希的文件名。
  *
  * @param {string} distRoot web 的构建产物目录
  */
 export function findSqliteWorker(distRoot) {
-  const main = readdirSync(distRoot).find(name => /^main-.*\.js$/.test(name));
-  if (!main) throw new Error(`${distRoot} 里没有主包 main-*.js`);
-  const match = /new Worker\(new URL\(`(worker-[\w-]+\.js)`/.exec(readFileSync(join(distRoot, main), 'utf8'));
-  if (!match) throw new Error('主包里找不到 sqlite 工作线程的引用，构建产物结构变了');
-  return match[1];
+  const names = new Set(
+    scriptsOf(distRoot).flatMap(({ source }) => {
+      const match = /new Worker\(new URL\(`(worker-[\w-]+\.js)`/.exec(source);
+      return match ? [match[1]] : [];
+    })
+  );
+  if (names.size !== 1)
+    throw new Error(
+      `应该恰有一个 sqlite 工作线程的引用，找到：${[...names].join('、') || '没有'}（构建产物结构变了？）`
+    );
+  return [...names][0];
 }
 
 const SHELL_PATH = '/__sqlite-shell__';

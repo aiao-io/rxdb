@@ -40,51 +40,47 @@ export const applicationsUpgrade = {
     let { page, helpers } = desktop;
     await helpers.closeAll();
     await helpers.openTerminal();
+    /* 每条命令等上一条落盘（桌面上出现文件的图标）再敲下一条：`node` 还在跑的时候敲进终端的字符会丢，
+     * 桌面启动得越快（磁盘已经挂好）终端就越早可用，丢得越稳定。 */
     await helpers.runInShell(
       `node -e "require('fs').writeFileSync('/Users/prasenjit/Desktop/legacy-mail.plist', '${legacyPlist('Mail', 'io.aiao.desktop.mail')}')"`
     );
+    await helpers.appears(helpers.desktopIcon('legacy-mail.plist'), 15_000);
     await helpers.runInShell(
       `node -e "require('fs').writeFileSync('/Users/prasenjit/Desktop/legacy-maps.plist', '${legacyPlist('Maps', 'io.aiao.desktop.maps')}')"`
     );
     await helpers.appears(helpers.desktopIcon('legacy-maps.plist'), 15_000);
-    await helpers.appears(helpers.desktopIcon('legacy-mail.plist'), 15_000);
-    await page.waitForTimeout(500);
+    /* 用户自己放进包里的文件：包里除了系统写的文件还有用户的东西（不在保护范围内，可以直接写）。 */
+    await helpers.runInShell('echo mine > /Applications/Maps.app/Contents/my-notes.txt');
+    await page.waitForTimeout(4_500);
     await page.close();
 
-    /* 2) 改库：旧包换成旧格式的 Info.plist（共用那两份文件体）、删掉 Notes.app、在 Maps.app 里放用户文件、
-     *    把 Clock.app 换成同名的普通文件。 */
+    /* 2) 改库：Mail 与 Maps 的 Info.plist 换成旧格式的文件体（把旧格式文件的引用挪过去、删掉它在桌面上的那一行，
+     *    文件体只被包里这一行引用，对账重写它时不会误删别处还在用的文件体）、删掉 Notes.app、把 Clock.app 换成同名的普通文件。 */
     await surgery(session, async db => {
       const rows = (sql, bindings) => db.shell.rows(sql, bindings);
       const apps = (await rows(`SELECT id FROM ${FILES} WHERE name = 'Applications' AND "parentId" IS NULL`))[0][0];
-      const plistOf = async name =>
-        (
+      for (const name of ['Mail', 'Maps']) {
+        const legacy = (
+          await rows(`SELECT id, content_id, size FROM ${FILES} WHERE name = ?`, [`legacy-${name.toLowerCase()}.plist`])
+        )[0];
+        const info = (
           await rows(
-            `SELECT i.id, f.content_id, f.size FROM ${FILES} i
+            `SELECT i.id FROM ${FILES} i
              JOIN ${FILES} c ON i."parentId" = c.id AND c.name = 'Contents'
              JOIN ${FILES} p ON c."parentId" = p.id AND p.name = ? AND p."parentId" = ?
-             JOIN ${FILES} f ON f.name = ?
              WHERE i.name = 'Info.plist'`,
-            [`${name}.app`, apps, `legacy-${name.toLowerCase()}.plist`]
+            [`${name}.app`, apps]
           )
-        )[0];
-      for (const name of ['Mail', 'Maps']) {
-        const [infoId, contentId, size] = await plistOf(name);
-        await db.shell.execute(`UPDATE ${FILES} SET content_id = ?, size = ? WHERE id = ?`, [contentId, size, infoId]);
+        )[0][0];
+        await db.shell.execute(`UPDATE ${FILES} SET content_id = ?, size = ? WHERE id = ?`, [
+          legacy[1],
+          legacy[2],
+          info
+        ]);
+        await db.shell.execute(`DELETE FROM ${FILES} WHERE id = ?`, [legacy[0]]);
       }
-      const [mapsContents] = (
-        await rows(
-          `SELECT c.id FROM ${FILES} c JOIN ${FILES} p ON c."parentId" = p.id AND p.name = 'Maps.app' AND p."parentId" = ?
-           WHERE c.name = 'Contents'`,
-          [apps]
-        )
-      )[0];
-      const [, legacyBlob, legacySize] = await plistOf('Maps');
       const now = new Date().toISOString();
-      await db.shell.execute(
-        `INSERT INTO ${FILES} ("createdAt", "updatedAt", name, type, size, mime_type, content_id, modified_at, "parentId")
-         VALUES (?, ?, 'my-notes.txt', 'file', ?, 'text/plain', ?, ?, ?)`,
-        [now, now, legacySize, legacyBlob, now, mapsContents]
-      );
       await db.shell.execute(`DELETE FROM ${FILES} WHERE name = 'Notes.app' AND "parentId" = ?`, [apps]);
       await db.shell.execute(`DELETE FROM ${FILES} WHERE name = 'Clock.app' AND "parentId" = ?`, [apps]);
       await db.shell.execute(
@@ -144,15 +140,7 @@ export const applicationsUpgrade = {
     await page.locator('#dock .di[data-app="finder"]').click();
     const last = helpers.win('finder').last();
     await last.locator('[data-place="Applications"]').click();
-    try {
-      await last.locator('.fitem[data-name$=".app"]').first().waitFor({ timeout: 8000 });
-    } catch (error) {
-      await page.screenshot({ path: 'tmp/ad/upgrade-debug.png' });
-      console.error('DEBUG items', await last.locator('.fitem').evaluateAll(nodes => nodes.map(node => node.dataset.name)));
-      console.error('DEBUG title', await last.locator('[data-title]').textContent());
-      console.error('DEBUG note', await last.locator('[data-finder-note]').textContent().catch(() => null));
-      throw error;
-    }
+    await last.locator('.fitem[data-name$=".app"]').first().waitFor();
     const packagesAfter = await last.locator('.fitem').evaluateAll(nodes => nodes.map(node => node.dataset.name));
     /* 重开后包的集合只多出 Clock.app，没有任何重复（对账幂等）。 */
     result.reloadDoesNotRewrite =

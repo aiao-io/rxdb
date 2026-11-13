@@ -3,8 +3,10 @@ import { Component, ElementRef, Injector, OnInit, Renderer2, computed, inject, i
 
 import { DesktopWindow, WindowBox, WindowFrameHandle } from '../services/desktop-window';
 import { DockState } from '../services/dock-state';
+import { placeOnScreen } from '../services/window-layout-model';
 import { WindowManager } from '../services/window-manager';
 import { clamp, lerp } from '../shared/format';
+import { WindowStatus } from './window-status';
 
 type ResizeEdge = 'n' | 's' | 'w' | 'e' | 'nw' | 'ne' | 'sw' | 'se';
 
@@ -19,6 +21,19 @@ const CURSORS: Readonly<Record<ResizeEdge, string>> = {
   ne: 'nesw-resize',
   sw: 'nesw-resize'
 };
+/** 开窗弹出动画的时长（与样式表里 `.win.opening` 一致）。 */
+const OPENING_MS = 320;
+/** 打开窗口时窗口比视口窄、矮的余量（与 `WindowManager.open` 一致）：最小尺寸也以此为上限。 */
+const OPEN_WIDTH_MARGIN = 60;
+const OPEN_HEIGHT_MARGIN = 90;
+
+const roundBox = (box: WindowBox): WindowBox => ({
+  left: Math.round(box.left),
+  top: Math.round(box.top),
+  width: Math.round(box.width),
+  height: Math.round(box.height)
+});
+
 /** 标题栏里这些元素自己处理指针，不触发拖动与双击缩放。 */
 const NO_DRAG = 'button,input,.tl,.seg,.sfield,[data-nodrag]';
 
@@ -41,7 +56,11 @@ const NO_DRAG = 'button,input,.tl,.seg,.sfield,[data-nodrag]';
     '(dblclick)': 'titleDoubleClick($event)'
   },
   template: `
-    <ng-container *ngComponentOutlet="win().app.component ?? null; injector: contentInjector()" />
+    @if (win().content(); as content) {
+      <ng-container *ngComponentOutlet="content; injector: contentInjector()" />
+    } @else {
+      <ng-container *ngComponentOutlet="status; injector: contentInjector()" />
+    }
     @for (edge of edges; track edge) {
       <div class="rz rz-{{ edge }}" [attr.data-rz]="edge" (pointerdown)="startResize($event, edge)"></div>
     }
@@ -57,6 +76,7 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
   private prev: WindowBox | null = null;
   private genie: Animation | null = null;
   protected readonly edges = EDGES;
+  protected readonly status = WindowStatus;
   protected readonly focused = computed(() => this.wm.focused() === this.win());
   protected readonly contentInjector = computed(() =>
     Injector.create({ providers: [{ provide: DesktopWindow, useValue: this.win() }], parent: this.injector })
@@ -70,8 +90,12 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
   }
 
   ngOnInit(): void {
-    this.win().frame = this;
-    this.setBox(this.win().initialBox);
+    const win = this.win();
+    win.frame = this;
+    this.setBox(win.initialBox);
+    /* 刷新后恢复出来的窗口（ADESK-US-104）带着缩放 / 最小化状态来，不放动画，直接就位。 */
+    if (win.zoomed()) this.applyRestoredZoom();
+    if (win.minimized()) this.applyRestoredMinimize();
   }
 
   minimize(): void {
@@ -129,6 +153,9 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
     this.wm.raise(win);
     const animation = this.genie;
     if (!animation) {
+      /* 刷新后恢复成最小化的窗口没有神灯动画可倒放：用开窗的弹出动画代替。 */
+      win.opening.set(true);
+      setTimeout(() => win.opening.set(false), OPENING_MS);
       this.finishRestore();
       return;
     }
@@ -153,7 +180,10 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
     }
     win.zoomed.set(false);
     const prev = this.prev ?? this.currentBox();
-    this.tween(prev, () => this.renderer.removeClass(this.host, 'zoomed'));
+    this.tween(prev, () => {
+      this.renderer.removeClass(this.host, 'zoomed');
+      this.commitBox();
+    });
   }
 
   keepOnScreen(): void {
@@ -162,8 +192,10 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
       this.setBox({ left: 0, top: mb, width: innerWidth, height: this.wm.visibleHeight() });
       return;
     }
-    this.host.style.left = `${Math.min(this.host.offsetLeft, Math.max(10, innerWidth - 120))}px`;
-    this.host.style.top = `${clamp(this.host.offsetTop, mb, Math.max(mb, innerHeight - 40))}px`;
+    const placed = placeOnScreen(this.measure(), { width: innerWidth, height: innerHeight }, mb);
+    this.host.style.left = `${placed.left}px`;
+    this.host.style.top = `${placed.top}px`;
+    this.commitBox();
   }
 
   protected startDrag(event: PointerEvent): void {
@@ -187,20 +219,23 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
     }
     const start = { x: event.clientX, y: event.clientY, ...this.measure() };
     const mb = this.wm.menubarHeight();
+    /* 窄屏上应用声明的最小尺寸可能比视口还大：缩放不能把窗口撑出屏幕，最小尺寸以视口为上限。 */
+    const minWidth = Math.min(win.minWidth, innerWidth - OPEN_WIDTH_MARGIN);
+    const minHeight = Math.min(win.minHeight, innerHeight - mb - OPEN_HEIGHT_MARGIN);
     this.renderer.addClass(this.host, 'rsz');
     document.body.style.cursor = CURSORS[edge];
     const move = (ev: PointerEvent): void => {
       const dx = ev.clientX - start.x;
       const dy = ev.clientY - start.y;
       let { left, top, width, height } = start;
-      if (edge.includes('e')) width = Math.max(win.minWidth, start.width + dx);
-      if (edge.includes('s')) height = Math.max(win.minHeight, start.height + dy);
+      if (edge.includes('e')) width = Math.max(minWidth, start.width + dx);
+      if (edge.includes('s')) height = Math.max(minHeight, start.height + dy);
       if (edge.includes('w')) {
-        width = Math.max(win.minWidth, start.width - dx);
+        width = Math.max(minWidth, start.width - dx);
         left = start.left + (start.width - width);
       }
       if (edge.includes('n')) {
-        height = Math.max(win.minHeight, start.height - dy);
+        height = Math.max(minHeight, start.height - dy);
         top = start.top + (start.height - height);
         if (top < mb) {
           height -= mb - top;
@@ -214,6 +249,7 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
       removeEventListener('pointerup', up, true);
       this.renderer.removeClass(this.host, 'rsz');
       document.body.style.cursor = '';
+      this.commitBox();
       win.afterResize.next();
     };
     addEventListener('pointermove', move, true);
@@ -262,6 +298,7 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
       removeEventListener('pointermove', move, true);
       removeEventListener('pointerup', up, true);
       this.renderer.removeClass(host, 'drag');
+      this.commitBox();
       if (motion.moved && Math.hypot(motion.vx, motion.vy) >= 3) this.glide(motion.vx, motion.vy, place);
     };
     addEventListener('pointermove', move, true);
@@ -277,6 +314,7 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
       vy *= 0.86;
       [x, y] = place(x + vx, y + vy);
       if (Math.hypot(vx, vy) > 0.4) requestAnimationFrame(tick);
+      else this.commitBox();
     };
     requestAnimationFrame(tick);
   }
@@ -297,6 +335,25 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
       else done?.();
     };
     requestAnimationFrame(tick);
+  }
+
+  /** 刷新后恢复成缩放状态：不放补间，直接铺满；取消缩放时回到缩放前的几何（即窗口的初始几何）。 */
+  private applyRestoredZoom(): void {
+    this.prev = this.win().initialBox;
+    this.renderer.addClass(this.host, 'zoomed');
+    this.setBox({ left: 0, top: this.wm.menubarHeight(), width: innerWidth, height: this.wm.visibleHeight() });
+  }
+
+  /** 刷新后恢复成最小化状态：直接藏起来；从 Dock 还原时没有神灯动画可倒放（见 `restore`）。 */
+  private applyRestoredMinimize(): void {
+    this.renderer.addClass(this.host, 'mini');
+    this.host.style.visibility = 'hidden';
+  }
+
+  /** 把窗口当前（缩放前）的几何交给窗口，窗口布局据此记录；几何没变时窗口那一侧不会通知。 */
+  private commitBox(): void {
+    const win = this.win();
+    win.box.set(win.zoomed() ? roundBox(this.prev ?? this.currentBox()) : this.measure());
   }
 
   private measure(): WindowBox {

@@ -28,7 +28,13 @@ export class AppLauncher {
       return;
     }
     const minimized = existing.find(win => win.minimized());
-    if (minimized) this.wm.unminimize(minimized.id);
-    else this.wm.focus(existing[existing.length - 1].id);
+    if (minimized) {
+      this.wm.unminimize(minimized.id);
+      return;
+    }
+    const front = existing[existing.length - 1].id;
+    this.wm.focus(front);
+    /* 刷新后延后装载的窗口（终端、游戏）：从 Dock 等入口再次打开就是要用它，此刻装载。 */
+    this.wm.activate(front);
   }
 }

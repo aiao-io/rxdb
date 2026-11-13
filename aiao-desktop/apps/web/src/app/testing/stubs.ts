@@ -5,6 +5,7 @@ import { Mock, vi } from 'vitest';
 export interface WindowManagerStub {
   readonly windows: WritableSignal<never[]>;
   readonly open: Mock;
+  readonly activate: Mock;
   readonly focus: Mock;
   readonly unminimize: Mock;
   readonly minimizeFront: Mock;
@@ -26,6 +27,7 @@ export function createWindowManagerStub(): WindowManagerStub {
   return {
     windows: signal([]),
     open: vi.fn(),
+    activate: vi.fn(),
     focus: vi.fn(),
     unminimize: vi.fn(),
     minimizeFront: vi.fn(),

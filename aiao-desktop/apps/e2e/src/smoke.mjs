@@ -18,6 +18,7 @@ import { outputRoot, startDesktopServer } from './desktop-server.mjs';
 import { launchEngine } from './fixtures/engines.mjs';
 import { GROUPS } from './groups/index.mjs';
 import { USAGE, parseArguments, selectGroups } from './harness/cli.mjs';
+import { judgeRun, loadLimitations } from './harness/limitations.mjs';
 import { runGroups } from './harness/runner.mjs';
 
 const options = parseArguments(process.argv.slice(2));
@@ -42,7 +43,7 @@ const desktop = await startDesktopServer({ root });
 const browser = await launchEngine(options.engine, { headless: !options.headed });
 const startedAt = performance.now();
 try {
-  const { outcomes, checks, problems } = await runGroups({
+  const { outcomes, checks } = await runGroups({
     groups: selected,
     browser,
     origin: desktop.origin,
@@ -55,8 +56,18 @@ try {
   const seconds = ((performance.now() - startedAt) / 1000).toFixed(1);
   console.error(`检查组 ${outcomes.length} 个，总耗时 ${seconds}s（引擎 ${options.engine}，并行 ${options.parallel}）`);
   console.log(JSON.stringify(checks));
-  if (problems.length > 0) {
-    console.error(`冒烟失败：\n${problems.map(problem => `  ${problem}`).join('\n')}`);
+  /* 非默认引擎上确实不能通过的项登记在 baseline/limitations-<引擎>.json：登记过的不算失败，过期的限制算失败。 */
+  const limitations = loadLimitations(options.engine, './baseline');
+  const { unexpected, stale, known } = judgeRun(outcomes, limitations);
+  if (known.length > 0)
+    console.error(
+      `已知限制 ${known.length} 项（${options.engine}，见 baseline/limitations-${options.engine}.json）：\n${known
+        .map(item => `  [${item.tier}] ${item.key ?? item.group}：${item.reason}`)
+        .join('\n')}`
+    );
+  const failures = [...unexpected, ...stale];
+  if (failures.length > 0) {
+    console.error(`冒烟失败：\n${failures.map(problem => `  ${problem}`).join('\n')}`);
     process.exitCode = 1;
   }
 } finally {

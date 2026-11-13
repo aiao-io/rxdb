@@ -3,9 +3,10 @@ import { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
 import { firstValueFrom } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createDesktopDatabase, DESKTOP_ADAPTER, schemaGuardOf } from './desktop-database';
+import { createDesktopDatabase, DESKTOP_ADAPTER, schemaGuardOf, tabSyncOf } from './desktop-database';
 import { DesktopSchemaStaleError, SchemaGuard } from './schema-guard';
 import { DESKTOP_SCHEMA_VERSION } from './schema-version';
+import { TabSync } from './tab-sync';
 
 const { init, getDevToolsConnector, opfsAvailable } = vi.hoisted(() => {
   const init = vi.fn();
@@ -150,5 +151,25 @@ describe('桌面数据库的本地存储选择', () => {
     expect(worker).toBeInstanceOf(FakeWorker);
     expect(worker.url.pathname).toMatch(/\/sqlite-wasm\.worker$/);
     expect(worker.options).toEqual({ type: 'module', name: 'aiao-desktop-sqlite' });
+  });
+});
+
+describe('桌面数据库的跨标签页协调', () => {
+  it('createDesktopDatabase 给每个库配一个 TabSync，tabSyncOf 取到的始终是同一个', async () => {
+    vi.stubEnv('DEV', false);
+    const first = createDesktopDatabase('/');
+    const second = createDesktopDatabase('/');
+    try {
+      expect(tabSyncOf(first)).toBeInstanceOf(TabSync);
+      expect(tabSyncOf(first)).toBe(tabSyncOf(first));
+      expect(tabSyncOf(first)).not.toBe(tabSyncOf(second));
+    } finally {
+      await first.destroy();
+      await second.destroy();
+    }
+  });
+
+  it('不是 createDesktopDatabase 建出来的库没有跨标签页协调：报错，而不是悄悄放行', () => {
+    expect(() => tabSyncOf({} as RxDB)).toThrow('不是 createDesktopDatabase 建的');
   });
 });

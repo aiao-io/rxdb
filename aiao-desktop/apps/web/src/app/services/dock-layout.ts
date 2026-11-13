@@ -1,4 +1,6 @@
 import { Service, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { filter } from 'rxjs';
 
 import { Preferences } from '../data/preferences';
 import { DESKTOP_APPS, DesktopAppId } from './desktop-apps';
@@ -22,8 +24,10 @@ export const DOCK_LAYOUT_KEY = 'dock:layout';
 
 type LayoutChange = (layout: DockLayout) => DockLayout;
 
-/** 偏好里的原始内容可以是任何东西（损坏的、旧版本的），由 `repairLayout` 判断。 */
-const anything = (value: unknown): value is unknown => true;
+type StoredJson = object | string | number | boolean | null;
+
+/** 偏好里的原始内容可以是任何 JSON（损坏的、旧版本的），交给 `repairLayout` 判断；这里只排除“没有这一行”。 */
+const present = (value: unknown): value is StoredJson => value !== undefined;
 
 /**
  * Dock 的固定布局：固定项、顺序与分隔线，是系统偏好 `dock:layout`，跨标签页共享（后保存的生效，规则见 ADESK-US-105）。
@@ -50,8 +54,15 @@ export class DockLayoutStore {
       () => this.restore(),
       () => undefined
     );
+    this.preferences.external$
+      .pipe(
+        filter(keys => keys.includes(DOCK_LAYOUT_KEY)),
+        takeUntilDestroyed()
+      )
+      .subscribe(() => this.adoptRemote());
   }
 
+  /** 应用是否已固定在 Dock 里（读取信号，模板与 `computed` 里随布局更新）。 */
   pinned(appId: DesktopAppId): boolean {
     return isPinned(this.layoutState(), appId);
   }
@@ -120,7 +131,7 @@ export class DockLayoutStore {
   }
 
   private restore(): void {
-    const stored = this.preferences.get(DOCK_LAYOUT_KEY, anything);
+    const stored = this.preferences.get(DOCK_LAYOUT_KEY, present);
     const base = repairLayout(stored, this.manifests);
     const layout = (this.pending ?? []).reduce((current, update) => update(current), base);
     this.pending = null;
@@ -128,6 +139,18 @@ export class DockLayoutStore {
     /* 没存过布局时，与默认布局一致就不必写库；存过的内容与最终布局不一致（被修复，或有读完之前的改动）就写回。 */
     const baseline = stored === undefined ? defaultLayout(this.manifests) : stored;
     if (!sameLayout(baseline, layout)) this.save(layout);
+  }
+
+  /**
+   * 别的标签页保存了 Dock 布局：采用库里的现状（共享，后保存的生效，不合并）。读完之前（`pending` 非空）还没有外部变更可采用；
+   * 对方写进来的内容不合规时先 `repairLayout`，修复过就写回，与启动时同一条规则。
+   */
+  private adoptRemote(): void {
+    if (this.pending) return;
+    const stored = this.preferences.get(DOCK_LAYOUT_KEY, present);
+    const layout = repairLayout(stored, this.manifests);
+    this.layoutState.set(layout);
+    if (stored !== undefined && !sameLayout(stored, layout)) this.save(layout);
   }
 
   private save(layout: DockLayout): void {

@@ -153,12 +153,49 @@ describe('DockDragController 起拖与取消', () => {
     expect(rig.drag.state()).not.toBeNull();
   });
 
-  it('已经在拖动时，再次起拖被忽略', async () => {
+  it('另一个指针已经在拖动时，再次起拖被忽略', async () => {
     const rig = await setup();
-    rig.drag.begin(pressEvent({ x: 0, y: 0 }), 'reminders', 'launchpad');
-    rig.drag.begin(pressEvent({ x: 0, y: 0 }), 'weather', 'launchpad');
-    rig.document.dispatchEvent(pointerEvent('pointermove', { x: 50, y: 50 }));
+    rig.drag.begin(pressEvent({ x: 0, y: 0, pointerId: 1 }), 'reminders', 'launchpad');
+    rig.drag.begin(pressEvent({ x: 0, y: 0, pointerId: 2 }), 'weather', 'launchpad');
+    rig.document.dispatchEvent(pointerEvent('pointermove', { x: 50, y: 50, pointerId: 1 }));
     expect(rig.drag.state()?.appId).toBe('reminders');
+  });
+
+  it('同一个指针的新一次按下接替旧会话：上一次的松手没有送到（比如在窗口外松开）也不会卡死拖放', async () => {
+    const rig = await setup();
+    dragAlong(
+      rig,
+      'reminders',
+      'launchpad',
+      [
+        { x: 0, y: 0 },
+        { x: 200, y: 900 }
+      ],
+      false
+    );
+    expect(rig.drag.state()?.appId).toBe('reminders');
+
+    rig.drag.begin(pressEvent({ x: 300, y: 300 }), 'weather', 'launchpad');
+    expect(rig.drag.state()).toBeNull();
+    rig.document.dispatchEvent(pointerEvent('pointermove', { x: 330, y: 330 }));
+    expect(rig.drag.state()?.appId).toBe('weather');
+  });
+
+  it('服务销毁时摘掉文档上的监听', async () => {
+    const rig = await setup();
+    dragAlong(
+      rig,
+      'reminders',
+      'launchpad',
+      [
+        { x: 0, y: 0 },
+        { x: 200, y: 900 }
+      ],
+      false
+    );
+    TestBed.resetTestingModule();
+    rig.document.dispatchEvent(pointerEvent('pointerup', { x: 200, y: 900 }));
+    expect(rig.store.pinned('reminders')).toBe(false);
   });
 
   it('不能固定的应用（About This Mac）从外部来源不起拖，已固定的应用仍可拖（松手不重复添加）', async () => {
@@ -388,6 +425,40 @@ describe('DockDragController 拖入 Dock（Launchpad 与 Finder 来源）', () =
 });
 
 describe('DockDragController 拖动 Dock 里的固定图标', () => {
+  it('拖起的图标在拖动中让位（lifted），外部来源拖动时没有让位的图标；dropSlot 随槽位变化', async () => {
+    const rig = await setup();
+    expect(rig.drag.lifted()).toBeNull();
+    expect(rig.drag.dropSlot()).toBeNull();
+
+    dragAlong(
+      rig,
+      'music',
+      'dock',
+      [
+        { x: 600, y: 850 },
+        { x: 130, y: 850 }
+      ],
+      false
+    );
+    expect(rig.drag.lifted()).toBe('music');
+    expect(rig.drag.dropSlot()).toBe(2);
+    rig.drag.cancel();
+    expect(rig.drag.lifted()).toBeNull();
+
+    dragAlong(
+      rig,
+      'reminders',
+      'launchpad',
+      [
+        { x: 10, y: 10 },
+        { x: 200, y: 900 }
+      ],
+      false
+    );
+    expect(rig.drag.lifted()).toBeNull();
+    expect(rig.drag.dropSlot()).toBe(3);
+  });
+
   it('在 Dock 内移动：松手后按槽位调整顺序，应用仍固定', async () => {
     const rig = await setup();
     dragAlong(

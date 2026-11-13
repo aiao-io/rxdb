@@ -27,7 +27,8 @@ export class VoiceMemosApp {
 
   protected readonly memos = liveQuery(
     () => VoiceMemo.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
-    []
+    [],
+    VoiceMemo
   );
   protected readonly bars = BARS;
   protected readonly clock = mmss;

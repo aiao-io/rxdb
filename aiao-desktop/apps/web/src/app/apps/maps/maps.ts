@@ -95,7 +95,8 @@ export class MapsApp {
   /** 收藏的地点，按收藏先后。 */
   private readonly places = liveQuery(
     () => MapPlace.findAll({ where: ALL_ROWS, orderBy: [{ field: 'createdAt', sort: 'asc' }] }),
-    []
+    [],
+    MapPlace
   );
   private readonly mapBox = viewChild.required<ElementRef<HTMLElement>>('mapBox');
   private readonly pane = viewChild.required<ElementRef<HTMLElement>>('pane');

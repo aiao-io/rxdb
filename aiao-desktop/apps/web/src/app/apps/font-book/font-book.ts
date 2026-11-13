@@ -19,7 +19,8 @@ const SIZES = [42, 30, 22, 17, 13, 11] as const;
 export class FontBookApp {
   private readonly families = liveQuery(
     () => FontFamily.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
-    []
+    [],
+    FontFamily
   );
 
   protected readonly sizes = SIZES;

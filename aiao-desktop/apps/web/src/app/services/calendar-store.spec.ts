@@ -85,6 +85,12 @@ describe('时间标签', () => {
 });
 
 describe('CalendarStore 读', () => {
+  it('读之前先保证日历与事件所属的数据域已经种过初始数据（首次读取才种）', async () => {
+    const { data } = await setup();
+    expect(data.ensureSeeded).toHaveBeenCalledWith(CalendarListRow);
+    expect(data.ensureSeeded).toHaveBeenCalledWith(CalendarEventRow);
+  });
+
   it('库就绪后给出全部日历（侧栏顺序）和事件', async () => {
     const { store } = await setup([event({ title: 'Dentist' })]);
     expect(store.calendars().map(calendar => calendar.id)).toEqual(['home', 'work', 'hol']);

@@ -59,6 +59,14 @@ interface RestLayout {
   readonly total: number;
 }
 
+/** 窄屏上 Dock 缩小到的最小图标尺寸（像素）：再小就点不准了，放不下的话 Dock 的两端会超出屏幕。 */
+const MIN_DOCK_SIZE = 22;
+/** Dock 与屏幕左右边缘的最小间距。 */
+const DOCK_SIDE_MARGIN = 8;
+/** 图标间隔与两端内边距随图标尺寸等比。 */
+const gapOf = (size: number): number => Math.round(size * 0.095);
+const padOf = (size: number): number => Math.round(size * 0.15);
+
 /**
  * Dock：一个 rAF 循环驱动的抛物线放大，外加弹跳、运行指示和右键菜单。
  * 格子由固定布局（`DockLayoutStore`）加上本标签页正在运行的未固定应用动态生成；
@@ -92,6 +100,8 @@ export class Dock implements DockView, DockDropTarget {
   private readonly pendingBounce = new Set<string>();
   private gap = 5;
   private padX = 8;
+  /** 实际的图标尺寸：设置里的尺寸，视口太窄放不下整条 Dock 时按比例缩小。 */
+  private size = this.system.dockSize();
   private readonly spread = 2.9;
   private baseWidth = 0;
   private pointerX: number | null = null;
@@ -124,7 +134,7 @@ export class Dock implements DockView, DockDropTarget {
   }
 
   rectFor(appId: string): DockRect {
-    const size = this.system.dockSize();
+    const size = this.size;
     const rect = this.dock().nativeElement.getBoundingClientRect();
     const slot = this.slots().find(item => item.app?.id === appId);
     if (!slot) return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, w: size, h: size };
@@ -147,7 +157,7 @@ export class Dock implements DockView, DockDropTarget {
   }
 
   accepts(x: number, y: number): boolean {
-    const size = this.system.dockSize();
+    const size = this.size;
     const rect = this.dock().nativeElement.getBoundingClientRect();
     const reach = this.baseWidth / 2 + size * 0.5;
     return Math.abs(x - (rect.left + rect.width / 2)) <= reach && y >= rect.top - size * 1.2;
@@ -155,7 +165,7 @@ export class Dock implements DockView, DockDropTarget {
 
   /** 指针 x 对应的插入槽位：以去掉被拖图标、没有空位的静止布局为准，空位不会反过来影响判断。 */
   slotAt(x: number): number {
-    const { placed, total } = this.restLayout(this.arrange(null), this.system.dockSize());
+    const { placed, total } = this.restLayout(this.arrange(null), this.size);
     const rect = this.dock().nativeElement.getBoundingClientRect();
     const left = rect.left + rect.width / 2 - total / 2;
     const centers = placed.filter(item => item.arranged?.slot.draggable).map(item => left + item.base);
@@ -164,11 +174,13 @@ export class Dock implements DockView, DockDropTarget {
 
   /** 重算静止几何；窗口缩放、偏好变化和格子增减时调用。 */
   protected measure(): void {
-    const size = this.system.dockSize();
+    const flow = this.arrange(this.drag.dropSlot());
+    const size = this.fitSize(flow, this.system.dockSize());
+    this.size = size;
     this.root.style.setProperty('--dock-size', `${size}px`);
-    this.gap = Math.round(size * 0.095);
-    this.padX = Math.round(size * 0.15);
-    const { placed, total } = this.restLayout(this.arrange(this.drag.dropSlot()), size);
+    this.gap = gapOf(size);
+    this.padX = padOf(size);
+    const { placed, total } = this.restLayout(flow, size);
     for (const { arranged, base, width } of placed) {
       if (!arranged) continue;
       Object.assign(this.geo(arranged.slot.key), { base, width });
@@ -279,16 +291,26 @@ export class Dock implements DockView, DockDropTarget {
 
   /** 静止布局：图标宽 `size`、间隔 `gap`，分隔线窄一些且后面不留间隔；空位与图标同宽。 */
   private restLayout(flow: readonly (ArrangedSlot | null)[], size: number): RestLayout {
-    let x = this.padX;
+    const gap = gapOf(size);
+    const pad = padOf(size);
+    let x = pad;
     let trailingGap = 0;
     const placed = flow.map(arranged => {
       const width = arranged && !arranged.slot.app ? Math.round(size * 0.3) : size;
-      trailingGap = !arranged || arranged.slot.app ? this.gap : 0;
+      trailingGap = !arranged || arranged.slot.app ? gap : 0;
       const item = { arranged, base: x + width / 2, width };
       x += width + trailingGap;
       return item;
     });
-    return { placed, total: x - trailingGap + this.padX };
+    return { placed, total: x - trailingGap + pad };
+  }
+
+  /** 宽屏上就是设置里的尺寸；视口窄、整条 Dock 放不进屏幕时，图标按需要缩小，直到放得下（不小于 {@link MIN_DOCK_SIZE}）。 */
+  private fitSize(flow: readonly (ArrangedSlot | null)[], preferred: number): number {
+    const available = innerWidth - 2 * DOCK_SIDE_MARGIN;
+    let size = preferred;
+    while (size > MIN_DOCK_SIZE && this.restLayout(flow, size).total > available) size--;
+    return Math.max(size, Math.min(preferred, MIN_DOCK_SIZE));
   }
 
   private menuFor(appId: DesktopAppId, keyboard: boolean): MenuEntry[] {
@@ -307,7 +329,9 @@ export class Dock implements DockView, DockDropTarget {
             () => this.toast.show('Trash emptied'),
             (error: unknown) => this.toast.show(describeDiskError(error))
           )
-      }
+      },
+      '-',
+      this.layout.menuEntry('trash')
     ];
   }
 
@@ -399,7 +423,7 @@ export class Dock implements DockView, DockDropTarget {
   }
 
   private step(): void {
-    const size = this.system.dockSize();
+    const size = this.size;
     const rect = this.dock().nativeElement.getBoundingClientRect();
     const mag = this.system.dockMagOn() ? this.system.dockMag() : 1;
     const reach = this.spread * size;
@@ -445,11 +469,12 @@ export class Dock implements DockView, DockDropTarget {
 
   /** 按平滑后的宽度排布图标，互不重叠。 */
   private paint(): void {
-    const size = this.system.dockSize();
+    const size = this.size;
     const nodes = this.slotElements();
     const slots = this.slots();
     /* 格子刚变、DOM 还没跟上的那一帧不排布，等渲染完成后的 measure() 补上。 */
-    if (nodes.length !== slots.length || nodes.some((ref, i) => ref.nativeElement.dataset['key'] !== slots[i].key)) return;
+    if (nodes.length !== slots.length || nodes.some((ref, i) => ref.nativeElement.dataset['key'] !== slots[i].key))
+      return;
     let x = this.padX;
     let trailingGap = 0;
     for (const arranged of this.arrange(this.drag.dropSlot())) {

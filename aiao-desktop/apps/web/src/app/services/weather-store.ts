@@ -116,7 +116,8 @@ export class WeatherStore {
   private readonly desktop = inject(DesktopData);
   private readonly cities = liveQuery(
     () => WeatherCity.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
-    []
+    [],
+    WeatherCity
   );
   private readonly forecast = signal<ForecastPayload | null>(null);
   private pending: Promise<ForecastPayload | null> | null = null;

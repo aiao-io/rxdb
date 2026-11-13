@@ -86,6 +86,44 @@ describe('子应用 SDK', () => {
     expect(Reflect.get(env.fake, '$orbit')).toMatchObject({ props: { theme: 'dark' } });
   });
 
+  it('宿主通知协议不兼容：握手以 INCOMPATIBLE_PROTOCOL 失败，带双方版本；来源或令牌不对的通知不算', async () => {
+    /* 本 SDK 声明的是版本 1，现实里不会有宿主对它说“不兼容”；这里只验证 SDK 读得懂这条通知，数字只做形式校验。 */
+    const env = environment();
+    const promise = connectOrbitClient();
+    const incompatible = (changes: Record<string, unknown> = {}, source: unknown = env.parent) =>
+      env.fake.dispatchEvent(
+        Object.assign(new Event('message'), {
+          source,
+          data: {
+            protocol: PROTOCOL,
+            type: 'incompatible',
+            channel: 'token',
+            supported: 1,
+            requested: 1,
+            message: '宿主说',
+            ...changes
+          },
+          ports: [],
+          origin: 'https://desktop.example'
+        })
+      );
+    incompatible({}, {});
+    incompatible({ channel: 'wrong' });
+    incompatible({ supported: 'x' });
+    incompatible({ supported: 1.5 });
+    incompatible({ supported: 0 });
+    incompatible({ supported: -1 });
+    incompatible({ requested: 2 });
+    incompatible({ protocol: 'other' });
+    const settled = vi.fn();
+    void promise.then(settled, settled);
+    await Promise.resolve();
+    expect(settled).not.toHaveBeenCalled();
+    incompatible();
+    await expect(promise).rejects.toMatchObject({ code: 'INCOMPATIBLE_PROTOCOL', requested: 1, supported: 1 });
+    expect(env.fake.history.replaceState).not.toHaveBeenCalled();
+  });
+
   it('握手超时、主动取消和离开页面均移除启动监听', async () => {
     vi.useFakeTimers();
     environment();

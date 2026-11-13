@@ -1,4 +1,17 @@
-import { Component, ElementRef, afterNextRender, afterRenderEffect, inject, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  Injector,
+  Signal,
+  afterNextRender,
+  afterRenderEffect,
+  effect,
+  inject,
+  runInInjectionContext,
+  signal,
+  untracked,
+  viewChild
+} from '@angular/core';
 
 import { Note } from '../../apps/notes/notes.entities';
 import { SafariBrowsers } from '../../apps/safari/safari-browsers';
@@ -78,11 +91,11 @@ export class Spotlight {
   private readonly theme = inject(ThemeService);
   private readonly toast = inject(Toast);
   private readonly session = inject(Session);
-  private readonly safari = inject(SafariBrowsers);
-  private readonly notes = liveQuery(
-    () => Note.findAll({ where: ALL_ROWS, orderBy: [{ field: 'date', sort: 'desc' }] }),
-    []
-  );
+  /** 备忘录只在第一次搜索时才读（D-18）：打开聚焦搜索不该触发 Notes 的数据域种子。 */
+  private notesQuery: Signal<readonly Note[]> | null = null;
+  private lastQuery = '';
+
+  private readonly injector = inject(Injector);
   private readonly queryInput = viewChild.required<ElementRef<HTMLInputElement>>('query');
   private readonly resultsBox = viewChild.required<ElementRef<HTMLElement>>('results');
   private hits: SpotlightHit[] = [];
@@ -123,10 +136,9 @@ export class Spotlight {
   }
 
   protected search(value: string): void {
-    const q = value.trim();
+    this.lastQuery = value.trim();
     this.selected.set(0);
-    this.hits = [];
-    this.groups.set(q ? this.collect(q) : []);
+    this.refresh();
   }
 
   protected key(event: KeyboardEvent): void {
@@ -145,6 +157,33 @@ export class Spotlight {
     const hit = this.hits[index];
     this.overlays.closeSpotlight();
     if (hit) setTimeout(hit.run, 60);
+  }
+
+  private notes(): readonly Note[] {
+    if (!this.notesQuery) {
+      const query = runInInjectionContext(this.injector, () =>
+        liveQuery(() => Note.findAll({ where: ALL_ROWS, orderBy: [{ field: 'date', sort: 'desc' }] }), [], Note)
+      );
+      this.notesQuery = query;
+      /* 备忘录读到时（首次搜索触发数据域种子之后）刷新当前结果，第一次输入就能搜到它们。 */
+      effect(
+        () => {
+          query();
+          untracked(() => {
+            if (this.lastQuery) this.refresh();
+          });
+        },
+        { injector: this.injector }
+      );
+    }
+    return this.notesQuery();
+  }
+
+  /** 按当前输入重新收集结果：命中表从头记，分组去重才不会把上一轮的结果当成「已出现过」。 */
+  private refresh(): void {
+    this.hits = [];
+    this.groups.set(this.lastQuery ? this.collect(this.lastQuery) : []);
+    this.selected.update(index => clamp(index, 0, Math.max(this.hits.length - 1, 0)));
   }
 
   private move(event: KeyboardEvent, delta: number): void {
@@ -178,7 +217,8 @@ export class Spotlight {
       name: `Search the web for “${q}”`,
       kind: 'Safari',
       icon: 'app-safari',
-      run: () => this.safari.goLatest(`search:${q}`)
+      /* Safari 的数据服务在真正搜索网页时才创建（打开聚焦搜索不触发它的数据域种子，D-18）。 */
+      run: () => this.injector.get(SafariBrowsers).goLatest(`search:${q}`)
     };
     /* 同名时优先真正的应用，而不是磁盘上的 .app 文件。 */
     const seen = new Set(apps.map(app => `${app.name.toLowerCase()}.app`));

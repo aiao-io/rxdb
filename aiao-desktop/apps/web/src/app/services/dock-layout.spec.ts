@@ -5,8 +5,10 @@ import { DESKTOP_APP_MANIFESTS } from '../apps/app-manifests';
 import { DesktopData } from '../data/desktop-data';
 import { Preferences } from '../data/preferences';
 import { SystemPreference } from '../data/system-preference.entity';
+import { TabSync } from '../data/tab-sync';
 import { configureServices } from '../testing/angular';
 import { FakeDesktopData } from '../testing/fake-desktop-data';
+import { FakeChannelHub } from '../testing/fake-tab-sync';
 import { DESKTOP_APPS } from './desktop-apps';
 import { DOCK_LAYOUT_KEY, DockLayoutStore } from './dock-layout';
 import { DockLayout, defaultLayout } from './dock-layout-model';
@@ -231,14 +233,17 @@ describe('DockLayoutStore 菜单项', () => {
     expect(store.pinned('calculator')).toBe(false);
   });
 
-  it.each(['finder', 'launchpad', 'trash'] as const)('%s 不可移除：Remove from Dock 置灰，执行也不会取消固定', async id => {
-    const { store, preferences } = setup();
-    await preferences.ready;
-    const entry = command(store.menuEntry(id));
-    expect(entry).toMatchObject({ id: 'remove-from-dock', disabled: true });
-    entry.run?.();
-    expect(store.pinned(id)).toBe(true);
-  });
+  it.each(['finder', 'launchpad', 'trash'] as const)(
+    '%s 不可移除：Remove from Dock 置灰，执行也不会取消固定',
+    async id => {
+      const { store, preferences } = setup();
+      await preferences.ready;
+      const entry = command(store.menuEntry(id));
+      expect(entry).toMatchObject({ id: 'remove-from-dock', disabled: true });
+      entry.run?.();
+      expect(store.pinned(id)).toBe(true);
+    }
+  );
 
   it('不能固定的应用（About This Mac）Add to Dock 置灰', async () => {
     const { store, preferences } = setup();
@@ -275,5 +280,63 @@ describe('DockLayoutStore 在库读完之前的改动', () => {
     await settle();
     expect(store.pinned('calculator')).toBe(false);
     expect(ids((savedLayout(table) as DockLayout).items)).not.toContain('calculator');
+  });
+});
+
+describe('DockLayoutStore 多标签页（ADESK-US-105）', () => {
+  /** 两个标签页共用一个库：本标签页的 Dock 布局，加「另一个标签页」的通知。 */
+  function twoTabs(stored: unknown) {
+    const hub = new FakeChannelHub();
+    const data = new FakeDesktopData();
+    data.tabs = new TabSync({ channel: hub.open() });
+    const other = new TabSync({ channel: hub.open() });
+    const table = data.table<{ id?: string; key: string; value: unknown }>(SystemPreference);
+    table.seed([{ key: DOCK_LAYOUT_KEY, value: stored }]);
+    configureServices([
+      DockLayoutStore,
+      Preferences,
+      Toast,
+      { provide: DesktopData, useValue: data },
+      { provide: DESKTOP_APPS, useValue: DESKTOP_APP_MANIFESTS }
+    ]);
+    return { store: TestBed.inject(DockLayoutStore), other, table };
+  }
+
+  it('别的标签页固定了一个应用：同步时限内这边的 Dock 也有它（固定项与顺序共享，后保存的生效）', async () => {
+    const before = layoutOf(app('finder'), app('launchpad'), divider, app('trash'));
+    const { store, other, table } = twoTabs(before);
+    await settle();
+    expect(ids(store.items())).toEqual(['finder', 'launchpad', '|', 'trash']);
+
+    void table.update(table.rows[0], {
+      value: layoutOf(app('finder'), app('launchpad'), app('notes'), divider, app('trash'))
+    });
+    other.notify('preferences');
+    await settle();
+    expect(ids(store.items())).toEqual(['finder', 'launchpad', 'notes', '|', 'trash']);
+    expect(store.pinned('notes')).toBe(true);
+  });
+
+  it('采用别的标签页的布局时不再写回；对方写进来的内容不合规就修复并写回', async () => {
+    const { store, other, table } = twoTabs(layoutOf(app('finder'), app('launchpad'), divider, app('trash')));
+    await settle();
+    const set = vi.spyOn(table, 'update');
+
+    void table.update(table.rows[0], {
+      value: layoutOf(app('finder'), app('launchpad'), app('notes'), divider, app('trash'))
+    });
+    set.mockClear();
+    other.notify('preferences');
+    await settle();
+    expect(set).not.toHaveBeenCalled();
+
+    void table.update(table.rows[0], {
+      value: layoutOf(app('finder'), app('ghost-app'), app('launchpad'), divider, app('trash'))
+    });
+    set.mockClear();
+    other.notify('preferences');
+    await settle();
+    expect(ids(store.items())).not.toContain('ghost-app');
+    expect(set).toHaveBeenCalledTimes(1);
   });
 });

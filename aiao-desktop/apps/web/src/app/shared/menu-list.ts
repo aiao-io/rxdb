@@ -25,7 +25,7 @@ export const isMenuKey = (event: KeyboardEvent): boolean =>
  * 方向键、Home、End 在 `count` 个可用项里要去的下标；不是导航键时为 `null`。
  * 焦点不在任何项上（`at` 为 -1）时，向下去第一项，向上去最后一项。
  */
-function nextIndex(key: string, at: number, count: number): number | null {
+export function nextIndex(key: string, at: number, count: number): number | null {
   if (key === 'Home') return 0;
   if (key === 'End') return count - 1;
   if (key === 'ArrowDown') return (at + 1) % count;

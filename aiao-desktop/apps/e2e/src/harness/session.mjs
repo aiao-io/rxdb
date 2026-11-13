@@ -1,10 +1,23 @@
+import { createPersistentProfile } from '../fixtures/persistent-profile.mjs';
 import { createHelpers } from './helpers.mjs';
 import { installAiaoCodeStandin, installGameStandin } from './standin.mjs';
 
 export const VIEWPORT = { width: 1440, height: 900 };
 
-/** 外网被拦截时资源加载失败是预期内的，不算页面错误。 */
-const IGNORED_CONSOLE = /Failed to load resource|ERR_FAILED/;
+/**
+ * 外网被拦截时资源加载失败是预期内的，不算页面错误。各引擎的措辞不同：
+ * Chromium `Failed to load resource` / `ERR_FAILED`，Firefox `Cross-Origin Request Blocked` / `NetworkError` / `NS_BINDING_ABORTED`，
+ * WebKit `Fetch API cannot load … due to access control checks` / `Load failed`。
+ */
+const IGNORED_CONSOLE =
+  /Failed to load resource|ERR_FAILED|Cross-Origin Request Blocked|NetworkError when attempting to fetch resource|NS_BINDING_ABORTED|due to access control checks|Load failed/;
+
+/**
+ * 引擎的临时（非持久）浏览器上下文有没有 OPFS。WebKit 的临时上下文等同于 Safari 的隐私浏览：
+ * `navigator.storage.getDirectory()` 直接抛 `UnknownError`，本地库根本打不开，所以 WebKit 用持久 profile 跑冒烟。
+ * （桌面在隐私浏览里会显示「Local storage is unavailable」，这是明确的不支持提示。）
+ */
+const EPHEMERAL_CONTEXT_HAS_OPFS = Object.freeze({ chromium: true, firefox: true, webkit: false });
 
 /**
  * 一个检查组的运行环境：独立的浏览器上下文（独立的 OPFS、localStorage、IndexedDB）、一个页面、
@@ -19,9 +32,21 @@ const IGNORED_CONSOLE = /Failed to load resource|ERR_FAILED/;
  * @param {string} [options.distRoot] 被测产物的目录（需要读构建内容的检查组用，例如升级验收找 sqlite 工作线程）
  * @param {string} [options.engine] 浏览器引擎名，默认 chromium
  * @param {readonly ('aiao-code' | 'game')[]} [options.standins] 要安装的替身
+ * @param {import('playwright').BrowserContextOptions} [options.context] 检查组要求的浏览器上下文选项（窄屏视口、触屏等）
  */
-export async function createSession({ browser, origin, label, distRoot, engine = 'chromium', standins = [] }) {
-  const context = await browser.newContext({ viewport: VIEWPORT });
+export async function createSession({
+  browser,
+  origin,
+  label,
+  distRoot,
+  engine = 'chromium',
+  standins = [],
+  context: contextOptions = {}
+}) {
+  const viewport = contextOptions.viewport ?? VIEWPORT;
+  const profile =
+    EPHEMERAL_CONTEXT_HAS_OPFS[engine] ? null : await createPersistentProfile({ engine, viewport, contextOptions });
+  const context = profile ? await profile.open() : await browser.newContext({ viewport, ...contextOptions });
   await context.route(
     url => !url.href.startsWith(origin),
     route => route.abort()
@@ -35,7 +60,9 @@ export async function createSession({ browser, origin, label, distRoot, engine =
     const opened = await context.newPage();
     opened.on('pageerror', error => errors.push(error.message));
     opened.on('console', message => {
-      if (message.type() === 'error' && !IGNORED_CONSOLE.test(message.text())) errors.push(message.text());
+      if (message.type() !== 'error' || IGNORED_CONSOLE.test(message.text())) return;
+      const { url, lineNumber } = message.location();
+      errors.push(url ? `${message.text()}（${url.replace(origin, '')}:${lineNumber}）` : message.text());
     });
     return opened;
   };
@@ -70,6 +97,9 @@ export async function createSession({ browser, origin, label, distRoot, engine =
       await page.goto(`${origin}/${boot ? '' : '?boot=0'}`, { waitUntil: 'load' });
       await helpers.win('finder').waitFor();
     },
-    close: () => context.close()
+    close: async () => {
+      await context.close();
+      await profile?.dispose();
+    }
   };
 }

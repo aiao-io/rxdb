@@ -71,3 +71,21 @@
   position: absolute;
   z-index: 3;
 }
+/* 窗口里的提示条：未声明的能力、参数非法、超时。盖在激活层与拖动层之上，不拦截指针。 */
+.webapp-notice {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  z-index: 4;
+  max-width: calc(100% - 32px);
+  padding: 7px 14px;
+  border-radius: 9px;
+  background: rgba(30, 30, 34, 0.92);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
+  transform: translateX(-50%);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+}

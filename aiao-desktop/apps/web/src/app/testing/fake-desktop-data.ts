@@ -1,13 +1,16 @@
 import { BehaviorSubject, Observable } from 'rxjs';
 import { vi } from 'vitest';
 
+import { TabSync } from '../data/tab-sync';
+import { SilentChannel } from './fake-tab-sync';
+
 interface FakeRule {
   readonly field: string;
   readonly operator: string;
   readonly value: unknown;
 }
 
-/** 服务里用到的查询条件子集：全是 `and`，规则只有 `=`。 */
+/** 服务里用到的查询条件子集：全是 `and`，规则只有 `=` 与 `startsWith`。 */
 interface FakeWhere {
   readonly combinator: 'and' | 'or';
   readonly rules: readonly FakeRule[];
@@ -23,7 +26,8 @@ type Row = Record<string, unknown>;
 
 const matches = (row: Row, where: FakeWhere | undefined): boolean =>
   (where?.rules ?? []).every(rule => {
-    if (rule.operator !== '=') throw new Error(`替身仓储只支持 = 条件：${rule.operator}`);
+    if (rule.operator === 'startsWith') return String(row[rule.field]).startsWith(String(rule.value));
+    if (rule.operator !== '=') throw new Error(`替身仓储只支持 = 与 startsWith 条件：${rule.operator}`);
     return row[rule.field] === rule.value;
   });
 
@@ -66,11 +70,12 @@ export class FakeRepository<T extends object = Row> {
     return row;
   }
 
+  /** 与 RxDB 一致：就地改实体并返回同一个实例（调用方拿旧实例读字段会读到新值）。 */
   async update(entity: T, patch: Partial<T>): Promise<T> {
     const id = (entity as Row)['id'];
-    const row = { ...entity, ...patch } as T;
-    this.state.next(this.state.value.map(item => ((item as Row)['id'] === id ? row : item)));
-    return row;
+    Object.assign(entity, patch);
+    this.state.next(this.state.value.map(item => ((item as Row)['id'] === id ? entity : item)));
+    return entity;
   }
 
   async remove(entity: T): Promise<void> {
@@ -138,8 +143,27 @@ export class FakeDesktopData {
       () => false
     )
   );
-  readonly repository = vi.fn(async (type: EntityKey) => this.table(type));
+  /**
+   * 实体所属数据域的初始数据（首次读取时才种，D-18）。替身里表是空的，不种数据，只记下被问过哪些实体，
+   * 需要看「读之前先种」的次序时断言它的调用。
+   */
+  readonly ensureSeeded = vi.fn<(entity: EntityKey) => Promise<void>>(async () => undefined);
+  /** 和真实现一样，取仓储之前先保证该实体所属的数据域已经种过。 */
+  readonly repository = vi.fn(async (type: EntityKey) => {
+    await this.ensureSeeded(type);
+    return this.table(type);
+  });
   readonly instantiate = vi.fn((_type: EntityKey, data: object) => ({ ...data }));
+  /** 跨标签页协调（ADESK-US-105）：默认一条没人听的通道，锁取 `navigator.locks`（用例里常用 `stubLocks` 换成直接执行）。 */
+  tabs = new TabSync({ channel: new SilentChannel() });
+  /** 库的 data_version：别的连接提交写入时变化；单标签页的用例里它不动。 */
+  version = 1;
+  readonly dataVersion = vi.fn(async () => this.version);
+
+  /** 模拟别的标签页提交了一次写入：库的 data_version 变了。 */
+  foreignCommit(): void {
+    this.version++;
+  }
 
   table<T extends object = Row>(type: EntityKey): FakeRepository<T> {
     let table = this.tables.get(type);

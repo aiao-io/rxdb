@@ -48,7 +48,7 @@ async function setup(cities: CityRow[] = [CUPERTINO]) {
   configureServices([WeatherStore, { provide: DesktopData, useValue: data }]);
   const store = TestBed.inject(WeatherStore);
   await tick();
-  return { store, fetchMock, rows };
+  return { store, fetchMock, rows, data };
 }
 
 afterEach(() => {
@@ -71,6 +71,11 @@ describe('weatherCode', () => {
 });
 
 describe('WeatherStore 离线读数', () => {
+  it('读城市列表之前先保证天气的数据域已经种过初始数据（首次读取才种）', async () => {
+    const { data } = await setup();
+    expect(data.ensureSeeded).toHaveBeenCalledWith(WeatherCity);
+  });
+
   it('place 是主城市的名字，城市列表还没读到时为空串', async () => {
     const { store } = await setup([{ name: 'Tokyo', latitude: 35.68, longitude: 139.69, position: 1 }, CUPERTINO]);
     expect(store.place()).toBe('Tokyo');

@@ -114,7 +114,8 @@ export class WeatherWidget {
 export class StocksWidget {
   private readonly watchlist = liveQuery(
     () => WatchlistSymbol.find({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }], limit: 3 }),
-    []
+    [],
+    WatchlistSymbol
   );
 
   protected readonly wm = inject(WindowManager);
@@ -197,7 +198,8 @@ export class BatterySquareWidget {
 export class RemindersWidget {
   private readonly reminders = liveQuery(
     () => Reminder.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
-    []
+    [],
+    Reminder
   );
 
   protected readonly wm = inject(WindowManager);

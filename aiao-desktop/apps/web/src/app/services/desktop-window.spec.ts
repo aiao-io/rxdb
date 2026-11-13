@@ -1,6 +1,8 @@
-import { computed, signal } from '@angular/core';
-import { describe, expect, it, vi } from 'vitest';
+import { Injector, computed, effect, signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { configureServices } from '../testing/angular';
 import { testApps, testWindow } from '../testing/desktop-apps';
 import { DesktopWindow, WindowFrameHandle } from './desktop-window';
 import { MenuSection, section } from './menu';
@@ -53,6 +55,14 @@ describe('DesktopWindow', () => {
     expect(menus().map(menu => menu.label)).toEqual(['bash']);
   });
 
+  it('登记过的菜单可以撤销（传 null）：菜单栏回到应用的标准菜单，应用退出或实例销毁时用它解绑', () => {
+    const win = new DesktopWindow('w1', testApps().terminal, {}, { left: 0, top: 0, width: 1, height: 1 });
+    win.setMenus(signal<readonly MenuSection[]>([section('zsh', [])]));
+    expect(win.menus()).not.toBeNull();
+    win.setMenus(null);
+    expect(win.menus()).toBeNull();
+  });
+
   it('beforeClose 与 afterResize 是互相独立的事件流', () => {
     const win = testWindow();
     const closing = vi.fn();
@@ -81,5 +91,48 @@ describe('DesktopWindow', () => {
     expect(frame.minimize).toHaveBeenCalledTimes(1);
     expect(frame.keepOnScreen).toHaveBeenCalledTimes(1);
     expect(frame.restore).not.toHaveBeenCalled();
+  });
+});
+
+describe('DesktopWindow 给窗口布局用的状态（ADESK-US-104）', () => {
+  beforeEach(() => {
+    configureServices([]);
+  });
+
+  it('box 一开始就是初始几何，窗口框架在拖动、缩放结束时写入新的', () => {
+    const win = testWindow('notes', {}, { left: 10, top: 20, width: 300, height: 200 });
+    expect(win.box()).toEqual({ left: 10, top: 20, width: 300, height: 200 });
+    win.box.set({ left: 50, top: 60, width: 400, height: 300 });
+    expect(win.box()).toEqual({ left: 50, top: 60, width: 400, height: 300 });
+    expect(win.initialBox).toEqual({ left: 10, top: 20, width: 300, height: 200 });
+  });
+
+  it('box 写入内容相同的几何不通知依赖者（点一下窗口没动也不会触发布局写回）', () => {
+    const win = testWindow('notes', {}, { left: 10, top: 20, width: 300, height: 200 });
+    const changes = vi.fn();
+    const stop = effect(() => changes(win.box()), { injector: TestBed.inject(Injector) });
+    TestBed.tick();
+    win.box.set({ left: 10, top: 20, width: 300, height: 200 });
+    TestBed.tick();
+    expect(changes).toHaveBeenCalledTimes(1);
+    win.box.set({ left: 11, top: 20, width: 300, height: 200 });
+    TestBed.tick();
+    expect(changes).toHaveBeenCalledTimes(2);
+    stop.destroy();
+  });
+
+  it('restoreOptions 一开始是 null（按开窗参数记），应用上报后以上报的为准，内容相同不重复通知', () => {
+    const win = testWindow('finder', { path: ['Trash'] });
+    expect(win.restoreOptions()).toBeNull();
+    const changes = vi.fn();
+    const stop = effect(() => changes(win.restoreOptions()), { injector: TestBed.inject(Injector) });
+    TestBed.tick();
+    win.restoreOptions.set({ path: ['Macintosh HD', 'Users'] });
+    TestBed.tick();
+    win.restoreOptions.set({ path: ['Macintosh HD', 'Users'] });
+    TestBed.tick();
+    expect(win.restoreOptions()).toEqual({ path: ['Macintosh HD', 'Users'] });
+    expect(changes).toHaveBeenCalledTimes(2);
+    stop.destroy();
   });
 });

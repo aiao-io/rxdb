@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
+import { DESKTOP_CAPABILITIES } from '@aiao/orbit/desktop';
 import { DESKTOP_APP_MANIFESTS } from '../apps/app-manifests';
 import {
-  DesktopAppManifest,
-  DesktopAppManifests,
+  APP_CAPABILITIES,
   applicationManifests,
   assertManifests,
   defaultDockApps,
+  DesktopAppManifest,
+  DesktopAppManifests,
+  grantedCapabilities,
+  LAUNCH_ORDER,
   orbitAllow,
   runtimeOf,
   validateManifests,
@@ -28,6 +32,7 @@ const code = {
   icon: 'app-code',
   kind: 'web',
   ...common,
+  capabilities: ['clipboard:write'],
   web: {
     url: 'https://code.example.com/',
     version: 'online',
@@ -82,8 +87,8 @@ describe('应用登记表', () => {
         entry('secret', webOnly({ url: 'https://user:secret@code.example.com/' })),
         entry('broken', webOnly({ url: 'not a url' })),
         entry('unversioned', webOnly({ version: '' })),
-        entry('camera', webOnly({ allow: ['camera'] })),
-        entry('twice', webOnly({ allow: ['fullscreen', 'fullscreen'] })),
+        entry('camera', { ...webOnly({ allow: ['camera'] }), capabilities: [] }),
+        entry('twice', { ...webOnly({ allow: ['fullscreen', 'fullscreen'] }), capabilities: [] }),
         entry('instant', webOnly({ readyTimeout: 0 })),
         entry('forever', webOnly({ readyTimeout: 120_001 })),
         entry('fraction', webOnly({ readyTimeout: 1.5 })),
@@ -219,5 +224,116 @@ describe('应用清单派生的视图（D-17）', () => {
       'twinB.bundleId：与 twinA 重复',
       'clash2.dockOrder：与 clash1 在同一区域内重复'
     ]);
+  });
+});
+
+describe('启动台与聚焦搜索的应用顺序', () => {
+  it('LAUNCH_ORDER 恰好是全部非系统入口：登记了应用却忘了排进去（能打开但启动台里没有）会在这里失败', () => {
+    const launchable = Object.values(DESKTOP_APP_MANIFESTS)
+      .filter(app => app.kind !== 'system')
+      .map(app => app.id);
+    expect([...LAUNCH_ORDER].sort()).toEqual([...launchable].sort());
+    expect(new Set(LAUNCH_ORDER).size).toBe(LAUNCH_ORDER.length);
+  });
+});
+
+describe('清单的 capabilities（ADESK-US-206，默认拒绝）', () => {
+  /** 一个集成应用：浏览器权限（allow）与清单能力（capabilities）各自给定。 */
+  const web = (id: string, allow: readonly string[], capabilities?: unknown) =>
+    entry(id, {
+      ...webOnly({ allow }),
+      ...(capabilities === undefined ? { capabilities: undefined } : { capabilities })
+    });
+
+  it('Aiao Code 只声明它现在实际用到的能力：窗口，以及与 allow 一致的剪贴板读写', () => {
+    expect(DESKTOP_APP_MANIFESTS.vscode.capabilities).toEqual(['window', 'clipboard:read', 'clipboard:write']);
+    expect(grantedCapabilities(DESKTOP_APP_MANIFESTS.vscode)).toEqual(['window', 'clipboard:read', 'clipboard:write']);
+  });
+
+  it('清单可声明的能力名与 Orbit 的能力协议逐项一致（桌面首屏不引入 Orbit 的桌面能力模块，靠这条断言防漂移）', () => {
+    expect([...APP_CAPABILITIES]).toEqual([...DESKTOP_CAPABILITIES]);
+  });
+
+  it('没声明就是没授予：内置应用、系统入口与没有 capabilities 字段的应用都拿不到任何能力', () => {
+    expect(grantedCapabilities(DESKTOP_APP_MANIFESTS.calculator)).toEqual([]);
+    expect(grantedCapabilities(DESKTOP_APP_MANIFESTS.launchpad)).toEqual([]);
+    expect(grantedCapabilities(web('plain', []) as unknown as DesktopAppManifest)).toEqual([]);
+    const everything = Object.values(DESKTOP_APP_MANIFESTS).flatMap(app => grantedCapabilities(app));
+    expect(new Set(everything)).toEqual(new Set(['window', 'clipboard:read', 'clipboard:write']));
+  });
+
+  it('capabilities 不合规逐项报出：不是数组、不认识的能力、重复、写外观没有同时读外观、系统入口不能声明', () => {
+    const problems = validateManifests(
+      table(
+        web('shape', [], 'window'),
+        web('unknown', [], ['teleport']),
+        web('twice', [], ['window', 'window']),
+        web('writer', [], ['appearance:write']),
+        {
+          id: 'sys',
+          name: 'Sys',
+          icon: 'x',
+          kind: 'system',
+          showInApplications: false,
+          defaultPinned: false,
+          dockRemovable: false,
+          capabilities: ['window']
+        },
+        entry('builtin', { kind: 'builtin', web: undefined, capabilities: ['menu', 'appearance', 'appearance:write'] })
+      )
+    );
+    expect(problems).toEqual([
+      'shape.capabilities：必须是数组',
+      'unknown.capabilities：teleport 不在允许清单（window、menu、app、appearance、appearance:write、notification、clipboard:read、clipboard:write、filesystem:read、filesystem:write）',
+      'twice.capabilities：window 重复',
+      'writer.capabilities：appearance:write 必须同时声明 appearance（写入是在读取之上另外授予的）',
+      'sys.capabilities：系统入口不开窗口，不能声明能力'
+    ]);
+  });
+
+  describe('两层权限一致（AC#15）：登记表 allow 与清单 capabilities 对 clipboard 的声明', () => {
+    const pairs = [
+      ['clipboard-read', 'clipboard:read'],
+      ['clipboard-write', 'clipboard:write']
+    ] as const;
+
+    it('两层一致的两种情形通过：都授、都不授', () => {
+      for (const [permission, capability] of pairs) {
+        expect(validateManifests(table(web('both', [permission], [capability])))).toEqual([]);
+        expect(validateManifests(table(web('neither', ['fullscreen'], ['window'])))).toEqual([]);
+      }
+      expect(
+        validateManifests(
+          table(web('all', ['clipboard-read', 'clipboard-write'], ['clipboard:read', 'clipboard:write']))
+        )
+      ).toEqual([]);
+    });
+
+    it('只授一层的登记逐项报出应用与能力，桌面启动即失败', () => {
+      for (const [permission, capability] of pairs) {
+        expect(validateManifests(table(web('browseronly', [permission], ['window'])))).toEqual([
+          `browseronly.capabilities：登记表 allow 授予了 ${permission}，但清单 capabilities 没有声明 ${capability}（两层必须一致）`
+        ]);
+        expect(validateManifests(table(web('manifestonly', ['fullscreen'], [capability])))).toEqual([
+          `manifestonly.web.allow：清单 capabilities 声明了 ${capability}，但登记表 allow 没有授予 ${permission}（两层必须一致）`
+        ]);
+      }
+      expect(validateManifests(table(web('swapped', ['clipboard-read'], ['clipboard:write'])))).toEqual([
+        'swapped.capabilities：登记表 allow 授予了 clipboard-read，但清单 capabilities 没有声明 clipboard:read（两层必须一致）',
+        'swapped.web.allow：清单 capabilities 声明了 clipboard:write，但登记表 allow 没有授予 clipboard-write（两层必须一致）'
+      ]);
+      expect(() => assertManifests(table(web('lopsided', ['clipboard-write'], [])))).toThrow(
+        /应用登记表不合规[\s\S]*lopsided\.capabilities[\s\S]*clipboard-write[\s\S]*clipboard:write/
+      );
+    });
+
+    it('没有浏览器权限层的应用（内置、同源 HTML）声明剪贴板能力不受这条一致性约束', () => {
+      const builtin = entry('plain', {
+        kind: 'builtin',
+        web: undefined,
+        capabilities: ['clipboard:read', 'clipboard:write']
+      });
+      expect(validateManifests(table(builtin))).toEqual([]);
+    });
   });
 });

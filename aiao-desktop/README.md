@@ -81,7 +81,9 @@ orbit?.ready();
 
 桌面在加载中与失败时始终画自己的标题栏；应用不调用 `setDecorations(false)` 就保持标准窗口。窗口状态（是否在前台、是否缩放）经 `appWindow.state` 与 `onStateChange` 获得。
 
-桌面这一侧在登记表加一项 `kind: 'web'` 的应用：名称、图标、窗口尺寸，以及入口地址、版本标识、要授予的浏览器权限（例如 `cross-origin-isolated; clipboard-write`）与就绪时限。Orbit 的允许来源从登记表推导；登记项不合规时桌面启动即报错。冒烟拦截全部外网请求，用替身应用验证桌面这一侧；集成应用本身用它自己的线上验收脚本，Aiao Code 的是 `pnpm nx run aiao-desktop-e2e:verify-aiao-code`（要外网，不进 CI）。
+应用还可以经 `@aiao/orbit/desktop` 使用桌面的统一系统能力（窗口、菜单、打开应用、外观……，[ADESK-US-206](requirements/stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md)）：`getDesktop(orbit)` 拿到能力，失败时抛带稳定错误码的 `DesktopError`；请求、错误码表、协议版本与限额见 [Orbit 的协议文档](../packages/orbit/README.md#桌面能力)。能力**默认拒绝**，逐项在清单的 `capabilities` 里声明；应用声明的协议版本高于桌面支持的版本时，窗口显示不兼容的原因，应用也收到明确的错误。
+
+桌面这一侧在登记表加一项 `kind: 'web'` 的应用：名称、图标、窗口尺寸，以及入口地址、版本标识、要授予的浏览器权限（例如 `cross-origin-isolated; clipboard-write`）、授予的系统能力 `capabilities` 与就绪时限。浏览器权限（`allow`）与系统能力（`capabilities`）是两层，对 clipboard 的声明必须一致（只授一层，桌面启动即失败）。Orbit 的允许来源从登记表推导；登记项不合规时桌面启动即报错。冒烟拦截全部外网请求，用替身应用验证桌面这一侧；集成应用本身用它自己的线上验收脚本，Aiao Code 的是 `pnpm nx run aiao-desktop-e2e:verify-aiao-code`（要外网，不进 CI）。
 
 ## 内置游戏
 

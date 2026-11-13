@@ -15,7 +15,24 @@ describe('FakeRepository', () => {
     expect((await repo.find({ orderBy: [{ field: 'n', sort: 'desc' }], limit: 2 })).map(row => row.n)).toEqual([3, 2]);
     await expect(
       repo.find({ where: { combinator: 'and', rules: [{ field: 'n', operator: '>', value: 1 }] } })
-    ).rejects.toThrow('替身仓储只支持 = 条件');
+    ).rejects.toThrow('替身仓储只支持 = 与 startsWith 条件');
+  });
+
+  it('find 支持 startsWith：按字段值的前缀过滤，可与 = 条件叠加', async () => {
+    const repo = new FakeRepository<{ id?: string; key: string; kind: string }>();
+    repo.seed([
+      { key: 'windows:layout:a', kind: 'x' },
+      { key: 'windows:layout:b', kind: 'y' },
+      { key: 'windows:layoutX', kind: 'x' },
+      { key: 'dock:layout', kind: 'x' }
+    ]);
+    const prefix = { field: 'key', operator: 'startsWith', value: 'windows:layout:' } as const;
+    expect((await repo.find({ where: { combinator: 'and', rules: [prefix] } })).map(row => row.key)).toEqual([
+      'windows:layout:a',
+      'windows:layout:b'
+    ]);
+    const both = { combinator: 'and', rules: [prefix, { field: 'kind', operator: '=', value: 'y' }] } as const;
+    expect((await repo.find({ where: both })).map(row => row.key)).toEqual(['windows:layout:b']);
   });
 });
 

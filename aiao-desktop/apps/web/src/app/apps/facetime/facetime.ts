@@ -48,7 +48,8 @@ export class FaceTimeApp {
   private readonly data = inject(DesktopData);
   private readonly rows = liveQuery(
     () => FaceTimeCall.findAll({ where: ALL_ROWS, orderBy: [{ field: 'startedAt', sort: 'desc' }] }),
-    []
+    [],
+    FaceTimeCall
   );
   /** 每次拨出加一，让通话中再拨号也能重置计时器。 */
   private readonly session = signal(0);

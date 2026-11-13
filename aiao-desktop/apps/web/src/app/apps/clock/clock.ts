@@ -52,7 +52,8 @@ export class ClockApp {
   private readonly clock = inject(Clock);
   private readonly worldClocks = liveQuery(
     () => WorldClock.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
-    []
+    [],
+    WorldClock
   );
 
   protected readonly zones = computed(() =>

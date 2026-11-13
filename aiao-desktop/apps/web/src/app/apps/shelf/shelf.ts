@@ -72,11 +72,13 @@ export class ShelfApp {
   private readonly shelf = shelfAppOf(this.win);
   private readonly sections = liveQuery(
     () => ShelfSection.findAll({ where: appIs(this.shelf), orderBy: [{ field: 'position', sort: 'asc' }] }),
-    []
+    [],
+    ShelfSection
   );
   private readonly items = liveQuery(
     () => ShelfItem.findAll({ where: appIs(this.shelf), orderBy: [{ field: 'position', sort: 'asc' }] }),
-    []
+    [],
+    ShelfItem
   );
 
   protected readonly name = this.win.app.name;

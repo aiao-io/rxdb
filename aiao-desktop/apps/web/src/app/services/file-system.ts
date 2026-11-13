@@ -1,4 +1,5 @@
-import { DestroyRef, EnvironmentInjector, Service, computed, inject, signal } from '@angular/core';
+import { DestroyRef, EnvironmentInjector, ErrorHandler, Service, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subject, auditTime } from 'rxjs';
 
 import { DesktopData, keyIs } from '../data/desktop-data';
@@ -59,7 +60,6 @@ const RECENT_SEED: readonly DiskPath[] = [
 ];
 const RECENTS_KEY = 'finder:recents';
 const DISK_MARKER_KEY = 'seed:disk';
-const DISK_LOCK = 'aiao-desktop-disk';
 
 /** 主目录里 macOS 不允许移走的文件夹。 */
 const HOME_FOLDERS = ['Desktop', 'Documents', 'Downloads', 'Movies', 'Music', 'Pictures', 'Public', '.Trash'];
@@ -97,8 +97,12 @@ export const describeDiskError = (error: unknown): string => (error instanceof E
 
 /**
  * Macintosh HD：目录树与元数据是本地 SQLite 里的 `DesktopFile` 行，文件体由 storage 插件放在 OPFS。
- * 首次打开时复制内置内容，之后保留所有改动。写操作经过一条串行队列；界面读的那棵树由活查询组装，
- * 谁改了文件行（Finder、TextEdit 或终端同步），Finder、桌面与 Dock 都跟着更新。
+ * 首次打开时复制内置内容，之后保留所有改动。
+ *
+ * 同一个来源的多个标签页共用这块磁盘（ADESK-US-105）：每次磁盘操作（读也一样）都在跨标签页的独占锁里、
+ * 先对一遍库再执行，所以两个标签页不会交错，也不会拿过期的内存索引去写；写盘之后广播通知，
+ * 别的标签页据此丢掉索引。界面读的那棵树由活查询组装，谁改了文件行（Finder、TextEdit、终端同步或别的标签页），
+ * Finder、桌面与 Dock 都跟着更新；页面从后台回到前台时再整树重读一次，补上任何漏掉的变化。
  */
 @Service({ autoProvided: false })
 export class FileSystem {
@@ -107,6 +111,7 @@ export class FileSystem {
   private readonly injector = inject(EnvironmentInjector);
   private readonly catalog = inject(ApplicationCatalog);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly errors = inject(ErrorHandler);
   private readonly rootState = signal<FsNode>(emptyVolume());
   private readonly stateValue = signal<DiskState>('mounting');
   private readonly errorValue = signal<string | null>(null);
@@ -115,6 +120,8 @@ export class FileSystem {
   private volume: DiskVolume | null = null;
   private marker: DiskMarker | null = null;
   private queue: Promise<unknown> = Promise.resolve();
+  /** 活查询发出过多少次结果；回到前台重读目录树时，靠它判断读的期间有没有更新的结果到达。 */
+  private treeSeq = 0;
   private readonly mounted: Promise<void>;
 
   readonly root = this.rootState.asReadonly();
@@ -127,6 +134,16 @@ export class FileSystem {
 
   constructor() {
     this.mounted = this.mount();
+    const tabs = this.data.tabs;
+    /* 别的标签页写了磁盘：下一次磁盘操作之前重读内存索引。回到前台：整树重读，索引同样重读。 */
+    tabs
+      .changes('disk')
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.store?.markStale());
+    tabs.resumed$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+      this.store?.markStale();
+      this.reloadTree().catch((error: unknown) => this.fail(error));
+    });
   }
 
   /** 挂载结束（成功或失败）时完成；之后看 `state()`。 */
@@ -162,7 +179,7 @@ export class FileSystem {
   noteOpened(path: DiskPath): void {
     const recent = this.preferences.get(RECENTS_KEY, isPathList) ?? RECENT_SEED;
     const next = [path, ...recent.filter(other => !samePath(other, path))].slice(0, 20);
-    this.preferences.set(RECENTS_KEY, next).catch(() => undefined);
+    this.preferences.set(RECENTS_KEY, next).catch((error: unknown) => this.errors.handleError(error));
   }
 
   /** 在目录里新建「untitled folder」，重名时追加序号；返回新名字。 */
@@ -196,7 +213,8 @@ export class FileSystem {
       );
     if (isWithin(path, TRASH)) throw new DiskError('EEXIST', path, `“${name}” is already in the Trash.`);
     const violation = this.catalog.violation({ kind: 'move', from: path, to: [...TRASH, name] });
-    if (violation) throw new DiskError('EACCES', path, violation.replace('can’t be moved', 'can’t be moved to the Trash'));
+    if (violation)
+      throw new DiskError('EACCES', path, violation.replace('can’t be moved', 'can’t be moved to the Trash'));
     const target = await this.exclusive(async store => {
       await store.mkdir(TRASH);
       const to = [
@@ -206,7 +224,17 @@ export class FileSystem {
           name
         )
       ];
-      await store.move(path, to);
+      try {
+        await store.move(path, to);
+      } catch (error) {
+        if (error instanceof DiskError && error.code === 'ENOENT' && samePath(error.path, path))
+          throw new DiskError(
+            'ENOENT',
+            path,
+            `The item “${name}” can’t be moved to the Trash because it no longer exists.`
+          );
+        throw error;
+      }
       return to;
     });
     this.changes.next([path, target]);
@@ -229,8 +257,35 @@ export class FileSystem {
     return new TextDecoder().decode(await this.read(path));
   }
 
+  /** 写入文本：路径不存在就创建它与缺失的父目录，已有文件就覆盖。这是显式的新建入口（另存、导入），保存已打开的文件用 {@link saveText}。 */
   async writeText(path: DiskPath, text: string): Promise<void> {
     await this.exclusive(store => store.write(path, encoder.encode(text)));
+    this.changes.next([path]);
+  }
+
+  /**
+   * 保存一个已打开的文件（TextEdit 的 ⌘S）：只覆盖已存在的文件。保存时目标已被别的标签页删除、移进废纸篓、改名或抹掉，
+   * 就失败并说明原因（编辑内容留在调用方的窗口里），不在原路径悄悄新建。两个标签页都保存时后提交的内容生效，不合并、不提示冲突。
+   */
+  async saveText(path: DiskPath, text: string): Promise<void> {
+    const name = path.at(-1) ?? VOLUME_NAME;
+    try {
+      await this.exclusive(store => store.replace(path, encoder.encode(text)));
+    } catch (error) {
+      if (error instanceof DiskError && error.code === 'ENOENT')
+        throw new DiskError(
+          'ENOENT',
+          path,
+          `“${name}” can’t be saved because it was moved, renamed or deleted. Your changes are still in this window.`
+        );
+      if (error instanceof DiskError && error.code === 'EISDIR')
+        throw new DiskError(
+          'EISDIR',
+          path,
+          `“${name}” can’t be saved because a folder with that name is there now. Your changes are still in this window.`
+        );
+      throw error;
+    }
     this.changes.next([path]);
   }
 
@@ -256,12 +311,22 @@ export class FileSystem {
         repository: () => this.data.repository(DesktopFile),
         instantiate: data => this.data.instantiate(DesktopFile, data),
         storage: () => database.storage,
-        now: Date.now
+        now: Date.now,
+        dataVersion: () => this.data.dataVersion()
       });
       const volume = this.diskVolume(store);
-      this.marker = await openVolume(volume, this.seeder(), Date.now);
-      /* 应用清单是唯一真相源：首次建库、升级旧库与每次启动都走这条幂等对账，补齐缺的预装包（D-17）。 */
-      await this.catalog.reconcile(store);
+      /*
+       * 首次复制内置内容与应用目录对账都在磁盘锁里：两个标签页同时打开桌面时，只有先拿到锁的那个复制与补包，
+       * 另一个等它做完、看到完成标记与现成的预装包就直接用（否则两边同时补包会撞上同名的唯一索引，一个标签页的磁盘就挂了）。
+       */
+      this.marker = await this.data.tabs.exclusive(async () => {
+        await store.refresh();
+        const marker = await openVolume(volume, this.seeder(), Date.now);
+        /* 应用清单是唯一真相源：首次建库、升级旧库与每次启动都走这条幂等对账，补齐缺的预装包（D-17）。 */
+        await this.catalog.reconcile(store);
+        return marker;
+      });
+      if (store.revision > 0) this.data.tabs.notify('disk');
       this.store = store;
       this.guardedStore = new ProtectedDiskStore(store, () => this.catalog.ownedPackages());
       this.volume = volume;
@@ -280,18 +345,39 @@ export class FileSystem {
         .pipe(auditTime(30))
         .subscribe({
           next: files => {
-            const emptyDate = new Date(this.marker?.seededAt ?? Date.now());
-            this.rootState.set(buildTree(files.map(toRow), emptyDate));
+            this.treeSeq++;
+            this.setTree(files);
             resolve();
           },
           error: (error: unknown) => {
-            this.errorValue.set(describeDiskError(error));
-            this.stateValue.set('failed');
+            this.fail(error);
             reject(error);
           }
         });
       this.destroyRef.onDestroy(() => subscription.unsubscribe());
     });
+  }
+
+  private setTree(files: readonly DesktopFile[]): void {
+    const emptyDate = new Date(this.marker?.seededAt ?? Date.now());
+    this.rootState.set(buildTree(files.map(toRow), emptyDate));
+  }
+
+  private fail(error: unknown): void {
+    this.errorValue.set(describeDiskError(error));
+    this.stateValue.set('failed');
+  }
+
+  /**
+   * 从库里整树重读一次（页面回到前台时）。读的期间活查询又发出了更新的结果，这次读到的就是旧的，不覆盖它。
+   * 磁盘还没挂载好、或挂载失败时什么也不做：挂载自己会读第一棵树。
+   */
+  private async reloadTree(): Promise<void> {
+    await this.mounted;
+    if (this.stateValue() !== 'ready') return;
+    const seen = this.treeSeq;
+    const files = await (await this.data.repository(DesktopFile)).find({ where: ALL });
+    if (this.treeSeq === seen) this.setTree(files);
   }
 
   /** 卷的完成标记存在系统偏好表里；抹掉时删光文件行，再清空 storage 插件里的文件体。 */
@@ -320,7 +406,8 @@ export class FileSystem {
         await this.data.database.storage.clear(BLOB_DIR);
         store.invalidate();
       },
-      exclusive: task => navigator.locks.request(DISK_LOCK, task)
+      /* 挂载与抹掉都已经在磁盘锁里（锁不可重入），这里不再加一层。 */
+      exclusive: task => task()
     };
   }
 
@@ -345,11 +432,23 @@ export class FileSystem {
     return this.guardedStore;
   }
 
-  /** 串行执行一次磁盘任务：同一路径上的读写不会交错。 */
+  /**
+   * 串行执行一次磁盘任务：本标签页内按调用顺序排队，再在跨标签页的磁盘锁里执行，所以任何两次读写都不会交错。
+   * 进锁之后先对一遍库（别的标签页改过就丢掉内存索引），任务改过磁盘就广播通知别的标签页。锁不可重入：任务里不能再调它。
+   */
   private exclusive<T>(task: (store: DiskStore) => Promise<T>): Promise<T> {
     const run = this.queue.then(async () => {
       await this.mounted;
-      return task(this.mountedStore());
+      return this.data.tabs.exclusive(async () => {
+        const raw = this.mountedRawStore();
+        await raw.refresh();
+        const before = raw.revision;
+        try {
+          return await task(this.mountedStore());
+        } finally {
+          if (raw.revision !== before) this.data.tabs.notify('disk');
+        }
+      });
     });
     this.queue = run.catch(() => undefined);
     return run;

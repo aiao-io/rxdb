@@ -1,0 +1,65 @@
+/* 装载中与装载失败的窗口内容；转圈与文字稍后才淡入，缓存命中、几乎瞬间装好时不闪一下。 */
+.ws {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px;
+  text-align: center;
+  background: var(--win);
+  color: var(--txt);
+  font-size: 13px;
+  animation: ws-in 0.12s ease-out 0.18s backwards;
+}
+.ws h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.ws p {
+  margin: 0;
+  max-width: 440px;
+  color: var(--txt-2);
+  line-height: 1.45;
+}
+.ws-icon {
+  width: 64px;
+  height: 64px;
+}
+.ws-spinner {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2.2px solid var(--fill-2);
+  border-top-color: var(--txt-3);
+  animation: spin 0.7s linear infinite;
+}
+/* 未启动：整块内容区是一个按钮；没有转圈，所以不延迟淡入。 */
+.ws-idle {
+  width: 100%;
+  border: 0;
+  font: inherit;
+  cursor: var(--cur-hand, pointer);
+  animation: none;
+}
+.ws-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+.ws-hint {
+  max-width: 440px;
+  color: var(--txt-2);
+  line-height: 1.45;
+}
+.ws-idle:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -4px;
+}
+@keyframes ws-in {
+  from {
+    opacity: 0;
+  }
+}

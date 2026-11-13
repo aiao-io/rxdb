@@ -3,18 +3,28 @@ import { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { FreeformStroke } from '../apps/freeform/freeform.entities';
+import { Note } from '../apps/notes/notes.entities';
 import { WeatherCity } from '../apps/weather/weather.entities';
+import { DesktopFile } from '../disk/desktop-file.entity';
+import { CalendarEventRow, CalendarListRow } from '../services/calendar.entities';
 import { configureServices } from '../testing/angular';
 import { FakeDesktopData, FakeRepository } from '../testing/fake-desktop-data';
 import { DesktopData, DesktopDataProblemError, seedMarkerKey } from './desktop-data';
-import { createDesktopDatabase, schemaGuardOf } from './desktop-database';
+import { createDesktopDatabase, schemaGuardOf, tabSyncOf } from './desktop-database';
 import { DesktopSchemaStaleError } from './schema-guard';
 import { adapterInspector, probeSchema } from './schema-probe';
-import { DESKTOP_SCHEMA_VERSION, SCHEMA_RECORD_KEY, SchemaProbe } from './schema-version';
-import { DATA_SEEDS } from './seeds';
+import { DESKTOP_SCHEMA_VERSION, SCHEMA_RECORD_KEY, SchemaProbe, runUpgrade } from './schema-version';
+import { DATA_DOMAINS, domainOf } from './seeds';
 import { SystemPreference } from './system-preference.entity';
+import { TabSync } from './tab-sync';
 
 vi.mock('./schema-probe', () => ({ adapterInspector: vi.fn(), probeSchema: vi.fn() }));
+/** 升级默认走真实现；个别用例换成带迁移 SQL 的假升级，验证迁移经事务的 executor 执行。 */
+vi.mock('./schema-version', async importOriginal => {
+  const actual = await importOriginal<typeof import('./schema-version')>();
+  return { ...actual, runUpgrade: vi.fn(actual.runUpgrade) };
+});
 
 const NEWER = DESKTOP_SCHEMA_VERSION + 1;
 const record = (version: number) => ({ version, build: 'test', upgradedAt: 1 });
@@ -45,6 +55,8 @@ interface Scenario {
 }
 
 interface WriteLog {
+  /** 写的是哪种实体（类名）。 */
+  readonly type: string;
   readonly key: unknown;
   readonly inTransaction: boolean;
 }
@@ -72,7 +84,8 @@ function setup({
       tracked.add(table);
       const create = table.create.bind(table);
       table.create = async entity => {
-        writes.push({ key: (entity as Record<string, unknown>)['key'], inTransaction: depth > 0 });
+        const key = (entity as Record<string, unknown>)['key'];
+        writes.push({ type: (type as { name: string }).name, key, inTransaction: depth > 0 });
         return create(entity);
       };
     }
@@ -128,7 +141,7 @@ function setup({
 
   configureServices([DesktopData, { provide: RxDB, useValue: rxdb }]);
   const data = TestBed.inject(DesktopData);
-  return { data, rxdb, db, adapter, inspector, order, writes, connect, storageInit, instantiate };
+  return { data, rxdb, db, adapter, executor, inspector, order, writes, connect, storageInit, instantiate };
 }
 
 /** 等 ready 落定（成功或失败），再让它上面登记的状态回调跑完。 */
@@ -151,8 +164,8 @@ afterEach(() => {
 });
 
 describe('DesktopData 全新的库', () => {
-  it('先只读探测，再连接、准备文件存储，在一个事务里写版本记录，最后按数据域写种子', async () => {
-    const { data, db, order, writes } = setup({ probe: PROBES.fresh });
+  it('先只读探测，再连接、准备文件存储，在一个事务里写版本记录；启动时不写任何数据域的种子', async () => {
+    const { data, db, order, writes, adapter } = setup({ probe: PROBES.fresh });
     await settled(data);
 
     expect(order.slice(0, 4)).toEqual(['adapter.connect', 'probe', 'rxdb.connect', 'storage.init']);
@@ -162,20 +175,9 @@ describe('DesktopData 全新的库', () => {
 
     expect(valueOf(db, SCHEMA_RECORD_KEY)).toMatchObject({ version: DESKTOP_SCHEMA_VERSION, build: '' });
     expect(writes.find(write => write.key === SCHEMA_RECORD_KEY)?.inTransaction).toBe(true);
-  });
-
-  it('每个数据域的种子和它的标记在同一个事务里写入，标记记下种子版本', async () => {
-    const { data, db, writes } = setup();
-    await settled(data);
-
-    const markers = rowsOf(db).filter(row => row.key.startsWith('seed:'));
-    expect(markers.map(row => row.key)).toEqual(DATA_SEEDS.map(seed => seedMarkerKey(seed.domain)));
-    for (const seed of DATA_SEEDS)
-      expect(valueOf(db, seedMarkerKey(seed.domain))).toMatchObject({ version: seed.version });
-    expect(writes.filter(write => String(write.key).startsWith('seed:')).every(write => write.inTransaction)).toBe(
-      true
-    );
-    expect(db.table(WeatherCity).rows).toHaveLength(1);
+    expect(adapter.transaction).toHaveBeenCalledTimes(1);
+    expect(rowsOf(db).filter(row => row.key.startsWith('seed:'))).toEqual([]);
+    expect(db.table(WeatherCity).rows).toEqual([]);
   });
 
   it('available() 在库就绪后为 true', async () => {
@@ -185,7 +187,7 @@ describe('DesktopData 全新的库', () => {
 });
 
 describe('DesktopData 升级', () => {
-  it('此前发布的构建建的库没有版本记录：当作版本 0 升级，补写版本记录和缺的种子，不当作损坏', async () => {
+  it('此前发布的构建建的库没有版本记录：当作版本 0 升级，补写版本记录，已有的种子标记原样保留，不当作损坏', async () => {
     const { data, db, writes } = setup({
       probe: PROBES.legacy,
       existing: [
@@ -199,7 +201,11 @@ describe('DesktopData 升级', () => {
     expect(valueOf(db, SCHEMA_RECORD_KEY)).toMatchObject({ version: DESKTOP_SCHEMA_VERSION });
     expect(valueOf(db, 'accent')).toBe('blue');
     expect(writes.find(write => write.key === SCHEMA_RECORD_KEY)?.inTransaction).toBe(true);
-    expect(rowsOf(db).filter(row => row.key === seedMarkerKey('notes'))).toHaveLength(1);
+    expect(
+      rowsOf(db)
+        .filter(row => row.key.startsWith('seed:'))
+        .map(row => row.key)
+    ).toEqual([seedMarkerKey('notes')]);
   });
 
   it('版本记录行已经存在时就地更新，不建第二行', async () => {
@@ -213,7 +219,21 @@ describe('DesktopData 升级', () => {
     expect(valueOf(db, SCHEMA_RECORD_KEY)).toMatchObject({ version: DESKTOP_SCHEMA_VERSION });
   });
 
-  it('升级事务里的失败让库保持不可用：版本记录没有推进，不再写种子', async () => {
+  it('迁移步骤经升级事务的 executor 执行 SQL，写版本记录在迁移之后，全在升级的那一个事务里', async () => {
+    vi.mocked(runUpgrade).mockImplementationOnce(async (_from, target) => {
+      await target.execute('ALTER TABLE note ADD COLUMN pinned INTEGER', [1]);
+      await target.writeRecord({ version: DESKTOP_SCHEMA_VERSION, build: '', upgradedAt: 1 });
+    });
+    const { data, db, executor, adapter } = setup({ probe: PROBES.legacy });
+    await settled(data);
+
+    expect(executor.query).toHaveBeenCalledExactlyOnceWith('ALTER TABLE note ADD COLUMN pinned INTEGER', [1]);
+    expect(adapter.transaction).toHaveBeenCalledTimes(1);
+    expect(valueOf(db, SCHEMA_RECORD_KEY)).toMatchObject({ version: DESKTOP_SCHEMA_VERSION });
+    expect(data.state()).toBe('ready');
+  });
+
+  it('升级事务里的失败让库保持不可用：版本记录没有推进，也没有任何种子', async () => {
     const { data, db, adapter } = setup({ probe: PROBES.legacy });
     adapter.transaction = vi.fn(async () => {
       throw new Error('upgrade interrupted');
@@ -223,41 +243,191 @@ describe('DesktopData 升级', () => {
     expect(data.state()).toBe('failed');
     expect(data.problem()).toEqual({ kind: 'unavailable', message: 'upgrade interrupted' });
     expect(valueOf(db, SCHEMA_RECORD_KEY)).toBeUndefined();
+    expect(rowsOf(db).filter(row => row.key.startsWith('seed:'))).toEqual([]);
   });
 });
 
 describe('DesktopData 已是当前版本', () => {
-  it('不再升级，不写版本记录', async () => {
-    const { data, writes } = setup({ probe: PROBES.current });
+  it('不再升级，不写版本记录，启动时一个事务也不开', async () => {
+    const { data, writes, adapter } = setup({ probe: PROBES.current });
     await settled(data);
 
     expect(data.state()).toBe('ready');
     expect(writes.some(write => write.key === SCHEMA_RECORD_KEY)).toBe(false);
+    expect(adapter.transaction).not.toHaveBeenCalled();
+  });
+});
+
+describe('DesktopData 数据域的初始数据：首次读取才种（D-18）', () => {
+  const markers = (db: FakeDesktopData): string[] =>
+    rowsOf(db)
+      .filter(row => row.key.startsWith('seed:'))
+      .map(row => row.key);
+
+  it('启动完成之后没有任何数据域被种过：没有标记，也没有种子事务', async () => {
+    const { data, db, adapter } = setup({ probe: PROBES.current });
+    await settled(data);
+
+    expect(markers(db)).toEqual([]);
+    expect(adapter.transaction).not.toHaveBeenCalled();
+    expect(db.table(Note).rows).toEqual([]);
   });
 
-  it('已有种子标记的数据域不重写，只补缺的', async () => {
-    const { data, db } = setup({
+  it('第一次 ensureSeeded(Note) 才种 notes 域：种子和标记在同一个事务里写，标记最后写，别的数据域不受影响', async () => {
+    const { data, db, writes } = setup({ probe: PROBES.current });
+    await settled(data);
+    await data.ensureSeeded(Note);
+
+    expect(db.table(Note).rows.length).toBeGreaterThan(0);
+    expect(valueOf(db, seedMarkerKey('notes'))).toMatchObject({ version: 1 });
+    const seeded = writes.filter(write => write.type === 'Note' || write.key === seedMarkerKey('notes'));
+    expect(seeded.every(write => write.inTransaction)).toBe(true);
+    expect(seeded.at(-1)?.key).toBe(seedMarkerKey('notes'));
+    expect(markers(db)).toEqual([seedMarkerKey('notes')]);
+    expect(db.table(WeatherCity).rows).toEqual([]);
+  });
+
+  it('同一个数据域只种一次：并发和之后的 ensureSeeded 都拿到同一个任务，不重复写', async () => {
+    const { data, db, adapter } = setup({ probe: PROBES.current });
+    await settled(data);
+
+    const first = data.ensureSeeded(Note);
+    const second = data.ensureSeeded(Note);
+    expect(second).toBe(first);
+    await first;
+    expect(data.ensureSeeded(Note)).toBe(first);
+    expect(adapter.transaction).toHaveBeenCalledTimes(1);
+    expect(markers(db)).toEqual([seedMarkerKey('notes')]);
+  });
+
+  it('同一个数据域的不同实体共享这一次种子（日历有两个实体）', async () => {
+    const { data, db, adapter } = setup({ probe: PROBES.current });
+    await settled(data);
+    await Promise.all([data.ensureSeeded(CalendarListRow), data.ensureSeeded(CalendarEventRow)]);
+
+    expect(adapter.transaction).toHaveBeenCalledTimes(1);
+    expect(markers(db)).toEqual([seedMarkerKey('calendar')]);
+    expect(db.table(CalendarListRow).rows.length).toBeGreaterThan(0);
+    expect(db.table(CalendarEventRow).rows.length).toBeGreaterThan(0);
+  });
+
+  it('不同的数据域各种各的：每个域一个事务、一个标记', async () => {
+    const { data, db, adapter } = setup({ probe: PROBES.current });
+    await settled(data);
+    await data.ensureSeeded(Note);
+    await data.ensureSeeded(WeatherCity);
+
+    expect(adapter.transaction).toHaveBeenCalledTimes(2);
+    expect(markers(db)).toEqual([seedMarkerKey('notes'), seedMarkerKey('weather')]);
+    expect(db.table(WeatherCity).rows).toHaveLength(1);
+  });
+
+  it('已有种子标记（以前种过）就跳过：不重写，不开事务', async () => {
+    const { data, db, adapter } = setup({
       probe: PROBES.current,
       existing: [{ key: seedMarkerKey('weather'), value: { version: 1, seededAt: 1 } }]
     });
     await settled(data);
+    await data.ensureSeeded(WeatherCity);
 
     expect(db.table(WeatherCity).rows).toEqual([]);
-    expect(valueOf(db, seedMarkerKey('contacts'))).toMatchObject({ version: 1 });
+    expect(adapter.transaction).not.toHaveBeenCalled();
+    expect(markers(db)).toEqual([seedMarkerKey('weather')]);
   });
 
-  it('全部种子都有标记时，不开任何事务', async () => {
-    const { data, adapter } = setup({
-      probe: PROBES.current,
-      existing: DATA_SEEDS.map(seed => ({
-        key: seedMarkerKey(seed.domain),
-        value: { version: seed.version, seededAt: 1 }
-      }))
+  it('没有数据域的实体（系统偏好、磁盘文件行、Freeform 笔迹）立即完成，什么也不写', async () => {
+    const { data, adapter } = setup({ probe: PROBES.current });
+    await settled(data);
+    for (const entity of [SystemPreference, DesktopFile, FreeformStroke]) {
+      expect(domainOf(entity)).toBeUndefined();
+      await expect(data.ensureSeeded(entity)).resolves.toBeUndefined();
+    }
+    expect(adapter.transaction).not.toHaveBeenCalled();
+  });
+
+  it('没有数据域的实体连库就绪都不用等', async () => {
+    let open: () => void = () => undefined;
+    const gate = new Promise<void>(resolve => (open = resolve));
+    const { data } = setup({ gate });
+    await expect(data.ensureSeeded(SystemPreference)).resolves.toBeUndefined();
+    expect(data.state()).toBe('connecting');
+    open();
+    await settled(data);
+  });
+
+  it('库还没就绪时，有数据域的实体先等库，就绪之后才种', async () => {
+    let open: () => void = () => undefined;
+    const gate = new Promise<void>(resolve => (open = resolve));
+    const { data, db, adapter } = setup({ gate, probe: PROBES.current });
+    let done = false;
+    const pending = data.ensureSeeded(WeatherCity).then(() => {
+      done = true;
     });
+
+    await new Promise(resolve => setTimeout(resolve));
+    expect(done).toBe(false);
+    expect(adapter.transaction).not.toHaveBeenCalled();
+    open();
+    await pending;
+    expect(db.table(WeatherCity).rows).toHaveLength(1);
+  });
+
+  it('库起不来时 ensureSeeded 拒绝并带上同一个原因，不装载种子；没有数据域的实体照样立即完成', async () => {
+    const weather = DATA_DOMAINS.find(domain => domain.domain === 'weather');
+    if (!weather) throw new Error('应该有 weather 数据域');
+    const load = vi.spyOn(weather, 'load');
+    const { data } = setup({ probe: PROBES.tooNew });
+
+    await expect(data.ensureSeeded(WeatherCity)).rejects.toBeInstanceOf(DesktopDataProblemError);
+    await expect(data.ensureSeeded(SystemPreference)).resolves.toBeUndefined();
+    expect(load).not.toHaveBeenCalled();
+  });
+
+  it('装载种子失败（比如动态导入的分块没拉到）：不留标记，下一次读取重试并种成功', async () => {
+    const weather = DATA_DOMAINS.find(domain => domain.domain === 'weather');
+    if (!weather) throw new Error('应该有 weather 数据域');
+    vi.spyOn(weather, 'load').mockRejectedValueOnce(new Error('chunk failed'));
+    const { data, db } = setup({ probe: PROBES.current });
     await settled(data);
 
-    expect(data.state()).toBe('ready');
-    expect(adapter.transaction).not.toHaveBeenCalled();
+    await expect(data.ensureSeeded(WeatherCity)).rejects.toThrow('chunk failed');
+    expect(markers(db)).toEqual([]);
+    await expect(data.ensureSeeded(WeatherCity)).resolves.toBeUndefined();
+    expect(markers(db)).toEqual([seedMarkerKey('weather')]);
+    expect(db.table(WeatherCity).rows).toHaveLength(1);
+  });
+
+  it('写种子的事务失败：失败不影响别的数据域，下一次读取重试', async () => {
+    const { data, db, adapter } = setup({ probe: PROBES.current });
+    await settled(data);
+    vi.mocked(adapter.transaction as unknown as (task: unknown) => Promise<unknown>).mockRejectedValueOnce(
+      new Error('disk full')
+    );
+
+    await expect(data.ensureSeeded(WeatherCity)).rejects.toThrow('disk full');
+    expect(markers(db)).toEqual([]);
+    await data.ensureSeeded(Note);
+    await data.ensureSeeded(WeatherCity);
+    expect(markers(db)).toEqual([seedMarkerKey('notes'), seedMarkerKey('weather')]);
+  });
+
+  it('repository(实体) 先保证它所属的数据域已种过，再返回仓储；没有数据域的实体不触发任何种子', async () => {
+    const { data, db } = setup({ probe: PROBES.current });
+    await settled(data);
+
+    await data.repository(SystemPreference);
+    expect(markers(db)).toEqual([]);
+    const repository = await data.repository(WeatherCity);
+    expect(repository).toBe(db.table(WeatherCity));
+    expect(db.table(WeatherCity).rows).toHaveLength(1);
+    expect(markers(db)).toEqual([seedMarkerKey('weather')]);
+  });
+
+  it('transaction() 不触发种子：它在事务里自己决定读写什么', async () => {
+    const { data, db } = setup({ probe: PROBES.current });
+    await settled(data);
+    await data.transaction(async () => 'x');
+    expect(markers(db)).toEqual([]);
   });
 });
 
@@ -407,10 +577,7 @@ describe('DesktopData 读写入口', () => {
   });
 
   it('transaction() 在适配器的事务里执行回调并返回结果', async () => {
-    const { data, order } = setup({
-      probe: PROBES.current,
-      existing: DATA_SEEDS.map(seed => ({ key: seedMarkerKey(seed.domain), value: {} }))
-    });
+    const { data, order } = setup({ probe: PROBES.current });
     await settled(data);
     const result = await data.transaction(async executor => {
       expect(executor).toBeDefined();
@@ -487,5 +654,114 @@ describe('DesktopData.eraseLocalData', () => {
     await expect(data.eraseLocalData()).rejects.toThrow('桌面的本地适配器不是 sqlite-wasm');
     expect(adapter.dropStorage).not.toHaveBeenCalled();
     expect(remove).not.toHaveBeenCalled();
+  });
+});
+
+describe('DesktopData 多标签页（ADESK-US-105）', () => {
+  /**
+   * 记录进出锁的 Web Locks 替身：只数桌面自己的锁（`aiao-desktop-` 开头），任务一进锁加一，出锁减一。
+   * RxDB 的主标签页选举也用 Web Locks 且整个页面生命周期都占着，不在统计里。
+   */
+  function trackLocks() {
+    const state = { held: 0, requests: [] as string[] };
+    vi.stubGlobal('navigator', {
+      locks: {
+        request: async (name: string, task: () => Promise<unknown>) => {
+          if (!name.startsWith('aiao-desktop-')) return task();
+          state.requests.push(name);
+          state.held++;
+          try {
+            return await task();
+          } finally {
+            state.held--;
+          }
+        }
+      }
+    });
+    return state;
+  }
+
+  it('tabs 是 createDesktopDatabase 给这个库配的跨标签页协调，每个库一份', async () => {
+    const { data, rxdb } = setup({ probe: PROBES.current });
+    await settled(data);
+    expect(data.tabs).toBe(tabSyncOf(rxdb));
+    expect(data.tabs).toBeInstanceOf(TabSync);
+  });
+
+  it('整个启动（连接、探测、建表、升级）在启动锁里：两个标签页同时打开桌面只有一个在建表与升级', async () => {
+    const lock = trackLocks();
+    const { data, order, adapter } = setup({ probe: PROBES.fresh });
+    const held: Record<string, number> = {};
+    const connect = adapter.connect;
+    adapter.connect = vi.fn(async () => {
+      held['connect'] = lock.held;
+      await connect();
+    }) as never;
+    const transaction = adapter.transaction;
+    adapter.transaction = vi.fn(async (...args: Parameters<typeof transaction>) => {
+      held['upgrade'] = lock.held;
+      return transaction(...args);
+    }) as never;
+    await settled(data);
+
+    expect(lock.requests[0]).toBe('aiao-desktop-start');
+    expect(held).toEqual({ connect: 1, upgrade: 1 });
+    expect(order.slice(0, 4)).toEqual(['adapter.connect', 'probe', 'rxdb.connect', 'storage.init']);
+    expect(lock.held).toBe(0);
+  });
+
+  it('启动失败时照样放锁，原因原样交给 ready', async () => {
+    const lock = trackLocks();
+    const { data } = setup({ connectError: new Error('OPFS busy') });
+    await expect(data.ready).rejects.toThrow('OPFS busy');
+    await settled(data);
+    expect(lock.held).toBe(0);
+    expect(data.problem()).toEqual({ kind: 'unavailable', message: 'OPFS busy' });
+  });
+
+  it('种子在这个数据域自己的锁里「查标记再写」：两个标签页同时第一次读同一个域，后到的看到标记就跳过', async () => {
+    const { data, db, adapter } = setup({ probe: PROBES.current });
+    await settled(data);
+    const lock = trackLocks();
+    const transaction = adapter.transaction;
+    const held: number[] = [];
+    adapter.transaction = vi.fn(async (...args: Parameters<typeof transaction>) => {
+      held.push(lock.held);
+      return transaction(...args);
+    }) as never;
+
+    await data.ensureSeeded(Note);
+    expect(lock.requests).toEqual(['aiao-desktop-seed:notes']);
+    expect(held).toEqual([1]);
+    expect(valueOf(db, seedMarkerKey('notes'))).toMatchObject({ version: 1 });
+
+    /* 另一个标签页（同一个库）随后也第一次读 notes：标记已在，不再开事务。 */
+    const second = setup({
+      probe: PROBES.current,
+      existing: [{ key: seedMarkerKey('notes'), value: { version: 1, seededAt: 1 } }]
+    });
+    await settled(second.data);
+    await second.data.ensureSeeded(Note);
+    expect(second.adapter.transaction).not.toHaveBeenCalled();
+  });
+
+  it('不同数据域的种子用不同的锁，互不排队', async () => {
+    const lock = trackLocks();
+    const { data } = setup({ probe: PROBES.current });
+    await settled(data);
+    lock.requests.length = 0;
+    await Promise.all([data.ensureSeeded(Note), data.ensureSeeded(WeatherCity)]);
+    expect(lock.requests.sort()).toEqual(['aiao-desktop-seed:notes', 'aiao-desktop-seed:weather']);
+  });
+
+  it('dataVersion 读适配器连接的 PRAGMA data_version：别的标签页提交写入时它才变', async () => {
+    const { data, adapter } = setup({ probe: PROBES.current });
+    await settled(data);
+    adapter.internalQuery = vi.fn(async () => ({ results: [{ rows: [[7]] }] })) as never;
+    await expect(data.dataVersion()).resolves.toBe(7);
+    expect(adapter.internalQuery).toHaveBeenCalledExactlyOnceWith('PRAGMA data_version');
+
+    adapter.internalQuery = vi.fn(async () => ({ results: [{ rows: [] }] })) as never;
+    await expect(data.dataVersion()).rejects.toThrow('PRAGMA data_version 应该返回数字');
   });
 });

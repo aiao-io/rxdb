@@ -2,13 +2,14 @@ import { EntityType, IRepository, RxDB, TransactionExecutor } from '@aiao/rxdb';
 import { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
 import { Service, inject, signal } from '@angular/core';
 
-import { DESKTOP_ADAPTER, FILES_ROOT, schemaGuardOf } from './desktop-database';
+import { DESKTOP_ADAPTER, FILES_ROOT, schemaGuardOf, tabSyncOf } from './desktop-database';
 import { DESKTOP_ENTITIES } from './entities';
 import { DesktopSchemaStaleError } from './schema-guard';
 import { adapterInspector, probeSchema } from './schema-probe';
 import { DESKTOP_SCHEMA_VERSION, SCHEMA_RECORD_KEY, SchemaPlan, planSchema, runUpgrade } from './schema-version';
-import { DATA_SEEDS, DataSeed } from './seeds';
+import { DataDomain, DataSeed, domainOf } from './seeds';
 import { SystemPreference } from './system-preference.entity';
+import { STARTUP_LOCK, TabSync, seedLock } from './tab-sync';
 
 export type DataState = 'connecting' | 'ready' | 'failed';
 
@@ -63,7 +64,7 @@ function problemOf(plan: SchemaPlan): DataProblem | null {
 
 /**
  * 桌面的本地数据：先只读探测库的 schema（降级保护与损坏检查，此时不写库），再连上 SQLite、准备好 storage 插件的
- * 文件存储、升级并写入版本记录，最后把各数据域的初始数据写进去。
+ * 文件存储、升级并写入版本记录。各数据域的初始数据不在这里一次写完：第一次读取某个数据域才写它的种子（`ensureSeeded`，D-18）。
  * 其余服务经它拿仓储、开事务与创建实体，统一等到库就绪之后。
  */
 @Service({ autoProvided: false })
@@ -72,13 +73,17 @@ export class DesktopData {
   private readonly stateValue = signal<DataState>('connecting');
   private readonly errorValue = signal<string | null>(null);
   private readonly problemValue = signal<DataProblem | null>(null);
+  /** 各数据域的种子任务：每个域只种一次，失败后删掉记录，下一次读取重试。 */
+  private readonly seeding = new Map<string, Promise<void>>();
 
   readonly state = this.stateValue.asReadonly();
   readonly error = this.errorValue.asReadonly();
   /** 库不能由本页面使用的原因；`null` 表示没有问题。 */
   readonly problem = this.problemValue.asReadonly();
-  /** 库可用时完成；连不上或初始数据写入失败时拒绝，`state()` 变为 `failed`。 */
+  /** 库可用时完成；连不上或升级失败时拒绝，`state()` 变为 `failed`。 */
   readonly ready: Promise<RxDB>;
+  /** 跨标签页协调：独占锁与变更广播（ADESK-US-105）。 */
+  readonly tabs: TabSync = tabSyncOf(this.rxdb);
 
   get database(): RxDB {
     return this.rxdb;
@@ -110,8 +115,37 @@ export class DesktopData {
     );
   }
 
+  /**
+   * 这个实体所属的数据域已经有初始数据：第一次读取时才装载并写入种子（D-18），已写过的（有标记）直接跳过。
+   * 没有数据域的实体立即完成。库没就绪时先等库。
+   */
+  ensureSeeded(entity: EntityType): Promise<void> {
+    const domain = domainOf(entity);
+    if (!domain) return Promise.resolve();
+    const running = this.seeding.get(domain.domain);
+    if (running) return running;
+    const task = this.seedDomain(domain).catch((error: unknown) => {
+      this.seeding.delete(domain.domain);
+      throw error;
+    });
+    this.seeding.set(domain.domain, task);
+    return task;
+  }
+
+  /**
+   * 库的 `data_version`（SQLite 的 `PRAGMA data_version`）：别的连接（别的标签页）提交过写入，它就和上次读到的不一样；
+   * 本连接自己的提交不会改它。持有库内容副本的服务（磁盘的内存索引）凭它判断副本是不是还对得上库。
+   */
+  async dataVersion(): Promise<number> {
+    const adapter = await this.sqliteAdapter();
+    const version = (await adapter.internalQuery('PRAGMA data_version')).results[0]?.rows?.[0]?.[0];
+    if (typeof version !== 'number') throw new Error(`PRAGMA data_version 应该返回数字，实际是 ${String(version)}`);
+    return version;
+  }
+
   async repository<T extends EntityType>(type: T): Promise<IRepository<T>> {
     await this.ready;
+    await this.ensureSeeded(type);
     return (await this.rxdb.connect(DESKTOP_ADAPTER)).getRepository(type);
   }
 
@@ -151,7 +185,15 @@ export class DesktopData {
       : { kind: 'unavailable', message: describe(error) };
   }
 
-  private async start(): Promise<RxDB> {
+  /**
+   * 启动：连接、探测、建表、升级。两个标签页同时打开桌面时，OPFS 上的库文件被两条连接同时初始化、同时建表与升级
+   * 会互相撞上（实测同时刷新两个标签页，约三十分之一出现「找不到文件或目录」而打不开库），所以整段放进启动锁，一个接一个来。
+   */
+  private start(): Promise<RxDB> {
+    return this.tabs.exclusive(() => this.open(), STARTUP_LOCK);
+  }
+
+  private async open(): Promise<RxDB> {
     const adapter = await this.sqliteAdapter();
     await adapter.connect();
     const inspector = adapterInspector(adapter);
@@ -161,7 +203,6 @@ export class DesktopData {
     await this.rxdb.connect(DESKTOP_ADAPTER);
     await this.rxdb.storage.init();
     await this.upgrade(plan);
-    for (const seed of DATA_SEEDS) await this.seed(seed);
     schemaGuardOf(this.rxdb).enable(inspector);
     return this.rxdb;
   }
@@ -191,19 +232,29 @@ export class DesktopData {
     });
   }
 
-  /** 没有种子标记时，在一个事务里写入初始数据和标记。 */
-  private async seed(seed: DataSeed): Promise<void> {
-    const adapter = await this.rxdb.connect(DESKTOP_ADAPTER);
-    const key = seedMarkerKey(seed.domain);
-    const markers = await adapter.getRepository(SystemPreference).find({ where: keyIs(key), limit: 1 });
-    if (markers.length) return;
-    await adapter.transaction(async executor => {
-      await seed.run(executor, this.rxdb);
-      const marker = { version: seed.version, seededAt: Date.now() };
-      await executor
-        .getRepository(SystemPreference)
-        .create(this.rxdb.entityManager.instantiate(SystemPreference, { key, value: marker }));
-    });
+  private async seedDomain(domain: DataDomain): Promise<void> {
+    await this.ready;
+    await this.seed(await domain.load());
+  }
+
+  /**
+   * 没有种子标记时，在一个事务里写入初始数据和标记。「查标记再写」放在这个数据域的跨标签页锁里：
+   * 两个标签页同时第一次读取同一个数据域，只有先拿到锁的那个写，另一个等它写完、看到标记就跳过，不会各种一遍或撞上标记的唯一键。
+   */
+  private seed(seed: DataSeed): Promise<void> {
+    return this.tabs.exclusive(async () => {
+      const adapter = await this.rxdb.connect(DESKTOP_ADAPTER);
+      const key = seedMarkerKey(seed.domain);
+      const markers = await adapter.getRepository(SystemPreference).find({ where: keyIs(key), limit: 1 });
+      if (markers.length) return;
+      await adapter.transaction(async executor => {
+        await seed.run(executor, this.rxdb);
+        const marker = { version: seed.version, seededAt: Date.now() };
+        await executor
+          .getRepository(SystemPreference)
+          .create(this.rxdb.entityManager.instantiate(SystemPreference, { key, value: marker }));
+      });
+    }, seedLock(seed.domain));
   }
 }
 

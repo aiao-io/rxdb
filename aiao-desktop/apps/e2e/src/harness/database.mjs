@@ -1,23 +1,19 @@
-import { readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
-
-import { openSqliteShell } from '../fixtures/sqlite-shell.mjs';
+import { openSqliteShell, scriptsOf } from '../fixtures/sqlite-shell.mjs';
 
 /** 系统偏好表的物理表名（命名空间加表名）。 */
 export const PREFERENCES = 'desktop$system_preference';
 export const SCHEMA_KEY = 'schema:desktop';
 
 /**
- * 构建里的 schema 版本：主包里唯一的、形如 `YYYYMMDDNN` 的十位数字字面量（`DESKTOP_SCHEMA_VERSION`）。
- * e2e 不 import web 的源码（D-02），所以从产物里读；字面量不唯一说明常量的写法变了，直接报错。
+ * 构建里的 schema 版本：产物脚本里唯一的、形如 `YYYYMMDDNN` 的十位数字字面量（`DESKTOP_SCHEMA_VERSION`）。
+ * e2e 不 import web 的源码（D-02），所以从产物里读（应用按需加载后它不一定在主包里，所以扫全部脚本）；
+ * 字面量不唯一说明常量的写法变了，直接报错。
  *
  * @param {string} distRoot web 的构建产物目录
  */
 export function schemaVersionOf(distRoot) {
-  const main = readdirSync(distRoot).find(name => /^main-.*\.js$/.test(name));
-  if (!main) throw new Error(`${distRoot} 里没有主包 main-*.js`);
   const pattern = /\b20(?:2[4-9]|3\d)(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{2}\b/g;
-  const versions = new Set(readFileSync(join(distRoot, main), 'utf8').match(pattern) ?? []);
+  const versions = new Set(scriptsOf(distRoot).flatMap(({ source }) => source.match(pattern) ?? []));
   if (versions.size !== 1)
     throw new Error(`主包里应该恰有一个 schema 版本字面量，找到：${[...versions].join('、') || '没有'}`);
   return Number([...versions][0]);
@@ -36,8 +32,8 @@ function databaseOf(shell) {
       (await rows(`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`)).map(row => row[0]),
     /** 表里的行数。 */
     count: table => scalar(`SELECT count(*) FROM ${quote(table)}`),
-    /** 删表（连同它的触发器与索引）。 */
-    dropTable: table => shell.execute(`DROP TABLE ${quote(table)}`),
+    /** 删表（连同它的触发器与索引）；表不在（被打断的升级还没来得及补建）时什么也不做。 */
+    dropTable: table => shell.execute(`DROP TABLE IF EXISTS ${quote(table)}`),
     /** 版本记录解析后的值；没有这一行时为 undefined；无法解析时返回原文本。 */
     async record() {
       const raw = await scalar(`SELECT "value" FROM ${quote(PREFERENCES)} WHERE "key" = ?`, [SCHEMA_KEY]);

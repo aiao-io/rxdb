@@ -2,10 +2,36 @@ import { DOCUMENT } from '@angular/common';
 import { Service, computed, inject, signal } from '@angular/core';
 
 import { clamp } from '../shared/format';
+import { ApplicationRuntime } from './application-runtime';
 import { DESKTOP_APPS, DesktopAppId, DesktopOpenOptions } from './desktop-apps';
-import { DesktopWindow } from './desktop-window';
+import { DEFAULT_MIN_HEIGHT, DEFAULT_MIN_WIDTH, DesktopWindow, WindowBox } from './desktop-window';
 import { DockState } from './dock-state';
 import { Toast } from './toast';
+import { fitBox } from './window-layout-model';
+
+/** 按布局里的一条记录重建一个窗口所需的信息（ADESK-US-104），见 {@link WindowManager.restore}。 */
+export interface WindowRestoreSpec {
+  readonly appId: DesktopAppId;
+  /** 开窗参数；磁盘节点等不可序列化的内容已由调用方按保存的路径取回。 */
+  readonly options: DesktopOpenOptions;
+  /** 保存时（缩放前）的几何；窗口管理器按当前视口把它拉回屏幕内。 */
+  readonly box: WindowBox;
+  readonly minimized: boolean;
+  readonly zoomed: boolean;
+  /** 层叠层级，必须落在 {@link WindowManager.reserveLayers} 预留的区间内。 */
+  readonly layer: number;
+  /** 恢复后成为前台窗口（拿到焦点与菜单栏）。 */
+  readonly foreground: boolean;
+}
+
+/**
+ * 把恢复出来的窗口插到列表里第一个层级比它高的窗口之前：恢复是前台窗口先建，
+ * 但列表仍按层叠排，`byApp(…).at(-1)`（启动台、Dock 取“最后一个”）才是最靠前的那个。
+ */
+function insertByLayer(list: readonly DesktopWindow[], win: DesktopWindow): DesktopWindow[] {
+  const at = list.findIndex(other => other.zIndex() > win.zIndex());
+  return at < 0 ? [...list, win] : [...list.slice(0, at), win, ...list.slice(at)];
+}
 
 /** 窗口列表、层叠顺序与焦点。几何和动画由各自的窗口框架组件负责。 */
 @Service({ autoProvided: false })
@@ -13,6 +39,7 @@ export class WindowManager {
   private readonly apps = inject(DESKTOP_APPS);
   private readonly dock = inject(DockState);
   private readonly toast = inject(Toast);
+  private readonly runtime = inject(ApplicationRuntime);
   private readonly root = inject(DOCUMENT).documentElement;
 
   private readonly windowsState = signal<readonly DesktopWindow[]>([]);
@@ -66,7 +93,7 @@ export class WindowManager {
 
   open(appId: DesktopAppId, options: DesktopOpenOptions = {}): DesktopWindow | null {
     const app = this.apps[appId];
-    if (!app.component) {
+    if (!app.load) {
       this.toast.show(`Unknown app: ${appId}`);
       return null;
     }
@@ -74,6 +101,8 @@ export class WindowManager {
     if (existing) {
       if (existing.minimized()) this.unminimize(existing.id);
       else this.focus(existing.id);
+      /* 再次打开是明确的使用意图：刷新后延后装载的窗口（终端、游戏）此刻装载。 */
+      this.runtime.activate(existing);
       return existing;
     }
     this.dock.bounce(appId);
@@ -87,12 +116,53 @@ export class WindowManager {
     const win = new DesktopWindow(`w${++this.seq}`, app, options, { left, top, width, height });
 
     this.windowsState.update(list => [...list, win]);
+    this.runtime.start(win);
     this.focus(win.id);
     setTimeout(() => {
       win.opening.set(false);
       this.dock.stopBounce(appId);
     }, 320);
     return win;
+  }
+
+  /**
+   * 预留 `count` 个层叠位置给要恢复的窗口：返回区间起点，窗口按记录的顺序叠在 起点+1 … 起点+count，
+   * 之后用户新开的窗口都在它们之上。恢复是分批的，预留让先恢复谁都不影响最终的叠放。
+   */
+  reserveLayers(count: number): number {
+    const base = this.z;
+    this.z += count;
+    return base;
+  }
+
+  /**
+   * 按布局里的一条记录重建窗口（ADESK-US-104，刷新后恢复）：不弹跳 Dock 图标、没有开窗动画，不走“单实例应用已打开就复用”，
+   * 层叠与几何取记录的（几何按当前视口拉回屏幕内）。最小化的窗口与清单声明 `restore: 'deferred'` 的应用只重建外框、
+   * 不请求应用载荷，等 {@link activate}（最小化的窗口第一次还原时自动触发）；其余窗口立即开始装载。
+   * 没有组件的系统入口、不认识的应用恢复不了，返回 `null`。
+   */
+  restore(spec: WindowRestoreSpec): DesktopWindow | null {
+    const app = this.apps[spec.appId];
+    if (!app?.load) return null;
+    const min = { width: app.minW ?? DEFAULT_MIN_WIDTH, height: app.minH ?? DEFAULT_MIN_HEIGHT };
+    const box = fitBox(spec.box, { width: innerWidth, height: innerHeight }, this.menubarHeight(), min);
+    const win = new DesktopWindow(`w${++this.seq}`, app, spec.options, box);
+    win.opening.set(false);
+    win.zIndex.set(spec.layer);
+    win.zoomed.set(spec.zoomed);
+    win.minimized.set(spec.minimized);
+    win.hidden.set(spec.minimized);
+    this.windowsState.update(list => insertByLayer(list, win));
+    if (spec.minimized || (app.kind !== 'system' && app.restore === 'deferred')) this.runtime.defer(win);
+    else this.runtime.start(win);
+    if (spec.foreground) this.focusedState.set(win);
+    return win;
+  }
+
+  /** 装载一个延后的窗口（用户第一次点击未启动的窗口）；窗口不存在或已经装载过时什么也不做。 */
+  activate(id: string): void {
+    const win = this.get(id);
+    if (win) this.runtime.activate(win);
   }
 
   focus(id: string): void {
@@ -116,12 +186,20 @@ export class WindowManager {
     const win = this.get(id);
     if (!win || win.closing()) return;
     win.closing.set(true);
+    this.runtime.closing(win);
     win.beforeClose.next();
     win.beforeClose.complete();
     setTimeout(() => {
       this.windowsState.update(list => list.filter(item => item !== win));
+      this.runtime.closed(win);
       this.focusFront();
     }, 200);
+  }
+
+  /** 装载失败的窗口重试：创建新的应用实例（见 {@link ApplicationRuntime}）。 */
+  retry(id: string): void {
+    const win = this.get(id);
+    if (win) this.runtime.retry(win);
   }
 
   closeAll(): void {
@@ -132,8 +210,13 @@ export class WindowManager {
     this.get(id)?.frame?.minimize();
   }
 
+  /** 从 Dock 还原；刷新后恢复成最小化的窗口，第一次还原时才装载内容。 */
   unminimize(id: string): void {
-    this.get(id)?.frame?.restore();
+    const win = this.get(id);
+    if (!win?.frame) return;
+    const wasMinimized = win.minimized();
+    win.frame.restore();
+    if (wasMinimized && !win.minimized()) this.runtime.activate(win);
   }
 
   zoom(id: string): void {

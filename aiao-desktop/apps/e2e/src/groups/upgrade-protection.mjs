@@ -81,14 +81,17 @@ export const upgradeProtection = {
     /* 新旧版本的标签页并存：页面 A 开着（当前构建），另一个标签页把库升到更高的版本，A 里再写就被拒绝并提示刷新。 */
     const stale = await session.openDesktopPage();
     const { page: tabA, helpers: helpersA } = stale;
+    /* 窗口布局也要写库（ADESK-US-104）：开关窗口、换目录都会写回。库被升级之后任何一次写入都会被拒绝，
+     * 提示盖住整个桌面——所以先把窗口摆好（Finder 停在 Desktop）、等布局写完，升级之后只剩要验证的那一次写入：新建文件夹。 */
+    await helpersA.closeAll();
+    await tabA.locator('#dock .di[data-app="finder"]').click();
+    await helpersA.win('finder').last().locator('[data-place="Desktop"]').click();
+    await tabA.waitForTimeout(1_500);
     const filesBefore = await surgery(session, async db => {
       const count = await db.count('desktop$desktop_file');
       await db.setRecord({ version: current + 1, build: '', upgradedAt: 2 });
       return count;
     });
-    await helpersA.closeAll();
-    await tabA.locator('#dock .di[data-app="finder"]').click();
-    await helpersA.win('finder').last().locator('[data-place="Desktop"]').click();
     await helpersA.win('finder').last().locator('[data-more]').click();
     await tabA.locator('#layer-menu .pop .mi', { hasText: 'New Folder' }).click();
     const staleTitle = await problemTitle(tabA);

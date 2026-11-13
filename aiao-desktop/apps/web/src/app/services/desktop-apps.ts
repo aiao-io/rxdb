@@ -1,3 +1,4 @@
+import type { DesktopCapability } from '@aiao/orbit/desktop';
 import { InjectionToken, Type } from '@angular/core';
 
 import type { FsNode } from './file-system';
@@ -112,12 +113,27 @@ interface DesktopAppBase {
   readonly dockRemovable: boolean;
 }
 
+/**
+ * 刷新后恢复窗口时应用内容的装载方式（ADESK-US-104）：`eager` 随窗口一起装载（最小化的窗口例外，第一次还原才装载）；
+ * `deferred` 只重建窗口外框，窗口里显示「未启动」的占位，第一次点击窗口才装载——给装载代价很大的应用用。
+ */
+export const APP_RESTORES = ['eager', 'deferred'] as const;
+
+export type AppRestore = (typeof APP_RESTORES)[number];
+
 /** 有 `.app` 身份的应用（内置与集成）共有的字段。 */
 interface BundledAppBase extends DesktopAppBase {
   /** 稳定的包标识（Info.plist 的 CFBundleIdentifier），应用改名后不变；所有入口按它或 id 启动，不按显示名。 */
   readonly bundleId: string;
   /** 安装来源。 */
   readonly installScope: InstallScope;
+  /** 刷新后恢复窗口时的装载方式，默认 `eager`。终端（会拉起虚拟机）与几猫3A大作（1.4 MB 的 3D 游戏）是 `deferred`。 */
+  readonly restore?: AppRestore;
+  /**
+   * 清单授予的系统能力（ADESK-US-206，D-18），逐项声明，**默认拒绝**：没写的能力一律 `CAPABILITY_DENIED`。
+   * 它只约束经 Orbit 请求宿主的那一层；iframe 的浏览器权限（`web.allow`）是另一层，clipboard 要求两层声明一致。
+   */
+  readonly capabilities?: readonly DesktopCapability[];
 }
 
 /** 启动台、废纸篓：不开窗口，由桌面直接处理。 */
@@ -145,8 +161,14 @@ export type DesktopAppManifest = SystemEntryManifest | BuiltinAppManifest | WebA
 
 export type DesktopAppManifests = Readonly<Record<DesktopAppId, DesktopAppManifest>>;
 
-/** 登记表的一项：清单加上开窗口用的组件；系统入口没有组件。 */
-export type DesktopAppDefinition = DesktopAppManifest & { readonly component?: Type<unknown> };
+/**
+ * 应用组件的装载函数（D-18）：窗口真正打开时才调用，所以每个应用的实现都能拆成独立的 chunk，
+ * 桌面启动只下载壳层。Finder 随壳层静态装载，其余应用都是动态导入。
+ */
+export type AppLoader = () => Promise<Type<unknown>>;
+
+/** 登记表的一项：清单加上装载应用组件的函数；系统入口没有。 */
+export type DesktopAppDefinition = DesktopAppManifest & { readonly load?: AppLoader };
 
 export type DesktopAppRegistry = Readonly<Record<DesktopAppId, DesktopAppDefinition>>;
 
@@ -161,6 +183,26 @@ export interface DesktopOpenOptions {
   readonly node?: FsNode;
   readonly select?: string;
   readonly url?: string;
+}
+
+/**
+ * 开窗参数里能存进窗口布局、刷新后交还给应用的那一部分（ADESK-US-104）：只含可序列化的最小集合。
+ * `force`、`w`、`h` 是开窗那一刻的指令（尺寸由几何记录接管），`select` 是选中项（属于应用内部状态），都不记；
+ * `node` 是磁盘节点对象，不能序列化，改记它的卷内路径 `nodePath`，恢复时按路径重新取节点。
+ *
+ * 各应用恢复哪些参数：
+ * - Finder：`path`——窗口当前所在目录（用户在窗口里换目录，Finder 会更新它）；
+ * - 系统设置：`section`——打开时的分区；
+ * - Safari：`url`——打开时带的网址；
+ * - TextEdit、预览：`file`（文件名）与 `nodePath`（文件的卷内路径）；文件已不在磁盘上就不恢复这个窗口并提示；
+ * - 其余应用没有开窗参数。
+ */
+export interface RestoreOptions {
+  readonly path?: readonly string[];
+  readonly section?: string;
+  readonly url?: string;
+  readonly file?: string;
+  readonly nodePath?: readonly string[];
 }
 
 /** 应用登记表由桌面页提供，避免服务与应用组件之间的循环引用。 */
@@ -251,16 +293,87 @@ export function orbitAllow(web: WebAppEntry): string {
   return web.allow.join('; ');
 }
 
+/**
+ * 清单里可声明的能力名。用 Record 写：Orbit 的 `DesktopCapability` 增删能力时这里编译不过，提醒同步；
+ * 运行时不引入 Orbit 的桌面能力模块——它随远程应用的窗口按需装载，不进首屏。
+ */
+const CAPABILITY_NAMES: Readonly<Record<DesktopCapability, true>> = {
+  window: true,
+  menu: true,
+  app: true,
+  appearance: true,
+  'appearance:write': true,
+  notification: true,
+  'clipboard:read': true,
+  'clipboard:write': true,
+  'filesystem:read': true,
+  'filesystem:write': true
+};
+
+/** 清单里可声明的全部能力名（阶段 D 的 notification、clipboard、filesystem 先登记，能力在阶段 D 实现）。 */
+export const APP_CAPABILITIES = Object.keys(CAPABILITY_NAMES) as readonly DesktopCapability[];
+
+/** 清单授予应用的系统能力；没声明就是没授予（系统入口不开窗口，也没有）。 */
+export function grantedCapabilities(app: DesktopAppManifest): readonly DesktopCapability[] {
+  return app.kind === 'system' ? [] : (app.capabilities ?? []);
+}
+
 function manifestProblems(key: string, manifest: DesktopAppManifest): string[] {
   const problems: string[] = [];
   if (manifest.id !== key) problems.push(`${key}.id：登记的 id 是 ${manifest.id}，与登记键不一致`);
   if (!manifest.name.trim()) problems.push(`${key}.name：不能为空`);
   if (!KINDS.includes(manifest.kind)) return [...problems, `${key}.kind：只能是 system、builtin 或 web`];
   problems.push(...placementProblems(key, manifest), ...bundleProblems(key, manifest));
+  problems.push(...capabilityProblems(key, manifest));
   const web = (manifest as { readonly web?: WebAppEntry }).web;
   if (manifest.kind !== 'web') return web ? [...problems, `${key}.web：只有集成应用（web）才有入口`] : problems;
   if (!web) return [...problems, `${key}.web：集成应用必须登记入口`];
-  return [...problems, ...entryProblems(key, web)];
+  return [...problems, ...entryProblems(key, web), ...layerProblems(key, manifest, web)];
+}
+
+/** 清单的 `capabilities`：只能是登记的能力名，不重复；写外观要在读外观之上另外声明；系统入口不开窗口，不能声明。 */
+function capabilityProblems(key: string, manifest: DesktopAppManifest): string[] {
+  const declared: unknown = (manifest as { readonly capabilities?: unknown }).capabilities;
+  if (declared === undefined) return [];
+  if (manifest.kind === 'system') return [`${key}.capabilities：系统入口不开窗口，不能声明能力`];
+  if (!Array.isArray(declared)) return [`${key}.capabilities：必须是数组`];
+  const known: readonly string[] = APP_CAPABILITIES;
+  const problems = declared.flatMap((capability: unknown, index) => {
+    if (typeof capability !== 'string' || !known.includes(capability))
+      return [`${key}.capabilities：${String(capability)} 不在允许清单（${APP_CAPABILITIES.join('、')}）`];
+    return declared.indexOf(capability) === index ? [] : [`${key}.capabilities：${capability} 重复`];
+  });
+  if (declared.includes('appearance:write') && !declared.includes('appearance'))
+    problems.push(`${key}.capabilities：appearance:write 必须同时声明 appearance（写入是在读取之上另外授予的）`);
+  return problems;
+}
+
+/** 两层都有的能力：浏览器权限（iframe 的 `allow`）与清单能力。 */
+const PERMISSION_LAYERS: readonly (readonly [WebAppPermission, DesktopCapability])[] = [
+  ['clipboard-read', 'clipboard:read'],
+  ['clipboard-write', 'clipboard:write']
+];
+
+/**
+ * 两层权限各管各的，但 clipboard 两层都有，声明必须一致（ADESK-US-206 AC#15）：
+ * 只授一层——浏览器让应用直接读写剪贴板却不在清单里声明，或清单声明了能力而浏览器权限没给——逐项报出，桌面启动即失败。
+ */
+function layerProblems(key: string, manifest: DesktopAppManifest, web: WebAppEntry): string[] {
+  const declaredCapabilities = (manifest as { readonly capabilities?: unknown }).capabilities;
+  const capabilities: readonly unknown[] = Array.isArray(declaredCapabilities) ? declaredCapabilities : [];
+  return PERMISSION_LAYERS.flatMap(([permission, capability]) => {
+    const browser = web.allow.includes(permission);
+    const declared = capabilities.includes(capability);
+    if (browser && !declared)
+      return [
+        `${key}.capabilities：登记表 allow 授予了 ${permission}，但清单 capabilities 没有声明 ${capability}（两层必须一致）`
+      ];
+    if (declared && !browser)
+      return [
+        `${key}.web.allow：清单 capabilities 声明了 ${capability}，但登记表 allow 没有授予 ${permission}（两层必须一致）`
+      ];
+    return [];
+  });
 }
 
 /** 展示位置：系统入口不进 Applications，固定到 Dock 的要有顺序，系统入口不可移除。 */
@@ -291,7 +404,11 @@ function bundleProblems(key: string, manifest: DesktopAppManifest): string[] {
   if (typeof manifest.bundleId !== 'string' || !BUNDLE_ID.test(manifest.bundleId))
     problems.push(`${key}.bundleId：必须是形如 io.aiao.desktop.name 的反向域名标识`);
   const scopes: readonly string[] = INSTALL_SCOPES;
-  if (!scopes.includes(manifest.installScope)) problems.push(`${key}.installScope：只能是 ${INSTALL_SCOPES.join(' 或 ')}`);
+  if (!scopes.includes(manifest.installScope))
+    problems.push(`${key}.installScope：只能是 ${INSTALL_SCOPES.join(' 或 ')}`);
+  const restores: readonly string[] = APP_RESTORES;
+  if (manifest.restore !== undefined && !restores.includes(manifest.restore))
+    problems.push(`${key}.restore：只能是 ${APP_RESTORES.join(' 或 ')}`);
   if (manifest.kind !== 'builtin') return problems;
   if (manifest.runtime !== undefined && !['builtin-component', 'bundled-html'].includes(manifest.runtime))
     problems.push(`${key}.runtime：内置应用只能是 builtin-component 或 bundled-html`);

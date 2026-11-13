@@ -12,6 +12,7 @@ export type OrbitErrorCode =
   | 'LOAD_ERROR'
   | 'APP_ERROR'
   | 'NAVIGATION'
+  | 'INCOMPATIBLE_PROTOCOL'
   | 'UNKNOWN_METHOD'
   | 'HANDLER_ERROR';
 
@@ -26,6 +27,25 @@ export class OrbitError extends Error {
   ) {
     super(message, options);
     this.name = 'OrbitError';
+  }
+}
+
+/** 应用声明的协议版本高于宿主支持的版本：宿主不缺能力地继续运行，而是明确失败。 */
+export class OrbitProtocolError extends OrbitError {
+  /** 创建协议不兼容错误；消息含双方版本。 */
+  constructor(
+    /** 应用声明的协议版本。 */
+    readonly requested: number,
+    /** 宿主支持的最高协议版本。 */
+    readonly supported: number,
+    options?: ErrorOptions
+  ) {
+    super(
+      'INCOMPATIBLE_PROTOCOL',
+      `应用声明的协议版本 aiao.orbit:${requested} 高于桌面支持的版本 aiao.orbit:${supported}：请升级桌面，或让应用改用不高于 aiao.orbit:${supported} 的版本`,
+      options
+    );
+    this.name = 'OrbitProtocolError';
   }
 }
 

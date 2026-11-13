@@ -79,20 +79,17 @@ function composeSvg(injector: EnvironmentInjector, image: SeedImage): string {
 }
 
 async function rasterize(markup: string, image: SeedImage): Promise<Uint8Array> {
-  const url = URL.createObjectURL(new Blob([markup], { type: 'image/svg+xml' }));
-  try {
-    const element = new Image(image.width, image.height);
-    element.src = url;
-    await element.decode();
-    const canvas = new OffscreenCanvas(image.width, image.height);
-    const context = canvas.getContext('2d');
-    if (!context) throw new Error('2D canvas is unavailable');
-    context.drawImage(element, 0, 0, image.width, image.height);
-    const blob = await canvas.convertToBlob({ type: `image/${image.format}`, quality: 0.86 });
-    return new Uint8Array(await blob.arrayBuffer());
-  } finally {
-    URL.revokeObjectURL(url);
-  }
+  /* 用 data: 地址而不是 blob: 地址：桌面页面跨源隔离（COEP），WebKit 在这种页面里加载不了 blob: 的 SVG 图片
+     （`Image.decode()` 以「Loading error.」拒绝，磁盘根本挂不上）；data: 地址在三个引擎里都能加载。 */
+  const element = new Image(image.width, image.height);
+  element.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(markup)}`;
+  await element.decode();
+  const canvas = new OffscreenCanvas(image.width, image.height);
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('2D canvas is unavailable');
+  context.drawImage(element, 0, 0, image.width, image.height);
+  const blob = await canvas.convertToBlob({ type: `image/${image.format}`, quality: 0.86 });
+  return new Uint8Array(await blob.arrayBuffer());
 }
 
 /** 把程序化插画编码成真正的 PNG / JPEG，用于首次复制内置磁盘。 */

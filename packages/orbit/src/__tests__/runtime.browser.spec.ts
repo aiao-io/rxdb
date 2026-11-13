@@ -231,6 +231,42 @@ describe('原生 iframe 运行内核', () => {
     await expect(pending).rejects.toMatchObject({ code: 'TIMEOUT' });
   });
 
+  it('应用声明更高的协议版本：先通知应用，再以 INCOMPATIBLE_PROTOCOL 明确失败（含双方版本），不建立端口，不缺能力继续运行', async () => {
+    const { runtime, container, options, report } = setup('future');
+    const notices: unknown[] = [];
+    const listen = (event: MessageEvent<unknown>) => {
+      const data = event.data as { fixture?: string; notice?: unknown } | null;
+      if (data?.fixture === 'incompatible') notices.push(data.notice);
+    };
+    window.addEventListener('message', listen);
+    resources.push(() => window.removeEventListener('message', listen));
+    const app = runtime.createApp({ ...options, timeout: 30_000 });
+    const states: string[] = [];
+    app.subscribe(snapshot => states.push(snapshot.state));
+    await expect(app.mount(container)).rejects.toMatchObject({
+      code: 'INCOMPATIBLE_PROTOCOL',
+      name: 'OrbitProtocolError',
+      requested: 2,
+      supported: 1
+    });
+    expect(states).toEqual(['loading', 'failed']);
+    expect(app.snapshot.state).toBe('failed');
+    expect(container.children).toHaveLength(0);
+    expect(runtime.instances).toEqual([]);
+    expect(report).toHaveBeenCalledTimes(1);
+    expect(String((report.mock.calls[0]?.[0] as Error).message)).toMatch(/aiao\.orbit:2.*aiao\.orbit:1/);
+    await vi.waitFor(() => expect(notices).toHaveLength(1));
+    expect(notices[0]).toEqual({
+      protocol: PROTOCOL,
+      type: 'incompatible',
+      channel: expect.any(String),
+      supported: 1,
+      requested: 2,
+      message: expect.stringContaining('aiao.orbit:2')
+    });
+    await expect(app.request('anything')).rejects.toMatchObject({ code: 'DESTROYED' });
+  });
+
   it('反复装载销毁 30 轮不遗留实例和 iframe；binding 支持 StrictMode 重挂', async () => {
     const { runtime, container, options } = setup();
     const binding = createOrbitBinding(runtime, options);

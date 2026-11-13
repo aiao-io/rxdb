@@ -7,6 +7,7 @@ import { checkOPFSAvailable } from '@aiao/utils';
 import { USER_NAME } from '../disk/disk-path';
 import { DESKTOP_ENTITIES } from './entities';
 import { SchemaGuard } from './schema-guard';
+import { TabSync } from './tab-sync';
 
 /** 本地适配器名：`@aiao/rxdb-adapter-sqlite-wasm`。 */
 export const DESKTOP_ADAPTER = 'sqlite-wasm' as const;
@@ -57,12 +58,23 @@ class DesktopSqliteAdapter extends RxDBAdapterSqlite {
 }
 
 const GUARDS = new WeakMap<RxDB, SchemaGuard>();
+const TABS = new WeakMap<RxDB, TabSync>();
 
 /** 桌面库的写前守卫；只有 {@link createDesktopDatabase} 建出来的库才有。 */
 export function schemaGuardOf(rxdb: RxDB): SchemaGuard {
   const guard = GUARDS.get(rxdb);
   if (!guard) throw new Error('这个 RxDB 实例不是 createDesktopDatabase 建的，没有写前守卫');
   return guard;
+}
+
+/**
+ * 桌面库的跨标签页协调（ADESK-US-105）：独占锁与变更广播。同一个来源的多个标签页各持一条到同一个 OPFS 库文件的连接，
+ * 写之前的「读了再写」靠它排队，写完靠它通知别的标签页。只有 {@link createDesktopDatabase} 建出来的库才有。
+ */
+export function tabSyncOf(rxdb: RxDB): TabSync {
+  const tabs = TABS.get(rxdb);
+  if (!tabs) throw new Error('这个 RxDB 实例不是 createDesktopDatabase 建的，没有跨标签页协调');
+  return tabs;
 }
 
 /**
@@ -82,6 +94,7 @@ export function createDesktopDatabase(baseHref: string): RxDB {
     .use(rxDBPluginStorage, { rootDir: FILES_ROOT })
     .adapter(DESKTOP_ADAPTER, async db => new DesktopSqliteAdapter(db, await localOptions(baseHref), guard));
   GUARDS.set(rxdb, guard);
+  TABS.set(rxdb, new TabSync());
   rxdb.init();
   if (import.meta.env.DEV) {
     void import('@aiao/rxdb-devtools').then(({ getDevToolsConnector }) => {

@@ -1,3 +1,5 @@
+import { passes } from '../harness/helpers.mjs';
+
 /** 桌面外壳（ADESK-US-101）：结构、菜单栏、窗口最小化与还原、启动台、聚焦搜索与通知中心。 */
 export const shell = {
   name: 'shell',
@@ -24,7 +26,7 @@ export const shell = {
   ],
   async run(session) {
     const { page } = session;
-    const { win, closeAll, shows, spotlight } = session.helpers;
+    const { win, closeAll, shows, disappears, spotlight } = session.helpers;
     await session.openDesktop();
 
     const shellState = await page.evaluate(() => ({
@@ -58,14 +60,25 @@ export const shell = {
     await page.keyboard.press('Escape');
     const appMenu = (await page.locator('#menubar .mb-item.app').textContent())?.trim() === 'Calculator';
 
-    /* 最小化进 Dock，再从 Dock 还原。 */
+    /* 最小化进 Dock，再从 Dock 还原（等动画结束的状态，不靠固定延时：慢引擎上动画更久）。 */
     await win('calculator').locator('.tl .m').click();
-    await page.waitForTimeout(600);
-    const minimized = await win('calculator').evaluate(node => node.style.visibility === 'hidden');
+    const minimized = await passes(
+      page.waitForFunction(
+        () => document.querySelector('.win[data-app="calculator"]:not(.closing)')?.style.visibility === 'hidden',
+        undefined,
+        { timeout: 5_000 }
+      )
+    );
     await page.locator('#dock .di[data-app="calculator"]').click();
-    await page.waitForTimeout(700);
-    const restored = await win('calculator').evaluate(
-      node => node.style.visibility === '' && !node.classList.contains('mini')
+    const restored = await passes(
+      page.waitForFunction(
+        () => {
+          const node = document.querySelector('.win[data-app="calculator"]:not(.closing)');
+          return node instanceof HTMLElement && node.style.visibility === '' && !node.classList.contains('mini');
+        },
+        undefined,
+        { timeout: 5_000 }
+      )
     );
 
     await closeAll();
@@ -85,8 +98,7 @@ export const shell = {
     await page.waitForTimeout(500);
     const notificationsOpen = await shows(page.locator('#nc .wgt').first());
     await page.locator('#menubar #mb-clock').dispatchEvent('mousedown');
-    await page.waitForTimeout(500);
-    const notificationsClose = (await page.locator('#nc').count()) === 0;
+    const notificationsClose = await disappears(page.locator('#nc'), 5_000);
 
     await closeAll();
     await page.locator('#dock .di[data-app="notes"]').click();

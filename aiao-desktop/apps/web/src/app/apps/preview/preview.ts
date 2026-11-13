@@ -1,4 +1,4 @@
-import { Component, DestroyRef, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
 
 import { extensionOf, fileKind } from '../../disk/disk-kinds';
 import { PdfDocument, readPdfText } from '../../disk/formats/pdf';
@@ -9,6 +9,7 @@ import { PopoverService } from '../../services/popover';
 import { Toast } from '../../services/toast';
 import { WindowManager } from '../../services/window-manager';
 import { Icon } from '../../shared/icon';
+import { imageDataUrl } from '../../shared/image-url';
 import { TrafficLights } from '../../shared/traffic-lights';
 import { MailComposer } from '../mail/mail-composer';
 import { markMatches } from './preview-find';
@@ -55,10 +56,6 @@ export class PreviewApp {
   constructor() {
     const menus = inject(DesktopMenus);
     this.win.setMenus(computed(() => menus.standard('preview')));
-    inject(DestroyRef).onDestroy(() => {
-      const view = this.view();
-      if (view.kind === 'image') URL.revokeObjectURL(view.url);
-    });
     void this.load();
   }
 
@@ -93,8 +90,6 @@ export class PreviewApp {
 
   /** 解码不了的图片（例如占位的 HEIC）改为说明打不开。 */
   protected imageFailed(): void {
-    const view = this.view();
-    if (view.kind === 'image') URL.revokeObjectURL(view.url);
     this.view.set({ kind: 'failed', reason: 'The image data could not be decoded.' });
   }
 
@@ -123,7 +118,7 @@ export class PreviewApp {
       return doc ? { kind: 'sheet', doc } : { kind: 'failed', reason: 'Preview can only show text PDFs.' };
     }
     const type = IMAGE_TYPES[extension];
-    if (type) return { kind: 'image', url: URL.createObjectURL(new Blob([bytes.slice()], { type })) };
+    if (type) return { kind: 'image', url: imageDataUrl(bytes, type) };
     return { kind: 'failed', reason: `Preview can’t open ${fileKind(this.name).kind} files.` };
   }
 }

@@ -14,6 +14,7 @@ import { Overlays } from '../services/overlays';
 import { PopoverService } from '../services/popover';
 import { SystemState } from '../services/system-state';
 import { Icon } from '../shared/icon';
+import { whenIdle } from '../shared/idle';
 import { LAUNCHPAD_PER_PAGE, Launchpad } from './overlays/launchpad';
 import { NotificationCentre } from './overlays/notification-centre';
 import { PopoverEntryView } from './overlays/popover-entry';
@@ -46,13 +47,10 @@ export class OverlayLayer {
   constructor() {
     /* 启动台和通知中心的全屏模糊、以及第一次「神灯」动画，首次光栅化都要付一笔，
        趁空闲时在看不见的节点上预先付掉。 */
-    requestIdleCallback(
-      () => {
-        this.warmPanels.set(true);
-        this.warmGenie.set(true);
-      },
-      { timeout: 2600 }
-    );
+    whenIdle(() => {
+      this.warmPanels.set(true);
+      this.warmGenie.set(true);
+    }, 2600);
     afterRenderEffect(() => {
       if (!this.warmPanels()) return;
       requestAnimationFrame(() => requestAnimationFrame(() => this.warmPanels.set(false)));

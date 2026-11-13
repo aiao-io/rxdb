@@ -7,7 +7,15 @@ export interface FailingApp {
 }
 
 /** 窗口自己显示的 Orbit 失败：启动与运行中的失败，以及关窗口带来的取消与销毁。 */
-const WINDOW_FAILURES = new Set(['LOAD_ERROR', 'TIMEOUT', 'APP_ERROR', 'NAVIGATION', 'ABORTED', 'DESTROYED']);
+const WINDOW_FAILURES = new Set([
+  'LOAD_ERROR',
+  'TIMEOUT',
+  'APP_ERROR',
+  'NAVIGATION',
+  'INCOMPATIBLE_PROTOCOL',
+  'ABORTED',
+  'DESTROYED'
+]);
 
 function codeOf(error: unknown): string | undefined {
   const code = (error as { code?: unknown } | null)?.code;
@@ -31,6 +39,10 @@ export function failureReason(error: unknown, app: FailingApp): string {
       return `${app.name} reported: ${message}`;
     case 'NAVIGATION':
       return `${app.name} left its page or closed its connection.`;
+    case 'INCOMPATIBLE_PROTOCOL': {
+      const { requested, supported } = error as { requested?: number; supported?: number };
+      return `${app.name} needs a newer Aiao Desktop: it uses app protocol v${requested}, but this desktop supports up to v${supported}.`;
+    }
     default:
       return `${app.name} couldn’t start: ${message}`;
   }

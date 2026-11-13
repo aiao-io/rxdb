@@ -49,6 +49,18 @@ export class MemoryDiskStore implements DiskStore {
     parent.children.set(this.nameOf(file), { kind: 'file', data: data.slice(), modified: this.clock() });
   }
 
+  async replace(file: DiskPath, data: Uint8Array): Promise<void> {
+    this.nameOf(file);
+    const node = this.find(file);
+    if (!node) throw new DiskError('ENOENT', file);
+    if (node.kind === 'directory') throw new DiskError('EISDIR', file);
+    this.directoryAt(parentOf(file)).children.set(this.nameOf(file), {
+      kind: 'file',
+      data: data.slice(),
+      modified: this.clock()
+    });
+  }
+
   async mkdir(dir: DiskPath): Promise<void> {
     this.directoryAt(dir, true);
   }

@@ -79,7 +79,8 @@ export class NotesApp {
   private readonly doc = viewChild.required<ElementRef<HTMLElement>>('doc');
   private readonly notes = liveQuery(
     () => Note.findAll({ where: ALL_ROWS, orderBy: [{ field: 'date', sort: 'desc' }] }),
-    []
+    [],
+    Note
   );
   private readonly current = computed(() => this.notes().find(note => note.id === this.selected()));
   private readonly list = computed(() => visibleNotes(this.notes(), this.folder(), this.query()));

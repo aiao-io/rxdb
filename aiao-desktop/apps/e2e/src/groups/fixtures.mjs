@@ -21,14 +21,16 @@ async function writeMarkers(page, value) {
 
 async function readMarkers(page) {
   return page.evaluate(async () => {
-    let opfs = null;
-    try {
-      const root = await navigator.storage.getDirectory();
-      opfs = await (await (await root.getFileHandle('fixture-marker.txt')).getFile()).text();
-    } catch {
-      opfs = null;
-    }
-    return { local: localStorage.getItem('fixture-marker'), opfs };
+    /* 标记文件不存在（另一个上下文看不到）就是 null，这正是被检查的现象。 */
+    const readOpfs = async () => {
+      try {
+        const root = await navigator.storage.getDirectory();
+        return await (await (await root.getFileHandle('fixture-marker.txt')).getFile()).text();
+      } catch {
+        return null;
+      }
+    };
+    return { local: localStorage.getItem('fixture-marker'), opfs: await readOpfs() };
   });
 }
 

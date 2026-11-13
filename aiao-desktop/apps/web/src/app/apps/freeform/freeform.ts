@@ -91,7 +91,8 @@ export class FreeformApp {
   /** 库里的笔迹，按落笔先后；库还没读到时为 `null`。 */
   private readonly saved = liveQuery<readonly FreeformStroke[] | null>(
     () => FreeformStroke.findAll({ where: ALL_ROWS, orderBy: [{ field: 'createdAt', sort: 'asc' }] }),
-    null
+    null,
+    FreeformStroke
   );
   /** 已松手、库还没回报的笔迹：回报之前照样画在画布上，免得闪一下。 */
   private readonly settling = signal<readonly Ink[]>([]);

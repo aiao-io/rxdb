@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { Service, computed, inject, signal } from '@angular/core';
+import { DestroyRef, Service, computed, inject, signal } from '@angular/core';
 
 import { DesktopAppId } from './desktop-apps';
 import { DockLayoutStore } from './dock-layout';
@@ -70,6 +70,10 @@ export class DockDragController {
     return state?.source === 'dock' ? state.appId : null;
   });
 
+  constructor() {
+    inject(DestroyRef).onDestroy(() => this.finish());
+  }
+
   /** Dock 组件挂上时登记它的几何。 */
   attach(target: DockDropTarget): void {
     this.target = target;
@@ -91,10 +95,13 @@ export class DockDragController {
   /**
    * 在拖动源元素的 `pointerdown` 里调用：用指针捕获接管后续事件，位移过了阈值才开始拖。
    * 不能固定的应用（没有 `.app` 身份）不从外部来源起拖。
+   * 同一个指针不可能在没松开的情况下再次按下，所以它的新一次按下说明旧会话的松手没有送到（比如在窗口外松开），旧会话作废。
    */
   begin(event: PointerEvent, appId: DesktopAppId, source: DockDragSource): void {
     this.dropTarget();
-    if (this.session || event.button !== 0 || !event.isPrimary) return;
+    if (event.button !== 0 || !event.isPrimary) return;
+    if (this.session && this.session.pointerId !== event.pointerId) return;
+    this.finish();
     if (source !== 'dock' && !this.layout.pinnable(appId)) return;
     (event.currentTarget as Element).setPointerCapture(event.pointerId);
     this.session = {
@@ -132,7 +139,8 @@ export class DockDragController {
     const session = this.session;
     const pointer = event as PointerEvent;
     if (!session || pointer.pointerId !== session.pointerId) return;
-    const drop = session.started && !session.cancelled ? this.describe(session, pointer.clientX, pointer.clientY) : null;
+    const drop =
+      session.started && !session.cancelled ? this.describe(session, pointer.clientX, pointer.clientY) : null;
     this.finish();
     if (session.started) this.swallowClick();
     if (drop) this.commit(drop);

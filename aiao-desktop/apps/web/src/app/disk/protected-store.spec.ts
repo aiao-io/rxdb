@@ -66,6 +66,19 @@ describe('ProtectedDiskStore 写', () => {
     expect(decode(await inner.read(INFO))).toBe('<plist/>');
   });
 
+  it('replace 与 write 走同一条保护：受保护的文件不能覆盖，用户文件可以，不存在的文件抛 ENOENT', async () => {
+    const { store, inner } = await setup();
+    const error = await rejection(store.replace(INFO, text('tampered')));
+    expect(error).toMatchObject({ code: 'EACCES', path: INFO });
+    expect(decode(await inner.read(INFO))).toBe('<plist/>');
+
+    await store.replace(MINE, text('edited'));
+    expect(decode(await inner.read(MINE))).toBe('edited');
+    await expect(store.replace([...SAFARI, 'Contents', 'ghost.txt'], text('x'))).rejects.toMatchObject({
+      code: 'ENOENT'
+    });
+  });
+
   it('用户放进包里的文件、以及别处的文件都可以写', async () => {
     const { store, inner } = await setup();
     await store.write(MINE, text('edited'));

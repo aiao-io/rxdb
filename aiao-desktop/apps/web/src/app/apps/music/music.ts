@@ -67,11 +67,13 @@ export class MusicApp {
         MusicAlbum.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
         MusicTrack.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] })
       ]).pipe(map(([albums, tracks]) => buildLibrary(albums, tracks))),
-    EMPTY_LIBRARY
+    EMPTY_LIBRARY,
+    MusicAlbum
   );
   private readonly playlists = liveQuery(
     () => MusicPlaylist.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
-    []
+    [],
+    MusicPlaylist
   );
   /** 侧栏点选压入历史，前进后退才有意义。 */
   private readonly history = signal<readonly string[]>(['Recently Added']);

@@ -28,11 +28,13 @@ export class MailApp {
   protected readonly party = partyOf;
   protected readonly boxes = liveQuery(
     () => MailMailbox.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
-    []
+    [],
+    MailMailbox
   );
   protected readonly mails = liveQuery(
     () => MailMessage.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
-    []
+    [],
+    MailMessage
   );
   protected readonly box = signal('Inbox');
   /** 选中的是当前邮箱列表里的第几封。 */

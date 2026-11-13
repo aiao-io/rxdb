@@ -31,18 +31,21 @@ export class SafariBrowsers {
   private readonly navigators: SafariNavigator[] = [];
   private readonly visits = liveQuery(
     () => SafariHistoryEntry.findAll({ where: ALL_ROWS, orderBy: [{ field: 'visitedAt', sort: 'desc' }] }),
-    []
+    [],
+    SafariHistoryEntry
   );
 
   /** 收藏夹：起始页、收藏栏、侧栏与「书签」菜单共用。 */
   readonly favourites = liveQuery(
     () => SafariBookmark.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
-    []
+    [],
+    SafariBookmark
   );
   /** 阅读列表。 */
   readonly readingList = liveQuery(
     () => SafariReadingItem.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
-    []
+    [],
+    SafariReadingItem
   );
   /** 最近访问在前、去重，最多 24 条；喂给「历史记录」菜单和起始页。 */
   readonly history = computed(() => this.visits().map(visit => visit.url));

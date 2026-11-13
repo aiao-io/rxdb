@@ -85,7 +85,8 @@ type ContactField = readonly [label: string, value: string];
 export class ContactsApp {
   protected readonly contacts = liveQuery(
     () => Contact.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
-    []
+    [],
+    Contact
   );
   protected readonly selected = signal<string | null>(null);
   /** 选中的联系人；还没点过时是列表里的第一位。 */

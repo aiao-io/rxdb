@@ -1,9 +1,20 @@
-import { Component, DestroyRef, ElementRef, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  ElementRef,
+  afterNextRender,
+  computed,
+  effect,
+  inject,
+  signal,
+  viewChild
+} from '@angular/core';
 
 import { diskPathOf } from '../../disk/disk-path';
 import { ApplicationCatalog } from '../../services/application-catalog';
 import { DesktopMenus, FinderCommands, FinderView } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
+import { DockDragController } from '../../services/dock-drag';
 import { FileOpener } from '../../services/file-opener';
 import { FileSystem, FsNode, HOME_PATH, PLACES, describeDiskError } from '../../services/file-system';
 import { MenuEntry } from '../../services/menu';
@@ -40,6 +51,7 @@ export class FinderApp implements FinderCommands {
   private readonly fs = inject(FileSystem);
   private readonly opener = inject(FileOpener);
   private readonly catalog = inject(ApplicationCatalog);
+  private readonly dockDrag = inject(DockDragController);
   private readonly popover = inject(PopoverService);
   private readonly toast = inject(Toast);
   private readonly body = viewChild.required<ElementRef<HTMLElement>>('body');
@@ -109,6 +121,8 @@ export class FinderApp implements FinderCommands {
     this.selected.set(this.win.options.select ?? null);
     if (start.length === 1 && start[0] === 'Trash') this.view.set('list');
     this.win.setMenus(computed(() => menus.finder(this)));
+    /* 窗口停在哪个目录，刷新后就恢复到哪个目录（窗口布局，ADESK-US-104）；选中项、视图属于内部状态，不记。 */
+    effect(() => this.win.restoreOptions.set({ path: this.path() }));
 
     const destroyRef = inject(DestroyRef);
     afterNextRender(() => {
@@ -185,6 +199,12 @@ export class FinderApp implements FinderCommands {
 
   protected select(name: string): void {
     this.selected.set(name);
+  }
+
+  /** Applications 里系统拥有的 `.app` 包可以拖进 Dock；别的条目（含用户复制出来的包）不能。只把应用 id 交给 Dock。 */
+  protected dragApp(event: PointerEvent, node: FsNode): void {
+    const appId = this.catalog.appIdOf(node);
+    if (appId) this.dockDrag.beginFromFinder(event, appId);
   }
 
   protected enter(name: string): void {

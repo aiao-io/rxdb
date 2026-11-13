@@ -93,7 +93,7 @@ export function testApps(
   overrides: Readonly<Partial<Record<DesktopAppId, Partial<DesktopAppDefinition>>>> = {}
 ): DesktopAppRegistry {
   const entries: readonly DesktopAppDefinition[] = [
-    ...TEST_APP_DEFINITIONS.map(app => ({ ...app, component: StubApp })),
+    ...TEST_APP_DEFINITIONS.map(app => ({ ...app, load: async () => StubApp })),
     ...TEST_SYSTEM_ENTRIES
   ];
   const table = Object.fromEntries(entries.map(app => [app.id, { ...app, ...overrides[app.id] }]));

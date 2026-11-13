@@ -47,7 +47,8 @@ export class CalendarStore {
   private readonly data = inject(DesktopData);
   private readonly listRows = liveQuery(
     () => CalendarListRow.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
-    []
+    [],
+    CalendarListRow
   );
   private readonly eventRows = liveQuery(
     () =>
@@ -58,7 +59,8 @@ export class CalendarStore {
           { field: 'createdAt', sort: 'asc' }
         ]
       }),
-    []
+    [],
+    CalendarEventRow
   );
 
   /** 全部日历（侧栏顺序），库还没就绪时为空。 */

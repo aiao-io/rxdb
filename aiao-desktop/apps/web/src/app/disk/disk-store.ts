@@ -38,8 +38,13 @@ export interface DiskStore {
   kindOf(path: DiskPath): Promise<DiskEntryKind | null>;
   info(file: DiskPath): Promise<DiskFileInfo>;
   read(file: DiskPath): Promise<Uint8Array>;
-  /** 写入整个文件，缺失的父目录一并创建。 */
+  /** 写入整个文件，缺失的父目录一并创建。这是显式的创建入口（终端重定向、`touch`、另存），已有文件就覆盖。 */
   write(file: DiskPath, data: Uint8Array): Promise<void>;
+  /**
+   * 覆盖一个**已存在**的文件（保存已打开的文件，ADESK-US-105）：文件或它的父目录不存在时抛 `ENOENT`，目标是目录时抛 `EISDIR`；
+   * 不创建文件、不补建父目录。保存时目标已被别的标签页删掉、移走或改名，就该失败，而不是在原路径悄悄新建。
+   */
+  replace(file: DiskPath, data: Uint8Array): Promise<void>;
   /** 递归创建目录。 */
   mkdir(dir: DiskPath): Promise<void>;
   /** 递归删除；路径不存在时什么也不做。 */

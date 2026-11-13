@@ -11,6 +11,7 @@ import { DesktopData } from '../data/desktop-data';
 import { Preferences } from '../data/preferences';
 import { AppLauncher } from '../services/app-launcher';
 import { ApplicationCatalog } from '../services/application-catalog';
+import { ApplicationRuntime } from '../services/application-runtime';
 import { CalendarStore } from '../services/calendar-store';
 import { Clock } from '../services/clock';
 import { DESKTOP_APPS } from '../services/desktop-apps';
@@ -31,6 +32,7 @@ import { ThemeService } from '../services/theme';
 import { Toast } from '../services/toast';
 import { WallpaperService } from '../services/wallpaper';
 import { WeatherStore } from '../services/weather-store';
+import { WindowLayoutStore } from '../services/window-layout';
 import { WindowManager } from '../services/window-manager';
 import { VirtualMachine } from '../vm/virtual-machine';
 
@@ -58,11 +60,13 @@ const NATIVE_MENU = 'input,textarea,[contenteditable="true"],.tm-body';
     DockLayoutStore,
     DockDragController,
     WindowManager,
+    WindowLayoutStore,
     Overlays,
     AppLauncher,
     Session,
     WallpaperService,
     ApplicationCatalog,
+    ApplicationRuntime,
     FileSystem,
     FileOpener,
     DesktopItems,
@@ -85,7 +89,9 @@ const NATIVE_MENU = 'input,textarea,[contenteditable="true"],.tm-body';
     '(document:contextmenu)': 'nativeMenu($event)',
     '(document:dragstart)': '$event.preventDefault()',
     '(window:pointerup)': 'resetCursor()',
-    '(window:resize)': 'wm.keepOnScreen()'
+    '(window:resize)': 'wm.keepOnScreen()',
+    '(window:pagehide)': 'layout.flush()',
+    '(document:visibilitychange)': 'layout.flush()'
   }
 })
 export class DesktopPage {
@@ -96,12 +102,14 @@ export class DesktopPage {
   private readonly wallpaper = inject(WallpaperService);
 
   protected readonly wm = inject(WindowManager);
+  protected readonly layout = inject(WindowLayoutStore);
+
   constructor() {
     this.theme.setAppearance(this.system.appearance());
     this.wallpaper.set(this.system.wallpaper());
     /* 设置存在本地库里：库就绪后恢复上次的外观、壁纸、Dock 等，之后的改动自动写回。 */
     inject(SystemSettingsStore);
-    afterNextRender(() => setTimeout(() => this.wm.open('finder', { path: HOME_PATH }), 340));
+    afterNextRender(() => void this.startWindows());
     /* 电量缓慢下降，桌面永远不会完全静止。 */
     const drift = setInterval(() => this.driftBattery(), 42000);
     inject(DestroyRef).onDestroy(() => clearInterval(drift));
@@ -162,6 +170,14 @@ export class DesktopPage {
       event.preventDefault();
       this.wm.open(front.appId, { force: true });
     }
+  }
+
+  /**
+   * 桌面启动流程的后段（ADESK-US-104）：偏好库与磁盘就绪后恢复刷新前的窗口；
+   * 没有任何可恢复的窗口（新标签页、用户关光了窗口、保存的窗口都恢复不了）才打开默认的 Finder，有就不再多开一个。
+   */
+  private async startWindows(): Promise<void> {
+    if ((await this.layout.restore()) === 0) this.wm.open('finder', { path: HOME_PATH });
   }
 
   private typing(): boolean {

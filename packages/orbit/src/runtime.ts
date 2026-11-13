@@ -1,9 +1,17 @@
 import { EventBus } from './bus.js';
-import { aborted, checkName, checkTimeout, destroyed, OrbitError } from './errors.js';
+import { aborted, checkName, checkTimeout, destroyed, OrbitError, OrbitProtocolError } from './errors.js';
 import { createFrame } from './frame.js';
 import { copyProps, copyValue, isRecord } from './payload.js';
 import type { Message } from './protocol.js';
-import { CHANNEL_PARAM, PROTOCOL, readMessage } from './protocol.js';
+import {
+  CHANNEL_PARAM,
+  negotiateProtocol,
+  parseProtocol,
+  PROTOCOL,
+  PROTOCOL_VERSION,
+  protocolId,
+  readMessage
+} from './protocol.js';
 import { Rpc } from './rpc.js';
 import type {
   OrbitAppOptions,
@@ -21,6 +29,12 @@ import type {
 /** 文档 load 之后等待握手的宽限期：应用按约定在业务初始化之前握手，错误页与未接入 SDK 的页面永远不会握手。 */
 const HANDSHAKE_GRACE_MS = 3000;
 
+/**
+ * 协议不兼容时，宿主先把不兼容通知发给应用，再等这么久才失败并移除 iframe：
+ * 跨源 iframe 可能在另一个渲染进程里，通知还在路上时就移除 iframe 会让应用收不到它。
+ */
+const INCOMPATIBLE_NOTICE_MS = 100;
+
 class Instance implements OrbitInstance {
   private resolveReady!: () => void;
   private rejectReady!: (error: unknown) => void;
@@ -35,6 +49,7 @@ class Instance implements OrbitInstance {
   private port?: MessagePort;
   private timer?: ReturnType<typeof setTimeout>;
   private handshake?: ReturnType<typeof setTimeout>;
+  private refusal?: ReturnType<typeof setTimeout>;
   private channel = '';
   private loaded = false;
   readonly ready: Promise<void>;
@@ -170,13 +185,20 @@ class Instance implements OrbitInstance {
       !isRecord(event.data)
     )
       return;
+    const declared = parseProtocol(event.data['protocol']);
     if (
-      event.data['protocol'] !== PROTOCOL ||
+      declared === undefined ||
       event.data['type'] !== 'hello' ||
       event.data['channel'] !== this.channel ||
-      this.port
+      this.port ||
+      this.refusal
     )
       return;
+    const negotiation = negotiateProtocol(declared);
+    if (!negotiation.compatible) {
+      this.refuse(event.source, event.origin, new OrbitProtocolError(negotiation.requested, negotiation.supported));
+      return;
+    }
     const channel = new MessageChannel();
     this.port = channel.port1;
     this.port.onmessage = event => {
@@ -192,7 +214,7 @@ class Instance implements OrbitInstance {
     clearTimeout(this.handshake);
     event.source.postMessage(
       {
-        protocol: PROTOCOL,
+        protocol: protocolId(negotiation.version),
         type: 'init',
         channel: this.channel,
         context: { ...this.snapshot, props: this.props, visible: true }
@@ -200,6 +222,23 @@ class Instance implements OrbitInstance {
       { targetOrigin: event.origin, transfer: [channel.port2] }
     );
   };
+
+  /** 应用声明的协议版本高于本宿主：明确通知应用，再让实例以 INCOMPATIBLE_PROTOCOL 失败，不建立端口，不缺能力地继续运行。 */
+  private refuse(source: MessageEventSource, origin: string, error: OrbitProtocolError): void {
+    clearTimeout(this.handshake);
+    source.postMessage(
+      {
+        protocol: PROTOCOL,
+        type: 'incompatible',
+        channel: this.channel,
+        supported: PROTOCOL_VERSION,
+        requested: error.requested,
+        message: error.message
+      },
+      { targetOrigin: origin }
+    );
+    this.refusal = setTimeout(() => this.fail(error), INCOMPATIBLE_NOTICE_MS);
+  }
 
   private receive(message: Message): void {
     if (message.type === 'ready' && this.state === 'loading') {
@@ -263,6 +302,7 @@ class Instance implements OrbitInstance {
   private cleanup(): void {
     clearTimeout(this.timer);
     clearTimeout(this.handshake);
+    clearTimeout(this.refusal);
     this.options.signal?.removeEventListener('abort', this.onAbort);
     this.view?.removeEventListener('message', this.onHello);
     if (this.port) {

@@ -1,9 +1,23 @@
 import { connectOrbitClient } from '../src/client.js';
+import { DesktopError, getDesktop } from '../src/desktop.js';
 import type { OrbitValue } from '../src/types.js';
 import { getCurrentWindow } from '../src/window.js';
 
 const mode = new URL(location.href).searchParams.get('mode');
-const client = await connectOrbitClient();
+
+/**
+ * 声明更高协议版本的应用（模拟用更新的 SDK 构建）：自己发握手，不经本仓的 SDK；
+ * 收到宿主的不兼容通知后转告父页面，测试据此确认「应用收到了明确的不兼容错误」。
+ */
+if (mode === 'future') {
+  const channel = new URL(location.href).searchParams.get('__aiao_orbit');
+  addEventListener('message', event => {
+    if (event.source !== parent || event.data?.type !== 'incompatible') return;
+    parent.postMessage({ fixture: 'incompatible', notice: event.data }, '*');
+  });
+  parent.postMessage({ protocol: 'aiao.orbit:2', type: 'hello', channel }, '*');
+}
+const client = mode === 'future' ? undefined : await connectOrbitClient();
 if (client) {
   const events: unknown[] = [];
   const id = crypto.randomUUID();
@@ -91,6 +105,33 @@ if (client) {
     };
     await actions[action]!();
     return 'ok';
+  });
+  const desktop = getDesktop(client);
+  const desktopEvents: OrbitValue[] = [];
+  desktop?.window.onStateChange(state => desktopEvents.push({ event: 'window', state: { ...state } }));
+  desktop?.menu.onCommand(commandId => desktopEvents.push({ event: 'command', commandId }));
+  desktop?.appearance.onChange(appearance =>
+    desktopEvents.push({ event: 'appearance', appearance: { ...appearance } })
+  );
+  /** 经 `getDesktop` 调桌面能力，把成功值或稳定错误码当结果返回给测试页面。 */
+  client.onRequest('desktop', async (payload): Promise<OrbitValue> => {
+    if (!desktop) return { ok: false, code: 'NO_DESKTOP', message: '宿主没有提供桌面能力' };
+    const { action, args } = payload as { action: string; args?: OrbitValue };
+    if (action === 'events') return { ok: true, value: desktopEvents };
+    if (action === 'capabilities') return { ok: true, value: [...desktop.capabilities] };
+    if (action === 'raw') {
+      const { method, body } = args as { method: string; body: OrbitValue };
+      return { ok: true, value: await client.request(method, body) };
+    }
+    const area = action.split('.')[0] as 'window' | 'menu' | 'app' | 'appearance';
+    const calls = desktop[area] as unknown as Record<string, (value?: unknown) => Promise<OrbitValue>>;
+    try {
+      const value = await calls[action.split('.')[1]!]!(args);
+      return { ok: true, value: value ?? null };
+    } catch (error) {
+      if (error instanceof DesktopError) return { ok: false, code: error.code, message: error.message };
+      throw error;
+    }
   });
   client.onPropsChange(() => client.bus.$emit('props-changed'));
   client.onVisibilityChange(visible => client.bus.$emit('visible', visible));

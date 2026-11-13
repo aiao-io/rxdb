@@ -19,6 +19,7 @@ export default defineConfig({
         index: 'src/index.ts',
         client: 'src/client.ts',
         window: 'src/window.ts',
+        desktop: 'src/desktop.ts',
         react: 'src/react.ts',
         vue: 'src/vue.ts',
         angular: 'src/angular.ts'

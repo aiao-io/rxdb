@@ -12,36 +12,60 @@ function withTimeout(promise, milliseconds, label) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
-const describeError = error => (error instanceof Error ? error.message : String(error));
+/** 异常消息加上检查组文件里出错的位置，一眼看出是哪一步。 */
+function describeError(error) {
+  if (!(error instanceof Error)) return String(error);
+  const where = error.stack?.match(/(groups\/[\w-]+\.mjs:\d+)/)?.[1];
+  return where ? `${error.message}（${where}）` : error.message;
+}
 
 /**
  * 跑一个检查组：给它独立的浏览器上下文（独立的 OPFS 与站点数据），收集页面错误，核对它声明的检查项键。
  * 检查组抛错、缺检查项、多出未声明的检查项、检查项没通过、出现页面错误，都记为 `problems`。
  *
- * @param {object} group 检查组：`{ name, keys, run(session), standins?, timeout? }`
+ * @param {object} group 检查组：`{ name, keys, run(session), standins?, context?, timeout? }`（`context` 是该组要求的浏览器上下文选项，例如窄屏视口与触屏）
  * @param {{ browser: import('playwright').Browser, origin: string, engine?: string }} environment
  */
 export async function runGroup(group, { browser, origin, distRoot, engine = 'chromium' }) {
   const startedAt = performance.now();
-  const outcome = { group: group.name, result: {}, problems: [], seconds: 0 };
+  const outcome = {
+    group: group.name,
+    result: {},
+    problems: [],
+    /* 结构化的问题（已知限制的判定用）：未通过的键、缺失的键、检查组异常、页面错误。 */
+    failedKeys: [],
+    missingKeys: [],
+    extraKeys: [],
+    crashed: null,
+    pageErrors: [],
+    seconds: 0
+  };
   const session = await createSession({
     browser,
     origin,
     distRoot,
     engine,
     label: group.name,
-    standins: group.standins
+    standins: group.standins,
+    context: group.context
   });
   try {
     outcome.result = await withTimeout(group.run(session), group.timeout ?? DEFAULT_TIMEOUT, `检查组 ${group.name}`);
     const { missing, extra } = compareKeys(group.keys, flattenKeys(outcome.result));
+    outcome.missingKeys.push(...missing);
+    outcome.extraKeys.push(...extra);
     for (const key of missing) outcome.problems.push(`缺少检查项 ${key}`);
     for (const key of extra) outcome.problems.push(`多出未声明的检查项 ${key}`);
-    for (const key of failedChecks(outcome.result))
+    for (const key of failedChecks(outcome.result)) {
+      outcome.failedKeys.push(key);
       outcome.problems.push(`检查项未通过：${key} = ${JSON.stringify(valueAt(outcome.result, key))}`);
+    }
   } catch (error) {
-    outcome.problems.push(`检查组异常：${describeError(error)}`);
+    outcome.crashed = describeError(error);
+    outcome.missingKeys.push(...group.keys);
+    outcome.problems.push(`检查组异常：${outcome.crashed}`);
   } finally {
+    outcome.pageErrors.push(...session.errors);
     if (session.errors.length) outcome.problems.push(`页面错误：${session.errors.join(' | ')}`);
     await session.close().catch(() => undefined);
     outcome.seconds = (performance.now() - startedAt) / 1000;

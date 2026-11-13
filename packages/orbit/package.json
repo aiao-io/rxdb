@@ -26,6 +26,12 @@
       "import": "./dist/window.js",
       "default": "./dist/window.js"
     },
+    "./desktop": {
+      "@aiao/source": "./src/desktop.ts",
+      "types": "./dist/desktop.d.ts",
+      "import": "./dist/desktop.js",
+      "default": "./dist/desktop.js"
+    },
     "./react": {
       "@aiao/source": "./src/react.ts",
       "types": "./dist/react.d.ts",

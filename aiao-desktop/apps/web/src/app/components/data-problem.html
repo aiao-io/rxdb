@@ -1,12 +1,6 @@
 @if (view(); as problem) {
   <div class="dp-scrim" data-data-problem>
-    <div
-      class="dp-card"
-      aria-describedby="dp-message"
-      aria-labelledby="dp-title"
-      aria-modal="true"
-      role="alertdialog"
-    >
+    <div class="dp-card" aria-describedby="dp-message" aria-labelledby="dp-title" aria-modal="true" role="alertdialog">
       <h1 id="dp-title" data-dp-title>{{ problem.title }}</h1>
       <p id="dp-message" data-dp-message>{{ problem.message }}</p>
       @if (problem.details.length) {
@@ -29,8 +23,8 @@
           Erase all local data for this site? Your files, settings and app data will be permanently removed.
         </p>
         <div class="dp-actions">
-          <button class="btn" (click)="cancel()" [disabled]="erasing()" data-dp-cancel type="button">Cancel</button>
-          <button class="btn danger" (click)="erase()" [disabled]="erasing()" data-dp-erase type="button">
+          <button class="btn" [disabled]="erasing()" (click)="cancel()" data-dp-cancel type="button">Cancel</button>
+          <button class="btn danger" [disabled]="erasing()" (click)="erase()" data-dp-erase type="button">
             {{ erasing() ? 'Erasing…' : 'Erase and Restart' }}
           </button>
         </div>

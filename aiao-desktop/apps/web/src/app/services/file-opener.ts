@@ -59,7 +59,8 @@ export class FileOpener {
   private async launchPackage(node: FsNode): Promise<void> {
     const resolution = await this.catalog.resolve(node, path => this.fs.readText(path));
     if (resolution.kind === 'app') this.launcher.activate(resolution.id);
-    else if (resolution.kind === 'offline') this.toast.show(`The application “${resolution.name}” is no longer available.`);
+    else if (resolution.kind === 'offline')
+      this.toast.show(`The application “${resolution.name}” is no longer available.`);
     else this.toast.show(`${node.name} cannot open on this Mac.`);
   }
 }

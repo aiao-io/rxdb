@@ -1,8 +1,8 @@
 import { EventBus } from './bus.js';
-import { aborted, checkTimeout, destroyed, OrbitError } from './errors.js';
+import { aborted, checkTimeout, destroyed, OrbitError, OrbitProtocolError } from './errors.js';
 import { isRecord } from './payload.js';
 import type { Message } from './protocol.js';
-import { CHANNEL_PARAM, PROTOCOL, readContext, readMessage } from './protocol.js';
+import { CHANNEL_PARAM, parseProtocol, PROTOCOL, PROTOCOL_VERSION, readContext, readMessage } from './protocol.js';
 import { Rpc } from './rpc.js';
 import type {
   OrbitClient,
@@ -179,6 +179,19 @@ class Client implements OrbitClient {
   }
 }
 
+/**
+ * 宿主对 hello 的拒绝：应用声明的协议版本高于宿主支持的版本时，宿主不建立端口，而是发来这条通知。
+ * 通知要带本次握手的令牌，数字字段是正整数；应用声明的版本以本 SDK 的为准，不信通知里的回显。
+ */
+function readRefusal(data: Record<string, unknown>, channel: string): OrbitProtocolError | undefined {
+  if (data['type'] !== 'incompatible' || data['channel'] !== channel || parseProtocol(data['protocol']) === undefined)
+    return undefined;
+  const { supported, requested } = data;
+  const positive = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) >= 1;
+  if (!positive(supported) || requested !== PROTOCOL_VERSION) return undefined;
+  return new OrbitProtocolError(PROTOCOL_VERSION, supported);
+}
+
 /** 连接仓内桌面宿主；独立页面和普通 iframe 立即返回 undefined，业务路由须在握手后初始化。 */
 export async function connectOrbitClient(options: OrbitClientOptions = {}): Promise<OrbitClient | undefined> {
   if (typeof window === 'undefined' || window.parent === window) return undefined;
@@ -204,6 +217,12 @@ export async function connectOrbitClient(options: OrbitClientOptions = {}): Prom
     }, timeout);
     const init = (event: MessageEvent<unknown>) => {
       if (event.source !== window.parent || !isRecord(event.data)) return;
+      const refusal = readRefusal(event.data, channel);
+      if (refusal) {
+        cleanup();
+        reject(refusal);
+        return;
+      }
       if (
         event.data['protocol'] !== PROTOCOL ||
         event.data['type'] !== 'init' ||

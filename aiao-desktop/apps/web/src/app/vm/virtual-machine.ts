@@ -5,8 +5,8 @@ import { Subscription } from 'rxjs';
 import { fileKind } from '../disk/disk-kinds';
 import { DISK_ROOTS, HOME, finderPathOf, fromVmPath, parentOf, toVmPath } from '../disk/disk-path';
 import { FsNode } from '../disk/disk-tree';
-import { DESKTOP_APPS } from '../services/desktop-apps';
 import { ApplicationCatalog } from '../services/application-catalog';
+import { DESKTOP_APPS } from '../services/desktop-apps';
 import { FileOpener } from '../services/file-opener';
 import { FileSystem, describeDiskError } from '../services/file-system';
 import { Toast } from '../services/toast';
@@ -43,6 +43,12 @@ interface Machine {
 /**
  * 页面里唯一的一台 Vivari 虚拟机：所有终端窗口与标签共用它（像一台机器开多个终端）。
  * 第一个标签开机，开机时把 Macintosh HD 复制进去；最后一个标签关掉时把终端的改动写回磁盘再拆掉。
+ *
+ * 每个浏览器标签页各有自己的一台（ADESK-US-105）。Vivari 1.3.0 把虚拟机文件系统的镜像写在 OPFS 的 `vv-vfs`
+ * （目录名写死在它的工作线程里，没有按实例分区的选项），所有标签页的虚拟机共用这一份，镜像的索引由它自己用 Web Lock
+ * 合并。实测两个标签页同时开机、同时往镜像里写各自的文件、一个先关掉另一个继续用，都没有出现覆盖、损坏或开机失败，
+ * 各自的文件在重开的虚拟机里都在，所以不另做分区。共用镜像不影响磁盘：卷里的内容每次开机都由 `DiskVmSync.attach`
+ * 先清掉镜像恢复出来的旧内容，再以库为准重新挂载；只有卷之外的路径（例如 `/home/user`）会在各台虚拟机之间共用。
  */
 @Service({ autoProvided: false })
 export class VirtualMachine {

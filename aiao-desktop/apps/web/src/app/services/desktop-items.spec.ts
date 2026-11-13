@@ -1,5 +1,6 @@
-import { signal } from '@angular/core';
+import { ErrorHandler, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { Subject } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 
 import { Preferences } from '../data/preferences';
@@ -35,10 +36,19 @@ function setup({ entries = [], saved, preferencesFail = false }: Options = {}) {
   const wm = createWindowManagerStub();
   const opener = { open: vi.fn() };
   const toast = { show: vi.fn() };
+  const errors = { handleError: vi.fn() };
+  /** 库里现存的位置；别的标签页改了它之后，用 `remote()` 通知。 */
+  let stored = saved;
+  const external = new Subject<readonly string[]>();
   const preferences = {
     ready: preferencesFail ? Promise.reject(new Error('库不可用')) : Promise.resolve(),
-    get: vi.fn(() => saved),
+    external$: external.asObservable(),
+    get: vi.fn(() => stored),
     set: vi.fn(async () => undefined)
+  };
+  const remote = (next: unknown, keys: readonly string[] = [CELLS_KEY]): void => {
+    stored = next;
+    external.next(keys);
   };
   configureServices([
     DesktopItems,
@@ -46,9 +56,10 @@ function setup({ entries = [], saved, preferencesFail = false }: Options = {}) {
     { provide: WindowManager, useValue: wm },
     { provide: FileOpener, useValue: opener },
     { provide: Toast, useValue: toast },
-    { provide: Preferences, useValue: preferences }
+    { provide: Preferences, useValue: preferences },
+    { provide: ErrorHandler, useValue: errors }
   ]);
-  return { items: TestBed.inject(DesktopItems), desktop, fs, wm, opener, toast, preferences, root };
+  return { items: TestBed.inject(DesktopItems), desktop, fs, wm, opener, toast, preferences, root, remote, errors };
 }
 
 /** 等 `preferences.ready` 上登记的回调跑完。 */
@@ -112,6 +123,26 @@ describe('DesktopItems 桌面图标', () => {
     const { items } = setup({ entries: [fileNode('a.txt')], saved: { hd: [3, 3], 'file:a.txt': [4, 1] } });
     await settled();
     expect(cellsByName(items)).toEqual({ 'Macintosh HD': [3, 3], 'a.txt': [4, 1] });
+  });
+
+  it('别的标签页拖了图标：收到变更后这边的图标跟着挪（位置跨标签页共享），别的键变了不动', async () => {
+    const { items, remote } = setup({ entries: [fileNode('a.txt')], saved: { hd: [3, 3] } });
+    await settled();
+    expect(cellsByName(items)['a.txt']).toEqual([0, 1]);
+
+    remote({ hd: [3, 3], 'file:a.txt': [5, 2] }, ['dock:layout']);
+    expect(cellsByName(items)['a.txt']).toEqual([0, 1]);
+    remote({ hd: [3, 3], 'file:a.txt': [5, 2] });
+    expect(cellsByName(items)).toEqual({ 'Macintosh HD': [3, 3], 'a.txt': [5, 2] });
+  });
+
+  it('位置写进系统偏好失败：交给 ErrorHandler 报告，不吞掉', async () => {
+    const { items, preferences, errors } = setup({ entries: [fileNode('a.txt')] });
+    const failure = new Error('disk full');
+    preferences.set.mockRejectedValueOnce(failure);
+    items.move('file:a.txt', [2, 4]);
+    await settled();
+    expect(errors.handleError).toHaveBeenCalledExactlyOnceWith(failure);
   });
 
   it('偏好库不可用时保持默认排布，不报错', async () => {

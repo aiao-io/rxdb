@@ -1,4 +1,6 @@
-import { Service, computed, inject, linkedSignal, signal } from '@angular/core';
+import { ErrorHandler, Service, computed, inject, linkedSignal, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { filter } from 'rxjs';
 
 import { Preferences } from '../data/preferences';
 import { DESKTOP, VOLUME_NAME, finderPathOf } from '../disk/disk-path';
@@ -75,6 +77,7 @@ export class DesktopItems {
   private readonly opener = inject(FileOpener);
   private readonly toast = inject(Toast);
   private readonly preferences = inject(Preferences);
+  private readonly errors = inject(ErrorHandler);
   private readonly entries = computed(() => visibleChildren(this.fs.nodeAt(DESKTOP)));
   private readonly cells = linkedSignal<readonly FsNode[], ReadonlyMap<string, DesktopCell>>({
     source: this.entries,
@@ -110,12 +113,16 @@ export class DesktopItems {
 
   constructor() {
     this.preferences.ready.then(
-      () => {
-        const saved = this.preferences.get(CELLS_KEY, isCellMap);
-        if (saved) this.cells.update(cells => new Map([...cells, ...Object.entries(saved)]));
-      },
+      () => this.restoreCells(),
       () => undefined
     );
+    /* 图标位置跨标签页共享（ADESK-US-105）：别的标签页拖了图标，这边跟着挪。 */
+    this.preferences.external$
+      .pipe(
+        filter(keys => keys.includes(CELLS_KEY)),
+        takeUntilDestroyed()
+      )
+      .subscribe(() => this.restoreCells());
   }
 
   /** 在 ~/Desktop 里新建文件夹；成功后选中它。 */
@@ -128,7 +135,9 @@ export class DesktopItems {
 
   move(id: string, cell: DesktopCell): void {
     this.cells.update(cells => new Map(cells).set(id, cell));
-    this.preferences.set(CELLS_KEY, Object.fromEntries(this.cells())).catch(() => undefined);
+    this.preferences
+      .set(CELLS_KEY, Object.fromEntries(this.cells()))
+      .catch((error: unknown) => this.errors.handleError(error));
   }
 
   /** 把图标对应的条目移进废纸篓；Macintosh HD 不能移走。失败时提示原因并返回 `false`。 */
@@ -145,6 +154,12 @@ export class DesktopItems {
       this.toast.show(describeDiskError(error));
       return false;
     }
+  }
+
+  /** 用偏好里存着的位置覆盖当前的位置（启动时，以及别的标签页拖动图标之后）。 */
+  private restoreCells(): void {
+    const saved = this.preferences.get(CELLS_KEY, isCellMap);
+    if (saved) this.cells.update(cells => new Map([...cells, ...Object.entries(saved)]));
   }
 
   private openNode(node: FsNode): void {

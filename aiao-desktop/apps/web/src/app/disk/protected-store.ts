@@ -40,6 +40,11 @@ export class ProtectedDiskStore implements DiskStore {
     await this.inner.write(file, data);
   }
 
+  async replace(file: DiskPath, data: Uint8Array): Promise<void> {
+    assertUnprotected(this.owned(), { kind: 'write', path: file });
+    await this.inner.replace(file, data);
+  }
+
   async remove(path: DiskPath): Promise<void> {
     assertUnprotected(this.owned(), { kind: 'remove', path });
     await this.inner.remove(path);

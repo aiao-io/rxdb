@@ -23,6 +23,40 @@
         "command": "node src/smoke.mjs"
       }
     },
+    "e2e-firefox": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        {
+          "projects": ["aiao-desktop-web"],
+          "target": "build"
+        },
+        {
+          "projects": ["orbit"],
+          "target": "build"
+        }
+      ],
+      "options": {
+        "cwd": "aiao-desktop/apps/e2e",
+        "command": "node src/smoke.mjs --engine=firefox"
+      }
+    },
+    "e2e-webkit": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        {
+          "projects": ["aiao-desktop-web"],
+          "target": "build"
+        },
+        {
+          "projects": ["orbit"],
+          "target": "build"
+        }
+      ],
+      "options": {
+        "cwd": "aiao-desktop/apps/e2e",
+        "command": "node src/smoke.mjs --engine=webkit"
+      }
+    },
     "e2e-fixtures": {
       "executor": "nx:run-commands",
       "dependsOn": [
@@ -68,6 +102,20 @@
       "options": {
         "cwd": "aiao-desktop/apps/e2e",
         "command": "node src/verify-aiao-code.mjs"
+      }
+    },
+    "verify-keyboard": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [
+        {
+          "projects": ["aiao-desktop-web"],
+          "target": "build"
+        }
+      ],
+      "options": {
+        "cwd": "aiao-desktop/apps/e2e",
+        "command": "node src/verify-keyboard.mjs"
       }
     },
     "verify-saltline": {

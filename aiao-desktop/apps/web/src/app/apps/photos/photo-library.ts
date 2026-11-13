@@ -30,7 +30,8 @@ export class PhotoLibrary {
 
   private readonly rows = liveQuery(
     () => PhotoAsset.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
-    null as PhotoAsset[] | null
+    null as PhotoAsset[] | null,
+    PhotoAsset
   );
 
   /** 全部照片，导入的在最前面。 */
@@ -40,7 +41,8 @@ export class PhotoLibrary {
   /** 全部相簿，按名字排序。 */
   readonly albums = liveQuery(
     () => PhotoAlbum.findAll({ where: ALL_ROWS, orderBy: [{ field: 'name', sort: 'asc' }] }),
-    []
+    [],
+    PhotoAlbum
   );
 
   /** 切换收藏，返回切换后的状态。 */

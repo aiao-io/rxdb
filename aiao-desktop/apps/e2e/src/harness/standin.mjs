@@ -9,10 +9,21 @@ export const STANDIN_ORIGIN = 'https://vscode.aiao.io';
 
 /**
  * 替身应用（ADESK-US-202）：顶替集成应用 Aiao Code 的入口 https://vscode.aiao.io/，按真实的接入契约
- * 返回 COEP 与 CORP，并用 Orbit 客户端握手。`mode`：standard 保留桌面的标题栏；transparent 隐藏桌面的
- * 标题栏、自己画红黄绿与拖动区（ADESK-US-204）；fail 启动时自报失败；offline 入口请求失败。
+ * 返回 COEP 与 CORP，并用 Orbit 客户端握手。`mode`：
+ *
+ * - `standard` 保留桌面的标题栏；
+ * - `transparent` 隐藏桌面的标题栏、自己画红黄绿与拖动区（ADESK-US-204）；
+ * - `fail` 启动时自报失败；
+ * - `offline` 入口请求失败；
+ * - `hold` 握手后不报告就绪，等测试经 `window.standin.release()` 放行（ADESK-US-206 AC#3、#14、#18：控制 ready 的时机）；
+ * - `future` 声明比桌面支持的更高的协议版本（`aiao.orbit:99`，模拟用更新的 SDK 构建的应用，AC#10），不经本仓的 SDK 握手，
+ *   收到宿主的不兼容通知后记进 `window.standin.notices` 并打到控制台。
+ *
+ * 每个模式的页面里，`window.standin` 给测试用：`call(路径, 参数)` 经 `getDesktop` 调桌面能力并把成功值或稳定错误码当结果返回，
+ * `raw(方法, 请求体)` 直接发一条 Orbit 请求（绕过 SDK，测宿主侧校验与实例绑定），`desktop` 记录宿主推来的能力事件，
+ * `instance` 是桌面给这个实例的实例 ID，`ordinal` 是这是替身的第几次文档加载。
  */
-const standinPage = mode => `<!doctype html>
+const standinPage = (mode, ordinal) => `<!doctype html>
 <html lang="en">
   <head><meta charset="utf-8" /><title>Aiao Code stand-in</title></head>
   <body style="margin: 0; font: 14px system-ui">
@@ -25,33 +36,80 @@ const standinPage = mode => `<!doctype html>
     </header>
     <textarea data-standin-input style="width: 90%; height: 120px"></textarea>
     <script type="module">
+      ${mode === 'future' ? futureScript(ordinal) : mainScript(mode, ordinal)}
+    </script>
+  </body>
+</html>`;
+
+/** 声明更高协议版本的应用：自己发握手，收到不兼容通知就记下来。 */
+const futureScript = ordinal => `
+      const channel = new URL(location.href).searchParams.get('__aiao_orbit');
+      window.standin = { id: crypto.randomUUID(), ordinal: ${ordinal}, notices: [] };
+      addEventListener('message', event => {
+        if (event.source !== parent || event.data?.type !== 'incompatible') return;
+        window.standin.notices.push(event.data);
+        console.log('[standin] incompatible ' + JSON.stringify({ supported: event.data.supported, requested: event.data.requested }));
+      });
+      parent.postMessage({ protocol: 'aiao.orbit:99', type: 'hello', channel }, '*');`;
+
+const mainScript = (mode, ordinal) => `
       import { connectOrbitClient } from './__standin/orbit/client.js';
       import { getCurrentWindow } from './__standin/orbit/window.js';
+      import { getDesktop } from './__standin/orbit/desktop.js';
       const client = await connectOrbitClient();
       const appWindow = getCurrentWindow(client);
-      const state = { id: crypto.randomUUID(), visibility: [], window: [] };
+      const desktop = getDesktop(client);
+      const state = {
+        id: crypto.randomUUID(),
+        ordinal: ${ordinal},
+        instance: client.context.instanceId,
+        visibility: [],
+        window: [],
+        desktop: []
+      };
       window.standin = state;
       client.onVisibilityChange(visible => state.visibility.push(visible));
       appWindow.onStateChange(next => state.window.push(next));
+      desktop.window.onStateChange(next => state.desktop.push({ event: 'window', state: next }));
+      desktop.menu.onCommand(commandId => state.desktop.push({ event: 'command', commandId }));
+      desktop.appearance.onChange(next => state.desktop.push({ event: 'appearance', appearance: next }));
+      /* 经统一的能力接口调用，把成功值或稳定错误码当结果交给测试。 */
+      state.call = async (path, args) => {
+        const [area, name] = path.split('.');
+        try {
+          const value = await desktop[area][name](args);
+          return { ok: true, value: value ?? null };
+        } catch (error) {
+          return { ok: false, name: error?.name, code: error?.code, message: String(error?.message ?? error) };
+        }
+      };
+      /* 直接发一条 Orbit 请求，不经 SDK 的参数整理。 */
+      state.raw = (method, body) =>
+        client.request(method, body).then(
+          value => ({ ok: true, value }),
+          error => ({ ok: false, name: error?.name, code: error?.code, message: String(error?.message ?? error) })
+        );
+      state.release = () => client.ready();
       const actions = { close: () => appWindow.close(), minimize: () => appWindow.minimize(), maximize: () => appWindow.toggleMaximize() };
       for (const button of document.querySelectorAll('[data-standin-window]'))
         button.addEventListener('click', () => actions[button.dataset.standinWindow]());
       /* 跨源 iframe 没有用户激活时不能自己抢焦点；等桌面把焦点交过来再落到输入框。 */
       addEventListener('focus', () => document.querySelector('[data-standin-input]').focus());
       ${mode === 'transparent' ? 'appWindow.trackDragRegions(document); await appWindow.setDecorations(false);' : ''}
-      ${mode === 'fail' ? "client.fail('stand-in failed on purpose');" : 'setTimeout(() => client.ready(), 600);'}
-    </script>
-  </body>
-</html>`;
+      ${
+        mode === 'fail' ? "client.fail('stand-in failed on purpose');"
+        : mode === 'hold' ? ''
+        : 'setTimeout(() => client.ready(), 600);'
+      }`;
 
 /**
- * 在上下文里装上 Aiao Code 的替身。返回的控制器用 `mode` 切换替身的行为：
- * `standard` | `transparent` | `fail` | `offline`。
+ * 在上下文里装上 Aiao Code 的替身。返回的控制器用 `mode` 切换替身的行为（见 {@link standinPage}），
+ * `documents` 记录替身的入口文档被请求过几次（每次打开窗口或重试各一次）。
  *
  * @param {import('playwright').BrowserContext} context
  */
 export async function installAiaoCodeStandin(context) {
-  const standin = { mode: 'standard' };
+  const standin = { mode: 'standard', documents: 0 };
   await context.route(`${STANDIN_ORIGIN}/**`, route => {
     const url = new URL(route.request().url());
     if (url.pathname.startsWith('/__standin/orbit/')) {
@@ -63,6 +121,7 @@ export async function installAiaoCodeStandin(context) {
       });
     }
     if (standin.mode === 'offline') return route.abort('internetdisconnected');
+    standin.documents += 1;
     return route.fulfill({
       status: 200,
       headers: {
@@ -70,7 +129,7 @@ export async function installAiaoCodeStandin(context) {
         'Cross-Origin-Embedder-Policy': 'require-corp',
         'Cross-Origin-Resource-Policy': 'cross-origin'
       },
-      body: standinPage(standin.mode)
+      body: standinPage(standin.mode, standin.documents)
     });
   });
   return standin;

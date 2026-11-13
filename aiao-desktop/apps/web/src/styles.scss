@@ -6644,3 +6644,13 @@ svg {
   font-size: 11.5px;
   line-height: 1.45;
 }
+
+/*
+ * 触摸（ADESK-US-005）：窗口标题栏与缩放把手要把触摸交给页面的指针事件，否则浏览器会把拖动当成页面滚动，
+ * 发出 pointercancel，窗口拖不动。只作用在窗口里的拖动区与缩放把手，窗口内容区的滚动不受影响。
+ */
+.win [data-drag],
+.win .rz,
+#dock .di {
+  touch-action: none;
+}

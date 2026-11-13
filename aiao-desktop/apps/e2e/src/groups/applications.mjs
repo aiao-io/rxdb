@@ -101,7 +101,9 @@ export const applications = {
     await win('vscode').locator('[data-webapp-retry]').click();
     result.aiaoCodePackageRetries = await appears(win('vscode').locator('.webapp[data-webapp-state="ready"]'), 15_000);
 
-    /* 刷新后每个应用仍只有一个包（对账幂等，不重复补写）。 */
+    /* 刷新后每个应用仍只有一个包（对账幂等，不重复补写）。刷新会把开着的窗口恢复出来（ADESK-US-104），
+     * 先全关掉，刷新后就是一个默认的 Finder，不会有恢复出来的 Aiao Code 窗口盖在它上面。 */
+    await closeAll();
     await page.reload({ waitUntil: 'load' });
     await win('finder').waitFor();
     const again = win('finder').last();

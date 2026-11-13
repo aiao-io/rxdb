@@ -35,7 +35,8 @@ type Range = (typeof RANGES)[number][0];
 export class StocksApp {
   private readonly watchlist = liveQuery(
     () => WatchlistSymbol.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
-    []
+    [],
+    WatchlistSymbol
   );
 
   protected readonly ranges = RANGES;

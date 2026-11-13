@@ -24,11 +24,13 @@ export class MessagesStore {
   private readonly data = inject(DesktopData);
   private readonly threads = liveQuery(
     () => ChatThread.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
-    []
+    [],
+    ChatThread
   );
   private readonly lines = liveQuery(
     () => ChatMessage.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
-    []
+    [],
+    ChatMessage
   );
 
   /** 全部会话（最新建的在最前）连同各自的消息（按发送顺序）。 */

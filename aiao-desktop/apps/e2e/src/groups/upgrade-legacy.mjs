@@ -10,6 +10,18 @@ const withoutClock = markers => Object.fromEntries(Object.entries(markers).filte
 const pause = milliseconds => new Promise(done => setTimeout(done, milliseconds));
 
 /**
+ * 数据域在第一次被读取时才补种子（ADESK-US-206，D-18）：打开时钟应用读它，等四座城市出现，种子才算写完。
+ * 升级只补建表，不再在启动时给每个新数据域写种子。
+ */
+async function readClockDomain(desktop) {
+  const { launch, closeAll } = desktop.helpers;
+  await closeAll();
+  await launch('Clock');
+  await desktop.page.locator('.win[data-app="clock"] [data-ct]').nth(3).waitFor({ timeout: 15_000 });
+  await closeAll();
+}
+
+/**
  * 旧库升级（ADESK-US-106 AC#1、#2、#4、#6）：用夹具把库改成此前发布的构建建出来的样子（删掉版本记录），
  * 再用当前构建打开，核对数据保留、版本记录写入、新数据域补种子一次、升级被打断后的完整性与可重复。
  * 此前所有发布的构建建的库都没有版本记录，删掉记录就是它们的状态；真实的旧产物另在验收台账里手工对照一次。
@@ -67,6 +79,7 @@ export const upgradeLegacy = {
     });
     desktop = await session.openDesktopPage();
     const keptAfterDomain = await readUserData(desktop.page, desktop.helpers);
+    await readClockDomain(desktop);
     await desktop.page.close();
     const seeded = await surgery(session, async db => ({
       record: await db.record(),
@@ -148,6 +161,7 @@ export const upgradeLegacy = {
     /* 被打断之后再正常打开：升级完成，数据完整，种子行数与单次种子一致，没有重复。 */
     desktop = await session.openDesktopPage();
     const keptAfterInterrupts = await readUserData(desktop.page, desktop.helpers);
+    await readClockDomain(desktop);
     await desktop.page.close();
     const recovered = await surgery(session, async db => ({
       record: await db.record(),

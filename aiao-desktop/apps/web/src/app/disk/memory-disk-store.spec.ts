@@ -46,6 +46,29 @@ describe('MemoryDiskStore', () => {
     expect(await store.info(['Trash', 'Docs', 'draft.md'])).toEqual({ size: 5, modified: 10 });
   });
 
+  it('replace 只覆盖已有文件：更新内容与修改时间，不创建文件、不补建父目录', async () => {
+    let now = 10;
+    const store = new MemoryDiskStore(() => now);
+    await store.write(['Docs', 'a.txt'], text('v1'));
+    now = 50;
+
+    await store.replace(['Docs', 'a.txt'], text('version two'));
+    expect(new TextDecoder().decode(await store.read(['Docs', 'a.txt']))).toBe('version two');
+    expect(await store.info(['Docs', 'a.txt'])).toEqual({ size: 11, modified: 50 });
+
+    await expect(store.replace(['Docs', 'ghost.txt'], text('x'))).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(store.replace(['Gone', 'deep.txt'], text('x'))).rejects.toMatchObject({ code: 'ENOENT' });
+    expect(await store.list(['Docs'])).toEqual([{ name: 'a.txt', kind: 'file' }]);
+    expect(await store.kindOf(['Gone'])).toBeNull();
+  });
+
+  it('replace 的目标是目录抛 EISDIR，卷根抛 EACCES', async () => {
+    const store = new MemoryDiskStore();
+    await store.mkdir(['Docs']);
+    await expect(store.replace(['Docs'], text('x'))).rejects.toMatchObject({ code: 'EISDIR' });
+    await expect(store.replace([], text('x'))).rejects.toMatchObject({ code: 'EACCES' });
+  });
+
   it('move 的目标已存在时抛 EEXIST', async () => {
     const store = new MemoryDiskStore();
     await store.write(['a.txt'], text('a'));

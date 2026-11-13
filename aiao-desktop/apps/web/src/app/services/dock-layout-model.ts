@@ -28,8 +28,7 @@ export interface DockLayout {
 
 /** Dock 里实际显示的一格：固定项，或本标签页正在运行但未固定的临时项，或分隔线。 */
 export type DockSlotItem =
-  | { readonly type: 'app'; readonly id: DesktopAppId; readonly temporary: boolean }
-  | DockDividerItem;
+  { readonly type: 'app'; readonly id: DesktopAppId; readonly temporary: boolean } | DockDividerItem;
 
 const DIVIDER: DockDividerItem = { type: 'divider' };
 const appItem = (id: DesktopAppId): DockAppItem => ({ type: 'app', id });
@@ -49,6 +48,7 @@ export function pinnedApps(layout: DockLayout): DesktopAppId[] {
   return layout.items.flatMap(item => (item.type === 'app' ? [item.id] : []));
 }
 
+/** 应用是否已固定在 Dock 里。 */
 export function isPinned(layout: DockLayout, appId: DesktopAppId): boolean {
   return layout.items.some(item => item.type === 'app' && item.id === appId);
 }
@@ -97,7 +97,12 @@ export function repairLayout(raw: unknown, manifests: DesktopAppManifests): Dock
  * 固定一个应用。`index` 是插入位置（该位置原来的项后移），不给就放在所属区域的末尾（应用区是分隔线之前）；
  * 被夹在所属区域之内，应用不会越过分隔线。已固定、或不能固定的应用不改动，返回原布局。
  */
-export function pin(layout: DockLayout, appId: DesktopAppId, index: number | undefined, manifests: DesktopAppManifests): DockLayout {
+export function pin(
+  layout: DockLayout,
+  appId: DesktopAppId,
+  index: number | undefined,
+  manifests: DesktopAppManifests
+): DockLayout {
   if (isPinned(layout, appId) || !isPinnable(manifests, appId)) return layout;
   const [start, end] = zoneRange(layout, zoneOf(manifests, appId));
   const at = index === undefined ? end : clamp(index, start, end);
@@ -114,7 +119,12 @@ export function unpin(layout: DockLayout, appId: DesktopAppId, manifests: Deskto
  * 调整固定应用的顺序。`toIndex` 是先把它取出之后要插入的位置（与 {@link slotIndexAt} 在“去掉被拖应用”的布局上算出的槽位一致），
  * 被夹在所属区域之内。没固定、或落在原位置时返回原布局。
  */
-export function move(layout: DockLayout, appId: DesktopAppId, toIndex: number, manifests: DesktopAppManifests): DockLayout {
+export function move(
+  layout: DockLayout,
+  appId: DesktopAppId,
+  toIndex: number,
+  manifests: DesktopAppManifests
+): DockLayout {
   const from = layout.items.findIndex(item => item.type === 'app' && item.id === appId);
   if (from < 0) return layout;
   const rest = { ...layout, items: layout.items.filter((_, index) => index !== from) };
@@ -134,8 +144,8 @@ export function temporaryApps(
 
 /** 屏幕上的格子：临时项接在最后一个固定应用之后、分隔线之前；运行态只叠加显示，不改固定顺序。 */
 export function dockSlots(layout: DockLayout, temporary: readonly DesktopAppId[]): DockSlotItem[] {
-  const slots = layout.items.map(
-    (item): DockSlotItem => (item.type === 'app' ? { type: 'app', id: item.id, temporary: false } : item)
+  const slots = layout.items.map((item): DockSlotItem =>
+    item.type === 'app' ? { type: 'app', id: item.id, temporary: false } : item
   );
   const extra = temporary.map((id): DockSlotItem => ({ type: 'app', id, temporary: true }));
   slots.splice(dividerIndex(layout), 0, ...extra);

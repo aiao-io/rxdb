@@ -61,7 +61,8 @@ export class RemindersApp {
           { field: 'createdAt', sort: 'desc' }
         ]
       }),
-    []
+    [],
+    Reminder
   );
   private readonly drafts = signal<readonly ReminderDraft[]>([]);
   private seq = 0;

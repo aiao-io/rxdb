@@ -1,3 +1,4 @@
+import { ErrorHandler } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -5,6 +6,7 @@ import { DESKTOP_APP_MANIFESTS } from '../apps/app-manifests';
 import { DesktopData } from '../data/desktop-data';
 import { Preferences } from '../data/preferences';
 import { SystemPreference } from '../data/system-preference.entity';
+import { TabSync } from '../data/tab-sync';
 import { LEGACY_APP_IDS, bundleDirName } from '../disk/application-projection';
 import { DesktopFile } from '../disk/desktop-file.entity';
 import { DESKTOP, DISK_ROOTS, DiskPath, HOME, TRASH } from '../disk/disk-path';
@@ -15,6 +17,7 @@ import { RxdbDiskStore } from '../disk/rxdb-disk-store';
 import { configureServices } from '../testing/angular';
 import { stubLocks } from '../testing/browser';
 import { FakeDesktopData, restoreEntityStubs, stubFindAll } from '../testing/fake-desktop-data';
+import { FakeChannelHub, FakeLifecycle } from '../testing/fake-tab-sync';
 import { ApplicationCatalog } from './application-catalog';
 import { DESKTOP_APPS, applicationManifests } from './desktop-apps';
 import { FileSystem, HOME_PATH, PLACES, describeDiskError } from './file-system';
@@ -45,18 +48,20 @@ function setup({ data = new FakeDesktopData(), readyError, recents }: Options = 
       stored.set(key, value);
     })
   };
+  const errors = { handleError: vi.fn() };
   configureServices([
     FileSystem,
     ApplicationCatalog,
     { provide: DESKTOP_APPS, useValue: DESKTOP_APP_MANIFESTS },
     { provide: DesktopData, useValue: data },
-    { provide: Preferences, useValue: preferences }
+    { provide: Preferences, useValue: preferences },
+    { provide: ErrorHandler, useValue: errors }
   ]);
   const fs = TestBed.inject(FileSystem);
   const catalog = TestBed.inject(ApplicationCatalog);
   const changes: (readonly DiskPath[])[] = [];
   fs.changes.subscribe(paths => changes.push(paths));
-  return { fs, catalog, data, files, preferences, locks, changes };
+  return { fs, catalog, data, files, preferences, locks, changes, errors };
 }
 
 /** 推进假时钟：活查询合并同一批写入的 30ms 窗口过去，树才会刷新。 */
@@ -92,7 +97,8 @@ async function seedLegacyDisk(data: FakeDesktopData, names: readonly string[]): 
     repository: () => data.repository(DesktopFile) as never,
     instantiate: fields => data.instantiate(DesktopFile, fields) as never,
     storage: () => data.storage as never,
-    now: Date.now
+    now: Date.now,
+    dataVersion: () => data.dataVersion()
   });
   const encode = (value: string): Uint8Array => new TextEncoder().encode(value);
   for (const name of names) {
@@ -328,6 +334,15 @@ describe('FileSystem 查询', () => {
 });
 
 describe('FileSystem 最近使用', () => {
+  it('存进系统偏好失败：交给 ErrorHandler 报告，不吞掉，也不影响打开文件', async () => {
+    const { fs, preferences, errors } = await mounted();
+    const failure = new Error('disk full');
+    preferences.set.mockRejectedValueOnce(failure);
+    fs.noteOpened([...DESKTOP, 'prasenx.txt']);
+    await flush();
+    expect(errors.handleError).toHaveBeenCalledExactlyOnceWith(failure);
+  });
+
   it('没有记录时用初始的五个文件', async () => {
     const { fs } = await mounted();
     expect(fs.recents().map(node => node.name)).toEqual([
@@ -589,5 +604,247 @@ describe('FileSystem 串行队列', () => {
     const read = fs.readText([...DESKTOP, 'prasenx.txt']);
     await flush();
     expect(await read).toContain('prasenx');
+  });
+});
+
+/** 记录「现在有几个任务在独占锁里」的 Web Locks 替身：任务一进锁加一，出锁减一。 */
+function trackLocks() {
+  const state = { held: 0, requests: [] as string[] };
+  vi.stubGlobal('navigator', {
+    locks: {
+      request: async (name: string, task: () => Promise<unknown>) => {
+        state.requests.push(name);
+        state.held++;
+        try {
+          return await task();
+        } finally {
+          state.held--;
+        }
+      }
+    }
+  });
+  return state;
+}
+
+describe('FileSystem 多标签页（ADESK-US-105）', () => {
+  it('挂载时的复制内置内容与应用目录对账都在磁盘锁里：两个标签页同时打开只有一个在写', async () => {
+    const data = new FakeDesktopData();
+    const heldDuring: Record<string, number[]> = { upload: [], reconcile: [] };
+    const { catalog, fs } = setup({ data });
+    /* 挂载是异步的，第一次进锁之前装上能记录进出锁的替身（setup 装的是不排队的那个）。 */
+    const lock = trackLocks();
+    const upload = data.storage.upload.getMockImplementation();
+    data.storage.upload.mockImplementation(async (file: File, options: { path: string }) => {
+      heldDuring['upload'].push(lock.held);
+      return upload?.(file, options) ?? { id: file.name };
+    });
+    const reconcile = catalog.reconcile.bind(catalog);
+    vi.spyOn(catalog, 'reconcile').mockImplementation(store => {
+      heldDuring['reconcile'].push(lock.held);
+      return reconcile(store);
+    });
+    await flush();
+    await fs.whenReady();
+    expect(fs.state()).toBe('ready');
+    expect(heldDuring['upload'].length).toBeGreaterThan(30);
+    expect(new Set(heldDuring['upload'])).toEqual(new Set([1]));
+    expect(heldDuring['reconcile']).toEqual([1]);
+    expect(lock.held).toBe(0);
+  });
+
+  it('之后的每一次磁盘操作（读、写、run）都在磁盘锁里，出锁时锁已释放', async () => {
+    const { fs } = await mounted();
+    const lock = trackLocks();
+    const before = lock.requests.length;
+    const heldDuring: number[] = [];
+    await fs.run(async store => void heldDuring.push(lock.held, (await store.list(DESKTOP)).length));
+    await fs.readText([...DESKTOP, 'prasenx.txt']);
+    await fs.newFolder(DESKTOP);
+    await fs.writeText([...DESKTOP, 'mine.txt'], 'x');
+    await fs.moveToTrash([...DESKTOP, 'mine.txt']);
+    expect(heldDuring[0]).toBe(1);
+    expect(lock.requests.slice(before)).toEqual(Array(5).fill('aiao-desktop-disk'));
+    expect(lock.held).toBe(0);
+  });
+
+  it('每次操作之前先对一遍库：别的标签页提交过写入（data_version 变了），新建的文件才读得到', async () => {
+    const { fs, data, files } = await mounted();
+    const desktop = files.rows.find(row => row.name === 'Desktop');
+    files.seed([{ name: 'from-other-tab.txt', type: 'file', parentId: desktop?.id, size: 0, modifiedAt: NOW }]);
+    const path = [...DESKTOP, 'from-other-tab.txt'];
+    /* 库的 data_version 没变：索引还是旧的，不知道这个文件。 */
+    await expect(fs.readText(path)).rejects.toMatchObject({ code: 'ENOENT' });
+
+    data.foreignCommit();
+    expect(await fs.readText(path)).toBe('');
+  });
+
+  it('别的标签页的 disk 通知让索引失效，不必等下一次对库', async () => {
+    const hub = new FakeChannelHub();
+    const data = new FakeDesktopData();
+    data.tabs = new TabSync({ channel: hub.open() });
+    const other = new TabSync({ channel: hub.open() });
+    const { fs, files } = await mounted({ data });
+    const desktop = files.rows.find(row => row.name === 'Desktop');
+    files.seed([{ name: 'notified.txt', type: 'file', parentId: desktop?.id, size: 0, modifiedAt: NOW }]);
+    const path = [...DESKTOP, 'notified.txt'];
+    await expect(fs.readText(path)).rejects.toMatchObject({ code: 'ENOENT' });
+
+    other.notify('disk');
+    expect(await fs.readText(path)).toBe('');
+  });
+
+  it('写盘的操作之后通知别的标签页，只读的操作与失败的写不通知', async () => {
+    const { fs, data } = await mounted();
+    const notify = vi.spyOn(data.tabs, 'notify');
+    await fs.readText([...DESKTOP, 'prasenx.txt']);
+    await fs.run(store => store.list(DESKTOP));
+    await expect(fs.saveText([...DESKTOP, 'ghost.txt'], 'x')).rejects.toBeInstanceOf(DiskError);
+    expect(notify).not.toHaveBeenCalled();
+
+    await fs.newFolder(DESKTOP);
+    await fs.writeText([...DESKTOP, 'a.txt'], 'a');
+    await fs.saveText([...DESKTOP, 'a.txt'], 'b');
+    await fs.moveToTrash([...DESKTOP, 'a.txt']);
+    await fs.emptyTrash();
+    await fs.erase();
+    expect(notify.mock.calls.map(call => call[0])).toEqual(Array(6).fill('disk'));
+  });
+
+  it('挂载时改过磁盘（首次复制、对账）也通知别的标签页；再次挂载同一个库没有改动就不通知', async () => {
+    const first = new FakeDesktopData();
+    const notify = vi.spyOn(first.tabs, 'notify');
+    await mounted({ data: first });
+    expect(notify).toHaveBeenCalledExactlyOnceWith('disk');
+
+    const quiet = vi.spyOn(first.tabs, 'notify');
+    quiet.mockClear();
+    await mounted({ data: first });
+    expect(quiet).not.toHaveBeenCalled();
+  });
+
+  it('后台标签页回到前台：重读一次库里的目录树，活查询漏掉的变化补回来', async () => {
+    const lifecycle = new FakeLifecycle();
+    const data = new FakeDesktopData();
+    data.tabs = new TabSync({ channel: new FakeChannelHub().open(), lifecycle });
+    const { fs, files } = await mounted({ data });
+    const desktop = files.rows.find(row => row.name === 'Desktop');
+    const missed = { id: 'missed', name: 'missed.txt', type: 'file', parentId: desktop?.id, size: 7, modifiedAt: NOW };
+    const rows = [...files.rows, missed];
+    vi.spyOn(files, 'find').mockResolvedValueOnce(rows as never);
+    expect(fs.nodeAt([...DESKTOP, 'missed.txt'])).toBeNull();
+
+    lifecycle.visibilityState = 'visible';
+    lifecycle.fire('visibilitychange');
+    await flush();
+    expect(fs.nodeAt([...DESKTOP, 'missed.txt'])).toMatchObject({ kind: 'file', bytes: 7 });
+  });
+
+  it('回到前台时重读的结果晚于活查询的新结果到达，就不覆盖它', async () => {
+    const lifecycle = new FakeLifecycle();
+    const data = new FakeDesktopData();
+    data.tabs = new TabSync({ channel: new FakeChannelHub().open(), lifecycle });
+    const { fs, files } = await mounted({ data });
+    const desktop = files.rows.find(row => row.name === 'Desktop');
+    const stale = [...files.rows];
+    let release: (rows: never) => void = () => undefined;
+    vi.spyOn(files, 'find').mockReturnValueOnce(new Promise(resolve => (release = resolve)));
+
+    lifecycle.fire('resume');
+    files.seed([{ name: 'newer.txt', type: 'file', parentId: desktop?.id, size: 1, modifiedAt: NOW }]);
+    await flush();
+    expect(fs.nodeAt([...DESKTOP, 'newer.txt'])).not.toBeNull();
+
+    release(stale as never);
+    await flush();
+    expect(fs.nodeAt([...DESKTOP, 'newer.txt'])).not.toBeNull();
+  });
+
+  it('宿主销毁后不再响应回到前台与别的标签页的通知', async () => {
+    const hub = new FakeChannelHub();
+    const lifecycle = new FakeLifecycle();
+    const data = new FakeDesktopData();
+    data.tabs = new TabSync({ channel: hub.open(), lifecycle });
+    await mounted({ data });
+    expect(lifecycle.count('visibilitychange')).toBe(1);
+    TestBed.resetTestingModule();
+    expect(lifecycle.count('visibilitychange')).toBe(0);
+  });
+});
+
+describe('FileSystem 保存已打开的文件（目标消失时失败，不在原路径悄悄新建）', () => {
+  it('saveText 覆盖已有文件：内容更新、通知终端同步该路径，文件行与文件体都不重复', async () => {
+    const { fs, changes, data, files } = await mounted();
+    const path = [...DESKTOP, 'prasenx.txt'];
+    const rows = files.rows.length;
+    const blobs = data.storage.blobs.size;
+
+    await fs.saveText(path, 'saved');
+    expect(await fs.readText(path)).toBe('saved');
+    expect(changes).toEqual([[path]]);
+    expect(files.rows).toHaveLength(rows);
+    expect(data.storage.blobs.size).toBe(blobs);
+  });
+
+  it('文件已被移进废纸篓：保存失败并说明原因，原路径没有新文件，废纸篓里的文件内容不变', async () => {
+    const { fs, changes } = await mounted();
+    const path = [...DESKTOP, 'prasenx.txt'];
+    const original = await fs.readText(path);
+    await fs.moveToTrash(path);
+    changes.length = 0;
+
+    await expect(fs.saveText(path, 'late edit')).rejects.toMatchObject({
+      code: 'ENOENT',
+      path,
+      message:
+        '“prasenx.txt” can’t be saved because it was moved, renamed or deleted. Your changes are still in this window.'
+    });
+    await flush();
+    expect(fs.nodeAt(path)).toBeNull();
+    expect(await fs.readText([...TRASH, 'prasenx.txt'])).toBe(original);
+    expect(changes).toEqual([]);
+  });
+
+  it('文件被别的标签页改名：保存失败，改名后的文件不受影响', async () => {
+    const { fs, data } = await mounted();
+    const path = [...DESKTOP, 'prasenx.txt'];
+    await fs.run(store => store.move(path, [...DESKTOP, 'renamed.txt']));
+    data.foreignCommit();
+    await expect(fs.saveText(path, 'late edit')).rejects.toMatchObject({ code: 'ENOENT' });
+    expect(await fs.readText([...DESKTOP, 'renamed.txt'])).toContain('prasenx');
+    expect(await fs.run(store => store.kindOf(path))).toBeNull();
+  });
+
+  it('磁盘被抹掉：用户建的文件没了，保存失败，不把它建回来', async () => {
+    const { fs } = await mounted();
+    const path = [...DESKTOP, 'mine.txt'];
+    await fs.writeText(path, 'mine');
+    await fs.erase();
+    await expect(fs.saveText(path, 'late edit')).rejects.toMatchObject({ code: 'ENOENT' });
+    expect(await fs.run(store => store.kindOf(path))).toBeNull();
+  });
+
+  it('目标变成了文件夹：保存失败（EISDIR），不动它；写预装包的文件仍被保护拦下', async () => {
+    const { fs } = await mounted();
+    await expect(fs.saveText([...DESKTOP, 'Projects'], 'x')).rejects.toMatchObject({ code: 'EISDIR' });
+    await expect(fs.saveText(infoOf('Safari.app'), 'tampered')).rejects.toMatchObject({ code: 'EACCES' });
+  });
+
+  it('writeText 仍是显式的新建入口：路径不存在就创建它与缺失的父目录', async () => {
+    const { fs } = await mounted();
+    const path = [...HOME, 'Fresh', 'Deep', 'new.txt'];
+    await fs.writeText(path, 'created');
+    expect(await fs.readText(path)).toBe('created');
+  });
+
+  it('moveToTrash 的目标已被别的标签页删除：说明原因，不抛内部错误码', async () => {
+    const { fs, data } = await mounted();
+    const path = [...DESKTOP, 'prasenx.txt'];
+    await fs.run(store => store.remove(path));
+    data.foreignCommit();
+    await expect(fs.moveToTrash(path)).rejects.toMatchObject({
+      code: 'ENOENT',
+      message: 'The item “prasenx.txt” can’t be moved to the Trash because it no longer exists.'
+    });
   });
 });
