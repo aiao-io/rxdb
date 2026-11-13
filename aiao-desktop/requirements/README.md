@@ -1,10 +1,10 @@
 # Aiao Desktop 产品需求
 
-当前交付：[10/10 已交付]。状态真相源为 `stories/<domain>/ADESK-US-*.md` 的 YAML `status`，其余视图由故事派生。
+当前交付：[10/19 已交付]。状态真相源为 `stories/<domain>/ADESK-US-*.md` 的 YAML `status`，其余视图由故事派生。
 
 ## 当前范围
 
-在浏览器里还原一套 macOS 风格的桌面：开机与锁屏、菜单栏、Dock、窗口管理、启动台、聚焦搜索、通知中心，以及启动台里的 30 个内置应用，其中「几猫3A大作」是随桌面发布的单文件 3D 游戏（[ADESK-US-103](stories/desktop/ADESK-US-103-saltline-game.md)）。除了内置应用，桌面还以微前端方式运行独立部署的 B/S 应用（集成应用），经仓库里的 `@aiao/orbit` 隔离在窗口里；第一个是 Aiao Code（vscode.aiao.io），见 [ADESK-EPIC-003](epics/ADESK-EPIC-003.md)。终端用 [Vivari](https://vivari.run) 在页面里运行 Node、npm 与 Python；其余应用展示写在代码里的演示内容。
+在浏览器里还原一套 macOS 风格的桌面：开机与锁屏、菜单栏、Dock、窗口管理、启动台、聚焦搜索、通知中心，以及启动台里的 30 个内置应用，其中「几猫3A大作」是随桌面发布的单文件 3D 游戏（[ADESK-US-103](stories/desktop/ADESK-US-103-saltline-game.md)）。应用由统一清单管理并投影到 Applications：预装应用受系统保护，bundled HTML 和远程 iframe 应用都按需启动，Applications 中的应用可以拖到 Dock（[ADESK-US-205](stories/application/ADESK-US-205-application-management.md)）。桌面还以微前端方式运行独立部署的 B/S 应用（集成应用），经仓库里的 `@aiao/orbit` 隔离在窗口里；第一个是 Aiao Code（vscode.aiao.io），见 [ADESK-EPIC-003](epics/ADESK-EPIC-003.md)。应用通过统一的宿主能力接口使用窗口、菜单、通知、剪贴板和文件能力，并在真正打开时懒加载（[ADESK-US-206](stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md)）。终端用 [Vivari](https://vivari.run) 在页面里运行 Node、npm 与 Python；其余应用展示写在代码里的演示内容。
 
 产品只有前端：没有服务端、账号或密钥，发布到 Cloudflare Pages 的静态站点（[D-16](decisions.md#d-16发布到-cloudflare-pages一键发布命令)）；系统与应用数据存在浏览器本地的 SQLite 与 OPFS 里，刷新后还在（[D-07](decisions.md#d-07系统数据存在本地-sqlite)），游戏「几猫3A大作」自己的设置存在 localStorage（[D-15](decisions.md#d-15随桌面发布的单文件游戏在同源-iframe-里运行)）。壁纸、地图瓦片、天气等外网内容可以缺失，拿不到时页面不能报错，见 [D-04](decisions.md#d-04外网内容可缺失)。
 
@@ -28,6 +28,7 @@
 | [epics/ADESK-EPIC-003.md](epics/ADESK-EPIC-003.md)     | 应用体系与集成应用         |
 | [stories/story.template.md](stories/story.template.md) | 新故事模板                 |
 | [plans/README.md](plans/README.md)                     | 调研、实施计划与验收记录   |
+| [plans/application-management-design.md](plans/application-management-design.md) | Applications 管理设计拆解 |
 | [reviews/README.md](reviews/README.md)                 | 旧 review 记录入口         |
 | [code-scanning/README.md](code-scanning/README.md)     | CodeQL 告警工作集          |
 
@@ -42,9 +43,11 @@
 | 术语         | 含义                                                                                                                                   |
 | ------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
 | 桌面         | `apps/web` 渲染的整个页面：菜单栏、桌面图标、窗口层、Dock 与各类浮层                                                                   |
-| 应用         | 应用登记表 `registry.ts` 里的一项；Finder、Terminal、TextEdit 等可以同时开多个窗口                                                     |
-| 内置应用     | 随桌面构建的 Angular 组件，直接用桌面的服务与本地库                                                                                    |
+| 应用         | 应用清单里的一项；可由 Angular 组件、同源 bundled HTML 或远程 iframe 运行                                                               |
+| 应用目录     | 由应用清单投影出来的 `/Applications`，`.app` 是可见元数据与稳定 appId 的载体，预装项受系统保护（[D-17](decisions.md#d-17应用清单是唯一真相源applications-是系统投影)） |
+| 内置应用     | 随桌面构建的 Angular 组件，代码在打开时懒加载，直接用宿主 facade 与本地库                                                               |
 | 集成应用     | 独立部署的 B/S 应用，经 Orbit 在窗口的 iframe 里运行，只经 Orbit 协议与桌面往来（[D-10](decisions.md#d-10应用分三类登记在同一张表里)） |
+| 宿主能力     | 应用经 `DesktopAppContext` 使用的窗口、菜单、应用启动、外观、通知、剪贴板和文件能力（[D-18](decisions.md#d-18应用懒加载与宿主系统能力统一)） |
 | 窗口         | 应用的一次打开，带红黄绿三个窗口按钮，可以最小化进 Dock                                                                                |
-| 虚拟文件系统 | Finder 浏览的目录树，写在代码里，只存在内存中                                                                                          |
+| 虚拟文件系统 | Finder 浏览的磁盘：目录树与元数据是本地 SQLite 里的 `DesktopFile` 行，文件体在 OPFS（[D-08](decisions.md#d-08文件体由-storage-插件放在-opfs)）                                                                                          |
 | 冒烟         | `apps/e2e` 对正式构建跑的 Chromium 脚本，外网请求全部拦截，任何页面错误都判失败                                                        |

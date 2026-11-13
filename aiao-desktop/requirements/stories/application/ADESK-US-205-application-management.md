@@ -98,4 +98,4 @@ capabilities: []
 - [ADESK-US-201 应用体系与统一登记表](ADESK-US-201-application-system.md)
 - [ADESK-US-202 集成应用的运行宿主](ADESK-US-202-integrated-app-runtime.md)
 - [ADESK-US-103 内置游戏「几猫3A大作」](../desktop/ADESK-US-103-saltline-game.md)
-- [D-17 应用清单与 Applications 投影](../../decisions.md#d-17应用清单与-applications-投影)
+- [D-17 应用清单与 Applications 投影](../../decisions.md#d-17应用清单是唯一真相源applications-是系统投影)

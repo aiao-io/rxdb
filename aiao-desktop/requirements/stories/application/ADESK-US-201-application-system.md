@@ -31,8 +31,8 @@ capabilities: []
 
 ### Out of Scope
 
-- 应用目录：运行时安装、卸载、更新、回退，或让用户填网址添加应用（[future-requirements](../../future-requirements.md)）。
-- Finder「应用程序」文件夹里的 `.app` 程序包：内置内容只写进新库（[D-07](../../decisions.md#d-07系统数据存在本地-sqlite)），集成应用暂不进「应用程序」文件夹。
+- 运行时安装、卸载、更新、回退，或让用户填网址添加应用；预装与受管应用在 [ADESK-US-205](ADESK-US-205-application-management.md) 中补齐 Applications 投影与保护规则。
+- 应用实现的懒加载、宿主能力与窗口运行时抽象；由 [ADESK-US-206](ADESK-US-206-lazy-app-runtime-and-host-capabilities.md) 承接。
 - 搜索别名（例如用 `vscode` 搜到 Aiao Code）。
 
 ## 验收标准
@@ -55,7 +55,7 @@ capabilities: []
 
 - 登记项按 `kind` 区分：`system`（没有组件）、`builtin`（组件）、`web`（共用的集成应用窗口组件 + `web` 入口）。窗口框架照旧只认 `component`，集成应用的组件统一是承载 Orbit 的窗口内容，入口信息从窗口所属的登记项读取。
 - 校验与来源推导是纯函数，放在 `services/desktop-apps.ts` 旁边；桌面页提供登记表时先校验，不合规直接抛错。
-- Dock 仍是固定清单（没有「运行中但未固定」的动态区），所以 Aiao Code 固定在 Dock 上；最小化动画以它的 Dock 图标为终点。
+- 本故事验收的是统一登记表与既有固定 Dock 入口；Applications 投影、预装保护、运行中临时 Dock 项和拖放固定由 [ADESK-US-205](ADESK-US-205-application-management.md) 承接。
 
 ## 实现文件
 

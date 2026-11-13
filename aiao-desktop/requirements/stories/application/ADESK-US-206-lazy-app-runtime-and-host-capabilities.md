@@ -95,4 +95,4 @@ capabilities: []
 - [ADESK-US-202 集成应用的运行宿主](ADESK-US-202-integrated-app-runtime.md)
 - [ADESK-US-204 透明窗口与窗口接口](ADESK-US-204-transparent-window.md)
 - [ADESK-US-205 Applications 目录、预装应用与 Dock 管理](ADESK-US-205-application-management.md)
-- [D-18 应用懒加载与宿主系统能力](../../decisions.md#d-18应用懒加载与宿主系统能力)
+- [D-18 应用懒加载与宿主系统能力统一](../../decisions.md#d-18应用懒加载与宿主系统能力统一)

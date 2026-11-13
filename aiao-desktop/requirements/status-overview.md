@@ -9,9 +9,9 @@
 | ✅ Done        | 10   |
 | 🚧 In Progress | 0    |
 | 👀 In Review   | 0    |
-| 📝 Backlog     | 0    |
+| 📝 Backlog     | 9    |
 | 🚫 Blocked     | 0    |
-| **合计**       | 10   |
+| **合计**       | 19   |
 
 ## 进行中（0 条）
 
@@ -28,12 +28,18 @@
 - ✅ [ADESK-US-001 产品根目录与多应用拆分](stories/platform/ADESK-US-001-product-root.md)
 - ✅ [ADESK-US-002 本地开发入口与开发导航](stories/platform/ADESK-US-002-local-dev-dashboard.md)
 - ✅ [ADESK-US-003 一键发布到 Cloudflare Pages](stories/platform/ADESK-US-003-cloudflare-pages-deploy.md)
+- ⬜ [ADESK-US-004 绑定自定义域名与同站托管](stories/platform/ADESK-US-004-custom-domain.md)
+- ⬜ [ADESK-US-005 跨浏览器与窄屏验收](stories/platform/ADESK-US-005-cross-browser-smoke.md)
+- ⬜ [ADESK-US-006 web 单测覆盖率门槛](stories/platform/ADESK-US-006-web-test-coverage-gate.md)
 
 ### ADESK-EPIC-002 macOS 风格桌面
 
 - ✅ [ADESK-US-101 桌面外壳与内置应用基线](stories/desktop/ADESK-US-101-desktop-shell-baseline.md)
 - ✅ [ADESK-US-102 本地数据与真实磁盘](stories/desktop/ADESK-US-102-local-data-and-real-disk.md)
 - ✅ [ADESK-US-103 内置游戏「几猫3A大作」](stories/desktop/ADESK-US-103-saltline-game.md)
+- ⬜ [ADESK-US-104 窗口布局跨刷新保留](stories/desktop/ADESK-US-104-window-layout-persistence.md)
+- ⬜ [ADESK-US-105 多标签页实时互通](stories/desktop/ADESK-US-105-multi-tab-sync.md)
+- ⬜ [ADESK-US-106 旧库升级路径](stories/desktop/ADESK-US-106-database-upgrade-path.md)
 
 ### ADESK-EPIC-003 应用体系与集成应用
 
@@ -41,3 +47,6 @@
 - ✅ [ADESK-US-202 集成应用的运行宿主](stories/application/ADESK-US-202-integrated-app-runtime.md)
 - ✅ [ADESK-US-203 接入 Aiao Code](stories/application/ADESK-US-203-aiao-code.md)
 - ✅ [ADESK-US-204 透明窗口与窗口接口](stories/application/ADESK-US-204-transparent-window.md)
+- ⬜ [ADESK-US-205 Applications 目录、预装应用与 Dock 管理](stories/application/ADESK-US-205-application-management.md)
+- ⬜ [ADESK-US-206 应用懒加载与统一系统能力](stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md)
+- ⬜ [ADESK-US-207 受管应用目录：安装、更新与回退](stories/application/ADESK-US-207-managed-app-catalog.md)
