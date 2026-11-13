@@ -7,7 +7,7 @@ export const USAGE = `用法：node src/smoke.mjs [选项]
   --list                列出全部检查组名（每行一个）后退出
   --group=<名>[,<名>]   只跑指定的检查组；可重复给出。省略时跑全部默认检查组
   --engine=<引擎>       chromium（默认）| firefox | webkit
-  --parallel=<数>       同时跑几个检查组（每组各自的浏览器上下文），默认 1
+  --parallel=<数>       同时跑几个检查组（每组各自的浏览器上下文），默认 3；独占的检查组（真游戏）总是单独跑
   --dist=<目录>         托管另一份 web 产物（默认 dist/aiao-desktop/apps/web/browser；也可用环境变量 AIAO_DESKTOP_DIST）
   --headed              显示浏览器窗口
   --help                显示本说明`;
@@ -24,7 +24,7 @@ export function parseArguments(argv) {
       list: { type: 'boolean', default: false },
       group: { type: 'string', multiple: true },
       engine: { type: 'string', default: 'chromium' },
-      parallel: { type: 'string', default: '1' },
+      parallel: { type: 'string', default: '3' },
       dist: { type: 'string' },
       headed: { type: 'boolean', default: false },
       help: { type: 'boolean', default: false }

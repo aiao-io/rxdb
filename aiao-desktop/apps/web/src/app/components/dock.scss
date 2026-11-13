@@ -1,0 +1,62 @@
+/* Dock 的基础样式在全局样式表的 DOCK 一节；这里是固定布局、拖放与键盘焦点新增的部分。 */
+
+/* Tab 聚焦图标：焦点环只在键盘操作时出现（:focus-visible），鼠标点击不留环。 */
+#dock .di:focus-visible {
+  outline: none;
+}
+#dock .di:focus-visible .art {
+  border-radius: 22%;
+  outline: 2.5px solid var(--blue);
+  outline-offset: 2px;
+}
+
+/* 拖动中：Dock 抬到启动台之上，让位的图标淡出，其余图标与玻璃面板平滑地让出插入位置。 */
+#dockwrap.dragging {
+  z-index: 960;
+}
+#dock.dragging {
+  transition:
+    width 0.2s var(--e-out),
+    height 0.22s var(--e-out),
+    border-radius 0.22s var(--e-out);
+}
+#dock.dragging .di,
+#dock.dragging .divider {
+  transition: transform 0.2s var(--e-out);
+}
+#dock .di.lifted {
+  opacity: 0;
+}
+
+/* 跟着指针的图标；拖出 Dock 时旁边显示 Remove。fixed 定位必须在带 backdrop-filter 的 #dock 之外。 */
+.dock-ghost {
+  position: fixed;
+  width: var(--dock-size);
+  height: var(--dock-size);
+  transform: translate(-50%, -50%) scale(0.94);
+  opacity: 0.88;
+  pointer-events: none;
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.35));
+}
+.dock-ghost.removing {
+  opacity: 0.6;
+}
+.dock-ghost svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.dock-ghost .ghost-tag {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  margin-bottom: 8px;
+  transform: translateX(-50%);
+  padding: 2px 9px 3px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: #fff;
+  background: rgba(30, 30, 32, 0.82);
+}

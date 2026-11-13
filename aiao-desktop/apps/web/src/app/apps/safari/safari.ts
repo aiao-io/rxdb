@@ -20,6 +20,7 @@ import { PopoverService } from '../../services/popover';
 import { SystemState } from '../../services/system-state';
 import { Toast } from '../../services/toast';
 import { WindowManager } from '../../services/window-manager';
+import { READER_HOST } from '../../shared/external-content';
 import { clamp } from '../../shared/format';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
@@ -127,6 +128,8 @@ export class SafariApp {
   protected readonly hostOf = hostOf;
   protected readonly resolveUrl = resolveUrl;
   protected readonly externalUrl = externalUrl;
+  /** 阅读模式入口处提示里的主机名：地址会发给它（外网内容清单登记了同一个主机）。 */
+  protected readonly readerHost = READER_HOST;
 
   protected readonly tabs = signal<readonly SafariTab[]>([blankTab()]);
   protected readonly current = signal(0);

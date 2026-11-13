@@ -1,0 +1,47 @@
+@if (view(); as problem) {
+  <div class="dp-scrim" data-data-problem>
+    <div
+      class="dp-card"
+      aria-describedby="dp-message"
+      aria-labelledby="dp-title"
+      aria-modal="true"
+      role="alertdialog"
+    >
+      <h1 id="dp-title" data-dp-title>{{ problem.title }}</h1>
+      <p id="dp-message" data-dp-message>{{ problem.message }}</p>
+      @if (problem.details.length) {
+        <ul class="dp-details" data-dp-details>
+          @for (detail of problem.details; track detail) {
+            <li>{{ detail }}</li>
+          }
+        </ul>
+      }
+      <ul class="dp-advice" data-dp-advice>
+        @for (line of problem.advice; track line) {
+          <li>{{ line }}</li>
+        }
+      </ul>
+      @if (failure()) {
+        <p class="dp-failure" data-dp-failure role="alert">Couldn’t erase the local data: {{ failure() }}</p>
+      }
+      @if (confirming()) {
+        <p class="dp-warning" data-dp-confirm>
+          Erase all local data for this site? Your files, settings and app data will be permanently removed.
+        </p>
+        <div class="dp-actions">
+          <button class="btn" (click)="cancel()" [disabled]="erasing()" data-dp-cancel type="button">Cancel</button>
+          <button class="btn danger" (click)="erase()" [disabled]="erasing()" data-dp-erase type="button">
+            {{ erasing() ? 'Erasing…' : 'Erase and Restart' }}
+          </button>
+        </div>
+      } @else {
+        <div class="dp-actions">
+          @if (problem.canErase) {
+            <button class="btn" (click)="ask()" data-dp-ask-erase type="button">Erase Local Data…</button>
+          }
+          <button class="btn pri" (click)="reload()" data-dp-reload type="button">Reload</button>
+        </div>
+      }
+    </div>
+  </div>
+}

@@ -7,6 +7,7 @@
   <app-overlay-layer></app-overlay-layer>
   <app-lock-screen></app-lock-screen>
   <app-boot-screen></app-boot-screen>
+  <app-data-problem></app-data-problem>
   <div id="toast" [class.on]="toast.visible()">{{ toast.message() }}</div>
 </div>
 @if (session.sleep() !== 'awake') {

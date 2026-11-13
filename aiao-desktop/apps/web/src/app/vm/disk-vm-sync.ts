@@ -17,11 +17,22 @@ export interface DiskAccess {
   run<T>(task: (store: DiskStore) => Promise<T>): Promise<T>;
 }
 
+/** 终端对磁盘的一种改动：删除，或写入（新建、改过的文件）。 */
+export type PulledChange = 'remove' | 'write';
+
 export interface SyncOptions {
   /** 卷的顶层目录，在虚拟机里挂在根目录下。 */
   readonly roots: readonly string[];
   /** 不同步的名字（例如 `node_modules`），在任何深度都跳过。 */
   readonly ignore: (name: string) => boolean;
+  /**
+   * 终端这一侧的改动能不能写回磁盘（ADESK-US-205 阶段 B）：返回拒绝原因就不写，回写后再用磁盘的现状
+   * 把虚拟机里的这些路径恢复回去；返回 `null` 放行。预装应用包在虚拟机的文件系统里没法设成只读，
+   * 所以终端里 `rm`、`mv` 会先成功，等下一次扫描（输出停 0.3 秒后，或每 3 秒轮询，最长约 3.3 秒）发现并撤销。
+   */
+  readonly veto?: (path: DiskPath, change: PulledChange) => string | null;
+  /** 有改动被撤销时通知用户，参数是各条拒绝原因（已去重）。 */
+  readonly onVetoed?: (reasons: readonly string[]) => void;
 }
 
 const DIRECTORY: VmStat = { kind: 'directory', size: 0, mtimeMs: 0 };
@@ -122,13 +133,24 @@ export class DiskVmSync {
       this.snapshot = current;
       return false;
     }
-    const contents = await this.readFiles(diff.files);
+    const vetoed = new Map<string, string>();
+    const permitted = (paths: readonly string[], change: PulledChange): string[] =>
+      paths.filter(path => {
+        const reason = this.options.veto?.(fromVmPath(path), change) ?? null;
+        if (reason) vetoed.set(path, reason);
+        return reason === null;
+      });
+    const removed = permitted(diff.removed, 'remove');
+    const files = permitted(diff.files, 'write');
+    const contents = await this.readFiles(files);
     await this.disk.run(async store => {
-      for (const path of diff.removed) await store.remove(fromVmPath(path));
+      for (const path of removed) await store.remove(fromVmPath(path));
       for (const path of diff.folders) await store.mkdir(fromVmPath(path));
       for (const [path, data] of contents) await store.write(fromVmPath(path), data);
     });
     this.snapshot = current;
+    for (const path of vetoed.keys()) await this.pushPath(fromVmPath(path));
+    if (vetoed.size) this.options.onVetoed?.([...new Set(vetoed.values())]);
     return true;
   }
 

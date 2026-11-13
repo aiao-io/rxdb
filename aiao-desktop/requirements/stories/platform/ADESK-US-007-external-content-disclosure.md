@@ -46,7 +46,7 @@ capabilities: []
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-验收证据：#1、#2、#4 由 `aiao-desktop-e2e:e2e` 的检查组覆盖（拆分后的位置见 [ADESK-US-008](ADESK-US-008-smoke-suite.md)）；#3 是 web 单测（`aiao-desktop-web:test`）；#5 是文档检查，需求门禁校验 D-04 里指向清单的链接有效。
+验收证据：#1、#2、#4 由 `aiao-desktop-e2e:e2e` 的 `external-content` 检查组（`groups/external-content.mjs`；拆分后的位置见 [ADESK-US-008](ADESK-US-008-smoke-suite.md)）覆盖，检查项依次是 `externalContent.pageListsEveryHost`（#1）、`externalContent.safariHintShown`（#2）、`externalContent.reachableOffline`（#4）；#3 是 web 单测（`aiao-desktop-web:test`）`shared/external-content.spec.ts` 里的「src 里出现的每个外网主机都登记过」与自检「新增一个未登记的主机时单测会失败」；#5 是文档检查，需求门禁校验 D-04 里指向清单的链接有效。
 
 ## 技术笔记
 

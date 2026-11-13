@@ -3,7 +3,7 @@
     "outDir": "../../../dist/out-tsc/aiao-desktop-web/app",
     "types": []
   },
-  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
+  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts", "src/app/testing/**"],
   "extends": "./tsconfig.json",
   "include": ["src/**/*.ts"],
   "references": [

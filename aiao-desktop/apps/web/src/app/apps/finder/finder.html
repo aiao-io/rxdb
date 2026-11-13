@@ -72,6 +72,9 @@
       (contextmenu)="bodyMenu($event)"
       data-body
     >
+      @if (applicationsNote(); as note) {
+        <div class="fx-note" data-finder-note role="status">{{ note }}</div>
+      }
       @switch (view()) {
         @case ('icon') {
           <div class="fv-icon">

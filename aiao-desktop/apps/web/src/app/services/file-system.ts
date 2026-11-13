@@ -21,7 +21,9 @@ import { buildSeed, writeSeed } from '../disk/disk-seed';
 import { DiskError, DiskStore } from '../disk/disk-store';
 import { FileRow, FsNode, buildTree, emptyVolume, nodeAt as findNode, searchNodes } from '../disk/disk-tree';
 import { DiskMarker, DiskSeeder, DiskVolume, eraseVolume, openVolume } from '../disk/disk-volume';
+import { ProtectedDiskStore } from '../disk/protected-store';
 import { BLOB_DIR, RxdbDiskStore } from '../disk/rxdb-disk-store';
+import { ApplicationCatalog } from './application-catalog';
 import { photoEncoder } from './photo-encoder';
 
 export type { FsNode } from '../disk/disk-tree';
@@ -103,11 +105,13 @@ export class FileSystem {
   private readonly data = inject(DesktopData);
   private readonly preferences = inject(Preferences);
   private readonly injector = inject(EnvironmentInjector);
+  private readonly catalog = inject(ApplicationCatalog);
   private readonly destroyRef = inject(DestroyRef);
   private readonly rootState = signal<FsNode>(emptyVolume());
   private readonly stateValue = signal<DiskState>('mounting');
   private readonly errorValue = signal<string | null>(null);
   private store: RxdbDiskStore | null = null;
+  private guardedStore: ProtectedDiskStore | null = null;
   private volume: DiskVolume | null = null;
   private marker: DiskMarker | null = null;
   private queue: Promise<unknown> = Promise.resolve();
@@ -191,6 +195,8 @@ export class FileSystem {
         `The item “${name}” can’t be moved to the Trash because it’s required by macOS.`
       );
     if (isWithin(path, TRASH)) throw new DiskError('EEXIST', path, `“${name}” is already in the Trash.`);
+    const violation = this.catalog.violation({ kind: 'move', from: path, to: [...TRASH, name] });
+    if (violation) throw new DiskError('EACCES', path, violation.replace('can’t be moved', 'can’t be moved to the Trash'));
     const target = await this.exclusive(async store => {
       await store.mkdir(TRASH);
       const to = [
@@ -232,6 +238,8 @@ export class FileSystem {
   async erase(): Promise<void> {
     await this.exclusive(async () => {
       this.marker = await eraseVolume(this.mountedVolume(), this.seeder(), Date.now);
+      /* 抹掉后由应用清单重新生成 /Applications 里的预装包（D-17）。 */
+      await this.catalog.reconcile(this.mountedRawStore());
     });
     this.changes.next(DISK_ROOTS.map(root => [root]));
   }
@@ -252,7 +260,10 @@ export class FileSystem {
       });
       const volume = this.diskVolume(store);
       this.marker = await openVolume(volume, this.seeder(), Date.now);
+      /* 应用清单是唯一真相源：首次建库、升级旧库与每次启动都走这条幂等对账，补齐缺的预装包（D-17）。 */
+      await this.catalog.reconcile(store);
       this.store = store;
+      this.guardedStore = new ProtectedDiskStore(store, () => this.catalog.ownedPackages());
       this.volume = volume;
       await this.watch();
       this.stateValue.set('ready');
@@ -323,9 +334,15 @@ export class FileSystem {
     return this.volume;
   }
 
-  private mountedStore(): RxdbDiskStore {
+  private mountedRawStore(): RxdbDiskStore {
     if (!this.store) throw new Error(`Macintosh HD is unavailable: ${this.errorValue() ?? 'not mounted'}`);
     return this.store;
+  }
+
+  /** 交给外部任务的存储：经过预装应用的保护判断，Finder、TextEdit、终端回写走同一条规则。 */
+  private mountedStore(): DiskStore {
+    if (!this.guardedStore) throw new Error(`Macintosh HD is unavailable: ${this.errorValue() ?? 'not mounted'}`);
+    return this.guardedStore;
   }
 
   /** 串行执行一次磁盘任务：同一路径上的读写不会交错。 */

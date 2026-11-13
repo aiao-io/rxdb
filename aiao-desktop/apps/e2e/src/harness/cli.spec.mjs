@@ -5,14 +5,14 @@ import { parseArguments, selectGroups } from './cli.mjs';
 
 const groups = [{ name: 'shell' }, { name: 'game' }, { name: 'fixtures', default: false }];
 
-test('默认参数：全部默认检查组、chromium、串行', () => {
+test('默认参数：全部默认检查组、chromium、并行 3', () => {
   const options = parseArguments([]);
   assert.deepEqual(options, {
     list: false,
     help: false,
     groups: null,
     engine: 'chromium',
-    parallel: 1,
+    parallel: 3,
     dist: undefined,
     headed: false
   });

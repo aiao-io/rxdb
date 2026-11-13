@@ -1,6 +1,6 @@
 import { Signal, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { Observable, from, switchMap } from 'rxjs';
+import { EMPTY, Observable, catchError, from, switchMap } from 'rxjs';
 
 import { DesktopData } from './desktop-data';
 
@@ -15,7 +15,9 @@ import { DesktopData } from './desktop-data';
  */
 export function liveQuery<T>(query: () => Observable<T>, initialValue: T): Signal<T> {
   const data = inject(DesktopData);
-  return toSignal(from(data.ready).pipe(switchMap(query)), { initialValue });
+  /* 库起不来（本地数据有问题）时不向每个订阅者重复报同一个错：原因由 DesktopData.problem 和阻断界面说明，这里保持初值。 */
+  const ready = from(data.ready).pipe(catchError(() => EMPTY));
+  return toSignal(ready.pipe(switchMap(query)), { initialValue });
 }
 
 /** 不带条件的查询：表里的全部行。 */

@@ -16,10 +16,11 @@ const IGNORED_CONSOLE = /Failed to load resource|ERR_FAILED/;
  * @param {import('playwright').Browser} options.browser
  * @param {string} options.origin 桌面的来源
  * @param {string} options.label 检查组名，用于报错
+ * @param {string} [options.distRoot] 被测产物的目录（需要读构建内容的检查组用，例如升级验收找 sqlite 工作线程）
  * @param {string} [options.engine] 浏览器引擎名，默认 chromium
  * @param {readonly ('aiao-code' | 'game')[]} [options.standins] 要安装的替身
  */
-export async function createSession({ browser, origin, label, engine = 'chromium', standins = [] }) {
+export async function createSession({ browser, origin, label, distRoot, engine = 'chromium', standins = [] }) {
   const context = await browser.newContext({ viewport: VIEWPORT });
   await context.route(
     url => !url.href.startsWith(origin),
@@ -28,12 +29,17 @@ export async function createSession({ browser, origin, label, engine = 'chromium
   /* 替身的路由后注册，优先于上面的外网拦截。 */
   const aiaoCode = standins.includes('aiao-code') ? await installAiaoCodeStandin(context) : null;
   const game = standins.includes('game') ? await installGameStandin(context, origin) : null;
-  const page = await context.newPage();
   const errors = [];
-  page.on('pageerror', error => errors.push(error.message));
-  page.on('console', message => {
-    if (message.type() === 'error' && !IGNORED_CONSOLE.test(message.text())) errors.push(message.text());
-  });
+  /** 新开一个页面，页面错误一律记进本检查组的 errors。 */
+  const openPage = async () => {
+    const opened = await context.newPage();
+    opened.on('pageerror', error => errors.push(error.message));
+    opened.on('console', message => {
+      if (message.type() === 'error' && !IGNORED_CONSOLE.test(message.text())) errors.push(message.text());
+    });
+    return opened;
+  };
+  const page = await openPage();
   const helpers = createHelpers(page);
   return {
     label,
@@ -42,10 +48,23 @@ export async function createSession({ browser, origin, label, engine = 'chromium
     context,
     page,
     origin,
+    distRoot,
     errors,
     aiaoCode,
     game,
     helpers,
+    openPage,
+    /**
+     * 新开一个页面并打开桌面（跳过开机动画）。多页或重开桌面的检查组用它；返回页面与绑定到该页面的常用操作。
+     * `waitForFinder: false` 时只等页面加载，用于桌面起不来（例如本地数据有问题）的情形。
+     */
+    async openDesktopPage({ waitForFinder = true } = {}) {
+      const opened = await openPage();
+      await opened.goto(`${origin}/?boot=0`, { waitUntil: 'load' });
+      const pageHelpers = createHelpers(opened);
+      if (waitForFinder) await pageHelpers.win('finder').waitFor();
+      return { page: opened, helpers: pageHelpers };
+    },
     /** 打开桌面并等默认的 Finder 窗口出现；默认跳过开机动画。 */
     async openDesktop({ boot = false } = {}) {
       await page.goto(`${origin}/${boot ? '' : '?boot=0'}`, { waitUntil: 'load' });

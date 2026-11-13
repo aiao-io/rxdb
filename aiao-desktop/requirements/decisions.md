@@ -16,9 +16,9 @@ Aiao Desktop 使用 `ADESK-US-*` / `ADESK-EPIC-*` 编号，在本目录独立统
 
 ## D-04：外网内容可缺失
 
-壁纸与照片（Unsplash、Wikimedia）、地图瓦片（CARTO）、地名搜索（Nominatim）、天气（Open-Meteo）、Safari 阅读模式（r.jina.ai）、网站图标（DuckDuckGo）、Safari 里的视频嵌入（YouTube）与网页字体（Google Fonts）都来自外网，且都不需要密钥。它们加载失败时应用照常打开，页面不出现错误；冒烟拦截全部外网请求来守住这一点，只放过资源加载失败的控制台信息。外网内容本身的显示效果不在当前验收范围内。
+壁纸与照片、地图瓦片与地名搜索、天气、Safari 的阅读模式、网站图标、视频嵌入与维基百科内容、网页字体，都来自外网，且都不需要密钥。它们加载失败时应用照常打开，页面不出现错误；冒烟拦截全部外网请求来守住这一点，只放过资源加载失败的控制台信息。外网内容本身的显示效果不在当前验收范围内。
 
-这些请求会让第三方看到用户的 IP；Safari 阅读模式还会把用户输入的网址、地名搜索会把搜索词发给对应的第三方。来源、用途与会发送的数据的说明由 [ADESK-US-007](stories/platform/ADESK-US-007-external-content-disclosure.md) 交付，交付后这份主机列表以代码里的清单为准。
+这些请求会让第三方看到用户的 IP；Safari 阅读模式还会把用户输入的网址、地名搜索会把搜索词发给对应的第三方。每个外网主机的用途、会发送的数据和触发方式（打开应用就请求，还是用户操作后才请求）登记在代码里的清单 [external-content.ts](../apps/web/src/app/shared/external-content.ts)，主机以它为准，这里不再另列一份。「关于本机」里的 External Content 页由它渲染，web 单测会对账源码里出现的每个外网主机，新增主机必须先登记（[ADESK-US-007](stories/platform/ADESK-US-007-external-content-disclosure.md)）。清单里还登记了集成应用 Aiao Code 的线上页面（[D-10](#d-10应用分三类登记在同一张表里)），它加载失败时由自己的窗口显示原因与重试。
 
 ## D-05：终端依赖跨源隔离
 

@@ -44,38 +44,13 @@ const LEGACY_FILES = [
 ];
 
 const LEGACY_FOLDERS = [
+  'Applications',
   'Library/Caches',
   'Library/Preferences',
   'System/Library',
   'System/Volumes',
   'Users/prasenjit/Public/Drop Box',
   'Users/Shared'
-];
-
-const LEGACY_APPS = [
-  'Safari',
-  'Mail',
-  'Messages',
-  'Maps',
-  'Photos',
-  'Notes',
-  'Calendar',
-  'Music',
-  'Terminal',
-  'Calculator',
-  'System Settings',
-  'Preview',
-  'Reminders',
-  'FaceTime',
-  'App Store',
-  'Podcasts',
-  'TV',
-  'Weather',
-  'Stocks',
-  'Books',
-  'Contacts',
-  'Freeform',
-  'Clock'
 ];
 
 async function seededStore(): Promise<MemoryDiskStore> {
@@ -92,12 +67,10 @@ describe('buildSeed', () => {
     expect(seed.folders.map(folder => folder.join('/'))).toEqual(expect.arrayContaining(LEGACY_FOLDERS));
   });
 
-  it('每个应用都是带 Info.plist 与 PkgInfo 的程序包', () => {
-    const files = buildSeed().files.map(file => file.path.join('/'));
-    for (const name of LEGACY_APPS) {
-      expect(files).toContain(`Applications/${name}.app/Contents/Info.plist`);
-      expect(files).toContain(`Applications/${name}.app/Contents/PkgInfo`);
-    }
+  it('内置磁盘不自带 .app 包：它们是应用清单的系统投影，由应用目录服务对账写入（D-17）', () => {
+    const seed = buildSeed();
+    expect(seed.files.filter(file => file.path[0] === 'Applications')).toEqual([]);
+    expect(seed.folders.map(folder => folder.join('/'))).toContain('Applications');
   });
 
   it('图片按 Finder 缩略图的同一套构图生成，截图带桌面框架', () => {
@@ -147,10 +120,10 @@ describe('writeSeed', () => {
     expect(encode).toHaveBeenCalledTimes(buildSeed().files.filter(file => file.content.type === 'image').length);
   });
 
-  it('应用包的 Info.plist 写着应用名，空文件夹也建好', async () => {
+  it('空文件夹也建好，包括 /Applications', async () => {
     const store = await seededStore();
-    const plist = decode(await store.read(['Applications', 'System Settings.app', 'Contents', 'Info.plist']));
-    expect(plist).toContain('<string>System Settings</string>');
+    expect(await store.kindOf(['Applications'])).toBe('directory');
+    expect(await store.list(['Applications'])).toEqual([]);
     expect(await store.kindOf(['Users', 'prasenjit', 'Public', 'Drop Box'])).toBe('directory');
     expect(await store.list(['Library', 'Caches'])).toEqual([]);
   });

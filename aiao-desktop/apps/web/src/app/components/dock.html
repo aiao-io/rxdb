@@ -1,27 +1,34 @@
-<div id="dockwrap">
+<div id="dockwrap" [class.dragging]="drag.active()">
   <div
     class="nosel"
     id="dock"
     #dock
+    [attr.data-drop-slot]="drag.dropSlot()"
+    [class.dragging]="drag.active()"
     (contextmenu)="glassMenu($event)"
     (pointerenter)="hover($event.clientX)"
     (pointerleave)="leave()"
     (pointermove)="hover($event.clientX)"
   >
-    @for (slot of slots; track slot.key) {
+    @for (slot of slots(); track slot.key) {
       @if (slot.app; as app) {
         <div
           class="di"
           #slotEl
           [attr.aria-label]="app.name"
           [attr.data-app]="app.id"
+          [attr.data-key]="slot.key"
+          [class.lifted]="drag.lifted() === app.id"
           [class.run]="running().has(app.id)"
+          [class.temp]="slot.temporary"
           (click)="launcher.activate(app.id)"
           (contextmenu)="iconMenu($event, app.id)"
+          (keydown)="iconKey($event, app.id)"
           (keydown.enter)="launcher.activate(app.id)"
+          (keydown.space)="activateByKey($event, app.id)"
           (pointerdown)="press($event, slot)"
           role="button"
-          tabindex="-1"
+          tabindex="0"
         >
           <div class="art">
             <svg [appIcon]="app.id === 'trash' && fs.trashFull() ? 'app-trash-full' : app.icon"></svg>
@@ -30,9 +37,23 @@
           <span class="hit"></span>
         </div>
       } @else {
-        <div class="divider" #slotEl></div>
+        <div class="divider" #slotEl [attr.data-key]="slot.key"></div>
       }
     }
     <div id="docktip" #tip></div>
   </div>
+  @if (drag.state(); as dragging) {
+    <div
+      class="dock-ghost"
+      [class.removing]="dragging.removing"
+      [style.left.px]="dragging.x"
+      [style.top.px]="dragging.y"
+      aria-hidden="true"
+    >
+      <svg [appIcon]="iconOf(dragging.appId)"></svg>
+      @if (dragging.removing) {
+        <span class="ghost-tag">Remove</span>
+      }
+    </div>
+  }
 </div>

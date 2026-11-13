@@ -10,11 +10,14 @@ import { DesktopShell } from '../components/desktop-shell';
 import { DesktopData } from '../data/desktop-data';
 import { Preferences } from '../data/preferences';
 import { AppLauncher } from '../services/app-launcher';
+import { ApplicationCatalog } from '../services/application-catalog';
 import { CalendarStore } from '../services/calendar-store';
 import { Clock } from '../services/clock';
 import { DESKTOP_APPS } from '../services/desktop-apps';
 import { DesktopItems } from '../services/desktop-items';
 import { DesktopMenus } from '../services/desktop-menus';
+import { DockDragController } from '../services/dock-drag';
+import { DockLayoutStore } from '../services/dock-layout';
 import { DockState } from '../services/dock-state';
 import { FileOpener } from '../services/file-opener';
 import { FileSystem, HOME_PATH } from '../services/file-system';
@@ -52,11 +55,14 @@ const NATIVE_MENU = 'input,textarea,[contenteditable="true"],.tm-body';
     PopoverService,
     Clock,
     DockState,
+    DockLayoutStore,
+    DockDragController,
     WindowManager,
     Overlays,
     AppLauncher,
     Session,
     WallpaperService,
+    ApplicationCatalog,
     FileSystem,
     FileOpener,
     DesktopItems,

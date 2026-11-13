@@ -44,6 +44,7 @@ export class PopoverEntryView implements OnInit {
       node.style.top = `${clamp(options.y, 4, innerHeight - rect.height - 8)}px`;
       if (options.origin) node.style.transformOrigin = options.origin;
       node.style.visibility = '';
+      if (options.focus) node.querySelector<HTMLElement>('.mi:not(.dis)')?.focus();
     });
   }
 }

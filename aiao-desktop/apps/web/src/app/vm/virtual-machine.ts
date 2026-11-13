@@ -6,6 +6,7 @@ import { fileKind } from '../disk/disk-kinds';
 import { DISK_ROOTS, HOME, finderPathOf, fromVmPath, parentOf, toVmPath } from '../disk/disk-path';
 import { FsNode } from '../disk/disk-tree';
 import { DESKTOP_APPS } from '../services/desktop-apps';
+import { ApplicationCatalog } from '../services/application-catalog';
 import { FileOpener } from '../services/file-opener';
 import { FileSystem, describeDiskError } from '../services/file-system';
 import { Toast } from '../services/toast';
@@ -47,6 +48,7 @@ interface Machine {
 export class VirtualMachine {
   private readonly fs = inject(FileSystem);
   private readonly opener = inject(FileOpener);
+  private readonly catalog = inject(ApplicationCatalog);
   private readonly wm = inject(WindowManager);
   private readonly toast = inject(Toast);
   private readonly apps = inject(DESKTOP_APPS);
@@ -89,7 +91,7 @@ export class VirtualMachine {
     if (!request) return;
     await this.pull();
     if (request.app && !request.paths.length) {
-      this.opener.openWith(request.app, null);
+      this.opener.openApp(request.app, null);
       return;
     }
     for (const vmPath of request.paths) await this.openPath(vmPath, request.app, request.reveal);
@@ -113,7 +115,7 @@ export class VirtualMachine {
     }
     const { kind: label, icon } = fileKind(name);
     const node: FsNode = { name, path, kind: 'file', icon, k: label, hidden: name.startsWith('.') };
-    if (app) this.opener.openWith(app, node);
+    if (app) this.opener.openApp(app, node);
     else this.opener.open(node);
   }
 
@@ -133,7 +135,10 @@ export class VirtualMachine {
       await this.install(vivari);
       const sync = new DiskVmSync({ run: task => this.fs.run(task) }, vivariFs(vivari), {
         roots: DISK_ROOTS,
-        ignore: name => name === 'node_modules'
+        ignore: name => name === 'node_modules',
+        veto: (path, change) =>
+          this.catalog.violation(change === 'remove' ? { kind: 'remove', path } : { kind: 'write', path }),
+        onVetoed: reasons => this.toast.show(`${reasons[0]} The change made in Terminal was reverted.`)
       });
       const subscription = this.fs.changes.subscribe(paths =>
         sync.push(paths).catch((error: unknown) => this.toast.show(`Terminal sync failed: ${describeDiskError(error)}`))
@@ -149,7 +154,9 @@ export class VirtualMachine {
 
   /** 给自带的 shell 打补丁（~、$NAME、cd、提示符），装上 touch / mv / cp / open。 */
   private async install(vivari: Vivari): Promise<void> {
-    const apps = [...new Set(Object.values(this.apps).map(app => app.name))];
+    const apps = Object.values(this.apps).flatMap(app =>
+      app.kind === 'system' ? [] : [{ id: app.id, bundleId: app.bundleId, name: app.name }]
+    );
     await vivari.fs.writeFile('/bin/sh.js', patchShell(await vivari.fs.readFile('/bin/sh.js', 'utf-8')));
     for (const [name, program] of Object.entries(PROGRAMS))
       await vivari.fs.writeFile(`/bin/${name}.js`, programSource(program, apps));

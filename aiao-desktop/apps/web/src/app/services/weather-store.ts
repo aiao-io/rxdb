@@ -180,6 +180,7 @@ export class WeatherStore {
 
   /** 从库里取主城市的坐标再请求实况；没有城市就没有实况可取。 */
   private async fetchForecast(): Promise<ForecastPayload | null> {
+    if (!(await this.desktop.available())) return null;
     const cities = await this.desktop.repository(WeatherCity);
     const [city] = await cities.find({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }], limit: 1 });
     return city ? this.request(city.latitude, city.longitude) : null;

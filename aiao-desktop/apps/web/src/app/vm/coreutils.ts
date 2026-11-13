@@ -35,16 +35,23 @@ export interface ProgramProcess {
   exit(code: number): never;
 }
 
-/** 安装时一并传给程序的东西：错误说明、`open` 的 OSC 编号、桌面的内置应用名单。 */
+/** 桌面里可以被 `open` 打开的一个应用：稳定的 id、包标识与显示名（D-17）。 */
+export interface KitApp {
+  readonly id: string;
+  readonly bundleId: string;
+  readonly name: string;
+}
+
+/** 安装时一并传给程序的东西：错误说明、`open` 的 OSC 编号、桌面的应用名单。 */
 export interface ProgramKit {
   explain(error: unknown): string;
   readonly openOsc: number;
-  readonly apps: readonly string[];
+  readonly apps: readonly KitApp[];
 }
 
 export type Program = (require: (id: string) => unknown, process: ProgramProcess, kit: ProgramKit) => void;
 
-/** `open` 交给桌面的请求：用哪个应用（`null` 表示按文件类型）、是否在 Finder 里显示、绝对路径。 */
+/** `open` 交给桌面的请求：用哪个应用的 id（`null` 表示按文件类型）、是否在 Finder 里显示、绝对路径。 */
 export interface OpenRequest {
   readonly app: string | null;
   readonly reveal: boolean;
@@ -52,7 +59,7 @@ export interface OpenRequest {
 }
 
 /** Node 的系统错误码写成 BSD 工具的说法。 */
-function explain(error: unknown): string {
+export function explain(error: unknown): string {
   const known: Readonly<Record<string, string>> = {
     EACCES: 'Permission denied',
     EEXIST: 'File exists',
@@ -186,19 +193,24 @@ export const openProgram: Program = (require, process, kit) => {
   const files: string[] = [];
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    if (arg === '-a') wanted = args[++i] ?? '';
+    if (arg === '-a' || arg === '-b') wanted = args[++i] ?? '';
     else if (arg === '-e' || arg === '-t') wanted = 'TextEdit';
     else if (arg === '-R') reveal = true;
     else files.push(arg);
   }
   if (wanted === null && !files.length) {
-    process.stderr.write('Usage: open [-e] [-t] [-R] [-a <application>] <file> ...\n');
+    process.stderr.write('Usage: open [-e] [-t] [-R] [-a <application> | -b <bundle identifier>] <file> ...\n');
     process.exit(1);
   }
   let app: string | null = null;
   if (wanted !== null) {
-    const name = wanted.replace(/\.app$/i, '').toLowerCase();
-    app = kit.apps.find(candidate => candidate.toLowerCase() === name) ?? null;
+    /* 先按稳定标识（应用 id、包标识）找，最后才按显示名：改名或同名都不会打开错的应用。 */
+    const query = wanted.replace(/\.app$/i, '').toLowerCase();
+    const found =
+      kit.apps.find(candidate => candidate.id.toLowerCase() === query) ??
+      kit.apps.find(candidate => candidate.bundleId.toLowerCase() === query) ??
+      kit.apps.find(candidate => candidate.name.toLowerCase() === query);
+    app = found ? found.id : null;
     if (app === null) {
       process.stderr.write(`Unable to find application named '${wanted}'\n`);
       process.exit(1);
@@ -215,7 +227,7 @@ export const openProgram: Program = (require, process, kit) => {
 };
 
 /** 拼出虚拟机里 `/bin/<name>.js` 的源码。 */
-export const programSource = (program: Program, apps: readonly string[]): string =>
+export const programSource = (program: Program, apps: readonly KitApp[]): string =>
   `(${program.toString()})(require, process, { explain: ${explain.toString()}, openOsc: ${OPEN_OSC}, apps: ${JSON.stringify(apps)} });\n`;
 
 /** 解析终端截下的 `open` 请求；不合规的内容返回 `null`。 */

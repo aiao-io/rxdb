@@ -16,6 +16,8 @@ export interface PopoverOptions {
   readonly y: number;
   readonly right?: boolean;
   readonly origin?: string;
+  /** 键盘打开的菜单：出现后把焦点交给第一个可用项，方向键与 Enter 在菜单里操作。 */
+  readonly focus?: boolean;
   readonly onClose?: () => void;
 }
 

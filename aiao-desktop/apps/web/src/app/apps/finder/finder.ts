@@ -1,6 +1,7 @@
 import { Component, DestroyRef, ElementRef, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
 
 import { diskPathOf } from '../../disk/disk-path';
+import { ApplicationCatalog } from '../../services/application-catalog';
 import { DesktopMenus, FinderCommands, FinderView } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
 import { FileOpener } from '../../services/file-opener';
@@ -38,6 +39,7 @@ export class FinderApp implements FinderCommands {
   private readonly win = inject(DesktopWindow);
   private readonly fs = inject(FileSystem);
   private readonly opener = inject(FileOpener);
+  private readonly catalog = inject(ApplicationCatalog);
   private readonly popover = inject(PopoverService);
   private readonly toast = inject(Toast);
   private readonly body = viewChild.required<ElementRef<HTMLElement>>('body');
@@ -61,6 +63,11 @@ export class FinderApp implements FinderCommands {
   protected readonly shotKind = shotKind;
 
   protected readonly items = computed(() => folderContents(this.fs, this.path(), this.query(), this.sort()));
+  /** 在 Applications 里：同名的非包条目占着位置，让某些预装应用没有包时，说清楚它们仍可从别处打开（D-17）。 */
+  protected readonly applicationsNote = computed(() => {
+    const path = this.path();
+    return path.length === 2 && path[1] === 'Applications' && !this.query() ? this.catalog.conflictNote() : null;
+  });
   protected readonly title = computed(() => (this.query() ? `Searching “${this.query()}”` : this.path().at(-1)));
   protected readonly canGoBack = computed(() => this.history().index > 0);
   protected readonly canGoForward = computed(() => this.history().index < this.history().entries.length - 1);

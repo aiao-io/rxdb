@@ -1,7 +1,6 @@
 import { DESKTOP, DiskPath, HOME, TRASH } from './disk-path';
 import { DiskStore } from './disk-store';
 import { PdfDocument, textPdf } from './formats/pdf';
-import { infoPlist } from './formats/plist';
 import { StubFormat, stubFile } from './formats/stubs';
 import { synthWav } from './formats/wav';
 import {
@@ -53,32 +52,6 @@ export interface DiskSeed {
 /** 浏览器里把插画渲染成 PNG / JPEG；单测里换成假的编码器。 */
 export type ImageEncoder = (image: SeedImage) => Promise<Uint8Array>;
 
-const APPLICATIONS = [
-  'Safari',
-  'Mail',
-  'Messages',
-  'Maps',
-  'Photos',
-  'Notes',
-  'Calendar',
-  'Music',
-  'Terminal',
-  'Calculator',
-  'System Settings',
-  'Preview',
-  'Reminders',
-  'FaceTime',
-  'App Store',
-  'Podcasts',
-  'TV',
-  'Weather',
-  'Stocks',
-  'Books',
-  'Contacts',
-  'Freeform',
-  'Clock'
-];
-
 const text = (path: DiskPath, value: string): SeedFile => ({ path, content: { type: 'text', text: value } });
 const pdf = (path: DiskPath, document: PdfDocument): SeedFile => ({ path, content: { type: 'pdf', document } });
 const stub = (path: DiskPath, format: StubFormat): SeedFile => ({ path, content: { type: 'stub', format } });
@@ -100,15 +73,6 @@ function image(
   };
 }
 
-function application(name: string): SeedFile[] {
-  const contents = ['Applications', `${name}.app`, 'Contents'];
-  const identifier = `io.aiao.desktop.${name.toLowerCase().replace(/\s+/g, '-')}`;
-  return [
-    text([...contents, 'Info.plist'], infoPlist({ name, identifier, version: '26.0' })),
-    text([...contents, 'PkgInfo'], 'APPL????')
-  ];
-}
-
 const projects = [...DESKTOP, 'Projects'];
 const documents = [...HOME, 'Documents'];
 const downloads = [...HOME, 'Downloads'];
@@ -116,6 +80,8 @@ const downloads = [...HOME, 'Downloads'];
 export function buildSeed(): DiskSeed {
   return {
     folders: [
+      /* /Applications 里的 .app 包不在内置磁盘里：它们是应用清单的系统投影，由应用目录服务对账写入（D-17）。 */
+      ['Applications'],
       ['Library', 'Caches'],
       ['Library', 'Preferences'],
       ['System', 'Library'],
@@ -124,7 +90,6 @@ export function buildSeed(): DiskSeed {
       ['Users', 'Shared']
     ],
     files: [
-      ...APPLICATIONS.flatMap(application),
       stub(['Library', 'Fonts', 'SFPro.ttf'], 'ttf'),
       text([...projects, 'desktop-web', 'index.html'], DESKTOP_WEB_INDEX),
       text([...projects, 'desktop-web', 'README.md'], DESKTOP_WEB_README),

@@ -6,7 +6,7 @@
  *   node src/smoke.mjs --list               列出全部检查组名
  *   node src/smoke.mjs --group=shell,game   只跑指定的检查组（--group=fixtures 跑夹具自检）
  *   node src/smoke.mjs --engine=webkit      换浏览器引擎（chromium 默认；其他引擎只提供入口）
- *   node src/smoke.mjs --parallel=3         同时跑 3 个检查组
+ *   node src/smoke.mjs --parallel=1         串行跑（默认同时跑 3 个检查组，独占的真游戏组除外）
  *   node src/smoke.mjs --dist=<目录>        托管另一份产物
  *
  * 输出：stdout 一行 JSON（全部检查项，键集合见 baseline/smoke-keys-*.json），stderr 是每组的耗时与问题。
@@ -46,6 +46,7 @@ try {
     groups: selected,
     browser,
     origin: desktop.origin,
+    distRoot: root,
     engine: options.engine,
     parallel: options.parallel,
     onFinish: outcome =>
