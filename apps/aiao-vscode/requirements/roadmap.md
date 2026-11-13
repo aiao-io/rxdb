@@ -14,7 +14,7 @@
 | US-406 GitHub 集成       | 阶段 A 代码面完成：认证、虚拟仓库后端、选择器、登录对话框、欢迎视图入口、Cloudflare Pages Functions 与验收脚本均已落地；剩余真实 PAT 验收与 OAuth App 注册 | 依赖 [vscode.dev GitHub 集成研究](../../../requirements/domain-research/vscode-dev-github-integration.md)；`/redirect` 与 token 交换 / 登出在 `deploy/` 的 Pages Functions 里，secret 经 wrangler secret；不阻塞 US-404 / US-405 收尾 |
 | US-407 首次进入欢迎视图  | 空目录首启不初始化项目；资源管理器欢迎视图（打开文件夹 / 最近项目 / 初始化 Demo）红测与实现已完成，全量单测通过；待浏览器手动验收与评审                    | 依赖 US-404 内核；与 US-406 并行不冲突；打开文件夹走 File System Access API 单向导入，模板与入口推断见故事技术笔记                                                                                                                    |
 | US-409 运行时对比        | 阶段 D：almostnode、burrow 最薄适配，按各自声称的能力跑冒烟，失败记入兼容性矩阵；随后阶段 E 全矩阵同时段交替复测并出推荐                                   | 分层接入：vivari、Nodepod 完整适配，almostnode、burrow 只冒烟；非 WebContainer 运行时一律放独立源宿主 iframe，不注册在工作台源上；只出数据与推荐，改默认运行时另立项                                                                  |
-| US-410 嵌入 Aiao Desktop | 接入 `@aiao/orbit/client`（握手、就绪、失败上报）与 CORP 响应头，本地对桌面跑线上验收脚本后发布 vscode.aiao.io                                             | 桌面方需求 [ADESK-US-203](../../../aiao-desktop/requirements/stories/application/ADESK-US-203-aiao-code.md)；直接访问的启动流程不变；发布后跑 `aiao-desktop-e2e:verify-aiao-code`                                                     |
+| US-410 嵌入 Aiao Desktop | 已发布到 vscode.aiao.io（部署 `408194ed`）并通过桌面线上验收，待代码评审；以后每次发布后跑 `aiao-desktop-e2e:verify-aiao-code`                             | 桌面方需求 [ADESK-US-203](../../../aiao-desktop/requirements/stories/application/ADESK-US-203-aiao-code.md)；直接访问的启动流程不变；发布后跑 `aiao-desktop-e2e:verify-aiao-code`                                                     |
 
 ## 边界备忘
 

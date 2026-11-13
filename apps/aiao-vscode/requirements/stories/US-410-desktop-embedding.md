@@ -1,7 +1,7 @@
 ---
 id: US-410
 title: 作为集成应用嵌入 Aiao Desktop
-status: In Progress
+status: In Review
 priority: Medium
 epic: epic-003-ui-developer-tools
 created: 2026-11-13
@@ -25,12 +25,12 @@ tags: [aiao-vscode, orbit, micro-frontend, deploy]
 
 ## 验收
 
-| 行为                                                                        | 证据                                                                                                                                                 | 状态 |
-| --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 不在桌面里：直接访问或普通 iframe 嵌入，不握手、照常启动                    | `orbit-embedding.spec.ts`；发布前的工作台 e2e（`workbench.config.ts`，10 个用例）通过；线上直接访问待发布后核对                                      | ⚠️   |
-| 在桌面里：启动前握手，工作台挂载后报告就绪，启动失败报告原因                | `orbit-embedding.spec.ts`、`app.component.spec.ts`；桌面验收 `aiao-desktop-e2e:verify-aiao-code --vscode-dist` 对本地产物 6 项全过；线上待发布后重跑 | ⚠️   |
-| 文档响应带 CORP，带 COEP 的宿主能嵌入，嵌入后 `crossOriginIsolated` 为 true | `verify-pages-routing`（wrangler pages dev）检查入口与资产页的 CORP 恰好一个值；本地产物嵌入后为 true；线上待发布后核对响应头                        | ⚠️   |
-| 原有工作台行为不回归                                                        | `aiao-vscode:test`（79 个文件、1256 个用例）；工作台 e2e 10 个用例；`verify-functions` 11 项                                                         | ✅   |
+| 行为                                                                        | 证据                                                                                                                                                      | 状态 |
+| --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 不在桌面里：直接访问或普通 iframe 嵌入，不握手、照常启动                    | `orbit-embedding.spec.ts`；发布前的工作台 e2e（`workbench.config.ts`，10 个用例）通过；发布后直接访问线上：工作台出现，地址不变                           | ✅   |
+| 在桌面里：启动前握手，工作台挂载后报告就绪，启动失败报告原因                | `orbit-embedding.spec.ts`、`app.component.spec.ts`；桌面验收 `aiao-desktop-e2e:verify-aiao-code --vscode-dist` 对本地产物 6 项全过；发布后对线上 6 项全过 | ✅   |
+| 文档响应带 CORP，带 COEP 的宿主能嵌入，嵌入后 `crossOriginIsolated` 为 true | `verify-pages-routing`（wrangler pages dev）检查入口与资产页的 CORP 恰好一个值；本地产物嵌入后为 true；线上入口带恰好一个 CORP 值                         | ✅   |
+| 原有工作台行为不回归                                                        | `aiao-vscode:test`（79 个文件、1256 个用例）；工作台 e2e 10 个用例；`verify-functions` 11 项                                                              | ✅   |
 
 ## 实现文件
 

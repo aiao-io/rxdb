@@ -6,16 +6,16 @@
 
 | 状态           | 数量 |
 | -------------- | ---- |
-| ✅ Done        | 6    |
-| 🚧 In Progress | 1    |
+| ✅ Done        | 7    |
+| 🚧 In Progress | 0    |
 | 👀 In Review   | 0    |
 | 📝 Backlog     | 0    |
 | 🚫 Blocked     | 0    |
 | **合计**       | 7    |
 
-## 进行中（1 条）
+## 进行中（0 条）
 
-- [ADESK-US-203 接入 Aiao Code](stories/application/ADESK-US-203-aiao-code.md)：桌面一侧已就绪，用本地产物顶替 vscode.aiao.io 的线上验收 6 项全过；等 Aiao Code 带着握手与 CORP 发布到 vscode.aiao.io 后，对线上重跑才能关闭。
+无。
 
 ## 待评审（0 条）
 
@@ -37,4 +37,4 @@
 
 - ✅ [ADESK-US-201 应用体系与统一登记表](stories/application/ADESK-US-201-application-system.md)
 - ✅ [ADESK-US-202 集成应用的运行宿主](stories/application/ADESK-US-202-integrated-app-runtime.md)
-- 🚧 [ADESK-US-203 接入 Aiao Code](stories/application/ADESK-US-203-aiao-code.md)
+- ✅ [ADESK-US-203 接入 Aiao Code](stories/application/ADESK-US-203-aiao-code.md)
