@@ -1,4 +1,5 @@
-export type WorkbenchDisplayMode = 'browser' | 'standalone' | 'window-controls-overlay';
+/** `desktop-window` 由 Aiao Desktop 的透明窗口设置（见 host-window.ts），不从浏览器显示模式推断。 */
+export type WorkbenchDisplayMode = 'browser' | 'standalone' | 'window-controls-overlay' | 'desktop-window';
 
 export interface DisplayModeEnvironment {
   readonly matchMedia?: (query: string) => { readonly matches: boolean };

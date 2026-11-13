@@ -1,5 +1,6 @@
 import { computeMinimalDocumentChange } from '@aiao/code-editor';
 import { CodeEditor } from '@aiao/code-editor-angular';
+import { getCurrentWindow } from '@aiao/orbit/window';
 import { RxDB } from '@aiao/rxdb';
 import { isPlatformBrowser } from '@angular/common';
 import {
@@ -85,6 +86,8 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   /** 被 Aiao Desktop 嵌入时与桌面的连接（US-410），直接访问时为空。 */
   private readonly orbit = inject(ORBIT_CLIENT);
   private workbench?: WorkbenchHandle;
+  /** 透明窗口下停止上报拖动区（US-411）。 */
+  private stopDragRegions?: () => void;
   private destroyed = false;
   readonly ready = signal(false);
   readonly error = signal<string | null>(null);
@@ -96,6 +99,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.destroyed = true;
+    this.stopDragRegions?.();
     this.workbench?.dispose();
   }
 
@@ -267,10 +271,14 @@ export class AppComponent implements AfterViewInit, OnDestroy {
       })();
     }
     if (this.destroyed) return;
+    /* Aiao Desktop 批准了透明窗口（US-411）：标题栏自绘红黄绿按钮，桌面不再画自己的标题栏。 */
+    const appWindow = this.orbit && getCurrentWindow(this.orbit);
+    const hostWindow = appWindow?.state.frame === 'transparent' ? appWindow : undefined;
     this.workbench = mountWorkbench(
       this.host.nativeElement,
       {
         ...(connected ? { catalog: createRxDBWorkbenchCatalog(this.rxdb) } : {}),
+        ...(hostWindow ? { hostWindow } : {}),
         runtimeHosts: runtimeHostsFor(RUNTIME_HOSTS, location.origin),
         backend: createRouterBackend({
           local: createGitBackend('/browser-workbench-assets/'),
@@ -285,6 +293,11 @@ export class AppComponent implements AfterViewInit, OnDestroy {
           return loadMonacoEditor();
         })
     );
+    if (hostWindow) {
+      this.stopDragRegions = hostWindow.trackDragRegions(this.host.nativeElement);
+      await hostWindow.setDecorations(false);
+      if (this.destroyed) return;
+    }
     this.ready.set(true);
     this.orbit?.ready();
     if (new URLSearchParams(location.search).has('workbench-verify')) {

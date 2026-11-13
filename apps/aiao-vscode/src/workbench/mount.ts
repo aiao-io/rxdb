@@ -67,6 +67,7 @@ import {
 } from './workbench-explorer-view.js';
 import { createCodicon, createFileIcon, type CodiconName } from './workbench-icons.js';
 import { createWorkbenchLayout, workbenchElement } from './workbench-layout.js';
+import { attachHostWindow, type WorkbenchHostWindow } from './host-window.js';
 import { attachWorkbenchLongPress } from './workbench-longpress.js';
 import { createWorkbenchNavigation } from './workbench-navigation.js';
 import { createWorkbenchRecoveryJournal } from './workbench-recovery.js';
@@ -79,6 +80,8 @@ import { resolveTreeMove, treePathBase, treePathParent, type TreeMoveDecision } 
 /** 工作台的可注入服务与静态资源位置。 */
 export interface BrowserWorkbenchOptions {
   readonly assetBaseURL?: string;
+  /** Aiao Desktop 的透明窗口：标题栏自绘红黄绿按钮并成为拖动区（US-411）。 */
+  readonly hostWindow?: WorkbenchHostWindow;
   /** 可注入正式扩展宿主加载器，默认运行独立同源页面。 */
   readonly markdownRuntime?: MarkdownExtensionOptions['mount'];
   readonly initialProjectId?: string;
@@ -171,6 +174,7 @@ export function mountWorkbench(
   const assetBase = options.assetBaseURL ?? '/browser-workbench-assets/';
   const base = new URL(assetBase.endsWith('/') ? assetBase : `${assetBase}/`, location.href).href;
   const root = createWorkbenchLayout(host, base);
+  const detachHostWindow = options.hostWindow && attachHostWindow(root, options.hostWindow);
   const element = <T extends HTMLElement = HTMLElement>(selector: string) => workbenchElement<T>(root, selector);
   const backend = options.backend ?? createGitBackend(base);
   const compiler = options.compiler ?? createCompiler(base);
@@ -2740,6 +2744,7 @@ export function mountWorkbench(
     session,
     refreshLayout: () => docking.refreshLayout(),
     dispose() {
+      detachHostWindow?.();
       if (disposed) return;
       disposed = true;
       releaseGitHubAuth?.();

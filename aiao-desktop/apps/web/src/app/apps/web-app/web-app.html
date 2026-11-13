@@ -1,9 +1,11 @@
-<div class="tb plain" data-drag>
-  <div class="title" data-webapp-title>{{ win.title() }}</div>
-  <div class="tbz"><app-traffic-lights /></div>
-  <div class="grow"></div>
-  <div class="tbz"></div>
-</div>
+@if (chrome()) {
+  <div class="tb plain" data-drag>
+    <div class="title" data-webapp-title>{{ win.title() }}</div>
+    <div class="tbz"><app-traffic-lights /></div>
+    <div class="grow"></div>
+    <div class="tbz"></div>
+  </div>
+}
 <div class="webapp" [attr.data-webapp-state]="state()" [attr.data-webapp]="app.id">
   <div class="webapp-stage" #stage></div>
   @switch (state()) {
@@ -28,5 +30,20 @@
   }
   @if (shielded()) {
     <div class="webapp-shield" (pointerdown)="activate()" data-webapp-shield></div>
+  }
+  @if (!chrome()) {
+    @for (region of dragRegions(); track $index) {
+      <div
+        class="webapp-drag"
+        [style.clip-path]="clipPath(region)"
+        [style.height.px]="region.height"
+        [style.left.px]="region.x"
+        [style.top.px]="region.y"
+        [style.width.px]="region.width"
+        (pointerdown)="activate()"
+        data-drag
+        data-webapp-drag
+      ></div>
+    }
   }
 </div>

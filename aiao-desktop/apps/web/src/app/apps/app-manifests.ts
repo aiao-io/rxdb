@@ -43,7 +43,8 @@ export const DESKTOP_APP_MANIFESTS = {
       url: 'https://vscode.aiao.io/',
       version: 'online',
       allow: ['cross-origin-isolated', 'clipboard-read', 'clipboard-write'],
-      readyTimeout: 60_000
+      readyTimeout: 60_000,
+      frame: 'transparent'
     }
   },
   calculator: {

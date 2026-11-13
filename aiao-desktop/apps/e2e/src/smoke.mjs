@@ -54,22 +54,37 @@ await context.route(
 
 /**
  * 替身应用（ADESK-US-202）：顶替集成应用 Aiao Code 的入口 https://vscode.aiao.io/，按真实的接入契约
- * 返回 COEP 与 CORP，并用 Orbit 客户端握手。`standinMode` 切换就绪、自报失败与离线三种情形。
+ * 返回 COEP 与 CORP，并用 Orbit 客户端握手。`standinMode`：standard 保留桌面的标题栏；transparent 隐藏桌面的
+ * 标题栏、自己画红黄绿与拖动区（ADESK-US-204）；fail 启动时自报失败；offline 入口请求失败。
  */
-let standinMode = 'ready';
+let standinMode = 'standard';
 const standinPage = mode => `<!doctype html>
 <html lang="en">
   <head><meta charset="utf-8" /><title>Aiao Code stand-in</title></head>
   <body style="margin: 0; font: 14px system-ui">
+    <header data-standin-bar data-orbit-drag-region style="display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px">
+      <button data-standin-window="close">×</button>
+      <button data-standin-window="minimize">−</button>
+      <button data-standin-window="maximize">+</button>
+      <span style="margin-left: 24px">Stand-in</span>
+      <button data-standin-noop style="margin-left: 16px">noop</button>
+    </header>
     <textarea data-standin-input style="width: 90%; height: 120px"></textarea>
     <script type="module">
       import { connectOrbitClient } from './__standin/orbit/client.js';
+      import { getCurrentWindow } from './__standin/orbit/window.js';
       const client = await connectOrbitClient();
-      const state = { id: crypto.randomUUID(), visibility: [] };
+      const appWindow = getCurrentWindow(client);
+      const state = { id: crypto.randomUUID(), visibility: [], window: [] };
       window.standin = state;
       client.onVisibilityChange(visible => state.visibility.push(visible));
+      appWindow.onStateChange(next => state.window.push(next));
+      const actions = { close: () => appWindow.close(), minimize: () => appWindow.minimize(), maximize: () => appWindow.toggleMaximize() };
+      for (const button of document.querySelectorAll('[data-standin-window]'))
+        button.addEventListener('click', () => actions[button.dataset.standinWindow]());
       /* 跨源 iframe 没有用户激活时不能自己抢焦点；等桌面把焦点交过来再落到输入框。 */
       addEventListener('focus', () => document.querySelector('[data-standin-input]').focus());
+      ${mode === 'transparent' ? 'appWindow.trackDragRegions(document); await appWindow.setDecorations(false);' : ''}
       ${mode === 'fail' ? "client.fail('stand-in failed on purpose');" : 'setTimeout(() => client.ready(), 600);'}
     </script>
   </body>
@@ -351,6 +366,8 @@ try {
   await page.locator('#dock .di[data-app="vscode"]').click();
   integratedApp.showsLoading = await shows(webappIn('loading'));
   integratedApp.becomesReady = await appears(webappIn('ready'), 15_000);
+  /* 应用没有隐藏装饰（标准窗口、不支持透明窗口的旧版本）：就绪后仍是桌面的标题栏。 */
+  integratedApp.standardKeepsChrome = await shows(vscodeWin.locator('.tb .tl'));
   const opened = await standin();
   integratedApp.standinRendered = typeof opened.id === 'string';
   integratedApp.crossOriginIsolated = opened.isolated === true;
@@ -426,7 +443,7 @@ try {
   integratedApp.desktopUnaffected = await shows(win('calculator'));
   await win('calculator').locator('.tl .c').click();
   await page.waitForTimeout(400);
-  standinMode = 'ready';
+  standinMode = 'standard';
   await vscodeWin.locator('[data-webapp-retry]').click();
   integratedApp.retryRecovers = await appears(webappIn('ready'), 15_000);
 
@@ -437,7 +454,7 @@ try {
   integratedApp.appFailureShowsReason =
     (await appears(webappIn('failed'), 10_000)) &&
     ((await vscodeWin.locator('[data-webapp-reason]').textContent()) ?? '').includes('stand-in failed on purpose');
-  standinMode = 'ready';
+  standinMode = 'standard';
 
   /* 入口一致（ADESK-US-201）：启动台与聚焦搜索找得到，菜单栏显示应用名，退出关闭全部窗口。 */
   await closeAll();
@@ -477,6 +494,84 @@ try {
         () => true,
         () => false
       ));
+
+  /* 透明窗口（ADESK-US-204）：替身隐藏桌面的标题栏，自己画红黄绿与拖动区，按钮调用桌面的窗口接口。 */
+  await closeAll();
+  standinMode = 'transparent';
+  const standinWindow = async () => (await standinFrame()?.evaluate(() => window.standin?.window.at(-1))) ?? {};
+  const zoomed = () => vscodeWin.evaluate(node => node.classList.contains('zoomed'));
+  const barPoint = async () => {
+    const bar = await standinFrame().locator('[data-standin-bar]').boundingBox();
+    return { x: bar.x + bar.width - 80, y: bar.y + bar.height / 2 };
+  };
+  await page.locator('#dock .di[data-app="vscode"]').click();
+  const transparentWindow = { chromeWhileLoading: await shows(vscodeWin.locator('.tb .tl')) };
+  await appears(webappIn('ready'), 15_000);
+  transparentWindow.chromeHiddenWhenReady =
+    (await disappears(vscodeWin.locator('.tb'), 3_000)) &&
+    (await appears(vscodeWin.locator('[data-webapp-drag]'), 3_000)) &&
+    (await standinFrame().locator('[data-standin-bar]').boundingBox()).y - (await vscodeWin.boundingBox()).y < 2;
+  transparentWindow.appKnowsDecorations = await standinFrame()
+    .waitForFunction(() => window.standin?.window.at(-1)?.decorations === false, undefined, { timeout: 3_000 })
+    .then(
+      () => true,
+      () => false
+    );
+
+  /* 按住替身标题栏空白处拖动：窗口跟着走；最后一步放慢，松手不滑行。 */
+  const beforeDrag = await vscodeWin.boundingBox();
+  const grab = await barPoint();
+  await page.mouse.move(grab.x, grab.y);
+  await page.mouse.down();
+  await page.mouse.move(grab.x - 120, grab.y + 80, { steps: 10 });
+  await page.waitForTimeout(200);
+  await page.mouse.move(grab.x - 119, grab.y + 80);
+  await page.mouse.up();
+  await page.waitForTimeout(200);
+  const afterDrag = await vscodeWin.boundingBox();
+  transparentWindow.dragMovesWindow =
+    Math.abs(beforeDrag.x - 119 - afterDrag.x) <= 3 && Math.abs(beforeDrag.y + 80 - afterDrag.y) <= 3;
+
+  /* 按住标题栏里的按钮拖：挖空处归应用，窗口不动。 */
+  const noop = await standinFrame().locator('[data-standin-noop]').boundingBox();
+  await page.mouse.move(noop.x + noop.width / 2, noop.y + noop.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(noop.x - 100, noop.y + 60, { steps: 6 });
+  await page.mouse.up();
+  await page.waitForTimeout(200);
+  const afterHole = await vscodeWin.boundingBox();
+  transparentWindow.buttonsAreNotDragArea = afterHole.x === afterDrag.x && afterHole.y === afterDrag.y;
+
+  /* 双击空白处缩放；替身的绿色按钮还原。 */
+  const doubleClickAt = await barPoint();
+  await page.mouse.dblclick(doubleClickAt.x, doubleClickAt.y);
+  await page.waitForTimeout(500);
+  transparentWindow.doubleClickZooms = await zoomed();
+  await standinFrame().locator('[data-standin-window="maximize"]').click();
+  await page.waitForTimeout(500);
+  transparentWindow.maximizeButtonToggles = !(await zoomed()) && (await standinWindow()).maximized === false;
+
+  /* 切到别的窗口再点回来：替身收到失去与回到前台。 */
+  await page.locator('#dock .di[data-app="calculator"]').click();
+  await win('calculator').waitFor();
+  await page.waitForTimeout(300);
+  const blurred = (await standinWindow()).focused === false;
+  const back = await barPoint();
+  await page.mouse.click(back.x, back.y);
+  await page.waitForTimeout(300);
+  transparentWindow.focusStateReachesApp = blurred && (await standinWindow()).focused === true;
+  await win('calculator').locator('.tl .c').click();
+  await page.waitForTimeout(300);
+
+  /* 替身的黄色按钮最小化，从 Dock 还原；红色按钮关闭。 */
+  await standinFrame().locator('[data-standin-window="minimize"]').click();
+  await page.waitForTimeout(700);
+  transparentWindow.minimizeButtonMinimizes = await vscodeWin.evaluate(node => node.style.visibility === 'hidden');
+  await page.locator('#dock .di[data-app="vscode"]').click();
+  await page.waitForTimeout(900);
+  await standinFrame().locator('[data-standin-window="close"]').click();
+  transparentWindow.closeButtonCloses = await disappears(vscodeWin, 3_000);
+  standinMode = 'standard';
 
   /* 每个应用都能从启动台打开，且不产生错误。 */
   const unopened = [];
@@ -576,6 +671,7 @@ try {
     notificationsClose,
     notesWorks,
     integratedApp,
+    transparentWindow,
     everyAppOpens,
     unopened,
     persistence
@@ -588,6 +684,7 @@ try {
     Object.values(finalChecks.diskState).some(check => !check) ||
     Object.values(finalChecks.persistence).some(check => !check) ||
     Object.values(finalChecks.integratedApp).some(check => !check) ||
+    Object.values(finalChecks.transparentWindow).some(check => !check) ||
     Object.values(finalChecks).some(check => check === false);
   if (failed) throw new Error(`Smoke checks failed: ${JSON.stringify(finalChecks)}`);
   console.log(JSON.stringify(finalChecks));

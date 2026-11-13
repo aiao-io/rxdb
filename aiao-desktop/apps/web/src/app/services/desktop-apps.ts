@@ -53,6 +53,14 @@ export const WEB_APP_PERMISSIONS = [
 
 export type WebAppPermission = (typeof WEB_APP_PERMISSIONS)[number];
 
+/**
+ * 集成应用的窗口外观（D-14，对应 Tauri 的 decorations）：standard 由桌面画标题栏；
+ * transparent 允许应用在运行时隐藏桌面的标题栏，自己画标题栏与红黄绿按钮。
+ */
+export const WEB_APP_FRAMES = ['standard', 'transparent'] as const;
+
+export type WebAppFrame = (typeof WEB_APP_FRAMES)[number];
+
 /** 集成应用的入口：Orbit 装载应用需要的全部信息。 */
 export interface WebAppEntry {
   /** 应用的地址，必须是不带用户名密码的 HTTPS 地址。 */
@@ -63,6 +71,8 @@ export interface WebAppEntry {
   readonly allow: readonly WebAppPermission[];
   /** 等应用报告就绪的时限（毫秒，1～120000）。 */
   readonly readyTimeout: number;
+  /** 窗口外观，默认 standard。 */
+  readonly frame?: WebAppFrame;
 }
 
 interface DesktopAppBase {
@@ -197,6 +207,9 @@ function entryProblems(key: string, web: WebAppEntry): string[] {
   problems.push(...permissionProblems(key, web.allow));
   if (!Number.isInteger(web.readyTimeout) || web.readyTimeout < 1 || web.readyTimeout > MAX_READY_TIMEOUT)
     problems.push(`${key}.web.readyTimeout：必须是 1～${MAX_READY_TIMEOUT} 之间的整数毫秒`);
+  const frames: readonly string[] = WEB_APP_FRAMES;
+  if (web.frame !== undefined && !frames.includes(web.frame))
+    problems.push(`${key}.web.frame：只能是 ${WEB_APP_FRAMES.join(' 或 ')}`);
   return problems;
 }
 

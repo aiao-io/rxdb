@@ -92,7 +92,22 @@ afterEach(() => {
 });
 
 describe('被 Aiao Desktop 嵌入时向桌面报告（US-410）', () => {
-  const desktop = () => ({ ready: vi.fn(), fail: vi.fn() });
+  /** 桌面给的连接：frame 为空表示桌面没有提供窗口；请求与就绪按发生顺序记下来。 */
+  const desktop = (frame?: 'standard' | 'transparent') => {
+    const order: string[] = [];
+    const window = { platform: 'macos', frame, decorations: true, focused: true, maximized: false };
+    return {
+      order,
+      context: { props: frame ? { 'orbit.window': window } : {} },
+      bus: { $on: vi.fn(), $off: vi.fn() },
+      request: vi.fn(async (method: string, payload: unknown = null) => {
+        order.push(`${method}:${JSON.stringify(payload)}`);
+        return null;
+      }),
+      ready: vi.fn(() => order.push('ready')),
+      fail: vi.fn()
+    };
+  };
 
   function embeddedFixture(client: ReturnType<typeof desktop>) {
     TestBed.configureTestingModule({
@@ -130,6 +145,43 @@ describe('被 Aiao Desktop 嵌入时向桌面报告（US-410）', () => {
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('工作台挂载失败');
     fixture.destroy();
+  });
+
+  it('透明窗口（US-411）：工作台拿到宿主窗口，先隐藏桌面的标题栏、上报拖动区，再报告就绪', async () => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe(): void {}
+        disconnect(): void {}
+      }
+    );
+    const client = desktop('transparent');
+    const fixture = embeddedFixture(client);
+    fixture.detectChanges();
+    connected.next(true);
+    await vi.waitFor(() => expect(client.ready).toHaveBeenCalledOnce());
+    const hostWindow = mocks.mount.mock.calls[0][1].hostWindow;
+    expect(hostWindow?.state).toMatchObject({ frame: 'transparent', focused: true });
+    expect(client.order.indexOf('window.setDecorations:false')).toBeGreaterThanOrEqual(0);
+    expect(client.order.indexOf('window.setDecorations:false')).toBeLessThan(client.order.indexOf('ready'));
+    await vi.waitFor(() => expect(client.order.some(entry => entry.startsWith('window.setDragRegions:'))).toBe(true));
+    fixture.destroy();
+    expect(client.order.at(-1)).toBe('window.setDragRegions:[]');
+  });
+
+  it('标准窗口或桌面没提供窗口：保留桌面的标题栏，不调用窗口接口', async () => {
+    for (const frame of ['standard', undefined] as const) {
+      TestBed.resetTestingModule();
+      mocks.mount.mockClear();
+      const client = desktop(frame);
+      const fixture = embeddedFixture(client);
+      fixture.detectChanges();
+      connected.next(true);
+      await vi.waitFor(() => expect(client.ready).toHaveBeenCalledOnce());
+      expect(mocks.mount.mock.calls[0][1].hostWindow).toBeUndefined();
+      expect(client.order).toEqual(['ready']);
+      fixture.destroy();
+    }
   });
 
   it('连库期间组件被销毁：不挂载，也不报告就绪', async () => {

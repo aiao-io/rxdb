@@ -66,3 +66,8 @@
   inset: 0;
   z-index: 2;
 }
+/* 透明窗口的拖动层（D-14）：形状由应用上报，挖空处的指针直达应用；盖在激活层之上，后台窗口也能直接拖。 */
+.webapp-drag {
+  position: absolute;
+  z-index: 3;
+}

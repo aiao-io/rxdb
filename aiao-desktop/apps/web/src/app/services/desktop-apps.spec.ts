@@ -47,7 +47,7 @@ describe('应用登记表', () => {
       name: 'Aiao Code',
       icon: 'app-aiao-code',
       kind: 'web',
-      web: { url: 'https://vscode.aiao.io/', readyTimeout: 60_000 }
+      web: { url: 'https://vscode.aiao.io/', readyTimeout: 60_000, frame: 'transparent' }
     });
     expect((DESKTOP_APP_MANIFESTS.vscode as DesktopAppManifest).single).toBeUndefined();
     expect(orbitAllow(DESKTOP_APP_MANIFESTS.vscode.web)).toBe('cross-origin-isolated; clipboard-read; clipboard-write');
@@ -69,7 +69,8 @@ describe('应用登记表', () => {
         { ...withWeb({ allow: ['fullscreen', 'fullscreen'] }), id: 'twice' },
         { ...withWeb({ readyTimeout: 0 }), id: 'instant' },
         { ...withWeb({ readyTimeout: 120_001 }), id: 'forever' },
-        { ...withWeb({ readyTimeout: 1.5 }), id: 'fraction' }
+        { ...withWeb({ readyTimeout: 1.5 }), id: 'fraction' },
+        { ...withWeb({ frame: 'glass' }), id: 'glass' }
       )
     );
     expect(problems).toEqual([
@@ -85,7 +86,8 @@ describe('应用登记表', () => {
       'twice.web.allow：fullscreen 重复',
       'instant.web.readyTimeout：必须是 1～120000 之间的整数毫秒',
       'forever.web.readyTimeout：必须是 1～120000 之间的整数毫秒',
-      'fraction.web.readyTimeout：必须是 1～120000 之间的整数毫秒'
+      'fraction.web.readyTimeout：必须是 1～120000 之间的整数毫秒',
+      'glass.web.frame：只能是 standard 或 transparent'
     ]);
     expect(() => assertManifests(misfiled)).toThrow(/应用登记表不合规[\s\S]*mismatch\.id/);
     expect(() => assertManifests(DESKTOP_APP_MANIFESTS)).not.toThrow();
