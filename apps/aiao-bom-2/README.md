@@ -36,7 +36,7 @@ pnpm nx run aiao-bom-2:deploy-check
 pnpm nx run aiao-bom-2:preview
 ```
 
-覆盖率对应用运行源码的 statements / branches / functions / lines 四项执行 80% 门槛；Worker 入口由浏览器压力测试验收。`deploy-check` 只打包和校验，Cloudflare 配置使用独立名称 `aiao-bom-2`。没有执行公网发布。
+覆盖率对应用运行源码的 statements / branches / functions / lines 四项执行 80% 门槛；Worker 入口由浏览器压力测试验收。`deploy-check` 只打包和校验，Cloudflare 配置使用独立名称 `aiao-bom-2`，Wrangler `4.158.0`，兼容日期固定为运行时支持的 `2026-11-11`。没有执行公网发布。
 
 本地库身份是 `aiao-bom-2-workspace-v1`，不会读取或覆盖旧 `dev-rxdb-bom`。当前使用 IndexedDB 保存应用草稿，尚未接入完整 RxDB 领域工作区。已加载会话可以继续浏览和编辑；没有 Service Worker，不承诺离线冷启动。独立零件模型需要来源服务器允许 CORS；失败不影响表格。
 

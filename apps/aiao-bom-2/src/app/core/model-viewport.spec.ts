@@ -8,6 +8,9 @@ vi.mock('three', async original => {
   const actual = await original<typeof import('three')>();
   return { ...actual, WebGLRenderer: class {
     readonly domElement = document.createElement('canvas');
+    readonly info = { render: { calls: 1, triangles: 12 } };
+    autoClear = true;
+    readonly getDrawingBufferSize = vi.fn((size: THREE.Vector2) => size.set(640, 480)); readonly setRenderTarget = vi.fn();
     readonly setPixelRatio = vi.fn(); readonly setClearColor = vi.fn(); readonly setSize = vi.fn();
     render = mocks.rendererRender;
     dispose = mocks.rendererDispose;
@@ -34,7 +37,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => new Response(new Uint8Array([1, 2, 3]), { headers: { 'content-length': '3' } })));
   vi.stubGlobal('ResizeObserver', class { readonly observe = vi.fn(); readonly disconnect = vi.fn(); });
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { vi.unstubAllGlobals(); mocks.rendererRender.mockReset(); });
 describe('模型生命周期与精确位置语义', () => {
   it('读取缺省关联项、共享材质与来源移除节点，选择只影响具体位置', async () => {
     const asset = scene(); mocks.parse.mockResolvedValue(asset);
@@ -84,6 +87,41 @@ describe('拾取与重复加载资源边界', () => {
     expect(selected).toHaveBeenCalledWith(expect.objectContaining({ index: 0, partId: '1321315' })); expect(hits.mock.calls[0][0]).not.toContain(asset.hidden);
     hits.mockReturnValue([]); canvas.dispatchEvent(new PointerEvent('pointerup', { clientX: 300, clientY: 200 })); expect(selected).toHaveBeenCalledTimes(1);
     hits.mockRestore(); viewport.dispose();
+  });
+  it('底图与高亮绘制分开，选择变化保留缓存并恢复所有原始图层', async () => {
+    const frames: FrameRequestCallback[] = []; vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { frames.push(callback); return frames.length; }); vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    const asset = scene(); mocks.parse.mockResolvedValue(asset); const draws: Array<{ batch: boolean; selected: boolean; hidden: boolean }> = [];
+    mocks.rendererRender.mockImplementation((scene: THREE.Scene) => {
+      if (!scene.children.includes(asset.scene)) return;
+      draws.push({ batch: scene.children.some(object => object instanceof THREE.BatchedMesh && object.visible), selected: asset.a.layers.isEnabled(0), hidden: asset.hidden.visible });
+    });
+    const viewport = new ModelViewport(document.createElement('div'), { ready: vi.fn(), progress: vi.fn(), selected: vi.fn() });
+    await viewport.load('/model.glb'); viewport.select(row()); frames.shift()!(0);
+    expect(draws).toEqual([{ batch: true, selected: false, hidden: false }, { batch: false, selected: true, hidden: false }]);
+    viewport.select({ ...row(), nodeIndex: 1 }); frames.shift()!(16);
+    expect(draws.at(-1)).toEqual({ batch: false, selected: false, hidden: false }); expect(draws).toHaveLength(3);
+    expect(asset.a.layers.isEnabled(0)).toBe(false); expect(asset.b.layers.isEnabled(0)).toBe(true);
+    viewport.ghost(true); frames.shift()!(32); expect(draws).toHaveLength(5);
+    viewport.select(null); frames.shift()!(48); expect(draws).toHaveLength(7);
+    const renderedScene = mocks.rendererRender.mock.calls.find(([scene]) => (scene as THREE.Scene).children.includes(asset.scene))![0] as THREE.Scene;
+    expect((renderedScene.children.find(object => object instanceof THREE.BatchedMesh) as THREE.BatchedMesh).material).toBe(asset.material);
+    viewport.dispose(); mocks.rendererRender.mockReset();
+  });
+  it('隔离嵌套零件保留祖先可遍历，同时排除祖先自身几何与其他零件', async () => {
+    const asset = scene(); asset.a.add(asset.b); mocks.parse.mockResolvedValue(asset);
+    const host = document.createElement('div'); const viewport = new ModelViewport(host, { ready: vi.fn(), progress: vi.fn(), selected: vi.fn() }); await viewport.load('/nested.glb');
+    viewport.select({ ...row(), nodeIndex: 1 }); viewport.isolate(true);
+    expect(asset.a.visible).toBe(true); expect(asset.a.layers.isEnabled(0)).toBe(false); expect(asset.b.visible).toBe(true); expect(asset.b.layers.isEnabled(0)).toBe(true); expect(asset.hidden.visible).toBe(false);
+    const hits = vi.spyOn(THREE.Raycaster.prototype, 'intersectObjects').mockReturnValue([]);
+    host.querySelector('canvas')!.dispatchEvent(new PointerEvent('pointerup', { clientX: 0, clientY: 0 })); expect(hits.mock.calls[0][0]).toEqual([asset.b]); hits.mockRestore();
+    viewport.isolate(false); expect(asset.a.visible).toBe(true); viewport.dispose();
+  });
+  it('隔离和透明状态随旧模型清空，新资产不继承上一个场景的显示模式', async () => {
+    const first = scene(); const second = scene(); mocks.parse.mockResolvedValueOnce(first).mockResolvedValueOnce(second);
+    const viewport = new ModelViewport(document.createElement('div'), { ready: vi.fn(), progress: vi.fn(), selected: vi.fn() });
+    await viewport.load('/first.glb'); viewport.select(row()); viewport.ghost(true); viewport.isolate(true);
+    await viewport.load('/second.glb');
+    expect(second.b.visible).toBe(true); expect(second.b.material).toBe(second.material); expect(second.hidden.visible).toBe(false); viewport.dispose();
   });
   it('连续切换二十个模型时每份几何、材质和纹理只释放一次', async () => {
     const viewport = new ModelViewport(document.createElement('div'), { ready: vi.fn(), progress: vi.fn(), selected: vi.fn() });

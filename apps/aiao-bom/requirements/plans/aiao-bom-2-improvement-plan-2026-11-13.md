@@ -2,7 +2,7 @@
 
 日期：2026-11-13（Asia/Shanghai）。结论：✅ 值得做。
 
-本轮为现有能力、公开数据和模型的研究及产品方案。`aiao-bom-2` 尚未创建，功能与性能指标均待实现验收。旧 `aiao-bom` 的页面、数据库、部署入口保持原状。研究计数与来源哈希见[数据核查记录](aiao-bom-2-data-audit-2026-11-13.json)。本计划不替代 story 的状态管理。
+实施状态（2026-11-13）：已创建独立 `aiao-bom-2` 和对应 E2E 项目，落地 VTable 结构工作台、真实整车与零件模型、草稿编辑及导入导出。实测与剩余替换门槛见[实施验收记录](../../../aiao-bom-2/requirements/implementation-report-2026-11-13.md)。本文保留完整产品方案，下文目标不自动视为全部完成。旧 `aiao-bom` 的页面、数据库、部署入口保持原状。研究计数与来源哈希见[数据核查记录](aiao-bom-2-data-audit-2026-11-13.json)。本计划不替代 story 的状态管理。
 
 ## 1. 产品目标与默认决策
 
@@ -228,7 +228,7 @@ flowchart LR
 
 ## 11. 证据与参考
 
-公开来源的完整地址、获取状态、体积和 SHA-256 在[数据核查记录](aiao-bom-2-data-audit-2026-11-13.json)中。GLB 本轮读取头及 JSON 段，完整二进制未作为仓库资源提交；记录中的 JSON 哈希不等于完整 GLB 哈希。
+公开来源的完整地址、获取状态、体积和 SHA-256 在[数据核查记录](aiao-bom-2-data-audit-2026-11-13.json)中。初次研究只读取 GLB 头及 JSON 段，研究记录中的 JSON 哈希不等于完整 GLB 哈希。后续实施已保存完整整车二进制，文件及完整 SHA-256 见 `apps/aiao-bom-2/public/models/eu-x9d13.glb` 与 `public/data/provenance.json`。
 
 本地依据：`apps/aiao-bom/README.md`、`src/app/app.routes.ts`、`src/app/components/req-tree.ts`、`packages/rxdb-plugin-bom/src/view-types.ts` / `view-projection.ts`、`packages/rxdb-model/src/entity-table/vtable/table-factory.ts`、`benchmarks/reports/bom-view-benchmark.json`。
 

@@ -4,7 +4,7 @@
     "directory": "../../dist/apps/aiao-bom-2/browser",
     "not_found_handling": "single-page-application"
   },
-  "compatibility_date": "2026-11-13",
+  "compatibility_date": "2026-11-11",
   "name": "aiao-bom-2",
   "workers_dev": true
 }

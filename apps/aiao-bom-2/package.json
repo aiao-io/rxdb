@@ -13,6 +13,7 @@
     "three": "0.187.0"
   },
   "devDependencies": {
-    "@types/three": "0.187.0"
+    "@types/three": "0.187.0",
+    "wrangler": "4.158.0"
   }
 }
