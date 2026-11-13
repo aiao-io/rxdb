@@ -334,6 +334,7 @@ export const appLifecycle = {
     const incompatibleReason = incompatible ? await reasonText() : '';
     await page.waitForTimeout(300);
     const states = await page.evaluate(() => window.__states);
+    if (process.env.HOSTCAP_DEBUG) console.error('HOSTCAP_DEBUG', JSON.stringify({ incompatible, incompatibleReason, states, notices }));
     appLifecycle.incompatibleProtocolShowsReason =
       incompatible &&
       incompatibleReason.includes('needs a newer Aiao Desktop') &&
