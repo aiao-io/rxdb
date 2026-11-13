@@ -122,10 +122,13 @@ export default class DesignerComponent {
         this.#routeEntityId.set(match?.[2] ?? null);
       });
 
-    // 首次进入自动落进设计页：有设计则加载第一个，没有则创建默认设计 'schema'
+    // 首次进入自动落进设计页：有设计则加载第一个，没有则创建默认设计 'schema'。
+    // ⚠️ 必须读 activeDesignId()（纯信号）而非 activeDesign()（依赖活查询的 computed）：
+    // create() 设置新 ID 后、活查询发出新列表前，activeDesign() 会短暂为 null，
+    // 若在这里读它会把刚创建的设计「抢」回第一个设计。
     let defaultDesignEnsured = false;
     effect(() => {
-      if (this.modelDesign.activeDesign()) return;
+      if (this.modelDesign.activeDesignId()) return;
       if (!this.modelDesign.designsReady()) return;
       const designs = this.modelDesign.designs();
       if (designs.length > 0) {
