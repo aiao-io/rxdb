@@ -20,3 +20,5 @@
 - [BOM 收尾与演示交付任务](bom-completion-tasks.md)
 
 - [真实生产样本试用记录](real-sample-pilot-verification.md)
+
+- [aiao-bom-2 大规模 BOM 与 3D 工作台改善方案](aiao-bom-2-improvement-plan-2026-11-13.md)（[数据核查记录](aiao-bom-2-data-audit-2026-11-13.json)）
