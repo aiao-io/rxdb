@@ -1,0 +1,68 @@
+/* 集成应用的窗口内容：Orbit 容器铺满标题栏以下，加载 / 失败面板与激活层叠在它上面。 */
+.webapp {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: var(--win);
+}
+.webapp-stage {
+  position: absolute;
+  inset: 0;
+}
+/* 拖动与缩放窗口时 iframe 不截走指针事件，否则指针一进应用内容区就丢了跟踪。 */
+.win.drag .webapp-stage,
+.win.rsz .webapp-stage {
+  pointer-events: none;
+}
+.webapp-status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px;
+  text-align: center;
+  background: var(--win);
+  color: var(--txt);
+  font-size: 13px;
+}
+.webapp-status h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.webapp-status p {
+  margin: 0;
+  max-width: 440px;
+  color: var(--txt-2);
+  line-height: 1.45;
+}
+.webapp-icon {
+  width: 64px;
+  height: 64px;
+}
+.webapp-spinner {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2.2px solid var(--fill-2);
+  border-top-color: var(--txt-3);
+  animation: spin 0.7s linear infinite;
+}
+.webapp-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.webapp-actions a.btn {
+  color: inherit;
+  text-decoration: none;
+}
+/* 后台窗口的激活层：盖住应用，首次点击只激活窗口。 */
+.webapp-shield {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}

@@ -1,10 +1,10 @@
 # Aiao Desktop 产品需求
 
-当前交付：[4/4 已交付]。状态真相源为 `stories/<domain>/ADESK-US-*.md` 的 YAML `status`，其余视图由故事派生。
+当前交付：[4/7 已交付]。状态真相源为 `stories/<domain>/ADESK-US-*.md` 的 YAML `status`，其余视图由故事派生。
 
 ## 当前范围
 
-在浏览器里还原一套 macOS 风格的桌面：开机与锁屏、菜单栏、Dock、窗口管理、启动台、聚焦搜索、通知中心，以及启动台里的 29 个内置应用。终端用 [Vivari](https://vivari.run) 在页面里运行 Node、npm 与 Python；其余应用展示写在代码里的演示内容。
+在浏览器里还原一套 macOS 风格的桌面：开机与锁屏、菜单栏、Dock、窗口管理、启动台、聚焦搜索、通知中心，以及启动台里的 29 个内置应用。除了内置应用，桌面还以微前端方式运行独立部署的 B/S 应用（集成应用），经仓库里的 `@aiao/orbit` 隔离在窗口里；第一个是 Aiao Code（vscode.aiao.io），见 [ADESK-EPIC-003](epics/ADESK-EPIC-003.md)。终端用 [Vivari](https://vivari.run) 在页面里运行 Node、npm 与 Python；其余应用展示写在代码里的演示内容。
 
 产品只有前端：没有服务端、账号或密钥；应用代码不读写 localStorage、IndexedDB 或 OPFS，刷新即回到初始状态。壁纸、地图瓦片、天气等外网内容可以缺失，拿不到时页面不能报错，见 [D-04](decisions.md#d-04外网内容可缺失)。
 
@@ -25,6 +25,7 @@
 | [future-requirements.md](future-requirements.md)       | 长期方向与准入条件         |
 | [epics/ADESK-EPIC-001.md](epics/ADESK-EPIC-001.md)     | 产品工程结构               |
 | [epics/ADESK-EPIC-002.md](epics/ADESK-EPIC-002.md)     | macOS 风格桌面             |
+| [epics/ADESK-EPIC-003.md](epics/ADESK-EPIC-003.md) | 应用体系与集成应用 |
 | [stories/story.template.md](stories/story.template.md) | 新故事模板                 |
 | [plans/README.md](plans/README.md)                     | 调研、实施计划与验收记录   |
 | [reviews/README.md](reviews/README.md)                 | 旧 review 记录入口         |
@@ -42,6 +43,8 @@
 | ------------ | ---------------------------------------------------------------------------------- |
 | 桌面         | `apps/web` 渲染的整个页面：菜单栏、桌面图标、窗口层、Dock 与各类浮层               |
 | 应用         | 应用登记表 `registry.ts` 里的一项；Finder、Terminal、TextEdit 等可以同时开多个窗口 |
+| 内置应用 | 随桌面构建的 Angular 组件，直接用桌面的服务与本地库 |
+| 集成应用 | 独立部署的 B/S 应用，经 Orbit 在窗口的 iframe 里运行，只经 Orbit 协议与桌面往来（[D-10](decisions.md#d-10应用分三类登记在同一张表里)） |
 | 窗口         | 应用的一次打开，带红黄绿三个窗口按钮，可以最小化进 Dock                            |
 | 虚拟文件系统 | Finder 浏览的目录树，写在代码里，只存在内存中                                      |
 | 冒烟         | `apps/e2e` 对正式构建跑的 Chromium 脚本，外网请求全部拦截，任何页面错误都判失败    |

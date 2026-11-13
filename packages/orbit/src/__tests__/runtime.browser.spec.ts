@@ -102,6 +102,23 @@ describe('原生 iframe 运行内核', () => {
     expect(() => first.mount(secondContainer)).toThrow();
   });
 
+  it('focus 把键盘焦点交给应用文档，隐藏后不能聚焦', async () => {
+    const { runtime, container, options } = setup();
+    const outside = document.createElement('button');
+    container.append(outside);
+    const instance = runtime.createApp(options);
+    await instance.mount(container);
+    outside.focus();
+    instance.focus();
+    expect(document.activeElement?.localName).toBe('aiao-orbit');
+    expect(document.activeElement?.shadowRoot?.activeElement?.localName).toBe('iframe');
+    instance.hide();
+    expect(() => instance.focus()).toThrow();
+    instance.show();
+    instance.destroy();
+    expect(() => instance.focus()).toThrow();
+  });
+
   it('跨来源应用需要明确准入，通过专属端口正常通信', async () => {
     const { container, options } = setup();
     const cross = new URL('/test-app/app.html', inject('fixtureOrigin'));
@@ -145,6 +162,20 @@ describe('原生 iframe 运行内核', () => {
     expect(runtime.instances).toHaveLength(1);
     await next.mount(container);
     expect(report).toHaveBeenCalledTimes(1);
+  });
+
+  it('文档加载后宽限期内未握手（入口不可达、被拦截或未接入 SDK）即以 LOAD_ERROR 失败，不等就绪超时', async () => {
+    const { container, options, report } = setup();
+    const missing = new URL('/missing.html', inject('fixtureOrigin'));
+    const runtime = createOrbit({ allowedOrigins: [missing.origin], onError: report });
+    resources.push(() => runtime.dispose());
+    const app = runtime.createApp({ ...options, url: missing.href, timeout: 60_000 });
+    const started = performance.now();
+    await expect(app.mount(container)).rejects.toMatchObject({ code: 'LOAD_ERROR' });
+    expect(performance.now() - started).toBeLessThan(10_000);
+    expect(app.snapshot.state).toBe('failed');
+    expect(container.children).toHaveLength(0);
+    expect(runtime.instances).toEqual([]);
   });
 
   it('启动中关闭与取消不会复活实例，卸载容器自动释放', async () => {
@@ -220,6 +251,7 @@ describe('原生 iframe 运行内核', () => {
     expect(() => app.mount(document.createElement('div'))).toThrow();
     expect(() => app.hide()).toThrow();
     expect(() => app.show()).toThrow();
+    expect(() => app.focus()).toThrow();
     const observer = vi.fn();
     app.subscribe(observer)();
     app.setProps({ before: 'mount' });

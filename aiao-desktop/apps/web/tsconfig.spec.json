@@ -19,6 +19,9 @@
       "path": "../../../packages/rxdb-adapter-sqlite-wasm/tsconfig.lib.json"
     },
     {
+      "path": "../../../packages/orbit/tsconfig.lib.json"
+    },
+    {
       "path": "../../../packages/rxdb/tsconfig.lib.json"
     },
     {

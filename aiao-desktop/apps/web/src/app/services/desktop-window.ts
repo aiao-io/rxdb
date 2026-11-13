@@ -31,6 +31,8 @@ export class DesktopWindow {
   readonly opening = signal(true);
   readonly closing = signal(false);
   readonly minimized = signal(false);
+  /** 窗口完全收进 Dock（最小化动画结束）时为 true，还原动画开始前变回 false。 */
+  readonly hidden = signal(false);
   readonly zoomed = signal(false);
   /** 用户拖动缩放把手松手后触发。 */
   readonly afterResize = new Subject<void>();

@@ -91,6 +91,8 @@ export interface OrbitInstance {
   hide(): void;
   /** 恢复原窗口，不跨容器移动 iframe。 */
   show(): void;
+  /** 把键盘焦点交给应用文档；仅在显示中的就绪状态可用。 */
+  focus(): void;
   /** 替换启动属性并通知子应用。 */
   setProps(props: OrbitProps): void;
   /** 定向发送到当前实例，不向其他应用广播。 */

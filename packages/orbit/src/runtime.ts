@@ -18,6 +18,9 @@ import type {
   OrbitValue
 } from './types.js';
 
+/** 文档 load 之后等待握手的宽限期：应用按约定在业务初始化之前握手，错误页与未接入 SDK 的页面永远不会握手。 */
+const HANDSHAKE_GRACE_MS = 3000;
+
 class Instance implements OrbitInstance {
   private resolveReady!: () => void;
   private rejectReady!: (error: unknown) => void;
@@ -31,6 +34,7 @@ class Instance implements OrbitInstance {
   private view?: Window;
   private port?: MessagePort;
   private timer?: ReturnType<typeof setTimeout>;
+  private handshake?: ReturnType<typeof setTimeout>;
   private channel = '';
   private loaded = false;
   readonly ready: Promise<void>;
@@ -102,6 +106,12 @@ class Instance implements OrbitInstance {
     this.setState('ready');
   }
 
+  focus(): void {
+    this.assertLive();
+    if (this.state !== 'ready') throw new OrbitError('INVALID_STATE', '只有显示中的就绪应用可以获得焦点');
+    this.frame!.focus();
+  }
+
   setProps(props: OrbitProps): void {
     this.assertLive();
     this.props = copyProps(props);
@@ -146,7 +156,11 @@ class Instance implements OrbitInstance {
   private readonly onLoad = () => {
     if (this.loaded) this.fail(new OrbitError('NAVIGATION', '应用发生文档导航，请创建新实例'));
     this.loaded = true;
+    if (!this.port) this.handshake = setTimeout(this.onHandshakeTimeout, HANDSHAKE_GRACE_MS);
   };
+
+  private readonly onHandshakeTimeout = () =>
+    this.fail(new OrbitError('LOAD_ERROR', '应用文档加载后未连接：入口不可达、被浏览器拦截或未接入 SDK'));
 
   private readonly onHello = (event: MessageEvent<unknown>) => {
     if (
@@ -175,6 +189,7 @@ class Instance implements OrbitInstance {
     };
     this.port.onmessageerror = () => this.fail(new OrbitError('INVALID_PAYLOAD', '无法解析应用消息'));
     this.view?.removeEventListener('message', this.onHello);
+    clearTimeout(this.handshake);
     event.source.postMessage(
       {
         protocol: PROTOCOL,
@@ -247,6 +262,7 @@ class Instance implements OrbitInstance {
 
   private cleanup(): void {
     clearTimeout(this.timer);
+    clearTimeout(this.handshake);
     this.options.signal?.removeEventListener('abort', this.onAbort);
     this.view?.removeEventListener('message', this.onHello);
     if (this.port) {

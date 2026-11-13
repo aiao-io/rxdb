@@ -4,7 +4,7 @@ import { MailComposer } from '../apps/mail/mail-composer';
 import { NowPlaying } from '../apps/music/now-playing';
 import { PhotoLibrary } from '../apps/photos/photo-library';
 import { PhotoLoadQueue } from '../apps/photos/photo-loader';
-import { DESKTOP_APP_REGISTRY } from '../apps/registry';
+import { desktopAppRegistry } from '../apps/registry';
 import { SafariBrowsers } from '../apps/safari/safari-browsers';
 import { DesktopShell } from '../components/desktop-shell';
 import { DesktopData } from '../data/desktop-data';
@@ -18,6 +18,7 @@ import { DesktopMenus } from '../services/desktop-menus';
 import { DockState } from '../services/dock-state';
 import { FileOpener } from '../services/file-opener';
 import { FileSystem, HOME_PATH } from '../services/file-system';
+import { OrbitHost } from '../services/orbit-host';
 import { Overlays } from '../services/overlays';
 import { PopoverService } from '../services/popover';
 import { Session } from '../services/session';
@@ -41,7 +42,7 @@ const NATIVE_MENU = 'input,textarea,[contenteditable="true"],.tm-body';
   styleUrl: './desktop-page.scss',
   encapsulation: ViewEncapsulation.None,
   providers: [
-    { provide: DESKTOP_APPS, useValue: DESKTOP_APP_REGISTRY },
+    { provide: DESKTOP_APPS, useFactory: desktopAppRegistry },
     DesktopData,
     Preferences,
     SystemState,
@@ -67,7 +68,8 @@ const NATIVE_MENU = 'input,textarea,[contenteditable="true"],.tm-body';
     NowPlaying,
     PhotoLibrary,
     PhotoLoadQueue,
-    VirtualMachine
+    VirtualMachine,
+    OrbitHost
   ],
   host: {
     '[style.display]': '"block"',

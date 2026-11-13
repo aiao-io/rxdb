@@ -26,6 +26,7 @@ instance.onRequest('file:read', async payload => readAuthorizedFile(payload));
 await instance.mount(document.getElementById('window-content')!);
 instance.hide();
 instance.show();
+instance.focus();
 await instance.request('document:save', { fileId: 'notes' }, { timeout: 5000 });
 instance.destroy();
 runtime.dispose();
@@ -33,9 +34,9 @@ runtime.dispose();
 
 `readAuthorizedFile` 为宿主提供的服务示意，必须自行做权限校验。默认只允许宿主同源；额外来源必须逐个声明，不支持通配符。入口只接受 HTTP(S)、拒绝 URL 凭据及保留参数 `__aiao_orbit`。跨源应用还需服务器允许对应宿主嵌入，浏览器 CSP/iframe 策略照常生效。
 
-同一 instanceId 在一个 runtime 内不能重复登记，销毁和失败均释放身份。重复 mount 同容器复用同一 ready Promise，跨容器移动明确失败。hide/show 保留原 iframe；从文档移除外壳会自动销毁实例。createOrbit 和模块导入支持 SSR，不注册全局监听。
+同一 instanceId 在一个 runtime 内不能重复登记，销毁和失败均释放身份。重复 mount 同容器复用同一 ready Promise，跨容器移动明确失败。hide/show 保留原 iframe；从文档移除外壳会自动销毁实例。focus 把键盘焦点交给应用文档（宿主无法感知焦点在两个跨源 iframe 之间移动，激活窗口时由宿主显式调用），只在显示中的就绪状态可用。createOrbit 和模块导入支持 SSR，不注册全局监听。
 
-状态：`created → loading → ready ↔ hidden`，失败进入 `failed`，显式释放进入 `destroyed`。ready 默认 15 秒超时，启动失败会拒绝 ready Promise 并调用 onError；运行中断通过状态订阅与 onError 通知。失败句柄不可复用，应重新 createApp；createOrbit.dispose 后不可创建新实例。
+状态：`created → loading → ready ↔ hidden`，失败进入 `failed`，显式释放进入 `destroyed`。ready 默认 15 秒超时；iframe 文档加载后 3 秒内仍未握手（入口不可达、被浏览器拦截或未接入 SDK，浏览器只给 iframe 报 load，不报 error）即以 LOAD_ERROR 失败，不必等满就绪时限。启动失败会拒绝 ready Promise 并调用 onError；运行中断通过状态订阅与 onError 通知。失败句柄不可复用，应重新 createApp；createOrbit.dispose 后不可创建新实例。
 
 ## 子应用
 

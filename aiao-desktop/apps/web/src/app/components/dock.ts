@@ -33,6 +33,7 @@ const DOCK_ITEMS: readonly (DesktopAppId | '|')[] = [
   'calendar',
   'music',
   'terminal',
+  'vscode',
   'calculator',
   'settings',
   '|',

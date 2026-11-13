@@ -112,6 +112,7 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
     );
     animation.onfinish = () => {
       this.host.style.visibility = 'hidden';
+      win.hidden.set(true);
       win.busy = false;
       this.wm.focusFront();
     };
@@ -123,6 +124,7 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
     if (!win.minimized() || win.busy) return;
     win.busy = true;
     win.minimized.set(false);
+    win.hidden.set(false);
     this.host.style.visibility = '';
     this.wm.raise(win);
     const animation = this.genie;
