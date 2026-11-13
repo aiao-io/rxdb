@@ -31,7 +31,7 @@
 
 | Nx 入口 | 本地证据 |
 | --- | --- |
-| `aiao-media:coverage --args='--maxWorkers=2'` | 816 项通过；语句 88.96%、分支 82.66%、函数 92.12%、行 93.02% |
+| `aiao-media:coverage --args='--maxWorkers=2'` | 817 项通过；语句 88.96%、分支 82.68%、函数 92.12%、行 93.02% |
 | `run-many -t lint typecheck test -p aiao-media aiao-media-api aiao-media-e2e --parallel=1 --nxBail` | 33 个任务通过，21 个缓存命中；含服务端脚本、需求门禁与应用测试 |
 | `aiao-media-e2e:local-first-e2e` | 57/57 通过；含平台登录、零积分、成功结算与流水、HTTP 401/502、损坏图片释放、关页续接、三画幅、双标签页与保存失败恢复 |
 | `aiao-media-e2e:provider-acceptance-fixture` | OpenAI PNG 与 MiniMax JPEG 各三画幅；已登录与表单登录；每项单次 PUT、模型积分与单条流水、刷新后的原字节下载一致 |

@@ -1,4 +1,5 @@
 import type { InstallationStatus } from '@aiao-media/api-contracts';
+import { apiEndpoint } from '../platform/local-backend';
 import { validateSupabaseAuthConfig } from './supabase-auth-config';
 
 const configKey = 'aiao-media.installation.auth';
@@ -20,7 +21,7 @@ function applyConfiguration(value: unknown) {
 export async function prepareInstallation(navigate = (path: string) => location.replace(path)): Promise<boolean> {
   let response: Response;
   try {
-    response = await fetch('/api/installation', {
+    response = await fetch(apiEndpoint('/api/installation'), {
       cache: 'no-store',
       credentials: 'omit',
       redirect: 'error',

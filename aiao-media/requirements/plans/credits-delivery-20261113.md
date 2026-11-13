@@ -28,7 +28,7 @@
 
 本批综合执行 `pnpm nx run-many -t lint typecheck credits-test script-test release-check requirements-check -p aiao-media aiao-media-api aiao-media-admin api-contracts --parallel=1 --nxBail`，发布产物检查通过（69 个文件，含现有站点升级 SQL）。仓库级 `pnpm test-all` 留待后续功能接线完成后的最终门禁，不以本批产品范围检查替代。
 
-本阶段早期 Web 覆盖率为行 79.55%、语句 76.37%、函数 72.69%、分支 73.02%。D-19 前端改版及回归后，816 项测试的四项覆盖率均超过 80%，具体新结果见[平台接线记录](platform-relay-credits-20261113.md#前端与浏览器验收)，旧数字不作为当前门禁结论。
+本阶段早期 Web 覆盖率为行 79.55%、语句 76.37%、函数 72.69%、分支 73.02%。D-19 前端改版及回归后，817 项测试的四项覆盖率均超过 80%，具体新结果见[平台接线记录](platform-relay-credits-20261113.md#前端与浏览器验收)，旧数字不作为当前门禁结论。
 
 迁入验收原先强制所有历史故事文件始终存在，已与 D-19 的 US-105 撤销冲突。历史导入清单保留原记录，另记 `retiredStories` 及决策与原因；门禁校验撤销记录，不恢复已撤销需求。
 

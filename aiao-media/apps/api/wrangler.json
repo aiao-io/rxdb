@@ -37,10 +37,6 @@
       "durable_objects": {
         "bindings": [
           {
-            "name": "MEDIA_INSTALLATION",
-            "class_name": "Installation"
-          },
-          {
             "name": "MEDIA_PLATFORM",
             "class_name": "PlatformCoordinator"
           },
