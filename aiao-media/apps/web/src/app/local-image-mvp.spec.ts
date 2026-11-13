@@ -2,6 +2,7 @@ import type { GenerationJobSummary, PublicWorkPayload } from '@aiao-media/api-co
 import { TestBed } from '@angular/core/testing';
 import { Subject } from 'rxjs';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { ImageSyncSelection } from '../local-data/image-sync-selection';
 import type { LocalWorkSummary } from '../local-data/index';
 import { LocalImageMvp } from './local-image-mvp';
 import { PromptInput } from './prompts/prompt-input';
@@ -286,7 +287,7 @@ describe('library ownership presentation', () => {
       else Reflect.deleteProperty(HTMLDialogElement.prototype, 'showModal');
     }
   });
-  it.each([true, false])('自动同步为 %s 时仍可手动同步已有图片，忙碌时禁用操作', enabled => {
+  it.each([true, false])('自动同步为 %s 时可打开范围预览，忙碌时禁用操作', enabled => {
     const descriptor = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, 'showModal');
     Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
       configurable: true,
@@ -295,7 +296,7 @@ describe('library ownership presentation', () => {
       }
     });
     const r = rig();
-    const enable = vi.spyOn(r.component, 'enableImageSync').mockResolvedValue(undefined);
+    const prepare = vi.spyOn(r.component, 'prepareImageSync').mockResolvedValue(undefined);
     const button = (label: string) => {
       r.text();
       return [...r.element.querySelectorAll<HTMLButtonElement>('dialog button')].find(
@@ -311,19 +312,88 @@ describe('library ownership presentation', () => {
       r.component.imageSyncEnabled.set(enabled);
       r.component.authOpen.set(true);
 
-      expect(button(enabled ? '停止图片自动同步' : '只同步以后保存的图片')).toBeDefined();
-      const existing = button('同步已有及以后图片');
-      expect(existing).toBeDefined();
-      expect(existing!.disabled).toBe(false);
-      existing!.click();
-      expect(enable).toHaveBeenCalledExactlyOnceWith('existing');
+      if (enabled) expect(button('停止图片自动同步')).toBeDefined();
+      const selection = button('设置图片同步范围');
+      expect(selection).toBeDefined();
+      expect(selection!.disabled).toBe(false);
+      selection!.click();
+      expect(prepare).toHaveBeenCalledExactlyOnceWith();
 
       r.component.imageSyncBusy.set(true);
-      expect(button('同步已有及以后图片')?.disabled).toBe(true);
-      expect(button(enabled ? '停止图片自动同步' : '只同步以后保存的图片')?.disabled).toBe(true);
+      expect(button('设置图片同步范围')?.disabled).toBe(true);
+      if (enabled) expect(button('停止图片自动同步')?.disabled).toBe(true);
       r.component.imageSyncBusy.set(false);
       r.component.dataBusy.set(true);
-      expect(button('同步已有及以后图片')?.disabled).toBe(true);
+      expect(button('设置图片同步范围')?.disabled).toBe(true);
+    } finally {
+      r.session.close();
+      if (descriptor) Object.defineProperty(HTMLDialogElement.prototype, 'showModal', descriptor);
+      else Reflect.deleteProperty(HTMLDialogElement.prototype, 'showModal');
+    }
+  });
+  it('确认清单默认不选范围，显示目标与费用，并按 24 张分页', () => {
+    const descriptor = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, 'showModal');
+    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
+      configurable: true,
+      value(this: HTMLDialogElement) {
+        this.open = true;
+      }
+    });
+    const r = rig();
+    try {
+      r.component.targetKind.set('platform');
+      r.component.authStatus.set('signed-in');
+      r.component.authUser.set({ id: 'fixture-account', email: 'creator@example.test' });
+      r.component.syncInitialized.set(true);
+      r.component.authOpen.set(true);
+      r.component.imageSyncSelectionTarget.set({ account: 'creator@example.test', workspaceId: 'fixture-workspace' });
+      r.component.imageSyncSelection.set(
+        new ImageSyncSelection(
+          Array.from({ length: 25 }, (_, index) => ({
+            work: {
+              jobId: `image-${index}`,
+              prompt: `预览作品 ${index}`,
+              modelId: 'fixture',
+              bytes: 10,
+              status: 'saved' as const
+            },
+            state: 'eligible' as const,
+            info: {
+              sha256: 'a'.repeat(64),
+              bytes: 10,
+              mimeType: 'image/png' as const,
+              width: 1,
+              height: 1,
+              providerInstanceId: 'provider'
+            }
+          }))
+        )
+      );
+      r.text();
+      const region = r.element.querySelector<HTMLElement>('[aria-label="图片同步范围确认"]')!;
+      const button = (label: string) =>
+        [...region.querySelectorAll('button')].find(element => element.textContent?.trim() === label)!;
+      expect(region.textContent).toContain('creator@example.test');
+      expect(region.textContent).toContain('fixture-workspace');
+      expect(region.textContent).toContain('总容量：未知');
+      expect(region.textContent).toContain('平台承担存储与服务成本');
+      const radios = [...region.querySelectorAll<HTMLInputElement>('input[type="radio"]')];
+      expect(radios).toHaveLength(2);
+      expect(radios.every(radio => !radio.checked)).toBe(true);
+      expect(button('确认并启用图片同步').disabled).toBe(true);
+      expect(region.querySelectorAll('.image-sync-files li')).toHaveLength(24);
+      expect(button('上一页原图').disabled).toBe(true);
+      button('下一页原图').click();
+      r.text();
+      expect(region.querySelectorAll('.image-sync-files li')).toHaveLength(1);
+      expect(button('下一页原图').disabled).toBe(true);
+      radios[1].click();
+      r.text();
+      expect(button('确认并启用图片同步').disabled).toBe(false);
+      expect(region.textContent).toContain('本次历史范围：25 张');
+      button('取消范围确认').click();
+      r.text();
+      expect(r.element.querySelector('[aria-label="图片同步范围确认"]')).toBeNull();
     } finally {
       r.session.close();
       if (descriptor) Object.defineProperty(HTMLDialogElement.prototype, 'showModal', descriptor);

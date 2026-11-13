@@ -4,6 +4,27 @@ import { platformAccount, platformModel, setupPlatform, taskFixture } from './pl
 
 test.use({ serviceWorkers: 'block' });
 
+test('常规 fixture 服务不读取真实账号套件留下的开发配置', async ({ request }) => {
+  const response = await request.get('/api/installation');
+  expect(response.ok()).toBe(true);
+  const state = (await response.json()) as { initialized: boolean; auth: unknown };
+  expect(state.initialized).toBe(true);
+  expect(state.auth === null).toBe(true);
+});
+
+test('重复初始化平台 fixture 保留同一会话和账本状态', async ({ context }) => {
+  const original = await setupPlatform(context);
+  const issued =
+    (JSON.parse(Buffer.from(original.token.split('.')[1], 'base64url').toString()) as { exp: number }).exp - 3600;
+  original.balance = 40;
+  await expect.poll(() => Math.floor(Date.now() / 1000)).toBeGreaterThan(issued);
+
+  const repeated = await setupPlatform(context, { protocol: 'minimax' });
+
+  expect(repeated.token === original.token).toBe(true);
+  expect(repeated.balance).toBe(40);
+});
+
 test('未登录可以编辑草稿，生成引导平台登录，不出现 Key 配置', async ({ context, page }) => {
   await setupPlatform(context, { signedIn: false });
   const relay = await taskFixture(context, () => {

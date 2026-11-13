@@ -2,6 +2,8 @@ import type { GenerationJobSummary } from '@aiao-media/api-contracts';
 import { imageExtension, imageMetadata, type ImageMimeType } from '@aiao-media/api-contracts';
 import type { ProductAuthorization } from '../app/supabase-auth';
 import type { LocalMediaStore } from './browser-media';
+import { ImageTransferError } from './image-transfer-error';
+import { IMAGE_UPLOAD_CHUNK_BYTES, uploadImageChunks } from './resumable-image-upload';
 
 export interface RemoteFileRecord {
   id: string;
@@ -29,7 +31,7 @@ interface UploadFile {
   path: string;
 }
 const MAX_BYTES = 16 * 1024 * 1024;
-const CHUNK_BYTES = 6 * 1024 * 1024;
+
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const sha256 = async (bytes: ArrayBuffer): Promise<string> =>
   [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))]
@@ -38,9 +40,9 @@ const sha256 = async (bytes: ArrayBuffer): Promise<string> =>
 // fetch 是 Window 的方法：存成属性再以 this.request() 调用，浏览器会抛 Illegal invocation。
 const windowFetch: Request = (input, init) => fetch(input, init);
 
-class RecordRequestError extends Error {
-  constructor(readonly status: number) {
-    super('远端图片记录操作失败，原图保留。');
+class RecordRequestError extends ImageTransferError {
+  constructor(status: number) {
+    super(status, '远端图片记录操作失败，原图保留。');
   }
 }
 
@@ -68,24 +70,26 @@ export class ImageSyncController {
     return response.map(row => this.record(row));
   }
 
-  async upload(sourceId: string): Promise<RemoteFileRecord> {
+  async upload(sourceId: string, expected?: { sha256: string; bytes: number }): Promise<RemoteFileRecord> {
     if (!uuid.test(sourceId)) throw new Error('图片作品标识无效。');
     const image = await this.store.backupImage(sourceId);
     const bytes = new Uint8Array(await image.blob.arrayBuffer());
     if (!bytes.length || bytes.length > MAX_BYTES) throw new Error('图片超过同步大小限制。');
     const metadata = imageMetadata(bytes);
     const digest = await sha256(bytes.buffer);
+    if (expected && (expected.sha256 !== digest || expected.bytes !== bytes.byteLength))
+      throw new Error('原图与已选队列版本不一致；原任务保留，请重新选择。');
     const extension = imageExtension(metadata.mimeType);
     const path = `${this.access.userId}/${this.workspaceId}/${sourceId}/${digest}.${extension}`;
     const file: UploadFile = { sourceId, metadata, bytes: bytes.byteLength, digest, path };
     // 同一工作区、来源和版本只有一条记录；上次停在 pending / needs_review 的记录接着用。
     const [existing] = await this.records(sourceId, digest);
     const record = existing ? this.receipt(existing, file) : await this.create(file);
-    if (record.status === 'uploaded') return record;
     if (record.status === 'deleted') throw new Error('远端已删除此图片版本；重新上传需要新的明确操作。');
     try {
-      await this.uploadBytes(path, bytes, metadata.mimeType);
-      return await this.commit(record, file);
+      if (record.status !== 'uploaded') await this.uploadBytes(path, bytes, metadata.mimeType);
+      await this.remoteBytes(path, file.bytes, file.digest);
+      return record.status === 'uploaded' ? record : await this.commit(record, file);
     } catch (error) {
       await this.markNeedsReview(record);
       throw error;
@@ -98,73 +102,60 @@ export class ImageSyncController {
     const record = (await this.records(sourceId, digest)).find(
       item => item.status === 'uploaded' && item.sha256 === digest
     );
-    if (!record) throw new Error('远端尚无可取回的原图，请在有原图的设备点击“同步已有及以后图片”，完成后重试。');
-    const response = await this.storage(`/object/authenticated/aiao-media-images/${record.path}`);
-    if (!response.ok) throw new Error('远端图片读取失败；本机数据保留。');
-    const blob = await response.blob();
-    const bytes = await blob.arrayBuffer();
-    if (bytes.byteLength !== record.bytes || (await sha256(bytes)) !== digest)
-      throw new Error('远端图片完整性校验失败。');
+    if (!record)
+      throw new Error(
+        '远端尚无可取回的原图，请在有原图的设备打开“设置图片同步范围”，选择“已有及以后保存的图片”并确认，完成后重试。'
+      );
+    const bytes = await this.remoteBytes(record.path, record.bytes, digest);
     this.signal?.throwIfAborted();
     await this.store.saveResult(job, new Blob([bytes], { type: record.mimeType }));
   }
 
+  private async remoteBytes(path: string, length: number, digest: string): Promise<ArrayBuffer> {
+    if (!Number.isSafeInteger(length) || length < 1 || length > MAX_BYTES)
+      throw new Error('远端图片完整性记录超出文件限制。');
+    const response = await this.storage(`/object/authenticated/aiao-media-images/${path}`);
+    if (!response.ok) throw new ImageTransferError(response.status, '远端图片原字节读取失败；本机原图保留。');
+    if (!response.body) throw new Error('远端图片完整性校验失败：响应为空。');
+    const reader = response.body.getReader();
+    const bytes = new Uint8Array(length);
+    let offset = 0;
+    try {
+      while (true) {
+        const chunk = await reader.read();
+        this.signal?.throwIfAborted();
+        if (chunk.done) break;
+        if (offset + chunk.value.byteLength > length) throw new Error('远端图片完整性校验失败：字节超限。');
+        bytes.set(chunk.value, offset);
+        offset += chunk.value.byteLength;
+      }
+    } catch (error) {
+      await reader.cancel().catch(() => undefined);
+      throw error;
+    } finally {
+      reader.releaseLock();
+    }
+    if (offset !== length || (await sha256(bytes.buffer)) !== digest) throw new Error('远端图片完整性校验失败。');
+    this.signal?.throwIfAborted();
+    return bytes.buffer;
+  }
+
   private async uploadBytes(path: string, bytes: Uint8Array, mimeType: ImageMimeType): Promise<void> {
-    if (bytes.byteLength <= CHUNK_BYTES) {
+    if (bytes.byteLength <= IMAGE_UPLOAD_CHUNK_BYTES) {
       const result = await this.storage(`/object/aiao-media-images/${path}`, {
         method: 'POST',
         headers: { 'content-type': mimeType, 'x-upsert': 'false' },
         body: bytes.slice().buffer as ArrayBuffer
       });
-      // 409：同一不可变路径的对象已在（上次回执丢失），接着提交记录即可。
-      if (!result.ok && result.status !== 409) throw new Error('远端图片上传失败；本机原图保留。');
+      // 409 只表示路径已占用，仍须读取对象核对原字节后才能确认关联。
+      if (!result.ok && result.status !== 409)
+        throw new ImageTransferError(result.status, '远端图片上传失败；本机原图保留。');
       return;
     }
     const endpoint = this.storageUrl('/upload/resumable');
-    const created = await this.request(endpoint, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${this.access.session.access_token}`,
-        apikey: this.access.config.anonKey,
-        'tus-resumable': '1.0.0',
-        'upload-length': String(bytes.byteLength),
-        'upload-metadata': `bucketName ${btoa('aiao-media-images')},objectName ${btoa(path)},contentType ${btoa(mimeType)}`
-      },
-      credentials: 'omit',
-      redirect: 'error',
-      signal: this.deadline(60000)
-    });
-    if (created.status === 409) return;
-    if (!created.ok) throw new Error('远端续传初始化失败；本机原图保留。');
-    const location = created.headers.get('location');
-    if (!location) throw new Error('远端续传回执缺少位置。');
-    const target = new URL(location, endpoint);
-    if (
-      target.origin !== new URL(endpoint).origin ||
-      target.username ||
-      target.password ||
-      target.hash ||
-      !target.pathname.startsWith(`${new URL(endpoint).pathname}/`)
-    )
-      throw new Error('远端续传回执指向未授权的存储服务。');
-    for (let offset = 0; offset < bytes.byteLength; offset += CHUNK_BYTES) {
-      const chunk = bytes.slice(offset, Math.min(bytes.byteLength, offset + CHUNK_BYTES));
-      const result = await this.request(target, {
-        method: 'PATCH',
-        headers: {
-          authorization: `Bearer ${this.access.session.access_token}`,
-          apikey: this.access.config.anonKey,
-          'tus-resumable': '1.0.0',
-          'upload-offset': String(offset),
-          'content-type': 'application/offset+octet-stream'
-        },
-        body: chunk,
-        credentials: 'omit',
-        redirect: 'error',
-        signal: this.deadline(60000)
-      });
-      if (!result.ok) throw new Error('远端续传分片失败；本机原图保留。');
-    }
+    await uploadImageChunks(this.store, endpoint, path, bytes, mimeType, (url, options) =>
+      this.storage(url.slice(this.storageUrl('').length), options)
+    );
   }
 
   private async create(file: UploadFile): Promise<RemoteFileRecord> {
@@ -223,6 +214,11 @@ export class ImageSyncController {
   private receipt(record: RemoteFileRecord, file: UploadFile, status?: RemoteFileRecord['status']): RemoteFileRecord {
     if (
       record.sourceId !== file.sourceId ||
+      record.version !== file.digest ||
+      record.deleted ||
+      record.mimeType !== file.metadata.mimeType ||
+      record.width !== file.metadata.width ||
+      record.height !== file.metadata.height ||
       record.path !== file.path ||
       record.sha256 !== file.digest ||
       record.bytes !== file.bytes ||
@@ -233,7 +229,7 @@ export class ImageSyncController {
   }
 
   private async markNeedsReview(record: RemoteFileRecord): Promise<void> {
-    await this.rest(`/media_file_records?id=eq.${record.id}`, {
+    await this.rest(`/media_file_records?id=eq.${record.id}&revision=eq.${record.revision}`, {
       method: 'PATCH',
       headers: { prefer: 'return=minimal' },
       body: JSON.stringify({

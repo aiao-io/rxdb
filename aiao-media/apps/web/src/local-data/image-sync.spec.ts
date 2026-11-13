@@ -55,10 +55,22 @@ const fileRecord = async (overrides: Partial<RemoteFileRecord> = {}): Promise<Re
     ...overrides
   };
 };
-const pngStore = (bytes = png) => ({
-  backupImage: vi.fn(async () => ({ blob: new Blob([bytes], { type: 'image/png' }) })),
-  saveResult: vi.fn()
-});
+const pngStore = (bytes = png) => {
+  const preferences = new Map<string, { payload: string; revision: number }>();
+  return {
+    preferences,
+    backupImage: vi.fn(async () => ({ blob: new Blob([bytes], { type: 'image/png' }) })),
+    saveResult: vi.fn(),
+    preference: vi.fn(async (key: string) => preferences.get(key) ?? null),
+    savePreference: vi.fn(async (key: string, payload: string, revision: number | null) => {
+      expect(key).toMatch(/^[a-z0-9-]{1,80}$/);
+      if ((preferences.get(key)?.revision ?? null) !== revision) throw new Error('另一标签页已修改传输记录');
+      const next = (revision ?? 0) + 1;
+      preferences.set(key, { payload, revision: next });
+      return next;
+    })
+  };
+};
 
 interface Call {
   url: string;
@@ -85,6 +97,17 @@ function remote(route: (call: Call) => Response | undefined) {
 }
 
 describe('平台 Supabase 图片同步', () => {
+  it('已入队原图身份变化时在网络请求前拒绝，避免换字节上传', async () => {
+    const request = vi.fn();
+    const controller = new ImageSyncController(pngStore() as never, access, workspaceId, request);
+    await expect(controller.upload(jobId, { sha256: 'a'.repeat(64), bytes: png.length })).rejects.toThrow(
+      '已选队列版本'
+    );
+    expect(request).not.toHaveBeenCalled();
+    await expect(controller.upload(jobId, { sha256: await digestOf(png), bytes: 1 })).rejects.toThrow('已选队列版本');
+    expect(request).not.toHaveBeenCalled();
+  });
+
   it('自建 HTTPS IP 的原图请求使用自己的 Storage 服务', async () => {
     const uploaded = await fileRecord({ status: 'uploaded' });
     const { calls, request } = remote(call =>
@@ -132,7 +155,15 @@ describe('平台 Supabase 图片同步', () => {
       path: `${userId}/${workspaceId}/${jobId}/${digest}.png`
     });
     const { calls, request } = remote(call => {
+      if (call.url.includes('/object/authenticated/')) return new Response(new Blob([large]));
       if (call.url.endsWith('/upload/resumable')) return new Response(null, { status: 201, headers: { location } });
+      if (call.method === 'PATCH' && !isRecords(call))
+        return new Response(null, {
+          status: 204,
+          headers: {
+            'upload-offset': String(Number(call.headers['upload-offset']) + (call.body as ArrayBuffer).byteLength)
+          }
+        });
       if (!isRecords(call)) return undefined;
       if (call.method === 'GET') return Response.json([]);
       if (call.method === 'POST') return Response.json([pending], { status: 201 });
@@ -149,9 +180,95 @@ describe('平台 Supabase 图片同步', () => {
     );
   });
 
+  it.each([
+    { version: 'b'.repeat(64) },
+    { mimeType: 'image/jpeg' as const },
+    { width: 2 },
+    { height: 2 },
+    { deleted: true }
+  ])('文件关联元数据与原图不一致时拒绝复用回执：%j', async patch => {
+    const record = await fileRecord({ status: 'uploaded', ...patch });
+    const { calls, request } = remote(() => Response.json([record]));
+    await expect(
+      new ImageSyncController(pngStore() as never, access, workspaceId, request).upload(jobId)
+    ).rejects.toThrow('回执与原图');
+    expect(calls).toHaveLength(1);
+  });
+  it.each([200, 409])('对象写入返回 %s 后必须读取原字节，错误内容不得提交已上传', async status => {
+    const pending = await fileRecord();
+    const changed = png.slice();
+    changed[changed.length - 1] ^= 1;
+    const { calls, request } = remote(call => {
+      if (isRecords(call)) return Response.json([pending]);
+      if (call.method === 'POST') return new Response(null, { status });
+      return new Response(changed);
+    });
+    await expect(
+      new ImageSyncController(pngStore() as never, access, workspaceId, request).upload(jobId)
+    ).rejects.toThrow('完整性');
+    expect(
+      calls.some(call => call.url.includes('/object/authenticated/aiao-media-images/') && call.method === 'GET')
+    ).toBe(true);
+    expect(
+      calls
+        .filter(call => isRecords(call) && call.method === 'PATCH')
+        .every(call => (call.body as Partial<RemoteFileRecord>).status === 'needs_review')
+    ).toBe(true);
+  });
+  it.each(['empty', 'short', 'long'] as const)('远端原字节 %s 时拒绝完成，超限流及时取消', async scenario => {
+    const uploaded = await fileRecord({ status: 'uploaded' });
+    const cancel = vi.fn();
+    const { request } = remote(call => {
+      if (isRecords(call)) return Response.json([uploaded]);
+      if (scenario === 'empty') return new Response(null);
+      if (scenario === 'short') return new Response(png.slice(0, -1));
+      return new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(png);
+            controller.enqueue(new Uint8Array([1]));
+          },
+          cancel
+        })
+      );
+    });
+    await expect(
+      new ImageSyncController(pngStore() as never, access, workspaceId, request).upload(jobId)
+    ).rejects.toThrow('完整性');
+    if (scenario === 'long') expect(cancel).toHaveBeenCalledOnce();
+  });
+  it('拒绝异常远端长度后不分配无界原图缓存或写入本机', async () => {
+    const uploaded = await fileRecord({ status: 'uploaded', bytes: 16 * 1024 * 1024 + 1 });
+    const { calls, request } = remote(() => Response.json([uploaded]));
+    const store = pngStore();
+    await expect(
+      new ImageSyncController(store as never, access, workspaceId, request).download(jobId, uploaded.sha256, job)
+    ).rejects.toThrow('文件限制');
+    expect(calls).toHaveLength(1);
+    expect(store.saveResult).not.toHaveBeenCalled();
+  });
+  it('已有 uploaded 记录仍核对远端对象，不以数据库状态代替原字节证据', async () => {
+    const uploaded = await fileRecord({ status: 'uploaded' });
+    const { calls, request } = remote(call => (isRecords(call) ? Response.json([uploaded]) : new Response('wrong')));
+    await expect(
+      new ImageSyncController(pngStore() as never, access, workspaceId, request).upload(jobId)
+    ).rejects.toThrow('完整性');
+    expect(calls.some(call => !isRecords(call) && call.method === 'POST')).toBe(false);
+  });
+  it('远端原字节核对失败保留 HTTP 状态，供持久队列限次退避', async () => {
+    const pending = await fileRecord();
+    const { request } = remote(call => {
+      if (isRecords(call)) return Response.json([pending]);
+      return new Response(null, { status: call.method === 'POST' ? 200 : 503 });
+    });
+    await expect(
+      new ImageSyncController(pngStore() as never, access, workspaceId, request).upload(jobId)
+    ).rejects.toMatchObject({ status: 503 });
+  });
   it('首次上传先 INSERT 待传记录，原图写入后按 id 与修订 UPDATE 为已上传，不用 upsert', async () => {
     const pending = await fileRecord();
     const { calls, request } = remote(call => {
+      if (call.url.includes('/object/authenticated/')) return new Response(new Blob([png]));
       if (!isRecords(call)) return undefined;
       if (call.method === 'GET') return Response.json([]);
       if (call.method === 'POST') return Response.json([pending], { status: 201 });
@@ -184,6 +301,7 @@ describe('平台 Supabase 图片同步', () => {
   it('续用上次停在 needs_review 的记录：对象已存在时按它的修订提交，不新建记录', async () => {
     const stalled = await fileRecord({ status: 'needs_review', revision: 3, baseRevision: 2 });
     const { calls, request } = remote(call => {
+      if (call.url.includes('/object/authenticated/')) return new Response(new Blob([png]));
       if (call.url.includes('/storage/v1/object/')) return new Response(null, { status: 409 });
       if (!isRecords(call)) return undefined;
       if (call.method === 'GET') return Response.json([stalled]);
@@ -204,6 +322,7 @@ describe('平台 Supabase 图片同步', () => {
     const theirs = await fileRecord();
     const reads = [[], [theirs], [{ ...theirs, status: 'uploaded', revision: 2, baseRevision: 1 }]];
     const { calls, request } = remote(call => {
+      if (call.url.includes('/object/authenticated/')) return new Response(new Blob([png]));
       if (!isRecords(call)) return undefined;
       if (call.method === 'GET') return Response.json(reads.shift());
       if (call.method === 'POST') return Response.json({ code: '23505' }, { status: 409 });
@@ -217,7 +336,7 @@ describe('平台 Supabase 图片同步', () => {
     expect(calls.filter(call => call.method === 'PATCH')).toHaveLength(1);
   });
 
-  it('大图对象已存在（续传创建返回 409）时不再传分片，直接提交记录', async () => {
+  it('大图对象已存在（续传创建返回 409）时核对原字节再提交，不再传分片', async () => {
     const large = new Uint8Array(6 * 1024 * 1024 + 1);
     large.set(png);
     const digest = await digestOf(large);
@@ -228,6 +347,7 @@ describe('平台 Supabase 图片同步', () => {
       path: `${userId}/${workspaceId}/${jobId}/${digest}.png`
     });
     const { calls, request } = remote(call => {
+      if (call.url.includes('/object/authenticated/')) return new Response(new Blob([large]));
       if (call.url.endsWith('/upload/resumable')) return new Response(null, { status: 409 });
       if (!isRecords(call)) return undefined;
       if (call.method === 'GET') return Response.json([]);
@@ -310,7 +430,7 @@ describe('平台 Supabase 图片同步', () => {
 
       await expect(
         new ImageSyncController(store as never, access, workspaceId, request).download(jobId, record.sha256, job)
-      ).rejects.toThrow('请在有原图的设备点击“同步已有及以后图片”');
+      ).rejects.toThrow('请在有原图的设备打开“设置图片同步范围”，选择“已有及以后保存的图片”并确认');
 
       expect(calls).toHaveLength(1);
       expect(store.saveResult).not.toHaveBeenCalled();
@@ -351,4 +471,97 @@ describe('平台 Supabase 图片同步', () => {
     ).rejects.toThrow('同步目标已变化');
     expect(calls.some(call => call.method === 'PATCH')).toBe(false);
   });
+  it('大图分片应答丢失后重开控制器，先核对同一会话的服务端 offset，只传剩余字节', async () => {
+    const bytes = new Uint8Array(6 * 1024 * 1024 + 7);
+    bytes.set(png);
+    const digest = await digestOf(bytes);
+    let record = await fileRecord({
+      bytes: bytes.length,
+      version: digest,
+      sha256: digest,
+      path: `${userId}/${workspaceId}/${jobId}/${digest}.png`
+    });
+    const store = pngStore(bytes);
+    let offset = 0;
+    let loseReceipt = true;
+    const { calls, request } = remote(call => {
+      if (call.url.includes('/object/authenticated/')) return new Response(new Blob([bytes]));
+      if (isRecords(call)) {
+        if (call.method === 'GET') return Response.json([record]);
+        record = { ...record, ...(call.body as Partial<RemoteFileRecord>) };
+        return Response.json([record]);
+      }
+      if (call.method === 'POST')
+        return new Response(null, { status: 201, headers: { location: '/storage/v1/upload/resumable/same-session' } });
+      if (call.method === 'HEAD')
+        return new Response(null, {
+          status: 200,
+          headers: { 'upload-offset': String(offset), 'upload-length': String(bytes.length) }
+        });
+      expect(Number(call.headers['upload-offset'])).toBe(offset);
+      offset += (call.body as Uint8Array).byteLength;
+      if (loseReceipt) {
+        loseReceipt = false;
+        throw new TypeError('response lost');
+      }
+      return new Response(null, { status: 204, headers: { 'upload-offset': String(offset) } });
+    });
+    await expect(new ImageSyncController(store as never, access, workspaceId, request).upload(jobId)).rejects.toThrow(
+      'response lost'
+    );
+    expect(offset).toBe(6 * 1024 * 1024);
+    expect(store.preferences.size).toBe(1);
+    expect(JSON.stringify([...store.preferences])).not.toContain('user-token');
+    await expect(
+      new ImageSyncController(store as never, access, workspaceId, request).upload(jobId)
+    ).resolves.toMatchObject({ status: 'uploaded' });
+    expect(calls.filter(call => !isRecords(call) && call.method === 'POST')).toHaveLength(1);
+    expect(calls.filter(call => call.method === 'HEAD')).toHaveLength(1);
+    expect(
+      calls
+        .filter(call => !isRecords(call) && call.method === 'PATCH')
+        .map(call => (call.body as Uint8Array).byteLength)
+    ).toEqual([6 * 1024 * 1024, 7]);
+  });
+
+  it.each(['missing', 'too-large', 'wrong-length'] as const)(
+    'TUS 续传 %s 回执不能当成完整上传并提交文件关联',
+    async scenario => {
+      const bytes = new Uint8Array(6 * 1024 * 1024 + 7);
+      bytes.set(png);
+      const digest = await digestOf(bytes);
+      const record = await fileRecord({
+        bytes: bytes.length,
+        version: digest,
+        sha256: digest,
+        path: `${userId}/${workspaceId}/${jobId}/${digest}.png`
+      });
+      const { calls, request } = remote(call => {
+        if (isRecords(call)) return Response.json([record]);
+        if (call.method === 'POST')
+          return new Response(null, {
+            status: 201,
+            headers: { location: '/storage/v1/upload/resumable/invalid-receipt' }
+          });
+        return new Response(null, {
+          status: 204,
+          headers:
+            scenario === 'missing' ?
+              {}
+            : {
+                'upload-offset': String(scenario === 'too-large' ? bytes.length + 1 : 1),
+                'upload-length': String(bytes.length + 1)
+              }
+        });
+      });
+      await expect(
+        new ImageSyncController(pngStore(bytes) as never, access, workspaceId, request).upload(jobId)
+      ).rejects.toThrow('续传');
+      expect(
+        calls
+          .filter(call => isRecords(call) && call.method === 'PATCH')
+          .every(call => (call.body as Partial<RemoteFileRecord>).status === 'needs_review')
+      ).toBe(true);
+    }
+  );
 });

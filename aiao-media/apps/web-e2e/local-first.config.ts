@@ -21,7 +21,8 @@ export default defineConfig({
   webServer: {
     // The Nx test target prepares the build; keep the runtime in Playwright's process group for reliable shutdown.
     command:
-      'pnpm --dir apps/api exec wrangler dev --config wrangler.json --env local-first --local --port 4398 --show-interactive-dev-session false',
+      'pnpm --dir apps/api exec wrangler dev --config wrangler.json --env local-first --env-file ../web-e2e/fixture.env --local --port 4398 --show-interactive-dev-session false',
+    env: { CLOUDFLARE_INCLUDE_PROCESS_ENV: 'false' },
     url: 'http://127.0.0.1:4398',
     cwd: new URL('../../', import.meta.url).pathname,
     reuseExistingServer: false,

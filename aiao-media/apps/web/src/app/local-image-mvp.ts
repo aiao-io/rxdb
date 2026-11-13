@@ -29,7 +29,10 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { concatMap, EMPTY, Subscription } from 'rxjs';
-import { ImageSyncController } from '../local-data/image-sync';
+import type { ImageSyncController } from '../local-data/image-sync';
+import type { ImageSyncSelection } from '../local-data/image-sync-selection';
+import { ImageTransferError } from '../local-data/image-transfer-error';
+import type { ImageQueueSummary, ImageUploadQueue } from '../local-data/image-upload-queue';
 import type { LocalMediaStore, LocalWorkSummary, StudioPromptState } from '../local-data/index';
 import { libraryWhere, type LocalWorkFilters } from '../local-data/library-query';
 import { applyProductProjection, collectProductSnapshot } from '../local-data/product-projection';
@@ -203,6 +206,10 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private product?: ProductWorkspaceController;
   /** 图片传输的作用域：同步目标、项目账号或本机工作区一变就中止，旧传输的迟到结果不进入新目标。 */
   private imageSyncScope = new AbortController();
+  private imageQueueRun: { signal: AbortSignal; promise: Promise<void> } | null = null;
+  private imageQueueRequested = false;
+  private imageSelectionScope: AbortController | null = null;
+  private imageQueueTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly imageDownloads = signal<ReadonlyMap<string, ImageDownloadState>>(new Map());
   private registryState?: WorkspaceRegistryState;
   private rootId = '';
@@ -424,6 +431,15 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   readonly syncActive = computed(() => this.sync().busy || this.imageSyncBusy() || this.imageUploads() > 0);
   readonly imageSyncMessage = signal('');
   readonly imageSyncProgress = signal('');
+  readonly imageSyncSelection = signal<ImageSyncSelection | null>(null);
+  readonly imageSyncSelectionTarget = signal<{ account: string; workspaceId: string } | null>(null);
+  readonly imageSyncSelectionLoading = signal(false);
+  readonly imageSyncSelectionProgress = signal('');
+  readonly imageSyncChoice = signal<'future' | 'existing' | null>(null);
+  readonly imageSyncSelectionPage = signal(0);
+  readonly imageSyncSelectionItems = computed(
+    () => this.imageSyncSelection()?.page(this.imageSyncSelectionPage()) ?? []
+  );
   readonly platformAvailable = signal(false);
   readonly authConfigured = signal(false);
   readonly authStatus = signal<SupabaseAuthState['status']>('signed-out');
@@ -739,6 +755,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.authOpen.set(true);
   }
   closeAuth() {
+    this.cancelImageSyncSelection();
     this.authOpen.set(false);
     this.authPassword.set('');
   }
@@ -788,6 +805,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   @HostListener('window:focus')
   recheckAuth() {
     if (this.authStatus() === 'unverified') void this.restoreAuth();
+    if (this.imageSyncEnabled()) void this.resumeImageQueue();
   }
   async refreshModels(): Promise<void> {
     const version = ++this.modelVersion;
@@ -1357,9 +1375,11 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     }
   }
   onWorkspaceChanged(event: StorageEvent) {
-    if (event.key === this.imageSyncKey() && event.newValue === null) {
-      this.resetImageSync();
-      this.imageSyncEnabled.set(false);
+    if (event.key === this.imageSyncKey()) {
+      if (event.newValue === null) {
+        this.resetImageSync();
+        this.imageSyncEnabled.set(false);
+      } else this.restoreImageSyncPreference();
       return;
     }
     if (event.key === this.syncPauseKey() && event.newValue === '1') {
@@ -1407,45 +1427,102 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.restoreImageSyncPreference();
   }
 
-  async enableImageSync(scope: 'future' | 'existing') {
+  async prepareImageSync(): Promise<void> {
     if (this.imageSyncBusy() || this.settingsBusy() || this.targetKind() !== 'platform' || !this.syncInitialized())
       return;
-    const text =
-      scope === 'existing' ?
-        '这会上传当前工作区已保存的 PNG/JPEG 原图，之后保存的新图也会自动上传。原图会保存到平台账号的私有云存储；账号会话、任务令牌和本机路径不会上传。继续吗？'
-      : '之后保存的新 PNG/JPEG 会自动上传到平台账号的私有云存储；已有图片不会补传。继续吗？';
-    if (!window.confirm(text)) return;
+    this.clearImageSyncSelection();
+    const scope = new AbortController();
+    this.imageSelectionScope = scope;
+    const parent = this.imageSyncScope.signal;
+    const signal = AbortSignal.any([scope.signal, parent]);
+    this.imageSyncSelectionLoading.set(true);
+    try {
+      this.imageSyncSelectionTarget.set(this.imageSyncDestination());
+      const { scanImageSyncSelection } = await import('../local-data/image-sync-selection');
+      const selection = await scanImageSyncSelection(this.requireStore(), signal, value => {
+        if (!signal.aborted) this.imageSyncSelectionProgress.set(`${value.checked}/${value.total}`);
+      });
+      signal.throwIfAborted();
+      this.imageSyncSelection.set(selection);
+    } catch (error) {
+      if (!signal.aborted) {
+        this.imageSyncMessage.set(error instanceof Error ? error.message : '本机原图范围核对失败，未启用同步。');
+        this.clearImageSyncSelection();
+      }
+    } finally {
+      if (scope === this.imageSelectionScope) this.imageSyncSelectionLoading.set(false);
+    }
+  }
+  cancelImageSyncSelection(): void {
+    if (!this.imageSyncBusy()) this.clearImageSyncSelection();
+  }
+  async enableImageSync(): Promise<void> {
+    const scope = this.imageSyncChoice();
+    const selection = this.imageSyncSelection();
+    if (
+      !scope ||
+      !selection ||
+      this.imageSyncSelectionLoading() ||
+      this.imageSyncBusy() ||
+      this.settingsBusy() ||
+      this.targetKind() !== 'platform' ||
+      !this.syncInitialized()
+    )
+      return;
     this.imageSyncBusy.set(true);
-    this.imageSyncMessage.set('正在确认图片同步范围…');
+    this.imageSyncMessage.set('正在保存已确认的图片同步范围…');
     const signal = this.imageSyncScope.signal;
     try {
       await verifyImageSyncTarget(await this.adminApi.authorization());
-      // 确认期间换了目标、账号或工作区：这次确认不能记到新身份名下。
+      signal.throwIfAborted();
+      const queue = await this.imageUploadQueue(signal);
+      if (scope === 'existing')
+        await queue.enqueueSelection(
+          selection.items.flatMap(item =>
+            item.info ?
+              [
+                {
+                  sourceId: item.work.jobId,
+                  sha256: item.info.sha256,
+                  bytes: item.info.bytes
+                }
+              ]
+            : []
+          )
+        );
       signal.throwIfAborted();
       localStorage.setItem(this.imageSyncKey(), scope);
       this.imageSyncEnabled.set(true);
-      const controller = await this.imageSyncController(signal);
-      const images =
-        scope === 'existing' ? (await this.requireStore().list()).filter(image => image.status === 'saved') : [];
-      for (let index = 0; index < images.length; index++) {
-        signal.throwIfAborted();
-        this.imageSyncProgress.set(`${index}/${images.length}`);
-        await controller.upload(images[index].jobId);
-      }
-      signal.throwIfAborted();
-      this.imageSyncProgress.set(images.length ? `${images.length}/${images.length}` : '');
+      this.clearImageSyncSelection();
+      this.imageSyncBusy.set(false);
+      await this.resumeImageQueue();
+      if (
+        !this.currentImageSync(signal) ||
+        (scope === 'existing' && selection.eligibleCount) ||
+        (await queue.snapshot()).selected
+      )
+        return;
       this.imageSyncMessage.set(
-        scope === 'existing' ?
-          images.length ?
-            `已同步 ${images.length} 张原图。`
-          : '当前没有可上传的本机原图，已开启以后保存图片的自动同步。'
-        : '已确认以后保存的图片自动同步；已有图片未上传。'
+        scope === 'existing' ? '当前没有可上传的本机原图，已开启以后保存图片的自动同步。' : (
+          '已确认以后保存的图片自动同步；已有图片未上传。'
+        )
       );
     } catch (error) {
       if (this.currentImageSync(signal))
-        this.imageSyncMessage.set(error instanceof Error ? error.message : '图片同步未完成，本机原图保留。');
+        this.imageSyncMessage.set(error instanceof Error ? error.message : '图片范围未完成入队，本机原图保留。');
     } finally {
       if (this.currentImageSync(signal)) this.imageSyncBusy.set(false);
+    }
+  }
+  async retryImageSync(): Promise<void> {
+    const signal = this.imageSyncScope.signal;
+    if (!this.imageSyncEnabled() || this.imageUploads()) return;
+    try {
+      await (await this.imageUploadQueue(signal)).retry();
+      await this.resumeImageQueue();
+    } catch (error) {
+      if (this.currentImageSync(signal))
+        this.imageSyncMessage.set(error instanceof Error ? error.message : '图片队列重试未完成。');
     }
   }
   async stopImageSync() {
@@ -1657,6 +1734,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         !this.syncPaused() &&
         localStorage.getItem(this.imageSyncKey()) !== null
     );
+    if (this.imageSyncEnabled()) void this.resumeImageQueue();
   }
   private imageSyncKey(): string {
     return `aiao-media-image-sync-v1:${encodeURIComponent(this.auth?.config.url ?? '')}:${this.authUser()?.id ?? ''}:${this.profileId}`;
@@ -1665,7 +1743,10 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private async imageSyncController(signal = this.imageSyncScope.signal): Promise<ImageSyncController> {
     const store = this.requireStore(),
       profile = this.currentProfile(),
-      access = await this.auth?.authorizeProduct();
+      access = await this.auth?.authorizeProduct().catch(() => {
+        signal.throwIfAborted();
+        throw new ImageTransferError(401, '请先验证平台账号，再重试图片队列。');
+      });
     // 授权期间换了目标、账号或工作区：这次授权属于旧目标，不能和新的工作区拼在一起。
     signal.throwIfAborted();
     if (
@@ -1676,10 +1757,18 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       profile.account.projectOrigin !== access.config.url ||
       this.targetKind() !== 'platform'
     )
-      throw new Error('请先登录平台账号并开启工作区同步。');
+      throw new ImageTransferError(401, '请先登录平台账号并开启工作区同步。');
+    const { ImageSyncController } = await import('../local-data/image-sync');
+    signal.throwIfAborted();
     return new ImageSyncController(store, access, profile.binding.remoteWorkspaceId, undefined, signal);
   }
   private resetImageSync() {
+    this.clearImageSyncSelection();
+    if (this.imageQueueTimer) clearTimeout(this.imageQueueTimer);
+    this.imageQueueTimer = null;
+    this.imageQueueRun = null;
+    this.imageQueueRequested = false;
+    this.imageSyncProgress.set('');
     this.imageSyncScope.abort(new Error('同步目标、账号或工作区已变化，旧的图片传输已停止；本机原图保留。'));
     this.imageSyncScope = new AbortController();
     this.imageSyncBusy.set(false);
@@ -1692,16 +1781,109 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private currentImageSync(signal: AbortSignal): boolean {
     return !this.disposed && signal === this.imageSyncScope.signal && !signal.aborted;
   }
+  private imageSyncDestination(): { account: string; workspaceId: string } {
+    const profile = this.currentProfile();
+    if (!profile?.account || !profile.binding?.initialized || !profile.binding.remoteWorkspaceId)
+      throw new Error('请先登录平台账号并开启工作区同步。');
+    const user = this.authUser();
+    return {
+      account: user?.id === profile.account.userId && user.email ? user.email : profile.account.userId,
+      workspaceId: profile.binding.remoteWorkspaceId
+    };
+  }
+  private clearImageSyncSelection(): void {
+    this.imageSelectionScope?.abort(new Error('图片范围确认已取消。'));
+    this.imageSelectionScope = null;
+    this.imageSyncSelection.set(null);
+    this.imageSyncSelectionTarget.set(null);
+    this.imageSyncSelectionLoading.set(false);
+    this.imageSyncSelectionProgress.set('');
+    this.imageSyncChoice.set(null);
+    this.imageSyncSelectionPage.set(0);
+  }
+  private async imageUploadQueue(signal: AbortSignal): Promise<ImageUploadQueue> {
+    const profile = this.currentProfile();
+    if (!profile?.account || !profile.binding?.remoteWorkspaceId || !profile.binding.initialized)
+      throw new Error('请先登录平台账号并开启工作区同步。');
+    const { ImageUploadQueue } = await import('../local-data/image-upload-queue');
+    return ImageUploadQueue.open(
+      this.requireStore(),
+      {
+        origin: profile.account.projectOrigin,
+        userId: profile.account.userId,
+        workspaceId: profile.binding.remoteWorkspaceId,
+        profileId: this.profileId
+      },
+      signal
+    );
+  }
+  private async resumeImageQueue(): Promise<void> {
+    if (!this.imageSyncEnabled() || this.targetKind() !== 'platform') return;
+    const signal = this.imageSyncScope.signal;
+    this.imageQueueRequested = true;
+    if (this.imageQueueRun?.signal === signal) return this.imageQueueRun.promise;
+    const promise = this.runImageQueue(signal);
+    this.imageQueueRun = { signal, promise };
+    return promise;
+  }
+  private async runImageQueue(signal: AbortSignal): Promise<void> {
+    this.imageUploads.update(count => count + 1);
+    if (this.imageQueueTimer) clearTimeout(this.imageQueueTimer);
+    this.imageQueueTimer = null;
+    try {
+      const queue = await this.imageUploadQueue(signal);
+      let summary: ImageQueueSummary;
+      do {
+        this.imageQueueRequested = false;
+        summary = await queue.run(
+          async (sourceId, identity) => (await this.imageSyncController(signal)).upload(sourceId, identity),
+          state => this.showImageQueue(state, signal)
+        );
+      } while (this.currentImageSync(signal) && this.imageQueueRequested);
+      if (!this.currentImageSync(signal) || summary.paused || summary.nextAttemptAt === null) return;
+      this.imageQueueTimer = setTimeout(
+        () => {
+          if (this.currentImageSync(signal)) void this.resumeImageQueue();
+        },
+        Math.max(0, summary.nextAttemptAt - Date.now())
+      );
+    } catch (error) {
+      if (this.currentImageSync(signal))
+        this.imageSyncMessage.set(error instanceof Error ? error.message : '图片队列未完成，本机原图保留。');
+    } finally {
+      if (this.currentImageSync(signal)) {
+        this.imageUploads.update(count => count - 1);
+        this.imageQueueRun = null;
+      }
+    }
+  }
+  private showImageQueue(summary: ImageQueueSummary, signal: AbortSignal): void {
+    if (!this.currentImageSync(signal)) return;
+    this.imageSyncProgress.set(
+      `已选 ${summary.selected} 张，共 ${summary.bytes} 字节；已确认 ${summary.confirmedBytes} 字节；` +
+        `成功 ${summary.succeeded}，待传 ${summary.pending}，失败 ${summary.failed}。` +
+        (summary.lastSuccessAt === null ? '' : ` 最近成功：${new Date(summary.lastSuccessAt).toLocaleString()}。`)
+    );
+    if (summary.paused) {
+      this.imageSyncMessage.set('授权或容量受限，图片队列已暂停；处理后点击重试，本机原图保留。');
+      return;
+    }
+    this.imageSyncMessage.set(
+      summary.failed || summary.pending ?
+        `图片队列：成功 ${summary.succeeded}，待传 ${summary.pending}，失败 ${summary.failed}；本机原图保留。`
+      : `已同步 ${summary.succeeded} 张原图。`
+    );
+  }
   private async syncSavedImage(task: LocalTask) {
     if (!this.imageSyncEnabled() || this.targetKind() !== 'platform' || task.status !== 'completed') return;
     const signal = this.imageSyncScope.signal;
     this.imageUploads.update(count => count + 1);
     try {
-      await (await this.imageSyncController(signal)).upload(task.id);
-      if (this.currentImageSync(signal)) this.imageSyncMessage.set('新作品原图已同步到平台账号。');
+      await (await this.imageUploadQueue(signal)).enqueue(task.id, 'future');
+      await this.resumeImageQueue();
     } catch (error) {
       if (this.currentImageSync(signal))
-        this.imageSyncMessage.set(error instanceof Error ? error.message : '新作品图片同步失败，本机原图保留。');
+        this.imageSyncMessage.set(error instanceof Error ? error.message : '新作品入队失败，本机原图保留。');
     } finally {
       if (this.currentImageSync(signal)) this.imageUploads.update(count => count - 1);
     }

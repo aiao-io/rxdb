@@ -1244,28 +1244,136 @@
           @if (targetKind() === 'platform' && syncInitialized()) {
             <article class="notice" aria-label="图片原图同步">
               <h3>图片原图同步</h3>
-              <p>选择范围后，原图会保存到平台账号的私有云存储，供其他设备取回；账号会话、任务令牌和本机路径不会上传。</p>
+              <p>
+                选择范围后，原图会保存到平台账号的私有云存储，供其他设备取回；账号会话、任务令牌和本机路径不会上传。
+              </p>
               @if (imageSyncEnabled()) {
-                <p>图片自动同步已启用。{{ imageSyncProgress() }} {{ imageSyncMessage() }}</p>
+                <p>图片自动同步已启用。</p>
                 <button class="secondary sm" [disabled]="settingsBusy() || imageSyncBusy()" (click)="stopImageSync()">
                   停止图片自动同步
-                </button>
-              } @else {
-                <button
-                  class="secondary sm"
-                  [disabled]="settingsBusy() || imageSyncBusy()"
-                  (click)="enableImageSync('future')"
-                >
-                  只同步以后保存的图片
                 </button>
               }
               <button
                 class="secondary sm"
-                [disabled]="settingsBusy() || imageSyncBusy()"
-                (click)="enableImageSync('existing')"
+                [disabled]="settingsBusy() || imageSyncBusy() || imageSyncSelectionLoading()"
+                (click)="prepareImageSync()"
               >
-                同步已有及以后图片
+                设置图片同步范围
               </button>
+              @if (imageSyncSelectionTarget(); as destination) {
+                <section
+                  class="image-sync-selection"
+                  [attr.aria-busy]="imageSyncSelectionLoading()"
+                  aria-label="图片同步范围确认"
+                >
+                  <h4>确认图片同步范围</h4>
+                  <p>目标账号：{{ destination.account }}</p>
+                  <p class="sync-workspace">远端工作区：{{ destination.workspaceId }}</p>
+                  <p>单张原图上限 16 MiB；总容量：未知。平台承担存储与服务成本。</p>
+                  @if (imageSyncSelectionLoading()) {
+                    <p role="status">正在核对本机原图 {{ imageSyncSelectionProgress() }}，尚未上传。</p>
+                  }
+                  @if (imageSyncSelection(); as selection) {
+                    <p>
+                      本机 {{ selection.count }} 张 · {{ selection.bytes }} 字节；可上传
+                      {{ selection.eligibleCount }} 张 · {{ selection.eligibleBytes }} 字节；不可读
+                      {{ selection.unreadableCount }} 张；超限 {{ selection.oversizedCount }} 张。
+                    </p>
+                    <fieldset [disabled]="imageSyncBusy()">
+                      <legend>选择上传范围</legend>
+                      <label class="image-sync-choice">
+                        <input
+                          [checked]="imageSyncChoice() === 'future'"
+                          (change)="imageSyncChoice.set('future')"
+                          name="image-sync-scope"
+                          type="radio"
+                          value="future"
+                        />
+                        仅以后保存的图片
+                      </label>
+                      <label class="image-sync-choice">
+                        <input
+                          [checked]="imageSyncChoice() === 'existing'"
+                          (change)="imageSyncChoice.set('existing')"
+                          name="image-sync-scope"
+                          type="radio"
+                          value="existing"
+                        />
+                        已有及以后保存的图片
+                      </label>
+                    </fieldset>
+                    @if (imageSyncChoice() === 'existing') {
+                      <p>
+                        本次历史范围：{{ selection.eligibleCount }} 张 ·
+                        {{ selection.eligibleBytes }} 字节。不可读及超限原图不上传，核对后新增的图片不混入本次名单。
+                      </p>
+                    } @else if (imageSyncChoice() === 'future') {
+                      <p>本次历史范围：0 张 · 0 字节；仅上传确认后保存的图片。</p>
+                    } @else {
+                      <p>尚未选择范围，请核对后明确选择。</p>
+                    }
+                    <ul class="image-sync-files" aria-label="本机原图核对清单">
+                      @for (item of imageSyncSelectionItems(); track item.work.jobId) {
+                        <li>
+                          <span>{{ item.work.prompt }}</span>
+                          @if (item.info; as info) {
+                            <span>
+                              {{ info.bytes }} 字节 · {{ info.mimeType }} · {{ info.width }} × {{ info.height }} ·
+                              可上传
+                            </span>
+                          } @else {
+                            <span>
+                              {{ item.work.bytes }} 字节 ·
+                              {{ item.state === 'oversized' ? '超过单图限制，不上传' : '原图不可读，不上传' }}
+                            </span>
+                          }
+                        </li>
+                      } @empty {
+                        <li>本机暂无已保存的原图。</li>
+                      }
+                    </ul>
+                    <div class="account-actions">
+                      <button
+                        class="secondary sm"
+                        [disabled]="imageSyncSelectionPage() === 0 || imageSyncBusy()"
+                        (click)="imageSyncSelectionPage.set(imageSyncSelectionPage() - 1)"
+                      >
+                        上一页原图
+                      </button>
+                      <span>第 {{ imageSyncSelectionPage() + 1 }} / {{ selection.pageCount }} 页</span>
+                      <button
+                        class="secondary sm"
+                        [disabled]="imageSyncSelectionPage() + 1 >= selection.pageCount || imageSyncBusy()"
+                        (click)="imageSyncSelectionPage.set(imageSyncSelectionPage() + 1)"
+                      >
+                        下一页原图
+                      </button>
+                    </div>
+                    <button
+                      class="primary"
+                      [disabled]="!imageSyncChoice() || imageSyncBusy() || settingsBusy()"
+                      (click)="enableImageSync()"
+                    >
+                      确认并启用图片同步
+                    </button>
+                  }
+                  <button class="secondary" [disabled]="imageSyncBusy()" (click)="cancelImageSyncSelection()">
+                    取消范围确认
+                  </button>
+                </section>
+              }
+              @if (imageSyncProgress()) {
+                <p aria-live="polite">{{ imageSyncProgress() }}</p>
+              }
+              @if (imageSyncEnabled()) {
+                <button
+                  class="secondary sm"
+                  [disabled]="settingsBusy() || imageSyncBusy() || imageUploads() > 0"
+                  (click)="retryImageSync()"
+                >
+                  重试图片队列
+                </button>
+              }
               @if (imageSyncMessage()) {
                 <p role="status">{{ imageSyncMessage() }}</p>
               }

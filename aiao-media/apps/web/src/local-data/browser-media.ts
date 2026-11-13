@@ -932,6 +932,35 @@ export class LocalMediaStore {
       return row ? { payload: row.payload, revision: row.revision } : null;
     });
   }
+  /** 设备私有日志按键游标分页读取，避免把全部设置或其他账号队列载入内存。 */
+  async preferences(
+    prefix: string,
+    after = '',
+    limit = 100
+  ): Promise<{ key: string; payload: string; revision: number }[]> {
+    if (
+      !/^[a-z0-9-]{1,80}$/.test(prefix) ||
+      (after && (!after.startsWith(prefix) || !/^[a-z0-9-]{1,80}$/.test(after))) ||
+      !Number.isSafeInteger(limit) ||
+      limit < 1 ||
+      limit > 1000
+    )
+      throw new LocalMediaError('unavailable', '设备日志分页参数无效。');
+    return this.exclusive(async () => {
+      const rows = await this.readRows(LocalPreference, {
+        where: {
+          combinator: 'and',
+          rules: [
+            { field: 'key', operator: 'startsWith', value: prefix },
+            { field: 'key', operator: '>', value: after }
+          ]
+        },
+        orderBy: [{ field: 'key', sort: 'asc' }],
+        limit
+      });
+      return rows.map(row => ({ key: row.key, payload: row.payload, revision: row.revision }));
+    });
+  }
   async savePreference(key: string, payload: string, revision: number | null): Promise<number> {
     const [next] = await this.savePreferences([{ key, payload, revision }]);
     return next;

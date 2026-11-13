@@ -380,6 +380,12 @@ test('无任务历史的本机原图可以补传，第二设备先看到缺图�
     files.set(new URL(request.url()).pathname.replace('/storage/v1/object/', ''), bytes);
     await route.fulfill({ status: 200, json: {} });
   });
+  await page.route('**/storage/v1/object/authenticated/aiao-media-images/**', async route => {
+    const path = new URL(route.request().url()).pathname.replace('/storage/v1/object/authenticated/', '');
+    const bytes = files.get(path);
+    expect(bytes).toBeDefined();
+    await route.fulfill({ contentType: 'image/png', body: bytes! });
+  });
   const createdAt = new Date().toISOString();
   const job = {
     id: randomUUID(),
@@ -418,8 +424,21 @@ test('无任务历史的本机原图可以补传，第二设备先看到缺图�
   await enableReplica(page, user);
   const imageSync = page.getByRole('article', { name: '图片原图同步' });
   await expect(imageSync).toBeVisible();
-  page.once('dialog', dialog => dialog.accept());
-  await imageSync.getByRole('button', { name: '只同步以后保存的图片', exact: true }).click();
+  await imageSync.getByRole('button', { name: '设置图片同步范围', exact: true }).click();
+  const selection = imageSync.getByRole('region', { name: '图片同步范围确认' });
+  await expect(selection).toContainText('可上传 1 张');
+  await expect(selection.getByRole('radio', { name: '仅以后保存的图片', exact: true })).not.toBeChecked();
+  await expect(selection.getByRole('radio', { name: '已有及以后保存的图片', exact: true })).not.toBeChecked();
+  await expect(selection.getByRole('button', { name: '确认并启用图片同步', exact: true })).toBeDisabled();
+  await expect(selection).toContainText('总容量：未知');
+  await expect(selection).toContainText('平台承担存储与服务成本');
+  await selection.getByRole('button', { name: '取消范围确认', exact: true }).click();
+  await expect(selection).toHaveCount(0);
+  expect(files.size).toBe(0);
+  await imageSync.getByRole('button', { name: '设置图片同步范围', exact: true }).click();
+  await expect(selection).toContainText('可上传 1 张');
+  await selection.getByRole('radio', { name: '仅以后保存的图片', exact: true }).check();
+  await selection.getByRole('button', { name: '确认并启用图片同步', exact: true }).click();
   await expect(imageSync).toContainText('已有图片未上传');
   const context = await browser.newContext({ baseURL });
   try {
@@ -433,16 +452,19 @@ test('无任务历史的本机原图可以补传，第二设备先看到缺图�
     await second.goto('/create');
     await enableReplica(second, user);
     await expect(second.getByRole('article', { name: '图片原图同步' })).not.toContainText('图片自动同步已启用');
-    await expect(second.getByRole('button', { name: '只同步以后保存的图片', exact: true })).toBeEnabled();
+    await expect(second.getByRole('button', { name: '设置图片同步范围', exact: true })).toBeEnabled();
     await second.getByRole('button', { name: '关闭账号窗口' }).click();
     await second.getByRole('link', { name: '我的图片', exact: true }).click();
     await expect(second.getByText('本机无原图', { exact: true })).toBeVisible();
     const card = second.locator('.library-card').filter({ hasText: '平台原图跨设备恢复' });
     await card.getByRole('button', { name: '取回并保存原图', exact: true }).click();
-    await expect(card).toContainText('请在有原图的设备点击“同步已有及以后图片”');
+    await expect(card).toContainText('请在有原图的设备打开“设置图片同步范围”，选择“已有及以后保存的图片”并确认');
     expect(files.size).toBe(0);
-    page.once('dialog', dialog => dialog.accept());
-    await imageSync.getByRole('button', { name: '同步已有及以后图片', exact: true }).click();
+    await imageSync.getByRole('button', { name: '设置图片同步范围', exact: true }).click();
+    await expect(selection).toContainText('可上传 1 张');
+    await selection.getByRole('radio', { name: '已有及以后保存的图片', exact: true }).check();
+    await expect(selection).toContainText('本次历史范围：1 张');
+    await selection.getByRole('button', { name: '确认并启用图片同步', exact: true }).click();
     await expect(imageSync).toContainText('已同步 1 张原图');
     expect(files.size).toBe(1);
     const uploaded = (await admin.from('media_file_records').select('status,path,sha256').eq('createdBy', user.id))

@@ -103,6 +103,28 @@ describe('媒体数据库调试生命周期', () => {
   });
 });
 describe('local media queries and preference transactions', () => {
+  it('设备日志使用前缀与键游标分页，拒绝跨范围游标和无界页大小', async () => {
+    vi.stubGlobal('navigator', {
+      locks: { request: async (_name: string, operation: () => Promise<unknown>) => operation() }
+    });
+    const r = rig();
+    await r.store.preferences('iq-scope-', 'iq-scope-before', 2);
+    expect(r.find).toHaveBeenCalledExactlyOnceWith({
+      where: {
+        combinator: 'and',
+        rules: [
+          { field: 'key', operator: 'startsWith', value: 'iq-scope-' },
+          { field: 'key', operator: '>', value: 'iq-scope-before' }
+        ]
+      },
+      orderBy: [{ field: 'key', sort: 'asc' }],
+      limit: 2
+    });
+    await expect(r.store.preferences('iq-scope-', 'different')).rejects.toThrow('分页参数');
+    await expect(r.store.preferences('iq-scope-', '', 1001)).rejects.toThrow('分页参数');
+    await expect(r.store.preferences('iq-scope-', '', 0)).rejects.toThrow('分页参数');
+    await expect(r.store.preferences('')).rejects.toThrow('分页参数');
+  });
   it('initializes a setting once without replacing another window’s value', async () => {
     vi.stubGlobal('navigator', {
       locks: { request: async (_name: string, operation: () => Promise<unknown>) => operation() }

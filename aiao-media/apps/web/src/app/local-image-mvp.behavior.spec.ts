@@ -4,6 +4,7 @@ import { webcrypto } from 'node:crypto';
 import type { EventEmitter } from 'node:events';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ImageUploadQueue } from '../local-data/image-upload-queue';
 import { LocalMediaStore, type LocalWorkSummary } from '../local-data/index';
 import type { WorkspaceRegistryState } from '../local-data/workspace-registry';
 import { WorkspaceRegistryStore } from '../local-data/workspace-registry-store';
@@ -39,7 +40,7 @@ const provider: LocalProvider = {
   rememberKey: false
 };
 const job: GenerationJobSummary = {
-  id: 'fixture-job',
+  id: '10000000-0000-4000-8000-000000000004',
   request: {
     kind: 'image',
     operation: 'text-to-image',
@@ -97,6 +98,13 @@ function memoryStore() {
   );
   const store = {
     preference,
+    preferences: vi.fn(async (prefix: string, after = '', limit = 100) =>
+      [...preferences]
+        .filter(([key]) => key.startsWith(prefix) && key > after)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .slice(0, limit)
+        .map(([key, value]) => ({ key, ...value }))
+    ),
     savePreferences,
     ensurePreference: vi.fn(async (key: string, payload: string) => {
       if (!preferences.has(key)) preferences.set(key, { payload, revision: 1 });
@@ -129,7 +137,14 @@ function memoryStore() {
     syncedWorks$: vi.fn(() => syncedWorks),
     saveResult: vi.fn<() => Promise<void>>(async () => undefined),
     delete: vi.fn<() => Promise<void>>(async () => undefined),
-    imageInfo: vi.fn<LocalMediaStore['imageInfo']>(),
+    imageInfo: vi.fn<LocalMediaStore['imageInfo']>(async () => ({
+      sha256: 'a'.repeat(64),
+      bytes: 10,
+      mimeType: 'image/png',
+      width: 1,
+      height: 1,
+      providerInstanceId: provider.id
+    })),
     close: vi.fn(async () => undefined),
     activateDevTools: vi.fn(),
     release: vi.fn(),
@@ -143,7 +158,22 @@ function rig() {
   fixture.changeDetectorRef.detach();
   const component = fixture.componentInstance;
   const memory = memoryStore();
-  Object.assign(component, { store: memory.store, profileId });
+  Object.assign(component, {
+    store: memory.store,
+    profileId,
+    imageSyncDestination: () => ({ account: 'creator@example.test', workspaceId: nextProfileId }),
+    imageUploadQueue: (signal: AbortSignal) =>
+      ImageUploadQueue.open(
+        memory.store as unknown as LocalMediaStore,
+        {
+          origin: 'https://platform.example',
+          userId: profileId,
+          workspaceId: nextProfileId,
+          profileId
+        },
+        signal
+      )
+  });
   component.localStatus.set('ready');
   component.models.set([{ id: 'standard', name: '平台生图', credits: 3, protocol: 'openai' }]);
   component.modelId.set('standard');
@@ -317,6 +347,7 @@ async function boot(
 beforeEach(() => {
   TestBed.overrideComponent(LocalImageMvp, { set: { template: '', imports: [] } });
   vi.spyOn(LocalImageMvp.prototype, 'ngOnInit').mockImplementation(() => undefined);
+  vi.stubGlobal('crypto', webcrypto);
   localStorage.clear();
   sessionStorage.clear();
   backupApi.createLocalBackup.mockReset();
@@ -417,19 +448,184 @@ describe('平台账号同步入口', () => {
     expect(r.store.saveResult).not.toHaveBeenCalled();
   });
 
-  it.each([false, true])('没有任务历史时仍上传已保存原图，跳过损坏作品；已启用状态=%s', async enabled => {
+  it('预览图片范围不默认选中、不请求远端或写队列，取消保持原有开关', async () => {
     const r = rig();
-    const upload = vi.fn();
     r.component.targetKind.set('platform');
     r.component.syncInitialized.set(true);
-    r.component.imageSyncEnabled.set(enabled);
-    r.component.history.set([]);
-    r.works.next([work, { ...work, jobId: 'broken-file', status: 'broken' }]);
+    r.component.imageSyncEnabled.set(true);
+    r.works.next([work]);
+
+    await r.component.prepareImageSync();
+
+    expect(r.component.imageSyncChoice()).toBeNull();
+    expect(r.component.imageSyncSelection()?.eligibleCount).toBe(1);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(r.store.savePreferences).not.toHaveBeenCalled();
+    r.component.cancelImageSyncSelection();
+    expect(r.component.imageSyncSelection()).toBeNull();
+    expect(r.component.imageSyncEnabled()).toBe(true);
+    expect([...r.preferences.keys()].filter(key => key.startsWith('iq-'))).toHaveLength(0);
+  });
+  it('预览图片范围期间取消后，迟到的文件核对结果不能重新打开确认', async () => {
+    const r = rig();
+    r.component.targetKind.set('platform');
+    r.component.syncInitialized.set(true);
+    r.works.next([work]);
+    const info = deferred<Awaited<ReturnType<LocalMediaStore['imageInfo']>>>();
+    r.store.imageInfo.mockReturnValue(info.promise);
+    const preparing = r.component.prepareImageSync();
+    await vi.waitFor(() => expect(r.store.imageInfo).toHaveBeenCalledOnce());
+    r.component.cancelImageSyncSelection();
+    info.resolve({
+      sha256: 'a'.repeat(64),
+      bytes: 10,
+      mimeType: 'image/png',
+      width: 1,
+      height: 1,
+      providerInstanceId: provider.id
+    });
+    await preparing;
+    expect(r.component.imageSyncSelection()).toBeNull();
+    expect(r.component.imageSyncSelectionTarget()).toBeNull();
+    expect(r.store.savePreferences).not.toHaveBeenCalled();
+  });
+  it('确认只使用预览名单与摘要，后来新增和变更的源不能替换授权', async () => {
+    const r = rig();
+    r.component.targetKind.set('platform');
+    r.component.syncInitialized.set(true);
+    r.works.next([work]);
+    const upload = vi.fn(async () => ({ sha256: 'a'.repeat(64), bytes: 10, status: 'uploaded' }));
     Object.assign(r.component, {
       adminApi: { authorization: vi.fn(async () => access) },
       imageSyncController: vi.fn(async () => ({ upload }))
     });
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await r.component.prepareImageSync();
+    r.works.next([work, { ...work, jobId: nextProfileId }]);
+    r.store.imageInfo.mockResolvedValue({
+      sha256: 'b'.repeat(64),
+      bytes: 11,
+      mimeType: 'image/png',
+      width: 1,
+      height: 1,
+      providerInstanceId: provider.id
+    });
+    vi.mocked(fetch).mockResolvedValue(
+      Response.json({
+        protocol: 1,
+        privateBucket: 'aiao-media-images',
+        maxBytes: 16777216,
+        resumable: true,
+        metadataOnly: false
+      })
+    );
+    r.component.imageSyncChoice.set('existing');
+    await r.component.enableImageSync();
+    expect(r.store.list).toHaveBeenCalledOnce();
+    expect(upload).not.toHaveBeenCalled();
+    const entries = [...r.preferences]
+      .filter(([key]) => key.startsWith('iq-'))
+      .map(([, row]) => JSON.parse(row.payload));
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ sourceId: job.id, sha256: 'a'.repeat(64), bytes: 10, status: 'failed' });
+  });
+  it('范围写入失败保留预览，不启用新开关或派发上传', async () => {
+    const r = rig();
+    r.component.targetKind.set('platform');
+    r.component.syncInitialized.set(true);
+    r.works.next([work]);
+    const upload = vi.fn();
+    Object.assign(r.component, {
+      adminApi: { authorization: vi.fn(async () => access) },
+      imageSyncController: vi.fn(async () => ({ upload }))
+    });
+    await r.component.prepareImageSync();
+    r.component.imageSyncChoice.set('existing');
+    r.store.savePreferences.mockRejectedValue(new Error('设备磁盘已满'));
+    vi.mocked(fetch).mockResolvedValue(
+      Response.json({
+        protocol: 1,
+        privateBucket: 'aiao-media-images',
+        maxBytes: 16777216,
+        resumable: true,
+        metadataOnly: false
+      })
+    );
+    await r.component.enableImageSync();
+    expect(r.component.imageSyncEnabled()).toBe(false);
+    expect(localStorage.getItem(`aiao-media-image-sync-v1:::${profileId}`)).toBeNull();
+    expect(r.component.imageSyncSelection()?.count).toBe(1);
+    expect(r.component.imageSyncMessage()).toContain('磁盘已满');
+    expect(upload).not.toHaveBeenCalled();
+  });
+  it('停止当前同步范围会清理尚未确认的预览', async () => {
+    const r = rig();
+    r.component.targetKind.set('platform');
+    r.component.syncInitialized.set(true);
+    r.works.next([work]);
+    await r.component.prepareImageSync();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await r.component.stopImageSync();
+    expect(r.component.imageSyncSelection()).toBeNull();
+    expect(r.component.imageSyncSelectionTarget()).toBeNull();
+    expect(r.component.imageSyncChoice()).toBeNull();
+  });
+  it('恢复已确认开关后自动调度持久队列，不扫描或补传未选历史作品', async () => {
+    const r = rig();
+    const queue = await ImageUploadQueue.open(
+      r.store as unknown as LocalMediaStore,
+      {
+        origin: 'https://platform.example',
+        userId: profileId,
+        workspaceId: nextProfileId,
+        profileId
+      },
+      new AbortController().signal
+    );
+    await queue.enqueue(job.id, 'future');
+    const upload = vi.fn(async () => ({ sha256: 'a'.repeat(64), bytes: 10, status: 'uploaded' }));
+    Object.assign(r.component, { imageSyncController: vi.fn(async () => ({ upload })) });
+    r.works.next([work, { ...work, jobId: nextProfileId }]);
+    r.component.targetKind.set('platform');
+    r.component.authStatus.set('signed-in');
+    r.component.syncInitialized.set(true);
+    localStorage.setItem(`aiao-media-image-sync-v1:::${profileId}`, 'future');
+
+    const restore = Reflect.get(r.component, 'restoreImageSyncPreference') as () => void;
+    restore.call(r.component);
+    await vi.waitFor(() => expect(r.component.imageSyncMessage()).toBe('已同步 1 张原图。'));
+
+    expect(upload).toHaveBeenCalledExactlyOnceWith(job.id, { sha256: 'a'.repeat(64), bytes: 10 });
+    expect(r.store.list).not.toHaveBeenCalled();
+    expect(r.component.imageSyncProgress()).toContain('已确认 10 字节');
+    expect([...r.preferences.keys()].filter(key => key.startsWith('iq-'))).toHaveLength(1);
+  });
+
+  it('图片范围先全部持久入队，第一张失败仍调度第二张', async () => {
+    const r = rig();
+    const upload = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('原图未确认'))
+      .mockResolvedValue({
+        sha256: 'a'.repeat(64),
+        bytes: 10,
+        status: 'uploaded'
+      });
+    r.store.imageInfo.mockResolvedValue({
+      sha256: 'a'.repeat(64),
+      bytes: 10,
+      mimeType: 'image/png',
+      width: 1,
+      height: 1,
+      providerInstanceId: provider.id
+    });
+    r.component.targetKind.set('platform');
+    r.component.syncInitialized.set(true);
+    r.works.next([work, { ...work, jobId: nextProfileId }]);
+    Object.assign(r.component, {
+      adminApi: { authorization: vi.fn(async () => access) },
+      imageSyncController: vi.fn(async () => ({ upload }))
+    });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
     vi.mocked(fetch).mockResolvedValue(
       Response.json({
         protocol: 1,
@@ -440,19 +636,50 @@ describe('平台账号同步入口', () => {
       })
     );
 
-    await r.component.enableImageSync('existing');
+    await r.component.prepareImageSync();
+    r.component.imageSyncChoice.set('existing');
+    await r.component.enableImageSync();
 
-    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('平台'));
-    expect(confirm).toHaveBeenCalledOnce();
+    expect(upload).toHaveBeenCalledTimes(2);
+    expect([...r.preferences.keys()].filter(key => key.startsWith('iq-'))).toHaveLength(2);
+    expect(r.component.imageSyncMessage()).toContain('失败 1');
+  });
+
+  it.each([false, true])('没有任务历史时仍上传已保存原图，跳过损坏作品；已启用状态=%s', async enabled => {
+    const r = rig();
+    const upload = vi.fn(async () => ({ sha256: 'a'.repeat(64), bytes: 10, status: 'uploaded' }));
+    r.component.targetKind.set('platform');
+    r.component.syncInitialized.set(true);
+    r.component.imageSyncEnabled.set(enabled);
+    r.component.history.set([]);
+    r.works.next([work, { ...work, jobId: 'broken-file', status: 'broken' }]);
+    Object.assign(r.component, {
+      adminApi: { authorization: vi.fn(async () => access) },
+      imageSyncController: vi.fn(async () => ({ upload }))
+    });
+    vi.mocked(fetch).mockResolvedValue(
+      Response.json({
+        protocol: 1,
+        privateBucket: 'aiao-media-images',
+        maxBytes: 16777216,
+        resumable: true,
+        metadataOnly: false
+      })
+    );
+
+    await r.component.prepareImageSync();
+    r.component.imageSyncChoice.set('existing');
+    await r.component.enableImageSync();
+
     expect(r.store.list).toHaveBeenCalledOnce();
-    expect(upload).toHaveBeenCalledExactlyOnceWith(job.id);
+    expect(upload).toHaveBeenCalledExactlyOnceWith(job.id, { sha256: 'a'.repeat(64), bytes: 10 });
     expect(r.component.imageSyncEnabled()).toBe(true);
     expect(r.component.imageSyncMessage()).toBe('已同步 1 张原图。');
   });
 
   it('已有原图范围没有候选时明确说明零张，不报告同步成功', async () => {
     const r = rig();
-    const upload = vi.fn();
+    const upload = vi.fn(async () => ({ sha256: 'a'.repeat(64), bytes: 10, status: 'uploaded' }));
     r.component.targetKind.set('platform');
     r.component.syncInitialized.set(true);
     r.component.history.set([job]);
@@ -472,7 +699,9 @@ describe('平台账号同步入口', () => {
       })
     );
 
-    await r.component.enableImageSync('existing');
+    await r.component.prepareImageSync();
+    r.component.imageSyncChoice.set('existing');
+    await r.component.enableImageSync();
 
     expect(upload).not.toHaveBeenCalled();
     expect(r.component.imageSyncMessage()).toBe('当前没有可上传的本机原图，已开启以后保存图片的自动同步。');
@@ -481,19 +710,21 @@ describe('平台账号同步入口', () => {
 
   it('原图范围取消或平台Storage不可用时不上传', async () => {
     const r = rig();
-    const upload = vi.fn();
+    const upload = vi.fn(async () => ({ sha256: 'a'.repeat(64), bytes: 10, status: 'uploaded' }));
     r.component.targetKind.set('platform');
     r.component.syncInitialized.set(true);
     Object.assign(r.component, {
       adminApi: { authorization: vi.fn(async () => access) },
       imageSyncController: vi.fn(async () => ({ upload }))
     });
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
-    await r.component.enableImageSync('future');
+    await r.component.prepareImageSync();
+    await r.component.enableImageSync();
+    r.component.cancelImageSyncSelection();
     expect(fetch).not.toHaveBeenCalled();
-    confirm.mockReturnValue(true);
+    await r.component.prepareImageSync();
+    r.component.imageSyncChoice.set('future');
     vi.mocked(fetch).mockResolvedValue(new Response('', { status: 503 }));
-    await r.component.enableImageSync('future');
+    await r.component.enableImageSync();
     expect(upload).not.toHaveBeenCalled();
     expect(r.component.imageSyncEnabled()).toBe(false);
     expect(r.component.imageSyncMessage()).toContain('平台');
@@ -594,10 +825,10 @@ describe('平台原图同步隔离', () => {
     });
   }
 
-  it('并发自动上传全部结束后才清除右上角同步状态，失败也释放计数', async () => {
+  it('自动上传顺序执行，全部结束后清除同步状态并保留失败计数', async () => {
     const r = rig();
-    const first = deferred<void>();
-    const second = deferred<void>();
+    const first = deferred<{ sha256: string; bytes: number; status: string }>();
+    const second = deferred<{ sha256: string; bytes: number; status: string }>();
     const upload = vi.fn().mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
     Object.assign(r.component, { imageSyncController: vi.fn(async () => ({ upload })) });
     r.component.targetKind.set('platform');
@@ -605,23 +836,23 @@ describe('平台原图同步隔离', () => {
     const syncSavedImage = Reflect.get(r.component, 'syncSavedImage') as (task: GenerationJobSummary) => Promise<void>;
 
     const firstUpload = syncSavedImage.call(r.component, job);
-    const secondUpload = syncSavedImage.call(r.component, { ...job, id: 'another-job' });
+    const secondUpload = syncSavedImage.call(r.component, { ...job, id: nextProfileId });
+    await vi.waitFor(() => expect(upload).toHaveBeenCalledOnce());
+    expect(r.component.syncActive()).toBe(true);
+    first.resolve({ sha256: 'a'.repeat(64), bytes: 10, status: 'uploaded' });
     await vi.waitFor(() => expect(upload).toHaveBeenCalledTimes(2));
     expect(r.component.syncActive()).toBe(true);
-    first.resolve();
-    await firstUpload;
-    expect(r.component.syncActive()).toBe(true);
     second.reject(new Error('原图上传未完成'));
-    await secondUpload;
+    await Promise.all([firstUpload, secondUpload]);
 
     expect(r.component.syncActive()).toBe(false);
-    expect(r.component.imageSyncMessage()).toBe('原图上传未完成');
+    expect(r.component.imageSyncMessage()).toContain('失败 1');
   });
 
   it('旧作用域自动上传结束时不清除新作用域的同步状态', async () => {
     const r = rig();
     const previous = deferred<void>();
-    const current = deferred<void>();
+    const current = deferred<{ sha256: string; bytes: number; status: string }>();
     const upload = vi.fn().mockReturnValueOnce(previous.promise).mockReturnValueOnce(current.promise);
     Object.assign(r.component, { imageSyncController: vi.fn(async () => ({ upload })) });
     r.component.targetKind.set('platform');
@@ -633,15 +864,23 @@ describe('平台原图同步隔离', () => {
 
     await r.component.stopImageSync();
     expect(r.component.syncActive()).toBe(false);
+    Object.assign(r.component, {
+      imageUploadQueue: (signal: AbortSignal) =>
+        ImageUploadQueue.open(
+          r.store as unknown as LocalMediaStore,
+          { origin: 'https://other.example', userId: profileId, workspaceId: nextProfileId, profileId },
+          signal
+        )
+    });
     r.component.imageSyncEnabled.set(true);
-    const currentUpload = syncSavedImage.call(r.component, { ...job, id: 'current-job' });
+    const currentUpload = syncSavedImage.call(r.component, { ...job, id: nextProfileId });
     await vi.waitFor(() => expect(upload).toHaveBeenCalledTimes(2));
     previous.resolve();
     await previousUpload;
 
     expect(r.component.syncActive()).toBe(true);
     expect(r.component.imageSyncMessage()).not.toBe('新作品原图已同步到平台账号。');
-    current.resolve();
+    current.resolve({ sha256: 'a'.repeat(64), bytes: 10, status: 'uploaded' });
     await currentUpload;
     expect(r.component.syncActive()).toBe(false);
   });

@@ -2229,7 +2229,7 @@ footer {
   font-size: 13px;
   font-weight: 600;
 }
-.auth-panel input:not([type='checkbox']),
+.auth-panel input:not([type='checkbox']):not([type='radio']),
 .feedback-body textarea {
   width: 100%;
   min-height: 42px;
@@ -2942,4 +2942,38 @@ footer {
     margin-top: 32px;
     padding: 20px;
   }
+}
+
+.image-sync-selection {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+}
+.image-sync-selection .sync-workspace {
+  overflow-wrap: anywhere;
+}
+.image-sync-selection fieldset {
+  margin: 12px 0;
+  border: 1px solid var(--line-strong);
+}
+.image-sync-choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+.image-sync-files {
+  max-height: 240px;
+  margin: 12px 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.image-sync-files li {
+  display: grid;
+  gap: 4px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line-strong);
+  overflow-wrap: anywhere;
 }

@@ -20,12 +20,14 @@ interface PlatformFixture {
   reserved: number;
   entries: CreditEntry[];
   token: string;
+  expiresAt: number;
 }
 export async function setupPlatform(
   context: BrowserContext,
   options: { signedIn?: boolean; balance?: number; protocol?: 'openai' | 'minimax' } = {}
 ) {
-  const exp = Math.floor(Date.now() / 1000) + 3600;
+  const existing = accounts.get(context);
+  const exp = existing?.expiresAt ?? Math.floor(Date.now() / 1000) + 3600;
   const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url');
   const token = `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode({ sub: user.id, exp, aud: 'authenticated', role: 'authenticated' })}.c2lnbmF0dXJl`;
   const session = {
@@ -36,7 +38,10 @@ export async function setupPlatform(
     expires_at: exp,
     user
   };
-  const state: PlatformFixture = { balance: options.balance ?? 1000, reserved: 0, entries: [], token };
+  const state: PlatformFixture = existing ?? {
+    balance: options.balance ?? 1000, reserved: 0, entries: [], token, expiresAt: exp
+  };
+  state.balance = options.balance ?? state.balance;
   accounts.set(context, state);
   await context.addInitScript(
     ({ session, url, signedIn }) => {
