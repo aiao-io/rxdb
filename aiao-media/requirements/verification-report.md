@@ -15,7 +15,7 @@
 
 合成 composition 事件只验证编辑器状态机，不替代真实系统 IME；视口模拟不替代移动真机；fixture 的 URL 结果只验证请求约束，不替代真实跨 origin 原图；dry-run 不代表已发布。
 
-## 当前本地基线
+## 2026-10-29 分支收尾本地基线
 
 当前分支源码（含 2026-10-29 合入的收尾改动），Node 26.12.0，`NX_LOAD_DOT_ENV_FILES=false`、远程缓存关闭。执行记录与来源见[分支收尾](plans/branch-completion-20261029.md)。
 

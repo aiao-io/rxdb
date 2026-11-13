@@ -6,7 +6,7 @@ status: In Progress
 priority: High
 epic: MEDIA-EPIC-004
 created: 2026-10-30
-updated: 2026-11-06
+updated: 2026-11-13
 dependsOn: [MEDIA-US-302]
 tags: [product-completion, supabase, platform, sync]
 ---
@@ -47,7 +47,7 @@ tags: [product-completion, supabase, platform, sync]
 
 ## 技术笔记
 
-2026-11-06 按 D-16 从自有项目/平台双目标改为统一平台。平台配置、连接状态与纯平台设置页已有单元/UI 测试；平台注册后的入口与隔离本地 Auth/数据库双设备接线已补验，Storage 字节为 fixture，不代替真实 Storage、生产 Web/Tauri 验收。详细证据见[平台统一同步验证](../../verification-report.md#2026-11-06-平台统一同步验证)。平台表、权限和 bucket 由部署方预先初始化，不再让终端用户安装。尚未验收的正式环境不计为已交付。
+2026-11-06 按 D-16 从自有项目/平台双目标改为统一平台。平台配置、连接状态与纯平台设置页已有单元/UI 测试；平台注册后的入口与隔离本地 Auth/数据库双设备接线已补验（Storage 字节为 fixture）。同日正式云 Auth/DB/Storage 下登录、元数据同步与第二设备草稿恢复已通过，见[平台统一同步验证](../../verification-report.md#2026-11-06-平台统一同步验证)与[正式环境证据](../../verification-report.md#正式环境证据)；生产 Tauri 跨设备与配额管理仍待验。平台表、权限和 bucket 由部署方预先初始化，不再让终端用户安装。
 
 ## 实现文件
 

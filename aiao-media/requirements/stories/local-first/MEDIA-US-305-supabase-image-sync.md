@@ -6,7 +6,7 @@ status: In Progress
 priority: High
 epic: MEDIA-EPIC-004
 created: 2026-10-30
-updated: 2026-11-06
+updated: 2026-11-13
 dependsOn: [MEDIA-US-301, MEDIA-US-303]
 tags: [supabase, storage, image, sync, local-first]
 ---
@@ -23,7 +23,7 @@ tags: [supabase, storage, image, sync, local-first]
 
 ## 当前问题
 
-平台原图入口与传输能力正在接线，真实 Storage 和 Web/Tauri 跨设备尚未验收。另一设备只有作品信息时仍显示“本机无原图”；作品信息同步成功不能证明远端存在可恢复图片。按 [D-16](../../decisions.md#d-16统一使用平台-supabase) 统一使用平台项目，终端用户不再配置自己的项目。现有边界见 [MEDIA-US-302](MEDIA-US-302-draft-sync.md)、[MEDIA-US-303](MEDIA-US-303-sync-targets.md) 与[作品界面](../../../apps/web/src/app/local-image-mvp.html)。
+平台原图入口与传输能力正在接线；正式云 Web 侧原图上传、第二设备草稿恢复与显式下载已验（字节/SHA-256 一致，见[验收记录](../../verification-report.md#正式环境证据)），Tauri 跨设备、大图续传与删除冲突尚未验收。另一设备只有作品信息时仍显示“本机无原图”；作品信息同步成功不能证明远端存在可恢复图片。按 [D-16](../../decisions.md#d-16统一使用平台-supabase) 统一使用平台项目，终端用户不再配置自己的项目。现有边界见 [MEDIA-US-302](MEDIA-US-302-draft-sync.md)、[MEDIA-US-303](MEDIA-US-303-sync-targets.md) 与[作品界面](../../../apps/web/src/app/local-image-mvp.html)。
 
 ## 范围边界
 
@@ -95,7 +95,7 @@ tags: [supabase, storage, image, sync, local-first]
 
 ## 技术笔记
 
-- 图片同步控制器、私有 Storage 迁移和平台 UI 入口已接线；隔离本地真实 Auth/数据库的双设备接线已补验，但 Storage 字节为 fixture，尚无真实云 Storage/生产 Web-Tauri 验收。证据见[平台统一同步验证](../../verification-report.md#2026-11-06-平台统一同步验证)。现有 [product-sync-store.ts](../../../apps/web/src/local-data/product-sync-store.ts) 仅复制元数据，[browser-media.ts](../../../apps/web/src/local-data/browser-media.ts) 维护本机原图；[平台 R2 交付](../../../apps/api/src/platform-coordinator.ts) 不属于本故事的平台 Supabase 文件同步。
+- 图片同步控制器、私有 Storage 迁移和平台 UI 入口已接线；隔离本地真实 Auth/数据库的双设备接线已补验（Storage 字节为 fixture）。2026-11-06 正式云已完成真实原图上传、第二设备草稿恢复与显式下载，字节/SHA-256 一致；Tauri 跨设备、大图续传与删除冲突仍待验。证据见[平台统一同步验证](../../verification-report.md#2026-11-06-平台统一同步验证)与[正式环境证据](../../verification-report.md#正式环境证据)。现有 [product-sync-store.ts](../../../apps/web/src/local-data/product-sync-store.ts) 仅复制元数据，[browser-media.ts](../../../apps/web/src/local-data/browser-media.ts) 维护本机原图；[平台 R2 交付](../../../apps/api/src/platform-coordinator.ts) 不属于本故事的平台 Supabase 文件同步。
 - 根据 Supabase Storage 官方文档，私有 bucket 的上传和下载均须授权；实现需同时限定 bucket、平台账号与工作区，并拒绝路径替换、公开 URL 和越权签名。临时预览/签名 URL 不作为持久图片身份，不进入同步 DTO。
 - 对象路径包含平台用户、工作区、作品 ID 与不可变文件版本/摘要；不同版本不 upsert 覆盖，文件与记录采用可恢复提交。重试只允许可核对、可幂等的传输，不复用生图重试规则重新调用模型。
 - 传输现状：文件记录先 INSERT 建 `pending`，对象写入后按修订 UPDATE 为 `uploaded`（`BEFORE INSERT` 触发器先于冲突判定执行，用 upsert 推进会被拒）；下载按作品记录的摘要精确取版本；切换目标、账号或工作区即中止在途传输，迟到结果不提交记录、不写入本机。持久传输队列尚未实现：刷新/重开不续传，TUS 会话地址与 offset 不落盘，失败没有退避与持久状态（AC#5/#6）。
