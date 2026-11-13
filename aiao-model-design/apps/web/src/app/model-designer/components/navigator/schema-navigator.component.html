@@ -1,6 +1,15 @@
 <div
   class="border-base-300 bg-base-100 flex h-full w-72 max-w-[calc(100vw-3rem)] flex-col border-r lg:w-56 lg:max-w-none"
 >
+  <!-- Model Switcher：切换 / 新建 / 重命名模型设计 -->
+  <lib-model-switcher
+    [models]="models()"
+    [activeId]="activeModelId()"
+    (modelSelected)="modelSelected.emit($event)"
+    (modelCreated)="modelCreated.emit($event)"
+    (modelRenamed)="modelRenamed.emit($event)"
+  />
+
   <!-- Schema Root -->
   <div
     class="border-base-300 text-base-content/70 flex items-center justify-between border-b px-2 py-2 text-xs font-medium"

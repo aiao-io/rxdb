@@ -7,10 +7,11 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, output } f
 import { Database, Folder, LucideAngularModule, Plus, Table2 } from 'lucide-angular';
 import { MODEL_DESIGNER_TRANSLATIONS } from '../../i18n/translations';
 import type { DesignEntity, ModelDesign } from '../../models/index.js';
+import { ModelSwitcherComponent } from '../model-switcher/model-switcher.component';
 
 @Component({
   selector: 'lib-schema-navigator',
-  imports: [LucideAngularModule],
+  imports: [LucideAngularModule, ModelSwitcherComponent],
   templateUrl: './schema-navigator.component.html',
   styleUrl: './schema-navigator.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -25,6 +26,10 @@ export class SchemaNavigatorComponent {
   readonly schema = input<ModelDesign | null>(null);
   readonly entities = input.required<DesignEntity[]>();
   readonly selectedEntityIds = input<ReadonlySet<string>>(new Set());
+  /** 全部模型设计（顶部切换器用） */
+  readonly models = input<ModelDesign[]>([]);
+  /** 当前激活的模型设计 ID（顶部切换器用） */
+  readonly activeModelId = input<string | null>(null);
 
   readonly groupedEntities = computed(() => {
     const groups = new Map<string, DesignEntity[]>();
@@ -44,6 +49,9 @@ export class SchemaNavigatorComponent {
 
   readonly entitySelected = output<string>();
   readonly entityCreated = output<void>();
+  readonly modelSelected = output<string>();
+  readonly modelCreated = output<string>();
+  readonly modelRenamed = output<string>();
 
   onEntityClick(entityId: string) {
     this.entitySelected.emit(entityId);

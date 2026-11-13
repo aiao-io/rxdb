@@ -13,37 +13,11 @@ function createComponent() {
 }
 
 describe('DesignerToolbarComponent', () => {
-  it('should emit openVersionManager', () => {
-    const comp = createComponent();
-    const spy = vi.fn();
-    comp.openVersionManager.subscribe(spy);
-    comp.openVersionManager.emit();
-    expect(spy).toHaveBeenCalled();
-  });
-
   it('should emit generateSql', () => {
     const comp = createComponent();
     const spy = vi.fn();
     comp.generateSql.subscribe(spy);
     comp.generateSql.emit();
     expect(spy).toHaveBeenCalled();
-  });
-
-  it('should emit compareSql', () => {
-    const comp = createComponent();
-    const spy = vi.fn();
-    comp.compareSql.subscribe(spy);
-    comp.compareSql.emit();
-    expect(spy).toHaveBeenCalled();
-  });
-
-  it('should emit executeSql and default to disabled', () => {
-    const comp = createComponent();
-    const spy = vi.fn();
-    comp.executeSql.subscribe(spy);
-
-    expect(comp.executeDisabled()).toBe(true);
-    comp.executeSql.emit();
-    expect(spy).toHaveBeenCalledOnce();
   });
 });

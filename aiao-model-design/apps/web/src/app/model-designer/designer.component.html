@@ -16,15 +16,20 @@
     </div>
   }
 
-  @if (modelDesign.activeDesign() && !listRequested()) {
+  @if (modelDesign.activeDesign()) {
     <div class="relative flex flex-1 overflow-hidden">
       <div class="hidden shrink-0 lg:block">
         <lib-schema-navigator
+          [activeModelId]="modelDesign.activeDesignId()"
           [entities]="state.entities()"
+          [models]="modelDesign.designs()"
           [schema]="modelDesign.activeDesign()"
           [selectedEntityIds]="state.selectedEntityIds()"
           (entityCreated)="state.onAddEntity()"
           (entitySelected)="onEntitySelected($event)"
+          (modelCreated)="onModelCreated($event)"
+          (modelRenamed)="onModelRenamed($event)"
+          (modelSelected)="onModelSelected($event)"
         />
       </div>
 
@@ -38,11 +43,16 @@
           ></button>
           <div class="relative z-10 h-full shadow-xl">
             <lib-schema-navigator
+              [activeModelId]="modelDesign.activeDesignId()"
               [entities]="state.entities()"
+              [models]="modelDesign.designs()"
               [schema]="modelDesign.activeDesign()"
               [selectedEntityIds]="state.selectedEntityIds()"
               (entityCreated)="state.onAddEntity(); navigatorOpen.set(false)"
               (entitySelected)="onEntitySelected($event)"
+              (modelCreated)="onModelCreated($event); navigatorOpen.set(false)"
+              (modelRenamed)="onModelRenamed($event)"
+              (modelSelected)="onModelSelected($event); navigatorOpen.set(false)"
             />
           </div>
         </div>
@@ -50,10 +60,8 @@
 
       <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
         <lib-designer-toolbar
-          [compareAvailable]="state.canCompareSql()"
           [entityCount]="state.entities().length"
-          [executeAvailable]="state.canExecuteSql()"
-          [executeDisabled]="executeDisabled()"
+          [entityName]="state.selectedEntity()?.name"
           [modelName]="state.activeDesignName()"
           [redoCount]="state.redoCount()"
           [redoDisabled]="state.redoCount() === 0"
@@ -61,14 +69,10 @@
           [undoDisabled]="state.undoCount() === 0"
           [viewMode]="viewMode()"
           (addEntity)="state.onAddEntity()"
-          (compareSql)="state.onCompareSql()"
-          (executeSql)="onExecuteSql()"
           (generateCode)="state.onGenerate()"
           (generateSql)="state.onGenerateSql()"
           (openNavigator)="navigatorOpen.set(true)"
-          (openVersionManager)="onOpenVersionManager()"
           (redo)="state.onRedo()"
-          (switchModel)="onSwitchModel()"
           (toggleAi)="onToggleAi()"
           (undo)="state.onUndo()"
           (viewModeChange)="onViewModeChange($event)"

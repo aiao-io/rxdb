@@ -1,7 +1,4 @@
-export { REMOTE_SCHEMA_SOURCE, resolveCompareRemoteSchema } from './compare-remote';
-export type { CompareRemoteResolution, RemoteSchemaSource, ResolveCompareRemoteOptions } from './compare-remote';
 export { designToSqlSchema, resolveColumnName, resolveTableName } from './design-to-schema';
-export { diffSqlSchema } from './diff-schema';
 export { generateCreateSql, isDestructiveSql } from './generate-sql';
 export { mapPropertyTypeToPg } from './property-type-map';
 export { needsQuotes, quoteIdent, trackEscaped } from './quote';
