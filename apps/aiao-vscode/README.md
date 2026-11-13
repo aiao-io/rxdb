@@ -60,6 +60,11 @@ WASM 响应使用 `application/wasm`，JS 使用 `text/javascript`，CSS 使用 
 站点还必须返回 COOP / COEP 响应头（OPFS Git 与 JSPI WASM 依赖跨源隔离），本地 `serve` 与 e2e
 静态服务（`--coop-coep`）已内置，生产托管需自行配置等价响应头。
 
+工作台还是 [Aiao Desktop](../../aiao-desktop/README.md#接入集成应用) 的集成应用（[US-410](requirements/stories/US-410-desktop-embedding.md)）：
+`main.ts` 先用 `@aiao/orbit/client` 与桌面握手再启动 Angular，工作台挂载后报告就绪；直接访问时不握手，启动流程不变。
+桌面带 COEP，所以文档响应必须带 `Cross-Origin-Resource-Policy: cross-origin`（`public/_headers` 与本地 `serve` 已配置），
+否则浏览器直接拦下嵌入。被嵌入时「导入文件夹（副本）」与「登录 GitHub」不可用：跨源 iframe 不能弹文件选择器，弹窗被桌面的 sandbox 拦下。
+
 资产里的 `.html`（Markdown 扩展宿主、VS Code webview 的 index / fake 页）由 iframe 直接导航，托管方必须原样返回，
 不能重定向到去掉扩展名的地址：Service Worker 接管导航时不跟随这类重定向。Cloudflare Pages 默认会做这种重定向，
 `public/_redirects` 用 200 改写关闭它，`pnpm nx run aiao-vscode:verify-pages-routing` 在本地 Pages 模拟中校验。

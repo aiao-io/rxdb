@@ -1,7 +1,7 @@
 ---
 id: ADESK-US-202
 title: 集成应用的运行宿主
-status: In Progress
+status: Done
 priority: High
 epic: ADESK-EPIC-003
 created: 2026-11-13
@@ -42,22 +42,22 @@ capabilities: []
 
 ## 验收标准
 
-| #   | 前置条件                                                             | 操作                                                             | 预期结果                                                                                                                       | 状态 |
-| --- | -------------------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ---- |
-| 1   | 外网全部拦截，替身应用顶替 `https://vscode.aiao.io/`，正式构建       | 从 Dock 打开 Aiao Code                                           | 先显示加载状态；替身报告就绪后加载状态消失，窗口里是替身页面                                                                   | ⬜   |
-| 2   | Aiao Code 已就绪                                                     | 读应用里的运行环境与 iframe 属性                                 | 应用里 `crossOriginIsolated` 为 true；iframe 带 Orbit 的 sandbox，`allow` 与登记表一致                                         | ⬜   |
-| 3   | Aiao Code 已就绪，在应用的输入框里输入了文字                         | 最小化进 Dock，再从 Dock 还原                                    | 应用依次收到隐藏与显示通知；仍是同一个文档（iframe 没有重新加载），输入的文字还在                                              | ⬜   |
-| 4   | Aiao Code 与 Calculator 都打开，Calculator 在前台                    | 点 Aiao Code 的窗口内容区，再键入文字                            | Aiao Code 提到前台、菜单栏变成 Aiao Code；键入的文字出现在应用的输入框里                                                       | ⬜   |
-| 5   | Aiao Code 在前台，Apple 菜单已打开                                   | 点进应用的内容区                                                 | 菜单收起                                                                                                                       | ⬜   |
-| 6   | Aiao Code 在前台                                                     | 按住右下角把手，经过应用内容区拖到更小的尺寸再松手               | 窗口尺寸跟着指针变化，松手后不再变化                                                                                           | ⬜   |
-| 7   | Aiao Code 已就绪                                                     | 关闭窗口，再从 Dock 打开                                         | 关闭后页面里没有 Orbit 的 iframe；再次打开是新文档，重新就绪                                                                   | ⬜   |
-| 8   | 对 `https://vscode.aiao.io/` 的请求失败（模拟离线）                  | 打开 Aiao Code；恢复替身后点「重试」                             | 窗口显示无法打开与原因，桌面与其他窗口照常；重试后应用就绪                                                                     | ⬜   |
-| 9   | 替身应用在启动时自报失败                                             | 打开 Aiao Code                                                   | 窗口显示应用给出的原因与「重试」；超时、整页导航等其余失败原因的文案由单测覆盖                                                 | ⬜   |
-| 10  | 外网全部拦截                                                         | 依次完成 #1～#9                                                  | 没有页面错误；控制台错误只有被拦截的外网资源                                                                                   | ⬜   |
+| #   | 前置条件                                                       | 操作                                               | 预期结果                                                                               | 状态 |
+| --- | -------------------------------------------------------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------- | ---- |
+| 1   | 外网全部拦截，替身应用顶替 `https://vscode.aiao.io/`，正式构建 | 从 Dock 打开 Aiao Code                             | 先显示加载状态；替身报告就绪后加载状态消失，窗口里是替身页面                           | ✅   |
+| 2   | Aiao Code 已就绪                                               | 读应用里的运行环境与 iframe 属性                   | 应用里 `crossOriginIsolated` 为 true；iframe 带 Orbit 的 sandbox，`allow` 与登记表一致 | ✅   |
+| 3   | Aiao Code 已就绪，在应用的输入框里输入了文字                   | 最小化进 Dock，再从 Dock 还原                      | 应用依次收到隐藏与显示通知；仍是同一个文档（iframe 没有重新加载），输入的文字还在      | ✅   |
+| 4   | Aiao Code 与 Calculator 都打开，Calculator 在前台              | 点 Aiao Code 的窗口内容区，再键入文字              | Aiao Code 提到前台、菜单栏变成 Aiao Code；键入的文字出现在应用的输入框里               | ✅   |
+| 5   | Aiao Code 在前台，Apple 菜单已打开                             | 点进应用的内容区                                   | 菜单收起                                                                               | ✅   |
+| 6   | Aiao Code 在前台                                               | 按住右下角把手，经过应用内容区拖到更小的尺寸再松手 | 窗口尺寸跟着指针变化，松手后不再变化                                                   | ✅   |
+| 7   | Aiao Code 已就绪                                               | 关闭窗口，再从 Dock 打开                           | 关闭后页面里没有 Orbit 的 iframe；再次打开是新文档，重新就绪                           | ✅   |
+| 8   | 对 `https://vscode.aiao.io/` 的请求失败（模拟离线）            | 打开 Aiao Code；恢复替身后点「重试」               | 窗口显示无法打开与原因，桌面与其他窗口照常；重试后应用就绪                             | ✅   |
+| 9   | 替身应用在启动时自报失败                                       | 打开 Aiao Code                                     | 窗口显示应用给出的原因与「重试」；超时、整页导航等其余失败原因的文案由单测覆盖         | ✅   |
+| 10  | 外网全部拦截                                                   | 依次完成 #1～#9                                    | 没有页面错误；控制台错误只有被拦截的外网资源                                           | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-验收证据：冒烟 [smoke.mjs](../../../apps/e2e/src/smoke.mjs)（`aiao-desktop-e2e:e2e`）的 `integratedApp` 检查组；替身页面用 `packages/orbit` 的正式构建，冒烟按需路由，不改桌面的正式构建。失败原因到文案的映射另有 web 单测。结论见[验收台账](../../verification-report.md)。
+验收证据：冒烟 [smoke.mjs](../../../apps/e2e/src/smoke.mjs)（`aiao-desktop-e2e:e2e`）的 `integratedApp` 检查组。替身页面用 `packages/orbit` 的正式构建，冒烟按需路由，不改桌面的正式构建。各 AC 对应的检查项：#1 `showsLoading`、`becomesReady` 与 `standinRendered`，#2 `crossOriginIsolated` 与 `iframePolicy`，#3 `minimizeHides`、`restoreShows` 与 `restoreKeepsDocument`，#4 `shieldWhenBehind`、`clickActivates` 与 `keyboardReachesApp`，#5 `appClickClosesMenu`，#6 `resizeTracksPointer`，#7 `closeRemovesFrame` 与 `reopensFresh`，#8 `offlineShowsReason`、`desktopUnaffected` 与 `retryRecovers`，#9 `appFailureShowsReason`，#10 脚本收集的页面错误与控制台错误。#6 做过反证：去掉拖动缩放时的 `pointer-events: none`，指针一进 iframe 就丢了跟踪（目标约 600×350，实得 787×492）。#9 其余失败原因的文案在 [web-app-failure.spec.ts](../../../apps/web/src/app/apps/web-app/web-app-failure.spec.ts)；Orbit 的 `focus()` 与加载后未握手的快速失败在 `packages/orbit` 的浏览器测试里。结论见[验收台账](../../verification-report.md#应用体系与集成应用)。
 
 ## 技术笔记
 

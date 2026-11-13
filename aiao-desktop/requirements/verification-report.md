@@ -1,6 +1,6 @@
 # Aiao Desktop 验收台账
 
-结构门禁只检查文档契约；门禁脚本测试、构建与浏览器冒烟分别验收。下表的结论来自 2026-11-12 在本分支执行的命令（Node 26.12.0，在仓库根执行）；ADESK-US-102 与重跑的聚合门禁来自 2026-11-13。
+结构门禁只检查文档契约；门禁脚本测试、构建与浏览器冒烟分别验收。下表的结论来自 2026-11-12 在本分支执行的命令（Node 26.12.0，在仓库根执行）；ADESK-US-102、应用体系与集成应用（ADESK-US-201～203）以及重跑的聚合门禁来自 2026-11-13。
 
 ## 结构门禁与构建
 
@@ -36,6 +36,16 @@
 | ADESK-US-101 #1～11 | 浏览器：Chromium 无头、正式构建、视口 1440×900、外网请求全部拦截              | `aiao-desktop-e2e:e2e`（[smoke.mjs](../apps/e2e/src/smoke.mjs)） | 通过：输出 JSON 的全部检查项为 true，`unopened` 为空，没有页面错误；冒烟约 26 s                      |
 | ADESK-US-102 #1～14 | 浏览器：同上，全新浏览器配置（OPFS 为空，首次打开写入内置内容），中途刷新一次 | `aiao-desktop-e2e:e2e`（同一个脚本，接在 US-101 的检查之后）     | 通过（2026-11-13）：`diskState` 13 项与 `persistence` 6 项全部为 true，没有页面错误；整份冒烟约 43 s |
 
+## 应用体系与集成应用
+
+| 故事与 AC                                 | 验证层级                                                                                  | 入口                                                                                                  | 当前结论                                                                                                                                                                                                                                         |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| ADESK-US-201 #1～#3                       | Node 单测                                                                                 | `aiao-desktop-web:test`（[desktop-apps.spec.ts](../apps/web/src/app/services/desktop-apps.spec.ts)）  | 通过：真实登记表合规（2 个系统入口、30 个内置应用、1 个集成应用）；14 种不合规登记逐项报出应用与字段；允许来源只有 `https://vscode.aiao.io`。web 单测共 24 个文件、167 个用例                                                                    |
+| ADESK-US-202 #9（其余失败原因）           | Node 单测                                                                                 | [web-app-failure.spec.ts](../apps/web/src/app/apps/web-app/web-app-failure.spec.ts)                   | 通过：加载失败、超时、应用自报、整页导航与其他错误的文案；只有运行中的失败交给窗口显示                                                                                                                                                           |
+| Orbit 的 `focus()` 与加载后未握手即失败   | 浏览器单测（Chromium）                                                                    | `orbit:test`（[runtime.browser.spec.ts](../../packages/orbit/src/__tests__/runtime.browser.spec.ts)） | 通过：5 个文件、46 个用例；入口 404 时 3 秒宽限后以 `LOAD_ERROR` 失败，不等 60 秒就绪时限                                                                                                                                                        |
+| ADESK-US-201 #4～#7、ADESK-US-202 #1～#10 | 浏览器冒烟：Chromium 无头、正式构建、外网全部拦截，替身应用顶替 `https://vscode.aiao.io/` | `aiao-desktop-e2e:e2e`（[smoke.mjs](../apps/e2e/src/smoke.mjs) 的 `integratedApp` 检查组）            | 通过：`integratedApp` 25 项全部为 true，`everyAppOpens` 的 `unopened` 为空，没有页面错误；整份冒烟约 60 s。缩放检查做过反证：不给 iframe 设 `pointer-events: none`，指针一进 iframe 就丢了跟踪                                                   |
+| ADESK-US-203 #1～#6                       | 浏览器（Chromium 无头）、桌面正式构建、真实网络                                           | `aiao-desktop-e2e:verify-aiao-code`（[verify-aiao-code.mjs](../apps/e2e/src/verify-aiao-code.mjs)）   | 发布前：`--vscode-dist` 指向带握手与 CORP 的本地产物，6 项全过（就绪 0.4 s，WebContainer 终端 6.6 s 运行，重开 0.9 s）。对现在的线上版本跑：窗口显示「vscode.aiao.io didn’t connect」，与线上缺 CORP 的实测一致。线上验收待 Aiao Code 发布后重跑 |
+
 ## 尚未证明
 
 - 非 Chromium 浏览器（Safari、Firefox），以及触屏与移动端尺寸。
@@ -45,4 +55,6 @@
 - 已有库的升级路径：冒烟每次都从空的 OPFS 开始；在旧版本建的库上补建新表、补写新数据域的种子，没有在浏览器里实跑过（子 agent 的 Node 探针覆盖过）。
 - 多个标签页同时打开：同一个库在两个标签页里各有一份内存索引与一台虚拟机，彼此的改动刷新后才看得到。
 - 正式部署与线上环境：产品没有部署目标。
+- Aiao Code 的线上验收（ADESK-US-203）：要等 Aiao Code 带着握手与 CORP 发布到 vscode.aiao.io。
+- 集成应用在 aiao.io 之外的站点下的存储分区：桌面里的 Aiao Code 与直接访问看到的是两份项目，只按浏览器规则推断，没有对比实测。
 - 无障碍：读屏与只用键盘的完整路径。

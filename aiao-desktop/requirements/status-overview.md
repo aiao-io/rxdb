@@ -6,18 +6,16 @@
 
 | 状态           | 数量 |
 | -------------- | ---- |
-| ✅ Done        | 4    |
-| 🚧 In Progress | 3    |
+| ✅ Done        | 6    |
+| 🚧 In Progress | 1    |
 | 👀 In Review   | 0    |
 | 📝 Backlog     | 0    |
 | 🚫 Blocked     | 0    |
 | **合计**       | 7    |
 
-## 进行中（3 条）
+## 进行中（1 条）
 
-- [ADESK-US-201 应用体系与统一登记表](stories/application/ADESK-US-201-application-system.md)：三类应用同表登记、校验与入口一致。
-- [ADESK-US-202 集成应用的运行宿主](stories/application/ADESK-US-202-integrated-app-runtime.md)：Orbit 接入窗口系统，冒烟用替身应用验证。
-- [ADESK-US-203 接入 Aiao Code](stories/application/ADESK-US-203-aiao-code.md)：vscode.aiao.io 侧的握手与 CORP 需随 Aiao Code 发布上线后，跑线上验收。
+- [ADESK-US-203 接入 Aiao Code](stories/application/ADESK-US-203-aiao-code.md)：桌面一侧已就绪，用本地产物顶替 vscode.aiao.io 的线上验收 6 项全过；等 Aiao Code 带着握手与 CORP 发布到 vscode.aiao.io 后，对线上重跑才能关闭。
 
 ## 待评审（0 条）
 
@@ -37,6 +35,6 @@
 
 ### ADESK-EPIC-003 应用体系与集成应用
 
-- 🚧 [ADESK-US-201 应用体系与统一登记表](stories/application/ADESK-US-201-application-system.md)
-- 🚧 [ADESK-US-202 集成应用的运行宿主](stories/application/ADESK-US-202-integrated-app-runtime.md)
+- ✅ [ADESK-US-201 应用体系与统一登记表](stories/application/ADESK-US-201-application-system.md)
+- ✅ [ADESK-US-202 集成应用的运行宿主](stories/application/ADESK-US-202-integrated-app-runtime.md)
 - 🚧 [ADESK-US-203 接入 Aiao Code](stories/application/ADESK-US-203-aiao-code.md)

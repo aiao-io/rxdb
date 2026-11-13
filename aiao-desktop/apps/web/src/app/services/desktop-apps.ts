@@ -44,7 +44,12 @@ export type DesktopAppId =
 export type DesktopAppKind = 'system' | 'builtin' | 'web';
 
 /** 可以授予集成应用 iframe 的浏览器权限（Permissions Policy）。 */
-export const WEB_APP_PERMISSIONS = ['cross-origin-isolated', 'clipboard-read', 'clipboard-write', 'fullscreen'] as const;
+export const WEB_APP_PERMISSIONS = [
+  'cross-origin-isolated',
+  'clipboard-read',
+  'clipboard-write',
+  'fullscreen'
+] as const;
 
 export type WebAppPermission = (typeof WEB_APP_PERMISSIONS)[number];
 

@@ -4,7 +4,7 @@
   <div class="grow"></div>
   <div class="tbz"></div>
 </div>
-<div class="webapp" [attr.data-webapp]="app.id" [attr.data-webapp-state]="state()">
+<div class="webapp" [attr.data-webapp-state]="state()" [attr.data-webapp]="app.id">
   <div class="webapp-stage" #stage></div>
   @switch (state()) {
     @case ('loading') {
@@ -20,8 +20,8 @@
         <h2>“{{ app.name }}” can’t be opened.</h2>
         <p data-webapp-reason>{{ reason() }}</p>
         <div class="webapp-actions">
-          <button class="btn pri" type="button" (click)="retry()" data-webapp-retry>Try Again</button>
-          <a class="btn" [href]="app.web.url" target="_blank" rel="noopener" data-webapp-open>Open in New Tab</a>
+          <button class="btn pri" (click)="retry()" data-webapp-retry type="button">Try Again</button>
+          <a class="btn" [href]="app.web.url" data-webapp-open rel="noopener" target="_blank">Open in New Tab</a>
         </div>
       </div>
     }

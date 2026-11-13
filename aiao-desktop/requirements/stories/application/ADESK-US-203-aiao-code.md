@@ -38,18 +38,18 @@ capabilities: []
 
 ## 验收标准
 
-| #   | 前置条件                                     | 操作                                                                 | 预期结果                                                                                         | 状态 |
-| --- | -------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---- |
-| 1   | 桌面正式构建，真实网络，全新浏览器配置       | 从 Dock 打开 Aiao Code                                               | 工作台出现并向桌面报告就绪，加载状态消失                                                         | ⬜   |
-| 2   | Aiao Code 已就绪                             | 读应用里的运行环境                                                   | `crossOriginIsolated` 为 true                                                                    | ⬜   |
-| 3   | Aiao Code 已就绪                             | 新建 vanilla 项目，打开终端，执行 `echo AIAO_DESKTOP_OK`             | 终端显示运行中，输出 `AIAO_DESKTOP_OK`                                                            | ⬜   |
-| 4   | 已新建项目                                   | 最小化再还原                                                         | 工作台没有重新加载，当前项目与终端输出还在                                                       | ⬜   |
-| 5   | 已新建项目                                   | 关闭窗口，再从启动台打开                                             | 重新就绪，刚才新建的项目还在（数据在 Aiao Code 自己的来源里）                                    | ⬜   |
-| 6   | Aiao Code 已就绪                             | 依次完成 #1～#5                                                      | 桌面页面没有错误                                                                                 | ⬜   |
+| #   | 前置条件                               | 操作                                                     | 预期结果                                                      | 状态 |
+| --- | -------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------- | ---- |
+| 1   | 桌面正式构建，真实网络，全新浏览器配置 | 从 Dock 打开 Aiao Code                                   | 工作台出现并向桌面报告就绪，加载状态消失                      | ⚠️   |
+| 2   | Aiao Code 已就绪                       | 读应用里的运行环境                                       | `crossOriginIsolated` 为 true                                 | ⚠️   |
+| 3   | Aiao Code 已就绪                       | 新建 vanilla 项目，打开终端，执行 `echo AIAO_DESKTOP_OK` | 终端显示运行中，输出 `AIAO_DESKTOP_OK`                        | ⚠️   |
+| 4   | 已新建项目                             | 最小化再还原                                             | 工作台没有重新加载，当前项目与终端输出还在                    | ⚠️   |
+| 5   | 已新建项目                             | 关闭窗口，再从启动台打开                                 | 重新就绪，刚才新建的项目还在（数据在 Aiao Code 自己的来源里） | ⚠️   |
+| 6   | Aiao Code 已就绪                       | 依次完成 #1～#5                                          | 桌面页面没有错误                                              | ⚠️   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-验收证据：线上验收脚本 `aiao-desktop-e2e:verify-aiao-code`（[verify-aiao-code.mjs](../../../apps/e2e/src/verify-aiao-code.mjs)），对真实 vscode.aiao.io 的输出 JSON 记入[验收台账](../../verification-report.md)；登记项本身（Dock、启动台、菜单栏）由 [ADESK-US-201](ADESK-US-201-application-system.md) 的冒烟覆盖。
+验收证据：线上验收脚本 `aiao-desktop-e2e:verify-aiao-code`（[verify-aiao-code.mjs](../../../apps/e2e/src/verify-aiao-code.mjs)），输出 JSON 的 `checks` 与 AC 一一对应：#1 `workbenchReady`，#2 `crossOriginIsolated`，#3 `terminalRuns`，#4 `restoreKeepsWorkbench`，#5 `reopenKeepsProject`，#6 `noDesktopErrors`。2026-11-13 用 `--vscode-dist` 把 vscode.aiao.io 指到带握手与 CORP 的本地产物，6 项全过；对现在的线上版本跑，窗口按预期显示「vscode.aiao.io didn’t connect」（线上还没有 CORP 与握手）。⚠️ 表示只有发布前的本地证据，Aiao Code 发布后对线上重跑才能改 ✅。登记项本身（Dock、启动台、菜单栏）由 [ADESK-US-201](ADESK-US-201-application-system.md) 的冒烟覆盖。结论见[验收台账](../../verification-report.md#应用体系与集成应用)。
 
 ## 技术笔记
 

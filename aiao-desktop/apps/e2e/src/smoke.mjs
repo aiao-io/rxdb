@@ -1,19 +1,12 @@
-import { createReadStream, existsSync, statSync } from 'node:fs';
-import { createServer } from 'node:http';
-import { extname, join, normalize, resolve } from 'node:path';
+import { existsSync } from 'node:fs';
+import { join, normalize, resolve } from 'node:path';
 import { chromium } from 'playwright';
 
-const outputRoot = resolve(process.cwd(), '../../../dist/aiao-desktop/apps/web/browser');
+import { contentTypes, startDesktopServer } from './desktop-server.mjs';
+
 /** 替身应用用 Orbit 客户端的正式构建握手（e2e 目标先构建 orbit）。 */
-const orbitDist = resolve(process.cwd(), '../../../packages/orbit/dist');
+const orbitDist = resolve(import.meta.dirname, '../../../../packages/orbit/dist');
 const STANDIN_ORIGIN = 'https://vscode.aiao.io';
-const contentTypes = {
-  '.css': 'text/css; charset=utf-8',
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.ico': 'image/x-icon',
-  '.wasm': 'application/wasm'
-};
 
 /** 启动台里的应用：[应用 id, 显示名]。 */
 const APPS = [
@@ -48,27 +41,8 @@ const APPS = [
   ['settings', 'System Settings']
 ];
 
-const server = createServer((request, response) => {
-  const requestPath = decodeURIComponent(new URL(request.url ?? '/', 'http://localhost').pathname);
-  const relativePath = requestPath === '/' ? '/index.html' : requestPath;
-  const filePath = normalize(join(outputRoot, relativePath));
-  if (!filePath.startsWith(`${outputRoot}/`) || !existsSync(filePath) || !statSync(filePath).isFile()) {
-    response.writeHead(404);
-    response.end('Not found');
-    return;
-  }
-  response.writeHead(200, {
-    'Content-Type': contentTypes[extname(filePath)] ?? 'application/octet-stream',
-    'Cross-Origin-Opener-Policy': 'same-origin',
-    'Cross-Origin-Embedder-Policy': 'require-corp'
-  });
-  createReadStream(filePath).pipe(response);
-});
-
-await new Promise(resolveServer => server.listen(0, '127.0.0.1', resolveServer));
-const address = server.address();
-if (!address || typeof address === 'string') throw new Error('Failed to start the smoke test server');
-const origin = `http://127.0.0.1:${address.port}`;
+const desktop = await startDesktopServer();
+const origin = desktop.origin;
 
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
@@ -492,9 +466,13 @@ try {
   integratedApp.quitCloses =
     (await disappears(vscodeWin, 3_000)) &&
     (await page
-      .waitForFunction(() => !document.querySelector('#dock .di[data-app="vscode"]')?.classList.contains('run'), undefined, {
-        timeout: 3_000
-      })
+      .waitForFunction(
+        () => !document.querySelector('#dock .di[data-app="vscode"]')?.classList.contains('run'),
+        undefined,
+        {
+          timeout: 3_000
+        }
+      )
       .then(
         () => true,
         () => false
@@ -615,5 +593,5 @@ try {
   console.log(JSON.stringify(finalChecks));
 } finally {
   await browser.close();
-  server.close();
+  desktop.close();
 }

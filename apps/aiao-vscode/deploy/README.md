@@ -70,6 +70,10 @@ Authorization callback URL `http://localhost:8788/redirect`，并从 `http://loc
 - 完整登录成功后，授权弹窗应自动关闭，原工作台更新登录状态；失败时保留回调页显示错误。
   工作台启用 `COOP: same-origin`，跨域授权后 `window.opener` 可能为空，回调关闭不能依赖它。
 - 跨域隔离响应头（COOP / COEP）与 Service Worker 是工作台自身要求，配置见应用 README 的部署小节。
+- 集成到 Aiao Desktop（US-410）：入口还要带 `Cross-Origin-Resource-Policy: cross-origin`，`verify-pages-routing` 会检查它恰好一个值
+  （`_headers` 里同一响应头写两次会被 Pages 用逗号拼成无效值）。发布后在仓库根跑桌面的线上验收
+  `pnpm nx run aiao-desktop-e2e:verify-aiao-code`（要外网）：从桌面打开工作台、新建项目、跑终端、最小化还原与重开。
+  发布前可先用本地产物跑同一个脚本：`pnpm nx run aiao-desktop-e2e:verify-aiao-code --vscode-dist=../../../apps/aiao-vscode/dist/browser`。
 
 ## vivari 运行时宿主
 

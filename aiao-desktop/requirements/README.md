@@ -1,6 +1,6 @@
 # Aiao Desktop 产品需求
 
-当前交付：[4/7 已交付]。状态真相源为 `stories/<domain>/ADESK-US-*.md` 的 YAML `status`，其余视图由故事派生。
+当前交付：[6/7 已交付]。状态真相源为 `stories/<domain>/ADESK-US-*.md` 的 YAML `status`，其余视图由故事派生。
 
 ## 当前范围
 
@@ -25,7 +25,7 @@
 | [future-requirements.md](future-requirements.md)       | 长期方向与准入条件         |
 | [epics/ADESK-EPIC-001.md](epics/ADESK-EPIC-001.md)     | 产品工程结构               |
 | [epics/ADESK-EPIC-002.md](epics/ADESK-EPIC-002.md)     | macOS 风格桌面             |
-| [epics/ADESK-EPIC-003.md](epics/ADESK-EPIC-003.md) | 应用体系与集成应用 |
+| [epics/ADESK-EPIC-003.md](epics/ADESK-EPIC-003.md)     | 应用体系与集成应用         |
 | [stories/story.template.md](stories/story.template.md) | 新故事模板                 |
 | [plans/README.md](plans/README.md)                     | 调研、实施计划与验收记录   |
 | [reviews/README.md](reviews/README.md)                 | 旧 review 记录入口         |
@@ -39,12 +39,12 @@
 
 ## 术语
 
-| 术语         | 含义                                                                               |
-| ------------ | ---------------------------------------------------------------------------------- |
-| 桌面         | `apps/web` 渲染的整个页面：菜单栏、桌面图标、窗口层、Dock 与各类浮层               |
-| 应用         | 应用登记表 `registry.ts` 里的一项；Finder、Terminal、TextEdit 等可以同时开多个窗口 |
-| 内置应用 | 随桌面构建的 Angular 组件，直接用桌面的服务与本地库 |
-| 集成应用 | 独立部署的 B/S 应用，经 Orbit 在窗口的 iframe 里运行，只经 Orbit 协议与桌面往来（[D-10](decisions.md#d-10应用分三类登记在同一张表里)） |
-| 窗口         | 应用的一次打开，带红黄绿三个窗口按钮，可以最小化进 Dock                            |
-| 虚拟文件系统 | Finder 浏览的目录树，写在代码里，只存在内存中                                      |
-| 冒烟         | `apps/e2e` 对正式构建跑的 Chromium 脚本，外网请求全部拦截，任何页面错误都判失败    |
+| 术语         | 含义                                                                                                                                   |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 桌面         | `apps/web` 渲染的整个页面：菜单栏、桌面图标、窗口层、Dock 与各类浮层                                                                   |
+| 应用         | 应用登记表 `registry.ts` 里的一项；Finder、Terminal、TextEdit 等可以同时开多个窗口                                                     |
+| 内置应用     | 随桌面构建的 Angular 组件，直接用桌面的服务与本地库                                                                                    |
+| 集成应用     | 独立部署的 B/S 应用，经 Orbit 在窗口的 iframe 里运行，只经 Orbit 协议与桌面往来（[D-10](decisions.md#d-10应用分三类登记在同一张表里)） |
+| 窗口         | 应用的一次打开，带红黄绿三个窗口按钮，可以最小化进 Dock                                                                                |
+| 虚拟文件系统 | Finder 浏览的目录树，写在代码里，只存在内存中                                                                                          |
+| 冒烟         | `apps/e2e` 对正式构建跑的 Chromium 脚本，外网请求全部拦截，任何页面错误都判失败                                                        |

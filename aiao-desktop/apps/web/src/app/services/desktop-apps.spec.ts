@@ -35,7 +35,8 @@ describe('应用登记表', () => {
     expect(validateManifests(DESKTOP_APP_MANIFESTS)).toEqual([]);
     const ids = Object.keys(DESKTOP_APP_MANIFESTS);
     expect(Object.values(DESKTOP_APP_MANIFESTS).map(app => app.id)).toEqual(ids);
-    const byKind = (kind: string) => ids.filter(id => DESKTOP_APP_MANIFESTS[id as keyof DesktopAppManifests].kind === kind);
+    const byKind = (kind: string) =>
+      ids.filter(id => DESKTOP_APP_MANIFESTS[id as keyof DesktopAppManifests].kind === kind);
     expect(byKind('system')).toEqual(['launchpad', 'trash']);
     expect(byKind('web')).toEqual(['vscode']);
     expect(byKind('builtin')).toHaveLength(30);

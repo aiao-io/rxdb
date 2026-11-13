@@ -1,10 +1,15 @@
 import { Type } from '@angular/core';
 
-import { DesktopAppDefinition, DesktopAppManifest, DesktopAppRegistry, assertManifests } from '../services/desktop-apps';
+import {
+  DesktopAppDefinition,
+  DesktopAppManifest,
+  DesktopAppRegistry,
+  assertManifests
+} from '../services/desktop-apps';
 import { AboutApp } from './about/about';
 import { ActivityMonitorApp } from './activity-monitor/activity-monitor';
-import { CalculatorApp } from './calculator/calculator';
 import { DESKTOP_APP_MANIFESTS } from './app-manifests';
+import { CalculatorApp } from './calculator/calculator';
 import { CalendarApp } from './calendar/calendar';
 import { ClockApp } from './clock/clock';
 import { ContactsApp } from './contacts/contacts';

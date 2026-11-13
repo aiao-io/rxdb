@@ -134,8 +134,20 @@ try {
     await check(`${path} 原样 200 返回`, async () => {
       const headers = await servesFile(workbench.origin, site, path);
       assert.equal(headers.get('cross-origin-embedder-policy'), 'require-corp');
+      assert.equal(headers.get('cross-origin-resource-policy'), 'cross-origin');
+      assert.equal(headers.get('access-control-allow-origin'), '*');
     });
   }
+
+  // Aiao Desktop 把工作台当集成应用嵌入（US-410）：带 COEP 的宿主页只能嵌入带 CORP 的文档。
+  // _headers 里同一响应头写两次会被 Pages 拼成「cross-origin, cross-origin」这种无效值，所以要求恰好一个值。
+  await check('工作台入口带跨源隔离与 CORP 响应头，可被 Aiao Desktop 嵌入', async () => {
+    const response = await fetch(`${workbench.origin}/`, { redirect: 'manual' });
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('cross-origin-opener-policy'), 'same-origin');
+    assert.equal(response.headers.get('cross-origin-embedder-policy'), 'require-corp');
+    assert.equal(response.headers.get('cross-origin-resource-policy'), 'cross-origin');
+  });
 
   await check('资源目录不在 Service Worker 的导航回退范围', async () => {
     const { navigationUrls } = JSON.parse(await readFile(join(site, 'ngsw.json'), 'utf8'));

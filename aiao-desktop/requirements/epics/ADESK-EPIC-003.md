@@ -18,8 +18,8 @@ Aiao Desktop 除了随桌面构建的内置应用，还能把独立部署的 B/S
 
 ## 目标
 
-- [ ] 应用分为系统入口、内置应用与集成应用三类，登记在同一张表里，启动台、聚焦搜索、Dock 与菜单栏一视同仁（[ADESK-US-201](../stories/application/ADESK-US-201-application-system.md)）。
-- [ ] 集成应用经 Orbit 在窗口里运行：加载、就绪、最小化、还原、关闭、焦点与失败重试由桌面统一处理，接入契约写清楚（[ADESK-US-202](../stories/application/ADESK-US-202-integrated-app-runtime.md)）。
+- [x] 应用分为系统入口、内置应用与集成应用三类，登记在同一张表里，启动台、聚焦搜索、Dock 与菜单栏一视同仁（[ADESK-US-201](../stories/application/ADESK-US-201-application-system.md)）。
+- [x] 集成应用经 Orbit 在窗口里运行：加载、就绪、最小化、还原、关闭、焦点与失败重试由桌面统一处理，接入契约写清楚（[ADESK-US-202](../stories/application/ADESK-US-202-integrated-app-runtime.md)）。
 - [ ] Aiao Code 作为第一个集成应用接入，用 vscode.aiao.io 的线上发布版本（[ADESK-US-203](../stories/application/ADESK-US-203-aiao-code.md)）。
 
 ## 故事
