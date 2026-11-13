@@ -1,4 +1,4 @@
-import { RxDB, SyncType } from '@aiao/rxdb';
+import { getEntityMetadata, RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterSqlite, SqliteOptions } from '@aiao/rxdb-adapter-sqlite-wasm';
 import { rxDBPluginStorage } from '@aiao/rxdb-plugin-storage';
 import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
@@ -46,5 +46,10 @@ export function createDesktopDatabase(baseHref: string): RxDB {
     .use(rxDBPluginStorage, { rootDir: FILES_ROOT })
     .adapter(DESKTOP_ADAPTER, async db => new RxDBAdapterSqlite(db, await localOptions(baseHref)));
   rxdb.init();
+  if (import.meta.env.DEV) {
+    void import('@aiao/rxdb-devtools').then(({ getDevToolsConnector }) => {
+      getDevToolsConnector().init(rxdb, getEntityMetadata);
+    });
+  }
   return rxdb;
 }

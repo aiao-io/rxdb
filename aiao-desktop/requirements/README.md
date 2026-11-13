@@ -1,14 +1,14 @@
 # Aiao Desktop 产品需求
 
-当前交付：[7/7 已交付]。状态真相源为 `stories/<domain>/ADESK-US-*.md` 的 YAML `status`，其余视图由故事派生。
+当前交付：[10/10 已交付]。状态真相源为 `stories/<domain>/ADESK-US-*.md` 的 YAML `status`，其余视图由故事派生。
 
 ## 当前范围
 
-在浏览器里还原一套 macOS 风格的桌面：开机与锁屏、菜单栏、Dock、窗口管理、启动台、聚焦搜索、通知中心，以及启动台里的 29 个内置应用。除了内置应用，桌面还以微前端方式运行独立部署的 B/S 应用（集成应用），经仓库里的 `@aiao/orbit` 隔离在窗口里；第一个是 Aiao Code（vscode.aiao.io），见 [ADESK-EPIC-003](epics/ADESK-EPIC-003.md)。终端用 [Vivari](https://vivari.run) 在页面里运行 Node、npm 与 Python；其余应用展示写在代码里的演示内容。
+在浏览器里还原一套 macOS 风格的桌面：开机与锁屏、菜单栏、Dock、窗口管理、启动台、聚焦搜索、通知中心，以及启动台里的 30 个内置应用，其中「几猫3A大作」是随桌面发布的单文件 3D 游戏（[ADESK-US-103](stories/desktop/ADESK-US-103-saltline-game.md)）。除了内置应用，桌面还以微前端方式运行独立部署的 B/S 应用（集成应用），经仓库里的 `@aiao/orbit` 隔离在窗口里；第一个是 Aiao Code（vscode.aiao.io），见 [ADESK-EPIC-003](epics/ADESK-EPIC-003.md)。终端用 [Vivari](https://vivari.run) 在页面里运行 Node、npm 与 Python；其余应用展示写在代码里的演示内容。
 
-产品只有前端：没有服务端、账号或密钥；应用代码不读写 localStorage、IndexedDB 或 OPFS，刷新即回到初始状态。壁纸、地图瓦片、天气等外网内容可以缺失，拿不到时页面不能报错，见 [D-04](decisions.md#d-04外网内容可缺失)。
+产品只有前端：没有服务端、账号或密钥，发布到 Cloudflare Pages 的静态站点（[D-16](decisions.md#d-16发布到-cloudflare-pages一键发布命令)）；系统与应用数据存在浏览器本地的 SQLite 与 OPFS 里，刷新后还在（[D-07](decisions.md#d-07系统数据存在本地-sqlite)），游戏「几猫3A大作」自己的设置存在 localStorage（[D-15](decisions.md#d-15随桌面发布的单文件游戏在同源-iframe-里运行)）。壁纸、地图瓦片、天气等外网内容可以缺失，拿不到时页面不能报错，见 [D-04](decisions.md#d-04外网内容可缺失)。
 
-本目录是产品根 `aiao-desktop/` 的产品级需求唯一真相源，覆盖两个 Nx 应用：`apps/web`（Angular 桌面）与 `apps/e2e`（正式构建上的浏览器冒烟），见 [D-02](decisions.md#d-02产品根目录与应用拆分) 与 [ADESK-US-001](stories/platform/ADESK-US-001-product-root.md)；本地开发入口 `pnpm nx dev aiao-desktop` 与开发导航见 [ADESK-US-002](stories/platform/ADESK-US-002-local-dev-dashboard.md)。
+本目录是产品根 `aiao-desktop/` 的产品级需求唯一真相源，覆盖两个 Nx 应用：`apps/web`（Angular 桌面）与 `apps/e2e`（正式构建上的浏览器冒烟），见 [D-02](decisions.md#d-02产品根目录与应用拆分) 与 [ADESK-US-001](stories/platform/ADESK-US-001-product-root.md)；本地开发入口 `pnpm nx dev aiao-desktop` 与开发导航见 [ADESK-US-002](stories/platform/ADESK-US-002-local-dev-dashboard.md)；发布到 Cloudflare Pages 的一键命令 `pnpm nx run aiao-desktop:deploy` 见 [ADESK-US-003](stories/platform/ADESK-US-003-cloudflare-pages-deploy.md)。
 
 仓库里的 [Web Desktop](../../apps/web-desktop/requirements/README.md)（`DESKTOP-US-*`，React 宿主与 Orbit 运行内核）是另一个产品，目标、实现与需求各自独立，本目录不引用它的故事状态。
 

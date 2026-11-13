@@ -37,7 +37,8 @@ export function attachHostWindow(root: HTMLElement, hostWindow: WorkbenchHostWin
   controls.setAttribute('role', 'group');
   controls.setAttribute('aria-label', '窗口');
   controls.innerHTML = BUTTONS.map(
-    ([action, label]) => `<button type="button" data-window-action="${action}" aria-label="${label}" title="${label}"></button>`
+    ([action, label]) =>
+      `<button type="button" data-window-action="${action}" aria-label="${label}" title="${label}"></button>`
   ).join('');
   const actions: Readonly<Record<WindowAction, () => Promise<void>>> = {
     close: () => hostWindow.close(),

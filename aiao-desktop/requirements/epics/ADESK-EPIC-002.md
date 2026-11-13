@@ -16,6 +16,7 @@ owner: jimmy
 
 - [x] 桌面外壳与 29 个内置应用的基线行为由正式构建上的浏览器冒烟守住（[ADESK-US-101](../stories/desktop/ADESK-US-101-desktop-shell-baseline.md)）。
 - [x] 系统与应用数据存在本地 SQLite，磁盘是真文件，终端看到并修改同一块磁盘（[ADESK-US-102](../stories/desktop/ADESK-US-102-local-data-and-real-disk.md)）。
+- [x] 随桌面发布的单文件 3D 游戏「几猫3A大作」作为内置应用，在同源 iframe 里运行（[ADESK-US-103](../stories/desktop/ADESK-US-103-saltline-game.md)）。
 
 ## 故事
 
@@ -23,6 +24,7 @@ owner: jimmy
 
 - [ADESK-US-101 桌面外壳与内置应用基线](../stories/desktop/ADESK-US-101-desktop-shell-baseline.md) (High)
 - [ADESK-US-102 本地数据与真实磁盘](../stories/desktop/ADESK-US-102-local-data-and-real-disk.md) (High)
+- [ADESK-US-103 内置游戏「几猫3A大作」](../stories/desktop/ADESK-US-103-saltline-game.md) (Medium)
 
 ## 非目标
 

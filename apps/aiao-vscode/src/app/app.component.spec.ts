@@ -151,8 +151,8 @@ describe('被 Aiao Desktop 嵌入时向桌面报告（US-410）', () => {
     vi.stubGlobal(
       'ResizeObserver',
       class {
-        observe(): void {}
-        disconnect(): void {}
+        readonly observe = vi.fn();
+        readonly disconnect = vi.fn();
       }
     );
     const client = desktop('transparent');

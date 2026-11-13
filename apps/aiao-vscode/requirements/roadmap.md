@@ -15,6 +15,7 @@
 | US-407 首次进入欢迎视图  | 空目录首启不初始化项目；资源管理器欢迎视图（打开文件夹 / 最近项目 / 初始化 Demo）红测与实现已完成，全量单测通过；待浏览器手动验收与评审                    | 依赖 US-404 内核；与 US-406 并行不冲突；打开文件夹走 File System Access API 单向导入，模板与入口推断见故事技术笔记                                                                                                                    |
 | US-409 运行时对比        | 阶段 D：almostnode、burrow 最薄适配，按各自声称的能力跑冒烟，失败记入兼容性矩阵；随后阶段 E 全矩阵同时段交替复测并出推荐                                   | 分层接入：vivari、Nodepod 完整适配，almostnode、burrow 只冒烟；非 WebContainer 运行时一律放独立源宿主 iframe，不注册在工作台源上；只出数据与推荐，改默认运行时另立项                                                                  |
 | US-410 嵌入 Aiao Desktop | 已发布到 vscode.aiao.io（部署 `408194ed`）并通过桌面线上验收，待代码评审；以后每次发布后跑 `aiao-desktop-e2e:verify-aiao-code`                             | 桌面方需求 [ADESK-US-203](../../../aiao-desktop/requirements/stories/application/ADESK-US-203-aiao-code.md)；直接访问的启动流程不变；发布后跑 `aiao-desktop-e2e:verify-aiao-code`                                                     |
+| US-411 透明窗口          | 已发布（部署 `22477575`）并通过桌面线上验收 9 项，待代码评审                                                                                               | 桌面方需求 [ADESK-US-204](../../../aiao-desktop/requirements/stories/application/ADESK-US-204-transparent-window.md)；窗口接口在 `@aiao/orbit/window`，参考 Tauri 的 `getCurrentWindow()`                                             |
 
 ## 边界备忘
 

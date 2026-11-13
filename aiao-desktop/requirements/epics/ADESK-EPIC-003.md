@@ -21,6 +21,7 @@ Aiao Desktop 除了随桌面构建的内置应用，还能把独立部署的 B/S
 - [x] 应用分为系统入口、内置应用与集成应用三类，登记在同一张表里，启动台、聚焦搜索、Dock 与菜单栏一视同仁（[ADESK-US-201](../stories/application/ADESK-US-201-application-system.md)）。
 - [x] 集成应用经 Orbit 在窗口里运行：加载、就绪、最小化、还原、关闭、焦点与失败重试由桌面统一处理，接入契约写清楚（[ADESK-US-202](../stories/application/ADESK-US-202-integrated-app-runtime.md)）。
 - [x] Aiao Code 作为第一个集成应用接入，用 vscode.aiao.io 的线上发布版本（[ADESK-US-203](../stories/application/ADESK-US-203-aiao-code.md)）。
+- [x] 透明窗口：应用自己画标题栏与红黄绿，经窗口接口调用桌面的关闭、最小化与缩放，拖动区由桌面接管（参考 Tauri，[ADESK-US-204](../stories/application/ADESK-US-204-transparent-window.md)）。
 
 ## 故事
 
@@ -29,6 +30,7 @@ Aiao Desktop 除了随桌面构建的内置应用，还能把独立部署的 B/S
 - [ADESK-US-201 应用体系与统一登记表](../stories/application/ADESK-US-201-application-system.md) (High)
 - [ADESK-US-202 集成应用的运行宿主](../stories/application/ADESK-US-202-integrated-app-runtime.md) (High)
 - [ADESK-US-203 接入 Aiao Code](../stories/application/ADESK-US-203-aiao-code.md) (High)
+- [ADESK-US-204 透明窗口与窗口接口](../stories/application/ADESK-US-204-transparent-window.md) (High)
 
 ## 非目标
 

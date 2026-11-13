@@ -1,7 +1,10 @@
 /**
  * Aiao Code 的线上验收（ADESK-US-203）：本地托管桌面的正式构建，从 Dock 打开集成应用 Aiao Code，
- * 对真实的 https://vscode.aiao.io/ 验证就绪、跨源隔离、新建项目与终端、最小化还原与关闭重开。要外网，不进 CI。
+ * 对真实的 https://vscode.aiao.io/ 验证就绪、跨源隔离、新建项目与终端、最小化还原与关闭重开；以及透明窗口
+ * （ADESK-US-204）：桌面收起自己的标题栏，Aiao Code 自绘红黄绿与可拖动的标题栏。要外网，不进 CI。
  *
+ *   --desktop-url=<地址>  不起本地服务器，直接验收已发布的桌面（例如 https://aiao-desktop.pages.dev），
+ *                         即桌面与 Aiao Code 都是线上版本的真实组合；发布后用它做浏览器级验收。
  *   --vscode-dist=<目录>  vscode.aiao.io 的请求改由本地构建产物应答（Aiao Code 发布前验证），响应头照
  *                         apps/aiao-vscode/public/_headers 补齐；这时屏蔽 Service Worker，免得它缓存本地产物。
  *   --headed              显示浏览器窗口。
@@ -18,6 +21,7 @@ const VSCODE = 'https://vscode.aiao.io';
 const expect = playwrightExpect.configure({ timeout: 30_000 });
 const argument = name => process.argv.find(value => value.startsWith(`--${name}=`))?.slice(name.length + 3);
 const vscodeDist = argument('vscode-dist') ? resolve(process.cwd(), argument('vscode-dist')) : undefined;
+const desktopUrl = argument('desktop-url');
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -61,12 +65,14 @@ const report = {
   format: 'aiao-desktop.verify-aiao-code',
   version: 1,
   target: vscodeDist ? `local:${vscodeDist}` : VSCODE,
+  desktop: desktopUrl ?? 'local build',
   checks: {},
   timings: {},
   desktopErrors: [],
   appConsoleErrors: []
 };
-const desktop = await startDesktopServer();
+const desktop =
+  desktopUrl ? { origin: new URL(desktopUrl).origin, close: () => undefined } : await startDesktopServer();
 const browser = await chromium.launch({ headless: !process.argv.includes('--headed') });
 const context = await browser.newContext({
   viewport: { width: 1440, height: 900 },
@@ -140,9 +146,41 @@ try {
   report.checks.terminalRuns = true;
   if (argument('screenshot')) await page.screenshot({ path: resolve(process.cwd(), argument('screenshot')) });
 
+  /* #7 透明窗口：桌面收起自己的标题栏，Aiao Code 的标题栏带红黄绿、是拖动区，桌面盖上同形状的拖动层。 */
+  const windowButton = action => root.locator(`.wb-window-controls [data-window-action="${action}"]`);
+  report.checks.ownTitleBar =
+    (await vscodeWin.locator('.tb').count()) === 0 &&
+    (await windowButton('close').isVisible()) &&
+    (await root.locator('.wb-title[data-orbit-drag-region]').count()) === 1 &&
+    (await vscodeWin.locator('[data-webapp-drag]').count()) > 0;
+
+  /* #8 按住标题栏空白（品牌字样）拖动：窗口跟着走；最后一步放慢，松手不滑行。 */
+  const beforeDrag = await vscodeWin.boundingBox();
+  const brand = await root.locator('.wb-brand').boundingBox();
+  const grab = { x: brand.x + brand.width / 2, y: brand.y + brand.height / 2 };
+  await page.mouse.move(grab.x, grab.y);
+  await page.mouse.down();
+  await page.mouse.move(grab.x + 90, grab.y + 60, { steps: 10 });
+  await page.waitForTimeout(200);
+  await page.mouse.move(grab.x + 91, grab.y + 60);
+  await page.mouse.up();
+  await page.waitForTimeout(200);
+  const afterDrag = await vscodeWin.boundingBox();
+  report.checks.titleBarDragsWindow =
+    Math.abs(beforeDrag.x + 91 - afterDrag.x) <= 3 && Math.abs(beforeDrag.y + 60 - afterDrag.y) <= 3;
+
+  /* #9 绿色按钮缩放到铺满，再点还原。 */
+  const zoomed = () => vscodeWin.evaluate(node => node.classList.contains('zoomed'));
+  await windowButton('maximize').click();
+  await page.waitForTimeout(500);
+  const maximized = await zoomed();
+  await windowButton('maximize').click();
+  await page.waitForTimeout(500);
+  report.checks.maximizeButtonZooms = maximized && !(await zoomed());
+
   /* #4 最小化再还原：同一个文档，项目与终端输出还在。 */
   await frame.evaluate(() => Reflect.set(window, '__desktopProbe', 'before-minimize'));
-  await vscodeWin.locator('.tl .m').click();
+  await windowButton('minimize').click();
   await page.waitForTimeout(800);
   await page.locator('#dock .di[data-app="vscode"]').click();
   await page.waitForTimeout(1_000);
@@ -156,7 +194,7 @@ try {
     ));
 
   /* #5 关闭再从启动台打开：重新就绪，刚建的项目还在。 */
-  await vscodeWin.locator('.tl .c').click();
+  await windowButton('close').click();
   await vscodeWin.waitFor({ state: 'detached' });
   report.timings.reopenReadyMs = await openedWithin(async () => {
     await page.locator('#dock .di[data-app="launchpad"]').click();
@@ -183,7 +221,7 @@ try {
 }
 
 const passed =
-  !report.error && Object.values(report.checks).length === 6 && Object.values(report.checks).every(Boolean);
+  !report.error && Object.values(report.checks).length === 9 && Object.values(report.checks).every(Boolean);
 report.status = passed ? 'passed' : 'failed';
 console.log(JSON.stringify(report, null, 2));
 if (!passed) process.exitCode = 1;

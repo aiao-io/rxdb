@@ -1,12 +1,7 @@
 import { OrbitError } from '@aiao/orbit';
 import type { OrbitBinding } from '@aiao/orbit/angular';
 import { injectOrbit } from '@aiao/orbit/angular';
-import type {
-  OrbitDragRegion,
-  OrbitWindowHost,
-  OrbitWindowServer,
-  OrbitWindowState
-} from '@aiao/orbit/window';
+import type { OrbitDragRegion, OrbitWindowHost, OrbitWindowServer, OrbitWindowState } from '@aiao/orbit/window';
 import { serveWindow, windowProps } from '@aiao/orbit/window';
 import {
   Component,

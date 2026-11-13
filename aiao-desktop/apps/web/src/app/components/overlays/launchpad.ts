@@ -85,7 +85,12 @@ export class Launchpad {
   protected readonly dots = computed(() => Array.from({ length: this.pages() }, (_, i) => i));
 
   constructor() {
-    afterNextRender(() => setTimeout(() => this.queryInput().nativeElement.focus(), 120));
+    /* 打开动画走完再聚焦搜索框；这时已经选中应用、启动台在关闭，就不再抢走新窗口拿到的焦点。 */
+    afterNextRender(() =>
+      setTimeout(() => {
+        if (this.overlays.launchpad() === 'open') this.queryInput().nativeElement.focus();
+      }, 120)
+    );
   }
 
   protected search(value: string): void {

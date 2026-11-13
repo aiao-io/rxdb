@@ -240,6 +240,16 @@ export const DESKTOP_APP_MANIFESTS = {
     minW: 460,
     minH: 320
   },
+  saltline: {
+    id: 'saltline',
+    name: '几猫3A大作',
+    icon: 'app-saltline',
+    kind: 'builtin',
+    w: 1120,
+    h: 700,
+    minW: 640,
+    minH: 400
+  },
   launchpad: { id: 'launchpad', name: 'Launchpad', icon: 'app-launchpad', kind: 'system' },
   trash: { id: 'trash', name: 'Trash', icon: 'app-trash', kind: 'system' }
 } as const satisfies DesktopAppManifests;

@@ -1,6 +1,6 @@
 # aiao-desktop
 
-浏览器里的 macOS 风格桌面，用 Angular 实现：开机与锁屏、菜单栏、Dock、窗口管理、启动台、聚焦搜索、通知中心，以及启动台里的 29 个内置应用。独立部署的 B/S 应用以微前端方式接入，经 `@aiao/orbit` 运行在桌面的窗口里，第一个是 Aiao Code（<https://vscode.aiao.io>）。终端用 [Vivari](https://vivari.run) 在页面里运行 Node、npm 与 Python。产品没有服务端：系统数据（磁盘目录树、系统设置与各内置应用的数据）存在浏览器本地的 SQLite 里（`@aiao/rxdb`），文件体由 storage 插件放在 OPFS，刷新后都还在，磁盘工具的「抹掉」恢复初始内容。终端打开时把磁盘复制进 Vivari，Finder 与终端看到并修改的是同一块磁盘。
+浏览器里的 macOS 风格桌面，用 Angular 实现：开机与锁屏、菜单栏、Dock、窗口管理、启动台、聚焦搜索、通知中心，以及启动台里的 30 个内置应用，其中「几猫3A大作」是随桌面发布的单文件 3D 游戏。独立部署的 B/S 应用以微前端方式接入，经 `@aiao/orbit` 运行在桌面的窗口里，第一个是 Aiao Code（<https://vscode.aiao.io>）。终端用 [Vivari](https://vivari.run) 在页面里运行 Node、npm 与 Python。产品没有服务端：系统数据（磁盘目录树、系统设置与各内置应用的数据）存在浏览器本地的 SQLite 里（`@aiao/rxdb`），文件体由 storage 插件放在 OPFS，刷新后都还在，磁盘工具的「抹掉」恢复初始内容。终端打开时把磁盘复制进 Vivari，Finder 与终端看到并修改的是同一块磁盘。
 
 这是一个产品根目录：两个 Nx 应用共同组成同一个产品，按[应用级需求与项目治理办法](../requirements/application-governance.md)管理。产品需求、决策与验收台账见 [requirements](requirements/README.md)，目录边界与依赖规则见 [AGENTS.md](AGENTS.md)。仓库里的 [Web Desktop](../apps/web-desktop/README.md)（React 宿主与 Orbit 运行内核）是另一个产品。
 
@@ -36,6 +36,8 @@ pnpm nx dev aiao-desktop
 
 开发服务器与正式构建预览都返回跨源隔离所需的响应头，终端才能启动 Vivari；开发服务器的 production 配置不带这两个头。开发导航只监听 `127.0.0.1`、只接受指向本机的 Host，不进入 web 的构建产物，页面里也没有任何密钥。
 
+本地开发自动连接 `@aiao/rxdb-devtools`，安装仓库的 [RxDB DevTools 浏览器扩展](../apps/rxdb-devtools-extension/README.md) 后即可检查桌面数据库与实体。仅 `development` 构建启用；正式构建与正式构建预览均不加载连接器，冒烟会检查生产 JavaScript 里没有 DevTools 代码、页面没有 DevTools 全局入口。
+
 ## 验证
 
 ```bash
@@ -63,8 +65,62 @@ pnpm nx run aiao-desktop:verify
 
 3. **能力边界**：不做整页导航（Orbit 视为失败，要用 history 路由）；不依赖弹窗、`alert` / `confirm` 与文件选择器（sandbox 与浏览器都不放行）；数据留在应用自己的来源里。
 
+自带标题栏的应用可以用**透明窗口**（[D-14](requirements/decisions.md#d-14透明窗口与窗口接口参考-tauri)，参考 Tauri）：登记表写 `frame: 'transparent'`，应用自己画标题栏与红黄绿，用 `@aiao/orbit/window` 调用桌面的窗口操作：
+
+```ts
+import { getCurrentWindow } from '@aiao/orbit/window';
+
+const appWindow = orbit && getCurrentWindow(orbit); // 不在桌面里或桌面没给窗口时为 undefined
+if (appWindow?.state.frame === 'transparent') {
+  // 标题栏元素加 data-orbit-drag-region（其中的按钮、输入框自动挖空），红黄绿调用 close / minimize / toggleMaximize
+  appWindow.trackDragRegions(document);
+  await appWindow.setDecorations(false); // 隐藏桌面的标题栏，就绪时生效
+}
+orbit?.ready();
+```
+
+桌面在加载中与失败时始终画自己的标题栏；应用不调用 `setDecorations(false)` 就保持标准窗口。窗口状态（是否在前台、是否缩放）经 `appWindow.state` 与 `onStateChange` 获得。
+
 桌面这一侧在登记表加一项 `kind: 'web'` 的应用：名称、图标、窗口尺寸，以及入口地址、版本标识、要授予的浏览器权限（例如 `cross-origin-isolated; clipboard-write`）与就绪时限。Orbit 的允许来源从登记表推导；登记项不合规时桌面启动即报错。冒烟拦截全部外网请求，用替身应用验证桌面这一侧；集成应用本身用它自己的线上验收脚本，Aiao Code 的是 `pnpm nx run aiao-desktop-e2e:verify-aiao-code`（要外网，不进 CI）。
+
+## 内置游戏
+
+「几猫3A大作」是一个单文件的 3D 射击游戏：[apps/web/public/saltline.html](apps/web/public/saltline.html) 打包了 three.js 与音效，随桌面构建原样发布到产物根目录。它登记为内置应用 `saltline`，窗口里的 iframe 用相对地址加载它，与桌面同源，不经 Orbit，所以游戏自己的指针锁定、全屏、手柄与设置照常可用（[D-15](requirements/decisions.md#d-15随桌面发布的单文件游戏在同源-iframe-里运行)）。
+
+更新游戏只要替换这个文件，格式化工具不碰它。它不能引用外部资源，否则会被桌面的 COEP 拦下，单测会检查这一条。冒烟用的无头 Chromium 只有软件 WebGL，游戏每秒约 1 帧，整个页面跟着变慢，所以冒烟用替身页验证窗口行为，只单独启动一次真游戏（[ADESK-US-103](requirements/stories/desktop/ADESK-US-103-saltline-game.md)）。
 
 ## 托管要求
 
-产物是纯静态文件。托管方必须对所有响应返回 `Cross-Origin-Opener-Policy: same-origin` 与 `Cross-Origin-Embedder-Policy: require-corp`，否则终端无法启动（[D-05](requirements/decisions.md#d-05终端依赖跨源隔离)）。壁纸、地图、天气等外网内容拿不到时应用照常可用（[D-04](requirements/decisions.md#d-04外网内容可缺失)）。目前没有正式部署目标。
+产物是纯静态文件。托管方必须对所有响应返回 `Cross-Origin-Opener-Policy: same-origin` 与 `Cross-Origin-Embedder-Policy: require-corp`，否则终端无法启动（[D-05](requirements/decisions.md#d-05终端依赖跨源隔离)）。壁纸、地图、天气等外网内容拿不到时应用照常可用（[D-04](requirements/decisions.md#d-04外网内容可缺失)）。线上部署在 Cloudflare Pages，见下一节。
+
+## 发布
+
+发布到 Cloudflare Pages 项目 `aiao-desktop`（[D-16](requirements/decisions.md#d-16发布到-cloudflare-pages一键发布命令)），生产地址 <https://aiao-desktop.pages.dev>。在仓库根执行，先切 Node 26：
+
+```bash
+pnpm nx run aiao-desktop:deploy             # 构建 → 密钥扫描 → 检查产物 → 上传到生产 → 线上逐文件对账
+pnpm nx run aiao-desktop:deploy --dry-run   # 只构建并检查产物，打印将执行的命令，不发布
+pnpm nx run aiao-desktop:deploy --preview   # 发布到 Preview 分支（https://preview.aiao-desktop.pages.dev），不动生产
+```
+
+首次使用要在本机登录 Cloudflare：`pnpm dlx wrangler@4.158.0 login`（账号需要 Pages 权限）。凭据只在本机，不进仓库，也不进构建产物；项目还不存在时命令会自动新建。
+
+命令按顺序做这些事，任何一步失败就停下并以非零退出：
+
+1. Nx 先完成 web 的正式构建与 `audit-secrets`。
+2. 检查产物：有 `index.html` 与 `_headers`，`_headers` 的 `/*` 规则里 COOP / COEP 各恰好一次。
+3. 项目不存在则新建；读出当前的生产部署，作为回滚点。
+4. `wrangler pages deploy` 上传。分支显式给 `main`，在功能分支上执行也不会误发到 Preview。
+5. 线上对账：部署地址的每个文件与本地产物逐字节一致且都带 COOP / COEP；生产地址与已绑定的自定义域名核对入口页。新项目的子域名证书要几分钟才签发，命令会等它就绪。
+
+`_headers`（全站 COOP / COEP）与 `_redirects`（`/saltline.html` 200 改写）放在 [apps/web/public](apps/web/public)，随构建发布。改了响应头要同步 [config.mjs](scripts/deploy/config.mjs) 的 `requiredHeaders`，`deploy-test` 会校验两者一致。
+
+发布后的浏览器级验收，用真实的桌面加真实的 Aiao Code（要外网）：
+
+```bash
+pnpm nx run aiao-desktop-e2e:verify-aiao-code --desktop-url=https://aiao-desktop.pages.dev
+```
+
+- **回滚**：在 Cloudflare 面板 Workers & Pages → aiao-desktop → Deployments 里选命令结尾打印的回滚点，Rollback to this deployment。
+- **自定义域名**：在同一个项目的 Custom domains 里添加（Pages 没有对应的 CLI），绑定后下一次发布会自动核对它。建议用 aiao.io 下的域名（如 `desktop.aiao.io`）：与 Aiao Code 同站后，桌面里的 Aiao Code 与直接访问不再按站点分区存储。
+- **发布前**：命令不重跑浏览器冒烟，完整门禁用 `pnpm nx run aiao-desktop:verify`。

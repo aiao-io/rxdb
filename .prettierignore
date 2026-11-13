@@ -52,4 +52,7 @@ requirements/generated/
 # 主包 Agent Skill 同为逐字节门禁校验的生成物（US-602 C），Prettier 改写会让门禁失配。
 packages/rxdb/skills/
 
+# 随 aiao-desktop 原样发布的单文件游戏（打包产物，ADESK-US-103），不格式化。
+aiao-desktop/apps/web/public/saltline.html
+
 .angular

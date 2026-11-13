@@ -31,6 +31,7 @@ apps/web ──> 第三方库（@angular/*、rxjs、comlink、@xterm/*、@vivari
 - 终端依赖跨源隔离：托管 web 产物时必须返回 COOP `same-origin` 与 COEP `require-corp`（[D-05](requirements/decisions.md#d-05终端依赖跨源隔离)）。
 - 本地开发的端口固定，统一登记在 [scripts/dev/services.mjs](scripts/dev/services.mjs)（[D-06](requirements/decisions.md#d-06本地开发用固定端口与开发导航)）。改端口时同步改 web 的 `serve`、`serve-static` 与产品根的 `dev`、`dev-dashboard`，`dev-test` 会校验它们一致。web 的 `serve` 先跑产品根的 `dev-ports`，这是唯一一条从子项目指向产品根的任务依赖，只用于开发时的端口检查。
 - 开发导航（`scripts/dev/dashboard.mjs`）只在本地开发时运行、只监听 `127.0.0.1`，不进入 web 的构建产物，页面里不放任何密钥。
+- 发布（[D-16](requirements/decisions.md#d-16发布到-cloudflare-pages一键发布命令)）：`scripts/deploy/` 只读 web 的构建产物，经 wrangler 发布到 Cloudflare Pages 项目 `aiao-desktop`；凭据只在发布者本机（wrangler 登录），不进仓库与产物。托管配置 `_headers`、`_redirects` 放在 `apps/web/public/` 随构建发布，响应头要与 `scripts/deploy/config.mjs` 的 `requiredHeaders` 一致（`deploy-test` 校验）。新增要被 iframe 直接加载的 `.html` 时，在 `_redirects` 补一条 200 改写，否则 Pages 会把它 308 到无扩展名地址。
 
 ## 需求
 
@@ -48,4 +49,5 @@ pnpm nx run aiao-desktop:verify             # 全部门禁：需求、门禁与�
 pnpm nx serve aiao-desktop-web              # 只起开发服务器 http://localhost:4410（带跨源隔离响应头）
 pnpm nx run aiao-desktop-web:serve-static   # 正式构建后在 http://127.0.0.1:4411 预览
 pnpm nx run aiao-desktop-e2e:e2e            # 正式构建上的 Chromium 冒烟
+pnpm nx run aiao-desktop:deploy             # 一键发布到 Cloudflare Pages（--dry-run 只检查，--preview 发到 Preview 分支）
 ```

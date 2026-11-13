@@ -100,9 +100,9 @@ describe('窗口协议（对齐 Tauri 的 getCurrentWindow）', () => {
     expect(() => handlers.get('window.setDecorations')!('no', signal)).toThrow(OrbitError);
     expect(() => handlers.get('window.setTitle')!(42, signal)).toThrow(OrbitError);
     expect(() => handlers.get('window.setTitle')!('x'.repeat(257), signal)).toThrow(OrbitError);
-    expect(() => handlers.get('window.setDragRegions')!([{ x: 0, y: 0, width: -1, height: 1, holes: [] }], signal)).toThrow(
-      OrbitError
-    );
+    expect(() =>
+      handlers.get('window.setDragRegions')!([{ x: 0, y: 0, width: -1, height: 1, holes: [] }], signal)
+    ).toThrow(OrbitError);
     expect(() => handlers.get('window.setDragRegions')!({}, signal)).toThrow(OrbitError);
   });
 
@@ -141,7 +141,9 @@ describe('窗口协议（对齐 Tauri 的 getCurrentWindow）', () => {
   });
 
   it('宿主给出的状态不合法时拒绝，不带着错误的窗口启动', () => {
-    expect(() => getCurrentWindow(connect({ [WINDOW_PROP]: { ...initial, frame: 'glass' } }).client)).toThrow(OrbitError);
+    expect(() => getCurrentWindow(connect({ [WINDOW_PROP]: { ...initial, frame: 'glass' } }).client)).toThrow(
+      OrbitError
+    );
     expect(() => getCurrentWindow(connect({ [WINDOW_PROP]: 'macos' }).client)).toThrow(OrbitError);
   });
 

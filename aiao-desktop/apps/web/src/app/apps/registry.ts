@@ -27,6 +27,7 @@ import { PhotosApp } from './photos/photos';
 import { PreviewApp } from './preview/preview';
 import { RemindersApp } from './reminders/reminders';
 import { SafariApp } from './safari/safari';
+import { SaltlineApp } from './saltline/saltline';
 import { SettingsApp } from './settings/settings';
 import { ShelfApp } from './shelf/shelf';
 import { StocksApp } from './stocks/stocks';
@@ -70,7 +71,8 @@ const BUILTIN_COMPONENTS: Readonly<Record<BuiltinAppId, Type<unknown>>> = {
   activity: ActivityMonitorApp,
   diskutil: DiskUtilityApp,
   fontbook: FontBookApp,
-  voice: VoiceMemosApp
+  voice: VoiceMemosApp,
+  saltline: SaltlineApp
 };
 
 /** 清单加组件：内置应用按 id 取组件，集成应用共用承载 Orbit 的窗口内容，系统入口没有组件。 */

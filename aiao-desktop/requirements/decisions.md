@@ -83,3 +83,48 @@ Vivari 1.3.0 的 fs-change 事件不报虚拟机里进程自己的写入，所�
 第一个集成应用是 Aiao Code（仓库里的 `apps/aiao-vscode`），桌面登记的入口是它的线上地址 `https://vscode.aiao.io/`（用户于 2026-11-13 指定），不打包进桌面，也不固定版本：Aiao Code 发布即生效，Orbit 的版本标识只是身份元数据。代价是 Aiao Code 的发布可能弄坏桌面里的接入，所以 Aiao Code 的发布流程在发布后要跑桌面的线上验收（`aiao-desktop-e2e:verify-aiao-code`）；冒烟拦截全部外网请求，用替身应用验证桌面这一侧，不依赖线上。
 
 Aiao Code 为接入补了 `Cross-Origin-Resource-Policy: cross-origin`，带 COEP 的任意站点都能嵌入它；嵌入范围本来就不受限（没有 `frame-ancestors`），这次没有收紧，避免打断第一版 Web Desktop 对它的嵌入。
+
+## D-14：透明窗口与窗口接口（参考 Tauri）
+
+用户于 2026-11-13 提出：Aiao Code 外面多套了一层桌面画的标题栏，应用应该支持「透明窗口」，调用桌面的关闭、最小化、缩放，设计参考 Tauri。于是集成应用的窗口分两种外观：
+
+| 外观     | 登记表 `web.frame` | 桌面画什么                                             | 应用画什么                                     |
+| -------- | ------------------ | ------------------------------------------------------ | ---------------------------------------------- |
+| 标准窗口 | `standard`（默认） | 标题栏、红黄绿、窗口形状、阴影与缩放边                 | 标题栏以下的内容                               |
+| 透明窗口 | `transparent`      | 只有窗口形状、阴影与缩放边；加载中与失败时临时画标题栏 | 标题栏、红黄绿与拖动区，按钮调用桌面的窗口接口 |
+
+对应 Tauri 的三件东西：`decorations: false` 对应透明窗口，`getCurrentWindow()` 对应 `@aiao/orbit/window` 的同名函数（`minimize`、`toggleMaximize`、`close`、`setTitle`、`setDecorations`、状态与订阅），`data-tauri-drag-region` 对应 `data-orbit-drag-region`。接口放在 Orbit 而不是桌面私有包里，因为接入方（Aiao Code）是另一个应用；协议是 Orbit 的普通请求与事件，实例绑定保证应用只能操作自己的窗口。
+
+两处与 Tauri 不同，都是 iframe 带来的：
+
+1. 登记表只批准「可以透明」，应用在运行时调用 `setDecorations(false)` 才生效。Tauri 的配置和前端代码一起发布，不会不一致；集成应用独立发布，旧版本或还没接入的应用不调用，就保持标准窗口，不会出现没有按钮可点的窗口。加载中与失败时桌面也一直画标题栏。
+2. 拖动区不转发指针：在跨源 iframe 里按下鼠标后，后续指针事件都归 iframe，父页面收不到。所以应用只上报拖动区的形状（矩形减去其中的按钮、输入框），桌面在 iframe 上方盖同形状的拖动层，自己处理拖动与双击缩放；拖动层里的空白收不到应用自己的鼠标事件，与 Electron 的 `app-region: drag` 一样。
+
+平台目前只有 `macos`：应用按 macOS 的样子把红黄绿画在左侧。以后桌面有了 Windows 外观，平台值随之扩展，应用按平台决定按钮的样子和位置，与 Tauri 应用按 `platform()` 区分一样。
+
+## D-15：随桌面发布的单文件游戏在同源 iframe 里运行
+
+用户于 2026-11-13 把单文件 3D 游戏 `saltline.html`（「几猫3A大作」，three.js 与音效都打包在文件里）放进 `apps/web/public/`，要求做成桌面里的应用，并指出 `public/` 里的文件随桌面一起发布、与桌面同源。所以它登记为内置应用（D-10），窗口组件用相对地址的 iframe 加载这个文件（[ADESK-US-103](stories/desktop/ADESK-US-103-saltline-game.md)），不当作集成应用：
+
+- 不经 Orbit：集成应用要 HTTPS 的独立入口、握手与 sandbox（D-11、D-12），sandbox 不放行指针锁定，而第一人称射击游戏离不开它；游戏是现成的打包产物，也没有 Orbit 客户端。桌面原样发布这个文件，不改动它。
+- 同源即受信：iframe 不加 sandbox（同源文档即使拿到 `allow-scripts allow-same-origin` 也能自己摘掉 sandbox），游戏能访问桌面来源下的存储与父页面，所以只放运营方自己发布的文件。游戏的设置存在 localStorage 的 `saltline.settings.v1`，与桌面的数据（D-07）互不相干。
+- 跨源隔离：带 COEP 的桌面只能嵌入同样带 COEP 的文档。托管方本来就要对所有响应返回 COOP 与 COEP（D-05），同源文档自然满足；游戏不能引用外部资源，否则会被 COEP 拦下，单测检查这一条。
+- 代价：同源 iframe 与桌面共用渲染主线程，游戏卡顿会拖慢整个桌面。有 GPU 时游戏约每秒 60 帧，桌面照常响应；CI 的无头 Chromium 只有软件 WebGL（约每秒 1 帧），所以冒烟用替身页验证窗口这一侧，只单独启动一次真游戏。桌面最小化窗口时不通知游戏：游戏在退出指针锁定与页面隐藏时自己暂停，隐藏的窗口里游戏循环照常运行。
+
+## D-16：发布到 Cloudflare Pages，一键发布命令
+
+用户于 2026-11-13 要求把 Aiao Desktop 发布到 Cloudflare，并建立一键发布命令（[ADESK-US-003](stories/platform/ADESK-US-003-cloudflare-pages-deploy.md)）。这是产品第一次对外托管，边界随之改变：
+
+- 托管：Cloudflare Pages 项目 `aiao-desktop`（经典 Pages，与 `aiao-vscode` 同一做法），生产分支 `main`，生产地址 `https://aiao-desktop.pages.dev`。产物是纯静态文件，没有 Functions，不带任何密钥（[D-03](#d-03只有前端不带任何密钥)）；发布凭据只在发布者本机（wrangler 的 OAuth 登录），不进仓库、不进构建产物，也不进 CI。
+- 随构建发布的两个托管配置放在 `apps/web/public/`：`_headers` 对全站返回 COOP 与 COEP（[D-05](#d-05终端依赖跨源隔离)）；`_redirects` 把 `/saltline.html` 200 改写成原样返回——Pages 默认把 `.html` 308 到无扩展名地址，而浏览器会长期缓存这条 308，游戏的 iframe 又直接加载 `saltline.html`（[D-15](#d-15随桌面发布的单文件游戏在同源-iframe-里运行)）。
+- 一键命令是 `pnpm nx run aiao-desktop:deploy`：Nx 先完成正式构建与密钥扫描，`scripts/deploy/deploy.mjs` 再检查产物、首次发布时新建项目、上传，最后把线上文件与本地产物逐个对账。`--dry-run` 只检查不发布，`--preview` 发布到 Preview 分支而不动生产。
+
+几个有意的选择：
+
+1. **分支显式传 `--branch main`**：wrangler 省略它时取当前 Git 分支，只会更新 Preview，在功能分支上发布时尤其容易误以为发到了线上。
+2. **wrangler 固定为 4.158.0，经 `pnpm dlx` 取用，不进依赖**。这个版本新建 Pages 项目必须带 `--force`（不带会转给 Workers 版 Pages，在没有静态目录时失败）；项目建好后不再需要。wrangler 子进程默认 DNS 结果 IPv6 优先：本机直连 Cloudflare 的 IPv4 地址时 OAuth 刷新会超时并误报未登录。
+3. **线上核对逐文件比字节**：Pages 对不存在的路径回 `index.html` 且状态码 200，只看状态码会假绿。本次部署独有的地址逐文件核对，并要求每个响应都带 COOP 与 COEP；生产地址与自定义域名只核对入口页（入口页引用带哈希的脚本文件名，指向旧部署时一定不一致），免得在慢网络上把同样的 13 MB 反复下载。
+4. **先等地址连得上**：新建项目的 `*.<项目>.pages.dev` 证书要几分钟才签发，这段时间部署地址与分支别名都是 TLS 握手失败（首次发布实测），生产地址 `<项目>.pages.dev` 不受影响。命令会提示并等待，超时才算失败。
+5. **不重复跑冒烟**：发布前的完整门禁是 `aiao-desktop:verify`（与 CI 同款），发布命令只守住托管相关的失败（响应头、文件内容、域名）。发布后的浏览器级验收是 `aiao-desktop-e2e:verify-aiao-code --desktop-url=<线上地址>`：线上桌面加线上 Aiao Code 的真实组合。
+
+回滚：命令在发布前读出当前的生产部署并在结尾打印，在 Pages 面板的部署页回滚到它。Pages 没有绑定自定义域名的 CLI，域名由用户在面板 Custom domains 里绑定；绑定后下一次发布自动把它加入核对。建议绑定 aiao.io 下的域名（如 `desktop.aiao.io`）：与 `vscode.aiao.io` 同站，桌面里的 Aiao Code 不再按顶层站点分区存储（见[后续方向](future-requirements.md)）。

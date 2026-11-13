@@ -26,6 +26,7 @@ import type { GitHubAuth } from './git/github/github-auth.js';
 import { requestGitHubLogin } from './git/github/github-login.js';
 import { requestGitHubRepository } from './git/github/github-picker.js';
 import type { GitHubSession } from './git/github/github-types.js';
+import { attachHostWindow, type WorkbenchHostWindow } from './host-window.js';
 import { mountPreview, type PreviewEvent } from './preview/preview-sandbox.js';
 import { createSavePreviewController, type SavePreviewPhase } from './save-preview.js';
 import { WorkbenchSession, type WorkbenchBackend, type WorkbenchState, type WorkbenchStatus } from './session.js';
@@ -67,7 +68,6 @@ import {
 } from './workbench-explorer-view.js';
 import { createCodicon, createFileIcon, type CodiconName } from './workbench-icons.js';
 import { createWorkbenchLayout, workbenchElement } from './workbench-layout.js';
-import { attachHostWindow, type WorkbenchHostWindow } from './host-window.js';
 import { attachWorkbenchLongPress } from './workbench-longpress.js';
 import { createWorkbenchNavigation } from './workbench-navigation.js';
 import { createWorkbenchRecoveryJournal } from './workbench-recovery.js';
@@ -382,11 +382,14 @@ export function mountWorkbench(
     }
   }
   renderAccountState();
-  const releaseGitHubAuth = options.githubAuth ? options.githubAuth.subscribe(session => {
-    if (disposed) return;
-    githubSession = session;
-    renderAccountState();
-  }) : undefined;
+  const releaseGitHubAuth =
+    options.githubAuth ?
+      options.githubAuth.subscribe(session => {
+        if (disposed) return;
+        githubSession = session;
+        renderAccountState();
+      })
+    : undefined;
   if (options.githubAuth) {
     void options.githubAuth.getSession().then(session => {
       if (disposed) return;

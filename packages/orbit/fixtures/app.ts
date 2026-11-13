@@ -64,7 +64,8 @@ if (client) {
     const { action, value } = payload as { action: string; value?: OrbitValue };
     if (action === 'state') return { ...appWindow.state };
     if (action === 'events') return windowStates;
-    if (action === 'rects') return { bar: rect('[data-orbit-drag-region]'), button: rect('[data-orbit-drag-region] button') };
+    if (action === 'rects')
+      return { bar: rect('[data-orbit-drag-region]'), button: rect('[data-orbit-drag-region] button') };
     if (action === 'drag') {
       document.body.insertAdjacentHTML(
         'afterbegin',

@@ -64,7 +64,13 @@ describe('窗口协议（真实 iframe）', () => {
     for (const action of ['minimize', 'toggleMaximize', 'close']) expect(await ask(action)).toBe('ok');
     expect(await ask('setTitle', 'demo')).toBe('ok');
     expect(await ask('setDecorations', false)).toBe('ok');
-    expect(calls).toEqual([['minimize'], ['toggleMaximize'], ['close'], ['setTitle', 'demo'], ['setDecorations', false]]);
+    expect(calls).toEqual([
+      ['minimize'],
+      ['toggleMaximize'],
+      ['close'],
+      ['setTitle', 'demo'],
+      ['setDecorations', false]
+    ]);
     server.publish();
     expect(await ask('events')).toEqual([]);
   });

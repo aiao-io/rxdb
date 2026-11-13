@@ -34,6 +34,7 @@ export type DesktopAppId =
   | 'diskutil'
   | 'fontbook'
   | 'voice'
+  | 'saltline'
   | 'launchpad'
   | 'trash';
 
@@ -149,6 +150,7 @@ export const LAUNCH_ORDER: readonly DesktopAppId[] = [
   'music',
   'tv',
   'books',
+  'saltline',
   'stocks',
   'weather',
   'clock',

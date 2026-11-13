@@ -32,7 +32,10 @@
         "inlineStyleLanguage": "scss",
         "outputPath": "dist/aiao-desktop/apps/web",
         "styles": ["aiao-desktop/apps/web/src/styles.scss", "node_modules/@xterm/xterm/css/xterm.css"],
-        "tsConfig": "aiao-desktop/apps/web/tsconfig.app.json"
+        "tsConfig": "aiao-desktop/apps/web/tsconfig.app.json",
+        "define": {
+          "import.meta.env.DEV": "false"
+        }
       },
       "configurations": {
         "production": {
@@ -61,7 +64,10 @@
         "development": {
           "optimization": false,
           "extractLicenses": false,
-          "sourceMap": true
+          "sourceMap": true,
+          "define": {
+            "import.meta.env.DEV": "true"
+          }
         }
       }
     },

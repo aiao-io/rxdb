@@ -1,0 +1,7 @@
+# Cloudflare Pages 响应头（生产托管必需，D-05）：
+# 终端用 Vivari 在页面里运行 Node，要求页面处于 crossOriginIsolated，全站必须返回 COOP 与 COEP。
+# 与 nx serve 的 development 配置、serve-static、冒烟静态服务器的响应头保持一致。
+# 发布前后的校验：pnpm nx run aiao-desktop:deploy（scripts/deploy/）。
+/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp

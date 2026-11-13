@@ -59,6 +59,22 @@ SDK 信任嵌入它的父窗口，宿主负责应用来源准入；它不认证�
 
 子应用 `bus.$emit` 只发给宿主，不隐式转给其他应用。宿主 `instance.emit` 定向发送，`runtime.bus.$emit` 显式广播给这个运行内核的已连接应用。`$orbit.props/bus` 与 `__ORBIT.id` 为仓内主题和路由协议提供上下文入口。
 
+## 窗口接口
+
+`@aiao/orbit/window` 是给桌面类宿主用的窗口协议，接口对齐 Tauri：宿主用 `windowProps(state)` 把窗口初始状态放进启动属性、用 `serveWindow(instance, host)` 登记窗口操作，状态变化后调用返回值的 `publish()`；应用用 `getCurrentWindow(client)` 拿到当前窗口（宿主没给窗口时为 undefined，相当于 Tauri 的 `isTauri()` 为假）。
+
+```ts
+import { getCurrentWindow } from '@aiao/orbit/window';
+
+const appWindow = getCurrentWindow(client);
+appWindow?.state; // { platform: 'macos', frame: 'standard' | 'transparent', decorations, focused, maximized }
+appWindow?.onStateChange(state => render(state));
+await appWindow?.minimize(); // 另有 toggleMaximize()、close()、setTitle(title)、setDecorations(visible)
+const stop = appWindow?.trackDragRegions(document); // 对应 data-tauri-drag-region
+```
+
+`frame: 'transparent'` 的窗口可以 `setDecorations(false)`，让宿主收起自己的标题栏，由应用画标题栏与窗口按钮（对应 Tauri 的 `decorations: false`）；标准窗口调用会被宿主拒绝。拖动区不转发指针（跨源 iframe 按下后指针归 iframe）：带 `data-orbit-drag-region` 的元素减去其中的按钮、链接、输入框与 `data-orbit-no-drag` 元素，作为形状上报给宿主，宿主在 iframe 上方盖拖动层。请求与事件都走实例专属端口，应用只能操作自己的窗口。
+
 ## 三框架生命周期
 
 | 入口                  | API                             | 返回契约       |

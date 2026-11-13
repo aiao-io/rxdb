@@ -46,7 +46,7 @@
     },
     "test": {
       "executor": "nx:noop",
-      "dependsOn": ["requirements-check", "requirements-test", "security-test", "dev-test"]
+      "dependsOn": ["requirements-check", "requirements-test", "security-test", "dev-test", "deploy-test"]
     },
     "verify": {
       "executor": "nx:noop",
@@ -56,6 +56,7 @@
         "requirements-test",
         "security-test",
         "dev-test",
+        "deploy-test",
         "audit-secrets",
         {
           "projects": ["aiao-desktop-web", "aiao-desktop-e2e"],
@@ -129,6 +130,29 @@
       "options": {
         "cwd": "aiao-desktop",
         "command": "node --test scripts/dev/*.spec.mjs"
+      }
+    },
+    "deploy": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [
+        {
+          "projects": ["aiao-desktop-web"],
+          "target": "build"
+        },
+        "audit-secrets"
+      ],
+      "options": {
+        "cwd": "aiao-desktop",
+        "command": "node scripts/deploy/deploy.mjs"
+      }
+    },
+    "deploy-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-desktop",
+        "command": "node --test scripts/deploy/*.spec.mjs"
       }
     }
   }
