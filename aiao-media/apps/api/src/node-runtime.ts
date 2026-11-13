@@ -4,7 +4,14 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { uuid } from './product-http.ts';
 import { missingRelayTask, RelayTask, relayTaskLimits } from './relay-task.ts';
-import type { RelayResultStore, RelayTaskContext, RelayTaskNamespace, WorkerRequest, WorkerSql } from './worker-env.ts';
+import type {
+  RelayResultStore,
+  RelayTaskContext,
+  RelayTaskNamespace,
+  WorkerEnv,
+  WorkerRequest,
+  WorkerSql
+} from './worker-env.ts';
 
 const missing = (error: unknown) => error instanceof Error && 'code' in error && error.code === 'ENOENT';
 const identifier = (key: string) => {
@@ -66,6 +73,7 @@ class FileResults implements RelayResultStore {
 type Entry = { db: DatabaseSync; task: RelayTask; timer?: NodeJS.Timeout; deleted: boolean };
 interface RuntimeOptions {
   directory: string;
+  env?: WorkerEnv;
   request?: WorkerRequest;
   maxConcurrent?: number;
   maxResultBytes?: number;
@@ -96,7 +104,10 @@ export class NodeRelayRuntime implements RelayTaskNamespace {
       const id = identifier(name.slice(0, -7));
       const entry = this.activate(id);
       const row = entry.db.prepare('SELECT at FROM relay_alarm WHERE id=1').get();
-      if (row && Number(row.at) <= Date.now()) await this.alarm(id);
+      if (row && Number(row.at) <= Date.now())
+        await this.alarm(id).catch(() => {
+          console.error('Relay credit recovery will retry');
+        });
       else if (row) this.schedule(id, Number(row.at));
       else await entry.task.ensureWatchdog();
     }
@@ -114,7 +125,7 @@ export class NodeRelayRuntime implements RelayTaskNamespace {
   async fetch(id: string, request: Request) {
     const known = this.entries.has(id) || existsSync(this.databasePath(id));
     const creating = request.method === 'PUT' && !known;
-    if (!known && request.method !== 'PUT') return missingRelayTask();
+    if (!known && request.method !== 'PUT' && new URL(request.url).pathname !== '/abandon') return missingRelayTask();
     if (creating && !this.hasCapacity())
       return Response.json(
         { error: 'Relay capacity reached' },
@@ -125,6 +136,7 @@ export class NodeRelayRuntime implements RelayTaskNamespace {
       return await this.activate(id).task.fetch(request);
     } finally {
       if (creating) this.reservations--;
+      if (this.entries.get(id)?.deleted) await this.purge(id);
     }
   }
   async settled() {
@@ -199,7 +211,7 @@ export class NodeRelayRuntime implements RelayTaskNamespace {
         void pending.finally(() => this.pending.delete(pending));
       }
     };
-    entry.task = new RelayTask(context, { RELAY_RESULTS: this.results }, this.options.request);
+    entry.task = new RelayTask(context, { ...this.options.env, RELAY_RESULTS: this.results }, this.options.request);
     this.entries.set(id, entry);
     return entry;
   }
@@ -222,6 +234,11 @@ export class NodeRelayRuntime implements RelayTaskNamespace {
     const entry = this.activate(id);
     await entry.task.alarm();
     if (!entry.deleted) return;
+    await this.purge(id);
+  }
+  private async purge(id: string) {
+    const entry = this.entries.get(id);
+    if (!entry) return;
     clearTimeout(entry.timer);
     entry.db.close();
     this.entries.delete(id);

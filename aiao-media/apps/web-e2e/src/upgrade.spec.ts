@@ -1,7 +1,7 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, relative, resolve } from 'node:path';
-import { downloadBackup, endpoint, importBackup, pngFixture, profile, prompt, provider } from './local-first.helpers';
+import { backupText, downloadBackup, endpoint, importBackup, pngFixture, profile, prompt, provider } from './local-first.helpers';
 
 const baseline = resolve(
   process.env['AIAO_MEDIA_BASELINE'] ?? new URL('../../web/tmp/migration-baseline/', import.meta.url).pathname
@@ -34,7 +34,7 @@ test('0.0.26 旧构建写入的工作区、原图与备份可由迁入后的工�
 
   await page.unroute(origin);
   await page.reload();
-  await expect(page.getByRole('heading', { name: '本机供应商 · 默认' })).toBeVisible();
+  await verifyLegacySettings(page);
   expect(await profile(page)).toBe(previousProfile);
   await page.goto('/create');
   await expect(page.locator('[contenteditable="true"]')).toContainText('迁移前保存的蓝色森林');
@@ -63,9 +63,18 @@ test('0.0.26 旧构建写入的工作区、原图与备份可由迁入后的工�
   const restored = page.waitForEvent('load');
   await importBackup(page, backup);
   await restored;
-  await page.getByRole('tab', { name: '供应商', exact: true }).click();
-  await expect(page.getByRole('heading', { name: '本机供应商 · 默认' })).toBeVisible();
+  await verifyLegacySettings(page);
   expect(await profile(page)).not.toBe(previousProfile);
   await page.goto('/images');
   await expect(page.getByAltText('本机生成作品')).toHaveCount(1);
 });
+
+async function verifyLegacySettings(page: Page) {
+  await page.goto('/providers');
+  await expect(page.getByRole('heading', { name: '平台生图与积分', exact: true })).toBeVisible();
+  await expect(page.locator('#provider-key, #provider-base')).toHaveCount(0);
+  const backup = JSON.parse(backupText(await downloadBackup(page)));
+  expect(backup.providers).toEqual([
+    expect.objectContaining({ name: '本机供应商', model: 'test-image', rememberKey: false })
+  ]);
+}

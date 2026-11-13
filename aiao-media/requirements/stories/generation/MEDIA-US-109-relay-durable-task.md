@@ -52,7 +52,7 @@ tags: [relay, durable-object, r2, generation]
 | 1   | 代理 fixture 生成需 30 秒                | 提交 5 秒后刷新页面                             | 刷新后仍显示生成中，完成后自动保存到本机；fixture 只收到一次上游请求                 | ⚠️   |
 | 2   | 同上                                     | 提交后关闭页面，结果完成 5 分钟后重新打开       | 结果可取回并保存；保存后再查询该任务返回不存在，R2 对象已删除                        | ⚠️   |
 | 3   | 接单请求网络失败，页面未刷新             | 用同一标识和参数重发；再用同一标识改参数提交    | 上游只调用一次并返回原任务；改参数被拒绝（409），不调用上游                          | ✅   |
-| 4   | 接单回执未知，页面已刷新、Key 不在内存   | 用令牌声明放弃，再让迟到的接单请求到达          | 未接单时本机记为未发送并解除锁定，迟到请求被拒绝且不调用上游；已接单时继续等待原任务 | ✅   |
+| 4   | 接单回执未知，页面已刷新、平台会话不再用于接单   | 用令牌声明放弃，再让迟到的接单请求到达          | 未接单时本机记为未发送并解除锁定，迟到请求被拒绝且不调用上游；已接单时继续等待原任务 | ✅   |
 | 5   | 上游返回 400/401/403/404/413/422/429     | 等待结果                                        | 记为明确拒绝并解除锁定，R2 没有结果对象                                              | ✅   |
 | 6   | 上游 5xx、超时、断连，或等待中实例被重置 | 等待结果                                        | 记为待核对，不自动重发；若结果已写入 R2，看门狗恢复为可取回                          | ⚠️   |
 | 7   | 他人知道任务标识但没有令牌，或令牌错误   | 查询、取回、删除、声明放弃                      | 与任务不存在返回相同结果，任务状态不变                                               | ✅   |
@@ -60,7 +60,7 @@ tags: [relay, durable-object, r2, generation]
 | 9   | 结果无人取回                             | 超过 24 小时后查询并检查 R2                     | 任务与结果已删除，本机记录转为待核对并说明结果已过期；bucket 配有 1 天生命周期规则   | ⚠️   |
 | 10  | 同一工作区两个标签页                     | 生成中刷新其中一个，等待完成                    | 只保存一次、只删除一次服务端结果；任务未结清时不能发起新生成                         | ⚠️   |
 | 11  | 任务绑定缺失、桌面安装版                 | 分别生成                                        | 绑定缺失时在调用上游前拒绝并明确报错；桌面来源可完成任务流程                         | ⚠️   |
-| 12  | 正式域名、真实供应商、R2 已开通          | 代理三画幅各一次，生成中刷新                    | 每次只调用一次上游，结果保存、刷新回读与下载字节一致                                 | ⬜   |
+| 12  | 正式域名、真实平台账号与模型、R2 已开通          | 平台三画幅各一次，生成中刷新                    | 每次只调用一次上游，结果保存、刷新回读与下载字节一致                                 | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过。
 
@@ -70,10 +70,12 @@ tags: [relay, durable-object, r2, generation]
 | ---------- | ----------------------------------------------------------------------------------------------------------- | ---------------------------------------- | ----------------------------------------------------------------- |
 | A 技术验证 | 在真实账号验证：客户端断开后 DO 仍收到上游结果；4 MiB、24 MiB 结果加密的 CPU 时间；R2 bucket 与生命周期规则 | 未开始，需先开通 R2 订阅并部署到真实账号 | 结论写入[实施计划](../../plans/relay-durable-tasks.md)，不计入 AC |
 | B 服务端   | RelayTask 状态机、去重、放弃、看门狗、过期删除、令牌校验与加密；Worker 路由与开发替身                       | 已实现，本地测试通过                     | AC3–AC9 的服务端断言                                              |
-| C 前端续接 | 提交、刷新续接、放弃、解密保存、多标签页和提示文案；浏览器套件与验收工具                                    | 已实现，本地测试通过                     | AC1–AC11                                                          |
+| C 前端续接 | 提交、刷新续接、放弃、解密保存、多标签页和提示文案；浏览器套件与验收工具                                    | D-19 前端已接线，本地浏览器验收通过   | AC1–AC11                                                          |
 | D 正式验收 | 开通 R2、分两次发布、真实供应商三画幅；更新部署文档里的正式环境证据                                         | 未开始                                   | AC12                                                              |
 
 ## 技术笔记
+
+- 2026-11-13 D-19 服务端改造已完成本地验证：平台会话与模型目录、凭据仅服务端使用、积分预占与确认扣费、失败释放与账本故障重试、旧 schema 恢复、未知放弃封存与无状态代理下线。详见[平台积分生图服务端接线](../../plans/platform-relay-credits-20261113.md)。浏览器仍使用旧供应商表单和任务客户端，尚未接确认/释放接口；历史浏览器证据不能用于关闭当前 D-19 的 AC1、2、8、10、11。
 
 - 实现（读源码与测试）：`/api/relay/tasks/:id` 由 [relay-task-api.ts](../../../apps/api/src/relay-task-api.ts) 校验后交给 [RelayTask](../../../apps/api/src/relay-task.ts)；接单前的校验与上游调用共用 [relay-input.ts](../../../apps/api/src/relay-input.ts)；无状态 `/api/relay` 随 D-19 移除，上游 Key 按 D-19 改由平台凭据。浏览器端的接单、重发、放弃、长轮询、取回和解密在 [relay-task-client.ts](../../../apps/web/src/app/relay-task-client.ts)；创作页在 `generate()` 中把任务记录与令牌写在同一事务里，`readTasks()` 遇到带令牌的未结清代理任务时在生成锁后续接，不再标记待核对。
 - 本地证据（2026-11-03，Node 26.12.0）：`aiao-media:relay-test` 29/29、`aiao-media:script-test` 62/62（含 Worker 与 DO 替身上的任务状态机、重置后看门狗、24 小时删除、令牌与来源校验），`aiao-media:test` 43 个文件、786 项通过（含任务客户端与创作页续接），`aiao-media-e2e:local-first-e2e` 39/39（含生成中刷新续接、回执不明刷新后放弃），`aiao-media-e2e:provider-acceptance-fixture` 12 个组合通过（代理组合走任务接口，MiniMax 代理为 base64），`aiao-media:deploy-check` 的 Wrangler dry-run 列出 `RELAY_TASKS` 与 `RELAY_RESULTS` 绑定。浏览器套件拦截的是任务接口，DO 行为来自 Node 替身，都不能证明真实 Cloudflare 上客户端断开后仍能收到上游结果；AC1、2、6、9、10、11 因此保留 ⚠️，分别等阶段 A 实测、R2 生命周期配置和真实双标签页、桌面安装版验证。
@@ -82,15 +84,17 @@ tags: [relay, durable-object, r2, generation]
 - [未来需求](../../future-requirements.md#安全代理请求)要求异步代理另行定义授权、加密、有效期和删除：本故事分别用任务令牌、令牌派生密钥、24 小时任务期限，以及“结清即删 + alarm + R2 生命周期”满足。
 - 发布顺序与停用：仓库规则不允许加 fallback，所以没有“关闭任务接口后改走无状态代理”的运行时开关。新增 DO 类后无法回滚到加类之前的版本，因此先发布只含服务端的版本，再发布前端切换；前端出问题时回滚到第一次发布即可，步骤见[实施计划](../../plans/relay-durable-tasks.md#发布与回退)。
 
+2026-11-13 前后端平台积分接线已完成，本地 57 项浏览器验收与两种协议三画幅 fixture 通过，见[接线与验收记录](../../plans/platform-relay-credits-20261113.md)。正式 Cloudflare 断开续接、R2 生命周期与桌面安装版仍缺证，AC1、2、6、9、10、11 保持 ⚠️，AC12 保持待验。
+
 ## 实现文件
 
 - [relay-task.ts](../../../packages/api-contracts/src/contracts/relay-task.ts) — 令牌、摘要与结果加解密的共享契约。
 - [relay-task.ts](../../../apps/api/src/relay-task.ts) — RelayTask Durable Object：接单、去重、上游调用、加密写入 R2、放弃、看门狗与过期删除。
-- [relay-task-api.ts](../../../apps/api/src/relay-task-api.ts) 与 [relay-input.ts](../../../apps/api/src/relay-input.ts) — Worker 任务路由与共用的代理校验。
-- [local-first-worker.ts](../../../apps/api/src/local-first-worker.ts) — 路由入口、桌面预检，保留无状态 `/api/relay`。
+- [relay-task-api.ts](../../../apps/api/src/relay-task-api.ts) 与 [relay-input.ts](../../../apps/api/src/relay-input.ts) — Worker 平台任务路由、允许列表与错误响应；平台模型校验见 `platform-models.ts`。
+- [local-first-worker.ts](../../../apps/api/src/local-first-worker.ts) — 路由入口、桌面预检；无状态 `/api/relay` 已按 D-19 删除。
 - [wrangler.json](../../../apps/api/wrangler.json) — `RELAY_TASKS` DO 绑定与 `media-relay-v1` 迁移、`RELAY_RESULTS` R2 绑定。
 - [cloudflare-stand-ins.mjs](../../../apps/api/scripts/cloudflare-stand-ins.mjs) 与 [dev-relay.mjs](../../../apps/api/scripts/dev-relay.mjs) — 进程内 DO/R2 替身，开发服务器的任务接口。
-- [relay-task-client.ts](../../../apps/web/src/app/relay-task-client.ts) 与 [local-provider.ts](../../../apps/web/src/app/local-provider.ts) — 浏览器任务客户端，与直连共用的请求校验和结果解析。
+- [relay-task-client.ts](../../../apps/web/src/app/relay-task-client.ts) 与 [local-provider.ts](../../../apps/web/src/app/local-provider.ts) — 平台任务客户端与原图解析；旧地址仅兼容已有设备任务。
 - [local-image-mvp.ts](../../../apps/web/src/app/local-image-mvp.ts) — 任务提交、刷新续接、放弃，以及结清后删除服务端结果。
 - [relay-task.test.mjs](../../../apps/api/scripts/relay-task.test.mjs)、[local-first.spec.ts](../../../apps/web-e2e/src/local-first.spec.ts) — 服务端状态机测试与浏览器续接套件。
 

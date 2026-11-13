@@ -28,9 +28,9 @@ const config = {
   AIAO_MEDIA_ACCEPTANCE_ORIGIN: 'https://media.aiao.io',
   AIAO_MEDIA_ACCEPTANCE_RELEASE: '92883918-76ac-47de-a424-4bc5af23bee9',
   AIAO_MEDIA_ACCEPTANCE_MANIFEST_SHA256: 'a'.repeat(64),
-  AIAO_IMAGE_BASE_URL: 'https://provider.example.test/v1/',
-  AIAO_IMAGE_MODEL: 'image-test',
-  AIAO_IMAGE_API_KEY: 'private-test-key'
+  AIAO_MEDIA_ACCEPTANCE_MODEL_ID: 'standard',
+  AIAO_MEDIA_ACCEPTANCE_EMAIL: 'creator@example.test',
+  AIAO_MEDIA_ACCEPTANCE_PASSWORD: 'private-test-password'
 };
 
 async function attemptHistory(run) {
@@ -43,8 +43,8 @@ async function attemptHistory(run) {
       JSON.stringify({
         identity: basename(file, '.json'),
         origin: settings.origin,
-        providerFingerprint: createHash('sha256')
-          .update(JSON.stringify([settings.baseUrl, settings.model]))
+        modelFingerprint: createHash('sha256')
+          .update(JSON.stringify(['platform', settings.model]))
           .digest('hex'),
         mode,
         aspect,
@@ -133,22 +133,22 @@ test('正常退出只释放本次持有的锁，已被替换的锁原样保留',
 
 test('整份验收计划在发送前核对历史，后面的未知组合也阻止前面新请求', async () => {
   await attemptHistory(async ({ settings, directory, put }) => {
-    await put(settings, 'proxy', 'portrait', 'dispatching');
+    await put(settings, 'platform', 'portrait', 'dispatching');
     await assert.rejects(checkAttemptHistory(settings, directory), /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/);
-    const direct = { ...settings, selection: { modes: ['direct'], aspects: ['square'] } };
-    await checkAttemptHistory(direct, directory);
+    const square = { ...settings, selection: { modes: ['platform'], aspects: ['square'] } };
+    await checkAttemptHistory(square, directory);
   });
 });
 
-test('未知请求不会因发布版本、产物摘要或 Key 变化而解锁', async () => {
+test('未知请求不会因发布版本、产物摘要或账号凭据变化而解锁', async () => {
   await attemptHistory(async ({ settings, directory, put }) => {
-    await put(settings, 'direct', 'square', 'requires-review');
+    await put(settings, 'platform', 'square', 'requires-review');
     const next = {
       ...settings,
       release: '92883918-76ac-47de-a424-4bc5af23bee0',
       manifestSha256: 'b'.repeat(64),
-      key: 'rotated-private-key',
-      selection: { modes: ['direct'], aspects: ['square'] }
+      password: 'rotated-platform-password',
+      selection: { modes: ['platform'], aspects: ['square'] }
     };
     await assert.rejects(checkAttemptHistory(next, directory), /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/);
     await checkAttemptHistory({ ...next, model: 'independent-image' }, directory);
@@ -158,9 +158,9 @@ test('未知请求不会因发布版本、产物摘要或 Key 变化而解锁', 
 test('已完成证据只复用同产物，不让历史未知记录触发新请求', async () => {
   await attemptHistory(async ({ settings, directory, put }) => {
     const old = { ...settings, release: '92883918-76ac-47de-a424-4bc5af23bee0' };
-    const selected = { ...settings, selection: { modes: ['direct'], aspects: ['square'] } };
-    await put(old, 'direct', 'square', 'requires-review');
-    await put(settings, 'direct', 'square', 'verified');
+    const selected = { ...settings, selection: { modes: ['platform'], aspects: ['square'] } };
+    await put(old, 'platform', 'square', 'requires-review');
+    await put(settings, 'platform', 'square', 'verified');
     await checkAttemptHistory(selected, directory);
     await assert.rejects(
       checkAttemptHistory({ ...selected, manifestSha256: 'b'.repeat(64) }, directory),
@@ -169,36 +169,36 @@ test('已完成证据只复用同产物，不让历史未知记录触发新请�
   });
 });
 
-test('默认计划覆盖两通道三画幅，显式选择仅保留指定子集', () => {
+test('默认计划覆盖平台三画幅，显式选择仅保留指定子集', () => {
   const defaults = acceptancePlan(acceptanceSelection({}));
-  assert.equal(defaults.length, 6);
+  assert.equal(defaults.length, 3);
   const selection = acceptanceSelection({
-    AIAO_MEDIA_ACCEPTANCE_MODES: 'proxy',
+    AIAO_MEDIA_ACCEPTANCE_MODES: 'platform',
     AIAO_MEDIA_ACCEPTANCE_ASPECTS: 'landscape,portrait'
   });
-  assert.deepEqual(selection, { modes: ['proxy'], aspects: ['landscape', 'portrait'] });
+  assert.deepEqual(selection, { modes: ['platform'], aspects: ['landscape', 'portrait'] });
   assert.deepEqual(
     acceptancePlan(selection).map(({ mode, ratio }) => [mode, ratio.aspect]),
     [
-      ['proxy', 'landscape'],
-      ['proxy', 'portrait']
+      ['platform', 'landscape'],
+      ['platform', 'portrait']
     ]
   );
 });
 
 test('非法、空或重复选择在任何请求前拒绝，选择范围不改变尝试身份', () => {
-  for (const mode of ['', 'auto', 'DIRECT', 'direct,proxy,other', 'proxy,proxy'])
+  for (const mode of ['', 'direct', 'proxy', 'auto', 'PLATFORM', 'platform,platform'])
     assert.throws(() => acceptanceSelection({ AIAO_MEDIA_ACCEPTANCE_MODES: mode }));
   for (const aspect of ['', 'wide', 'square,square', 'portrait,other'])
     assert.throws(() => acceptanceSelection({ AIAO_MEDIA_ACCEPTANCE_ASPECTS: aspect }));
   const settings = liveSettings(config);
   const selected = {
     ...settings,
-    selection: acceptanceSelection({ AIAO_MEDIA_ACCEPTANCE_MODES: 'proxy', AIAO_MEDIA_ACCEPTANCE_ASPECTS: 'portrait' })
+    selection: acceptanceSelection({ AIAO_MEDIA_ACCEPTANCE_MODES: 'platform', AIAO_MEDIA_ACCEPTANCE_ASPECTS: 'portrait' })
   };
   assert.equal(
-    attemptPath('/tmp/acceptance', settings, 'proxy', 'portrait'),
-    attemptPath('/tmp/acceptance', selected, 'proxy', 'portrait')
+    attemptPath('/tmp/acceptance', settings, 'platform', 'portrait'),
+    attemptPath('/tmp/acceptance', selected, 'platform', 'portrait')
   );
 });
 
@@ -394,7 +394,7 @@ test('捕获有截止时间，取消观察分支不等待应用消费且不产�
   );
 });
 
-test('真实供应商验收必须显式启用且只接受已决定的正式 origin', () => {
+test('真实平台验收必须显式启用且只接受已决定的正式 origin', () => {
   assert.throws(() => liveSettings({ ...config, AIAO_MEDIA_ACCEPTANCE_GENERATE: undefined }));
   for (const origin of ['http://media.aiao.io', 'https://other.example.test', 'https://media.aiao.io?secret=value'])
     assert.throws(() => liveSettings({ ...config, AIAO_MEDIA_ACCEPTANCE_ORIGIN: origin }));
@@ -404,68 +404,53 @@ test('真实供应商验收必须显式启用且只接受已决定的正式 orig
   assert.throws(() => liveSettings({ ...config, AIAO_MEDIA_ACCEPTANCE_RELEASE: '../release' }));
   assert.throws(() => liveSettings({ ...config, AIAO_MEDIA_ACCEPTANCE_MANIFEST_SHA256: undefined }));
   assert.throws(() => liveSettings({ ...config, AIAO_MEDIA_ACCEPTANCE_MANIFEST_SHA256: '../manifest' }));
-  assert.equal(liveSettings(config).baseUrl, 'https://provider.example.test/v1');
+  assert.equal(liveSettings(config).model, 'standard');
+  assert.equal(liveSettings(config).baseUrl, undefined);
+  assert.equal(liveSettings(config).key, undefined);
 });
 
-test('私有配置在浏览器启动前拒绝 URL 凭据、查询、片段与非法模型', () => {
-  for (const base of [
-    'http://provider.example.test',
-    'https://key@provider.example.test',
-    'https://provider.example.test?key=x',
-    'https://provider.example.test#key'
-  ])
-    assert.throws(() => liveSettings({ ...config, AIAO_IMAGE_BASE_URL: base }));
-  assert.throws(() => liveSettings({ ...config, AIAO_IMAGE_MODEL: '../image' }));
-  assert.throws(() => liveSettings({ ...config, AIAO_IMAGE_API_KEY: undefined }));
+test('正式验收只读取平台模型和登录凭据，不读取上游配置', () => {
+  for (const model of ['', '../image', 'space model'])
+    assert.throws(() => liveSettings({ ...config, AIAO_MEDIA_ACCEPTANCE_MODEL_ID: model }));
+  for (const field of ['AIAO_MEDIA_ACCEPTANCE_EMAIL', 'AIAO_MEDIA_ACCEPTANCE_PASSWORD'])
+    assert.throws(() => liveSettings({ ...config, [field]: '' }));
+  const settings = liveSettings({ ...config, AIAO_IMAGE_API_KEY: 'must-not-read', AIAO_IMAGE_BASE_URL: 'invalid' });
+  assert.equal(settings.model, 'standard');
+  assert.ok(!JSON.stringify(settings).includes('must-not-read'));
 });
 
-test('尝试身份包含已部署版本、origin、规范化 provider、模型、通道和画幅，轮换 Key 不能绕过锁定', () => {
+test('尝试身份包含发布、origin、平台模型和画幅，轮换账号凭据不能绕过锁定', () => {
   const settings = liveSettings(config);
-  const path = attemptPath('/tmp/acceptance', settings, 'direct', 'square');
+  const path = attemptPath('/tmp/acceptance', settings, 'platform', 'square');
   assert.match(path, /^\/tmp\/acceptance\/[a-f0-9]{64}\.json$/);
-  assert.equal(path, attemptPath('/tmp/acceptance', { ...settings, key: 'rotated-private-key' }, 'direct', 'square'));
-  assert.notEqual(path, attemptPath('/tmp/acceptance', settings, 'proxy', 'square'));
-  assert.notEqual(path, attemptPath('/tmp/acceptance', settings, 'direct', 'portrait'));
+  assert.equal(path, attemptPath('/tmp/acceptance', { ...settings, password: 'rotated-platform-password' }, 'platform', 'square'));
+  assert.notEqual(path, attemptPath('/tmp/acceptance', { ...settings, model: 'other-public-model' }, 'platform', 'square'));
+  assert.notEqual(path, attemptPath('/tmp/acceptance', settings, 'platform', 'portrait'));
   assert.notEqual(
     path,
-    attemptPath('/tmp/acceptance', { ...settings, manifestSha256: 'b'.repeat(64) }, 'direct', 'square')
+    attemptPath('/tmp/acceptance', { ...settings, manifestSha256: 'b'.repeat(64) }, 'platform', 'square')
   );
   assert.notEqual(
     path,
-    attemptPath('/tmp/acceptance', { ...settings, release: '92883918-76ac-47de-a424-4bc5af23bee0' }, 'direct', 'square')
+    attemptPath('/tmp/acceptance', { ...settings, release: '92883918-76ac-47de-a424-4bc5af23bee0' }, 'platform', 'square')
   );
 });
 
-test('MiniMax 正式入口只接收已适配模型，错误发生在任何生成前', () => {
-  const native = { ...config, AIAO_IMAGE_BASE_URL: 'https://api.minimax.cn/v1', AIAO_IMAGE_MODEL: 'image-01' };
-  assert.equal(liveSettings(native).model, 'image-01');
-  assert.throws(() => liveSettings({ ...native, AIAO_IMAGE_MODEL: 'unsupported-image' }), /INVALID_MODEL/);
+test('平台接单验收不允许用户直连或携带供应商地址', () => {
+  for (const mode of ['direct', 'proxy'])
+    assert.throws(() => generationDispatch(liveSettings(config), mode, { size: '1024x1024' }, '测试'));
 });
 
-test('正式验收按通道验证 MiniMax 原生请求与既有代理入口契约', () => {
-  const settings = { ...liveSettings(config), baseUrl: 'https://api.minimax.cn/v1', model: 'image-01' };
-  const ratio = { size: '1536x1024' };
-  assert.deepEqual(generationDispatch(settings, 'direct', ratio, '测试'), {
-    url: 'https://api.minimax.cn/v1/image_generation',
-    body: {
-      model: 'image-01',
-      prompt: '测试',
-      n: 1,
-      width: 1536,
-      height: 1024,
-      response_format: 'url',
-      prompt_optimizer: false
-    }
-  });
-  assert.deepEqual(generationDispatch(settings, 'proxy', ratio, '测试'), {
-    url: `${settings.origin}/api/relay/tasks/`,
-    method: 'PUT',
-    body: { model: 'image-01', prompt: '测试', n: 1, size: '1536x1024', quality: 'low', output_format: 'png' }
+test('正式验收只向平台任务发送公开模型和单张参数', () => {
+  const settings = liveSettings(config);
+  assert.deepEqual(generationDispatch(settings, 'platform', { size: '1536x1024' }, '测试'), {
+    url: `${settings.origin}/api/relay/tasks/`, method: 'PUT',
+    body: { model: 'standard', prompt: '测试', n: 1, size: '1536x1024' }
   });
 });
 
 test('MiniMax 验收只读取单一成功结果，系统错误和混合结果不能通过', () => {
-  const base = 'https://api.minimax.cn/v1';
+  const base = 'minimax';
   assert.deepEqual(
     generationImageResult(
       { base_resp: { status_code: 0 }, data: { image_urls: ['https://images.example/image.png'] } },

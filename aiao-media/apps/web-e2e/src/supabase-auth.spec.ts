@@ -86,6 +86,14 @@ async function login(page: Page) {
 // Auth fixtures verify the built application + real SDK without contacting an external Auth project.
 // The local-first suite separately verifies Service Worker installation and offline cold starts.
 test.use({ serviceWorkers: 'block' });
+test.beforeEach(async ({ context }) => {
+  await context.route('**/api/models', route =>
+    route.fulfill({ json: { models: [{ id: 'standard', name: '平台测试模型', credits: 3, protocol: 'openai' }] } })
+  );
+  await context.route('**/api/credits', route =>
+    route.fulfill({ json: { account: { balance: 10, reserved: 0, available: 10 }, entries: [] } })
+  );
+});
 
 test('平台注册后可开启同步，无需配置自己的项目或管理授权', async ({ page, context }) => {
   await configure(context);
@@ -124,7 +132,7 @@ test('平台注册后可开启同步，无需配置自己的项目或管理授�
   expect(projectAuthorization).toEqual([]);
 });
 
-test('免费平台登录和刷新后保留本机创作，不展示平台生图或积分入口', async ({ page, context }) => {
+test('平台登录和刷新保留本机创作与余额，停用旧计费入口', async ({ page, context }) => {
   await configure(context);
   const { calls } = await authFixture(context);
   const platformRequests: string[] = [];
@@ -143,8 +151,8 @@ test('免费平台登录和刷新后保留本机创作，不展示平台生图�
     if (refresh) await page.reload();
     await expect(page.getByRole('button', { name: '我的账号', exact: true })).toBeVisible();
     await expect(editor).toContainText('免费平台上的本机创作');
-    await expect(page.locator('#selected-provider')).toHaveValue('00000000-0000-4000-8000-000000000001');
-    await expect(page.locator('#selected-provider option:checked')).toContainText('默认免费供应商');
+    await expect(page.locator('#selected-model')).toHaveValue('standard');
+    await expect(page.locator('#selected-provider, #provider-key')).toHaveCount(0);
     await expect(page.getByRole('button', { name: '✧ 生成图片' })).toBeEnabled();
     await expect(page.getByRole('heading', { name: '平台图片服务', exact: true })).toHaveCount(0);
     await expect(page.getByRole('region', { name: '平台生图', exact: true })).toHaveCount(0);

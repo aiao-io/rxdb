@@ -44,3 +44,18 @@ pnpm nx run aiao-media:supabase-down
 开发导航只由绑定 `127.0.0.1` 的本地 Worker 提供，包含本地测试账号和数据库密码，不进入 Web 静态资源或生产部署产物。JWT secret 和 service role key 不写入导航页面。
 
 仅开发前端可继续使用 `pnpm nx serve aiao-media`，不需要 Docker。多检出目录的数据库卷与端口隔离、账号验收和生产形态预览见 [Web 开发说明](apps/web/README.md)。
+
+平台生图的服务端接线按 [D-19](requirements/decisions.md#d-19登录用户经平台积分生图移除用户自配供应商) 改为真实平台账号、平台模型和积分账本。前端改版仍在进行，当前分支的旧供应商表单尚未完成替换，不作为可发布的完整生图流程。服务端不再接受按请求 Key 的 `/api/relay`。
+
+模型由部署环境 `MEDIA_PLATFORM_MODELS` 定义，每项包含 `id`、展示 `name`、`baseUrl`、上游 `model`、凭据变量名 `secret` 与正整数 `credits`。`baseUrl` 必须同时列入 `ALLOWED_PROVIDER_BASE_URLS`；`secret` 指向只存在于 Worker secret 或 Node 服务端环境中的凭据。平台标识和上游型号分开，例如以下是需由部署者替换的配置形状：
+
+```dotenv
+MEDIA_PLATFORM_MODELS='[{"id":"standard","name":"平台生图","baseUrl":"https://provider.example/v1","model":"private-image-model","secret":"MEDIA_IMAGE_KEY","credits":3}]'
+ALLOWED_PROVIDER_BASE_URLS='["https://provider.example/v1"]'
+```
+
+开发环境从 `apps/api/.dev.vars` 或进程环境读取模型和引用的凭据，仅写入权限 `0600` 的 `.wrangler/local-dev/.dev.vars`；不覆盖源配置，不复制无关密钥。Cloudflare 用 secret 绑定凭据；Node 通过服务端环境传入。模型、凭据或任务绑定缺失时明确返回 `503`，不调用上游。公开 `/api/models` 只返回平台标识、展示名、积分与响应协议，后台已发布的停用、型号和画幅策略仍限制接单。
+
+现有 Supabase 项目先执行后台提供的 `/admin/upgrade-credits.sql`，包含 `012` 积分账本与 `013` 放弃封存迁移，在同一事务内升级；新项目初始化 SQL 包已同时包含两者。后台发放积分后，接单预占额度；上游失败或结果待核对释放预占。本机取得密文、解密并验证图片后通过 `/confirm` 幂等扣减；图片验证失败通过 `/discard` 释放预占。扣费应答丢失可用原任务令牌重试确认，不重复扣款。
+
+服务端只加密暂存原始响应，不解析图片；Cloudflare 写入私有 R2，Node 写入私有数据目录。任务存储保存账号标识、额度、请求指纹、令牌摘要与状态。结清后删除结果；未取回结果在 24 小时后清理，清理前先确认积分已扣或已释放，账本故障时保留任务并重试。R2 的一天生命周期和真实客户端断开后的执行保证仍须正式环境验收，不能用本地替身结果替代。

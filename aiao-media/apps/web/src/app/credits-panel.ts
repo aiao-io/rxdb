@@ -12,7 +12,7 @@ import type { ProductClient } from './product-client';
         <p>
           可用积分 {{ value.account.available }} · 余额 {{ value.account.balance }} · 预占 {{ value.account.reserved }}
         </p>
-        <p>图片结果可取回后才扣减积分。失败或待核对不扣积分。</p>
+        <p>图片通过本机验证并确认后才扣减积分。失败或待核对不扣积分。</p>
         <ul>
           @for (entry of value.entries; track entry.id) {
             <li>

@@ -17,7 +17,15 @@
     "tsBuildInfoFile": "dist/tsconfig.tsbuildinfo"
   },
   "extends": "../../../tsconfig.base.json",
-  "include": ["src/**/*.ts", "test/installation.test.ts", "test/node-runtime.test.ts", "test/node-server.test.ts", "test/platform-api.test.ts", "test/platform.test.ts"],
+  "include": [
+    "scripts/fixtures/*.ts",
+    "src/**/*.ts",
+    "test/installation.test.ts",
+    "test/node-runtime.test.ts",
+    "test/node-server.test.ts",
+    "test/platform-api.test.ts",
+    "test/platform.test.ts"
+  ],
   "references": [
     {
       "path": "../../packages/domain"

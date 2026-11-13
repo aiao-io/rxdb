@@ -1,6 +1,10 @@
+import { createRelayTaskToken } from '@aiao-media/api-contracts';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { handleAdmin } from '../src/admin-api.ts';
+import { RelayTask } from '../src/relay-task.ts';
+import { durableObjectNamespace, r2Bucket } from './cloudflare-stand-ins.mjs';
+import { fixtureModel, platformFixture } from './fixtures/platform-fixture.ts';
 
 const userId = '00000000-0000-4000-8000-000000000001';
 const env = {
@@ -95,14 +99,15 @@ test('跨 origin 管理写入被拒绝', async () => {
   assert.equal(response.status, 403);
 });
 
-test('运行策略实际限制代理启停、模型和画幅，并返回生效版本', async () => {
+test('已发布运行策略限制平台模型启停、型号和画幅，策略不可读时拒绝接单', async () => {
   const { default: worker } = await import('../src/local-first-worker.ts');
   const previous = globalThis.fetch;
+  const fixture = platformFixture();
   const target = 'https://provider.example.test/v1';
   let enabled = false,
     available = true,
     providerCalls = 0;
-  globalThis.fetch = async input => {
+  globalThis.fetch = async (input, init) => {
     const url = new URL(input);
     if (url.pathname === '/rest/v1/media_public_content') {
       if (!available) return Response.json({ code: 'unavailable' }, { status: 503 });
@@ -116,7 +121,7 @@ test('运行策略实际限制代理启停、模型和画幅，并返回生效�
                 id: userId,
                 name: 'Fixture',
                 baseUrl: target,
-                models: ['fixture'],
+                models: ['private-image-model'],
                 sizes: ['1024x1024'],
                 direct: false,
                 proxy: true,
@@ -127,37 +132,38 @@ test('运行策略实际限制代理启停、模型和画幅，并返回生效�
         }
       ]);
     }
-    assert.equal(url.origin, new URL(target).origin);
+    if (url.origin !== new URL(target).origin) return fixture.backendFetch(input, init);
     providerCalls++;
     return Response.json({ data: [] });
   };
+  const environment = { ...fixture.env, RELAY_RESULTS: r2Bucket() };
+  environment.RELAY_TASKS = durableObjectNamespace(ctx => new RelayTask(ctx, environment));
   const relay = model =>
     worker.fetch(
-      new Request('https://app.example.test/api/relay', {
-        method: 'POST',
+      new Request(`https://app.example.test/api/relay/tasks/${crypto.randomUUID()}`, {
+        method: 'PUT',
         headers: {
           origin: 'https://app.example.test',
-          authorization: 'Bearer fixture-user-provider-key',
+          authorization: 'Bearer fixture-session',
           'content-type': 'application/json',
-          'x-provider-base': target
+          'x-relay-task-token': createRelayTaskToken()
         },
         body: JSON.stringify({ model, prompt: 'fixture', n: 1, size: '1024x1024' })
       }),
-      env
+      environment
     );
   try {
-    assert.equal((await relay('fixture')).status, 403);
+    assert.equal((await relay(fixtureModel.id)).status, 403);
     assert.equal(providerCalls, 0);
     enabled = true;
-    const allowed = await relay('fixture');
-    assert.equal(allowed.status, 200);
-    assert.equal(allowed.headers.get('x-aiao-policy-version'), '7');
+    const allowed = await relay(fixtureModel.id);
+    assert.equal(allowed.status, 202);
     await allowed.text();
     assert.equal(providerCalls, 1);
-    assert.equal((await relay('other')).status, 403);
+    assert.equal((await relay('other')).status, 400);
     assert.equal(providerCalls, 1);
     available = false;
-    assert.notEqual((await relay('fixture')).status, 200);
+    assert.notEqual((await relay(fixtureModel.id)).status, 200);
     assert.equal(providerCalls, 1);
   } finally {
     globalThis.fetch = previous;

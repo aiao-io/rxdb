@@ -4,15 +4,14 @@ import { readFile } from 'node:fs/promises';
 import {
   backupText,
   downloadBackup,
-  endpoint,
   importBackup,
   key,
   pngFixture,
   profile,
   prompt,
-  provider,
   verifyImageDownload
 } from './local-first.helpers';
+import { platformAccount, setupPlatform, taskFixture } from './platform-fixture';
 
 const generate = async (page: Page) => {
   const result = page.getByRole('region', { name: '生成结果' }).getByRole('link', { name: '下载图片' });
@@ -24,12 +23,16 @@ const generate = async (page: Page) => {
   await expect(page.getByText('已保存到本机', { exact: true })).toBeVisible();
 };
 
+test.beforeEach(async ({ context }) => {
+  await setupPlatform(context);
+});
+
 test('创作输入在浏览灵感、筛选和页面切换后保留，不自动生成', async ({ page }) => {
-  await provider(page);
+  await platformAccount(page);
   let calls = 0;
-  await page.route(endpoint, route => {
+  await taskFixture(page, () => {
     calls++;
-    return route.abort('blockedbyclient');
+    return { failure: 'network failed' };
   });
   await page.getByRole('link', { name: '生成图片', exact: true }).click();
   await expect(page).toHaveURL(/\/create$/);
@@ -53,13 +56,13 @@ test('创作输入在浏览灵感、筛选和页面切换后保留，不自动�
 });
 
 test('创作页直接生成并保存作品，刷新后不重复请求', async ({ page }) => {
-  await provider(page);
+  await platformAccount(page);
   const png = await pngFixture();
   let calls = 0;
-  await page.route(endpoint, route => {
+  await taskFixture(page, request => {
     calls++;
-    expect(route.request().postDataJSON().prompt).toBe('清晨窗边的咖啡，温暖的胶片风格');
-    return route.fulfill({ json: { data: [{ b64_json: png.toString('base64') }] } });
+    expect(request.postDataJSON().prompt).toBe('清晨窗边的咖啡，温暖的胶片风格');
+    return { json: { data: [{ b64_json: png.toString('base64') }] } };
   });
   await page.getByRole('link', { name: '生成图片', exact: true }).click();
   await page.getByRole('textbox', { name: '创意描述' }).fill('清晨窗边的咖啡，温暖的胶片风格');
@@ -72,67 +75,20 @@ test('创作页直接生成并保存作品，刷新后不重复请求', async ({
   expect(calls).toBe(1);
 });
 
-test('记住、替换和移除 Key 后只保留非敏感配置，刷新不复用旧凭据', async ({ page }) => {
-  await provider(page);
-  await page.reload();
-  await page.getByRole('button', { name: '编辑 / 填写 Key' }).click();
-  await expect(page.getByLabel('API Key', { exact: true })).toHaveValue(key);
-  const replacement = 'fixture-replacement-key';
-  await page.getByLabel('API Key', { exact: true }).fill(replacement);
-  await page.getByRole('button', { name: '保存到本机', exact: true }).click();
-  await expect(page.getByLabel('API Key', { exact: true })).toHaveValue('');
-  await page.reload();
-  await page.getByRole('button', { name: '编辑 / 填写 Key' }).click();
-  await expect(page.getByLabel('API Key', { exact: true })).toHaveValue(replacement);
+test('损坏 PNG 被拒绝并释放积分，不泄露凭据、不创建假作品或自动重发', async ({ page }) => {
+  await platformAccount(page);
+  await expect(page.locator('#provider-key, #provider-base')).toHaveCount(0);
   const png = await pngFixture();
   let calls = 0;
-  await page.route(endpoint, route => {
+  await taskFixture(page, () => {
     calls++;
-    expect(route.request().headers()['authorization']).toBe(`Bearer ${replacement}`);
-    return route.fulfill({
-      json: { data: [{ b64_json: png.toString('base64') }] }
-    });
-  });
-  await prompt(page);
-  await generate(page);
-  const backup = await downloadBackup(page);
-  expect(backupText(backup)).not.toContain(key);
-  expect(backupText(backup)).not.toContain(replacement);
-  await page.getByRole('button', { name: '移除 Key', exact: true }).click();
-  await expect(page.getByText('已移除 Key，供应商配置已保留。')).toBeVisible();
-  await prompt(page);
-  await page.getByRole('button', { name: '✧ 生成图片' }).click();
-  const prompted = page.getByRole('dialog', { name: '填写 API Key' });
-  await expect(prompted.getByLabel('API Key', { exact: true })).toHaveValue('');
-  await page.goto('/providers');
-  await page.getByRole('button', { name: '编辑 / 填写 Key' }).click();
-  await expect(page.getByLabel('API Key', { exact: true })).toHaveValue('');
-  await expect(page.getByLabel('在此设备记住 Key')).not.toBeChecked();
-  expect(calls).toBe(1);
-});
-
-test('非法配置和损坏 PNG 被拒绝，不泄露 Key、不创建假作品或自动重发', async ({ page }) => {
-  await provider(page);
-  await page.getByRole('button', { name: '编辑 / 填写 Key' }).click();
-  await expect(page.getByLabel('HTTPS Base URL')).toHaveValue('https://images.example.test/v1');
-  await page.getByLabel('HTTPS Base URL').fill(`https://user:${key}@images.example.test/v1`);
-  await page.getByRole('button', { name: '保存到本机', exact: true }).click();
-  await expect(page.getByText('Base URL 需要使用 HTTPS，且不能包含账号、查询参数或片段。')).toBeVisible();
-  await page.getByLabel('HTTPS Base URL').fill('https://images.example.test/v1');
-  await page.getByLabel('图片模型 ID').fill('invalid/model');
-  await page.getByRole('button', { name: '保存到本机', exact: true }).click();
-  await expect(page.locator('.provider-form .notice')).toContainText('有效的名称、模型');
-  const png = await pngFixture();
-  let calls = 0;
-  await page.route(endpoint, route => {
-    calls++;
-    return route.fulfill({
+    return {
       json: { data: [{ b64_json: png.subarray(0, 33).toString('base64') }] }
-    });
+    };
   });
   await prompt(page);
   await page.getByRole('button', { name: '✧ 生成图片' }).click();
-  await expect(page.getByRole('heading', { name: '请核对供应商记录' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '请核对平台任务' })).toBeVisible();
   await expect(page.locator('body')).not.toContainText(key);
   await page.goto('/images');
   await expect(page.getByAltText('本机生成作品')).toHaveCount(0);
@@ -144,18 +100,18 @@ test('非法配置和损坏 PNG 被拒绝，不泄露 Key、不创建假作品�
 test('跨 origin 图片读取不带凭据，原图信息、下载、复用和删除与实际文件一致', async ({ page }) => {
   const png = await pngFixture();
   let calls = 0;
-  await page.route(endpoint, route => {
+  await taskFixture(page, () => {
     calls++;
-    return route.fulfill({
+    return {
       json: { data: [{ url: 'https://results.example.test/image.png' }] }
-    });
+    };
   });
   await page.route('https://results.example.test/image.png', route => {
     const headers = route.request().headers();
     for (const name of ['authorization', 'cookie', 'referer']) expect(headers[name]).toBeUndefined();
     return route.fulfill({ contentType: 'image/png', body: png });
   });
-  await provider(page);
+  await platformAccount(page);
   await prompt(page, '可复用的原始提示词');
   await generate(page);
   await prompt(page, '另一张图片');
@@ -165,7 +121,7 @@ test('跨 origin 图片读取不带凭据，原图信息、下载、复用和删
   await expect(cards).toHaveCount(2);
   const original = cards.filter({ hasText: '可复用的原始提示词' });
   await verifyImageDownload(page, original, png);
-  await expect(original).toContainText('test-image');
+  await expect(original).toContainText('standard');
   await expect(original).toContainText(`image/png · 64 × 64 · ${png.length} bytes`);
   page.once('dialog', dialog => dialog.accept());
   await original.getByRole('button', { name: '复用提示词' }).click();
@@ -193,8 +149,8 @@ test('跨 origin 图片读取不带凭据，原图信息、下载、复用和删
 
 test('另一标签页保存草稿不重新读取作品，新增作品通过原生活查询出现', async ({ page, context }) => {
   const png = await pngFixture();
-  await context.route(endpoint, route => route.fulfill({ json: { data: [{ b64_json: png.toString('base64') }] } }));
-  await provider(page);
+  await taskFixture(context, () => ({ json: { data: [{ b64_json: png.toString('base64') }] } }));
+  await platformAccount(page);
   await prompt(page, '第一张图片');
   await generate(page);
   await page.goto('/images');
@@ -227,13 +183,13 @@ test('另一标签页保存草稿不重新读取作品，新增作品通过原�
 test('保存完成文件但关联确认前关闭页面，重开从 journal 恢复而不重新生成', async ({ page, context }) => {
   const png = await pngFixture();
   let calls = 0;
-  await context.route(endpoint, route => {
+  await taskFixture(context, () => {
     calls++;
-    return route.fulfill({
+    return {
       json: { data: [{ b64_json: png.toString('base64') }] }
-    });
+    };
   });
-  await provider(page);
+  await platformAccount(page);
   await prompt(page);
   await page.evaluate(() => {
     const original = FileSystemFileHandle.prototype.getFile;
@@ -264,8 +220,8 @@ test('保存完成文件但关联确认前关闭页面，重开从 journal 恢�
 
 test('删除文件被中断后重开会继续清理，不影响其他作品', async ({ page }) => {
   const png = await pngFixture();
-  await page.route(endpoint, route => route.fulfill({ json: { data: [{ b64_json: png.toString('base64') }] } }));
-  await provider(page);
+  await taskFixture(page, () => ({ json: { data: [{ b64_json: png.toString('base64') }] } }));
+  await platformAccount(page);
   await prompt(page, '应当删除');
   await generate(page);
   await prompt(page, '应当保留');
@@ -295,8 +251,8 @@ test('删除文件被中断后重开会继续清理，不影响其他作品', as
 
 test('备份的超限、摘要损坏和重复图片 ID 不会切换或覆盖现有工作区', async ({ page }) => {
   const png = await pngFixture();
-  await page.route(endpoint, route => route.fulfill({ json: { data: [{ b64_json: png.toString('base64') }] } }));
-  await provider(page);
+  await taskFixture(page, () => ({ json: { data: [{ b64_json: png.toString('base64') }] } }));
+  await platformAccount(page);
   await prompt(page);
   await generate(page);
   const contents = await downloadBackup(page);
@@ -326,8 +282,8 @@ test('备份的超限、摘要损坏和重复图片 ID 不会切换或覆盖现�
 
 test('导入中断保留原库，同一备份重试复用隔离暂存区并恢复全部原图', async ({ page }) => {
   const png = await pngFixture();
-  await page.route(endpoint, route => route.fulfill({ json: { data: [{ b64_json: png.toString('base64') }] } }));
-  await provider(page);
+  await taskFixture(page, () => ({ json: { data: [{ b64_json: png.toString('base64') }] } }));
+  await platformAccount(page);
   await prompt(page, '备份图片一');
   await generate(page);
   await prompt(page, '备份图片二');
@@ -351,8 +307,8 @@ test('导入中断保留原库，同一备份重试复用隔离暂存区并恢�
   const staging = await page.evaluate(() => JSON.parse(localStorage.getItem('aiao-local-import-staging-v1') || 'null'));
   expect(staging.id).not.toBe(original);
   await page.reload();
-  await page.getByRole('tab', { name: '供应商', exact: true }).click();
-  await expect(page.getByRole('heading', { name: '本机供应商 · 默认' })).toBeVisible();
+  await page.getByRole('tab', { name: '平台生图', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '平台生图与积分' })).toBeVisible();
   const reloaded = page.waitForEvent('load');
   await importBackup(page, contents);
   await reloaded;
@@ -374,15 +330,14 @@ test('导入中断保留原库，同一备份重试复用隔离暂存区并恢�
     page.getByRole('button', { name: '返回工作区：导入前工作区', exact: true }).click()
   ]);
   await expect.poll(() => profile(page)).toBe(original);
-  await page.getByRole('tab', { name: '供应商', exact: true }).click();
-  await page.getByRole('button', { name: '编辑 / 填写 Key' }).click();
-  await expect(page.getByLabel('API Key', { exact: true })).toHaveValue(key);
+  await page.getByRole('tab', { name: '平台生图', exact: true }).click();
+  await expect(page.locator('#provider-key, #provider-base')).toHaveCount(0);
   await page.goto('/images');
   await expect(page.getByAltText('本机生成作品')).toHaveCount(2);
 });
 
 test('不兼容 schema 阻止已有标签页写入和重开，恢复兼容版本后原数据可读', async ({ page }) => {
-  await provider(page);
+  await platformAccount(page);
   await prompt(page, '兼容版本的原始草稿');
   const original = await profile(page);
   await page.evaluate(id => localStorage.setItem(`aiao-local-schema-${id}`, '3'), original);
@@ -395,12 +350,11 @@ test('不兼容 schema 阻止已有标签页写入和重开，恢复兼容版本
   await page.reload();
   await expect(page.locator('[contenteditable=true]')).toContainText('兼容版本的原始草稿');
   await page.goto('/providers');
-  await page.getByRole('button', { name: '编辑 / 填写 Key' }).click();
-  await expect(page.getByLabel('API Key', { exact: true })).toHaveValue(key);
+  await expect(page.locator('#provider-key, #provider-base')).toHaveCount(0);
 });
 
 test('两个标签页的草稿冲突保留各自输入，明确选择保留或载入后才覆盖', async ({ page, context }) => {
-  await provider(page);
+  await platformAccount(page);
   await prompt(page, '初始草稿');
   const other = await context.newPage();
   await other.goto('/create');
@@ -446,7 +400,7 @@ test('两个标签页的草稿冲突保留各自输入，明确选择保留或�
 });
 
 test('编辑器资源失败不丢草稿、不允许提交，重试加载后可继续编辑', async ({ page }) => {
-  await provider(page);
+  await platformAccount(page);
   await prompt(page, '编辑器重试后仍保留的输入');
   await page.evaluate(async () => {
     for (const registration of await navigator.serviceWorker.getRegistrations()) await registration.unregister();
@@ -465,7 +419,7 @@ test('编辑器资源失败不丢草稿、不允许提交，重试加载后可�
 });
 
 test('模板字段可撤销重做，刷新恢复画幅，替换模板后撤销不串回旧内容', async ({ page }) => {
-  await provider(page);
+  await platformAccount(page);
   await page.getByRole('link', { name: '发现灵感', exact: true }).click();
   await page
     .getByRole('button', {

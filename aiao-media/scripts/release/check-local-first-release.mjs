@@ -64,11 +64,20 @@ for (const required of [
   'browser/admin/index.html',
   'browser/admin/new-project.sql',
   'browser/admin/upgrade-installation.sql',
+  'browser/admin/upgrade-credits.sql',
   'browser/offline-shell.html',
   'browser/offline-worker.js',
   'browser/wa-sqlite/wa-sqlite-async.wasm'
 ])
   if (!inventory.some(file => file.path === required)) throw new Error(`Missing build resource: ${required}`);
+const creditUpgrade = await readFile(resolve(output, 'browser/admin/upgrade-credits.sql'), 'utf8');
+if (
+  (creditUpgrade.match(/^BEGIN;$/gm) ?? []).length !== 1 ||
+  (creditUpgrade.match(/^COMMIT;$/gm) ?? []).length !== 1 ||
+  !creditUpgrade.includes('FUNCTION public.media_abort_credits(') ||
+  !creditUpgrade.includes('FUNCTION public.media_reserve_credits(')
+)
+  throw new Error('Credit upgrade must atomically include reservation and abandonment migrations');
 if (files.length > 20000) throw new Error('Free static asset count exceeded');
 await mkdir(resolve(webRoot, 'tmp/local-first'), { recursive: true });
 await writeFile(

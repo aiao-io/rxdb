@@ -1,4 +1,4 @@
-import { chmodSync } from 'node:fs';
+import { chmodSync, mkdirSync } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -13,8 +13,7 @@ import type { WorkerEnv, WorkerSql } from './worker-env.ts';
 /** 国内 HTTP 入口固定公开 origin，任务的上游请求独立于浏览器连接。 */
 export async function startNodeServer(environment: NodeJS.ProcessEnv = process.env) {
   const origin = new URL(environment['MEDIA_PUBLIC_ORIGIN']!).origin;
-  const runtime = new NodeRelayRuntime({ directory: environment['MEDIA_DATA_DIRECTORY']!, maxConcurrent: 2 });
-  await runtime.start();
+  mkdirSync(environment['MEDIA_DATA_DIRECTORY']!, { recursive: true, mode: 0o700 });
   const databasePath = join(environment['MEDIA_DATA_DIRECTORY']!, 'installation.sqlite');
   const database = new DatabaseSync(databasePath);
   chmodSync(databasePath, 0o600);
@@ -25,7 +24,7 @@ export async function startNodeServer(environment: NodeJS.ProcessEnv = process.e
         .all(...values.map(value => (value instanceof ArrayBuffer ? new Uint8Array(value) : value))) as unknown as Row[]
   };
   const env: WorkerEnv = {
-    ...runtime.bindings(),
+    ...Object.fromEntries(Object.entries(environment).filter(([name]) => name.startsWith('MEDIA_'))),
     MEDIA_SUPABASE_URL: environment['MEDIA_SUPABASE_URL'],
     MEDIA_SUPABASE_ANON_KEY: environment['MEDIA_SUPABASE_ANON_KEY'],
     MEDIA_SUPABASE_SERVICE_ROLE_KEY: environment['MEDIA_SUPABASE_SERVICE_ROLE_KEY'],
@@ -39,6 +38,9 @@ export async function startNodeServer(environment: NodeJS.ProcessEnv = process.e
     idFromName: name => name,
     get: () => ({ fetch: (input, init) => setup.fetch(new Request(input, init)) })
   };
+  const runtime = new NodeRelayRuntime({ directory: environment['MEDIA_DATA_DIRECTORY']!, env, maxConcurrent: 2 });
+  Object.assign(env, runtime.bindings());
+  await runtime.start();
   const handle = async (incoming: IncomingMessage, outgoing: ServerResponse) => {
     const abort = new AbortController();
     outgoing.on('close', () => abort.abort());

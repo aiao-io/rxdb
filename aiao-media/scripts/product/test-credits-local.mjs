@@ -112,6 +112,22 @@ try {
     'PASS real PostgreSQL concurrent reservations prevent double spending, eight settlements charge once, failed task releases its reservation'
   );
 
+  const abandoned = {
+    p_owner: owner.id,
+    p_task: randomUUID(),
+    p_cost: 3,
+    p_fingerprint: 'e'.repeat(64),
+    p_token_hash: 'f'.repeat(64)
+  };
+  ok(await admin.rpc('media_abort_credits', abandoned), 'Seal before delayed reservation');
+  const delayed = ok(await admin.rpc('media_reserve_credits', abandoned), 'Reject delayed reservation');
+  assert.equal(delayed.state, 'released');
+  assert.equal((await (await handleCredits(request(owner, 'credits'), environment)).json()).account.available, 3);
+  assert.ok((await owner.client.rpc('media_abort_credits', abandoned)).error);
+  console.log(
+    'PASS abandoned task seals its identifier before delayed reservation and cannot be forged by an ordinary user'
+  );
+
   ok(
     await admin.from('media_admin_memberships').update({ enabled: false }).eq('user_id', actor.id),
     'Revoke administrator'

@@ -5,6 +5,7 @@ export * from './contracts/product-data.mjs';
 export * from './contracts/relay-task.ts';
 export type { CreditAccount, CreditEntry, CreditSnapshot } from './credits';
 export type { InstallationAuth, InstallationInput, InstallationStatus } from './installation';
+export * from './platform-model.ts';
 export * from './prompt-state.ts';
 export * from './prompt-template.ts';
 export * from './studio-draft.ts';

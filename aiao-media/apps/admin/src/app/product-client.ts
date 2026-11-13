@@ -13,6 +13,15 @@ export interface RemoteWorkspace {
 }
 export type ProductAuthorizer = () => Promise<ProductAuthorization>;
 
+/** 携带 HTTP 状态的公开错误，允许界面区分撤权与可安全重试的失败。 */
+export class ProductRequestError extends Error {
+  readonly status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
 /** 只携带经验证的当前会话，产品数据与管理调用使用各自固定入口。 */
 export class ProductClient {
   constructor(private readonly authorize: ProductAuthorizer) {}
@@ -99,7 +108,8 @@ export class ProductClient {
       signal: AbortSignal.timeout(15000)
     });
     if (!result.ok)
-      throw new Error(
+      throw new ProductRequestError(
+        result.status,
         result.status === 401 || result.status === 403 ? '账号或权限已失效，远程操作已暂停。'
         : result.status === 402 ? '可用积分不足，请查看当前余额。'
         : result.status === 409 ? '数据版本已变化，请重试。'

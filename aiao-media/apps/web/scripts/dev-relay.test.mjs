@@ -1,32 +1,27 @@
 import { createRelayTaskToken, openRelayResult, relayResultKey } from '@aiao-media/api-contracts';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { test } from 'node:test';
 import { startDevRelay } from '../../api/scripts/dev-relay.mjs';
+import { fixtureProvider, platformFixture } from '../../api/scripts/fixtures/platform-fixture.ts';
 
-const provider = 'https://provider.example.test/v1';
-const imageRequest = { model: 'image-test', prompt: 'test forest', n: 1, size: '1024x1024' };
-const allowOnly = { allowedProviders: [provider] };
-const image = () => Response.json({ data: [{ b64_json: 'fixture' }] });
-
-// The relay's own fetch reaches the provider; the test client uses node:http, so the stub never sees it.
-async function withRelay(options, handler, run) {
-  const previous = globalThis.fetch;
-  const calls = [];
-  globalThis.fetch = async (url, init) => {
+const imageRequest = { model: 'standard', prompt: 'test forest', n: 1, size: '1024x1024' };
+async function withRelay(context, run) {
+  const fixture = platformFixture(),
+    calls = [];
+  context.mock.method(globalThis, 'fetch', async (url, init) => {
+    if (!String(url).startsWith(fixtureProvider)) return fixture.backendFetch(url, init);
     calls.push({ url, init });
-    return handler(url, init);
-  };
-  const relay = await startDevRelay(options);
+    return Response.json({ data: [{ b64_json: 'fixture' }] });
+  });
+  const relay = await startDevRelay({ allowedProviders: [fixtureProvider], environment: fixture.env });
   try {
-    await run(relay, calls);
+    await run(relay, calls, fixture.ledger);
   } finally {
-    globalThis.fetch = previous;
     await relay.close();
   }
 }
-function post(relay, { path = '/api/relay', method = 'POST', headers = {} } = {}) {
+function send(relay, method, path, headers = {}) {
   return new Promise((resolve, reject) => {
     const outgoing = request(
       new URL(path, relay.url),
@@ -35,8 +30,7 @@ function post(relay, { path = '/api/relay', method = 'POST', headers = {} } = {}
         headers: {
           origin: relay.url,
           'content-type': 'application/json',
-          authorization: 'Bearer fixture-only',
-          'x-provider-base': provider,
+          authorization: 'Bearer fixture-session',
           ...headers
         }
       },
@@ -50,90 +44,46 @@ function post(relay, { path = '/api/relay', method = 'POST', headers = {} } = {}
       }
     );
     outgoing.on('error', reject);
-    outgoing.end(method === 'GET' ? undefined : JSON.stringify(imageRequest));
+    outgoing.end(method === 'PUT' ? JSON.stringify(imageRequest) : undefined);
   });
 }
-
-test('forwards a same-origin relay request to the allow-listed provider with only the caller Key', async () => {
-  await withRelay(allowOnly, image, async (relay, calls) => {
-    const result = await post(relay, { headers: { cookie: 'private=secret' } });
-    assert.equal(result.status, 200);
-    assert.deepEqual(JSON.parse(result.text), { data: [{ b64_json: 'fixture' }] });
-    assert.equal(calls.length, 1);
-    assert.equal(calls[0].url, `${provider}/images/generations`);
-    assert.deepEqual(calls[0].init.headers, {
-      authorization: 'Bearer fixture-only',
-      'content-type': 'application/json'
-    });
-  });
-});
-test('keeps the delayed-result stream marker that the browser relies on', async () => {
-  const slow = async () => {
-    await new Promise(resolve => setTimeout(resolve, 400));
-    return image();
-  };
-  await withRelay(allowOnly, slow, async relay => {
-    const result = await post(relay);
-    assert.equal(result.status, 200);
-    assert.equal(result.headers['x-aiao-relay-stream'], 'late-upstream');
-    assert.deepEqual(JSON.parse(result.text), { data: [{ b64_json: 'fixture' }] });
-  });
-});
-test('answers a provider rejection with JSON, which is how the browser tells it from a missing relay', async () => {
-  await withRelay(
-    allowOnly,
-    () => new Response('private', { status: 404 }),
-    async relay => {
-      const result = await post(relay);
-      assert.equal(result.status, 404);
-      assert.match(result.headers['content-type'], /application\/json/);
-      assert.ok(!result.text.includes('private'));
-    }
-  );
-});
-test('refuses cross-origin callers, other providers and other API routes before contacting a provider', async () => {
-  await withRelay(allowOnly, image, async (relay, calls) => {
-    assert.equal((await post(relay, { headers: { origin: 'https://evil.example.test' } })).status, 403);
-    assert.equal((await post(relay, { headers: { 'x-provider-base': 'https://other.example.test/v1' } })).status, 403);
-    assert.equal((await post(relay, { path: '/api/platform/session' })).status, 404);
+test('开发入口移除旧 Key 代理，拒绝跨源和用户供应商 Key', async context => {
+  await withRelay(context, async (relay, calls) => {
+    const path = `/api/relay/tasks/${crypto.randomUUID()}`,
+      headers = { 'x-relay-task-token': createRelayTaskToken() };
+    assert.equal((await send(relay, 'POST', '/api/relay')).status, 404);
+    assert.equal((await send(relay, 'PUT', path, { ...headers, origin: 'https://evil.test' })).status, 403);
+    assert.equal(
+      (await send(relay, 'PUT', path, { ...headers, authorization: 'Bearer user-provider-key' })).status,
+      401
+    );
+    assert.equal((await send(relay, 'GET', '/api/platform/session')).status, 404);
     assert.equal(calls.length, 0);
   });
 });
-test('starts from the allow-list committed for deployment and listens on loopback only', async () => {
-  const [committed] = JSON.parse(
-    JSON.parse(readFileSync(new URL('../../api/wrangler.json', import.meta.url), 'utf8')).vars
-      .ALLOWED_PROVIDER_BASE_URLS
-  );
-  await withRelay(undefined, image, async (relay, calls) => {
-    assert.match(relay.url, /^http:\/\/127\.0\.0\.1:\d+$/);
-    assert.equal((await post(relay, { headers: { 'x-provider-base': committed } })).status, 200);
-    assert.equal(calls[0].url, `${committed}/images/generations`);
-  });
-});
-test('runs relay tasks on in-process stand-ins, so a reloaded page can still read the sealed result', async () => {
-  const slow = async () => {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return image();
-  };
-  await withRelay(allowOnly, slow, async (relay, calls) => {
+test('开发任务可刷新续接、取回密文和确认扣费，上游只收到平台凭据', async context => {
+  await withRelay(context, async (relay, calls, ledger) => {
     const id = crypto.randomUUID(),
       token = createRelayTaskToken(),
       path = `/api/relay/tasks/${id}`,
       headers = { 'x-relay-task-token': token };
-    assert.equal((await post(relay, { method: 'PUT', path, headers })).status, 202);
-    // The sending page is gone; a later request with the stored token waits for the outcome.
-    const view = await post(relay, { method: 'GET', path: `${path}?wait=5`, headers });
+    assert.match(relay.url, /^http:\/\/127\.0\.0\.1:\d+$/);
+    assert.equal((await send(relay, 'PUT', path, headers)).status, 202);
+    const view = await send(relay, 'GET', `${path}?wait=5`, headers);
     assert.equal(JSON.parse(view.text).status, 'received');
-    const sealed = await post(relay, { method: 'GET', path: `${path}/result`, headers });
-    const opened = await openRelayResult(await relayResultKey(token, id, 'decrypt'), new Uint8Array(sealed.bytes));
-    assert.deepEqual(JSON.parse(new TextDecoder().decode(opened)), { data: [{ b64_json: 'fixture' }] });
+    const sealed = await send(relay, 'GET', `${path}/result`, headers);
+    const plain = await openRelayResult(await relayResultKey(token, id, 'decrypt'), new Uint8Array(sealed.bytes));
+    assert.deepEqual(JSON.parse(new TextDecoder().decode(plain)), { data: [{ b64_json: 'fixture' }] });
+    assert.equal(ledger.charges, 0);
+    assert.equal((await send(relay, 'POST', `${path}/confirm`, headers)).status, 204);
+    assert.equal(ledger.charges, 1);
     assert.equal(calls.length, 1);
+    assert.equal(calls[0].init.headers.authorization, 'Bearer fixture-model-private');
+    assert.equal((await send(relay, 'DELETE', path, headers)).status, 204);
   });
 });
-test('the Angular proxy config sends only /api/relay to a live relay', async () => {
+test('旧开发代理配置仍下线无状态入口，未配置模型服务明确报错', async () => {
   const { default: proxy } = await import('../../web/proxy.conf.mjs');
-  assert.deepEqual(Object.keys(proxy), ['/api/relay']);
   const response = await fetch(new URL('/api/relay', proxy['/api/relay'].target));
-  assert.equal(response.status, 405);
-  assert.deepEqual(await response.json(), { error: 'POST required' });
+  assert.equal(response.status, 404);
 });

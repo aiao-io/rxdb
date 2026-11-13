@@ -6,117 +6,28 @@ const env = {
   ALLOWED_PROVIDER_BASE_URLS: '["https://provider.example.test/v1"]',
   ASSETS: { fetch: () => new Response('static application') }
 };
-const body = {
-  model: 'image-test',
-  prompt: 'test forest',
-  n: 1,
-  size: '1024x1024'
-};
-const request = (extra = {}, data = body) =>
-  new Request(`${origin}/api/relay`, {
-    method: 'POST',
-    headers: {
-      origin,
-      'content-type': 'application/json',
-      authorization: 'Bearer fixture-only',
-      'x-provider-base': 'https://provider.example.test/v1',
-      ...extra
-    },
-    body: JSON.stringify(data)
-  });
-test('只接收同源、允许列表中的供应商，不暴露任意 URL 代理', async () => {
-  for (const headers of [
-    { origin: 'https://evil.example.test' },
-    { 'x-provider-base': 'https://other.example.test/v1' },
-    { 'x-provider-base': 'http://127.0.0.1' },
-    { 'x-provider-base': 'https://provider.example.test/v1?secret=1' }
-  ])
-    assert.ok([400, 403].includes((await worker.fetch(request(headers), env)).status));
-  assert.equal((await worker.fetch(request({}, { ...body, n: 2 }), env)).status, 400);
-  assert.equal((await worker.fetch(request({}, { ...body, prompt: 'x'.repeat(2001) }), env)).status, 400);
-  assert.equal((await worker.fetch(request({}, { ...body, prompt: 'x'.repeat(17000) }), env)).status, 413);
-});
-test('Key 仅在本次转发，剥离其他头、禁止重定向、结果不缓存', async () => {
-  const previous = globalThis.fetch;
+test('旧无状态代理已下线，任何方法或用户 Key 都不发出上游请求', async context => {
   let calls = 0;
-  globalThis.fetch = async (url, init) => {
+  context.mock.method(globalThis, 'fetch', async () => {
     calls++;
-    assert.equal(url, 'https://provider.example.test/v1/images/generations');
-    assert.equal(init.redirect, 'manual');
-    assert.deepEqual(init.headers, {
-      authorization: 'Bearer fixture-only',
-      'content-type': 'application/json'
-    });
-    assert.equal(JSON.parse(init.body).n, 1);
-    return Response.json({ data: [{ b64_json: 'fixture' }] });
-  };
-  try {
+    throw new Error('must not dispatch');
+  });
+  for (const method of ['GET', 'POST', 'PUT', 'DELETE']) {
     const response = await worker.fetch(
-      request({
-        cookie: 'private=secret',
-        'x-internal-token': 'do-not-forward'
+      new Request(`${origin}/api/relay`, {
+        method,
+        headers: {
+          origin,
+          authorization: 'Bearer old-provider-key',
+          'x-provider-base': 'https://provider.example.test/v1'
+        }
       }),
       env
     );
-    assert.equal(response.status, 200);
+    assert.equal(response.status, 404);
     assert.equal(response.headers.get('cache-control'), 'no-store');
-    assert.deepEqual(await response.json(), {
-      data: [{ b64_json: 'fixture' }]
-    });
-    assert.equal(calls, 1);
-  } finally {
-    globalThis.fetch = previous;
   }
-});
-test('上游重定向在立即和延迟响应中均被拒绝，不转发 Key 到新地址', async () => {
-  const previous = globalThis.fetch;
-  try {
-    for (const delay of [0, 300]) {
-      let calls = 0;
-      globalThis.fetch = async (url, init) => {
-        calls++;
-        assert.equal(url, 'https://provider.example.test/v1/images/generations');
-        // This is the only non-following mode accepted by the Workers runtime.
-        assert.equal(init.redirect, 'manual');
-        if (delay) await new Promise(resolve => setTimeout(resolve, delay));
-        return new Response('private redirect body', {
-          status: 307,
-          headers: { location: 'https://other.example.test/collect' }
-        });
-      };
-      const response = await worker.fetch(request(), env);
-      const result = await response.json();
-      assert.equal(delay ? result.status : response.status, 502);
-      assert.equal(calls, 1);
-      assert.equal(response.headers.get('location'), null);
-      assert.ok(!JSON.stringify(result).includes('private redirect body'));
-    }
-  } finally {
-    globalThis.fetch = previous;
-  }
-});
-test('供应商错误不泄露响应和 Key；网络失败不重试', async () => {
-  const previous = globalThis.fetch;
-  let calls = 0;
-  globalThis.fetch = async () => {
-    calls++;
-    return new Response('sensitive fixture-only error', { status: 401 });
-  };
-  try {
-    const response = await worker.fetch(request(), env);
-    assert.equal(response.status, 401);
-    assert.ok(!(await response.text()).includes('fixture-only'));
-    globalThis.fetch = async () => {
-      calls++;
-      throw new Error('sensitive fixture-only');
-    };
-    const interrupted = await worker.fetch(request(), env);
-    assert.equal(interrupted.status, 502);
-    assert.ok(!(await interrupted.text()).includes('fixture-only'));
-    assert.equal(calls, 2);
-  } finally {
-    globalThis.fetch = previous;
-  }
+  assert.equal(calls, 0);
 });
 test('后台路径加载独立管理产物并禁止缓存', async () => {
   const redirect = await worker.fetch(new Request(`${origin}/admin`), env);
@@ -200,189 +111,19 @@ test('平台统一同步不提供用户项目授权与初始化接口', async t 
   assert.equal(requested, false);
 });
 
-test('provider probe only checks provider reachability and CORS preflight', async () => {
-  const previous = globalThis.fetch;
-  const calls = [];
-  globalThis.fetch = async (url, init) => {
-    assert.equal(init.redirect, 'manual');
-    calls.push({ url, method: init?.method ?? 'GET', body: init?.body ?? null });
-    return new Response(null, {
-      status: 204,
-      headers: { 'content-type': 'text/plain' }
-    });
-  };
-  try {
-    const response = await worker.fetch(new Request(`${origin}/api/provider-probe`), env);
-    const result = await response.json();
-    assert.equal(response.status, 200);
-    assert.equal(result.providers.length, 1);
-    assert.equal(result.providers[0].reachable, true);
-    assert.equal(result.providers[0].browserDirect, false);
-    assert.equal(result.controls, undefined);
-    assert.equal(calls.length, 2);
-    const providerCalls = calls.filter(({ url }) => new URL(url).origin === 'https://provider.example.test');
-    assert.deepEqual(providerCalls.map(({ method }) => method).sort(), ['GET', 'OPTIONS']);
-    assert.deepEqual(providerCalls.map(({ url }) => url), [
-      'https://provider.example.test/v1/',
-      'https://provider.example.test/v1/'
-    ]);
-  } finally {
-    globalThis.fetch = previous;
-  }
-});
-
-test('probe marks browser-direct only when the provider answers CORS preflight', async () => {
-  const previous = globalThis.fetch;
-  globalThis.fetch = async (url, init) => {
-    if (init?.method === 'OPTIONS')
-      return new Response(null, {
-        status: 204,
-        headers: {
-          'access-control-allow-origin': origin,
-          'access-control-allow-methods': 'POST',
-          'access-control-allow-headers': 'authorization,content-type'
-        }
-      });
-    return new Response(null, { status: 204 });
-  };
-  try {
-    const response = await worker.fetch(new Request(`${origin}/api/provider-probe`), env);
-    const result = await response.json();
-    assert.equal(result.providers[0].reachable, true);
-    assert.equal(result.providers[0].browserDirect, true);
-    assert.ok(result.interpretation.includes('relay'));
-  } finally {
-    globalThis.fetch = previous;
-  }
-});
-
-test('长耗时上游以 JSON 空白心跳保持连接并转发结果', async () => {
-  const previous = globalThis.fetch;
-  globalThis.fetch = async () => {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    return Response.json({ data: [{ b64_json: 'fixture' }] });
-  };
-  try {
-    const response = await worker.fetch(request(), env);
-    assert.equal(response.status, 200);
-    assert.equal(response.headers.get('x-aiao-relay-stream'), 'late-upstream');
-    assert.deepEqual(await response.json(), {
-      data: [{ b64_json: 'fixture' }]
-    });
-  } finally {
-    globalThis.fetch = previous;
-  }
-});
-
-const miniMaxBase = 'https://api.minimax.cn/v1';
-const miniMaxEnv = { ...env, ALLOWED_PROVIDER_BASE_URLS: JSON.stringify([miniMaxBase]) };
-const miniMaxHeaders = { 'x-provider-base': miniMaxBase };
-
-test('MiniMax 代理保留入口契约，固定映射三画幅原生请求，剥离多余参数和请求头', async () => {
-  const previous = globalThis.fetch;
-  const calls = [];
-  globalThis.fetch = async (url, init) => {
-    calls.push({ url, init });
-    return Response.json({
-      base_resp: { status_code: 0 },
-      data: { image_urls: ['https://images.example/native.png'] }
-    });
-  };
-  try {
-    for (const [size, width, height] of [
-      ['1024x1024', 1024, 1024],
-      ['1536x1024', 1536, 1024],
-      ['1024x1536', 1024, 1536]
-    ]) {
-      const response = await worker.fetch(
-        request(
-          { ...miniMaxHeaders, cookie: 'private' },
-          {
-            ...body,
-            model: 'image-01',
-            size,
-            callback_url: 'https://evil.example/',
-            aspect_ratio: '1:1'
-          }
-        ),
-        miniMaxEnv
-      );
-      assert.equal(response.status, 200);
-      assert.equal((await response.json()).base_resp.status_code, 0);
-      const call = calls.at(-1);
-      assert.equal(call.url, `${miniMaxBase}/image_generation`);
-      assert.equal(call.init.redirect, 'manual');
-      assert.deepEqual(call.init.headers, { authorization: 'Bearer fixture-only', 'content-type': 'application/json' });
-      assert.deepEqual(JSON.parse(call.init.body), {
-        model: 'image-01',
-        prompt: body.prompt,
-        n: 1,
-        width,
-        height,
-        response_format: 'url',
-        prompt_optimizer: false
-      });
+test('公开 API 不再暴露上游地址、运行策略或直连探针', async t => {
+  let calls = 0;
+  t.mock.method(globalThis, 'fetch', async () => {
+    calls++;
+    throw new Error('不得访问上游');
+  });
+  for (const path of ['provider-probe', 'provider-policies']) {
+    for (const method of ['GET', 'POST']) {
+      const response = await worker.fetch(new Request(`${origin}/api/${path}`, { method }), env);
+      assert.equal(response.status, 404);
+      assert.equal(response.headers.get('cache-control'), 'no-store');
+      assert.equal((await response.json()).error, 'Unknown API');
     }
-    assert.equal(calls.length, 3);
-  } finally {
-    globalThis.fetch = previous;
   }
-});
-
-test('MiniMax 仍须逐项允许列表授权；不接受不支持的模型和过长提示词', async () => {
-  const previous = globalThis.fetch;
-  let calls = 0;
-  globalThis.fetch = async () => {
-    calls++;
-    throw new Error('must not dispatch');
-  };
-  try {
-    const nativeBody = { ...body, model: 'image-01' };
-    assert.equal((await worker.fetch(request(miniMaxHeaders, nativeBody), env)).status, 403);
-    assert.equal(
-      (await worker.fetch(request(miniMaxHeaders, { ...nativeBody, model: 'unsupported' }), miniMaxEnv)).status,
-      400
-    );
-    assert.equal(
-      (await worker.fetch(request(miniMaxHeaders, { ...nativeBody, prompt: 'x'.repeat(1501) }), miniMaxEnv)).status,
-      400
-    );
-    assert.equal(calls, 0);
-  } finally {
-    globalThis.fetch = previous;
-  }
-});
-
-test('MiniMax 业务错误按原样交给浏览器分类，代理不重试', async () => {
-  const previous = globalThis.fetch;
-  let calls = 0;
-  globalThis.fetch = async url => {
-    calls++;
-    assert.equal(url, `${miniMaxBase}/image_generation`);
-    return Response.json({ base_resp: { status_code: 1033, status_msg: 'system error' } });
-  };
-  try {
-    const response = await worker.fetch(request(miniMaxHeaders, { ...body, model: 'image-01' }), miniMaxEnv);
-    assert.equal((await response.json()).base_resp.status_code, 1033);
-    assert.equal(calls, 1);
-  } finally {
-    globalThis.fetch = previous;
-  }
-});
-
-test('MiniMax 连通性探针不调用图片生成接口', async () => {
-  const previous = globalThis.fetch;
-  const calls = [];
-  globalThis.fetch = async (url, init) => {
-    calls.push({ url, init });
-    return new Response(null, { status: 204 });
-  };
-  try {
-    await worker.fetch(new Request(`${origin}/api/provider-probe`), miniMaxEnv);
-    assert.equal(calls.length, 2);
-    assert.ok(calls.every(call => call.url === `${miniMaxBase}/`));
-    assert.deepEqual(calls.map(call => call.init.method ?? 'GET').sort(), ['GET', 'OPTIONS']);
-  } finally {
-    globalThis.fetch = previous;
-  }
+  assert.equal(calls, 0);
 });

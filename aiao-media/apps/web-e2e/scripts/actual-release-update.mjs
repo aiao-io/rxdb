@@ -4,7 +4,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, resolve } from 'node:path';
 import sharp from 'sharp';
-import { importBackup, profile, verifyImageDownload } from '../src/local-first.helpers.ts';
+import { backupText, downloadBackup, importBackup, profile, verifyImageDownload } from '../src/local-first.helpers.ts';
 import { parsePublicAccountConfig, validatePublicAccountConfig } from './public-origin-smoke.mjs';
 
 const cachePrefix = 'aiao-media-shell-v1-';
@@ -282,6 +282,13 @@ async function ready(page, artifact, network) {
   await assertEntryScripts(page, artifact, network);
 }
 
+export async function verifySavedSettings(page, seed) {
+  const backup = JSON.parse(backupText(await downloadBackup(page)));
+  await expect(backup.providers).toContainEqual(seed.provider);
+  requireCheck(backup.defaultId === seed.provider.id, 'LEGACY_SETTINGS_CHANGED');
+  requireCheck(backup.providers.every(provider => !Object.hasOwn(provider, 'key')), 'LEGACY_CREDENTIAL_EXPORTED');
+}
+
 async function verifyOffline(context, page, artifact, seed, id, network) {
   await context.setOffline(true);
   try {
@@ -300,15 +307,7 @@ async function verifyOffline(context, page, artifact, seed, id, network) {
       await assertEntryScripts(page, artifact, network);
       await expect(page.getByRole('link', { name: 'Aiao Images 首页' })).toBeVisible();
       requireCheck((await profile(page)) === id, 'WORKSPACE_CHANGED');
-      if (path === '/providers') {
-        await expect(page.getByRole('heading', { name: `${seed.provider.name} · 默认`, exact: true })).toBeVisible();
-        await page.getByRole('button', { name: '编辑 / 填写 Key', exact: true }).click();
-        await expect(page.getByLabel('HTTPS Base URL')).toHaveValue(seed.provider.baseUrl);
-        await expect(page.getByLabel('图片模型 ID')).toHaveValue(seed.provider.model);
-        await expect(page.getByLabel('请求通道')).toHaveValue(seed.provider.mode);
-        await expect(page.getByLabel('在此设备记住 Key')).not.toBeChecked();
-        await expect(page.getByLabel('API Key', { exact: true })).toHaveValue('');
-      }
+      if (path === '/providers') await verifySavedSettings(page, seed);
       if (path === '/create') await expect(page.locator('[contenteditable=true]')).toContainText(seed.text);
       if (path === '/images') await verifyImageDownload(page, page.locator('.library-card'), seed.png);
     }
@@ -400,7 +399,7 @@ export async function runActualReleaseUpdate({ origin, buildA, buildB, switchBui
     const loaded = page.waitForEvent('load');
     await importBackup(page, seed.backup);
     await loaded;
-    await expect(page.getByRole('heading', { name: `${seed.provider.name} · 默认`, exact: true })).toBeVisible();
+    await verifySavedSettings(page, seed);
     const id = await profile(page);
     requireCheck(typeof id === 'string', 'MISSING_IMPORTED_WORKSPACE');
     await verifyOffline(context, page, releases.a, seed, id, network);

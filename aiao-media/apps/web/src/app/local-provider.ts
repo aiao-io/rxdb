@@ -1,11 +1,5 @@
-import type { ImageAspectRatio } from '@aiao-media/api-contracts';
-import {
-  ImageFormatError,
-  imageGenerationRequest,
-  imageMetadata,
-  isMiniMaxImageProvider,
-  validateImageBlob
-} from '@aiao-media/api-contracts';
+import type { ImageAspectRatio, ImageResponseProtocol } from '@aiao-media/api-contracts';
+import { ImageFormatError, imageMetadata, validateImageBlob } from '@aiao-media/api-contracts';
 
 export interface LocalProvider {
   id: string;
@@ -109,66 +103,11 @@ function miniMaxImageResult(envelope: Record<string, unknown> | null): Record<st
   return { url: urlItems[0], b64_json: base64Items[0] };
 }
 /** HTTP statuses that prove a request was refused before any image was generated. */
-export const definiteRejections = [400, 401, 403, 404, 413, 422, 429];
-/** The failure for a definite HTTP refusal, worded the same for providers and the relay. */
 export const httpFailure = (status: number | null, rejected: boolean) =>
   new ProviderFailure(`供应商或代理返回 HTTP ${status}。请核对配置和供应商记录。`, rejected);
-/**
- * Validates the saved provider, Key and protocol before anything is sent, for both direct and relay dispatch.
- * `body` is the provider-neutral request the relay maps; `request` is the provider's own contract.
- */
-export function prepareImageRequest(provider: LocalProvider, key: string, prompt: string, ratio: ImageAspectRatio) {
-  const checked = publicProvider(provider);
-  const base = providerBase(checked.baseUrl);
-  if (!/^[\x21-\x7e]{1,4096}$/.test(key)) throw new ProviderFailure('请先填写有效的 API Key。', true);
-  const body = {
-    model: checked.model,
-    prompt,
-    n: 1,
-    size:
-      ratio === 'landscape' ? '1536x1024'
-      : ratio === 'portrait' ? '1024x1536'
-      : '1024x1024',
-    quality: 'low',
-    output_format: 'png'
-  };
-  const request = imageGenerationRequest(base, body);
-  if (!request) throw new ProviderFailure('MiniMax 图片仅支持 image-01，提示词最多 1500 字符。', true);
-  return { base, body, request };
-}
-/** Sends one image request directly to the provider; relay mode goes through relay tasks instead. */
-export async function generateLocalImage(
-  provider: LocalProvider,
-  key: string,
-  prompt: string,
-  ratio: ImageAspectRatio,
-  signal: AbortSignal
-): Promise<Blob> {
-  const { base, request } = prepareImageRequest(provider, key, prompt, ratio);
-  const response = await fetch(request.url, {
-    method: 'POST',
-    mode: 'cors',
-    credentials: 'omit',
-    cache: 'no-store',
-    redirect: 'error',
-    referrerPolicy: 'no-referrer',
-    signal,
-    headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
-    body: JSON.stringify(request.body)
-  });
-  if (!response.ok) {
-    await response.body?.cancel();
-    // Only a definite rejection unlocks a new attempt. 5xx and transport failures remain uncertain.
-    throw httpFailure(response.status, definiteRejections.includes(response.status));
-  }
-  return providerImage(base, await bounded(response, 24 * 1024 * 1024), ratio, signal);
-}
-/**
- * Reads one image from a provider's JSON answer, received directly or stored by a relay task, and checks the real
- * format and aspect ratio. Error envelopes and ambiguous answers stay uncertain.
- */
-export async function providerImage(
-  base: string,
+/** 按公开协议读取任务响应，在本机验证原图格式、尺寸和可解码性。 */
+export async function responseImage(
+  protocol: ImageResponseProtocol,
   json: Uint8Array<ArrayBuffer>,
   ratio: ImageAspectRatio,
   signal: AbortSignal
@@ -183,7 +122,7 @@ export async function providerImage(
   }
   const items = data?.['data'];
   const item =
-    isMiniMaxImageProvider(base) ?
+    protocol === 'minimax' ?
       miniMaxImageResult(data)
     : object(Array.isArray(items) && items.length === 1 ? items[0] : null);
   let bytes: Uint8Array<ArrayBuffer>;

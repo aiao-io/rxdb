@@ -6,12 +6,7 @@ import worker from '../src/local-first-worker.ts';
 import { RelayTask } from '../src/relay-task.ts';
 import { durableObjectNamespace, r2Bucket } from './cloudflare-stand-ins.mjs';
 
-// Development stand-in for the production /api/relay and its durable tasks. It runs the same Worker code in this
-// Node process, with in-process Durable Object and R2 stand-ins, so request validation, the provider allow-list,
-// the delayed-result stream and task recovery after a reload behave as they do after deployment.
-const relayPath = '/api/relay';
-const relayed = pathname => pathname === relayPath || pathname.startsWith(`${relayPath}/tasks/`);
-
+// 开发替身运行相同平台接口，任务只接收账号会话，模型凭据留在服务端环境。
 // The allow-list committed for deployment, which `wrangler dev` starts from as well.
 const deployedAllowList = () =>
   JSON.parse(readFileSync(new URL('../wrangler.json', import.meta.url), 'utf8')).vars.ALLOWED_PROVIDER_BASE_URLS;
@@ -41,22 +36,23 @@ async function send(response, outgoing) {
  * Starts the relay on a free loopback port and resolves once it is listening.
  * `allowedProviders` replaces the deployment allow-list, which tests use to stay offline.
  */
-export async function startDevRelay({ allowedProviders } = {}) {
+export async function startDevRelay({ allowedProviders, environment = process.env } = {}) {
   const env = {
+    ...Object.fromEntries(Object.entries(environment).filter(([name]) => name.startsWith('MEDIA_'))),
     ALLOWED_PROVIDER_BASE_URLS: allowedProviders ? JSON.stringify(allowedProviders) : deployedAllowList(),
     RELAY_RESULTS: r2Bucket()
   };
   env.RELAY_TASKS = durableObjectNamespace(ctx => new RelayTask(ctx, env));
   const server = createServer(async (incoming, outgoing) => {
     const abort = new AbortController();
-    // A browser that gives up cancels the provider call as well.
+    // 浏览器断开只停止当前 HTTP 响应，不中止已经接单的上游任务。
     outgoing.once('close', () => {
       if (!outgoing.writableFinished) abort.abort();
     });
     try {
-      // Everything except the relay needs services (Supabase, the platform coordinator) the dev server does not run.
+      // 未配置的产品服务明确返回不可用。
       const response =
-        relayed(new URL(incoming.url, 'http://localhost').pathname) ?
+        new URL(incoming.url, 'http://localhost').pathname.startsWith('/api/') ?
           await worker.fetch(toRequest(incoming, abort.signal), env)
         : Response.json({ error: 'Unknown API' }, { status: 404 });
       await send(response, outgoing);

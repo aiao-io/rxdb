@@ -50,3 +50,21 @@ it('切换账号后不展示旧账号迟到结果，查询失败保留可重试�
   expect(component.message()).toBe('余额暂不可读');
   expect(component.snapshot()).toBeNull();
 });
+
+it('请求进行中不重复读取，非 Error 失败也给出可重试提示', async () => {
+  const { component, credits } = await rig();
+  let reject: (reason: unknown) => void = () => undefined;
+  credits.mockImplementationOnce(
+    () =>
+      new Promise((_resolve, value) => {
+        reject = value;
+      })
+  );
+  const pending = component.load();
+  await component.load();
+  expect(credits).toHaveBeenCalledTimes(2);
+  reject('不可公开的后端错误');
+  await pending;
+  expect(component.message()).toBe('积分暂不可读，请重试。');
+  expect(component.snapshot()).toEqual(snapshot);
+});

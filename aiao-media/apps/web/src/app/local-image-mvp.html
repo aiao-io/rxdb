@@ -303,34 +303,46 @@
             </div>
           </div>
           <div class="provider-setting">
-            <label class="field-label" for="selected-provider">图片供应商</label>
+            <label class="field-label" for="selected-model">平台模型</label>
             <select
               class="field"
-              id="selected-provider"
+              id="selected-model"
               [disabled]="settingsBusy()"
-              [ngModel]="providerId()"
-              (ngModelChange)="chooseProvider($event)"
+              [ngModel]="modelId()"
+              (ngModelChange)="chooseModel($event)"
             >
-              <option disabled value="">请先配置供应商</option>
-              @for (p of providers(); track p.id) {
-                <option [value]="p.id">
-                  {{ p.name }} · {{ p.model }} · {{ p.mode === 'direct' ? '浏览器直连' : '代理' }}
-                </option>
+              <option disabled value="">暂无可用模型</option>
+              @for (model of models(); track model.id) {
+                <option [value]="model.id">{{ model.name }} · {{ model.credits }} 积分 / 张</option>
               }
             </select>
-            <div class="provider-status">
-              @if (providerBusy()) {
-                <span role="status">正在保存供应商设置…</span>
-              } @else if (provider(); as p) {
-                <span class="key-state" [class.missing]="!providerHasKey()">
-                  {{ providerHasKey() ? 'API Key 已就绪' : '生成时需要填写 API Key' }}
-                </span>
-                <span>{{ p.mode === 'proxy' ? '经本站代理发送' : '浏览器直接请求供应商' }}</span>
-              } @else {
-                <span class="key-state missing">请先添加供应商</span>
+            @if (selectedModel(); as model) {
+              <p>本次预占 {{ model.credits }} 积分，图片通过本机验证后扣减；失败不扣。</p>
+            }
+            @if (authStatus() === 'signed-in' && targetKind() === 'platform') {
+              @if (creditAccount(); as balance) {
+                <p role="status">可用积分 {{ balance.available }} · 预占 {{ balance.reserved }}</p>
+                @if (selectedModel(); as model) {
+                  @if (balance.available < model.credits) {
+                    <p class="inline-alert">积分不足，请联系平台管理员发放积分。</p>
+                  }
+                }
               }
-            </div>
-            <button class="text-link provider-manage" (click)="openProviderSettings()">管理供应商与 API Key →</button>
+              <button class="text-link" [disabled]="creditBusy() || sending()" (click)="refreshCredits()" type="button">
+                {{ creditBusy() ? '正在读取积分…' : '刷新积分' }}
+              </button>
+            } @else {
+              <p>登录平台账号并取得积分后即可生成。草稿与本机作品无需登录。</p>
+            }
+            @if (creditMessage()) {
+              <p role="status">{{ creditMessage() }}</p>
+            }
+            @if (modelMessage()) {
+              <p role="status">{{ modelMessage() }}</p>
+            }
+            <button class="text-link" [disabled]="settingsBusy()" (click)="refreshModels()" type="button">
+              刷新模型
+            </button>
           </div>
         </div>
         @if (error() && !panelError()) {
@@ -344,9 +356,10 @@
         >
           {{
             sending() ? '正在生成…'
-            : providerBusy() ? '正在保存设置…'
+            : modelBusy() ? '正在读取模型…'
             : sync().busy ? '正在同步…'
             : inFlight() ? '请先核对原请求'
+            : authStatus() !== 'signed-in' || targetKind() !== 'platform' ? '登录后生成图片'
             : '✧ 生成图片'
           }}
         </button>
@@ -408,8 +421,8 @@
                 <div class="spinner" aria-hidden="true"></div>
                 <h2 class="state-title">让灵感慢慢显影</h2>
                 <p class="state-copy">
-                  @if (job()?.channel === 'proxy') {
-                    正在由本站代理生成，可以刷新或关闭页面。
+                  @if (job()?.channel === 'proxy' || job()?.channel === 'platform') {
+                    平台正在生成，可以刷新或关闭页面。
                     <br />
                     回来后会接着取回结果，不会重复生成。
                   } @else {
@@ -427,11 +440,11 @@
             } @else if (uncertain()) {
               <div class="state-content">
                 <div class="failure-icon" aria-hidden="true">…</div>
-                <h2 class="state-title">请核对供应商记录</h2>
+                <h2 class="state-title">请核对平台任务</h2>
                 @if (error()) {
                   <p class="state-error">{{ error() }}</p>
                 }
-                <p class="state-copy">请求可能已被接收。请到供应商后台核对用量与结果；这里不会自动重发或切换代理。</p>
+                <p class="state-copy">请核对平台任务与积分流水；结果未确认时不会自动重发，预占积分将在结清后释放。</p>
                 <button class="secondary" [disabled]="settingsBusy()" (click)="acknowledgeUnknown()">
                   已核对，解除本机锁定
                 </button>
@@ -754,8 +767,8 @@
                 : task.status === 'failed' ? '请求被拒绝'
                 : task.acknowledged ? '已手动核对'
                 : !localWorksKnown() ? '本机保存记录尚未确认'
-                : task.status === 'completed' ? '本机无副本，请检查已有下载或核对供应商记录'
-                : '结果未确认，请核对供应商'
+                : task.status === 'completed' ? '本机无副本，请检查已有下载或核对平台任务'
+                : '结果未确认，请核对平台任务'
               }}
             </span>
           </p>
@@ -775,12 +788,12 @@
     <section class="page-heading">
       <div>
         <h1>设置</h1>
-        <p>无需登录。配置、草稿、任务记录和作品保存在{{ nativeMode ? '此应用的本机目录' : '当前浏览器' }}。</p>
+        <p>草稿、任务记录和作品保存在{{ nativeMode ? '此应用的本机目录' : '当前浏览器' }}。</p>
       </div>
     </section>
     @if (uncertain()) {
       <div class="notice" role="status">
-        <p>上一次请求仍待核对，当前只锁定新的生成请求。你可以先修改供应商配置。</p>
+        <p>上一次请求仍待核对，当前只锁定新的生成请求。可以继续编辑本机草稿。</p>
         <button class="secondary sm" [disabled]="settingsBusy()" (click)="acknowledgeUnknown()">
           已核对，解除本机锁定
         </button>
@@ -812,155 +825,23 @@
       aria-labelledby="settings-tab-providers"
       role="tabpanel"
     >
-      @if (providerPolicyVersion()) {
-        <p class="notice">已核对供应商运行策略 v{{ providerPolicyVersion() }}</p>
+      <h2>平台生图与积分</h2>
+      <p>使用平台提供的模型，每次生成一张。图片在本机验证后才扣减积分；失败或待核对不扣。积分由平台管理员发放。</p>
+      @for (model of models(); track model.id) {
+        <p>{{ model.name }} · {{ model.credits }} 积分 / 张</p>
       }
-      <div class="provider-grid">
-        <section class="composer" aria-label="已配置供应商">
-          <div class="panel-title">
-            我的供应商
-            <button class="secondary sm" [disabled]="settingsBusy()" (click)="startEditProvider()">＋ 新增</button>
-          </div>
-          @for (p of providers(); track p.id) {
-            <article class="provider-card" [class.is-default]="p.id === providerId()">
-              <div class="provider-card-head">
-                <h2>
-                  {{ p.name }}
-                  @if (p.id === providerId()) {
-                    <span class="badge">
-                      <span class="sr-only">·</span>
-                      默认
-                    </span>
-                  }
-                </h2>
-                <span class="key-chip" [class.missing]="!keyIds().has(p.id)">{{ keyLabel(p) }}</span>
-              </div>
-              <p class="provider-meta">{{ p.model }} · {{ p.mode === 'direct' ? '浏览器直连' : '本站代理' }}</p>
-              <p class="provider-url">{{ p.baseUrl }}</p>
-              <div class="provider-actions">
-                <button class="secondary sm" [disabled]="settingsBusy()" (click)="startEditProvider(p)">
-                  编辑 / 填写 Key
-                </button>
-                <button
-                  class="secondary sm"
-                  [disabled]="settingsBusy() || p.id === providerId()"
-                  (click)="chooseProvider(p.id)"
-                >
-                  设为默认
-                </button>
-                <button class="secondary sm" [disabled]="settingsBusy() || providerBusy()" (click)="removeKey(p)">
-                  移除 Key
-                </button>
-                <button class="text-link danger" [disabled]="settingsBusy()" (click)="removeProvider(p)">删除</button>
-              </div>
-            </article>
-          } @empty {
-            <p class="notice">先添加兼容 Images API 的供应商，或使用 MiniMax 官方图片接口。</p>
-          }
-          <p class="source-note">
-            直连时，Key 和提示词从浏览器发给供应商。代理模式会将本次 Key 和提示词交给本站 Worker 转发，服务端不保存
-            Key、图片或任务记录。模型调用费用由供应商收取。
-          </p>
-        </section>
-        <section class="composer">
-          <form class="provider-form" (ngSubmit)="saveProvider()">
-            <div class="panel-title">
-              {{ editingId() ? '编辑供应商' : '添加供应商' }}
-              @if (editingId()) {
-                <button class="text-link" [disabled]="settingsBusy()" (click)="editProvider()" type="button">
-                  取消编辑
-                </button>
-              }
-            </div>
-            <label for="provider-name">名称</label>
-            <input
-              class="field"
-              id="provider-name"
-              [disabled]="settingsBusy()"
-              [ngModel]="providerName()"
-              (ngModelChange)="providerName.set($event)"
-              maxlength="80"
-              name="providerName"
-              placeholder="我的图片供应商"
-              required
-            />
-            <label for="provider-base">HTTPS Base URL</label>
-            <input
-              class="field"
-              id="provider-base"
-              [disabled]="settingsBusy()"
-              [ngModel]="baseUrl()"
-              (ngModelChange)="baseUrl.set($event)"
-              name="baseUrl"
-              placeholder="https://api.example.com/v1"
-              required
-              type="url"
-            />
-            <small>填写 API 前缀。MiniMax 使用官方 /v1 地址和 image-01 模型；其他供应商须兼容 Images API。</small>
-            <label for="provider-model">图片模型 ID</label>
-            <input
-              class="field"
-              id="provider-model"
-              [disabled]="settingsBusy()"
-              [ngModel]="model()"
-              (ngModelChange)="model.set($event)"
-              maxlength="128"
-              name="model"
-              placeholder="供应商提供的模型标识"
-              required
-            />
-            <label for="provider-key">API Key</label>
-            <input
-              class="field"
-              id="provider-key"
-              [disabled]="settingsBusy()"
-              [ngModel]="apiKey()"
-              (ngModelChange)="apiKey.set($event)"
-              autocomplete="off"
-              name="apiKey"
-              placeholder="可稍后填写，生成前必须提供"
-              spellcheck="false"
-              type="password"
-            />
-            <label class="checkbox-label">
-              <input
-                [disabled]="nativeMode || settingsBusy()"
-                [ngModel]="rememberKey()"
-                (ngModelChange)="rememberKey.set($event)"
-                name="rememberKey"
-                type="checkbox"
-              />
-              {{ nativeMode ? '桌面 Key 仅本次会话' : '在此设备记住 Key' }}
-            </label>
-            <small>默认只在当前页面内存使用。勾选后保存在本机 RxDB；同源脚本或能访问浏览器数据的人可读取它。</small>
-            <label for="provider-mode">请求通道</label>
-            <select
-              class="field"
-              id="provider-mode"
-              [disabled]="settingsBusy()"
-              [ngModel]="mode()"
-              (ngModelChange)="mode.set($event)"
-              name="mode"
-            >
-              <option value="direct">浏览器直连（默认）</option>
-              <option value="proxy">本站代理（主动授权本次转发 Key）</option>
-            </select>
-            <small>
-              直连需要供应商允许 CORS。代理仅接受运营方允许的供应商；失败后不会自动切换通道。修改前请核对之前的请求。
-            </small>
-            @if (providerMessage()) {
-              <p class="notice" role="status">{{ providerMessage() }}</p>
-            }
-            <button
-              class="primary"
-              [disabled]="providerBusy() || localStatus() !== 'ready' || settingsBusy()"
-              type="submit"
-            >
-              {{ providerBusy() ? '正在保存…' : '保存到本机' }}
-            </button>
-          </form>
-        </section>
-      </div>
+      @if (modelMessage()) {
+        <p role="status">{{ modelMessage() }}</p>
+      }
+      <button class="secondary" [disabled]="settingsBusy()" (click)="refreshModels()" type="button">
+        刷新平台模型
+      </button>
+      <button class="secondary" [disabled]="settingsBusy()" (click)="openGenerationAccount()" type="button">
+        {{ authStatus() === 'signed-in' ? '我的账号与积分' : '登录平台账号' }}
+      </button>
+      <p>
+        任务结果加密暂存于平台，结清后删除；未取回的结果最长保留 24 小时。任务令牌仅在本机，刷新后可在此设备继续取回。
+      </p>
     </section>
     <section
       id="settings-panel-sync"
@@ -1006,7 +887,7 @@
           </div>
         </dl>
         <p>
-          导出 ZIP 备份，包含当前工作区全部已保存的 PNG/JPEG 原图文件，以及记录提示词、草稿、供应商配置和任务的
+          导出 ZIP 备份，包含当前工作区全部已保存的 PNG/JPEG 原图文件，以及记录提示词、草稿、历史配置和任务的
           backup.json，不含 API Key。单个备份最多 64 MiB。支持导入 ZIP 和旧版 JSON
           备份；恢复会切换到独立工作区，原工作区保留；校验失败不切换。
         </p>
@@ -1045,7 +926,7 @@
               <button
                 class="secondary"
                 [attr.aria-label]="'返回工作区：' + workspace.label"
-                [disabled]="localStatus() !== 'ready' || inFlight() || providerBusy()"
+                [disabled]="localStatus() !== 'ready' || inFlight() || modelBusy()"
                 (click)="restoreBackupWorkspace(workspace.id)"
               >
                 返回此工作区
@@ -1064,7 +945,7 @@
       <section class="composer display-panel" aria-label="显示偏好">
         <h2>页面排版</h2>
         <p class="display-lead">
-          这些选项只影响这台设备上的页面排版：保存在当前浏览器，不随账号同步，也不会改动作品、草稿和供应商配置。
+          这些选项只影响这台设备上的页面排版：保存在当前浏览器，不随账号同步，也不会改动作品、草稿和模型选择。
         </p>
         @if (displayMessage()) {
           <p class="notice" role="status">{{ displayMessage() }}</p>
@@ -1205,57 +1086,6 @@
     </div>
   </dialog>
 }
-@if (keyPrompt(); as p) {
-  <dialog
-    class="modal-panel auth-panel"
-    (cancel)="$event.preventDefault(); onEscape()"
-    aria-label="填写 API Key"
-    aria-modal="true"
-  >
-    <button class="dialog-close" (click)="closeKeyPrompt()" aria-label="关闭 API Key 窗口">
-      <svg class="icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M5 5l10 10M15 5 5 15" /></svg>
-    </button>
-    <form (ngSubmit)="submitKey()">
-      <span class="eyebrow">生成前还差一步</span>
-      <h2>填写 API Key</h2>
-      <p>
-        当前供应商：{{ p.name }} · {{ p.model }} ·
-        {{ p.mode === 'proxy' ? '本站代理' : '浏览器直连' }}。填写后会直接开始生成。
-      </p>
-      <label for="key-prompt-input">API Key</label>
-      <input
-        id="key-prompt-input"
-        [ngModel]="keyDraft()"
-        (ngModelChange)="keyDraft.set($event)"
-        autocomplete="off"
-        name="promptKey"
-        required
-        spellcheck="false"
-        type="password"
-      />
-      <label class="checkbox-label">
-        <input
-          [disabled]="nativeMode"
-          [ngModel]="keyRemember()"
-          (ngModelChange)="keyRemember.set($event)"
-          name="promptRemember"
-          type="checkbox"
-        />
-        {{ nativeMode ? '桌面 Key 仅本次会话' : '在此设备记住 Key' }}
-      </label>
-      <small>默认只在当前页面内存使用，刷新后需要重新填写。勾选后保存在本机 RxDB，不进入备份和同步。</small>
-      @if (keyPromptMessage()) {
-        <p class="notice auth-error" role="alert">{{ keyPromptMessage() }}</p>
-      }
-      <button class="primary" [disabled]="providerBusy() || localStatus() !== 'ready'" type="submit">
-        {{ providerBusy() ? '正在保存…' : '保存并生成' }}
-      </button>
-      <button class="text-link auth-mode-toggle" (click)="manageKeyInSettings()" type="button">
-        在设置中管理供应商 →
-      </button>
-    </form>
-  </dialog>
-}
 @if (viewer(); as v) {
   <dialog
     class="modal-panel viewer-panel"
@@ -1391,8 +1221,7 @@
         <p>{{ user.email || user.id }}</p>
         <app-credits-panel [client]="adminApi" [identity]="user.id" />
         <p class="notice">
-          登录不会自动上传本机内容。启用同步后，草稿、供应商公开配置和作品信息可同步；原图只有在单独确认图片同步后才上传，API
-          Key 始终留在本机。
+          登录平台账号后可使用积分生成图片。启用同步后，草稿与作品信息可同步；原图只有在单独确认图片同步后才上传。
         </p>
         <section class="account-sync" aria-label="工作区同步">
           <div class="account-tools">
@@ -1415,7 +1244,7 @@
           @if (targetKind() === 'platform' && syncInitialized()) {
             <article class="notice" aria-label="图片原图同步">
               <h3>图片原图同步</h3>
-              <p>选择范围后，原图会保存到平台账号的私有云存储，供其他设备取回；API Key 和本机路径不会上传。</p>
+              <p>选择范围后，原图会保存到平台账号的私有云存储，供其他设备取回；账号会话、任务令牌和本机路径不会上传。</p>
               @if (imageSyncEnabled()) {
                 <p>图片自动同步已启用。{{ imageSyncProgress() }} {{ imageSyncMessage() }}</p>
                 <button class="secondary sm" [disabled]="settingsBusy() || imageSyncBusy()" (click)="stopImageSync()">
@@ -1451,7 +1280,7 @@
               }}
             </p>
             <p>
-              草稿 {{ confirmation.counts.drafts }} 份 · 供应商 {{ confirmation.counts.providers }} 项 · 作品信息
+              草稿 {{ confirmation.counts.drafts }} 份 · 旧版配置 {{ confirmation.counts.providers }} 项 · 作品信息
               {{ confirmation.counts.works }} 项
             </p>
             <div class="account-actions">
@@ -1494,7 +1323,7 @@
               <h3>
                 {{
                   conflict.local.kind === 'draft' ? '草稿'
-                  : conflict.local.kind === 'provider' ? '供应商配置'
+                  : conflict.local.kind === 'provider' ? '旧版配置'
                   : '作品信息'
                 }}存在冲突
               </h3>
@@ -1560,7 +1389,7 @@
       <form (ngSubmit)="submitAuth()">
         <span class="eyebrow">可选账号</span>
         <h2>{{ authMode() === 'sign-in' ? '登录账号' : '注册账号' }}</h2>
-        <p>无需登录也能继续本机创作。账号会话不会进入本机图片备份，也不会代替供应商 API Key。</p>
+        <p>登录平台账号后使用积分生成图片；灵感、草稿与本机作品无需登录。账号会话不会进入本机图片备份。</p>
         @if (authStatus() === 'unverified') {
           <p class="notice" role="status">{{ authMessage() }}</p>
           <div class="account-actions">

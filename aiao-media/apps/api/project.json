@@ -88,7 +88,39 @@
       "cache": false,
       "options": {
         "cwd": "aiao-media/apps/api",
-        "command": "eslint src scripts/*.mjs --max-warnings=0 && node --test scripts/*.test.mjs"
+        "command": "eslint src scripts/*.mjs --max-warnings=0 && node --test scripts/*.test.mjs test/node-runtime.test.ts test/node-server.test.ts"
+      }
+    },
+    "credits-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-media/apps/api",
+        "command": "node --test --experimental-test-coverage --test-coverage-include=src/credits-api.ts --test-coverage-lines=80 scripts/credits-api.test.mjs"
+      }
+    },
+    "platform-relay-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-media/apps/api",
+        "command": "node --test scripts/platform-relay.test.mjs"
+      }
+    },
+    "node-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-media/apps/api",
+        "command": "node --test test/node-runtime.test.ts test/node-server.test.ts"
+      }
+    },
+    "relay-coverage": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-media/apps/api",
+        "command": "node --test --experimental-test-coverage --test-coverage-include=src/relay-task.ts --test-coverage-include=src/relay-task-api.ts --test-coverage-include=src/relay-credits.ts --test-coverage-include=src/platform-models.ts --test-coverage-include=src/configured-environment.ts --test-coverage-lines=80 --test-coverage-branches=80 --test-coverage-functions=80 scripts/*.test.mjs test/node-runtime.test.ts test/node-server.test.ts"
       }
     }
   }

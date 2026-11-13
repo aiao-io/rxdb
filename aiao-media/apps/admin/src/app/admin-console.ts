@@ -8,7 +8,7 @@ import {
 import { ChangeDetectionStrategy, Component, effect, input, output, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { defaultAdminTemplate } from './admin-defaults';
-import type { ProductClient } from './product-client';
+import { ProductRequestError, type ProductClient } from './product-client';
 
 interface AdminUser {
   id: string;
@@ -152,10 +152,13 @@ export class AdminConsole {
     }, true);
   }
   async olderCredits(): Promise<void> {
-    const user = this.userDetail(), entries = this.credits()?.entries;
+    const user = this.userDetail(),
+      entries = this.credits()?.entries;
     if (!user || !entries?.length) return;
     await this.run(async () => {
-      const value = await this.client().admin(`users/${user.id}/credits?before=${entries[entries.length - 1].id}`) as CreditSnapshot;
+      const value = (await this.client().admin(
+        `users/${user.id}/credits?before=${entries[entries.length - 1].id}`
+      )) as CreditSnapshot;
       return () => this.credits.set(value);
     }, true);
   }
@@ -349,7 +352,7 @@ export class AdminConsole {
       apply();
     } catch (error) {
       if (generation !== this.generation) return;
-      if (!preserve) {
+      if (!preserve || (error instanceof ProductRequestError && [401, 403].includes(error.status))) {
         this.allowed.set(false);
         this.clear();
       }

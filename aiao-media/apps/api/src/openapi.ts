@@ -83,74 +83,30 @@ const PublishedTemplatesSchema = z
   })
   .openapi('PublishedTemplates');
 
-const ProviderPolicyEntrySchema = z
-  .object({
-    id: z.string().uuid(),
-    name: z.string(),
-    baseUrl: z.string().url(),
-    models: z.array(z.string()),
-    sizes: z.array(z.enum(['1024x1024', '1536x1024', '1024x1536'])),
-    enabled: z.boolean(),
-    direct: z.boolean(),
-    proxy: z.boolean()
-  })
-  .openapi('ProviderPolicyEntry');
-
-const ProviderPolicySchema = z
-  .object({ version: z.literal(1), providers: z.array(ProviderPolicyEntrySchema) })
-  .openapi('ProviderPolicy');
-
-const ProviderPoliciesSchema = z.object({ policy: ProviderPolicySchema.nullable() }).openapi('ProviderPolicies');
-
-const ProviderProbeCheckSchema = z
-  .object({
-    target: z.string().url(),
-    root: z.record(z.string(), z.unknown()),
-    preflight: z.record(z.string(), z.unknown()),
-    reachable: z.boolean(),
-    browserDirect: z.boolean()
-  })
-  .openapi('ProviderProbeCheck');
-
-const ProviderProbeSchema = z
-  .object({
-    checkedAt: z.string(),
-    providers: z.array(ProviderProbeCheckSchema),
-    interpretation: z.string()
-  })
-  .openapi('ProviderProbe');
-
 const ImageRelayInputSchema = z
   .object({
-    model: z.string().min(1).max(200).openapi({ example: 'image-model' }),
+    model: z.string().min(1).max(80).openapi({ example: 'standard' }),
     prompt: z.string().min(1).max(2000).openapi({ example: 'A quiet forest at sunrise' }),
     n: z.literal(1),
     size: z.enum(['1024x1024', '1536x1024', '1024x1536'])
   })
   .openapi('ImageRelayInput');
 
-const RelayHeadersSchema = z
+const RelayTaskHeadersSchema = z
   .object({
-    authorization: z.string().openapi({
-      param: { name: 'authorization', in: 'header' },
-      example: 'Bearer provider-api-key'
-    }),
-    'x-provider-base': z
+    authorization: z
       .string()
-      .url()
+      .regex(/^Bearer [A-Za-z0-9._~-]+$/)
       .openapi({
-        param: { name: 'x-provider-base', in: 'header' },
-        example: 'https://provider.example.test/v1'
-      })
+        param: { name: 'authorization', in: 'header' },
+        example: 'Bearer platform-session'
+      }),
+    'x-relay-task-token': z.string().openapi({
+      param: { name: 'x-relay-task-token', in: 'header' },
+      example: 'relay-task-token'
+    })
   })
-  .openapi('RelayHeaders');
-
-const RelayTaskHeadersSchema = RelayHeadersSchema.extend({
-  'x-relay-task-token': z.string().openapi({
-    param: { name: 'x-relay-task-token', in: 'header' },
-    example: 'relay-task-token'
-  })
-}).openapi('RelayTaskHeaders');
+  .openapi('RelayTaskHeaders');
 
 const TaskIdParamsSchema = z
   .object({
@@ -325,68 +281,57 @@ export const apiRoutes = {
       }
     }
   }),
-  providerPolicies: createRoute({
+  models: createRoute({
     method: 'get',
-    path: '/api/provider-policies',
-    tags: ['Content'],
+    path: '/api/models',
+    tags: ['Relay'],
     responses: {
       200: {
-        description: '已发布的供应商策略',
-        content: { 'application/json': { schema: ProviderPoliciesSchema } }
+        description: '公开平台模型目录，不含上游型号、地址或凭据',
+        content: {
+          'application/json': {
+            schema: z.object({
+              models: z.array(
+                z.object({
+                  id: z.string(),
+                  name: z.string(),
+                  credits: z.number().int().positive(),
+                  protocol: z.enum(['openai', 'minimax'])
+                })
+              )
+            })
+          }
+        }
       },
-      503: {
-        description: '安装配置不可用',
-        content: { 'application/json': { schema: ApiErrorSchema } }
-      }
+      503: { description: '平台模型尚未就绪', content: { 'application/json': { schema: ApiErrorSchema } } }
     }
   }),
-  providerProbe: createRoute({
-    method: 'get',
-    path: '/api/provider-probe',
-    tags: ['Diagnostics'],
-    responses: {
-      200: {
-        description: '供应商连通性检查结果',
-        content: { 'application/json': { schema: z.union([ProviderProbeSchema, z.object({ error: z.string() })]) } }
-      },
-      429: {
-        description: '检查请求过于频繁',
-        content: { 'application/json': { schema: ApiErrorSchema } }
-      },
-      503: {
-        description: '安装配置不可用',
-        content: { 'application/json': { schema: ApiErrorSchema } }
-      }
-    }
-  }),
-  relay: createRoute({
+  relayTaskConfirm: createRoute({
     method: 'post',
-    path: '/api/relay',
+    path: '/api/relay/tasks/{taskId}/confirm',
     tags: ['Relay'],
     request: {
-      headers: RelayHeadersSchema,
-      body: {
-        content: { 'application/json': { schema: ImageRelayInputSchema } },
-        required: true
-      }
+      params: TaskIdParamsSchema,
+      headers: z.object({ 'x-relay-task-token': RelayTaskHeadersSchema.shape['x-relay-task-token'] })
     },
     responses: {
-      200: {
-        description: '供应商生成结果',
-        content: { 'application/json': { schema: RelayResponseSchema } }
-      },
-      400: {
-        description: '请求参数无效',
-        content: { 'application/json': { schema: ApiErrorSchema } }
-      },
-      403: {
-        description: '供应商未启用',
-        content: { 'application/json': { schema: ApiErrorSchema } }
-      },
-      502: {
-        description: '供应商连接失败',
-        content: { 'application/json': { schema: ApiErrorSchema } }
-      }
+      204: { description: '本机图片验证成功，幂等扣减预占积分' },
+      404: { description: '任务不存在或已过期', content: { 'application/json': { schema: ApiErrorSchema } } },
+      409: { description: '结果未就绪或预占已释放', content: { 'application/json': { schema: ApiErrorSchema } } }
+    }
+  }),
+  relayTaskDiscard: createRoute({
+    method: 'post',
+    path: '/api/relay/tasks/{taskId}/discard',
+    tags: ['Relay'],
+    request: {
+      params: TaskIdParamsSchema,
+      headers: z.object({ 'x-relay-task-token': RelayTaskHeadersSchema.shape['x-relay-task-token'] })
+    },
+    responses: {
+      204: { description: '本机图片校验失败，释放预占积分' },
+      404: { description: '任务不存在', content: { 'application/json': { schema: ApiErrorSchema } } },
+      409: { description: '任务仍在执行或已扣积分', content: { 'application/json': { schema: ApiErrorSchema } } }
     }
   }),
   relayTaskCreate: createRoute({
@@ -406,8 +351,12 @@ export const apiRoutes = {
         description: '重复提交返回当前任务状态',
         content: { 'application/json': { schema: RelayResponseSchema } }
       },
+      401: { description: '需要有效平台账号', content: { 'application/json': { schema: ApiErrorSchema } } },
+      402: { description: '可用积分不足，未调用上游', content: { 'application/json': { schema: ApiErrorSchema } } },
+      409: { description: '任务标识已封存或参数冲突', content: { 'application/json': { schema: ApiErrorSchema } } },
+      503: { description: '模型或持久任务服务未就绪', content: { 'application/json': { schema: ApiErrorSchema } } },
       202: {
-        description: '任务已提交',
+        description: '预占成功，任务已提交',
         content: { 'application/json': { schema: RelayResponseSchema } }
       },
       400: {
@@ -481,7 +430,7 @@ export const apiRoutes = {
     },
     responses: {
       200: {
-        description: '任务已放弃',
+        description: '任务已接单，继续查询原任务',
         content: { 'application/json': { schema: RelayResponseSchema } }
       },
       404: {
@@ -522,6 +471,6 @@ export const openApiDocument = {
     { name: 'Content', description: '公开内容' },
     { name: 'Credits', description: '平台积分与不可变流水' },
     { name: 'Diagnostics', description: '供应商诊断' },
-    { name: 'Relay', description: '图像生成代理与异步任务' }
+    { name: 'Relay', description: '平台积分生图与持久任务' }
   ]
 };

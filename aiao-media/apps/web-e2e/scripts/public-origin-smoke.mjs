@@ -34,7 +34,7 @@ export function allowedPublicRequest(origin, address, method) {
     const url = new URL(address);
     if (url.origin !== origin || !['GET', 'HEAD'].includes(method)) return false;
     if (/^\/api\//.test(url.pathname))
-      return ['/api/installation', '/api/templates', '/api/provider-policies'].includes(url.pathname);
+      return ['/api/installation', '/api/templates', '/api/models'].includes(url.pathname);
     return !/\/(?:images\/generations|auth\/v1)(?:\/|$)/.test(url.pathname);
   } catch {
     return false;

@@ -4,11 +4,10 @@ import { checkAttemptHistory, failureCode, withAcceptanceRunLock } from '../prov
 const [directory, release, manifestSha256] = process.argv.slice(2);
 const settings = {
   origin: 'https://media.aiao.io',
-  baseUrl: 'https://provider.example.test/v1',
   model: 'fixture-image',
   release,
   manifestSha256,
-  selection: { modes: ['direct'], aspects: ['square'] }
+  selection: { modes: ['platform'], aspects: ['square'] }
 };
 try {
   await withAcceptanceRunLock(directory, async () => {

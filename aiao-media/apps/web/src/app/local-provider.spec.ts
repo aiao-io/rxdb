@@ -3,10 +3,10 @@ import { ReadableStream as NodeReadableStream } from 'node:stream/web';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   bounded,
-  generateLocalImage,
   providerBase,
   ProviderFailure,
   publicProvider,
+  responseImage,
   type LocalProvider
 } from './local-provider';
 
@@ -29,12 +29,12 @@ function png(width = 1024, height = 1024) {
   return bytes;
 }
 const encoded = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
-const response = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status });
-const generate = (
-  configuration = provider,
-  ratio: 'square' | 'landscape' | 'portrait' = 'square',
-  key = 'fixture-key'
-) => generateLocalImage(configuration, key, '测试图片', ratio, new AbortController().signal);
+const decode = (
+  data: unknown,
+  protocol: 'openai' | 'minimax' = 'openai',
+  ratio: 'square' | 'landscape' | 'portrait' = 'square'
+) => responseImage(protocol, new TextEncoder().encode(JSON.stringify(data)), ratio, new AbortController().signal);
+const answer = (bytes = png()) => ({ data: [{ b64_json: encoded(bytes) }] });
 
 beforeEach(() => {
   vi.stubGlobal('Blob', NodeBlob);
@@ -106,146 +106,70 @@ describe('bounded provider responses', () => {
   });
 });
 
-describe('single image dispatch', () => {
-  it.each(['b64', 'url'] as const)(
-    'accepts native MiniMax JPEG %s results without changing original bytes',
-    async source => {
-      const bytes = new Uint8Array([
-        255, 216, 255, 194, 0, 11, 8, 4, 0, 4, 0, 1, 1, 17, 0, 255, 218, 0, 8, 1, 1, 0, 0, 63, 0, 0, 255, 217
-      ]);
-      const data =
-        source === 'b64' ? { image_base64: [encoded(bytes)] } : { image_urls: ['https://images.example/original.png'] };
-      vi.mocked(fetch).mockResolvedValueOnce(response({ base_resp: { status_code: 0 }, data }));
-      if (source === 'url')
-        vi.mocked(fetch).mockResolvedValueOnce(new Response(bytes, { headers: { 'content-type': 'image/png' } }));
-      vi.mocked(createImageBitmap).mockResolvedValue({
-        width: 1024,
-        height: 1024,
-        close: vi.fn()
-      } as unknown as ImageBitmap);
-      const blob = await generate({ ...provider, baseUrl: 'https://api.minimax.cn/v1', model: 'image-01' });
-      expect(blob.type).toBe('image/jpeg');
-      expect(new Uint8Array(await blob.arrayBuffer())).toEqual(bytes);
-      expect(fetch).toHaveBeenCalledTimes(source === 'url' ? 2 : 1);
-      if (source === 'url')
-        expect(vi.mocked(fetch).mock.calls[1][1]).toMatchObject({
-          credentials: 'omit',
-          redirect: 'error',
-          referrerPolicy: 'no-referrer'
-        });
-    }
-  );
-
+describe('平台图片响应本机校验', () => {
   it.each([
-    ['square', 1024, 1024, '1024x1024'],
-    ['landscape', 1536, 1024, '1536x1024'],
-    ['portrait', 1024, 1536, '1024x1536']
-  ] as const)('dispatches exactly one %s image and closes the decoded bitmap', async (ratio, width, height, size) => {
-    vi.mocked(fetch).mockResolvedValue(response({ data: [{ b64_json: encoded(png(width, height)) }] }));
+    ['square', 1024, 1024],
+    ['landscape', 1536, 1024],
+    ['portrait', 1024, 1536]
+  ] as const)('%s 原图保持字节并关闭解码位图，不调用生成接口', async (ratio, width, height) => {
     const close = vi.fn();
     vi.mocked(createImageBitmap).mockResolvedValue({ width, height, close } as unknown as ImageBitmap);
-    const blob = await generate(provider, ratio);
+    const blob = await decode(answer(png(width, height)), 'openai', ratio);
     expect(blob.type).toBe('image/png');
     expect(new Uint8Array(await blob.arrayBuffer())).toEqual(png(width, height));
-    expect(fetch).toHaveBeenCalledTimes(1);
-    expect(fetch).toHaveBeenCalledWith(
-      'https://provider.example/v1/images/generations',
-      expect.objectContaining({
-        method: 'POST',
-        credentials: 'omit',
-        redirect: 'error',
-        referrerPolicy: 'no-referrer',
-        cache: 'no-store',
-        body: JSON.stringify({
-          model: provider.model,
-          prompt: '测试图片',
-          n: 1,
-          size,
-          quality: 'low',
-          output_format: 'png'
-        })
-      })
-    );
-    expect(close).toHaveBeenCalledTimes(1);
+    expect(close).toHaveBeenCalledOnce();
+    expect(fetch).not.toHaveBeenCalled();
   });
-
-  it('downloads a cross-origin URL with no authorization, cookies or referrer', async () => {
-    vi.mocked(fetch)
-      .mockResolvedValueOnce(response({ data: [{ url: 'https://images.example/result.png' }] }))
-      .mockResolvedValueOnce(new Response(png()));
-    await generate();
-    expect(fetch).toHaveBeenCalledTimes(2);
-    const [url, options] = vi.mocked(fetch).mock.calls[1];
+  it('只下载返回的原图地址，省略凭据、Cookie 与来源', async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(png()));
+    const blob = await decode({ data: [{ url: 'https://images.example/result.png' }] });
+    expect(new Uint8Array(await blob.arrayBuffer())).toEqual(png());
+    expect(fetch).toHaveBeenCalledOnce();
+    const [url, options] = vi.mocked(fetch).mock.calls[0];
     expect(String(url)).toBe('https://images.example/result.png');
     expect(options).toMatchObject({
       credentials: 'omit',
-      referrerPolicy: 'no-referrer',
+      cache: 'no-store',
+      mode: 'cors',
       redirect: 'error',
-      cache: 'no-store'
+      referrerPolicy: 'no-referrer'
     });
     expect(options?.headers).toBeUndefined();
-    expect(options?.body).toBeUndefined();
+    expect(options?.method).toBeUndefined();
   });
-
-  it.each(['http://images.example/result.png', 'https://user:secret@images.example/result.png'])(
-    'rejects an unsafe image URL without downloading it',
+  it.each(['http://images.example/image.png', 'https://user:secret@images.example/image.png'])(
+    '拒绝不安全原图地址 %s',
     async url => {
-      vi.mocked(fetch).mockResolvedValue(response({ data: [{ url }] }));
-      await expect(generate()).rejects.toThrow('图片地址无效');
-      expect(fetch).toHaveBeenCalledTimes(1);
+      await expect(decode({ data: [{ url }] })).rejects.toThrow('图片地址无效');
+      expect(fetch).not.toHaveBeenCalled();
     }
   );
-
-  it('preserves an uncertain outcome if a returned URL cannot be read', async () => {
-    vi.mocked(fetch)
-      .mockResolvedValueOnce(response({ data: [{ url: 'https://images.example/result.png' }] }))
-      .mockResolvedValueOnce(new Response(null, { status: 403 }));
-    await expect(generate()).rejects.toMatchObject({
-      rejected: false,
-      message: expect.stringContaining('图片读取失败')
+  it.each([401, 404, 500])('原图读取失败 HTTP %i 不自动重发生成', async status => {
+    vi.mocked(fetch).mockResolvedValue(new Response(null, { status }));
+    await expect(decode({ data: [{ url: 'https://images.example/result.png' }] })).rejects.toMatchObject({
+      rejected: false
     });
+    expect(fetch).toHaveBeenCalledOnce();
   });
-
-  it.each([400, 401, 403, 404, 413, 422, 429])(
-    'classifies HTTP %i as a definite rejection without exposing response content',
-    async status => {
-      vi.mocked(fetch).mockResolvedValue(response({ secret: 'private upstream response' }, status));
-      await expect(generate()).rejects.toMatchObject({
-        rejected: true,
-        message: `供应商或代理返回 HTTP ${status}。请核对配置和供应商记录。`
-      });
-      expect(fetch).toHaveBeenCalledTimes(1);
-    }
-  );
-  it.each([500, 502, 503])('keeps HTTP %i uncertain and never retries', async status => {
-    vi.mocked(fetch).mockResolvedValue(response({}, status));
-    await expect(generate()).rejects.toMatchObject({ rejected: false });
-    expect(fetch).toHaveBeenCalledTimes(1);
+  it('原图下载断网保留失败，不发第二次请求', async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error('network failed'));
+    await expect(decode({ data: [{ url: 'https://images.example/result.png' }] })).rejects.toThrow('network failed');
+    expect(fetch).toHaveBeenCalledOnce();
   });
   it.each([
-    { error: 'private', status: 429 },
-    { error: 'private', status: 200 }
-  ])('keeps error envelopes uncertain and redacts upstream messages', async value => {
-    vi.mocked(fetch).mockResolvedValue(response(value));
-    await expect(generate()).rejects.toMatchObject({
-      rejected: false,
-      message: expect.not.stringContaining('private')
-    });
-  });
-  it('不信任供应商响应里伪造的代理标记，错误 envelope 一律保持待核查', async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      new Response(JSON.stringify({ error: 'private', status: 429 }), {
-        headers: { 'x-aiao-relay-stream': 'late-upstream' }
-      })
-    );
-    await expect(generate()).rejects.toMatchObject({ rejected: false });
-    expect(fetch).toHaveBeenCalledTimes(1);
-  });
-  it.each(['', 'with space', '中文'])('rejects invalid keys before dispatch', async key => {
-    await expect(generate(provider, 'square', key)).rejects.toBeInstanceOf(ProviderFailure);
+    { error: 'private upstream', status: 401 },
+    { error: 'private upstream', status: 'bad' },
+    { error: 'private upstream', status: 1000 },
+    { error: 'private upstream', status: 429, proxyRejected: true }
+  ])('错误 envelope 不泄露原始信息，不信任伪造的拒绝标记', async value => {
+    const failure = await decode(value).catch(error => error);
+    expect(failure).toBeInstanceOf(ProviderFailure);
+    expect(failure.rejected).toBe(false);
+    expect(String(failure)).not.toContain('private upstream');
     expect(fetch).not.toHaveBeenCalled();
   });
   it.each([
+    null,
     {},
     { data: [] },
     { data: [{}, {}] },
@@ -253,123 +177,59 @@ describe('single image dispatch', () => {
     { data: [{ b64_json: '' }] },
     { data: [{ b64_json: '!!!' }] },
     { data: [{ b64_json: encoded(new Uint8Array(24)) }] }
-  ])('rejects malformed or ambiguous generation results without retrying', async value => {
-    vi.mocked(fetch).mockResolvedValue(response(value));
-    await expect(generate()).rejects.toBeInstanceOf(ProviderFailure);
-    expect(fetch).toHaveBeenCalledTimes(1);
+  ])('拒绝缺失、损坏或多张结果', async value => {
+    await expect(decode(value)).rejects.toBeInstanceOf(ProviderFailure);
+    expect(fetch).not.toHaveBeenCalled();
   });
   it.each([
     [0, 1024],
     [5000, 5000],
     [1024, 512]
-  ])('rejects invalid square dimensions %i x %i', async (width, height) => {
-    vi.mocked(fetch).mockResolvedValue(response({ data: [{ b64_json: encoded(png(width, height)) }] }));
-    await expect(generate()).rejects.toThrow('图片尺寸');
+  ])('拒绝异常方图尺寸 %i × %i', async (width, height) => {
+    await expect(decode(answer(png(width, height)))).rejects.toThrow('图片尺寸');
     expect(createImageBitmap).not.toHaveBeenCalled();
   });
-  it.each(['landscape', 'portrait'] as const)('rejects square bytes for a %s request', async ratio => {
-    vi.mocked(fetch).mockResolvedValue(response({ data: [{ b64_json: encoded(png()) }] }));
-    await expect(generate(provider, ratio)).rejects.toThrow('图片尺寸');
+  it.each(['landscape', 'portrait'] as const)('%s 不能接收方图', async ratio => {
+    await expect(decode(answer(), 'openai', ratio)).rejects.toThrow('图片尺寸');
+  });
+  it('不能解码的原图不交付', async () => {
+    vi.mocked(createImageBitmap).mockRejectedValue(new Error('invalid image'));
+    await expect(decode(answer())).rejects.toThrow();
   });
 });
 
-const minimaxProvider: LocalProvider = {
-  ...provider,
-  baseUrl: 'https://api.minimax.cn/v1',
-  model: 'image-01'
-};
-
-describe('MiniMax native image dispatch', () => {
-  it.each([
-    ['square', 1024, 1024],
-    ['landscape', 1536, 1024],
-    ['portrait', 1024, 1536]
-  ] as const)('maps %s to explicit pixel dimensions without aspect_ratio', async (ratio, width, height) => {
-    vi.mocked(fetch).mockResolvedValue(
-      response({
-        base_resp: { status_code: 0 },
-        data: { image_base64: [encoded(png(width, height))] }
-      })
-    );
-    const blob = await generate(minimaxProvider, ratio);
-    expect(new Uint8Array(await blob.arrayBuffer())).toEqual(png(width, height));
-    expect(fetch).toHaveBeenCalledExactlyOnceWith(
-      'https://api.minimax.cn/v1/image_generation',
-      expect.objectContaining({
-        body: JSON.stringify({
-          model: 'image-01',
-          prompt: '测试图片',
-          n: 1,
-          width,
-          height,
-          response_format: 'url',
-          prompt_optimizer: false
-        })
-      })
-    );
+describe('MiniMax 原生响应协议', () => {
+  it.each(['b64', 'url'] as const)('%s JPEG 保持原始字节与真实格式', async source => {
+    const bytes = new Uint8Array([
+      255, 216, 255, 194, 0, 11, 8, 4, 0, 4, 0, 1, 1, 17, 0, 255, 218, 0, 8, 1, 1, 0, 0, 63, 0, 0, 255, 217
+    ]);
+    const data =
+      source === 'b64' ? { image_base64: [encoded(bytes)] } : { image_urls: ['https://images.example/original.png'] };
+    vi.mocked(fetch).mockResolvedValue(new Response(bytes, { headers: { 'content-type': 'image/png' } }));
+    vi.mocked(createImageBitmap).mockResolvedValue({
+      width: 1024,
+      height: 1024,
+      close: vi.fn()
+    } as unknown as ImageBitmap);
+    const blob = await decode({ base_resp: { status_code: 0 }, data }, 'minimax');
+    expect(blob.type).toBe('image/jpeg');
+    expect(new Uint8Array(await blob.arrayBuffer())).toEqual(bytes);
+    expect(fetch).toHaveBeenCalledTimes(source === 'url' ? 1 : 0);
+    if (source === 'url') expect(vi.mocked(fetch).mock.calls[0][1]?.headers).toBeUndefined();
   });
-
-  it.each(['https://api.minimax.io/v1', 'https://api.minimaxi.com/v1'])(
-    'recognizes only an official native base %s',
-    async baseUrl => {
-      vi.mocked(fetch).mockResolvedValue(
-        response({
-          base_resp: { status_code: 0 },
-          data: { image_base64: [encoded(png())] }
-        })
-      );
-      await generate({ ...minimaxProvider, baseUrl });
-      expect(vi.mocked(fetch).mock.calls[0][0]).toBe(`${baseUrl}/image_generation`);
-    }
-  );
-
-  it('does not identify a lookalike host as MiniMax', async () => {
-    vi.mocked(fetch).mockResolvedValue(response({ data: [{ b64_json: encoded(png()) }] }));
-    await generate({ ...provider, baseUrl: 'https://api.minimax.cn.evil.example/v1' });
-    expect(vi.mocked(fetch).mock.calls[0][0]).toBe('https://api.minimax.cn.evil.example/v1/images/generations');
+  it.each([1002, 1004, 1008, 1026, 2013, 2049])('明确拒绝码 %i 不泄露上游正文', async code => {
+    const failure = await decode(
+      { base_resp: { status_code: code, status_msg: 'private fixture-key' } },
+      'minimax'
+    ).catch(error => error);
+    expect(failure).toMatchObject({ rejected: true });
+    expect(String(failure)).not.toMatch(/private|fixture-key/);
+    expect(fetch).not.toHaveBeenCalled();
   });
-
-  it('reads a native URL without forwarding Key, cookies or referrer', async () => {
-    vi.mocked(fetch)
-      .mockResolvedValueOnce(
-        response({ base_resp: { status_code: 0 }, data: { image_urls: ['https://images.example/native.png'] } })
-      )
-      .mockResolvedValueOnce(new Response(png()));
-    await generate(minimaxProvider);
-    expect(fetch).toHaveBeenCalledTimes(2);
-    expect(String(vi.mocked(fetch).mock.calls[1][0])).toBe('https://images.example/native.png');
-    expect(vi.mocked(fetch).mock.calls[1][1]).toMatchObject({
-      mode: 'cors',
-      credentials: 'omit',
-      redirect: 'error',
-      referrerPolicy: 'no-referrer'
-    });
-    expect(vi.mocked(fetch).mock.calls[1][1]?.headers).toBeUndefined();
+  it.each([1001, 1024, 1033, 2066, 999999])('未知错误码 %i 保持待核对', async code => {
+    await expect(decode({ base_resp: { status_code: code } }, 'minimax')).rejects.toMatchObject({ rejected: false });
+    expect(fetch).not.toHaveBeenCalled();
   });
-
-  it.each([1002, 1004, 1008, 1026, 2013, 2049])(
-    'classifies native rejection %i and redacts its message',
-    async code => {
-      vi.mocked(fetch).mockResolvedValue(
-        response({ base_resp: { status_code: code, status_msg: 'private fixture-key upstream' } })
-      );
-      const failure = await generate(minimaxProvider).catch((error: unknown) => error);
-      expect(failure).toMatchObject({ rejected: true, message: expect.stringContaining(String(code)) });
-      expect(String(failure)).not.toMatch(/private|fixture-key|upstream/);
-      expect(fetch).toHaveBeenCalledTimes(1);
-    }
-  );
-
-  it.each([1001, 1024, 1033, 2066, 999999])('preserves native error %i as uncertain without retrying', async code => {
-    vi.mocked(fetch).mockResolvedValue(
-      response({ base_resp: { status_code: code, status_msg: 'private fixture-key upstream' } })
-    );
-    const failure = await generate(minimaxProvider).catch((error: unknown) => error);
-    expect(failure).toMatchObject({ rejected: false, message: expect.stringContaining(String(code)) });
-    expect(String(failure)).not.toMatch(/private|fixture-key|upstream/);
-    expect(fetch).toHaveBeenCalledTimes(1);
-  });
-
   it.each([
     {},
     { base_resp: { status_code: '0' }, data: { image_urls: ['https://images.example/private.png'] } },
@@ -382,29 +242,15 @@ describe('MiniMax native image dispatch', () => {
     { base_resp: { status_code: 0 }, data: { image_urls: ['https://images.example/a.png'], image_base64: ['YQ=='] } },
     { base_resp: { status_code: 0 }, data: { image_urls: 'https://images.example/a.png' } },
     { base_resp: { status_code: 0 }, data: [{ b64_json: 'YQ==' }] }
-  ])('rejects invalid or ambiguous native envelopes before fetching an image', async data => {
-    vi.mocked(fetch).mockResolvedValue(response(data));
-    await expect(generate(minimaxProvider)).rejects.toMatchObject({ rejected: false });
-    expect(fetch).toHaveBeenCalledTimes(1);
-  });
-
-  it('rejects truncated JPEG bytes before decoding or saving', async () => {
-    vi.mocked(fetch)
-      .mockResolvedValueOnce(
-        response({ base_resp: { status_code: 0 }, data: { image_urls: ['https://images.example/native.jpg'] } })
-      )
-      .mockResolvedValueOnce(new Response(new Uint8Array([255, 216, 255, ...new Uint8Array(24)])));
-    await expect(generate(minimaxProvider)).rejects.toThrow('PNG');
-    expect(createImageBitmap).not.toHaveBeenCalled();
-  });
-
-  it('validates native model and prompt before dispatch', async () => {
-    await expect(generate({ ...minimaxProvider, model: 'unsupported-image' })).rejects.toMatchObject({
-      rejected: true
-    });
-    await expect(
-      generateLocalImage(minimaxProvider, 'fixture-key', 'x'.repeat(1501), 'square', new AbortController().signal)
-    ).rejects.toMatchObject({ rejected: true });
+  ])('拒绝不明确或无效的原生响应', async value => {
+    await expect(decode(value, 'minimax')).rejects.toMatchObject({ rejected: false });
     expect(fetch).not.toHaveBeenCalled();
+  });
+  it('下载到截断 JPEG 时在解码前拒绝', async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(new Uint8Array([255, 216, 255, ...new Uint8Array(24)])));
+    await expect(
+      decode({ base_resp: { status_code: 0 }, data: { image_urls: ['https://images.example/native.jpg'] } }, 'minimax')
+    ).rejects.toThrow('PNG');
+    expect(createImageBitmap).not.toHaveBeenCalled();
   });
 });

@@ -39,7 +39,8 @@ export function reject(status: number, message: string): never {
 /** 统一包装接口结果并隐藏内部异常。 */
 export async function endpoint(operation: () => unknown) {
   try {
-    return response(await operation());
+    const value = await operation();
+    return value instanceof Response ? value : response(value);
   } catch (error) {
     return response(
       { error: error instanceof ProductApiError ? error.message : '服务暂不可用，请重试。' },

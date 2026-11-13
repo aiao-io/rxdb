@@ -1,6 +1,7 @@
 import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { parseEnv } from 'node:util';
 import { buildSupabaseConfig } from '../../apps/web/scripts/build-supabase-config.mjs';
 import { localEnvironment, workspaceRoot } from '../supabase/supabase-local.mjs';
 import { developmentAccounts, seedDevelopmentAccounts } from './seed-accounts.mjs';
@@ -26,7 +27,29 @@ async function developmentDashboard({ env, url, mailUrl }) {
   );
 }
 
-export async function writeDevelopmentConfig(root, local) {
+async function platformEnvironment(api, config, environment) {
+  let local = {};
+  try {
+    local = parseEnv(await readFile(resolve(api, '.dev.vars'), 'utf8'));
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+  const sources = { ...config.vars, ...local, ...environment };
+  const models = sources.MEDIA_PLATFORM_MODELS;
+  if (!models) return {};
+  const definitions = JSON.parse(models);
+  if (!Array.isArray(definitions) || definitions.length > 20) throw new Error('Invalid platform model configuration');
+  const names = definitions.map(model => model.secret);
+  if (names.some(name => typeof name !== 'string' || !/^[A-Z][A-Z0-9_]{0,79}$/.test(name)))
+    throw new Error('Invalid platform model secret reference');
+  return Object.fromEntries(
+    ['MEDIA_PLATFORM_MODELS', 'ALLOWED_PROVIDER_BASE_URLS', ...names]
+      .filter(name => typeof sources[name] === 'string')
+      .map(name => [name, sources[name]])
+  );
+}
+
+export async function writeDevelopmentConfig(root, local, environment = process.env) {
   const { publicEnv, env, url } = local;
   const api = resolve(root, 'apps/api');
   const directory = resolve(api, '.wrangler/local-dev');
@@ -53,11 +76,15 @@ export async function writeDevelopmentConfig(root, local) {
   await writeFile(
     secrets,
     Object.entries({
+      ...(await platformEnvironment(api, config, environment)),
       MEDIA_SUPABASE_URL: url,
       MEDIA_SUPABASE_ANON_KEY: env.ANON_KEY,
       MEDIA_SUPABASE_SERVICE_ROLE_KEY: env.SERVICE_ROLE_KEY
     })
-      .map(([name, value]) => `${name}=${JSON.stringify(value)}`)
+      .map(
+        ([name, value]) =>
+          `${name}=${name === 'MEDIA_PLATFORM_MODELS' ? "'" + JSON.stringify(JSON.parse(value)).replaceAll("'", '\\u0027') + "'" : JSON.stringify(value)}`
+      )
       .join('\n') + '\n',
     { mode: 0o600 }
   );

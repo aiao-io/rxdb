@@ -6,16 +6,15 @@ import {
   backupText,
   contentBox,
   downloadBackup,
-  endpoint,
   importBackup,
   key,
   pngFixture,
   profile,
   prompt,
-  provider,
   sealRelayAnswer,
   verifyImageDownload
 } from './local-first.helpers';
+import { platformAccount, setupPlatform, taskFixture } from './platform-fixture';
 
 async function pauseViewTransitions(page: Page) {
   await page.evaluate(() => {
@@ -45,6 +44,10 @@ async function finishViewTransitions(page: Page) {
         animation.finish();
   });
 }
+
+test.beforeEach(async ({ context }) => {
+  await setupPlatform(context);
+});
 
 test('模板改写可转为普通提示词并保留正文和焦点', async ({ page }) => {
   await page.goto('/');
@@ -269,105 +272,7 @@ test('减少动态效果时首页图片直接打开和关闭详情', async ({ pa
   await expect(card).toBeFocused();
 });
 
-test('供应商保存后清空表单，切换落盘前禁止生成', async ({ page }) => {
-  await provider(page, false);
-  await expect(page.getByLabel('名称', { exact: true })).toHaveValue('');
-  await expect(page.getByLabel('HTTPS Base URL')).toHaveValue('');
-  await expect(page.getByLabel('图片模型 ID')).toHaveValue('');
-  await page.getByLabel('名称', { exact: true }).fill('第二供应商');
-  await page.getByLabel('HTTPS Base URL').fill('https://second.example.test/v1');
-  await page.getByLabel('图片模型 ID').fill('second-image');
-  await page.getByRole('button', { name: '保存到本机', exact: true }).click();
-  await expect(page.locator('.provider-card')).toHaveCount(2);
-  await prompt(page, '供应商切换回归');
-  await page.evaluate(async () => {
-    let acquired!: () => void;
-    const ready = new Promise<void>(resolve => (acquired = resolve));
-    void navigator.locks.request(`aiao-media-account-${localStorage.getItem('aiao-local-profile-v1')}`, async () => {
-      acquired();
-      await new Promise<void>(resolve =>
-        document.addEventListener('release-provider-review-lock', () => resolve(), { once: true })
-      );
-    });
-    await ready;
-  });
-  try {
-    await page
-      .getByLabel('图片供应商', { exact: true })
-      .selectOption({ label: '第二供应商 · second-image · 浏览器直连' });
-    await expect(page.getByLabel('图片供应商', { exact: true })).toBeDisabled();
-    await expect(page.getByRole('button', { name: '正在保存设置…', exact: true })).toBeDisabled();
-  } finally {
-    await page.evaluate(() => document.dispatchEvent(new Event('release-provider-review-lock')));
-  }
-  await expect(page.getByLabel('图片供应商', { exact: true })).toBeEnabled();
-  await page.getByRole('button', { name: '✧ 生成图片', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: '填写 API Key' })).toContainText('第二供应商 · second-image');
-});
-
-test('初始工作区目录就绪前禁用保存，完成后首次点击即可保存供应商', async ({ page }) => {
-  await page.addInitScript(() => {
-    let reads = 0;
-    const ready = new Promise<void>(resolve =>
-      document.addEventListener('fixture-release-initial-registry', () => resolve(), { once: true })
-    );
-    navigator.locks.request = new Proxy(navigator.locks.request, {
-      async apply(request, locks, args) {
-        const initial = args[0] === 'aiao-local-profile-v1' && ++reads === 2;
-        const result: unknown = await Reflect.apply(request, locks, args);
-        if (initial) {
-          document.documentElement.dataset['initialRegistry'] = 'pending';
-          await ready;
-          delete document.documentElement.dataset['initialRegistry'];
-        }
-        return result;
-      }
-    });
-  });
-  let requests = 0;
-  await page.route('**/*', route => {
-    const request = route.request();
-    if (
-      ['POST', 'PUT'].includes(request.method()) &&
-      /\/(images\/generations|image_generation|api\/relay(\/tasks\/[^/]+)?)$/.test(request.url())
-    ) {
-      requests++;
-      return route.abort('blockedbyclient');
-    }
-    return route.fallback();
-  });
-  await page.goto('/providers');
-  await expect(page.locator('html')).toHaveAttribute('data-initial-registry', 'pending');
-  await page.getByLabel('名称', { exact: true }).fill('本机供应商');
-  await page.getByLabel('HTTPS Base URL').fill('https://images.example.test/v1');
-  await page.getByLabel('图片模型 ID').fill('test-image');
-  const save = page.getByRole('button', { name: '保存到本机', exact: true });
-  try {
-    await expect(save).toBeDisabled();
-  } finally {
-    await page.evaluate(() => document.dispatchEvent(new Event('fixture-release-initial-registry')));
-  }
-  await expect(save).toBeEnabled();
-  await save.click();
-  await expect(page.getByRole('heading', { name: '本机供应商 · 默认' })).toBeVisible();
-  expect(requests).toBe(0);
-});
-test('首次没有供应商时自动启用默认免费供应商', async ({ page }) => {
-  await page.goto('/providers');
-  await expect(page.getByRole('heading', { name: '默认免费供应商 · 默认' })).toBeVisible();
-  await expect(page.getByText('https://api.pengdevs.com', { exact: true })).toBeVisible();
-  await expect(page.locator('.provider-card')).toContainText('本站代理');
-  await page.goto('/create');
-  await expect(page.locator('#selected-provider')).toHaveValue('00000000-0000-4000-8000-000000000001');
-  await prompt(page, '一片蓝色的天空');
-  await page.getByRole('button', { name: '✧ 生成图片' }).click();
-  const prompted = page.getByRole('dialog', { name: '填写 API Key' });
-  await expect(prompted).toContainText('默认免费供应商 · gpt-image-2.5 · 本站代理');
-  await expect(prompted.getByLabel('API Key', { exact: true })).toHaveValue('');
-  await expect(page).toHaveURL(/\/create$/);
-});
-
-test('实际静态应用无需登录，RxDB 设置、草稿和图片经刷新仍在', async ({ page }) => {
+test('平台生图的草稿和图片经刷新仍在', async ({ page }) => {
   const oldApi: string[] = [];
   page.on('request', r => {
     if (/\/api\/(auth|generations|image-config)/.test(r.url())) oldApi.push(r.url());
@@ -378,15 +283,14 @@ test('实际静态应用无需登录，RxDB 设置、草稿和图片经刷新仍
     .png()
     .toBuffer();
   let calls = 0;
-  await page.route(endpoint, route => {
+  await taskFixture(page, request => {
     calls++;
-    expect(route.request().headers()['authorization']).toBe(`Bearer ${key}`);
-    expect(route.request().headers()['cookie']).toBeUndefined();
-    return route.fulfill({
+    expect(request.headers()['cookie']).toBeUndefined();
+    return {
       json: { data: [{ b64_json: png.toString('base64') }] }
-    });
+    };
   });
-  await provider(page);
+  await platformAccount(page);
   await prompt(page);
   await page.reload();
   await expect(page.locator('[contenteditable="true"]')).toContainText('一片绿色的森林');
@@ -411,19 +315,19 @@ test('MiniMax JPEG 原图可保存、按真实后缀下载、刷新回读和备�
     .toBuffer();
   let calls = 0;
   let reads = 0;
-  await page.route('https://api.minimax.cn/v1/image_generation', route => {
+  await setupPlatform(page.context(), { protocol: 'minimax' });
+  await taskFixture(page, () => {
     calls++;
-    expect(route.request().postDataJSON()).toMatchObject({ model: 'image-01', width: 1024, height: 1024, n: 1 });
-    return route.fulfill({
+    return {
       json: { base_resp: { status_code: 0 }, data: { image_urls: ['https://results.example.test/original.png'] } }
-    });
+    };
   });
   await page.route('https://results.example.test/original.png', route => {
     reads++;
     for (const name of ['authorization', 'cookie', 'referer']) expect(route.request().headers()[name]).toBeUndefined();
     return route.fulfill({ contentType: 'image/jpeg', body: jpeg });
   });
-  await provider(page, false, 'direct', { baseUrl: 'https://api.minimax.cn/v1', model: 'image-01', key });
+  await platformAccount(page);
   await prompt(page, 'JPEG 原图完整交付');
   await page.getByRole('button', { name: '✧ 生成图片' }).click();
   await expect(page.getByText('已保存到本机', { exact: true })).toBeVisible();
@@ -458,61 +362,26 @@ test('MiniMax JPEG 原图可保存、按真实后缀下载、刷新回读和备�
   expect(reads).toBe(1);
 });
 test('未知结果刷新后仍锁定，不会自动重复提交或切换代理', async ({ page }) => {
-  let calls = 0,
-    relayCalls = 0;
-  await page.route(endpoint, route => {
+  let calls = 0;
+  await taskFixture(page, () => {
     calls++;
-    return route.abort('failed');
+    return { failure: 'network failed' };
   });
-  await page.route('**/api/relay**', route => {
-    relayCalls++;
-    return route.fulfill({ status: 500 });
-  });
-  await provider(page);
+  await platformAccount(page);
   await prompt(page);
   await page.getByRole('button', { name: '✧ 生成图片' }).click();
-  await expect(page.getByRole('heading', { name: '请核对供应商记录' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '请核对平台任务' })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole('heading', { name: '请核对供应商记录' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '请核对平台任务' })).toBeVisible();
   await expect(page.getByRole('button', { name: '请先核对原请求' })).toBeDisabled();
   await page.goto('/providers');
-  await expect(page.getByRole('button', { name: '编辑 / 填写 Key' })).toBeEnabled();
-  await page.getByRole('button', { name: '编辑 / 填写 Key' }).click();
-  await expect(page.getByLabel('API Key', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: '保存到本机', exact: true })).toBeEnabled();
+  await expect(page.locator('#provider-key, #provider-base')).toHaveCount(0);
   expect(calls).toBe(1);
-  expect(relayCalls).toBe(0);
+  await page.goto('/create');
   page.once('dialog', d => d.accept());
   await page.getByRole('button', { name: '已核对，解除本机锁定' }).click();
   await prompt(page, '解除锁定后的新提示词');
   await expect(page.getByRole('button', { name: '✧ 生成图片' })).toBeEnabled();
-});
-test('默认 Key 只在内存；代理由用户主动选择', async ({ page }) => {
-  await provider(page, false, 'proxy');
-  await prompt(page);
-  await page.reload();
-  let calls = 0;
-  await page.route('**/api/relay/tasks/**', route => {
-    // The failed task is released afterwards; only its creation carries the Key.
-    if (route.request().method() !== 'PUT') return route.fulfill({ status: 404, json: { error: 'Task not found' } });
-    calls++;
-    expect(route.request().headers()['x-provider-base']).toBe('https://images.example.test/v1');
-    expect(route.request().headers()['authorization']).toBe(`Bearer ${key}`);
-    return route.fulfill({
-      status: 403,
-      json: { error: 'Provider not allowed' }
-    });
-  });
-  await page.getByRole('button', { name: '✧ 生成图片' }).click();
-  const prompted = page.getByRole('dialog', { name: '填写 API Key' });
-  await expect(prompted.getByLabel('API Key', { exact: true })).toHaveValue('');
-  await expect(prompted.getByLabel('在此设备记住 Key')).not.toBeChecked();
-  expect(calls).toBe(0);
-  await prompted.getByLabel('API Key', { exact: true }).fill(key);
-  await prompted.getByRole('button', { name: '保存并生成' }).click();
-  await expect(page.getByRole('heading', { name: '这次图片没有生成成功' })).toBeVisible();
-  await expect(prompted).toHaveCount(0);
-  expect(calls).toBe(1);
 });
 test('代理生成中刷新页面，回来后接着取回并保存结果，任务只创建一次', async ({ page }) => {
   const png = await pngFixture();
@@ -531,8 +400,9 @@ test('代理生成中刷新页面，回来后接着取回并保存结果，任�
     if (request.method() === 'PUT') {
       seen.created++;
       task = { id, token: headers['x-relay-task-token'] };
-      expect(headers['authorization']).toBe(`Bearer ${key}`);
-      expect(headers['x-provider-base']).toBe('https://images.example.test/v1');
+      expect(headers['authorization']).toMatch(/^Bearer [A-Za-z0-9_.-]+$/);
+      expect(headers['x-provider-base']).toBeUndefined();
+      expect(request.postDataJSON().model).toBe('standard');
       expect(task.token).toMatch(/^[A-Za-z0-9_-]{43}$/);
       return route.fulfill({ status: 202, json: view() });
     }
@@ -546,6 +416,7 @@ test('代理生成中刷新页面，回来后接着取回并保存结果，任�
       seen.abandoned++;
       return route.fulfill({ status: 404, json: { error: 'Task not found' } });
     }
+    if (action === '/confirm') return route.fulfill({ json: view() });
     if (action === '/result')
       return route.fulfill({
         contentType: 'application/octet-stream',
@@ -555,14 +426,14 @@ test('代理生成中刷新页面，回来后接着取回并保存结果，任�
     await new Promise(resolve => setTimeout(resolve, 200));
     return route.fulfill({ json: view() });
   });
-  await provider(page, false, 'proxy');
+  await platformAccount(page);
   await prompt(page);
   await page.getByRole('button', { name: '✧ 生成图片' }).click();
-  await expect(page.getByText('正在由本站代理生成，可以刷新或关闭页面。')).toBeVisible();
+  await expect(page.getByText('平台正在生成，可以刷新或关闭页面。')).toBeVisible();
   await expect.poll(() => seen.polls).toBeGreaterThan(0);
   await page.reload();
-  await expect(page.getByText('正在由本站代理生成，可以刷新或关闭页面。')).toBeVisible();
-  await expect(page.getByRole('heading', { name: '请核对供应商记录' })).toHaveCount(0);
+  await expect(page.getByText('平台正在生成，可以刷新或关闭页面。')).toBeVisible();
+  await expect(page.getByRole('heading', { name: '请核对平台任务' })).toHaveCount(0);
   ready = true;
   await expect(page.getByText('已保存到本机', { exact: true })).toBeVisible();
   await expect(page.getByAltText('本次生成的图片')).toBeVisible();
@@ -583,22 +454,22 @@ test('接单回执不明时刷新：本站没有收到就解除锁定，原请�
     if (request.url().endsWith('/abandon')) abandoned++;
     return route.fulfill({ status: 404, json: { error: 'Task not found' } });
   });
-  await provider(page, false, 'proxy');
+  await platformAccount(page);
   await prompt(page);
   await page.getByRole('button', { name: '✧ 生成图片' }).click();
-  // The page retries the same task while it still holds the Key; the relay would accept it only once.
+  // 接单应答丢失时只重试同一任务；刷新后用原设备令牌封存未接单标识。
   await expect.poll(() => ids.size, { timeout: 10000 }).toBe(1);
   await page.waitForTimeout(1500);
   expect(ids.size).toBe(1);
   await page.reload();
   await expect(page.getByRole('heading', { name: '这次图片没有生成成功' })).toBeVisible();
-  await expect(page.getByText('请求没有送达本站，也没有发给供应商。可以重新生成。')).toBeVisible();
+  await expect(page.getByText('请求尚未接单，原标识已封存；本次未扣积分，可以重新生成。')).toBeVisible();
   expect(abandoned).toBe(1);
   await prompt(page, '解除锁定后的新提示词');
   await expect(page.getByRole('button', { name: '✧ 生成图片' })).toBeEnabled();
 });
 test('首次缓存后四条页面离线可打开，设置和草稿仍可读', async ({ page, context }) => {
-  await provider(page);
+  await platformAccount(page);
   await prompt(page, '离线也能继续的创作');
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
@@ -607,7 +478,7 @@ test('首次缓存后四条页面离线可打开，设置和草稿仍可读', as
   await context.setOffline(true);
   for (const path of ['/providers', '/create', '/images', '/']) {
     await page.goto(path);
-    if (path === '/providers') await expect(page.getByRole('heading', { name: '本机供应商 · 默认' })).toBeVisible();
+    if (path === '/providers') await expect(page.getByRole('heading', { name: '平台生图与积分' })).toBeVisible();
     if (path === '/create') await expect(page.locator('[contenteditable="true"]')).toContainText('离线也能继续的创作');
     await expect(page.getByRole('link', { name: 'Aiao Images 首页' })).toBeVisible();
   }
@@ -636,7 +507,7 @@ test('从创作页首次安装后，离线冷开首页仍可解码六张参考�
 });
 test('移动端首页、供应商页和创作页不产生横向溢出', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await provider(page);
+  await platformAccount(page);
   await prompt(page);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.goto('/providers');
@@ -752,8 +623,8 @@ test('连续导入保留各工作区，原图与草稿可离线读取并从界�
   })
     .png()
     .toBuffer();
-  await page.route(endpoint, route => route.fulfill({ json: { data: [{ b64_json: png.toString('base64') }] } }));
-  await provider(page);
+  await taskFixture(page, () => ({ json: { data: [{ b64_json: png.toString('base64') }] } }));
+  await platformAccount(page);
   await prompt(page, '备份中的原始提示词');
   await page.getByRole('button', { name: '✧ 生成图片' }).click();
   await expect(page.getByText('已保存到本机', { exact: true })).toBeVisible();
@@ -789,10 +660,9 @@ test('连续导入保留各工作区，原图与草稿可离线读取并从界�
   await expect.poll(() => page.evaluate(() => localStorage.getItem('aiao-local-profile-v1'))).not.toBe(originalId);
   const firstImportedId = await profile(page);
   await expect(page.getByText('备份已导入当前工作区。原工作区已保留，可在下方切回。')).toBeVisible();
-  await page.getByRole('tab', { name: '供应商', exact: true }).click();
-  await expect(page.getByRole('heading', { name: '本机供应商 · 默认' })).toBeVisible();
-  await page.getByRole('button', { name: '编辑 / 填写 Key' }).click();
-  await expect(page.getByLabel('API Key', { exact: true })).toHaveValue('');
+  await page.getByRole('tab', { name: '平台生图', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '平台生图与积分' })).toBeVisible();
+  await expect(page.locator('#provider-key, #provider-base')).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
   await context.setOffline(true);
   await page.goto('/images');
@@ -816,8 +686,7 @@ test('连续导入保留各工作区，原图与草稿可离线读取并从界�
   await page.goto('/create');
   await expect(page.locator('[contenteditable="true"]')).toContainText('原工作区未导出的草稿');
   await page.goto('/providers');
-  await page.getByRole('button', { name: '编辑 / 填写 Key' }).click();
-  await expect(page.getByLabel('API Key', { exact: true })).toHaveValue(key);
+  await expect(page.locator('#provider-key, #provider-base')).toHaveCount(0);
   await page.goto('/providers#data');
   const firstCopy = page.locator('.provider-actions').filter({ hasText: firstImportedId!.slice(-8) });
   page.once('dialog', dialog => dialog.accept());
@@ -831,7 +700,7 @@ test('连续导入保留各工作区，原图与草稿可离线读取并从界�
 });
 
 test('损坏的备份不会改变当前工作区或清除现有设置', async ({ page }) => {
-  await provider(page);
+  await platformAccount(page);
   const original = await page.evaluate(() => localStorage.getItem('aiao-local-profile-v1'));
   await page.getByRole('tab', { name: '本机数据', exact: true }).click();
   await page.locator('input[type=file]').setInputFiles({
@@ -841,16 +710,16 @@ test('损坏的备份不会改变当前工作区或清除现有设置', async ({
   });
   await expect(page.getByText('不支持的备份格式或版本。')).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('aiao-local-profile-v1'))).toBe(original);
-  await page.getByRole('tab', { name: '供应商', exact: true }).click();
-  await expect(page.getByRole('heading', { name: '本机供应商 · 默认' })).toBeVisible();
+  await page.getByRole('tab', { name: '平台生图', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '平台生图与积分' })).toBeVisible();
 });
 
 test('三个画幅均能保存原图，每次用户操作只产生一个请求', async ({ page }) => {
-  await provider(page);
+  await platformAccount(page);
   await prompt(page);
   const sizes: string[] = [];
-  await page.route(endpoint, async route => {
-    const body = route.request().postDataJSON();
+  await taskFixture(page, async request => {
+    const body = request.postDataJSON();
     sizes.push(body.size);
     const landscape = body.size === '1536x1024',
       portrait = body.size === '1024x1536';
@@ -864,9 +733,9 @@ test('三个画幅均能保存原图，每次用户操作只产生一个请求',
     })
       .png()
       .toBuffer();
-    await route.fulfill({
+    return {
       json: { data: [{ b64_json: png.toString('base64') }] }
-    });
+    };
   });
   for (const [index, label] of ['正方形', '横向', '纵向'].entries()) {
     await page.getByRole('button', { name: label, exact: true }).click();
@@ -890,14 +759,14 @@ test('两标签页并发点击不会重复付费请求', async ({ page, context 
     release = resolve;
   });
   let calls = 0;
-  await context.route(endpoint, async route => {
+  await taskFixture(context, async () => {
     calls++;
     await hold;
-    await route.fulfill({
+    return {
       json: { data: [{ b64_json: png.toString('base64') }] }
-    });
+    };
   });
-  await provider(page);
+  await platformAccount(page);
   await prompt(page);
   const other = await context.newPage();
   await other.goto('/create');
@@ -941,13 +810,13 @@ test('本机写入失败时保留可下载结果，重试保存不再生成', as
     .png()
     .toBuffer();
   let calls = 0;
-  await page.route(endpoint, route => {
+  await taskFixture(page, () => {
     calls++;
-    return route.fulfill({
+    return {
       json: { data: [{ b64_json: png.toString('base64') }] }
-    });
+    };
   });
-  await provider(page);
+  await platformAccount(page);
   await prompt(page);
   await page.evaluate(() => {
     const prototype = FileSystemDirectoryHandle.prototype;

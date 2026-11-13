@@ -28,14 +28,18 @@ test('公开 OpenAPI 文档包含稳定的产品接口', async () => {
     '/api/credits',
     '/api/admin/users/{userId}/credits',
     '/api/templates',
-    '/api/provider-policies',
-    '/api/provider-probe',
-    '/api/relay',
+    '/api/models',
     '/api/relay/tasks/{taskId}',
     '/api/relay/tasks/{taskId}/result',
-    '/api/relay/tasks/{taskId}/abandon'
+    '/api/relay/tasks/{taskId}/abandon',
+    '/api/relay/tasks/{taskId}/confirm',
+    '/api/relay/tasks/{taskId}/discard'
   ])
     assert.ok(document.paths[path], `缺少 OpenAPI 路径 ${path}`);
+  assert.equal(document.paths['/api/relay'], undefined);
+  const serialized = JSON.stringify(document);
+  assert.ok(!serialized.includes('provider-api-key'));
+  assert.ok(!serialized.includes('x-provider-base'));
   assert.deepEqual(Object.keys(document.paths['/api/relay/tasks/{taskId}']).sort(), ['delete', 'get', 'put']);
 });
 

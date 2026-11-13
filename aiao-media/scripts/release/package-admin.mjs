@@ -11,4 +11,19 @@ const index = resolve(target, 'index.html');
 await writeFile(index, (await readFile(index, 'utf8')).replace(/<base href="\/"\s*\/?>/, '<base href="/admin/">'));
 await cp(resolve(root, 'tmp/production-supabase-bundle.sql'), resolve(target, 'new-project.sql'));
 await cp(resolve(root, 'infra/supabase/migrations/011-installation.sql'), resolve(target, 'upgrade-installation.sql'));
+const creditsUpgrade = await Promise.all(
+  ['012-credits.sql', '013-relay-credit-abandonment.sql'].map(name =>
+    readFile(resolve(root, 'infra/supabase/migrations', name), 'utf8')
+  )
+);
+await writeFile(
+  resolve(target, 'upgrade-credits.sql'),
+  [
+    'BEGIN;',
+    ...creditsUpgrade.map(sql => sql.replace(/^\s*(?:BEGIN|COMMIT)\s*;\s*$/gm, '').trim()),
+    "COMMENT ON SCHEMA media_private IS 'aiao-media schema 13';",
+    'COMMIT;',
+    ''
+  ].join('\n')
+);
 console.log('Packaged admin initialization and login at /admin/.');

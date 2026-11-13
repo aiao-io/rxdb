@@ -1,3 +1,4 @@
+import { setupPlatform, taskFixture } from './platform-fixture';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { createHash, randomUUID } from 'node:crypto';
 import { importBackup, pngFixture, profile, verifyImageDownload } from './local-first.helpers';
@@ -55,8 +56,8 @@ async function seed(page: Page, count = 50, label = '', image?: Buffer) {
   const reloaded = page.waitForEvent('load');
   await importBackup(page, backup);
   await reloaded;
-  await page.getByRole('tab', { name: '供应商', exact: true }).click();
-  await expect(page.getByRole('heading', { name: '检索验收供应商 · 默认' })).toBeVisible({ timeout: 30000 });
+  await page.getByRole('tab', { name: '平台生图', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '平台生图与积分' })).toBeVisible({ timeout: 30000 });
   return { png, jobs };
 }
 
@@ -468,14 +469,9 @@ test('超宽屏下我的图片按卡片大小排满整行，常见窗口的列�
 });
 
 test('生成页右侧共用我的图片，筛选复用后生成的新图自动出现，手机布局不溢出', async ({ page }) => {
+  await setupPlatform(page.context());
   const { png } = await seed(page, 6);
-  await page.route('https://library.example.test/v1/images/generations', route =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ data: [{ b64_json: png.toString('base64') }] })
-    })
-  );
+  await taskFixture(page, () => ({ json: { data: [{ b64_json: png.toString('base64') }] } }));
   await page.getByRole('link', { name: '生成图片', exact: true }).click();
   const library = page.getByRole('region', { name: '我的图片', exact: true });
   const cards = library.locator('.cards > .library-card');
@@ -495,10 +491,6 @@ test('生成页右侧共用我的图片，筛选复用后生成的新图自动�
   await library.getByRole('button', { name: '清空筛选', exact: true }).click();
   await editor.fill('创作页新增的图片');
   await page.getByRole('button', { name: '✧ 生成图片', exact: true }).click();
-  const keyDialog = page.getByRole('dialog', { name: '填写 API Key' });
-  await expect(keyDialog).toBeVisible();
-  await keyDialog.getByLabel('API Key', { exact: true }).fill('fixture-studio-library-key');
-  await keyDialog.getByRole('button', { name: '保存并生成', exact: true }).click();
   await expect(cards).toHaveCount(7);
   await expect(cards.first()).toContainText('创作页新增的图片');
   await expect(cards.first().getByAltText('本机生成作品')).toBeVisible();

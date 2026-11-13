@@ -8,7 +8,6 @@ import { LocalMediaStore, type LocalWorkSummary } from '../local-data/index';
 import type { WorkspaceRegistryState } from '../local-data/workspace-registry';
 import { WorkspaceRegistryStore } from '../local-data/workspace-registry-store';
 import { readBackupSelection, readBackupWorkspaces, rememberBackupSelection } from './backup-workspaces';
-import { defaultFreeProvider } from './default-provider';
 import { LocalImageMvp } from './local-image-mvp';
 import type { LocalProvider } from './local-provider';
 import * as providerApi from './local-provider';
@@ -146,8 +145,8 @@ function rig() {
   const memory = memoryStore();
   Object.assign(component, { store: memory.store, profileId });
   component.localStatus.set('ready');
-  component.providers.set([provider]);
-  component.providerId.set(provider.id);
+  component.models.set([{ id: 'standard', name: '平台生图', credits: 3, protocol: 'openai' }]);
+  component.modelId.set('standard');
   component.editorReady.set(true);
   component.promptState.set(plainPrompt('测试图片'));
   return { fixture, component, ...memory };
@@ -912,16 +911,39 @@ describe('local result lifecycle', () => {
 });
 
 async function authorizeGeneration(r: ReturnType<typeof rig>) {
-  r.component.editProvider(provider);
-  r.component.apiKey.set('fixture-key');
-  await r.component.saveProvider();
+  r.component.models.set([{ id: 'standard', name: '平台生图', credits: 3, protocol: 'openai' }]);
+  r.component.modelId.set('standard');
+  r.component.authStatus.set('signed-in');
+  r.component.authUser.set({ id: profileId, email: 'fixture@example.test' });
+  r.component.targetKind.set('platform');
+  vi.spyOn(r.component.adminApi, 'credits').mockResolvedValue({
+    account: { balance: 10, reserved: 0, available: 10 },
+    entries: []
+  });
+  vi.spyOn(r.component.adminApi, 'authorization').mockResolvedValue({
+    config: { url: 'https://account.example', anonKey: 'sb_publishable_fixture' },
+    userId: profileId,
+    session: {
+      access_token: 'fixture-platform-session',
+      refresh_token: 'fixture-refresh',
+      expires_in: 3600,
+      token_type: 'bearer',
+      user: {
+        id: profileId,
+        aud: 'authenticated',
+        app_metadata: {},
+        user_metadata: {},
+        created_at: '2026-11-13T00:00:00Z'
+      }
+    }
+  });
 }
 
 describe('workspace initialization and isolation', () => {
   it('opens registered local data, restores configuration and observes metadata without reading originals', async () => {
     const r = await boot();
     expect(r.component.currentProfileId()).toBe(profileId);
-    expect(r.component.providers()).toEqual([provider]);
+    expect(r.preferences.get('providers-v1')?.payload).toContain(provider.name);
     expect(r.component.localWorksKnown()).toBe(true);
     expect(r.component.availableProfiles()).toHaveLength(2);
     expect(r.component.storageInfo()).toContain('1 MiB');
@@ -947,9 +969,7 @@ describe('workspace initialization and isolation', () => {
     expect(r.component.job()).toBeNull();
     expect(r.component.resultUrl()).toBeNull();
     expect(r.component.serialized().text).toBe('');
-    r.component.editProvider(provider);
-    expect(r.component.apiKey()).toBe('');
-    expect(r.component.keyIds().size).toBe(0);
+    expect(r.component.modelId()).toBe('standard');
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:previous');
     expect(r.store.activateDevTools).toHaveBeenCalledTimes(2);
   });
@@ -982,168 +1002,11 @@ describe('workspace initialization and isolation', () => {
   });
 });
 
-describe('provider credentials', () => {
-  it('blocks generation until a provider selection has been persisted', async () => {
-    const r = rig();
-    const other = { ...provider, id: nextProfileId, name: '另一个供应商' };
-    r.component.providers.set([provider, other]);
-    const pending = deferred<number[]>();
-    r.store.savePreferences.mockReturnValueOnce(pending.promise);
-    const change = r.component.chooseProvider(other.id);
-    try {
-      expect(r.component.providerBusy()).toBe(true);
-      expect(r.component.canGenerate()).toBe(false);
-      await r.component.generate();
-      expect(r.component.keyPrompt()).toBeNull();
-    } finally {
-      pending.resolve([2]);
-      await change;
-    }
-    expect(r.component.providerId()).toBe(other.id);
-    expect(r.component.canGenerate()).toBe(true);
-  });
-
-  it('clears the add form after saving instead of retaining a duplicate candidate', async () => {
-    const r = rig();
-    r.component.editProvider(provider);
-    await r.component.saveProvider();
-    expect(r.component.editingId()).toBeNull();
-    expect(r.component.providerName()).toBe('');
-    expect(r.component.baseUrl()).toBe('');
-    expect(r.component.model()).toBe('');
-    await r.component.saveProvider();
-    expect(r.component.providers()).toHaveLength(1);
-    expect(r.store.savePreferences).toHaveBeenCalledTimes(1);
-  });
-
-  it('stores public settings separately and keeps an unremembered key only in the current session', async () => {
-    const r = rig();
-    await authorizeGeneration(r);
-    expect(r.preferences.get('providers-v1')?.payload).not.toContain('fixture-key');
-    expect(r.preferences.get('provider-keys-v1')?.payload).toBe('{}');
-    expect(r.component.providerMessage()).toContain('已保存到本机');
-    r.component.editProvider(provider);
-    expect(r.component.apiKey()).toBe('fixture-key');
-    expect(r.component.providerBusy()).toBe(false);
-  });
-
-  it('persists a key only after explicit opt-in and removes it without deleting the provider', async () => {
-    const r = rig();
-    r.component.editProvider(provider);
-    r.component.apiKey.set('remembered-fixture');
-    r.component.rememberKey.set(true);
-    await r.component.saveProvider();
-    expect(JSON.parse(r.preferences.get('provider-keys-v1')!.payload)).toEqual({ [provider.id]: 'remembered-fixture' });
-    r.component.editProvider(r.component.providers()[0]);
-    await r.component.removeKey(r.component.providers()[0]);
-    expect(r.component.providers()).toEqual([provider]);
-    expect(r.component.apiKey()).toBe('');
-    expect(r.component.rememberKey()).toBe(false);
-    expect(r.preferences.get('provider-keys-v1')?.payload).toBe('{}');
-  });
-
-  it.each([
-    ['providerName', ''],
-    ['providerName', 'a'.repeat(81)],
-    ['model', 'bad model'],
-    ['apiKey', 'with space'],
-    ['baseUrl', 'http://provider.example']
-  ] as const)('rejects invalid %s before persisting', async (field, value) => {
-    const r = rig();
-    r.component.editProvider(provider);
-    r.component[field].set(value);
-    await r.component.saveProvider();
-    expect(r.store.savePreferences).not.toHaveBeenCalled();
-    expect(r.component.providerMessage()).not.toBe('');
-    expect(r.component.providerBusy()).toBe(false);
-  });
-
-  it('replaces the seeded default when the first personal provider is saved', async () => {
-    const r = rig();
-    r.component.providers.set([defaultFreeProvider()]);
-    r.component.providerId.set(defaultFreeProvider().id);
-    r.component.providerName.set('个人供应商');
-    r.component.baseUrl.set('https://personal.example/');
-    r.component.model.set('personal-model');
-    await r.component.saveProvider();
-    expect(r.component.providers()).toHaveLength(1);
-    expect(r.component.provider()?.name).toBe('个人供应商');
-    expect(r.component.provider()?.baseUrl).toBe('https://personal.example');
-  });
-
-  it('refuses a 31st provider and allows edits to existing providers', async () => {
-    const r = rig();
-    r.component.providers.set(Array.from({ length: 30 }, (_, i) => ({ ...provider, id: String(i) })));
-    r.component.editProvider(provider);
-    r.component.editingId.set(null);
-    await r.component.saveProvider();
-    expect(r.component.providerMessage()).toContain('30');
-    expect(r.store.savePreferences).not.toHaveBeenCalled();
-  });
-
-  it('cancels deletion without changing credentials or saved works', async () => {
-    const r = rig();
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
-    await r.component.removeProvider(provider);
-    expect(r.store.savePreferences).not.toHaveBeenCalled();
-    expect(r.component.providers()).toEqual([provider]);
-  });
-
-  it('deletes a provider and its key, reinstating the credential-free local default', async () => {
-    const r = rig();
-    await authorizeGeneration(r);
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    await r.component.removeProvider(provider);
-    expect(r.component.providers()).toEqual([defaultFreeProvider()]);
-    expect(r.component.editingId()).toBeNull();
-    expect(r.component.apiKey()).toBe('');
-    expect(r.store.delete).not.toHaveBeenCalled();
-  });
-
-  it('keeps current settings when persistence fails and reports the failure', async () => {
-    const r = rig();
-    r.component.editProvider(provider);
-    r.component.providerName.set('修改');
-    r.store.savePreferences.mockRejectedValue(new Error('CAS conflict'));
-    await r.component.saveProvider();
-    expect(r.component.providers()).toEqual([provider]);
-    expect(r.component.providerMessage()).toBe('CAS conflict');
-    await r.component.chooseProvider('other');
-    expect(r.component.providerId()).toBe(provider.id);
-    expect(r.component.error()).toBe('CAS conflict');
-    await r.component.removeKey(provider);
-    expect(r.component.providerMessage()).toContain('移除 Key 未完成');
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    await r.component.removeProvider(provider);
-    expect(r.component.providerMessage()).toBe('CAS conflict');
-  });
-
-  it('blocks configuration changes while generation or a workspace transition is active', async () => {
-    const r = rig();
-    r.component.sending.set(true);
-    await r.component.saveProvider();
-    await r.component.chooseProvider('other');
-    await r.component.removeProvider(provider);
-    await r.component.removeKey(provider);
-    expect(r.store.savePreferences).not.toHaveBeenCalled();
-  });
-});
-
 describe('generation and uncertain requests', () => {
-  it('asks for a session key in place without sending a generation request', async () => {
-    const r = rig();
-    const generate = vi.spyOn(providerApi, 'generateLocalImage');
-    await r.component.generate();
-    expect(r.component.view()).toBe('discover');
-    expect(r.component.keyPrompt()).toEqual(provider);
-    expect(r.component.providerHasKey()).toBe(false);
-    expect(generate).not.toHaveBeenCalled();
-  });
-
   it('journals a single request before sending, then saves the returned image and completed task', async () => {
     const r = rig();
     await authorizeGeneration(r);
-    const generate = vi.spyOn(providerApi, 'generateLocalImage').mockImplementation(async () => {
+    const generate = vi.spyOn(relayApi, 'runRelayTask').mockImplementation(async () => {
       const journal = JSON.parse(r.preferences.get('tasks-v1')!.payload);
       expect(journal[0].status).toBe('processing');
       return new Blob(['png'], { type: 'image/png' });
@@ -1163,7 +1026,7 @@ describe('generation and uncertain requests', () => {
     async failure => {
       const r = rig();
       await authorizeGeneration(r);
-      const generate = vi.spyOn(providerApi, 'generateLocalImage').mockRejectedValue(failure);
+      const generate = vi.spyOn(relayApi, 'runRelayTask').mockRejectedValue(failure);
       await r.component.generate();
       await r.component.generate();
       expect(generate).toHaveBeenCalledTimes(1);
@@ -1176,7 +1039,7 @@ describe('generation and uncertain requests', () => {
   it('unlocks a definite rejection while preserving its failed journal', async () => {
     const r = rig();
     await authorizeGeneration(r);
-    vi.spyOn(providerApi, 'generateLocalImage').mockRejectedValue(new providerApi.ProviderFailure('HTTP 401', true));
+    vi.spyOn(relayApi, 'runRelayTask').mockRejectedValue(new providerApi.ProviderFailure('HTTP 401', true));
     await r.component.generate();
     expect(r.component.uncertain()).toBe(false);
     expect(r.component.job()?.status).toBe('failed');
@@ -1188,7 +1051,7 @@ describe('generation and uncertain requests', () => {
     const r = rig();
     await authorizeGeneration(r);
     r.store.savePreferences.mockRejectedValue(new Error('disk full'));
-    const generate = vi.spyOn(providerApi, 'generateLocalImage');
+    const generate = vi.spyOn(relayApi, 'runRelayTask');
     await r.component.generate();
     expect(generate).not.toHaveBeenCalled();
     expect(r.component.error()).toBe('disk full');
@@ -1200,7 +1063,7 @@ describe('generation and uncertain requests', () => {
     vi.mocked(navigator.locks.request).mockImplementation(async (_name, options, callback) =>
       (typeof options === 'function' ? options : callback!)(null)
     );
-    const generate = vi.spyOn(providerApi, 'generateLocalImage');
+    const generate = vi.spyOn(relayApi, 'runRelayTask');
     await r.component.generate();
     expect(generate).not.toHaveBeenCalled();
     expect(r.component.error()).toContain('另一标签页');
@@ -1210,7 +1073,7 @@ describe('generation and uncertain requests', () => {
     const r = rig();
     await authorizeGeneration(r);
     r.preferences.set('tasks-v1', { payload: JSON.stringify([{ ...job, status: 'processing' }]), revision: 1 });
-    const generate = vi.spyOn(providerApi, 'generateLocalImage');
+    const generate = vi.spyOn(relayApi, 'runRelayTask');
     await r.component.generate();
     expect(generate).not.toHaveBeenCalled();
     expect(r.component.history()).toHaveLength(1);
@@ -1221,7 +1084,7 @@ describe('generation and uncertain requests', () => {
   it('retains received bytes for download if local saving fails', async () => {
     const r = rig();
     await authorizeGeneration(r);
-    const generate = vi.spyOn(providerApi, 'generateLocalImage').mockResolvedValue(new Blob(['png']));
+    const generate = vi.spyOn(relayApi, 'runRelayTask').mockResolvedValue(new Blob(['png']));
     r.store.saveResult.mockRejectedValue(new Error('disk full'));
     await r.component.generate();
     expect(generate).toHaveBeenCalledTimes(1);
@@ -1234,11 +1097,11 @@ describe('generation and uncertain requests', () => {
     const r = rig();
     await authorizeGeneration(r);
     const pending = deferred<Blob>();
-    const generate = vi.spyOn(providerApi, 'generateLocalImage').mockReturnValue(pending.promise);
+    const generate = vi.spyOn(relayApi, 'runRelayTask').mockReturnValue(pending.promise);
     const operation = r.component.generate();
     await vi.waitFor(() => expect(generate).toHaveBeenCalled());
     r.component.ngOnDestroy();
-    expect(generate.mock.calls[0][4].aborted).toBe(true);
+    expect(generate.mock.calls[0][0].signal.aborted).toBe(true);
     pending.resolve(new Blob(['late']));
     await operation;
     expect(r.store.saveResult).not.toHaveBeenCalled();
@@ -1269,13 +1132,10 @@ function proxyRig() {
     payload: JSON.stringify({ providers: [proxyProvider], defaultId: proxyProvider.id }),
     revision: 1
   });
-  r.component.providers.set([proxyProvider]);
   return r;
 }
 async function authorizeProxy(r: ReturnType<typeof rig>) {
-  r.component.editProvider(proxyProvider);
-  r.component.apiKey.set('fixture-key');
-  await r.component.saveProvider();
+  await authorizeGeneration(r);
 }
 function pendingRelay(r: ReturnType<typeof rig>, accepted = true) {
   r.preferences.set('tasks-v1', { payload: JSON.stringify([relayJob]), revision: 1 });
@@ -1295,18 +1155,20 @@ describe('relay tasks', () => {
     const r = proxyRig();
     await authorizeProxy(r);
     const release = vi.spyOn(relayApi, 'deleteRelayTask').mockResolvedValue();
-    const generate = vi.spyOn(providerApi, 'generateLocalImage');
     const run = vi.spyOn(relayApi, 'runRelayTask').mockImplementation(async options => {
-      expect(journal(r)[0]).toMatchObject({ id: options.id, status: 'processing', channel: 'proxy' });
+      expect(journal(r)[0]).toMatchObject({ id: options.id, status: 'processing', channel: 'platform' });
       expect(tickets(r)[options.id]).toEqual({ ...options.ticket, accepted: false });
-      expect(options.dispatch).toMatchObject({ key: 'fixture-key', prompt: '测试图片' });
+      expect(options.dispatch).toMatchObject({
+        accessToken: 'fixture-platform-session',
+        modelId: 'standard',
+        prompt: '测试图片'
+      });
       await options.accepted();
       expect(tickets(r)[options.id].accepted).toBe(true);
       return new Blob(['png'], { type: 'image/png' });
     });
     await r.component.generate();
     expect(run).toHaveBeenCalledTimes(1);
-    expect(generate).not.toHaveBeenCalled();
     expect(r.component.saved()).toBe(true);
     await vi.waitFor(() => expect(tickets(r)).toEqual({}));
     expect(release).toHaveBeenCalledTimes(1);
@@ -1365,12 +1227,20 @@ describe('relay tasks', () => {
     await vi.waitFor(() => expect(r.component.job()?.status).toBe(status));
     expect(r.component.uncertain()).toBe(uncertain);
     expect(r.component.error()).toBe(failure.message);
+    if (uncertain) {
+      expect(Object.keys(tickets(r))).toEqual([relayJob.id]);
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      await r.component.acknowledgeUnknown();
+    }
     await vi.waitFor(() => expect(tickets(r)).toEqual({}));
   });
 
   it('keeps the ticket when the relay copy cannot be removed yet and retries on the next journal read', async () => {
     const r = proxyRig();
-    r.preferences.set('tasks-v1', { payload: JSON.stringify([{ ...relayJob, status: 'completed' }]), revision: 1 });
+    r.preferences.set('tasks-v1', {
+      payload: JSON.stringify([{ ...relayJob, status: 'completed', saved: true }]),
+      revision: 1
+    });
     r.preferences.set('relay-tasks-v1', {
       payload: JSON.stringify({ [relayJob.id]: { token: relayToken, accepted: true, baseUrl: proxyProvider.baseUrl } }),
       revision: 1
@@ -1396,7 +1266,7 @@ describe('relay tasks', () => {
     expect(run.mock.calls[0][0].signal.aborted).toBe(true);
     pending.reject(new DOMException('aborted', 'AbortError'));
     await operation;
-    expect(journal(r)[0]).toMatchObject({ status: 'processing', channel: 'proxy' });
+    expect(journal(r)[0]).toMatchObject({ status: 'processing', channel: 'platform' });
     expect(Object.keys(tickets(r))).toHaveLength(1);
     expect(release).not.toHaveBeenCalled();
   });
@@ -1409,7 +1279,7 @@ describe('relay tasks', () => {
       revision: 2
     });
     const run = vi.spyOn(relayApi, 'runRelayTask');
-    await expect(readTasks(r)).rejects.toThrow('本机代理任务记录无效');
+    await expect(readTasks(r)).rejects.toThrow('本机平台任务记录无效');
     expect(run).not.toHaveBeenCalled();
   });
 });
@@ -1744,100 +1614,7 @@ describe('account form and credential lifetime', () => {
   });
 });
 
-const policyEntry = {
-  id: provider.id,
-  name: provider.name,
-  baseUrl: provider.baseUrl,
-  models: [provider.model],
-  sizes: ['1024x1024', '1536x1024', '1024x1536'],
-  enabled: true,
-  direct: true,
-  proxy: true
-};
-describe('runtime policy and catalog selection', () => {
-  it.each(['square', 'landscape', 'portrait'] as const)(
-    'checks the current policy before dispatching a %s image',
-    async ratio => {
-      const r = rig();
-      await authorizeGeneration(r);
-      r.component.authConfigured.set(true);
-      r.component.targetKind.set('platform');
-      r.component.ratio.set(ratio);
-      vi.mocked(fetch).mockResolvedValue(
-        new Response(JSON.stringify({ policy: { version: 1, revision: 3, providers: [policyEntry] } }))
-      );
-      vi.spyOn(providerApi, 'generateLocalImage').mockResolvedValue(new Blob(['png']));
-      await r.component.generate();
-      expect(r.component.providerPolicyVersion()).toBe(3);
-      expect(r.component.saved()).toBe(true);
-      expect(fetch).toHaveBeenCalledWith(
-        '/api/provider-policies',
-        expect.objectContaining({ cache: 'no-store', credentials: 'omit', redirect: 'error' })
-      );
-    }
-  );
-
-  it.each([
-    { ...policyEntry, enabled: false },
-    { ...policyEntry, direct: false },
-    { ...policyEntry, models: ['another-model'] },
-    { ...policyEntry, sizes: ['1024x1536'] },
-    { ...policyEntry, baseUrl: 'https://another.example' }
-  ])('blocks a disabled provider, channel, model or size before journaling a request', async entry => {
-    const r = rig();
-    await authorizeGeneration(r);
-    r.component.authConfigured.set(true);
-    r.component.targetKind.set('platform');
-    vi.mocked(fetch).mockResolvedValue(
-      new Response(JSON.stringify({ policy: { version: 1, revision: 1, providers: [entry] } }))
-    );
-    const generate = vi.spyOn(providerApi, 'generateLocalImage');
-    await r.component.generate();
-    expect(generate).not.toHaveBeenCalled();
-    expect(r.preferences.get('tasks-v1')).toBeUndefined();
-    expect(r.component.error()).toContain('未发送生成请求');
-  });
-
-  it.each([0, null, 1.5])('rejects invalid runtime revision %s before dispatch', async revision => {
-    const r = rig();
-    await authorizeGeneration(r);
-    r.component.authConfigured.set(true);
-    r.component.targetKind.set('platform');
-    vi.mocked(fetch).mockResolvedValue(
-      new Response(JSON.stringify({ policy: { version: 1, revision, providers: [policyEntry] } }))
-    );
-    const generate = vi.spyOn(providerApi, 'generateLocalImage');
-    await r.component.generate();
-    expect(generate).not.toHaveBeenCalled();
-    expect(r.component.error()).toContain('版本无效');
-  });
-
-  it('allows local provider settings if the service explicitly has no runtime policy', async () => {
-    const r = rig();
-    await authorizeGeneration(r);
-    r.component.authConfigured.set(true);
-    r.component.targetKind.set('platform');
-    vi.mocked(fetch).mockResolvedValue(new Response('{"policy":null}'));
-    vi.spyOn(providerApi, 'generateLocalImage').mockResolvedValue(new Blob(['png']));
-    await r.component.generate();
-    expect(r.component.providerPolicy()).toBeNull();
-    expect(r.component.providerPolicyVersion()).toBeNull();
-    expect(r.component.saved()).toBe(true);
-  });
-
-  it('preserves the draft and does not dispatch when runtime policy cannot be read', async () => {
-    const r = rig();
-    await authorizeGeneration(r);
-    r.component.authConfigured.set(true);
-    r.component.targetKind.set('platform');
-    vi.mocked(fetch).mockResolvedValue(new Response(null, { status: 503 }));
-    const generate = vi.spyOn(providerApi, 'generateLocalImage');
-    await r.component.generate();
-    expect(generate).not.toHaveBeenCalled();
-    expect(r.component.serialized().text).toBe('测试图片');
-    expect(r.component.error()).toContain('策略暂不可确认');
-  });
-
+describe('published catalog selection', () => {
   it('merges published templates with built-in inspiration and retains the selected revision', async () => {
     vi.stubGlobal('__AIAO_SUPABASE_CONFIG__', { url: 'https://account.example', anonKey: 'sb_publishable_fixture' });
     vi.spyOn(SupabaseAuthClient.prototype, 'restore').mockResolvedValue(undefined);
@@ -1905,64 +1682,6 @@ describe('late task journal updates', () => {
 });
 
 describe('settings recovery and metadata details', () => {
-  it('seeds a missing local configuration without persisting a credential', async () => {
-    const r = await boot(r => r.preferences.delete('providers-v1'));
-    expect(r.component.providers()).toEqual([defaultFreeProvider()]);
-    expect(r.component.providerId()).toBe(defaultFreeProvider().id);
-    expect(r.preferences.get('provider-keys-v1')).toBeUndefined();
-  });
-
-  it.each(['https://ai.junflow.cn', 'https://ai.pengdevs.com'])(
-    'migrates only the built-in legacy URL %s to the approved relay',
-    async baseUrl => {
-      const r = await boot(r =>
-        r.preferences.set('providers-v1', {
-          payload: JSON.stringify({
-            providers: [{ ...defaultFreeProvider(), baseUrl, mode: 'direct' }],
-            defaultId: defaultFreeProvider().id
-          }),
-          revision: 1
-        })
-      );
-      expect(r.component.providers()).toEqual([defaultFreeProvider()]);
-      expect(r.store.savePreference).toHaveBeenCalled();
-    }
-  );
-
-  it('repairs an absent default selection and restores only explicitly remembered keys', async () => {
-    const r = await boot(r => {
-      r.preferences.set('providers-v1', {
-        payload: JSON.stringify({ providers: [{ ...provider, rememberKey: true }], defaultId: 'missing' }),
-        revision: 1
-      });
-      r.preferences.set('provider-keys-v1', {
-        payload: JSON.stringify({ [provider.id]: 'remembered-key' }),
-        revision: 1
-      });
-    });
-    expect(r.component.providerId()).toBe(provider.id);
-    r.component.editProvider(r.component.providers()[0]);
-    expect(r.component.apiKey()).toBe('remembered-key');
-    expect(r.component.rememberKey()).toBe(true);
-  });
-
-  it('keeps unremembered credential entries out of a reopened form', async () => {
-    const r = await boot(r =>
-      r.preferences.set('provider-keys-v1', { payload: JSON.stringify({ [provider.id]: 'orphan-key' }), revision: 1 })
-    );
-    r.component.editProvider(provider);
-    expect(r.component.apiKey()).toBe('');
-  });
-
-  it('resolves an empty provider selection without manufacturing a provider in an existing empty configuration', async () => {
-    const r = await boot(r =>
-      r.preferences.set('providers-v1', { payload: '{"providers":[],"defaultId":""}', revision: 1 })
-    );
-    expect(r.component.providers()).toEqual([]);
-    expect(r.component.providerId()).toBe('');
-    expect(r.component.canGenerate()).toBe(false);
-  });
-
   it('clears a resolved processing task without changing a completed current result', async () => {
     const r = await boot(r => {
       r.component.job.set({ ...job, status: 'needs_review' });
@@ -2455,74 +2174,6 @@ describe('interface interactions', () => {
     providerInstanceId: provider.id
   };
 
-  it('keeps a prompted key in this session only and continues the requested generation', async () => {
-    const r = rig();
-    const generate = vi.spyOn(providerApi, 'generateLocalImage').mockResolvedValue(png());
-    await r.component.generate();
-    r.component.keyDraft.set(' fixture-key ');
-    await r.component.submitKey();
-    expect(r.component.keyPrompt()).toBeNull();
-    expect(r.component.keyDraft()).toBe('');
-    expect(generate).toHaveBeenCalledWith(provider, 'fixture-key', '测试图片', 'square', expect.any(AbortSignal));
-    expect(r.component.saved()).toBe(true);
-    expect(r.component.keyLabel(r.component.providers()[0])).toBe('Key 仅本次会话');
-    expect(r.preferences.get('provider-keys-v1')?.payload ?? '').not.toContain('fixture-key');
-  });
-
-  it('rejects an invalid prompted key and remembers a valid one only after opt-in', async () => {
-    const r = rig();
-    await r.component.generate();
-    r.component.keyDraft.set('含 空格');
-    await r.component.submitKey();
-    expect(r.component.keyPromptMessage()).toContain('API Key');
-    expect(r.store.savePreferences).not.toHaveBeenCalled();
-    vi.spyOn(providerApi, 'generateLocalImage').mockResolvedValue(png());
-    r.component.keyDraft.set('fixture-key');
-    r.component.keyRemember.set(true);
-    await r.component.submitKey();
-    expect(JSON.parse(r.preferences.get('provider-keys-v1')!.payload)).toEqual({ [provider.id]: 'fixture-key' });
-    expect(r.component.providers()[0].rememberKey).toBe(true);
-    expect(r.component.keyLabel(r.component.providers()[0])).toBe('Key 已保存在本机');
-  });
-
-  it('keeps the key prompt open with the storage error and sends nothing when saving fails', async () => {
-    const r = rig();
-    await r.component.generate();
-    r.store.savePreferences.mockRejectedValueOnce(new Error('写入失败'));
-    const generate = vi.spyOn(providerApi, 'generateLocalImage');
-    r.component.keyDraft.set('fixture-key');
-    await r.component.submitKey();
-    expect(r.component.keyPrompt()).toEqual(provider);
-    expect(r.component.keyPromptMessage()).toBe('写入失败');
-    expect(r.component.providerBusy()).toBe(false);
-    expect(r.component.providerHasKey()).toBe(false);
-    expect(generate).not.toHaveBeenCalled();
-    r.component.onEscape();
-    expect(r.component.keyPrompt()).toBeNull();
-    expect(r.component.keyDraft()).toBe('');
-  });
-
-  it('hands the prompted provider to the settings form', async () => {
-    const r = rig();
-    await r.component.generate();
-    r.component.manageKeyInSettings();
-    expect(r.component.keyPrompt()).toBeNull();
-    expect(r.component.view()).toBe('providers');
-    expect(r.component.settingsTab()).toBe('providers');
-    expect(r.component.editingId()).toBe(provider.id);
-    expect(location.pathname).toBe('/providers');
-  });
-
-  it('tracks which providers have a usable key without exposing key values', async () => {
-    const r = rig();
-    expect(r.component.keyLabel(provider)).toBe('未填写 Key');
-    await authorizeGeneration(r);
-    expect(r.component.providerHasKey()).toBe(true);
-    expect([...r.component.keyIds()]).toEqual([provider.id]);
-    await r.component.removeKey(provider);
-    expect(r.component.providerHasKey()).toBe(false);
-  });
-
   it('deep-links settings tabs through the hash and moves between them from the keyboard', () => {
     const r = rig();
     const press = (key: string) => {
@@ -2639,7 +2290,7 @@ describe('interface interactions', () => {
     expect(r.component.resultLabel()).toBe('等待你的想法');
     await authorizeGeneration(r);
     const pending = deferred<Blob>();
-    const generate = vi.spyOn(providerApi, 'generateLocalImage').mockReturnValue(pending.promise);
+    const generate = vi.spyOn(relayApi, 'runRelayTask').mockReturnValue(pending.promise);
     const generating = r.component.generate();
     await vi.waitFor(() => expect(generate).toHaveBeenCalled());
     expect(r.component.resultState()).toBe('working');
@@ -2658,17 +2309,15 @@ describe('interface interactions', () => {
   it('explains rejected and uncertain requests in the result panel instead of the form', async () => {
     const rejected = rig();
     await authorizeGeneration(rejected);
-    vi.spyOn(providerApi, 'generateLocalImage').mockRejectedValueOnce(
-      new providerApi.ProviderFailure('HTTP 401', true)
-    );
+    vi.spyOn(relayApi, 'runRelayTask').mockRejectedValueOnce(new providerApi.ProviderFailure('HTTP 401', true));
     await rejected.component.generate();
     expect(rejected.component.resultState()).toBe('failed');
     expect(rejected.component.panelError()).toBe(true);
     const uncertain = rig();
     await authorizeGeneration(uncertain);
-    vi.spyOn(providerApi, 'generateLocalImage').mockRejectedValueOnce(new Error('network failed'));
+    vi.spyOn(relayApi, 'runRelayTask').mockRejectedValueOnce(new Error('network failed'));
     await uncertain.component.generate();
-    expect(uncertain.component.resultLabel()).toBe('待核对供应商记录');
+    expect(uncertain.component.resultLabel()).toBe('待核对平台任务');
     expect(uncertain.component.panelError()).toBe(true);
     const locked = rig();
     await authorizeGeneration(locked);

@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminConsole } from './admin-console';
 import { defaultAdminTemplate } from './admin-defaults';
-import { ProductClient } from './product-client';
+import { ProductClient, ProductRequestError } from './product-client';
 
 const user = {
   id: 'fixture-user',
@@ -329,4 +329,66 @@ describe('积分管理', () => {
     expect(component.credits()).toBeNull();
     expect(component.userDetail()).toBeNull();
   });
+});
+
+it('积分调整原因必填，分页使用服务器流水标识且不提交调整', async () => {
+  const { component, admin } = await rig();
+  const entries = [{ id: 71 }];
+  admin.mockImplementation(async () => ({ account: { balance: 12, reserved: 0, available: 12 }, entries }));
+  await component.openUser(user);
+  admin.mockClear();
+  component.creditForm.delta = 2;
+  component.creditForm.reason = ' ';
+  await component.adjustCredits();
+  expect(admin).not.toHaveBeenCalled();
+  expect(component.message()).toContain('调整原因');
+  await component.olderCredits();
+  expect(admin).toHaveBeenCalledWith('users/fixture-user/credits?before=71');
+});
+
+it('积分操作遇到会话失效或撤权时清除旧后台数据', async () => {
+  const { component, admin } = await rig();
+  admin.mockResolvedValue({ account: { balance: 12, reserved: 0, available: 12 }, entries: [] });
+  await component.openUser(user);
+  component.creditForm.delta = 1;
+  component.creditForm.reason = '权限复验';
+  admin.mockRejectedValue(new ProductRequestError(403, '管理员权限已撤销'));
+  await component.adjustCredits();
+  expect(component.allowed()).toBe(false);
+  expect(component.credits()).toBeNull();
+  expect(component.userDetail()).toBeNull();
+});
+
+it('管理员从用户列表打开积分表单、填写原因并看到更新余额', async () => {
+  const { component, fixture, admin } = await rig('signed-in', true);
+  let balance = 12;
+  admin.mockImplementation(async (path, method = 'GET', payload) => {
+    if (method === 'POST') {
+      balance += (payload as { delta: number }).delta;
+      return { entry: {} };
+    }
+    if (path.endsWith('/credits')) return { account: { balance, reserved: 0, available: balance }, entries: [] };
+    return {};
+  });
+  const element: HTMLElement = fixture.nativeElement;
+  element.querySelector<HTMLButtonElement>('.account-link')!.click();
+  await fixture.whenStable();
+  fixture.detectChanges();
+  expect(element.textContent).toContain('余额 12');
+  const delta = element.querySelector<HTMLInputElement>('input[name="creditDelta"]')!;
+  const reason = element.querySelector<HTMLInputElement>('input[name="creditReason"]')!;
+  delta.value = '3';
+  delta.dispatchEvent(new Event('input', { bubbles: true }));
+  reason.value = '活动发放';
+  reason.dispatchEvent(new Event('input', { bubbles: true }));
+  reason.closest('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+  await fixture.whenStable();
+  fixture.detectChanges();
+  expect(admin).toHaveBeenCalledWith(
+    'users/fixture-user/credits',
+    'POST',
+    expect.objectContaining({ delta: 3, reason: '活动发放' })
+  );
+  expect(component.message()).toBe('积分调整已确认。');
+  expect(element.textContent).toContain('余额 15');
 });

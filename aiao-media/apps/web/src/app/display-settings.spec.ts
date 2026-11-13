@@ -142,10 +142,10 @@ describe('显示偏好应用到页面', () => {
 });
 
 describe('设置页的「显示」分区', () => {
-  it('在供应商、同步、本机数据之后新增「显示」标签，方向键可以循环到它', () => {
+  it('在平台生图、同步、本机数据之后新增「显示」标签，方向键可以循环到它', () => {
     const { component, host, settle } = open();
     const tabs = () => [...host.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
-    expect(tabs().map(tab => tab.textContent?.trim())).toEqual(['供应商', '同步', '本机数据', '显示']);
+    expect(tabs().map(tab => tab.textContent?.trim())).toEqual(['平台生图', '同步', '本机数据', '显示']);
     component.selectSettingsTab('data');
     settle();
     const press = (key: string) => {

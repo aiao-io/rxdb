@@ -67,7 +67,7 @@
 
 移除用户端供应商配置、直连生成与按请求 Key 的入口与代码：MEDIA-US-105 出范围；MEDIA-US-102 收缩为本机交付；D-02 的本机 Key 验证口径由本决策取代。服务端生成任务与刷新续接复用 [MEDIA-US-109](stories/generation/MEDIA-US-109-relay-durable-task.md) 已实现机制，上游 Key 改由平台凭据，无状态 `/api/relay` 随本次改版移除。
 
-国内自建与海外托管共用同一套平台生图契约（D-18），积分账本与发放入口两侧一致。需求设计见 [MEDIA-US-108](stories/generation/MEDIA-US-108-platform-generation.md) 与 [MEDIA-US-206](stories/account/MEDIA-US-206-credit-admin.md)，实现与验收尚未开始。
+国内自建与海外托管共用同一套平台生图契约（D-18），积分账本与发放入口两侧一致。需求设计见 [MEDIA-US-108](stories/generation/MEDIA-US-108-platform-generation.md) 与 [MEDIA-US-206](stories/account/MEDIA-US-206-credit-admin.md)。2026-11-13 已实现账本、后台调整与用户余额/流水，MEDIA-US-206 AC1–4 已通过本地验证，见[积分交付证据](plans/credits-delivery-20261113.md)；生成前后端接线与本地浏览器验收已完成，见[平台接线记录](plans/platform-relay-credits-20261113.md)；双部署正式验收继续推进。
 
 ## 当前执行条件
 

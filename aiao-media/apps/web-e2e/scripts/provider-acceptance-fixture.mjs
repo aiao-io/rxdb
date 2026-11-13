@@ -4,78 +4,44 @@ import { mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, relative, resolve } from 'node:path';
 import sharp from 'sharp';
-import { durableObjectNamespace, r2Bucket } from '../../api/scripts/cloudflare-stand-ins.mjs';
 import worker from '../../api/src/local-first-worker.ts';
-import { RelayTask } from '../../api/src/relay-task.ts';
+import { platformAuthUrl, platformModel, setupPlatform, taskFixture } from '../src/platform-fixture.ts';
 import { acceptanceSelection, attemptPath, runProviderAcceptance } from './provider-acceptance.mjs';
 
 const root = resolve(import.meta.dirname, '../../web/dist/browser');
-await mkdir(resolve(import.meta.dirname, '../tmp'), { recursive: true, mode: 0o700 });
-const directory = await mkdtemp(resolve(import.meta.dirname, '../tmp/provider-acceptance-fixture-'));
-const nativeBase = 'https://api.minimax.cn/v1';
+const temporaryRoot = resolve(import.meta.dirname, '../tmp');
+await mkdir(temporaryRoot, { recursive: true, mode: 0o700 });
+const temporaryDirectory = name => mkdtemp(resolve(temporaryRoot, `platform-acceptance-${name}-`));
+const directory = await temporaryDirectory('fixture');
 const settings = {
   origin: '',
-  release: 'fixture-production-worker-v1',
+  release: 'fixture-platform-v1',
   manifestSha256: createHash('sha256')
     .update(await readFile(resolve(root, 'offline-manifest.json')))
     .digest('hex'),
-  baseUrl: 'https://provider.example.test/v1',
-  model: 'fixture-image',
-  key: 'fixture-acceptance-key-only',
+  model: platformModel.id,
+  email: 'creator@example.test',
+  password: 'fixture-platform-password',
   fixture: true
 };
-const images = new Map();
-const jpegs = new Map();
+const pictures = new Map();
 for (const size of ['1024x1024', '1536x1024', '1024x1536']) {
   const [width, height] = size.split('x').map(Number);
-  jpegs.set(
-    size,
-    await sharp({ create: { width, height, channels: 3, background: '#b74e28' } })
-      .jpeg({ progressive: true })
-      .toBuffer()
-  );
-  images.set(
-    size,
-    await sharp({ create: { width, height, channels: 3, background: '#8a9c62' } })
-      .png()
-      .toBuffer()
-  );
+  const image = sharp({ create: { width, height, channels: 3, background: '#8a9c62' } });
+  pictures.set(size, { png: await image.png().toBuffer(), jpeg: await image.jpeg({ progressive: true }).toBuffer() });
 }
-const calls = { direct: 0, proxy: 0, result: 0 };
-let forbiddenBodyReads = 0;
-let incorrectSize = false;
-let changedManifest = false;
-let nativeSystemError = false;
-const generationEndpoint = () =>
-  `${settings.baseUrl}/${settings.baseUrl === nativeBase ? 'image_generation' : 'images/generations'}`;
 const wrongSize = await sharp({ create: { width: 512, height: 512, channels: 3, background: '#8a9c62' } })
   .png()
   .toBuffer();
-function upstream(body, headers, mode) {
-  assert.equal(headers.get('authorization'), `Bearer ${settings.key}`);
-  assert.equal(headers.get('cookie'), null);
-  assert.equal(body.model, settings.model);
-  assert.equal(body.n, 1);
-  const native = settings.baseUrl === nativeBase;
-  const size = native ? `${body.width}x${body.height}` : body.size;
-  assert.ok(images.has(size));
-  calls[mode]++;
-  if (!native) return { data: [{ url: `https://results.example.test/${size}.png` }] };
-  // A relay task asks for the bytes, because a stored task cannot rely on a short-lived result URL.
-  assert.equal(body.response_format, mode === 'proxy' ? 'base64' : 'url');
-  assert.equal(body.prompt_optimizer, false);
-  for (const name of ['size', 'aspect_ratio', 'quality', 'output_format']) assert.equal(body[name], undefined);
-  if (nativeSystemError) return { base_resp: { status_code: 1033, status_msg: 'private fixture system error' } };
-  if (mode === 'proxy')
-    return { base_resp: { status_code: 0 }, data: { image_base64: [jpegs.get(size).toString('base64')] } };
-  return { base_resp: { status_code: 0 }, data: { image_urls: [`https://results.example.test/${size}.jpg`] } };
-}
-const fetchBefore = globalThis.fetch;
-globalThis.fetch = async (url, init) => {
-  assert.equal(String(url), generationEndpoint());
-  assert.equal(init.redirect, 'manual');
-  return Response.json(upstream(JSON.parse(init.body), new Headers(init.headers), 'proxy'));
-};
+const relays = [];
+let protocol = 'openai';
+let signedIn = true;
+let incorrectSize = false;
+let changedManifest = false;
+let systemError = false;
+let forbiddenBodyReads = 0;
+let resultRequests = 0;
+const generationCalls = () => relays.reduce((total, relay) => total + relay.calls, 0);
 const types = {
   '.html': 'text/html',
   '.js': 'application/javascript',
@@ -96,35 +62,24 @@ const staticHeaders = Object.fromEntries(
     })
 );
 const env = {
-  ALLOWED_PROVIDER_BASE_URLS: JSON.stringify([settings.baseUrl]),
   ASSETS: {
     async fetch(request) {
       const pathname = new URL(request.url).pathname;
       const file = resolve(root, `.${extname(pathname) ? pathname : '/index.html'}`);
       if (relative(root, file).startsWith('..')) return new Response(null, { status: 404 });
-      let contents =
-        pathname === '/app-config.js' ? 'globalThis.__AIAO_SUPABASE_CONFIG__ = null;' : await readFile(file);
-      if (pathname === '/offline-manifest.json' && changedManifest)
-        contents = Buffer.concat([Buffer.from(contents), Buffer.from('\n')]);
-      return new Response(contents, {
+      const contents = await readFile(file);
+      const body = pathname === '/offline-manifest.json' && changedManifest ?
+          Buffer.concat([contents, Buffer.from('\n')])
+        : contents;
+      return new Response(body, {
         headers: { ...staticHeaders, 'content-type': types[extname(file)] ?? 'application/octet-stream' }
       });
     }
   }
 };
-env.RELAY_RESULTS = r2Bucket();
-env.RELAY_TASKS = durableObjectNamespace(ctx => new RelayTask(ctx, env), { autoAlarms: false });
 const server = createServer(async (request, response) => {
   try {
-    const chunks = [];
-    for await (const chunk of request) chunks.push(chunk);
-    const method = request.method;
-    const incoming = new Request(new URL(request.url, settings.origin), {
-      method,
-      headers: request.headers,
-      ...(method === 'POST' || method === 'PUT' ? { body: Buffer.concat(chunks) } : {})
-    });
-    const result = await worker.fetch(incoming, env);
+    const result = await worker.fetch(new Request(new URL(request.url, settings.origin), { headers: request.headers }), env);
     response.writeHead(result.status, Object.fromEntries(result.headers));
     response.end(Buffer.from(await result.arrayBuffer()));
   } catch {
@@ -153,137 +108,112 @@ async function setupContext(context) {
     }
   ]);
   await context.route('**/*', async route => {
-    const request = route.request();
-    const url = new URL(request.url());
-    if (url.origin === settings.origin) return route.fallback();
-    if (request.url() === generationEndpoint())
-      return route.fulfill({
-        json: upstream(request.postDataJSON(), new Headers(await request.allHeaders()), 'direct')
-      });
-    if (url.origin !== 'https://results.example.test') return route.abort('blockedbyclient');
+    const request = route.request(), url = new URL(request.url());
+    if (url.origin === settings.origin || url.origin === platformAuthUrl) return route.fallback();
+    assert.equal(url.origin, 'https://results.example.test');
     const headers = await request.allHeaders();
     for (const name of ['authorization', 'cookie', 'referer']) assert.equal(headers[name], undefined);
-    calls.result++;
-    return route.fulfill({
-      contentType: settings.baseUrl === nativeBase ? 'image/jpeg' : 'image/png',
-      body:
-        incorrectSize ? wrongSize : (settings.baseUrl === nativeBase ? jpegs : images).get(url.pathname.slice(1, -4))
-    });
+    resultRequests++;
+    return route.fulfill({ contentType: 'image/png', body: pictures.get(url.pathname.slice(1, -4)).png });
   });
+  await setupPlatform(context, { signedIn, protocol });
+  const relay = await taskFixture(context, request => {
+    const body = request.postDataJSON();
+    assert.deepEqual(Object.keys(body).sort(), ['model', 'n', 'prompt', 'size']);
+    assert.equal(body.model, platformModel.id);
+    assert.equal(body.n, 1);
+    assert.ok(pictures.has(body.size));
+    if (systemError) return { json: { base_resp: { status_code: 1033, status_msg: 'private fixture error' } } };
+    if (incorrectSize) return { json: { data: [{ b64_json: wrongSize.toString('base64') }] } };
+    if (protocol === 'minimax')
+      return { json: { base_resp: { status_code: 0 }, data: { image_base64: [pictures.get(body.size).jpeg.toString('base64')] } } };
+    return { json: { data: [{ url: `https://results.example.test/${body.size}.png` }] } };
+  });
+  relays.push(relay);
+}
+function verifyRecords(records, mimeType, delivery) {
+  assert.equal(records.length, 3);
+  for (const record of records) {
+    assert.equal(record.fixture, true);
+    assert.equal(record.mode, 'platform');
+    assert.equal(record.protocol, protocol);
+    assert.equal(record.generationRequests, 1);
+    assert.equal(record.image.mimeType, mimeType);
+    assert.equal(record.image.delivery, delivery);
+    assert.equal(record.image.credentialFreeResultRequest, delivery === 'base64' ? null : true);
+    assert.equal(record.image.exactDownloadAfterReload, true);
+    assert.equal(record.credits.cost, platformModel.credits);
+    assert.equal(record.credits.before - record.credits.after, platformModel.credits);
+    assert.equal(record.credits.ledgerEntries, 1);
+    const evidence = JSON.stringify(record);
+    for (const secret of [settings.email, settings.password, 'fixture-platform-refresh', 'x-relay-task-token'])
+      assert.ok(!evidence.includes(secret));
+  }
 }
 try {
   const records = await runProviderAcceptance(settings, directory, setupContext);
-  assert.equal(records.length, 6);
-  assert.deepEqual(calls, { direct: 3, proxy: 3, result: 6 });
-  for (const record of records) {
-    assert.equal(record.image.delivery, 'cross-origin-url');
-    assert.equal(record.image.credentialFreeResultRequest, true);
-    assert.equal(record.image.exactDownloadAfterReload, true);
-    assert.ok(!JSON.stringify(record).includes(settings.key));
-  }
+  verifyRecords(records, 'image/png', 'cross-origin-url');
+  assert.equal(generationCalls(), 3);
+  assert.equal(resultRequests, 3);
   await runProviderAcceptance(settings, directory, setupContext);
-  assert.deepEqual(calls, { direct: 3, proxy: 3, result: 6 });
+  assert.equal(generationCalls(), 3);
   changedManifest = true;
   const filesBefore = await readdir(directory);
   await assert.rejects(runProviderAcceptance(settings, directory, setupContext), /DEPLOYED_MANIFEST_MISMATCH/);
   assert.deepEqual(await readdir(directory), filesBefore);
-  assert.deepEqual(calls, { direct: 3, proxy: 3, result: 6 });
+  assert.equal(generationCalls(), 3);
   changedManifest = false;
-  const file = attemptPath(directory, settings, 'direct', 'square');
-  await writeFile(file, JSON.stringify({ ...records[0], phase: 'dispatching' }));
+  await writeFile(attemptPath(directory, settings, 'platform', 'square'), JSON.stringify({ ...records[0], phase: 'dispatching' }));
   await assert.rejects(runProviderAcceptance(settings, directory, setupContext), /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/);
-  assert.deepEqual(calls, { direct: 3, proxy: 3, result: 6 });
-  const proxy = { ...settings, selection: acceptanceSelection({ AIAO_MEDIA_ACCEPTANCE_MODES: 'proxy' }) };
-  const proxyRecords = await runProviderAcceptance(proxy, directory, setupContext);
-  assert.equal(proxyRecords.length, 3);
-  assert.ok(proxyRecords.every(record => record.mode === 'proxy' && record.phase === 'verified'));
-  assert.deepEqual(calls, { direct: 3, proxy: 3, result: 6 });
-  const portrait = {
-    ...settings,
-    selection: acceptanceSelection({ AIAO_MEDIA_ACCEPTANCE_MODES: 'proxy', AIAO_MEDIA_ACCEPTANCE_ASPECTS: 'portrait' })
-  };
+  const portrait = { ...settings, selection: acceptanceSelection({ AIAO_MEDIA_ACCEPTANCE_ASPECTS: 'portrait' }) };
   assert.equal((await runProviderAcceptance(portrait, directory, setupContext)).length, 1);
-  assert.deepEqual(calls, { direct: 3, proxy: 3, result: 6 });
-  const blocked = {
-    ...settings,
-    selection: acceptanceSelection({ AIAO_MEDIA_ACCEPTANCE_MODES: 'direct', AIAO_MEDIA_ACCEPTANCE_ASPECTS: 'square' })
-  };
-  await assert.rejects(runProviderAcceptance(blocked, directory, setupContext), /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/);
-  assert.deepEqual(calls, { direct: 3, proxy: 3, result: 6 });
+  assert.equal(generationCalls(), 3);
   await assert.rejects(
-    runProviderAcceptance({ ...blocked, release: 'fixture-production-worker-v2' }, directory, setupContext),
+    runProviderAcceptance({ ...settings, release: 'fixture-platform-v2' }, directory, setupContext),
     /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/
   );
-  assert.deepEqual(calls, { direct: 3, proxy: 3, result: 6 });
-  const preflightDirectory = await mkdtemp(resolve(import.meta.dirname, '../tmp/provider-acceptance-preflight-'));
+  const preflightDirectory = await temporaryDirectory('preflight');
   await writeFile(
-    attemptPath(preflightDirectory, settings, 'proxy', 'portrait'),
-    JSON.stringify({ ...records[5], phase: 'requires-review' })
+    attemptPath(preflightDirectory, settings, 'platform', 'portrait'),
+    JSON.stringify({ ...records[2], phase: 'requires-review' })
   );
-  await assert.rejects(
-    runProviderAcceptance(settings, preflightDirectory, setupContext),
-    /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/
-  );
-  assert.deepEqual(calls, { direct: 3, proxy: 3, result: 6 });
+  await assert.rejects(runProviderAcceptance(settings, preflightDirectory, setupContext), /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/);
+  assert.equal(generationCalls(), 3);
   incorrectSize = true;
-  const failedDirectory = await mkdtemp(resolve(import.meta.dirname, '../tmp/provider-acceptance-invalid-size-'));
+  const failedDirectory = await temporaryDirectory('invalid-size');
   await assert.rejects(runProviderAcceptance(settings, failedDirectory, setupContext), /ACCEPTANCE_STOPPED_REVIEW/);
-  const failed = JSON.parse(await readFile(attemptPath(failedDirectory, settings, 'direct', 'square'), 'utf8'));
+  const failed = JSON.parse(await readFile(attemptPath(failedDirectory, settings, 'platform', 'square'), 'utf8'));
   assert.equal(failed.stage, 'result-size');
   assert.equal(failed.failureCode, 'RESULT_SIZE_MISMATCH');
   assert.equal(failed.assertionCode, 'NONE');
-  assert.deepEqual(calls, { direct: 4, proxy: 3, result: 7 });
-  assert.equal(forbiddenBodyReads, 0);
-  await assert.rejects(
-    runProviderAcceptance(settings, failedDirectory, setupContext),
-    /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/
-  );
-  assert.deepEqual(calls, { direct: 4, proxy: 3, result: 7 });
+  assert.equal(generationCalls(), 4);
+  await assert.rejects(runProviderAcceptance(settings, failedDirectory, setupContext), /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/);
+  assert.equal(generationCalls(), 4);
   incorrectSize = false;
-  settings.baseUrl = nativeBase;
-  settings.model = 'image-01';
-  env.ALLOWED_PROVIDER_BASE_URLS = JSON.stringify([nativeBase]);
-  Object.assign(calls, { direct: 0, proxy: 0, result: 0 });
-  const nativeDirectory = await mkdtemp(resolve(import.meta.dirname, '../tmp/provider-acceptance-minimax-fixture-'));
+  protocol = 'minimax';
+  signedIn = false;
+  const nativeDirectory = await temporaryDirectory('jpeg');
   const nativeRecords = await runProviderAcceptance(settings, nativeDirectory, setupContext);
-  assert.equal(nativeRecords.length, 6);
-  assert.deepEqual(calls, { direct: 3, proxy: 3, result: 3 });
-  for (const record of nativeRecords) {
-    assert.equal(record.protocol, 'minimax-native');
-    assert.equal(record.image.mimeType, 'image/jpeg');
-    assert.equal(record.image.delivery, record.mode === 'proxy' ? 'base64' : 'cross-origin-url');
-    assert.equal(record.image.credentialFreeResultRequest, record.mode === 'proxy' ? null : true);
-    assert.equal(record.image.exactDownloadAfterReload, true);
-    assert.ok(!JSON.stringify(record).includes(settings.key));
-  }
+  verifyRecords(nativeRecords, 'image/jpeg', 'base64');
+  assert.equal(generationCalls(), 7);
   await runProviderAcceptance(settings, nativeDirectory, setupContext);
-  assert.deepEqual(calls, { direct: 3, proxy: 3, result: 3 });
-  nativeSystemError = true;
-  const nativeFailedDirectory = await mkdtemp(
-    resolve(import.meta.dirname, '../tmp/provider-acceptance-minimax-error-')
-  );
-  await assert.rejects(
-    runProviderAcceptance(settings, nativeFailedDirectory, setupContext),
-    /ACCEPTANCE_STOPPED_REVIEW/
-  );
-  const nativeFailed = JSON.parse(
-    await readFile(attemptPath(nativeFailedDirectory, settings, 'direct', 'square'), 'utf8')
-  );
+  assert.equal(generationCalls(), 7);
+  systemError = true;
+  const nativeFailedDirectory = await temporaryDirectory('business-error');
+  await assert.rejects(runProviderAcceptance(settings, nativeFailedDirectory, setupContext), /ACCEPTANCE_STOPPED_REVIEW/);
+  const nativeFailed = JSON.parse(await readFile(attemptPath(nativeFailedDirectory, settings, 'platform', 'square'), 'utf8'));
   assert.equal(nativeFailed.phase, 'requires-review');
   assert.equal(nativeFailed.failureCode, 'GENERATION_REJECTED_OR_UNCERTAIN');
   assert.equal(nativeFailed.generationRequests, 1);
   assert.ok(!JSON.stringify(nativeFailed).includes('private fixture'));
-  assert.deepEqual(calls, { direct: 4, proxy: 3, result: 3 });
-  await assert.rejects(
-    runProviderAcceptance(settings, nativeFailedDirectory, setupContext),
-    /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/
-  );
-  assert.deepEqual(calls, { direct: 4, proxy: 3, result: 3 });
+  assert.equal(generationCalls(), 8);
+  assert.equal(relays.at(-1).account.balance, 1000);
+  assert.equal(relays.at(-1).account.reserved, 0);
+  await assert.rejects(runProviderAcceptance(settings, nativeFailedDirectory, setupContext), /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/);
+  assert.equal(generationCalls(), 8);
+  assert.equal(resultRequests, 3);
   assert.equal(forbiddenBodyReads, 0);
-  console.log(
-    '12 个 Images API PNG/MiniMax JPEG 生产 Worker/fixture 验收组合通过；产物变化、错误尺寸和 MiniMax 系统错误被拒绝，成功复用和中断/失败阻断均未重发。'
-  );
+  console.log('平台 PNG/JPEG 三画幅、两种登录状态、积分结算与精确下载验收通过；产物变化、错误尺寸、业务错误和未知尝试均阻断重发。');
 } finally {
-  globalThis.fetch = fetchBefore;
   await new Promise(resolve => server.close(resolve));
 }

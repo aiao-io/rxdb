@@ -101,3 +101,48 @@ test('local development isolates Worker secrets and needs no frontend build', as
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test('平台模型与引用凭据仅写 Worker 私有环境，重跑保留源配置并隔离浏览器', async () => {
+  const root = await mkdtemp(resolve(tmpdir(), 'aiao-media-model-dev-')),
+    api = resolve(root, 'apps/api');
+  const models = JSON.stringify([
+    {
+      id: 'standard',
+      name: '平台生图',
+      baseUrl: 'https://provider.test',
+      model: 'private-model',
+      secret: 'IMAGE_TEST_KEY',
+      credits: 3
+    }
+  ]);
+  const config = {
+    main: 'src/local-first-worker.ts',
+    vars: { ALLOWED_PROVIDER_BASE_URLS: '["https://provider.test"]' },
+    durable_objects: { bindings: [] }
+  };
+  const local = {
+    url: 'http://127.0.0.1:55421',
+    mailUrl: 'http://127.0.0.1:55424',
+    env: { ANON_KEY: 'local-public', SERVICE_ROLE_KEY: 'local-private' },
+    publicEnv: {}
+  };
+  const source = `MEDIA_PLATFORM_MODELS='${models}'\nIMAGE_TEST_KEY="private-model-key"\nUNRELATED_PRIVATE_KEY="do-not-copy"\n`;
+  try {
+    await mkdir(api, { recursive: true });
+    await writeFile(resolve(api, 'wrangler.json'), JSON.stringify(config));
+    await writeFile(resolve(api, '.dev.vars'), source);
+    await writeDevelopmentConfig(root, local, {});
+    const secrets = resolve(api, '.wrangler/local-dev/.dev.vars');
+    const values = parseEnv(await readFile(secrets, 'utf8'));
+    assert.equal(values.MEDIA_PLATFORM_MODELS, models);
+    assert.equal(values.IMAGE_TEST_KEY, 'private-model-key');
+    assert.equal(values.UNRELATED_PRIVATE_KEY, undefined);
+    assert.equal((await stat(secrets)).mode & 0o777, 0o600);
+    assert.equal(await readFile(resolve(api, '.dev.vars'), 'utf8'), source);
+    const browser = await readFile(resolve(root, 'apps/web/public/app-config.js'), 'utf8');
+    for (const value of ['private-model-key', 'IMAGE_TEST_KEY', 'private-model', 'do-not-copy'])
+      assert.ok(!browser.includes(value));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

@@ -130,6 +130,7 @@ describe('product authorization and response boundaries', () => {
   it.each([
     [401, '账号或权限已失效'],
     [403, '账号或权限已失效'],
+    [402, '可用积分不足'],
     [409, '数据版本已变化'],
     [500, '产品服务暂不可用']
   ] as const)('redacts HTTP %i failures and preserves the local copy', async (status, message) => {
@@ -137,4 +138,24 @@ describe('product authorization and response boundaries', () => {
     await expect(new ProductClient(async () => access).admin('session')).rejects.toThrow(message);
     expect(fetch).toHaveBeenCalledTimes(1);
   });
+});
+
+it('积分查询逐次验证当前会话，只传流水游标并禁止缓存', async () => {
+  const authorize = vi.fn(async () => access);
+  const client = new ProductClient(authorize);
+  respond({ account: { balance: 8, reserved: 1, available: 7 }, entries: [] });
+  await client.credits();
+  respond({ account: { balance: 8, reserved: 1, available: 7 }, entries: [] });
+  await client.credits(71);
+  expect(authorize).toHaveBeenCalledTimes(2);
+  expect(fetch).toHaveBeenLastCalledWith(
+    '/api/credits?before=71',
+    expect.objectContaining({
+      method: 'GET',
+      headers: { authorization: 'Bearer fixture-session' },
+      cache: 'no-store',
+      redirect: 'error',
+      credentials: 'omit'
+    })
+  );
 });

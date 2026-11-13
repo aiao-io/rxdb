@@ -1,5 +1,6 @@
 import { expect, test, type BrowserContext } from '@playwright/test';
-import { endpoint, pngFixture, profile, prompt, provider } from './local-first.helpers';
+import { pngFixture, profile, prompt } from './local-first.helpers';
+import { platformAccount, setupPlatform, taskFixture } from './platform-fixture';
 
 async function activate(context: BrowserContext, version: string) {
   const workers = await Promise.all(
@@ -24,10 +25,14 @@ async function activate(context: BrowserContext, version: string) {
   await expect.poll(() => next.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
   return next;
 }
+test.beforeEach(async ({ context }) => {
+  await setupPlatform(context);
+});
+
 test('实际离线 Worker 更新等待旧页面关闭，切换版本与回退后草稿和原图仍在', async ({ page, context }) => {
   const png = await pngFixture();
-  await page.route(endpoint, route => route.fulfill({ json: { data: [{ b64_json: png.toString('base64') }] } }));
-  await provider(page);
+  await taskFixture(page, () => ({ json: { data: [{ b64_json: png.toString('base64') }] } }));
+  await platformAccount(page);
   await prompt(page, '离线更新前的草稿');
   await page.getByRole('button', { name: '✧ 生成图片', exact: false }).click();
   await expect(page.getByText('已保存到本机', { exact: true })).toBeVisible();

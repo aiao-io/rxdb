@@ -4,29 +4,36 @@ import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import type { TestContext } from 'node:test';
 import { test } from 'node:test';
+import { platformFixture } from '../scripts/fixtures/platform-fixture.ts';
 import worker from '../src/local-first-worker.ts';
 import { NodeRelayRuntime } from '../src/node-runtime.ts';
 import type { WorkerRequest } from '../src/worker-env.ts';
 
 const origin = 'https://47.103.117.118';
 const provider = 'https://provider.example.test/v1';
-const body = { model: 'fixture', prompt: 'private prompt', n: 1, size: '1024x1024' };
+const body = { model: 'standard', prompt: 'private prompt', n: 1, size: '1024x1024' };
 
-async function fixture(request: WorkerRequest = async () => Response.json({ data: [{ b64_json: 'image-secret' }] })) {
+async function fixture(
+  context: TestContext,
+  request: WorkerRequest = async () => Response.json({ data: [{ b64_json: 'image-secret' }] })
+) {
   const directory = await mkdtemp(join(tmpdir(), 'aiao-node-runtime-'));
-  const runtime = new NodeRelayRuntime({ directory, request });
+  const platform = platformFixture();
+  context.mock.method(globalThis, 'fetch', platform.backendFetch);
+  const runtime = new NodeRelayRuntime({ directory, request, env: platform.env });
   await runtime.start();
   const id = crypto.randomUUID();
   const token = createRelayTaskToken();
-  const env = { ...runtime.bindings(), ALLOWED_PROVIDER_BASE_URLS: JSON.stringify([provider]) };
+  const env = { ...platform.env, ...runtime.bindings(), ALLOWED_PROVIDER_BASE_URLS: JSON.stringify([provider]) };
   const send = (method: string, suffix = '', taskId = id, taskToken = token) =>
     worker.fetch(
       new Request(`${origin}/api/relay/tasks/${taskId}${suffix}`, {
         method,
         headers: {
           origin,
-          authorization: 'Bearer private-key',
+          authorization: 'Bearer fixture-session',
           'content-type': 'application/json',
           'x-provider-base': provider,
           'x-relay-task-token': taskToken
@@ -37,6 +44,7 @@ async function fixture(request: WorkerRequest = async () => Response.json({ data
     );
   return {
     directory,
+    platform,
     runtime,
     id,
     token,
@@ -49,9 +57,9 @@ async function fixture(request: WorkerRequest = async () => Response.json({ data
   };
 }
 
-test('国内任务持久化密文与状态，重启后可取回，同标识重放不再调用上游', async () => {
+test('国内任务持久化密文与状态，重启后可取回，同标识重放不再调用上游', async context => {
   let calls = 0;
-  const t = await fixture(async () => {
+  const t = await fixture(context, async () => {
     calls++;
     return Response.json({ data: [{ b64_json: 'image-secret' }] });
   });
@@ -64,6 +72,7 @@ test('国内任务持久化密文与状态，重启后可取回，同标识重�
     await t.runtime.close();
     const restarted = new NodeRelayRuntime({
       directory: t.directory,
+      env: t.platform.env,
       request: async () => {
         throw new Error('must not retry');
       }
@@ -86,7 +95,7 @@ test('国内任务持久化密文与状态，重启后可取回，同标识重�
           readFile(join(t.directory, 'results', `${t.id}.bin`))
         ])
       ).toString('latin1');
-      for (const secret of ['private-key', 'private prompt', 'image-secret', t.token])
+      for (const secret of ['fixture-model-private', 'fixture-session', 'private prompt', 'image-secret', t.token])
         assert.ok(!stored.includes(secret));
     } finally {
       await restarted.close();
@@ -96,8 +105,8 @@ test('国内任务持久化密文与状态，重启后可取回，同标识重�
   }
 });
 
-test('启动恢复逾期在途任务为待核对，不重新调用供应商', async () => {
-  const t = await fixture();
+test('启动恢复逾期在途任务为待核对，不重新调用供应商', async context => {
+  const t = await fixture(context);
   try {
     await t.runtime.close();
     const db = new DatabaseSync(join(t.directory, 'tasks', `${t.id}.sqlite`));
@@ -117,6 +126,7 @@ test('启动恢复逾期在途任务为待核对，不重新调用供应商', as
     db.close();
     const restarted = new NodeRelayRuntime({
       directory: t.directory,
+      env: t.platform.env,
       request: async () => {
         throw new Error('must not retry');
       }
@@ -136,8 +146,8 @@ test('启动恢复逾期在途任务为待核对，不重新调用供应商', as
   }
 });
 
-test('未存在任务的读取不创建数据库，第二个进程不能共享同一任务目录', async () => {
-  const t = await fixture();
+test('未存在任务的读取不创建数据库，第二个进程不能共享同一任务目录', async context => {
+  const t = await fixture(context);
   try {
     assert.equal((await t.send('GET')).status, 404);
     assert.deepEqual(await readdir(join(t.directory, 'tasks')), []);
@@ -149,9 +159,10 @@ test('未存在任务的读取不创建数据库，第二个进程不能共享�
   }
 });
 
-test('容量在派发前限制，删除后封存阻止重发，错误令牌不能读取', async () => {
+test('容量在派发前限制，删除后封存阻止重发，错误令牌不能读取', async context => {
   const finishes: ((response: Response) => void)[] = [];
   const t = await fixture(
+    context,
     () =>
       new Promise<Response>(resolve => {
         finishes.push(resolve);
@@ -172,8 +183,8 @@ test('容量在派发前限制，删除后封存阻止重发，错误令牌不�
   }
 });
 
-test('重启清理写入中断的临时文件及逾期密文，磁盘预算不足时不派发', async () => {
-  const t = await fixture();
+test('重启清理写入中断的临时文件及逾期密文，磁盘预算不足时不派发', async context => {
+  const t = await fixture(context);
   try {
     assert.equal((await t.send('PUT')).status, 202);
     await t.runtime.settled();
@@ -185,6 +196,7 @@ test('重启清理写入中断的临时文件及逾期密文，磁盘预算不�
     await writeFile(join(t.directory, 'results', `${t.id}.${crypto.randomUUID()}.pending`), 'encrypted-partial');
     const restarted = new NodeRelayRuntime({
       directory: t.directory,
+      env: t.platform.env,
       maxResultBytes: 0,
       request: async () => {
         throw new Error('must not dispatch');

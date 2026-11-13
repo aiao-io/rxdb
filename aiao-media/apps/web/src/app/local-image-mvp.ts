@@ -3,11 +3,12 @@ import {
   createRelayTaskToken,
   imageExtension,
   productRecordId,
-  validateProviderPolicy,
+  validatePlatformModels,
   validatePublishedTemplate,
   validateSyncPayload,
+  type CreditAccount,
   type ImageMimeType,
-  type ProviderPolicy,
+  type PlatformModel,
   type PublicWorkPayload
 } from '@aiao-media/api-contracts';
 import { NgTemplateOutlet } from '@angular/common';
@@ -27,7 +28,7 @@ import {
   ViewEncapsulation
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { concatMap, EMPTY, merge, Subscription } from 'rxjs';
+import { concatMap, EMPTY, Subscription } from 'rxjs';
 import { ImageSyncController } from '../local-data/image-sync';
 import type { LocalMediaStore, LocalWorkSummary, StudioPromptState } from '../local-data/index';
 import { libraryWhere, type LocalWorkFilters } from '../local-data/library-query';
@@ -57,7 +58,6 @@ import {
   type BackupWorkspace
 } from './backup-workspaces';
 import { CreditsPanel } from './credits-panel';
-import { DEFAULT_FREE_PROVIDER, DEFAULT_FREE_PROVIDER_ID, defaultFreeProvider } from './default-provider';
 import {
   cardSizeOptions,
   clearDisplayPreferences,
@@ -78,20 +78,20 @@ import { ElementWidthDirective } from './element-width.directive';
 import { imageMvpCatalog } from './image-mvp-catalog';
 import { transitionImage } from './image-view-transition';
 import { authorInitial, columnCount, coverRatio, distribute } from './inspiration-feed';
-import {
-  generateLocalImage,
-  providerBase,
-  ProviderFailure,
-  publicProvider,
-  type LocalProvider
-} from './local-provider';
+import { ProviderFailure, publicProvider, type LocalProvider } from './local-provider';
 import { ProductClient } from './product-client';
 import { ProductWorkspaceController, type ProductWorkspaceState } from './product-workspace';
 import { applyIssue, templateState, type PromptTemplate } from './prompts/prompt-catalog';
 import { PromptInput } from './prompts/prompt-input';
 import { plainPrompt, serializePrompt, type PromptState } from './prompts/prompt-state';
 import { StudioDraftSession, type StudioDraftStatus } from './prompts/studio-draft-session';
-import { deleteRelayTask, relayTickets, runRelayTask, type RelayTicket } from './relay-task-client';
+import {
+  deleteRelayTask,
+  RelayContinuationFailure,
+  relayTickets,
+  runRelayTask,
+  type RelayTicket
+} from './relay-task-client';
 import {
   readSupabaseAuthConfig,
   SupabaseAuthClient,
@@ -137,7 +137,7 @@ const routeView = (path: string): View =>
   : 'discover';
 // Settings sections are in-page tabs; the hash only deep-links a tab and never adds a route.
 const settingsTabs: { id: SettingsTab; label: string }[] = [
-  { id: 'providers', label: '供应商' },
+  { id: 'providers', label: '平台生图' },
   { id: 'sync', label: '同步' },
   { id: 'data', label: '本机数据' },
   { id: 'display', label: '显示' }
@@ -217,10 +217,11 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private readonly lifetime = new AbortController();
   private auth: SupabaseAuthClient | null = null;
   private unsubscribeAuth?: () => void;
-  private readonly keys = new Map<string, string>();
-  private readonly rememberedKeys = new Map<string, string>();
+  private legacyProviders: LocalProvider[] = [];
+  private legacyDefaultId = '';
+  private creditVersion = 0;
+  private modelVersion = 0;
   private readonly backupWorkspaceHistory = signal<BackupWorkspace[]>([]);
-  private settingsRevision: number | null = null;
   private profileId = '';
   private epoch = 0;
   private disposed = false;
@@ -290,8 +291,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   readonly templates = signal(imageMvpCatalog);
   readonly selectedVersion = signal(1);
   readonly catalogMessage = signal('');
-  readonly providerPolicyVersion = signal<number | null>(null);
-  readonly providerPolicy = signal<ProviderPolicy | null>(null);
+
   readonly categories = ['全部灵感', '产品海报', '人像头像', '插画绘本', '创意设计'];
   readonly category = signal('全部灵感');
   readonly search = signal('');
@@ -342,13 +342,6 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   readonly editorReady = signal(false);
   readonly settingsTabs = settingsTabs;
   readonly settingsTab = signal<SettingsTab>('providers');
-  /** Providers with a usable key this session, remembered or not; the key values stay in private maps. */
-  readonly keyIds = signal<ReadonlySet<string>>(new Set());
-  readonly providerHasKey = computed(() => this.keyIds().has(this.providerId()));
-  readonly keyPrompt = signal<LocalProvider | null>(null);
-  readonly keyDraft = signal('');
-  readonly keyRemember = signal(false);
-  readonly keyPromptMessage = signal('');
   readonly viewer = signal<WorkViewer | null>(null);
   readonly viewerPosition = signal(0);
   readonly viewerTotal = signal(0);
@@ -376,17 +369,14 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   });
   readonly filtersOpen = signal(false);
 
-  readonly providers = signal<LocalProvider[]>([]);
-  readonly providerId = signal('');
-  readonly provider = computed(() => this.providers().find(p => p.id === this.providerId()) ?? null);
-  readonly providerName = signal('');
-  readonly baseUrl = signal('');
-  readonly model = signal('');
-  readonly apiKey = signal('');
-  readonly mode = signal<'direct' | 'proxy'>('direct');
-  readonly rememberKey = signal(false);
-  readonly editingId = signal<string | null>(null);
-  readonly providerBusy = signal(false);
+  readonly models = signal<PlatformModel[]>([]);
+  readonly modelId = signal('');
+  readonly selectedModel = computed(() => this.models().find(model => model.id === this.modelId()) ?? null);
+  readonly modelBusy = signal(false);
+  readonly modelMessage = signal('');
+  readonly creditAccount = signal<CreditAccount | null>(null);
+  readonly creditBusy = signal(false);
+  readonly creditMessage = signal('');
   readonly dataBusy = signal(false);
   readonly dataMessage = signal('');
   readonly backupWorkspaces = computed(() =>
@@ -394,7 +384,6 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   );
   readonly storageInfo = signal('');
   readonly offlineReady = signal(false);
-  readonly providerMessage = signal('');
   readonly localStatus = signal<'opening' | 'ready' | 'unavailable'>('opening');
   readonly draftStatus = signal<StudioDraftStatus | 'inactive'>('inactive');
   readonly storageMessage = signal('');
@@ -452,7 +441,8 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.uncertain() ||
       // A relay task keeps running on the server while this page waits for the tab that resumes it.
       this.job()?.status === 'processing' ||
-      this.providerBusy() ||
+      (this.job()?.status === 'completed' && !this.job()?.saved && !!this.tickets[this.job()!.id]) ||
+      this.modelBusy() ||
       this.dataBusy() ||
       this.sync().busy ||
       this.workspaceSwitching() ||
@@ -461,7 +451,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   readonly settingsBusy = computed(
     () =>
       this.sending() ||
-      this.providerBusy() ||
+      this.modelBusy() ||
       this.dataBusy() ||
       this.sync().busy ||
       this.workspaceSwitching() ||
@@ -486,7 +476,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         saved: '已保存到本机',
         unsaved: '已生成，等待本机保存',
         working: '正在创作',
-        review: '待核对供应商记录',
+        review: '待核对平台任务',
         failed: '未生成',
         idle: '等待你的想法'
       })[this.resultState()]
@@ -509,7 +499,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.editorReady() &&
       this.serialized().valid &&
       this.serialized().text.length <= 2000 &&
-      Boolean(this.provider()) &&
+      Boolean(this.selectedModel()) &&
       !this.inFlight()
   );
   readonly draftMessage = computed(
@@ -529,7 +519,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
 
   constructor() {
     afterRenderEffect(() => {
-      if (!this.detail() && !this.feedbackOpen() && !this.authOpen() && !this.keyPrompt() && !this.viewer()) {
+      if (!this.detail() && !this.feedbackOpen() && !this.authOpen() && !this.viewer()) {
         const trigger = this.dialogTrigger;
         this.dialogTrigger = null;
         if (trigger?.isConnected) trigger.focus();
@@ -553,6 +543,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.authConfigError.set('账号服务配置无效，请联系部署方。本机创作仍可继续。');
     }
     void this.openLocal();
+    void this.refreshModels();
     if (!nativeBackend && 'serviceWorker' in navigator) {
       void navigator.serviceWorker
         .register('/offline-worker.js', {
@@ -593,8 +584,6 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.library?.close();
     this.revokeResult();
     void this.store?.close();
-    this.keys.clear();
-    this.rememberedKeys.clear();
   }
   @HostListener('window:popstate') onPopState() {
     const next = routeView(location.pathname);
@@ -608,7 +597,6 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.closeTemplate();
     this.feedbackOpen.set(false);
     this.closeAuth();
-    this.closeKeyPrompt();
     this.closeViewer();
   }
   @HostListener('document:visibilitychange') onVisibility() {
@@ -801,250 +789,165 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   recheckAuth() {
     if (this.authStatus() === 'unverified') void this.restoreAuth();
   }
-  editProvider(p?: LocalProvider) {
-    this.editingId.set(p?.id ?? null);
-    this.providerName.set(p?.name ?? '');
-    this.baseUrl.set(p?.baseUrl ?? '');
-    this.model.set(p?.model ?? '');
-    this.mode.set(p?.mode ?? 'direct');
-    this.rememberKey.set(p?.rememberKey ?? false);
-    this.apiKey.set(p ? (this.keys.get(p.id) ?? this.rememberedKeys.get(p.id) ?? '') : '');
-    this.providerMessage.set('');
-  }
-  /** Fills the form and focuses the field the user came for; focusing also scrolls a stacked form into view. */
-  startEditProvider(p?: LocalProvider) {
-    this.editProvider(p);
-    afterNextRender(() => document.getElementById(p ? 'provider-key' : 'provider-name')?.focus(), {
-      injector: this.injector
-    });
-  }
-  openProviderSettings(provider = this.provider()) {
-    this.openSettings('providers');
-    this.startEditProvider(provider ?? undefined);
-  }
-  closeKeyPrompt() {
-    this.keyPrompt.set(null);
-    this.keyDraft.set('');
-    this.keyPromptMessage.set('');
-  }
-  manageKeyInSettings() {
-    const provider = this.keyPrompt();
-    this.closeKeyPrompt();
-    this.openProviderSettings(provider);
-  }
-  /** Stores the key exactly like the settings form, then continues the generation the user asked for. */
-  async submitKey() {
-    const provider = this.keyPrompt(),
-      key = this.keyDraft().trim();
-    if (!provider || this.providerBusy() || this.settingsBusy()) return;
-    if (!/^[\x21-\x7e]{1,4096}$/.test(key)) {
-      this.keyPromptMessage.set('请填写有效的 API Key。');
-      return;
-    }
-    const remember = !nativeBackend && this.keyRemember();
-    this.providerBusy.set(true);
-    this.keyPromptMessage.set('');
+  async refreshModels(): Promise<void> {
+    const version = ++this.modelVersion;
+    const current = () => !this.disposed && version === this.modelVersion;
+    this.modelBusy.set(true);
+    this.modelMessage.set('');
     try {
-      await this.persistProviders(
-        this.providers().map(item => (item.id === provider.id ? { ...item, rememberKey: remember } : item)),
-        this.providerId(),
-        { id: provider.id, key: remember ? key : null }
-      );
-      if (remember) this.keys.delete(provider.id);
-      else this.keys.set(provider.id, key);
-      this.syncKeyIds();
-    } catch (e) {
-      this.keyPromptMessage.set(e instanceof Error ? e.message : '保存 Key 未完成，请重试。');
-      return;
-    } finally {
-      this.providerBusy.set(false);
-    }
-    this.closeKeyPrompt();
-    await this.generate();
-  }
-  async saveProvider() {
-    if (this.providerBusy() || this.settingsBusy()) return;
-    this.providerBusy.set(true);
-    this.providerMessage.set('');
-    try {
-      const name = this.providerName().trim(),
-        model = this.model().trim(),
-        key = this.apiKey().trim();
-      if (
-        !name ||
-        name.length > 80 ||
-        !model ||
-        !/^[a-zA-Z0-9._:-]{1,128}$/.test(model) ||
-        Array.from(model).some(c => c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127) ||
-        (key !== '' && !/^[\x21-\x7e]{1,4096}$/.test(key))
-      )
-        throw new Error('请填写有效的名称、模型和 API Key（可留空）。');
-      if (!this.editingId() && this.providers().length >= 30) throw new Error('最多保存 30 个供应商。');
-      const p: LocalProvider = {
-        id: this.editingId() ?? crypto.randomUUID(),
-        name,
-        model,
-        baseUrl: providerBase(this.baseUrl()),
-        mode: this.mode(),
-        rememberKey: !nativeBackend && this.rememberKey() && Boolean(key)
-      };
-      const seededDefaultOnly =
-        !this.editingId() && this.providers().length === 1 && this.providers()[0].id === DEFAULT_FREE_PROVIDER_ID;
-      const providers = [
-        ...this.providers().filter(x => x.id !== p.id && !(seededDefaultOnly && x.id === DEFAULT_FREE_PROVIDER_ID)),
-        p
-      ];
-      const defaultId = !this.providerId() || seededDefaultOnly ? p.id : this.providerId();
-      await this.persistProviders(providers, defaultId, { id: p.id, key: p.rememberKey ? key : null });
-      if (key && !p.rememberKey) this.keys.set(p.id, key);
-      else this.keys.delete(p.id);
-      this.syncKeyIds();
-      this.editProvider();
-      this.providerMessage.set('供应商已保存到本机。');
-      this.notify('供应商已保存');
-    } catch (e) {
-      this.providerMessage.set(e instanceof Error ? e.message : '保存失败。');
-    } finally {
-      this.providerBusy.set(false);
-      void this.reconcileIdentity();
-    }
-  }
-  async chooseProvider(id: string) {
-    if (this.settingsBusy() || this.providerBusy()) return;
-    const previousId = this.providerId();
-    this.providerBusy.set(true);
-    this.providerId.set(id);
-    this.error.set('');
-    try {
-      await this.persistProviders(this.providers(), id);
-    } catch (e) {
-      this.providerId.set(previousId);
-      this.error.set(e instanceof Error ? e.message : '设置失败。');
-    } finally {
-      this.providerBusy.set(false);
-      void this.reconcileIdentity();
-    }
-  }
-  async removeProvider(p: LocalProvider) {
-    if (this.settingsBusy() || this.providerBusy() || !window.confirm('删除此供应商和本机保存的 Key？已有作品会保留。'))
-      return;
-    this.providerBusy.set(true);
-    try {
-      const next = this.providers().filter(x => x.id !== p.id);
-      await this.persistProviders(next, this.providerId() === p.id ? (next[0]?.id ?? '') : this.providerId(), {
-        id: p.id,
-        key: null
+      const response = await fetch(apiEndpoint('/api/models'), {
+        cache: 'no-store',
+        credentials: 'omit',
+        redirect: 'error',
+        signal: this.lifetime.signal
       });
-      this.keys.delete(p.id);
-      this.syncKeyIds();
-      if (this.editingId() === p.id) this.editProvider();
-    } catch (e) {
-      this.providerMessage.set(e instanceof Error ? e.message : '删除失败。');
+      if (!response.ok) throw new Error('平台模型暂不可用，请稍后刷新。');
+      const models = validatePlatformModels(await response.json());
+      if (!current()) return;
+      this.models.set(models);
+      await this.readSettings();
+      if (!current()) return;
+      if (!this.store) this.modelId.set(models[0]?.id ?? '');
+      if (!models.length) this.modelMessage.set('平台暂未开放模型，请稍后刷新。');
+    } catch (error) {
+      if (!current()) return;
+      this.models.set([]);
+      this.modelId.set('');
+      this.modelMessage.set(error instanceof Error ? error.message : '平台模型暂不可用。');
     } finally {
-      this.providerBusy.set(false);
-      void this.reconcileIdentity();
+      if (current()) this.modelBusy.set(false);
     }
   }
-  async removeKey(p: LocalProvider) {
-    if (this.settingsBusy() || this.providerBusy()) return;
-    this.providerBusy.set(true);
+  async chooseModel(id: string): Promise<void> {
+    const store = this.store,
+      epoch = this.epoch;
+    if (this.settingsBusy() || !this.models().some(model => model.id === id) || !store) return;
+    const version = ++this.modelVersion;
+    const current = () =>
+      !this.disposed && epoch === this.epoch && store === this.store && version === this.modelVersion;
+    const previous = this.modelId();
+    this.modelId.set(id);
+    this.modelBusy.set(true);
     try {
-      await this.persistProviders(
-        this.providers().map(item => (item.id === p.id ? { ...item, rememberKey: false } : item)),
-        this.providerId(),
-        { id: p.id, key: null }
-      );
-      this.keys.delete(p.id);
-      this.syncKeyIds();
-      if (this.editingId() === p.id) {
-        this.apiKey.set('');
-        this.rememberKey.set(false);
-      }
-      this.notify('已移除 Key，供应商配置已保留。');
+      const row = await store.preference('platform-model-v1');
+      if (!current()) return;
+      await store.savePreference('platform-model-v1', JSON.stringify(id), row?.revision ?? null);
+      if (current()) this.modelMessage.set('');
     } catch {
-      this.providerMessage.set('移除 Key 未完成，请刷新后重试。');
+      if (current()) {
+        this.modelId.set(previous);
+        this.modelMessage.set('模型选择未保存，请刷新后重试。');
+      }
     } finally {
-      this.providerBusy.set(false);
-      void this.reconcileIdentity();
+      if (current()) this.modelBusy.set(false);
     }
+  }
+  async refreshCredits(): Promise<void> {
+    const version = ++this.creditVersion,
+      identity = this.authUser()?.id;
+    this.creditAccount.set(null);
+    this.creditMessage.set('');
+    if (this.authStatus() !== 'signed-in' || this.targetKind() !== 'platform' || !identity) {
+      this.creditBusy.set(false);
+      return;
+    }
+    this.creditBusy.set(true);
+    try {
+      const snapshot = await this.adminApi.credits();
+      if (version === this.creditVersion && identity === this.authUser()?.id) this.creditAccount.set(snapshot.account);
+    } catch (error) {
+      if (version === this.creditVersion)
+        this.creditMessage.set(error instanceof Error ? error.message : '积分暂不可读，请重试。');
+    } finally {
+      if (version === this.creditVersion) this.creditBusy.set(false);
+    }
+  }
+  async openGenerationAccount(): Promise<void> {
+    if (this.auth) {
+      this.openAuth();
+      return;
+    }
+    await this.changeSyncTarget('platform');
+    if (this.targetKind() !== 'platform') this.error.set(this.targetMessage());
   }
   async generate() {
     if (!this.canGenerate()) return;
-    const provider = this.provider();
-    if (!provider) return;
-    const key = this.keys.get(provider.id) ?? this.rememberedKeys.get(provider.id) ?? '';
-    if (!key) {
-      // Ask in place so the prompt, ratio and scroll position stay where the user left them.
-      this.keyRemember.set(false);
-      this.keyPromptMessage.set('');
-      this.keyPrompt.set(provider);
+    if (this.authStatus() !== 'signed-in' || this.targetKind() !== 'platform') {
+      await this.openGenerationAccount();
       return;
     }
+    const model = this.selectedModel(),
+      identity = this.authUser()?.id;
+    if (!model || !identity) return;
     this.sending.set(true);
     this.error.set('');
     try {
-      await this.checkProviderPolicy(provider);
+      await this.refreshCredits();
+      if (identity !== this.authUser()?.id || this.authStatus() !== 'signed-in' || this.targetKind() !== 'platform')
+        throw new Error('账号已变化，请重新登录。');
+      const balance = this.creditAccount();
+      if (!balance) throw new Error(this.creditMessage() || '积分暂不可确认，未发送生成请求。');
+      if (balance.available < model.credits)
+        throw new Error(`可用积分不足：当前 ${balance.available}，本次需要 ${model.credits}。未发送生成请求。`);
+      const access = await this.adminApi.authorization();
+      if (
+        access.userId !== identity ||
+        identity !== this.authUser()?.id ||
+        this.authStatus() !== 'signed-in' ||
+        this.targetKind() !== 'platform'
+      )
+        throw new Error('账号已变化，请重新登录。');
       await navigator.locks.request(`aiao-local-generation-${this.profileId}`, { ifAvailable: true }, async lock => {
         if (!lock) {
-          this.error.set('另一标签页正在生成，请等待并核对结果。');
+          this.error.set('另一标签页正在生成，请等待原任务完成。');
           return;
         }
         await this.readTasks();
         if (this.uncertain() || this.job()?.status === 'processing') return;
         await this.studio?.flush();
-        const now = new Date().toISOString();
+        const now = new Date().toISOString(),
+          ratio = this.ratio();
         const task: LocalTask = {
           id: crypto.randomUUID(),
-          channel: provider.mode,
+          channel: 'platform',
           request: {
             kind: 'image',
             operation: 'text-to-image',
-            providerInstanceId: provider.id,
+            providerInstanceId: '00000000-0000-4000-8000-000000000000',
             providerRevision: 1,
-            modelId: provider.model,
+            modelId: model.id,
             prompt: this.serialized().text,
-            aspectRatio: this.ratio()
+            aspectRatio: ratio
           },
           status: 'processing',
           createdAt: now,
           updatedAt: now,
-          delivery: {
-            status: 'pending',
-            expiresAt: null,
-            acknowledgedAt: null
-          },
+          delivery: { status: 'pending', expiresAt: null, acknowledgedAt: null },
           failure: null
         };
-        // Relay mode keeps a device-only ticket so a reload can find the server task again.
-        const ticket: RelayTicket | null =
-          provider.mode === 'proxy' ?
-            { token: createRelayTaskToken(), accepted: false, baseUrl: providerBase(provider.baseUrl) }
-          : null;
+        const ticket: RelayTicket = { token: createRelayTaskToken(), accepted: false, protocol: model.protocol };
         await this.writeTask(task, ticket);
-        const ratio = this.ratio();
         await this.runTask(
           task,
           signal =>
-            ticket ?
-              runRelayTask({
-                id: task.id,
-                ticket,
-                ratio,
-                signal,
-                dispatch: { provider, key, prompt: task.request.prompt },
-                accepted: () => this.acceptRelay(task.id, ticket)
-              })
-            : generateLocalImage(provider, key, task.request.prompt, ratio, signal),
-          // A relay task has its own server deadline; only a direct request is bounded by this page.
-          ticket ? null : 180000
+            runRelayTask({
+              id: task.id,
+              ticket,
+              ratio,
+              signal,
+              dispatch: { modelId: model.id, accessToken: access.session.access_token, prompt: task.request.prompt },
+              accepted: () => this.acceptRelay(task.id, ticket)
+            }),
+          null
         );
       });
-    } catch (e) {
-      this.error.set(e instanceof Error ? e.message : '本机提交记录写入失败，没有重复发送。');
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : '本机提交记录写入失败，没有重复发送。');
     } finally {
       this.sending.set(false);
       this.stopElapsed();
       if (this.resultUrl() || this.panelError()) this.revealResult();
+      void this.refreshCredits();
       void this.reconcileIdentity();
       this.releaseRelay();
     }
@@ -1054,7 +957,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     if (
       this.settingsBusy() ||
       !current ||
-      !window.confirm('请先核对供应商用量与结果。继续会解除本机锁定，下一次生成是新的请求，可能再次计费。')
+      !window.confirm('请先核对平台任务与积分流水。继续会解除本机锁定；下一次生成会创建新任务并预占积分。')
     )
       return;
     try {
@@ -1063,6 +966,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.uncertain.set(false);
       this.job.set(null);
       this.error.set('');
+      this.releaseRelay();
     } catch {
       this.error.set('无法保存核对记录，请重试。');
     }
@@ -1087,6 +991,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       if (!current()) return;
       this.job.set(task);
       this.saved.set(true);
+      this.releaseRelay();
       this.storageMessage.set('');
       void this.syncSavedImage(task);
     } catch {
@@ -1308,10 +1213,11 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       await navigator.locks.request(`aiao-local-generation-${this.profileId}`, { ifAvailable: true }, async lock => {
         if (!lock) throw new Error('另一标签页正在生成，请稍后备份。');
         await this.studio?.flush();
+        await this.readSettings();
         await this.readTasks();
         const { createLocalBackup } = await import('./local-backup');
         if (!this.store) throw new Error('本机工作区不可用。');
-        const blob = await createLocalBackup(this.store, this.providers(), this.providerId(), this.history());
+        const blob = await createLocalBackup(this.store, this.legacyProviders, this.legacyDefaultId, this.history());
         if (!(await saveDownload(blob, `aiao-backup-${new Date().toISOString().slice(0, 10)}.zip`))) {
           this.dataMessage.set('已取消导出，原数据保留。');
           return;
@@ -1416,7 +1322,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     }
   }
   async restoreBackupWorkspace(id: string) {
-    if (!this.store || this.localStatus() !== 'ready' || this.inFlight() || this.providerBusy()) return;
+    if (!this.store || this.localStatus() !== 'ready' || this.inFlight() || this.modelBusy()) return;
     try {
       const workspace = readBackupWorkspaces(localStorage).find(item => item.id === id && item.id !== this.profileId);
       if (!workspace) throw new Error('未找到可返回的本机工作区。');
@@ -1506,7 +1412,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       return;
     const text =
       scope === 'existing' ?
-        '这会上传当前工作区已保存的 PNG/JPEG 原图，之后保存的新图也会自动上传。原图会保存到平台账号的私有云存储；API Key 和本机路径不会上传。继续吗？'
+        '这会上传当前工作区已保存的 PNG/JPEG 原图，之后保存的新图也会自动上传。原图会保存到平台账号的私有云存储；账号会话、任务令牌和本机路径不会上传。继续吗？'
       : '之后保存的新 PNG/JPEG 会自动上传到平台账号的私有云存储；已有图片不会补传。继续吗？';
     if (!window.confirm(text)) return;
     this.imageSyncBusy.set(true);
@@ -1604,7 +1510,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       await this.product?.synchronize({ rescan: true });
   }
   async reportTasks() {
-    if (window.confirm('上报本机任务的状态、模型、供应商标识和用量来源？不包含提示词、图片或 API Key。'))
+    if (window.confirm('上报本机任务的状态、模型、时间和用量来源？不包含提示词、图片、账号会话或任务令牌。'))
       await this.product?.reportTasks();
   }
   async inspectRemoteQuota() {
@@ -1686,13 +1592,6 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     } catch {
       this.notify('复制失败，请手动复制反馈内容。');
     }
-  }
-  keyLabel(p: LocalProvider) {
-    return (
-      !this.keyIds().has(p.id) ? '未填写 Key'
-      : p.rememberKey ? 'Key 已保存在本机'
-      : 'Key 仅本次会话'
-    );
   }
   formatDate(value: string | undefined) {
     return formatTime(value, dateFormat);
@@ -1810,9 +1709,6 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private releaseLibraryPreviews() {
     for (const work of this.libraryPage().works) this.library?.setVisible(work.jobId, false);
   }
-  private syncKeyIds() {
-    this.keyIds.set(new Set([...this.keys.keys(), ...this.rememberedKeys.keys()]));
-  }
   private startElapsed(started = Date.now()) {
     this.stopElapsed();
     this.elapsedSeconds.set(Math.max(0, Math.floor((Date.now() - started) / 1000)));
@@ -1891,6 +1787,8 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.resetImageSync();
     ++this.identityVersion;
     this.identitySelection = null;
+    ++this.creditVersion;
+    this.creditAccount.set(null);
     this.authStatus.set('signed-out');
     this.authUser.set(null);
     this.authConfigured.set(target.config !== null);
@@ -1910,6 +1808,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.syncReady.set(false);
       this.authUser.set(state.user);
       this.authStatus.set(state.status);
+      void this.refreshCredits();
       this.authMessage.set(state.message);
       this.product?.pause();
       this.identitySelection = null;
@@ -1918,43 +1817,6 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     });
     void this.restoreAuth();
     if (target.kind === 'platform') void this.loadCatalog();
-  }
-  private async checkProviderPolicy(provider: LocalProvider): Promise<void> {
-    if (!this.authConfigured() || this.targetKind() !== 'platform') return;
-    const response = await fetch(apiEndpoint('/api/provider-policies'), {
-      cache: 'no-store',
-      credentials: 'omit',
-      redirect: 'error',
-      signal: this.lifetime.signal
-    });
-    if (!response.ok) throw new Error('供应商运行策略暂不可确认，未发送生成请求。');
-    const result = (await response.json()) as { policy: unknown };
-    if (result.policy === null) {
-      this.providerPolicy.set(null);
-      this.providerPolicyVersion.set(null);
-      return;
-    }
-    const policy = validateProviderPolicy(
-      result.policy && typeof result.policy === 'object' ?
-        { version: Reflect.get(result.policy, 'version'), providers: Reflect.get(result.policy, 'providers') }
-      : result.policy
-    );
-    const revision = Reflect.get(result.policy as object, 'revision');
-    if (!Number.isSafeInteger(revision) || revision < 1) throw new Error('运行策略版本无效，未发送生成请求。');
-    this.providerPolicy.set(policy);
-    this.providerPolicyVersion.set(revision);
-    const entry = policy.providers.find(entry => entry.baseUrl === provider.baseUrl);
-    const size =
-      this.ratio() === 'square' ? '1024x1024'
-      : this.ratio() === 'landscape' ? '1536x1024'
-      : '1024x1536';
-    if (
-      !entry?.enabled ||
-      !entry[provider.mode] ||
-      !entry.models.includes(provider.model) ||
-      !entry.sizes.includes(size)
-    )
-      throw new Error('此供应商、模型、通道或画幅未在当前运行策略中启用，未发送生成请求。');
   }
   private async loadCatalog(): Promise<void> {
     try {
@@ -2049,7 +1911,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
           },
           ready: () => this.attachment,
           checkpoint: () => this.checkpoint(),
-          busy: () => this.sending() || this.dataBusy() || this.providerBusy() || this.workspaceSwitching(),
+          busy: () => this.sending() || this.dataBusy() || this.modelBusy() || this.workspaceSwitching(),
           counts: async () => {
             await this.checkpoint();
             const snapshot = await collectProductSnapshot(this.requireStore(), []);
@@ -2149,13 +2011,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.profileId = profile.id;
     this.currentProfileId.set(profile.id);
     this.refreshProfiles();
-    this.settingsRevision = null;
     this.closeViewer();
-    this.keys.clear();
-    this.rememberedKeys.clear();
-    this.syncKeyIds();
-    this.providers.set([]);
-    this.providerId.set('');
     this.history.set([]);
     this.works.set([]);
     this.localWorksKnown.set(false);
@@ -2173,7 +2029,6 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.saved.set(false);
     this.uncertain.set(false);
     this.error.set('');
-    if (!initial) this.editProvider();
     if (!initial) {
       this.dirtyInput = false;
       this.promptState.set(plainPrompt(''));
@@ -2251,7 +2106,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   }
   private async checkpoint(): Promise<void> {
     await this.attachment;
-    if (this.sending() || this.dataBusy() || this.providerBusy()) throw new Error('当前操作尚未完成，请稍后切换。');
+    if (this.sending() || this.dataBusy() || this.modelBusy()) throw new Error('当前操作尚未完成，请稍后切换。');
     await this.studio?.checkpoint();
   }
   private async assertRoot(): Promise<void> {
@@ -2306,7 +2161,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       !this.workspaceSession ||
       this.sending() ||
       this.dataBusy() ||
-      this.providerBusy() ||
+      this.modelBusy() ||
       !['signed-in', 'signed-out'].includes(this.authStatus())
     )
       return;
@@ -2337,75 +2192,20 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     }
   }
   private async readSettings() {
-    const store = this.store;
+    const store = this.store,
+      epoch = this.epoch;
     if (!store) return;
-    const epoch = this.epoch;
-    const bound = !!this.currentProfile()?.binding;
-    const [row, credentials] = await Promise.all([
-      store.ensurePreference(
-        'providers-v1',
-        JSON.stringify({
-          providers: bound ? [] : [defaultFreeProvider()],
-          defaultId: bound ? '' : DEFAULT_FREE_PROVIDER_ID
-        })
-      ),
-      store.preference('provider-keys-v1')
+    const [selection, legacy] = await Promise.all([
+      store.preference('platform-model-v1'),
+      store.preference('providers-v1')
     ]);
     if (epoch !== this.epoch || store !== this.store) return;
-    if (!row || row.revision !== this.settingsRevision) {
-      const data =
-        row ?
-          (JSON.parse(row.payload) as {
-            providers: LocalProvider[];
-            defaultId: string;
-          })
-        : { providers: [], defaultId: '' };
-      if (!Array.isArray(data.providers) || data.providers.length > 30) throw new Error('Invalid providers');
-      const providers = (await store.collection('providers')).map(row => publicProvider(JSON.parse(row.payload)));
-      if (epoch !== this.epoch || store !== this.store) return;
-      const migratedProviders = providers.map(p =>
-        (
-          p.id === DEFAULT_FREE_PROVIDER_ID &&
-          (p.baseUrl === 'https://ai.junflow.cn' || p.baseUrl === 'https://ai.pengdevs.com')
-        ) ?
-          {
-            ...p,
-            baseUrl: DEFAULT_FREE_PROVIDER.baseUrl,
-            // The built-in provider requires the same-origin relay.
-            mode: DEFAULT_FREE_PROVIDER.mode
-          }
-        : p
-      );
-      const defaultId =
-        migratedProviders.some(p => p.id === data.defaultId) ? data.defaultId : (migratedProviders[0]?.id ?? '');
-      const nextProviders = migratedProviders;
-      const providersMigrated = migratedProviders.some(
-        (p, index) => p.baseUrl !== providers[index]?.baseUrl || p.mode !== providers[index]?.mode
-      );
-      const nextDefaultId = defaultId || nextProviders[0]?.id || '';
-      for (const old of this.providers())
-        if (nextProviders.find(provider => provider.id === old.id)?.baseUrl !== old.baseUrl) this.keys.delete(old.id);
-      this.syncKeyIds();
-      this.providers.set(nextProviders);
-      this.providerId.set(nextDefaultId);
-      this.settingsRevision = row?.revision ?? null;
-      if (providersMigrated || nextDefaultId !== data.defaultId) {
-        this.settingsRevision = await store.savePreference(
-          'providers-v1',
-          JSON.stringify({
-            providers: nextProviders,
-            defaultId: nextDefaultId
-          }),
-          row?.revision ?? null
-        );
-      }
-      for (const id of this.keys.keys()) if (!nextProviders.some(p => p.id === id)) this.keys.delete(id);
-    }
-    const remembered: Record<string, string> = credentials ? JSON.parse(credentials.payload) : {};
-    this.rememberedKeys.clear();
-    for (const p of this.providers())
-      if (p.rememberKey && typeof remembered[p.id] === 'string') this.rememberedKeys.set(p.id, remembered[p.id]);
-    this.syncKeyIds();
+    const selected: unknown = selection ? JSON.parse(selection.payload) : '';
+    if (typeof selected !== 'string') throw new Error('本机模型选择无效。');
+    this.modelId.set(this.models().some(model => model.id === selected) ? selected : (this.models()[0]?.id ?? ''));
+    const old = legacy ? (JSON.parse(legacy.payload) as { providers: unknown[]; defaultId: string }) : null;
+    this.legacyProviders = old ? old.providers.map(publicProvider) : [];
+    this.legacyDefaultId = old?.defaultId ?? '';
   }
   /** Follows one task to a settled state: a saved image, a definite failure, or a locked uncertain outcome. */
   private async runTask(
@@ -2448,6 +2248,10 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         this.storageMessage.set('图片已收到，但本机保存未完成。请先下载，再重试保存。');
         return;
       }
+      if (e instanceof RelayContinuationFailure) {
+        this.error.set(e.message);
+        return;
+      }
       const rejected = e instanceof ProviderFailure && e.rejected;
       task = {
         ...task,
@@ -2459,12 +2263,12 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       try {
         await this.writeTask(task);
       } catch {
-        this.storageMessage.set('任务记录更新失败；请保留当前页面并核对供应商记录。');
+        this.storageMessage.set('任务记录更新失败；请保留当前页面并核对平台任务。');
       }
       this.error.set(
         e instanceof ProviderFailure ?
           e.message
-        : '连接中断、CORS 限制或响应无效。请到供应商后台核对，系统不会自动重发。'
+        : '平台连接或结果暂不可确认。请核对平台任务与积分流水，系统不会自动重发。'
       );
     } finally {
       clearTimeout(timer);
@@ -2487,8 +2291,18 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     if (!Array.isArray(tasks)) throw new Error('Invalid task journal');
     this.tickets = relayTickets(relay?.payload ?? null);
     this.history.set(tasks);
-    const unresolved = tasks.find(t => !t.acknowledged && ['processing', 'needs_review'].includes(t.status));
-    if (unresolved?.status === 'processing' && this.tickets[unresolved.id] && unresolved.request.aspectRatio) {
+    const unresolved = tasks.find(
+      t =>
+        !t.acknowledged &&
+        (['processing', 'needs_review'].includes(t.status) ||
+          (t.status === 'completed' && !t.saved && !!this.tickets[t.id]))
+    );
+    if (
+      unresolved &&
+      (unresolved.status === 'processing' || (unresolved.status === 'completed' && !unresolved.saved)) &&
+      this.tickets[unresolved.id] &&
+      unresolved.request.aspectRatio
+    ) {
       // The relay keeps working without this page; continue the task instead of asking for a review.
       this.job.set(unresolved);
       this.uncertain.set(false);
@@ -2531,12 +2345,20 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       ],
       true
     );
-    if (!this.disposed && epoch === this.epoch && store === this.store) this.history.set(next);
+    if (!this.disposed && epoch === this.epoch && store === this.store) {
+      if (ticket) this.tickets = { ...this.tickets, [task.id]: ticket };
+      this.history.set(next);
+    }
   }
   /** A ticket is released only once its task is in the journal and no longer processing. */
   private settledTask(id: string): boolean {
-    const status = this.history().find(task => task.id === id)?.status;
-    return status !== undefined && status !== 'processing';
+    const task = this.history().find(task => task.id === id);
+    return (
+      !!task &&
+      (task.status === 'failed' ||
+        (task.status === 'needs_review' && !!task.acknowledged) ||
+        (task.status === 'completed' && !!task.saved))
+    );
   }
   /** Continues an unsettled relay task once no other tab of this workspace is generating or resuming. */
   private resumeRelay(task: LocalTask): void {
@@ -2558,7 +2380,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         }
       })
       .catch(() => {
-        if (!this.disposed) this.storageMessage.set('代理任务续接失败，请刷新页面重试；任务不会重复生成。');
+        if (!this.disposed) this.storageMessage.set('平台任务续接失败，请刷新页面重试；任务不会重复生成。');
       })
       .finally(() => {
         if (this.relayResuming === task.id) this.relayResuming = null;
@@ -2569,7 +2391,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     const task = this.history().find(item => item.id === id),
       ticket = this.tickets[id],
       ratio = task?.request.aspectRatio;
-    if (task?.status !== 'processing' || !ticket || !ratio) return;
+    if (!task || !['processing', 'completed'].includes(task.status) || task.saved || !ticket || !ratio) return;
     await this.runTask(
       task,
       signal =>
@@ -2604,7 +2426,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.releasing = true;
     this.releaseSettled()
       .catch(() => {
-        if (!this.disposed) this.storageMessage.set('本机代理任务记录更新失败，请刷新后重试。');
+        if (!this.disposed) this.storageMessage.set('本机平台任务记录更新失败，请刷新后重试。');
       })
       .finally(() => {
         this.releasing = false;
@@ -2640,40 +2462,6 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     await this.writeTickets(tickets =>
       Object.fromEntries(Object.entries(tickets).filter(([id]) => !released.includes(id)))
     );
-  }
-  private async persistProviders(
-    providers: LocalProvider[],
-    defaultId: string,
-    credential?: { id: string; key: string | null }
-  ) {
-    if (!this.store) throw new Error('请先等待本机存储就绪。');
-    const store = this.store,
-      epoch = this.epoch;
-    const nextProviders = providers.length || this.currentProfile()?.binding ? providers : [defaultFreeProvider()];
-    const nextDefaultId = nextProviders.some(p => p.id === defaultId) ? defaultId : (nextProviders[0]?.id ?? '');
-    const changes = [
-      {
-        key: 'providers-v1',
-        payload: JSON.stringify({ providers: nextProviders, defaultId: nextDefaultId }),
-        revision: this.settingsRevision
-      }
-    ];
-    if (credential) {
-      const row = await store.preference('provider-keys-v1');
-      const data: Record<string, string> = row ? JSON.parse(row.payload) : {};
-      if (credential.key === null) delete data[credential.id];
-      else data[credential.id] = credential.key;
-      changes.push({ key: 'provider-keys-v1', payload: JSON.stringify(data), revision: row?.revision ?? null });
-    }
-    const [revision] = await store.savePreferences(changes, true);
-    if (epoch !== this.epoch || store !== this.store) return;
-    this.settingsRevision = revision;
-    this.product?.captureSoon();
-    if (credential?.key === null) this.rememberedKeys.delete(credential.id);
-    else if (credential) this.rememberedKeys.set(credential.id, credential.key);
-    this.syncKeyIds();
-    this.providers.set(nextProviders);
-    this.providerId.set(nextDefaultId);
   }
   private acceptLibraryPage(page: LibraryState): void {
     const previous = new Map(this.libraryPage().works.map(work => [work.jobId, work]));
@@ -2736,13 +2524,12 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   }
   private watchPreferences(store: LocalMediaStore): void {
     this.workspaceSubscriptions.add(
-      merge(store.preference$('providers-v1'), store.preference$('provider-keys-v1'))
+      store
+        .preference$('platform-model-v1')
         .pipe(
-          concatMap(() =>
-            this.readSettings().catch(() => this.storageMessage.set('供应商设置读取失败，请刷新后重试。'))
-          )
+          concatMap(() => this.readSettings().catch(() => this.storageMessage.set('模型选择读取失败，请刷新后重试。')))
         )
-        .subscribe({ error: () => this.storageMessage.set('供应商设置读取失败，请刷新后重试。') })
+        .subscribe({ error: () => this.storageMessage.set('模型选择读取失败，请刷新后重试。') })
     );
     this.workspaceSubscriptions.add(
       store

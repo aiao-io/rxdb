@@ -110,3 +110,18 @@ test('匿名、角色伪造与跨站调整不访问账本，积分不足保留 4
     globalThis.fetch = previous;
   }
 });
+
+test('账本分页只接受有界流水标识，空账户显示零，写方法受到限制', async () =>
+  fixture(async calls => {
+    const result = await handleAdmin(request(`admin/users/${target}/credits?before=71`), env);
+    assert.equal(result.status, 200);
+    assert.equal(calls.at(-1).url.searchParams.get('id'), 'lt.71');
+    assert.equal((await handleCredits(request('credits?before=-1'), env)).status, 400);
+    assert.equal((await handleCredits(request('credits', 'POST', {}), env)).status, 405);
+    assert.equal((await handleAdmin(request(`admin/users/${target}/credits`, 'DELETE'), env)).status, 405);
+    const original = globalThis.fetch;
+    globalThis.fetch = async (input, init) =>
+      new URL(input).pathname.endsWith('/media_credit_accounts') ? Response.json([]) : original(input, init);
+    const empty = await handleCredits(request('credits'), env);
+    assert.deepEqual((await empty.json()).account, { balance: 0, reserved: 0, available: 0 });
+  }));

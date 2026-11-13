@@ -1,9 +1,8 @@
 import {
-  imageGenerationRequest,
   imageMetadata,
-  isMiniMaxImageProvider,
   openRelayResult,
-  relayResultKey
+  relayResultKey,
+  validatePlatformModels
 } from '@aiao-media/api-contracts';
 import { chromium, expect, request as playwrightRequest } from '@playwright/test';
 import { createHash, randomUUID } from 'node:crypto';
@@ -11,7 +10,7 @@ import { existsSync } from 'node:fs';
 import { chmod, mkdir, open, readFile, readdir, unlink } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { prompt, provider, verifyImageDownload } from '../src/local-first.helpers.ts';
+import { prompt, verifyImageDownload } from '../src/local-first.helpers.ts';
 import { installFetchCapture } from './provider-fetch-capture.mjs';
 import { observeResultNetwork, resultNetworkFailure } from './provider-result-network.mjs';
 
@@ -33,7 +32,7 @@ export function acceptanceSelection(env) {
     return selected;
   };
   return {
-    modes: parse(env.AIAO_MEDIA_ACCEPTANCE_MODES, ['direct', 'proxy']),
+    modes: parse(env.AIAO_MEDIA_ACCEPTANCE_MODES, ['platform']),
     aspects: parse(
       env.AIAO_MEDIA_ACCEPTANCE_ASPECTS,
       ratios.map(ratio => ratio.aspect)
@@ -79,7 +78,8 @@ export function failureCode(error) {
     ['RESULT_CAPTURE_LIMIT', 'RESULT_CAPTURE_LIMIT'],
     ['RESULT_CAPTURE_DUPLICATE', 'RESULT_CAPTURE_DUPLICATE'],
     ['GENERATION_REQUEST_BOUNDARY', 'GENERATION_REQUEST_BOUNDARY'],
-    ['RESULT_SIZE_MISMATCH', 'RESULT_SIZE_MISMATCH']
+    ['RESULT_SIZE_MISMATCH', 'RESULT_SIZE_MISMATCH'],
+    ...['PLATFORM_MODEL_UNAVAILABLE', 'PLATFORM_CREDITS_UNAVAILABLE', 'PLATFORM_CREDIT_MISMATCH', 'PLATFORM_LOGIN_REQUIRED'].map(code => [code, code])
   ]);
   if (codes.has(error?.message)) return codes.get(error.message);
   if (error?.name === 'TimeoutError') return 'BROWSER_TIMEOUT';
@@ -146,29 +146,17 @@ export function liveSettings(env) {
     /^[a-f0-9]{64}$/.test(env.AIAO_MEDIA_ACCEPTANCE_MANIFEST_SHA256 ?? ''),
     'REVIEWED_MANIFEST_DIGEST_REQUIRED'
   );
-  const base = new URL(env.AIAO_IMAGE_BASE_URL);
-  requireCheck(
-    base.protocol === 'https:' && !base.username && !base.password && !base.search && !base.hash,
-    'INVALID_PROVIDER'
-  );
-  requireCheck(/^[a-zA-Z0-9._:-]{1,128}$/.test(env.AIAO_IMAGE_MODEL ?? ''), 'INVALID_MODEL');
-  requireCheck(
-    imageGenerationRequest(base.href.replace(/\/+$/, ''), {
-      model: env.AIAO_IMAGE_MODEL,
-      prompt: '',
-      size: '1024x1024'
-    }),
-    'INVALID_MODEL'
-  );
-  requireCheck(/^[\x21-\x7e]{1,4096}$/.test(env.AIAO_IMAGE_API_KEY ?? ''), 'INVALID_KEY');
+  requireCheck(/^[a-zA-Z0-9._-]{1,80}$/.test(env.AIAO_MEDIA_ACCEPTANCE_MODEL_ID ?? ''), 'INVALID_MODEL');
+  requireCheck(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(env.AIAO_MEDIA_ACCEPTANCE_EMAIL ?? ''), 'PLATFORM_LOGIN_REQUIRED');
+  requireCheck(typeof env.AIAO_MEDIA_ACCEPTANCE_PASSWORD === 'string' && env.AIAO_MEDIA_ACCEPTANCE_PASSWORD.length > 0, 'PLATFORM_LOGIN_REQUIRED');
   return {
     selection: acceptanceSelection(env),
     origin: env.AIAO_MEDIA_ACCEPTANCE_ORIGIN,
     release: env.AIAO_MEDIA_ACCEPTANCE_RELEASE,
     manifestSha256: env.AIAO_MEDIA_ACCEPTANCE_MANIFEST_SHA256,
-    baseUrl: base.href.replace(/\/+$/, ''),
-    model: env.AIAO_IMAGE_MODEL,
-    key: env.AIAO_IMAGE_API_KEY,
+    model: env.AIAO_MEDIA_ACCEPTANCE_MODEL_ID,
+    email: env.AIAO_MEDIA_ACCEPTANCE_EMAIL,
+    password: env.AIAO_MEDIA_ACCEPTANCE_PASSWORD,
     fixture: false
   };
 }
@@ -180,7 +168,6 @@ export function attemptPath(directory, settings, mode, aspect) {
       settings.origin,
       settings.release,
       settings.manifestSha256,
-      settings.baseUrl,
       settings.model,
       mode,
       aspect
@@ -201,7 +188,7 @@ export async function checkAttemptHistory(settings, directory) {
     requireCheck(record && typeof record === 'object' && !Array.isArray(record), 'PREVIOUS_ATTEMPT_REQUIRES_REVIEW');
     history.set(resolve(directory, name), record);
   }
-  const providerFingerprint = fingerprint([settings.baseUrl, settings.model]);
+  const modelFingerprint = fingerprint(['platform', settings.model]);
   for (const { mode, ratio } of acceptancePlan(settings.selection ?? acceptanceSelection({}))) {
     const file = attemptPath(directory, settings, mode, ratio.aspect);
     const current = history.get(file);
@@ -216,7 +203,7 @@ export async function checkAttemptHistory(settings, directory) {
       record =>
         record.phase !== 'verified' &&
         record.origin === settings.origin &&
-        record.providerFingerprint === providerFingerprint &&
+        record.modelFingerprint === modelFingerprint &&
         record.mode === mode &&
         record.aspect === ratio.aspect
     );
@@ -303,7 +290,6 @@ async function runAttempt(browser, settings, directory, mode, ratio) {
       settings.origin,
       settings.release,
       settings.manifestSha256,
-      settings.baseUrl,
       settings.model,
       mode,
       ratio.aspect
@@ -312,21 +298,11 @@ async function runAttempt(browser, settings, directory, mode, ratio) {
     origin: settings.origin,
     release: settings.release,
     buildManifestSha256: settings.manifestSha256,
-    providerFingerprint: fingerprint([settings.baseUrl, settings.model]),
+    modelFingerprint: fingerprint(['platform', settings.model]),
     fixture: settings.fixture,
     mode,
     aspect: ratio.aspect,
-    protocol: isMiniMaxImageProvider(settings.baseUrl) ? 'minimax-native' : 'openai-images',
-    request:
-      mode === 'direct' && isMiniMaxImageProvider(settings.baseUrl) ?
-        {
-          width: Number(ratio.size.split('x')[0]),
-          height: Number(ratio.size.split('x')[1]),
-          n: 1,
-          responseFormat: 'url',
-          promptOptimizer: false
-        }
-      : { size: ratio.size, n: 1, quality: 'low', outputFormat: 'png' },
+    request: { size: ratio.size, n: 1 },
     phase: 'prepared',
     stage: 'prepared',
     generationRequests: 0,
@@ -350,20 +326,15 @@ async function runAttempt(browser, settings, directory, mode, ratio) {
 }
 
 export function generationDispatch(settings, mode, ratio, prompt) {
-  const input = { model: settings.model, prompt, size: ratio.size };
-  const request = imageGenerationRequest(settings.baseUrl, input);
-  requireCheck(request, 'INVALID_MODEL');
-  if (mode === 'direct') return request;
-  // The page creates the relay task at this prefix plus its own task id; the relay maps the neutral body.
+  requireCheck(mode === 'platform', 'INVALID_ACCEPTANCE_SELECTION');
   return {
-    url: `${settings.origin}/api/relay/tasks/`,
-    method: 'PUT',
-    body: { model: input.model, prompt, n: 1, size: input.size, quality: 'low', output_format: 'png' }
+    url: `${settings.origin}/api/relay/tasks/`, method: 'PUT',
+    body: { model: settings.model, prompt, n: 1, size: ratio.size }
   };
 }
 
-export function generationImageResult(result, baseUrl) {
-  if (!isMiniMaxImageProvider(baseUrl)) return result?.data?.length === 1 ? result.data[0] : null;
+export function generationImageResult(result, protocol) {
+  if (protocol === 'openai') return result?.data?.length === 1 ? result.data[0] : null;
   requireCheck(result?.base_resp?.status_code === 0, 'GENERATION_REJECTED_OR_UNCERTAIN');
   const urls = result?.data?.image_urls ?? [];
   const base64 = result?.data?.image_base64 ?? [];
@@ -399,7 +370,7 @@ async function relayAnswer(sealed, task) {
   }
 }
 
-async function originalBytes(page, response, responses, network, origin, record, baseUrl, relayTask) {
+async function originalBytes(page, response, responses, network, origin, record, protocol, relayTask) {
   requireCheck(response.ok(), 'GENERATION_REJECTED_OR_UNCERTAIN');
   record.stage = 'generation-capture';
   const captured = await receivedBytes(page, 'generation');
@@ -415,7 +386,7 @@ async function originalBytes(page, response, responses, network, origin, record,
   if (typeof requestId === 'string' && /^[a-zA-Z0-9_.:-]{1,160}$/.test(requestId)) record.providerRequestId = requestId;
   const businessCode = result?.base_resp?.status_code;
   if (Number.isSafeInteger(businessCode)) record.providerBusinessCode = businessCode;
-  const item = generationImageResult(result, baseUrl);
+  const item = generationImageResult(result, protocol);
   if (typeof item?.b64_json === 'string')
     return { bytes: Buffer.from(item.b64_json, 'base64'), delivery: 'base64', credentialFree: null };
   requireCheck(typeof item?.url === 'string', 'ORIGINAL_RESULT_UNAVAILABLE');
@@ -440,145 +411,108 @@ async function originalBytes(page, response, responses, network, origin, record,
   };
 }
 
+async function platformLogin(page, settings) {
+  await page.goto('/providers');
+  await page.getByRole('button', { name: /^(登录账号|我的账号)$/ }).click();
+  const dialog = page.getByRole('dialog', { name: '我的账号' });
+  await expect(dialog.getByRole('heading', { name: /^(登录账号|已登录)$/ })).toBeVisible();
+  if (await dialog.getByRole('heading', { name: '登录账号', exact: true }).isVisible()) {
+    requireCheck(settings.email && settings.password, 'PLATFORM_LOGIN_REQUIRED');
+    await dialog.getByLabel('邮箱', { exact: true }).fill(settings.email);
+    await dialog.getByLabel('密码', { exact: true }).fill(settings.password);
+    await dialog.getByRole('button', { name: '登录', exact: true }).click();
+  }
+  await expect(dialog.getByRole('heading', { name: '已登录', exact: true })).toBeVisible();
+  await dialog.getByRole('button', { name: '关闭账号窗口' }).click();
+  const token = await page.evaluate(() => {
+    const url = globalThis.__AIAO_SUPABASE_CONFIG__?.url;
+    return JSON.parse(localStorage.getItem(`aiao-media-supabase-session-v1:${encodeURIComponent(url)}`) ?? 'null')?.access_token;
+  });
+  requireCheck(typeof token === 'string' && token.length > 0, 'PLATFORM_LOGIN_REQUIRED');
+  return token;
+}
+async function platformCredits(page, token) {
+  const receipt = await page.evaluate(async token => {
+    const response = await fetch('/api/credits', { headers: { authorization: `Bearer ${token}` }, credentials: 'omit', cache: 'no-store', redirect: 'error', referrerPolicy: 'no-referrer' });
+    return response.ok ? response.json() : null;
+  }, token);
+  requireCheck(Number.isSafeInteger(receipt?.account?.balance) && Array.isArray(receipt.entries), 'PLATFORM_CREDITS_UNAVAILABLE');
+  return receipt;
+}
 async function verifyCase(browser, settings, mode, ratio, file, record) {
   record.stage = 'browser-context';
-  const context = await browser.newContext({
-    baseURL: settings.origin,
-    acceptDownloads: true,
-    serviceWorkers: 'block',
-    viewport: { width: 1440, height: 1100 }
-  });
+  const context = await browser.newContext({ baseURL: settings.origin, acceptDownloads: true, serviceWorkers: 'block', viewport: { width: 1440, height: 1100 } });
   try {
     await settings.setupContext?.(context);
-    const text = `桌面正式验收：${mode} ${ratio.aspect} 蓝色森林`;
-    const dispatch = generationDispatch(settings, mode, ratio, text);
-    const endpoint = dispatch.url;
-    const method = dispatch.method ?? 'POST';
-    let relayTask = null;
-    await context.addInitScript(installFetchCapture, {
-      generationUrl: endpoint,
-      generationResult: method === 'PUT' ? { prefix: endpoint, suffix: '/result' } : null,
-      pageOrigin: settings.origin,
-      generationLimit: 24 * 1024 * 1024,
-      resultLimit: 16 * 1024 * 1024,
-      timeoutMs: 190000
-    });
+    const text = `平台正式验收：${ratio.aspect} 蓝色森林`;
+    const dispatch = generationDispatch(settings, mode, ratio, text), endpoint = dispatch.url;
+    let relayTask = null, sessionToken = '';
+    await context.addInitScript(installFetchCapture, { generationUrl: endpoint, generationResult: { prefix: endpoint, suffix: '/result' }, pageOrigin: settings.origin, generationLimit: 24 * 1024 * 1024, resultLimit: 16 * 1024 * 1024, timeoutMs: 190000 });
     const page = await context.newPage();
     page.setDefaultTimeout(30000);
-    const generationEndpoints = [
-      `${settings.origin}/api/relay`,
-      `${settings.baseUrl}/images/generations`,
-      `${settings.baseUrl}/image_generation`
-    ];
     const responses = new Map();
     page.on('response', response => responses.set(response.url(), response));
-    const session = await context.newCDPSession(page);
-    const network = observeResultNetwork(session);
-    await session.send('Network.enable');
-    await session.send('Audits.enable');
-    const relayTasks = `${settings.origin}/api/relay/tasks/`;
+    const session = await context.newCDPSession(page), network = observeResultNetwork(session);
+    await session.send('Network.enable'); await session.send('Audits.enable');
     await context.route('**/*', async route => {
       const request = route.request();
-      const generationRequest =
-        (request.method() === 'POST' && generationEndpoints.includes(request.url())) ||
-        (request.method() === 'PUT' && request.url().startsWith(relayTasks));
-      if (!generationRequest) return route.fallback();
+      const generation = request.method() === 'PUT' && request.url().startsWith(endpoint);
+      const forbidden = request.method() === 'POST' && /\/(?:api\/relay|images\/generations|image_generation)$/.test(new URL(request.url()).pathname);
+      if (!generation && !forbidden) return route.fallback();
       record.generationRequests++;
-      const headers = await request.allHeaders();
-      const body = request.postDataJSON();
-      const task = { id: request.url().slice(relayTasks.length), token: headers['x-relay-task-token'] ?? '' };
-      const target =
-        method === 'PUT' ?
-          /^[0-9a-f-]{36}$/.test(task.id) && /^[A-Za-z0-9_-]{43}$/.test(task.token)
-        : request.url() === endpoint;
-      const valid =
-        record.generationRequests === 1 &&
-        request.method() === method &&
-        target &&
-        headers.authorization === `Bearer ${settings.key}` &&
-        !headers.cookie &&
-        body &&
-        Object.keys(body).length === Object.keys(dispatch.body).length &&
-        Object.entries(dispatch.body).every(([name, value]) => body[name] === value);
-      if (!valid) {
-        record.requestBoundaryFailed = true;
-        return route.abort('blockedbyclient');
-      }
-      // Kept in memory only: the token opens the stored result and never enters the attempt record.
-      if (method === 'PUT') relayTask = task;
+      const headers = await request.allHeaders(), body = request.postDataJSON();
+      const task = { id: request.url().slice(endpoint.length), token: headers['x-relay-task-token'] ?? '' };
+      const valid = generation && record.generationRequests === 1 && /^[0-9a-f-]{36}$/.test(task.id) && /^[A-Za-z0-9_-]{43}$/.test(task.token) && headers.authorization === `Bearer ${sessionToken}` && !headers.cookie && !headers['x-provider-base'] && body && Object.keys(body).length === Object.keys(dispatch.body).length && Object.entries(dispatch.body).every(([key, value]) => body[key] === value);
+      if (!valid) { record.requestBoundaryFailed = true; return route.abort('blockedbyclient'); }
+      relayTask = task;
       return route.fallback();
     });
-    record.stage = 'provider-setup';
-    await provider(page, false, mode, settings);
+    record.stage = 'platform-login'; sessionToken = await platformLogin(page, settings);
+    record.stage = 'model-catalog';
+    const catalog = await page.evaluate(async () => {
+      const response = await fetch('/api/models', { credentials: 'omit', cache: 'no-store', redirect: 'error' });
+      return response.ok ? response.json() : null;
+    });
+    requireCheck(catalog, 'PLATFORM_MODEL_UNAVAILABLE');
+    const model = validatePlatformModels(catalog).find(model => model.id === settings.model);
+    requireCheck(model, 'PLATFORM_MODEL_UNAVAILABLE');
+    record.protocol = model.protocol;
+    const before = await platformCredits(page, sessionToken);
+    requireCheck(before.account.available >= model.credits, 'PLATFORM_CREDITS_UNAVAILABLE');
     record.stage = 'build-manifest';
     const manifest = await page.request.get('/offline-manifest.json');
     requireCheck(manifest.ok(), 'BUILD_MANIFEST_UNAVAILABLE');
-    const observedManifestSha256 = createHash('sha256')
-      .update(await manifest.body())
-      .digest('hex');
-    requireCheck(observedManifestSha256 === settings.manifestSha256, 'DEPLOYED_MANIFEST_MISMATCH');
-    record.stage = 'draft-setup';
-    await prompt(page, text);
-    record.stage = 'aspect-selection';
-    await page.getByRole('button', { name: ratio.label, exact: true }).click();
-    const generated = page.waitForResponse(
-      response =>
-        response.request().method() === method &&
-        (method === 'PUT' ? response.url().startsWith(endpoint) : response.url() === endpoint),
-      { timeout: 210000 }
-    );
+    requireCheck(createHash('sha256').update(await manifest.body()).digest('hex') === settings.manifestSha256, 'DEPLOYED_MANIFEST_MISMATCH');
+    record.stage = 'draft-setup'; await prompt(page, text);
+    await page.locator('#selected-model').selectOption(settings.model);
+    record.stage = 'aspect-selection'; await page.getByRole('button', { name: ratio.label, exact: true }).click();
+    const generated = page.waitForResponse(response => response.request().method() === 'PUT' && response.url().startsWith(endpoint), { timeout: 210000 });
     generated.catch(() => undefined);
-    record.phase = 'dispatching';
-    record.stage = 'generation-dispatch';
-    await persist(file, record);
+    record.phase = 'dispatching'; record.stage = 'generation-dispatch'; await persist(file, record);
     await page.getByRole('button', { name: '✧ 生成图片' }).click();
     record.stage = 'generation-response';
-    const response = await generated;
-    record.generationStatus = response.status();
-    record.stage = 'original-result';
-    const original = await originalBytes(
-      page,
-      response,
-      responses,
-      network,
-      settings.origin,
-      record,
-      settings.baseUrl,
-      relayTask
-    );
+    const response = await generated; record.generationStatus = response.status();
+    const original = await originalBytes(page, response, responses, network, settings.origin, record, model.protocol, relayTask);
     record.stage = 'local-save';
     await expect(page.getByText('已保存到本机', { exact: true })).toBeVisible({ timeout: 210000 });
     requireCheck(!record.requestBoundaryFailed && record.generationRequests === 1, 'GENERATION_REQUEST_BOUNDARY');
-    record.stage = 'library-open';
-    await page.goto('/images');
+    record.stage = 'credit-settlement';
+    const after = await platformCredits(page, sessionToken), entries = after.entries.filter(entry => entry.source === 'generation' && entry.request_id === relayTask.id);
+    requireCheck(before.account.balance - after.account.balance === model.credits && entries.length === 1 && entries[0].delta === -model.credits, 'PLATFORM_CREDIT_MISMATCH');
+    record.credits = { before: before.account.balance, after: after.account.balance, cost: model.credits, taskId: relayTask.id, ledgerEntries: entries.length };
+    record.stage = 'library-open'; await page.goto('/images');
     const card = page.locator('.library-card').filter({ hasText: text });
-    record.stage = 'library-initial-image';
     await expect(card.getByAltText('本机生成作品')).toBeVisible();
-    record.stage = 'library-reload';
-    await page.reload();
-    record.stage = 'library-reloaded-image';
+    record.stage = 'library-reload'; await page.reload();
     await expect(card.getByAltText('本机生成作品')).toBeVisible();
     record.stage = 'exact-download';
     const sha256 = await verifyImageDownload(page, card, original.bytes);
-    record.image = {
-      sha256,
-      bytes: original.bytes.length,
-      ...imageMetadata(original.bytes),
-      delivery: original.delivery,
-      credentialFreeResultRequest: original.credentialFree,
-      exactDownloadAfterReload: true
-    };
+    record.image = { sha256, bytes: original.bytes.length, ...imageMetadata(original.bytes), delivery: original.delivery, credentialFreeResultRequest: original.credentialFree, exactDownloadAfterReload: true };
     const [width, height] = ratio.size.split('x').map(Number);
-    record.stage = 'result-size';
-    requireCheck(record.image.width === width && record.image.height === height, 'RESULT_SIZE_MISMATCH');
-    record.phase = 'verified';
-    record.stage = 'verified';
-    record.finishedAt = new Date().toISOString();
-    await persist(file, record);
-    return record;
-  } finally {
-    await context.close();
-  }
+    record.stage = 'result-size'; requireCheck(record.image.width === width && record.image.height === height, 'RESULT_SIZE_MISMATCH');
+    record.phase = 'verified'; record.stage = 'verified'; record.finishedAt = new Date().toISOString();
+    await persist(file, record); return record;
+  } finally { await context.close(); }
 }
 
 export async function runProviderAcceptance(settings, directory, setupContext) {
@@ -615,7 +549,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
       ...settings.selection,
       planned: acceptancePlan(settings.selection).length,
       verified: 0,
-      realProvider: true,
+      realPlatform: true,
       automaticRetry: false
     };
     console.log(JSON.stringify({ ...summary, phase: 'planned' }));
@@ -632,7 +566,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   } catch (error) {
     if (summary) console.error(JSON.stringify({ ...summary, phase: 'stopped', failureCode: failureCode(error) }));
     console.error(
-      '正式供应商验收未完成。检查私有配置与 aiao-media/apps/web-e2e/tmp/provider-acceptance/live 记录；不会自动重发。'
+      '正式平台积分生图验收未完成。检查私有配置与 aiao-media/apps/web-e2e/tmp/provider-acceptance/live 记录；不会自动重发。'
     );
     process.exitCode = 1;
   }

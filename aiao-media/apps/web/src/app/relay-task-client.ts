@@ -1,68 +1,56 @@
-import type { ImageAspectRatio } from '@aiao-media/api-contracts';
+import type { ImageAspectRatio, ImageResponseProtocol, RelayTaskView } from '@aiao-media/api-contracts';
 import {
+  isMiniMaxImageProvider,
   isRelayTaskToken,
   openRelayResult,
   relayResultKey,
-  relayTaskTokenHeader,
-  type RelayTaskView
+  relayTaskTokenHeader
 } from '@aiao-media/api-contracts';
 import { apiEndpoint } from '../platform/local-backend';
-import {
-  bounded,
-  httpFailure,
-  prepareImageRequest,
-  providerBase,
-  ProviderFailure,
-  providerImage,
-  type LocalProvider
-} from './local-provider';
+import { bounded, ProviderFailure, responseImage } from './local-provider';
 
-/** Device-only proof of a relay task. Never part of the task journal, backups or sync. */
-export interface RelayTicket {
-  token: string;
-  /** The relay confirmed the task; a reload then waits for it instead of abandoning it. */
-  accepted: boolean;
-  /** The provider prefix at dispatch, which decides how the stored answer is read. */
-  baseUrl: string;
-}
-
-/** Everything one dispatch or resumption of a relay task needs. */
+/** 设备私有令牌不进入任务、备份或同步；旧地址记录只用于恢复已有任务。 */
+export type RelayTicket = { token: string; accepted: boolean } & (
+  { protocol: ImageResponseProtocol; baseUrl?: never } | { baseUrl: string; protocol?: never }
+);
+/** 接单只在当前页面持有平台会话，刷新续接只使用设备令牌。 */
 export interface RelayRun {
   id: string;
   ticket: RelayTicket;
   ratio: ImageAspectRatio;
   signal: AbortSignal;
-  /** Present while this page still holds the Key; null after a reload, which can only abandon or resume. */
-  dispatch: { provider: LocalProvider; key: string; prompt: string } | null;
-  /** Persists the relay's receipt so that a later reload never abandons an accepted task. */
+  dispatch: { modelId: string; accessToken: string; prompt: string } | null;
   accepted(): Promise<void>;
 }
-
+/** 结果仍可续接，不能将确认故障写成终态或删除服务端原图。 */
+export class RelayContinuationFailure extends ProviderFailure {
+  readonly resumable = true;
+}
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const backoff = [1000, 2000, 4000, 8000, 15000];
-// The stored answer is bounded like a direct one, plus the IV and authentication tag.
 const sealedLimit = 24 * 1024 * 1024 + 28;
 
-/** Reads the device's relay tickets. A malformed record is an error, not something to guess around. */
+/** 严格读取两种设备记录，不凭空修复损坏数据或重新发起生成。 */
 export function relayTickets(payload: string | null): Record<string, RelayTicket> {
   const data: unknown = payload === null ? {} : JSON.parse(payload);
-  if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('本机代理任务记录无效。');
+  if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('本机平台任务记录无效。');
   for (const [id, value] of Object.entries(data)) {
     const ticket = value as Partial<RelayTicket> | null;
+    const keys = ticket ? Object.keys(ticket).sort().join() : '';
+    const validProtocol = keys === 'accepted,protocol,token' && ['openai', 'minimax'].includes(ticket?.protocol ?? '');
+    const validLegacy =
+      keys === 'accepted,baseUrl,token' && typeof ticket?.baseUrl === 'string' && /^https:\/\//.test(ticket.baseUrl);
     if (
       !uuid.test(id) ||
       !ticket ||
-      Object.keys(ticket).sort().join() !== 'accepted,baseUrl,token' ||
       !isRelayTaskToken(ticket.token) ||
       typeof ticket.accepted !== 'boolean' ||
-      typeof ticket.baseUrl !== 'string' ||
-      !/^https:\/\//.test(ticket.baseUrl)
+      !(validProtocol || validLegacy)
     )
-      throw new Error('本机代理任务记录无效。');
+      throw new Error('本机平台任务记录无效。');
   }
   return data as Record<string, RelayTicket>;
 }
-
 function pause(ms: number, signal: AbortSignal) {
   return new Promise<void>((resolve, reject) => {
     const abort = () => {
@@ -74,13 +62,9 @@ function pause(ms: number, signal: AbortSignal) {
       resolve();
     }, ms);
     signal.addEventListener('abort', abort, { once: true });
+    if (signal.aborted) abort();
   });
 }
-
-/**
- * Repeats a task request across network failures and 5xx answers. Safe because the relay keys every task by its id:
- * a repeated creation returns the accepted task instead of generating again. 503 means relay tasks are unavailable.
- */
 async function settled(send: () => Promise<Response>, signal: AbortSignal): Promise<Response> {
   for (let attempt = 0; ; attempt++) {
     signal.throwIfAborted();
@@ -93,7 +77,6 @@ async function settled(send: () => Promise<Response>, signal: AbortSignal): Prom
     await pause(backoff[Math.min(attempt, backoff.length - 1)], signal);
   }
 }
-
 function send(
   id: string,
   token: string,
@@ -111,91 +94,129 @@ function send(
     headers: { [relayTaskTokenHeader]: token, ...init.headers }
   });
 }
-
-const uncertain = (message: string) =>
-  new ProviderFailure(`${message}请到供应商后台核对用量与结果，系统不会自动重发。`);
-
-async function accept(run: RelayRun, dispatch: NonNullable<RelayRun['dispatch']>): Promise<RelayTaskView> {
-  const { base, body } = prepareImageRequest(dispatch.provider, dispatch.key, dispatch.prompt, run.ratio);
-  const response = await settled(
-    () =>
-      send(run.id, run.ticket.token, '', run.signal, {
-        method: 'PUT',
-        headers: {
-          'content-type': 'application/json',
-          authorization: `Bearer ${dispatch.key}`,
-          'x-provider-base': base
-        },
-        body: JSON.stringify(body)
-      }),
-    run.signal
+const uncertain = (message: string) => new ProviderFailure(`${message}请核对平台任务，系统不会自动重发。`);
+const platformFailure = (status: number) =>
+  new ProviderFailure(
+    status === 401 ? '平台账号会话已失效，请重新登录；本次未扣积分。'
+    : status === 402 ? '可用积分不足，请查看当前余额；本次未调用模型。'
+    : status === 403 ? '账号、模型或画幅已停用，请联系平台管理员；本次未扣积分。'
+    : status === 503 ? '平台生图服务尚未就绪，请稍后重试；本次未扣积分。'
+    : `平台拒绝本次接单（HTTP ${status}），请核对参数；本次未扣积分。`,
+    true
   );
-  if (response.ok) return response.json();
-  await response.body?.cancel();
-  // Only the relay Worker answers task routes with JSON; anything else means this origin has no relay.
-  if (response.status === 404 && !response.headers.get('content-type')?.includes('application/json'))
-    throw new ProviderFailure(
-      '当前页面没有同源代理 /api/relay，请求未发送给供应商。请使用带代理的环境，或在设置中改用浏览器直连。',
-      true
-    );
-  // Every remaining answer was given before the relay sent anything for this request.
-  throw httpFailure(response.status, true);
+async function taskView(response: Response): Promise<RelayTaskView> {
+  try {
+    const value: RelayTaskView = await response.json();
+    if (
+      !value ||
+      !['dispatched', 'received', 'rejected', 'needs_review'].includes(value.status) ||
+      !(value.upstreamStatus === null || Number.isInteger(value.upstreamStatus)) ||
+      typeof value.updatedAt !== 'string'
+    )
+      throw new Error();
+    return value;
+  } catch {
+    throw new RelayContinuationFailure('平台任务回执暂不可读，请刷新继续原任务；系统不会重复生成。');
+  }
 }
-
+async function accept(run: RelayRun, dispatch: NonNullable<RelayRun['dispatch']>): Promise<RelayTaskView> {
+  let unconfirmed = false;
+  const response = await settled(async () => {
+    try {
+      const receipt = await send(run.id, run.ticket.token, '', run.signal, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${dispatch.accessToken}` },
+        body: JSON.stringify({
+          model: dispatch.modelId,
+          prompt: dispatch.prompt,
+          n: 1,
+          size:
+            run.ratio === 'landscape' ? '1536x1024'
+            : run.ratio === 'portrait' ? '1024x1536'
+            : '1024x1024'
+        })
+      });
+      if (receipt.status >= 500 && receipt.status !== 503) unconfirmed = true;
+      return receipt;
+    } catch (error) {
+      unconfirmed = true;
+      throw error;
+    }
+  }, run.signal);
+  if (response.ok) return taskView(response);
+  await response.body?.cancel();
+  if (unconfirmed) {
+    const previous = await abandon(run);
+    if (previous) return previous;
+  }
+  throw platformFailure(response.status);
+}
 async function abandon(run: RelayRun): Promise<RelayTaskView | null> {
   const response = await settled(
     () => send(run.id, run.ticket.token, '/abandon', run.signal, { method: 'POST' }),
     run.signal
   );
-  if (response.ok) return response.json();
+  if (response.ok) return taskView(response);
   await response.body?.cancel();
   if (response.status === 404) return null;
-  throw uncertain(`无法核对代理任务（HTTP ${response.status}）。`);
+  throw new RelayContinuationFailure(`平台暂时无法确认接单状态（HTTP ${response.status}）。请刷新继续原任务。`);
 }
-
 async function outcome(run: RelayRun): Promise<RelayTaskView> {
   for (;;) {
     const response = await settled(() => send(run.id, run.ticket.token, '?wait=25', run.signal), run.signal);
     if (!response.ok) {
       await response.body?.cancel();
-      throw uncertain(`代理任务已过期或不可读（HTTP ${response.status}）。`);
+      if (response.status === 503) throw new RelayContinuationFailure('平台任务暂不可读，请刷新继续原任务。');
+      throw uncertain(`平台任务已过期或不可读（HTTP ${response.status}）。`);
     }
-    const view: RelayTaskView = await response.json();
+    const view = await taskView(response);
     if (view.status !== 'dispatched') return view;
   }
 }
-
 async function result(run: RelayRun): Promise<Uint8Array<ArrayBuffer>> {
   const response = await settled(() => send(run.id, run.ticket.token, '/result', run.signal), run.signal);
   if (!response.ok) {
     await response.body?.cancel();
-    throw uncertain(`代理暂存的结果已过期或已删除（HTTP ${response.status}）。`);
+    if (response.status === 503) throw new RelayContinuationFailure('图片暂不可读取，请刷新继续原任务。');
+    throw uncertain(`暂存结果已过期或不可读（HTTP ${response.status}）。`);
   }
   const sealed = await bounded(response, sealedLimit);
-  try {
-    return await openRelayResult(await relayResultKey(run.ticket.token, run.id, 'decrypt'), sealed);
-  } catch {
-    throw uncertain('代理暂存的结果无法解密。');
-  }
+  return openRelayResult(await relayResultKey(run.ticket.token, run.id, 'decrypt'), sealed);
 }
-
-/**
- * Dispatches or resumes one relay task and returns the verified image. Every unknown outcome is a ProviderFailure
- * that keeps the request locked; nothing is generated again.
- */
+async function settlement(run: RelayRun, action: 'confirm' | 'discard') {
+  const response = await settled(
+    () => send(run.id, run.ticket.token, `/${action}`, run.signal, { method: 'POST' }),
+    run.signal
+  );
+  await response.body?.cancel();
+  if (response.ok || (action === 'discard' && response.status === 404)) return;
+  if (response.status === 503)
+    throw new RelayContinuationFailure('平台结算暂不可确认，原图与任务保留；请刷新续接，系统不会重复扣费。');
+  throw uncertain(`平台结算尚未确认（HTTP ${response.status}）。`);
+}
+/** 只恢复原任务；图片在本机通过验证并确认扣费后，才进入本机保存流程。 */
 export async function runRelayTask(run: RelayRun): Promise<Blob> {
   if (!run.ticket.accepted) {
     const receipt = run.dispatch ? await accept(run, run.dispatch) : await abandon(run);
-    if (!receipt) throw new ProviderFailure('请求没有送达本站，也没有发给供应商。可以重新生成。', true);
+    if (!receipt) throw new ProviderFailure('请求尚未接单，原标识已封存；本次未扣积分，可以重新生成。', true);
     await run.accepted();
   }
   const view = await outcome(run);
-  if (view.status === 'rejected') throw httpFailure(view.upstreamStatus, true);
-  if (view.status === 'needs_review') throw uncertain('代理没有拿到确定结果。');
-  return providerImage(providerBase(run.ticket.baseUrl), await result(run), run.ratio, run.signal);
+  if (view.status === 'rejected') throw new ProviderFailure('平台模型拒绝本次任务，预占积分将释放。', true);
+  if (view.status === 'needs_review') throw uncertain('平台没有拿到确定结果，本次不扣积分。');
+  let blob: Blob;
+  try {
+    const protocol = run.ticket.protocol ?? (isMiniMaxImageProvider(run.ticket.baseUrl!) ? 'minimax' : 'openai');
+    blob = await responseImage(protocol, await result(run), run.ratio, run.signal);
+  } catch (error) {
+    if (run.signal.aborted || error instanceof RelayContinuationFailure) throw error;
+    await settlement(run, 'discard');
+    throw uncertain('返回图片无法通过本机验证，已释放预占积分。');
+  }
+  await settlement(run, 'confirm');
+  return blob;
 }
-
-/** Removes a settled task and its stored result from the relay; rejects when it should be retried later. */
+/** 服务端删除成功或已不存在后，才允许移除设备令牌。 */
 export async function deleteRelayTask(id: string, ticket: RelayTicket, signal: AbortSignal): Promise<void> {
   const response = await settled(() => send(id, ticket.token, '', signal, { method: 'DELETE' }), signal);
   await response.body?.cancel();
