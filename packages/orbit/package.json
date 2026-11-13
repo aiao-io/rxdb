@@ -20,6 +20,12 @@
       "import": "./dist/client.js",
       "default": "./dist/client.js"
     },
+    "./window": {
+      "@aiao/source": "./src/window.ts",
+      "types": "./dist/window.d.ts",
+      "import": "./dist/window.js",
+      "default": "./dist/window.js"
+    },
     "./react": {
       "@aiao/source": "./src/react.ts",
       "types": "./dist/react.d.ts",

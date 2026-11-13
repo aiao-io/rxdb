@@ -1,4 +1,6 @@
 import { connectOrbitClient } from '../src/client.js';
+import type { OrbitValue } from '../src/types.js';
+import { getCurrentWindow } from '../src/window.js';
 
 const mode = new URL(location.href).searchParams.get('mode');
 const client = await connectOrbitClient();
@@ -48,6 +50,46 @@ if (client) {
   client.onRequest('fail', () => {
     client.fail('业务启动失败');
     return null;
+  });
+  const appWindow = getCurrentWindow(client);
+  const windowStates: OrbitValue[] = [];
+  let stopTracking: (() => void) | undefined;
+  appWindow?.onStateChange(state => windowStates.push({ ...state }));
+  const rect = (selector: string) => {
+    const { x, y, width, height } = document.querySelector(selector)!.getBoundingClientRect();
+    return { x: Math.round(x), y: Math.round(y), width: Math.round(width), height: Math.round(height) };
+  };
+  client.onRequest('window', async (payload): Promise<OrbitValue> => {
+    if (!appWindow) return 'no-window';
+    const { action, value } = payload as { action: string; value?: OrbitValue };
+    if (action === 'state') return { ...appWindow.state };
+    if (action === 'events') return windowStates;
+    if (action === 'rects') return { bar: rect('[data-orbit-drag-region]'), button: rect('[data-orbit-drag-region] button') };
+    if (action === 'drag') {
+      document.body.insertAdjacentHTML(
+        'afterbegin',
+        '<header data-orbit-drag-region style="display:flex;align-items:center;gap:8px;height:36px;padding-left:72px"><button style="width:40px;height:24px">b</button><span>title</span></header>'
+      );
+      stopTracking = appWindow.trackDragRegions(document);
+      return null;
+    }
+    if (action === 'grow') {
+      document.querySelector<HTMLElement>('[data-orbit-drag-region] button')!.style.width = '120px';
+      return null;
+    }
+    if (action === 'stop') {
+      stopTracking?.();
+      return null;
+    }
+    const actions: Record<string, () => Promise<void>> = {
+      minimize: () => appWindow.minimize(),
+      toggleMaximize: () => appWindow.toggleMaximize(),
+      close: () => appWindow.close(),
+      setTitle: () => appWindow.setTitle(String(value)),
+      setDecorations: () => appWindow.setDecorations(value === true)
+    };
+    await actions[action]!();
+    return 'ok';
   });
   client.onPropsChange(() => client.bus.$emit('props-changed'));
   client.onVisibilityChange(visible => client.bus.$emit('visible', visible));
