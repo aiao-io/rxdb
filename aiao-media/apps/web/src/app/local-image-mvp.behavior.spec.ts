@@ -515,6 +515,7 @@ describe('平台账号同步入口', () => {
         privateBucket: 'aiao-media-images',
         maxBytes: 16777216,
         resumable: true,
+        lifecycle: 1,
         metadataOnly: false
       })
     );
@@ -547,6 +548,7 @@ describe('平台账号同步入口', () => {
         privateBucket: 'aiao-media-images',
         maxBytes: 16777216,
         resumable: true,
+        lifecycle: 1,
         metadataOnly: false
       })
     );
@@ -568,6 +570,47 @@ describe('平台账号同步入口', () => {
     expect(r.component.imageSyncSelection()).toBeNull();
     expect(r.component.imageSyncSelectionTarget()).toBeNull();
     expect(r.component.imageSyncChoice()).toBeNull();
+  });
+  it('当前文件分片进度与完整原图确认独立，完成后清理当前文件进度', async () => {
+    const r = rig();
+    const done = deferred<void>();
+    r.component.targetKind.set('platform');
+    r.component.syncInitialized.set(true);
+    r.works.next([work]);
+    Object.assign(r.component, {
+      adminApi: { authorization: vi.fn(async () => access) },
+      imageSyncController: vi.fn(async () => ({
+        upload: async (_id: string, _identity: unknown, report: (bytes: number) => void) => {
+          report(5);
+          await done.promise;
+          return { sha256: 'a'.repeat(64), bytes: 10, status: 'uploaded' };
+        }
+      }))
+    });
+    await r.component.prepareImageSync();
+    r.component.imageSyncChoice.set('existing');
+    vi.mocked(fetch).mockResolvedValue(
+      Response.json({
+        protocol: 1,
+        privateBucket: 'aiao-media-images',
+        maxBytes: 16777216,
+        resumable: true,
+        lifecycle: 1,
+        metadataOnly: false
+      })
+    );
+    const uploading = r.component.enableImageSync();
+    try {
+      await vi.waitFor(() =>
+        expect(r.component.imageSyncFileProgress()).toMatchObject({ sourceId: job.id, uploadedBytes: 5, bytes: 10 })
+      );
+      expect(r.component.imageSyncProgress()).toContain('已确认 0 字节');
+    } finally {
+      done.resolve();
+      await uploading;
+    }
+    expect(r.component.imageSyncFileProgress()).toBeNull();
+    expect(r.component.imageSyncProgress()).toContain('已确认 10 字节');
   });
   it('恢复已确认开关后自动调度持久队列，不扫描或补传未选历史作品', async () => {
     const r = rig();
@@ -594,7 +637,7 @@ describe('平台账号同步入口', () => {
     restore.call(r.component);
     await vi.waitFor(() => expect(r.component.imageSyncMessage()).toBe('已同步 1 张原图。'));
 
-    expect(upload).toHaveBeenCalledExactlyOnceWith(job.id, { sha256: 'a'.repeat(64), bytes: 10 });
+    expect(upload).toHaveBeenCalledExactlyOnceWith(job.id, { sha256: 'a'.repeat(64), bytes: 10 }, expect.any(Function));
     expect(r.store.list).not.toHaveBeenCalled();
     expect(r.component.imageSyncProgress()).toContain('已确认 10 字节');
     expect([...r.preferences.keys()].filter(key => key.startsWith('iq-'))).toHaveLength(1);
@@ -632,6 +675,7 @@ describe('平台账号同步入口', () => {
         privateBucket: 'aiao-media-images',
         maxBytes: 16777216,
         resumable: true,
+        lifecycle: 1,
         metadataOnly: false
       })
     );
@@ -663,6 +707,7 @@ describe('平台账号同步入口', () => {
         privateBucket: 'aiao-media-images',
         maxBytes: 16777216,
         resumable: true,
+        lifecycle: 1,
         metadataOnly: false
       })
     );
@@ -672,7 +717,7 @@ describe('平台账号同步入口', () => {
     await r.component.enableImageSync();
 
     expect(r.store.list).toHaveBeenCalledOnce();
-    expect(upload).toHaveBeenCalledExactlyOnceWith(job.id, { sha256: 'a'.repeat(64), bytes: 10 });
+    expect(upload).toHaveBeenCalledExactlyOnceWith(job.id, { sha256: 'a'.repeat(64), bytes: 10 }, expect.any(Function));
     expect(r.component.imageSyncEnabled()).toBe(true);
     expect(r.component.imageSyncMessage()).toBe('已同步 1 张原图。');
   });
@@ -695,6 +740,7 @@ describe('平台账号同步入口', () => {
         privateBucket: 'aiao-media-images',
         maxBytes: 16777216,
         resumable: true,
+        lifecycle: 1,
         metadataOnly: false
       })
     );
@@ -2342,6 +2388,56 @@ describe('backup workspace handoff', () => {
 });
 
 describe('explicit remote mutations', () => {
+  it('从图库移除需要独立确认，不删除本机文件，未确认远端时保留待同步提示', async () => {
+    const r = rig();
+    const product = {
+      removeWork: vi.fn(async () => true),
+      state: { message: '图库移除意图已保存，远端尚未确认。' },
+      close: vi.fn()
+    };
+    Object.assign(r.component, { product });
+    r.component.targetKind.set('platform');
+    r.component.syncInitialized.set(true);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    await r.component.removeSyncedWork(job.id, job.request.prompt);
+    expect(product.removeWork).not.toHaveBeenCalled();
+    confirm.mockReturnValue(true);
+    await r.component.removeSyncedWork(job.id, job.request.prompt);
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('各设备原图和云端对象都保留'));
+    expect(product.removeWork).toHaveBeenCalledWith(job.id);
+    expect(r.store.delete).not.toHaveBeenCalled();
+    expect(r.component.imageSyncMessage()).toContain('远端尚未确认');
+  });
+  it('图库移除的迟到回复不改变新账号的图片消息', async () => {
+    const r = rig();
+    const deferredRemoval = deferred<boolean>();
+    const product = {
+      removeWork: vi.fn(() => deferredRemoval.promise),
+      state: { message: '旧账号结果' },
+      close: vi.fn()
+    };
+    Object.assign(r.component, { product });
+    r.component.targetKind.set('platform');
+    r.component.syncInitialized.set(true);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const removing = r.component.removeSyncedWork(job.id, job.request.prompt);
+    r.component.authStatus.set('signed-in');
+    r.component.imageSyncMessage.set('新账号消息');
+    deferredRemoval.resolve(true);
+    await removing;
+    expect(r.component.imageSyncMessage()).toBe('新账号消息');
+  });
+  it('移除的本机原图仍保留，但不再次出现在已有图片上传范围中', async () => {
+    const r = rig();
+    r.component.targetKind.set('platform');
+    r.component.syncInitialized.set(true);
+    r.works.next([work]);
+    Object.assign(r.component, { removedImageSources: new Set([work.jobId]) });
+    await r.component.prepareImageSync();
+    expect(r.component.imageSyncSelection()?.count).toBe(0);
+    expect(r.store.imageInfo).not.toHaveBeenCalled();
+    expect(r.store.delete).not.toHaveBeenCalled();
+  });
   it('requires confirmation before rescanning, task reporting or deleting the remote draft', async () => {
     const r = rig();
     const product = {

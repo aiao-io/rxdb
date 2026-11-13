@@ -90,6 +90,7 @@ function remote(route: (call: Call) => Response | undefined) {
       headers: Object.fromEntries(new Headers(init?.headers)),
       body: typeof init?.body === 'string' ? JSON.parse(init.body) : init?.body
     };
+    if (call.url.includes('/rpc/media_image_upload_allowed')) return Response.json(true);
     calls.push(call);
     return route(call) ?? new Response(null, { status: 200 });
   });
@@ -97,6 +98,57 @@ function remote(route: (call: Call) => Response | undefined) {
 }
 
 describe('平台 Supabase 图片同步', () => {
+  it('已移出图库的作品在上传字节前拒绝，已有 uploaded 回执也要重新核对许可', async () => {
+    const uploaded = await fileRecord({ status: 'uploaded' });
+    const request = vi.fn(async (input: RequestInfo | URL) =>
+      String(input).includes('/media_image_upload_allowed') ? Response.json(false) : Response.json([uploaded])
+    );
+    await expect(
+      new ImageSyncController(pngStore() as never, access, workspaceId, request).upload(jobId)
+    ).rejects.toThrow('已从同步图库移除');
+    expect(request.mock.calls.some(([input]) => String(input).includes('/storage/v1/'))).toBe(false);
+  });
+  it('原字节回读期间图库被移除，不复用旧 uploaded 回执报告成功', async () => {
+    const uploaded = await fileRecord({ status: 'uploaded' });
+    let checks = 0;
+    const request = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      init?.signal?.throwIfAborted();
+      const url = String(input);
+      if (url.includes('/media_image_upload_allowed')) return Response.json(++checks === 1);
+      return url.includes('/media_file_records') ? Response.json([uploaded]) : new Response(png);
+    });
+    await expect(
+      new ImageSyncController(pngStore() as never, access, workspaceId, request).upload(jobId)
+    ).rejects.toThrow('已从同步图库移除');
+    expect(checks).toBe(2);
+    expect(request.mock.calls.some(([, init]) => init?.method === 'PATCH')).toBe(false);
+  });
+  it('远端接收进度到达总字节后仍等待原字节核对与关联提交', async () => {
+    const record = await fileRecord();
+    let resolveRead!: (response: Response) => void;
+    const reading = new Promise<Response>(resolve => {
+      resolveRead = resolve;
+    });
+    const request = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes('/rpc/media_image_upload_allowed')) return Response.json(true);
+      if (String(input).includes('/rest/v1/'))
+        return Response.json([{ ...record, status: init?.method === 'PATCH' ? 'uploaded' : 'pending' }]);
+      return init?.method === 'POST' ? new Response(null, { status: 200 }) : reading;
+    });
+    const progress = vi.fn();
+    const uploading = new ImageSyncController(pngStore() as never, access, workspaceId, request).upload(
+      jobId,
+      undefined,
+      progress
+    );
+    try {
+      await vi.waitFor(() => expect(progress).toHaveBeenLastCalledWith(png.length));
+      expect(request.mock.calls.some(([, init]) => init?.method === 'PATCH')).toBe(false);
+    } finally {
+      resolveRead(new Response(png));
+    }
+    expect(await uploading).toMatchObject({ status: 'uploaded' });
+  });
   it('已入队原图身份变化时在网络请求前拒绝，避免换字节上传', async () => {
     const request = vi.fn();
     const controller = new ImageSyncController(pngStore() as never, access, workspaceId, request);

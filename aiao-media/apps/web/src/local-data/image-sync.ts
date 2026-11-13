@@ -40,6 +40,8 @@ const sha256 = async (bytes: ArrayBuffer): Promise<string> =>
 // fetch 是 Window 的方法：存成属性再以 this.request() 调用，浏览器会抛 Illegal invocation。
 const windowFetch: Request = (input, init) => fetch(input, init);
 
+class RemovedImageError extends Error {}
+
 class RecordRequestError extends ImageTransferError {
   constructor(status: number) {
     super(status, '远端图片记录操作失败，原图保留。');
@@ -70,7 +72,11 @@ export class ImageSyncController {
     return response.map(row => this.record(row));
   }
 
-  async upload(sourceId: string, expected?: { sha256: string; bytes: number }): Promise<RemoteFileRecord> {
+  async upload(
+    sourceId: string,
+    expected?: { sha256: string; bytes: number },
+    progress: (bytes: number) => void = () => undefined
+  ): Promise<RemoteFileRecord> {
     if (!uuid.test(sourceId)) throw new Error('图片作品标识无效。');
     const image = await this.store.backupImage(sourceId);
     const bytes = new Uint8Array(await image.blob.arrayBuffer());
@@ -79,19 +85,23 @@ export class ImageSyncController {
     const digest = await sha256(bytes.buffer);
     if (expected && (expected.sha256 !== digest || expected.bytes !== bytes.byteLength))
       throw new Error('原图与已选队列版本不一致；原任务保留，请重新选择。');
+    progress(0);
     const extension = imageExtension(metadata.mimeType);
     const path = `${this.access.userId}/${this.workspaceId}/${sourceId}/${digest}.${extension}`;
     const file: UploadFile = { sourceId, metadata, bytes: bytes.byteLength, digest, path };
+    await this.requireUploadAllowed(file);
     // 同一工作区、来源和版本只有一条记录；上次停在 pending / needs_review 的记录接着用。
     const [existing] = await this.records(sourceId, digest);
     const record = existing ? this.receipt(existing, file) : await this.create(file);
     if (record.status === 'deleted') throw new Error('远端已删除此图片版本；重新上传需要新的明确操作。');
     try {
-      if (record.status !== 'uploaded') await this.uploadBytes(path, bytes, metadata.mimeType);
+      if (record.status !== 'uploaded') await this.uploadBytes(path, bytes, metadata.mimeType, progress);
       await this.remoteBytes(path, file.bytes, file.digest);
+      await this.requireUploadAllowed(file);
+      progress(file.bytes);
       return record.status === 'uploaded' ? record : await this.commit(record, file);
     } catch (error) {
-      await this.markNeedsReview(record);
+      if (!(error instanceof RemovedImageError)) await this.markNeedsReview(record);
       throw error;
     }
   }
@@ -109,6 +119,14 @@ export class ImageSyncController {
     const bytes = await this.remoteBytes(record.path, record.bytes, digest);
     this.signal?.throwIfAborted();
     await this.store.saveResult(job, new Blob([bytes], { type: record.mimeType }));
+  }
+
+  private async requireUploadAllowed(file: UploadFile): Promise<void> {
+    const allowed = await this.rest('/rpc/media_image_upload_allowed', {
+      method: 'POST',
+      body: JSON.stringify({ p_workspace_id: this.workspaceId, p_source_id: file.sourceId, p_version: file.digest })
+    });
+    if (allowed !== true) throw new RemovedImageError('此作品或原图版本已从同步图库移除，本机原图保留。');
   }
 
   private async remoteBytes(path: string, length: number, digest: string): Promise<ArrayBuffer> {
@@ -140,7 +158,12 @@ export class ImageSyncController {
     return bytes.buffer;
   }
 
-  private async uploadBytes(path: string, bytes: Uint8Array, mimeType: ImageMimeType): Promise<void> {
+  private async uploadBytes(
+    path: string,
+    bytes: Uint8Array,
+    mimeType: ImageMimeType,
+    progress: (bytes: number) => void
+  ): Promise<void> {
     if (bytes.byteLength <= IMAGE_UPLOAD_CHUNK_BYTES) {
       const result = await this.storage(`/object/aiao-media-images/${path}`, {
         method: 'POST',
@@ -150,11 +173,18 @@ export class ImageSyncController {
       // 409 只表示路径已占用，仍须读取对象核对原字节后才能确认关联。
       if (!result.ok && result.status !== 409)
         throw new ImageTransferError(result.status, '远端图片上传失败；本机原图保留。');
+      if (result.ok) progress(bytes.byteLength);
       return;
     }
     const endpoint = this.storageUrl('/upload/resumable');
-    await uploadImageChunks(this.store, endpoint, path, bytes, mimeType, (url, options) =>
-      this.storage(url.slice(this.storageUrl('').length), options)
+    await uploadImageChunks(
+      this.store,
+      endpoint,
+      path,
+      bytes,
+      mimeType,
+      (url, options) => this.storage(url.slice(this.storageUrl('').length), options),
+      progress
     );
   }
 

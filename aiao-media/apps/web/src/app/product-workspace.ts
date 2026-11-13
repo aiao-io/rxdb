@@ -21,7 +21,15 @@ import type { WorkspaceSession } from './workspace-session';
 
 export type ProductReplica = Pick<
   ProductSyncStore,
-  'records' | 'conflicts' | 'capture' | 'synchronize' | 'resolve' | 'enqueueReports' | 'deleteDraft' | 'close'
+  | 'records'
+  | 'conflicts'
+  | 'capture'
+  | 'synchronize'
+  | 'resolve'
+  | 'enqueueReports'
+  | 'deleteDraft'
+  | 'removeWork'
+  | 'close'
 >;
 type ReplicaFactory = (
   profileId: string,
@@ -29,6 +37,7 @@ type ReplicaFactory = (
   access: ProductAuthorization,
   signal: AbortSignal
 ) => Promise<ProductReplica>;
+const removalPending = '图库移除意图已保存，本机原图保留；远端尚未确认，请联网后同步。';
 type Counts = { drafts: number; providers: number; works: number };
 type ProductApi = Pick<ProductClient, 'authorization' | 'ownWorkspace' | 'ensureWorkspace'>;
 export interface ProductWorkspacePort {
@@ -273,6 +282,41 @@ export class ProductWorkspaceController {
     }
   }
 
+  async removeWork(sourceId: string): Promise<boolean> {
+    const replica = this.replica,
+      generation = this.generation,
+      account = this.port.profile()?.account;
+    if (!replica || !account || this.frame.value.busy || this.port.busy()) return false;
+    this.publish({ busy: true, status: 'pending', message: '' });
+    ++this.captureVersion;
+    let saved = false;
+    try {
+      await this.port.checkpoint();
+      if (!this.current(generation)) return false;
+      const snapshot = await this.port.snapshot(await replica.records());
+      if (!this.current(generation)) return false;
+      await replica.removeWork(sourceId);
+      saved = true;
+      const local = { records: await replica.records(), conflicts: await replica.conflicts(), pending: 1 };
+      if (!this.current(generation)) return saved;
+      await this.apply(snapshot, generation)(local);
+      if (!this.current(generation)) return saved;
+      this.accountMatches(await this.api.authorization(), account);
+      if (!this.current(generation)) return saved;
+      const result = await replica.synchronize(this.apply(snapshot, generation));
+      if (this.current(generation)) {
+        this.accept(result);
+        if (result.pending && !result.conflicts.length) this.publish({ message: removalPending });
+      }
+    } catch {
+      if (this.current(generation) && saved) this.publish({ status: 'pending', message: removalPending });
+      else if (this.current(generation)) this.fail();
+    } finally {
+      if (this.current(generation)) this.publish({ busy: false });
+    }
+    return saved;
+  }
+
   async resolveConflict(id: string, choice: 'local' | 'remote'): Promise<void> {
     const replica = this.replica,
       generation = this.generation;
@@ -327,7 +371,7 @@ export class ProductWorkspaceController {
     if (!this.current(generation)) return;
     const snapshot = await this.port.snapshot(await replica.records());
     if (!this.current(generation)) return;
-    if (!initialJoin) await replica.capture(snapshot.entries, snapshot.localWorkIds);
+    if (!initialJoin) await replica.capture(snapshot.entries);
     const result = await replica.synchronize(this.apply(snapshot, generation), options);
     if (this.current(generation)) this.accept(result);
   }
@@ -370,7 +414,7 @@ export class ProductWorkspaceController {
     try {
       const snapshot = await this.port.snapshot(await replica.records());
       if (!this.current(generation) || version !== this.captureVersion || this.frame.value.busy) return;
-      const changed = await replica.capture(snapshot.entries, snapshot.localWorkIds),
+      const changed = await replica.capture(snapshot.entries),
         conflicts = await replica.conflicts();
       if (this.current(generation))
         this.publish({

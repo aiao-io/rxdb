@@ -260,7 +260,7 @@ export class ProductSyncStore {
     return rows.map(row => ({ ...(JSON.parse(row.payload) as Omit<ProductConflict, 'id'>), id: row.id }));
   }
 
-  capture(entries: ProductEntry[], localWorkIds: string[]): Promise<number> {
+  capture(entries: ProductEntry[]): Promise<number> {
     return this.exclusive(async () => {
       const blocked = new Set((await this.conflicts()).map(conflict => conflict.recordId));
       const adapter = await firstValueFrom(this.db.localAdapter$);
@@ -310,16 +310,9 @@ export class ProductSyncStore {
         if (await this.write(id, entry, false)) changed++;
       }
       const providerIds = new Set(entries.filter(entry => entry.kind === 'provider').map(entry => entry.sourceId));
-      const markers = adapter.getRepository(this.types.PublishedWork);
-      const knownWorks = await markers.find({ where: emptyWhere });
-      const missingWorks = new Set(
-        knownWorks.filter(row => !localWorkIds.includes(row.sourceId)).map(row => row.sourceId)
-      );
       for (const record of await this.records()) {
         const baseline = sources.find(row => row.recordId === record.id);
-        const removed =
-          (record.kind === 'provider' && !providerIds.has(record.sourceId) && baseline) ||
-          (record.kind === 'work' && missingWorks.has(record.sourceId));
+        const removed = record.kind === 'provider' && !providerIds.has(record.sourceId) && baseline;
         if (record.deleted || blocked.has(record.id) || !removed) continue;
         if (baseline && baseline.revision !== record.revision)
           await this.persistConflict(
@@ -329,9 +322,6 @@ export class ProductSyncStore {
           );
         else if (await this.write(record.id, record, true)) changed++;
       }
-      for (const id of localWorkIds)
-        if (!knownWorks.some(row => row.sourceId === id))
-          await markers.create(this.db.entityManager.instantiate(this.types.PublishedWork, { sourceId: id }));
       return changed;
     });
   }
@@ -344,6 +334,16 @@ export class ProductSyncStore {
     return this.exclusive(async () => {
       const record = (await this.records()).find(row => row.kind === 'draft' && row.sourceId === 'main');
       if (record && !record.deleted) await this.write(record.id, record, true);
+    });
+  }
+
+  removeWork(sourceId: string): Promise<void> {
+    return this.exclusive(async () => {
+      const record = (await this.records()).find(row => row.kind === 'work' && row.sourceId === sourceId);
+      if (!record) throw new Error('作品尚未加入同步图库。');
+      if ((await this.conflicts()).some(conflict => conflict.recordId === record.id))
+        throw new Error('请先处理此作品的同步冲突。');
+      if (!record.deleted) await this.write(record.id, record, true);
     });
   }
 

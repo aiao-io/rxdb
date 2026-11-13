@@ -194,7 +194,7 @@ describe('真实 SQLite 作品筛选、分页与计数', () => {
     expect(await firstValueFrom(store.works$({}))).toHaveLength(24);
     expect(await firstValueFrom(store.works$())).toHaveLength(105);
     expect(await store.list()).toHaveLength(105);
-    expect((await collectProductSnapshot(store, [])).localWorkIds).toHaveLength(105);
+    expect((await collectProductSnapshot(store, [])).entries.filter(entry => entry.kind === 'work')).toHaveLength(0);
     const original = FileSystemFileHandle.prototype.getFile;
     FileSystemFileHandle.prototype.getFile = async () => {
       throw new Error('筛选不应读取 OPFS');

@@ -1,6 +1,6 @@
 import type { GenerationJobSummary } from '@aiao-media/api-contracts';
 import { strFromU8, unzipSync } from 'fflate';
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { createLocalBackup } from '../app/local-backup';
 import type { ProductAuthorization } from '../app/supabase-auth';
 import { LocalMediaStore } from './browser-media';
@@ -54,6 +54,7 @@ it('SQLite/OPFS 工作区关闭重开后续传同一 PNG，设备会话不进入
   let heads = 0;
   const request = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const url = String(input);
+    if (url.includes('/rpc/media_image_upload_allowed')) return Response.json(true);
     if (url.includes('/rest/v1/media_file_records')) {
       if (!init?.method) return Response.json(record ? [record] : []);
       const patch = JSON.parse(String(init.body)) as RemoteFileRecord;
@@ -92,13 +93,21 @@ it('SQLite/OPFS 工作区关闭重开后续传同一 PNG，设备会话不进入
   };
   try {
     await store.saveResult(job, blob);
-    await expect(new ImageSyncController(store, access, workspaceId, request).upload(job.id)).rejects.toThrow(
-      '应答丢失'
-    );
+    const progress = vi.fn();
+    await expect(
+      new ImageSyncController(store, access, workspaceId, request).upload(job.id, undefined, progress)
+    ).rejects.toThrow('应答丢失');
     expect(uploaded).toBe(6 * 1024 * 1024);
+    expect(progress.mock.calls.every(([offset]) => offset === 0)).toBe(true);
+    progress.mockClear();
     await store.close();
     store = await LocalMediaStore.open(profile);
-    const result = await new ImageSyncController(store, access, workspaceId, request).upload(job.id);
+    const result = await new ImageSyncController(store, access, workspaceId, request).upload(
+      job.id,
+      undefined,
+      progress
+    );
+    expect(progress.mock.calls.map(([offset]) => offset)).toEqual([0, 6 * 1024 * 1024, bytes.length, bytes.length]);
     expect(result.status).toBe('uploaded');
     expect(creations).toBe(1);
     expect(heads).toBe(1);

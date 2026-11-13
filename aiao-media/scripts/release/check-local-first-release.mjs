@@ -65,6 +65,7 @@ for (const required of [
   'browser/admin/new-project.sql',
   'browser/admin/upgrade-installation.sql',
   'browser/admin/upgrade-credits.sql',
+  'browser/admin/upgrade-image-lifecycle.sql',
   'browser/offline-shell.html',
   'browser/offline-worker.js',
   'browser/wa-sqlite/wa-sqlite-async.wasm'
@@ -78,6 +79,16 @@ if (
   !creditUpgrade.includes('FUNCTION public.media_reserve_credits(')
 )
   throw new Error('Credit upgrade must atomically include reservation and abandonment migrations');
+const imageUpgrade = await readFile(resolve(output, 'browser/admin/upgrade-image-lifecycle.sql'), 'utf8');
+if (
+  (imageUpgrade.match(/^BEGIN;$/gm) ?? []).length !== 1 ||
+  (imageUpgrade.match(/^COMMIT;$/gm) ?? []).length !== 1 ||
+  !imageUpgrade.includes('FUNCTION public.media_image_upload_allowed(') ||
+  !imageUpgrade.includes('CREATE POLICY media_image_insert') ||
+  !imageUpgrade.includes('FUNCTION public.media_begin_image_delete(') ||
+  !imageUpgrade.includes('aiao-media schema 15')
+)
+  throw new Error('Image upgrade must atomically include tombstone and private Storage write protection');
 if (files.length > 20000) throw new Error('Free static asset count exceeded');
 await mkdir(resolve(webRoot, 'tmp/local-first'), { recursive: true });
 await writeFile(

@@ -11,9 +11,9 @@ interface FileIdentity {
   sha256: string;
   bytes: number;
 }
-type QueueStatus = 'pending' | 'uploading' | 'retry' | 'paused' | 'failed' | 'succeeded';
+type QueueStatus = 'pending' | 'uploading' | 'retry' | 'paused' | 'failed' | 'succeeded' | 'removed';
 interface QueueEntry extends FileIdentity {
-  version: 1;
+  version: 2;
   scope: string;
   sourceId: string;
   selection: 'future' | 'existing';
@@ -45,9 +45,19 @@ type QueueStore = Pick<
   LocalMediaStore,
   'preference' | 'ensurePreference' | 'savePreference' | 'savePreferences' | 'preferences' | 'imageInfo'
 >;
-type Upload = (sourceId: string, identity: FileIdentity) => Promise<FileIdentity & { status: string }>;
+/** 当前文件的远端接收量，尚不代表原图校验与关联已完成。 */
+export interface ImageQueueFileProgress {
+  readonly sourceId: string;
+  readonly bytes: number;
+  readonly uploadedBytes: number;
+}
+type Upload = (
+  sourceId: string,
+  identity: FileIdentity,
+  progress: (bytes: number) => void
+) => Promise<FileIdentity & { status: string }>;
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const statuses: QueueStatus[] = ['pending', 'uploading', 'retry', 'paused', 'failed', 'succeeded'];
+const statuses: QueueStatus[] = ['pending', 'uploading', 'retry', 'paused', 'failed', 'succeeded', 'removed'];
 const checksum = async (value: unknown) =>
   [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(value))))]
     .map(byte => byte.toString(16).padStart(2, '0'))
@@ -94,10 +104,13 @@ export class ImageUploadQueue {
     if (!uuid.test(sourceId)) throw new Error('图片队列作品标识无效。');
     const info = await this.store.imageInfo(sourceId);
     this.signal.throwIfAborted();
-    const entry = this.newEntry(sourceId, selection, info);
-    const key = await this.entryKey(entry);
-    const saved = await this.store.ensurePreference(key, JSON.stringify(entry));
-    await this.read({ key, ...saved });
+    await this.exclusive(async () => {
+      await this.assertIncluded(sourceId);
+      const entry = this.newEntry(sourceId, selection, info);
+      const key = await this.entryKey(entry);
+      const saved = await this.store.ensurePreference(key, JSON.stringify(entry));
+      await this.read({ key, ...saved });
+    });
   }
   /** 已确认的历史范围整体落盘，使用预览身份，不在确认后重新枚举或替换原图。 */
   async enqueueSelection(files: readonly (FileIdentity & { sourceId: string })[]): Promise<void> {
@@ -107,12 +120,36 @@ export class ImageUploadQueue {
       const seen = new Set<string>();
       for (const entry of entries) {
         this.signal.throwIfAborted();
+        await this.assertIncluded(entry.sourceId);
         const key = await this.entryKey(entry);
         if (seen.has(key)) continue;
         seen.add(key);
         const saved = await this.store.preference(key);
         if (saved) await this.read({ key, ...saved });
         else changes.push({ key, payload: JSON.stringify(entry), revision: null });
+      }
+      this.signal.throwIfAborted();
+      if (changes.length) await this.store.savePreferences(changes);
+    });
+  }
+  async removeSources(sourceIds: ReadonlySet<string>): Promise<void> {
+    await this.exclusive(async () => {
+      const changes: LocalPreferenceChange[] = [];
+      for (const sourceId of sourceIds) {
+        if (!uuid.test(sourceId)) throw new Error('图片队列作品标识无效。');
+        const key = this.removalKey(sourceId);
+        const saved = await this.store.preference(key);
+        if (!saved) changes.push({ key, payload: this.removalPayload(sourceId), revision: null });
+        else await this.assertRemoval(sourceId, saved.payload);
+      }
+      for await (const row of this.rows()) {
+        const entry = await this.read(row);
+        if (!sourceIds.has(entry.sourceId) || entry.status === 'removed') continue;
+        changes.push({
+          key: row.key,
+          revision: row.revision,
+          payload: JSON.stringify({ ...entry, status: 'removed', nextAttemptAt: null, error: '' })
+        });
       }
       this.signal.throwIfAborted();
       if (changes.length) await this.store.savePreferences(changes);
@@ -134,28 +171,45 @@ export class ImageUploadQueue {
   }
   async run(
     upload: Upload,
-    progress: (summary: ImageQueueSummary) => void = () => undefined
+    progress: (summary: ImageQueueSummary, file: ImageQueueFileProgress | null) => void = () => undefined
   ): Promise<ImageQueueSummary> {
     return this.exclusive(async () => {
       const summary = await this.snapshot();
-      progress({ ...summary });
+      progress({ ...summary }, null);
       if (summary.paused) return summary;
       for await (const row of this.rows()) {
         const entry = await this.read(row);
         if (!this.ready(entry)) continue;
-        const next = await this.transfer(row, entry, upload);
+        const next = await this.transfer(row, entry, upload, uploadedBytes =>
+          progress({ ...summary }, { sourceId: entry.sourceId, bytes: entry.bytes, uploadedBytes })
+        );
         summary[countKey(entry.status)]--;
         summary[countKey(next.status)]++;
         summary.confirmedBytes += next.confirmedBytes - entry.confirmedBytes;
         summary.lastSuccessAt = Math.max(summary.lastSuccessAt ?? 0, next.succeededAt ?? 0) || null;
         summary.paused = next.status === 'paused';
-        progress({ ...summary });
+        progress({ ...summary }, null);
         if (summary.paused) break;
       }
       const completed = await this.snapshot();
-      progress({ ...completed });
+      progress({ ...completed }, null);
       return completed;
     });
+  }
+  private removalKey(sourceId: string): string {
+    return `ix-${this.scope.slice(0, 32)}-${sourceId.replaceAll('-', '')}`;
+  }
+  private removalPayload(sourceId: string): string {
+    return JSON.stringify({ version: 1, scope: this.scope, sourceId });
+  }
+  private async assertRemoval(sourceId: string, payload: string): Promise<void> {
+    if (payload !== this.removalPayload(sourceId)) throw new Error('图库移除记录损坏，原记录保留。');
+  }
+  private async assertIncluded(sourceId: string): Promise<void> {
+    const removed = await this.store.preference(this.removalKey(sourceId));
+    if (!removed) return;
+    await this.assertRemoval(sourceId, removed.payload);
+    throw new Error('此作品已从同步图库移除，本机原图保留。');
   }
   private newEntry(sourceId: string, selection: QueueEntry['selection'], info: FileIdentity): QueueEntry {
     if (!uuid.test(sourceId)) throw new Error('图片队列作品标识无效。');
@@ -167,7 +221,7 @@ export class ImageUploadQueue {
     )
       throw new Error('图片队列源身份无效。');
     return {
-      version: 1,
+      version: 2,
       scope: this.scope,
       sourceId,
       selection,
@@ -203,9 +257,10 @@ export class ImageUploadQueue {
   private async read(row: QueueRow): Promise<QueueEntry> {
     const parsed: unknown = JSON.parse(row.payload);
     if (!parsed || typeof parsed !== 'object') throw new Error('图片队列记录无效，原记录保留。');
-    const entry = parsed as QueueEntry;
+    const entry = parsed as Omit<QueueEntry, 'version'> & { version: number };
     if (
-      entry.version !== 1 ||
+      ![1, 2].includes(entry.version) ||
+      (entry.version === 1 && entry.status === 'removed') ||
       entry.scope !== this.scope ||
       !uuid.test(entry.sourceId) ||
       !/^[0-9a-f]{64}$/.test(entry.sha256) ||
@@ -218,13 +273,15 @@ export class ImageUploadQueue {
       entry.attempts < 0 ||
       entry.attempts > 3 ||
       (entry.nextAttemptAt !== null && (!Number.isSafeInteger(entry.nextAttemptAt) || entry.nextAttemptAt < 0)) ||
-      entry.confirmedBytes !== (entry.status === 'succeeded' ? entry.bytes : 0) ||
+      (entry.status === 'removed' ?
+        ![0, entry.bytes].includes(entry.confirmedBytes)
+      : entry.confirmedBytes !== (entry.status === 'succeeded' ? entry.bytes : 0)) ||
       (entry.succeededAt !== null && (!Number.isSafeInteger(entry.succeededAt) || entry.succeededAt < 0)) ||
       typeof entry.error !== 'string' ||
       row.key !== (await this.entryKey(entry))
     )
       throw new Error('图片队列身份、版本或状态无效，原记录保留。');
-    return entry;
+    return { ...entry, version: 2 };
   }
   private ready(entry: QueueEntry): boolean {
     return ['pending', 'uploading', 'retry'].includes(entry.status) && (entry.nextAttemptAt ?? 0) <= this.now();
@@ -234,7 +291,12 @@ export class ImageUploadQueue {
     row.revision = await this.store.savePreference(row.key, JSON.stringify(entry), row.revision);
     row.payload = JSON.stringify(entry);
   }
-  private async transfer(row: QueueRow, entry: QueueEntry, upload: Upload): Promise<QueueEntry> {
+  private async transfer(
+    row: QueueRow,
+    entry: QueueEntry,
+    upload: Upload,
+    progress: (bytes: number) => void
+  ): Promise<QueueEntry> {
     const active: QueueEntry = {
       ...entry,
       status: 'uploading',
@@ -243,11 +305,16 @@ export class ImageUploadQueue {
     };
     await this.write(row, active);
     let next: QueueEntry;
+    let accepting = true;
     try {
       const info = await this.store.imageInfo(entry.sourceId);
       this.signal.throwIfAborted();
       if (info.sha256 !== entry.sha256 || info.bytes !== entry.bytes) throw new Error('源原图已变化。');
-      const receipt = await upload(entry.sourceId, { sha256: entry.sha256, bytes: entry.bytes });
+      const receipt = await upload(entry.sourceId, { sha256: entry.sha256, bytes: entry.bytes }, bytes => {
+        if (!accepting || this.signal.aborted) return;
+        if (!Number.isSafeInteger(bytes) || bytes < 0 || bytes > entry.bytes) throw new Error('上传分片进度无效。');
+        progress(bytes);
+      });
       this.signal.throwIfAborted();
       if (receipt.status !== 'uploaded' || receipt.sha256 !== entry.sha256 || receipt.bytes !== entry.bytes)
         throw new Error('上传回执与所选原图不一致。');
@@ -255,6 +322,8 @@ export class ImageUploadQueue {
     } catch (error) {
       this.signal.throwIfAborted();
       next = this.failure(active, error);
+    } finally {
+      accepting = false;
     }
     await this.write(row, next);
     return next;
@@ -276,6 +345,7 @@ export class ImageUploadQueue {
     return { ...entry, status: 'failed', error: '原图传输未确认完成，请检查后重试。' };
   }
   private add(summary: ImageQueueSummary, entry: QueueEntry): void {
+    if (entry.status === 'removed') return;
     summary.selected++;
     summary.bytes += entry.bytes;
     summary[countKey(entry.status)]++;

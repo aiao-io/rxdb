@@ -73,6 +73,7 @@ export async function verifyImageSyncTarget(
     data['privateBucket'] !== 'aiao-media-images' ||
     data['maxBytes'] !== 16777216 ||
     data['resumable'] !== true ||
+    data['lifecycle'] !== 1 ||
     data['metadataOnly'] !== false
   )
     throw new Error('平台图片同步协议或私有存储不兼容，未上传原图，请联系服务方。');

@@ -5,7 +5,6 @@ import type { ProductEntry, ProductRecord } from './product-sync-store';
 
 export interface ProductSnapshot {
   entries: ProductEntry[];
-  localWorkIds: string[];
   versions: { draft: number | null; providers: number | null };
 }
 function providers(payload: string | null): { providers: LocalProvider[]; defaultId: string } {
@@ -60,7 +59,6 @@ export async function collectProductSnapshot(
   }
   return {
     entries,
-    localWorkIds: works.map(work => work.jobId),
     versions: { draft: draft?.revision ?? null, providers: preference?.revision ?? null }
   };
 }

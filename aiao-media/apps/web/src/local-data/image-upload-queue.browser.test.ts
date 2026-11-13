@@ -66,13 +66,30 @@ it('两张原图的设备队列在 SQLite/OPFS 关闭重开后恢复，未选历
         pending: 0,
         confirmedBytes: 2 * blob.size
       });
-    expect(upload).toHaveBeenCalledExactlyOnceWith(jobs[0].id, { sha256: info.sha256, bytes: blob.size });
+    expect(upload).toHaveBeenCalledExactlyOnceWith(
+      jobs[0].id,
+      { sha256: info.sha256, bytes: blob.size },
+      expect.any(Function)
+    );
     expect(await store.imageInfo(jobs[2].id)).toMatchObject({ sha256: info.sha256, bytes: blob.size });
     await reopened.run(upload);
     expect(upload).toHaveBeenCalledOnce();
+    await reopened.removeSources(new Set([jobs[0].id, jobs[2].id]));
+    await store.close();
+    store = await LocalMediaStore.open(profileId);
+    const removed = await ImageUploadQueue.open(store, scope, new AbortController().signal, () => now);
+    await removed.retry();
+    upload.mockClear();
+    expect(await removed.run(upload)).toMatchObject({ selected: 1, succeeded: 1, pending: 0 });
+    expect(upload).not.toHaveBeenCalled();
+    await expect(removed.enqueue(jobs[0].id, 'future')).rejects.toThrow('已从同步图库移除');
+    await expect(removed.enqueue(jobs[2].id, 'existing')).rejects.toThrow('已从同步图库移除');
+    for (const job of jobs)
+      expect(await (await store.backupImage(job.id)).blob.arrayBuffer()).toEqual(await blob.arrayBuffer());
     const backup = await createLocalBackup(store, [], '', []);
     const manifest = strFromU8(unzipSync(new Uint8Array(await backup.arrayBuffer()))['backup.json']);
     expect(manifest).not.toContain('iq-');
+    expect(manifest).not.toContain('ix-');
     expect(manifest).not.toContain('nextAttemptAt');
   } finally {
     await store.close();

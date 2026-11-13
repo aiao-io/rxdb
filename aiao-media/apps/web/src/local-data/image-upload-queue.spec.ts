@@ -73,6 +73,142 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 describe('设备原图持久队列', () => {
+  it('图库移除持久终止所选作品，重开、重试和重新入队均不复活，保留已确认回执', async () => {
+    const r = rig();
+    const queue = await ImageUploadQueue.open(r.store, scope, new AbortController().signal);
+    await queue.enqueue(first, 'existing');
+    await queue.run(r.uploaded);
+    await queue.enqueue(second, 'existing');
+    await queue.removeSources(new Set([first, second]));
+    const removed = [...r.rows.values()].map(row => JSON.parse(row.payload)).filter(row => row.status === 'removed');
+    expect(removed).toHaveLength(2);
+    expect(removed.find(row => row.sourceId === first)).toMatchObject({ version: 2, confirmedBytes: info.bytes });
+    const reopened = await ImageUploadQueue.open(r.store, scope, new AbortController().signal);
+    await reopened.retry();
+    r.uploaded.mockClear();
+    expect(await reopened.run(r.uploaded)).toMatchObject({ selected: 0, pending: 0, failed: 0 });
+    expect(r.uploaded).not.toHaveBeenCalled();
+    await expect(reopened.enqueue(first, 'future')).rejects.toThrow('已从同步图库移除');
+    await expect(reopened.enqueueSelection([{ sourceId: second, ...info }])).rejects.toThrow('已从同步图库移除');
+    const isolated = await ImageUploadQueue.open(
+      r.store,
+      { ...scope, profileId: second },
+      new AbortController().signal
+    );
+    await isolated.enqueue(first, 'future');
+    expect((await isolated.run(r.uploaded)).succeeded).toBe(1);
+  });
+  it('还没有入队的已移除作品也不能被旧的确认清单重新入队', async () => {
+    const r = rig();
+    const queue = await ImageUploadQueue.open(r.store, scope, new AbortController().signal);
+    await queue.removeSources(new Set([first]));
+    await expect(queue.enqueue(first, 'existing')).rejects.toThrow('已从同步图库移除');
+    expect((await queue.snapshot()).selected).toBe(0);
+  });
+  it('读取旧 v1 队列并在移除时升级，旧版本不允许伪造 removed 状态', async () => {
+    const r = rig();
+    const queue = await ImageUploadQueue.open(r.store, scope, new AbortController().signal);
+    await queue.enqueue(first, 'existing');
+    const [key, row] = [...r.rows][0];
+    r.rows.set(key, { ...row, payload: JSON.stringify({ ...JSON.parse(row.payload), version: 1 }) });
+    expect((await queue.snapshot()).pending).toBe(1);
+    await queue.removeSources(new Set([first]));
+    expect(JSON.parse(r.rows.get(key)!.payload)).toMatchObject({ version: 2, status: 'removed' });
+    const removed = r.rows.get(key)!;
+    r.rows.set(key, { ...removed, payload: JSON.stringify({ ...JSON.parse(removed.payload), version: 1 }) });
+    await expect(queue.snapshot()).rejects.toThrow('版本或状态无效');
+  });
+  it('移除批次写盘失败不产生部分删标，修复后一次事务重试', async () => {
+    const r = rig();
+    const queue = await ImageUploadQueue.open(r.store, scope, new AbortController().signal);
+    await queue.enqueue(first, 'existing');
+    await queue.enqueue(second, 'existing');
+    const before = structuredClone([...r.rows]);
+    r.saveMany.mockRejectedValueOnce(new Error('disk full'));
+    await expect(queue.removeSources(new Set([first, second]))).rejects.toThrow('disk full');
+    expect([...r.rows]).toEqual(before);
+    await queue.removeSources(new Set([first, second]));
+    await queue.removeSources(new Set([first, second]));
+    expect((await queue.snapshot()).selected).toBe(0);
+    expect(r.saveMany).toHaveBeenCalledTimes(2);
+  });
+  it('停止旧传输后再保存移除状态，迟到回执不能覆盖删标', async () => {
+    const r = rig();
+    const lifetime = new AbortController();
+    const queue = await ImageUploadQueue.open(r.store, scope, lifetime.signal);
+    await queue.enqueue(first, 'existing');
+    let release!: () => void;
+    const waiting = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const upload = vi.fn(async () => {
+      await waiting;
+      return { ...info, status: 'uploaded' };
+    });
+    const running = queue.run(upload).catch(error => error);
+    await vi.waitFor(() => expect(upload).toHaveBeenCalledOnce());
+    lifetime.abort(new Error('图库移除'));
+    const next = await ImageUploadQueue.open(r.store, scope, new AbortController().signal);
+    const removal = next.removeSources(new Set([first]));
+    release();
+    expect(await running).toMatchObject({ message: '图库移除' });
+    await removal;
+    await next.retry();
+    expect((await next.run(r.uploaded)).selected).toBe(0);
+    expect(r.uploaded).not.toHaveBeenCalled();
+  });
+  it('分片进度不计为完整原图回执，完成后的迟到进度不再改变状态', async () => {
+    const r = rig();
+    const queue = await ImageUploadQueue.open(r.store, scope, new AbortController().signal);
+    await queue.enqueue(first, 'future');
+    const progress = vi.fn();
+    let late: (bytes: number) => void = () => undefined;
+    await queue.run(async (_id, _identity, report) => {
+      late = report;
+      report(5);
+      expect(progress).toHaveBeenLastCalledWith(expect.objectContaining({ confirmedBytes: 0, succeeded: 0 }), {
+        sourceId: first,
+        bytes: info.bytes,
+        uploadedBytes: 5
+      });
+      report(info.bytes);
+      expect(progress).toHaveBeenLastCalledWith(
+        expect.objectContaining({ confirmedBytes: 0 }),
+        expect.objectContaining({ uploadedBytes: info.bytes })
+      );
+      return { ...info, status: 'uploaded' };
+    }, progress);
+    expect(progress).toHaveBeenLastCalledWith(
+      expect.objectContaining({ confirmedBytes: info.bytes, succeeded: 1 }),
+      null
+    );
+    const calls = progress.mock.calls.length;
+    late(1);
+    expect(progress).toHaveBeenCalledTimes(calls);
+  });
+  it('已中止范围和越界分片不能更新可见进度或完成回执', async () => {
+    const r = rig();
+    const abort = new AbortController();
+    const queue = await ImageUploadQueue.open(r.store, scope, abort.signal);
+    await queue.enqueue(first, 'future');
+    const progress = vi.fn();
+    expect(
+      await queue.run(async (_id, _identity, report) => {
+        report(info.bytes + 1);
+        return { ...info, status: 'uploaded' };
+      }, progress)
+    ).toMatchObject({ failed: 1, confirmedBytes: 0 });
+    await queue.retry();
+    await expect(
+      queue.run(async (_id, _identity, report) => {
+        abort.abort(new Error('已停止'));
+        const calls = progress.mock.calls.length;
+        report(5);
+        expect(progress).toHaveBeenCalledTimes(calls);
+        return { ...info, status: 'uploaded' };
+      }, progress)
+    ).rejects.toThrow('已停止');
+  });
   it('确认清单原子入队并固定预览身份，不重新读取或扩大到当前图库', async () => {
     const r = rig();
     const queue = await ImageUploadQueue.open(r.store, scope, new AbortController().signal);
@@ -140,7 +276,11 @@ describe('设备原图持久队列', () => {
     now = 2000;
     const reopened = await ImageUploadQueue.open(r.store, scope, new AbortController().signal, () => now);
     expect(await reopened.run(r.uploaded)).toMatchObject({ selected: 2, succeeded: 2, confirmedBytes: 24 });
-    expect(r.uploaded).toHaveBeenCalledExactlyOnceWith(first, { sha256: info.sha256, bytes: info.bytes });
+    expect(r.uploaded).toHaveBeenCalledExactlyOnceWith(
+      first,
+      { sha256: info.sha256, bytes: info.bytes },
+      expect.any(Function)
+    );
     expect(r.imageInfo).toHaveBeenCalledTimes(5);
   });
   it('未到退避时间不重试，最多三次，明确重试后才重新开始', async () => {
@@ -275,7 +415,7 @@ describe('设备原图持久队列', () => {
     expect(r.uploaded).not.toHaveBeenCalled();
   });
   it.each([
-    { version: 2 },
+    { version: 3 },
     { scope: 'wrong' },
     { confirmedBytes: 12 },
     { attempts: 9 },

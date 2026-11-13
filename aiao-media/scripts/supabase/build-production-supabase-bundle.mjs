@@ -26,7 +26,9 @@ export const productionSources = [
   'aiao-media/infra/supabase/migrations/010-image-storage.sql',
   'aiao-media/infra/supabase/migrations/011-installation.sql',
   'aiao-media/infra/supabase/migrations/012-credits.sql',
-  'aiao-media/infra/supabase/migrations/013-relay-credit-abandonment.sql'
+  'aiao-media/infra/supabase/migrations/013-relay-credit-abandonment.sql',
+  'aiao-media/infra/supabase/migrations/014-image-lifecycle.sql',
+  'aiao-media/infra/supabase/migrations/015-image-delete.sql'
 ];
 
 const transactionBoundary = /^\s*(?:BEGIN|COMMIT)\s*;\s*$/gm;

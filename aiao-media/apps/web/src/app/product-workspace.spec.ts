@@ -53,6 +53,7 @@ async function rig(active = true) {
     resolve: vi.fn(async () => result),
     enqueueReports: vi.fn(async () => undefined),
     deleteDraft: vi.fn(async () => undefined),
+    removeWork: vi.fn<ProductReplica['removeWork']>(async () => undefined),
     close: vi.fn(async () => undefined)
   };
   const api = {
@@ -77,7 +78,6 @@ async function rig(active = true) {
     busy: vi.fn(() => false),
     snapshot: vi.fn<ProductWorkspacePort['snapshot']>(async () => ({
       entries: [],
-      localWorkIds: [],
       versions: { draft: null, providers: null }
     })),
     counts: vi.fn(async () => ({ drafts: 1, providers: 0, works: 0 })),
@@ -363,6 +363,39 @@ describe('local changes, deletion and conflict handling', () => {
     r.controller.close();
   });
 
+  it('图库移除先保存并投影本机删标，离线失败保留待确认意图，不假报远端已删除', async () => {
+    const r = await rig();
+    await r.controller.resume();
+    r.port.project.mockClear();
+    r.api.authorization.mockRejectedValueOnce(new Error('offline'));
+    expect(await r.controller.removeWork(id(50))).toBe(true);
+    expect(r.replica.removeWork).toHaveBeenCalledWith(id(50));
+    expect(r.port.project).toHaveBeenCalledOnce();
+    expect(r.controller.state).toMatchObject({ status: 'pending', busy: false });
+    expect(r.controller.state.message).toContain('远端尚未确认');
+    r.controller.close();
+  });
+  it('同步返回仍有待传修订时，图库移除保持未确认提示', async () => {
+    const r = await rig();
+    await r.controller.resume();
+    r.result.pending = 1;
+    expect(await r.controller.removeWork(id(50))).toBe(true);
+    expect(r.controller.state.status).toBe('pending');
+    expect(r.controller.state.message).toContain('远端尚未确认');
+    r.controller.close();
+  });
+  it('未绑定、输入未保存和待处理冲突不能静默移除图库记录', async () => {
+    const r = await rig();
+    expect(await r.controller.removeWork(id(50))).toBe(false);
+    await r.controller.resume();
+    r.port.checkpoint.mockRejectedValueOnce(new Error('unsaved'));
+    expect(await r.controller.removeWork(id(50))).toBe(false);
+    expect(r.replica.removeWork).not.toHaveBeenCalled();
+    r.replica.removeWork.mockRejectedValueOnce(new Error('pending conflict'));
+    expect(await r.controller.removeWork(id(50))).toBe(false);
+    expect(r.controller.state.status).toBe('failed');
+    r.controller.close();
+  });
   it('checkpoints the local draft before sending a deletion marker and never deletes before binding', async () => {
     const r = await rig();
     await r.controller.deleteDraft();
@@ -401,7 +434,6 @@ describe('local changes, deletion and conflict handling', () => {
     await r.controller.resume();
     r.port.snapshot.mockResolvedValue({
       entries: [{ kind: 'draft', sourceId: 'main', payload: draftRecord.payload }],
-      localWorkIds: [],
       versions: { draft: null, providers: null }
     });
     await r.controller.resolveConflict(conflict.id, 'local');

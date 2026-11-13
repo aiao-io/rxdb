@@ -26,4 +26,19 @@ await writeFile(
     ''
   ].join('\n')
 );
+const imageUpgrade = await Promise.all(
+  ['014-image-lifecycle.sql', '015-image-delete.sql'].map(name =>
+    readFile(resolve(root, 'infra/supabase/migrations', name), 'utf8')
+  )
+);
+await writeFile(
+  resolve(target, 'upgrade-image-lifecycle.sql'),
+  [
+    'BEGIN;',
+    ...imageUpgrade.map(sql => sql.replace(/^\s*(?:BEGIN|COMMIT)\s*;\s*$/gm, '').trim()),
+    "COMMENT ON SCHEMA media_private IS 'aiao-media schema 15';",
+    'COMMIT;',
+    ''
+  ].join('\n')
+);
 console.log('Packaged admin initialization and login at /admin/.');

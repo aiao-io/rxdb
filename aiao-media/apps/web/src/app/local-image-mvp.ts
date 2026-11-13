@@ -32,7 +32,7 @@ import { concatMap, EMPTY, Subscription } from 'rxjs';
 import type { ImageSyncController } from '../local-data/image-sync';
 import type { ImageSyncSelection } from '../local-data/image-sync-selection';
 import { ImageTransferError } from '../local-data/image-transfer-error';
-import type { ImageQueueSummary, ImageUploadQueue } from '../local-data/image-upload-queue';
+import type { ImageQueueFileProgress, ImageQueueSummary, ImageUploadQueue } from '../local-data/image-upload-queue';
 import type { LocalMediaStore, LocalWorkSummary, StudioPromptState } from '../local-data/index';
 import { libraryWhere, type LocalWorkFilters } from '../local-data/library-query';
 import { applyProductProjection, collectProductSnapshot } from '../local-data/product-projection';
@@ -206,6 +206,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private product?: ProductWorkspaceController;
   /** 图片传输的作用域：同步目标、项目账号或本机工作区一变就中止，旧传输的迟到结果不进入新目标。 */
   private imageSyncScope = new AbortController();
+  private readonly removedImageSources = new Set<string>();
   private imageQueueRun: { signal: AbortSignal; promise: Promise<void> } | null = null;
   private imageQueueRequested = false;
   private imageSelectionScope: AbortController | null = null;
@@ -431,6 +432,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   readonly syncActive = computed(() => this.sync().busy || this.imageSyncBusy() || this.imageUploads() > 0);
   readonly imageSyncMessage = signal('');
   readonly imageSyncProgress = signal('');
+  readonly imageSyncFileProgress = signal<ImageQueueFileProgress | null>(null);
   readonly imageSyncSelection = signal<ImageSyncSelection | null>(null);
   readonly imageSyncSelectionTarget = signal<{ account: string; workspaceId: string } | null>(null);
   readonly imageSyncSelectionLoading = signal(false);
@@ -1439,9 +1441,17 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     try {
       this.imageSyncSelectionTarget.set(this.imageSyncDestination());
       const { scanImageSyncSelection } = await import('../local-data/image-sync-selection');
-      const selection = await scanImageSyncSelection(this.requireStore(), signal, value => {
-        if (!signal.aborted) this.imageSyncSelectionProgress.set(`${value.checked}/${value.total}`);
-      });
+      const store = this.requireStore();
+      const selection = await scanImageSyncSelection(
+        {
+          list: async () => (await store.list()).filter(work => !this.removedImageSources.has(work.jobId)),
+          imageInfo: sourceId => store.imageInfo(sourceId)
+        },
+        signal,
+        value => {
+          if (!signal.aborted) this.imageSyncSelectionProgress.set(`${value.checked}/${value.total}`);
+        }
+      );
       signal.throwIfAborted();
       this.imageSyncSelection.set(selection);
     } catch (error) {
@@ -1527,10 +1537,34 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   }
   async stopImageSync() {
     if (!window.confirm('停止以后图片自动上传？平台账号里的原图和本机原图都保留。')) return;
-    this.resetImageSync();
+    this.stopImageTransfers();
     localStorage.removeItem(this.imageSyncKey());
     this.imageSyncEnabled.set(false);
     this.imageSyncMessage.set('图片自动同步已停止；远端原图未删除。');
+  }
+  async removeSyncedWork(sourceId: string, prompt: string): Promise<void> {
+    if (!this.product || this.settingsBusy() || this.targetKind() !== 'platform' || !this.syncInitialized()) return;
+    if (!window.confirm(`从同步图库移除“${prompt}”？各设备原图和云端对象都保留；旧上传和离线编辑不能重新加入此作品。`))
+      return;
+    const product = this.product,
+      identity = this.backupIdentity(),
+      profileId = this.profileId,
+      target = this.targetKind();
+    const saved = await product.removeWork(sourceId);
+    if (
+      this.disposed ||
+      product !== this.product ||
+      identity !== this.backupIdentity() ||
+      profileId !== this.profileId ||
+      target !== this.targetKind() ||
+      !saved
+    )
+      return;
+    this.imageSyncMessage.set(product.state.message || '已从同步图库移除，各设备原图和云端对象均保留。');
+    this.notify(this.imageSyncMessage());
+  }
+  isSyncedWork(sourceId: string): boolean {
+    return this.syncedWorks().some(work => work.jobId === sourceId);
   }
   async restoreRemoteWork(work: PublicWorkPayload) {
     if (this.imageSyncBusy() || this.settingsBusy() || this.targetKind() !== 'platform') return;
@@ -1763,17 +1797,37 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     return new ImageSyncController(store, access, profile.binding.remoteWorkspaceId, undefined, signal);
   }
   private resetImageSync() {
+    this.removedImageSources.clear();
+    this.stopImageTransfers();
+  }
+  private stopImageTransfers() {
     this.clearImageSyncSelection();
     if (this.imageQueueTimer) clearTimeout(this.imageQueueTimer);
     this.imageQueueTimer = null;
     this.imageQueueRun = null;
     this.imageQueueRequested = false;
     this.imageSyncProgress.set('');
+    this.imageSyncFileProgress.set(null);
     this.imageSyncScope.abort(new Error('同步目标、账号或工作区已变化，旧的图片传输已停止；本机原图保留。'));
     this.imageSyncScope = new AbortController();
     this.imageSyncBusy.set(false);
     this.imageUploads.set(0);
     this.imageDownloads.set(new Map());
+  }
+  private async excludeRemovedImages(records: ProductRecord[], blocked: Set<string>): Promise<boolean> {
+    const sourceIds = new Set(
+      records
+        .filter(record => record.kind === 'work' && record.deleted && !blocked.has(record.id))
+        .map(record => record.sourceId)
+        .filter(sourceId => !this.removedImageSources.has(sourceId))
+    );
+    if (!sourceIds.size) return false;
+    this.stopImageTransfers();
+    const signal = this.imageSyncScope.signal;
+    await (await this.imageUploadQueue(signal)).removeSources(sourceIds);
+    signal.throwIfAborted();
+    for (const sourceId of sourceIds) this.removedImageSources.add(sourceId);
+    return true;
   }
   private setImageDownloadState(work: PublicWorkPayload, state: ImageDownloadState) {
     this.imageDownloads.update(current => new Map(current).set(`${work.jobId}:${work.sha256}`, state));
@@ -1836,8 +1890,9 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       do {
         this.imageQueueRequested = false;
         summary = await queue.run(
-          async (sourceId, identity) => (await this.imageSyncController(signal)).upload(sourceId, identity),
-          state => this.showImageQueue(state, signal)
+          async (sourceId, identity, progress) =>
+            (await this.imageSyncController(signal)).upload(sourceId, identity, progress),
+          (state, file) => this.showImageQueue(state, signal, file)
         );
       } while (this.currentImageSync(signal) && this.imageQueueRequested);
       if (!this.currentImageSync(signal) || summary.paused || summary.nextAttemptAt === null) return;
@@ -1852,13 +1907,19 @@ export class LocalImageMvp implements OnInit, OnDestroy {
         this.imageSyncMessage.set(error instanceof Error ? error.message : '图片队列未完成，本机原图保留。');
     } finally {
       if (this.currentImageSync(signal)) {
+        this.imageSyncFileProgress.set(null);
         this.imageUploads.update(count => count - 1);
         this.imageQueueRun = null;
       }
     }
   }
-  private showImageQueue(summary: ImageQueueSummary, signal: AbortSignal): void {
+  private showImageQueue(
+    summary: ImageQueueSummary,
+    signal: AbortSignal,
+    file: ImageQueueFileProgress | null = null
+  ): void {
     if (!this.currentImageSync(signal)) return;
+    this.imageSyncFileProgress.set(file);
     this.imageSyncProgress.set(
       `已选 ${summary.selected} 张，共 ${summary.bytes} 字节；已确认 ${summary.confirmedBytes} 字节；` +
         `成功 ${summary.succeeded}，待传 ${summary.pending}，失败 ${summary.failed}。` +
@@ -1875,7 +1936,13 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     );
   }
   private async syncSavedImage(task: LocalTask) {
-    if (!this.imageSyncEnabled() || this.targetKind() !== 'platform' || task.status !== 'completed') return;
+    if (
+      !this.imageSyncEnabled() ||
+      this.targetKind() !== 'platform' ||
+      task.status !== 'completed' ||
+      this.removedImageSources.has(task.id)
+    )
+      return;
     const signal = this.imageSyncScope.signal;
     this.imageUploads.update(count => count + 1);
     try {
@@ -2106,8 +2173,12 @@ export class LocalImageMvp implements OnInit, OnDestroy {
           snapshot: records => collectProductSnapshot(this.requireStore(), records),
           project: async (records, blocked, versions, force) => {
             const store = this.requireStore();
+            const removed = await this.excludeRemovedImages(records, blocked);
             await applyProductProjection(store, records, blocked, versions, force);
-            if (store === this.store) await this.readSettings();
+            if (store === this.store) {
+              await this.readSettings();
+              if (removed) this.restoreImageSyncPreference();
+            }
           },
           reports: async workspaceId => {
             const tasks = this.history();

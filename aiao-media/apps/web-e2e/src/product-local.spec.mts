@@ -372,6 +372,10 @@ test('无任务历史的本机原图可以补传，第二设备先看到缺图�
   const user = await account(),
     png = await pngFixture();
   const files = new Map<string, Buffer>();
+  let releaseVerification!: () => void;
+  const verification = new Promise<void>(resolve => {
+    releaseVerification = resolve;
+  });
   await page.route('**/storage/v1/object/aiao-media-images/**', async route => {
     const request = route.request();
     expect(request.method()).toBe('POST');
@@ -384,6 +388,7 @@ test('无任务历史的本机原图可以补传，第二设备先看到缺图�
     const path = new URL(route.request().url()).pathname.replace('/storage/v1/object/authenticated/', '');
     const bytes = files.get(path);
     expect(bytes).toBeDefined();
+    await verification;
     await route.fulfill({ contentType: 'image/png', body: bytes! });
   });
   const createdAt = new Date().toISOString();
@@ -465,7 +470,17 @@ test('无任务历史的本机原图可以补传，第二设备先看到缺图�
     await selection.getByRole('radio', { name: '已有及以后保存的图片', exact: true }).check();
     await expect(selection).toContainText('本次历史范围：1 张');
     await selection.getByRole('button', { name: '确认并启用图片同步', exact: true }).click();
+    const progress = imageSync.getByRole('progressbar', { name: '当前原图上传分片进度' });
+    await expect(progress).toHaveJSProperty('value', png.length);
+    await expect(progress).toHaveJSProperty('max', png.length);
+    await expect(imageSync).toContainText('已确认 0 字节');
+    await expect(imageSync).toContainText('原图完整性与关联尚未确认');
+    expect((await admin.from('media_file_records').select('status').eq('createdBy', user.id)).data).toEqual([
+      { status: 'pending' }
+    ]);
+    releaseVerification();
     await expect(imageSync).toContainText('已同步 1 张原图');
+    await expect(progress).toHaveCount(0);
     expect(files.size).toBe(1);
     const uploaded = (await admin.from('media_file_records').select('status,path,sha256').eq('createdBy', user.id))
       .data!;
@@ -475,7 +490,68 @@ test('无任务历史的本机原图可以补传，第二设备先看到缺图�
     await card.getByRole('button', { name: '重试取回原图', exact: true }).click();
     await expect(card.getByAltText('本机生成作品')).toBeVisible();
     await verifyImageDownload(second, card, png);
+    await page.getByRole('button', { name: '关闭账号窗口' }).click();
+    await page.getByRole('link', { name: '我的图片', exact: true }).click();
+    const original = page.locator('.library-card').filter({ hasText: job.request.prompt });
+    page.once('dialog', dialog => dialog.accept());
+    await original.getByRole('button', { name: `删除本机图片：${job.request.prompt}`, exact: true }).click();
+    await expect(page.locator('#toast')).toHaveText('已删除本机图片。');
+    await page.getByRole('button', { name: '我的账号', exact: true }).click();
+    await synchronizePage(page);
+    const retained = await admin
+      .from('media_sync_records')
+      .select('sourceId,deleted')
+      .eq('createdBy', user.id)
+      .eq('kind', 'work');
+    expect(retained.error).toBeNull();
+    expect(retained.data).toEqual([{ sourceId: job.id, deleted: false }]);
+    expect((await admin.from('media_file_records').select('status').eq('createdBy', user.id)).data).toEqual([
+      { status: 'uploaded' }
+    ]);
+    expect(files.size).toBe(1);
+    await page.getByRole('button', { name: '关闭账号窗口' }).click();
+    await expect(original.getByText('本机无原图', { exact: true })).toBeVisible();
+    await original.getByRole('button', { name: '取回并保存原图', exact: true }).click();
+    await expect(original.getByAltText('本机生成作品')).toBeVisible();
+    await verifyImageDownload(page, original, png);
+    await expect(card.getByAltText('本机生成作品')).toBeVisible();
+    await page.context().setOffline(true);
+    page.once('dialog', dialog => {
+      expect(dialog.message()).toContain('各设备原图和云端对象都保留');
+      return dialog.accept();
+    });
+    await original.getByRole('button', { name: `从同步图库移除：${job.request.prompt}`, exact: true }).click();
+    await expect(page.locator('#toast')).toContainText('远端尚未确认');
+    await expect(original.getByText('仅本机', { exact: true })).toBeVisible();
+    expect(
+      (await admin.from('media_sync_records').select('deleted').eq('createdBy', user.id).eq('kind', 'work')).data
+    ).toEqual([{ deleted: false }]);
+    await page.context().setOffline(false);
+    await page.reload();
+    await expect
+      .poll(
+        async () =>
+          (await admin.from('media_sync_records').select('deleted').eq('createdBy', user.id).eq('kind', 'work')).data
+      )
+      .toEqual([{ deleted: true }]);
+    await expect(original.getByAltText('本机生成作品')).toBeVisible();
+    await verifyImageDownload(page, original, png);
+    await page.getByRole('button', { name: '我的账号', exact: true }).click();
+    const resumed = page.getByRole('article', { name: '图片原图同步' });
+    await expect(resumed).toContainText('已选 0 张');
+    await resumed.getByRole('button', { name: '重试图片队列', exact: true }).click();
+    expect((await admin.from('media_file_records').select('status').eq('createdBy', user.id)).data).toEqual([
+      { status: 'uploaded' }
+    ]);
+    expect(files.size).toBe(1);
+    await second.getByRole('button', { name: '我的账号', exact: true }).click();
+    await synchronizePage(second);
+    await second.getByRole('button', { name: '关闭账号窗口' }).click();
+    await expect(card.getByText('仅本机', { exact: true })).toBeVisible();
+    await verifyImageDownload(second, card, png);
   } finally {
+    await page.context().setOffline(false);
+    releaseVerification();
     await context.close();
   }
 });

@@ -394,6 +394,12 @@ describe('library ownership presentation', () => {
       button('取消范围确认').click();
       r.text();
       expect(r.element.querySelector('[aria-label="图片同步范围确认"]')).toBeNull();
+      r.component.imageSyncFileProgress.set({ sourceId: 'image-0', uploadedBytes: 5, bytes: 10 });
+      r.text();
+      const progress = r.element.querySelector<HTMLProgressElement>('[aria-label="当前原图上传分片进度"]')!;
+      expect(progress.value).toBe(5);
+      expect(progress.max).toBe(10);
+      expect(r.text()).toContain('原图完整性与关联尚未确认');
     } finally {
       r.session.close();
       if (descriptor) Object.defineProperty(HTMLDialogElement.prototype, 'showModal', descriptor);

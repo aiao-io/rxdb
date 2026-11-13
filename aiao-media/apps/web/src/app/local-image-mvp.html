@@ -621,7 +621,13 @@
                   <p>{{ w.previewStatus === 'loading' ? '正在读取原图…' : '原图按需加载' }}</p>
                 </div>
               }
-              <span class="tag">{{ w.status === 'saved' ? '本机作品' : '文件待恢复' }}</span>
+              <span class="tag">
+                {{
+                  w.status !== 'saved' ? '文件待恢复'
+                  : isSyncedWork(w.jobId) ? '同步图库 · 本机原图'
+                  : '仅本机'
+                }}
+              </span>
             </div>
             <div class="card-caption">
               <div class="card-title work-prompt" [title]="w.prompt">{{ w.prompt }}</div>
@@ -656,13 +662,22 @@
                 </a>
               }
               <button [attr.aria-label]="'复用提示词：' + w.prompt" (click)="reuseWork(w)">复用提示词</button>
+              @if (targetKind() === 'platform' && syncInitialized() && isSyncedWork(w.jobId)) {
+                <button
+                  [attr.aria-label]="'从同步图库移除：' + w.prompt"
+                  [disabled]="settingsBusy()"
+                  (click)="removeSyncedWork(w.jobId, w.prompt)"
+                >
+                  从同步图库移除
+                </button>
+              }
               <button
                 class="danger"
                 [attr.aria-label]="'删除本机图片：' + w.prompt"
                 [disabled]="inFlight() || deletingWork() !== null"
                 (click)="deleteWork(w)"
               >
-                {{ deletingWork() === w.jobId ? '删除中…' : '删除' }}
+                {{ deletingWork() === w.jobId ? '删除中…' : '仅删本机' }}
               </button>
             </div>
           </article>
@@ -742,6 +757,15 @@
                     : download?.status === 'failed' ? '重试取回原图'
                     : '取回并保存原图'
                   }}
+                </button>
+              }
+              @if (targetKind() === 'platform' && syncInitialized()) {
+                <button
+                  [attr.aria-label]="'从同步图库移除：' + work.prompt"
+                  [disabled]="settingsBusy()"
+                  (click)="removeSyncedWork(work.jobId, work.prompt)"
+                >
+                  从同步图库移除
                 </button>
               }
               @if (download) {
@@ -1364,6 +1388,12 @@
               }
               @if (imageSyncProgress()) {
                 <p aria-live="polite">{{ imageSyncProgress() }}</p>
+              }
+              @if (imageSyncFileProgress(); as file) {
+                <progress [max]="file.bytes" [value]="file.uploadedBytes" aria-label="当前原图上传分片进度"></progress>
+                <p aria-live="polite">
+                  当前原图已接收 {{ file.uploadedBytes }} / {{ file.bytes }} 字节；原图完整性与关联尚未确认。
+                </p>
               }
               @if (imageSyncEnabled()) {
                 <button

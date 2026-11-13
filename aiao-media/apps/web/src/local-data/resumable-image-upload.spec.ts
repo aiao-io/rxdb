@@ -38,6 +38,45 @@ function complete(offset: number, length = bytes.length) {
 }
 
 describe('持久 TUS 图片会话', () => {
+  it('只在服务端 offset 核对且日志落盘后报告分片进度', async () => {
+    const store = journal();
+    const progress = vi.fn((offset: number) => expect(JSON.parse(store.row!.payload).offset).toBe(offset));
+    const request = vi.fn(async (_url: string, init: RequestInit) =>
+      init.method === 'POST' ?
+        new Response(null, { status: 201, headers: { location: `${endpoint}/progress` } })
+      : complete(Number(new Headers(init.headers).get('upload-offset')) + (init.body as ArrayBuffer).byteLength)
+    );
+    await uploadImageChunks(store, endpoint, path, bytes, 'image/png', request, progress);
+    expect(progress.mock.calls.map(([offset]) => offset)).toEqual([0, 6 * 1024 * 1024, bytes.length]);
+  });
+  it('重开先报告 HEAD 核对的字节数，错误分片不增加进度', async () => {
+    const store = await interrupted();
+    const progress = vi.fn();
+    const request = vi.fn(async (_url: string, init: RequestInit) =>
+      complete(init.method === 'HEAD' ? 6 * 1024 * 1024 : bytes.length - 1)
+    );
+    await expect(uploadImageChunks(store, endpoint, path, bytes, 'image/png', request, progress)).rejects.toThrow(
+      '进度不一致'
+    );
+    expect(progress).toHaveBeenCalledExactlyOnceWith(6 * 1024 * 1024);
+  });
+  it('未能保存续传日志时不显示未经持久确认的进度', async () => {
+    const store = journal();
+    store.savePreference.mockRejectedValue(new Error('设备只读'));
+    const progress = vi.fn();
+    await expect(
+      uploadImageChunks(
+        store,
+        endpoint,
+        path,
+        bytes,
+        'image/png',
+        async () => new Response(null, { status: 201, headers: { location: `${endpoint}/progress` } }),
+        progress
+      )
+    ).rejects.toThrow('设备只读');
+    expect(progress).not.toHaveBeenCalled();
+  });
   it.each([404, 410])('会话已过期（%s）时只重建当前文件，不沿用旧 offset', async status => {
     const store = await interrupted();
     const request = vi.fn(async (_url: string, init: RequestInit) => {

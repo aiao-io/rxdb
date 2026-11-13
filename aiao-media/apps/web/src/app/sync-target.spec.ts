@@ -72,11 +72,24 @@ describe('同步目标', () => {
         privateBucket: 'aiao-media-images',
         maxBytes: 16777216,
         resumable: true,
+        lifecycle: 1,
         metadataOnly: false
       })
     );
     await verifyImageSyncTarget({ config, userId: 'user', session: { access_token: 'session' } } as never, request);
     expect(request).toHaveBeenCalledWith(`${config.url}/rest/v1/rpc/media_file_capabilities`, expect.any(Object));
+    request.mockResolvedValueOnce(
+      Response.json({
+        protocol: 1,
+        privateBucket: 'aiao-media-images',
+        maxBytes: 16777216,
+        resumable: true,
+        metadataOnly: false
+      })
+    );
+    await expect(
+      verifyImageSyncTarget({ config, session: { access_token: 'session' } } as never, request)
+    ).rejects.toThrow('不兼容');
     request.mockResolvedValueOnce(
       Response.json({ protocol: 1, privateBucket: 'public', maxBytes: 16777216, resumable: true, metadataOnly: false })
     );

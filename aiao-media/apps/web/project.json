@@ -517,6 +517,15 @@
         "cwd": "aiao-media/apps/web"
       }
     },
+    "image-lifecycle-test": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["supabase-migrate"],
+      "cache": false,
+      "options": {
+        "cwd": "aiao-media",
+        "command": "node scripts/product/test-image-lifecycle-local.mjs"
+      }
+    },
     "product-test": {
       "executor": "nx:run-commands",
       "options": {

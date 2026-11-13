@@ -69,7 +69,8 @@ export async function uploadImageChunks(
   path: string,
   bytes: Uint8Array,
   mimeType: ImageMimeType,
-  request: Request
+  request: Request,
+  progress: (offset: number) => void = () => undefined
 ): Promise<void> {
   const identity = new TextEncoder().encode(JSON.stringify([endpoint, path]));
   const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', identity))]
@@ -116,6 +117,7 @@ export async function uploadImageChunks(
     session = { version: 1, ...file, location: sessionLocation(location, endpoint), offset: 0 };
     await persist(session);
   }
+  progress(session.offset);
   while (session.offset < bytes.byteLength) {
     const end = Math.min(bytes.byteLength, session.offset + IMAGE_UPLOAD_CHUNK_BYTES);
     const response = await request(session.location, {
@@ -131,5 +133,6 @@ export async function uploadImageChunks(
     if (serverOffset(response, bytes.byteLength) !== end) throw new Error('远端续传分片进度不一致；未确认上传完成。');
     session.offset = end;
     await persist(session);
+    progress(session.offset);
   }
 }
