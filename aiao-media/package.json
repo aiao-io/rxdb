@@ -1,0 +1,9 @@
+{
+  "name": "@aiao-media/product",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "yaml": "2.9.0"
+  }
+}

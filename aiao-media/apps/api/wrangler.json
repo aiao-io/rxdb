@@ -1,0 +1,90 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "assets": {
+    "directory": "../web/dist/browser",
+    "binding": "ASSETS",
+    "html_handling": "none",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/", "/create", "/images", "/providers", "/api/*", "/admin", "/admin/*"]
+  },
+  "compatibility_date": "2026-10-23",
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "MEDIA_INSTALLATION",
+        "class_name": "Installation"
+      },
+      {
+        "name": "MEDIA_PLATFORM",
+        "class_name": "PlatformCoordinator"
+      },
+      {
+        "name": "RELAY_TASKS",
+        "class_name": "RelayTask"
+      }
+    ]
+  },
+  "env": {
+    "local-first": {
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "MEDIA_PLATFORM",
+            "class_name": "PlatformCoordinator"
+          },
+          {
+            "name": "RELAY_TASKS",
+            "class_name": "RelayTask"
+          }
+        ]
+      },
+      "r2_buckets": [
+        {
+          "binding": "RELAY_RESULTS",
+          "bucket_name": "aiao-media-relay-results"
+        }
+      ],
+      "vars": {
+        "ALLOWED_PROVIDER_BASE_URLS": "[\"https://api.pengdevs.com\"]",
+        "MEDIA_ALLOW_DESKTOP_ORIGIN": "true"
+      },
+      "routes": []
+    }
+  },
+  "main": "src/local-first-worker.ts",
+  "migrations": [
+    {
+      "tag": "media-platform-v1",
+      "new_sqlite_classes": ["PlatformCoordinator"]
+    },
+    {
+      "tag": "media-relay-v1",
+      "new_sqlite_classes": ["RelayTask"]
+    },
+    {
+      "tag": "media-installation-v1",
+      "new_sqlite_classes": ["Installation"]
+    }
+  ],
+  "name": "aiao-media",
+  "observability": {
+    "enabled": false
+  },
+  "r2_buckets": [
+    {
+      "binding": "RELAY_RESULTS",
+      "bucket_name": "aiao-media-relay-results"
+    }
+  ],
+  "routes": [
+    {
+      "pattern": "media.aiao.io",
+      "custom_domain": true
+    }
+  ],
+  "vars": {
+    "ALLOWED_PROVIDER_BASE_URLS": "[\"https://api.pengdevs.com\"]",
+    "MEDIA_ALLOW_DESKTOP_ORIGIN": "true"
+  },
+  "workers_dev": true
+}

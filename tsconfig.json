@@ -311,6 +311,18 @@
     },
     {
       "path": "./aiao-model-design/packages/model-ops"
+    },
+    {
+      "path": "./aiao-media/packages/domain"
+    },
+    {
+      "path": "./aiao-media/packages/api-contracts"
+    },
+    {
+      "path": "./aiao-media/apps/api"
+    },
+    {
+      "path": "./aiao-media/apps/desktop"
     }
   ]
 }

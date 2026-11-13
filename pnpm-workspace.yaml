@@ -4,6 +4,9 @@ packages:
   # 产品根目录（多个 Nx 应用组成一个产品，见 requirements/application-governance.md）
   - 'aiao-model-design/apps/*'
   - 'aiao-model-design/packages/*'
+  - 'aiao-media'
+  - 'aiao-media/apps/*'
+  - 'aiao-media/packages/*'
   # modules/ 其余成员只靠 tsconfig paths 被消费，不必进 workspace；wujie 与 recipes-domain 是例外：
   # wujie 给 Docusaurus 的 webpack 走 node_modules 软链；recipes-domain 给 dev-rxdb-http-server
   # 的 Node 类型剥离直跑（`node src/main.ts` 不认 tsconfig paths，只能顺着 node_modules 找 dist）。
@@ -57,6 +60,7 @@ overrides:
   '@angular/platform-browser': 22.2.4
   '@codemirror/language': ^6.13.1
   '@codemirror/state': ^6.7.6
+  '@codecov/bundler-plugin-core>zod': 4.6.6
   '@codemirror/view': ^6.43.14
   '@jimp/core>mkdirp': ^0.5.6
   '@jimp/core>phin': ^3.7.1
@@ -81,6 +85,7 @@ overrides:
   dev-rxdb-miniprogram>react-dom: ^18.3.1
   dompurify@3: ^3.4.16
   fast-uri@3: ^3.1.8
+  follow-redirects: ^1.16.2
   geojson-flatten>minimist: ^1.2.8
   handlebars@4: ^4.7.10
   image-size@2: ^2.0.3
@@ -90,6 +95,7 @@ overrides:
   lodash-es: ^4.18.1
   postcss-selector-parser@6: ^7.1.6
   postman-collection>uuid: ^11.1.1
+  query-string>decode-uri-component: 0.5.1
   proxy-addr@2: ^2.0.8
   qs: ^6.16.0
   react: ^19.3.0

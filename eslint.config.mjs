@@ -26,8 +26,6 @@ export default [
       '**/playwright-report',
       '**/build',
       '**/.react-router',
-      // 测试期临时目录（`compileGeneratedRuntime` 用 mkdtemp 建在包根下），
-      // 与 lint 并发时会被删掉，eslint 扫到一半报 ENOENT 直接崩。
       '**/.tmp-generated-runtime-*'
     ]
   },
@@ -69,6 +67,19 @@ export default [
               ]
             }
           ]
+        }
+      ]
+    }
+  },
+  {
+    files: ['packages/**/*.{ts,tsx,js,mjs}', 'modules/**/*.{ts,tsx,js,mjs}'],
+    rules: {
+      '@nx/enforce-module-boundaries': [
+        'error',
+        {
+          enforceBuildableLibDependency: true,
+          allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'],
+          depConstraints: [{ sourceTag: '*', notDependOnLibsWithTags: ['product:media'] }]
         }
       ]
     }

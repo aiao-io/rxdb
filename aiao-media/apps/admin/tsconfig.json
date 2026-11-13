@@ -1,0 +1,33 @@
+{
+  "angularCompilerOptions": {
+    "enableI18nLegacyMessageIdFormat": false,
+    "strictInjectionParameters": true,
+    "strictInputAccessModifiers": true,
+    "strictTemplates": true
+  },
+  "compilerOptions": {
+    "noPropertyAccessFromIndexSignature": true,
+    "target": "es2022",
+    "moduleResolution": "bundler",
+    "module": "preserve",
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "emitDeclarationOnly": false,
+    "allowJs": false,
+    "rootDir": "../../../",
+    "allowImportingTsExtensions": true,
+    "noEmit": true
+  },
+  "extends": "../../../tsconfig.base.json",
+  "files": [],
+  "include": [],
+  "references": [
+    {
+      "path": "./tsconfig.app.json"
+    },
+    {
+      "path": "./tsconfig.spec.json"
+    }
+  ]
+}

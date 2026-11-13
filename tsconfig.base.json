@@ -137,7 +137,9 @@
       "@aiao/rxdb-admin/testing": ["./packages/rxdb-admin/src/testing.ts"],
       "@aiao/rxdb-admin-angular": ["./packages/rxdb-admin-angular/src/index.ts"],
       "@aiao/rxdb-admin-react": ["./packages/rxdb-admin-react/src/index.ts"],
-      "@aiao/rxdb-admin-vue": ["./packages/rxdb-admin-vue/src/index.ts"]
+      "@aiao/rxdb-admin-vue": ["./packages/rxdb-admin-vue/src/index.ts"],
+      "@aiao-media/api-contracts": ["./aiao-media/packages/api-contracts/src/index.ts"],
+      "@aiao-media/domain": ["./aiao-media/packages/domain/src/index.ts"]
     },
     "resolveJsonModule": true,
     "skipDefaultLibCheck": true,

@@ -1,0 +1,95 @@
+{
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "name": "aiao-media-api",
+  "projectType": "application",
+  "sourceRoot": "aiao-media/apps/api/src",
+  "tags": ["scope:aiao-media", "type:app", "runtime:worker"],
+  "targets": {
+    "build-node": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build"],
+      "outputs": ["{projectRoot}/dist-node"],
+      "options": {
+        "cwd": "aiao-media/apps/api",
+        "command": "node scripts/build-node.mjs"
+      }
+    },
+    "dev": {
+      "executor": "nx:run-commands",
+      "continuous": true,
+      "cache": false,
+      "dependsOn": ["^build", "aiao-media:dev-ports", "aiao-media:dev-config"],
+      "readyWhen": {
+        "url": "http://127.0.0.1:8787/api/templates"
+      },
+      "options": {
+        "cwd": "aiao-media/apps/api",
+        "command": "pnpm exec wrangler dev --config .wrangler/local-dev/wrangler.json --local --ip 127.0.0.1 --port 8787 --show-interactive-dev-session false"
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{projectRoot}/dist"],
+      "options": {
+        "cwd": "aiao-media/apps/api",
+        "command": "tsc -p tsconfig.json"
+      },
+      "dependsOn": ["^build"]
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "aiao-media/apps/api",
+        "command": "tsc --noEmit -p tsconfig.json"
+      },
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-media/apps/api",
+        "command": "node --test src/*.test.ts"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "aiao-media/apps/api",
+        "command": "eslint src --max-warnings=0"
+      }
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "aiao-media/apps/api",
+        "command": "pnpm exec wrangler dev --config wrangler.json --local --port 8787 --show-interactive-dev-session false"
+      }
+    },
+    "deploy-check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-media/apps/api",
+        "command": "pnpm exec wrangler deploy --config wrangler.json --dry-run"
+      }
+    },
+    "relay-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-media/apps/api",
+        "command": "eslint src/local-first-worker.ts src/relay-input.ts src/relay-task.ts src/relay-task-api.ts scripts/local-first-worker.test.mjs scripts/relay-task.test.mjs scripts/cloudflare-stand-ins.mjs && node --test scripts/local-first-worker.test.mjs scripts/relay-task.test.mjs"
+      }
+    },
+    "script-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-media/apps/api",
+        "command": "eslint src scripts/*.mjs --max-warnings=0 && node --test scripts/*.test.mjs"
+      }
+    }
+  }
+}
