@@ -144,7 +144,15 @@ export const applicationsUpgrade = {
     await page.locator('#dock .di[data-app="finder"]').click();
     const last = helpers.win('finder').last();
     await last.locator('[data-place="Applications"]').click();
-    await last.locator('.fitem[data-name$=".app"]').first().waitFor();
+    try {
+      await last.locator('.fitem[data-name$=".app"]').first().waitFor({ timeout: 8000 });
+    } catch (error) {
+      await page.screenshot({ path: 'tmp/ad/upgrade-debug.png' });
+      console.error('DEBUG items', await last.locator('.fitem').evaluateAll(nodes => nodes.map(node => node.dataset.name)));
+      console.error('DEBUG title', await last.locator('[data-title]').textContent());
+      console.error('DEBUG note', await last.locator('[data-finder-note]').textContent().catch(() => null));
+      throw error;
+    }
     const packagesAfter = await last.locator('.fitem').evaluateAll(nodes => nodes.map(node => node.dataset.name));
     /* 重开后包的集合只多出 Clock.app，没有任何重复（对账幂等）。 */
     result.reloadDoesNotRewrite =
