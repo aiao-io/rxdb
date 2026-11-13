@@ -23,6 +23,32 @@
         "command": "node src/smoke.mjs"
       }
     },
+    "e2e-fixtures": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        {
+          "projects": ["aiao-desktop-web"],
+          "target": "build"
+        },
+        {
+          "projects": ["orbit"],
+          "target": "build"
+        }
+      ],
+      "options": {
+        "cwd": "aiao-desktop/apps/e2e",
+        "command": "node src/smoke.mjs --group=fixtures"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [],
+      "options": {
+        "cwd": "aiao-desktop/apps/e2e",
+        "command": "node --test \"src/**/*.spec.mjs\""
+      }
+    },
     "lint": {
       "executor": "nx:run-commands",
       "options": {
@@ -42,6 +68,20 @@
       "options": {
         "cwd": "aiao-desktop/apps/e2e",
         "command": "node src/verify-aiao-code.mjs"
+      }
+    },
+    "verify-saltline": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [
+        {
+          "projects": ["aiao-desktop-web"],
+          "target": "build"
+        }
+      ],
+      "options": {
+        "cwd": "aiao-desktop/apps/e2e",
+        "command": "node src/verify-saltline.mjs"
       }
     }
   }

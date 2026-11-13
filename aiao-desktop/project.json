@@ -46,7 +46,17 @@
     },
     "test": {
       "executor": "nx:noop",
-      "dependsOn": ["requirements-check", "requirements-test", "security-test", "dev-test", "deploy-test"]
+      "dependsOn": [
+        "requirements-check",
+        "requirements-test",
+        "security-test",
+        "dev-test",
+        "deploy-test",
+        {
+          "projects": ["aiao-desktop-e2e"],
+          "target": "test"
+        }
+      ]
     },
     "verify": {
       "executor": "nx:noop",
@@ -63,6 +73,10 @@
           "target": "lint"
         },
         {
+          "projects": ["aiao-desktop-e2e"],
+          "target": "test"
+        },
+        {
           "projects": ["aiao-desktop-web"],
           "target": "typecheck"
         },
@@ -77,6 +91,10 @@
         {
           "projects": ["aiao-desktop-e2e"],
           "target": "e2e"
+        },
+        {
+          "projects": ["aiao-desktop-e2e"],
+          "target": "e2e-fixtures"
         }
       ]
     },
