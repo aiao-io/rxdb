@@ -39,14 +39,13 @@ const devtoolsBundled = productionScripts.filter(file =>
 );
 if (devtoolsBundled.length > 0) throw new Error(`生产构建包含 RxDB DevTools：${devtoolsBundled.join(', ')}`);
 
-const desktop = await startDesktopServer({ root });
 const browser = await launchEngine(options.engine, { headless: !options.headed });
 const startedAt = performance.now();
 try {
   const { outcomes, checks } = await runGroups({
     groups: selected,
     browser,
-    origin: desktop.origin,
+    serve: () => startDesktopServer({ root }),
     distRoot: root,
     engine: options.engine,
     parallel: options.parallel,
@@ -72,5 +71,4 @@ try {
   }
 } finally {
   await browser.close();
-  desktop.close();
 }

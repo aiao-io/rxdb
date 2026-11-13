@@ -26,7 +26,7 @@ export const shell = {
   ],
   async run(session) {
     const { page } = session;
-    const { win, closeAll, shows, disappears, spotlight } = session.helpers;
+    const { win, closeAll, shows, appears, disappears, spotlight } = session.helpers;
     await session.openDesktop();
 
     const shellState = await page.evaluate(() => ({
@@ -103,7 +103,8 @@ export const shell = {
     await closeAll();
     await page.locator('#dock .di[data-app="notes"]').click();
     await win('notes').waitFor();
-    const notesWorks = (await win('notes').locator('input').count()) > 0;
+    /* 应用按需加载：窗口外框先出现，组件随后才渲染出来，等输入框出现而不是数一次。 */
+    const notesWorks = await appears(win('notes').locator('input').first(), 10_000);
 
     return {
       shell: shellState,

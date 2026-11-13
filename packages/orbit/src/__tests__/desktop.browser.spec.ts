@@ -1,6 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { DesktopAppearance, DesktopCapability, DesktopHost, DesktopMenu, DesktopWindowState } from '../desktop.js';
-import { DesktopError, desktopProps, serveDesktop } from '../desktop.js';
+import type {
+  DesktopAppearance,
+  DesktopCapability,
+  DesktopHost,
+  DesktopInteraction,
+  DesktopMenu,
+  DesktopOpenedFile,
+  DesktopWindowState
+} from '../desktop.js';
+import { DESKTOP_LIMITS, DesktopError, desktopProps, serveDesktop } from '../desktop.js';
 import type { OrbitInstance, OrbitValue } from '../index.js';
 import { createOrbit } from '../index.js';
 
@@ -57,10 +65,31 @@ function recordingHost() {
       get: note('appearance.get', look),
       set: note('appearance.set'),
       onChange: subscribe(listeners.appearance)
+    },
+    notification: { post: note('notification.post', { id: 'n-1' }) },
+    clipboard: { readText: note('clipboard.readText', 'pasted'), writeText: note('clipboard.writeText') },
+    filesystem: {
+      open: options => {
+        calls.push(['filesystem.open', options]);
+        return opened;
+      },
+      save: request => {
+        calls.push(['filesystem.save', request]);
+        return { name: 'notes.md', version: '1731000000500:5', handle: 'handle-1' };
+      }
     }
   };
   return { host, calls, listeners };
 }
+
+const opened: DesktopOpenedFile = {
+  name: 'notes.md',
+  mime: 'text/markdown',
+  size: 5,
+  bytes: new Uint8Array([104, 101, 108, 108, 111]),
+  handle: 'handle-1',
+  version: '1731000000000:5'
+};
 
 async function mount(capabilities: readonly DesktopCapability[]) {
   const runtime = createOrbit({ onError: vi.fn() });
@@ -83,7 +112,8 @@ async function mount(capabilities: readonly DesktopCapability[]) {
   const onError = vi.fn();
   const server = serveDesktop(instance, hosted.host, { capabilities, onError });
   await instance.mount(container);
-  const ask = (action: string, args?: OrbitValue) => instance.request('desktop', { action, args: args ?? null });
+  const ask = (action: string, args?: OrbitValue, timeout?: number) =>
+    instance.request('desktop', { action, args: args ?? null }, timeout === undefined ? {} : { timeout });
   return { instance, server, onError, ask, runtime, ...hosted };
 }
 
@@ -158,6 +188,74 @@ describe('桌面能力协议（真实 iframe 与端口）', () => {
       window.dispatchEvent(new MessageEvent('message', { data, source: window, origin: location.origin }));
     await new Promise(resolve => setTimeout(resolve, 50));
     expect(calls).toEqual([]);
+  });
+
+  it('通知与剪贴板经真实端口：参数原样到宿主，回执与文本回到应用', async () => {
+    const { ask, calls } = await mount(['notification', 'clipboard:read', 'clipboard:write']);
+    expect(await ask('notification.post', { title: '构建完成', body: 'main 通过', dedupeKey: 'ci' })).toEqual({
+      ok: true,
+      value: { id: 'n-1' }
+    });
+    expect(await ask('clipboard.readText')).toEqual({ ok: true, value: 'pasted' });
+    expect(await ask('clipboard.writeText', 'hello')).toEqual({ ok: true, value: null });
+    expect(await ask('notification.post', { title: '', body: 'x' })).toMatchObject({
+      ok: false,
+      code: 'INVALID_ARGUMENT'
+    });
+    expect(calls).toEqual([
+      ['notification.post', { title: '构建完成', body: 'main 通过', dedupeKey: 'ci' }],
+      ['clipboard.readText'],
+      ['clipboard.writeText', 'hello']
+    ]);
+  });
+
+  it('文件经真实端口：打开先应答「已受理」，内容经完成事件到达（字节往返）；保存带凭证直接应答', async () => {
+    const { ask, calls, onError } = await mount(['filesystem:read', 'filesystem:write']);
+    expect(await ask('filesystem.open', { accept: ['.md'] })).toEqual({
+      ok: true,
+      value: { ...opened, bytes: [104, 101, 108, 108, 111] }
+    });
+    const bytes = [1, 2, 3, 255];
+    expect(await ask('filesystem.save', { handle: 'handle-1', suggestedName: 'notes.md', bytes })).toMatchObject({
+      ok: true,
+      value: { name: 'notes.md', handle: 'handle-1' }
+    });
+    expect(
+      await ask('filesystem.save', { suggestedName: 'x', bytes: 'not bytes' as unknown as OrbitValue })
+    ).toMatchObject({
+      ok: false,
+      code: 'INVALID_ARGUMENT'
+    });
+    expect(calls).toEqual([
+      ['filesystem.open', { accept: ['.md'] }],
+      ['filesystem.save', { handle: 'handle-1', suggestedName: 'notes.md', bytes: Uint8Array.from(bytes) }]
+    ]);
+    expect(onError).toHaveBeenCalledTimes(1);
+  });
+
+  it('用户在面板里停留的时间没有时限：超过应用等应答的兜底时限（callTimeoutMs）仍然成功，不会被 RPC 层的超时打断', async () => {
+    const { ask, host } = await mount(['filesystem:read']);
+    let choose!: () => void;
+    const chosen = new Promise<void>(resolve => (choose = resolve));
+    vi.spyOn(host.filesystem, 'open').mockImplementation(async (_options, interaction?: DesktopInteraction) => {
+      await interaction!.waitForUser(chosen);
+      return opened;
+    });
+    /* 测试自己问应用的这一问也要放宽时限（默认 5 秒），被测的是应用调桌面能力的那一段。 */
+    const result = ask('filesystem.open', undefined, 30_000);
+    await new Promise(resolve => setTimeout(resolve, DESKTOP_LIMITS.callTimeoutMs + 500));
+    choose();
+    expect(await result).toEqual({ ok: true, value: { ...opened, bytes: [104, 101, 108, 108, 111] } });
+  }, 20_000);
+
+  it('用户取消与窗口关闭这类稳定错误码经完成事件回到应用，同时通知桌面', async () => {
+    const { ask, host, onError } = await mount(['filesystem:read']);
+    vi.spyOn(host.filesystem, 'open').mockRejectedValueOnce(new DesktopError('USER_CANCELLED', '用户取消'));
+    expect(await ask('filesystem.open')).toEqual({ ok: false, code: 'USER_CANCELLED', message: '用户取消' });
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ code: 'USER_CANCELLED' }), 'filesystem.open');
+    vi.spyOn(host.filesystem, 'open').mockRejectedValueOnce(new Error('宿主出错'));
+    /* 宿主自己的程序错误不冒充任何能力错误码：应用收到的是处理失败（HANDLER_ERROR）。 */
+    await expect(ask('filesystem.open')).rejects.toMatchObject({ code: 'HANDLER_ERROR', message: '宿主出错' });
   });
 
   it('实例销毁后自动解绑：宿主的订阅取消，宿主再触发事件也不会推给已结束的实例', async () => {

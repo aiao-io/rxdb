@@ -16,6 +16,10 @@ const IGNORED_CONSOLE =
  * 引擎的临时（非持久）浏览器上下文有没有 OPFS。WebKit 的临时上下文等同于 Safari 的隐私浏览：
  * `navigator.storage.getDirectory()` 直接抛 `UnknownError`，本地库根本打不开，所以 WebKit 用持久 profile 跑冒烟。
  * （桌面在隐私浏览里会显示「Local storage is unavailable」，这是明确的不支持提示。）
+ *
+ * 注意：Playwright 的 WebKit 持久上下文即使 `userDataDir` 不同，**同一来源的 OPFS 也是共享的**（实测：一个上下文写的
+ * OPFS 文件另一个上下文读得到，localStorage 却是隔离的）。所以检查组之间的隔离靠「每个检查组各起一个桌面服务器、
+ * 各用各的来源」（见 `runner.mjs`），不能指望 profile 目录隔离。
  */
 const EPHEMERAL_CONTEXT_HAS_OPFS = Object.freeze({ chromium: true, firefox: true, webkit: false });
 

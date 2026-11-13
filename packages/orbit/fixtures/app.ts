@@ -123,11 +123,19 @@ if (client) {
       const { method, body } = args as { method: string; body: OrbitValue };
       return { ok: true, value: await client.request(method, body) };
     }
-    const area = action.split('.')[0] as 'window' | 'menu' | 'app' | 'appearance';
-    const calls = desktop[area] as unknown as Record<string, (value?: unknown) => Promise<OrbitValue>>;
+    const area = action.split('.')[0] as
+      'window' | 'menu' | 'app' | 'appearance' | 'notification' | 'clipboard' | 'filesystem';
+    const calls = desktop[area] as unknown as Record<string, (value?: unknown) => Promise<unknown>>;
     try {
-      const value = await calls[action.split('.')[1]!]!(args);
-      return { ok: true, value: value ?? null };
+      /* 字节数组不是 JSON：测试页面用数字数组表示，这里转成真正的 Uint8Array 再调，结果里的字节数组再转回数字数组。 */
+      const bytes = (args as { bytes?: unknown } | null)?.bytes;
+      const input = Array.isArray(bytes) ? { ...(args as object), bytes: Uint8Array.from(bytes as number[]) } : args;
+      const value = await calls[action.split('.')[1]!]!(input);
+      const output =
+        value && typeof value === 'object' && (value as { bytes?: unknown }).bytes instanceof Uint8Array ?
+          { ...value, bytes: Array.from((value as { bytes: Uint8Array }).bytes) }
+        : value;
+      return { ok: true, value: (output ?? null) as OrbitValue };
     } catch (error) {
       if (error instanceof DesktopError) return { ok: false, code: error.code, message: error.message };
       throw error;

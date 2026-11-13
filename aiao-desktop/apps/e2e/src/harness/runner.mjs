@@ -24,10 +24,16 @@ function describeError(error) {
  * 检查组抛错、缺检查项、多出未声明的检查项、检查项没通过、出现页面错误，都记为 `problems`。
  *
  * @param {object} group 检查组：`{ name, keys, run(session), standins?, context?, timeout? }`（`context` 是该组要求的浏览器上下文选项，例如窄屏视口与触屏）
- * @param {{ browser: import('playwright').Browser, origin: string, engine?: string }} environment
+ * 每个检查组默认有自己的桌面服务器（`serve`，各自的端口 = 各自的来源）：浏览器按来源隔离站点数据，
+ * 所以检查组之间互不可见。这对 WebKit 尤其要紧——Playwright 的 WebKit 持久上下文即使用不同的 `userDataDir`，
+ * 同一来源的 OPFS 也是共享的（实测），共用一个来源时并行的检查组会同时打开同一个库，顺序执行的检查组会看到上一组留下的库。
+ * 给定固定的 `origin` 时（夹具自检要让两次运行共享来源）不另起服务器。
+ *
+ * @param {{ browser: import('playwright').Browser, origin?: string, serve?: () => Promise<{ origin: string, close: () => void }>, distRoot?: string, engine?: string }} environment
  */
-export async function runGroup(group, { browser, origin, distRoot, engine = 'chromium' }) {
+export async function runGroup(group, { browser, origin, serve, distRoot, engine = 'chromium' }) {
   const startedAt = performance.now();
+  const server = serve ? await serve() : null;
   const outcome = {
     group: group.name,
     result: {},
@@ -42,7 +48,7 @@ export async function runGroup(group, { browser, origin, distRoot, engine = 'chr
   };
   const session = await createSession({
     browser,
-    origin,
+    origin: server?.origin ?? origin,
     distRoot,
     engine,
     label: group.name,
@@ -68,6 +74,7 @@ export async function runGroup(group, { browser, origin, distRoot, engine = 'chr
     outcome.pageErrors.push(...session.errors);
     if (session.errors.length) outcome.problems.push(`页面错误：${session.errors.join(' | ')}`);
     await session.close().catch(() => undefined);
+    server?.close();
     outcome.seconds = (performance.now() - startedAt) / 1000;
   }
   return outcome;
@@ -83,20 +90,21 @@ export async function runGroup(group, { browser, origin, distRoot, engine = 'chr
  * @param {object} options
  * @param {readonly object[]} options.groups
  * @param {import('playwright').Browser} options.browser
- * @param {string} options.origin
+ * @param {string} [options.origin] 固定来源（与 `serve` 二选一）
+ * @param {() => Promise<{ origin: string, close: () => void }>} [options.serve] 每个检查组各起一个桌面服务器
  * @param {string} [options.distRoot] 被测产物的目录
  * @param {string} [options.engine]
  * @param {number} [options.parallel] 同时跑几个检查组，默认 1
  * @param {(outcome: object) => void} [options.onFinish] 每个检查组结束时回调
  */
-export async function runGroups({ groups, browser, origin, distRoot, engine, parallel = 1, onFinish }) {
+export async function runGroups({ groups, browser, origin, serve, distRoot, engine, parallel = 1, onFinish }) {
   const outcomes = new Array(groups.length);
   const byWeight = (a, b) => (groups[b].weight ?? 0) - (groups[a].weight ?? 0);
   const indexes = groups.map((_, index) => index);
   const shared = indexes.filter(index => !groups[index].exclusive).sort(byWeight);
   const exclusive = indexes.filter(index => groups[index].exclusive).sort(byWeight);
   const execute = async index => {
-    outcomes[index] = await runGroup(groups[index], { browser, origin, distRoot, engine });
+    outcomes[index] = await runGroup(groups[index], { browser, origin, serve, distRoot, engine });
     onFinish?.(outcomes[index]);
   };
   const pool = async (queue, size) => {

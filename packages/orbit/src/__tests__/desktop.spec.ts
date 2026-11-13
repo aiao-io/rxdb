@@ -5,8 +5,11 @@ import type {
   DesktopAppearancePatch,
   DesktopCapability,
   DesktopHost,
+  DesktopInteraction,
   DesktopMenu,
   DesktopMethod,
+  DesktopOpenedFile,
+  DesktopSavedFile,
   DesktopWindowState
 } from '../desktop.js';
 import {
@@ -73,9 +76,14 @@ function connect(props: Record<string, OrbitValue> = desktopProps(IMPLEMENTED), 
   } as unknown as OrbitInstance;
   /** 下一次请求在 RPC 层失败（模拟超时、连接已销毁等）。 */
   let failure: OrbitError | undefined;
+  const disposeHandlers = new Set<() => void>();
   const client = {
     context: { props, instanceId },
     bus,
+    onDispose(handler: () => void) {
+      disposeHandlers.add(handler);
+      return () => disposeHandlers.delete(handler);
+    },
     async request(method: string, payload: OrbitValue = null) {
       if (failure) {
         const error = failure;
@@ -104,9 +112,23 @@ function connect(props: Record<string, OrbitValue> = desktopProps(IMPLEMENTED), 
     },
     failNext(error: OrbitError) {
       failure = error;
+    },
+    /** 应用这一侧的连接断开（窗口关闭、实例销毁）：通知应用侧登记的断开处理函数。 */
+    disposeClient() {
+      for (const handler of [...disposeHandlers]) handler();
     }
   };
 }
+
+const opened: DesktopOpenedFile = {
+  name: 'notes.md',
+  mime: 'text/markdown',
+  size: 3,
+  bytes: new Uint8Array([104, 105, 33]),
+  handle: 'handle-1',
+  version: '1731000000000:3'
+};
+const saved: DesktopSavedFile = { name: 'notes.md', version: '1731000000500:5', handle: 'handle-1' };
 
 /** 记录调用、可注入失败的宿主；事件监听器留在集合里，便于触发与检查解绑。 */
 function fakeHost() {
@@ -122,6 +144,12 @@ function fakeHost() {
       if (control.fail) throw control.fail;
       return control.hang ? new Promise<never>(() => undefined) : (result as never);
     };
+  /** 文件能力的第二个参数是计时控制，不是业务参数：调用记录里只留业务参数，计时控制另存。 */
+  const interactions: (DesktopInteraction | undefined)[] = [];
+  const recordFile = (name: string, result: unknown) => (args: unknown, interaction?: DesktopInteraction) => {
+    interactions.push(interaction);
+    return record(name, result)(args);
+  };
   const host: DesktopHost = {
     window: {
       getState: record('window.getState', windowState),
@@ -152,13 +180,22 @@ function fakeHost() {
         appearanceListeners.add(listener);
         return () => appearanceListeners.delete(listener);
       }
+    },
+    notification: { post: record('notification.post', { id: 'n1' }) },
+    clipboard: { readText: record('clipboard.readText', 'from clipboard'), writeText: record('clipboard.writeText') },
+    filesystem: {
+      open: recordFile('filesystem.open', opened),
+      save: recordFile('filesystem.save', saved)
     }
   };
-  return { host, calls, control, stateListeners, commandListeners, appearanceListeners };
+  return { host, calls, control, interactions, stateListeners, commandListeners, appearanceListeners };
 }
 
-/** 第一批已实现的能力，阶段 D 的先声明不实现。 */
+/** 第一批能力：窗口、菜单、应用、外观。多数用例只关心它们。 */
 const IMPLEMENTED: readonly DesktopCapability[] = ['window', 'menu', 'app', 'appearance', 'appearance:write'];
+
+/** 清单里可以声明的全部能力。 */
+const EVERYTHING: readonly DesktopCapability[] = [...DESKTOP_CAPABILITIES];
 
 function setup(capabilities: readonly DesktopCapability[] = IMPLEMENTED) {
   const link = connect(desktopProps(capabilities));
@@ -178,7 +215,7 @@ const sections: readonly DesktopMenu[] = [
 ];
 
 describe('能力契约的协议常量', () => {
-  it('能力名取值全集：第一批能力，阶段 D 的先声明', () => {
+  it('能力名取值全集：窗口、菜单、应用、外观，加通知、剪贴板与文件（读写分开授权）', () => {
     expect(DESKTOP_CAPABILITIES).toEqual([
       'window',
       'menu',
@@ -244,7 +281,15 @@ describe('能力契约的协议常量', () => {
         shortcutLength: 16,
         commandIdLength: 64
       },
-      notification: { titleLength: 120, bodyLength: 1_000, dedupeKeyLength: 128, iconBytes: 65_536, perMinute: 10 },
+      notification: {
+        titleLength: 120,
+        bodyLength: 1_000,
+        dedupeKeyLength: 128,
+        iconBytes: 65_536,
+        perMinute: 10,
+        windowMs: 60_000,
+        entriesPerApp: 20
+      },
       clipboard: { textLength: 262_144 },
       filesystem: { bytes: 524_288, acceptEntries: 16, nameLength: 255 }
     });
@@ -281,9 +326,13 @@ describe('能力契约的协议常量', () => {
     expect(DESKTOP_METHOD_CAPABILITIES['appearance.set']).toBe('appearance:write');
     expect(DESKTOP_METHOD_CAPABILITIES['menu.set']).toBe('menu');
     expect(DESKTOP_METHOD_CAPABILITIES['app.open']).toBe('app');
-    expect(new Set(Object.values(DESKTOP_METHOD_CAPABILITIES))).toEqual(
-      new Set(['window', 'menu', 'app', 'appearance', 'appearance:write'])
-    );
+    expect(DESKTOP_METHOD_CAPABILITIES['notification.post']).toBe('notification');
+    expect(DESKTOP_METHOD_CAPABILITIES['clipboard.readText']).toBe('clipboard:read');
+    expect(DESKTOP_METHOD_CAPABILITIES['clipboard.writeText']).toBe('clipboard:write');
+    expect(DESKTOP_METHOD_CAPABILITIES['filesystem.open']).toBe('filesystem:read');
+    expect(DESKTOP_METHOD_CAPABILITIES['filesystem.save']).toBe('filesystem:write');
+    /* 每项清单能力都有方法用它，没有悬空的能力名。 */
+    expect(new Set(Object.values(DESKTOP_METHOD_CAPABILITIES))).toEqual(new Set(DESKTOP_CAPABILITIES));
   });
 });
 
@@ -555,7 +604,8 @@ describe('serveDesktop 与 getDesktop：统一信封', () => {
 
   it('请求只认方法表里的操作：未登记的方法是 UNKNOWN_METHOD，旧版逐方法协议不在这条路径上', async () => {
     const { client, handlers } = setup();
-    await expect(client.request('desktop.filesystem.open', null)).rejects.toMatchObject({ code: 'UNKNOWN_METHOD' });
+    await expect(client.request('desktop.filesystem.list', null)).rejects.toMatchObject({ code: 'UNKNOWN_METHOD' });
+    await expect(client.request('desktop.filesystem.delete', null)).rejects.toMatchObject({ code: 'UNKNOWN_METHOD' });
     await expect(client.request('window.minimize', null)).rejects.toMatchObject({ code: 'UNKNOWN_METHOD' });
     expect([...handlers.keys()].sort()).toEqual(
       [
@@ -572,7 +622,12 @@ describe('serveDesktop 与 getDesktop：统一信封', () => {
         'desktop.app.focus',
         'desktop.app.quit',
         'desktop.appearance.get',
-        'desktop.appearance.set'
+        'desktop.appearance.set',
+        'desktop.notification.post',
+        'desktop.clipboard.readText',
+        'desktop.clipboard.writeText',
+        'desktop.filesystem.open',
+        'desktop.filesystem.save'
       ].sort()
     );
   });
@@ -640,7 +695,12 @@ describe('默认拒绝：清单没声明的能力一律 CAPABILITY_DENIED', () =
     ['app.focus', null],
     ['app.quit', null],
     ['appearance.get', null],
-    ['appearance.set', { appearance: 'dark' }]
+    ['appearance.set', { appearance: 'dark' }],
+    ['notification.post', { title: 'T', body: 'B' }],
+    ['clipboard.readText', null],
+    ['clipboard.writeText', 'x'],
+    ['filesystem.open', {}],
+    ['filesystem.save', { suggestedName: 'a.txt', bytes: 'aGk=' }]
   ];
 
   it('什么都没声明：每个方法都被拒绝，宿主函数一个也不会被调用，每次拒绝都通知桌面', async () => {
@@ -799,5 +859,550 @@ describe('超时与 RPC 层错误', () => {
       vi.spyOn(client, 'request').mockResolvedValueOnce(reply);
       await expect(desktop.app.focus()).rejects.toMatchObject({ code: 'INVALID_PAYLOAD' });
     }
+  });
+});
+
+describe('参数校验：通知、剪贴板与文件', () => {
+  const rejects = (method: DesktopMethod, value: unknown, code = 'INVALID_ARGUMENT') =>
+    expect(() => parseDesktopArguments(method, value)).toThrow(expect.objectContaining({ name: 'DesktopError', code }));
+  /** 1×1 的 PNG，解码后几十个字节。 */
+  const PNG =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+
+  it('通知：标题与正文必填，图标与去重键可选，规整后的结果不含多余字段', () => {
+    expect(parseDesktopArguments('notification.post', { title: 'Build finished', body: '' })).toEqual({
+      title: 'Build finished',
+      body: ''
+    });
+    expect(
+      parseDesktopArguments('notification.post', {
+        title: 'T',
+        body: 'line 1\nline\t2',
+        icon: 'app-notes',
+        dedupeKey: 'build:42'
+      })
+    ).toEqual({ title: 'T', body: 'line 1\nline\t2', icon: 'app-notes', dedupeKey: 'build:42' });
+    expect(parseDesktopArguments('notification.post', { title: 'T', body: 'B', icon: PNG }).icon).toBe(PNG);
+  });
+
+  it('通知：标题、正文、去重键的长度与字符上限是协议常量；非法一律 INVALID_ARGUMENT', () => {
+    const { titleLength, bodyLength, dedupeKeyLength } = DESKTOP_LIMITS.notification;
+    expect(
+      parseDesktopArguments('notification.post', { title: 'x'.repeat(titleLength), body: 'y'.repeat(bodyLength) })
+    ).toMatchObject({ title: 'x'.repeat(titleLength) });
+    const bad: unknown[] = [
+      null,
+      'text',
+      {},
+      { body: 'B' },
+      { title: 'T' },
+      { title: '', body: 'B' },
+      { title: '   ', body: 'B' },
+      { title: 'x'.repeat(titleLength + 1), body: 'B' },
+      { title: 'T\u0007', body: 'B' },
+      { title: 'T\nsecond line', body: 'B' },
+      { title: 'T', body: 'y'.repeat(bodyLength + 1) },
+      { title: 'T', body: 'B\u0000' },
+      { title: 'T', body: 42 },
+      { title: 'T', body: 'B', dedupeKey: '' },
+      { title: 'T', body: 'B', dedupeKey: 'k'.repeat(dedupeKeyLength + 1) },
+      { title: 'T', body: 'B', dedupeKey: 'a\u0000b' },
+      { title: 'T', body: 'B', sender: 'Mail' },
+      { title: 'T', body: 'B', appId: 'mail' },
+      { title: 42, body: 'B' }
+    ];
+    for (const value of bad) rejects('notification.post', value);
+  });
+
+  it('通知的图标：登记图标的 ID 或不超过上限的内联图片；其余（网址、脚本、SVG、超限）都不要', () => {
+    const { iconBytes } = DESKTOP_LIMITS.notification;
+    const image = (bytes: number) => `data:image/png;base64,${btoa('a'.repeat(bytes))}`;
+    expect(parseDesktopArguments('notification.post', { title: 'T', body: 'B', icon: image(iconBytes) }).icon).toBe(
+      image(iconBytes)
+    );
+    const bad = [
+      '',
+      'https://evil.example/x.png',
+      'javascript:alert(1)',
+      '../app-notes',
+      '#app-notes',
+      'with space',
+      'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=',
+      'data:text/html;base64,PGI+eDwvYj4=',
+      'data:image/png;base64,not base64!',
+      'data:image/png;utf8,abc',
+      image(iconBytes + 1),
+      'x'.repeat(100_000),
+      42
+    ];
+    for (const icon of bad) rejects('notification.post', { title: 'T', body: 'B', icon });
+  });
+
+  it('剪贴板：读取不带参数；写入是不超过上限的任意文字（可以为空，可以含换行）', () => {
+    expect(parseDesktopArguments('clipboard.readText', null)).toBeNull();
+    rejects('clipboard.readText', 'x');
+    expect(parseDesktopArguments('clipboard.writeText', '')).toBe('');
+    expect(parseDesktopArguments('clipboard.writeText', 'a\nb\tc')).toBe('a\nb\tc');
+    const { textLength } = DESKTOP_LIMITS.clipboard;
+    expect(parseDesktopArguments('clipboard.writeText', 'x'.repeat(textLength))).toHaveLength(textLength);
+    rejects('clipboard.writeText', 'x'.repeat(textLength + 1));
+    rejects('clipboard.writeText', 42);
+    rejects('clipboard.writeText', null);
+  });
+
+  it('打开：accept 只是显示过滤，扩展名与 MIME 类型转成小写，最多 16 项；不认识的写法与字段拒绝', () => {
+    expect(parseDesktopArguments('filesystem.open', null)).toEqual({});
+    expect(parseDesktopArguments('filesystem.open', undefined)).toEqual({});
+    expect(parseDesktopArguments('filesystem.open', {})).toEqual({});
+    expect(parseDesktopArguments('filesystem.open', { accept: ['.MD', '.txt', 'Text/*', 'image/png'] })).toEqual({
+      accept: ['.md', '.txt', 'text/*', 'image/png']
+    });
+    expect(parseDesktopArguments('filesystem.open', { accept: [] })).toEqual({ accept: [] });
+    const many = Array.from({ length: DESKTOP_LIMITS.filesystem.acceptEntries }, (_, index) => `.e${index}`);
+    expect(parseDesktopArguments('filesystem.open', { accept: many })).toEqual({ accept: many });
+    rejects('filesystem.open', { accept: [...many, '.more'] });
+    for (const accept of [['md'], ['.'], ['*/*'], ['text/'], ['.a/b'], ['..md'], [''], [42], 'text/*', { 0: '.md' }])
+      rejects('filesystem.open', { accept });
+    rejects('filesystem.open', { accept: ['.md'], directory: true });
+    rejects('filesystem.open', { path: '/etc/passwd' });
+    rejects('filesystem.open', 'text/*');
+  });
+
+  it('保存：带凭证与版本写回，或不带凭证另存；内容可以是字节数组（直接调用）或 base64（线上）', () => {
+    const bytes = new Uint8Array([1, 2, 3]);
+    const direct = parseDesktopArguments('filesystem.save', { suggestedName: 'a.md', bytes });
+    expect(direct).toEqual({ suggestedName: 'a.md', bytes });
+    expect(direct.bytes).not.toBe(bytes);
+    expect(parseDesktopArguments('filesystem.save', { suggestedName: 'a.md', bytes: 'AQID' })).toEqual({
+      suggestedName: 'a.md',
+      bytes
+    });
+    expect(
+      parseDesktopArguments('filesystem.save', {
+        handle: 'h-1.x_y',
+        suggestedName: 'a.md',
+        bytes: '',
+        expectedVersion: '1731000000000:3'
+      })
+    ).toEqual({
+      handle: 'h-1.x_y',
+      suggestedName: 'a.md',
+      bytes: new Uint8Array(0),
+      expectedVersion: '1731000000000:3'
+    });
+    const buffer = new Uint8Array([9, 8]).buffer;
+    expect(parseDesktopArguments('filesystem.save', { suggestedName: 'a', bytes: buffer }).bytes).toEqual(
+      new Uint8Array([9, 8])
+    );
+  });
+
+  it('保存：文件名、凭证、版本、内容的非法写法都是 INVALID_ARGUMENT', () => {
+    const base = { suggestedName: 'a.md', bytes: 'AQID' };
+    const bad: unknown[] = [
+      null,
+      'a.md',
+      {},
+      { bytes: 'AQID' },
+      { suggestedName: 'a.md' },
+      { ...base, suggestedName: '' },
+      { ...base, suggestedName: '   ' },
+      { ...base, suggestedName: 'a/b.md' },
+      { ...base, suggestedName: 'a\\b.md' },
+      { ...base, suggestedName: '.' },
+      { ...base, suggestedName: '..' },
+      { ...base, suggestedName: 'a\u0000.md' },
+      { ...base, suggestedName: 'n'.repeat(DESKTOP_LIMITS.filesystem.nameLength + 1) },
+      { ...base, suggestedName: 42 },
+      { ...base, bytes: 'not base64!' },
+      { ...base, bytes: 'AQI' },
+      { ...base, bytes: 42 },
+      { ...base, bytes: [1, 2, 3] },
+      { ...base, handle: '' },
+      { ...base, handle: 'has space' },
+      { ...base, handle: 'x'.repeat(129) },
+      { ...base, handle: 42 },
+      { ...base, expectedVersion: '1:2' },
+      { ...base, handle: 'h', expectedVersion: 'latest' },
+      { ...base, handle: 'h', expectedVersion: '12:' },
+      { ...base, handle: 'h', expectedVersion: 7 },
+      { ...base, path: '/etc/passwd' },
+      { ...base, overwrite: true }
+    ];
+    for (const value of bad) rejects('filesystem.save', value);
+  });
+
+  it('保存：内容超过 512 KiB 是 FILE_TOO_LARGE（不是 INVALID_ARGUMENT），恰好等于上限则放行；超大的 base64 文本不先解码', () => {
+    const { bytes: limit } = DESKTOP_LIMITS.filesystem;
+    expect(
+      parseDesktopArguments('filesystem.save', { suggestedName: 'a', bytes: new Uint8Array(limit) }).bytes
+    ).toHaveLength(limit);
+    rejects('filesystem.save', { suggestedName: 'a', bytes: new Uint8Array(limit + 1) }, 'FILE_TOO_LARGE');
+    rejects('filesystem.save', { suggestedName: 'a', bytes: new ArrayBuffer(limit + 1) }, 'FILE_TOO_LARGE');
+    rejects('filesystem.save', { suggestedName: 'a', bytes: btoa('a'.repeat(limit + 1)) }, 'FILE_TOO_LARGE');
+    const atob = vi.spyOn(globalThis, 'atob');
+    rejects(
+      'filesystem.save',
+      { suggestedName: 'a', bytes: 'A'.repeat(Math.ceil(limit / 3) * 4 + 4) },
+      'FILE_TOO_LARGE'
+    );
+    expect(atob).not.toHaveBeenCalled();
+    atob.mockRestore();
+  });
+});
+
+describe('通知、剪贴板与文件经统一信封', () => {
+  /** 等应用侧的一个调用在下一轮微任务里落定。 */
+  const flush = () => new Promise<void>(resolve => setTimeout(resolve, 0));
+
+  it('通知：参数原样到宿主，回执回到应用；宿主拒绝带着稳定错误码回来（RATE_LIMITED）', async () => {
+    const { desktop, calls, host, onError } = setup(EVERYTHING);
+    expect(
+      await desktop.notification.post({ title: 'Build finished', body: 'main is green', dedupeKey: 'ci' })
+    ).toEqual({
+      id: 'n1'
+    });
+    expect(calls).toEqual([['notification.post', { title: 'Build finished', body: 'main is green', dedupeKey: 'ci' }]]);
+    vi.spyOn(host.notification, 'post').mockImplementation(() => {
+      throw new DesktopError('RATE_LIMITED', '每分钟最多 10 条');
+    });
+    await expect(desktop.notification.post({ title: 'again', body: '' })).rejects.toMatchObject({
+      name: 'DesktopError',
+      code: 'RATE_LIMITED'
+    });
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ code: 'RATE_LIMITED' }), 'notification.post');
+  });
+
+  it('剪贴板：读与写分别授权；浏览器层的拒绝（BROWSER_PERMISSION_DENIED）原样回到应用', async () => {
+    const { desktop, calls, host } = setup(['clipboard:read']);
+    expect(await desktop.clipboard.readText()).toBe('from clipboard');
+    await expect(desktop.clipboard.writeText('x')).rejects.toMatchObject({ code: 'CAPABILITY_DENIED' });
+    const writer = setup(['clipboard:write']);
+    await writer.desktop.clipboard.writeText('hello');
+    await expect(writer.desktop.clipboard.readText()).rejects.toMatchObject({ code: 'CAPABILITY_DENIED' });
+    expect(writer.calls).toEqual([['clipboard.writeText', 'hello']]);
+    expect(calls).toEqual([['clipboard.readText']]);
+    vi.spyOn(host.clipboard, 'readText').mockImplementation(() => {
+      throw new DesktopError('BROWSER_PERMISSION_DENIED', '用户拒绝了剪贴板权限');
+    });
+    await expect(desktop.clipboard.readText()).rejects.toMatchObject({ code: 'BROWSER_PERMISSION_DENIED' });
+  });
+
+  it('打开：宿主先应答「已受理」，用户选定后结果经完成事件到达；字节在线上是 base64，应用拿到的是字节数组', async () => {
+    const { desktop, calls, emitted, handlers, interactions } = setup(EVERYTHING);
+    const file = await desktop.filesystem.open({ accept: ['.md'] });
+    expect(file).toEqual(opened);
+    /* 宿主拿到计时控制，用它声明哪一段是在等用户。 */
+    expect(interactions).toHaveLength(1);
+    expect(typeof interactions[0]?.waitForUser).toBe('function');
+    expect(file.bytes).toBeInstanceOf(Uint8Array);
+    expect(Object.isFrozen(file)).toBe(true);
+    expect(calls).toEqual([['filesystem.open', { accept: ['.md'] }]]);
+    const settled = emitted.filter(([event]) => event === 'desktop.request.settled');
+    expect(settled).toHaveLength(1);
+    expect(settled[0]![1]).toMatchObject({
+      requestId: 'w1#1/1',
+      envelope: { ok: true, value: { name: 'notes.md', bytes: 'aGkh', handle: 'handle-1' } }
+    });
+    /* 应答本身只有「已受理」，不带内容。 */
+    const raw = await handlers.get('desktop.filesystem.open')!(
+      { instanceId: 'w1#1', args: {}, requestId: 'r-raw' },
+      new AbortController().signal
+    );
+    expect(raw).toEqual({ ok: true, value: null });
+  });
+
+  it('保存：不带凭证走面板的形态（已受理 + 完成事件），带凭证直接应答、不收 requestId', async () => {
+    const { desktop, calls, emitted, handlers } = setup(EVERYTHING);
+    const bytes = new Uint8Array([1, 2, 3]);
+    expect(await desktop.filesystem.save({ suggestedName: 'a.md', bytes })).toEqual(saved);
+    expect(emitted.filter(([event]) => event === 'desktop.request.settled')).toHaveLength(1);
+    expect(
+      await desktop.filesystem.save({
+        handle: 'handle-1',
+        suggestedName: 'a.md',
+        bytes,
+        expectedVersion: '1731000000000:3'
+      })
+    ).toEqual(saved);
+    expect(emitted.filter(([event]) => event === 'desktop.request.settled')).toHaveLength(1);
+    expect(calls).toEqual([
+      ['filesystem.save', { suggestedName: 'a.md', bytes }],
+      ['filesystem.save', { handle: 'handle-1', suggestedName: 'a.md', bytes, expectedVersion: '1731000000000:3' }]
+    ]);
+    const direct = await handlers.get('desktop.filesystem.save')!(
+      { instanceId: 'w1#1', args: { handle: 'h', suggestedName: 'a', bytes: '' }, requestId: 'r1' },
+      new AbortController().signal
+    );
+    expect(direct).toMatchObject({ ok: false, code: 'INVALID_ARGUMENT' });
+  });
+
+  it('需要用户操作的请求：缺 requestId、重复的 requestId、不合规的 requestId 都是 INVALID_ARGUMENT，宿主不会被调用', async () => {
+    const { handlers, calls, onError } = setup(EVERYTHING);
+    const open = handlers.get('desktop.filesystem.open')!;
+    const call = (payload: OrbitValue) => open(payload, new AbortController().signal);
+    expect(await call({ instanceId: 'w1#1', args: {} })).toMatchObject({ ok: false, code: 'INVALID_ARGUMENT' });
+    expect(await call({ instanceId: 'w1#1', args: {}, requestId: 'has space' })).toMatchObject({
+      ok: false,
+      code: 'INVALID_ARGUMENT'
+    });
+    expect(await call({ instanceId: 'w1#1', args: {}, requestId: 7 })).toMatchObject({
+      ok: false,
+      code: 'INVALID_ARGUMENT'
+    });
+    expect(calls).toEqual([]);
+    expect(onError).toHaveBeenCalledTimes(3);
+  });
+
+  it('重复的 requestId 在第一个请求还在等用户时被拒绝；落定之后同一个 ID 可以再用', async () => {
+    const { handlers, host, calls } = setup(EVERYTHING);
+    let finish!: (file: DesktopOpenedFile) => void;
+    vi.spyOn(host.filesystem, 'open').mockImplementation(
+      () => new Promise<DesktopOpenedFile>(resolve => (finish = resolve))
+    );
+    const open = handlers.get('desktop.filesystem.open')!;
+    const send = () => open({ instanceId: 'w1#1', args: {}, requestId: 'r1' }, new AbortController().signal);
+    expect(await send()).toEqual({ ok: true, value: null });
+    expect(await send()).toMatchObject({ ok: false, code: 'INVALID_ARGUMENT', message: expect.stringContaining('r1') });
+    finish(opened);
+    await flush();
+    expect(await send()).toEqual({ ok: true, value: null });
+    expect(calls).toEqual([]);
+  });
+
+  it('用户取消、BUSY 这类稳定错误码经完成事件回到应用，同时通知桌面（onError）', async () => {
+    const { desktop, host, onError } = setup(EVERYTHING);
+    for (const code of ['USER_CANCELLED', 'BUSY', 'FILE_TOO_LARGE', 'FILE_NOT_FOUND', 'WINDOW_CLOSED'] as const) {
+      vi.spyOn(host.filesystem, 'open').mockRejectedValueOnce(new DesktopError(code, `host says ${code}`));
+      await expect(desktop.filesystem.open()).rejects.toMatchObject({
+        name: 'DesktopError',
+        code,
+        message: `host says ${code}`
+      });
+      expect(onError).toHaveBeenLastCalledWith(expect.objectContaining({ code }), 'filesystem.open');
+    }
+    for (const code of ['FILE_CHANGED', 'FILE_NOT_FOUND', 'HANDLE_INVALID'] as const) {
+      vi.spyOn(host.filesystem, 'save').mockImplementationOnce(() => {
+        throw new DesktopError(code, code);
+      });
+      await expect(
+        desktop.filesystem.save({ handle: 'handle-1', suggestedName: 'a', bytes: new Uint8Array(0) })
+      ).rejects.toMatchObject({ code });
+    }
+  });
+
+  it('宿主自己的程序错误不冒充任何错误码：交互式请求也作为处理失败（HANDLER_ERROR）回给应用', async () => {
+    const { desktop, host, onError } = setup(EVERYTHING);
+    vi.spyOn(host.filesystem, 'open').mockRejectedValueOnce(new Error('磁盘读坏了'));
+    await expect(desktop.filesystem.open()).rejects.toMatchObject({
+      name: 'OrbitError',
+      code: 'HANDLER_ERROR',
+      message: '磁盘读坏了'
+    });
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it('文件读与写分开授权：只有 filesystem:read 能打开不能保存，只有 filesystem:write 能保存不能打开', async () => {
+    const reader = setup(['filesystem:read']);
+    expect(await reader.desktop.filesystem.open()).toEqual(opened);
+    await expect(
+      reader.desktop.filesystem.save({ suggestedName: 'a', bytes: new Uint8Array(1) })
+    ).rejects.toMatchObject({ code: 'CAPABILITY_DENIED' });
+    const writer = setup(['filesystem:write']);
+    await expect(writer.desktop.filesystem.open()).rejects.toMatchObject({ code: 'CAPABILITY_DENIED' });
+    expect(await writer.desktop.filesystem.save({ suggestedName: 'a', bytes: new Uint8Array(1) })).toEqual(saved);
+    expect(reader.calls).toEqual([['filesystem.open', {}]]);
+    expect(writer.calls).toEqual([['filesystem.save', { suggestedName: 'a', bytes: new Uint8Array(1) }]]);
+  });
+
+  it('应用读不懂宿主的文件结果与完成事件时显式失败，不当作成功', async () => {
+    const { desktop, host } = setup(EVERYTHING);
+    for (const broken of [
+      { ...opened, bytes: undefined },
+      { ...opened, version: 'latest' },
+      { ...opened, handle: '' },
+      null
+    ]) {
+      vi.spyOn(host.filesystem, 'open').mockResolvedValueOnce(broken as never);
+      await expect(desktop.filesystem.open()).rejects.toMatchObject({ code: expect.stringMatching(/INVALID|HANDLER/) });
+    }
+    vi.spyOn(host.filesystem, 'save').mockResolvedValueOnce({ name: 'a' } as never);
+    await expect(
+      desktop.filesystem.save({ handle: 'h', suggestedName: 'a', bytes: new Uint8Array(0) })
+    ).rejects.toMatchObject({ code: 'INVALID_PAYLOAD' });
+  });
+
+  it('应用的连接断开（窗口关闭、实例销毁）时还在等用户的调用以 WINDOW_CLOSED 结束', async () => {
+    const { desktop, host, disposeClient } = setup(EVERYTHING);
+    vi.spyOn(host.filesystem, 'open').mockImplementation(() => new Promise<DesktopOpenedFile>(() => undefined));
+    const waiting = desktop.filesystem.open().then(
+      () => 'resolved',
+      (error: unknown) => (error as DesktopError).code
+    );
+    await flush();
+    disposeClient();
+    expect(await waiting).toBe('WINDOW_CLOSED');
+  });
+
+  it('请求还没被受理就失败（RPC 层错误、被拒绝）时不留下等待者：重试照常，也没有多余的完成事件', async () => {
+    const { desktop, failNext, emitted } = setup(EVERYTHING);
+    failNext(new OrbitError('TIMEOUT', '请求超时'));
+    await expect(desktop.filesystem.open()).rejects.toMatchObject({ code: 'TIMEOUT' });
+    expect(emitted).toEqual([]);
+    expect(await desktop.filesystem.open()).toEqual(opened);
+    expect(emitted.filter(([event]) => event === 'desktop.request.settled')).toHaveLength(1);
+    const denied = setup([]);
+    await expect(denied.desktop.filesystem.open()).rejects.toMatchObject({ code: 'CAPABILITY_DENIED' });
+    expect(denied.emitted).toEqual([]);
+  });
+
+  it('不需要用户操作的请求不收 requestId：带了就是 INVALID_ARGUMENT', async () => {
+    const { handlers, calls } = setup(EVERYTHING);
+    const reply = await handlers.get('desktop.window.getState')!(
+      { instanceId: 'w1#1', args: null, requestId: 'r1' },
+      new AbortController().signal
+    );
+    expect(reply).toMatchObject({ ok: false, code: 'INVALID_ARGUMENT' });
+    expect(calls).toEqual([]);
+  });
+});
+
+describe('超时只计宿主处理请求的时间', () => {
+  /** 一个由测试控制何时结束的「用户操作」。 */
+  function userAction() {
+    let finish!: () => void;
+    const pending = new Promise<void>(resolve => (finish = resolve));
+    return { pending, finish };
+  }
+
+  it('用户在面板里停留多久都不会让请求超时：宿主 5 秒、应用 7 秒的时限都只管宿主自己的处理', async () => {
+    vi.useFakeTimers();
+    const { desktop, host, onError } = setup(EVERYTHING);
+    const user = userAction();
+    vi.spyOn(host.filesystem, 'open').mockImplementation(async (_options, interaction) => {
+      await interaction!.waitForUser(user.pending);
+      return opened;
+    });
+    const result = desktop.filesystem.open().then(
+      file => file,
+      (error: unknown) => error
+    );
+    await vi.advanceTimersByTimeAsync(10 * 60_000);
+    expect(onError).not.toHaveBeenCalled();
+    user.finish();
+    expect(await result).toEqual(opened);
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it('用户选定之后宿主读写磁盘卡住仍然是 TIMEOUT：宿主处理的时间照常计，且与等用户之前用掉的时间合计', async () => {
+    vi.useFakeTimers();
+    const { desktop, host, onError } = setup(EVERYTHING);
+    const user = userAction();
+    vi.spyOn(host.filesystem, 'open').mockImplementation(async (_options, interaction) => {
+      await new Promise(resolve => setTimeout(resolve, 3_000));
+      await interaction!.waitForUser(user.pending);
+      await new Promise(resolve => setTimeout(resolve, 10_000));
+      return opened;
+    });
+    const result = desktop.filesystem.open().then(
+      () => undefined,
+      (error: unknown) => error
+    );
+    await vi.advanceTimersByTimeAsync(3_000 + 60_000);
+    user.finish();
+    /* 等用户之前已用掉 3 秒，还剩 2 秒；宿主继续处理 1999 毫秒时仍在时限内。 */
+    await vi.advanceTimersByTimeAsync(1_999);
+    expect(onError).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(await result).toMatchObject({ name: 'DesktopError', code: 'TIMEOUT' });
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ code: 'TIMEOUT' }), 'filesystem.open');
+  });
+
+  it('多次等用户的停留都不计入；其间宿主自己处理的时间合计超过 5 秒才超时', async () => {
+    vi.useFakeTimers();
+    const { desktop, host } = setup(EVERYTHING);
+    const first = userAction();
+    const second = userAction();
+    vi.spyOn(host.filesystem, 'save').mockImplementation(async (_request, interaction) => {
+      await interaction!.waitForUser(first.pending);
+      await new Promise(resolve => setTimeout(resolve, 2_000));
+      await interaction!.waitForUser(second.pending);
+      await new Promise(resolve => setTimeout(resolve, 2_900));
+      return saved;
+    });
+    const result = desktop.filesystem.save({ suggestedName: 'a', bytes: new Uint8Array(0) });
+    await vi.advanceTimersByTimeAsync(30_000);
+    first.finish();
+    await vi.advanceTimersByTimeAsync(2_000);
+    await vi.advanceTimersByTimeAsync(30_000);
+    second.finish();
+    await vi.advanceTimersByTimeAsync(2_900);
+    expect(await result).toEqual(saved);
+  });
+
+  it('带凭证的保存没有面板：宿主处理超过 5 秒就是 TIMEOUT，应用在 7 秒的兜底之前就收到它', async () => {
+    vi.useFakeTimers();
+    const { desktop, control, onError } = setup(EVERYTHING);
+    control.hang = true;
+    const result = desktop.filesystem.save({ handle: 'handle-1', suggestedName: 'a', bytes: new Uint8Array(0) }).then(
+      () => undefined,
+      (error: unknown) => error
+    );
+    await vi.advanceTimersByTimeAsync(DESKTOP_LIMITS.requestTimeoutMs);
+    expect(await result).toMatchObject({ code: 'TIMEOUT' });
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ code: 'TIMEOUT' }), 'filesystem.save');
+  });
+
+  it('应用等「已受理」的应答用 callTimeoutMs 兜底（RPC 层的超时归为 TIMEOUT）；兜底之后的完成事件不会误认', async () => {
+    const { desktop, client, failNext } = setup(EVERYTHING);
+    const request = vi.spyOn(client, 'request');
+    await desktop.filesystem.open();
+    expect(request).toHaveBeenCalledWith('desktop.filesystem.open', expect.objectContaining({ requestId: 'w1#1/1' }), {
+      timeout: DESKTOP_LIMITS.callTimeoutMs
+    });
+    failNext(new OrbitError('TIMEOUT', '请求超时'));
+    await expect(desktop.filesystem.open()).rejects.toMatchObject({ name: 'DesktopError', code: 'TIMEOUT' });
+    await desktop.filesystem.open();
+    expect(request).toHaveBeenLastCalledWith(
+      'desktop.filesystem.open',
+      expect.objectContaining({ requestId: 'w1#1/3' }),
+      { timeout: DESKTOP_LIMITS.callTimeoutMs }
+    );
+  });
+
+  it('实例销毁之后宿主才完成的交互式请求：结果不再送出，宿主函数也只被调用过那一次', async () => {
+    const { desktop, host, emitted, transition, calls } = setup(EVERYTHING);
+    let finish!: (file: DesktopOpenedFile) => void;
+    vi.spyOn(host.filesystem, 'open').mockImplementation(() => new Promise(resolve => (finish = resolve)));
+    void desktop.filesystem.open().catch(() => undefined);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    transition('destroyed');
+    finish(opened);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    expect(emitted.filter(([event]) => event === 'desktop.request.settled')).toEqual([]);
+    expect(calls).toEqual([]);
+  });
+
+  it('旧实例迟到的文件请求按实例 ID 丢弃：WINDOW_CLOSED，宿主函数不会被调用，也没有完成事件', async () => {
+    const { handlers, calls, onError, emitted } = setup(EVERYTHING);
+    const late = await handlers.get('desktop.filesystem.save')!(
+      {
+        instanceId: 'w1#0',
+        args: { suggestedName: 'late.txt', bytes: 'aGk=' },
+        requestId: 'late'
+      },
+      new AbortController().signal
+    );
+    expect(late).toMatchObject({ ok: false, code: 'WINDOW_CLOSED' });
+    const lateWithHandle = await handlers.get('desktop.filesystem.save')!(
+      {
+        instanceId: 'w1#0',
+        args: { handle: 'handle-1', suggestedName: 'late.txt', bytes: 'aGk=', expectedVersion: '1:1' }
+      },
+      new AbortController().signal
+    );
+    expect(lateWithHandle).toMatchObject({ ok: false, code: 'WINDOW_CLOSED' });
+    expect(calls).toEqual([]);
+    expect(emitted).toEqual([]);
+    expect(onError).toHaveBeenCalledTimes(2);
   });
 });

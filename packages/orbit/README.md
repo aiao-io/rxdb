@@ -123,21 +123,36 @@ try {
 
 方法名是 `<能力域>.<方法>`，线上请求名是 `desktop.<方法名>`；方法与能力的对应写在 `DESKTOP_METHOD_CAPABILITIES`，宿主与内置应用的权限检查都读这张表。
 
-| 能力名                                | 方法与推送                                                                                                                    | 说明                                                                                                                                                                                                             |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `window`                              | `getState`、`setTitle`、`minimize`、`restore`、`toggleMaximize`、`close`、`setDecorations`、`setDragRegions`；`onStateChange` | 只作用于调用方自己的窗口。`setDecorations(false)` 只有运营方批准 `transparent` 外观的应用能用。拖动区沿用 `data-orbit-drag-region`（`trackDragRegions(root)`）。                                                 |
-| `menu`                                | `set(menus)`；`onCommand(handler)`                                                                                            | 登记本窗口的菜单，菜单只在所属窗口在前台时显示，窗口关闭时解绑；`set([])` 撤销登记。同一次登记里命令 ID 重复是 `INVALID_ARGUMENT`。桌面内部用 `<appId>:<commandId>` 区分各应用，应用回调收到的是自己的命令 ID。  |
-| `app`                                 | `open(appId)`、`focus()`、`quit()`                                                                                            | `open` 只接受清单里已登记的 appId（未登记、系统入口、网址一律 `INVALID_ARGUMENT`），不带任何参数；`focus`、`quit` 只作用于调用方自己的应用。                                                                     |
-| `appearance`、`appearance:write`      | `get()`、`set(patch)`；`onChange`                                                                                             | 读取需 `appearance`，写入需另外声明 `appearance:write`。写入改的是全局系统设置，值只接受登记的取值集合（`DESKTOP_APPEARANCE_VALUES`：显示模式 `light`、`dark`、`auto`，强调色九种），超出是 `INVALID_ARGUMENT`。 |
-| `notification`                        | （阶段 D）                                                                                                                    | 名称与限额已登记，方法在阶段 D 实现。                                                                                                                                                                            |
-| `clipboard:read`、`clipboard:write`   | （阶段 D）                                                                                                                    | 同上；浏览器权限层要在登记表 `allow` 里授予 `clipboard-read` / `clipboard-write`，两层必须一致。                                                                                                                 |
-| `filesystem:read`、`filesystem:write` | （阶段 D）                                                                                                                    | 同上；`filesystem` 指桌面的虚拟磁盘，打开 / 保存由桌面的面板提供，应用只拿到用户选定的文件内容与实例绑定的凭证。                                                                                                 |
+| 能力名                                | 方法与推送                                                                                                                                                      | 说明                                                                                                                                                                                                                                                                                                       |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `window`                              | `getState`、`setTitle`、`minimize`、`restore`、`toggleMaximize`、`close`、`setDecorations`、`setDragRegions`；`onStateChange`                                   | 只作用于调用方自己的窗口。`setDecorations(false)` 只有运营方批准 `transparent` 外观的应用能用。拖动区沿用 `data-orbit-drag-region`（`trackDragRegions(root)`）。                                                                                                                                           |
+| `menu`                                | `set(menus)`；`onCommand(handler)`                                                                                                                              | 登记本窗口的菜单，菜单只在所属窗口在前台时显示，窗口关闭时解绑；`set([])` 撤销登记。同一次登记里命令 ID 重复是 `INVALID_ARGUMENT`。桌面内部用 `<appId>:<commandId>` 区分各应用，应用回调收到的是自己的命令 ID。                                                                                            |
+| `app`                                 | `open(appId)`、`focus()`、`quit()`                                                                                                                              | `open` 只接受清单里已登记的 appId（未登记、系统入口、网址一律 `INVALID_ARGUMENT`），不带任何参数；`focus`、`quit` 只作用于调用方自己的应用。                                                                                                                                                               |
+| `appearance`、`appearance:write`      | `get()`、`set(patch)`；`onChange`                                                                                                                               | 读取需 `appearance`，写入需另外声明 `appearance:write`。写入改的是全局系统设置，值只接受登记的取值集合（`DESKTOP_APPEARANCE_VALUES`：显示模式 `light`、`dark`、`auto`，强调色九种），超出是 `INVALID_ARGUMENT`。                                                                                           |
+| `notification`                        | `post({ title, body, icon?, dedupeKey? })` → `{ id }`                                                                                                           | 条目归属调用方 appId，通知中心显示该应用的名称与图标（应用不能冒名）；`icon` 只能是桌面登记的图标 ID 或内联图片（`data:image/png\|jpeg\|gif\|webp;base64,…`）；同一应用相同的 `dedupeKey` 覆盖旧条目；每分钟条数有上限（`RATE_LIMITED`）。已提交的通知留在通知中心由用户清除，不随窗口关闭撤回。           |
+| `clipboard:read`、`clipboard:write`   | `readText()` → 文本；`writeText(text)`                                                                                                                          | 影响范围是用户机器的系统剪贴板。读取由浏览器的权限提示决定，用户拒绝是 `BROWSER_PERMISSION_DENIED`；写入要求请求落在用户手势的有效期内，没有手势同样是 `BROWSER_PERMISSION_DENIED`，宿主不替用户在没有手势时写。浏览器权限层要在登记表 `allow` 里授予 `clipboard-read` / `clipboard-write`，两层必须一致。 |
+| `filesystem:read`、`filesystem:write` | `open({ accept? })` → `{ name, mime, size, bytes, handle, version }`；`save({ handle?, suggestedName, bytes, expectedVersion? })` → `{ name, version, handle }` | `filesystem` 指桌面的虚拟磁盘，不是用户机器上的文件。打开 / 保存由桌面自己的面板提供，应用只拿到用户选定的那一个文件的内容与实例绑定的凭证。详见下面的「文件」一节。                                                                                                                                       |
 
 ### 请求与结果
 
-请求：`desktop.<方法名>`，载荷 `{ instanceId, args }`——`instanceId` 是握手时宿主给应用的实例 ID，宿主据此丢弃不属于这条连接的请求（旧实例迟到的请求）。回复是信封：成功 `{ ok: true, value }`，失败 `{ ok: false, code, message }`；`getDesktop` 把失败还原成 `DesktopError`（`code` 是稳定错误码）。宿主每个请求依次检查：实例还在、实例 ID 一致、能力已声明、参数合法、宿主在时限内处理完。宿主自己的程序错误不冒充任何错误码，按处理失败（`HANDLER_ERROR`）原样回给应用。
+请求：`desktop.<方法名>`，载荷 `{ instanceId, args }`（需要用户操作的请求再带 `requestId`，见下节）——`instanceId` 是握手时宿主给应用的实例 ID，宿主据此丢弃不属于这条连接的请求（旧实例迟到的请求）。回复是信封：成功 `{ ok: true, value }`，失败 `{ ok: false, code, message }`；`getDesktop` 把失败还原成 `DesktopError`（`code` 是稳定错误码）。宿主每个请求依次检查：实例还在、实例 ID 一致、能力已声明、参数合法、宿主在时限内处理完。宿主自己的程序错误不冒充任何错误码，按处理失败（`HANDLER_ERROR`）原样回给应用。
 
 推送事件：`desktop.window.state`（窗口状态变化）、`desktop.menu.command`（用户点选菜单命令）、`desktop.appearance.change`（外观变化），只在应用就绪后推，只推变化、不推初始值（初始值用 `getState()` / `get()` 读）。
+
+### 需要用户操作的请求
+
+`filesystem.open` 与不带 `handle` 的 `filesystem.save` 要用户在桌面的面板里选文件、确认覆盖，用户停留多久没有上限，而 Orbit 的 RPC 时限最多 120 秒，所以这类请求不占着一个 RPC 等用户：请求带一个 `requestId`（`getDesktop` 自动生成），宿主校验完实例、能力与参数就应答「已受理」（`{ ok: true, value: null }`），宿主调用在后台跑，最终结果用事件 `desktop.request.settled` 送达，载荷 `{ requestId, envelope }`（成功或稳定错误码），宿主自己的程序错误是 `{ requestId, handlerError }`。应用侧的 `getDesktop` 把它们接成一个 Promise：先等「已受理」（时限 `callTimeoutMs`），再等完成事件（没有时限）；连接断开（窗口关闭、实例销毁）时还在等的调用以 `WINDOW_CLOSED` 结束。实例销毁或失败之后宿主才完成的请求，结果不再送出。
+
+**超时只计宿主处理请求的时间**：宿主处理请求有 `requestTimeoutMs` 的时限，宿主等用户的那一段（`DesktopFilesystemHost.open / save` 的第二个参数 `interaction.waitForUser(pending)`）暂停计时，用户操作完再接着算剩下的时间——所以用户停留多久都不会让请求超时，而用户选定之后读写磁盘卡住仍然是 `TIMEOUT`。带 `handle` 的保存没有面板，整段都计时。
+
+### 文件
+
+- **只作用于用户选定的那一个文件**：`open` 返回内容快照与凭证 `handle`，凭证只能把内容写回这个文件，不能读别的文件、列目录或换目标。`accept`（最多 16 项扩展名或 MIME 类型）只做显示过滤，不限制用户能选什么；超过 `filesystem.bytes` 的文件在面板里禁用选择并说明原因。
+- **`version`**：打开（或保存）时文件的修改时间与大小，一个不透明的字符串（`<毫秒时间>:<字节数>`），应用不解析它，保存时原样作为 `expectedVersion` 交回。
+- **带 `handle` 的 `save`**：先比对 `expectedVersion`——磁盘上的文件已被改动是 `FILE_CHANGED`（不写入，应用可以改走另存）；文件已被删除或改名是 `FILE_NOT_FOUND`（不写入，**也不在原路径新建**）；通过才写回，返回新版本。不再弹确认。`expectedVersion` 只能与 `handle` 一起给；省略它就不比对版本（应用明确选择覆盖），但文件不在了仍然是 `FILE_NOT_FOUND`。
+- **不带 `handle` 的 `save`**：一律弹出保存面板，由用户选位置和文件名，目标已存在时面板要求用户确认覆盖，应用不能跳过；返回的 `handle` 是新选定的文件的凭证。保存内容超过 `filesystem.bytes` 是 `FILE_TOO_LARGE`。
+- **取消与关闭**：用户在面板里取消（按钮或 Esc）是 `USER_CANCELLED`，桌面不弹错误、不写盘；同一实例同一时刻只开一个面板，重复请求是 `BUSY`；窗口关闭、实例销毁或重试之后，面板随窗口关闭、不再提交任何写入，未完成的请求以 `WINDOW_CLOSED` 结束，凭证失效，再用是 `HANDLE_INVALID`，磁盘不变。
+- **字节在线上是 base64**：`bytes` 经 base64 放进 JSON 消息，`getDesktop` 在应用侧收发的都是 `Uint8Array`。
 
 ### 错误码表
 
@@ -147,8 +162,8 @@ try {
 | --------------------------- | ------------------------------------------------------------- | ------------------ | ---- |
 | `CAPABILITY_DENIED`         | 清单没有声明这项能力（或这个窗口不允许这个操作）              | 窗口里一句可见原因 | C    |
 | `INVALID_ARGUMENT`          | 参数非法（类型、长度、取值集合、重复的命令 ID、未登记的应用） | 窗口里一句可见原因 | C    |
-| `USER_CANCELLED`            | 用户取消（正常结果）                                          | 不提示             | D    |
-| `BROWSER_PERMISSION_DENIED` | 浏览器层拒绝（权限提示被拒、没有用户手势）                    | 只回给应用         | D    |
+| `USER_CANCELLED`            | 用户取消（正常结果）：文件面板里取消或按 Esc                  | 不提示             | D    |
+| `BROWSER_PERMISSION_DENIED` | 浏览器层拒绝（权限提示被拒、写剪贴板时没有用户手势）          | 只回给应用         | D    |
 | `TIMEOUT`                   | 宿主在时限内没有处理完                                        | 窗口里一句可见原因 | C    |
 | `WINDOW_CLOSED`             | 窗口已关闭、实例已销毁或已被重试出来的新实例取代              | 只回给应用         | C    |
 | `FILE_CHANGED`              | 磁盘上的文件已被改动（带凭证保存时版本不符）                  | 只回给应用         | D    |
@@ -162,23 +177,23 @@ try {
 
 超时、大小与频率上限是协议常量（`DESKTOP_LIMITS`），阶段 C、D 实现前定下，单测逐项断言；改动时同步更新这里。
 
-| 常量                                        | 值                                                                                                                                            | 说明                                                                                                                 |
-| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `requestTimeoutMs`                          | 5000                                                                                                                                          | 宿主处理一次请求的时限，**只计宿主处理的时间**：用户在桌面面板里选文件、确认覆盖的停留时间不计入。超时回 `TIMEOUT`。 |
-| `callTimeoutMs`                             | 7000                                                                                                                                          | 应用侧等待结果的兜底时限，比宿主多留 2 秒，让宿主自己的 `TIMEOUT` 先到。RPC 层的超时同样归为 `TIMEOUT`。             |
-| `titleLength`、`dragRegions`、`appIdLength` | 256、64、64                                                                                                                                   | 窗口标题的字符数、一次上报的拖动区数、应用 ID 的字符数。                                                             |
-| `menu`                                      | `sections` 12、`itemsPerSection` 64、`commands` 256、`sectionLabelLength` 32、`itemLabelLength` 64、`shortcutLength` 16、`commandIdLength` 64 | 菜单结构上限；命令 ID 由字母或数字开头，其后字母、数字、`.`、`_`、`-`，不含冒号。                                    |
-| `notification`（阶段 D）                    | `titleLength` 120、`bodyLength` 1000、`dedupeKeyLength` 128、`iconBytes` 65536、`perMinute` 10                                                | 同一 appId 每分钟最多 10 条，超限 `RATE_LIMITED`。                                                                   |
-| `clipboard`（阶段 D）                       | `textLength` 262144                                                                                                                           | 文本字符数；最坏情况（每字符 3 字节）仍在 1 MiB 消息上限之内。                                                       |
-| `filesystem`（阶段 D）                      | `bytes` 524288、`acceptEntries` 16、`nameLength` 255                                                                                          | 文件内容经 base64 放进 JSON 消息，编码后仍在 1 MiB 消息上限之内；超过 `bytes` 是 `FILE_TOO_LARGE`。                  |
+| 常量                                        | 值                                                                                                                                            | 说明                                                                                                                                                                                     |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `requestTimeoutMs`                          | 5000                                                                                                                                          | 宿主处理一次请求的时限，**只计宿主处理的时间**：用户在桌面面板里选文件、确认覆盖的停留时间不计入（宿主用 `interaction.waitForUser` 声明）。超时回 `TIMEOUT`。                            |
+| `callTimeoutMs`                             | 7000                                                                                                                                          | 应用侧等待宿主**应答**的兜底时限，比宿主多留 2 秒，让宿主自己的 `TIMEOUT` 先到。需要用户操作的请求，它只管「已受理」的应答，用户操作的最终结果没有时限。RPC 层的超时同样归为 `TIMEOUT`。 |
+| `titleLength`、`dragRegions`、`appIdLength` | 256、64、64                                                                                                                                   | 窗口标题的字符数、一次上报的拖动区数、应用 ID 的字符数。                                                                                                                                 |
+| `menu`                                      | `sections` 12、`itemsPerSection` 64、`commands` 256、`sectionLabelLength` 32、`itemLabelLength` 64、`shortcutLength` 16、`commandIdLength` 64 | 菜单结构上限；命令 ID 由字母或数字开头，其后字母、数字、`.`、`_`、`-`，不含冒号。                                                                                                        |
+| `notification`                              | `titleLength` 120、`bodyLength` 1000、`dedupeKeyLength` 128、`iconBytes` 65536、`perMinute` 10、`windowMs` 60000、`entriesPerApp` 20          | 同一 appId 在 `windowMs` 内最多提交 `perMinute` 条，超限 `RATE_LIMITED`；通知中心里每个应用最多保留 `entriesPerApp` 条（超出的旧条目被挤掉）；`iconBytes` 是内联图片解码后的字节数。     |
+| `clipboard`                                 | `textLength` 262144                                                                                                                           | 文本字符数；最坏情况（每字符 3 字节）仍在 1 MiB 消息上限之内。                                                                                                                           |
+| `filesystem`                                | `bytes` 524288、`acceptEntries` 16、`nameLength` 255                                                                                          | 文件内容经 base64 放进 JSON 消息，编码后仍在 1 MiB 消息上限之内；超过 `bytes` 是 `FILE_TOO_LARGE`。                                                                                      |
 
 ### 实例绑定与解绑
 
 每个请求带实例 ID。窗口关闭、实例销毁或重试之后，宿主的 `serveDesktop` 自动解绑（方法注销、事件订阅取消），已经派发出去的旧请求回调、实例 ID 与连接不符的请求一律 `WINDOW_CLOSED`，不会调用宿主函数；重试创建的是新实例 ID。旧实例销毁时端口关闭、iframe 移除，所以它**物理上**发不出迟到的消息，实例 ID 检查是纵深防御。
 
-### 扩展点（阶段 D）
+### 扩展点
 
-新增一项能力：先在 `DesktopCapability` 的取值表（`DESKTOP_CAPABILITIES`，已含 notification、clipboard、filesystem）里确认名称，在 `DesktopArguments`、`DesktopResults` 里登记方法，再在注册表里补它的规格（所属能力、参数校验、宿主调用、结果校验）、在 `DesktopHost` 与 `OrbitDesktop` 里加对应的接口——漏补任何一处编译不过。错误码表已经完整，数值常量已经定好。
+新增一项能力：先在 `DesktopCapability` 的取值表（`DESKTOP_CAPABILITIES`）里确认名称，在 `DesktopArguments`、`DesktopResults` 里登记方法，再在注册表里补它的规格（所属能力、参数校验、宿主调用、结果校验；需要线上编码的值补 `encodeArguments` / `encodeResult`，要用户操作的方法补 `interactive`）、在 `DesktopHost` 与 `OrbitDesktop` 里加对应的接口——漏补任何一处编译不过。数值常量写进 `DESKTOP_LIMITS` 并由单测断言。
 
 ## 三框架生命周期
 
