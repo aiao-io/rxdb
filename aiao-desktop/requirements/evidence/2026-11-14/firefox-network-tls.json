@@ -1,0 +1,312 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-14T02:22:19.914Z",
+  "source": {
+    "sha": "6ed149a5962153a09bec268e634e479f7b9f1a22",
+    "changes": "M src/groups/a11y.mjs\n M src/groups/apps.mjs\n M src/groups/dock.mjs\n M src/groups/window-layout.mjs\n M src/harness/capabilities.mjs\n M src/harness/helpers.mjs\n M src/harness/session.mjs\n M src/harness/standin.mjs\n M src/smoke.mjs\n M ../web/src/app/components/overlays/launchpad.ts\n M ../../requirements/evidence/2026-11-14/README.md\n M ../../requirements/evidence/2026-11-14/chromium-1.json\n M ../../requirements/plans/acceptance-closeout.md\n M ../../requirements/stories/desktop/ADESK-US-106-database-upgrade-path.md\n M ../../requirements/stories/platform/ADESK-US-004-custom-domain.md\n M ../../requirements/verification-report.md\n?? src/harness/network-standin.mjs\n?? src/harness/network-standin.spec.mjs\n?? ../../requirements/evidence/2026-11-14/app-launch-diagnostic.json\n?? ../../requirements/evidence/2026-11-14/app-search-enter-green.json\n?? ../../requirements/evidence/2026-11-14/app-search-enter-red.json\n?? ../../requirements/evidence/2026-11-14/app-search-enter-red.txt\n?? ../../requirements/evidence/2026-11-14/chromium-app-launch-failure.json\n?? ../../requirements/evidence/2026-11-14/chromium-dock-a11y-failure.json\n?? ../../requirements/evidence/2026-11-14/dock-a11y-state-green.json\n?? ../../requirements/evidence/2026-11-14/domain-storage-final.json\n?? ../../requirements/evidence/2026-11-14/firefox-network-standin.json"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "159.0",
+    "engine": "firefox",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "74a43cbe80fc3498d5e58a7e33693ef9b4be6a73e17b22099cb23a5667b7a192"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 2,
+    "groups": [
+      "integrated-app",
+      "transparent-window",
+      "host-filesystem",
+      "window-layout"
+    ],
+    "isolatedOrigins": true,
+    "standinTransport": "https-loopback-cross-origin",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 100.17948179199999,
+  "outcomes": [
+    {
+      "group": "integrated-app",
+      "result": {
+        "integratedApp": {
+          "dockPinned": true,
+          "showsLoading": true,
+          "becomesReady": true,
+          "standardKeepsChrome": true,
+          "standinRendered": true,
+          "crossOriginIsolated": true,
+          "iframePolicy": true,
+          "minimizeHides": true,
+          "restoreShows": true,
+          "restoreKeepsDocument": true,
+          "shieldWhenBehind": true,
+          "clickActivates": true,
+          "keyboardReachesApp": false,
+          "appClickClosesMenu": true,
+          "resizeTracksPointer": true,
+          "closeRemovesFrame": true,
+          "reopensFresh": true,
+          "offlineShowsReason": true,
+          "desktopUnaffected": true,
+          "retryRecovers": true,
+          "appFailureShowsReason": true,
+          "launchpadOpens": true,
+          "spotlightLists": true,
+          "menubarName": true,
+          "appMenuItems": true,
+          "quitCloses": true
+        }
+      },
+      "problems": [
+        "检查项未通过：integratedApp.keyboardReachesApp = false"
+      ],
+      "failedKeys": [
+        "integratedApp.keyboardReachesApp"
+      ],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 16.877304749999997
+    },
+    {
+      "group": "transparent-window",
+      "result": {},
+      "problems": [
+        "检查组异常：locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.win[data-app=\"calculator\"]:not(.closing)').locator('.tl .c')\u001b[22m\n\u001b[2m    - locator resolved to <button class=\"c\" tabindex=\"0\" type=\"button\" data-w=\"close\" aria-label=\"Close\">…</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <aiao-orbit></aiao-orbit> from <app-window-frame id=\"w2\" role=\"dialog\" tabindex=\"-1\" data-app=\"vscode\" aria-label=\"Aiao Code\" class=\"win zoomed front\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <aiao-orbit></aiao-orbit> from <app-window-frame id=\"w2\" role=\"dialog\" tabindex=\"-1\" data-app=\"vscode\" aria-label=\"Aiao Code\" class=\"win zoomed front\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    58 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <aiao-orbit></aiao-orbit> from <app-window-frame id=\"w2\" role=\"dialog\" tabindex=\"-1\" data-app=\"vscode\" aria-label=\"Aiao Code\" class=\"win zoomed front\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n（groups/transparent-window.mjs:89）"
+      ],
+      "failedKeys": [],
+      "missingKeys": [
+        "transparentWindow.chromeWhileLoading",
+        "transparentWindow.chromeHiddenWhenReady",
+        "transparentWindow.appKnowsDecorations",
+        "transparentWindow.dragMovesWindow",
+        "transparentWindow.buttonsAreNotDragArea",
+        "transparentWindow.doubleClickZooms",
+        "transparentWindow.maximizeButtonToggles",
+        "transparentWindow.focusStateReachesApp",
+        "transparentWindow.minimizeButtonMinimizes",
+        "transparentWindow.closeButtonCloses"
+      ],
+      "extraKeys": [],
+      "crashed": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.win[data-app=\"calculator\"]:not(.closing)').locator('.tl .c')\u001b[22m\n\u001b[2m    - locator resolved to <button class=\"c\" tabindex=\"0\" type=\"button\" data-w=\"close\" aria-label=\"Close\">…</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <aiao-orbit></aiao-orbit> from <app-window-frame id=\"w2\" role=\"dialog\" tabindex=\"-1\" data-app=\"vscode\" aria-label=\"Aiao Code\" class=\"win zoomed front\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <aiao-orbit></aiao-orbit> from <app-window-frame id=\"w2\" role=\"dialog\" tabindex=\"-1\" data-app=\"vscode\" aria-label=\"Aiao Code\" class=\"win zoomed front\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    58 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <aiao-orbit></aiao-orbit> from <app-window-frame id=\"w2\" role=\"dialog\" tabindex=\"-1\" data-app=\"vscode\" aria-label=\"Aiao Code\" class=\"win zoomed front\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n（groups/transparent-window.mjs:89）",
+      "pageErrors": [],
+      "seconds": 37.842789625
+    },
+    {
+      "group": "host-filesystem",
+      "result": {
+        "hostFilesystem": {
+          "panelSemantics": true,
+          "panelIsModal": true,
+          "escCancels": true,
+          "openSelectReturnsContent": true,
+          "openGivesNothingElse": true,
+          "openCancelIsSilent": true,
+          "saveChoosesLocationAndName": true,
+          "saveCancelWritesNothing": true,
+          "overwriteNeedsConfirmation": true,
+          "overwriteCannotBeSkippedByApp": true,
+          "acceptIsDisplayFilterOnly": true,
+          "tooLargeFileIsDisabled": true,
+          "secondRequestIsBusy": true,
+          "panelTimeIsNotTimed": true,
+          "handleSaveWritesBack": true,
+          "saveWithoutHandleAsksUser": true,
+          "changedFileIsRejected": true,
+          "renamedFileIsRejectedAndNotRecreated": true,
+          "deletedFileIsRejectedAndNotRecreated": true,
+          "handleInvalidAfterWindowClosed": true,
+          "panelClosesWithWindow": true,
+          "requestEndsWithWindowClosed": true,
+          "lateSaveNeverWrites": true,
+          "keyboardOpen": true,
+          "staleListingNeverOverwrites": true,
+          "escInsideReplaceReturnsToBrowse": true,
+          "keyboardSaveAndReplace": true,
+          "tabStaysInsidePanel": true,
+          "focusReturnsToWindow": false
+        }
+      },
+      "problems": [
+        "检查项未通过：hostFilesystem.focusReturnsToWindow = false"
+      ],
+      "failedKeys": [
+        "hostFilesystem.focusReturnsToWindow"
+      ],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 54.336755667
+    },
+    {
+      "group": "window-layout",
+      "result": {},
+      "problems": [
+        "检查组异常：page.reload: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for navigation until \"load\"\u001b[22m\n（groups/window-layout.mjs:530）"
+      ],
+      "failedKeys": [],
+      "missingKeys": [
+        "windowLayout.restoresPositionAndSize",
+        "windowLayout.restoresMinimizedState",
+        "windowLayout.finderKeepsPath",
+        "windowLayout.layoutRowShape",
+        "windowLayout.restoresTwoFinders",
+        "windowLayout.twoFindersKeepTheirPaths",
+        "windowLayout.zoomedWindowRestoresZoomed",
+        "windowLayout.zoomedWindowUnzoomsToSavedBox",
+        "windowLayout.integratedStandardRestoresGeometry",
+        "windowLayout.integratedStandardHandshakesAgain",
+        "windowLayout.integratedTransparentRestoresGeometry",
+        "windowLayout.integratedTransparentHandshakesAgain",
+        "windowLayout.integratedTransparentHidesDesktopChrome",
+        "windowLayout.closedWindowStaysClosed",
+        "windowLayout.otherWindowsRestoredAfterClose",
+        "windowLayout.retiredAppSkipped",
+        "windowLayout.retiredAppNotice",
+        "windowLayout.retiredAppOthersRestored",
+        "windowLayout.retiredWindowDroppedFromLayout",
+        "windowLayout.onlyRetiredOpensDefaultFinder",
+        "windowLayout.restoreRunsBehindBootScreen",
+        "windowLayout.noticeWaitsForUnlockedDesktop",
+        "windowLayout.farWindowWasSaved",
+        "windowLayout.restoredWindowPulledOnScreen",
+        "windowLayout.heavyWindowsRestoreAsFrames",
+        "windowLayout.heavyWindowsShowIdlePlaceholder",
+        "windowLayout.heavyFrontWindowStaysFront",
+        "windowLayout.startupBootsNoVirtualMachine",
+        "windowLayout.startupRequestsNoHeavyChunks",
+        "windowLayout.startupRequestsNoSaltlineEntry",
+        "windowLayout.firstClickStartsTerminal",
+        "windowLayout.firstClickStartsGame",
+        "windowLayout.idlePlaceholderIsFocusableButton",
+        "windowLayout.idlePlaceholderStartsFromKeyboard",
+        "windowLayout.tabAKeepsOnlyItsWindows",
+        "windowLayout.tabBKeepsOnlyItsWindows",
+        "windowLayout.layoutsStoredPerTab",
+        "windowLayout.reloadDoesNotOverwriteOtherTab",
+        "windowLayout.newTabStartsFromEmptyDesktop",
+        "windowLayout.noExtraDefaultFinder",
+        "windowLayout.frontWindowStaysFront",
+        "windowLayout.stackOrderPreserved",
+        "windowLayout.minimizedFrameOnlyAtStartup",
+        "windowLayout.minimizedPayloadNotRequestedAtStartup",
+        "windowLayout.dockRestoreShowsWindow",
+        "windowLayout.dockRestoreLoadsPayloadFirstTime",
+        "windowLayout.staleRowsPruned",
+        "windowLayout.recentRowsKept",
+        "windowLayout.blockedStorageNotice",
+        "windowLayout.blockedStorageStillOpensFinder",
+        "windowLayout.blockedStorageWritesNothing"
+      ],
+      "extraKeys": [],
+      "crashed": "page.reload: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for navigation until \"load\"\u001b[22m\n（groups/window-layout.mjs:530）",
+      "pageErrors": [],
+      "seconds": 62.282773083
+    }
+  ],
+  "checks": {
+    "integratedApp": {
+      "dockPinned": true,
+      "showsLoading": true,
+      "becomesReady": true,
+      "standardKeepsChrome": true,
+      "standinRendered": true,
+      "crossOriginIsolated": true,
+      "iframePolicy": true,
+      "minimizeHides": true,
+      "restoreShows": true,
+      "restoreKeepsDocument": true,
+      "shieldWhenBehind": true,
+      "clickActivates": true,
+      "keyboardReachesApp": false,
+      "appClickClosesMenu": true,
+      "resizeTracksPointer": true,
+      "closeRemovesFrame": true,
+      "reopensFresh": true,
+      "offlineShowsReason": true,
+      "desktopUnaffected": true,
+      "retryRecovers": true,
+      "appFailureShowsReason": true,
+      "launchpadOpens": true,
+      "spotlightLists": true,
+      "menubarName": true,
+      "appMenuItems": true,
+      "quitCloses": true
+    },
+    "hostFilesystem": {
+      "panelSemantics": true,
+      "panelIsModal": true,
+      "escCancels": true,
+      "openSelectReturnsContent": true,
+      "openGivesNothingElse": true,
+      "openCancelIsSilent": true,
+      "saveChoosesLocationAndName": true,
+      "saveCancelWritesNothing": true,
+      "overwriteNeedsConfirmation": true,
+      "overwriteCannotBeSkippedByApp": true,
+      "acceptIsDisplayFilterOnly": true,
+      "tooLargeFileIsDisabled": true,
+      "secondRequestIsBusy": true,
+      "panelTimeIsNotTimed": true,
+      "handleSaveWritesBack": true,
+      "saveWithoutHandleAsksUser": true,
+      "changedFileIsRejected": true,
+      "renamedFileIsRejectedAndNotRecreated": true,
+      "deletedFileIsRejectedAndNotRecreated": true,
+      "handleInvalidAfterWindowClosed": true,
+      "panelClosesWithWindow": true,
+      "requestEndsWithWindowClosed": true,
+      "lateSaveNeverWrites": true,
+      "keyboardOpen": true,
+      "staleListingNeverOverwrites": true,
+      "escInsideReplaceReturnsToBrowse": true,
+      "keyboardSaveAndReplace": true,
+      "tabStaysInsidePanel": true,
+      "focusReturnsToWindow": false
+    }
+  },
+  "limitations": {
+    "known": [
+      {
+        "kind": "check",
+        "key": "integratedApp.keyboardReachesApp",
+        "tier": "有限支持",
+        "reason": "Playwright 的 Firefox 对被 route.fulfill 的跨源 iframe 送不进键盘事件（页面内监听到的事件数为 0，WebKit 全部收到），所以「键盘焦点交给 iframe 里的应用」这一步无法验证；Orbit 握手、就绪、失败重试、最小化与还原在 Firefox 上都通过（integrated-app 其余 25 项、app-lifecycle 27 项）。未验证不等于不可用，也不能声明为已支持。"
+      },
+      {
+        "kind": "group",
+        "group": "transparent-window",
+        "tier": "有限支持",
+        "reason": "透明窗口的检查要点击 iframe 里应用自绘的按钮、在 iframe 内拖动挖空区域，需要把真实输入送进跨源 iframe，Playwright 的 Firefox 做不到（同 integratedApp.keyboardReachesApp）；这一组在 Chromium 与 WebKit 上通过。"
+      },
+      {
+        "kind": "check",
+        "key": "hostFilesystem.focusReturnsToWindow",
+        "tier": "有限支持",
+        "reason": "打开/保存、凭证写回、版本冲突与纯键盘面板操作通过；关闭面板后桌面窗口归属正确，但 Playwright Firefox 无法确认跨源替身 iframe 的 document.hasFocus。与 integratedApp.keyboardReachesApp 同属跨源 iframe 焦点未验证；不能把桌面外层焦点断言冒充应用文档已取得焦点。"
+      },
+      {
+        "kind": "group",
+        "group": "window-layout",
+        "tier": "有限支持",
+        "reason": "AC#3（集成应用窗口刷新后恢复并重新握手）要刷新一个带替身 iframe 的页面，而 Playwright 的 Firefox 无法刷新或导航带有 route.fulfill 跨源 iframe 的页面（最小复现：node src/fixtures/limitation-firefox-iframe.mjs，一个静态页面加一个 iframe 就超时），整组在这一步之前的检查也随之丢失；这一组在 Chromium 与 WebKit 上通过。"
+      }
+    ],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": false
+}

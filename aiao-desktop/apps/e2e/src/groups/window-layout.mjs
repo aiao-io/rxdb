@@ -507,7 +507,7 @@ async function integratedApp({ session, result, requests }, mode) {
   const ready = vscodeWin.locator('.webapp[data-webapp-state="ready"]');
   /** 应用入口文档的请求（替身自己的脚本不算）：刷新后重新握手意味着入口被重新请求。 */
   const entryRequestsSince = start =>
-    requests.slice(start).filter(url => url.startsWith('https://vscode.aiao.io/') && !url.includes('/__standin/'))
+    requests.slice(start).filter(url => url.startsWith(`${session.aiaoCode.origin}/`) && !url.includes('/__standin/'))
       .length;
 
   await page.locator('#dock .di[data-app="vscode"]').click();

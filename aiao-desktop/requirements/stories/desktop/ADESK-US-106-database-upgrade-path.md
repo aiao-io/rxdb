@@ -83,9 +83,9 @@ capabilities: []
 
 ## 本轮验收（2026-11-14）
 
-固定旧构建与真实上一版生产部署均执行同一 Origin 的旧库升级。真实生产部署 `d650c06f-2ad5-4c8c-9345-a5b8a30be1e9` 建库后切到当前本地产物，文件目录、设置和备忘录完整；版本记录由无记录升级到2026111301。缺表、连续升级、中断恢复、降级拒写及旧标签页拒写由升级检查组验收。
+固定旧构建与真实上一版生产部署均执行同一 Origin 的旧库升级。真实生产部署 `d650c06f-2ad5-4c8c-9345-a5b8a30be1e9` 建库后切到当前本地产物，用户文件正文、文件目录、设置和备忘录完整；版本记录由无记录升级到2026111301。缺表、连续升级、中断恢复、降级拒写及旧标签页拒写由升级检查组验收。
 
-原始记录：[upgrade-production.json](../../evidence/2026-11-14/upgrade-production.json)、[chromium-1.json](../../evidence/2026-11-14/chromium-1.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
+原始记录：[upgrade-production-file-body.json](../../evidence/2026-11-14/upgrade-production-file-body.json)、[chromium-1.json](../../evidence/2026-11-14/chromium-1.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
 
 本故事AC已通过；关闭仍依赖 US-008。B0降级保护首次引入于 `6859fe56`，不声称已发布；B0之前的线上旧部署没有保护，库升级后不可回滚到它。
 

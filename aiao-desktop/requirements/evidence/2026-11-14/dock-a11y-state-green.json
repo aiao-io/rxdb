@@ -1,0 +1,342 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-14T02:16:27.251Z",
+  "source": {
+    "sha": "6ed149a5962153a09bec268e634e479f7b9f1a22",
+    "changes": "M src/groups/a11y.mjs\n M src/groups/apps.mjs\n M src/groups/dock.mjs\n M src/harness/helpers.mjs\n M ../web/src/app/components/overlays/launchpad.ts\n M ../../requirements/evidence/2026-11-14/README.md\n M ../../requirements/evidence/2026-11-14/chromium-1.json\n M ../../requirements/plans/acceptance-closeout.md\n M ../../requirements/stories/desktop/ADESK-US-106-database-upgrade-path.md\n M ../../requirements/stories/platform/ADESK-US-004-custom-domain.md\n M ../../requirements/verification-report.md\n?? src/harness/network-standin.spec.mjs\n?? ../../requirements/evidence/2026-11-14/app-launch-diagnostic.json\n?? ../../requirements/evidence/2026-11-14/app-search-enter-green.json\n?? ../../requirements/evidence/2026-11-14/app-search-enter-red.json\n?? ../../requirements/evidence/2026-11-14/app-search-enter-red.txt\n?? ../../requirements/evidence/2026-11-14/chromium-app-launch-failure.json\n?? ../../requirements/evidence/2026-11-14/chromium-dock-a11y-failure.json\n?? ../../requirements/evidence/2026-11-14/domain-storage-final.json"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "158.0.8127.18",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "74a43cbe80fc3498d5e58a7e33693ef9b4be6a73e17b22099cb23a5667b7a192"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 3,
+    "groups": [
+      "apps",
+      "dock",
+      "a11y"
+    ],
+    "isolatedOrigins": true,
+    "interceptedExternalRequests": true
+  },
+  "seconds": 56.704124667,
+  "outcomes": [
+    {
+      "group": "apps",
+      "result": {
+        "everyAppOpens": true,
+        "unopened": [],
+        "searchEnterUsesCurrentQuery": true
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 44.5813335
+    },
+    {
+      "group": "dock",
+      "result": {
+        "dock": {
+          "defaultOrder": [],
+          "defaultDivider": true,
+          "removableOffersRemove": true,
+          "removableUnpinned": true,
+          "removeKeepsApplication": true,
+          "systemItemsRefuseRemoval": true,
+          "addFromLaunchpadMenu": true,
+          "addNotDuplicated": true,
+          "menuChangesSurviveReload": true,
+          "runningShowsTemporaryIcon": true,
+          "runningIndicator": true,
+          "runningKeepsPinnedOrder": true,
+          "minimizedRestoresFromDock": true,
+          "quitRemovesTemporaryIcon": true,
+          "pinnedStaysAfterQuit": true,
+          "launchpadDragShowsInsertionGap": true,
+          "launchpadDragPinsAtSlot": true,
+          "dragAgainNoDuplicate": true,
+          "dockDragReorders": true,
+          "dragDoesNotLaunchApp": true,
+          "dragResultSurvivesReload": true,
+          "dragOutUnpins": true,
+          "dragOutKeepsApplication": true,
+          "dragOutProtectedStays": true,
+          "dragMatchesMenu": true,
+          "finderIconDragPins": true,
+          "finderListDragPins": true,
+          "finderColumnDragPins": true,
+          "finderDragAgainNoDuplicate": true,
+          "finderNonAppNotDraggable": true,
+          "keyboardFocusRing": true,
+          "keyboardRemoveFromDock": true,
+          "keyboardRemoveKeepsFocus": true,
+          "keyboardMenuEscapeRestoresFocus": true,
+          "keyboardAddToDock": true,
+          "keyboardAddMatchesDrag": true,
+          "keyboardAddFromTemporaryIcon": true,
+          "repairDropsUnknownAndDuplicates": true,
+          "repairKeepsUserOrder": true,
+          "repairRestoresProtected": true,
+          "repairWrittenBack": true,
+          "repairedLayoutSurvivesReload": true,
+          "unreadableLayoutGetsDefault": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 56.661416167
+    },
+    {
+      "group": "a11y",
+      "result": {
+        "a11y": {
+          "tabPath": {
+            "startsInMenubar": [],
+            "menubarOrder": [],
+            "windowBetweenMenubarAndDock": [],
+            "dockOrder": [],
+            "desktopAfterDock": [],
+            "regionsInVisibleOrder": [],
+            "noInvisibleStops": [],
+            "doesNotTrap": [],
+            "shiftTabReverses": [],
+            "focusRingOnlyForKeyboard": [],
+            "enterAndSpaceActivate": []
+          },
+          "overlays": {
+            "launchpadOpensByEnter": [],
+            "launchpadTabStaysInside": [],
+            "launchpadSpaceLaunches": [],
+            "launchpadEscapeRestoresFocus": [],
+            "spotlightOpensByEnter": [],
+            "spotlightComboboxState": [],
+            "spotlightTabStaysInside": [],
+            "spotlightEscapeRestoresFocus": [],
+            "spotlightEnterOpensApp": [],
+            "panelOpensBySpace": [],
+            "panelTabStaysInside": [],
+            "panelSwitchToggles": [],
+            "panelEscapeRestoresFocus": []
+          },
+          "menus": {
+            "menubarRoles": [],
+            "arrowKeysMoveBetweenTitles": [],
+            "expandKeys": [],
+            "arrowsMoveInsideMenu": [],
+            "typeaheadJumps": [],
+            "leftRightSwitchMenus": [],
+            "escapeRestoresFocus": [],
+            "tabClosesMenu": [],
+            "checkedItemRole": [],
+            "keyboardOnlyFlow": {
+              "opensFinder": [],
+              "opensGoMenu": [],
+              "changesDirectory": [],
+              "closesWindow": []
+            }
+          },
+          "windows": {
+            "dialogsNamedByTitle": [],
+            "backgroundHidden": [],
+            "menubarShowsFrontApp": [],
+            "openMovesFocusIn": [],
+            "cycleSwitchesFocusAndFront": [],
+            "minimizeHandsFocusToNext": [],
+            "restoreFromDockByKeyboard": [],
+            "closeHandsFocusOver": [],
+            "lastCloseFocusesDockIcon": [],
+            "tabIntoBackgroundRaises": []
+          },
+          "finder": {
+            "listboxRoles": [],
+            "arrowKeysMoveSelection": [],
+            "enterOpensFolderKeepsFocus": [],
+            "backspaceGoesUp": [],
+            "commandUpGoesUp": [],
+            "listViewArrows": [],
+            "columnViewArrows": []
+          },
+          "tree": {
+            "finderWindow": [],
+            "dock": [],
+            "dockRunningState": [],
+            "menuItems": [],
+            "launchpad": [],
+            "spotlight": [],
+            "updatesWhenWindowsOpenAndClose": [],
+            "everyControlNamed": [],
+            "decorativeSvgHidden": []
+          },
+          "axe": {
+            "noViolations": []
+          }
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 33.5904885
+    }
+  ],
+  "checks": {
+    "everyAppOpens": true,
+    "unopened": [],
+    "searchEnterUsesCurrentQuery": true,
+    "dock": {
+      "defaultOrder": [],
+      "defaultDivider": true,
+      "removableOffersRemove": true,
+      "removableUnpinned": true,
+      "removeKeepsApplication": true,
+      "systemItemsRefuseRemoval": true,
+      "addFromLaunchpadMenu": true,
+      "addNotDuplicated": true,
+      "menuChangesSurviveReload": true,
+      "runningShowsTemporaryIcon": true,
+      "runningIndicator": true,
+      "runningKeepsPinnedOrder": true,
+      "minimizedRestoresFromDock": true,
+      "quitRemovesTemporaryIcon": true,
+      "pinnedStaysAfterQuit": true,
+      "launchpadDragShowsInsertionGap": true,
+      "launchpadDragPinsAtSlot": true,
+      "dragAgainNoDuplicate": true,
+      "dockDragReorders": true,
+      "dragDoesNotLaunchApp": true,
+      "dragResultSurvivesReload": true,
+      "dragOutUnpins": true,
+      "dragOutKeepsApplication": true,
+      "dragOutProtectedStays": true,
+      "dragMatchesMenu": true,
+      "finderIconDragPins": true,
+      "finderListDragPins": true,
+      "finderColumnDragPins": true,
+      "finderDragAgainNoDuplicate": true,
+      "finderNonAppNotDraggable": true,
+      "keyboardFocusRing": true,
+      "keyboardRemoveFromDock": true,
+      "keyboardRemoveKeepsFocus": true,
+      "keyboardMenuEscapeRestoresFocus": true,
+      "keyboardAddToDock": true,
+      "keyboardAddMatchesDrag": true,
+      "keyboardAddFromTemporaryIcon": true,
+      "repairDropsUnknownAndDuplicates": true,
+      "repairKeepsUserOrder": true,
+      "repairRestoresProtected": true,
+      "repairWrittenBack": true,
+      "repairedLayoutSurvivesReload": true,
+      "unreadableLayoutGetsDefault": true
+    },
+    "a11y": {
+      "tabPath": {
+        "startsInMenubar": [],
+        "menubarOrder": [],
+        "windowBetweenMenubarAndDock": [],
+        "dockOrder": [],
+        "desktopAfterDock": [],
+        "regionsInVisibleOrder": [],
+        "noInvisibleStops": [],
+        "doesNotTrap": [],
+        "shiftTabReverses": [],
+        "focusRingOnlyForKeyboard": [],
+        "enterAndSpaceActivate": []
+      },
+      "overlays": {
+        "launchpadOpensByEnter": [],
+        "launchpadTabStaysInside": [],
+        "launchpadSpaceLaunches": [],
+        "launchpadEscapeRestoresFocus": [],
+        "spotlightOpensByEnter": [],
+        "spotlightComboboxState": [],
+        "spotlightTabStaysInside": [],
+        "spotlightEscapeRestoresFocus": [],
+        "spotlightEnterOpensApp": [],
+        "panelOpensBySpace": [],
+        "panelTabStaysInside": [],
+        "panelSwitchToggles": [],
+        "panelEscapeRestoresFocus": []
+      },
+      "menus": {
+        "menubarRoles": [],
+        "arrowKeysMoveBetweenTitles": [],
+        "expandKeys": [],
+        "arrowsMoveInsideMenu": [],
+        "typeaheadJumps": [],
+        "leftRightSwitchMenus": [],
+        "escapeRestoresFocus": [],
+        "tabClosesMenu": [],
+        "checkedItemRole": [],
+        "keyboardOnlyFlow": {
+          "opensFinder": [],
+          "opensGoMenu": [],
+          "changesDirectory": [],
+          "closesWindow": []
+        }
+      },
+      "windows": {
+        "dialogsNamedByTitle": [],
+        "backgroundHidden": [],
+        "menubarShowsFrontApp": [],
+        "openMovesFocusIn": [],
+        "cycleSwitchesFocusAndFront": [],
+        "minimizeHandsFocusToNext": [],
+        "restoreFromDockByKeyboard": [],
+        "closeHandsFocusOver": [],
+        "lastCloseFocusesDockIcon": [],
+        "tabIntoBackgroundRaises": []
+      },
+      "finder": {
+        "listboxRoles": [],
+        "arrowKeysMoveSelection": [],
+        "enterOpensFolderKeepsFocus": [],
+        "backspaceGoesUp": [],
+        "commandUpGoesUp": [],
+        "listViewArrows": [],
+        "columnViewArrows": []
+      },
+      "tree": {
+        "finderWindow": [],
+        "dock": [],
+        "dockRunningState": [],
+        "menuItems": [],
+        "launchpad": [],
+        "spotlight": [],
+        "updatesWhenWindowsOpenAndClose": [],
+        "everyControlNamed": [],
+        "decorativeSvgHidden": []
+      },
+      "axe": {
+        "noViolations": []
+      }
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": true
+}

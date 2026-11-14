@@ -119,7 +119,8 @@ export class Launchpad {
 
   protected key(event: KeyboardEvent): void {
     if (event.key === 'Escape') this.overlays.closeLaunchpad();
-    if (event.key === 'Enter') this.host.querySelector<HTMLElement>('.app')?.click();
+    const first = this.visible()[0];
+    if (event.key === 'Enter' && first) this.launch(first);
     if (!this.query() && (event.key === 'ArrowRight' || event.key === 'ArrowLeft')) {
       event.preventDefault();
       this.turn(event.key === 'ArrowRight' ? 1 : -1);

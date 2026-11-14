@@ -1,6 +1,6 @@
 # 2026-11-14 验收证据
 
-执行环境：Apple M1 Max、macOS/Darwin 27.2.0 arm64、Node 26.12.0、pnpm 12.16.1。各轮源码按报告source记录（涵盖 `0dcdabca`、`d95812da`、`0ccab7cf` 及当时工作区改动）；本轮未执行生产发布。报告里的 ISO 时间为 UTC，本目录日期按 Asia/Shanghai。每份 JSON 保留实际浏览器版本、输入、逐项结果和产物摘要。
+执行环境：Apple M1 Max、macOS/Darwin 27.2.0 arm64、Node 26.12.0、pnpm 12.16.1。各轮源码按报告source记录（涵盖 `0dcdabca`、`d95812da`、`0ccab7cf`、`6ed149a5` 及当时工作区改动）；本轮未执行生产发布。报告里的 ISO 时间为 UTC，本目录日期按 Asia/Shanghai。每份 JSON 保留实际浏览器版本、输入、逐项结果和产物摘要。
 
 ## 固定提交的回溯测量
 
@@ -50,11 +50,13 @@ GPU 与浏览器协议按键不等于真实物理键盘。VoiceOver 验收按[�
 - [文件面板定向诊断](host-filesystem-debug.json)：单组通过；三组并发结果在上述绿报告。初始焦点与退出覆盖确认后的焦点均等待到位，不在超时后继续误操作。
 - [覆盖率正例](coverage-positive.txt)：复用CI test lane的coverage参数，经Nx运行，91个测试文件、1338个用例通过；[负例](coverage-negative.txt)按预期被逐文件门槛拦截。本轮未触发远端CI。
 - [发布演练](deploy-dry-run.txt)：97个文件、13.2MB与隔离头检查通过，只打印将执行的命令，没有上传。
-- [真实旧生产升级](upgrade-production.json)：固定部署d650c06f建库后，关闭旧页并在同一HTTPS Origin供应当前本地产物，目录、外观、备忘录及schema记录均通过。没有发布或改变线上静态资源。
-- [真实线上Aiao Code](aiao-code-online.json)与[本地当前构建配合线上Aiao Code](aiao-code-current.json)：真实入口、终端与重开检查均通过，桌面与应用无页面错误。
+- [真实旧生产升级（含用户文件正文）](upgrade-production-file-body.json)：固定部署d650c06f建库并通过终端复制创建用户文件，读回正文后关闭旧页，在同一HTTPS Origin供应当前本地产物，再从桌面打开同一文件逐字比较。文件正文、目录、外观、备忘录及schema记录5项均通过。原[四项报告](upgrade-production.json)不包含文件体断言，保留其原始口径；没有发布或改变线上静态资源。
+- [真实线上Aiao Code](aiao-code-online.json)与[本地当前构建配合线上Aiao Code复测](aiao-code-current-final.json)：真实入口、终端与重开检查均通过，桌面与应用无页面错误。
 - [用户真实Chrome中的同站对照](domain-same-site.md)：唯一验收项目与已有GitHub登录一致，测试后恢复原项目；没有执行登录或OAuth。
-- [双域名文件验收](domain-storage.json)未通过：旧线上构建写入后重开文件，报告Storage file meta not found。初次TextEdit覆盖种子文件的[独立失败](domain-storage-old-save-failure.json)保留，后续使用终端写入并等待命令结束仍复现。不能把文件夹/备忘录的局部结果或浏览器规则当成完整AC#3通过。
+- [双域名文件验收最终复测](domain-storage-final.json)：真实终端复制创建用户文件并读回正文，新地址无用户文件、文件夹与备忘录；返回旧地址后正文、文件夹、备忘录和设置完整。两个HTTPS入口无重定向，9项通过，无页面错误。[抽取共享helper前的通过报告](domain-storage.json)也保留。旧线上构建的[TextEdit覆盖失败](domain-storage-old-save-failure.json)和[终端写入失败](domain-storage-terminal-write-failure.json)均报告Storage file meta not found；复制路径通过不代表该旧部署缺陷已修。
 
 早期冒烟与Aiao Code报告从子目录使用相对pathspec，changes字段可能为空；该字段不证明当时工作区干净。已修为顶层pathspec，之后报告按真实git状态记录；旧报告不回写，执行SHA、产物摘要和本目录workspace说明一起复核。
 
 Firefox首次完整复测没有清单外失败；第二轮发现shell-interaction的greenButtonRestores失败。原[第二轮](firefox-2.json)保留；检查从固定600ms等待改为观察动画完成状态，几何容差仍为3px。[定向第一轮](firefox-zoom-1.json)、[第二轮](firefox-zoom-2.json)均通过。不能写成原两轮没有出现不稳定项。
+
+最终GPU复测记录：[第一轮](saltline-gpu-final-1.json)、[第二轮](saltline-gpu-final-2.json)、[第三轮](saltline-gpu-final-3.json)，Chrome 157.0.8103.52、M1 Max ANGLE Metal，12项全部通过。到达标题画面3740/3247/3241ms，帧率89.3/89.9/86.7FPS。该组测于窗口还原修复之后、启动台搜索修复之前；各报告保留其实际产物摘要。

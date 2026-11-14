@@ -1148,8 +1148,11 @@ export const a11y = {
       await press('Enter');
       await appears(page.locator('#spot:not(.out) [data-sq]'), 8_000);
       await focusReaches(page, inside('spotlight'));
+      await page.mouse.move(1, 1);
       await page.keyboard.type('Notes');
-      await page.waitForFunction(() => document.querySelector('#spot [role="option"]'), undefined, { timeout: 8_000 });
+      await page.locator('#spot [role="option"][aria-label="Notes, Application"][aria-selected="true"]').waitFor({
+        timeout: 8_000
+      });
       const spotTree = await snapshot('#spot');
       tree.spotlight = problems(
         missingInOrder(spotTree, [

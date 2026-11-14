@@ -50,13 +50,19 @@ export async function createSession({
   const viewport = contextOptions.viewport ?? VIEWPORT;
   const profile =
     EPHEMERAL_CONTEXT_HAS_OPFS[engine] ? null : await createPersistentProfile({ engine, viewport, contextOptions });
-  const context = profile ? await profile.open() : await browser.newContext({ viewport, ...contextOptions });
+  const context =
+    profile ?
+      await profile.open()
+    : await browser.newContext({ viewport, ...contextOptions, ignoreHTTPSErrors: engine === 'firefox' });
   await context.route(
     url => !url.href.startsWith(origin),
     route => route.abort()
   );
   /* 替身的路由后注册，优先于上面的外网拦截。 */
-  const aiaoCode = standins.includes('aiao-code') ? await installAiaoCodeStandin(context) : null;
+  const aiaoCode =
+    standins.includes('aiao-code') ?
+      await installAiaoCodeStandin(context, { network: engine === 'firefox', desktopOrigin: origin })
+    : null;
   const game = standins.includes('game') ? await installGameStandin(context, origin) : null;
   const errors = [];
   /** 新开一个页面，页面错误一律记进本检查组的 errors。 */
@@ -128,6 +134,7 @@ export async function createSession({
     },
     close: async () => {
       await context.close();
+      await aiaoCode?.close();
       await profile?.dispose();
     }
   };

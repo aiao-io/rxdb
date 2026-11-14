@@ -1,10 +1,10 @@
 {
   "format": "aiao-desktop.smoke",
   "version": 1,
-  "measuredAt": "2026-11-14T01:53:33.849Z",
+  "measuredAt": "2026-11-14T02:13:13.197Z",
   "source": {
-    "sha": "67bcbbc94f7d1cb666dc0fe401a3dd463c893645",
-    "changes": "M src/groups/upgrade-previous.mjs\n M src/verify-domains.mjs\n?? src/harness/user-file.mjs"
+    "sha": "6ed149a5962153a09bec268e634e479f7b9f1a22",
+    "changes": "M src/groups/apps.mjs\n M src/harness/helpers.mjs\n M ../web/src/app/components/overlays/launchpad.ts\n M ../../requirements/evidence/2026-11-14/README.md\n M ../../requirements/plans/acceptance-closeout.md\n M ../../requirements/stories/desktop/ADESK-US-106-database-upgrade-path.md\n M ../../requirements/stories/platform/ADESK-US-004-custom-domain.md\n M ../../requirements/verification-report.md\n?? ../../requirements/evidence/2026-11-14/app-launch-diagnostic.json\n?? ../../requirements/evidence/2026-11-14/app-search-enter-green.json\n?? ../../requirements/evidence/2026-11-14/app-search-enter-red.json\n?? ../../requirements/evidence/2026-11-14/app-search-enter-red.txt\n?? ../../requirements/evidence/2026-11-14/chromium-app-launch-failure.json\n?? ../../requirements/evidence/2026-11-14/domain-storage-final.json"
   },
   "environment": {
     "os": "darwin",
@@ -18,7 +18,7 @@
   },
   "artifact": {
     "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
-    "indexSha256": "4574844c7cee4a238256fbed051f79ab92b27a70c63dd5b39587fef7a55fd006"
+    "indexSha256": "74a43cbe80fc3498d5e58a7e33693ef9b4be6a73e17b22099cb23a5667b7a192"
   },
   "method": {
     "previousBuild": null,
@@ -52,7 +52,7 @@
     "isolatedOrigins": true,
     "interceptedExternalRequests": true
   },
-  "seconds": 295.15933591699996,
+  "seconds": 311.20929279100005,
   "outcomes": [
     {
       "group": "shell",
@@ -84,7 +84,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 9.695398833999992
+      "seconds": 10.051600417000008
     },
     {
       "group": "shell-interaction",
@@ -141,7 +141,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 24.486912083000004
+      "seconds": 25.995662417
     },
     {
       "group": "disk-terminal",
@@ -174,7 +174,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 10.641504625000001
+      "seconds": 9.463775957999998
     },
     {
       "group": "integrated-app",
@@ -214,7 +214,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 19.885527791999994
+      "seconds": 20.985784457999994
     },
     {
       "group": "transparent-window",
@@ -238,7 +238,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 9.896546333000005
+      "seconds": 11.574390874999983
     },
     {
       "group": "game",
@@ -265,78 +265,14 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 50.19048070800002
+      "seconds": 50.12255779199998
     },
     {
       "group": "apps",
       "result": {
-        "everyAppOpens": false,
-        "unopened": [
-          "facetime"
-        ]
-      },
-      "problems": [
-        "检查项未通过：everyAppOpens = false",
-        "检查项未通过：unopened = [\"facetime\"]"
-      ],
-      "failedKeys": [
-        "everyAppOpens",
-        "unopened"
-      ],
-      "missingKeys": [],
-      "extraKeys": [],
-      "crashed": null,
-      "pageErrors": [],
-      "seconds": 35.935745957999984
-    },
-    {
-      "group": "dock",
-      "result": {
-        "dock": {
-          "defaultOrder": [],
-          "defaultDivider": true,
-          "removableOffersRemove": true,
-          "removableUnpinned": true,
-          "removeKeepsApplication": true,
-          "systemItemsRefuseRemoval": true,
-          "addFromLaunchpadMenu": true,
-          "addNotDuplicated": true,
-          "menuChangesSurviveReload": true,
-          "runningShowsTemporaryIcon": true,
-          "runningIndicator": true,
-          "runningKeepsPinnedOrder": true,
-          "minimizedRestoresFromDock": true,
-          "quitRemovesTemporaryIcon": true,
-          "pinnedStaysAfterQuit": true,
-          "launchpadDragShowsInsertionGap": true,
-          "launchpadDragPinsAtSlot": true,
-          "dragAgainNoDuplicate": true,
-          "dockDragReorders": true,
-          "dragDoesNotLaunchApp": true,
-          "dragResultSurvivesReload": true,
-          "dragOutUnpins": true,
-          "dragOutKeepsApplication": true,
-          "dragOutProtectedStays": true,
-          "dragMatchesMenu": true,
-          "finderIconDragPins": true,
-          "finderListDragPins": true,
-          "finderColumnDragPins": true,
-          "finderDragAgainNoDuplicate": true,
-          "finderNonAppNotDraggable": true,
-          "keyboardFocusRing": true,
-          "keyboardRemoveFromDock": true,
-          "keyboardRemoveKeepsFocus": true,
-          "keyboardMenuEscapeRestoresFocus": true,
-          "keyboardAddToDock": true,
-          "keyboardAddMatchesDrag": true,
-          "keyboardAddFromTemporaryIcon": true,
-          "repairDropsUnknownAndDuplicates": true,
-          "repairKeepsUserOrder": true,
-          "repairRestoresProtected": true,
-          "repairWrittenBack": true,
-          "repairedLayoutSurvivesReload": true,
-          "unreadableLayoutGetsDefault": true
-        }
+        "everyAppOpens": true,
+        "unopened": [],
+        "searchEnterUsesCurrentQuery": true
       },
       "problems": [],
       "failedKeys": [],
@@ -344,7 +280,64 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 53.93116066599998
+      "seconds": 32.063994041999976
+    },
+    {
+      "group": "dock",
+      "result": {},
+      "problems": [
+        "检查组异常：locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#layer-menu .pop .mi').first() to be visible\u001b[22m\n（groups/dock.mjs:581）"
+      ],
+      "failedKeys": [],
+      "missingKeys": [
+        "dock.defaultOrder",
+        "dock.defaultDivider",
+        "dock.removableOffersRemove",
+        "dock.removableUnpinned",
+        "dock.removeKeepsApplication",
+        "dock.systemItemsRefuseRemoval",
+        "dock.addFromLaunchpadMenu",
+        "dock.addNotDuplicated",
+        "dock.menuChangesSurviveReload",
+        "dock.runningShowsTemporaryIcon",
+        "dock.runningIndicator",
+        "dock.runningKeepsPinnedOrder",
+        "dock.minimizedRestoresFromDock",
+        "dock.quitRemovesTemporaryIcon",
+        "dock.pinnedStaysAfterQuit",
+        "dock.launchpadDragShowsInsertionGap",
+        "dock.launchpadDragPinsAtSlot",
+        "dock.dragAgainNoDuplicate",
+        "dock.dockDragReorders",
+        "dock.dragDoesNotLaunchApp",
+        "dock.dragResultSurvivesReload",
+        "dock.dragOutUnpins",
+        "dock.dragOutKeepsApplication",
+        "dock.dragOutProtectedStays",
+        "dock.dragMatchesMenu",
+        "dock.finderIconDragPins",
+        "dock.finderListDragPins",
+        "dock.finderColumnDragPins",
+        "dock.finderDragAgainNoDuplicate",
+        "dock.finderNonAppNotDraggable",
+        "dock.keyboardFocusRing",
+        "dock.keyboardRemoveFromDock",
+        "dock.keyboardRemoveKeepsFocus",
+        "dock.keyboardAddToDock",
+        "dock.keyboardAddMatchesDrag",
+        "dock.keyboardAddFromTemporaryIcon",
+        "dock.keyboardMenuEscapeRestoresFocus",
+        "dock.repairDropsUnknownAndDuplicates",
+        "dock.repairKeepsUserOrder",
+        "dock.repairRestoresProtected",
+        "dock.repairWrittenBack",
+        "dock.repairedLayoutSurvivesReload",
+        "dock.unreadableLayoutGetsDefault"
+      ],
+      "extraKeys": [],
+      "crashed": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#layer-menu .pop .mi').first() to be visible\u001b[22m\n（groups/dock.mjs:581）",
+      "pageErrors": [],
+      "seconds": 79.50638712499997
     },
     {
       "group": "persistence",
@@ -364,7 +357,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 19.214047999999995
+      "seconds": 19.60212583399999
     },
     {
       "group": "multi-tab",
@@ -407,7 +400,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 53.93699404200001
+      "seconds": 57.24166399999999
     },
     {
       "group": "multi-tab-startup",
@@ -425,7 +418,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 16.478809208999998
+      "seconds": 17.342226625000002
     },
     {
       "group": "narrow-screen",
@@ -451,7 +444,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 12.091122291999985
+      "seconds": 10.659973375000002
     },
     {
       "group": "applications",
@@ -476,7 +469,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 16.700398958000005
+      "seconds": 17.821378833999987
     },
     {
       "group": "applications-protection",
@@ -501,7 +494,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 36.48877975
+      "seconds": 37.253110417
     },
     {
       "group": "applications-upgrade",
@@ -524,7 +517,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 23.156274625000005
+      "seconds": 23.923745083
     },
     {
       "group": "external-content",
@@ -541,7 +534,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 5.042780249999981
+      "seconds": 5.197635832999978
     },
     {
       "group": "lazy-loading",
@@ -569,7 +562,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 18.24499508299999
+      "seconds": 19.373815208999993
     },
     {
       "group": "app-lifecycle",
@@ -610,7 +603,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 15.845374916
+      "seconds": 15.327922624999992
     },
     {
       "group": "host-capabilities",
@@ -646,7 +639,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 31.158617375000002
+      "seconds": 30.787453708999994
     },
     {
       "group": "host-filesystem",
@@ -689,7 +682,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 33.6882025
+      "seconds": 37.381349083
     },
     {
       "group": "window-layout",
@@ -754,7 +747,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 71.634881042
+      "seconds": 75.242771167
     },
     {
       "group": "a11y",
@@ -832,7 +825,9 @@
             "dockRunningState": [],
             "menuItems": [],
             "launchpad": [],
-            "spotlight": [],
+            "spotlight": [
+              "聚焦搜索的无障碍树里缺少或顺序不对：- option \"Notes, Application\" [selected]"
+            ],
             "updatesWhenWindowsOpenAndClose": [],
             "everyControlNamed": [],
             "decorativeSvgHidden": []
@@ -842,13 +837,17 @@
           }
         }
       },
-      "problems": [],
-      "failedKeys": [],
+      "problems": [
+        "检查项未通过：a11y.tree.spotlight = [\"聚焦搜索的无障碍树里缺少或顺序不对：- option \\\"Notes, Application\\\" [selected]\"]"
+      ],
+      "failedKeys": [
+        "a11y.tree.spotlight"
+      ],
       "missingKeys": [],
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 30.04295475
+      "seconds": 31.215123792
     },
     {
       "group": "upgrade-legacy",
@@ -873,7 +872,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 26.87015883300001
+      "seconds": 27.784381125
     },
     {
       "group": "upgrade-protection",
@@ -901,7 +900,7 @@
       "extraKeys": [],
       "crashed": null,
       "pageErrors": [],
-      "seconds": 22.052004667000002
+      "seconds": 22.785872000000005
     }
   ],
   "checks": {
@@ -1046,55 +1045,9 @@
       "spotlightLists": true,
       "realGameBoots": true
     },
-    "everyAppOpens": false,
-    "unopened": [
-      "facetime"
-    ],
-    "dock": {
-      "defaultOrder": [],
-      "defaultDivider": true,
-      "removableOffersRemove": true,
-      "removableUnpinned": true,
-      "removeKeepsApplication": true,
-      "systemItemsRefuseRemoval": true,
-      "addFromLaunchpadMenu": true,
-      "addNotDuplicated": true,
-      "menuChangesSurviveReload": true,
-      "runningShowsTemporaryIcon": true,
-      "runningIndicator": true,
-      "runningKeepsPinnedOrder": true,
-      "minimizedRestoresFromDock": true,
-      "quitRemovesTemporaryIcon": true,
-      "pinnedStaysAfterQuit": true,
-      "launchpadDragShowsInsertionGap": true,
-      "launchpadDragPinsAtSlot": true,
-      "dragAgainNoDuplicate": true,
-      "dockDragReorders": true,
-      "dragDoesNotLaunchApp": true,
-      "dragResultSurvivesReload": true,
-      "dragOutUnpins": true,
-      "dragOutKeepsApplication": true,
-      "dragOutProtectedStays": true,
-      "dragMatchesMenu": true,
-      "finderIconDragPins": true,
-      "finderListDragPins": true,
-      "finderColumnDragPins": true,
-      "finderDragAgainNoDuplicate": true,
-      "finderNonAppNotDraggable": true,
-      "keyboardFocusRing": true,
-      "keyboardRemoveFromDock": true,
-      "keyboardRemoveKeepsFocus": true,
-      "keyboardMenuEscapeRestoresFocus": true,
-      "keyboardAddToDock": true,
-      "keyboardAddMatchesDrag": true,
-      "keyboardAddFromTemporaryIcon": true,
-      "repairDropsUnknownAndDuplicates": true,
-      "repairKeepsUserOrder": true,
-      "repairRestoresProtected": true,
-      "repairWrittenBack": true,
-      "repairedLayoutSurvivesReload": true,
-      "unreadableLayoutGetsDefault": true
-    },
+    "everyAppOpens": true,
+    "unopened": [],
+    "searchEnterUsesCurrentQuery": true,
     "persistence": {
       "fileSurvivesReload": true,
       "folderSurvivesReload": true,
@@ -1422,7 +1375,9 @@
         "dockRunningState": [],
         "menuItems": [],
         "launchpad": [],
-        "spotlight": [],
+        "spotlight": [
+          "聚焦搜索的无障碍树里缺少或顺序不对：- option \"Notes, Application\" [selected]"
+        ],
         "updatesWhenWindowsOpenAndClose": [],
         "everyControlNamed": [],
         "decorativeSvgHidden": []
@@ -1464,8 +1419,51 @@
   "limitations": {
     "known": [],
     "unexpected": [
-      "[apps] 检查项未通过或缺失：everyAppOpens",
-      "[apps] 检查项未通过或缺失：unopened"
+      "[dock] 检查项未通过或缺失：dock.defaultOrder",
+      "[dock] 检查项未通过或缺失：dock.defaultDivider",
+      "[dock] 检查项未通过或缺失：dock.removableOffersRemove",
+      "[dock] 检查项未通过或缺失：dock.removableUnpinned",
+      "[dock] 检查项未通过或缺失：dock.removeKeepsApplication",
+      "[dock] 检查项未通过或缺失：dock.systemItemsRefuseRemoval",
+      "[dock] 检查项未通过或缺失：dock.addFromLaunchpadMenu",
+      "[dock] 检查项未通过或缺失：dock.addNotDuplicated",
+      "[dock] 检查项未通过或缺失：dock.menuChangesSurviveReload",
+      "[dock] 检查项未通过或缺失：dock.runningShowsTemporaryIcon",
+      "[dock] 检查项未通过或缺失：dock.runningIndicator",
+      "[dock] 检查项未通过或缺失：dock.runningKeepsPinnedOrder",
+      "[dock] 检查项未通过或缺失：dock.minimizedRestoresFromDock",
+      "[dock] 检查项未通过或缺失：dock.quitRemovesTemporaryIcon",
+      "[dock] 检查项未通过或缺失：dock.pinnedStaysAfterQuit",
+      "[dock] 检查项未通过或缺失：dock.launchpadDragShowsInsertionGap",
+      "[dock] 检查项未通过或缺失：dock.launchpadDragPinsAtSlot",
+      "[dock] 检查项未通过或缺失：dock.dragAgainNoDuplicate",
+      "[dock] 检查项未通过或缺失：dock.dockDragReorders",
+      "[dock] 检查项未通过或缺失：dock.dragDoesNotLaunchApp",
+      "[dock] 检查项未通过或缺失：dock.dragResultSurvivesReload",
+      "[dock] 检查项未通过或缺失：dock.dragOutUnpins",
+      "[dock] 检查项未通过或缺失：dock.dragOutKeepsApplication",
+      "[dock] 检查项未通过或缺失：dock.dragOutProtectedStays",
+      "[dock] 检查项未通过或缺失：dock.dragMatchesMenu",
+      "[dock] 检查项未通过或缺失：dock.finderIconDragPins",
+      "[dock] 检查项未通过或缺失：dock.finderListDragPins",
+      "[dock] 检查项未通过或缺失：dock.finderColumnDragPins",
+      "[dock] 检查项未通过或缺失：dock.finderDragAgainNoDuplicate",
+      "[dock] 检查项未通过或缺失：dock.finderNonAppNotDraggable",
+      "[dock] 检查项未通过或缺失：dock.keyboardFocusRing",
+      "[dock] 检查项未通过或缺失：dock.keyboardRemoveFromDock",
+      "[dock] 检查项未通过或缺失：dock.keyboardRemoveKeepsFocus",
+      "[dock] 检查项未通过或缺失：dock.keyboardAddToDock",
+      "[dock] 检查项未通过或缺失：dock.keyboardAddMatchesDrag",
+      "[dock] 检查项未通过或缺失：dock.keyboardAddFromTemporaryIcon",
+      "[dock] 检查项未通过或缺失：dock.keyboardMenuEscapeRestoresFocus",
+      "[dock] 检查项未通过或缺失：dock.repairDropsUnknownAndDuplicates",
+      "[dock] 检查项未通过或缺失：dock.repairKeepsUserOrder",
+      "[dock] 检查项未通过或缺失：dock.repairRestoresProtected",
+      "[dock] 检查项未通过或缺失：dock.repairWrittenBack",
+      "[dock] 检查项未通过或缺失：dock.repairedLayoutSurvivesReload",
+      "[dock] 检查项未通过或缺失：dock.unreadableLayoutGetsDefault",
+      "[dock] 检查组异常：locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#layer-menu .pop .mi').first() to be visible\u001b[22m\n（groups/dock.mjs:581）",
+      "[a11y] 检查项未通过或缺失：a11y.tree.spotlight"
     ],
     "stale": []
   },

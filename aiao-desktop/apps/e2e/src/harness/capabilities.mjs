@@ -66,7 +66,7 @@ export async function grantCapabilities(session, capabilities) {
     url => url.origin === origin && url.pathname === `/${file}`,
     async route => {
       const response = await route.fetch();
-      await route.fulfill({ response, body: source });
+      await route.fulfill({ response, body: session.aiaoCode.rewriteSource(source) });
     }
   );
   return { file, original, granted: [...capabilities] };

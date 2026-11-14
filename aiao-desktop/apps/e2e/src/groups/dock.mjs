@@ -569,6 +569,7 @@ export const dock = {
     await page.mouse.down();
     const ringOnMouse = await page.evaluate(() => document.activeElement?.matches(':focus-visible') === true);
     await page.mouse.up();
+    await win('maps').waitFor();
     await closeAll();
     result.keyboardFocusRing = focused === order[order.indexOf('launchpad') + 1] && ringOnKeyboard && !ringOnMouse;
 
@@ -578,7 +579,19 @@ export const dock = {
     await page.keyboard.press('Tab');
     await page.keyboard.press('Shift+Tab');
     await page.keyboard.press('ContextMenu');
-    await page.locator('#layer-menu .pop .mi').first().waitFor();
+    try {
+      await page.locator('#layer-menu .pop .mi').first().waitFor();
+    } catch (error) {
+      const state = await page.evaluate(() => ({
+        focused: document.activeElement?.outerHTML,
+        windows: [...document.querySelectorAll('.win')].map(node => ({
+          app: node.getAttribute('data-app'),
+          classes: node.className
+        })),
+        menu: document.querySelector('#layer-menu')?.innerHTML
+      }));
+      throw new Error(`Dock 键盘菜单未打开：${JSON.stringify(state)}`, { cause: error });
+    }
     const firstFocused = await page.evaluate(() => document.activeElement?.matches('#layer-menu .pop .mi') === true);
     for (let step = 0; step < 6; step++) {
       if ((await page.evaluate(() => document.activeElement?.dataset?.act)) === 'remove-from-dock') break;

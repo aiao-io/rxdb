@@ -42,7 +42,7 @@ capabilities: []
 | --- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ---- |
 | 1   | Cloudflare 账号已登录，DNS 已指向 Pages                                          | 在 Pages 面板绑定 `desktop.aiao.io` 并等证书签发                             | `https://desktop.aiao.io` 打开桌面，入口页与 `aiao-desktop.pages.dev` 一致                           | ✅   |
 | 2   | 域名已绑定                                                                       | 跑 `pnpm nx run aiao-desktop:deploy`                                         | 命令把自定义域名的入口页纳入线上核对并通过（与生产地址同一粒度）；核对失败时报出具体地址与原因       | ⬜   |
-| 3   | 旧地址 `aiao-desktop.pages.dev` 上已有用户文件与备忘录                           | 打开 `https://desktop.aiao.io`，再回到旧地址                                 | 新地址是一份全新的桌面（内置内容），没有页面错误，也没有被重定向；旧地址上原来的文件与备忘录原样还在 | ⚠️   |
+| 3   | 旧地址 `aiao-desktop.pages.dev` 上已有用户文件与备忘录                           | 打开 `https://desktop.aiao.io`，再回到旧地址                                 | 新地址是一份全新的桌面（内置内容），没有页面错误，也没有被重定向；旧地址上原来的文件与备忘录原样还在 | ✅   |
 | 4   | 发布完成，真实网络；已在直接访问 vscode.aiao.io 的标签页登录 GitHub 并新建了项目 | 在 `desktop.aiao.io` 的桌面里打开 Aiao Code                                  | 看到同一个项目                                                                                       | ✅   |
 | 5   | 同上                                                                             | 同上，看登录状态                                                             | 处于已登录状态                                                                                       | ✅   |
 | 6   | 同上                                                                             | 跑 `aiao-desktop-e2e:verify-aiao-code --desktop-url=https://desktop.aiao.io` | 全部检查项通过，桌面与 Aiao Code 没有页面错误                                                        | ✅   |
@@ -65,9 +65,9 @@ capabilities: []
 
 域名已绑定；两个入口只读核对通过，同站项目及已有 GitHub 登录状态已在用户实际 Chrome 配置中对照。真实线上 Aiao Code 与当前构建结合线上 Aiao Code 的验收均通过。
 
-原始记录：[live-entrypoints.json](../../evidence/2026-11-14/live-entrypoints.json)、[pages-metadata.json](../../evidence/2026-11-14/pages-metadata.json)、[domain-same-site.md](../../evidence/2026-11-14/domain-same-site.md)、[aiao-code-online.json](../../evidence/2026-11-14/aiao-code-online.json)、[aiao-code-current.json](../../evidence/2026-11-14/aiao-code-current.json)、[domain-storage.json](../../evidence/2026-11-14/domain-storage.json)、[domain-storage-old-save-failure.json](../../evidence/2026-11-14/domain-storage-old-save-failure.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
+原始记录：[live-entrypoints.json](../../evidence/2026-11-14/live-entrypoints.json)、[pages-metadata.json](../../evidence/2026-11-14/pages-metadata.json)、[domain-same-site.md](../../evidence/2026-11-14/domain-same-site.md)、[aiao-code-online.json](../../evidence/2026-11-14/aiao-code-online.json)、[aiao-code-current-final.json](../../evidence/2026-11-14/aiao-code-current-final.json)、[domain-storage-final.json](../../evidence/2026-11-14/domain-storage-final.json)、[domain-storage-old-save-failure.json](../../evidence/2026-11-14/domain-storage-old-save-failure.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
 
-尚缺 AC#2 的本次正式发布与线上对账。AC#3 的真实域名脚本已落地，但旧生产构建在写入后重新打开文件时报告 `Storage file meta not found`，未取得完整通过证据；不能把浏览器的 Origin 隔离规则当成验收结果。
+AC#3 已在两个真实 HTTPS Origin 上执行并复测：旧地址通过终端复制创建用户文件并读回正文，切到新地址确认用户文件、文件夹和备忘录不存在，再返回旧地址确认正文、文件夹、备忘录及外观设置完整，9 项全部通过且无页面错误。旧部署用 TextEdit 覆盖种子文件及终端写入时出现的 `Storage file meta not found` 仍保留在失败报告中；本次复制路径通过不表示该旧部署缺陷已修。尚缺 AC#2 的本次正式发布与线上对账。
 
 ## References
 

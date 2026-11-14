@@ -44,7 +44,7 @@ export function createHelpers(page) {
   /** 从启动台搜索并打开应用。 */
   const launch = async name => {
     await page.locator('#dock .di[data-app="launchpad"]').click();
-    await page.waitForSelector('#lpad:not(.out) [data-lq]');
+    await page.waitForFunction(() => document.activeElement?.matches('#lpad:not(.out) [data-lq]'));
     await page.locator('#lpad [data-lq]').fill(name);
     await page.locator('#lpad [data-lq]').press('Enter');
   };
