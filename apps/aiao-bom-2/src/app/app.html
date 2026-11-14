@@ -34,9 +34,6 @@
     <button class="active" (click)="ws.sidebarOpen.set(!ws.sidebarOpen())" aria-label="BOM 工作台" title="BOM 工作台">
       <bom2-icon name="tree" />
     </button>
-    <button (click)="dialogs().open('import')" aria-label="导入数据" title="导入数据">
-      <bom2-icon name="upload" />
-    </button>
     <button (click)="dialogs().open('validate')" aria-label="数据校验" title="数据校验">
       <bom2-icon name="check" />
     </button>
@@ -93,36 +90,11 @@
   </aside>
   <main class="main-area">
     <section class="project-heading">
-      <div>
-        <div class="eyebrow">
-          PRODUCT ENGINEERING
-          <span>/</span>
-          BILL OF MATERIALS
-        </div>
-        <h1>
-          BOM 工作台
-          <span class="version-badge">{{ ws.query().structure === 'draft' ? '可编辑草稿' : '来源快照' }}</span>
-        </h1>
-        <p>
-          {{ ws.dataset()?.title }}
-          <span>·</span>
-          {{ ws.dataset()?.version }}
-          <span>·</span>
-          采集于 {{ ws.dataset()?.observedOn }}
-        </p>
-      </div>
+      <h1>BOM 工作台</h1>
       <div class="project-actions">
-        <button (click)="dialogs().open('import')">
-          <bom2-icon name="upload" />
-          导入
-        </button>
-        <button (click)="dialogs().open('export')">
-          <bom2-icon name="download" />
-          导出
-        </button>
         <button (click)="dialogs().open('revision')">
           <bom2-icon name="copy" />
-          版本 / 差异
+          版本历史
         </button>
         <button class="primary" [disabled]="ws.loading()" (click)="dialogs().open('fork')">
           <bom2-icon name="branch" />
@@ -263,23 +235,6 @@
                     {{ column.title }}
                   </label>
                 }
-                <label class="catalog-toggle">
-                  <input
-                    [checked]="ws.query().includeCatalog"
-                    (change)="ws.updateQuery({ includeCatalog: !ws.query().includeCatalog })"
-                    type="checkbox"
-                  />
-                  包含补充目录
-                </label>
-                <select [value]="ws.query().sort" (change)="sort(value($event))" aria-label="排序字段">
-                  <option value="source">来源顺序</option>
-                  <option value="name">按名称排序</option>
-                  <option value="partId">按编码排序</option>
-                  <option value="quantity">按用量排序</option>
-                </select>
-                <button (click)="ws.updateQuery({ descending: !ws.query().descending })">
-                  {{ ws.query().descending ? '降序 ↓' : '升序 ↑' }}
-                </button>
               </div>
             }
           </div>
@@ -297,7 +252,21 @@
         </nav>
         @if (ws.query().structure === 'draft') {
           <div class="draft-toolbar">
+            <select
+              class="branch-select"
+              [value]="ws.activeBranchId() ?? ''"
+              (change)="ws.switchDraftBranch(value($event))"
+              aria-label="当前工作分支"
+            >
+              @for (branch of ws.branches(); track branch.id) {
+                <option [value]="branch.id">{{ branch.name }}{{ branch.dirty ? ' · 未提交' : '' }}</option>
+              }
+            </select>
             <span>r{{ ws.draft()?.revision }} · 已选 {{ ws.selectedKeys().size }} 项</span>
+            <button [disabled]="!ws.draft() || !ws.activeBranch()?.dirty" (click)="dialogs().open('commit')">
+              <bom2-icon name="copy" />
+              提交版本
+            </button>
             <button [disabled]="!ws.canUndo()" (click)="ws.undo()" aria-label="撤销"><bom2-icon name="undo" /></button>
             <button [disabled]="!ws.canRedo()" (click)="ws.redo()" aria-label="重做"><bom2-icon name="redo" /></button>
             <button [disabled]="!ws.selectedKeys().size" (click)="dialogs().open('edit')">
@@ -360,6 +329,7 @@
               (columnWidths)="widths($event)"
               (enter)="ws.enter($event)"
               (expandedChange)="ws.setExpanded($event)"
+              (scrollMetrics)="gridMetrics($event)"
               (rowSelect)="ws.choose($event.row, $event.additive)"
             />
           }
@@ -390,6 +360,16 @@
           } @else {
             <span>选择一行查看物料属性与 3D 参考</span>
           }
+        </div>
+        <div
+          #gridScrollbar
+          class="grid-scrollbar"
+          [class.grid-scrollbar-hidden]="gridScrollWidth() <= gridViewportWidth()"
+          (scroll)="scrollGrid($event)"
+          aria-label="表格横向滚动"
+          role="region"
+        >
+          <div [style.width.px]="gridScrollWidth()"></div>
         </div>
       </section>
       @if (ws.panelOpen()) {

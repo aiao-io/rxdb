@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { mkdir, readFile } from 'node:fs/promises';
+import { mkdir } from 'node:fs/promises';
 
 async function open(page: Page, url = '/'): Promise<void> {
   await page.goto(url);
@@ -42,11 +42,11 @@ test('真实数据、范围导航、搜索祖先与三种视图', async ({ page 
   expect(errors).toEqual([]);
 });
 
-test('草稿编辑、撤销重做、刷新恢复、差异与 JSON 重入', async ({ page }) => {
+test('草稿编辑、撤销重做、刷新恢复、差异与本地提交', async ({ page }) => {
   await open(page, '/?pn=1108100X9D01');
   await hideModel(page);
   const fork = await dialog(page, '建立工作草稿');
-  await fork.getByRole('button', { name: '建立草稿', exact: true }).click();
+  await fork.getByRole('button', { name: '建立分支', exact: true }).click();
   await page.getByRole('textbox', { name: '搜索 BOM', exact: true }).fill('1108100');
   await expect(page.getByTestId('matched-count')).toHaveText('1');
   await clickRow(page, 1);
@@ -68,32 +68,25 @@ test('草稿编辑、撤销重做、刷新恢复、差异与 JSON 重入', async
   await page.getByRole('button', { name: '差异', exact: true }).click();
   await expect(page.locator('dialog')).toContainText('1 → 2.5');
   await page.locator('dialog').getByRole('button', { name: '关闭', exact: true }).click();
-  const exporting = await dialog(page, '导出');
-  const download = page.waitForEvent('download');
-  await exporting.getByRole('button', { name: /导出草稿 JSON/ }).click();
-  const file = await download;
-  const path = await file.path();
-  if (!path) throw new Error('未生成导出');
-  const contents = await readFile(path, 'utf8');
-  expect(JSON.parse(contents).nodes.some((n: { quantity: string }) => n.quantity === '2.5')).toBe(true);
-  await exporting.getByRole('button', { name: '关闭', exact: true }).click();
-  const importing = await dialog(page, '导入');
-  await importing.locator('input[type=file]').setInputFiles(path);
-  await expect(importing).toContainText('导入预览');
-  await importing.getByRole('button', { name: '确认导入' }).click();
-  await expect(page.getByRole('tab', { name: '工作草稿' })).toHaveAttribute('aria-selected', 'true');
+  await page.getByRole('button', { name: '提交版本', exact: true }).click();
+  const commit = page.getByRole('dialog');
+  await commit.getByRole('textbox', { name: '提交说明', exact: true }).fill('确认草稿用量');
+  await commit.getByRole('button', { name: '确认', exact: true }).click();
+  await expect(page.locator('.app-footer')).toContainText('已提交到本地版本历史');
+  const history = await dialog(page, '版本历史');
+  await expect(history).toContainText('确认草稿用量');
+  await expect(history).toContainText('HEAD');
+  await expect(history.getByRole('button', { name: '导入', exact: true })).toHaveCount(0);
+  await expect(history.getByRole('button', { name: '导出', exact: true })).toHaveCount(0);
 });
 
-test('非法导入与模型失败可见，表格仍可操作', async ({ page }) => {
+test('导入导出入口已取消，模型失败可见且表格仍可操作', async ({ page }) => {
   await page.route('**/models/*.glb', route => route.abort());
   await open(page);
   await expect(page.getByText(/3D 加载失败/)).toBeVisible();
   await hideModel(page);
-  const importing = await dialog(page, '导入');
-  await importing.locator('textarea').fill('{"rows":[]}');
-  await importing.getByRole('button', { name: '校验并预览' }).click();
-  await expect(importing.getByRole('alert')).toContainText('草稿格式');
-  await importing.getByRole('button', { name: '取消', exact: true }).click();
+  await expect(page.getByRole('button', { name: '导入', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '导出', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: '平铺', exact: true }).click();
   await expect(page.getByTestId('bom-grid')).toBeVisible();
 });
@@ -140,8 +133,6 @@ test('375px 窄屏搜索、面板开合与键盘路径可用', async ({ page }) 
   await page.getByRole('button', { name: '打开详情面板' }).click();
   await expect(page.getByRole('complementary', { name: '模型与物料详情' })).toBeVisible();
   await hideModel(page);
-  await page.getByRole('button', { name: '导入', exact: true }).click();
-  await expect(page.locator('dialog[open]')).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(page.locator('dialog[open]')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '导入', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '导出', exact: true })).toHaveCount(0);
 });

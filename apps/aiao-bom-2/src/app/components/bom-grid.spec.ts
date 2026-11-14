@@ -70,6 +70,9 @@ class FakeTable {
   getColWidth(index: number): number {
     return index * 100;
   }
+  getAllColsWidth(): number {
+    return 1200;
+  }
   setRecordChildren(children: RecordRow[], col: number, row: number): void {
     this.getCellOriginRecord(col, row)!.children = children;
   }

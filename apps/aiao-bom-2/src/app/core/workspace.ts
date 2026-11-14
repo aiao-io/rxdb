@@ -1,12 +1,22 @@
 import { computed, Injectable, signal } from '@angular/core';
 import { createDraft, DraftHistory, parseImport } from './draft';
+import { createDraftBranch, createDraftCommit, commitBranch, markBranchDirty } from './draft-worktree';
 import { IndexClient } from './index-client';
 import { BomIndex } from './query';
 import { createSnapshot } from './snapshot';
 import { SnapshotWorkspace } from './snapshot-workspace';
 import { WorkspaceRepository } from './storage';
 import { makeStressDataset } from './stress-data';
-import { DEFAULT_QUERY, type BomDataset, type BomRow, type DraftState, type QuerySpec, type Structure } from './types';
+import {
+  DEFAULT_QUERY,
+  type BomDataset,
+  type BomRow,
+  type DraftBranch,
+  type DraftCommit,
+  type DraftState,
+  type QuerySpec,
+  type Structure
+} from './types';
 @Injectable({ providedIn: 'root' })
 export class BomWorkspace {
   private readonly worker = new IndexClient();
@@ -21,6 +31,8 @@ export class BomWorkspace {
   readonly selection = signal<string | null>(null);
   readonly selectedKeys = signal(new Set<string>());
   readonly draft = signal<DraftState | null>(null);
+  readonly branches = signal<DraftBranch[]>([]);
+  readonly commits = signal<DraftCommit[]>([]);
   readonly baseline = signal<DraftState | null>(null);
   readonly versions = new SnapshotWorkspace(this.repository);
   readonly loading = signal(true);
@@ -33,6 +45,11 @@ export class BomWorkspace {
   readonly expanded = signal<string[]>([]);
   readonly canUndo = signal(false);
   readonly canRedo = signal(false);
+  readonly activeBranch = computed(() => {
+    const draft = this.draft();
+    return this.branches().find(branch => branch.id === this.activeBranchId()) ?? (draft ? this.branches()[0] : undefined);
+  });
+  readonly activeBranchId = signal<string | null>(null);
   readonly index = computed(() => {
     const data = this.dataset();
     if (!data) return null;
@@ -189,7 +206,7 @@ export class BomWorkspace {
     this.changeStructure('cad');
     this.locate(`cad:${nodeIndex}`);
   }
-  fork(): void {
+  fork(name = ''): void {
     const index = this.index();
     const data = this.dataset();
     if (!index || !data) return;
@@ -200,6 +217,12 @@ export class BomWorkspace {
       parentKey: r.parentKey && keys.has(r.parentKey) ? r.parentKey : null
     }));
     const draft = createDraft(data, nodes);
+    const branch = createDraftBranch(data, draft, name);
+    this.branches.update(branches => [
+      ...branches.map(item => (item.datasetId === data.id ? { ...item, active: false } : item)),
+      branch
+    ]);
+    this.activeBranchId.set(branch.id);
     this.setDraft(draft);
     this.changeStructure('draft');
     this.notice.set(`已建立 ${nodes.length.toLocaleString()} 个发生位置的草稿，来源快照已保留。`);
@@ -213,6 +236,43 @@ export class BomWorkspace {
     if (!data) throw new Error('数据集尚未加载');
     this.setDraft({ ...draft, datasetId: data.id });
     this.changeStructure('draft');
+  }
+  async commitDraft(message: string): Promise<void> {
+    const draft = this.draft();
+    const branch = this.activeBranch();
+    if (!draft || !branch) throw new Error('请先建立工作分支');
+    const commit = createDraftCommit(branch, draft, message);
+    const snapshot = await this.saveSnapshot(`${branch.name} · ${commit.message}`, new Date().toLocaleDateString('en-CA'));
+    const committed = { ...commit, snapshotId: snapshot.id };
+    const nextBranch = commitBranch(branch, committed);
+    await this.repository.writeMany([
+      [`draft-commit:${draft.datasetId}:${branch.id}:${commit.id}`, committed],
+      [`draft-branch:${draft.datasetId}:${branch.id}`, nextBranch],
+      [`draft:${draft.datasetId}:${branch.id}`, draft],
+      [`draft:${draft.datasetId}`, draft]
+    ]);
+    this.branches.update(branches => branches.map(item => (item.id === branch.id ? nextBranch : item)));
+    this.commits.update(commits => [committed, ...commits]);
+    this.saveStatus.set('已提交到本地版本历史');
+    this.notice.set(`已提交 ${branch.name}：${commit.message}`);
+  }
+  async switchDraftBranch(branchId: string): Promise<void> {
+    const branch = this.branches().find(item => item.id === branchId);
+    if (!branch || branch.id === this.activeBranchId()) return;
+    const saved = await this.repository.read<DraftState>(`draft:${branch.datasetId}:${branch.id}`);
+    const head = branch.headCommitId ? this.commits().find(commit => commit.id === branch.headCommitId) : undefined;
+    const next = saved ?? head?.draft;
+    if (!next) throw new Error(`分支没有可恢复的工作树：${branch.name}`);
+    this.activeBranchId.set(branch.id);
+    this.setDraft(parseImport(JSON.stringify(next)), false);
+    const activeBranches = this.branches().map(item => ({ ...item, active: item.id === branch.id }));
+    this.branches.set(activeBranches);
+    void this.repository.writeMany([
+      [`draft:${branch.datasetId}`, next],
+      ...activeBranches.map(item => [`draft-branch:${branch.datasetId}:${item.id}`, item] as const)
+    ]);
+    this.changeStructure('draft');
+    this.notice.set(`已切换到 ${branch.name}`);
   }
   edit(keys: string[], quantity: string, uom: string, unitCost: string | null): void {
     if (!this.history) throw new Error('请先建立草稿');
@@ -252,7 +312,7 @@ export class BomWorkspace {
         .catch(e => this.notice.set(`基线保存失败：${String(e)}`));
     }
   }
-  async saveSnapshot(name: string, evaluationDate: string): Promise<void> {
+  async saveSnapshot(name: string, evaluationDate: string): Promise<import('./snapshot').BomSnapshot> {
     const data = this.dataset();
     if (!data) throw new Error('数据集尚未加载');
     const structure = this.query().structure;
@@ -274,6 +334,7 @@ export class BomWorkspace {
       this.notice.set(
         `已保存版本快照：${snapshot.name} · ${snapshot.evaluationDate} · ${nodes.length.toLocaleString()} 个位置`
       );
+    return snapshot;
   }
 
   private async install(data: BomDataset, sequence: number, prepared?: BomRow[], resetUrl = false): Promise<void> {
@@ -281,13 +342,17 @@ export class BomWorkspace {
     performance.clearMarks('bom2:data-ready');
     performance.mark('bom2:data-ready');
     let saved: DraftState | undefined;
+    let savedBranches: DraftBranch[] = [];
+    let savedCommits: DraftCommit[] = [];
     let baseline: DraftState | undefined;
     let view: (Partial<QuerySpec> & { expanded?: string[] }) | undefined;
     try {
-      [saved, view, baseline] = await Promise.all([
+      [saved, view, baseline, savedBranches, savedCommits] = await Promise.all([
         this.repository.read<DraftState>(`draft:${data.id}`),
         this.repository.read<Partial<QuerySpec> & { expanded?: string[] }>(`view:${data.id}`),
-        this.repository.read<DraftState>(`baseline:${data.id}`)
+        this.repository.read<DraftState>(`baseline:${data.id}`),
+        this.repository.readAll<DraftBranch>(`draft-branch:${data.id}:`),
+        this.repository.readAll<DraftCommit>(`draft-commit:${data.id}:`)
       ]);
     } catch (error) {
       if (sequence === this.loadSequence) this.notice.set(`本地工作区读取失败：${String(error)}`);
@@ -302,12 +367,27 @@ export class BomWorkspace {
     this.query.set({ ...DEFAULT_QUERY });
     this.expanded.set([]);
     this.draft.set(null);
+    this.branches.set(savedBranches.filter(branch => branch.datasetId === data.id));
+    this.commits.set(savedCommits.filter(commit => commit.datasetId === data.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+    this.activeBranchId.set(
+      this.branches().find(branch => branch.active)?.id ??
+        [...this.branches()].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0]?.id ??
+        null
+    );
+    this.branches.update(branches => branches.map(branch => ({ ...branch, active: branch.id === this.activeBranchId() })));
     this.baseline.set(null);
     this.history = null;
     this.canUndo.set(false);
     this.canRedo.set(false);
     try {
-      if (saved) this.setDraft(parseImport(JSON.stringify(saved)), false);
+      if (saved) {
+        if (!this.branches().length) {
+          const legacyBranch = createDraftBranch(data, saved, 'main');
+          this.branches.set([legacyBranch]);
+          this.activeBranchId.set(legacyBranch.id);
+        }
+        this.setDraft(parseImport(JSON.stringify(saved)), false);
+      }
       this.baseline.set(baseline ? parseImport(JSON.stringify(baseline)) : null);
       if (view) {
         this.query.set(this.sanitizeQuery(view));
@@ -337,10 +417,25 @@ export class BomWorkspace {
     this.draft.set(this.history.current);
     this.canUndo.set(this.history.canUndo);
     this.canRedo.set(this.history.canRedo);
+    const branch = this.activeBranch();
     const sequence = ++this.saveSequence;
     this.saveStatus.set('正在保存…');
+    const branchDraft = branch ? `draft:${this.history.current.datasetId}:${branch.id}` : null;
+    const branchKey = branch ? `draft-branch:${this.history.current.datasetId}:${branch.id}` : null;
+    const dirty = branch ? markBranchDirty(branch) : null;
+    const branchStates = branch
+      ? this.branches().map(item => (item.id === branch.id ? dirty! : item))
+      : this.branches();
+    if (branch) this.branches.set(branchStates);
     void this.repository
       .write(`draft:${this.history.current.datasetId}`, this.history.current)
+      .then(() =>
+        this.repository.writeMany([
+          ...(branchDraft ? [[branchDraft, this.history!.current] as const] : []),
+          ...(branchKey && dirty ? [[branchKey, dirty] as const] : []),
+          ...branchStates.map(item => [`draft-branch:${this.history!.current.datasetId}:${item.id}`, item] as const)
+        ])
+      )
       .then(() => {
         if (sequence === this.saveSequence) this.saveStatus.set('已保存到本机');
       })

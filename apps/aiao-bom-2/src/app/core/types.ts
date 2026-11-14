@@ -121,6 +121,31 @@ export interface DraftState {
   nodes: Occurrence[];
   savedAt: string;
 }
+export interface DraftBranch {
+  schema: 'aiao-bom-2-branch/1';
+  id: string;
+  datasetId: string;
+  name: string;
+  baseVersion: string;
+  headCommitId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  dirty: boolean;
+  active: boolean;
+}
+export interface DraftCommit {
+  schema: 'aiao-bom-2-commit/1';
+  id: string;
+  branchId: string;
+  datasetId: string;
+  parentId: string | null;
+  message: string;
+  revision: number;
+  nodeCount: number;
+  createdAt: string;
+  snapshotId?: string;
+  draft: DraftState;
+}
 export interface Diagnostic {
   key: string;
   field: string;

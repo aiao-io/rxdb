@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { mkdir, readFile } from 'node:fs/promises';
+import { mkdir } from 'node:fs/promises';
 
 test.use({ actionTimeout: 15000 });
 
@@ -13,8 +13,14 @@ async function open(page: Page): Promise<void> {
   await page.getByRole('button', { name: '关闭模型与详情' }).click();
 }
 async function versions(page: Page) {
-  await page.getByRole('button', { name: '版本 / 差异', exact: true }).click();
+  await page.getByRole('button', { name: '版本历史', exact: true }).click();
   return page.getByRole('dialog', { name: '版本快照与日期比较' });
+}
+async function fork(page: Page, name = '版本校核'): Promise<void> {
+  await page.getByRole('button', { name: '建立工作草稿', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('textbox', { name: '分支名称', exact: true }).fill(name);
+  await dialog.getByRole('button', { name: '建立分支', exact: true }).click();
 }
 async function capture(page: Page, name: string, date: string): Promise<void> {
   const dialog = await versions(page);
@@ -28,12 +34,11 @@ async function capture(page: Page, name: string, date: string): Promise<void> {
   );
 }
 
-test('完整结构版本保存、改量差异、重开恢复、导出与独立工作区重入', async ({ page, browser }) => {
+test('完整结构版本保存、改量差异、提交链和刷新恢复', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await open(page);
-  await page.getByRole('button', { name: '建立工作草稿', exact: true }).click();
-  await page.getByRole('button', { name: '建立草稿', exact: true }).click();
+  await fork(page, '底盘校核');
   await capture(page, '设计 A', '2026-11-13');
   await page.getByRole('dialog').getByRole('button', { name: '关闭', exact: true }).click();
   await page.getByRole('textbox', { name: '搜索 BOM', exact: true }).fill('ST-000001');
@@ -62,43 +67,25 @@ test('完整结构版本保存、改量差异、重开恢复、导出与独立�
   expect(accessibility.violations).toEqual([]);
   await mkdir('../aiao-bom-2/requirements/evidence', { recursive: true });
   await page.screenshot({ path: '../aiao-bom-2/requirements/evidence/versions-2026-11-14.png' });
-  const diffDownload = page.waitForEvent('download');
-  await dialog.getByRole('button', { name: '导出完整差异 JSON' }).click();
-  const diffPath = await (await diffDownload).path();
-  if (!diffPath) throw new Error('没有差异导出文件');
-  const diff = JSON.parse(await readFile(diffPath, 'utf8'));
-  expect(diff.summary.quantityChanges).toBe(1);
-  expect(diff.changes[0].quantityDelta).toBe('1.5');
-  expect(diff.before.nodeCount).toBe(12);
-  expect(diff.after.nodeCount).toBe(12);
-  const snapshotDownload = page.waitForEvent('download');
-  await dialog.getByRole('button', { name: '导出目标快照 JSON' }).click();
-  const snapshotPath = await (await snapshotDownload).path();
-  if (!snapshotPath) throw new Error('没有快照导出文件');
-  const snapshot = JSON.parse(await readFile(snapshotPath, 'utf8'));
-  expect(snapshot.nodes).toHaveLength(12);
-  expect(snapshot.evaluationDate).toBe('2026-11-14');
-  expect(snapshot.observedOn).toBe('2026-11-13');
-  expect(snapshot.nodes.find((node: { key: string }) => node.key === 'stress:1').quantity).toBe('2.5');
+  await dialog.getByRole('button', { name: '关闭', exact: true }).click();
+  await page.getByRole('button', { name: '提交版本', exact: true }).click();
+  const commit = page.getByRole('dialog');
+  await commit.getByRole('textbox', { name: '提交说明', exact: true }).fill('确认底盘用量');
+  await commit.getByRole('button', { name: '确认', exact: true }).click();
+  await expect(page.locator('.app-footer')).toContainText('已提交到本地版本历史');
+  const history = await versions(page);
+  await expect(history).toContainText('底盘校核');
+  await expect(history).toContainText('确认底盘用量');
+  await expect(history).toContainText('HEAD');
+  await expect(history.getByRole('button', { name: '导入', exact: true })).toHaveCount(0);
+  await expect(history.getByRole('button', { name: '导出', exact: true })).toHaveCount(0);
+  await expect(history.locator('input[type=file]')).toHaveCount(0);
+  await history.getByRole('button', { name: '关闭', exact: true }).click();
   await page.reload();
   await expect(page.getByTestId('bom-grid').locator('canvas').first()).toBeVisible();
-  await versions(page);
-  await expect(page.getByTestId('revision-summary')).toContainText('改量 1');
-  const isolated = await browser.newContext();
-  try {
-    const fresh = await isolated.newPage();
-    await open(fresh);
-    const importing = await versions(fresh);
-    await importing.getByLabel('导入版本快照 JSON', { exact: true }).setInputFiles(snapshotPath);
-    await expect(importing).toContainText('待导入：设计 B');
-    await importing.getByRole('button', { name: '确认导入版本快照' }).click();
-    await expect(importing.getByRole('combobox', { name: '目标版本', exact: true })).toContainText('设计 B');
-    await importing.getByLabel('导入版本快照 JSON', { exact: true }).setInputFiles(snapshotPath);
-    await importing.getByRole('button', { name: '确认导入版本快照' }).click();
-    await expect(importing.getByRole('alert')).toContainText('存在');
-  } finally {
-    await isolated.close();
-  }
+  const restored = await versions(page);
+  await expect(restored).toContainText('确认底盘用量');
+  await expect(restored.getByTestId('revision-summary')).toContainText('改量 1');
   expect(errors).toEqual([]);
 });
 
@@ -107,8 +94,7 @@ test('窄屏版本对话框不溢出，跨结构选择显示错误且不损坏�
   await open(page);
   await capture(page, '来源版本', '2026-11-13');
   await page.getByRole('dialog').getByRole('button', { name: '关闭', exact: true }).click();
-  await page.getByRole('button', { name: '建立工作草稿', exact: true }).click();
-  await page.getByRole('button', { name: '建立草稿', exact: true }).click();
+  await fork(page);
   await capture(page, '草稿版本', '2026-11-14');
   const dialog = page.getByRole('dialog');
   const option = dialog
@@ -124,29 +110,24 @@ test('窄屏版本对话框不溢出，跨结构选择显示错误且不损坏�
   await expect(page.getByTestId('bom-grid')).toBeVisible();
 });
 
-test('另一个标签页的过期目录不能覆盖同身份快照', async ({ page }) => {
+test('新建分支不会丢失既有提交，切换后历史仍可见', async ({ page }) => {
   await open(page);
-  const stale = await page.context().newPage();
-  try {
-    await open(stale);
-    const importing = await versions(stale);
-    await capture(page, '原始快照', '2026-11-14');
-    const pending = page.waitForEvent('download');
-    await page.getByRole('dialog').getByRole('button', { name: '导出目标快照 JSON' }).click();
-    const path = await (await pending).path();
-    if (!path) throw new Error('没有快照文件');
-    const snapshot = JSON.parse(await readFile(path, 'utf8'));
-    await importing.getByLabel('导入版本快照 JSON', { exact: true }).setInputFiles({
-      name: 'overwrite.json',
-      mimeType: 'application/json',
-      buffer: Buffer.from(JSON.stringify({ ...snapshot, name: '不应覆盖' }))
-    });
-    await importing.getByRole('button', { name: '确认导入版本快照' }).click();
-    await expect(importing.getByRole('alert')).toBeVisible();
-    await importing.getByRole('button', { name: '重新读取版本目录' }).click();
-    await expect(importing.getByRole('combobox', { name: '目标版本', exact: true })).toContainText('原始快照');
-    await expect(importing.getByRole('combobox', { name: '目标版本', exact: true })).not.toContainText('不应覆盖');
-  } finally {
-    await stale.close();
-  }
+  await fork(page, '底盘校核');
+  await page.getByRole('button', { name: '提交版本', exact: true }).click();
+  let dialog = page.getByRole('dialog');
+  await dialog.getByRole('textbox', { name: '提交说明', exact: true }).fill('底盘基线');
+  await dialog.getByRole('button', { name: '确认', exact: true }).click();
+  await expect(page.getByRole('combobox', { name: '当前工作分支', exact: true })).toContainText('底盘校核');
+  await fork(page, '电池校核');
+  await page.getByRole('button', { name: '提交版本', exact: true }).click();
+  dialog = page.getByRole('dialog');
+  await dialog.getByRole('textbox', { name: '提交说明', exact: true }).fill('电池基线');
+  await dialog.getByRole('button', { name: '确认', exact: true }).click();
+  const branchSelect = page.getByRole('combobox', { name: '当前工作分支', exact: true });
+  const oldBranch = branchSelect.locator('option').filter({ hasText: '底盘校核' });
+  await branchSelect.selectOption((await oldBranch.getAttribute('value')) ?? '');
+  await expect(branchSelect).toContainText('底盘校核');
+  const history = await versions(page);
+  await expect(history).toContainText('底盘基线');
+  await expect(history).not.toContainText('电池基线');
 });

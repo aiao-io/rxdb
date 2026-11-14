@@ -31,7 +31,9 @@ beforeEach(async () => {
   });
   window.history.replaceState({}, '', '/');
   vi.spyOn(WorkspaceRepository.prototype, 'read').mockResolvedValue(undefined);
+  vi.spyOn(WorkspaceRepository.prototype, 'readAll').mockResolvedValue([]);
   vi.spyOn(WorkspaceRepository.prototype, 'write').mockResolvedValue();
+  vi.spyOn(WorkspaceRepository.prototype, 'writeMany').mockResolvedValue();
   vi.spyOn(BomGrid.prototype, 'ngAfterViewInit').mockResolvedValue();
   vi.spyOn(ModelPanel.prototype, 'ngAfterViewInit').mockImplementation(() => undefined);
   vi.stubGlobal(
@@ -130,39 +132,27 @@ describe('工作台操作与可读状态', () => {
     fixture.detectChanges();
     expect(fixture.componentInstance.dialogs().differences().length).toBeGreaterThan(0);
   });
-  it('非法输入保持对话框可读，导入先预览再写入，导出生成文件', async () => {
+  it('不再提供文件导入导出，草稿按分支和提交版本管理', async () => {
     const dialogs = fixture.componentInstance.dialogs();
-    open('import');
-    form({ json: '{"rows":[]}' });
-    expect(dialogs.error()).toContain('草稿格式');
-    dialogs.close();
-    ws.fork();
-    open('import');
-    form({ json: JSON.stringify(ws.draft()) });
-    expect(dialogs.preview()?.nodes).toHaveLength(12);
-    form({});
+    expect(root().querySelector('[aria-label="导入数据"]')).toBeNull();
+    expect(root().querySelector('[aria-label="导出数据"]')).toBeNull();
+    expect(root().textContent).not.toContain('导出当前数据');
+
+    open('fork');
+    form({ branchName: '底盘校核' });
     expect(ws.query().structure).toBe('draft');
+    expect(ws.activeBranch()?.name).toBe('底盘校核');
+    ws.choose(ws.result().rows[1]);
+    fixture.detectChanges();
     open('edit');
-    form({ quantity: '01', uom: '件', cost: '' });
-    expect(dialogs.error()).toContain('规范');
-    dialogs.close();
-    const blob = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test');
-    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
-    const download = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
-    open('export');
-    dialogs.download('csv');
-    dialogs.download('json');
-    expect(blob).toHaveBeenCalledTimes(2);
-    expect(download).toHaveBeenCalledTimes(2);
-    dialogs.close();
-    open('import');
-    const input = document.createElement('input');
-    Object.defineProperty(input, 'files', { value: [new File([JSON.stringify(ws.draft())], 'draft.json')] });
-    const event = new Event('change');
-    Object.defineProperty(event, 'target', { value: input });
-    await dialogs.file(event);
-    expect(dialogs.preview()?.nodes).toHaveLength(12);
-    dialogs.close();
+    form({ quantity: '2.5', uom: '件', cost: '' });
+    open('commit');
+    form({ message: '确认底盘用量' });
+    await vi.waitFor(() => expect(ws.commits()).toHaveLength(1));
+    expect(ws.activeBranch()?.dirty).toBe(false);
+    expect(ws.versions.entries()).toHaveLength(1);
+    expect(ws.notice()).toContain('确认底盘用量');
+
     open('sources');
     expect(root().querySelectorAll('.source-links a')).toHaveLength(4);
     dialogs.close();

@@ -2,6 +2,61 @@
   保存完整结构并比较两个版本。评估日期由你标记；来源采集日和保存时间分别保留。此处提供结构核对，不执行 ECN
   发布或历史生效解析。
 </p>
+<section class="worktree-history" aria-label="本地工作树">
+  <div class="worktree-heading">
+    <div>
+      <span class="section-label">本地工作树</span>
+      @if (activeBranch(); as branch) {
+        <h3>{{ branch.name }} <small>{{ branch.dirty ? '未提交' : '已提交' }}</small></h3>
+        <p>基于 {{ branch.baseVersion }} · {{ branchCommits().length }} 次提交</p>
+      } @else {
+        <h3>尚未建立工作分支</h3>
+        <p>建立工作草稿后，编辑内容会在本机工作树中保存。</p>
+      }
+    </div>
+    @if (headCommit(); as head) {
+      <div class="head-badge">
+        <span>HEAD</span>
+        <code>{{ shortId(head.id) }}</code>
+      </div>
+    }
+  </div>
+  @if (branches().length) {
+    <div class="branch-list" aria-label="本地分支">
+      @for (branch of branches(); track branch.id) {
+        <div class="branch-item" [class.active-branch]="branch.active">
+          <span class="branch-mark">{{ branch.active ? '●' : '○' }}</span>
+          <strong>{{ branch.name }}</strong>
+          <span>{{ branch.dirty ? '未提交' : '已提交' }}</span>
+          @if (branch.headCommitId) {
+            <code>{{ shortId(branch.headCommitId) }}</code>
+          } @else {
+            <code>尚无提交</code>
+          }
+        </div>
+      }
+    </div>
+  }
+  @if (branchCommits().length) {
+    <ol class="commit-list" aria-label="提交记录">
+      @for (commit of branchCommits(); track commit.id) {
+        <li>
+          <span class="commit-line"></span>
+          <div class="commit-copy">
+            <strong>{{ commit.message }}</strong>
+            <small>
+              {{ commitDate(commit.createdAt) }} · r{{ commit.revision }} · {{ commit.nodeCount | number }} 个发生位置
+              @if (commit.snapshotId) { · 已关联快照 }
+            </small>
+          </div>
+          <code>{{ commit.id === activeBranch()?.headCommitId ? 'HEAD · ' : '' }}{{ shortId(commit.id) }}</code>
+        </li>
+      }
+    </ol>
+  } @else if (activeBranch()) {
+    <p class="hint">当前分支还没有提交。提交后会在这里形成可追踪的本地版本链。</p>
+  }
+</section>
 <section class="capture" aria-label="保存版本快照">
   <p>
     当前：
@@ -55,12 +110,6 @@
     </label>
   </div>
   <div class="actions">
-    <button [disabled]="!versions.afterId() || versions.loading()" (click)="downloadSnapshot()" type="button">
-      导出目标快照 JSON
-    </button>
-    <button [disabled]="!versions.result() || versions.loading()" (click)="downloadDiff()" type="button">
-      导出完整差异 JSON
-    </button>
     <button [disabled]="versions.saving()" (click)="versions.openDataset(ws.dataset()!.id)" type="button">
       重新读取版本目录
     </button>
@@ -199,20 +248,7 @@
       </button>
     </nav>
   } @else if (!versions.loading() && !versions.error()) {
-    <p class="hint">保存或导入两个同一数据集、同一结构来源的版本后，选择基准和目标进行比较。</p>
-  }
-</section>
-<section class="restore" aria-label="导入版本快照">
-  <label>
-    导入版本快照 JSON
-    <input [disabled]="versions.saving()" (change)="file($event)" accept=".json,application/json" type="file" />
-  </label>
-  @if (incoming(); as preview) {
-    <p>
-      待导入：{{ preview.name }} · {{ preview.evaluationDate }} · {{ name(preview.structure) }} ·
-      {{ preview.nodes.length | number }} 个位置
-    </p>
-    <button [disabled]="versions.saving()" (click)="acceptImport()" type="button">确认导入版本快照</button>
+    <p class="hint">保存两个同一数据集、同一结构来源的版本后，选择基准和目标进行比较。</p>
   }
 </section>
 @if (error()) {

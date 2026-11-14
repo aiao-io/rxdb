@@ -38,16 +38,16 @@ export const DEFAULT_COLUMNS: GridColumn[] = [
   { field: 'markets', title: '适用市场', width: 155, visible: true },
   { field: 'familyName', title: '系统分类', width: 150, visible: true },
   { field: 'policy', title: '配置策略', width: 140, visible: true },
-  { field: 'cb', title: 'CB · 装车', width: 160, visible: false },
-  { field: 'mb', title: 'MB · 制造', width: 160, visible: false },
-  { field: 'sb', title: 'SB · 售后', width: 160, visible: false },
-  { field: 'count', title: '出现位置数', width: 100, visible: false },
-  { field: 'unitCost', title: '单位成本', width: 110, visible: false },
-  { field: 'sourceRef', title: '来源记录', width: 200, visible: false },
-  { field: 'path', title: '完整使用路径', width: 400, visible: false },
-  { field: 'english', title: '英文名称', width: 220, visible: false },
-  { field: 'conflict', title: '来源冲突', width: 100, visible: false },
-  { field: 'quantityState', title: '用量状态', width: 110, visible: false }
+  { field: 'cb', title: 'CB · 装车', width: 160, visible: true },
+  { field: 'mb', title: 'MB · 制造', width: 160, visible: true },
+  { field: 'sb', title: 'SB · 售后', width: 160, visible: true },
+  { field: 'count', title: '出现位置数', width: 100, visible: true },
+  { field: 'unitCost', title: '单位成本', width: 110, visible: true },
+  { field: 'sourceRef', title: '来源记录', width: 200, visible: true },
+  { field: 'path', title: '完整使用路径', width: 400, visible: true },
+  { field: 'english', title: '英文名称', width: 220, visible: true },
+  { field: 'conflict', title: '来源冲突', width: 100, visible: true },
+  { field: 'quantityState', title: '用量状态', width: 110, visible: true }
 ];
 @Component({
   selector: 'bom2-grid',
@@ -84,6 +84,7 @@ export class BomGrid implements AfterViewInit, OnDestroy {
   readonly checked = output<{ key: string; checked: boolean; members?: string[] }>();
   readonly expandedChange = output<string[]>();
   readonly columnWidths = output<{ field: string; width: number }[]>();
+  readonly scrollMetrics = output<{ width: number; viewport: number; left: number }>();
 
   constructor() {
     effect(() => {
@@ -120,7 +121,10 @@ export class BomGrid implements AfterViewInit, OnDestroy {
     this.table = new this.factory.ListTable(this.host().nativeElement, this.options());
     this.bind();
     this.host().nativeElement.addEventListener('pointerdown', this.capturePointer, true);
-    this.observer = new ResizeObserver(() => this.table?.resize());
+    this.observer = new ResizeObserver(() => {
+      this.table?.resize();
+      this.reportScrollMetrics();
+    });
     this.observer.observe(this.host().nativeElement);
     this.refresh();
   }
@@ -140,6 +144,9 @@ export class BomGrid implements AfterViewInit, OnDestroy {
         .rows.filter(r => r.depth - base < depth && r.hasChildren)
         .map(r => r.key)
     );
+  }
+  setHorizontalScroll(left: number): void {
+    this.table?.setScrollLeft(left);
   }
   private readonly capturePointer = (event: PointerEvent): void => {
     this.additive = event.ctrlKey || event.metaKey;
@@ -201,7 +208,13 @@ export class BomGrid implements AfterViewInit, OnDestroy {
         },
         bodyStyle: { hover: { cellBgColor: '#edf5f1', inlineRowBgColor: '#f6faf8' } },
         selectionStyle: { cellBorderColor: '#27846c', cellBorderLineWidth: 1, cellBgColor: 'rgba(8,123,105,0.06)' },
-        scrollStyle: { visible: 'always', width: 7, scrollSliderColor: '#c7cbd3', scrollRailColor: '#f8f9fb' },
+        scrollStyle: {
+          visible: 'always',
+          horizontalVisible: 'none',
+          width: 7,
+          scrollSliderColor: '#c7cbd3',
+          scrollRailColor: '#f8f9fb'
+        },
         frozenColumnLine: { shadow: { width: 5, startColor: 'rgba(20,30,50,0.035)', endColor: 'rgba(20,30,50,0)' } }
       }
     };
@@ -245,6 +258,7 @@ export class BomGrid implements AfterViewInit, OnDestroy {
       this.host().nativeElement.dataset['renderedMode'] = this.renderedMode!;
       this.host().nativeElement.dataset['renderedQuery'] = this.queryKey();
       this.reportWindows();
+      this.reportScrollMetrics();
     });
   }
   private project(row: BomRow): GridRecord {
@@ -332,13 +346,19 @@ export class BomGrid implements AfterViewInit, OnDestroy {
       if (row && row.pageParent === undefined) this.rowSelect.emit({ row, additive: this.additive });
     });
     this.table.on('resize_column_end', () =>
-      this.columnWidths.emit(
-        this.columns()
-          .filter(c => c.visible)
-          .map((c, i) => ({ field: c.field, width: this.table!.getColWidth(i + 1) }))
-      )
+      {
+        this.columnWidths.emit(
+          this.columns()
+            .filter(c => c.visible)
+            .map((c, i) => ({ field: c.field, width: this.table!.getColWidth(i + 1) }))
+        );
+        this.reportScrollMetrics();
+      }
     );
-    this.table.on('scroll', () => this.reportWindows());
+    this.table.on('scroll', () => {
+      this.reportWindows();
+      this.reportScrollMetrics();
+    });
     this.table.on('keydown', event => {
       this.additive = event.event.ctrlKey || event.event.metaKey;
     });
@@ -357,6 +377,7 @@ export class BomGrid implements AfterViewInit, OnDestroy {
         performance.clearMarks('bom2:interaction-start');
         performance.clearMeasures('bom2:interaction');
       }
+      this.reportScrollMetrics();
     });
     this.host()
       .nativeElement.querySelector('input,textarea')
@@ -411,5 +432,13 @@ export class BomGrid implements AfterViewInit, OnDestroy {
   }
   private reportWindows(): void {
     this.host().nativeElement.dataset['windowRecords'] = String(this.windows?.size ?? this.table?.rowCount ?? 0);
+  }
+  private reportScrollMetrics(): void {
+    if (!this.table) return;
+    this.scrollMetrics.emit({
+      width: this.table.getAllColsWidth(),
+      viewport: this.host().nativeElement.clientWidth,
+      left: this.table.scrollLeft
+    });
   }
 }

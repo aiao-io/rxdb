@@ -269,7 +269,7 @@
   position: relative;
 }
 .project-heading {
-  padding: 25px 26px 20px;
+  padding: 16px 26px 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -288,7 +288,7 @@
 h1 {
   font-size: 24px;
   font-weight: 650;
-  margin: 8px 0;
+  margin: 0;
   letter-spacing: -0.5px;
   display: flex;
   align-items: center;
@@ -516,10 +516,14 @@ kbd {
   padding: 5px 0;
   font-size: 11px;
 }
-.column-menu .catalog-toggle {
-  border-top: 1px solid var(--line);
-  margin-top: 6px;
-  padding-top: 10px;
+.branch-select {
+  max-width: 185px;
+  min-width: 120px;
+  padding: 4px 7px;
+  border-color: #cfe2d9;
+  background: #fff;
+  color: #276551;
+  font-size: 10px;
 }
 .breadcrumbs {
   display: flex;
@@ -647,6 +651,22 @@ kbd {
   padding: 2px 5px;
   border: none;
   background: transparent;
+}
+.grid-scrollbar {
+  flex: none;
+  height: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-top: 1px solid var(--line);
+  background: #fafcfc;
+  scrollbar-color: #b8c7c3 #eef3f1;
+  scrollbar-width: thin;
+}
+.grid-scrollbar > div {
+  height: 1px;
+}
+.grid-scrollbar-hidden {
+  display: none;
 }
 .panel-resizer {
   width: 4px;
@@ -867,9 +887,6 @@ kbd {
   .project-heading {
     padding: 20px 17px 17px;
   }
-  .project-heading p {
-    max-width: 420px;
-  }
   .source-strip {
     margin-left: 17px;
     gap: 14px;
@@ -900,9 +917,6 @@ kbd {
   .inspector {
     width: 310px;
   }
-  .project-heading p span:last-child {
-    display: none;
-  }
   .source-strip > span:nth-child(3) {
     display: none;
   }
@@ -932,22 +946,12 @@ kbd {
   }
   .project-heading {
     padding: 16px 12px;
-    flex-wrap: wrap;
   }
   h1 {
     font-size: 21px;
   }
-  .eyebrow {
-    font-size: 8px;
-  }
-  .project-heading p {
-    font-size: 9px;
-  }
-  .project-actions {
-    width: 100%;
-  }
   .project-actions button {
-    flex: 1;
+    padding: 6px 8px;
   }
   .source-strip {
     margin: 0 12px 12px;

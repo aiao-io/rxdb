@@ -96,26 +96,6 @@ footer {
   flex: 1;
   min-width: 0;
 }
-.export-options {
-  display: grid;
-  gap: 12px;
-}
-.export-options button {
-  padding: 18px;
-  display: grid;
-  grid-template: auto auto / 25px 1fr;
-  text-align: left;
-  justify-items: start;
-}
-.export-options bom2-icon {
-  grid-row: 1 / 3;
-  align-self: center;
-}
-.export-options span {
-  font-size: 10px;
-  color: #819b8c;
-  margin-top: 3px;
-}
 .result-list {
   max-height: 330px;
   overflow: auto;

@@ -1,75 +1,26 @@
 import { expect, test } from '@playwright/test';
 
-test('已确认的真实物料草稿可进入领域库、刷新重开并校验发布', async ({ page }) => {
+async function createBranch(page: import('@playwright/test').Page): Promise<void> {
+  await page.getByRole('button', { name: '建立工作草稿', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('textbox', { name: '分支名称', exact: true }).fill('领域核对');
+  await dialog.getByRole('button', { name: '建立分支', exact: true }).click();
+}
+
+test('工作草稿通过本地分支提交管理，工作台取消文件交换入口', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('bom-grid')).toHaveAttribute('aria-busy', 'false');
-  const snapshot = await page.request.get('/data/windrose.json');
-  const data = (await snapshot.json()) as { id: string; parts: { id: string }[] };
-  const [parent, child] = data.parts;
-  if (!parent || !child) throw new Error('真实物料样本缺失');
-  const occurrence = (key: string, parentKey: string | null, partId: string) => ({
-    key,
-    parentKey,
-    partId,
-    compId: partId,
-    kind: 'part',
-    source: 'draft',
-    markets: ['EU'],
-    quantity: '1',
-    quantityState: 'confirmed',
-    uom: 'pcs',
-    sourceRef: `user-verified:${key}`
-  });
-  const draft = {
-    schema: 'aiao-bom-2-draft/1',
-    datasetId: data.id,
-    name: '用户核对后的装配示例',
-    revision: 2,
-    savedAt: new Date().toISOString(),
-    nodes: [
-      occurrence('verified-root', null, parent.id),
-      { ...occurrence('verified-child', 'verified-root', child.id), quantity: '0.123456789123456789' }
-    ]
-  };
-  await page.getByRole('button', { name: '导入', exact: true }).first().click();
-  await page
-    .locator('dialog input[type=file]')
-    .setInputFiles({ name: 'verified.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(draft)) });
-  await page.locator('dialog').getByRole('button', { name: '确认导入', exact: true }).click();
-  await expect(page.getByRole('tab', { name: '工作草稿' })).toHaveAttribute('aria-selected', 'true');
-  await page.goto('/?structure=draft&occurrence=verified-root');
-  await expect(page.getByTestId('selected-summary')).toContainText(parent.id);
-  await page.getByRole('button', { name: '导出', exact: true }).first().click();
-  await page.locator('dialog input[name=domainConfirmed]').check();
-  await page.locator('dialog input[name=domainRevision]').fill('W2');
-  await page.locator('dialog').getByRole('button', { name: '预览领域导入', exact: true }).click();
-  await expect(page).toHaveURL(/\/transfer/);
-  await expect(page.getByTestId('domain-import-preview')).toContainText(parent.id);
-  await page.getByRole('button', { name: '校验并写入领域草稿', exact: true }).click();
-  await expect(page.locator('bom-transfer-page [role=status]').filter({ hasText: '已写入领域草稿' })).toBeVisible();
-  await page.getByRole('link', { name: '核对导入装配并发布', exact: true }).click();
-  await page
-    .locator('summary')
-    .filter({ hasText: /^导入与导出$/ })
-    .click();
-  const imported = page.locator('.draft-list li').filter({ hasText: parent.id });
-  await expect(imported).toContainText('修订 W2');
-  await imported.getByRole('checkbox').check();
-  await page.getByTestId('import-publish-date').fill('2026-11-14');
-  await page.getByTestId('import-publish').click();
-  await expect(page.getByTestId('import-status')).toContainText('发布');
-  await page.getByTestId('as-of-date').fill('2026-11-14');
-  await page.getByRole('button', { name: '展开整机', exact: true }).click();
-  await expect(page.getByRole('tree', { name: '物料需求发生项树', exact: true })).toContainText(child.id);
-  const download = page.waitForEvent('download');
-  await page.getByTestId('export-bom').click();
-  const stream = await (await download).createReadStream();
-  if (!stream) throw new Error('领域导出为空');
-  const chunks: Buffer[] = [];
-  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
-  expect(Buffer.concat(chunks).toString()).toContain('0.123456789123456789');
-  await page.reload();
-  await expect(page.getByTestId('workspace-data-status')).toContainText('数据已就绪');
-  await page.getByRole('button', { name: '展开整机', exact: true }).click();
-  await expect(page.getByRole('tree', { name: '物料需求发生项树', exact: true })).toContainText(child.id);
+  await expect(page.getByRole('button', { name: '导入', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '导出', exact: true })).toHaveCount(0);
+  await createBranch(page);
+  await page.getByRole('button', { name: '提交版本', exact: true }).click();
+  const commit = page.getByRole('dialog');
+  await commit.getByRole('textbox', { name: '提交说明', exact: true }).fill('建立领域核对基线');
+  await commit.getByRole('button', { name: '确认', exact: true }).click();
+  await expect(page.locator('.app-footer')).toContainText('已提交到本地版本历史');
+  await page.getByRole('button', { name: '版本历史', exact: true }).click();
+  const history = page.getByRole('dialog', { name: '版本快照与日期比较' });
+  await expect(history).toContainText('领域核对');
+  await expect(history).toContainText('建立领域核对基线');
+  await expect(history).toContainText('HEAD');
 });

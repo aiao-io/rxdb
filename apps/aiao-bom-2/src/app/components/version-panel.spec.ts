@@ -37,14 +37,6 @@ const save = async (name: string) => {
   await panel.save();
   fixture.detectChanges();
 };
-const fileEvent = (file?: File): Event => {
-  const input = document.createElement('input');
-  Object.defineProperty(input, 'files', { value: file ? [file] : [] });
-  const event = new Event('change');
-  Object.defineProperty(event, 'target', { value: input });
-  return event;
-};
-
 describe('版本快照操作面板', () => {
   it('保存完整结构忽略视图筛选，草稿修改通过两版本呈现并保留来源日期', async () => {
     expect(panel.form.controls.evaluationDate.value).toBe('2026-11-13');
@@ -62,6 +54,19 @@ describe('版本快照操作面板', () => {
     expect(root().textContent).toContain('1.5');
     expect(ws.versions.result()?.after.observedOn).toBe('2026-11-13');
     expect(ws.notice()).toContain('目标');
+  });
+
+  it('版本历史展示当前分支、HEAD 和提交链', async () => {
+    ws.fork('底盘校核');
+    await ws.commitDraft('建立底盘基线');
+    ws.edit(['stress:1'], '2.5', '件', null);
+    await ws.commitDraft('确认第一项用量');
+    fixture.detectChanges();
+    expect(root().textContent).toContain('底盘校核');
+    expect(root().textContent).toContain('确认第一项用量');
+    expect(root().textContent).toContain('建立底盘基线');
+    expect(root().textContent).toContain('HEAD');
+    expect(root().querySelectorAll('.commit-list li')).toHaveLength(2);
   });
 
   it('名称或日期无效、保存失败都保留输入并显示原因', async () => {
@@ -120,62 +125,6 @@ describe('版本快照操作面板', () => {
     await panel.choose('before', '');
     expect(ws.versions.result()).toBeNull();
     expect(panel.offset()).toBe(0);
-  });
-
-  it('快照导入先预览，重复身份拒绝覆盖，跨产品及损坏文件不能写入', async () => {
-    await save('A');
-    const snapshot = await ws.versions.exportSelected();
-    const raw = JSON.stringify({ ...snapshot, id: 'imported' });
-    await panel.file(fileEvent(new File([raw], 'snapshot.json')));
-    expect(panel.incoming()?.name).toBe('A');
-    expect(ws.versions.entries()).toHaveLength(1);
-    await panel.acceptImport();
-    expect(ws.versions.entries()).toHaveLength(2);
-    expect(panel.incoming()).toBeNull();
-    await panel.file(fileEvent(new File([raw], 'snapshot.json')));
-    await panel.acceptImport();
-    expect(panel.error()).toContain('存在');
-    await panel.file(fileEvent(new File([JSON.stringify({ ...snapshot, datasetId: 'other' })], 'other.json')));
-    expect(panel.error()).toContain('其他产品');
-    expect(panel.incoming()).toBeNull();
-    await panel.file(fileEvent(new File(['{}'], 'bad.json')));
-    expect(panel.error()).toContain('格式');
-    const big = new File([''], 'big.json');
-    Object.defineProperty(big, 'size', { value: 51 * 1024 * 1024 });
-    await panel.file(fileEvent(big));
-    expect(panel.error()).toContain('50 MB');
-    await panel.file(fileEvent());
-    await panel.acceptImport();
-    expect(ws.versions.entries()).toHaveLength(2);
-  });
-
-  it('晚到文件不覆盖后来选择的文件，并可导出快照与完整差异', async () => {
-    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
-    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test');
-    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
-    await panel.downloadSnapshot();
-    expect(panel.error()).toContain('目标版本');
-    panel.downloadDiff();
-    expect(click).not.toHaveBeenCalled();
-    await save('A');
-    await save('B');
-    await panel.downloadSnapshot();
-    panel.downloadDiff();
-    expect(click).toHaveBeenCalledTimes(2);
-    const snapshot = await ws.versions.exportSelected();
-    let finish!: (text: string) => void;
-    const delayed = new File([''], 'old.json');
-    vi.spyOn(delayed, 'text').mockImplementation(
-      () =>
-        new Promise(done => {
-          finish = done;
-        })
-    );
-    const reading = panel.file(fileEvent(delayed));
-    await panel.file(fileEvent(new File([JSON.stringify({ ...snapshot, id: 'new', name: 'new' })], 'new.json')));
-    finish(JSON.stringify(snapshot));
-    await reading;
-    expect(panel.incoming()?.name).toBe('new');
   });
 
   it('字段细节包含数量状态、单位和市场，不把不可计算值显示为默认量', () => {

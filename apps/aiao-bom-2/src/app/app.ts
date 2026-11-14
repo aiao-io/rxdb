@@ -1,5 +1,5 @@
 import { DecimalPipe } from '@angular/common';
-import { Component, OnDestroy, OnInit, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import { BomGrid, DEFAULT_COLUMNS, type GridColumn } from './components/bom-grid';
 import { Icon } from './components/icon';
 import { ModelPanel } from './components/model-panel';
@@ -18,10 +18,13 @@ export class App implements OnInit, OnDestroy {
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
   readonly ws = inject(BomWorkspace);
   readonly grid = viewChild(BomGrid);
+  readonly gridScrollbar = viewChild<ElementRef<HTMLElement>>('gridScrollbar');
   readonly dialogs = viewChild.required(WorkspaceDialogs);
   readonly columns = signal<GridColumn[]>(this.restoreColumns());
   readonly columnsOpen = signal(false);
   readonly navSearch = signal('');
+  readonly gridScrollWidth = signal(0);
+  readonly gridViewportWidth = signal(0);
   readonly detailTab = signal<'properties' | 'usage' | 'source'>('properties');
   readonly modelLarge = signal(false);
   readonly panelWidth = signal(Number(localStorage.getItem('bom2:panel-width')) || 366);
@@ -68,6 +71,15 @@ export class App implements OnInit, OnDestroy {
   }
   sort(value: string): void {
     this.ws.updateQuery({ sort: value as QuerySpec['sort'] });
+  }
+  gridMetrics(metrics: { width: number; viewport: number; left: number }): void {
+    this.gridScrollWidth.set(metrics.width);
+    this.gridViewportWidth.set(metrics.viewport);
+    const scrollbar = this.gridScrollbar()?.nativeElement;
+    if (scrollbar && Math.abs(scrollbar.scrollLeft - metrics.left) > 1) scrollbar.scrollLeft = metrics.left;
+  }
+  scrollGrid(event: Event): void {
+    this.grid()?.setHorizontalScroll((event.target as HTMLElement).scrollLeft);
   }
   checked(event: { key: string; checked: boolean; members?: string[] }): void {
     this.ws.selectedKeys.update(keys => {

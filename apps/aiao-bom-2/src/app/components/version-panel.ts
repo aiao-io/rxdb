@@ -1,7 +1,7 @@
 import { DecimalPipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { parseSnapshot, type BomSnapshot, type SnapshotChange, type SnapshotChangeField } from '../core/snapshot';
+import type { SnapshotChange, SnapshotChangeField } from '../core/snapshot';
 import type { Occurrence, Structure } from '../core/types';
 import { BomWorkspace } from '../core/workspace';
 
@@ -29,7 +29,6 @@ const LABELS: Record<SnapshotChangeField, string> = {
   styleUrl: './version-panel.scss'
 })
 export class VersionPanel implements OnInit {
-  private fileRequest = 0;
   readonly ws = inject(BomWorkspace);
   readonly versions = this.ws.versions;
   readonly form = new FormGroup({
@@ -37,7 +36,6 @@ export class VersionPanel implements OnInit {
     evaluationDate: new FormControl('', { nonNullable: true, validators: Validators.required })
   });
   readonly error = signal('');
-  readonly incoming = signal<BomSnapshot | null>(null);
   readonly filter = signal('all');
   readonly search = signal('');
   readonly offset = signal(0);
@@ -50,6 +48,18 @@ export class VersionPanel implements OnInit {
     this.changes().slice(this.page() * this.pageSize, (this.page() + 1) * this.pageSize)
   );
   readonly structureName = computed(() => STRUCTURES[this.ws.query().structure]);
+  readonly branches = computed(() =>
+    [...this.ws.branches()].sort((left, right) => Number(right.active) - Number(left.active) || right.updatedAt.localeCompare(left.updatedAt))
+  );
+  readonly activeBranch = computed(() => this.ws.activeBranch());
+  readonly headCommit = computed(() => {
+    const branch = this.activeBranch();
+    return branch?.headCommitId ? this.ws.commits().find(commit => commit.id === branch.headCommitId) : undefined;
+  });
+  readonly branchCommits = computed(() => {
+    const branch = this.activeBranch();
+    return branch ? this.ws.commits().filter(commit => commit.branchId === branch.id) : [];
+  });
 
   ngOnInit(): void {
     this.form.controls.evaluationDate.setValue(this.ws.dataset()?.observedOn ?? '');
@@ -59,6 +69,12 @@ export class VersionPanel implements OnInit {
   }
   name(structure: Structure): string {
     return STRUCTURES[structure];
+  }
+  shortId(id: string): string {
+    return id.slice(-8);
+  }
+  commitDate(value: string): string {
+    return value.slice(0, 16).replace('T', ' ');
   }
   label(field: SnapshotChangeField): string {
     return LABELS[field];
@@ -108,48 +124,6 @@ export class VersionPanel implements OnInit {
       this.fail(error);
     }
   }
-  async file(event: Event): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
-    input.value = '';
-    const request = ++this.fileRequest;
-    this.incoming.set(null);
-    this.error.set('');
-    try {
-      if (file.size > 50 * 1024 * 1024) throw new Error('快照文件超过 50 MB');
-      const snapshot = parseSnapshot(JSON.parse(await file.text()));
-      if (snapshot.datasetId !== this.ws.dataset()?.id) throw new Error('快照属于其他产品数据集');
-      if (request === this.fileRequest) this.incoming.set(snapshot);
-    } catch (error) {
-      if (request === this.fileRequest) this.fail(error);
-    }
-  }
-  async acceptImport(): Promise<void> {
-    const snapshot = this.incoming();
-    if (!snapshot) return;
-    this.error.set('');
-    try {
-      await this.versions.save(snapshot);
-      this.incoming.set(null);
-      this.offset.set(0);
-    } catch (error) {
-      this.fail(error);
-    }
-  }
-  async downloadSnapshot(): Promise<void> {
-    this.error.set('');
-    try {
-      const snapshot = await this.versions.exportSelected();
-      this.download('aiao-bom-2-snapshot.json', JSON.stringify(snapshot, null, 2));
-    } catch (error) {
-      this.fail(error);
-    }
-  }
-  downloadDiff(): void {
-    const diff = this.versions.result();
-    if (diff) this.download('aiao-bom-2-revision-diff.json', JSON.stringify(diff, null, 2));
-  }
   private matches(change: SnapshotChange): boolean {
     const filter = this.filter();
     const matchesKind =
@@ -160,13 +134,5 @@ export class VersionPanel implements OnInit {
   }
   private fail(error: unknown): void {
     this.error.set(error instanceof Error ? error.message : String(error));
-  }
-  private download(filename: string, text: string): void {
-    const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 }
