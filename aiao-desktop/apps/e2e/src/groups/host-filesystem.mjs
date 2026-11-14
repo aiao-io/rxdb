@@ -57,6 +57,7 @@ export const hostFilesystem = {
     'hostFilesystem.lateSaveNeverWrites',
     'hostFilesystem.keyboardOpen',
     'hostFilesystem.keyboardSaveAndReplace',
+    'hostFilesystem.staleListingNeverOverwrites',
     'hostFilesystem.escInsideReplaceReturnsToBrowse',
     'hostFilesystem.tabStaysInsidePanel',
     'hostFilesystem.focusReturnsToWindow'
@@ -514,12 +515,21 @@ export const hostFilesystem = {
 
     await page.evaluate(() => {
       window.__filePanelKeys = [];
+      /* 模拟目录树活查询滞后：已落盘的文件尚未出现在面板列表里。 */
+      const schedule = window.setInterval;
+      window.__restoreFileListTimer = () => {
+        window.setInterval = schedule;
+      };
+      window.setInterval = (handler, delay, ...args) =>
+        schedule.call(window, handler, delay === 30 ? 3000 : delay, ...args);
       const record = event => {
         if (!['Enter', 'Escape', 'Tab'].includes(event.key)) return;
         window.__filePanelKeys.push({
           type: event.type,
           key: event.key,
           target: event.target.outerHTML.slice(0, 250),
+          value: event.target.value,
+          location: document.querySelector('[data-fp-path]')?.textContent,
           replace: Boolean(document.querySelector('[data-fp-replace]')),
           panel: Boolean(document.querySelector('[data-file-panel]'))
         });
@@ -532,8 +542,23 @@ export const hostFilesystem = {
     const nameFocused = (await panel.focused()) === 'name';
     await page.keyboard.press('Enter');
     const firstSaved = await outcome(keySaveFirst);
+    await page.evaluate(() => window.__restoreFileListTimer());
+    const staleSave = await begin('filesystem.save', { suggestedName: 'hostcap-kb.txt', text: 'k2' });
+    await panelOpens();
+    if ((await panel.row('hostcap-kb.txt').count()) !== 0)
+      throw new Error('未能建立目录列表滞后于已提交保存的前置条件');
+    await page.keyboard.press('Enter');
+    const staleOutcome = await outcome(staleSave);
+    hostFilesystem.staleListingNeverOverwrites =
+      firstSaved?.ok === true &&
+      staleOutcome?.ok === false &&
+      staleOutcome.code === 'FILE_CHANGED' &&
+      (await diskText(session, 'hostcap-kb.txt')) === 'k1' &&
+      (await panelCloses());
+
     const keySaveSecond = await begin('filesystem.save', { suggestedName: 'hostcap-kb.txt', text: 'k2' });
     await panelOpens();
+    await panel.row('hostcap-kb.txt').waitFor({ state: 'visible', timeout: 10_000 });
     await page.keyboard.press('Enter');
     const replaceShown = await panel.replace.waitFor({ state: 'visible', timeout: 3_000 }).then(
       () => true,
@@ -548,11 +573,16 @@ export const hostFilesystem = {
       (await page.evaluate(id => window.__standinResults[id], keySaveSecond)) === undefined;
     hostFilesystem.escInsideReplaceReturnsToBrowse = replaceShown && backToSave;
     if (!backToSave) {
-      const state = await page.evaluate(() => ({
-        keys: window.__filePanelKeys,
-        focus: document.activeElement?.outerHTML,
-        panel: document.querySelector('[data-file-panel]')?.innerText
-      }));
+      const state = await page.evaluate(
+        ([first, second]) => ({
+          first: window.__standinResults[first],
+          second: window.__standinResults[second],
+          keys: window.__filePanelKeys,
+          focus: document.activeElement?.outerHTML,
+          panel: document.querySelector('[data-file-panel]')?.innerText
+        }),
+        [keySaveFirst, keySaveSecond]
+      );
       throw new Error(`Esc 没有退回保存面板：${JSON.stringify(state)}`);
     }
     await page.waitForFunction(

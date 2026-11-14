@@ -1,0 +1,44 @@
+{
+  "format": "aiao-desktop.verify-aiao-code",
+  "version": 1,
+  "measuredAt": "2026-11-14T01:30:23.913Z",
+  "source": {
+    "sha": "0ccab7cf18d765066042138319c745a4f4bd9efb",
+    "changes": "M src/groups/shell-interaction.mjs\n M ../../requirements/capability-matrix.md\n M ../../requirements/evidence/2026-11-14/README.md\n M ../../requirements/evidence/2026-11-14/domain-same-site.md\n M ../../requirements/plans/acceptance-closeout.md\n M ../../requirements/status-overview.md\n M ../../requirements/stories/platform/ADESK-US-006-web-test-coverage-gate.md\n M ../../requirements/verification-report.md\n?? ../../requirements/evidence/2026-11-14/coverage-positive.txt\n?? ../../requirements/evidence/2026-11-14/deploy-dry-run.txt\n?? ../../requirements/evidence/2026-11-14/firefox-2.json\n?? ../../requirements/evidence/2026-11-14/firefox-zoom-1.json\n?? ../../requirements/evidence/2026-11-14/firefox-zoom-2.json\n?? ../../requirements/evidence/2026-11-14/saltline-gpu-final-1.json\n?? ../../requirements/evidence/2026-11-14/saltline-gpu-final-2.json\n?? ../../requirements/evidence/2026-11-14/saltline-gpu-final-3.json\n?? ../../requirements/evidence/2026-11-14/webkit-1.json\n?? ../../requirements/evidence/2026-11-14/webkit-2.json"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "headless": true,
+    "browser": "158.0.8127.18"
+  },
+  "target": "https://vscode.aiao.io",
+  "desktop": "local build",
+  "checks": {
+    "workbenchReady": true,
+    "crossOriginIsolated": true,
+    "terminalRuns": true,
+    "ownTitleBar": true,
+    "titleBarDragsWindow": true,
+    "maximizeButtonZooms": true,
+    "restoreKeepsWorkbench": true,
+    "reopenKeepsProject": true,
+    "noDesktopErrors": true
+  },
+  "timings": {
+    "firstReadyMs": 1861,
+    "terminalRunningMs": 2354,
+    "reopenReadyMs": 1285
+  },
+  "desktopErrors": [],
+  "appConsoleErrors": [],
+  "appPageErrors": [],
+  "artifact": {
+    "entryUrl": "http://127.0.0.1:55606/?boot=0",
+    "indexSha256": "4574844c7cee4a238256fbed051f79ab92b27a70c63dd5b39587fef7a55fd006"
+  },
+  "status": "passed"
+}

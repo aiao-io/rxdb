@@ -62,7 +62,7 @@ capabilities: []
 
 web:test 默认执行 V8 覆盖率并逐文件检查行与语句 ≥80%；聚合 verify 与 CI test target 已接线。人为排除窗口管理测试时，整包仍高于80%，逐文件门槛正确失败并指出文件和差值。
 
-原始记录：[coverage-negative.txt](../../evidence/2026-11-14/coverage-negative.txt)、[verify.txt](../../evidence/2026-11-14/verify.txt)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
+原始记录：[coverage-negative.txt](../../evidence/2026-11-14/coverage-negative.txt)、[coverage-positive.txt](../../evidence/2026-11-14/coverage-positive.txt)、[verify.txt](../../evidence/2026-11-14/verify.txt)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
 
 CI 接线由仓库工作流与同一 Nx test target 的本地正反例验证；本轮没有触发远端流水线，也没有执行合并。
 

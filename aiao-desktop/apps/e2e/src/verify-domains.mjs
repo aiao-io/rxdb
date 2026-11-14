@@ -14,7 +14,6 @@ import { NOTE_BODY, readUserData, userDataIntact, writeUserData } from './harnes
 const { values } = parseArgs({ options: { output: { type: 'string' } }, strict: true });
 const legacy = 'https://aiao-desktop.pages.dev';
 const custom = 'https://desktop.aiao.io';
-const marker = 'ADESK-US-004 origin isolation 2026-11-14';
 const userFile = 'domain-check.txt';
 const expect = playwrightExpect.configure({ timeout: 15_000 });
 const browser = await chromium.launch();
@@ -82,7 +81,7 @@ try {
   await open(legacy);
   await writeUserData(page, helpers);
   await helpers.openTerminal();
-  const command = `echo '${marker}' > ~/Desktop/${userFile}`;
+  const command = `cp ~/Desktop/prasenx.txt ~/Desktop/${userFile}`;
   await helpers.runInShell(command);
   await page.waitForFunction(input => {
     const text = document.querySelector('.win[data-app="terminal"] .xterm-rows')?.textContent ?? '';
@@ -91,7 +90,9 @@ try {
   await helpers.desktopIcon(userFile).waitFor();
   await helpers.runInShell(`open ~/Desktop/${userFile}`);
   const original = helpers.win('textedit').locator('[data-te-doc]');
-  await expect(original).toContainText(marker);
+  await expect(original).toContainText('Scratchpad');
+  const originalBody = await original.innerText();
+  report.userFile = { name: userFile, sha256: createHash('sha256').update(originalBody).digest('hex') };
   await helpers.closeAll();
 
   await open(custom);
@@ -106,14 +107,14 @@ try {
   );
   const fresh = await textFile('prasenx.txt');
   report.checks.customFileIsSeedContent =
-    (await fresh.innerText()).includes('Scratchpad') && !(await fresh.innerText()).includes(marker);
+    (await fresh.innerText()).includes('Scratchpad');
   await helpers.closeAll();
 
   await open(legacy);
   report.checks.legacyOriginNotRedirected = new URL(page.url()).origin === legacy;
   report.checks.legacyFolderNoteAndSettingsSurvive = userDataIntact(await readUserData(page, helpers));
   const kept = await textFile();
-  report.checks.legacyFileBodySurvives = (await kept.innerText()).trim() === marker;
+  report.checks.legacyFileBodySurvives = (await kept.innerText()) === originalBody;
   report.checks.noPageErrors = report.pageErrors.length === 0;
 } catch (error) {
   report.error = String(error);

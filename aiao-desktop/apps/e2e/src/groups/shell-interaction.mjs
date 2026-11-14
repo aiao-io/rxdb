@@ -242,7 +242,14 @@ export const shellInteraction = {
 
     const sizeBeforeZoom = await finder.boundingBox();
     await finder.locator('.tl .f').click();
-    await page.waitForTimeout(600);
+    await page.waitForFunction(
+      () => {
+        const node = document.querySelector('.win[data-app="finder"]:not(.closing)');
+        return node?.classList.contains('zoomed') && Number.parseFloat(node.style.width) === innerWidth;
+      },
+      undefined,
+      { timeout: 5_000 }
+    );
     const zoomedBox = await finder.boundingBox();
     dragResizeZoom.greenButtonZooms =
       (await finder.evaluate(node => node.classList.contains('zoomed'))) &&
@@ -250,7 +257,14 @@ export const shellInteraction = {
       zoomedBox.x >= 0 &&
       zoomedBox.x + zoomedBox.width <= viewport.width + 1;
     await finder.locator('.tl .f').click();
-    await page.waitForTimeout(600);
+    await page.waitForFunction(
+      () => {
+        const node = document.querySelector('.win[data-app="finder"]:not(.closing)');
+        return node && !node.classList.contains('zoomed');
+      },
+      undefined,
+      { timeout: 5_000 }
+    );
     const restoredBox = await finder.boundingBox();
     dragResizeZoom.greenButtonRestores =
       !(await finder.evaluate(node => node.classList.contains('zoomed'))) &&

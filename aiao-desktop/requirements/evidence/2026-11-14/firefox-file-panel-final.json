@@ -1,0 +1,129 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-14T01:47:54.937Z",
+  "source": {
+    "sha": "0ccab7cf18d765066042138319c745a4f4bd9efb",
+    "changes": "M src/groups/host-filesystem.mjs\n M src/groups/shell-interaction.mjs\n M ../../requirements/capability-matrix.md\n M ../../requirements/evidence/2026-11-14/README.md\n M ../../requirements/evidence/2026-11-14/domain-same-site.md\n M ../../requirements/plans/acceptance-closeout.md\n M ../../requirements/status-overview.md\n M ../../requirements/stories/platform/ADESK-US-006-web-test-coverage-gate.md\n M ../../requirements/verification-report.md\n?? ../../requirements/evidence/2026-11-14/aiao-code-current-final.json\n?? ../../requirements/evidence/2026-11-14/chromium-1.json\n?? ../../requirements/evidence/2026-11-14/chromium-file-panel-failure.json\n?? ../../requirements/evidence/2026-11-14/coverage-positive.txt\n?? ../../requirements/evidence/2026-11-14/deploy-dry-run.txt\n?? ../../requirements/evidence/2026-11-14/file-panel-list-green.json\n?? ../../requirements/evidence/2026-11-14/file-panel-list-red.json\n?? ../../requirements/evidence/2026-11-14/firefox-2.json\n?? ../../requirements/evidence/2026-11-14/firefox-zoom-1.json\n?? ../../requirements/evidence/2026-11-14/firefox-zoom-2.json\n?? ../../requirements/evidence/2026-11-14/saltline-gpu-final-1.json\n?? ../../requirements/evidence/2026-11-14/saltline-gpu-final-2.json\n?? ../../requirements/evidence/2026-11-14/saltline-gpu-final-3.json\n?? ../../requirements/evidence/2026-11-14/webkit-1.json\n?? ../../requirements/evidence/2026-11-14/webkit-2.json"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "159.0",
+    "engine": "firefox",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "4574844c7cee4a238256fbed051f79ab92b27a70c63dd5b39587fef7a55fd006"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 3,
+    "groups": [
+      "host-filesystem"
+    ],
+    "isolatedOrigins": true,
+    "interceptedExternalRequests": true
+  },
+  "seconds": 46.401770292,
+  "outcomes": [
+    {
+      "group": "host-filesystem",
+      "result": {
+        "hostFilesystem": {
+          "panelSemantics": true,
+          "panelIsModal": true,
+          "escCancels": true,
+          "openSelectReturnsContent": true,
+          "openGivesNothingElse": true,
+          "openCancelIsSilent": true,
+          "saveChoosesLocationAndName": true,
+          "saveCancelWritesNothing": true,
+          "overwriteNeedsConfirmation": true,
+          "overwriteCannotBeSkippedByApp": true,
+          "acceptIsDisplayFilterOnly": true,
+          "tooLargeFileIsDisabled": true,
+          "secondRequestIsBusy": true,
+          "panelTimeIsNotTimed": true,
+          "handleSaveWritesBack": true,
+          "saveWithoutHandleAsksUser": true,
+          "changedFileIsRejected": true,
+          "renamedFileIsRejectedAndNotRecreated": true,
+          "deletedFileIsRejectedAndNotRecreated": true,
+          "handleInvalidAfterWindowClosed": true,
+          "panelClosesWithWindow": true,
+          "requestEndsWithWindowClosed": true,
+          "lateSaveNeverWrites": true,
+          "keyboardOpen": true,
+          "staleListingNeverOverwrites": true,
+          "escInsideReplaceReturnsToBrowse": true,
+          "keyboardSaveAndReplace": true,
+          "tabStaysInsidePanel": true,
+          "focusReturnsToWindow": false
+        }
+      },
+      "problems": [
+        "检查项未通过：hostFilesystem.focusReturnsToWindow = false"
+      ],
+      "failedKeys": [
+        "hostFilesystem.focusReturnsToWindow"
+      ],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 46.34505012499999
+    }
+  ],
+  "checks": {
+    "hostFilesystem": {
+      "panelSemantics": true,
+      "panelIsModal": true,
+      "escCancels": true,
+      "openSelectReturnsContent": true,
+      "openGivesNothingElse": true,
+      "openCancelIsSilent": true,
+      "saveChoosesLocationAndName": true,
+      "saveCancelWritesNothing": true,
+      "overwriteNeedsConfirmation": true,
+      "overwriteCannotBeSkippedByApp": true,
+      "acceptIsDisplayFilterOnly": true,
+      "tooLargeFileIsDisabled": true,
+      "secondRequestIsBusy": true,
+      "panelTimeIsNotTimed": true,
+      "handleSaveWritesBack": true,
+      "saveWithoutHandleAsksUser": true,
+      "changedFileIsRejected": true,
+      "renamedFileIsRejectedAndNotRecreated": true,
+      "deletedFileIsRejectedAndNotRecreated": true,
+      "handleInvalidAfterWindowClosed": true,
+      "panelClosesWithWindow": true,
+      "requestEndsWithWindowClosed": true,
+      "lateSaveNeverWrites": true,
+      "keyboardOpen": true,
+      "staleListingNeverOverwrites": true,
+      "escInsideReplaceReturnsToBrowse": true,
+      "keyboardSaveAndReplace": true,
+      "tabStaysInsidePanel": true,
+      "focusReturnsToWindow": false
+    }
+  },
+  "limitations": {
+    "known": [
+      {
+        "kind": "check",
+        "key": "hostFilesystem.focusReturnsToWindow",
+        "tier": "有限支持",
+        "reason": "打开/保存、凭证写回、版本冲突与纯键盘面板操作通过；关闭面板后桌面窗口归属正确，但 Playwright Firefox 无法确认跨源替身 iframe 的 document.hasFocus。与 integratedApp.keyboardReachesApp 同属跨源 iframe 焦点未验证；不能把桌面外层焦点断言冒充应用文档已取得焦点。"
+      }
+    ],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": false
+}

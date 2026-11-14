@@ -29,7 +29,7 @@
 | Playwright Chromium，桌面尺寸 | 核心桌面、文件、持久化、应用、终端与替身集成应用均有正式构建冒烟；游戏真实输入和帧率另在本机 Chrome + Metal 验证。 | 最终复验结果见台账；真实物理键盘与 VoiceOver 独立验收。                                                                                                          |
 | Playwright Firefox            | 核心文件、设置、应用启动、终端、多标签页等已有实跑；尚不归为完整支持。                                             | [限制清单](../apps/e2e/src/baseline/limitations-firefox.json)：跨源替身 iframe 的键盘/焦点、透明窗口输入和带 iframe 的刷新；自动化缺口尚未由真实浏览器复验消除。 |
 | Playwright WebKit             | 核心流程及 iframe 路径已有实跑；尚不归为完整支持，也不等同 Safari。                                                | [限制清单](../apps/e2e/src/baseline/limitations-webkit.json)：驱动不支持授予剪贴板读取权限，三个读取/内容核对项尚未证明。                                        |
-| 390×844、触屏仿真             | `narrow-touch` 检查菜单、Dock、启动台、窗口拖动/缩放与无横向溢出。                                                 | 仿真结果不等于 iPhone 或 iOS Safari 真机支持。                                                                                                                   |
+| 390×844、触屏仿真             | `narrow-screen` 检查菜单、Dock、启动台、窗口拖动/缩放与无横向溢出。                                                | 仿真结果不等于 iPhone 或 iOS Safari 真机支持。                                                                                                                   |
 | 真机 Safari                   | 未声明支持。                                                                                                       | 尚未复验。                                                                                                                                                       |
 
 ## 快捷键
