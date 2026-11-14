@@ -87,9 +87,33 @@ export const integratedApp = {
     integratedApp.clickActivates =
       (await vscodeWin.evaluate(node => node.classList.contains('front'))) &&
       (await page.locator('#menubar .mb-item.app').textContent())?.trim() === 'Aiao Code';
+    const keyboardFrame = await standinFrame();
+    await keyboardFrame.evaluate(() => {
+      window['__focusProbeKeys'] = [];
+      addEventListener('keydown', event => window['__focusProbeKeys'].push(event.key));
+    });
     await page.keyboard.type('xyz');
     await page.waitForTimeout(200);
     integratedApp.keyboardReachesApp = (await standin()).text?.endsWith('xyz') === true;
+    if (!integratedApp.keyboardReachesApp) {
+      console.error(
+        '集成应用焦点诊断',
+        JSON.stringify({
+          frameType: keyboardFrame.constructor.name,
+          parent: await page.evaluate(() => ({
+            focused: document.hasFocus(),
+            active: document.activeElement?.outerHTML,
+            shadowActive: document.querySelector('aiao-orbit')?.shadowRoot?.activeElement?.outerHTML
+          })),
+          child: await keyboardFrame.evaluate(() => ({
+            focused: document.hasFocus(),
+            active: document.activeElement?.outerHTML,
+            keys: window['__focusProbeKeys'],
+            userActive: navigator.userActivation.isActive
+          }))
+        })
+      );
+    }
 
     /* 菜单打开时点进应用：菜单收起。 */
     await page.locator('#menubar .mb-item.apple').dispatchEvent('mousedown');

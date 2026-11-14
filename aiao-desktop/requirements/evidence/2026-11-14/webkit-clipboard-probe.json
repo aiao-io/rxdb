@@ -1,0 +1,13 @@
+{
+  "measuredAt": "2026-11-14T02:21:11.389Z",
+  "method": "Isolated Playwright WebKit persistent context; own test text only; browser user gestures and actual paste, no permission override",
+  "origin": "http://127.0.0.1:62343",
+  "write": true,
+  "gestureRead": {
+    "error": "NotAllowedError"
+  },
+  "pasteMatched": true,
+  "afterPasteRead": {
+    "error": "NotAllowedError"
+  }
+}

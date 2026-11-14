@@ -64,6 +64,10 @@ capabilities: []
 - `aiao-desktop/apps/web/src/app/apps/` — 内置应用与应用登记表。
 - `aiao-desktop/apps/e2e/src/smoke.mjs` — 冒烟。
 
+## 2026-11-14 回归
+
+启动台搜索后立即按Enter，改为使用当前筛选结果，避免DOM尚未刷新时打开旧网格首项。确定性[红测试](../../evidence/2026-11-14/app-search-enter-red.json)与[绿测试](../../evidence/2026-11-14/app-search-enter-green.json)覆盖FaceTime；原有逐应用启动断言保留。
+
 ## References
 
 - [ADESK-EPIC-002](../../epics/ADESK-EPIC-002.md)

@@ -1,0 +1,124 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-14T02:28:45.480Z",
+  "source": {
+    "sha": "d49507e34909e6242c37106a4a04526714057bbc",
+    "changes": "M src/groups/integrated-app.mjs\n M src/harness/network-standin.mjs\n M src/harness/network-standin.spec.mjs\n M src/harness/session.mjs\n M src/harness/standin.mjs\n?? ../../requirements/evidence/2026-11-14/firefox-unrouted-iframe.json"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "159.0",
+    "engine": "firefox",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "74a43cbe80fc3498d5e58a7e33693ef9b4be6a73e17b22099cb23a5667b7a192"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 1,
+    "groups": [
+      "integrated-app"
+    ],
+    "isolatedOrigins": true,
+    "standinTransport": "https-loopback-cross-origin",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 16.92274975,
+  "outcomes": [
+    {
+      "group": "integrated-app",
+      "result": {
+        "integratedApp": {
+          "dockPinned": true,
+          "showsLoading": true,
+          "becomesReady": true,
+          "standardKeepsChrome": true,
+          "standinRendered": true,
+          "crossOriginIsolated": true,
+          "iframePolicy": true,
+          "minimizeHides": true,
+          "restoreShows": true,
+          "restoreKeepsDocument": true,
+          "shieldWhenBehind": true,
+          "clickActivates": true,
+          "keyboardReachesApp": false,
+          "appClickClosesMenu": true,
+          "resizeTracksPointer": true,
+          "closeRemovesFrame": true,
+          "reopensFresh": true,
+          "offlineShowsReason": true,
+          "desktopUnaffected": true,
+          "retryRecovers": true,
+          "appFailureShowsReason": true,
+          "launchpadOpens": true,
+          "spotlightLists": true,
+          "menubarName": true,
+          "appMenuItems": true,
+          "quitCloses": true
+        }
+      },
+      "problems": [
+        "检查项未通过：integratedApp.keyboardReachesApp = false"
+      ],
+      "failedKeys": [
+        "integratedApp.keyboardReachesApp"
+      ],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 16.880605459
+    }
+  ],
+  "checks": {
+    "integratedApp": {
+      "dockPinned": true,
+      "showsLoading": true,
+      "becomesReady": true,
+      "standardKeepsChrome": true,
+      "standinRendered": true,
+      "crossOriginIsolated": true,
+      "iframePolicy": true,
+      "minimizeHides": true,
+      "restoreShows": true,
+      "restoreKeepsDocument": true,
+      "shieldWhenBehind": true,
+      "clickActivates": true,
+      "keyboardReachesApp": false,
+      "appClickClosesMenu": true,
+      "resizeTracksPointer": true,
+      "closeRemovesFrame": true,
+      "reopensFresh": true,
+      "offlineShowsReason": true,
+      "desktopUnaffected": true,
+      "retryRecovers": true,
+      "appFailureShowsReason": true,
+      "launchpadOpens": true,
+      "spotlightLists": true,
+      "menubarName": true,
+      "appMenuItems": true,
+      "quitCloses": true
+    }
+  },
+  "limitations": {
+    "known": [
+      {
+        "kind": "check",
+        "key": "integratedApp.keyboardReachesApp",
+        "tier": "有限支持",
+        "reason": "Playwright 的 Firefox 对被 route.fulfill 的跨源 iframe 送不进键盘事件（页面内监听到的事件数为 0，WebKit 全部收到），所以「键盘焦点交给 iframe 里的应用」这一步无法验证；Orbit 握手、就绪、失败重试、最小化与还原在 Firefox 上都通过（integrated-app 其余 25 项、app-lifecycle 27 项）。未验证不等于不可用，也不能声明为已支持。"
+      }
+    ],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": false
+}

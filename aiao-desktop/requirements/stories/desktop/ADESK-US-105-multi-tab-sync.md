@@ -96,7 +96,7 @@ capabilities: []
 
 跨标签页写入串行化、活查询更新、文件/设置/备忘录收敛、三页广播、两台终端独立性、同时写同一文件、目标删除/改名/抹掉后的失败路径均由 `multi-tab-startup`、`multi-tab` 等正式构建检查验收。
 
-原始记录：[chromium-1.json](../../evidence/2026-11-14/chromium-1.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
+原始记录：[Chromium最终聚合检查](../../evidence/2026-11-14/chromium-verify.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
 
 阶段A、B的AC已通过；故事关闭仍依赖 US-008。使用Playwright输入，不替代真实物理键盘验收。
 

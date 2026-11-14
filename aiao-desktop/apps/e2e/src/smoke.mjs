@@ -98,8 +98,6 @@ try {
         parallel: options.parallel,
         groups: selected.map(group => group.name),
         isolatedOrigins: true,
-        standinTransport:
-          options.engine === 'firefox' ? 'https-loopback-cross-origin' : 'route-fulfill-production-origin',
         interceptedExternalRequests: true
       },
       seconds: (performance.now() - startedAt) / 1000,

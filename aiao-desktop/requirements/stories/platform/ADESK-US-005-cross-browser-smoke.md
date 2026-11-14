@@ -74,7 +74,7 @@ capabilities: []
 
 Chromium、Firefox、WebKit 使用同一正式构建复测，窄屏与触屏仿真的核心路径由 `narrow-screen` 检查。报告将无意外失败的 `passed` 与没有任何保留项的 `clean` 分开。
 
-原始记录：[chromium-1.json](../../evidence/2026-11-14/chromium-1.json)、[firefox-1.json](../../evidence/2026-11-14/firefox-1.json)、[firefox-2.json](../../evidence/2026-11-14/firefox-2.json)、[webkit-1.json](../../evidence/2026-11-14/webkit-1.json)、[webkit-2.json](../../evidence/2026-11-14/webkit-2.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
+原始记录：[Chromium最终聚合检查](../../evidence/2026-11-14/chromium-verify.json)、[firefox-1.json](../../evidence/2026-11-14/firefox-1.json)、[firefox-2.json](../../evidence/2026-11-14/firefox-2.json)、[webkit-1.json](../../evidence/2026-11-14/webkit-1.json)、[webkit-2.json](../../evidence/2026-11-14/webkit-2.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
 
 Firefox 跨源替身 iframe 的键盘、焦点与刷新，以及 WebKit 剪贴板授权仍有自动化缺口；没有真实浏览器补证，也没有用入口禁用完成有限支持交付。两轮结果和每轮意外失败均在台账如实登记，不能声明全部检查项通过。
 

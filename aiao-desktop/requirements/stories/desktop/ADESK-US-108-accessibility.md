@@ -66,7 +66,7 @@ capabilities: []
 
 纯键盘导航、Finder菜单路径、窗口切换/最小化/还原、role/name与ARIA树更新由 `a11y` 验收。本轮先固定最小化动画中途的红测试，再修复 busy 吞掉还原和旧完成回调隐藏窗口的问题；三组并发回归通过。
 
-原始记录：[animation-restore-red.json](../../evidence/2026-11-14/animation-restore-red.json)、[animation-restore-green.json](../../evidence/2026-11-14/animation-restore-green.json)、[focus-red.txt](../../evidence/2026-11-14/focus-red.txt)、[focus-green.txt](../../evidence/2026-11-14/focus-green.txt)、[chromium-1.json](../../evidence/2026-11-14/chromium-1.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
+原始记录：[animation-restore-red.json](../../evidence/2026-11-14/animation-restore-red.json)、[animation-restore-green.json](../../evidence/2026-11-14/animation-restore-green.json)、[focus-red.txt](../../evidence/2026-11-14/focus-red.txt)、[focus-green.txt](../../evidence/2026-11-14/focus-green.txt)、[Chromium最终聚合检查](../../evidence/2026-11-14/chromium-verify.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
 
 AC#6 仍缺真实VoiceOver逐条播报记录。已提供14步操作清单；2026-11-14检查时VoiceOver未运行，启动尝试没有形成实际播报证据。
 

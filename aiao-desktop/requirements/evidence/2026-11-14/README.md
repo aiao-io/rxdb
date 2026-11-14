@@ -1,23 +1,31 @@
 # 2026-11-14 验收证据
 
-执行环境：Apple M1 Max、macOS/Darwin 27.2.0 arm64、Node 26.12.0、pnpm 12.16.1。各轮源码按报告source记录（涵盖 `0dcdabca`、`d95812da`、`0ccab7cf`、`6ed149a5` 及当时工作区改动）；本轮未执行生产发布。报告里的 ISO 时间为 UTC，本目录日期按 Asia/Shanghai。每份 JSON 保留实际浏览器版本、输入、逐项结果和产物摘要。
+执行环境：Apple M1 Max、macOS/Darwin 27.2.0 arm64、Node 26.12.0、pnpm 12.16.1。各轮源码按报告source记录（涵盖 `0dcdabca`、`d95812da`、`0ccab7cf`、`6ed149a5`、`d49507e3` 及当时工作区改动）；本轮未执行生产发布。报告里的 ISO 时间为 UTC，本目录日期按 Asia/Shanghai。每份 JSON 保留实际浏览器版本、输入、逐项结果和产物摘要。
+
+## 最终本地门禁
+
+[原始日志](verify.txt)来自 `NX_NO_CLOUD=true pnpm nx run aiao-desktop:verify --skip-nx-cache --parallel=2 --output-style=static`：绕过缓存，56个任务、退出码0、338.175秒。91个web测试文件的1338个用例、50个e2e脚本用例、需求与开发/安全/发布脚本测试、lint、typecheck、build、夹具自检和92个产物文本文件的密钥扫描均通过。
+
+默认Chromium 24组/476项检查全部通过，296.6秒；[检查对象](chromium-verify.json)从本次日志中原样提取，保留原始JSON的摘要与日志路径，没有重建未输出的逐组outcomes。[最终覆盖率](coverage-summary-final.json)语句98.60%、行99.31%、函数98.82%、分支95.28%；[需求汇总](closeout-summary.json)从故事YAML派生，仍为12条Done、10条In Review、8项AC待关闭。
+
+[最终发布演练](deploy-dry-run-final.txt)验证本轮门禁产物，退出码0，没有上传。历史失败与此前口径的证据全部保留，以下逐项记录。
 
 ## 固定提交的回溯测量
 
 这些测量在 2026-11-14 完成，发生在相关实现之后。它们能复验数值，不能证明“实现前已记录基线”；US-008 #10 与 US-206 #7 的历史流程证据仍需评审。没有把失败样本删除，也没有改变 1.1 倍门槛。
 
-| 证据                                       | 比较对象与方法                                                                                                                               | 结果                                                                    |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| [首次拆分](smoke-benchmark.json)           | `85b86fb3` 单体对 `53a30d96` 首次拆分；各三轮，交替串行、新进程、空上下文、路由禁用缓存；同一份 `85b86fb3` web 与 Orbit 产物，摘要相等。     | 所有检查通过；中位数 110.931s / 122.626s，比例 1.10543，超过门槛。      |
-| [独占调度](smoke-benchmark-exclusive.json) | 同一单体对固定 `6859fe56` 的原七组，排除后来新增需求组；web/Orbit 仍逐字节相同，各三轮，方法相同。选组和键集合逐项校验，不改固定提交的脚本。 | 中位数 116.024s / 89.344s，比例 0.77004，数值通过。两个报告不混用样本。 |
-| [initial 体积](initial-bytes.json)         | 阶段 A 前 `90d14a18` 正式构建与当前构建；同一生产命令，统计入口脚本的静态依赖闭包与 CSS；原始字节及逐文件 gzip level 9。                     | 只证明打包边界与体积，不据此声称启动更快。具体文件与摘要在报告中。      |
+| 证据                                                  | 比较对象与方法                                                                                                                               | 结果                                                                    |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| [首次拆分](smoke-benchmark.json)                      | `85b86fb3` 单体对 `53a30d96` 首次拆分；各三轮，交替串行、新进程、空上下文、路由禁用缓存；同一份 `85b86fb3` web 与 Orbit 产物，摘要相等。     | 所有检查通过；中位数 110.931s / 122.626s，比例 1.10543，超过门槛。      |
+| [独占调度](smoke-benchmark-exclusive.json)            | 同一单体对固定 `6859fe56` 的原七组，排除后来新增需求组；web/Orbit 仍逐字节相同，各三轮，方法相同。选组和键集合逐项校验，不改固定提交的脚本。 | 中位数 116.024s / 89.344s，比例 0.77004，数值通过。两个报告不混用样本。 |
+| [initial 体积最终复测](initial-comparison-final.json) | 阶段 A 前 `90d14a18` 正式构建与当前构建；同一生产命令，统计入口脚本的静态依赖闭包与 CSS；原始字节及逐文件 gzip level 9。                     | 只证明打包边界与体积，不据此声称启动更快。具体文件与摘要在报告中。      |
 
 性能命令（在仓库根）：
 
 ```bash
 pnpm nx run aiao-desktop-e2e:benchmark-smoke --args='--baseline-root=/tmp/aiao-requirements-85b86fb3 --split-root=/tmp/aiao-requirements-53a30d96 --output=<绝对路径>'
 pnpm nx run aiao-desktop-e2e:benchmark-smoke --args='--baseline-root=/tmp/aiao-requirements-85b86fb3 --split-root=/tmp/aiao-requirements-6859fe56 --split-groups=shell --split-groups=disk-terminal --split-groups=integrated-app --split-groups=transparent-window --split-groups=game --split-groups=apps --split-groups=persistence --output=<绝对路径>'
-pnpm nx run aiao-desktop-e2e:compare-initial --args='--baseline-dist=/tmp/aiao-requirements-90d14a18/dist/aiao-desktop/apps/web/browser --baseline-sha=90d14a18 --current-sha=d95812da+workspace --output=<绝对路径>'
+pnpm nx run aiao-desktop-e2e:compare-initial --args='--baseline-dist=/tmp/aiao-requirements-90d14a18/dist/aiao-desktop/apps/web/browser --baseline-sha=90d14a18 --current-sha=6ed149a5+workspace --output=<绝对路径>'
 ```
 
 固定树由 `git worktree add --detach <目录> <SHA>` 建立。`85b86fb3` 与 `90d14a18` 分别用 `pnpm nx run aiao-desktop-web:build --configuration=production` 正式构建；性能比较的 split 树逐字节复制 `85b86fb3` 的 web 与 `packages/orbit/dist`，不混入不同桌面实现的差异。测量器拒绝 e2e 源码有 diff 的固定树、产物摘要不一致、检查键缺失/增加和未通过项。`fixtures` 耗时单列，不计入性能比较；当前所有新增行为另跑完整冒烟。
@@ -60,3 +68,21 @@ GPU 与浏览器协议按键不等于真实物理键盘。VoiceOver 验收按[�
 Firefox首次完整复测没有清单外失败；第二轮发现shell-interaction的greenButtonRestores失败。原[第二轮](firefox-2.json)保留；检查从固定600ms等待改为观察动画完成状态，几何容差仍为3px。[定向第一轮](firefox-zoom-1.json)、[第二轮](firefox-zoom-2.json)均通过。不能写成原两轮没有出现不稳定项。
 
 最终GPU复测记录：[第一轮](saltline-gpu-final-1.json)、[第二轮](saltline-gpu-final-2.json)、[第三轮](saltline-gpu-final-3.json)，Chrome 157.0.8103.52、M1 Max ANGLE Metal，12项全部通过。到达标题画面3740/3247/3241ms，帧率89.3/89.9/86.7FPS。该组测于窗口还原修复之后、启动台搜索修复之前；各报告保留其实际产物摘要。
+
+## 启动台与验收等待的回归
+
+完整Chromium的[FaceTime未打开报告](chromium-app-launch-failure.json)保留。确定性测试把输入事件与Enter放在同一浏览器任务中：[红报告](app-search-enter-red.json)与[现场](app-search-enter-red.txt)显示搜索词为FaceTime、焦点在输入框，但DOM仍是旧网格，错误打开Finder。Enter改读当前筛选数据后，[三组并发绿报告](app-search-enter-green.json)通过。
+
+后一次完整运行的[Dock与AX读取失败](chromium-dock-a11y-failure.json)也保留：Dock点击Maps后等待实际窗口出现再关窗；Spotlight移开鼠标并等待Notes筛选结果及选中状态，再读取无障碍树。[三组并发复验](dock-a11y-state-green.json)通过，原断言与几何容差未改变。
+
+## 跨浏览器补证尝试
+
+Firefox的[HTTP替身试验](firefox-network-standin.json)被产品的HTTPS登记校验拒绝；改成真实HTTPS后，[四组报告](firefox-network-tls.json)仍复现既有输入、透明窗口与刷新缺口。去掉iframe请求拦截后的[报告](firefox-unrouted-iframe.json)和[焦点现场](firefox-focus-probe.txt)确认：父页与子页document.hasFocus均为true、输入框是活动元素，但脚本按键未进入iframe。对应[机器报告](firefox-focus-probe.json)仍保留该未通过项，不能仅凭焦点标志声称键盘通过。
+
+试验夹具未解决问题，已从运行代码撤回；[完整试验补丁](firefox-network-experiment.patch)以6ed149a5为基线保留，便于复现，不作为通过证据。最终默认运行继续使用生产Origin的替身。
+
+[WebKit剪贴板独立试验](webkit-clipboard-probe.json)在独立持久上下文中只写入固定验收文本：手势写入成功、真实粘贴内容相符，但手势读取及粘贴后读取仍为NotAllowedError；没有绕过浏览器授权，既有三项读取缺口继续保留。
+
+初始体积最终复测为原始1,204,287字节、逐文件gzip384,379字节（基线1,756,532/525,471字节），包含本轮启动台修复；此前[体积报告](initial-bytes.json)保留原始产物口径。体积减少不证明启动耗时，亦不消除实现前基线未记录的历史流程保留项。
+
+Firefox随后用本机有窗口模式[复验集成应用](firefox-headed-final.json)，仍是键盘未进入iframe这一项未通过；26项中的其余检查通过。passed=true仅表示没有清单外失败，clean=false，没有把有窗口模式写成完整支持。

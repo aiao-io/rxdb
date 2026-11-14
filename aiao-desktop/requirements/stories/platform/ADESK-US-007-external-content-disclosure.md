@@ -66,7 +66,7 @@ capabilities: []
 
 桌面说明页、Safari 阅读模式的发送提示、主机清单与源码扫描、D-04 单一清单引用均已实现。说明页在正式构建和外网全部拦截的 `external-content` 组中验收；清单负向夹具由 web 单测覆盖。
 
-原始记录：[chromium-1.json](../../evidence/2026-11-14/chromium-1.json)、[verify.txt](../../evidence/2026-11-14/verify.txt)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
+原始记录：[Chromium最终聚合检查](../../evidence/2026-11-14/chromium-verify.json)、[verify.txt](../../evidence/2026-11-14/verify.txt)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
 
 ## References
 

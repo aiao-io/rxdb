@@ -147,7 +147,7 @@ capabilities: []
 
 按需组件与种子、bundled HTML/Orbit实例生命周期、失败重试、统一DesktopAppContext、菜单归属与销毁、能力拒绝、通知/外观/剪贴板/文件面板和文件凭证的权限与版本约束已实现，并有单测及正式构建冒烟。
 
-原始记录：[initial-bytes.json](../../evidence/2026-11-14/initial-bytes.json)、[animation-restore-green.json](../../evidence/2026-11-14/animation-restore-green.json)、[chromium-1.json](../../evidence/2026-11-14/chromium-1.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
+原始记录：[initial-comparison-final.json](../../evidence/2026-11-14/initial-comparison-final.json)、[animation-restore-green.json](../../evidence/2026-11-14/animation-restore-green.json)、[Chromium最终聚合检查](../../evidence/2026-11-14/chromium-verify.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
 
 AC#7 当前体积符合回溯数值对照，但基线是在实现之后重建测量，不能声称“实现前已记录”。阶段B因此保留评审，故事关闭还依赖 US-205；WebKit剪贴板读取授权与Firefox iframe焦点的证据缺口在US-005保留。
 

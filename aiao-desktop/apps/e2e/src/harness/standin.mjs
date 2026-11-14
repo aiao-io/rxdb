@@ -2,7 +2,6 @@ import { existsSync } from 'node:fs';
 import { join, normalize, resolve } from 'node:path';
 
 import { contentTypes } from '../fixtures/artifact-server.mjs';
-import { installNetworkStandin } from './network-standin.mjs';
 
 /** 替身应用用 Orbit 客户端的正式构建握手（e2e 目标先构建 orbit）。 */
 export const orbitDist = resolve(import.meta.dirname, '../../../../../packages/orbit/dist');
@@ -168,14 +167,8 @@ const mainScript = (mode, ordinal) => `
  *
  * @param {import('playwright').BrowserContext} context
  */
-export async function installAiaoCodeStandin(context, { network = false, desktopOrigin } = {}) {
-  const standin = {
-    mode: 'standard',
-    documents: 0,
-    origin: STANDIN_ORIGIN,
-    rewriteSource: source => source,
-    close: async () => undefined
-  };
+export async function installAiaoCodeStandin(context) {
+  const standin = { mode: 'standard', documents: 0 };
   /* 桌面页（只有顶层文档）收替身转告的调用结果：`window.__standinResults[编号]`。刷新后清空，由新页面的脚本重新收。 */
   await context.addInitScript(() => {
     if (window.top !== window) return;
@@ -185,18 +178,6 @@ export async function installAiaoCodeStandin(context, { network = false, desktop
       if (result) window.__standinResults[result.id] = result.outcome;
     });
   });
-  if (network) {
-    return Object.assign(
-      standin,
-      await installNetworkStandin(context, {
-        desktopOrigin,
-        originalOrigin: STANDIN_ORIGIN,
-        scriptsRoot: orbitDist,
-        document: () => standinPage(standin.mode, ++standin.documents),
-        offline: () => standin.mode === 'offline'
-      })
-    );
-  }
   await context.route(`${STANDIN_ORIGIN}/**`, route => {
     const url = new URL(route.request().url());
     if (url.pathname.startsWith('/__standin/orbit/')) {

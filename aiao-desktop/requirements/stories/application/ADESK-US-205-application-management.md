@@ -130,7 +130,7 @@ capabilities: []
 
 Applications按清单投影，旧包补齐/重命名/下线及用户文件保留、Finder与终端的保护、默认Dock基线、固定与运行态、旧布局归一化、拖放与键盘等效操作均由单测和正式构建的应用管理检查组验收。
 
-原始记录：[chromium-1.json](../../evidence/2026-11-14/chromium-1.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
+原始记录：[Chromium最终聚合检查](../../evidence/2026-11-14/chromium-verify.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
 
 阶段A～D的AC已通过；故事关闭仍依赖 US-106。当前源码实现和本地正式构建验收不表示已发布。
 

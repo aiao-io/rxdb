@@ -75,7 +75,7 @@ capabilities: []
 
 窗口几何、层叠、Finder 路径、多个同应用窗口、最小化与按需内容恢复、应用下线、视口变化及标签页隔离均由正式构建的 `window-layout` 组验收。
 
-原始记录：[animation-restore-green.json](../../evidence/2026-11-14/animation-restore-green.json)、[chromium-1.json](../../evidence/2026-11-14/chromium-1.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
+原始记录：[animation-restore-green.json](../../evidence/2026-11-14/animation-restore-green.json)、[Chromium最终聚合检查](../../evidence/2026-11-14/chromium-verify.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
 
 本故事的 Chromium AC 已通过；关闭条件仍依赖 US-008 与 US-206 完成。Firefox 的跨源替身刷新缺口保留在跨浏览器故事中，不宣称跨浏览器完整支持。
 

@@ -69,7 +69,7 @@ capabilities: []
 
 开机/跳过开机、锁屏、睡眠、状态栏面板、控制中心持久化、拖动缩放、层叠与窗口切换及外网失败路径由 `shell-interaction` 验收；有界面替代入口的快捷键已写入能力矩阵。
 
-原始记录：[chromium-1.json](../../evidence/2026-11-14/chromium-1.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
+原始记录：[Chromium最终聚合检查](../../evidence/2026-11-14/chromium-verify.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
 
 AC#8 必须由操作者在本机Chrome普通标签页用物理键盘逐项按下。`verify-keyboard`脚本和记录口径已准备，Playwright或系统派发按键不能代替物理键盘证据。
 

@@ -73,7 +73,7 @@ capabilities: []
 
 独立检查组、多页、持久 profile、新旧产物切换、引擎参数和登记表覆盖门禁均有自检。原七组的键集合对照一致；GPU 实测脚本已在本机 Chrome + Metal 跑三轮。
 
-原始记录：[smoke-benchmark.json](../../evidence/2026-11-14/smoke-benchmark.json)、[smoke-benchmark-exclusive.json](../../evidence/2026-11-14/smoke-benchmark-exclusive.json)、[saltline-gpu-1.json](../../evidence/2026-11-14/saltline-gpu-1.json)、[saltline-gpu-2.json](../../evidence/2026-11-14/saltline-gpu-2.json)、[saltline-gpu-3.json](../../evidence/2026-11-14/saltline-gpu-3.json)、[chromium-1.json](../../evidence/2026-11-14/chromium-1.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
+原始记录：[smoke-benchmark.json](../../evidence/2026-11-14/smoke-benchmark.json)、[smoke-benchmark-exclusive.json](../../evidence/2026-11-14/smoke-benchmark-exclusive.json)、[saltline-gpu-1.json](../../evidence/2026-11-14/saltline-gpu-1.json)、[saltline-gpu-2.json](../../evidence/2026-11-14/saltline-gpu-2.json)、[saltline-gpu-3.json](../../evidence/2026-11-14/saltline-gpu-3.json)、[Chromium最终聚合检查](../../evidence/2026-11-14/chromium-verify.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
 
 AC#10 的后续独占调度对照中位数为单体116.024s、拆分89.344s（0.77004倍），符合1.1倍数值门槛；首次拆分为1.10543倍，失败样本保留。两次都是2026-11-14回溯测量，不能补造“实现前已记录基线”的历史流程证据，该保留项需评审。
 

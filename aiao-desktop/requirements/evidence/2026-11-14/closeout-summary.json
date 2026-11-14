@@ -1,0 +1,272 @@
+{
+  "format": "aiao-desktop.requirements-closeout",
+  "version": 1,
+  "measuredAt": "2026-11-14T02:38:02.695560+00:00",
+  "allRequirementsComplete": false,
+  "storyCounts": {
+    "Done": 12,
+    "In Review": 10
+  },
+  "automatedVerification": {
+    "command": "NX_NO_CLOUD=true pnpm nx run aiao-desktop:verify --skip-nx-cache --parallel=2 --output-style=static",
+    "exitCode": 0,
+    "tasks": 56,
+    "seconds": 338.175,
+    "webTestFiles": 91,
+    "webTests": 1338,
+    "scriptTests": 50,
+    "chromiumGroups": 24,
+    "chromiumChecks": 476,
+    "rawLog": "verify.txt",
+    "checksReport": "chromium-verify.json",
+    "coverageReport": "coverage-summary-final.json"
+  },
+  "stories": [
+    {
+      "id": "ADESK-US-201",
+      "status": "Done",
+      "path": "stories/application/ADESK-US-201-application-system.md",
+      "dependsOn": [
+        "ADESK-US-101"
+      ],
+      "pendingAcceptance": []
+    },
+    {
+      "id": "ADESK-US-202",
+      "status": "Done",
+      "path": "stories/application/ADESK-US-202-integrated-app-runtime.md",
+      "dependsOn": [
+        "ADESK-US-201"
+      ],
+      "pendingAcceptance": []
+    },
+    {
+      "id": "ADESK-US-203",
+      "status": "Done",
+      "path": "stories/application/ADESK-US-203-aiao-code.md",
+      "dependsOn": [
+        "ADESK-US-201",
+        "ADESK-US-202"
+      ],
+      "pendingAcceptance": []
+    },
+    {
+      "id": "ADESK-US-204",
+      "status": "Done",
+      "path": "stories/application/ADESK-US-204-transparent-window.md",
+      "dependsOn": [
+        "ADESK-US-202"
+      ],
+      "pendingAcceptance": []
+    },
+    {
+      "id": "ADESK-US-205",
+      "status": "In Review",
+      "path": "stories/application/ADESK-US-205-application-management.md",
+      "dependsOn": [
+        "ADESK-US-101",
+        "ADESK-US-102",
+        "ADESK-US-106",
+        "ADESK-US-201",
+        "ADESK-US-202"
+      ],
+      "pendingAcceptance": []
+    },
+    {
+      "id": "ADESK-US-206",
+      "status": "In Review",
+      "path": "stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md",
+      "dependsOn": [
+        "ADESK-US-201",
+        "ADESK-US-202",
+        "ADESK-US-204",
+        "ADESK-US-205"
+      ],
+      "pendingAcceptance": [
+        {
+          "ac": 7,
+          "status": "⚠️"
+        }
+      ]
+    },
+    {
+      "id": "ADESK-US-101",
+      "status": "Done",
+      "path": "stories/desktop/ADESK-US-101-desktop-shell-baseline.md",
+      "dependsOn": [],
+      "pendingAcceptance": []
+    },
+    {
+      "id": "ADESK-US-102",
+      "status": "Done",
+      "path": "stories/desktop/ADESK-US-102-local-data-and-real-disk.md",
+      "dependsOn": [
+        "ADESK-US-101"
+      ],
+      "pendingAcceptance": []
+    },
+    {
+      "id": "ADESK-US-103",
+      "status": "Done",
+      "path": "stories/desktop/ADESK-US-103-saltline-game.md",
+      "dependsOn": [
+        "ADESK-US-101"
+      ],
+      "pendingAcceptance": []
+    },
+    {
+      "id": "ADESK-US-104",
+      "status": "In Review",
+      "path": "stories/desktop/ADESK-US-104-window-layout-persistence.md",
+      "dependsOn": [
+        "ADESK-US-008",
+        "ADESK-US-102",
+        "ADESK-US-206"
+      ],
+      "pendingAcceptance": []
+    },
+    {
+      "id": "ADESK-US-105",
+      "status": "In Review",
+      "path": "stories/desktop/ADESK-US-105-multi-tab-sync.md",
+      "dependsOn": [
+        "ADESK-US-102",
+        "ADESK-US-008"
+      ],
+      "pendingAcceptance": []
+    },
+    {
+      "id": "ADESK-US-106",
+      "status": "In Review",
+      "path": "stories/desktop/ADESK-US-106-database-upgrade-path.md",
+      "dependsOn": [
+        "ADESK-US-102",
+        "ADESK-US-008"
+      ],
+      "pendingAcceptance": []
+    },
+    {
+      "id": "ADESK-US-107",
+      "status": "In Review",
+      "path": "stories/desktop/ADESK-US-107-shell-interaction-coverage.md",
+      "dependsOn": [
+        "ADESK-US-101",
+        "ADESK-US-102"
+      ],
+      "pendingAcceptance": [
+        {
+          "ac": 8,
+          "status": "⬜"
+        }
+      ]
+    },
+    {
+      "id": "ADESK-US-108",
+      "status": "In Review",
+      "path": "stories/desktop/ADESK-US-108-accessibility.md",
+      "dependsOn": [
+        "ADESK-US-101"
+      ],
+      "pendingAcceptance": [
+        {
+          "ac": 6,
+          "status": "⬜"
+        }
+      ]
+    },
+    {
+      "id": "ADESK-US-001",
+      "status": "Done",
+      "path": "stories/platform/ADESK-US-001-product-root.md",
+      "dependsOn": [],
+      "pendingAcceptance": []
+    },
+    {
+      "id": "ADESK-US-002",
+      "status": "Done",
+      "path": "stories/platform/ADESK-US-002-local-dev-dashboard.md",
+      "dependsOn": [
+        "ADESK-US-001"
+      ],
+      "pendingAcceptance": []
+    },
+    {
+      "id": "ADESK-US-003",
+      "status": "Done",
+      "path": "stories/platform/ADESK-US-003-cloudflare-pages-deploy.md",
+      "dependsOn": [
+        "ADESK-US-001"
+      ],
+      "pendingAcceptance": []
+    },
+    {
+      "id": "ADESK-US-004",
+      "status": "In Review",
+      "path": "stories/platform/ADESK-US-004-custom-domain.md",
+      "dependsOn": [
+        "ADESK-US-003"
+      ],
+      "pendingAcceptance": [
+        {
+          "ac": 2,
+          "status": "⬜"
+        }
+      ]
+    },
+    {
+      "id": "ADESK-US-005",
+      "status": "In Review",
+      "path": "stories/platform/ADESK-US-005-cross-browser-smoke.md",
+      "dependsOn": [
+        "ADESK-US-008",
+        "ADESK-US-101",
+        "ADESK-US-102"
+      ],
+      "pendingAcceptance": [
+        {
+          "ac": 1,
+          "status": "⚠️"
+        },
+        {
+          "ac": 4,
+          "status": "⚠️"
+        },
+        {
+          "ac": 5,
+          "status": "⚠️"
+        }
+      ]
+    },
+    {
+      "id": "ADESK-US-006",
+      "status": "Done",
+      "path": "stories/platform/ADESK-US-006-web-test-coverage-gate.md",
+      "dependsOn": [
+        "ADESK-US-102"
+      ],
+      "pendingAcceptance": []
+    },
+    {
+      "id": "ADESK-US-007",
+      "status": "Done",
+      "path": "stories/platform/ADESK-US-007-external-content-disclosure.md",
+      "dependsOn": [],
+      "pendingAcceptance": []
+    },
+    {
+      "id": "ADESK-US-008",
+      "status": "In Review",
+      "path": "stories/platform/ADESK-US-008-smoke-suite.md",
+      "dependsOn": [
+        "ADESK-US-101",
+        "ADESK-US-102"
+      ],
+      "pendingAcceptance": [
+        {
+          "ac": 10,
+          "status": "⚠️"
+        }
+      ]
+    }
+  ]
+}
