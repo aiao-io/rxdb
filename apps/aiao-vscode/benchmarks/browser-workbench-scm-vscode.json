@@ -1,0 +1,85 @@
+{
+  "browser": "156.0.8078.4",
+  "changesScreenshot": "/Users/jimmy/Documents/GitHub/aiao-worktree-vscode/apps/aiao-vscode/benchmarks/browser-workbench-scm-changes-vscode.png",
+  "checks": [
+    {
+      "name": "vscode-scm-list-tree-sort-and-commit-layout",
+      "milliseconds": 663.23075
+    },
+    {
+      "name": "fresh-profile-project-and-initial-index-commit",
+      "milliseconds": 1839.1351250000002
+    },
+    {
+      "name": "working-diff-index-to-saved-working-file",
+      "milliseconds": 649.4409169999999
+    },
+    {
+      "name": "per-file-stage-and-exact-staged-versus-working-diffs",
+      "milliseconds": 1319.540708
+    },
+    {
+      "name": "per-file-unstage-and-index-only-mod-enter-commit-with-other-draft",
+      "milliseconds": 2556.6860829999996
+    },
+    {
+      "name": "save-current-preserves-other-draft-and-confirmed-discard-only-target",
+      "milliseconds": 1946.3067919999994
+    },
+    {
+      "name": "untracked-file-delete-requires-explicit-confirmation",
+      "milliseconds": 1846.584084
+    },
+    {
+      "name": "bulk-discard-confirms-once-and-preserves-other-unsaved-draft",
+      "milliseconds": 2987.472417000001
+    },
+    {
+      "name": "independent-native-git-proves-index-only-history-and-unsaved-draft-not-persisted",
+      "milliseconds": 434.67641699999876
+    }
+  ],
+  "errors": [],
+  "format": "aiao.browser-workbench.scm",
+  "generatedAt": "2026-11-06T07:42:51.532Z",
+  "git": {
+    "historyCount": 2,
+    "head": "2af2c7a38eb5b2928721c85fc9f44985f3fcaa26",
+    "nativeStatus": "clean",
+    "otherDraftInEditorOnly": true
+  },
+  "gitWorkerAssets": [
+    {
+      "url": "http://localhost:4320/browser-workbench-assets/git-worker.js",
+      "status": 200,
+      "sha256": "93b1d1ad80686b9460eafb5f7e43cfaf401358fd5f32abba27f795f1cd04c84d"
+    },
+    {
+      "url": "http://localhost:4320/browser-workbench-assets/git-worker.js",
+      "status": 200,
+      "sha256": "93b1d1ad80686b9460eafb5f7e43cfaf401358fd5f32abba27f795f1cd04c84d"
+    }
+  ],
+  "host": "vscode",
+  "layout": {
+    "input": {
+      "x": 60,
+      "y": 72,
+      "width": 276,
+      "height": 26
+    },
+    "commit": {
+      "x": 60,
+      "y": 106,
+      "width": 276,
+      "height": 28
+    },
+    "actions": ["open", "discard", "stage"],
+    "lastIsStatus": true
+  },
+  "screenshot": "/Users/jimmy/Documents/GitHub/aiao-worktree-vscode/apps/aiao-vscode/benchmarks/browser-workbench-scm-vscode.png",
+  "status": "passed",
+  "unexpectedDialogs": [],
+  "url": "http://localhost:4320/",
+  "version": 1
+}

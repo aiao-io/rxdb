@@ -1,0 +1,74 @@
+{
+  "domains": [
+    {
+      "domain": "calendar",
+      "version": 1
+    },
+    {
+      "domain": "clock",
+      "version": 1
+    },
+    {
+      "domain": "contacts",
+      "version": 1
+    },
+    {
+      "domain": "facetime",
+      "version": 1
+    },
+    {
+      "domain": "fontbook",
+      "version": 1
+    },
+    {
+      "domain": "mail",
+      "version": 1
+    },
+    {
+      "domain": "maps",
+      "version": 1
+    },
+    {
+      "domain": "messages",
+      "version": 1
+    },
+    {
+      "domain": "music",
+      "version": 1
+    },
+    {
+      "domain": "notes",
+      "version": 1
+    },
+    {
+      "domain": "photos",
+      "version": 1
+    },
+    {
+      "domain": "reminders",
+      "version": 1
+    },
+    {
+      "domain": "safari",
+      "version": 1
+    },
+    {
+      "domain": "shelf",
+      "version": 1
+    },
+    {
+      "domain": "stocks",
+      "version": 1
+    },
+    {
+      "domain": "voice",
+      "version": 1
+    },
+    {
+      "domain": "weather",
+      "version": 1
+    }
+  ],
+  "entityFingerprint": "74065ba275c60c336a1c5ae4778c0c519d5714e41ac5da1f1f3159fa0a7c93ec",
+  "version": 2026111301
+}

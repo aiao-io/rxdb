@@ -1,0 +1,122 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-14T06:02:21.344Z",
+  "source": {
+    "sha": "13d8a872b992a0b68070cac3e49c72c68fb47840",
+    "changes": "M src/baseline/limitations-webkit.json\n M src/groups/host-capabilities.mjs\n M src/harness/standin.mjs\n M ../web/src/app/apps/web-app/web-app.html\n M ../web/src/app/services/app-context.spec.ts\n M ../web/src/app/services/app-context.ts\n M ../web/src/app/services/browser-app-support.spec.ts\n M ../web/src/app/services/browser-app-support.ts\n M ../web/src/app/services/remote-app-session.spec.ts\n M ../../requirements/evidence/2026-11-14/browser-followup.md\n M ../../requirements/evidence/2026-11-14/firefox-final-3.txt\n?? ../../requirements/evidence/2026-11-14/browser-support-unit-green.txt\n?? ../../requirements/evidence/2026-11-14/browser-support-unit-red-detail.txt\n?? ../../requirements/evidence/2026-11-14/browser-support-unit-red.txt\n?? ../../requirements/evidence/2026-11-14/browser-support.md\n?? ../../requirements/evidence/2026-11-14/firefox-final-4.txt\n?? ../../requirements/evidence/2026-11-14/firefox-final-5.json\n?? ../../requirements/evidence/2026-11-14/firefox-final-5.txt\n?? ../../requirements/evidence/2026-11-14/firefox-multi-tab-erase-complete.txt"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "27.2",
+    "engine": "webkit",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 1,
+    "groups": [
+      "host-capabilities"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 31.845573584,
+  "outcomes": [
+    {
+      "group": "host-capabilities",
+      "result": {
+        "hostCapabilities": {
+          "undeclaredNotificationDenied": true,
+          "denialShowsReasonInWindow": true,
+          "undeclaredFilesystemDenied": true,
+          "unauthorizedAppearanceWriteDenied": true,
+          "clipboardReadCapabilityMatchesBrowser": true,
+          "clipboardReadRestrictionExplainedAtEntry": true,
+          "clipboardReadDeniedWithoutPermission": true,
+          "clipboardWriteWithGesture": true,
+          "clipboardHoldsWrittenText": true,
+          "clipboardReadAfterGrant": false,
+          "clipboardWriteWithoutGestureDenied": true,
+          "clipboardUnchangedAfterDenial": true,
+          "clipboardReadRestrictionPersists": true,
+          "clipboardDenialIsForTheAppOnly": true,
+          "notificationAppearsInCentre": true,
+          "notificationAttributedToCaller": true,
+          "notificationSpoofRejected": true,
+          "notificationDedupeReplaces": true,
+          "notificationInvalidIconRejected": true,
+          "notificationSurvivesWindowClose": true,
+          "notificationKeyboardOperable": true,
+          "notificationClearAll": true,
+          "notificationRateLimited": true,
+          "notificationIconsShown": true,
+          "notificationNotKeptAcrossReload": true
+        }
+      },
+      "problems": [
+        "检查项未通过：hostCapabilities.clipboardReadAfterGrant = false"
+      ],
+      "failedKeys": [
+        "hostCapabilities.clipboardReadAfterGrant"
+      ],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 31.781348332999997
+    }
+  ],
+  "checks": {
+    "hostCapabilities": {
+      "undeclaredNotificationDenied": true,
+      "denialShowsReasonInWindow": true,
+      "undeclaredFilesystemDenied": true,
+      "unauthorizedAppearanceWriteDenied": true,
+      "clipboardReadCapabilityMatchesBrowser": true,
+      "clipboardReadRestrictionExplainedAtEntry": true,
+      "clipboardReadDeniedWithoutPermission": true,
+      "clipboardWriteWithGesture": true,
+      "clipboardHoldsWrittenText": true,
+      "clipboardReadAfterGrant": false,
+      "clipboardWriteWithoutGestureDenied": true,
+      "clipboardUnchangedAfterDenial": true,
+      "clipboardReadRestrictionPersists": true,
+      "clipboardDenialIsForTheAppOnly": true,
+      "notificationAppearsInCentre": true,
+      "notificationAttributedToCaller": true,
+      "notificationSpoofRejected": true,
+      "notificationDedupeReplaces": true,
+      "notificationInvalidIconRejected": true,
+      "notificationSurvivesWindowClose": true,
+      "notificationKeyboardOperable": true,
+      "notificationClearAll": true,
+      "notificationRateLimited": true,
+      "notificationIconsShown": true,
+      "notificationNotKeptAcrossReload": true
+    }
+  },
+  "limitations": {
+    "known": [
+      {
+        "kind": "check",
+        "key": "hostCapabilities.clipboardReadAfterGrant",
+        "tier": "有限支持",
+        "reason": "Safari 与 WebKit 拒绝经 MessagePort 发起的宿主剪贴板读取；本机 Safari 27.2 的直接读取成功、MessagePort 读取被拒。产品在应用握手前撤下 clipboard:read，实际授权同步拒绝，并在窗口持续显示禁用原因。原成功读取检查保留为 false，不以宿主直接读取替代；新增入口、授权与持续说明检查验证有限支持交付。系统剪贴板写入、拒写后内容核对及其他集成能力继续验收。真实 Safari 的完整流程仍另验。"
+      }
+    ],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": false
+}

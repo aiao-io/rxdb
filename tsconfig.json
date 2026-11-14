@@ -169,7 +169,7 @@
       "path": "./packages/rxdb-adapter-tauri"
     },
     {
-      "path": "./modules/wujie"
+      "path": "./modules/orbit"
     },
     {
       "path": "./packages/rxdb-adapter-http"
@@ -277,6 +277,12 @@
       "path": "./packages/rxdb-i18n-vue"
     },
     {
+      "path": "./packages/orbit"
+    },
+    {
+      "path": "./apps/web-desktop"
+    },
+    {
       "path": "./packages/rxdb-admin"
     },
     {
@@ -305,6 +311,21 @@
     },
     {
       "path": "./apps/rxdb-admin-template-vue-e2e"
+    },
+    {
+      "path": "./apps/aiao-vscode"
+    },
+    {
+      "path": "./apps/aiao-vscode-e2e"
+    },
+    {
+      "path": "./apps/dev-rxdb-miniprogram"
+    },
+    {
+      "path": "./website"
+    },
+    {
+      "path": "./aiao-desktop/apps/web"
     }
   ]
 }

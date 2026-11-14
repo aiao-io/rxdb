@@ -142,7 +142,7 @@ await new Todo({ title: '读完 README' }).save();
 ## 架构一览
 
 ```text
-rxdb/
+aiao/
 ├── apps/             # 三框架演示、后台模板、看板、P2P、桌面与小程序应用及 E2E
 ├── packages/         # 核心引擎、适配器、框架绑定、UI 与插件公共包
 ├── modules/          # 内部共享模块、领域示例与跨框架 E2E 契约
@@ -157,6 +157,7 @@ rxdb/
 
 | 能力                       | 包族 / 目录                                                           |
 | -------------------------- | --------------------------------------------------------------------- |
+| Web 应用隔离运行           | `orbit`，三框架接入位于 `modules/orbit`                               |
 | 核心与框架绑定             | `rxdb`、`rxdb-{angular,react,vue}`                                    |
 | 存储与加密                 | `rxdb-adapter-*`，选择见[适配器文档](website/docs/adapters/README.md) |
 | 实体 UI 与 Headless        | `rxdb-model`、`rxdb-model-{angular,react,vue}`                        |

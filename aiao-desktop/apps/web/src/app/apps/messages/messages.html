@@ -1,0 +1,80 @@
+<div class="wb">
+  <div class="msg">
+    <div class="msg-list scroll" data-drag style="padding-top: 0">
+      <div style="display: flex; align-items: center; height: 38px; padding: 0 4px 0 2px">
+        <app-traffic-lights />
+        <div style="flex: 1"></div>
+        <button class="tbtn" (click)="create()" data-cnew data-nodrag title="New Message">
+          <svg appIcon="g-compose"></svg>
+        </button>
+      </div>
+      <div style="padding: 0 2px 8px">
+        <div class="sfield" data-nodrag>
+          <span><svg appIcon="g-search"></svg></span>
+          <input #search [value]="query()" (input)="query.set(search.value)" data-csearch placeholder="Search" />
+        </div>
+      </div>
+      <div data-clist>
+        @for (row of rows(); track row.chat.id) {
+          <div
+            class="msg-c"
+            [attr.data-ci]="row.index"
+            [class.on]="row.chat.id === chat()?.id"
+            (click)="select(row.chat.id)"
+            (keydown.enter)="select(row.chat.id)"
+            tabindex="-1"
+          >
+            <span class="av" [style.background]="row.chat.color">{{ row.chat.name[0] }}</span>
+            <span class="bd">
+              <b>{{ row.chat.name }}</b>
+              <p>{{ row.last }}</p>
+            </span>
+            <span class="tm">{{ row.chat.time }}</span>
+          </div>
+        } @empty {
+          @if (query()) {
+            <div style="padding: 22px 10px; text-align: center; font-size: 12px; color: var(--txt-3)">No Results</div>
+          }
+        }
+      </div>
+    </div>
+    <div class="msg-th">
+      <div class="msg-hd" data-drag>
+        <span class="who" (click)="details()" (keydown.enter)="details()" data-cdetails tabindex="-1">
+          <span class="av sm" [style.background]="chat()?.color" data-cav>{{ initial() }}</span>
+          <span data-cname>{{ chat()?.name }}</span>
+          <svg appIcon="g-chev-r"></svg>
+        </span>
+        <div style="flex: 1"></div>
+        <button class="tbtn" (click)="call()" data-cft data-nodrag title="FaceTime">
+          <svg appIcon="g-facetime"></svg>
+        </button>
+        <button class="tbtn" (click)="details()" data-cinfo data-nodrag title="Details">
+          <svg appIcon="g-info"></svg>
+        </button>
+      </div>
+      <div class="msg-body scroll" #body data-cbody>
+        <div class="msg-day">{{ thread().day }}</div>
+        @for (bubble of thread().bubbles; track $index) {
+          <div class="bub" [class.me]="bubble.me" [class.tail]="bubble.tail">{{ bubble.text }}</div>
+        }
+      </div>
+      <div class="msg-comp">
+        <button class="tbtn" #attachButton (click)="attach(attachButton)" data-cattach title="Apps">
+          <svg appIcon="g-plus"></svg>
+        </button>
+        <div class="fld">
+          <input
+            #field
+            [value]="draft()"
+            (input)="draft.set(field.value)"
+            (keydown.enter)="enter($event)"
+            data-cinput
+            placeholder="iMessage"
+          />
+        </div>
+        <button class="tbtn" (click)="send()" data-send><svg appIcon="g-chev-u"></svg></button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,117 @@
+import {
+  Component,
+  DestroyRef,
+  ElementRef,
+  ViewEncapsulation,
+  afterRenderEffect,
+  effect,
+  inject,
+  signal,
+  untracked,
+  viewChild
+} from '@angular/core';
+
+import { FileSystem } from '../services/file-system';
+import { BootRun, Session } from '../services/session';
+
+/** 进度条分段推进：匀速的条像加载动画，Apple 的会停顿、跳跃再走完。 */
+const STEPS: Readonly<Record<'startup' | 'restart', readonly (readonly [number, number])[]>> = {
+  startup: [
+    [120, 14],
+    [420, 27],
+    [700, 34],
+    [980, 62],
+    [1180, 74],
+    [1400, 88],
+    [1620, 100]
+  ],
+  restart: [
+    [80, 18],
+    [360, 30],
+    [640, 48],
+    [900, 70],
+    [1120, 86],
+    [1340, 100]
+  ]
+};
+const DONE_AT = { startup: 1980, restart: 1700 } as const;
+
+/**
+ * 开机画面：开机与重启的进度条，或关机后的「点击启动」。
+ * 无障碍（ADESK-US-108）：开机中是 `progressbar`（按任意键跳过）；关机后是一个按钮，出现时拿到焦点，Enter 或空格启动。
+ */
+@Component({
+  selector: 'app-boot-screen',
+  templateUrl: './boot-screen.html',
+  styleUrl: './boot-screen.scss',
+  encapsulation: ViewEncapsulation.None,
+  host: {
+    '[style.display]': '"contents"',
+    '(document:keydown)': 'keySkip()'
+  }
+})
+export class BootScreen {
+  private timers: ReturnType<typeof setTimeout>[] = [];
+  /** 开机阶段的第一次按键允许跳过，之后不再响应。 */
+  private keyArmed = false;
+  private readonly fs = inject(FileSystem);
+  private readonly off = viewChild<ElementRef<HTMLElement>>('off');
+  protected readonly session = inject(Session);
+  protected readonly progress = signal<number | null>(null);
+  protected readonly leaving = signal(false);
+
+  constructor() {
+    /* 关机后的「点击启动」是一个按钮：出现时把焦点交给它。 */
+    afterRenderEffect(() => this.off()?.nativeElement.focus());
+    effect(() => {
+      const run = this.session.boot();
+      untracked(() => this.start(run));
+    });
+    inject(DestroyRef).onDestroy(() => this.clear());
+  }
+
+  /** 不耐烦是允许的：点一下或按任意键直接走完。 */
+  protected skip(run: BootRun): void {
+    if (run.mode !== 'startup') return;
+    this.clear();
+    this.progress.set(100);
+    this.finish(run);
+  }
+
+  protected restartByKey(event: Event): void {
+    event.preventDefault();
+    this.session.restart();
+  }
+
+  protected keySkip(): void {
+    if (!this.keyArmed) return;
+    this.keyArmed = false;
+    const run = this.session.boot();
+    if (run) this.skip(run);
+  }
+
+  private start(run: BootRun | null): void {
+    this.clear();
+    this.progress.set(null);
+    this.leaving.set(false);
+    this.keyArmed = run?.mode === 'startup';
+    if (!run || run.mode === 'off') return;
+    this.timers = STEPS[run.mode].map(([at, pct]) => setTimeout(() => this.progress.set(pct), at));
+    this.timers.push(setTimeout(() => this.finish(run), DONE_AT[run.mode]));
+  }
+
+  /** 进度走完还要等 Macintosh HD 挂好（首次打开时要复制内置内容），和真机一样。 */
+  private finish(run: BootRun): void {
+    void this.fs.whenReady().then(() => {
+      if (this.session.boot() !== run) return;
+      this.leaving.set(true);
+      this.session.bootFinished(run);
+      setTimeout(() => this.session.bootDismissed(run), 480);
+    });
+  }
+
+  private clear(): void {
+    this.timers.forEach(clearTimeout);
+    this.timers = [];
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "browser": "Playwright Firefox（playwright 1.65，firefox-1572）",
+  "engine": "firefox",
+  "limitations": [],
+  "reviewedAt": "2026-11-14"
+}

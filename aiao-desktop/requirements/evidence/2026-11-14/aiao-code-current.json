@@ -1,0 +1,44 @@
+{
+  "format": "aiao-desktop.verify-aiao-code",
+  "version": 1,
+  "measuredAt": "2026-11-14T00:35:22.089Z",
+  "source": {
+    "sha": "bf820c367186c051bbc404de0a549226186d5308",
+    "changes": ""
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "headless": true,
+    "browser": "158.0.8127.18"
+  },
+  "target": "https://vscode.aiao.io",
+  "desktop": "local build",
+  "checks": {
+    "workbenchReady": true,
+    "crossOriginIsolated": true,
+    "terminalRuns": true,
+    "ownTitleBar": true,
+    "titleBarDragsWindow": true,
+    "maximizeButtonZooms": true,
+    "restoreKeepsWorkbench": true,
+    "reopenKeepsProject": true,
+    "noDesktopErrors": true
+  },
+  "timings": {
+    "firstReadyMs": 2321,
+    "terminalRunningMs": 4854,
+    "reopenReadyMs": 1815
+  },
+  "desktopErrors": [],
+  "appConsoleErrors": [],
+  "appPageErrors": [],
+  "artifact": {
+    "entryUrl": "http://127.0.0.1:50100/?boot=0",
+    "indexSha256": "f8730eddd283701363ceeba41d69c98a020e1dad9f6764cc91368831dfc718ee"
+  },
+  "status": "passed"
+}

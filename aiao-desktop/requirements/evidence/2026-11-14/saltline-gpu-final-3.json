@@ -1,0 +1,54 @@
+{
+  "format": "aiao-desktop.verify-saltline",
+  "version": 1,
+  "measuredAt": "2026-11-14T01:29:58.215Z",
+  "revision": "0ccab7cf+workspace",
+  "environment": {
+    "channel": "chrome",
+    "headless": false,
+    "browser": "157.0.8103.52",
+    "node": "v26.12.0",
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max"
+  },
+  "artifacts": {
+    "index.html": "4574844c7cee4a238256fbed051f79ab92b27a70c63dd5b39587fef7a55fd006",
+    "saltline.html": "9e55b5200b088adaf8e1152da04efc0d3b25e236e6baf2dee96f81e23e084966"
+  },
+  "checks": {
+    "titleReached": true,
+    "noGameErrors": true,
+    "crossOriginIsolated": true,
+    "hardwareRenderer": true,
+    "desktopResponsive": true,
+    "pointerLocked": true,
+    "playing": true,
+    "fpsNear60": true,
+    "escExitsLock": true,
+    "escPauses": true,
+    "minimizedLoopStillRuns": true,
+    "noPageErrors": true
+  },
+  "timings": {
+    "bootToTitleMs": 3241,
+    "calculatorOpensMs": 150
+  },
+  "metrics": {
+    "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Max, Unspecified Version)",
+    "pointerLockAttempts": [
+      {
+        "focused": true,
+        "connected": true,
+        "root": "#document",
+        "document": "http://127.0.0.1:55584/saltline.html",
+        "target": "CANVAS",
+        "result": "locked"
+      }
+    ],
+    "fps": 86.7,
+    "minimizedFramesPerSecond": 121
+  },
+  "logs": []
+}

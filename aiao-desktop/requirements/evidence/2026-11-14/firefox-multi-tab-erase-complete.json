@@ -1,0 +1,119 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-14T05:25:16.852Z",
+  "source": {
+    "sha": "b99f85a234ac37d1b7e02df32d9f4a96644d3e61",
+    "changes": "M ../../README.md\n M src/baseline/limitations-firefox.json\n M src/baseline/limitations-webkit.json\n M src/fixtures/limitation-firefox-iframe.mjs\n M src/groups/fixtures.mjs\n M src/groups/host-capabilities.mjs\n M src/groups/multi-tab.mjs\n M src/groups/window-layout.mjs\n D src/harness/artifact-origin.spec.mjs\n M src/harness/limitations.spec.mjs\n M src/harness/session.mjs\n M src/harness/standin.mjs\n M ../../requirements/README.md\n M ../../requirements/capability-matrix.md\n M ../../requirements/evidence/2026-11-14/README.md\n M ../../requirements/plans/acceptance-closeout.md\n M ../../requirements/roadmap.md\n M ../../requirements/status-overview.md\n M ../../requirements/stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md\n M ../../requirements/stories/desktop/ADESK-US-104-window-layout-persistence.md\n M ../../requirements/stories/platform/ADESK-US-005-cross-browser-smoke.md\n M ../../requirements/verification-report.md\n?? ../../requirements/evidence/2026-11-14/browser-followup.md\n?? ../../requirements/evidence/2026-11-14/firefox-artifact-fixtures.json\n?? ../../requirements/evidence/2026-11-14/firefox-artifact-fixtures.txt\n?? ../../requirements/evidence/2026-11-14/firefox-final-1.json\n?? ../../requirements/evidence/2026-11-14/firefox-final-1.txt\n?? ../../requirements/evidence/2026-11-14/firefox-final-2.json\n?? ../../requirements/evidence/2026-11-14/firefox-final-2.txt\n?? ../../requirements/evidence/2026-11-14/firefox-final-3.json\n?? ../../requirements/evidence/2026-11-14/firefox-final-3.txt\n?? ../../requirements/evidence/2026-11-14/firefox-multi-tab-focus-checks.json\n?? ../../requirements/evidence/2026-11-14/firefox-multi-tab-focus-checks.txt\n?? ../../requirements/evidence/2026-11-14/firefox-multi-tab-recheck.json\n?? ../../requirements/evidence/2026-11-14/firefox-multi-tab-recheck.txt\n?? ../../requirements/evidence/2026-11-14/firefox-site-origin-checks.json\n?? ../../requirements/evidence/2026-11-14/firefox-site-origin-checks.txt\n?? ../../requirements/evidence/2026-11-14/firefox-viewport-reachable-checks.json\n?? ../../requirements/evidence/2026-11-14/firefox-viewport-reachable.txt\n?? ../../requirements/evidence/2026-11-14/webkit-clipboard-after-denial-probe.json\n?? ../../requirements/evidence/2026-11-14/webkit-clipboard-gesture-checks.json\n?? ../../requirements/evidence/2026-11-14/webkit-clipboard-gesture.txt\n?? ../../requirements/evidence/2026-11-14/webkit-clipboard-message-port-probe.json\n?? ../../requirements/evidence/2026-11-14/webkit-clipboard-permission-scopes.json\n?? ../../requirements/evidence/2026-11-14/webkit-clipboard-read-only-checks.json\n?? ../../requirements/evidence/2026-11-14/webkit-clipboard-trusted-click-probe.json\n?? ../../requirements/evidence/2026-11-14/webkit-final-1.json\n?? ../../requirements/evidence/2026-11-14/webkit-final-1.txt\n?? ../../requirements/evidence/2026-11-14/webkit-final-2.json\n?? ../../requirements/evidence/2026-11-14/webkit-final-2.txt\n?? ../../requirements/evidence/2026-11-14/webkit-product-clipboard-trace.json"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "159.0",
+    "engine": "firefox",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "74a43cbe80fc3498d5e58a7e33693ef9b4be6a73e17b22099cb23a5667b7a192"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 1,
+    "groups": [
+      "multi-tab"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "same-site-cross-origin-https-forward",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 64.01169558299999,
+  "outcomes": [
+    {
+      "group": "multi-tab",
+      "result": {
+        "multiTab": {
+          "folderAppearsInFinder": true,
+          "folderAppearsOnDesktop": true,
+          "threePagesConverge": true,
+          "appearanceSyncs": true,
+          "appearanceSurvivesReload": true,
+          "savedFileReadableInOtherTab": true,
+          "openWindowFollowsOtherTabSave": true,
+          "lastWriteWinsWithoutPrompt": true,
+          "sameFileConvergesWithoutReload": true,
+          "sameFileSavesStaySafe": true,
+          "sameFileConsistentAfterReload": true,
+          "bothTerminalsStart": true,
+          "terminalFileReachesOtherTab": true,
+          "terminalFileOpensInOtherTab": true,
+          "closingOneTerminalKeepsOther": true,
+          "terminalRestartsAfterReload": true,
+          "terminalFilesInDatabase": true,
+          "terminalsWriteSameFile": true,
+          "tabsConvergeAfterFailedSaves": true,
+          "saveFailsAfterTrash": true,
+          "saveFailsAfterRename": true,
+          "saveFailsAfterErase": true,
+          "failedSaveKeepsWindowContent": true,
+          "failedSaveCreatesNothing": true,
+          "databaseIntactAfterFailedSaves": true,
+          "noteAppearsInOtherTab": true,
+          "backgroundTabConverges": true,
+          "dockPinSyncs": true,
+          "dockRunStateStaysLocal": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 63.96887949999999
+    }
+  ],
+  "checks": {
+    "multiTab": {
+      "folderAppearsInFinder": true,
+      "folderAppearsOnDesktop": true,
+      "threePagesConverge": true,
+      "appearanceSyncs": true,
+      "appearanceSurvivesReload": true,
+      "savedFileReadableInOtherTab": true,
+      "openWindowFollowsOtherTabSave": true,
+      "lastWriteWinsWithoutPrompt": true,
+      "sameFileConvergesWithoutReload": true,
+      "sameFileSavesStaySafe": true,
+      "sameFileConsistentAfterReload": true,
+      "bothTerminalsStart": true,
+      "terminalFileReachesOtherTab": true,
+      "terminalFileOpensInOtherTab": true,
+      "closingOneTerminalKeepsOther": true,
+      "terminalRestartsAfterReload": true,
+      "terminalFilesInDatabase": true,
+      "terminalsWriteSameFile": true,
+      "tabsConvergeAfterFailedSaves": true,
+      "saveFailsAfterTrash": true,
+      "saveFailsAfterRename": true,
+      "saveFailsAfterErase": true,
+      "failedSaveKeepsWindowContent": true,
+      "failedSaveCreatesNothing": true,
+      "databaseIntactAfterFailedSaves": true,
+      "noteAppearsInOtherTab": true,
+      "backgroundTabConverges": true,
+      "dockPinSyncs": true,
+      "dockRunStateStaysLocal": true
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": true
+}

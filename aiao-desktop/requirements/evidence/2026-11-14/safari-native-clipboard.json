@@ -1,0 +1,42 @@
+{
+  "measuredAt": "2026-11-14T05:37:51.182Z",
+  "method": "Native Safari UI, two real loopback origins, COOP/COEP/CORP, native button clicks, system Clipboard API; fixed test text only; no protocol permission overrides",
+  "sentinel": "ADESK-SAFARI-CLIPBOARD-20261114",
+  "observations": [
+    {
+      "at": "2026-11-14T05:38:23.527Z",
+      "kind": "environment",
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.2 Safari/605.1.15",
+      "origin": "http://127.0.0.1:51380",
+      "childOrigin": "http://127.0.0.1:51379",
+      "secureContext": true,
+      "crossOriginIsolated": true,
+      "clipboardAvailable": true
+    },
+    {
+      "at": "2026-11-14T05:38:47.424Z",
+      "kind": "write",
+      "ok": true
+    },
+    {
+      "at": "2026-11-14T05:39:00.579Z",
+      "kind": "direct",
+      "ok": true,
+      "matches": true,
+      "length": 31,
+      "focused": true,
+      "userActive": true
+    },
+    {
+      "at": "2026-11-14T05:39:12.326Z",
+      "kind": "message-port",
+      "ok": false,
+      "name": "NotAllowedError",
+      "message": "The request is not allowed by the user agent or the platform in the current context, possibly because the user denied permission.",
+      "focused": true,
+      "userActive": true
+    }
+  ],
+  "origin": "http://127.0.0.1:51380",
+  "childOrigin": "http://127.0.0.1:51379"
+}

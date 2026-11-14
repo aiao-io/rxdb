@@ -1,0 +1,96 @@
+<div class="tb plain" data-drag>
+  <div class="title">Weather</div>
+  <div class="tbz"><app-traffic-lights /></div>
+  <div class="grow"></div>
+  <div class="tbz"></div>
+</div>
+<div class="wx-app" data-wx>
+  <div [style.background]="sky()" style="flex: 1; min-height: 0; overflow: auto; color: #fff; padding: 22px 20px 26px">
+    <div style="text-align: center">
+      <div style="font-size: 15px; font-weight: 500; letter-spacing: 0.01em">{{ place() }}</div>
+      <div style="font-size: 74px; font-weight: 200; letter-spacing: -0.05em; line-height: 1.05">{{ now().t }}°</div>
+      <div style="font-size: 14px; opacity: 0.9">{{ label() }}</div>
+      <div style="font-size: 13px; opacity: 0.8; margin-top: 2px">H:{{ now().hi }}° L:{{ now().lo }}°</div>
+    </div>
+    <div
+      style="
+        margin-top: 22px;
+        background: rgba(255, 255, 255, 0.14);
+        border: 0.5px solid rgba(255, 255, 255, 0.2);
+        border-radius: 14px;
+        padding: 12px 14px;
+        backdrop-filter: blur(12px);
+      "
+    >
+      <div
+        style="
+          font-size: 11px;
+          opacity: 0.75;
+          letter-spacing: 0.03em;
+          text-transform: uppercase;
+          padding-bottom: 9px;
+          border-bottom: 0.5px solid rgba(255, 255, 255, 0.18);
+        "
+      >
+        {{ label() }} conditions for the rest of the day.
+      </div>
+      <div style="display: flex; justify-content: space-between; padding-top: 11px">
+        @for (hour of hours(); track $index) {
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 7px; font-size: 12px">
+            <span>{{ hour[0] }}</span>
+            <span style="width: 20px; height: 20px; opacity: 0.95">
+              <svg [appIcon]="hour[2]" style="width: 100%; height: 100%"></svg>
+            </span>
+            <b style="font-size: 14px; font-weight: 600">{{ hour[1] }}°</b>
+          </div>
+        }
+      </div>
+    </div>
+    <div
+      style="
+        margin-top: 14px;
+        background: rgba(255, 255, 255, 0.14);
+        border: 0.5px solid rgba(255, 255, 255, 0.2);
+        border-radius: 14px;
+        padding: 6px 14px;
+      "
+    >
+      @for (row of week(); track $index) {
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 0;
+            border-top: 0.5px solid rgba(255, 255, 255, 0.14);
+          "
+        >
+          <span style="width: 44px; font-size: 13px; font-weight: 500">{{ row.day }}</span>
+          <span style="width: 20px; height: 20px; opacity: 0.95">
+            <svg [appIcon]="row.icon" style="width: 100%; height: 100%"></svg>
+          </span>
+          <span style="font-size: 13px; opacity: 0.75; width: 30px; text-align: right">{{ row.lo }}°</span>
+          <span
+            style="flex: 1; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.22); position: relative"
+          >
+            <i
+              [style.left.%]="row.left"
+              [style.right.%]="row.right"
+              style="
+                position: absolute;
+                top: 0;
+                bottom: 0;
+                border-radius: 2px;
+                background: linear-gradient(90deg, #7ed6ff, #ffd84d, #ff9f0a);
+              "
+            ></i>
+          </span>
+          <span style="font-size: 13px; width: 30px">{{ row.hi }}°</span>
+        </div>
+      }
+    </div>
+    <div style="margin-top: 12px; text-align: center; font-size: 10.5px; opacity: 0.55">
+      {{ now().live ? 'Live from Open-Meteo' : 'Last known reading — no connection' }}
+    </div>
+  </div>
+</div>

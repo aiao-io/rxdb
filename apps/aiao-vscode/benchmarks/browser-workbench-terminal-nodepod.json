@@ -1,0 +1,36 @@
+{
+  "browser": "156.0.8078.80",
+  "cancelledRequests": [
+    "http://localhost:4332/__sw__.js: net::ERR_ABORTED",
+    "http://localhost:4332/__worker__.js: net::ERR_ABORTED",
+    "http://localhost:4332/__sw__.js: net::ERR_ABORTED",
+    "http://localhost:4332/__worker__.js: net::ERR_ABORTED",
+    "http://localhost:4332/__sw__.js: net::ERR_ABORTED",
+    "http://localhost:4332/__worker__.js: net::ERR_ABORTED",
+    "http://localhost:4332/__sw__.js: net::ERR_ABORTED",
+    "http://localhost:4332/__worker__.js: net::ERR_ABORTED",
+    "http://localhost:4332/__sw__.js: net::ERR_ABORTED",
+    "http://localhost:4332/__worker__.js: net::ERR_ABORTED"
+  ],
+  "checks": [
+    "node-shell-and-package-managers",
+    "bidirectional-files-and-terminal-deletion",
+    "npm-and-pnpm-installation-output",
+    "server-preview-and-control-c",
+    "top-run-vanilla-install-start-preview-control-c",
+    "top-run-restart-after-control-c",
+    "top-run-react-install-start-preview-control-c",
+    "top-run-vue-install-start-preview-control-c",
+    "runtime-host-isolation",
+    "project-switch-process-and-filesystem-isolation",
+    "process-and-preview-cleanup"
+  ],
+  "consoleErrors": [],
+  "errors": [],
+  "failures": [],
+  "format": "aiao.workbench.terminal",
+  "runtime": "nodepod",
+  "status": "passed",
+  "url": "http://localhost:4330/?workbench-verify=1&runtime=nodepod",
+  "version": 1
+}

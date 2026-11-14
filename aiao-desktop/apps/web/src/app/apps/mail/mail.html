@@ -1,0 +1,118 @@
+<div class="wb">
+  <div class="sbar" data-drag style="width: 196px">
+    <div class="sb-top"><app-traffic-lights /></div>
+    <div class="grp">
+      <div class="gh">Mailboxes</div>
+      @for (item of boxes(); track item.name) {
+        <div
+          class="si"
+          [attr.data-box]="item.name"
+          [class.on]="item.name === box()"
+          (click)="openBox(item.name)"
+          (keydown.enter)="openBox(item.name)"
+          tabindex="-1"
+        >
+          <svg class="ico" [appIcon]="item.icon"></svg>
+          <span class="nm">{{ item.name }}</span>
+          @if (item.badge) {
+            <span class="tail">{{ item.badge }}</span>
+          }
+        </div>
+      }
+    </div>
+    <div class="grp">
+      <div class="gh">Smart Mailboxes</div>
+      <div class="si">
+        <svg class="ico" appIcon="g-star"></svg>
+        <span class="nm">Today</span>
+      </div>
+      <div class="si">
+        <svg class="ico" appIcon="g-tag"></svg>
+        <span class="nm">Attachments</span>
+      </div>
+    </div>
+  </div>
+  <div class="fx">
+    <div class="fx-tb" data-drag>
+      <button class="tbtn" (click)="compose()" data-mcompose data-nodrag title="New Message">
+        <svg appIcon="g-plus"></svg>
+      </button>
+      <button class="tbtn" (click)="toggleFlag()" data-mflag data-nodrag title="Flag">
+        <svg appIcon="g-tag"></svg>
+      </button>
+      <button class="tbtn" #shareButton (click)="share(shareButton)" data-mshare data-nodrag title="Share">
+        <svg appIcon="g-share"></svg>
+      </button>
+      <div class="fx-title" data-mbtitle>{{ box() }}</div>
+      <div class="grow" style="flex: 1"></div>
+      <div class="sfield" data-nodrag style="width: 170px">
+        <span><svg appIcon="g-search"></svg></span>
+        <input placeholder="Search" />
+      </div>
+    </div>
+    <div class="wb" style="flex: 1; min-height: 0">
+      <div class="msg-list scroll" data-mlist style="width: 344px">
+        @for (mail of list(); track mail.id; let i = $index) {
+          <div
+            class="msg-c"
+            [attr.data-mi]="i"
+            [class.on]="i === selection()"
+            (click)="select(i)"
+            (keydown.enter)="select(i)"
+            tabindex="-1"
+          >
+            <span class="av" [style.background]="mail.color">{{ party(mail)[0] }}</span>
+            <span class="bd">
+              <b>
+                @if (mail.unread) {
+                  <span style="color: var(--blue)">●</span>
+                }
+                {{ party(mail) }}
+              </b>
+              <b style="font-weight: 500; font-size: 12px">{{ mail.subject }}</b>
+              <p>{{ mail.body }}</p>
+            </span>
+            <span class="tm">{{ mail.timeLabel }}</span>
+          </div>
+        }
+      </div>
+      <div class="pv scroll" data-mread style="place-items: start stretch; padding: 0; background: var(--win)">
+        @if (current(); as mail) {
+          <div style="padding: 24px 30px; max-width: 640px">
+            <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 18px">
+              <span
+                class="av"
+                [style.background]="mail.color"
+                style="
+                  width: 42px;
+                  height: 42px;
+                  border-radius: 50%;
+                  display: grid;
+                  place-items: center;
+                  color: #fff;
+                  font-weight: 600;
+                  font-size: 16px;
+                "
+              >
+                {{ mail.sender[0] }}
+              </span>
+              <div>
+                <div style="font-size: 14px; font-weight: 600">{{ mail.sender }}</div>
+                <div style="font-size: 11.5px; color: var(--txt-2)">
+                  To: {{ mail.recipient }} · {{ mail.timeLabel }}
+                </div>
+              </div>
+            </div>
+            <h2 style="margin: 0 0 14px; font-size: 19px; font-weight: 600; letter-spacing: -0.02em">
+              {{ mail.subject }}
+            </h2>
+            <p style="font-size: 13.5px; line-height: 1.6; color: var(--txt)">{{ mail.body }}</p>
+            <p style="font-size: 13.5px; line-height: 1.6; color: var(--txt-2)">
+              Sent from a Mac that only exists as markup.
+            </p>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>

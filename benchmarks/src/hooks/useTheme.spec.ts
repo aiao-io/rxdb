@@ -1,6 +1,6 @@
 /** @vitest-environment happy-dom */
-import { WUJIE_THEME_EVENT, WUJIE_THEME_REQUEST_EVENT } from '@modules/wujie';
-import { createFakeWujieBus } from '@modules/wujie/testing';
+import { ORBIT_THEME_EVENT, ORBIT_THEME_REQUEST_EVENT } from '@modules/orbit';
+import { createFakeOrbitBus } from '@modules/orbit/testing';
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useTheme } from './useTheme';
@@ -33,40 +33,40 @@ describe('useTheme host sync', () => {
   });
 
   afterEach(() => {
-    delete window.$wujie;
+    delete window.$orbit;
     localStorage.clear();
     document.documentElement.removeAttribute('data-theme');
   });
 
   it('用户切换主题时把请求推给宿主，宿主下发的不回推', () => {
-    const bus = createFakeWujieBus();
+    const bus = createFakeOrbitBus();
     const onRequest = vi.fn();
-    window.$wujie = { bus, props: { theme: 'light' } };
-    bus.$on(WUJIE_THEME_REQUEST_EVENT, onRequest);
+    window.$orbit = { bus, props: { theme: 'light' } };
+    bus.$on(ORBIT_THEME_REQUEST_EVENT, onRequest);
 
     const { result } = renderHook(() => useTheme());
     act(() => result.current.toggleTheme());
     expect(onRequest).toHaveBeenCalledWith({ theme: 'dark' });
 
     onRequest.mockClear();
-    act(() => bus.$emit(WUJIE_THEME_EVENT, { theme: 'light' }));
+    act(() => bus.$emit(ORBIT_THEME_EVENT, { theme: 'light' }));
     expect(onRequest).not.toHaveBeenCalled();
   });
 
-  it('follows the wujie host theme and still accepts the legacy postMessage fallback', () => {
-    const bus = createFakeWujieBus();
-    window.$wujie = { bus, props: { theme: 'dark' } };
+  it('follows the orbit host theme and still accepts the legacy postMessage fallback', () => {
+    const bus = createFakeOrbitBus();
+    window.$orbit = { bus, props: { theme: 'dark' } };
 
     const { result, unmount } = renderHook(() => useTheme());
 
     expect(result.current.theme).toBe('dark');
     expect(result.current.isDark).toBe(true);
 
-    act(() => bus.$emit(WUJIE_THEME_EVENT, { theme: 'light' }));
+    act(() => bus.$emit(ORBIT_THEME_EVENT, { theme: 'light' }));
     expect(result.current.theme).toBe('light');
 
     unmount();
-    delete window.$wujie;
+    delete window.$orbit;
 
     const standalone = renderHook(() => useTheme());
     act(() => {

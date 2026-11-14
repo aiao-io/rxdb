@@ -1,0 +1,12 @@
+/*
+ * 窄屏（ADESK-US-005，≤ 640px）：菜单栏只留 Apple 菜单、前台应用名、电量、Wi-Fi、控制中心与时钟，
+ * 其余的应用菜单和状态图标收起来，条目不再互相盖住。完整的菜单仍可从桌面宽度使用；窄屏承诺的是最低限度的可用。
+ */
+@media (max-width: 640px) {
+  #mb-titles .mb-item:not(.app),
+  #mb-status [data-st='bt'],
+  #mb-status [data-st='vol'],
+  #mb-status [data-st='spot'] {
+    display: none;
+  }
+}

@@ -1,0 +1,183 @@
+{
+  "measuredAt": "2026-11-14T04:33:02.360Z",
+  "method": "Real loopback HTTP and HTTPS, open Shadow DOM and product sandbox/allow, COOP/COEP/CORP; varying scheme and site; temporary self-signed certificate ignored only in isolated browser context; protocol keyboard input",
+  "browser": "159.0",
+  "variants": [
+    {
+      "name": "http-same-site",
+      "parent": "http://127.0.0.1:62316",
+      "child": "http://127.0.0.1:62316/input",
+      "events": [
+        {
+          "event": "navigated",
+          "url": "http://127.0.0.1:62316/?child=http%3A%2F%2F127.0.0.1%3A62316%2Finput"
+        },
+        {
+          "event": "attached",
+          "url": ""
+        },
+        {
+          "event": "navigated",
+          "url": "http://127.0.0.1:62316/input"
+        },
+        {
+          "event": "navigated",
+          "url": "http://127.0.0.1:62316/?child=http%3A%2F%2F127.0.0.1%3A62316%2Finput"
+        },
+        {
+          "event": "attached",
+          "url": ""
+        },
+        {
+          "event": "navigated",
+          "url": "http://127.0.0.1:62316/input"
+        }
+      ],
+      "frames": [
+        "http://127.0.0.1:62316/?child=http%3A%2F%2F127.0.0.1%3A62316%2Finput",
+        "http://127.0.0.1:62316/input"
+      ],
+      "input": {
+        "text": "firefox-site",
+        "keys": [
+          "f",
+          "i",
+          "r",
+          "e",
+          "f",
+          "o",
+          "x",
+          "-",
+          "s",
+          "i",
+          "t",
+          "e"
+        ],
+        "focused": true,
+        "isolated": true
+      },
+      "reload": true,
+      "passed": true
+    },
+    {
+      "name": "http-cross-site",
+      "parent": "http://127.0.0.1:62316",
+      "child": "http://localhost:62316/input",
+      "events": [
+        {
+          "event": "navigated",
+          "url": "http://127.0.0.1:62316/?child=http%3A%2F%2Flocalhost%3A62316%2Finput"
+        },
+        {
+          "event": "attached",
+          "url": ""
+        }
+      ],
+      "frames": [
+        "http://127.0.0.1:62316/?child=http%3A%2F%2Flocalhost%3A62316%2Finput",
+        ""
+      ],
+      "error": "TimeoutError: locator.click: Timeout 3000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('iframe').contentFrame().locator('#input')\u001b[22m\n",
+      "passed": false
+    },
+    {
+      "name": "scheme-cross-site",
+      "parent": "http://127.0.0.1:62316",
+      "child": "https://127.0.0.1:62317/input",
+      "events": [
+        {
+          "event": "navigated",
+          "url": "http://127.0.0.1:62316/?child=https%3A%2F%2F127.0.0.1%3A62317%2Finput"
+        },
+        {
+          "event": "attached",
+          "url": ""
+        }
+      ],
+      "frames": [
+        "http://127.0.0.1:62316/?child=https%3A%2F%2F127.0.0.1%3A62317%2Finput",
+        ""
+      ],
+      "error": "TimeoutError: locator.click: Timeout 3000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('iframe').contentFrame().locator('#input')\u001b[22m\n",
+      "passed": false
+    },
+    {
+      "name": "https-same-site",
+      "parent": "https://127.0.0.1:62317",
+      "child": "https://127.0.0.1:62317/input",
+      "events": [
+        {
+          "event": "navigated",
+          "url": "https://127.0.0.1:62317/?child=https%3A%2F%2F127.0.0.1%3A62317%2Finput"
+        },
+        {
+          "event": "attached",
+          "url": ""
+        },
+        {
+          "event": "navigated",
+          "url": "https://127.0.0.1:62317/input"
+        },
+        {
+          "event": "navigated",
+          "url": "https://127.0.0.1:62317/?child=https%3A%2F%2F127.0.0.1%3A62317%2Finput"
+        },
+        {
+          "event": "attached",
+          "url": ""
+        },
+        {
+          "event": "navigated",
+          "url": "https://127.0.0.1:62317/input"
+        }
+      ],
+      "frames": [
+        "https://127.0.0.1:62317/?child=https%3A%2F%2F127.0.0.1%3A62317%2Finput",
+        "https://127.0.0.1:62317/input"
+      ],
+      "input": {
+        "text": "firefox-site",
+        "keys": [
+          "f",
+          "i",
+          "r",
+          "e",
+          "f",
+          "o",
+          "x",
+          "-",
+          "s",
+          "i",
+          "t",
+          "e"
+        ],
+        "focused": true,
+        "isolated": true
+      },
+      "reload": true,
+      "passed": true
+    },
+    {
+      "name": "https-cross-site",
+      "parent": "https://127.0.0.1:62317",
+      "child": "https://localhost:62317/input",
+      "events": [
+        {
+          "event": "navigated",
+          "url": "https://127.0.0.1:62317/?child=https%3A%2F%2Flocalhost%3A62317%2Finput"
+        },
+        {
+          "event": "attached",
+          "url": ""
+        }
+      ],
+      "frames": [
+        "https://127.0.0.1:62317/?child=https%3A%2F%2Flocalhost%3A62317%2Finput",
+        ""
+      ],
+      "error": "TimeoutError: locator.click: Timeout 3000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('iframe').contentFrame().locator('#input')\u001b[22m\n",
+      "passed": false
+    }
+  ],
+  "passed": false
+}

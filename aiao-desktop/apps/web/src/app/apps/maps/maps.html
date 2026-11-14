@@ -1,0 +1,74 @@
+<div class="tb" data-drag>
+  <div class="title">Maps</div>
+  <div class="tbz"><app-traffic-lights /></div>
+  <div class="grow"></div>
+  <div class="tbz">
+    <div class="sfield" data-nodrag style="width: 210px">
+      <span><svg appIcon="g-search"></svg></span>
+      <input
+        #search
+        (keydown.enter)="find($event, search)"
+        (keydown.escape)="dismiss(search)"
+        data-msearch
+        placeholder="Search Maps"
+        spellcheck="false"
+      />
+    </div>
+  </div>
+</div>
+<div
+  class="maps"
+  #mapBox
+  (dblclick)="doubleClick($event)"
+  (pointerdown)="down($event)"
+  (wheel)="wheel($event)"
+  data-map
+>
+  <div class="pane" #pane data-pane></div>
+  <svg class="pin" #pin viewBox="0 0 26 34">
+    <path d="M13 0a13 13 0 0 0-13 13c0 8.7 13 21 13 21s13-12.3 13-21A13 13 0 0 0 13 0z" fill="#f0453a"></path>
+    <circle cx="13" cy="12.6" fill="#fff" r="4.6"></circle>
+  </svg>
+  <div class="card" data-card>
+    <h3>{{ card().title }}</h3>
+    <p>{{ card().sub }}</p>
+    <div class="row">
+      <button class="btn pri" (click)="directions()" data-dir style="flex: 1">Directions</button>
+      <button class="btn" (click)="save()" data-save style="flex: 1">Save</button>
+    </div>
+  </div>
+  <div class="zoom">
+    <button (click)="zoom(1)" data-z="1" title="Zoom In"><svg appIcon="g-plus"></svg></button>
+    <button (click)="zoom(-1)" data-z="-1" title="Zoom Out"><svg appIcon="g-minus"></svg></button>
+  </div>
+  <div class="attr">© OpenStreetMap · CARTO</div>
+  @if (results(); as panel) {
+    <div class="results">
+      @switch (panel.status) {
+        @case ('searching') {
+          <div style="padding: 9px 10px; font-size: 12px; color: var(--txt-2)">Searching…</div>
+        }
+        @case ('empty') {
+          <div style="padding: 9px 10px; font-size: 12px; color: var(--txt-2)">No results for “{{ panel.query }}”</div>
+        }
+        @case ('failed') {
+          <div style="padding: 9px 10px; font-size: 12px; color: var(--txt-2)">Search needs a network connection.</div>
+        }
+        @case ('hits') {
+          @for (hit of panel.hits; track $index) {
+            <button [attr.data-hit]="$index" (click)="pick(hit)">
+              <b>{{ placeName(hit) }}</b>
+              <span>{{ hit.display_name }}</span>
+            </button>
+          }
+        }
+      }
+    </div>
+  }
+  @if (offline()) {
+    <div class="offline">
+      <b style="display: block; font-size: 13px; color: var(--txt); margin-bottom: 2px">Map unavailable</b>
+      Tiles come from the network, and there isn't one right now.
+    </div>
+  }
+</div>

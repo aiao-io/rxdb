@@ -1,0 +1,63 @@
+<div class="wb">
+  <div class="sbar" data-drag style="width: 230px">
+    <div style="display: flex; align-items: center; height: 38px; padding: 0 12px"><app-traffic-lights /></div>
+    <div class="grp">
+      <div class="gh">Collection</div>
+      <div class="si on">
+        <svg class="ico" appIcon="g-title"></svg>
+        <span class="nm">All Fonts</span>
+        <span class="tail">{{ fonts().length }}</span>
+      </div>
+      <div class="si">
+        <svg class="ico" appIcon="g-star"></svg>
+        <span class="nm">Favourites</span>
+      </div>
+      <div class="si">
+        <svg class="ico" appIcon="g-tag"></svg>
+        <span class="nm">Recently Used</span>
+      </div>
+    </div>
+    <div class="grp">
+      <div class="gh">Family</div>
+      @for (font of fonts(); track font.name; let i = $index) {
+        <div
+          class="si"
+          [attr.data-fi]="i"
+          [class.on]="i === selected()"
+          (click)="selected.set(i)"
+          (keydown.enter)="selected.set(i)"
+          tabindex="-1"
+        >
+          <span class="nm" [style.font-family]="font.stack">{{ font.name }}</span>
+        </div>
+      }
+    </div>
+  </div>
+  <div class="wmain">
+    <div class="tbar" data-drag style="height: 52px">
+      <div class="fx-title" data-fname>{{ current()?.name }}</div>
+      <div style="flex: 1"></div>
+      <div class="sfield" data-nodrag style="width: 150px">
+        <span><svg appIcon="g-search"></svg></span>
+        <input placeholder="Search" />
+      </div>
+    </div>
+    <div class="scroll" data-fbody style="flex: 1; padding: 26px 30px">
+      @if (current(); as active) {
+        <div [style.font-family]="active.stack" style="font-size: 64px; line-height: 1.1; letter-spacing: -0.03em">
+          Aa Bb Cc
+        </div>
+        <div style="font-size: 12px; color: var(--txt-2); margin: 6px 0 22px">{{ active.styles }}</div>
+        @for (size of sizes; track size) {
+          <div
+            [style.font-family]="active.stack"
+            [style.font-size.px]="size"
+            style="line-height: 1.35; margin-bottom: 9px; letter-spacing: -0.01em"
+          >
+            The quick brown fox jumps over the lazy dog. 0123456789
+          </div>
+        }
+      }
+    </div>
+  </div>
+</div>

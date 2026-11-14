@@ -1,0 +1,43 @@
+{
+  "format": "aiao-desktop.inspect-live",
+  "version": 1,
+  "measuredAt": "2026-11-14T01:09:24.729Z",
+  "source": {
+    "sha": "1260167809750a043ab32c369a0a2fd661abf393",
+    "changes": ""
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "node": "v26.12.0"
+  },
+  "command": "pnpm nx run aiao-desktop:inspect-live --args=\"--output=<文件>\"",
+  "entries": [
+    {
+      "url": "https://aiao-desktop.pages.dev/",
+      "status": 200,
+      "location": null,
+      "headers": {
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Embedder-Policy": "require-corp"
+      },
+      "bytes": 940,
+      "sha256": "5476aaeea9fb952aba3a66916f6ac0789b7b7897bfa4fa6d7f7d610b3fe0f5e3",
+      "problems": []
+    },
+    {
+      "url": "https://desktop.aiao.io/",
+      "status": 200,
+      "location": null,
+      "headers": {
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Embedder-Policy": "require-corp"
+      },
+      "bytes": 940,
+      "sha256": "5476aaeea9fb952aba3a66916f6ac0789b7b7897bfa4fa6d7f7d610b3fe0f5e3",
+      "problems": []
+    }
+  ],
+  "sameEntrypoint": true,
+  "passed": true
+}

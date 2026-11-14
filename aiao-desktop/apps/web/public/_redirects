@@ -1,0 +1,5 @@
+# Cloudflare Pages 改写规则（生产托管）：
+# Pages 默认把 .html 308 到无扩展名地址（/saltline.html → /saltline），而浏览器会长期缓存这条 308。
+# 几猫3A大作的 iframe 直接加载 saltline.html（D-15）：200 改写让它和开发服务器、冒烟一样原样返回文件，不多一跳。
+# 新增要被 iframe 直接加载的 .html 时，在这里补一条同样的规则。
+/saltline.html /saltline 200

@@ -1,0 +1,340 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-14T06:08:47.437Z",
+  "source": {
+    "sha": "13d8a872b992a0b68070cac3e49c72c68fb47840",
+    "changes": "M src/baseline/limitations-webkit.json\n M src/groups/host-capabilities.mjs\n M src/groups/window-layout.mjs\n M src/harness/standin.mjs\n M ../web/src/app/apps/web-app/web-app.html\n M ../web/src/app/services/app-context.spec.ts\n M ../web/src/app/services/app-context.ts\n M ../web/src/app/services/browser-app-support.spec.ts\n M ../web/src/app/services/browser-app-support.ts\n M ../web/src/app/services/remote-app-session.spec.ts\n M ../../requirements/evidence/2026-11-14/browser-followup.md\n M ../../requirements/evidence/2026-11-14/firefox-final-3.txt\n?? ../../requirements/evidence/2026-11-14/browser-support-build.txt\n?? ../../requirements/evidence/2026-11-14/browser-support-typecheck.txt\n?? ../../requirements/evidence/2026-11-14/browser-support-unit-green.txt\n?? ../../requirements/evidence/2026-11-14/browser-support-unit-red-detail.txt\n?? ../../requirements/evidence/2026-11-14/browser-support-unit-red.txt\n?? ../../requirements/evidence/2026-11-14/browser-support.md\n?? ../../requirements/evidence/2026-11-14/deploy-dry-run-browser-support.txt\n?? ../../requirements/evidence/2026-11-14/firefox-final-4.txt\n?? ../../requirements/evidence/2026-11-14/firefox-final-5.json\n?? ../../requirements/evidence/2026-11-14/firefox-final-5.txt\n?? ../../requirements/evidence/2026-11-14/firefox-multi-tab-erase-complete.txt\n?? ../../requirements/evidence/2026-11-14/initial-comparison-browser-support.json\n?? ../../requirements/evidence/2026-11-14/initial-comparison-browser-support.txt\n?? ../../requirements/evidence/2026-11-14/webkit-support-checks.json\n?? ../../requirements/evidence/2026-11-14/webkit-support-checks.txt"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "159.0",
+    "engine": "firefox",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 1,
+    "groups": [
+      "window-layout",
+      "a11y"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "same-site-cross-origin-https-forward",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 173.199370541,
+  "outcomes": [
+    {
+      "group": "window-layout",
+      "result": {},
+      "problems": [
+        "检查组异常：locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.win[data-app=\"finder\"]:not(.closing)').first().locator('.tl .f')\u001b[22m\n\u001b[2m    - locator resolved to <button class=\"f\" tabindex=\"0\" data-w=\"zoom\" type=\"button\" aria-label=\"Zoom\">…</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div class=\"sb-top\">…</div> from <app-window-frame id=\"w2\" role=\"dialog\" tabindex=\"-1\" class=\"win front\" data-app=\"finder\" aria-label=\"Desktop\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div class=\"sb-top\">…</div> from <app-window-frame id=\"w2\" role=\"dialog\" tabindex=\"-1\" class=\"win front\" data-app=\"finder\" aria-label=\"Desktop\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    55 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <div class=\"sb-top\">…</div> from <app-window-frame id=\"w2\" role=\"dialog\" tabindex=\"-1\" class=\"win front\" data-app=\"finder\" aria-label=\"Desktop\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n（groups/window-layout.mjs:449）"
+      ],
+      "failedKeys": [],
+      "missingKeys": [
+        "windowLayout.restoresPositionAndSize",
+        "windowLayout.restoresMinimizedState",
+        "windowLayout.finderKeepsPath",
+        "windowLayout.layoutRowShape",
+        "windowLayout.restoresTwoFinders",
+        "windowLayout.twoFindersKeepTheirPaths",
+        "windowLayout.zoomedWindowRestoresZoomed",
+        "windowLayout.zoomedWindowUnzoomsToSavedBox",
+        "windowLayout.integratedStandardRestoresGeometry",
+        "windowLayout.integratedStandardHandshakesAgain",
+        "windowLayout.integratedTransparentRestoresGeometry",
+        "windowLayout.integratedTransparentHandshakesAgain",
+        "windowLayout.integratedTransparentHidesDesktopChrome",
+        "windowLayout.closedWindowStaysClosed",
+        "windowLayout.otherWindowsRestoredAfterClose",
+        "windowLayout.retiredAppSkipped",
+        "windowLayout.retiredAppNotice",
+        "windowLayout.retiredAppOthersRestored",
+        "windowLayout.retiredWindowDroppedFromLayout",
+        "windowLayout.onlyRetiredOpensDefaultFinder",
+        "windowLayout.restoreRunsBehindBootScreen",
+        "windowLayout.noticeWaitsForUnlockedDesktop",
+        "windowLayout.farWindowWasSaved",
+        "windowLayout.restoredWindowPulledOnScreen",
+        "windowLayout.heavyWindowsRestoreAsFrames",
+        "windowLayout.heavyWindowsShowIdlePlaceholder",
+        "windowLayout.heavyFrontWindowStaysFront",
+        "windowLayout.startupBootsNoVirtualMachine",
+        "windowLayout.startupRequestsNoHeavyChunks",
+        "windowLayout.startupRequestsNoSaltlineEntry",
+        "windowLayout.firstClickStartsTerminal",
+        "windowLayout.firstClickStartsGame",
+        "windowLayout.idlePlaceholderIsFocusableButton",
+        "windowLayout.idlePlaceholderStartsFromKeyboard",
+        "windowLayout.tabAKeepsOnlyItsWindows",
+        "windowLayout.tabBKeepsOnlyItsWindows",
+        "windowLayout.layoutsStoredPerTab",
+        "windowLayout.reloadDoesNotOverwriteOtherTab",
+        "windowLayout.newTabStartsFromEmptyDesktop",
+        "windowLayout.noExtraDefaultFinder",
+        "windowLayout.frontWindowStaysFront",
+        "windowLayout.stackOrderPreserved",
+        "windowLayout.minimizedFrameOnlyAtStartup",
+        "windowLayout.minimizedPayloadNotRequestedAtStartup",
+        "windowLayout.dockRestoreShowsWindow",
+        "windowLayout.dockRestoreLoadsPayloadFirstTime",
+        "windowLayout.staleRowsPruned",
+        "windowLayout.recentRowsKept",
+        "windowLayout.blockedStorageNotice",
+        "windowLayout.blockedStorageStillOpensFinder",
+        "windowLayout.blockedStorageWritesNothing"
+      ],
+      "extraKeys": [],
+      "crashed": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.win[data-app=\"finder\"]:not(.closing)').first().locator('.tl .f')\u001b[22m\n\u001b[2m    - locator resolved to <button class=\"f\" tabindex=\"0\" data-w=\"zoom\" type=\"button\" aria-label=\"Zoom\">…</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div class=\"sb-top\">…</div> from <app-window-frame id=\"w2\" role=\"dialog\" tabindex=\"-1\" class=\"win front\" data-app=\"finder\" aria-label=\"Desktop\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div class=\"sb-top\">…</div> from <app-window-frame id=\"w2\" role=\"dialog\" tabindex=\"-1\" class=\"win front\" data-app=\"finder\" aria-label=\"Desktop\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    55 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <div class=\"sb-top\">…</div> from <app-window-frame id=\"w2\" role=\"dialog\" tabindex=\"-1\" class=\"win front\" data-app=\"finder\" aria-label=\"Desktop\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n（groups/window-layout.mjs:449）",
+      "pageErrors": [],
+      "seconds": 81.557599166
+    },
+    {
+      "group": "a11y",
+      "result": {
+        "a11y": {
+          "tabPath": {
+            "startsInMenubar": [],
+            "menubarOrder": [],
+            "windowBetweenMenubarAndDock": [],
+            "dockOrder": [],
+            "desktopAfterDock": [],
+            "regionsInVisibleOrder": [],
+            "noInvisibleStops": [],
+            "doesNotTrap": [],
+            "shiftTabReverses": [],
+            "focusRingOnlyForKeyboard": [],
+            "enterAndSpaceActivate": []
+          },
+          "overlays": {
+            "launchpadOpensByEnter": [],
+            "launchpadTabStaysInside": [],
+            "launchpadSpaceLaunches": [],
+            "launchpadEscapeRestoresFocus": [],
+            "spotlightOpensByEnter": [],
+            "spotlightComboboxState": [],
+            "spotlightTabStaysInside": [],
+            "spotlightEscapeRestoresFocus": [],
+            "spotlightEnterOpensApp": [],
+            "panelOpensBySpace": [],
+            "panelTabStaysInside": [],
+            "panelSwitchToggles": [],
+            "panelEscapeRestoresFocus": []
+          },
+          "menus": {
+            "menubarRoles": [],
+            "arrowKeysMoveBetweenTitles": [],
+            "expandKeys": [],
+            "arrowsMoveInsideMenu": [],
+            "typeaheadJumps": [],
+            "leftRightSwitchMenus": [],
+            "escapeRestoresFocus": [],
+            "tabClosesMenu": [],
+            "checkedItemRole": [],
+            "keyboardOnlyFlow": {
+              "opensFinder": [],
+              "opensGoMenu": [],
+              "changesDirectory": [],
+              "closesWindow": []
+            }
+          },
+          "windows": {
+            "dialogsNamedByTitle": [],
+            "backgroundHidden": [],
+            "menubarShowsFrontApp": [],
+            "openMovesFocusIn": [],
+            "cycleSwitchesFocusAndFront": [],
+            "minimizeHandsFocusToNext": [],
+            "restoreFromDockByKeyboard": [],
+            "closeHandsFocusOver": [],
+            "lastCloseFocusesDockIcon": [],
+            "tabIntoBackgroundRaises": []
+          },
+          "finder": {
+            "listboxRoles": [],
+            "arrowKeysMoveSelection": [],
+            "enterOpensFolderKeepsFocus": [],
+            "backspaceGoesUp": [],
+            "commandUpGoesUp": [],
+            "listViewArrows": [],
+            "columnViewArrows": []
+          },
+          "tree": {
+            "finderWindow": [],
+            "dock": [],
+            "dockRunningState": [],
+            "menuItems": [],
+            "launchpad": [],
+            "spotlight": [],
+            "updatesWhenWindowsOpenAndClose": [],
+            "everyControlNamed": [],
+            "decorativeSvgHidden": []
+          },
+          "axe": {
+            "noViolations": []
+          }
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 91.55146604100001
+    }
+  ],
+  "checks": {
+    "a11y": {
+      "tabPath": {
+        "startsInMenubar": [],
+        "menubarOrder": [],
+        "windowBetweenMenubarAndDock": [],
+        "dockOrder": [],
+        "desktopAfterDock": [],
+        "regionsInVisibleOrder": [],
+        "noInvisibleStops": [],
+        "doesNotTrap": [],
+        "shiftTabReverses": [],
+        "focusRingOnlyForKeyboard": [],
+        "enterAndSpaceActivate": []
+      },
+      "overlays": {
+        "launchpadOpensByEnter": [],
+        "launchpadTabStaysInside": [],
+        "launchpadSpaceLaunches": [],
+        "launchpadEscapeRestoresFocus": [],
+        "spotlightOpensByEnter": [],
+        "spotlightComboboxState": [],
+        "spotlightTabStaysInside": [],
+        "spotlightEscapeRestoresFocus": [],
+        "spotlightEnterOpensApp": [],
+        "panelOpensBySpace": [],
+        "panelTabStaysInside": [],
+        "panelSwitchToggles": [],
+        "panelEscapeRestoresFocus": []
+      },
+      "menus": {
+        "menubarRoles": [],
+        "arrowKeysMoveBetweenTitles": [],
+        "expandKeys": [],
+        "arrowsMoveInsideMenu": [],
+        "typeaheadJumps": [],
+        "leftRightSwitchMenus": [],
+        "escapeRestoresFocus": [],
+        "tabClosesMenu": [],
+        "checkedItemRole": [],
+        "keyboardOnlyFlow": {
+          "opensFinder": [],
+          "opensGoMenu": [],
+          "changesDirectory": [],
+          "closesWindow": []
+        }
+      },
+      "windows": {
+        "dialogsNamedByTitle": [],
+        "backgroundHidden": [],
+        "menubarShowsFrontApp": [],
+        "openMovesFocusIn": [],
+        "cycleSwitchesFocusAndFront": [],
+        "minimizeHandsFocusToNext": [],
+        "restoreFromDockByKeyboard": [],
+        "closeHandsFocusOver": [],
+        "lastCloseFocusesDockIcon": [],
+        "tabIntoBackgroundRaises": []
+      },
+      "finder": {
+        "listboxRoles": [],
+        "arrowKeysMoveSelection": [],
+        "enterOpensFolderKeepsFocus": [],
+        "backspaceGoesUp": [],
+        "commandUpGoesUp": [],
+        "listViewArrows": [],
+        "columnViewArrows": []
+      },
+      "tree": {
+        "finderWindow": [],
+        "dock": [],
+        "dockRunningState": [],
+        "menuItems": [],
+        "launchpad": [],
+        "spotlight": [],
+        "updatesWhenWindowsOpenAndClose": [],
+        "everyControlNamed": [],
+        "decorativeSvgHidden": []
+      },
+      "axe": {
+        "noViolations": []
+      }
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [
+      "[window-layout] 检查项未通过或缺失：windowLayout.restoresPositionAndSize",
+      "[window-layout] 检查项未通过或缺失：windowLayout.restoresMinimizedState",
+      "[window-layout] 检查项未通过或缺失：windowLayout.finderKeepsPath",
+      "[window-layout] 检查项未通过或缺失：windowLayout.layoutRowShape",
+      "[window-layout] 检查项未通过或缺失：windowLayout.restoresTwoFinders",
+      "[window-layout] 检查项未通过或缺失：windowLayout.twoFindersKeepTheirPaths",
+      "[window-layout] 检查项未通过或缺失：windowLayout.zoomedWindowRestoresZoomed",
+      "[window-layout] 检查项未通过或缺失：windowLayout.zoomedWindowUnzoomsToSavedBox",
+      "[window-layout] 检查项未通过或缺失：windowLayout.integratedStandardRestoresGeometry",
+      "[window-layout] 检查项未通过或缺失：windowLayout.integratedStandardHandshakesAgain",
+      "[window-layout] 检查项未通过或缺失：windowLayout.integratedTransparentRestoresGeometry",
+      "[window-layout] 检查项未通过或缺失：windowLayout.integratedTransparentHandshakesAgain",
+      "[window-layout] 检查项未通过或缺失：windowLayout.integratedTransparentHidesDesktopChrome",
+      "[window-layout] 检查项未通过或缺失：windowLayout.closedWindowStaysClosed",
+      "[window-layout] 检查项未通过或缺失：windowLayout.otherWindowsRestoredAfterClose",
+      "[window-layout] 检查项未通过或缺失：windowLayout.retiredAppSkipped",
+      "[window-layout] 检查项未通过或缺失：windowLayout.retiredAppNotice",
+      "[window-layout] 检查项未通过或缺失：windowLayout.retiredAppOthersRestored",
+      "[window-layout] 检查项未通过或缺失：windowLayout.retiredWindowDroppedFromLayout",
+      "[window-layout] 检查项未通过或缺失：windowLayout.onlyRetiredOpensDefaultFinder",
+      "[window-layout] 检查项未通过或缺失：windowLayout.restoreRunsBehindBootScreen",
+      "[window-layout] 检查项未通过或缺失：windowLayout.noticeWaitsForUnlockedDesktop",
+      "[window-layout] 检查项未通过或缺失：windowLayout.farWindowWasSaved",
+      "[window-layout] 检查项未通过或缺失：windowLayout.restoredWindowPulledOnScreen",
+      "[window-layout] 检查项未通过或缺失：windowLayout.heavyWindowsRestoreAsFrames",
+      "[window-layout] 检查项未通过或缺失：windowLayout.heavyWindowsShowIdlePlaceholder",
+      "[window-layout] 检查项未通过或缺失：windowLayout.heavyFrontWindowStaysFront",
+      "[window-layout] 检查项未通过或缺失：windowLayout.startupBootsNoVirtualMachine",
+      "[window-layout] 检查项未通过或缺失：windowLayout.startupRequestsNoHeavyChunks",
+      "[window-layout] 检查项未通过或缺失：windowLayout.startupRequestsNoSaltlineEntry",
+      "[window-layout] 检查项未通过或缺失：windowLayout.firstClickStartsTerminal",
+      "[window-layout] 检查项未通过或缺失：windowLayout.firstClickStartsGame",
+      "[window-layout] 检查项未通过或缺失：windowLayout.idlePlaceholderIsFocusableButton",
+      "[window-layout] 检查项未通过或缺失：windowLayout.idlePlaceholderStartsFromKeyboard",
+      "[window-layout] 检查项未通过或缺失：windowLayout.tabAKeepsOnlyItsWindows",
+      "[window-layout] 检查项未通过或缺失：windowLayout.tabBKeepsOnlyItsWindows",
+      "[window-layout] 检查项未通过或缺失：windowLayout.layoutsStoredPerTab",
+      "[window-layout] 检查项未通过或缺失：windowLayout.reloadDoesNotOverwriteOtherTab",
+      "[window-layout] 检查项未通过或缺失：windowLayout.newTabStartsFromEmptyDesktop",
+      "[window-layout] 检查项未通过或缺失：windowLayout.noExtraDefaultFinder",
+      "[window-layout] 检查项未通过或缺失：windowLayout.frontWindowStaysFront",
+      "[window-layout] 检查项未通过或缺失：windowLayout.stackOrderPreserved",
+      "[window-layout] 检查项未通过或缺失：windowLayout.minimizedFrameOnlyAtStartup",
+      "[window-layout] 检查项未通过或缺失：windowLayout.minimizedPayloadNotRequestedAtStartup",
+      "[window-layout] 检查项未通过或缺失：windowLayout.dockRestoreShowsWindow",
+      "[window-layout] 检查项未通过或缺失：windowLayout.dockRestoreLoadsPayloadFirstTime",
+      "[window-layout] 检查项未通过或缺失：windowLayout.staleRowsPruned",
+      "[window-layout] 检查项未通过或缺失：windowLayout.recentRowsKept",
+      "[window-layout] 检查项未通过或缺失：windowLayout.blockedStorageNotice",
+      "[window-layout] 检查项未通过或缺失：windowLayout.blockedStorageStillOpensFinder",
+      "[window-layout] 检查项未通过或缺失：windowLayout.blockedStorageWritesNothing",
+      "[window-layout] 检查组异常：locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.win[data-app=\"finder\"]:not(.closing)').first().locator('.tl .f')\u001b[22m\n\u001b[2m    - locator resolved to <button class=\"f\" tabindex=\"0\" data-w=\"zoom\" type=\"button\" aria-label=\"Zoom\">…</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div class=\"sb-top\">…</div> from <app-window-frame id=\"w2\" role=\"dialog\" tabindex=\"-1\" class=\"win front\" data-app=\"finder\" aria-label=\"Desktop\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div class=\"sb-top\">…</div> from <app-window-frame id=\"w2\" role=\"dialog\" tabindex=\"-1\" class=\"win front\" data-app=\"finder\" aria-label=\"Desktop\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    55 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <div class=\"sb-top\">…</div> from <app-window-frame id=\"w2\" role=\"dialog\" tabindex=\"-1\" class=\"win front\" data-app=\"finder\" aria-label=\"Desktop\">…</app-window-frame> subtree intercepts pointer events\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n（groups/window-layout.mjs:449）"
+    ],
+    "stale": []
+  },
+  "passed": false,
+  "clean": false
+}

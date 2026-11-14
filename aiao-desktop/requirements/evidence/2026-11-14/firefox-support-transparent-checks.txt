@@ -1,0 +1,18 @@
+
+> nx run aiao-desktop-e2e:e2e --args=--engine=firefox --group=transparent-window --parallel=1 --report=/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/aiao-desktop/requirements/evidence/2026-11-14/firefox-support-transparent-checks.json
+
+aiao-desktop-e2e: (node:10769) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-desktop-e2e: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-desktop-e2e: ✓ transparent-window  10.1s
+aiao-desktop-e2e: 检查组 1 个，总耗时 10.1s（引擎 firefox，并行 1）
+aiao-desktop-e2e: {"transparentWindow":{"chromeWhileLoading":true,"chromeHiddenWhenReady":true,"appKnowsDecorations":true,"dragMovesWindow":true,"buttonsAreNotDragArea":true,"doubleClickZooms":true,"maximizeButtonToggles":true,"focusStateReachesApp":true,"minimizeButtonMinimizes":true,"closeButtonCloses":true}}
+
+
+
+ NX   Successfully ran target e2e for project aiao-desktop-e2e
+
+
+  Run duration:      11.6s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     11.5s (1 task)
+  Recoverable time:  <1ms

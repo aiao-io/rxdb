@@ -1,0 +1,52 @@
+{
+  "format": "aiao-desktop.verify-domains",
+  "version": 1,
+  "measuredAt": "2026-11-14T01:50:54.874Z",
+  "source": "0ccab7cf+workspace",
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "node": "v26.12.0",
+    "chromium": "158.0.8127.18",
+    "headless": true
+  },
+  "method": "真实 HTTPS 入口；同一空上下文、不同 Origin；屏蔽外网内容，允许两个真实站点的构建资源；不发布、不迁移数据。",
+  "entries": [
+    {
+      "requestedOrigin": "https://aiao-desktop.pages.dev",
+      "actualOrigin": "https://aiao-desktop.pages.dev",
+      "status": 200,
+      "indexSha256": "5476aaeea9fb952aba3a66916f6ac0789b7b7897bfa4fa6d7f7d610b3fe0f5e3"
+    },
+    {
+      "requestedOrigin": "https://desktop.aiao.io",
+      "actualOrigin": "https://desktop.aiao.io",
+      "status": 200,
+      "indexSha256": "d657a4204259351f1c70778a1d7856cfddc7bceb638525932affb473b73ee14a"
+    },
+    {
+      "requestedOrigin": "https://aiao-desktop.pages.dev",
+      "actualOrigin": "https://aiao-desktop.pages.dev",
+      "status": 200,
+      "indexSha256": "5476aaeea9fb952aba3a66916f6ac0789b7b7897bfa4fa6d7f7d610b3fe0f5e3"
+    }
+  ],
+  "checks": {
+    "customOriginNotRedirected": true,
+    "noUserFolderInCustomOrigin": true,
+    "noUserFileInCustomOrigin": true,
+    "noUserNoteInCustomOrigin": true,
+    "customFileIsSeedContent": true,
+    "legacyOriginNotRedirected": true,
+    "legacyFolderNoteAndSettingsSurvive": true,
+    "legacyFileBodySurvives": true,
+    "noPageErrors": true
+  },
+  "pageErrors": [],
+  "diagnostics": [],
+  "userFile": {
+    "name": "domain-check.txt",
+    "sha256": "f733155b2cc7d97721cf3f6803ed7afc2fe2454f0581ed6eaea80431df41baff"
+  },
+  "passed": true
+}

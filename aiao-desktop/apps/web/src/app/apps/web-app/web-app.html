@@ -1,0 +1,70 @@
+@if (session.chrome()) {
+  <div class="tb plain" data-drag>
+    <div class="title" data-webapp-title>{{ win.title() }}</div>
+    <div class="tbz"><app-traffic-lights /></div>
+    <div class="grow"></div>
+    <div class="tbz"></div>
+  </div>
+}
+@for (restriction of session.restrictions(); track restriction.capability) {
+  <div
+    class="webapp-support"
+    [attr.data-disabled-capability]="restriction.capability"
+    data-webapp-restriction
+    role="note"
+  >
+    {{ restriction.reason }}
+  </div>
+}
+<div class="webapp" [attr.data-webapp-state]="state()" [attr.data-webapp]="app.id">
+  <div class="webapp-stage" #stage></div>
+  @switch (state()) {
+    @case ('loading') {
+      <div class="webapp-status" role="status">
+        <svg class="webapp-icon" [appIcon]="app.icon"></svg>
+        <div class="webapp-spinner"></div>
+        <p>Opening {{ app.name }}…</p>
+      </div>
+    }
+    @case ('failed') {
+      <div class="webapp-status" role="alert">
+        <svg class="webapp-icon" [appIcon]="app.icon"></svg>
+        <h2>“{{ app.name }}” can’t be opened.</h2>
+        <p data-webapp-reason>{{ reason() }}</p>
+        <div class="webapp-actions">
+          <button class="btn pri" (click)="retry()" data-webapp-retry type="button">Try Again</button>
+          <a class="btn" [href]="app.web.url" data-webapp-open rel="noopener" target="_blank">Open in New Tab</a>
+        </div>
+      </div>
+    }
+  }
+  @if (shielded()) {
+    <div class="webapp-shield" (pointerdown)="activate()" data-webapp-shield></div>
+  }
+  @if (!session.chrome()) {
+    @for (region of session.dragRegions(); track $index) {
+      <div
+        class="webapp-drag"
+        [style.clip-path]="clipPath(region)"
+        [style.height.px]="region.height"
+        [style.left.px]="region.x"
+        [style.top.px]="region.y"
+        [style.width.px]="region.width"
+        (pointerdown)="activate()"
+        data-drag
+        data-webapp-drag
+      ></div>
+    }
+  }
+  @if (session.notice(); as notice) {
+    <div
+      class="webapp-notice"
+      [attr.data-notice-code]="notice.code"
+      [attr.data-notice-method]="notice.method"
+      data-webapp-notice
+      role="status"
+    >
+      {{ notice.text }}
+    </div>
+  }
+</div>

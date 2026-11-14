@@ -1,0 +1,48 @@
+
+ NX   Running targets requirements-check, requirements-test for project aiao-desktop:
+
+- aiao-desktop
+
+
+
+> nx run aiao-desktop:requirements-test
+
+> node --test scripts/check-requirements.spec.mjs
+
+(node:80476) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:80477) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[32m✔ 当前产品需求目录通过结构门禁 [90m(105.772541ms)[39m[39m
+[32m✔ ADESK 前缀的需求树通过 [90m(5.976333ms)[39m[39m
+[32m✔ 默认按仓库根解析平台故事引用 [90m(29.450167ms)[39m[39m
+[32m✔ Web Desktop 的 DESKTOP 前缀故事被拒绝 [90m(3.9585ms)[39m[39m
+[32m✔ 其他产品前缀的史诗被拒绝 [90m(3.479541ms)[39m[39m
+[32m✔ Done 故事的 AC 必须全部通过 [90m(3.582083ms)[39m[39m
+[32m✔ 指向不存在文件的链接被拒绝 [90m(3.382958ms)[39m[39m
+[34mℹ tests 7[39m
+[34mℹ suites 0[39m
+[34mℹ pass 7[39m
+[34mℹ fail 0[39m
+[34mℹ cancelled 0[39m
+[34mℹ skipped 0[39m
+[34mℹ todo 0[39m
+[34mℹ duration_ms 208.998333[39m
+
+> nx run aiao-desktop:requirements-check
+
+> node scripts/check-requirements.mjs
+
+✅ Aiao Desktop requirements passed（12/22 已交付）
+
+
+
+ NX   Successfully ran targets requirements-check, requirements-test for project aiao-desktop
+
+
+View logs and investigate cache misses at https://nx.app/runs/NINjuaCQ7e
+
+  Run duration:      488ms
+  Cache:             0/2 hit (0%)
+  Critical path:     256ms (1 task)
+  Recoverable time:  232ms (48% of the run)

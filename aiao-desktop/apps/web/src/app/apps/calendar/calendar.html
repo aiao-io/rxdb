@@ -1,0 +1,239 @@
+<div class="wb">
+  <div class="cal-side" data-drag>
+    <div class="sb-top" style="height: 44px"><app-traffic-lights /></div>
+    <div class="grp" style="padding: 0 10px">
+      <div class="gh">iCloud</div>
+      <div data-cals>
+        @for (cal of store.calendars(); track cal.id) {
+          <div
+            class="si cal-tick"
+            [attr.data-cal]="cal.id"
+            [class.off]="!cal.on"
+            (click)="toggle(cal.id)"
+            (keydown.enter)="toggle(cal.id)"
+            tabindex="-1"
+          >
+            <span class="tick" [style.--c]="cal.c"><svg appIcon="g-check"></svg></span>
+            <span class="nm">{{ cal.name }}</span>
+          </div>
+        }
+      </div>
+    </div>
+    <div data-mini>
+      <div class="mini">
+        <div class="mh">
+          <span>{{ mini().label }}</span>
+        </div>
+        <div class="mg">
+          @for (letter of letters; track $index) {
+            <span>{{ letter }}</span>
+          }
+          @for (cell of mini().cells; track $index) {
+            <i [class.out]="cell.out" [class.today]="cell.today">{{ cell.text }}</i>
+          }
+        </div>
+      </div>
+    </div>
+    <div data-agenda style="margin-top: auto; padding: 10px 14px">
+      <div class="gh" style="padding-left: 0">Upcoming</div>
+      @for (item of upcoming(); track item.id) {
+        <div
+          class="cal-up"
+          [attr.data-ev]="item.id"
+          (click)="edit(item.id)"
+          (keydown.enter)="edit(item.id)"
+          tabindex="-1"
+        >
+          <i [style.background]="item.color"></i>
+          <div style="min-width: 0">
+            <div class="t">{{ item.title }}</div>
+            <div class="s">{{ item.when }}</div>
+          </div>
+        </div>
+      } @empty {
+        <div style="font-size: 11.5px; color: var(--txt-3)">Nothing scheduled.</div>
+      }
+    </div>
+  </div>
+  <div class="cal-main">
+    <div class="cal-head" data-drag>
+      <h3 data-mon>{{ heading() }}</h3>
+      <div class="grow" style="flex: 1"></div>
+      <button class="tbtn" (click)="shift(-1)" aria-label="Previous period" data-nodrag data-p="-1">
+        <svg appIcon="g-chev-l"></svg>
+      </button>
+      <button class="btn" (click)="goToday()" data-nodrag data-today>Today</button>
+      <button class="tbtn" (click)="shift(1)" aria-label="Next period" data-nodrag data-p="1">
+        <svg appIcon="g-chev-r"></svg>
+      </button>
+      <div class="seg" data-nodrag style="margin-left: 6px">
+        @for (item of views; track item.view) {
+          <button
+            [attr.data-view]="item.view"
+            [class.on]="view() === item.view"
+            [style.width.px]="item.width"
+            [textContent]="item.label"
+            (click)="setView(item.view)"
+            style="font-size: 11.5px"
+          ></button>
+        }
+      </div>
+      <button class="tbtn" (click)="newEvent()" data-new data-nodrag><svg appIcon="g-plus"></svg></button>
+    </div>
+    <div class="cal-dows" data-dows>
+      @switch (view()) {
+        @case ('month') {
+          @for (name of days3; track name) {
+            <div>{{ name }}</div>
+          }
+        }
+        @case ('day') {
+          @for (column of columns(); track column.key) {
+            <div style="flex: 1; text-align: left; padding-left: 64px">{{ column.long }}</div>
+          }
+        }
+        @case ('week') {
+          <div style="width: 52px; flex: none"></div>
+          @for (column of columns(); track column.key) {
+            <div
+              [style.color]="column.today ? 'var(--blue)' : null"
+              [style.font-weight]="column.today ? '650' : null"
+              [textContent]="column.short"
+            ></div>
+          }
+        }
+      }
+    </div>
+    @if (view() === 'month') {
+      <div class="cal-grid" data-grid>
+        @for (cell of cells(); track cell.key) {
+          <div
+            class="cal-cell"
+            [attr.data-d]="cell.d"
+            [attr.data-m]="cell.m"
+            [attr.data-y]="cell.y"
+            [class.drop]="dropKey() === cell.key"
+            [class.out]="cell.out"
+            [class.pick]="picked() === cell.key"
+            [class.today]="cell.today"
+            (click)="pick(cell)"
+            (dblclick)="createOn($event, cell)"
+            (keydown.enter)="pick(cell)"
+            tabindex="-1"
+          >
+            <span class="d">{{ cell.d }}</span>
+            @for (chip of cell.chips; track chip.id) {
+              <div
+                class="cal-ev"
+                [attr.data-ev]="chip.id"
+                [class.allday]="chip.allDay"
+                [class.dragging]="dragging() === chip.id"
+                [style.background]="chip.color"
+                [textContent]="chip.title"
+                [title]="chip.tip"
+                (click)="edit(chip.id)"
+                (keydown.enter)="edit(chip.id)"
+                (pointerdown)="dragStart($event, chip.id)"
+                tabindex="-1"
+              ></div>
+            }
+            @if (cell.more > 0) {
+              <div class="cal-more">{{ cell.more }} more</div>
+            }
+          </div>
+        }
+      </div>
+    } @else if (view() === 'year') {
+      <div class="cal-grid scroll cal-year" data-grid>
+        @for (month of months(); track month.index) {
+          <div
+            class="ym"
+            [attr.data-ym]="month.index"
+            (click)="openMonth(month.index)"
+            (keydown.enter)="openMonth(month.index)"
+            tabindex="-1"
+          >
+            <div class="mh">{{ month.name }}</div>
+            <div class="mg">
+              @for (letter of letters; track $index) {
+                <span>{{ letter }}</span>
+              }
+              @for (blank of month.blanks; track blank) {
+                <i></i>
+              }
+              @for (item of month.days; track item.text) {
+                <i [class.has]="item.has && !item.today" [class.today]="item.today">{{ item.text }}</i>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    } @else {
+      <div class="cal-grid cal-stack" data-grid>
+        @if (hasBand()) {
+          <div class="cal-band">
+            <div class="gut">all-day</div>
+            @for (cell of band(); track $index) {
+              <div class="cell">
+                @for (chip of cell; track chip.id) {
+                  <div
+                    class="chip"
+                    [attr.data-ev]="chip.id"
+                    [style.background]="chip.color"
+                    [textContent]="chip.title"
+                    (click)="edit(chip.id)"
+                    (keydown.enter)="edit(chip.id)"
+                    tabindex="-1"
+                  ></div>
+                }
+              </div>
+            }
+          </div>
+        }
+        <div class="scroll" #scroller data-scroller style="flex: 1; min-height: 0">
+          <div class="cal-time">
+            <div class="gut">
+              @for (item of hours; track item.hour) {
+                <div [style.height.px]="rowHeight">{{ item.label }}</div>
+              }
+            </div>
+            @for (column of columns(); track column.key) {
+              <div
+                class="col"
+                [attr.data-d]="column.d"
+                [attr.data-m]="column.m"
+                [attr.data-y]="column.y"
+                [class.today]="column.today"
+                (dblclick)="createAt($event, column)"
+              >
+                @for (item of hours; track item.hour) {
+                  <div class="hr" [style.height.px]="rowHeight"></div>
+                }
+                @for (item of column.placed; track item.id) {
+                  <div
+                    class="ev"
+                    [attr.data-ev]="item.id"
+                    [style.background]="item.color"
+                    [style.height.px]="item.height"
+                    [style.left.%]="item.x"
+                    [style.top.px]="item.top"
+                    [style.width]="'calc(' + item.w + '% - 4px)'"
+                    (click)="edit(item.id)"
+                    (keydown.enter)="edit(item.id)"
+                    tabindex="-1"
+                  >
+                    <b>{{ item.title }}</b>
+                    <span>{{ item.sub }}</span>
+                  </div>
+                }
+                @if (column.nowTop !== null) {
+                  <div class="cal-now" [style.top.px]="column.nowTop"></div>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+</div>

@@ -1,0 +1,56 @@
+{
+  "measuredAt": "2026-11-14T04:34:02.584Z",
+  "browser": "159.0",
+  "method": "route.fulfill on HTTPS hostnames; identical open Shadow DOM, product sandbox/allow and COOP/COEP/CORP; cross-origin iframe preserved in both variants",
+  "variants": [
+    {
+      "name": "https-same-site-cross-origin",
+      "parent": "https://desktop.aiao.invalid",
+      "child": "https://code.aiao.invalid",
+      "frames": [
+        "https://desktop.aiao.invalid/",
+        "https://code.aiao.invalid/"
+      ],
+      "input": {
+        "text": "firefox-routed-site",
+        "keys": [
+          "f",
+          "i",
+          "r",
+          "e",
+          "f",
+          "o",
+          "x",
+          "-",
+          "r",
+          "o",
+          "u",
+          "t",
+          "e",
+          "d",
+          "-",
+          "s",
+          "i",
+          "t",
+          "e"
+        ],
+        "focused": true,
+        "isolated": true
+      },
+      "reload": true,
+      "passed": true
+    },
+    {
+      "name": "https-cross-site",
+      "parent": "https://desktop.aiao.invalid",
+      "child": "https://code.other.invalid",
+      "frames": [
+        "https://desktop.aiao.invalid/",
+        ""
+      ],
+      "error": "TimeoutError: locator.click: Timeout 3000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('iframe').contentFrame().locator('#input')\u001b[22m\n",
+      "passed": false
+    }
+  ],
+  "passed": false
+}

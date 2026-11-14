@@ -1,0 +1,47 @@
+{
+  "format": "aiao-desktop.pages-metadata",
+  "version": 1,
+  "measuredAt": "2026-11-14T00:16:49.136063+00:00",
+  "commands": [
+    "NODE_OPTIONS=--dns-result-order=ipv6first pnpm --reporter=silent dlx wrangler@4.158.0 pages project list --json",
+    "NODE_OPTIONS=--dns-result-order=ipv6first pnpm --reporter=silent dlx wrangler@4.158.0 pages deployment list --project-name aiao-desktop --environment production --json"
+  ],
+  "project": {
+    "Project Name": "aiao-desktop",
+    "Project Domains": "aiao-desktop.pages.dev, desktop.aiao.io",
+    "Git Provider": "No",
+    "Last Modified": "20 hours ago"
+  },
+  "productionDeployments": [
+    {
+      "Id": "d650c06f-2ad5-4c8c-9345-a5b8a30be1e9",
+      "Environment": "Production",
+      "Branch": "main",
+      "Source": "bcfaa45",
+      "Deployment": "https://d650c06f.aiao-desktop.pages.dev",
+      "Status": "20 hours ago",
+      "Build": "https://dash.cloudflare.com/e697109a1fdb86d5d0043a89b0e408fb/pages/view/aiao-desktop/d650c06f-2ad5-4c8c-9345-a5b8a30be1e9"
+    },
+    {
+      "Id": "467bbfe5-ca61-4391-904d-aa5da36c07f2",
+      "Environment": "Production",
+      "Branch": "main",
+      "Source": "bcfaa45",
+      "Deployment": "https://467bbfe5.aiao-desktop.pages.dev",
+      "Status": "20 hours ago",
+      "Build": "https://dash.cloudflare.com/e697109a1fdb86d5d0043a89b0e408fb/pages/view/aiao-desktop/467bbfe5-ca61-4391-904d-aa5da36c07f2"
+    },
+    {
+      "Id": "b79247e9-3835-49d2-aa60-82931f97d7cc",
+      "Environment": "Production",
+      "Branch": "main",
+      "Source": "bcfaa45",
+      "Deployment": "https://b79247e9.aiao-desktop.pages.dev",
+      "Status": "20 hours ago",
+      "Build": "https://dash.cloudflare.com/e697109a1fdb86d5d0043a89b0e408fb/pages/view/aiao-desktop/b79247e9-3835-49d2-aa60-82931f97d7cc"
+    }
+  ],
+  "limitations": [
+    "Source 为 Cloudflare 记录的提交标识，不能单独证明部署不含当时工作区修改。未在本轮发布或回滚。"
+  ]
+}

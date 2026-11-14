@@ -1,0 +1,76 @@
+{
+  "completedAt": "2026-11-14T09:40:40.925Z",
+  "format": "aiao-desktop.release-postchecks",
+  "passed": true,
+  "runs": [
+    {
+      "target": "aiao-desktop-e2e:verify-domains",
+      "command": "NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:verify-domains --args=--output=/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/aiao-desktop/requirements/evidence/2026-11-14/release-domain-storage.json --parallel=2 --output-style=static",
+      "startedAt": "2026-11-14T09:40:12.176Z",
+      "log": "release-domain-storage.txt",
+      "report": "release-domain-storage.json",
+      "exitCode": 0,
+      "completedAt": "2026-11-14T09:40:40.925Z",
+      "passed": true,
+      "checks": {
+        "customOriginNotRedirected": true,
+        "noUserFolderInCustomOrigin": true,
+        "noUserFileInCustomOrigin": true,
+        "noUserNoteInCustomOrigin": true,
+        "customFileIsSeedContent": true,
+        "legacyOriginNotRedirected": true,
+        "legacyFolderNoteAndSettingsSurvive": true,
+        "legacyFileBodySurvives": true,
+        "noPageErrors": true
+      },
+      "artifact": [
+        {
+          "requestedOrigin": "https://aiao-desktop.pages.dev",
+          "actualOrigin": "https://aiao-desktop.pages.dev",
+          "status": 200,
+          "indexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c"
+        },
+        {
+          "requestedOrigin": "https://desktop.aiao.io",
+          "actualOrigin": "https://desktop.aiao.io",
+          "status": 200,
+          "indexSha256": "a23d249747af4e6cfc0cdb8604d570324c1f27dbeaca8134bf34bfd029fc85fc"
+        },
+        {
+          "requestedOrigin": "https://aiao-desktop.pages.dev",
+          "actualOrigin": "https://aiao-desktop.pages.dev",
+          "status": 200,
+          "indexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c"
+        }
+      ]
+    },
+    {
+      "target": "aiao-desktop-e2e:verify-aiao-code",
+      "command": "NX_NO_CLOUD=true pnpm nx run aiao-desktop-e2e:verify-aiao-code --args=--desktop-url=https://desktop.aiao.io --output=/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/aiao-desktop/requirements/evidence/2026-11-14/release-aiao-code.json --parallel=2 --output-style=static",
+      "startedAt": "2026-11-14T09:40:12.178Z",
+      "log": "release-aiao-code.txt",
+      "report": "release-aiao-code.json",
+      "exitCode": 0,
+      "completedAt": "2026-11-14T09:40:35.977Z",
+      "checks": {
+        "workbenchReady": true,
+        "crossOriginIsolated": true,
+        "terminalRuns": true,
+        "ownTitleBar": true,
+        "titleBarDragsWindow": true,
+        "maximizeButtonZooms": true,
+        "restoreKeepsWorkbench": true,
+        "reopenKeepsProject": true,
+        "noDesktopErrors": true
+      },
+      "artifact": {
+        "entryUrl": "https://desktop.aiao.io/?boot=0",
+        "indexSha256": "a23d249747af4e6cfc0cdb8604d570324c1f27dbeaca8134bf34bfd029fc85fc"
+      },
+      "reportStatus": "passed",
+      "passed": true,
+      "passCriterion": "The verify-aiao-code report declares status, while verify-domains declares passed. No product report fields were rewritten."
+    }
+  ],
+  "version": 1
+}

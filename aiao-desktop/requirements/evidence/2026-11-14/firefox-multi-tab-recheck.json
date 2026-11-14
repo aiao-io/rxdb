@@ -1,0 +1,128 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-14T05:00:27.213Z",
+  "source": {
+    "sha": "b99f85a234ac37d1b7e02df32d9f4a96644d3e61",
+    "changes": "M src/baseline/limitations-firefox.json\n M src/baseline/limitations-webkit.json\n M src/fixtures/limitation-firefox-iframe.mjs\n M src/groups/host-capabilities.mjs\n M src/groups/multi-tab.mjs\n M src/groups/window-layout.mjs\n M src/harness/artifact-origin.spec.mjs\n M src/harness/limitations.spec.mjs\n M src/harness/session.mjs\n M src/harness/standin.mjs\n?? ../../requirements/evidence/2026-11-14/firefox-final-1.json\n?? ../../requirements/evidence/2026-11-14/firefox-site-origin-checks.json\n?? ../../requirements/evidence/2026-11-14/firefox-viewport-reachable-checks.json\n?? ../../requirements/evidence/2026-11-14/webkit-clipboard-after-denial-probe.json\n?? ../../requirements/evidence/2026-11-14/webkit-clipboard-gesture-checks.json\n?? ../../requirements/evidence/2026-11-14/webkit-clipboard-message-port-probe.json\n?? ../../requirements/evidence/2026-11-14/webkit-clipboard-permission-scopes.json\n?? ../../requirements/evidence/2026-11-14/webkit-clipboard-read-only-checks.json\n?? ../../requirements/evidence/2026-11-14/webkit-clipboard-trusted-click-probe.json\n?? ../../requirements/evidence/2026-11-14/webkit-final-1.json\n?? ../../requirements/evidence/2026-11-14/webkit-product-clipboard-trace.json"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "159.0",
+    "engine": "firefox",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "74a43cbe80fc3498d5e58a7e33693ef9b4be6a73e17b22099cb23a5667b7a192"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 1,
+    "groups": [
+      "multi-tab"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "same-site-cross-origin-https-forward",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 77.79480716699999,
+  "outcomes": [
+    {
+      "group": "multi-tab",
+      "result": {
+        "multiTab": {
+          "folderAppearsInFinder": true,
+          "folderAppearsOnDesktop": true,
+          "threePagesConverge": true,
+          "appearanceSyncs": true,
+          "appearanceSurvivesReload": true,
+          "savedFileReadableInOtherTab": true,
+          "openWindowFollowsOtherTabSave": true,
+          "lastWriteWinsWithoutPrompt": true,
+          "sameFileConvergesWithoutReload": true,
+          "sameFileSavesStaySafe": true,
+          "sameFileConsistentAfterReload": true,
+          "bothTerminalsStart": true,
+          "terminalFileReachesOtherTab": true,
+          "terminalFileOpensInOtherTab": true,
+          "closingOneTerminalKeepsOther": true,
+          "terminalRestartsAfterReload": true,
+          "terminalFilesInDatabase": true,
+          "terminalsWriteSameFile": true,
+          "tabsConvergeAfterFailedSaves": true,
+          "saveFailsAfterTrash": true,
+          "saveFailsAfterRename": true,
+          "saveFailsAfterErase": false,
+          "failedSaveKeepsWindowContent": false,
+          "failedSaveCreatesNothing": true,
+          "databaseIntactAfterFailedSaves": true,
+          "noteAppearsInOtherTab": true,
+          "backgroundTabConverges": true,
+          "dockPinSyncs": true,
+          "dockRunStateStaysLocal": true
+        }
+      },
+      "problems": [
+        "检查项未通过：multiTab.saveFailsAfterErase = false",
+        "检查项未通过：multiTab.failedSaveKeepsWindowContent = false"
+      ],
+      "failedKeys": [
+        "multiTab.saveFailsAfterErase",
+        "multiTab.failedSaveKeepsWindowContent"
+      ],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 77.739613375
+    }
+  ],
+  "checks": {
+    "multiTab": {
+      "folderAppearsInFinder": true,
+      "folderAppearsOnDesktop": true,
+      "threePagesConverge": true,
+      "appearanceSyncs": true,
+      "appearanceSurvivesReload": true,
+      "savedFileReadableInOtherTab": true,
+      "openWindowFollowsOtherTabSave": true,
+      "lastWriteWinsWithoutPrompt": true,
+      "sameFileConvergesWithoutReload": true,
+      "sameFileSavesStaySafe": true,
+      "sameFileConsistentAfterReload": true,
+      "bothTerminalsStart": true,
+      "terminalFileReachesOtherTab": true,
+      "terminalFileOpensInOtherTab": true,
+      "closingOneTerminalKeepsOther": true,
+      "terminalRestartsAfterReload": true,
+      "terminalFilesInDatabase": true,
+      "terminalsWriteSameFile": true,
+      "tabsConvergeAfterFailedSaves": true,
+      "saveFailsAfterTrash": true,
+      "saveFailsAfterRename": true,
+      "saveFailsAfterErase": false,
+      "failedSaveKeepsWindowContent": false,
+      "failedSaveCreatesNothing": true,
+      "databaseIntactAfterFailedSaves": true,
+      "noteAppearsInOtherTab": true,
+      "backgroundTabConverges": true,
+      "dockPinSyncs": true,
+      "dockRunStateStaysLocal": true
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [
+      "[multi-tab] 检查项未通过或缺失：multiTab.saveFailsAfterErase",
+      "[multi-tab] 检查项未通过或缺失：multiTab.failedSaveKeepsWindowContent"
+    ],
+    "stale": []
+  },
+  "passed": false,
+  "clean": false
+}

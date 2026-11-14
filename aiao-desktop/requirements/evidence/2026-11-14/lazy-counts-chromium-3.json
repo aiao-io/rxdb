@@ -1,0 +1,89 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-14T06:44:05.696Z",
+  "source": {
+    "sha": "13d8a872b992a0b68070cac3e49c72c68fb47840",
+    "changes": "M src/baseline/limitations-webkit.json\n M src/groups/host-capabilities.mjs\n M src/groups/lazy-loading.mjs\n M src/groups/window-layout.mjs\n M src/harness/database.mjs\n M src/harness/standin.mjs\n M ../web/src/app/apps/web-app/web-app.html\n M ../web/src/app/services/app-context.spec.ts\n M ../web/src/app/services/app-context.ts\n M ../web/src/app/services/browser-app-support.spec.ts\n M ../web/src/app/services/browser-app-support.ts\n M ../web/src/app/services/remote-app-session.spec.ts\n M ../../requirements/evidence/2026-11-14/browser-followup.md\n M ../../requirements/evidence/2026-11-14/firefox-final-3.txt\n?? src/harness/database.spec.mjs\n?? ../../requirements/evidence/2026-11-14/browser-support-build.txt\n?? ../../requirements/evidence/2026-11-14/browser-support-typecheck.txt\n?? ../../requirements/evidence/2026-11-14/browser-support-unit-green.txt\n?? ../../requirements/evidence/2026-11-14/browser-support-unit-red-detail.txt\n?? ../../requirements/evidence/2026-11-14/browser-support-unit-red.txt\n?? ../../requirements/evidence/2026-11-14/browser-support.md\n?? ../../requirements/evidence/2026-11-14/deploy-dry-run-browser-support.txt\n?? ../../requirements/evidence/2026-11-14/firefox-final-4.txt\n?? ../../requirements/evidence/2026-11-14/firefox-final-5.json\n?? ../../requirements/evidence/2026-11-14/firefox-final-5.txt\n?? ../../requirements/evidence/2026-11-14/firefox-multi-tab-erase-complete.txt\n?? ../../requirements/evidence/2026-11-14/firefox-support-focus-2.json\n?? ../../requirements/evidence/2026-11-14/firefox-support-focus-2.txt\n?? ../../requirements/evidence/2026-11-14/firefox-support-focus-args-error.txt\n?? ../../requirements/evidence/2026-11-14/firefox-support-focus-checks.json\n?? ../../requirements/evidence/2026-11-14/firefox-support-focus-checks.txt\n?? ../../requirements/evidence/2026-11-14/initial-comparison-browser-support.json\n?? ../../requirements/evidence/2026-11-14/initial-comparison-browser-support.txt\n?? ../../requirements/evidence/2026-11-14/lazy-counts-chromium-1.json\n?? ../../requirements/evidence/2026-11-14/lazy-counts-chromium-1.txt\n?? ../../requirements/evidence/2026-11-14/lazy-counts-chromium-2.json\n?? ../../requirements/evidence/2026-11-14/lazy-counts-chromium-2.txt\n?? ../../requirements/evidence/2026-11-14/lazy-counts-chromium-3.txt\n?? ../../requirements/evidence/2026-11-14/lazy-counts-lint.txt\n?? ../../requirements/evidence/2026-11-14/lazy-counts-unit-green.txt\n?? ../../requirements/evidence/2026-11-14/lazy-counts-unit-red.txt\n?? ../../requirements/evidence/2026-11-14/verify-browser-support-metadata.json\n?? ../../requirements/evidence/2026-11-14/verify-browser-support.txt\n?? ../../requirements/evidence/2026-11-14/webkit-support-checks.json\n?? ../../requirements/evidence/2026-11-14/webkit-support-checks.txt"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "158.0.8127.18",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 1,
+    "groups": [
+      "lazy-loading"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 15.503929957999999,
+  "outcomes": [
+    {
+      "group": "lazy-loading",
+      "result": {
+        "lazyLoading": {
+          "everyAppIsItsOwnChunk": true,
+          "startupLoadsOnlyShellScripts": true,
+          "startupSkipsAppEntries": true,
+          "startupWritesNoAppSeeds": true,
+          "oneAppLoadsOnlyItsChunk": true,
+          "oneAppWritesNoSeeds": true,
+          "firstReadSeedsItsDomain": true,
+          "widgetsShowSeededData": true,
+          "widgetsOnExistingLibrary": true,
+          "widgetsLoadNoAppChunks": true,
+          "remoteEntryOnlyWhenOpened": true,
+          "remoteEntryNotReloadedByMinimize": true,
+          "bundledHtmlOnlyWhenOpened": true,
+          "bundledHtmlFreshOnReopen": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 15.465479333000001
+    }
+  ],
+  "checks": {
+    "lazyLoading": {
+      "everyAppIsItsOwnChunk": true,
+      "startupLoadsOnlyShellScripts": true,
+      "startupSkipsAppEntries": true,
+      "startupWritesNoAppSeeds": true,
+      "oneAppLoadsOnlyItsChunk": true,
+      "oneAppWritesNoSeeds": true,
+      "firstReadSeedsItsDomain": true,
+      "widgetsShowSeededData": true,
+      "widgetsOnExistingLibrary": true,
+      "widgetsLoadNoAppChunks": true,
+      "remoteEntryOnlyWhenOpened": true,
+      "remoteEntryNotReloadedByMinimize": true,
+      "bundledHtmlOnlyWhenOpened": true,
+      "bundledHtmlFreshOnReopen": true
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": true
+}

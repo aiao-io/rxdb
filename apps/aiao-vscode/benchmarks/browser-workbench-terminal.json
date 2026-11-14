@@ -1,0 +1,30 @@
+{
+  "browser": "156.0.8078.80",
+  "cancelledRequests": [
+    "https://t.staticblitz.com/w/v18/r/l: net::ERR_ABORTED",
+    "https://d2wwpcs4yuv7z0czsjz3aiwkp3brcm-fsfj--5173--c538bd87.local-corp.webcontainer-api.io/: net::ERR_ABORTED",
+    "https://d2wwpcs4yuv7z0czsjz3aiwkp3brcm-fsfj-hdh80o4x--5173--c538bd87.local-corp.webcontainer-api.io/: net::ERR_ABORTED",
+    "https://d2wwpcs4yuv7z0czsjz3aiwkp3brcm-fsfj-hdh80o4x--4200--c538bd87.local-corp.webcontainer-api.io/: net::ERR_ABORTED"
+  ],
+  "checks": [
+    "node-shell-and-package-managers",
+    "bidirectional-files-and-terminal-deletion",
+    "npm-and-pnpm-installation-output",
+    "server-preview-and-control-c",
+    "top-run-vanilla-install-start-preview-control-c",
+    "top-run-restart-after-control-c",
+    "top-run-react-install-start-preview-control-c",
+    "top-run-vue-install-start-preview-control-c",
+    "top-run-angular-install-start-preview-control-c",
+    "project-switch-process-and-filesystem-isolation",
+    "process-and-preview-cleanup"
+  ],
+  "consoleErrors": [],
+  "errors": [],
+  "failures": [],
+  "format": "aiao.workbench.terminal",
+  "runtime": "webcontainer",
+  "status": "passed",
+  "url": "http://localhost:4330/?workbench-verify=1",
+  "version": 1
+}

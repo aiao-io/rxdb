@@ -1,0 +1,121 @@
+
+> nx run aiao-desktop-e2e:test
+
+> node --test "src/**/*.spec.mjs"
+
+(node:44659) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:44660) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[32m✔ 托管产物并带跨源隔离响应头；不存在的路径是 404，目录穿越被拒 [90m(35.844167ms)[39m[39m
+[32m✔ switchTo 换一份产物而不换来源 [90m(15.374125ms)[39m[39m
+[32m✔ 可以沿用上一次的端口重启，来源因此不变 [90m(8.145042ms)[39m[39m
+(node:44661) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[32m✔ 升级起点必须唯一而且显式指定 [90m(0.577125ms)[39m[39m
+[32m✔ 支持固定本地产物与 HTTPS 生产部署 [90m(0.408042ms)[39m[39m
+(node:44662) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[32m✔ 检查组名唯一 [90m(0.418ms)[39m[39m
+[32m✔ 每个检查组都声明了检查项键，且同一个键只由一个检查组产出 [90m(0.386667ms)[39m[39m
+[32m✔ 默认检查组产出拆分前单体冒烟的全部检查项（ADESK-US-008 AC#1） [90m(0.380041ms)[39m[39m
+[32m✔ 夹具自检不随全量冒烟运行，也不占用拆分前的检查项键 [90m(0.080667ms)[39m[39m
+(node:44663) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[32m✔ 启动台条目与冒烟声明一致时没有差异 [90m(0.732458ms)[39m[39m
+[32m✔ 登记表新增了应用而冒烟没覆盖：指出应用 id [90m(0.089041ms)[39m[39m
+[32m✔ 冒烟里多出登记表没有的应用：指出应用 id [90m(0.763833ms)[39m[39m
+[32m✔ 两种差异同时出现时都列出 [90m(0.121208ms)[39m[39m
+(node:44664) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[32m✔ 只改 Aiao Code 清单里的那一个 capabilities 数组，其余字节原样保留；引号写法照原样 [90m(3.080917ms)[39m[39m
+[32m✔ 匹配不到就抛错，不静默通过 [90m(0.304ms)[39m[39m
+[32m✔ 匹配到多处就抛错，并报出每一处在哪个文件 [90m(0.132541ms)[39m[39m
+[32m✔ 匹配到的不是 Aiao Code 当前的最小清单（清单已经被改过、或是别的应用的清单）就抛错 [90m(0.12225ms)[39m[39m
+(node:44665) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[32m✔ 只认静态 import，动态 import 不算 [90m(0.818875ms)[39m[39m
+[32m✔ 首屏脚本是 index.html 的脚本与预加载加上静态 import 闭包；其余 chunk 是按需加载的 [90m(9.853125ms)[39m[39m
+[32m✔ 请求 URL 换算成产物根目录脚本名，别的来源与子目录不算 [90m(0.259209ms)[39m[39m
+[32m✔ 从产物里读出每个脚本声明的组件选择器和数据域种子 [90m(2.996333ms)[39m[39m
+[32m✔ initial 体积包含静态脚本闭包与样式，逐文件 gzip，不计入按需模块与 HTML [90m(6.86725ms)[39m[39m
+(node:44666) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[32m✔ 默认参数：全部默认检查组、chromium、并行 3 [90m(0.965166ms)[39m[39m
+[32m✔ --group 可以逗号分隔也可以重复给出，并能选中默认不跑的夹具自检 [90m(0.255083ms)[39m[39m
+[32m✔ 未知的检查组、引擎和非法的并行数直接报错 [90m(0.332083ms)[39m[39m
+[32m✔ 引擎、并行数与产物目录 [90m(0.120542ms)[39m[39m
+[32m✔ --report 指定完整运行证据的输出路径 [90m(0.084958ms)[39m[39m
+file:///Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/aiao-desktop/apps/e2e/src/harness/database.spec.mjs:7
+import { tableCounts } from './database.mjs';
+         ^^^^^^^^^^^
+SyntaxError: The requested module './database.mjs' does not provide an export named 'tableCounts'
+[90m    at ModuleJobSync.instantiateSync (node:internal/modules/esm/module_job:635:19)[39m
+[90m    at node:internal/modules/esm/loader:375:11[39m
+[90m    at TracingChannel.traceSync (node:diagnostics_channel:557:14)[39m
+[90m    at ModuleLoader.importForEntryPoint (node:internal/modules/esm/loader:372:21)[39m
+[90m    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:184:34)[39m
+[90m    at node:internal/main/run_main_module:33:47[39m
+
+Node.js v26.12.0
+[31m✖ src/harness/database.spec.mjs [90m(70.232209ms)[39m[39m
+(node:44668) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[32m✔ 对象逐层展开成点分路径，数组与基本值是叶子 [90m(0.756166ms)[39m[39m
+[32m✔ 数组检查项必须为空才算通过，其余按真值 [90m(0.082125ms)[39m[39m
+[32m✔ 列出没通过的检查项 [90m(0.487333ms)[39m[39m
+[32m✔ 比较声明的键与实际输出的键 [90m(0.124166ms)[39m[39m
+(node:44669) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[32m✔ 全部通过、没有限制清单：没有任何问题 [90m(0.861458ms)[39m[39m
+[32m✔ 没登记的失败、缺项、异常和页面错误都是意外 [90m(0.113833ms)[39m[39m
+[32m✔ 多出未声明的检查项任何情况下都是意外，登记整个检查组也不豁免 [90m(0.09225ms)[39m[39m
+[32m✔ 登记过的检查项失败是已知的，不算失败 [90m(0.104334ms)[39m[39m
+[32m✔ 登记了却通过的检查项是过期限制，算失败 [90m(0.138666ms)[39m[39m
+[32m✔ 整个检查组登记为限制：它的异常、缺项与页面错误都是已知的；检查组没问题了就过期 [90m(0.098583ms)[39m[39m
+[32m✔ 登记的页面错误按正则匹配，别的页面错误仍然是意外 [90m(0.117791ms)[39m[39m
+[32m✔ 检查组异常导致缺项，缺的键都登记过时不再重复报异常 [90m(0.093042ms)[39m[39m
+[32m✔ 清单校验：引擎要对得上、档位与原因必填、不重复 [90m(0.351958ms)[39m[39m
+[32m✔ 默认从入口旁的 baseline 目录读取限制清单，不依赖执行目录 [90m(1.554ms)[39m[39m
+[32m✔ 定向运行只检查选中组的限制，未运行的组不算过期 [90m(0.117333ms)[39m[39m
+(node:44670) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[32m✔ Chromium 的离线失败不动时钟：被拦截的 iframe 导航会触发 load，Orbit 3 秒后以 LOAD_ERROR 失败 [90m(0.823125ms)[39m[39m
+[32m✔ firefox 不触发 iframe 的 load：假时钟在打开窗口之前装上，Orbit 实例出现后快进过就绪时限 [90m(0.216875ms)[39m[39m
+[32m✔ webkit 不触发 iframe 的 load：假时钟在打开窗口之前装上，Orbit 实例出现后快进过就绪时限 [90m(0.073125ms)[39m[39m
+[32m✔ 同一个页面只装一次假时钟（重复装会报错） [90m(0.084375ms)[39m[39m
+(node:44671) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[32m✔ 清单覆盖能力矩阵「快捷键」表里的每个组合，且没有多出的 [90m(2.200625ms)[39m[39m
+[32m✔ 清单项的 id 唯一，每项都说明怎么按与期望的行为 [90m(0.143083ms)[39m[39m
+[32m✔ 结果分三类：没到达、到达且正确、到达但不对；只有后者算验收失败 [90m(0.1295ms)[39m[39m
+[32m✔ 报告是一张 Markdown 表，带环境与备注 [90m(0.158791ms)[39m[39m
+[34mℹ tests 51[39m
+[34mℹ suites 0[39m
+[34mℹ pass 50[39m
+[34mℹ fail 1[39m
+[34mℹ cancelled 0[39m
+[34mℹ skipped 0[39m
+[34mℹ todo 0[39m
+[34mℹ duration_ms 326.753875[39m
+
+[31m✖ failing tests:[39m
+
+test at src/harness/database.spec.mjs:1:1
+[31m✖ src/harness/database.spec.mjs [90m(70.232209ms)[39m[39m
+  [32m'test failed'[39m
+Warning: command "node --test "src/**/*.spec.mjs"" exited with non-zero status code
+
+
+ NX   Running target test for project aiao-desktop-e2e failed
+
+Failed tasks:
+
+- aiao-desktop-e2e:test
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      478ms
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     373ms (1 task)
+  Recoverable time:  <1ms

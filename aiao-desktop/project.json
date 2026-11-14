@@ -1,0 +1,185 @@
+{
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "implicitDependencies": ["aiao-desktop-web", "aiao-desktop-e2e"],
+  "name": "aiao-desktop",
+  "projectType": "application",
+  "sourceRoot": "aiao-desktop",
+  "tags": ["scope:aiao-desktop"],
+  "targets": {
+    "requirements-check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-desktop",
+        "command": "node scripts/check-requirements.mjs"
+      }
+    },
+    "requirements-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-desktop",
+        "command": "node --test scripts/check-requirements.spec.mjs"
+      }
+    },
+    "security-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-desktop",
+        "command": "node --test scripts/check-web-secrets.spec.mjs"
+      }
+    },
+    "audit-secrets": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [
+        {
+          "projects": ["aiao-desktop-web"],
+          "target": "build"
+        }
+      ],
+      "options": {
+        "cwd": "aiao-desktop",
+        "command": "node scripts/check-web-secrets.mjs"
+      }
+    },
+    "test": {
+      "executor": "nx:noop",
+      "dependsOn": [
+        "requirements-check",
+        "requirements-test",
+        "security-test",
+        "dev-test",
+        "deploy-test",
+        {
+          "projects": ["aiao-desktop-e2e"],
+          "target": "test"
+        }
+      ]
+    },
+    "verify": {
+      "executor": "nx:noop",
+      "dependsOn": [
+        "lint",
+        "requirements-check",
+        "requirements-test",
+        "security-test",
+        "dev-test",
+        "deploy-test",
+        "audit-secrets",
+        {
+          "projects": ["aiao-desktop-web", "aiao-desktop-e2e"],
+          "target": "lint"
+        },
+        {
+          "projects": ["aiao-desktop-e2e"],
+          "target": "test"
+        },
+        {
+          "projects": ["aiao-desktop-web"],
+          "target": "typecheck"
+        },
+        {
+          "projects": ["aiao-desktop-web"],
+          "target": "test"
+        },
+        {
+          "projects": ["aiao-desktop-web"],
+          "target": "build"
+        },
+        {
+          "projects": ["aiao-desktop-e2e"],
+          "target": "e2e"
+        },
+        {
+          "projects": ["aiao-desktop-e2e"],
+          "target": "e2e-fixtures"
+        }
+      ]
+    },
+    "dev-ports": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-desktop",
+        "command": "node scripts/dev/check-ports.mjs"
+      }
+    },
+    "dev-dashboard": {
+      "executor": "nx:run-commands",
+      "continuous": true,
+      "cache": false,
+      "dependsOn": ["dev-ports"],
+      "readyWhen": {
+        "url": "http://127.0.0.1:4412/"
+      },
+      "options": {
+        "cwd": "aiao-desktop",
+        "command": "node scripts/dev/dashboard.mjs"
+      }
+    },
+    "dev": {
+      "executor": "nx:run-commands",
+      "continuous": true,
+      "cache": false,
+      "dependsOn": [
+        {
+          "target": "dev-dashboard",
+          "waitFor": "ready"
+        },
+        {
+          "projects": ["aiao-desktop-web"],
+          "target": "serve",
+          "waitFor": "ready"
+        }
+      ],
+      "readyWhen": {
+        "url": "http://127.0.0.1:4412/"
+      },
+      "options": {
+        "cwd": "aiao-desktop",
+        "command": "node scripts/dev/open-dashboard.mjs"
+      }
+    },
+    "dev-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-desktop",
+        "command": "node --test scripts/dev/*.spec.mjs"
+      }
+    },
+    "deploy": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [
+        {
+          "projects": ["aiao-desktop-web"],
+          "target": "build"
+        },
+        "audit-secrets"
+      ],
+      "options": {
+        "cwd": "aiao-desktop",
+        "command": "node scripts/deploy/deploy.mjs"
+      }
+    },
+    "deploy-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-desktop",
+        "command": "node --test scripts/deploy/*.spec.mjs"
+      }
+    },
+    "inspect-live": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-desktop",
+        "command": "node scripts/deploy/inspect-live.mjs"
+      }
+    }
+  }
+}

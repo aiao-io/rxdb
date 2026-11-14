@@ -1,0 +1,18 @@
+<div id="stage">
+  <app-wallpaper></app-wallpaper>
+  <app-menubar [attr.inert]="behind() ? '' : null"></app-menubar>
+  <app-window-layer [attr.inert]="behind() ? '' : null"></app-window-layer>
+  <app-dock [attr.inert]="behind() ? '' : null"></app-dock>
+  <app-desktop-surface [attr.inert]="behind() ? '' : null"></app-desktop-surface>
+  <app-overlay-layer [attr.inert]="behind() ? '' : null"></app-overlay-layer>
+  <app-lock-screen></app-lock-screen>
+  <app-boot-screen></app-boot-screen>
+  <app-data-problem></app-data-problem>
+  <div id="toast" [class.on]="toast.visible()" aria-atomic="true" aria-live="polite" role="status">
+    {{ toast.message() }}
+  </div>
+</div>
+@if (session.sleep() !== 'awake') {
+  <div id="sleeper" [class.wake]="session.sleep() === 'waking'" aria-hidden="true"></div>
+}
+<app-icon-sprite></app-icon-sprite>

@@ -1,0 +1,378 @@
+<div class="wb">
+  <div class="sbar" [style.display]="sidebar() ? '' : 'none'" data-drag data-fsb>
+    <div class="sb-top"><app-traffic-lights /></div>
+    @for (group of sidebarGroups; track group.head) {
+      <div class="grp" [attr.aria-label]="group.head" role="group">
+        <div class="gh" aria-hidden="true">{{ group.head }}</div>
+        @for (place of group.items; track place[0]) {
+          <button
+            class="si"
+            [attr.aria-current]="placeOn(place[0]) ? 'true' : null"
+            [attr.data-place]="place[0]"
+            [class.on]="placeOn(place[0])"
+            (click)="goto(place[0])"
+            tabindex="0"
+            type="button"
+          >
+            @if (place[1].startsWith('dot#')) {
+              <span
+                class="ico"
+                [style.background]="place[1].slice(3)"
+                aria-hidden="true"
+                style="width: 11px; height: 11px; margin: 0 2px; border-radius: 50%"
+              ></span>
+            } @else {
+              <svg class="ico" [appIcon]="place[1]"></svg>
+            }
+            <span class="nm">{{ place[0] }}</span>
+          </button>
+        }
+      </div>
+    }
+  </div>
+  <div class="fx">
+    <div class="fx-tb" aria-label="Toolbar" data-drag role="toolbar">
+      <button
+        class="tbtn"
+        [attr.aria-disabled]="canGoBack() ? null : 'true'"
+        [class.dis]="!canGoBack()"
+        (click)="back()"
+        aria-label="Back"
+        data-nav="back"
+        tabindex="0"
+        type="button"
+      >
+        <svg appIcon="g-chev-l"></svg>
+      </button>
+      <button
+        class="tbtn"
+        [attr.aria-disabled]="canGoForward() ? null : 'true'"
+        [class.dis]="!canGoForward()"
+        (click)="forward()"
+        aria-label="Forward"
+        data-nav="fwd"
+        tabindex="0"
+        type="button"
+      >
+        <svg appIcon="g-chev-r"></svg>
+      </button>
+      <div class="fx-title" aria-hidden="true" data-title>{{ title() }}</div>
+      <div class="grow" style="flex: 1"></div>
+      <div class="seg" aria-label="View" data-nodrag role="group">
+        <button
+          [attr.aria-pressed]="view() === 'icon'"
+          [class.on]="view() === 'icon'"
+          (click)="setView('icon')"
+          aria-label="Icons"
+          data-view="icon"
+          tabindex="0"
+          type="button"
+        >
+          <svg appIcon="g-grid"></svg>
+        </button>
+        <button
+          [attr.aria-pressed]="view() === 'list'"
+          [class.on]="view() === 'list'"
+          (click)="setView('list')"
+          aria-label="List"
+          data-view="list"
+          tabindex="0"
+          type="button"
+        >
+          <svg appIcon="g-list"></svg>
+        </button>
+        <button
+          [attr.aria-pressed]="view() === 'column'"
+          [class.on]="view() === 'column'"
+          (click)="setView('column')"
+          aria-label="Columns"
+          data-view="column"
+          tabindex="0"
+          type="button"
+        >
+          <svg appIcon="g-columns"></svg>
+        </button>
+        <button
+          [attr.aria-pressed]="view() === 'gallery'"
+          [class.on]="view() === 'gallery'"
+          (click)="setView('gallery')"
+          aria-label="Gallery"
+          data-view="gallery"
+          tabindex="0"
+          type="button"
+        >
+          <svg appIcon="g-gallery"></svg>
+        </button>
+      </div>
+      <button
+        class="tbtn"
+        #sortButton
+        (click)="sortMenu(sortButton, $event)"
+        aria-haspopup="menu"
+        aria-label="Sort"
+        data-sort
+        tabindex="0"
+        type="button"
+      >
+        <svg appIcon="g-sort"></svg>
+      </button>
+      <button class="tbtn" (click)="share()" aria-label="Share" data-share tabindex="0" type="button">
+        <svg appIcon="g-share"></svg>
+      </button>
+      <button
+        class="tbtn"
+        #moreButton
+        (click)="moreMenu(moreButton, $event)"
+        aria-haspopup="menu"
+        aria-label="More"
+        data-more
+        tabindex="0"
+        type="button"
+      >
+        <svg appIcon="g-ellipsis"></svg>
+      </button>
+      <div class="sfield" data-nodrag style="width: 150px">
+        <span aria-hidden="true"><svg appIcon="g-search"></svg></span>
+        <input
+          #queryInput
+          [value]="query()"
+          (input)="search(queryInput.value)"
+          aria-label="Search"
+          data-q
+          placeholder="Search"
+        />
+      </div>
+    </div>
+    <div
+      class="fx-body"
+      #body
+      [class.scroll]="view() !== 'column'"
+      [style.overflow]="view() === 'column' ? 'hidden' : ''"
+      (contextmenu)="bodyMenu($event)"
+      data-body
+    >
+      @if (applicationsNote(); as note) {
+        <div class="fx-note" data-finder-note role="status">{{ note }}</div>
+      }
+      @switch (view()) {
+        @case ('icon') {
+          <div class="fv-icon" aria-label="Items" role="listbox">
+            @for (item of items(); track item.name) {
+              <div
+                class="fitem"
+                [attr.aria-label]="label(item)"
+                [attr.aria-selected]="item.name === selected()"
+                [attr.data-autofocus]="item.name === tabStop() ? '' : null"
+                [attr.data-name]="item.name"
+                [attr.tabindex]="item.name === tabStop() ? 0 : -1"
+                [class.sel]="item.name === selected()"
+                (click)="select(item.name)"
+                (contextmenu)="itemMenu($event, item.name)"
+                (dblclick)="enter(item.name)"
+                (focus)="select(item.name)"
+                (keydown)="itemKey($event, item.name)"
+                (pointerdown)="dragApp($event, item)"
+                role="option"
+              >
+                <div class="art">
+                  @if (item.icon === 'f-img') {
+                    <div class="shot"><app-photo-art [index]="seed(item.name)" [kind]="shotKind(item.name)" /></div>
+                  } @else {
+                    <svg [appIcon]="item.icon"></svg>
+                  }
+                </div>
+                <div class="nm">{{ item.name }}</div>
+              </div>
+            }
+          </div>
+          @if (!items().length) {
+            <div role="status" style="padding: 40px; text-align: center; color: var(--txt-3); font-size: 13px">
+              {{ emptyText() }}
+            </div>
+          }
+        }
+        @case ('list') {
+          <div class="fv-list" aria-label="Items" role="listbox">
+            <div class="hd" aria-hidden="true">
+              <div class="c1" style="padding-left: 26px">Name</div>
+              <div class="c2">Date Modified</div>
+              <div class="c3">Size</div>
+              <div class="c4">Kind</div>
+            </div>
+            @for (item of items(); track item.name) {
+              <div
+                class="r"
+                [attr.aria-label]="label(item)"
+                [attr.aria-selected]="item.name === selected()"
+                [attr.data-autofocus]="item.name === tabStop() ? '' : null"
+                [attr.data-name]="item.name"
+                [attr.tabindex]="item.name === tabStop() ? 0 : -1"
+                [class.sel]="item.name === selected()"
+                (click)="select(item.name)"
+                (contextmenu)="itemMenu($event, item.name)"
+                (dblclick)="enter(item.name)"
+                (focus)="select(item.name)"
+                (keydown)="itemKey($event, item.name)"
+                (pointerdown)="dragApp($event, item)"
+                role="option"
+              >
+                <div class="c1">
+                  <span class="tw">
+                    @if (item.kind === 'folder') {
+                      <svg appIcon="g-chev-r"></svg>
+                    }
+                  </span>
+                  <span class="art">
+                    @if (item.icon === 'f-img') {
+                      <div class="shot"><app-photo-art [index]="seed(item.name)" [kind]="shotKind(item.name)" /></div>
+                    } @else {
+                      <svg [appIcon]="item.icon"></svg>
+                    }
+                  </span>
+                  <span>{{ item.name }}</span>
+                </div>
+                <div class="c2">{{ finderDate(item.date) }}</div>
+                <div class="c3">{{ item.kind === 'folder' ? '--' : item.size || '--' }}</div>
+                <div class="c4">{{ item.k || (item.kind === 'folder' ? 'Folder' : 'Document') }}</div>
+              </div>
+            }
+          </div>
+        }
+        @case ('column') {
+          @let chain = columns().chain;
+          @let picked = columns().selection;
+          <div class="fv-col">
+            @for (column of chain; track $index; let ci = $index) {
+              @if (!column.file && ci >= firstColumn()) {
+                <div class="col" [attr.aria-label]="column.node.name" [attr.data-ci]="ci" role="listbox">
+                  @for (item of column.items ?? []; track item.name) {
+                    <div
+                      class="ci"
+                      [attr.aria-label]="label(item)"
+                      [attr.aria-selected]="item.name === picked[ci]"
+                      [attr.data-autofocus]="columnStop().ci === ci && columnStop().name === item.name ? '' : null"
+                      [attr.data-ci]="ci"
+                      [attr.data-kind]="item.kind"
+                      [attr.data-name]="item.name"
+                      [attr.tabindex]="columnStop().ci === ci && columnStop().name === item.name ? 0 : -1"
+                      [class.dim]="item.name === picked[ci] && ci !== picked.length - 1"
+                      [class.sel]="item.name === picked[ci] && ci === picked.length - 1"
+                      (click)="pickColumn(ci, item.name)"
+                      (contextmenu)="itemMenu($event, item.name)"
+                      (dblclick)="openColumnFile(item)"
+                      (focus)="pickColumn(ci, item.name)"
+                      (keydown)="itemKey($event, item.name, ci)"
+                      (pointerdown)="dragApp($event, item)"
+                      role="option"
+                    >
+                      <span class="art"><svg [appIcon]="item.icon"></svg></span>
+                      <span class="nm">{{ item.name }}</span>
+                      @if (item.kind === 'folder') {
+                        <svg class="ch" appIcon="g-chev-r"></svg>
+                      }
+                    </div>
+                  } @empty {
+                    <div role="status" style="padding: 14px; color: var(--txt-3); font-size: 12px; text-align: center">
+                      Empty
+                    </div>
+                  }
+                </div>
+              }
+            }
+            @if (previewFile(); as preview) {
+              <div class="fv-prev" [attr.aria-label]="'Preview of ' + preview.name" role="group">
+                <div class="big"><svg [appIcon]="preview.icon"></svg></div>
+                <div class="nm">{{ preview.name }}</div>
+                <dl>
+                  <dt>Kind</dt>
+                  <dd>{{ preview.k || 'Document' }}</dd>
+                  <dt>Size</dt>
+                  <dd>{{ preview.size || '--' }}</dd>
+                  <dt>Created</dt>
+                  <dd>{{ finderDate(preview.date) }}</dd>
+                  <dt>Modified</dt>
+                  <dd>{{ finderDate(preview.date) }}</dd>
+                </dl>
+                <button
+                  class="btn pri"
+                  [attr.data-openfile]="preview.name"
+                  (click)="enter(preview.name)"
+                  tabindex="0"
+                  type="button"
+                >
+                  Open
+                </button>
+              </div>
+            }
+          </div>
+        }
+        @default {
+          @let current = gallerySelection();
+          <div class="fv-gal">
+            <div class="stage" aria-hidden="true">
+              @if (current) {
+                @if (current.icon === 'f-img') {
+                  <div class="shot big">
+                    <app-photo-art [index]="seed(current.name)" [kind]="shotKind(current.name)" />
+                  </div>
+                } @else {
+                  <div class="art"><svg [appIcon]="current.icon"></svg></div>
+                }
+              } @else {
+                <span style="color: var(--txt-3)">Nothing to preview</span>
+              }
+            </div>
+            @if (current) {
+              <div class="cap" role="status">
+                <b>{{ current.name }}</b>
+                <span>
+                  {{ current.k || (current.kind === 'folder' ? 'Folder' : 'Document')
+                  }}{{ current.size ? ' · ' + current.size : ''
+                  }}{{ current.date ? ' · ' + finderDate(current.date) : '' }}
+                </span>
+              </div>
+            }
+            <div class="strip" aria-label="Items" aria-orientation="horizontal" role="listbox">
+              @for (item of items(); track item.name) {
+                <div
+                  class="t"
+                  [attr.aria-label]="label(item)"
+                  [attr.aria-selected]="item === current"
+                  [attr.data-autofocus]="item.name === tabStop() ? '' : null"
+                  [attr.data-name]="item.name"
+                  [attr.tabindex]="item.name === tabStop() ? 0 : -1"
+                  [class.sel]="item === current"
+                  (click)="select(item.name)"
+                  (focus)="select(item.name)"
+                  (keydown)="itemKey($event, item.name)"
+                  role="option"
+                >
+                  @if (item.icon === 'f-img') {
+                    <div class="shot"><app-photo-art [index]="seed(item.name)" [kind]="shotKind(item.name)" /></div>
+                  } @else {
+                    <div class="art"><svg [appIcon]="item.icon"></svg></div>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        }
+      }
+    </div>
+    <div class="fx-path" [style.display]="pathbar() ? '' : 'none'" aria-label="Path" data-path role="navigation">
+      @for (segment of pathSegments(); track $index; let i = $index) {
+        @if (i) {
+          <svg appIcon="g-chev-r" style="width: 11px; height: 11px"></svg>
+        }
+        <button class="seg" [attr.data-i]="i" (click)="jump(i)" tabindex="0" type="button">
+          <svg [appIcon]="i === 0 ? 'g-hd' : 'g-folder-g'" style="width: 11px; height: 11px"></svg>
+          {{ segment }}
+        </button>
+      }
+      @if (pathTail(); as tail) {
+        <svg appIcon="g-chev-r" style="width: 11px; height: 11px"></svg>
+        <button class="seg" (click)="jump(null)" tabindex="0" type="button">{{ tail }}</button>
+      }
+    </div>
+  </div>
+</div>

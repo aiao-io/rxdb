@@ -1,0 +1,29 @@
+
+> nx run aiao-desktop-e2e:lint
+
+> eslint . --max-warnings=0
+
+(node:45772) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[0m
+[4m/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/aiao-desktop/apps/e2e/src/harness/database.spec.mjs[24m
+  [2m14:19[22m  [31merror[39m  Unexpected empty async method 'route'  [2m@typescript-eslint/no-empty-function[22m
+  [2m15:18[22m  [31merror[39m  Unexpected empty async method 'goto'   [2m@typescript-eslint/no-empty-function[22m
+
+[31m[1m✖ 2 problems (2 errors, 0 warnings)[22m[39m
+[0m
+Warning: command "eslint . --max-warnings=0" exited with non-zero status code
+
+
+ NX   Running target lint for project aiao-desktop-e2e failed
+
+Failed tasks:
+
+- aiao-desktop-e2e:lint
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      1.3s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     1.2s (1 task)
+  Recoverable time:  <1ms

@@ -1,0 +1,92 @@
+<div class="wb">
+  <div class="sbar" data-drag style="width: 260px; padding-top: 0">
+    <div style="display: flex; align-items: center; height: 38px; padding: 0 12px"><app-traffic-lights /></div>
+    <div style="padding: 0 10px 8px">
+      <div class="sfield" data-nodrag>
+        <span><svg appIcon="g-search"></svg></span>
+        <input placeholder="Search" />
+      </div>
+    </div>
+    <div style="overflow: auto; padding: 0 8px">
+      @for (item of memos(); track item.id; let i = $index) {
+        <div
+          class="si"
+          [attr.data-vi]="i"
+          [class.on]="i === index()"
+          (click)="select(i)"
+          (keydown.enter)="select(i)"
+          style="height: 44px; align-items: center"
+          tabindex="-1"
+        >
+          <span style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+            <b
+              style="font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap"
+            >
+              {{ item.title }}
+            </b>
+            <span style="font-size: 11px; color: var(--txt-2)">{{ item.recordedLabel }}</span>
+          </span>
+          <span style="font-size: 11.5px; color: var(--txt-3); font-variant-numeric: tabular-nums">
+            {{ clock(item.duration) }}
+          </span>
+        </div>
+      }
+    </div>
+  </div>
+  <div class="wmain">
+    <div class="tbar" data-drag style="height: 52px">
+      <div class="fx-title" data-vname>{{ memo()?.title }}</div>
+    </div>
+    <div
+      data-vbody
+      style="
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        padding: 20px 30px;
+      "
+    >
+      <div style="font-size: 19px; font-weight: 600; letter-spacing: -0.02em">{{ memo()?.title }}</div>
+      <div style="font-size: 12px; color: var(--txt-2); margin-top: -12px">{{ memo()?.recordedLabel }}</div>
+      <div class="wave" data-vwave>
+        @for (bar of bars; track $index; let k = $index) {
+          <i [style.height.%]="bar" [style.opacity]="k / bars.length <= fraction() ? '1' : '.32'"></i>
+        }
+      </div>
+      <div
+        style="
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          width: 100%;
+          max-width: 420px;
+          font-size: 11px;
+          color: var(--txt-2);
+          font-variant-numeric: tabular-nums;
+        "
+      >
+        <span data-vcur>{{ elapsed() }}</span>
+        <div class="sl" (pointerdown)="scrub($event)" data-vbar style="flex: 1">
+          <i [style.width.%]="fraction() * 100"></i>
+          <b [style.left.%]="fraction() * 100"></b>
+        </div>
+        <span>{{ clock(duration()) }}</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 26px; margin-top: 4px">
+        <button class="tbtn" (click)="skip(-5)" data-vskip="-5" title="Back 5s"><svg appIcon="g-bwd"></svg></button>
+        <button
+          class="btn pri"
+          (click)="togglePlay()"
+          data-vplay
+          style="width: 46px; height: 46px; border-radius: 50%; padding: 0; display: grid; place-items: center"
+        >
+          <svg [appIcon]="playing() ? 'g-pause' : 'g-play'" style="width: 17px; height: 17px"></svg>
+        </button>
+        <button class="tbtn" (click)="skip(5)" data-vskip="5" title="Forward 5s"><svg appIcon="g-fwd"></svg></button>
+      </div>
+    </div>
+  </div>
+</div>

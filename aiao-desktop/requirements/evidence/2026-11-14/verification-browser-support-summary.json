@@ -1,0 +1,16 @@
+{
+  "command": "NX_NO_CLOUD=true pnpm nx run aiao-desktop:verify --skip-nx-cache --parallel=2 --output-style=static",
+  "exitCode": 0,
+  "tasks": 56,
+  "seconds": 347.906,
+  "webTestFiles": 92,
+  "webTests": 1348,
+  "scriptTests": 53,
+  "chromiumGroups": 24,
+  "chromiumChecks": 479,
+  "chromiumSeconds": 301.4,
+  "rawLog": "verify-browser-support-3.txt",
+  "metadata": "verify-browser-support-3-metadata.json",
+  "checksReport": "chromium-browser-support-verify.json",
+  "coverageReport": "coverage-summary-browser-support.json"
+}

@@ -1,0 +1,118 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-14T01:48:35.301Z",
+  "source": {
+    "sha": "0ccab7cf18d765066042138319c745a4f4bd9efb",
+    "changes": "M src/groups/host-filesystem.mjs\n M src/groups/shell-interaction.mjs\n M ../../requirements/capability-matrix.md\n M ../../requirements/evidence/2026-11-14/README.md\n M ../../requirements/evidence/2026-11-14/domain-same-site.md\n M ../../requirements/plans/acceptance-closeout.md\n M ../../requirements/status-overview.md\n M ../../requirements/stories/platform/ADESK-US-006-web-test-coverage-gate.md\n M ../../requirements/verification-report.md\n?? ../../requirements/evidence/2026-11-14/aiao-code-current-final.json\n?? ../../requirements/evidence/2026-11-14/chromium-1.json\n?? ../../requirements/evidence/2026-11-14/chromium-file-panel-failure.json\n?? ../../requirements/evidence/2026-11-14/coverage-positive.txt\n?? ../../requirements/evidence/2026-11-14/deploy-dry-run.txt\n?? ../../requirements/evidence/2026-11-14/file-panel-list-green.json\n?? ../../requirements/evidence/2026-11-14/file-panel-list-red.json\n?? ../../requirements/evidence/2026-11-14/firefox-2.json\n?? ../../requirements/evidence/2026-11-14/firefox-file-panel-final.json\n?? ../../requirements/evidence/2026-11-14/firefox-zoom-1.json\n?? ../../requirements/evidence/2026-11-14/firefox-zoom-2.json\n?? ../../requirements/evidence/2026-11-14/saltline-gpu-final-1.json\n?? ../../requirements/evidence/2026-11-14/saltline-gpu-final-2.json\n?? ../../requirements/evidence/2026-11-14/saltline-gpu-final-3.json\n?? ../../requirements/evidence/2026-11-14/webkit-1.json\n?? ../../requirements/evidence/2026-11-14/webkit-2.json"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "27.2",
+    "engine": "webkit",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "4574844c7cee4a238256fbed051f79ab92b27a70c63dd5b39587fef7a55fd006"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 3,
+    "groups": [
+      "host-filesystem"
+    ],
+    "isolatedOrigins": true,
+    "interceptedExternalRequests": true
+  },
+  "seconds": 36.851348583,
+  "outcomes": [
+    {
+      "group": "host-filesystem",
+      "result": {
+        "hostFilesystem": {
+          "panelSemantics": true,
+          "panelIsModal": true,
+          "escCancels": true,
+          "openSelectReturnsContent": true,
+          "openGivesNothingElse": true,
+          "openCancelIsSilent": true,
+          "saveChoosesLocationAndName": true,
+          "saveCancelWritesNothing": true,
+          "overwriteNeedsConfirmation": true,
+          "overwriteCannotBeSkippedByApp": true,
+          "acceptIsDisplayFilterOnly": true,
+          "tooLargeFileIsDisabled": true,
+          "secondRequestIsBusy": true,
+          "panelTimeIsNotTimed": true,
+          "handleSaveWritesBack": true,
+          "saveWithoutHandleAsksUser": true,
+          "changedFileIsRejected": true,
+          "renamedFileIsRejectedAndNotRecreated": true,
+          "deletedFileIsRejectedAndNotRecreated": true,
+          "handleInvalidAfterWindowClosed": true,
+          "panelClosesWithWindow": true,
+          "requestEndsWithWindowClosed": true,
+          "lateSaveNeverWrites": true,
+          "keyboardOpen": true,
+          "staleListingNeverOverwrites": true,
+          "escInsideReplaceReturnsToBrowse": true,
+          "keyboardSaveAndReplace": true,
+          "tabStaysInsidePanel": true,
+          "focusReturnsToWindow": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 36.789027000000004
+    }
+  ],
+  "checks": {
+    "hostFilesystem": {
+      "panelSemantics": true,
+      "panelIsModal": true,
+      "escCancels": true,
+      "openSelectReturnsContent": true,
+      "openGivesNothingElse": true,
+      "openCancelIsSilent": true,
+      "saveChoosesLocationAndName": true,
+      "saveCancelWritesNothing": true,
+      "overwriteNeedsConfirmation": true,
+      "overwriteCannotBeSkippedByApp": true,
+      "acceptIsDisplayFilterOnly": true,
+      "tooLargeFileIsDisabled": true,
+      "secondRequestIsBusy": true,
+      "panelTimeIsNotTimed": true,
+      "handleSaveWritesBack": true,
+      "saveWithoutHandleAsksUser": true,
+      "changedFileIsRejected": true,
+      "renamedFileIsRejectedAndNotRecreated": true,
+      "deletedFileIsRejectedAndNotRecreated": true,
+      "handleInvalidAfterWindowClosed": true,
+      "panelClosesWithWindow": true,
+      "requestEndsWithWindowClosed": true,
+      "lateSaveNeverWrites": true,
+      "keyboardOpen": true,
+      "staleListingNeverOverwrites": true,
+      "escInsideReplaceReturnsToBrowse": true,
+      "keyboardSaveAndReplace": true,
+      "tabStaysInsidePanel": true,
+      "focusReturnsToWindow": true
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": true
+}

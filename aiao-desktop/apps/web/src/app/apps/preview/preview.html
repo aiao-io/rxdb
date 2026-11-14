@@ -1,0 +1,82 @@
+<div class="tb plain" data-drag>
+  <div class="title">{{ name }}</div>
+  <div class="tbz"><app-traffic-lights /></div>
+  <div class="grow"></div>
+  <div class="tbz">
+    <button class="tbtn" #share (click)="openShare(share)" data-nodrag data-pvshare title="Share">
+      <svg appIcon="g-share"></svg>
+    </button>
+    <button class="tbtn" (click)="toggleFind()" data-nodrag data-pvfind title="Search">
+      <svg appIcon="g-search"></svg>
+    </button>
+    <div
+      class="sfield"
+      [style.opacity]="finding() ? '1' : '0'"
+      [style.padding]="finding() ? null : '0'"
+      [style.width]="finding() ? '150px' : '0px'"
+      data-nodrag
+      data-pvfield
+      style="
+        overflow: hidden;
+        transition:
+          width 0.22s var(--e-out),
+          opacity 0.16s,
+          padding 0.22s;
+      "
+    >
+      <span><svg appIcon="g-search"></svg></span>
+      <input #field (input)="find(field.value)" placeholder="Search" spellcheck="false" />
+    </div>
+  </div>
+</div>
+<div class="pv" #body style="flex-direction: column">
+  @let current = view();
+  @switch (current.kind) {
+    @case ('sheet') {
+      @if (current.kind === 'sheet') {
+        <div class="sheet" data-pv-sheet>
+          <h1>{{ current.doc.title }}</h1>
+          @if (current.doc.subtitle) {
+            <p style="margin: 0 0 2px; font-size: 12.5px">{{ current.doc.subtitle }}</p>
+          }
+          @for (section of current.doc.sections; track $index) {
+            <h3>{{ section.title }}</h3>
+            <p>{{ section.text }}</p>
+          }
+        </div>
+      }
+    }
+    @case ('video') {
+      <div
+        style="
+          width: min(520px, 100%);
+          aspect-ratio: 16/9;
+          border-radius: 8px;
+          background: #0c0c0e;
+          display: grid;
+          place-items: center;
+          box-shadow: 0 20px 60px -18px rgba(0, 0, 0, 0.6);
+        "
+      >
+        <button class="btn pri" style="height: 44px; width: 44px; padding: 0; border-radius: 50%">
+          <svg appIcon="g-play"></svg>
+        </button>
+      </div>
+      <div style="margin-top: 14px; font-size: 12px; color: var(--txt-2)">{{ name }} — 1920×1080 · H.264</div>
+    }
+    @case ('image') {
+      @if (current.kind === 'image') {
+        <img [alt]="name" [src]="current.url" (error)="imageFailed()" data-pv-image style="max-height: 78%" />
+        <div style="margin-top: 14px; font-size: 12px; color: var(--txt-2)">{{ name }}</div>
+      }
+    }
+    @case ('failed') {
+      @if (current.kind === 'failed') {
+        <div data-pv-failed style="text-align: center; color: var(--txt-2); font-size: 13px">
+          <div style="font-weight: 600; color: var(--txt); margin-bottom: 6px">“{{ name }}” could not be opened.</div>
+          {{ current.reason }}
+        </div>
+      }
+    }
+  }
+</div>

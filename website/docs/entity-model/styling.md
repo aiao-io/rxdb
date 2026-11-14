@@ -43,7 +43,7 @@ React / Vue 同理换成 `@aiao/rxdb-model-react/tailwind.css` / `@aiao/rxdb-mod
 
 ### 微前端 / Shadow DOM
 
-组件在无界（wujie）等 Shadow DOM 宿主中渲染时，daisyUI 的 CSS 变量要同时挂在 `:host` 上；独立打开时仍要 `:root`：
+组件直接渲染到 Shadow DOM 时，daisyUI 的 CSS 变量要同时挂在 `:host` 上。Orbit 使用原生 iframe 文档，与独立打开页面一样使用 `:root`：
 
 ```css
 @plugin 'daisyui/index.js' {

@@ -1,0 +1,880 @@
+import { TestBed } from '@angular/core/testing';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { FakeDom, configureServices } from '../testing/angular';
+import { stubViewport } from '../testing/browser';
+import { StubApp, testApps } from '../testing/desktop-apps';
+import { ApplicationRuntime } from './application-runtime';
+import { AppLoader, DESKTOP_APPS, DesktopAppId, DesktopAppRegistry, DesktopOpenOptions } from './desktop-apps';
+import { DesktopWindow } from './desktop-window';
+import { DockState } from './dock-state';
+import { Toast } from './toast';
+import { WindowManager } from './window-manager';
+
+/** 开窗后的弹跳动画与关闭动画时长；窗口管理器靠定时器收尾，测试用假定时器推进。 */
+const OPEN_MS = 320;
+const CLOSE_MS = 200;
+
+interface Harness {
+  readonly wm: WindowManager;
+  readonly toast: Toast;
+  readonly dom: FakeDom;
+  readonly dock: {
+    bounce: ReturnType<typeof vi.fn>;
+    stopBounce: ReturnType<typeof vi.fn>;
+    focusApp: ReturnType<typeof vi.fn>;
+  };
+}
+
+function setup(width = 1440, height = 900, apps: DesktopAppRegistry = testApps()): Harness {
+  stubViewport(width, height);
+  const dom = configureServices([
+    WindowManager,
+    DockState,
+    Toast,
+    ApplicationRuntime,
+    { provide: DESKTOP_APPS, useValue: apps }
+  ]);
+  const dock = { bounce: vi.fn(), stopBounce: vi.fn(), focusApp: vi.fn() };
+  TestBed.inject(DockState).attach({ ...dock, rectFor: () => ({ x: 0, y: 0, w: 48, h: 48 }) });
+  return { wm: TestBed.inject(WindowManager), toast: TestBed.inject(Toast), dom, dock };
+}
+
+/**
+ * 模拟窗口框架组件：最小化、还原与缩放的状态变化与真实框架一致，只是不等动画；
+ * 键盘焦点用 `holdsFocus` 的返回值控制（默认不在窗口里），`focusContent` 记录被叫了几次。
+ */
+function attachFrame(wm: WindowManager, win: DesktopWindow) {
+  const holdsFocus = vi.fn(() => false);
+  const frame = {
+    minimize: vi.fn(() => {
+      const hadFocus = holdsFocus();
+      win.minimized.set(true);
+      wm.handOffFocus(win, hadFocus);
+    }),
+    restore: vi.fn(() => {
+      win.minimized.set(false);
+      wm.raise(win);
+      wm.focus(win.id);
+    }),
+    toggleZoom: vi.fn(() => win.zoomed.update(zoomed => !zoomed)),
+    keepOnScreen: vi.fn(),
+    focusContent: vi.fn(),
+    holdsFocus
+  };
+  win.frame = frame;
+  return frame;
+}
+
+function open(wm: WindowManager, appId: DesktopAppId, options?: DesktopOpenOptions): DesktopWindow {
+  const win = wm.open(appId, options);
+  if (!win) throw new Error(`${appId} 应该能打开`);
+  return win;
+}
+
+/** 打开并装上替身框架，返回窗口与框架的 spy。 */
+function openFramed(wm: WindowManager, appId: DesktopAppId, options?: DesktopOpenOptions) {
+  const win = open(wm, appId, options);
+  return { win, frame: attachFrame(wm, win) };
+}
+
+/** 同一应用开 n 个窗口（Finder 与 force 选项允许多实例）。 */
+const openMany = (wm: WindowManager, appId: DesktopAppId, count: number): DesktopWindow[] =>
+  Array.from({ length: count }, () => open(wm, appId, { force: true }));
+
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe('WindowManager 打开窗口', () => {
+  it('打开应用：新窗口登记在列表里，获得焦点并成为菜单栏的所属窗口，Dock 图标弹跳到窗口开完', () => {
+    const { wm, dock } = setup();
+    const win = open(wm, 'notes');
+    expect(wm.windows()).toEqual([win]);
+    expect(wm.get(win.id)).toBe(win);
+    expect(win.appId).toBe('notes');
+    expect(win.title()).toBe('Notes');
+    expect(wm.focused()).toBe(win);
+    expect(wm.menubarOwner()).toBe(win);
+    expect(wm.front()).toBe(win);
+    expect(win.zIndex()).toBeGreaterThan(0);
+    expect(win.opening()).toBe(true);
+    expect(dock.bounce).toHaveBeenCalledExactlyOnceWith('notes');
+    expect(dock.stopBounce).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(OPEN_MS);
+    expect(win.opening()).toBe(false);
+    expect(dock.stopBounce).toHaveBeenCalledExactlyOnceWith('notes');
+  });
+
+  it('每个窗口的 id 互不相同，get() 找不到的 id 返回 undefined', () => {
+    const { wm } = setup();
+    const [first, second] = openMany(wm, 'finder', 2);
+    expect(first.id).not.toBe(second.id);
+    expect(wm.get(first.id)).toBe(first);
+    expect(wm.get(second.id)).toBe(second);
+    expect(wm.get('nope')).toBeUndefined();
+  });
+
+  it('没有组件的系统入口打不开：提示 Unknown app，不新增窗口也不让 Dock 弹跳', () => {
+    const { wm, toast, dock } = setup();
+    expect(wm.open('launchpad')).toBeNull();
+    expect(toast.message()).toBe('Unknown app: launchpad');
+    expect(toast.visible()).toBe(true);
+    expect(wm.windows()).toEqual([]);
+    expect(wm.menubarOwner()).toBeNull();
+    expect(dock.bounce).not.toHaveBeenCalled();
+  });
+
+  it('单实例应用再次打开：返回同一个窗口并提到最前，不新增窗口，也不再弹跳', () => {
+    const { wm, dock } = setup();
+    const notes = open(wm, 'notes');
+    const calculator = open(wm, 'calculator');
+    expect(wm.front()).toBe(calculator);
+
+    expect(open(wm, 'notes')).toBe(notes);
+    expect(wm.windows()).toHaveLength(2);
+    expect(wm.front()).toBe(notes);
+    expect(wm.focused()).toBe(notes);
+    expect(dock.bounce).toHaveBeenCalledTimes(2);
+  });
+
+  it('单实例应用的窗口已最小化时再打开：从 Dock 还原它', () => {
+    const { wm } = setup();
+    const { win, frame } = openFramed(wm, 'notes');
+    wm.minimize(win.id);
+    expect(win.minimized()).toBe(true);
+
+    expect(open(wm, 'notes')).toBe(win);
+    expect(frame.restore).toHaveBeenCalledTimes(1);
+    expect(win.minimized()).toBe(false);
+    expect(wm.focused()).toBe(win);
+    expect(wm.windows()).toHaveLength(1);
+  });
+
+  it('force 选项让单实例应用也新开一个窗口', () => {
+    const { wm } = setup();
+    const first = open(wm, 'notes');
+    const second = open(wm, 'notes', { force: true });
+    expect(second).not.toBe(first);
+    expect(wm.byApp('notes')).toEqual([first, second]);
+    expect(wm.focused()).toBe(second);
+  });
+
+  it('登记为多实例（single:false）的应用每次打开都是新窗口', () => {
+    const { wm } = setup();
+    const [first, second, third] = openMany(wm, 'finder', 3);
+    expect(wm.byApp('finder')).toEqual([first, second, third]);
+    expect(new Set(wm.windows().map(win => win.id)).size).toBe(3);
+  });
+
+  it('打开参数原样交给窗口，应用组件据此决定显示内容', () => {
+    const { wm } = setup();
+    const options = { path: ['Macintosh HD', 'Users'], select: 'a.txt' };
+    expect(open(wm, 'finder', options).options).toBe(options);
+  });
+
+  it('runningApps 按应用去重，包含正在关闭但尚未移除的窗口', () => {
+    const { wm } = setup();
+    openMany(wm, 'finder', 2);
+    const notes = open(wm, 'notes');
+    expect(wm.runningApps()).toEqual(new Set(['finder', 'notes']));
+
+    wm.close(notes.id);
+    expect(wm.runningApps().has('notes')).toBe(true);
+    vi.advanceTimersByTime(CLOSE_MS);
+    expect(wm.runningApps()).toEqual(new Set(['finder']));
+  });
+});
+
+describe('WindowManager 初始几何', () => {
+  it('第一个窗口按应用登记的尺寸，水平略偏左居中、贴近菜单栏下方', () => {
+    const { wm } = setup(1440, 900);
+    expect(open(wm, 'finder').initialBox).toEqual({ left: 160, top: 51, width: 940, height: 600 });
+  });
+
+  it('打开参数的 w/h 优先于登记尺寸，登记里也没有时用 860×560', () => {
+    const { wm } = setup();
+    expect(open(wm, 'notes').initialBox).toMatchObject({ width: 860, height: 560 });
+    expect(open(wm, 'calculator').initialBox).toMatchObject({ width: 254, height: 366 });
+    expect(open(wm, 'terminal', { w: 500, h: 300 }).initialBox).toMatchObject({ width: 500, height: 300 });
+  });
+
+  it('窗口不会比视口大：宽度留 60px 边距，高度扣掉菜单栏和 Dock 的位置', () => {
+    const { wm, dom } = setup(800, 600);
+    dom.root.style.setProperty('--mb-h', '30px');
+    const box = open(wm, 'finder').initialBox;
+    expect(box.width).toBe(800 - 60);
+    expect(box.height).toBe(600 - 30 - 90);
+  });
+
+  it('连续打开的窗口依次错开，满七个后回到起点', () => {
+    const { wm } = setup();
+    const boxes = openMany(wm, 'finder', 8).map(win => win.initialBox);
+    for (let index = 1; index < 7; index++) {
+      expect(boxes[index].left).toBeGreaterThan(boxes[index - 1].left);
+      expect(boxes[index].top).toBeGreaterThan(boxes[index - 1].top);
+    }
+    expect(boxes[7]).toEqual(boxes[0]);
+  });
+
+  it('菜单栏高度读样式变量 --mb-h，没有时按 25px', () => {
+    const { wm, dom } = setup();
+    expect(wm.menubarHeight()).toBe(25);
+    dom.root.style.setProperty('--mb-h', '38px');
+    expect(wm.menubarHeight()).toBe(38);
+  });
+
+  it('可见高度 = 视口高 - 菜单栏 - Dock 占用（尺寸 + 间距），不受放大中的 Dock 影响', () => {
+    const { wm, dom } = setup(1440, 900);
+    expect(wm.visibleHeight()).toBe(900 - 25 - (14 + 5));
+    dom.root.style.setProperty('--mb-h', '30px');
+    dom.root.style.setProperty('--dock-size', '58px');
+    dom.root.style.setProperty('--dock-bottom', '6px');
+    expect(wm.visibleHeight()).toBe(900 - 30 - (58 + 14 + 6 + 5));
+  });
+});
+
+describe('WindowManager 焦点与层叠', () => {
+  it('focus 把窗口提到最上层并设为焦点，窗口之间的层级严格递增', () => {
+    const { wm } = setup();
+    const [first, second, third] = ['notes', 'calculator', 'terminal'].map(id => open(wm, id as DesktopAppId));
+    expect(first.zIndex()).toBeLessThan(second.zIndex());
+    expect(second.zIndex()).toBeLessThan(third.zIndex());
+    expect(wm.focused()).toBe(third);
+
+    wm.focus(first.id);
+    expect(wm.focused()).toBe(first);
+    expect(wm.menubarOwner()).toBe(first);
+    expect(first.zIndex()).toBeGreaterThan(third.zIndex());
+    expect(wm.front()).toBe(first);
+  });
+
+  it('focus 一个不存在、或正在关闭的窗口不起作用，不会改层级也不会改焦点', () => {
+    const { wm } = setup();
+    const keep = open(wm, 'notes');
+    const leaving = open(wm, 'calculator');
+    wm.focus(keep.id);
+    wm.close(leaving.id);
+    const keepZ = keep.zIndex();
+    const leavingZ = leaving.zIndex();
+
+    wm.focus('nope');
+    wm.focus(leaving.id);
+    expect(wm.focused()).toBe(keep);
+    expect(keep.zIndex()).toBe(keepZ);
+    expect(leaving.zIndex()).toBe(leavingZ);
+  });
+
+  it('raise 只抬高层级，不改变焦点', () => {
+    const { wm } = setup();
+    const first = open(wm, 'notes');
+    const second = open(wm, 'calculator');
+    wm.raise(first);
+    expect(first.zIndex()).toBeGreaterThan(second.zIndex());
+    expect(wm.focused()).toBe(second);
+    expect(wm.front()).toBe(first);
+  });
+
+  it('front 是层级最高的可见窗口：最小化或正在关闭的窗口不算', () => {
+    const { wm } = setup();
+    const { win: back } = openFramed(wm, 'notes');
+    const { win: top } = openFramed(wm, 'calculator');
+    expect(wm.front()).toBe(top);
+
+    wm.minimize(top.id);
+    expect(wm.front()).toBe(back);
+    wm.close(back.id);
+    expect(wm.front()).toBeUndefined();
+  });
+
+  it('focusFront 把焦点交给最上层的可见窗口', () => {
+    const { wm } = setup();
+    const { win: back } = openFramed(wm, 'notes');
+    const { win: top } = openFramed(wm, 'calculator');
+    wm.raise(back);
+    wm.focusFront();
+    expect(wm.focused()).toBe(back);
+    expect(top.zIndex()).toBeLessThan(back.zIndex());
+  });
+
+  it('没有窗口时 focusFront 什么也不做', () => {
+    const { wm } = setup();
+    wm.focusFront();
+    expect(wm.focused()).toBeNull();
+  });
+
+  it('byApp 只返回该应用没有在关闭的窗口，按打开顺序排列', () => {
+    const { wm } = setup();
+    const [first, second] = openMany(wm, 'finder', 2);
+    open(wm, 'notes');
+    wm.close(first.id);
+    expect(wm.byApp('finder')).toEqual([second]);
+    expect(wm.byApp('terminal')).toEqual([]);
+  });
+});
+
+describe('WindowManager 关闭窗口', () => {
+  it('close：先标记正在关闭并通知应用释放资源，动画结束后才从列表移除', () => {
+    const { wm } = setup();
+    const win = open(wm, 'notes');
+    const released = vi.fn();
+    const completed = vi.fn();
+    win.beforeClose.subscribe({ next: released, complete: completed });
+
+    wm.close(win.id);
+    expect(win.closing()).toBe(true);
+    expect(released).toHaveBeenCalledTimes(1);
+    expect(completed).toHaveBeenCalledTimes(1);
+    expect(wm.windows()).toEqual([win]);
+    expect(wm.byApp('notes')).toEqual([]);
+
+    vi.advanceTimersByTime(CLOSE_MS - 1);
+    expect(wm.windows()).toEqual([win]);
+    vi.advanceTimersByTime(1);
+    expect(wm.windows()).toEqual([]);
+    expect(wm.get(win.id)).toBeUndefined();
+  });
+
+  it('重复关闭同一个窗口，或关闭不存在的窗口：只通知一次，不报错', () => {
+    const { wm } = setup();
+    const win = open(wm, 'notes');
+    const released = vi.fn();
+    win.beforeClose.subscribe(released);
+    wm.close(win.id);
+    wm.close(win.id);
+    wm.close('nope');
+    vi.advanceTimersByTime(CLOSE_MS);
+    expect(released).toHaveBeenCalledTimes(1);
+    expect(wm.windows()).toEqual([]);
+  });
+
+  it('关闭开始时立即交还焦点，避免关闭动画把仍有焦点的窗口设为 aria-hidden', () => {
+    const { wm } = setup();
+    const back = openFramed(wm, 'notes');
+    const top = openFramed(wm, 'calculator');
+    top.frame.holdsFocus.mockReturnValue(true);
+    back.frame.focusContent.mockClear();
+    wm.close(top.win.id);
+    expect(top.win.closing()).toBe(true);
+    expect(wm.focused()).toBe(back.win);
+    expect(back.frame.focusContent).toHaveBeenCalledTimes(1);
+    const fresh = openFramed(wm, 'finder');
+    fresh.frame.focusContent.mockClear();
+    vi.advanceTimersByTime(CLOSE_MS);
+    expect(wm.focused()).toBe(fresh.win);
+    expect(fresh.frame.focusContent).not.toHaveBeenCalled();
+  });
+
+  it('关闭最上层的窗口后，焦点和菜单栏回到下面的窗口', () => {
+    const { wm } = setup();
+    const { win: back } = openFramed(wm, 'notes');
+    const { win: top } = openFramed(wm, 'calculator');
+    wm.close(top.id);
+    vi.advanceTimersByTime(CLOSE_MS);
+    expect(wm.focused()).toBe(back);
+    expect(wm.menubarOwner()).toBe(back);
+    expect(wm.runningApps()).toEqual(new Set(['notes']));
+  });
+
+  it('关掉最后一个窗口后菜单栏没有所属窗口（回到 Finder），可以重新打开同一个单实例应用', () => {
+    const { wm } = setup();
+    const win = open(wm, 'notes');
+    wm.close(win.id);
+    vi.advanceTimersByTime(CLOSE_MS);
+    expect(wm.menubarOwner()).toBeNull();
+    expect(wm.windows()).toEqual([]);
+
+    const reopened = open(wm, 'notes');
+    expect(reopened).not.toBe(win);
+    expect(wm.menubarOwner()).toBe(reopened);
+  });
+
+  it('正在关闭的单实例窗口不阻止再次打开：会新开一个窗口', () => {
+    const { wm } = setup();
+    const leaving = open(wm, 'notes');
+    wm.close(leaving.id);
+    const fresh = open(wm, 'notes');
+    expect(fresh).not.toBe(leaving);
+    expect(wm.byApp('notes')).toEqual([fresh]);
+  });
+
+  it('closeAll 关闭所有窗口，动画结束后列表清空', () => {
+    const { wm } = setup();
+    const windows = [...openMany(wm, 'finder', 2), open(wm, 'notes')];
+    wm.closeAll();
+    expect(windows.every(win => win.closing())).toBe(true);
+    vi.advanceTimersByTime(CLOSE_MS);
+    expect(wm.windows()).toEqual([]);
+    expect(wm.runningApps().size).toBe(0);
+  });
+
+  it('quitApp 关闭该应用的全部窗口，其他应用不受影响', () => {
+    const { wm } = setup();
+    const finders = openMany(wm, 'finder', 2);
+    const notes = open(wm, 'notes');
+    wm.quitApp('finder');
+    expect(finders.every(win => win.closing())).toBe(true);
+    expect(notes.closing()).toBe(false);
+    vi.advanceTimersByTime(CLOSE_MS);
+    expect(wm.windows()).toEqual([notes]);
+    expect(wm.focused()).toBe(notes);
+  });
+});
+
+describe('WindowManager 最小化、缩放与框架', () => {
+  it('minimize/unminimize/zoom 交给窗口框架组件执行，状态由框架改变', () => {
+    const { wm } = setup();
+    const { win, frame } = openFramed(wm, 'notes');
+
+    wm.minimize(win.id);
+    expect(frame.minimize).toHaveBeenCalledTimes(1);
+    expect(win.minimized()).toBe(true);
+    wm.unminimize(win.id);
+    expect(frame.restore).toHaveBeenCalledTimes(1);
+    expect(win.minimized()).toBe(false);
+    wm.zoom(win.id);
+    expect(frame.toggleZoom).toHaveBeenCalledTimes(1);
+    expect(win.zoomed()).toBe(true);
+  });
+
+  it('窗口框架还没挂上（或 id 不存在）时这些操作什么也不做', () => {
+    const { wm } = setup();
+    const win = open(wm, 'notes');
+    wm.minimize(win.id);
+    wm.unminimize(win.id);
+    wm.zoom(win.id);
+    wm.minimize('nope');
+    expect(win.minimized()).toBe(false);
+    expect(win.zoomed()).toBe(false);
+  });
+
+  it('有可见的缩放窗口时菜单栏变为不透明；窗口最小化或关闭后恢复', () => {
+    const { wm } = setup();
+    const { win } = openFramed(wm, 'notes');
+    expect(wm.opaqueMenubar()).toBe(false);
+
+    wm.zoom(win.id);
+    expect(wm.opaqueMenubar()).toBe(true);
+    wm.minimize(win.id);
+    expect(wm.opaqueMenubar()).toBe(false);
+    wm.unminimize(win.id);
+    expect(wm.opaqueMenubar()).toBe(true);
+    wm.close(win.id);
+    expect(wm.opaqueMenubar()).toBe(false);
+  });
+
+  it('keepOnScreen 让每个有框架的窗口各自检查边界，没有框架的窗口被跳过', () => {
+    const { wm } = setup();
+    const first = openFramed(wm, 'notes');
+    const second = openFramed(wm, 'calculator');
+    open(wm, 'terminal');
+    wm.keepOnScreen();
+    expect(first.frame.keepOnScreen).toHaveBeenCalledTimes(1);
+    expect(second.frame.keepOnScreen).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('WindowManager 针对最前窗口的命令', () => {
+  it('closeFront、minimizeFront、zoomFront 只作用于最上层的可见窗口', () => {
+    const { wm } = setup();
+    const back = openFramed(wm, 'notes');
+    const top = openFramed(wm, 'calculator');
+
+    wm.zoomFront();
+    expect(top.frame.toggleZoom).toHaveBeenCalledTimes(1);
+    expect(back.frame.toggleZoom).not.toHaveBeenCalled();
+
+    wm.minimizeFront();
+    expect(top.win.minimized()).toBe(true);
+    expect(back.win.minimized()).toBe(false);
+
+    wm.closeFront();
+    expect(back.win.closing()).toBe(true);
+    expect(top.win.closing()).toBe(false);
+  });
+
+  it('quitFront 退出最前窗口所属的整个应用，包括它的其他窗口', () => {
+    const { wm } = setup();
+    const notes = open(wm, 'notes');
+    const finders = openMany(wm, 'finder', 2);
+    wm.quitFront();
+    expect(finders.every(win => win.closing())).toBe(true);
+    expect(notes.closing()).toBe(false);
+  });
+
+  it('没有可见窗口时这些命令都不起作用', () => {
+    const { wm } = setup();
+    wm.closeFront();
+    wm.minimizeFront();
+    wm.zoomFront();
+    wm.quitFront();
+    wm.hideOthers();
+    wm.showAll();
+    wm.cycle();
+    expect(wm.windows()).toEqual([]);
+  });
+
+  it('hideOthers 最小化除最前窗口外的所有可见窗口；showAll 把最小化的窗口全部还原', () => {
+    const { wm } = setup();
+    const a = openFramed(wm, 'notes');
+    const b = openFramed(wm, 'calculator');
+    const c = openFramed(wm, 'terminal');
+    wm.hideOthers();
+    expect([a, b, c].map(item => item.win.minimized())).toEqual([true, true, false]);
+    expect(c.frame.minimize).not.toHaveBeenCalled();
+    expect(wm.front()).toBe(c.win);
+
+    wm.showAll();
+    expect([a, b, c].map(item => item.win.minimized())).toEqual([false, false, false]);
+    expect(a.frame.restore).toHaveBeenCalledTimes(1);
+    expect(b.frame.restore).toHaveBeenCalledTimes(1);
+    expect(c.frame.restore).not.toHaveBeenCalled();
+  });
+
+  it('hideOthers 不会重复最小化已最小化或正在关闭的窗口', () => {
+    const { wm } = setup();
+    const hidden = openFramed(wm, 'notes');
+    const leaving = openFramed(wm, 'calculator');
+    openFramed(wm, 'terminal');
+    wm.minimize(hidden.win.id);
+    wm.close(leaving.win.id);
+    wm.hideOthers();
+    expect(hidden.frame.minimize).toHaveBeenCalledTimes(1);
+    expect(leaving.frame.minimize).not.toHaveBeenCalled();
+  });
+});
+
+describe('WindowManager 切换窗口', () => {
+  it('cycle（⌘`）把最底层的可见窗口提到最前，连续按下轮流切换', () => {
+    const { wm } = setup();
+    const [a, b, c] = ['notes', 'calculator', 'terminal'].map(id => open(wm, id as DesktopAppId));
+    expect(wm.front()).toBe(c);
+
+    wm.cycle();
+    expect(wm.front()).toBe(a);
+    expect(wm.focused()).toBe(a);
+    wm.cycle();
+    expect(wm.front()).toBe(b);
+    wm.cycle();
+    expect(wm.front()).toBe(c);
+  });
+
+  it('cycle 跳过最小化的窗口；只剩一个可见窗口时不改变层级', () => {
+    const { wm } = setup();
+    const a = openFramed(wm, 'notes');
+    const b = openFramed(wm, 'calculator');
+    openFramed(wm, 'terminal');
+    wm.minimize(a.win.id);
+
+    wm.cycle();
+    expect(wm.front()).toBe(b.win);
+    expect(a.win.minimized()).toBe(true);
+
+    wm.hideOthers();
+    const zBefore = b.win.zIndex();
+    wm.cycle();
+    expect(b.win.zIndex()).toBe(zBefore);
+    expect(wm.front()).toBe(b.win);
+  });
+});
+
+describe('WindowManager 应用实例的生命周期（经应用运行时）', () => {
+  /** 让装载的 Promise 回调跑完（假时钟下 await 链要靠它推进）。 */
+  const settle = async (): Promise<void> => {
+    await vi.advanceTimersByTimeAsync(0);
+  };
+
+  /** 把 notes 的载荷换成指定的装载函数。 */
+  const withLoader = (load: AppLoader): DesktopAppRegistry => testApps({ notes: { load } });
+
+  it('打开应用即开始装载：窗口先是 loading，载荷到了变 ready 并带上应用组件', async () => {
+    const { wm } = setup();
+    const win = open(wm, 'notes');
+    expect(win.state()).toBe('loading');
+    expect(win.content()).toBeNull();
+
+    await settle();
+    expect(win.state()).toBe('ready');
+    expect(win.content()).toBe(StubApp);
+    expect(win.failure()).toBeNull();
+    expect(win.instanceId).toBe(`${win.id}#1`);
+  });
+
+  it('同一应用的多个窗口各自装载、各是一个实例', async () => {
+    const load = vi.fn<AppLoader>(async () => StubApp);
+    const { wm } = setup(1440, 900, testApps({ finder: { load } }));
+    const [first, second] = openMany(wm, 'finder', 2);
+    await settle();
+
+    expect(load).toHaveBeenCalledTimes(2);
+    expect([first.state(), second.state()]).toEqual(['ready', 'ready']);
+    expect(first.instanceId).not.toBe(second.instanceId);
+  });
+
+  it('一个应用装载失败只影响它自己的窗口：带原因，窗口留在列表里等重试或关闭，其他应用照常打开', async () => {
+    const { wm } = setup(
+      1440,
+      900,
+      withLoader(() => Promise.reject(new Error('chunk 404')))
+    );
+    const broken = open(wm, 'notes');
+    const fine = open(wm, 'calculator');
+    await settle();
+
+    expect(broken.state()).toBe('failed');
+    expect(broken.failure()).toBe('chunk 404');
+    expect(broken.content()).toBeNull();
+    expect(fine.state()).toBe('ready');
+    expect(wm.windows()).toEqual([broken, fine]);
+    expect(wm.focused()).toBe(fine);
+  });
+
+  it('retry 重试装载失败的窗口：同一个窗口创建新实例，回到 loading 并清掉失败原因，成功后 ready', async () => {
+    const load = vi.fn<AppLoader>().mockRejectedValueOnce(new Error('offline')).mockResolvedValue(StubApp);
+    const { wm } = setup(1440, 900, withLoader(load));
+    const win = open(wm, 'notes');
+    await settle();
+    expect(win.state()).toBe('failed');
+    const instance = win.instanceId;
+    const zIndex = win.zIndex();
+
+    wm.retry(win.id);
+    expect(win.state()).toBe('loading');
+    expect(win.failure()).toBeNull();
+    expect(win.instanceId).not.toBe(instance);
+    await settle();
+    expect(win.state()).toBe('ready');
+    expect(win.content()).toBe(StubApp);
+    expect(load).toHaveBeenCalledTimes(2);
+    expect(wm.windows()).toEqual([win]);
+    expect(win.zIndex()).toBe(zIndex);
+  });
+
+  it('重试再次失败：仍是 failed，带最新的原因，可以接着重试', async () => {
+    const load = vi
+      .fn<AppLoader>()
+      .mockRejectedValueOnce(new Error('first'))
+      .mockRejectedValueOnce(new Error('second'))
+      .mockResolvedValue(StubApp);
+    const { wm } = setup(1440, 900, withLoader(load));
+    const win = open(wm, 'notes');
+    await settle();
+    wm.retry(win.id);
+    await settle();
+    expect(win.state()).toBe('failed');
+    expect(win.failure()).toBe('second');
+
+    wm.retry(win.id);
+    await settle();
+    expect(win.state()).toBe('ready');
+  });
+
+  it('retry 只对失败的窗口生效：装载中、已就绪的窗口，以及不存在的窗口，都不会再装载一次', async () => {
+    const load = vi.fn<AppLoader>().mockResolvedValue(StubApp);
+    const { wm } = setup(1440, 900, withLoader(load));
+    const win = open(wm, 'notes');
+    wm.retry(win.id);
+    await settle();
+    wm.retry(win.id);
+    wm.retry('nope');
+
+    expect(win.state()).toBe('ready');
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it('关闭窗口：运行时先标记 closing（动画期间窗口还在列表里），动画结束、窗口移除之后才是 closed，并释放组件', async () => {
+    const { wm } = setup();
+    const win = open(wm, 'notes');
+    await settle();
+    expect(win.content()).toBe(StubApp);
+
+    wm.close(win.id);
+    expect(win.state()).toBe('closing');
+    expect(win.content()).toBe(StubApp);
+    expect(wm.windows()).toEqual([win]);
+    vi.advanceTimersByTime(CLOSE_MS - 1);
+    expect(win.state()).toBe('closing');
+
+    vi.advanceTimersByTime(1);
+    expect(win.state()).toBe('closed');
+    expect(win.content()).toBeNull();
+    expect(wm.windows()).toEqual([]);
+  });
+
+  it('装载还在路上就关闭窗口：迟到的载荷被丢弃，已关闭的窗口不会重新出现', async () => {
+    let arrive: (component: typeof StubApp) => void = () => undefined;
+    const load = vi.fn<AppLoader>(() => new Promise(resolve => (arrive = resolve)));
+    const { wm } = setup(1440, 900, withLoader(load));
+    const win = open(wm, 'notes');
+    wm.close(win.id);
+    expect(win.state()).toBe('closing');
+    vi.advanceTimersByTime(CLOSE_MS);
+    expect(win.state()).toBe('closed');
+
+    arrive(StubApp);
+    await settle();
+    expect(win.state()).toBe('closed');
+    expect(win.content()).toBeNull();
+    expect(wm.windows()).toEqual([]);
+  });
+
+  it('装载失败的窗口也能关闭：closing → closed，之后重试不起作用', async () => {
+    const load = vi.fn<AppLoader>().mockRejectedValue(new Error('offline'));
+    const { wm } = setup(1440, 900, withLoader(load));
+    const win = open(wm, 'notes');
+    await settle();
+    wm.close(win.id);
+    expect(win.state()).toBe('closing');
+    vi.advanceTimersByTime(CLOSE_MS);
+    expect(win.state()).toBe('closed');
+
+    wm.retry(win.id);
+    expect(win.state()).toBe('closed');
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it('closeAll 与 quitApp 关掉的窗口都走完 closing → closed', async () => {
+    const { wm } = setup();
+    const [first, second] = openMany(wm, 'finder', 2);
+    const notes = open(wm, 'notes');
+    await settle();
+
+    wm.quitApp('finder');
+    expect([first.state(), second.state(), notes.state()]).toEqual(['closing', 'closing', 'ready']);
+    wm.closeAll();
+    expect(notes.state()).toBe('closing');
+    vi.advanceTimersByTime(CLOSE_MS);
+    expect([first.state(), second.state(), notes.state()]).toEqual(['closed', 'closed', 'closed']);
+    expect(wm.windows()).toEqual([]);
+  });
+
+  it('登记表里没有载荷的应用打不开：不创建窗口，不让 Dock 弹跳，也不启动装载', () => {
+    const { wm, toast, dock } = setup(1440, 900, testApps({ notes: { load: undefined } }));
+    expect(wm.open('notes')).toBeNull();
+    expect(toast.message()).toBe('Unknown app: notes');
+    expect(wm.windows()).toEqual([]);
+    expect(dock.bounce).not.toHaveBeenCalled();
+  });
+});
+
+describe('WindowManager 键盘焦点（ADESK-US-108）', () => {
+  it('focus 默认把键盘焦点交给窗口框架；dom: false（鼠标按下）只改前台状态与层叠', () => {
+    const { wm } = setup();
+    const { win, frame } = openFramed(wm, 'notes');
+    const { win: other, frame: otherFrame } = openFramed(wm, 'calculator');
+
+    wm.focus(win.id);
+    expect(frame.focusContent).toHaveBeenCalledTimes(1);
+    expect(otherFrame.focusContent).not.toHaveBeenCalled();
+    expect(wm.focused()).toBe(win);
+
+    wm.focus(other.id, { dom: false });
+    expect(otherFrame.focusContent).not.toHaveBeenCalled();
+    expect(wm.focused()).toBe(other);
+  });
+
+  it('关闭中或不存在的窗口：既不抢前台，也不动键盘焦点', () => {
+    const { wm } = setup();
+    const { win, frame } = openFramed(wm, 'notes');
+    wm.close(win.id);
+    wm.focus(win.id);
+    wm.focus('nope');
+    expect(frame.focusContent).not.toHaveBeenCalled();
+  });
+
+  it('再次打开已经开着的单实例应用：键盘焦点跟着进到那个窗口', () => {
+    const { wm } = setup();
+    const { frame } = openFramed(wm, 'notes');
+    open(wm, 'calculator');
+    open(wm, 'notes');
+    expect(frame.focusContent).toHaveBeenCalledTimes(1);
+  });
+
+  it('⌘` 循环到的窗口拿到键盘焦点，焦点与前台窗口同步', () => {
+    const { wm } = setup();
+    const { win: bottom, frame: bottomFrame } = openFramed(wm, 'notes');
+    open(wm, 'calculator');
+    wm.cycle();
+    expect(wm.focused()).toBe(bottom);
+    expect(bottomFrame.focusContent).toHaveBeenCalledTimes(1);
+  });
+
+  it('关闭窗口时键盘焦点在里面：动画开始时交给新的前台窗口，结束时不重复聚焦', () => {
+    const { wm, dock } = setup();
+    const { win: back, frame: backFrame } = openFramed(wm, 'notes');
+    const { win: top, frame: topFrame } = openFramed(wm, 'calculator');
+    topFrame.holdsFocus.mockReturnValue(true);
+
+    wm.close(top.id);
+    expect(backFrame.focusContent).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(CLOSE_MS);
+    expect(wm.focused()).toBe(back);
+    expect(backFrame.focusContent).toHaveBeenCalledTimes(1);
+    expect(dock.focusApp).not.toHaveBeenCalled();
+  });
+
+  it('关闭窗口时键盘焦点在别处（比如用鼠标关了一个后台窗口）：新的前台窗口只改状态，不抢焦点', () => {
+    const { wm, dock } = setup();
+    const { win: back, frame: backFrame } = openFramed(wm, 'notes');
+    const { win: top } = openFramed(wm, 'calculator');
+    wm.close(top.id);
+    vi.advanceTimersByTime(CLOSE_MS);
+    expect(wm.focused()).toBe(back);
+    expect(backFrame.focusContent).not.toHaveBeenCalled();
+    expect(dock.focusApp).not.toHaveBeenCalled();
+  });
+
+  it('关掉最后一个窗口且键盘焦点在里面：焦点落到它的 Dock 图标，用 Enter 就能再打开', () => {
+    const { wm, dock } = setup();
+    const { win, frame } = openFramed(wm, 'notes');
+    frame.holdsFocus.mockReturnValue(true);
+    wm.close(win.id);
+    vi.advanceTimersByTime(CLOSE_MS);
+    expect(dock.focusApp).toHaveBeenCalledExactlyOnceWith('notes');
+  });
+
+  it('最小化开始时同样交接焦点：有别的窗口去那个窗口，没有就落到 Dock 图标；焦点在别处不动', () => {
+    const { wm, dock } = setup();
+    const { win: back, frame: backFrame } = openFramed(wm, 'notes');
+    const { win: top, frame: topFrame } = openFramed(wm, 'calculator');
+    topFrame.holdsFocus.mockReturnValue(true);
+    wm.minimize(top.id);
+    expect(wm.focused()).toBe(back);
+    expect(backFrame.focusContent).toHaveBeenCalledTimes(1);
+
+    backFrame.holdsFocus.mockReturnValue(true);
+    wm.minimize(back.id);
+    expect(dock.focusApp).toHaveBeenCalledExactlyOnceWith('notes');
+    expect(backFrame.focusContent).toHaveBeenCalledTimes(1);
+  });
+
+  it('handOffFocus 没有前台窗口也不要求焦点时什么也不做', () => {
+    const { wm, dock } = setup();
+    const win = open(wm, 'notes');
+    win.minimized.set(true);
+    wm.handOffFocus(win, false);
+    expect(wm.front()).toBeUndefined();
+    expect(dock.focusApp).not.toHaveBeenCalled();
+  });
+
+  it('tabbing 默认是 false：只有桌面页在按住 Tab 的那一刻才置位', () => {
+    const { wm } = setup();
+    expect(wm.tabbing).toBe(false);
+  });
+
+  it('桌面启动完成之前建出的窗口是 quiet 的（不抢键盘焦点），之后用户打开的不是', () => {
+    const { wm } = setup();
+    expect(wm.started).toBe(false);
+    const early = open(wm, 'notes');
+    expect(early.quiet).toBe(true);
+
+    wm.started = true;
+    const later = open(wm, 'calculator');
+    expect(later.quiet).toBe(false);
+  });
+});

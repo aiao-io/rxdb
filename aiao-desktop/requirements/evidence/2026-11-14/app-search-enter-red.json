@@ -1,0 +1,68 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-14T02:04:34.765Z",
+  "source": {
+    "sha": "6ed149a5962153a09bec268e634e479f7b9f1a22",
+    "changes": "M src/groups/apps.mjs\n?? ../../requirements/evidence/2026-11-14/app-launch-diagnostic.json\n?? ../../requirements/evidence/2026-11-14/chromium-app-launch-failure.json"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "158.0.8127.18",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "4574844c7cee4a238256fbed051f79ab92b27a70c63dd5b39587fef7a55fd006"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 3,
+    "groups": [
+      "apps"
+    ],
+    "isolatedOrigins": true,
+    "interceptedExternalRequests": true
+  },
+  "seconds": 27.618612249999998,
+  "outcomes": [
+    {
+      "group": "apps",
+      "result": {
+        "everyAppOpens": true,
+        "unopened": [],
+        "searchEnterUsesCurrentQuery": false
+      },
+      "problems": [
+        "检查项未通过：searchEnterUsesCurrentQuery = false"
+      ],
+      "failedKeys": [
+        "searchEnterUsesCurrentQuery"
+      ],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 27.573681249999996
+    }
+  ],
+  "checks": {
+    "everyAppOpens": true,
+    "unopened": [],
+    "searchEnterUsesCurrentQuery": false
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [
+      "[apps] 检查项未通过或缺失：searchEnterUsesCurrentQuery"
+    ],
+    "stale": []
+  },
+  "passed": false,
+  "clean": false
+}

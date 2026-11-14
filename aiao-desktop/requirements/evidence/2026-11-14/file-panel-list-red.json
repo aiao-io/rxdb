@@ -1,0 +1,115 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-14T01:41:56.724Z",
+  "source": {
+    "sha": "0ccab7cf18d765066042138319c745a4f4bd9efb",
+    "changes": "M src/groups/host-filesystem.mjs\n M src/groups/shell-interaction.mjs\n M ../../requirements/capability-matrix.md\n M ../../requirements/evidence/2026-11-14/README.md\n M ../../requirements/evidence/2026-11-14/domain-same-site.md\n M ../../requirements/plans/acceptance-closeout.md\n M ../../requirements/status-overview.md\n M ../../requirements/stories/platform/ADESK-US-006-web-test-coverage-gate.md\n M ../../requirements/verification-report.md\n?? ../../requirements/evidence/2026-11-14/aiao-code-current-final.json\n?? ../../requirements/evidence/2026-11-14/chromium-1.json\n?? ../../requirements/evidence/2026-11-14/chromium-file-panel-failure.json\n?? ../../requirements/evidence/2026-11-14/coverage-positive.txt\n?? ../../requirements/evidence/2026-11-14/deploy-dry-run.txt\n?? ../../requirements/evidence/2026-11-14/firefox-2.json\n?? ../../requirements/evidence/2026-11-14/firefox-zoom-1.json\n?? ../../requirements/evidence/2026-11-14/firefox-zoom-2.json\n?? ../../requirements/evidence/2026-11-14/saltline-gpu-final-1.json\n?? ../../requirements/evidence/2026-11-14/saltline-gpu-final-2.json\n?? ../../requirements/evidence/2026-11-14/saltline-gpu-final-3.json\n?? ../../requirements/evidence/2026-11-14/webkit-1.json\n?? ../../requirements/evidence/2026-11-14/webkit-2.json"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "158.0.8127.18",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "4574844c7cee4a238256fbed051f79ab92b27a70c63dd5b39587fef7a55fd006"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 3,
+    "groups": [
+      "host-filesystem"
+    ],
+    "isolatedOrigins": true,
+    "interceptedExternalRequests": true
+  },
+  "seconds": 39.632551,
+  "outcomes": [
+    {
+      "group": "host-filesystem",
+      "result": {},
+      "problems": [
+        "检查组异常：Esc 没有退回保存面板：{\"first\":{\"ok\":true,\"value\":{\"name\":\"hostcap-kb.txt\",\"version\":\"1794620503553:2\",\"handle\":\"aa9fd72f-d08f-4442-9d5f-be5eb736a7e9\"}},\"second\":{\"ok\":false,\"name\":\"DesktopError\",\"code\":\"FILE_CHANGED\",\"message\":\"“hostcap-kb.txt” 在选定之后出现了别的内容：没有覆盖它\"},\"keys\":[{\"type\":\"keydown\",\"key\":\"Enter\",\"target\":\"<input autocomplete=\\\"off\\\" data-fp-name=\\\"\\\" spellcheck=\\\"false\\\" type=\\\"text\\\" maxlength=\\\"255\\\">\",\"value\":\"hostcap-kb.txt\",\"location\":\"Macintosh HD › Users › prasenjit › Documents\",\"replace\":false,\"panel\":true},{\"type\":\"keyup\",\"key\":\"Enter\",\"target\":\"<input autocomplete=\\\"off\\\" data-fp-name=\\\"\\\" spellcheck=\\\"false\\\" type=\\\"text\\\" maxlength=\\\"255\\\">\",\"value\":\"hostcap-kb.txt\",\"location\":\"Macintosh HD › Users › prasenjit › Documents\",\"replace\":false,\"panel\":true},{\"type\":\"keydown\",\"key\":\"Enter\",\"target\":\"<input autocomplete=\\\"off\\\" data-fp-name=\\\"\\\" spellcheck=\\\"false\\\" type=\\\"text\\\" maxlength=\\\"255\\\">\",\"value\":\"hostcap-kb.txt\",\"location\":\"Macintosh HD › Users › prasenjit › Documents\",\"replace\":false,\"panel\":true},{\"type\":\"keyup\",\"key\":\"Enter\",\"target\":\"<input autocomplete=\\\"off\\\" data-fp-name=\\\"\\\" spellcheck=\\\"false\\\" type=\\\"text\\\" maxlength=\\\"255\\\">\",\"value\":\"hostcap-kb.txt\",\"location\":\"Macintosh HD › Users › prasenjit › Documents\",\"replace\":false,\"panel\":true}],\"focus\":\"<aiao-orbit style=\\\"display: block; width: 100%; height: 100%; min-height: 0px;\\\"></aiao-orbit>\"}（groups/host-filesystem.mjs:564）"
+      ],
+      "failedKeys": [],
+      "missingKeys": [
+        "hostFilesystem.panelSemantics",
+        "hostFilesystem.panelIsModal",
+        "hostFilesystem.escCancels",
+        "hostFilesystem.openSelectReturnsContent",
+        "hostFilesystem.openGivesNothingElse",
+        "hostFilesystem.openCancelIsSilent",
+        "hostFilesystem.saveChoosesLocationAndName",
+        "hostFilesystem.saveCancelWritesNothing",
+        "hostFilesystem.overwriteNeedsConfirmation",
+        "hostFilesystem.overwriteCannotBeSkippedByApp",
+        "hostFilesystem.acceptIsDisplayFilterOnly",
+        "hostFilesystem.tooLargeFileIsDisabled",
+        "hostFilesystem.secondRequestIsBusy",
+        "hostFilesystem.panelTimeIsNotTimed",
+        "hostFilesystem.handleSaveWritesBack",
+        "hostFilesystem.saveWithoutHandleAsksUser",
+        "hostFilesystem.changedFileIsRejected",
+        "hostFilesystem.renamedFileIsRejectedAndNotRecreated",
+        "hostFilesystem.deletedFileIsRejectedAndNotRecreated",
+        "hostFilesystem.handleInvalidAfterWindowClosed",
+        "hostFilesystem.panelClosesWithWindow",
+        "hostFilesystem.requestEndsWithWindowClosed",
+        "hostFilesystem.lateSaveNeverWrites",
+        "hostFilesystem.keyboardOpen",
+        "hostFilesystem.keyboardSaveAndReplace",
+        "hostFilesystem.escInsideReplaceReturnsToBrowse",
+        "hostFilesystem.tabStaysInsidePanel",
+        "hostFilesystem.focusReturnsToWindow"
+      ],
+      "extraKeys": [],
+      "crashed": "Esc 没有退回保存面板：{\"first\":{\"ok\":true,\"value\":{\"name\":\"hostcap-kb.txt\",\"version\":\"1794620503553:2\",\"handle\":\"aa9fd72f-d08f-4442-9d5f-be5eb736a7e9\"}},\"second\":{\"ok\":false,\"name\":\"DesktopError\",\"code\":\"FILE_CHANGED\",\"message\":\"“hostcap-kb.txt” 在选定之后出现了别的内容：没有覆盖它\"},\"keys\":[{\"type\":\"keydown\",\"key\":\"Enter\",\"target\":\"<input autocomplete=\\\"off\\\" data-fp-name=\\\"\\\" spellcheck=\\\"false\\\" type=\\\"text\\\" maxlength=\\\"255\\\">\",\"value\":\"hostcap-kb.txt\",\"location\":\"Macintosh HD › Users › prasenjit › Documents\",\"replace\":false,\"panel\":true},{\"type\":\"keyup\",\"key\":\"Enter\",\"target\":\"<input autocomplete=\\\"off\\\" data-fp-name=\\\"\\\" spellcheck=\\\"false\\\" type=\\\"text\\\" maxlength=\\\"255\\\">\",\"value\":\"hostcap-kb.txt\",\"location\":\"Macintosh HD › Users › prasenjit › Documents\",\"replace\":false,\"panel\":true},{\"type\":\"keydown\",\"key\":\"Enter\",\"target\":\"<input autocomplete=\\\"off\\\" data-fp-name=\\\"\\\" spellcheck=\\\"false\\\" type=\\\"text\\\" maxlength=\\\"255\\\">\",\"value\":\"hostcap-kb.txt\",\"location\":\"Macintosh HD › Users › prasenjit › Documents\",\"replace\":false,\"panel\":true},{\"type\":\"keyup\",\"key\":\"Enter\",\"target\":\"<input autocomplete=\\\"off\\\" data-fp-name=\\\"\\\" spellcheck=\\\"false\\\" type=\\\"text\\\" maxlength=\\\"255\\\">\",\"value\":\"hostcap-kb.txt\",\"location\":\"Macintosh HD › Users › prasenjit › Documents\",\"replace\":false,\"panel\":true}],\"focus\":\"<aiao-orbit style=\\\"display: block; width: 100%; height: 100%; min-height: 0px;\\\"></aiao-orbit>\"}（groups/host-filesystem.mjs:564）",
+      "pageErrors": [],
+      "seconds": 39.579419208
+    }
+  ],
+  "checks": {},
+  "limitations": {
+    "known": [],
+    "unexpected": [
+      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.panelSemantics",
+      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.panelIsModal",
+      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.escCancels",
+      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.openSelectReturnsContent",
+      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.openGivesNothingElse",
+      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.openCancelIsSilent",
+      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.saveChoosesLocationAndName",
+      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.saveCancelWritesNothing",
+      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.overwriteNeedsConfirmation",
+      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.overwriteCannotBeSkippedByApp",
+      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.acceptIsDisplayFilterOnly",
+      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.tooLargeFileIsDisabled",
+      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.secondRequestIsBusy",
+      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.panelTimeIsNotTimed",
+      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.handleSaveWritesBack",
+      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.saveWithoutHandleAsksUser",
+      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.changedFileIsRejected",
+      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.renamedFileIsRejectedAndNotRecreated",
+      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.deletedFileIsRejectedAndNotRecreated",
+      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.handleInvalidAfterWindowClosed",
+      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.panelClosesWithWindow",
+      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.requestEndsWithWindowClosed",
+      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.lateSaveNeverWrites",
+      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.keyboardOpen",
+      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.keyboardSaveAndReplace",
+      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.escInsideReplaceReturnsToBrowse",
+      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.tabStaysInsidePanel",
+      "[host-filesystem] 检查项未通过或缺失：hostFilesystem.focusReturnsToWindow",
+      "[host-filesystem] 检查组异常：Esc 没有退回保存面板：{\"first\":{\"ok\":true,\"value\":{\"name\":\"hostcap-kb.txt\",\"version\":\"1794620503553:2\",\"handle\":\"aa9fd72f-d08f-4442-9d5f-be5eb736a7e9\"}},\"second\":{\"ok\":false,\"name\":\"DesktopError\",\"code\":\"FILE_CHANGED\",\"message\":\"“hostcap-kb.txt” 在选定之后出现了别的内容：没有覆盖它\"},\"keys\":[{\"type\":\"keydown\",\"key\":\"Enter\",\"target\":\"<input autocomplete=\\\"off\\\" data-fp-name=\\\"\\\" spellcheck=\\\"false\\\" type=\\\"text\\\" maxlength=\\\"255\\\">\",\"value\":\"hostcap-kb.txt\",\"location\":\"Macintosh HD › Users › prasenjit › Documents\",\"replace\":false,\"panel\":true},{\"type\":\"keyup\",\"key\":\"Enter\",\"target\":\"<input autocomplete=\\\"off\\\" data-fp-name=\\\"\\\" spellcheck=\\\"false\\\" type=\\\"text\\\" maxlength=\\\"255\\\">\",\"value\":\"hostcap-kb.txt\",\"location\":\"Macintosh HD › Users › prasenjit › Documents\",\"replace\":false,\"panel\":true},{\"type\":\"keydown\",\"key\":\"Enter\",\"target\":\"<input autocomplete=\\\"off\\\" data-fp-name=\\\"\\\" spellcheck=\\\"false\\\" type=\\\"text\\\" maxlength=\\\"255\\\">\",\"value\":\"hostcap-kb.txt\",\"location\":\"Macintosh HD › Users › prasenjit › Documents\",\"replace\":false,\"panel\":true},{\"type\":\"keyup\",\"key\":\"Enter\",\"target\":\"<input autocomplete=\\\"off\\\" data-fp-name=\\\"\\\" spellcheck=\\\"false\\\" type=\\\"text\\\" maxlength=\\\"255\\\">\",\"value\":\"hostcap-kb.txt\",\"location\":\"Macintosh HD › Users › prasenjit › Documents\",\"replace\":false,\"panel\":true}],\"focus\":\"<aiao-orbit style=\\\"display: block; width: 100%; height: 100%; min-height: 0px;\\\"></aiao-orbit>\"}（groups/host-filesystem.mjs:564）"
+    ],
+    "stale": []
+  },
+  "passed": false,
+  "clean": false
+}

@@ -1,0 +1,13 @@
+{
+  "entries": [],
+  "environment": {
+    "channel": "chrome"
+  },
+  "error": "TypeError: Cannot read properties of undefined (reading 'launch')",
+  "format": "aiao-desktop.chrome-entry-provenance",
+  "measuredAt": "2026-11-14T11:21:14.418Z",
+  "method": "Fresh temporary headless Google Chrome; service workers blocked; raw response body",
+  "pageErrors": [],
+  "passed": false,
+  "version": 1
+}

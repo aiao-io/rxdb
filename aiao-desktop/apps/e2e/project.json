@@ -1,0 +1,198 @@
+{
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "implicitDependencies": [
+    "aiao-desktop-web",
+    "orbit"
+  ],
+  "name": "aiao-desktop-e2e",
+  "projectType": "application",
+  "sourceRoot": "aiao-desktop/apps/e2e/src",
+  "tags": [
+    "scope:aiao-desktop",
+    "type:e2e"
+  ],
+  "targets": {
+    "e2e": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        {
+          "projects": [
+            "aiao-desktop-web"
+          ],
+          "target": "build"
+        },
+        {
+          "projects": [
+            "orbit"
+          ],
+          "target": "build"
+        }
+      ],
+      "options": {
+        "cwd": "aiao-desktop/apps/e2e",
+        "command": "node src/smoke.mjs"
+      }
+    },
+    "e2e-firefox": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        {
+          "projects": [
+            "aiao-desktop-web"
+          ],
+          "target": "build"
+        },
+        {
+          "projects": [
+            "orbit"
+          ],
+          "target": "build"
+        }
+      ],
+      "options": {
+        "cwd": "aiao-desktop/apps/e2e",
+        "command": "node src/smoke.mjs --engine=firefox"
+      }
+    },
+    "e2e-webkit": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        {
+          "projects": [
+            "aiao-desktop-web"
+          ],
+          "target": "build"
+        },
+        {
+          "projects": [
+            "orbit"
+          ],
+          "target": "build"
+        }
+      ],
+      "options": {
+        "cwd": "aiao-desktop/apps/e2e",
+        "command": "node src/smoke.mjs --engine=webkit"
+      }
+    },
+    "e2e-fixtures": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        {
+          "projects": [
+            "aiao-desktop-web"
+          ],
+          "target": "build"
+        },
+        {
+          "projects": [
+            "orbit"
+          ],
+          "target": "build"
+        }
+      ],
+      "options": {
+        "cwd": "aiao-desktop/apps/e2e",
+        "command": "node src/smoke.mjs --group=fixtures"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [],
+      "options": {
+        "cwd": "aiao-desktop/apps/e2e",
+        "command": "node --test \"src/**/*.spec.mjs\""
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "aiao-desktop/apps/e2e",
+        "command": "eslint . --max-warnings=0"
+      }
+    },
+    "verify-aiao-code": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [
+        {
+          "projects": [
+            "aiao-desktop-web"
+          ],
+          "target": "build"
+        }
+      ],
+      "options": {
+        "cwd": "aiao-desktop/apps/e2e",
+        "command": "node src/verify-aiao-code.mjs"
+      }
+    },
+    "verify-keyboard": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [
+        {
+          "projects": [
+            "aiao-desktop-web"
+          ],
+          "target": "build"
+        }
+      ],
+      "options": {
+        "cwd": "aiao-desktop/apps/e2e",
+        "command": "node src/verify-keyboard.mjs"
+      }
+    },
+    "verify-saltline": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [
+        {
+          "projects": [
+            "aiao-desktop-web"
+          ],
+          "target": "build"
+        }
+      ],
+      "options": {
+        "cwd": "aiao-desktop/apps/e2e",
+        "command": "node src/verify-saltline.mjs"
+      }
+    },
+    "compare-initial": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [
+        {
+          "projects": [
+            "aiao-desktop-web"
+          ],
+          "target": "build"
+        }
+      ],
+      "options": {
+        "cwd": "aiao-desktop/apps/e2e",
+        "command": "node src/compare-initial.mjs"
+      }
+    },
+    "benchmark-smoke": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [],
+      "options": {
+        "cwd": "aiao-desktop/apps/e2e",
+        "command": "node src/benchmark-smoke.mjs"
+      }
+    },
+    "verify-domains": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [],
+      "options": {
+        "cwd": "aiao-desktop/apps/e2e",
+        "command": "node src/verify-domains.mjs"
+      }
+    }
+  }
+}

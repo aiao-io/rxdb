@@ -1,0 +1,126 @@
+{
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "name": "aiao-desktop-web",
+  "prefix": "app",
+  "projectType": "application",
+  "sourceRoot": "aiao-desktop/apps/web/src",
+  "tags": ["scope:aiao-desktop", "type:app", "layer:ui", "angular-app"],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "allowedCommonJsDependencies": ["ms"],
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "aiao-desktop/apps/web/public"
+          },
+          {
+            "glob": "**/*",
+            "input": "node_modules/@vivari/core/dist/assets",
+            "output": "assets"
+          },
+          {
+            "glob": "wa-sqlite*.wasm",
+            "input": "node_modules/@subframe7536/sqlite-wasm/dist",
+            "output": "sqlite-wasm"
+          }
+        ],
+        "browser": "aiao-desktop/apps/web/src/main.ts",
+        "inlineStyleLanguage": "scss",
+        "outputPath": "dist/aiao-desktop/apps/web",
+        "styles": ["aiao-desktop/apps/web/src/styles.scss", "node_modules/@xterm/xterm/css/xterm.css"],
+        "tsConfig": "aiao-desktop/apps/web/tsconfig.app.json",
+        "define": {
+          "import.meta.env.DEV": "false"
+        }
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "maximumWarning": "1.3mb",
+              "maximumError": "1.5mb",
+              "type": "initial"
+            },
+            {
+              "type": "anyComponentStyle",
+              "maximumWarning": "4kb",
+              "maximumError": "8kb"
+            }
+          ],
+          "outputHashing": "all",
+          "optimization": {
+            "fonts": {
+              "inline": false
+            },
+            "styles": {
+              "inlineCritical": false
+            }
+          }
+        },
+        "development": {
+          "optimization": false,
+          "extractLicenses": false,
+          "sourceMap": true,
+          "define": {
+            "import.meta.env.DEV": "true"
+          }
+        }
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "aiao-desktop/apps/web",
+        "command": "eslint . --max-warnings=0"
+      }
+    },
+    "serve": {
+      "continuous": true,
+      "readyWhen": {
+        "signal": true
+      },
+      "executor": "@angular/build:dev-server",
+      "defaultConfiguration": "development",
+      "configurations": {
+        "production": {
+          "buildTarget": "aiao-desktop-web:build:production"
+        },
+        "development": {
+          "buildTarget": "aiao-desktop-web:build:development",
+          "headers": {
+            "Cross-Origin-Opener-Policy": "same-origin",
+            "Cross-Origin-Embedder-Policy": "require-corp"
+          }
+        }
+      },
+      "dependsOn": [
+        {
+          "projects": ["aiao-desktop"],
+          "target": "dev-ports"
+        }
+      ],
+      "options": {
+        "port": 4410
+      }
+    },
+    "serve-static": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": {
+        "command": "node aiao-desktop/apps/web/tools/serve-static.mjs",
+        "parallel": false,
+        "env": {
+          "PORT": "4411"
+        }
+      },
+      "readyWhen": {
+        "url": "http://127.0.0.1:4411"
+      }
+    }
+  }
+}

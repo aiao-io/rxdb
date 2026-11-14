@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2560" height="1600" viewBox="0 0 2560 1600" fill="none">
+<defs>
+<linearGradient id="sky" x1="1600" y1="0" x2="1200" y2="1600" gradientUnits="userSpaceOnUse"><stop stop-color="#363282"/><stop offset=".5" stop-color="#9563ba"/><stop offset="1" stop-color="#f9a5ba"/></linearGradient>
+<linearGradient id="sun" x1="2250" y1="0" x2="1100" y2="1100" gradientUnits="userSpaceOnUse"><stop stop-color="#ffcdaf"/><stop offset=".4" stop-color="#ff7c8d"/><stop offset="1" stop-color="#cc3b83"/></linearGradient>
+<linearGradient id="rose" x1="2100" y1="300" x2="700" y2="1500" gradientUnits="userSpaceOnUse"><stop stop-color="#ffb8ae"/><stop offset=".44" stop-color="#ee638d"/><stop offset="1" stop-color="#941a73"/></linearGradient>
+<linearGradient id="purple" x1="1900" y1="600" x2="600" y2="1800" gradientUnits="userSpaceOnUse"><stop stop-color="#f39cbc"/><stop offset=".38" stop-color="#ad409e"/><stop offset=".73" stop-color="#512874"/><stop offset="1" stop-color="#2a2860"/></linearGradient>
+<linearGradient id="blue" x1="1900" y1="800" x2="700" y2="2000" gradientUnits="userSpaceOnUse"><stop stop-color="#ad83d2"/><stop offset=".32" stop-color="#6957b4"/><stop offset=".6" stop-color="#303a8f"/><stop offset="1" stop-color="#101d4e"/></linearGradient>
+<linearGradient id="edge" x1="2200" y1="900" x2="1200" y2="1700" gradientUnits="userSpaceOnUse"><stop stop-color="#d2b6e8"/><stop offset=".28" stop-color="#8e82d0"/><stop offset="1" stop-color="#333c83"/></linearGradient>
+<filter id="soft"><feGaussianBlur stdDeviation="24"/></filter>
+</defs>
+<path fill="url(#sky)" d="M0 0h2560v1600H0z"/>
+<path fill="url(#sun)" d="M750 1600C860 1030 1180 690 1640 520c420-155 680-290 920-520v1600Z"/>
+<path fill="url(#rose)" d="M0 1600c390-160 620-620 1100-740 730-182 955-235 1460-600v1340Z"/>
+<path fill="#ffd2be" opacity=".4" filter="url(#soft)" d="M0 1600c520-340 700-605 1170-720 680-165 995-270 1390-550v70c-430 290-700 375-1370 560C700 1095 500 1410 190 1600Z"/>
+<path fill="url(#purple)" d="M0 1600v-220c370-40 690-295 1140-360 690-100 1000-165 1420-460v1040Z"/>
+<path fill="url(#blue)" d="M0 1600v-80c390-140 790-265 1280-285 650-27 990-120 1280-355v720Z"/>
+<path fill="url(#edge)" d="M790 1600c440-230 840-140 1180-210 260-55 430-145 590-270v480Z"/>
+</svg>

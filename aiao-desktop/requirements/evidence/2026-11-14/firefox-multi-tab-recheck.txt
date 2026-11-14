@@ -1,0 +1,31 @@
+
+> nx run aiao-desktop-e2e:e2e-firefox --args=--group=multi-tab --parallel=1 --report=/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/aiao-desktop/requirements/evidence/2026-11-14/firefox-multi-tab-recheck.json
+
+aiao-desktop-e2e: (node:21552) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-desktop-e2e: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-desktop-e2e: 目标消失后保存诊断 {"toast":" “gone-rename.txt” can’t be saved because it was moved, renamed or deleted. Your changes are still in this window. ","history":["“gone-trash.txt” can’t be saved because it was moved, renamed or deleted. Your changes are still in this window.","“gone-rename.txt” can’t be saved because it was moved, renamed or deleted. Your changes are still in this window."],"active":"<div contenteditable=\"true\" data-te-doc=\"\" spellcheck=\"false\" class=\"te-doc selectable\">B-late-edit</div>","text":"B-late-edit","title":"gone-erase.txt — Edited"}
+aiao-desktop-e2e: [multi-tab] 同步耗时(毫秒)：{"AC3 文件夹出现在 B":16,"AC7 三页收敛":21,"AC4 外观":607,"AC5 B 打开读到新内容":123,"AC8 B 的窗口出现内容 1":54,"AC8 A 的窗口出现内容 2":161,"AC1 第 1 轮两边一致":291,"AC1 第 2 轮两边一致":208,"AC1 第 3 轮两边一致":209,"AC1 第 4 轮两边一致":294,"AC1 第 5 轮两边一致":350,"AC6 终端文件出现在 B/C（含扫描周期）":662,"AC6 B 打开终端文件":186,"AC9 抹掉磁盘后 B 收敛":3,"AC10 备忘录出现在 B":4,"后台标签页恢复可见后收敛":2,"Dock 固定项出现在 B":2}
+aiao-desktop-e2e: ✗ multi-tab  77.7s
+aiao-desktop-e2e: 检查组 1 个，总耗时 77.7s（引擎 firefox，并行 1）
+aiao-desktop-e2e: {"multiTab":{"folderAppearsInFinder":true,"folderAppearsOnDesktop":true,"threePagesConverge":true,"appearanceSyncs":true,"appearanceSurvivesReload":true,"savedFileReadableInOtherTab":true,"openWindowFollowsOtherTabSave":true,"lastWriteWinsWithoutPrompt":true,"sameFileConvergesWithoutReload":true,"sameFileSavesStaySafe":true,"sameFileConsistentAfterReload":true,"bothTerminalsStart":true,"terminalFileReachesOtherTab":true,"terminalFileOpensInOtherTab":true,"closingOneTerminalKeepsOther":true,"terminalRestartsAfterReload":true,"terminalFilesInDatabase":true,"terminalsWriteSameFile":true,"tabsConvergeAfterFailedSaves":true,"saveFailsAfterTrash":true,"saveFailsAfterRename":true,"saveFailsAfterErase":false,"failedSaveKeepsWindowContent":false,"failedSaveCreatesNothing":true,"databaseIntactAfterFailedSaves":true,"noteAppearsInOtherTab":true,"backgroundTabConverges":true,"dockPinSyncs":true,"dockRunStateStaysLocal":true}}
+aiao-desktop-e2e: 冒烟失败：
+aiao-desktop-e2e:   [multi-tab] 检查项未通过或缺失：multiTab.saveFailsAfterErase
+aiao-desktop-e2e:   [multi-tab] 检查项未通过或缺失：multiTab.failedSaveKeepsWindowContent
+
+
+
+ NX   Running target e2e-firefox for project aiao-desktop-e2e failed
+
+Failed tasks:
+
+- aiao-desktop-e2e:e2e-firefox
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      1m 20s
+  Critical path:     1m 19s (1 task)
+  Recoverable time:  <1ms
+
+  Recommendations:
+    - Speed up or split the longest tasks on the critical path:
+        aiao-desktop-e2e:e2e-firefox    1m 19s

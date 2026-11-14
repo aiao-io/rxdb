@@ -1,0 +1,100 @@
+.webapp-support {
+  flex-shrink: 0;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--sep);
+  background: var(--win);
+  color: var(--txt);
+  font-size: 12px;
+  line-height: 1.4;
+}
+/* 集成应用的窗口内容：Orbit 容器铺满标题栏以下，加载 / 失败面板与激活层叠在它上面。 */
+.webapp {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: var(--win);
+}
+.webapp-stage {
+  position: absolute;
+  inset: 0;
+}
+/* 拖动与缩放窗口时 iframe 不截走指针事件，否则指针一进应用内容区就丢了跟踪。 */
+.win.drag .webapp-stage,
+.win.rsz .webapp-stage {
+  pointer-events: none;
+}
+.webapp-status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px;
+  text-align: center;
+  background: var(--win);
+  color: var(--txt);
+  font-size: 13px;
+}
+.webapp-status h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.webapp-status p {
+  margin: 0;
+  max-width: 440px;
+  color: var(--txt-2);
+  line-height: 1.45;
+}
+.webapp-icon {
+  width: 64px;
+  height: 64px;
+}
+.webapp-spinner {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2.2px solid var(--fill-2);
+  border-top-color: var(--txt-3);
+  animation: spin 0.7s linear infinite;
+}
+.webapp-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.webapp-actions a.btn {
+  color: inherit;
+  text-decoration: none;
+}
+/* 后台窗口的激活层：盖住应用，首次点击只激活窗口。 */
+.webapp-shield {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+/* 透明窗口的拖动层（D-14）：形状由应用上报，挖空处的指针直达应用；盖在激活层之上，后台窗口也能直接拖。 */
+.webapp-drag {
+  position: absolute;
+  z-index: 3;
+}
+/* 窗口里的提示条：未声明的能力、参数非法、超时。盖在激活层与拖动层之上，不拦截指针。 */
+.webapp-notice {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  z-index: 4;
+  max-width: calc(100% - 32px);
+  padding: 7px 14px;
+  border-radius: 9px;
+  background: rgba(30, 30, 34, 0.92);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
+  transform: translateX(-50%);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+}

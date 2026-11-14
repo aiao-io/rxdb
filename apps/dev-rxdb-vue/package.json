@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@aiao/code-editor-vue": "workspace:*",
+    "@aiao/orbit": "workspace:*",
     "@aiao/rxdb": "workspace:*",
     "@aiao/rxdb-adapter-sqlite-wasm": "workspace:*",
     "@aiao/rxdb-client-generator": "workspace:*",
@@ -32,7 +33,7 @@
     "@aiao/rxdb-vue": "workspace:*",
     "@aiao/utils": "workspace:*",
     "@lucide/vue": "^1.70.0",
-    "@modules/wujie": "workspace:*",
+    "@modules/orbit": "workspace:*",
     "@tanstack/vue-virtual": "^3.13.52",
     "@vueuse/rxjs": "^15.0.0",
     "ag-grid-community": "^36.3.0",
