@@ -213,6 +213,9 @@ services:
     working_dir: /app
     command: ['node', 'scripts/start-node.mjs']
     stop_grace_period: 240s
+    env_file:
+      - path: ./platform.env
+        required: false
     environment:
       MEDIA_PUBLIC_ORIGIN: https://${MEDIA_PUBLIC_HOST}
       MEDIA_DATA_DIRECTORY: /data
@@ -220,7 +223,6 @@ services:
       MEDIA_SUPABASE_ANON_KEY: ${ANON_KEY}
       MEDIA_SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
       MEDIA_INSTALLATION_BOOTSTRAP_SECRET: ${MEDIA_INSTALLATION_BOOTSTRAP_SECRET:?}
-      ALLOWED_PROVIDER_BASE_URLS: '["https://api.pengdevs.com","https://api.minimax.cn/v1","https://api.minimax.io/v1","https://api.minimaxi.com/v1"]'
     volumes:
       - ./api:/app:ro
       - ../data/relay:/data

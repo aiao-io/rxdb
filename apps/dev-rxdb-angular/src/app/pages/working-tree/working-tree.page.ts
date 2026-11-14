@@ -232,7 +232,7 @@ export default class WorkingTreePage implements OnInit {
         readonly entity: string;
         readonly entityId: string;
       }
-    | { readonly kind: 'commit'; readonly commitId: string }
+    | { readonly kind: 'commit'; readonly entry: CommitLogEntry }
     | { readonly kind: 'branch'; readonly branchId: string }
     | { readonly kind: 'worktree'; readonly worktreeId: string }
     | null
@@ -599,7 +599,7 @@ export default class WorkingTreePage implements OnInit {
       { id: 'sep-2', label: '', separator: true },
       { id: 'copy-commit', label: 'Copy Commit ID' }
     );
-    this.$contextMenuTarget.set({ kind: 'commit', commitId: request.target.commitId });
+    this.$contextMenuTarget.set({ kind: 'commit', entry: request.target });
     this.$contextMenu.set({ x: request.event.clientX, y: request.event.clientY, items });
   }
 
@@ -622,7 +622,7 @@ export default class WorkingTreePage implements OnInit {
       return;
     }
     if (item.id === 'copy-commit') {
-      void this.copyText(target.kind === 'commit' ? target.commitId : '');
+      void this.copyText(target.kind === 'commit' ? target.entry.commitId : '');
       return;
     }
     if (target.kind === 'worktree') {
@@ -645,11 +645,7 @@ export default class WorkingTreePage implements OnInit {
       return;
     }
     if (target.kind !== 'commit') return;
-    // 右键不选中行（GitHub Desktop 同款），按右键目标 id 从已读历史里找回条目。
-    const commits = this.tree.listCommitsState();
-    if (commits.phase !== 'success' && commits.phase !== 'empty') return;
-    const entry = commits.value.entries.find(candidate => candidate.commitId === target.commitId) ?? null;
-    if (entry === null) return;
+    const entry = target.entry;
     if (item.id === 'restore') void this.restoreEntry(entry);
     else if (item.id === 'create-branch') void this.openCreateBranch(entry, 'commit');
   }

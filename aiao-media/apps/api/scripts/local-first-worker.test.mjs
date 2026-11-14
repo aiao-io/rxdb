@@ -41,6 +41,20 @@ test('后台路径加载独立管理产物并禁止缓存', async () => {
   assert.equal(response.headers.get('cache-control'), 'no-store');
 });
 
+test('后台深链接和刷新仍加载后台入口，脚本与 SQL 保持原路径', async () => {
+  const assets = { fetch: request => new Response(new URL(request.url).pathname) };
+  for (const route of ['users', 'templates', 'policies', 'tasks', 'audit']) {
+    const response = await worker.fetch(new Request(`${origin}/admin/${route}`), { ...env, ASSETS: assets });
+    assert.equal(await response.text(), '/admin/index.html', route);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    assert.match(response.headers.get('content-security-policy'), /frame-ancestors 'none'/);
+  }
+  for (const path of ['/admin/main.js', '/admin/styles.css', '/admin/new-project.sql']) {
+    const response = await worker.fetch(new Request(`${origin}${path}`), { ...env, ASSETS: assets });
+    assert.equal(await response.text(), path);
+  }
+});
+
 test('未知 API 返回 404，普通页面走静态资源', async () => {
   assert.equal((await worker.fetch(new Request(`${origin}/api/auth/session`), env)).status, 404);
   const page = await worker.fetch(new Request(`${origin}/providers`), env);

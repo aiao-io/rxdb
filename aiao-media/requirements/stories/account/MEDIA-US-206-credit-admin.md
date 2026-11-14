@@ -2,11 +2,11 @@
 id: MEDIA-US-206
 product: aiao-media
 title: 后台积分管理
-status: In Progress
+status: In Review
 priority: High
 epic: MEDIA-EPIC-003
 created: 2026-11-13
-updated: 2026-11-13
+updated: 2026-11-14
 dependsOn: [MEDIA-US-201, MEDIA-US-203]
 tags: [credits, admin, platform, billing]
 ---
@@ -45,7 +45,7 @@ tags: [credits, admin, platform, billing]
 | 2   | 用户 A 有余额          | 管理员增加/减少积分并填写原因  | 余额即时更新，用户端可见变化；流水记录完整                                     | ✅   |
 | 3   | 并发调整或余额不足     | 重复提交、扣减到负余额         | 服务端原子执行；负余额被拒；重复提交不双扣                                     | ✅   |
 | 4   | 匿名/普通用户/伪造角色 | 调用积分管理接口               | 仅有效管理员可操作；流水不可篡改；日志与响应无凭据                             | ✅   |
-| 5   | 海外与国内自建部署就绪 | 分别发放并生成                 | 同一积分契约：账本、发放与消费两侧一致                                         | ⬜   |
+| 5   | 海外与国内自建部署就绪 | 分别发放并生成                 | 同一积分契约：账本、发放与消费两侧一致                                         | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过。
 
@@ -59,7 +59,7 @@ tags: [credits, admin, platform, billing]
 
 ## 技术笔记
 
-2026-11-13 已完成积分账本、后台发放/回收、用户余额与流水及权限校验。AC1–4 通过 PGlite、真实本地 Supabase Auth/PostgreSQL 与 UI 单测验证，包含真实并发幂等、负余额保护、RLS 和即时撤权，见[交付证据](../../plans/credits-delivery-20261113.md)。生成消费已接入 MEDIA-US-109/108 的同一账本，登录、确认扣费、释放与本人流水通过本地浏览器验收，见[平台接线记录](../../plans/platform-relay-credits-20261113.md)；AC5 需要正式海外与国内分别发放并生成，故事保持 In Progress。账本与生成消费同源；管理员授权与审计沿用 [MEDIA-US-203](MEDIA-US-203-business-admin.md)。供应商策略管理随 D-19 移除，不进入本故事范围。
+2026-11-13 已完成积分账本、后台发放/回收、用户余额与流水及权限校验。AC1–4 通过 PGlite、真实本地 Supabase Auth/PostgreSQL 与 UI 单测验证，包含真实并发幂等、负余额保护、RLS 和即时撤权，见[交付证据](../../plans/credits-delivery-20261113.md)。生成消费已接入 MEDIA-US-109/108 的同一账本，登录、确认扣费、释放与本人流水通过本地浏览器验收，见[平台接线记录](../../plans/platform-relay-credits-20261113.md)；2026-11-14 海外与国内已分别完成真实后台发放 5、回收 1、同 requestId 重放、三画幅各消费 1，并回收最后 1 积分；普通用户/跨站返回 403、负余额返回 402，余额与预占归零。AC5 通过，全部 5 条 AC 已验，故事进入 In Review，见[双区域真实积分与三画幅验收](../../plans/requirements-completion-20261114.md#双区域真实积分与三画幅验收)。本轮临时管理员已撤权且实测管理 API 返回 403；原管理员不变。账本与生成消费同源；管理员授权与审计沿用 [MEDIA-US-203](MEDIA-US-203-business-admin.md)。供应商策略管理随 D-19 移除，不进入本故事范围。
 
 ## 实现文件
 

@@ -155,7 +155,7 @@ const contextMenuTarget = ref<
       readonly entity: string;
       readonly entityId: string;
     }
-  | { readonly kind: 'commit'; readonly commitId: string }
+  | { readonly kind: 'commit'; readonly entry: CommitLogEntry }
   | { readonly kind: 'branch'; readonly branchId: string }
   | null
 >(null);
@@ -460,7 +460,7 @@ function openCommitContextMenu(request: WorkingTreeContextMenuRequest<CommitLogE
     { id: 'sep-2', label: '', separator: true },
     { id: 'copy-commit', label: 'Copy Commit ID' }
   );
-  contextMenuTarget.value = { kind: 'commit', commitId: request.target.commitId };
+  contextMenuTarget.value = { kind: 'commit', entry: request.target };
   contextMenu.value = { x: request.event.clientX, y: request.event.clientY, items };
 }
 
@@ -483,7 +483,7 @@ function handleContextMenuSelect(item: WorkingTreeContextMenuItem): void {
     return;
   }
   if (item.id === 'copy-commit') {
-    void copyText(target.kind === 'commit' ? target.commitId : '');
+    void copyText(target.kind === 'commit' ? target.entry.commitId : '');
     return;
   }
   if (target.kind === 'branch') {
@@ -498,11 +498,7 @@ function handleContextMenuSelect(item: WorkingTreeContextMenuItem): void {
     return;
   }
   if (target.kind !== 'commit') return;
-  // 右键不选中行（GitHub Desktop 同款），按右键目标 id 从已读历史里找回条目。
-  const commits = tree.listCommitsState.value;
-  if (commits.phase !== 'success' && commits.phase !== 'empty') return;
-  const entry = commits.value.entries.find(candidate => candidate.commitId === target.commitId) ?? null;
-  if (entry === null) return;
+  const entry = target.entry;
   if (item.id === 'restore') void restoreEntry(entry);
   else if (item.id === 'create-branch') void openCreateBranch(entry, 'commit');
 }

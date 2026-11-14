@@ -74,7 +74,7 @@
           "sourceMap": true
         }
       },
-      "dependsOn": ["aiao-media:prompt-assets", "aiao-media:prepare-assets", "aiao-media:auth-config"]
+      "dependsOn": ["^build", "aiao-media:prompt-assets", "aiao-media:prepare-assets", "aiao-media:auth-config"]
     },
     "serve": {
       "continuous": true,
