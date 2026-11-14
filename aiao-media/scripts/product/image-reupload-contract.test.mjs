@@ -282,8 +282,10 @@ test('准备应答丢失后预览仍指向已删除前版本，后继版本删�
 });
 
 test('另一设备复用 canonical 版本时仍绑定其请求号，不能把该重试意图挪给另一来源', async () => {
-  const r = await deletedFixture(), other = await deletedFixture();
-  const canonical = await prepare(r), retryRequest = crypto.randomUUID();
+  const r = await deletedFixture(),
+    other = await deletedFixture();
+  const canonical = await prepare(r),
+    retryRequest = crypto.randomUUID();
   assert.deepEqual(await prepare(r, retryRequest), canonical);
   await assert.rejects(prepare(other, retryRequest), { code: '22023' });
 });

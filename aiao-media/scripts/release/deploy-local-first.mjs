@@ -13,8 +13,7 @@ try {
 } catch (error) {
   if (error.code !== 'ENOENT') throw error;
 }
-const configured =
-  process.env.AIAO_RELAY_PROVIDER_BASE_URLS ?? local.AIAO_RELAY_PROVIDER_BASE_URLS ?? '';
+const configured = process.env.AIAO_RELAY_PROVIDER_BASE_URLS ?? local.AIAO_RELAY_PROVIDER_BASE_URLS ?? '';
 const allowed = [
   ...new Set(
     configured

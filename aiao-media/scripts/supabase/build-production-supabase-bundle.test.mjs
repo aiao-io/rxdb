@@ -8,6 +8,7 @@ import {
   buildProductionBundle,
   emptyPublicGuard,
   productionSources,
+  buildProductionUpgrade as productionUpgrade,
   schemaMarker,
   schemaVersion
 } from './build-production-supabase-bundle.mjs';
@@ -246,5 +247,147 @@ test('已有站点必须由原管理员接入，不能用安装向导添加新�
   } finally {
     await db.close();
     await rm(directory, { recursive: true, force: true });
+  }
+});
+
+async function historicalProject(version) {
+  const db = await supabaseProject();
+  for (const relativePath of productionSources) {
+    const number = Number(/\/(\d{3})-[^/]+\.sql$/.exec(relativePath)?.[1] ?? 0);
+    if (relativePath.startsWith('aiao-media/') && number > version) continue;
+    await db.exec(await readFile(resolve(repositoryRoot, relativePath), 'utf8'));
+  }
+  await db.exec(`COMMENT ON SCHEMA media_private IS 'aiao-media schema ${version}';`);
+  return db;
+}
+
+test('生产增量包只含单事务与源摘要，先校验版本再执行迁移', async () => {
+  for (const [name, fromVersion, toVersion] of [
+    ['installation', 10, 11],
+    ['credits', 11, 13],
+    ['image-lifecycle', 13, 16]
+  ]) {
+    const bundle = await productionUpgrade(name);
+    assert.equal(bundle.fromVersion, fromVersion);
+    assert.equal(bundle.toVersion, toVersion);
+    assert.equal((bundle.sql.match(/^BEGIN;$/gm) ?? []).length, 1);
+    assert.equal((bundle.sql.match(/^COMMIT;$/gm) ?? []).length, 1);
+    assert.ok(bundle.sql.indexOf('aiao_media_upgrade_guard') < bundle.sql.indexOf('CREATE'));
+    for (const source of bundle.sources) assert.ok(bundle.sql.includes(`sha256=${source.digest}`));
+  }
+  await assert.rejects(productionUpgrade('unknown'), /Unknown production upgrade/);
+});
+
+test('已有 schema 10 可按顺序升级至 16，重放保留原图记录、工作区与积分余额', async () => {
+  const db = await historicalProject(10);
+  const user = crypto.randomUUID();
+  const workspace = crypto.randomUUID();
+  const object = crypto.randomUUID();
+  try {
+    await db.query('INSERT INTO auth.users VALUES ($1)', [user]);
+    await db.query('INSERT INTO public.media_workspaces (id,owner_id,request_id) VALUES ($1,$2,$3)', [
+      workspace,
+      user,
+      crypto.randomUUID()
+    ]);
+    await db.query('INSERT INTO storage.objects (id,bucket_id,name,owner) VALUES ($1,$2,$3,$4)', [
+      object,
+      'aiao-media-images',
+      `${user}/${workspace}/${crypto.randomUUID()}/${'a'.repeat(64)}.png`,
+      user
+    ]);
+    await db.query(
+      'INSERT INTO public.media_sync_records ("workspaceId","sourceId",kind,payload,"createdBy","updatedBy") VALUES ($1,$2,$3,$4,$5,$5)',
+      [
+        workspace,
+        crypto.randomUUID(),
+        'draft',
+        JSON.stringify({
+          version: 1,
+          state: {
+            document: {
+              type: 'doc',
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: '升级前草稿' }] }]
+            },
+            fields: [],
+            values: {}
+          }
+        }),
+        user
+      ]
+    );
+    const metadata = (await db.query('SELECT * FROM public.media_sync_records')).rows;
+    const before = (await db.query('SELECT * FROM storage.objects')).rows;
+    const workspaces = (await db.query('SELECT * FROM public.media_workspaces')).rows;
+    for (const name of ['installation', 'credits', 'image-lifecycle']) {
+      const { sql, toVersion } = await productionUpgrade(name);
+      await apply(db, sql);
+      if (name === 'installation')
+        await db.query('INSERT INTO public.media_installation_state (admin_id) VALUES ($1)', [user]);
+      if (name === 'credits') await db.query('INSERT INTO public.media_credit_accounts VALUES ($1,9,0)', [user]);
+      await apply(db, sql);
+      assert.equal(await schemaComment(db), `aiao-media schema ${toVersion}`);
+    }
+    assert.deepEqual((await db.query('SELECT * FROM storage.objects')).rows, before);
+    assert.deepEqual((await db.query('SELECT * FROM public.media_sync_records')).rows, metadata);
+    assert.equal((await db.query('SELECT admin_id FROM public.media_installation_state')).rows[0].admin_id, user);
+    assert.deepEqual((await db.query('SELECT * FROM public.media_workspaces')).rows, workspaces);
+    assert.deepEqual((await db.query('SELECT balance,reserved FROM public.media_credit_accounts')).rows, [
+      { balance: 9, reserved: 0 }
+    ]);
+    assert.equal(
+      (await db.query("SELECT relrowsecurity FROM pg_class WHERE oid = 'public.media_file_records'::regclass")).rows[0]
+        .relrowsecurity,
+      true
+    );
+    const { sql } = await productionUpgrade('credits');
+    await assert.rejects(apply(db, sql), refusal(/schema version/));
+    assert.equal(await schemaComment(db), 'aiao-media schema 16');
+    assert.equal((await db.query('SELECT balance FROM public.media_credit_accounts')).rows[0].balance, 9);
+  } finally {
+    await db.close();
+  }
+});
+
+test('缺失、未知或更高 schema 拒绝增量包，不覆盖版本或写入新表', async () => {
+  const db = await historicalProject(10);
+  try {
+    const { sql } = await productionUpgrade('credits');
+    for (const marker of [null, 'unknown', 'aiao-media schema 10', 'aiao-media schema 16', 'aiao-media schema 99']) {
+      await db.exec(`COMMENT ON SCHEMA media_private IS ${marker === null ? 'NULL' : `'${marker}'`};`);
+      await assert.rejects(apply(db, sql), refusal(/schema version/));
+      assert.equal(await schemaComment(db), marker);
+      assert.equal((await db.query("SELECT to_regclass('public.media_credit_accounts') AS name")).rows[0].name, null);
+    }
+  } finally {
+    await db.close();
+  }
+});
+
+test('增量中途失败时回滚所有 DDL 和版本，保留旧业务数据', async () => {
+  const db = await historicalProject(11);
+  try {
+    await db.exec('CREATE TABLE public.media_credit_ledger (wrong_column text)');
+    await db.exec("INSERT INTO public.media_credit_ledger VALUES ('kept')");
+    const { sql } = await productionUpgrade('credits');
+    await assert.rejects(apply(db, sql));
+    assert.equal(await schemaComment(db), 'aiao-media schema 11');
+    assert.equal((await db.query("SELECT to_regclass('public.media_credit_accounts') AS name")).rows[0].name, null);
+    assert.deepEqual((await db.query('SELECT * FROM public.media_credit_ledger')).rows, [{ wrong_column: 'kept' }]);
+  } finally {
+    await db.close();
+  }
+});
+
+test('版本标记匹配但缺少产品基础表时拒绝升级，不创建空的积分库', async () => {
+  const db = await supabaseProject();
+  try {
+    await db.exec("CREATE SCHEMA media_private; COMMENT ON SCHEMA media_private IS 'aiao-media schema 11';");
+    const { sql } = await productionUpgrade('credits');
+    await assert.rejects(apply(db, sql), refusal(/required product tables/));
+    assert.equal(await schemaComment(db), 'aiao-media schema 11');
+    assert.equal((await db.query("SELECT to_regclass('public.media_credit_accounts') AS name")).rows[0].name, null);
+  } finally {
+    await db.close();
   }
 });

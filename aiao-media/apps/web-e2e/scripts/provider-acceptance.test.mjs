@@ -194,7 +194,10 @@ test('非法、空或重复选择在任何请求前拒绝，选择范围不改�
   const settings = liveSettings(config);
   const selected = {
     ...settings,
-    selection: acceptanceSelection({ AIAO_MEDIA_ACCEPTANCE_MODES: 'platform', AIAO_MEDIA_ACCEPTANCE_ASPECTS: 'portrait' })
+    selection: acceptanceSelection({
+      AIAO_MEDIA_ACCEPTANCE_MODES: 'platform',
+      AIAO_MEDIA_ACCEPTANCE_ASPECTS: 'portrait'
+    })
   };
   assert.equal(
     attemptPath('/tmp/acceptance', settings, 'platform', 'portrait'),
@@ -423,8 +426,14 @@ test('尝试身份包含发布、origin、平台模型和画幅，轮换账号�
   const settings = liveSettings(config);
   const path = attemptPath('/tmp/acceptance', settings, 'platform', 'square');
   assert.match(path, /^\/tmp\/acceptance\/[a-f0-9]{64}\.json$/);
-  assert.equal(path, attemptPath('/tmp/acceptance', { ...settings, password: 'rotated-platform-password' }, 'platform', 'square'));
-  assert.notEqual(path, attemptPath('/tmp/acceptance', { ...settings, model: 'other-public-model' }, 'platform', 'square'));
+  assert.equal(
+    path,
+    attemptPath('/tmp/acceptance', { ...settings, password: 'rotated-platform-password' }, 'platform', 'square')
+  );
+  assert.notEqual(
+    path,
+    attemptPath('/tmp/acceptance', { ...settings, model: 'other-public-model' }, 'platform', 'square')
+  );
   assert.notEqual(path, attemptPath('/tmp/acceptance', settings, 'platform', 'portrait'));
   assert.notEqual(
     path,
@@ -432,7 +441,12 @@ test('尝试身份包含发布、origin、平台模型和画幅，轮换账号�
   );
   assert.notEqual(
     path,
-    attemptPath('/tmp/acceptance', { ...settings, release: '92883918-76ac-47de-a424-4bc5af23bee0' }, 'platform', 'square')
+    attemptPath(
+      '/tmp/acceptance',
+      { ...settings, release: '92883918-76ac-47de-a424-4bc5af23bee0' },
+      'platform',
+      'square'
+    )
   );
 });
 
@@ -444,7 +458,8 @@ test('平台接单验收不允许用户直连或携带供应商地址', () => {
 test('正式验收只向平台任务发送公开模型和单张参数', () => {
   const settings = liveSettings(config);
   assert.deepEqual(generationDispatch(settings, 'platform', { size: '1536x1024' }, '测试'), {
-    url: `${settings.origin}/api/relay/tasks/`, method: 'PUT',
+    url: `${settings.origin}/api/relay/tasks/`,
+    method: 'PUT',
     body: { model: 'standard', prompt: '测试', n: 1, size: '1536x1024' }
   });
 });

@@ -59,7 +59,6 @@ jobs:
           pnpm nx run aiao-media-api:test --output-style=static
           pnpm nx run aiao-media-api:relay-test --output-style=static
           pnpm nx run aiao-media-api:script-test --output-style=static
-          pnpm nx run aiao-media-api:deploy-check --output-style=static
           pnpm nx run aiao-media-desktop:desktop-check --output-style=static
           pnpm nx run aiao-media-desktop:desktop-test --output-style=static
       - name: Verify unit and real browser data coverage
@@ -77,7 +76,9 @@ jobs:
       - name: Verify real local product services and browser behavior
         run: pnpm nx run-many -t product-test product-e2e supabase-e2e -p aiao-media aiao-media-e2e --parallel=1 --output-style=static
       - name: Verify production artifacts
-        run: pnpm nx run aiao-media:deploy-check --output-style=static
+        run: |
+          pnpm nx run aiao-media:deploy-check --output-style=static
+          pnpm nx run aiao-media-api:deploy-check --output-style=static
       - name: Stop application test services
         if: ${{ always() }}
         run: |

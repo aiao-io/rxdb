@@ -1,9 +1,4 @@
-import {
-  imageMetadata,
-  openRelayResult,
-  relayResultKey,
-  validatePlatformModels
-} from '@aiao-media/api-contracts';
+import { imageMetadata, openRelayResult, relayResultKey, validatePlatformModels } from '@aiao-media/api-contracts';
 import { chromium, expect, request as playwrightRequest } from '@playwright/test';
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -79,7 +74,12 @@ export function failureCode(error) {
     ['RESULT_CAPTURE_DUPLICATE', 'RESULT_CAPTURE_DUPLICATE'],
     ['GENERATION_REQUEST_BOUNDARY', 'GENERATION_REQUEST_BOUNDARY'],
     ['RESULT_SIZE_MISMATCH', 'RESULT_SIZE_MISMATCH'],
-    ...['PLATFORM_MODEL_UNAVAILABLE', 'PLATFORM_CREDITS_UNAVAILABLE', 'PLATFORM_CREDIT_MISMATCH', 'PLATFORM_LOGIN_REQUIRED'].map(code => [code, code])
+    ...[
+      'PLATFORM_MODEL_UNAVAILABLE',
+      'PLATFORM_CREDITS_UNAVAILABLE',
+      'PLATFORM_CREDIT_MISMATCH',
+      'PLATFORM_LOGIN_REQUIRED'
+    ].map(code => [code, code])
   ]);
   if (codes.has(error?.message)) return codes.get(error.message);
   if (error?.name === 'TimeoutError') return 'BROWSER_TIMEOUT';
@@ -148,7 +148,10 @@ export function liveSettings(env) {
   );
   requireCheck(/^[a-zA-Z0-9._-]{1,80}$/.test(env.AIAO_MEDIA_ACCEPTANCE_MODEL_ID ?? ''), 'INVALID_MODEL');
   requireCheck(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(env.AIAO_MEDIA_ACCEPTANCE_EMAIL ?? ''), 'PLATFORM_LOGIN_REQUIRED');
-  requireCheck(typeof env.AIAO_MEDIA_ACCEPTANCE_PASSWORD === 'string' && env.AIAO_MEDIA_ACCEPTANCE_PASSWORD.length > 0, 'PLATFORM_LOGIN_REQUIRED');
+  requireCheck(
+    typeof env.AIAO_MEDIA_ACCEPTANCE_PASSWORD === 'string' && env.AIAO_MEDIA_ACCEPTANCE_PASSWORD.length > 0,
+    'PLATFORM_LOGIN_REQUIRED'
+  );
   return {
     selection: acceptanceSelection(env),
     origin: env.AIAO_MEDIA_ACCEPTANCE_ORIGIN,
@@ -164,14 +167,7 @@ export function liveSettings(env) {
 export function attemptPath(directory, settings, mode, aspect) {
   return resolve(
     directory,
-    fingerprint([
-      settings.origin,
-      settings.release,
-      settings.manifestSha256,
-      settings.model,
-      mode,
-      aspect
-    ]) + '.json'
+    fingerprint([settings.origin, settings.release, settings.manifestSha256, settings.model, mode, aspect]) + '.json'
   );
 }
 
@@ -328,7 +324,8 @@ async function runAttempt(browser, settings, directory, mode, ratio) {
 export function generationDispatch(settings, mode, ratio, prompt) {
   requireCheck(mode === 'platform', 'INVALID_ACCEPTANCE_SELECTION');
   return {
-    url: `${settings.origin}/api/relay/tasks/`, method: 'PUT',
+    url: `${settings.origin}/api/relay/tasks/`,
+    method: 'PUT',
     body: { model: settings.model, prompt, n: 1, size: ratio.size }
   };
 }
@@ -426,48 +423,91 @@ async function platformLogin(page, settings) {
   await dialog.getByRole('button', { name: '关闭账号窗口' }).click();
   const token = await page.evaluate(() => {
     const url = globalThis.__AIAO_SUPABASE_CONFIG__?.url;
-    return JSON.parse(localStorage.getItem(`aiao-media-supabase-session-v1:${encodeURIComponent(url)}`) ?? 'null')?.access_token;
+    return JSON.parse(localStorage.getItem(`aiao-media-supabase-session-v1:${encodeURIComponent(url)}`) ?? 'null')
+      ?.access_token;
   });
   requireCheck(typeof token === 'string' && token.length > 0, 'PLATFORM_LOGIN_REQUIRED');
   return token;
 }
 async function platformCredits(page, token) {
   const receipt = await page.evaluate(async token => {
-    const response = await fetch('/api/credits', { headers: { authorization: `Bearer ${token}` }, credentials: 'omit', cache: 'no-store', redirect: 'error', referrerPolicy: 'no-referrer' });
+    const response = await fetch('/api/credits', {
+      headers: { authorization: `Bearer ${token}` },
+      credentials: 'omit',
+      cache: 'no-store',
+      redirect: 'error',
+      referrerPolicy: 'no-referrer'
+    });
     return response.ok ? response.json() : null;
   }, token);
-  requireCheck(Number.isSafeInteger(receipt?.account?.balance) && Array.isArray(receipt.entries), 'PLATFORM_CREDITS_UNAVAILABLE');
+  requireCheck(
+    Number.isSafeInteger(receipt?.account?.balance) && Array.isArray(receipt.entries),
+    'PLATFORM_CREDITS_UNAVAILABLE'
+  );
   return receipt;
 }
 async function verifyCase(browser, settings, mode, ratio, file, record) {
   record.stage = 'browser-context';
-  const context = await browser.newContext({ baseURL: settings.origin, acceptDownloads: true, serviceWorkers: 'block', viewport: { width: 1440, height: 1100 } });
+  const context = await browser.newContext({
+    baseURL: settings.origin,
+    acceptDownloads: true,
+    serviceWorkers: 'block',
+    viewport: { width: 1440, height: 1100 }
+  });
   try {
     await settings.setupContext?.(context);
     const text = `平台正式验收：${ratio.aspect} 蓝色森林`;
-    const dispatch = generationDispatch(settings, mode, ratio, text), endpoint = dispatch.url;
-    let relayTask = null, sessionToken = '';
-    await context.addInitScript(installFetchCapture, { generationUrl: endpoint, generationResult: { prefix: endpoint, suffix: '/result' }, pageOrigin: settings.origin, generationLimit: 24 * 1024 * 1024, resultLimit: 16 * 1024 * 1024, timeoutMs: 190000 });
+    const dispatch = generationDispatch(settings, mode, ratio, text),
+      endpoint = dispatch.url;
+    let relayTask = null,
+      sessionToken = '';
+    await context.addInitScript(installFetchCapture, {
+      generationUrl: endpoint,
+      generationResult: { prefix: endpoint, suffix: '/result' },
+      pageOrigin: settings.origin,
+      generationLimit: 24 * 1024 * 1024,
+      resultLimit: 16 * 1024 * 1024,
+      timeoutMs: 190000
+    });
     const page = await context.newPage();
     page.setDefaultTimeout(30000);
     const responses = new Map();
     page.on('response', response => responses.set(response.url(), response));
-    const session = await context.newCDPSession(page), network = observeResultNetwork(session);
-    await session.send('Network.enable'); await session.send('Audits.enable');
+    const session = await context.newCDPSession(page),
+      network = observeResultNetwork(session);
+    await session.send('Network.enable');
+    await session.send('Audits.enable');
     await context.route('**/*', async route => {
       const request = route.request();
       const generation = request.method() === 'PUT' && request.url().startsWith(endpoint);
-      const forbidden = request.method() === 'POST' && /\/(?:api\/relay|images\/generations|image_generation)$/.test(new URL(request.url()).pathname);
+      const forbidden =
+        request.method() === 'POST' &&
+        /\/(?:api\/relay|images\/generations|image_generation)$/.test(new URL(request.url()).pathname);
       if (!generation && !forbidden) return route.fallback();
       record.generationRequests++;
-      const headers = await request.allHeaders(), body = request.postDataJSON();
+      const headers = await request.allHeaders(),
+        body = request.postDataJSON();
       const task = { id: request.url().slice(endpoint.length), token: headers['x-relay-task-token'] ?? '' };
-      const valid = generation && record.generationRequests === 1 && /^[0-9a-f-]{36}$/.test(task.id) && /^[A-Za-z0-9_-]{43}$/.test(task.token) && headers.authorization === `Bearer ${sessionToken}` && !headers.cookie && !headers['x-provider-base'] && body && Object.keys(body).length === Object.keys(dispatch.body).length && Object.entries(dispatch.body).every(([key, value]) => body[key] === value);
-      if (!valid) { record.requestBoundaryFailed = true; return route.abort('blockedbyclient'); }
+      const valid =
+        generation &&
+        record.generationRequests === 1 &&
+        /^[0-9a-f-]{36}$/.test(task.id) &&
+        /^[A-Za-z0-9_-]{43}$/.test(task.token) &&
+        headers.authorization === `Bearer ${sessionToken}` &&
+        !headers.cookie &&
+        !headers['x-provider-base'] &&
+        body &&
+        Object.keys(body).length === Object.keys(dispatch.body).length &&
+        Object.entries(dispatch.body).every(([key, value]) => body[key] === value);
+      if (!valid) {
+        record.requestBoundaryFailed = true;
+        return route.abort('blockedbyclient');
+      }
       relayTask = task;
       return route.fallback();
     });
-    record.stage = 'platform-login'; sessionToken = await platformLogin(page, settings);
+    record.stage = 'platform-login';
+    sessionToken = await platformLogin(page, settings);
     record.stage = 'model-catalog';
     const catalog = await page.evaluate(async () => {
       const response = await fetch('/api/models', { credentials: 'omit', cache: 'no-store', redirect: 'error' });
@@ -482,37 +522,86 @@ async function verifyCase(browser, settings, mode, ratio, file, record) {
     record.stage = 'build-manifest';
     const manifest = await page.request.get('/offline-manifest.json');
     requireCheck(manifest.ok(), 'BUILD_MANIFEST_UNAVAILABLE');
-    requireCheck(createHash('sha256').update(await manifest.body()).digest('hex') === settings.manifestSha256, 'DEPLOYED_MANIFEST_MISMATCH');
-    record.stage = 'draft-setup'; await prompt(page, text);
+    requireCheck(
+      createHash('sha256')
+        .update(await manifest.body())
+        .digest('hex') === settings.manifestSha256,
+      'DEPLOYED_MANIFEST_MISMATCH'
+    );
+    record.stage = 'draft-setup';
+    await prompt(page, text);
     await page.locator('#selected-model').selectOption(settings.model);
-    record.stage = 'aspect-selection'; await page.getByRole('button', { name: ratio.label, exact: true }).click();
-    const generated = page.waitForResponse(response => response.request().method() === 'PUT' && response.url().startsWith(endpoint), { timeout: 210000 });
+    record.stage = 'aspect-selection';
+    await page.getByRole('button', { name: ratio.label, exact: true }).click();
+    const generated = page.waitForResponse(
+      response => response.request().method() === 'PUT' && response.url().startsWith(endpoint),
+      { timeout: 210000 }
+    );
     generated.catch(() => undefined);
-    record.phase = 'dispatching'; record.stage = 'generation-dispatch'; await persist(file, record);
+    record.phase = 'dispatching';
+    record.stage = 'generation-dispatch';
+    await persist(file, record);
     await page.getByRole('button', { name: '✧ 生成图片' }).click();
     record.stage = 'generation-response';
-    const response = await generated; record.generationStatus = response.status();
-    const original = await originalBytes(page, response, responses, network, settings.origin, record, model.protocol, relayTask);
+    const response = await generated;
+    record.generationStatus = response.status();
+    const original = await originalBytes(
+      page,
+      response,
+      responses,
+      network,
+      settings.origin,
+      record,
+      model.protocol,
+      relayTask
+    );
     record.stage = 'local-save';
     await expect(page.getByText('已保存到本机', { exact: true })).toBeVisible({ timeout: 210000 });
     requireCheck(!record.requestBoundaryFailed && record.generationRequests === 1, 'GENERATION_REQUEST_BOUNDARY');
     record.stage = 'credit-settlement';
-    const after = await platformCredits(page, sessionToken), entries = after.entries.filter(entry => entry.source === 'generation' && entry.request_id === relayTask.id);
-    requireCheck(before.account.balance - after.account.balance === model.credits && entries.length === 1 && entries[0].delta === -model.credits, 'PLATFORM_CREDIT_MISMATCH');
-    record.credits = { before: before.account.balance, after: after.account.balance, cost: model.credits, taskId: relayTask.id, ledgerEntries: entries.length };
-    record.stage = 'library-open'; await page.goto('/images');
+    const after = await platformCredits(page, sessionToken),
+      entries = after.entries.filter(entry => entry.source === 'generation' && entry.request_id === relayTask.id);
+    requireCheck(
+      before.account.balance - after.account.balance === model.credits &&
+        entries.length === 1 &&
+        entries[0].delta === -model.credits,
+      'PLATFORM_CREDIT_MISMATCH'
+    );
+    record.credits = {
+      before: before.account.balance,
+      after: after.account.balance,
+      cost: model.credits,
+      taskId: relayTask.id,
+      ledgerEntries: entries.length
+    };
+    record.stage = 'library-open';
+    await page.goto('/images');
     const card = page.locator('.library-card').filter({ hasText: text });
     await expect(card.getByAltText('本机生成作品')).toBeVisible();
-    record.stage = 'library-reload'; await page.reload();
+    record.stage = 'library-reload';
+    await page.reload();
     await expect(card.getByAltText('本机生成作品')).toBeVisible();
     record.stage = 'exact-download';
     const sha256 = await verifyImageDownload(page, card, original.bytes);
-    record.image = { sha256, bytes: original.bytes.length, ...imageMetadata(original.bytes), delivery: original.delivery, credentialFreeResultRequest: original.credentialFree, exactDownloadAfterReload: true };
+    record.image = {
+      sha256,
+      bytes: original.bytes.length,
+      ...imageMetadata(original.bytes),
+      delivery: original.delivery,
+      credentialFreeResultRequest: original.credentialFree,
+      exactDownloadAfterReload: true
+    };
     const [width, height] = ratio.size.split('x').map(Number);
-    record.stage = 'result-size'; requireCheck(record.image.width === width && record.image.height === height, 'RESULT_SIZE_MISMATCH');
-    record.phase = 'verified'; record.stage = 'verified'; record.finishedAt = new Date().toISOString();
-    await persist(file, record); return record;
-  } finally { await context.close(); }
+    record.stage = 'result-size';
+    requireCheck(record.image.width === width && record.image.height === height, 'RESULT_SIZE_MISMATCH');
+    record.phase = 'verified';
+    record.stage = 'verified';
+    record.finishedAt = new Date().toISOString();
+    await persist(file, record);
+    return record;
+  } finally {
+    await context.close();
+  }
 }
 
 export async function runProviderAcceptance(settings, directory, setupContext) {

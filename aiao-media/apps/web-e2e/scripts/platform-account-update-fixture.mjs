@@ -5,7 +5,13 @@ import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { buildOfflineAssets } from '../../web/scripts/build-offline-assets.mjs';
 import { importBackup, profile, verifyImageDownload } from '../src/local-first.helpers.ts';
-import { createArtifactServer, defaultUpdateSeed, readReleaseArtifact, sha256, verifySavedSettings } from './actual-release-update.mjs';
+import {
+  createArtifactServer,
+  defaultUpdateSeed,
+  readReleaseArtifact,
+  sha256,
+  verifySavedSettings
+} from './actual-release-update.mjs';
 
 const application = resolve(import.meta.dirname, '../../web');
 const config = { url: 'https://account-update.example.test', anonKey: 'sb_publishable_update_fixture' };

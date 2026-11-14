@@ -68,7 +68,8 @@ const env = {
       const file = resolve(root, `.${extname(pathname) ? pathname : '/index.html'}`);
       if (relative(root, file).startsWith('..')) return new Response(null, { status: 404 });
       const contents = await readFile(file);
-      const body = pathname === '/offline-manifest.json' && changedManifest ?
+      const body =
+        pathname === '/offline-manifest.json' && changedManifest ?
           Buffer.concat([contents, Buffer.from('\n')])
         : contents;
       return new Response(body, {
@@ -79,7 +80,10 @@ const env = {
 };
 const server = createServer(async (request, response) => {
   try {
-    const result = await worker.fetch(new Request(new URL(request.url, settings.origin), { headers: request.headers }), env);
+    const result = await worker.fetch(
+      new Request(new URL(request.url, settings.origin), { headers: request.headers }),
+      env
+    );
     response.writeHead(result.status, Object.fromEntries(result.headers));
     response.end(Buffer.from(await result.arrayBuffer()));
   } catch {
@@ -108,7 +112,8 @@ async function setupContext(context) {
     }
   ]);
   await context.route('**/*', async route => {
-    const request = route.request(), url = new URL(request.url());
+    const request = route.request(),
+      url = new URL(request.url());
     if (url.origin === settings.origin || url.origin === platformAuthUrl) return route.fallback();
     assert.equal(url.origin, 'https://results.example.test');
     const headers = await request.allHeaders();
@@ -126,7 +131,12 @@ async function setupContext(context) {
     if (systemError) return { json: { base_resp: { status_code: 1033, status_msg: 'private fixture error' } } };
     if (incorrectSize) return { json: { data: [{ b64_json: wrongSize.toString('base64') }] } };
     if (protocol === 'minimax')
-      return { json: { base_resp: { status_code: 0 }, data: { image_base64: [pictures.get(body.size).jpeg.toString('base64')] } } };
+      return {
+        json: {
+          base_resp: { status_code: 0 },
+          data: { image_base64: [pictures.get(body.size).jpeg.toString('base64')] }
+        }
+      };
     return { json: { data: [{ url: `https://results.example.test/${body.size}.png` }] } };
   });
   relays.push(relay);
@@ -163,7 +173,10 @@ try {
   assert.deepEqual(await readdir(directory), filesBefore);
   assert.equal(generationCalls(), 3);
   changedManifest = false;
-  await writeFile(attemptPath(directory, settings, 'platform', 'square'), JSON.stringify({ ...records[0], phase: 'dispatching' }));
+  await writeFile(
+    attemptPath(directory, settings, 'platform', 'square'),
+    JSON.stringify({ ...records[0], phase: 'dispatching' })
+  );
   await assert.rejects(runProviderAcceptance(settings, directory, setupContext), /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/);
   const portrait = { ...settings, selection: acceptanceSelection({ AIAO_MEDIA_ACCEPTANCE_ASPECTS: 'portrait' }) };
   assert.equal((await runProviderAcceptance(portrait, directory, setupContext)).length, 1);
@@ -177,7 +190,10 @@ try {
     attemptPath(preflightDirectory, settings, 'platform', 'portrait'),
     JSON.stringify({ ...records[2], phase: 'requires-review' })
   );
-  await assert.rejects(runProviderAcceptance(settings, preflightDirectory, setupContext), /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/);
+  await assert.rejects(
+    runProviderAcceptance(settings, preflightDirectory, setupContext),
+    /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/
+  );
   assert.equal(generationCalls(), 3);
   incorrectSize = true;
   const failedDirectory = await temporaryDirectory('invalid-size');
@@ -187,7 +203,10 @@ try {
   assert.equal(failed.failureCode, 'RESULT_SIZE_MISMATCH');
   assert.equal(failed.assertionCode, 'NONE');
   assert.equal(generationCalls(), 4);
-  await assert.rejects(runProviderAcceptance(settings, failedDirectory, setupContext), /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/);
+  await assert.rejects(
+    runProviderAcceptance(settings, failedDirectory, setupContext),
+    /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/
+  );
   assert.equal(generationCalls(), 4);
   incorrectSize = false;
   protocol = 'minimax';
@@ -200,8 +219,13 @@ try {
   assert.equal(generationCalls(), 7);
   systemError = true;
   const nativeFailedDirectory = await temporaryDirectory('business-error');
-  await assert.rejects(runProviderAcceptance(settings, nativeFailedDirectory, setupContext), /ACCEPTANCE_STOPPED_REVIEW/);
-  const nativeFailed = JSON.parse(await readFile(attemptPath(nativeFailedDirectory, settings, 'platform', 'square'), 'utf8'));
+  await assert.rejects(
+    runProviderAcceptance(settings, nativeFailedDirectory, setupContext),
+    /ACCEPTANCE_STOPPED_REVIEW/
+  );
+  const nativeFailed = JSON.parse(
+    await readFile(attemptPath(nativeFailedDirectory, settings, 'platform', 'square'), 'utf8')
+  );
   assert.equal(nativeFailed.phase, 'requires-review');
   assert.equal(nativeFailed.failureCode, 'GENERATION_REJECTED_OR_UNCERTAIN');
   assert.equal(nativeFailed.generationRequests, 1);
@@ -209,11 +233,16 @@ try {
   assert.equal(generationCalls(), 8);
   assert.equal(relays.at(-1).account.balance, 1000);
   assert.equal(relays.at(-1).account.reserved, 0);
-  await assert.rejects(runProviderAcceptance(settings, nativeFailedDirectory, setupContext), /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/);
+  await assert.rejects(
+    runProviderAcceptance(settings, nativeFailedDirectory, setupContext),
+    /PREVIOUS_ATTEMPT_REQUIRES_REVIEW/
+  );
   assert.equal(generationCalls(), 8);
   assert.equal(resultRequests, 3);
   assert.equal(forbiddenBodyReads, 0);
-  console.log('平台 PNG/JPEG 三画幅、两种登录状态、积分结算与精确下载验收通过；产物变化、错误尺寸、业务错误和未知尝试均阻断重发。');
+  console.log(
+    '平台 PNG/JPEG 三画幅、两种登录状态、积分结算与精确下载验收通过；产物变化、错误尺寸、业务错误和未知尝试均阻断重发。'
+  );
 } finally {
   await new Promise(resolve => server.close(resolve));
 }

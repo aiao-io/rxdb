@@ -39,7 +39,11 @@ export async function setupPlatform(
     user
   };
   const state: PlatformFixture = existing ?? {
-    balance: options.balance ?? 1000, reserved: 0, entries: [], token, expiresAt: exp
+    balance: options.balance ?? 1000,
+    reserved: 0,
+    entries: [],
+    token,
+    expiresAt: exp
   };
   state.balance = options.balance ?? state.balance;
   accounts.set(context, state);
@@ -47,7 +51,9 @@ export async function setupPlatform(
     ({ session, url, signedIn }) => {
       const config = { url, anonKey: 'sb_publishable_generation_fixture' };
       Object.defineProperty(globalThis, '__AIAO_SUPABASE_CONFIG__', {
-        configurable: true, get: () => config, set: () => undefined
+        configurable: true,
+        get: () => config,
+        set: () => undefined
       });
       if (!signedIn || localStorage.getItem('platform-fixture-seeded')) return;
       localStorage.setItem(`aiao-media-supabase-session-v1:${encodeURIComponent(url)}`, JSON.stringify(session));
@@ -112,80 +118,84 @@ export async function taskFixture(
   await target.route('**/api/relay/tasks/**', async route => {
     const page = route.request().frame().page();
     try {
-    const request = route.request();
-    const [, id, action = ''] = /\/api\/relay\/tasks\/([^/?]+)(\/\w+)?/.exec(new URL(request.url()).pathname) ?? [];
-    const token = request.headers()['x-relay-task-token'];
-    let task = tasks.get(id);
-    if (request.method() === 'PUT') {
-      expect(request.headers()['authorization']).toBe(`Bearer ${account.token}`);
-      expect(request.headers()['x-provider-base']).toBeUndefined();
-      expect(request.postDataJSON()).toMatchObject({ model: platformModel.id, n: 1 });
-      if (abandoned.has(id)) return route.fulfill({ status: 409 });
-      if (task) return route.fulfill({ json: view(task) });
-      if (account.balance - account.reserved < platformModel.credits) return route.fulfill({ status: 402 });
-      calls++;
-      account.reserved += platformModel.credits;
-      task = {
-        id,
-        token,
-        status: 'dispatched',
-        upstreamStatus: null,
-        answer: null,
-        credit: 'reserved',
-        done: Promise.resolve()
-      };
-      tasks.set(id, task);
-      const active = task;
-      active.done = Promise.resolve().then(async () => {
-        const answer = await produce(request);
-        active.upstreamStatus = answer.failure ? null : (answer.status ?? 200);
-        active.status =
-          answer.failure || (answer.status ?? 200) >= 500 ? 'needs_review'
-          : (answer.status ?? 200) >= 400 ? 'rejected'
-          : 'received';
-        active.answer = answer.json;
-        if (active.status !== 'received') {
-          account.reserved -= platformModel.credits;
-          active.credit = 'released';
-        }
-      });
-      return route.fulfill({ status: 202, json: view(active) });
-    }
-    expect(request.headers()['authorization']).toBeUndefined();
-    if (action === '/abandon' && !task) {
-      abandoned.add(id);
-      return route.fulfill({ status: 404 });
-    }
-    if (!task || token !== task.token) return route.fulfill({ status: 404 });
-    if (action === '/result')
-      return route.fulfill({ body: await sealRelayAnswer(task, task.answer), contentType: 'application/octet-stream' });
-    if (action === '/confirm' || action === '/discard') {
-      if (task.credit === 'reserved') {
-        account.reserved -= platformModel.credits;
-        task.credit = action === '/confirm' ? 'charged' : 'released';
-        if (task.credit === 'charged') {
-          account.balance -= platformModel.credits;
-          account.entries.unshift({
-            id: account.entries.length + 1,
-            user_id: platformUserId,
-            actor_id: platformUserId,
-            request_id: id,
-            source: 'generation',
-            delta: -platformModel.credits,
-            balance_after: account.balance,
-            reason: '平台生成',
-            created_at: new Date().toISOString()
-          });
-        }
+      const request = route.request();
+      const [, id, action = ''] = /\/api\/relay\/tasks\/([^/?]+)(\/\w+)?/.exec(new URL(request.url()).pathname) ?? [];
+      const token = request.headers()['x-relay-task-token'];
+      let task = tasks.get(id);
+      if (request.method() === 'PUT') {
+        expect(request.headers()['authorization']).toBe(`Bearer ${account.token}`);
+        expect(request.headers()['x-provider-base']).toBeUndefined();
+        expect(request.postDataJSON()).toMatchObject({ model: platformModel.id, n: 1 });
+        if (abandoned.has(id)) return route.fulfill({ status: 409 });
+        if (task) return route.fulfill({ json: view(task) });
+        if (account.balance - account.reserved < platformModel.credits) return route.fulfill({ status: 402 });
+        calls++;
+        account.reserved += platformModel.credits;
+        task = {
+          id,
+          token,
+          status: 'dispatched',
+          upstreamStatus: null,
+          answer: null,
+          credit: 'reserved',
+          done: Promise.resolve()
+        };
+        tasks.set(id, task);
+        const active = task;
+        active.done = Promise.resolve().then(async () => {
+          const answer = await produce(request);
+          active.upstreamStatus = answer.failure ? null : (answer.status ?? 200);
+          active.status =
+            answer.failure || (answer.status ?? 200) >= 500 ? 'needs_review'
+            : (answer.status ?? 200) >= 400 ? 'rejected'
+            : 'received';
+          active.answer = answer.json;
+          if (active.status !== 'received') {
+            account.reserved -= platformModel.credits;
+            active.credit = 'released';
+          }
+        });
+        return route.fulfill({ status: 202, json: view(active) });
       }
+      expect(request.headers()['authorization']).toBeUndefined();
+      if (action === '/abandon' && !task) {
+        abandoned.add(id);
+        return route.fulfill({ status: 404 });
+      }
+      if (!task || token !== task.token) return route.fulfill({ status: 404 });
+      if (action === '/result')
+        return route.fulfill({
+          body: await sealRelayAnswer(task, task.answer),
+          contentType: 'application/octet-stream'
+        });
+      if (action === '/confirm' || action === '/discard') {
+        if (task.credit === 'reserved') {
+          account.reserved -= platformModel.credits;
+          task.credit = action === '/confirm' ? 'charged' : 'released';
+          if (task.credit === 'charged') {
+            account.balance -= platformModel.credits;
+            account.entries.unshift({
+              id: account.entries.length + 1,
+              user_id: platformUserId,
+              actor_id: platformUserId,
+              request_id: id,
+              source: 'generation',
+              delta: -platformModel.credits,
+              balance_after: account.balance,
+              reason: '平台生成',
+              created_at: new Date().toISOString()
+            });
+          }
+        }
+        return route.fulfill({ json: view(task) });
+      }
+      if (request.method() === 'DELETE') {
+        tasks.delete(id);
+        return route.fulfill({ status: 204 });
+      }
+      if (task.status === 'dispatched')
+        await Promise.race([task.done, new Promise(resolve => setTimeout(resolve, 100))]);
       return route.fulfill({ json: view(task) });
-    }
-    if (request.method() === 'DELETE') {
-      tasks.delete(id);
-      return route.fulfill({ status: 204 });
-    }
-    if (task.status === 'dispatched') await Promise.race([task.done, new Promise(resolve => setTimeout(resolve, 100))]);
-    return route.fulfill({ json: view(task) });
     } catch (error) {
       if (!page.isClosed()) throw error;
     }

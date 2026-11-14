@@ -24,11 +24,7 @@ import { SchemaNavigatorComponent } from './components/navigator/schema-navigato
 import { DesignerToolbarComponent } from './components/toolbar/designer-toolbar.component';
 import { handleKeydown, handleKeyup, type KeyboardContext, type SpaceHoldState } from './designer-keyboard';
 import { MODEL_DESIGNER_TRANSLATIONS } from './i18n';
-import {
-  AI_DRAWER_ADAPTER,
-  MODEL_DESIGNER_CONFIG,
-  type ViewMode
-} from './interfaces/designer.interface';
+import { AI_DRAWER_ADAPTER, MODEL_DESIGNER_CONFIG, type ViewMode } from './interfaces/designer.interface';
 import { AgentConversationRepository, AgentModelStore } from './services/agent-conversation-repository';
 import { AgentConversationService } from './services/agent-conversation.service';
 import { AiChatSessionService } from './services/ai-chat-session.service';

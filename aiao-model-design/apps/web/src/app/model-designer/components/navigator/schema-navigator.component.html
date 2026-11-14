@@ -3,11 +3,11 @@
 >
   <!-- Model Switcher：切换 / 新建 / 重命名模型设计（左侧唯一头部） -->
   <lib-model-switcher
-    [models]="models()"
     [activeId]="activeModelId()"
-    (modelSelected)="modelSelected.emit($event)"
+    [models]="models()"
     (modelCreated)="modelCreated.emit($event)"
     (modelRenamed)="modelRenamed.emit($event)"
+    (modelSelected)="modelSelected.emit($event)"
   />
 
   <!-- Entity Tree -->
@@ -21,21 +21,21 @@
             <details open>
               <summary
                 class="group/ns relative flex items-center gap-1 font-medium opacity-70"
-                data-testid="navigator-ns-summary"
                 [attr.data-namespace]="group.namespace"
                 [class.bg-primary/15]="dragOverNamespace() === group.namespace"
-                (dragover)="onFolderDragOver($event, group.namespace)"
                 (dragleave)="onFolderDragLeave($event)"
+                (dragover)="onFolderDragOver($event, group.namespace)"
                 (drop)="onFolderDrop($event, group.namespace)"
+                data-testid="navigator-ns-summary"
               >
                 <lucide-icon class="h-3.5 w-3.5 shrink-0" [img]="Folder" aria-hidden="true" />
                 <span class="flex-1 truncate">{{ group.namespace }}</span>
                 <button
-                  class="btn btn-ghost btn-xs btn-square min-h-11 min-w-11 shrink-0 opacity-0 transition-opacity group-hover/ns:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100 lg:min-h-0 lg:min-w-0"
-                  data-testid="navigator-ns-add"
+                  class="btn btn-ghost btn-xs btn-square min-h-11 min-w-11 shrink-0 opacity-0 transition-opacity group-hover/ns:opacity-100 focus-visible:opacity-100 lg:min-h-0 lg:min-w-0 pointer-coarse:opacity-100"
                   [attr.aria-label]="t().navigator.addEntityToNamespace.replace('{namespace}', group.namespace)"
                   [title]="t().navigator.addEntityToNamespace.replace('{namespace}', group.namespace)"
                   (click)="onAddEntityToNamespace($event, group.namespace)"
+                  data-testid="navigator-ns-add"
                   type="button"
                 >
                   <lucide-icon class="h-3.5 w-3.5" [img]="Plus" aria-hidden="true" />
@@ -45,23 +45,23 @@
                 @for (entity of group.entities; track entity.id) {
                   <li
                     class="group/entity relative"
-                    data-testid="navigator-entity-row"
                     [class.opacity-40]="draggedEntityId() === entity.id"
-                    draggable="true"
-                    (dragstart)="onDragStart($event, entity.id)"
                     (dragend)="onDragEnd()"
+                    (dragstart)="onDragStart($event, entity.id)"
+                    data-testid="navigator-entity-row"
+                    draggable="true"
                   >
                     @if (editingEntityId() === entity.id) {
                       <div class="flex min-h-11 items-center gap-1.5 px-2 lg:min-h-0">
                         <lucide-icon class="h-3.5 w-3.5 shrink-0 opacity-80" [img]="Table2" aria-hidden="true" />
                         <input
                           class="input input-bordered input-xs min-h-8 min-w-0 flex-1"
-                          data-testid="navigator-entity-rename-input"
                           [value]="editValue()"
+                          (blur)="commitEntityRename()"
                           (input)="editValue.set(asInputValue($event))"
                           (keydown.enter)="commitEntityRename()"
                           (keydown.escape)="cancelEntityRename()"
-                          (blur)="commitEntityRename()"
+                          data-testid="navigator-entity-rename-input"
                         />
                       </div>
                     } @else {
@@ -78,20 +78,20 @@
                       >
                         <button
                           class="btn btn-ghost btn-xs btn-square min-h-11 min-w-11 lg:min-h-0 lg:min-w-0"
-                          data-testid="navigator-entity-rename"
                           [attr.aria-label]="t().navigator.renameEntity"
                           [title]="t().navigator.renameEntity"
                           (click)="startEntityRename($event, entity)"
+                          data-testid="navigator-entity-rename"
                           type="button"
                         >
                           <lucide-icon class="h-4 w-4 lg:h-3 lg:w-3" [img]="Pencil" aria-hidden="true" />
                         </button>
                         <button
-                          class="btn btn-ghost btn-xs btn-square min-h-11 min-w-11 text-error lg:min-h-0 lg:min-w-0"
-                          data-testid="navigator-entity-delete"
+                          class="btn btn-ghost btn-xs btn-square text-error min-h-11 min-w-11 lg:min-h-0 lg:min-w-0"
                           [attr.aria-label]="t().navigator.deleteEntity"
                           [title]="t().navigator.deleteEntity"
                           (click)="onDeleteEntity($event, entity.id)"
+                          data-testid="navigator-entity-delete"
                           type="button"
                         >
                           <lucide-icon class="h-4 w-4 lg:h-3 lg:w-3" [img]="Trash2" aria-hidden="true" />

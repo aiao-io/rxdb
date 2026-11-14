@@ -14,8 +14,8 @@
 
   <span
     class="min-w-0 flex-1 truncate px-2 text-sm font-semibold"
-    data-testid="toolbar-entity-name"
     [title]="displayName()"
+    data-testid="toolbar-entity-name"
   >
     {{ displayName() }}
   </span>
@@ -97,7 +97,7 @@
   [attr.aria-label]="t().toolbar.ariaViewMode"
   role="toolbar"
 >
-  <span class="max-w-48 truncate px-1 text-sm font-semibold" data-testid="toolbar-entity-name" [title]="displayName()">
+  <span class="max-w-48 truncate px-1 text-sm font-semibold" [title]="displayName()" data-testid="toolbar-entity-name">
     {{ displayName() }}
   </span>
 

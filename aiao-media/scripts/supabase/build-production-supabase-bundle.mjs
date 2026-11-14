@@ -121,9 +121,9 @@ function withoutTransactionBoundaries(text) {
   return text.replace(transactionBoundary, '').trim();
 }
 
-export async function buildProductionBundle(output = outputDefault) {
-  const sources = await Promise.all(
-    productionSources.map(async relativePath => {
+async function loadSources(paths) {
+  return Promise.all(
+    paths.map(async relativePath => {
       const source = await readFile(resolve(repositoryRoot, relativePath), 'utf8');
       return {
         relativePath,
@@ -132,6 +132,75 @@ export async function buildProductionBundle(output = outputDefault) {
       };
     })
   );
+}
+
+/** 现有生产库只支持按发布顺序升级，同版本允许重放。 */
+export const productionUpgrades = [
+  { name: 'installation', fromVersion: 10, toVersion: 11, required: [] },
+  { name: 'credits', fromVersion: 11, toVersion: 13, required: ['public.media_installation_state'] },
+  {
+    name: 'image-lifecycle',
+    fromVersion: 13,
+    toVersion: 16,
+    required: ['public.media_credit_accounts', 'public.media_credit_reservations']
+  }
+];
+
+/** 生成带版本保护的独立事务，拒绝跳版本、未知库和旧包降级。 */
+export async function buildProductionUpgrade(name) {
+  const upgrade = productionUpgrades.find(value => value.name === name);
+  if (!upgrade) throw new Error('Unknown production upgrade');
+  const sources = await loadSources(
+    productionSources.filter(path => {
+      const version = Number(/\/(\d{3})-[^/]+\.sql$/.exec(path)?.[1] ?? 0);
+      return path.startsWith('aiao-media/') && version > upgrade.fromVersion && version <= upgrade.toVersion;
+    })
+  );
+  const required = [
+    'public.media_workspaces',
+    'public.media_sync_records',
+    'public.media_file_records',
+    ...upgrade.required
+  ];
+  const guard = `DO $aiao_media_upgrade_guard$
+DECLARE current_marker text;
+BEGIN
+  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('aiao-media-production-bootstrap', 0));
+  SELECT pg_catalog.obj_description(n.oid, 'pg_namespace') INTO current_marker
+    FROM pg_catalog.pg_namespace n WHERE n.nspname = 'media_private';
+  IF current_marker IS NULL OR current_marker <> ALL (ARRAY['aiao-media schema ${upgrade.fromVersion}', 'aiao-media schema ${upgrade.toVersion}']) THEN
+    RAISE EXCEPTION USING ERRCODE = '55006',
+      MESSAGE = 'Refusing production upgrade: schema version does not match',
+      DETAIL = COALESCE(current_marker, 'missing schema marker');
+  END IF;
+  IF EXISTS (SELECT 1 FROM unnest(ARRAY['${required.join("','")}']) AS required(name)
+    WHERE pg_catalog.to_regclass(required.name) IS NULL) THEN
+    RAISE EXCEPTION USING ERRCODE = '55006',
+      MESSAGE = 'Refusing production upgrade: required product tables are missing';
+  END IF;
+END
+$aiao_media_upgrade_guard$;`;
+  return {
+    ...upgrade,
+    sources,
+    sql: [
+      `-- Aiao Media production upgrade: ${name}, schema ${upgrade.fromVersion} -> ${upgrade.toVersion}.`,
+      ...sources.map(source => `-- SOURCE ${source.relativePath} sha256=${source.digest}`),
+      'BEGIN;',
+      "SET LOCAL lock_timeout = '5s';",
+      guard,
+      ...sources.map(
+        source => `-- BEGIN SOURCE ${source.relativePath}\n${source.sql}\n-- END SOURCE ${source.relativePath}`
+      ),
+      `COMMENT ON SCHEMA media_private IS 'aiao-media schema ${upgrade.toVersion}';`,
+      'COMMIT;',
+      ''
+    ].join('\n')
+  };
+}
+
+export async function buildProductionBundle(output = outputDefault) {
+  const sources = await loadSources(productionSources);
   const header = [
     '-- Aiao Media production Supabase bootstrap bundle.',
     '-- Generated locally; review the source digests and target project guard before execution.',

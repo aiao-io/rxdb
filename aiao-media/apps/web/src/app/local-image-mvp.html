@@ -764,8 +764,8 @@
             class="card library-card remote-card"
             [attr.aria-busy]="download?.status === 'loading' || preview?.status === 'loading'"
             [attr.data-source-id]="work.jobId"
-            (visibleChange)="remoteWorkVisible(work, $event)"
             [visibilityScope]="remotePreviewGeneration() + ':' + remoteImageDeleteState(work.jobId, work.sha256)"
+            (visibleChange)="remoteWorkVisible(work, $event)"
             appWorkVisible
           >
             <div class="card-photo">

@@ -29,15 +29,15 @@
 
 确认应答不明时保留原任务供幂等续接；本机保存失败仍保留可下载结果和服务端密文，刷新后取回同一任务。成功保存后才删除服务端结果与设备令牌。账号变化和双标签页仍受工作区生成锁约束。
 
-| Nx 入口 | 本地证据 |
-| --- | --- |
-| `aiao-media:coverage --args='--maxWorkers=2'` | 817 项通过；语句 88.96%、分支 82.68%、函数 92.12%、行 93.02% |
-| `run-many -t lint typecheck test -p aiao-media aiao-media-api aiao-media-e2e --parallel=1 --nxBail` | 33 个任务通过，21 个缓存命中；含服务端脚本、需求门禁与应用测试 |
-| `aiao-media-e2e:local-first-e2e` | 57/57 通过；含平台登录、零积分、成功结算与流水、HTTP 401/502、损坏图片释放、关页续接、三画幅、双标签页与保存失败恢复 |
-| `aiao-media-e2e:provider-acceptance-fixture` | OpenAI PNG 与 MiniMax JPEG 各三画幅；已登录与表单登录；每项单次 PUT、模型积分与单条流水、刷新后的原字节下载一致 |
-| `aiao-media-e2e:provider-acceptance-check` | 27 项通过；平台选择、公开模型参数、尝试身份、进程锁、未知记录阻断与响应捕获 |
-| `aiao-media-e2e:platform-account-update-fixture` | 旧 Service Worker 与 null 配置缓存仍在时，新 HTML 正确取得内容指纹配置；激活后离线原图、草稿与账号表单保留；远程请求 0 |
-| `aiao-media-e2e:public-origin-smoke-fixture`、`actual-release-update-check` | 本地公开四路由/完整性/离线烟测与更新控制器检查通过；不作为正式发布或真实 A→B→A 更新证据 |
+| Nx 入口                                                                                             | 本地证据                                                                                                               |
+| --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `aiao-media:coverage --args='--maxWorkers=2'`                                                       | 817 项通过；语句 88.96%、分支 82.68%、函数 92.12%、行 93.02%                                                           |
+| `run-many -t lint typecheck test -p aiao-media aiao-media-api aiao-media-e2e --parallel=1 --nxBail` | 33 个任务通过，21 个缓存命中；含服务端脚本、需求门禁与应用测试                                                         |
+| `aiao-media-e2e:local-first-e2e`                                                                    | 57/57 通过；含平台登录、零积分、成功结算与流水、HTTP 401/502、损坏图片释放、关页续接、三画幅、双标签页与保存失败恢复   |
+| `aiao-media-e2e:provider-acceptance-fixture`                                                        | OpenAI PNG 与 MiniMax JPEG 各三画幅；已登录与表单登录；每项单次 PUT、模型积分与单条流水、刷新后的原字节下载一致        |
+| `aiao-media-e2e:provider-acceptance-check`                                                          | 27 项通过；平台选择、公开模型参数、尝试身份、进程锁、未知记录阻断与响应捕获                                            |
+| `aiao-media-e2e:platform-account-update-fixture`                                                    | 旧 Service Worker 与 null 配置缓存仍在时，新 HTML 正确取得内容指纹配置；激活后离线原图、草稿与账号表单保留；远程请求 0 |
+| `aiao-media-e2e:public-origin-smoke-fixture`、`actual-release-update-check`                         | 本地公开四路由/完整性/离线烟测与更新控制器检查通过；不作为正式发布或真实 A→B→A 更新证据                                |
 
 平台验收 fixture 复用 `setupPlatform` 与 `taskFixture`，不修改构建后配置文件；外链原图请求无 Authorization、Cookie、Referer。产物摘要变化、错误尺寸、模型业务错误与未知尝试均停止，复跑不产生第二次生成。该 fixture 验证验收程序与应用集成；真实 Worker/SQLite DO/R2 由服务端套件覆盖，两层都不能替代正式 Cloudflare 验收。
 

@@ -153,15 +153,22 @@ test('后台按邮箱或账号查找用户，返回白名单字段并实时验�
   await assert.rejects(query('artist', other), { code: '42501' });
 });
 
-
 test('放弃先于迟到预占也会封存任务，已扣积分的结算不能回滚', async () => {
   const task = crypto.randomUUID();
-  const abort = id => rows('SELECT public.media_abort_credits($1,$2,$3,$4,$5) AS value', [owner, id, 1, 'a'.repeat(64), 'b'.repeat(64)]).then(result => result[0].value);
+  const abort = id =>
+    rows('SELECT public.media_abort_credits($1,$2,$3,$4,$5) AS value', [
+      owner,
+      id,
+      1,
+      'a'.repeat(64),
+      'b'.repeat(64)
+    ]).then(result => result[0].value);
   assert.equal((await abort(task)).state, 'released');
   assert.equal((await reserve(task, 1)).state, 'released');
   await assert.rejects(settle(task, true), { code: 'PT409' });
   const paid = crypto.randomUUID();
-  await reserve(paid, 1); await settle(paid, true);
+  await reserve(paid, 1);
+  await settle(paid, true);
   const before = await account();
   assert.equal((await abort(paid)).state, 'charged');
   assert.deepEqual(await account(), before);

@@ -4,6 +4,7 @@ import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { extname, relative, resolve } from 'node:path';
 import { parseEnv } from 'node:util';
 import { validateSupabaseAuthConfig } from '../../apps/web/src/app/supabase-auth-config.ts';
+import { buildProductionUpgrade, productionUpgrades } from '../supabase/build-production-supabase-bundle.mjs';
 const productRoot = resolve(import.meta.dirname, '../..');
 const webRoot = resolve(productRoot, 'apps/web');
 const output = resolve(webRoot, 'dist');
@@ -71,25 +72,11 @@ for (const required of [
   'browser/wa-sqlite/wa-sqlite-async.wasm'
 ])
   if (!inventory.some(file => file.path === required)) throw new Error(`Missing build resource: ${required}`);
-const creditUpgrade = await readFile(resolve(output, 'browser/admin/upgrade-credits.sql'), 'utf8');
-if (
-  (creditUpgrade.match(/^BEGIN;$/gm) ?? []).length !== 1 ||
-  (creditUpgrade.match(/^COMMIT;$/gm) ?? []).length !== 1 ||
-  !creditUpgrade.includes('FUNCTION public.media_abort_credits(') ||
-  !creditUpgrade.includes('FUNCTION public.media_reserve_credits(')
-)
-  throw new Error('Credit upgrade must atomically include reservation and abandonment migrations');
-const imageUpgrade = await readFile(resolve(output, 'browser/admin/upgrade-image-lifecycle.sql'), 'utf8');
-if (
-  (imageUpgrade.match(/^BEGIN;$/gm) ?? []).length !== 1 ||
-  (imageUpgrade.match(/^COMMIT;$/gm) ?? []).length !== 1 ||
-  !imageUpgrade.includes('FUNCTION public.media_image_upload_allowed(') ||
-  !imageUpgrade.includes('CREATE POLICY media_image_insert') ||
-  !imageUpgrade.includes('FUNCTION public.media_begin_image_delete(') ||
-  !imageUpgrade.includes('FUNCTION public.media_prepare_image_reupload(') ||
-  !imageUpgrade.includes('aiao-media schema 16')
-)
-  throw new Error('Image upgrade must atomically include tombstone and private Storage write protection');
+for (const { name } of productionUpgrades) {
+  const { sql } = await buildProductionUpgrade(name);
+  if ((await readFile(resolve(output, `browser/admin/upgrade-${name}.sql`), 'utf8')) !== sql)
+    throw new Error(`Production upgrade bundle does not match migration sources: ${name}`);
+}
 if (files.length > 20000) throw new Error('Free static asset count exceeded');
 await mkdir(resolve(webRoot, 'tmp/local-first'), { recursive: true });
 await writeFile(

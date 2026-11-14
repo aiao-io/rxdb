@@ -63,7 +63,7 @@
 
 ## 合并状态
 
-PR [#154](https://github.com/aiao-io/rxdb/pull/154) 为 OPEN/DRAFT、未合并；2026-11-11 已同步 main 并修复评审问题，当前与 main 仍有冲突（`gh pr view 154 --json mergeable` 为 CONFLICTING），须先重新同步 main，并在最新 head 的远程 CI 全绿（`gh pr checks 154`）后评审合并。七条 Done 按 D-11 在当前分支结项，评审与合并单独跟踪。
+PR [#154](https://github.com/aiao-io/rxdb/pull/154) 为 OPEN/DRAFT、未合并；2026-11-14 对提交 `839db327f` 的只读核对为 MERGEABLE，当前不再以 main 冲突作为阻塞。该 head 的远程 CI 仍失败，已定位格式检查、API dry-run 早于 Web 构建和传递依赖 tar 6 的安全审查问题；本地修复与增量 SQL 保护见[收口复验](plans/requirements-completion-20261114.md)。修复仍须提交后取得最新 head 的远程 CI 通过，再评审合并。七条 Done 按 D-11 在当前分支结项，评审与合并单独跟踪。
 
 ## 范围说明
 

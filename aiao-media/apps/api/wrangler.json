@@ -5,15 +5,7 @@
     "binding": "ASSETS",
     "html_handling": "none",
     "not_found_handling": "single-page-application",
-    "run_worker_first": [
-      "/",
-      "/create",
-      "/images",
-      "/providers",
-      "/api/*",
-      "/admin",
-      "/admin/*"
-    ]
+    "run_worker_first": ["/", "/create", "/images", "/providers", "/api/*", "/admin", "/admin/*"]
   },
   "compatibility_date": "2026-10-23",
   "durable_objects": {
@@ -63,21 +55,15 @@
   "migrations": [
     {
       "tag": "media-platform-v1",
-      "new_sqlite_classes": [
-        "PlatformCoordinator"
-      ]
+      "new_sqlite_classes": ["PlatformCoordinator"]
     },
     {
       "tag": "media-relay-v1",
-      "new_sqlite_classes": [
-        "RelayTask"
-      ]
+      "new_sqlite_classes": ["RelayTask"]
     },
     {
       "tag": "media-installation-v1",
-      "new_sqlite_classes": [
-        "Installation"
-      ]
+      "new_sqlite_classes": ["Installation"]
     }
   ],
   "name": "aiao-media",

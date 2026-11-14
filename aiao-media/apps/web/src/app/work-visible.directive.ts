@@ -1,8 +1,8 @@
 import {
   type AfterViewInit,
+  Directive,
   effect,
   type EffectRef,
-  Directive,
   ElementRef,
   inject,
   Injector,

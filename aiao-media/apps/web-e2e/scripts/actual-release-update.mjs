@@ -286,7 +286,10 @@ export async function verifySavedSettings(page, seed) {
   const backup = JSON.parse(backupText(await downloadBackup(page)));
   await expect(backup.providers).toContainEqual(seed.provider);
   requireCheck(backup.defaultId === seed.provider.id, 'LEGACY_SETTINGS_CHANGED');
-  requireCheck(backup.providers.every(provider => !Object.hasOwn(provider, 'key')), 'LEGACY_CREDENTIAL_EXPORTED');
+  requireCheck(
+    backup.providers.every(provider => !Object.hasOwn(provider, 'key')),
+    'LEGACY_CREDENTIAL_EXPORTED'
+  );
 }
 
 async function verifyOffline(context, page, artifact, seed, id, network) {

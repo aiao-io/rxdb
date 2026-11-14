@@ -87,6 +87,7 @@ overrides:
   fast-uri@3: ^3.1.8
   follow-redirects: ^1.16.2
   geojson-flatten>minimist: ^1.2.8
+  giget@1>tar: ^7.5.22
   handlebars@4: ^4.7.10
   image-size@2: ^2.0.3
   joi@17: ^17.13.8

@@ -1,7 +1,7 @@
-import { setupPlatform, taskFixture } from './platform-fixture';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { createHash, randomUUID } from 'node:crypto';
 import { importBackup, pngFixture, profile, verifyImageDownload } from './local-first.helpers';
+import { setupPlatform, taskFixture } from './platform-fixture';
 
 test.use({ viewport: { width: 1440, height: 1000 }, serviceWorkers: 'block' });
 test.setTimeout(90000);
