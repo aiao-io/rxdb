@@ -4,6 +4,7 @@ import { webcrypto } from 'node:crypto';
 import type { EventEmitter } from 'node:events';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ImageDeleteReview } from '../local-data/image-delete';
 import { ImageUploadQueue } from '../local-data/image-upload-queue';
 import { LocalMediaStore, type LocalWorkSummary } from '../local-data/index';
 import type { WorkspaceRegistryState } from '../local-data/workspace-registry';
@@ -870,6 +871,48 @@ describe('平台原图同步隔离', () => {
       ]);
     });
   }
+
+  it('远端图库每页最多 24 张，翻页不下载原图，离开图库释放预览', async () => {
+    const r = rig();
+    const work = await remoteWork();
+    const entries = Array.from({ length: 53 }, (_, index) => ({ ...work, jobId: `remote-${index}` }));
+    r.component.localWorksKnown.set(true);
+    r.component.syncedWorks.set(entries);
+    r.component.view.set('library');
+    expect(r.component.remoteLibraryPage().works).toEqual(entries.slice(0, 24));
+    r.component.remoteLibraryGo(2);
+    expect(r.component.remoteLibraryPage().works).toEqual(entries.slice(24, 48));
+    expect(fetch).not.toHaveBeenCalled();
+    r.component.remoteLibraryGo(3);
+    expect(r.component.remoteLibraryPage().works).toEqual(entries.slice(48));
+    r.component.syncedWorks.set(entries.slice(0, 25));
+    expect(r.component.remoteLibraryPage().page).toBe(2);
+  });
+
+  it('可见远端预览只占内存，停止同步后旧预览取消并释放迟到 URL', async () => {
+    const r = rig();
+    const work = await remoteWork();
+    const pending = deferred<{ url: string; mimeType: 'image/png' }>();
+    const preview = vi.fn(() => pending.promise);
+    Object.assign(r.component, { imageSyncController: vi.fn(async () => ({ preview })) });
+    connect(r.component, projects.a);
+    r.component.authUser.set({ id: userId, email: 'creator@example.test' });
+    r.component.syncInitialized.set(true);
+    r.component.localWorksKnown.set(true);
+    r.component.syncedWorks.set([work]);
+    r.component.view.set('library');
+    r.fixture.detectChanges();
+    expect(preview).not.toHaveBeenCalled();
+    r.component.remoteWorkVisible(work, true);
+    await vi.waitFor(() => expect(preview).toHaveBeenCalledOnce());
+    expect(r.component.remoteImagePreview(work)?.status).toBe('loading');
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await r.component.stopImageSync();
+    pending.resolve({ url: 'blob:stale-preview', mimeType: 'image/png' });
+    await vi.waitFor(() => expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:stale-preview'));
+    expect(r.store.saveResult).not.toHaveBeenCalled();
+    expect(r.component.remoteImagePreview(work)?.status).not.toBe('ready');
+  });
 
   it('自动上传顺序执行，全部结束后清除同步状态并保留失败计数', async () => {
     const r = rig();
@@ -2706,7 +2749,7 @@ describe('远端原图独立删除确认', () => {
     const r = rig();
     r.component.targetKind.set('platform');
     r.component.syncInitialized.set(true);
-    const preview = vi.fn(async () => review);
+    const preview = vi.fn<() => Promise<ImageDeleteReview>>(async () => review);
     const confirm = vi.fn<
       (
         selection: typeof review,
@@ -2716,10 +2759,86 @@ describe('远端原图独立删除确认', () => {
       await staged();
       return { state: 'complete' as const, fileId: remoteFile.id };
     });
-    const controller = vi.fn(async () => ({ preview, confirm }));
+    const controller = vi.fn(async () => ({ preview, previewReupload: preview, confirm }));
     Object.assign(r.component, { imageDeleteController: controller });
     return { ...r, preview, confirm, controller };
   }
+  function completedReview(): ImageDeleteReview {
+    return {
+      ...review,
+      allowed: false,
+      file: { ...remoteFile, deleted: true, status: 'deleted', revision: 3, baseRevision: 2 },
+      deletion: {
+        id: provider.id,
+        workspaceId: nextProfileId,
+        fileId: remoteFile.id,
+        sourceId: job.id,
+        version: remoteFile.version,
+        path: remoteFile.path,
+        state: 'complete',
+        createdBy: profileId,
+        createdAt: '2026-11-14T00:00:00Z',
+        completedAt: '2026-11-14T00:01:00Z'
+      }
+    };
+  }
+  it('重新上传先显示已完成删除的新版本确认，取消不会分配或传输新版本', async () => {
+    const r = setup(),
+      reupload = vi.fn();
+    r.preview.mockResolvedValueOnce(completedReview());
+    Object.assign(r.component, { imageSyncController: vi.fn(async () => ({ reupload })) });
+    await r.component.prepareImageReupload(job.id, job.request.prompt, remoteFile.sha256);
+    expect(r.component.imageReuploadSelected()).toBe(true);
+    expect(r.component.imageDeleteReview()?.deletion?.state).toBe('complete');
+    r.component.cancelImageDelete();
+    expect(reupload).not.toHaveBeenCalled();
+    expect(r.component.imageDeleteReview()).toBeNull();
+  });
+  it('明确确认后只上传新版本并解除已删除提示，旧来源队列保持封存', async () => {
+    const r = setup(),
+      selected = completedReview(),
+      removeSources = vi.fn(async () => undefined);
+    r.preview.mockResolvedValueOnce(selected);
+    const reupload = vi.fn(async () => ({
+      ...remoteFile,
+      id: nextProfileId,
+      version: `${remoteFile.sha256}-${nextProfileId}`
+    }));
+    Object.assign(r.component, {
+      imageSyncController: vi.fn(async () => ({ reupload })),
+      imageUploadQueue: vi.fn(async () => ({ removeSources }))
+    });
+    r.component.imageDeleteStates.set(new Map([[`${job.id}:${remoteFile.sha256}`, 'complete']]));
+    await r.component.prepareImageReupload(job.id, job.request.prompt, remoteFile.sha256);
+    await r.component.confirmImageReupload();
+    expect(reupload).toHaveBeenCalledWith(selected);
+    expect(removeSources).toHaveBeenCalledWith(new Set([job.id]));
+    expect(r.component.remoteImageDeleteState(job.id, remoteFile.sha256)).toBeNull();
+    expect(r.component.imageDeleteReview()).toBeNull();
+    expect(r.component.imageDeleteMessage()).toContain('新版本已上传');
+  });
+  it('删除未完成时不能确认新版本；取消后的迟到上传结果不改新账号状态', async () => {
+    const r = setup(),
+      reupload = vi.fn(),
+      pending = deferred<unknown>();
+    Object.assign(r.component, {
+      imageSyncController: vi.fn(async () => ({ reupload })),
+      imageUploadQueue: vi.fn(async () => ({ removeSources: vi.fn() }))
+    });
+    await r.component.prepareImageReupload(job.id, job.request.prompt, remoteFile.sha256);
+    expect(r.component.imageDeleteReview()).toBeNull();
+    expect(r.component.imageDeleteMessage()).toContain('删除');
+    r.preview.mockResolvedValueOnce(completedReview());
+    reupload.mockReturnValueOnce(pending.promise);
+    await r.component.prepareImageReupload(job.id, job.request.prompt, remoteFile.sha256);
+    const uploading = r.component.confirmImageReupload();
+    await vi.waitFor(() => expect(reupload).toHaveBeenCalledOnce());
+    r.component.cancelImageDelete();
+    r.component.imageDeleteMessage.set('新账号状态');
+    pending.resolve(remoteFile);
+    await uploading;
+    expect(r.component.imageDeleteMessage()).toBe('新账号状态');
+  });
   it('先只读预览准确原图，取消不删标、不停上传、不删本机', async () => {
     const r = setup();
     r.component.imageSyncEnabled.set(true);

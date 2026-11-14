@@ -114,6 +114,39 @@ function rig() {
 }
 
 describe('远端原图删除与恢复', () => {
+  it('重传预览使用服务端前后版本关系，已有 pending 后继也能恢复同一准备意图', async () => {
+    const r = rig();
+    r.route.mockImplementation(async url =>
+      url.includes('media_file_capabilities') ? Response.json(capabilities) : Response.json(review())
+    );
+    expect((await r.controller.previewReupload(sourceId, digest)).file.id).toBe(fileId);
+    expect(r.calls.some(call => call.url.includes('/media_file_records'))).toBe(false);
+    expect(r.calls.find(call => call.url.includes('media_preview_image_reupload'))?.body).toEqual({
+      p_workspace_id: workspaceId,
+      p_source_id: sourceId,
+      p_sha256: digest
+    });
+    expect(r.store.ensurePreference).not.toHaveBeenCalled();
+  });
+  it('重新上传的新版本可以再次预览和删除，删除路径仍精确对应该版本', async () => {
+    const r = rig(),
+      version = `${digest}-${requestId}`;
+    const next = { ...file, version, path: `${userId}/${workspaceId}/${sourceId}/${version}.png` };
+    let completions = 0;
+    r.route.mockImplementation(async (url, init) => {
+      if (url.includes('media_file_capabilities')) return Response.json(capabilities);
+      if (url.includes('/media_file_records')) return Response.json([next]);
+      if (url.includes('media_preview_image_delete')) return Response.json({ ...review(), file: next });
+      if (url.includes('media_begin_image_delete')) return Response.json({ ...receipt(), version, path: next.path });
+      if (url.includes('media_complete_image_delete'))
+        return Response.json({ ...receipt(++completions >= 2 ? 'complete' : 'pending'), version, path: next.path });
+      expect(JSON.parse(String(init?.body))).toEqual({ prefixes: [next.path] });
+      return Response.json([{ name: next.path }]);
+    });
+    const selection = await r.controller.preview(sourceId, digest);
+    expect((await r.controller.confirm(selection)).state).toBe('complete');
+    expect(r.calls.filter(call => call.method === 'DELETE')).toHaveLength(1);
+  });
   it('预览只读取准确的账号工作区和摘要，不写设备意图或发送删除', async () => {
     const r = rig();
     const selection = await r.controller.preview(sourceId, digest);

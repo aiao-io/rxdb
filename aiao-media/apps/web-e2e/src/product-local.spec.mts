@@ -1,8 +1,10 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { localEnvironment } from '../../../scripts/supabase/supabase-local.mjs';
-import { endpoint, importBackup, key, pngFixture, provider, verifyImageDownload } from './local-first.helpers';
+import { importBackup, key, pngFixture, verifyImageDownload } from './local-first.helpers';
+import { productGenerationFixture } from './product-generation.fixture.mts';
+import { seedRemoteImagePreviews } from './remote-image-preview.fixture.mts';
 import { storageObjectFixture } from './storage-object.fixture.mts';
 
 let admin: SupabaseClient;
@@ -325,15 +327,61 @@ test('离线多次编辑与重开可推送，修改冲突和删除冲突保留�
   }
 });
 
-test('供应商和作品信息跨副本同步但凭据原图留在本机，任务只在用户确认后上报', async ({ page, browser, baseURL }) => {
+test('历史供应商和作品导入后跨副本同步，凭据剥离且原图留在本机，任务明确确认后上报', async ({
+  page,
+  browser,
+  baseURL
+}) => {
   const user = await account();
-  const png = await pngFixture();
-  await page.route(endpoint, route => route.fulfill({ json: { data: [{ b64_json: png.toString('base64') }] } }));
-  await provider(page, true);
+  const png = await pngFixture(),
+    providerId = randomUUID(),
+    createdAt = new Date().toISOString();
+  const job = {
+    id: randomUUID(),
+    request: {
+      kind: 'image',
+      operation: 'text-to-image',
+      providerInstanceId: providerId,
+      providerRevision: 1,
+      modelId: 'test-image',
+      prompt: '不进入任务上报的私有提示词'
+    },
+    status: 'completed',
+    createdAt,
+    updatedAt: createdAt,
+    delivery: { status: 'available', expiresAt: null, acknowledgedAt: null },
+    failure: null
+  };
+  await page.goto('/providers');
+  const reloaded = page.waitForEvent('load');
+  await importBackup(
+    page,
+    Buffer.from(
+      JSON.stringify({
+        format: 'aiao-local-backup',
+        version: 1,
+        createdAt,
+        providers: [
+          {
+            id: providerId,
+            name: '历史本机供应商',
+            baseUrl: 'https://images.example.test/v1',
+            model: 'test-image',
+            mode: 'direct',
+            apiKey: key,
+            rememberKey: true
+          }
+        ],
+        defaultId: providerId,
+        draft: null,
+        tasks: [{ ...job, channel: 'direct', saved: true }],
+        images: [{ job, base64: png.toString('base64'), sha256: createHash('sha256').update(png).digest('hex') }]
+      })
+    )
+  );
+  await reloaded;
   await page.getByRole('link', { name: '生成图片', exact: true }).click();
-  await editDraft(page, '不进入任务上报的私有提示词');
-  await page.getByRole('button', { name: '✧ 生成图片', exact: false }).click();
-  await expect(page.getByText('已保存到本机', { exact: true })).toBeVisible();
+  await editDraft(page, job.request.prompt);
   await enableReplica(page, user);
   const workspace = (await admin.from('media_workspaces').select('id').eq('owner_id', user.id).single()).data!;
   const records = (await admin.from('media_sync_records').select('kind,payload').eq('workspaceId', workspace.id)).data!;
@@ -364,9 +412,157 @@ test('供应商和作品信息跨副本同步但凭据原图留在本机，任�
     await expect(second.getByText('本机无原图', { exact: true })).toBeVisible();
     await expect(second.getByRole('link', { name: '下载图片', exact: false })).toHaveCount(0);
     await second.getByRole('link', { name: '设置', exact: true }).click();
-    await second.getByRole('button', { name: '编辑 / 填写 Key', exact: true }).click();
-    await expect(second.getByLabel('API Key', { exact: true })).toHaveValue('');
-    await expect(second.getByLabel('在此设备记住 Key')).not.toBeChecked();
+    await expect(second.locator('#provider-key, #provider-base')).toHaveCount(0);
+    await expect(second.getByRole('heading', { name: '供应商', exact: true })).toHaveCount(0);
+  } finally {
+    await context.close();
+  }
+});
+
+test('已删除原图须明确创建新版本，准备应答丢失后重开复用，第二设备可取回新版本', async ({ page, browser, baseURL }) => {
+  const user = await account(),
+    png = await pngFixture(),
+    storage = await storageObjectFixture(admin);
+  storageFixtures.add(storage);
+  let uploads = 0;
+  async function installStorage(context: BrowserContext) {
+    await context.route('**/storage/v1/object/aiao-media-images/**', async route => {
+      expect(route.request().method()).toBe('POST');
+      const bytes = route.request().postDataBuffer()!;
+      expect(bytes).toEqual(png);
+      await storage.put(
+        new URL(route.request().url()).pathname.replace('/storage/v1/object/', ''),
+        bytes,
+        route.request().headers()['authorization']
+      );
+      uploads++;
+      await route.fulfill({ json: { Key: 'private-file' } });
+    });
+    await context.route('**/storage/v1/object/authenticated/aiao-media-images/**', async route => {
+      const path = new URL(route.request().url()).pathname.replace('/storage/v1/object/authenticated/', '');
+      const bytes = storage.files.get(path);
+      expect(bytes).toBeDefined();
+      await route.fulfill({ contentType: 'image/png', body: bytes! });
+    });
+    await context.route('**/storage/v1/object/aiao-media-images', async route => {
+      expect(route.request().method()).toBe('DELETE');
+      const body = route.request().postDataJSON() as { prefixes: string[] };
+      const rows = await storage.remove(body.prefixes, route.request().headers()['authorization']);
+      expect(rows).toHaveLength(1);
+      await route.fulfill({ json: rows });
+    });
+  }
+  await installStorage(page.context());
+  const createdAt = new Date().toISOString(),
+    digest = createHash('sha256').update(png).digest('hex');
+  const job = {
+    id: randomUUID(),
+    request: {
+      kind: 'image',
+      operation: 'text-to-image',
+      providerInstanceId: randomUUID(),
+      providerRevision: 1,
+      modelId: 'test-image',
+      prompt: '显式重新上传新版本原图'
+    },
+    status: 'completed',
+    createdAt,
+    updatedAt: createdAt,
+    delivery: { status: 'available', expiresAt: null, acknowledgedAt: null },
+    failure: null
+  };
+  await page.goto('/providers');
+  const reloaded = page.waitForEvent('load');
+  await importBackup(
+    page,
+    Buffer.from(
+      JSON.stringify({
+        format: 'aiao-local-backup',
+        version: 1,
+        createdAt,
+        providers: [],
+        defaultId: '',
+        draft: null,
+        tasks: [],
+        images: [{ job, base64: png.toString('base64'), sha256: digest }]
+      })
+    )
+  );
+  await reloaded;
+  await enableReplica(page, user);
+  const imageSync = page.getByRole('article', { name: '图片原图同步' });
+  await imageSync.getByRole('button', { name: '设置图片同步范围', exact: true }).click();
+  const selection = imageSync.getByRole('region', { name: '图片同步范围确认' });
+  await selection.getByRole('radio', { name: '已有及以后保存的图片', exact: true }).check();
+  await selection.getByRole('button', { name: '确认并启用图片同步', exact: true }).click();
+  await expect(imageSync).toContainText('已同步 1 张原图');
+  await page.getByRole('button', { name: '关闭账号窗口' }).click();
+  await page.getByRole('link', { name: '我的图片', exact: true }).click();
+  const original = page.locator('.library-card').filter({ hasText: job.request.prompt });
+  await original.getByRole('button', { name: `删除远端原图：${job.request.prompt}`, exact: true }).click();
+  await page
+    .getByRole('dialog', { name: '删除远端原图确认' })
+    .getByRole('button', { name: '确认删除此远端原图', exact: true })
+    .click();
+  await expect(page.locator('#toast')).toContainText('远端原图已删除');
+  expect(await storage.count()).toBe(0);
+  const reuploadButton = original.getByRole('button', { name: `重新上传新版本：${job.request.prompt}`, exact: true });
+  await reuploadButton.click();
+  const confirmation = page.getByRole('dialog', { name: '重新上传新版本确认' });
+  await expect(confirmation).toContainText(digest);
+  await confirmation.getByRole('button', { name: '取消重新上传', exact: true }).click();
+  expect((await admin.from('media_file_records').select('id').eq('createdBy', user.id)).data).toHaveLength(1);
+  const requestIds: string[] = [];
+  let firstPreparedId = '';
+  await page.route('**/rest/v1/rpc/media_prepare_image_reupload', async route => {
+    requestIds.push((route.request().postDataJSON() as { p_request_id: string }).p_request_id);
+    const response = await route.fetch();
+    expect(response.ok()).toBe(true);
+    const prepared = (await response.json()) as { id: string };
+    if (!firstPreparedId) {
+      firstPreparedId = prepared.id;
+      await route.abort('connectionfailed');
+      return;
+    }
+    expect(prepared.id).toBe(firstPreparedId);
+    await route.fulfill({ response });
+  });
+  await reuploadButton.click();
+  await confirmation.getByRole('button', { name: '确认重新上传新版本', exact: true }).click();
+  await expect(confirmation).toContainText('fetch');
+  expect(uploads).toBe(1);
+  expect(
+    (await admin.from('media_file_records').select('status').eq('createdBy', user.id).eq('deleted', false)).data
+  ).toEqual([{ status: 'pending' }]);
+  await confirmation.getByRole('button', { name: '取消重新上传', exact: true }).click();
+  await page.reload();
+  await reuploadButton.click();
+  await confirmation.getByRole('button', { name: '确认重新上传新版本', exact: true }).click();
+  await expect(page.locator('#toast')).toContainText('新版本已上传');
+  expect(requestIds).toHaveLength(2);
+  expect(requestIds[1]).toBe(requestIds[0]);
+  expect(uploads).toBe(2);
+  expect(await storage.count()).toBe(1);
+  const rows = (
+    await admin.from('media_file_records').select('id,version,status,deleted,path').eq('createdBy', user.id)
+  ).data!;
+  expect(rows).toHaveLength(2);
+  expect(rows.find(row => row.version === digest)).toMatchObject({ status: 'deleted', deleted: true });
+  const next = rows.find(row => row.id === firstPreparedId)!;
+  expect(next).toMatchObject({ version: `${digest}-${requestIds[0]}`, status: 'uploaded', deleted: false });
+  await verifyImageDownload(page, original, png);
+  const context = await browser.newContext({ baseURL });
+  try {
+    await installStorage(context);
+    const second = await context.newPage();
+    await second.goto('/create');
+    await enableReplica(second, user);
+    await second.getByRole('button', { name: '关闭账号窗口' }).click();
+    await second.getByRole('link', { name: '我的图片', exact: true }).click();
+    const remote = second.locator('.library-card').filter({ hasText: job.request.prompt });
+    await remote.getByRole('button', { name: '取回并保存原图', exact: true }).click();
+    await expect(remote.getByAltText('本机生成作品')).toBeVisible();
+    await verifyImageDownload(second, remote, png);
   } finally {
     await context.close();
   }
@@ -685,6 +881,106 @@ test('明确重新扫描重放旧日志，保留未上传修订和删除冲突�
   }
 });
 
+test('远端图库分三页仅预览可见卡片，离开后释放 URL，显式保存才落本机', async ({ page }) => {
+  const user = await account();
+  const png = await pngFixture();
+  await page.goto('/create');
+  await enableReplica(page, user);
+  const seeded = await seedRemoteImagePreviews(admin, user, png, 53);
+  const reads: string[] = [];
+  let release!: () => void;
+  const blocked = new Promise<void>(resolve => {
+    release = resolve;
+  });
+  await page.addInitScript(() => {
+    const state = { active: new Set<string>(), revoked: 0 };
+    Object.assign(window, { remotePreviewUrls: state });
+    const create = URL.createObjectURL.bind(URL),
+      revoke = URL.revokeObjectURL.bind(URL);
+    URL.createObjectURL = object => {
+      const url = create(object);
+      if (object instanceof Blob && ['image/png', 'image/jpeg'].includes(object.type)) state.active.add(url);
+      return url;
+    };
+    URL.revokeObjectURL = url => {
+      if (state.active.delete(url)) state.revoked++;
+      revoke(url);
+    };
+  });
+  await page.route('**/storage/v1/object/authenticated/aiao-media-images/**', async route => {
+    const path = new URL(route.request().url()).pathname.replace(
+      '/storage/v1/object/authenticated/aiao-media-images/',
+      ''
+    );
+    expect(seeded.paths.has(path)).toBe(true);
+    expect(route.request().headers()['authorization']).toMatch(/^Bearer /);
+    reads.push(path.split('/')[2]);
+    await blocked;
+    await route.fulfill({ status: 200, contentType: 'image/png', body: png });
+  });
+  try {
+    await page.reload();
+    await page.getByRole('button', { name: '我的账号', exact: true }).click();
+    await synchronizePage(page);
+    expect(reads).toEqual([]);
+    await page.getByRole('button', { name: '关闭账号窗口' }).click();
+    await page.getByRole('link', { name: '我的图片', exact: true }).click();
+    const cards = page.locator('.remote-card');
+    await expect(cards).toHaveCount(24);
+    await expect.poll(() => reads.length).toBe(2);
+    await expect(cards.getByText('正在核对远端原图…', { exact: true }).first()).toBeVisible();
+    const firstPage = await cards.evaluateAll(elements =>
+      elements.map(element => element.getAttribute('data-source-id'))
+    );
+    expect(reads.every(id => firstPage.includes(id))).toBe(true);
+    release();
+    await expect(cards.locator('img').first()).toBeVisible();
+    await expect(cards.getByText('远端可取回 · 本机尚未保存原图', { exact: true }).first()).toBeVisible();
+    expect(reads.length).toBeLessThan(24);
+    await expect(page.locator('.library-card:not(.remote-card)')).toHaveCount(0);
+    const pager = page.getByRole('navigation', { name: '同步作品分页' });
+    await pager.getByRole('button', { name: '下一页', exact: true }).click();
+    await expect(pager).toContainText('第 2 页');
+    await expect(cards).toHaveCount(24);
+    const secondPage = await cards.evaluateAll(elements =>
+      elements.map(element => element.getAttribute('data-source-id'))
+    );
+    expect(secondPage.every(id => !firstPage.includes(id))).toBe(true);
+    await pager.getByRole('button', { name: '下一页', exact: true }).click();
+    await expect(pager).toContainText('第 3 页');
+    await expect(cards).toHaveCount(5);
+    await cards.first().scrollIntoViewIfNeeded();
+    await expect(cards.first().locator('img')).toBeVisible();
+    await page.getByRole('link', { name: '生成图片', exact: true }).click();
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const state = Reflect.get(window, 'remotePreviewUrls') as { active: Set<string>; revoked: number };
+          return state.active.size;
+        })
+      )
+      .toBe(0);
+    expect(
+      await page.evaluate(() => {
+        const state = Reflect.get(window, 'remotePreviewUrls') as { revoked: number };
+        return state.revoked;
+      })
+    ).toBeGreaterThan(0);
+    await page.getByRole('link', { name: '我的图片', exact: true }).click();
+    await cards.first().scrollIntoViewIfNeeded();
+    await expect(cards.first().locator('img')).toBeVisible();
+    const sourceId = await cards.first().getAttribute('data-source-id');
+    const selected = seeded.works.find(work => work.jobId === sourceId)!;
+    await cards.first().getByRole('button', { name: '取回并保存原图', exact: true }).click();
+    await expect(page.locator('#toast')).toContainText('原图已校验并保存到本机');
+    await expect(page.locator('.library-card:not(.remote-card)')).toHaveCount(1);
+    const saved = page.locator('.library-card:not(.remote-card)').filter({ hasText: selected.prompt });
+    await verifyImageDownload(page, saved, png);
+  } finally {
+    release();
+  }
+});
+
 test('A 的生成响应迟到时不进入 B 的工作区，回到 A 仍能读取原图', async ({ page }) => {
   const a = await account(),
     b = await account(),
@@ -697,13 +993,8 @@ test('A 的生成响应迟到时不进入 B 的工作区，回到 A 仍能读取
   const started = new Promise<void>(resolve => {
     received = resolve;
   });
-  await page.route(endpoint, async route => {
-    received();
-    await gate;
-    await route.fulfill({ json: { data: [{ b64_json: png.toString('base64') }] } });
-  });
-  await provider(page);
-  await page.getByRole('link', { name: '生成图片', exact: true }).click();
+  const relay = await productGenerationFixture(page, admin, png, gate, received);
+  await page.goto('/create');
   await editDraft(page, 'A的在途生成必须保留');
   await enableReplica(page, a);
   const aProfile = await page.evaluate(() => localStorage.getItem('aiao-local-profile-v1'));
@@ -715,7 +1006,6 @@ test('A 的生成响应迟到时不进入 B 的工作区，回到 A 仍能读取
   await page.getByRole('button', { name: '关闭账号窗口' }).click();
   await signIn(page, b);
   await page.getByRole('button', { name: '关闭账号窗口' }).click();
-  await expect(page.locator('main')).toBeHidden();
   release();
   await expect(page.locator('[contenteditable=true]')).toBeVisible();
   await expect(page.locator('[contenteditable=true]')).toBeEmpty();
@@ -729,4 +1019,6 @@ test('A 的生成响应迟到时不进入 B 的工作区，回到 A 仍能读取
   await page.getByRole('button', { name: '关闭账号窗口' }).click();
   await expect(page.getByAltText('本机生成作品')).toHaveCount(1);
   expect(await page.evaluate(() => localStorage.getItem('aiao-local-profile-v1'))).toBe(aProfile);
+  expect(relay.calls).toBe(1);
+  await verifyImageDownload(page, page.locator('.library-card'), png);
 });

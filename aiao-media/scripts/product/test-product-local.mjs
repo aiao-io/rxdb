@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { handleAdmin } from '../../apps/api/src/admin-api.ts';
 import { localEnvironment } from '../supabase/supabase-local.mjs';
+import { verifyLastAdminContract } from './last-admin-contract.mjs';
 
 const { env, url } = await localEnvironment();
 const options = { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } };
@@ -15,6 +16,8 @@ const ok = (result, label) => {
   return result.data;
 };
 try {
+  await verifyLastAdminContract();
+  console.log('PASS isolated SQL sole-administrator protection, including disabled-member exclusion');
   for (let i = 0; i < 2; i++) {
     const email = `media-product-${randomUUID()}@example.test`,
       password = randomBytes(24).toString('hex');
@@ -153,16 +156,13 @@ try {
       })
     ).error
   );
-  assert.ok(
-    (
-      await admin.rpc('media_trusted_membership', {
-        p_target: a.id,
-        p_enabled: false,
-        p_revision: 1,
-        p_request_id: randomUUID()
-      })
-    ).error
-  );
+  const staleMembership = await admin.rpc('media_trusted_membership', {
+    p_target: a.id,
+    p_enabled: false,
+    p_revision: 0,
+    p_request_id: randomUUID()
+  });
+  assert.equal(staleMembership.error?.code, 'PT409');
   assert.equal((await adminRequest(a, 'users')).status, 200);
   const template = {
     id: templateId,
@@ -271,12 +271,12 @@ try {
   );
 
   assert.ok((await a.client.rpc('media_admin_authorized', { p_actor: a.id })).error);
-  const lastAdmin = await adminRequest(a, `users/${a.id}`, 'PATCH', {
+  const staleAccount = await adminRequest(a, `users/${a.id}`, 'PATCH', {
     disabled: true,
-    revision: 1,
+    revision: 0,
     requestId: randomUUID()
   });
-  assert.equal(lastAdmin.status, 409);
+  assert.equal(staleAccount.status, 409);
   const operation = { disabled: true, revision: 1, requestId: randomUUID() };
   const banned = await adminRequest(a, `users/${b.id}`, 'PATCH', operation);
   assert.equal(banned.status, 200);
@@ -304,7 +304,7 @@ try {
   );
   assert.equal((await adminRequest(a, 'users')).status, 403);
   console.log(
-    'PASS real administrator authorization/revocation, user listing, last-admin protection, idempotent ban/unban and audit'
+    'PASS real administrator authorization/revocation, user listing, stale-revision refusal, idempotent ban/unban and audit'
   );
 } finally {
   await admin.from('media_public_content').delete().eq('kind', 'template').eq('key', templateId);

@@ -1,6 +1,7 @@
 import { imageExtension, type ImageMimeType } from '@aiao-media/api-contracts';
 import type { ProductAuthorization } from '../app/supabase-auth';
 import type { LocalMediaStore } from './browser-media';
+import { isImageFileVersion } from './image-file-identity';
 import type { RemoteFileRecord } from './image-sync';
 
 type Request = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
@@ -64,6 +65,20 @@ export class ImageDeleteController {
     this.assertActive();
     const review = this.review(raw);
     this.assertFile(review.file, file);
+    return review;
+  }
+
+  async previewReupload(sourceId: string, digest: string): Promise<ImageDeleteReview> {
+    this.assertSource(sourceId, digest);
+    await this.capabilities();
+    const raw = await this.rpc('media_preview_image_reupload', {
+      p_workspace_id: this.workspaceId,
+      p_source_id: sourceId,
+      p_sha256: digest
+    });
+    this.assertActive();
+    const review = this.review(raw);
+    this.file(review.file, sourceId, digest);
     return review;
   }
 
@@ -216,11 +231,11 @@ export class ImageDeleteController {
       !uuid.test(row['id']) ||
       row['workspaceId'] !== this.workspaceId ||
       row['sourceId'] !== sourceId ||
-      row['version'] !== digest ||
+      !isImageFileVersion(row['version'], digest) ||
       row['sha256'] !== digest ||
       !this.mime(row['mimeType']) ||
       typeof row['path'] !== 'string' ||
-      !this.path(row['path'], sourceId, digest, row['mimeType']) ||
+      !this.path(row['path'], sourceId, String(row['version']), row['mimeType']) ||
       !integer(row['width'], 1, 4096) ||
       !integer(row['height'], 1, 4096) ||
       !integer(row['bytes'], 1, maxBytes) ||
@@ -273,7 +288,7 @@ export class ImageDeleteController {
       !uuid.test(row['fileId']) ||
       typeof row['sourceId'] !== 'string' ||
       !uuid.test(row['sourceId']) ||
-      !sha256.test(String(row['version'])) ||
+      !isImageFileVersion(row['version'], String(row['version']).slice(0, 64)) ||
       typeof row['path'] !== 'string' ||
       !['pending', 'complete'].includes(String(row['state'])) ||
       row['createdBy'] !== this.access.userId ||

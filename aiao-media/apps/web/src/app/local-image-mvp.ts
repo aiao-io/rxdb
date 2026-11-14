@@ -18,6 +18,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   HostListener,
   inject,
   Injector,
@@ -96,6 +97,12 @@ import {
   runRelayTask,
   type RelayTicket
 } from './relay-task-client';
+import {
+  remoteImageKey,
+  remoteImagePage,
+  RemoteImagePreviewSession,
+  type RemoteImagePreview
+} from './remote-image-preview-session';
 import {
   readSupabaseAuthConfig,
   SupabaseAuthClient,
@@ -258,6 +265,18 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private viewerPageTarget: { page: number; index: number } | null = null;
   private viewerGeneration = 0;
   private readonly filtersApplied = signal(false);
+  private readonly remotePage = signal(1);
+  private readonly remotePreviews = signal<ReadonlyMap<string, RemoteImagePreview>>(new Map());
+  private readonly remoteImages = new RemoteImagePreviewSession(
+    {
+      preview: async (work, visibleSignal) => {
+        const signal = AbortSignal.any([this.imageSyncScope.signal, visibleSignal]);
+        return (await this.imageSyncController(signal)).preview(work);
+      },
+      release: url => URL.revokeObjectURL(url)
+    },
+    state => this.remotePreviews.set(state)
+  );
   readonly resultMimeType = signal<ImageMimeType | null>(null);
   readonly imageExtension = imageExtension;
   readonly formatBytes = formatBytes;
@@ -278,6 +297,8 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   readonly remoteOnlyWorks = computed(() =>
     this.localWorksKnown() ? this.syncedWorks().filter(work => !this.localWorkIds().has(work.jobId)) : []
   );
+  readonly remotePreviewGeneration = signal(0);
+  readonly remoteLibraryPage = computed(() => remoteImagePage(this.remoteOnlyWorks(), this.remotePage()));
   readonly availableProfiles = signal<WorkspaceProfile[]>([]);
   readonly currentProfileId = signal('');
   readonly syncInitialized = signal(false);
@@ -432,6 +453,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   readonly remoteQuota = signal('');
   readonly imageDeleteReview = signal<ImageDeleteReview | null>(null);
   readonly imageDeletePrompt = signal('');
+  readonly imageReuploadSelected = signal(false);
   readonly imageDeleteBusy = signal(false);
   readonly imageDeleteMessage = signal('');
   readonly imageDeleteStates = signal<ReadonlyMap<string, 'pending' | 'complete'>>(new Map());
@@ -546,6 +568,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   );
 
   constructor() {
+    effect(() => this.remoteImages.page(this.remotePreviewWorks()));
     afterRenderEffect(() => {
       if (!this.detail() && !this.feedbackOpen() && !this.authOpen() && !this.viewer() && !this.imageDeleteReview()) {
         const trigger = this.dialogTrigger;
@@ -610,6 +633,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.subscriptions.unsubscribe();
     void this.registryStore?.close();
     this.library?.close();
+    this.remoteImages.close();
     this.revokeResult();
     void this.store?.close();
   }
@@ -1574,9 +1598,13 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.imageSyncMessage.set(product.state.message || '已从同步图库移除，各设备原图和云端对象均保留。');
     this.notify(this.imageSyncMessage());
   }
-  async prepareImageDelete(sourceId: string, prompt: string, digest?: string): Promise<void> {
+  async prepareImageReupload(sourceId: string, prompt: string, digest?: string): Promise<void> {
+    await this.prepareImageDelete(sourceId, prompt, digest, true);
+  }
+  async prepareImageDelete(sourceId: string, prompt: string, digest?: string, reupload = false): Promise<void> {
     if (this.settingsBusy() || this.targetKind() !== 'platform' || !this.syncInitialized()) return;
     this.cancelImageDelete();
+    this.imageReuploadSelected.set(reupload);
     const scope = new AbortController();
     this.imageDeleteScope = scope;
     this.imageDeleteBusy.set(true);
@@ -1585,8 +1613,11 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       const hash = digest ?? (await this.requireStore().imageInfo(sourceId)).sha256;
       scope.signal.throwIfAborted();
       const controller = await this.imageDeleteController(scope.signal);
-      const review = await controller.preview(sourceId, hash);
+      const review =
+        reupload ? await controller.previewReupload(sourceId, hash) : await controller.preview(sourceId, hash);
       scope.signal.throwIfAborted();
+      if (reupload && (!review.file.deleted || review.deletion?.state !== 'complete'))
+        throw new Error('远端删除尚未完成，请先核对删除结果，再重新上传新版本。');
       this.imageDeletion = { controller, review, signal: scope.signal };
       this.imageDeleteReview.set(review);
       this.imageDeletePrompt.set(prompt);
@@ -1604,11 +1635,45 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.imageDeletion = null;
     this.imageDeleteReview.set(null);
     this.imageDeletePrompt.set('');
+    this.imageReuploadSelected.set(false);
     this.imageDeleteBusy.set(false);
+  }
+  async confirmImageReupload(): Promise<void> {
+    const plan = this.imageDeletion;
+    if (!plan || !this.imageReuploadSelected() || this.settingsBusy() || plan.signal.aborted) return;
+    this.imageDeleteBusy.set(true);
+    this.imageDeleteMessage.set('正在上传新版本并核对原图完整性…');
+    try {
+      this.stopImageTransfers();
+      await (
+        await this.imageUploadQueue(this.imageSyncScope.signal)
+      ).removeSources(new Set([plan.review.file.sourceId]));
+      plan.signal.throwIfAborted();
+      await (await this.imageSyncController(plan.signal)).reupload(plan.review);
+      plan.signal.throwIfAborted();
+      if (this.imageDeletion !== plan) return;
+      this.imageDeleteStates.update(states => {
+        const next = new Map(states);
+        next.delete(`${plan.review.file.sourceId}:${plan.review.file.sha256}`);
+        return next;
+      });
+      this.cancelImageDelete();
+      const message = '远端原图新版本已上传并核对完整性，本机原图保留。';
+      this.imageDeleteMessage.set(message);
+      this.notify(message);
+      if (this.imageSyncEnabled()) void this.resumeImageQueue();
+    } catch (error) {
+      if (!plan.signal.aborted && this.imageDeletion === plan)
+        this.imageDeleteMessage.set(
+          error instanceof Error ? error.message : '新版本尚未确认，本机原图和重试记录保留。'
+        );
+    } finally {
+      if (this.imageDeletion === plan) this.imageDeleteBusy.set(false);
+    }
   }
   async confirmImageDelete(): Promise<void> {
     const plan = this.imageDeletion;
-    if (!plan || this.settingsBusy() || plan.signal.aborted) return;
+    if (!plan || this.imageReuploadSelected() || this.settingsBusy() || plan.signal.aborted) return;
     this.imageDeleteBusy.set(true);
     this.imageDeleteMessage.set('正在提交删除并核对远端对象…');
     try {
@@ -1651,6 +1716,20 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   }
   isSyncedWork(sourceId: string): boolean {
     return this.syncedWorks().some(work => work.jobId === sourceId);
+  }
+  remoteLibraryGo(page: number): void {
+    this.remoteImages.reset();
+    this.remotePage.set(page);
+  }
+  remoteWorkVisible(work: PublicWorkPayload, visible: boolean): void {
+    this.remoteImages.page(this.remotePreviewWorks());
+    this.remoteImages.visible(work, visible);
+  }
+  remoteImagePreview(work: PublicWorkPayload): RemoteImagePreview | undefined {
+    return this.remotePreviews().get(remoteImageKey(work));
+  }
+  retryRemotePreview(work: PublicWorkPayload): void {
+    this.remoteImages.retry(work);
   }
   async restoreRemoteWork(work: PublicWorkPayload) {
     if (this.imageSyncBusy() || this.settingsBusy() || this.targetKind() !== 'platform') return;
@@ -1856,6 +1935,19 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     );
     if (this.imageSyncEnabled()) void this.resumeImageQueue();
   }
+  private remotePreviewWorks(): PublicWorkPayload[] {
+    return (
+        this.view() === 'library' &&
+          this.targetKind() === 'platform' &&
+          this.syncInitialized() &&
+          this.authUser() &&
+          !this.workspaceSwitching() &&
+          !this.identityBlocked() &&
+          !this.syncPaused()
+      ) ?
+        this.remoteLibraryPage().works.filter(work => this.remoteImageDeleteState(work.jobId, work.sha256) === null)
+      : [];
+  }
   private imageSyncKey(): string {
     return `aiao-media-image-sync-v1:${encodeURIComponent(this.auth?.config.url ?? '')}:${this.authUser()?.id ?? ''}:${this.profileId}`;
   }
@@ -1900,6 +1992,8 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.stopImageTransfers();
   }
   private stopImageTransfers() {
+    this.remoteImages.reset();
+    this.remotePreviewGeneration.update(value => value + 1);
     this.clearImageSyncSelection();
     if (this.imageQueueTimer) clearTimeout(this.imageQueueTimer);
     this.imageQueueTimer = null;

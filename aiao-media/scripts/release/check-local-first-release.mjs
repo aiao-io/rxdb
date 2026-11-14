@@ -86,7 +86,8 @@ if (
   !imageUpgrade.includes('FUNCTION public.media_image_upload_allowed(') ||
   !imageUpgrade.includes('CREATE POLICY media_image_insert') ||
   !imageUpgrade.includes('FUNCTION public.media_begin_image_delete(') ||
-  !imageUpgrade.includes('aiao-media schema 15')
+  !imageUpgrade.includes('FUNCTION public.media_prepare_image_reupload(') ||
+  !imageUpgrade.includes('aiao-media schema 16')
 )
   throw new Error('Image upgrade must atomically include tombstone and private Storage write protection');
 if (files.length > 20000) throw new Error('Free static asset count exceeded');

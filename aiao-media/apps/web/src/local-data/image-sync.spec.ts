@@ -447,7 +447,7 @@ describe('平台 Supabase 图片同步', () => {
 
     await new ImageSyncController(store as never, access, workspaceId, request).download(jobId, current.sha256, job);
 
-    expect(calls[0].url).toContain(`sourceId=eq.${jobId}&version=eq.${current.sha256}`);
+    expect(calls[0].url).toContain(`sourceId=eq.${jobId}&sha256=eq.${current.sha256}`);
     expect(calls[1].url).toContain(current.path);
     expect(store.saveResult).toHaveBeenCalledWith(job, expect.any(Blob));
   });

@@ -681,6 +681,15 @@
                   删除远端原图
                 </button>
               }
+              @if (targetKind() === 'platform' && syncInitialized() && isSyncedWork(w.jobId)) {
+                <button
+                  [attr.aria-label]="'重新上传新版本：' + w.prompt"
+                  [disabled]="settingsBusy()"
+                  (click)="prepareImageReupload(w.jobId, w.prompt, w.info?.sha256)"
+                >
+                  重新上传新版本
+                </button>
+              }
               <button
                 class="danger"
                 [attr.aria-label]="'删除本机图片：' + w.prompt"
@@ -748,14 +757,42 @@
     }
     @if (remoteOnlyWorks().length) {
       <div class="cards" aria-label="同步作品信息">
-        @for (work of remoteOnlyWorks(); track work.jobId) {
+        @for (work of remoteLibraryPage().works; track remotePreviewGeneration() + work.jobId + work.sha256) {
           @let download = imageDownloadState(work);
-          <article class="card library-card remote-card" [attr.aria-busy]="download?.status === 'loading'">
-            <div class="empty-state"><p>本机无原图</p></div>
+          @let preview = remoteImagePreview(work);
+          <article
+            class="card library-card remote-card"
+            [attr.aria-busy]="download?.status === 'loading' || preview?.status === 'loading'"
+            [attr.data-source-id]="work.jobId"
+            (visibleChange)="remoteWorkVisible(work, $event)"
+            appWorkVisible
+          >
+            <div class="card-photo">
+              @if (preview?.status === 'ready') {
+                <img class="card-image" [alt]="work.prompt" [src]="preview.url" />
+              } @else {
+                <div class="empty-state">
+                  <p>{{ preview?.status === 'loading' ? '正在核对远端原图…' : '远端预览按需加载' }}</p>
+                  @if (preview?.status === 'failed') {
+                    <p role="alert">{{ preview.message }}</p>
+                  }
+                  @if (preview?.status === 'failed' || preview?.status === 'unavailable') {
+                    <button class="secondary sm" (click)="retryRemotePreview(work)">重试远端预览</button>
+                  }
+                </div>
+              }
+            </div>
             <div class="card-caption">
               <h3 class="remote-prompt">{{ work.prompt }}</h3>
+              <p>本机无原图</p>
               <p>{{ work.modelId }} · {{ work.width }} × {{ work.height }}</p>
-              <small>本机尚未保存原图；已上传到平台账号的原图可取回。</small>
+              <small>
+                {{
+                  preview?.status === 'ready' ? '远端可取回 · 本机尚未保存原图'
+                  : preview?.status === 'unavailable' ? '仅同步了作品信息，远端原图尚未确认。'
+                  : '本机尚未保存原图；远端原图按需核对。'
+                }}
+              </small>
               @if (targetKind() === 'platform' && syncInitialized() && authUser()) {
                 <button
                   class="secondary sm"
@@ -806,6 +843,27 @@
           </article>
         }
       </div>
+      @if (remoteLibraryPage().total > 24) {
+        <nav class="library-pagination" aria-label="同步作品分页">
+          <button
+            class="secondary sm"
+            [disabled]="remoteLibraryPage().page <= 1"
+            (click)="remoteLibraryGo(remoteLibraryPage().page - 1)"
+          >
+            上一页
+          </button>
+          <span role="status">
+            同步作品第 {{ remoteLibraryPage().page }} 页 · 共 {{ remoteLibraryPage().total }} 张
+          </span>
+          <button
+            class="secondary sm"
+            [disabled]="remoteLibraryPage().page * 24 >= remoteLibraryPage().total"
+            (click)="remoteLibraryGo(remoteLibraryPage().page + 1)"
+          >
+            下一页
+          </button>
+        </nav>
+      }
     }
     @if (history().length) {
       <details class="task-history">
@@ -1099,14 +1157,18 @@
 @if (imageDeleteReview(); as review) {
   <dialog
     class="modal-panel"
+    [attr.aria-label]="imageReuploadSelected() ? '重新上传新版本确认' : '删除远端原图确认'"
     (cancel)="$event.preventDefault(); cancelImageDelete()"
-    aria-label="删除远端原图确认"
     aria-modal="true"
     tabindex="-1"
   >
-    <h2>删除远端原图</h2>
+    <h2>{{ imageReuploadSelected() ? '重新上传新版本' : '删除远端原图' }}</h2>
     <p>{{ imageDeletePrompt() }}</p>
-    <p>只删除下面这一份远端原图。本机已有副本和同步图库信息保留，其他远端版本保留。</p>
+    @if (imageReuploadSelected()) {
+      <p>确认后将从本机原图创建新的远端文件版本，使用新的存储空间。旧版本的删除状态保留。</p>
+    } @else {
+      <p>只删除下面这一份远端原图。本机已有副本和同步图库信息保留，其他远端版本保留。</p>
+    }
     <p>
       {{ review.file.mimeType }} · {{ review.file.width }} × {{ review.file.height }} · {{ review.file.bytes }} bytes
     </p>
@@ -1119,28 +1181,36 @@
       }}
       · 未知历史：{{ review.unknownHistory }}
     </p>
-    @if (!review.allowed && !review.deletion) {
+    @if (!imageReuploadSelected() && !review.allowed && !review.deletion) {
       <p role="alert">此原图仍有引用或待核对记录，不能物理删除。原对象保留。</p>
     }
-    @if (review.deletion) {
+    @if (!imageReuploadSelected() && review.deletion) {
       <p role="status">已有删除回执，将先核对对象是否已消失。有新引用时保留对象。</p>
     }
     @if (imageDeleteMessage()) {
       <p role="status">{{ imageDeleteMessage() }}</p>
     }
     <div class="work-actions">
-      <button class="secondary" (click)="cancelImageDelete()">取消远端删除</button>
-      <button
-        class="danger"
-        [disabled]="imageDeleteBusy() || (!review.allowed && !review.deletion)"
-        (click)="confirmImageDelete()"
-      >
-        {{
-          imageDeleteBusy() ? '正在核对…'
-          : review.deletion ? '继续核对远端删除'
-          : '确认删除此远端原图'
-        }}
+      <button class="secondary" (click)="cancelImageDelete()">
+        {{ imageReuploadSelected() ? '取消重新上传' : '取消远端删除' }}
       </button>
+      @if (imageReuploadSelected()) {
+        <button [disabled]="imageDeleteBusy()" (click)="confirmImageReupload()">
+          {{ imageDeleteBusy() ? '正在核对…' : '确认重新上传新版本' }}
+        </button>
+      } @else {
+        <button
+          class="danger"
+          [disabled]="imageDeleteBusy() || (!review.allowed && !review.deletion)"
+          (click)="confirmImageDelete()"
+        >
+          {{
+            imageDeleteBusy() ? '正在核对…'
+            : review.deletion ? '继续核对远端删除'
+            : '确认删除此远端原图'
+          }}
+        </button>
+      }
     </div>
   </dialog>
 }
