@@ -25,7 +25,10 @@
     "coverageReport": "coverage-summary-browser-support.json"
   },
   "browserVerification": {
-    "runManifests": ["browser-support-runs.json", "browser-support-webkit-followup-runs.json"],
+    "runManifests": [
+      "browser-support-runs.json",
+      "browser-support-webkit-followup-runs.json"
+    ],
     "implementationAndEvidence": "browser-support.md",
     "safariProductAcceptanceComplete": false,
     "summary": "browser-support-summary.json",
@@ -102,7 +105,7 @@
   },
   "format": "aiao-desktop.requirements-closeout",
   "measuredAt": "2026-11-14T11:26:49.347Z",
-  "pendingAcceptanceCount": 2,
+  "pendingAcceptanceCount": 1,
   "previousAutomatedVerifications": [
     {
       "command": "NX_NO_CLOUD=true pnpm nx run aiao-desktop:verify --skip-nx-cache --parallel=2 --output-style=static",
@@ -250,15 +253,10 @@
     },
     {
       "id": "ADESK-US-107",
-      "status": "In Review",
+      "status": "Done",
       "path": "stories/desktop/ADESK-US-107-shell-interaction-coverage.md",
       "dependsOn": "[ADESK-US-101, ADESK-US-102]",
-      "pendingAcceptance": [
-        {
-          "ac": 8,
-          "status": "⬜"
-        }
-      ]
+      "pendingAcceptance": []
     },
     {
       "id": "ADESK-US-108",
@@ -330,8 +328,23 @@
     }
   ],
   "storyCounts": {
-    "Done": 20,
-    "In Review": 2
+    "Done": 21,
+    "In Review": 1
   },
-  "version": 1
+  "version": 1,
+  "storiesUpdatedAt": "2026-11-14T23:38:35.806Z",
+  "manualKeyboardAcceptance": {
+    "story": "ADESK-US-107",
+    "ac": 8,
+    "completedDate": "2026-11-15",
+    "timeZone": "Asia/Shanghai",
+    "operator": "user",
+    "input": "physical keyboard; no keys dispatched by the probe",
+    "record": "manual-chrome-acceptance.md",
+    "events": "manual-keyboard-probe-events.json",
+    "scope": "desktop Chrome ordinary tab",
+    "combinationCount": 9,
+    "allTargetCombinationsUsable": false,
+    "limitations": "Space and Backquote target combinations were not observed at the page; interception or remapping source not located. The cycle menu result is based on user feedback; no state transition history was captured."
+  }
 }

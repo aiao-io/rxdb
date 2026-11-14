@@ -1,11 +1,11 @@
 ---
 id: ADESK-US-107
 title: 外壳交互验收补齐
-status: In Review
+status: Done
 priority: Medium
 epic: ADESK-EPIC-002
 created: 2026-11-13
-updated: 2026-11-14
+updated: 2026-11-15
 tags: [desktop, shell, e2e]
 dependsOn: [ADESK-US-101, ADESK-US-102]
 capabilities: []
@@ -45,7 +45,7 @@ capabilities: []
 | 5   | 桌面已打开                         | 打开控制中心，切换深色外观，再刷新页面                                    | 控制中心开关生效，刷新后设置仍在（与 US-102 的持久化联动）                                                 | ✅   |
 | 6   | 打开 Finder                        | 拖动标题栏移动，拖右下角缩放，点绿色按钮两次                              | 窗口跟随指针；缩放后 keepOnScreen 保证窗口不跑出屏幕；缩放切换与还原正常                                   | ✅   |
 | 7   | 打开三个窗口并互相重叠             | 依次点各窗口，再按 ⌘`                                                     | 焦点与层叠顺序符合点击顺序；⌘` 把最底层的可见窗口提到最前                                                  | ✅   |
-| 8   | 本机 Chrome 的普通标签页，真实键盘 | 按下[能力矩阵](../../capability-matrix.md#快捷键)「快捷键」表里的每个组合 | 记录每个组合是否到达页面；到达的行为正确；没到达的（被浏览器或系统占用）在能力矩阵标注，并有可用的替代入口 | ⬜   |
+| 8   | 本机 Chrome 的普通标签页，真实键盘 | 按下[能力矩阵](../../capability-matrix.md#快捷键)「快捷键」表里的每个组合 | 记录每个组合是否到达页面；到达的行为正确；没到达的（被浏览器或系统占用）在能力矩阵标注，并有可用的替代入口 | ✅   |
 | 9   | 外网请求全部拦截                   | 依次完成第 1～7 条                                                        | 没有页面错误；控制台错误只有资源加载失败                                                                   | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
@@ -71,7 +71,7 @@ capabilities: []
 
 原始记录：[Chromium最终聚合检查](../../evidence/2026-11-14/chromium-verify.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
 
-AC#8 必须由操作者在本机Chrome普通标签页用物理键盘逐项按下。`verify-keyboard`脚本和记录口径已准备，Playwright或系统派发按键不能代替物理键盘证据。
+AC#8 已于 2026-11-14～2026-11-15 由用户在本机 Chrome 普通标签页手按九组组合完成逐项记录，详见[人工反馈与边界](../../evidence/2026-11-14/manual-chrome-acceptance.md)及[原始按键事件](../../evidence/2026-11-14/manual-keyboard-probe-events.json)。未到达页面的目标组合与可用界面入口已登记在能力矩阵；不声明被占用或未送达的组合可用。⌘+Backquote 的本轮菜单切至 Notes 依据用户直接反馈，事后探针快照仍为 Calculator，未冒充自动状态变化证据。
 
 ## References
 

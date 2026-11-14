@@ -22,15 +22,11 @@
 
 双域名用户文件隔离已用真实终端复制创建用户文件、读回正文并切换Origin，9项通过；旧生产覆盖种子文件及终端写入产生的Storage file meta not found失败仍保留。真实旧生产升级也已补上用户文件正文逐字比较，5项通过。发布后已重跑[双域名隔离](../evidence/2026-11-14/release-domain-storage.json)与[真实Aiao Code](../evidence/2026-11-14/release-aiao-code.json)，各9项通过。原[发布命令](../evidence/2026-11-14/release-production.txt)上传成功、两个入口核对通过，但5个文件下载超时而退出1；随后对同一部署[只读复验95个公开文件](../evidence/2026-11-14/release-curl-reconciliation.json)全部通过，原失败保留，没有再次上传。US-004已据本次线上结果关闭。
 
-## 本机输入与读屏（待执行）
+## 本机输入与读屏（键盘已记录，读屏待执行）
 
-[US-107 #8](../stories/desktop/ADESK-US-107-shell-interaction-coverage.md)需要操作者实际按物理键盘。脚本负责建立本机Chrome普通标签页、记录到达页面的组合与对应行为，浏览器/系统截获的组合仍要列出和提供替代入口：
+[US-107 #8](../stories/desktop/ADESK-US-107-shell-interaction-coverage.md) 已于 2026-11-14～2026-11-15 由用户实际按下九组组合，并逐项保留网页行为、系统或浏览器响应、目标事件未送达情况与可用界面入口。结果见[人工验收记录](../evidence/2026-11-14/manual-chrome-acceptance.md)和[原始按键事件](../evidence/2026-11-14/manual-keyboard-probe-events.json)，能力矩阵同步实际边界。探针没有代按；无关组合、准备操作或超时均不作为目标组合通过的证据。
 
-```bash
-pnpm nx run aiao-desktop-e2e:verify-keyboard --args='--out=/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/aiao-desktop/requirements/evidence/2026-11-14/keyboard-physical.json'
-```
-
-[US-108 #6](../stories/desktop/ADESK-US-108-accessibility.md)按[VoiceOver清单](../../apps/e2e/VOICEOVER.md)记录V01～V14实际播报。2026-11-14检查时VoiceOver未运行；自动化AX树不能替代真实读屏输出。临时开启系统VoiceOver并恢复原状态是后续具体操作，尚未执行。
+[US-108 #6](../stories/desktop/ADESK-US-108-accessibility.md) 仍按[VoiceOver 清单](../../apps/e2e/VOICEOVER.md)记录 V01～V14 实际播报。2026-11-14 的旧检查没有读屏结果；当前先确认初始开关与导航设置，再逐步操作，最后恢复。自动化 AX 树不能替代真实读屏输出。
 
 ## Chrome 范围（已按用户要求收敛）
 
@@ -38,4 +34,4 @@ pnpm nx run aiao-desktop-e2e:verify-keyboard --args='--out=/Users/jimmy/Document
 
 Safari、Firefox、WebKit均不在本轮必验或支持承诺内。[历史跨浏览器记录](../evidence/2026-11-14/browser-support.md)、[Safari后续验收](../evidence/2026-11-14/safari-product-followup.json)和[再次游戏检查](../evidence/2026-11-14/safari-game-probe.json)完整保留；未完成的Safari观察没有改写成通过。
 
-Chrome范围调整时曾有5项AC待关闭，见[历史范围调整记录](../evidence/2026-11-14/chrome-only-scope.json)。D-20已接受两项历史流程例外，本次正式发布与线上复验已完成；当前仅剩US-107 #8物理键盘与US-108 #6 VoiceOver，见[需求汇总](../evidence/2026-11-14/closeout-summary.json)。
+Chrome范围调整时曾有5项AC待关闭，见[历史范围调整记录](../evidence/2026-11-14/chrome-only-scope.json)。D-20已接受两项历史流程例外，本次正式发布与线上复验已完成；2026-11-15 已关闭 US-107 #8，当前仅剩 US-108 #6 VoiceOver，见[需求汇总](../evidence/2026-11-14/closeout-summary.json)。

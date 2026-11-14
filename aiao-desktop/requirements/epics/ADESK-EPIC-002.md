@@ -20,7 +20,7 @@ owner: jimmy
 - [x] 打开过的窗口在刷新后恢复位置、大小与状态（[ADESK-US-104](../stories/desktop/ADESK-US-104-window-layout-persistence.md)）。
 - [x] 一个标签页里的改动在另一个标签页即时可见（[ADESK-US-105](../stories/desktop/ADESK-US-105-multi-tab-sync.md)）。
 - [x] 桌面升级后旧库的数据保留、新数据域补写（[ADESK-US-106](../stories/desktop/ADESK-US-106-database-upgrade-path.md)）。
-- [ ] 开机、锁屏、睡眠、状态栏面板、控制中心与窗口拖动/缩放/全屏进冒烟验收（[ADESK-US-107](../stories/desktop/ADESK-US-107-shell-interaction-coverage.md)）。
+- [x] 开机、锁屏、睡眠、状态栏面板、控制中心与窗口拖动/缩放/全屏进冒烟验收（[ADESK-US-107](../stories/desktop/ADESK-US-107-shell-interaction-coverage.md)）。
 - [ ] 读屏与纯键盘路径可用，无障碍树断言进冒烟（[ADESK-US-108](../stories/desktop/ADESK-US-108-accessibility.md)）。
 
 当前未勾选项包含已经实现、等待验收或依赖关闭的故事，具体保留项见状态总览。

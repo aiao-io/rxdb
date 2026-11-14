@@ -4,17 +4,12 @@
   "format": "aiao-desktop.release-closeout",
   "pendingAcceptance": [
     {
-      "id": "ADESK-US-107",
-      "ac": 8,
-      "requires": "human physical keyboard input in Chrome"
-    },
-    {
       "id": "ADESK-US-108",
       "ac": 6,
       "requires": "actual VoiceOver announcements V01-V14"
     }
   ],
-  "pendingAcceptanceCount": 2,
+  "pendingAcceptanceCount": 1,
   "productionRelease": {
     "decision": "D-20",
     "deploymentId": "b093f8b2-9bc7-492c-9a8b-1928f8397ada",
@@ -45,8 +40,23 @@
   },
   "recordedAt": "2026-11-14T11:26:49.353Z",
   "storyCounts": {
-    "Done": 20,
-    "In Review": 2
+    "Done": 21,
+    "In Review": 1
   },
-  "version": 1
+  "version": 1,
+  "acceptanceUpdatedAt": "2026-11-14T23:38:35.806Z",
+  "manualKeyboardAcceptance": {
+    "story": "ADESK-US-107",
+    "ac": 8,
+    "completedDate": "2026-11-15",
+    "timeZone": "Asia/Shanghai",
+    "operator": "user",
+    "input": "physical keyboard; no keys dispatched by the probe",
+    "record": "manual-chrome-acceptance.md",
+    "events": "manual-keyboard-probe-events.json",
+    "scope": "desktop Chrome ordinary tab",
+    "combinationCount": 9,
+    "allTargetCombinationsUsable": false,
+    "limitations": "Space and Backquote target combinations were not observed at the page; interception or remapping source not located. The cycle menu result is based on user feedback; no state transition history was captured."
+  }
 }
