@@ -1600,6 +1600,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   }
   async prepareImageDelete(sourceId: string, prompt: string, digest?: string, reupload = false): Promise<void> {
     if (this.settingsBusy() || this.targetKind() !== 'platform' || !this.syncInitialized()) return;
+    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     this.cancelImageDelete();
     this.imageReuploadSelected.set(reupload);
     const scope = new AbortController();
@@ -1616,6 +1617,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       if (reupload && (!review.file.deleted || review.deletion?.state !== 'complete'))
         throw new Error('远端删除尚未完成，请先核对删除结果，再重新上传新版本。');
       this.imageDeletion = { controller, review, signal: scope.signal };
+      this.dialogTrigger = trigger;
       this.imageDeleteReview.set(review);
       this.imageDeletePrompt.set(prompt);
       this.imageDeleteMessage.set('');

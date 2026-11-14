@@ -1,5 +1,6 @@
 import type { GenerationJobSummary, PublicWorkPayload } from '@aiao-media/api-contracts';
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { Subject } from 'rxjs';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { ImageSyncSelection } from '../local-data/image-sync-selection';
@@ -117,6 +118,57 @@ function downloadRig(
   };
   return { ...r, card, retrieve, download };
 }
+
+describe('远端预览可见性重建', () => {
+  it('删除状态变化后保留当前卡片操作按钮的键盘焦点', () => {
+    const r = rig();
+    r.streams[0].next([]);
+    r.component.targetKind.set('platform');
+    r.component.authUser.set({ id: 'fixture-account', email: null });
+    r.component.syncInitialized.set(true);
+    r.text();
+    const button = r.element.querySelector<HTMLButtonElement>('button[aria-label^="删除远端原图"]')!;
+    button.focus();
+    expect(document.activeElement).toBe(button);
+    r.component.imageDeleteStates.set(new Map([[`${remote.jobId}:${remote.sha256}`, 'complete']]));
+    r.text();
+    expect(document.activeElement).toBe(
+      r.element.querySelector<HTMLButtonElement>('button[aria-label^="删除远端原图"]')
+    );
+    r.session.close();
+  });
+
+  it('停止传输后刷新同一卡片的可见性作用域', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const r = rig();
+    r.streams[0].next([]);
+    r.text();
+    const before = r.element.querySelector('.remote-card');
+    expect(before).not.toBeNull();
+    const visibility = r.fixture.debugElement.query(By.css('.remote-card')).injector.get(WorkVisibleDirective);
+    const scope = visibility.visibilityScope();
+    await r.component.stopImageSync();
+    r.text();
+    expect(r.element.querySelector('.remote-card')).toBe(before);
+    expect(visibility.visibilityScope()).not.toBe(scope);
+    r.session.close();
+  });
+
+  it('删除完成后刷新同一卡片的可见性作用域，核对新版本无需刷新页面', () => {
+    const r = rig();
+    r.streams[0].next([]);
+    r.text();
+    const before = r.element.querySelector('.remote-card');
+    expect(before).not.toBeNull();
+    const visibility = r.fixture.debugElement.query(By.css('.remote-card')).injector.get(WorkVisibleDirective);
+    const scope = visibility.visibilityScope();
+    r.component.imageDeleteStates.set(new Map([[`${remote.jobId}:${remote.sha256}`, 'complete']]));
+    r.text();
+    expect(r.element.querySelector('.remote-card')).toBe(before);
+    expect(visibility.visibilityScope()).not.toBe(scope);
+    r.session.close();
+  });
+});
 
 describe('图库原图取回反馈', () => {
   it('账号窗口关闭时仅目标作品显示取回进度和忙碌状态', async () => {

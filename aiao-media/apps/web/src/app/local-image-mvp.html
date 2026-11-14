@@ -757,10 +757,7 @@
     }
     @if (remoteOnlyWorks().length) {
       <div class="cards" aria-label="同步作品信息">
-        @for (
-          work of remoteLibraryPage().works;
-          track remotePreviewGeneration() + work.jobId + work.sha256 + remoteImageDeleteState(work.jobId, work.sha256)
-        ) {
+        @for (work of remoteLibraryPage().works; track work.jobId + work.sha256) {
           @let download = imageDownloadState(work);
           @let preview = remoteImagePreview(work);
           <article
@@ -768,6 +765,7 @@
             [attr.aria-busy]="download?.status === 'loading' || preview?.status === 'loading'"
             [attr.data-source-id]="work.jobId"
             (visibleChange)="remoteWorkVisible(work, $event)"
+            [visibilityScope]="remotePreviewGeneration() + ':' + remoteImageDeleteState(work.jobId, work.sha256)"
             appWorkVisible
           >
             <div class="card-photo">

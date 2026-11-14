@@ -1,29 +1,53 @@
-import { type AfterViewInit, Directive, ElementRef, inject, type OnDestroy, output } from '@angular/core';
+import {
+  type AfterViewInit,
+  effect,
+  type EffectRef,
+  Directive,
+  ElementRef,
+  inject,
+  Injector,
+  input,
+  type OnDestroy,
+  output
+} from '@angular/core';
 
 /** 仅报告作品卡片进入或离开真实视口。 */
 @Directive({ selector: '[appWorkVisible]' })
 export class WorkVisibleDirective implements AfterViewInit, OnDestroy {
   private readonly element = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
-  private observer?: IntersectionObserver;
+  private readonly injector = inject(Injector);
+  private observation?: EffectRef;
   private visible = false;
   private destroyed = false;
+  readonly visibilityScope = input('');
   readonly visibleChange = output<boolean>();
 
   ngAfterViewInit(): void {
-    this.observer = new IntersectionObserver(
-      entries => {
-        if (this.destroyed) return;
-        for (const entry of entries) this.change(entry);
+    this.observation = effect(
+      onCleanup => {
+        this.visibilityScope();
+        this.visible = false;
+        let active = true;
+        const observer = new IntersectionObserver(entries => this.report(entries, active), { rootMargin: '0px' });
+        observer.observe(this.element);
+        onCleanup(() => {
+          active = false;
+          observer.unobserve(this.element);
+          observer.disconnect();
+        });
       },
-      { rootMargin: '0px' }
+      { injector: this.injector }
     );
-    this.observer.observe(this.element);
   }
 
   ngOnDestroy(): void {
     this.destroyed = true;
-    this.observer?.unobserve(this.element);
-    this.observer?.disconnect();
+    this.observation?.destroy();
+  }
+
+  private report(entries: IntersectionObserverEntry[], active: boolean): void {
+    if (!active || this.destroyed) return;
+    for (const entry of entries) this.change(entry);
   }
 
   private change(entry: IntersectionObserverEntry): void {

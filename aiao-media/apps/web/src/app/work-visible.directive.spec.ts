@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorkVisibleDirective } from './work-visible.directive';
@@ -43,9 +43,10 @@ class Observer implements IntersectionObserver {
 
 @Component({
   imports: [WorkVisibleDirective],
-  template: '<article appWorkVisible (visibleChange)="changes.push($event)"></article>'
+  template: '<article appWorkVisible [visibilityScope]="scope()" (visibleChange)="changes.push($event)"></article>'
 })
 class Host {
+  readonly scope = signal('initial');
   readonly changes: boolean[] = [];
 }
 
@@ -62,6 +63,7 @@ describe('work card visibility', () => {
   it('observes the real viewport and emits only changes for its own element', () => {
     const fixture = TestBed.createComponent(Host);
     fixture.detectChanges();
+    TestBed.tick();
     const element = fixture.nativeElement.querySelector('article') as HTMLElement;
     const observer = Observer.instances[0];
     expect(observer.rootMargin).toBe('0px');
@@ -74,9 +76,32 @@ describe('work card visibility', () => {
     expect(fixture.componentInstance.changes).toEqual([true, false]);
   });
 
+  it('作用域变化时重新报告当前可见性，忽略旧观察器的迟到事件', () => {
+    const fixture = TestBed.createComponent(Host);
+    fixture.detectChanges();
+    TestBed.tick();
+    const element = fixture.nativeElement.querySelector('article') as HTMLElement;
+    const before = Observer.instances[0];
+    before.emit(element, true);
+    fixture.componentInstance.scope.set('next');
+    fixture.detectChanges();
+    TestBed.tick();
+    const current = Observer.instances[1];
+    expect(before.disconnect).toHaveBeenCalledOnce();
+    expect(before.unobserve).toHaveBeenCalledExactlyOnceWith(element);
+    expect(current.observe).toHaveBeenCalledExactlyOnceWith(element);
+    before.emit(element, false);
+    before.emit(element, true);
+    expect(fixture.componentInstance.changes).toEqual([true]);
+    current.emit(element, true);
+    expect(fixture.componentInstance.changes).toEqual([true, true]);
+    expect(fixture.nativeElement.querySelector('article')).toBe(element);
+  });
+
   it('disconnects and ignores queued callbacks after destruction', () => {
     const fixture = TestBed.createComponent(Host);
     fixture.detectChanges();
+    TestBed.tick();
     const element = fixture.nativeElement.querySelector('article') as HTMLElement;
     const observer = Observer.instances[0];
     observer.emit(element, true);

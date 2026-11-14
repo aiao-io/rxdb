@@ -528,8 +528,13 @@ test('已删除原图明确创建新版本，准备和提交回执丢失后重�
       .getByRole('button', { name: '确认删除此远端原图', exact: true })
       .click();
     await expect(second.locator('#toast')).toContainText('远端原图已删除');
+    await expect(
+      remote.getByRole('button', { name: `删除远端原图：${job.request.prompt}`, exact: true })
+    ).toBeFocused();
     await expect(remote.getByRole('button', { name: '取回并保存原图', exact: true })).toBeDisabled();
     expect(await storage.count()).toBe(0);
+    await remote.scrollIntoViewIfNeeded();
+    await expect(remote.getByRole('button', { name: '重试远端预览', exact: true })).toBeVisible();
     const reuploadButton = original.getByRole('button', { name: `重新上传新版本：${job.request.prompt}`, exact: true });
     await reuploadButton.click();
     const confirmation = page.getByRole('dialog', { name: '重新上传新版本确认' });
