@@ -8,7 +8,10 @@ function fileRow(page: Page, name: string): Locator {
 }
 
 async function uploadTextFile(page: Page, name: string, content: string): Promise<void> {
-  await page.getByTestId('opfs-file-input').setInputFiles({
+  const chooserPending = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: '上传文件', exact: true }).click();
+  const chooser = await chooserPending;
+  await chooser.setFiles({
     name,
     mimeType: 'text/plain',
     buffer: Buffer.from(content)
@@ -27,7 +30,9 @@ async function openIsolatedFolder(page: Page): Promise<void> {
   const folder = fileRow(page, name);
   await expect(folder).toBeVisible({ timeout: 10000 });
   await folder.getByRole('button', { name }).click();
-  await expect(page.getByRole('button', { name: '上传文件', exact: true })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/opfs/${name}$`));
+  await expect(folder).toHaveCount(0);
+  await expect(page.getByRole('button', { name, exact: true })).toBeVisible();
 }
 
 test.describe('OPFS Page', () => {

@@ -47,6 +47,7 @@ import {
 import type { WorkspaceRegistryStore } from '../local-data/workspace-registry-store';
 import {
   apiEndpoint,
+  confirmAction,
   initialProfile,
   interceptDownload,
   nativeBackend,
@@ -260,6 +261,8 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private releaseAgain = false;
   private readonly injector = inject(Injector);
   private readonly promptInput = viewChild(PromptInput);
+  private readonly promptFocusRequested = signal(false);
+  private confirmationPending = false;
   private elapsedTimer?: ReturnType<typeof setInterval>;
   private releaseViewerImage?: () => void;
   private viewerPageTarget: { page: number; index: number } | null = null;
@@ -567,6 +570,17 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   constructor() {
     effect(() => this.remoteImages.page(this.remotePreviewWorks()));
     afterRenderEffect(() => {
+      if (!this.promptFocusRequested()) return;
+      if (this.view() !== 'studio') {
+        this.promptFocusRequested.set(false);
+        return;
+      }
+      const prompt = this.promptInput();
+      if (!prompt || this.workspaceSwitching() || this.identityBlocked() || prompt.disabled()) return;
+      this.promptFocusRequested.set(false);
+      prompt.focus();
+    });
+    afterRenderEffect(() => {
       if (!this.detail() && !this.feedbackOpen() && !this.authOpen() && !this.viewer() && !this.imageDeleteReview()) {
         const trigger = this.dialogTrigger;
         this.dialogTrigger = null;
@@ -673,15 +687,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     this.detail.set(null);
     this.closeViewer();
     window.scrollTo({ top: 0 });
-    if (view === 'studio') {
-      afterNextRender(
-        () => {
-          if (this.view() === 'studio' && !this.workspaceSwitching() && !this.identityBlocked())
-            this.promptInput()?.focus();
-        },
-        { injector: this.injector }
-      );
-    }
+    this.promptFocusRequested.set(view === 'studio');
     return true;
   }
   openSettings(tab: SettingsTab, event?: Event) {
@@ -750,7 +756,10 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     try {
       const config = kind === 'platform' ? readSupabaseAuthConfig() : null;
       if (kind === 'platform' && !config) throw new Error('平台账号服务尚未启用，请稍后重试。');
-      if (kind === 'disconnected' && !window.confirm('断开平台同步？本机和云端内容保留，之后可重新登录并开启同步。'))
+      if (
+        kind === 'disconnected' &&
+        !(await this.confirm('断开平台同步？本机和云端内容保留，之后可重新登录并开启同步。'))
+      )
         return;
       await this.checkpoint();
       const target: SyncTarget = config ? { kind: 'platform', config } : { kind: 'disconnected', config: null };
@@ -1009,7 +1018,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     if (
       this.settingsBusy() ||
       !current ||
-      !window.confirm('请先核对平台任务与积分流水。继续会解除本机锁定；下一次生成会创建新任务并预占积分。')
+      !(await this.confirm('请先核对平台任务与积分流水。继续会解除本机锁定；下一次生成会创建新任务并预占积分。'))
     )
       return;
     try {
@@ -1092,12 +1101,12 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   templateImageFailed(id: string) {
     this.failedTemplateImages.update(ids => new Set([...ids, id]));
   }
-  newImage() {
+  async newImage() {
     if (this.inFlight()) {
       this.navigate('studio');
       return;
     }
-    if (this.serialized().text.trim() && !window.confirm('开始新的创作并清空当前输入？')) return;
+    if (this.serialized().text.trim() && !(await this.confirm('开始新的创作并清空当前输入？'))) return;
     this.job.set(null);
     this.revokeResult();
     this.saved.set(false);
@@ -1113,7 +1122,8 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.deleteError.set('当前任务处理期间，删除暂不可用，请稍后重试。');
       return false;
     }
-    if (!window.confirm(`删除本机图片「${work.prompt.slice(0, 80)}」及其记录？下载过的文件不受影响。`)) return false;
+    if (!(await this.confirm(`删除本机图片「${work.prompt.slice(0, 80)}」及其记录？下载过的文件不受影响。`)))
+      return false;
     this.deletingWork.set(work.jobId);
     this.deleteError.set('');
     this.deleteErrorWork.set(null);
@@ -1190,12 +1200,12 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   async loadWorkInfo(work: Work, event: Event) {
     if ((event.target as HTMLDetailsElement).open) await this.fetchWorkInfo(work, true);
   }
-  reuseWork(work: Work) {
+  async reuseWork(work: Work) {
     if (this.inFlight()) {
       this.navigate('studio');
       return;
     }
-    if (this.serialized().text.trim() && !window.confirm('用这张图片的提示词替换当前输入？')) return;
+    if (this.serialized().text.trim() && !(await this.confirm('用这张图片的提示词替换当前输入？'))) return;
     this.selected.set(null);
     this.onPromptChanged(plainPrompt(work.prompt));
     this.navigate('studio');
@@ -1295,7 +1305,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     try {
       const { readLocalBackup } = await import('./local-backup');
       const { backup, files, digest } = await readLocalBackup(file);
-      if (!window.confirm(`导入备份「${file.name}」并切换到独立工作区？原工作区会保留，可在本机数据中切回。`)) {
+      if (!(await this.confirm(`导入备份「${file.name}」并切换到独立工作区？原工作区会保留，可在本机数据中切回。`))) {
         this.dataMessage.set('已取消导入，当前工作区未更改。');
         return;
       }
@@ -1380,7 +1390,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       if (!workspace) throw new Error('未找到可返回的本机工作区。');
       const identity = this.backupIdentity();
       if (!identity) throw new Error('账号正在验证，请稍后切换本机工作区。');
-      if (!window.confirm(`切换到「${workspace.label}」？当前草稿和作品会保留，两边内容不会合并。`)) return;
+      if (!(await this.confirm(`切换到「${workspace.label}」？当前草稿和作品会保留，两边内容不会合并。`))) return;
       this.dataBusy.set(true);
       this.dataMessage.set('正在打开所选本机工作区…');
       await navigator.locks.request(`aiao-local-generation-${this.profileId}`, { ifAvailable: true }, lock => {
@@ -1568,7 +1578,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     }
   }
   async stopImageSync() {
-    if (!window.confirm('停止以后图片自动上传？平台账号里的原图和本机原图都保留。')) return;
+    if (!(await this.confirm('停止以后图片自动上传？平台账号里的原图和本机原图都保留。'))) return;
     this.stopImageTransfers();
     localStorage.removeItem(this.imageSyncKey());
     this.imageSyncEnabled.set(false);
@@ -1576,7 +1586,11 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   }
   async removeSyncedWork(sourceId: string, prompt: string): Promise<void> {
     if (!this.product || this.settingsBusy() || this.targetKind() !== 'platform' || !this.syncInitialized()) return;
-    if (!window.confirm(`从同步图库移除“${prompt}”？各设备原图和云端对象都保留；旧上传和离线编辑不能重新加入此作品。`))
+    if (
+      !(await this.confirm(
+        `从同步图库移除“${prompt}”？各设备原图和云端对象都保留；旧上传和离线编辑不能重新加入此作品。`
+      ))
+    )
       return;
     const product = this.product,
       identity = this.backupIdentity(),
@@ -1779,12 +1793,14 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   }
   async rescanSync() {
     if (
-      window.confirm('重新扫描此账号的远程记录？本机未上传改动和冲突副本会保留，遇到冲突仍需你选择；不会重新生成图片。')
+      await this.confirm(
+        '重新扫描此账号的远程记录？本机未上传改动和冲突副本会保留，遇到冲突仍需你选择；不会重新生成图片。'
+      )
     )
       await this.product?.synchronize({ rescan: true });
   }
   async reportTasks() {
-    if (window.confirm('上报本机任务的状态、模型、时间和用量来源？不包含提示词、图片、账号会话或任务令牌。'))
+    if (await this.confirm('上报本机任务的状态、模型、时间和用量来源？不包含提示词、图片、账号会话或任务令牌。'))
       await this.product?.reportTasks();
   }
   async inspectRemoteQuota() {
@@ -1814,9 +1830,9 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   async deleteRemoteMetadata() {
     if (
       this.settingsBusy() ||
-      !window.confirm(
+      !(await this.confirm(
         '停止此设备同步并删除远端当前元数据？本机内容保留。删除标记、冲突版本与历史日志继续保留，其他已同步设备会收到删除。以后恢复同步可能合并或产生冲突。此操作不删除原图，也不是彻底清除历史。'
-      )
+      ))
     )
       return;
     this.stopSync();
@@ -1828,7 +1844,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     }
   }
   async deleteSyncedDraft() {
-    if (window.confirm('删除同步端草稿？当前本机输入和原图保留，其他设备会收到删除标记。'))
+    if (await this.confirm('删除同步端草稿？当前本机输入和原图保留，其他设备会收到删除标记。'))
       await this.product?.deleteDraft();
   }
   conflictPreview(record: ProductRecord | null): string {
@@ -2294,6 +2310,35 @@ export class LocalImageMvp implements OnInit, OnDestroy {
       this.templates.set([...published.values()].slice(0, 200));
     } catch {
       if (!this.disposed) this.catalogMessage.set('在线模板暂不可用，显示内置灵感。');
+    }
+  }
+  private async confirm(message: string): Promise<boolean> {
+    if (this.confirmationPending || this.disposed) return false;
+    const profileId = this.profileId,
+      identity = this.backupIdentity(),
+      epoch = this.epoch,
+      target = this.targetKind(),
+      inFlight = this.inFlight();
+    this.confirmationPending = true;
+    try {
+      const accepted = await confirmAction(message);
+      if (this.disposed) return false;
+      if (
+        profileId !== this.profileId ||
+        identity !== this.backupIdentity() ||
+        epoch !== this.epoch ||
+        target !== this.targetKind() ||
+        inFlight !== this.inFlight()
+      ) {
+        if (accepted) this.notify('当前状态已变化，请重新确认。');
+        return false;
+      }
+      return accepted;
+    } catch {
+      if (!this.disposed) this.notify('确认窗口未能打开，请重试；当前操作未执行。');
+      return false;
+    } finally {
+      this.confirmationPending = false;
     }
   }
   private notify(text: string) {

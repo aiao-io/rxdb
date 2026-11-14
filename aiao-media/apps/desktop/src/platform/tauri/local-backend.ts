@@ -6,6 +6,10 @@ import { listen } from '@tauri-apps/api/event';
 
 export const nativeBackend = true;
 export const localAdapterName = 'sqlite-tauri';
+/** 原生操作等待系统确认框回答，不依赖 WebView 的同步对话框。 */
+export function confirmAction(message: string): Promise<boolean> {
+  return invoke('media_confirm', { message });
+}
 const productionApiOrigin = 'https://media.aiao.io';
 function apiOrigin(): string {
   const candidate =

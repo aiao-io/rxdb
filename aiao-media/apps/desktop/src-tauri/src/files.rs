@@ -24,7 +24,22 @@ pub struct Saves(Mutex<HashMap<String, SaveSession>>);
 fn valid_save_name(name: &str) -> bool {
     name.len() <= 160
         && !name.contains(['/', '\\'])
-        && [".png", ".jpg", ".json", ".zip"].iter().any(|ext| name.ends_with(ext))
+        && [".png", ".jpg", ".json", ".zip"]
+            .iter()
+            .any(|ext| name.ends_with(ext))
+}
+
+#[tauri::command]
+pub async fn media_confirm(window: WebviewWindow, message: String) -> Result<bool, String> {
+    owner(&window)?;
+    let response = rfd::AsyncMessageDialog::new()
+        .set_parent(&window)
+        .set_title("Aiao Media")
+        .set_description(message)
+        .set_buttons(rfd::MessageButtons::OkCancel)
+        .show()
+        .await;
+    Ok(response == rfd::MessageDialogResult::Ok)
 }
 
 #[tauri::command]

@@ -7,6 +7,7 @@ import {
   OnDestroy,
   PLATFORM_ID,
   ViewEncapsulation,
+  afterRenderEffect,
   effect,
   inject,
   input,
@@ -63,7 +64,8 @@ export class PromptInput implements AfterViewInit, OnDestroy {
   private lastState?: PromptState;
   private destroyed = false;
   private initializing = false;
-  private focusPending = false;
+  private restoreFocusAfterDisable = false;
+  private readonly focusPending = signal(false);
   private historyBoundary?: () => void;
   readonly state = input.required<PromptState>();
   readonly disabled = input(false);
@@ -75,10 +77,30 @@ export class PromptInput implements AfterViewInit, OnDestroy {
   readonly preview = signal(false);
   readonly message = signal('');
   constructor() {
+    afterRenderEffect(() => {
+      if (!this.focusPending() || !this.ready() || this.disabled()) return;
+      const editor = this.editor;
+      if (!editor) return;
+      schedulePromptFocus(
+        this.host().nativeElement,
+        () => {
+          if (this.destroyed || this.editor !== editor || this.disabled() || !this.focusPending()) return false;
+          this.focusPending.set(false);
+          return true;
+        },
+        () => editor.view.focus()
+      );
+    });
     effect(() => {
       const state = this.state(),
         disabled = this.disabled();
       if (!this.editor) return;
+      if (disabled && this.editor.isEditable)
+        this.restoreFocusAfterDisable = document.activeElement === this.editor.view.dom;
+      if (!disabled && this.restoreFocusAfterDisable) {
+        this.restoreFocusAfterDisable = false;
+        if (document.activeElement === document.body) this.focusPending.set(true);
+      }
       this.editor.setEditable(!disabled, false);
       // ProseMirror editability does not update native inputs inside node views.
       for (const input of this.host().nativeElement.querySelectorAll<HTMLInputElement>('.prompt-field input'))
@@ -100,7 +122,7 @@ export class PromptInput implements AfterViewInit, OnDestroy {
   }
   ngOnDestroy() {
     this.destroyed = true;
-    this.focusPending = false;
+    this.focusPending.set(false);
     this.editor?.destroy();
   }
   async initialize() {
@@ -238,7 +260,6 @@ export class PromptInput implements AfterViewInit, OnDestroy {
       this.error.set('');
       this.ready.set(true);
       this.readiness.emit(true);
-      if (this.focusPending) this.focus();
     } catch {
       this.error.set('编辑器初始化失败，当前正文与参数已保留；重试成功前不能生成。');
       this.ready.set(false);
@@ -248,20 +269,7 @@ export class PromptInput implements AfterViewInit, OnDestroy {
     }
   }
   focus() {
-    this.focusPending = false;
-    if (this.destroyed || this.disabled()) return;
-    const editor = this.editor;
-    if (!editor) {
-      this.focusPending = true;
-      return;
-    }
-    schedulePromptFocus(
-      this.host().nativeElement,
-      () => !this.destroyed && this.editor === editor && !this.disabled(),
-      // Tiptap's focus command schedules another unguarded animation frame.
-      // Focus the current ProseMirror view only after the final guard above.
-      () => editor.view.focus()
-    );
+    if (!this.destroyed && !this.disabled()) this.focusPending.set(true);
   }
   undo() {
     if (!this.disabled()) this.editor?.commands.undo();

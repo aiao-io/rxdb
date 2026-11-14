@@ -4,14 +4,14 @@
 
 当前范围是桌面浏览器上的图片创作：灵感与提示词、平台积分生图与本机交付、本机作品检索与按需预览、可选账号与跨设备同步、跨用户业务后台。按 [D-19](decisions.md#d-19登录用户经平台积分生图移除用户自配供应商)，用户不再配置供应商：模型与凭据由平台统一托管，登录平台账号且积分可用即可生成，未登录保留本机草稿、灵感浏览与本机作品。海外平台账号与同步已按 [D-16](decisions.md) 正式启用，国内自建 Supabase 与 IP HTTPS 已通过[发布验收](plans/self-hosted-release-20261109.md)；公众邮件与桌面联验仍待完成。旧 Bun API/PostgreSQL、SSR/BFF、音视频、Electron 桌面与通用供应商证据机不在范围内；充值计费按 [D-17](decisions.md#d-17充值退款与价格体系暂缓平台生图已按-d-19-恢复为积分制) 暂缓，积分由后台发放（MEDIA-US-206）。原自有项目接入需求与代码按用户决定移除。本站服务端任务与刷新续接拆为 MEDIA-US-109，服务端已完成平台凭据、积分预占/确认/释放及本地验证，前端改版与本地浏览器验收已完成，真实账号正式验收待完成，范围决策见 [D-15](decisions.md#d-15本站代理生图改为服务端任务) 与 [D-19](decisions.md#d-19登录用户经平台积分生图移除用户自配供应商)。
 
-| 状态           |   数量 | 说明                                                                |
-| -------------- | -----: | ------------------------------------------------------------------- |
-| ✅ Done        |      8 | 工作区骨架，以及全部 AC 已验、按 [D-11](decisions.md) 结项的七条    |
-| 🚧 In Progress |      7 | 灵感库 IME 未验、桌面、同步，以及 D-19 的平台积分生图与后台积分管理 |
-| 👀 In Review   |      3 | 本机交付、国内自建部署与首次安装流程，等待评审与合入                |
-| ⬜ Backlog     |      2 | 移动真机按 D-04、平台支付按 D-17 暂缓                               |
-| 🚫 Blocked     |      0 | —                                                                   |
-| **合计**       | **20** | 不含模板和上游故事                                                  |
+| 状态           |   数量 | 说明                                                             |
+| -------------- | -----: | ---------------------------------------------------------------- |
+| ✅ Done        |      8 | 工作区骨架，以及全部 AC 已验、按 [D-11](decisions.md) 结项的七条 |
+| 🚧 In Progress |      6 | 桌面、同步，以及 D-19 的平台积分生图与后台积分管理               |
+| 👀 In Review   |      4 | 本机交付、灵感库、国内自建部署与首次安装流程，等待评审与合入     |
+| ⬜ Backlog     |      2 | 移动真机按 D-04、平台支付按 D-17 暂缓                            |
+| 🚫 Blocked     |      0 | —                                                                |
+| **合计**       | **20** | 不含模板和上游故事                                               |
 
 ## 按 Epic 索引
 
@@ -28,7 +28,7 @@
 - 🚧 [MEDIA-US-108 平台积分生图与额度](stories/generation/MEDIA-US-108-platform-generation.md)
 - 🚧 [MEDIA-US-109 平台生图服务端任务与刷新续接](stories/generation/MEDIA-US-109-relay-durable-task.md)
 - 👀 [MEDIA-US-102 图片生成与本机交付](stories/generation/MEDIA-US-102-image-generation.md)
-- 🚧 [MEDIA-US-106 图片提示词灵感库与一键套用](stories/generation/MEDIA-US-106-prompt-gallery.md)
+- 👀 [MEDIA-US-106 图片提示词灵感库与一键套用](stories/generation/MEDIA-US-106-prompt-gallery.md)
 - ⬜ [MEDIA-US-107 移动设备能力验收](stories/generation/MEDIA-US-107-mobile-verification.md)（暂缓）
 
 ### [账户、作品库与业务管理](epics/MEDIA-EPIC-003.md)
@@ -49,18 +49,17 @@
 
 ## 未完成验收与关闭条件
 
-20 条故事共 140 条 AC，98 条已通过（✅）、15 条部分通过（⚠️）、27 条待验（⬜）；MEDIA-US-205 随 D-17 暂缓，MEDIA-US-108 按 D-19 完成前后端接线，AC1–5 本地通过，AC6–7 等正式环境；MEDIA-US-206 AC1–4 已通过本地验证，AC5 等待双部署发放与生成联验，见[积分交付证据](plans/credits-delivery-20261113.md)。既有实施清单已完成：[本地交付](plans/local-delivery-tasks.md) 17/17、[作品检索](plans/library-search-tasks.md) 10/10、[分支收尾](plans/branch-completion-20261029.md)。既有范围剩余 4 条只缺真实环境证据；MEDIA-US-109 的 12 条 AC 中 5 条已有本地证据，其余等真实账号、真实任务及 R2 结果回收与正式发布（桶与 1 天规则已于 2026-11-14 只读核对），分阶段关闭条件见[实施计划](plans/relay-durable-tasks.md)。MEDIA-US-305 的 14 条 AC 按统一平台目标继续验收；正式云 Web 侧原图上传与显式下载的字节一致性已验，关闭条件为 Tauri 跨设备、大图续传与删除冲突联验。撤销的自有项目接入需求不再计入当前故事或 AC。用户自配供应商、直连与按请求 Key 代理随 D-19 出范围。这些不计入下表既有缺证项：
+20 条故事共 140 条 AC，101 条已通过（✅）、12 条部分通过（⚠️）、27 条待验（⬜）；MEDIA-US-205 随 D-17 暂缓，MEDIA-US-108 按 D-19 完成前后端接线，AC1–5 本地通过，AC6–7 等正式环境；MEDIA-US-206 AC1–4 已通过本地验证，AC5 等待双部署发放与生成联验，见[积分交付证据](plans/credits-delivery-20261113.md)。既有实施清单已完成：[本地交付](plans/local-delivery-tasks.md) 17/17、[作品检索](plans/library-search-tasks.md) 10/10、[分支收尾](plans/branch-completion-20261029.md)。既有缺证项现仅余 MEDIA-US-107 的 3 条（D-04 暂缓）；MEDIA-US-106 的全部 9 条已验并进入 In Review；MEDIA-US-109 的 12 条 AC 中 5 条已有本地证据，其余等真实账号、真实任务及 R2 结果回收与正式发布（桶与 1 天规则已于 2026-11-14 只读核对），分阶段关闭条件见[实施计划](plans/relay-durable-tasks.md)。MEDIA-US-305 的 14 条 AC 按统一平台目标继续验收；正式云 Web 侧原图上传与显式下载的字节一致性已验，关闭条件为 Tauri 跨设备、大图续传与删除冲突联验。撤销的自有项目接入需求不再计入当前故事或 AC。用户自配供应商、直连与按请求 Key 代理随 D-19 出范围。这些不计入下表既有缺证项：
 
-| 故事 / AC                                                                  | 当前进展                                                                                          | 关闭所需证据                                                                                          |
-| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| [MEDIA-US-106 AC7](stories/generation/MEDIA-US-106-prompt-gallery.md)      | 真实系统输入法验收入口已执行，但在输入场景前因 `IME_FOCUS_LOST` 中止；尚无通过证据 | 在真实系统中文输入法上完成正文/字段输入、粘贴、撤销重做，且不丢字、不抢焦点、无布局溢出               |
-| [MEDIA-US-107 AC1](stories/generation/MEDIA-US-107-mobile-verification.md) | 按 D-04 暂缓                                                                                      | 在选定设备与系统 IME 上验证输入、参数一致性与不重复生成                                               |
-| [MEDIA-US-107 AC2](stories/generation/MEDIA-US-107-mobile-verification.md) | 按 D-04 暂缓                                                                                      | 在支持所需存储的设备上验证保存、重开、离线预览和实际文件下载                                          |
-| [MEDIA-US-107 AC3](stories/generation/MEDIA-US-107-mobile-verification.md) | 按 D-04 暂缓                                                                                      | 实测系统拒绝或限制，不虚报保存/下载，重试保留已有数据和原结果                                         |
-| [MEDIA-US-108 AC6](stories/generation/MEDIA-US-108-platform-generation.md) | 前后端与平台三画幅 fixture 已通过，正式海外尚未验收                                               | 正式域名真实平台账号+积分三画幅各一次：只调用一次上游，结果保存/回读/精确下载一致，积分扣减与流水一致 |
-| [MEDIA-US-108 AC7](stories/generation/MEDIA-US-108-platform-generation.md) | 本地契约与浏览器验收已通过，国内正式环境尚未升级                                                  | 国内自建部署使用同一积分契约：后台发放可见、生成扣减一致、本机交付正常                                |
+| 故事 / AC                                                                  | 当前进展                                            | 关闭所需证据                                                                                          |
+| -------------------------------------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| [MEDIA-US-107 AC1](stories/generation/MEDIA-US-107-mobile-verification.md) | 按 D-04 暂缓                                        | 在选定设备与系统 IME 上验证输入、参数一致性与不重复生成                                               |
+| [MEDIA-US-107 AC2](stories/generation/MEDIA-US-107-mobile-verification.md) | 按 D-04 暂缓                                        | 在支持所需存储的设备上验证保存、重开、离线预览和实际文件下载                                          |
+| [MEDIA-US-107 AC3](stories/generation/MEDIA-US-107-mobile-verification.md) | 按 D-04 暂缓                                        | 实测系统拒绝或限制，不虚报保存/下载，重试保留已有数据和原结果                                         |
+| [MEDIA-US-108 AC6](stories/generation/MEDIA-US-108-platform-generation.md) | 前后端与平台三画幅 fixture 已通过，正式海外尚未验收 | 正式域名真实平台账号+积分三画幅各一次：只调用一次上游，结果保存/回读/精确下载一致，积分扣减与流水一致 |
+| [MEDIA-US-108 AC7](stories/generation/MEDIA-US-108-platform-generation.md) | 本地契约与浏览器验收已通过，国内正式环境尚未升级    | 国内自建部署使用同一积分契约：后台发放可见、生成扣减一致、本机交付正常                                |
 
-2026-11-14 新增[收口复验](plans/requirements-completion-20261114.md)：真实私有 Storage 传输层已验证 7 MiB 原图的刷新/服务重启续传、两种应答丢失与读写隔离；实际原生启动、保存、ZIP 导出和重开通过。正式平台生图、Web/Tauri 联验及签名发行仍按上述关闭条件验收，故事状态不变。
+2026-11-14 新增[收口复验](plans/requirements-completion-20261114.md)：真实私有 Storage 传输层已验证 7 MiB 原图的刷新/服务重启续传、两种应答丢失与读写隔离；实际原生启动、保存、满盘失败与重试、ZIP 导出、Web 备份导入互通和重开通过；真实系统中文 IME 正文/字段输入、粘贴、撤销重做、焦点与刷新恢复已验；本地 ad-hoc 整包签名已严格复核，不等于正式签名公证。正式平台生图、Web/Tauri 联验及签名发行仍按上述关闭条件验收，MEDIA-US-106 进入 In Review，其余故事状态不变。
 
 ## 合并状态
 

@@ -1776,13 +1776,13 @@ describe('drafts and browsing', () => {
     expect(component.serialized().text).toBe('测试图片');
   });
 
-  it('reuses a saved prompt after confirmation without generating or deleting data', () => {
+  it('reuses a saved prompt after confirmation without generating or deleting data', async () => {
     const { component, store } = rig();
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
-    component.reuseWork({ ...work, prompt: '作品提示词' });
+    await component.reuseWork({ ...work, prompt: '作品提示词' });
     expect(component.serialized().text).toBe('测试图片');
     confirm.mockReturnValue(true);
-    component.reuseWork({ ...work, prompt: '作品提示词' });
+    await component.reuseWork({ ...work, prompt: '作品提示词' });
     expect(component.serialized().text).toBe('作品提示词');
     expect(component.selected()).toBeNull();
     expect(store.delete).not.toHaveBeenCalled();
@@ -1826,6 +1826,7 @@ describe('drafts and browsing', () => {
     const pending = deferred<void>();
     r.store.delete.mockReturnValue(pending.promise);
     const deleting = r.component.deleteWork(work);
+    await vi.waitFor(() => expect(r.store.delete).toHaveBeenCalledWith(work.jobId));
     Object.assign(r.component, { epoch: 1 });
     r.component.job.set(job);
     pending.resolve();
@@ -2177,7 +2178,7 @@ describe('settings recovery and metadata details', () => {
   it('keeps a cancelled new-image action and rejects an acknowledgement that cannot be saved', async () => {
     const r = rig();
     vi.spyOn(window, 'confirm').mockReturnValue(false);
-    r.component.newImage();
+    await r.component.newImage();
     expect(r.component.serialized().text).toBe('测试图片');
     vi.mocked(window.confirm).mockReturnValue(true);
     r.component.job.set({ ...job, status: 'needs_review' });
@@ -2663,7 +2664,7 @@ describe('interface interactions', () => {
     await vi.waitFor(() => expect(r.component.viewer()?.image?.url).toBe('blob:second'));
     expect(r.component.viewerWork()?.prompt).toBe('第二张');
     vi.spyOn(window, 'confirm').mockReturnValue(true);
-    r.component.reuseWork(second);
+    await r.component.reuseWork(second);
     expect(r.component.view()).toBe('studio');
     expect(r.component.viewer()).toBeNull();
     expect(r.store.release).toHaveBeenCalledWith('blob:second');

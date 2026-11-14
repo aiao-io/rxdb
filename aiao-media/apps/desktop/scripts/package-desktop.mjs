@@ -39,17 +39,8 @@ if (!dmgFiles.length) throw new Error('Tauri 未生成 DMG 发行产物。');
 const app = resolve(root, 'src-tauri/target/release/bundle/macos/Aiao Media.app');
 run('/usr/bin/codesign', ['--verify', '--deep', '--strict', app]);
 const archive = resolve(directory, `Aiao-Media-${config.version}-macos-arm64.zip`);
-run('/usr/bin/ditto', [
-  '-c',
-  '-k',
-  '--sequesterRsrc',
-  '--keepParent',
-  app,
-  archive
-]);
+run('/usr/bin/ditto', ['-c', '-k', '--sequesterRsrc', '--keepParent', app, archive]);
 console.log(`Local desktop archive: ${archive}`);
 console.log(`Local desktop DMG: ${dmgFiles.map(name => resolve(dmgDirectory, name)).join(', ')}`);
-console.log(
-  signingIdentity === '-' ? '本地 ad-hoc 整包签名已校验。' : '配置的 Apple 签名整包校验通过。'
-);
+console.log(signingIdentity === '-' ? '本地 ad-hoc 整包签名已校验。' : '配置的 Apple 签名整包校验通过。');
 console.log('本地产物；正式发行仍需 Developer ID、公证及安装升级验收。');

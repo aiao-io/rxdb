@@ -3,6 +3,10 @@ import type { StorageFilesystem } from '@aiao/rxdb-plugin-storage';
 
 export const nativeBackend = false;
 export const localAdapterName = 'wa-sqlite';
+/** 浏览器操作继续使用系统确认框。 */
+export async function confirmAction(message: string): Promise<boolean> {
+  return window.confirm(message);
+}
 /** Web 业务 API 使用同源入口。 */
 export function apiEndpoint(path: string): string {
   return path;

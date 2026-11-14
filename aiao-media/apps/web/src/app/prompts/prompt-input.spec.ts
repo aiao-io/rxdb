@@ -248,6 +248,60 @@ describe('prompt editor behavior', () => {
     expect(document.activeElement).toBe(editor.view.dom);
   });
 
+  it('restores editor-owned focus after a temporary disabled cycle', async () => {
+    const r = await rig();
+    document.body.append(r.element);
+    const runFrames = captureFrames();
+    r.editor.view.focus();
+    expect(document.activeElement).toBe(r.editor.view.dom);
+    r.fixture.componentRef.setInput('disabled', true);
+    r.fixture.detectChanges();
+    const focus = vi.spyOn(r.editor.view, 'focus');
+    r.editor.view.dom.blur();
+    r.fixture.componentRef.setInput('disabled', false);
+    r.fixture.detectChanges();
+    runFrames();
+    expect(focus).toHaveBeenCalledOnce();
+    expect(document.activeElement).toBe(r.editor.view.dom);
+  });
+
+  it('does not restore disabled-editor focus over another control selected by the user', async () => {
+    const r = await rig();
+    document.body.append(r.element);
+    const runFrames = captureFrames();
+    r.editor.view.focus();
+    r.fixture.componentRef.setInput('disabled', true);
+    r.fixture.detectChanges();
+    const other = document.createElement('button');
+    r.element.append(other);
+    other.focus();
+    const focus = vi.spyOn(r.editor.view, 'focus');
+    r.fixture.componentRef.setInput('disabled', false);
+    r.fixture.detectChanges();
+    runFrames();
+    expect(focus).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(other);
+  });
+
+  it('retains one focus request when a save disables the editor at the animation boundary', async () => {
+    const r = await rig();
+    document.body.append(r.element);
+    const runFrames = captureFrames();
+    const focus = vi.spyOn(r.editor.view, 'focus');
+    r.component.focus();
+    r.fixture.detectChanges();
+    r.fixture.componentRef.setInput('disabled', true);
+    r.fixture.detectChanges();
+    runFrames();
+    expect(focus).not.toHaveBeenCalled();
+
+    r.fixture.componentRef.setInput('disabled', false);
+    r.fixture.detectChanges();
+    runFrames();
+    expect(focus).toHaveBeenCalledOnce();
+    expect(document.activeElement).toBe(r.editor.view.dom);
+  });
+
   it('keeps a native parameter focused while an early focus request waits for its animation frame', async () => {
     const runFrames = captureFrames();
     const r = loadingRig(fields);

@@ -11,6 +11,7 @@ fn main() {
             files::media_schema,
             files::media_profile,
             files::media_open_payment,
+            files::media_confirm,
             files::media_begin_save,
             files::media_write_save,
             files::media_finish_save,
@@ -19,11 +20,15 @@ fn main() {
         .setup(|app| {
             let data = app.path().app_data_dir()?;
             app.manage(DesktopHost::new(app.handle(), data, &["main"]));
-            let api_origin = option_env!("AIAO_MEDIA_API_ORIGIN").unwrap_or("https://media.aiao.io");
+            let api_origin =
+                option_env!("AIAO_MEDIA_API_ORIGIN").unwrap_or("https://media.aiao.io");
             if api_origin != "https://media.aiao.io" {
                 panic!("正式桌面发行只允许使用 https://media.aiao.io");
             }
-            let initialization = format!("globalThis.__AIAO_MEDIA_API_ORIGIN__ = {};", serde_json::to_string(api_origin).unwrap());
+            let initialization = format!(
+                "globalThis.__AIAO_MEDIA_API_ORIGIN__ = {};",
+                serde_json::to_string(api_origin).unwrap()
+            );
             tauri::WebviewWindowBuilder::from_config(app, &app.config().app.windows[0])?
                 .initialization_script(&initialization)
                 .on_navigation(|url| url.scheme() == "tauri" && url.host_str() == Some("localhost"))

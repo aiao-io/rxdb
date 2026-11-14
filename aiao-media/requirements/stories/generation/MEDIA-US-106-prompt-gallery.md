@@ -3,11 +3,11 @@ id: MEDIA-US-106
 legacyId: aiao-media:US-106
 product: aiao-media
 title: 图片提示词灵感库与一键套用
-status: In Progress
+status: In Review
 priority: Medium
 epic: MEDIA-EPIC-002
 created: 2026-10-02
-updated: 2026-11-06
+updated: 2026-11-14
 dependsOn: []
 tags: [image, prompts, gallery, web, inspiration, tiptap, template-input]
 ---
@@ -54,7 +54,7 @@ tags: [image, prompts, gallery, web, inspiration, tiptap, template-input]
 | 4   | 必填字段缺失、节点非法或最终文本超长 | 尝试复制最终文本或提交           | 明确阻止且保留输入；删除节点不能绕过必填校验               | ✅   |
 | 5   | 同一模板内编辑后切换模板             | 撤销/重做与刷新                  | 模板历史不串联；本机正文、字段及画幅可恢复                 | ✅   |
 | 6   | 本机草稿收到自身保存回执或跨标签更新 | 继续输入                         | 自身回执不重置编辑器；外部冲突由用户选择，不覆盖未保存输入 | ✅   |
-| 7   | 桌面浏览器、真实操作系统中文输入法   | 正文/字段输入、粘贴、撤销重做    | 不丢字、不抢焦点、无布局溢出                               | ⚠️   |
+| 7   | 桌面浏览器、真实操作系统中文输入法   | 正文/字段输入、粘贴、撤销重做    | 不丢字、不抢焦点、无布局溢出                               | ✅   |
 | 8   | 图片或编辑器资源加载失败             | 查看正文、复制或重试初始化       | 错误可见，输入保留；不把未解析模板作为有效请求提交         | ✅   |
 | 9   | 应用目录已加载                       | 在桌面和手机宽度打开 `/`         | 只有图片卡片、多列并排；点开完整显示，Esc 关闭回卡片       | ✅   |
 
@@ -62,11 +62,13 @@ tags: [image, prompts, gallery, web, inspiration, tiptap, template-input]
 
 ## 技术笔记
 
-当前复用 Tiptap `3.31.3` 最小扩展与同源运行时。`aiao-media:test` 中的提示词状态、焦点与草稿会话测试覆盖序列化及编辑状态；`aiao-media-e2e:local-first-e2e` 验证字段撤销/重做、画幅与字段刷新恢复、模板替换后清空旧撤销历史、真实双标签草稿冲突保留/载入选择，以及图片失败提示与编辑器失败后重试保留输入；见[可靠性验收](../../plans/local-reliability-verification.md)。自身保存回执不重置编辑器另有 `studio-draft-session.spec.ts` 状态机证据。桌面真实操作系统 IME 仍待验收，不用合成 composition 事件代替：入口 `aiao-media-e2e:desktop-ime-acceptance` 由 System Events 向 macOS 简体拼音发送物理按键，系统输入法负责组字，覆盖正文/字段输入、组字中途自动保存、粘贴、撤销重做、焦点、布局与刷新恢复；运行需要给 VS Code 开辅助功能权限，期间不能操作键鼠。入口尚未实跑，按 D-09 本轮跳过；移动端不作为当前关闭条件。
+当前复用 Tiptap `3.31.3` 最小扩展与同源运行时。`aiao-media:test` 中的提示词状态、焦点与草稿会话测试覆盖序列化及编辑状态；`aiao-media-e2e:local-first-e2e` 验证字段撤销/重做、画幅与字段刷新恢复、模板替换后清空旧撤销历史、真实双标签草稿冲突保留/载入选择，以及图片失败提示与编辑器失败后重试保留输入；见[可靠性验收](../../plans/local-reliability-verification.md)。自身保存回执不重置编辑器另有 `studio-draft-session.spec.ts` 状态机证据。2026-11-14 已通过 macOS 简体拼音与 Chrome 无痕窗口的真实物理按键验收：正文和模板参数均在 `zhong` 组字后跨过自动保存周期，再继续 `guo` 并用空格提交为“中国”；粘贴、撤销/重做、焦点保持、最终文本预览、刷新恢复和桌面布局均通过。正文恢复“中国，正文粘贴验收”，产品字段恢复“中国·字段粘贴验收”，横向画幅保留。见[真实系统输入法记录](../../plans/requirements-completion-20261114.md#真实系统中文输入法)。此前脚本因 `IME_FOCUS_LOST` 中止的记录保留，未计为通过；本次使用原生 UI 工具操作真实系统输入法，没有发送合成 composition 事件。移动端不作为当前关闭条件。全部 9 条 AC 已验，按默认关闭条件进入 In Review，评审/合入仍待完成。
 
 首页瀑布流由 [inspiration-feed.spec.ts](../../../apps/web/src/app/inspiration-feed.spec.ts)（封面比例逐张对照 `public/` 下的图片文件、分列算法）、[element-width.directive.spec.ts](../../../apps/web/src/app/element-width.directive.spec.ts) 和 [discover-feed.spec.ts](../../../apps/web/src/app/discover-feed.spec.ts)（分列、卡片标注、详情、加载失败态、创作页不再含瀑布流）覆盖；`aiao-media-e2e:local-first-e2e` 另验证多列并排、Esc 关闭后焦点回到卡片、离线冷开后六张参考图可解码和手机宽度无横向溢出。
 
 界面参考与静态示例保留在[设计资料](../../design/image-mvp/README.md)；其中三页原型用于布局参考，当前产品另含设置页（供应商、同步、本机数据三个分区），首页已改为纯图片瀑布流，原型里的英雄区与卡片网格仅作历史参考。300 ms 自动保存和 CAS 冲突规则见[本机草稿说明](../local-first/local-first-studio.md)。
+
+2026-11-14 收口复验修复了工作区恢复与短暂禁用导致的正文焦点丢失：导航等待就绪、离开取消、动画帧边界保留请求，恢复时不覆盖用户已选其他控件；相关 28 条回归及原 Chromium 用例连续 20 次通过。见[正文焦点收口记录](../../plans/requirements-completion-20261114.md#正文焦点竞态复验)。真实系统中文输入法已另行完成上述手工验收，AC7 通过。
 
 ## 实现文件
 

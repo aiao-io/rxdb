@@ -4,7 +4,7 @@ MVP 首发收口与同步扩展的实施计划、真实环境验收记录和历�
 
 | 验收记录                                                                             | 回答的问题                                                                                      |
 | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
-| [requirements-completion-20261114.md](requirements-completion-20261114.md)           | 真实 Storage 续传/回执与权限、原生空白入口修复、实际保存和剩余关闭条件                          |
+| [requirements-completion-20261114.md](requirements-completion-20261114.md)           | 真实 Storage、原生确认与 Web 备份互通、系统中文 IME、完整门禁及剩余关闭条件                     |
 | [image-sync-resume-20261114.md](image-sync-resume-20261114.md)                       | 原图范围/队列、TUS、三种删除范围、显式新版本、可见预览及 PostgreSQL 竞态；正式 Storage/两端待验 |
 | [credits-delivery-20261113.md](credits-delivery-20261113.md)                         | 平台积分账本、后台调整、本人余额与真实本地并发验收                                              |
 | [platform-relay-credits-20261113.md](platform-relay-credits-20261113.md)             | 平台模型与积分任务前后端、本地三画幅及续接验收；正式双部署待验                                  |
