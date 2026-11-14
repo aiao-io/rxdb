@@ -18,7 +18,7 @@ const work = (index: number): PublicWorkPayload => ({
   height: 1,
   bytes: 68,
   sha256: index.toString(16).padStart(64, '0'),
-  createdAt: '2026-11-14T00:00:00Z'
+  createdAt: new Date(Date.UTC(2026, 10, 14, 0, 0, 53 - index)).toISOString()
 });
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -61,6 +61,14 @@ describe('远端图库分页与预览生命周期', () => {
     expect(remoteImagePage(works, 99)).toMatchObject({ page: 3, works: works.slice(48) });
     expect(remoteImagePage([], 2)).toEqual({ page: 1, total: 0, works: [] });
     for (const invalid of [NaN, Infinity, -1, 0, 1.5]) expect(remoteImagePage(works, invalid).page).toBe(1);
+  });
+
+  it('按创建时间和稳定作品 ID 排序，同一份元数据的输入顺序不改变分页归属', () => {
+    const older = { ...work(1), createdAt: '2026-11-13T00:00:00Z' };
+    const first = { ...work(2), createdAt: '2026-11-14T00:00:00Z' };
+    const second = { ...work(3), createdAt: '2026-11-14T08:00:00+08:00' };
+    expect(remoteImagePage([older, first, second], 1).works).toEqual([second, first, older]);
+    expect(remoteImagePage([second, older, first], 1).works).toEqual([second, first, older]);
   });
 
   it('仅可见卡片发起请求，最多两条在途，队列中的离屏图片不读取', async () => {

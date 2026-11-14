@@ -182,6 +182,19 @@ test('两台独立设备通过原生 RxDB 同步草稿，登录/退出与 A→B�
     await expect(second.getByText('输入已保存到本机', { exact: true })).toBeVisible();
     await second.getByRole('button', { name: '我的账号', exact: true }).click();
     await synchronizePage(second);
+    await expect
+      .poll(
+        async () =>
+          (
+            await admin
+              .from('media_sync_records')
+              .select('payload')
+              .eq('workspaceId', workspace.id)
+              .eq('kind', 'draft')
+              .single()
+          ).data?.payload
+      )
+      .toContain('设备 B 的新修订');
     await synchronizePage(page);
     await page.getByRole('button', { name: '关闭账号窗口' }).click();
     await expect(page.locator('[contenteditable=true]')).toContainText('设备 B 的新修订');
@@ -419,7 +432,7 @@ test('历史供应商和作品导入后跨副本同步，凭据剥离且原图�
   }
 });
 
-test('已删除原图须明确创建新版本，准备应答丢失后重开复用，第二设备可取回新版本', async ({ page, browser, baseURL }) => {
+test('已删除原图明确创建新版本，准备和提交回执丢失后重开复用，第二设备可取回', async ({ page, browser, baseURL }) => {
   const user = await account(),
     png = await pngFixture(),
     storage = await storageObjectFixture(admin);
@@ -499,58 +512,6 @@ test('已删除原图须明确创建新版本，准备应答丢失后重开复�
   await page.getByRole('button', { name: '关闭账号窗口' }).click();
   await page.getByRole('link', { name: '我的图片', exact: true }).click();
   const original = page.locator('.library-card').filter({ hasText: job.request.prompt });
-  await original.getByRole('button', { name: `删除远端原图：${job.request.prompt}`, exact: true }).click();
-  await page
-    .getByRole('dialog', { name: '删除远端原图确认' })
-    .getByRole('button', { name: '确认删除此远端原图', exact: true })
-    .click();
-  await expect(page.locator('#toast')).toContainText('远端原图已删除');
-  expect(await storage.count()).toBe(0);
-  const reuploadButton = original.getByRole('button', { name: `重新上传新版本：${job.request.prompt}`, exact: true });
-  await reuploadButton.click();
-  const confirmation = page.getByRole('dialog', { name: '重新上传新版本确认' });
-  await expect(confirmation).toContainText(digest);
-  await confirmation.getByRole('button', { name: '取消重新上传', exact: true }).click();
-  expect((await admin.from('media_file_records').select('id').eq('createdBy', user.id)).data).toHaveLength(1);
-  const requestIds: string[] = [];
-  let firstPreparedId = '';
-  await page.route('**/rest/v1/rpc/media_prepare_image_reupload', async route => {
-    requestIds.push((route.request().postDataJSON() as { p_request_id: string }).p_request_id);
-    const response = await route.fetch();
-    expect(response.ok()).toBe(true);
-    const prepared = (await response.json()) as { id: string };
-    if (!firstPreparedId) {
-      firstPreparedId = prepared.id;
-      await route.abort('connectionfailed');
-      return;
-    }
-    expect(prepared.id).toBe(firstPreparedId);
-    await route.fulfill({ response });
-  });
-  await reuploadButton.click();
-  await confirmation.getByRole('button', { name: '确认重新上传新版本', exact: true }).click();
-  await expect(confirmation).toContainText('fetch');
-  expect(uploads).toBe(1);
-  expect(
-    (await admin.from('media_file_records').select('status').eq('createdBy', user.id).eq('deleted', false)).data
-  ).toEqual([{ status: 'pending' }]);
-  await confirmation.getByRole('button', { name: '取消重新上传', exact: true }).click();
-  await page.reload();
-  await reuploadButton.click();
-  await confirmation.getByRole('button', { name: '确认重新上传新版本', exact: true }).click();
-  await expect(page.locator('#toast')).toContainText('新版本已上传');
-  expect(requestIds).toHaveLength(2);
-  expect(requestIds[1]).toBe(requestIds[0]);
-  expect(uploads).toBe(2);
-  expect(await storage.count()).toBe(1);
-  const rows = (
-    await admin.from('media_file_records').select('id,version,status,deleted,path').eq('createdBy', user.id)
-  ).data!;
-  expect(rows).toHaveLength(2);
-  expect(rows.find(row => row.version === digest)).toMatchObject({ status: 'deleted', deleted: true });
-  const next = rows.find(row => row.id === firstPreparedId)!;
-  expect(next).toMatchObject({ version: `${digest}-${requestIds[0]}`, status: 'uploaded', deleted: false });
-  await verifyImageDownload(page, original, png);
   const context = await browser.newContext({ baseURL });
   try {
     await installStorage(context);
@@ -560,6 +521,91 @@ test('已删除原图须明确创建新版本，准备应答丢失后重开复�
     await second.getByRole('button', { name: '关闭账号窗口' }).click();
     await second.getByRole('link', { name: '我的图片', exact: true }).click();
     const remote = second.locator('.library-card').filter({ hasText: job.request.prompt });
+    await expect(remote.locator('img')).toBeVisible();
+    await remote.getByRole('button', { name: `删除远端原图：${job.request.prompt}`, exact: true }).click();
+    await second
+      .getByRole('dialog', { name: '删除远端原图确认' })
+      .getByRole('button', { name: '确认删除此远端原图', exact: true })
+      .click();
+    await expect(second.locator('#toast')).toContainText('远端原图已删除');
+    await expect(remote.getByRole('button', { name: '取回并保存原图', exact: true })).toBeDisabled();
+    expect(await storage.count()).toBe(0);
+    const reuploadButton = original.getByRole('button', { name: `重新上传新版本：${job.request.prompt}`, exact: true });
+    await reuploadButton.click();
+    const confirmation = page.getByRole('dialog', { name: '重新上传新版本确认' });
+    await expect(confirmation).toContainText(digest);
+    await confirmation.getByRole('button', { name: '取消重新上传', exact: true }).click();
+    expect((await admin.from('media_file_records').select('id').eq('createdBy', user.id)).data).toHaveLength(1);
+    const requestIds: string[] = [];
+    let firstPreparedId = '';
+    await page.route('**/rest/v1/rpc/media_prepare_image_reupload', async route => {
+      requestIds.push((route.request().postDataJSON() as { p_request_id: string }).p_request_id);
+      const response = await route.fetch();
+      expect(response.ok()).toBe(true);
+      const prepared = (await response.json()) as { id: string };
+      if (!firstPreparedId) {
+        firstPreparedId = prepared.id;
+        await route.abort('connectionfailed');
+        return;
+      }
+      expect(prepared.id).toBe(firstPreparedId);
+      await route.fulfill({ response });
+    });
+    await reuploadButton.click();
+    await confirmation.getByRole('button', { name: '确认重新上传新版本', exact: true }).click();
+    await expect(confirmation).toContainText('fetch');
+    expect(uploads).toBe(1);
+    expect(
+      (await admin.from('media_file_records').select('status').eq('createdBy', user.id).eq('deleted', false)).data
+    ).toEqual([{ status: 'pending' }]);
+    await confirmation.getByRole('button', { name: '取消重新上传', exact: true }).click();
+    let commitDrops = 0;
+    await page.route('**/rest/v1/media_file_records?**', async route => {
+      const request = route.request();
+      if (
+        request.method() !== 'PATCH' ||
+        commitDrops ||
+        (request.postDataJSON() as { status?: string }).status !== 'uploaded'
+      ) {
+        await route.continue();
+        return;
+      }
+      const response = await route.fetch();
+      expect(response.ok()).toBe(true);
+      commitDrops++;
+      await route.abort('connectionfailed');
+    });
+    await page.reload();
+    await reuploadButton.click();
+    await confirmation.getByRole('button', { name: '确认重新上传新版本', exact: true }).click();
+    await expect.poll(() => commitDrops).toBe(1);
+    await expect(confirmation.getByRole('button', { name: '确认重新上传新版本', exact: true })).toBeEnabled();
+    expect((await admin.from('media_file_records').select('id,status').eq('id', firstPreparedId)).data).toEqual([
+      { id: firstPreparedId, status: 'uploaded' }
+    ]);
+    expect(uploads).toBe(2);
+    await confirmation.getByRole('button', { name: '取消重新上传', exact: true }).click();
+    await page.reload();
+    await reuploadButton.click();
+    await confirmation.getByRole('button', { name: '确认重新上传新版本', exact: true }).click();
+    await expect(page.locator('#toast')).toContainText('新版本已上传');
+    expect(commitDrops).toBe(1);
+    expect(requestIds).toHaveLength(3);
+    expect(new Set(requestIds).size).toBe(1);
+    expect(requestIds[1]).toBe(requestIds[0]);
+    expect(uploads).toBe(2);
+    expect(await storage.count()).toBe(1);
+    const rows = (
+      await admin.from('media_file_records').select('id,version,status,deleted,path').eq('createdBy', user.id)
+    ).data!;
+    expect(rows).toHaveLength(2);
+    expect(rows.find(row => row.version === digest)).toMatchObject({ status: 'deleted', deleted: true });
+    const next = rows.find(row => row.id === firstPreparedId)!;
+    expect(next).toMatchObject({ version: `${digest}-${requestIds[0]}`, status: 'uploaded', deleted: false });
+    await verifyImageDownload(page, original, png);
+    await remote.getByRole('button', { name: '重试远端预览', exact: true }).click();
+    await expect(remote).toContainText('远端可取回 · 本机尚未保存原图');
+    await expect(remote.getByText('远端原图已删除，本机已有副本保留。', { exact: true })).toHaveCount(0);
     await remote.getByRole('button', { name: '取回并保存原图', exact: true }).click();
     await expect(remote.getByAltText('本机生成作品')).toBeVisible();
     await verifyImageDownload(second, remote, png);
@@ -925,6 +971,7 @@ test('远端图库分三页仅预览可见卡片，离开后释放 URL，显式�
     expect(reads).toEqual([]);
     await page.getByRole('button', { name: '关闭账号窗口' }).click();
     await page.getByRole('link', { name: '我的图片', exact: true }).click();
+    await expect(page.getByRole('heading', { name: '我的图片', level: 1 })).toBeVisible();
     const cards = page.locator('.remote-card');
     await expect(cards).toHaveCount(24);
     await expect.poll(() => reads.length).toBe(2);
@@ -967,6 +1014,7 @@ test('远端图库分三页仅预览可见卡片，离开后释放 URL，显式�
       })
     ).toBeGreaterThan(0);
     await page.getByRole('link', { name: '我的图片', exact: true }).click();
+    await expect(page.getByRole('heading', { name: '我的图片', level: 1 })).toBeVisible();
     await cards.first().scrollIntoViewIfNeeded();
     await expect(cards.first().locator('img')).toBeVisible();
     const sourceId = await cards.first().getAttribute('data-source-id');

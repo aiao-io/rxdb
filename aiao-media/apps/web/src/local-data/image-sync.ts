@@ -168,6 +168,7 @@ export class ImageSyncController {
     return this.transfer(prepared, selected, bytes, progress);
   }
 
+  /** 校验私有原图并创建临时预览；调用方释放 URL，预览不写入本机。 */
   async preview(work: PublicWorkPayload): Promise<{ url: string; mimeType: ImageMimeType } | null> {
     const records = await this.records(work.jobId, undefined, work.sha256);
     if (records.length > 1) throw new Error('远端原图版本不唯一，未读取预览。');

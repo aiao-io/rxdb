@@ -875,7 +875,11 @@ describe('平台原图同步隔离', () => {
   it('远端图库每页最多 24 张，翻页不下载原图，离开图库释放预览', async () => {
     const r = rig();
     const work = await remoteWork();
-    const entries = Array.from({ length: 53 }, (_, index) => ({ ...work, jobId: `remote-${index}` }));
+    const entries = Array.from({ length: 53 }, (_, index) => ({
+      ...work,
+      jobId: `remote-${index}`,
+      createdAt: new Date(Date.UTC(2026, 10, 14, 0, 0, 53 - index)).toISOString()
+    }));
     r.component.localWorksKnown.set(true);
     r.component.syncedWorks.set(entries);
     r.component.view.set('library');
@@ -887,6 +891,52 @@ describe('平台原图同步隔离', () => {
     expect(r.component.remoteLibraryPage().works).toEqual(entries.slice(48));
     r.component.syncedWorks.set(entries.slice(0, 25));
     expect(r.component.remoteLibraryPage().page).toBe(2);
+  });
+
+  it('已确认删除的摘要出现新的有效远端版本时，预览核对后解除旧删除提示', async () => {
+    const r = rig();
+    const work = await remoteWork();
+    const preview = vi.fn(async () => ({ url: 'blob:new-version', mimeType: 'image/png' as const }));
+    Object.assign(r.component, { imageSyncController: vi.fn(async () => ({ preview })) });
+    connect(r.component, projects.a);
+    r.component.authUser.set({ id: userId, email: 'creator@example.test' });
+    r.component.syncInitialized.set(true);
+    r.component.localWorksKnown.set(true);
+    r.component.syncedWorks.set([work]);
+    r.component.imageDeleteStates.set(new Map([[`${work.jobId}:${work.sha256}`, 'complete']]));
+    r.component.view.set('library');
+    r.fixture.detectChanges();
+    r.component.remoteWorkVisible(work, true);
+    await vi.waitFor(() => expect(preview).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(r.component.remoteImagePreview(work)?.status).toBe('ready'));
+    expect(r.component.remoteImageDeleteState(work.jobId, work.sha256)).toBeNull();
+    expect(r.store.saveResult).not.toHaveBeenCalled();
+  });
+
+  it('删除期间取消的旧预览即使迟到成功，也不能解除已经完成的删除状态', async () => {
+    const r = rig();
+    const work = await remoteWork();
+    const pending = deferred<{ url: string; mimeType: 'image/png' }>();
+    const preview = vi.fn(() => pending.promise);
+    Object.assign(r.component, { imageSyncController: vi.fn(async () => ({ preview })) });
+    connect(r.component, projects.a);
+    r.component.authUser.set({ id: userId, email: 'creator@example.test' });
+    r.component.syncInitialized.set(true);
+    r.component.localWorksKnown.set(true);
+    r.component.syncedWorks.set([work]);
+    r.component.view.set('library');
+    r.fixture.detectChanges();
+    r.component.remoteWorkVisible(work, true);
+    await vi.waitFor(() => expect(preview).toHaveBeenCalledOnce());
+    const key = `${work.jobId}:${work.sha256}`;
+    r.component.imageDeleteStates.set(new Map([[key, 'pending']]));
+    r.fixture.detectChanges();
+    r.component.imageDeleteStates.set(new Map([[key, 'complete']]));
+    r.fixture.detectChanges();
+    pending.resolve({ url: 'blob:deleted-old-version', mimeType: 'image/png' });
+    await vi.waitFor(() => expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:deleted-old-version'));
+    expect(r.component.remoteImageDeleteState(work.jobId, work.sha256)).toBe('complete');
+    expect(r.component.remoteImagePreview(work)?.status).not.toBe('ready');
   });
 
   it('可见远端预览只占内存，停止同步后旧预览取消并释放迟到 URL', async () => {

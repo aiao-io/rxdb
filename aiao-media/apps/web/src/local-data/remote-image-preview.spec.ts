@@ -134,6 +134,22 @@ describe('远端私有预览', () => {
     expect(r.store.saveResult).not.toHaveBeenCalled();
   });
 
+  it('记录和作品一起谎报尺寸时仍用原字节校验，不能创建预览', async () => {
+    const r = await setup({ width: 2 });
+    await expect(r.controller().preview({ ...r.work, width: 2 })).rejects.toThrow('尺寸与作品不一致');
+    expect(closeBitmap).toHaveBeenCalledOnce();
+    expect(createUrl).not.toHaveBeenCalled();
+  });
+
+  it('权限失效时立即失败，保留作品信息且不修改文件回执', async () => {
+    const r = await setup();
+    r.read.mockResolvedValueOnce(new Response(null, { status: 403 }));
+    await expect(r.controller().preview(r.work)).rejects.toThrow('原字节读取失败');
+    expect(r.request).toHaveBeenCalledTimes(2);
+    expect(createUrl).not.toHaveBeenCalled();
+    expect(r.store.saveResult).not.toHaveBeenCalled();
+  });
+
   it('解码期间取消时仍关闭位图，迟到结果不创建 URL', async () => {
     const r = await setup();
     const scope = new AbortController();

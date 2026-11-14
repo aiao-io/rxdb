@@ -42,6 +42,7 @@
 | 图库移除保护 | `aiao-media:image-lifecycle-test` / `product-e2e` | 真实 PostgreSQL 双连接验证两种提交顺序；单独原图双设备用例验证离线移除重开与两端原字节保留（Storage 字节 fixture），见[记录](image-sync-resume-20261114.md#显式图库移除与并发保护) |
 | 远端删除保护 | `aiao-media:image-lifecycle-test` / `product-e2e` | 精确文件引用/修订预览、设备请求日志、文件删标与待核对回执、冲突引用登记/释放、真实本地 Storage RLS 及应答丢失重开恢复；本机两端原字节保留，Storage 字节仍为 fixture，见[记录](image-sync-resume-20261114.md#远端原图删除与引用保护) |
 | 显式新版本 | `aiao-media:coverage` / `image-lifecycle-test` / `product-e2e` | 本机原字节核对、持久准备请求、独立文件身份与前后版本、旧路径/回执隔离；真实 PostgreSQL 并发和两条原图账号用例 2/2 通过，Storage 字节仍为 fixture，见[记录](image-sync-resume-20261114.md#删除后的显式新版本上传) |
+| 远端图库预览 | `aiao-media:coverage` / `aiao-media-e2e:product-e2e` | 24 张稳定分页、仅图库视口内最多两条私有原图预览、完整性/解码校验、离屏与切范围回收；53 张作品三页账号样本、回执丢失后同版本恢复及旧设备新版本核对见[记录](image-sync-resume-20261114.md#远端分页与私有可见预览)，Storage 字节仍为 fixture |
 | 账号验收入口 | `aiao-media-e2e:product-e2e` / `aiao-media:product-test` | D-19 旧供应商表单用例改为历史导入与平台任务，完整账号浏览器 10/10；最后管理员约束用独立 SQL 数据库隔离，真实本地 API 通过，见[记录](image-sync-resume-20261114.md#账号验收入口修复) |
 | 原生逻辑     | `aiao-media:desktop-test`                         | 3 项 Rust 测试通过：保存目标校验、版本不降级、清除 WebView 后保留原生工作区指针；`cargo check` 通过                                                                                |
 | 产物         | `aiao-media:build:desktop` / `offline-assets`     | 两种前端均已构建；最终代码变更后需复跑并确认首屏预算                                                                                                                               |

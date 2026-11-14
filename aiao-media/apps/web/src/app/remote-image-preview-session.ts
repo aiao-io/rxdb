@@ -1,5 +1,6 @@
 import type { PublicWorkPayload } from '@aiao-media/api-contracts';
 
+/** 预览核对与本机保存独立，缺少文件回执时只显示作品信息。 */
 export type RemoteImagePreview =
   | { status: 'idle' | 'loading' | 'unavailable' }
   | { status: 'ready'; url: string }
@@ -24,7 +25,10 @@ export function remoteImageKey(work: PublicWorkPayload): string {
 export function remoteImagePage(works: PublicWorkPayload[], requested: number) {
   const selected = Number.isSafeInteger(requested) && requested > 0 ? requested : 1;
   const page = Math.min(selected, Math.max(1, Math.ceil(works.length / 24)));
-  return { page, total: works.length, works: works.slice((page - 1) * 24, page * 24) };
+  const ordered = [...works].sort(
+    (left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt) || right.jobId.localeCompare(left.jobId)
+  );
+  return { page, total: works.length, works: ordered.slice((page - 1) * 24, page * 24) };
 }
 
 /** 私有预览仅在可见时读取；取消后的请求退出前继续占用并发名额。 */

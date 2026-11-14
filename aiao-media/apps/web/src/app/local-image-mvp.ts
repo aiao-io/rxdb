@@ -269,10 +269,7 @@ export class LocalImageMvp implements OnInit, OnDestroy {
   private readonly remotePreviews = signal<ReadonlyMap<string, RemoteImagePreview>>(new Map());
   private readonly remoteImages = new RemoteImagePreviewSession(
     {
-      preview: async (work, visibleSignal) => {
-        const signal = AbortSignal.any([this.imageSyncScope.signal, visibleSignal]);
-        return (await this.imageSyncController(signal)).preview(work);
-      },
+      preview: (work, visibleSignal) => this.readRemoteImagePreview(work, visibleSignal),
       release: url => URL.revokeObjectURL(url)
     },
     state => this.remotePreviews.set(state)
@@ -1718,7 +1715,6 @@ export class LocalImageMvp implements OnInit, OnDestroy {
     return this.syncedWorks().some(work => work.jobId === sourceId);
   }
   remoteLibraryGo(page: number): void {
-    this.remoteImages.reset();
     this.remotePage.set(page);
   }
   remoteWorkVisible(work: PublicWorkPayload, visible: boolean): void {
@@ -1945,8 +1941,20 @@ export class LocalImageMvp implements OnInit, OnDestroy {
           !this.identityBlocked() &&
           !this.syncPaused()
       ) ?
-        this.remoteLibraryPage().works.filter(work => this.remoteImageDeleteState(work.jobId, work.sha256) === null)
+        this.remoteLibraryPage().works.filter(
+          work => this.remoteImageDeleteState(work.jobId, work.sha256) !== 'pending'
+        )
       : [];
+  }
+  private async readRemoteImagePreview(work: PublicWorkPayload, visibleSignal: AbortSignal) {
+    const signal = AbortSignal.any([this.imageSyncScope.signal, visibleSignal]);
+    const image = await (await this.imageSyncController(signal)).preview(work);
+    if (image && !signal.aborted && this.remoteImageDeleteState(work.jobId, work.sha256) === 'complete') {
+      const states = new Map(this.imageDeleteStates());
+      states.delete(`${work.jobId}:${work.sha256}`);
+      this.imageDeleteStates.set(states);
+    }
+    return image;
   }
   private imageSyncKey(): string {
     return `aiao-media-image-sync-v1:${encodeURIComponent(this.auth?.config.url ?? '')}:${this.authUser()?.id ?? ''}:${this.profileId}`;

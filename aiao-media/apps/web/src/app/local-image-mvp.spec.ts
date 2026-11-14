@@ -53,6 +53,7 @@ afterEach(() => {
 });
 
 function rig() {
+  vi.spyOn(WorkVisibleDirective.prototype, 'ngAfterViewInit').mockImplementation(() => undefined);
   vi.spyOn(LocalImageMvp.prototype, 'ngOnInit').mockImplementation(() => undefined);
   const fixture = TestBed.createComponent(LocalImageMvp);
   const component = fixture.componentInstance;

@@ -299,6 +299,35 @@ describe('平台 Supabase 图片同步', () => {
     expect(calls).toHaveLength(1);
     expect(store.saveResult).not.toHaveBeenCalled();
   });
+  it('关联提交已经生效但回执丢失时，新控制器核对同一文件，不重复写入对象或关联', async () => {
+    let current = await fileRecord();
+    let committed = false;
+    const { calls, request } = remote(call => {
+      if (!isRecords(call)) return call.method === 'POST' ? new Response(null) : new Response(png);
+      if (call.method === 'GET') return Response.json([current]);
+      if ((call.body as Partial<RemoteFileRecord>).status === 'needs_review')
+        return new Response(null, { status: 204 });
+      current = { ...current, status: 'uploaded', revision: 2, baseRevision: 1 };
+      committed = true;
+      throw new TypeError('关联回执丢失');
+    });
+    const store = pngStore();
+    await expect(new ImageSyncController(store as never, access, workspaceId, request).upload(jobId)).rejects.toThrow(
+      '关联回执丢失'
+    );
+    expect(committed).toBe(true);
+    expect(await new ImageSyncController(store as never, access, workspaceId, request).upload(jobId)).toEqual(current);
+    expect(calls.filter(call => !isRecords(call) && call.method === 'POST')).toHaveLength(1);
+    expect(calls.filter(call => isRecords(call) && call.method === 'POST')).toHaveLength(0);
+    expect(
+      calls.filter(
+        call =>
+          isRecords(call) && call.method === 'PATCH' && (call.body as Partial<RemoteFileRecord>).status === 'uploaded'
+      )
+    ).toHaveLength(1);
+    expect(calls.filter(call => call.url.includes('/object/authenticated/'))).toHaveLength(2);
+  });
+
   it('已有 uploaded 记录仍核对远端对象，不以数据库状态代替原字节证据', async () => {
     const uploaded = await fileRecord({ status: 'uploaded' });
     const { calls, request } = remote(call => (isRecords(call) ? Response.json([uploaded]) : new Response('wrong')));

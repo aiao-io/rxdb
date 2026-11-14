@@ -16,6 +16,7 @@ export default [
     ignores: [
       '**/node_modules',
       '**/dist',
+      'aiao-media/apps/api/dist-node',
       '**/out-tsc',
       '**/coverage',
       '**/tmp',
