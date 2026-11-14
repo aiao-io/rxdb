@@ -1,7 +1,7 @@
 ---
 id: ADESK-US-106
 title: 旧库升级路径
-status: In Review
+status: Done
 priority: Medium
 epic: ADESK-EPIC-002
 created: 2026-11-13
@@ -87,7 +87,7 @@ capabilities: []
 
 原始记录：[upgrade-production-file-body.json](../../evidence/2026-11-14/upgrade-production-file-body.json)、[Chromium最终聚合检查](../../evidence/2026-11-14/chromium-verify.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
 
-本故事AC已通过；关闭仍依赖 US-008。B0降级保护首次引入于 `6859fe56`，不声称已发布；B0之前的线上旧部署没有保护，库升级后不可回滚到它。
+本故事AC已通过；US-008已按 [D-20](../../decisions.md#d-20接受两项回溯基线例外并批准本次正式发布) 关闭，硬依赖满足，故事置Done。B0降级保护首次引入于 `6859fe56`，不声称已发布；B0之前的线上旧部署没有保护，库升级后不可回滚到它。
 
 ## References
 

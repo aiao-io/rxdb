@@ -25,7 +25,10 @@
     "coverageReport": "coverage-summary-browser-support.json"
   },
   "browserVerification": {
-    "runManifests": ["browser-support-runs.json", "browser-support-webkit-followup-runs.json"],
+    "runManifests": [
+      "browser-support-runs.json",
+      "browser-support-webkit-followup-runs.json"
+    ],
     "implementationAndEvidence": "browser-support.md",
     "safariProductAcceptanceComplete": false,
     "summary": "browser-support-summary.json",
@@ -95,8 +98,8 @@
     "otherEngineRunsPurpose": "historical / optional diagnostics"
   },
   "format": "aiao-desktop.requirements-closeout",
-  "measuredAt": "2026-11-14T09:17:39.338Z",
-  "pendingAcceptanceCount": 5,
+  "measuredAt": "2026-11-14T11:26:49.347Z",
+  "pendingAcceptanceCount": 2,
   "previousAutomatedVerifications": [
     {
       "command": "NX_NO_CLOUD=true pnpm nx run aiao-desktop:verify --skip-nx-cache --parallel=2 --output-style=static",
@@ -160,22 +163,17 @@
     },
     {
       "id": "ADESK-US-205",
-      "status": "In Review",
+      "status": "Done",
       "path": "stories/application/ADESK-US-205-application-management.md",
       "dependsOn": "[ADESK-US-101, ADESK-US-102, ADESK-US-106, ADESK-US-201, ADESK-US-202]",
       "pendingAcceptance": []
     },
     {
       "id": "ADESK-US-206",
-      "status": "In Review",
+      "status": "Done",
       "path": "stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md",
       "dependsOn": "[ADESK-US-201, ADESK-US-202, ADESK-US-204, ADESK-US-205]",
-      "pendingAcceptance": [
-        {
-          "ac": 7,
-          "status": "⚠️"
-        }
-      ]
+      "pendingAcceptance": []
     },
     {
       "id": "ADESK-US-101",
@@ -200,21 +198,21 @@
     },
     {
       "id": "ADESK-US-104",
-      "status": "In Review",
+      "status": "Done",
       "path": "stories/desktop/ADESK-US-104-window-layout-persistence.md",
       "dependsOn": "[ADESK-US-008, ADESK-US-102, ADESK-US-206]",
       "pendingAcceptance": []
     },
     {
       "id": "ADESK-US-105",
-      "status": "In Review",
+      "status": "Done",
       "path": "stories/desktop/ADESK-US-105-multi-tab-sync.md",
       "dependsOn": "[ADESK-US-102, ADESK-US-008]",
       "pendingAcceptance": []
     },
     {
       "id": "ADESK-US-106",
-      "status": "In Review",
+      "status": "Done",
       "path": "stories/desktop/ADESK-US-106-database-upgrade-path.md",
       "dependsOn": "[ADESK-US-102, ADESK-US-008]",
       "pendingAcceptance": []
@@ -266,19 +264,14 @@
     },
     {
       "id": "ADESK-US-004",
-      "status": "In Review",
+      "status": "Done",
       "path": "stories/platform/ADESK-US-004-custom-domain.md",
       "dependsOn": "[ADESK-US-003]",
-      "pendingAcceptance": [
-        {
-          "ac": 2,
-          "status": "⬜"
-        }
-      ]
+      "pendingAcceptance": []
     },
     {
       "id": "ADESK-US-005",
-      "status": "In Review",
+      "status": "Done",
       "path": "stories/platform/ADESK-US-005-cross-browser-smoke.md",
       "dependsOn": "[ADESK-US-008, ADESK-US-101, ADESK-US-102]",
       "pendingAcceptance": []
@@ -299,20 +292,49 @@
     },
     {
       "id": "ADESK-US-008",
-      "status": "In Review",
+      "status": "Done",
       "path": "stories/platform/ADESK-US-008-smoke-suite.md",
       "dependsOn": "[ADESK-US-101, ADESK-US-102]",
-      "pendingAcceptance": [
-        {
-          "ac": 10,
-          "status": "⚠️"
-        }
-      ]
+      "pendingAcceptance": []
     }
   ],
   "storyCounts": {
-    "Done": 12,
-    "In Review": 10
+    "Done": 20,
+    "In Review": 2
   },
-  "version": 1
+  "version": 1,
+  "closeoutApproval": {
+    "decision": "D-20",
+    "evidence": "closeout-approval.json",
+    "baselineExceptionsAccepted": true,
+    "productionDeployAuthorized": true
+  },
+  "productionRelease": {
+    "decision": "D-20",
+    "deploymentId": "b093f8b2-9bc7-492c-9a8b-1928f8397ada",
+    "sourceHead": "b6827b105bfa259a2037e1efa2b412a8c804223c",
+    "artifactIndexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
+    "uploaded": true,
+    "initialCommandExitCode": 1,
+    "initialCommandLog": "release-production.txt",
+    "initialFailure": "Five deployed-file downloads timed out; both production entry checks passed.",
+    "reconciliation": {
+      "report": "release-curl-reconciliation.json",
+      "readOnly": true,
+      "uploadedAgain": false,
+      "checked": 95,
+      "passed": true
+    },
+    "entrypoints": "release-entrypoints.json",
+    "domainIsolation": "release-domain-storage.json",
+    "aiaoCode": "release-aiao-code.json",
+    "chromeEntryProvenance": "release-chrome-entry-provenance.json",
+    "browserHtmlInjection": {
+      "host": "static.cloudflareinsights.com",
+      "addedCharacters": 367,
+      "removedArtifactCharacters": 0,
+      "browserEntrySha256": "a23d249747af4e6cfc0cdb8604d570324c1f27dbeaca8134bf34bfd029fc85fc"
+    },
+    "acceptanceComplete": true
+  }
 }

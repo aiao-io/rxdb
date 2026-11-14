@@ -1,0 +1,73 @@
+
+import {execFile} from 'node:child_process';
+import {promisify} from 'node:util';
+import {readFile,writeFile,mkdtemp,rm} from 'node:fs/promises';
+import {writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {createRequire} from 'node:module';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
+import {pathToFileURL} from 'node:url';
+const root=process.env.AIAO_RELEASE_WORKSPACE;
+const base=path.join(root,'aiao-desktop/requirements/evidence/2026-11-14');
+const dist=path.join(root,'dist/aiao-desktop/apps/web/browser');
+const sha=b=>createHash('sha256').update(b).digest('hex');
+const run=promisify(execFile);
+const required={'cross-origin-opener-policy':'same-origin','cross-origin-embedder-policy':'require-corp'};
+async function reconcile(){
+ const meta=JSON.parse(await readFile(path.join(base,'release-production-metadata.json'),'utf8'));
+ const files=meta.artifact.manifest.filter(f=>!['_headers','_redirects'].includes(f.path));
+ const work=await mkdtemp(path.join(tmpdir(),'aiao-release-curl-'));
+ const report={format:'aiao-desktop.release-curl-reconciliation',version:1,startedAt:new Date().toISOString(),deploymentId:'b093f8b2-9bc7-492c-9a8b-1928f8397ada',baseUrl:'https://b093f8b2.aiao-desktop.pages.dev',method:{readOnly:true,uploaded:false,transport:'curl --compressed',concurrency:4,requestTimeoutSeconds:25,maxAttempts:3},expectedFiles:files.length,artifactIndexSha256:meta.artifact.indexSha256,files:[]};
+ let next=0;
+ async function verify(file,index){
+ const bodyFile=path.join(work,index+'.body');const headersFile=path.join(work,index+'.headers');
+ const url=report.baseUrl+(file.path==='index.html'?'/':'/'+file.path.split('/').map(encodeURIComponent).join('/'));
+ const item={path:file.path,url,expectedSha256:file.sha256,expectedBytes:file.size,attempts:[]};
+ for(let attempt=1;attempt<=3;attempt++){
+ let result;let error;
+ try{result=await run('curl',['--compressed','--silent','--show-error','--connect-timeout','8','--max-time','25','--header','Cache-Control: no-cache','--dump-header',headersFile,'--output',bodyFile,'--write-out','%{http_code}',url],{maxBuffer:1024*1024});}catch(e){result={stdout:e.stdout??''};error=String(e.stderr||e.message);}
+ const status=Number(result.stdout.trim());item.attempts.push({attempt,status,error});
+ if(error||status>=500){if(attempt<3)continue;item.error=error??'HTTP '+status;break;}
+ const body=await readFile(bodyFile);const headersText=await readFile(headersFile,'utf8');
+ const blocks=headersText.trim().split(/\r?\n\r?\n/).filter(b=>/^HTTP\//.test(b));const block=blocks.at(-1)??'';
+ const headers=Object.fromEntries(block.split(/\r?\n/).slice(1).map(l=>{const at=l.indexOf(':');return[l.slice(0,at).trim().toLowerCase(),l.slice(at+1).trim()]}));
+ item.status=status;item.bytes=body.length;item.sha256=sha(body);item.headers=Object.fromEntries(Object.keys(required).map(k=>[k,headers[k]??null]));
+ item.contentMatches=item.sha256===file.sha256&&item.bytes===file.size;
+ item.headersMatch=Object.entries(required).every(([k,v])=>headers[k]===v);
+ item.passed=status===200&&item.contentMatches&&item.headersMatch;break;
+ }
+ item.passed??=false;report.files.push(item);
+ if(report.files.length%10===0||report.files.length===files.length)console.log('Downloaded and compared '+report.files.length+'/'+files.length+' files; failures='+report.files.filter(f=>!f.passed).length);
+ }
+ try{await Promise.all(Array.from({length:4},async()=>{while(next<files.length){const index=next++;await verify(files[index],index);}}));}finally{await rm(work,{recursive:true,force:true});}
+ report.files.sort((a,b)=>a.path.localeCompare(b.path));report.completedAt=new Date().toISOString();report.checked=report.files.length;report.failures=report.files.filter(f=>!f.passed);report.passed=report.checked===95&&report.failures.length===0;
+ await writeFile(path.join(base,'release-curl-reconciliation.json'),JSON.stringify(report,null,2)+'\n');return{checked:report.checked,failures:report.failures,passed:report.passed};
+}
+async function chrome(){
+ const report={format:'aiao-desktop.chrome-entry-provenance',version:1,measuredAt:new Date().toISOString(),method:'Fresh temporary headless Google Chrome; service workers blocked; raw response body',environment:{channel:'chrome'},entries:[],pageErrors:[]};
+ const output=path.join(base,'release-chrome-entry-provenance.json');
+ const watchdog=setTimeout(()=>{report.error='90 second diagnostic watchdog expired';writeFileSync(output,JSON.stringify(report,null,2)+'\n');process.exit(1)},90000);
+ let browser;
+ try{
+ const require=createRequire(path.join(root,'aiao-desktop/apps/e2e/package.json'));const{chromium}=await import(pathToFileURL(require.resolve('playwright')));
+ browser=await chromium.launch({channel:'chrome',headless:true,timeout:15000});report.environment.browser=browser.version();
+ const local=await readFile(path.join(dist,'index.html'),'utf8');const context=await browser.newContext({viewport:{width:1440,height:900},serviceWorkers:'block'});
+ const origins=['https://desktop.aiao.io','https://aiao-desktop.pages.dev'];await context.route(url=>!origins.includes(url.origin),route=>route.abort());
+ for(const origin of origins){
+ const page=await context.newPage();page.on('pageerror',e=>report.pageErrors.push(e.message));
+ const response=await page.goto(origin+'/?boot=0',{timeout:20000,waitUntil:'domcontentloaded'});const body=await response.body();const text=body.toString('utf8');
+ let prefix=0;while(prefix<local.length&&prefix<text.length&&local[prefix]===text[prefix])prefix++;
+ let suffix=0;while(suffix<local.length-prefix&&suffix<text.length-prefix&&local.at(-suffix-1)===text.at(-suffix-1))suffix++;
+ const added=text.slice(prefix,text.length-suffix);const scripts=html=>[...html.matchAll(/<script\b([^>]*)>/gi)].map(m=>({src:m[1].match(/\bsrc=["']([^"']+)/i)?.[1]??null,type:m[1].match(/\btype=["']([^"']+)/i)?.[1]??null}));
+ const item={origin,status:response.status(),bytes:body.length,indexSha256:sha(body),artifactIndexSha256:sha(Buffer.from(local)),sameAsArtifact:text===local,commonPrefixChars:prefix,commonSuffixChars:suffix,removedLocalCharacters:local.length-prefix-suffix,addedCharacters:added.length,addedFragmentSha256:sha(Buffer.from(added)),localScripts:scripts(local),responseScripts:scripts(text),extraScriptSources:scripts(text).map(s=>s.src).filter(src=>src&&!scripts(local).some(s=>s.src===src))};report.entries.push(item);
+ await page.locator('.win[data-app="finder"]').waitFor({timeout:15000});item.finderVisible=await page.locator('.win[data-app="finder"]').isVisible();item.crossOriginIsolated=await page.evaluate(()=>crossOriginIsolated);await page.close();
+ }
+ report.passed=report.entries.length===2&&report.pageErrors.length===0&&report.entries.every(e=>e.status===200&&e.finderVisible&&e.crossOriginIsolated);
+ }catch(e){report.error=String(e);report.passed=false;}finally{await browser?.close().catch(()=>{});clearTimeout(watchdog);await writeFile(output,JSON.stringify(report,null,2)+'\n');}
+ return report;
+}
+const jobs=[['file-reconciliation',reconcile],['chrome-entry-provenance',chrome]];
+const results=await Promise.allSettled(jobs.map(async([name,fn])=>({name,result:await fn()})));
+for(let i=0;i<results.length;i++)console.log(JSON.stringify(results[i].status==='fulfilled'?results[i].value:{name:jobs[i][0],error:String(results[i].reason)},null,2));
+if(results.some(r=>r.status==='rejected'||r.value.result.passed!==true))process.exitCode=1;

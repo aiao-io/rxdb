@@ -1,6 +1,6 @@
 # 2026-11-14 验收证据
 
-当前浏览器范围已按用户明确要求[收敛为桌面Chrome](../../decisions.md#d-19只验收桌面-chrome)，详见[范围调整记录](chrome-only-scope.json)。本页下方Safari、Firefox、WebKit的既有记录与当时的6项待验计数是范围调整前的历史；当前计数以[需求汇总](closeout-summary.json)的5项为准。历史失败及未完成观察不改成通过。
+当前浏览器范围已按用户明确要求[收敛为桌面Chrome](../../decisions.md#d-19只验收桌面-chrome)，详见[范围调整记录](chrome-only-scope.json)。本页下方Safari、Firefox、WebKit的既有记录与当时的6项待验计数是范围调整前的历史；两项回溯基线例外及正式发布已按[D-20](../../decisions.md#d-20接受两项回溯基线例外并批准本次正式发布)批准，见[授权记录](closeout-approval.json)；当前计数以[需求汇总](closeout-summary.json)为准。历史失败及未完成观察不改成通过。
 
 执行环境：Apple M1 Max、macOS/Darwin 27.2.0 arm64、Node 26.12.0、pnpm 12.16.1。各轮源码按报告source记录（涵盖 `0dcdabca`、`d95812da`、`0ccab7cf`、`6ed149a5`、`d49507e3`、`13d8a872` 及当时工作区改动）；本轮未执行生产发布。报告里的 ISO 时间为 UTC，本目录日期按 Asia/Shanghai。每份 JSON 保留实际浏览器版本、输入、逐项结果和产物摘要。
 

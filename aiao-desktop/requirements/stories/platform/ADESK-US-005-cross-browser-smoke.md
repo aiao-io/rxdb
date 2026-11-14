@@ -1,7 +1,7 @@
 ---
 id: ADESK-US-005
 title: Chrome 与窄屏验收
-status: In Review
+status: Done
 priority: Medium
 epic: ADESK-EPIC-001
 created: 2026-11-13
@@ -54,7 +54,7 @@ capabilities: []
 - [Chrome 范围调整记录](../../evidence/2026-11-14/chrome-only-scope.json)、[能力矩阵](../../capability-matrix.md)、[README](../../README.md)与[验收台账](../../verification-report.md)共同覆盖#4。
 - 原有[跨浏览器复验](../../evidence/2026-11-14/browser-support.md)、[Safari 后续记录](../../evidence/2026-11-14/safari-product-followup.json)及[再次游戏检查](../../evidence/2026-11-14/safari-game-probe.json)保留为D-19之前的历史范围证据；Safari 的未完成观察没有改为通过。
 
-本故事当前 AC 全部通过，仍受 US-008 的硬依赖关闭条件约束，状态保持 In Review。物理键盘与 VoiceOver 分别由 US-107、US-108 负责，本决策不关闭它们的验收项。
+本故事当前 AC 全部通过；US-008已按 [D-20](../../decisions.md#d-20接受两项回溯基线例外并批准本次正式发布) 关闭，全部硬依赖满足，故事置Done。物理键盘与 VoiceOver 分别由 US-107、US-108 负责，本决策不关闭它们的验收项。
 
 ## 实现文件
 

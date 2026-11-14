@@ -1,6 +1,6 @@
 ---
 id: ADESK-EPIC-003
-status: In Progress
+status: Done
 startDate: 2026-11-13
 targetDate: TBD
 owner: jimmy
@@ -22,10 +22,10 @@ Aiao Desktop 除了随桌面构建的内置应用，还能把独立部署的 B/S
 - [x] 集成应用经 Orbit 在窗口里运行：加载、就绪、最小化、还原、关闭、焦点与失败重试由桌面统一处理，接入契约写清楚（[ADESK-US-202](../stories/application/ADESK-US-202-integrated-app-runtime.md)）。
 - [x] Aiao Code 作为第一个集成应用接入，用 vscode.aiao.io 的线上发布版本（[ADESK-US-203](../stories/application/ADESK-US-203-aiao-code.md)）。
 - [x] 透明窗口：应用自己画标题栏与红黄绿，经窗口接口调用桌面的关闭、最小化与缩放，拖动区由桌面接管（参考 Tauri，[ADESK-US-204](../stories/application/ADESK-US-204-transparent-window.md)）。
-- [ ] 应用清单是唯一真相源，Applications 是系统投影，预装应用受保护，Dock 布局可拖放并持久化（[ADESK-US-205](../stories/application/ADESK-US-205-application-management.md)）。
-- [ ] 应用懒加载与统一宿主能力：shell-first 启动，窗口、菜单、通知、剪贴板与文件能力经统一接口授予（[ADESK-US-206](../stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md)）。
+- [x] 应用清单是唯一真相源，Applications 是系统投影，预装应用受保护，Dock 布局可拖放并持久化（[ADESK-US-205](../stories/application/ADESK-US-205-application-management.md)）。
+- [x] 应用懒加载与统一宿主能力：shell-first 启动，窗口、菜单、通知、剪贴板与文件能力经统一接口授予（[ADESK-US-206](../stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md)）。
 
-当前未勾选项包含已经实现、等待验收或依赖关闭的故事，具体保留项见状态总览。
+本Epic全部故事的AC与硬依赖已关闭，发布结果见验收台账。
 
 ## 故事
 
@@ -38,7 +38,7 @@ Aiao Desktop 除了随桌面构建的内置应用，还能把独立部署的 B/S
 - [ADESK-US-205 Applications 目录、预装应用与 Dock 管理](../stories/application/ADESK-US-205-application-management.md) (High)
 - [ADESK-US-206 应用懒加载与统一系统能力](../stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md) (High)
 
-## 下一阶段
+## 本轮已交付范围
 
 - [ADESK-US-205](../stories/application/ADESK-US-205-application-management.md) 把清单投影到 Applications，补预装应用保护、预装的远程应用包、Dock 固定/运行态/拖放与持久化。
 - [ADESK-US-206](../stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md) 把应用实现拆成按需载荷，并定义窗口、菜单、通知、剪贴板和文件等宿主能力的统一契约。

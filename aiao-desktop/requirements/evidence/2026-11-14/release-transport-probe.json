@@ -1,0 +1,27 @@
+{
+  "format": "aiao-desktop.release-transport-probe",
+  "version": 1,
+  "measuredAt": "2026-11-14T11:17:17.297Z",
+  "url": "https://b093f8b2.aiao-desktop.pages.dev/saltline.html",
+  "method": "Read-only curl compressed response body compared to local saltline.html; explicit IPv4 and IPv6",
+  "results": [
+    {
+      "family": "ipv4",
+      "seconds": 6.588,
+      "stats": "200 172.66.44.214 2.317576 6.560243",
+      "bytes": 1425707,
+      "sha256": "9e55b5200b088adaf8e1152da04efc0d3b25e236e6baf2dee96f81e23e084966",
+      "expectedSha256": "9e55b5200b088adaf8e1152da04efc0d3b25e236e6baf2dee96f81e23e084966",
+      "contentMatches": true
+    },
+    {
+      "family": "ipv6",
+      "seconds": 6.126,
+      "stats": "200 ::ffff:172.66.44.214 2.313576 6.100171",
+      "bytes": 1425707,
+      "sha256": "9e55b5200b088adaf8e1152da04efc0d3b25e236e6baf2dee96f81e23e084966",
+      "expectedSha256": "9e55b5200b088adaf8e1152da04efc0d3b25e236e6baf2dee96f81e23e084966",
+      "contentMatches": true
+    }
+  ]
+}

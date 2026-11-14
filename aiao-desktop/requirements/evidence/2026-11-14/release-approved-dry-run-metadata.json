@@ -1,0 +1,14 @@
+{
+  "format": "aiao-desktop.release-dry-run",
+  "version": 1,
+  "decision": "D-20",
+  "startedAt": "2026-11-14T09:33:59.269Z",
+  "sourceHead": "b6827b105bfa259a2037e1efa2b412a8c804223c",
+  "command": "NX_NO_CLOUD=true pnpm nx run aiao-desktop:deploy --args=--dry-run --parallel=2 --output-style=static",
+  "log": "release-approved-dry-run.txt",
+  "expectedIndexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
+  "completedAt": "2026-11-14T09:34:02.929Z",
+  "exitCode": 0,
+  "actualIndexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
+  "artifactUnchanged": true
+}

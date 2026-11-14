@@ -1,7 +1,7 @@
 ---
 id: ADESK-US-105
 title: 多标签页实时互通
-status: In Review
+status: Done
 priority: Medium
 epic: ADESK-EPIC-002
 created: 2026-11-13
@@ -98,7 +98,7 @@ capabilities: []
 
 原始记录：[Chromium最终聚合检查](../../evidence/2026-11-14/chromium-verify.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
 
-阶段A、B的AC已通过；故事关闭仍依赖 US-008。使用Playwright输入，不替代真实物理键盘验收。
+阶段A、B的AC已通过；US-008已按 [D-20](../../decisions.md#d-20接受两项回溯基线例外并批准本次正式发布) 关闭，硬依赖满足，故事置Done。使用Playwright输入，不替代真实物理键盘验收。
 
 ## References
 

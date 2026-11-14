@@ -1,0 +1,52 @@
+{
+  "format": "aiao-desktop.release-closeout",
+  "version": 1,
+  "recordedAt": "2026-11-14T11:26:49.353Z",
+  "decision": "D-20",
+  "productionRelease": {
+    "decision": "D-20",
+    "deploymentId": "b093f8b2-9bc7-492c-9a8b-1928f8397ada",
+    "sourceHead": "b6827b105bfa259a2037e1efa2b412a8c804223c",
+    "artifactIndexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
+    "uploaded": true,
+    "initialCommandExitCode": 1,
+    "initialCommandLog": "release-production.txt",
+    "initialFailure": "Five deployed-file downloads timed out; both production entry checks passed.",
+    "reconciliation": {
+      "report": "release-curl-reconciliation.json",
+      "readOnly": true,
+      "uploadedAgain": false,
+      "checked": 95,
+      "passed": true
+    },
+    "entrypoints": "release-entrypoints.json",
+    "domainIsolation": "release-domain-storage.json",
+    "aiaoCode": "release-aiao-code.json",
+    "chromeEntryProvenance": "release-chrome-entry-provenance.json",
+    "browserHtmlInjection": {
+      "host": "static.cloudflareinsights.com",
+      "addedCharacters": 367,
+      "removedArtifactCharacters": 0,
+      "browserEntrySha256": "a23d249747af4e6cfc0cdb8604d570324c1f27dbeaca8134bf34bfd029fc85fc"
+    },
+    "acceptanceComplete": true
+  },
+  "storyCounts": {
+    "Done": 20,
+    "In Review": 2
+  },
+  "pendingAcceptanceCount": 2,
+  "pendingAcceptance": [
+    {
+      "id": "ADESK-US-107",
+      "ac": 8,
+      "requires": "human physical keyboard input in Chrome"
+    },
+    {
+      "id": "ADESK-US-108",
+      "ac": 6,
+      "requires": "actual VoiceOver announcements V01-V14"
+    }
+  ],
+  "allRequirementsComplete": false
+}

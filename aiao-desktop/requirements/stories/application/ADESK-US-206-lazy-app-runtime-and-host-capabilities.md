@@ -1,7 +1,7 @@
 ---
 id: ADESK-US-206
 title: 应用懒加载与统一系统能力
-status: In Review
+status: Done
 priority: High
 epic: ADESK-EPIC-003
 created: 2026-11-13
@@ -66,7 +66,7 @@ capabilities: []
 | 4   | 正式构建，清空浏览器缓存与站点数据（所以没有已保存的窗口布局）                                     | 启动桌面并依次打开 Launchpad、Spotlight                                                                  | 首屏只下载桌面 shell、清单、Finder 和公共资源；没有其他应用的组件 chunk、应用独有的种子或 remote-web 请求                                                                                    | ✅   |
 | 5   | 应用 A 与应用 B 都已登记                                                                           | 只打开应用 A                                                                                             | 只加载 A 的组件或入口；B 的组件构造函数、独有的数据种子和网络入口都没有执行                                                                                                                  | ✅   |
 | 6   | 日历、天气、股票、提醒事项应用从未打开过                                                           | 分别在全新的库和已有数据的库上打开通知中心                                                               | 两种库上对应的小组件都显示内置初始数据（种子在首次被读取时触发，不在首次打开应用时才触发），网络记录里没有这四个应用的组件 chunk                                                             | ✅   |
-| 7   | 阶段 A 前在固定提交上记下的基线；实现后的正式构建                                                  | 用同一条构建命令与配置比较 initial 体积                                                                  | 不大于基线，`project.json` 的 initial 预算已收紧到基线附近；基线（原始字节与传输大小）与短 SHA 已记入验收台账                                                                                | ⚠️   |
+| 7   | 阶段 A 前在固定提交上记下的基线；实现后的正式构建                                                  | 用同一条构建命令与配置比较 initial 体积                                                                  | 不大于基线，`project.json` 的 initial 预算已收紧到基线附近；基线（原始字节与传输大小）与短 SHA 已记入验收台账                                                                                | ✅   |
 | 8   | 应用只声明部分 capabilities                                                                        | 分别调用已声明和未声明能力                                                                               | 已声明能力按统一接口成功或返回浏览器层错误；未声明能力稳定返回 `CAPABILITY_DENIED`，窗口里有一句可见原因，不能通过 parent DOM 或任意消息绕过；remote-web 拿不到 RxDB repository 与 OPFS 句柄 | ✅   |
 | 9   | 应用窗口获得和失去焦点                                                                             | 设置标题、登记菜单、最小化、还原、关闭                                                                   | 菜单栏只显示前台应用的登记内容；关闭后菜单、订阅和能力上下文全部解绑                                                                                                                         | ✅   |
 | 10  | 应用声明的协议版本高于桌面支持的版本                                                               | 打开应用                                                                                                 | 应用收到明确的不兼容错误，窗口显示原因；不会缺能力后继续运行                                                                                                                                 | ✅   |
@@ -88,7 +88,7 @@ capabilities: []
 | 阶段 | 交付                                                                                                           | 关闭条件                                                             | 依赖                | AC 区段           | 状态 |
 | ---- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- | ------------------- | ----------------- | ---- |
 | A    | 应用运行时与生命周期：`ApplicationRuntime`、`WindowManager` 与载荷解耦、三种运行类型的实例创建与销毁、失败重试 | 打开 / 关闭 / 失败重试都只影响当前实例；旧实例的迟到消息被丢弃       | ADESK-US-205 阶段 A | AC#1～3、14       | ✅   |
-| B    | 按需加载与首屏预算：每个应用独立的 dynamic import、种子在首次读取时触发、initial 预算                          | 启动不请求 Finder 以外的应用载荷；initial 体积不回退                 | A                   | AC#4～7           | ⚠️   |
+| B    | 按需加载与首屏预算：每个应用独立的 dynamic import、种子在首次读取时触发、initial 预算                          | 启动不请求 Finder 以外的应用载荷；initial 体积不回退                 | A                   | AC#4～7           | ✅   |
 | C    | 宿主上下文与 window / menu / app 能力：`DesktopAppContext`、权限默认拒绝、错误码与协议版本                     | 未声明能力稳定被拒；菜单与订阅随窗口解绑；两层权限声明一致           | A                   | AC#8～10、15、18  | ✅   |
 | D    | notification / clipboard / appearance / filesystem 能力与打开保存面板                                          | 四项能力的手势、权限与取消语义一致；文件凭证与面板的退出行为符合契约 | C                   | AC#11～12、16～17 | ✅   |
 
@@ -149,7 +149,7 @@ capabilities: []
 
 原始记录：[initial-comparison-final.json](../../evidence/2026-11-14/initial-comparison-final.json)、[animation-restore-green.json](../../evidence/2026-11-14/animation-restore-green.json)、[Chromium最终聚合检查](../../evidence/2026-11-14/chromium-verify.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
 
-AC#7 当前体积符合回溯数值对照，但基线是在实现之后重建测量，不能声称“实现前已记录”。阶段B因此保留评审，故事关闭还依赖 US-205；Firefox原iframe缺口已关闭；WebKit经Orbit的MessagePort读取现已按有限支持策略在入口禁用并持续说明原因，公告与授权共用有效能力列表，原成功读取检查仍保留为false。按 [D-19](../../decisions.md#d-19只验收桌面-chrome)，本轮只验收Chrome；上述Firefox、WebKit与真机Safari记录作为历史或可选诊断，不再构成本轮验收阻塞。新产物复验与历史边界在US-005分别记录，见[有限支持复验](../../evidence/2026-11-14/browser-support.md)。
+AC#7 当前体积符合回溯数值对照，但基线是在实现之后重建测量，不能声称“实现前已记录”。用户已按 [D-20](../../decisions.md#d-20接受两项回溯基线例外并批准本次正式发布) 接受本条流程例外，AC#7与阶段B据此通过，US-205硬依赖也已关闭。Firefox原iframe缺口已关闭；WebKit经Orbit的MessagePort读取现已按有限支持策略在入口禁用并持续说明原因，公告与授权共用有效能力列表，原成功读取检查仍保留为false。按 [D-19](../../decisions.md#d-19只验收桌面-chrome)，本轮只验收Chrome；上述Firefox、WebKit与真机Safari记录作为历史或可选诊断，不再构成本轮验收阻塞。新产物复验与历史边界在US-005分别记录，见[有限支持复验](../../evidence/2026-11-14/browser-support.md)。
 
 ## References
 

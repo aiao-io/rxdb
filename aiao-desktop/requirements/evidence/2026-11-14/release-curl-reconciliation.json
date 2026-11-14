@@ -1,0 +1,2127 @@
+{
+  "format": "aiao-desktop.release-curl-reconciliation",
+  "version": 1,
+  "startedAt": "2026-11-14T11:21:14.591Z",
+  "deploymentId": "b093f8b2-9bc7-492c-9a8b-1928f8397ada",
+  "baseUrl": "https://b093f8b2.aiao-desktop.pages.dev",
+  "method": {
+    "readOnly": true,
+    "uploaded": false,
+    "transport": "curl --compressed",
+    "concurrency": 4,
+    "requestTimeoutSeconds": 25,
+    "maxAttempts": 3
+  },
+  "expectedFiles": 95,
+  "artifactIndexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
+  "files": [
+    {
+      "path": "assets/debugger-DuXnK0sn.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/assets/debugger-DuXnK0sn.js",
+      "expectedSha256": "83559d01e60e48939af200daee18bc7f47b5dd38336f03c4cb1e81f6ad3dbcb6",
+      "expectedBytes": 195416,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 195416,
+      "sha256": "83559d01e60e48939af200daee18bc7f47b5dd38336f03c4cb1e81f6ad3dbcb6",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "assets/fetcher-worker-C1Js6dV_.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/assets/fetcher-worker-C1Js6dV_.js",
+      "expectedSha256": "7d1ba212e5bc8ef6ea81f420591655c7e2ea1caa72c4c61c886e42cc035bd5a7",
+      "expectedBytes": 9241,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 9241,
+      "sha256": "7d1ba212e5bc8ef6ea81f420591655c7e2ea1caa72c4c61c886e42cc035bd5a7",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "assets/fs-worker-gcjILG2f.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/assets/fs-worker-gcjILG2f.js",
+      "expectedSha256": "998674f5eec930ebda6aa819cb595673e3668fdc449d19d31bcfeb4290f74057",
+      "expectedBytes": 465251,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 465251,
+      "sha256": "998674f5eec930ebda6aa819cb595673e3668fdc449d19d31bcfeb4290f74057",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "assets/kernel-worker-B2lyfcKA.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/assets/kernel-worker-B2lyfcKA.js",
+      "expectedSha256": "ea3d0a1c0872e535b4fbd6eec4764594cbb92a2764484836f6cc361268870bf2",
+      "expectedBytes": 2819446,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 2819446,
+      "sha256": "ea3d0a1c0872e535b4fbd6eec4764594cbb92a2764484836f6cc361268870bf2",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "assets/process-worker-CEpIMzRj.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/assets/process-worker-CEpIMzRj.js",
+      "expectedSha256": "318e9cf9fc9c5cc5c83d83f8b158998143af369b8dd9bbb78184d7d74f151d4d",
+      "expectedBytes": 4155374,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 4155374,
+      "sha256": "318e9cf9fc9c5cc5c83d83f8b158998143af369b8dd9bbb78184d7d74f151d4d",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "assets/python-lsp-worker-CzNpG4SI.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/assets/python-lsp-worker-CzNpG4SI.js",
+      "expectedSha256": "1bca4bc199ebfcee0c62fb29fb1083cc2303d15a7f72a8fbe8d0075d3db5a3f7",
+      "expectedBytes": 15714,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 15714,
+      "sha256": "1bca4bc199ebfcee0c62fb29fb1083cc2303d15a7f72a8fbe8d0075d3db5a3f7",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "assets/sw.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/assets/sw.js",
+      "expectedSha256": "59630b9e21ecb6b0936906e56537da1e40cab4d3cefd5a15f81da3a27f0bce29",
+      "expectedBytes": 87043,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 87043,
+      "sha256": "59630b9e21ecb6b0936906e56537da1e40cab4d3cefd5a15f81da3a27f0bce29",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk--HeEelVn.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk--HeEelVn.js",
+      "expectedSha256": "4fb56d9249120d031f28eedd07ae1d4f97eaeea60892a4349172a277554b0e88",
+      "expectedBytes": 435,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 435,
+      "sha256": "4fb56d9249120d031f28eedd07ae1d4f97eaeea60892a4349172a277554b0e88",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-3kzZQ-Qg.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-3kzZQ-Qg.js",
+      "expectedSha256": "8f582872ff71004d52f61f7b026dcdb74a6c7a93d7f6e46cbb9e950b73ee7650",
+      "expectedBytes": 386,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 386,
+      "sha256": "8f582872ff71004d52f61f7b026dcdb74a6c7a93d7f6e46cbb9e950b73ee7650",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-6BSf69VW.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-6BSf69VW.js",
+      "expectedSha256": "1d0d74b6b5fba674d9ef4977dd48e54cbd3346fcc357826940c8f4934c85d3ac",
+      "expectedBytes": 555,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 555,
+      "sha256": "1d0d74b6b5fba674d9ef4977dd48e54cbd3346fcc357826940c8f4934c85d3ac",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-B_g4XV0I.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-B_g4XV0I.js",
+      "expectedSha256": "465f1e8547ee019c1c2b2cdcb39bcba6b73b6345da5ba3986312f0e01dc0579f",
+      "expectedBytes": 1070,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 1070,
+      "sha256": "465f1e8547ee019c1c2b2cdcb39bcba6b73b6345da5ba3986312f0e01dc0579f",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-B1xMvN6D.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-B1xMvN6D.js",
+      "expectedSha256": "0fc4482a6475508cb8badd66a5b1bf46d6e7586e44c10238729de8b2d4e604fb",
+      "expectedBytes": 277435,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 277435,
+      "sha256": "0fc4482a6475508cb8badd66a5b1bf46d6e7586e44c10238729de8b2d4e604fb",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-B20tWYnB.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-B20tWYnB.js",
+      "expectedSha256": "5c9cba60362a3398a50a3cfe11a0670404f8201007c9f17dec9a78a20901ce35",
+      "expectedBytes": 478,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 478,
+      "sha256": "5c9cba60362a3398a50a3cfe11a0670404f8201007c9f17dec9a78a20901ce35",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-B4NUugC_.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-B4NUugC_.js",
+      "expectedSha256": "d52e67683ddb4754c4f57036eea9944be932deea8727200260d1da9cddbb14ed",
+      "expectedBytes": 5100,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 5100,
+      "sha256": "d52e67683ddb4754c4f57036eea9944be932deea8727200260d1da9cddbb14ed",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-BBPgqxie.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-BBPgqxie.js",
+      "expectedSha256": "7abdb36772534c57d1954dd61d12345b6e856512300ac18b52e20ab0e326cf89",
+      "expectedBytes": 2094,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 2094,
+      "sha256": "7abdb36772534c57d1954dd61d12345b6e856512300ac18b52e20ab0e326cf89",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-BC8HBkpC.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-BC8HBkpC.js",
+      "expectedSha256": "fba77338d837d6d847cec3ed4ab6f6f38198a8cc27f0fc02d02e7a823dccea43",
+      "expectedBytes": 1593,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 1593,
+      "sha256": "fba77338d837d6d847cec3ed4ab6f6f38198a8cc27f0fc02d02e7a823dccea43",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-BczKwMd8.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-BczKwMd8.js",
+      "expectedSha256": "5e2703b24fcdbed658464c2bf0762620149aaa67ab0daeba8f4b8d0b13f065fa",
+      "expectedBytes": 425,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 425,
+      "sha256": "5e2703b24fcdbed658464c2bf0762620149aaa67ab0daeba8f4b8d0b13f065fa",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-BER12wTD.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-BER12wTD.js",
+      "expectedSha256": "ef4a3b01e9c55f0e82874882a5ff4c838a92b962ef21cf7df35a5047b2d9a1bf",
+      "expectedBytes": 2333,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 2333,
+      "sha256": "ef4a3b01e9c55f0e82874882a5ff4c838a92b962ef21cf7df35a5047b2d9a1bf",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-BFb2nQNb.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-BFb2nQNb.js",
+      "expectedSha256": "f12405cc3ae55e5efbe8743710990d0463c068a93c6fa71ef3b6131f26f1c986",
+      "expectedBytes": 5489,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 5489,
+      "sha256": "f12405cc3ae55e5efbe8743710990d0463c068a93c6fa71ef3b6131f26f1c986",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-BFguY5Jz.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-BFguY5Jz.js",
+      "expectedSha256": "729a1233a0c17f1f4d3df8bdda9e21ba86e32e12dfee6eb22c93652c54c08715",
+      "expectedBytes": 737,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 737,
+      "sha256": "729a1233a0c17f1f4d3df8bdda9e21ba86e32e12dfee6eb22c93652c54c08715",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-BIrOicSF.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-BIrOicSF.js",
+      "expectedSha256": "74366d7cf6bd5a7160416284fa562c230243af40992a3f83d098751fd14b7afe",
+      "expectedBytes": 911,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 911,
+      "sha256": "74366d7cf6bd5a7160416284fa562c230243af40992a3f83d098751fd14b7afe",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-BitcR9cw.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-BitcR9cw.js",
+      "expectedSha256": "97f3fe462d2b8fa0ebb151bbb5f945fca104b179f104a70d35defdd89e5cd8f0",
+      "expectedBytes": 11672,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 11672,
+      "sha256": "97f3fe462d2b8fa0ebb151bbb5f945fca104b179f104a70d35defdd89e5cd8f0",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-BkoiYHsg.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-BkoiYHsg.js",
+      "expectedSha256": "fae6e3e5b7a2150e0971b9f4f39d5c95cecc20ac41ddef4bdd382d69eff57838",
+      "expectedBytes": 1615,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 1615,
+      "sha256": "fae6e3e5b7a2150e0971b9f4f39d5c95cecc20ac41ddef4bdd382d69eff57838",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-Bm3eMlhw.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-Bm3eMlhw.js",
+      "expectedSha256": "44df507e1635556e78b8b91ef62628f988b0416e8b0f4d82a7ff9700e719cdae",
+      "expectedBytes": 5659,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 5659,
+      "sha256": "44df507e1635556e78b8b91ef62628f988b0416e8b0f4d82a7ff9700e719cdae",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-BM9X8oxO.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-BM9X8oxO.js",
+      "expectedSha256": "25393c87338c6f9d3014aa9ed7af88c3efe1b067c0ee24d9b794b92dd77f91dd",
+      "expectedBytes": 410,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 0,
+          "error": "curl: (28) SSL connection timeout\n"
+        },
+        {
+          "attempt": 2,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 410,
+      "sha256": "25393c87338c6f9d3014aa9ed7af88c3efe1b067c0ee24d9b794b92dd77f91dd",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-BmCIb-Wy.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-BmCIb-Wy.js",
+      "expectedSha256": "c46c12bde8b7786d49a9dbb5a22fc68e91db96582aaea035f72585c4459cab45",
+      "expectedBytes": 22206,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 22206,
+      "sha256": "c46c12bde8b7786d49a9dbb5a22fc68e91db96582aaea035f72585c4459cab45",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-BQMpHz5N.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-BQMpHz5N.js",
+      "expectedSha256": "c0c3570da662aee7eccaa0d2fa83ac1f260200b5e88e1b335ddfadbbb571e76f",
+      "expectedBytes": 441,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 441,
+      "sha256": "c0c3570da662aee7eccaa0d2fa83ac1f260200b5e88e1b335ddfadbbb571e76f",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-BqntmkP3.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-BqntmkP3.js",
+      "expectedSha256": "595c06efe6691c198ec0a4d4a4e56bf07bbf89f878fd23821c5abe9e5e1d90a9",
+      "expectedBytes": 29027,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 29027,
+      "sha256": "595c06efe6691c198ec0a4d4a4e56bf07bbf89f878fd23821c5abe9e5e1d90a9",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-BS0Vz80l.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-BS0Vz80l.js",
+      "expectedSha256": "3f1a1abd33e20aa37a8d7be2435e3cf2b1e31c5e428a76bfafc80812209b4f88",
+      "expectedBytes": 2028,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 0,
+          "error": "curl: (28) SSL connection timeout\n"
+        },
+        {
+          "attempt": 2,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 2028,
+      "sha256": "3f1a1abd33e20aa37a8d7be2435e3cf2b1e31c5e428a76bfafc80812209b4f88",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-BSlEPBoq.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-BSlEPBoq.js",
+      "expectedSha256": "6cd441bcd548531d8a8a67fa0749fba79e218225d5b95709e436141952c724c1",
+      "expectedBytes": 2458,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 2458,
+      "sha256": "6cd441bcd548531d8a8a67fa0749fba79e218225d5b95709e436141952c724c1",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-Btr6lcAZ.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-Btr6lcAZ.js",
+      "expectedSha256": "a31da521ff149ec1f7363ec2ce7ab09ec3a784baeefdf314c57a807aca247771",
+      "expectedBytes": 604,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 604,
+      "sha256": "a31da521ff149ec1f7363ec2ce7ab09ec3a784baeefdf314c57a807aca247771",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-Bu-tScmN.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-Bu-tScmN.js",
+      "expectedSha256": "3ea229a4c27ec1670e766c812b7bcd1891c8277c5d22bd31029600f8eb3a6ce9",
+      "expectedBytes": 13005,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 13005,
+      "sha256": "3ea229a4c27ec1670e766c812b7bcd1891c8277c5d22bd31029600f8eb3a6ce9",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-Bvi7ES6g.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-Bvi7ES6g.js",
+      "expectedSha256": "98709e01d5987609060a18099baf24287a093ddd40d33c50f8cf9443dcb2e1e8",
+      "expectedBytes": 1439,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 1439,
+      "sha256": "98709e01d5987609060a18099baf24287a093ddd40d33c50f8cf9443dcb2e1e8",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-BWqdPG_f.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-BWqdPG_f.js",
+      "expectedSha256": "1f5b0cbb8df24c548c3ba9f89024631e17e349cf3e8ec69490e62508cbf3ae20",
+      "expectedBytes": 393,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 393,
+      "sha256": "1f5b0cbb8df24c548c3ba9f89024631e17e349cf3e8ec69490e62508cbf3ae20",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-BwX4UDIg.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-BwX4UDIg.js",
+      "expectedSha256": "3e83187894cad00d150e6028b7492809bababf6d69fe5725db034fc59eeb04e2",
+      "expectedBytes": 607,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 607,
+      "sha256": "3e83187894cad00d150e6028b7492809bababf6d69fe5725db034fc59eeb04e2",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-BxaNSo5s.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-BxaNSo5s.js",
+      "expectedSha256": "54e061ae28e5dd42f0ec69decb32342857e2a575a02f2ef9879d3aeb55e2c555",
+      "expectedBytes": 9357,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 9357,
+      "sha256": "54e061ae28e5dd42f0ec69decb32342857e2a575a02f2ef9879d3aeb55e2c555",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-ByUsJ1Vh.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-ByUsJ1Vh.js",
+      "expectedSha256": "233d5ce29a864991c81da34e5850b26aa78777bce4546c16bb332550d57eac9b",
+      "expectedBytes": 783,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 783,
+      "sha256": "233d5ce29a864991c81da34e5850b26aa78777bce4546c16bb332550d57eac9b",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-BZwLUywH.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-BZwLUywH.js",
+      "expectedSha256": "7afb3bd396e932a39e7932cf43f841a0fbd80967d30f13867828b387c71ceb22",
+      "expectedBytes": 6623,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 6623,
+      "sha256": "7afb3bd396e932a39e7932cf43f841a0fbd80967d30f13867828b387c71ceb22",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-C_Yqb5ta.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-C_Yqb5ta.js",
+      "expectedSha256": "90be9d50f80587f400e7dab128e0b707918216215e9944ff9a1520b7056cb4f3",
+      "expectedBytes": 5507,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 5507,
+      "sha256": "90be9d50f80587f400e7dab128e0b707918216215e9944ff9a1520b7056cb4f3",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-C0LmY_-G.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-C0LmY_-G.js",
+      "expectedSha256": "42e6b4ac461b244b0c799bb4982b0ed5a49b610af300002c715b8f45617e15a4",
+      "expectedBytes": 10203,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 10203,
+      "sha256": "42e6b4ac461b244b0c799bb4982b0ed5a49b610af300002c715b8f45617e15a4",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-C7w_9EF-.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-C7w_9EF-.js",
+      "expectedSha256": "bafcc1258c700aac353487addca76dec95428767d4e28dee8c1f92f51c4695c9",
+      "expectedBytes": 24746,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 24746,
+      "sha256": "bafcc1258c700aac353487addca76dec95428767d4e28dee8c1f92f51c4695c9",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-CboCrceZ.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-CboCrceZ.js",
+      "expectedSha256": "6ba054b3b6d8a10c7fc7bd0206bdde213341bcc3b1316fd95c6cfc90d21fb72a",
+      "expectedBytes": 1008,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 1008,
+      "sha256": "6ba054b3b6d8a10c7fc7bd0206bdde213341bcc3b1316fd95c6cfc90d21fb72a",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-CFXMNpom.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-CFXMNpom.js",
+      "expectedSha256": "fac2402af2b9291e8497eada98c42afdaeea4e11442e303a873ff4d58189c8f0",
+      "expectedBytes": 301,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 301,
+      "sha256": "fac2402af2b9291e8497eada98c42afdaeea4e11442e303a873ff4d58189c8f0",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-Cg0bysc_.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-Cg0bysc_.js",
+      "expectedSha256": "8601deeaa42695fb9178492a2663b79edb929f4e0ed5a43df1cb9b1981d30a99",
+      "expectedBytes": 792,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 792,
+      "sha256": "8601deeaa42695fb9178492a2663b79edb929f4e0ed5a43df1cb9b1981d30a99",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-CJpFhECa.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-CJpFhECa.js",
+      "expectedSha256": "459eeed5cf6d31e1342df3e994d93248c0103b93b4e0982f87a316f85353f048",
+      "expectedBytes": 13341,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 13341,
+      "sha256": "459eeed5cf6d31e1342df3e994d93248c0103b93b4e0982f87a316f85353f048",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-CNLmvVZT.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-CNLmvVZT.js",
+      "expectedSha256": "a8ad5c5b481ca4c8ac6949bb21a3bfa94b3b5437af7a82914f37ad7500043362",
+      "expectedBytes": 78813,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 78813,
+      "sha256": "a8ad5c5b481ca4c8ac6949bb21a3bfa94b3b5437af7a82914f37ad7500043362",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-Co8ConeT.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-Co8ConeT.js",
+      "expectedSha256": "9f98a89a77111a5965bbc761eb0361a954d057250e7fae46dcaeb338f36e9441",
+      "expectedBytes": 1116,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 1116,
+      "sha256": "9f98a89a77111a5965bbc761eb0361a954d057250e7fae46dcaeb338f36e9441",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-Cp8Vj_v6.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-Cp8Vj_v6.js",
+      "expectedSha256": "1175d70e23d51e7ad8a35448ee2fd8fe24a569497873d4c63c8050ae28904cf5",
+      "expectedBytes": 1199,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 1199,
+      "sha256": "1175d70e23d51e7ad8a35448ee2fd8fe24a569497873d4c63c8050ae28904cf5",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-CR_SHYQs.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-CR_SHYQs.js",
+      "expectedSha256": "3ac1abf497df412507835daf63dbb4c0437077bc22ce7b221bc9c849a61e0b18",
+      "expectedBytes": 573,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 573,
+      "sha256": "3ac1abf497df412507835daf63dbb4c0437077bc22ce7b221bc9c849a61e0b18",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-CV2HZYJm.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-CV2HZYJm.js",
+      "expectedSha256": "e2796ff09a16763bd2c6ddde40e29b58ff23814c8fa44106b2b19423251cdd86",
+      "expectedBytes": 384,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 384,
+      "sha256": "e2796ff09a16763bd2c6ddde40e29b58ff23814c8fa44106b2b19423251cdd86",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-CWSTqUdz.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-CWSTqUdz.js",
+      "expectedSha256": "35b7c701af8730dc614d0bcd2b7a34f213fb9a5dc2bb7d75433a9ae84036eb21",
+      "expectedBytes": 21631,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 21631,
+      "sha256": "35b7c701af8730dc614d0bcd2b7a34f213fb9a5dc2bb7d75433a9ae84036eb21",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-CxF8MfYb.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-CxF8MfYb.js",
+      "expectedSha256": "b275f1f50511deb2ad9060ac1a114d5625e992c6d72982a2650aa4f968749069",
+      "expectedBytes": 765,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 765,
+      "sha256": "b275f1f50511deb2ad9060ac1a114d5625e992c6d72982a2650aa4f968749069",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-CZZQjuIw.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-CZZQjuIw.js",
+      "expectedSha256": "deb275c4f76f765ff960c122688e372a217f728b8f35bd31de8e29f50ab12063",
+      "expectedBytes": 2475,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 2475,
+      "sha256": "deb275c4f76f765ff960c122688e372a217f728b8f35bd31de8e29f50ab12063",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-D-te0-05.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-D-te0-05.js",
+      "expectedSha256": "19a34ece26a5992a32c8c45829453ebe2cd78c2e9dd49cf0e39424be525be495",
+      "expectedBytes": 7489,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 7489,
+      "sha256": "19a34ece26a5992a32c8c45829453ebe2cd78c2e9dd49cf0e39424be525be495",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-D4GoCS2y.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-D4GoCS2y.js",
+      "expectedSha256": "3d1d3d5beada76079ef0cc47862e30eb621615fda2ac2c22ab4cbbbdb2bd64f2",
+      "expectedBytes": 41202,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 41202,
+      "sha256": "3d1d3d5beada76079ef0cc47862e30eb621615fda2ac2c22ab4cbbbdb2bd64f2",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-DEDGFs9V.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-DEDGFs9V.js",
+      "expectedSha256": "da518bbc8b13915b364ec73b88910ac087a6f07dc0c36c025f6823cef0a19495",
+      "expectedBytes": 207918,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 207918,
+      "sha256": "da518bbc8b13915b364ec73b88910ac087a6f07dc0c36c025f6823cef0a19495",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-DG56qWi5.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-DG56qWi5.js",
+      "expectedSha256": "217cbbc750324f608763a4856c3cc05e160b168dbaf996a43e54e479e166a492",
+      "expectedBytes": 361,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 361,
+      "sha256": "217cbbc750324f608763a4856c3cc05e160b168dbaf996a43e54e479e166a492",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-DjChNJzA.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-DjChNJzA.js",
+      "expectedSha256": "a5cbeafce53fa891542e22b73a661f236a2235a7703d78e38ea33d2bd545ccdd",
+      "expectedBytes": 872,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 872,
+      "sha256": "a5cbeafce53fa891542e22b73a661f236a2235a7703d78e38ea33d2bd545ccdd",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-DJdbiaPG.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-DJdbiaPG.js",
+      "expectedSha256": "f95121a54a2ebdbdfc358a9808b9dce38daafb54a452cfaf13262bf828055dd2",
+      "expectedBytes": 4877,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 4877,
+      "sha256": "f95121a54a2ebdbdfc358a9808b9dce38daafb54a452cfaf13262bf828055dd2",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-DJnIc4Pa.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-DJnIc4Pa.js",
+      "expectedSha256": "ec3da15e886969d90c540333f5da51385e9d275a4c877022f1eb4426eac07e8d",
+      "expectedBytes": 818,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 818,
+      "sha256": "ec3da15e886969d90c540333f5da51385e9d275a4c877022f1eb4426eac07e8d",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-Djw8Oazx.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-Djw8Oazx.js",
+      "expectedSha256": "431cc9bc3b18989b50e95fcd3e898a84a5a8e47f53f0f2c215f2253904b62a12",
+      "expectedBytes": 411,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 411,
+      "sha256": "431cc9bc3b18989b50e95fcd3e898a84a5a8e47f53f0f2c215f2253904b62a12",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-DRhbkHRv.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-DRhbkHRv.js",
+      "expectedSha256": "9f5b4d0eb2dff9669b4b9b256117aa6896630e15147532a628da4c5ac7d18ed5",
+      "expectedBytes": 4482,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 4482,
+      "sha256": "9f5b4d0eb2dff9669b4b9b256117aa6896630e15147532a628da4c5ac7d18ed5",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-DrJDdmIe.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-DrJDdmIe.js",
+      "expectedSha256": "95317556ba27817656e0ba0f422c1ee92ba1db0aa409602bf821b83a2b2755f5",
+      "expectedBytes": 31711,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 31711,
+      "sha256": "95317556ba27817656e0ba0f422c1ee92ba1db0aa409602bf821b83a2b2755f5",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-drt8yEFw.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-drt8yEFw.js",
+      "expectedSha256": "7e5cd5f099d296c31e70ba5b3e5b05b32a8ab8965638b1f936e5370dd5717e0a",
+      "expectedBytes": 3829,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 3829,
+      "sha256": "7e5cd5f099d296c31e70ba5b3e5b05b32a8ab8965638b1f936e5370dd5717e0a",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-DtA--P9W.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-DtA--P9W.js",
+      "expectedSha256": "f8da09b9c96ae31210c468b263dae8140c7b2591d10387f3d4356a30d63bcc4e",
+      "expectedBytes": 6096,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 6096,
+      "sha256": "f8da09b9c96ae31210c468b263dae8140c7b2591d10387f3d4356a30d63bcc4e",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-DvGq6adl.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-DvGq6adl.js",
+      "expectedSha256": "c50168e8c8d76d007c53ef327ba5082a17c2828c7c8b1d94df29cebf05905420",
+      "expectedBytes": 351210,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 351210,
+      "sha256": "c50168e8c8d76d007c53ef327ba5082a17c2828c7c8b1d94df29cebf05905420",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-DwOWgci4.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-DwOWgci4.js",
+      "expectedSha256": "587ed7842f745f275b69701568d95457074dced8c455a25f900bbc3d7ec818a0",
+      "expectedBytes": 96536,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 96536,
+      "sha256": "587ed7842f745f275b69701568d95457074dced8c455a25f900bbc3d7ec818a0",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-DWz6tOxI.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-DWz6tOxI.js",
+      "expectedSha256": "cb72b3a35943b65b1574feca61ec01a63dfa2024182b8d80936a07a8e918d2a5",
+      "expectedBytes": 930,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 930,
+      "sha256": "cb72b3a35943b65b1574feca61ec01a63dfa2024182b8d80936a07a8e918d2a5",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-EAlswSdt.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-EAlswSdt.js",
+      "expectedSha256": "f1c9b99a3dee51546e6459b11c508c990b96dcd09ee08fc4a14265c6bfb4b7cc",
+      "expectedBytes": 500,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 500,
+      "sha256": "f1c9b99a3dee51546e6459b11c508c990b96dcd09ee08fc4a14265c6bfb4b7cc",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-f81Mbh8A.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-f81Mbh8A.js",
+      "expectedSha256": "6c66127b726e05073b9618d75a7fec5825f5cd47397897b7622729c597711cb0",
+      "expectedBytes": 6435,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 6435,
+      "sha256": "6c66127b726e05073b9618d75a7fec5825f5cd47397897b7622729c597711cb0",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-fbf09bQ1.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-fbf09bQ1.js",
+      "expectedSha256": "afcd929f1184418c2b8346cf4e9389e0ba981ac750f682abf778daeb0fce3fe9",
+      "expectedBytes": 4084,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 4084,
+      "sha256": "afcd929f1184418c2b8346cf4e9389e0ba981ac750f682abf778daeb0fce3fe9",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-fvrWLzb-.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-fvrWLzb-.js",
+      "expectedSha256": "4bbf1bb3e65e313600421fcef678637132a2fae7e1b88831934ae55ce1571182",
+      "expectedBytes": 3723,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 3723,
+      "sha256": "4bbf1bb3e65e313600421fcef678637132a2fae7e1b88831934ae55ce1571182",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-HaDBy2eE.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-HaDBy2eE.js",
+      "expectedSha256": "3faf0b618540a3a65f1794d0278c245c6fdd468c068f0692d398a9efdc301a85",
+      "expectedBytes": 930,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 930,
+      "sha256": "3faf0b618540a3a65f1794d0278c245c6fdd468c068f0692d398a9efdc301a85",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-Ir1Njbrt.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-Ir1Njbrt.js",
+      "expectedSha256": "392c13722ad733a70fe8c1f640041c8a471555ac7342bb520c0cf402d6e4ab40",
+      "expectedBytes": 434,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 434,
+      "sha256": "392c13722ad733a70fe8c1f640041c8a471555ac7342bb520c0cf402d6e4ab40",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-JX-hJj98.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-JX-hJj98.js",
+      "expectedSha256": "1cf9953e5e9c40b02d26e1b9632d6d5794c712f5f41b1b0c62aa841f7bd66a18",
+      "expectedBytes": 945,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 945,
+      "sha256": "1cf9953e5e9c40b02d26e1b9632d6d5794c712f5f41b1b0c62aa841f7bd66a18",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-L4QdBRAD.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-L4QdBRAD.js",
+      "expectedSha256": "9fafe828de18e4aee58448f706b36f166f7de537431efcee2e642ca442eccead",
+      "expectedBytes": 165663,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 165663,
+      "sha256": "9fafe828de18e4aee58448f706b36f166f7de537431efcee2e642ca442eccead",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-lswfMhqV.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-lswfMhqV.js",
+      "expectedSha256": "52cbbb95bf6124baf79cb93dc830416b03f5cb491d254b082c93225d6f0a183f",
+      "expectedBytes": 7022,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 7022,
+      "sha256": "52cbbb95bf6124baf79cb93dc830416b03f5cb491d254b082c93225d6f0a183f",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-Q8j2YPOb.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-Q8j2YPOb.js",
+      "expectedSha256": "5eac33886e4d2b3785eb4f48022cce1d31016cf0624140e8a55c9297b9b66a8b",
+      "expectedBytes": 11347,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 500
+        },
+        {
+          "attempt": 2,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 11347,
+      "sha256": "5eac33886e4d2b3785eb4f48022cce1d31016cf0624140e8a55c9297b9b66a8b",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-TERCBiGC.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-TERCBiGC.js",
+      "expectedSha256": "3bc038753a7122dfb398892ddf0e1f6721ed7e6f83a28bbd8bf455bd3020cb5b",
+      "expectedBytes": 413,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 413,
+      "sha256": "3bc038753a7122dfb398892ddf0e1f6721ed7e6f83a28bbd8bf455bd3020cb5b",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-tqCcPnUC.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-tqCcPnUC.js",
+      "expectedSha256": "8d529291a68c8c0e5a6a484dd019e1fe277b09dba38ec869a637369377070aef",
+      "expectedBytes": 17766,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 17766,
+      "sha256": "8d529291a68c8c0e5a6a484dd019e1fe277b09dba38ec869a637369377070aef",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-uaxIm4Ic.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-uaxIm4Ic.js",
+      "expectedSha256": "9258423536dea63fe06b9d3102670cddf2a7b70d85131461c56b8e40233d6d42",
+      "expectedBytes": 382,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 382,
+      "sha256": "9258423536dea63fe06b9d3102670cddf2a7b70d85131461c56b8e40233d6d42",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-uJRzPigM.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-uJRzPigM.js",
+      "expectedSha256": "a0ec874c35423ccf3563e0ad0b62a067deafa181c2e241a10cbd3baa0cf5008c",
+      "expectedBytes": 6293,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 6293,
+      "sha256": "a0ec874c35423ccf3563e0ad0b62a067deafa181c2e241a10cbd3baa0cf5008c",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-uPlQnzI-.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-uPlQnzI-.js",
+      "expectedSha256": "504adb2f5f0ad0d90dc0eaf9d2eefdfe277029336bcf2a13ed913927b67e6429",
+      "expectedBytes": 8577,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 8577,
+      "sha256": "504adb2f5f0ad0d90dc0eaf9d2eefdfe277029336bcf2a13ed913927b67e6429",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-Z_3f9h7l.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-Z_3f9h7l.js",
+      "expectedSha256": "08f594ea6a8a3f1ea36b87550b89c83139b88ed257589d8c008b64e0c367a7fc",
+      "expectedBytes": 10390,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 10390,
+      "sha256": "08f594ea6a8a3f1ea36b87550b89c83139b88ed257589d8c008b64e0c367a7fc",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "chunk-Zui5E6aV.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/chunk-Zui5E6aV.js",
+      "expectedSha256": "34c51dfe73a825ff5776a36ec32c162c803dd135e4a8488650bec80d912c40dd",
+      "expectedBytes": 1009,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 1009,
+      "sha256": "34c51dfe73a825ff5776a36ec32c162c803dd135e4a8488650bec80d912c40dd",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "favicon.ico",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/favicon.ico",
+      "expectedSha256": "f8410ea5598b43087f77e64a6b8732f6a7ae6b0a09c94497b383e1e92df95c9c",
+      "expectedBytes": 15086,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 15086,
+      "sha256": "f8410ea5598b43087f77e64a6b8732f6a7ae6b0a09c94497b383e1e92df95c9c",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "index.html",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/",
+      "expectedSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
+      "expectedBytes": 1450,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 1450,
+      "sha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "main-RI2ER7MO.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/main-RI2ER7MO.js",
+      "expectedSha256": "9ce9a727f0c9cbafc07d4b99498547b6af5d5fe8fa8887646ad12331a61d0669",
+      "expectedBytes": 335707,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 335707,
+      "sha256": "9ce9a727f0c9cbafc07d4b99498547b6af5d5fe8fa8887646ad12331a61d0669",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "saltline.html",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/saltline.html",
+      "expectedSha256": "9e55b5200b088adaf8e1152da04efc0d3b25e236e6baf2dee96f81e23e084966",
+      "expectedBytes": 1425707,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 1425707,
+      "sha256": "9e55b5200b088adaf8e1152da04efc0d3b25e236e6baf2dee96f81e23e084966",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "sqlite-wasm/wa-sqlite-async.wasm",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/sqlite-wasm/wa-sqlite-async.wasm",
+      "expectedSha256": "311b166d7f3313728cab039e1c4336178b4d52bc83ff926e9285f0d817325b38",
+      "expectedBytes": 1633772,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 1633772,
+      "sha256": "311b166d7f3313728cab039e1c4336178b4d52bc83ff926e9285f0d817325b38",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "sqlite-wasm/wa-sqlite.wasm",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/sqlite-wasm/wa-sqlite.wasm",
+      "expectedSha256": "c9da064df53408dde001cd995811ff224ccc1fe056f4f198e500f4a5615336f2",
+      "expectedBytes": 812876,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 812876,
+      "sha256": "c9da064df53408dde001cd995811ff224ccc1fe056f4f198e500f4a5615336f2",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "styles-LHIERZGJ.css",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/styles-LHIERZGJ.css",
+      "expectedSha256": "eea1881d74d1f5f6bc21c3f97566db6bc177f6bf7d88bd5b2c66fb228764dbd9",
+      "expectedBytes": 100836,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 100836,
+      "sha256": "eea1881d74d1f5f6bc21c3f97566db6bc177f6bf7d88bd5b2c66fb228764dbd9",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "worker-chunk-AOSHNNBP.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/worker-chunk-AOSHNNBP.js",
+      "expectedSha256": "e6f59f5346cb1641b6fe20bdb39411844a1ff0db2a9047da81f225b48fa74aba",
+      "expectedBytes": 78469,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 78469,
+      "sha256": "e6f59f5346cb1641b6fe20bdb39411844a1ff0db2a9047da81f225b48fa74aba",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "worker-chunk-YPCBJ2HT.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/worker-chunk-YPCBJ2HT.js",
+      "expectedSha256": "14d7ca75298e8383b17f3e53233bd7f9e6e15377ab5f97bae41e3670b966199a",
+      "expectedBytes": 95845,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 95845,
+      "sha256": "14d7ca75298e8383b17f3e53233bd7f9e6e15377ab5f97bae41e3670b966199a",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    },
+    {
+      "path": "worker-ULXDTKNV.js",
+      "url": "https://b093f8b2.aiao-desktop.pages.dev/worker-ULXDTKNV.js",
+      "expectedSha256": "e989bcc41c95cc3d742323f4f207f70df9629680c82446579548b6460c41167a",
+      "expectedBytes": 27810,
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 200
+        }
+      ],
+      "status": 200,
+      "bytes": 27810,
+      "sha256": "e989bcc41c95cc3d742323f4f207f70df9629680c82446579548b6460c41167a",
+      "headers": {
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      },
+      "contentMatches": true,
+      "headersMatch": true,
+      "passed": true
+    }
+  ],
+  "completedAt": "2026-11-14T11:22:45.708Z",
+  "checked": 95,
+  "failures": [],
+  "passed": true
+}
