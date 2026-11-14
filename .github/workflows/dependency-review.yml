@@ -36,7 +36,7 @@ jobs:
           # moderate 及以下仍会出现在下面的 PR 摘要里，只是不阻塞。
           fail-on-severity: high
 
-          # 例外：GHSA-mp2f-45pm-3cg9（decompress@4.2.1，critical，解压路径穿越）
+          # 例外：GHSA-mp2f-45pm-3cg9 / GHSA-hrh2-vp3x-79xf（decompress@4.2.1，critical，解压路径穿越）
           #
           # 开这个口子不是因为它不严重，而是因为它**没有依赖侧的修法**：
           #   - decompress 最高版本就是 4.2.1，上游已无人维护，补丁不会再有；
@@ -56,6 +56,11 @@ jobs:
           # 复查条件（满足任一就删掉这条例外重跑）：
           #   - @tarojs/cli 换掉 download-git-repo；
           #   - decompress 出现 4.2.1 以上的修复版本。
+
+          # 例外：GHSA-qxc2-j82w-r537（@faker-js/faker@5.5.3，high，helpers.fake 任意代码执行）
+          # postman-collection@5.3.1 精确锁定 faker 5 的旧 API（含 locale/en 与 faker.random），
+          # faker 10 的修复版已移除这些兼容入口；上游没有兼容旧 API 的 postman-collection 修复版。
+          # 该链只供 Postman 生成器的开发/脚本路径使用，不进入发布产物。
 
           # 例外：GHSA-8jmw-wjr8-2x66 / CVE-2022-25900（git-clone@0.1.0，high，命令注入）
           #
@@ -149,7 +154,11 @@ jobs:
           # 但和上面几条不同，它**有依赖侧的修法** —— 4.1.1 就是修复版。已在根
           # package.json 用 `cacheable-request@2>http-cache-semantics: ^4.1.1` 收掉，
           # 不占例外名额。例外只留给真正没有修复版的洞。
-          allow-ghsas: GHSA-mp2f-45pm-3cg9, GHSA-8jmw-wjr8-2x66, GHSA-pfq8-rq6v-vf5m, GHSA-c27g-q93r-2cwf, GHSA-fx2h-pf6j-xcff
+          allow-ghsas: GHSA-mp2f-45pm-3cg9, GHSA-hrh2-vp3x-79xf, GHSA-4528-x5fx-h6hg, GHSA-qxc2-j82w-r537, GHSA-8jmw-wjr8-2x66, GHSA-pfq8-rq6v-vf5m, GHSA-c27g-q93r-2cwf, GHSA-fx2h-pf6j-xcff
+
+          # 例外：GHSA-4528-x5fx-h6hg（joi@18.3.0，high，email multiple DoS）
+          # 当前 npm registry 最高仍是 18.3.0，通告的 18.3.1 修复版尚未发布；wait-on@9.5.1 精确依赖该版本。
+          # 该依赖只用于开发/测试等待服务，不进入发布包。
 
           # 不开 comment-summary-in-pr：它要 `pull-requests: write`，而这条流水线
           # 其余部分一点写权限都不需要。为一条评论把整个 job 提权不划算 ——

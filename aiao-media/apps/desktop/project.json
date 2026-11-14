@@ -1,0 +1,164 @@
+{
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "name": "aiao-media-desktop",
+  "prefix": "media",
+  "projectType": "application",
+  "sourceRoot": "aiao-media/apps/desktop/src",
+  "tags": ["product:media", "type:app", "runtime:desktop"],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "desktop",
+      "inputs": [
+        "production",
+        "^production",
+        "{workspaceRoot}/aiao-media/apps/web/src/**/*",
+        "!{workspaceRoot}/aiao-media/apps/web/src/**/?(*.)+(spec|test).[jt]s?(x)?(.snap)",
+        "!{workspaceRoot}/aiao-media/apps/web/src/test-setup.ts",
+        "{workspaceRoot}/aiao-media/apps/web/public/**/*",
+        "{workspaceRoot}/aiao-media/apps/web/tsconfig*.json",
+        "{workspaceRoot}/aiao-media/apps/web/.env",
+        { "env": "AIAO_SUPABASE_URL" },
+        { "env": "AIAO_SUPABASE_ANON_KEY" },
+        { "env": "AIAO_SUPABASE_STORAGE_URL" }
+      ],
+      "options": {
+        "outputPath": "aiao-media/apps/desktop/desktop-dist",
+        "browser": "aiao-media/apps/web/src/main.ts",
+        "index": "aiao-media/apps/web/src/index.html",
+        "polyfills": [],
+        "tsConfig": "aiao-media/apps/desktop/tsconfig.build.json",
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "aiao-media/apps/web/public"
+          }
+        ],
+        "styles": ["aiao-media/apps/web/src/styles.css", "aiao-media/apps/web/src/image-mvp.css"],
+        "allowedCommonJsDependencies": ["@supabase/supabase-js", "ms"]
+      },
+      "configurations": {
+        "desktop": {
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "510kb",
+              "maximumError": "1mb"
+            },
+            {
+              "type": "anyComponentStyle",
+              "maximumWarning": "4kb",
+              "maximumError": "8kb"
+            }
+          ],
+          "fileReplacements": [
+            {
+              "replace": "aiao-media/apps/web/src/platform/local-backend.ts",
+              "with": "aiao-media/apps/desktop/src/platform/tauri/local-backend.ts"
+            }
+          ],
+          "optimization": true,
+          "sourceMap": false,
+          "outputHashing": "all"
+        },
+        "development": {
+          "fileReplacements": [
+            {
+              "replace": "aiao-media/apps/web/src/platform/local-backend.ts",
+              "with": "aiao-media/apps/desktop/src/platform/tauri/local-backend.ts"
+            }
+          ],
+          "optimization": false,
+          "extractLicenses": false,
+          "sourceMap": true
+        }
+      },
+      "dependsOn": ["aiao-media:prompt-assets", "aiao-media:prepare-assets", "aiao-media:auth-config"]
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "@angular/build:dev-server",
+      "defaultConfiguration": "development",
+      "configurations": {
+        "development": {
+          "buildTarget": "aiao-media-desktop:build:development"
+        },
+        "desktop": {
+          "buildTarget": "aiao-media-desktop:build:desktop"
+        }
+      }
+    },
+    "serve-static": {
+      "continuous": true,
+      "dependsOn": ["build"],
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "aiao-media-desktop:build:desktop",
+        "staticFilePath": "aiao-media/apps/desktop/desktop-dist/browser",
+        "spa": true
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "aiao-media/apps/desktop",
+        "command": "vitest run --config vite.config.mts"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "aiao-media/apps/desktop",
+        "command": "eslint src scripts --max-warnings=0"
+      }
+    },
+    "desktop-check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "aiao-media/apps/desktop",
+        "command": "cargo check --manifest-path src-tauri/Cargo.toml"
+      }
+    },
+    "desktop-test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["build"],
+      "options": {
+        "cwd": "aiao-media/apps/desktop",
+        "command": "cargo test --manifest-path src-tauri/Cargo.toml"
+      }
+    },
+    "desktop-package": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-media/apps/desktop",
+        "command": "node scripts/package-desktop.mjs"
+      }
+    },
+    "desktop-icons": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "aiao-media/apps/desktop",
+        "command": "pnpm exec tauri icon src-tauri/icons/brand.svg --output src-tauri/icons"
+      }
+    },
+    "desktop-clean-macros": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "aiao-media/apps/desktop",
+        "command": "cargo clean --manifest-path src-tauri/Cargo.toml --release"
+      }
+    },
+    "desktop-format": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "aiao-media/apps/desktop",
+        "command": "cargo fmt --manifest-path src-tauri/Cargo.toml"
+      }
+    }
+  }
+}

@@ -1,0 +1,3 @@
+.env
+# 根 .gitignore 的 `.env*` 会连模板一起忽略
+!.env.example

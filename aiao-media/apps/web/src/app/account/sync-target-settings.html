@@ -1,0 +1,28 @@
+<section class="local-data-panel" aria-label="同步目标设置">
+  <h2>平台账号同步</h2>
+  @if (nativeMode()) {
+    <p>
+      桌面版供应商 Key
+      仅保留于本次会话；数据库和原图保存在此应用的数据目录。卸载应用不会自动删除此目录，重要作品请先导出备份。
+    </p>
+  }
+  <p>注册或登录平台账号，即可在多台设备同步草稿、公开配置、作品信息和已确认上传的原图。</p>
+  <p>API Key 不同步。开启同步时确认数据范围；未开启同步时，创作内容保存在本机。</p>
+  @if (!platformAvailable()) {
+    <p class="notice" role="status">平台账号服务暂不可用，请稍后重试或联系服务方。本机创作仍可继续。</p>
+  } @else {
+    <div class="provider-actions">
+      @if (configured()) {
+        <button class="primary" [disabled]="busy()" (click)="login.emit($event)">注册 / 登录与同步设置</button>
+      } @else {
+        <button class="primary" [disabled]="busy()" (click)="changeTarget.emit('platform')">使用平台账号</button>
+      }
+      @if (kind() === 'platform') {
+        <button class="secondary" [disabled]="busy()" (click)="changeTarget.emit('disconnected')">断开同步服务</button>
+      }
+    </div>
+  }
+  @if (message()) {
+    <p class="notice" role="status">{{ message() }}</p>
+  }
+</section>

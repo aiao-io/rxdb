@@ -1,6 +1,12 @@
 packages:
   - 'packages/*'
   - 'apps/*'
+  # 产品根目录（多个 Nx 应用组成一个产品，见 requirements/application-governance.md）
+  - 'aiao-model-design/apps/*'
+  - 'aiao-model-design/packages/*'
+  - 'aiao-media'
+  - 'aiao-media/apps/*'
+  - 'aiao-media/packages/*'
   # modules/ 其余成员只靠 tsconfig paths 被消费，不必进 workspace；wujie 与 recipes-domain 是例外：
   # wujie 给 Docusaurus 的 webpack 走 node_modules 软链；recipes-domain 给 dev-rxdb-http-server
   # 的 Node 类型剥离直跑（`node src/main.ts` 不认 tsconfig paths，只能顺着 node_modules 找 dist）。
@@ -9,6 +15,8 @@ packages:
   - 'website'
   - 'benchmarks'
 allowBuilds:
+  # trigger.dev CLI 的 depot：安装脚本下载云端远程构建器，自建实例在本机 Docker 构建，用不到
+  '@depot/cli': false
   '@parcel/watcher': true
   '@swc/core': true
   '@tarojs/binding': false
@@ -52,6 +60,7 @@ overrides:
   '@angular/platform-browser': 22.2.4
   '@codemirror/language': ^6.13.1
   '@codemirror/state': ^6.7.6
+  '@codecov/bundler-plugin-core>zod': 4.6.6
   '@codemirror/view': ^6.43.14
   '@jimp/core>mkdirp': ^0.5.6
   '@jimp/core>phin': ^3.7.1
@@ -76,7 +85,9 @@ overrides:
   dev-rxdb-miniprogram>react-dom: ^18.3.1
   dompurify@3: ^3.4.16
   fast-uri@3: ^3.1.8
+  follow-redirects: ^1.16.2
   geojson-flatten>minimist: ^1.2.8
+  giget@1>tar: ^7.5.22
   handlebars@4: ^4.7.10
   image-size@2: ^2.0.3
   joi@17: ^17.13.8
@@ -85,6 +96,7 @@ overrides:
   lodash-es: ^4.18.1
   postcss-selector-parser@6: ^7.1.6
   postman-collection>uuid: ^11.1.1
+  query-string>decode-uri-component: 0.5.1
   proxy-addr@2: ^2.0.8
   qs: ^6.16.0
   react: ^19.3.0
@@ -101,6 +113,12 @@ overrides:
   typescript: 6.0.3
   undici@7: ^7.29.1
   vitest: 4.1.11
+  # aiao-model-design 的 Trigger.dev SDK 把 @opentelemetry/api 带进依赖图后，根上 vitest 与
+  # supabase-js 的可选 peer 会解析到它，vitest 分裂成两份：根目录的 @vitest/browser-playwright
+  # 等工具链接带 otel 的那份，各包自己的 vitest 是另一份，vite.config 里 defineConfig 与
+  # playwright() 的类型对不上（TS2769）。两者都不用 OTel，去掉这条可选 peer，保持一份 vitest。
+  vitest>@opentelemetry/api: '-'
+  '@supabase/supabase-js>@opentelemetry/api': '-'
   vue: ^3.5.43
   yaml@1: ^1.10.3
 patchedDependencies:

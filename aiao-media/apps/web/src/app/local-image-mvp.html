@@ -1,0 +1,1753 @@
+<aside class="app-sidebar" aria-label="工作台导航">
+  <a class="brand" (click)="navigate('discover', $event)" aria-label="Aiao Images 首页" href="/">
+    <span class="brand-mark">
+      a
+      <span>i</span>
+    </span>
+    <span>
+      aiao
+      <span class="brand-sub">AI 创作工作台</span>
+    </span>
+  </a>
+  <nav class="main-nav" aria-label="主导航">
+    <span class="nav-section">创作空间</span>
+    <a
+      [attr.aria-current]="view() === 'studio' ? 'page' : null"
+      [class.active]="view() === 'studio'"
+      (click)="navigate('studio', $event)"
+      href="/create"
+    >
+      <svg class="icon" aria-hidden="true" viewBox="0 0 20 20">
+        <path d="m12 3 5 5-9 9H3v-5ZM10 5l5 5M3 3v4M1 5h4M15 13v4M13 15h4" />
+      </svg>
+      生成图片
+    </a>
+    <a
+      [attr.aria-current]="view() === 'discover' ? 'page' : null"
+      [class.active]="view() === 'discover'"
+      (click)="navigate('discover', $event)"
+      href="/"
+    >
+      <svg class="icon" aria-hidden="true" viewBox="0 0 20 20">
+        <path d="M7 13h6M8 16h4M7 10a5 5 0 1 1 6 0l-1 3H8Z" />
+      </svg>
+      发现灵感
+    </a>
+    <span class="nav-section">我的空间</span>
+    <a
+      [attr.aria-current]="view() === 'library' ? 'page' : null"
+      [class.active]="view() === 'library'"
+      (click)="navigate('library', $event)"
+      href="/images"
+    >
+      <svg class="icon" aria-hidden="true" viewBox="0 0 20 20">
+        <rect height="14" rx="3" width="14" x="3" y="3" />
+        <circle cx="7" cy="7" r="1" />
+        <path d="m3 14 4-4 3 3 3-5 4 6" />
+      </svg>
+      我的图片
+    </a>
+    <a
+      class="settings-link"
+      [attr.aria-current]="view() === 'providers' ? 'page' : null"
+      [class.active]="view() === 'providers'"
+      (click)="navigate('providers', $event)"
+      href="/providers"
+    >
+      <svg class="icon" aria-hidden="true" viewBox="0 0 20 20">
+        <path d="M3 5.5h8M15 5.5h2M3 14.5h2M9 14.5h8" />
+        <circle cx="13" cy="5.5" r="2" />
+        <circle cx="7" cy="14.5" r="2" />
+      </svg>
+      设置
+    </a>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="workspace-status">
+      <span class="status-dot" aria-hidden="true"></span>
+      <div>
+        本机工作区
+        <small>
+          {{
+            localStatus() === 'ready' ? '创作自动保存在此设备'
+            : localStatus() === 'unavailable' ? '本机存储暂不可用'
+            : '正在准备本机存储…'
+          }}
+        </small>
+      </div>
+    </div>
+    @if (authConfigured()) {
+      <button class="account-link" (click)="openAuth($event)">
+        {{
+          authUser() ? '我的账号'
+          : authStatus() === 'unverified' ? '账号待验证'
+          : authStatus() === 'checking' ? '验证账号…'
+          : '登录账号'
+        }}
+      </button>
+    }
+  </div>
+</aside>
+<header class="header">
+  <div class="breadcrumb" aria-label="当前位置">
+    <span>Aiao</span>
+    <span aria-hidden="true">/</span>
+    <strong>
+      {{
+        view() === 'discover' ? '发现灵感'
+        : view() === 'studio' ? '图片创作'
+        : view() === 'library' ? '我的图片'
+        : '设置'
+      }}
+    </strong>
+  </div>
+  <p class="header-tip">好画面，从一个具体的想法开始。</p>
+  <div class="header-right">
+    <a class="primary header-create" (click)="navigate('studio', $event)" href="/create">
+      进入创作
+      <span aria-hidden="true">↗</span>
+    </a>
+    <details
+      class="sync-indicator"
+      #syncStatus
+      [class.sync-attention]="sync().status === 'failed' || sync().status === 'conflict'"
+      (keydown.escape)="syncStatus.open = false"
+      aria-label="同步状态"
+      tabindex="-1"
+    >
+      <summary [attr.aria-label]="'同步状态：' + (syncActive() ? '同步中' : syncLabel())" title="查看同步详情">
+        <svg class="icon sync-icon" [class.sync-spinning]="syncActive()" aria-hidden="true" viewBox="0 0 20 20">
+          <path d="M3 8a7 7 0 0 1 12-3l2 2M17 3v4h-4M17 12a7 7 0 0 1-12 3l-2-2M3 17v-4h4" />
+        </svg>
+        <span class="sync-label" role="status">{{ syncActive() ? '同步中' : syncLabel() }}</span>
+      </summary>
+      <div class="sync-panel">
+        <p>{{ sync().message || (syncActive() ? '正在后台同步，本机图片仍可浏览和下载。' : syncLabel()) }}</p>
+        @if (imageUploads()) {
+          <p>正在同步 {{ imageUploads() }} 张原图。</p>
+        }
+        @if (imageSyncProgress()) {
+          <p>原图进度：{{ imageSyncProgress() }}</p>
+        }
+        @if (imageSyncMessage()) {
+          <p>{{ imageSyncMessage() }}</p>
+        }
+        @if (lastSyncedAt()) {
+          <p>最近成功：{{ lastSyncedAt() }}</p>
+        }
+        @if (syncActive()) {
+          <button class="secondary sm" (click)="stopSync(); syncStatus.open = false">停止同步</button>
+        }
+      </div>
+    </details>
+  </div>
+</header>
+@if (workspaceSwitching()) {
+  <p class="notice" role="status">正在切换本机工作区…</p>
+}
+<main
+  id="main"
+  [attr.data-view]="view()"
+  [hidden]="workspaceSwitching() || identityBlocked()"
+  [inert]="workspaceSwitching() || identityBlocked()"
+>
+  @if (view() === 'discover') {
+    <section class="feed-section" aria-labelledby="feed-title">
+      <h1 class="sr-only" id="feed-title">发现灵感</h1>
+      @if (catalogMessage()) {
+        <p class="notice" role="status">{{ catalogMessage() }}</p>
+      }
+      <div class="feed-toolbar">
+        <div class="categories" aria-label="灵感分类" role="group">
+          @for (c of categories; track c) {
+            <button [attr.aria-pressed]="category() === c" [class.active]="category() === c" (click)="category.set(c)">
+              {{ c }}
+            </button>
+          }
+        </div>
+        <label class="search">
+          <svg class="icon" aria-hidden="true" viewBox="0 0 20 20">
+            <circle cx="9" cy="9" r="5.5" />
+            <path d="m13.2 13.2 3.3 3.3" />
+          </svg>
+          <input
+            [ngModel]="search()"
+            (ngModelChange)="search.set($event)"
+            aria-label="搜索灵感"
+            placeholder="搜索风格、场景、关键词"
+            type="search"
+          />
+        </label>
+      </div>
+      <p class="feed-count sr-only" role="status">共 {{ filtered().length }} 个灵感</p>
+      @if (filtered().length) {
+        <div class="feed" (widthChange)="feedWidthChange($event)" appElementWidth>
+          @for (column of feedColumns(); track $index) {
+            <div class="feed-column">
+              @for (t of column; track t.id) {
+                <article class="feed-card">
+                  <button class="feed-link" [attr.aria-label]="'查看' + t.title" (click)="openTemplate(t, $event)">
+                    <span class="feed-cover" [style.--cover-ratio]="coverRatio(t.image)">
+                      @if (failedTemplateImages().has(t.id)) {
+                        <span class="feed-broken">示例图暂时无法加载，可继续查看提示词</span>
+                      } @else {
+                        <img
+                          [alt]="t.alt"
+                          [src]="t.image"
+                          (error)="templateImageFailed(t.id)"
+                          decoding="async"
+                          loading="lazy"
+                        />
+                      }
+                    </span>
+                    <span class="feed-title">{{ t.title }}</span>
+                    <span class="feed-meta">
+                      <span class="feed-byline">
+                        <span class="feed-avatar" aria-hidden="true">{{ authorInitial(t.author) }}</span>
+                        <span class="feed-author">{{ t.author }}</span>
+                      </span>
+                      <span class="feed-rights">
+                        {{ t.rights === 'community-reference' ? '参考示例' : '原创示意' }}
+                      </span>
+                    </span>
+                  </button>
+                </article>
+              }
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="no-results">
+          <p>没有找到相关灵感，试试其他关键词。</p>
+          <button class="secondary sm" (click)="resetGallery()">查看全部灵感</button>
+        </div>
+      }
+      <p class="source-note">图片为社区参考示例或原创构图示意，均非本产品生成结果。作者与来源见详情。</p>
+    </section>
+  }
+  @if (view() === 'studio') {
+    <section class="page-heading">
+      <div>
+        <h1>把想法，变成画面。</h1>
+        <p>左侧开始创作，右侧就是你的图片。</p>
+      </div>
+      <ol class="step-note" aria-label="创作步骤">
+        <li>01 找到灵感</li>
+        <li aria-current="step">02 生成图片</li>
+        <li>03 保存喜欢</li>
+      </ol>
+    </section>
+    <div class="studio-grid">
+      <section class="composer" aria-label="图片生成表单">
+        <div class="panel-title">
+          <span class="composer-title">
+            <span class="composer-spark" aria-hidden="true">✧</span>
+            创作设置
+          </span>
+          <span class="small">图片生成 · 每次 1 张</span>
+        </div>
+        @if (selected(); as t) {
+          <div class="template-chip">
+            @if (!failedTemplateImages().has(t.id)) {
+              <img [src]="t.image" (error)="templateImageFailed(t.id)" alt="" />
+            }
+            <div>
+              {{ t.title }}
+              <span>正文与行内参数均可编辑</span>
+            </div>
+            <button class="text-link" [disabled]="inFlight()" (click)="navigate('discover')">更换</button>
+          </div>
+        }
+        <div class="field-label">描述你想要的图片</div>
+        <app-prompt-input
+          [disabled]="sending() || sync().busy || workspaceSwitching()"
+          [state]="promptState()"
+          (changed)="onPromptChanged($event)"
+          (readiness)="editorReady.set($event)"
+        />
+        <div class="prompt-meta">
+          <span class="prompt-hint">试着描述主体、场景、风格和光线。</span>
+          <p
+            class="draft-status"
+            [class.attention]="draftStatus() === 'failed' || draftStatus() === 'conflict'"
+            role="status"
+          >
+            {{ draftMessage() }}
+          </p>
+        </div>
+        @if (draftStatus() === 'conflict') {
+          <div class="conflict-actions">
+            <button class="secondary sm" [disabled]="settingsBusy()" (click)="reloadDraft()">
+              载入另一标签页的草稿
+            </button>
+            <button class="secondary sm" [disabled]="settingsBusy()" (click)="overwriteDraft()">保留本页输入</button>
+          </div>
+        }
+        <div class="composer-settings">
+          <div class="ratio-setting">
+            <div class="field-label">图片画幅</div>
+            <div class="ratio-group" aria-label="图片画幅" role="group">
+              @for (r of ratios; track r.id) {
+                <button
+                  class="ratio"
+                  [attr.aria-pressed]="ratio() === r.id"
+                  [class.active]="ratio() === r.id"
+                  [disabled]="inFlight()"
+                  (click)="setRatio(r.id)"
+                >
+                  <span [class]="r.shape"></span>
+                  {{ r.label }}
+                  <small aria-hidden="true">{{ r.hint }}</small>
+                </button>
+              }
+            </div>
+          </div>
+          <div class="provider-setting">
+            <label class="field-label" for="selected-model">平台模型</label>
+            <select
+              class="field"
+              id="selected-model"
+              [disabled]="settingsBusy()"
+              [ngModel]="modelId()"
+              (ngModelChange)="chooseModel($event)"
+            >
+              <option disabled value="">暂无可用模型</option>
+              @for (model of models(); track model.id) {
+                <option [value]="model.id">{{ model.name }} · {{ model.credits }} 积分 / 张</option>
+              }
+            </select>
+            @if (selectedModel(); as model) {
+              <p>本次预占 {{ model.credits }} 积分，图片通过本机验证后扣减；失败不扣。</p>
+            }
+            @if (authStatus() === 'signed-in' && targetKind() === 'platform') {
+              @if (creditAccount(); as balance) {
+                <p role="status">可用积分 {{ balance.available }} · 预占 {{ balance.reserved }}</p>
+                @if (selectedModel(); as model) {
+                  @if (balance.available < model.credits) {
+                    <p class="inline-alert">积分不足，请联系平台管理员发放积分。</p>
+                  }
+                }
+              }
+              <button class="text-link" [disabled]="creditBusy() || sending()" (click)="refreshCredits()" type="button">
+                {{ creditBusy() ? '正在读取积分…' : '刷新积分' }}
+              </button>
+            } @else {
+              <p>登录平台账号并取得积分后即可生成。草稿与本机作品无需登录。</p>
+            }
+            @if (creditMessage()) {
+              <p role="status">{{ creditMessage() }}</p>
+            }
+            @if (modelMessage()) {
+              <p role="status">{{ modelMessage() }}</p>
+            }
+            <button class="text-link" [disabled]="settingsBusy()" (click)="refreshModels()" type="button">
+              刷新模型
+            </button>
+          </div>
+        </div>
+        @if (error() && !panelError()) {
+          <p class="inline-alert" role="alert">{{ error() }}</p>
+        }
+        <button
+          class="primary generate-button"
+          [attr.aria-busy]="sending()"
+          [disabled]="!canGenerate()"
+          (click)="generate()"
+        >
+          {{
+            sending() ? '正在生成…'
+            : modelBusy() ? '正在读取模型…'
+            : sync().busy ? '正在同步…'
+            : inFlight() ? '请先核对原请求'
+            : authStatus() !== 'signed-in' || targetKind() !== 'platform' ? '登录后生成图片'
+            : '✧ 生成图片'
+          }}
+        </button>
+        <div class="under-button">需要联网 · 成功后保存到{{ nativeMode ? '此应用的本机目录' : '当前浏览器' }}</div>
+      </section>
+      <section class="studio-library" aria-label="我的图片">
+        <div class="studio-library-heading">
+          <div>
+            <h2>我的图片</h2>
+            <p>边创作，边回看你的每一个想法。</p>
+          </div>
+          <a class="text-link" (click)="navigate('library', $event)" href="/images">展开图库 ↗</a>
+        </div>
+        @if (working() || panelError() || resultUrl()) {
+          <section class="result-panel" aria-label="生成结果" aria-live="polite">
+            <div class="result-toolbar">
+              <span>本次生成</span>
+              <span class="saved-badge" [attr.data-state]="resultState()">{{ resultLabel() }}</span>
+            </div>
+            @if (storageMessage()) {
+              <div class="danger-note" role="status">{{ storageMessage() }}</div>
+            }
+            @if (resultUrl(); as url) {
+              <div class="result-art"><img [src]="url" alt="本次生成的图片" /></div>
+              <div class="result-bottom">
+                <div>
+                  <strong>你的新作品</strong>
+                  <small>{{ resultSize() }} · {{ saved() ? '本机副本可再次下载' : '请及时下载' }}</small>
+                </div>
+                <div class="result-actions">
+                  @if (!saved()) {
+                    <button
+                      class="secondary"
+                      [disabled]="localStatus() !== 'ready' || settingsBusy()"
+                      (click)="saveResult()"
+                    >
+                      重试保存
+                    </button>
+                  }
+                  <button class="secondary" (click)="openFeedback()">反馈效果</button>
+                  <a
+                    class="primary"
+                    [download]="'aiao-' + (job()?.id ?? 'image') + '.' + imageExtension(resultMimeType()!)"
+                    [href]="url"
+                    (click)="
+                      downloadImage(
+                        $event,
+                        url,
+                        'aiao-' + (job()?.id ?? 'image') + '.' + imageExtension(resultMimeType()!)
+                      )
+                    "
+                  >
+                    ↓ 下载图片
+                  </a>
+                </div>
+              </div>
+            } @else if (working()) {
+              <div class="state-content">
+                <div class="spinner" aria-hidden="true"></div>
+                <h2 class="state-title">让灵感慢慢显影</h2>
+                <p class="state-copy">
+                  @if (job()?.channel === 'proxy' || job()?.channel === 'platform') {
+                    平台正在生成，可以刷新或关闭页面。
+                    <br />
+                    回来后会接着取回结果，不会重复生成。
+                  } @else {
+                    正在生成图片，请保留当前页面。
+                    <br />
+                    刷新会中断本页读取，不会自动重复生成。
+                  }
+                </p>
+                <div class="progress-track" aria-hidden="true"><span></span></div>
+                @if (sending()) {
+                  <p class="elapsed" aria-live="off">已等待 {{ elapsedLabel() }} · 最长等待 3 分钟</p>
+                }
+                <small class="state-copy">实际等待时间取决于生成服务</small>
+              </div>
+            } @else if (uncertain()) {
+              <div class="state-content">
+                <div class="failure-icon" aria-hidden="true">…</div>
+                <h2 class="state-title">请核对平台任务</h2>
+                @if (error()) {
+                  <p class="state-error">{{ error() }}</p>
+                }
+                <p class="state-copy">请核对平台任务与积分流水；结果未确认时不会自动重发，预占积分将在结清后释放。</p>
+                <button class="secondary" [disabled]="settingsBusy()" (click)="acknowledgeUnknown()">
+                  已核对，解除本机锁定
+                </button>
+              </div>
+            } @else if (job()?.status === 'failed') {
+              <div class="state-content">
+                <div class="failure-icon" aria-hidden="true">!</div>
+                <h2 class="state-title">这次图片没有生成成功</h2>
+                @if (error()) {
+                  <p class="state-error">{{ error() }}</p>
+                }
+                <p class="state-copy">你的提示词还在，可以修改后再次生成。</p>
+              </div>
+            }
+          </section>
+        }
+        <ng-container [ngTemplateOutlet]="imageLibrary" />
+      </section>
+    </div>
+    <div class="privacy-line">
+      <span>图片保存在{{ nativeMode ? '此应用的本机目录' : '当前浏览器' }}，请及时下载重要作品。</span>
+    </div>
+  }
+  @if (view() === 'library') {
+    <section class="page-heading">
+      <div>
+        <h1>我的图片</h1>
+        <p>每一个想法，都值得留下来。</p>
+      </div>
+      <button class="primary" (click)="newImage()">＋ 生成新图片</button>
+    </section>
+    <ng-container [ngTemplateOutlet]="imageLibrary" />
+  }
+  <ng-template #imageLibrary>
+    <div class="library-toolbar">
+      <div class="library-tabs">
+        <span>
+          全部图片
+          <b class="count-badge">{{ localWorksKnown() ? works().length : '…' }}</b>
+        </span>
+      </div>
+      <span class="library-notice">
+        原图保存在本机 · {{ imageSyncEnabled() ? '已确认图片同步' : '同步默认只传作品信息' }} ·
+        <a (click)="openSettings('data', $event)" href="/providers#data">导出备份</a>
+      </span>
+    </div>
+    <form class="library-filters" (submit)="filterLibrary($event)" aria-label="筛选本机作品" novalidate>
+      <div class="filter-row">
+        <label class="filter-search">
+          <span class="sr-only">搜索提示词</span>
+          <svg class="icon" aria-hidden="true" viewBox="0 0 20 20">
+            <circle cx="9" cy="9" r="5.5" />
+            <path d="m13.2 13.2 3.3 3.3" />
+          </svg>
+          <input
+            [ngModel]="librarySearch()"
+            (ngModelChange)="librarySearch.set($event)"
+            maxlength="2000"
+            name="library-search"
+            placeholder="搜索提示词关键字"
+            type="search"
+          />
+        </label>
+        <button
+          class="secondary"
+          [attr.aria-expanded]="filtersOpen()"
+          (click)="filtersOpen.set(!filtersOpen())"
+          aria-controls="library-more-filters"
+          type="button"
+        >
+          更多筛选
+          @if (advancedFilterCount()) {
+            <b class="filter-count">{{ advancedFilterCount() }}</b>
+          }
+        </button>
+        <button class="primary" [disabled]="localStatus() !== 'ready' || workspaceSwitching()" type="submit">
+          筛选作品
+        </button>
+        @if (filtersActive()) {
+          <button
+            class="text-link"
+            [disabled]="localStatus() !== 'ready' || workspaceSwitching()"
+            (click)="clearLibraryFilters()"
+            type="button"
+          >
+            清空筛选
+          </button>
+        }
+      </div>
+      <div class="filter-more" id="library-more-filters" [hidden]="!filtersOpen()">
+        <label>
+          筛选模型
+          <input
+            class="field"
+            [ngModel]="libraryModel()"
+            (ngModelChange)="libraryModel.set($event)"
+            maxlength="128"
+            name="library-model"
+            placeholder="模型 ID"
+            type="search"
+          />
+        </label>
+        <label>
+          起始日期
+          <input
+            class="field"
+            [ngModel]="libraryFrom()"
+            (ngModelChange)="libraryFrom.set($event)"
+            name="library-from"
+            type="date"
+          />
+        </label>
+        <label>
+          结束日期
+          <input
+            class="field"
+            [ngModel]="libraryTo()"
+            (ngModelChange)="libraryTo.set($event)"
+            name="library-to"
+            type="date"
+          />
+        </label>
+        <p class="library-filter-help">提示词和模型同时匹配，英文区分大小写；日期按此设备的本机保存时间筛选。</p>
+      </div>
+    </form>
+    @if (libraryFilterError()) {
+      <p class="notice" role="alert">{{ libraryFilterError() }}</p>
+    }
+    @if (inFlight()) {
+      <p class="notice" role="status">当前任务处理期间，删除暂不可用；仍可查看和下载图片。</p>
+    }
+    @if (localWorksError()) {
+      <div class="notice" role="alert">
+        {{ localWorksError() }}
+        {{ localWorksKnown() ? '当前保留上次确认的记录。' : '本机保存记录尚未确认。' }}
+        <button class="secondary sm" (click)="retryLibrary()">重试作品记录</button>
+      </div>
+    }
+    @if (localStatus() === 'opening' || libraryPage().loading) {
+      <p class="notice" role="status">正在读取作品…</p>
+    } @else if (libraryPage().error) {
+      <div class="notice" role="alert">
+        作品暂时无法查询，原文件未删除。
+        <button class="secondary sm" (click)="retryLibrary()">重试查询</button>
+      </div>
+    } @else if (libraryPage().works.length) {
+      <div class="cards" aria-label="本机作品">
+        @for (w of libraryPage().works; track w.viewKey) {
+          <article class="card library-card" (visibleChange)="libraryVisibility(w, $event)" appWorkVisible>
+            <div class="card-photo">
+              @if (w.url) {
+                <button
+                  class="photo-button"
+                  [attr.aria-label]="'查看大图：' + w.prompt"
+                  (click)="openViewer(w, $event)"
+                  type="button"
+                >
+                  <img class="card-image" [src]="w.url" alt="本机生成作品" loading="lazy" />
+                  <span class="zoom-hint" aria-hidden="true">
+                    <svg class="icon" viewBox="0 0 20 20">
+                      <path d="M4 8V4h4M16 8V4h-4M4 12v4h4M16 12v4h-4" />
+                    </svg>
+                  </span>
+                </button>
+              } @else if (w.previewStatus === 'error') {
+                <div class="empty-state">
+                  <p>图片文件暂时无法读取</p>
+                  <button class="secondary sm" (click)="retryWork(w)">重试预览</button>
+                </div>
+              } @else if (w.status === 'broken') {
+                <div class="empty-state"><p>图片文件待恢复</p></div>
+              } @else {
+                <div class="empty-state library-placeholder" [attr.aria-busy]="w.previewStatus === 'loading'">
+                  <p>{{ w.previewStatus === 'loading' ? '正在读取原图…' : '原图按需加载' }}</p>
+                </div>
+              }
+              <span class="tag">
+                {{
+                  w.status !== 'saved' ? '文件待恢复'
+                  : isSyncedWork(w.jobId) ? '同步图库 · 本机原图'
+                  : '仅本机'
+                }}
+              </span>
+            </div>
+            <div class="card-caption">
+              <div class="card-title work-prompt" [title]="w.prompt">{{ w.prompt }}</div>
+              <p class="work-meta">
+                {{ formatBytes(w.bytes) }}
+                @if (w.mimeType; as mimeType) {
+                  · {{ mimeType === 'image/png' ? 'PNG' : 'JPEG' }}
+                }
+                @if (w.createdAt) {
+                  · {{ formatDate(w.createdAt) }}
+                }
+              </p>
+              <details class="work-info" (toggle)="loadWorkInfo(w, $event)">
+                <summary>生成信息</summary>
+                <p>模型：{{ w.modelId }}</p>
+                <p>本机保存时间：{{ formatDateTime(w.createdAt) }}</p>
+                @if (w.info; as info) {
+                  <p>{{ info.mimeType }} · {{ info.width }} × {{ info.height }} · {{ info.bytes }} bytes</p>
+                  <p class="provider-url">SHA-256：{{ info.sha256 }}</p>
+                }
+              </details>
+            </div>
+            <div class="work-actions">
+              @if (w.url) {
+                <a
+                  [attr.aria-label]="'下载图片：' + w.prompt"
+                  [download]="'aiao-' + w.jobId + '.' + imageExtension(w.mimeType!)"
+                  [href]="w.url"
+                  (click)="downloadImage($event, w.url, 'aiao-' + w.jobId + '.' + imageExtension(w.mimeType!), w.jobId)"
+                >
+                  ↓ 下载图片
+                </a>
+              }
+              <button [attr.aria-label]="'复用提示词：' + w.prompt" (click)="reuseWork(w)">复用提示词</button>
+              @if (targetKind() === 'platform' && syncInitialized() && isSyncedWork(w.jobId)) {
+                <button
+                  [attr.aria-label]="'从同步图库移除：' + w.prompt"
+                  [disabled]="settingsBusy()"
+                  (click)="removeSyncedWork(w.jobId, w.prompt)"
+                >
+                  从同步图库移除
+                </button>
+              }
+              @if (targetKind() === 'platform' && syncInitialized()) {
+                <button
+                  class="danger"
+                  [attr.aria-label]="'删除远端原图：' + w.prompt"
+                  [disabled]="settingsBusy()"
+                  (click)="prepareImageDelete(w.jobId, w.prompt, w.info?.sha256)"
+                >
+                  删除远端原图
+                </button>
+              }
+              @if (targetKind() === 'platform' && syncInitialized() && isSyncedWork(w.jobId)) {
+                <button
+                  [attr.aria-label]="'重新上传新版本：' + w.prompt"
+                  [disabled]="settingsBusy()"
+                  (click)="prepareImageReupload(w.jobId, w.prompt, w.info?.sha256)"
+                >
+                  重新上传新版本
+                </button>
+              }
+              <button
+                class="danger"
+                [attr.aria-label]="'删除本机图片：' + w.prompt"
+                [disabled]="inFlight() || deletingWork() !== null"
+                (click)="deleteWork(w)"
+              >
+                {{ deletingWork() === w.jobId ? '删除中…' : '仅删本机' }}
+              </button>
+            </div>
+          </article>
+        }
+      </div>
+    } @else if (!localWorksKnown() && localStatus() !== 'unavailable') {
+      <p class="notice" role="status">本机保存记录尚未确认。</p>
+    } @else if (works().length) {
+      <div class="empty-state">
+        <div class="empty-icon" aria-hidden="true">⌕</div>
+        <h2>没有匹配的作品</h2>
+        <p>调整提示词、模型或保存日期后再试。</p>
+        <button class="secondary" (click)="clearLibraryFilters()">清空筛选条件</button>
+      </div>
+    } @else if (localStatus() === 'unavailable' || (localWorksKnown() && !remoteOnlyWorks().length)) {
+      <div class="empty-state">
+        <div class="empty-icon" aria-hidden="true">▧</div>
+        <h2>
+          {{ localStatus() === 'unavailable' ? '当前浏览器的本机保存不可用' : '这里，还差你的第一张作品' }}
+        </h2>
+        <p>
+          {{
+            localStatus() === 'unavailable' ? '请允许站点存储并刷新，或使用支持本机存储的浏览器。'
+            : view() === 'studio' ? '在左侧描述你的想法，生成并保存后，图片就会出现在这里。'
+            : '生成并成功保存的图片会出现在这里。'
+          }}
+        </p>
+        @if (view() === 'library') {
+          <button class="primary" (click)="navigate('studio')">开始第一张创作 →</button>
+        }
+      </div>
+    }
+    @if ((libraryPage().total ?? 0) > 0) {
+      <nav class="library-pagination" aria-label="作品分页">
+        <span aria-live="polite">
+          {{ libraryPages() > 1 ? '第 ' + libraryPage().page + ' / ' + libraryPages() + ' 页 · ' : '' }}共
+          {{ libraryPage().total }} 张
+        </span>
+        @if (libraryPages() > 1) {
+          <div>
+            <button
+              class="secondary sm"
+              [disabled]="libraryPage().loading || libraryPage().page <= 1"
+              (click)="libraryGo(libraryPage().page - 1)"
+            >
+              上一页
+            </button>
+            <button
+              class="secondary sm"
+              [disabled]="libraryPage().loading || libraryPage().page >= libraryPages()"
+              (click)="libraryGo(libraryPage().page + 1)"
+            >
+              下一页
+            </button>
+          </div>
+        }
+      </nav>
+    }
+    @if (remoteOnlyWorks().length) {
+      <div class="cards" aria-label="同步作品信息">
+        @for (work of remoteLibraryPage().works; track work.jobId + work.sha256) {
+          @let download = imageDownloadState(work);
+          @let preview = remoteImagePreview(work);
+          <article
+            class="card library-card remote-card"
+            [attr.aria-busy]="download?.status === 'loading' || preview?.status === 'loading'"
+            [attr.data-source-id]="work.jobId"
+            [visibilityScope]="remotePreviewGeneration() + ':' + remoteImageDeleteState(work.jobId, work.sha256)"
+            (visibleChange)="remoteWorkVisible(work, $event)"
+            appWorkVisible
+          >
+            <div class="card-photo">
+              @if (preview?.status === 'ready') {
+                <img class="card-image" [alt]="work.prompt" [src]="preview.url" />
+              } @else {
+                <div class="empty-state">
+                  <p>{{ preview?.status === 'loading' ? '正在核对远端原图…' : '远端预览按需加载' }}</p>
+                  @if (preview?.status === 'failed') {
+                    <p role="alert">{{ preview.message }}</p>
+                  }
+                  @if (preview?.status === 'failed' || preview?.status === 'unavailable') {
+                    <button class="secondary sm" (click)="retryRemotePreview(work)">重试远端预览</button>
+                  }
+                </div>
+              }
+            </div>
+            <div class="card-caption">
+              <h3 class="remote-prompt">{{ work.prompt }}</h3>
+              <p>本机无原图</p>
+              <p>{{ work.modelId }} · {{ work.width }} × {{ work.height }}</p>
+              <small>
+                {{
+                  preview?.status === 'ready' ? '远端可取回 · 本机尚未保存原图'
+                  : preview?.status === 'unavailable' ? '仅同步了作品信息，远端原图尚未确认。'
+                  : '本机尚未保存原图；远端原图按需核对。'
+                }}
+              </small>
+              @if (targetKind() === 'platform' && syncInitialized() && authUser()) {
+                <button
+                  class="secondary sm"
+                  [disabled]="
+                    imageSyncBusy() || settingsBusy() || remoteImageDeleteState(work.jobId, work.sha256) !== null
+                  "
+                  (click)="restoreRemoteWork(work)"
+                >
+                  {{
+                    download?.status === 'loading' ? '正在取回原图…'
+                    : download?.status === 'failed' ? '重试取回原图'
+                    : '取回并保存原图'
+                  }}
+                </button>
+              }
+              @if (targetKind() === 'platform' && syncInitialized()) {
+                <button
+                  [attr.aria-label]="'从同步图库移除：' + work.prompt"
+                  [disabled]="settingsBusy()"
+                  (click)="removeSyncedWork(work.jobId, work.prompt)"
+                >
+                  从同步图库移除
+                </button>
+                <button
+                  class="danger"
+                  [attr.aria-label]="'删除远端原图：' + work.prompt"
+                  [disabled]="settingsBusy()"
+                  (click)="prepareImageDelete(work.jobId, work.prompt, work.sha256)"
+                >
+                  删除远端原图
+                </button>
+                @if (remoteImageDeleteState(work.jobId, work.sha256); as deletionState) {
+                  <p role="status">
+                    {{
+                      deletionState === 'complete' ? '远端原图已删除，本机已有副本保留。' : (
+                        '远端删除待核对，尚未确认对象已消失。'
+                      )
+                    }}
+                  </p>
+                }
+              }
+              @if (download) {
+                <p class="notice" [attr.role]="download.status === 'failed' ? 'alert' : 'status'">
+                  {{ download.message }}
+                </p>
+              }
+            </div>
+          </article>
+        }
+      </div>
+      @if (remoteLibraryPage().total > 24) {
+        <nav class="library-pagination" aria-label="同步作品分页">
+          <button
+            class="secondary sm"
+            [disabled]="remoteLibraryPage().page <= 1"
+            (click)="remoteLibraryGo(remoteLibraryPage().page - 1)"
+          >
+            上一页
+          </button>
+          <span role="status">
+            同步作品第 {{ remoteLibraryPage().page }} 页 · 共 {{ remoteLibraryPage().total }} 张
+          </span>
+          <button
+            class="secondary sm"
+            [disabled]="remoteLibraryPage().page * 24 >= remoteLibraryPage().total"
+            (click)="remoteLibraryGo(remoteLibraryPage().page + 1)"
+          >
+            下一页
+          </button>
+        </nav>
+      }
+    }
+    @if (history().length) {
+      <details class="task-history">
+        <summary>本机任务记录（{{ history().length }}）</summary>
+        @for (task of history(); track task.id) {
+          <p>
+            <time [attr.datetime]="task.createdAt">{{ formatDateTime(task.createdAt) }}</time>
+            <span>{{ task.request.modelId }}</span>
+            <span class="task-state">
+              {{
+                hasLocalCopy(task) ? '有本机保存记录'
+                : task.status === 'failed' ? '请求被拒绝'
+                : task.acknowledged ? '已手动核对'
+                : !localWorksKnown() ? '本机保存记录尚未确认'
+                : task.status === 'completed' ? '本机无副本，请检查已有下载或核对平台任务'
+                : '结果未确认，请核对平台任务'
+              }}
+            </span>
+          </p>
+        }
+      </details>
+    }
+    @if (storageMessage()) {
+      <div class="notice" role="status">{{ storageMessage() }}</div>
+    }
+    @if (inFlight() && view() === 'library') {
+      <div class="notice">
+        <button (click)="navigate('studio')">还有一个图片任务等待处理，查看进度 →</button>
+      </div>
+    }
+  </ng-template>
+  @if (view() === 'providers') {
+    <section class="page-heading">
+      <div>
+        <h1>设置</h1>
+        <p>草稿、任务记录和作品保存在{{ nativeMode ? '此应用的本机目录' : '当前浏览器' }}。</p>
+      </div>
+    </section>
+    @if (uncertain()) {
+      <div class="notice" role="status">
+        <p>上一次请求仍待核对，当前只锁定新的生成请求。可以继续编辑本机草稿。</p>
+        <button class="secondary sm" [disabled]="settingsBusy()" (click)="acknowledgeUnknown()">
+          已核对，解除本机锁定
+        </button>
+      </div>
+    }
+    @if (authConfigError()) {
+      <p class="notice" role="status">{{ authConfigError() }}</p>
+    }
+    <div class="settings-tabs" aria-label="设置分区" role="tablist">
+      @for (tab of settingsTabs; track tab.id) {
+        <button
+          [attr.aria-controls]="'settings-panel-' + tab.id"
+          [attr.aria-selected]="settingsTab() === tab.id"
+          [class.active]="settingsTab() === tab.id"
+          [id]="'settings-tab-' + tab.id"
+          [tabIndex]="settingsTab() === tab.id ? 0 : -1"
+          (click)="selectSettingsTab(tab.id)"
+          (keydown)="moveSettingsTab($event)"
+          role="tab"
+          type="button"
+        >
+          {{ tab.label }}
+        </button>
+      }
+    </div>
+    <section
+      id="settings-panel-providers"
+      [hidden]="settingsTab() !== 'providers'"
+      aria-labelledby="settings-tab-providers"
+      role="tabpanel"
+    >
+      <h2>平台生图与积分</h2>
+      <p>使用平台提供的模型，每次生成一张。图片在本机验证后才扣减积分；失败或待核对不扣。积分由平台管理员发放。</p>
+      @for (model of models(); track model.id) {
+        <p>{{ model.name }} · {{ model.credits }} 积分 / 张</p>
+      }
+      @if (modelMessage()) {
+        <p role="status">{{ modelMessage() }}</p>
+      }
+      <button class="secondary" [disabled]="settingsBusy()" (click)="refreshModels()" type="button">
+        刷新平台模型
+      </button>
+      <button class="secondary" [disabled]="settingsBusy()" (click)="openGenerationAccount()" type="button">
+        {{ authStatus() === 'signed-in' ? '我的账号与积分' : '登录平台账号' }}
+      </button>
+      <p>
+        任务结果加密暂存于平台，结清后删除；未取回的结果最长保留 24 小时。任务令牌仅在本机，刷新后可在此设备继续取回。
+      </p>
+    </section>
+    <section
+      id="settings-panel-sync"
+      [hidden]="settingsTab() !== 'sync'"
+      aria-labelledby="settings-tab-sync"
+      role="tabpanel"
+    >
+      @defer (when view() === 'providers') {
+        <app-sync-target-settings
+          [busy]="settingsBusy() || targetBusy()"
+          [configured]="authConfigured()"
+          [kind]="targetKind()"
+          [message]="targetMessage()"
+          [nativeMode]="nativeMode"
+          [platformAvailable]="platformAvailable()"
+          (changeTarget)="changeSyncTarget($event)"
+          (login)="openAuth($event)"
+        />
+      }
+    </section>
+    <section
+      id="settings-panel-data"
+      [hidden]="settingsTab() !== 'data'"
+      aria-labelledby="settings-tab-data"
+      role="tabpanel"
+    >
+      <section class="local-data-panel" aria-label="本地数据管理">
+        <h2>本地数据与备份</h2>
+        <dl class="storage-facts">
+          <div>
+            <dt>本机存储</dt>
+            <dd>{{ storageInfo() || '正在读取存储用量…' }}</dd>
+          </div>
+          <div>
+            <dt>离线访问</dt>
+            <dd>
+              {{
+                nativeMode ? '离线界面已随安装包提供'
+                : offlineReady() ? '离线资源已准备好'
+                : '正在准备离线资源，首次需要联网'
+              }}
+            </dd>
+          </div>
+        </dl>
+        <p>
+          导出 ZIP 备份，包含当前工作区全部已保存的 PNG/JPEG 原图文件，以及记录提示词、草稿、历史配置和任务的
+          backup.json，不含 API Key。单个备份最多 64 MiB。支持导入 ZIP 和旧版 JSON
+          备份；恢复会切换到独立工作区，原工作区保留；校验失败不切换。
+        </p>
+        <div class="provider-actions">
+          <button class="primary" [disabled]="localStatus() !== 'ready' || inFlight()" (click)="exportBackup()">
+            导出本机备份
+          </button>
+          <label class="secondary backup-import">
+            导入备份
+            <input
+              [disabled]="localStatus() !== 'ready' || inFlight()"
+              (change)="importBackup($event)"
+              accept="application/zip,.zip,application/json,.json"
+              type="file"
+            />
+          </label>
+          @if (!nativeMode) {
+            <button class="secondary" (click)="requestPersistence()">申请持久存储</button>
+          }
+        </div>
+        @if (dataMessage()) {
+          <p class="notice" role="status">{{ dataMessage() }}</p>
+        }
+        @if (backupWorkspaces().length) {
+          <h3>保留的本机工作区</h3>
+          <p>导入和切换不会合并或删除已有内容。可在这里返回之前的工作区，无需登录。</p>
+          @for (workspace of backupWorkspaces(); track workspace.id) {
+            <div class="provider-actions">
+              <span class="provider-url">
+                {{ workspace.label }}
+                @if (workspace.createdAt) {
+                  · {{ formatDateTime(workspace.createdAt) }}
+                }
+                · {{ workspace.id.slice(-8) }}
+              </span>
+              <button
+                class="secondary"
+                [attr.aria-label]="'返回工作区：' + workspace.label"
+                [disabled]="localStatus() !== 'ready' || inFlight() || modelBusy()"
+                (click)="restoreBackupWorkspace(workspace.id)"
+              >
+                返回此工作区
+              </button>
+            </div>
+          }
+        }
+      </section>
+    </section>
+    <section
+      id="settings-panel-display"
+      [hidden]="settingsTab() !== 'display'"
+      aria-labelledby="settings-tab-display"
+      role="tabpanel"
+    >
+      <section class="composer display-panel" aria-label="显示偏好">
+        <h2>页面排版</h2>
+        <p class="display-lead">
+          这些选项只影响这台设备上的页面排版：保存在当前浏览器，不随账号同步，也不会改动作品、草稿和模型选择。
+        </p>
+        @if (displayMessage()) {
+          <p class="notice" role="status">{{ displayMessage() }}</p>
+        }
+        <fieldset class="choice-group">
+          <legend>页面宽度</legend>
+          <p class="choice-help">
+            内容区的最大宽度。窗口比它更宽时两侧留白；3440、5120 这类带鱼屏想用满整个窗口，选「铺满窗口」。
+          </p>
+          <div class="choices">
+            @for (option of pageWidthOptions; track option.id) {
+              <label class="choice">
+                <input
+                  [checked]="display().pageWidth === option.id"
+                  [value]="option.id"
+                  (change)="setDisplay({ pageWidth: option.id })"
+                  name="pageWidth"
+                  type="radio"
+                />
+                <span class="choice-head">
+                  <span class="choice-name">{{ option.label }}</span>
+                  @if (option.id === defaults.pageWidth) {
+                    <span class="badge">默认</span>
+                  }
+                </span>
+                <small>{{ option.max ? option.max + ' px' : '不限制' }}</small>
+              </label>
+            }
+          </div>
+        </fieldset>
+        <fieldset class="choice-group">
+          <legend>卡片大小</legend>
+          <p class="choice-help">
+            决定「发现灵感」和「我的图片」里一行放多少张：卡片越大列数越少，图片看得越清楚。窗口再宽，列数也不超过下面的上限，多出的宽度用来放大卡片。
+          </p>
+          <div class="choices">
+            @for (option of cardSizeOptions; track option.id) {
+              <label class="choice">
+                <input
+                  [checked]="display().cardSize === option.id"
+                  [value]="option.id"
+                  (change)="setDisplay({ cardSize: option.id })"
+                  name="cardSize"
+                  type="radio"
+                />
+                <span class="choice-head">
+                  <span class="choice-name">{{ option.label }}</span>
+                  @if (option.id === defaults.cardSize) {
+                    <span class="badge">默认</span>
+                  }
+                </span>
+                <small>最多 {{ option.columns }} 列</small>
+              </label>
+            }
+          </div>
+        </fieldset>
+        <fieldset class="choice-group">
+          <legend>内容对齐</legend>
+          <p class="choice-help">内容区比窗口窄时放在哪里。「靠左」紧贴左侧导航，和旧版本的排版一致。</p>
+          <div class="choices">
+            @for (option of contentAlignOptions; track option.id) {
+              <label class="choice">
+                <input
+                  [checked]="display().align === option.id"
+                  [value]="option.id"
+                  (change)="setDisplay({ align: option.id })"
+                  name="align"
+                  type="radio"
+                />
+                <span class="choice-head">
+                  <span class="choice-name">{{ option.label }}</span>
+                  @if (option.id === defaults.align) {
+                    <span class="badge">默认</span>
+                  }
+                </span>
+                <small>{{ option.hint }}</small>
+              </label>
+            }
+          </div>
+        </fieldset>
+        <div class="provider-actions">
+          <button class="secondary" [disabled]="displayIsDefault()" (click)="resetDisplay()" type="button">
+            恢复默认
+          </button>
+        </div>
+      </section>
+    </section>
+  }
+  @if (imageDeleteMessage()) {
+    <p class="notice" role="status">{{ imageDeleteMessage() }}</p>
+  }
+</main>
+<footer>
+  <span>© 2026 Aiao Images</span>
+  <button class="footer-feedback" (click)="openFeedback()">反馈建议</button>
+  <span>重要作品请下载保存</span>
+</footer>
+@if (imageDeleteReview(); as review) {
+  <dialog
+    class="modal-panel"
+    [attr.aria-label]="imageReuploadSelected() ? '重新上传新版本确认' : '删除远端原图确认'"
+    (cancel)="$event.preventDefault(); cancelImageDelete()"
+    aria-modal="true"
+    tabindex="-1"
+  >
+    <h2>{{ imageReuploadSelected() ? '重新上传新版本' : '删除远端原图' }}</h2>
+    <p>{{ imageDeletePrompt() }}</p>
+    @if (imageReuploadSelected()) {
+      <p>确认后将从本机原图创建新的远端文件版本，使用新的存储空间。旧版本的删除状态保留。</p>
+    } @else {
+      <p>只删除下面这一份远端原图。本机已有副本和同步图库信息保留，其他远端版本保留。</p>
+    }
+    <p>
+      {{ review.file.mimeType }} · {{ review.file.width }} × {{ review.file.height }} · {{ review.file.bytes }} bytes
+    </p>
+    <p class="provider-url">SHA-256：{{ review.file.sha256 }}</p>
+    <p class="provider-url">远端文件：{{ review.file.path }}</p>
+    <p>其他有效版本：{{ review.retainedVersions }}</p>
+    <p>
+      保留引用：{{ review.retainedReferences }} · 冲突引用：{{ review.conflictReferences }} · 待核对传输：{{
+        review.pendingTransfers
+      }}
+      · 未知历史：{{ review.unknownHistory }}
+    </p>
+    @if (!imageReuploadSelected() && !review.allowed && !review.deletion) {
+      <p role="alert">此原图仍有引用或待核对记录，不能物理删除。原对象保留。</p>
+    }
+    @if (!imageReuploadSelected() && review.deletion) {
+      <p role="status">已有删除回执，将先核对对象是否已消失。有新引用时保留对象。</p>
+    }
+    @if (imageDeleteMessage()) {
+      <p role="status">{{ imageDeleteMessage() }}</p>
+    }
+    <div class="work-actions">
+      <button class="secondary" (click)="cancelImageDelete()">
+        {{ imageReuploadSelected() ? '取消重新上传' : '取消远端删除' }}
+      </button>
+      @if (imageReuploadSelected()) {
+        <button [disabled]="imageDeleteBusy()" (click)="confirmImageReupload()">
+          {{ imageDeleteBusy() ? '正在核对…' : '确认重新上传新版本' }}
+        </button>
+      } @else {
+        <button
+          class="danger"
+          [disabled]="imageDeleteBusy() || (!review.allowed && !review.deletion)"
+          (click)="confirmImageDelete()"
+        >
+          {{
+            imageDeleteBusy() ? '正在核对…'
+            : review.deletion ? '继续核对远端删除'
+            : '确认删除此远端原图'
+          }}
+        </button>
+      }
+    </div>
+  </dialog>
+}
+@if (detail(); as t) {
+  <dialog
+    class="modal-panel template-panel"
+    [attr.aria-label]="t.title"
+    (cancel)="$event.preventDefault(); onEscape()"
+    aria-modal="true"
+    tabindex="-1"
+  >
+    <button class="dialog-close" (click)="closeTemplate()" aria-label="关闭模板详情">
+      <svg class="icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M5 5l10 10M15 5 5 15" /></svg>
+    </button>
+    <div class="template-detail">
+      <div class="media-stage">
+        @if (failedTemplateImages().has(t.id)) {
+          <div class="empty-state" role="status">
+            <p>示例图暂时无法加载，提示词仍可使用</p>
+          </div>
+        } @else {
+          <img [alt]="t.alt" [src]="t.image" (error)="templateImageFailed(t.id)" />
+        }
+      </div>
+      <div class="template-copy">
+        <span class="eyebrow">{{ t.purpose }} · 参考示例</span>
+        <h2>{{ t.title }}</h2>
+        <p>{{ t.style }}</p>
+        <blockquote>{{ t.prompt }}</blockquote>
+        <small>
+          作者：{{ t.author }}
+          <br />
+          @if (t.rights === 'community-reference') {
+            <a [href]="t.source" rel="noopener noreferrer" target="_blank">来源：YouMind OpenLab 社区合集 ↗</a>
+            <br />
+            <a href="/image-examples/SOURCES.md" rel="noopener noreferrer" target="_blank">
+              原始来源、署名和使用说明 ↗
+            </a>
+          } @else {
+            Aiao 原创文本与构图示意
+          }
+          <br />
+          示例用于展示灵感，不是本产品生成结果。
+        </small>
+        <button class="primary" [disabled]="inFlight()" (click)="applyTemplate(t)">用这个灵感创作</button>
+      </div>
+    </div>
+  </dialog>
+}
+@if (viewer(); as v) {
+  <dialog
+    class="modal-panel viewer-panel"
+    (cancel)="$event.preventDefault(); onEscape()"
+    (keydown.arrowleft)="stepViewer(-1)"
+    (keydown.arrowright)="stepViewer(1)"
+    aria-label="作品大图"
+    aria-modal="true"
+    tabindex="-1"
+  >
+    <button class="dialog-close" (click)="closeViewer()" aria-label="关闭大图">
+      <svg class="icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M5 5l10 10M15 5 5 15" /></svg>
+    </button>
+    <div class="viewer">
+      <div class="viewer-stage" [attr.aria-busy]="viewerPaging()" [class.original-size]="viewerOriginal()">
+        @if (v.image; as image) {
+          <img [src]="image.url" alt="作品大图" />
+        } @else if (v.failed) {
+          <div class="empty-state" role="status">
+            <p>原图暂时无法读取，文件未删除。</p>
+            <button class="secondary sm" (click)="retryViewer()">重新读取</button>
+          </div>
+        } @else {
+          <div class="spinner" aria-label="正在读取原图" role="status"></div>
+        }
+        @if (viewerPosition() > 1) {
+          <button
+            class="viewer-nav prev"
+            [disabled]="viewerPaging() || deletingWork() !== null"
+            (click)="stepViewer(-1)"
+            aria-label="上一张"
+          >
+            <svg class="icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M12.5 4.5 7 10l5.5 5.5" /></svg>
+          </button>
+        }
+        @if (viewerPosition() > 0 && viewerPosition() < viewerTotal()) {
+          <button
+            class="viewer-nav next"
+            [disabled]="viewerPaging() || deletingWork() !== null"
+            (click)="stepViewer(1)"
+            aria-label="下一张"
+          >
+            <svg class="icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M7.5 4.5 13 10l-5.5 5.5" /></svg>
+          </button>
+        }
+      </div>
+      @if (viewerWork(); as w) {
+        <div class="viewer-side">
+          <span class="eyebrow">
+            本机作品
+            @if (viewerPosition() > 0) {
+              · {{ viewerPosition() }} / {{ viewerTotal() }}
+            }
+          </span>
+          <p class="viewer-prompt">{{ w.prompt }}</p>
+          @if (v.image) {
+            <button
+              class="secondary sm viewer-size-toggle"
+              [attr.aria-pressed]="viewerOriginal()"
+              (click)="viewerOriginal.set(!viewerOriginal())"
+            >
+              {{ viewerOriginal() ? '适应窗口' : '查看原尺寸' }}
+            </button>
+          }
+          @if (viewerPaging()) {
+            <p class="notice" role="status">正在读取作品…</p>
+          }
+          @if (viewerMessage() || (deleteErrorWork() === w.jobId && deleteError())) {
+            <p class="inline-alert" role="alert">
+              {{ viewerMessage() || (deleteErrorWork() === w.jobId ? deleteError() : '') }}
+            </p>
+          }
+          <dl class="viewer-meta">
+            <div>
+              <dt>模型</dt>
+              <dd>{{ w.modelId }}</dd>
+            </div>
+            <div>
+              <dt>保存时间</dt>
+              <dd>{{ formatDateTime(w.createdAt) }}</dd>
+            </div>
+            <div>
+              <dt>文件</dt>
+              <dd>
+                {{ formatBytes(w.bytes) }}
+                @if (w.info; as info) {
+                  · {{ info.mimeType === 'image/png' ? 'PNG' : 'JPEG' }} · {{ info.width }} × {{ info.height }}
+                }
+              </dd>
+            </div>
+          </dl>
+          <div class="viewer-actions">
+            @if (v.image; as image) {
+              <a
+                class="primary"
+                [download]="'aiao-' + w.jobId + '.' + imageExtension(image.mimeType)"
+                [href]="image.url"
+                (click)="
+                  downloadImage($event, image.url, 'aiao-' + w.jobId + '.' + imageExtension(image.mimeType), w.jobId)
+                "
+              >
+                ↓ 下载图片
+              </a>
+            }
+            <button class="secondary" (click)="reuseWork(w)">复用提示词</button>
+            <button
+              class="secondary danger"
+              [disabled]="inFlight() || viewerPaging() || deletingWork() !== null"
+              (click)="deleteViewed()"
+            >
+              {{ deletingWork() === w.jobId ? '删除中…' : '删除' }}
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  </dialog>
+}
+@if (authOpen()) {
+  <dialog
+    class="modal-panel auth-panel"
+    (cancel)="$event.preventDefault(); onEscape()"
+    aria-label="我的账号"
+    aria-modal="true"
+  >
+    <button class="dialog-close" (click)="closeAuth()" aria-label="关闭账号窗口">
+      <svg class="icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M5 5l10 10M15 5 5 15" /></svg>
+    </button>
+    @if (authUser(); as user) {
+      <div class="feedback-body">
+        <span class="eyebrow">可选账号</span>
+        <h2>已登录</h2>
+        <p>{{ user.email || user.id }}</p>
+        <app-credits-panel [client]="adminApi" [identity]="user.id" />
+        <p class="notice">
+          登录平台账号后可使用积分生成图片。启用同步后，草稿与作品信息可同步；原图只有在单独确认图片同步后才上传。
+        </p>
+        <section class="account-sync" aria-label="工作区同步">
+          <div class="account-tools">
+            <button class="secondary sm" (click)="inspectRemoteQuota()">检查远端配额</button>
+            <button class="secondary sm" (click)="exportRemoteMetadata()">导出远端元数据</button>
+            <button class="secondary sm danger" [disabled]="settingsBusy()" (click)="deleteRemoteMetadata()">
+              删除远端当前元数据
+            </button>
+          </div>
+          @if (remoteQuota()) {
+            <p>{{ remoteQuota() }}</p>
+          }
+          <p class="sync-state" [attr.data-state]="sync().status" role="status">{{ syncLabel() }} · 平台账号</p>
+          @if (lastSyncedAt()) {
+            <p>最近成功：{{ lastSyncedAt() }}</p>
+          }
+          @if (sync().message) {
+            <p class="notice" role="status">{{ sync().message }}</p>
+          }
+          @if (targetKind() === 'platform' && syncInitialized()) {
+            <article class="notice" aria-label="图片原图同步">
+              <h3>图片原图同步</h3>
+              <p>
+                选择范围后，原图会保存到平台账号的私有云存储，供其他设备取回；账号会话、任务令牌和本机路径不会上传。
+              </p>
+              @if (imageSyncEnabled()) {
+                <p>图片自动同步已启用。</p>
+                <button class="secondary sm" [disabled]="settingsBusy() || imageSyncBusy()" (click)="stopImageSync()">
+                  停止图片自动同步
+                </button>
+              }
+              <button
+                class="secondary sm"
+                [disabled]="settingsBusy() || imageSyncBusy() || imageSyncSelectionLoading()"
+                (click)="prepareImageSync()"
+              >
+                设置图片同步范围
+              </button>
+              @if (imageSyncSelectionTarget(); as destination) {
+                <section
+                  class="image-sync-selection"
+                  [attr.aria-busy]="imageSyncSelectionLoading()"
+                  aria-label="图片同步范围确认"
+                >
+                  <h4>确认图片同步范围</h4>
+                  <p>目标账号：{{ destination.account }}</p>
+                  <p class="sync-workspace">远端工作区：{{ destination.workspaceId }}</p>
+                  <p>单张原图上限 16 MiB；总容量：未知。平台承担存储与服务成本。</p>
+                  @if (imageSyncSelectionLoading()) {
+                    <p role="status">正在核对本机原图 {{ imageSyncSelectionProgress() }}，尚未上传。</p>
+                  }
+                  @if (imageSyncSelection(); as selection) {
+                    <p>
+                      本机 {{ selection.count }} 张 · {{ selection.bytes }} 字节；可上传
+                      {{ selection.eligibleCount }} 张 · {{ selection.eligibleBytes }} 字节；不可读
+                      {{ selection.unreadableCount }} 张；超限 {{ selection.oversizedCount }} 张。
+                    </p>
+                    <fieldset [disabled]="imageSyncBusy()">
+                      <legend>选择上传范围</legend>
+                      <label class="image-sync-choice">
+                        <input
+                          [checked]="imageSyncChoice() === 'future'"
+                          (change)="imageSyncChoice.set('future')"
+                          name="image-sync-scope"
+                          type="radio"
+                          value="future"
+                        />
+                        仅以后保存的图片
+                      </label>
+                      <label class="image-sync-choice">
+                        <input
+                          [checked]="imageSyncChoice() === 'existing'"
+                          (change)="imageSyncChoice.set('existing')"
+                          name="image-sync-scope"
+                          type="radio"
+                          value="existing"
+                        />
+                        已有及以后保存的图片
+                      </label>
+                    </fieldset>
+                    @if (imageSyncChoice() === 'existing') {
+                      <p>
+                        本次历史范围：{{ selection.eligibleCount }} 张 ·
+                        {{ selection.eligibleBytes }} 字节。不可读及超限原图不上传，核对后新增的图片不混入本次名单。
+                      </p>
+                    } @else if (imageSyncChoice() === 'future') {
+                      <p>本次历史范围：0 张 · 0 字节；仅上传确认后保存的图片。</p>
+                    } @else {
+                      <p>尚未选择范围，请核对后明确选择。</p>
+                    }
+                    <ul class="image-sync-files" aria-label="本机原图核对清单">
+                      @for (item of imageSyncSelectionItems(); track item.work.jobId) {
+                        <li>
+                          <span>{{ item.work.prompt }}</span>
+                          @if (item.info; as info) {
+                            <span>
+                              {{ info.bytes }} 字节 · {{ info.mimeType }} · {{ info.width }} × {{ info.height }} ·
+                              可上传
+                            </span>
+                          } @else {
+                            <span>
+                              {{ item.work.bytes }} 字节 ·
+                              {{ item.state === 'oversized' ? '超过单图限制，不上传' : '原图不可读，不上传' }}
+                            </span>
+                          }
+                        </li>
+                      } @empty {
+                        <li>本机暂无已保存的原图。</li>
+                      }
+                    </ul>
+                    <div class="account-actions">
+                      <button
+                        class="secondary sm"
+                        [disabled]="imageSyncSelectionPage() === 0 || imageSyncBusy()"
+                        (click)="imageSyncSelectionPage.set(imageSyncSelectionPage() - 1)"
+                      >
+                        上一页原图
+                      </button>
+                      <span>第 {{ imageSyncSelectionPage() + 1 }} / {{ selection.pageCount }} 页</span>
+                      <button
+                        class="secondary sm"
+                        [disabled]="imageSyncSelectionPage() + 1 >= selection.pageCount || imageSyncBusy()"
+                        (click)="imageSyncSelectionPage.set(imageSyncSelectionPage() + 1)"
+                      >
+                        下一页原图
+                      </button>
+                    </div>
+                    <button
+                      class="primary"
+                      [disabled]="!imageSyncChoice() || imageSyncBusy() || settingsBusy()"
+                      (click)="enableImageSync()"
+                    >
+                      确认并启用图片同步
+                    </button>
+                  }
+                  <button class="secondary" [disabled]="imageSyncBusy()" (click)="cancelImageSyncSelection()">
+                    取消范围确认
+                  </button>
+                </section>
+              }
+              @if (imageSyncProgress()) {
+                <p aria-live="polite">{{ imageSyncProgress() }}</p>
+              }
+              @if (imageSyncFileProgress(); as file) {
+                <progress [max]="file.bytes" [value]="file.uploadedBytes" aria-label="当前原图上传分片进度"></progress>
+                <p aria-live="polite">
+                  当前原图已接收 {{ file.uploadedBytes }} / {{ file.bytes }} 字节；原图完整性与关联尚未确认。
+                </p>
+              }
+              @if (imageSyncEnabled()) {
+                <button
+                  class="secondary sm"
+                  [disabled]="settingsBusy() || imageSyncBusy() || imageUploads() > 0"
+                  (click)="retryImageSync()"
+                >
+                  重试图片队列
+                </button>
+              }
+              @if (imageSyncMessage()) {
+                <p role="status">{{ imageSyncMessage() }}</p>
+              }
+            </article>
+          }
+          @if (sync().confirmation; as confirmation) {
+            <p>
+              {{
+                confirmation.existing ? '此账号已有同步工作区，将打开独立本机副本；当前内容保留。' : (
+                  '将此本机副本绑定到当前账号，并同步以下内容：'
+                )
+              }}
+            </p>
+            <p>
+              草稿 {{ confirmation.counts.drafts }} 份 · 旧版配置 {{ confirmation.counts.providers }} 项 · 作品信息
+              {{ confirmation.counts.works }} 项
+            </p>
+            <div class="account-actions">
+              <button class="primary" [disabled]="sync().busy || settingsBusy()" (click)="confirmSync()">
+                确认并启用同步
+              </button>
+              <button class="secondary" (click)="cancelSync()">取消同步确认</button>
+            </div>
+          } @else if (!syncInitialized()) {
+            <div class="account-actions">
+              <button
+                class="primary"
+                [disabled]="!syncReady() || settingsBusy() || localStatus() !== 'ready'"
+                (click)="enableSync()"
+              >
+                启用同步
+              </button>
+            </div>
+          } @else {
+            <div class="account-actions">
+              <button class="primary" [disabled]="settingsBusy()" (click)="synchronize()">
+                {{ sync().busy ? '正在同步…' : '立即同步' }}
+              </button>
+              <button class="secondary" (click)="stopSync()">停止同步</button>
+            </div>
+            <div class="account-tools">
+              <button class="secondary sm" [disabled]="settingsBusy()" (click)="rescanSync()">重新扫描远程记录</button>
+              <button class="secondary sm" [disabled]="settingsBusy()" (click)="reportTasks()">上报本机任务</button>
+              <button
+                class="secondary sm danger"
+                [disabled]="settingsBusy() || sync().draftDeleted"
+                (click)="deleteSyncedDraft()"
+              >
+                删除同步端草稿
+              </button>
+            </div>
+          }
+          @for (conflict of sync().conflicts; track conflict.id) {
+            <article class="notice">
+              <h3>
+                {{
+                  conflict.local.kind === 'draft' ? '草稿'
+                  : conflict.local.kind === 'provider' ? '旧版配置'
+                  : '作品信息'
+                }}存在冲突
+              </h3>
+              <p>{{ conflict.reason }}。双方版本已保留，不会自动覆盖。</p>
+              <p>
+                本机：{{ conflict.local.deleted ? '已删除' : '保留内容' }} · 同步端：{{
+                  conflict.latestRemote?.deleted ? '已删除' : '保留内容'
+                }}
+              </p>
+              <details>
+                <summary>查看两个版本</summary>
+                <h4>本机版本</h4>
+                <pre>{{ conflictPreview(conflict.local) }}</pre>
+                <h4>同步端版本</h4>
+                <pre>{{ conflictPreview(conflict.latestRemote) }}</pre>
+              </details>
+              <div class="account-actions">
+                <button
+                  class="secondary sm"
+                  [disabled]="settingsBusy()"
+                  (click)="resolveSyncConflict(conflict.id, 'local')"
+                >
+                  保留本机版本
+                </button>
+                <button
+                  class="secondary sm"
+                  [disabled]="settingsBusy()"
+                  (click)="resolveSyncConflict(conflict.id, 'remote')"
+                >
+                  采用同步端版本
+                </button>
+              </div>
+            </article>
+          }
+          @if (availableProfiles().length > 1) {
+            <label for="workspace-profile">本机副本</label>
+            <select
+              class="field"
+              id="workspace-profile"
+              [disabled]="settingsBusy()"
+              [ngModel]="currentProfileId()"
+              (ngModelChange)="selectWorkspace($event)"
+            >
+              @for (profile of availableProfiles(); track profile.id; let index = $index) {
+                <option [value]="profile.id">
+                  {{ profile.account ? '账号副本' : '未绑定副本' }} {{ index + 1
+                  }}{{ profile.id === currentProfileId() ? '（当前）' : '' }}
+                </option>
+              }
+            </select>
+          }
+        </section>
+        @if (authMessage()) {
+          <p class="notice" role="status">{{ authMessage() }}</p>
+        }
+        <div class="account-footer">
+          <button class="secondary" [disabled]="authBusy()" (click)="signOut()">
+            {{ authBusy() ? '正在退出…' : '退出账号' }}
+          </button>
+        </div>
+      </div>
+    } @else {
+      <form (ngSubmit)="submitAuth()">
+        <span class="eyebrow">可选账号</span>
+        <h2>{{ authMode() === 'sign-in' ? '登录账号' : '注册账号' }}</h2>
+        <p>登录平台账号后使用积分生成图片；灵感、草稿与本机作品无需登录。账号会话不会进入本机图片备份。</p>
+        @if (authStatus() === 'unverified') {
+          <p class="notice" role="status">{{ authMessage() }}</p>
+          <div class="account-actions">
+            <button class="secondary sm" [disabled]="authBusy()" (click)="restoreAuth()" type="button">
+              重新验证会话
+            </button>
+            <button class="text-link" [disabled]="authBusy()" (click)="signOut()" type="button">退出此设备会话</button>
+          </div>
+        }
+        <label for="auth-email">邮箱</label>
+        <input
+          id="auth-email"
+          [ngModel]="authEmail()"
+          (ngModelChange)="authEmail.set($event)"
+          autocomplete="email"
+          name="authEmail"
+          required
+          type="email"
+        />
+        <label for="auth-password">密码</label>
+        <input
+          id="auth-password"
+          [attr.autocomplete]="authMode() === 'sign-up' ? 'new-password' : 'current-password'"
+          [minlength]="authMode() === 'sign-up' ? 6 : 1"
+          [ngModel]="authPassword()"
+          (ngModelChange)="authPassword.set($event)"
+          name="authPassword"
+          required
+          type="password"
+        />
+        @if (authMessage() && authStatus() !== 'unverified') {
+          <p class="notice auth-error" role="status">{{ authMessage() }}</p>
+        }
+        <button class="primary" [disabled]="authBusy() || authStatus() === 'checking'" type="submit">
+          {{
+            authBusy() ? '正在处理…'
+            : authMode() === 'sign-in' ? '登录'
+            : '注册'
+          }}
+        </button>
+        <button class="text-link auth-mode-toggle" [disabled]="authBusy()" (click)="toggleAuthMode()" type="button">
+          {{ authMode() === 'sign-in' ? '还没有账号？注册' : '已有账号？登录' }}
+        </button>
+        <small>注册平台账号即可使用跨设备同步；首次开启时选择上传范围。</small>
+      </form>
+    }
+  </dialog>
+}
+@if (feedbackOpen()) {
+  <dialog
+    class="modal-panel auth-panel"
+    (cancel)="$event.preventDefault(); onEscape()"
+    aria-label="反馈建议"
+    aria-modal="true"
+  >
+    <button class="dialog-close" (click)="feedbackOpen.set(false)" aria-label="关闭反馈">
+      <svg class="icon" aria-hidden="true" viewBox="0 0 20 20"><path d="M5 5l10 10M15 5 5 15" /></svg>
+    </button>
+    <div class="feedback-body">
+      <span class="eyebrow">一起把它变得更好</span>
+      <h2>这次创作，感觉怎么样？</h2>
+      <p>告诉我们哪里好用，哪里还差一点。</p>
+      <label for="feedback-text">你的建议</label>
+      <textarea id="feedback-text" #feedback placeholder="例如：希望能根据一张参考图生成……" rows="5"></textarea>
+      <button class="primary" (click)="copyFeedback(feedback.value)">复制反馈内容</button>
+      <small>复制后可发送给产品团队。</small>
+    </div>
+  </dialog>
+}
+@if (toast()) {
+  <div class="visible" id="toast" role="status">{{ toast() }}</div>
+}

@@ -12,6 +12,8 @@ tmp/
 out-tsc/
 test-output/
 playwright-report/
+**/.wrangler/
+**/public/prompt-runtime/
 .env*
 
 # Cargo 构建产物（crate 内 .gitignore 对 Prettier / nx format 无效）
@@ -51,3 +53,5 @@ requirements/generated/
 
 # 主包 Agent Skill 同为逐字节门禁校验的生成物（US-602 C），Prettier 改写会让门禁失配。
 packages/rxdb/skills/
+
+.angular

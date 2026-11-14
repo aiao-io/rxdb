@@ -196,3 +196,5 @@ type:e2e
 应用初始化模板位于 [`requirements/app-template/`](app-template/)。它提供应用级目录、增量约定和模板文件，不重复根规则。
 
 具体产品的应用需求应位于对应产品根目录的 `requirements/`，由产品自己的需求前缀管理。
+
+当前 Aiao Media 的应用需求位于 [`aiao-media/requirements/`](../aiao-media/requirements/)，是本办法的一个应用级实践示例；它的业务状态和验收仍由 `MEDIA-US-*` story 管理。

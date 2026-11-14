@@ -1,0 +1,232 @@
+import { createHash } from 'node:crypto';
+import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
+
+const applicationRoot = resolve(import.meta.dirname, '../..');
+const repositoryRoot = resolve(applicationRoot, '..');
+const outputDefault = resolve(applicationRoot, 'tmp/production-supabase-bundle.sql');
+
+/**
+ * 生产包只消费已经评审过的 RxDB core 和产品迁移。
+ * 001-local-account-checks.sql 是本地开发探针，001-local-storage-standin.sql 是本地 Storage 替身，故意不在清单中。
+ */
+export const productionSources = [
+  'docker/sql/01-rxdb-system-tables.sql',
+  'docker/sql/02-rxdb-sync-functions.sql',
+  'docker/sql/04-rxdb-utils-functions.sql',
+  'docker/sql/production/rxdb-change-grants.sql',
+  'aiao-media/infra/supabase/migrations/002-product-workspaces.sql',
+  'aiao-media/infra/supabase/migrations/003-rxdb-product-permissions.sql',
+  'aiao-media/infra/supabase/migrations/004-admin-foundation.sql',
+  'aiao-media/infra/supabase/migrations/005-product-content.sql',
+  'aiao-media/infra/supabase/migrations/006-trusted-membership.sql',
+  'aiao-media/infra/supabase/migrations/007-jpeg-work-metadata.sql',
+  'aiao-media/infra/supabase/migrations/008-sync-target-capabilities.sql',
+  'aiao-media/infra/supabase/migrations/009-sync-data-management.sql',
+  'aiao-media/infra/supabase/migrations/010-image-storage.sql',
+  'aiao-media/infra/supabase/migrations/011-installation.sql',
+  'aiao-media/infra/supabase/migrations/012-credits.sql',
+  'aiao-media/infra/supabase/migrations/013-relay-credit-abandonment.sql',
+  'aiao-media/infra/supabase/migrations/014-image-lifecycle.sql',
+  'aiao-media/infra/supabase/migrations/015-image-delete.sql',
+  'aiao-media/infra/supabase/migrations/016-image-reupload.sql'
+];
+
+const transactionBoundary = /^\s*(?:BEGIN|COMMIT)\s*;\s*$/gm;
+
+/** 应用 schema 版本取最后一个产品迁移的编号，在初始化事务提交前写入供后续迁移核对。 */
+export const schemaVersion = Math.max(
+  ...productionSources.map(path => Number(/\/(\d{3})-[^/]+\.sql$/.exec(path)?.[1] ?? 0))
+);
+export const schemaMarker = `COMMENT ON SCHEMA media_private IS 'aiao-media schema ${schemaVersion}';`;
+
+/** 允许全新 Supabase 项目中由 PostGIS 等扩展预先创建的只读 public 关系。 */
+const publicExtensionRelations = [
+  'geography_columns',
+  'geometry_columns',
+  'raster_columns',
+  'raster_overviews',
+  'spatial_ref_sys'
+];
+
+export const emptyPublicGuard = `
+-- Aiao Media production bootstrap guard: this bundle is for a new, dedicated product project only.
+-- It must run before any source DDL and abort atomically when public already has application data.
+DO $aiao_media_empty_project_guard$
+DECLARE
+  existing_relations text;
+  existing_types text;
+  existing_functions text;
+BEGIN
+  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('aiao-media-production-bootstrap', 0));
+
+  SELECT pg_catalog.string_agg(
+    pg_catalog.format('%I.%I', n.nspname, c.relname), ', ' ORDER BY n.nspname, c.relname
+  )
+  INTO existing_relations
+  FROM pg_catalog.pg_class c
+  JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+  WHERE n.nspname = 'public'
+    AND c.relkind IN ('r', 'p', 'v', 'm', 'f', 'S')
+    AND c.relname <> ALL (ARRAY['${publicExtensionRelations.join("','")}']::text[]);
+
+  IF existing_relations IS NOT NULL THEN
+    RAISE EXCEPTION USING
+      ERRCODE = '55006',
+      MESSAGE = 'Refusing production bootstrap: public schema is not empty',
+      DETAIL = existing_relations;
+  END IF;
+
+  SELECT pg_catalog.string_agg(
+    pg_catalog.format('%I.%I', n.nspname, t.typname), ', ' ORDER BY n.nspname, t.typname
+  )
+  INTO existing_types
+  FROM pg_catalog.pg_type t
+  JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
+  WHERE n.nspname = 'public'
+    AND t.typtype IN ('c', 'e', 'd')
+    AND t.typname NOT LIKE '\\_%' ESCAPE '\\';
+
+  IF existing_types IS NOT NULL THEN
+    RAISE EXCEPTION USING
+      ERRCODE = '55006',
+      MESSAGE = 'Refusing production bootstrap: public schema has user-defined types',
+      DETAIL = existing_types;
+  END IF;
+
+  SELECT pg_catalog.string_agg(
+    pg_catalog.format('%I.%I', n.nspname, p.proname), ', ' ORDER BY p.proname
+  )
+  INTO existing_functions
+  FROM pg_catalog.pg_proc p
+  JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
+  WHERE n.nspname = 'public'
+    AND p.prokind IN ('f', 'p', 'a');
+
+  IF existing_functions IS NOT NULL THEN
+    RAISE EXCEPTION USING
+      ERRCODE = '55006',
+      MESSAGE = 'Refusing production bootstrap: public schema has user-defined functions',
+      DETAIL = existing_functions;
+  END IF;
+END
+$aiao_media_empty_project_guard$;
+`;
+
+function digest(text) {
+  return createHash('sha256').update(text).digest('hex');
+}
+
+function withoutTransactionBoundaries(text) {
+  return text.replace(transactionBoundary, '').trim();
+}
+
+async function loadSources(paths) {
+  return Promise.all(
+    paths.map(async relativePath => {
+      const source = await readFile(resolve(repositoryRoot, relativePath), 'utf8');
+      return {
+        relativePath,
+        digest: digest(source),
+        sql: withoutTransactionBoundaries(source)
+      };
+    })
+  );
+}
+
+/** 现有生产库只支持按发布顺序升级，同版本允许重放。 */
+export const productionUpgrades = [
+  { name: 'installation', fromVersion: 10, toVersion: 11, required: [] },
+  { name: 'credits', fromVersion: 11, toVersion: 13, required: ['public.media_installation_state'] },
+  {
+    name: 'image-lifecycle',
+    fromVersion: 13,
+    toVersion: 16,
+    required: ['public.media_credit_accounts', 'public.media_credit_reservations']
+  }
+];
+
+/** 生成带版本保护的独立事务，拒绝跳版本、未知库和旧包降级。 */
+export async function buildProductionUpgrade(name) {
+  const upgrade = productionUpgrades.find(value => value.name === name);
+  if (!upgrade) throw new Error('Unknown production upgrade');
+  const sources = await loadSources(
+    productionSources.filter(path => {
+      const version = Number(/\/(\d{3})-[^/]+\.sql$/.exec(path)?.[1] ?? 0);
+      return path.startsWith('aiao-media/') && version > upgrade.fromVersion && version <= upgrade.toVersion;
+    })
+  );
+  const required = [
+    'public.media_workspaces',
+    'public.media_sync_records',
+    'public.media_file_records',
+    ...upgrade.required
+  ];
+  const guard = `DO $aiao_media_upgrade_guard$
+DECLARE current_marker text;
+BEGIN
+  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('aiao-media-production-bootstrap', 0));
+  SELECT pg_catalog.obj_description(n.oid, 'pg_namespace') INTO current_marker
+    FROM pg_catalog.pg_namespace n WHERE n.nspname = 'media_private';
+  IF current_marker IS NULL OR current_marker <> ALL (ARRAY['aiao-media schema ${upgrade.fromVersion}', 'aiao-media schema ${upgrade.toVersion}']) THEN
+    RAISE EXCEPTION USING ERRCODE = '55006',
+      MESSAGE = 'Refusing production upgrade: schema version does not match',
+      DETAIL = COALESCE(current_marker, 'missing schema marker');
+  END IF;
+  IF EXISTS (SELECT 1 FROM unnest(ARRAY['${required.join("','")}']) AS required(name)
+    WHERE pg_catalog.to_regclass(required.name) IS NULL) THEN
+    RAISE EXCEPTION USING ERRCODE = '55006',
+      MESSAGE = 'Refusing production upgrade: required product tables are missing';
+  END IF;
+END
+$aiao_media_upgrade_guard$;`;
+  return {
+    ...upgrade,
+    sources,
+    sql: [
+      `-- Aiao Media production upgrade: ${name}, schema ${upgrade.fromVersion} -> ${upgrade.toVersion}.`,
+      ...sources.map(source => `-- SOURCE ${source.relativePath} sha256=${source.digest}`),
+      'BEGIN;',
+      "SET LOCAL lock_timeout = '5s';",
+      guard,
+      ...sources.map(
+        source => `-- BEGIN SOURCE ${source.relativePath}\n${source.sql}\n-- END SOURCE ${source.relativePath}`
+      ),
+      `COMMENT ON SCHEMA media_private IS 'aiao-media schema ${upgrade.toVersion}';`,
+      'COMMIT;',
+      ''
+    ].join('\n')
+  };
+}
+
+export async function buildProductionBundle(output = outputDefault) {
+  const sources = await loadSources(productionSources);
+  const header = [
+    '-- Aiao Media production Supabase bootstrap bundle.',
+    '-- Generated locally; review the source digests and target project guard before execution.',
+    '-- This file intentionally excludes the local-only migrations 001-local-account-checks.sql and 001-local-storage-standin.sql.',
+    ...sources.map(source => `-- SOURCE ${source.relativePath} sha256=${source.digest}`),
+    ''
+  ].join('\n');
+  const sql = [
+    'BEGIN;',
+    "SET LOCAL lock_timeout = '5s';",
+    emptyPublicGuard.trim(),
+    ...sources.map(
+      source => `\n-- BEGIN SOURCE ${source.relativePath}\n${source.sql}\n-- END SOURCE ${source.relativePath}`
+    ),
+    schemaMarker,
+    'COMMIT;',
+    ''
+  ].join('\n');
+  await mkdir(dirname(output), { recursive: true });
+  await writeFile(output, `${header}${sql}`, { mode: 0o600 });
+  await chmod(output, 0o600);
+  return { output, sources, sql: `${header}${sql}` };
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.filename)) {
+  const result = await buildProductionBundle(process.argv[2] ? resolve(process.argv[2]) : outputDefault);
+  console.log(`Generated production Supabase bundle: ${result.output}`);
+  console.log(`Sources: ${result.sources.length}; output sha256: ${digest(result.sql)}`);
+}

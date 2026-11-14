@@ -1,0 +1,618 @@
+<section class="console" aria-label="管理后台" data-testid="admin-console">
+  @if (busy()) {
+    <div class="alert alert-info console-status" role="status">
+      <span class="loading loading-spinner loading-xs" aria-hidden="true"></span>
+      <span>正在读取后台…</span>
+    </div>
+  }
+  @if (message()) {
+    <div class="alert alert-warning console-status" role="status">{{ message() }}</div>
+  }
+
+  @if (allowed()) {
+    <fieldset class="console-content" [disabled]="busy()">
+      @if (tab() === 'users') {
+        <section aria-labelledby="users-title">
+          <div class="section-heading">
+            <div>
+              <p class="section-kicker">访问控制</p>
+              <h2 id="users-title">用户列表</h2>
+              <p>查看账号状态，并处理产品访问权限。</p>
+            </div>
+            <span class="badge badge-ghost">第 {{ page() }} 页</span>
+          </div>
+
+          <form class="pagination-bar" (ngSubmit)="searchUsers()">
+            <label>
+              邮箱或账号
+              <input
+                class="input input-bordered"
+                [(ngModel)]="userSearch"
+                maxlength="254"
+                name="userSearch"
+                type="search"
+              />
+            </label>
+            <button class="btn btn-ghost btn-sm" type="submit">查找用户</button>
+          </form>
+
+          <div class="table-card">
+            <div class="table-scroll">
+              <table class="table-zebra table">
+                <thead>
+                  <tr>
+                    <th>账号</th>
+                    <th>产品访问</th>
+                    <th>登录限制</th>
+                    <th class="actions-column">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (user of users(); track user.id) {
+                    <tr>
+                      <td>
+                        <button class="link link-hover account-link" (click)="openUser(user)" type="button">
+                          {{ user.email || user.id }}
+                        </button>
+                        <span class="cell-meta">{{ user.id }}</span>
+                      </td>
+                      <td>
+                        <span class="badge" [class.badge-error]="user.disabled" [class.badge-success]="!user.disabled">
+                          {{ user.disabled ? '已封禁' : '正常' }}
+                        </span>
+                      </td>
+                      <td>
+                        <span class="badge badge-outline">
+                          {{
+                            user.authState === 'pending' ? '待确认'
+                            : user.authState === 'applied' ? '已确认'
+                            : '未更改'
+                          }}
+                        </span>
+                      </td>
+                      <td class="actions-column">
+                        <button class="btn btn-ghost btn-sm" (click)="setAccount(user)" type="button">
+                          {{ user.disabled ? '解除封禁' : '封禁账号' }}
+                        </button>
+                      </td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td class="empty-cell" colspan="4">暂无用户数据</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            <div class="pagination-bar">
+              <span>显示当前页用户</span>
+              <div class="pagination-actions">
+                <button class="btn btn-ghost btn-sm" [disabled]="page() === 1" (click)="changePage(-1)" type="button">
+                  上一页
+                </button>
+                <span class="pagination-current">{{ page() }}</span>
+                <button
+                  class="btn btn-ghost btn-sm"
+                  [disabled]="users().length < 25"
+                  (click)="changePage(1)"
+                  type="button"
+                >
+                  下一页
+                </button>
+              </div>
+            </div>
+          </div>
+
+          @if (userDetail(); as user) {
+            <aside class="detail-card" aria-labelledby="user-detail-title">
+              <div class="detail-card-header">
+                <div>
+                  <p class="section-kicker">账号信息</p>
+                  <h3 id="user-detail-title">{{ user.email || '账号详情' }}</h3>
+                </div>
+                <button class="btn btn-ghost btn-sm" (click)="userDetail.set(null)" type="button">关闭</button>
+              </div>
+              <dl class="detail-list">
+                <div>
+                  <dt>用户 UUID</dt>
+                  <dd>{{ user.id }}</dd>
+                </div>
+                <div>
+                  <dt>注册时间</dt>
+                  <dd>{{ user.createdAt || '未知' }}</dd>
+                </div>
+                <div>
+                  <dt>最近登录</dt>
+                  <dd>{{ user.lastSignInAt || '未知' }}</dd>
+                </div>
+                <div>
+                  <dt>修订版本</dt>
+                  <dd>{{ user.revision }}</dd>
+                </div>
+              </dl>
+              @if (credits(); as snapshot) {
+                <h4>用户积分</h4>
+                <p>
+                  余额 {{ snapshot.account.balance }} · 已预占 {{ snapshot.account.reserved }} · 可用
+                  {{ snapshot.account.available }}
+                </p>
+                <form (ngSubmit)="adjustCredits()">
+                  <label>
+                    调整积分（增加填正数，回收填负数）
+                    <input
+                      class="input input-bordered"
+                      [(ngModel)]="creditForm.delta"
+                      name="creditDelta"
+                      required
+                      step="1"
+                      type="number"
+                    />
+                  </label>
+                  <label>
+                    调整原因
+                    <input
+                      class="input input-bordered"
+                      [(ngModel)]="creditForm.reason"
+                      maxlength="500"
+                      name="creditReason"
+                      required
+                    />
+                  </label>
+                  <button class="btn btn-primary btn-sm" [disabled]="busy()" type="submit">确认调整积分</button>
+                </form>
+                <div class="table-scroll">
+                  <table class="table-zebra table">
+                    <thead>
+                      <tr>
+                        <th>时间</th>
+                        <th>来源</th>
+                        <th>变化</th>
+                        <th>余额</th>
+                        <th>原因</th>
+                        <th>操作人</th>
+                        <th>请求 / 任务</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (entry of snapshot.entries; track entry.id) {
+                        <tr>
+                          <td>{{ entry.created_at }}</td>
+                          <td>{{ entry.source === 'admin' ? '后台调整' : '生成消费' }}</td>
+                          <td>{{ entry.delta }}</td>
+                          <td>{{ entry.balance_after }}</td>
+                          <td>{{ entry.reason }}</td>
+                          <td>{{ entry.actor_id }}</td>
+                          <td>{{ entry.request_id }}</td>
+                        </tr>
+                      } @empty {
+                        <tr><td colspan="7">暂无积分流水</td></tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+                @if (snapshot.entries.length === 50) {
+                  <button class="btn btn-ghost btn-sm" (click)="olderCredits()" type="button">更早的流水</button>
+                }
+              }
+            </aside>
+          }
+        </section>
+      }
+
+      @if (tab() === 'templates') {
+        <section aria-labelledby="templates-title">
+          <div class="section-heading">
+            <div>
+              <p class="section-kicker">内容配置</p>
+              <h2 id="templates-title">模板发布</h2>
+              <p>维护平台模板草稿，发布后供用户端读取。</p>
+            </div>
+            <button class="btn btn-primary btn-sm" (click)="editTemplate()" type="button">新建模板草稿</button>
+          </div>
+
+          <div class="content-stack">
+            @for (row of content().drafts; track row.kind + row.key) {
+              @if (row.kind === 'template') {
+                <article class="resource-card">
+                  <div class="resource-card-main">
+                    <div class="resource-icon" aria-hidden="true">文</div>
+                    <div>
+                      <h3>{{ row.key }}</h3>
+                      <p>草稿 v{{ row.revision }} · 发布版 {{ publishedRevision(row) || '未发布' }}</p>
+                    </div>
+                  </div>
+                  <div class="resource-actions">
+                    <button class="btn btn-ghost btn-sm" (click)="editTemplate(row)" type="button">编辑</button>
+                    <button class="btn btn-primary btn-sm" (click)="publish(row)" type="button">发布</button>
+                    <button
+                      class="btn btn-outline btn-sm"
+                      [disabled]="!publishedRevision(row)"
+                      (click)="publish(row, true)"
+                      type="button"
+                    >
+                      撤回
+                    </button>
+                  </div>
+                </article>
+              }
+            } @empty {
+              <div class="empty-state">还没有模板草稿，点击右上角开始创建。</div>
+            }
+          </div>
+
+          @if (template(); as draft) {
+            <form class="editor-card" (ngSubmit)="saveTemplate()">
+              <div class="editor-card-header">
+                <div>
+                  <p class="section-kicker">模板编辑器</p>
+                  <h3>{{ templateRevision() > 0 ? '编辑模板草稿' : '新建模板草稿' }}</h3>
+                </div>
+              </div>
+              <div class="form-grid form-grid-two">
+                <label class="form-field">
+                  <span>模板标识</span>
+                  <input
+                    class="input input-bordered"
+                    [(ngModel)]="draft.id"
+                    [disabled]="templateRevision() > 0"
+                    name="templateId"
+                    required
+                  />
+                </label>
+                <label class="form-field">
+                  <span>标题</span>
+                  <input class="input input-bordered" [(ngModel)]="draft.title" name="title" required />
+                </label>
+                <label class="form-field">
+                  <span>用途</span>
+                  <input class="input input-bordered" [(ngModel)]="draft.purpose" name="purpose" required />
+                </label>
+                <label class="form-field">
+                  <span>风格</span>
+                  <input class="input input-bordered" [(ngModel)]="draft.style" name="style" required />
+                </label>
+                <label class="form-field form-field-wide">
+                  <span>提示词</span>
+                  <textarea
+                    class="textarea textarea-bordered"
+                    [ngModel]="draft.prompt"
+                    (ngModelChange)="setTemplateText($event)"
+                    name="prompt"
+                    required
+                  ></textarea>
+                  <small>修改提示词会保存为纯文本模板；已有本机草稿不随发布更新。</small>
+                </label>
+                <label class="form-field">
+                  <span>示例资源路径</span>
+                  <input class="input input-bordered" [(ngModel)]="draft.image" name="image" required />
+                </label>
+                <label class="form-field">
+                  <span>图片说明</span>
+                  <input class="input input-bordered" [(ngModel)]="draft.alt" name="alt" required />
+                </label>
+                <label class="form-field">
+                  <span>作者</span>
+                  <input class="input input-bordered" [(ngModel)]="draft.author" name="author" required />
+                </label>
+                <label class="form-field">
+                  <span>来源</span>
+                  <input class="input input-bordered" [(ngModel)]="draft.source" name="source" required />
+                </label>
+                <label class="form-field">
+                  <span>版权</span>
+                  <select class="select select-bordered" [(ngModel)]="draft.rights" name="rights">
+                    <option value="aiao-original-text-and-svg">Aiao 原创</option>
+                    <option value="community-reference">社区参考</option>
+                  </select>
+                </label>
+                <label class="form-field">
+                  <span>更新时间</span>
+                  <input
+                    class="input input-bordered"
+                    [(ngModel)]="draft.updatedAt"
+                    name="updatedAt"
+                    required
+                    type="date"
+                  />
+                </label>
+              </div>
+              <div class="editor-actions">
+                <button class="btn btn-primary" type="submit">校验并保存草稿</button>
+              </div>
+            </form>
+          }
+        </section>
+      }
+
+      @if (tab() === 'policies') {
+        <section aria-labelledby="policies-title">
+          <div class="section-heading">
+            <div>
+              <p class="section-kicker">运行配置</p>
+              <h2 id="policies-title">供应商公共策略</h2>
+              <p>策略中不保存用户 Key，发布后代理请求读取运行版本。</p>
+            </div>
+            <div class="revision-summary">
+              <span class="badge badge-ghost">草稿 v{{ policyRevision() }}</span>
+              <span class="badge badge-success">运行 v{{ policyActiveRevision() || '部署配置' }}</span>
+            </div>
+          </div>
+
+          <div class="provider-grid">
+            @for (provider of policy().providers; track provider.id; let index = $index) {
+              <article class="provider-card">
+                <div class="provider-card-header">
+                  <div>
+                    <p class="section-kicker">供应商 {{ index + 1 }}</p>
+                    <h3>{{ provider.name || '未命名供应商' }}</h3>
+                  </div>
+                  <span class="badge" [class.badge-ghost]="!provider.enabled" [class.badge-success]="provider.enabled">
+                    {{ provider.enabled ? '已启用' : '未启用' }}
+                  </span>
+                </div>
+                <div class="form-grid">
+                  <label class="form-field">
+                    <span>供应商名称</span>
+                    <input class="input input-bordered" [(ngModel)]="provider.name" [name]="'policy-name-' + index" />
+                  </label>
+                  <label class="form-field">
+                    <span>HTTPS API 前缀</span>
+                    <input class="input input-bordered" [(ngModel)]="provider.baseUrl" [name]="'policy-url-' + index" />
+                  </label>
+                  <label class="form-field form-field-wide">
+                    <span>支持模型，逗号分隔</span>
+                    <input
+                      class="input input-bordered"
+                      [name]="'policy-models-' + index"
+                      [ngModel]="provider.models.join(',')"
+                      (ngModelChange)="policyModels(provider, $event)"
+                    />
+                  </label>
+                </div>
+                <div class="check-group" aria-label="供应商支持能力">
+                  <label class="check-option">
+                    <input
+                      class="checkbox checkbox-sm"
+                      [(ngModel)]="provider.enabled"
+                      [name]="'policy-enabled-' + index"
+                      type="checkbox"
+                    />
+                    启用供应商
+                  </label>
+                  <label class="check-option">
+                    <input
+                      class="checkbox checkbox-sm"
+                      [(ngModel)]="provider.direct"
+                      [name]="'policy-direct-' + index"
+                      type="checkbox"
+                    />
+                    支持直连
+                  </label>
+                  <label class="check-option">
+                    <input
+                      class="checkbox checkbox-sm"
+                      [(ngModel)]="provider.proxy"
+                      [name]="'policy-proxy-' + index"
+                      type="checkbox"
+                    />
+                    支持代理
+                  </label>
+                </div>
+                <p class="provider-meta">支持画幅：{{ provider.sizes.join(', ') }}</p>
+              </article>
+            } @empty {
+              <div class="empty-state">还没有供应商策略，请添加第一条策略。</div>
+            }
+          </div>
+
+          <div class="toolbar-actions">
+            <button class="btn btn-outline" (click)="addPolicyProvider()" type="button">添加供应商策略</button>
+            <button class="btn btn-primary" (click)="savePolicy()" type="button">校验并保存策略草稿</button>
+            @if (policyRow(); as row) {
+              <button class="btn btn-secondary" (click)="publish(row)" type="button">发布运行策略</button>
+              <button
+                class="btn btn-ghost"
+                [disabled]="!policyActiveRevision()"
+                (click)="publish(row, true)"
+                type="button"
+              >
+                恢复部署策略
+              </button>
+            }
+          </div>
+        </section>
+      }
+
+      @if (tab() === 'tasks') {
+        <section aria-labelledby="tasks-title">
+          <div class="section-heading">
+            <div>
+              <p class="section-kicker">运行观测</p>
+              <h2 id="tasks-title">任务与用量</h2>
+              <p>查询已上报任务，并按来源查看可核验的用量数据。</p>
+            </div>
+            <span class="badge badge-ghost">第 {{ taskPage() }} 页</span>
+          </div>
+
+          <form class="filter-card" (ngSubmit)="searchTasks()">
+            <div class="filter-card-header">
+              <div>
+                <h3>筛选任务</h3>
+                <p>时间请填写带时区的 ISO 8601 值。</p>
+              </div>
+              <button class="btn btn-primary btn-sm" type="submit">应用筛选</button>
+            </div>
+            <div class="form-grid form-grid-three">
+              <label class="form-field">
+                <span>用户 UUID</span>
+                <input class="input input-bordered" [(ngModel)]="filter.userId" name="userId" />
+              </label>
+              <label class="form-field">
+                <span>模型</span>
+                <input class="input input-bordered" [(ngModel)]="filter.model" name="model" />
+              </label>
+              <label class="form-field">
+                <span>通道</span>
+                <select class="select select-bordered" [(ngModel)]="filter.channel" name="channel">
+                  <option value="">全部</option>
+                  <option value="direct">直连</option>
+                  <option value="proxy">代理</option>
+                </select>
+              </label>
+              <label class="form-field">
+                <span>状态</span>
+                <select class="select select-bordered" [(ngModel)]="filter.status" name="status">
+                  <option value="">全部</option>
+                  <option value="processing">进行中</option>
+                  <option value="completed">已完成</option>
+                  <option value="failed">失败</option>
+                  <option value="needs_review">待核对</option>
+                </select>
+              </label>
+              <label class="form-field">
+                <span>起始时间，含时区</span>
+                <input
+                  class="input input-bordered"
+                  [(ngModel)]="filter.from"
+                  name="from"
+                  placeholder="2026-10-24T00:00:00+08:00"
+                />
+              </label>
+              <label class="form-field">
+                <span>结束时间，不含边界</span>
+                <input
+                  class="input input-bordered"
+                  [(ngModel)]="filter.to"
+                  name="to"
+                  placeholder="2026-10-25T00:00:00+08:00"
+                />
+              </label>
+            </div>
+          </form>
+
+          <div class="table-card">
+            <div class="table-scroll">
+              <table class="table-zebra table">
+                <thead>
+                  <tr>
+                    <th>用户</th>
+                    <th>模型 / 通道</th>
+                    <th>状态</th>
+                    <th>时间</th>
+                    <th>来源</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (task of taskRows(); track task.id) {
+                    <tr>
+                      <td class="mono-cell">{{ task.owner_id }}</td>
+                      <td>{{ task.model }} / {{ task.channel }}</td>
+                      <td>
+                        <span class="badge badge-outline">{{ task.status }}</span>
+                      </td>
+                      <td>{{ task.started_at }}</td>
+                      <td>{{ sourceLabel(task.payload.source) }}</td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td class="empty-cell" colspan="5">没有符合条件的任务</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            <div class="pagination-bar">
+              <span>最多展示当前页任务</span>
+              <div class="pagination-actions">
+                <button
+                  class="btn btn-ghost btn-sm"
+                  [disabled]="taskPage() === 1"
+                  (click)="changePage(-1)"
+                  type="button"
+                >
+                  上一页
+                </button>
+                <span class="pagination-current">{{ taskPage() }}</span>
+                <button
+                  class="btn btn-ghost btn-sm"
+                  [disabled]="taskRows().length < 100"
+                  (click)="changePage(1)"
+                  type="button"
+                >
+                  下一页
+                </button>
+              </div>
+            </div>
+          </div>
+
+          @if (usage(); as summary) {
+            <div class="usage-section">
+              <div class="section-heading compact-heading">
+                <div>
+                  <p class="section-kicker">统计摘要</p>
+                  <h3>用量来源</h3>
+                </div>
+              </div>
+              <div class="usage-grid">
+                @for (source of ['application', 'provider', 'verified']; track source) {
+                  @if (summary.sources[source]; as bucket) {
+                    <article class="usage-card">
+                      <p>{{ sourceLabel(source) }}</p>
+                      <strong>{{ bucket.records }}</strong>
+                      <dl>
+                        <div>
+                          <dt>请求计数</dt>
+                          <dd>{{ metric(bucket.requestCount, bucket.unknown?.requestCount) }}</dd>
+                        </div>
+                        <div>
+                          <dt>供应商用量</dt>
+                          <dd>{{ metric(bucket.providerUnits, bucket.unknown?.providerUnits) }}</dd>
+                        </div>
+                        <div>
+                          <dt>核验费用</dt>
+                          <dd>{{ currencyList(bucket) }}{{ unknownMetric(bucket, 'verifiedCost') }}</dd>
+                        </div>
+                      </dl>
+                    </article>
+                  }
+                }
+              </div>
+              @if (summary.partial) {
+                <div class="alert alert-warning">当前汇总达到 10000 条上限，请缩小时间或用户范围。</div>
+              }
+            </div>
+          }
+        </section>
+      }
+
+      @if (tab() === 'audit') {
+        <section aria-labelledby="audit-title">
+          <div class="section-heading">
+            <div>
+              <p class="section-kicker">安全记录</p>
+              <h2 id="audit-title">操作审计</h2>
+              <p>最近 100 条管理操作记录。</p>
+            </div>
+            <span class="badge badge-ghost">最近 100 条</span>
+          </div>
+          <div class="audit-list">
+            @for (entry of audit(); track entry.id) {
+              <article class="audit-item">
+                <div class="audit-item-main">
+                  <strong>{{ entry.action }}</strong>
+                  <span>{{ entry.target_id }}</span>
+                </div>
+                <div class="audit-item-meta">
+                  <span>{{ entry.created_at }}</span>
+                  <small>操作者 {{ entry.actor_id }} · 审计 {{ entry.id }}</small>
+                </div>
+              </article>
+            } @empty {
+              <div class="empty-state">暂无操作审计记录。</div>
+            }
+          </div>
+        </section>
+      }
+    </fieldset>
+  }
+</section>

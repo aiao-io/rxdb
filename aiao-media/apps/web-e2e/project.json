@@ -1,0 +1,198 @@
+{
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "implicitDependencies": ["aiao-media"],
+  "name": "aiao-media-e2e",
+  "projectType": "application",
+  "sourceRoot": "aiao-media/apps/web-e2e/src",
+  "tags": ["product:media", "type:e2e"],
+  "targets": {
+    "e2e": {
+      "executor": "nx:noop",
+      "dependsOn": [
+        "local-first-e2e",
+        "provider-acceptance-fixture",
+        "public-origin-smoke-fixture",
+        "platform-account-update-fixture",
+        "actual-release-update-check",
+        "desktop-ime-acceptance-check"
+      ]
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "aiao-media/apps/web-e2e",
+        "command": "tsc -p tsconfig.json --noEmit"
+      }
+    },
+    "image-mvp-e2e": {
+      "executor": "nx:noop",
+      "dependsOn": ["local-first-e2e"]
+    },
+    "local-first-e2e": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["aiao-media:offline-assets"],
+      "options": {
+        "command": "pnpm exec playwright test -c aiao-media/apps/web-e2e/local-first.config.ts",
+        "cwd": "."
+      }
+    },
+    "library-e2e": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["aiao-media:offline-assets"],
+      "options": {
+        "command": "pnpm exec playwright test -c aiao-media/apps/web-e2e/library.config.ts",
+        "cwd": "."
+      }
+    },
+    "supabase-e2e": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["aiao-media:supabase-migrate"],
+      "options": {
+        "command": "pnpm exec playwright test -c aiao-media/apps/web-e2e/supabase-local.config.ts",
+        "cwd": "."
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "aiao-media/apps/web-e2e",
+        "command": "eslint . --max-warnings=0"
+      }
+    },
+    "upgrade-e2e": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["aiao-media:offline-assets"],
+      "options": {
+        "cwd": ".",
+        "command": "pnpm exec playwright test -c aiao-media/apps/web-e2e/upgrade.config.ts"
+      }
+    },
+    "product-e2e": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm exec playwright test -c aiao-media/apps/web-e2e/local-product.config.ts",
+        "cwd": "."
+      },
+      "dependsOn": ["aiao-media:supabase-migrate"],
+      "cache": false
+    },
+    "provider-acceptance": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node scripts/provider-acceptance.mjs",
+        "cwd": "aiao-media/apps/web-e2e"
+      }
+    },
+    "provider-acceptance-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node --test scripts/provider-acceptance.test.mjs",
+        "cwd": "aiao-media/apps/web-e2e"
+      }
+    },
+    "desktop-ime-acceptance": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["aiao-media:offline-assets", "desktop-ime-acceptance-check"],
+      "options": {
+        "command": "node scripts/desktop-ime-acceptance.mjs",
+        "cwd": "aiao-media/apps/web-e2e"
+      }
+    },
+    "desktop-ime-acceptance-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node --test scripts/desktop-ime-acceptance.test.mjs",
+        "cwd": "aiao-media/apps/web-e2e"
+      }
+    },
+    "provider-acceptance-fixture": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["aiao-media:offline-assets", "provider-acceptance-check", "provider-result-network-fixture"],
+      "options": {
+        "command": "node scripts/provider-acceptance-fixture.mjs",
+        "cwd": "aiao-media/apps/web-e2e"
+      }
+    },
+    "offline-update-e2e": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["aiao-media:offline-assets"],
+      "options": {
+        "command": "pnpm exec playwright test -c aiao-media/apps/web-e2e/offline-update.config.ts",
+        "cwd": "."
+      }
+    },
+    "public-origin-smoke": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node scripts/public-origin-smoke.mjs",
+        "cwd": "aiao-media/apps/web-e2e"
+      }
+    },
+    "public-origin-smoke-check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node --test scripts/public-origin-smoke.test.mjs",
+        "cwd": "aiao-media/apps/web-e2e"
+      }
+    },
+    "public-origin-smoke-fixture": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["aiao-media:offline-assets", "public-origin-smoke-check"],
+      "options": {
+        "command": "node scripts/public-origin-smoke.mjs --fixture",
+        "cwd": "aiao-media/apps/web-e2e"
+      }
+    },
+    "actual-release-update-check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node --test scripts/actual-release-update.test.mjs scripts/actual-release-update-live.test.mjs",
+        "cwd": "aiao-media/apps/web-e2e"
+      }
+    },
+    "platform-account-update-fixture": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["aiao-media:offline-assets"],
+      "options": {
+        "command": "node scripts/platform-account-update-fixture.mjs",
+        "cwd": "aiao-media/apps/web-e2e"
+      }
+    },
+    "actual-release-update-fixture": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node scripts/actual-release-update-fixture.mjs",
+        "cwd": "aiao-media/apps/web-e2e"
+      }
+    },
+    "actual-release-update-live": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node scripts/actual-release-update-live.mjs",
+        "cwd": "aiao-media/apps/web-e2e"
+      }
+    },
+    "provider-result-network-fixture": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node scripts/provider-result-network-fixture.mjs",
+        "cwd": "aiao-media/apps/web-e2e"
+      }
+    }
+  }
+}

@@ -1,0 +1,76 @@
+import { validateProviderPolicy, validatePublishedTemplate } from '@aiao-media/api-contracts';
+import type { BackendClient } from './product-http.ts';
+import { backend, body, fields, reject, uuid } from './product-http.ts';
+import type { WorkerEnv } from './worker-env.ts';
+
+/** 按内容类型校验模板或供应商运行策略。 */
+export function validateContent(kind: string, payload: unknown) {
+  try {
+    return kind === 'template' ? validatePublishedTemplate(payload) : validateProviderPolicy(payload);
+  } catch {
+    return reject(400, '内容校验失败；未保存或发布。');
+  }
+}
+/** 执行带修订号和幂等标识的内容管理操作。 */
+export async function manageContent(request: Request, client: BackendClient, actorId: string, path: string) {
+  const match = /^content\/(template|provider-policy)\/([a-z][a-z0-9-]{0,59})(?:\/(publish|withdraw))?$/.exec(path);
+  if (!match) reject(404, '内容管理接口不存在。');
+  const [, kind, key, operation] = match;
+  if (kind === 'provider-policy' && key !== 'runtime') reject(400, '供应商运行策略标识无效。');
+  const action = operation ?? 'save';
+  if (request.method !== (action === 'save' ? 'PUT' : 'POST')) reject(405, '内容操作方法无效。');
+  const value = fields<{ revision: number; requestId: string; payload?: unknown }>(
+    await body(request),
+    action === 'save' ? ['revision', 'requestId', 'payload'] : ['revision', 'requestId']
+  );
+  if (!Number.isSafeInteger(value.revision) || value.revision < 0 || !uuid(value.requestId))
+    reject(400, '内容版本无效。');
+  let payload = null;
+  if (action === 'save') payload = validateContent(kind, value.payload);
+  if (kind === 'template' && payload && (!('id' in payload) || payload.id !== key)) reject(400, '模板标识不匹配。');
+  if (action === 'publish') {
+    const [draft] = await client.call<{ payload: unknown; revision: number }[]>(
+      `/rest/v1/media_content_drafts?kind=eq.${kind}&key=eq.${key}&select=payload,revision`
+    );
+    if (!draft || draft.revision !== value.revision) reject(409, '草稿版本已变化。');
+    validateContent(kind, draft.payload);
+  }
+  const result = await client.call('/rest/v1/rpc/media_admin_content', {
+    method: 'POST',
+    payload: {
+      p_actor: actorId,
+      p_kind: kind,
+      p_key: key,
+      p_action: action,
+      p_revision: value.revision,
+      p_request_id: value.requestId,
+      p_payload: payload
+    }
+  });
+  return {
+    content: result,
+    state:
+      action === 'publish' ? 'active'
+      : action === 'withdraw' ? 'withdrawn'
+      : 'draft'
+  };
+}
+/** 读取已发布的供应商运行策略及修订号。 */
+export async function runtimePolicy(env: WorkerEnv) {
+  if (!env.MEDIA_SUPABASE_URL) return null;
+  const rows = await backend(env).call<{ payload: unknown; revision: number }[]>(
+    '/rest/v1/media_public_content?kind=eq.provider-policy&key=eq.runtime&select=payload,revision',
+    { privileged: false }
+  );
+  if (!Array.isArray(rows) || rows.length > 1) reject(502, '运行策略不可读。');
+  return rows.length ? { ...validateProviderPolicy(rows[0].payload), revision: rows[0].revision } : null;
+}
+/** 读取并校验已发布模板。 */
+export async function publishedTemplates(env: WorkerEnv) {
+  if (!env.MEDIA_SUPABASE_URL) return { templates: [] };
+  const rows = await backend(env).call<{ payload: unknown; revision: number }[]>(
+    '/rest/v1/media_public_content?kind=eq.template&select=payload,revision&order=key&limit=200',
+    { privileged: false }
+  );
+  return { templates: rows.map(row => ({ template: validatePublishedTemplate(row.payload), revision: row.revision })) };
+}

@@ -1,0 +1,65 @@
+{
+  "billingVerified": false,
+  "date": "2026-10-23",
+  "environment": "local development Web, actual configured upstream, Chrome, PostgreSQL, npm RxDB",
+  "gallery": {
+    "ratios": ["landscape", "portrait"],
+    "reloadVerified": true,
+    "logoutClearedPrivateUi": true,
+    "note": "The square result was saved and downloaded in a separate browser context. The subsequent context verified two results together across reload."
+  },
+  "generatedImages": 3,
+  "model": "gpt-image-2.5",
+  "publicDeploymentVerified": false,
+  "results": [
+    {
+      "ratio": "square",
+      "jobId": "694f55a9-a5e1-4a4f-a26c-45712575176f",
+      "status": "completed",
+      "requestedSize": [1024, 1024],
+      "actualSize": [1254, 1254],
+      "format": "png",
+      "bytes": 2756118,
+      "sha256": "e227a76622adb40628b73672c72a0ce8dcbc9fd86df5a36874e95b142f93c2ed",
+      "savedLocally": true,
+      "downloadVerified": true,
+      "dispatchStartedAt": "2026-10-23T04:38:01.272Z",
+      "completedAt": "2026-10-23T04:38:48.908Z",
+      "serverElapsedMs": 47636,
+      "note": "Initial browser run stopped after download because the gateway returned 1254×1254 instead of the requested 1024×1024. The original task succeeded; it was not resubmitted."
+    },
+    {
+      "ratio": "landscape",
+      "jobId": "867527ce-8bdc-4a1f-8849-36e160b17585",
+      "status": "completed",
+      "requestedSize": [1536, 1024],
+      "actualSize": [1536, 1024],
+      "format": "png",
+      "bytes": 2832315,
+      "sha256": "7fb6330234039bec0b48052689f7a14edc0d17e49d2e469bc5ab9da5ebb66e05",
+      "savedLocally": true,
+      "downloadVerified": true,
+      "dispatchStartedAt": "2026-10-23T04:42:30.527Z",
+      "completedAt": "2026-10-23T04:43:01.551Z",
+      "serverElapsedMs": 31024,
+      "browserElapsedMs": 33015
+    },
+    {
+      "ratio": "portrait",
+      "jobId": "b488a403-79ff-4767-a751-57d07e775719",
+      "status": "completed",
+      "requestedSize": [1024, 1536],
+      "actualSize": [1024, 1536],
+      "format": "png",
+      "bytes": 2751618,
+      "sha256": "cd21682db16be9b4e809da2d95334023ff3033e2187aba71f49b988b1579ed43",
+      "savedLocally": true,
+      "downloadVerified": true,
+      "dispatchStartedAt": "2026-10-23T04:43:03.553Z",
+      "completedAt": "2026-10-23T04:43:41.488Z",
+      "serverElapsedMs": 37935,
+      "browserElapsedMs": 40574
+    }
+  ],
+  "timezone": "Asia/Shanghai"
+}

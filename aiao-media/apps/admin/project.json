@@ -1,0 +1,127 @@
+{
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "name": "aiao-media-admin",
+  "prefix": "aiao-media-admin",
+  "projectType": "application",
+  "sourceRoot": "aiao-media/apps/admin/src",
+  "tags": [],
+  "targets": {
+    "dev": {
+      "executor": "@angular/build:dev-server",
+      "continuous": true,
+      "cache": false,
+      "dependsOn": [
+        "aiao-media:dev-ports",
+        {
+          "projects": ["aiao-media-api"],
+          "target": "dev",
+          "waitFor": "ready"
+        }
+      ],
+      "readyWhen": {
+        "port": 4302
+      },
+      "options": {
+        "buildTarget": "aiao-media-admin:build:development",
+        "port": 4302,
+        "proxyConfig": "aiao-media/scripts/dev/proxy.conf.mjs"
+      }
+    },
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "dist/aiao-media/apps/admin",
+        "browser": "aiao-media/apps/admin/src/main.ts",
+        "tsConfig": "aiao-media/apps/admin/tsconfig.app.json",
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "aiao-media/apps/admin/public"
+          }
+        ],
+        "styles": ["aiao-media/apps/admin/src/styles.css"],
+        "allowedCommonJsDependencies": ["ms"]
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "2mb",
+              "maximumError": "3mb"
+            },
+            {
+              "type": "anyComponentStyle",
+              "maximumWarning": "4kb",
+              "maximumError": "8kb"
+            }
+          ],
+          "outputHashing": "all"
+        },
+        "development": {
+          "optimization": false,
+          "extractLicenses": false,
+          "sourceMap": true
+        }
+      }
+    },
+    "serve": {
+      "continuous": true,
+      "readyWhen": {
+        "port": 4302
+      },
+      "executor": "@angular/build:dev-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "port": 4302,
+        "proxyConfig": "aiao-media/scripts/dev/proxy.conf.mjs"
+      },
+      "configurations": {
+        "production": {
+          "buildTarget": "aiao-media-admin:build:production"
+        },
+        "development": {
+          "buildTarget": "aiao-media-admin:build:development"
+        }
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "aiao-media/apps/admin",
+        "command": "vitest run --config vitest.config.mts",
+        "forwardAllArgs": true
+      }
+    },
+    "serve-static": {
+      "continuous": true,
+      "readyWhen": {
+        "signal": true
+      },
+      "dependsOn": ["build"],
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "aiao-media-admin:build",
+        "staticFilePath": "dist/aiao-media/apps/admin/browser",
+        "spa": true
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "aiao-media/apps/admin",
+        "command": "eslint src --max-warnings=0"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build"],
+      "options": {
+        "cwd": "aiao-media/apps/admin",
+        "command": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.spec.json"
+      }
+    }
+  }
+}

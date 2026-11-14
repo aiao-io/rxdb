@@ -1,0 +1,10 @@
+{
+  "name": "@aiao/aiao-media-e2e",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@aiao-media/api-contracts": "workspace:*",
+    "sharp": "0.35.5"
+  }
+}
