@@ -32,6 +32,8 @@
 | 390×844、触屏仿真             | `narrow-screen` 检查菜单、Dock、启动台、窗口拖动/缩放与无横向溢出。                                                                                               | 仿真结果不等于 iPhone 或 iOS Safari 真机支持。                                                                                                                                                                                                                                                                  |
 | 真机 Safari                   | 产品整体验收未完成，未归档为已验收的支持档位。                                                                                                                    | [入口记录](evidence/2026-11-14/safari-product-entry.json)确认限制说明、真实 Aiao Code 加载及文本保存；[后续记录](evidence/2026-11-14/safari-product-followup.json)确认终端文件读写与刷新恢复、游戏渲染及暂停/继续。指针锁定、完整游戏输入与全流程错误采集仍待验，不能据本次鼠标捕获提示认定 Safari 普遍不支持。 |
 
+Safari 的[再次原生游戏检查](evidence/2026-11-14/safari-game-probe.json)保留内嵌与独立 bench 页面停留在“准备就绪”的观察；只读状态、性能数据及完整输入没有取得结果，根因未建立，支持档位不变。不同 UUID 的起始页出现后已停止 GUI，仅清理本轮静态服务。
+
 ## 快捷键
 
 [desktop-page.ts](../apps/web/src/app/pages/desktop-page.ts) 处理页面收到的快捷键，⌘ 与 Ctrl 等价。Playwright 的按键不经过系统快捷键分发，不能证明真实键盘可用；[verify-keyboard.mjs](../apps/e2e/src/verify-keyboard.mjs) 必须由操作者手按并记录。当前物理键盘结论保持未验收。
@@ -48,5 +50,3 @@
 | ⌘N         | 为前台应用新开窗口；同上。                 | File → New Window / New Finder Window。 |
 
 不支持声明：数据只在当前浏览器的 Origin 下，没有账号、备份、导出或跨设备同步，换域名不自动迁移；TextEdit 新文档没有保存入口；配额不足、存储不可用、文件体与目录行写入中断等边界仍未完整验收。集成应用不能弹窗或调用受限文件句柄 API，iframe 获焦后桌面快捷键不生效。游戏需要 GPU，最小化后循环继续。真实外网的壁纸、地图、天气等显示效果与断网重载能力不在已完成验收中。已知限制详见[验收台账](verification-report.md#尚未证明)。
-
-Safari 的[再次原生游戏检查](evidence/2026-11-14/safari-game-probe.json)保留内嵌与独立 bench 页面停留在“准备就绪”的观察；只读状态、性能数据及完整输入没有取得结果，根因未建立，支持档位不变。不同 UUID 的起始页出现后已停止 GUI，仅清理本轮静态服务。
