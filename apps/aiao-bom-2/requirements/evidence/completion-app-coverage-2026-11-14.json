@@ -1,26 +1,32 @@
-{"total": {"lines":{"total":1329,"covered":1289,"skipped":0,"pct":96.99},"statements":{"total":2214,"covered":2062,"skipped":0,"pct":93.13},"functions":{"total":451,"covered":424,"skipped":0,"pct":94.01},"branches":{"total":1393,"covered":1197,"skipped":0,"pct":85.92},"branchesTrue":{"total":0,"covered":0,"skipped":0,"pct":100}}
-,"/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/app.config.ts": {"lines":{"total":1,"covered":0,"skipped":0,"pct":0},"functions":{"total":0,"covered":0,"skipped":0,"pct":100},"statements":{"total":1,"covered":0,"skipped":0,"pct":0},"branches":{"total":0,"covered":0,"skipped":0,"pct":100}}
-,"/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/app.routes.ts": {"lines":{"total":6,"covered":0,"skipped":0,"pct":0},"functions":{"total":6,"covered":0,"skipped":0,"pct":0},"statements":{"total":9,"covered":0,"skipped":0,"pct":0},"branches":{"total":0,"covered":0,"skipped":0,"pct":100}}
-,"/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/app.ts": {"lines":{"total":54,"covered":43,"skipped":0,"pct":79.62},"functions":{"total":31,"covered":25,"skipped":0,"pct":80.64},"statements":{"total":89,"covered":69,"skipped":0,"pct":77.52},"branches":{"total":51,"covered":39,"skipped":0,"pct":76.47}}
-,"/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/root.ts": {"lines":{"total":1,"covered":0,"skipped":0,"pct":0},"functions":{"total":0,"covered":0,"skipped":0,"pct":100},"statements":{"total":2,"covered":0,"skipped":0,"pct":0},"branches":{"total":0,"covered":0,"skipped":0,"pct":100}}
-,"/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/components/bom-grid.ts": {"lines":{"total":128,"covered":126,"skipped":0,"pct":98.43},"functions":{"total":52,"covered":49,"skipped":0,"pct":94.23},"statements":{"total":228,"covered":210,"skipped":0,"pct":92.1},"branches":{"total":165,"covered":130,"skipped":0,"pct":78.78}}
-,"/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/components/icon.ts": {"lines":{"total":2,"covered":2,"skipped":0,"pct":100},"functions":{"total":1,"covered":1,"skipped":0,"pct":100},"statements":{"total":6,"covered":6,"skipped":0,"pct":100},"branches":{"total":2,"covered":1,"skipped":0,"pct":50}}
-,"/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/components/model-panel.ts": {"lines":{"total":59,"covered":59,"skipped":0,"pct":100},"functions":{"total":24,"covered":24,"skipped":0,"pct":100},"statements":{"total":99,"covered":97,"skipped":0,"pct":97.97},"branches":{"total":46,"covered":41,"skipped":0,"pct":89.13}}
-,"/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/components/version-panel.ts": {"lines":{"total":70,"covered":70,"skipped":0,"pct":100},"functions":{"total":24,"covered":23,"skipped":0,"pct":95.83},"statements":{"total":106,"covered":105,"skipped":0,"pct":99.05},"branches":{"total":55,"covered":49,"skipped":0,"pct":89.09}}
-,"/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/components/workspace-dialogs.ts": {"lines":{"total":58,"covered":42,"skipped":0,"pct":72.41},"functions":{"total":17,"covered":13,"skipped":0,"pct":76.47},"statements":{"total":110,"covered":79,"skipped":0,"pct":71.81},"branches":{"total":70,"covered":40,"skipped":0,"pct":57.14}}
-,"/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/core/analysis.ts": {"lines":{"total":26,"covered":26,"skipped":0,"pct":100},"functions":{"total":4,"covered":4,"skipped":0,"pct":100},"statements":{"total":32,"covered":30,"skipped":0,"pct":93.75},"branches":{"total":31,"covered":28,"skipped":0,"pct":90.32}}
-,"/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/core/domain-export.ts": {"lines":{"total":44,"covered":44,"skipped":0,"pct":100},"functions":{"total":10,"covered":9,"skipped":0,"pct":90},"statements":{"total":77,"covered":72,"skipped":0,"pct":93.5},"branches":{"total":54,"covered":50,"skipped":0,"pct":92.59}}
-,"/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/core/draft.ts": {"lines":{"total":90,"covered":90,"skipped":0,"pct":100},"functions":{"total":32,"covered":31,"skipped":0,"pct":96.87},"statements":{"total":156,"covered":131,"skipped":0,"pct":83.97},"branches":{"total":147,"covered":121,"skipped":0,"pct":82.31}}
-,"/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/core/index-client.ts": {"lines":{"total":16,"covered":16,"skipped":0,"pct":100},"functions":{"total":5,"covered":5,"skipped":0,"pct":100},"statements":{"total":28,"covered":27,"skipped":0,"pct":96.42},"branches":{"total":9,"covered":7,"skipped":0,"pct":77.77}}
-,"/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/core/model-mapping.ts": {"lines":{"total":6,"covered":6,"skipped":0,"pct":100},"functions":{"total":6,"covered":6,"skipped":0,"pct":100},"statements":{"total":12,"covered":12,"skipped":0,"pct":100},"branches":{"total":8,"covered":7,"skipped":0,"pct":87.5}}
-,"/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/core/model-viewport.ts": {"lines":{"total":188,"covered":187,"skipped":0,"pct":99.46},"functions":{"total":49,"covered":46,"skipped":0,"pct":93.87},"statements":{"total":342,"covered":336,"skipped":0,"pct":98.24},"branches":{"total":148,"covered":130,"skipped":0,"pct":87.83}}
-,"/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/core/query.ts": {"lines":{"total":122,"covered":122,"skipped":0,"pct":100},"functions":{"total":22,"covered":22,"skipped":0,"pct":100},"statements":{"total":166,"covered":158,"skipped":0,"pct":95.18},"branches":{"total":146,"covered":137,"skipped":0,"pct":93.83}}
-,"/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/core/row-window.ts": {"lines":{"total":12,"covered":12,"skipped":0,"pct":100},"functions":{"total":5,"covered":5,"skipped":0,"pct":100},"statements":{"total":20,"covered":20,"skipped":0,"pct":100},"branches":{"total":10,"covered":10,"skipped":0,"pct":100}}
-,"/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/core/scene-batches.ts": {"lines":{"total":34,"covered":34,"skipped":0,"pct":100},"functions":{"total":15,"covered":15,"skipped":0,"pct":100},"statements":{"total":56,"covered":56,"skipped":0,"pct":100},"branches":{"total":20,"covered":19,"skipped":0,"pct":95}}
-,"/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/core/selection-frame.ts": {"lines":{"total":21,"covered":21,"skipped":0,"pct":100},"functions":{"total":4,"covered":4,"skipped":0,"pct":100},"statements":{"total":33,"covered":33,"skipped":0,"pct":100},"branches":{"total":8,"covered":8,"skipped":0,"pct":100}}
-,"/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/core/snapshot-workspace.ts": {"lines":{"total":66,"covered":66,"skipped":0,"pct":100},"functions":{"total":19,"covered":19,"skipped":0,"pct":100},"statements":{"total":106,"covered":105,"skipped":0,"pct":99.05},"branches":{"total":51,"covered":47,"skipped":0,"pct":92.15}}
-,"/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/core/snapshot.ts": {"lines":{"total":104,"covered":104,"skipped":0,"pct":100},"functions":{"total":32,"covered":32,"skipped":0,"pct":100},"statements":{"total":147,"covered":144,"skipped":0,"pct":97.95},"branches":{"total":144,"covered":140,"skipped":0,"pct":97.22}}
-,"/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/core/storage.ts": {"lines":{"total":34,"covered":34,"skipped":0,"pct":100},"functions":{"total":25,"covered":24,"skipped":0,"pct":96},"statements":{"total":51,"covered":50,"skipped":0,"pct":98.03},"branches":{"total":5,"covered":5,"skipped":0,"pct":100}}
-,"/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/core/stress-data.ts": {"lines":{"total":9,"covered":9,"skipped":0,"pct":100},"functions":{"total":1,"covered":1,"skipped":0,"pct":100},"statements":{"total":11,"covered":10,"skipped":0,"pct":90.9},"branches":{"total":16,"covered":15,"skipped":0,"pct":93.75}}
-,"/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2/src/app/core/workspace.ts": {"lines":{"total":178,"covered":176,"skipped":0,"pct":98.87},"functions":{"total":67,"covered":66,"skipped":0,"pct":98.5},"statements":{"total":327,"covered":312,"skipped":0,"pct":95.41},"branches":{"total":207,"covered":173,"skipped":0,"pct":83.57}}
+{
+  "lines": {
+    "total": 1330,
+    "covered": 1290,
+    "skipped": 0,
+    "pct": 96.99
+  },
+  "statements": {
+    "total": 2215,
+    "covered": 2063,
+    "skipped": 0,
+    "pct": 93.13
+  },
+  "functions": {
+    "total": 451,
+    "covered": 424,
+    "skipped": 0,
+    "pct": 94.01
+  },
+  "branches": {
+    "total": 1396,
+    "covered": 1200,
+    "skipped": 0,
+    "pct": 85.95
+  },
+  "branchesTrue": {
+    "total": 0,
+    "covered": 0,
+    "skipped": 0,
+    "pct": 100
+  }
 }

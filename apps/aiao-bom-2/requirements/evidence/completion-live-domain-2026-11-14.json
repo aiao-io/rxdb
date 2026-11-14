@@ -1,0 +1,24 @@
+{
+  "checkedAt": "2026-11-14T06:00:50.610Z",
+  "origin": "https://aiao-bom-2.aiao.workers.dev",
+  "isolated": true,
+  "domainStatus": "已有 40 项物料。可直接开始核对，当前修改会保留。",
+  "backupBytes": 666760,
+  "resources": [
+    {
+      "url": "https://aiao-bom-2.aiao.workers.dev/wa-sqlite/wa-sqlite-async.wasm",
+      "status": 200
+    },
+    {
+      "url": "https://aiao-bom-2.aiao.workers.dev/wa-sqlite/wa-sqlite-async.wasm",
+      "status": 200
+    }
+  ],
+  "mobile": {
+    "viewport": 375,
+    "scrollWidth": 375,
+    "focusedLink": true,
+    "restoredFocus": true
+  },
+  "errors": []
+}

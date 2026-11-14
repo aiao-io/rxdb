@@ -45,3 +45,5 @@ Decimal 始终按字符串传递。同父重复物料保留为不同行；相同
 E2E 在隔离旧库装入种子，追加自定义 Decimal 草稿并执行真实 PACK-001 → PACK-003 换件后备份，再向新版恢复。检查所有逻辑数据条目原文、实体身份、schema 定义和指纹；并验证坏归档拒绝、刷新、回退和旧库原样保留。生成证据位于 `apps/aiao-bom-2-e2e/test-output/evidence/migration.json`，正式验收摘要另行归档。
 
 该归档是逻辑归档，不能把帧拼成 SQLite 二进制文件；应使用 `RxDBBackupArchiveReader` 解析。
+
+2026-11-14 已在独立公网预览 `https://aiao-bom-2.aiao.workers.dev` 的专属浏览器上下文再次演练：666,760 字节领域归档迁入新库、刷新保留身份、损坏归档拒绝、回退原库均通过；29 个归档条目的数据与排序 schema、指纹核对一致，原库保持原样。详见 [公网恢复证据](evidence/completion-live-restore-2026-11-14.json)。这次演练仍使用隔离演示数据，用户真实 origin 的备份和正式切换尚未执行。

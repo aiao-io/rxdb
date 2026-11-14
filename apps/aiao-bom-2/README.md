@@ -2,6 +2,8 @@
 
 以结构表为核心的 BOM 与 3D 工作台。主表使用 VTable Canvas，模型使用 Three.js，默认加载 Windrose 公开资料的固定快照。新应用独立于 `aiao-bom`，没有替换旧站或共用旧库。
 
+独立公开预览：<https://aiao-bom-2.aiao.workers.dev>。2026-11-14 已完成公网 3D、SQLite、备份恢复、移动导航与发布文件校验；原站保留。完整证据见 [最终验收](requirements/completion-verification-2026-11-14.md#独立公开预览验收)。
+
 ```bash
 pnpm nx serve aiao-bom-2
 pnpm nx run aiao-bom-2:serve-static
