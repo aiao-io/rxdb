@@ -1,6 +1,7 @@
 import { createPersistentProfile } from '../fixtures/persistent-profile.mjs';
+import { installArtifactOrigin } from './artifact-origin.mjs';
 import { createHelpers } from './helpers.mjs';
-import { installAiaoCodeStandin, installGameStandin } from './standin.mjs';
+import { STANDIN_ORIGIN, installAiaoCodeStandin, installGameStandin } from './standin.mjs';
 
 export const VIEWPORT = { width: 1440, height: 900 };
 
@@ -51,8 +52,13 @@ export async function createSession({
   const profile =
     EPHEMERAL_CONTEXT_HAS_OPFS[engine] ? null : await createPersistentProfile({ engine, viewport, contextOptions });
   const context = profile ? await profile.open() : await browser.newContext({ viewport, ...contextOptions });
+  const artifact =
+    engine === 'firefox' && standins.includes('aiao-code') ?
+      await installArtifactOrigin(context, origin, STANDIN_ORIGIN)
+    : { origin, resourceUrl: url => url };
+  origin = artifact.origin;
   await context.route(
-    url => !url.href.startsWith(origin),
+    url => url.origin !== origin,
     route => route.abort()
   );
   /* 替身的路由后注册，优先于上面的外网拦截。 */
@@ -79,6 +85,7 @@ export async function createSession({
     context,
     page,
     origin,
+    resourceUrl: artifact.resourceUrl,
     distRoot,
     errors,
     aiaoCode,

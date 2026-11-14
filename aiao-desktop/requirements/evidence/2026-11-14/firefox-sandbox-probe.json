@@ -1,0 +1,242 @@
+{
+  "measuredAt": "2026-11-14T04:31:42.367Z",
+  "method": "Controlled sandbox/allow variants on real loopback origins; iframe in open Shadow DOM; COOP/COEP preserved; protocol keyboard input only; no product code",
+  "browser": "159.0",
+  "parentOrigin": "http://127.0.0.1:62128",
+  "childOrigin": "http://127.0.0.1:62127",
+  "variants": [
+    {
+      "name": "shadow",
+      "attrs": "",
+      "events": [
+        {
+          "event": "navigated",
+          "url": "http://127.0.0.1:62128/shadow"
+        },
+        {
+          "event": "attached",
+          "url": ""
+        },
+        {
+          "event": "navigated",
+          "url": "http://127.0.0.1:62127/"
+        },
+        {
+          "event": "navigated",
+          "url": "http://127.0.0.1:62128/shadow"
+        },
+        {
+          "event": "attached",
+          "url": ""
+        },
+        {
+          "event": "navigated",
+          "url": "http://127.0.0.1:62127/"
+        }
+      ],
+      "frames": [
+        "http://127.0.0.1:62128/shadow",
+        "http://127.0.0.1:62127/"
+      ],
+      "input": {
+        "text": "firefox-sandbox",
+        "keys": [
+          "f",
+          "i",
+          "r",
+          "e",
+          "f",
+          "o",
+          "x",
+          "-",
+          "s",
+          "a",
+          "n",
+          "d",
+          "b",
+          "o",
+          "x"
+        ],
+        "focused": true,
+        "isolated": true
+      },
+      "reload": true,
+      "passed": true
+    },
+    {
+      "name": "shadow-sandbox",
+      "attrs": "sandbox=\"allow-scripts allow-same-origin allow-forms allow-downloads\"",
+      "events": [
+        {
+          "event": "navigated",
+          "url": "http://127.0.0.1:62128/shadow-sandbox"
+        },
+        {
+          "event": "attached",
+          "url": ""
+        },
+        {
+          "event": "navigated",
+          "url": "http://127.0.0.1:62127/"
+        },
+        {
+          "event": "navigated",
+          "url": "http://127.0.0.1:62128/shadow-sandbox"
+        },
+        {
+          "event": "attached",
+          "url": ""
+        },
+        {
+          "event": "navigated",
+          "url": "http://127.0.0.1:62127/"
+        }
+      ],
+      "frames": [
+        "http://127.0.0.1:62128/shadow-sandbox",
+        "http://127.0.0.1:62127/"
+      ],
+      "input": {
+        "text": "firefox-sandbox",
+        "keys": [
+          "f",
+          "i",
+          "r",
+          "e",
+          "f",
+          "o",
+          "x",
+          "-",
+          "s",
+          "a",
+          "n",
+          "d",
+          "b",
+          "o",
+          "x"
+        ],
+        "focused": true,
+        "isolated": true
+      },
+      "reload": true,
+      "passed": true
+    },
+    {
+      "name": "shadow-sandbox-allow",
+      "attrs": "sandbox=\"allow-scripts allow-same-origin allow-forms allow-downloads\" allow=\"cross-origin-isolated; clipboard-read; clipboard-write\"",
+      "events": [
+        {
+          "event": "navigated",
+          "url": "http://127.0.0.1:62128/shadow-sandbox-allow"
+        },
+        {
+          "event": "attached",
+          "url": ""
+        },
+        {
+          "event": "navigated",
+          "url": "http://127.0.0.1:62127/"
+        },
+        {
+          "event": "navigated",
+          "url": "http://127.0.0.1:62128/shadow-sandbox-allow"
+        },
+        {
+          "event": "attached",
+          "url": ""
+        },
+        {
+          "event": "navigated",
+          "url": "http://127.0.0.1:62127/"
+        }
+      ],
+      "frames": [
+        "http://127.0.0.1:62128/shadow-sandbox-allow",
+        "http://127.0.0.1:62127/"
+      ],
+      "input": {
+        "text": "firefox-sandbox",
+        "keys": [
+          "f",
+          "i",
+          "r",
+          "e",
+          "f",
+          "o",
+          "x",
+          "-",
+          "s",
+          "a",
+          "n",
+          "d",
+          "b",
+          "o",
+          "x"
+        ],
+        "focused": true,
+        "isolated": true
+      },
+      "reload": true,
+      "passed": true
+    },
+    {
+      "name": "shadow-allow",
+      "attrs": "allow=\"cross-origin-isolated; clipboard-read; clipboard-write\"",
+      "events": [
+        {
+          "event": "navigated",
+          "url": "http://127.0.0.1:62128/shadow-allow"
+        },
+        {
+          "event": "attached",
+          "url": ""
+        },
+        {
+          "event": "navigated",
+          "url": "http://127.0.0.1:62127/"
+        },
+        {
+          "event": "navigated",
+          "url": "http://127.0.0.1:62128/shadow-allow"
+        },
+        {
+          "event": "attached",
+          "url": ""
+        },
+        {
+          "event": "navigated",
+          "url": "http://127.0.0.1:62127/"
+        }
+      ],
+      "frames": [
+        "http://127.0.0.1:62128/shadow-allow",
+        "http://127.0.0.1:62127/"
+      ],
+      "input": {
+        "text": "firefox-sandbox",
+        "keys": [
+          "f",
+          "i",
+          "r",
+          "e",
+          "f",
+          "o",
+          "x",
+          "-",
+          "s",
+          "a",
+          "n",
+          "d",
+          "b",
+          "o",
+          "x"
+        ],
+        "focused": true,
+        "isolated": true
+      },
+      "reload": true,
+      "passed": true
+    }
+  ],
+  "passed": true
+}

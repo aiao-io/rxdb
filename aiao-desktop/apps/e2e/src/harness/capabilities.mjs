@@ -56,7 +56,7 @@ function scriptsIn(distRoot) {
  * 之后**重新加载桌面页**才生效。找不到唯一的一处就在这里抛错（见 {@link rewriteCapabilities}），不会带着没改成的清单继续跑。
  * 浏览器上下文关闭时路由随之消失；没改写的构建（别的检查组、别的上下文）保持最小清单。
  *
- * @param {{ context: import('playwright').BrowserContext, origin: string, distRoot: string }} session
+ * @param {{ context: import('playwright').BrowserContext, origin: string, distRoot: string, resourceUrl: (url: string) => string }} session
  * @param {readonly string[]} capabilities 要授予的能力全集（含原来的）
  */
 export async function grantCapabilities(session, capabilities) {
@@ -65,7 +65,7 @@ export async function grantCapabilities(session, capabilities) {
   await context.route(
     url => url.origin === origin && url.pathname === `/${file}`,
     async route => {
-      const response = await route.fetch();
+      const response = await route.fetch({ url: session.resourceUrl(route.request().url()) });
       await route.fulfill({ response, body: source });
     }
   );
