@@ -1,0 +1,37 @@
+{
+  "measuredAt": "2026-11-14T04:47:43.582Z",
+  "browser": "27.2",
+  "method": "Isolated WebKit contexts, fixed clipboard test text, parent API read invoked by cross-frame postMessage; clipboard-read grant scopes varied; no security flags",
+  "variants": [
+    {
+      "scope": "parent",
+      "write": true,
+      "directRead": {
+        "value": "aiao-fixed-clipboard-test"
+      },
+      "messageRead": {
+        "value": "aiao-fixed-clipboard-test"
+      }
+    },
+    {
+      "scope": "both-origins",
+      "write": true,
+      "directRead": {
+        "value": "aiao-fixed-clipboard-test"
+      },
+      "messageRead": {
+        "value": "aiao-fixed-clipboard-test"
+      }
+    },
+    {
+      "scope": "all-origins",
+      "write": true,
+      "directRead": {
+        "value": "aiao-fixed-clipboard-test"
+      },
+      "messageRead": {
+        "value": "aiao-fixed-clipboard-test"
+      }
+    }
+  ]
+}

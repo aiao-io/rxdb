@@ -96,7 +96,7 @@ test('清单校验：引擎要对得上、档位与原因必填、不重复', ()
 
 test('默认从入口旁的 baseline 目录读取限制清单，不依赖执行目录', () => {
   assert.deepEqual(loadLimitations('chromium'), []);
-  assert.ok(loadLimitations('firefox').some(item => item.key === 'integratedApp.keyboardReachesApp'));
+  assert.deepEqual(loadLimitations('firefox'), []);
 });
 
 test('定向运行只检查选中组的限制，未运行的组不算过期', () => {

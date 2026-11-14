@@ -65,9 +65,8 @@ export async function createSession({
   const aiaoCode = standins.includes('aiao-code') ? await installAiaoCodeStandin(context) : null;
   const game = standins.includes('game') ? await installGameStandin(context, origin) : null;
   const errors = [];
-  /** 新开一个页面，页面错误一律记进本检查组的 errors。 */
-  const openPage = async () => {
-    const opened = await context.newPage();
+  /** 页面错误一律记进本检查组的 errors；主动拦截外网产生的网络控制台信息按相同规则处理。 */
+  const observePage = opened => {
     opened.on('pageerror', error => errors.push(error.message));
     opened.on('console', message => {
       if (message.type() !== 'error' || IGNORED_CONSOLE.test(message.text())) return;
@@ -76,6 +75,7 @@ export async function createSession({
     });
     return opened;
   };
+  const openPage = async () => observePage(await context.newPage());
   const page = await openPage();
   const helpers = createHelpers(page);
   return {
@@ -92,6 +92,7 @@ export async function createSession({
     game,
     helpers,
     openPage,
+    observePage,
     /**
      * 新开一个页面并打开桌面（跳过开机动画）。多页或重开桌面的检查组用它；返回页面与绑定到该页面的常用操作。
      * `waitForFinder: false` 时只等页面加载，用于桌面起不来（例如本地数据有问题）的情形。

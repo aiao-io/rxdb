@@ -149,7 +149,7 @@ capabilities: []
 
 原始记录：[initial-comparison-final.json](../../evidence/2026-11-14/initial-comparison-final.json)、[animation-restore-green.json](../../evidence/2026-11-14/animation-restore-green.json)、[Chromium最终聚合检查](../../evidence/2026-11-14/chromium-verify.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
 
-AC#7 当前体积符合回溯数值对照，但基线是在实现之后重建测量，不能声称“实现前已记录”。阶段B因此保留评审，故事关闭还依赖 US-205；WebKit剪贴板读取授权与Firefox iframe焦点的证据缺口在US-005保留。
+AC#7 当前体积符合回溯数值对照，但基线是在实现之后重建测量，不能声称“实现前已记录”。阶段B因此保留评审，故事关闭还依赖 US-205；Firefox原iframe缺口已关闭；WebKit已获得读取授权，仍只有经Orbit的MessagePort读取未通过，该项在US-005保留，见[后续复验](../../evidence/2026-11-14/browser-followup.md)。
 
 ## References
 

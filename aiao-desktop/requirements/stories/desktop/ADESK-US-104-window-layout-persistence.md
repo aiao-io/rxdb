@@ -77,7 +77,7 @@ capabilities: []
 
 原始记录：[animation-restore-green.json](../../evidence/2026-11-14/animation-restore-green.json)、[Chromium最终聚合检查](../../evidence/2026-11-14/chromium-verify.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
 
-本故事的 Chromium AC 已通过；关闭条件仍依赖 US-008 与 US-206 完成。Firefox 的跨源替身刷新缺口保留在跨浏览器故事中，不宣称跨浏览器完整支持。
+本故事的 Chromium AC 已通过；关闭条件仍依赖 US-008 与 US-206 完成。Firefox同站不同源HTTPS组合的刷新、重新握手和51项布局检查也已通过，原失败见[跨浏览器后续复验](../../evidence/2026-11-14/browser-followup.md)；这不提前关闭US-005的WebKit保留项。
 
 ## References
 

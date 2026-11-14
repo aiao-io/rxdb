@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -5,6 +6,7 @@ import { join } from 'node:path';
 import { startArtifactServer } from '../fixtures/artifact-server.mjs';
 import { openPages } from '../fixtures/multi-page.mjs';
 import { createPersistentProfile } from '../fixtures/persistent-profile.mjs';
+import { installArtifactOrigin } from '../harness/artifact-origin.mjs';
 import { runGroup } from '../harness/runner.mjs';
 
 /** 写进 localStorage 与 OPFS 的标记；在页面里读回来。 */
@@ -124,6 +126,66 @@ async function checkArtifactSwitch(browser) {
   }
 }
 
+/** 同站不同源的 HTTPS 转送保留隔离、可信键盘输入、独立存储与刷新，避免 Firefox 跨站驱动缺口。 */
+async function checkArtifactOrigin(browser) {
+  const APP_ORIGIN = 'https://code.aiao.invalid';
+  const root = await mkdtemp(join(tmpdir(), 'aiao-artifact-origin-'));
+  await writeFile(
+    join(root, 'index.html'),
+    `<div id="host"></div><script src="/asset.js?check=relative"></script><script>
+      document.querySelector('#host').attachShadow({mode:'open'}).innerHTML =
+        '<iframe src="${APP_ORIGIN}" sandbox="allow-scripts allow-same-origin allow-forms allow-downloads" allow="cross-origin-isolated"></iframe>';
+    </script>`
+  );
+  await writeFile(join(root, 'asset.js'), 'window.assetLoaded = true;');
+  const site = await startArtifactServer({ root });
+  const context = await browser.newContext();
+  try {
+    await context.route('**/*', route => route.abort());
+    const artifact = await installArtifactOrigin(context, site.origin, APP_ORIGIN);
+    await context.route(`${APP_ORIGIN}/**`, route =>
+      route.fulfill({
+        headers: {
+          'Content-Type': 'text/html',
+          'Cross-Origin-Embedder-Policy': 'require-corp',
+          'Cross-Origin-Resource-Policy': 'cross-origin'
+        },
+        body: '<textarea id="input"></textarea>'
+      })
+    );
+    const page = await context.newPage();
+    await page.goto(artifact.origin);
+    const input = page.frameLocator('iframe').locator('#input');
+    await input.click();
+    await page.keyboard.type('cross-origin');
+    const keyboardReachesFrame = (await input.inputValue()) === 'cross-origin';
+    const hostIsolated = await page.evaluate(() => crossOriginIsolated);
+    const relativeAssetsServed = await page.evaluate(() => window.assetLoaded === true);
+    const child = page.frames().find(frame => frame.url().startsWith(APP_ORIGIN));
+    const childIsolated = await child.evaluate(() => crossOriginIsolated);
+    await page.evaluate(() => localStorage.setItem('artifact-origin-check', 'parent'));
+    const storageIsolated = (await child.evaluate(() => localStorage.getItem('artifact-origin-check'))) === null;
+    const resourceMappingKeepsQuery =
+      artifact.resourceUrl(`${artifact.origin}/asset.js?check=relative`) === `${site.origin}/asset.js?check=relative`;
+    assert.throws(() => artifact.resourceUrl('https://external.invalid/'), /请求不属于被测桌面/);
+    await page.reload({ timeout: 5_000 });
+    return {
+      crossOrigin: artifact.origin !== APP_ORIGIN,
+      crossOriginIsolated: hostIsolated && childIsolated,
+      keyboardReachesFrame,
+      storageIsolated,
+      relativeAssetsServed,
+      reloadKeepsStorage: (await page.evaluate(() => localStorage.getItem('artifact-origin-check'))) === 'parent',
+      resourceMappingKeepsQuery,
+      rejectsOtherSources: true
+    };
+  } finally {
+    await context.close();
+    site.close();
+    await rm(root, { recursive: true, force: true });
+  }
+}
+
 /** 前一个检查组写磁盘和系统设置，后一个检查组各自独立的上下文里看不到（AC#3）。 */
 const writer = {
   name: 'isolation-writer',
@@ -183,7 +245,8 @@ async function checkGroupIsolation(session) {
 export const fixtures = {
   name: 'fixtures',
   default: false,
-  description: '夹具自检（不验桌面行为）：检查组隔离、同上下文多页、持久 profile、新旧产物服务器',
+  description:
+    '夹具自检（不验桌面行为）：检查组隔离、同上下文多页、持久 profile、新旧产物服务器、同站不同源 HTTPS 转送',
   keys: [
     'groupIsolation.nextGroupSeesNoDiskChange',
     'groupIsolation.nextGroupSeesNoSettingChange',
@@ -192,14 +255,23 @@ export const fixtures = {
     'persistentProfile.dataSurvivesRestart',
     'artifactSwitch.servesSwitchedArtifact',
     'artifactSwitch.keepsOrigin',
-    'artifactSwitch.keepsStorage'
+    'artifactSwitch.keepsStorage',
+    'artifactOrigin.crossOrigin',
+    'artifactOrigin.crossOriginIsolated',
+    'artifactOrigin.keyboardReachesFrame',
+    'artifactOrigin.storageIsolated',
+    'artifactOrigin.relativeAssetsServed',
+    'artifactOrigin.reloadKeepsStorage',
+    'artifactOrigin.resourceMappingKeepsQuery',
+    'artifactOrigin.rejectsOtherSources'
   ],
   async run(session) {
     return {
       groupIsolation: await checkGroupIsolation(session),
       multiPage: await checkMultiPage(session.browser),
       persistentProfile: await checkPersistentProfile(session.engine),
-      artifactSwitch: await checkArtifactSwitch(session.browser)
+      artifactSwitch: await checkArtifactSwitch(session.browser),
+      artifactOrigin: await checkArtifactOrigin(session.browser)
     };
   }
 };

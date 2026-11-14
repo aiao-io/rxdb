@@ -1,8 +1,8 @@
 /**
- * Playwright 的 Firefox 限制的最小复现（ADESK-US-005）：页面里有一个由 `route.fulfill` 供应文档的跨源 iframe 时，
- * 这个页面无法刷新或导航（`page.reload` / `page.goto` 超时），与桌面代码无关——只有一个静态页面、一个 iframe。
- * `baseline/limitations-firefox.json` 里「带替身 iframe 的检查组」的限制引用它；Playwright 修好之后这个脚本会打印
- * `reload ok`，说明那些限制已经过期，要从清单里删掉。
+ * Playwright Firefox 跨站隔离 iframe 的最小诊断：静态 HTTP 桌面嵌入 HTTPS 替身时，
+ * `page.reload` / `page.goto` 超时。问题与桌面代码无关，但不能推广为所有跨源 iframe 都不可操作。
+ * 当前冒烟按生产部署使用同站、不同源的 HTTPS 桌面与 Aiao Code，原生输入、焦点和刷新均可验证。
+ * 该脚本保留跨站反例，不属于正常冒烟的限制豁免；以后驱动修复时可重测。
  *
  *   node src/fixtures/limitation-firefox-iframe.mjs
  */
@@ -38,9 +38,7 @@ try {
   const startedAt = Date.now();
   try {
     await page.reload({ waitUntil: 'load', timeout: 15_000 });
-    console.log(
-      `reload ok（${Date.now() - startedAt} 毫秒）：这个限制已经不存在，请更新 baseline/limitations-firefox.json`
-    );
+    console.log(`reload ok（${Date.now() - startedAt} 毫秒）：跨站驱动缺口已不再复现，可重新评估夹具来源关系`);
   } catch (error) {
     console.log(`reload 失败（${error.message.split('\n')[0]}）：限制仍然存在`);
     process.exitCode = 1;

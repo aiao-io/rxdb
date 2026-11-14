@@ -1,0 +1,6 @@
+
+> nx run aiao-desktop-e2e:e2e-firefox --args=--parallel=2 --report=/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/aiao-desktop/requirements/evidence/2026-11-14/firefox-final-3.json
+
+aiao-desktop-e2e: (node:37284) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-desktop-e2e: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-desktop-e2e: ✓ host-filesystem  47.9s

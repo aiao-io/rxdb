@@ -34,4 +34,4 @@ pnpm nx run aiao-desktop-e2e:verify-keyboard --args='--out=/Users/jimmy/Document
 
 ## 跨浏览器证据（待补齐）
 
-[US-005](../stories/platform/ADESK-US-005-cross-browser-smoke.md)保留Firefox跨源替身iframe输入/焦点/刷新与WebKit剪贴板授权的自动化缺口。现有报告的passed只代表没有清单外失败，clean才代表全部检查通过；“有限支持”清单标签本身不能代替入口禁用与说明。真实浏览器补证或明确产品降级需实际完成后再关闭，不把自动化驱动缺口伪装成产品禁用。
+[US-005](../stories/platform/ADESK-US-005-cross-browser-smoke.md)的Firefox四项旧限制已撤除，同站不同源HTTPS组合使用原生Frame验证输入、焦点、透明窗口与刷新。WebKit两轮均只保留经Orbit的MessagePort读取剪贴板：读取授权及宿主直接内容核对已经通过，仍不能冒充应用读取成功。原失败、最小对照和完整轮见[后续复验](../evidence/2026-11-14/browser-followup.md)。passed只代表没有清单外失败，clean才代表全部检查通过；“有限支持”清单标签本身不能代替入口禁用与说明。WebKit真实浏览器补证或符合AC的产品降级需实际完成后再关闭。

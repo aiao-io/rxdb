@@ -1,25 +1,13 @@
 {
   "browser": "Playwright WebKit（playwright 1.65）",
   "engine": "webkit",
-  "reviewedAt": "2026-11-14",
   "limitations": [
-    {
-      "kind": "check",
-      "key": "hostCapabilities.clipboardHoldsWrittenText",
-      "tier": "有限支持",
-      "reason": "Playwright WebKit 不支持通过 grantPermissions 配置 clipboard-read / clipboard-write。脚本读取系统剪贴板被浏览器拒绝，无法证明读取成功或核对内容；有手势写入成功、无手势写入被拒绝、读取权限拒绝的稳定错误码均已通过。此处是剪贴板授权实测缺口，不代表绕过权限或静默成功。"
-    },
     {
       "kind": "check",
       "key": "hostCapabilities.clipboardReadAfterGrant",
       "tier": "有限支持",
-      "reason": "Playwright WebKit 不支持通过 grantPermissions 配置 clipboard-read / clipboard-write。脚本读取系统剪贴板被浏览器拒绝，无法证明读取成功或核对内容；有手势写入成功、无手势写入被拒绝、读取权限拒绝的稳定错误码均已通过。此处是剪贴板授权实测缺口，不代表绕过权限或静默成功。"
-    },
-    {
-      "kind": "check",
-      "key": "hostCapabilities.clipboardUnchangedAfterDenial",
-      "tier": "有限支持",
-      "reason": "Playwright WebKit 不支持通过 grantPermissions 配置 clipboard-read / clipboard-write。脚本读取系统剪贴板被浏览器拒绝，无法证明读取成功或核对内容；有手势写入成功、无手势写入被拒绝、读取权限拒绝的稳定错误码均已通过。此处是剪贴板授权实测缺口，不代表绕过权限或静默成功。"
+      "reason": "WebKit 27.2 支持 clipboard-read 授权，直接读取宿主系统剪贴板及写入/拒写后的内容核对均通过；Orbit 经 MessagePort 请求宿主读取时仍得到 NotAllowedError。同一浏览器的独立最小实验中，window.postMessage 路径可读、MessagePort 路径在父来源、双来源和上下文整体授权后均被拒绝。此项是尚未关闭的跨协议读取缺口，未完成入口禁用的产品降级，不把直接读取通过冒充 Orbit 读取成功。"
     }
-  ]
+  ],
+  "reviewedAt": "2026-11-14"
 }

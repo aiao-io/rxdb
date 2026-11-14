@@ -398,9 +398,33 @@ export const multiTab = {
       await Promise.all([openInTextEdit(A, hA, name, 'orig'), openInTextEdit(B, hB, name, 'orig')]);
     };
     const failToSave = async () => {
+      await B.bringToFront();
+      await doc(B).click();
       await doc(B).fill('B-late-edit');
+      await doc(B).evaluate(node => {
+        window.__saveKeyEvents = [];
+        node.addEventListener('keydown', event =>
+          window.__saveKeyEvents.push({ key: event.key, meta: event.metaKey, prevented: event.defaultPrevented })
+        );
+      });
       await B.keyboard.press('Meta+s');
       const reason = await toastMatches(B, /can’t be saved because it was moved, renamed or deleted/);
+      if (!reason)
+        console.error(
+          '目标消失后保存诊断',
+          JSON.stringify(
+            await B.evaluate(async () => ({
+              locks: await navigator.locks.query(),
+              keys: window.__saveKeyEvents,
+              focused: document.hasFocus(),
+              toast: document.querySelector('#toast')?.textContent,
+              history: window.__toasts,
+              active: document.activeElement?.outerHTML,
+              text: document.querySelector('[data-te-doc]')?.textContent,
+              title: document.querySelector('[data-te-title]')?.textContent
+            }))
+          )
+        );
       await sleep(300);
       keepsContent.push(
         reason &&
@@ -443,8 +467,8 @@ export const multiTab = {
     await hA.win('diskutil').waitFor();
     await hA.win('diskutil').locator('[data-duerase]').click();
     await A.locator('.pop [data-e]').click();
+    await logInAfterRestart(A);
     await iconGone(A, 'gone-erase.txt', 30_000);
-    await sleep(2_500); // 抹掉是先清空再复制内置内容，等复制做完
     await iconIn(A, 'prasenx.txt', 30_000);
     wrote = Date.now();
     checks.tabsConvergeAfterFailedSaves = await within(
@@ -466,7 +490,6 @@ export const multiTab = {
     checks.failedSaveKeepsWindowContent = keepsContent.length === 3 && keepsContent.every(Boolean);
     checks.failedSaveCreatesNothing = createsNothing.length === 3 && createsNothing.every(Boolean);
     checks.databaseIntactAfterFailedSaves = await integrityOk(session);
-    await logInAfterRestart(A);
     await Promise.all(pages.map(([, helpers]) => helpers.closeAll()));
 
     /* AC#10：B 已打开备忘录，在 A 的备忘录新建一条并输入文字，B 的列表在同步时限内出现（应用数据与磁盘走同一条互通路径）。 */

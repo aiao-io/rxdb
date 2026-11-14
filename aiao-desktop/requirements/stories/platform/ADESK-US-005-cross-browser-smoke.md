@@ -76,7 +76,7 @@ Chromium、Firefox、WebKit 使用同一正式构建复测，窄屏与触屏仿�
 
 原始记录：[Chromium最终聚合检查](../../evidence/2026-11-14/chromium-verify.json)、[firefox-1.json](../../evidence/2026-11-14/firefox-1.json)、[firefox-2.json](../../evidence/2026-11-14/firefox-2.json)、[webkit-1.json](../../evidence/2026-11-14/webkit-1.json)、[webkit-2.json](../../evidence/2026-11-14/webkit-2.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
 
-Firefox 跨源替身 iframe 的键盘、焦点与刷新，以及 WebKit 剪贴板授权仍有自动化缺口；没有真实浏览器补证，也没有用入口禁用完成有限支持交付。两轮结果和每轮意外失败均在台账如实登记，不能声明全部检查项通过。
+后续复测已用同站不同源HTTPS夹具关闭Firefox的键盘、焦点、透明窗口与刷新旧限制，三个引擎都使用原生Frame。原整组豁免隐藏的视口外拖动、多页错误收集和保存前焦点前置条件也已修正，失败记录完整保留，见[后续复验](../../evidence/2026-11-14/browser-followup.md)。WebKit读取授权与系统内容核对已通过，两轮仍只有经Orbit的MessagePort读取失败；尚未完成真实Safari补证或入口禁用与原因说明，#1、#4、#5保持⚠️，不声明全部检查项通过。
 
 ## References
 

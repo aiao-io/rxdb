@@ -24,8 +24,8 @@ const PNG =
  *   不随窗口关闭撤回、单条与全部清除、键盘可操作、刷新后不保留（状态只在内存里）。
  *
  * 剪贴板的内容核对（`clipboardHoldsWrittenText`、`clipboardUnchangedAfterDenial`）与读取成功路径（`clipboardReadAfterGrant`）要读系统剪贴板，
- * 需要浏览器授予 `clipboard-read`：Playwright 只能给 Chromium 授权，Firefox 与 WebKit 在页面脚本读剪贴板时给的是自己的粘贴提示，
- * 所以这三项在那两个引擎上登记为已知限制（`baseline/limitations-<引擎>.json`）；写入是否被允许与被拒绝的结果在三个引擎上都验证。
+ * Chromium 申请读写权限，WebKit 只申请它支持的读取权限，Firefox 使用浏览器自己的权限机制。
+ * 授权与内容核对分别断言；宿主能直接读取不代表应用经过 Orbit 的读取已经成功。
  * 键盘检查用 Playwright 的键盘接口（可信的输入事件，不是真实键盘设备）。
  */
 export const hostCapabilities = {
@@ -138,21 +138,23 @@ export const hostCapabilities = {
     const readWithoutPermission = await call('clipboard.readText');
     hostCapabilities.clipboardReadDeniedWithoutPermission =
       readWithoutPermission.ok === false && readWithoutPermission.code === 'BROWSER_PERMISSION_DENIED';
-    /* Chromium 必须能授权；Firefox 与 WebKit 的 Playwright 不认这两个权限（它们靠自己的权限提示），授权失败不拖垮整组，
-     * 剪贴板读写在这两个引擎上的结果记在限制清单里（baseline/limitations-<引擎>.json）。 */
-    const granted = await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin }).then(
+    /* WebKit 只支持读取授权，写入依赖用户手势；Firefox 使用自己的权限机制。 */
+    const permissions = session.engine === 'webkit' ? ['clipboard-read'] : ['clipboard-read', 'clipboard-write'];
+    const granted = await context.grantPermissions(permissions, { origin }).then(
       () => true,
       error => error
     );
-    if (granted !== true && session.engine === 'chromium') throw granted;
+    if (granted !== true && session.engine !== 'firefox') throw granted;
     /* 一次真实的点击落在应用的 iframe 里：跨源 iframe 里的点击把用户激活传给宿主页面。 */
     const content = await vscodeWin.locator('.webapp').boundingBox();
     await page.mouse.click(content.x + 200, content.y + 120);
     const written = await call('clipboard.writeText', 'hello from the stand-in');
     hostCapabilities.clipboardWriteWithGesture = written.ok === true;
-    /* 内容读回来核对：页面脚本读系统剪贴板要浏览器授权，Playwright 只能给 Chromium 授权。 */
+    /* 内容读回来核对：页面脚本读取系统剪贴板需要浏览器授权。 */
     hostCapabilities.clipboardHoldsWrittenText = (await hostClipboard()) === 'hello from the stand-in';
+    await page.mouse.click(content.x + 200, content.y + 120);
     const readBack = await call('clipboard.readText');
+    if (!readBack.ok) console.error('剪贴板读取诊断', JSON.stringify({ permissions, granted, readBack }));
     hostCapabilities.clipboardReadAfterGrant = readBack.ok === true && readBack.value === 'hello from the stand-in';
     /* 没有用户手势：在应用里排一个 6.5 秒之后的写入（排它的那一刻带来的激活 5 秒后过期），期间不再有任何输入。 */
     await (

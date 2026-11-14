@@ -1,6 +1,6 @@
 # Aiao Desktop 状态总览
 
-2026-11-14 更新。状态真相源是故事 YAML；AC通过、故事关闭与线上发布分别记录。当前12条Done，10条In Review，功能实现已进入验收收尾。
+2026-11-14 更新。状态真相源是故事 YAML；AC通过、故事关闭与线上发布分别记录。当前12条Done，10条In Review，功能实现已进入验收收尾。Firefox旧限制已撤除，WebKit保留项收敛为Orbit剪贴板读取，见[后续复验](evidence/2026-11-14/browser-followup.md)；故事状态未提前关闭。
 
 ## 状态汇总
 

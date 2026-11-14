@@ -46,7 +46,7 @@ pnpm nx run aiao-desktop:verify
 
 它会跑需求门禁及其测试、密钥扫描及其测试、web 的 lint / typecheck / build / 逐文件覆盖率，以及 e2e 的 lint / 脚本测试 / 夹具自检 / Chromium 冒烟。单独跑冒烟用 `pnpm nx run aiao-desktop-e2e:e2e`，首次运行前要装好 Playwright 的 Chromium。冒烟覆盖的行为见 [ADESK-US-101](requirements/stories/desktop/ADESK-US-101-desktop-shell-baseline.md)。
 
-已立项需求的验收结果见[状态总览](requirements/status-overview.md)和[原始证据](requirements/evidence/2026-11-14/README.md)。当前源码已经包含应用目录与Dock管理、运行时懒加载、跨标签页同步、升级保护和布局恢复；真实键盘、VoiceOver、跨浏览器缺口及发布仍按故事保留，源码存在不代表已发布。
+已立项需求的验收结果见[状态总览](requirements/status-overview.md)和[原始证据](requirements/evidence/2026-11-14/README.md)。当前源码已经包含应用目录与Dock管理、运行时懒加载、跨标签页同步、升级保护和布局恢复；真实键盘、VoiceOver、跨浏览器缺口及发布仍按故事保留，源码存在不代表已发布。Firefox同站不同源HTTPS夹具已关闭四项旧限制；WebKit仍有一项经Orbit读取剪贴板的保留，详见[跨浏览器后续复验](requirements/evidence/2026-11-14/browser-followup.md)。
 
 本机专项验收入口：
 

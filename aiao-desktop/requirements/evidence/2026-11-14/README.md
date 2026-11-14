@@ -81,8 +81,12 @@ Firefox的[HTTP替身试验](firefox-network-standin.json)被产品的HTTPS登�
 
 试验夹具未解决问题，已从运行代码撤回；[完整试验补丁](firefox-network-experiment.patch)以6ed149a5为基线保留，便于复现，不作为通过证据。最终默认运行继续使用生产Origin的替身。
 
-[WebKit剪贴板独立试验](webkit-clipboard-probe.json)在独立持久上下文中只写入固定验收文本：手势写入成功、真实粘贴内容相符，但手势读取及粘贴后读取仍为NotAllowedError；没有绕过浏览器授权，既有三项读取缺口继续保留。
+[WebKit剪贴板独立试验](webkit-clipboard-probe.json)在独立持久上下文中只写入固定验收文本：手势写入成功、真实粘贴内容相符，但手势读取及粘贴后读取仍为NotAllowedError；没有绕过浏览器授权，当时三项读取缺口均保留；后续通过正确授权关闭其中两项，见下文。
 
 初始体积最终复测为原始1,204,287字节、逐文件gzip384,379字节（基线1,756,532/525,471字节），包含本轮启动台修复；此前[体积报告](initial-bytes.json)保留原始产物口径。体积减少不证明启动耗时，亦不消除实现前基线未记录的历史流程保留项。
 
 Firefox随后用本机有窗口模式[复验集成应用](firefox-headed-final.json)，仍是键盘未进入iframe这一项未通过；26项中的其余检查通过。passed=true仅表示没有清单外失败，clean=false，没有把有窗口模式写成完整支持。
+
+## 跨浏览器后续收敛
+
+[完整记录与逐轮表](browser-followup.md)保留Firefox第一轮和单组复现失败，记录同站不同源HTTPS来源模型、视口内拖动、统一错误收集及保存前显式切换标签页。Firefox原四项限制已撤除；新增夹具自检16项全过。WebKit已正确授予clipboard-read并验证宿主读取和内容核对，两轮仅余经Orbit的MessagePort读取未通过，未以清单标签冒充有限支持交付。

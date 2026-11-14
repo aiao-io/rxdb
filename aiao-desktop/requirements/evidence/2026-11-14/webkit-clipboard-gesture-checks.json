@@ -1,0 +1,119 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-14T04:45:07.348Z",
+  "source": {
+    "sha": "b99f85a234ac37d1b7e02df32d9f4a96644d3e61",
+    "changes": "M src/groups/host-capabilities.mjs\n M src/groups/window-layout.mjs\n M src/harness/standin.mjs\n?? ../../requirements/evidence/2026-11-14/firefox-site-origin-checks.json\n?? ../../requirements/evidence/2026-11-14/firefox-viewport-reachable-checks.json\n?? ../../requirements/evidence/2026-11-14/webkit-clipboard-read-only-checks.json"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "27.2",
+    "engine": "webkit",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "74a43cbe80fc3498d5e58a7e33693ef9b4be6a73e17b22099cb23a5667b7a192"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 1,
+    "groups": [
+      "host-capabilities"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 30.447788291000002,
+  "outcomes": [
+    {
+      "group": "host-capabilities",
+      "result": {
+        "hostCapabilities": {
+          "undeclaredNotificationDenied": true,
+          "denialShowsReasonInWindow": true,
+          "undeclaredFilesystemDenied": true,
+          "unauthorizedAppearanceWriteDenied": true,
+          "clipboardReadDeniedWithoutPermission": true,
+          "clipboardWriteWithGesture": true,
+          "clipboardHoldsWrittenText": true,
+          "clipboardReadAfterGrant": false,
+          "clipboardWriteWithoutGestureDenied": true,
+          "clipboardUnchangedAfterDenial": true,
+          "clipboardDenialIsForTheAppOnly": true,
+          "notificationAppearsInCentre": true,
+          "notificationAttributedToCaller": true,
+          "notificationSpoofRejected": true,
+          "notificationDedupeReplaces": true,
+          "notificationInvalidIconRejected": true,
+          "notificationSurvivesWindowClose": true,
+          "notificationKeyboardOperable": true,
+          "notificationClearAll": true,
+          "notificationRateLimited": true,
+          "notificationIconsShown": true,
+          "notificationNotKeptAcrossReload": true
+        }
+      },
+      "problems": [
+        "检查项未通过：hostCapabilities.clipboardReadAfterGrant = false"
+      ],
+      "failedKeys": [
+        "hostCapabilities.clipboardReadAfterGrant"
+      ],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 30.401376542
+    }
+  ],
+  "checks": {
+    "hostCapabilities": {
+      "undeclaredNotificationDenied": true,
+      "denialShowsReasonInWindow": true,
+      "undeclaredFilesystemDenied": true,
+      "unauthorizedAppearanceWriteDenied": true,
+      "clipboardReadDeniedWithoutPermission": true,
+      "clipboardWriteWithGesture": true,
+      "clipboardHoldsWrittenText": true,
+      "clipboardReadAfterGrant": false,
+      "clipboardWriteWithoutGestureDenied": true,
+      "clipboardUnchangedAfterDenial": true,
+      "clipboardDenialIsForTheAppOnly": true,
+      "notificationAppearsInCentre": true,
+      "notificationAttributedToCaller": true,
+      "notificationSpoofRejected": true,
+      "notificationDedupeReplaces": true,
+      "notificationInvalidIconRejected": true,
+      "notificationSurvivesWindowClose": true,
+      "notificationKeyboardOperable": true,
+      "notificationClearAll": true,
+      "notificationRateLimited": true,
+      "notificationIconsShown": true,
+      "notificationNotKeptAcrossReload": true
+    }
+  },
+  "limitations": {
+    "known": [
+      {
+        "kind": "check",
+        "key": "hostCapabilities.clipboardReadAfterGrant",
+        "tier": "有限支持",
+        "reason": "Playwright WebKit 不支持通过 grantPermissions 配置 clipboard-read / clipboard-write。脚本读取系统剪贴板被浏览器拒绝，无法证明读取成功或核对内容；有手势写入成功、无手势写入被拒绝、读取权限拒绝的稳定错误码均已通过。此处是剪贴板授权实测缺口，不代表绕过权限或静默成功。"
+      }
+    ],
+    "unexpected": [],
+    "stale": [
+      "限制已经过期（这一项已经通过，请从清单里删掉）：check hostCapabilities.clipboardHoldsWrittenText",
+      "限制已经过期（这一项已经通过，请从清单里删掉）：check hostCapabilities.clipboardUnchangedAfterDenial"
+    ]
+  },
+  "passed": false,
+  "clean": false
+}

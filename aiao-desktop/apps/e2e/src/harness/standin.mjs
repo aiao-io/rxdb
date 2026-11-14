@@ -42,40 +42,10 @@ const standinPage = (mode, ordinal) => `<!doctype html>
     </header>
     <textarea data-standin-input style="width: 90%; height: 120px"></textarea>
     <script type="module">
-      ${commandScript}
       ${mode === 'future' ? futureScript(ordinal) : mainScript(mode, ordinal)}
     </script>
   </body>
 </html>`;
-
-/**
- * 替身页的命令通道：父页面（桌面）经 `iframe.contentWindow.postMessage` 发 `{ standinCommand: { id, name, arg } }`，
- * 替身页回 `{ standinReply: id, outcome: { value } | { error } }`。Firefox 的 Playwright 够不到这个跨源 iframe 的执行环境
- * （`frame.evaluate` 一直报「Execution context was destroyed」），测试页只能经这条通道遥控替身（`standinProbe` 的 `proxyFrame`）；
- * Chromium 与 WebKit 直接用 Playwright 的 `Frame`，不走这里。
- */
-const commandScript = `
-      const commands = {
-        ping: () => window.standin?.kind === 'aiao-code',
-        evaluate: ({ source, arg }) => (0, eval)('(' + source + ')')(arg),
-        rect: selector => {
-          const node = document.querySelector(selector);
-          if (!node) return null;
-          const { x, y, width, height } = node.getBoundingClientRect();
-          return { x, y, width, height };
-        }
-      };
-      addEventListener('message', async event => {
-        const request = event.data?.standinCommand;
-        if (event.source !== parent || !request) return;
-        let outcome;
-        try {
-          outcome = { value: await commands[request.name](request.arg) };
-        } catch (error) {
-          outcome = { error: String(error?.message ?? error) };
-        }
-        parent.postMessage({ standinReply: request.id, outcome }, '*');
-      });`;
 
 /** 声明更高协议版本的应用：自己发握手，收到不兼容通知就记下来。 */
 const futureScript = ordinal => `
@@ -203,97 +173,12 @@ export async function installAiaoCodeStandin(context) {
   return standin;
 }
 
-/** 桌面页（主 frame）里 Aiao Code 窗口的 Orbit iframe 的位置：iframe 在 `aiao-orbit` 外壳的 shadow root 里。 */
-const IFRAME_BOX = 'aiao-orbit iframe';
-
-/**
- * 在桌面页里给当前的 Orbit iframe 登记一个令牌（旧实例的 iframe 被移除后，令牌仍认得它，只是它已不在文档里）。
- * 没有 iframe 返回 null。
- */
-function registerIframe(page) {
-  return page.evaluate(() => {
-    const iframe = document.querySelector('aiao-orbit')?.shadowRoot?.querySelector('iframe');
-    if (!iframe) return null;
-    window.__standinIframes ??= new Map();
-    for (const [token, known] of window.__standinIframes) if (known === iframe) return token;
-    const token = String(window.__standinIframes.size + 1);
-    window.__standinIframes.set(token, iframe);
-    return token;
-  });
-}
-
-/** 经命令通道给令牌对应的 iframe 发一条命令，等替身页的回复。 */
-function sendCommand(page, token, name, arg) {
-  return page.evaluate(
-    ([target, command, payload]) =>
-      new Promise(resolve => {
-        const iframe = window.__standinIframes?.get(target);
-        if (!iframe?.isConnected || !iframe.contentWindow) return resolve({ detached: true });
-        const id = crypto.randomUUID();
-        const done = outcome => {
-          removeEventListener('message', onReply);
-          clearTimeout(timer);
-          resolve(outcome);
-        };
-        const onReply = event => {
-          if (event.data?.standinReply === id) done(event.data.outcome);
-        };
-        const timer = setTimeout(() => done({ error: '替身页 5 秒内没有回复' }), 5_000);
-        addEventListener('message', onReply);
-        iframe.contentWindow.postMessage({ standinCommand: { id, name: command, arg: payload } }, '*');
-      }),
-    [token, name, arg]
-  );
-}
-
-/**
- * 经命令通道遥控替身页的 `Frame` 替身：只实现测试用到的那一小部分（`evaluate`、`isDetached`、
- * `locator(...).boundingBox() / click() / fill()`），语义与 Playwright 的 `Frame` 一致，所以检查组的写法不用分引擎。
- * 对已被移除的旧 iframe，`evaluate` 像 Playwright 的已分离 `Frame` 一样失败——迟到的消息物理上发不出去。
- */
-function proxyFrame(page, token) {
-  const run = async (name, arg) => {
-    const outcome = await sendCommand(page, token, name, arg);
-    if (outcome.detached) throw new Error('Frame was detached');
-    if ('error' in outcome) throw new Error(outcome.error);
-    return outcome.value;
-  };
-  /** 替身页视口里的矩形换算成桌面页的坐标。 */
-  const boxOf = async selector => {
-    const local = await run('rect', selector);
-    const frameBox = await page.locator(IFRAME_BOX).boundingBox();
-    return local && frameBox ? { ...local, x: frameBox.x + local.x, y: frameBox.y + local.y } : null;
-  };
-  return {
-    proxy: true,
-    evaluate: (action, arg) => run('evaluate', { source: action.toString(), arg }),
-    isDetached: async () => !(await page.evaluate(id => window.__standinIframes?.get(id)?.isConnected ?? false, token)),
-    locator: selector => ({
-      boundingBox: () => boxOf(selector),
-      async click() {
-        const box = await boxOf(selector);
-        await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-      },
-      /* 与 Playwright 的 `fill` 一样：直接设值并触发 input，不经键盘（键盘事件进不进跨源 iframe 是另一回事，由 `page.keyboard` 单独测）。 */
-      async fill(text) {
-        await run('evaluate', {
-          source:
-            "({ selector, text }) => { const node = document.querySelector(selector); node.focus(); node.value = text; node.dispatchEvent(new Event('input', { bubbles: true })); }",
-          arg: { selector, text }
-        });
-      }
-    })
-  };
-}
-
 /**
  * 读 Aiao Code 替身页里的状态：它的 iframe 与页面里记录的实例身份、可见性序列和输入框文字。
  *
  * iframe 按「页面里有没有替身的标记」找（遍历 `page.frames()`，在每个子 frame 里看 `window.standin.kind`），
- * **不看 `frame.url()`**：Firefox 对被 `route.fulfill` 的跨源 iframe 报空串。几猫3A大作的替身页也有 `window.standin`，
- * 所以要认标记，不能只认这个全局。Chromium 与 WebKit 拿到的是 Playwright 的 `Frame`；Firefox 的 Playwright 够不到这个
- * 跨源 iframe 的执行环境（`frame.evaluate` 报「Execution context was destroyed」、`contentFrame()` 报
- * `Permission denied … docShell`、`frameLocator` 数不到元素），退到命令通道，拿 {@link proxyFrame} 的替身对象。
+ * 不仅凭地址判断：几猫3A大作的替身页也有 `window.standin`，所以要认具体应用标记。
+ * 三个引擎都使用原生 Playwright `Frame`，不以替身命令或合成事件代替浏览器输入。
  *
  * - `frame()`：这个 iframe 的 `Frame`（找不到会等一会儿再抛错），写 `(await frame()).locator(...)`；
  * - `frameHandle()`：同一个 Frame，找不到时是 `undefined`（不抛错、不等待），测实例有没有出现、有没有被销毁时用；
@@ -308,10 +193,7 @@ export function standinProbe(page) {
       if (candidate === page.mainFrame()) continue;
       if (await candidate.evaluate(() => window.standin?.kind === 'aiao-code').catch(() => false)) return candidate;
     }
-    const token = await registerIframe(page);
-    if (token === null) return undefined;
-    const proxy = proxyFrame(page, token);
-    return (await proxy.evaluate(() => window.standin?.kind === 'aiao-code').catch(() => false)) ? proxy : undefined;
+    return undefined;
   };
   const frame = async (timeout = 5_000) => {
     const deadline = Date.now() + timeout;

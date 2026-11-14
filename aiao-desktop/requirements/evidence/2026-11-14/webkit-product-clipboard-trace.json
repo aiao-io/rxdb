@@ -1,0 +1,84 @@
+{
+  "measuredAt": "2026-11-14T04:50:11.728Z",
+  "method": "Diagnostic wrapper records browser Clipboard API results unchanged; original product and assertions retained",
+  "trace": [
+    {
+      "origin": "http://127.0.0.1:64755",
+      "focused": true,
+      "active": "AIAO-ORBIT",
+      "userActive": true,
+      "stack": "@web-inspector://bootstrap.js:35:179\nreadText@http://127.0.0.1:64755/chunk-B87XwQ0A.js:1:18075\nreadClipboard@http://127.0.0.1:64755/chunk-B87XwQ0A.js:1:25310\ncallAsync@http://127.0.0.1:64755/chunk-B87XwQ0A.js:1:22311",
+      "ok": false,
+      "error": "NotAllowedError",
+      "message": "The request is not allowed by the user agent or the platform in the current context, possibly because the user denied permission."
+    },
+    {
+      "origin": "http://127.0.0.1:64755",
+      "focused": true,
+      "active": "AIAO-ORBIT",
+      "userActive": true,
+      "stack": "@web-inspector://bootstrap.js:35:179\n@\nevaluate@\n@",
+      "ok": true,
+      "length": 23
+    },
+    {
+      "origin": "http://127.0.0.1:64755",
+      "focused": true,
+      "active": "AIAO-ORBIT",
+      "userActive": true,
+      "stack": "@web-inspector://bootstrap.js:35:179\nreadText@http://127.0.0.1:64755/chunk-B87XwQ0A.js:1:18075\nreadClipboard@http://127.0.0.1:64755/chunk-B87XwQ0A.js:1:25310\ncallAsync@http://127.0.0.1:64755/chunk-B87XwQ0A.js:1:22311",
+      "ok": false,
+      "error": "NotAllowedError",
+      "message": "The request is not allowed by the user agent or the platform in the current context, possibly because the user denied permission."
+    },
+    {
+      "origin": "http://127.0.0.1:64755",
+      "focused": true,
+      "active": "AIAO-ORBIT",
+      "userActive": true,
+      "stack": "@web-inspector://bootstrap.js:35:179\n@\nevaluate@\n@",
+      "ok": true,
+      "length": 23
+    }
+  ],
+  "outcome": {
+    "group": "host-capabilities",
+    "result": {
+      "hostCapabilities": {
+        "undeclaredNotificationDenied": true,
+        "denialShowsReasonInWindow": true,
+        "undeclaredFilesystemDenied": true,
+        "unauthorizedAppearanceWriteDenied": true,
+        "clipboardReadDeniedWithoutPermission": true,
+        "clipboardWriteWithGesture": true,
+        "clipboardHoldsWrittenText": true,
+        "clipboardReadAfterGrant": false,
+        "clipboardWriteWithoutGestureDenied": true,
+        "clipboardUnchangedAfterDenial": true,
+        "clipboardDenialIsForTheAppOnly": true,
+        "notificationAppearsInCentre": true,
+        "notificationAttributedToCaller": true,
+        "notificationSpoofRejected": true,
+        "notificationDedupeReplaces": true,
+        "notificationInvalidIconRejected": true,
+        "notificationSurvivesWindowClose": true,
+        "notificationKeyboardOperable": true,
+        "notificationClearAll": true,
+        "notificationRateLimited": true,
+        "notificationIconsShown": true,
+        "notificationNotKeptAcrossReload": true
+      }
+    },
+    "problems": [
+      "检查项未通过：hostCapabilities.clipboardReadAfterGrant = false"
+    ],
+    "failedKeys": [
+      "hostCapabilities.clipboardReadAfterGrant"
+    ],
+    "missingKeys": [],
+    "extraKeys": [],
+    "crashed": null,
+    "pageErrors": [],
+    "seconds": 29.938036916999998
+  }
+}

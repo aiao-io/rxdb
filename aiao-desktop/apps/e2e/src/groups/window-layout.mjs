@@ -12,7 +12,6 @@ import { createHelpers } from '../harness/helpers.mjs';
 const TAB_ID_KEY = 'aiao-desktop:tab-id';
 const LAYOUT_PREFIX = 'windows:layout:';
 const DAY = 24 * 60 * 60 * 1000;
-const IGNORED_CONSOLE = /Failed to load resource|ERR_FAILED/;
 
 /** 近似相等：像素取整与动画收尾会差一两个像素。 */
 const near = (a, b, tolerance = 3) => Math.abs(a - b) <= tolerance;
@@ -94,14 +93,6 @@ async function clickWindow(page, windowLocator) {
     }
   }
   throw new Error('窗口被完全盖住，点不到');
-}
-
-/** 把页面上的错误转进检查组的错误列表，与 `session.openPage` 一致（多页夹具开出来的页面没有这层）。 */
-function observe(session, page) {
-  page.on('pageerror', error => session.errors.push(error.message));
-  page.on('console', message => {
-    if (message.type() === 'error' && !IGNORED_CONSOLE.test(message.text())) session.errors.push(message.text());
-  });
 }
 
 /**
@@ -735,7 +726,10 @@ async function shrunkViewport({ session, result, origin }) {
   const { page, helpers } = await session.openDesktopPage();
   const { win } = helpers;
   const finder = win('finder').last();
-  await dragBy(page, await grabPoint(finder), 1200, 700);
+  const initial = await boxOf(finder);
+  const grab = await grabPoint(finder);
+  grab.x = initial.left + 100;
+  await dragBy(page, grab, 1200 - initial.left, 700 - initial.top);
   const edge = await boxOf(finder);
   const layout = await savedLayout(session, page, saved =>
     saved.windows.some(item => item.appId === 'finder' && item.box.left >= 1100)
@@ -760,7 +754,7 @@ async function shrunkViewport({ session, result, origin }) {
  */
 async function separateTabs({ session, result, origin }) {
   const [pageA, pageB] = await openPages(session.context, 2);
-  for (const page of [pageA, pageB]) observe(session, page);
+  for (const page of [pageA, pageB]) session.observePage(page);
   const url = `${origin}/?boot=0`;
   const helpersA = createHelpers(pageA);
   const helpersB = createHelpers(pageB);
@@ -810,7 +804,7 @@ async function separateTabs({ session, result, origin }) {
       .join() === 'finder,notes';
 
   const [pageC] = await openPages(session.context, 1);
-  observe(session, pageC);
+  session.observePage(pageC);
   await pageC.goto(url, { waitUntil: 'load' });
   await createHelpers(pageC).win('finder').waitFor();
   await pageC.waitForTimeout(1_500);
