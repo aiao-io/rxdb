@@ -141,3 +141,5 @@ pnpm nx run aiao-desktop-e2e:verify-aiao-code --desktop-url=https://aiao-desktop
 - **回滚**：在 Cloudflare 面板 Workers & Pages → aiao-desktop → Deployments 里选命令结尾打印的回滚点，Rollback to this deployment。回滚只换静态产物，不回滚浏览器里已升级的数据：数据升级过之后，先对照 [ADESK-US-106](requirements/stories/desktop/ADESK-US-106-database-upgrade-path.md) 的「回滚目标」表，早于降级保护的部署不能再作为回滚目标（[D-16](requirements/decisions.md#d-16发布到-cloudflare-pages一键发布命令)）。
 - **自定义域名**：在同一个项目的 Custom domains 里添加（Pages 没有对应的 CLI），绑定后下一次发布会自动核对它的入口页。`desktop.aiao.io` 已绑定；2026-11-14在真实Chrome配置中核对了同站项目与已有GitHub登录状态，记录见验收台账。换域名也换了桌面自己的 Origin：本地库、文件体与设置不会自动出现在新地址，旧地址上的数据原样留在旧地址（[ADESK-US-004](requirements/stories/platform/ADESK-US-004-custom-domain.md)）。
 - **发布前**：命令不重跑浏览器冒烟，完整门禁用 `pnpm nx run aiao-desktop:verify`。
+
+本次生产部署 `b093f8b2` 已上传并完成线上复验，入口为 `desktop.aiao.io` 与 `aiao-desktop.pages.dev`；原始发布下载超时及后续95文件完整核对见[发布收尾记录](requirements/evidence/2026-11-14/release-closeout.json)。当前20/22个已立项故事Done，剩余物理键盘与VoiceOver实际验收。

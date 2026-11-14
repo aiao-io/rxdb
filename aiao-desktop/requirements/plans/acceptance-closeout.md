@@ -34,8 +34,8 @@ pnpm nx run aiao-desktop-e2e:verify-keyboard --args='--out=/Users/jimmy/Document
 
 ## Chrome 范围（已按用户要求收敛）
 
-用户明确要求“只验收 chrome 就够了”，已按[D-19](../decisions.md#d-19只验收桌面-chrome)同步[US-005](../stories/platform/ADESK-US-005-cross-browser-smoke.md)、能力矩阵、README和台账。当前正式产物的Chromium两轮均为24组479项全部通过，窄屏与触屏仿真通过；真实Chrome的GPU与游戏记录单独归档。US-005当前AC全部通过，仍等待US-008硬依赖关闭。
+用户明确要求“只验收 chrome 就够了”，已按[D-19](../decisions.md#d-19只验收桌面-chrome)同步[US-005](../stories/platform/ADESK-US-005-cross-browser-smoke.md)、能力矩阵、README和台账。当前正式产物的Chromium两轮均为24组479项全部通过，窄屏与触屏仿真通过；真实Chrome的GPU与游戏记录单独归档。US-005当前AC与全部硬依赖已关闭。
 
 Safari、Firefox、WebKit均不在本轮必验或支持承诺内。[历史跨浏览器记录](../evidence/2026-11-14/browser-support.md)、[Safari后续验收](../evidence/2026-11-14/safari-product-followup.json)和[再次游戏检查](../evidence/2026-11-14/safari-game-probe.json)完整保留；未完成的Safari观察没有改写成通过。
 
-当前仍有5项AC待关闭：US-008 #10、US-206 #7的历史流程证据，US-107 #8物理键盘，US-108 #6 VoiceOver，以及US-004 #2本次正式发布。Chrome范围调整不豁免这些项目，见[范围调整记录](../evidence/2026-11-14/chrome-only-scope.json)。
+Chrome范围调整时曾有5项AC待关闭，见[历史范围调整记录](../evidence/2026-11-14/chrome-only-scope.json)。D-20已接受两项历史流程例外，本次正式发布与线上复验已完成；当前仅剩US-107 #8物理键盘与US-108 #6 VoiceOver，见[需求汇总](../evidence/2026-11-14/closeout-summary.json)。

@@ -132,7 +132,7 @@ Applications按清单投影，旧包补齐/重命名/下线及用户文件保留
 
 原始记录：[Chromium最终聚合检查](../../evidence/2026-11-14/chromium-verify.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
 
-阶段A～D的AC已通过；US-106已按 [D-20](../../decisions.md#d-20接受两项回溯基线例外并批准本次正式发布) 关闭，硬依赖满足，故事置Done。当前源码实现和本地正式构建验收不表示已发布。
+阶段A～D的AC已通过；US-106已按 [D-20](../../decisions.md#d-20接受两项回溯基线例外并批准本次正式发布) 关闭，硬依赖满足，故事置Done。本次产物已完成正式发布与线上复验，见[发布收尾记录](../../evidence/2026-11-14/release-closeout.json)。
 
 ## References
 

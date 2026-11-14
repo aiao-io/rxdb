@@ -4,6 +4,18 @@
 
 执行环境：Apple M1 Max、macOS/Darwin 27.2.0 arm64、Node 26.12.0、pnpm 12.16.1。各轮源码按报告source记录（涵盖 `0dcdabca`、`d95812da`、`0ccab7cf`、`6ed149a5`、`d49507e3`、`13d8a872` 及当时工作区改动）；本轮未执行生产发布。报告里的 ISO 时间为 UTC，本目录日期按 Asia/Shanghai。每份 JSON 保留实际浏览器版本、输入、逐项结果和产物摘要。
 
+## 本次授权、发布与当前余项
+
+- [D-20授权记录](closeout-approval.json)：用户在明确询问两项回溯基线例外与正式发布后回复“继续”，据上下文批准所列事项；不豁免物理键盘或VoiceOver。
+- [新发布演练](release-approved-dry-run-metadata.json)与[原始输出](release-approved-dry-run.txt)：97个文件、13.2MB，候选入口摘要未变。
+- [生产发布原始输出](release-production.txt)与[完整产物元数据](release-production-metadata.json)：生产部署`b093f8b2`已上传；两个生产入口通过，5个文件下载超时，原命令退出1。
+- [同一部署95个公开文件的只读复验](release-curl-reconciliation.json)：逐文件长度、摘要与跨源隔离头全部通过。带完整检查脚本的[原始输出](release-bounded-reverify.txt)还包含一次独立Chrome诊断的加载器错误，故包装器退出1；文件复验自身95/95通过。诊断脚本的加载器已修正，成功的单项目最终Chrome记录见下一项。没有重复上传。
+- [生产入口](release-entrypoints.json)、[双域名数据隔离](release-domain-storage.json)、[线上Aiao Code](release-aiao-code.json)与[检查汇总](release-postchecks.json)：入口通过，后两项各9项通过；Aiao Code以其原始`status: passed`字段判断，未伪造`passed`字段。
+- [真实Google Chrome入口原始响应](release-chrome-entry-provenance.json)与[最终命令元数据](release-chrome-provenance-final-metadata.json)：Chrome 157；自定义域名浏览器响应额外插入367字符的`static.cloudflareinsights.com`模块脚本，原HTML字符与主模块保留。
+- [发布收尾](release-closeout.json)：当前20条Done、2条In Review，仅剩真实物理键盘和VoiceOver。
+
+第一次只读Node复验超过预期运行时间后已中断，[日志](release-reverify.txt)与[元数据](release-reverify-metadata.json)保留；不能把中断当作完整测试结果。诊断过程中Nx exec默认包含依赖，部署列表与早期Chrome入口查询曾重复执行，均为只读，已停止；最终入口诊断显式排除依赖。旧的失败、重复与范围变更前的计数均保留为历史。
+
 ## 当前本地门禁
 
 [本轮聚合日志](verify-browser-support-3.txt)来自 `NX_NO_CLOUD=true pnpm nx run aiao-desktop:verify --skip-nx-cache --parallel=2 --output-style=static`：绕过缓存，含根目标在内 56 个任务、退出码 0，命令包装器实测 347.906 秒。92 个 web 测试文件的 1348 个用例、53 个 e2e 脚本用例、需求与开发/安全/发布脚本测试、lint、typecheck、build、16 项夹具自检和 92 个产物文本文件的密钥扫描均通过。开始与结束 SHA、真实工作区状态见[执行元数据](verify-browser-support-3-metadata.json)，不声明工作区干净。
