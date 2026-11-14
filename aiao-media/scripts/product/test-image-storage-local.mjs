@@ -26,19 +26,22 @@ function pngChunk(type, bytes) {
   checksum.writeUInt32BE(crc32(Buffer.concat([name, bytes])));
   return Buffer.concat([size, name, bytes, checksum]);
 }
-const dimensions = Buffer.alloc(13);
-dimensions.writeUInt32BE(1536, 0);
-dimensions.writeUInt32BE(1536, 4);
-dimensions[8] = 8;
-dimensions[9] = 2;
+function png(width, height, pixels) {
+  const dimensions = Buffer.alloc(13);
+  dimensions.writeUInt32BE(width, 0);
+  dimensions.writeUInt32BE(height, 4);
+  dimensions[8] = 8;
+  dimensions[9] = 2;
+  return Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    pngChunk('IHDR', dimensions),
+    pngChunk('IDAT', deflateSync(pixels)),
+    pngChunk('IEND', Buffer.alloc(0))
+  ]);
+}
 const pixels = randomBytes((1536 * 3 + 1) * 1536);
 for (let row = 0; row < 1536; row++) pixels[row * (1536 * 3 + 1)] = 0;
-const large = Buffer.concat([
-  Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
-  pngChunk('IHDR', dimensions),
-  pngChunk('IDAT', deflateSync(pixels)),
-  pngChunk('IEND', Buffer.alloc(0))
-]);
+const large = png(1536, 1536, pixels);
 assert.ok(large.length > 6 * 1024 * 1024 && large.length < 16 * 1024 * 1024);
 const jpeg = await readFile(resolve(root, 'apps/web/public/image-examples/ceramic.jpg'));
 const fixtures = { 'large.png': { bytes: large, mime: 'image/png' }, 'small.jpg': { bytes: jpeg, mime: 'image/jpeg' } };
@@ -183,13 +186,13 @@ try {
   const foreign = {
     apikey: environment.env.ANON_KEY,
     authorization: `Bearer ${users[1].session.access_token}`,
-    'content-type': 'image/jpeg',
+    'content-type': 'image/png',
     'x-upsert': 'true'
   };
   const overwrite = await fetch(`${environment.url}/storage/v1/object/aiao-media-images/${path}`, {
     method: 'POST',
     headers: foreign,
-    body: jpeg
+    body: png(1, 1, Buffer.from([0, 255, 0, 0]))
   });
   assert.equal(overwrite.ok, false, 'another account cannot overwrite the private original');
   const removed = await users[1].client.storage.from('aiao-media-images').remove([path]);

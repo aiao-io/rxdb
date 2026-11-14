@@ -17,8 +17,12 @@ interface AgentConfig {
 
 function configOf(env: AgentEnvironment): AgentConfig | null {
   const secret = env.TRIGGER_SECRET_KEY?.trim();
-  const apiUrl = env.TRIGGER_API_URL?.trim().replace(/\/+$/, '');
-  return secret && apiUrl ? { secret, apiUrl } : null;
+  const configuredUrl = env.TRIGGER_API_URL?.trim();
+  if (!secret || !configuredUrl) return null;
+  let end = configuredUrl.length;
+  while (end > 0 && configuredUrl[end - 1] === '/') end--;
+  const apiUrl = configuredUrl.slice(0, end);
+  return apiUrl ? { secret, apiUrl } : null;
 }
 
 function failure(type: string, message: string, status: number): Response {

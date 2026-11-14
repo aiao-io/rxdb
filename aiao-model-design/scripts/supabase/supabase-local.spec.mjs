@@ -1,11 +1,21 @@
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
-import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdtemp, open, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { parseEnv } from 'node:util';
 import { initializeEnvironment, localEnvironment, supabaseRolePasswordSql } from './supabase-local.mjs';
+
+async function readPrivateFile(file) {
+  const handle = await open(file, 'r');
+  try {
+    assert.equal((await handle.stat()).mode & 0o777, 0o600);
+    return await handle.readFile('utf8');
+  } finally {
+    await handle.close();
+  }
+}
 
 const SECRETS = {
   POSTGRES_PASSWORD: 'fixture-password',
@@ -43,15 +53,14 @@ function verifiedClaims(token, secret) {
 test('首次初始化生成仅本人可读的随机凭据，再次初始化原样保留', async t => {
   const envFile = path.join(await directory(t), '.env');
   assert.equal(await initializeEnvironment(envFile), 'created');
-  const first = await readFile(envFile, 'utf8');
-  assert.equal((await stat(envFile)).mode & 0o777, 0o600);
+  const first = await readPrivateFile(envFile);
   const env = parseEnv(first);
   assert.deepEqual(Object.keys(env).sort(), ['ANON_KEY', 'JWT_SECRET', 'POSTGRES_PASSWORD', 'SERVICE_ROLE_KEY']);
   assert.equal(verifiedClaims(env.ANON_KEY, env.JWT_SECRET).role, 'anon');
   assert.equal(verifiedClaims(env.SERVICE_ROLE_KEY, env.JWT_SECRET).role, 'service_role');
 
   assert.equal(await initializeEnvironment(envFile), 'kept');
-  assert.equal(await readFile(envFile, 'utf8'), first);
+  assert.equal(await readPrivateFile(envFile), first);
   const second = path.join(path.dirname(envFile), 'second.env');
   await initializeEnvironment(second);
   assert.notEqual(parseEnv(await readFile(second, 'utf8')).JWT_SECRET, env.JWT_SECRET);

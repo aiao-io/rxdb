@@ -1,3 +1,5 @@
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AGENT_TASK, agentConfig, startAgentSession, type AgentEnvironment } from './agent-session';
 
@@ -27,6 +29,23 @@ afterEach(() => {
 });
 
 describe('agentConfig', () => {
+  it('大量非末尾斜杠仍可在有界时间内处理，保留路径并移除末尾斜杠', async () => {
+    const probe = `
+      import assert from 'node:assert/strict';
+      const { agentConfig } = await import(process.argv[1]);
+      const path = 'https://trigger.example.com/' + '/'.repeat(1_000_000) + 'segment';
+      const response = agentConfig({ TRIGGER_SECRET_KEY: 'fixture-secret', TRIGGER_API_URL: path + '////' });
+      assert.equal((await response.json()).apiUrl, path);
+    `;
+    await promisify(execFile)(
+      process.execPath,
+      ['--input-type=module', '--eval', probe, new URL('./agent-session.ts', import.meta.url).href],
+      {
+        timeout: 5000
+      }
+    );
+  }, 10000);
+
   it('配置齐全时返回实例地址与任务 ID，不含密钥', async () => {
     const response = agentConfig(env);
     expect(response.headers.get('cache-control')).toBe('no-store');

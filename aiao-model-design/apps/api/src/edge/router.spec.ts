@@ -21,14 +21,15 @@ const post = (path: string, body: unknown, headers: Record<string, string> = {})
     body: JSON.stringify(body)
   });
 const run = (req: Request, config = env) => routeRequest(req, config);
-const triggerCalls = () => upstream.mock.calls.filter(([url]) => String(url).startsWith('https://trigger.example.com'));
+const triggerCalls = () =>
+  upstream.mock.calls.filter(([url]) => String(url) === 'https://trigger.example.com/api/v1/sessions');
 
 beforeEach(() => {
   vi.resetAllMocks();
   vi.stubGlobal('fetch', upstream);
   assets.mockImplementation(async () => new Response('frontend'));
   upstream.mockImplementation(async input =>
-    String(input).startsWith('https://trigger.example.com') ?
+    String(input) === 'https://trigger.example.com/api/v1/sessions' ?
       Response.json({ publicAccessToken: 'session-pat' })
     : Response.json(user)
   );
@@ -122,7 +123,7 @@ describe('只暴露智能体会话签发和必要认证', () => {
   });
   it('实例故障不泄漏内部信息', async () => {
     upstream.mockImplementation(async input => {
-      if (String(input).startsWith('https://trigger.example.com')) throw new Error('private-key-details');
+      if (String(input) === 'https://trigger.example.com/api/v1/sessions') throw new Error('private-key-details');
       return Response.json(user);
     });
     const response = await run(post('/api/agent/session', { chatId }, { cookie: 'access_token=user-jwt' }));

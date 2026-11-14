@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, open, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
@@ -7,6 +7,16 @@ import { parseEnv } from 'node:util';
 import { renderDashboard, writeDevelopmentConfig } from './prepare-dev.mjs';
 import { developmentAccounts } from './seed-accounts.mjs';
 import { webUrl } from './services.mjs';
+
+async function readPrivateFile(file) {
+  const handle = await open(file, 'r');
+  try {
+    assert.equal((await handle.stat()).mode & 0o777, 0o600);
+    return await handle.readFile('utf8');
+  } finally {
+    await handle.close();
+  }
+}
 
 const config = {
   $schema: './node_modules/wrangler/config-schema.json',
@@ -69,8 +79,7 @@ test('Worker 的本地配置与密钥只写进忽略的 local-dev 目录，导�
     assets: { ...config.assets, directory: assets, html_handling: 'auto-trailing-slash', not_found_handling: 'none' }
   });
 
-  const homepage = await readFile(path.join(assets, 'index.html'), 'utf8');
-  assert.equal((await stat(path.join(assets, 'index.html'))).mode & 0o777, 0o600);
+  const homepage = await readPrivateFile(path.join(assets, 'index.html'));
   assert.match(homepage, /<title>Aiao Model Design 开发导航<\/title>/);
   for (const href of [
     `${webUrl}/model-designer/canvas`,
@@ -93,7 +102,7 @@ test('Worker 的本地配置与密钥只写进忽略的 local-dev 目录，导�
   assert.match(await readFile(path.join(assets, '_headers'), 'utf8'), /Cache-Control: no-store/);
 
   assert.deepEqual(
-    { ...parseEnv(await readFile(secrets, 'utf8')) },
+    { ...parseEnv(await readPrivateFile(secrets)) },
     {
       SUPABASE_URL: local.url,
       SUPABASE_ANON_KEY: local.env.ANON_KEY,
@@ -101,7 +110,6 @@ test('Worker 的本地配置与密钥只写进忽略的 local-dev 目录，导�
       TRIGGER_SECRET_KEY: deployed.secretKey
     }
   );
-  assert.equal((await stat(secrets)).mode & 0o777, 0o600);
   assert.ok(!JSON.stringify(generated).includes(deployed.secretKey));
   assert.equal(await readFile(path.join(api, '.dev.vars'), 'utf8'), 'SUPABASE_URL="https://remote.supabase.co"\n');
   assert.deepEqual(JSON.parse(await readFile(path.join(api, 'wrangler.jsonc'), 'utf8')), config);
@@ -110,17 +118,13 @@ test('Worker 的本地配置与密钥只写进忽略的 local-dev 目录，导�
     local: { ...local, env: { ...local.env, ANON_KEY: 'rotated-anon-key' } },
     agent: deployed
   });
-  assert.equal(parseEnv(await readFile(secrets, 'utf8')).SUPABASE_ANON_KEY, 'rotated-anon-key');
-  assert.equal((await stat(secrets)).mode & 0o777, 0o600);
+  assert.equal(parseEnv(await readPrivateFile(secrets)).SUPABASE_ANON_KEY, 'rotated-anon-key');
 });
 
 test('AI 未启用时 Worker 拿不到 Trigger.dev 配置，导航页说明怎么开启', async t => {
   const { root, localDev, secrets } = await product(t);
   await writeDevelopmentConfig(root, { local, agent: { mode: 'disabled' } });
-  assert.deepEqual(Object.keys(parseEnv(await readFile(secrets, 'utf8'))).sort(), [
-    'SUPABASE_ANON_KEY',
-    'SUPABASE_URL'
-  ]);
+  assert.deepEqual(Object.keys(parseEnv(await readPrivateFile(secrets))).sort(), ['SUPABASE_ANON_KEY', 'SUPABASE_URL']);
   const homepage = await readFile(path.join(localDev, 'assets/index.html'), 'utf8');
   assert.ok(homepage.includes('data-agent="disabled"'));
   assert.ok(homepage.includes('apps/api/.dev.vars'));
