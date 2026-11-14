@@ -1,8 +1,8 @@
 import { expect, test, type Download, type Page } from '@playwright/test';
-import { SCOOTER_SEED_ROWS, acceptDialog, openDetails, revealDetails } from './support';
+import { overviewPath, SCOOTER_SEED_ROWS, acceptDialog, openDetails, revealDetails } from './support';
 
 const prepare = async (page: Page): Promise<void> => {
-  await page.goto('/');
+  await page.goto(overviewPath);
   await acceptDialog(page, () => page.getByTestId('prepare-data').click());
   await expect(page.getByTestId('overview-data-status')).toContainText(`已有 ${SCOOTER_SEED_ROWS.item} 项物料`, {
     timeout: 30000

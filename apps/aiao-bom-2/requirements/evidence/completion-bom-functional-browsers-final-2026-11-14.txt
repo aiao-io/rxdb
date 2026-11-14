@@ -1,0 +1,138 @@
+
+> nx run aiao-bom-2-e2e:e2e --args=workspace.spec.ts revisions.spec.ts migration.spec.ts domain-draft.spec.ts compatibility.spec.ts
+
+aiao-bom-2-e2e: (node:31310) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2-e2e: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2-e2e: [WebServer] (node:31327) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2-e2e: [WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2-e2e: [WebServer] (node:31336) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2-e2e: [WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2-e2e: Running 13 tests using 1 worker
+aiao-bom-2-e2e: (node:31346) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2-e2e: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2-e2e: [1/13] [chromium] › src/compatibility.spec.ts:3:1 › 浏览器兼容：真实主清单、平铺搜索、375px 导航与 SQLite 领域入口
+aiao-bom-2-e2e:   1) [chromium] › src/compatibility.spec.ts:3:1 › 浏览器兼容：真实主清单、平铺搜索、375px 导航与 SQLite 领域入口 ───────────
+aiao-bom-2-e2e:     Error: expect(locator).toBeFocused() failed
+aiao-bom-2-e2e:     Locator:  locator('button[aria-controls=bom-navigation]')
+aiao-bom-2-e2e:     Expected: focused
+aiao-bom-2-e2e:     Received: inactive
+aiao-bom-2-e2e:     Timeout:  15000ms
+aiao-bom-2-e2e:     Call log:
+aiao-bom-2-e2e:       - Expect "toBeFocused" locator('button[aria-controls=bom-navigation]') with timeout 15000ms
+aiao-bom-2-e2e:       - waiting for locator('button[aria-controls=bom-navigation]')
+aiao-bom-2-e2e:         34 × locator resolved to <button aria-label="关闭导航" aria-expanded="true" class="navigation-toggle" _ngcontent-ng-c686764860="" aria-controls="bom-navigation">…</button>
+aiao-bom-2-e2e:            - unexpected value "inactive"
+aiao-bom-2-e2e:       18 |   const toggle = page.locator('button[aria-controls=bom-navigation]'); await toggle.click();
+aiao-bom-2-e2e:       19 |   await expect(page.locator('#bom-navigation')).toBeVisible(); await page.keyboard.press('Escape');
+aiao-bom-2-e2e:     > 20 |   await expect(toggle).toBeFocused();
+aiao-bom-2-e2e:          |                        ^
+aiao-bom-2-e2e:       21 |   await page.goto('/transfer'); await expect(page.getByRole('button', { name: '下载完整领域备份', exact: true })).toBeEnabled();
+aiao-bom-2-e2e:       22 |   await info.attach(`${browserName}-compatibility.json`, { body: JSON.stringify({ browser: browserName, userAgent: await page.evaluate(() => navigator.userAgent), isolated: await page.evaluate(() => crossOriginIsolated), errors }), contentType: 'application/json' });
+aiao-bom-2-e2e:       23 |   expect(errors).toEqual([]);
+aiao-bom-2-e2e:         at /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2-e2e/src/compatibility.spec.ts:20:24
+aiao-bom-2-e2e:     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+aiao-bom-2-e2e:     test-output/playwright/output/compatibility-浏览器兼容：真实主清单、平铺搜索、375px-导航与-SQLite-领域入口-chromium/test-failed-1.png
+aiao-bom-2-e2e:     ────────────────────────────────────────────────────────────────────────────────────────────────
+aiao-bom-2-e2e:     Error Context: test-output/playwright/output/compatibility-浏览器兼容：真实主清单、平铺搜索、375px-导航与-SQLite-领域入口-chromium/error-context.md
+aiao-bom-2-e2e:     attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+aiao-bom-2-e2e:     test-output/playwright/output/compatibility-浏览器兼容：真实主清单、平铺搜索、375px-导航与-SQLite-领域入口-chromium/trace.zip
+aiao-bom-2-e2e:     Usage:
+aiao-bom-2-e2e:         pnpm exec playwright show-trace test-output/playwright/output/compatibility-浏览器兼容：真实主清单、平铺搜索、375px-导航与-SQLite-领域入口-chromium/trace.zip
+aiao-bom-2-e2e:     ────────────────────────────────────────────────────────────────────────────────────────────────
+aiao-bom-2-e2e: (node:31560) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2-e2e: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2-e2e: [2/13] [chromium] › src/domain-draft.spec.ts:3:1 › 已确认的真实物料草稿可进入领域库、刷新重开并校验发布
+aiao-bom-2-e2e: [3/13] [chromium] › src/migration.spec.ts:28:1 › 旧版完整库备份迁入新版，草稿、Decimal、ECN、换件历史不丢失并可回退
+aiao-bom-2-e2e: [4/13] [chromium] › src/revisions.spec.ts:29:1 › 完整结构版本保存、改量差异、重开恢复、导出与独立工作区重入
+aiao-bom-2-e2e: [5/13] [chromium] › src/revisions.spec.ts:85:1 › 窄屏版本对话框不溢出，跨结构选择显示错误且不损坏主表
+aiao-bom-2-e2e: [6/13] [chromium] › src/revisions.spec.ts:102:1 › 另一个标签页的过期目录不能覆盖同身份快照
+aiao-bom-2-e2e: [7/13] [chromium] › src/workspace.spec.ts:17:1 › 真实数据、范围导航、搜索祖先与三种视图
+aiao-bom-2-e2e: [8/13] [chromium] › src/workspace.spec.ts:36:1 › 草稿编辑、撤销重做、刷新恢复、差异与 JSON 重入
+aiao-bom-2-e2e: [9/13] [chromium] › src/workspace.spec.ts:70:1 › 非法导入与模型失败可见，表格仍可操作
+aiao-bom-2-e2e: [10/13] [chromium] › src/workspace.spec.ts:81:1 › 真实整车模型完成解码，表格与模型双向定位
+aiao-bom-2-e2e: [11/13] [chromium] › src/workspace.spec.ts:101:1 › 375px 窄屏搜索、面板开合与键盘路径可用
+aiao-bom-2-e2e: (node:32149) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2-e2e: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2-e2e: [12/13] [firefox] › src/compatibility.spec.ts:3:1 › 浏览器兼容：真实主清单、平铺搜索、375px 导航与 SQLite 领域入口
+aiao-bom-2-e2e:   2) [firefox] › src/compatibility.spec.ts:3:1 › 浏览器兼容：真实主清单、平铺搜索、375px 导航与 SQLite 领域入口 ────────────
+aiao-bom-2-e2e:     Error: expect(locator).toBeFocused() failed
+aiao-bom-2-e2e:     Locator:  locator('button[aria-controls=bom-navigation]')
+aiao-bom-2-e2e:     Expected: focused
+aiao-bom-2-e2e:     Received: inactive
+aiao-bom-2-e2e:     Timeout:  15000ms
+aiao-bom-2-e2e:     Call log:
+aiao-bom-2-e2e:       - Expect "toBeFocused" locator('button[aria-controls=bom-navigation]') with timeout 15000ms
+aiao-bom-2-e2e:       - waiting for locator('button[aria-controls=bom-navigation]')
+aiao-bom-2-e2e:         33 × locator resolved to <button aria-label="关闭导航" aria-expanded="true" class="navigation-toggle" _ngcontent-ng-c686764860="" aria-controls="bom-navigation">…</button>
+aiao-bom-2-e2e:            - unexpected value "inactive"
+aiao-bom-2-e2e:       18 |   const toggle = page.locator('button[aria-controls=bom-navigation]'); await toggle.click();
+aiao-bom-2-e2e:       19 |   await expect(page.locator('#bom-navigation')).toBeVisible();
+aiao-bom-2-e2e:     > 20 |   await expect(page.locator('#bom-navigation a[aria-current=page]')).toBeFocused();
+aiao-bom-2-e2e:          |                        ^
+aiao-bom-2-e2e:       21 |   await page.keyboard.press('Escape');
+aiao-bom-2-e2e:       22 |   await expect(toggle).toBeFocused();
+aiao-bom-2-e2e:       23 |   await page.goto('/transfer'); await expect(page.getByRole('button', { name: '下载完整领域备份', exact: true })).toBeEnabled();
+aiao-bom-2-e2e:         at /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2-e2e/src/compatibility.spec.ts:20:24
+aiao-bom-2-e2e:     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+aiao-bom-2-e2e:     test-output/playwright/output/compatibility-浏览器兼容：真实主清单、平铺搜索、375px-导航与-SQLite-领域入口-firefox/test-failed-1.png
+aiao-bom-2-e2e:     ────────────────────────────────────────────────────────────────────────────────────────────────
+aiao-bom-2-e2e:     Error Context: test-output/playwright/output/compatibility-浏览器兼容：真实主清单、平铺搜索、375px-导航与-SQLite-领域入口-firefox/error-context.md
+aiao-bom-2-e2e:     attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+aiao-bom-2-e2e:     test-output/playwright/output/compatibility-浏览器兼容：真实主清单、平铺搜索、375px-导航与-SQLite-领域入口-firefox/trace.zip
+aiao-bom-2-e2e:     Usage:
+aiao-bom-2-e2e:         pnpm exec playwright show-trace test-output/playwright/output/compatibility-浏览器兼容：真实主清单、平铺搜索、375px-导航与-SQLite-领域入口-firefox/trace.zip
+aiao-bom-2-e2e:     ────────────────────────────────────────────────────────────────────────────────────────────────
+aiao-bom-2-e2e: (node:32465) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2-e2e: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2-e2e: [13/13] [webkit] › src/compatibility.spec.ts:3:1 › 浏览器兼容：真实主清单、平铺搜索、375px 导航与 SQLite 领域入口
+aiao-bom-2-e2e:   3) [webkit] › src/compatibility.spec.ts:3:1 › 浏览器兼容：真实主清单、平铺搜索、375px 导航与 SQLite 领域入口 ─────────────
+aiao-bom-2-e2e:     Error: expect(locator).toBeFocused() failed
+aiao-bom-2-e2e:     Locator:  locator('button[aria-controls=bom-navigation]')
+aiao-bom-2-e2e:     Expected: focused
+aiao-bom-2-e2e:     Received: inactive
+aiao-bom-2-e2e:     Timeout:  15000ms
+aiao-bom-2-e2e:     Call log:
+aiao-bom-2-e2e:       - Expect "toBeFocused" locator('button[aria-controls=bom-navigation]') with timeout 15000ms
+aiao-bom-2-e2e:       - waiting for locator('button[aria-controls=bom-navigation]')
+aiao-bom-2-e2e:         33 × locator resolved to <button aria-label="关闭导航" aria-expanded="true" class="navigation-toggle" _ngcontent-ng-c686764860="" aria-controls="bom-navigation">…</button>
+aiao-bom-2-e2e:            - unexpected value "inactive"
+aiao-bom-2-e2e:       18 |   const toggle = page.locator('button[aria-controls=bom-navigation]'); await toggle.click();
+aiao-bom-2-e2e:       19 |   await expect(page.locator('#bom-navigation')).toBeVisible();
+aiao-bom-2-e2e:     > 20 |   await expect(page.locator('#bom-navigation a[aria-current=page]')).toBeFocused();
+aiao-bom-2-e2e:          |                        ^
+aiao-bom-2-e2e:       21 |   await page.keyboard.press('Escape');
+aiao-bom-2-e2e:       22 |   await expect(toggle).toBeFocused();
+aiao-bom-2-e2e:       23 |   await page.goto('/transfer'); await expect(page.getByRole('button', { name: '下载完整领域备份', exact: true })).toBeEnabled();
+aiao-bom-2-e2e:         at /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2-e2e/src/compatibility.spec.ts:20:24
+aiao-bom-2-e2e:     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+aiao-bom-2-e2e:     test-output/playwright/output/compatibility-浏览器兼容：真实主清单、平铺搜索、375px-导航与-SQLite-领域入口-webkit/test-failed-1.png
+aiao-bom-2-e2e:     ────────────────────────────────────────────────────────────────────────────────────────────────
+aiao-bom-2-e2e:     Error Context: test-output/playwright/output/compatibility-浏览器兼容：真实主清单、平铺搜索、375px-导航与-SQLite-领域入口-webkit/error-context.md
+aiao-bom-2-e2e:     attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+aiao-bom-2-e2e:     test-output/playwright/output/compatibility-浏览器兼容：真实主清单、平铺搜索、375px-导航与-SQLite-领域入口-webkit/trace.zip
+aiao-bom-2-e2e:     Usage:
+aiao-bom-2-e2e:         pnpm exec playwright show-trace test-output/playwright/output/compatibility-浏览器兼容：真实主清单、平铺搜索、375px-导航与-SQLite-领域入口-webkit/trace.zip
+aiao-bom-2-e2e:     ────────────────────────────────────────────────────────────────────────────────────────────────
+aiao-bom-2-e2e:   3 failed
+aiao-bom-2-e2e:     [chromium] › src/compatibility.spec.ts:3:1 › 浏览器兼容：真实主清单、平铺搜索、375px 导航与 SQLite 领域入口 ────────────
+aiao-bom-2-e2e:     [firefox] › src/compatibility.spec.ts:3:1 › 浏览器兼容：真实主清单、平铺搜索、375px 导航与 SQLite 领域入口 ─────────────
+aiao-bom-2-e2e:     [webkit] › src/compatibility.spec.ts:3:1 › 浏览器兼容：真实主清单、平铺搜索、375px 导航与 SQLite 领域入口 ──────────────
+aiao-bom-2-e2e:   10 passed (2.5m)
+
+
+
+ NX   Running target e2e for project aiao-bom-2-e2e failed
+
+Failed tasks:
+
+- aiao-bom-2-e2e:e2e
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      2m 32s
+  Critical path:     2m 32s (1 task)
+  Recoverable time:  <1ms
+
+  Recommendations:
+    - Speed up or split the longest tasks on the critical path:
+        aiao-bom-2-e2e:e2e    2m 32s

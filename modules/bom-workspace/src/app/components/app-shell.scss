@@ -400,6 +400,7 @@
   .navigation-open .sidebar {
     visibility: visible;
     transform: translateX(0);
+    transition: transform 160ms;
   }
 
   .navigation-toggle {

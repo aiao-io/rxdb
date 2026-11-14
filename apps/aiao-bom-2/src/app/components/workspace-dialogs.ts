@@ -5,6 +5,8 @@ import { compareDrafts, exportCsv, validateDraft } from '../core/draft';
 import { analyzeDraft } from '../core/analysis';
 import type { DraftState } from '../core/types';
 import { Icon } from './icon';
+import { prepareDomainDraft } from '../core/domain-export';
+import { WorkspaceRepository } from '../core/storage';
 import { VersionPanel } from './version-panel';
 export type DialogKind = 'help' | 'sources' | 'fork' | 'import' | 'export' | 'edit' | 'add' | 'move' | 'remove' | 'validate' | 'analysis' | 'compare' | 'revision' | 'stress';
 const TITLES: Record<DialogKind, string> = { help: 'BOM 工作台使用说明', sources: '数据来源与使用口径', fork: '建立工作草稿', import: '导入 BOM 草稿', export: '导出当前数据', edit: '编辑所选发生项', add: '新增发生项', move: '移动发生项', remove: '删除所选发生项', validate: '草稿校验', analysis: '需求展开与成本', compare: '草稿差异比较', revision: '版本快照与日期比较', stress: '大规模 BOM 验收' };
@@ -21,12 +23,13 @@ export class WorkspaceDialogs {
   readonly differences = computed(() => this.ws.draft() && this.ws.baseline() ? compareDrafts(this.ws.baseline()!, this.ws.draft()!) : []);
   readonly parents = computed(() => this.ws.draft()?.nodes.filter(n => n.key !== this.ws.selection()).slice(0, 1500) ?? []);
   readonly busy = signal(false);
+  readonly today = new Date().toLocaleDateString('en-CA');
   open(kind: DialogKind): void {
     this.kind.set(kind); this.error.set(''); this.preview.set(null); this.analysis.set(null);
     this.dialog().nativeElement.showModal();
     if (kind === 'revision' && this.ws.versions.entries().length) void this.ws.versions.compare();
   }
-  close(): void { this.dialog().nativeElement.close(); }
+  close(): void { if (this.kind() === 'stress' && this.busy() && this.ws.loading()) this.ws.cancelLoad(); this.dialog().nativeElement.close(); }
   submit(event: Event): void {
     event.preventDefault(); this.error.set('');
     const form = event.target as HTMLFormElement; const data = new FormData(form);
@@ -43,6 +46,17 @@ export class WorkspaceDialogs {
         case 'stress': void this.stress(Number(text('count')), text('shape') as 'balanced' | 'wide' | 'deep'); break;
         default: break;
       }
+    } catch (error) { this.error.set(error instanceof Error ? error.message : String(error)); }
+  }
+  async sendToDomain(form: HTMLFormElement): Promise<void> {
+    this.error.set('');
+    try {
+      const draft = this.ws.draft(); if (!draft) throw new Error('请先建立工作草稿');
+      const data = new FormData(form);
+      const envelope = prepareDomainDraft(draft, { rootKey: this.ws.selection() ?? '', revisionNo: String(data.get('domainRevision') ?? ''),
+        orgId: String(data.get('domainOrg') ?? ''), effectiveFrom: String(data.get('domainDate') ?? ''), confirmed: data.get('domainConfirmed') === 'on' });
+      await new WorkspaceRepository().write('domain:pending', envelope);
+      location.assign('/transfer');
     } catch (error) { this.error.set(error instanceof Error ? error.message : String(error)); }
   }
   async file(event: Event): Promise<void> {

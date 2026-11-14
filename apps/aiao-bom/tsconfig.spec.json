@@ -2,12 +2,20 @@
   "compilerOptions": {
     "outDir": "./out-tsc/vitest",
     "emitDeclarationOnly": false,
-    "types": ["vitest/globals", "vitest/importMeta", "vite/client", "node", "vitest"],
+    "types": [
+      "vitest/globals",
+      "vitest/importMeta",
+      "vite/client",
+      "node",
+      "vitest"
+    ],
     "module": "preserve",
     "moduleResolution": "bundler"
   },
   "extends": "../../tsconfig.base.json",
-  "files": ["src/test-setup.ts"],
+  "files": [
+    "src/test-setup.ts"
+  ],
   "include": [
     "vite.config.ts",
     "vite.config.mts",
@@ -18,12 +26,29 @@
     "src/**/*.ts"
   ],
   "references": [
-    { "path": "../../packages/rxdb-plugin-bom/tsconfig.lib.json" },
-    { "path": "../../packages/rxdb-adapter-wa-sqlite/tsconfig.lib.json" },
-    { "path": "../../packages/rxdb-adapter-sqlite-core/tsconfig.lib.json" },
-    { "path": "../../packages/rxdb/tsconfig.lib.json" },
-    { "path": "../../packages/utils/tsconfig.lib.json" },
-    { "path": "../../packages/rxdb-angular/tsconfig.lib.json" },
-    { "path": "../../packages/rxdb-devtools/tsconfig.lib.json" }
+    {
+      "path": "../../packages/rxdb-plugin-bom/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-adapter-wa-sqlite/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-adapter-sqlite-core/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/utils/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-angular/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
+    },
+    {
+      "path": "../../modules/bom-workspace/tsconfig.lib.json"
+    }
   ]
 }

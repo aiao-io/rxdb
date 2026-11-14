@@ -1,3 +1,4 @@
+import { BOM_WORKSPACE_CONFIG } from '../../config';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
@@ -44,13 +45,13 @@ interface NavItem {
         <button class="navigation-backdrop" (click)="closeNavigation()" aria-label="关闭导航"></button>
       }
       <aside class="sidebar" id="bom-navigation" #navigation aria-label="演示场景导航">
-        <a class="brand" (click)="closeNavigation()" aria-label="BOM 演示中心首页" routerLink="/">
+        <a class="brand" (click)="closeNavigation()" aria-label="BOM 演示中心首页" [routerLink]="config.overviewPath">
           <span class="brand-mark" aria-hidden="true">
             <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
               <path d="M12 3 21 8v8l-9 5-9-5V8l9-5Z M3 8l9 5 9-5 M12 13v8 M7.5 5.5l9 5" />
             </svg>
           </span>
-          <span><strong>BOM 演示中心</strong><small>物料与制造工作台</small></span>
+          <span><strong>{{ config.label }}</strong><small>物料与制造工作台</small></span>
         </a>
         <div class="workspace-label"><span class="workspace-dot"></span>演示工作区</div>
         <nav class="nav" aria-label="主导航">
@@ -80,6 +81,11 @@ interface NavItem {
               }
             </div>
           }
+          <div class="nav-section">
+            <span class="nav-section-title">工作区</span>
+            @if (config.workbenchPath) { <a class="nav-item" (click)="closeNavigation()" [routerLink]="config.workbenchPath">返回结构工作台</a> }
+            <a class="nav-item" (click)="closeNavigation()" routerLink="/transfer">备份与迁移</a>
+          </div>
         </nav>
         <div class="sidebar-bottom">
           <div class="dataset-card">
@@ -108,7 +114,7 @@ interface NavItem {
               </svg>
             </button>
             <div class="breadcrumb">
-              <a routerLink="/">演示中心</a><span aria-hidden="true">/</span><strong>{{ activeLabel() }}</strong>
+              <a [routerLink]="config.overviewPath">演示中心</a><span aria-hidden="true">/</span><strong>{{ activeLabel() }}</strong>
             </div>
           </div>
           <div class="header-actions">
@@ -199,6 +205,7 @@ export class AppShell implements OnInit {
     { initialValue: this.router.url }
   );
 
+  readonly config = inject(BOM_WORKSPACE_CONFIG);
   readonly workspaceState = inject(BomWorkspaceState);
   readonly reviewRoute = computed(() => this.currentUrl().split(/[?#]/)[0] === '/review');
   readonly navigationMatch = {
@@ -223,7 +230,7 @@ export class AppShell implements OnInit {
       label: '开始使用',
       items: [
         {
-          path: '/',
+          path: this.config.overviewPath,
           label: '概览',
           description: '数据准备与场景入口',
           icon: 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',
@@ -380,7 +387,7 @@ export class AppShell implements OnInit {
     this.actionError.set('');
     try {
       await this.service.resetAndSeed();
-      await this.router.navigateByUrl('/');
+      await this.router.navigateByUrl(this.config.overviewPath);
     } catch (error) {
       this.actionError.set(String(error));
     } finally {

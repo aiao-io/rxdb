@@ -108,3 +108,28 @@ describe('选择、持久化失败与恢复边界', () => {
     expect(ws.expanded()).not.toContain('deleted');
   });
 });
+
+describe('取消数据装载', () => {
+  it('取消慢来源后保留原数据与选择，迟到结果不能覆盖', async () => {
+    respond(20); const ws = new BomWorkspace(); await ws.initialize(); ws.locate('stress:19');
+    let finish!: (response: Response) => void;
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(resolve => { finish = resolve; })));
+    const loading = ws.loadWindrose(); ws.cancelLoad();
+    expect(ws.loading()).toBe(false); expect(ws.selection()).toBe('stress:19');
+    finish(new Response(JSON.stringify(makeStressDataset(50)))); await loading;
+    expect(ws.dataset()?.parts).toHaveLength(20); expect(ws.notice()).toContain('取消');
+  });
+  it('取消本地视图读取中的新装载时不提前替换当前数据', async () => {
+    respond(20); const ws = new BomWorkspace(); await ws.initialize(); ws.locate('stress:19');
+    const originalUrl = location.href;
+    let finish!: (value: undefined) => void;
+    const pending = new Promise<undefined>(resolve => { finish = resolve; });
+    const read = vi.mocked(WorkspaceRepository.prototype.read).mockReturnValue(pending); read.mockClear();
+    const loading = ws.loadStress(50); await vi.waitFor(() => expect(read).toHaveBeenCalled());
+    expect(ws.dataset()?.parts).toHaveLength(20);
+    ws.cancelLoad(); finish(undefined); await loading;
+    expect(ws.dataset()?.parts).toHaveLength(20); expect(ws.selection()).toBe('stress:19');
+    expect(location.href).toBe(originalUrl);
+  });
+
+});

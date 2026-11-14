@@ -39,9 +39,9 @@ capabilities: [rxdb:US-519, rxdb:US-521, rxdb:US-523, rxdb:US-525]
 
 ## 实现文件
 
-- [integration-panel.spec.ts](../../../src/app/components/integration-panel.spec.ts)
-- [ext-panel.spec.ts](../../../src/app/components/ext-panel.spec.ts)
-- [instances.page.spec.ts](../../../src/app/pages/instances/instances.page.spec.ts)
+- [integration-panel.spec.ts](../../../../../modules/bom-workspace/src/app/components/integration-panel.spec.ts)
+- [ext-panel.spec.ts](../../../../../modules/bom-workspace/src/app/components/ext-panel.spec.ts)
+- [instances.page.spec.ts](../../../../../modules/bom-workspace/src/app/pages/instances/instances.page.spec.ts)
 - [bom-demo.spec.ts](../../../../aiao-bom-e2e/src/bom-demo.spec.ts)
 - [bom-product-workflow.spec.ts](../../../../aiao-bom-e2e/src/bom-product-workflow.spec.ts)
 

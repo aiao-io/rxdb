@@ -2,7 +2,7 @@
   <header class="app-header">
     <a class="brand" href="/" aria-label="aiao BOM 2 首页"><span class="brand-mark"><bom2-icon name="cube" /></span><strong>aiao<span> / </span>BOM</strong><span class="generation">2</span></a>
     <span class="header-divider"></span><span class="workspace-label">工程工作空间</span>
-    <div class="header-right"><span class="local-indicator"><i></i>本地优先</span><button (click)="dialogs().open('help')"><bom2-icon name="info" /> 使用说明</button><span class="avatar">AE</span></div>
+    <div class="header-right"><a href="/domain" class="domain-link">领域工作区</a><span class="local-indicator"><i></i>本地优先</span><button (click)="dialogs().open('help')"><bom2-icon name="info" /> 使用说明</button><span class="avatar">AE</span></div>
   </header>
   <nav class="rail" aria-label="工作区功能"><button class="active" aria-label="BOM 工作台" title="BOM 工作台" (click)="ws.sidebarOpen.set(!ws.sidebarOpen())"><bom2-icon name="tree" /></button><button aria-label="导入数据" title="导入数据" (click)="dialogs().open('import')"><bom2-icon name="upload" /></button><button aria-label="数据校验" title="数据校验" (click)="dialogs().open('validate')"><bom2-icon name="check" /></button><button aria-label="规模测试" title="规模测试" (click)="dialogs().open('stress')"><bom2-icon name="bolt" /></button><span class="rail-spacer"></span><button aria-label="数据来源" title="数据来源" (click)="dialogs().open('sources')"><bom2-icon name="link" /></button></nav>
   <aside class="systems" aria-label="系统导航">

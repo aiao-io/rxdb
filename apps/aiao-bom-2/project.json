@@ -24,6 +24,11 @@
           {
             "glob": "**/*",
             "input": "apps/aiao-bom-2/public"
+          },
+          {
+            "glob": "**/*.wasm",
+            "input": "./node_modules/wa-sqlite/dist",
+            "output": "./wa-sqlite/"
           }
         ],
         "styles": [
@@ -127,6 +132,23 @@
       "options": {
         "cwd": "apps/aiao-bom-2",
         "command": "pnpm exec wrangler deploy --config wrangler.json --dry-run"
+      }
+    },
+    "deploy-status": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm exec wrangler whoami",
+        "cwd": "apps/aiao-bom-2"
+      }
+    },
+    "deploy": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "build"
+      ],
+      "options": {
+        "command": "pnpm exec wrangler deploy --config wrangler.json",
+        "cwd": "apps/aiao-bom-2"
       }
     }
   }

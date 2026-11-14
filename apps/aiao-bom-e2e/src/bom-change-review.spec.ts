@@ -1,6 +1,6 @@
 import { deterministicId } from '@aiao/rxdb-plugin-bom/testing';
 import { expect, test, type Download, type Page } from '@playwright/test';
-import { SCOOTER_SEED_ROWS, acceptDialog, revealDetails } from './support';
+import { overviewPath, SCOOTER_SEED_ROWS, acceptDialog, revealDetails } from './support';
 
 interface ReviewDownload {
   kind: string;
@@ -22,7 +22,7 @@ interface ReviewDownload {
 const ecnId = deterministicId('ecn:ECN-2026-014');
 
 const prepare = async (page: Page): Promise<void> => {
-  await page.goto('/');
+  await page.goto(overviewPath);
   await revealDetails(page.getByTestId('prepare-data'));
   await acceptDialog(page, () => page.getByTestId('prepare-data').click());
   await expect(page.getByTestId('overview-data-status')).toContainText(`已有 ${SCOOTER_SEED_ROWS.item} 项物料`, {
@@ -207,7 +207,7 @@ test.describe('BOM 生产改版核对主线', () => {
     await start(page);
     await run(page);
     await complete(page);
-    await page.goto('/');
+    await page.goto(overviewPath);
     await revealDetails(statistics);
     await expect(statistics).toHaveText(before, { timeout: 30000 });
   });
@@ -215,7 +215,7 @@ test.describe('BOM 生产改版核对主线', () => {
 
 test('首次窄屏从首页准备案例，查看用量依据并返回，完成核对和下载', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
-  await page.goto('/');
+  await page.goto(overviewPath);
   const entry = page.getByTestId('start-change-review');
   await expect(entry).toHaveText(/准备案例并开始核对/);
   await expect(entry).toBeEnabled();

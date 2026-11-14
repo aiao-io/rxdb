@@ -16,6 +16,8 @@ pnpm nx run aiao-bom-2:serve-static
 | 三维视图 | 本地整车 GLB、远程独立零件 GLB；Draco / Meshopt；表格与模型选择联动；聚焦、隔离、透明、视角、重试、取消及资源释放 |
 | 工作草稿 | 建立草稿、批量数量与成本、增删移动、30 步撤销重做、关系和数量校验、需求展开、已知行成本、基线差异 |
 | 版本快照 | 完整结构留档、评估日期、基准 / 目标比较、发生位置差异、搜索与分页、快照及完整差异 JSON 导出、预览导入、原子追加与跨标签页覆盖保护 |
+| 领域工作区 | `/domain` 进入原有领域流程；展开、成本、两时点改版核对、ECN、生效域、双图映射、实例换件与追溯；原有领域内核与共享 UI 惰性加载 |
+| 迁移 | `/transfer` 下载完整领域归档、校验后恢复到新库、刷新恢复库身份、保留原库并回退；结构草稿核对后可转入领域草稿并发布 |
 | 数据 | 严格 JSON 导入预览与重入、当前结果 CSV、完整草稿 JSON、来源及哈希记录；草稿和视图保存到独立 IndexedDB |
 
 数量使用公共 BOM 包的 Decimal 运算。缺量、歧义量、未经确认的参考量会阻断对应分支计算，界面显示问题。汇总列是直接用量合计；成本是独立行成本合计，各层报价不能重复包含子件价格。
@@ -37,10 +39,14 @@ pnpm nx run aiao-bom-2:deploy-check
 pnpm nx run aiao-bom-2:preview
 ```
 
-覆盖率对应用运行源码的 statements / branches / functions / lines 四项执行 80% 门槛；Worker 入口由浏览器压力测试验收。`deploy-check` 只打包和校验，Cloudflare 配置使用独立名称 `aiao-bom-2`，Wrangler `4.158.0`，兼容日期固定为运行时支持的 `2026-11-11`。没有执行公网发布。
+覆盖率对应用运行源码的 statements / branches / functions / lines 四项执行 80% 门槛；Worker 入口由浏览器压力测试验收。`deploy-check` 只打包和校验，Cloudflare 配置使用独立名称 `aiao-bom-2`，Wrangler `4.158.0`，兼容日期固定为运行时支持的 `2026-11-11`。公开预览与最终门禁状态以最新验收记录为准。
 
-本地库身份是 `aiao-bom-2-workspace-v1`，不会读取或覆盖旧 `dev-rxdb-bom`。当前使用 IndexedDB 保存应用草稿、版本快照和视图，尚未接入完整 RxDB 领域工作区。已加载会话可以继续浏览和编辑；没有 Service Worker，不承诺离线冷启动。独立零件模型需要来源服务器允许 CORS；失败不影响表格。
+结构草稿、版本快照和视图保存在 IndexedDB `aiao-bom-2-workspace-v1`；领域库使用 `aiao-bom-2-domain-v1`，旧版使用 `dev-rxdb-bom`。共享领域实现位于 `modules/bom-workspace`，通过路由参数隔离库身份。恢复归档使用全新短名称库，成功后才切换活动库指针；不会覆盖旧库。已加载会话可以继续浏览和编辑；没有 Service Worker，不承诺离线冷启动。独立零件模型需要来源服务器允许 CORS；失败不影响表格。
 
 [交付及验收记录](requirements/implementation-report-2026-11-13.md)列出了实测、限制和替换前必须完成的工作。原改善方案位于 [aiao-bom 的计划目录](../aiao-bom/requirements/plans/aiao-bom-2-improvement-plan-2026-11-13.md)。
 
 [版本快照说明与验收](requirements/version-snapshots-2026-11-14.md)说明了评估日期、比较身份、数量边界与存储约定；用户标记的快照日期不替代领域 ECN 生效解析。
+
+[领域迁移与回退运行说明](requirements/domain-migration-2026-11-14.md)说明归档范围、真实库迁移顺序、来源对应关系与演练边界。
+
+[2026-11-14 最终验收](requirements/completion-verification-2026-11-14.md)与[任务核对表](requirements/completion-tasks-2026-11-14.md)记录领域迁移、性能、跨浏览器和独立部署结果。

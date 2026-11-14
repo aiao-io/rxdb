@@ -38,11 +38,11 @@ capabilities: [rxdb:US-525]
 
 ## 实现文件
 
-- [bom-workspace-state.spec.ts](../../../src/app/bom-workspace-state.spec.ts)
-- [export-snapshot.spec.ts](../../../src/app/presentation/export-snapshot.spec.ts)
+- [bom-workspace-state.spec.ts](../../../../../modules/bom-workspace/src/app/bom-workspace-state.spec.ts)
+- [export-snapshot.spec.ts](../../../../../modules/bom-workspace/src/app/presentation/export-snapshot.spec.ts)
 - [bom-product-workflow.spec.ts](../../../../aiao-bom-e2e/src/bom-product-workflow.spec.ts)
 - [bom-redesign.spec.ts](../../../../aiao-bom-e2e/src/bom-redesign.spec.ts)
-- [review.page.spec.ts](../../../src/app/pages/review/review.page.spec.ts)
+- [review.page.spec.ts](../../../../../modules/bom-workspace/src/app/pages/review/review.page.spec.ts)
 - [bom-change-review.spec.ts](../../../../aiao-bom-e2e/src/bom-change-review.spec.ts)
 
 ## 验收证据

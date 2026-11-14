@@ -1,18 +1,17 @@
 {
-  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "allowJs": true,
     "outDir": "out-tsc/playwright",
     "sourceMap": false,
-    "types": [
-      "node"
-    ],
+    "types": ["node"],
     "strict": true,
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true
   },
+  "exclude": ["out-tsc", "test-output"],
+  "extends": "../../tsconfig.base.json",
   "include": [
     "**/*.ts",
     "**/*.js",
@@ -23,8 +22,9 @@
     "src/**/*.test.js",
     "src/**/*.d.ts"
   ],
-  "exclude": [
-    "out-tsc",
-    "test-output"
+  "references": [
+    {
+      "path": "../../packages/rxdb"
+    }
   ]
 }

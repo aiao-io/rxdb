@@ -70,3 +70,5 @@ export const openDetails = async (page: Page, label: string | RegExp): Promise<v
     await expect(details).toHaveAttribute('open', '', { timeout: 1000 });
   }).toPass();
 };
+
+export const overviewPath = process.env['BOM_OVERVIEW_PATH'] ?? '/';

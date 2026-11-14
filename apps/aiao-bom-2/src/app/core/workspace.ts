@@ -81,12 +81,16 @@ export class BomWorkspace {
   }
   async loadStress(count: number, shape: 'balanced' | 'wide' | 'deep' = 'balanced'): Promise<void> {
     const sequence = this.beginLoad();
-    history.replaceState(null, '', location.pathname);
     try {
       await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+      if (sequence !== this.loadSequence) return;
       const prepared = typeof Worker === 'undefined' ? { dataset: makeStressDataset(count, shape), rows: undefined } : await this.worker.build(count, shape);
-      if (sequence === this.loadSequence) await this.install(prepared.dataset, sequence, prepared.rows);
-    } finally { if (sequence === this.loadSequence) this.loading.set(false); }
+      if (sequence === this.loadSequence) await this.install(prepared.dataset, sequence, prepared.rows, true);
+    } catch (error) { if (!(error instanceof DOMException && error.name === 'AbortError')) throw error; }
+    finally { if (sequence === this.loadSequence) this.loading.set(false); }
+  }
+  cancelLoad(): void {
+    this.worker.cancel(); this.request?.abort(); this.loadSequence++; this.loading.set(false); this.notice.set('数据装载已取消，保留当前工作区');
   }
   updateQuery(patch: Partial<QuerySpec>): void {
     performance.mark('bom2:interaction-start');
@@ -170,14 +174,20 @@ export class BomWorkspace {
     if (this.dataset() === data) this.notice.set(`已保存版本快照：${snapshot.name} · ${snapshot.evaluationDate} · ${nodes.length.toLocaleString()} 个位置`);
   }
 
-  private async install(data: BomDataset, sequence: number, prepared?: BomRow[]): Promise<void> {
+  private async install(data: BomDataset, sequence: number, prepared?: BomRow[], resetUrl = false): Promise<void> {
+    performance.clearMeasures('bom2:first-interactive'); performance.clearMarks('bom2:data-ready'); performance.mark('bom2:data-ready');
+    let saved: DraftState | undefined;
+    let baseline: DraftState | undefined;
+    let view: (Partial<QuerySpec> & { expanded?: string[] }) | undefined;
+    try { [saved, view, baseline] = await Promise.all([this.repository.read<DraftState>(`draft:${data.id}`), this.repository.read<Partial<QuerySpec> & { expanded?: string[] }>(`view:${data.id}`), this.repository.read<DraftState>(`baseline:${data.id}`)]); }
+    catch (error) { if (sequence === this.loadSequence) this.notice.set(`本地工作区读取失败：${String(error)}`); }
+    if (sequence !== this.loadSequence) return;
+    if (resetUrl) history.replaceState(null, '', location.pathname);
     this.indexes.clear();
     if (prepared) this.indexes.set(`${data.id}:catalog:`, new BomIndex(data, 'catalog', prepared));
     this.dataset.set(data); this.selection.set(null); this.selectedKeys.set(new Set());
     this.query.set({ ...DEFAULT_QUERY }); this.expanded.set([]); this.draft.set(null); this.baseline.set(null); this.history = null; this.canUndo.set(false); this.canRedo.set(false);
     try {
-      const [saved, view, baseline] = await Promise.all([this.repository.read<DraftState>(`draft:${data.id}`), this.repository.read<Partial<QuerySpec> & { expanded?: string[] }>(`view:${data.id}`), this.repository.read<DraftState>(`baseline:${data.id}`), this.versions.openDataset(data.id)]);
-      if (sequence !== this.loadSequence) return;
       if (saved) this.setDraft(parseImport(JSON.stringify(saved)), false);
       this.baseline.set(baseline ? parseImport(JSON.stringify(baseline)) : null);
       if (view) { this.query.set(this.sanitizeQuery(view)); if (Array.isArray(view.expanded)) this.expanded.set(view.expanded.filter(key => this.index()?.nodes.has(key))); }
@@ -187,6 +197,7 @@ export class BomWorkspace {
     if (!this.expanded().length) this.expanded.set((this.index()?.children.get(null) ?? []).map(n => n.key));
     const first = this.result().rows.find(r => r.kind !== 'system');
     if (!this.selection() && first) this.choose(first);
+    await this.versions.openDataset(data.id);
   }
   private setDraft(draft: DraftState, persist = true): void {
     this.history = new DraftHistory(draft); this.draft.set(draft); this.canUndo.set(false); this.canRedo.set(false);

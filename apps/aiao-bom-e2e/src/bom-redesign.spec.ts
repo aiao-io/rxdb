@@ -1,10 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
-import { SCOOTER_SEED_ROWS, acceptDialog, dismissDialog, revealDetails } from './support';
+import { overviewPath, SCOOTER_SEED_ROWS, acceptDialog, dismissDialog, revealDetails } from './support';
 
 const loadedItems = `已有 ${SCOOTER_SEED_ROWS.item} 项物料`;
 
 const prepare = async (page: Page): Promise<void> => {
-  await page.goto('/');
+  await page.goto(overviewPath);
   await acceptDialog(page, () => page.getByTestId('prepare-data').click());
   await expect(page.getByTestId('overview-data-status')).toContainText(loadedItems, { timeout: 30000 });
 };

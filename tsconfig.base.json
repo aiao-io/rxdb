@@ -117,6 +117,7 @@
       "@aiao/rxdb-test/encrypted": ["./packages/rxdb-test/src/encrypted/index.ts"],
       "@aiao/rxdb-vue": ["./packages/rxdb-vue/src/index.ts"],
       "@aiao/utils": ["./packages/utils/src/index.ts"],
+      "@modules/bom-workspace": ["./modules/bom-workspace/src/index.ts"],
       "@modules/angular": ["./modules/angular/src/index.ts"],
       "@modules/angular-todo": ["./modules/angular-todo/src/index.ts"],
       "@modules/angular-todo/todo-page": ["./modules/angular-todo/todo-page/index.ts"],

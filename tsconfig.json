@@ -329,6 +329,9 @@
     },
     {
       "path": "./apps/aiao-bom-2"
+    },
+    {
+      "path": "./modules/bom-workspace"
     }
   ]
 }

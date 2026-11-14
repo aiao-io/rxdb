@@ -8,7 +8,7 @@ import { Icon } from './components/icon';
 import { WorkspaceDialogs } from './components/workspace-dialogs';
 
 @Component({
-  selector: 'bom2-root',
+  selector: 'bom2-workbench',
   imports: [DecimalPipe, BomGrid, ModelPanel, Icon, WorkspaceDialogs],
   templateUrl: './app.html',
   styleUrl: './app.scss',

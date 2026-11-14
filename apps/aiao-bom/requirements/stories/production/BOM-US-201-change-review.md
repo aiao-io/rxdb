@@ -39,10 +39,10 @@ capabilities: [rxdb:US-514, rxdb:US-515, rxdb:US-525]
 
 ## 实现文件
 
-- [overview.page.spec.ts](../../../src/app/pages/overview/overview.page.spec.ts)
-- [change-review.spec.ts](../../../src/app/presentation/change-review.spec.ts)
-- [review.page.spec.ts](../../../src/app/pages/review/review.page.spec.ts)
-- [bom-demo.service.spec.ts](../../../src/app/bom-demo.service.spec.ts)
+- [overview.page.spec.ts](../../../../../modules/bom-workspace/src/app/pages/overview/overview.page.spec.ts)
+- [change-review.spec.ts](../../../../../modules/bom-workspace/src/app/presentation/change-review.spec.ts)
+- [review.page.spec.ts](../../../../../modules/bom-workspace/src/app/pages/review/review.page.spec.ts)
+- [bom-demo.service.spec.ts](../../../../../modules/bom-workspace/src/app/bom-demo.service.spec.ts)
 - [bom-change-review.spec.ts](../../../../aiao-bom-e2e/src/bom-change-review.spec.ts)
 
 ## 验收证据

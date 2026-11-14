@@ -1,15 +1,15 @@
+import { BOM_WORKSPACE_CONFIG } from '../config';
+import { createBomDatabase } from '../database';
 import {
   getEntityMetadata,
   RxDB,
-  SyncType,
   type EntityType,
   type TransactionExecutor,
   type TransactionFun,
   type UUID
 } from '@aiao/rxdb';
-import { RxDBAdapterWaSqlite, SqliteRepository, type WaSqliteOptions } from '@aiao/rxdb-adapter-wa-sqlite';
+import type { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import {
-  BOM_ENTITIES,
   BomEcn,
   BomError,
   BomHeader,
@@ -31,7 +31,6 @@ import {
   mappingGaps,
   normalizeBomError,
   rollupCost,
-  rxDBPluginBom,
   type BomInstanceTraceResult,
   type BomInstanceTreeResult,
   type CostRollupResult,
@@ -57,15 +56,13 @@ import {
   SCOOTER_SEED_BATCH_NO,
   SCOOTER_SEED_TIMESTAMP
 } from '@aiao/rxdb-plugin-bom/testing';
-import { computed, Injectable, signal } from '@angular/core';
+import { computed, inject, Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import type { BomWorkspaceContext } from './bom-workspace-state';
 import type { RequirementCalculationBasis } from './components/step-panel';
 import { materialChanges, type BomChangeReview } from './presentation/change-review';
 import { loadRequirementBasis } from './presentation/requirement-basis';
 
-/** demo 库名（reset 删除的 IndexedDB 库）。 */
-const BOM_DEMO_DB_NAME = 'dev-rxdb-bom';
 
 /**
  * 把已连接的 RxDB 实例挂到 RxDB DevTools 连接器，供 DevTools 扩展检查。
@@ -187,11 +184,13 @@ export interface ImportedDraftSummary {
 
 /**
  * demo 数据服务：连接（IDBBatchAtomicVFS + BOM 插件）→ 装载 SC-100 种子 →
- * explodeBom / 直连写入演示。reset 先删 IndexedDB 库再重装（AC#1 的两遍 seed 入口）。
+ * explodeBom / 直连写入演示。reset 只删除当前 SQLite 文件再重装（AC#1 的两遍 seed 入口）。
  */
 @Injectable({ providedIn: 'root' })
 export class BomDemoService {
   readonly #operations = new Set<Promise<unknown>>();
+  private readonly config = inject(BOM_WORKSPACE_CONFIG);
+  private readonly databaseKey = `bom:active-database:${this.config.databaseName}`;
   private rxdb?: RxDB;
   private adapter?: RxDBAdapterWaSqlite;
   /** 直连演示用的 draft 头（挂在 PCBA 的演示修订下，环演示边经它插入）。 */
@@ -200,6 +199,9 @@ export class BomDemoService {
   private connectPromise?: Promise<void>;
   /** 所有重置入口共享同一个完整操作，阻塞期间不创建第二个删除请求。 */
   private resetPromise?: Promise<void>;
+  readonly databaseName = signal(window.localStorage.getItem(this.databaseKey) ?? this.config.databaseName);
+  readonly previousDatabase = signal(window.localStorage.getItem(`${this.databaseKey}:previous`) ?? '');
+  readonly migrating = signal(false);
   readonly resetting = signal(false);
   readonly resetStatus = signal('');
   readonly dataEpoch = signal(0);
@@ -223,6 +225,7 @@ export class BomDemoService {
 
   /** 重置并装载种子（两遍执行结果逐字节相同，AC#1）。 */
   resetAndSeed(): Promise<void> {
+    if (this.migrating()) return Promise.reject(new Error('正在迁移，请稍后重置'));
     if (this.resetPromise) return this.resetPromise;
     this.resetting.set(true);
     this.connected.set(false);
@@ -242,6 +245,7 @@ export class BomDemoService {
 
   /** 连接既有库（页面重载的路径：插件触发器幂等安装，种子行原样可用）。 */
   async connectExisting(): Promise<void> {
+    if (this.migrating()) throw new Error('正在迁移，请稍后操作');
     if (this.resetPromise) return this.resetPromise;
     if (this.rxdb) return;
     this.ready.set(false);
@@ -265,6 +269,41 @@ export class BomDemoService {
         { parentItemId: this.#itemId(rootKey) },
         { plannedQty: { value: plannedQty, uom: effectivity.plannedUom ?? 'pcs' } }
       );
+    });
+  }
+
+  async backup(): Promise<{ blob: Blob; sha256: string; bytes: number }> {
+    return this.#run(async () => {
+      if (!this.adapter) throw new Error('工作区未连接');
+      const chunks: ArrayBuffer[] = [];
+      const result = await this.adapter.backup(new WritableStream<Uint8Array>({ write: chunk => { chunks.push(chunk.slice().buffer); } }));
+      return { blob: new Blob(chunks, { type: 'application/octet-stream' }), sha256: result.sha256, bytes: result.bytes };
+    });
+  }
+
+  async restoreBackup(file: Blob): Promise<string> {
+    return this.#migration(async () => {
+      const name = `bom-r-${crypto.randomUUID().replaceAll('-', '')}`;
+      const database = createBomDatabase(name);
+      const adapter = await database.getAdapter('wa-sqlite');
+      try {
+        await adapter.restore(file.stream());
+        await database.connect('wa-sqlite');
+        await adapter.rawQuery('SELECT COUNT(*) FROM "bom$item"');
+      } catch (error) { await database.disconnectAll(); throw error; }
+      await this.#activateDatabase(name, database, adapter);
+      return name;
+    });
+  }
+
+  async rollbackDatabase(): Promise<void> {
+    return this.#migration(async () => {
+      const name = this.previousDatabase();
+      if (!name) throw new Error('没有可回退的数据库');
+      const database = createBomDatabase(name);
+      const adapter = await database.getAdapter('wa-sqlite');
+      await database.connect('wa-sqlite');
+      await this.#activateDatabase(name, database, adapter);
     });
   }
 
@@ -334,7 +373,7 @@ export class BomDemoService {
       if (!this.rxdb) throw new Error('demo 未就绪');
       const epoch = this.dataEpoch();
       const result = await this.rxdb.bom.importBomDraft(payload);
-      if (result.committed && epoch === this.dataEpoch()) await this.#loadImportedDrafts();
+      if (result.committed && epoch === this.dataEpoch()) await this.#hydrate();
       return result;
     });
   }
@@ -935,25 +974,39 @@ export class BomDemoService {
     });
   }
 
+  #migration<T>(work: () => Promise<T>): Promise<T> {
+    return this.#run(async () => {
+      this.migrating.set(true);
+      try { await Promise.allSettled([...this.#operations]); await this.connectPromise; return await work(); }
+      finally { this.migrating.set(false); }
+    });
+  }
+
+  async #activateDatabase(name: string, database: RxDB, adapter: RxDBAdapterWaSqlite): Promise<void> {
+    const previous = { name: this.databaseName(), rxdb: this.rxdb, adapter: this.adapter };
+    this.dataEpoch.update(value => value + 1); this.ready.set(false);
+    this.rxdb = database; this.adapter = adapter;
+    try { await this.#hydrate(); }
+    catch (error) {
+      this.rxdb = previous.rxdb; this.adapter = previous.adapter;
+      await database.disconnectAll(); await this.#hydrate(); throw error;
+    }
+    await previous.rxdb?.disconnectAll();
+    window.localStorage.setItem(`${this.databaseKey}:previous`, previous.name);
+    window.localStorage.setItem(this.databaseKey, name);
+    this.databaseName.set(name); this.previousDatabase.set(previous.name); this.connected.set(true);
+    connectDevTools(database);
+  }
+
   async #resetAndSeed(): Promise<void> {
     await Promise.allSettled([...this.#operations]);
-    // 等页面自动连接收尾再断（否则 deleteDatabase 与双实例竞态）
     await this.connectPromise?.catch(() => undefined);
-    // 先断开旧连接（连接开着时 deleteDatabase 会 blocked），再删库。
-    // wa-sqlite 的 IDBBatchAtomicVFS 把全部 dbName 存在同一个 IndexedDB 库「IDBBatchAtomicVFS」
-    // （实测 indexedDB.databases()），demo 的 reset 删整个库——dev 环境专用，注释写明
-    if (this.rxdb) {
-      await this.rxdb.disconnectAll();
-      this.rxdb = undefined;
-      this.adapter = undefined;
-    }
-    await new Promise<void>((resolve, reject) => {
-      this.resetStatus.set('正在清空并重新装载演示数据…');
-      const request = indexedDB.deleteDatabase('IDBBatchAtomicVFS');
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error ?? new Error('删除演示数据失败，请重试'));
-      request.onblocked = () => this.resetStatus.set('其他页面仍在使用演示数据，请关闭相关页面；关闭后会继续重置。');
-    });
+    const database = this.rxdb ?? createBomDatabase(this.databaseName());
+    const adapter = this.adapter ?? await database.getAdapter('wa-sqlite');
+    await database.disconnectAll();
+    this.rxdb = undefined; this.adapter = undefined;
+    this.resetStatus.set('正在清空当前库并重新装载演示数据…');
+    await adapter.dropStorage();
     await this.#connect();
     const itemIds = await loadScooterDataset(this.adapter!);
     // 阶段 C：ECN 时间轴（改 3 张 BOM 5 行 + 已生效 ECN）
@@ -1098,28 +1151,12 @@ export class BomDemoService {
   }
 
   async #doConnect(): Promise<void> {
-    const rxdb = new RxDB({
-      dbName: BOM_DEMO_DB_NAME,
-      entities: [...BOM_ENTITIES],
-      sync: { local: { adapter: 'wa-sqlite' }, type: SyncType.None }
-    });
-    rxdb.use(rxDBPluginBom);
-    let adapter: RxDBAdapterWaSqlite;
-    rxdb.adapter('wa-sqlite', db => {
-      adapter = new RxDBAdapterWaSqlite(db, {
-        vfs: 'IDBBatchAtomicVFS',
-        async: true,
-        worker: false,
-        wasmPath: '/wa-sqlite/wa-sqlite-async.wasm',
-        batchTimeout: 1,
-        repositories: { BomRepository: SqliteRepository } as unknown as WaSqliteOptions['repositories']
-      });
-      return adapter;
-    });
+    const rxdb = createBomDatabase(this.databaseName());
+    const adapter = await rxdb.getAdapter('wa-sqlite');
     await rxdb.connect('wa-sqlite');
     connectDevTools(rxdb);
     this.rxdb = rxdb;
-    this.adapter = adapter!;
+    this.adapter = adapter;
   }
 
   async #hydrate(): Promise<void> {
@@ -1128,10 +1165,12 @@ export class BomDemoService {
     await this.#loadEcns();
     await this.#loadInstanceRoots();
     if (this.itemCount() === 0) {
+      this.ready.set(false); this.importedDrafts.set([]); this.demoHeaderId = undefined;
       this.dataRevision.update(value => value + 1);
       return;
     }
-    await this.#ensureDemoHeader();
+    this.demoHeaderId = undefined;
+    if (this.itemNos().has(goldenItemId('PCBA'))) await this.#ensureDemoHeader();
     await this.#loadImportedDrafts();
     this.ready.set(true);
     this.dataRevision.update(value => value + 1);
@@ -1227,6 +1266,7 @@ export class BomDemoService {
   }
 
   #run<T>(work: () => Promise<T>): Promise<T> {
+    if (this.migrating()) return Promise.reject(new Error('正在迁移，请稍后操作'));
     if (this.resetting()) return Promise.reject(new Error('正在重置演示数据，请稍后重试'));
     const operation = work();
     this.#operations.add(operation);
@@ -1260,45 +1300,22 @@ export class BomDemoService {
 
   /** 建演示 draft 头（挂在 PCBA 的演示 draft 修订下）供环演示边使用；重开时复用已有。 */
   async #ensureDemoHeader(): Promise<void> {
-    if (!this.adapter) return;
-    const pcbaId = goldenItemId('PCBA');
-    // 种子的已发布头占着 (revision, type, org, alternative) 唯一键——演示头挂独立的 draft 修订
-    const existing = await firstValueFrom(
-      BomItemRevision.find({
-        where: {
-          combinator: 'and',
-          rules: [
-            { field: 'itemId', operator: '=', value: pcbaId },
-            { field: 'revisionNo', operator: '=', value: 'E' }
-          ]
-        }
-      })
-    );
-    const revision =
-      existing[0] ??
-      (() => {
-        const created = new BomItemRevision();
-        created.revisionNo = 'E';
-        created.itemId = pcbaId;
-        return created;
-      })();
-    if (!existing[0]) await revision.save();
-    const headers = await firstValueFrom(
-      BomHeader.find({
-        where: { combinator: 'and', rules: [{ field: 'parentRevisionId', operator: '=', value: revision.id }] }
-      })
-    );
-    const header =
-      headers[0] ??
-      (() => {
-        const created = new BomHeader();
-        created.parentRevisionId = revision.id;
-        created.bomType = 'ebom';
-        created.orgId = 'org-x';
-        return created;
-      })();
-    if (!headers[0]) await header.save();
-    this.demoHeaderId = header.id;
+    const adapter = this.adapter; const database = this.rxdb;
+    if (!adapter || !database) throw new Error('工作区未连接');
+    await adapter.transaction(async executor => {
+      const revisions = executor.getRepository(BomItemRevision);
+      const [existing] = await revisions.find({ where: { combinator: 'and', rules: [
+        { field: 'itemId', operator: '=', value: goldenItemId('PCBA') },
+        { field: 'revisionNo', operator: '=', value: 'E' }
+      ] } });
+      const create = executorCreate(executor, database);
+      const revision = existing ?? await create(BomItemRevision, { itemId: goldenItemId('PCBA'), revisionNo: 'E' });
+      const [header] = await executor.getRepository(BomHeader).find({ where: {
+        combinator: 'and', rules: [{ field: 'parentRevisionId', operator: '=', value: revision.id }]
+      } });
+      const draft = header ?? await create(BomHeader, { parentRevisionId: revision.id, bomType: 'ebom', orgId: 'org-x' });
+      this.demoHeaderId = draft.id;
+    });
   }
 
   #itemId(itemNo: string): string {

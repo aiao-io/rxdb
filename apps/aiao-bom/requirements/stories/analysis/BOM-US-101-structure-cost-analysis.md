@@ -57,8 +57,8 @@ capabilities:
 
 ## 实现文件
 
-- [](../../../src/app/pages/)
-- [](../../../src/app/components/)
+- [](../../../../../modules/bom-workspace/src/app/pages)
+- [](../../../../../modules/bom-workspace/src/app/components)
 - [bom-demo.spec.ts](../../../../aiao-bom-e2e/src/bom-demo.spec.ts)
 - [bom-coproduct.spec.ts](../../../../aiao-bom-e2e/src/bom-coproduct.spec.ts)
 

@@ -1,0 +1,24 @@
+
+> nx run aiao-bom-2-e2e:e2e --args=acceptance.spec.ts --grep=100k
+
+aiao-bom-2-e2e: (node:38644) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2-e2e: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2-e2e: [WebServer] (node:38662) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2-e2e: [WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2-e2e: [WebServer] (node:38663) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2-e2e: [WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2-e2e: Running 1 test using 1 worker
+aiao-bom-2-e2e: (node:38664) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2-e2e: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2-e2e: [1/1] [chromium] › src/acceptance.spec.ts:100:1 › 100k 发生项与 50 层结构可进入分支、定位末项和取消迟到数据
+aiao-bom-2-e2e:   1 passed (4.9s)
+
+
+
+ NX   Successfully ran target e2e for project aiao-bom-2-e2e
+
+
+  Run duration:      5.9s
+  Cache:             0/1 hit (0%)
+  Critical path:     5.8s (1 task)
+  Recoverable time:  <1ms

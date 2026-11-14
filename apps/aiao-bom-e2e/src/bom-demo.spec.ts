@@ -14,6 +14,7 @@ import {
 } from '@aiao/rxdb-plugin-bom/testing';
 import { Page, expect, test } from '@playwright/test';
 import {
+  overviewPath,
   SCOOTER_REQUIREMENT_ROWS,
   SCOOTER_SEED_ROWS,
   acceptDialog,
@@ -22,7 +23,7 @@ import {
   revealDetails
 } from './support';
 
-const BASE = '/';
+const BASE = overviewPath;
 
 const PAGE_HEADINGS = {
   概览: '生产前，先核对这次改版',
@@ -674,6 +675,7 @@ test.describe('BOM demo（US-525 阶段 F）', () => {
     await load.click();
     await expect(tree.locator('[data-serial="PACK-003"]')).toHaveCount(1);
     await expect(tree.locator('[data-serial="PACK-001"]')).toHaveCount(0);
+    await expect(tree).toContainText('查询时点：2099-01-02');
     const installedBeforeRevision = await tree.innerText();
     await openDetails(page, '高级验证：改版与来源保护');
     await page.getByTestId('instance-master-effective-date').fill('2099-01-01');

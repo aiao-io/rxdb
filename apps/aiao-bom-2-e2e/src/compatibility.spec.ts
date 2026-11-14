@@ -1,0 +1,30 @@
+import { expect, test } from '@playwright/test';
+import { mkdir, writeFile } from 'node:fs/promises';
+
+test('浏览器兼容：真实主清单、平铺搜索、375px 导航与 SQLite 领域入口', async ({ page, browserName }, info) => {
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/');
+  await expect(page.getByTestId('bom-grid')).toHaveAttribute('aria-busy', 'false');
+  await expect(page.getByText('1,424 主清单物料')).toBeVisible();
+  await page.getByRole('button', { name: '关闭模型与详情', exact: true }).click();
+  await page.getByRole('button', { name: '平铺', exact: true }).click();
+  await page.getByRole('textbox', { name: '搜索 BOM', exact: true }).fill('1300001');
+  await expect(page.getByTestId('matched-count')).toHaveText('1');
+  await page.setViewportSize({ width: 375, height: 812 });
+  await expect(page.getByTestId('bom-grid')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
+  await page.goto('/domain');
+  page.once('dialog', dialog => dialog.accept()); await page.getByTestId('prepare-data').click();
+  await expect(page.getByTestId('overview-data-status')).toContainText('已有', { timeout: 30000 });
+  const toggle = page.locator('button[aria-controls=bom-navigation]'); await toggle.click();
+  await expect(page.locator('#bom-navigation')).toBeVisible();
+  await expect(page.locator('#bom-navigation a[aria-current=page]')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(toggle).toBeFocused();
+  await page.goto('/transfer'); await expect(page.getByRole('button', { name: '下载完整领域备份', exact: true })).toBeEnabled();
+  const result = { checkedAt: new Date().toISOString(), browser: browserName, userAgent: await page.evaluate(() => navigator.userAgent), isolated: await page.evaluate(() => crossOriginIsolated), errors };
+  await mkdir('test-output/evidence', { recursive: true });
+  await writeFile(`test-output/evidence/compatibility-${browserName}.json`, JSON.stringify(result, null, 2));
+  await info.attach(`${browserName}-compatibility.json`, { body: JSON.stringify(result), contentType: 'application/json' });
+  expect(errors).toEqual([]);
+});

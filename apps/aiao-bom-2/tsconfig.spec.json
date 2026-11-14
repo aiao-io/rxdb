@@ -39,6 +39,9 @@
     },
     {
       "path": "../../packages/rxdb/tsconfig.lib.json"
+    },
+    {
+      "path": "../../modules/bom-workspace/tsconfig.lib.json"
     }
   ]
 }

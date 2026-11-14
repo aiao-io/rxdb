@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "outDir": "../../dist/out-tsc",
+    "outDir": "./out-tsc/app",
     "types": [],
     "emitDeclarationOnly": false
   },
@@ -24,6 +24,9 @@
     "src/**/*.ts"
   ],
   "references": [
+    {
+      "path": "../../modules/bom-workspace/tsconfig.lib.json"
+    },
     {
       "path": "../../packages/rxdb-plugin-bom/tsconfig.lib.json"
     },

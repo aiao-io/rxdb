@@ -146,6 +146,9 @@ export class BomGrid implements AfterViewInit, OnDestroy {
     this.table.on('scroll', () => this.reportWindows());
     this.table.on('keydown', event => { this.additive = event.event.ctrlKey || event.event.metaKey; });
     this.table.on('after_render', () => {
+      if (performance.getEntriesByName('bom2:data-ready').length && !performance.getEntriesByName('bom2:first-interactive').length) {
+        const first = performance.measure('bom2:first-interactive', 'bom2:data-ready'); this.host().nativeElement.dataset['firstInteractiveMs'] = String(first.duration);
+      }
       this.host().nativeElement.dataset['renderId'] = String(this.generation);
       if (performance.getEntriesByName('bom2:interaction-start').length) {
         const measure = performance.measure('bom2:interaction', 'bom2:interaction-start');

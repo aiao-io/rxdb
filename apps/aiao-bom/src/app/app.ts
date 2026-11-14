@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { AppShell } from './components/app-shell';
+import { AppShell } from '@modules/bom-workspace';
 
 @Component({
   selector: 'bom-root',
