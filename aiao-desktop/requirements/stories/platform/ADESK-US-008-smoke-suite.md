@@ -25,7 +25,7 @@ capabilities: []
 
 - **检查组化**：把冒烟按行为分组（外壳、磁盘与终端、持久化、集成应用、透明窗口、游戏……），每组可单独运行并能列出组名；不指定时按全量运行。输出 JSON 的检查项键集合与拆分前一致。
 - **隔离**：每组默认用独立的浏览器上下文（独立的 OPFS），组间不共享状态；现在靠顺序串联的前提（例如磁盘组接在外壳组之后、刷新后验证持久化）改成各组自己的前置步骤。
-- **夹具**：①同一上下文里的多页，给 [ADESK-US-105](../desktop/ADESK-US-105-multi-tab-sync.md) 的多标签页；②可在两次启动之间保留的持久 profile，给 [ADESK-US-106](../desktop/ADESK-US-106-database-upgrade-path.md) 的旧库升级；③同一 origin 下先后托管新旧两份产物的静态服务器，同样给 106；④引擎参数，给 [ADESK-US-005](ADESK-US-005-cross-browser-smoke.md) 的跨浏览器，chromium 为默认，其他引擎只提供入口。
+- **夹具**：①同一上下文里的多页，给 [ADESK-US-105](../desktop/ADESK-US-105-multi-tab-sync.md) 的多标签页；②可在两次启动之间保留的持久 profile，给 [ADESK-US-106](../desktop/ADESK-US-106-database-upgrade-path.md) 的旧库升级；③同一 origin 下先后托管新旧两份产物的静态服务器，同样给 106；④引擎参数，给 [ADESK-US-005](ADESK-US-005-cross-browser-smoke.md) 的 Chrome 验收，chromium 为默认，其他引擎按 [D-19](../../decisions.md#d-19只验收桌面-chrome) 保留为可选诊断入口。
 - **清单绑定**：冒烟用来「逐个打开应用」的清单不再手写一份，由启动台实际条目与登记表核对；登记表新增了应用而冒烟没覆盖，或冒烟里有登记表没有的应用，都使检查失败。
 - **本机实测入口**：进不了 CI 的实测要有仓库内可重跑的入口。几猫3A大作的真实 GPU 实测（[ADESK-US-103](../desktop/ADESK-US-103-saltline-game.md) #9）落成独立脚本，像 `verify-aiao-code` 一样单独运行。
 
@@ -80,7 +80,7 @@ AC#10 的后续独占调度对照中位数为单体116.024s、拆分89.344s（0.
 ## References
 
 - [ADESK-EPIC-001](../../epics/ADESK-EPIC-001.md)
-- [ADESK-US-005 跨浏览器与窄屏验收](ADESK-US-005-cross-browser-smoke.md)
+- [ADESK-US-005 Chrome 与窄屏验收](ADESK-US-005-cross-browser-smoke.md)
 - [ADESK-US-105 多标签页实时互通](../desktop/ADESK-US-105-multi-tab-sync.md)
 - [ADESK-US-106 旧库升级路径](../desktop/ADESK-US-106-database-upgrade-path.md)
 - [验收台账](../../verification-report.md)

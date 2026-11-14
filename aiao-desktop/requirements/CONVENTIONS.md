@@ -25,7 +25,7 @@
 
 ## 状态定义
 
-故事五态 `Backlog` / `In Progress` / `In Review` / `Done` / `Blocked` 与根一致，YAML 是唯一真相源。`Done` 表示当前承诺的 AC 都有同层证据：桌面行为的证据是正式构建上的浏览器冒烟或真实浏览器操作，源码检索与构建通过不能代替。只在 Chromium 上验证过的行为，不写成跨浏览器支持。
+故事五态 `Backlog` / `In Progress` / `In Review` / `Done` / `Blocked` 与根一致，YAML 是唯一真相源。`Done` 表示当前承诺的 AC 都有同层证据：桌面行为的证据是正式构建上的浏览器冒烟或真实浏览器操作，源码检索与构建通过不能代替。只在 Chromium 上验证过的行为，不写成跨浏览器支持。本轮浏览器范围按[D-19](decisions.md#d-19只验收桌面-chrome)只验收桌面Chrome；自动化与真实浏览器证据分别标注。
 
 Epic 使用 `Backlog` / `In Progress` / `Done`。Review 使用根规范的状态；Code scanning 使用 `Open` / `Resolved` / `Dismissed`，真相源为 GitHub。
 

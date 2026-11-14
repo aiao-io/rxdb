@@ -18,6 +18,8 @@ Aiao Desktop 是在浏览器里运行的 macOS 风格桌面，把本地文件空
 
 ## 当前范围
 
+浏览器范围按[D-19](decisions.md#d-19只验收桌面-chrome)收敛为桌面Chrome，当前尚有5项AC待关闭，详见[验收台账](verification-report.md)。
+
 ### 已验收能力
 
 以下能力都有正式构建上的浏览器冒烟或线上验收作证据，细节与边界见[能力矩阵](capability-matrix.md)：
@@ -35,14 +37,14 @@ Aiao Desktop 是在浏览器里运行的 macOS 风格桌面，把本地文件空
 
 - [US-205](stories/application/ADESK-US-205-application-management.md) 的清单投影、Finder/终端保护、Dock 拖放和键盘等效入口已有实现与正式构建检查。
 - [US-206](stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md) 已使用动态组件入口、按读取触发的应用种子和统一 `DesktopAppContext`。体积的固定提交回溯比较与“实现前已记录基线”分开评审。
-- 104、105、106、107、108、005、008 的自动检查已有实现；真实物理键盘、VoiceOver 播报、浏览器自动化缺口及历史测量流程不能由构建或单测替代。
+- 104、105、106、107、108、005、008 的自动检查已有实现；真实物理键盘、VoiceOver 播报、历史测量流程不能由构建或单测替代。
 - `desktop.aiao.io` 已在 Pages 项目绑定。两个线上入口的内容和隔离头已只读核对；同站项目、已有 GitHub 登录状态、换域名的实际数据隔离与发布对账仍由 [US-004](stories/platform/ADESK-US-004-custom-domain.md) 逐条验收。
 
 登记与运行边界见 [D-10](decisions.md#d-10应用分三类登记在同一张表里)、[D-17](decisions.md#d-17应用清单是唯一真相源applications-是系统投影)、[D-18](decisions.md#d-18应用懒加载与宿主系统能力统一)。未立项方向仍在[后续方向](future-requirements.md)，本轮不把它们自动变成工作承诺。
 
 ### 已知限制
 
-- Chromium、Firefox、WebKit 的正式构建结果分别归档。[后续跨浏览器复验](evidence/2026-11-14/browser-followup.md)已撤除Firefox四项旧限制；同站不同源HTTPS组合通过原生Frame验证。WebKit的Orbit剪贴板读取已在入口禁用并持续说明原因，公告与实际授权同步撤下读取能力；新产物Firefox两轮均479/479，WebKit两轮均478/479、仅保留已禁用的读取能力，无页面错误，见[有限支持复验](evidence/2026-11-14/browser-support.md)。原成功读取项仍为false，Playwright WebKit不等于真机Safari。390×844与触屏仿真不代表iOS真机支持。
+- 本轮[只验收桌面 Chrome](decisions.md#d-19只验收桌面-chrome)，自动回归使用受控 Chromium；真实 Chrome 记录分别注明环境。[跨浏览器历史记录](evidence/2026-11-14/browser-support.md)保留成功、失败与未完成观察，Safari、Firefox与WebKit不在本轮必验或支持承诺内。390×844与触屏仿真不代表移动端真机支持。
 - 数据按当前浏览器的 Origin 隔离；清除站点数据、换浏览器或换域名看不到原数据。没有备份、导出、账号或跨设备同步。配额不足等存储失败路径未完整验收；TextEdit 新建文档没有保存入口。
 - 窗口布局按标签页恢复；多页文件、设置与应用数据按提交顺序收敛，同一文件最后提交生效，不提供合并或冲突提示。删除、改名、抹掉后的旧编辑器保存必须失败，保留编辑内容。
 - 集成应用不能弹窗或调用受限的文件句柄 API。桌面内不能弹 GitHub OAuth 登录窗口；能否读到直接访问时已有的登录状态另行实测，不用同站规则推断。

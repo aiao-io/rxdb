@@ -183,3 +183,11 @@ Applications、Launchpad、Spotlight、Dock 和菜单栏都从同一个清单投
 `bundled-html` 的同源 iframe 是受信构建资产，不是安全隔离边界；它可以继续满足 `saltline.html` 的 pointer lock 与 fullscreen 需求。它纳入统一运行时的目的是生命周期一致；以后若提供 bridge，也不能把它描述成能防御恶意同源代码的 sandbox。非受信任的远程内容必须使用 `remote-web` 和 Orbit。
 
 性能验收以正式构建为准：启动桌面（含自动打开的 Finder 窗口）、打开 Launchpad 和 Spotlight 时不能请求 Finder 以外的应用实现 chunk、应用独有的 seed、`saltline.html` 或任何 remote-web URL；打开一个应用只加载它需要的载荷；打开应用 A 不执行应用 B 的构造函数、订阅或独有的数据种子；首屏 initial 体积不超过实现前的实测值。详细范围与验收见 [ADESK-US-206](stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md)。
+
+## D-19：只验收桌面 Chrome
+
+**状态：已接受并应用（2026-11-14）**。用户明确要求：“只验收 chrome 就够了”。本轮浏览器验收范围收敛为桌面 Google Chrome；正式构建的自动回归继续使用受控 Chromium 引擎，真实 Chrome 的 GPU、游戏及集成应用记录单独归档，不把二者混称为同一次运行。
+
+[ADESK-US-005](stories/platform/ADESK-US-005-cross-browser-smoke.md)据此保留 Chrome 核心流程、390×844 窄屏、触屏仿真和连续两轮冒烟，撤下 Safari、Firefox、WebKit 的必验条件与支持承诺。既有跨浏览器脚本、能力保护及成功或失败记录保留为可选诊断与历史证据，不将未完成的 Safari 验收改写为通过。以后扩大浏览器承诺时另行立项与验收。
+
+本决策只调整浏览器范围。物理键盘、VoiceOver、历史基线流程、正式发布与数据升级保护继续按各自故事验收；故事的硬依赖关闭规则不变。

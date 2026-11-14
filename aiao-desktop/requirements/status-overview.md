@@ -1,6 +1,6 @@
 # Aiao Desktop 状态总览
 
-2026-11-14 更新。状态真相源是故事 YAML；AC通过、故事关闭与线上发布分别记录。当前12条Done，10条In Review，功能实现已进入验收收尾。Firefox旧限制已撤除；WebKit的Orbit剪贴板读取已在入口禁用并持续说明原因，见[有限支持实现与复验](evidence/2026-11-14/browser-support.md)。新产物Firefox连续两轮均479/479，WebKit两轮均478/479、仅保留已禁用的读取能力；US-005 #1、#5按支持分档关闭，#4真机Safari仍待验。当前尚有6项AC未关闭，故事状态未提前关闭。
+2026-11-14 更新。状态真相源是故事 YAML；AC通过、故事关闭与线上发布分别记录。当前12条Done、10条In Review。按用户明确要求和[D-19](decisions.md#d-19只验收桌面-chrome)，本轮只验收桌面Chrome；US-005当前AC已全部通过，因US-008硬依赖未关闭而保持In Review。Safari、Firefox、WebKit记录保留为历史或可选，不再阻塞本轮验收。当前尚有5项AC未关闭：历史基线流程2项、物理键盘1项、VoiceOver 1项、正式发布1项。
 
 ## 状态汇总
 
@@ -19,7 +19,7 @@
 
 ## 待评审（10 条）
 
-- [ADESK-US-205 Applications 目录、预装应用与 Dock 管理](stories/application/ADESK-US-205-application-management.md)：见故事本轮验收的剩余项与依赖关闭条件。
+- [ADESK-US-205 Applications 目录、预装应用与 Dock 管理](stories/application/ADESK-US-205-application-management.md)：当前AC全部通过，等待US-008硬依赖关闭。
 - [ADESK-US-206 应用懒加载与统一系统能力](stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md)：见故事本轮验收的剩余项与依赖关闭条件。
 - [ADESK-US-104 窗口布局跨刷新保留](stories/desktop/ADESK-US-104-window-layout-persistence.md)：见故事本轮验收的剩余项与依赖关闭条件。
 - [ADESK-US-105 多标签页实时互通](stories/desktop/ADESK-US-105-multi-tab-sync.md)：见故事本轮验收的剩余项与依赖关闭条件。
@@ -27,7 +27,7 @@
 - [ADESK-US-107 外壳交互验收补齐](stories/desktop/ADESK-US-107-shell-interaction-coverage.md)：见故事本轮验收的剩余项与依赖关闭条件。
 - [ADESK-US-108 无障碍：读屏与纯键盘路径](stories/desktop/ADESK-US-108-accessibility.md)：见故事本轮验收的剩余项与依赖关闭条件。
 - [ADESK-US-004 绑定自定义域名与同站托管](stories/platform/ADESK-US-004-custom-domain.md)：见故事本轮验收的剩余项与依赖关闭条件。
-- [ADESK-US-005 跨浏览器与窄屏验收](stories/platform/ADESK-US-005-cross-browser-smoke.md)：见故事本轮验收的剩余项与依赖关闭条件。
+- [ADESK-US-005 Chrome 与窄屏验收](stories/platform/ADESK-US-005-cross-browser-smoke.md)：见故事本轮验收的剩余项与依赖关闭条件。
 - [ADESK-US-008 冒烟套件化](stories/platform/ADESK-US-008-smoke-suite.md)：见故事本轮验收的剩余项与依赖关闭条件。
 
 ## 按 Epic 索引
@@ -38,7 +38,7 @@
 - ✅ [ADESK-US-002 本地开发入口与开发导航](stories/platform/ADESK-US-002-local-dev-dashboard.md)
 - ✅ [ADESK-US-003 一键发布到 Cloudflare Pages](stories/platform/ADESK-US-003-cloudflare-pages-deploy.md)
 - 👀 [ADESK-US-004 绑定自定义域名与同站托管](stories/platform/ADESK-US-004-custom-domain.md)
-- 👀 [ADESK-US-005 跨浏览器与窄屏验收](stories/platform/ADESK-US-005-cross-browser-smoke.md)
+- 👀 [ADESK-US-005 Chrome 与窄屏验收](stories/platform/ADESK-US-005-cross-browser-smoke.md)
 - ✅ [ADESK-US-006 web 单测覆盖率门槛](stories/platform/ADESK-US-006-web-test-coverage-gate.md)
 - ✅ [ADESK-US-007 外网内容来源与隐私说明](stories/platform/ADESK-US-007-external-content-disclosure.md)
 - 👀 [ADESK-US-008 冒烟套件化](stories/platform/ADESK-US-008-smoke-suite.md)

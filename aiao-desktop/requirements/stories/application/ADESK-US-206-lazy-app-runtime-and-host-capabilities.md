@@ -149,7 +149,7 @@ capabilities: []
 
 原始记录：[initial-comparison-final.json](../../evidence/2026-11-14/initial-comparison-final.json)、[animation-restore-green.json](../../evidence/2026-11-14/animation-restore-green.json)、[Chromium最终聚合检查](../../evidence/2026-11-14/chromium-verify.json)；执行环境、命令和证据边界见[证据索引](../../evidence/2026-11-14/README.md)与[验收台账](../../verification-report.md)。
 
-AC#7 当前体积符合回溯数值对照，但基线是在实现之后重建测量，不能声称“实现前已记录”。阶段B因此保留评审，故事关闭还依赖 US-205；Firefox原iframe缺口已关闭；WebKit经Orbit的MessagePort读取现已按有限支持策略在入口禁用并持续说明原因，公告与授权共用有效能力列表，原成功读取检查仍保留为false。新产物完整复验和真机Safari边界在US-005分别记录，见[有限支持复验](../../evidence/2026-11-14/browser-support.md)。
+AC#7 当前体积符合回溯数值对照，但基线是在实现之后重建测量，不能声称“实现前已记录”。阶段B因此保留评审，故事关闭还依赖 US-205；Firefox原iframe缺口已关闭；WebKit经Orbit的MessagePort读取现已按有限支持策略在入口禁用并持续说明原因，公告与授权共用有效能力列表，原成功读取检查仍保留为false。按 [D-19](../../decisions.md#d-19只验收桌面-chrome)，本轮只验收Chrome；上述Firefox、WebKit与真机Safari记录作为历史或可选诊断，不再构成本轮验收阻塞。新产物复验与历史边界在US-005分别记录，见[有限支持复验](../../evidence/2026-11-14/browser-support.md)。
 
 ## References
 

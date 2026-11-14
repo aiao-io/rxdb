@@ -20,7 +20,7 @@ Aiao Desktop 作为一个多应用产品管理：Angular 桌面与浏览器冒�
 - [ ] 桌面绑定 aiao.io 下的自定义域名并与 Aiao Code 同站（[ADESK-US-004](../stories/platform/ADESK-US-004-custom-domain.md)）。
 - [x] 外网内容的来源、用途与会发送的数据在桌面里说清楚，代码里的外网主机清单与说明一致（[ADESK-US-007](../stories/platform/ADESK-US-007-external-content-disclosure.md)）。
 - [ ] 冒烟拆成可独立运行的检查组，并提供多页、持久 profile、新旧产物与多引擎夹具（[ADESK-US-008](../stories/platform/ADESK-US-008-smoke-suite.md)）。
-- [ ] 冒烟在 Safari 与 Firefox 上跑通，窄屏与触屏核心交互验收，写明浏览器支持矩阵（[ADESK-US-005](../stories/platform/ADESK-US-005-cross-browser-smoke.md)）。
+- [ ] 按 D-19 只验收桌面 Chrome，覆盖窄屏与触屏核心交互，写明浏览器范围（[ADESK-US-005](../stories/platform/ADESK-US-005-cross-browser-smoke.md)）。
 - [x] web 单测接入覆盖率门槛并挡住回退（[ADESK-US-006](../stories/platform/ADESK-US-006-web-test-coverage-gate.md)）。
 
 当前未勾选项包含已经实现、等待验收或依赖关闭的故事，具体保留项见状态总览。
@@ -33,7 +33,7 @@ Aiao Desktop 作为一个多应用产品管理：Angular 桌面与浏览器冒�
 - [ADESK-US-002 本地开发入口与开发导航](../stories/platform/ADESK-US-002-local-dev-dashboard.md) (Medium)
 - [ADESK-US-003 一键发布到 Cloudflare Pages](../stories/platform/ADESK-US-003-cloudflare-pages-deploy.md) (High)
 - [ADESK-US-004 绑定自定义域名与同站托管](../stories/platform/ADESK-US-004-custom-domain.md) (Medium)
-- [ADESK-US-005 跨浏览器与窄屏验收](../stories/platform/ADESK-US-005-cross-browser-smoke.md) (Medium)
+- [ADESK-US-005 Chrome 与窄屏验收](../stories/platform/ADESK-US-005-cross-browser-smoke.md) (Medium)
 - [ADESK-US-006 web 单测覆盖率门槛](../stories/platform/ADESK-US-006-web-test-coverage-gate.md) (Medium)
 - [ADESK-US-007 外网内容来源与隐私说明](../stories/platform/ADESK-US-007-external-content-disclosure.md) (High)
 - [ADESK-US-008 冒烟套件化](../stories/platform/ADESK-US-008-smoke-suite.md) (High)

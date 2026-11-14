@@ -1,4 +1,12 @@
 {
+  "acceptanceScope": {
+    "decision": "D-19",
+    "browser": "desktop Google Chrome",
+    "automatedEngine": "chromium",
+    "source": "User instruction: 只验收 chrome 就够了",
+    "scopeEvidence": "chrome-only-scope.json",
+    "otherBrowserAcceptanceRequired": false
+  },
   "allRequirementsComplete": false,
   "automatedVerification": {
     "command": "NX_NO_CLOUD=true pnpm nx run aiao-desktop:verify --skip-nx-cache --parallel=2 --output-style=static",
@@ -17,10 +25,7 @@
     "coverageReport": "coverage-summary-browser-support.json"
   },
   "browserVerification": {
-    "runManifests": [
-      "browser-support-runs.json",
-      "browser-support-webkit-followup-runs.json"
-    ],
+    "runManifests": ["browser-support-runs.json", "browser-support-webkit-followup-runs.json"],
     "implementationAndEvidence": "browser-support.md",
     "safariProductAcceptanceComplete": false,
     "summary": "browser-support-summary.json",
@@ -82,12 +87,16 @@
         "readOnlyQueryResultObserved": false,
         "stoppedAfterDifferentWindowObserved": true,
         "acceptanceServerStopped": true
-      }
-    }
+      },
+      "acceptanceRequired": false,
+      "notApplicableReason": "D-19: user restricted required browser acceptance to Chrome"
+    },
+    "requiredBrowser": "chrome",
+    "otherEngineRunsPurpose": "historical / optional diagnostics"
   },
   "format": "aiao-desktop.requirements-closeout",
-  "measuredAt": "2026-11-14T08:03:45+00:00",
-  "pendingAcceptanceCount": 6,
+  "measuredAt": "2026-11-14T09:17:39.338Z",
+  "pendingAcceptanceCount": 5,
   "previousAutomatedVerifications": [
     {
       "command": "NX_NO_CLOUD=true pnpm nx run aiao-desktop:verify --skip-nx-cache --parallel=2 --output-style=static",
@@ -116,7 +125,7 @@
       "chromiumSeconds": 297.1,
       "rawLog": "verify-browser-support-2.txt",
       "metadata": "verify-browser-support-2-metadata.json",
-      "checksReport": "chromium-browser-support-verify.json",
+      "checksReport": "chromium-browser-support-verify-2.json",
       "coverageReport": "coverage-summary-browser-support.json"
     }
   ],
@@ -125,62 +134,42 @@
       "id": "ADESK-US-201",
       "status": "Done",
       "path": "stories/application/ADESK-US-201-application-system.md",
-      "dependsOn": [
-        "ADESK-US-101"
-      ],
+      "dependsOn": "[ADESK-US-101]",
       "pendingAcceptance": []
     },
     {
       "id": "ADESK-US-202",
       "status": "Done",
       "path": "stories/application/ADESK-US-202-integrated-app-runtime.md",
-      "dependsOn": [
-        "ADESK-US-201"
-      ],
+      "dependsOn": "[ADESK-US-201]",
       "pendingAcceptance": []
     },
     {
       "id": "ADESK-US-203",
       "status": "Done",
       "path": "stories/application/ADESK-US-203-aiao-code.md",
-      "dependsOn": [
-        "ADESK-US-201",
-        "ADESK-US-202"
-      ],
+      "dependsOn": "[ADESK-US-201, ADESK-US-202]",
       "pendingAcceptance": []
     },
     {
       "id": "ADESK-US-204",
       "status": "Done",
       "path": "stories/application/ADESK-US-204-transparent-window.md",
-      "dependsOn": [
-        "ADESK-US-202"
-      ],
+      "dependsOn": "[ADESK-US-202]",
       "pendingAcceptance": []
     },
     {
       "id": "ADESK-US-205",
       "status": "In Review",
       "path": "stories/application/ADESK-US-205-application-management.md",
-      "dependsOn": [
-        "ADESK-US-101",
-        "ADESK-US-102",
-        "ADESK-US-106",
-        "ADESK-US-201",
-        "ADESK-US-202"
-      ],
+      "dependsOn": "[ADESK-US-101, ADESK-US-102, ADESK-US-106, ADESK-US-201, ADESK-US-202]",
       "pendingAcceptance": []
     },
     {
       "id": "ADESK-US-206",
       "status": "In Review",
       "path": "stories/application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md",
-      "dependsOn": [
-        "ADESK-US-201",
-        "ADESK-US-202",
-        "ADESK-US-204",
-        "ADESK-US-205"
-      ],
+      "dependsOn": "[ADESK-US-201, ADESK-US-202, ADESK-US-204, ADESK-US-205]",
       "pendingAcceptance": [
         {
           "ac": 7,
@@ -192,66 +181,49 @@
       "id": "ADESK-US-101",
       "status": "Done",
       "path": "stories/desktop/ADESK-US-101-desktop-shell-baseline.md",
-      "dependsOn": [],
+      "dependsOn": "[]",
       "pendingAcceptance": []
     },
     {
       "id": "ADESK-US-102",
       "status": "Done",
       "path": "stories/desktop/ADESK-US-102-local-data-and-real-disk.md",
-      "dependsOn": [
-        "ADESK-US-101"
-      ],
+      "dependsOn": "[ADESK-US-101]",
       "pendingAcceptance": []
     },
     {
       "id": "ADESK-US-103",
       "status": "Done",
       "path": "stories/desktop/ADESK-US-103-saltline-game.md",
-      "dependsOn": [
-        "ADESK-US-101"
-      ],
+      "dependsOn": "[ADESK-US-101]",
       "pendingAcceptance": []
     },
     {
       "id": "ADESK-US-104",
       "status": "In Review",
       "path": "stories/desktop/ADESK-US-104-window-layout-persistence.md",
-      "dependsOn": [
-        "ADESK-US-008",
-        "ADESK-US-102",
-        "ADESK-US-206"
-      ],
+      "dependsOn": "[ADESK-US-008, ADESK-US-102, ADESK-US-206]",
       "pendingAcceptance": []
     },
     {
       "id": "ADESK-US-105",
       "status": "In Review",
       "path": "stories/desktop/ADESK-US-105-multi-tab-sync.md",
-      "dependsOn": [
-        "ADESK-US-102",
-        "ADESK-US-008"
-      ],
+      "dependsOn": "[ADESK-US-102, ADESK-US-008]",
       "pendingAcceptance": []
     },
     {
       "id": "ADESK-US-106",
       "status": "In Review",
       "path": "stories/desktop/ADESK-US-106-database-upgrade-path.md",
-      "dependsOn": [
-        "ADESK-US-102",
-        "ADESK-US-008"
-      ],
+      "dependsOn": "[ADESK-US-102, ADESK-US-008]",
       "pendingAcceptance": []
     },
     {
       "id": "ADESK-US-107",
       "status": "In Review",
       "path": "stories/desktop/ADESK-US-107-shell-interaction-coverage.md",
-      "dependsOn": [
-        "ADESK-US-101",
-        "ADESK-US-102"
-      ],
+      "dependsOn": "[ADESK-US-101, ADESK-US-102]",
       "pendingAcceptance": [
         {
           "ac": 8,
@@ -263,9 +235,7 @@
       "id": "ADESK-US-108",
       "status": "In Review",
       "path": "stories/desktop/ADESK-US-108-accessibility.md",
-      "dependsOn": [
-        "ADESK-US-101"
-      ],
+      "dependsOn": "[ADESK-US-101]",
       "pendingAcceptance": [
         {
           "ac": 6,
@@ -277,34 +247,28 @@
       "id": "ADESK-US-001",
       "status": "Done",
       "path": "stories/platform/ADESK-US-001-product-root.md",
-      "dependsOn": [],
+      "dependsOn": "[]",
       "pendingAcceptance": []
     },
     {
       "id": "ADESK-US-002",
       "status": "Done",
       "path": "stories/platform/ADESK-US-002-local-dev-dashboard.md",
-      "dependsOn": [
-        "ADESK-US-001"
-      ],
+      "dependsOn": "[ADESK-US-001]",
       "pendingAcceptance": []
     },
     {
       "id": "ADESK-US-003",
       "status": "Done",
       "path": "stories/platform/ADESK-US-003-cloudflare-pages-deploy.md",
-      "dependsOn": [
-        "ADESK-US-001"
-      ],
+      "dependsOn": "[ADESK-US-001]",
       "pendingAcceptance": []
     },
     {
       "id": "ADESK-US-004",
       "status": "In Review",
       "path": "stories/platform/ADESK-US-004-custom-domain.md",
-      "dependsOn": [
-        "ADESK-US-003"
-      ],
+      "dependsOn": "[ADESK-US-003]",
       "pendingAcceptance": [
         {
           "ac": 2,
@@ -316,42 +280,28 @@
       "id": "ADESK-US-005",
       "status": "In Review",
       "path": "stories/platform/ADESK-US-005-cross-browser-smoke.md",
-      "dependsOn": [
-        "ADESK-US-008",
-        "ADESK-US-101",
-        "ADESK-US-102"
-      ],
-      "pendingAcceptance": [
-        {
-          "ac": 4,
-          "status": "⚠️"
-        }
-      ]
+      "dependsOn": "[ADESK-US-008, ADESK-US-101, ADESK-US-102]",
+      "pendingAcceptance": []
     },
     {
       "id": "ADESK-US-006",
       "status": "Done",
       "path": "stories/platform/ADESK-US-006-web-test-coverage-gate.md",
-      "dependsOn": [
-        "ADESK-US-102"
-      ],
+      "dependsOn": "[ADESK-US-102]",
       "pendingAcceptance": []
     },
     {
       "id": "ADESK-US-007",
       "status": "Done",
       "path": "stories/platform/ADESK-US-007-external-content-disclosure.md",
-      "dependsOn": [],
+      "dependsOn": "[]",
       "pendingAcceptance": []
     },
     {
       "id": "ADESK-US-008",
       "status": "In Review",
       "path": "stories/platform/ADESK-US-008-smoke-suite.md",
-      "dependsOn": [
-        "ADESK-US-101",
-        "ADESK-US-102"
-      ],
+      "dependsOn": "[ADESK-US-101, ADESK-US-102]",
       "pendingAcceptance": [
         {
           "ac": 10,

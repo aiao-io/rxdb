@@ -1,12 +1,14 @@
 # 2026-11-14 验收证据
 
+当前浏览器范围已按用户明确要求[收敛为桌面Chrome](../../decisions.md#d-19只验收桌面-chrome)，详见[范围调整记录](chrome-only-scope.json)。本页下方Safari、Firefox、WebKit的既有记录与当时的6项待验计数是范围调整前的历史；当前计数以[需求汇总](closeout-summary.json)的5项为准。历史失败及未完成观察不改成通过。
+
 执行环境：Apple M1 Max、macOS/Darwin 27.2.0 arm64、Node 26.12.0、pnpm 12.16.1。各轮源码按报告source记录（涵盖 `0dcdabca`、`d95812da`、`0ccab7cf`、`6ed149a5`、`d49507e3`、`13d8a872` 及当时工作区改动）；本轮未执行生产发布。报告里的 ISO 时间为 UTC，本目录日期按 Asia/Shanghai。每份 JSON 保留实际浏览器版本、输入、逐项结果和产物摘要。
 
 ## 当前本地门禁
 
 [本轮聚合日志](verify-browser-support-3.txt)来自 `NX_NO_CLOUD=true pnpm nx run aiao-desktop:verify --skip-nx-cache --parallel=2 --output-style=static`：绕过缓存，含根目标在内 56 个任务、退出码 0，命令包装器实测 347.906 秒。92 个 web 测试文件的 1348 个用例、53 个 e2e 脚本用例、需求与开发/安全/发布脚本测试、lint、typecheck、build、16 项夹具自检和 92 个产物文本文件的密钥扫描均通过。开始与结束 SHA、真实工作区状态见[执行元数据](verify-browser-support-3-metadata.json)，不声明工作区干净。
 
-默认 Chromium 24 组 / 479 项检查通过，301.4 秒；[检查对象](chromium-browser-support-verify.json)从本次日志中原样提取，没有重建未输出的逐组 outcomes。[本轮覆盖率](coverage-summary-browser-support.json)为语句 98.61%、行 99.31%、函数 98.82%、分支 95.35%。[需求汇总](closeout-summary.json)从故事 YAML 派生，目前为 12 条 Done、10 条 In Review、6 项 AC 待关闭；US-005 #1、#5已按支持分档验收，#4真机Safari仍保留。
+默认 Chromium 24 组 / 479 项检查通过，301.4 秒；[检查对象](chromium-browser-support-verify.json)从本次日志中原样提取，没有重建未输出的逐组 outcomes。[本轮覆盖率](coverage-summary-browser-support.json)为语句 98.61%、行 99.31%、函数 98.82%、分支 95.35%。[需求汇总](closeout-summary.json)从故事 YAML 派生，目前为 12 条 Done、10 条 In Review、5 项 AC 待关闭；按用户要求和D-19只验收Chrome，US-005当前AC全部通过，仍等待US-008硬依赖关闭。
 
 WebKit 的宿主剪贴板读取已在入口禁用并持续说明原因，握手公告与实际授权同时撤下读取能力。原成功读取检查仍保留为 false；新产物 Firefox 两轮均 479/479、clean=true，WebKit 两轮均 478/479、passed=true、clean=false，无缺项、清单外失败或页面错误；完整轮次与原生 Safari 边界见[有限支持实现与复验](browser-support.md)。
 

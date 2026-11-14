@@ -32,10 +32,10 @@ pnpm nx run aiao-desktop-e2e:verify-keyboard --args='--out=/Users/jimmy/Document
 
 [US-108 #6](../stories/desktop/ADESK-US-108-accessibility.md)按[VoiceOver清单](../../apps/e2e/VOICEOVER.md)记录V01～V14实际播报。2026-11-14检查时VoiceOver未运行；自动化AX树不能替代真实读屏输出。临时开启系统VoiceOver并恢复原状态是后续具体操作，尚未执行。
 
-## 跨浏览器证据（真机 Safari 待补齐）
+## Chrome 范围（已按用户要求收敛）
 
-[US-005](../stories/platform/ADESK-US-005-cross-browser-smoke.md)的Firefox四项旧限制已撤除，同站不同源HTTPS组合使用原生Frame。新产物两轮均为479/479、passed=true、clean=true。WebKit已在入口禁用经Orbit的MessagePort读取并持续说明原因，握手公告与实际授权共用有效能力；两轮均478/479、passed=true、clean=false，原成功读取检查继续为false，没有用宿主直接读取替代。四轮无缺项、无清单外失败或页面错误，见[完整复验](../evidence/2026-11-14/browser-support.md#新产物跨浏览器连续复验)。#1及按#1支持分档执行的#5据此关闭，本次两轮未出现flake；不能推广为不存在时序缺陷。
+用户明确要求“只验收 chrome 就够了”，已按[D-19](../decisions.md#d-19只验收桌面-chrome)同步[US-005](../stories/platform/ADESK-US-005-cross-browser-smoke.md)、能力矩阵、README和台账。当前正式产物的Chromium两轮均为24组479项全部通过，窄屏与触屏仿真通过；真实Chrome的GPU与游戏记录单独归档。US-005当前AC全部通过，仍等待US-008硬依赖关闭。
 
-#4真机Safari产品验收仍待完成。原生Safari已补入口说明、真实Aiao Code加载、文本编辑保存和刷新恢复；[后续验收](../evidence/2026-11-14/safari-product-followup.json)确认终端提示符、文件读写及刷新恢复，游戏已有真实3D画面与暂停/继续观察。指针锁定、完整游戏输入和全流程错误采集仍待补齐；鼠标捕获提示不直接归因为Safari能力缺失。用户改变Safari窗口后停止了GUI操作，本次静态服务已停止。Playwright WebKit有限支持不能直接改写成Safari已支持。故事仍In Review，历史基线例外、本机物理键盘与VoiceOver、正式发布也各自保留。
+Safari、Firefox、WebKit均不在本轮必验或支持承诺内。[历史跨浏览器记录](../evidence/2026-11-14/browser-support.md)、[Safari后续验收](../evidence/2026-11-14/safari-product-followup.json)和[再次游戏检查](../evidence/2026-11-14/safari-game-probe.json)完整保留；未完成的Safari观察没有改写成通过。
 
-[再次原生游戏检查](../evidence/2026-11-14/safari-game-probe.json)仍未补齐#4：内嵌及独立 bench 页面均观察到“准备就绪”遮罩，未取得只读状态或性能返回值，根因未建立。不同 UUID 的起始页出现后停止 GUI，本轮服务已停止。既有成功观察与本轮异常同时保留，不将未确认的能力填写为已通过。
+当前仍有5项AC待关闭：US-008 #10、US-206 #7的历史流程证据，US-107 #8物理键盘，US-108 #6 VoiceOver，以及US-004 #2本次正式发布。Chrome范围调整不豁免这些项目，见[范围调整记录](../evidence/2026-11-14/chrome-only-scope.json)。
